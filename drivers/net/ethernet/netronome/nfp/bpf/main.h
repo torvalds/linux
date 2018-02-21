@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Netronome Systems, Inc.
+ * Copyright (C) 2016-2017 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -37,21 +37,39 @@
 #include <linux/bitfield.h>
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
+#include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
+#include <linux/wait.h>
 
 #include "../nfp_asm.h"
+#include "fw.h"
 
-/* For branch fixup logic use up-most byte of branch instruction as scratch
+/* For relocation logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
  */
-#define OP_BR_SPECIAL	0xff00000000000000ULL
+#define OP_RELO_TYPE	0xff00000000000000ULL
 
-enum br_special {
-	OP_BR_NORMAL = 0,
-	OP_BR_GO_OUT,
-	OP_BR_GO_ABORT,
+enum nfp_relo_type {
+	RELO_NONE = 0,
+	/* standard internal jumps */
+	RELO_BR_REL,
+	/* internal jumps to parts of the outro */
+	RELO_BR_GO_OUT,
+	RELO_BR_GO_ABORT,
+	/* external jumps to fixed addresses */
+	RELO_BR_NEXT_PKT,
+	RELO_BR_HELPER,
+	/* immediate relocation against load address */
+	RELO_IMMED_REL,
 };
+
+/* To make absolute relocated branches (branches other than RELO_BR_REL)
+ * distinguishable in user space dumps from normal jumps, add a large offset
+ * to them.
+ */
+#define BR_OFF_RELO		15000
 
 enum static_regs {
 	STATIC_REG_IMM		= 21, /* Bank AB */
@@ -78,6 +96,89 @@ enum pkt_vec {
 #define NFP_BPF_ABI_FLAGS	reg_imm(0)
 #define   NFP_BPF_ABI_FLAG_MARK	1
 
+/**
+ * struct nfp_app_bpf - bpf app priv structure
+ * @app:		backpointer to the app
+ *
+ * @tag_allocator:	bitmap of control message tags in use
+ * @tag_alloc_next:	next tag bit to allocate
+ * @tag_alloc_last:	next tag bit to be freed
+ *
+ * @cmsg_replies:	received cmsg replies waiting to be consumed
+ * @cmsg_wq:		work queue for waiting for cmsg replies
+ *
+ * @map_list:		list of offloaded maps
+ * @maps_in_use:	number of currently offloaded maps
+ * @map_elems_in_use:	number of elements allocated to offloaded maps
+ *
+ * @adjust_head:	adjust head capability
+ * @adjust_head.flags:		extra flags for adjust head
+ * @adjust_head.off_min:	minimal packet offset within buffer required
+ * @adjust_head.off_max:	maximum packet offset within buffer required
+ * @adjust_head.guaranteed_sub:	negative adjustment guaranteed possible
+ * @adjust_head.guaranteed_add:	positive adjustment guaranteed possible
+ *
+ * @maps:		map capability
+ * @maps.types:			supported map types
+ * @maps.max_maps:		max number of maps supported
+ * @maps.max_elems:		max number of entries in each map
+ * @maps.max_key_sz:		max size of map key
+ * @maps.max_val_sz:		max size of map value
+ * @maps.max_elem_sz:		max size of map entry (key + value)
+ *
+ * @helpers:		helper addressess for various calls
+ * @helpers.map_lookup:		map lookup helper address
+ */
+struct nfp_app_bpf {
+	struct nfp_app *app;
+
+	DECLARE_BITMAP(tag_allocator, U16_MAX + 1);
+	u16 tag_alloc_next;
+	u16 tag_alloc_last;
+
+	struct sk_buff_head cmsg_replies;
+	struct wait_queue_head cmsg_wq;
+
+	struct list_head map_list;
+	unsigned int maps_in_use;
+	unsigned int map_elems_in_use;
+
+	struct nfp_bpf_cap_adjust_head {
+		u32 flags;
+		int off_min;
+		int off_max;
+		int guaranteed_sub;
+		int guaranteed_add;
+	} adjust_head;
+
+	struct {
+		u32 types;
+		u32 max_maps;
+		u32 max_elems;
+		u32 max_key_sz;
+		u32 max_val_sz;
+		u32 max_elem_sz;
+	} maps;
+
+	struct {
+		u32 map_lookup;
+	} helpers;
+};
+
+/**
+ * struct nfp_bpf_map - private per-map data attached to BPF maps for offload
+ * @offmap:	pointer to the offloaded BPF map
+ * @bpf:	back pointer to bpf app private structure
+ * @tid:	table id identifying map on datapath
+ * @l:		link on the nfp_app_bpf->map_list list
+ */
+struct nfp_bpf_map {
+	struct bpf_offloaded_map *offmap;
+	struct nfp_app_bpf *bpf;
+	u32 tid;
+	struct list_head l;
+};
+
 struct nfp_prog;
 struct nfp_insn_meta;
 typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
@@ -89,23 +190,47 @@ typedef int (*instr_cb_t)(struct nfp_prog *, struct nfp_insn_meta *);
 #define nfp_meta_next(meta)	list_next_entry(meta, l)
 #define nfp_meta_prev(meta)	list_prev_entry(meta, l)
 
+#define FLAG_INSN_IS_JUMP_DST	BIT(0)
+
 /**
  * struct nfp_insn_meta - BPF instruction wrapper
  * @insn: BPF instruction
  * @ptr: pointer type for memory operations
+ * @ldst_gather_len: memcpy length gathered from load/store sequence
+ * @paired_st: the paired store insn at the head of the sequence
  * @ptr_not_const: pointer is not always constant
+ * @jmp_dst: destination info for jump instructions
+ * @func_id: function id for call instructions
+ * @arg1: arg1 for call instructions
+ * @arg2: arg2 for call instructions
+ * @arg2_var_off: arg2 changes stack offset on different paths
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
+ * @flags: eBPF instruction extra optimization flags
  * @skip: skip this instruction (optimized out)
  * @double_cb: callback for second part of the instruction
  * @l: link on nfp_prog->insns list
  */
 struct nfp_insn_meta {
 	struct bpf_insn insn;
-	struct bpf_reg_state ptr;
-	bool ptr_not_const;
+	union {
+		struct {
+			struct bpf_reg_state ptr;
+			struct bpf_insn *paired_st;
+			s16 ldst_gather_len;
+			bool ptr_not_const;
+		};
+		struct nfp_insn_meta *jmp_dst;
+		struct {
+			u32 func_id;
+			struct bpf_reg_state arg1;
+			struct bpf_reg_state arg2;
+			bool arg2_var_off;
+		};
+	};
 	unsigned int off;
 	unsigned short n;
+	unsigned short flags;
 	bool skip;
 	instr_cb_t double_cb;
 
@@ -134,23 +259,36 @@ static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
 	return BPF_MODE(meta->insn.code);
 }
 
+static inline bool is_mbpf_load(const struct nfp_insn_meta *meta)
+{
+	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_LDX | BPF_MEM);
+}
+
+static inline bool is_mbpf_store(const struct nfp_insn_meta *meta)
+{
+	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_MEM);
+}
+
 /**
  * struct nfp_prog - nfp BPF program
+ * @bpf: backpointer to the bpf app priv structure
  * @prog: machine code
  * @prog_len: number of valid instructions in @prog array
  * @__prog_alloc_len: alloc size of @prog array
  * @verifier_meta: temporary storage for verifier's insn meta
  * @type: BPF program type
- * @start_off: address of the first instruction in the memory
+ * @last_bpf_off: address of the last instruction translated from BPF
  * @tgt_out: jump target for normal exit
  * @tgt_abort: jump target for abort (e.g. access outside of packet buffer)
- * @tgt_done: jump target to get the next packet
  * @n_translated: number of successfully translated instructions (for errors)
  * @error: error code if something went wrong
  * @stack_depth: max stack depth from the verifier
+ * @adjust_head_location: if program has single adjust head call - the insn no.
  * @insns: list of BPF instruction wrappers (struct nfp_insn_meta)
  */
 struct nfp_prog {
+	struct nfp_app_bpf *bpf;
+
 	u64 *prog;
 	unsigned int prog_len;
 	unsigned int __prog_alloc_len;
@@ -159,34 +297,65 @@ struct nfp_prog {
 
 	enum bpf_prog_type type;
 
-	unsigned int start_off;
+	unsigned int last_bpf_off;
 	unsigned int tgt_out;
 	unsigned int tgt_abort;
-	unsigned int tgt_done;
 
 	unsigned int n_translated;
 	int error;
 
 	unsigned int stack_depth;
+	unsigned int adjust_head_location;
 
 	struct list_head insns;
 };
 
-int nfp_bpf_jit(struct nfp_prog *prog);
+/**
+ * struct nfp_bpf_vnic - per-vNIC BPF priv structure
+ * @tc_prog:	currently loaded cls_bpf program
+ * @start_off:	address of the first instruction in the memory
+ * @tgt_done:	jump target to get the next packet
+ */
+struct nfp_bpf_vnic {
+	struct bpf_prog *tc_prog;
+	unsigned int start_off;
+	unsigned int tgt_done;
+};
 
-extern const struct bpf_ext_analyzer_ops nfp_bpf_analyzer_ops;
+void nfp_bpf_jit_prepare(struct nfp_prog *nfp_prog, unsigned int cnt);
+int nfp_bpf_jit(struct nfp_prog *prog);
+bool nfp_bpf_supported_opcode(u8 code);
+
+extern const struct bpf_prog_offload_ops nfp_bpf_analyzer_ops;
 
 struct netdev_bpf;
 struct nfp_app;
 struct nfp_net;
 
+int nfp_ndo_bpf(struct nfp_app *app, struct nfp_net *nn,
+		struct netdev_bpf *bpf);
 int nfp_net_bpf_offload(struct nfp_net *nn, struct bpf_prog *prog,
-			bool old_prog);
+			bool old_prog, struct netlink_ext_ack *extack);
 
-int nfp_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
-			  struct netdev_bpf *bpf);
-int nfp_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
-		      struct bpf_prog *prog);
-int nfp_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
-		    struct bpf_prog *prog);
+struct nfp_insn_meta *
+nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
+		  unsigned int insn_idx, unsigned int n_insns);
+
+void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv);
+
+long long int
+nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map);
+void
+nfp_bpf_ctrl_free_map(struct nfp_app_bpf *bpf, struct nfp_bpf_map *nfp_map);
+int nfp_bpf_ctrl_getfirst_entry(struct bpf_offloaded_map *offmap,
+				void *next_key);
+int nfp_bpf_ctrl_update_entry(struct bpf_offloaded_map *offmap,
+			      void *key, void *value, u64 flags);
+int nfp_bpf_ctrl_del_entry(struct bpf_offloaded_map *offmap, void *key);
+int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
+			      void *key, void *value);
+int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
+			       void *key, void *next_key);
+
+void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
 #endif

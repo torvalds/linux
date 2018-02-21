@@ -44,6 +44,7 @@
 
 /* The 'colour' (ie low bits) within a PMD of a page offset.  */
 #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+#define PG_PMD_NR	(PMD_SIZE >> PAGE_SHIFT)
 
 static wait_queue_head_t wait_table[DAX_WAIT_TABLE_ENTRIES];
 
@@ -375,8 +376,8 @@ restart:
 		 * unmapped.
 		 */
 		if (pmd_downgrade && dax_is_zero_entry(entry))
-			unmap_mapping_range(mapping,
-				(index << PAGE_SHIFT) & PMD_MASK, PMD_SIZE, 0);
+			unmap_mapping_pages(mapping, index & ~PG_PMD_COLOUR,
+							PG_PMD_NR, false);
 
 		err = radix_tree_preload(
 				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
@@ -538,12 +539,10 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
 	if (dax_is_zero_entry(entry) && !(flags & RADIX_DAX_ZERO_PAGE)) {
 		/* we are replacing a zero page with block mapping */
 		if (dax_is_pmd_entry(entry))
-			unmap_mapping_range(mapping,
-					(vmf->pgoff << PAGE_SHIFT) & PMD_MASK,
-					PMD_SIZE, 0);
+			unmap_mapping_pages(mapping, index & ~PG_PMD_COLOUR,
+							PG_PMD_NR, false);
 		else /* pte entry */
-			unmap_mapping_range(mapping, vmf->pgoff << PAGE_SHIFT,
-					PAGE_SIZE, 0);
+			unmap_mapping_pages(mapping, vmf->pgoff, 1, false);
 	}
 
 	spin_lock_irq(&mapping->tree_lock);
@@ -627,8 +626,7 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
 
 			if (pfn != pmd_pfn(*pmdp))
 				goto unlock_pmd;
-			if (!pmd_dirty(*pmdp)
-					&& !pmd_access_permitted(*pmdp, WRITE))
+			if (!pmd_dirty(*pmdp) && !pmd_write(*pmdp))
 				goto unlock_pmd;
 
 			flush_cache_page(vma, address, pfn);
@@ -637,8 +635,8 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
 			pmd = pmd_mkclean(pmd);
 			set_pmd_at(vma->vm_mm, address, pmdp, pmd);
 unlock_pmd:
-			spin_unlock(ptl);
 #endif
+			spin_unlock(ptl);
 		} else {
 			if (pfn != pte_pfn(*ptep))
 				goto unlock_pte;
@@ -1097,7 +1095,7 @@ static bool dax_fault_is_synchronous(unsigned long flags,
 }
 
 static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
-			       const struct iomap_ops *ops)
+			       int *iomap_errp, const struct iomap_ops *ops)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct address_space *mapping = vma->vm_file->f_mapping;
@@ -1150,6 +1148,8 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 	 * that we never have to deal with more than a single extent here.
 	 */
 	error = ops->iomap_begin(inode, pos, PAGE_SIZE, flags, &iomap);
+	if (iomap_errp)
+		*iomap_errp = error;
 	if (error) {
 		vmf_ret = dax_fault_return(error);
 		goto unlock_entry;
@@ -1270,12 +1270,6 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
 }
 
 #ifdef CONFIG_FS_DAX_PMD
-/*
- * The 'colour' (ie low bits) within a PMD of a page offset.  This comes up
- * more often than one might expect in the below functions.
- */
-#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
-
 static int dax_pmd_load_hole(struct vm_fault *vmf, struct iomap *iomap,
 		void *entry)
 {
@@ -1489,6 +1483,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
  * @vmf: The description of the fault
  * @pe_size: Size of the page to fault in
  * @pfnp: PFN to insert for synchronous faults if fsync is required
+ * @iomap_errp: Storage for detailed error code in case of error
  * @ops: Iomap ops passed from the file system
  *
  * When a page fault occurs, filesystems may call this helper in
@@ -1497,11 +1492,11 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
  * successfully.
  */
 int dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
-		    pfn_t *pfnp, const struct iomap_ops *ops)
+		    pfn_t *pfnp, int *iomap_errp, const struct iomap_ops *ops)
 {
 	switch (pe_size) {
 	case PE_SIZE_PTE:
-		return dax_iomap_pte_fault(vmf, pfnp, ops);
+		return dax_iomap_pte_fault(vmf, pfnp, iomap_errp, ops);
 	case PE_SIZE_PMD:
 		return dax_iomap_pmd_fault(vmf, pfnp, ops);
 	default:

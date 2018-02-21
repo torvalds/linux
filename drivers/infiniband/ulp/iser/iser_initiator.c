@@ -142,8 +142,7 @@ iser_prepare_write_cmd(struct iscsi_task *task,
 			hdr->write_va = cpu_to_be64(mem_reg->sge.addr + unsol_sz);
 		}
 
-		iser_dbg("Cmd itt:%d, WRITE tags, RKEY:%#.4X "
-			 "VA:%#llX + unsol:%d\n",
+		iser_dbg("Cmd itt:%d, WRITE tags, RKEY:%#.4X VA:%#llX + unsol:%d\n",
 			 task->itt, mem_reg->rkey,
 			 (unsigned long long)mem_reg->sge.addr, unsol_sz);
 	}
@@ -436,7 +435,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 {
 	struct iser_conn *iser_conn = conn->dd_data;
 	struct iscsi_iser_task *iser_task = task->dd_data;
-	struct iser_tx_desc *tx_desc = NULL;
+	struct iser_tx_desc *tx_desc;
 	struct iser_mem_reg *mem_reg;
 	unsigned long buf_offset;
 	unsigned long data_seg_len;
@@ -452,10 +451,8 @@ int iser_send_data_out(struct iscsi_conn *conn,
 		 __func__,(int)itt,(int)data_seg_len,(int)buf_offset);
 
 	tx_desc = kmem_cache_zalloc(ig.desc_cache, GFP_ATOMIC);
-	if (tx_desc == NULL) {
-		iser_err("Failed to alloc desc for post dataout\n");
+	if (!tx_desc)
 		return -ENOMEM;
-	}
 
 	tx_desc->type = ISCSI_TX_DATAOUT;
 	tx_desc->cqe.done = iser_dataout_comp;
@@ -475,8 +472,7 @@ int iser_send_data_out(struct iscsi_conn *conn,
 	tx_desc->num_sge = 2;
 
 	if (buf_offset + data_seg_len > iser_task->data[ISER_DIR_OUT].data_len) {
-		iser_err("Offset:%ld & DSL:%ld in Data-Out "
-			 "inconsistent with total len:%ld, itt:%d\n",
+		iser_err("Offset:%ld & DSL:%ld in Data-Out inconsistent with total len:%ld, itt:%d\n",
 			 buf_offset, data_seg_len,
 			 iser_task->data[ISER_DIR_OUT].data_len, itt);
 		err = -EINVAL;
@@ -614,8 +610,8 @@ iser_check_remote_inv(struct iser_conn *iser_conn,
 			 iser_conn, rkey);
 
 		if (unlikely(!iser_conn->snd_w_inv)) {
-			iser_err("conn %p: unexpected remote invalidation, "
-				 "terminating connection\n", iser_conn);
+			iser_err("conn %p: unexpected remote invalidation, terminating connection\n",
+				 iser_conn);
 			return -EPROTO;
 		}
 

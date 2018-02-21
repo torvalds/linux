@@ -938,8 +938,9 @@ static bool construct(
 	link->link_id = bios->funcs->get_connector_id(bios, init_params->connector_index);
 
 	if (link->link_id.type != OBJECT_TYPE_CONNECTOR) {
-		dm_error("%s: Invalid Connector ObjectID from Adapter Service for connector index:%d!\n",
-				__func__, init_params->connector_index);
+		dm_error("%s: Invalid Connector ObjectID from Adapter Service for connector index:%d! type %d expected %d\n",
+			 __func__, init_params->connector_index,
+			 link->link_id.type, OBJECT_TYPE_CONNECTOR);
 		goto create_fail;
 	}
 
@@ -1267,6 +1268,24 @@ static enum dc_status enable_link_dp(
 		status = DC_FAIL_DP_LINK_TRAINING;
 
 	enable_stream_features(pipe_ctx);
+
+	return status;
+}
+
+static enum dc_status enable_link_edp(
+		struct dc_state *state,
+		struct pipe_ctx *pipe_ctx)
+{
+	enum dc_status status;
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->sink->link;
+
+	link->dc->hwss.edp_power_control(link, true);
+	link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+
+	status = enable_link_dp(state, pipe_ctx);
+
+	link->dc->hwss.edp_backlight_control(link, true);
 
 	return status;
 }
@@ -1746,8 +1765,10 @@ static enum dc_status enable_link(
 	enum dc_status status = DC_ERROR_UNEXPECTED;
 	switch (pipe_ctx->stream->signal) {
 	case SIGNAL_TYPE_DISPLAY_PORT:
-	case SIGNAL_TYPE_EDP:
 		status = enable_link_dp(state, pipe_ctx);
+		break;
+	case SIGNAL_TYPE_EDP:
+		status = enable_link_edp(state, pipe_ctx);
 		break;
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		status = enable_link_dp_mst(state, pipe_ctx);
@@ -1798,10 +1819,10 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 		else
 			dp_disable_link_phy_mst(link, signal);
 	} else
-		link->link_enc->funcs->disable_output(link->link_enc, signal, link);
+		link->link_enc->funcs->disable_output(link->link_enc, signal);
 }
 
-bool dp_active_dongle_validate_timing(
+static bool dp_active_dongle_validate_timing(
 		const struct dc_crtc_timing *timing,
 		const struct dc_dongle_caps *dongle_caps)
 {
@@ -1833,6 +1854,8 @@ bool dp_active_dongle_validate_timing(
 	/* Check Color Depth and Pixel Clock */
 	if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		required_pix_clk /= 2;
+	else if (timing->pixel_encoding == PIXEL_ENCODING_YCBCR422)
+		required_pix_clk = required_pix_clk * 2 / 3;
 
 	switch (timing->display_color_depth) {
 	case COLOR_DEPTH_666:
@@ -1869,7 +1892,7 @@ enum dc_status dc_link_validate_mode_timing(
 		const struct dc_crtc_timing *timing)
 {
 	uint32_t max_pix_clk = stream->sink->dongle_max_pix_clk;
-	struct dc_dongle_caps *dongle_caps = &link->link_status.dpcd_caps->dongle_caps;
+	struct dc_dongle_caps *dongle_caps = &link->dpcd_caps.dongle_caps;
 
 	/* A hack to avoid failing any modes for EDID override feature on
 	 * topology change such as lower quality cable for DP or different dongle
@@ -1907,11 +1930,17 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 {
 	struct dc  *core_dc = link->ctx->dc;
 	struct abm *abm = core_dc->res_pool->abm;
+	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 	unsigned int controller_id = 0;
+	bool use_smooth_brightness = true;
 	int i;
 
-	if ((abm == NULL) || (abm->funcs->set_backlight_level == NULL))
+	if ((dmcu == NULL) ||
+		(abm == NULL) ||
+		(abm->funcs->set_backlight_level == NULL))
 		return false;
+
+	use_smooth_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
 
 	dm_logger_write(link->ctx->logger, LOG_BACKLIGHT,
 			"New Backlight level: %d (0x%X)\n", level, level);
@@ -1935,7 +1964,8 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 				abm,
 				level,
 				frame_ramp,
-				controller_id);
+				controller_id,
+				use_smooth_brightness);
 	}
 
 	return true;
@@ -1950,144 +1980,6 @@ bool dc_link_set_psr_enable(const struct dc_link *link, bool enable, bool wait)
 		dmcu->funcs->set_psr_enable(dmcu, enable, wait);
 
 	return true;
-}
-
-bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
-{
-	struct dc  *core_dc = link->ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
-
-	if (dmcu != NULL && link->psr_enabled)
-		dmcu->funcs->get_psr_state(dmcu, psr_state);
-
-	return true;
-}
-
-bool dc_link_setup_psr(struct dc_link *link,
-		const struct dc_stream_state *stream, struct psr_config *psr_config,
-		struct psr_context *psr_context)
-{
-	struct dc  *core_dc = link->ctx->dc;
-	struct dmcu *dmcu = core_dc->res_pool->dmcu;
-	int i;
-
-	psr_context->controllerId = CONTROLLER_ID_UNDEFINED;
-
-	if (link != NULL &&
-		dmcu != NULL) {
-		/* updateSinkPsrDpcdConfig*/
-		union dpcd_psr_configuration psr_configuration;
-
-		memset(&psr_configuration, 0, sizeof(psr_configuration));
-
-		psr_configuration.bits.ENABLE                    = 1;
-		psr_configuration.bits.CRC_VERIFICATION          = 1;
-		psr_configuration.bits.FRAME_CAPTURE_INDICATION  =
-				psr_config->psr_frame_capture_indication_req;
-
-		/* Check for PSR v2*/
-		if (psr_config->psr_version == 0x2) {
-			/* For PSR v2 selective update.
-			 * Indicates whether sink should start capturing
-			 * immediately following active scan line,
-			 * or starting with the 2nd active scan line.
-			 */
-			psr_configuration.bits.LINE_CAPTURE_INDICATION = 0;
-			/*For PSR v2, determines whether Sink should generate
-			 * IRQ_HPD when CRC mismatch is detected.
-			 */
-			psr_configuration.bits.IRQ_HPD_WITH_CRC_ERROR    = 1;
-		}
-
-		dm_helpers_dp_write_dpcd(
-			link->ctx,
-			link,
-			368,
-			&psr_configuration.raw,
-			sizeof(psr_configuration.raw));
-
-		psr_context->channel = link->ddc->ddc_pin->hw_info.ddc_channel;
-		psr_context->transmitterId = link->link_enc->transmitter;
-		psr_context->engineId = link->link_enc->preferred_engine;
-
-		for (i = 0; i < MAX_PIPES; i++) {
-			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream
-					== stream) {
-				/* dmcu -1 for all controller id values,
-				 * therefore +1 here
-				 */
-				psr_context->controllerId =
-					core_dc->current_state->res_ctx.
-					pipe_ctx[i].stream_res.tg->inst + 1;
-				break;
-			}
-		}
-
-		/* Hardcoded for now.  Can be Pcie or Uniphy (or Unknown)*/
-		psr_context->phyType = PHY_TYPE_UNIPHY;
-		/*PhyId is associated with the transmitter id*/
-		psr_context->smuPhyId = link->link_enc->transmitter;
-
-		psr_context->crtcTimingVerticalTotal = stream->timing.v_total;
-		psr_context->vsyncRateHz = div64_u64(div64_u64((stream->
-						timing.pix_clk_khz * 1000),
-						stream->timing.v_total),
-						stream->timing.h_total);
-
-		psr_context->psrSupportedDisplayConfig = true;
-		psr_context->psrExitLinkTrainingRequired =
-			psr_config->psr_exit_link_training_required;
-		psr_context->sdpTransmitLineNumDeadline =
-			psr_config->psr_sdp_transmit_line_num_deadline;
-		psr_context->psrFrameCaptureIndicationReq =
-			psr_config->psr_frame_capture_indication_req;
-
-		psr_context->skipPsrWaitForPllLock = 0; /* only = 1 in KV */
-
-		psr_context->numberOfControllers =
-				link->dc->res_pool->res_cap->num_timing_generator;
-
-		psr_context->rfb_update_auto_en = true;
-
-		/* 2 frames before enter PSR. */
-		psr_context->timehyst_frames = 2;
-		/* half a frame
-		 * (units in 100 lines, i.e. a value of 1 represents 100 lines)
-		 */
-		psr_context->hyst_lines = stream->timing.v_total / 2 / 100;
-		psr_context->aux_repeats = 10;
-
-		psr_context->psr_level.u32all = 0;
-
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-		/*skip power down the single pipe since it blocks the cstate*/
-		if (ASIC_REV_IS_RAVEN(link->ctx->asic_id.hw_internal_rev))
-			psr_context->psr_level.bits.SKIP_CRTC_DISABLE = true;
-#endif
-
-		/* SMU will perform additional powerdown sequence.
-		 * For unsupported ASICs, set psr_level flag to skip PSR
-		 *  static screen notification to SMU.
-		 *  (Always set for DAL2, did not check ASIC)
-		 */
-		psr_context->psr_level.bits.SKIP_SMU_NOTIFICATION = 1;
-
-		/* Complete PSR entry before aborting to prevent intermittent
-		 * freezes on certain eDPs
-		 */
-		psr_context->psr_level.bits.DISABLE_PSR_ENTRY_ABORT = 1;
-
-		/* Controls additional delay after remote frame capture before
-		 * continuing power down, default = 0
-		 */
-		psr_context->frame_delay = 0;
-
-		link->psr_enabled = true;
-		dmcu->funcs->setup_psr(dmcu, link, psr_context);
-		return true;
-	} else
-		return false;
-
 }
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *link)
@@ -2417,6 +2309,9 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
+
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP)
+		core_dc->hwss.edp_backlight_control(pipe_ctx->stream->sink->link, false);
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 

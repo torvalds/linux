@@ -190,7 +190,6 @@ skl_tplg_free_pipe_mcps(struct skl *skl, struct skl_module_cfg *mconfig)
 	u8 res_idx = mconfig->res_idx;
 	struct skl_module_res *res = &mconfig->module->resources[res_idx];
 
-	res = &mconfig->module->resources[res_idx];
 	skl->resource.mcps -= res->cps;
 }
 
@@ -2908,7 +2907,7 @@ static int skl_tplg_control_load(struct snd_soc_component *cmpnt,
 		break;
 
 	default:
-		dev_warn(bus->dev, "Control load not supported %d:%d:%d\n",
+		dev_dbg(bus->dev, "Control load not supported %d:%d:%d\n",
 			hdr->ops.get, hdr->ops.put, hdr->ops.info);
 		break;
 	}
@@ -3056,11 +3055,13 @@ static int skl_tplg_get_int_tkn(struct device *dev,
 		struct snd_soc_tplg_vendor_value_elem *tkn_elem,
 		struct skl *skl)
 {
-	int tkn_count = 0, ret;
+	int tkn_count = 0, ret, size;
 	static int mod_idx, res_val_idx, intf_val_idx, dir, pin_idx;
 	struct skl_module_res *res = NULL;
 	struct skl_module_iface *fmt = NULL;
 	struct skl_module *mod = NULL;
+	static struct skl_astate_param *astate_table;
+	static int astate_cfg_idx, count;
 	int i;
 
 	if (skl->modules) {
@@ -3091,6 +3092,46 @@ static int skl_tplg_get_int_tkn(struct device *dev,
 
 	case SKL_TKN_MM_U8_MOD_IDX:
 		mod_idx = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_ASTATE_COUNT:
+		if (astate_table != NULL) {
+			dev_err(dev, "More than one entry for A-State count");
+			return -EINVAL;
+		}
+
+		if (tkn_elem->value > SKL_MAX_ASTATE_CFG) {
+			dev_err(dev, "Invalid A-State count %d\n",
+				tkn_elem->value);
+			return -EINVAL;
+		}
+
+		size = tkn_elem->value * sizeof(struct skl_astate_param) +
+				sizeof(count);
+		skl->cfg.astate_cfg = devm_kzalloc(dev, size, GFP_KERNEL);
+		if (!skl->cfg.astate_cfg)
+			return -ENOMEM;
+
+		astate_table = skl->cfg.astate_cfg->astate_table;
+		count = skl->cfg.astate_cfg->count = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_ASTATE_IDX:
+		if (tkn_elem->value >= count) {
+			dev_err(dev, "Invalid A-State index %d\n",
+				tkn_elem->value);
+			return -EINVAL;
+		}
+
+		astate_cfg_idx = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_ASTATE_KCPS:
+		astate_table[astate_cfg_idx].kcps = tkn_elem->value;
+		break;
+
+	case SKL_TKN_U32_ASTATE_CLK_SRC:
+		astate_table[astate_cfg_idx].clk_src = tkn_elem->value;
 		break;
 
 	case SKL_TKN_U8_IN_PIN_TYPE:

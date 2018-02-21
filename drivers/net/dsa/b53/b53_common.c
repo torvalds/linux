@@ -1029,8 +1029,7 @@ int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering)
 EXPORT_SYMBOL(b53_vlan_filtering);
 
 int b53_vlan_prepare(struct dsa_switch *ds, int port,
-		     const struct switchdev_obj_port_vlan *vlan,
-		     struct switchdev_trans *trans)
+		     const struct switchdev_obj_port_vlan *vlan)
 {
 	struct b53_device *dev = ds->priv;
 
@@ -1047,8 +1046,7 @@ int b53_vlan_prepare(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL(b53_vlan_prepare);
 
 void b53_vlan_add(struct dsa_switch *ds, int port,
-		  const struct switchdev_obj_port_vlan *vlan,
-		  struct switchdev_trans *trans)
+		  const struct switchdev_obj_port_vlan *vlan)
 {
 	struct b53_device *dev = ds->priv;
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
@@ -1495,15 +1493,17 @@ static bool b53_can_enable_brcm_tags(struct dsa_switch *ds, int port)
 	return false;
 }
 
-static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds,
-						  int port)
+enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds, int port)
 {
 	struct b53_device *dev = ds->priv;
 
-	/* Older models support a different tag format that we do not
-	 * support in net/dsa/tag_brcm.c yet.
+	/* Older models (5325, 5365) support a different tag format that we do
+	 * not support in net/dsa/tag_brcm.c yet. 539x and 531x5 require managed
+	 * mode to be turned on which means we need to specifically manage ARL
+	 * misses on multicast addresses (TBD).
 	 */
-	if (is5325(dev) || is5365(dev) || !b53_can_enable_brcm_tags(ds, port))
+	if (is5325(dev) || is5365(dev) || is539x(dev) || is531x5(dev) ||
+	    !b53_can_enable_brcm_tags(ds, port))
 		return DSA_TAG_PROTO_NONE;
 
 	/* Broadcom BCM58xx chips have a flow accelerator on Port 8
@@ -1514,6 +1514,7 @@ static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds,
 
 	return DSA_TAG_PROTO_BRCM;
 }
+EXPORT_SYMBOL(b53_get_tag_protocol);
 
 int b53_mirror_add(struct dsa_switch *ds, int port,
 		   struct dsa_mall_mirror_tc_entry *mirror, bool ingress)

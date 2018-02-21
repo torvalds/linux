@@ -1,8 +1,12 @@
+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+#include <linux/bootmem.h>
+#endif
 #include <linux/cpu.h>
 #include <linux/kexec.h>
 
 #include <xen/features.h>
 #include <xen/page.h>
+#include <xen/interface/memory.h>
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -331,3 +335,80 @@ void xen_arch_unregister_cpu(int num)
 }
 EXPORT_SYMBOL(xen_arch_unregister_cpu);
 #endif
+
+#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+void __init arch_xen_balloon_init(struct resource *hostmem_resource)
+{
+	struct xen_memory_map memmap;
+	int rc;
+	unsigned int i, last_guest_ram;
+	phys_addr_t max_addr = PFN_PHYS(max_pfn);
+	struct e820_table *xen_e820_table;
+	const struct e820_entry *entry;
+	struct resource *res;
+
+	if (!xen_initial_domain())
+		return;
+
+	xen_e820_table = kmalloc(sizeof(*xen_e820_table), GFP_KERNEL);
+	if (!xen_e820_table)
+		return;
+
+	memmap.nr_entries = ARRAY_SIZE(xen_e820_table->entries);
+	set_xen_guest_handle(memmap.buffer, xen_e820_table->entries);
+	rc = HYPERVISOR_memory_op(XENMEM_machine_memory_map, &memmap);
+	if (rc) {
+		pr_warn("%s: Can't read host e820 (%d)\n", __func__, rc);
+		goto out;
+	}
+
+	last_guest_ram = 0;
+	for (i = 0; i < memmap.nr_entries; i++) {
+		if (xen_e820_table->entries[i].addr >= max_addr)
+			break;
+		if (xen_e820_table->entries[i].type == E820_TYPE_RAM)
+			last_guest_ram = i;
+	}
+
+	entry = &xen_e820_table->entries[last_guest_ram];
+	if (max_addr >= entry->addr + entry->size)
+		goto out; /* No unallocated host RAM. */
+
+	hostmem_resource->start = max_addr;
+	hostmem_resource->end = entry->addr + entry->size;
+
+	/*
+	 * Mark non-RAM regions between the end of dom0 RAM and end of host RAM
+	 * as unavailable. The rest of that region can be used for hotplug-based
+	 * ballooning.
+	 */
+	for (; i < memmap.nr_entries; i++) {
+		entry = &xen_e820_table->entries[i];
+
+		if (entry->type == E820_TYPE_RAM)
+			continue;
+
+		if (entry->addr >= hostmem_resource->end)
+			break;
+
+		res = kzalloc(sizeof(*res), GFP_KERNEL);
+		if (!res)
+			goto out;
+
+		res->name = "Unavailable host RAM";
+		res->start = entry->addr;
+		res->end = (entry->addr + entry->size < hostmem_resource->end) ?
+			    entry->addr + entry->size : hostmem_resource->end;
+		rc = insert_resource(hostmem_resource, res);
+		if (rc) {
+			pr_warn("%s: Can't insert [%llx - %llx) (%d)\n",
+				__func__, res->start, res->end, rc);
+			kfree(res);
+			goto  out;
+		}
+	}
+
+ out:
+	kfree(xen_e820_table);
+}
+#endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */

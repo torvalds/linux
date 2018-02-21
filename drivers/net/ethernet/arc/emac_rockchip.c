@@ -199,9 +199,11 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 
 	/* RMII interface needs always a rate of 50MHz */
 	err = clk_set_rate(priv->refclk, 50000000);
-	if (err)
+	if (err) {
 		dev_err(dev,
 			"failed to change reference clock rate (%d)\n", err);
+		goto out_regulator_disable;
+	}
 
 	if (priv->soc_data->need_div_macclk) {
 		priv->macclk = devm_clk_get(dev, "macclk");
@@ -230,12 +232,14 @@ static int emac_rockchip_probe(struct platform_device *pdev)
 	err = arc_emac_probe(ndev, interface);
 	if (err) {
 		dev_err(dev, "failed to probe arc emac (%d)\n", err);
-		goto out_regulator_disable;
+		goto out_clk_disable_macclk;
 	}
 
 	return 0;
+
 out_clk_disable_macclk:
-	clk_disable_unprepare(priv->macclk);
+	if (priv->soc_data->need_div_macclk)
+		clk_disable_unprepare(priv->macclk);
 out_regulator_disable:
 	if (priv->regulator)
 		regulator_disable(priv->regulator);

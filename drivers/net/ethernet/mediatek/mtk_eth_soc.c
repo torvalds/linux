@@ -23,6 +23,7 @@
 #include <linux/reset.h>
 #include <linux/tcp.h>
 #include <linux/interrupt.h>
+#include <linux/pinctrl/devinfo.h>
 
 #include "mtk_eth_soc.h"
 
@@ -1952,20 +1953,23 @@ static int mtk_hw_init(struct mtk_eth *eth)
 	}
 	regmap_write(eth->ethsys, ETHSYS_SYSCFG0, val);
 
-	/* Set GE2 driving and slew rate */
-	regmap_write(eth->pctl, GPIO_DRV_SEL10, 0xa00);
+	if (eth->pctl) {
+		/* Set GE2 driving and slew rate */
+		regmap_write(eth->pctl, GPIO_DRV_SEL10, 0xa00);
 
-	/* set GE2 TDSEL */
-	regmap_write(eth->pctl, GPIO_OD33_CTRL8, 0x5);
+		/* set GE2 TDSEL */
+		regmap_write(eth->pctl, GPIO_OD33_CTRL8, 0x5);
 
-	/* set GE2 TUNE */
-	regmap_write(eth->pctl, GPIO_BIAS_CTRL, 0x0);
+		/* set GE2 TUNE */
+		regmap_write(eth->pctl, GPIO_BIAS_CTRL, 0x0);
+	}
 
-	/* GE1, Force 1000M/FD, FC ON */
-	mtk_w32(eth, MAC_MCR_FIXED_LINK, MTK_MAC_MCR(0));
-
-	/* GE2, Force 1000M/FD, FC ON */
-	mtk_w32(eth, MAC_MCR_FIXED_LINK, MTK_MAC_MCR(1));
+	/* Set linkdown as the default for each GMAC. Its own MCR would be set
+	 * up with the more appropriate value when mtk_phy_link_adjust call is
+	 * being invoked.
+	 */
+	for (i = 0; i < MTK_MAC_COUNT; i++)
+		mtk_w32(eth, 0, MTK_MAC_MCR(i));
 
 	/* Indicates CDM to parse the MTK special tag from CPU
 	 * which also is working out for untag packets.
@@ -2537,11 +2541,13 @@ static int mtk_probe(struct platform_device *pdev)
 		}
 	}
 
-	eth->pctl = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
-						    "mediatek,pctl");
-	if (IS_ERR(eth->pctl)) {
-		dev_err(&pdev->dev, "no pctl regmap found\n");
-		return PTR_ERR(eth->pctl);
+	if (eth->soc->required_pctl) {
+		eth->pctl = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+							    "mediatek,pctl");
+		if (IS_ERR(eth->pctl)) {
+			dev_err(&pdev->dev, "no pctl regmap found\n");
+			return PTR_ERR(eth->pctl);
+		}
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -2667,17 +2673,20 @@ static int mtk_remove(struct platform_device *pdev)
 
 static const struct mtk_soc_data mt2701_data = {
 	.caps = MTK_GMAC1_TRGMII,
-	.required_clks = MT7623_CLKS_BITMAP
+	.required_clks = MT7623_CLKS_BITMAP,
+	.required_pctl = true,
 };
 
 static const struct mtk_soc_data mt7622_data = {
 	.caps = MTK_DUAL_GMAC_SHARED_SGMII | MTK_GMAC1_ESW,
-	.required_clks = MT7622_CLKS_BITMAP
+	.required_clks = MT7622_CLKS_BITMAP,
+	.required_pctl = false,
 };
 
 static const struct mtk_soc_data mt7623_data = {
 	.caps = MTK_GMAC1_TRGMII,
-	.required_clks = MT7623_CLKS_BITMAP
+	.required_clks = MT7623_CLKS_BITMAP,
+	.required_pctl = true,
 };
 
 const struct of_device_id of_mtk_match[] = {

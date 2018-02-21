@@ -3082,13 +3082,19 @@ int sata_down_spd_limit(struct ata_link *link, u32 spd_limit)
 	bit = fls(mask) - 1;
 	mask &= ~(1 << bit);
 
-	/* Mask off all speeds higher than or equal to the current
-	 * one.  Force 1.5Gbps if current SPD is not available.
+	/*
+	 * Mask off all speeds higher than or equal to the current one.  At
+	 * this point, if current SPD is not available and we previously
+	 * recorded the link speed from SStatus, the driver has already
+	 * masked off the highest bit so mask should already be 1 or 0.
+	 * Otherwise, we should not force 1.5Gbps on a link where we have
+	 * not previously recorded speed from SStatus.  Just return in this
+	 * case.
 	 */
 	if (spd > 1)
 		mask &= (1 << (spd - 1)) - 1;
 	else
-		mask &= 1;
+		return -EINVAL;
 
 	/* were we already at the bottom? */
 	if (!mask)
@@ -4443,6 +4449,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=121671
 	 */
 	{ "LITEON CX1-JB*-HP",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
+	{ "LITEON EP1-*",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
 
 	/* Devices we expect to fail diagnostics */
 

@@ -329,39 +329,6 @@ set_sockaddr(struct sockaddr_in *sin, __be32 addr, __be16 port)
 	sin->sin_port = port;
 }
 
-static int __init ic_devinet_ioctl(unsigned int cmd, struct ifreq *arg)
-{
-	int res;
-
-	mm_segment_t oldfs = get_fs();
-	set_fs(get_ds());
-	res = devinet_ioctl(&init_net, cmd, (struct ifreq __user *) arg);
-	set_fs(oldfs);
-	return res;
-}
-
-static int __init ic_dev_ioctl(unsigned int cmd, struct ifreq *arg)
-{
-	int res;
-
-	mm_segment_t oldfs = get_fs();
-	set_fs(get_ds());
-	res = dev_ioctl(&init_net, cmd, (struct ifreq __user *) arg);
-	set_fs(oldfs);
-	return res;
-}
-
-static int __init ic_route_ioctl(unsigned int cmd, struct rtentry *arg)
-{
-	int res;
-
-	mm_segment_t oldfs = get_fs();
-	set_fs(get_ds());
-	res = ip_rt_ioctl(&init_net, cmd, (void __user *) arg);
-	set_fs(oldfs);
-	return res;
-}
-
 /*
  *	Set up interface addresses and routes.
  */
@@ -375,19 +342,19 @@ static int __init ic_setup_if(void)
 	memset(&ir, 0, sizeof(ir));
 	strcpy(ir.ifr_ifrn.ifrn_name, ic_dev->dev->name);
 	set_sockaddr(sin, ic_myaddr, 0);
-	if ((err = ic_devinet_ioctl(SIOCSIFADDR, &ir)) < 0) {
+	if ((err = devinet_ioctl(&init_net, SIOCSIFADDR, &ir)) < 0) {
 		pr_err("IP-Config: Unable to set interface address (%d)\n",
 		       err);
 		return -1;
 	}
 	set_sockaddr(sin, ic_netmask, 0);
-	if ((err = ic_devinet_ioctl(SIOCSIFNETMASK, &ir)) < 0) {
+	if ((err = devinet_ioctl(&init_net, SIOCSIFNETMASK, &ir)) < 0) {
 		pr_err("IP-Config: Unable to set interface netmask (%d)\n",
 		       err);
 		return -1;
 	}
 	set_sockaddr(sin, ic_myaddr | ~ic_netmask, 0);
-	if ((err = ic_devinet_ioctl(SIOCSIFBRDADDR, &ir)) < 0) {
+	if ((err = devinet_ioctl(&init_net, SIOCSIFBRDADDR, &ir)) < 0) {
 		pr_err("IP-Config: Unable to set interface broadcast address (%d)\n",
 		       err);
 		return -1;
@@ -397,11 +364,11 @@ static int __init ic_setup_if(void)
 	 * out, we'll try to muddle along.
 	 */
 	if (ic_dev_mtu != 0) {
-		strcpy(ir.ifr_name, ic_dev->dev->name);
-		ir.ifr_mtu = ic_dev_mtu;
-		if ((err = ic_dev_ioctl(SIOCSIFMTU, &ir)) < 0)
+		rtnl_lock();
+		if ((err = dev_set_mtu(ic_dev->dev, ic_dev_mtu)) < 0)
 			pr_err("IP-Config: Unable to set interface mtu to %d (%d)\n",
 			       ic_dev_mtu, err);
+		rtnl_unlock();
 	}
 	return 0;
 }
@@ -423,7 +390,7 @@ static int __init ic_setup_routes(void)
 		set_sockaddr((struct sockaddr_in *) &rm.rt_genmask, 0, 0);
 		set_sockaddr((struct sockaddr_in *) &rm.rt_gateway, ic_gateway, 0);
 		rm.rt_flags = RTF_UP | RTF_GATEWAY;
-		if ((err = ic_route_ioctl(SIOCADDRT, &rm)) < 0) {
+		if ((err = ip_rt_ioctl(&init_net, SIOCADDRT, &rm)) < 0) {
 			pr_err("IP-Config: Cannot add default route (%d)\n",
 			       err);
 			return -1;
@@ -1322,7 +1289,6 @@ static int pnp_seq_open(struct inode *indoe, struct file *file)
 }
 
 static const struct file_operations pnp_seq_fops = {
-	.owner		= THIS_MODULE,
 	.open		= pnp_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

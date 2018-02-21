@@ -603,6 +603,16 @@ void rb_replace_node(struct rb_node *victim, struct rb_node *new,
 }
 EXPORT_SYMBOL(rb_replace_node);
 
+void rb_replace_node_cached(struct rb_node *victim, struct rb_node *new,
+			    struct rb_root_cached *root)
+{
+	rb_replace_node(victim, new, &root->rb_root);
+
+	if (root->rb_leftmost == victim)
+		root->rb_leftmost = new;
+}
+EXPORT_SYMBOL(rb_replace_node_cached);
+
 void rb_replace_node_rcu(struct rb_node *victim, struct rb_node *new,
 			 struct rb_root *root)
 {

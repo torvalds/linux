@@ -404,10 +404,10 @@ void iounmap(volatile void __iomem *addr)
 		return;
 	}
 
+	mmiotrace_iounmap(addr);
+
 	addr = (volatile void __iomem *)
 		(PAGE_MASK & (unsigned long __force)addr);
-
-	mmiotrace_iounmap(addr);
 
 	/* Use the vm area unlocked, assuming the caller
 	   ensures there isn't another iounmap for the same address
@@ -820,5 +820,5 @@ void __init __early_set_fixmap(enum fixed_addresses idx,
 		set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, flags));
 	else
 		pte_clear(&init_mm, addr, pte);
-	__flush_tlb_one(addr);
+	__flush_tlb_one_kernel(addr);
 }

@@ -12,7 +12,7 @@ Required properties:
   - reg-names: Should contain the reg names "QuadSPI" and "QuadSPI-memory"
   - interrupts : Should contain the interrupt for the device
   - clocks : The clocks needed by the QuadSPI controller
-  - clock-names : the name of the clocks
+  - clock-names : Should contain the name of the clocks: "qspi_en" and "qspi".
 
 Optional properties:
   - fsl,qspi-has-second-chip: The controller has two buses, bus A and bus B.

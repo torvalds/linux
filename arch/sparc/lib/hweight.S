@@ -44,8 +44,8 @@ EXPORT_SYMBOL(__arch_hweight32)
 	.previous
 
 ENTRY(__arch_hweight64)
-	sethi	%hi(__sw_hweight16), %g1
-	jmpl	%g1 + %lo(__sw_hweight16), %g0
+	sethi	%hi(__sw_hweight64), %g1
+	jmpl	%g1 + %lo(__sw_hweight64), %g0
 	 nop
 ENDPROC(__arch_hweight64)
 EXPORT_SYMBOL(__arch_hweight64)

@@ -65,10 +65,10 @@
 #include <net/ip6_checksum.h>
 
 /* Ensure that we have struct in6_addr aligned on 32bit word. */
-static void *__mld2_query_bugs[] __attribute__((__unused__)) = {
-	BUILD_BUG_ON_NULL(offsetof(struct mld2_query, mld2q_srcs) % 4),
-	BUILD_BUG_ON_NULL(offsetof(struct mld2_report, mld2r_grec) % 4),
-	BUILD_BUG_ON_NULL(offsetof(struct mld2_grec, grec_mca) % 4)
+static int __mld2_query_bugs[] __attribute__((__unused__)) = {
+	BUILD_BUG_ON_ZERO(offsetof(struct mld2_query, mld2q_srcs) % 4),
+	BUILD_BUG_ON_ZERO(offsetof(struct mld2_report, mld2r_grec) % 4),
+	BUILD_BUG_ON_ZERO(offsetof(struct mld2_grec, grec_mca) % 4)
 };
 
 static struct in6_addr mld2_all_mcr = MLD2_ALL_MCR_INIT;
@@ -1655,8 +1655,6 @@ static void mld_sendpack(struct sk_buff *skb)
 	if (err)
 		goto err_out;
 
-	payload_len = skb->len;
-
 	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT,
 		      net, net->ipv6.igmp_sk, skb, NULL, skb->dev,
 		      dst_output);
@@ -1682,16 +1680,16 @@ static int grec_size(struct ifmcaddr6 *pmc, int type, int gdel, int sdel)
 }
 
 static struct sk_buff *add_grhead(struct sk_buff *skb, struct ifmcaddr6 *pmc,
-	int type, struct mld2_grec **ppgr)
+	int type, struct mld2_grec **ppgr, unsigned int mtu)
 {
-	struct net_device *dev = pmc->idev->dev;
 	struct mld2_report *pmr;
 	struct mld2_grec *pgr;
 
-	if (!skb)
-		skb = mld_newpack(pmc->idev, dev->mtu);
-	if (!skb)
-		return NULL;
+	if (!skb) {
+		skb = mld_newpack(pmc->idev, mtu);
+		if (!skb)
+			return NULL;
+	}
 	pgr = skb_put(skb, sizeof(struct mld2_grec));
 	pgr->grec_type = type;
 	pgr->grec_auxwords = 0;
@@ -1714,8 +1712,13 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 	struct mld2_grec *pgr = NULL;
 	struct ip6_sf_list *psf, *psf_next, *psf_prev, **psf_list;
 	int scount, stotal, first, isquery, truncate;
+	unsigned int mtu;
 
 	if (pmc->mca_flags & MAF_NOREPORT)
+		return skb;
+
+	mtu = READ_ONCE(dev->mtu);
+	if (mtu < IPV6_MIN_MTU)
 		return skb;
 
 	isquery = type == MLD2_MODE_IS_INCLUDE ||
@@ -1738,7 +1741,7 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 		    AVAILABLE(skb) < grec_size(pmc, type, gdeleted, sdeleted)) {
 			if (skb)
 				mld_sendpack(skb);
-			skb = mld_newpack(idev, dev->mtu);
+			skb = mld_newpack(idev, mtu);
 		}
 	}
 	first = 1;
@@ -1774,12 +1777,12 @@ static struct sk_buff *add_grec(struct sk_buff *skb, struct ifmcaddr6 *pmc,
 				pgr->grec_nsrcs = htons(scount);
 			if (skb)
 				mld_sendpack(skb);
-			skb = mld_newpack(idev, dev->mtu);
+			skb = mld_newpack(idev, mtu);
 			first = 1;
 			scount = 0;
 		}
 		if (first) {
-			skb = add_grhead(skb, pmc, type, &pgr);
+			skb = add_grhead(skb, pmc, type, &pgr, mtu);
 			first = 0;
 		}
 		if (!skb)
@@ -1814,7 +1817,7 @@ empty_source:
 				mld_sendpack(skb);
 				skb = NULL; /* add_grhead will get a new one */
 			}
-			skb = add_grhead(skb, pmc, type, &pgr);
+			skb = add_grhead(skb, pmc, type, &pgr, mtu);
 		}
 	}
 	if (pgr)
@@ -2753,7 +2756,6 @@ static int igmp6_mc_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations igmp6_mc_seq_fops = {
-	.owner		=	THIS_MODULE,
 	.open		=	igmp6_mc_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,
@@ -2908,7 +2910,6 @@ static int igmp6_mcf_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations igmp6_mcf_seq_fops = {
-	.owner		=	THIS_MODULE,
 	.open		=	igmp6_mcf_seq_open,
 	.read		=	seq_read,
 	.llseek		=	seq_lseek,

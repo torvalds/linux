@@ -296,8 +296,12 @@ int cgroup_stat_init(struct cgroup *cgrp)
 	}
 
 	/* ->updated_children list is self terminated */
-	for_each_possible_cpu(cpu)
-		cgroup_cpu_stat(cgrp, cpu)->updated_children = cgrp;
+	for_each_possible_cpu(cpu) {
+		struct cgroup_cpu_stat *cstat = cgroup_cpu_stat(cgrp, cpu);
+
+		cstat->updated_children = cgrp;
+		u64_stats_init(&cstat->sync);
+	}
 
 	prev_cputime_init(&cgrp->stat.prev_cputime);
 

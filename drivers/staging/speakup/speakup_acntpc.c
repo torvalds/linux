@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * written by: Kirk Reiser <kirk@braille.uwo.ca>
  * this version considerably modified by David Borowski, david575@rogers.com
@@ -5,15 +6,6 @@
  * Copyright (C) 1998-99  Kirk Reiser.
  * Copyright (C) 2003 David Borowski.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  * this code is specificly written as a driver for the speakup screenreview
  * package and is not a general device driver.
  * This driver is for the Aicom Acent PC internal synthesizer.

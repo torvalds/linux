@@ -214,9 +214,11 @@ EXPORT_SYMBOL(drm_rotation_simplify);
  * This function initializes generic mutable zpos property and enables support
  * for it in drm core. Drivers can then attach this property to planes to enable
  * support for configurable planes arrangement during blending operation.
- * Once mutable zpos property has been enabled, the DRM core will automatically
- * calculate &drm_plane_state.normalized_zpos values. Usually min should be set
- * to 0 and max to maximal number of planes for given crtc - 1.
+ * Drivers that attach a mutable zpos property to any plane should call the
+ * drm_atomic_normalize_zpos() helper during their implementation of
+ * &drm_mode_config_funcs.atomic_check(), which will update the normalized zpos
+ * values and store them in &drm_plane_state.normalized_zpos. Usually min
+ * should be set to 0 and max to maximal number of planes for given crtc - 1.
  *
  * If zpos of some planes cannot be changed (like fixed background or
  * cursor/topmost planes), driver should adjust min/max values and assign those

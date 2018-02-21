@@ -24,6 +24,16 @@ config OVERLAY_FS_REDIRECT_DIR
 	  an overlay which has redirects on a kernel that doesn't support this
 	  feature will have unexpected results.
 
+config OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW
+	bool "Overlayfs: follow redirects even if redirects are turned off"
+	default y
+	depends on OVERLAY_FS
+	help
+	  Disable this to get a possibly more secure configuration, but that
+	  might not be backward compatible with previous kernels.
+
+	  For more information, see Documentation/filesystems/overlayfs.txt
+
 config OVERLAY_FS_INDEX
 	bool "Overlayfs: turn on inodes index feature by default"
 	depends on OVERLAY_FS
@@ -37,9 +47,28 @@ config OVERLAY_FS_INDEX
 	  The inodes index feature prevents breaking of lower hardlinks on copy
 	  up.
 
-	  Note, that the inodes index feature is read-only backward compatible.
-	  That is, mounting an overlay which has an index dir on a kernel that
-	  doesn't support this feature read-only, will not have any negative
-	  outcomes.  However, mounting the same overlay with an old kernel
-	  read-write and then mounting it again with a new kernel, will have
-	  unexpected results.
+	  Note, that the inodes index feature is not backward compatible.
+	  That is, mounting an overlay which has an inodes index on a kernel
+	  that doesn't support this feature will have unexpected results.
+
+config OVERLAY_FS_NFS_EXPORT
+	bool "Overlayfs: turn on NFS export feature by default"
+	depends on OVERLAY_FS
+	depends on OVERLAY_FS_INDEX
+	help
+	  If this config option is enabled then overlay filesystems will use
+	  the inodes index dir to decode overlay NFS file handles by default.
+	  In this case, it is still possible to turn off NFS export support
+	  globally with the "nfs_export=off" module option or on a filesystem
+	  instance basis with the "nfs_export=off" mount option.
+
+	  The NFS export feature creates an index on copy up of every file and
+	  directory.  This full index is used to detect overlay filesystems
+	  inconsistencies on lookup, like redirect from multiple upper dirs to
+	  the same lower dir.  The full index may incur some overhead on mount
+	  time, especially when verifying that directory file handles are not
+	  stale.
+
+	  Note, that the NFS export feature is not backward compatible.
+	  That is, mounting an overlay which has a full index on a kernel
+	  that doesn't support this feature will have unexpected results.

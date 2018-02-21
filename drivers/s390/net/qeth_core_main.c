@@ -36,6 +36,7 @@
 #include <asm/diag.h>
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
+#include <asm/cpcmd.h>
 
 #include "qeth_core.h"
 
@@ -564,7 +565,7 @@ static struct qeth_reply *qeth_alloc_reply(struct qeth_card *card)
 
 	reply = kzalloc(sizeof(struct qeth_reply), GFP_ATOMIC);
 	if (reply) {
-		atomic_set(&reply->refcnt, 1);
+		refcount_set(&reply->refcnt, 1);
 		atomic_set(&reply->received, 0);
 		reply->card = card;
 	}
@@ -573,14 +574,12 @@ static struct qeth_reply *qeth_alloc_reply(struct qeth_card *card)
 
 static void qeth_get_reply(struct qeth_reply *reply)
 {
-	WARN_ON(atomic_read(&reply->refcnt) <= 0);
-	atomic_inc(&reply->refcnt);
+	refcount_inc(&reply->refcnt);
 }
 
 static void qeth_put_reply(struct qeth_reply *reply)
 {
-	WARN_ON(atomic_read(&reply->refcnt) <= 0);
-	if (atomic_dec_and_test(&reply->refcnt))
+	if (refcount_dec_and_test(&reply->refcnt))
 		kfree(reply);
 }
 
@@ -1480,9 +1479,9 @@ static int qeth_setup_card(struct qeth_card *card)
 	qeth_set_intial_options(card);
 	/* IP address takeover */
 	INIT_LIST_HEAD(&card->ipato.entries);
-	card->ipato.enabled = 0;
-	card->ipato.invert4 = 0;
-	card->ipato.invert6 = 0;
+	card->ipato.enabled = false;
+	card->ipato.invert4 = false;
+	card->ipato.invert6 = false;
 	/* init QDIO stuff */
 	qeth_init_qdio_info(card);
 	INIT_DELAYED_WORK(&card->buffer_reclaim_work, qeth_buffer_reclaim_work);
@@ -1717,23 +1716,87 @@ static void qeth_configure_unitaddr(struct qeth_card *card, char *prcd)
 			       (prcd[0x11] == _ascebc['M']));
 }
 
+static enum qeth_discipline_id qeth_vm_detect_layer(struct qeth_card *card)
+{
+	enum qeth_discipline_id disc = QETH_DISCIPLINE_UNDETERMINED;
+	struct diag26c_vnic_resp *response = NULL;
+	struct diag26c_vnic_req *request = NULL;
+	struct ccw_dev_id id;
+	char userid[80];
+	int rc = 0;
+
+	QETH_DBF_TEXT(SETUP, 2, "vmlayer");
+
+	cpcmd("QUERY USERID", userid, sizeof(userid), &rc);
+	if (rc)
+		goto out;
+
+	request = kzalloc(sizeof(*request), GFP_KERNEL | GFP_DMA);
+	response = kzalloc(sizeof(*response), GFP_KERNEL | GFP_DMA);
+	if (!request || !response) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	ccw_device_get_id(CARD_RDEV(card), &id);
+	request->resp_buf_len = sizeof(*response);
+	request->resp_version = DIAG26C_VERSION6_VM65918;
+	request->req_format = DIAG26C_VNIC_INFO;
+	ASCEBC(userid, 8);
+	memcpy(&request->sys_name, userid, 8);
+	request->devno = id.devno;
+
+	QETH_DBF_HEX(CTRL, 2, request, sizeof(*request));
+	rc = diag26c(request, response, DIAG26C_PORT_VNIC);
+	QETH_DBF_HEX(CTRL, 2, request, sizeof(*request));
+	if (rc)
+		goto out;
+	QETH_DBF_HEX(CTRL, 2, response, sizeof(*response));
+
+	if (request->resp_buf_len < sizeof(*response) ||
+	    response->version != request->resp_version) {
+		rc = -EIO;
+		goto out;
+	}
+
+	if (response->protocol == VNIC_INFO_PROT_L2)
+		disc = QETH_DISCIPLINE_LAYER2;
+	else if (response->protocol == VNIC_INFO_PROT_L3)
+		disc = QETH_DISCIPLINE_LAYER3;
+
+out:
+	kfree(response);
+	kfree(request);
+	if (rc)
+		QETH_DBF_TEXT_(SETUP, 2, "err%x", rc);
+	return disc;
+}
+
 /* Determine whether the device requires a specific layer discipline */
 static enum qeth_discipline_id qeth_enforce_discipline(struct qeth_card *card)
 {
+	enum qeth_discipline_id disc = QETH_DISCIPLINE_UNDETERMINED;
+
 	if (card->info.type == QETH_CARD_TYPE_OSM ||
-	    card->info.type == QETH_CARD_TYPE_OSN) {
+	    card->info.type == QETH_CARD_TYPE_OSN)
+		disc = QETH_DISCIPLINE_LAYER2;
+	else if (card->info.guestlan)
+		disc = (card->info.type == QETH_CARD_TYPE_IQD) ?
+				QETH_DISCIPLINE_LAYER3 :
+				qeth_vm_detect_layer(card);
+
+	switch (disc) {
+	case QETH_DISCIPLINE_LAYER2:
 		QETH_DBF_TEXT(SETUP, 3, "force l2");
-		return QETH_DISCIPLINE_LAYER2;
-	}
-
-	/* virtual HiperSocket is L3 only: */
-	if (card->info.guestlan && card->info.type == QETH_CARD_TYPE_IQD) {
+		break;
+	case QETH_DISCIPLINE_LAYER3:
 		QETH_DBF_TEXT(SETUP, 3, "force l3");
-		return QETH_DISCIPLINE_LAYER3;
+		break;
+	default:
+		QETH_DBF_TEXT(SETUP, 3, "force no");
 	}
 
-	QETH_DBF_TEXT(SETUP, 3, "force no");
-	return QETH_DISCIPLINE_UNDETERMINED;
+	return disc;
 }
 
 static void qeth_configure_blkt_default(struct qeth_card *card, char *prcd)
@@ -2057,7 +2120,7 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 	unsigned long flags;
 	struct qeth_reply *reply = NULL;
 	unsigned long timeout, event_timeout;
-	struct qeth_ipa_cmd *cmd;
+	struct qeth_ipa_cmd *cmd = NULL;
 
 	QETH_CARD_TEXT(card, 2, "sendctl");
 
@@ -2083,10 +2146,13 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 	while (atomic_cmpxchg(&card->write.irq_pending, 0, 1)) ;
 	qeth_prepare_control_data(card, len, iob);
 
-	if (IS_IPA(iob->data))
+	if (IS_IPA(iob->data)) {
+		cmd = __ipa_cmd(iob);
 		event_timeout = QETH_IPA_TIMEOUT;
-	else
+	} else {
 		event_timeout = QETH_TIMEOUT;
+	}
+
 	timeout = jiffies + event_timeout;
 
 	QETH_CARD_TEXT(card, 6, "noirqpnd");
@@ -2111,9 +2177,8 @@ int qeth_send_control_data(struct qeth_card *card, int len,
 
 	/* we have only one long running ipassist, since we can ensure
 	   process context of this command we can sleep */
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
-	if ((cmd->hdr.command == IPA_CMD_SETIP) &&
-	    (cmd->hdr.prot_version == QETH_PROT_IPV4)) {
+	if (cmd && cmd->hdr.command == IPA_CMD_SETIP &&
+	    cmd->hdr.prot_version == QETH_PROT_IPV4) {
 		if (!wait_event_timeout(reply->wait_q,
 		    atomic_read(&reply->received), event_timeout))
 			goto time_err;
@@ -4218,9 +4283,8 @@ static int qeth_setadpparms_change_macaddr_cb(struct qeth_card *card,
 	cmd = (struct qeth_ipa_cmd *) data;
 	if (!card->options.layer2 ||
 	    !(card->info.mac_bits & QETH_LAYER2_MAC_READ)) {
-		memcpy(card->dev->dev_addr,
-		       &cmd->data.setadapterparms.data.change_addr.addr,
-		       OSA_ADDR_LEN);
+		ether_addr_copy(card->dev->dev_addr,
+				cmd->data.setadapterparms.data.change_addr.addr);
 		card->info.mac_bits |= QETH_LAYER2_MAC_READ;
 	}
 	qeth_default_setadapterparms_cb(card, reply, (unsigned long) cmd);
@@ -4242,9 +4306,9 @@ int qeth_setadpparms_change_macaddr(struct qeth_card *card)
 		return -ENOMEM;
 	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
 	cmd->data.setadapterparms.data.change_addr.cmd = CHANGE_ADDR_READ_MAC;
-	cmd->data.setadapterparms.data.change_addr.addr_size = OSA_ADDR_LEN;
-	memcpy(&cmd->data.setadapterparms.data.change_addr.addr,
-	       card->dev->dev_addr, OSA_ADDR_LEN);
+	cmd->data.setadapterparms.data.change_addr.addr_size = ETH_ALEN;
+	ether_addr_copy(cmd->data.setadapterparms.data.change_addr.addr,
+			card->dev->dev_addr);
 	rc = qeth_send_ipa_cmd(card, iob, qeth_setadpparms_change_macaddr_cb,
 			       NULL);
 	return rc;
@@ -4789,9 +4853,12 @@ int qeth_vm_request_mac(struct qeth_card *card)
 	request->op_code = DIAG26C_GET_MAC;
 	request->devno = id.devno;
 
+	QETH_DBF_HEX(CTRL, 2, request, sizeof(*request));
 	rc = diag26c(request, response, DIAG26C_MAC_SERVICES);
+	QETH_DBF_HEX(CTRL, 2, request, sizeof(*request));
 	if (rc)
 		goto out;
+	QETH_DBF_HEX(CTRL, 2, response, sizeof(*response));
 
 	if (request->resp_buf_len < sizeof(*response) ||
 	    response->version != request->resp_version) {
@@ -5385,6 +5452,13 @@ out:
 	return work_done;
 }
 EXPORT_SYMBOL_GPL(qeth_poll);
+
+static int qeth_setassparms_inspect_rc(struct qeth_ipa_cmd *cmd)
+{
+	if (!cmd->hdr.return_code)
+		cmd->hdr.return_code = cmd->data.setassparms.hdr.return_code;
+	return cmd->hdr.return_code;
+}
 
 int qeth_setassparms_cb(struct qeth_card *card,
 			struct qeth_reply *reply, unsigned long data)
@@ -6242,7 +6316,7 @@ static int qeth_ipa_checksum_run_cmd_cb(struct qeth_card *card,
 				(struct qeth_checksum_cmd *)reply->param;
 
 	QETH_CARD_TEXT(card, 4, "chkdoccb");
-	if (cmd->hdr.return_code)
+	if (qeth_setassparms_inspect_rc(cmd))
 		return 0;
 
 	memset(chksum_cb, 0, sizeof(*chksum_cb));

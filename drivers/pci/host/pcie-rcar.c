@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCIe driver for Renesas R-Car SoCs
  *  Copyright (C) 2014 Renesas Electronics Europe Ltd
@@ -8,10 +9,6 @@
  *  Copyright (C) 2009 - 2011  Paul Mundt
  *
  * Author: Phil Edworthy <phil.edworthy@renesas.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/clk.h>
@@ -459,7 +456,7 @@ static int rcar_pcie_enable(struct rcar_pcie *pcie)
 
 	rcar_pcie_setup(&bridge->windows, pcie);
 
-	pci_add_flags(PCI_REASSIGN_ALL_RSRC | PCI_REASSIGN_ALL_BUS);
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 
 	bridge->dev.parent = dev;
 	bridge->sysdata = pcie;
@@ -1123,17 +1120,19 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&pcie->resources);
 
-	rcar_pcie_parse_request_of_pci_ranges(pcie);
+	err = rcar_pcie_parse_request_of_pci_ranges(pcie);
+	if (err)
+		goto err_free_bridge;
 
 	err = rcar_pcie_get_resources(pcie);
 	if (err < 0) {
 		dev_err(dev, "failed to request resources: %d\n", err);
-		goto err_free_bridge;
+		goto err_free_resource_list;
 	}
 
 	err = rcar_pcie_parse_map_dma_ranges(pcie, dev->of_node);
 	if (err)
-		goto err_free_bridge;
+		goto err_free_resource_list;
 
 	pm_runtime_enable(dev);
 	err = pm_runtime_get_sync(dev);
@@ -1176,9 +1175,10 @@ err_pm_put:
 err_pm_disable:
 	pm_runtime_disable(dev);
 
+err_free_resource_list:
+	pci_free_resource_list(&pcie->resources);
 err_free_bridge:
 	pci_free_host_bridge(bridge);
-	pci_free_resource_list(&pcie->resources);
 
 	return err;
 }

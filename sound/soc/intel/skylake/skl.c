@@ -355,6 +355,7 @@ static int skl_resume(struct device *dev)
 
 		if (ebus->cmd_dma_state)
 			snd_hdac_bus_init_cmd_io(&ebus->bus);
+		ret = 0;
 	} else {
 		ret = _skl_resume(ebus);
 
@@ -435,19 +436,51 @@ static int skl_free(struct hdac_ext_bus *ebus)
 	return 0;
 }
 
-static int skl_machine_device_register(struct skl *skl, void *driver_data)
+/*
+ * For each ssp there are 3 clocks (mclk/sclk/sclkfs).
+ * e.g. for ssp0, clocks will be named as
+ *      "ssp0_mclk", "ssp0_sclk", "ssp0_sclkfs"
+ * So for skl+, there are 6 ssps, so 18 clocks will be created.
+ */
+static struct skl_ssp_clk skl_ssp_clks[] = {
+	{.name = "ssp0_mclk"}, {.name = "ssp1_mclk"}, {.name = "ssp2_mclk"},
+	{.name = "ssp3_mclk"}, {.name = "ssp4_mclk"}, {.name = "ssp5_mclk"},
+	{.name = "ssp0_sclk"}, {.name = "ssp1_sclk"}, {.name = "ssp2_sclk"},
+	{.name = "ssp3_sclk"}, {.name = "ssp4_sclk"}, {.name = "ssp5_sclk"},
+	{.name = "ssp0_sclkfs"}, {.name = "ssp1_sclkfs"},
+						{.name = "ssp2_sclkfs"},
+	{.name = "ssp3_sclkfs"}, {.name = "ssp4_sclkfs"},
+						{.name = "ssp5_sclkfs"},
+};
+
+static int skl_find_machine(struct skl *skl, void *driver_data)
 {
-	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
-	struct platform_device *pdev;
 	struct snd_soc_acpi_mach *mach = driver_data;
-	int ret;
+	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct skl_machine_pdata *pdata;
 
 	mach = snd_soc_acpi_find_machine(mach);
 	if (mach == NULL) {
 		dev_err(bus->dev, "No matching machine driver found\n");
 		return -ENODEV;
 	}
+
+	skl->mach = mach;
 	skl->fw_name = mach->fw_filename;
+	pdata = skl->mach->pdata;
+
+	if (mach->pdata)
+		skl->use_tplg_pcm = pdata->use_tplg_pcm;
+
+	return 0;
+}
+
+static int skl_machine_device_register(struct skl *skl)
+{
+	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct snd_soc_acpi_mach *mach = skl->mach;
+	struct platform_device *pdev;
+	int ret;
 
 	pdev = platform_device_alloc(mach->drv_name, -1);
 	if (pdev == NULL) {
@@ -462,11 +495,8 @@ static int skl_machine_device_register(struct skl *skl, void *driver_data)
 		return -EIO;
 	}
 
-	if (mach->pdata) {
-		skl->use_tplg_pcm =
-			((struct skl_machine_pdata *)mach->pdata)->use_tplg_pcm;
+	if (mach->pdata)
 		dev_set_drvdata(&pdev->dev, mach->pdata);
-	}
 
 	skl->i2s_dev = pdev;
 
@@ -507,6 +537,74 @@ static void skl_dmic_device_unregister(struct skl *skl)
 {
 	if (skl->dmic_dev)
 		platform_device_unregister(skl->dmic_dev);
+}
+
+static struct skl_clk_parent_src skl_clk_src[] = {
+	{ .clk_id = SKL_XTAL, .name = "xtal" },
+	{ .clk_id = SKL_CARDINAL, .name = "cardinal", .rate = 24576000 },
+	{ .clk_id = SKL_PLL, .name = "pll", .rate = 96000000 },
+};
+
+struct skl_clk_parent_src *skl_get_parent_clk(u8 clk_id)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(skl_clk_src); i++) {
+		if (skl_clk_src[i].clk_id == clk_id)
+			return &skl_clk_src[i];
+	}
+
+	return NULL;
+}
+
+static void init_skl_xtal_rate(int pci_id)
+{
+	switch (pci_id) {
+	case 0x9d70:
+	case 0x9d71:
+		skl_clk_src[0].rate = 24000000;
+		return;
+
+	default:
+		skl_clk_src[0].rate = 19200000;
+		return;
+	}
+}
+
+static int skl_clock_device_register(struct skl *skl)
+{
+	struct platform_device_info pdevinfo = {NULL};
+	struct skl_clk_pdata *clk_pdata;
+
+	clk_pdata = devm_kzalloc(&skl->pci->dev, sizeof(*clk_pdata),
+							GFP_KERNEL);
+	if (!clk_pdata)
+		return -ENOMEM;
+
+	init_skl_xtal_rate(skl->pci->device);
+
+	clk_pdata->parent_clks = skl_clk_src;
+	clk_pdata->ssp_clks = skl_ssp_clks;
+	clk_pdata->num_clks = ARRAY_SIZE(skl_ssp_clks);
+
+	/* Query NHLT to fill the rates and parent */
+	skl_get_clks(skl, clk_pdata->ssp_clks);
+	clk_pdata->pvt_data = skl;
+
+	/* Register Platform device */
+	pdevinfo.parent = &skl->pci->dev;
+	pdevinfo.id = -1;
+	pdevinfo.name = "skl-ssp-clk";
+	pdevinfo.data = clk_pdata;
+	pdevinfo.size_data = sizeof(*clk_pdata);
+	skl->clk_dev = platform_device_register_full(&pdevinfo);
+	return PTR_ERR_OR_ZERO(skl->clk_dev);
+}
+
+static void skl_clock_device_unregister(struct skl *skl)
+{
+	if (skl->clk_dev)
+		platform_device_unregister(skl->clk_dev);
 }
 
 /*
@@ -615,18 +713,30 @@ static void skl_probe_work(struct work_struct *work)
 	/* create codec instances */
 	skl_codec_create(ebus);
 
+	/* register platform dai and controls */
+	err = skl_platform_register(bus->dev);
+	if (err < 0) {
+		dev_err(bus->dev, "platform register failed: %d\n", err);
+		return;
+	}
+
+	if (bus->ppcap) {
+		err = skl_machine_device_register(skl);
+		if (err < 0) {
+			dev_err(bus->dev, "machine register failed: %d\n", err);
+			goto out_err;
+		}
+	}
+
 	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
 		err = snd_hdac_display_power(bus, false);
 		if (err < 0) {
 			dev_err(bus->dev, "Cannot turn off display power on i915\n");
+			skl_machine_device_unregister(skl);
 			return;
 		}
 	}
 
-	/* register platform dai and controls */
-	err = skl_platform_register(bus->dev);
-	if (err < 0)
-		return;
 	/*
 	 * we are done probing so decrement link counts
 	 */
@@ -791,18 +901,21 @@ static int skl_probe(struct pci_dev *pci,
 
 	/* check if dsp is there */
 	if (bus->ppcap) {
-		err = skl_machine_device_register(skl,
-				  (void *)pci_id->driver_data);
+		/* create device for dsp clk */
+		err = skl_clock_device_register(skl);
+		if (err < 0)
+			goto out_clk_free;
+
+		err = skl_find_machine(skl, (void *)pci_id->driver_data);
 		if (err < 0)
 			goto out_nhlt_free;
 
 		err = skl_init_dsp(skl);
 		if (err < 0) {
 			dev_dbg(bus->dev, "error failed to register dsp\n");
-			goto out_mach_free;
+			goto out_nhlt_free;
 		}
 		skl->skl_sst->enable_miscbdcge = skl_enable_miscbdcge;
-
 	}
 	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(ebus);
@@ -820,8 +933,8 @@ static int skl_probe(struct pci_dev *pci,
 
 out_dsp_free:
 	skl_free_dsp(skl);
-out_mach_free:
-	skl_machine_device_unregister(skl);
+out_clk_free:
+	skl_clock_device_unregister(skl);
 out_nhlt_free:
 	skl_nhlt_free(skl->nhlt);
 out_free:
@@ -872,6 +985,7 @@ static void skl_remove(struct pci_dev *pci)
 	skl_free_dsp(skl);
 	skl_machine_device_unregister(skl);
 	skl_dmic_device_unregister(skl);
+	skl_clock_device_unregister(skl);
 	skl_nhlt_remove_sysfs(skl);
 	skl_nhlt_free(skl->nhlt);
 	skl_free(ebus);

@@ -1,30 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Intel Virtual Button driver for Windows 8.1+
  *
  *  Copyright (C) 2016 AceLan Kao <acelan.kao@canonical.com>
  *  Copyright (C) 2016 Alex Hung <alex.hung@canonical.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
+#include <linux/acpi.h>
+#include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/input.h>
 #include <linux/platform_device.h>
-#include <linux/input/sparse-keymap.h>
-#include <linux/acpi.h>
 #include <linux/suspend.h>
-#include <acpi/acpi_bus.h>
+
+/* When NOT in tablet mode, VGBS returns with the flag 0x40 */
+#define TABLET_MODE_FLAG 0x40
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("AceLan Kao");
@@ -38,10 +29,16 @@ static const struct acpi_device_id intel_vbtn_ids[] = {
 static const struct key_entry intel_vbtn_keymap[] = {
 	{ KE_KEY, 0xC0, { KEY_POWER } },	/* power key press */
 	{ KE_IGNORE, 0xC1, { KEY_POWER } },	/* power key release */
+	{ KE_KEY, 0xC2, { KEY_LEFTMETA } },		/* 'Windows' key press */
+	{ KE_KEY, 0xC3, { KEY_LEFTMETA } },		/* 'Windows' key release */
 	{ KE_KEY, 0xC4, { KEY_VOLUMEUP } },		/* volume-up key press */
 	{ KE_IGNORE, 0xC5, { KEY_VOLUMEUP } },		/* volume-up key release */
 	{ KE_KEY, 0xC6, { KEY_VOLUMEDOWN } },		/* volume-down key press */
 	{ KE_IGNORE, 0xC7, { KEY_VOLUMEDOWN } },	/* volume-down key release */
+	{ KE_KEY,    0xC8, { KEY_ROTATE_LOCK_TOGGLE } },	/* rotate-lock key press */
+	{ KE_KEY,    0xC9, { KEY_ROTATE_LOCK_TOGGLE } },	/* rotate-lock key release */
+	{ KE_SW,     0xCC, { .sw = { SW_TABLET_MODE, 1 } } },	/* Tablet */
+	{ KE_SW,     0xCD, { .sw = { SW_TABLET_MODE, 0 } } },	/* Laptop */
 	{ KE_END },
 };
 
@@ -74,20 +71,35 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 {
 	struct platform_device *device = context;
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
+	unsigned int val = !(event & 1); /* Even=press, Odd=release */
+	const struct key_entry *ke_rel;
+	bool autorelease;
 
 	if (priv->wakeup_mode) {
 		if (sparse_keymap_entry_from_scancode(priv->input_dev, event)) {
 			pm_wakeup_hard_event(&device->dev);
 			return;
 		}
-	} else if (sparse_keymap_report_event(priv->input_dev, event, 1, true)) {
-		return;
+		goto out_unknown;
 	}
+
+	/*
+	 * Even press events are autorelease if there is no corresponding odd
+	 * release event, or if the odd event is KE_IGNORE.
+	 */
+	ke_rel = sparse_keymap_entry_from_scancode(priv->input_dev, event | 1);
+	autorelease = val && (!ke_rel || ke_rel->type == KE_IGNORE);
+
+	if (sparse_keymap_report_event(priv->input_dev, event, val, autorelease))
+		return;
+
+out_unknown:
 	dev_dbg(&device->dev, "unknown event index 0x%x\n", event);
 }
 
 static int intel_vbtn_probe(struct platform_device *device)
 {
+	struct acpi_buffer vgbs_output = { ACPI_ALLOCATE_BUFFER, NULL };
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 	struct intel_vbtn_priv *priv;
 	acpi_status status;
@@ -109,6 +121,23 @@ static int intel_vbtn_probe(struct platform_device *device)
 		pr_err("Failed to setup Intel Virtual Button\n");
 		return err;
 	}
+
+	/*
+	 * VGBS being present and returning something means we have
+	 * a tablet mode switch.
+	 */
+	status = acpi_evaluate_object(handle, "VGBS", NULL, &vgbs_output);
+	if (ACPI_SUCCESS(status)) {
+		union acpi_object *obj = vgbs_output.pointer;
+
+		if (obj && obj->type == ACPI_TYPE_INTEGER) {
+			int m = !(obj->integer.value & TABLET_MODE_FLAG);
+
+			input_report_switch(priv->input_dev, SW_TABLET_MODE, m);
+		}
+	}
+
+	kfree(vgbs_output.pointer);
 
 	status = acpi_install_notify_handler(handle,
 					     ACPI_DEVICE_NOTIFY,

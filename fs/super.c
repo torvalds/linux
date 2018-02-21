@@ -191,34 +191,6 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 
 	INIT_LIST_HEAD(&s->s_mounts);
 	s->s_user_ns = get_user_ns(user_ns);
-
-	if (security_sb_alloc(s))
-		goto fail;
-
-	for (i = 0; i < SB_FREEZE_LEVELS; i++) {
-		if (__percpu_init_rwsem(&s->s_writers.rw_sem[i],
-					sb_writers_name[i],
-					&type->s_writers_key[i]))
-			goto fail;
-	}
-	init_waitqueue_head(&s->s_writers.wait_unfrozen);
-	s->s_bdi = &noop_backing_dev_info;
-	s->s_flags = flags;
-	if (s->s_user_ns != &init_user_ns)
-		s->s_iflags |= SB_I_NODEV;
-	INIT_HLIST_NODE(&s->s_instances);
-	INIT_HLIST_BL_HEAD(&s->s_anon);
-	mutex_init(&s->s_sync_lock);
-	INIT_LIST_HEAD(&s->s_inodes);
-	spin_lock_init(&s->s_inode_list_lock);
-	INIT_LIST_HEAD(&s->s_inodes_wb);
-	spin_lock_init(&s->s_inode_wblist_lock);
-
-	if (list_lru_init_memcg(&s->s_dentry_lru))
-		goto fail;
-	if (list_lru_init_memcg(&s->s_inode_lru))
-		goto fail;
-
 	init_rwsem(&s->s_umount);
 	lockdep_set_class(&s->s_umount, &type->s_umount_key);
 	/*
@@ -237,6 +209,33 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
 	 * subclass.
 	 */
 	down_write_nested(&s->s_umount, SINGLE_DEPTH_NESTING);
+
+	if (security_sb_alloc(s))
+		goto fail;
+
+	for (i = 0; i < SB_FREEZE_LEVELS; i++) {
+		if (__percpu_init_rwsem(&s->s_writers.rw_sem[i],
+					sb_writers_name[i],
+					&type->s_writers_key[i]))
+			goto fail;
+	}
+	init_waitqueue_head(&s->s_writers.wait_unfrozen);
+	s->s_bdi = &noop_backing_dev_info;
+	s->s_flags = flags;
+	if (s->s_user_ns != &init_user_ns)
+		s->s_iflags |= SB_I_NODEV;
+	INIT_HLIST_NODE(&s->s_instances);
+	INIT_HLIST_BL_HEAD(&s->s_roots);
+	mutex_init(&s->s_sync_lock);
+	INIT_LIST_HEAD(&s->s_inodes);
+	spin_lock_init(&s->s_inode_list_lock);
+	INIT_LIST_HEAD(&s->s_inodes_wb);
+	spin_lock_init(&s->s_inode_wblist_lock);
+
+	if (list_lru_init_memcg(&s->s_dentry_lru))
+		goto fail;
+	if (list_lru_init_memcg(&s->s_inode_lru))
+		goto fail;
 	s->s_count = 1;
 	atomic_set(&s->s_active, 1);
 	mutex_init(&s->s_vfs_rename_mutex);
@@ -518,7 +517,11 @@ retry:
 	hlist_add_head(&s->s_instances, &type->fs_supers);
 	spin_unlock(&sb_lock);
 	get_filesystem(type);
-	register_shrinker(&s->s_shrink);
+	err = register_shrinker(&s->s_shrink);
+	if (err) {
+		deactivate_locked_super(s);
+		s = ERR_PTR(err);
+	}
 	return s;
 }
 

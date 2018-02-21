@@ -117,7 +117,7 @@ OPTIONS
         Comma separated list of fields to print. Options are:
         comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff,
         srcline, period, iregs, uregs, brstack, brstacksym, flags, bpf-output, brstackinsn,
-        brstackoff, callindent, insn, insnlen, synth, phys_addr.
+        brstackoff, callindent, insn, insnlen, synth, phys_addr, metric, misc.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -F sw:comm,tid,time,ip,sym  and -F trace:time,cpu,trace
@@ -217,6 +217,32 @@ OPTIONS
 
 	The brstackoff field will print an offset into a specific dso/binary.
 
+	With the metric option perf script can compute metrics for
+	sampling periods, similar to perf stat. This requires
+	specifying a group with multiple metrics with the :S option
+	for perf record. perf will sample on the first event, and
+	compute metrics for all the events in the group. Please note
+	that the metric computed is averaged over the whole sampling
+	period, not just for the sample point.
+
+	For sample events it's possible to display misc field with -F +misc option,
+	following letters are displayed for each bit:
+
+	  PERF_RECORD_MISC_KERNEL        K
+	  PERF_RECORD_MISC_USER          U
+	  PERF_RECORD_MISC_HYPERVISOR    H
+	  PERF_RECORD_MISC_GUEST_KERNEL  G
+	  PERF_RECORD_MISC_GUEST_USER    g
+	  PERF_RECORD_MISC_MMAP_DATA*    M
+	  PERF_RECORD_MISC_COMM_EXEC     E
+	  PERF_RECORD_MISC_SWITCH_OUT    S
+
+	  $ perf script -F +misc ...
+	   sched-messaging  1414 K     28690.636582:       4590 cycles ...
+	   sched-messaging  1407 U     28690.636600:     325620 cycles ...
+	   sched-messaging  1414 K     28690.636608:      19473 cycles ...
+	  misc field ___________/
+
 -k::
 --vmlinux=<file>::
         vmlinux pathname
@@ -274,6 +300,9 @@ OPTIONS
 	Display context switch events i.e. events of type PERF_RECORD_SWITCH or
 	PERF_RECORD_SWITCH_CPU_WIDE.
 
+--show-lost-events
+	Display lost events i.e. events of type PERF_RECORD_LOST.
+
 --demangle::
 	Demangle symbol names to human readable form. It's enabled by default,
 	disable with --no-demangle.
@@ -320,6 +349,22 @@ include::itrace.txt[]
 	string is ',x.y') then analysis starts at the beginning of the file. If
 	stop time is not given (i.e, time string is 'x.y,') then analysis goes
 	to end of file.
+
+	Also support time percent with multipe time range. Time string is
+	'a%/n,b%/m,...' or 'a%-b%,c%-%d,...'.
+
+	For example:
+	Select the second 10% time slice:
+	perf script --time 10%/2
+
+	Select from 0% to 10% time slice:
+	perf script --time 0%-10%
+
+	Select the first and second 10% time slices:
+	perf script --time 10%/1,10%/2
+
+	Select from 0% to 10% and 30% to 40% slices:
+	perf script --time 0%-10%,30%-40%
 
 --max-blocks::
 	Set the maximum number of program blocks to print with brstackasm for

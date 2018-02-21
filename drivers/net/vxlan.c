@@ -2155,6 +2155,12 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		}
 
 		ndst = &rt->dst;
+		if (skb_dst(skb)) {
+			int mtu = dst_mtu(ndst) - VXLAN_HEADROOM;
+
+			skb_dst_update_pmtu(skb, mtu);
+		}
+
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
 		ttl = ttl ? : ip4_dst_hoplimit(&rt->dst);
 		err = vxlan_build_skb(skb, ndst, sizeof(struct iphdr),
@@ -2188,6 +2194,12 @@ static void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 						    ndst, rt6i_flags);
 			if (err)
 				goto out_unlock;
+		}
+
+		if (skb_dst(skb)) {
+			int mtu = dst_mtu(ndst) - VXLAN6_HEADROOM;
+
+			skb_dst_update_pmtu(skb, mtu);
 		}
 
 		tos = ip_tunnel_ecn_encap(tos, old_iph, skb);
@@ -3103,6 +3115,11 @@ static void vxlan_config_apply(struct net_device *dev,
 
 		max_mtu = lowerdev->mtu - (use_ipv6 ? VXLAN6_HEADROOM :
 					   VXLAN_HEADROOM);
+		if (max_mtu < ETH_MIN_MTU)
+			max_mtu = ETH_MIN_MTU;
+
+		if (!changelink && !conf->mtu)
+			dev->mtu = max_mtu;
 	}
 
 	if (dev->mtu > max_mtu)
@@ -3692,18 +3709,16 @@ static __net_init int vxlan_init_net(struct net *net)
 	return 0;
 }
 
-static void __net_exit vxlan_exit_net(struct net *net)
+static void vxlan_destroy_tunnels(struct net *net, struct list_head *head)
 {
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	struct vxlan_dev *vxlan, *next;
 	struct net_device *dev, *aux;
 	unsigned int h;
-	LIST_HEAD(list);
 
-	rtnl_lock();
 	for_each_netdev_safe(net, dev, aux)
 		if (dev->rtnl_link_ops == &vxlan_link_ops)
-			unregister_netdevice_queue(dev, &list);
+			unregister_netdevice_queue(dev, head);
 
 	list_for_each_entry_safe(vxlan, next, &vn->vxlan_list, next) {
 		/* If vxlan->dev is in the same netns, it has already been added
@@ -3711,20 +3726,30 @@ static void __net_exit vxlan_exit_net(struct net *net)
 		 */
 		if (!net_eq(dev_net(vxlan->dev), net)) {
 			gro_cells_destroy(&vxlan->gro_cells);
-			unregister_netdevice_queue(vxlan->dev, &list);
+			unregister_netdevice_queue(vxlan->dev, head);
 		}
 	}
-
-	unregister_netdevice_many(&list);
-	rtnl_unlock();
 
 	for (h = 0; h < PORT_HASH_SIZE; ++h)
 		WARN_ON_ONCE(!hlist_empty(&vn->sock_list[h]));
 }
 
+static void __net_exit vxlan_exit_batch_net(struct list_head *net_list)
+{
+	struct net *net;
+	LIST_HEAD(list);
+
+	rtnl_lock();
+	list_for_each_entry(net, net_list, exit_list)
+		vxlan_destroy_tunnels(net, &list);
+
+	unregister_netdevice_many(&list);
+	rtnl_unlock();
+}
+
 static struct pernet_operations vxlan_net_ops = {
 	.init = vxlan_init_net,
-	.exit = vxlan_exit_net,
+	.exit_batch = vxlan_exit_batch_net,
 	.id   = &vxlan_net_id,
 	.size = sizeof(struct vxlan_net),
 };

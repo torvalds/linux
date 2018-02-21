@@ -185,23 +185,21 @@ void __read_once_size(const volatile void *p, void *res, int size)
 
 #ifdef CONFIG_KASAN
 /*
- * This function is not 'inline' because __no_sanitize_address confilcts
+ * We can't declare function 'inline' because __no_sanitize_address confilcts
  * with inlining. Attempt to inline it may cause a build failure.
  * 	https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67368
  * '__maybe_unused' allows us to avoid defined-but-not-used warnings.
  */
-static __no_sanitize_address __maybe_unused
-void __read_once_size_nocheck(const volatile void *p, void *res, int size)
-{
-	__READ_ONCE_SIZE;
-}
+# define __no_kasan_or_inline __no_sanitize_address __maybe_unused
 #else
-static __always_inline
+# define __no_kasan_or_inline __always_inline
+#endif
+
+static __no_kasan_or_inline
 void __read_once_size_nocheck(const volatile void *p, void *res, int size)
 {
 	__READ_ONCE_SIZE;
 }
-#endif
 
 static __always_inline void __write_once_size(volatile void *p, void *res, int size)
 {
@@ -220,26 +218,27 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 /*
  * Prevent the compiler from merging or refetching reads or writes. The
  * compiler is also forbidden from reordering successive instances of
- * READ_ONCE, WRITE_ONCE and ACCESS_ONCE (see below), but only when the
- * compiler is aware of some particular ordering.  One way to make the
- * compiler aware of ordering is to put the two invocations of READ_ONCE,
- * WRITE_ONCE or ACCESS_ONCE() in different C statements.
+ * READ_ONCE and WRITE_ONCE, but only when the compiler is aware of some
+ * particular ordering. One way to make the compiler aware of ordering is to
+ * put the two invocations of READ_ONCE or WRITE_ONCE in different C
+ * statements.
  *
- * In contrast to ACCESS_ONCE these two macros will also work on aggregate
- * data types like structs or unions. If the size of the accessed data
- * type exceeds the word size of the machine (e.g., 32 bits or 64 bits)
- * READ_ONCE() and WRITE_ONCE() will fall back to memcpy(). There's at
- * least two memcpy()s: one for the __builtin_memcpy() and then one for
- * the macro doing the copy of variable - '__u' allocated on the stack.
+ * These two macros will also work on aggregate data types like structs or
+ * unions. If the size of the accessed data type exceeds the word size of
+ * the machine (e.g., 32 bits or 64 bits) READ_ONCE() and WRITE_ONCE() will
+ * fall back to memcpy(). There's at least two memcpy()s: one for the
+ * __builtin_memcpy() and then one for the macro doing the copy of variable
+ * - '__u' allocated on the stack.
  *
  * Their two major use cases are: (1) Mediating communication between
  * process-level code and irq/NMI handlers, all running on the same CPU,
- * and (2) Ensuring that the compiler does not  fold, spindle, or otherwise
+ * and (2) Ensuring that the compiler does not fold, spindle, or otherwise
  * mutilate accesses that either do not require ordering or that interact
  * with an explicit memory barrier or atomic instruction that provides the
  * required ordering.
  */
 #include <asm/barrier.h>
+#include <linux/kasan-checks.h>
 
 #define __READ_ONCE(x, check)						\
 ({									\
@@ -259,6 +258,13 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  */
 #define READ_ONCE_NOCHECK(x) __READ_ONCE(x, 0)
 
+static __no_kasan_or_inline
+unsigned long read_word_at_a_time(const void *addr)
+{
+	kasan_check_read(addr, 1);
+	return *(unsigned long *)addr;
+}
+
 #define WRITE_ONCE(x, val) \
 ({							\
 	union { typeof(x) __val; char __c[1]; } __u =	\
@@ -270,6 +276,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 #endif /* __KERNEL__ */
 
 #endif /* __ASSEMBLY__ */
+
+#ifndef __optimize
+# define __optimize(level)
+#endif
 
 /* Compile time object size, -1 for unknown */
 #ifndef __compiletime_object_size
@@ -326,30 +336,5 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 #define compiletime_assert_atomic_type(t)				\
 	compiletime_assert(__native_word(t),				\
 		"Need native word sized stores/loads for atomicity.")
-
-/*
- * Prevent the compiler from merging or refetching accesses.  The compiler
- * is also forbidden from reordering successive instances of ACCESS_ONCE(),
- * but only when the compiler is aware of some particular ordering.  One way
- * to make the compiler aware of ordering is to put the two invocations of
- * ACCESS_ONCE() in different C statements.
- *
- * ACCESS_ONCE will only work on scalar types. For union types, ACCESS_ONCE
- * on a union member will work as long as the size of the member matches the
- * size of the union and the size is smaller than word size.
- *
- * The major use cases of ACCESS_ONCE used to be (1) Mediating communication
- * between process-level code and irq/NMI handlers, all running on the same CPU,
- * and (2) Ensuring that the compiler does not  fold, spindle, or otherwise
- * mutilate accesses that either do not require ordering or that interact
- * with an explicit memory barrier or atomic instruction that provides the
- * required ordering.
- *
- * If possible use READ_ONCE()/WRITE_ONCE() instead.
- */
-#define __ACCESS_ONCE(x) ({ \
-	 __maybe_unused typeof(x) __var = (__force typeof(x)) 0; \
-	(volatile typeof(x) *)&(x); })
-#define ACCESS_ONCE(x) (*__ACCESS_ONCE(x))
 
 #endif /* __LINUX_COMPILER_H */

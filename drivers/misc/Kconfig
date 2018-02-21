@@ -53,7 +53,7 @@ config AD525X_DPOT_SPI
 
 config ATMEL_TCLIB
 	bool "Atmel AT32/AT91 Timer/Counter Library"
-	depends on (AVR32 || ARCH_AT91)
+	depends on ARCH_AT91
 	help
 	  Select this if you want a library to allocate the Timer/Counter
 	  blocks found on many Atmel processors.  This facilitates using
@@ -192,7 +192,7 @@ config ICS932S401
 
 config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
-	depends on HAS_IOMEM && (AVR32 || ARCH_AT91 || COMPILE_TEST)
+	depends on HAS_IOMEM && (ARCH_AT91 || COMPILE_TEST)
 	---help---
 	  This option enables device driver support for Atmel Synchronized
 	  Serial Communication peripheral (SSC).
@@ -496,6 +496,10 @@ config PCI_ENDPOINT_TEST
            Enable this configuration option to enable the host side test driver
            for PCI Endpoint.
 
+config MISC_RTSX
+	tristate
+	default MISC_RTSX_PCI || MISC_RTSX_USB
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
@@ -508,4 +512,6 @@ source "drivers/misc/mic/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"
+source "drivers/misc/ocxl/Kconfig"
+source "drivers/misc/cardreader/Kconfig"
 endmenu

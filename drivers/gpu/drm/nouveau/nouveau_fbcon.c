@@ -56,6 +56,10 @@ MODULE_PARM_DESC(nofbaccel, "Disable fbcon acceleration");
 int nouveau_nofbaccel = 0;
 module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);
 
+MODULE_PARM_DESC(fbcon_bpp, "fbcon bits-per-pixel (default: auto)");
+static int nouveau_fbcon_bpp;
+module_param_named(fbcon_bpp, nouveau_fbcon_bpp, int, 0400);
+
 static void
 nouveau_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
@@ -413,14 +417,6 @@ out:
 	return ret;
 }
 
-void
-nouveau_fbcon_output_poll_changed(struct drm_device *dev)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	if (drm->fbcon)
-		drm_fb_helper_hotplug_event(&drm->fbcon->helper);
-}
-
 static int
 nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 {
@@ -429,7 +425,7 @@ nouveau_fbcon_destroy(struct drm_device *dev, struct nouveau_fbdev *fbcon)
 	drm_fb_helper_unregister_fbi(&fbcon->helper);
 	drm_fb_helper_fini(&fbcon->helper);
 
-	if (nouveau_fb->nvbo) {
+	if (nouveau_fb && nouveau_fb->nvbo) {
 		nouveau_vma_del(&nouveau_fb->vma);
 		nouveau_bo_unmap(nouveau_fb->nvbo);
 		nouveau_bo_unpin(nouveau_fb->nvbo);
@@ -496,7 +492,7 @@ nouveau_fbcon_init(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_fbdev *fbcon;
-	int preferred_bpp;
+	int preferred_bpp = nouveau_fbcon_bpp;
 	int ret;
 
 	if (!dev->mode_config.num_crtc ||
@@ -520,13 +516,15 @@ nouveau_fbcon_init(struct drm_device *dev)
 	if (ret)
 		goto fini;
 
-	if (drm->client.device.info.ram_size <= 32 * 1024 * 1024)
-		preferred_bpp = 8;
-	else
-	if (drm->client.device.info.ram_size <= 64 * 1024 * 1024)
-		preferred_bpp = 16;
-	else
-		preferred_bpp = 32;
+	if (preferred_bpp != 8 && preferred_bpp != 16 && preferred_bpp != 32) {
+		if (drm->client.device.info.ram_size <= 32 * 1024 * 1024)
+			preferred_bpp = 8;
+		else
+		if (drm->client.device.info.ram_size <= 64 * 1024 * 1024)
+			preferred_bpp = 16;
+		else
+			preferred_bpp = 32;
+	}
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
 	if (!drm_drv_uses_atomic_modeset(dev))

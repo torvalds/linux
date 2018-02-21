@@ -59,7 +59,6 @@
 #include <linux/writeback.h>
 #include <linux/memcontrol.h>
 #include <linux/mmu_notifier.h>
-#include <linux/kallsyms.h>
 #include <linux/swapops.h>
 #include <linux/elf.h>
 #include <linux/gfp.h>
@@ -81,7 +80,7 @@
 
 #include "internal.h"
 
-#ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+#if defined(LAST_CPUPID_NOT_IN_PAGE_FLAGS) && !defined(CONFIG_COMPILE_TEST)
 #warning Unfortunate NUMA and NUMA Balancing config, growing page-frame for last_cpupid.
 #endif
 
@@ -400,10 +399,17 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
 
 #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
 
-/* tlb_gather_mmu
- *	Called to initialize an (on-stack) mmu_gather structure for page-table
- *	tear-down from @mm. The @fullmm argument is used when @mm is without
- *	users and we're going to destroy the full address space (exit/execve).
+/**
+ * tlb_gather_mmu - initialize an mmu_gather structure for page-table tear-down
+ * @tlb: the mmu_gather structure to initialize
+ * @mm: the mm_struct of the target address space
+ * @start: start of the region that will be removed from the page-table
+ * @end: end of the region that will be removed from the page-table
+ *
+ * Called to initialize an (on-stack) mmu_gather structure for page-table
+ * tear-down from @mm. The @start and @end are set to 0 and -1
+ * respectively when @mm is without users and we're going to destroy
+ * the full address space (exit/execve).
  */
 void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
 			unsigned long start, unsigned long end)
@@ -760,9 +766,6 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
 		dump_page(page, "bad pte");
 	pr_alert("addr:%p vm_flags:%08lx anon_vma:%p mapping:%p index:%lx\n",
 		 (void *)addr, vma->vm_flags, vma->anon_vma, mapping, index);
-	/*
-	 * Choose text because data symbols depend on CONFIG_KALLSYMS_ALL=y
-	 */
 	pr_alert("file:%pD fault:%pf mmap:%pf readpage:%pf\n",
 		 vma->vm_file,
 		 vma->vm_ops ? vma->vm_ops->fault : NULL,
@@ -1897,12 +1900,26 @@ int vm_insert_pfn_prot(struct vm_area_struct *vma, unsigned long addr,
 }
 EXPORT_SYMBOL(vm_insert_pfn_prot);
 
+static bool vm_mixed_ok(struct vm_area_struct *vma, pfn_t pfn)
+{
+	/* these checks mirror the abort conditions in vm_normal_page */
+	if (vma->vm_flags & VM_MIXEDMAP)
+		return true;
+	if (pfn_t_devmap(pfn))
+		return true;
+	if (pfn_t_special(pfn))
+		return true;
+	if (is_zero_pfn(pfn_t_to_pfn(pfn)))
+		return true;
+	return false;
+}
+
 static int __vm_insert_mixed(struct vm_area_struct *vma, unsigned long addr,
 			pfn_t pfn, bool mkwrite)
 {
 	pgprot_t pgprot = vma->vm_page_prot;
 
-	BUG_ON(!(vma->vm_flags & VM_MIXEDMAP));
+	BUG_ON(!vm_mixed_ok(vma, pfn));
 
 	if (addr < vma->vm_start || addr >= vma->vm_end)
 		return -EFAULT;
@@ -2792,8 +2809,37 @@ static inline void unmap_mapping_range_tree(struct rb_root_cached *root,
 }
 
 /**
+ * unmap_mapping_pages() - Unmap pages from processes.
+ * @mapping: The address space containing pages to be unmapped.
+ * @start: Index of first page to be unmapped.
+ * @nr: Number of pages to be unmapped.  0 to unmap to end of file.
+ * @even_cows: Whether to unmap even private COWed pages.
+ *
+ * Unmap the pages in this address space from any userspace process which
+ * has them mmaped.  Generally, you want to remove COWed pages as well when
+ * a file is being truncated, but not when invalidating pages from the page
+ * cache.
+ */
+void unmap_mapping_pages(struct address_space *mapping, pgoff_t start,
+		pgoff_t nr, bool even_cows)
+{
+	struct zap_details details = { };
+
+	details.check_mapping = even_cows ? NULL : mapping;
+	details.first_index = start;
+	details.last_index = start + nr - 1;
+	if (details.last_index < details.first_index)
+		details.last_index = ULONG_MAX;
+
+	i_mmap_lock_write(mapping);
+	if (unlikely(!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root)))
+		unmap_mapping_range_tree(&mapping->i_mmap, &details);
+	i_mmap_unlock_write(mapping);
+}
+
+/**
  * unmap_mapping_range - unmap the portion of all mmaps in the specified
- * address_space corresponding to the specified page range in the underlying
+ * address_space corresponding to the specified byte range in the underlying
  * file.
  *
  * @mapping: the address space containing mmaps to be unmapped.
@@ -2811,7 +2857,6 @@ static inline void unmap_mapping_range_tree(struct rb_root_cached *root,
 void unmap_mapping_range(struct address_space *mapping,
 		loff_t const holebegin, loff_t const holelen, int even_cows)
 {
-	struct zap_details details = { };
 	pgoff_t hba = holebegin >> PAGE_SHIFT;
 	pgoff_t hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
@@ -2823,16 +2868,7 @@ void unmap_mapping_range(struct address_space *mapping,
 			hlen = ULONG_MAX - hba + 1;
 	}
 
-	details.check_mapping = even_cows ? NULL : mapping;
-	details.first_index = hba;
-	details.last_index = hba + hlen - 1;
-	if (details.last_index < details.first_index)
-		details.last_index = ULONG_MAX;
-
-	i_mmap_lock_write(mapping);
-	if (unlikely(!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root)))
-		unmap_mapping_range_tree(&mapping->i_mmap, &details);
-	i_mmap_unlock_write(mapping);
+	unmap_mapping_pages(mapping, hba, hlen, even_cows);
 }
 EXPORT_SYMBOL(unmap_mapping_range);
 
@@ -2857,8 +2893,11 @@ int do_swap_page(struct vm_fault *vmf)
 	int ret = 0;
 	bool vma_readahead = swap_use_vma_readahead();
 
-	if (vma_readahead)
+	if (vma_readahead) {
 		page = swap_readahead_detect(vmf, &swap_ra);
+		swapcache = page;
+	}
+
 	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte)) {
 		if (page)
 			put_page(page);
@@ -2889,9 +2928,12 @@ int do_swap_page(struct vm_fault *vmf)
 
 
 	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
-	if (!page)
+	if (!page) {
 		page = lookup_swap_cache(entry, vma_readahead ? vma : NULL,
 					 vmf->address);
+		swapcache = page;
+	}
+
 	if (!page) {
 		struct swap_info_struct *si = swp_swap_info(entry);
 
@@ -3479,9 +3521,8 @@ static int fault_around_bytes_get(void *data, u64 *val)
 }
 
 /*
- * fault_around_pages() and fault_around_mask() expects fault_around_bytes
- * rounded down to nearest page order. It's what do_fault_around() expects to
- * see.
+ * fault_around_bytes must be rounded down to the nearest page order as it's
+ * what do_fault_around() expects to see.
  */
 static int fault_around_bytes_set(void *data, u64 val)
 {
@@ -3524,13 +3565,14 @@ late_initcall(fault_around_debugfs);
  * This function doesn't cross the VMA boundaries, in order to call map_pages()
  * only once.
  *
- * fault_around_pages() defines how many pages we'll try to map.
- * do_fault_around() expects it to return a power of two less than or equal to
- * PTRS_PER_PTE.
+ * fault_around_bytes defines how many bytes we'll try to map.
+ * do_fault_around() expects it to be set to a power of two less than or equal
+ * to PTRS_PER_PTE.
  *
- * The virtual address of the area that we map is naturally aligned to the
- * fault_around_pages() value (and therefore to page order).  This way it's
- * easier to guarantee that we don't cross page table boundaries.
+ * The virtual address of the area that we map is naturally aligned to
+ * fault_around_bytes rounded down to the machine page size
+ * (and therefore to page order).  This way it's easier to guarantee
+ * that we don't cross page table boundaries.
  */
 static int do_fault_around(struct vm_fault *vmf)
 {
@@ -3547,8 +3589,8 @@ static int do_fault_around(struct vm_fault *vmf)
 	start_pgoff -= off;
 
 	/*
-	 *  end_pgoff is either end of page table or end of vma
-	 *  or fault_around_pages() from start_pgoff, depending what is nearest.
+	 *  end_pgoff is either the end of the page table, the end of
+	 *  the vma or nr_pages from start_pgoff, depending what is nearest.
 	 */
 	end_pgoff = start_pgoff -
 		((vmf->address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
@@ -3831,7 +3873,8 @@ static inline int create_huge_pmd(struct vm_fault *vmf)
 	return VM_FAULT_FALLBACK;
 }
 
-static int wp_huge_pmd(struct vm_fault *vmf, pmd_t orig_pmd)
+/* `inline' is required to avoid gcc 4.1.2 build error */
+static inline int wp_huge_pmd(struct vm_fault *vmf, pmd_t orig_pmd)
 {
 	if (vma_is_anonymous(vmf->vma))
 		return do_huge_pmd_wp_page(vmf, orig_pmd);
@@ -3948,7 +3991,7 @@ static int handle_pte_fault(struct vm_fault *vmf)
 	if (unlikely(!pte_same(*vmf->pte, entry)))
 		goto unlock;
 	if (vmf->flags & FAULT_FLAG_WRITE) {
-		if (!pte_access_permitted(entry, WRITE))
+		if (!pte_write(entry))
 			return do_wp_page(vmf);
 		entry = pte_mkdirty(entry);
 	}
@@ -4013,7 +4056,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 
 			/* NUMA case for anonymous PUDs would go here */
 
-			if (dirty && !pud_access_permitted(orig_pud, WRITE)) {
+			if (dirty && !pud_write(orig_pud)) {
 				ret = wp_huge_pud(&vmf, orig_pud);
 				if (!(ret & VM_FAULT_FALLBACK))
 					return ret;
@@ -4046,7 +4089,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
 			if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
 				return do_huge_pmd_numa_page(&vmf, orig_pmd);
 
-			if (dirty && !pmd_access_permitted(orig_pmd, WRITE)) {
+			if (dirty && !pmd_write(orig_pmd)) {
 				ret = wp_huge_pmd(&vmf, orig_pmd);
 				if (!(ret & VM_FAULT_FALLBACK))
 					return ret;
@@ -4336,7 +4379,7 @@ int follow_phys(struct vm_area_struct *vma,
 		goto out;
 	pte = *ptep;
 
-	if (!pte_access_permitted(pte, flags & FOLL_WRITE))
+	if ((flags & FOLL_WRITE) && !pte_write(pte))
 		goto unlock;
 
 	*prot = pgprot_val(pte_pgprot(pte));

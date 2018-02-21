@@ -1,5 +1,6 @@
 /*
  * HDMI interface DSS driver for TI's OMAP4 family of SoCs.
+ *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
  * Authors: Yong Zhi
  *	Mythri pk <mythripk@ti.com>
@@ -844,7 +845,7 @@ static const struct of_device_id hdmi_of_match[] = {
 	{},
 };
 
-static struct platform_driver omapdss_hdmihw_driver = {
+struct platform_driver omapdss_hdmi4hw_driver = {
 	.probe		= hdmi4_probe,
 	.remove		= hdmi4_remove,
 	.driver         = {
@@ -854,13 +855,3 @@ static struct platform_driver omapdss_hdmihw_driver = {
 		.suppress_bind_attrs = true,
 	},
 };
-
-int __init hdmi4_init_platform_driver(void)
-{
-	return platform_driver_register(&omapdss_hdmihw_driver);
-}
-
-void hdmi4_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omapdss_hdmihw_driver);
-}

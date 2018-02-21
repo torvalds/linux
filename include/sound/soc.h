@@ -494,6 +494,8 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num);
 int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num);
 #endif
 
+void snd_soc_disconnect_sync(struct device *dev);
+
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream);
 struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
@@ -802,6 +804,9 @@ struct snd_soc_component_driver {
 	int (*suspend)(struct snd_soc_component *);
 	int (*resume)(struct snd_soc_component *);
 
+	unsigned int (*read)(struct snd_soc_component *, unsigned int);
+	int (*write)(struct snd_soc_component *, unsigned int, unsigned int);
+
 	/* pcm creation and destruction */
 	int (*pcm_new)(struct snd_soc_pcm_runtime *);
 	void (*pcm_free)(struct snd_pcm *);
@@ -836,7 +841,7 @@ struct snd_soc_component_driver {
 	/* bits */
 	unsigned int idle_bias_on:1;
 	unsigned int suspend_bias_off:1;
-	unsigned int pmdown_time:1; /* care pmdown_time at stop */
+	unsigned int use_pmdown_time:1; /* care pmdown_time at stop */
 	unsigned int endianness:1;
 	unsigned int non_legacy_dai_naming:1;
 };
@@ -858,12 +863,10 @@ struct snd_soc_component {
 	struct list_head card_aux_list; /* for auxiliary bound components */
 	struct list_head card_list;
 
-	struct snd_soc_dai_driver *dai_drv;
-	int num_dai;
-
 	const struct snd_soc_component_driver *driver;
 
 	struct list_head dai_list;
+	int num_dai;
 
 	int (*read)(struct snd_soc_component *, unsigned int, unsigned int *);
 	int (*write)(struct snd_soc_component *, unsigned int, unsigned int);

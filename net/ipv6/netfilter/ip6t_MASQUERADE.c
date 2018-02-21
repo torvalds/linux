@@ -33,13 +33,19 @@ static int masquerade_tg6_checkentry(const struct xt_tgchk_param *par)
 
 	if (range->flags & NF_NAT_RANGE_MAP_IPS)
 		return -EINVAL;
-	return 0;
+	return nf_ct_netns_get(par->net, par->family);
+}
+
+static void masquerade_tg6_destroy(const struct xt_tgdtor_param *par)
+{
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static struct xt_target masquerade_tg6_reg __read_mostly = {
 	.name		= "MASQUERADE",
 	.family		= NFPROTO_IPV6,
 	.checkentry	= masquerade_tg6_checkentry,
+	.destroy	= masquerade_tg6_destroy,
 	.target		= masquerade_tg6,
 	.targetsize	= sizeof(struct nf_nat_range),
 	.table		= "nat",

@@ -56,12 +56,12 @@
 
 u64 ovs_flow_used_time(unsigned long flow_jiffies)
 {
-	struct timespec cur_ts;
+	struct timespec64 cur_ts;
 	u64 cur_ms, idle_ms;
 
-	ktime_get_ts(&cur_ts);
+	ktime_get_ts64(&cur_ts);
 	idle_ms = jiffies_to_msecs(jiffies - flow_jiffies);
-	cur_ms = (u64)cur_ts.tv_sec * MSEC_PER_SEC +
+	cur_ms = (u64)(u32)cur_ts.tv_sec * MSEC_PER_SEC +
 		 cur_ts.tv_nsec / NSEC_PER_MSEC;
 
 	return cur_ms - idle_ms;
@@ -579,6 +579,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 			return -EINVAL;
 
 		skb_reset_network_header(skb);
+		key->eth.type = skb->protocol;
 	} else {
 		eth = eth_hdr(skb);
 		ether_addr_copy(key->eth.src, eth->h_source);
@@ -592,15 +593,23 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 		if (unlikely(parse_vlan(skb, key)))
 			return -ENOMEM;
 
-		skb->protocol = parse_ethertype(skb);
-		if (unlikely(skb->protocol == htons(0)))
+		key->eth.type = parse_ethertype(skb);
+		if (unlikely(key->eth.type == htons(0)))
 			return -ENOMEM;
+
+		/* Multiple tagged packets need to retain TPID to satisfy
+		 * skb_vlan_pop(), which will later shift the ethertype into
+		 * skb->protocol.
+		 */
+		if (key->eth.cvlan.tci & htons(VLAN_TAG_PRESENT))
+			skb->protocol = key->eth.cvlan.tpid;
+		else
+			skb->protocol = key->eth.type;
 
 		skb_reset_network_header(skb);
 		__skb_push(skb, skb->data - skb_mac_header(skb));
 	}
 	skb_reset_mac_len(skb);
-	key->eth.type = skb->protocol;
 
 	/* Network layer. */
 	if (key->eth.type == htons(ETH_P_IP)) {

@@ -15,6 +15,7 @@
 #include <linux/types.h>
 
 struct fwnode_operations;
+struct device;
 
 struct fwnode_handle {
 	struct fwnode_handle *secondary;
@@ -51,6 +52,7 @@ struct fwnode_reference_args {
  * struct fwnode_operations - Operations for fwnode interface
  * @get: Get a reference to an fwnode.
  * @put: Put a reference to an fwnode.
+ * @device_get_match_data: Return the device driver match data.
  * @property_present: Return true if a property is present.
  * @property_read_integer_array: Read an array of integer properties. Return
  *				 zero on success, a negative error code
@@ -71,6 +73,8 @@ struct fwnode_operations {
 	struct fwnode_handle *(*get)(struct fwnode_handle *fwnode);
 	void (*put)(struct fwnode_handle *fwnode);
 	bool (*device_is_available)(const struct fwnode_handle *fwnode);
+	const void *(*device_get_match_data)(const struct fwnode_handle *fwnode,
+					     const struct device *dev);
 	bool (*property_present)(const struct fwnode_handle *fwnode,
 				 const char *propname);
 	int (*property_read_int_array)(const struct fwnode_handle *fwnode,

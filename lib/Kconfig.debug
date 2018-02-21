@@ -217,7 +217,7 @@ config ENABLE_MUST_CHECK
 config FRAME_WARN
 	int "Warn for stack frames larger than (needs gcc 4.4)"
 	range 0 8192
-	default 0 if KASAN
+	default 3072 if KASAN_EXTRA
 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
 	default 1280 if (!64BIT && PARISC)
 	default 1024 if (!64BIT && !PARISC)
@@ -351,7 +351,6 @@ config SECTION_MISMATCH_WARN_ONLY
 #
 config ARCH_WANT_FRAME_POINTERS
 	bool
-	help
 
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
@@ -1099,8 +1098,6 @@ config PROVE_LOCKING
 	select DEBUG_MUTEXES
 	select DEBUG_RT_MUTEXES if RT_MUTEXES
 	select DEBUG_LOCK_ALLOC
-	select LOCKDEP_CROSSRELEASE
-	select LOCKDEP_COMPLETIONS
 	select TRACE_IRQFLAGS
 	default n
 	help
@@ -1169,37 +1166,6 @@ config LOCK_STAT
 
 	 CONFIG_LOCK_STAT defines "contended" and "acquired" lock events.
 	 (CONFIG_LOCKDEP defines "acquire" and "release" events.)
-
-config LOCKDEP_CROSSRELEASE
-	bool
-	help
-	 This makes lockdep work for crosslock which is a lock allowed to
-	 be released in a different context from the acquisition context.
-	 Normally a lock must be released in the context acquiring the lock.
-	 However, relexing this constraint helps synchronization primitives
-	 such as page locks or completions can use the lock correctness
-	 detector, lockdep.
-
-config LOCKDEP_COMPLETIONS
-	bool
-	help
-	 A deadlock caused by wait_for_completion() and complete() can be
-	 detected by lockdep using crossrelease feature.
-
-config BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
-	bool "Enable the boot parameter, crossrelease_fullstack"
-	depends on LOCKDEP_CROSSRELEASE
-	default n
-	help
-	 The lockdep "cross-release" feature needs to record stack traces
-	 (of calling functions) for all acquisitions, for eventual later
-	 use during analysis. By default only a single caller is recorded,
-	 because the unwind operation can be very expensive with deeper
-	 stack chains.
-
-	 However a boot parameter, crossrelease_fullstack, was
-	 introduced since sometimes deeper traces are required for full
-	 analysis. This option turns on the boot parameter.
 
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"
@@ -1533,6 +1499,10 @@ config FAULT_INJECTION
 	  Provide fault-injection framework.
 	  For more details, see Documentation/fault-injection/.
 
+config FUNCTION_ERROR_INJECTION
+	def_bool y
+	depends on HAVE_FUNCTION_ERROR_INJECTION && KPROBES
+
 config FAILSLAB
 	bool "Fault-injection capability for kmalloc"
 	depends on FAULT_INJECTION
@@ -1579,6 +1549,16 @@ config FAIL_FUTEX
 	depends on FAULT_INJECTION && FUTEX
 	help
 	  Provide fault-injection capability for futexes.
+
+config FAIL_FUNCTION
+	bool "Fault-injection capability for functions"
+	depends on FAULT_INJECTION_DEBUG_FS && FUNCTION_ERROR_INJECTION
+	help
+	  Provide function-based fault-injection capability.
+	  This will allow you to override a specific function with a return
+	  with given return value. As a result, function caller will see
+	  an error value and have to handle it. This is useful to test the
+	  error handling in various subsystems.
 
 config FAULT_INJECTION_DEBUG_FS
 	bool "Debugfs entries for fault-injection capabilities"
@@ -1660,7 +1640,10 @@ config DMA_API_DEBUG
 
 	  If unsure, say N.
 
-menu "Runtime Testing"
+menuconfig RUNTIME_TESTING_MENU
+	bool "Runtime Testing"
+
+if RUNTIME_TESTING_MENU
 
 config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
@@ -1860,7 +1843,7 @@ config TEST_BPF
 
 	  If unsure, say N.
 
-config TEST_FIND_BIT
+config FIND_BIT_BENCHMARK
 	tristate "Test find_bit functions"
 	default n
 	help
@@ -1948,7 +1931,7 @@ config TEST_DEBUG_VIRTUAL
 
 	  If unsure, say N.
 
-endmenu # runtime tests
+endif # RUNTIME_TESTING_MENU
 
 config MEMTEST
 	bool "Memtest"
@@ -1985,7 +1968,7 @@ config STRICT_DEVMEM
 	bool "Filter access to /dev/mem"
 	depends on MMU && DEVMEM
 	depends on ARCH_HAS_DEVMEM_IS_ALLOWED
-	default y if TILE || PPC
+	default y if TILE || PPC || X86 || ARM64
 	---help---
 	  If this option is disabled, you allow userspace (root) access to all
 	  of memory, including kernel and userspace memory. Accidental

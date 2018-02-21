@@ -257,9 +257,9 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 	}
 }
 
-static bool dce110_set_input_transfer_func(
-	struct pipe_ctx *pipe_ctx,
-	const struct dc_plane_state *plane_state)
+static bool
+dce110_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
+			       const struct dc_plane_state *plane_state)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 	const struct dc_transfer_func *tf = NULL;
@@ -280,25 +280,19 @@ static bool dce110_set_input_transfer_func(
 
 	if (tf == NULL) {
 		/* Default case if no input transfer function specified */
-		ipp->funcs->ipp_set_degamma(ipp,
-				IPP_DEGAMMA_MODE_HW_sRGB);
+		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
 	} else if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
-			ipp->funcs->ipp_set_degamma(ipp,
-					IPP_DEGAMMA_MODE_HW_sRGB);
+			ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
 			break;
 		case TRANSFER_FUNCTION_BT709:
-			ipp->funcs->ipp_set_degamma(ipp,
-					IPP_DEGAMMA_MODE_HW_xvYCC);
+			ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_xvYCC);
 			break;
 		case TRANSFER_FUNCTION_LINEAR:
-			ipp->funcs->ipp_set_degamma(ipp,
-					IPP_DEGAMMA_MODE_BYPASS);
+			ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
 			break;
 		case TRANSFER_FUNCTION_PQ:
-			result = false;
-			break;
 		default:
 			result = false;
 			break;
@@ -313,10 +307,9 @@ static bool dce110_set_input_transfer_func(
 	return result;
 }
 
-static bool convert_to_custom_float(
-		struct pwl_result_data *rgb_resulted,
-		struct curve_points *arr_points,
-		uint32_t hw_points_num)
+static bool convert_to_custom_float(struct pwl_result_data *rgb_resulted,
+				    struct curve_points *arr_points,
+				    uint32_t hw_points_num)
 {
 	struct custom_float_format fmt;
 
@@ -328,26 +321,20 @@ static bool convert_to_custom_float(
 	fmt.mantissa_bits = 12;
 	fmt.sign = true;
 
-	if (!convert_to_custom_float_format(
-		arr_points[0].x,
-		&fmt,
-		&arr_points[0].custom_float_x)) {
+	if (!convert_to_custom_float_format(arr_points[0].x, &fmt,
+					    &arr_points[0].custom_float_x)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[0].offset,
-		&fmt,
-		&arr_points[0].custom_float_offset)) {
+	if (!convert_to_custom_float_format(arr_points[0].offset, &fmt,
+					    &arr_points[0].custom_float_offset)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[0].slope,
-		&fmt,
-		&arr_points[0].custom_float_slope)) {
+	if (!convert_to_custom_float_format(arr_points[0].slope, &fmt,
+					    &arr_points[0].custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -355,26 +342,20 @@ static bool convert_to_custom_float(
 	fmt.mantissa_bits = 10;
 	fmt.sign = false;
 
-	if (!convert_to_custom_float_format(
-		arr_points[1].x,
-		&fmt,
-		&arr_points[1].custom_float_x)) {
+	if (!convert_to_custom_float_format(arr_points[1].x, &fmt,
+					    &arr_points[1].custom_float_x)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[1].y,
-		&fmt,
-		&arr_points[1].custom_float_y)) {
+	if (!convert_to_custom_float_format(arr_points[1].y, &fmt,
+					    &arr_points[1].custom_float_y)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
 
-	if (!convert_to_custom_float_format(
-		arr_points[2].slope,
-		&fmt,
-		&arr_points[2].custom_float_slope)) {
+	if (!convert_to_custom_float_format(arr_points[1].slope, &fmt,
+					    &arr_points[1].custom_float_slope)) {
 		BREAK_TO_DEBUGGER();
 		return false;
 	}
@@ -383,50 +364,38 @@ static bool convert_to_custom_float(
 	fmt.sign = true;
 
 	while (i != hw_points_num) {
-		if (!convert_to_custom_float_format(
-			rgb->red,
-			&fmt,
-			&rgb->red_reg)) {
+		if (!convert_to_custom_float_format(rgb->red, &fmt,
+						    &rgb->red_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->green,
-			&fmt,
-			&rgb->green_reg)) {
+		if (!convert_to_custom_float_format(rgb->green, &fmt,
+						    &rgb->green_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->blue,
-			&fmt,
-			&rgb->blue_reg)) {
+		if (!convert_to_custom_float_format(rgb->blue, &fmt,
+						    &rgb->blue_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->delta_red,
-			&fmt,
-			&rgb->delta_red_reg)) {
+		if (!convert_to_custom_float_format(rgb->delta_red, &fmt,
+						    &rgb->delta_red_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->delta_green,
-			&fmt,
-			&rgb->delta_green_reg)) {
+		if (!convert_to_custom_float_format(rgb->delta_green, &fmt,
+						    &rgb->delta_green_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (!convert_to_custom_float_format(
-			rgb->delta_blue,
-			&fmt,
-			&rgb->delta_blue_reg)) {
+		if (!convert_to_custom_float_format(rgb->delta_blue, &fmt,
+						    &rgb->delta_blue_reg)) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
@@ -438,8 +407,9 @@ static bool convert_to_custom_float(
 	return true;
 }
 
-static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
-		*output_tf, struct pwl_params *regamma_params)
+static bool
+dce110_translate_regamma_to_hw_format(const struct dc_transfer_func *output_tf,
+				      struct pwl_params *regamma_params)
 {
 	struct curve_points *arr_points;
 	struct pwl_result_data *rgb_resulted;
@@ -454,8 +424,7 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	int32_t segment_start, segment_end;
 	uint32_t i, j, k, seg_distr[16], increment, start_index, hw_points;
 
-	if (output_tf == NULL || regamma_params == NULL ||
-			output_tf->type == TF_TYPE_BYPASS)
+	if (output_tf == NULL || regamma_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
 
 	arr_points = regamma_params->arr_points;
@@ -534,19 +503,14 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 	/* last point */
 	start_index = (segment_end + 25) * 32;
-	rgb_resulted[hw_points - 1].red =
-			output_tf->tf_pts.red[start_index];
-	rgb_resulted[hw_points - 1].green =
-			output_tf->tf_pts.green[start_index];
-	rgb_resulted[hw_points - 1].blue =
-			output_tf->tf_pts.blue[start_index];
+	rgb_resulted[hw_points - 1].red = output_tf->tf_pts.red[start_index];
+	rgb_resulted[hw_points - 1].green = output_tf->tf_pts.green[start_index];
+	rgb_resulted[hw_points - 1].blue = output_tf->tf_pts.blue[start_index];
 
 	arr_points[0].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-			dal_fixed31_32_from_int(segment_start));
+					     dal_fixed31_32_from_int(segment_start));
 	arr_points[1].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-			dal_fixed31_32_from_int(segment_end));
-	arr_points[2].x = dal_fixed31_32_pow(dal_fixed31_32_from_int(2),
-			dal_fixed31_32_from_int(segment_end));
+					     dal_fixed31_32_from_int(segment_end));
 
 	y_r = rgb_resulted[0].red;
 	y_g = rgb_resulted[0].green;
@@ -555,9 +519,8 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	y1_min = dal_fixed31_32_min(y_r, dal_fixed31_32_min(y_g, y_b));
 
 	arr_points[0].y = y1_min;
-	arr_points[0].slope = dal_fixed31_32_div(
-					arr_points[0].y,
-					arr_points[0].x);
+	arr_points[0].slope = dal_fixed31_32_div(arr_points[0].y,
+						 arr_points[0].x);
 
 	y_r = rgb_resulted[hw_points - 1].red;
 	y_g = rgb_resulted[hw_points - 1].green;
@@ -569,24 +532,18 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	y3_max = dal_fixed31_32_max(y_r, dal_fixed31_32_max(y_g, y_b));
 
 	arr_points[1].y = y3_max;
-	arr_points[2].y = y3_max;
 
 	arr_points[1].slope = dal_fixed31_32_zero;
-	arr_points[2].slope = dal_fixed31_32_zero;
 
 	if (output_tf->tf == TRANSFER_FUNCTION_PQ) {
 		/* for PQ, we want to have a straight line from last HW X point,
 		 * and the slope to be such that we hit 1.0 at 10000 nits.
 		 */
-		const struct fixed31_32 end_value =
-				dal_fixed31_32_from_int(125);
+		const struct fixed31_32 end_value = dal_fixed31_32_from_int(125);
 
 		arr_points[1].slope = dal_fixed31_32_div(
-			dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
-			dal_fixed31_32_sub(end_value, arr_points[1].x));
-		arr_points[2].slope = dal_fixed31_32_div(
-			dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
-			dal_fixed31_32_sub(end_value, arr_points[1].x));
+				dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
+				dal_fixed31_32_sub(end_value, arr_points[1].x));
 	}
 
 	regamma_params->hw_points_num = hw_points;
@@ -594,18 +551,15 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	i = 1;
 	for (k = 0; k < 16 && i < 16; k++) {
 		if (seg_distr[k] != -1) {
-			regamma_params->arr_curve_points[k].segments_num =
-					seg_distr[k];
+			regamma_params->arr_curve_points[k].segments_num = seg_distr[k];
 			regamma_params->arr_curve_points[i].offset =
-					regamma_params->arr_curve_points[k].
-					offset + (1 << seg_distr[k]);
+					regamma_params->arr_curve_points[k].offset + (1 << seg_distr[k]);
 		}
 		i++;
 	}
 
 	if (seg_distr[k] != -1)
-		regamma_params->arr_curve_points[k].segments_num =
-				seg_distr[k];
+		regamma_params->arr_curve_points[k].segments_num = seg_distr[k];
 
 	rgb = rgb_resulted;
 	rgb_plus_1 = rgb_resulted + 1;
@@ -620,15 +574,9 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 		if (dal_fixed31_32_lt(rgb_plus_1->blue, rgb->blue))
 			rgb_plus_1->blue = rgb->blue;
 
-		rgb->delta_red = dal_fixed31_32_sub(
-			rgb_plus_1->red,
-			rgb->red);
-		rgb->delta_green = dal_fixed31_32_sub(
-			rgb_plus_1->green,
-			rgb->green);
-		rgb->delta_blue = dal_fixed31_32_sub(
-			rgb_plus_1->blue,
-			rgb->blue);
+		rgb->delta_red = dal_fixed31_32_sub(rgb_plus_1->red, rgb->red);
+		rgb->delta_green = dal_fixed31_32_sub(rgb_plus_1->green, rgb->green);
+		rgb->delta_blue = dal_fixed31_32_sub(rgb_plus_1->blue, rgb->blue);
 
 		++rgb_plus_1;
 		++rgb;
@@ -640,9 +588,9 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 	return true;
 }
 
-static bool dce110_set_output_transfer_func(
-	struct pipe_ctx *pipe_ctx,
-	const struct dc_stream_state *stream)
+static bool
+dce110_set_output_transfer_func(struct pipe_ctx *pipe_ctx,
+				const struct dc_stream_state *stream)
 {
 	struct transform *xfm = pipe_ctx->plane_res.xfm;
 
@@ -650,13 +598,11 @@ static bool dce110_set_output_transfer_func(
 	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
 	if (stream->out_transfer_func &&
-		stream->out_transfer_func->type ==
-			TF_TYPE_PREDEFINED &&
-		stream->out_transfer_func->tf ==
-			TRANSFER_FUNCTION_SRGB) {
+	    stream->out_transfer_func->type == TF_TYPE_PREDEFINED &&
+	    stream->out_transfer_func->tf == TRANSFER_FUNCTION_SRGB) {
 		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_SRGB);
-	} else if (dce110_translate_regamma_to_hw_format(
-				stream->out_transfer_func, &xfm->regamma_params)) {
+	} else if (dce110_translate_regamma_to_hw_format(stream->out_transfer_func,
+							 &xfm->regamma_params)) {
 		xfm->funcs->opp_program_regamma_pwl(xfm, &xfm->regamma_params);
 		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_USER);
 	} else {
@@ -814,11 +760,11 @@ static enum bp_result link_transmitter_control(
  * eDP only.
  */
 void hwss_edp_wait_for_hpd_ready(
-	struct link_encoder *enc,
-	bool power_up)
+		struct dc_link *link,
+		bool power_up)
 {
-	struct dc_context *ctx = enc->ctx;
-	struct graphics_object_id connector = enc->connector;
+	struct dc_context *ctx = link->ctx;
+	struct graphics_object_id connector = link->link_enc->connector;
 	struct gpio *hpd;
 	bool edp_hpd_high = false;
 	uint32_t time_elapsed = 0;
@@ -882,16 +828,16 @@ void hwss_edp_wait_for_hpd_ready(
 }
 
 void hwss_edp_power_control(
-	struct link_encoder *enc,
-	bool power_up)
+		struct dc_link *link,
+		bool power_up)
 {
-	struct dc_context *ctx = enc->ctx;
+	struct dc_context *ctx = link->ctx;
 	struct dce_hwseq *hwseq = ctx->dc->hwseq;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result bp_result;
 
 
-	if (dal_graphics_object_id_get_connector_id(enc->connector)
+	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 			!= CONNECTOR_ID_EDP) {
 		BREAK_TO_DEBUGGER();
 		return;
@@ -907,11 +853,11 @@ void hwss_edp_power_control(
 		cntl.action = power_up ?
 			TRANSMITTER_CONTROL_POWER_ON :
 			TRANSMITTER_CONTROL_POWER_OFF;
-		cntl.transmitter = enc->transmitter;
-		cntl.connector_obj_id = enc->connector;
+		cntl.transmitter = link->link_enc->transmitter;
+		cntl.connector_obj_id = link->link_enc->connector;
 		cntl.coherent = false;
 		cntl.lanes_number = LANE_COUNT_FOUR;
-		cntl.hpd_sel = enc->hpd_source;
+		cntl.hpd_sel = link->link_enc->hpd_source;
 
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
 
@@ -924,8 +870,6 @@ void hwss_edp_power_control(
 				"%s: Skipping Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 	}
-
-	hwss_edp_wait_for_hpd_ready(enc, true);
 }
 
 /*todo: cloned in stream enc, fix*/
@@ -934,14 +878,14 @@ void hwss_edp_power_control(
  * eDP only. Control the backlight of the eDP panel
  */
 void hwss_edp_backlight_control(
-	struct dc_link *link,
-	bool enable)
+		struct dc_link *link,
+		bool enable)
 {
-	struct dce_hwseq *hws = link->dc->hwseq;
-	struct dc_context *ctx = link->dc->ctx;
+	struct dc_context *ctx = link->ctx;
+	struct dce_hwseq *hws = ctx->dc->hwseq;
 	struct bp_transmitter_control cntl = { 0 };
 
-	if (dal_graphics_object_id_get_connector_id(link->link_id)
+	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
 		!= CONNECTOR_ID_EDP) {
 		BREAK_TO_DEBUGGER();
 		return;
@@ -982,7 +926,7 @@ void hwss_edp_backlight_control(
 	 * Enable it in the future if necessary.
 	 */
 	/* dc_service_sleep_in_milliseconds(50); */
-	link_transmitter_control(link->dc->ctx->dc_bios, &cntl);
+	link_transmitter_control(ctx->dc_bios, &cntl);
 }
 
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
@@ -1026,11 +970,9 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	}
 
 	/* blank at encoder level */
-	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
-		if (pipe_ctx->stream->sink->link->connector_signal == SIGNAL_TYPE_EDP)
-			hwss_edp_backlight_control(link, false);
+	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
-	}
+
 	link->link_enc->funcs->connect_dig_be_to_fe(
 			link->link_enc,
 			pipe_ctx->stream_res.stream_enc->id,
@@ -1042,15 +984,12 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 		struct dc_link_settings *link_settings)
 {
 	struct encoder_unblank_param params = { { 0 } };
-	struct dc_link *link = pipe_ctx->stream->sink->link;
 
 	/* only 3 items below are used by unblank */
 	params.pixel_clk_khz =
 		pipe_ctx->stream->timing.pix_clk_khz;
 	params.link_settings.link_rate = link_settings->link_rate;
 	pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
-	if (link->connector_signal == SIGNAL_TYPE_EDP)
-		hwss_edp_backlight_control(link, true);
 }
 
 
@@ -1401,7 +1340,7 @@ static void power_down_encoders(struct dc *dc)
 		}
 
 		dc->links[i]->link_enc->funcs->disable_output(
-				dc->links[i]->link_enc, signal, dc->links[i]);
+				dc->links[i]->link_enc, signal);
 	}
 }
 
@@ -1462,7 +1401,9 @@ static void disable_vga_and_power_gate_all_controllers(
 		enable_display_pipe_clock_gating(ctx,
 				true);
 
-		dc->hwss.power_down_front_end(dc, i);
+		dc->current_state->res_ctx.pipe_ctx[i].pipe_idx = i;
+		dc->hwss.disable_plane(dc,
+			&dc->current_state->res_ctx.pipe_ctx[i]);
 	}
 }
 
@@ -1748,60 +1689,54 @@ static void apply_min_clocks(
 /*
  *  Check if FBC can be enabled
  */
-static enum dc_status validate_fbc(struct dc *dc,
-		struct dc_state *context)
+static bool should_enable_fbc(struct dc *dc,
+			      struct dc_state *context)
 {
-	struct pipe_ctx *pipe_ctx =
-			      &context->res_ctx.pipe_ctx[0];
+	struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[0];
 
 	ASSERT(dc->fbc_compressor);
 
 	/* FBC memory should be allocated */
 	if (!dc->ctx->fbc_gpu_addr)
-		return DC_ERROR_UNEXPECTED;
+		return false;
 
 	/* Only supports single display */
 	if (context->stream_count != 1)
-		return DC_ERROR_UNEXPECTED;
+		return false;
 
 	/* Only supports eDP */
 	if (pipe_ctx->stream->sink->link->connector_signal != SIGNAL_TYPE_EDP)
-		return DC_ERROR_UNEXPECTED;
+		return false;
 
 	/* PSR should not be enabled */
 	if (pipe_ctx->stream->sink->link->psr_enabled)
-		return DC_ERROR_UNEXPECTED;
+		return false;
 
 	/* Nothing to compress */
 	if (!pipe_ctx->plane_state)
-		return DC_ERROR_UNEXPECTED;
+		return false;
 
 	/* Only for non-linear tiling */
 	if (pipe_ctx->plane_state->tiling_info.gfx8.array_mode == DC_ARRAY_LINEAR_GENERAL)
-		return DC_ERROR_UNEXPECTED;
+		return false;
 
-	return DC_OK;
+	return true;
 }
 
 /*
  *  Enable FBC
  */
-static enum dc_status enable_fbc(struct dc *dc,
-		struct dc_state *context)
+static void enable_fbc(struct dc *dc,
+		       struct dc_state *context)
 {
-	enum dc_status status = validate_fbc(dc, context);
-
-	if (status == DC_OK) {
+	if (should_enable_fbc(dc, context)) {
 		/* Program GRPH COMPRESSED ADDRESS and PITCH */
 		struct compr_addr_and_pitch_params params = {0, 0, 0};
 		struct compressor *compr = dc->fbc_compressor;
-		struct pipe_ctx *pipe_ctx =
-				      &context->res_ctx.pipe_ctx[0];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[0];
 
-		params.source_view_width =
-				pipe_ctx->stream->timing.h_addressable;
-		params.source_view_height =
-				pipe_ctx->stream->timing.v_addressable;
+		params.source_view_width = pipe_ctx->stream->timing.h_addressable;
+		params.source_view_height = pipe_ctx->stream->timing.v_addressable;
 
 		compr->compr_surface_address.quad_part = dc->ctx->fbc_gpu_addr;
 
@@ -1810,7 +1745,6 @@ static enum dc_status enable_fbc(struct dc *dc,
 
 		compr->funcs->enable_fbc(compr, &params);
 	}
-	return status;
 }
 #endif
 
@@ -1888,7 +1822,7 @@ static void dce110_reset_hw_ctx_wrap(
 			if (old_clk)
 				old_clk->funcs->cs_power_down(old_clk);
 
-			dc->hwss.power_down_front_end(dc, pipe_ctx_old->pipe_idx);
+			dc->hwss.disable_plane(dc, pipe_ctx_old);
 
 			pipe_ctx_old->stream = NULL;
 		}
@@ -2076,8 +2010,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx->stream == pipe_ctx_old->stream)
 			continue;
 
-		if (pipe_ctx->stream && pipe_ctx_old->stream
-				&& !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
+		if (pipe_ctx_old->stream && !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
 			continue;
 
 		if (pipe_ctx->top_pipe)
@@ -2113,9 +2046,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 				context,
 				dc);
 
-		if (dc->hwss.power_on_front_end)
-			dc->hwss.power_on_front_end(dc, pipe_ctx, context);
-
 		if (DC_OK != status)
 			return status;
 	}
@@ -2145,16 +2075,8 @@ static void set_default_colors(struct pipe_ctx *pipe_ctx)
 	struct default_adjustment default_adjust = { 0 };
 
 	default_adjust.force_hw_default = false;
-	if (pipe_ctx->plane_state == NULL)
-		default_adjust.in_color_space = COLOR_SPACE_SRGB;
-	else
-		default_adjust.in_color_space =
-				pipe_ctx->plane_state->color_space;
-	if (pipe_ctx->stream == NULL)
-		default_adjust.out_color_space = COLOR_SPACE_SRGB;
-	else
-		default_adjust.out_color_space =
-				pipe_ctx->stream->output_color_space;
+	default_adjust.in_color_space = pipe_ctx->plane_state->color_space;
+	default_adjust.out_color_space = pipe_ctx->stream->output_color_space;
 	default_adjust.csc_adjust_type = GRAPHICS_CSC_ADJUST_TYPE_SW;
 	default_adjust.surface_pixel_format = pipe_ctx->plane_res.scl_data.format;
 
@@ -2279,8 +2201,7 @@ static void set_plane_config(
 	dce_enable_fe_clock(dc->hwseq, pipe_ctx->pipe_idx, true);
 
 	set_default_colors(pipe_ctx);
-	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment
-			== true) {
+	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment == true) {
 		tbl_entry.color_space =
 			pipe_ctx->stream->output_color_space;
 
@@ -2458,19 +2379,15 @@ static void dce110_enable_timing_synchronization(
 
 	for (i = 1 /* skip the master */; i < group_size; i++)
 		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
-					grouped_pipes[i]->stream_res.tg, gsl_params.gsl_group);
-
-
+				grouped_pipes[i]->stream_res.tg,
+				gsl_params.gsl_group);
 
 	for (i = 1 /* skip the master */; i < group_size; i++) {
 		DC_SYNC_INFO("GSL: waiting for reset to occur.\n");
 		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[i]->stream_res.tg);
-		/* Regardless of success of the wait above, remove the reset or
-		 * the driver will start timing out on Display requests. */
-		DC_SYNC_INFO("GSL: disabling trigger-reset.\n");
-		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(grouped_pipes[i]->stream_res.tg);
+		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
+				grouped_pipes[i]->stream_res.tg);
 	}
-
 
 	/* GSL Vblank synchronization is a one time sync mechanism, assumption
 	 * is that the sync'ed displays will not drift out of sync over time*/
@@ -2479,6 +2396,39 @@ static void dce110_enable_timing_synchronization(
 		grouped_pipes[i]->stream_res.tg->funcs->tear_down_global_swap_lock(grouped_pipes[i]->stream_res.tg);
 
 	DC_SYNC_INFO("GSL: Set-up complete.\n");
+}
+
+static void dce110_enable_per_frame_crtc_position_reset(
+		struct dc *dc,
+		int group_size,
+		struct pipe_ctx *grouped_pipes[])
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	struct dcp_gsl_params gsl_params = { 0 };
+	int i;
+
+	gsl_params.gsl_group = 0;
+	gsl_params.gsl_master = grouped_pipes[0]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst;
+
+	for (i = 0; i < group_size; i++)
+		grouped_pipes[i]->stream_res.tg->funcs->setup_global_swap_lock(
+					grouped_pipes[i]->stream_res.tg, &gsl_params);
+
+	DC_SYNC_INFO("GSL: enabling trigger-reset\n");
+
+	for (i = 1; i < group_size; i++)
+		grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset(
+				grouped_pipes[i]->stream_res.tg,
+				gsl_params.gsl_master,
+				&grouped_pipes[i]->stream->triggered_crtc_reset);
+
+	DC_SYNC_INFO("GSL: waiting for reset to occur.\n");
+	for (i = 1; i < group_size; i++)
+		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[i]->stream_res.tg);
+
+	for (i = 0; i < group_size; i++)
+		grouped_pipes[i]->stream_res.tg->funcs->tear_down_global_swap_lock(grouped_pipes[i]->stream_res.tg);
+
 }
 
 static void init_hw(struct dc *dc)
@@ -2513,6 +2463,10 @@ static void init_hw(struct dc *dc)
 		 * required signal (which may be different from the
 		 * default signal on connector). */
 		struct dc_link *link = dc->links[i];
+
+		if (link->link_enc->connector.id == CONNECTOR_ID_EDP)
+			dc->hwss.edp_power_control(link, true);
+
 		link->link_enc->funcs->hw_init(link->link_enc);
 	}
 
@@ -2566,6 +2520,10 @@ void dce110_fill_display_configs(
 			}
 
 		ASSERT(pipe_ctx != NULL);
+
+		/* only notify active stream */
+		if (stream->dpms_off)
+			continue;
 
 		num_cfgs++;
 		cfg->signal = pipe_ctx->stream->signal;
@@ -2722,8 +2680,7 @@ static void dce110_program_front_end_for_pipe(
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
-	struct pipe_ctx *cur_pipe_ctx =
-					&dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
+	struct pipe_ctx *cur_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[pipe_ctx->pipe_idx];
 	unsigned int i;
 
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
@@ -2816,10 +2773,8 @@ static void dce110_program_front_end_for_pipe(
 
 	/* Moved programming gamma from dc to hwss */
 	if (cur_pipe_ctx->plane_state != pipe_ctx->plane_state) {
-		dc->hwss.set_input_transfer_func(
-				pipe_ctx, pipe_ctx->plane_state);
-		dc->hwss.set_output_transfer_func(
-				pipe_ctx, pipe_ctx->stream);
+		dc->hwss.set_input_transfer_func(pipe_ctx, pipe_ctx->plane_state);
+		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 	}
 
 	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
@@ -2866,16 +2821,19 @@ static void dce110_apply_ctx_for_surface(
 		int num_planes,
 		struct dc_state *context)
 {
-	int i, be_idx;
+	int i;
 
 	if (num_planes == 0)
 		return;
 
-	be_idx = -1;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		if (stream == context->res_ctx.pipe_ctx[i].stream) {
-			be_idx = context->res_ctx.pipe_ctx[i].stream_res.tg->inst;
-			break;
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (stream == pipe_ctx->stream) {
+			if (!pipe_ctx->top_pipe &&
+				(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
+				dc->hwss.pipe_control_lock(dc, pipe_ctx, true);
 		}
 	}
 
@@ -2886,22 +2844,36 @@ static void dce110_apply_ctx_for_surface(
 			continue;
 
 		/* Need to allocate mem before program front end for Fiji */
-		if (pipe_ctx->plane_res.mi != NULL)
-			pipe_ctx->plane_res.mi->funcs->allocate_mem_input(
-					pipe_ctx->plane_res.mi,
-					pipe_ctx->stream->timing.h_total,
-					pipe_ctx->stream->timing.v_total,
-					pipe_ctx->stream->timing.pix_clk_khz,
-					context->stream_count);
+		pipe_ctx->plane_res.mi->funcs->allocate_mem_input(
+				pipe_ctx->plane_res.mi,
+				pipe_ctx->stream->timing.h_total,
+				pipe_ctx->stream->timing.v_total,
+				pipe_ctx->stream->timing.pix_clk_khz,
+				context->stream_count);
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
+
+		dc->hwss.update_plane_addr(dc, pipe_ctx);
+
 		program_surface_visibility(dc, pipe_ctx);
 
 	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe_ctx = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if ((stream == pipe_ctx->stream) &&
+			(!pipe_ctx->top_pipe) &&
+			(pipe_ctx->plane_state || old_pipe_ctx->plane_state))
+			dc->hwss.pipe_control_lock(dc, pipe_ctx, false);
+	}
 }
 
-static void dce110_power_down_fe(struct dc *dc, int fe_idx)
+static void dce110_power_down_fe(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
+	int fe_idx = pipe_ctx->pipe_idx;
+
 	/* Do not power down fe when stream is active on dce*/
 	if (dc->current_state->res_ctx.pipe_ctx[fe_idx].stream)
 		return;
@@ -2961,13 +2933,14 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.power_down = dce110_power_down,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dce110_enable_timing_synchronization,
+	.enable_per_frame_crtc_position_reset = dce110_enable_per_frame_crtc_position_reset,
 	.update_info_frame = dce110_update_info_frame,
 	.enable_stream = dce110_enable_stream,
 	.disable_stream = dce110_disable_stream,
 	.unblank_stream = dce110_unblank_stream,
 	.enable_display_pipe_clock_gating = enable_display_pipe_clock_gating,
 	.enable_display_power_gating = dce110_enable_display_power_gating,
-	.power_down_front_end = dce110_power_down_fe,
+	.disable_plane = dce110_power_down_fe,
 	.pipe_control_lock = dce_pipe_control_lock,
 	.set_bandwidth = dce110_set_bandwidth,
 	.set_drr = set_drr,
@@ -2980,8 +2953,10 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect,
 	.ready_shared_resources = ready_shared_resources,
 	.optimize_shared_resources = optimize_shared_resources,
+	.pplib_apply_display_requirements = pplib_apply_display_requirements,
 	.edp_backlight_control = hwss_edp_backlight_control,
 	.edp_power_control = hwss_edp_power_control,
+	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
 };
 
 void dce110_hw_sequencer_construct(struct dc *dc)

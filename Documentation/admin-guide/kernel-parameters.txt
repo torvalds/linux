@@ -114,7 +114,6 @@
 			This facility can be used to prevent such uncontrolled
 			GPE floodings.
 			Format: <int>
-			Support masking of GPEs numbered from 0x00 to 0x7f.
 
 	acpi_no_auto_serialize	[HW,ACPI]
 			Disable auto-serialization of AML methods
@@ -223,7 +222,7 @@
 
 	acpi_sleep=	[HW,ACPI] Sleep options
 			Format: { s3_bios, s3_mode, s3_beep, s4_nohwsig,
-				  old_ordering, nonvs, sci_force_enable }
+				  old_ordering, nonvs, sci_force_enable, nobl }
 			See Documentation/power/video.txt for information on
 			s3_bios and s3_mode.
 			s3_beep is for debugging; it makes the PC's speaker beep
@@ -239,6 +238,9 @@
 			sci_force_enable causes the kernel to set SCI_EN directly
 			on resume from S1/S3 (which is against the ACPI spec,
 			but some broken systems don't work without it).
+			nobl causes the internal blacklist of systems known to
+			behave incorrectly in some ways with respect to system
+			suspend and resume to be ignored (use wisely).
 
 	acpi_use_timer_override [HW,ACPI]
 			Use timer override. For some broken Nvidia NF5 boards
@@ -328,11 +330,15 @@
 			not play well with APC CPU idle - disable it if you have
 			APC and your system crashes randomly.
 
-	apic=		[APIC,X86-32] Advanced Programmable Interrupt Controller
+	apic=		[APIC,X86] Advanced Programmable Interrupt Controller
 			Change the output verbosity whilst booting
 			Format: { quiet (default) | verbose | debug }
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
+			For X86-32, this can also be used to specify an APIC
+			driver name.
+			Format: apic=driver_name
+			Examples: apic=bigsmp
 
 	apic_extnmi=	[APIC,X86] External NMI delivery setting
 			Format: { bsp (default) | all | none }
@@ -640,6 +646,20 @@
 			console=brl,ttyS0
 		For now, only VisioBraille is supported.
 
+	console_msg_format=
+			[KNL] Change console messages format
+		default
+			By default we print messages on consoles in
+			"[time stamp] text\n" format (time stamp may not be
+			printed, depending on CONFIG_PRINTK_TIME or
+			`printk_time' param).
+		syslog
+			Switch to syslog format: "<%u>[time stamp] text\n"
+			IOW, each message will have a facility and loglevel
+			prefix. The format is similar to one used by syslog()
+			syscall, or to executing "dmesg -S --raw" or to reading
+			from /proc/kmsg.
+
 	consoleblank=	[KNL] The console blank (screen saver) timeout in
 			seconds. A value of 0 disables the blank timer.
                        Defaults to 0.
@@ -708,9 +728,6 @@
 			0: to disable low allocation.
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
-
-	crossrelease_fullstack
-			[KNL] Allow to record full stack trace in cross-release
 
 	cryptomgr.notests
                         [KNL] Disable crypto self-tests
@@ -914,9 +931,12 @@
 
 	earlycon=	[KNL] Output early console device and options.
 
-			When used with no options, the early console is
-			determined by the stdout-path property in device
-			tree's chosen node.
+			[ARM64] The early console is determined by the
+			stdout-path property in device tree's chosen node,
+			or determined by the ACPI SPCR table.
+
+			[X86] When used with no options the early console is
+			determined by the ACPI SPCR table.
 
 		cdns,<addr>[,options]
 			Start an early, polled-mode console on a Cadence
@@ -1737,7 +1757,7 @@
 	isapnp=		[ISAPNP]
 			Format: <RDP>,<reset>,<pci_scan>,<verbosity>
 
-	isolcpus=	[KNL,SMP] Isolate a given set of CPUs from disturbance.
+	isolcpus=	[KNL,SMP,ISOL] Isolate a given set of CPUs from disturbance.
 			[Deprecated - use cpusets instead]
 			Format: [flag-list,]<cpu-list>
 
@@ -2048,9 +2068,6 @@
 			five seconds, wait for five seconds, and so on.
 			This tests the locking primitive's ability to
 			transition abruptly to and from idle.
-
-	locktorture.torture_runnable= [BOOT]
-			Start locktorture running at boot time.
 
 	locktorture.torture_type= [KNL]
 			Specify the locking implementation to test.
@@ -2538,6 +2555,9 @@
 			This is useful when you use a panic=... timeout and
 			need the box quickly up again.
 
+			These settings can be accessed at runtime via
+			the nmi_watchdog and hardlockup_panic sysctls.
+
 	netpoll.carrier_timeout=
 			[NET] Specifies amount of time (in seconds) that
 			netpoll should wait for a carrier. By default netpoll
@@ -2622,6 +2642,11 @@
 	nosmt		[KNL,S390] Disable symmetric multithreading (SMT).
 			Equivalent to smt=1.
 
+	nospectre_v2	[X86] Disable all mitigations for the Spectre variant 2
+			(indirect branch prediction) vulnerability. System may
+			allow data leaks with this option, which is equivalent
+			to spectre_v2=off.
+
 	noxsave		[BUGS=X86] Disables x86 extended register state save
 			and restore using xsave. The kernel will fallback to
 			enabling legacy floating-point and sse state.
@@ -2662,7 +2687,7 @@
 			Valid arguments: on, off
 			Default: on
 
-	nohz_full=	[KNL,BOOT]
+	nohz_full=	[KNL,BOOT,SMP,ISOL]
 			The argument is a cpu list, as described above.
 			In kernels built with CONFIG_NO_HZ_FULL=y, set
 			the specified list of CPUs whose tick will be stopped
@@ -2735,8 +2760,6 @@
 
 	norandmaps	Don't use address space randomization.  Equivalent to
 			echo 0 > /proc/sys/kernel/randomize_va_space
-
-	noreplace-paravirt	[X86,IA-64,PV_OPS] Don't patch paravirt_ops
 
 	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
 			with UP alternatives
@@ -3094,6 +3117,12 @@
 		pcie_scan_all	Scan all possible PCIe devices.  Otherwise we
 				only look for one device below a PCIe downstream
 				port.
+		big_root_window	Try to add a big 64bit memory window to the PCIe
+				root complex on AMD CPUs. Some GFX hardware
+				can resize a BAR to allow access to all VRAM.
+				Adding the window is slightly risky (it may
+				conflict with unreported devices), so this
+				taints the kernel.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
@@ -3282,6 +3311,21 @@
 	pt.		[PARIDE]
 			See Documentation/blockdev/paride.txt.
 
+	pti=		[X86_64] Control Page Table Isolation of user and
+			kernel address spaces.  Disabling this feature
+			removes hardening, but improves performance of
+			system calls and interrupts.
+
+			on   - unconditionally enable
+			off  - unconditionally disable
+			auto - kernel detects whether your CPU model is
+			       vulnerable to issues that PTI mitigates
+
+			Not specifying this option is equivalent to pti=auto.
+
+	nopti		[X86_64]
+			Equivalent to pti=off
+
 	pty.legacy_count=
 			[KNL] Number of legacy pty's. Overwrites compiled-in
 			default number.
@@ -3459,9 +3503,6 @@
 			the same as for rcuperf.nreaders.
 			N, where N is the number of CPUs
 
-	rcuperf.perf_runnable= [BOOT]
-			Start rcuperf running at boot time.
-
 	rcuperf.perf_type= [KNL]
 			Specify the RCU implementation to test.
 
@@ -3595,9 +3636,6 @@
 			Test RCU's dyntick-idle handling.  See also the
 			rcutorture.shuffle_interval parameter.
 
-	rcutorture.torture_runnable= [BOOT]
-			Start rcutorture running at boot time.
-
 	rcutorture.torture_type= [KNL]
 			Specify the RCU implementation to test.
 
@@ -3655,7 +3693,8 @@
 
 	rdt=		[HW,X86,RDT]
 			Turn on/off individual RDT features. List is:
-			cmt, mbmtotal, mbmlocal, l3cat, l3cdp, l2cat, mba.
+			cmt, mbmtotal, mbmlocal, l3cat, l3cdp, l2cat, l2cdp,
+			mba.
 			E.g. to turn on cmt and turn off mba use:
 				rdt=cmt,!mba
 
@@ -3675,7 +3714,11 @@
 			[KNL, SMP] Set scheduler's default relax_domain_level.
 			See Documentation/cgroup-v1/cpusets.txt.
 
-	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
+	reserve=	[KNL,BUGS] Force kernel to ignore I/O ports or memory
+			Format: <base1>,<size1>[,<base2>,<size2>,...]
+			Reserve I/O ports or memory so the kernel won't use
+			them.  If <base> is less than 0x10000, the region
+			is assumed to be I/O ports; otherwise it is memory.
 
 	reservetop=	[X86-32]
 			Format: nn[KMG]
@@ -3930,6 +3973,29 @@
 
 	sonypi.*=	[HW] Sony Programmable I/O Control Device driver
 			See Documentation/laptops/sonypi.txt
+
+	spectre_v2=	[X86] Control mitigation of Spectre variant 2
+			(indirect branch speculation) vulnerability.
+
+			on   - unconditionally enable
+			off  - unconditionally disable
+			auto - kernel detects whether your CPU model is
+			       vulnerable
+
+			Selecting 'on' will, and 'auto' may, choose a
+			mitigation method at run time according to the
+			CPU, the available microcode, the setting of the
+			CONFIG_RETPOLINE configuration option, and the
+			compiler with which the kernel was built.
+
+			Specific mitigations can also be selected manually:
+
+			retpoline	  - replace indirect branches
+			retpoline,generic - google's original retpoline
+			retpoline,amd     - AMD-specific minimal thunk
+
+			Not specifying this option is equivalent to
+			spectre_v2=auto.
 
 	spia_io_base=	[HW,MTD]
 	spia_fio_base=

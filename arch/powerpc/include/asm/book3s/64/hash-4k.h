@@ -17,6 +17,12 @@
 #define H_PUD_TABLE_SIZE	(sizeof(pud_t) << H_PUD_INDEX_SIZE)
 #define H_PGD_TABLE_SIZE	(sizeof(pgd_t) << H_PGD_INDEX_SIZE)
 
+#define H_PAGE_F_GIX_SHIFT	53
+#define H_PAGE_F_SECOND	_RPAGE_RPN44	/* HPTE is in 2ndary HPTEG */
+#define H_PAGE_F_GIX	(_RPAGE_RPN43 | _RPAGE_RPN42 | _RPAGE_RPN41)
+#define H_PAGE_BUSY	_RPAGE_RSV1     /* software: PTE & hash are busy */
+#define H_PAGE_HASHPTE	_RPAGE_RSV2     /* software: PTE & hash are busy */
+
 /* PTE flags to conserve for HPTE identification */
 #define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_HASHPTE | \
 			 H_PAGE_F_SECOND | H_PAGE_F_GIX)
@@ -48,6 +54,21 @@ static inline int hash__hugepd_ok(hugepd_t hpd)
 	return false;
 }
 #endif
+
+/*
+ * 4K PTE format is different from 64K PTE format. Saving the hash_slot is just
+ * a matter of returning the PTE bits that need to be modified. On 64K PTE,
+ * things are a little more involved and hence needs many more parameters to
+ * accomplish the same. However we want to abstract this out from the caller by
+ * keeping the prototype consistent across the two formats.
+ */
+static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
+					 unsigned int subpg_index, unsigned long hidx,
+					 int offset)
+{
+	return (hidx << H_PAGE_F_GIX_SHIFT) &
+		(H_PAGE_F_SECOND | H_PAGE_F_GIX);
+}
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
@@ -101,8 +122,6 @@ extern pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma,
 extern void hash__pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 					 pgtable_t pgtable);
 extern pgtable_t hash__pgtable_trans_huge_withdraw(struct mm_struct *mm, pmd_t *pmdp);
-extern void hash__pmdp_huge_split_prepare(struct vm_area_struct *vma,
-				      unsigned long address, pmd_t *pmdp);
 extern pmd_t hash__pmdp_huge_get_and_clear(struct mm_struct *mm,
 				       unsigned long addr, pmd_t *pmdp);
 extern int hash__has_transparent_hugepage(void);

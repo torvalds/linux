@@ -21,7 +21,6 @@
 #include <linux/dmi.h>
 #include <linux/utsname.h>
 #include <linux/stackprotector.h>
-#include <linux/tick.h>
 #include <linux/cpuidle.h>
 #include <trace/events/power.h>
 #include <linux/hw_breakpoint.h>
@@ -47,7 +46,7 @@
  * section. Since TSS's are completely CPU-local, we want them
  * on exact cacheline boundaries, to eliminate cacheline ping-pong.
  */
-__visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
+__visible DEFINE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw) = {
 	.x86_tss = {
 		/*
 		 * .sp0 is only used when entering ring 0 from a lower
@@ -56,6 +55,16 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 		 * Poison it.
 		 */
 		.sp0 = (1UL << (BITS_PER_LONG-1)) + 1,
+
+#ifdef CONFIG_X86_64
+		/*
+		 * .sp1 is cpu_current_top_of_stack.  The init task never
+		 * runs user code, but cpu_current_top_of_stack should still
+		 * be well defined before the first context switch.
+		 */
+		.sp1 = TOP_OF_INIT_STACK,
+#endif
+
 #ifdef CONFIG_X86_32
 		.ss0 = __KERNEL_DS,
 		.ss1 = __KERNEL_CS,
@@ -71,11 +80,8 @@ __visible DEFINE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss) = {
 	  */
 	.io_bitmap		= { [0 ... IO_BITMAP_LONGS] = ~0 },
 #endif
-#ifdef CONFIG_X86_32
-	.SYSENTER_stack_canary	= STACK_END_MAGIC,
-#endif
 };
-EXPORT_PER_CPU_SYMBOL(cpu_tss);
+EXPORT_PER_CPU_SYMBOL(cpu_tss_rw);
 
 DEFINE_PER_CPU(bool, __tss_limit_invalid);
 EXPORT_PER_CPU_SYMBOL_GPL(__tss_limit_invalid);
@@ -104,7 +110,7 @@ void exit_thread(struct task_struct *tsk)
 	struct fpu *fpu = &t->fpu;
 
 	if (bp) {
-		struct tss_struct *tss = &per_cpu(cpu_tss, get_cpu());
+		struct tss_struct *tss = &per_cpu(cpu_tss_rw, get_cpu());
 
 		t->io_bitmap_ptr = NULL;
 		clear_thread_flag(TIF_IO_BITMAP);
@@ -373,19 +379,24 @@ void stop_this_cpu(void *dummy)
 	disable_local_APIC();
 	mcheck_cpu_clear(this_cpu_ptr(&cpu_info));
 
+	/*
+	 * Use wbinvd on processors that support SME. This provides support
+	 * for performing a successful kexec when going from SME inactive
+	 * to SME active (or vice-versa). The cache must be cleared so that
+	 * if there are entries with the same physical address, both with and
+	 * without the encryption bit, they don't race each other when flushed
+	 * and potentially end up with the wrong entry being committed to
+	 * memory.
+	 */
+	if (boot_cpu_has(X86_FEATURE_SME))
+		native_wbinvd();
 	for (;;) {
 		/*
-		 * Use wbinvd followed by hlt to stop the processor. This
-		 * provides support for kexec on a processor that supports
-		 * SME. With kexec, going from SME inactive to SME active
-		 * requires clearing cache entries so that addresses without
-		 * the encryption bit set don't corrupt the same physical
-		 * address that has the encryption bit set when caches are
-		 * flushed. To achieve this a wbinvd is performed followed by
-		 * a hlt. Even if the processor is not in the kexec/SME
-		 * scenario this only adds a wbinvd to a halting processor.
+		 * Use native_halt() so that memory contents don't change
+		 * (stack usage and variables) after possibly issuing the
+		 * native_wbinvd() above.
 		 */
-		asm volatile("wbinvd; hlt" : : : "memory");
+		native_halt();
 	}
 }
 

@@ -235,6 +235,7 @@ LEAF(mips_cps_core_init)
 	has_mt	t0, 3f
 
 	.set	push
+	.set	MIPS_ISA_LEVEL_RAW
 	.set	mt
 
 	/* Only allow 1 TC per VPE to execute... */
@@ -387,14 +388,16 @@ LEAF(mips_cps_boot_vpes)
 
 #elif defined(CONFIG_MIPS_MT)
 
-	.set	push
-	.set	mt
-
 	/* If the core doesn't support MT then return */
 	has_mt	t0, 5f
 
 	/* Enter VPE configuration state */
+	.set	push
+	.set	MIPS_ISA_LEVEL_RAW
+	.set	mt
 	dvpe
+	.set	pop
+
 	PTR_LA	t1, 1f
 	jr.hb	t1
 	 nop
@@ -419,6 +422,10 @@ LEAF(mips_cps_boot_vpes)
 	or	t0, t0, ta1
 	mtc0	t0, CP0_VPECONTROL
 	ehb
+
+	.set	push
+	.set	MIPS_ISA_LEVEL_RAW
+	.set	mt
 
 	/* Skip the VPE if its TC is not halted */
 	mftc0	t0, CP0_TCHALT
@@ -493,6 +500,8 @@ LEAF(mips_cps_boot_vpes)
 	ehb
 	evpe
 
+	.set	pop
+
 	/* Check whether this VPE is meant to be running */
 	li	t0, 1
 	sll	t0, t0, a1
@@ -507,7 +516,7 @@ LEAF(mips_cps_boot_vpes)
 1:	jr.hb	t0
 	 nop
 
-2:	.set	pop
+2:
 
 #endif /* CONFIG_MIPS_MT_SMP */
 

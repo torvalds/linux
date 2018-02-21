@@ -20,11 +20,9 @@
 
 struct malidp_drm {
 	struct malidp_hw_device *dev;
-	struct drm_fbdev_cma *fbdev;
 	struct drm_crtc crtc;
 	wait_queue_head_t wq;
 	atomic_t config_valid;
-	struct drm_atomic_state *pm_state;
 	u32 core_id;
 };
 

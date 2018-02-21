@@ -225,7 +225,7 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 
 	/* Right now all IPs have only one instance - multiple rings. */
 	if (instance != 0) {
-		DRM_ERROR("invalid ip instance: %d\n", instance);
+		DRM_DEBUG("invalid ip instance: %d\n", instance);
 		return -EINVAL;
 	}
 
@@ -255,13 +255,13 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 		ip_num_rings = adev->vcn.num_enc_rings;
 		break;
 	default:
-		DRM_ERROR("unknown ip type: %d\n", hw_ip);
+		DRM_DEBUG("unknown ip type: %d\n", hw_ip);
 		return -EINVAL;
 	}
 
 	if (ring >= ip_num_rings) {
-		DRM_ERROR("Ring index:%d exceeds maximum:%d for ip:%d\n",
-				ring, ip_num_rings, hw_ip);
+		DRM_DEBUG("Ring index:%d exceeds maximum:%d for ip:%d\n",
+			  ring, ip_num_rings, hw_ip);
 		return -EINVAL;
 	}
 
@@ -292,7 +292,7 @@ int amdgpu_queue_mgr_map(struct amdgpu_device *adev,
 	default:
 		*out_ring = NULL;
 		r = -EINVAL;
-		DRM_ERROR("unknown HW IP type: %d\n", mapper->hw_ip);
+		DRM_DEBUG("unknown HW IP type: %d\n", mapper->hw_ip);
 	}
 
 out_unlock:

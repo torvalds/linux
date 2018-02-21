@@ -991,9 +991,8 @@ static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
 {
 	u32 i, copied = 0, wrb_cnt = skb_wrb_cnt(skb);
 	struct device *dev = &adapter->pdev->dev;
-	struct be_queue_info *txq = &txo->q;
 	bool map_single = false;
-	u32 head = txq->head;
+	u32 head;
 	dma_addr_t busaddr;
 	int len;
 
@@ -2584,7 +2583,48 @@ static void be_post_rx_frags(struct be_rx_obj *rxo, gfp_t gfp, u32 frags_needed)
 	}
 }
 
-static struct be_tx_compl_info *be_tx_compl_get(struct be_tx_obj *txo)
+static inline void be_update_tx_err(struct be_tx_obj *txo, u8 status)
+{
+	switch (status) {
+	case BE_TX_COMP_HDR_PARSE_ERR:
+		tx_stats(txo)->tx_hdr_parse_err++;
+		break;
+	case BE_TX_COMP_NDMA_ERR:
+		tx_stats(txo)->tx_dma_err++;
+		break;
+	case BE_TX_COMP_ACL_ERR:
+		tx_stats(txo)->tx_spoof_check_err++;
+		break;
+	}
+}
+
+static inline void lancer_update_tx_err(struct be_tx_obj *txo, u8 status)
+{
+	switch (status) {
+	case LANCER_TX_COMP_LSO_ERR:
+		tx_stats(txo)->tx_tso_err++;
+		break;
+	case LANCER_TX_COMP_HSW_DROP_MAC_ERR:
+	case LANCER_TX_COMP_HSW_DROP_VLAN_ERR:
+		tx_stats(txo)->tx_spoof_check_err++;
+		break;
+	case LANCER_TX_COMP_QINQ_ERR:
+		tx_stats(txo)->tx_qinq_err++;
+		break;
+	case LANCER_TX_COMP_PARITY_ERR:
+		tx_stats(txo)->tx_internal_parity_err++;
+		break;
+	case LANCER_TX_COMP_DMA_ERR:
+		tx_stats(txo)->tx_dma_err++;
+		break;
+	case LANCER_TX_COMP_SGE_ERR:
+		tx_stats(txo)->tx_sge_err++;
+		break;
+	}
+}
+
+static struct be_tx_compl_info *be_tx_compl_get(struct be_adapter *adapter,
+						struct be_tx_obj *txo)
 {
 	struct be_queue_info *tx_cq = &txo->cq;
 	struct be_tx_compl_info *txcp = &txo->txcp;
@@ -2599,6 +2639,24 @@ static struct be_tx_compl_info *be_tx_compl_get(struct be_tx_obj *txo)
 
 	txcp->status = GET_TX_COMPL_BITS(status, compl);
 	txcp->end_index = GET_TX_COMPL_BITS(wrb_index, compl);
+
+	if (txcp->status) {
+		if (lancer_chip(adapter)) {
+			lancer_update_tx_err(txo, txcp->status);
+			/* Reset the adapter incase of TSO,
+			 * SGE or Parity error
+			 */
+			if (txcp->status == LANCER_TX_COMP_LSO_ERR ||
+			    txcp->status == LANCER_TX_COMP_PARITY_ERR ||
+			    txcp->status == LANCER_TX_COMP_SGE_ERR)
+				be_set_error(adapter, BE_ERROR_TX);
+		} else {
+			be_update_tx_err(txo, txcp->status);
+		}
+	}
+
+	if (be_check_error(adapter, BE_ERROR_TX))
+		return NULL;
 
 	compl->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] = 0;
 	queue_tail_inc(tx_cq);
@@ -2742,7 +2800,7 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 			cmpl = 0;
 			num_wrbs = 0;
 			txq = &txo->q;
-			while ((txcp = be_tx_compl_get(txo))) {
+			while ((txcp = be_tx_compl_get(adapter, txo))) {
 				num_wrbs +=
 					be_tx_compl_process(adapter, txo,
 							    txcp->end_index);
@@ -3121,42 +3179,6 @@ loop_continue:
 	return work_done;
 }
 
-static inline void be_update_tx_err(struct be_tx_obj *txo, u8 status)
-{
-	switch (status) {
-	case BE_TX_COMP_HDR_PARSE_ERR:
-		tx_stats(txo)->tx_hdr_parse_err++;
-		break;
-	case BE_TX_COMP_NDMA_ERR:
-		tx_stats(txo)->tx_dma_err++;
-		break;
-	case BE_TX_COMP_ACL_ERR:
-		tx_stats(txo)->tx_spoof_check_err++;
-		break;
-	}
-}
-
-static inline void lancer_update_tx_err(struct be_tx_obj *txo, u8 status)
-{
-	switch (status) {
-	case LANCER_TX_COMP_LSO_ERR:
-		tx_stats(txo)->tx_tso_err++;
-		break;
-	case LANCER_TX_COMP_HSW_DROP_MAC_ERR:
-	case LANCER_TX_COMP_HSW_DROP_VLAN_ERR:
-		tx_stats(txo)->tx_spoof_check_err++;
-		break;
-	case LANCER_TX_COMP_QINQ_ERR:
-		tx_stats(txo)->tx_qinq_err++;
-		break;
-	case LANCER_TX_COMP_PARITY_ERR:
-		tx_stats(txo)->tx_internal_parity_err++;
-		break;
-	case LANCER_TX_COMP_DMA_ERR:
-		tx_stats(txo)->tx_dma_err++;
-		break;
-	}
-}
 
 static void be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 			  int idx)
@@ -3164,16 +3186,9 @@ static void be_process_tx(struct be_adapter *adapter, struct be_tx_obj *txo,
 	int num_wrbs = 0, work_done = 0;
 	struct be_tx_compl_info *txcp;
 
-	while ((txcp = be_tx_compl_get(txo))) {
+	while ((txcp = be_tx_compl_get(adapter, txo))) {
 		num_wrbs += be_tx_compl_process(adapter, txo, txcp->end_index);
 		work_done++;
-
-		if (txcp->status) {
-			if (lancer_chip(adapter))
-				lancer_update_tx_err(txo, txcp->status);
-			else
-				be_update_tx_err(txo, txcp->status);
-		}
 	}
 
 	if (work_done) {
@@ -4634,6 +4649,14 @@ int be_update_queues(struct be_adapter *adapter)
 
 	be_schedule_worker(adapter);
 
+	/* The IF was destroyed and re-created. We need to clear
+	 * all promiscuous flags valid for the destroyed IF.
+	 * Without this promisc mode is not restored during
+	 * be_open() because the driver thinks that it is
+	 * already enabled in HW.
+	 */
+	adapter->if_flags &= ~BE_IF_FLAGS_ALL_PROMISCUOUS;
+
 	if (netif_running(netdev))
 		status = be_open(netdev);
 
@@ -5097,9 +5120,12 @@ static netdev_features_t be_features_check(struct sk_buff *skb,
 			features &= ~NETIF_F_TSO6;
 
 		/* Lancer cannot handle the packet with MSS less than 256.
+		 * Also it can't handle a TSO packet with a single segment
 		 * Disable the GSO support in such cases
 		 */
-		if (lancer_chip(adapter) && skb_shinfo(skb)->gso_size < 256)
+		if (lancer_chip(adapter) &&
+		    (skb_shinfo(skb)->gso_size < 256 ||
+		     skb_shinfo(skb)->gso_segs == 1))
 			features &= ~NETIF_F_GSO_MASK;
 	}
 

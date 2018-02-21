@@ -390,6 +390,19 @@ xfs_map_blocks(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
+	/*
+	 * Truncate can race with writeback since writeback doesn't take the
+	 * iolock and truncate decreases the file size before it starts
+	 * truncating the pages between new_size and old_size.  Therefore, we
+	 * can end up in the situation where writeback gets a CoW fork mapping
+	 * but the truncate makes the mapping invalid and we end up in here
+	 * trying to get a new mapping.  Bail out here so that we simply never
+	 * get a valid mapping and so we drop the write altogether.  The page
+	 * truncation will kill the contents anyway.
+	 */
+	if (type == XFS_IO_COW && offset > i_size_read(inode))
+		return 0;
+
 	ASSERT(type != XFS_IO_COW);
 	if (type == XFS_IO_UNWRITTEN)
 		bmapi_flags |= XFS_BMAPI_IGSTATE;
@@ -399,7 +412,7 @@ xfs_map_blocks(
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
 	ASSERT(offset <= mp->m_super->s_maxbytes);
 
-	if ((xfs_ufsize_t)offset + count > mp->m_super->s_maxbytes)
+	if (offset > mp->m_super->s_maxbytes - count)
 		count = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + count);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
@@ -791,7 +804,7 @@ xfs_aops_discard_page(
 		goto out_invalidate;
 
 	xfs_alert(ip->i_mount,
-		"page discard on page %p, inode 0x%llx, offset %llu.",
+		"page discard on page "PTR_FMT", inode 0x%llx, offset %llu.",
 			page, ip->i_ino, offset);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
@@ -1312,7 +1325,7 @@ xfs_get_blocks(
 	lockmode = xfs_ilock_data_map_shared(ip);
 
 	ASSERT(offset <= mp->m_super->s_maxbytes);
-	if ((xfs_ufsize_t)offset + size > mp->m_super->s_maxbytes)
+	if (offset > mp->m_super->s_maxbytes - size)
 		size = mp->m_super->s_maxbytes - offset;
 	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)offset + size);
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);

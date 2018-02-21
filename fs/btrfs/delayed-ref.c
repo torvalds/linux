@@ -821,7 +821,8 @@ int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
 	spin_unlock(&delayed_refs->lock);
 
 	if (qrecord_inserted)
-		return btrfs_qgroup_trace_extent_post(fs_info, record);
+		btrfs_qgroup_trace_extent_post(fs_info, record);
+
 	return 0;
 
 free_head_ref:
@@ -937,7 +938,7 @@ void btrfs_delayed_ref_exit(void)
 	kmem_cache_destroy(btrfs_delayed_extent_op_cachep);
 }
 
-int btrfs_delayed_ref_init(void)
+int __init btrfs_delayed_ref_init(void)
 {
 	btrfs_delayed_ref_head_cachep = kmem_cache_create(
 				"btrfs_delayed_ref_head",

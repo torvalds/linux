@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cacheinfo support - processor cache information via sysfs
  *
  * Based on arch/x86/kernel/cpu/intel_cacheinfo.c
  * Author: Sudeep Holla <sudeep.holla@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -186,6 +175,11 @@ static void cache_associativity(struct cacheinfo *this_leaf)
 		this_leaf->ways_of_associativity = (size / nr_sets) / line_size;
 }
 
+static bool cache_node_is_unified(struct cacheinfo *this_leaf)
+{
+	return of_property_read_bool(this_leaf->of_node, "cache-unified");
+}
+
 static void cache_of_override_properties(unsigned int cpu)
 {
 	int index;
@@ -194,6 +188,14 @@ static void cache_of_override_properties(unsigned int cpu)
 
 	for (index = 0; index < cache_leaves(cpu); index++) {
 		this_leaf = this_cpu_ci->info_list + index;
+		/*
+		 * init_cache_level must setup the cache level correctly
+		 * overriding the architecturally specified levels, so
+		 * if type is NONE at this stage, it should be unified
+		 */
+		if (this_leaf->type == CACHE_TYPE_NOCACHE &&
+		    cache_node_is_unified(this_leaf))
+			this_leaf->type = CACHE_TYPE_UNIFIED;
 		cache_size(this_leaf);
 		cache_get_line_size(this_leaf);
 		cache_nr_sets(this_leaf);

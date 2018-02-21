@@ -4,11 +4,13 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001, 2002, 2003 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2005-2014 Broadcom Corporation.
+ * Copyright (C) 2005-2016 Broadcom Corporation.
+ * Copyright (C) 2016-2017 Broadcom Limited.
  *
  * Firmware is:
  *	Derived from proprietary unpublished source code,
- *	Copyright (C) 2000-2003 Broadcom Corporation.
+ *	Copyright (C) 2000-2016 Broadcom Corporation.
+ *	Copyright (C) 2016-2017 Broadcom Ltd.
  *
  *	Permission is hereby granted for the distribution of this firmware
  *	data in hexadecimal or equivalent format, provided this copyright
@@ -3225,7 +3227,7 @@ static int tg3_nvram_read_using_eeprom(struct tg3 *tp,
 	return 0;
 }
 
-#define NVRAM_CMD_TIMEOUT 5000
+#define NVRAM_CMD_TIMEOUT 10000
 
 static int tg3_nvram_exec_cmd(struct tg3 *tp, u32 nvram_cmd)
 {
@@ -10052,6 +10054,16 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 
 	tw32(GRC_MODE, tp->grc_mode | val);
 
+	/* On one of the AMD platform, MRRS is restricted to 4000 because of
+	 * south bridge limitation. As a workaround, Driver is setting MRRS
+	 * to 2048 instead of default 4096.
+	 */
+	if (tp->pdev->subsystem_vendor == PCI_VENDOR_ID_DELL &&
+	    tp->pdev->subsystem_device == TG3PCI_SUBDEVICE_ID_DELL_5762) {
+		val = tr32(TG3PCI_DEV_STATUS_CTRL) & ~MAX_READ_REQ_MASK;
+		tw32(TG3PCI_DEV_STATUS_CTRL, val | MAX_READ_REQ_SIZE_2048);
+	}
+
 	/* Setup the timer prescalar register.  Clock is always 66Mhz. */
 	val = tr32(GRC_MISC_CFG);
 	val &= ~0xff;
@@ -14225,7 +14237,10 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 	/* Reset PHY, otherwise the read DMA engine will be in a mode that
 	 * breaks all requests to 256 bytes.
 	 */
-	if (tg3_asic_rev(tp) == ASIC_REV_57766)
+	if (tg3_asic_rev(tp) == ASIC_REV_57766 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5717 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5719 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5720)
 		reset_phy = true;
 
 	err = tg3_restart_hw(tp, reset_phy);
@@ -14774,7 +14789,7 @@ static void tg3_get_5717_nvram_info(struct tg3 *tp)
 
 static void tg3_get_5720_nvram_info(struct tg3 *tp)
 {
-	u32 nvcfg1, nvmpinstrp;
+	u32 nvcfg1, nvmpinstrp, nv_status;
 
 	nvcfg1 = tr32(NVRAM_CFG1);
 	nvmpinstrp = nvcfg1 & NVRAM_CFG1_5752VENDOR_MASK;
@@ -14786,6 +14801,23 @@ static void tg3_get_5720_nvram_info(struct tg3 *tp)
 		}
 
 		switch (nvmpinstrp) {
+		case FLASH_5762_MX25L_100:
+		case FLASH_5762_MX25L_200:
+		case FLASH_5762_MX25L_400:
+		case FLASH_5762_MX25L_800:
+		case FLASH_5762_MX25L_160_320:
+			tp->nvram_pagesize = 4096;
+			tp->nvram_jedecnum = JEDEC_MACRONIX;
+			tg3_flag_set(tp, NVRAM_BUFFERED);
+			tg3_flag_set(tp, NO_NVRAM_ADDR_TRANS);
+			tg3_flag_set(tp, FLASH);
+			nv_status = tr32(NVRAM_AUTOSENSE_STATUS);
+			tp->nvram_size =
+				(1 << (nv_status >> AUTOSENSE_DEVID &
+						AUTOSENSE_DEVID_MASK)
+					<< AUTOSENSE_SIZE_IN_MB);
+			return;
+
 		case FLASH_5762_EEPROM_HD:
 			nvmpinstrp = FLASH_5720_EEPROM_HD;
 			break;

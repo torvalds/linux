@@ -83,10 +83,16 @@ struct fwnode_handle *fwnode_get_next_parent(
 	struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_get_next_child_node(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
+struct fwnode_handle *fwnode_get_next_available_child_node(
+	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
 
 #define fwnode_for_each_child_node(fwnode, child)			\
 	for (child = fwnode_get_next_child_node(fwnode, NULL); child;	\
 	     child = fwnode_get_next_child_node(fwnode, child))
+
+#define fwnode_for_each_available_child_node(fwnode, child)		       \
+	for (child = fwnode_get_next_available_child_node(fwnode, NULL); child;\
+	     child = fwnode_get_next_available_child_node(fwnode, child))
 
 struct fwnode_handle *device_get_next_child_node(
 	struct device *dev, struct fwnode_handle *child);
@@ -102,6 +108,8 @@ struct fwnode_handle *device_get_named_child_node(struct device *dev,
 
 struct fwnode_handle *fwnode_handle_get(struct fwnode_handle *fwnode);
 void fwnode_handle_put(struct fwnode_handle *fwnode);
+
+int fwnode_irq_get(struct fwnode_handle *fwnode, unsigned int index);
 
 unsigned int device_get_child_node_count(struct device *dev);
 
@@ -206,7 +214,7 @@ struct property_entry {
  */
 
 #define PROPERTY_ENTRY_INTEGER_ARRAY(_name_, _type_, _val_)	\
-{								\
+(struct property_entry) {					\
 	.name = _name_,						\
 	.length = ARRAY_SIZE(_val_) * sizeof(_type_),		\
 	.is_array = true,					\
@@ -224,7 +232,7 @@ struct property_entry {
 	PROPERTY_ENTRY_INTEGER_ARRAY(_name_, u64, _val_)
 
 #define PROPERTY_ENTRY_STRING_ARRAY(_name_, _val_)		\
-{								\
+(struct property_entry) {					\
 	.name = _name_,						\
 	.length = ARRAY_SIZE(_val_) * sizeof(const char *),	\
 	.is_array = true,					\
@@ -233,7 +241,7 @@ struct property_entry {
 }
 
 #define PROPERTY_ENTRY_INTEGER(_name_, _type_, _val_)	\
-{							\
+(struct property_entry) {				\
 	.name = _name_,					\
 	.length = sizeof(_type_),			\
 	.is_string = false,				\
@@ -250,7 +258,7 @@ struct property_entry {
 	PROPERTY_ENTRY_INTEGER(_name_, u64, _val_)
 
 #define PROPERTY_ENTRY_STRING(_name_, _val_)		\
-{							\
+(struct property_entry) {				\
 	.name = _name_,					\
 	.length = sizeof(_val_),			\
 	.is_string = true,				\
@@ -258,7 +266,7 @@ struct property_entry {
 }
 
 #define PROPERTY_ENTRY_BOOL(_name_)		\
-{						\
+(struct property_entry) {			\
 	.name = _name_,				\
 }
 
@@ -275,10 +283,15 @@ bool device_dma_supported(struct device *dev);
 
 enum dev_dma_attr device_get_dma_attr(struct device *dev);
 
+const void *device_get_match_data(struct device *dev);
+
 int device_get_phy_mode(struct device *dev);
 
 void *device_get_mac_address(struct device *dev, char *addr, int alen);
 
+int fwnode_get_phy_mode(struct fwnode_handle *fwnode);
+void *fwnode_get_mac_address(struct fwnode_handle *fwnode,
+			     char *addr, int alen);
 struct fwnode_handle *fwnode_graph_get_next_endpoint(
 	const struct fwnode_handle *fwnode, struct fwnode_handle *prev);
 struct fwnode_handle *

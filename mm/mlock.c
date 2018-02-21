@@ -157,7 +157,7 @@ static void __munlock_isolation_failed(struct page *page)
 
 /**
  * munlock_vma_page - munlock a vma page
- * @page - page to be unlocked, either a normal page or THP page head
+ * @page: page to be unlocked, either a normal page or THP page head
  *
  * returns the size of the page as a page mask (0 for normal page,
  *         HPAGE_PMD_NR - 1 for THP head page)
@@ -779,7 +779,7 @@ static int apply_mlockall_flags(int flags)
 
 		/* Ignore errors */
 		mlock_fixup(vma, &prev, vma->vm_start, vma->vm_end, newflags);
-		cond_resched_rcu_qs();
+		cond_resched();
 	}
 out:
 	return 0;

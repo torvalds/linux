@@ -17,15 +17,20 @@
 
 /*
  * output example:
- * hub port sta spd dev      socket           local_busid
- * hs  0000 004 000 00000000         c5a7bb80 1-2.3
+ * hub port sta spd dev       sockfd local_busid
+ * hs  0000 004 000 00000000  000003 1-2.3
  * ................................................
- * ss  0008 004 000 00000000         d8cee980 2-3.4
+ * ss  0008 004 000 00000000  000004 2-3.4
  * ................................................
  *
- * IP address can be retrieved from a socket pointer address by looking
- * up /proc/net/{tcp,tcp6}. Also, a userland program may remember a
- * port number and its peer IP address.
+ * Output includes socket fd instead of socket pointer address to avoid
+ * leaking kernel memory address in:
+ *	/sys/devices/platform/vhci_hcd.0/status and in debug output.
+ * The socket pointer address is not used at the moment and it was made
+ * visible as a convenient way to find IP address from socket pointer
+ * address by looking up /proc/net/{tcp,tcp6}. As this opens a security
+ * hole, the change is made to use sockfd instead.
+ *
  */
 static void port_show_vhci(char **out, int hub, int port, struct vhci_device *vdev)
 {
@@ -39,13 +44,13 @@ static void port_show_vhci(char **out, int hub, int port, struct vhci_device *vd
 	if (vdev->ud.status == VDEV_ST_USED) {
 		*out += sprintf(*out, "%03u %08x ",
 				      vdev->speed, vdev->devid);
-		*out += sprintf(*out, "%16p %s",
-				      vdev->ud.tcp_socket,
+		*out += sprintf(*out, "%06u %s",
+				      vdev->ud.sockfd,
 				      dev_name(&vdev->udev->dev));
 
 	} else {
 		*out += sprintf(*out, "000 00000000 ");
-		*out += sprintf(*out, "0000000000000000 0-0");
+		*out += sprintf(*out, "000000 0-0");
 	}
 
 	*out += sprintf(*out, "\n");
@@ -143,7 +148,7 @@ static ssize_t status_show(struct device *dev,
 	int pdev_nr;
 
 	out += sprintf(out,
-		       "hub port sta spd dev      socket           local_busid\n");
+		       "hub port sta spd dev      sockfd local_busid\n");
 
 	pdev_nr = status_name_to_id(attr->attr.name);
 	if (pdev_nr < 0)
@@ -160,7 +165,8 @@ static ssize_t nports_show(struct device *dev, struct device_attribute *attr,
 	char *s = out;
 
 	/*
-	 * Half the ports are for SPEED_HIGH and half for SPEED_SUPER, thus the * 2.
+	 * Half the ports are for SPEED_HIGH and half for SPEED_SUPER,
+	 * thus the * 2.
 	 */
 	out += sprintf(out, "%d\n", VHCI_PORTS * vhci_num_controllers);
 	return out - s;
@@ -212,7 +218,7 @@ static int valid_port(__u32 pdev_nr, __u32 rhport)
 	return 1;
 }
 
-static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
+static ssize_t detach_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	__u32 port = 0, pdev_nr = 0, rhport = 0;
@@ -250,7 +256,7 @@ static ssize_t store_detach(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR(detach, S_IWUSR, NULL, store_detach);
+static DEVICE_ATTR_WO(detach);
 
 static int valid_args(__u32 pdev_nr, __u32 rhport, enum usb_device_speed speed)
 {
@@ -286,7 +292,7 @@ static int valid_args(__u32 pdev_nr, __u32 rhport, enum usb_device_speed speed)
  *
  * write() returns 0 on success, else negative errno.
  */
-static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
+static ssize_t attach_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct socket *socket;
@@ -366,6 +372,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 
 	vdev->devid         = devid;
 	vdev->speed         = speed;
+	vdev->ud.sockfd     = sockfd;
 	vdev->ud.tcp_socket = socket;
 	vdev->ud.status     = VDEV_ST_NOTASSIGNED;
 
@@ -380,7 +387,7 @@ static ssize_t store_attach(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR(attach, S_IWUSR, NULL, store_attach);
+static DEVICE_ATTR_WO(attach);
 
 #define MAX_STATUS_NAME 16
 

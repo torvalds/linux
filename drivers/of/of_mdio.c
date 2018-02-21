@@ -77,10 +77,16 @@ static int of_mdiobus_register_phy(struct mii_bus *mdio,
 	if (of_property_read_bool(child, "broken-turn-around"))
 		mdio->phy_ignore_ta_mask |= 1 << addr;
 
+	of_property_read_u32(child, "reset-assert-us",
+			     &phy->mdio.reset_assert_delay);
+	of_property_read_u32(child, "reset-deassert-us",
+			     &phy->mdio.reset_deassert_delay);
+
 	/* Associate the OF node with the device structure so it
 	 * can be looked up later */
 	of_node_get(child);
 	phy->mdio.dev.of_node = child;
+	phy->mdio.dev.fwnode = of_fwnode_handle(child);
 
 	/* All data is now stored in the phy struct;
 	 * register it */
@@ -111,6 +117,7 @@ static int of_mdiobus_register_device(struct mii_bus *mdio,
 	 */
 	of_node_get(child);
 	mdiodev->dev.of_node = child;
+	mdiodev->dev.fwnode = of_fwnode_handle(child);
 
 	/* All data is now stored in the mdiodev struct; register it. */
 	rc = mdio_device_register(mdiodev);
@@ -206,6 +213,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 	mdio->phy_mask = ~0;
 
 	mdio->dev.of_node = np;
+	mdio->dev.fwnode = of_fwnode_handle(np);
 
 	/* Get bus level PHY reset GPIO details */
 	mdio->reset_delay_us = DEFAULT_GPIO_RESET_DELAY;
@@ -228,7 +236,12 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 			rc = of_mdiobus_register_phy(mdio, child, addr);
 		else
 			rc = of_mdiobus_register_device(mdio, child, addr);
-		if (rc)
+
+		if (rc == -ENODEV)
+			dev_err(&mdio->dev,
+				"MDIO device at address %d is missing.\n",
+				addr);
+		else if (rc)
 			goto unregister;
 	}
 
@@ -252,7 +265,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 
 			if (of_mdiobus_child_is_phy(child)) {
 				rc = of_mdiobus_register_phy(mdio, child, addr);
-				if (rc)
+				if (rc && rc != -ENODEV)
 					goto unregister;
 			}
 		}

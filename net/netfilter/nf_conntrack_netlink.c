@@ -45,7 +45,6 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_timestamp.h>
 #include <net/netfilter/nf_conntrack_labels.h>
-#include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_synproxy.h>
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_core.h>
@@ -57,8 +56,6 @@
 #include <linux/netfilter/nfnetlink_conntrack.h>
 
 MODULE_LICENSE("GPL");
-
-static char __initdata version[] = "0.93";
 
 static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple,
@@ -545,7 +542,7 @@ static size_t ctnetlink_proto_size(const struct nf_conn *ct)
 	len *= 3u; /* ORIG, REPLY, MASTER */
 
 	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
-	len += l4proto->nla_size;
+	len += l4proto->nlattr_size;
 	if (l4proto->nlattr_tuple_size) {
 		len4 = l4proto->nlattr_tuple_size();
 		len4 *= 3u; /* ORIG, REPLY, MASTER */
@@ -1111,6 +1108,14 @@ static const struct nla_policy ct_nla_policy[CTA_MAX+1] = {
 				    .len = NF_CT_LABELS_MAX_SIZE },
 };
 
+static int ctnetlink_flush_iterate(struct nf_conn *ct, void *data)
+{
+	if (test_bit(IPS_OFFLOAD_BIT, &ct->status))
+		return 0;
+
+	return ctnetlink_filter_match(ct, data);
+}
+
 static int ctnetlink_flush_conntrack(struct net *net,
 				     const struct nlattr * const cda[],
 				     u32 portid, int report)
@@ -1123,7 +1128,7 @@ static int ctnetlink_flush_conntrack(struct net *net,
 			return PTR_ERR(filter);
 	}
 
-	nf_ct_iterate_cleanup_net(net, ctnetlink_filter_match, filter,
+	nf_ct_iterate_cleanup_net(net, ctnetlink_flush_iterate, filter,
 				  portid, report);
 	kfree(filter);
 
@@ -1168,6 +1173,11 @@ static int ctnetlink_del_conntrack(struct net *net, struct sock *ctnl,
 		return -ENOENT;
 
 	ct = nf_ct_tuplehash_to_ctrack(h);
+
+	if (test_bit(IPS_OFFLOAD_BIT, &ct->status)) {
+		nf_ct_put(ct);
+		return -EBUSY;
+	}
 
 	if (cda[CTA_ID]) {
 		u_int32_t id = ntohl(nla_get_be32(cda[CTA_ID]));
@@ -1566,9 +1576,11 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 static int ctnetlink_change_timeout(struct nf_conn *ct,
 				    const struct nlattr * const cda[])
 {
-	u_int32_t timeout = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
+	u64 timeout = (u64)ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
 
-	ct->timeout = nfct_time_stamp + timeout * HZ;
+	if (timeout > INT_MAX)
+		timeout = INT_MAX;
+	ct->timeout = nfct_time_stamp + (u32)timeout;
 
 	if (test_bit(IPS_DYING_BIT, &ct->status))
 		return -ETIME;
@@ -1768,6 +1780,7 @@ ctnetlink_create_conntrack(struct net *net,
 	int err = -EINVAL;
 	struct nf_conntrack_helper *helper;
 	struct nf_conn_tstamp *tstamp;
+	u64 timeout;
 
 	ct = nf_conntrack_alloc(net, zone, otuple, rtuple, GFP_ATOMIC);
 	if (IS_ERR(ct))
@@ -1776,7 +1789,10 @@ ctnetlink_create_conntrack(struct net *net,
 	if (!cda[CTA_TIMEOUT])
 		goto err1;
 
-	ct->timeout = nfct_time_stamp + ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
+	timeout = (u64)ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
+	if (timeout > INT_MAX)
+		timeout = INT_MAX;
+	ct->timeout = (u32)timeout + nfct_time_stamp;
 
 	rcu_read_lock();
  	if (cda[CTA_HELP]) {
@@ -3407,7 +3423,6 @@ static int __init ctnetlink_init(void)
 {
 	int ret;
 
-	pr_info("ctnetlink v%s: registering with nfnetlink.\n", version);
 	ret = nfnetlink_subsys_register(&ctnl_subsys);
 	if (ret < 0) {
 		pr_err("ctnetlink_init: cannot register with nfnetlink.\n");
@@ -3441,8 +3456,6 @@ err_out:
 
 static void __exit ctnetlink_exit(void)
 {
-	pr_info("ctnetlink: unregistering from nfnetlink.\n");
-
 	unregister_pernet_subsys(&ctnetlink_net_ops);
 	nfnetlink_subsys_unregister(&ctnl_exp_subsys);
 	nfnetlink_subsys_unregister(&ctnl_subsys);

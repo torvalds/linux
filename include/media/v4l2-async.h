@@ -28,7 +28,7 @@ struct v4l2_async_notifier;
  *	in order to identify a match
  *
  * @V4L2_ASYNC_MATCH_CUSTOM: Match will use the logic provided by &struct
- * 	v4l2_async_subdev.match ops
+ *	v4l2_async_subdev.match ops
  * @V4L2_ASYNC_MATCH_DEVNAME: Match will use the device name
  * @V4L2_ASYNC_MATCH_I2C: Match will check for I2C adapter ID and address
  * @V4L2_ASYNC_MATCH_FWNODE: Match will use firmware node
@@ -48,6 +48,31 @@ enum v4l2_async_match_type {
  *
  * @match_type:	type of match that will be used
  * @match:	union of per-bus type matching data sets
+ * @match.fwnode:
+ *		pointer to &struct fwnode_handle to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_FWNODE.
+ * @match.device_name:
+ *		string containing the device name to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_DEVNAME.
+ * @match.i2c:	embedded struct with I2C parameters to be matched.
+ *		Both @match.i2c.adapter_id and @match.i2c.address
+ *		should be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
+ * @match.i2c.adapter_id:
+ *		I2C adapter ID to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
+ * @match.i2c.address:
+ *		I2C address to be matched.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_I2C.
+ * @match.custom:
+ *		Driver-specific match criteria.
+ *		Used if @match_type is %V4L2_ASYNC_MATCH_CUSTOM.
+ * @match.custom.match:
+ *		Driver-specific match function to be used if
+ *		%V4L2_ASYNC_MATCH_CUSTOM.
+ * @match.custom.priv:
+ *		Driver-specific private struct with match parameters
+ *		to be used if %V4L2_ASYNC_MATCH_CUSTOM.
  * @list:	used to link struct v4l2_async_subdev objects, waiting to be
  *		probed, to a notifier->waiting list
  *
@@ -58,12 +83,8 @@ enum v4l2_async_match_type {
 struct v4l2_async_subdev {
 	enum v4l2_async_match_type match_type;
 	union {
-		struct {
-			struct fwnode_handle *fwnode;
-		} fwnode;
-		struct {
-			const char *name;
-		} device_name;
+		struct fwnode_handle *fwnode;
+		const char *device_name;
 		struct {
 			int adapter_id;
 			unsigned short address;
@@ -167,7 +188,7 @@ void v4l2_async_notifier_cleanup(struct v4l2_async_notifier *notifier);
 
 /**
  * v4l2_async_register_subdev - registers a sub-device to the asynchronous
- * 	subdevice framework
+ *	subdevice framework
  *
  * @sd: pointer to &struct v4l2_subdev
  */
@@ -197,7 +218,7 @@ int __must_check v4l2_async_register_subdev_sensor_common(
 
 /**
  * v4l2_async_unregister_subdev - unregisters a sub-device to the asynchronous
- * 	subdevice framework
+ *	subdevice framework
  *
  * @sd: pointer to &struct v4l2_subdev
  */

@@ -77,6 +77,7 @@ static void do_remove(struct mmu_rb_handler *handler,
 static void handle_remove(struct work_struct *work);
 
 static const struct mmu_notifier_ops mn_opts = {
+	.flags = MMU_INVALIDATE_DOES_NOT_BLOCK,
 	.invalidate_range_start = mmu_notifier_range_start,
 };
 

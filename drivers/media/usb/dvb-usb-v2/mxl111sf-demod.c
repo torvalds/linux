@@ -477,10 +477,15 @@ static int mxl111sf_demod_read_signal_strength(struct dvb_frontend *fe,
 {
 	struct mxl111sf_demod_state *state = fe->demodulator_priv;
 	enum fe_modulation modulation;
+	int ret;
 	u16 snr;
 
-	mxl111sf_demod_calc_snr(state, &snr);
-	mxl1x1sf_demod_get_tps_modulation(state, &modulation);
+	ret = mxl111sf_demod_calc_snr(state, &snr);
+	if (ret < 0)
+		return ret;
+	ret = mxl1x1sf_demod_get_tps_modulation(state, &modulation);
+	if (ret < 0)
+		return ret;
 
 	switch (modulation) {
 	case QPSK:

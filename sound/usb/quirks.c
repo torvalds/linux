@@ -1166,10 +1166,11 @@ static bool is_marantz_denon_dac(unsigned int id)
 /* TEAC UD-501/UD-503/NT-503 USB DACs need a vendor cmd to switch
  * between PCM/DOP and native DSD mode
  */
-static bool is_teac_50X_dac(unsigned int id)
+static bool is_teac_dsd_dac(unsigned int id)
 {
 	switch (id) {
 	case USB_ID(0x0644, 0x8043): /* TEAC UD-501/UD-503/NT-503 */
+	case USB_ID(0x0644, 0x8044): /* Esoteric D-05X */
 		return true;
 	}
 	return false;
@@ -1202,7 +1203,7 @@ int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 			break;
 		}
 		mdelay(20);
-	} else if (is_teac_50X_dac(subs->stream->chip->usb_id)) {
+	} else if (is_teac_dsd_dac(subs->stream->chip->usb_id)) {
 		/* Vendor mode switch cmd is required. */
 		switch (fmt->altsetting) {
 		case 3: /* DSD mode (DSD_U32) requested */
@@ -1362,8 +1363,11 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 		break;
 
-	/* Amanero Combo384 USB interface with native DSD support */
-	case USB_ID(0x16d0, 0x071a):
+	/* Amanero Combo384 USB based DACs with native DSD support */
+	case USB_ID(0x16d0, 0x071a):  /* Amanero - Combo384 */
+	case USB_ID(0x2ab6, 0x0004):  /* T+A DAC8DSD-V2.0, MP1000E-V2.0, MP2000R-V2.0, MP2500R-V2.0, MP3100HV-V2.0 */
+	case USB_ID(0x2ab6, 0x0005):  /* T+A USB HD Audio 1 */
+	case USB_ID(0x2ab6, 0x0006):  /* T+A USB HD Audio 2 */
 		if (fp->altsetting == 2) {
 			switch (le16_to_cpu(chip->dev->descriptor.bcdDevice)) {
 			case 0x199:
@@ -1392,7 +1396,7 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	}
 
 	/* TEAC devices with USB DAC functionality */
-	if (is_teac_50X_dac(chip->usb_id)) {
+	if (is_teac_dsd_dac(chip->usb_id)) {
 		if (fp->altsetting == 3)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 	}

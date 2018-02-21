@@ -357,7 +357,7 @@ static int xhci_alloc_segments_for_ring(struct xhci_hcd *xhci,
  * Set the end flag and the cycle toggle bit on the last segment.
  * See section 4.9.1 and figures 15 and 16.
  */
-static struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
+struct xhci_ring *xhci_ring_alloc(struct xhci_hcd *xhci,
 		unsigned int num_segs, unsigned int cycle_state,
 		enum xhci_ring_type type, unsigned int max_packet, gfp_t flags)
 {
@@ -454,7 +454,7 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	return 0;
 }
 
-static struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
+struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 						    int type, gfp_t flags)
 {
 	struct xhci_container_ctx *ctx;
@@ -479,7 +479,7 @@ static struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci
 	return ctx;
 }
 
-static void xhci_free_container_ctx(struct xhci_hcd *xhci,
+void xhci_free_container_ctx(struct xhci_hcd *xhci,
 			     struct xhci_container_ctx *ctx)
 {
 	if (!ctx)
@@ -650,7 +650,7 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 
 	/* Allocate everything needed to free the stream rings later */
 	stream_info->free_streams_command =
-		xhci_alloc_command(xhci, true, true, mem_flags);
+		xhci_alloc_command_with_ctx(xhci, true, mem_flags);
 	if (!stream_info->free_streams_command)
 		goto cleanup_ctx;
 
@@ -971,10 +971,9 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 		return 0;
 	}
 
-	xhci->devs[slot_id] = kzalloc(sizeof(*xhci->devs[slot_id]), flags);
-	if (!xhci->devs[slot_id])
+	dev = kzalloc(sizeof(*dev), flags);
+	if (!dev)
 		return 0;
-	dev = xhci->devs[slot_id];
 
 	/* Allocate the (output) device context that will be used in the HC. */
 	dev->out_ctx = xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_DEVICE, flags);
@@ -1015,9 +1014,17 @@ int xhci_alloc_virt_device(struct xhci_hcd *xhci, int slot_id,
 
 	trace_xhci_alloc_virt_device(dev);
 
+	xhci->devs[slot_id] = dev;
+
 	return 1;
 fail:
-	xhci_free_virt_device(xhci, slot_id);
+
+	if (dev->in_ctx)
+		xhci_free_container_ctx(xhci, dev->in_ctx);
+	if (dev->out_ctx)
+		xhci_free_container_ctx(xhci, dev->out_ctx);
+	kfree(dev);
+
 	return 0;
 }
 
@@ -1708,8 +1715,7 @@ static void scratchpad_free(struct xhci_hcd *xhci)
 }
 
 struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
-		bool allocate_in_ctx, bool allocate_completion,
-		gfp_t mem_flags)
+		bool allocate_completion, gfp_t mem_flags)
 {
 	struct xhci_command *command;
 
@@ -1717,21 +1723,10 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 	if (!command)
 		return NULL;
 
-	if (allocate_in_ctx) {
-		command->in_ctx =
-			xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT,
-					mem_flags);
-		if (!command->in_ctx) {
-			kfree(command);
-			return NULL;
-		}
-	}
-
 	if (allocate_completion) {
 		command->completion =
 			kzalloc(sizeof(struct completion), mem_flags);
 		if (!command->completion) {
-			xhci_free_container_ctx(xhci, command->in_ctx);
 			kfree(command);
 			return NULL;
 		}
@@ -1740,6 +1735,25 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 
 	command->status = 0;
 	INIT_LIST_HEAD(&command->cmd_list);
+	return command;
+}
+
+struct xhci_command *xhci_alloc_command_with_ctx(struct xhci_hcd *xhci,
+		bool allocate_completion, gfp_t mem_flags)
+{
+	struct xhci_command *command;
+
+	command = xhci_alloc_command(xhci, allocate_completion, mem_flags);
+	if (!command)
+		return NULL;
+
+	command->in_ctx = xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT,
+						   mem_flags);
+	if (!command->in_ctx) {
+		kfree(command->completion);
+		kfree(command);
+		return NULL;
+	}
 	return command;
 }
 
@@ -1757,21 +1771,58 @@ void xhci_free_command(struct xhci_hcd *xhci,
 	kfree(command);
 }
 
+int xhci_alloc_erst(struct xhci_hcd *xhci,
+		    struct xhci_ring *evt_ring,
+		    struct xhci_erst *erst,
+		    gfp_t flags)
+{
+	size_t size;
+	unsigned int val;
+	struct xhci_segment *seg;
+	struct xhci_erst_entry *entry;
+
+	size = sizeof(struct xhci_erst_entry) * evt_ring->num_segs;
+	erst->entries = dma_zalloc_coherent(xhci_to_hcd(xhci)->self.sysdev,
+					    size, &erst->erst_dma_addr, flags);
+	if (!erst->entries)
+		return -ENOMEM;
+
+	erst->num_entries = evt_ring->num_segs;
+
+	seg = evt_ring->first_seg;
+	for (val = 0; val < evt_ring->num_segs; val++) {
+		entry = &erst->entries[val];
+		entry->seg_addr = cpu_to_le64(seg->dma);
+		entry->seg_size = cpu_to_le32(TRBS_PER_SEGMENT);
+		entry->rsvd = 0;
+		seg = seg->next;
+	}
+
+	return 0;
+}
+
+void xhci_free_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
+{
+	size_t size;
+	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
+
+	size = sizeof(struct xhci_erst_entry) * (erst->num_entries);
+	if (erst->entries)
+		dma_free_coherent(dev, size,
+				erst->entries,
+				erst->erst_dma_addr);
+	erst->entries = NULL;
+}
+
 void xhci_mem_cleanup(struct xhci_hcd *xhci)
 {
 	struct device	*dev = xhci_to_hcd(xhci)->self.sysdev;
-	int size;
 	int i, j, num_ports;
 
 	cancel_delayed_work_sync(&xhci->cmd_timer);
 
-	/* Free the Event Ring Segment Table and the actual Event Ring */
-	size = sizeof(struct xhci_erst_entry)*(xhci->erst.num_entries);
-	if (xhci->erst.entries)
-		dma_free_coherent(dev, size,
-				xhci->erst.entries, xhci->erst.erst_dma_addr);
-	xhci->erst.entries = NULL;
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "Freed ERST");
+	xhci_free_erst(xhci, &xhci->erst);
+
 	if (xhci->event_ring)
 		xhci_ring_free(xhci, xhci->event_ring);
 	xhci->event_ring = NULL;
@@ -2308,9 +2359,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	struct device	*dev = xhci_to_hcd(xhci)->self.sysdev;
 	unsigned int	val, val2;
 	u64		val_64;
-	struct xhci_segment	*seg;
-	u32 page_size, temp;
-	int i;
+	u32		page_size, temp;
+	int		i, ret;
 
 	INIT_LIST_HEAD(&xhci->cmd_list);
 
@@ -2414,9 +2464,8 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"// Setting command ring address to 0x%016llx", val_64);
 	xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
-	xhci_dbg_cmd_ptrs(xhci);
 
-	xhci->lpm_command = xhci_alloc_command(xhci, true, true, flags);
+	xhci->lpm_command = xhci_alloc_command_with_ctx(xhci, true, flags);
 	if (!xhci->lpm_command)
 		goto fail;
 
@@ -2432,8 +2481,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 			"// Doorbell array is located at offset 0x%x"
 			" from cap regs base addr", val);
 	xhci->dba = (void __iomem *) xhci->cap_regs + val;
-	xhci_dbg_regs(xhci);
-	xhci_print_run_regs(xhci);
 	/* Set ir_set to interrupt register set 0 */
 	xhci->ir_set = &xhci->run_regs->ir_set[0];
 
@@ -2449,32 +2496,9 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	if (xhci_check_trb_in_td_math(xhci) < 0)
 		goto fail;
 
-	xhci->erst.entries = dma_alloc_coherent(dev,
-			sizeof(struct xhci_erst_entry) * ERST_NUM_SEGS, &dma,
-			flags);
-	if (!xhci->erst.entries)
+	ret = xhci_alloc_erst(xhci, xhci->event_ring, &xhci->erst, flags);
+	if (ret)
 		goto fail;
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-			"// Allocated event ring segment table at 0x%llx",
-			(unsigned long long)dma);
-
-	memset(xhci->erst.entries, 0, sizeof(struct xhci_erst_entry)*ERST_NUM_SEGS);
-	xhci->erst.num_entries = ERST_NUM_SEGS;
-	xhci->erst.erst_dma_addr = dma;
-	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
-			"Set ERST to 0; private num segs = %i, virt addr = %p, dma addr = 0x%llx",
-			xhci->erst.num_entries,
-			xhci->erst.entries,
-			(unsigned long long)xhci->erst.erst_dma_addr);
-
-	/* set ring base address and size for each segment table entry */
-	for (val = 0, seg = xhci->event_ring->first_seg; val < ERST_NUM_SEGS; val++) {
-		struct xhci_erst_entry *entry = &xhci->erst.entries[val];
-		entry->seg_addr = cpu_to_le64(seg->dma);
-		entry->seg_size = cpu_to_le32(TRBS_PER_SEGMENT);
-		entry->rsvd = 0;
-		seg = seg->next;
-	}
 
 	/* set ERST count with the number of entries in the segment table */
 	val = readl(&xhci->ir_set->erst_size);
@@ -2500,7 +2524,6 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_set_hc_event_deq(xhci);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			"Wrote ERST address to ir_set 0.");
-	xhci_print_ir_set(xhci, 0);
 
 	/*
 	 * XXX: Might need to set the Interrupter Moderation Register to

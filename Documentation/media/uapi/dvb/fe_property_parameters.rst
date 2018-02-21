@@ -987,3 +987,21 @@ Possible values: 0, 1, LNA_AUTO
 1, LNA on
 
 use the special macro LNA_AUTO to set LNA auto
+
+
+.. _DTV-SCRAMBLING-SEQUENCE-INDEX:
+
+DTV_SCRAMBLING_SEQUENCE_INDEX
+=============================
+
+Used on DVB-S2.
+
+This 18 bit field, when present, carries the index of the DVB-S2 physical
+layer scrambling sequence as defined in clause 5.5.4 of EN 302 307.
+There is no explicit signalling method to convey scrambling sequence index
+to the receiver. If S2 satellite delivery system descriptor is available
+it can be used to read the scrambling sequence index (EN 300 468 table 41).
+
+By default, gold scrambling sequence index 0 is used.
+
+The valid scrambling sequence index range is from 0 to 262142.

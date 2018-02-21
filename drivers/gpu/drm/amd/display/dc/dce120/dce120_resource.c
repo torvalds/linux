@@ -54,10 +54,10 @@
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
 
-#include "vega10/DC/dce_12_0_offset.h"
-#include "vega10/DC/dce_12_0_sh_mask.h"
-#include "vega10/soc15ip.h"
-#include "vega10/NBIO/nbio_6_1_offset.h"
+#include "dce/dce_12_0_offset.h"
+#include "dce/dce_12_0_sh_mask.h"
+#include "soc15ip.h"
+#include "nbio/nbio_6_1_offset.h"
 #include "reg_helper.h"
 
 #include "dce100/dce100_resource.h"

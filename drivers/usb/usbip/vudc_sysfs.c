@@ -90,7 +90,7 @@ unlock:
 }
 static BIN_ATTR_RO(dev_desc, sizeof(struct usb_device_descriptor));
 
-static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
+static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *attr,
 		     const char *in, size_t count)
 {
 	struct vudc *udc = (struct vudc *) dev_get_drvdata(dev);
@@ -180,7 +180,7 @@ unlock:
 
 	return ret;
 }
-static DEVICE_ATTR(usbip_sockfd, S_IWUSR, NULL, store_sockfd);
+static DEVICE_ATTR_WO(usbip_sockfd);
 
 static ssize_t usbip_status_show(struct device *dev,
 			       struct device_attribute *attr, char *out)

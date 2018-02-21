@@ -2,7 +2,7 @@
 /*
  * handling privileged instructions
  *
- * Copyright IBM Corp. 2008, 2013
+ * Copyright IBM Corp. 2008, 2018
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -34,6 +34,8 @@
 
 static int handle_ri(struct kvm_vcpu *vcpu)
 {
+	vcpu->stat.instruction_ri++;
+
 	if (test_kvm_facility(vcpu->kvm, 64)) {
 		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: RI (lazy)");
 		vcpu->arch.sie_block->ecb3 |= ECB3_RI;
@@ -53,6 +55,8 @@ int kvm_s390_handle_aa(struct kvm_vcpu *vcpu)
 
 static int handle_gs(struct kvm_vcpu *vcpu)
 {
+	vcpu->stat.instruction_gs++;
+
 	if (test_kvm_facility(vcpu->kvm, 133)) {
 		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: GS (lazy)");
 		preempt_disable();
@@ -84,6 +88,8 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 	int rc;
 	u8 ar;
 	u64 op2, val;
+
+	vcpu->stat.instruction_sck++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -203,14 +209,14 @@ int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu)
 
 	trace_kvm_s390_skey_related_inst(vcpu);
 	if (!(sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)) &&
-	    !(atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS))
+	    !kvm_s390_test_cpuflags(vcpu, CPUSTAT_KSS))
 		return rc;
 
 	rc = s390_enable_skey();
 	VCPU_EVENT(vcpu, 3, "enabling storage keys for guest: %d", rc);
 	if (!rc) {
-		if (atomic_read(&sie_block->cpuflags) & CPUSTAT_KSS)
-			atomic_andnot(CPUSTAT_KSS, &sie_block->cpuflags);
+		if (kvm_s390_test_cpuflags(vcpu, CPUSTAT_KSS))
+			kvm_s390_clear_cpuflags(vcpu, CPUSTAT_KSS);
 		else
 			sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE |
 					     ICTL_RRBE);
@@ -222,7 +228,6 @@ static int try_handle_skey(struct kvm_vcpu *vcpu)
 {
 	int rc;
 
-	vcpu->stat.instruction_storage_key++;
 	rc = kvm_s390_skey_check_enable(vcpu);
 	if (rc)
 		return rc;
@@ -241,6 +246,8 @@ static int handle_iske(struct kvm_vcpu *vcpu)
 	unsigned char key;
 	int reg1, reg2;
 	int rc;
+
+	vcpu->stat.instruction_iske++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -273,6 +280,8 @@ static int handle_rrbe(struct kvm_vcpu *vcpu)
 	unsigned long addr;
 	int reg1, reg2;
 	int rc;
+
+	vcpu->stat.instruction_rrbe++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -311,6 +320,8 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 	unsigned char key, oldkey;
 	int reg1, reg2;
 	int rc;
+
+	vcpu->stat.instruction_sske++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -392,6 +403,8 @@ static int handle_test_block(struct kvm_vcpu *vcpu)
 	gpa_t addr;
 	int reg2;
 
+	vcpu->stat.instruction_tb++;
+
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
@@ -423,6 +436,8 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	int rc;
 	u64 addr;
 	u8 ar;
+
+	vcpu->stat.instruction_tpi++;
 
 	addr = kvm_s390_get_base_disp_s(vcpu, &ar);
 	if (addr & 3)
@@ -484,6 +499,8 @@ static int handle_tsch(struct kvm_vcpu *vcpu)
 	struct kvm_s390_interrupt_info *inti = NULL;
 	const u64 isc_mask = 0xffUL << 24; /* all iscs set */
 
+	vcpu->stat.instruction_tsch++;
+
 	/* a valid schid has at least one bit set */
 	if (vcpu->run->s.regs.gprs[1])
 		inti = kvm_s390_get_io_int(vcpu->kvm, isc_mask,
@@ -527,6 +544,7 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 		if (vcpu->arch.sie_block->ipa == 0xb235)
 			return handle_tsch(vcpu);
 		/* Handle in userspace. */
+		vcpu->stat.instruction_io_other++;
 		return -EOPNOTSUPP;
 	} else {
 		/*
@@ -592,6 +610,8 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
 	int rc;
 	u8 ar;
 
+	vcpu->stat.instruction_lpsw++;
+
 	if (gpsw->mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
@@ -618,6 +638,8 @@ static int handle_lpswe(struct kvm_vcpu *vcpu)
 	u64 addr;
 	int rc;
 	u8 ar;
+
+	vcpu->stat.instruction_lpswe++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -828,6 +850,8 @@ static int handle_epsw(struct kvm_vcpu *vcpu)
 {
 	int reg1, reg2;
 
+	vcpu->stat.instruction_epsw++;
+
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
 	/* This basically extracts the mask half of the psw. */
@@ -1006,7 +1030,7 @@ static inline int do_essa(struct kvm_vcpu *vcpu, const int orc)
 		cbrlo[entries] = gfn << PAGE_SHIFT;
 	}
 
-	if (orc) {
+	if (orc && gfn < ms->bitmap_size) {
 		/* increment only if we are really flipping the bit to 1 */
 		if (!test_and_set_bit(gfn, ms->pgste_bitmap))
 			atomic64_inc(&ms->dirty_pages);
@@ -1332,6 +1356,8 @@ static int handle_sckpf(struct kvm_vcpu *vcpu)
 {
 	u32 value;
 
+	vcpu->stat.instruction_sckpf++;
+
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
@@ -1347,6 +1373,8 @@ static int handle_sckpf(struct kvm_vcpu *vcpu)
 
 static int handle_ptff(struct kvm_vcpu *vcpu)
 {
+	vcpu->stat.instruction_ptff++;
+
 	/* we don't emulate any control instructions yet */
 	kvm_s390_set_psw_cc(vcpu, 3);
 	return 0;

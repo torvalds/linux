@@ -100,6 +100,7 @@
 /* Base address */
 #define SH_ETH0_BASE 0xA7000000
 #define SH_ETH1_BASE 0xA7000400
+#define SH_TSU_BASE  0xA7000800
 /* PHY ID */
 #if defined(CONFIG_CPU_SUBTYPE_SH7710)
 # define PHY_ID 0x00

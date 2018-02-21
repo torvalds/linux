@@ -198,6 +198,7 @@ static struct xt_target led_tg_reg __read_mostly = {
 	.family		= NFPROTO_UNSPEC,
 	.target		= led_tg,
 	.targetsize	= sizeof(struct xt_led_info),
+	.usersize	= offsetof(struct xt_led_info, internal_data),
 	.checkentry	= led_tg_check,
 	.destroy	= led_tg_destroy,
 	.me		= THIS_MODULE,

@@ -19,7 +19,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /**
  * struct zd1301_demod_platform_data - Platform data for the zd1301_demod driver

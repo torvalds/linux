@@ -47,6 +47,8 @@
 #include <asm/pat.h>
 #include <asm/microcode.h>
 #include <asm/microcode_intel.h>
+#include <asm/intel-family.h>
+#include <asm/cpu_device_id.h>
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/uv/uv.h>
@@ -476,8 +478,8 @@ static const char *table_lookup_model(struct cpuinfo_x86 *c)
 	return NULL;		/* Not found */
 }
 
-__u32 cpu_caps_cleared[NCAPINTS];
-__u32 cpu_caps_set[NCAPINTS];
+__u32 cpu_caps_cleared[NCAPINTS + NBUGINTS];
+__u32 cpu_caps_set[NCAPINTS + NBUGINTS];
 
 void load_percpu_segment(int cpu)
 {
@@ -490,28 +492,23 @@ void load_percpu_segment(int cpu)
 	load_stack_canary_segment();
 }
 
-/* Setup the fixmap mapping only once per-processor */
-static inline void setup_fixmap_gdt(int cpu)
-{
-#ifdef CONFIG_X86_64
-	/* On 64-bit systems, we use a read-only fixmap GDT. */
-	pgprot_t prot = PAGE_KERNEL_RO;
-#else
-	/*
-	 * On native 32-bit systems, the GDT cannot be read-only because
-	 * our double fault handler uses a task gate, and entering through
-	 * a task gate needs to change an available TSS to busy.  If the GDT
-	 * is read-only, that will triple fault.
-	 *
-	 * On Xen PV, the GDT must be read-only because the hypervisor requires
-	 * it.
-	 */
-	pgprot_t prot = boot_cpu_has(X86_FEATURE_XENPV) ?
-		PAGE_KERNEL_RO : PAGE_KERNEL;
+#ifdef CONFIG_X86_32
+/* The 32-bit entry code needs to find cpu_entry_area. */
+DEFINE_PER_CPU(struct cpu_entry_area *, cpu_entry_area);
 #endif
 
-	__set_fixmap(get_cpu_gdt_ro_index(cpu), get_cpu_gdt_paddr(cpu), prot);
-}
+#ifdef CONFIG_X86_64
+/*
+ * Special IST stacks which the CPU switches to when it calls
+ * an IST-marked descriptor entry. Up to 7 stacks (hardware
+ * limit), all of them are 4K, except the debug stack which
+ * is 8K.
+ */
+static const unsigned int exception_stack_sizes[N_EXCEPTION_STACKS] = {
+	  [0 ... N_EXCEPTION_STACKS - 1]	= EXCEPTION_STKSZ,
+	  [DEBUG_STACK - 1]			= DEBUG_STKSZ
+};
+#endif
 
 /* Load the original GDT from the per-cpu structure */
 void load_direct_gdt(int cpu)
@@ -734,7 +731,7 @@ void cpu_detect(struct cpuinfo_x86 *c)
 		cpuid(0x00000001, &tfms, &misc, &junk, &cap0);
 		c->x86		= x86_family(tfms);
 		c->x86_model	= x86_model(tfms);
-		c->x86_mask	= x86_stepping(tfms);
+		c->x86_stepping	= x86_stepping(tfms);
 
 		if (cap0 & (1<<19)) {
 			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
@@ -747,10 +744,30 @@ static void apply_forced_caps(struct cpuinfo_x86 *c)
 {
 	int i;
 
-	for (i = 0; i < NCAPINTS; i++) {
+	for (i = 0; i < NCAPINTS + NBUGINTS; i++) {
 		c->x86_capability[i] &= ~cpu_caps_cleared[i];
 		c->x86_capability[i] |= cpu_caps_set[i];
 	}
+}
+
+static void init_speculation_control(struct cpuinfo_x86 *c)
+{
+	/*
+	 * The Intel SPEC_CTRL CPUID bit implies IBRS and IBPB support,
+	 * and they also have a different bit for STIBP support. Also,
+	 * a hypervisor might have set the individual AMD bits even on
+	 * Intel CPUs, for finer-grained selection of what's available.
+	 *
+	 * We use the AMD bits in 0x8000_0008 EBX as the generic hardware
+	 * features, which are visible in /proc/cpuinfo and used by the
+	 * kernel. So set those accordingly from the Intel bits.
+	 */
+	if (cpu_has(c, X86_FEATURE_SPEC_CTRL)) {
+		set_cpu_cap(c, X86_FEATURE_IBRS);
+		set_cpu_cap(c, X86_FEATURE_IBPB);
+	}
+	if (cpu_has(c, X86_FEATURE_INTEL_STIBP))
+		set_cpu_cap(c, X86_FEATURE_STIBP);
 }
 
 void get_cpu_cap(struct cpuinfo_x86 *c)
@@ -774,6 +791,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
 		c->x86_capability[CPUID_7_0_EBX] = ebx;
 		c->x86_capability[CPUID_7_ECX] = ecx;
+		c->x86_capability[CPUID_7_EDX] = edx;
 	}
 
 	/* Extended state features: level 0x0000000d */
@@ -846,6 +864,7 @@ void get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[CPUID_8000_000A_EDX] = cpuid_edx(0x8000000a);
 
 	init_scattered_cpuid_features(c);
+	init_speculation_control(c);
 
 	/*
 	 * Clear/Set all flags overridden by options, after probe.
@@ -879,6 +898,41 @@ static void identify_cpu_without_cpuid(struct cpuinfo_x86 *c)
 			}
 		}
 #endif
+}
+
+static const __initconst struct x86_cpu_id cpu_no_speculation[] = {
+	{ X86_VENDOR_INTEL,	6, INTEL_FAM6_ATOM_CEDARVIEW,	X86_FEATURE_ANY },
+	{ X86_VENDOR_INTEL,	6, INTEL_FAM6_ATOM_CLOVERVIEW,	X86_FEATURE_ANY },
+	{ X86_VENDOR_INTEL,	6, INTEL_FAM6_ATOM_LINCROFT,	X86_FEATURE_ANY },
+	{ X86_VENDOR_INTEL,	6, INTEL_FAM6_ATOM_PENWELL,	X86_FEATURE_ANY },
+	{ X86_VENDOR_INTEL,	6, INTEL_FAM6_ATOM_PINEVIEW,	X86_FEATURE_ANY },
+	{ X86_VENDOR_CENTAUR,	5 },
+	{ X86_VENDOR_INTEL,	5 },
+	{ X86_VENDOR_NSC,	5 },
+	{ X86_VENDOR_ANY,	4 },
+	{}
+};
+
+static const __initconst struct x86_cpu_id cpu_no_meltdown[] = {
+	{ X86_VENDOR_AMD },
+	{}
+};
+
+static bool __init cpu_vulnerable_to_meltdown(struct cpuinfo_x86 *c)
+{
+	u64 ia32_cap = 0;
+
+	if (x86_match_cpu(cpu_no_meltdown))
+		return false;
+
+	if (cpu_has(c, X86_FEATURE_ARCH_CAPABILITIES))
+		rdmsrl(MSR_IA32_ARCH_CAPABILITIES, ia32_cap);
+
+	/* Rogue Data Cache Load? No! */
+	if (ia32_cap & ARCH_CAP_RDCL_NO)
+		return false;
+
+	return true;
 }
 
 /*
@@ -927,6 +981,14 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	}
 
 	setup_force_cpu_cap(X86_FEATURE_ALWAYS);
+
+	if (!x86_match_cpu(cpu_no_speculation)) {
+		if (cpu_vulnerable_to_meltdown(c))
+			setup_force_cpu_bug(X86_BUG_CPU_MELTDOWN);
+		setup_force_cpu_bug(X86_BUG_SPECTRE_V1);
+		setup_force_cpu_bug(X86_BUG_SPECTRE_V2);
+	}
+
 	fpu__init_system(c);
 
 #ifdef CONFIG_X86_32
@@ -1122,9 +1184,9 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	int i;
 
 	c->loops_per_jiffy = loops_per_jiffy;
-	c->x86_cache_size = -1;
+	c->x86_cache_size = 0;
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
-	c->x86_model = c->x86_mask = 0;	/* So far unknown... */
+	c->x86_model = c->x86_stepping = 0;	/* So far unknown... */
 	c->x86_vendor_id[0] = '\0'; /* Unset */
 	c->x86_model_id[0] = '\0';  /* Unset */
 	c->x86_max_cores = 1;
@@ -1250,7 +1312,7 @@ void enable_sep_cpu(void)
 		return;
 
 	cpu = get_cpu();
-	tss = &per_cpu(cpu_tss, cpu);
+	tss = &per_cpu(cpu_tss_rw, cpu);
 
 	/*
 	 * We cache MSR_IA32_SYSENTER_CS's value in the TSS's ss1 field --
@@ -1259,11 +1321,7 @@ void enable_sep_cpu(void)
 
 	tss->x86_tss.ss1 = __KERNEL_CS;
 	wrmsr(MSR_IA32_SYSENTER_CS, tss->x86_tss.ss1, 0);
-
-	wrmsr(MSR_IA32_SYSENTER_ESP,
-	      (unsigned long)tss + offsetofend(struct tss_struct, SYSENTER_stack),
-	      0);
-
+	wrmsr(MSR_IA32_SYSENTER_ESP, (unsigned long)(cpu_entry_stack(cpu) + 1), 0);
 	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long)entry_SYSENTER_32, 0);
 
 	put_cpu();
@@ -1320,8 +1378,8 @@ void print_cpu_info(struct cpuinfo_x86 *c)
 
 	pr_cont(" (family: 0x%x, model: 0x%x", c->x86, c->x86_model);
 
-	if (c->x86_mask || c->cpuid_level >= 0)
-		pr_cont(", stepping: 0x%x)\n", c->x86_mask);
+	if (c->x86_stepping || c->cpuid_level >= 0)
+		pr_cont(", stepping: 0x%x)\n", c->x86_stepping);
 	else
 		pr_cont(")\n");
 }
@@ -1357,25 +1415,22 @@ DEFINE_PER_CPU(unsigned int, irq_count) __visible = -1;
 DEFINE_PER_CPU(int, __preempt_count) = INIT_PREEMPT_COUNT;
 EXPORT_PER_CPU_SYMBOL(__preempt_count);
 
-/*
- * Special IST stacks which the CPU switches to when it calls
- * an IST-marked descriptor entry. Up to 7 stacks (hardware
- * limit), all of them are 4K, except the debug stack which
- * is 8K.
- */
-static const unsigned int exception_stack_sizes[N_EXCEPTION_STACKS] = {
-	  [0 ... N_EXCEPTION_STACKS - 1]	= EXCEPTION_STKSZ,
-	  [DEBUG_STACK - 1]			= DEBUG_STKSZ
-};
-
-static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks
-	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]);
-
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
+	extern char _entry_trampoline[];
+	extern char entry_SYSCALL_64_trampoline[];
+
+	int cpu = smp_processor_id();
+	unsigned long SYSCALL64_entry_trampoline =
+		(unsigned long)get_cpu_entry_area(cpu)->entry_trampoline +
+		(entry_SYSCALL_64_trampoline - _entry_trampoline);
+
 	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
-	wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
+	if (static_cpu_has(X86_FEATURE_PTI))
+		wrmsrl(MSR_LSTAR, SYSCALL64_entry_trampoline);
+	else
+		wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
 #ifdef CONFIG_IA32_EMULATION
 	wrmsrl(MSR_CSTAR, (unsigned long)entry_SYSCALL_compat);
@@ -1386,7 +1441,7 @@ void syscall_init(void)
 	 * AMD doesn't allow SYSENTER in long mode (either 32- or 64-bit).
 	 */
 	wrmsrl_safe(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
-	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, 0ULL);
+	wrmsrl_safe(MSR_IA32_SYSENTER_ESP, (unsigned long)(cpu_entry_stack(cpu) + 1));
 	wrmsrl_safe(MSR_IA32_SYSENTER_EIP, (u64)entry_SYSENTER_compat);
 #else
 	wrmsrl(MSR_CSTAR, (unsigned long)ignore_sysret);
@@ -1530,7 +1585,7 @@ void cpu_init(void)
 	if (cpu)
 		load_ucode_ap();
 
-	t = &per_cpu(cpu_tss, cpu);
+	t = &per_cpu(cpu_tss_rw, cpu);
 	oist = &per_cpu(orig_ist, cpu);
 
 #ifdef CONFIG_NUMA
@@ -1569,7 +1624,7 @@ void cpu_init(void)
 	 * set up and load the per-CPU TSS
 	 */
 	if (!oist->ist[0]) {
-		char *estacks = per_cpu(exception_stacks, cpu);
+		char *estacks = get_cpu_entry_area(cpu)->exception_stacks;
 
 		for (v = 0; v < N_EXCEPTION_STACKS; v++) {
 			estacks += exception_stack_sizes[v];
@@ -1580,7 +1635,7 @@ void cpu_init(void)
 		}
 	}
 
-	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
+	t->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
 
 	/*
 	 * <= is required because the CPU will access up to
@@ -1596,11 +1651,12 @@ void cpu_init(void)
 	enter_lazy_tlb(&init_mm, me);
 
 	/*
-	 * Initialize the TSS.  Don't bother initializing sp0, as the initial
-	 * task never enters user mode.
+	 * Initialize the TSS.  sp0 points to the entry trampoline stack
+	 * regardless of what task is running.
 	 */
-	set_tss_desc(cpu, t);
+	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
 	load_TR_desc();
+	load_sp0((unsigned long)(cpu_entry_stack(cpu) + 1));
 
 	load_mm_ldt(&init_mm);
 
@@ -1612,7 +1668,6 @@ void cpu_init(void)
 	if (is_uv_system())
 		uv_cpu_init();
 
-	setup_fixmap_gdt(cpu);
 	load_fixmap_gdt(cpu);
 }
 
@@ -1622,7 +1677,7 @@ void cpu_init(void)
 {
 	int cpu = smp_processor_id();
 	struct task_struct *curr = current;
-	struct tss_struct *t = &per_cpu(cpu_tss, cpu);
+	struct tss_struct *t = &per_cpu(cpu_tss_rw, cpu);
 
 	wait_for_master_cpu(cpu);
 
@@ -1657,12 +1712,12 @@ void cpu_init(void)
 	 * Initialize the TSS.  Don't bother initializing sp0, as the initial
 	 * task never enters user mode.
 	 */
-	set_tss_desc(cpu, t);
+	set_tss_desc(cpu, &get_cpu_entry_area(cpu)->tss.x86_tss);
 	load_TR_desc();
 
 	load_mm_ldt(&init_mm);
 
-	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
+	t->x86_tss.io_bitmap_base = IO_BITMAP_OFFSET;
 
 #ifdef CONFIG_DOUBLEFAULT
 	/* Set up doublefault TSS pointer in the GDT */
@@ -1674,7 +1729,6 @@ void cpu_init(void)
 
 	fpu__init_cpu();
 
-	setup_fixmap_gdt(cpu);
 	load_fixmap_gdt(cpu);
 }
 #endif

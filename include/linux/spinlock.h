@@ -107,16 +107,11 @@ do {								\
 
 #define raw_spin_is_locked(lock)	arch_spin_is_locked(&(lock)->raw_lock)
 
-#ifdef CONFIG_GENERIC_LOCKBREAK
-#define raw_spin_is_contended(lock) ((lock)->break_lock)
-#else
-
 #ifdef arch_spin_is_contended
 #define raw_spin_is_contended(lock)	arch_spin_is_contended(&(lock)->raw_lock)
 #else
 #define raw_spin_is_contended(lock)	(((void)(lock), 0))
 #endif /*arch_spin_is_contended*/
-#endif
 
 /*
  * This barrier must provide two things:
@@ -413,5 +408,11 @@ static __always_inline int spin_is_contended(spinlock_t *lock)
 extern int _atomic_dec_and_lock(atomic_t *atomic, spinlock_t *lock);
 #define atomic_dec_and_lock(atomic, lock) \
 		__cond_lock(lock, _atomic_dec_and_lock(atomic, lock))
+
+int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *lock_mask,
+			   size_t max_size, unsigned int cpu_mult,
+			   gfp_t gfp);
+
+void free_bucket_spinlocks(spinlock_t *locks);
 
 #endif /* __LINUX_SPINLOCK_H */

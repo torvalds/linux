@@ -897,124 +897,6 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 }
 EXPORT_SYMBOL_GPL(irq_find_mapping);
 
-#ifdef CONFIG_IRQ_DOMAIN_DEBUG
-static void virq_debug_show_one(struct seq_file *m, struct irq_desc *desc)
-{
-	struct irq_domain *domain;
-	struct irq_data *data;
-
-	domain = desc->irq_data.domain;
-	data = &desc->irq_data;
-
-	while (domain) {
-		unsigned int irq = data->irq;
-		unsigned long hwirq = data->hwirq;
-		struct irq_chip *chip;
-		bool direct;
-
-		if (data == &desc->irq_data)
-			seq_printf(m, "%5d  ", irq);
-		else
-			seq_printf(m, "%5d+ ", irq);
-		seq_printf(m, "0x%05lx  ", hwirq);
-
-		chip = irq_data_get_irq_chip(data);
-		seq_printf(m, "%-15s  ", (chip && chip->name) ? chip->name : "none");
-
-		seq_printf(m, "0x%p  ", irq_data_get_irq_chip_data(data));
-
-		seq_printf(m, "   %c    ", (desc->action && desc->action->handler) ? '*' : ' ');
-		direct = (irq == hwirq) && (irq < domain->revmap_direct_max_irq);
-		seq_printf(m, "%6s%-8s  ",
-			   (hwirq < domain->revmap_size) ? "LINEAR" : "RADIX",
-			   direct ? "(DIRECT)" : "");
-		seq_printf(m, "%s\n", domain->name);
-#ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
-		domain = domain->parent;
-		data = data->parent_data;
-#else
-		domain = NULL;
-#endif
-	}
-}
-
-static int virq_debug_show(struct seq_file *m, void *private)
-{
-	unsigned long flags;
-	struct irq_desc *desc;
-	struct irq_domain *domain;
-	struct radix_tree_iter iter;
-	void __rcu **slot;
-	int i;
-
-	seq_printf(m, " %-16s  %-6s  %-10s  %-10s  %s\n",
-		   "name", "mapped", "linear-max", "direct-max", "devtree-node");
-	mutex_lock(&irq_domain_mutex);
-	list_for_each_entry(domain, &irq_domain_list, link) {
-		struct device_node *of_node;
-		const char *name;
-
-		int count = 0;
-
-		of_node = irq_domain_get_of_node(domain);
-		if (of_node)
-			name = of_node_full_name(of_node);
-		else if (is_fwnode_irqchip(domain->fwnode))
-			name = container_of(domain->fwnode, struct irqchip_fwid,
-					    fwnode)->name;
-		else
-			name = "";
-
-		radix_tree_for_each_slot(slot, &domain->revmap_tree, &iter, 0)
-			count++;
-		seq_printf(m, "%c%-16s  %6u  %10u  %10u  %s\n",
-			   domain == irq_default_domain ? '*' : ' ', domain->name,
-			   domain->revmap_size + count, domain->revmap_size,
-			   domain->revmap_direct_max_irq,
-			   name);
-	}
-	mutex_unlock(&irq_domain_mutex);
-
-	seq_printf(m, "%-5s  %-7s  %-15s  %-*s  %6s  %-14s  %s\n", "irq", "hwirq",
-		      "chip name", (int)(2 * sizeof(void *) + 2), "chip data",
-		      "active", "type", "domain");
-
-	for (i = 1; i < nr_irqs; i++) {
-		desc = irq_to_desc(i);
-		if (!desc)
-			continue;
-
-		raw_spin_lock_irqsave(&desc->lock, flags);
-		virq_debug_show_one(m, desc);
-		raw_spin_unlock_irqrestore(&desc->lock, flags);
-	}
-
-	return 0;
-}
-
-static int virq_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, virq_debug_show, inode->i_private);
-}
-
-static const struct file_operations virq_debug_fops = {
-	.open = virq_debug_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static int __init irq_debugfs_init(void)
-{
-	if (debugfs_create_file("irq_domain_mapping", S_IRUGO, NULL,
-				 NULL, &virq_debug_fops) == NULL)
-		return -ENOMEM;
-
-	return 0;
-}
-__initcall(irq_debugfs_init);
-#endif /* CONFIG_IRQ_DOMAIN_DEBUG */
-
 /**
  * irq_domain_xlate_onecell() - Generic xlate for direct one cell bindings
  *
@@ -1693,7 +1575,7 @@ static void __irq_domain_deactivate_irq(struct irq_data *irq_data)
 	}
 }
 
-static int __irq_domain_activate_irq(struct irq_data *irqd, bool early)
+static int __irq_domain_activate_irq(struct irq_data *irqd, bool reserve)
 {
 	int ret = 0;
 
@@ -1702,9 +1584,9 @@ static int __irq_domain_activate_irq(struct irq_data *irqd, bool early)
 
 		if (irqd->parent_data)
 			ret = __irq_domain_activate_irq(irqd->parent_data,
-							early);
+							reserve);
 		if (!ret && domain->ops->activate) {
-			ret = domain->ops->activate(domain, irqd, early);
+			ret = domain->ops->activate(domain, irqd, reserve);
 			/* Rollback in case of error */
 			if (ret && irqd->parent_data)
 				__irq_domain_deactivate_irq(irqd->parent_data);
@@ -1716,17 +1598,18 @@ static int __irq_domain_activate_irq(struct irq_data *irqd, bool early)
 /**
  * irq_domain_activate_irq - Call domain_ops->activate recursively to activate
  *			     interrupt
- * @irq_data:	outermost irq_data associated with interrupt
+ * @irq_data:	Outermost irq_data associated with interrupt
+ * @reserve:	If set only reserve an interrupt vector instead of assigning one
  *
  * This is the second step to call domain_ops->activate to program interrupt
  * controllers, so the interrupt could actually get delivered.
  */
-int irq_domain_activate_irq(struct irq_data *irq_data, bool early)
+int irq_domain_activate_irq(struct irq_data *irq_data, bool reserve)
 {
 	int ret = 0;
 
 	if (!irqd_is_activated(irq_data))
-		ret = __irq_domain_activate_irq(irq_data, early);
+		ret = __irq_domain_activate_irq(irq_data, reserve);
 	if (!ret)
 		irqd_set_activated(irq_data);
 	return ret;
@@ -1843,25 +1726,14 @@ static int irq_domain_debug_show(struct seq_file *m, void *p)
 	irq_domain_debug_show_one(m, d, 0);
 	return 0;
 }
-
-static int irq_domain_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, irq_domain_debug_show, inode->i_private);
-}
-
-static const struct file_operations dfs_domain_ops = {
-	.open		= irq_domain_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(irq_domain_debug);
 
 static void debugfs_add_domain_dir(struct irq_domain *d)
 {
 	if (!d->name || !domain_dir || d->debugfs_file)
 		return;
 	d->debugfs_file = debugfs_create_file(d->name, 0444, domain_dir, d,
-					      &dfs_domain_ops);
+					      &irq_domain_debug_fops);
 }
 
 static void debugfs_remove_domain_dir(struct irq_domain *d)
@@ -1877,7 +1749,8 @@ void __init irq_domain_debugfs_init(struct dentry *root)
 	if (!domain_dir)
 		return;
 
-	debugfs_create_file("default", 0444, domain_dir, NULL, &dfs_domain_ops);
+	debugfs_create_file("default", 0444, domain_dir, NULL,
+			    &irq_domain_debug_fops);
 	mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(d, &irq_domain_list, link)
 		debugfs_add_domain_dir(d);

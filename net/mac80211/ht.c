@@ -291,16 +291,15 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta,
 	int i;
 
 	mutex_lock(&sta->ampdu_mlme.mtx);
-	for (i = 0; i <  IEEE80211_NUM_TIDS; i++) {
+	for (i = 0; i <  IEEE80211_NUM_TIDS; i++)
 		___ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,
 						WLAN_REASON_QSTA_LEAVE_QBSS,
 						reason != AGG_STOP_DESTROY_STA &&
 						reason != AGG_STOP_PEER_REQUEST);
-	}
-	mutex_unlock(&sta->ampdu_mlme.mtx);
 
 	for (i = 0; i <  IEEE80211_NUM_TIDS; i++)
 		___ieee80211_stop_tx_ba_session(sta, i, reason);
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 
 	/* stopping might queue the work again - so cancel only afterwards */
 	cancel_work_sync(&sta->ampdu_mlme.work);
@@ -493,6 +492,7 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_SMPS_AUTOMATIC:
 	case IEEE80211_SMPS_NUM_MODES:
 		WARN_ON(1);
+		/* fall through */
 	case IEEE80211_SMPS_OFF:
 		action_frame->u.action.u.ht_smps.smps_control =
 				WLAN_HT_SMPS_CONTROL_DISABLED;

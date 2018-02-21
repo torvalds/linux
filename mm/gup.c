@@ -66,7 +66,7 @@ static int follow_pfn_pte(struct vm_area_struct *vma, unsigned long address,
  */
 static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
 {
-	return pte_access_permitted(pte, WRITE) ||
+	return pte_write(pte) ||
 		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
 }
 
@@ -848,7 +848,7 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
 						unsigned long nr_pages,
 						struct page **pages,
 						struct vm_area_struct **vmas,
-						int *locked, bool notify_drop,
+						int *locked,
 						unsigned int flags)
 {
 	long ret, pages_done;
@@ -922,7 +922,7 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
 		pages++;
 		start += PAGE_SIZE;
 	}
-	if (notify_drop && lock_dropped && *locked) {
+	if (lock_dropped && *locked) {
 		/*
 		 * We must let the caller know we temporarily dropped the lock
 		 * and so the critical section protected by it was lost.
@@ -959,34 +959,10 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
 			   int *locked)
 {
 	return __get_user_pages_locked(current, current->mm, start, nr_pages,
-				       pages, NULL, locked, true,
+				       pages, NULL, locked,
 				       gup_flags | FOLL_TOUCH);
 }
 EXPORT_SYMBOL(get_user_pages_locked);
-
-/*
- * Same as get_user_pages_unlocked(...., FOLL_TOUCH) but it allows for
- * tsk, mm to be specified.
- *
- * NOTE: here FOLL_TOUCH is not set implicitly and must be set by the
- * caller if required (just like with __get_user_pages). "FOLL_GET"
- * is set implicitly if "pages" is non-NULL.
- */
-static __always_inline long __get_user_pages_unlocked(struct task_struct *tsk,
-		struct mm_struct *mm, unsigned long start,
-		unsigned long nr_pages, struct page **pages,
-		unsigned int gup_flags)
-{
-	long ret;
-	int locked = 1;
-
-	down_read(&mm->mmap_sem);
-	ret = __get_user_pages_locked(tsk, mm, start, nr_pages, pages, NULL,
-				      &locked, false, gup_flags);
-	if (locked)
-		up_read(&mm->mmap_sem);
-	return ret;
-}
 
 /*
  * get_user_pages_unlocked() is suitable to replace the form:
@@ -1006,8 +982,16 @@ static __always_inline long __get_user_pages_unlocked(struct task_struct *tsk,
 long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 			     struct page **pages, unsigned int gup_flags)
 {
-	return __get_user_pages_unlocked(current, current->mm, start, nr_pages,
-					 pages, gup_flags | FOLL_TOUCH);
+	struct mm_struct *mm = current->mm;
+	int locked = 1;
+	long ret;
+
+	down_read(&mm->mmap_sem);
+	ret = __get_user_pages_locked(current, mm, start, nr_pages, pages, NULL,
+				      &locked, gup_flags | FOLL_TOUCH);
+	if (locked)
+		up_read(&mm->mmap_sem);
+	return ret;
 }
 EXPORT_SYMBOL(get_user_pages_unlocked);
 
@@ -1073,7 +1057,7 @@ long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
 		struct vm_area_struct **vmas, int *locked)
 {
 	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
-				       locked, true,
+				       locked,
 				       gup_flags | FOLL_TOUCH | FOLL_REMOTE);
 }
 EXPORT_SYMBOL(get_user_pages_remote);
@@ -1090,7 +1074,7 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
 		struct vm_area_struct **vmas)
 {
 	return __get_user_pages_locked(current, current->mm, start, nr_pages,
-				       pages, vmas, NULL, false,
+				       pages, vmas, NULL,
 				       gup_flags | FOLL_TOUCH);
 }
 EXPORT_SYMBOL(get_user_pages);
@@ -1410,7 +1394,6 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 
 		VM_BUG_ON_PAGE(compound_head(page) != head, page);
 
-		put_dev_pagemap(pgmap);
 		SetPageReferenced(page);
 		pages[*nr] = page;
 		(*nr)++;
@@ -1420,6 +1403,8 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
 	ret = 1;
 
 pte_unmap:
+	if (pgmap)
+		put_dev_pagemap(pgmap);
 	pte_unmap(ptem);
 	return ret;
 }
@@ -1459,10 +1444,12 @@ static int __gup_device_huge(unsigned long pfn, unsigned long addr,
 		SetPageReferenced(page);
 		pages[*nr] = page;
 		get_page(page);
-		put_dev_pagemap(pgmap);
 		(*nr)++;
 		pfn++;
 	} while (addr += PAGE_SIZE, addr != end);
+
+	if (pgmap)
+		put_dev_pagemap(pgmap);
 	return 1;
 }
 

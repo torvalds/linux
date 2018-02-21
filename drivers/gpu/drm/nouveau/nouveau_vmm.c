@@ -67,8 +67,8 @@ nouveau_vma_del(struct nouveau_vma **pvma)
 			nvif_vmm_put(&vma->vmm->vmm, &tmp);
 		}
 		list_del(&vma->head);
-		*pvma = NULL;
 		kfree(*pvma);
+		*pvma = NULL;
 	}
 }
 

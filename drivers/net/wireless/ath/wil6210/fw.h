@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014,2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -58,14 +59,29 @@ struct wil_fw_record_comment { /* type == wil_fw_type_comment */
 	u8 data[0]; /* free-form data [data_size], see above */
 } __packed;
 
+/* Comment header - common for all comment record types */
+struct wil_fw_record_comment_hdr {
+	__le32 magic;
+};
+
 /* FW capabilities encoded inside a comment record */
 #define WIL_FW_CAPABILITIES_MAGIC (0xabcddcba)
 struct wil_fw_record_capabilities { /* type == wil_fw_type_comment */
 	/* identifies capabilities record */
-	__le32 magic;
+	struct wil_fw_record_comment_hdr hdr;
 	/* capabilities (variable size), see enum wmi_fw_capability */
 	u8 capabilities[0];
 };
+
+/* brd file info encoded inside a comment record */
+#define WIL_BRD_FILE_MAGIC (0xabcddcbb)
+struct wil_fw_record_brd_file { /* type == wil_fw_type_comment */
+	/* identifies brd file record */
+	struct wil_fw_record_comment_hdr hdr;
+	__le32 version;
+	__le32 base_addr;
+	__le32 max_size_bytes;
+} __packed;
 
 /* perform action
  * data_size = @head.size - offsetof(struct wil_fw_record_action, data)

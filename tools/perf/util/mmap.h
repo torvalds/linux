@@ -65,12 +65,10 @@ void perf_mmap__put(struct perf_mmap *map);
 
 void perf_mmap__consume(struct perf_mmap *map, bool overwrite);
 
-void perf_mmap__read_catchup(struct perf_mmap *md);
-
 static inline u64 perf_mmap__read_head(struct perf_mmap *mm)
 {
 	struct perf_event_mmap_page *pc = mm->base;
-	u64 head = ACCESS_ONCE(pc->data_head);
+	u64 head = READ_ONCE(pc->data_head);
 	rmb();
 	return head;
 }
@@ -86,12 +84,18 @@ static inline void perf_mmap__write_tail(struct perf_mmap *md, u64 tail)
 	pc->data_tail = tail;
 }
 
-union perf_event *perf_mmap__read_forward(struct perf_mmap *map, bool check_messup);
-union perf_event *perf_mmap__read_backward(struct perf_mmap *map);
+union perf_event *perf_mmap__read_forward(struct perf_mmap *map);
 
-int perf_mmap__push(struct perf_mmap *md, bool overwrite, bool backward,
+union perf_event *perf_mmap__read_event(struct perf_mmap *map,
+					bool overwrite,
+					u64 *startp, u64 end);
+
+int perf_mmap__push(struct perf_mmap *md, bool backward,
 		    void *to, int push(void *to, void *buf, size_t size));
 
 size_t perf_mmap__mmap_len(struct perf_mmap *map);
 
+int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
+			 u64 *startp, u64 *endp);
+void perf_mmap__read_done(struct perf_mmap *map);
 #endif /*__PERF_MMAP_H */

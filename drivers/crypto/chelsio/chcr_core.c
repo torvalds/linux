@@ -48,6 +48,9 @@ static struct cxgb4_uld_info chcr_uld_info = {
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
 	.rx_handler = chcr_uld_rx_handler,
+#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+	.tx_handler = chcr_uld_tx_handler,
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 };
 
 struct uld_ctx *assign_chcr_device(void)
@@ -164,6 +167,10 @@ static void *chcr_uld_add(const struct cxgb4_lld_info *lld)
 		goto out;
 	}
 	u_ctx->lldi = *lld;
+#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+	if (lld->crypto & ULP_CRYPTO_IPSEC_INLINE)
+		chcr_add_xfrmops(lld);
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 out:
 	return u_ctx;
 }
@@ -186,6 +193,13 @@ int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 		work_handlers[rpl->opcode](dev, pgl->va);
 	return 0;
 }
+
+#ifdef CONFIG_CHELSIO_IPSEC_INLINE
+int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev)
+{
+	return chcr_ipsec_xmit(skb, dev);
+}
+#endif /* CONFIG_CHELSIO_IPSEC_INLINE */
 
 static int chcr_uld_state_change(void *handle, enum cxgb4_state state)
 {

@@ -10,8 +10,6 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#define DEBUG
-
 #include <linux/export.h>
 #include <linux/string.h>
 #include <linux/sched.h>
@@ -38,6 +36,7 @@
 #include <linux/memory.h>
 #include <linux/nmi.h>
 
+#include <asm/debugfs.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
@@ -68,6 +67,7 @@
 #include <asm/livepatch.h>
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
+#include <asm/hw_irq.h>
 
 #include "setup.h"
 
@@ -189,6 +189,8 @@ static void __init fixup_boot_paca(void)
 	get_paca()->cpu_start = 1;
 	/* Allow percpu accesses to work until we setup percpu data */
 	get_paca()->data_offset = 0;
+	/* Mark interrupts disabled in PACA */
+	irq_soft_mask_set(IRQS_DISABLED);
 }
 
 static void __init configure_exceptions(void)
@@ -351,7 +353,7 @@ void __init early_setup(unsigned long dt_ptr)
 void early_setup_secondary(void)
 {
 	/* Mark interrupts disabled in PACA */
-	get_paca()->soft_enabled = 0;
+	irq_soft_mask_set(IRQS_DISABLED);
 
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu_secondary();
@@ -567,25 +569,31 @@ void __init initialize_cache_info(void)
 	DBG(" <- initialize_cache_info()\n");
 }
 
-/* This returns the limit below which memory accesses to the linear
- * mapping are guarnateed not to cause a TLB or SLB miss. This is
- * used to allocate interrupt or emergency stacks for which our
- * exception entry path doesn't deal with being interrupted.
+/*
+ * This returns the limit below which memory accesses to the linear
+ * mapping are guarnateed not to cause an architectural exception (e.g.,
+ * TLB or SLB miss fault).
+ *
+ * This is used to allocate PACAs and various interrupt stacks that
+ * that are accessed early in interrupt handlers that must not cause
+ * re-entrant interrupts.
  */
-static __init u64 safe_stack_limit(void)
+__init u64 ppc64_bolted_size(void)
 {
 #ifdef CONFIG_PPC_BOOK3E
 	/* Freescale BookE bolts the entire linear mapping */
-	if (mmu_has_feature(MMU_FTR_TYPE_FSL_E))
+	/* XXX: BookE ppc64_rma_limit setup seems to disagree? */
+	if (early_mmu_has_feature(MMU_FTR_TYPE_FSL_E))
 		return linear_map_top;
 	/* Other BookE, we assume the first GB is bolted */
 	return 1ul << 30;
 #else
+	/* BookS radix, does not take faults on linear mapping */
 	if (early_radix_enabled())
 		return ULONG_MAX;
 
-	/* BookS, the first segment is bolted */
-	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
+	/* BookS hash, the first segment is bolted */
+	if (early_mmu_has_feature(MMU_FTR_1T_SEGMENT))
 		return 1UL << SID_SHIFT_1T;
 	return 1UL << SID_SHIFT;
 #endif
@@ -593,7 +601,7 @@ static __init u64 safe_stack_limit(void)
 
 void __init irqstack_early_init(void)
 {
-	u64 limit = safe_stack_limit();
+	u64 limit = ppc64_bolted_size();
 	unsigned int i;
 
 	/*
@@ -678,7 +686,7 @@ void __init emergency_stack_init(void)
 	 * initialized in kernel/irq.c. These are initialized here in order
 	 * to have emergency stacks available as early as possible.
 	 */
-	limit = min(safe_stack_limit(), ppc64_rma_size);
+	limit = min(ppc64_bolted_size(), ppc64_rma_size);
 
 	for_each_possible_cpu(i) {
 		struct thread_info *ti;
@@ -801,3 +809,130 @@ static int __init disable_hardlockup_detector(void)
 	return 0;
 }
 early_initcall(disable_hardlockup_detector);
+
+#ifdef CONFIG_PPC_BOOK3S_64
+static enum l1d_flush_type enabled_flush_types;
+static void *l1d_flush_fallback_area;
+static bool no_rfi_flush;
+bool rfi_flush;
+
+static int __init handle_no_rfi_flush(char *p)
+{
+	pr_info("rfi-flush: disabled on command line.");
+	no_rfi_flush = true;
+	return 0;
+}
+early_param("no_rfi_flush", handle_no_rfi_flush);
+
+/*
+ * The RFI flush is not KPTI, but because users will see doco that says to use
+ * nopti we hijack that option here to also disable the RFI flush.
+ */
+static int __init handle_no_pti(char *p)
+{
+	pr_info("rfi-flush: disabling due to 'nopti' on command line.\n");
+	handle_no_rfi_flush(NULL);
+	return 0;
+}
+early_param("nopti", handle_no_pti);
+
+static void do_nothing(void *unused)
+{
+	/*
+	 * We don't need to do the flush explicitly, just enter+exit kernel is
+	 * sufficient, the RFI exit handlers will do the right thing.
+	 */
+}
+
+void rfi_flush_enable(bool enable)
+{
+	if (rfi_flush == enable)
+		return;
+
+	if (enable) {
+		do_rfi_flush_fixups(enabled_flush_types);
+		on_each_cpu(do_nothing, NULL, 1);
+	} else
+		do_rfi_flush_fixups(L1D_FLUSH_NONE);
+
+	rfi_flush = enable;
+}
+
+static void init_fallback_flush(void)
+{
+	u64 l1d_size, limit;
+	int cpu;
+
+	l1d_size = ppc64_caches.l1d.size;
+	limit = min(ppc64_bolted_size(), ppc64_rma_size);
+
+	/*
+	 * Align to L1d size, and size it at 2x L1d size, to catch possible
+	 * hardware prefetch runoff. We don't have a recipe for load patterns to
+	 * reliably avoid the prefetcher.
+	 */
+	l1d_flush_fallback_area = __va(memblock_alloc_base(l1d_size * 2, l1d_size, limit));
+	memset(l1d_flush_fallback_area, 0, l1d_size * 2);
+
+	for_each_possible_cpu(cpu) {
+		paca[cpu].rfi_flush_fallback_area = l1d_flush_fallback_area;
+		paca[cpu].l1d_flush_size = l1d_size;
+	}
+}
+
+void __init setup_rfi_flush(enum l1d_flush_type types, bool enable)
+{
+	if (types & L1D_FLUSH_FALLBACK) {
+		pr_info("rfi-flush: Using fallback displacement flush\n");
+		init_fallback_flush();
+	}
+
+	if (types & L1D_FLUSH_ORI)
+		pr_info("rfi-flush: Using ori type flush\n");
+
+	if (types & L1D_FLUSH_MTTRIG)
+		pr_info("rfi-flush: Using mttrig type flush\n");
+
+	enabled_flush_types = types;
+
+	if (!no_rfi_flush)
+		rfi_flush_enable(enable);
+}
+
+#ifdef CONFIG_DEBUG_FS
+static int rfi_flush_set(void *data, u64 val)
+{
+	if (val == 1)
+		rfi_flush_enable(true);
+	else if (val == 0)
+		rfi_flush_enable(false);
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int rfi_flush_get(void *data, u64 *val)
+{
+	*val = rfi_flush ? 1 : 0;
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_rfi_flush, rfi_flush_get, rfi_flush_set, "%llu\n");
+
+static __init int rfi_flush_debugfs_init(void)
+{
+	debugfs_create_file("rfi_flush", 0600, powerpc_debugfs_root, NULL, &fops_rfi_flush);
+	return 0;
+}
+device_initcall(rfi_flush_debugfs_init);
+#endif
+
+ssize_t cpu_show_meltdown(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	if (rfi_flush)
+		return sprintf(buf, "Mitigation: RFI Flush\n");
+
+	return sprintf(buf, "Vulnerable\n");
+}
+#endif /* CONFIG_PPC_BOOK3S_64 */

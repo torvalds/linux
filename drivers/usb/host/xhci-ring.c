@@ -153,7 +153,7 @@ static void next_trb(struct xhci_hcd *xhci,
  * See Cycle bit rules. SW is the consumer for the event ring only.
  * Don't make a ring full of link TRBs.  That would be dumb and this would loop.
  */
-static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
+void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring)
 {
 	/* event ring doesn't have link trbs, check for last trb */
 	if (ring->type == TYPE_EVENT) {
@@ -1141,7 +1141,7 @@ static void xhci_handle_cmd_reset_ep(struct xhci_hcd *xhci, int slot_id,
 	if (xhci->quirks & XHCI_RESET_EP_QUIRK) {
 		struct xhci_command *command;
 
-		command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
+		command = xhci_alloc_command(xhci, false, GFP_ATOMIC);
 		if (!command)
 			return;
 
@@ -1821,7 +1821,7 @@ static void xhci_cleanup_halted_endpoint(struct xhci_hcd *xhci,
 {
 	struct xhci_virt_ep *ep = &xhci->devs[slot_id]->eps[ep_index];
 	struct xhci_command *command;
-	command = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
+	command = xhci_alloc_command(xhci, false, GFP_ATOMIC);
 	if (!command)
 		return;
 
@@ -1878,12 +1878,10 @@ int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code)
 static int xhci_td_cleanup(struct xhci_hcd *xhci, struct xhci_td *td,
 		struct xhci_ring *ep_ring, int *status)
 {
-	struct urb_priv	*urb_priv;
 	struct urb *urb = NULL;
 
 	/* Clean up the endpoint's TD list */
 	urb = td->urb;
-	urb_priv = urb->hcpriv;
 
 	/* if a bounce buffer was used to align this td then unmap it */
 	xhci_unmap_td_bounce_buffer(xhci, ep_ring, td);
@@ -1994,7 +1992,6 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	struct xhci_virt_ep *ep, int *status)
 {
 	struct xhci_virt_device *xdev;
-	struct xhci_ring *ep_ring;
 	unsigned int slot_id;
 	int ep_index;
 	struct xhci_ep_ctx *ep_ctx;
@@ -2006,7 +2003,6 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	xdev = xhci->devs[slot_id];
 	ep_index = TRB_TO_EP_ID(le32_to_cpu(event->flags)) - 1;
-	ep_ring = xhci_dma_to_transfer_ring(ep, le64_to_cpu(event->buffer));
 	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
 	trb_comp_code = GET_COMP_CODE(le32_to_cpu(event->transfer_len));
 	requested = td->urb->transfer_buffer_length;
@@ -2965,7 +2961,7 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 	return 0;
 }
 
-static unsigned int count_trbs(u64 addr, u64 len)
+unsigned int count_trbs(u64 addr, u64 len)
 {
 	unsigned int num_trbs;
 
@@ -3112,7 +3108,7 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 {
 	u32 maxp, total_packet_count;
 
-	/* MTK xHCI is mostly 0.97 but contains some features from 1.0 */
+	/* MTK xHCI 0.96 contains some features from 1.0 */
 	if (xhci->hci_version < 0x100 && !(xhci->quirks & XHCI_MTK_HOST))
 		return ((td_total_len - transferred) >> 10);
 
@@ -3121,8 +3117,8 @@ static u32 xhci_td_remainder(struct xhci_hcd *xhci, int transferred,
 	    trb_buff_len == td_total_len)
 		return 0;
 
-	/* for MTK xHCI, TD size doesn't include this TRB */
-	if (xhci->quirks & XHCI_MTK_HOST)
+	/* for MTK xHCI 0.96, TD size include this TRB, but not in 1.x */
+	if ((xhci->quirks & XHCI_MTK_HOST) && (xhci->hci_version < 0x100))
 		trb_buff_len = 0;
 
 	maxp = usb_endpoint_maxp(&urb->ep->desc);
@@ -4044,7 +4040,7 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 	}
 
 	/* This function gets called from contexts where it cannot sleep */
-	cmd = xhci_alloc_command(xhci, false, false, GFP_ATOMIC);
+	cmd = xhci_alloc_command(xhci, false, GFP_ATOMIC);
 	if (!cmd)
 		return;
 

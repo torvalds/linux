@@ -35,6 +35,7 @@
 #include <asm/pgtable.h>
 #include <asm/signal.h>
 #include <asm/unistd.h>
+#include <asm/ldcw.h>
 #include <asm/thread_info.h>
 
 #include <linux/linkage.h>
@@ -46,6 +47,14 @@
 #endif
 
 	.import		pa_tlb_lock,data
+	.macro  load_pa_tlb_lock reg
+#if __PA_LDCW_ALIGNMENT > 4
+	load32	PA(pa_tlb_lock) + __PA_LDCW_ALIGNMENT-1, \reg
+	depi	0,31,__PA_LDCW_ALIGN_ORDER, \reg
+#else
+	load32	PA(pa_tlb_lock), \reg
+#endif
+	.endm
 
 	/* space_to_prot macro creates a prot id from a space id */
 
@@ -457,7 +466,7 @@
 	.macro		tlb_lock	spc,ptp,pte,tmp,tmp1,fault
 #ifdef CONFIG_SMP
 	cmpib,COND(=),n	0,\spc,2f
-	load32		PA(pa_tlb_lock),\tmp
+	load_pa_tlb_lock \tmp
 1:	LDCW		0(\tmp),\tmp1
 	cmpib,COND(=)	0,\tmp1,1b
 	nop
@@ -480,7 +489,7 @@
 	/* Release pa_tlb_lock lock. */
 	.macro		tlb_unlock1	spc,tmp
 #ifdef CONFIG_SMP
-	load32		PA(pa_tlb_lock),\tmp
+	load_pa_tlb_lock \tmp
 	tlb_unlock0	\spc,\tmp
 #endif
 	.endm
@@ -878,9 +887,6 @@ ENTRY_CFI(syscall_exit_rfi)
 	STREG   %r19,PT_SR7(%r16)
 
 intr_return:
-	/* NOTE: Need to enable interrupts incase we schedule. */
-	ssm     PSW_SM_I, %r0
-
 	/* check for reschedule */
 	mfctl   %cr30,%r1
 	LDREG   TI_FLAGS(%r1),%r19	/* sched.h: TIF_NEED_RESCHED */
@@ -906,6 +912,11 @@ intr_check_sig:
 	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
 	LDREG	PT_IASQ1(%r16), %r20
 	cmpib,COND(=),n 0,%r20,intr_restore /* backward */
+
+	/* NOTE: We need to enable interrupts if we have to deliver
+	 * signals. We used to do this earlier but it caused kernel
+	 * stack overflows. */
+	ssm     PSW_SM_I, %r0
 
 	copy	%r0, %r25			/* long in_syscall = 0 */
 #ifdef CONFIG_64BIT
@@ -957,6 +968,10 @@ intr_do_resched:
 	LDREG	PT_IASQ1(%r16), %r20
 	cmpib,COND(=)	0, %r20, intr_do_preempt
 	nop
+
+	/* NOTE: We need to enable interrupts if we schedule.  We used
+	 * to do this earlier but it caused kernel stack overflows. */
+	ssm     PSW_SM_I, %r0
 
 #ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29		/* Reference param save area */

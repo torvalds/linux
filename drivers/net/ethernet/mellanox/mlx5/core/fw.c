@@ -195,12 +195,20 @@ int mlx5_query_hca_caps(struct mlx5_core_dev *dev)
 	return 0;
 }
 
-int mlx5_cmd_init_hca(struct mlx5_core_dev *dev)
+int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id)
 {
 	u32 out[MLX5_ST_SZ_DW(init_hca_out)] = {0};
 	u32 in[MLX5_ST_SZ_DW(init_hca_in)]   = {0};
+	int i;
 
 	MLX5_SET(init_hca_in, in, opcode, MLX5_CMD_OP_INIT_HCA);
+
+	if (MLX5_CAP_GEN(dev, sw_owner_id)) {
+		for (i = 0; i < 4; i++)
+			MLX5_ARRAY_SET(init_hca_in, in, sw_owner_id, i,
+				       sw_owner_id[i]);
+	}
+
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 

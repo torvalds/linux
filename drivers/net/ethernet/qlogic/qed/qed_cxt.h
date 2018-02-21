@@ -169,8 +169,10 @@ void qed_cxt_hw_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
  *
  * @param p_hwfn
  * @param p_ptt
+ * @param is_pf_loading
  */
-void qed_qm_init_pf(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+void qed_qm_init_pf(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt, bool is_pf_loading);
 
 /**
  * @brief Reconfigures QM pf on the fly

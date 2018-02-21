@@ -8,9 +8,6 @@
  *
  * Initial work by:
  *   (c) 2000 Adam J. Richter (adam@yggdrasil.com), Yggdrasil Computing, Inc.
- *
- * Please see http://www.one-eyed-alien.net/~mdharm/linux-usb for more
- * information about this driver.
  */
 
 /*
@@ -31,10 +28,7 @@
  *	  explanation of the reason for the entry),
  *	- a copy of /sys/kernel/debug/usb/devices with your device plugged in
  *	  running with this patch.
- * Send your submission to either Phil Dibowitz <phil@ipom.com> or
- * Alan Stern <stern@rowland.harvard.edu>, and don't forget to CC: the
- * USB development list <linux-usb@vger.kernel.org> and the USB storage list
- * <usb-storage@lists.one-eyed-alien.net>
+ * Send your submission to the USB development list <linux-usb@vger.kernel.org>
  */
 
 /*
@@ -2099,6 +2093,13 @@ UNUSUAL_DEV(  0x152d, 0x0567, 0x0114, 0x0116,
 		"USB to ATA/ATAPI Bridge",
 		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
 		US_FL_BROKEN_FUA ),
+
+/* Reported by David Kozub <zub@linux.fjfi.cvut.cz> */
+UNUSUAL_DEV(0x152d, 0x0578, 0x0000, 0x9999,
+		"JMicron",
+		"JMS567",
+		USB_SC_DEVICE, USB_PR_DEVICE, NULL,
+		US_FL_BROKEN_FUA),
 
 /*
  * Reported by Alexandre Oliva <oliva@lsd.ic.unicamp.br>

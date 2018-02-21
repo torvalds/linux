@@ -520,15 +520,13 @@ static int pxa3xx_nand_init_timings_compat(struct pxa3xx_nand_host *host,
 	struct nand_chip *chip = &host->chip;
 	struct pxa3xx_nand_info *info = host->info_data;
 	const struct pxa3xx_nand_flash *f = NULL;
-	struct mtd_info *mtd = nand_to_mtd(&host->chip);
 	int i, id, ntypes;
+	u8 idbuf[2];
 
 	ntypes = ARRAY_SIZE(builtin_flash_types);
 
-	chip->cmdfunc(mtd, NAND_CMD_READID, 0x00, -1);
-
-	id = chip->read_byte(mtd);
-	id |= chip->read_byte(mtd) << 0x8;
+	nand_readid_op(chip, 0, idbuf, sizeof(idbuf));
+	id = idbuf[0] | (idbuf[1] << 8);
 
 	for (i = 0; i < ntypes; i++) {
 		f = &builtin_flash_types[i];
@@ -963,6 +961,7 @@ static void prepare_start_command(struct pxa3xx_nand_info *info, int command)
 
 	switch (command) {
 	case NAND_CMD_READ0:
+	case NAND_CMD_READOOB:
 	case NAND_CMD_PAGEPROG:
 		info->use_ecc = 1;
 		break;
@@ -1350,10 +1349,10 @@ static int pxa3xx_nand_write_page_hwecc(struct mtd_info *mtd,
 		struct nand_chip *chip, const uint8_t *buf, int oob_required,
 		int page)
 {
-	chip->write_buf(mtd, buf, mtd->writesize);
+	nand_prog_page_begin_op(chip, page, 0, buf, mtd->writesize);
 	chip->write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
@@ -1363,7 +1362,7 @@ static int pxa3xx_nand_read_page_hwecc(struct mtd_info *mtd,
 	struct pxa3xx_nand_host *host = nand_get_controller_data(chip);
 	struct pxa3xx_nand_info *info = host->info_data;
 
-	chip->read_buf(mtd, buf, mtd->writesize);
+	nand_read_page_op(chip, page, 0, buf, mtd->writesize);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	if (info->retcode == ERR_CORERR && info->use_ecc) {

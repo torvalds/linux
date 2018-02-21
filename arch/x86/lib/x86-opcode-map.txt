@@ -607,7 +607,7 @@ fb: psubq Pq,Qq | vpsubq Vx,Hx,Wx (66),(v1)
 fc: paddb Pq,Qq | vpaddb Vx,Hx,Wx (66),(v1)
 fd: paddw Pq,Qq | vpaddw Vx,Hx,Wx (66),(v1)
 fe: paddd Pq,Qq | vpaddd Vx,Hx,Wx (66),(v1)
-ff:
+ff: UD0
 EndTable
 
 Table: 3-byte opcode 1 (0x0f 0x38)
@@ -717,7 +717,7 @@ AVXcode: 2
 7e: vpermt2d/q Vx,Hx,Wx (66),(ev)
 7f: vpermt2ps/d Vx,Hx,Wx (66),(ev)
 80: INVEPT Gy,Mdq (66)
-81: INVPID Gy,Mdq (66)
+81: INVVPID Gy,Mdq (66)
 82: INVPCID Gy,Mdq (66)
 83: vpmultishiftqb Vx,Hx,Wx (66),(ev)
 88: vexpandps/d Vpd,Wpd (66),(ev)
@@ -970,6 +970,15 @@ GrpTable: Grp9
 EndTable
 
 GrpTable: Grp10
+# all are UD1
+0: UD1
+1: UD1
+2: UD1
+3: UD1
+4: UD1
+5: UD1
+6: UD1
+7: UD1
 EndTable
 
 # Grp11A and Grp11B are expressed as Grp11 in Intel SDM

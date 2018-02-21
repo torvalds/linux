@@ -7,8 +7,6 @@ config MIPS
 	select ARCH_DISCARD_MEMBLOCK
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
-	select ARCH_MIGHT_HAVE_PC_PARPORT
-	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_SUPPORTS_UPROBES
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
@@ -119,12 +117,12 @@ config MIPS_GENERIC
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_RELOCATABLE
 	select SYS_SUPPORTS_SMARTMIPS
-	select USB_EHCI_BIG_ENDIAN_DESC if BIG_ENDIAN
-	select USB_EHCI_BIG_ENDIAN_MMIO if BIG_ENDIAN
-	select USB_OHCI_BIG_ENDIAN_DESC if BIG_ENDIAN
-	select USB_OHCI_BIG_ENDIAN_MMIO if BIG_ENDIAN
-	select USB_UHCI_BIG_ENDIAN_DESC if BIG_ENDIAN
-	select USB_UHCI_BIG_ENDIAN_MMIO if BIG_ENDIAN
+	select USB_EHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
+	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
+	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
+	select USB_UHCI_BIG_ENDIAN_DESC if CPU_BIG_ENDIAN
+	select USB_UHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USE_OF
 	help
 	  Select this to build a kernel which aims to support multiple boards,
@@ -253,12 +251,14 @@ config BCM47XX
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_MIPS16
+	select SYS_SUPPORTS_ZBOOT
 	select SYS_HAS_EARLY_PRINTK
 	select USE_GENERIC_EARLY_PRINTK_8250
 	select GPIOLIB
 	select LEDS_GPIO_REGISTER
 	select BCM47XX_NVRAM
 	select BCM47XX_SPROM
+	select BCM47XX_SSB if !BCM47XX_BCMA
 	help
 	 Support for BCM47XX based boards
 
@@ -340,6 +340,8 @@ config MACH_DECSTATION
 
 config MACH_JAZZ
 	bool "Jazz family of machines"
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select FW_ARC
 	select FW_ARC32
 	select ARCH_MAY_HAVE_PC_FDC
@@ -389,6 +391,7 @@ config LANTIQ
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_MULTITHREADING
+	select SYS_SUPPORTS_VPE_LOADER
 	select SYS_HAS_EARLY_PRINTK
 	select GPIOLIB
 	select SWAP_IO_SPACE
@@ -429,6 +432,7 @@ config MACH_LOONGSON32
 
 config MACH_LOONGSON64
 	bool "Loongson-2/3 family of machines"
+	select ARCH_HAS_PHYS_TO_DMA
 	select SYS_SUPPORTS_ZBOOT
 	help
 	  This enables the support of Loongson-2/3 family of machines.
@@ -473,6 +477,8 @@ config MACH_PISTACHIO
 config MIPS_MALTA
 	bool "MIPS Malta board"
 	select ARCH_MAY_HAVE_PC_FDC
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BOOT_ELF32
 	select BOOT_RAW
 	select BUILTIN_DTB
@@ -516,6 +522,7 @@ config MIPS_MALTA
 	select SYS_SUPPORTS_MIPS16
 	select SYS_SUPPORTS_MULTITHREADING
 	select SYS_SUPPORTS_SMARTMIPS
+	select SYS_SUPPORTS_VPE_LOADER
 	select SYS_SUPPORTS_ZBOOT
 	select SYS_SUPPORTS_RELOCATABLE
 	select USE_OF
@@ -609,6 +616,7 @@ config SGI_IP22
 	bool "SGI IP22 (Indy/Indigo2)"
 	select FW_ARC
 	select FW_ARC32
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BOOT_ELF32
 	select CEVT_R4K
 	select CSRC_R4K
@@ -671,6 +679,7 @@ config SGI_IP28
 	bool "SGI IP28 (Indigo2 R10k)"
 	select FW_ARC
 	select FW_ARC64
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BOOT_ELF64
 	select CEVT_R4K
 	select CSRC_R4K
@@ -820,6 +829,8 @@ config SNI_RM
 	select FW_ARC32 if CPU_LITTLE_ENDIAN
 	select FW_SNIPROM if CPU_BIG_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
 	select BOOT_ELF32
 	select CEVT_R4K
 	select CSRC_R4K
@@ -877,6 +888,7 @@ config MIKROTIK_RB532
 config CAVIUM_OCTEON_SOC
 	bool "Cavium Networks Octeon SoC based boards"
 	select CEVT_R4K
+	select ARCH_HAS_PHYS_TO_DMA
 	select ARCH_PHYS_ADDR_T_64BIT
 	select DMA_COHERENT
 	select SYS_SUPPORTS_64BIT_KERNEL
@@ -2281,9 +2293,16 @@ config MIPSR2_TO_R6_EMULATOR
 	  The only reason this is a build-time option is to save ~14K from the
 	  final kernel image.
 
+config SYS_SUPPORTS_VPE_LOADER
+	bool
+	depends on SYS_SUPPORTS_MULTITHREADING
+	help
+	  Indicates that the platform supports the VPE loader, and provides
+	  physical_memsize.
+
 config MIPS_VPE_LOADER
 	bool "VPE loader support."
-	depends on SYS_SUPPORTS_MULTITHREADING && MODULES
+	depends on SYS_SUPPORTS_VPE_LOADER && MODULES
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select MIPS_MT
@@ -2314,7 +2333,6 @@ config MIPS_VPE_LOADER_TOM
 config MIPS_VPE_APSP_API
 	bool "Enable support for AP/SP API (RTLX)"
 	depends on MIPS_VPE_LOADER
-	help
 
 config MIPS_VPE_APSP_API_CMP
 	bool

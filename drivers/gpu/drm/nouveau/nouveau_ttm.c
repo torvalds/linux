@@ -235,6 +235,27 @@ nouveau_ttm_global_release(struct nouveau_drm *drm)
 	drm->ttm.mem_global_ref.release = NULL;
 }
 
+static int
+nouveau_ttm_init_host(struct nouveau_drm *drm, u8 kind)
+{
+	struct nvif_mmu *mmu = &drm->client.mmu;
+	int typei;
+
+	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE |
+					    kind | NVIF_MEM_COHERENT);
+	if (typei < 0)
+		return -ENOSYS;
+
+	drm->ttm.type_host[!!kind] = typei;
+
+	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE | kind);
+	if (typei < 0)
+		return -ENOSYS;
+
+	drm->ttm.type_ncoh[!!kind] = typei;
+	return 0;
+}
+
 int
 nouveau_ttm_init(struct nouveau_drm *drm)
 {
@@ -244,18 +265,16 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	struct drm_device *dev = drm->dev;
 	int typei, ret;
 
-	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE |
-						   NVIF_MEM_COHERENT);
-	if (typei < 0)
-		return -ENOSYS;
+	ret = nouveau_ttm_init_host(drm, 0);
+	if (ret)
+		return ret;
 
-	drm->ttm.type_host = typei;
-
-	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE);
-	if (typei < 0)
-		return -ENOSYS;
-
-	drm->ttm.type_ncoh = typei;
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA &&
+	    drm->client.device.info.chipset != 0x50) {
+		ret = nouveau_ttm_init_host(drm, NVIF_MEM_KIND);
+		if (ret)
+			return ret;
+	}
 
 	if (drm->client.device.info.platform != NV_DEVICE_INFO_V0_SOC &&
 	    drm->client.device.info.family >= NV_DEVICE_INFO_V0_TESLA) {

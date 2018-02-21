@@ -349,8 +349,8 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 	dev->needed_headroom = t_hlen + hlen;
 	mtu -= (dev->hard_header_len + t_hlen);
 
-	if (mtu < 68)
-		mtu = 68;
+	if (mtu < IPV4_MIN_MTU)
+		mtu = IPV4_MIN_MTU;
 
 	return mtu;
 }
@@ -520,8 +520,7 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 	else
 		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
-	if (skb_dst(skb))
-		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
+	skb_dst_update_pmtu(skb, mtu);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		if (!skb_is_gso(skb) &&
@@ -711,9 +710,16 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
-			 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
-			 tunnel->fwmark);
+	if (tunnel->fwmark) {
+		init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
+				 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
+				 tunnel->fwmark);
+	}
+	else {
+		init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
+				 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
+				 skb->mark);
+	}
 
 	if (ip_tunnel_encap(skb, tunnel, &protocol, &fl4) < 0)
 		goto tx_error;

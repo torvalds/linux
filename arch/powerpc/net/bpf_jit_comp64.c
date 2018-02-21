@@ -21,8 +21,6 @@
 
 #include "bpf_jit64.h"
 
-int bpf_jit_enable __read_mostly;
-
 static void bpf_jit_fill_ill_insns(void *area, unsigned int size)
 {
 	memset32(area, BREAKPOINT_INSTRUCTION, size/4);
@@ -383,10 +381,6 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			goto bpf_alu32_trunc;
 		case BPF_ALU | BPF_DIV | BPF_X: /* (u32) dst /= (u32) src */
 		case BPF_ALU | BPF_MOD | BPF_X: /* (u32) dst %= (u32) src */
-			PPC_CMPWI(src_reg, 0);
-			PPC_BCC_SHORT(COND_NE, (ctx->idx * 4) + 12);
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_JMP(exit_addr);
 			if (BPF_OP(code) == BPF_MOD) {
 				PPC_DIVWU(b2p[TMP_REG_1], dst_reg, src_reg);
 				PPC_MULW(b2p[TMP_REG_1], src_reg,
@@ -397,10 +391,6 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			goto bpf_alu32_trunc;
 		case BPF_ALU64 | BPF_DIV | BPF_X: /* dst /= src */
 		case BPF_ALU64 | BPF_MOD | BPF_X: /* dst %= src */
-			PPC_CMPDI(src_reg, 0);
-			PPC_BCC_SHORT(COND_NE, (ctx->idx * 4) + 12);
-			PPC_LI(b2p[BPF_REG_0], 0);
-			PPC_JMP(exit_addr);
 			if (BPF_OP(code) == BPF_MOD) {
 				PPC_DIVD(b2p[TMP_REG_1], dst_reg, src_reg);
 				PPC_MULD(b2p[TMP_REG_1], src_reg,
@@ -763,7 +753,8 @@ emit_clear:
 			func = (u8 *) __bpf_call_base + imm;
 
 			/* Save skb pointer if we need to re-cache skb data */
-			if (bpf_helper_changes_pkt_data(func))
+			if ((ctx->seen & SEEN_SKB) &&
+			    bpf_helper_changes_pkt_data(func))
 				PPC_BPF_STL(3, 1, bpf_jit_stack_local(ctx));
 
 			bpf_jit_emit_func_call(image, ctx, (u64)func);
@@ -772,7 +763,8 @@ emit_clear:
 			PPC_MR(b2p[BPF_REG_0], 3);
 
 			/* refresh skb cache */
-			if (bpf_helper_changes_pkt_data(func)) {
+			if ((ctx->seen & SEEN_SKB) &&
+			    bpf_helper_changes_pkt_data(func)) {
 				/* reload skb pointer to r3 */
 				PPC_BPF_LL(3, 1, bpf_jit_stack_local(ctx));
 				bpf_jit_emit_skb_loads(image, ctx);
@@ -993,7 +985,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	struct bpf_prog *tmp_fp;
 	bool bpf_blinded = false;
 
-	if (!bpf_jit_enable)
+	if (!fp->jit_requested)
 		return org_fp;
 
 	tmp_fp = bpf_jit_blind_constants(org_fp);

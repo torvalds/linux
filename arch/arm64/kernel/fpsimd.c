@@ -867,7 +867,7 @@ asmlinkage void do_fpsimd_acc(unsigned int esr, struct pt_regs *regs)
 asmlinkage void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
 {
 	siginfo_t info;
-	unsigned int si_code = 0;
+	unsigned int si_code = FPE_FIXME;
 
 	if (esr & FPEXC_IOF)
 		si_code = FPE_FLTINV;
@@ -1036,14 +1036,14 @@ void fpsimd_restore_current_state(void)
  * flag that indicates that the FPSIMD register contents are the most recent
  * FPSIMD state of 'current'
  */
-void fpsimd_update_current_state(struct fpsimd_state *state)
+void fpsimd_update_current_state(struct user_fpsimd_state const *state)
 {
 	if (!system_supports_fpsimd())
 		return;
 
 	local_bh_disable();
 
-	current->thread.fpsimd_state = *state;
+	current->thread.fpsimd_state.user_fpsimd = *state;
 	if (system_supports_sve() && test_thread_flag(TIF_SVE))
 		fpsimd_to_sve(current);
 

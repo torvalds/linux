@@ -89,11 +89,11 @@ EXPORT_SYMBOL(enable_sacf_uaccess);
 
 void disable_sacf_uaccess(mm_segment_t old_fs)
 {
+	current->thread.mm_segment = old_fs;
 	if (old_fs == USER_DS && test_facility(27)) {
 		__ctl_load(S390_lowcore.user_asce, 1, 1);
 		clear_cpu_flag(CIF_ASCE_PRIMARY);
 	}
-	current->thread.mm_segment = old_fs;
 }
 EXPORT_SYMBOL(disable_sacf_uaccess);
 

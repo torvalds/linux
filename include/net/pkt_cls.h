@@ -29,6 +29,7 @@ struct tcf_block_ext_info {
 	enum tcf_block_binder_type binder_type;
 	tcf_chain_head_change_t *chain_head_change;
 	void *chain_head_change_priv;
+	u32 block_index;
 };
 
 struct tcf_block_cb;
@@ -38,16 +39,25 @@ bool tcf_queue_work(struct work_struct *work);
 struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
 				bool create);
 void tcf_chain_put(struct tcf_chain *chain);
+void tcf_block_netif_keep_dst(struct tcf_block *block);
 int tcf_block_get(struct tcf_block **p_block,
-		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q);
+		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+		  struct netlink_ext_ack *extack);
 int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
-		      struct tcf_block_ext_info *ei);
+		      struct tcf_block_ext_info *ei,
+		      struct netlink_ext_ack *extack);
 void tcf_block_put(struct tcf_block *block);
 void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 		       struct tcf_block_ext_info *ei);
 
+static inline bool tcf_block_shared(struct tcf_block *block)
+{
+	return block->index;
+}
+
 static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 {
+	WARN_ON(tcf_block_shared(block));
 	return block->q;
 }
 
@@ -77,14 +87,16 @@ int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 #else
 static inline
 int tcf_block_get(struct tcf_block **p_block,
-		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q)
+		  struct tcf_proto __rcu **p_filter_chain, struct Qdisc *q,
+		  struct netlink_ext_ack *extack)
 {
 	return 0;
 }
 
 static inline
 int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
-		      struct tcf_block_ext_info *ei)
+		      struct tcf_block_ext_info *ei,
+		      struct netlink_ext_ack *extack)
 {
 	return 0;
 }
@@ -364,7 +376,8 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
-		      struct tcf_exts *exts, bool ovr);
+		      struct tcf_exts *exts, bool ovr,
+		      struct netlink_ext_ack *extack);
 void tcf_exts_destroy(struct tcf_exts *exts);
 void tcf_exts_change(struct tcf_exts *dst, struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
@@ -522,7 +535,7 @@ static inline unsigned char * tcf_get_base_ptr(struct sk_buff *skb, int layer)
 {
 	switch (layer) {
 		case TCF_LAYER_LINK:
-			return skb->data;
+			return skb_mac_header(skb);
 		case TCF_LAYER_NETWORK:
 			return skb_network_header(skb);
 		case TCF_LAYER_TRANSPORT:
@@ -544,13 +557,16 @@ static inline int tcf_valid_offset(const struct sk_buff *skb,
 #include <net/net_namespace.h>
 
 static inline int
-tcf_change_indev(struct net *net, struct nlattr *indev_tlv)
+tcf_change_indev(struct net *net, struct nlattr *indev_tlv,
+		 struct netlink_ext_ack *extack)
 {
 	char indev[IFNAMSIZ];
 	struct net_device *dev;
 
-	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ)
+	if (nla_strlcpy(indev, indev_tlv, IFNAMSIZ) >= IFNAMSIZ) {
+		NL_SET_ERR_MSG(extack, "Interface name too long");
 		return -EINVAL;
+	}
 	dev = __dev_get_by_name(net, indev);
 	if (!dev)
 		return -ENODEV;
@@ -586,16 +602,8 @@ struct tc_cls_common_offload {
 	u32 chain_index;
 	__be16 protocol;
 	u32 prio;
+	struct netlink_ext_ack *extack;
 };
-
-static inline void
-tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
-			   const struct tcf_proto *tp)
-{
-	cls_common->chain_index = tp->chain->index;
-	cls_common->protocol = tp->protocol;
-	cls_common->prio = tp->prio;
-}
 
 struct tc_cls_u32_knode {
 	struct tcf_exts *exts;
@@ -637,6 +645,31 @@ static inline bool tc_can_offload(const struct net_device *dev)
 	return dev->features & NETIF_F_HW_TC;
 }
 
+static inline bool tc_can_offload_extack(const struct net_device *dev,
+					 struct netlink_ext_ack *extack)
+{
+	bool can = tc_can_offload(dev);
+
+	if (!can)
+		NL_SET_ERR_MSG(extack, "TC offload is disabled on net device");
+
+	return can;
+}
+
+static inline bool
+tc_cls_can_offload_and_chain0(const struct net_device *dev,
+			      struct tc_cls_common_offload *common)
+{
+	if (!tc_can_offload_extack(dev, common->extack))
+		return false;
+	if (common->chain_index) {
+		NL_SET_ERR_MSG(common->extack,
+			       "Driver supports only offload of chain 0");
+		return false;
+	}
+	return true;
+}
+
 static inline bool tc_skip_hw(u32 flags)
 {
 	return (flags & TCA_CLS_FLAGS_SKIP_HW) ? true : false;
@@ -662,6 +695,18 @@ static inline bool tc_flags_valid(u32 flags)
 static inline bool tc_in_hw(u32 flags)
 {
 	return (flags & TCA_CLS_FLAGS_IN_HW) ? true : false;
+}
+
+static inline void
+tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
+			   const struct tcf_proto *tp, u32 flags,
+			   struct netlink_ext_ack *extack)
+{
+	cls_common->chain_index = tp->chain->index;
+	cls_common->protocol = tp->protocol;
+	cls_common->prio = tp->prio;
+	if (tc_skip_sw(flags))
+		cls_common->extack = extack;
 }
 
 enum tc_fl_command {
@@ -694,9 +739,7 @@ struct tc_cls_matchall_offload {
 };
 
 enum tc_clsbpf_command {
-	TC_CLSBPF_ADD,
-	TC_CLSBPF_REPLACE,
-	TC_CLSBPF_DESTROY,
+	TC_CLSBPF_OFFLOAD,
 	TC_CLSBPF_STATS,
 };
 
@@ -705,9 +748,9 @@ struct tc_cls_bpf_offload {
 	enum tc_clsbpf_command command;
 	struct tcf_exts *exts;
 	struct bpf_prog *prog;
+	struct bpf_prog *oldprog;
 	const char *name;
 	bool exts_integrated;
-	u32 gen_flags;
 };
 
 struct tc_mqprio_qopt_offload {
@@ -728,6 +771,11 @@ struct tc_cookie {
 	u32 len;
 };
 
+struct tc_qopt_offload_stats {
+	struct gnet_stats_basic_packed *bstats;
+	struct gnet_stats_queue *qstats;
+};
+
 enum tc_red_command {
 	TC_RED_REPLACE,
 	TC_RED_DESTROY,
@@ -740,9 +788,6 @@ struct tc_red_qopt_offload_params {
 	u32 max;
 	u32 probability;
 	bool is_ecn;
-};
-struct tc_red_qopt_offload_stats {
-	struct gnet_stats_basic_packed *bstats;
 	struct gnet_stats_queue *qstats;
 };
 
@@ -752,9 +797,34 @@ struct tc_red_qopt_offload {
 	u32 parent;
 	union {
 		struct tc_red_qopt_offload_params set;
-		struct tc_red_qopt_offload_stats stats;
+		struct tc_qopt_offload_stats stats;
 		struct red_stats *xstats;
 	};
 };
 
+enum tc_prio_command {
+	TC_PRIO_REPLACE,
+	TC_PRIO_DESTROY,
+	TC_PRIO_STATS,
+};
+
+struct tc_prio_qopt_offload_params {
+	int bands;
+	u8 priomap[TC_PRIO_MAX + 1];
+	/* In case that a prio qdisc is offloaded and now is changed to a
+	 * non-offloadedable config, it needs to update the backlog & qlen
+	 * values to negate the HW backlog & qlen values (and only them).
+	 */
+	struct gnet_stats_queue *qstats;
+};
+
+struct tc_prio_qopt_offload {
+	enum tc_prio_command command;
+	u32 handle;
+	u32 parent;
+	union {
+		struct tc_prio_qopt_offload_params replace_params;
+		struct tc_qopt_offload_stats stats;
+	};
+};
 #endif

@@ -33,6 +33,15 @@
 #include "dcn10/dcn10_resource.h"
 #include "dcn_calc_math.h"
 
+/*
+ * NOTE:
+ *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
+ *
+ * It doesn't adhere to Linux kernel style and sometimes will do things in odd
+ * ways. Unless there is something clearly wrong with it the code should
+ * remain as-is as it provides us with a guarantee from HW that it is correct.
+ */
+
 /* Defaults from spreadsheet rev#247 */
 const struct dcn_soc_bounding_box dcn10_soc_defaults = {
 		/* latencies */
@@ -432,25 +441,13 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	input.clks_cfg.dcfclk_mhz = v->dcfclk;
 	input.clks_cfg.dispclk_mhz = v->dispclk;
 	input.clks_cfg.dppclk_mhz = v->dppclk;
-	input.clks_cfg.refclk_mhz = dc->res_pool->ref_clock_inKhz/1000;
+	input.clks_cfg.refclk_mhz = dc->res_pool->ref_clock_inKhz / 1000.0;
 	input.clks_cfg.socclk_mhz = v->socclk;
 	input.clks_cfg.voltage = v->voltage_level;
 //	dc->dml.logger = pool->base.logger;
 	input.dout.output_format = (v->output_format[in_idx] == dcn_bw_420) ? dm_420 : dm_444;
 	input.dout.output_type  = (v->output[in_idx] == dcn_bw_hdmi) ? dm_hdmi : dm_dp;
 	//input[in_idx].dout.output_standard;
-	switch (v->output_deep_color[in_idx]) {
-	case dcn_bw_encoder_12bpc:
-		input.dout.output_bpc = dm_out_12;
-	break;
-	case dcn_bw_encoder_10bpc:
-		input.dout.output_bpc = dm_out_10;
-	break;
-	case dcn_bw_encoder_8bpc:
-	default:
-		input.dout.output_bpc = dm_out_8;
-	break;
-	}
 
 	/*todo: soc->sr_enter_plus_exit_time??*/
 	dlg_sys_param.t_srx_delay_us = dc->dcn_ip->dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
@@ -890,6 +887,17 @@ bool dcn_validate_bandwidth(
 						+ pipe->bottom_pipe->plane_res.scl_data.recout.width;
 			}
 
+			if (pipe->plane_state->rotation % 2 == 0) {
+				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dal_fixed31_32_one.value
+					|| v->scaler_rec_out_width[input_idx] == v->viewport_width[input_idx]);
+				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dal_fixed31_32_one.value
+					|| v->scaler_recout_height[input_idx] == v->viewport_height[input_idx]);
+			} else {
+				ASSERT(pipe->plane_res.scl_data.ratios.horz.value != dal_fixed31_32_one.value
+					|| v->scaler_recout_height[input_idx] == v->viewport_width[input_idx]);
+				ASSERT(pipe->plane_res.scl_data.ratios.vert.value != dal_fixed31_32_one.value
+					|| v->scaler_rec_out_width[input_idx] == v->viewport_height[input_idx]);
+			}
 			v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;
 			v->source_pixel_format[input_idx] = tl_pixel_format_to_bw_defs(
 					pipe->plane_state->format);
@@ -900,6 +908,15 @@ bool dcn_validate_bandwidth(
 			v->override_vta_ps[input_idx] = pipe->plane_res.scl_data.taps.v_taps;
 			v->override_hta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.h_taps_c;
 			v->override_vta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.v_taps_c;
+			/*
+			 * Spreadsheet doesn't handle taps_c is one properly,
+			 * need to force Chroma to always be scaled to pass
+			 * bandwidth validation.
+			 */
+			if (v->override_hta_pschroma[input_idx] == 1)
+				v->override_hta_pschroma[input_idx] = 2;
+			if (v->override_vta_pschroma[input_idx] == 1)
+				v->override_vta_pschroma[input_idx] = 2;
 			v->source_scan[input_idx] = (pipe->plane_state->rotation % 2) ? dcn_bw_vert : dcn_bw_hor;
 		}
 		if (v->is_line_buffer_bpp_fixed == dcn_bw_yes)
@@ -997,9 +1014,9 @@ bool dcn_validate_bandwidth(
 			if (pipe->top_pipe && pipe->top_pipe->plane_state == pipe->plane_state)
 				continue;
 
-			pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx];
-			pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx];
-			pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx];
+			pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+			pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+			pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
 			pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
 
 			pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
@@ -1025,6 +1042,8 @@ bool dcn_validate_bandwidth(
 			if (pipe->plane_state) {
 				struct pipe_ctx *hsplit_pipe = pipe->bottom_pipe;
 
+				pipe->plane_state->update_flags.bits.full_update = 1;
+
 				if (v->dpp_per_plane[input_idx] == 2 ||
 					((pipe->stream->view_format ==
 					  VIEW_3D_FORMAT_SIDE_BY_SIDE ||
@@ -1036,9 +1055,9 @@ bool dcn_validate_bandwidth(
 					 TIMING_3D_FORMAT_SIDE_BY_SIDE))) {
 					if (hsplit_pipe && hsplit_pipe->plane_state == pipe->plane_state) {
 						/* update previously split pipe */
-						hsplit_pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx];
-						hsplit_pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx];
-						hsplit_pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx];
+						hsplit_pipe->pipe_dlg_param.vupdate_width = v->v_update_width[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+						hsplit_pipe->pipe_dlg_param.vupdate_offset = v->v_update_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
+						hsplit_pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx][v->dpp_per_plane[input_idx] == 2 ? 1 : 0];
 						hsplit_pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
 
 						hsplit_pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
@@ -1064,6 +1083,9 @@ bool dcn_validate_bandwidth(
 					hsplit_pipe->stream = NULL;
 					hsplit_pipe->top_pipe = NULL;
 					hsplit_pipe->bottom_pipe = NULL;
+					/* Clear plane_res and stream_res */
+					memset(&hsplit_pipe->plane_res, 0, sizeof(hsplit_pipe->plane_res));
+					memset(&hsplit_pipe->stream_res, 0, sizeof(hsplit_pipe->stream_res));
 					resource_build_scaling_params(pipe);
 				}
 				/* for now important to do this after pipe split for building e2e params */
@@ -1231,40 +1253,62 @@ unsigned int dcn_find_dcfclk_suits_all(
 	return dcf_clk;
 }
 
+static bool verify_clock_values(struct dm_pp_clock_levels_with_voltage *clks)
+{
+	int i;
+
+	if (clks->num_levels == 0)
+		return false;
+
+	for (i = 0; i < clks->num_levels; i++)
+		/* Ensure that the result is sane */
+		if (clks->data[i].clocks_in_khz == 0)
+			return false;
+
+	return true;
+}
+
 void dcn_bw_update_from_pplib(struct dc *dc)
 {
 	struct dc_context *ctx = dc->ctx;
-	struct dm_pp_clock_levels_with_voltage clks = {0};
+	struct dm_pp_clock_levels_with_voltage fclks = {0}, dcfclks = {0};
+	bool res;
 
 	kernel_fpu_begin();
 
 	/* TODO: This is not the proper way to obtain fabric_and_dram_bandwidth, should be min(fclk, memclk) */
+	res = dm_pp_get_clock_levels_by_type_with_voltage(
+			ctx, DM_PP_CLOCK_TYPE_FCLK, &fclks);
 
-	if (dm_pp_get_clock_levels_by_type_with_voltage(
-			ctx, DM_PP_CLOCK_TYPE_FCLK, &clks) &&
-			clks.num_levels != 0) {
-		ASSERT(clks.num_levels >= 3);
-		dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 = 32 * (clks.data[0].clocks_in_khz / 1000.0) / 1000.0;
-		if (clks.num_levels > 2) {
-			dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->number_of_channels *
-					(clks.data[clks.num_levels - 3].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
-		} else {
-			dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->number_of_channels *
-					(clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
-		}
+	if (res)
+		res = verify_clock_values(&fclks);
+
+	if (res) {
+		ASSERT(fclks.num_levels >= 3);
+		dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 = 32 * (fclks.data[0].clocks_in_khz / 1000.0) / 1000.0;
+		dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->number_of_channels *
+				(fclks.data[fclks.num_levels - (fclks.num_levels > 2 ? 3 : 2)].clocks_in_khz / 1000.0)
+				* ddr4_dram_factor_single_Channel / 1000.0;
 		dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 = dc->dcn_soc->number_of_channels *
-				(clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
+				(fclks.data[fclks.num_levels - 2].clocks_in_khz / 1000.0)
+				* ddr4_dram_factor_single_Channel / 1000.0;
 		dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 = dc->dcn_soc->number_of_channels *
-				(clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
+				(fclks.data[fclks.num_levels - 1].clocks_in_khz / 1000.0)
+				* ddr4_dram_factor_single_Channel / 1000.0;
 	} else
 		BREAK_TO_DEBUGGER();
-	if (dm_pp_get_clock_levels_by_type_with_voltage(
-				ctx, DM_PP_CLOCK_TYPE_DCFCLK, &clks) &&
-				clks.num_levels >= 3) {
-		dc->dcn_soc->dcfclkv_min0p65 = clks.data[0].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_mid0p72 = clks.data[clks.num_levels - 3].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_nom0p8 = clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0;
-		dc->dcn_soc->dcfclkv_max0p9 = clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0;
+
+	res = dm_pp_get_clock_levels_by_type_with_voltage(
+			ctx, DM_PP_CLOCK_TYPE_DCFCLK, &dcfclks);
+
+	if (res)
+		res = verify_clock_values(&dcfclks);
+
+	if (res && dcfclks.num_levels >= 3) {
+		dc->dcn_soc->dcfclkv_min0p65 = dcfclks.data[0].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_mid0p72 = dcfclks.data[dcfclks.num_levels - 3].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_nom0p8 = dcfclks.data[dcfclks.num_levels - 2].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_max0p9 = dcfclks.data[dcfclks.num_levels - 1].clocks_in_khz / 1000.0;
 	} else
 		BREAK_TO_DEBUGGER();
 
@@ -1541,35 +1585,6 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 			dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one,
 			dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed,
 			dc->dcn_ip->dcfclk_cstate_latency);
-	dc->dml.soc.vmin.socclk_mhz = dc->dcn_soc->socclk;
-	dc->dml.soc.vmid.socclk_mhz = dc->dcn_soc->socclk;
-	dc->dml.soc.vnom.socclk_mhz = dc->dcn_soc->socclk;
-	dc->dml.soc.vmax.socclk_mhz = dc->dcn_soc->socclk;
-
-	dc->dml.soc.vmin.dcfclk_mhz = dc->dcn_soc->dcfclkv_min0p65;
-	dc->dml.soc.vmid.dcfclk_mhz = dc->dcn_soc->dcfclkv_mid0p72;
-	dc->dml.soc.vnom.dcfclk_mhz = dc->dcn_soc->dcfclkv_nom0p8;
-	dc->dml.soc.vmax.dcfclk_mhz = dc->dcn_soc->dcfclkv_max0p9;
-
-	dc->dml.soc.vmin.dispclk_mhz = dc->dcn_soc->max_dispclk_vmin0p65;
-	dc->dml.soc.vmid.dispclk_mhz = dc->dcn_soc->max_dispclk_vmid0p72;
-	dc->dml.soc.vnom.dispclk_mhz = dc->dcn_soc->max_dispclk_vnom0p8;
-	dc->dml.soc.vmax.dispclk_mhz = dc->dcn_soc->max_dispclk_vmax0p9;
-
-	dc->dml.soc.vmin.dppclk_mhz = dc->dcn_soc->max_dppclk_vmin0p65;
-	dc->dml.soc.vmid.dppclk_mhz = dc->dcn_soc->max_dppclk_vmid0p72;
-	dc->dml.soc.vnom.dppclk_mhz = dc->dcn_soc->max_dppclk_vnom0p8;
-	dc->dml.soc.vmax.dppclk_mhz = dc->dcn_soc->max_dppclk_vmax0p9;
-
-	dc->dml.soc.vmin.phyclk_mhz = dc->dcn_soc->phyclkv_min0p65;
-	dc->dml.soc.vmid.phyclk_mhz = dc->dcn_soc->phyclkv_mid0p72;
-	dc->dml.soc.vnom.phyclk_mhz = dc->dcn_soc->phyclkv_nom0p8;
-	dc->dml.soc.vmax.phyclk_mhz = dc->dcn_soc->phyclkv_max0p9;
-
-	dc->dml.soc.vmin.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65;
-	dc->dml.soc.vmid.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72;
-	dc->dml.soc.vnom.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8;
-	dc->dml.soc.vmax.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9;
 
 	dc->dml.soc.sr_exit_time_us = dc->dcn_soc->sr_exit_time;
 	dc->dml.soc.sr_enter_plus_exit_time_us = dc->dcn_soc->sr_enter_plus_exit_time;

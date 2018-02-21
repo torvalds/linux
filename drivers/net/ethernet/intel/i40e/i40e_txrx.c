@@ -27,6 +27,7 @@
 #include <linux/prefetch.h>
 #include <net/busy_poll.h>
 #include <linux/bpf_trace.h>
+#include <net/xdp.h>
 #include "i40e.h"
 #include "i40e_trace.h"
 #include "i40e_prototype.h"
@@ -725,6 +726,59 @@ u32 i40e_get_tx_pending(struct i40e_ring *ring)
 	return 0;
 }
 
+/**
+ * i40e_detect_recover_hung - Function to detect and recover hung_queues
+ * @vsi:  pointer to vsi struct with tx queues
+ *
+ * VSI has netdev and netdev has TX queues. This function is to check each of
+ * those TX queues if they are hung, trigger recovery by issuing SW interrupt.
+ **/
+void i40e_detect_recover_hung(struct i40e_vsi *vsi)
+{
+	struct i40e_ring *tx_ring = NULL;
+	struct net_device *netdev;
+	unsigned int i;
+	int packets;
+
+	if (!vsi)
+		return;
+
+	if (test_bit(__I40E_VSI_DOWN, vsi->state))
+		return;
+
+	netdev = vsi->netdev;
+	if (!netdev)
+		return;
+
+	if (!netif_carrier_ok(netdev))
+		return;
+
+	for (i = 0; i < vsi->num_queue_pairs; i++) {
+		tx_ring = vsi->tx_rings[i];
+		if (tx_ring && tx_ring->desc) {
+			/* If packet counter has not changed the queue is
+			 * likely stalled, so force an interrupt for this
+			 * queue.
+			 *
+			 * prev_pkt_ctr would be negative if there was no
+			 * pending work.
+			 */
+			packets = tx_ring->stats.packets & INT_MAX;
+			if (tx_ring->tx_stats.prev_pkt_ctr == packets) {
+				i40e_force_wb(vsi, tx_ring->q_vector);
+				continue;
+			}
+
+			/* Memory barrier between read of packet count and call
+			 * to i40e_get_tx_pending()
+			 */
+			smp_rmb();
+			tx_ring->tx_stats.prev_pkt_ctr =
+			    i40e_get_tx_pending(tx_ring) ? packets : -1;
+		}
+	}
+}
+
 #define WB_STRIDE 4
 
 /**
@@ -902,7 +956,7 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
 		      I40E_PFINT_DYN_CTLN_ITR_INDX_MASK; /* set noitr */
 
 		wr32(&vsi->back->hw,
-		     I40E_PFINT_DYN_CTLN(q_vector->v_idx + vsi->base_vector - 1),
+		     I40E_PFINT_DYN_CTLN(q_vector->reg_idx),
 		     val);
 	} else {
 		val = I40E_PFINT_DYN_CTL0_WB_ON_ITR_MASK |
@@ -929,8 +983,7 @@ void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 			  /* allow 00 to be written to the index */
 
 		wr32(&vsi->back->hw,
-		     I40E_PFINT_DYN_CTLN(q_vector->v_idx +
-					 vsi->base_vector - 1), val);
+		     I40E_PFINT_DYN_CTLN(q_vector->reg_idx), val);
 	} else {
 		u32 val = I40E_PFINT_DYN_CTL0_INTENA_MASK |
 			  I40E_PFINT_DYN_CTL0_ITR_INDX_MASK | /* set noitr */
@@ -1162,6 +1215,7 @@ int i40e_setup_tx_descriptors(struct i40e_ring *tx_ring)
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
+	tx_ring->tx_stats.prev_pkt_ctr = -1;
 	return 0;
 
 err:
@@ -1236,6 +1290,8 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 void i40e_free_rx_resources(struct i40e_ring *rx_ring)
 {
 	i40e_clean_rx_ring(rx_ring);
+	if (rx_ring->vsi->type == I40E_VSI_MAIN)
+		xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 	rx_ring->xdp_prog = NULL;
 	kfree(rx_ring->rx_bi);
 	rx_ring->rx_bi = NULL;
@@ -1256,6 +1312,7 @@ void i40e_free_rx_resources(struct i40e_ring *rx_ring)
 int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
+	int err = -ENOMEM;
 	int bi_size;
 
 	/* warn if we are about to overwrite the pointer */
@@ -1283,13 +1340,21 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 	rx_ring->next_to_clean = 0;
 	rx_ring->next_to_use = 0;
 
+	/* XDP RX-queue info only needed for RX rings exposed to XDP */
+	if (rx_ring->vsi->type == I40E_VSI_MAIN) {
+		err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev,
+				       rx_ring->queue_index);
+		if (err < 0)
+			goto err;
+	}
+
 	rx_ring->xdp_prog = rx_ring->vsi->xdp_prog;
 
 	return 0;
 err:
 	kfree(rx_ring->rx_bi);
 	rx_ring->rx_bi = NULL;
-	return -ENOMEM;
+	return err;
 }
 
 /**
@@ -2068,11 +2133,13 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	struct sk_buff *skb = rx_ring->skb;
 	u16 cleaned_count = I40E_DESC_UNUSED(rx_ring);
 	bool failure = false, xdp_xmit = false;
+	struct xdp_buff xdp;
+
+	xdp.rxq = &rx_ring->xdp_rxq;
 
 	while (likely(total_rx_packets < (unsigned int)budget)) {
 		struct i40e_rx_buffer *rx_buffer;
 		union i40e_rx_desc *rx_desc;
-		struct xdp_buff xdp;
 		unsigned int size;
 		u16 vlan_tag;
 		u8 rx_ptype;
@@ -2243,7 +2310,6 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	struct i40e_hw *hw = &vsi->back->hw;
 	bool rx = false, tx = false;
 	u32 rxval, txval;
-	int vector;
 	int idx = q_vector->v_idx;
 	int rx_itr_setting, tx_itr_setting;
 
@@ -2252,8 +2318,6 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		i40e_irq_dynamic_enable_icr0(vsi->back);
 		return;
 	}
-
-	vector = (q_vector->v_idx + vsi->base_vector);
 
 	/* avoid dynamic calculation if in countdown mode OR if
 	 * all dynamic is disabled
@@ -2303,12 +2367,12 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 		 */
 		rxval |= BIT(31);
 		/* don't check _DOWN because interrupt isn't being enabled */
-		wr32(hw, INTREG(vector - 1), rxval);
+		wr32(hw, INTREG(q_vector->reg_idx), rxval);
 	}
 
 enable_int:
 	if (!test_bit(__I40E_VSI_DOWN, vsi->state))
-		wr32(hw, INTREG(vector - 1), txval);
+		wr32(hw, INTREG(q_vector->reg_idx), txval);
 
 	if (q_vector->itr_countdown)
 		q_vector->itr_countdown--;
@@ -3047,9 +3111,29 @@ bool __i40e_chk_linearize(struct sk_buff *skb)
 	/* Walk through fragments adding latest fragment, testing it, and
 	 * then removing stale fragments from the sum.
 	 */
-	stale = &skb_shinfo(skb)->frags[0];
-	for (;;) {
+	for (stale = &skb_shinfo(skb)->frags[0];; stale++) {
+		int stale_size = skb_frag_size(stale);
+
 		sum += skb_frag_size(frag++);
+
+		/* The stale fragment may present us with a smaller
+		 * descriptor than the actual fragment size. To account
+		 * for that we need to remove all the data on the front and
+		 * figure out what the remainder would be in the last
+		 * descriptor associated with the fragment.
+		 */
+		if (stale_size > I40E_MAX_DATA_PER_TXD) {
+			int align_pad = -(stale->page_offset) &
+					(I40E_MAX_READ_REQ_SIZE - 1);
+
+			sum -= align_pad;
+			stale_size -= align_pad;
+
+			do {
+				sum -= I40E_MAX_DATA_PER_TXD_ALIGNED;
+				stale_size -= I40E_MAX_DATA_PER_TXD_ALIGNED;
+			} while (stale_size > I40E_MAX_DATA_PER_TXD);
+		}
 
 		/* if sum is negative we failed to make sufficient progress */
 		if (sum < 0)
@@ -3058,7 +3142,7 @@ bool __i40e_chk_linearize(struct sk_buff *skb)
 		if (!nr_frags--)
 			break;
 
-		sum -= skb_frag_size(stale++);
+		sum -= stale_size;
 	}
 
 	return false;

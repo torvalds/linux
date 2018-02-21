@@ -36,7 +36,6 @@
 #include <linux/of_irq.h>
 #include <linux/mfd/syscon.h>
 #include <linux/reset-controller.h>
-#include <linux/clk.h>
 
 #include "hi6210-i2s.h"
 

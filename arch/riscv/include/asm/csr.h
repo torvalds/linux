@@ -17,10 +17,10 @@
 #include <linux/const.h>
 
 /* Status register flags */
-#define SR_IE   _AC(0x00000002, UL) /* Interrupt Enable */
-#define SR_PIE  _AC(0x00000020, UL) /* Previous IE */
-#define SR_PS   _AC(0x00000100, UL) /* Previously Supervisor */
-#define SR_SUM  _AC(0x00040000, UL) /* Supervisor may access User Memory */
+#define SR_SIE	_AC(0x00000002, UL) /* Supervisor Interrupt Enable */
+#define SR_SPIE	_AC(0x00000020, UL) /* Previous Supervisor IE */
+#define SR_SPP	_AC(0x00000100, UL) /* Previously Supervisor */
+#define SR_SUM	_AC(0x00040000, UL) /* Supervisor may access User Memory */
 
 #define SR_FS           _AC(0x00006000, UL) /* Floating-point Status */
 #define SR_FS_OFF       _AC(0x00000000, UL)
@@ -40,15 +40,15 @@
 #define SR_SD   _AC(0x8000000000000000, UL) /* FS/XS dirty */
 #endif
 
-/* SPTBR flags */
+/* SATP flags */
 #if __riscv_xlen == 32
-#define SPTBR_PPN     _AC(0x003FFFFF, UL)
-#define SPTBR_MODE_32 _AC(0x80000000, UL)
-#define SPTBR_MODE    SPTBR_MODE_32
+#define SATP_PPN     _AC(0x003FFFFF, UL)
+#define SATP_MODE_32 _AC(0x80000000, UL)
+#define SATP_MODE    SATP_MODE_32
 #else
-#define SPTBR_PPN     _AC(0x00000FFFFFFFFFFF, UL)
-#define SPTBR_MODE_39 _AC(0x8000000000000000, UL)
-#define SPTBR_MODE    SPTBR_MODE_39
+#define SATP_PPN     _AC(0x00000FFFFFFFFFFF, UL)
+#define SATP_MODE_39 _AC(0x8000000000000000, UL)
+#define SATP_MODE    SATP_MODE_39
 #endif
 
 /* Interrupt Enable and Interrupt Pending flags */

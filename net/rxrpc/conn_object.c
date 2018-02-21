@@ -177,13 +177,21 @@ void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
 		 * through the channel, whilst disposing of the actual call record.
 		 */
 		trace_rxrpc_disconnect_call(call);
-		if (call->abort_code) {
-			chan->last_abort = call->abort_code;
-			chan->last_type = RXRPC_PACKET_TYPE_ABORT;
-		} else {
+		switch (call->completion) {
+		case RXRPC_CALL_SUCCEEDED:
 			chan->last_seq = call->rx_hard_ack;
 			chan->last_type = RXRPC_PACKET_TYPE_ACK;
+			break;
+		case RXRPC_CALL_LOCALLY_ABORTED:
+			chan->last_abort = call->abort_code;
+			chan->last_type = RXRPC_PACKET_TYPE_ABORT;
+			break;
+		default:
+			chan->last_abort = RX_USER_ABORT;
+			chan->last_type = RXRPC_PACKET_TYPE_ABORT;
+			break;
 		}
+
 		/* Sync with rxrpc_conn_retransmit(). */
 		smp_wmb();
 		chan->last_call = chan->call_id;

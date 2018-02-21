@@ -213,8 +213,10 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 	if ((dev->pdev->device & 0xffff) == 0x01a0 /*CHIPSET_NFORCE*/ ||
 	    (dev->pdev->device & 0xffff) == 0x01f0 /*CHIPSET_NFORCE2*/) {
 		uint32_t type;
+		int domain = pci_domain_nr(dev->pdev->bus);
 
-		pci_read_config_dword(pci_get_bus_and_slot(0, 1), 0x7c, &type);
+		pci_read_config_dword(pci_get_domain_bus_and_slot(domain, 0, 1),
+				      0x7c, &type);
 
 		sim_data.memory_type = (type >> 12) & 1;
 		sim_data.memory_width = 64;

@@ -39,7 +39,7 @@ static DEVICE_ATTR_RO(usbip_status);
  * is used to transfer usbip requests by kernel threads. -1 is a magic number
  * by which usbip connection is finished.
  */
-static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
+static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct stub_device *sdev = dev_get_drvdata(dev);
@@ -103,7 +103,7 @@ err:
 	spin_unlock_irq(&sdev->ud.lock);
 	return -EINVAL;
 }
-static DEVICE_ATTR(usbip_sockfd, S_IWUSR, NULL, store_sockfd);
+static DEVICE_ATTR_WO(usbip_sockfd);
 
 static int stub_add_files(struct device *dev)
 {
@@ -149,8 +149,7 @@ static void stub_shutdown_connection(struct usbip_device *ud)
 	 * step 1?
 	 */
 	if (ud->tcp_socket) {
-		dev_dbg(&sdev->udev->dev, "shutdown tcp_socket %p\n",
-			ud->tcp_socket);
+		dev_dbg(&sdev->udev->dev, "shutdown sockfd %d\n", ud->sockfd);
 		kernel_sock_shutdown(ud->tcp_socket, SHUT_RDWR);
 	}
 

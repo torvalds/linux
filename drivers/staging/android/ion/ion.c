@@ -1,42 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
  * drivers/staging/android/ion/ion.c
  *
  * Copyright (C) 2011 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
+#include <linux/anon_inodes.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/dma-buf.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/file.h>
 #include <linux/freezer.h>
 #include <linux/fs.h>
-#include <linux/anon_inodes.h>
+#include <linux/idr.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
 #include <linux/memblock.h>
 #include <linux/miscdevice.h>
-#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/mm_types.h>
 #include <linux/rbtree.h>
-#include <linux/slab.h>
+#include <linux/sched/task.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
-#include <linux/debugfs.h>
-#include <linux/dma-buf.h>
-#include <linux/idr.h>
-#include <linux/sched/task.h>
 
 #include "ion.h"
 
@@ -346,7 +336,7 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_cpu(a->dev, a->table->sgl, a->table->nents,
-				    DMA_BIDIRECTIONAL);
+				    direction);
 	}
 	mutex_unlock(&buffer->lock);
 
@@ -368,7 +358,7 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	mutex_lock(&buffer->lock);
 	list_for_each_entry(a, &buffer->attachments, list) {
 		dma_sync_sg_for_device(a->dev, a->table->sgl, a->table->nents,
-				       DMA_BIDIRECTIONAL);
+				       direction);
 	}
 	mutex_unlock(&buffer->lock);
 
@@ -539,6 +529,7 @@ void ion_device_add_heap(struct ion_heap *heap)
 {
 	struct dentry *debug_file;
 	struct ion_device *dev = internal_dev;
+	int ret;
 
 	if (!heap->ops->allocate || !heap->ops->free)
 		pr_err("%s: can not add heap with invalid ops struct.\n",
@@ -550,8 +541,11 @@ void ion_device_add_heap(struct ion_heap *heap)
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
 		ion_heap_init_deferred_free(heap);
 
-	if ((heap->flags & ION_HEAP_FLAG_DEFER_FREE) || heap->ops->shrink)
-		ion_heap_init_shrinker(heap);
+	if ((heap->flags & ION_HEAP_FLAG_DEFER_FREE) || heap->ops->shrink) {
+		ret = ion_heap_init_shrinker(heap);
+		if (ret)
+			pr_err("%s: Failed to register shrinker\n", __func__);
+	}
 
 	heap->dev = dev;
 	down_write(&dev->lock);
@@ -567,9 +561,9 @@ void ion_device_add_heap(struct ion_heap *heap)
 		char debug_name[64];
 
 		snprintf(debug_name, 64, "%s_shrink", heap->name);
-		debug_file = debugfs_create_file(
-			debug_name, 0644, dev->debug_root, heap,
-			&debug_shrink_fops);
+		debug_file = debugfs_create_file(debug_name,
+						 0644, dev->debug_root, heap,
+						 &debug_shrink_fops);
 		if (!debug_file) {
 			char buf[256], *path;
 

@@ -933,7 +933,7 @@ static int wmi_dev_probe(struct device *dev)
 			goto probe_failure;
 		}
 
-		buf = kmalloc(strlen(wdriver->driver.name) + 4, GFP_KERNEL);
+		buf = kmalloc(strlen(wdriver->driver.name) + 5, GFP_KERNEL);
 		if (!buf) {
 			ret = -ENOMEM;
 			goto probe_string_failure;
@@ -1458,5 +1458,5 @@ static void __exit acpi_wmi_exit(void)
 	class_unregister(&wmi_bus_class);
 }
 
-subsys_initcall(acpi_wmi_init);
+subsys_initcall_sync(acpi_wmi_init);
 module_exit(acpi_wmi_exit);

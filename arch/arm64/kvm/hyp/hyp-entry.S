@@ -15,6 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/arm-smccc.h>
 #include <linux/linkage.h>
 
 #include <asm/alternative.h>
@@ -64,10 +65,11 @@ alternative_endif
 	lsr	x0, x1, #ESR_ELx_EC_SHIFT
 
 	cmp	x0, #ESR_ELx_EC_HVC64
+	ccmp	x0, #ESR_ELx_EC_HVC32, #4, ne
 	b.ne	el1_trap
 
-	mrs	x1, vttbr_el2		// If vttbr is valid, the 64bit guest
-	cbnz	x1, el1_trap		// called HVC
+	mrs	x1, vttbr_el2		// If vttbr is valid, the guest
+	cbnz	x1, el1_hvc_guest	// called HVC
 
 	/* Here, we're pretty sure the host called HVC. */
 	ldp	x0, x1, [sp], #16
@@ -100,10 +102,25 @@ alternative_endif
 
 	eret
 
+el1_hvc_guest:
+	/*
+	 * Fastest possible path for ARM_SMCCC_ARCH_WORKAROUND_1.
+	 * The workaround has already been applied on the host,
+	 * so let's quickly get back to the guest. We don't bother
+	 * restoring x1, as it can be clobbered anyway.
+	 */
+	ldr	x1, [sp]				// Guest's x0
+	eor	w1, w1, #ARM_SMCCC_ARCH_WORKAROUND_1
+	cbnz	w1, el1_trap
+	mov	x0, x1
+	add	sp, sp, #16
+	eret
+
 el1_trap:
 	/*
 	 * x0: ESR_EC
 	 */
+	ldr	x1, [sp, #16 + 8]	// vcpu stored by __guest_enter
 
 	/*
 	 * We trap the first access to the FP/SIMD to save the host context
@@ -116,19 +133,18 @@ alternative_if_not ARM64_HAS_NO_FPSIMD
 	b.eq	__fpsimd_guest_restore
 alternative_else_nop_endif
 
-	mrs	x1, tpidr_el2
 	mov	x0, #ARM_EXCEPTION_TRAP
 	b	__guest_exit
 
 el1_irq:
 	stp     x0, x1, [sp, #-16]!
-	mrs	x1, tpidr_el2
+	ldr	x1, [sp, #16 + 8]
 	mov	x0, #ARM_EXCEPTION_IRQ
 	b	__guest_exit
 
 el1_error:
 	stp     x0, x1, [sp, #-16]!
-	mrs	x1, tpidr_el2
+	ldr	x1, [sp, #16 + 8]
 	mov	x0, #ARM_EXCEPTION_EL1_SERROR
 	b	__guest_exit
 
@@ -162,6 +178,18 @@ ENTRY(__hyp_do_panic)
 	msr	elr_el2, lr
 	eret
 ENDPROC(__hyp_do_panic)
+
+ENTRY(__hyp_panic)
+	/*
+	 * '=kvm_host_cpu_state' is a host VA from the constant pool, it may
+	 * not be accessible by this address from EL2, hyp_panic() converts
+	 * it with kern_hyp_va() before use.
+	 */
+	ldr	x0, =kvm_host_cpu_state
+	mrs	x1, tpidr_el2
+	add	x0, x0, x1
+	b	hyp_panic
+ENDPROC(__hyp_panic)
 
 .macro invalid_vector	label, target = __hyp_panic
 	.align	2

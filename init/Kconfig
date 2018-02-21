@@ -461,10 +461,15 @@ endmenu # "CPU/Task time and stats accounting"
 
 config CPU_ISOLATION
 	bool "CPU isolation"
+	depends on SMP || COMPILE_TEST
+	default y
 	help
 	  Make sure that CPUs running critical tasks are not disturbed by
 	  any source of "noise" such as unbound workqueues, timers, kthreads...
-	  Unbound jobs get offloaded to housekeeping CPUs.
+	  Unbound jobs get offloaded to housekeeping CPUs. This is driven by
+	  the "isolcpus=" boot parameter.
+
+	  Say Y if unsure.
 
 source "kernel/rcu/Kconfig"
 
@@ -1392,6 +1397,13 @@ config BPF_SYSCALL
 	  Enable the bpf() system call that allows to manipulate eBPF
 	  programs and maps via file descriptors.
 
+config BPF_JIT_ALWAYS_ON
+	bool "Permanently enable BPF JIT and remove BPF interpreter"
+	depends on BPF_SYSCALL && HAVE_EBPF_JIT && BPF_JIT
+	help
+	  Enables BPF JIT and removes BPF interpreter to avoid
+	  speculative execution of BPF instructions by the interpreter
+
 config USERFAULTFD
 	bool "Enable userfaultfd() system call"
 	select ANON_INODES
@@ -1399,6 +1411,12 @@ config USERFAULTFD
 	help
 	  Enable the userfaultfd() system call that allows to intercept and
 	  handle page faults in userland.
+
+config ARCH_HAS_MEMBARRIER_CALLBACKS
+	bool
+
+config ARCH_HAS_MEMBARRIER_SYNC_CORE
+	bool
 
 config EMBEDDED
 	bool "Embedded system"
@@ -1903,3 +1921,6 @@ config ASN1
 	  functions to call on what tags.
 
 source "kernel/Kconfig.locks"
+
+config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
+	bool

@@ -1264,12 +1264,6 @@ static inline pud_t pud_mkwrite(pud_t pud)
 	return pud;
 }
 
-#define pud_write pud_write
-static inline int pud_write(pud_t pud)
-{
-	return (pud_val(pud) & _REGION3_ENTRY_WRITE) != 0;
-}
-
 static inline pud_t pud_mkclean(pud_t pud)
 {
 	if (pud_large(pud)) {
@@ -1511,12 +1505,12 @@ static inline pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma,
 }
 
 #define __HAVE_ARCH_PMDP_INVALIDATE
-static inline void pmdp_invalidate(struct vm_area_struct *vma,
+static inline pmd_t pmdp_invalidate(struct vm_area_struct *vma,
 				   unsigned long addr, pmd_t *pmdp)
 {
 	pmd_t pmd = __pmd(pmd_val(*pmdp) | _SEGMENT_ENTRY_INVALID);
 
-	pmdp_xchg_direct(vma->vm_mm, addr, pmdp, pmd);
+	return pmdp_xchg_direct(vma->vm_mm, addr, pmdp, pmd);
 }
 
 #define __HAVE_ARCH_PMDP_SET_WRPROTECT

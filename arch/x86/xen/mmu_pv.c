@@ -1300,12 +1300,12 @@ static void xen_flush_tlb(void)
 	preempt_enable();
 }
 
-static void xen_flush_tlb_single(unsigned long addr)
+static void xen_flush_tlb_one_user(unsigned long addr)
 {
 	struct mmuext_op *op;
 	struct multicall_space mcs;
 
-	trace_xen_mmu_flush_tlb_single(addr);
+	trace_xen_mmu_flush_tlb_one_user(addr);
 
 	preempt_disable();
 
@@ -1325,20 +1325,18 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 {
 	struct {
 		struct mmuext_op op;
-#ifdef CONFIG_SMP
-		DECLARE_BITMAP(mask, num_processors);
-#else
 		DECLARE_BITMAP(mask, NR_CPUS);
-#endif
 	} *args;
 	struct multicall_space mcs;
+	const size_t mc_entry_size = sizeof(args->op) +
+		sizeof(args->mask[0]) * BITS_TO_LONGS(num_possible_cpus());
 
 	trace_xen_mmu_flush_tlb_others(cpus, info->mm, info->start, info->end);
 
 	if (cpumask_empty(cpus))
 		return;		/* nothing to do */
 
-	mcs = xen_mc_entry(sizeof(*args));
+	mcs = xen_mc_entry(mc_entry_size);
 	args = mcs.args;
 	args->op.arg2.vcpumask = to_cpumask(args->mask);
 
@@ -1902,6 +1900,18 @@ void __init xen_setup_kernel_pagetable(pgd_t *pgd, unsigned long max_pfn)
 	/* Graft it onto L4[511][510] */
 	copy_page(level2_kernel_pgt, l2);
 
+	/*
+	 * Zap execute permission from the ident map. Due to the sharing of
+	 * L1 entries we need to do this in the L2.
+	 */
+	if (__supported_pte_mask & _PAGE_NX) {
+		for (i = 0; i < PTRS_PER_PMD; ++i) {
+			if (pmd_none(level2_ident_pgt[i]))
+				continue;
+			level2_ident_pgt[i] = pmd_set_flags(level2_ident_pgt[i], _PAGE_NX);
+		}
+	}
+
 	/* Copy the initial P->M table mappings if necessary. */
 	i = pgd_index(xen_start_info->mfn_list);
 	if (i && i < pgd_index(__START_KERNEL_map))
@@ -2261,7 +2271,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 
 	switch (idx) {
 	case FIX_BTMAP_END ... FIX_BTMAP_BEGIN:
-	case FIX_RO_IDT:
 #ifdef CONFIG_X86_32
 	case FIX_WP_TEST:
 # ifdef CONFIG_HIGHMEM
@@ -2272,7 +2281,6 @@ static void xen_set_fixmap(unsigned idx, phys_addr_t phys, pgprot_t prot)
 #endif
 	case FIX_TEXT_POKE0:
 	case FIX_TEXT_POKE1:
-	case FIX_GDT_REMAP_BEGIN ... FIX_GDT_REMAP_END:
 		/* All local page mappings */
 		pte = pfn_pte(phys, prot);
 		break;
@@ -2362,7 +2370,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 
 	.flush_tlb_user = xen_flush_tlb,
 	.flush_tlb_kernel = xen_flush_tlb,
-	.flush_tlb_single = xen_flush_tlb_single,
+	.flush_tlb_one_user = xen_flush_tlb_one_user,
 	.flush_tlb_others = xen_flush_tlb_others,
 
 	.pgd_alloc = xen_pgd_alloc,

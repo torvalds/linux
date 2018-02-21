@@ -44,6 +44,7 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 #include <asm/frame.h>
+#include <asm/nospec-branch.h>
 
 	.section .entry.text, "ax"
 
@@ -243,6 +244,18 @@ ENTRY(__switch_to_asm)
 	movl	%ebx, PER_CPU_VAR(stack_canary)+stack_canary_offset
 #endif
 
+#ifdef CONFIG_RETPOLINE
+	/*
+	 * When switching from a shallower to a deeper call stack
+	 * the RSB may either underflow or use entries populated
+	 * with userspace addresses. On CPUs where those concerns
+	 * exist, overwrite the RSB with entries which capture
+	 * speculative execution to prevent attack.
+	 */
+	/* Clobbers %ebx */
+	FILL_RETURN_BUFFER RSB_CLEAR_LOOPS, X86_FEATURE_RSB_CTXSW
+#endif
+
 	/* restore callee-saved registers */
 	popl	%esi
 	popl	%edi
@@ -290,7 +303,7 @@ ENTRY(ret_from_fork)
 
 	/* kernel thread */
 1:	movl	%edi, %eax
-	call	*%ebx
+	CALL_NOSPEC %ebx
 	/*
 	 * A kernel thread is allowed to return here after successfully
 	 * calling do_execve().  Exit to userspace to complete the execve()
@@ -553,6 +566,11 @@ restore_all:
 .Lrestore_nocheck:
 	RESTORE_REGS 4				# skip orig_eax/error_code
 .Lirq_return:
+	/*
+	 * ARCH_HAS_MEMBARRIER_SYNC_CORE rely on IRET core serialization
+	 * when returning from IPI handler and when returning from
+	 * scheduler to user-space.
+	 */
 	INTERRUPT_RETURN
 
 .section .fixup, "ax"
@@ -882,6 +900,9 @@ BUILD_INTERRUPT3(xen_hvm_callback_vector, HYPERVISOR_CALLBACK_VECTOR,
 BUILD_INTERRUPT3(hyperv_callback_vector, HYPERVISOR_CALLBACK_VECTOR,
 		 hyperv_vector_handler)
 
+BUILD_INTERRUPT3(hyperv_reenlightenment_vector, HYPERV_REENLIGHTENMENT_VECTOR,
+		 hyperv_reenlightenment_intr)
+
 #endif /* CONFIG_HYPERV */
 
 ENTRY(page_fault)
@@ -919,7 +940,7 @@ common_exception:
 	movl	%ecx, %es
 	TRACE_IRQS_OFF
 	movl	%esp, %eax			# pt_regs pointer
-	call	*%edi
+	CALL_NOSPEC %edi
 	jmp	ret_from_exception
 END(common_exception)
 
@@ -941,9 +962,10 @@ ENTRY(debug)
 	movl	%esp, %eax			# pt_regs pointer
 
 	/* Are we currently on the SYSENTER stack? */
-	PER_CPU(cpu_tss + CPU_TSS_SYSENTER_stack + SIZEOF_SYSENTER_stack, %ecx)
-	subl	%eax, %ecx	/* ecx = (end of SYSENTER_stack) - esp */
-	cmpl	$SIZEOF_SYSENTER_stack, %ecx
+	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+	subl	%eax, %ecx	/* ecx = (end of entry_stack) - esp */
+	cmpl	$SIZEOF_entry_stack, %ecx
 	jb	.Ldebug_from_sysenter_stack
 
 	TRACE_IRQS_OFF
@@ -984,9 +1006,10 @@ ENTRY(nmi)
 	movl	%esp, %eax			# pt_regs pointer
 
 	/* Are we currently on the SYSENTER stack? */
-	PER_CPU(cpu_tss + CPU_TSS_SYSENTER_stack + SIZEOF_SYSENTER_stack, %ecx)
-	subl	%eax, %ecx	/* ecx = (end of SYSENTER_stack) - esp */
-	cmpl	$SIZEOF_SYSENTER_stack, %ecx
+	movl	PER_CPU_VAR(cpu_entry_area), %ecx
+	addl	$CPU_ENTRY_AREA_entry_stack + SIZEOF_entry_stack, %ecx
+	subl	%eax, %ecx	/* ecx = (end of entry_stack) - esp */
+	cmpl	$SIZEOF_entry_stack, %ecx
 	jb	.Lnmi_from_sysenter_stack
 
 	/* Not on SYSENTER stack. */

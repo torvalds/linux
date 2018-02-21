@@ -42,6 +42,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/uaccess.h>
 #include <linux/elf-randomize.h>
+#include <linux/pkeys.h>
 
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -57,6 +58,7 @@
 #include <asm/debug.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
+#include <asm/hw_irq.h>
 #endif
 #include <asm/code-patching.h>
 #include <asm/exec.h>
@@ -601,21 +603,16 @@ EXPORT_SYMBOL(flush_all_to_thread);
 
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 void do_send_trap(struct pt_regs *regs, unsigned long address,
-		  unsigned long error_code, int signal_code, int breakpt)
+		  unsigned long error_code, int breakpt)
 {
-	siginfo_t info;
-
-	current->thread.trap_nr = signal_code;
+	current->thread.trap_nr = TRAP_HWBKPT;
 	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
 			11, SIGSEGV) == NOTIFY_STOP)
 		return;
 
 	/* Deliver the signal to userspace */
-	info.si_signo = SIGTRAP;
-	info.si_errno = breakpt;	/* breakpoint or watchpoint id */
-	info.si_code = signal_code;
-	info.si_addr = (void __user *)address;
-	force_sig_info(SIGTRAP, &info, current);
+	force_sig_ptrace_errno_trap(breakpt, /* breakpoint or watchpoint id */
+				    (void __user *)address);
 }
 #else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
 void do_break (struct pt_regs *regs, unsigned long address,
@@ -1102,6 +1099,8 @@ static inline void save_sprs(struct thread_struct *t)
 		t->tar = mfspr(SPRN_TAR);
 	}
 #endif
+
+	thread_pkey_regs_save(t);
 }
 
 static inline void restore_sprs(struct thread_struct *old_thread,
@@ -1141,6 +1140,8 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 	    old_thread->tidr != new_thread->tidr)
 		mtspr(SPRN_TIDR, new_thread->tidr);
 #endif
+
+	thread_pkey_regs_restore(new_thread, old_thread);
 }
 
 #ifdef CONFIG_PPC_BOOK3S_64
@@ -1403,13 +1404,13 @@ void show_regs(struct pt_regs * regs)
 
 	printk("NIP:  "REG" LR: "REG" CTR: "REG"\n",
 	       regs->nip, regs->link, regs->ctr);
-	printk("REGS: %p TRAP: %04lx   %s  (%s)\n",
+	printk("REGS: %px TRAP: %04lx   %s  (%s)\n",
 	       regs, regs->trap, print_tainted(), init_utsname()->release);
 	printk("MSR:  "REG" ", regs->msr);
 	print_msr_bits(regs->msr);
 	pr_cont("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
-	if ((regs->trap != 0xc00) && cpu_has_feature(CPU_FTR_CFAR))
+	if ((TRAP(regs) != 0xc00) && cpu_has_feature(CPU_FTR_CFAR))
 		pr_cont("CFAR: "REG" ", regs->orig_gpr3);
 	if (trap == 0x200 || trap == 0x300 || trap == 0x600)
 #if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
@@ -1509,14 +1510,15 @@ static int assign_thread_tidr(void)
 {
 	int index;
 	int err;
+	unsigned long flags;
 
 again:
 	if (!ida_pre_get(&vas_thread_ida, GFP_KERNEL))
 		return -ENOMEM;
 
-	spin_lock(&vas_thread_id_lock);
+	spin_lock_irqsave(&vas_thread_id_lock, flags);
 	err = ida_get_new_above(&vas_thread_ida, 1, &index);
-	spin_unlock(&vas_thread_id_lock);
+	spin_unlock_irqrestore(&vas_thread_id_lock, flags);
 
 	if (err == -EAGAIN)
 		goto again;
@@ -1524,9 +1526,9 @@ again:
 		return err;
 
 	if (index > MAX_THREAD_CONTEXT) {
-		spin_lock(&vas_thread_id_lock);
+		spin_lock_irqsave(&vas_thread_id_lock, flags);
 		ida_remove(&vas_thread_ida, index);
-		spin_unlock(&vas_thread_id_lock);
+		spin_unlock_irqrestore(&vas_thread_id_lock, flags);
 		return -ENOMEM;
 	}
 
@@ -1535,9 +1537,11 @@ again:
 
 static void free_thread_tidr(int id)
 {
-	spin_lock(&vas_thread_id_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&vas_thread_id_lock, flags);
 	ida_remove(&vas_thread_ida, id);
-	spin_unlock(&vas_thread_id_lock);
+	spin_unlock_irqrestore(&vas_thread_id_lock, flags);
 }
 
 /*
@@ -1589,6 +1593,7 @@ int set_thread_tidr(struct task_struct *t)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(set_thread_tidr);
 
 #endif /* CONFIG_PPC64 */
 
@@ -1674,7 +1679,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 			childregs->gpr[14] = ppc_function_entry((void *)usp);
 #ifdef CONFIG_PPC64
 		clear_tsk_thread_flag(p, TIF_32BIT);
-		childregs->softe = 1;
+		childregs->softe = IRQS_ENABLED;
 #endif
 		childregs->gpr[15] = kthread_arg;
 		p->thread.regs = NULL;	/* no user register state */
@@ -1865,6 +1870,8 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	current->thread.tm_tfiar = 0;
 	current->thread.load_tm = 0;
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
+
+	thread_pkey_regs_init(&current->thread);
 }
 EXPORT_SYMBOL(start_thread);
 

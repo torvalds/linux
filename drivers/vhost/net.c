@@ -89,7 +89,7 @@ struct vhost_net_ubuf_ref {
 
 #define VHOST_RX_BATCH 64
 struct vhost_net_buf {
-	struct sk_buff **queue;
+	void **queue;
 	int tail;
 	int head;
 };
@@ -108,7 +108,7 @@ struct vhost_net_virtqueue {
 	/* Reference counting for outstanding ubufs.
 	 * Protected by vq mutex. Writers must also take device mutex. */
 	struct vhost_net_ubuf_ref *ubufs;
-	struct skb_array *rx_array;
+	struct ptr_ring *rx_ring;
 	struct vhost_net_buf rxq;
 };
 
@@ -158,7 +158,7 @@ static int vhost_net_buf_produce(struct vhost_net_virtqueue *nvq)
 	struct vhost_net_buf *rxq = &nvq->rxq;
 
 	rxq->head = 0;
-	rxq->tail = skb_array_consume_batched(nvq->rx_array, rxq->queue,
+	rxq->tail = ptr_ring_consume_batched(nvq->rx_ring, rxq->queue,
 					      VHOST_RX_BATCH);
 	return rxq->tail;
 }
@@ -167,11 +167,23 @@ static void vhost_net_buf_unproduce(struct vhost_net_virtqueue *nvq)
 {
 	struct vhost_net_buf *rxq = &nvq->rxq;
 
-	if (nvq->rx_array && !vhost_net_buf_is_empty(rxq)) {
-		skb_array_unconsume(nvq->rx_array, rxq->queue + rxq->head,
-				    vhost_net_buf_get_size(rxq));
+	if (nvq->rx_ring && !vhost_net_buf_is_empty(rxq)) {
+		ptr_ring_unconsume(nvq->rx_ring, rxq->queue + rxq->head,
+				   vhost_net_buf_get_size(rxq),
+				   __skb_array_destroy_skb);
 		rxq->head = rxq->tail = 0;
 	}
+}
+
+static int vhost_net_buf_peek_len(void *ptr)
+{
+	if (tun_is_xdp_buff(ptr)) {
+		struct xdp_buff *xdp = tun_ptr_to_xdp(ptr);
+
+		return xdp->data_end - xdp->data;
+	}
+
+	return __skb_array_len_with_tag(ptr);
 }
 
 static int vhost_net_buf_peek(struct vhost_net_virtqueue *nvq)
@@ -185,7 +197,7 @@ static int vhost_net_buf_peek(struct vhost_net_virtqueue *nvq)
 		return 0;
 
 out:
-	return __skb_array_len_with_tag(vhost_net_buf_get_ptr(rxq));
+	return vhost_net_buf_peek_len(vhost_net_buf_get_ptr(rxq));
 }
 
 static void vhost_net_buf_init(struct vhost_net_buf *rxq)
@@ -583,7 +595,7 @@ static int peek_head_len(struct vhost_net_virtqueue *rvq, struct sock *sk)
 	int len = 0;
 	unsigned long flags;
 
-	if (rvq->rx_array)
+	if (rvq->rx_ring)
 		return vhost_net_buf_peek(rvq);
 
 	spin_lock_irqsave(&sk->sk_receive_queue.lock, flags);
@@ -744,7 +756,7 @@ static void handle_rx(struct vhost_net *net)
 	};
 	size_t total_len = 0;
 	int err, mergeable;
-	s16 headcount;
+	s16 headcount, nheads = 0;
 	size_t vhost_hlen, sock_hlen;
 	size_t vhost_len, sock_len;
 	struct socket *sock;
@@ -772,7 +784,7 @@ static void handle_rx(struct vhost_net *net)
 	while ((sock_len = vhost_net_rx_peek_head_len(net, sock->sk))) {
 		sock_len += sock_hlen;
 		vhost_len = sock_len + vhost_hlen;
-		headcount = get_rx_bufs(vq, vq->heads, vhost_len,
+		headcount = get_rx_bufs(vq, vq->heads + nheads, vhost_len,
 					&in, vq_log, &log,
 					likely(mergeable) ? UIO_MAXIOV : 1);
 		/* On error, stop handling until the next kick. */
@@ -790,7 +802,7 @@ static void handle_rx(struct vhost_net *net)
 			 * they refilled. */
 			goto out;
 		}
-		if (nvq->rx_array)
+		if (nvq->rx_ring)
 			msg.msg_control = vhost_net_buf_consume(&nvq->rxq);
 		/* On overrun, truncate and discard */
 		if (unlikely(headcount > UIO_MAXIOV)) {
@@ -844,8 +856,12 @@ static void handle_rx(struct vhost_net *net)
 			vhost_discard_vq_desc(vq, headcount);
 			goto out;
 		}
-		vhost_add_used_and_signal_n(&net->dev, vq, vq->heads,
-					    headcount);
+		nheads += headcount;
+		if (nheads > VHOST_RX_BATCH) {
+			vhost_add_used_and_signal_n(&net->dev, vq, vq->heads,
+						    nheads);
+			nheads = 0;
+		}
 		if (unlikely(vq_log))
 			vhost_log_write(vq, vq_log, log, vhost_len);
 		total_len += vhost_len;
@@ -856,6 +872,9 @@ static void handle_rx(struct vhost_net *net)
 	}
 	vhost_net_enable_vq(net, vq);
 out:
+	if (nheads)
+		vhost_add_used_and_signal_n(&net->dev, vq, vq->heads,
+					    nheads);
 	mutex_unlock(&vq->mutex);
 }
 
@@ -896,7 +915,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	struct vhost_net *n;
 	struct vhost_dev *dev;
 	struct vhost_virtqueue **vqs;
-	struct sk_buff **queue;
+	void **queue;
 	int i;
 
 	n = kvmalloc(sizeof *n, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
@@ -908,7 +927,7 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 		return -ENOMEM;
 	}
 
-	queue = kmalloc_array(VHOST_RX_BATCH, sizeof(struct sk_buff *),
+	queue = kmalloc_array(VHOST_RX_BATCH, sizeof(void *),
 			      GFP_KERNEL);
 	if (!queue) {
 		kfree(vqs);
@@ -933,8 +952,8 @@ static int vhost_net_open(struct inode *inode, struct file *f)
 	}
 	vhost_dev_init(dev, vqs, VHOST_NET_VQ_MAX);
 
-	vhost_poll_init(n->poll + VHOST_NET_VQ_TX, handle_tx_net, POLLOUT, dev);
-	vhost_poll_init(n->poll + VHOST_NET_VQ_RX, handle_rx_net, POLLIN, dev);
+	vhost_poll_init(n->poll + VHOST_NET_VQ_TX, handle_tx_net, EPOLLOUT, dev);
+	vhost_poll_init(n->poll + VHOST_NET_VQ_RX, handle_rx_net, EPOLLIN, dev);
 
 	f->private_data = n;
 
@@ -996,7 +1015,7 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	vhost_net_stop(n, &tx_sock, &rx_sock);
 	vhost_net_flush(n);
 	vhost_dev_stop(&n->dev);
-	vhost_dev_cleanup(&n->dev, false);
+	vhost_dev_cleanup(&n->dev);
 	vhost_net_vq_reset(n);
 	if (tx_sock)
 		sockfd_put(tx_sock);
@@ -1046,23 +1065,23 @@ err:
 	return ERR_PTR(r);
 }
 
-static struct skb_array *get_tap_skb_array(int fd)
+static struct ptr_ring *get_tap_ptr_ring(int fd)
 {
-	struct skb_array *array;
+	struct ptr_ring *ring;
 	struct file *file = fget(fd);
 
 	if (!file)
 		return NULL;
-	array = tun_get_skb_array(file);
-	if (!IS_ERR(array))
+	ring = tun_get_tx_ring(file);
+	if (!IS_ERR(ring))
 		goto out;
-	array = tap_get_skb_array(file);
-	if (!IS_ERR(array))
+	ring = tap_get_ptr_ring(file);
+	if (!IS_ERR(ring))
 		goto out;
-	array = NULL;
+	ring = NULL;
 out:
 	fput(file);
-	return array;
+	return ring;
 }
 
 static struct socket *get_tap_socket(int fd)
@@ -1143,7 +1162,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 		vq->private_data = sock;
 		vhost_net_buf_unproduce(nvq);
 		if (index == VHOST_NET_VQ_RX)
-			nvq->rx_array = get_tap_skb_array(fd);
+			nvq->rx_ring = get_tap_ptr_ring(fd);
 		r = vhost_vq_init_access(vq);
 		if (r)
 			goto err_used;
@@ -1208,6 +1227,7 @@ static long vhost_net_reset_owner(struct vhost_net *n)
 	}
 	vhost_net_stop(n, &tx_sock, &rx_sock);
 	vhost_net_flush(n);
+	vhost_dev_stop(&n->dev);
 	vhost_dev_reset_owner(&n->dev, umem);
 	vhost_net_vq_reset(n);
 done:
@@ -1353,7 +1373,7 @@ static ssize_t vhost_net_chr_write_iter(struct kiocb *iocb,
 	return vhost_chr_write_iter(dev, from);
 }
 
-static unsigned int vhost_net_chr_poll(struct file *file, poll_table *wait)
+static __poll_t vhost_net_chr_poll(struct file *file, poll_table *wait)
 {
 	struct vhost_net *n = file->private_data;
 	struct vhost_dev *dev = &n->dev;

@@ -92,7 +92,7 @@
  * some basic allocator dumpers for debugging.
  *
  * Note that this range allocator is not thread-safe, drivers need to protect
- * modifications with their on locking. The idea behind this is that for a full
+ * modifications with their own locking. The idea behind this is that for a full
  * memory manager additional data needs to be protected anyway, hence internal
  * locking would be fully redundant.
  */
@@ -575,21 +575,23 @@ EXPORT_SYMBOL(drm_mm_remove_node);
  */
 void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 {
+	struct drm_mm *mm = old->mm;
+
 	DRM_MM_BUG_ON(!old->allocated);
 
 	*new = *old;
 
 	list_replace(&old->node_list, &new->node_list);
-	rb_replace_node(&old->rb, &new->rb, &old->mm->interval_tree.rb_root);
+	rb_replace_node_cached(&old->rb, &new->rb, &mm->interval_tree);
 
 	if (drm_mm_hole_follows(old)) {
 		list_replace(&old->hole_stack, &new->hole_stack);
 		rb_replace_node(&old->rb_hole_size,
 				&new->rb_hole_size,
-				&old->mm->holes_size);
+				&mm->holes_size);
 		rb_replace_node(&old->rb_hole_addr,
 				&new->rb_hole_addr,
-				&old->mm->holes_addr);
+				&mm->holes_addr);
 	}
 
 	old->allocated = false;

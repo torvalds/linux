@@ -261,6 +261,9 @@ static const u16 bios_to_linux_keycode[256] = {
  * override them.
  */
 static const struct key_entry dell_wmi_keymap_type_0010[] = {
+	/* Mic mute */
+	{ KE_KEY, 0x150, { KEY_MICMUTE } },
+
 	/* Fn-lock */
 	{ KE_IGNORE, 0x151, { KEY_RESERVED } },
 
@@ -639,6 +642,8 @@ static int dell_wmi_events_set_enabled(bool enable)
 	int ret;
 
 	buffer = kzalloc(sizeof(struct calling_interface_buffer), GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 	buffer->cmd_class = CLASS_INFO;
 	buffer->cmd_select = SELECT_APP_REGISTRATION;
 	buffer->input[0] = 0x10000;

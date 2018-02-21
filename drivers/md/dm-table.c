@@ -453,14 +453,15 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 
 		refcount_set(&dd->count, 1);
 		list_add(&dd->list, &t->devices);
+		goto out;
 
 	} else if (dd->dm_dev->mode != (mode | dd->dm_dev->mode)) {
 		r = upgrade_mode(dd, mode, t->md);
 		if (r)
 			return r;
-		refcount_inc(&dd->count);
 	}
-
+	refcount_inc(&dd->count);
+out:
 	*result = dd->dm_dev;
 	return 0;
 }
@@ -865,7 +866,8 @@ EXPORT_SYMBOL(dm_consume_args);
 static bool __table_type_bio_based(enum dm_queue_mode table_type)
 {
 	return (table_type == DM_TYPE_BIO_BASED ||
-		table_type == DM_TYPE_DAX_BIO_BASED);
+		table_type == DM_TYPE_DAX_BIO_BASED ||
+		table_type == DM_TYPE_NVME_BIO_BASED);
 }
 
 static bool __table_type_request_based(enum dm_queue_mode table_type)
@@ -908,13 +910,33 @@ static bool dm_table_supports_dax(struct dm_table *t)
 	return true;
 }
 
+static bool dm_table_does_not_support_partial_completion(struct dm_table *t);
+
+struct verify_rq_based_data {
+	unsigned sq_count;
+	unsigned mq_count;
+};
+
+static int device_is_rq_based(struct dm_target *ti, struct dm_dev *dev,
+			      sector_t start, sector_t len, void *data)
+{
+	struct request_queue *q = bdev_get_queue(dev->bdev);
+	struct verify_rq_based_data *v = data;
+
+	if (q->mq_ops)
+		v->mq_count++;
+	else
+		v->sq_count++;
+
+	return queue_is_rq_based(q);
+}
+
 static int dm_table_determine_type(struct dm_table *t)
 {
 	unsigned i;
 	unsigned bio_based = 0, request_based = 0, hybrid = 0;
-	unsigned sq_count = 0, mq_count = 0;
+	struct verify_rq_based_data v = {.sq_count = 0, .mq_count = 0};
 	struct dm_target *tgt;
-	struct dm_dev_internal *dd;
 	struct list_head *devices = dm_table_get_devices(t);
 	enum dm_queue_mode live_md_type = dm_get_md_type(t->md);
 
@@ -922,6 +944,14 @@ static int dm_table_determine_type(struct dm_table *t)
 		/* target already set the table's type */
 		if (t->type == DM_TYPE_BIO_BASED)
 			return 0;
+		else if (t->type == DM_TYPE_NVME_BIO_BASED) {
+			if (!dm_table_does_not_support_partial_completion(t)) {
+				DMERR("nvme bio-based is only possible with devices"
+				      " that don't support partial completion");
+				return -EINVAL;
+			}
+			/* Fallthru, also verify all devices are blk-mq */
+		}
 		BUG_ON(t->type == DM_TYPE_DAX_BIO_BASED);
 		goto verify_rq_based;
 	}
@@ -936,8 +966,8 @@ static int dm_table_determine_type(struct dm_table *t)
 			bio_based = 1;
 
 		if (bio_based && request_based) {
-			DMWARN("Inconsistent table: different target types"
-			       " can't be mixed up");
+			DMERR("Inconsistent table: different target types"
+			      " can't be mixed up");
 			return -EINVAL;
 		}
 	}
@@ -958,8 +988,18 @@ static int dm_table_determine_type(struct dm_table *t)
 		/* We must use this table as bio-based */
 		t->type = DM_TYPE_BIO_BASED;
 		if (dm_table_supports_dax(t) ||
-		    (list_empty(devices) && live_md_type == DM_TYPE_DAX_BIO_BASED))
+		    (list_empty(devices) && live_md_type == DM_TYPE_DAX_BIO_BASED)) {
 			t->type = DM_TYPE_DAX_BIO_BASED;
+		} else {
+			/* Check if upgrading to NVMe bio-based is valid or required */
+			tgt = dm_table_get_immutable_target(t);
+			if (tgt && !tgt->max_io_len && dm_table_does_not_support_partial_completion(t)) {
+				t->type = DM_TYPE_NVME_BIO_BASED;
+				goto verify_rq_based; /* must be stacked directly on NVMe (blk-mq) */
+			} else if (list_empty(devices) && live_md_type == DM_TYPE_NVME_BIO_BASED) {
+				t->type = DM_TYPE_NVME_BIO_BASED;
+			}
+		}
 		return 0;
 	}
 
@@ -979,7 +1019,8 @@ verify_rq_based:
 	 * (e.g. request completion process for partial completion.)
 	 */
 	if (t->num_targets > 1) {
-		DMWARN("Request-based dm doesn't support multiple targets yet");
+		DMERR("%s DM doesn't support multiple targets",
+		      t->type == DM_TYPE_NVME_BIO_BASED ? "nvme bio-based" : "request-based");
 		return -EINVAL;
 	}
 
@@ -996,28 +1037,29 @@ verify_rq_based:
 		return 0;
 	}
 
-	/* Non-request-stackable devices can't be used for request-based dm */
-	list_for_each_entry(dd, devices, list) {
-		struct request_queue *q = bdev_get_queue(dd->dm_dev->bdev);
-
-		if (!queue_is_rq_based(q)) {
-			DMERR("table load rejected: including"
-			      " non-request-stackable devices");
-			return -EINVAL;
-		}
-
-		if (q->mq_ops)
-			mq_count++;
-		else
-			sq_count++;
+	tgt = dm_table_get_immutable_target(t);
+	if (!tgt) {
+		DMERR("table load rejected: immutable target is required");
+		return -EINVAL;
+	} else if (tgt->max_io_len) {
+		DMERR("table load rejected: immutable target that splits IO is not supported");
+		return -EINVAL;
 	}
-	if (sq_count && mq_count) {
+
+	/* Non-request-stackable devices can't be used for request-based dm */
+	if (!tgt->type->iterate_devices ||
+	    !tgt->type->iterate_devices(tgt, device_is_rq_based, &v)) {
+		DMERR("table load rejected: including non-request-stackable devices");
+		return -EINVAL;
+	}
+	if (v.sq_count && v.mq_count) {
 		DMERR("table load rejected: not all devices are blk-mq request-stackable");
 		return -EINVAL;
 	}
-	t->all_blk_mq = mq_count > 0;
+	t->all_blk_mq = v.mq_count > 0;
 
-	if (t->type == DM_TYPE_MQ_REQUEST_BASED && !t->all_blk_mq) {
+	if (!t->all_blk_mq &&
+	    (t->type == DM_TYPE_MQ_REQUEST_BASED || t->type == DM_TYPE_NVME_BIO_BASED)) {
 		DMERR("table load rejected: all devices are not blk-mq request-stackable");
 		return -EINVAL;
 	}
@@ -1078,7 +1120,8 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 {
 	enum dm_queue_mode type = dm_table_get_type(t);
 	unsigned per_io_data_size = 0;
-	struct dm_target *tgt;
+	unsigned min_pool_size = 0;
+	struct dm_target *ti;
 	unsigned i;
 
 	if (unlikely(type == DM_TYPE_NONE)) {
@@ -1088,11 +1131,13 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 
 	if (__table_type_bio_based(type))
 		for (i = 0; i < t->num_targets; i++) {
-			tgt = t->targets + i;
-			per_io_data_size = max(per_io_data_size, tgt->per_io_data_size);
+			ti = t->targets + i;
+			per_io_data_size = max(per_io_data_size, ti->per_io_data_size);
+			min_pool_size = max(min_pool_size, ti->num_flush_bios);
 		}
 
-	t->mempools = dm_alloc_md_mempools(md, type, t->integrity_supported, per_io_data_size);
+	t->mempools = dm_alloc_md_mempools(md, type, t->integrity_supported,
+					   per_io_data_size, min_pool_size);
 	if (!t->mempools)
 		return -ENOMEM;
 
@@ -1704,6 +1749,20 @@ static bool dm_table_all_devices_attribute(struct dm_table *t,
 	return true;
 }
 
+static int device_no_partial_completion(struct dm_target *ti, struct dm_dev *dev,
+					sector_t start, sector_t len, void *data)
+{
+	char b[BDEVNAME_SIZE];
+
+	/* For now, NVMe devices are the only devices of this class */
+	return (strncmp(bdevname(dev->bdev, b), "nvme", 3) == 0);
+}
+
+static bool dm_table_does_not_support_partial_completion(struct dm_table *t)
+{
+	return dm_table_all_devices_attribute(t, device_no_partial_completion);
+}
+
 static int device_not_write_same_capable(struct dm_target *ti, struct dm_dev *dev,
 					 sector_t start, sector_t len, void *data)
 {
@@ -1819,6 +1878,8 @@ void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 	}
 	blk_queue_write_cache(q, wc, fua);
 
+	if (dm_table_supports_dax(t))
+		queue_flag_set_unlocked(QUEUE_FLAG_DAX, q);
 	if (dm_table_supports_dax_write_cache(t))
 		dax_write_cache(t->md->dax_dev, true);
 

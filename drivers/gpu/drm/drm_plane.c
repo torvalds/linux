@@ -558,11 +558,10 @@ int drm_plane_check_pixel_format(const struct drm_plane *plane, u32 format)
 }
 
 /*
- * setplane_internal - setplane handler for internal callers
+ * __setplane_internal - setplane handler for internal callers
  *
- * Note that we assume an extra reference has already been taken on fb.  If the
- * update fails, this reference will be dropped before return; if it succeeds,
- * the previous framebuffer (if any) will be unreferenced instead.
+ * This function will take a reference on the new fb for the plane
+ * on success.
  *
  * src_{x,y,w,h} are provided in 16.16 fixed point format
  */
@@ -630,14 +629,12 @@ static int __setplane_internal(struct drm_plane *plane,
 	if (!ret) {
 		plane->crtc = crtc;
 		plane->fb = fb;
-		fb = NULL;
+		drm_framebuffer_get(plane->fb);
 	} else {
 		plane->old_fb = NULL;
 	}
 
 out:
-	if (fb)
-		drm_framebuffer_put(fb);
 	if (plane->old_fb)
 		drm_framebuffer_put(plane->old_fb);
 	plane->old_fb = NULL;
@@ -685,6 +682,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	struct drm_plane *plane;
 	struct drm_crtc *crtc = NULL;
 	struct drm_framebuffer *fb = NULL;
+	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
@@ -717,15 +715,16 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 		}
 	}
 
-	/*
-	 * setplane_internal will take care of deref'ing either the old or new
-	 * framebuffer depending on success.
-	 */
-	return setplane_internal(plane, crtc, fb,
-				 plane_req->crtc_x, plane_req->crtc_y,
-				 plane_req->crtc_w, plane_req->crtc_h,
-				 plane_req->src_x, plane_req->src_y,
-				 plane_req->src_w, plane_req->src_h);
+	ret = setplane_internal(plane, crtc, fb,
+				plane_req->crtc_x, plane_req->crtc_y,
+				plane_req->crtc_w, plane_req->crtc_h,
+				plane_req->src_x, plane_req->src_y,
+				plane_req->src_w, plane_req->src_h);
+
+	if (fb)
+		drm_framebuffer_put(fb);
+
+	return ret;
 }
 
 static int drm_mode_cursor_universal(struct drm_crtc *crtc,
@@ -788,13 +787,12 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 		src_h = fb->height << 16;
 	}
 
-	/*
-	 * setplane_internal will take care of deref'ing either the old or new
-	 * framebuffer depending on success.
-	 */
 	ret = __setplane_internal(crtc->cursor, crtc, fb,
-				crtc_x, crtc_y, crtc_w, crtc_h,
-				0, 0, src_w, src_h, ctx);
+				  crtc_x, crtc_y, crtc_w, crtc_h,
+				  0, 0, src_w, src_h, ctx);
+
+	if (fb)
+		drm_framebuffer_put(fb);
 
 	/* Update successful; save new cursor position, if necessary */
 	if (ret == 0 && req->flags & DRM_MODE_CURSOR_MOVE) {

@@ -138,6 +138,14 @@ static int ip6_finish_output(struct net *net, struct sock *sk, struct sk_buff *s
 		return ret;
 	}
 
+#if defined(CONFIG_NETFILTER) && defined(CONFIG_XFRM)
+	/* Policy lookup after SNAT yielded a new policy */
+	if (skb_dst(skb)->xfrm) {
+		IPCB(skb)->flags |= IPSKB_REROUTED;
+		return dst_output(net, sk, skb);
+	}
+#endif
+
 	if ((skb->len > ip6_skb_dst_mtu(skb) && !skb_is_gso(skb)) ||
 	    dst_allfrag(skb_dst(skb)) ||
 	    (IP6CB(skb)->frag_max_size && skb->len > IP6CB(skb)->frag_max_size))
@@ -164,6 +172,14 @@ int ip6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 			    net, sk, skb, NULL, dev,
 			    ip6_finish_output,
 			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
+}
+
+bool ip6_autoflowlabel(struct net *net, const struct ipv6_pinfo *np)
+{
+	if (!np->autoflowlabel_set)
+		return ip6_default_np_autolabel(net);
+	else
+		return np->autoflowlabel;
 }
 
 /*
@@ -230,7 +246,7 @@ int ip6_xmit(const struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 		hlimit = ip6_dst_hoplimit(dst);
 
 	ip6_flow_hdr(hdr, tclass, ip6_make_flowlabel(net, skb, fl6->flowlabel,
-						     np->autoflowlabel, fl6));
+				ip6_autoflowlabel(net, np), fl6));
 
 	hdr->payload_len = htons(seg_len);
 	hdr->nexthdr = proto;
@@ -362,7 +378,7 @@ static inline int ip6_forward_finish(struct net *net, struct sock *sk,
 	return dst_output(net, sk, skb);
 }
 
-static unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
+unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
 {
 	unsigned int mtu;
 	struct inet6_dev *idev;
@@ -382,6 +398,7 @@ static unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst)
 
 	return mtu;
 }
+EXPORT_SYMBOL_GPL(ip6_dst_mtu_forward);
 
 static bool ip6_pkt_too_big(const struct sk_buff *skb, unsigned int mtu)
 {
@@ -1198,16 +1215,18 @@ static int ip6_setup_cork(struct sock *sk, struct inet_cork_full *cork,
 	v6_cork->tclass = ipc6->tclass;
 	if (rt->dst.flags & DST_XFRM_TUNNEL)
 		mtu = np->pmtudisc >= IPV6_PMTUDISC_PROBE ?
-		      rt->dst.dev->mtu : dst_mtu(&rt->dst);
+		      READ_ONCE(rt->dst.dev->mtu) : dst_mtu(&rt->dst);
 	else
 		mtu = np->pmtudisc >= IPV6_PMTUDISC_PROBE ?
-		      rt->dst.dev->mtu : dst_mtu(rt->dst.path);
+			READ_ONCE(rt->dst.dev->mtu) : dst_mtu(xfrm_dst_path(&rt->dst));
 	if (np->frag_size < mtu) {
 		if (np->frag_size)
 			mtu = np->frag_size;
 	}
+	if (mtu < IPV6_MIN_MTU)
+		return -EINVAL;
 	cork->base.fragsize = mtu;
-	if (dst_allfrag(rt->dst.path))
+	if (dst_allfrag(xfrm_dst_path(&rt->dst)))
 		cork->base.flags |= IPCORK_ALLFRAG;
 	cork->base.length = 0;
 
@@ -1626,7 +1645,7 @@ struct sk_buff *__ip6_make_skb(struct sock *sk,
 
 	ip6_flow_hdr(hdr, v6_cork->tclass,
 		     ip6_make_flowlabel(net, skb, fl6->flowlabel,
-					np->autoflowlabel, fl6));
+					ip6_autoflowlabel(net, np), fl6));
 	hdr->hop_limit = v6_cork->hop_limit;
 	hdr->nexthdr = proto;
 	hdr->saddr = fl6->saddr;
@@ -1725,11 +1744,13 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 	cork.base.flags = 0;
 	cork.base.addr = 0;
 	cork.base.opt = NULL;
+	cork.base.dst = NULL;
 	v6_cork.opt = NULL;
 	err = ip6_setup_cork(sk, &cork, &v6_cork, ipc6, rt, fl6);
-	if (err)
+	if (err) {
+		ip6_cork_release(&cork, &v6_cork);
 		return ERR_PTR(err);
-
+	}
 	if (ipc6->dontfrag < 0)
 		ipc6->dontfrag = inet6_sk(sk)->dontfrag;
 

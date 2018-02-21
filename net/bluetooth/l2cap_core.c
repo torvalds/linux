@@ -3363,9 +3363,10 @@ static int l2cap_parse_conf_req(struct l2cap_chan *chan, void *data, size_t data
 			break;
 
 		case L2CAP_CONF_EFS:
-			remote_efs = 1;
-			if (olen == sizeof(efs))
+			if (olen == sizeof(efs)) {
+				remote_efs = 1;
 				memcpy(&efs, (void *) val, olen);
+			}
 			break;
 
 		case L2CAP_CONF_EWS:
@@ -3584,16 +3585,17 @@ static int l2cap_parse_conf_rsp(struct l2cap_chan *chan, void *rsp, int len,
 			break;
 
 		case L2CAP_CONF_EFS:
-			if (olen == sizeof(efs))
+			if (olen == sizeof(efs)) {
 				memcpy(&efs, (void *)val, olen);
 
-			if (chan->local_stype != L2CAP_SERV_NOTRAFIC &&
-			    efs.stype != L2CAP_SERV_NOTRAFIC &&
-			    efs.stype != chan->local_stype)
-				return -ECONNREFUSED;
+				if (chan->local_stype != L2CAP_SERV_NOTRAFIC &&
+				    efs.stype != L2CAP_SERV_NOTRAFIC &&
+				    efs.stype != chan->local_stype)
+					return -ECONNREFUSED;
 
-			l2cap_add_conf_opt(&ptr, L2CAP_CONF_EFS, sizeof(efs),
-					   (unsigned long) &efs, endptr - ptr);
+				l2cap_add_conf_opt(&ptr, L2CAP_CONF_EFS, sizeof(efs),
+						   (unsigned long) &efs, endptr - ptr);
+			}
 			break;
 
 		case L2CAP_CONF_FCS:

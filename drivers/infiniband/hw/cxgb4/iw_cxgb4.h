@@ -153,8 +153,8 @@ struct c4iw_hw_queue {
 };
 
 struct wr_log_entry {
-	struct timespec post_host_ts;
-	struct timespec poll_host_ts;
+	ktime_t post_host_time;
+	ktime_t poll_host_time;
 	u64 post_sge_ts;
 	u64 cqe_sge_ts;
 	u64 poll_sge_ts;
@@ -692,8 +692,6 @@ static inline int to_ib_qp_state(int c4iw_qp_state)
 	}
 	return IB_QPS_ERR;
 }
-
-#define C4IW_DRAIN_OPCODE FW_RI_SGE_EC_CR_RETURN
 
 static inline u32 c4iw_ib_to_tpt_access(int a)
 {

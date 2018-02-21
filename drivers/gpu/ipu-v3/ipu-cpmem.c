@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/bitrev.h>
 #include <linux/io.h>
+#include <linux/sizes.h>
 #include <drm/drm_fourcc.h>
 #include "ipu-prv.h"
 

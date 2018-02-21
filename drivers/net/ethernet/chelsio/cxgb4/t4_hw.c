@@ -195,9 +195,11 @@ static void t4_report_fw_error(struct adapter *adap)
 	u32 pcie_fw;
 
 	pcie_fw = t4_read_reg(adap, PCIE_FW_A);
-	if (pcie_fw & PCIE_FW_ERR_F)
+	if (pcie_fw & PCIE_FW_ERR_F) {
 		dev_err(adap->pdev_dev, "Firmware reports adapter error: %s\n",
 			reason[PCIE_FW_EVAL_G(pcie_fw)]);
+		adap->flags &= ~FW_OK;
+	}
 }
 
 /*
@@ -317,9 +319,9 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	 * wait [for a while] till we're at the front [or bail out with an
 	 * EBUSY] ...
 	 */
-	spin_lock(&adap->mbox_lock);
+	spin_lock_bh(&adap->mbox_lock);
 	list_add_tail(&entry.list, &adap->mlist.list);
-	spin_unlock(&adap->mbox_lock);
+	spin_unlock_bh(&adap->mbox_lock);
 
 	delay_idx = 0;
 	ms = delay[0];
@@ -332,9 +334,9 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 		 */
 		pcie_fw = t4_read_reg(adap, PCIE_FW_A);
 		if (i > FW_CMD_MAX_TIMEOUT || (pcie_fw & PCIE_FW_ERR_F)) {
-			spin_lock(&adap->mbox_lock);
+			spin_lock_bh(&adap->mbox_lock);
 			list_del(&entry.list);
-			spin_unlock(&adap->mbox_lock);
+			spin_unlock_bh(&adap->mbox_lock);
 			ret = (pcie_fw & PCIE_FW_ERR_F) ? -ENXIO : -EBUSY;
 			t4_record_mbox(adap, cmd, size, access, ret);
 			return ret;
@@ -365,9 +367,9 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	for (i = 0; v == MBOX_OWNER_NONE && i < 3; i++)
 		v = MBOWNER_G(t4_read_reg(adap, ctl_reg));
 	if (v != MBOX_OWNER_DRV) {
-		spin_lock(&adap->mbox_lock);
+		spin_lock_bh(&adap->mbox_lock);
 		list_del(&entry.list);
-		spin_unlock(&adap->mbox_lock);
+		spin_unlock_bh(&adap->mbox_lock);
 		ret = (v == MBOX_OWNER_FW) ? -EBUSY : -ETIMEDOUT;
 		t4_record_mbox(adap, cmd, size, access, ret);
 		return ret;
@@ -418,9 +420,9 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 			execute = i + ms;
 			t4_record_mbox(adap, cmd_rpl,
 				       MBOX_LEN, access, execute);
-			spin_lock(&adap->mbox_lock);
+			spin_lock_bh(&adap->mbox_lock);
 			list_del(&entry.list);
-			spin_unlock(&adap->mbox_lock);
+			spin_unlock_bh(&adap->mbox_lock);
 			return -FW_CMD_RETVAL_G((int)res);
 		}
 	}
@@ -430,9 +432,9 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 	dev_err(adap->pdev_dev, "command %#x in mailbox %d timed out\n",
 		*(const u8 *)cmd, mbox);
 	t4_report_fw_error(adap);
-	spin_lock(&adap->mbox_lock);
+	spin_lock_bh(&adap->mbox_lock);
 	list_del(&entry.list);
-	spin_unlock(&adap->mbox_lock);
+	spin_unlock_bh(&adap->mbox_lock);
 	t4_fatal_err(adap);
 	return ret;
 }
@@ -524,11 +526,14 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	 * MEM_EDC1 = 1
 	 * MEM_MC   = 2 -- MEM_MC for chips with only 1 memory controller
 	 * MEM_MC1  = 3 -- for chips with 2 memory controllers (e.g. T5)
+	 * MEM_HMA  = 4
 	 */
 	edc_size  = EDRAM0_SIZE_G(t4_read_reg(adap, MA_EDRAM0_BAR_A));
-	if (mtype != MEM_MC1)
+	if (mtype == MEM_HMA) {
+		memoffset = 2 * (edc_size * 1024 * 1024);
+	} else if (mtype != MEM_MC1) {
 		memoffset = (mtype * (edc_size * 1024 * 1024));
-	else {
+	} else {
 		mc_size = EXT_MEM0_SIZE_G(t4_read_reg(adap,
 						      MA_EXT_MEMORY0_BAR_A));
 		memoffset = (MEM_MC0 * edc_size + mc_size) * 1024 * 1024;
@@ -2844,8 +2849,6 @@ enum {
 	SF_RD_DATA_FAST = 0xb,        /* read flash */
 	SF_RD_ID        = 0x9f,       /* read ID */
 	SF_ERASE_SECTOR = 0xd8,       /* erase sector */
-
-	FW_MAX_SIZE = 16 * SF_SEC_SIZE,
 };
 
 /**
@@ -3558,8 +3561,9 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	const __be32 *p = (const __be32 *)fw_data;
 	const struct fw_hdr *hdr = (const struct fw_hdr *)fw_data;
 	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
-	unsigned int fw_img_start = adap->params.sf_fw_start;
-	unsigned int fw_start_sec = fw_img_start / sf_sec_size;
+	unsigned int fw_start_sec = FLASH_FW_START_SEC;
+	unsigned int fw_size = FLASH_FW_MAX_SIZE;
+	unsigned int fw_start = FLASH_FW_START;
 
 	if (!size) {
 		dev_err(adap->pdev_dev, "FW image has no data\n");
@@ -3575,9 +3579,9 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 			"FW image size differs from size in FW header\n");
 		return -EINVAL;
 	}
-	if (size > FW_MAX_SIZE) {
+	if (size > fw_size) {
 		dev_err(adap->pdev_dev, "FW image too large, max is %u bytes\n",
-			FW_MAX_SIZE);
+			fw_size);
 		return -EFBIG;
 	}
 	if (!t4_fw_matches_chip(adap, hdr))
@@ -3604,11 +3608,11 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	 */
 	memcpy(first_page, fw_data, SF_PAGE_SIZE);
 	((struct fw_hdr *)first_page)->fw_ver = cpu_to_be32(0xffffffff);
-	ret = t4_write_flash(adap, fw_img_start, SF_PAGE_SIZE, first_page);
+	ret = t4_write_flash(adap, fw_start, SF_PAGE_SIZE, first_page);
 	if (ret)
 		goto out;
 
-	addr = fw_img_start;
+	addr = fw_start;
 	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
 		addr += SF_PAGE_SIZE;
 		fw_data += SF_PAGE_SIZE;
@@ -3618,7 +3622,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	}
 
 	ret = t4_write_flash(adap,
-			     fw_img_start + offsetof(struct fw_hdr, fw_ver),
+			     fw_start + offsetof(struct fw_hdr, fw_ver),
 			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver);
 out:
 	if (ret)
@@ -4924,6 +4928,14 @@ void t4_intr_disable(struct adapter *adapter)
 	t4_set_reg_field(adapter, PL_INT_MAP0_A, 1 << pf, 0);
 }
 
+unsigned int t4_chip_rss_size(struct adapter *adap)
+{
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+		return RSS_NENTRIES;
+	else
+		return T6_RSS_NENTRIES;
+}
+
 /**
  *	t4_config_rss_range - configure a portion of the RSS mapping table
  *	@adapter: the adapter
@@ -5062,10 +5074,11 @@ static int rd_rss_row(struct adapter *adap, int row, u32 *val)
  */
 int t4_read_rss(struct adapter *adapter, u16 *map)
 {
+	int i, ret, nentries;
 	u32 val;
-	int i, ret;
 
-	for (i = 0; i < RSS_NENTRIES / 2; ++i) {
+	nentries = t4_chip_rss_size(adapter);
+	for (i = 0; i < nentries / 2; ++i) {
 		ret = rd_rss_row(adapter, i, &val);
 		if (ret)
 			return ret;
@@ -5077,7 +5090,7 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
 
 static unsigned int t4_use_ldst(struct adapter *adap)
 {
-	return (adap->flags & FW_OK) || !adap->use_bd;
+	return (adap->flags & FW_OK) && !adap->use_bd;
 }
 
 /**
@@ -6072,6 +6085,7 @@ const char *t4_get_port_type_description(enum fw_port_type port_type)
 		"CR2_QSFP",
 		"SFP28",
 		"KR_SFP28",
+		"KR_XLAUI"
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))
@@ -6527,18 +6541,21 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
  *      t4_sge_ctxt_flush - flush the SGE context cache
  *      @adap: the adapter
  *      @mbox: mailbox to use for the FW command
+ *      @ctx_type: Egress or Ingress
  *
  *      Issues a FW command through the given mailbox to flush the
  *      SGE context cache.
  */
-int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox)
+int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox, int ctxt_type)
 {
 	int ret;
 	u32 ldst_addrspace;
 	struct fw_ldst_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	ldst_addrspace = FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_SGE_EGRC);
+	ldst_addrspace = FW_LDST_CMD_ADDRSPACE_V(ctxt_type == CTXT_EGRESS ?
+						 FW_LDST_ADDRSPC_SGE_EGRC :
+						 FW_LDST_ADDRSPC_SGE_INGC);
 	c.op_to_addrspace = cpu_to_be32(FW_CMD_OP_V(FW_LDST_CMD) |
 					FW_CMD_REQUEST_F | FW_CMD_READ_F |
 					ldst_addrspace);
@@ -7449,6 +7466,112 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 			    FW_VI_RXMODE_CMD_BROADCASTEN_V(bcast) |
 			    FW_VI_RXMODE_CMD_VLANEXEN_V(vlanex));
 	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
+}
+
+/**
+ *	t4_free_raw_mac_filt - Frees a raw mac entry in mps tcam
+ *	@adap: the adapter
+ *	@viid: the VI id
+ *	@addr: the MAC address
+ *	@mask: the mask
+ *	@idx: index of the entry in mps tcam
+ *	@lookup_type: MAC address for inner (1) or outer (0) header
+ *	@port_id: the port index
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Removes the mac entry at the specified index using raw mac interface.
+ *
+ *	Returns a negative error number on failure.
+ */
+int t4_free_raw_mac_filt(struct adapter *adap, unsigned int viid,
+			 const u8 *addr, const u8 *mask, unsigned int idx,
+			 u8 lookup_type, u8 port_id, bool sleep_ok)
+{
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_raw *p = &c.u.raw;
+	u32 val;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_CMD_EXEC_V(0) |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	val = FW_CMD_LEN16_V(1) |
+	      FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_RAW);
+	c.freemacs_to_len16 = cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(0) |
+					  FW_CMD_LEN16_V(val));
+
+	p->raw_idx_pkd = cpu_to_be32(FW_VI_MAC_CMD_RAW_IDX_V(idx) |
+				     FW_VI_MAC_ID_BASED_FREE);
+
+	/* Lookup Type. Outer header: 0, Inner header: 1 */
+	p->data0_pkd = cpu_to_be32(DATALKPTYPE_V(lookup_type) |
+				   DATAPORTNUM_V(port_id));
+	/* Lookup mask and port mask */
+	p->data0m_pkd = cpu_to_be64(DATALKPTYPE_V(DATALKPTYPE_M) |
+				    DATAPORTNUM_V(DATAPORTNUM_M));
+
+	/* Copy the address and the mask */
+	memcpy((u8 *)&p->data1[0] + 2, addr, ETH_ALEN);
+	memcpy((u8 *)&p->data1m[0] + 2, mask, ETH_ALEN);
+
+	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+}
+
+/**
+ *	t4_alloc_raw_mac_filt - Adds a mac entry in mps tcam
+ *	@adap: the adapter
+ *	@viid: the VI id
+ *	@mac: the MAC address
+ *	@mask: the mask
+ *	@idx: index at which to add this entry
+ *	@port_id: the port index
+ *	@lookup_type: MAC address for inner (1) or outer (0) header
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Adds the mac entry at the specified index using raw mac interface.
+ *
+ *	Returns a negative error number or the allocated index for this mac.
+ */
+int t4_alloc_raw_mac_filt(struct adapter *adap, unsigned int viid,
+			  const u8 *addr, const u8 *mask, unsigned int idx,
+			  u8 lookup_type, u8 port_id, bool sleep_ok)
+{
+	int ret = 0;
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_raw *p = &c.u.raw;
+	u32 val;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	val = FW_CMD_LEN16_V(1) |
+	      FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_RAW);
+	c.freemacs_to_len16 = cpu_to_be32(val);
+
+	/* Specify that this is an inner mac address */
+	p->raw_idx_pkd = cpu_to_be32(FW_VI_MAC_CMD_RAW_IDX_V(idx));
+
+	/* Lookup Type. Outer header: 0, Inner header: 1 */
+	p->data0_pkd = cpu_to_be32(DATALKPTYPE_V(lookup_type) |
+				   DATAPORTNUM_V(port_id));
+	/* Lookup mask and port mask */
+	p->data0m_pkd = cpu_to_be64(DATALKPTYPE_V(DATALKPTYPE_M) |
+				    DATAPORTNUM_V(DATAPORTNUM_M));
+
+	/* Copy the address and the mask */
+	memcpy((u8 *)&p->data1[0] + 2, addr, ETH_ALEN);
+	memcpy((u8 *)&p->data1m[0] + 2, mask, ETH_ALEN);
+
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	if (ret == 0) {
+		ret = FW_VI_MAC_CMD_RAW_IDX_G(be32_to_cpu(p->raw_idx_pkd));
+		if (ret != idx)
+			ret = -ENOMEM;
+	}
+
+	return ret;
 }
 
 /**
@@ -8492,22 +8615,6 @@ found:
 	return 0;
 }
 
-static void set_pcie_completion_timeout(struct adapter *adapter, u8 range)
-{
-	u16 val;
-	u32 pcie_cap;
-
-	pcie_cap = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
-	if (pcie_cap) {
-		pci_read_config_word(adapter->pdev,
-				     pcie_cap + PCI_EXP_DEVCTL2, &val);
-		val &= ~PCI_EXP_DEVCTL2_COMP_TIMEOUT;
-		val |= range;
-		pci_write_config_word(adapter->pdev,
-				      pcie_cap + PCI_EXP_DEVCTL2, val);
-	}
-}
-
 /**
  *	t4_prep_adapter - prepare SW and HW for operation
  *	@adapter: the adapter
@@ -8593,8 +8700,9 @@ int t4_prep_adapter(struct adapter *adapter)
 	adapter->params.portvec = 1;
 	adapter->params.vpd.cclk = 50000;
 
-	/* Set pci completion timeout value to 4 seconds. */
-	set_pcie_completion_timeout(adapter, 0xd);
+	/* Set PCIe completion timeout to 4 seconds. */
+	pcie_capability_clear_and_set_word(adapter->pdev, PCI_EXP_DEVCTL2,
+					   PCI_EXP_DEVCTL2_COMP_TIMEOUT, 0xd);
 	return 0;
 }
 
@@ -9736,4 +9844,92 @@ int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 
 	return t4_wr_mbox_meat(adapter, adapter->mbox, &cmd, sizeof(cmd),
 			       NULL, 1);
+}
+
+/**
+ *	t4_i2c_rd - read I2C data from adapter
+ *	@adap: the adapter
+ *	@port: Port number if per-port device; <0 if not
+ *	@devid: per-port device ID or absolute device ID
+ *	@offset: byte offset into device I2C space
+ *	@len: byte length of I2C space data
+ *	@buf: buffer in which to return I2C data
+ *
+ *	Reads the I2C data from the indicated device and location.
+ */
+int t4_i2c_rd(struct adapter *adap, unsigned int mbox, int port,
+	      unsigned int devid, unsigned int offset,
+	      unsigned int len, u8 *buf)
+{
+	struct fw_ldst_cmd ldst_cmd, ldst_rpl;
+	unsigned int i2c_max = sizeof(ldst_cmd.u.i2c.data);
+	int ret = 0;
+
+	if (len > I2C_PAGE_SIZE)
+		return -EINVAL;
+
+	/* Dont allow reads that spans multiple pages */
+	if (offset < I2C_PAGE_SIZE && offset + len > I2C_PAGE_SIZE)
+		return -EINVAL;
+
+	memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+	ldst_cmd.op_to_addrspace =
+		cpu_to_be32(FW_CMD_OP_V(FW_LDST_CMD) |
+			    FW_CMD_REQUEST_F |
+			    FW_CMD_READ_F |
+			    FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_I2C));
+	ldst_cmd.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst_cmd));
+	ldst_cmd.u.i2c.pid = (port < 0 ? 0xff : port);
+	ldst_cmd.u.i2c.did = devid;
+
+	while (len > 0) {
+		unsigned int i2c_len = (len < i2c_max) ? len : i2c_max;
+
+		ldst_cmd.u.i2c.boffset = offset;
+		ldst_cmd.u.i2c.blen = i2c_len;
+
+		ret = t4_wr_mbox(adap, mbox, &ldst_cmd, sizeof(ldst_cmd),
+				 &ldst_rpl);
+		if (ret)
+			break;
+
+		memcpy(buf, ldst_rpl.u.i2c.data, i2c_len);
+		offset += i2c_len;
+		buf += i2c_len;
+		len -= i2c_len;
+	}
+
+	return ret;
+}
+
+/**
+ *      t4_set_vlan_acl - Set a VLAN id for the specified VF
+ *      @adapter: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @vf: one of the VFs instantiated by the specified PF
+ *      @vlan: The vlanid to be set
+ */
+int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
+		    u16 vlan)
+{
+	struct fw_acl_vlan_cmd vlan_cmd;
+	unsigned int enable;
+
+	enable = (vlan ? FW_ACL_VLAN_CMD_EN_F : 0);
+	memset(&vlan_cmd, 0, sizeof(vlan_cmd));
+	vlan_cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_ACL_VLAN_CMD) |
+					 FW_CMD_REQUEST_F |
+					 FW_CMD_WRITE_F |
+					 FW_CMD_EXEC_F |
+					 FW_ACL_VLAN_CMD_PFN_V(adap->pf) |
+					 FW_ACL_VLAN_CMD_VFN_V(vf));
+	vlan_cmd.en_to_len16 = cpu_to_be32(enable | FW_LEN16(vlan_cmd));
+	/* Drop all packets that donot match vlan id */
+	vlan_cmd.dropnovlan_fm = FW_ACL_VLAN_CMD_FM_F;
+	if (enable != 0) {
+		vlan_cmd.nvlan = 1;
+		vlan_cmd.vlanid[0] = cpu_to_be16(vlan);
+	}
+
+	return t4_wr_mbox(adap, adap->mbox, &vlan_cmd, sizeof(vlan_cmd), NULL);
 }

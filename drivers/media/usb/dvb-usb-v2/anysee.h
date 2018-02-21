@@ -32,7 +32,7 @@
 
 #define DVB_USB_LOG_PREFIX "anysee"
 #include "dvb_usb.h"
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 enum cmd {
 	CMD_I2C_READ            = 0x33,

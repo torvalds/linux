@@ -255,12 +255,15 @@ static inline bool irq_is_percpu_devid(unsigned int irq)
 }
 
 static inline void
-irq_set_lockdep_class(unsigned int irq, struct lock_class_key *class)
+irq_set_lockdep_class(unsigned int irq, struct lock_class_key *lock_class,
+		      struct lock_class_key *request_class)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (desc)
-		lockdep_set_class(&desc->lock, class);
+	if (desc) {
+		lockdep_set_class(&desc->lock, lock_class);
+		lockdep_set_class(&desc->request_mutex, request_class);
+	}
 }
 
 #ifdef CONFIG_IRQ_PREFLOW_FASTEOI

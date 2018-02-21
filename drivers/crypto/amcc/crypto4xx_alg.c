@@ -256,10 +256,6 @@ static inline bool crypto4xx_aead_need_fallback(struct aead_request *req,
 	if (is_ccm && !(req->iv[0] == 1 || req->iv[0] == 3))
 		return true;
 
-	/* CCM - fix CBC MAC mismatch in special case */
-	if (is_ccm && decrypt && !req->assoclen)
-		return true;
-
 	return false;
 }
 
@@ -330,7 +326,7 @@ int crypto4xx_setkey_aes_ccm(struct crypto_aead *cipher, const u8 *key,
 	sa = (struct dynamic_sa_ctl *) ctx->sa_in;
 	sa->sa_contents.w = SA_AES_CCM_CONTENTS | (keylen << 2);
 
-	set_dynamic_sa_command_0(sa, SA_NOT_SAVE_HASH, SA_NOT_SAVE_IV,
+	set_dynamic_sa_command_0(sa, SA_SAVE_HASH, SA_NOT_SAVE_IV,
 				 SA_LOAD_HASH_FROM_SA, SA_LOAD_IV_FROM_STATE,
 				 SA_NO_HEADER_PROC, SA_HASH_ALG_CBC_MAC,
 				 SA_CIPHER_ALG_AES,

@@ -869,10 +869,12 @@ struct ibm_arch_vec __cacheline_aligned ibm_architecture_vec = {
 		.reserved2 = 0,
 		.reserved3 = 0,
 		.subprocessors = 1,
+		.byte22 = OV5_FEAT(OV5_DRMEM_V2),
 		.intarch = 0,
 		.mmu = 0,
 		.hash_ext = 0,
 		.radix_ext = 0,
+		.byte22 = OV5_FEAT(OV5_DRC_INFO),
 	},
 
 	/* option vector 6: IBM PAPR hints */

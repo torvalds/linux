@@ -81,22 +81,6 @@ MODULE_DESCRIPTION("Intel IB driver");
 
 struct qlogic_ib_stats qib_stats;
 
-const char *qib_get_unit_name(int unit)
-{
-	static char iname[16];
-
-	snprintf(iname, sizeof(iname), "infinipath%u", unit);
-	return iname;
-}
-
-const char *qib_get_card_name(struct rvt_dev_info *rdi)
-{
-	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);
-	struct qib_devdata *dd = container_of(ibdev,
-					      struct qib_devdata, verbs_dev);
-	return qib_get_unit_name(dd->unit);
-}
-
 struct pci_dev *qib_get_pci_dev(struct rvt_dev_info *rdi)
 {
 	struct qib_ibdev *ibdev = container_of(rdi, struct qib_ibdev, rdi);

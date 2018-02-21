@@ -604,10 +604,20 @@ static void __register_request(struct ceph_mds_client *mdsc,
 			       struct ceph_mds_request *req,
 			       struct inode *dir)
 {
+	int ret = 0;
+
 	req->r_tid = ++mdsc->last_tid;
-	if (req->r_num_caps)
-		ceph_reserve_caps(mdsc, &req->r_caps_reservation,
-				  req->r_num_caps);
+	if (req->r_num_caps) {
+		ret = ceph_reserve_caps(mdsc, &req->r_caps_reservation,
+					req->r_num_caps);
+		if (ret < 0) {
+			pr_err("__register_request %p "
+			       "failed to reserve caps: %d\n", req, ret);
+			/* set req->r_err to fail early from __do_request */
+			req->r_err = ret;
+			return;
+		}
+	}
 	dout("__register_request %p tid %lld\n", req, req->r_tid);
 	ceph_mdsc_get_request(req);
 	insert_request(&mdsc->request_tree, req);
@@ -1440,6 +1450,29 @@ static int __close_session(struct ceph_mds_client *mdsc,
 	return request_close_session(mdsc, session);
 }
 
+static bool drop_negative_children(struct dentry *dentry)
+{
+	struct dentry *child;
+	bool all_negative = true;
+
+	if (!d_is_dir(dentry))
+		goto out;
+
+	spin_lock(&dentry->d_lock);
+	list_for_each_entry(child, &dentry->d_subdirs, d_child) {
+		if (d_really_is_positive(child)) {
+			all_negative = false;
+			break;
+		}
+	}
+	spin_unlock(&dentry->d_lock);
+
+	if (all_negative)
+		shrink_dcache_parent(dentry);
+out:
+	return all_negative;
+}
+
 /*
  * Trim old(er) caps.
  *
@@ -1490,16 +1523,27 @@ static int trim_caps_cb(struct inode *inode, struct ceph_cap *cap, void *arg)
 	if ((used | wanted) & ~oissued & mine)
 		goto out;   /* we need these caps */
 
-	session->s_trim_caps--;
 	if (oissued) {
 		/* we aren't the only cap.. just remove us */
 		__ceph_remove_cap(cap, true);
+		session->s_trim_caps--;
 	} else {
+		struct dentry *dentry;
 		/* try dropping referring dentries */
 		spin_unlock(&ci->i_ceph_lock);
-		d_prune_aliases(inode);
-		dout("trim_caps_cb %p cap %p  pruned, count now %d\n",
-		     inode, cap, atomic_read(&inode->i_count));
+		dentry = d_find_any_alias(inode);
+		if (dentry && drop_negative_children(dentry)) {
+			int count;
+			dput(dentry);
+			d_prune_aliases(inode);
+			count = atomic_read(&inode->i_count);
+			if (count == 1)
+				session->s_trim_caps--;
+			dout("trim_caps_cb %p cap %p pruned, count now %d\n",
+			     inode, cap, count);
+		} else {
+			dput(dentry);
+		}
 		return 0;
 	}
 
@@ -1511,9 +1555,9 @@ out:
 /*
  * Trim session cap count down to some max number.
  */
-static int trim_caps(struct ceph_mds_client *mdsc,
-		     struct ceph_mds_session *session,
-		     int max_caps)
+int ceph_trim_caps(struct ceph_mds_client *mdsc,
+		   struct ceph_mds_session *session,
+		   int max_caps)
 {
 	int trim_caps = session->s_nr_caps - max_caps;
 
@@ -2404,11 +2448,14 @@ out:
  */
 void ceph_invalidate_dir_request(struct ceph_mds_request *req)
 {
-	struct inode *inode = req->r_parent;
+	struct inode *dir = req->r_parent;
+	struct inode *old_dir = req->r_old_dentry_dir;
 
-	dout("invalidate_dir_request %p (complete, lease(s))\n", inode);
+	dout("invalidate_dir_request %p %p (complete, lease(s))\n", dir, old_dir);
 
-	ceph_dir_clear_complete(inode);
+	ceph_dir_clear_complete(dir);
+	if (old_dir)
+		ceph_dir_clear_complete(old_dir);
 	if (req->r_dentry)
 		ceph_invalidate_dentry_lease(req->r_dentry);
 	if (req->r_old_dentry)
@@ -2739,7 +2786,7 @@ static void handle_session(struct ceph_mds_session *session,
 		break;
 
 	case CEPH_SESSION_RECALL_STATE:
-		trim_caps(mdsc, session, le32_to_cpu(h->max_caps));
+		ceph_trim_caps(mdsc, session, le32_to_cpu(h->max_caps));
 		break;
 
 	case CEPH_SESSION_FLUSHMSG:

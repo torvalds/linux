@@ -851,16 +851,13 @@ static int sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 	u64 sector = blk_rq_pos(rq) >> (ilog2(sdp->sector_size) - 9);
 	u32 nr_sectors = blk_rq_sectors(rq) >> (ilog2(sdp->sector_size) - 9);
-	int ret;
 
 	if (!(rq->cmd_flags & REQ_NOUNMAP)) {
 		switch (sdkp->zeroing_mode) {
 		case SD_ZERO_WS16_UNMAP:
-			ret = sd_setup_write_same16_cmnd(cmd, true);
-			goto out;
+			return sd_setup_write_same16_cmnd(cmd, true);
 		case SD_ZERO_WS10_UNMAP:
-			ret = sd_setup_write_same10_cmnd(cmd, true);
-			goto out;
+			return sd_setup_write_same10_cmnd(cmd, true);
 		}
 	}
 
@@ -868,15 +865,9 @@ static int sd_setup_write_zeroes_cmnd(struct scsi_cmnd *cmd)
 		return BLKPREP_INVALID;
 
 	if (sdkp->ws16 || sector > 0xffffffff || nr_sectors > 0xffff)
-		ret = sd_setup_write_same16_cmnd(cmd, false);
-	else
-		ret = sd_setup_write_same10_cmnd(cmd, false);
+		return sd_setup_write_same16_cmnd(cmd, false);
 
-out:
-	if (sd_is_zoned(sdkp) && ret == BLKPREP_OK)
-		return sd_zbc_write_lock_zone(cmd);
-
-	return ret;
+	return sd_setup_write_same10_cmnd(cmd, false);
 }
 
 static void sd_config_write_same(struct scsi_disk *sdkp)
@@ -964,12 +955,6 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 
 	BUG_ON(bio_offset(bio) || bio_iovec(bio).bv_len != sdp->sector_size);
 
-	if (sd_is_zoned(sdkp)) {
-		ret = sd_zbc_write_lock_zone(cmd);
-		if (ret != BLKPREP_OK)
-			return ret;
-	}
-
 	sector >>= ilog2(sdp->sector_size) - 9;
 	nr_sectors >>= ilog2(sdp->sector_size) - 9;
 
@@ -1004,9 +989,6 @@ static int sd_setup_write_same_cmnd(struct scsi_cmnd *cmd)
 	ret = scsi_init_io(cmd);
 	rq->__data_len = nr_bytes;
 
-	if (sd_is_zoned(sdkp) && ret != BLKPREP_OK)
-		sd_zbc_write_unlock_zone(cmd);
-
 	return ret;
 }
 
@@ -1036,19 +1018,12 @@ static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	sector_t threshold;
 	unsigned int this_count = blk_rq_sectors(rq);
 	unsigned int dif, dix;
-	bool zoned_write = sd_is_zoned(sdkp) && rq_data_dir(rq) == WRITE;
 	int ret;
 	unsigned char protect;
 
-	if (zoned_write) {
-		ret = sd_zbc_write_lock_zone(SCpnt);
-		if (ret != BLKPREP_OK)
-			return ret;
-	}
-
 	ret = scsi_init_io(SCpnt);
 	if (ret != BLKPREP_OK)
-		goto out;
+		return ret;
 	WARN_ON_ONCE(SCpnt != rq->special);
 
 	/* from here on until we're complete, any goto out
@@ -1267,9 +1242,6 @@ static int sd_setup_read_write_cmnd(struct scsi_cmnd *SCpnt)
 	 */
 	ret = BLKPREP_OK;
  out:
-	if (zoned_write && ret != BLKPREP_OK)
-		sd_zbc_write_unlock_zone(SCpnt);
-
 	return ret;
 }
 
@@ -1312,17 +1284,16 @@ static int sd_init_command(struct scsi_cmnd *cmd)
 static void sd_uninit_command(struct scsi_cmnd *SCpnt)
 {
 	struct request *rq = SCpnt->request;
-
-	if (SCpnt->flags & SCMD_ZONE_WRITE_LOCK)
-		sd_zbc_write_unlock_zone(SCpnt);
+	u8 *cmnd;
 
 	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
 		__free_page(rq->special_vec.bv_page);
 
 	if (SCpnt->cmnd != scsi_req(rq)->cmd) {
-		mempool_free(SCpnt->cmnd, sd_cdb_pool);
+		cmnd = SCpnt->cmnd;
 		SCpnt->cmnd = NULL;
 		SCpnt->cmd_len = 0;
+		mempool_free(cmnd, sd_cdb_pool);
 	}
 }
 
@@ -2170,7 +2141,7 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 			}
 			/* Wait 1 second for next try */
 			msleep(1000);
-			printk(".");
+			printk(KERN_CONT ".");
 
 		/*
 		 * Wait for USB flash devices with slow firmware.
@@ -2200,9 +2171,9 @@ sd_spinup_disk(struct scsi_disk *sdkp)
 
 	if (spintime) {
 		if (scsi_status_is_good(the_result))
-			printk("ready\n");
+			printk(KERN_CONT "ready\n");
 		else
-			printk("not responding...\n");
+			printk(KERN_CONT "not responding...\n");
 	}
 }
 

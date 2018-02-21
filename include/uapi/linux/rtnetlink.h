@@ -541,8 +541,18 @@ struct tcmsg {
 	int		tcm_ifindex;
 	__u32		tcm_handle;
 	__u32		tcm_parent;
+/* tcm_block_index is used instead of tcm_parent
+ * in case tcm_ifindex == TCM_IFINDEX_MAGIC_BLOCK
+ */
+#define tcm_block_index tcm_parent
 	__u32		tcm_info;
 };
+
+/* For manipulation of filters in shared block, tcm_ifindex is set to
+ * TCM_IFINDEX_MAGIC_BLOCK, and tcm_parent is aliased to tcm_block_index
+ * which is the block index.
+ */
+#define TCM_IFINDEX_MAGIC_BLOCK (0xFFFFFFFFU)
 
 enum {
 	TCA_UNSPEC,
@@ -557,6 +567,9 @@ enum {
 	TCA_PAD,
 	TCA_DUMP_INVISIBLE,
 	TCA_CHAIN,
+	TCA_HW_OFFLOAD,
+	TCA_INGRESS_BLOCK,
+	TCA_EGRESS_BLOCK,
 	__TCA_MAX
 };
 

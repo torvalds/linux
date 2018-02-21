@@ -44,9 +44,10 @@ struct instruction {
 	unsigned int len;
 	unsigned char type;
 	unsigned long immediate;
-	bool alt_group, visited, dead_end, ignore, hint, save, restore;
+	bool alt_group, visited, dead_end, ignore, hint, save, restore, ignore_alts;
 	struct symbol *call_dest;
 	struct instruction *jump_dest;
+	struct instruction *first_jump_src;
 	struct list_head alts;
 	struct symbol *func;
 	struct stack_op stack_op;

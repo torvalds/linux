@@ -925,6 +925,15 @@ static void ipv6_push_rthdr4(struct sk_buff *skb, u8 *proto,
 	sr_phdr->segments[0] = **addr_p;
 	*addr_p = &sr_ihdr->segments[sr_ihdr->segments_left];
 
+	if (sr_ihdr->hdrlen > hops * 2) {
+		int tlvs_offset, tlvs_length;
+
+		tlvs_offset = (1 + hops * 2) << 3;
+		tlvs_length = (sr_ihdr->hdrlen - hops * 2) << 3;
+		memcpy((char *)sr_phdr + tlvs_offset,
+		       (char *)sr_ihdr + tlvs_offset, tlvs_length);
+	}
+
 #ifdef CONFIG_IPV6_SEG6_HMAC
 	if (sr_has_hmac(sr_phdr)) {
 		struct net *net = NULL;

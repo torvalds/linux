@@ -40,7 +40,6 @@ static struct imc_pmu *core_imc_pmu;
 /* Thread IMC data structures and variables */
 
 static DEFINE_PER_CPU(u64 *, thread_imc_mem);
-static struct imc_pmu *thread_imc_pmu;
 static int thread_imc_mem_size;
 
 struct imc_pmu *imc_event_to_pmu(struct perf_event *event)
@@ -117,16 +116,12 @@ static struct attribute *device_str_attr_create(const char *name, const char *st
 	return &attr->attr.attr;
 }
 
-struct imc_events *imc_parse_event(struct device_node *np, const char *scale,
-				  const char *unit, const char *prefix, u32 base)
+static int imc_parse_event(struct device_node *np, const char *scale,
+				  const char *unit, const char *prefix,
+				  u32 base, struct imc_events *event)
 {
-	struct imc_events *event;
 	const char *s;
 	u32 reg;
-
-	event = kzalloc(sizeof(struct imc_events), GFP_KERNEL);
-	if (!event)
-		return NULL;
 
 	if (of_property_read_u32(np, "reg", &reg))
 		goto error;
@@ -158,14 +153,32 @@ struct imc_events *imc_parse_event(struct device_node *np, const char *scale,
 			goto error;
 	}
 
-	return event;
+	return 0;
 error:
 	kfree(event->unit);
 	kfree(event->scale);
 	kfree(event->name);
-	kfree(event);
+	return -EINVAL;
+}
 
-	return NULL;
+/*
+ * imc_free_events: Function to cleanup the events list, having
+ * 		    "nr_entries".
+ */
+static void imc_free_events(struct imc_events *events, int nr_entries)
+{
+	int i;
+
+	/* Nothing to clean, return */
+	if (!events)
+		return;
+	for (i = 0; i < nr_entries; i++) {
+		kfree(events[i].unit);
+		kfree(events[i].scale);
+		kfree(events[i].name);
+	}
+
+	kfree(events);
 }
 
 /*
@@ -177,9 +190,8 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	struct attribute_group *attr_group;
 	struct attribute **attrs, *dev_str;
 	struct device_node *np, *pmu_events;
-	struct imc_events *ev;
 	u32 handle, base_reg;
-	int i=0, j=0, ct;
+	int i = 0, j = 0, ct, ret;
 	const char *prefix, *g_scale, *g_unit;
 	const char *ev_val_str, *ev_scale_str, *ev_unit_str;
 
@@ -217,15 +229,17 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	ct = 0;
 	/* Parse the events and update the struct */
 	for_each_child_of_node(pmu_events, np) {
-		ev = imc_parse_event(np, g_scale, g_unit, prefix, base_reg);
-		if (ev)
-			pmu->events[ct++] = ev;
+		ret = imc_parse_event(np, g_scale, g_unit, prefix, base_reg, &pmu->events[ct]);
+		if (!ret)
+			ct++;
 	}
 
 	/* Allocate memory for attribute group */
 	attr_group = kzalloc(sizeof(*attr_group), GFP_KERNEL);
-	if (!attr_group)
+	if (!attr_group) {
+		imc_free_events(pmu->events, ct);
 		return -ENOMEM;
+	}
 
 	/*
 	 * Allocate memory for attributes.
@@ -238,31 +252,31 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	attrs = kcalloc(((ct * 3) + 1), sizeof(struct attribute *), GFP_KERNEL);
 	if (!attrs) {
 		kfree(attr_group);
-		kfree(pmu->events);
+		imc_free_events(pmu->events, ct);
 		return -ENOMEM;
 	}
 
 	attr_group->name = "events";
 	attr_group->attrs = attrs;
 	do {
-		ev_val_str = kasprintf(GFP_KERNEL, "event=0x%x", pmu->events[i]->value);
-		dev_str = device_str_attr_create(pmu->events[i]->name, ev_val_str);
+		ev_val_str = kasprintf(GFP_KERNEL, "event=0x%x", pmu->events[i].value);
+		dev_str = device_str_attr_create(pmu->events[i].name, ev_val_str);
 		if (!dev_str)
 			continue;
 
 		attrs[j++] = dev_str;
-		if (pmu->events[i]->scale) {
-			ev_scale_str = kasprintf(GFP_KERNEL, "%s.scale",pmu->events[i]->name);
-			dev_str = device_str_attr_create(ev_scale_str, pmu->events[i]->scale);
+		if (pmu->events[i].scale) {
+			ev_scale_str = kasprintf(GFP_KERNEL, "%s.scale", pmu->events[i].name);
+			dev_str = device_str_attr_create(ev_scale_str, pmu->events[i].scale);
 			if (!dev_str)
 				continue;
 
 			attrs[j++] = dev_str;
 		}
 
-		if (pmu->events[i]->unit) {
-			ev_unit_str = kasprintf(GFP_KERNEL, "%s.unit",pmu->events[i]->name);
-			dev_str = device_str_attr_create(ev_unit_str, pmu->events[i]->unit);
+		if (pmu->events[i].unit) {
+			ev_unit_str = kasprintf(GFP_KERNEL, "%s.unit", pmu->events[i].name);
+			dev_str = device_str_attr_create(ev_unit_str, pmu->events[i].unit);
 			if (!dev_str)
 				continue;
 
@@ -273,7 +287,6 @@ static int update_events_in_group(struct device_node *node, struct imc_pmu *pmu)
 	/* Save the event attribute */
 	pmu->attr_groups[IMC_EVENT_ATTR] = attr_group;
 
-	kfree(pmu->events);
 	return 0;
 }
 
@@ -307,6 +320,19 @@ static int ppc_nest_imc_cpu_offline(unsigned int cpu)
 	 * if not one of them.
 	 */
 	if (!cpumask_test_and_clear_cpu(cpu, &nest_imc_cpumask))
+		return 0;
+
+	/*
+	 * Check whether nest_imc is registered. We could end up here if the
+	 * cpuhotplug callback registration fails. i.e, callback invokes the
+	 * offline path for all successfully registered nodes. At this stage,
+	 * nest_imc pmu will not be registered and we should return here.
+	 *
+	 * We return with a zero since this is not an offline failure. And
+	 * cpuhp_setup_state() returns the actual failure reason to the caller,
+	 * which in turn will call the cleanup routine.
+	 */
+	if (!nest_pmus)
 		return 0;
 
 	/*
@@ -598,7 +624,8 @@ static int ppc_core_imc_cpu_online(unsigned int cpu)
 
 static int ppc_core_imc_cpu_offline(unsigned int cpu)
 {
-	unsigned int ncpu, core_id;
+	unsigned int core_id;
+	int ncpu;
 	struct imc_pmu_ref *ref;
 
 	/*
@@ -1158,6 +1185,15 @@ static void cleanup_all_thread_imc_memory(void)
 	}
 }
 
+/* Function to free the attr_groups which are dynamically allocated */
+static void imc_common_mem_free(struct imc_pmu *pmu_ptr)
+{
+	if (pmu_ptr->attr_groups[IMC_EVENT_ATTR])
+		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
+	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
+	kfree(pmu_ptr);
+}
+
 /*
  * Common function to unregister cpu hotplug callback and
  * free the memory.
@@ -1171,6 +1207,7 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 		if (nest_pmus == 1) {
 			cpuhp_remove_state(CPUHP_AP_PERF_POWERPC_NEST_IMC_ONLINE);
 			kfree(nest_imc_refc);
+			kfree(per_nest_pmu_arr);
 		}
 
 		if (nest_pmus > 0)
@@ -1189,14 +1226,6 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 		cpuhp_remove_state(CPUHP_AP_PERF_POWERPC_THREAD_IMC_ONLINE);
 		cleanup_all_thread_imc_memory();
 	}
-
-	/* Only free the attr_groups which are dynamically allocated  */
-	if (pmu_ptr->attr_groups[IMC_EVENT_ATTR])
-		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
-	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
-	kfree(pmu_ptr);
-	kfree(per_nest_pmu_arr);
-	return;
 }
 
 
@@ -1245,8 +1274,10 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		core_imc_refc = kcalloc(nr_cores, sizeof(struct imc_pmu_ref),
 								GFP_KERNEL);
 
-		if (!core_imc_refc)
+		if (!core_imc_refc) {
+			kfree(pmu_ptr->mem_info);
 			return -ENOMEM;
+		}
 
 		core_imc_pmu = pmu_ptr;
 		break;
@@ -1259,11 +1290,12 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		thread_imc_mem_size = pmu_ptr->counter_mem_size;
 		for_each_online_cpu(cpu) {
 			res = thread_imc_mem_alloc(cpu, pmu_ptr->counter_mem_size);
-			if (res)
+			if (res) {
+				cleanup_all_thread_imc_memory();
 				return res;
+			}
 		}
 
-		thread_imc_pmu = pmu_ptr;
 		break;
 	default:
 		return -EINVAL;
@@ -1287,8 +1319,10 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 	int ret;
 
 	ret = imc_mem_init(pmu_ptr, parent, pmu_idx);
-	if (ret)
-		goto err_free;
+	if (ret) {
+		imc_common_mem_free(pmu_ptr);
+		return ret;
+	}
 
 	switch (pmu_ptr->domain) {
 	case IMC_DOMAIN_NEST:
@@ -1309,6 +1343,8 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 			ret = nest_pmu_cpumask_init();
 			if (ret) {
 				mutex_unlock(&nest_init_lock);
+				kfree(nest_imc_refc);
+				kfree(per_nest_pmu_arr);
 				goto err_free;
 			}
 		}
@@ -1353,6 +1389,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 	return 0;
 
 err_free:
+	imc_common_mem_free(pmu_ptr);
 	imc_common_cpuhp_mem_free(pmu_ptr);
 	return ret;
 }

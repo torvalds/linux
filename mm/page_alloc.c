@@ -293,7 +293,7 @@ int page_group_by_mobility_disabled __read_mostly;
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 
 /*
- * Determine how many pages need to be initialized durig early boot
+ * Determine how many pages need to be initialized during early boot
  * (non-deferred initialization).
  * The value of first_deferred_pfn will be set later, once non-deferred pages
  * are initialized, but for now set it ULONG_MAX.
@@ -344,7 +344,7 @@ static inline bool update_defer_init(pg_data_t *pgdat,
 				unsigned long pfn, unsigned long zone_end,
 				unsigned long *nr_initialised)
 {
-	/* Always populate low zones for address-contrained allocations */
+	/* Always populate low zones for address-constrained allocations */
 	if (zone_end < pgdat_end_pfn(pgdat))
 		return true;
 	(*nr_initialised)++;
@@ -1177,9 +1177,10 @@ static void free_one_page(struct zone *zone,
 }
 
 static void __meminit __init_single_page(struct page *page, unsigned long pfn,
-				unsigned long zone, int nid)
+				unsigned long zone, int nid, bool zero)
 {
-	mm_zero_struct_page(page);
+	if (zero)
+		mm_zero_struct_page(page);
 	set_page_links(page, zone, nid, pfn);
 	init_page_count(page);
 	page_mapcount_reset(page);
@@ -1194,9 +1195,9 @@ static void __meminit __init_single_page(struct page *page, unsigned long pfn,
 }
 
 static void __meminit __init_single_pfn(unsigned long pfn, unsigned long zone,
-					int nid)
+					int nid, bool zero)
 {
-	return __init_single_page(pfn_to_page(pfn), pfn, zone, nid);
+	return __init_single_page(pfn_to_page(pfn), pfn, zone, nid, zero);
 }
 
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
@@ -1217,7 +1218,7 @@ static void __meminit init_reserved_page(unsigned long pfn)
 		if (pfn >= zone->zone_start_pfn && pfn < zone_end_pfn(zone))
 			break;
 	}
-	__init_single_pfn(pfn, zid, nid);
+	__init_single_pfn(pfn, zid, nid, true);
 }
 #else
 static inline void init_reserved_page(unsigned long pfn)
@@ -1457,92 +1458,87 @@ static inline void __init pgdat_init_report_one_done(void)
 }
 
 /*
- * Helper for deferred_init_range, free the given range, reset the counters, and
- * return number of pages freed.
+ * Returns true if page needs to be initialized or freed to buddy allocator.
+ *
+ * First we check if pfn is valid on architectures where it is possible to have
+ * holes within pageblock_nr_pages. On systems where it is not possible, this
+ * function is optimized out.
+ *
+ * Then, we check if a current large page is valid by only checking the validity
+ * of the head pfn.
+ *
+ * Finally, meminit_pfn_in_nid is checked on systems where pfns can interleave
+ * within a node: a pfn is between start and end of a node, but does not belong
+ * to this memory node.
  */
-static inline unsigned long __init __def_free(unsigned long *nr_free,
-					      unsigned long *free_base_pfn,
-					      struct page **page)
+static inline bool __init
+deferred_pfn_valid(int nid, unsigned long pfn,
+		   struct mminit_pfnnid_cache *nid_init_state)
 {
-	unsigned long nr = *nr_free;
-
-	deferred_free_range(*free_base_pfn, nr);
-	*free_base_pfn = 0;
-	*nr_free = 0;
-	*page = NULL;
-
-	return nr;
+	if (!pfn_valid_within(pfn))
+		return false;
+	if (!(pfn & (pageblock_nr_pages - 1)) && !pfn_valid(pfn))
+		return false;
+	if (!meminit_pfn_in_nid(pfn, nid, nid_init_state))
+		return false;
+	return true;
 }
 
-static unsigned long __init deferred_init_range(int nid, int zid,
-						unsigned long start_pfn,
-						unsigned long end_pfn)
+/*
+ * Free pages to buddy allocator. Try to free aligned pages in
+ * pageblock_nr_pages sizes.
+ */
+static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
+				       unsigned long end_pfn)
 {
 	struct mminit_pfnnid_cache nid_init_state = { };
 	unsigned long nr_pgmask = pageblock_nr_pages - 1;
-	unsigned long free_base_pfn = 0;
-	unsigned long nr_pages = 0;
 	unsigned long nr_free = 0;
-	struct page *page = NULL;
-	unsigned long pfn;
 
-	/*
-	 * First we check if pfn is valid on architectures where it is possible
-	 * to have holes within pageblock_nr_pages. On systems where it is not
-	 * possible, this function is optimized out.
-	 *
-	 * Then, we check if a current large page is valid by only checking the
-	 * validity of the head pfn.
-	 *
-	 * meminit_pfn_in_nid is checked on systems where pfns can interleave
-	 * within a node: a pfn is between start and end of a node, but does not
-	 * belong to this memory node.
-	 *
-	 * Finally, we minimize pfn page lookups and scheduler checks by
-	 * performing it only once every pageblock_nr_pages.
-	 *
-	 * We do it in two loops: first we initialize struct page, than free to
-	 * buddy allocator, becuse while we are freeing pages we can access
-	 * pages that are ahead (computing buddy page in __free_one_page()).
-	 */
-	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-		if (!pfn_valid_within(pfn))
-			continue;
-		if ((pfn & nr_pgmask) || pfn_valid(pfn)) {
-			if (meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
-				if (page && (pfn & nr_pgmask))
-					page++;
-				else
-					page = pfn_to_page(pfn);
-				__init_single_page(page, pfn, zid, nid);
-				cond_resched();
-			}
-		}
-	}
-
-	page = NULL;
-	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-		if (!pfn_valid_within(pfn)) {
-			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
-		} else if (!(pfn & nr_pgmask) && !pfn_valid(pfn)) {
-			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
-		} else if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
-			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
-		} else if (page && (pfn & nr_pgmask)) {
-			page++;
-			nr_free++;
-		} else {
-			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
-			page = pfn_to_page(pfn);
-			free_base_pfn = pfn;
+	for (; pfn < end_pfn; pfn++) {
+		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
+			deferred_free_range(pfn - nr_free, nr_free);
+			nr_free = 0;
+		} else if (!(pfn & nr_pgmask)) {
+			deferred_free_range(pfn - nr_free, nr_free);
 			nr_free = 1;
 			cond_resched();
+		} else {
+			nr_free++;
 		}
 	}
 	/* Free the last block of pages to allocator */
-	nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+	deferred_free_range(pfn - nr_free, nr_free);
+}
 
-	return nr_pages;
+/*
+ * Initialize struct pages.  We minimize pfn page lookups and scheduler checks
+ * by performing it only once every pageblock_nr_pages.
+ * Return number of pages initialized.
+ */
+static unsigned long  __init deferred_init_pages(int nid, int zid,
+						 unsigned long pfn,
+						 unsigned long end_pfn)
+{
+	struct mminit_pfnnid_cache nid_init_state = { };
+	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+	unsigned long nr_pages = 0;
+	struct page *page = NULL;
+
+	for (; pfn < end_pfn; pfn++) {
+		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
+			page = NULL;
+			continue;
+		} else if (!page || !(pfn & nr_pgmask)) {
+			page = pfn_to_page(pfn);
+			cond_resched();
+		} else {
+			page++;
+		}
+		__init_single_page(page, pfn, zid, nid, true);
+		nr_pages++;
+	}
+	return (nr_pages);
 }
 
 /* Initialise remaining memory on a node */
@@ -1582,10 +1578,21 @@ static int __init deferred_init_memmap(void *data)
 	}
 	first_init_pfn = max(zone->zone_start_pfn, first_init_pfn);
 
+	/*
+	 * Initialize and free pages. We do it in two loops: first we initialize
+	 * struct page, than free to buddy allocator, because while we are
+	 * freeing pages we can access pages that are ahead (computing buddy
+	 * page in __free_one_page()).
+	 */
 	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
 		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
 		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
-		nr_pages += deferred_init_range(nid, zid, spfn, epfn);
+		nr_pages += deferred_init_pages(nid, zid, spfn, epfn);
+	}
+	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+		deferred_free_pages(nid, zid, spfn, epfn);
 	}
 
 	/* Sanity check that the next zone really is unpopulated */
@@ -2684,6 +2691,7 @@ void free_unref_page_list(struct list_head *list)
 {
 	struct page *page, *next;
 	unsigned long flags, pfn;
+	int batch_count = 0;
 
 	/* Prepare pages for freeing */
 	list_for_each_entry_safe(page, next, list, lru) {
@@ -2700,6 +2708,16 @@ void free_unref_page_list(struct list_head *list)
 		set_page_private(page, 0);
 		trace_mm_page_free_batched(page);
 		free_unref_page_commit(page, pfn);
+
+		/*
+		 * Guard against excessive IRQ disabled times when we get
+		 * a large list of pages to free.
+		 */
+		if (++batch_count == SWAP_CLUSTER_MAX) {
+			local_irq_restore(flags);
+			batch_count = 0;
+			local_irq_save(flags);
+		}
 	}
 	local_irq_restore(flags);
 }
@@ -3380,7 +3398,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 	if (gfp_mask & __GFP_THISNODE)
 		goto out;
 
-	/* Exhausted what can be done so it's blamo time */
+	/* Exhausted what can be done so it's blame time */
 	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
 		*did_some_progress = 1;
 
@@ -4261,7 +4279,7 @@ unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
 	struct page *page;
 
 	/*
-	 * __get_free_pages() returns a 32-bit address, which cannot represent
+	 * __get_free_pages() returns a virtual address, which cannot represent
 	 * a highmem page
 	 */
 	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
@@ -5303,9 +5321,9 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
  * done. Non-atomic initialization, single-pass.
  */
 void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-		unsigned long start_pfn, enum memmap_context context)
+		unsigned long start_pfn, enum memmap_context context,
+		struct vmem_altmap *altmap)
 {
-	struct vmem_altmap *altmap = to_vmem_altmap(__pfn_to_phys(start_pfn));
 	unsigned long end_pfn = start_pfn + size;
 	pg_data_t *pgdat = NODE_DATA(nid);
 	unsigned long pfn;
@@ -5382,15 +5400,20 @@ not_early:
 		 * can be created for invalid pages (for alignment)
 		 * check here not to call set_pageblock_migratetype() against
 		 * pfn out of zone.
+		 *
+		 * Please note that MEMMAP_HOTPLUG path doesn't clear memmap
+		 * because this is done early in sparse_add_one_section
 		 */
 		if (!(pfn & (pageblock_nr_pages - 1))) {
 			struct page *page = pfn_to_page(pfn);
 
-			__init_single_page(page, pfn, zone, nid);
+			__init_single_page(page, pfn, zone, nid,
+					context != MEMMAP_HOTPLUG);
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
 			cond_resched();
 		} else {
-			__init_single_pfn(pfn, zone, nid);
+			__init_single_pfn(pfn, zone, nid,
+					context != MEMMAP_HOTPLUG);
 		}
 	}
 }
@@ -5406,7 +5429,7 @@ static void __meminit zone_init_free_lists(struct zone *zone)
 
 #ifndef __HAVE_ARCH_MEMMAP_INIT
 #define memmap_init(size, nid, zone, start_pfn) \
-	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY)
+	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY, NULL)
 #endif
 
 static int zone_batchsize(struct zone *zone)
@@ -6249,6 +6272,8 @@ void __paginginit zero_resv_unavail(void)
 	pgcnt = 0;
 	for_each_resv_unavail_range(i, &start, &end) {
 		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
+			if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
+				continue;
 			mm_zero_struct_page(pfn_to_page(pfn));
 			pgcnt++;
 		}

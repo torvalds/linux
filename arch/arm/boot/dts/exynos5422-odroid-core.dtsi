@@ -1,14 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Hardkernel Odroid XU3/XU4/HC1 boards core device tree source
  *
  * Copyright (c) 2017 Marek Szyprowski
  * Copyright (c) 2013-2017 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #include <dt-bindings/clock/samsung,s2mps11.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -233,8 +230,8 @@
 
 			ldo15_reg: LDO15 {
 				regulator-name = "vdd_ldo15";
-				regulator-min-microvolt = <3100000>;
-				regulator-max-microvolt = <3100000>;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 			};
 
@@ -246,7 +243,7 @@
 			};
 
 			ldo17_reg: LDO17 {
-				regulator-name = "tsp_avdd";
+				regulator-name = "vdd_ldo17";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;

@@ -1216,15 +1216,14 @@ killed:
 	return -EAGAIN;
 }
 
-char *get_task_comm(char *buf, struct task_struct *tsk)
+char *__get_task_comm(char *buf, size_t buf_size, struct task_struct *tsk)
 {
-	/* buf must be at least sizeof(tsk->comm) in size */
 	task_lock(tsk);
-	strncpy(buf, tsk->comm, sizeof(tsk->comm));
+	strncpy(buf, tsk->comm, buf_size);
 	task_unlock(tsk);
 	return buf;
 }
-EXPORT_SYMBOL_GPL(get_task_comm);
+EXPORT_SYMBOL_GPL(__get_task_comm);
 
 /*
  * These functions flushes out all traces of the currently running executable
@@ -1340,24 +1339,24 @@ void setup_new_exec(struct linux_binprm * bprm)
 		 * avoid bad behavior from the prior rlimits. This has to
 		 * happen before arch_pick_mmap_layout(), which examines
 		 * RLIMIT_STACK, but after the point of no return to avoid
-		 * races from other threads changing the limits. This also
-		 * must be protected from races with prlimit() calls.
+		 * needing to clean up the change on failure.
 		 */
-		task_lock(current->group_leader);
 		if (current->signal->rlim[RLIMIT_STACK].rlim_cur > _STK_LIM)
 			current->signal->rlim[RLIMIT_STACK].rlim_cur = _STK_LIM;
-		if (current->signal->rlim[RLIMIT_STACK].rlim_max > _STK_LIM)
-			current->signal->rlim[RLIMIT_STACK].rlim_max = _STK_LIM;
-		task_unlock(current->group_leader);
 	}
 
 	arch_pick_mmap_layout(current->mm);
 
 	current->sas_ss_sp = current->sas_ss_size = 0;
 
-	/* Figure out dumpability. */
+	/*
+	 * Figure out dumpability. Note that this checking only of current
+	 * is wrong, but userspace depends on it. This should be testing
+	 * bprm->secureexec instead.
+	 */
 	if (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP ||
-	    bprm->secureexec)
+	    !(uid_eq(current_euid(), current_uid()) &&
+	      gid_eq(current_egid(), current_gid())))
 		set_dumpable(current->mm, suid_dumpable);
 	else
 		set_dumpable(current->mm, SUID_DUMP_USER);

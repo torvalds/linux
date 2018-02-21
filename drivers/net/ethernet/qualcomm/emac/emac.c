@@ -253,18 +253,18 @@ static int emac_open(struct net_device *netdev)
 		return ret;
 	}
 
-	ret = emac_mac_up(adpt);
+	ret = adpt->phy.open(adpt);
 	if (ret) {
 		emac_mac_rx_tx_rings_free_all(adpt);
 		free_irq(irq->irq, irq);
 		return ret;
 	}
 
-	ret = adpt->phy.open(adpt);
+	ret = emac_mac_up(adpt);
 	if (ret) {
-		emac_mac_down(adpt);
 		emac_mac_rx_tx_rings_free_all(adpt);
 		free_irq(irq->irq, irq);
+		adpt->phy.close(adpt);
 		return ret;
 	}
 
@@ -615,8 +615,11 @@ static int emac_probe(struct platform_device *pdev)
 	u32 reg;
 	int ret;
 
-	/* The TPD buffer address is limited to 45 bits. */
-	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(45));
+	/* The TPD buffer address is limited to:
+	 * 1. PTP:	45bits. (Driver doesn't support yet.)
+	 * 2. NON-PTP:	46bits.
+	 */
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(46));
 	if (ret) {
 		dev_err(&pdev->dev, "could not set DMA mask\n");
 		return ret;

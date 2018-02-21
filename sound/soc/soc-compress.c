@@ -40,7 +40,8 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->startup) {
 		ret = cpu_dai->driver->cops->startup(cstream, cpu_dai);
 		if (ret < 0) {
-			dev_err(cpu_dai->dev, "Compress ASoC: can't open interface %s: %d\n",
+			dev_err(cpu_dai->dev,
+				"Compress ASoC: can't open interface %s: %d\n",
 				cpu_dai->name, ret);
 			goto out;
 		}
@@ -49,8 +50,9 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->open) {
 		ret = platform->driver->compr_ops->open(cstream);
 		if (ret < 0) {
-			pr_err("compress asoc: can't open platform %s\n",
-				platform->component.name);
+			dev_err(platform->dev,
+				"Compress ASoC: can't open platform %s: %d\n",
+				platform->component.name, ret);
 			goto plat_err;
 		}
 	}
@@ -68,8 +70,9 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 
 		__ret = component->driver->compr_ops->open(cstream);
 		if (__ret < 0) {
-			pr_err("compress asoc: can't open platform %s\n",
-			       component->name);
+			dev_err(component->dev,
+				"Compress ASoC: can't open platform %s: %d\n",
+				component->name, __ret);
 			ret = __ret;
 		}
 	}
@@ -79,7 +82,9 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->startup) {
 		ret = rtd->dai_link->compr_ops->startup(cstream);
 		if (ret < 0) {
-			pr_err("compress asoc: %s startup failed\n", rtd->dai_link->name);
+			dev_err(rtd->dev,
+				"Compress ASoC: %s startup failed: %d\n",
+				rtd->dai_link->name, ret);
 			goto machine_err;
 		}
 	}
@@ -139,18 +144,19 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->startup) {
 		ret = cpu_dai->driver->cops->startup(cstream, cpu_dai);
 		if (ret < 0) {
-			dev_err(cpu_dai->dev, "Compress ASoC: can't open interface %s: %d\n",
+			dev_err(cpu_dai->dev,
+				"Compress ASoC: can't open interface %s: %d\n",
 				cpu_dai->name, ret);
 			goto out;
 		}
 	}
 
-
 	if (platform && platform->driver->compr_ops && platform->driver->compr_ops->open) {
 		ret = platform->driver->compr_ops->open(cstream);
 		if (ret < 0) {
-			pr_err("compress asoc: can't open platform %s\n",
-				platform->component.name);
+			dev_err(platform->dev,
+				"Compress ASoC: can't open platform %s: %d\n",
+				platform->component.name, ret);
 			goto plat_err;
 		}
 	}
@@ -168,8 +174,9 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 
 		__ret = component->driver->compr_ops->open(cstream);
 		if (__ret < 0) {
-			pr_err("compress asoc: can't open platform %s\n",
-			       component->name);
+			dev_err(component->dev,
+				"Compress ASoC: can't open platform %s: %d\n",
+				component->name, __ret);
 			ret = __ret;
 		}
 	}
@@ -179,7 +186,8 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->startup) {
 		ret = fe->dai_link->compr_ops->startup(cstream);
 		if (ret < 0) {
-			pr_err("compress asoc: %s startup failed\n", fe->dai_link->name);
+			pr_err("Compress ASoC: %s startup failed: %d\n",
+			       fe->dai_link->name, ret);
 			goto machine_err;
 		}
 	}
@@ -190,7 +198,7 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto fe_err;
 	else if (ret == 0)
-		dev_dbg(fe->dev, "ASoC: %s no valid %s route\n",
+		dev_dbg(fe->dev, "Compress ASoC: %s no valid %s route\n",
 			fe->dai_link->name, stream ? "capture" : "playback");
 
 	/* calculate valid and active FE <-> BE dpcms */
@@ -265,10 +273,11 @@ static void close_delayed_work(struct work_struct *work)
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
-	dev_dbg(rtd->dev, "ASoC: pop wq checking: %s status: %s waiting: %s\n",
-		 codec_dai->driver->playback.stream_name,
-		 codec_dai->playback_active ? "active" : "inactive",
-		 rtd->pop_wait ? "yes" : "no");
+	dev_dbg(rtd->dev,
+		"Compress ASoC: pop wq checking: %s status: %s waiting: %s\n",
+		codec_dai->driver->playback.stream_name,
+		codec_dai->playback_active ? "active" : "inactive",
+		rtd->pop_wait ? "yes" : "no");
 
 	/* are we waiting on this codec DAI stream */
 	if (rtd->pop_wait == 1) {
@@ -306,7 +315,6 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 
 	if (!codec_dai->active)
 		codec_dai->rate = 0;
-
 
 	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->shutdown)
 		rtd->dai_link->compr_ops->shutdown(cstream);
@@ -376,7 +384,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	ret = dpcm_be_dai_hw_free(fe, stream);
 	if (ret < 0)
-		dev_err(fe->dev, "compressed hw_free failed %d\n", ret);
+		dev_err(fe->dev, "Compressed ASoC: hw_free failed: %d\n", ret);
 
 	ret = dpcm_be_dai_shutdown(fe, stream);
 
@@ -459,7 +467,6 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->trigger)
 		cpu_dai->driver->cops->trigger(cstream, cmd, cpu_dai);
-
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -944,7 +951,7 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
-	int ret = 0, __ret;
+	int ret = 0;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
@@ -965,10 +972,10 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 		    !component->driver->compr_ops->copy)
 			continue;
 
-		__ret = component->driver->compr_ops->copy(cstream, buf, count);
-		if (__ret < 0)
-			ret = __ret;
+		ret = component->driver->compr_ops->copy(cstream, buf, count);
+		break;
 	}
+
 err:
 	mutex_unlock(&rtd->pcm_mutex);
 	return ret;
@@ -1096,7 +1103,6 @@ static struct snd_compr_ops soc_compr_dyn_ops = {
  */
 int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 {
-	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
@@ -1109,7 +1115,8 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	int playback = 0, capture = 0;
 
 	if (rtd->num_codecs > 1) {
-		dev_err(rtd->card->dev, "Multicodec not supported for compressed stream\n");
+		dev_err(rtd->card->dev,
+			"Compress ASoC: Multicodec not supported\n");
 		return -EINVAL;
 	}
 
@@ -1127,8 +1134,9 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	 * should be set, check for that (xor)
 	 */
 	if (playback + capture != 1) {
-		dev_err(rtd->card->dev, "Invalid direction for compress P %d, C %d\n",
-				playback, capture);
+		dev_err(rtd->card->dev,
+			"Compress ASoC: Invalid direction for P %d, C %d\n",
+			playback, capture);
 		return -EINVAL;
 	}
 
@@ -1156,8 +1164,9 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 				rtd->dai_link->dpcm_playback,
 				rtd->dai_link->dpcm_capture, &be_pcm);
 		if (ret < 0) {
-			dev_err(rtd->card->dev, "ASoC: can't create compressed for %s\n",
-				rtd->dai_link->name);
+			dev_err(rtd->card->dev,
+				"Compress ASoC: can't create compressed for %s: %d\n",
+				rtd->dai_link->name, ret);
 			goto compr_err;
 		}
 
@@ -1199,8 +1208,10 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	ret = snd_compress_new(rtd->card->snd_card, num, direction,
 				new_name, compr);
 	if (ret < 0) {
-		pr_err("compress asoc: can't create compress for codec %s\n",
-			codec->component.name);
+		component = rtd->codec_dai->component;
+		dev_err(component->dev,
+			"Compress ASoC: can't create compress for codec %s: %d\n",
+			component->name, ret);
 		goto compr_err;
 	}
 
@@ -1210,8 +1221,8 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 	rtd->compr = compr;
 	compr->private_data = rtd;
 
-	printk(KERN_INFO "compress asoc: %s <-> %s mapping ok\n", codec_dai->name,
-		cpu_dai->name);
+	dev_info(rtd->card->dev, "Compress ASoC: %s <-> %s mapping ok\n",
+		 codec_dai->name, cpu_dai->name);
 	return ret;
 
 compr_err:

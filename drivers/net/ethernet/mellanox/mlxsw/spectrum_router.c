@@ -71,6 +71,7 @@
 #include "spectrum_mr_tcam.h"
 #include "spectrum_router.h"
 
+struct mlxsw_sp_fib;
 struct mlxsw_sp_vr;
 struct mlxsw_sp_lpm_tree;
 struct mlxsw_sp_rif_ops;
@@ -84,6 +85,8 @@ struct mlxsw_sp_router {
 	struct rhashtable nexthop_ht;
 	struct list_head nexthop_list;
 	struct {
+		/* One tree for each protocol: IPv4 and IPv6 */
+		struct mlxsw_sp_lpm_tree *proto_trees[2];
 		struct mlxsw_sp_lpm_tree *trees;
 		unsigned int tree_count;
 	} lpm;
@@ -161,6 +164,15 @@ struct mlxsw_sp_rif_ops {
 	void (*deconfigure)(struct mlxsw_sp_rif *rif);
 	struct mlxsw_sp_fid * (*fid_get)(struct mlxsw_sp_rif *rif);
 };
+
+static void mlxsw_sp_lpm_tree_hold(struct mlxsw_sp_lpm_tree *lpm_tree);
+static void mlxsw_sp_lpm_tree_put(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_lpm_tree *lpm_tree);
+static int mlxsw_sp_vr_lpm_tree_bind(struct mlxsw_sp *mlxsw_sp,
+				     const struct mlxsw_sp_fib *fib,
+				     u8 tree_id);
+static int mlxsw_sp_vr_lpm_tree_unbind(struct mlxsw_sp *mlxsw_sp,
+				       const struct mlxsw_sp_fib *fib);
 
 static unsigned int *
 mlxsw_sp_rif_p_counter_get(struct mlxsw_sp_rif *rif,
@@ -349,14 +361,6 @@ mlxsw_sp_prefix_usage_eq(struct mlxsw_sp_prefix_usage *prefix_usage1,
 	return !memcmp(prefix_usage1, prefix_usage2, sizeof(*prefix_usage1));
 }
 
-static bool
-mlxsw_sp_prefix_usage_none(struct mlxsw_sp_prefix_usage *prefix_usage)
-{
-	struct mlxsw_sp_prefix_usage prefix_usage_none = {{ 0 } };
-
-	return mlxsw_sp_prefix_usage_eq(prefix_usage, &prefix_usage_none);
-}
-
 static void
 mlxsw_sp_prefix_usage_cpy(struct mlxsw_sp_prefix_usage *prefix_usage1,
 			  struct mlxsw_sp_prefix_usage *prefix_usage2)
@@ -398,7 +402,6 @@ enum mlxsw_sp_fib_entry_type {
 };
 
 struct mlxsw_sp_nexthop_group;
-struct mlxsw_sp_fib;
 
 struct mlxsw_sp_fib_node {
 	struct list_head entry_list;
@@ -445,6 +448,7 @@ struct mlxsw_sp_lpm_tree {
 	u8 id; /* tree ID */
 	unsigned int ref_count;
 	enum mlxsw_sp_l3proto proto;
+	unsigned long prefix_ref_count[MLXSW_SP_PREFIX_COUNT];
 	struct mlxsw_sp_prefix_usage prefix_usage;
 };
 
@@ -453,8 +457,6 @@ struct mlxsw_sp_fib {
 	struct list_head node_list;
 	struct mlxsw_sp_vr *vr;
 	struct mlxsw_sp_lpm_tree *lpm_tree;
-	unsigned long prefix_ref_count[MLXSW_SP_PREFIX_COUNT];
-	struct mlxsw_sp_prefix_usage prefix_usage;
 	enum mlxsw_sp_l3proto proto;
 };
 
@@ -469,12 +471,15 @@ struct mlxsw_sp_vr {
 
 static const struct rhashtable_params mlxsw_sp_fib_ht_params;
 
-static struct mlxsw_sp_fib *mlxsw_sp_fib_create(struct mlxsw_sp_vr *vr,
+static struct mlxsw_sp_fib *mlxsw_sp_fib_create(struct mlxsw_sp *mlxsw_sp,
+						struct mlxsw_sp_vr *vr,
 						enum mlxsw_sp_l3proto proto)
 {
+	struct mlxsw_sp_lpm_tree *lpm_tree;
 	struct mlxsw_sp_fib *fib;
 	int err;
 
+	lpm_tree = mlxsw_sp->router->lpm.proto_trees[proto];
 	fib = kzalloc(sizeof(*fib), GFP_KERNEL);
 	if (!fib)
 		return ERR_PTR(-ENOMEM);
@@ -484,17 +489,26 @@ static struct mlxsw_sp_fib *mlxsw_sp_fib_create(struct mlxsw_sp_vr *vr,
 	INIT_LIST_HEAD(&fib->node_list);
 	fib->proto = proto;
 	fib->vr = vr;
+	fib->lpm_tree = lpm_tree;
+	mlxsw_sp_lpm_tree_hold(lpm_tree);
+	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, lpm_tree->id);
+	if (err)
+		goto err_lpm_tree_bind;
 	return fib;
 
+err_lpm_tree_bind:
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, lpm_tree);
 err_rhashtable_init:
 	kfree(fib);
 	return ERR_PTR(err);
 }
 
-static void mlxsw_sp_fib_destroy(struct mlxsw_sp_fib *fib)
+static void mlxsw_sp_fib_destroy(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_fib *fib)
 {
+	mlxsw_sp_vr_lpm_tree_unbind(mlxsw_sp, fib);
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, fib->lpm_tree);
 	WARN_ON(!list_empty(&fib->node_list));
-	WARN_ON(fib->lpm_tree);
 	rhashtable_destroy(&fib->ht);
 	kfree(fib);
 }
@@ -581,6 +595,9 @@ mlxsw_sp_lpm_tree_create(struct mlxsw_sp *mlxsw_sp,
 		goto err_left_struct_set;
 	memcpy(&lpm_tree->prefix_usage, prefix_usage,
 	       sizeof(lpm_tree->prefix_usage));
+	memset(&lpm_tree->prefix_ref_count, 0,
+	       sizeof(lpm_tree->prefix_ref_count));
+	lpm_tree->ref_count = 1;
 	return lpm_tree;
 
 err_left_struct_set:
@@ -607,8 +624,10 @@ mlxsw_sp_lpm_tree_get(struct mlxsw_sp *mlxsw_sp,
 		if (lpm_tree->ref_count != 0 &&
 		    lpm_tree->proto == proto &&
 		    mlxsw_sp_prefix_usage_eq(&lpm_tree->prefix_usage,
-					     prefix_usage))
+					     prefix_usage)) {
+			mlxsw_sp_lpm_tree_hold(lpm_tree);
 			return lpm_tree;
+		}
 	}
 	return mlxsw_sp_lpm_tree_create(mlxsw_sp, prefix_usage, proto);
 }
@@ -629,9 +648,10 @@ static void mlxsw_sp_lpm_tree_put(struct mlxsw_sp *mlxsw_sp,
 
 static int mlxsw_sp_lpm_init(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_sp_prefix_usage req_prefix_usage = {{ 0 } };
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	u64 max_trees;
-	int i;
+	int err, i;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_LPM_TREES))
 		return -EIO;
@@ -649,11 +669,42 @@ static int mlxsw_sp_lpm_init(struct mlxsw_sp *mlxsw_sp)
 		lpm_tree->id = i + MLXSW_SP_LPM_TREE_MIN;
 	}
 
+	lpm_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, &req_prefix_usage,
+					 MLXSW_SP_L3_PROTO_IPV4);
+	if (IS_ERR(lpm_tree)) {
+		err = PTR_ERR(lpm_tree);
+		goto err_ipv4_tree_get;
+	}
+	mlxsw_sp->router->lpm.proto_trees[MLXSW_SP_L3_PROTO_IPV4] = lpm_tree;
+
+	lpm_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, &req_prefix_usage,
+					 MLXSW_SP_L3_PROTO_IPV6);
+	if (IS_ERR(lpm_tree)) {
+		err = PTR_ERR(lpm_tree);
+		goto err_ipv6_tree_get;
+	}
+	mlxsw_sp->router->lpm.proto_trees[MLXSW_SP_L3_PROTO_IPV6] = lpm_tree;
+
 	return 0;
+
+err_ipv6_tree_get:
+	lpm_tree = mlxsw_sp->router->lpm.proto_trees[MLXSW_SP_L3_PROTO_IPV4];
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, lpm_tree);
+err_ipv4_tree_get:
+	kfree(mlxsw_sp->router->lpm.trees);
+	return err;
 }
 
 static void mlxsw_sp_lpm_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_sp_lpm_tree *lpm_tree;
+
+	lpm_tree = mlxsw_sp->router->lpm.proto_trees[MLXSW_SP_L3_PROTO_IPV6];
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, lpm_tree);
+
+	lpm_tree = mlxsw_sp->router->lpm.proto_trees[MLXSW_SP_L3_PROTO_IPV4];
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, lpm_tree);
+
 	kfree(mlxsw_sp->router->lpm.trees);
 }
 
@@ -745,10 +796,10 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_create(struct mlxsw_sp *mlxsw_sp,
 		NL_SET_ERR_MSG(extack, "spectrum: Exceeded number of supported virtual routers");
 		return ERR_PTR(-EBUSY);
 	}
-	vr->fib4 = mlxsw_sp_fib_create(vr, MLXSW_SP_L3_PROTO_IPV4);
+	vr->fib4 = mlxsw_sp_fib_create(mlxsw_sp, vr, MLXSW_SP_L3_PROTO_IPV4);
 	if (IS_ERR(vr->fib4))
 		return ERR_CAST(vr->fib4);
-	vr->fib6 = mlxsw_sp_fib_create(vr, MLXSW_SP_L3_PROTO_IPV6);
+	vr->fib6 = mlxsw_sp_fib_create(mlxsw_sp, vr, MLXSW_SP_L3_PROTO_IPV6);
 	if (IS_ERR(vr->fib6)) {
 		err = PTR_ERR(vr->fib6);
 		goto err_fib6_create;
@@ -763,21 +814,22 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_create(struct mlxsw_sp *mlxsw_sp,
 	return vr;
 
 err_mr_table_create:
-	mlxsw_sp_fib_destroy(vr->fib6);
+	mlxsw_sp_fib_destroy(mlxsw_sp, vr->fib6);
 	vr->fib6 = NULL;
 err_fib6_create:
-	mlxsw_sp_fib_destroy(vr->fib4);
+	mlxsw_sp_fib_destroy(mlxsw_sp, vr->fib4);
 	vr->fib4 = NULL;
 	return ERR_PTR(err);
 }
 
-static void mlxsw_sp_vr_destroy(struct mlxsw_sp_vr *vr)
+static void mlxsw_sp_vr_destroy(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_vr *vr)
 {
 	mlxsw_sp_mr_table_destroy(vr->mr4_table);
 	vr->mr4_table = NULL;
-	mlxsw_sp_fib_destroy(vr->fib6);
+	mlxsw_sp_fib_destroy(mlxsw_sp, vr->fib6);
 	vr->fib6 = NULL;
-	mlxsw_sp_fib_destroy(vr->fib4);
+	mlxsw_sp_fib_destroy(mlxsw_sp, vr->fib4);
 	vr->fib4 = NULL;
 }
 
@@ -793,12 +845,12 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_get(struct mlxsw_sp *mlxsw_sp, u32 tb_id,
 	return vr;
 }
 
-static void mlxsw_sp_vr_put(struct mlxsw_sp_vr *vr)
+static void mlxsw_sp_vr_put(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr)
 {
 	if (!vr->rif_count && list_empty(&vr->fib4->node_list) &&
 	    list_empty(&vr->fib6->node_list) &&
 	    mlxsw_sp_mr_table_empty(vr->mr4_table))
-		mlxsw_sp_vr_destroy(vr);
+		mlxsw_sp_vr_destroy(mlxsw_sp, vr);
 }
 
 static bool
@@ -809,7 +861,7 @@ mlxsw_sp_vr_lpm_tree_should_replace(struct mlxsw_sp_vr *vr,
 
 	if (!mlxsw_sp_vr_is_used(vr))
 		return false;
-	if (fib->lpm_tree && fib->lpm_tree->id == tree_id)
+	if (fib->lpm_tree->id == tree_id)
 		return true;
 	return false;
 }
@@ -821,27 +873,31 @@ static int mlxsw_sp_vr_lpm_tree_replace(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_lpm_tree *old_tree = fib->lpm_tree;
 	int err;
 
-	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
-	if (err)
-		return err;
 	fib->lpm_tree = new_tree;
 	mlxsw_sp_lpm_tree_hold(new_tree);
+	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
+	if (err)
+		goto err_tree_bind;
 	mlxsw_sp_lpm_tree_put(mlxsw_sp, old_tree);
 	return 0;
+
+err_tree_bind:
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, new_tree);
+	fib->lpm_tree = old_tree;
+	return err;
 }
 
 static int mlxsw_sp_vrs_lpm_tree_replace(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_fib *fib,
 					 struct mlxsw_sp_lpm_tree *new_tree)
 {
-	struct mlxsw_sp_lpm_tree *old_tree = fib->lpm_tree;
 	enum mlxsw_sp_l3proto proto = fib->proto;
+	struct mlxsw_sp_lpm_tree *old_tree;
 	u8 old_id, new_id = new_tree->id;
 	struct mlxsw_sp_vr *vr;
 	int i, err;
 
-	if (!old_tree)
-		goto no_replace;
+	old_tree = mlxsw_sp->router->lpm.proto_trees[proto];
 	old_id = old_tree->id;
 
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
@@ -855,6 +911,11 @@ static int mlxsw_sp_vrs_lpm_tree_replace(struct mlxsw_sp *mlxsw_sp,
 			goto err_tree_replace;
 	}
 
+	memcpy(new_tree->prefix_ref_count, old_tree->prefix_ref_count,
+	       sizeof(new_tree->prefix_ref_count));
+	mlxsw_sp->router->lpm.proto_trees[proto] = new_tree;
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, old_tree);
+
 	return 0;
 
 err_tree_replace:
@@ -866,33 +927,6 @@ err_tree_replace:
 					     old_tree);
 	}
 	return err;
-
-no_replace:
-	err = mlxsw_sp_vr_lpm_tree_bind(mlxsw_sp, fib, new_tree->id);
-	if (err)
-		return err;
-	fib->lpm_tree = new_tree;
-	mlxsw_sp_lpm_tree_hold(new_tree);
-	return 0;
-}
-
-static void
-mlxsw_sp_vrs_prefixes(struct mlxsw_sp *mlxsw_sp,
-		      enum mlxsw_sp_l3proto proto,
-		      struct mlxsw_sp_prefix_usage *req_prefix_usage)
-{
-	int i;
-
-	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
-		struct mlxsw_sp_vr *vr = &mlxsw_sp->router->vrs[i];
-		struct mlxsw_sp_fib *fib = mlxsw_sp_vr_fib(vr, proto);
-		unsigned char prefix;
-
-		if (!mlxsw_sp_vr_is_used(vr))
-			continue;
-		mlxsw_sp_prefix_usage_for_each(prefix, &fib->prefix_usage)
-			mlxsw_sp_prefix_usage_set(req_prefix_usage, prefix);
-	}
 }
 
 static int mlxsw_sp_vrs_init(struct mlxsw_sp *mlxsw_sp)
@@ -1934,11 +1968,8 @@ static void mlxsw_sp_router_neigh_ent_ipv4_process(struct mlxsw_sp *mlxsw_sp,
 	dipn = htonl(dip);
 	dev = mlxsw_sp->router->rifs[rif]->dev;
 	n = neigh_lookup(&arp_tbl, &dipn, dev);
-	if (!n) {
-		netdev_err(dev, "Failed to find matching neighbour for IP=%pI4h\n",
-			   &dip);
+	if (!n)
 		return;
-	}
 
 	netdev_dbg(dev, "Updating neighbour with IP=%pI4h\n", &dip);
 	neigh_event_send(n, NULL);
@@ -1965,11 +1996,8 @@ static void mlxsw_sp_router_neigh_ent_ipv6_process(struct mlxsw_sp *mlxsw_sp,
 
 	dev = mlxsw_sp->router->rifs[rif]->dev;
 	n = neigh_lookup(&nd_tbl, &dip, dev);
-	if (!n) {
-		netdev_err(dev, "Failed to find matching neighbour for IP=%pI6c\n",
-			   &dip);
+	if (!n)
 		return;
-	}
 
 	netdev_dbg(dev, "Updating neighbour with IP=%pI6c\n", &dip);
 	neigh_event_send(n, NULL);
@@ -2436,25 +2464,16 @@ static void mlxsw_sp_neigh_fini(struct mlxsw_sp *mlxsw_sp)
 	rhashtable_destroy(&mlxsw_sp->router->neigh_ht);
 }
 
-static int mlxsw_sp_neigh_rif_flush(struct mlxsw_sp *mlxsw_sp,
-				    const struct mlxsw_sp_rif *rif)
-{
-	char rauht_pl[MLXSW_REG_RAUHT_LEN];
-
-	mlxsw_reg_rauht_pack(rauht_pl, MLXSW_REG_RAUHT_OP_WRITE_DELETE_ALL,
-			     rif->rif_index, rif->addr);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rauht), rauht_pl);
-}
-
 static void mlxsw_sp_neigh_rif_gone_sync(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_rif *rif)
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry, *tmp;
 
-	mlxsw_sp_neigh_rif_flush(mlxsw_sp, rif);
 	list_for_each_entry_safe(neigh_entry, tmp, &rif->neigh_list,
-				 rif_list_node)
+				 rif_list_node) {
+		mlxsw_sp_neigh_entry_update(mlxsw_sp, neigh_entry, false);
 		mlxsw_sp_neigh_entry_destroy(mlxsw_sp, neigh_entry);
+	}
 }
 
 enum mlxsw_sp_nexthop_type {
@@ -2637,7 +2656,8 @@ struct mlxsw_sp_nexthop_group_cmp_arg {
 
 static bool
 mlxsw_sp_nexthop6_group_has_nexthop(const struct mlxsw_sp_nexthop_group *nh_grp,
-				    const struct in6_addr *gw, int ifindex)
+				    const struct in6_addr *gw, int ifindex,
+				    int weight)
 {
 	int i;
 
@@ -2645,7 +2665,7 @@ mlxsw_sp_nexthop6_group_has_nexthop(const struct mlxsw_sp_nexthop_group *nh_grp,
 		const struct mlxsw_sp_nexthop *nh;
 
 		nh = &nh_grp->nexthops[i];
-		if (nh->ifindex == ifindex &&
+		if (nh->ifindex == ifindex && nh->nh_weight == weight &&
 		    ipv6_addr_equal(gw, (struct in6_addr *) nh->gw_addr))
 			return true;
 	}
@@ -2664,11 +2684,13 @@ mlxsw_sp_nexthop6_group_cmp(const struct mlxsw_sp_nexthop_group *nh_grp,
 
 	list_for_each_entry(mlxsw_sp_rt6, &fib6_entry->rt6_list, list) {
 		struct in6_addr *gw;
-		int ifindex;
+		int ifindex, weight;
 
 		ifindex = mlxsw_sp_rt6->rt->dst.dev->ifindex;
+		weight = mlxsw_sp_rt6->rt->rt6i_nh_weight;
 		gw = &mlxsw_sp_rt6->rt->rt6i_gateway;
-		if (!mlxsw_sp_nexthop6_group_has_nexthop(nh_grp, gw, ifindex))
+		if (!mlxsw_sp_nexthop6_group_has_nexthop(nh_grp, gw, ifindex,
+							 weight))
 			return false;
 	}
 
@@ -3237,7 +3259,7 @@ static void __mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp_nexthop *nh,
 {
 	if (!removing)
 		nh->should_offload = 1;
-	else if (nh->offloaded)
+	else
 		nh->should_offload = 0;
 	nh->update = 1;
 }
@@ -4199,68 +4221,66 @@ mlxsw_sp_fib_node_entry_is_first(const struct mlxsw_sp_fib_node *fib_node,
 }
 
 static int mlxsw_sp_fib_lpm_tree_link(struct mlxsw_sp *mlxsw_sp,
-				      struct mlxsw_sp_fib *fib,
 				      struct mlxsw_sp_fib_node *fib_node)
 {
-	struct mlxsw_sp_prefix_usage req_prefix_usage = {{ 0 } };
+	struct mlxsw_sp_prefix_usage req_prefix_usage;
+	struct mlxsw_sp_fib *fib = fib_node->fib;
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	int err;
 
-	/* Since the tree is shared between all virtual routers we must
-	 * make sure it contains all the required prefix lengths. This
-	 * can be computed by either adding the new prefix length to the
-	 * existing prefix usage of a bound tree, or by aggregating the
-	 * prefix lengths across all virtual routers and adding the new
-	 * one as well.
-	 */
-	if (fib->lpm_tree)
-		mlxsw_sp_prefix_usage_cpy(&req_prefix_usage,
-					  &fib->lpm_tree->prefix_usage);
-	else
-		mlxsw_sp_vrs_prefixes(mlxsw_sp, fib->proto, &req_prefix_usage);
-	mlxsw_sp_prefix_usage_set(&req_prefix_usage, fib_node->key.prefix_len);
+	lpm_tree = mlxsw_sp->router->lpm.proto_trees[fib->proto];
+	if (lpm_tree->prefix_ref_count[fib_node->key.prefix_len] != 0)
+		goto out;
 
+	mlxsw_sp_prefix_usage_cpy(&req_prefix_usage, &lpm_tree->prefix_usage);
+	mlxsw_sp_prefix_usage_set(&req_prefix_usage, fib_node->key.prefix_len);
 	lpm_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, &req_prefix_usage,
 					 fib->proto);
 	if (IS_ERR(lpm_tree))
 		return PTR_ERR(lpm_tree);
 
-	if (fib->lpm_tree && fib->lpm_tree->id == lpm_tree->id)
-		return 0;
-
 	err = mlxsw_sp_vrs_lpm_tree_replace(mlxsw_sp, fib, lpm_tree);
 	if (err)
-		return err;
+		goto err_lpm_tree_replace;
 
+out:
+	lpm_tree->prefix_ref_count[fib_node->key.prefix_len]++;
 	return 0;
+
+err_lpm_tree_replace:
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, lpm_tree);
+	return err;
 }
 
 static void mlxsw_sp_fib_lpm_tree_unlink(struct mlxsw_sp *mlxsw_sp,
-					 struct mlxsw_sp_fib *fib)
+					 struct mlxsw_sp_fib_node *fib_node)
 {
-	if (!mlxsw_sp_prefix_usage_none(&fib->prefix_usage))
+	struct mlxsw_sp_lpm_tree *lpm_tree = fib_node->fib->lpm_tree;
+	struct mlxsw_sp_prefix_usage req_prefix_usage;
+	struct mlxsw_sp_fib *fib = fib_node->fib;
+	int err;
+
+	if (--lpm_tree->prefix_ref_count[fib_node->key.prefix_len] != 0)
 		return;
-	mlxsw_sp_vr_lpm_tree_unbind(mlxsw_sp, fib);
-	mlxsw_sp_lpm_tree_put(mlxsw_sp, fib->lpm_tree);
-	fib->lpm_tree = NULL;
-}
+	/* Try to construct a new LPM tree from the current prefix usage
+	 * minus the unused one. If we fail, continue using the old one.
+	 */
+	mlxsw_sp_prefix_usage_cpy(&req_prefix_usage, &lpm_tree->prefix_usage);
+	mlxsw_sp_prefix_usage_clear(&req_prefix_usage,
+				    fib_node->key.prefix_len);
+	lpm_tree = mlxsw_sp_lpm_tree_get(mlxsw_sp, &req_prefix_usage,
+					 fib->proto);
+	if (IS_ERR(lpm_tree))
+		return;
 
-static void mlxsw_sp_fib_node_prefix_inc(struct mlxsw_sp_fib_node *fib_node)
-{
-	unsigned char prefix_len = fib_node->key.prefix_len;
-	struct mlxsw_sp_fib *fib = fib_node->fib;
+	err = mlxsw_sp_vrs_lpm_tree_replace(mlxsw_sp, fib, lpm_tree);
+	if (err)
+		goto err_lpm_tree_replace;
 
-	if (fib->prefix_ref_count[prefix_len]++ == 0)
-		mlxsw_sp_prefix_usage_set(&fib->prefix_usage, prefix_len);
-}
+	return;
 
-static void mlxsw_sp_fib_node_prefix_dec(struct mlxsw_sp_fib_node *fib_node)
-{
-	unsigned char prefix_len = fib_node->key.prefix_len;
-	struct mlxsw_sp_fib *fib = fib_node->fib;
-
-	if (--fib->prefix_ref_count[prefix_len] == 0)
-		mlxsw_sp_prefix_usage_clear(&fib->prefix_usage, prefix_len);
+err_lpm_tree_replace:
+	mlxsw_sp_lpm_tree_put(mlxsw_sp, lpm_tree);
 }
 
 static int mlxsw_sp_fib_node_init(struct mlxsw_sp *mlxsw_sp,
@@ -4274,11 +4294,9 @@ static int mlxsw_sp_fib_node_init(struct mlxsw_sp *mlxsw_sp,
 		return err;
 	fib_node->fib = fib;
 
-	err = mlxsw_sp_fib_lpm_tree_link(mlxsw_sp, fib, fib_node);
+	err = mlxsw_sp_fib_lpm_tree_link(mlxsw_sp, fib_node);
 	if (err)
 		goto err_fib_lpm_tree_link;
-
-	mlxsw_sp_fib_node_prefix_inc(fib_node);
 
 	return 0;
 
@@ -4293,8 +4311,7 @@ static void mlxsw_sp_fib_node_fini(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_fib *fib = fib_node->fib;
 
-	mlxsw_sp_fib_node_prefix_dec(fib_node);
-	mlxsw_sp_fib_lpm_tree_unlink(mlxsw_sp, fib);
+	mlxsw_sp_fib_lpm_tree_unlink(mlxsw_sp, fib_node);
 	fib_node->fib = NULL;
 	mlxsw_sp_fib_node_remove(fib, fib_node);
 }
@@ -4333,7 +4350,7 @@ mlxsw_sp_fib_node_get(struct mlxsw_sp *mlxsw_sp, u32 tb_id, const void *addr,
 err_fib_node_init:
 	mlxsw_sp_fib_node_destroy(fib_node);
 err_fib_node_create:
-	mlxsw_sp_vr_put(vr);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
 	return ERR_PTR(err);
 }
 
@@ -4346,7 +4363,7 @@ static void mlxsw_sp_fib_node_put(struct mlxsw_sp *mlxsw_sp,
 		return;
 	mlxsw_sp_fib_node_fini(mlxsw_sp, fib_node);
 	mlxsw_sp_fib_node_destroy(fib_node);
-	mlxsw_sp_vr_put(vr);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
 
 static struct mlxsw_sp_fib4_entry *
@@ -4771,7 +4788,7 @@ static int mlxsw_sp_nexthop6_init(struct mlxsw_sp *mlxsw_sp,
 	struct net_device *dev = rt->dst.dev;
 
 	nh->nh_grp = nh_grp;
-	nh->nh_weight = 1;
+	nh->nh_weight = rt->rt6i_nh_weight;
 	memcpy(&nh->gw_addr, &rt->rt6i_gateway, sizeof(nh->gw_addr));
 	mlxsw_sp_nexthop_counter_alloc(mlxsw_sp, nh);
 
@@ -5369,7 +5386,7 @@ static void mlxsw_sp_router_fibmr_del(struct mlxsw_sp *mlxsw_sp,
 		return;
 
 	mlxsw_sp_mr_route4_del(vr->mr4_table, men_info->mfc);
-	mlxsw_sp_vr_put(vr);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
 
 static int
@@ -5406,7 +5423,7 @@ mlxsw_sp_router_fibmr_vif_del(struct mlxsw_sp *mlxsw_sp,
 		return;
 
 	mlxsw_sp_mr_vif_del(vr->mr4_table, ven_info->vif_index);
-	mlxsw_sp_vr_put(vr);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
 
 static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
@@ -6055,7 +6072,7 @@ err_fid_get:
 err_rif_alloc:
 err_rif_index_alloc:
 	vr->rif_count--;
-	mlxsw_sp_vr_put(vr);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
 	return ERR_PTR(err);
 }
 
@@ -6078,7 +6095,7 @@ void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 		mlxsw_sp_fid_put(fid);
 	kfree(rif);
 	vr->rif_count--;
-	mlxsw_sp_vr_put(vr);
+	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
 
 static void
@@ -6868,7 +6885,7 @@ mlxsw_sp_rif_ipip_lb_configure(struct mlxsw_sp_rif *rif)
 	return 0;
 
 err_loopback_op:
-	mlxsw_sp_vr_put(ul_vr);
+	mlxsw_sp_vr_put(mlxsw_sp, ul_vr);
 	return err;
 }
 
@@ -6882,7 +6899,7 @@ static void mlxsw_sp_rif_ipip_lb_deconfigure(struct mlxsw_sp_rif *rif)
 	mlxsw_sp_rif_ipip_lb_op(lb_rif, ul_vr, false);
 
 	--ul_vr->rif_count;
-	mlxsw_sp_vr_put(ul_vr);
+	mlxsw_sp_vr_put(mlxsw_sp, ul_vr);
 }
 
 static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_ipip_lb_ops = {
@@ -7017,6 +7034,24 @@ static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
 }
 #endif
 
+static int mlxsw_sp_dscp_init(struct mlxsw_sp *mlxsw_sp)
+{
+	char rdpm_pl[MLXSW_REG_RDPM_LEN];
+	unsigned int i;
+
+	MLXSW_REG_ZERO(rdpm, rdpm_pl);
+
+	/* HW is determining switch priority based on DSCP-bits, but the
+	 * kernel is still doing that based on the ToS. Since there's a
+	 * mismatch in bits we need to make sure to translate the right
+	 * value ToS would observe, skipping the 2 least-significant ECN bits.
+	 */
+	for (i = 0; i < MLXSW_REG_RDPM_DSCP_ENTRY_REC_MAX_COUNT; i++)
+		mlxsw_reg_rdpm_pack(rdpm_pl, i, rt_tos2priority(i << 2));
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rdpm), rdpm_pl);
+}
+
 static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char rgcr_pl[MLXSW_REG_RGCR_LEN];
@@ -7029,6 +7064,7 @@ static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 
 	mlxsw_reg_rgcr_pack(rgcr_pl, true, true);
 	mlxsw_reg_rgcr_max_router_interfaces_set(rgcr_pl, max_rifs);
+	mlxsw_reg_rgcr_usp_set(rgcr_pl, true);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rgcr), rgcr_pl);
 	if (err)
 		return err;
@@ -7104,6 +7140,10 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_mp_hash_init;
 
+	err = mlxsw_sp_dscp_init(mlxsw_sp);
+	if (err)
+		goto err_dscp_init;
+
 	mlxsw_sp->router->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
 	err = register_fib_notifier(&mlxsw_sp->router->fib_nb,
 				    mlxsw_sp_router_fib_dump_flush);
@@ -7113,6 +7153,7 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 
 err_register_fib_notifier:
+err_dscp_init:
 err_mp_hash_init:
 	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
 err_register_netevent_notifier:

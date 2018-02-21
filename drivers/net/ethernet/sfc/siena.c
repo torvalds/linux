@@ -242,6 +242,14 @@ static int siena_dimension_resources(struct efx_nic *efx)
 	return 0;
 }
 
+/* On all Falcon-architecture NICs, PFs use BAR 0 for I/O space and BAR 2(&3)
+ * for memory.
+ */
+static unsigned int siena_mem_bar(struct efx_nic *efx)
+{
+	return 2;
+}
+
 static unsigned int siena_mem_map_size(struct efx_nic *efx)
 {
 	return FR_CZ_MC_TREG_SMEM +
@@ -547,7 +555,7 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 
 	dma_stats = efx->stats_buffer.addr;
 
-	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
+	generation_end = dma_stats[efx->num_mac_stats - 1];
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
 		return 0;
 	rmb();
@@ -950,7 +958,7 @@ fail:
 
 const struct efx_nic_type siena_a0_nic_type = {
 	.is_vf = false,
-	.mem_bar = EFX_MEM_BAR,
+	.mem_bar = siena_mem_bar,
 	.mem_map_size = siena_mem_map_size,
 	.probe = siena_probe_nic,
 	.remove = siena_remove_nic,

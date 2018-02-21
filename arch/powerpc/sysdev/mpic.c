@@ -1008,9 +1008,8 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 	if (hw == mpic->spurious_vec)
 		return -EINVAL;
 	if (mpic->protected && test_bit(hw, mpic->protected)) {
-		pr_warning("mpic: Mapping of source 0x%x failed, "
-			   "source protected by firmware !\n",\
-			   (unsigned int)hw);
+		pr_warn("mpic: Mapping of source 0x%x failed, source protected by firmware !\n",
+			(unsigned int)hw);
 		return -EPERM;
 	}
 
@@ -1040,9 +1039,8 @@ static int mpic_host_map(struct irq_domain *h, unsigned int virq,
 		return 0;
 
 	if (hw >= mpic->num_sources) {
-		pr_warning("mpic: Mapping of source 0x%x failed, "
-			   "source out of range !\n",\
-			   (unsigned int)hw);
+		pr_warn("mpic: Mapping of source 0x%x failed, source out of range !\n",
+			(unsigned int)hw);
 		return -EINVAL;
 	}
 

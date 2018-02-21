@@ -391,11 +391,11 @@ again:
 		if (pmd_protnone(pmd))
 			return hmm_vma_walk_clear(start, end, walk);
 
-		if (!pmd_access_permitted(pmd, write_fault))
+		if (write_fault && !pmd_write(pmd))
 			return hmm_vma_walk_clear(start, end, walk);
 
 		pfn = pmd_pfn(pmd) + pte_index(addr);
-		flag |= pmd_access_permitted(pmd, WRITE) ? HMM_PFN_WRITE : 0;
+		flag |= pmd_write(pmd) ? HMM_PFN_WRITE : 0;
 		for (; addr < end; addr += PAGE_SIZE, i++, pfn++)
 			pfns[i] = hmm_pfn_t_from_pfn(pfn) | flag;
 		return 0;
@@ -418,15 +418,13 @@ again:
 		}
 
 		if (!pte_present(pte)) {
-			swp_entry_t entry;
+			swp_entry_t entry = pte_to_swp_entry(pte);
 
 			if (!non_swap_entry(entry)) {
 				if (hmm_vma_walk->fault)
 					goto fault;
 				continue;
 			}
-
-			entry = pte_to_swp_entry(pte);
 
 			/*
 			 * This is a special swap entry, ignore migration, use
@@ -456,11 +454,11 @@ again:
 			continue;
 		}
 
-		if (!pte_access_permitted(pte, write_fault))
+		if (write_fault && !pte_write(pte))
 			goto fault;
 
 		pfns[i] = hmm_pfn_t_from_pfn(pte_pfn(pte)) | flag;
-		pfns[i] |= pte_access_permitted(pte, WRITE) ? HMM_PFN_WRITE : 0;
+		pfns[i] |= pte_write(pte) ? HMM_PFN_WRITE : 0;
 		continue;
 
 fault:
@@ -838,10 +836,10 @@ static void hmm_devmem_release(struct device *dev, void *data)
 
 	mem_hotplug_begin();
 	if (resource->desc == IORES_DESC_DEVICE_PRIVATE_MEMORY)
-		__remove_pages(zone, start_pfn, npages);
+		__remove_pages(zone, start_pfn, npages, NULL);
 	else
 		arch_remove_memory(start_pfn << PAGE_SHIFT,
-				   npages << PAGE_SHIFT);
+				   npages << PAGE_SHIFT, NULL);
 	mem_hotplug_done();
 
 	hmm_devmem_radix_release(resource);
@@ -882,7 +880,7 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
 	else
 		devmem->pagemap.type = MEMORY_DEVICE_PRIVATE;
 
-	devmem->pagemap.res = devmem->resource;
+	devmem->pagemap.res = *devmem->resource;
 	devmem->pagemap.page_fault = hmm_devmem_fault;
 	devmem->pagemap.page_free = hmm_devmem_free;
 	devmem->pagemap.dev = devmem->device;
@@ -931,17 +929,18 @@ static int hmm_devmem_pages_create(struct hmm_devmem *devmem)
 	 * want the linear mapping and thus use arch_add_memory().
 	 */
 	if (devmem->pagemap.type == MEMORY_DEVICE_PUBLIC)
-		ret = arch_add_memory(nid, align_start, align_size, false);
+		ret = arch_add_memory(nid, align_start, align_size, NULL,
+				false);
 	else
 		ret = add_pages(nid, align_start >> PAGE_SHIFT,
-				align_size >> PAGE_SHIFT, false);
+				align_size >> PAGE_SHIFT, NULL, false);
 	if (ret) {
 		mem_hotplug_done();
 		goto error_add_memory;
 	}
 	move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
 				align_start >> PAGE_SHIFT,
-				align_size >> PAGE_SHIFT);
+				align_size >> PAGE_SHIFT, NULL);
 	mem_hotplug_done();
 
 	for (pfn = devmem->pfn_first; pfn < devmem->pfn_last; pfn++) {

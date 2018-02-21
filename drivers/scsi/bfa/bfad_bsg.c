@@ -127,7 +127,7 @@ bfad_iocmd_ioc_get_attr(struct bfad_s *bfad, void *cmd)
 
 	/* fill in driver attr info */
 	strcpy(iocmd->ioc_attr.driver_attr.driver, BFAD_DRIVER_NAME);
-	strncpy(iocmd->ioc_attr.driver_attr.driver_ver,
+	strlcpy(iocmd->ioc_attr.driver_attr.driver_ver,
 		BFAD_DRIVER_VERSION, BFA_VERSION_LEN);
 	strcpy(iocmd->ioc_attr.driver_attr.fw_ver,
 		iocmd->ioc_attr.adapter_attr.fw_ver);
@@ -315,9 +315,9 @@ bfad_iocmd_port_get_attr(struct bfad_s *bfad, void *cmd)
 	iocmd->attr.port_type = port_attr.port_type;
 	iocmd->attr.loopback = port_attr.loopback;
 	iocmd->attr.authfail = port_attr.authfail;
-	strncpy(iocmd->attr.port_symname.symname,
+	strlcpy(iocmd->attr.port_symname.symname,
 		port_attr.port_cfg.sym_name.symname,
-		sizeof(port_attr.port_cfg.sym_name.symname));
+		sizeof(iocmd->attr.port_symname.symname));
 
 	iocmd->status = BFA_STATUS_OK;
 	return 0;
@@ -2094,13 +2094,11 @@ bfad_iocmd_fcpim_cfg_profile(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
 {
 	struct bfa_bsg_fcpim_profile_s *iocmd =
 				(struct bfa_bsg_fcpim_profile_s *)cmd;
-	struct timeval  tv;
 	unsigned long	flags;
 
-	do_gettimeofday(&tv);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	if (v_cmd == IOCMD_FCPIM_PROFILE_ON)
-		iocmd->status = bfa_fcpim_profile_on(&bfad->bfa, tv.tv_sec);
+		iocmd->status = bfa_fcpim_profile_on(&bfad->bfa, ktime_get_real_seconds());
 	else if (v_cmd == IOCMD_FCPIM_PROFILE_OFF)
 		iocmd->status = bfa_fcpim_profile_off(&bfad->bfa);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -3135,7 +3133,8 @@ bfad_im_bsg_vendor_request(struct bsg_job *job)
 	struct fc_bsg_request *bsg_request = job->request;
 	struct fc_bsg_reply *bsg_reply = job->reply;
 	uint32_t vendor_cmd = bsg_request->rqst_data.h_vendor.vendor_cmd[0];
-	struct bfad_im_port_s *im_port = shost_priv(fc_bsg_to_shost(job));
+	struct Scsi_Host *shost = fc_bsg_to_shost(job);
+	struct bfad_im_port_s *im_port = bfad_get_im_port(shost);
 	struct bfad_s *bfad = im_port->bfad;
 	void *payload_kbuf;
 	int rc = -EINVAL;
@@ -3350,7 +3349,8 @@ int
 bfad_im_bsg_els_ct_request(struct bsg_job *job)
 {
 	struct bfa_bsg_data *bsg_data;
-	struct bfad_im_port_s *im_port = shost_priv(fc_bsg_to_shost(job));
+	struct Scsi_Host *shost = fc_bsg_to_shost(job);
+	struct bfad_im_port_s *im_port = bfad_get_im_port(shost);
 	struct bfad_s *bfad = im_port->bfad;
 	bfa_bsg_fcpt_t *bsg_fcpt;
 	struct bfad_fcxp    *drv_fcxp;

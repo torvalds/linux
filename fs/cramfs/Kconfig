@@ -33,7 +33,7 @@ config CRAMFS_BLOCKDEV
 
 config CRAMFS_MTD
 	bool "Support CramFs image directly mapped in physical memory"
-	depends on CRAMFS && MTD
+	depends on CRAMFS && CRAMFS <= MTD
 	default y if !CRAMFS_BLOCKDEV
 	help
 	  This option allows the CramFs driver to load data directly from

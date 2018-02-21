@@ -51,7 +51,7 @@ enum {
 
 enum {
 	MLX5_NUM_SPARE_EQE	= 0x80,
-	MLX5_NUM_ASYNC_EQE	= 0x100,
+	MLX5_NUM_ASYNC_EQE	= 0x1000,
 	MLX5_NUM_CMD_EQE	= 32,
 	MLX5_NUM_PF_DRAIN	= 64,
 };
@@ -417,7 +417,11 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			cqn = be32_to_cpu(eqe->data.comp.cqn) & 0xffffff;
 			mlx5_cq_completion(dev, cqn);
 			break;
-
+		case MLX5_EVENT_TYPE_DCT_DRAINED:
+			rsn = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
+			rsn |= (MLX5_RES_DCT << MLX5_USER_INDEX_LEN);
+			mlx5_rsc_event(dev, rsn, eqe->type);
+			break;
 		case MLX5_EVENT_TYPE_PATH_MIG:
 		case MLX5_EVENT_TYPE_COMM_EST:
 		case MLX5_EVENT_TYPE_SQ_DRAINED:
@@ -466,7 +470,7 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			break;
 		case MLX5_EVENT_TYPE_CQ_ERROR:
 			cqn = be32_to_cpu(eqe->data.cq_err.cqn) & 0xffffff;
-			mlx5_core_warn(dev, "CQ error on CQN 0x%x, syndrom 0x%x\n",
+			mlx5_core_warn(dev, "CQ error on CQN 0x%x, syndrome 0x%x\n",
 				       cqn, eqe->data.cq_err.syndrome);
 			mlx5_cq_event(dev, cqn, eqe->type);
 			break;
@@ -528,6 +532,24 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 		tasklet_schedule(&eq->tasklet_ctx.task);
 
 	return IRQ_HANDLED;
+}
+
+/* Some architectures don't latch interrupts when they are disabled, so using
+ * mlx5_eq_poll_irq_disabled could end up losing interrupts while trying to
+ * avoid losing them.  It is not recommended to use it, unless this is the last
+ * resort.
+ */
+u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq *eq)
+{
+	u32 count_eqe;
+
+	disable_irq(eq->irqn);
+	count_eqe = eq->cons_index;
+	mlx5_eq_int(eq->irqn, eq);
+	count_eqe = eq->cons_index - count_eqe;
+	enable_irq(eq->irqn);
+
+	return count_eqe;
 }
 
 static void init_eq_buf(struct mlx5_eq *eq)
@@ -715,6 +737,9 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	if (MLX5_CAP_GEN(dev, fpga))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_FPGA_ERROR);
+	if (MLX5_CAP_GEN_MAX(dev, dct))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_DCT_DRAINED);
+
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
@@ -775,7 +800,7 @@ err1:
 	return err;
 }
 
-int mlx5_stop_eqs(struct mlx5_core_dev *dev)
+void mlx5_stop_eqs(struct mlx5_core_dev *dev)
 {
 	struct mlx5_eq_table *table = &dev->priv.eq_table;
 	int err;
@@ -784,22 +809,26 @@ int mlx5_stop_eqs(struct mlx5_core_dev *dev)
 	if (MLX5_CAP_GEN(dev, pg)) {
 		err = mlx5_destroy_unmap_eq(dev, &table->pfault_eq);
 		if (err)
-			return err;
+			mlx5_core_err(dev, "failed to destroy page fault eq, err(%d)\n",
+				      err);
 	}
 #endif
 
 	err = mlx5_destroy_unmap_eq(dev, &table->pages_eq);
 	if (err)
-		return err;
+		mlx5_core_err(dev, "failed to destroy pages eq, err(%d)\n",
+			      err);
 
-	mlx5_destroy_unmap_eq(dev, &table->async_eq);
+	err = mlx5_destroy_unmap_eq(dev, &table->async_eq);
+	if (err)
+		mlx5_core_err(dev, "failed to destroy async eq, err(%d)\n",
+			      err);
 	mlx5_cmd_use_polling(dev);
 
 	err = mlx5_destroy_unmap_eq(dev, &table->cmd_eq);
 	if (err)
-		mlx5_cmd_use_events(dev);
-
-	return err;
+		mlx5_core_err(dev, "failed to destroy command eq, err(%d)\n",
+			      err);
 }
 
 int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,

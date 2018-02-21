@@ -42,6 +42,7 @@
 #include <linux/kern_levels.h>
 
 #include <asm/page.h>
+#include <asm/pat.h>
 #include <asm/cmpxchg.h>
 #include <asm/io.h>
 #include <asm/vmx.h>
@@ -381,7 +382,7 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
-void kvm_mmu_clear_all_pte_masks(void)
+static void kvm_mmu_clear_all_pte_masks(void)
 {
 	shadow_user_mask = 0;
 	shadow_accessed_mask = 0;
@@ -2708,7 +2709,18 @@ static bool mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 {
 	if (pfn_valid(pfn))
-		return !is_zero_pfn(pfn) && PageReserved(pfn_to_page(pfn));
+		return !is_zero_pfn(pfn) && PageReserved(pfn_to_page(pfn)) &&
+			/*
+			 * Some reserved pages, such as those from NVDIMM
+			 * DAX devices, are not for MMIO, and can be mapped
+			 * with cached memory type for better performance.
+			 * However, the above check misconceives those pages
+			 * as MMIO, and results in KVM mapping them with UC
+			 * memory type, which would hurt the performance.
+			 * Therefore, we check the host memory type in addition
+			 * and only treat UC/UC-/WC pages as MMIO.
+			 */
+			(!pat_enabled() || pat_pfn_immune_to_uc_mtrr(pfn));
 
 	return true;
 }
@@ -3395,7 +3407,7 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 		spin_lock(&vcpu->kvm->mmu_lock);
 		if(make_mmu_pages_available(vcpu) < 0) {
 			spin_unlock(&vcpu->kvm->mmu_lock);
-			return 1;
+			return -ENOSPC;
 		}
 		sp = kvm_mmu_get_page(vcpu, 0, 0,
 				vcpu->arch.mmu.shadow_root_level, 1, ACC_ALL);
@@ -3410,7 +3422,7 @@ static int mmu_alloc_direct_roots(struct kvm_vcpu *vcpu)
 			spin_lock(&vcpu->kvm->mmu_lock);
 			if (make_mmu_pages_available(vcpu) < 0) {
 				spin_unlock(&vcpu->kvm->mmu_lock);
-				return 1;
+				return -ENOSPC;
 			}
 			sp = kvm_mmu_get_page(vcpu, i << (30 - PAGE_SHIFT),
 					i << 30, PT32_ROOT_LEVEL, 1, ACC_ALL);
@@ -3450,7 +3462,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		spin_lock(&vcpu->kvm->mmu_lock);
 		if (make_mmu_pages_available(vcpu) < 0) {
 			spin_unlock(&vcpu->kvm->mmu_lock);
-			return 1;
+			return -ENOSPC;
 		}
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0,
 				vcpu->arch.mmu.shadow_root_level, 0, ACC_ALL);
@@ -3487,7 +3499,7 @@ static int mmu_alloc_shadow_roots(struct kvm_vcpu *vcpu)
 		spin_lock(&vcpu->kvm->mmu_lock);
 		if (make_mmu_pages_available(vcpu) < 0) {
 			spin_unlock(&vcpu->kvm->mmu_lock);
-			return 1;
+			return -ENOSPC;
 		}
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30, PT32_ROOT_LEVEL,
 				      0, ACC_ALL);
@@ -3781,7 +3793,8 @@ static int kvm_arch_setup_async_pf(struct kvm_vcpu *vcpu, gva_t gva, gfn_t gfn)
 bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu)
 {
 	if (unlikely(!lapic_in_kernel(vcpu) ||
-		     kvm_event_needs_reinjection(vcpu)))
+		     kvm_event_needs_reinjection(vcpu) ||
+		     vcpu->arch.exception.pending))
 		return false;
 
 	if (!vcpu->arch.apf.delivery_as_pf_vmexit && is_guest_mode(vcpu))
@@ -4950,6 +4963,16 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 	if (mmio_info_in_cache(vcpu, cr2, direct))
 		emulation_type = 0;
 emulate:
+	/*
+	 * On AMD platforms, under certain conditions insn_len may be zero on #NPF.
+	 * This can happen if a guest gets a page-fault on data access but the HW
+	 * table walker is not able to read the instruction page (e.g instruction
+	 * page is not present in memory). In those cases we simply restart the
+	 * guest.
+	 */
+	if (unlikely(insn && !insn_len))
+		return 1;
+
 	er = x86_emulate_instruction(vcpu, cr2, emulation_type, insn, insn_len);
 
 	switch (er) {
@@ -5057,7 +5080,7 @@ void kvm_mmu_uninit_vm(struct kvm *kvm)
 typedef bool (*slot_level_handler) (struct kvm *kvm, struct kvm_rmap_head *rmap_head);
 
 /* The caller should hold mmu-lock before calling this function. */
-static bool
+static __always_inline bool
 slot_handle_level_range(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			slot_level_handler fn, int start_level, int end_level,
 			gfn_t start_gfn, gfn_t end_gfn, bool lock_flush_tlb)
@@ -5087,7 +5110,7 @@ slot_handle_level_range(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	return flush;
 }
 
-static bool
+static __always_inline bool
 slot_handle_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		  slot_level_handler fn, int start_level, int end_level,
 		  bool lock_flush_tlb)
@@ -5098,7 +5121,7 @@ slot_handle_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			lock_flush_tlb);
 }
 
-static bool
+static __always_inline bool
 slot_handle_all_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		      slot_level_handler fn, bool lock_flush_tlb)
 {
@@ -5106,7 +5129,7 @@ slot_handle_all_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 				 PT_MAX_HUGEPAGE_LEVEL, lock_flush_tlb);
 }
 
-static bool
+static __always_inline bool
 slot_handle_large_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			slot_level_handler fn, bool lock_flush_tlb)
 {
@@ -5114,7 +5137,7 @@ slot_handle_large_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 				 PT_MAX_HUGEPAGE_LEVEL, lock_flush_tlb);
 }
 
-static bool
+static __always_inline bool
 slot_handle_leaf(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		 slot_level_handler fn, bool lock_flush_tlb)
 {
@@ -5465,30 +5488,34 @@ static void mmu_destroy_caches(void)
 
 int kvm_mmu_module_init(void)
 {
+	int ret = -ENOMEM;
+
 	kvm_mmu_clear_all_pte_masks();
 
 	pte_list_desc_cache = kmem_cache_create("pte_list_desc",
 					    sizeof(struct pte_list_desc),
 					    0, SLAB_ACCOUNT, NULL);
 	if (!pte_list_desc_cache)
-		goto nomem;
+		goto out;
 
 	mmu_page_header_cache = kmem_cache_create("kvm_mmu_page_header",
 						  sizeof(struct kvm_mmu_page),
 						  0, SLAB_ACCOUNT, NULL);
 	if (!mmu_page_header_cache)
-		goto nomem;
+		goto out;
 
 	if (percpu_counter_init(&kvm_total_used_mmu_pages, 0, GFP_KERNEL))
-		goto nomem;
+		goto out;
 
-	register_shrinker(&mmu_shrinker);
+	ret = register_shrinker(&mmu_shrinker);
+	if (ret)
+		goto out;
 
 	return 0;
 
-nomem:
+out:
 	mmu_destroy_caches();
-	return -ENOMEM;
+	return ret;
 }
 
 /*

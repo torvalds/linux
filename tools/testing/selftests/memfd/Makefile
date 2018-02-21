@@ -12,3 +12,8 @@ fuse_mnt.o: CFLAGS += $(shell pkg-config fuse --cflags)
 include ../lib.mk
 
 $(OUTPUT)/fuse_mnt: LDLIBS += $(shell pkg-config fuse --libs)
+
+$(OUTPUT)/memfd_test: memfd_test.c common.o
+$(OUTPUT)/fuse_test: fuse_test.c common.o
+
+EXTRA_CLEAN = common.o

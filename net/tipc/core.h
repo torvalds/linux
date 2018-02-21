@@ -49,7 +49,6 @@
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/atomic.h>
-#include <asm/hardirq.h>
 #include <linux/netdevice.h>
 #include <linux/in.h>
 #include <linux/list.h>

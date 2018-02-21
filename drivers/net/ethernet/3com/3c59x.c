@@ -602,7 +602,7 @@ struct vortex_private {
 	struct sk_buff* rx_skbuff[RX_RING_SIZE];
 	struct sk_buff* tx_skbuff[TX_RING_SIZE];
 	unsigned int cur_rx, cur_tx;		/* The next free ring entry */
-	unsigned int dirty_rx, dirty_tx;	/* The ring entries to be free()ed. */
+	unsigned int dirty_tx;	/* The ring entries to be free()ed. */
 	struct vortex_extra_stats xstats;	/* NIC-specific extra stats */
 	struct sk_buff *tx_skb;				/* Packet being eaten by bus master ctrl.  */
 	dma_addr_t tx_skb_dma;				/* Allocated DMA address for bus master ctrl DMA.   */
@@ -618,7 +618,6 @@ struct vortex_private {
 
 	/* The remainder are related to chip state, mostly media selection. */
 	struct timer_list timer;			/* Media selection timer. */
-	struct timer_list rx_oom_timer;		/* Rx skb allocation retry timer */
 	int options;						/* User-settable misc. driver options. */
 	unsigned int media_override:4, 		/* Passed-in media type. */
 		default_media:4,				/* Read from the EEPROM/Wn3_Config. */
@@ -760,7 +759,6 @@ static void mdio_sync(struct vortex_private *vp, int bits);
 static int mdio_read(struct net_device *dev, int phy_id, int location);
 static void mdio_write(struct net_device *vp, int phy_id, int location, int value);
 static void vortex_timer(struct timer_list *t);
-static void rx_oom_timer(struct timer_list *t);
 static netdev_tx_t vortex_start_xmit(struct sk_buff *skb,
 				     struct net_device *dev);
 static netdev_tx_t boomerang_start_xmit(struct sk_buff *skb,
@@ -1601,7 +1599,6 @@ vortex_up(struct net_device *dev)
 
 	timer_setup(&vp->timer, vortex_timer, 0);
 	mod_timer(&vp->timer, RUN_AT(media_tbl[dev->if_port].wait));
-	timer_setup(&vp->rx_oom_timer, rx_oom_timer, 0);
 
 	if (vortex_debug > 1)
 		pr_debug("%s: Initial media type %s.\n",
@@ -1676,7 +1673,7 @@ vortex_up(struct net_device *dev)
 	window_write16(vp, 0x0040, 4, Wn4_NetDiag);
 
 	if (vp->full_bus_master_rx) { /* Boomerang bus master. */
-		vp->cur_rx = vp->dirty_rx = 0;
+		vp->cur_rx = 0;
 		/* Initialize the RxEarly register as recommended. */
 		iowrite16(SetRxThreshold + (1536>>2), ioaddr + EL3_CMD);
 		iowrite32(0x0020, ioaddr + PktStatus);
@@ -1729,6 +1726,7 @@ vortex_open(struct net_device *dev)
 	struct vortex_private *vp = netdev_priv(dev);
 	int i;
 	int retval;
+	dma_addr_t dma;
 
 	/* Use the now-standard shared IRQ implementation. */
 	if ((retval = request_irq(dev->irq, vp->full_bus_master_rx ?
@@ -1753,7 +1751,11 @@ vortex_open(struct net_device *dev)
 				break;			/* Bad news!  */
 
 			skb_reserve(skb, NET_IP_ALIGN);	/* Align IP on 16 byte boundaries */
-			vp->rx_ring[i].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data, PKT_BUF_SZ, PCI_DMA_FROMDEVICE));
+			dma = pci_map_single(VORTEX_PCI(vp), skb->data,
+					     PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+			if (dma_mapping_error(&VORTEX_PCI(vp)->dev, dma))
+				break;
+			vp->rx_ring[i].addr = cpu_to_le32(dma);
 		}
 		if (i != RX_RING_SIZE) {
 			pr_emerg("%s: no memory for rx ring\n", dev->name);
@@ -2067,6 +2069,12 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		int len = (skb->len + 3) & ~3;
 		vp->tx_skb_dma = pci_map_single(VORTEX_PCI(vp), skb->data, len,
 						PCI_DMA_TODEVICE);
+		if (dma_mapping_error(&VORTEX_PCI(vp)->dev, vp->tx_skb_dma)) {
+			dev_kfree_skb_any(skb);
+			dev->stats.tx_dropped++;
+			return NETDEV_TX_OK;
+		}
+
 		spin_lock_irq(&vp->window_lock);
 		window_set(vp, 7);
 		iowrite32(vp->tx_skb_dma, ioaddr + Wn7_MasterAddr);
@@ -2593,7 +2601,7 @@ boomerang_rx(struct net_device *dev)
 	int entry = vp->cur_rx % RX_RING_SIZE;
 	void __iomem *ioaddr = vp->ioaddr;
 	int rx_status;
-	int rx_work_limit = vp->dirty_rx + RX_RING_SIZE - vp->cur_rx;
+	int rx_work_limit = RX_RING_SIZE;
 
 	if (vortex_debug > 5)
 		pr_debug("boomerang_rx(): status %4.4x\n", ioread16(ioaddr+EL3_STATUS));
@@ -2614,7 +2622,8 @@ boomerang_rx(struct net_device *dev)
 		} else {
 			/* The packet length: up to 4.5K!. */
 			int pkt_len = rx_status & 0x1fff;
-			struct sk_buff *skb;
+			struct sk_buff *skb, *newskb;
+			dma_addr_t newdma;
 			dma_addr_t dma = le32_to_cpu(vp->rx_ring[entry].addr);
 
 			if (vortex_debug > 4)
@@ -2633,9 +2642,27 @@ boomerang_rx(struct net_device *dev)
 				pci_dma_sync_single_for_device(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				vp->rx_copy++;
 			} else {
+				/* Pre-allocate the replacement skb.  If it or its
+				 * mapping fails then recycle the buffer thats already
+				 * in place
+				 */
+				newskb = netdev_alloc_skb_ip_align(dev, PKT_BUF_SZ);
+				if (!newskb) {
+					dev->stats.rx_dropped++;
+					goto clear_complete;
+				}
+				newdma = pci_map_single(VORTEX_PCI(vp), newskb->data,
+							PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
+				if (dma_mapping_error(&VORTEX_PCI(vp)->dev, newdma)) {
+					dev->stats.rx_dropped++;
+					consume_skb(newskb);
+					goto clear_complete;
+				}
+
 				/* Pass up the skbuff already on the Rx ring. */
 				skb = vp->rx_skbuff[entry];
-				vp->rx_skbuff[entry] = NULL;
+				vp->rx_skbuff[entry] = newskb;
+				vp->rx_ring[entry].addr = cpu_to_le32(newdma);
 				skb_put(skb, pkt_len);
 				pci_unmap_single(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				vp->rx_nocopy++;
@@ -2653,53 +2680,13 @@ boomerang_rx(struct net_device *dev)
 			netif_rx(skb);
 			dev->stats.rx_packets++;
 		}
-		entry = (++vp->cur_rx) % RX_RING_SIZE;
-	}
-	/* Refill the Rx ring buffers. */
-	for (; vp->cur_rx - vp->dirty_rx > 0; vp->dirty_rx++) {
-		struct sk_buff *skb;
-		entry = vp->dirty_rx % RX_RING_SIZE;
-		if (vp->rx_skbuff[entry] == NULL) {
-			skb = netdev_alloc_skb_ip_align(dev, PKT_BUF_SZ);
-			if (skb == NULL) {
-				static unsigned long last_jif;
-				if (time_after(jiffies, last_jif + 10 * HZ)) {
-					pr_warn("%s: memory shortage\n",
-						dev->name);
-					last_jif = jiffies;
-				}
-				if ((vp->cur_rx - vp->dirty_rx) == RX_RING_SIZE)
-					mod_timer(&vp->rx_oom_timer, RUN_AT(HZ * 1));
-				break;			/* Bad news!  */
-			}
 
-			vp->rx_ring[entry].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data, PKT_BUF_SZ, PCI_DMA_FROMDEVICE));
-			vp->rx_skbuff[entry] = skb;
-		}
+clear_complete:
 		vp->rx_ring[entry].status = 0;	/* Clear complete bit. */
 		iowrite16(UpUnstall, ioaddr + EL3_CMD);
+		entry = (++vp->cur_rx) % RX_RING_SIZE;
 	}
 	return 0;
-}
-
-/*
- * If we've hit a total OOM refilling the Rx ring we poll once a second
- * for some memory.  Otherwise there is no way to restart the rx process.
- */
-static void
-rx_oom_timer(struct timer_list *t)
-{
-	struct vortex_private *vp = from_timer(vp, t, rx_oom_timer);
-	struct net_device *dev = vp->mii.dev;
-
-	spin_lock_irq(&vp->lock);
-	if ((vp->cur_rx - vp->dirty_rx) == RX_RING_SIZE)	/* This test is redundant, but makes me feel good */
-		boomerang_rx(dev);
-	if (vortex_debug > 1) {
-		pr_debug("%s: rx_oom_timer %s\n", dev->name,
-			((vp->cur_rx - vp->dirty_rx) != RX_RING_SIZE) ? "succeeded" : "retrying");
-	}
-	spin_unlock_irq(&vp->lock);
 }
 
 static void
@@ -2711,7 +2698,6 @@ vortex_down(struct net_device *dev, int final_down)
 	netdev_reset_queue(dev);
 	netif_stop_queue(dev);
 
-	del_timer_sync(&vp->rx_oom_timer);
 	del_timer_sync(&vp->timer);
 
 	/* Turn off statistics ASAP.  We update dev->stats below. */

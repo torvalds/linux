@@ -207,8 +207,7 @@ void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 		return;
 
 	mutex_lock(&priv->state_lock);
-	if (test_bit(MLX5E_STATE_OPENED, &priv->state))
-		mlx5e_update_stats(priv, true);
+	mlx5e_update_stats(priv);
 	mutex_unlock(&priv->state_lock);
 
 	for (i = 0; i < mlx5e_num_stats_grps; i++)
@@ -296,7 +295,6 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 	struct mlx5e_channels new_channels = {};
 	u32 rx_pending_wqes;
 	u32 min_rq_size;
-	u32 max_rq_size;
 	u8 log_rq_size;
 	u8 log_sq_size;
 	u32 num_mtts;
@@ -315,8 +313,6 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 
 	min_rq_size = mlx5e_rx_wqes_to_packets(priv, rq_wq_type,
 					       1 << mlx5_min_log_rq_size(rq_wq_type));
-	max_rq_size = mlx5e_rx_wqes_to_packets(priv, rq_wq_type,
-					       1 << mlx5_max_log_rq_size(rq_wq_type));
 	rx_pending_wqes = mlx5e_packets_to_rx_wqes(priv, rq_wq_type,
 						   param->rx_pending);
 
@@ -324,12 +320,6 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 		netdev_info(priv->netdev, "%s: rx_pending (%d) < min (%d)\n",
 			    __func__, param->rx_pending,
 			    min_rq_size);
-		return -EINVAL;
-	}
-	if (param->rx_pending > max_rq_size) {
-		netdev_info(priv->netdev, "%s: rx_pending (%d) > max (%d)\n",
-			    __func__, param->rx_pending,
-			    max_rq_size);
 		return -EINVAL;
 	}
 
@@ -345,12 +335,6 @@ int mlx5e_ethtool_set_ringparam(struct mlx5e_priv *priv,
 		netdev_info(priv->netdev, "%s: tx_pending (%d) < min (%d)\n",
 			    __func__, param->tx_pending,
 			    1 << MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE);
-		return -EINVAL;
-	}
-	if (param->tx_pending > (1 << MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE)) {
-		netdev_info(priv->netdev, "%s: tx_pending (%d) > max (%d)\n",
-			    __func__, param->tx_pending,
-			    1 << MLX5E_PARAMS_MAXIMUM_LOG_SQ_SIZE);
 		return -EINVAL;
 	}
 
@@ -480,7 +464,7 @@ int mlx5e_ethtool_get_coalesce(struct mlx5e_priv *priv,
 	coal->rx_max_coalesced_frames = priv->channels.params.rx_cq_moderation.pkts;
 	coal->tx_coalesce_usecs       = priv->channels.params.tx_cq_moderation.usec;
 	coal->tx_max_coalesced_frames = priv->channels.params.tx_cq_moderation.pkts;
-	coal->use_adaptive_rx_coalesce = priv->channels.params.rx_am_enabled;
+	coal->use_adaptive_rx_coalesce = priv->channels.params.rx_dim_enabled;
 
 	return 0;
 }
@@ -534,7 +518,7 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 	new_channels.params.tx_cq_moderation.pkts = coal->tx_max_coalesced_frames;
 	new_channels.params.rx_cq_moderation.usec = coal->rx_coalesce_usecs;
 	new_channels.params.rx_cq_moderation.pkts = coal->rx_max_coalesced_frames;
-	new_channels.params.rx_am_enabled         = !!coal->use_adaptive_rx_coalesce;
+	new_channels.params.rx_dim_enabled        = !!coal->use_adaptive_rx_coalesce;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
@@ -542,7 +526,7 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 	}
 	/* we are opened */
 
-	reset = !!coal->use_adaptive_rx_coalesce != priv->channels.params.rx_am_enabled;
+	reset = !!coal->use_adaptive_rx_coalesce != priv->channels.params.rx_dim_enabled;
 	if (!reset) {
 		mlx5e_set_priv_channels_coalesce(priv, coal);
 		priv->channels.params = new_channels.params;
@@ -1523,8 +1507,10 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 	new_channels.params = priv->channels.params;
 	MLX5E_SET_PFLAG(&new_channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS, new_val);
 
-	mlx5e_set_rq_type_params(priv->mdev, &new_channels.params,
-				 new_channels.params.rq_wq_type);
+	new_channels.params.mpwqe_log_stride_sz =
+		MLX5E_MPWQE_STRIDE_SZ(priv->mdev, new_val);
+	new_channels.params.mpwqe_log_num_strides =
+		MLX5_MPWRQ_LOG_WQE_SZ - new_channels.params.mpwqe_log_stride_sz;
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		priv->channels.params = new_channels.params;
@@ -1536,6 +1522,10 @@ int mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool new_val
 		return err;
 
 	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
+	mlx5e_dbg(DRV, priv, "MLX5E: RxCqeCmprss was turned %s\n",
+		  MLX5E_GET_PFLAG(&priv->channels.params,
+				  MLX5E_PFLAG_RX_CQE_COMPRESS) ? "ON" : "OFF");
+
 	return 0;
 }
 

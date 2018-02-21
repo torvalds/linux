@@ -73,7 +73,7 @@
 				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 0>;
-				eeprom-length = <512>;
+				eeprom-length = <65536>;
 				interrupt-parent = <&gpio0>;
 				interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-controller;
@@ -121,7 +121,7 @@
 					switch0port10: port@10 {
 						reg = <10>;
 						label = "dsa";
-						phy-mode = "xgmii";
+						phy-mode = "xaui";
 						link = <&switch1port10>;
 					};
 				};
@@ -170,7 +170,7 @@
 				#size-cells = <0>;
 				reg = <0>;
 				dsa,member = <0 1>;
-				eeprom-length = <512>;
+				eeprom-length = <65536>;
 				interrupt-parent = <&gpio0>;
 				interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
 				interrupt-controller;
@@ -208,7 +208,7 @@
 					switch1port10: port@10 {
 						reg = <10>;
 						label = "dsa";
-						phy-mode = "xgmii";
+						phy-mode = "xaui";
 						link = <&switch0port10>;
 					};
 				};

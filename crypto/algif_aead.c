@@ -42,7 +42,6 @@
 
 struct aead_tfm {
 	struct crypto_aead *aead;
-	bool has_key;
 	struct crypto_skcipher *null_tfm;
 };
 
@@ -110,6 +109,12 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	size_t outlen = 0;		/* [out] RX bufs produced by kernel */
 	size_t usedpages = 0;		/* [in]  RX bufs to be used from user */
 	size_t processed = 0;		/* [in]  TX bufs to be consumed */
+
+	if (!ctx->used) {
+		err = af_alg_wait_for_data(sk, flags);
+		if (err)
+			return err;
+	}
 
 	/*
 	 * Data length provided by caller via sendmsg/sendpage that has not
@@ -285,6 +290,10 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		/* AIO operation */
 		sock_hold(sk);
 		areq->iocb = msg->msg_iocb;
+
+		/* Remember output size that will be generated. */
+		areq->outlen = outlen;
+
 		aead_request_set_callback(&areq->cra_u.aead_req,
 					  CRYPTO_TFM_REQ_MAY_BACKLOG,
 					  af_alg_async_cb, areq);
@@ -292,12 +301,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 				 crypto_aead_decrypt(&areq->cra_u.aead_req);
 
 		/* AIO operation in progress */
-		if (err == -EINPROGRESS || err == -EBUSY) {
-			/* Remember output size that will be generated. */
-			areq->outlen = outlen;
-
+		if (err == -EINPROGRESS || err == -EBUSY)
 			return -EIOCBQUEUED;
-		}
 
 		sock_put(sk);
 	} else {
@@ -392,7 +397,7 @@ static int aead_check_key(struct socket *sock)
 
 	err = -ENOKEY;
 	lock_sock_nested(psk, SINGLE_DEPTH_NESTING);
-	if (!tfm->has_key)
+	if (crypto_aead_get_flags(tfm->aead) & CRYPTO_TFM_NEED_KEY)
 		goto unlock;
 
 	if (!pask->refcnt++)
@@ -485,7 +490,7 @@ static void *aead_bind(const char *name, u32 type, u32 mask)
 		return ERR_CAST(aead);
 	}
 
-	null_tfm = crypto_get_default_null_skcipher2();
+	null_tfm = crypto_get_default_null_skcipher();
 	if (IS_ERR(null_tfm)) {
 		crypto_free_aead(aead);
 		kfree(tfm);
@@ -503,6 +508,7 @@ static void aead_release(void *private)
 	struct aead_tfm *tfm = private;
 
 	crypto_free_aead(tfm->aead);
+	crypto_put_default_null_skcipher();
 	kfree(tfm);
 }
 
@@ -516,12 +522,8 @@ static int aead_setauthsize(void *private, unsigned int authsize)
 static int aead_setkey(void *private, const u8 *key, unsigned int keylen)
 {
 	struct aead_tfm *tfm = private;
-	int err;
 
-	err = crypto_aead_setkey(tfm->aead, key, keylen);
-	tfm->has_key = !err;
-
-	return err;
+	return crypto_aead_setkey(tfm->aead, key, keylen);
 }
 
 static void aead_sock_destruct(struct sock *sk)
@@ -535,7 +537,6 @@ static void aead_sock_destruct(struct sock *sk)
 	unsigned int ivlen = crypto_aead_ivsize(tfm);
 
 	af_alg_pull_tsgl(sk, ctx->used, NULL, 0);
-	crypto_put_default_null_skcipher2();
 	sock_kzfree_s(sk, ctx->iv, ivlen);
 	sock_kfree_s(sk, ctx, ctx->len);
 	af_alg_release_parent(sk);
@@ -565,7 +566,7 @@ static int aead_accept_parent_nokey(void *private, struct sock *sk)
 	INIT_LIST_HEAD(&ctx->tsgl_list);
 	ctx->len = len;
 	ctx->used = 0;
-	ctx->rcvused = 0;
+	atomic_set(&ctx->rcvused, 0);
 	ctx->more = 0;
 	ctx->merge = 0;
 	ctx->enc = 0;
@@ -583,7 +584,7 @@ static int aead_accept_parent(void *private, struct sock *sk)
 {
 	struct aead_tfm *tfm = private;
 
-	if (!tfm->has_key)
+	if (crypto_aead_get_flags(tfm->aead) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
 
 	return aead_accept_parent_nokey(private, sk);

@@ -45,6 +45,9 @@ static const char ucode_path[] = "kernel/x86/microcode/GenuineIntel.bin";
 /* Current microcode patch used in early patching on the APs. */
 static struct microcode_intel *intel_ucode_patch;
 
+/* last level cache size per core */
+static int llc_size_per_core;
+
 static inline bool cpu_signatures_match(unsigned int s1, unsigned int p1,
 					unsigned int s2, unsigned int p2)
 {
@@ -565,15 +568,6 @@ static void print_ucode(struct ucode_cpu_info *uci)
 }
 #else
 
-/*
- * Flush global tlb. We only do this in x86_64 where paging has been enabled
- * already and PGE should be enabled as well.
- */
-static inline void flush_tlb_early(void)
-{
-	__native_flush_tlb_global_irq_disabled();
-}
-
 static inline void print_ucode(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc;
@@ -602,10 +596,6 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 	if (rev != mc->hdr.rev)
 		return -1;
 
-#ifdef CONFIG_X86_64
-	/* Flush global tlb. This is precaution. */
-	flush_tlb_early();
-#endif
 	uci->cpu_sig.rev = rev;
 
 	if (early)
@@ -923,8 +913,19 @@ static bool is_blacklisted(unsigned int cpu)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-	if (c->x86 == 6 && c->x86_model == INTEL_FAM6_BROADWELL_X) {
-		pr_err_once("late loading on model 79 is disabled.\n");
+	/*
+	 * Late loading on model 79 with microcode revision less than 0x0b000021
+	 * and LLC size per core bigger than 2.5MB may result in a system hang.
+	 * This behavior is documented in item BDF90, #334165 (Intel Xeon
+	 * Processor E7-8800/4800 v4 Product Family).
+	 */
+	if (c->x86 == 6 &&
+	    c->x86_model == INTEL_FAM6_BROADWELL_X &&
+	    c->x86_stepping == 0x01 &&
+	    llc_size_per_core > 2621440 &&
+	    c->microcode < 0x0b000021) {
+		pr_err_once("Erratum BDF90: late loading with revision < 0x0b000021 (0x%x) disabled.\n", c->microcode);
+		pr_err_once("Please consider either early loading through initrd/built-in or a potential BIOS update.\n");
 		return true;
 	}
 
@@ -943,7 +944,7 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 		return UCODE_NFOUND;
 
 	sprintf(name, "intel-ucode/%02x-%02x-%02x",
-		c->x86, c->x86_model, c->x86_mask);
+		c->x86, c->x86_model, c->x86_stepping);
 
 	if (request_firmware_direct(&firmware, name, device)) {
 		pr_debug("data file %s load failed\n", name);
@@ -979,6 +980,15 @@ static struct microcode_ops microcode_intel_ops = {
 	.apply_microcode                  = apply_microcode_intel,
 };
 
+static int __init calc_llc_size_per_core(struct cpuinfo_x86 *c)
+{
+	u64 llc_size = c->x86_cache_size * 1024ULL;
+
+	do_div(llc_size, c->x86_max_cores);
+
+	return (int)llc_size;
+}
+
 struct microcode_ops * __init init_intel_microcode(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
@@ -988,6 +998,8 @@ struct microcode_ops * __init init_intel_microcode(void)
 		pr_err("Intel CPU family 0x%x not supported\n", c->x86);
 		return NULL;
 	}
+
+	llc_size_per_core = calc_llc_size_per_core(c);
 
 	return &microcode_intel_ops;
 }

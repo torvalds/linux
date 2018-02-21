@@ -838,6 +838,18 @@ static bool add_flush(struct acpi_nfit_desc *acpi_desc,
 	return true;
 }
 
+static bool add_platform_cap(struct acpi_nfit_desc *acpi_desc,
+		struct acpi_nfit_capabilities *pcap)
+{
+	struct device *dev = acpi_desc->dev;
+	u32 mask;
+
+	mask = (1 << (pcap->highest_capability + 1)) - 1;
+	acpi_desc->platform_cap = pcap->capabilities & mask;
+	dev_dbg(dev, "%s: cap: %#x\n", __func__, acpi_desc->platform_cap);
+	return true;
+}
+
 static void *add_table(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_table_prev *prev, void *table, const void *end)
 {
@@ -882,6 +894,10 @@ static void *add_table(struct acpi_nfit_desc *acpi_desc,
 		break;
 	case ACPI_NFIT_TYPE_SMBIOS:
 		dev_dbg(dev, "%s: smbios\n", __func__);
+		break;
+	case ACPI_NFIT_TYPE_CAPABILITIES:
+		if (!add_platform_cap(acpi_desc, table))
+			return err;
 		break;
 	default:
 		dev_err(dev, "unknown table '%d' parsing nfit\n", hdr->type);
@@ -1670,6 +1686,11 @@ static int acpi_nfit_add_dimm(struct acpi_nfit_desc *acpi_desc,
 				dev_name(&adev_dimm->dev));
 		return -ENXIO;
 	}
+	/*
+	 * Record nfit_mem for the notification path to track back to
+	 * the nfit sysfs attributes for this dimm device object.
+	 */
+	dev_set_drvdata(&adev_dimm->dev, nfit_mem);
 
 	/*
 	 * Until standardization materializes we need to consider 4
@@ -1752,9 +1773,11 @@ static void shutdown_dimm_notify(void *data)
 			sysfs_put(nfit_mem->flags_attr);
 			nfit_mem->flags_attr = NULL;
 		}
-		if (adev_dimm)
+		if (adev_dimm) {
 			acpi_remove_notify_handler(adev_dimm->handle,
 					ACPI_DEVICE_NOTIFY, acpi_nvdimm_notify);
+			dev_set_drvdata(&adev_dimm->dev, NULL);
+		}
 	}
 	mutex_unlock(&acpi_desc->init_mutex);
 }
@@ -1860,6 +1883,9 @@ static int acpi_nfit_register_dimms(struct acpi_nfit_desc *acpi_desc)
 		struct kernfs_node *nfit_kernfs;
 
 		nvdimm = nfit_mem->nvdimm;
+		if (!nvdimm)
+			continue;
+
 		nfit_kernfs = sysfs_get_dirent(nvdimm_kobj(nvdimm)->sd, "nfit");
 		if (nfit_kernfs)
 			nfit_mem->flags_attr = sysfs_get_dirent(nfit_kernfs,
@@ -2648,6 +2674,12 @@ static int acpi_nfit_register_region(struct acpi_nfit_desc *acpi_desc,
 						spa->proximity_domain);
 	else
 		ndr_desc->numa_node = NUMA_NO_NODE;
+
+	if(acpi_desc->platform_cap & ACPI_NFIT_CAPABILITY_CACHE_FLUSH)
+		set_bit(ND_REGION_PERSIST_CACHE, &ndr_desc->flags);
+
+	if (acpi_desc->platform_cap & ACPI_NFIT_CAPABILITY_MEM_FLUSH)
+		set_bit(ND_REGION_PERSIST_MEMCTRL, &ndr_desc->flags);
 
 	list_for_each_entry(nfit_memdev, &acpi_desc->memdevs, list) {
 		struct acpi_nfit_memory_map *memdev = nfit_memdev->memdev;
@@ -3457,6 +3489,7 @@ static __init int nfit_init(void)
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_smbios) != 9);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_control_region) != 80);
 	BUILD_BUG_ON(sizeof(struct acpi_nfit_data_region) != 40);
+	BUILD_BUG_ON(sizeof(struct acpi_nfit_capabilities) != 16);
 
 	guid_parse(UUID_VOLATILE_MEMORY, &nfit_uuid[NFIT_SPA_VOLATILE]);
 	guid_parse(UUID_PERSISTENT_MEMORY, &nfit_uuid[NFIT_SPA_PM]);

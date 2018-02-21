@@ -152,9 +152,9 @@ nouveau_cli_work_queue(struct nouveau_cli *cli, struct dma_fence *fence,
 	work->cli = cli;
 	mutex_lock(&cli->lock);
 	list_add_tail(&work->head, &cli->worker);
-	mutex_unlock(&cli->lock);
 	if (dma_fence_add_callback(fence, &work->cb, nouveau_cli_work_fence))
 		nouveau_cli_work_fence(fence, &work->cb);
+	mutex_unlock(&cli->lock);
 }
 
 static void
@@ -524,7 +524,8 @@ nouveau_get_hdmi_dev(struct nouveau_drm *drm)
 	}
 
 	/* subfunction one is a hdmi audio device? */
-	drm->hdmi_device = pci_get_bus_and_slot((unsigned int)pdev->bus->number,
+	drm->hdmi_device = pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
+						(unsigned int)pdev->bus->number,
 						PCI_DEVFN(PCI_SLOT(pdev->devfn), 1));
 
 	if (!drm->hdmi_device) {

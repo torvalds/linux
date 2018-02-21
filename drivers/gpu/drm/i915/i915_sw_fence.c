@@ -303,6 +303,7 @@ static int __i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,
 	int pending;
 
 	debug_fence_assert(fence);
+	might_sleep_if(gfpflags_allow_blocking(gfp));
 
 	if (i915_sw_fence_done(signaler))
 		return 0;
@@ -367,6 +368,7 @@ struct i915_sw_dma_fence_cb {
 	struct dma_fence *dma;
 	struct timer_list timer;
 	struct irq_work work;
+	struct rcu_head rcu;
 };
 
 static void timer_i915_sw_fence_wake(struct timer_list *t)
@@ -406,7 +408,7 @@ static void irq_i915_sw_fence_work(struct irq_work *wrk)
 	del_timer_sync(&cb->timer);
 	dma_fence_put(cb->dma);
 
-	kfree(cb);
+	kfree_rcu(cb, rcu);
 }
 
 int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
@@ -418,6 +420,7 @@ int i915_sw_fence_await_dma_fence(struct i915_sw_fence *fence,
 	int ret;
 
 	debug_fence_assert(fence);
+	might_sleep_if(gfpflags_allow_blocking(gfp));
 
 	if (dma_fence_is_signaled(dma))
 		return 0;
@@ -464,6 +467,7 @@ int i915_sw_fence_await_reservation(struct i915_sw_fence *fence,
 	int ret = 0, pending;
 
 	debug_fence_assert(fence);
+	might_sleep_if(gfpflags_allow_blocking(gfp));
 
 	if (write) {
 		struct dma_fence **shared;

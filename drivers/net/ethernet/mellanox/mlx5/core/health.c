@@ -241,7 +241,7 @@ static void print_health_info(struct mlx5_core_dev *dev)
 	u32 fw;
 	int i;
 
-	/* If the syndrom is 0, the device is OK and no need to print buffer */
+	/* If the syndrome is 0, the device is OK and no need to print buffer */
 	if (!ioread8(&h->synd))
 		return;
 

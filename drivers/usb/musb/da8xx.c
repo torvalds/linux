@@ -284,7 +284,15 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
 			del_timer(&musb->dev_timer);
-		} else {
+		} else if (!(musb->int_usb & MUSB_INTR_BABBLE)) {
+			/*
+			 * When babble condition happens, drvvbus interrupt
+			 * is also generated. Ignore this drvvbus interrupt
+			 * and let babble interrupt handler recovers the
+			 * controller; otherwise, the host-mode flag is lost
+			 * due to the MUSB_DEV_MODE() call below and babble
+			 * recovery logic will not be called.
+			 */
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
 			otg->default_a = 0;
@@ -512,7 +520,7 @@ static int da8xx_probe(struct platform_device *pdev)
 	if (!glue)
 		return -ENOMEM;
 
-	clk = devm_clk_get(&pdev->dev, "usb20");
+	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
 		return PTR_ERR(clk);

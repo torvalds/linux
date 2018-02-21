@@ -60,6 +60,10 @@ include::itrace.txt[]
 	found in the jitdumps files captured in the input perf.data file. Use this option
 	if you are monitoring environment using JIT runtimes, such as Java, DART or V8.
 
+-f::
+--force::
+	Don't complain, do it.
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-archive[1]

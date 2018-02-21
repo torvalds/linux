@@ -400,7 +400,7 @@ xfs_bmap_check_leaf_extents(
 		pp = XFS_BMBT_PTR_ADDR(mp, block, 1, mp->m_bmap_dmxr[1]);
 		bno = be64_to_cpu(*pp);
 		XFS_WANT_CORRUPTED_GOTO(mp,
-					XFS_FSB_SANITY_CHECK(mp, bno), error0);
+					xfs_verify_fsbno(mp, bno), error0);
 		if (bp_release) {
 			bp_release = 0;
 			xfs_trans_brelse(NULL, bp);
@@ -1220,7 +1220,7 @@ xfs_iread_extents(
 		pp = XFS_BMBT_PTR_ADDR(mp, block, 1, mp->m_bmap_dmxr[1]);
 		bno = be64_to_cpu(*pp);
 		XFS_WANT_CORRUPTED_GOTO(mp,
-			XFS_FSB_SANITY_CHECK(mp, bno), out_brelse);
+			xfs_verify_fsbno(mp, bno), out_brelse);
 		xfs_trans_brelse(tp, bp);
 	}
 
@@ -3337,6 +3337,49 @@ xfs_bmap_btalloc_filestreams(
 	return 0;
 }
 
+/* Update all inode and quota accounting for the allocation we just did. */
+static void
+xfs_bmap_btalloc_accounting(
+	struct xfs_bmalloca	*ap,
+	struct xfs_alloc_arg	*args)
+{
+	if (ap->flags & XFS_BMAPI_COWFORK) {
+		/*
+		 * COW fork blocks are in-core only and thus are treated as
+		 * in-core quota reservation (like delalloc blocks) even when
+		 * converted to real blocks. The quota reservation is not
+		 * accounted to disk until blocks are remapped to the data
+		 * fork. So if these blocks were previously delalloc, we
+		 * already have quota reservation and there's nothing to do
+		 * yet.
+		 */
+		if (ap->wasdel)
+			return;
+
+		/*
+		 * Otherwise, we've allocated blocks in a hole. The transaction
+		 * has acquired in-core quota reservation for this extent.
+		 * Rather than account these as real blocks, however, we reduce
+		 * the transaction quota reservation based on the allocation.
+		 * This essentially transfers the transaction quota reservation
+		 * to that of a delalloc extent.
+		 */
+		ap->ip->i_delayed_blks += args->len;
+		xfs_trans_mod_dquot_byino(ap->tp, ap->ip, XFS_TRANS_DQ_RES_BLKS,
+				-(long)args->len);
+		return;
+	}
+
+	/* data/attr fork only */
+	ap->ip->i_d.di_nblocks += args->len;
+	xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);
+	if (ap->wasdel)
+		ap->ip->i_delayed_blks -= args->len;
+	xfs_trans_mod_dquot_byino(ap->tp, ap->ip,
+		ap->wasdel ? XFS_TRANS_DQ_DELBCOUNT : XFS_TRANS_DQ_BCOUNT,
+		args->len);
+}
+
 STATIC int
 xfs_bmap_btalloc(
 	struct xfs_bmalloca	*ap)	/* bmap alloc argument struct */
@@ -3347,6 +3390,8 @@ xfs_bmap_btalloc(
 	xfs_agnumber_t	fb_agno;	/* ag number of ap->firstblock */
 	xfs_agnumber_t	ag;
 	xfs_alloc_arg_t	args;
+	xfs_fileoff_t	orig_offset;
+	xfs_extlen_t	orig_length;
 	xfs_extlen_t	blen;
 	xfs_extlen_t	nextminlen = 0;
 	int		nullfb;		/* true if ap->firstblock isn't set */
@@ -3356,6 +3401,8 @@ xfs_bmap_btalloc(
 	int		stripe_align;
 
 	ASSERT(ap->length);
+	orig_offset = ap->offset;
+	orig_length = ap->length;
 
 	mp = ap->ip->i_mount;
 
@@ -3571,19 +3618,23 @@ xfs_bmap_btalloc(
 			*ap->firstblock = args.fsbno;
 		ASSERT(nullfb || fb_agno <= args.agno);
 		ap->length = args.len;
-		if (!(ap->flags & XFS_BMAPI_COWFORK))
-			ap->ip->i_d.di_nblocks += args.len;
-		xfs_trans_log_inode(ap->tp, ap->ip, XFS_ILOG_CORE);
-		if (ap->wasdel)
-			ap->ip->i_delayed_blks -= args.len;
 		/*
-		 * Adjust the disk quota also. This was reserved
-		 * earlier.
+		 * If the extent size hint is active, we tried to round the
+		 * caller's allocation request offset down to extsz and the
+		 * length up to another extsz boundary.  If we found a free
+		 * extent we mapped it in starting at this new offset.  If the
+		 * newly mapped space isn't long enough to cover any of the
+		 * range of offsets that was originally requested, move the
+		 * mapping up so that we can fill as much of the caller's
+		 * original request as possible.  Free space is apparently
+		 * very fragmented so we're unlikely to be able to satisfy the
+		 * hints anyway.
 		 */
-		xfs_trans_mod_dquot_byino(ap->tp, ap->ip,
-			ap->wasdel ? XFS_TRANS_DQ_DELBCOUNT :
-					XFS_TRANS_DQ_BCOUNT,
-			(long) args.len);
+		if (ap->length <= orig_length)
+			ap->offset = orig_offset;
+		else if (ap->offset + ap->length < orig_offset + orig_length)
+			ap->offset = orig_offset + orig_length - ap->length;
+		xfs_bmap_btalloc_accounting(ap, &args);
 	} else {
 		ap->blkno = NULLFSBLOCK;
 		ap->length = 0;
@@ -3876,8 +3927,6 @@ xfs_bmapi_reserve_delalloc(
 	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
 	xfs_extlen_t		alen;
 	xfs_extlen_t		indlen;
-	char			rt = XFS_IS_REALTIME_INODE(ip);
-	xfs_extlen_t		extsz;
 	int			error;
 	xfs_fileoff_t		aoff = off;
 
@@ -3892,23 +3941,17 @@ xfs_bmapi_reserve_delalloc(
 		prealloc = alen - len;
 
 	/* Figure out the extent size, adjust alen */
-	if (whichfork == XFS_COW_FORK)
-		extsz = xfs_get_cowextsz_hint(ip);
-	else
-		extsz = xfs_get_extsz_hint(ip);
-	if (extsz) {
+	if (whichfork == XFS_COW_FORK) {
 		struct xfs_bmbt_irec	prev;
+		xfs_extlen_t		extsz = xfs_get_cowextsz_hint(ip);
 
 		if (!xfs_iext_peek_prev_extent(ifp, icur, &prev))
 			prev.br_startoff = NULLFILEOFF;
 
-		error = xfs_bmap_extsize_align(mp, got, &prev, extsz, rt, eof,
+		error = xfs_bmap_extsize_align(mp, got, &prev, extsz, 0, eof,
 					       1, 0, &aoff, &alen);
 		ASSERT(!error);
 	}
-
-	if (rt)
-		extsz = alen / mp->m_sb.sb_rextsize;
 
 	/*
 	 * Make a transaction-less quota reservation for delayed allocation
@@ -3916,7 +3959,7 @@ xfs_bmapi_reserve_delalloc(
 	 * allocated blocks already inside this loop.
 	 */
 	error = xfs_trans_reserve_quota_nblks(NULL, ip, (long)alen, 0,
-			rt ? XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
+						XFS_QMOPT_RES_REGBLKS);
 	if (error)
 		return error;
 
@@ -3927,12 +3970,7 @@ xfs_bmapi_reserve_delalloc(
 	indlen = (xfs_extlen_t)xfs_bmap_worst_indlen(ip, alen);
 	ASSERT(indlen > 0);
 
-	if (rt) {
-		error = xfs_mod_frextents(mp, -((int64_t)extsz));
-	} else {
-		error = xfs_mod_fdblocks(mp, -((int64_t)alen), false);
-	}
-
+	error = xfs_mod_fdblocks(mp, -((int64_t)alen), false);
 	if (error)
 		goto out_unreserve_quota;
 
@@ -3963,14 +4001,11 @@ xfs_bmapi_reserve_delalloc(
 	return 0;
 
 out_unreserve_blocks:
-	if (rt)
-		xfs_mod_frextents(mp, extsz);
-	else
-		xfs_mod_fdblocks(mp, alen, false);
+	xfs_mod_fdblocks(mp, alen, false);
 out_unreserve_quota:
 	if (XFS_IS_QUOTA_ON(mp))
-		xfs_trans_unreserve_quota_nblks(NULL, ip, (long)alen, 0, rt ?
-				XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
+		xfs_trans_unreserve_quota_nblks(NULL, ip, (long)alen, 0,
+						XFS_QMOPT_RES_REGBLKS);
 	return error;
 }
 
@@ -4304,8 +4339,16 @@ xfs_bmapi_write(
 	while (bno < end && n < *nmap) {
 		bool			need_alloc = false, wasdelay = false;
 
-		/* in hole or beyoned EOF? */
+		/* in hole or beyond EOF? */
 		if (eof || bma.got.br_startoff > bno) {
+			/*
+			 * CoW fork conversions should /never/ hit EOF or
+			 * holes.  There should always be something for us
+			 * to work on.
+			 */
+			ASSERT(!((flags & XFS_BMAPI_CONVERT) &&
+			         (flags & XFS_BMAPI_COWFORK)));
+
 			if (flags & XFS_BMAPI_DELALLOC) {
 				/*
 				 * For the COW fork we can reasonably get a
@@ -4824,6 +4867,7 @@ xfs_bmap_del_extent_cow(
 		xfs_iext_insert(ip, icur, &new, state);
 		break;
 	}
+	ip->i_delayed_blks -= del->br_blockcount;
 }
 
 /*
@@ -5136,7 +5180,7 @@ __xfs_bunmapi(
 	 * blowing out the transaction with a mix of EFIs and reflink
 	 * adjustments.
 	 */
-	if (xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK)
+	if (tp && xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK)
 		max_len = min(len, xfs_refcount_max_unmap(tp->t_log_res));
 	else
 		max_len = len;

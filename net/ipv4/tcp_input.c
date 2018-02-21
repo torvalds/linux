@@ -97,6 +97,7 @@ int sysctl_tcp_max_orphans __read_mostly = NR_FILE;
 #define FLAG_SACK_RENEGING	0x2000 /* snd_una advanced to a sacked seq */
 #define FLAG_UPDATE_TS_RECENT	0x4000 /* tcp_replace_ts_recent() */
 #define FLAG_NO_CHALLENGE_ACK	0x8000 /* do not call tcp_send_challenge_ack()	*/
+#define FLAG_ACK_MAYBE_DELAYED	0x10000 /* Likely a delayed ACK */
 
 #define FLAG_ACKED		(FLAG_DATA_ACKED|FLAG_SYN_ACKED)
 #define FLAG_NOT_DUP		(FLAG_DATA|FLAG_WIN_UPDATE|FLAG_ACKED)
@@ -314,7 +315,7 @@ static void tcp_sndbuf_expand(struct sock *sk)
 
 	/* Fast Recovery (RFC 5681 3.2) :
 	 * Cubic needs 1.7 factor, rounded to 2 to include
-	 * extra cushion (application might react slowly to POLLOUT)
+	 * extra cushion (application might react slowly to EPOLLOUT)
 	 */
 	sndmem = ca_ops->sndbuf_expand ? ca_ops->sndbuf_expand(sk) : 2;
 	sndmem *= nr_segs * per_mss;
@@ -508,9 +509,6 @@ static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 	u32 new_sample = tp->rcv_rtt_est.rtt_us;
 	long m = sample;
 
-	if (m == 0)
-		m = 1;
-
 	if (new_sample != 0) {
 		/* If we sample in larger samples in the non-timestamp
 		 * case, we could grossly overestimate the RTT especially
@@ -547,6 +545,8 @@ static inline void tcp_rcv_rtt_measure(struct tcp_sock *tp)
 	if (before(tp->rcv_nxt, tp->rcv_rtt_est.seq))
 		return;
 	delta_us = tcp_stamp_us_delta(tp->tcp_mstamp, tp->rcv_rtt_est.time);
+	if (!delta_us)
+		delta_us = 1;
 	tcp_rcv_rtt_update(tp, delta_us, 1);
 
 new_measure:
@@ -563,8 +563,11 @@ static inline void tcp_rcv_rtt_measure_ts(struct sock *sk,
 	    (TCP_SKB_CB(skb)->end_seq -
 	     TCP_SKB_CB(skb)->seq >= inet_csk(sk)->icsk_ack.rcv_mss)) {
 		u32 delta = tcp_time_stamp(tp) - tp->rx_opt.rcv_tsecr;
-		u32 delta_us = delta * (USEC_PER_SEC / TCP_TS_HZ);
+		u32 delta_us;
 
+		if (!delta)
+			delta = 1;
+		delta_us = delta * (USEC_PER_SEC / TCP_TS_HZ);
 		tcp_rcv_rtt_update(tp, delta_us, 0);
 	}
 }
@@ -576,8 +579,8 @@ static inline void tcp_rcv_rtt_measure_ts(struct sock *sk,
 void tcp_rcv_space_adjust(struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	u32 copied;
 	int time;
-	int copied;
 
 	tcp_mstamp_refresh(tp);
 	time = tcp_stamp_us_delta(tp->tcp_mstamp, tp->rcvq_space.time);
@@ -600,38 +603,31 @@ void tcp_rcv_space_adjust(struct sock *sk)
 
 	if (sock_net(sk)->ipv4.sysctl_tcp_moderate_rcvbuf &&
 	    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK)) {
-		int rcvwin, rcvmem, rcvbuf;
+		int rcvmem, rcvbuf;
+		u64 rcvwin, grow;
 
 		/* minimal window to cope with packet losses, assuming
 		 * steady state. Add some cushion because of small variations.
 		 */
-		rcvwin = (copied << 1) + 16 * tp->advmss;
+		rcvwin = ((u64)copied << 1) + 16 * tp->advmss;
 
-		/* If rate increased by 25%,
-		 *	assume slow start, rcvwin = 3 * copied
-		 * If rate increased by 50%,
-		 *	assume sender can use 2x growth, rcvwin = 4 * copied
-		 */
-		if (copied >=
-		    tp->rcvq_space.space + (tp->rcvq_space.space >> 2)) {
-			if (copied >=
-			    tp->rcvq_space.space + (tp->rcvq_space.space >> 1))
-				rcvwin <<= 1;
-			else
-				rcvwin += (rcvwin >> 1);
-		}
+		/* Accommodate for sender rate increase (eg. slow start) */
+		grow = rcvwin * (copied - tp->rcvq_space.space);
+		do_div(grow, tp->rcvq_space.space);
+		rcvwin += (grow << 1);
 
 		rcvmem = SKB_TRUESIZE(tp->advmss + MAX_TCP_HEADER);
 		while (tcp_win_from_space(sk, rcvmem) < tp->advmss)
 			rcvmem += 128;
 
-		rcvbuf = min(rcvwin / tp->advmss * rcvmem,
-			     sock_net(sk)->ipv4.sysctl_tcp_rmem[2]);
+		do_div(rcvwin, tp->advmss);
+		rcvbuf = min_t(u64, rcvwin * rcvmem,
+			       sock_net(sk)->ipv4.sysctl_tcp_rmem[2]);
 		if (rcvbuf > sk->sk_rcvbuf) {
 			sk->sk_rcvbuf = rcvbuf;
 
 			/* Make the window clamp follow along.  */
-			tp->window_clamp = rcvwin;
+			tp->window_clamp = tcp_win_from_space(sk, rcvbuf);
 		}
 	}
 	tp->rcvq_space.space = copied;
@@ -2862,11 +2858,18 @@ static void tcp_fastretrans_alert(struct sock *sk, const u32 prior_snd_una,
 	*rexmit = REXMIT_LOST;
 }
 
-static void tcp_update_rtt_min(struct sock *sk, u32 rtt_us)
+static void tcp_update_rtt_min(struct sock *sk, u32 rtt_us, const int flag)
 {
 	u32 wlen = sock_net(sk)->ipv4.sysctl_tcp_min_rtt_wlen * HZ;
 	struct tcp_sock *tp = tcp_sk(sk);
 
+	if ((flag & FLAG_ACK_MAYBE_DELAYED) && rtt_us > tcp_min_rtt(tp)) {
+		/* If the remote keeps returning delayed ACKs, eventually
+		 * the min filter would pick it up and overestimate the
+		 * prop. delay when it expires. Skip suspected delayed ACKs.
+		 */
+		return;
+	}
 	minmax_running_min(&tp->rtt_min, wlen, tcp_jiffies32,
 			   rtt_us ? : jiffies_to_usecs(1));
 }
@@ -2906,7 +2909,7 @@ static bool tcp_ack_update_rtt(struct sock *sk, const int flag,
 	 * always taken together with ACK, SACK, or TS-opts. Any negative
 	 * values will be skipped with the seq_rtt_us < 0 check above.
 	 */
-	tcp_update_rtt_min(sk, ca_rtt_us);
+	tcp_update_rtt_min(sk, ca_rtt_us, flag);
 	tcp_rtt_estimator(sk, seq_rtt_us);
 	tcp_set_rto(sk);
 
@@ -3130,6 +3133,17 @@ static int tcp_clean_rtx_queue(struct sock *sk, u32 prior_fack,
 	if (likely(first_ackt) && !(flag & FLAG_RETRANS_DATA_ACKED)) {
 		seq_rtt_us = tcp_stamp_us_delta(tp->tcp_mstamp, first_ackt);
 		ca_rtt_us = tcp_stamp_us_delta(tp->tcp_mstamp, last_ackt);
+
+		if (pkts_acked == 1 && last_in_flight < tp->mss_cache &&
+		    last_in_flight && !prior_sacked && fully_acked &&
+		    sack->rate->prior_delivered + 1 == tp->delivered &&
+		    !(flag & (FLAG_CA_ALERT | FLAG_SYN_ACKED))) {
+			/* Conservatively mark a delayed ACK. It's typically
+			 * from a lone runt packet over the round trip to
+			 * a receiver w/o out-of-order or CE events.
+			 */
+			flag |= FLAG_ACK_MAYBE_DELAYED;
+		}
 	}
 	if (sack->first_sackt) {
 		sack_rtt_us = tcp_stamp_us_delta(tp->tcp_mstamp, sack->first_sackt);
@@ -3619,6 +3633,7 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 
 	delivered = tp->delivered - delivered;	/* freshly ACKed or SACKed */
 	lost = tp->lost - lost;			/* freshly marked lost */
+	rs.is_ack_delayed = !!(flag & FLAG_ACK_MAYBE_DELAYED);
 	tcp_rate_gen(sk, delivered, lost, is_sack_reneg, sack_state.rate);
 	tcp_cong_control(sk, ack, delivered, flag, sack_state.rate);
 	tcp_xmit_recovery(sk, rexmit);
@@ -5303,6 +5318,9 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 {
 	unsigned int len = skb->len;
 	struct tcp_sock *tp = tcp_sk(sk);
+
+	/* TCP congestion window tracking */
+	trace_tcp_probe(sk, skb);
 
 	tcp_mstamp_refresh(tp);
 	if (unlikely(!sk->sk_rx_dst))

@@ -3596,7 +3596,7 @@ static void mv_reset_channel(struct mv_host_priv *hpriv, void __iomem *mmio,
 	hpriv->ops->phy_errata(hpriv, mmio, port_no);
 
 	if (IS_GEN_I(hpriv))
-		mdelay(1);
+		usleep_range(500, 1000);
 }
 
 static void mv_pmp_select(struct ata_port *ap, int pmp)

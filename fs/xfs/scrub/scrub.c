@@ -46,7 +46,6 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
-#include "scrub/scrub.h"
 #include "scrub/btree.h"
 
 /*
@@ -111,6 +110,16 @@
  * structure itself is corrupt, the CORRUPT flag will be set.  If
  * the metadata is correct but otherwise suboptimal, the PREEN flag
  * will be set.
+ *
+ * We perform secondary validation of filesystem metadata by
+ * cross-referencing every record with all other available metadata.
+ * For example, for block mapping extents, we verify that there are no
+ * records in the free space and inode btrees corresponding to that
+ * space extent and that there is a corresponding entry in the reverse
+ * mapping btree.  Inconsistent metadata is noted by setting the
+ * XCORRUPT flag; btree query function errors are noted by setting the
+ * XFAIL flag and deleting the cursor to prevent further attempts to
+ * cross-reference with a defective btree.
  */
 
 /*
@@ -129,8 +138,6 @@ xfs_scrub_probe(
 {
 	int				error = 0;
 
-	if (sc->sm->sm_ino || sc->sm->sm_agno)
-		return -EINVAL;
 	if (xfs_scrub_should_terminate(sc, &error))
 		return error;
 
@@ -152,7 +159,8 @@ xfs_scrub_teardown(
 		sc->tp = NULL;
 	}
 	if (sc->ip) {
-		xfs_iunlock(sc->ip, sc->ilock_flags);
+		if (sc->ilock_flags)
+			xfs_iunlock(sc->ip, sc->ilock_flags);
 		if (sc->ip != ip_in &&
 		    !xfs_internal_inum(sc->mp, sc->ip->i_ino))
 			iput(VFS_I(sc->ip));
@@ -168,106 +176,130 @@ xfs_scrub_teardown(
 /* Scrubbing dispatch. */
 
 static const struct xfs_scrub_meta_ops meta_scrub_ops[] = {
-	{ /* ioctl presence test */
+	[XFS_SCRUB_TYPE_PROBE] = {	/* ioctl presence test */
+		.type	= ST_NONE,
 		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_probe,
 	},
-	{ /* superblock */
-		.setup	= xfs_scrub_setup_ag_header,
+	[XFS_SCRUB_TYPE_SB] = {		/* superblock */
+		.type	= ST_PERAG,
+		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_superblock,
 	},
-	{ /* agf */
-		.setup	= xfs_scrub_setup_ag_header,
+	[XFS_SCRUB_TYPE_AGF] = {	/* agf */
+		.type	= ST_PERAG,
+		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_agf,
 	},
-	{ /* agfl */
-		.setup	= xfs_scrub_setup_ag_header,
+	[XFS_SCRUB_TYPE_AGFL]= {	/* agfl */
+		.type	= ST_PERAG,
+		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_agfl,
 	},
-	{ /* agi */
-		.setup	= xfs_scrub_setup_ag_header,
+	[XFS_SCRUB_TYPE_AGI] = {	/* agi */
+		.type	= ST_PERAG,
+		.setup	= xfs_scrub_setup_fs,
 		.scrub	= xfs_scrub_agi,
 	},
-	{ /* bnobt */
+	[XFS_SCRUB_TYPE_BNOBT] = {	/* bnobt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_allocbt,
 		.scrub	= xfs_scrub_bnobt,
 	},
-	{ /* cntbt */
+	[XFS_SCRUB_TYPE_CNTBT] = {	/* cntbt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_allocbt,
 		.scrub	= xfs_scrub_cntbt,
 	},
-	{ /* inobt */
+	[XFS_SCRUB_TYPE_INOBT] = {	/* inobt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_iallocbt,
 		.scrub	= xfs_scrub_inobt,
 	},
-	{ /* finobt */
+	[XFS_SCRUB_TYPE_FINOBT] = {	/* finobt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_iallocbt,
 		.scrub	= xfs_scrub_finobt,
 		.has	= xfs_sb_version_hasfinobt,
 	},
-	{ /* rmapbt */
+	[XFS_SCRUB_TYPE_RMAPBT] = {	/* rmapbt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_rmapbt,
 		.scrub	= xfs_scrub_rmapbt,
 		.has	= xfs_sb_version_hasrmapbt,
 	},
-	{ /* refcountbt */
+	[XFS_SCRUB_TYPE_REFCNTBT] = {	/* refcountbt */
+		.type	= ST_PERAG,
 		.setup	= xfs_scrub_setup_ag_refcountbt,
 		.scrub	= xfs_scrub_refcountbt,
 		.has	= xfs_sb_version_hasreflink,
 	},
-	{ /* inode record */
+	[XFS_SCRUB_TYPE_INODE] = {	/* inode record */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_inode,
 		.scrub	= xfs_scrub_inode,
 	},
-	{ /* inode data fork */
+	[XFS_SCRUB_TYPE_BMBTD] = {	/* inode data fork */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_inode_bmap,
 		.scrub	= xfs_scrub_bmap_data,
 	},
-	{ /* inode attr fork */
+	[XFS_SCRUB_TYPE_BMBTA] = {	/* inode attr fork */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_inode_bmap,
 		.scrub	= xfs_scrub_bmap_attr,
 	},
-	{ /* inode CoW fork */
+	[XFS_SCRUB_TYPE_BMBTC] = {	/* inode CoW fork */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_inode_bmap,
 		.scrub	= xfs_scrub_bmap_cow,
 	},
-	{ /* directory */
+	[XFS_SCRUB_TYPE_DIR] = {	/* directory */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_directory,
 		.scrub	= xfs_scrub_directory,
 	},
-	{ /* extended attributes */
+	[XFS_SCRUB_TYPE_XATTR] = {	/* extended attributes */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_xattr,
 		.scrub	= xfs_scrub_xattr,
 	},
-	{ /* symbolic link */
+	[XFS_SCRUB_TYPE_SYMLINK] = {	/* symbolic link */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_symlink,
 		.scrub	= xfs_scrub_symlink,
 	},
-	{ /* parent pointers */
+	[XFS_SCRUB_TYPE_PARENT] = {	/* parent pointers */
+		.type	= ST_INODE,
 		.setup	= xfs_scrub_setup_parent,
 		.scrub	= xfs_scrub_parent,
 	},
-	{ /* realtime bitmap */
+	[XFS_SCRUB_TYPE_RTBITMAP] = {	/* realtime bitmap */
+		.type	= ST_FS,
 		.setup	= xfs_scrub_setup_rt,
 		.scrub	= xfs_scrub_rtbitmap,
 		.has	= xfs_sb_version_hasrealtime,
 	},
-	{ /* realtime summary */
+	[XFS_SCRUB_TYPE_RTSUM] = {	/* realtime summary */
+		.type	= ST_FS,
 		.setup	= xfs_scrub_setup_rt,
 		.scrub	= xfs_scrub_rtsummary,
 		.has	= xfs_sb_version_hasrealtime,
 	},
-	{ /* user quota */
-		.setup = xfs_scrub_setup_quota,
-		.scrub = xfs_scrub_quota,
+	[XFS_SCRUB_TYPE_UQUOTA] = {	/* user quota */
+		.type	= ST_FS,
+		.setup	= xfs_scrub_setup_quota,
+		.scrub	= xfs_scrub_quota,
 	},
-	{ /* group quota */
-		.setup = xfs_scrub_setup_quota,
-		.scrub = xfs_scrub_quota,
+	[XFS_SCRUB_TYPE_GQUOTA] = {	/* group quota */
+		.type	= ST_FS,
+		.setup	= xfs_scrub_setup_quota,
+		.scrub	= xfs_scrub_quota,
 	},
-	{ /* project quota */
-		.setup = xfs_scrub_setup_quota,
-		.scrub = xfs_scrub_quota,
+	[XFS_SCRUB_TYPE_PQUOTA] = {	/* project quota */
+		.type	= ST_FS,
+		.setup	= xfs_scrub_setup_quota,
+		.scrub	= xfs_scrub_quota,
 	},
 };
 
@@ -285,6 +317,77 @@ xfs_scrub_experimental_warning(
 "EXPERIMENTAL online scrub feature in use. Use at your own risk!");
 }
 
+static int
+xfs_scrub_validate_inputs(
+	struct xfs_mount		*mp,
+	struct xfs_scrub_metadata	*sm)
+{
+	int				error;
+	const struct xfs_scrub_meta_ops	*ops;
+
+	error = -EINVAL;
+	/* Check our inputs. */
+	sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
+	if (sm->sm_flags & ~XFS_SCRUB_FLAGS_IN)
+		goto out;
+	/* sm_reserved[] must be zero */
+	if (memchr_inv(sm->sm_reserved, 0, sizeof(sm->sm_reserved)))
+		goto out;
+
+	error = -ENOENT;
+	/* Do we know about this type of metadata? */
+	if (sm->sm_type >= XFS_SCRUB_TYPE_NR)
+		goto out;
+	ops = &meta_scrub_ops[sm->sm_type];
+	if (ops->setup == NULL || ops->scrub == NULL)
+		goto out;
+	/* Does this fs even support this type of metadata? */
+	if (ops->has && !ops->has(&mp->m_sb))
+		goto out;
+
+	error = -EINVAL;
+	/* restricting fields must be appropriate for type */
+	switch (ops->type) {
+	case ST_NONE:
+	case ST_FS:
+		if (sm->sm_ino || sm->sm_gen || sm->sm_agno)
+			goto out;
+		break;
+	case ST_PERAG:
+		if (sm->sm_ino || sm->sm_gen ||
+		    sm->sm_agno >= mp->m_sb.sb_agcount)
+			goto out;
+		break;
+	case ST_INODE:
+		if (sm->sm_agno || (sm->sm_gen && !sm->sm_ino))
+			goto out;
+		break;
+	default:
+		goto out;
+	}
+
+	error = -EOPNOTSUPP;
+	/*
+	 * We won't scrub any filesystem that doesn't have the ability
+	 * to record unwritten extents.  The option was made default in
+	 * 2003, removed from mkfs in 2007, and cannot be disabled in
+	 * v5, so if we find a filesystem without this flag it's either
+	 * really old or totally unsupported.  Avoid it either way.
+	 * We also don't support v1-v3 filesystems, which aren't
+	 * mountable.
+	 */
+	if (!xfs_sb_version_hasextflgbit(&mp->m_sb))
+		goto out;
+
+	/* We don't know how to repair anything yet. */
+	if (sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+		goto out;
+
+	error = 0;
+out:
+	return error;
+}
+
 /* Dispatch metadata scrubbing. */
 int
 xfs_scrub_metadata(
@@ -293,9 +396,11 @@ xfs_scrub_metadata(
 {
 	struct xfs_scrub_context	sc;
 	struct xfs_mount		*mp = ip->i_mount;
-	const struct xfs_scrub_meta_ops	*ops;
 	bool				try_harder = false;
 	int				error = 0;
+
+	BUILD_BUG_ON(sizeof(meta_scrub_ops) !=
+		(sizeof(struct xfs_scrub_meta_ops) * XFS_SCRUB_TYPE_NR));
 
 	trace_xfs_scrub_start(ip, sm, error);
 
@@ -307,43 +412,8 @@ xfs_scrub_metadata(
 	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
 		goto out;
 
-	/* Check our inputs. */
-	error = -EINVAL;
-	sm->sm_flags &= ~XFS_SCRUB_FLAGS_OUT;
-	if (sm->sm_flags & ~XFS_SCRUB_FLAGS_IN)
-		goto out;
-	if (memchr_inv(sm->sm_reserved, 0, sizeof(sm->sm_reserved)))
-		goto out;
-
-	/* Do we know about this type of metadata? */
-	error = -ENOENT;
-	if (sm->sm_type >= XFS_SCRUB_TYPE_NR)
-		goto out;
-	ops = &meta_scrub_ops[sm->sm_type];
-	if (ops->scrub == NULL)
-		goto out;
-
-	/*
-	 * We won't scrub any filesystem that doesn't have the ability
-	 * to record unwritten extents.  The option was made default in
-	 * 2003, removed from mkfs in 2007, and cannot be disabled in
-	 * v5, so if we find a filesystem without this flag it's either
-	 * really old or totally unsupported.  Avoid it either way.
-	 * We also don't support v1-v3 filesystems, which aren't
-	 * mountable.
-	 */
-	error = -EOPNOTSUPP;
-	if (!xfs_sb_version_hasextflgbit(&mp->m_sb))
-		goto out;
-
-	/* Does this fs even support this type of metadata? */
-	error = -ENOENT;
-	if (ops->has && !ops->has(&mp->m_sb))
-		goto out;
-
-	/* We don't know how to repair anything yet. */
-	error = -EOPNOTSUPP;
-	if (sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR)
+	error = xfs_scrub_validate_inputs(mp, sm);
+	if (error)
 		goto out;
 
 	xfs_scrub_experimental_warning(mp);
@@ -353,7 +423,7 @@ retry_op:
 	memset(&sc, 0, sizeof(sc));
 	sc.mp = ip->i_mount;
 	sc.sm = sm;
-	sc.ops = ops;
+	sc.ops = &meta_scrub_ops[sm->sm_type];
 	sc.try_harder = try_harder;
 	sc.sa.agno = NULLAGNUMBER;
 	error = sc.ops->setup(&sc, ip);

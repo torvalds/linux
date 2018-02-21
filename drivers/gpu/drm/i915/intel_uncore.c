@@ -69,15 +69,102 @@ fw_domain_arm_timer(struct intel_uncore_forcewake_domain *d)
 			       HRTIMER_MODE_REL);
 }
 
+static inline int
+__wait_for_ack(const struct drm_i915_private *i915,
+	       const struct intel_uncore_forcewake_domain *d,
+	       const u32 ack,
+	       const u32 value)
+{
+	return wait_for_atomic((__raw_i915_read32(i915, d->reg_ack) & ack) == value,
+			       FORCEWAKE_ACK_TIMEOUT_MS);
+}
+
+static inline int
+wait_ack_clear(const struct drm_i915_private *i915,
+	       const struct intel_uncore_forcewake_domain *d,
+	       const u32 ack)
+{
+	return __wait_for_ack(i915, d, ack, 0);
+}
+
+static inline int
+wait_ack_set(const struct drm_i915_private *i915,
+	     const struct intel_uncore_forcewake_domain *d,
+	     const u32 ack)
+{
+	return __wait_for_ack(i915, d, ack, ack);
+}
+
 static inline void
 fw_domain_wait_ack_clear(const struct drm_i915_private *i915,
 			 const struct intel_uncore_forcewake_domain *d)
 {
-	if (wait_for_atomic((__raw_i915_read32(i915, d->reg_ack) &
-			     FORCEWAKE_KERNEL) == 0,
-			    FORCEWAKE_ACK_TIMEOUT_MS))
+	if (wait_ack_clear(i915, d, FORCEWAKE_KERNEL))
 		DRM_ERROR("%s: timed out waiting for forcewake ack to clear.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
+}
+
+enum ack_type {
+	ACK_CLEAR = 0,
+	ACK_SET
+};
+
+static int
+fw_domain_wait_ack_with_fallback(const struct drm_i915_private *i915,
+				 const struct intel_uncore_forcewake_domain *d,
+				 const enum ack_type type)
+{
+	const u32 ack_bit = FORCEWAKE_KERNEL;
+	const u32 value = type == ACK_SET ? ack_bit : 0;
+	unsigned int pass;
+	bool ack_detected;
+
+	/*
+	 * There is a possibility of driver's wake request colliding
+	 * with hardware's own wake requests and that can cause
+	 * hardware to not deliver the driver's ack message.
+	 *
+	 * Use a fallback bit toggle to kick the gpu state machine
+	 * in the hope that the original ack will be delivered along with
+	 * the fallback ack.
+	 *
+	 * This workaround is described in HSDES #1604254524
+	 */
+
+	pass = 1;
+	do {
+		wait_ack_clear(i915, d, FORCEWAKE_KERNEL_FALLBACK);
+
+		__raw_i915_write32(i915, d->reg_set,
+				   _MASKED_BIT_ENABLE(FORCEWAKE_KERNEL_FALLBACK));
+		/* Give gt some time to relax before the polling frenzy */
+		udelay(10 * pass);
+		wait_ack_set(i915, d, FORCEWAKE_KERNEL_FALLBACK);
+
+		ack_detected = (__raw_i915_read32(i915, d->reg_ack) & ack_bit) == value;
+
+		__raw_i915_write32(i915, d->reg_set,
+				   _MASKED_BIT_DISABLE(FORCEWAKE_KERNEL_FALLBACK));
+	} while (!ack_detected && pass++ < 10);
+
+	DRM_DEBUG_DRIVER("%s had to use fallback to %s ack, 0x%x (passes %u)\n",
+			 intel_uncore_forcewake_domain_to_str(d->id),
+			 type == ACK_SET ? "set" : "clear",
+			 __raw_i915_read32(i915, d->reg_ack),
+			 pass);
+
+	return ack_detected ? 0 : -ETIMEDOUT;
+}
+
+static inline void
+fw_domain_wait_ack_clear_fallback(const struct drm_i915_private *i915,
+				  const struct intel_uncore_forcewake_domain *d)
+{
+	if (likely(!wait_ack_clear(i915, d, FORCEWAKE_KERNEL)))
+		return;
+
+	if (fw_domain_wait_ack_with_fallback(i915, d, ACK_CLEAR))
+		fw_domain_wait_ack_clear(i915, d);
 }
 
 static inline void
@@ -88,14 +175,23 @@ fw_domain_get(struct drm_i915_private *i915,
 }
 
 static inline void
-fw_domain_wait_ack(const struct drm_i915_private *i915,
-		   const struct intel_uncore_forcewake_domain *d)
+fw_domain_wait_ack_set(const struct drm_i915_private *i915,
+		       const struct intel_uncore_forcewake_domain *d)
 {
-	if (wait_for_atomic((__raw_i915_read32(i915, d->reg_ack) &
-			     FORCEWAKE_KERNEL),
-			    FORCEWAKE_ACK_TIMEOUT_MS))
+	if (wait_ack_set(i915, d, FORCEWAKE_KERNEL))
 		DRM_ERROR("%s: timed out waiting for forcewake ack request.\n",
 			  intel_uncore_forcewake_domain_to_str(d->id));
+}
+
+static inline void
+fw_domain_wait_ack_set_fallback(const struct drm_i915_private *i915,
+				const struct intel_uncore_forcewake_domain *d)
+{
+	if (likely(!wait_ack_set(i915, d, FORCEWAKE_KERNEL)))
+		return;
+
+	if (fw_domain_wait_ack_with_fallback(i915, d, ACK_SET))
+		fw_domain_wait_ack_set(i915, d);
 }
 
 static inline void
@@ -119,7 +215,27 @@ fw_domains_get(struct drm_i915_private *i915, enum forcewake_domains fw_domains)
 	}
 
 	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
-		fw_domain_wait_ack(i915, d);
+		fw_domain_wait_ack_set(i915, d);
+
+	i915->uncore.fw_domains_active |= fw_domains;
+}
+
+static void
+fw_domains_get_with_fallback(struct drm_i915_private *i915,
+			     enum forcewake_domains fw_domains)
+{
+	struct intel_uncore_forcewake_domain *d;
+	unsigned int tmp;
+
+	GEM_BUG_ON(fw_domains & ~i915->uncore.fw_domains);
+
+	for_each_fw_domain_masked(d, fw_domains, i915, tmp) {
+		fw_domain_wait_ack_clear_fallback(i915, d);
+		fw_domain_get(i915, d);
+	}
+
+	for_each_fw_domain_masked(d, fw_domains, i915, tmp)
+		fw_domain_wait_ack_set_fallback(i915, d);
 
 	i915->uncore.fw_domains_active |= fw_domains;
 }
@@ -229,6 +345,7 @@ intel_uncore_fw_release_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+/* Note callers must have acquired the PUNIT->PMIC bus, before calling this. */
 static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 					 bool restore)
 {
@@ -236,6 +353,8 @@ static void intel_uncore_forcewake_reset(struct drm_i915_private *dev_priv,
 	struct intel_uncore_forcewake_domain *domain;
 	int retry_count = 100;
 	enum forcewake_domains fw, active_domains;
+
+	iosf_mbi_assert_punit_acquired();
 
 	/* Hold uncore.lock across reset to prevent any register access
 	 * with forcewake not set correctly. Wait until all pending
@@ -416,14 +535,18 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 				   GT_FIFO_CTL_RC6_POLICY_STALL);
 	}
 
+	iosf_mbi_punit_acquire();
 	intel_uncore_forcewake_reset(dev_priv, restore_forcewake);
+	iosf_mbi_punit_release();
 }
 
 void intel_uncore_suspend(struct drm_i915_private *dev_priv)
 {
-	iosf_mbi_unregister_pmic_bus_access_notifier(
+	iosf_mbi_punit_acquire();
+	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
 		&dev_priv->uncore.pmic_bus_access_nb);
 	intel_uncore_forcewake_reset(dev_priv, false);
+	iosf_mbi_punit_release();
 }
 
 void intel_uncore_resume_early(struct drm_i915_private *dev_priv)
@@ -442,9 +565,6 @@ void intel_uncore_runtime_resume(struct drm_i915_private *dev_priv)
 
 void intel_uncore_sanitize(struct drm_i915_private *dev_priv)
 {
-	i915_modparams.enable_rc6 =
-		sanitize_rc6_option(dev_priv, i915_modparams.enable_rc6);
-
 	/* BIOS often leaves RC6 enabled, but disable it for hw init */
 	intel_sanitize_gt_powersave(dev_priv);
 }
@@ -1148,7 +1268,8 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		dev_priv->uncore.funcs.force_wake_get = fw_domains_get;
+		dev_priv->uncore.funcs.force_wake_get =
+			fw_domains_get_with_fallback;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
 		fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 			       FORCEWAKE_RENDER_GEN9,
@@ -1309,18 +1430,18 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 
 	iosf_mbi_register_pmic_bus_access_notifier(
 		&dev_priv->uncore.pmic_bus_access_nb);
-
-	i915_check_and_clear_faults(dev_priv);
 }
 
 void intel_uncore_fini(struct drm_i915_private *dev_priv)
 {
-	iosf_mbi_unregister_pmic_bus_access_notifier(
-		&dev_priv->uncore.pmic_bus_access_nb);
-
 	/* Paranoia: make sure we have disabled everything before we exit. */
 	intel_uncore_sanitize(dev_priv);
+
+	iosf_mbi_punit_acquire();
+	iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+		&dev_priv->uncore.pmic_bus_access_nb);
 	intel_uncore_forcewake_reset(dev_priv, false);
+	iosf_mbi_punit_release();
 }
 
 static const struct reg_whitelist {
@@ -1400,9 +1521,13 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 		DRM_DEBUG_DRIVER("%s: timed out on STOP_RING\n",
 				 engine->name);
 
-	I915_WRITE_FW(RING_CTL(base), 0);
+	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
+
 	I915_WRITE_FW(RING_HEAD(base), 0);
 	I915_WRITE_FW(RING_TAIL(base), 0);
+
+	/* The ring must be empty before it is disabled */
+	I915_WRITE_FW(RING_CTL(base), 0);
 
 	/* Check acts as a post */
 	if (I915_READ_FW(RING_HEAD(base)) != 0)
@@ -1801,18 +1926,13 @@ bool intel_has_gpu_reset(struct drm_i915_private *dev_priv)
 	return intel_get_gpu_reset(dev_priv) != NULL;
 }
 
-/*
- * When GuC submission is enabled, GuC manages ELSP and can initiate the
- * engine reset too. For now, fall back to full GPU reset if it is enabled.
- */
 bool intel_has_reset_engine(struct drm_i915_private *dev_priv)
 {
 	return (dev_priv->info.has_reset_engine &&
-		!dev_priv->guc.execbuf_client &&
 		i915_modparams.reset >= 2);
 }
 
-int intel_guc_reset(struct drm_i915_private *dev_priv)
+int intel_reset_guc(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
