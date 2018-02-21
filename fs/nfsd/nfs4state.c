@@ -807,7 +807,8 @@ static void block_delegations(struct knfsd_fh *fh)
 }
 
 static struct nfs4_delegation *
-alloc_init_deleg(struct nfs4_client *clp, struct svc_fh *current_fh,
+alloc_init_deleg(struct nfs4_client *clp, struct nfs4_file *fp,
+		 struct svc_fh *current_fh,
 		 struct nfs4_clnt_odstate *odstate)
 {
 	struct nfs4_delegation *dp;
@@ -838,6 +839,8 @@ alloc_init_deleg(struct nfs4_client *clp, struct svc_fh *current_fh,
 	dp->dl_retries = 1;
 	nfsd4_init_cb(&dp->dl_recall, dp->dl_stid.sc_client,
 		      &nfsd4_cb_recall_ops, NFSPROC4_CLNT_CB_RECALL);
+	get_nfs4_file(fp);
+	dp->dl_stid.sc_file = fp;
 	return dp;
 out_dec:
 	atomic_long_dec(&num_delegations);
@@ -4400,12 +4403,9 @@ nfs4_set_delegation(struct nfs4_client *clp, struct svc_fh *fh,
 	if (status)
 		return ERR_PTR(status);
 
-	dp = alloc_init_deleg(clp, fh, odstate);
+	dp = alloc_init_deleg(clp, fp, fh, odstate);
 	if (!dp)
 		return ERR_PTR(-ENOMEM);
-
-	get_nfs4_file(fp);
-	dp->dl_stid.sc_file = fp;
 
 	spin_lock(&state_lock);
 	spin_lock(&fp->fi_lock);
