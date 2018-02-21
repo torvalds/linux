@@ -1004,7 +1004,7 @@ static struct rockchip_clk_branch px30_clk_pmu_branches[] __initdata = {
 	GATE(0, "pclk_cru_pmu", "pclk_pmu_pre", CLK_IGNORE_UNUSED, PX30_PMU_CLKGATE_CON(0), 8, GFLAGS),
 };
 
-static const char *const px30_critical_clocks[] __initconst = {
+static const char *const px30_pmucru_critical_clocks[] __initconst = {
 	"aclk_bus_pre",
 	"pclk_bus_pre",
 	"hclk_bus_pre",
@@ -1012,9 +1012,6 @@ static const char *const px30_critical_clocks[] __initconst = {
 	"hclk_peri_pre",
 	"aclk_gpu_niu",
 	"pclk_top_pre",
-};
-
-static const char *const px30_pmucru_critical_clocks[] __initconst = {
 	"pclk_pmu_pre",
 };
 
@@ -1083,8 +1080,6 @@ static void __init px30_clk_init(struct device_node *np)
 				   PX30_GRF_SOC_STATUS0);
 	rockchip_clk_register_branches(ctx, px30_clk_branches,
 				       ARRAY_SIZE(px30_clk_branches));
-	rockchip_clk_protect_critical(px30_critical_clocks,
-				      ARRAY_SIZE(px30_critical_clocks));
 
 	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
 				     mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
