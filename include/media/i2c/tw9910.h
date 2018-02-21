@@ -18,6 +18,9 @@
 
 #include <media/soc_camera.h>
 
+/**
+ * tw9910_mpout_pin - MPOUT (multi-purpose output) pin functions
+ */
 enum tw9910_mpout_pin {
 	TW9910_MPO_VLOSS,
 	TW9910_MPO_HLOCK,
@@ -29,6 +32,12 @@ enum tw9910_mpout_pin {
 	TW9910_MPO_RTCO,
 };
 
+/**
+ * tw9910_video_info -	tw9910 driver interface structure
+ * @buswidth:		Parallel data bus width (8 or 16).
+ * @mpout:		Selected function of MPOUT (multi-purpose output) pin.
+ *			See &enum tw9910_mpout_pin
+ */
 struct tw9910_video_info {
 	unsigned long		buswidth;
 	enum tw9910_mpout_pin	mpout;
