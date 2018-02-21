@@ -144,10 +144,6 @@ static int tegra_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	int ret;
 
 	/* convert tm to seconds. */
-	ret = rtc_valid_tm(tm);
-	if (ret)
-		return ret;
-
 	rtc_tm_to_time(tm, &sec);
 
 	dev_vdbg(dev, "time set to %lu. %d/%d/%d %d:%02u:%02u\n",
