@@ -49,7 +49,37 @@
 #include "print_binary.h"
 #include "stat.h"
 
+#if PY_MAJOR_VERSION < 3
+#define _PyUnicode_FromString(arg) \
+  PyString_FromString(arg)
+#define _PyUnicode_FromStringAndSize(arg1, arg2) \
+  PyString_FromStringAndSize((arg1), (arg2))
+#define _PyBytes_FromStringAndSize(arg1, arg2) \
+  PyString_FromStringAndSize((arg1), (arg2))
+#define _PyLong_FromLong(arg) \
+  PyInt_FromLong(arg)
+#define _PyLong_AsLong(arg) \
+  PyInt_AsLong(arg)
+#define _PyCapsule_New(arg1, arg2, arg3) \
+  PyCObject_FromVoidPtr((arg1), (arg2))
+
 PyMODINIT_FUNC initperf_trace_context(void);
+#else
+#define _PyUnicode_FromString(arg) \
+  PyUnicode_FromString(arg)
+#define _PyUnicode_FromStringAndSize(arg1, arg2) \
+  PyUnicode_FromStringAndSize((arg1), (arg2))
+#define _PyBytes_FromStringAndSize(arg1, arg2) \
+  PyBytes_FromStringAndSize((arg1), (arg2))
+#define _PyLong_FromLong(arg) \
+  PyLong_FromLong(arg)
+#define _PyLong_AsLong(arg) \
+  PyLong_AsLong(arg)
+#define _PyCapsule_New(arg1, arg2, arg3) \
+  PyCapsule_New((arg1), (arg2), (arg3))
+
+PyMODINIT_FUNC PyInit_perf_trace_context(void);
+#endif
 
 #define TRACE_EVENT_TYPE_MAX				\
 	((1 << (sizeof(unsigned short) * 8)) - 1)
@@ -135,7 +165,7 @@ static int get_argument_count(PyObject *handler)
 		PyObject *arg_count_obj = PyObject_GetAttrString(code_obj,
 			"co_argcount");
 		if (arg_count_obj) {
-			arg_count = (int) PyInt_AsLong(arg_count_obj);
+			arg_count = (int) _PyLong_AsLong(arg_count_obj);
 			Py_DECREF(arg_count_obj);
 		}
 		Py_DECREF(code_obj);
@@ -182,10 +212,10 @@ static void define_value(enum print_arg_type field_type,
 
 	value = eval_flag(field_value);
 
-	PyTuple_SetItem(t, n++, PyString_FromString(ev_name));
-	PyTuple_SetItem(t, n++, PyString_FromString(field_name));
-	PyTuple_SetItem(t, n++, PyInt_FromLong(value));
-	PyTuple_SetItem(t, n++, PyString_FromString(field_str));
+	PyTuple_SetItem(t, n++, _PyUnicode_FromString(ev_name));
+	PyTuple_SetItem(t, n++, _PyUnicode_FromString(field_name));
+	PyTuple_SetItem(t, n++, _PyLong_FromLong(value));
+	PyTuple_SetItem(t, n++, _PyUnicode_FromString(field_str));
 
 	try_call_object(handler_name, t);
 
@@ -223,10 +253,10 @@ static void define_field(enum print_arg_type field_type,
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 
-	PyTuple_SetItem(t, n++, PyString_FromString(ev_name));
-	PyTuple_SetItem(t, n++, PyString_FromString(field_name));
+	PyTuple_SetItem(t, n++, _PyUnicode_FromString(ev_name));
+	PyTuple_SetItem(t, n++, _PyUnicode_FromString(field_name));
 	if (field_type == PRINT_FLAGS)
-		PyTuple_SetItem(t, n++, PyString_FromString(delim));
+		PyTuple_SetItem(t, n++, _PyUnicode_FromString(delim));
 
 	try_call_object(handler_name, t);
 
@@ -325,12 +355,12 @@ static PyObject *get_field_numeric_entry(struct event_format *event,
 		if (field->flags & FIELD_IS_SIGNED) {
 			if ((long long)val >= LONG_MIN &&
 					(long long)val <= LONG_MAX)
-				obj = PyInt_FromLong(val);
+				obj = _PyLong_FromLong(val);
 			else
 				obj = PyLong_FromLongLong(val);
 		} else {
 			if (val <= LONG_MAX)
-				obj = PyInt_FromLong(val);
+				obj = _PyLong_FromLong(val);
 			else
 				obj = PyLong_FromUnsignedLongLong(val);
 		}
@@ -389,9 +419,9 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 			pydict_set_item_string_decref(pysym, "end",
 					PyLong_FromUnsignedLongLong(node->sym->end));
 			pydict_set_item_string_decref(pysym, "binding",
-					PyInt_FromLong(node->sym->binding));
+					_PyLong_FromLong(node->sym->binding));
 			pydict_set_item_string_decref(pysym, "name",
-					PyString_FromStringAndSize(node->sym->name,
+					_PyUnicode_FromStringAndSize(node->sym->name,
 							node->sym->namelen));
 			pydict_set_item_string_decref(pyelem, "sym", pysym);
 		}
@@ -406,7 +436,7 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 					dsoname = map->dso->name;
 			}
 			pydict_set_item_string_decref(pyelem, "dso",
-					PyString_FromString(dsoname));
+					_PyUnicode_FromString(dsoname));
 		}
 
 		callchain_cursor_advance(&callchain_cursor);
@@ -483,16 +513,16 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	if (!dict_sample)
 		Py_FatalError("couldn't create Python dictionary");
 
-	pydict_set_item_string_decref(dict, "ev_name", PyString_FromString(perf_evsel__name(evsel)));
-	pydict_set_item_string_decref(dict, "attr", PyString_FromStringAndSize(
+	pydict_set_item_string_decref(dict, "ev_name", _PyUnicode_FromString(perf_evsel__name(evsel)));
+	pydict_set_item_string_decref(dict, "attr", _PyUnicode_FromStringAndSize(
 			(const char *)&evsel->attr, sizeof(evsel->attr)));
 
 	pydict_set_item_string_decref(dict_sample, "pid",
-			PyInt_FromLong(sample->pid));
+			_PyLong_FromLong(sample->pid));
 	pydict_set_item_string_decref(dict_sample, "tid",
-			PyInt_FromLong(sample->tid));
+			_PyLong_FromLong(sample->tid));
 	pydict_set_item_string_decref(dict_sample, "cpu",
-			PyInt_FromLong(sample->cpu));
+			_PyLong_FromLong(sample->cpu));
 	pydict_set_item_string_decref(dict_sample, "ip",
 			PyLong_FromUnsignedLongLong(sample->ip));
 	pydict_set_item_string_decref(dict_sample, "time",
@@ -504,17 +534,17 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	set_sample_read_in_dict(dict_sample, sample, evsel);
 	pydict_set_item_string_decref(dict, "sample", dict_sample);
 
-	pydict_set_item_string_decref(dict, "raw_buf", PyString_FromStringAndSize(
+	pydict_set_item_string_decref(dict, "raw_buf", _PyBytes_FromStringAndSize(
 			(const char *)sample->raw_data, sample->raw_size));
 	pydict_set_item_string_decref(dict, "comm",
-			PyString_FromString(thread__comm_str(al->thread)));
+			_PyUnicode_FromString(thread__comm_str(al->thread)));
 	if (al->map) {
 		pydict_set_item_string_decref(dict, "dso",
-			PyString_FromString(al->map->dso->name));
+			_PyUnicode_FromString(al->map->dso->name));
 	}
 	if (al->sym) {
 		pydict_set_item_string_decref(dict, "symbol",
-			PyString_FromString(al->sym->name));
+			_PyUnicode_FromString(al->sym->name));
 	}
 
 	pydict_set_item_string_decref(dict, "callchain", callchain);
@@ -574,9 +604,9 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	scripting_context->event_data = data;
 	scripting_context->pevent = evsel->tp_format->pevent;
 
-	context = PyCObject_FromVoidPtr(scripting_context, NULL);
+	context = _PyCapsule_New(scripting_context, NULL, NULL);
 
-	PyTuple_SetItem(t, n++, PyString_FromString(handler_name));
+	PyTuple_SetItem(t, n++, _PyUnicode_FromString(handler_name));
 	PyTuple_SetItem(t, n++, context);
 
 	/* ip unwinding */
@@ -585,18 +615,18 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	Py_INCREF(callchain);
 
 	if (!dict) {
-		PyTuple_SetItem(t, n++, PyInt_FromLong(cpu));
-		PyTuple_SetItem(t, n++, PyInt_FromLong(s));
-		PyTuple_SetItem(t, n++, PyInt_FromLong(ns));
-		PyTuple_SetItem(t, n++, PyInt_FromLong(pid));
-		PyTuple_SetItem(t, n++, PyString_FromString(comm));
+		PyTuple_SetItem(t, n++, _PyLong_FromLong(cpu));
+		PyTuple_SetItem(t, n++, _PyLong_FromLong(s));
+		PyTuple_SetItem(t, n++, _PyLong_FromLong(ns));
+		PyTuple_SetItem(t, n++, _PyLong_FromLong(pid));
+		PyTuple_SetItem(t, n++, _PyUnicode_FromString(comm));
 		PyTuple_SetItem(t, n++, callchain);
 	} else {
-		pydict_set_item_string_decref(dict, "common_cpu", PyInt_FromLong(cpu));
-		pydict_set_item_string_decref(dict, "common_s", PyInt_FromLong(s));
-		pydict_set_item_string_decref(dict, "common_ns", PyInt_FromLong(ns));
-		pydict_set_item_string_decref(dict, "common_pid", PyInt_FromLong(pid));
-		pydict_set_item_string_decref(dict, "common_comm", PyString_FromString(comm));
+		pydict_set_item_string_decref(dict, "common_cpu", _PyLong_FromLong(cpu));
+		pydict_set_item_string_decref(dict, "common_s", _PyLong_FromLong(s));
+		pydict_set_item_string_decref(dict, "common_ns", _PyLong_FromLong(ns));
+		pydict_set_item_string_decref(dict, "common_pid", _PyLong_FromLong(pid));
+		pydict_set_item_string_decref(dict, "common_comm", _PyUnicode_FromString(comm));
 		pydict_set_item_string_decref(dict, "common_callchain", callchain);
 	}
 	for (field = event->format.fields; field; field = field->next) {
@@ -615,7 +645,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 			}
 			if (field->flags & FIELD_IS_STRING &&
 			    is_printable_array(data + offset, len)) {
-				obj = PyString_FromString((char *) data + offset);
+				obj = _PyUnicode_FromString((char *) data + offset);
 			} else {
 				obj = PyByteArray_FromStringAndSize((const char *) data + offset, len);
 				field->flags &= ~FIELD_IS_STRING;
@@ -668,7 +698,7 @@ static PyObject *tuple_new(unsigned int sz)
 static int tuple_set_u64(PyObject *t, unsigned int pos, u64 val)
 {
 #if BITS_PER_LONG == 64
-	return PyTuple_SetItem(t, pos, PyInt_FromLong(val));
+	return PyTuple_SetItem(t, pos, _PyLong_FromLong(val));
 #endif
 #if BITS_PER_LONG == 32
 	return PyTuple_SetItem(t, pos, PyLong_FromLongLong(val));
@@ -677,12 +707,12 @@ static int tuple_set_u64(PyObject *t, unsigned int pos, u64 val)
 
 static int tuple_set_s32(PyObject *t, unsigned int pos, s32 val)
 {
-	return PyTuple_SetItem(t, pos, PyInt_FromLong(val));
+	return PyTuple_SetItem(t, pos, _PyLong_FromLong(val));
 }
 
 static int tuple_set_string(PyObject *t, unsigned int pos, const char *s)
 {
-	return PyTuple_SetItem(t, pos, PyString_FromString(s));
+	return PyTuple_SetItem(t, pos, _PyUnicode_FromString(s));
 }
 
 static int python_export_evsel(struct db_export *dbe, struct perf_evsel *evsel)
@@ -1029,8 +1059,8 @@ process_stat(struct perf_evsel *counter, int cpu, int thread, u64 tstamp,
 		return;
 	}
 
-	PyTuple_SetItem(t, n++, PyInt_FromLong(cpu));
-	PyTuple_SetItem(t, n++, PyInt_FromLong(thread));
+	PyTuple_SetItem(t, n++, _PyLong_FromLong(cpu));
+	PyTuple_SetItem(t, n++, _PyLong_FromLong(thread));
 
 	tuple_set_u64(t, n++, tstamp);
 	tuple_set_u64(t, n++, count->val);
@@ -1212,27 +1242,58 @@ static void set_table_handlers(struct tables *tables)
 	SET_TABLE_HANDLER(call_return);
 }
 
+#if PY_MAJOR_VERSION < 3
+static void _free_command_line(const char **command_line, int num)
+{
+	free(command_line);
+}
+#else
+static void _free_command_line(wchar_t **command_line, int num)
+{
+	int i;
+	for (i = 0; i < num; i++)
+		PyMem_RawFree(command_line[i]);
+	free(command_line);
+}
+#endif
+
+
 /*
  * Start trace script
  */
 static int python_start_script(const char *script, int argc, const char **argv)
 {
 	struct tables *tables = &tables_global;
+#if PY_MAJOR_VERSION < 3
 	const char **command_line;
+#else
+	wchar_t **command_line;
+#endif
 	char buf[PATH_MAX];
 	int i, err = 0;
 	FILE *fp;
 
+#if PY_MAJOR_VERSION < 3
 	command_line = malloc((argc + 1) * sizeof(const char *));
 	command_line[0] = script;
 	for (i = 1; i < argc + 1; i++)
 		command_line[i] = argv[i - 1];
+#else
+	command_line = malloc((argc + 1) * sizeof(wchar_t *));
+	command_line[0] = Py_DecodeLocale(script, NULL);
+	for (i = 1; i < argc + 1; i++)
+		command_line[i] = Py_DecodeLocale(argv[i - 1], NULL);
+#endif
 
 	Py_Initialize();
 
+#if PY_MAJOR_VERSION < 3
 	initperf_trace_context();
-
 	PySys_SetArgv(argc + 1, (char **)command_line);
+#else
+	PyInit_perf_trace_context();
+	PySys_SetArgv(argc + 1, command_line);
+#endif
 
 	fp = fopen(script, "r");
 	if (!fp) {
@@ -1262,12 +1323,12 @@ static int python_start_script(const char *script, int argc, const char **argv)
 			goto error;
 	}
 
-	free(command_line);
+	_free_command_line(command_line, argc + 1);
 
 	return err;
 error:
 	Py_Finalize();
-	free(command_line);
+	_free_command_line(command_line, argc + 1);
 
 	return err;
 }
