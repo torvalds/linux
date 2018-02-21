@@ -42,9 +42,6 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = msm_atomic_commit,
-	.atomic_state_alloc = msm_atomic_state_alloc,
-	.atomic_state_clear = msm_atomic_state_clear,
-	.atomic_state_free = msm_atomic_state_free,
 };
 
 #ifdef CONFIG_DRM_MSM_REGISTER_LOGGING

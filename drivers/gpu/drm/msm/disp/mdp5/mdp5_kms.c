@@ -70,42 +70,6 @@ static int mdp5_hw_init(struct msm_kms *kms)
 	return 0;
 }
 
-struct mdp5_state *mdp5_get_state(struct drm_atomic_state *s)
-{
-	struct msm_drm_private *priv = s->dev->dev_private;
-	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(priv->kms));
-	struct msm_kms_state *state = to_kms_state(s);
-	struct mdp5_state *new_state;
-	int ret;
-
-	if (state->state)
-		return state->state;
-
-	ret = drm_modeset_lock(&mdp5_kms->state_lock, s->acquire_ctx);
-	if (ret)
-		return ERR_PTR(ret);
-
-	new_state = kmalloc(sizeof(*mdp5_kms->state), GFP_KERNEL);
-	if (!new_state)
-		return ERR_PTR(-ENOMEM);
-
-	/* Copy state: */
-	new_state->hwpipe = mdp5_kms->state->hwpipe;
-	new_state->hwmixer = mdp5_kms->state->hwmixer;
-	if (mdp5_kms->smp)
-		new_state->smp = mdp5_kms->state->smp;
-
-	state->state = new_state;
-
-	return new_state;
-}
-
-static void mdp5_swap_state(struct msm_kms *kms, struct drm_atomic_state *state)
-{
-	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
-	swap(to_kms_state(state)->state, mdp5_kms->state);
-}
-
 /* Global/shared object state funcs */
 
 /*
@@ -315,7 +279,6 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.irq             = mdp5_irq,
 		.enable_vblank   = mdp5_enable_vblank,
 		.disable_vblank  = mdp5_disable_vblank,
-		.swap_state      = mdp5_swap_state,
 		.prepare_commit  = mdp5_prepare_commit,
 		.complete_commit = mdp5_complete_commit,
 		.wait_for_crtc_commit_done = mdp5_wait_for_crtc_commit_done,
@@ -815,8 +778,6 @@ static void mdp5_destroy(struct platform_device *pdev)
 
 	drm_atomic_private_obj_fini(&mdp5_kms->glob_state);
 	drm_modeset_lock_fini(&mdp5_kms->glob_state_lock);
-
-	kfree(mdp5_kms->state);
 }
 
 static int construct_pipes(struct mdp5_kms *mdp5_kms, int cnt,
@@ -968,13 +929,6 @@ static int mdp5_init(struct platform_device *pdev, struct drm_device *dev)
 
 	mdp5_kms->dev = dev;
 	mdp5_kms->pdev = pdev;
-
-	drm_modeset_lock_init(&mdp5_kms->state_lock);
-	mdp5_kms->state = kzalloc(sizeof(*mdp5_kms->state), GFP_KERNEL);
-	if (!mdp5_kms->state) {
-		ret = -ENOMEM;
-		goto fail;
-	}
 
 	ret = mdp5_global_obj_init(mdp5_kms);
 	if (ret)
