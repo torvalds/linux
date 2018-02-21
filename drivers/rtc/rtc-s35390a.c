@@ -450,7 +450,6 @@ static int s35390a_probe(struct i2c_client *client,
 	int err, err_read;
 	unsigned int i;
 	struct s35390a *s35390a;
-	struct rtc_time tm;
 	char buf, status1;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -507,9 +506,6 @@ static int s35390a_probe(struct i2c_client *client,
 			goto exit_dummy;
 		}
 	}
-
-	if (err_read > 0 || s35390a_get_datetime(client, &tm) < 0)
-		dev_warn(&client->dev, "clock needs to be set\n");
 
 	device_set_wakeup_capable(&client->dev, 1);
 
