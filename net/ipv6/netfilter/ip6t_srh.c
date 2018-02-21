@@ -122,12 +122,14 @@ static int srh_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_srh *srhinfo = par->matchinfo;
 
 	if (srhinfo->mt_flags & ~IP6T_SRH_MASK) {
-		pr_err("unknown srh match flags  %X\n", srhinfo->mt_flags);
+		pr_info_ratelimited("unknown srh match flags  %X\n",
+				    srhinfo->mt_flags);
 		return -EINVAL;
 	}
 
 	if (srhinfo->mt_invflags & ~IP6T_SRH_INV_MASK) {
-		pr_err("unknown srh invflags %X\n", srhinfo->mt_invflags);
+		pr_info_ratelimited("unknown srh invflags %X\n",
+				    srhinfo->mt_invflags);
 		return -EINVAL;
 	}
 
