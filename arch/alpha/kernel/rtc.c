@@ -97,7 +97,7 @@ alpha_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_year = year;
 	}
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int
