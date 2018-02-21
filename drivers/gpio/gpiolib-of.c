@@ -241,6 +241,19 @@ struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
 
 		desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
 						&of_flags);
+		/*
+		 * -EPROBE_DEFER in our case means that we found a
+		 * valid GPIO property, but no controller has been
+		 * registered so far.
+		 *
+		 * This means we don't need to look any further for
+		 * alternate name conventions, and we should really
+		 * preserve the return code for our user to be able to
+		 * retry probing later.
+		 */
+		if (IS_ERR(desc) && PTR_ERR(desc) == -EPROBE_DEFER)
+			return desc;
+
 		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
 			break;
 	}
