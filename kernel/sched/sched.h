@@ -727,9 +727,7 @@ struct rq {
 #endif /* CONFIG_SMP */
 	unsigned long nohz_flags;
 #endif /* CONFIG_NO_HZ_COMMON */
-#ifdef CONFIG_NO_HZ_FULL
-	unsigned long last_sched_tick;
-#endif
+
 	/* capture load from *all* tasks on this cpu: */
 	struct load_weight load;
 	unsigned long nr_load_updates;
@@ -1624,13 +1622,6 @@ static inline void sub_nr_running(struct rq *rq, unsigned count)
 	rq->nr_running -= count;
 	/* Check if we still need preemption */
 	sched_update_tick_dependency(rq);
-}
-
-static inline void rq_last_tick_reset(struct rq *rq)
-{
-#ifdef CONFIG_NO_HZ_FULL
-	rq->last_sched_tick = jiffies;
-#endif
 }
 
 extern void update_rq_clock(struct rq *rq);
