@@ -221,8 +221,15 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 
 	event = fanotify_alloc_event(group, inode, mask, data);
 	ret = -ENOMEM;
-	if (unlikely(!event))
+	if (unlikely(!event)) {
+		/*
+		 * We don't queue overflow events for permission events as
+		 * there the access is denied and so no event is in fact lost.
+		 */
+		if (!fanotify_is_perm_event(mask))
+			fsnotify_queue_overflow(group);
 		goto finish;
+	}
 
 	fsn_event = &event->fse;
 	ret = fsnotify_add_event(group, fsn_event, fanotify_merge);
