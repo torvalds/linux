@@ -181,12 +181,7 @@ For 32-bit we have the following conventions - kernel is built with
  */
 .macro ENCODE_FRAME_POINTER ptregs_offset=0
 #ifdef CONFIG_FRAME_POINTER
-	.if \ptregs_offset
-		leaq \ptregs_offset(%rsp), %rbp
-	.else
-		mov %rsp, %rbp
-	.endif
-	orq	$0x1, %rbp
+	leaq 1+\ptregs_offset(%rsp), %rbp
 #endif
 .endm
 
