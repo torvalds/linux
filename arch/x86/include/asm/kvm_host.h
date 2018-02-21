@@ -1066,6 +1066,8 @@ struct kvm_x86_ops {
 	void (*cancel_hv_timer)(struct kvm_vcpu *vcpu);
 
 	void (*setup_mce)(struct kvm_vcpu *vcpu);
+
+	int (*get_msr_feature)(struct kvm_msr_entry *entry);
 };
 
 struct kvm_arch_async_pf {
