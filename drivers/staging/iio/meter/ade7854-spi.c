@@ -17,7 +17,7 @@
 
 static int ade7854_spi_write_reg_8(struct device *dev,
 		u16 reg_address,
-		u8 value)
+		u8 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -32,7 +32,7 @@ static int ade7854_spi_write_reg_8(struct device *dev,
 	st->tx[0] = ADE7854_WRITE_REG;
 	st->tx[1] = (reg_address >> 8) & 0xFF;
 	st->tx[2] = reg_address & 0xFF;
-	st->tx[3] = value & 0xFF;
+	st->tx[3] = val & 0xFF;
 
 	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	mutex_unlock(&st->buf_lock);
@@ -42,7 +42,7 @@ static int ade7854_spi_write_reg_8(struct device *dev,
 
 static int ade7854_spi_write_reg_16(struct device *dev,
 		u16 reg_address,
-		u16 value)
+		u16 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -57,8 +57,8 @@ static int ade7854_spi_write_reg_16(struct device *dev,
 	st->tx[0] = ADE7854_WRITE_REG;
 	st->tx[1] = (reg_address >> 8) & 0xFF;
 	st->tx[2] = reg_address & 0xFF;
-	st->tx[3] = (value >> 8) & 0xFF;
-	st->tx[4] = value & 0xFF;
+	st->tx[3] = (val >> 8) & 0xFF;
+	st->tx[4] = val & 0xFF;
 
 	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	mutex_unlock(&st->buf_lock);
@@ -68,7 +68,7 @@ static int ade7854_spi_write_reg_16(struct device *dev,
 
 static int ade7854_spi_write_reg_24(struct device *dev,
 		u16 reg_address,
-		u32 value)
+		u32 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -83,9 +83,9 @@ static int ade7854_spi_write_reg_24(struct device *dev,
 	st->tx[0] = ADE7854_WRITE_REG;
 	st->tx[1] = (reg_address >> 8) & 0xFF;
 	st->tx[2] = reg_address & 0xFF;
-	st->tx[3] = (value >> 16) & 0xFF;
-	st->tx[4] = (value >> 8) & 0xFF;
-	st->tx[5] = value & 0xFF;
+	st->tx[3] = (val >> 16) & 0xFF;
+	st->tx[4] = (val >> 8) & 0xFF;
+	st->tx[5] = val & 0xFF;
 
 	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	mutex_unlock(&st->buf_lock);
@@ -95,7 +95,7 @@ static int ade7854_spi_write_reg_24(struct device *dev,
 
 static int ade7854_spi_write_reg_32(struct device *dev,
 		u16 reg_address,
-		u32 value)
+		u32 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -110,10 +110,10 @@ static int ade7854_spi_write_reg_32(struct device *dev,
 	st->tx[0] = ADE7854_WRITE_REG;
 	st->tx[1] = (reg_address >> 8) & 0xFF;
 	st->tx[2] = reg_address & 0xFF;
-	st->tx[3] = (value >> 24) & 0xFF;
-	st->tx[4] = (value >> 16) & 0xFF;
-	st->tx[5] = (value >> 8) & 0xFF;
-	st->tx[6] = value & 0xFF;
+	st->tx[3] = (val >> 24) & 0xFF;
+	st->tx[4] = (val >> 16) & 0xFF;
+	st->tx[5] = (val >> 8) & 0xFF;
+	st->tx[6] = val & 0xFF;
 
 	ret = spi_sync_transfer(st->spi, &xfer, 1);
 	mutex_unlock(&st->buf_lock);
