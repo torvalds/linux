@@ -1826,6 +1826,8 @@ int fib_multipath_hash(const struct fib_info *fi, const struct flowi4 *fl4,
 				return skb_get_hash_raw(skb) >> 1;
 			memset(&hash_keys, 0, sizeof(hash_keys));
 			skb_flow_dissect_flow_keys(skb, &keys, flag);
+
+			hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 			hash_keys.addrs.v4addrs.src = keys.addrs.v4addrs.src;
 			hash_keys.addrs.v4addrs.dst = keys.addrs.v4addrs.dst;
 			hash_keys.ports.src = keys.ports.src;
