@@ -1206,7 +1206,7 @@ static void tcp_queue_skb(struct sock *sk, struct sk_buff *skb)
 /* Initialize TSO segments for a packet. */
 static void tcp_set_skb_tso_segs(struct sk_buff *skb, unsigned int mss_now)
 {
-	if (skb->len <= mss_now || skb->ip_summed == CHECKSUM_NONE) {
+	if (skb->len <= mss_now) {
 		/* Avoid the costly divide in the normal
 		 * non-TSO case.
 		 */
@@ -1335,21 +1335,9 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
 	TCP_SKB_CB(buff)->sacked = TCP_SKB_CB(skb)->sacked;
 	tcp_skb_fragment_eor(skb, buff);
 
-	if (!skb_shinfo(skb)->nr_frags && skb->ip_summed != CHECKSUM_PARTIAL) {
-		/* Copy and checksum data tail into the new buffer. */
-		buff->csum = csum_partial_copy_nocheck(skb->data + len,
-						       skb_put(buff, nsize),
-						       nsize, 0);
+	skb_split(skb, buff, len);
 
-		skb_trim(skb, len);
-
-		skb->csum = csum_block_sub(skb->csum, buff->csum, len);
-	} else {
-		skb->ip_summed = CHECKSUM_PARTIAL;
-		skb_split(skb, buff, len);
-	}
-
-	buff->ip_summed = skb->ip_summed;
+	buff->ip_summed = CHECKSUM_PARTIAL;
 
 	buff->tstamp = skb->tstamp;
 	tcp_fragment_tstamp(skb, buff);
@@ -1901,7 +1889,7 @@ static int tso_fragment(struct sock *sk, enum tcp_queue tcp_queue,
 
 	tcp_skb_fragment_eor(skb, buff);
 
-	buff->ip_summed = skb->ip_summed = CHECKSUM_PARTIAL;
+	buff->ip_summed = CHECKSUM_PARTIAL;
 	skb_split(skb, buff, len);
 	tcp_fragment_tstamp(skb, buff);
 
@@ -2134,7 +2122,7 @@ static int tcp_mtu_probe(struct sock *sk)
 	TCP_SKB_CB(nskb)->tcp_flags = TCPHDR_ACK;
 	TCP_SKB_CB(nskb)->sacked = 0;
 	nskb->csum = 0;
-	nskb->ip_summed = skb->ip_summed;
+	nskb->ip_summed = CHECKSUM_PARTIAL;
 
 	tcp_insert_write_queue_before(nskb, skb, sk);
 	tcp_highest_sack_replace(sk, skb, nskb);
@@ -2142,14 +2130,7 @@ static int tcp_mtu_probe(struct sock *sk)
 	len = 0;
 	tcp_for_write_queue_from_safe(skb, next, sk) {
 		copy = min_t(int, skb->len, probe_size - len);
-		if (nskb->ip_summed) {
-			skb_copy_bits(skb, 0, skb_put(nskb, copy), copy);
-		} else {
-			__wsum csum = skb_copy_and_csum_bits(skb, 0,
-							     skb_put(nskb, copy),
-							     copy, 0);
-			nskb->csum = csum_block_add(nskb->csum, csum, len);
-		}
+		skb_copy_bits(skb, 0, skb_put(nskb, copy), copy);
 
 		if (skb->len <= copy) {
 			/* We've eaten all the data from this skb.
@@ -2166,9 +2147,6 @@ static int tcp_mtu_probe(struct sock *sk)
 						   ~(TCPHDR_FIN|TCPHDR_PSH);
 			if (!skb_shinfo(skb)->nr_frags) {
 				skb_pull(skb, copy);
-				if (skb->ip_summed != CHECKSUM_PARTIAL)
-					skb->csum = csum_partial(skb->data,
-								 skb->len, 0);
 			} else {
 				__pskb_trim_head(skb, copy);
 				tcp_set_skb_tso_segs(skb, mss_now);
@@ -2745,12 +2723,6 @@ static bool tcp_collapse_retrans(struct sock *sk, struct sk_buff *skb)
 			return false;
 	}
 	tcp_highest_sack_replace(sk, next_skb, skb);
-
-	if (next_skb->ip_summed == CHECKSUM_PARTIAL)
-		skb->ip_summed = CHECKSUM_PARTIAL;
-
-	if (skb->ip_summed != CHECKSUM_PARTIAL)
-		skb->csum = csum_block_add(skb->csum, next_skb->csum, skb_size);
 
 	/* Update sequence range on original skb. */
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(next_skb)->end_seq;

@@ -417,6 +417,7 @@ struct sock {
 	struct page_frag	sk_frag;
 	netdev_features_t	sk_route_caps;
 	netdev_features_t	sk_route_nocaps;
+	netdev_features_t	sk_route_forced_caps;
 	int			sk_gso_type;
 	unsigned int		sk_gso_max_size;
 	gfp_t			sk_allocation;
@@ -1860,15 +1861,6 @@ static inline void sk_nocaps_add(struct sock *sk, netdev_features_t flags)
 {
 	sk->sk_route_nocaps |= flags;
 	sk->sk_route_caps &= ~flags;
-}
-
-static inline bool sk_check_csum_caps(struct sock *sk)
-{
-	return (sk->sk_route_caps & NETIF_F_HW_CSUM) ||
-	       (sk->sk_family == PF_INET &&
-		(sk->sk_route_caps & NETIF_F_IP_CSUM)) ||
-	       (sk->sk_family == PF_INET6 &&
-		(sk->sk_route_caps & NETIF_F_IPV6_CSUM));
 }
 
 static inline int skb_do_copy_data_nocache(struct sock *sk, struct sk_buff *skb,
