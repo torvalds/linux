@@ -153,7 +153,7 @@ static __poll_t opal_prd_poll(struct file *file,
 	poll_wait(file, &opal_prd_msg_wait, wait);
 
 	if (!opal_msg_queue_empty())
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }

@@ -105,7 +105,7 @@ retry:
 
 __poll_t vivid_radio_tx_poll(struct file *file, struct poll_table_struct *wait)
 {
-	return POLLOUT | POLLWRNORM | v4l2_ctrl_poll(file, wait);
+	return EPOLLOUT | EPOLLWRNORM | v4l2_ctrl_poll(file, wait);
 }
 
 int vidioc_g_modulator(struct file *file, void *fh, struct v4l2_modulator *a)

@@ -5006,13 +5006,13 @@ void nft_flow_table_iterate(struct net *net,
 	struct nft_flowtable *flowtable;
 	const struct nft_table *table;
 
-	rcu_read_lock();
-	list_for_each_entry_rcu(table, &net->nft.tables, list) {
-		list_for_each_entry_rcu(flowtable, &table->flowtables, list) {
+	nfnl_lock(NFNL_SUBSYS_NFTABLES);
+	list_for_each_entry(table, &net->nft.tables, list) {
+		list_for_each_entry(flowtable, &table->flowtables, list) {
 			iter(&flowtable->data, data);
 		}
 	}
-	rcu_read_unlock();
+	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
 }
 EXPORT_SYMBOL_GPL(nft_flow_table_iterate);
 
@@ -5399,17 +5399,12 @@ err:
 	nfnetlink_set_err(ctx->net, ctx->portid, NFNLGRP_NFTABLES, -ENOBUFS);
 }
 
-static void nft_flowtable_destroy(void *ptr, void *arg)
-{
-	kfree(ptr);
-}
-
 static void nf_tables_flowtable_destroy(struct nft_flowtable *flowtable)
 {
 	cancel_delayed_work_sync(&flowtable->data.gc_work);
 	kfree(flowtable->name);
-	rhashtable_free_and_destroy(&flowtable->data.rhashtable,
-				    nft_flowtable_destroy, NULL);
+	flowtable->data.type->free(&flowtable->data);
+	rhashtable_destroy(&flowtable->data.rhashtable);
 	module_put(flowtable->data.type->owner);
 }
 

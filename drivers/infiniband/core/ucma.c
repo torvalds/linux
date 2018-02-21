@@ -1639,7 +1639,7 @@ static __poll_t ucma_poll(struct file *filp, struct poll_table_struct *wait)
 	poll_wait(filp, &file->poll_wait, wait);
 
 	if (!list_empty(&file->event_list))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

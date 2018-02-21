@@ -900,6 +900,9 @@ BUILD_INTERRUPT3(xen_hvm_callback_vector, HYPERVISOR_CALLBACK_VECTOR,
 BUILD_INTERRUPT3(hyperv_callback_vector, HYPERVISOR_CALLBACK_VECTOR,
 		 hyperv_vector_handler)
 
+BUILD_INTERRUPT3(hyperv_reenlightenment_vector, HYPERV_REENLIGHTENMENT_VECTOR,
+		 hyperv_reenlightenment_intr)
+
 #endif /* CONFIG_HYPERV */
 
 ENTRY(page_fault)

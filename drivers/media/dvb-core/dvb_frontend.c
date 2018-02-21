@@ -2646,7 +2646,7 @@ static __poll_t dvb_frontend_poll(struct file *file, struct poll_table_struct *w
 	poll_wait (file, &fepriv->events.wait_queue, wait);
 
 	if (fepriv->events.eventw != fepriv->events.eventr)
-		return (POLLIN | POLLRDNORM | POLLPRI);
+		return (EPOLLIN | EPOLLRDNORM | EPOLLPRI);
 
 	return 0;
 }

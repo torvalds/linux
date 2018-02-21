@@ -967,7 +967,7 @@ static __poll_t qcom_smd_poll(struct rpmsg_endpoint *ept,
 	poll_wait(filp, &channel->fblockread_event, wait);
 
 	if (qcom_smd_get_tx_avail(channel) > 20)
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	return mask;
 }

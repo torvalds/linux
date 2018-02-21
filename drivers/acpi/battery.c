@@ -1209,6 +1209,22 @@ static const struct dmi_system_id bat_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "UX305LA"),
 		},
 	},
+	{
+		.callback = battery_full_discharging_quirk,
+		.ident = "ASUS UX360UA",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "UX360UA"),
+		},
+	},
+	{
+		.callback = battery_full_discharging_quirk,
+		.ident = "ASUS UX410UAK",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "UX410UAK"),
+		},
+	},
 	{},
 };
 

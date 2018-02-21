@@ -587,7 +587,7 @@ extern int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 					       const struct device *dev);
 
-void *acpi_get_match_data(const struct device *dev);
+const void *acpi_device_get_match_data(const struct device *dev);
 extern bool acpi_driver_match_device(struct device *dev,
 				     const struct device_driver *drv);
 int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
@@ -766,7 +766,7 @@ static inline const struct acpi_device_id *acpi_match_device(
 	return NULL;
 }
 
-static inline void *acpi_get_match_data(const struct device *dev)
+static inline const void *acpi_device_get_match_data(const struct device *dev)
 {
 	return NULL;
 }
@@ -1263,9 +1263,12 @@ static inline bool acpi_has_watchdog(void) { return false; }
 
 #ifdef CONFIG_ACPI_SPCR_TABLE
 extern bool qdf2400_e44_present;
-int parse_spcr(bool earlycon);
+int acpi_parse_spcr(bool enable_earlycon, bool enable_console);
 #else
-static inline int parse_spcr(bool earlycon) { return 0; }
+static inline int acpi_parse_spcr(bool enable_earlycon, bool enable_console)
+{
+	return 0;
+}
 #endif
 
 #if IS_ENABLED(CONFIG_ACPI_GENERIC_GSI)

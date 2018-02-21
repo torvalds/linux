@@ -209,7 +209,7 @@ static int fdtv_ca_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 static __poll_t fdtv_ca_io_poll(struct file *file, poll_table *wait)
 {
-	return POLLIN;
+	return EPOLLIN;
 }
 
 static const struct file_operations fdtv_ca_fops = {

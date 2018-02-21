@@ -895,7 +895,7 @@ static __poll_t ipmi_poll(struct file *file, poll_table *wait)
 
 	spin_lock(&ipmi_read_lock);
 	if (data_to_read)
-		mask |= (POLLIN | POLLRDNORM);
+		mask |= (EPOLLIN | EPOLLRDNORM);
 	spin_unlock(&ipmi_read_lock);
 
 	return mask;

@@ -517,17 +517,17 @@ static __poll_t tower_poll (struct file *file, poll_table *wait)
 	dev = file->private_data;
 
 	if (!dev->udev)
-		return POLLERR | POLLHUP;
+		return EPOLLERR | EPOLLHUP;
 
 	poll_wait(file, &dev->read_wait, wait);
 	poll_wait(file, &dev->write_wait, wait);
 
 	tower_check_for_read_packet(dev);
 	if (dev->read_packet_length > 0) {
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	}
 	if (!dev->interrupt_out_busy) {
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	}
 
 	return mask;

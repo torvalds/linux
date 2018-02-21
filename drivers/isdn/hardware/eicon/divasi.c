@@ -370,31 +370,31 @@ static __poll_t um_idi_poll(struct file *file, poll_table *wait)
 	diva_um_idi_os_context_t *p_os;
 
 	if (!file->private_data) {
-		return (POLLERR);
+		return (EPOLLERR);
 	}
 
 	if ((!(p_os =
 	       (diva_um_idi_os_context_t *)
 	       diva_um_id_get_os_context(file->private_data)))
 	    || p_os->aborted) {
-		return (POLLERR);
+		return (EPOLLERR);
 	}
 
 	poll_wait(file, &p_os->read_wait, wait);
 
 	if (p_os->aborted) {
-		return (POLLERR);
+		return (EPOLLERR);
 	}
 
 	switch (diva_user_mode_idi_ind_ready(file->private_data, file)) {
 	case (-1):
-		return (POLLERR);
+		return (EPOLLERR);
 
 	case 0:
 		return (0);
 	}
 
-	return (POLLIN | POLLRDNORM);
+	return (EPOLLIN | EPOLLRDNORM);
 }
 
 static int um_idi_open(struct inode *inode, struct file *file)

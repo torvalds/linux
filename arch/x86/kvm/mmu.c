@@ -42,6 +42,7 @@
 #include <linux/kern_levels.h>
 
 #include <asm/page.h>
+#include <asm/pat.h>
 #include <asm/cmpxchg.h>
 #include <asm/io.h>
 #include <asm/vmx.h>
@@ -381,7 +382,7 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
-void kvm_mmu_clear_all_pte_masks(void)
+static void kvm_mmu_clear_all_pte_masks(void)
 {
 	shadow_user_mask = 0;
 	shadow_accessed_mask = 0;
@@ -2708,7 +2709,18 @@ static bool mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
 {
 	if (pfn_valid(pfn))
-		return !is_zero_pfn(pfn) && PageReserved(pfn_to_page(pfn));
+		return !is_zero_pfn(pfn) && PageReserved(pfn_to_page(pfn)) &&
+			/*
+			 * Some reserved pages, such as those from NVDIMM
+			 * DAX devices, are not for MMIO, and can be mapped
+			 * with cached memory type for better performance.
+			 * However, the above check misconceives those pages
+			 * as MMIO, and results in KVM mapping them with UC
+			 * memory type, which would hurt the performance.
+			 * Therefore, we check the host memory type in addition
+			 * and only treat UC/UC-/WC pages as MMIO.
+			 */
+			(!pat_enabled() || pat_pfn_immune_to_uc_mtrr(pfn));
 
 	return true;
 }
@@ -4951,6 +4963,16 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 	if (mmio_info_in_cache(vcpu, cr2, direct))
 		emulation_type = 0;
 emulate:
+	/*
+	 * On AMD platforms, under certain conditions insn_len may be zero on #NPF.
+	 * This can happen if a guest gets a page-fault on data access but the HW
+	 * table walker is not able to read the instruction page (e.g instruction
+	 * page is not present in memory). In those cases we simply restart the
+	 * guest.
+	 */
+	if (unlikely(insn && !insn_len))
+		return 1;
+
 	er = x86_emulate_instruction(vcpu, cr2, emulation_type, insn, insn_len);
 
 	switch (er) {
@@ -5058,7 +5080,7 @@ void kvm_mmu_uninit_vm(struct kvm *kvm)
 typedef bool (*slot_level_handler) (struct kvm *kvm, struct kvm_rmap_head *rmap_head);
 
 /* The caller should hold mmu-lock before calling this function. */
-static bool
+static __always_inline bool
 slot_handle_level_range(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			slot_level_handler fn, int start_level, int end_level,
 			gfn_t start_gfn, gfn_t end_gfn, bool lock_flush_tlb)
@@ -5088,7 +5110,7 @@ slot_handle_level_range(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	return flush;
 }
 
-static bool
+static __always_inline bool
 slot_handle_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		  slot_level_handler fn, int start_level, int end_level,
 		  bool lock_flush_tlb)
@@ -5099,7 +5121,7 @@ slot_handle_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			lock_flush_tlb);
 }
 
-static bool
+static __always_inline bool
 slot_handle_all_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		      slot_level_handler fn, bool lock_flush_tlb)
 {
@@ -5107,7 +5129,7 @@ slot_handle_all_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 				 PT_MAX_HUGEPAGE_LEVEL, lock_flush_tlb);
 }
 
-static bool
+static __always_inline bool
 slot_handle_large_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			slot_level_handler fn, bool lock_flush_tlb)
 {
@@ -5115,7 +5137,7 @@ slot_handle_large_level(struct kvm *kvm, struct kvm_memory_slot *memslot,
 				 PT_MAX_HUGEPAGE_LEVEL, lock_flush_tlb);
 }
 
-static bool
+static __always_inline bool
 slot_handle_leaf(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		 slot_level_handler fn, bool lock_flush_tlb)
 {

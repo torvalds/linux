@@ -378,11 +378,11 @@ __poll_t afu_poll(struct file *file, struct poll_table_struct *poll)
 
 	spin_lock_irqsave(&ctx->lock, flags);
 	if (ctx_event_pending(ctx))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	else if (ctx->status == CLOSED)
 		/* Only error on closed when there are no futher events pending
 		 */
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
 	pr_devel("afu_poll pe: %i returning %#x\n", ctx->pe, mask);

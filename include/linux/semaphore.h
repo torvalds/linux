@@ -4,7 +4,7 @@
  *
  * Distributed under the terms of the GNU GPL, version 2
  *
- * Please see kernel/semaphore.c for documentation of these functions
+ * Please see kernel/locking/semaphore.c for documentation of these functions
  */
 #ifndef __LINUX_SEMAPHORE_H
 #define __LINUX_SEMAPHORE_H

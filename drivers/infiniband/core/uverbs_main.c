@@ -351,7 +351,7 @@ static __poll_t ib_uverbs_event_poll(struct ib_uverbs_event_queue *ev_queue,
 
 	spin_lock_irq(&ev_queue->lock);
 	if (!list_empty(&ev_queue->event_list))
-		pollflags = POLLIN | POLLRDNORM;
+		pollflags = EPOLLIN | EPOLLRDNORM;
 	spin_unlock_irq(&ev_queue->lock);
 
 	return pollflags;

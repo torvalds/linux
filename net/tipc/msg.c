@@ -208,8 +208,8 @@ bool tipc_msg_validate(struct sk_buff **_skb)
 	int msz, hsz;
 
 	/* Ensure that flow control ratio condition is satisfied */
-	if (unlikely(skb->truesize / buf_roundup_len(skb) > 4)) {
-		skb = skb_copy(skb, GFP_ATOMIC);
+	if (unlikely(skb->truesize / buf_roundup_len(skb) >= 4)) {
+		skb = skb_copy_expand(skb, BUF_HEADROOM, 0, GFP_ATOMIC);
 		if (!skb)
 			return false;
 		kfree_skb(*_skb);

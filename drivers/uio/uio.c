@@ -506,7 +506,7 @@ static __poll_t uio_poll(struct file *filep, poll_table *wait)
 
 	poll_wait(filep, &idev->wait, wait);
 	if (listener->event_count != atomic_read(&idev->event))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

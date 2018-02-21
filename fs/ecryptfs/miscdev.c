@@ -59,7 +59,7 @@ ecryptfs_miscdev_poll(struct file *file, poll_table *pt)
 	poll_wait(file, &daemon->wait, pt);
 	mutex_lock(&daemon->mux);
 	if (!list_empty(&daemon->msg_ctx_out_queue))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 out_unlock_daemon:
 	daemon->flags &= ~ECRYPTFS_DAEMON_IN_POLL;
 	mutex_unlock(&daemon->mux);

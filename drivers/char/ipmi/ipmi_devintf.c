@@ -89,7 +89,7 @@ static __poll_t ipmi_poll(struct file *file, poll_table *wait)
 	spin_lock_irqsave(&priv->recv_msg_lock, flags);
 
 	if (!list_empty(&(priv->recv_msgs)))
-		mask |= (POLLIN | POLLRDNORM);
+		mask |= (EPOLLIN | EPOLLRDNORM);
 
 	spin_unlock_irqrestore(&priv->recv_msg_lock, flags);
 

@@ -103,9 +103,9 @@ static __poll_t maint_poll(struct file *file, poll_table *wait)
 	__poll_t mask = 0;
 
 	poll_wait(file, &msgwaitq, wait);
-	mask = POLLOUT | POLLWRNORM;
+	mask = EPOLLOUT | EPOLLWRNORM;
 	if (file->private_data || diva_dbg_q_length()) {
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	}
 	return (mask);
 }

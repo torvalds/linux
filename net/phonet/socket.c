@@ -351,18 +351,18 @@ static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
 	poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_state == TCP_CLOSE)
-		return POLLERR;
+		return EPOLLERR;
 	if (!skb_queue_empty(&sk->sk_receive_queue))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (!skb_queue_empty(&pn->ctrlreq_queue))
-		mask |= POLLPRI;
+		mask |= EPOLLPRI;
 	if (!mask && sk->sk_state == TCP_CLOSE_WAIT)
-		return POLLHUP;
+		return EPOLLHUP;
 
 	if (sk->sk_state == TCP_ESTABLISHED &&
 		refcount_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf &&
 		atomic_read(&pn->tx_credits))
-		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 
 	return mask;
 }

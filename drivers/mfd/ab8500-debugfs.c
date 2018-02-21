@@ -1267,7 +1267,7 @@ static irqreturn_t ab8500_debug_handler(int irq, void *data)
 	if (irq_abb < num_irqs)
 		irq_count[irq_abb]++;
 	/*
-	 * This makes it possible to use poll for events (POLLPRI | POLLERR)
+	 * This makes it possible to use poll for events (EPOLLPRI | EPOLLERR)
 	 * from userspace on sysfs file named <irq-nr>
 	 */
 	sprintf(buf, "%d", irq);

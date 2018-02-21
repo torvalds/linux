@@ -484,6 +484,8 @@ out:
 
 static struct tcp_ulp_ops tcp_tls_ulp_ops __read_mostly = {
 	.name			= "tls",
+	.uid			= TCP_ULP_TLS,
+	.user_visible		= true,
 	.owner			= THIS_MODULE,
 	.init			= tls_init,
 };

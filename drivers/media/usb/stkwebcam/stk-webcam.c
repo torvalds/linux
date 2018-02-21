@@ -729,10 +729,10 @@ static __poll_t v4l_stk_poll(struct file *fp, poll_table *wait)
 	poll_wait(fp, &dev->wait_frame, wait);
 
 	if (!is_present(dev))
-		return POLLERR;
+		return EPOLLERR;
 
 	if (!list_empty(&dev->sio_full))
-		return res | POLLIN | POLLRDNORM;
+		return res | EPOLLIN | EPOLLRDNORM;
 
 	return res;
 }

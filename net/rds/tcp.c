@@ -49,6 +49,7 @@ static unsigned int rds_tcp_tc_count;
 /* Track rds_tcp_connection structs so they can be cleaned up */
 static DEFINE_SPINLOCK(rds_tcp_conn_lock);
 static LIST_HEAD(rds_tcp_conn_list);
+static atomic_t rds_tcp_unloading = ATOMIC_INIT(0);
 
 static struct kmem_cache *rds_tcp_conn_slab;
 
@@ -274,14 +275,13 @@ static int rds_tcp_laddr_check(struct net *net, __be32 addr)
 static void rds_tcp_conn_free(void *arg)
 {
 	struct rds_tcp_connection *tc = arg;
-	unsigned long flags;
 
 	rdsdebug("freeing tc %p\n", tc);
 
-	spin_lock_irqsave(&rds_tcp_conn_lock, flags);
+	spin_lock_bh(&rds_tcp_conn_lock);
 	if (!tc->t_tcp_node_detached)
 		list_del(&tc->t_tcp_node);
-	spin_unlock_irqrestore(&rds_tcp_conn_lock, flags);
+	spin_unlock_bh(&rds_tcp_conn_lock);
 
 	kmem_cache_free(rds_tcp_conn_slab, tc);
 }
@@ -296,7 +296,7 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 		tc = kmem_cache_alloc(rds_tcp_conn_slab, gfp);
 		if (!tc) {
 			ret = -ENOMEM;
-			break;
+			goto fail;
 		}
 		mutex_init(&tc->t_conn_path_lock);
 		tc->t_sock = NULL;
@@ -306,14 +306,19 @@ static int rds_tcp_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 
 		conn->c_path[i].cp_transport_data = tc;
 		tc->t_cpath = &conn->c_path[i];
+		tc->t_tcp_node_detached = true;
 
-		spin_lock_irq(&rds_tcp_conn_lock);
-		tc->t_tcp_node_detached = false;
-		list_add_tail(&tc->t_tcp_node, &rds_tcp_conn_list);
-		spin_unlock_irq(&rds_tcp_conn_lock);
 		rdsdebug("rds_conn_path [%d] tc %p\n", i,
 			 conn->c_path[i].cp_transport_data);
 	}
+	spin_lock_bh(&rds_tcp_conn_lock);
+	for (i = 0; i < RDS_MPATH_WORKERS; i++) {
+		tc = conn->c_path[i].cp_transport_data;
+		tc->t_tcp_node_detached = false;
+		list_add_tail(&tc->t_tcp_node, &rds_tcp_conn_list);
+	}
+	spin_unlock_bh(&rds_tcp_conn_lock);
+fail:
 	if (ret) {
 		for (j = 0; j < i; j++)
 			rds_tcp_conn_free(conn->c_path[j].cp_transport_data);
@@ -330,6 +335,16 @@ static bool list_has_conn(struct list_head *list, struct rds_connection *conn)
 			return true;
 	}
 	return false;
+}
+
+static void rds_tcp_set_unloading(void)
+{
+	atomic_set(&rds_tcp_unloading, 1);
+}
+
+static bool rds_tcp_is_unloading(struct rds_connection *conn)
+{
+	return atomic_read(&rds_tcp_unloading) != 0;
 }
 
 static void rds_tcp_destroy_conns(void)
@@ -370,6 +385,7 @@ struct rds_transport rds_tcp_transport = {
 	.t_type			= RDS_TRANS_TCP,
 	.t_prefer_loopback	= 1,
 	.t_mp_capable		= 1,
+	.t_unloading		= rds_tcp_is_unloading,
 };
 
 static unsigned int rds_tcp_netid;
@@ -513,7 +529,7 @@ static void rds_tcp_kill_sock(struct net *net)
 
 	rtn->rds_tcp_listen_sock = NULL;
 	rds_tcp_listen_stop(lsock, &rtn->rds_tcp_accept_w);
-	spin_lock_irq(&rds_tcp_conn_lock);
+	spin_lock_bh(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
 		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
@@ -526,7 +542,7 @@ static void rds_tcp_kill_sock(struct net *net)
 			tc->t_tcp_node_detached = true;
 		}
 	}
-	spin_unlock_irq(&rds_tcp_conn_lock);
+	spin_unlock_bh(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &tmp_list, t_tcp_node)
 		rds_conn_destroy(tc->t_cpath->cp_conn);
 }
@@ -574,7 +590,7 @@ static void rds_tcp_sysctl_reset(struct net *net)
 {
 	struct rds_tcp_connection *tc, *_tc;
 
-	spin_lock_irq(&rds_tcp_conn_lock);
+	spin_lock_bh(&rds_tcp_conn_lock);
 	list_for_each_entry_safe(tc, _tc, &rds_tcp_conn_list, t_tcp_node) {
 		struct net *c_net = read_pnet(&tc->t_cpath->cp_conn->c_net);
 
@@ -584,7 +600,7 @@ static void rds_tcp_sysctl_reset(struct net *net)
 		/* reconnect with new parameters */
 		rds_conn_path_drop(tc->t_cpath, false);
 	}
-	spin_unlock_irq(&rds_tcp_conn_lock);
+	spin_unlock_bh(&rds_tcp_conn_lock);
 }
 
 static int rds_tcp_skbuf_handler(struct ctl_table *ctl, int write,
@@ -607,6 +623,8 @@ static int rds_tcp_skbuf_handler(struct ctl_table *ctl, int write,
 
 static void rds_tcp_exit(void)
 {
+	rds_tcp_set_unloading();
+	synchronize_rcu();
 	rds_info_deregister_func(RDS_INFO_TCP_SOCKETS, rds_tcp_tc_info);
 	unregister_pernet_subsys(&rds_tcp_net_ops);
 	if (unregister_netdevice_notifier(&rds_tcp_dev_notifier))

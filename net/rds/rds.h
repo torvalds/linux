@@ -518,6 +518,7 @@ struct rds_transport {
 	void (*sync_mr)(void *trans_private, int direction);
 	void (*free_mr)(void *trans_private, int invalidate);
 	void (*flush_mrs)(void);
+	bool (*t_unloading)(struct rds_connection *conn);
 };
 
 struct rds_sock {
@@ -860,6 +861,12 @@ static inline void rds_mr_put(struct rds_mr *mr)
 {
 	if (refcount_dec_and_test(&mr->r_refcount))
 		__rds_put_mr_final(mr);
+}
+
+static inline bool rds_destroy_pending(struct rds_connection *conn)
+{
+	return !check_net(rds_conn_net(conn)) ||
+	       (conn->c_trans->t_unloading && conn->c_trans->t_unloading(conn));
 }
 
 /* stats.c */

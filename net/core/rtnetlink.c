@@ -1951,6 +1951,38 @@ static struct net *rtnl_link_get_net_capable(const struct sk_buff *skb,
 	return net;
 }
 
+/* Verify that rtnetlink requests do not pass additional properties
+ * potentially referring to different network namespaces.
+ */
+static int rtnl_ensure_unique_netns(struct nlattr *tb[],
+				    struct netlink_ext_ack *extack,
+				    bool netns_id_only)
+{
+
+	if (netns_id_only) {
+		if (!tb[IFLA_NET_NS_PID] && !tb[IFLA_NET_NS_FD])
+			return 0;
+
+		NL_SET_ERR_MSG(extack, "specified netns attribute not supported");
+		return -EOPNOTSUPP;
+	}
+
+	if (tb[IFLA_IF_NETNSID] && (tb[IFLA_NET_NS_PID] || tb[IFLA_NET_NS_FD]))
+		goto invalid_attr;
+
+	if (tb[IFLA_NET_NS_PID] && (tb[IFLA_IF_NETNSID] || tb[IFLA_NET_NS_FD]))
+		goto invalid_attr;
+
+	if (tb[IFLA_NET_NS_FD] && (tb[IFLA_IF_NETNSID] || tb[IFLA_NET_NS_PID]))
+		goto invalid_attr;
+
+	return 0;
+
+invalid_attr:
+	NL_SET_ERR_MSG(extack, "multiple netns identifying attributes specified");
+	return -EINVAL;
+}
+
 static int validate_linkmsg(struct net_device *dev, struct nlattr *tb[])
 {
 	if (dev) {
@@ -2553,6 +2585,10 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (err < 0)
 		goto errout;
 
+	err = rtnl_ensure_unique_netns(tb, extack, false);
+	if (err < 0)
+		goto errout;
+
 	if (tb[IFLA_IFNAME])
 		nla_strlcpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ);
 	else
@@ -2646,6 +2682,10 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	int netnsid = -1;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy, extack);
+	if (err < 0)
+		return err;
+
+	err = rtnl_ensure_unique_netns(tb, extack, true);
 	if (err < 0)
 		return err;
 
@@ -2799,6 +2839,10 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 replay:
 #endif
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy, extack);
+	if (err < 0)
+		return err;
+
+	err = rtnl_ensure_unique_netns(tb, extack, false);
 	if (err < 0)
 		return err;
 
@@ -3042,6 +3086,10 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	u32 ext_filter_mask = 0;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy, extack);
+	if (err < 0)
+		return err;
+
+	err = rtnl_ensure_unique_netns(tb, extack, true);
 	if (err < 0)
 		return err;
 

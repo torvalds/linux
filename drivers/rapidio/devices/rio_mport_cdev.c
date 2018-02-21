@@ -2325,7 +2325,7 @@ static __poll_t mport_cdev_poll(struct file *filp, poll_table *wait)
 
 	poll_wait(filp, &priv->event_rx_wait, wait);
 	if (kfifo_len(&priv->event_fifo))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }

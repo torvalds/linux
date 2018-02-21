@@ -574,7 +574,7 @@ static __poll_t fsl_hv_poll(struct file *filp, struct poll_table_struct *p)
 	spin_lock_irqsave(&dbq->lock, flags);
 
 	poll_wait(filp, &dbq->wait, p);
-	mask = (dbq->head == dbq->tail) ? 0 : (POLLIN | POLLRDNORM);
+	mask = (dbq->head == dbq->tail) ? 0 : (EPOLLIN | EPOLLRDNORM);
 
 	spin_unlock_irqrestore(&dbq->lock, flags);
 

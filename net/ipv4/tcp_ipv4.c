@@ -705,7 +705,8 @@ static void tcp_v4_send_reset(const struct sock *sk, struct sk_buff *skb)
 	 */
 	if (sk) {
 		arg.bound_dev_if = sk->sk_bound_dev_if;
-		trace_tcp_send_reset(sk, skb);
+		if (sk_fullsock(sk))
+			trace_tcp_send_reset(sk, skb);
 	}
 
 	BUILD_BUG_ON(offsetof(struct sock, sk_bound_dev_if) !=

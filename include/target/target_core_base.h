@@ -183,6 +183,7 @@ enum tcm_sense_reason_table {
 	TCM_TOO_MANY_SEGMENT_DESCS		= R(0x1b),
 	TCM_UNSUPPORTED_SEGMENT_DESC_TYPE_CODE	= R(0x1c),
 	TCM_INSUFFICIENT_REGISTRATION_RESOURCES	= R(0x1d),
+	TCM_LUN_BUSY				= R(0x1e),
 #undef R
 };
 
@@ -808,6 +809,7 @@ struct se_device {
 	/* T10 SPC-2 + SPC-3 Reservations */
 	struct t10_reservation	t10_pr;
 	struct se_dev_attrib	dev_attrib;
+	struct config_group	dev_action_group;
 	struct config_group	dev_group;
 	struct config_group	dev_pr_group;
 	struct se_dev_stat_grps dev_stat_grps;

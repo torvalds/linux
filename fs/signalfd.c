@@ -45,7 +45,7 @@ void signalfd_cleanup(struct sighand_struct *sighand)
 		return;
 
 	/* wait_queue_entry_t->func(POLLFREE) should do remove_wait_queue() */
-	wake_up_poll(wqh, POLLHUP | POLLFREE);
+	wake_up_poll(wqh, EPOLLHUP | POLLFREE);
 }
 
 struct signalfd_ctx {
@@ -69,7 +69,7 @@ static __poll_t signalfd_poll(struct file *file, poll_table *wait)
 	if (next_signal(&current->pending, &ctx->sigmask) ||
 	    next_signal(&current->signal->shared_pending,
 			&ctx->sigmask))
-		events |= POLLIN;
+		events |= EPOLLIN;
 	spin_unlock_irq(&current->sighand->siglock);
 
 	return events;

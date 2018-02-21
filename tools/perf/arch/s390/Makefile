@@ -10,15 +10,19 @@ PERF_HAVE_ARCH_REGS_QUERY_REGISTER_OFFSET := 1
 
 out    := $(OUTPUT)arch/s390/include/generated/asm
 header := $(out)/syscalls_64.c
-sysdef := $(srctree)/tools/arch/s390/include/uapi/asm/unistd.h
-sysprf := $(srctree)/tools/perf/arch/s390/entry/syscalls/
+syskrn := $(srctree)/arch/s390/kernel/syscalls/syscall.tbl
+sysprf := $(srctree)/tools/perf/arch/s390/entry/syscalls
+sysdef := $(sysprf)/syscall.tbl
 systbl := $(sysprf)/mksyscalltbl
 
 # Create output directory if not already present
 _dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)')
 
 $(header): $(sysdef) $(systbl)
-	$(Q)$(SHELL) '$(systbl)' '$(CC)' $(sysdef) > $@
+	@(test -d ../../kernel -a -d ../../tools -a -d ../perf && ( \
+        (diff -B $(sysdef) $(syskrn) >/dev/null) \
+        || echo "Warning: Kernel ABI header at '$(sysdef)' differs from latest version at '$(syskrn)'" >&2 )) || true
+	$(Q)$(SHELL) '$(systbl)' $(sysdef) > $@
 
 clean::
 	$(call QUIET_CLEAN, s390) $(RM) $(header)

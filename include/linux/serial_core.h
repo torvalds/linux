@@ -376,10 +376,10 @@ extern int of_setup_earlycon(const struct earlycon_id *match,
 			     const char *options);
 
 #ifdef CONFIG_SERIAL_EARLYCON
-extern bool earlycon_init_is_deferred __initdata;
+extern bool earlycon_acpi_spcr_enable __initdata;
 int setup_earlycon(char *buf);
 #else
-static const bool earlycon_init_is_deferred;
+static const bool earlycon_acpi_spcr_enable;
 static inline int setup_earlycon(char *buf) { return 0; }
 #endif
 

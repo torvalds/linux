@@ -255,9 +255,9 @@ static __poll_t hidraw_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &list->hidraw->wait, wait);
 	if (list->head != list->tail)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	if (!list->hidraw->exist)
-		return POLLERR | POLLHUP;
+		return EPOLLERR | EPOLLHUP;
 	return 0;
 }
 

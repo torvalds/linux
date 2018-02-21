@@ -951,15 +951,15 @@ static __poll_t dvb_video_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &av7110->video_events.wait_queue, wait);
 
 	if (av7110->video_events.eventw != av7110->video_events.eventr)
-		mask = POLLPRI;
+		mask = EPOLLPRI;
 
 	if ((file->f_flags & O_ACCMODE) != O_RDONLY) {
 		if (av7110->playing) {
 			if (FREE_COND)
-				mask |= (POLLOUT | POLLWRNORM);
+				mask |= (EPOLLOUT | EPOLLWRNORM);
 		} else {
 			/* if not playing: may play if asked for */
-			mask |= (POLLOUT | POLLWRNORM);
+			mask |= (EPOLLOUT | EPOLLWRNORM);
 		}
 	}
 
@@ -1001,9 +1001,9 @@ static __poll_t dvb_audio_poll(struct file *file, poll_table *wait)
 
 	if (av7110->playing) {
 		if (dvb_ringbuffer_free(&av7110->aout) >= 20 * 1024)
-			mask |= (POLLOUT | POLLWRNORM);
+			mask |= (EPOLLOUT | EPOLLWRNORM);
 	} else /* if not playing: may play if asked for */
-		mask = (POLLOUT | POLLWRNORM);
+		mask = (EPOLLOUT | EPOLLWRNORM);
 
 	return mask;
 }
