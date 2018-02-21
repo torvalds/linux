@@ -581,7 +581,6 @@ static int rs5c372_probe(struct i2c_client *client,
 	int err = 0;
 	int smbus_mode = 0;
 	struct rs5c372 *rs5c372;
-	struct rtc_time tm;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -661,9 +660,6 @@ static int rs5c372_probe(struct i2c_client *client,
 		dev_err(&client->dev, "setup error\n");
 		goto exit;
 	}
-
-	if (rs5c372_get_datetime(client, &tm) < 0)
-		dev_warn(&client->dev, "clock needs to be set\n");
 
 	dev_info(&client->dev, "%s found, %s\n",
 			({ char *s; switch (rs5c372->type) {
