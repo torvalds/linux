@@ -2072,7 +2072,7 @@ static bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
 	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 
-	return INTEL_GEN(dev_priv) < 4 || plane->id == PLANE_PRIMARY;
+	return INTEL_GEN(dev_priv) < 4 || plane->has_fbc;
 }
 
 struct i915_vma *
