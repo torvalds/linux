@@ -196,6 +196,9 @@ static int virtio_gpu_getparam_ioctl(struct drm_device *dev, void *data,
 	case VIRTGPU_PARAM_3D_FEATURES:
 		value = vgdev->has_virgl_3d == true ? 1 : 0;
 		break;
+	case VIRTGPU_PARAM_CAPSET_QUERY_FIX:
+		value = 1;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -471,7 +474,7 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct drm_virtgpu_get_caps *args = data;
-	int size;
+	unsigned size, host_caps_size;
 	int i;
 	int found_valid = -1;
 	int ret;
@@ -479,6 +482,10 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	void *ptr;
 	if (vgdev->num_capsets == 0)
 		return -ENOSYS;
+
+	/* don't allow userspace to pass 0 */
+	if (args->size == 0)
+		return -EINVAL;
 
 	spin_lock(&vgdev->display_info_lock);
 	for (i = 0; i < vgdev->num_capsets; i++) {
@@ -495,11 +502,9 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	size = vgdev->capsets[found_valid].max_size;
-	if (args->size > size) {
-		spin_unlock(&vgdev->display_info_lock);
-		return -EINVAL;
-	}
+	host_caps_size = vgdev->capsets[found_valid].max_size;
+	/* only copy to user the minimum of the host caps size or the guest caps size */
+	size = min(args->size, host_caps_size);
 
 	list_for_each_entry(cache_ent, &vgdev->cap_cache, head) {
 		if (cache_ent->id == args->cap_set_id &&
