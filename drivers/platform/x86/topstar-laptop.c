@@ -2,9 +2,10 @@
  * Topstar Laptop ACPI Extras driver
  *
  * Copyright (c) 2009 Herton Ronaldo Krzesinski <herton@mandriva.com.br>
+ * Copyright (c) 2018 Guillaume Douézan-Grard
  *
  * Implementation inspired by existing x86 platform drivers, in special
- * asus/eepc/fujitsu-laptop, thanks to their authors
+ * asus/eepc/fujitsu-laptop, thanks to their authors.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -397,5 +398,6 @@ module_init(topstar_laptop_init);
 module_exit(topstar_laptop_exit);
 
 MODULE_AUTHOR("Herton Ronaldo Krzesinski");
+MODULE_AUTHOR("Guillaume Douézan-Grard");
 MODULE_DESCRIPTION("Topstar Laptop ACPI Extras driver");
 MODULE_LICENSE("GPL");
