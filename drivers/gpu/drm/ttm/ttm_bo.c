@@ -149,7 +149,7 @@ static void ttm_bo_release_list(struct kref *list_kref)
 	BUG_ON(!list_empty(&bo->lru));
 	BUG_ON(!list_empty(&bo->ddestroy));
 	ttm_tt_destroy(bo->ttm);
-	atomic_dec(&bo->glob->bo_count);
+	atomic_dec(&bo->bdev->glob->bo_count);
 	dma_fence_put(bo->moving);
 	reservation_object_fini(&bo->ttm_resv);
 	mutex_destroy(&bo->wu_mutex);
@@ -174,7 +174,7 @@ void ttm_bo_add_to_lru(struct ttm_buffer_object *bo)
 		if (bo->ttm && !(bo->ttm->page_flags &
 				 (TTM_PAGE_FLAG_SG | TTM_PAGE_FLAG_SWAPPED))) {
 			list_add_tail(&bo->swap,
-				      &bo->glob->swap_lru[bo->priority]);
+				      &bdev->glob->swap_lru[bo->priority]);
 			kref_get(&bo->list_kref);
 		}
 	}
@@ -205,9 +205,11 @@ void ttm_bo_del_from_lru(struct ttm_buffer_object *bo)
 
 void ttm_bo_del_sub_from_lru(struct ttm_buffer_object *bo)
 {
-	spin_lock(&bo->glob->lru_lock);
+	struct ttm_bo_global *glob = bo->bdev->glob;
+
+	spin_lock(&glob->lru_lock);
 	ttm_bo_del_from_lru(bo);
-	spin_unlock(&bo->glob->lru_lock);
+	spin_unlock(&glob->lru_lock);
 }
 EXPORT_SYMBOL(ttm_bo_del_sub_from_lru);
 
@@ -226,7 +228,7 @@ EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
 static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bo->glob;
+	struct ttm_bo_global *glob = bdev->glob;
 	int ret = 0;
 	uint32_t page_flags = 0;
 
@@ -429,7 +431,7 @@ static void ttm_bo_flush_all_fences(struct ttm_buffer_object *bo)
 static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	struct ttm_bo_global *glob = bo->glob;
+	struct ttm_bo_global *glob = bdev->glob;
 	int ret;
 
 	ret = ttm_bo_individualize_resv(bo);
@@ -500,7 +502,7 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo,
 			       bool interruptible, bool no_wait_gpu,
 			       bool unlock_resv)
 {
-	struct ttm_bo_global *glob = bo->glob;
+	struct ttm_bo_global *glob = bo->bdev->glob;
 	struct reservation_object *resv;
 	int ret;
 
@@ -1191,7 +1193,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	INIT_LIST_HEAD(&bo->io_reserve_lru);
 	mutex_init(&bo->wu_mutex);
 	bo->bdev = bdev;
-	bo->glob = bdev->glob;
 	bo->type = type;
 	bo->num_pages = num_pages;
 	bo->mem.size = num_pages << PAGE_SHIFT;
@@ -1213,7 +1214,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 		bo->resv = &bo->ttm_resv;
 	}
 	reservation_object_init(&bo->ttm_resv);
-	atomic_inc(&bo->glob->bo_count);
+	atomic_inc(&bo->bdev->glob->bo_count);
 	drm_vma_node_reset(&bo->vma_node);
 	bo->priority = 0;
 
@@ -1246,9 +1247,9 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	}
 
 	if (resv && !(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
-		spin_lock(&bo->glob->lru_lock);
+		spin_lock(&bdev->glob->lru_lock);
 		ttm_bo_add_to_lru(bo);
-		spin_unlock(&bo->glob->lru_lock);
+		spin_unlock(&bdev->glob->lru_lock);
 	}
 
 	return ret;
