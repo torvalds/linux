@@ -447,13 +447,6 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(engine->execlists.preempt_complete_status !=
 		   upper_32_bits(ce->lrc_desc));
-	GEM_BUG_ON(!IS_ALIGNED(ce->ring->size, WA_TAIL_BYTES));
-
-	memset(ce->ring->vaddr + ce->ring->tail, 0, WA_TAIL_BYTES);
-	ce->ring->tail += WA_TAIL_BYTES;
-	ce->ring->tail &= (ce->ring->size - 1);
-	ce->lrc_reg_state[CTX_RING_TAIL+1] = ce->ring->tail;
-
 	GEM_BUG_ON((ce->lrc_reg_state[CTX_CONTEXT_CONTROL + 1] &
 		    _MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 				       CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT)) !=
