@@ -714,7 +714,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	}
 
 	if (!verify_command_idx(command, extended_command)) {
-		ret = -EINVAL;
+		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
