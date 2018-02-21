@@ -18,8 +18,10 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/leds.h>
 #include <linux/platform_device.h>
 
 #define TOPSTAR_LAPTOP_CLASS "topstar"
@@ -28,7 +30,76 @@ struct topstar_laptop {
 	struct acpi_device *device;
 	struct platform_device *platform;
 	struct input_dev *input;
+	struct led_classdev led;
 };
+
+/*
+ * LED
+ */
+
+static enum led_brightness topstar_led_get(struct led_classdev *led)
+{
+	return led->brightness;
+}
+
+static int topstar_led_set(struct led_classdev *led,
+		enum led_brightness state)
+{
+	struct topstar_laptop *topstar = container_of(led,
+			struct topstar_laptop, led);
+
+	struct acpi_object_list params;
+	union acpi_object in_obj;
+	unsigned long long int ret;
+	acpi_status status;
+
+	params.count = 1;
+	params.pointer = &in_obj;
+	in_obj.type = ACPI_TYPE_INTEGER;
+	in_obj.integer.value = 0x83;
+
+	/*
+	 * Topstar ACPI returns 0x30001 when the LED is ON and 0x30000 when it
+	 * is OFF.
+	 */
+	status = acpi_evaluate_integer(topstar->device->handle,
+			"GETX", &params, &ret);
+	if (ACPI_FAILURE(status))
+		return -1;
+
+	/*
+	 * FNCX(0x83) toggles the LED (more precisely, it is supposed to
+	 * act as an hardware switch and disconnect the WLAN adapter but
+	 * it seems to be faulty on some models like the Topstar U931
+	 * Notebook).
+	 */
+	if ((ret == 0x30001 && state == LED_OFF)
+			|| (ret == 0x30000 && state != LED_OFF)) {
+		status = acpi_execute_simple_method(topstar->device->handle,
+				"FNCX", 0x83);
+		if (ACPI_FAILURE(status))
+			return -1;
+	}
+
+	return 0;
+}
+
+static int topstar_led_init(struct topstar_laptop *topstar)
+{
+	topstar->led = (struct led_classdev) {
+		.default_trigger = "rfkill0",
+		.brightness_get = topstar_led_get,
+		.brightness_set_blocking = topstar_led_set,
+		.name = TOPSTAR_LAPTOP_CLASS "::wlan",
+	};
+
+	return led_classdev_register(&topstar->platform->dev, &topstar->led);
+}
+
+static void topstar_led_exit(struct topstar_laptop *topstar)
+{
+	led_classdev_unregister(&topstar->led);
+}
 
 /*
  * Input
@@ -192,10 +263,36 @@ static void topstar_acpi_exit(struct topstar_laptop *topstar)
 	topstar_acpi_fncx_switch(topstar->device, false);
 }
 
+/*
+ * Enable software-based WLAN LED control on systems with defective
+ * hardware switch.
+ */
+static bool led_workaround;
+
+static int dmi_led_workaround(const struct dmi_system_id *id)
+{
+	led_workaround = true;
+	return 0;
+}
+
+static const struct dmi_system_id topstar_dmi_ids[] = {
+	{
+		.callback = dmi_led_workaround,
+		.ident = "Topstar U931/RVP7",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "U931"),
+			DMI_MATCH(DMI_BOARD_VERSION, "RVP7"),
+		},
+	},
+	{}
+};
+
 static int topstar_acpi_add(struct acpi_device *device)
 {
 	struct topstar_laptop *topstar;
 	int err;
+
+	dmi_check_system(topstar_dmi_ids);
 
 	topstar = kzalloc(sizeof(struct topstar_laptop), GFP_KERNEL);
 	if (!topstar)
@@ -218,8 +315,16 @@ static int topstar_acpi_add(struct acpi_device *device)
 	if (err)
 		goto err_platform_exit;
 
+	if (led_workaround) {
+		err = topstar_led_init(topstar);
+		if (err)
+			goto err_input_exit;
+	}
+
 	return 0;
 
+err_input_exit:
+	topstar_input_exit(topstar);
 err_platform_exit:
 	topstar_platform_exit(topstar);
 err_acpi_exit:
@@ -232,6 +337,9 @@ err_free:
 static int topstar_acpi_remove(struct acpi_device *device)
 {
 	struct topstar_laptop *topstar = acpi_driver_data(device);
+
+	if (led_workaround)
+		topstar_led_exit(topstar);
 
 	topstar_input_exit(topstar);
 	topstar_platform_exit(topstar);
