@@ -12656,6 +12656,42 @@ static void add_rps_boost_after_vblank(struct drm_crtc *crtc,
 	add_wait_queue(drm_crtc_vblank_waitqueue(crtc), &wait->wait);
 }
 
+static int intel_plane_pin_fb(struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	struct drm_framebuffer *fb = plane_state->base.fb;
+	struct i915_vma *vma;
+
+	if (plane->id == PLANE_CURSOR &&
+	    INTEL_INFO(dev_priv)->cursor_needs_physical) {
+		struct drm_i915_gem_object *obj = intel_fb_obj(fb);
+		const int align = intel_cursor_alignment(dev_priv);
+
+		return i915_gem_object_attach_phys(obj, align);
+	}
+
+	vma = intel_pin_and_fence_fb_obj(fb,
+					 plane_state->base.rotation,
+					 intel_plane_uses_fence(plane_state),
+					 &plane_state->flags);
+	if (IS_ERR(vma))
+		return PTR_ERR(vma);
+
+	plane_state->vma = vma;
+
+	return 0;
+}
+
+static void intel_plane_unpin_fb(struct intel_plane_state *old_plane_state)
+{
+	struct i915_vma *vma;
+
+	vma = fetch_and_zero(&old_plane_state->vma);
+	if (vma)
+		intel_unpin_fb_vma(vma, old_plane_state->flags);
+}
+
 /**
  * intel_prepare_plane_fb - Prepare fb for usage on plane
  * @plane: drm plane to prepare for
@@ -12730,23 +12766,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 		return ret;
 	}
 
-	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
-	    INTEL_INFO(dev_priv)->cursor_needs_physical) {
-		const int align = intel_cursor_alignment(dev_priv);
-
-		ret = i915_gem_object_attach_phys(obj, align);
-	} else {
-		struct i915_vma *vma;
-
-		vma = intel_pin_and_fence_fb_obj(fb,
-						 new_state->rotation,
-						 intel_plane_uses_fence(to_intel_plane_state(new_state)),
-						 &to_intel_plane_state(new_state)->flags);
-		if (!IS_ERR(vma))
-			to_intel_plane_state(new_state)->vma = vma;
-		else
-			ret =  PTR_ERR(vma);
-	}
+	ret = intel_plane_pin_fb(to_intel_plane_state(new_state));
 
 	i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
 
@@ -12790,15 +12810,12 @@ void
 intel_cleanup_plane_fb(struct drm_plane *plane,
 		       struct drm_plane_state *old_state)
 {
-	struct i915_vma *vma;
+	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 
 	/* Should only be called after a successful intel_prepare_plane_fb()! */
-	vma = fetch_and_zero(&to_intel_plane_state(old_state)->vma);
-	if (vma) {
-		mutex_lock(&plane->dev->struct_mutex);
-		intel_unpin_fb_vma(vma, to_intel_plane_state(old_state)->flags);
-		mutex_unlock(&plane->dev->struct_mutex);
-	}
+	mutex_lock(&dev_priv->drm.struct_mutex);
+	intel_plane_unpin_fb(to_intel_plane_state(old_state));
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 int
@@ -13084,7 +13101,6 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *old_fb;
 	struct drm_crtc_state *crtc_state = crtc->state;
-	struct i915_vma *old_vma, *vma;
 
 	/*
 	 * When crtc is inactive or there is a modeset pending,
@@ -13143,28 +13159,9 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	if (ret)
 		goto out_free;
 
-	if (INTEL_INFO(dev_priv)->cursor_needs_physical) {
-		int align = intel_cursor_alignment(dev_priv);
-
-		ret = i915_gem_object_attach_phys(intel_fb_obj(fb), align);
-		if (ret) {
-			DRM_DEBUG_KMS("failed to attach phys object\n");
-			goto out_unlock;
-		}
-	} else {
-		vma = intel_pin_and_fence_fb_obj(fb,
-						 new_plane_state->rotation,
-						 false,
-						 &to_intel_plane_state(new_plane_state)->flags);
-		if (IS_ERR(vma)) {
-			DRM_DEBUG_KMS("failed to pin object\n");
-
-			ret = PTR_ERR(vma);
-			goto out_unlock;
-		}
-
-		to_intel_plane_state(new_plane_state)->vma = vma;
-	}
+	ret = intel_plane_pin_fb(to_intel_plane_state(new_plane_state));
+	if (ret)
+		goto out_unlock;
 
 	old_fb = old_plane_state->fb;
 
@@ -13184,10 +13181,7 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 		intel_plane->disable_plane(intel_plane, to_intel_crtc(crtc));
 	}
 
-	old_vma = fetch_and_zero(&to_intel_plane_state(old_plane_state)->vma);
-	if (old_vma)
-		intel_unpin_fb_vma(old_vma,
-				   to_intel_plane_state(old_plane_state)->flags);
+	intel_plane_unpin_fb(to_intel_plane_state(old_plane_state));
 
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
