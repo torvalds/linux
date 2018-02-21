@@ -881,6 +881,9 @@ static void execlists_submission_tasklet(unsigned long data)
 				trace_i915_request_out(rq);
 				i915_request_put(rq);
 
+				GEM_TRACE("%s completed ctx=%d\n",
+					  engine->name, port->context_id);
+
 				execlists_port_complete(execlists, port);
 			} else {
 				port_set(port, port_pack(rq, count));
