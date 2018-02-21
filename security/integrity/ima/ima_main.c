@@ -25,6 +25,7 @@
 #include <linux/xattr.h>
 #include <linux/ima.h>
 #include <linux/iversion.h>
+#include <linux/fs.h>
 
 #include "ima.h"
 
@@ -230,9 +231,17 @@ static int process_measurement(struct file *file, const struct cred *cred,
 				 IMA_APPRAISE_SUBMASK | IMA_APPRAISED_SUBMASK |
 				 IMA_ACTION_FLAGS);
 
-	if (test_and_clear_bit(IMA_CHANGE_XATTR, &iint->atomic_flags))
-		/* reset all flags if ima_inode_setxattr was called */
+	/*
+	 * Re-evaulate the file if either the xattr has changed or the
+	 * kernel has no way of detecting file change on the filesystem.
+	 * (Limited to privileged mounted filesystems.)
+	 */
+	if (test_and_clear_bit(IMA_CHANGE_XATTR, &iint->atomic_flags) ||
+	    ((inode->i_sb->s_iflags & SB_I_IMA_UNVERIFIABLE_SIGNATURE) &&
+	     !(inode->i_sb->s_iflags & SB_I_UNTRUSTED_MOUNTER))) {
 		iint->flags &= ~IMA_DONE_MASK;
+		iint->measured_pcrs = 0;
+	}
 
 	/* Determine if already appraised/measured based on bitmask
 	 * (IMA_MEASURE, IMA_MEASURED, IMA_XXXX_APPRAISE, IMA_XXXX_APPRAISED,
