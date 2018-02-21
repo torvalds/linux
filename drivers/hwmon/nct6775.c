@@ -570,12 +570,12 @@ static const u16 NCT6779_REG_TEMP_CRIT[32] = {
 
 #define NCT6791_REG_HM_IO_SPACE_LOCK_ENABLE	0x28
 
-static const u16 NCT6791_REG_WEIGHT_TEMP_SEL[6] = { 0, 0x239 };
-static const u16 NCT6791_REG_WEIGHT_TEMP_STEP[6] = { 0, 0x23a };
-static const u16 NCT6791_REG_WEIGHT_TEMP_STEP_TOL[6] = { 0, 0x23b };
-static const u16 NCT6791_REG_WEIGHT_DUTY_STEP[6] = { 0, 0x23c };
-static const u16 NCT6791_REG_WEIGHT_TEMP_BASE[6] = { 0, 0x23d };
-static const u16 NCT6791_REG_WEIGHT_DUTY_BASE[6] = { 0, 0x23e };
+static const u16 NCT6791_REG_WEIGHT_TEMP_SEL[NUM_FAN] = { 0, 0x239 };
+static const u16 NCT6791_REG_WEIGHT_TEMP_STEP[NUM_FAN] = { 0, 0x23a };
+static const u16 NCT6791_REG_WEIGHT_TEMP_STEP_TOL[NUM_FAN] = { 0, 0x23b };
+static const u16 NCT6791_REG_WEIGHT_DUTY_STEP[NUM_FAN] = { 0, 0x23c };
+static const u16 NCT6791_REG_WEIGHT_TEMP_BASE[NUM_FAN] = { 0, 0x23d };
+static const u16 NCT6791_REG_WEIGHT_DUTY_BASE[NUM_FAN] = { 0, 0x23e };
 
 static const u16 NCT6791_REG_ALARM[NUM_REG_ALARM] = {
 	0x459, 0x45A, 0x45B, 0x568, 0x45D };
