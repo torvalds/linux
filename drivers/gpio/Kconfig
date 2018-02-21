@@ -480,21 +480,6 @@ config GPIO_THUNDERX
 	  Say yes here to support the on-chip GPIO lines on the ThunderX
 	  and OCTEON-TX families of SoCs.
 
-config GPIO_TZ1090
-	bool "Toumaz Xenif TZ1090 GPIO support"
-	depends on SOC_TZ1090
-	select GENERIC_IRQ_CHIP
-	default y
-	help
-	  Say yes here to support Toumaz Xenif TZ1090 GPIOs.
-
-config GPIO_TZ1090_PDC
-	bool "Toumaz Xenif TZ1090 PDC GPIO support"
-	depends on SOC_TZ1090
-	default y
-	help
-	  Say yes here to support Toumaz Xenif TZ1090 PDC GPIOs.
-
 config GPIO_UNIPHIER
 	tristate "UniPhier GPIO support"
 	depends on ARCH_UNIPHIER || COMPILE_TEST
