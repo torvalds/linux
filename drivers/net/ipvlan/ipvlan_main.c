@@ -22,12 +22,14 @@ static const struct nf_hook_ops ipvl_nfops[] = {
 		.hooknum  = NF_INET_LOCAL_IN,
 		.priority = INT_MAX,
 	},
+#if IS_ENABLED(CONFIG_IPV6)
 	{
 		.hook     = ipvlan_nf_input,
 		.pf       = NFPROTO_IPV6,
 		.hooknum  = NF_INET_LOCAL_IN,
 		.priority = INT_MAX,
 	},
+#endif
 };
 
 static const struct l3mdev_ops ipvl_l3mdev_ops = {
@@ -800,12 +802,14 @@ static int ipvlan_add_addr(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
 		return -ENOMEM;
 
 	addr->master = ipvlan;
-	if (is_v6) {
-		memcpy(&addr->ip6addr, iaddr, sizeof(struct in6_addr));
-		addr->atype = IPVL_IPV6;
-	} else {
+	if (!is_v6) {
 		memcpy(&addr->ip4addr, iaddr, sizeof(struct in_addr));
 		addr->atype = IPVL_IPV4;
+#if IS_ENABLED(CONFIG_IPV6)
+	} else {
+		memcpy(&addr->ip6addr, iaddr, sizeof(struct in6_addr));
+		addr->atype = IPVL_IPV6;
+#endif
 	}
 	list_add_tail(&addr->anode, &ipvlan->addrs);
 
@@ -833,6 +837,20 @@ static void ipvlan_del_addr(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
 	return;
 }
 
+static bool ipvlan_is_valid_dev(const struct net_device *dev)
+{
+	struct ipvl_dev *ipvlan = netdev_priv(dev);
+
+	if (!netif_is_ipvlan(dev))
+		return false;
+
+	if (!ipvlan || !ipvlan->port)
+		return false;
+
+	return true;
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
 static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 {
 	if (ipvlan_addr_busy(ipvlan->port, ip6_addr, true)) {
@@ -848,19 +866,6 @@ static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 {
 	return ipvlan_del_addr(ipvlan, ip6_addr, true);
-}
-
-static bool ipvlan_is_valid_dev(const struct net_device *dev)
-{
-	struct ipvl_dev *ipvlan = netdev_priv(dev);
-
-	if (!netif_is_ipvlan(dev))
-		return false;
-
-	if (!ipvlan || !ipvlan->port)
-		return false;
-
-	return true;
 }
 
 static int ipvlan_addr6_event(struct notifier_block *unused,
@@ -913,6 +918,7 @@ static int ipvlan_addr6_validator_event(struct notifier_block *unused,
 
 	return NOTIFY_OK;
 }
+#endif
 
 static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
@@ -993,6 +999,7 @@ static struct notifier_block ipvlan_notifier_block __read_mostly = {
 	.notifier_call = ipvlan_device_event,
 };
 
+#if IS_ENABLED(CONFIG_IPV6)
 static struct notifier_block ipvlan_addr6_notifier_block __read_mostly = {
 	.notifier_call = ipvlan_addr6_event,
 };
@@ -1000,6 +1007,7 @@ static struct notifier_block ipvlan_addr6_notifier_block __read_mostly = {
 static struct notifier_block ipvlan_addr6_vtor_notifier_block __read_mostly = {
 	.notifier_call = ipvlan_addr6_validator_event,
 };
+#endif
 
 static void ipvlan_ns_exit(struct net *net)
 {
@@ -1024,9 +1032,11 @@ static int __init ipvlan_init_module(void)
 
 	ipvlan_init_secret();
 	register_netdevice_notifier(&ipvlan_notifier_block);
+#if IS_ENABLED(CONFIG_IPV6)
 	register_inet6addr_notifier(&ipvlan_addr6_notifier_block);
 	register_inet6addr_validator_notifier(
 	    &ipvlan_addr6_vtor_notifier_block);
+#endif
 	register_inetaddr_notifier(&ipvlan_addr4_notifier_block);
 	register_inetaddr_validator_notifier(&ipvlan_addr4_vtor_notifier_block);
 
@@ -1045,9 +1055,11 @@ error:
 	unregister_inetaddr_notifier(&ipvlan_addr4_notifier_block);
 	unregister_inetaddr_validator_notifier(
 	    &ipvlan_addr4_vtor_notifier_block);
+#if IS_ENABLED(CONFIG_IPV6)
 	unregister_inet6addr_notifier(&ipvlan_addr6_notifier_block);
 	unregister_inet6addr_validator_notifier(
 	    &ipvlan_addr6_vtor_notifier_block);
+#endif
 	unregister_netdevice_notifier(&ipvlan_notifier_block);
 	return err;
 }
@@ -1060,9 +1072,11 @@ static void __exit ipvlan_cleanup_module(void)
 	unregister_inetaddr_notifier(&ipvlan_addr4_notifier_block);
 	unregister_inetaddr_validator_notifier(
 	    &ipvlan_addr4_vtor_notifier_block);
+#if IS_ENABLED(CONFIG_IPV6)
 	unregister_inet6addr_notifier(&ipvlan_addr6_notifier_block);
 	unregister_inet6addr_validator_notifier(
 	    &ipvlan_addr6_vtor_notifier_block);
+#endif
 }
 
 module_init(ipvlan_init_module);
