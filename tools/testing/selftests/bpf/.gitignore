@@ -11,3 +11,4 @@ test_progs
 test_tcpbpf_user
 test_verifier_log
 feature
+test_libbpf_open
