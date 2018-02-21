@@ -677,6 +677,42 @@ static ssize_t process_hdr(struct ib_uverbs_cmd_hdr *hdr,
 	return 0;
 }
 
+static ssize_t verify_hdr(struct ib_uverbs_cmd_hdr *hdr,
+			  struct ib_uverbs_ex_cmd_hdr *ex_hdr,
+			  size_t count, bool extended)
+{
+	if (extended) {
+		count -= sizeof(*hdr) + sizeof(*ex_hdr);
+
+		if ((hdr->in_words + ex_hdr->provider_in_words) * 8 != count)
+			return -EINVAL;
+
+		if (ex_hdr->cmd_hdr_reserved)
+			return -EINVAL;
+
+		if (ex_hdr->response) {
+			if (!hdr->out_words && !ex_hdr->provider_out_words)
+				return -EINVAL;
+
+			if (!access_ok(VERIFY_WRITE,
+				       u64_to_user_ptr(ex_hdr->response),
+				       (hdr->out_words + ex_hdr->provider_out_words) * 8))
+				return -EFAULT;
+		} else {
+			if (hdr->out_words || ex_hdr->provider_out_words)
+				return -EINVAL;
+		}
+
+		return 0;
+	}
+
+	/* not extended command */
+	if (hdr->in_words * 4 != count)
+		return -EINVAL;
+
+	return 0;
+}
+
 static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			     size_t count, loff_t *pos)
 {
@@ -716,6 +752,10 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			return -EFAULT;
 	}
 
+	ret = verify_hdr(&hdr, &ex_hdr, count, extended);
+	if (ret)
+		return ret;
+
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
 	ib_dev = srcu_dereference(file->device->ib_dev,
 				  &file->device->disassociate_srcu);
@@ -729,52 +769,17 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		goto out;
 	}
 
-	if (!extended) {
-		if (hdr.in_words * 4 != count) {
-			ret = -EINVAL;
-			goto out;
-		}
+	buf += sizeof(hdr);
 
-		ret = uverbs_cmd_table[command](file, ib_dev,
-						 buf + sizeof(hdr),
-						 hdr.in_words * 4,
-						 hdr.out_words * 4);
+	if (!extended) {
+		ret = uverbs_cmd_table[command](file, ib_dev, buf,
+						hdr.in_words * 4,
+						hdr.out_words * 4);
 	} else {
 		struct ib_udata ucore;
 		struct ib_udata uhw;
-		size_t written_count = count;
 
-		count -= sizeof(hdr) + sizeof(ex_hdr);
-		buf += sizeof(hdr) + sizeof(ex_hdr);
-
-		if ((hdr.in_words + ex_hdr.provider_in_words) * 8 != count) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (ex_hdr.cmd_hdr_reserved) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (ex_hdr.response) {
-			if (!hdr.out_words && !ex_hdr.provider_out_words) {
-				ret = -EINVAL;
-				goto out;
-			}
-
-			if (!access_ok(VERIFY_WRITE,
-				       u64_to_user_ptr(ex_hdr.response),
-				       (hdr.out_words + ex_hdr.provider_out_words) * 8)) {
-				ret = -EFAULT;
-				goto out;
-			}
-		} else {
-			if (hdr.out_words || ex_hdr.provider_out_words) {
-				ret = -EINVAL;
-				goto out;
-			}
-		}
+		buf += sizeof(ex_hdr);
 
 		ib_uverbs_init_udata_buf_or_null(&ucore, buf,
 					u64_to_user_ptr(ex_hdr.response),
@@ -787,8 +792,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 					ex_hdr.provider_out_words * 8);
 
 		ret = uverbs_ex_cmd_table[command](file, ib_dev, &ucore, &uhw);
-		if (!ret)
-			ret = written_count;
+		ret = (ret) ? : count;
 	}
 
 out:
