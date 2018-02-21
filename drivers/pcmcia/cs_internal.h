@@ -70,6 +70,7 @@ struct pccard_resource_ops {
 /* Flags in socket state */
 #define SOCKET_PRESENT		0x0008
 #define SOCKET_INUSE		0x0010
+#define SOCKET_IN_RESUME	0x0040
 #define SOCKET_SUSPEND		0x0080
 #define SOCKET_WIN_REQ(i)	(0x0100<<(i))
 #define SOCKET_CARDBUS		0x8000
