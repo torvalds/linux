@@ -31,8 +31,7 @@
 #include <drm/drm_gem.h>
 
 static void
-i915_vma_retire(struct i915_gem_active *active,
-		struct drm_i915_gem_request *rq)
+i915_vma_retire(struct i915_gem_active *active, struct i915_request *rq)
 {
 	const unsigned int idx = rq->engine->id;
 	struct i915_vma *vma =

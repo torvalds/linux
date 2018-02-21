@@ -765,16 +765,16 @@ static void gen8_initialize_pml4(struct i915_address_space *vm,
 }
 
 /* Broadwell Page Directory Pointer Descriptors */
-static int gen8_write_pdp(struct drm_i915_gem_request *req,
+static int gen8_write_pdp(struct i915_request *rq,
 			  unsigned entry,
 			  dma_addr_t addr)
 {
-	struct intel_engine_cs *engine = req->engine;
+	struct intel_engine_cs *engine = rq->engine;
 	u32 *cs;
 
 	BUG_ON(entry >= 4);
 
-	cs = intel_ring_begin(req, 6);
+	cs = intel_ring_begin(rq, 6);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -784,20 +784,20 @@ static int gen8_write_pdp(struct drm_i915_gem_request *req,
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(GEN8_RING_PDP_LDW(engine, entry));
 	*cs++ = lower_32_bits(addr);
-	intel_ring_advance(req, cs);
+	intel_ring_advance(rq, cs);
 
 	return 0;
 }
 
 static int gen8_mm_switch_3lvl(struct i915_hw_ppgtt *ppgtt,
-			       struct drm_i915_gem_request *req)
+			       struct i915_request *rq)
 {
 	int i, ret;
 
 	for (i = GEN8_3LVL_PDPES - 1; i >= 0; i--) {
 		const dma_addr_t pd_daddr = i915_page_dir_dma_addr(ppgtt, i);
 
-		ret = gen8_write_pdp(req, i, pd_daddr);
+		ret = gen8_write_pdp(rq, i, pd_daddr);
 		if (ret)
 			return ret;
 	}
@@ -806,9 +806,9 @@ static int gen8_mm_switch_3lvl(struct i915_hw_ppgtt *ppgtt,
 }
 
 static int gen8_mm_switch_4lvl(struct i915_hw_ppgtt *ppgtt,
-			       struct drm_i915_gem_request *req)
+			       struct i915_request *rq)
 {
-	return gen8_write_pdp(req, 0, px_dma(&ppgtt->pml4));
+	return gen8_write_pdp(rq, 0, px_dma(&ppgtt->pml4));
 }
 
 /* PDE TLBs are a pain to invalidate on GEN8+. When we modify
@@ -1732,13 +1732,13 @@ static inline u32 get_pd_offset(struct i915_hw_ppgtt *ppgtt)
 }
 
 static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			 struct drm_i915_gem_request *req)
+			 struct i915_request *rq)
 {
-	struct intel_engine_cs *engine = req->engine;
+	struct intel_engine_cs *engine = rq->engine;
 	u32 *cs;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
-	cs = intel_ring_begin(req, 6);
+	cs = intel_ring_begin(rq, 6);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1748,19 +1748,19 @@ static int hsw_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine));
 	*cs++ = get_pd_offset(ppgtt);
 	*cs++ = MI_NOOP;
-	intel_ring_advance(req, cs);
+	intel_ring_advance(rq, cs);
 
 	return 0;
 }
 
 static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct drm_i915_gem_request *req)
+			  struct i915_request *rq)
 {
-	struct intel_engine_cs *engine = req->engine;
+	struct intel_engine_cs *engine = rq->engine;
 	u32 *cs;
 
 	/* NB: TLBs must be flushed and invalidated before a switch */
-	cs = intel_ring_begin(req, 6);
+	cs = intel_ring_begin(rq, 6);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1770,16 +1770,16 @@ static int gen7_mm_switch(struct i915_hw_ppgtt *ppgtt,
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine));
 	*cs++ = get_pd_offset(ppgtt);
 	*cs++ = MI_NOOP;
-	intel_ring_advance(req, cs);
+	intel_ring_advance(rq, cs);
 
 	return 0;
 }
 
 static int gen6_mm_switch(struct i915_hw_ppgtt *ppgtt,
-			  struct drm_i915_gem_request *req)
+			  struct i915_request *rq)
 {
-	struct intel_engine_cs *engine = req->engine;
-	struct drm_i915_private *dev_priv = req->i915;
+	struct intel_engine_cs *engine = rq->engine;
+	struct drm_i915_private *dev_priv = rq->i915;
 
 	I915_WRITE(RING_PP_DIR_DCLV(engine), PP_DIR_DCLV_2G);
 	I915_WRITE(RING_PP_DIR_BASE(engine), get_pd_offset(ppgtt));

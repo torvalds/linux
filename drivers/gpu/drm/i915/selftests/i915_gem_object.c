@@ -436,7 +436,7 @@ out:
 static int make_obj_busy(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 	struct i915_vma *vma;
 	int err;
 
@@ -448,14 +448,14 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 	if (err)
 		return err;
 
-	rq = i915_gem_request_alloc(i915->engine[RCS], i915->kernel_context);
+	rq = i915_request_alloc(i915->engine[RCS], i915->kernel_context);
 	if (IS_ERR(rq)) {
 		i915_vma_unpin(vma);
 		return PTR_ERR(rq);
 	}
 
 	i915_vma_move_to_active(vma, rq, 0);
-	i915_add_request(rq);
+	i915_request_add(rq);
 
 	i915_gem_object_set_active_reference(obj);
 	i915_vma_unpin(vma);

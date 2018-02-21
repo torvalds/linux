@@ -1426,20 +1426,20 @@ int init_workarounds_ring(struct intel_engine_cs *engine)
 	return 0;
 }
 
-int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
+int intel_ring_workarounds_emit(struct i915_request *rq)
 {
-	struct i915_workarounds *w = &req->i915->workarounds;
+	struct i915_workarounds *w = &rq->i915->workarounds;
 	u32 *cs;
 	int ret, i;
 
 	if (w->count == 0)
 		return 0;
 
-	ret = req->engine->emit_flush(req, EMIT_BARRIER);
+	ret = rq->engine->emit_flush(rq, EMIT_BARRIER);
 	if (ret)
 		return ret;
 
-	cs = intel_ring_begin(req, (w->count * 2 + 2));
+	cs = intel_ring_begin(rq, w->count * 2 + 2);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1450,9 +1450,9 @@ int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	}
 	*cs++ = MI_NOOP;
 
-	intel_ring_advance(req, cs);
+	intel_ring_advance(rq, cs);
 
-	ret = req->engine->emit_flush(req, EMIT_BARRIER);
+	ret = rq->engine->emit_flush(rq, EMIT_BARRIER);
 	if (ret)
 		return ret;
 
@@ -1552,7 +1552,7 @@ bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine)
 {
 	const struct i915_gem_context * const kernel_context =
 		engine->i915->kernel_context;
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 
 	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
@@ -1664,12 +1664,12 @@ unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915)
 }
 
 static void print_request(struct drm_printer *m,
-			  struct drm_i915_gem_request *rq,
+			  struct i915_request *rq,
 			  const char *prefix)
 {
 	drm_printf(m, "%s%x%s [%x:%x] prio=%d @ %dms: %s\n", prefix,
 		   rq->global_seqno,
-		   i915_gem_request_completed(rq) ? "!" : "",
+		   i915_request_completed(rq) ? "!" : "",
 		   rq->ctx->hw_id, rq->fence.seqno,
 		   rq->priotree.priority,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
@@ -1803,7 +1803,7 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 
 		rcu_read_lock();
 		for (idx = 0; idx < execlists_num_ports(execlists); idx++) {
-			struct drm_i915_gem_request *rq;
+			struct i915_request *rq;
 			unsigned int count;
 
 			rq = port_unpack(&execlists->port[idx], &count);
@@ -1837,7 +1837,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
 	const struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_gpu_error * const error = &engine->i915->gpu_error;
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 	struct rb_node *rb;
 
 	if (header) {
@@ -1866,12 +1866,12 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	drm_printf(m, "\tRequests:\n");
 
 	rq = list_first_entry(&engine->timeline->requests,
-			      struct drm_i915_gem_request, link);
+			      struct i915_request, link);
 	if (&rq->link != &engine->timeline->requests)
 		print_request(m, rq, "\t\tfirst  ");
 
 	rq = list_last_entry(&engine->timeline->requests,
-			     struct drm_i915_gem_request, link);
+			     struct i915_request, link);
 	if (&rq->link != &engine->timeline->requests)
 		print_request(m, rq, "\t\tlast   ");
 

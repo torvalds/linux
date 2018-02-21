@@ -6360,7 +6360,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->pcu_lock);
 }
 
-void gen6_rps_boost(struct drm_i915_gem_request *rq,
+void gen6_rps_boost(struct i915_request *rq,
 		    struct intel_rps_client *rps_client)
 {
 	struct intel_rps *rps = &rq->i915->gt_pm.rps;
@@ -6376,7 +6376,7 @@ void gen6_rps_boost(struct drm_i915_gem_request *rq,
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
 		return;
 
-	/* Serializes with i915_gem_request_retire() */
+	/* Serializes with i915_request_retire() */
 	boost = false;
 	spin_lock_irqsave(&rq->lock, flags);
 	if (!rq->waitboost && !dma_fence_is_signaled_locked(&rq->fence)) {

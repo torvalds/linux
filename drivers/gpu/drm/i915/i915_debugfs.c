@@ -519,7 +519,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
 		struct drm_i915_file_private *file_priv = file->driver_priv;
-		struct drm_i915_gem_request *request;
+		struct i915_request *request;
 		struct task_struct *task;
 
 		mutex_lock(&dev->struct_mutex);
@@ -536,7 +536,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
 		request = list_first_entry_or_null(&file_priv->mm.request_list,
-						   struct drm_i915_gem_request,
+						   struct i915_request,
 						   client_link);
 		rcu_read_lock();
 		task = pid_task(request && request->ctx->pid ?
@@ -4060,7 +4060,7 @@ i915_drop_caches_set(void *data, u64 val)
 						     I915_WAIT_LOCKED);
 
 		if (val & DROP_RETIRE)
-			i915_gem_retire_requests(dev_priv);
+			i915_retire_requests(dev_priv);
 
 		mutex_unlock(&dev->struct_mutex);
 	}

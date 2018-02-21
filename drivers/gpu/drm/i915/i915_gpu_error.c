@@ -991,7 +991,7 @@ out:
 static inline uint32_t
 __active_get_seqno(struct i915_gem_active *active)
 {
-	struct drm_i915_gem_request *request;
+	struct i915_request *request;
 
 	request = __i915_gem_active_peek(active);
 	return request ? request->global_seqno : 0;
@@ -1000,7 +1000,7 @@ __active_get_seqno(struct i915_gem_active *active)
 static inline int
 __active_get_engine_id(struct i915_gem_active *active)
 {
-	struct drm_i915_gem_request *request;
+	struct i915_request *request;
 
 	request = __i915_gem_active_peek(active);
 	return request ? request->engine->id : -1;
@@ -1293,7 +1293,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	}
 }
 
-static void record_request(struct drm_i915_gem_request *request,
+static void record_request(struct i915_request *request,
 			   struct drm_i915_error_request *erq)
 {
 	erq->context = request->ctx->hw_id;
@@ -1310,10 +1310,10 @@ static void record_request(struct drm_i915_gem_request *request,
 }
 
 static void engine_record_requests(struct intel_engine_cs *engine,
-				   struct drm_i915_gem_request *first,
+				   struct i915_request *first,
 				   struct drm_i915_error_engine *ee)
 {
-	struct drm_i915_gem_request *request;
+	struct i915_request *request;
 	int count;
 
 	count = 0;
@@ -1363,7 +1363,7 @@ static void error_record_engine_execlists(struct intel_engine_cs *engine,
 	unsigned int n;
 
 	for (n = 0; n < execlists_num_ports(execlists); n++) {
-		struct drm_i915_gem_request *rq = port_request(&execlists->port[n]);
+		struct i915_request *rq = port_request(&execlists->port[n]);
 
 		if (!rq)
 			break;
@@ -1398,10 +1398,10 @@ static void record_context(struct drm_i915_error_context *e,
 	e->active = atomic_read(&ctx->active_count);
 }
 
-static void request_record_user_bo(struct drm_i915_gem_request *request,
+static void request_record_user_bo(struct i915_request *request,
 				   struct drm_i915_error_engine *ee)
 {
-	struct i915_gem_capture_list *c;
+	struct i915_capture_list *c;
 	struct drm_i915_error_object **bo;
 	long count;
 
@@ -1454,7 +1454,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 	for (i = 0; i < I915_NUM_ENGINES; i++) {
 		struct intel_engine_cs *engine = dev_priv->engine[i];
 		struct drm_i915_error_engine *ee = &error->engine[i];
-		struct drm_i915_gem_request *request;
+		struct i915_request *request;
 
 		ee->engine_id = -1;
 

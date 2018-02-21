@@ -496,8 +496,7 @@ static void guc_ring_doorbell(struct intel_guc_client *client)
 	GEM_BUG_ON(db->db_status != GUC_DOORBELL_ENABLED);
 }
 
-static void guc_add_request(struct intel_guc *guc,
-			    struct drm_i915_gem_request *rq)
+static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 {
 	struct intel_guc_client *client = guc->execbuf_client;
 	struct intel_engine_cs *engine = rq->engine;
@@ -648,7 +647,7 @@ static void guc_submit(struct intel_engine_cs *engine)
 	unsigned int n;
 
 	for (n = 0; n < execlists_num_ports(execlists); n++) {
-		struct drm_i915_gem_request *rq;
+		struct i915_request *rq;
 		unsigned int count;
 
 		rq = port_unpack(&port[n], &count);
@@ -662,19 +661,18 @@ static void guc_submit(struct intel_engine_cs *engine)
 	}
 }
 
-static void port_assign(struct execlist_port *port,
-			struct drm_i915_gem_request *rq)
+static void port_assign(struct execlist_port *port, struct i915_request *rq)
 {
 	GEM_BUG_ON(port_isset(port));
 
-	port_set(port, i915_gem_request_get(rq));
+	port_set(port, i915_request_get(rq));
 }
 
 static void guc_dequeue(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
-	struct drm_i915_gem_request *last = NULL;
+	struct i915_request *last = NULL;
 	const struct execlist_port * const last_port =
 		&execlists->port[execlists->port_mask];
 	bool submit = false;
@@ -710,7 +708,7 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 
 	do {
 		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
-		struct drm_i915_gem_request *rq, *rn;
+		struct i915_request *rq, *rn;
 
 		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
 			if (last && rq->ctx != last->ctx) {
@@ -727,9 +725,8 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 
 			INIT_LIST_HEAD(&rq->priotree.link);
 
-			__i915_gem_request_submit(rq);
-			trace_i915_gem_request_in(rq,
-						  port_index(port, execlists));
+			__i915_request_submit(rq);
+			trace_i915_request_in(rq, port_index(port, execlists));
 			last = rq;
 			submit = true;
 		}
@@ -762,12 +759,12 @@ static void guc_submission_tasklet(unsigned long data)
 	struct intel_engine_cs * const engine = (struct intel_engine_cs *)data;
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct execlist_port *port = execlists->port;
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 
 	rq = port_request(&port[0]);
-	while (rq && i915_gem_request_completed(rq)) {
-		trace_i915_gem_request_out(rq);
-		i915_gem_request_put(rq);
+	while (rq && i915_request_completed(rq)) {
+		trace_i915_request_out(rq);
+		i915_request_put(rq);
 
 		execlists_port_complete(execlists, port);
 

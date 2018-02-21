@@ -33,7 +33,7 @@
 
 #include <drm/i915_drm.h>
 
-#include "i915_gem_request.h"
+#include "i915_request.h"
 #include "i915_selftest.h"
 
 struct drm_i915_gem_object;
