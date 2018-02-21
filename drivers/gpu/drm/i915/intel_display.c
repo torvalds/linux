@@ -2123,6 +2123,8 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 		goto err;
 
 	if (i915_vma_is_map_and_fenceable(vma)) {
+		int ret;
+
 		/* Install a fence for tiled scan-out. Pre-i965 always needs a
 		 * fence, whereas 965+ only requires a fence if using
 		 * framebuffer compression.  For simplicity, we always, when
@@ -2139,7 +2141,13 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 		 * something and try to run the system in a "less than optimal"
 		 * mode that matches the user configuration.
 		 */
-		if (i915_vma_pin_fence(vma) == 0 && vma->fence)
+		ret = i915_vma_pin_fence(vma);
+		if (ret != 0 && INTEL_GEN(dev_priv) < 4) {
+			vma = ERR_PTR(ret);
+			goto err;
+		}
+
+		if (ret == 0 && vma->fence)
 			*out_flags |= PLANE_HAS_FENCE;
 	}
 
