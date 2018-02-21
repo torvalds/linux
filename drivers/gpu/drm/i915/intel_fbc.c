@@ -810,6 +810,12 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 * Note that is possible for a tiled surface to be unmappable (and
 	 * so have no fence associated with it) due to aperture constaints
 	 * at the time of pinning.
+	 *
+	 * FIXME with 90/270 degree rotation we should use the fence on
+	 * the normal GTT view (the rotated view doesn't even have a
+	 * fence). Would need changes to the FBC fence Y offset as well.
+	 * For now this will effecively disable FBC with 90/270 degree
+	 * rotation.
 	 */
 	if (!(cache->flags & PLANE_HAS_FENCE)) {
 		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
