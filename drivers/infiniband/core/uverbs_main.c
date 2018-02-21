@@ -705,6 +705,10 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (ret)
 		return ret;
 
+	if (!file->ucontext &&
+	    (command != IB_USER_VERBS_CMD_GET_CONTEXT || extended))
+		return -EINVAL;
+
 	if (extended && count < (sizeof(hdr) + sizeof(ex_hdr)))
 		return -EINVAL;
 
@@ -718,12 +722,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 
 	if (!verify_command_mask(ib_dev, command, extended)) {
 		ret = -EOPNOTSUPP;
-		goto out;
-	}
-
-	if (!file->ucontext &&
-	    command != IB_USER_VERBS_CMD_GET_CONTEXT) {
-		ret = -EINVAL;
 		goto out;
 	}
 
@@ -741,11 +739,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		struct ib_udata ucore;
 		struct ib_udata uhw;
 		size_t written_count = count;
-
-		if (!file->ucontext) {
-			ret = -EINVAL;
-			goto out;
-		}
 
 		if (copy_from_user(&ex_hdr, buf + sizeof(hdr), sizeof(ex_hdr))) {
 			ret = -EFAULT;
