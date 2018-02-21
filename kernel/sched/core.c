@@ -333,7 +333,7 @@ void hrtick_start(struct rq *rq, u64 delay)
 }
 #endif /* CONFIG_SMP */
 
-static void init_rq_hrtick(struct rq *rq)
+static void hrtick_rq_init(struct rq *rq)
 {
 #ifdef CONFIG_SMP
 	rq->hrtick_csd_pending = 0;
@@ -351,7 +351,7 @@ static inline void hrtick_clear(struct rq *rq)
 {
 }
 
-static inline void init_rq_hrtick(struct rq *rq)
+static inline void hrtick_rq_init(struct rq *rq)
 {
 }
 #endif	/* CONFIG_SCHED_HRTICK */
@@ -6028,7 +6028,7 @@ void __init sched_init(void)
 		rq->last_sched_tick = 0;
 #endif
 #endif /* CONFIG_SMP */
-		init_rq_hrtick(rq);
+		hrtick_rq_init(rq);
 		atomic_set(&rq->nr_iowait, 0);
 	}
 
