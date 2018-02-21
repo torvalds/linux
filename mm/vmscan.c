@@ -769,64 +769,7 @@ int remove_mapping(struct address_space *mapping, struct page *page)
  */
 void putback_lru_page(struct page *page)
 {
-	bool is_unevictable;
-	int was_unevictable = PageUnevictable(page);
-
-	VM_BUG_ON_PAGE(PageLRU(page), page);
-
-redo:
-	ClearPageUnevictable(page);
-
-	if (page_evictable(page)) {
-		/*
-		 * For evictable pages, we can use the cache.
-		 * In event of a race, worst case is we end up with an
-		 * unevictable page on [in]active list.
-		 * We know how to handle that.
-		 */
-		is_unevictable = false;
-		lru_cache_add(page);
-	} else {
-		/*
-		 * Put unevictable pages directly on zone's unevictable
-		 * list.
-		 */
-		is_unevictable = true;
-		add_page_to_unevictable_list(page);
-		/*
-		 * When racing with an mlock or AS_UNEVICTABLE clearing
-		 * (page is unlocked) make sure that if the other thread
-		 * does not observe our setting of PG_lru and fails
-		 * isolation/check_move_unevictable_pages,
-		 * we see PG_mlocked/AS_UNEVICTABLE cleared below and move
-		 * the page back to the evictable list.
-		 *
-		 * The other side is TestClearPageMlocked() or shmem_lock().
-		 */
-		smp_mb();
-	}
-
-	/*
-	 * page's status can change while we move it among lru. If an evictable
-	 * page is on unevictable list, it never be freed. To avoid that,
-	 * check after we added it to the list, again.
-	 */
-	if (is_unevictable && page_evictable(page)) {
-		if (!isolate_lru_page(page)) {
-			put_page(page);
-			goto redo;
-		}
-		/* This means someone else dropped this page from LRU
-		 * So, it will be freed or putback to LRU again. There is
-		 * nothing to do here.
-		 */
-	}
-
-	if (was_unevictable && !is_unevictable)
-		count_vm_event(UNEVICTABLE_PGRESCUED);
-	else if (!was_unevictable && is_unevictable)
-		count_vm_event(UNEVICTABLE_PGCULLED);
-
+	lru_cache_add(page);
 	put_page(page);		/* drop ref from isolate */
 }
 
