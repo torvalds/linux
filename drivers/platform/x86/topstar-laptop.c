@@ -24,8 +24,13 @@
 #define TOPSTAR_LAPTOP_CLASS "topstar"
 
 struct topstar_laptop {
+	struct acpi_device *device;
 	struct input_dev *input;
 };
+
+/*
+ * Input
+ */
 
 static const struct key_entry topstar_keymap[] = {
 	{ KE_KEY, 0x80, { KEY_BRIGHTNESSUP } },
@@ -57,38 +62,10 @@ static const struct key_entry topstar_keymap[] = {
 	{ KE_END, 0 }
 };
 
-static void topstar_acpi_notify(struct acpi_device *device, u32 event)
+static void topstar_input_notify(struct topstar_laptop *topstar, int event)
 {
-	static bool dup_evnt[2];
-	bool *dup;
-	struct topstar_laptop *topstar = acpi_driver_data(device);
-
-	/* 0x83 and 0x84 key events comes duplicated... */
-	if (event == 0x83 || event == 0x84) {
-		dup = &dup_evnt[event - 0x83];
-		if (*dup) {
-			*dup = false;
-			return;
-		}
-		*dup = true;
-	}
-
 	if (!sparse_keymap_report_event(topstar->input, event, 1, true))
 		pr_info("unknown event = 0x%02x\n", event);
-}
-
-static int topstar_acpi_fncx_switch(struct acpi_device *device, bool state)
-{
-	acpi_status status;
-
-	status = acpi_execute_simple_method(device->handle, "FNCX",
-						state ? 0x86 : 0x87);
-	if (ACPI_FAILURE(status)) {
-		pr_err("Unable to switch FNCX notifications\n");
-		return -ENODEV;
-	}
-
-	return 0;
 }
 
 static int topstar_input_init(struct topstar_laptop *topstar)
@@ -124,9 +101,62 @@ err_free_dev:
 	return err;
 }
 
+static void topstar_input_exit(struct topstar_laptop *topstar)
+{
+	input_unregister_device(topstar->input);
+}
+
+/*
+ * ACPI
+ */
+
+static int topstar_acpi_fncx_switch(struct acpi_device *device, bool state)
+{
+	acpi_status status;
+	u64 arg = state ? 0x86 : 0x87;
+
+	status = acpi_execute_simple_method(device->handle, "FNCX", arg);
+	if (ACPI_FAILURE(status)) {
+		pr_err("Unable to switch FNCX notifications\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static void topstar_acpi_notify(struct acpi_device *device, u32 event)
+{
+	struct topstar_laptop *topstar = acpi_driver_data(device);
+	static bool dup_evnt[2];
+	bool *dup;
+
+	/* 0x83 and 0x84 key events comes duplicated... */
+	if (event == 0x83 || event == 0x84) {
+		dup = &dup_evnt[event - 0x83];
+		if (*dup) {
+			*dup = false;
+			return;
+		}
+		*dup = true;
+	}
+
+	topstar_input_notify(topstar, event);
+}
+
+static int topstar_acpi_init(struct topstar_laptop *topstar)
+{
+	return topstar_acpi_fncx_switch(topstar->device, true);
+}
+
+static void topstar_acpi_exit(struct topstar_laptop *topstar)
+{
+	topstar_acpi_fncx_switch(topstar->device, false);
+}
+
 static int topstar_acpi_add(struct acpi_device *device)
 {
 	struct topstar_laptop *topstar;
+	int err;
 
 	topstar = kzalloc(sizeof(struct topstar_laptop), GFP_KERNEL);
 	if (!topstar)
@@ -134,30 +164,34 @@ static int topstar_acpi_add(struct acpi_device *device)
 
 	strcpy(acpi_device_name(device), "Topstar TPSACPI");
 	strcpy(acpi_device_class(device), TOPSTAR_LAPTOP_CLASS);
-
-	if (topstar_acpi_fncx_switch(device, true))
-		goto err_free;
-
-	if (topstar_input_init(topstar))
-		goto err_free;
-
 	device->driver_data = topstar;
+	topstar->device = device;
+
+	err = topstar_acpi_init(topstar);
+	if (err)
+		goto err_free;
+
+	err = topstar_input_init(topstar);
+	if (err)
+		goto err_acpi_exit;
+
 	return 0;
 
+err_acpi_exit:
+	topstar_acpi_exit(topstar);
 err_free:
 	kfree(topstar);
-	return -ENODEV;
+	return err;
 }
 
 static int topstar_acpi_remove(struct acpi_device *device)
 {
 	struct topstar_laptop *topstar = acpi_driver_data(device);
 
-	topstar_acpi_fncx_switch(device, false);
+	topstar_input_exit(topstar);
+	topstar_acpi_exit(topstar);
 
-	input_unregister_device(topstar->input);
 	kfree(topstar);
-
 	return 0;
 }
 
@@ -188,7 +222,6 @@ static int __init topstar_laptop_init(void)
 		return ret;
 
 	pr_info("ACPI extras driver loaded\n");
-
 	return 0;
 }
 
