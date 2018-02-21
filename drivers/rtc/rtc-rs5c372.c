@@ -234,8 +234,7 @@ static int rs5c372_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	/* rtc might need initialization */
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
