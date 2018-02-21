@@ -1539,6 +1539,7 @@ static void dce110_set_displaymarks(
 			pipe_ctx->plane_res.mi,
 			context->bw.dce.nbp_state_change_wm_ns[num_pipes],
 			context->bw.dce.stutter_exit_wm_ns[num_pipes],
+			context->bw.dce.stutter_entry_wm_ns[num_pipes],
 			context->bw.dce.urgent_wm_ns[num_pipes],
 			total_dest_line_time_ns);
 		if (i == underlay_idx) {
@@ -1564,6 +1565,7 @@ static void set_safe_displaymarks(
 		MAX_WATERMARK, MAX_WATERMARK, MAX_WATERMARK, MAX_WATERMARK };
 	struct dce_watermarks nbp_marks = {
 		SAFE_NBP_MARK, SAFE_NBP_MARK, SAFE_NBP_MARK, SAFE_NBP_MARK };
+	struct dce_watermarks min_marks = { 0, 0, 0, 0};
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (res_ctx->pipe_ctx[i].stream == NULL || res_ctx->pipe_ctx[i].plane_res.mi == NULL)
@@ -1573,6 +1575,7 @@ static void set_safe_displaymarks(
 				res_ctx->pipe_ctx[i].plane_res.mi,
 				nbp_marks,
 				max_marks,
+				min_marks,
 				max_marks,
 				MAX_WATERMARK);
 
