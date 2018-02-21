@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Topstar Laptop ACPI Extras driver
  *
@@ -6,10 +7,6 @@
  *
  * Implementation inspired by existing x86 platform drivers, in special
  * asus/eepc/fujitsu-laptop, thanks to their authors.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
