@@ -113,8 +113,6 @@ static inline void mce_register_injector_chain(struct notifier_block *nb)	{ }
 static inline void mce_unregister_injector_chain(struct notifier_block *nb)	{ }
 #endif
 
-extern struct mca_config mca_cfg;
-
 #ifndef CONFIG_X86_64
 /*
  * On 32-bit systems it would be difficult to safely unmap a poison page
@@ -129,5 +127,59 @@ extern struct mca_config mca_cfg;
 static inline void mce_unmap_kpfn(unsigned long pfn) {}
 #define mce_unmap_kpfn mce_unmap_kpfn
 #endif
+
+struct mca_config {
+	bool dont_log_ce;
+	bool cmci_disabled;
+	bool lmce_disabled;
+	bool ignore_ce;
+	bool disabled;
+	bool ser;
+	bool recovery;
+	bool bios_cmci_threshold;
+	u8 banks;
+	s8 bootlog;
+	int tolerant;
+	int monarch_timeout;
+	int panic_timeout;
+	u32 rip_msr;
+};
+
+extern struct mca_config mca_cfg;
+
+struct mce_vendor_flags {
+	/*
+	 * Indicates that overflow conditions are not fatal, when set.
+	 */
+	__u64 overflow_recov	: 1,
+
+	/*
+	 * (AMD) SUCCOR stands for S/W UnCorrectable error COntainment and
+	 * Recovery. It indicates support for data poisoning in HW and deferred
+	 * error interrupts.
+	 */
+	      succor		: 1,
+
+	/*
+	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
+	 * the register space for each MCA bank and also increases number of
+	 * banks. Also, to accommodate the new banks and registers, the MCA
+	 * register space is moved to a new MSR range.
+	 */
+	      smca		: 1,
+
+	      __reserved_0	: 61;
+};
+
+extern struct mce_vendor_flags mce_flags;
+
+struct mca_msr_regs {
+	u32 (*ctl)	(int bank);
+	u32 (*status)	(int bank);
+	u32 (*addr)	(int bank);
+	u32 (*misc)	(int bank);
+};
+
+extern struct mca_msr_regs msr_ops;
 
 #endif /* __X86_MCE_INTERNAL_H__ */
