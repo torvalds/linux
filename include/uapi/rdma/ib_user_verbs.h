@@ -141,10 +141,7 @@ struct ib_uverbs_cq_moderation_caps {
  */
 
 #define IB_USER_VERBS_CMD_COMMAND_MASK 0xff
-#define IB_USER_VERBS_CMD_FLAGS_MASK 0xff000000u
-#define IB_USER_VERBS_CMD_FLAGS_SHIFT 24
-
-#define IB_USER_VERBS_CMD_FLAG_EXTENDED 0x80
+#define IB_USER_VERBS_CMD_FLAG_EXTENDED 0x80000000u
 
 struct ib_uverbs_cmd_hdr {
 	__u32 command;

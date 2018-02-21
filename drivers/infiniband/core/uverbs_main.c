@@ -657,19 +657,12 @@ static bool verify_command_idx(u32 command, bool extended)
 static ssize_t process_hdr(struct ib_uverbs_cmd_hdr *hdr,
 			   u32 *command, bool *extended)
 {
-	u32 flags;
-
-	if (hdr->command & ~(u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
+	if (hdr->command & ~(u32)(IB_USER_VERBS_CMD_FLAG_EXTENDED |
 				   IB_USER_VERBS_CMD_COMMAND_MASK))
 		return -EINVAL;
 
 	*command = hdr->command & IB_USER_VERBS_CMD_COMMAND_MASK;
-	flags = (hdr->command &
-		 IB_USER_VERBS_CMD_FLAGS_MASK) >> IB_USER_VERBS_CMD_FLAGS_SHIFT;
-
-	*extended = flags & IB_USER_VERBS_CMD_FLAG_EXTENDED;
-	if (flags & ~IB_USER_VERBS_CMD_FLAG_EXTENDED)
-		return -EINVAL;
+	*extended = hdr->command & IB_USER_VERBS_CMD_FLAG_EXTENDED;
 
 	if (!verify_command_idx(*command, *extended))
 		return -EOPNOTSUPP;
