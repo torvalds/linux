@@ -709,8 +709,12 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	    (command != IB_USER_VERBS_CMD_GET_CONTEXT || extended))
 		return -EINVAL;
 
-	if (extended && count < (sizeof(hdr) + sizeof(ex_hdr)))
-		return -EINVAL;
+	if (extended) {
+		if (count < (sizeof(hdr) + sizeof(ex_hdr)))
+			return -EINVAL;
+		if (copy_from_user(&ex_hdr, buf + sizeof(hdr), sizeof(ex_hdr)))
+			return -EFAULT;
+	}
 
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
 	ib_dev = srcu_dereference(file->device->ib_dev,
@@ -739,11 +743,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		struct ib_udata ucore;
 		struct ib_udata uhw;
 		size_t written_count = count;
-
-		if (copy_from_user(&ex_hdr, buf + sizeof(hdr), sizeof(ex_hdr))) {
-			ret = -EFAULT;
-			goto out;
-		}
 
 		count -= sizeof(hdr) + sizeof(ex_hdr);
 		buf += sizeof(hdr) + sizeof(ex_hdr);
