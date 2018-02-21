@@ -69,8 +69,8 @@ struct ptrace_peeksiginfo_args {
 #define PTRACE_SECCOMP_GET_METADATA	0x420d
 
 struct seccomp_metadata {
-	unsigned long filter_off;	/* Input: which filter */
-	unsigned int flags;		/* Output: filter's flags */
+	__u64 filter_off;	/* Input: which filter */
+	__u64 flags;		/* Output: filter's flags */
 };
 
 /* Read signals from a shared (process wide) queue */
