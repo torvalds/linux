@@ -188,19 +188,47 @@
 		dma-ranges;
 
 		ethernet: ethernet@f8010000 {
-			clock-names = "phy_ref_clk", "apb_pclk";
-			clocks = <&eth_phy_ref_clk>,
-				<&clkctrl ARTPEC6_CLK_ETH_ACLK>;
-			compatible = "snps,dwc-qos-ethernet-4.10";
-			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "stmmaceth", "ptp_ref";
+			clocks = <&clkctrl ARTPEC6_CLK_ETH_ACLK>,
+				<&clkctrl ARTPEC6_CLK_PTP_REF>;
+			compatible = "snps,dwmac-4.10a", "snps,dwmac";
+			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq", "eth_lpi";
 			reg = <0xf8010000 0x4000>;
 
-			snps,write-requests = <2>;
-			snps,read-requests = <16>;
+			snps,axi-config = <&stmmac_axi_setup>;
+			snps,mtl-rx-config = <&mtl_rx_setup>;
+			snps,mtl-tx-config = <&mtl_tx_setup>;
+
 			snps,txpbl = <8>;
 			snps,rxpbl = <2>;
+			snps,aal;
+			snps,tso;
 
 			status = "disabled";
+
+			stmmac_axi_setup: stmmac-axi-config {
+				snps,wr_osr_lmt = <1>;
+				snps,rd_osr_lmt = <15>;
+				/* If FB is disabled, the AXI master chooses
+				 * a burst length of any value less than the
+				 * maximum enabled burst length
+				 * (all lesser burst length enables are redundant).
+				 */
+				snps,blen = <0 0 0 0 16 0 0>;
+			};
+
+			mtl_rx_setup: rx-queues-config {
+				snps,rx-queues-to-use = <1>;
+				queue0 {};
+			};
+
+			mtl_tx_setup: tx-queues-config {
+				snps,tx-queues-to-use = <2>;
+				queue0 {};
+				queue1 {};
+			};
 		};
 
 		uart0: serial@f8036000 {
