@@ -190,20 +190,26 @@ static void mdp5_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *st
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct device *dev = &mdp5_kms->pdev->dev;
+	struct mdp5_global_state *global_state;
+
+	global_state = mdp5_get_existing_global_state(mdp5_kms);
 
 	pm_runtime_get_sync(dev);
 
 	if (mdp5_kms->smp)
-		mdp5_smp_prepare_commit(mdp5_kms->smp, &mdp5_kms->state->smp);
+		mdp5_smp_prepare_commit(mdp5_kms->smp, &global_state->smp);
 }
 
 static void mdp5_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
 	struct device *dev = &mdp5_kms->pdev->dev;
+	struct mdp5_global_state *global_state;
+
+	global_state = mdp5_get_existing_global_state(mdp5_kms);
 
 	if (mdp5_kms->smp)
-		mdp5_smp_complete_commit(mdp5_kms->smp, &mdp5_kms->state->smp);
+		mdp5_smp_complete_commit(mdp5_kms->smp, &global_state->smp);
 
 	pm_runtime_put_sync(dev);
 }
