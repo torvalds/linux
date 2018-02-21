@@ -863,14 +863,15 @@ static void execlists_submission_tasklet(unsigned long data)
 			GEM_BUG_ON(!execlists_is_active(execlists,
 							EXECLISTS_ACTIVE_USER));
 
-			/* Check the context/desc id for this event matches */
-			GEM_DEBUG_BUG_ON(buf[2 * head + 1] != port->context_id);
-
 			rq = port_unpack(port, &count);
 			GEM_TRACE("%s out[0]: ctx=%d.%d, seqno=%x\n",
 				  engine->name,
 				  port->context_id, count,
 				  rq ? rq->global_seqno : 0);
+
+			/* Check the context/desc id for this event matches */
+			GEM_DEBUG_BUG_ON(buf[2 * head + 1] != port->context_id);
+
 			GEM_BUG_ON(count == 0);
 			if (--count == 0) {
 				GEM_BUG_ON(status & GEN8_CTX_STATUS_PREEMPTED);
