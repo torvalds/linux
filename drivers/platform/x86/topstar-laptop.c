@@ -1,5 +1,5 @@
 /*
- * ACPI driver for Topstar notebooks (hotkeys support only)
+ * Topstar Laptop ACPI Extras driver
  *
  * Copyright (c) 2009 Herton Ronaldo Krzesinski <herton@mandriva.com.br>
  *
@@ -20,11 +20,13 @@
 #include <linux/acpi.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/platform_device.h>
 
 #define TOPSTAR_LAPTOP_CLASS "topstar"
 
 struct topstar_laptop {
 	struct acpi_device *device;
+	struct platform_device *platform;
 	struct input_dev *input;
 };
 
@@ -80,6 +82,7 @@ static int topstar_input_init(struct topstar_laptop *topstar)
 	input->name = "Topstar Laptop extra buttons";
 	input->phys = TOPSTAR_LAPTOP_CLASS "/input0";
 	input->id.bustype = BUS_HOST;
+	input->dev.parent = &topstar->platform->dev;
 
 	err = sparse_keymap_setup(input, topstar_keymap, NULL);
 	if (err) {
@@ -104,6 +107,42 @@ err_free_dev:
 static void topstar_input_exit(struct topstar_laptop *topstar)
 {
 	input_unregister_device(topstar->input);
+}
+
+/*
+ * Platform
+ */
+
+static struct platform_driver topstar_platform_driver = {
+	.driver = {
+		.name = TOPSTAR_LAPTOP_CLASS,
+	},
+};
+
+static int topstar_platform_init(struct topstar_laptop *topstar)
+{
+	int err;
+
+	topstar->platform = platform_device_alloc(TOPSTAR_LAPTOP_CLASS, -1);
+	if (!topstar->platform)
+		return -ENOMEM;
+
+	platform_set_drvdata(topstar->platform, topstar);
+
+	err = platform_device_add(topstar->platform);
+	if (err)
+		goto err_device_put;
+
+	return 0;
+
+err_device_put:
+	platform_device_put(topstar->platform);
+	return err;
+}
+
+static void topstar_platform_exit(struct topstar_laptop *topstar)
+{
+	platform_device_unregister(topstar->platform);
 }
 
 /*
@@ -171,12 +210,18 @@ static int topstar_acpi_add(struct acpi_device *device)
 	if (err)
 		goto err_free;
 
-	err = topstar_input_init(topstar);
+	err = topstar_platform_init(topstar);
 	if (err)
 		goto err_acpi_exit;
 
+	err = topstar_input_init(topstar);
+	if (err)
+		goto err_platform_exit;
+
 	return 0;
 
+err_platform_exit:
+	topstar_platform_exit(topstar);
 err_acpi_exit:
 	topstar_acpi_exit(topstar);
 err_free:
@@ -189,6 +234,7 @@ static int topstar_acpi_remove(struct acpi_device *device)
 	struct topstar_laptop *topstar = acpi_driver_data(device);
 
 	topstar_input_exit(topstar);
+	topstar_platform_exit(topstar);
 	topstar_acpi_exit(topstar);
 
 	kfree(topstar);
@@ -217,17 +263,26 @@ static int __init topstar_laptop_init(void)
 {
 	int ret;
 
-	ret = acpi_bus_register_driver(&topstar_acpi_driver);
+	ret = platform_driver_register(&topstar_platform_driver);
 	if (ret < 0)
 		return ret;
 
+	ret = acpi_bus_register_driver(&topstar_acpi_driver);
+	if (ret < 0)
+		goto err_driver_unreg;
+
 	pr_info("ACPI extras driver loaded\n");
 	return 0;
+
+err_driver_unreg:
+	platform_driver_unregister(&topstar_platform_driver);
+	return ret;
 }
 
 static void __exit topstar_laptop_exit(void)
 {
 	acpi_bus_unregister_driver(&topstar_acpi_driver);
+	platform_driver_unregister(&topstar_platform_driver);
 }
 
 module_init(topstar_laptop_init);
