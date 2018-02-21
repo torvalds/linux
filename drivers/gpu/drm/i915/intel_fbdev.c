@@ -215,7 +215,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 */
 	vma = intel_pin_and_fence_fb_obj(&ifbdev->fb->base,
 					 DRM_MODE_ROTATE_0,
-					 &flags);
+					 false, &flags);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_unlock;

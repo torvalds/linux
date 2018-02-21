@@ -1424,6 +1424,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 struct i915_vma *
 intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 			   unsigned int rotation,
+			   bool uses_fence,
 			   unsigned long *out_flags);
 void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags);
 struct drm_framebuffer *

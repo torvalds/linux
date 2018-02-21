@@ -2067,9 +2067,18 @@ static unsigned int intel_surf_alignment(const struct drm_framebuffer *fb,
 	}
 }
 
+static bool intel_plane_uses_fence(const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+
+	return INTEL_GEN(dev_priv) < 4 || plane->id == PLANE_PRIMARY;
+}
+
 struct i915_vma *
 intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 			   unsigned int rotation,
+			   bool uses_fence,
 			   unsigned long *out_flags)
 {
 	struct drm_device *dev = fb->dev;
@@ -2122,7 +2131,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 	if (IS_ERR(vma))
 		goto err;
 
-	if (i915_vma_is_map_and_fenceable(vma)) {
+	if (uses_fence && i915_vma_is_map_and_fenceable(vma)) {
 		int ret;
 
 		/* Install a fence for tiled scan-out. Pre-i965 always needs a
@@ -2836,6 +2845,7 @@ valid_fb:
 	intel_state->vma =
 		intel_pin_and_fence_fb_obj(fb,
 					   primary->state->rotation,
+					   intel_plane_uses_fence(intel_state),
 					   &intel_state->flags);
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(intel_state->vma)) {
@@ -12730,6 +12740,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 
 		vma = intel_pin_and_fence_fb_obj(fb,
 						 new_state->rotation,
+						 intel_plane_uses_fence(to_intel_plane_state(new_state)),
 						 &to_intel_plane_state(new_state)->flags);
 		if (!IS_ERR(vma))
 			to_intel_plane_state(new_state)->vma = vma;
@@ -13143,6 +13154,7 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	} else {
 		vma = intel_pin_and_fence_fb_obj(fb,
 						 new_plane_state->rotation,
+						 false,
 						 &to_intel_plane_state(new_plane_state)->flags);
 		if (IS_ERR(vma)) {
 			DRM_DEBUG_KMS("failed to pin object\n");
