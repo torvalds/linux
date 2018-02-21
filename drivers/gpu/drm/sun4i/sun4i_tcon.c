@@ -260,7 +260,7 @@ static void sun4i_tcon0_mode_set_common(struct sun4i_tcon *tcon,
 					const struct drm_display_mode *mode)
 {
 	/* Configure the dot clock */
-	clk_set_rate(tcon->dclk, mode->crtc_clock * 1000);
+	clk_set_rate_exclusive(tcon->dclk, mode->crtc_clock * 1000);
 
 	/* Set the resolution */
 	regmap_write(tcon->regs, SUN4I_TCON0_BASIC0_REG,
@@ -421,7 +421,7 @@ static void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 	WARN_ON(!tcon->quirks->has_channel_1);
 
 	/* Configure the dot clock */
-	clk_set_rate(tcon->sclk1, mode->crtc_clock * 1000);
+	clk_set_rate_exclusive(tcon->sclk1, mode->crtc_clock * 1000);
 
 	/* Adjust clock delay */
 	clk_delay = sun4i_tcon_get_clk_delay(mode, 1);
