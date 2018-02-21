@@ -302,7 +302,19 @@ int ima_appraise_measurement(enum ima_hooks func,
 	}
 
 out:
-	if (status != INTEGRITY_PASS) {
+	/*
+	 * File signatures on some filesystems can not be properly verified.
+	 * On these filesytems, that are mounted by an untrusted mounter,
+	 * fail the file signature verification.
+	 */
+	if ((inode->i_sb->s_iflags &
+	    (SB_I_IMA_UNVERIFIABLE_SIGNATURE | SB_I_UNTRUSTED_MOUNTER)) ==
+	    (SB_I_IMA_UNVERIFIABLE_SIGNATURE | SB_I_UNTRUSTED_MOUNTER)) {
+		status = INTEGRITY_FAIL;
+		cause = "unverifiable-signature";
+		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode, filename,
+				    op, cause, rc, 0);
+	} else if (status != INTEGRITY_PASS) {
 		if ((ima_appraise & IMA_APPRAISE_FIX) &&
 		    (!xattr_value ||
 		     xattr_value->type != EVM_IMA_XATTR_DIGSIG)) {
@@ -319,6 +331,7 @@ out:
 	} else {
 		ima_cache_flags(iint, func);
 	}
+
 	ima_set_cache_status(iint, func, status);
 	return status;
 }
