@@ -421,7 +421,7 @@ struct platform_driver panel_driver = {
 	.remove = panel_remove,
 	.driver = {
 		.owner = THIS_MODULE,
-		.name = "panel",
+		.name = "tilcdc-panel",
 		.of_match_table = panel_of_match,
 	},
 };
