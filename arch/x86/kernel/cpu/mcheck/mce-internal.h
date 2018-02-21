@@ -131,12 +131,15 @@ static inline void mce_unmap_kpfn(unsigned long pfn) {}
 struct mca_config {
 	bool dont_log_ce;
 	bool cmci_disabled;
-	bool lmce_disabled;
 	bool ignore_ce;
-	bool disabled;
-	bool ser;
-	bool recovery;
-	bool bios_cmci_threshold;
+
+	__u64 lmce_disabled		: 1,
+	      disabled			: 1,
+	      ser			: 1,
+	      recovery			: 1,
+	      bios_cmci_threshold	: 1,
+	      __reserved		: 59;
+
 	u8 banks;
 	s8 bootlog;
 	int tolerant;
