@@ -1262,8 +1262,6 @@ MODULE_DEVICE_TABLE(of, of_cmos_match);
 static __init void cmos_of_init(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct rtc_time time;
-	int ret;
 	const __be32 *val;
 
 	if (!node)
@@ -1276,16 +1274,6 @@ static __init void cmos_of_init(struct platform_device *pdev)
 	val = of_get_property(node, "freq-reg", NULL);
 	if (val)
 		CMOS_WRITE(be32_to_cpup(val), RTC_FREQ_SELECT);
-
-	cmos_read_time(&pdev->dev, &time);
-	ret = rtc_valid_tm(&time);
-	if (ret) {
-		struct rtc_time def_time = {
-			.tm_year = 1,
-			.tm_mday = 1,
-		};
-		cmos_set_time(&pdev->dev, &def_time);
-	}
 }
 #else
 static inline void cmos_of_init(struct platform_device *pdev) {}
