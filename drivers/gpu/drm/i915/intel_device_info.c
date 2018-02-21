@@ -357,6 +357,59 @@ static void broadwell_sseu_info_init(struct drm_i915_private *dev_priv)
 	sseu->has_eu_pg = 0;
 }
 
+static void haswell_sseu_info_init(struct drm_i915_private *dev_priv)
+{
+	struct intel_device_info *info = mkwrite_device_info(dev_priv);
+	struct sseu_dev_info *sseu = &info->sseu;
+	u32 fuse1;
+
+	/*
+	 * There isn't a register to tell us how many slices/subslices. We
+	 * work off the PCI-ids here.
+	 */
+	switch (info->gt) {
+	default:
+		MISSING_CASE(info->gt);
+		/* fall through */
+	case 1:
+		sseu->slice_mask = BIT(0);
+		sseu->subslice_mask = BIT(0);
+		break;
+	case 2:
+		sseu->slice_mask = BIT(0);
+		sseu->subslice_mask = BIT(0) | BIT(1);
+		break;
+	case 3:
+		sseu->slice_mask = BIT(0) | BIT(1);
+		sseu->subslice_mask = BIT(0) | BIT(1);
+		break;
+	}
+
+	fuse1 = I915_READ(HSW_PAVP_FUSE1);
+	switch ((fuse1 & HSW_F1_EU_DIS_MASK) >> HSW_F1_EU_DIS_SHIFT) {
+	default:
+		MISSING_CASE((fuse1 & HSW_F1_EU_DIS_MASK) >>
+			     HSW_F1_EU_DIS_SHIFT);
+		/* fall through */
+	case HSW_F1_EU_DIS_10EUS:
+		sseu->eu_per_subslice = 10;
+		break;
+	case HSW_F1_EU_DIS_8EUS:
+		sseu->eu_per_subslice = 8;
+		break;
+	case HSW_F1_EU_DIS_6EUS:
+		sseu->eu_per_subslice = 6;
+		break;
+	}
+
+	sseu->eu_total = sseu_subslice_total(sseu) * sseu->eu_per_subslice;
+
+	/* No powergating for you. */
+	sseu->has_slice_pg = 0;
+	sseu->has_subslice_pg = 0;
+	sseu->has_eu_pg = 0;
+}
+
 static u32 read_reference_ts_freq(struct drm_i915_private *dev_priv)
 {
 	u32 ts_override = I915_READ(GEN9_TIMESTAMP_OVERRIDE);
@@ -574,7 +627,9 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 	}
 
 	/* Initialize slice/subslice/EU info */
-	if (IS_CHERRYVIEW(dev_priv))
+	if (IS_HASWELL(dev_priv))
+		haswell_sseu_info_init(dev_priv);
+	else if (IS_CHERRYVIEW(dev_priv))
 		cherryview_sseu_info_init(dev_priv);
 	else if (IS_BROADWELL(dev_priv))
 		broadwell_sseu_info_init(dev_priv);

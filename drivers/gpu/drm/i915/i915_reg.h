@@ -2807,6 +2807,13 @@ enum i915_power_well_id {
 #define GEN9_RCS_FE_FSM2 _MMIO(0x22a4)
 
 /* Fuse readout registers for GT */
+#define HSW_PAVP_FUSE1			_MMIO(0x911C)
+#define   HSW_F1_EU_DIS_SHIFT		16
+#define   HSW_F1_EU_DIS_MASK		(0x3 << HSW_F1_EU_DIS_SHIFT)
+#define   HSW_F1_EU_DIS_10EUS		0
+#define   HSW_F1_EU_DIS_8EUS		1
+#define   HSW_F1_EU_DIS_6EUS		2
+
 #define CHV_FUSE_GT			_MMIO(VLV_DISPLAY_BASE + 0x2168)
 #define   CHV_FGT_DISABLE_SS0		(1 << 10)
 #define   CHV_FGT_DISABLE_SS1		(1 << 11)
