@@ -397,12 +397,35 @@ void sun4v_data_access_exception(struct pt_regs *regs, unsigned long addr, unsig
 	if (is_no_fault_exception(regs))
 		return;
 
-	info.si_signo = SIGSEGV;
+	/* MCD (Memory Corruption Detection) disabled trap (TT=0x19) in HV
+	 * is vectored thorugh data access exception trap with fault type
+	 * set to HV_FAULT_TYPE_MCD_DIS. Check for MCD disabled trap.
+	 * Accessing an address with invalid ASI for the address, for
+	 * example setting an ADI tag on an address with ASI_MCD_PRIMARY
+	 * when TTE.mcd is not set for the VA, is also vectored into
+	 * kerbel by HV as data access exception with fault type set to
+	 * HV_FAULT_TYPE_INV_ASI.
+	 */
 	info.si_errno = 0;
-	info.si_code = SEGV_MAPERR;
 	info.si_addr = (void __user *) addr;
 	info.si_trapno = 0;
-	force_sig_info(SIGSEGV, &info, current);
+	switch (type) {
+	case HV_FAULT_TYPE_INV_ASI:
+		info.si_signo = SIGILL;
+		info.si_code = ILL_ILLADR;
+		force_sig_info(SIGILL, &info, current);
+		break;
+	case HV_FAULT_TYPE_MCD_DIS:
+		info.si_signo = SIGSEGV;
+		info.si_code = SEGV_ACCADI;
+		force_sig_info(SIGSEGV, &info, current);
+		break;
+	default:
+		info.si_signo = SIGSEGV;
+		info.si_code = SEGV_MAPERR;
+		force_sig_info(SIGSEGV, &info, current);
+		break;
+	}
 }
 
 void sun4v_data_access_exception_tl1(struct pt_regs *regs, unsigned long addr, unsigned long type_ctx)
