@@ -304,12 +304,13 @@ int ima_appraise_measurement(enum ima_hooks func,
 out:
 	/*
 	 * File signatures on some filesystems can not be properly verified.
-	 * On these filesytems, that are mounted by an untrusted mounter,
-	 * fail the file signature verification.
+	 * When such filesystems are mounted by an untrusted mounter or on a
+	 * system not willing to accept such a risk, fail the file signature
+	 * verification.
 	 */
-	if ((inode->i_sb->s_iflags &
-	    (SB_I_IMA_UNVERIFIABLE_SIGNATURE | SB_I_UNTRUSTED_MOUNTER)) ==
-	    (SB_I_IMA_UNVERIFIABLE_SIGNATURE | SB_I_UNTRUSTED_MOUNTER)) {
+	if ((inode->i_sb->s_iflags & SB_I_IMA_UNVERIFIABLE_SIGNATURE) &&
+	    ((inode->i_sb->s_iflags & SB_I_UNTRUSTED_MOUNTER) ||
+	     (iint->flags & IMA_FAIL_UNVERIFIABLE_SIGS))) {
 		status = INTEGRITY_FAIL;
 		cause = "unverifiable-signature";
 		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode, filename,

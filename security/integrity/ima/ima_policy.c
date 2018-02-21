@@ -188,6 +188,7 @@ __setup("ima_tcb", default_measure_policy_setup);
 
 static bool ima_use_appraise_tcb __initdata;
 static bool ima_use_secure_boot __initdata;
+static bool ima_fail_unverifiable_sigs __ro_after_init;
 static int __init policy_setup(char *str)
 {
 	char *p;
@@ -201,6 +202,8 @@ static int __init policy_setup(char *str)
 			ima_use_appraise_tcb = true;
 		else if (strcmp(p, "secure_boot") == 0)
 			ima_use_secure_boot = true;
+		else if (strcmp(p, "fail_securely") == 0)
+			ima_fail_unverifiable_sigs = true;
 	}
 
 	return 1;
@@ -390,6 +393,8 @@ int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 		if (entry->action & IMA_APPRAISE) {
 			action |= get_subaction(entry, func);
 			action &= ~IMA_HASH;
+			if (ima_fail_unverifiable_sigs)
+				action |= IMA_FAIL_UNVERIFIABLE_SIGS;
 		}
 
 		if (entry->action & IMA_DO_MASK)

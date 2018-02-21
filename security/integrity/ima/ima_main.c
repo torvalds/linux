@@ -238,7 +238,8 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	 */
 	if (test_and_clear_bit(IMA_CHANGE_XATTR, &iint->atomic_flags) ||
 	    ((inode->i_sb->s_iflags & SB_I_IMA_UNVERIFIABLE_SIGNATURE) &&
-	     !(inode->i_sb->s_iflags & SB_I_UNTRUSTED_MOUNTER))) {
+	     !(inode->i_sb->s_iflags & SB_I_UNTRUSTED_MOUNTER) &&
+	     !(action & IMA_FAIL_UNVERIFIABLE_SIGS))) {
 		iint->flags &= ~IMA_DONE_MASK;
 		iint->measured_pcrs = 0;
 	}
