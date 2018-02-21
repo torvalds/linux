@@ -2257,7 +2257,7 @@ static int em28xx_v4l2_close(struct file *filp)
 			goto exit;
 
 		/* Save some power by putting tuner to sleep */
-		v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_power, 0);
+		v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, standby);
 
 		/* do this before setting alternate! */
 		em28xx_set_mode(dev, EM28XX_SUSPEND);
@@ -2810,7 +2810,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 			 video_device_node_name(&v4l2->vbi_dev));
 
 	/* Save some power by putting tuner to sleep */
-	v4l2_device_call_all(&v4l2->v4l2_dev, 0, core, s_power, 0);
+	v4l2_device_call_all(&v4l2->v4l2_dev, 0, tuner, standby);
 
 	/* initialize videobuf2 stuff */
 	em28xx_vb2_setup(dev);

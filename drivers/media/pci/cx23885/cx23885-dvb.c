@@ -2568,8 +2568,8 @@ static int dvb_register(struct cx23885_tsport *port)
 		fe1->dvb.frontend->ops.ts_bus_ctrl = cx23885_dvb_bus_ctrl;
 #endif
 
-	/* Put the analog decoder in standby to keep it quiet */
-	call_all(dev, core, s_power, 0);
+	/* Put the tuner in standby to keep it quiet */
+	call_all(dev, tuner, standby);
 
 	if (fe0->dvb.frontend->ops.analog_ops.standby)
 		fe0->dvb.frontend->ops.analog_ops.standby(fe0->dvb.frontend);

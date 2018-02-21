@@ -224,6 +224,9 @@ struct v4l2_subdev_core_ops {
  * struct v4l2_subdev_tuner_ops - Callbacks used when v4l device was opened
  *	in radio mode.
  *
+ * @standby: puts the tuner in standby mode. It will be woken up
+ *	     automatically the next time it is used.
+ *
  * @s_radio: callback that switches the tuner to radio mode.
  *	     drivers should explicitly call it when a tuner ops should
  *	     operate on radio mode, before being able to handle it.
@@ -268,6 +271,7 @@ struct v4l2_subdev_core_ops {
  *	  }
  */
 struct v4l2_subdev_tuner_ops {
+	int (*standby)(struct v4l2_subdev *sd);
 	int (*s_radio)(struct v4l2_subdev *sd);
 	int (*s_frequency)(struct v4l2_subdev *sd, const struct v4l2_frequency *freq);
 	int (*g_frequency)(struct v4l2_subdev *sd, struct v4l2_frequency *freq);
