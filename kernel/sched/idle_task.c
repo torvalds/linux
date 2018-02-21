@@ -51,6 +51,14 @@ static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
 	rq_last_tick_reset(rq);
 }
 
+/*
+ * scheduler tick hitting a task of our scheduling class.
+ *
+ * NOTE: This function can be called remotely by the tick offload that
+ * goes along full dynticks. Therefore no local assumption can be made
+ * and everything must be accessed through the @rq and @curr passed in
+ * parameters.
+ */
 static void task_tick_idle(struct rq *rq, struct task_struct *curr, int queued)
 {
 }
