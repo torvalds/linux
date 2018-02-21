@@ -653,9 +653,11 @@ static bool verify_command_mask(struct ib_device *ib_dev, __u32 command)
 static bool verify_command_idx(u32 command, bool extended)
 {
 	if (extended)
-		return command < ARRAY_SIZE(uverbs_ex_cmd_table);
+		return command < ARRAY_SIZE(uverbs_ex_cmd_table) &&
+		       uverbs_ex_cmd_table[command];
 
-	return command < ARRAY_SIZE(uverbs_cmd_table);
+	return command < ARRAY_SIZE(uverbs_cmd_table) &&
+	       uverbs_cmd_table[command];
 }
 
 static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
@@ -730,11 +732,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	}
 
 	if (!flags) {
-		if (!uverbs_cmd_table[command]) {
-			ret = -EINVAL;
-			goto out;
-		}
-
 		if (hdr.in_words * 4 != count) {
 			ret = -EINVAL;
 			goto out;
@@ -748,11 +745,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		struct ib_udata ucore;
 		struct ib_udata uhw;
 		size_t written_count = count;
-
-		if (!uverbs_ex_cmd_table[command]) {
-			ret = -ENOSYS;
-			goto out;
-		}
 
 		if (!file->ucontext) {
 			ret = -EINVAL;
