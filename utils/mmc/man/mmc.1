@@ -1,0 +1,125 @@
+.TH MMC 1 "2015-11-16" "0.1" "mmc-utils"
+.SH
+NAME
+mmc-utils \- Configure MMC storage devices from userspace.
+.SH
+SYNOPSIS
+mmc [<command> [<args>]] [--help]
+.PP
+mmc [<command>] --help
+.SH
+DESCRIPTION
+mmc-utils is a tool for configuring MMC storage devices from userspace.
+.SH
+COMMANDS AND OPTIONS
+.TP
+.BR "help | \-\-help | -h | " "(no arguments)"
+Shows the abbreviated help menu in the terminal.
+.TP
+.BR "extcsd read <device>"
+Print extcsd data from <device>.
+.TP
+.BR "writeprotect get <device>"
+Determine the eMMC writeprotect status of <device>.
+.TP
+.BR "writeprotect set <device>"
+Set the eMMC writeprotect status of <device>.
+This sets the eMMC to be write-protected until next boot.
+.TP
+.BR "disable 512B emulation <device>"
+Set the eMMC data sector size to 4KB by disabling emulation on
+<device>.
+.TP
+.BR "gp create <-y|-n> <length KiB> <partition> <enh_attr> <ext_attr> <device>"
+create general purpose partition for the <device>.
+Dry-run only unless -y is passed.
+To set enhanced attribute to general partition being created set <enh_attr> to 1 else set it to 0.
+To set extended attribute to general partition set <ext_attr> to 1,2 else set it to 0.
+NOTE!  This is a one-time programmable (unreversible) change.
+.TP
+.BR "enh_area set <-y|-n> <start KiB> <length KiB> <device>"
+Enable the enhanced user area for the <device>.
+Dry-run only unless -y is passed.
+NOTE!  This is a one-time programmable (unreversible) change.
+.TP
+.BR "write_reliability set <-y|-n> <partition> <device>"
+Enable write reliability per partition for the <device>.
+Dry-run only unless -y is passed.
+NOTE!  This is a one-time programmable (unreversible) change.
+.TP
+.BR "status get <device>"
+Print the response to STATUS_SEND (CMD13).
+.TP
+.BR "bootpart enable <boot_partition> <send_ack> <device>"
+Enable the boot partition for the <device>.
+Disable the boot partition for the <device> with <boot_partition> set to 0.
+To receive acknowledgment of boot from the card set <send_ack>
+to 1, else set it to 0.
+.TP
+.BR "bootbus set <boot_mode> <reset_boot_bus_conditions> <boot_bus_width> <device>"
+Set Boot Bus Conditions.
+<boot_mode> must be "single_backward|single_hs|dual"
+<reset_boot_bus_conditions> must be "x1|retain"
+<boot_bus_width> must be "x1|x4|x8"
+.TP
+.BR "bkops enable <device>"
+Enable the eMMC BKOPS feature on <device>.
+NOTE!  This is a one-time programmable (unreversible) change.
+.TP
+.BR "hwreset enable <device>"
+Permanently enable the eMMC H/W Reset feature on <device>.
+NOTE!  This is a one-time programmable (unreversible) change.
+.TP
+.BR "hwreset disable <device>"
+Permanently disable the eMMC H/W Reset feature on <device>.
+NOTE!  This is a one-time programmable (unreversible) change.
+.TP
+.BR "sanitize <device>"
+Send Sanitize command to the <device>.
+This will delete the unmapped memory region of the device.
+.TP
+.BR "rpmb write-key <rpmb device> <key file>"
+Program authentication key which is 32 bytes length and stored
+in the specified file. Also you can specify '-' instead of
+key file path to read the key from stdin.
+NOTE!  This is a one-time programmable (unreversible) change.
+.TP
+.BR "rpmb read-counter <rpmb device>"
+Counter value for the <rpmb device> will be read to stdout.
+.TP
+.BR "rpmb read-block <rpmb device> <address> <blocks count> <output file> [key file]"
+Blocks of 256 bytes will be read from <rpmb device> to output
+file or stdout if '-' is specified. If key is specified - read
+data will be verified. Instead of regular path you can specify
+'-' to read key from stdin.
+.TP
+.BR "rpmb write-block <rpmb device> <address> <256 byte data file> <key file>"
+Block of 256 bytes will be written from data file to
+<rpmb device>. Also you can specify '-' instead of key
+file path or data file to read the data from stdin.
+.TP
+.BR "cache enable <device>"
+Enable the eMMC cache feature on <device>.
+NOTE! The cache is an optional feature on devices >= eMMC4.5.
+.TP
+.BR "cache disable <device>"
+Disable the eMMC cache feature on <device>.
+NOTE! The cache is an optional feature on devices >= eMMC4.5.
+.TP
+.BR "<cmd> --help"
+Show detailed help for a command or subset of commands.
+
+.SH
+EXAMPLES
+.TP
+Program authentication key from stdin:
+echo -n AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHH | mmc rpmb write-key /dev/mmcblk0rpmb -
+.TP
+Write a block of 256 bytes of data to an rpmb device:
+$ (awk 'BEGIN {while (c++<256) printf "a"}' | echo -n AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHH) | mmc rpmb write-block /dev/mmcblk0rpmb 0x02 - -
+.TP
+Read a block of 256 bytes of data from an rpmb device to stdout:
+  $ echo -n AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHH | mmc rpmb read-block /dev/mmcblk0rpmb 0x02 2 /tmp/block -
+.TP
+Read 2 blocks of 256 bytes from rpmb device to /tmp/block without verification:
+$ mmc rpmb read-block /dev/mmcblk0rpmb 0x02 2 /tmp/block
