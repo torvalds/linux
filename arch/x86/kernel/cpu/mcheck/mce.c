@@ -268,7 +268,9 @@ static void __print_mce(struct mce *m)
 static void print_mce(struct mce *m)
 {
 	__print_mce(m);
-	pr_emerg_ratelimited(HW_ERR "Run the above through 'mcelog --ascii'\n");
+
+	if (m->cpuvendor != X86_VENDOR_AMD)
+		pr_emerg_ratelimited(HW_ERR "Run the above through 'mcelog --ascii'\n");
 }
 
 #define PANIC_TIMEOUT 5 /* 5 seconds */
