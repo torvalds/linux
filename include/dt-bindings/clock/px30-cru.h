@@ -119,6 +119,8 @@
 #define ACLK_GIC		184
 #define ACLK_DCF		186
 #define ACLK_DMAC		187
+#define ACLK_BUS_SRC		188
+#define ACLK_PERI_SRC		189
 
 /* hclk gates */
 #define HCLK_BUS_PRE		240
