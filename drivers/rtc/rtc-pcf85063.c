@@ -114,7 +114,7 @@ static int pcf85063_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 	tm->tm_year = bcd2bin(regs[6]);
 	tm->tm_year += 100;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int pcf85063_set_datetime(struct i2c_client *client, struct rtc_time *tm)
