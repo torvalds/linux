@@ -402,19 +402,6 @@ config GOLDFISH_TTY_EARLY_CONSOLE
 	default y if GOLDFISH_TTY=y
 	select SERIAL_EARLYCON
 
-config DA_TTY
-	bool "DA TTY"
-	depends on METAG_DA
-	select SERIAL_NONSTANDARD
-	help
-	  This enables a TTY on a Dash channel.
-
-config DA_CONSOLE
-	bool "DA Console"
-	depends on DA_TTY
-	help
-	  This enables a console on a Dash channel.
-
 config MIPS_EJTAG_FDC_TTY
 	bool "MIPS EJTAG Fast Debug Channel TTY"
 	depends on MIPS_CDMM
