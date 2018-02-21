@@ -157,7 +157,7 @@ static int max6900_i2c_read_time(struct i2c_client *client, struct rtc_time *tm)
 		      bcd2bin(regs[MAX6900_REG_CENTURY]) * 100 - 1900;
 	tm->tm_wday = bcd2bin(regs[MAX6900_REG_DW]);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int max6900_i2c_clear_write_protect(struct i2c_client *client)
