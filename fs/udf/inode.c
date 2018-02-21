@@ -1402,13 +1402,11 @@ reread:
 	read_lock(&sbi->s_cred_lock);
 	i_uid_write(inode, le32_to_cpu(fe->uid));
 	if (!uid_valid(inode->i_uid) ||
-	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_IGNORE) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_SET))
 		inode->i_uid = UDF_SB(inode->i_sb)->s_uid;
 
 	i_gid_write(inode, le32_to_cpu(fe->gid));
 	if (!gid_valid(inode->i_gid) ||
-	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_IGNORE) ||
 	    UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_GID_SET))
 		inode->i_gid = UDF_SB(inode->i_sb)->s_gid;
 

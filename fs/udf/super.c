@@ -348,12 +348,8 @@ static int udf_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",shortad");
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UID_FORGET))
 		seq_puts(seq, ",uid=forget");
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UID_IGNORE))
-		seq_puts(seq, ",uid=ignore");
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_FORGET))
 		seq_puts(seq, ",gid=forget");
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_IGNORE))
-		seq_puts(seq, ",gid=ignore");
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UID_SET))
 		seq_printf(seq, ",uid=%u", from_kuid(&init_user_ns, sbi->s_uid));
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_SET))
@@ -609,14 +605,12 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 			uopt->flags |= (1 << UDF_FLAG_NLS_MAP);
 			break;
 #endif
-		case Opt_uignore:
-			uopt->flags |= (1 << UDF_FLAG_UID_IGNORE);
-			break;
 		case Opt_uforget:
 			uopt->flags |= (1 << UDF_FLAG_UID_FORGET);
 			break;
+		case Opt_uignore:
 		case Opt_gignore:
-			uopt->flags |= (1 << UDF_FLAG_GID_IGNORE);
+			/* These options are superseeded by uid=<number> */
 			break;
 		case Opt_gforget:
 			uopt->flags |= (1 << UDF_FLAG_GID_FORGET);
