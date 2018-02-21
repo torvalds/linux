@@ -636,7 +636,7 @@ err_put_refs:
 }
 
 static bool verify_command_mask(struct ib_device *ib_dev,
-				__u32 command, bool extended)
+				u32 command, bool extended)
 {
 	if (!extended)
 		return ib_dev->uverbs_cmd_mask & BIT_ULL(command);
@@ -655,11 +655,11 @@ static bool verify_command_idx(u32 command, bool extended)
 }
 
 static ssize_t process_hdr(struct ib_uverbs_cmd_hdr *hdr,
-			   __u32 *command, bool *extended)
+			   u32 *command, bool *extended)
 {
-	__u32 flags;
+	u32 flags;
 
-	if (hdr->command & ~(__u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
+	if (hdr->command & ~(u32)(IB_USER_VERBS_CMD_FLAGS_MASK |
 				   IB_USER_VERBS_CMD_COMMAND_MASK))
 		return -EINVAL;
 
@@ -721,8 +721,8 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	struct ib_device *ib_dev;
 	struct ib_uverbs_cmd_hdr hdr;
 	bool extended;
-	__u32 command;
 	int srcu_key;
+	u32 command;
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
