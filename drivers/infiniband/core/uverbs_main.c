@@ -662,6 +662,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			     size_t count, loff_t *pos)
 {
 	struct ib_uverbs_file *file = filp->private_data;
+	struct ib_uverbs_ex_cmd_hdr ex_hdr;
 	struct ib_device *ib_dev;
 	struct ib_uverbs_cmd_hdr hdr;
 	bool extended_command;
@@ -706,6 +707,12 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		goto out;
 	}
 
+	if (extended_command &&
+	    count < (sizeof(hdr) + sizeof(ex_hdr))) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	if (!verify_command_idx(command, extended_command)) {
 		ret = -EINVAL;
 		goto out;
@@ -738,7 +745,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 						 hdr.in_words * 4,
 						 hdr.out_words * 4);
 	} else {
-		struct ib_uverbs_ex_cmd_hdr ex_hdr;
 		struct ib_udata ucore;
 		struct ib_udata uhw;
 		size_t written_count = count;
@@ -749,11 +755,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		}
 
 		if (!file->ucontext) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		if (count < (sizeof(hdr) + sizeof(ex_hdr))) {
 			ret = -EINVAL;
 			goto out;
 		}
