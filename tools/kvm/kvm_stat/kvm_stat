@@ -1041,6 +1041,8 @@ class Tui(object):
 
     def _update_pid(self, pid):
         """Propagates pid selection to stats object."""
+        self.screen.addstr(4, 1, 'Updating pid filter...')
+        self.screen.refresh()
         self.stats.pid_filter = pid
 
     def _refresh_header(self, pid=None):
@@ -1144,10 +1146,10 @@ class Tui(object):
                ' filters)',
                '   c     clear filter',
                '   f     filter by regular expression',
-               '   g     filter by guest name',
+               '   g     filter by guest name/PID',
                '   h     display interactive commands reference',
                '   o     toggle sorting order (Total vs CurAvg/s)',
-               '   p     filter by PID',
+               '   p     filter by guest name/PID',
                '   q     quit',
                '   r     reset stats',
                '   s     set update interval',
@@ -1199,44 +1201,6 @@ class Tui(object):
                 msg = '"' + regex + '": Not a valid regular expression'
                 continue
 
-    def _show_vm_selection_by_pid(self):
-        """Draws PID selection mask.
-
-        Asks for a pid until a valid pid or 0 has been entered.
-
-        """
-        msg = ''
-        while True:
-            self.screen.erase()
-            self.screen.addstr(0, 0,
-                               'Show statistics for specific pid.',
-                               curses.A_BOLD)
-            self.screen.addstr(1, 0,
-                               'This might limit the shown data to the trace '
-                               'statistics.')
-            self.screen.addstr(5, 0, msg)
-            self._print_all_gnames(7)
-
-            curses.echo()
-            self.screen.addstr(3, 0, "Pid [0 or pid]: ")
-            pid = self.screen.getstr().decode(ENCODING)
-            curses.noecho()
-
-            try:
-                if len(pid) > 0:
-                    pid = int(pid)
-                    if pid != 0 and not os.path.isdir(os.path.join('/proc/',
-                                                                   str(pid))):
-                        msg = '"' + str(pid) + '": Not a running process'
-                        continue
-                else:
-                    pid = 0
-                self._refresh_header(pid)
-                self._update_pid(pid)
-                break
-            except ValueError:
-                msg = '"' + str(pid) + '": Not a valid pid'
-
     def _show_set_update_interval(self):
         """Draws update interval selection mask."""
         msg = ''
@@ -1269,17 +1233,17 @@ class Tui(object):
                 msg = '"' + str(val) + '": Invalid value'
         self._refresh_header()
 
-    def _show_vm_selection_by_guest_name(self):
+    def _show_vm_selection_by_guest(self):
         """Draws guest selection mask.
 
-        Asks for a guest name until a valid guest name or '' is entered.
+        Asks for a guest name or pid until a valid guest name or '' is entered.
 
         """
         msg = ''
         while True:
             self.screen.erase()
             self.screen.addstr(0, 0,
-                               'Show statistics for specific guest.',
+                               'Show statistics for specific guest or pid.',
                                curses.A_BOLD)
             self.screen.addstr(1, 0,
                                'This might limit the shown data to the trace '
@@ -1287,32 +1251,39 @@ class Tui(object):
             self.screen.addstr(5, 0, msg)
             self._print_all_gnames(7)
             curses.echo()
-            self.screen.addstr(3, 0, "Guest [ENTER or guest]: ")
-            gname = self.screen.getstr().decode(ENCODING)
+            curses.curs_set(1)
+            self.screen.addstr(3, 0, "Guest or pid [ENTER exits]: ")
+            guest = self.screen.getstr().decode(ENCODING)
             curses.noecho()
 
-            if not gname:
-                self._refresh_header(0)
-                self._update_pid(0)
+            pid = 0
+            if not guest or guest == '0':
                 break
-            else:
-                pids = []
-                try:
-                    pids = self.get_pid_from_gname(gname)
-                except:
-                    msg = '"' + gname + '": Internal error while searching, ' \
-                          'use pid filter instead'
+            if guest.isdigit():
+                if not os.path.isdir(os.path.join('/proc/', guest)):
+                    msg = '"' + guest + '": Not a running process'
                     continue
-                if len(pids) == 0:
-                    msg = '"' + gname + '": Not an active guest'
-                    continue
-                if len(pids) > 1:
-                    msg = '"' + gname + '": Multiple matches found, use pid ' \
-                          'filter instead'
-                    continue
-                self._refresh_header(pids[0])
-                self._update_pid(pids[0])
+                pid = int(guest)
                 break
+            pids = []
+            try:
+                pids = self.get_pid_from_gname(guest)
+            except:
+                msg = '"' + guest + '": Internal error while searching, ' \
+                      'use pid filter instead'
+                continue
+            if len(pids) == 0:
+                msg = '"' + guest + '": Not an active guest'
+                continue
+            if len(pids) > 1:
+                msg = '"' + guest + '": Multiple matches found, use pid ' \
+                      'filter instead'
+                continue
+            pid = pids[0]
+            break
+        curses.curs_set(0)
+        self._refresh_header(pid)
+        self._update_pid(pid)
 
     def show_stats(self):
         """Refreshes the screen and processes user input."""
@@ -1344,20 +1315,13 @@ class Tui(object):
                     self._show_filter_selection()
                     curses.curs_set(0)
                     sleeptime = self._delay_initial
-                if char == 'g':
-                    curses.curs_set(1)
-                    self._show_vm_selection_by_guest_name()
-                    curses.curs_set(0)
+                if char == 'g' or char == 'p':
+                    self._show_vm_selection_by_guest()
                     sleeptime = self._delay_initial
                 if char == 'h':
                     self._show_help_interactive()
                 if char == 'o':
                     self._sorting = not self._sorting
-                if char == 'p':
-                    curses.curs_set(1)
-                    self._show_vm_selection_by_pid()
-                    curses.curs_set(0)
-                    sleeptime = self._delay_initial
                 if char == 'q':
                     break
                 if char == 'r':
