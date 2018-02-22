@@ -1372,6 +1372,15 @@ struct lpfc_mbx_wq_create {
 #define lpfc_mbx_wq_create_page_size_MASK	0x000000FF
 #define lpfc_mbx_wq_create_page_size_WORD	word1
 #define LPFC_WQ_PAGE_SIZE_4096	0x1
+#define lpfc_mbx_wq_create_dpp_req_SHIFT	15
+#define lpfc_mbx_wq_create_dpp_req_MASK		0x00000001
+#define lpfc_mbx_wq_create_dpp_req_WORD		word1
+#define lpfc_mbx_wq_create_doe_SHIFT		14
+#define lpfc_mbx_wq_create_doe_MASK		0x00000001
+#define lpfc_mbx_wq_create_doe_WORD		word1
+#define lpfc_mbx_wq_create_toe_SHIFT		13
+#define lpfc_mbx_wq_create_toe_MASK		0x00000001
+#define lpfc_mbx_wq_create_toe_WORD		word1
 #define lpfc_mbx_wq_create_wqe_size_SHIFT	8
 #define lpfc_mbx_wq_create_wqe_size_MASK	0x0000000F
 #define lpfc_mbx_wq_create_wqe_size_WORD	word1
@@ -1400,6 +1409,28 @@ struct lpfc_mbx_wq_create {
 #define lpfc_mbx_wq_create_db_format_MASK	0x0000FFFF
 #define lpfc_mbx_wq_create_db_format_WORD	word2
 		} response;
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_wq_create_dpp_rsp_SHIFT	31
+#define lpfc_mbx_wq_create_dpp_rsp_MASK		0x00000001
+#define lpfc_mbx_wq_create_dpp_rsp_WORD		word0
+#define lpfc_mbx_wq_create_v1_q_id_SHIFT	0
+#define lpfc_mbx_wq_create_v1_q_id_MASK		0x0000FFFF
+#define lpfc_mbx_wq_create_v1_q_id_WORD		word0
+			uint32_t word1;
+#define lpfc_mbx_wq_create_v1_bar_set_SHIFT	0
+#define lpfc_mbx_wq_create_v1_bar_set_MASK	0x0000000F
+#define lpfc_mbx_wq_create_v1_bar_set_WORD	word1
+			uint32_t doorbell_offset;
+			uint32_t word3;
+#define lpfc_mbx_wq_create_dpp_id_SHIFT		16
+#define lpfc_mbx_wq_create_dpp_id_MASK		0x0000001F
+#define lpfc_mbx_wq_create_dpp_id_WORD		word3
+#define lpfc_mbx_wq_create_dpp_bar_SHIFT	0
+#define lpfc_mbx_wq_create_dpp_bar_MASK		0x0000000F
+#define lpfc_mbx_wq_create_dpp_bar_WORD		word3
+			uint32_t dpp_offset;
+		} response_1;
 	} u;
 };
 

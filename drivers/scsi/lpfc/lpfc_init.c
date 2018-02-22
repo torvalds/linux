@@ -9611,6 +9611,24 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		}
 	}
 
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_6 &&
+	    pci_resource_start(pdev, PCI_64BIT_BAR4)) {
+		/*
+		 * Map SLI4 if type 6 HBA DPP Register base to a kernel
+		 * virtual address and setup the registers.
+		 */
+		phba->pci_bar2_map = pci_resource_start(pdev, PCI_64BIT_BAR4);
+		bar2map_len = pci_resource_len(pdev, PCI_64BIT_BAR4);
+		phba->sli4_hba.dpp_regs_memmap_p =
+				ioremap(phba->pci_bar2_map, bar2map_len);
+		if (!phba->sli4_hba.dpp_regs_memmap_p) {
+			dev_err(&pdev->dev,
+			   "ioremap failed for SLI4 HBA dpp registers.\n");
+			goto out_iounmap_ctrl;
+		}
+		phba->pci_bar4_memmap_p = phba->sli4_hba.dpp_regs_memmap_p;
+	}
+
 	/* Set up the EQ/CQ register handeling functions now */
 	switch (if_type) {
 	case LPFC_SLI_INTF_IF_TYPE_0:

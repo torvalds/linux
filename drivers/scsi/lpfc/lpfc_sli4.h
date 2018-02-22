@@ -180,6 +180,10 @@ struct lpfc_queue {
 	uint8_t q_flag;
 #define HBA_NVMET_WQFULL	0x1 /* We hit WQ Full condition for NVMET */
 	void __iomem *db_regaddr;
+	uint16_t dpp_enable;
+	uint16_t dpp_id;
+	void __iomem *dpp_regaddr;
+
 	/* For q stats */
 	uint32_t q_cnt_1;
 	uint32_t q_cnt_2;
@@ -524,11 +528,17 @@ struct lpfc_vector_map_info {
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
-					     PCI BAR0, config space registers */
+					   * config space registers
+					   */
 	void __iomem *ctrl_regs_memmap_p; /* Kernel memory mapped address for
-					     PCI BAR1, control registers */
+					   * control registers
+					   */
 	void __iomem *drbl_regs_memmap_p; /* Kernel memory mapped address for
-					     PCI BAR2, doorbell registers */
+					   * doorbell registers
+					   */
+	void __iomem *dpp_regs_memmap_p;  /* Kernel memory mapped address for
+					   * dpp registers
+					   */
 	union {
 		struct {
 			/* IF Type 0, BAR 0 PCI cfg space reg mem map */

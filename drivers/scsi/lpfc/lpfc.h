@@ -840,7 +840,8 @@ struct lpfc_hba {
 	uint32_t cfg_enable_SmartSAN;
 	uint32_t cfg_enable_mds_diags;
 	uint32_t cfg_enable_fc4_type;
-	uint32_t cfg_enable_bbcr;	/*Enable BB Credit Recovery*/
+	uint32_t cfg_enable_bbcr;	/* Enable BB Credit Recovery */
+	uint32_t cfg_enable_dpp;	/* Enable Direct Packet Push */
 	uint32_t cfg_xri_split;
 #define LPFC_ENABLE_FCP  1
 #define LPFC_ENABLE_NVME 2

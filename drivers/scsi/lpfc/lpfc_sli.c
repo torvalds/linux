@@ -35,6 +35,9 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 #include <linux/aer.h>
+#ifdef CONFIG_X86
+#include <asm/set_memory.h>
+#endif
 
 #include <linux/nvme-fc-driver.h>
 
@@ -112,6 +115,8 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	struct lpfc_register doorbell;
 	uint32_t host_index;
 	uint32_t idx;
+	uint32_t i = 0;
+	uint8_t *tmp;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
@@ -133,7 +138,13 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	if (q->phba->sli3_options & LPFC_SLI4_PHWQ_ENABLED)
 		bf_set(wqe_wqid, &wqe->generic.wqe_com, q->queue_id);
 	lpfc_sli_pcimem_bcopy(wqe, temp_wqe, q->entry_size);
-	/* ensure WQE bcopy flushed before doorbell write */
+	if (q->dpp_enable && q->phba->cfg_enable_dpp) {
+		/* write to DPP aperture taking advatage of Combined Writes */
+		tmp = (uint8_t *)wqe;
+		for (i = 0; i < q->entry_size; i += sizeof(uint64_t))
+			writeq(*((uint64_t *)(tmp + i)), q->dpp_regaddr + i);
+	}
+	/* ensure WQE bcopy and DPP flushed before doorbell write */
 	wmb();
 
 	/* Update the host index before invoking device */
@@ -144,9 +155,18 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	/* Ring Doorbell */
 	doorbell.word0 = 0;
 	if (q->db_format == LPFC_DB_LIST_FORMAT) {
-		bf_set(lpfc_wq_db_list_fm_num_posted, &doorbell, 1);
-		bf_set(lpfc_wq_db_list_fm_index, &doorbell, host_index);
-		bf_set(lpfc_wq_db_list_fm_id, &doorbell, q->queue_id);
+		if (q->dpp_enable && q->phba->cfg_enable_dpp) {
+			bf_set(lpfc_if6_wq_db_list_fm_num_posted, &doorbell, 1);
+			bf_set(lpfc_if6_wq_db_list_fm_dpp, &doorbell, 1);
+			bf_set(lpfc_if6_wq_db_list_fm_dpp_id, &doorbell,
+			    q->dpp_id);
+			bf_set(lpfc_if6_wq_db_list_fm_id, &doorbell,
+			    q->queue_id);
+		} else {
+			bf_set(lpfc_wq_db_list_fm_num_posted, &doorbell, 1);
+			bf_set(lpfc_wq_db_list_fm_index, &doorbell, host_index);
+			bf_set(lpfc_wq_db_list_fm_id, &doorbell, q->queue_id);
+		}
 	} else if (q->db_format == LPFC_DB_RING_FORMAT) {
 		bf_set(lpfc_wq_db_ring_fm_num_posted, &doorbell, 1);
 		bf_set(lpfc_wq_db_ring_fm_id, &doorbell, q->queue_id);
@@ -15023,6 +15043,9 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	void __iomem *bar_memmap_p;
 	uint32_t db_offset;
 	uint16_t pci_barset;
+	uint8_t dpp_barset;
+	uint32_t dpp_offset;
+	unsigned long pg_addr;
 	uint8_t wq_create_version;
 
 	/* sanity check on queue memory */
@@ -15056,38 +15079,13 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 	else
 		wq_create_version = LPFC_Q_CREATE_VERSION_0;
 
-	switch (wq_create_version) {
-	case LPFC_Q_CREATE_VERSION_0:
-		switch (wq->entry_size) {
-		default:
-		case 64:
-			/* Nothing to do, version 0 ONLY supports 64 byte */
-			page = wq_create->u.request.page;
-			break;
-		case 128:
-			if (!(phba->sli4_hba.pc_sli4_params.wqsize &
-			    LPFC_WQ_SZ128_SUPPORT)) {
-				status = -ERANGE;
-				goto out;
-			}
-			/* If we get here the HBA MUST also support V1 and
-			 * we MUST use it
-			 */
-			bf_set(lpfc_mbox_hdr_version, &shdr->request,
-			       LPFC_Q_CREATE_VERSION_1);
 
-			bf_set(lpfc_mbx_wq_create_wqe_count,
-			       &wq_create->u.request_1, wq->entry_count);
-			bf_set(lpfc_mbx_wq_create_wqe_size,
-			       &wq_create->u.request_1,
-			       LPFC_WQ_WQE_SIZE_128);
-			bf_set(lpfc_mbx_wq_create_page_size,
-			       &wq_create->u.request_1,
-			       LPFC_WQ_PAGE_SIZE_4096);
-			page = wq_create->u.request_1.page;
-			break;
-		}
-		break;
+	if (phba->sli4_hba.pc_sli4_params.wqsize & LPFC_WQ_SZ128_SUPPORT)
+		wq_create_version = LPFC_Q_CREATE_VERSION_1;
+	else
+		wq_create_version = LPFC_Q_CREATE_VERSION_0;
+
+	switch (wq_create_version) {
 	case LPFC_Q_CREATE_VERSION_1:
 		bf_set(lpfc_mbx_wq_create_wqe_count, &wq_create->u.request_1,
 		       wq->entry_count);
@@ -15102,24 +15100,21 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 			       LPFC_WQ_WQE_SIZE_64);
 			break;
 		case 128:
-			if (!(phba->sli4_hba.pc_sli4_params.wqsize &
-				LPFC_WQ_SZ128_SUPPORT)) {
-				status = -ERANGE;
-				goto out;
-			}
 			bf_set(lpfc_mbx_wq_create_wqe_size,
 			       &wq_create->u.request_1,
 			       LPFC_WQ_WQE_SIZE_128);
 			break;
 		}
+		/* Request DPP by default */
+		bf_set(lpfc_mbx_wq_create_dpp_req, &wq_create->u.request_1, 1);
 		bf_set(lpfc_mbx_wq_create_page_size,
 		       &wq_create->u.request_1,
 		       (wq->page_size / SLI4_PAGE_SIZE));
 		page = wq_create->u.request_1.page;
 		break;
 	default:
-		status = -ERANGE;
-		goto out;
+		page = wq_create->u.request.page;
+		break;
 	}
 
 	list_for_each_entry(dmabuf, &wq->page_list, list) {
@@ -15143,52 +15138,120 @@ lpfc_wq_create(struct lpfc_hba *phba, struct lpfc_queue *wq,
 		status = -ENXIO;
 		goto out;
 	}
-	wq->queue_id = bf_get(lpfc_mbx_wq_create_q_id, &wq_create->u.response);
+
+	if (wq_create_version == LPFC_Q_CREATE_VERSION_0)
+		wq->queue_id = bf_get(lpfc_mbx_wq_create_q_id,
+					&wq_create->u.response);
+	else
+		wq->queue_id = bf_get(lpfc_mbx_wq_create_v1_q_id,
+					&wq_create->u.response_1);
+
 	if (wq->queue_id == 0xFFFF) {
 		status = -ENXIO;
 		goto out;
 	}
-	if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE) {
-		wq->db_format = bf_get(lpfc_mbx_wq_create_db_format,
-				       &wq_create->u.response);
-		if ((wq->db_format != LPFC_DB_LIST_FORMAT) &&
-		    (wq->db_format != LPFC_DB_RING_FORMAT)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"3265 WQ[%d] doorbell format not "
-					"supported: x%x\n", wq->queue_id,
-					wq->db_format);
-			status = -EINVAL;
-			goto out;
-		}
-		pci_barset = bf_get(lpfc_mbx_wq_create_bar_set,
-				    &wq_create->u.response);
-		bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba, pci_barset);
-		if (!bar_memmap_p) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"3263 WQ[%d] failed to memmap pci "
-					"barset:x%x\n", wq->queue_id,
-					pci_barset);
-			status = -ENOMEM;
-			goto out;
-		}
-		db_offset = wq_create->u.response.doorbell_offset;
-		if ((db_offset != LPFC_ULP0_WQ_DOORBELL) &&
-		    (db_offset != LPFC_ULP1_WQ_DOORBELL)) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"3252 WQ[%d] doorbell offset not "
-					"supported: x%x\n", wq->queue_id,
-					db_offset);
-			status = -EINVAL;
-			goto out;
-		}
-		wq->db_regaddr = bar_memmap_p + db_offset;
-		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"3264 WQ[%d]: barset:x%x, offset:x%x, "
-				"format:x%x\n", wq->queue_id, pci_barset,
-				db_offset, wq->db_format);
+
+	wq->db_format = LPFC_DB_LIST_FORMAT;
+	if (wq_create_version == LPFC_Q_CREATE_VERSION_0) {
+		if (phba->sli4_hba.fw_func_mode & LPFC_DUA_MODE) {
+			wq->db_format = bf_get(lpfc_mbx_wq_create_db_format,
+					       &wq_create->u.response);
+			if ((wq->db_format != LPFC_DB_LIST_FORMAT) &&
+			    (wq->db_format != LPFC_DB_RING_FORMAT)) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"3265 WQ[%d] doorbell format "
+						"not supported: x%x\n",
+						wq->queue_id, wq->db_format);
+				status = -EINVAL;
+				goto out;
+			}
+			pci_barset = bf_get(lpfc_mbx_wq_create_bar_set,
+					    &wq_create->u.response);
+			bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba,
+								   pci_barset);
+			if (!bar_memmap_p) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"3263 WQ[%d] failed to memmap "
+						"pci barset:x%x\n",
+						wq->queue_id, pci_barset);
+				status = -ENOMEM;
+				goto out;
+			}
+			db_offset = wq_create->u.response.doorbell_offset;
+			if ((db_offset != LPFC_ULP0_WQ_DOORBELL) &&
+			    (db_offset != LPFC_ULP1_WQ_DOORBELL)) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"3252 WQ[%d] doorbell offset "
+						"not supported: x%x\n",
+						wq->queue_id, db_offset);
+				status = -EINVAL;
+				goto out;
+			}
+			wq->db_regaddr = bar_memmap_p + db_offset;
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3264 WQ[%d]: barset:x%x, offset:x%x, "
+					"format:x%x\n", wq->queue_id,
+					pci_barset, db_offset, wq->db_format);
+		} else
+			wq->db_regaddr = phba->sli4_hba.WQDBregaddr;
 	} else {
-		wq->db_format = LPFC_DB_LIST_FORMAT;
-		wq->db_regaddr = phba->sli4_hba.WQDBregaddr;
+		/* Check if DPP was honored by the firmware */
+		wq->dpp_enable = bf_get(lpfc_mbx_wq_create_dpp_rsp,
+				    &wq_create->u.response_1);
+		if (wq->dpp_enable) {
+			pci_barset = bf_get(lpfc_mbx_wq_create_v1_bar_set,
+					    &wq_create->u.response_1);
+			bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba,
+								   pci_barset);
+			if (!bar_memmap_p) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"3267 WQ[%d] failed to memmap "
+						"pci barset:x%x\n",
+						wq->queue_id, pci_barset);
+				status = -ENOMEM;
+				goto out;
+			}
+			db_offset = wq_create->u.response_1.doorbell_offset;
+			wq->db_regaddr = bar_memmap_p + db_offset;
+			wq->dpp_id = bf_get(lpfc_mbx_wq_create_dpp_id,
+					    &wq_create->u.response_1);
+			dpp_barset = bf_get(lpfc_mbx_wq_create_dpp_bar,
+					    &wq_create->u.response_1);
+			bar_memmap_p = lpfc_dual_chute_pci_bar_map(phba,
+								   dpp_barset);
+			if (!bar_memmap_p) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"3268 WQ[%d] failed to memmap "
+						"pci barset:x%x\n",
+						wq->queue_id, dpp_barset);
+				status = -ENOMEM;
+				goto out;
+			}
+			dpp_offset = wq_create->u.response_1.dpp_offset;
+			wq->dpp_regaddr = bar_memmap_p + dpp_offset;
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3271 WQ[%d]: barset:x%x, offset:x%x, "
+					"dpp_id:x%x dpp_barset:x%x "
+					"dpp_offset:x%x\n",
+					wq->queue_id, pci_barset, db_offset,
+					wq->dpp_id, dpp_barset, dpp_offset);
+
+			/* Enable combined writes for DPP aperture */
+			pg_addr = (unsigned long)(wq->dpp_regaddr) & PAGE_MASK;
+#ifdef CONFIG_X86
+			rc = set_memory_wc(pg_addr, 1);
+			if (rc) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3272 Cannot setup Combined "
+					"Write on WQ[%d] - disable DPP\n",
+					wq->queue_id);
+				phba->cfg_enable_dpp = 0;
+			}
+#else
+			phba->cfg_enable_dpp = 0;
+#endif
+		} else
+			wq->db_regaddr = phba->sli4_hba.WQDBregaddr;
 	}
 	wq->pring = kzalloc(sizeof(struct lpfc_sli_ring), GFP_KERNEL);
 	if (wq->pring == NULL) {
