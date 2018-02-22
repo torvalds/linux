@@ -1157,8 +1157,9 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 	if (fcport->scan_state != QLA_FCPORT_FOUND)
 		return 0;
 
-	if ((fcport->fw_login_state == DSC_LS_PLOGI_PEND) ||
-	    (fcport->fw_login_state == DSC_LS_PRLI_PEND))
+	if ((fcport->loop_id != FC_NO_LOOP_ID) &&
+	    ((fcport->fw_login_state == DSC_LS_PLOGI_PEND) ||
+	     (fcport->fw_login_state == DSC_LS_PRLI_PEND)))
 		return 0;
 
 	if (fcport->fw_login_state == DSC_LS_PLOGI_COMP) {
