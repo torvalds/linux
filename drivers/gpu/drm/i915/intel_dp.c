@@ -1480,9 +1480,20 @@ static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	}
 }
 
-static void intel_aux_reg_init(struct intel_dp *intel_dp)
+static void
+intel_dp_aux_fini(struct intel_dp *intel_dp)
+{
+	kfree(intel_dp->aux.name);
+}
+
+static void
+intel_dp_aux_init(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+
+	intel_dp->aux_ch = intel_aux_ch(intel_dp);
+	intel_dp->aux_power_domain = intel_aux_power_domain(intel_dp);
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		intel_dp->aux_ch_ctl_reg = skl_aux_ctl_reg;
@@ -1494,23 +1505,21 @@ static void intel_aux_reg_init(struct intel_dp *intel_dp)
 		intel_dp->aux_ch_ctl_reg = g4x_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = g4x_aux_data_reg;
 	}
-}
 
-static void
-intel_dp_aux_fini(struct intel_dp *intel_dp)
-{
-	kfree(intel_dp->aux.name);
-}
+	if (INTEL_GEN(dev_priv) >= 9)
+		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
+	else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
+	else if (HAS_PCH_SPLIT(dev_priv))
+		intel_dp->get_aux_clock_divider = ilk_get_aux_clock_divider;
+	else
+		intel_dp->get_aux_clock_divider = g4x_get_aux_clock_divider;
 
-static void
-intel_dp_aux_init(struct intel_dp *intel_dp)
-{
-	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
+	if (INTEL_GEN(dev_priv) >= 9)
+		intel_dp->get_aux_send_ctl = skl_get_aux_send_ctl;
+	else
+		intel_dp->get_aux_send_ctl = g4x_get_aux_send_ctl;
 
-	intel_dp->aux_ch = intel_aux_ch(intel_dp);
-	intel_dp->aux_power_domain = intel_aux_power_domain(intel_dp);
-
-	intel_aux_reg_init(intel_dp);
 	drm_dp_aux_init(&intel_dp->aux);
 
 	/* Failure to allocate our preferred name is not critical */
@@ -6085,20 +6094,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	intel_dp->active_pipe = INVALID_PIPE;
 
 	/* intel_dp vfuncs */
-	if (INTEL_GEN(dev_priv) >= 9)
-		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
-	else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
-	else if (HAS_PCH_SPLIT(dev_priv))
-		intel_dp->get_aux_clock_divider = ilk_get_aux_clock_divider;
-	else
-		intel_dp->get_aux_clock_divider = g4x_get_aux_clock_divider;
-
-	if (INTEL_GEN(dev_priv) >= 9)
-		intel_dp->get_aux_send_ctl = skl_get_aux_send_ctl;
-	else
-		intel_dp->get_aux_send_ctl = g4x_get_aux_send_ctl;
-
 	if (HAS_DDI(dev_priv))
 		intel_dp->prepare_link_retrain = intel_ddi_prepare_link_retrain;
 
