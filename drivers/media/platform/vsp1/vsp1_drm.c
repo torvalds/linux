@@ -370,7 +370,7 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 		}
 	}
 
-	vsp1_dl_list_commit(dl);
+	vsp1_dl_list_commit(dl, false);
 }
 
 /* -----------------------------------------------------------------------------
