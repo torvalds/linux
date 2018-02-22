@@ -52,7 +52,7 @@ static inline bool mlx5e_rx_hw_stamp(struct hwtstamp_config *config)
 static inline void mlx5e_read_cqe_slot(struct mlx5e_cq *cq, u32 cqcc,
 				       void *data)
 {
-	u32 ci = cqcc & cq->wq.sz_m1;
+	u32 ci = cqcc & cq->wq.fbc.sz_m1;
 
 	memcpy(data, mlx5_cqwq_get_wqe(&cq->wq, ci), sizeof(struct mlx5_cqe64));
 }
@@ -74,9 +74,10 @@ static inline void mlx5e_read_mini_arr_slot(struct mlx5e_cq *cq, u32 cqcc)
 
 static inline void mlx5e_cqes_update_owner(struct mlx5e_cq *cq, u32 cqcc, int n)
 {
-	u8 op_own = (cqcc >> cq->wq.log_sz) & 1;
-	u32 wq_sz = 1 << cq->wq.log_sz;
-	u32 ci = cqcc & cq->wq.sz_m1;
+	struct mlx5_frag_buf_ctrl *fbc = &cq->wq.fbc;
+	u8 op_own = (cqcc >> fbc->log_sz) & 1;
+	u32 wq_sz = 1 << fbc->log_sz;
+	u32 ci = cqcc & fbc->sz_m1;
 	u32 ci_top = min_t(u32, wq_sz, ci + n);
 
 	for (; ci < ci_top; ci++, n--) {
@@ -101,7 +102,7 @@ static inline void mlx5e_decompress_cqe(struct mlx5e_rq *rq,
 	cq->title.byte_cnt     = cq->mini_arr[cq->mini_arr_idx].byte_cnt;
 	cq->title.check_sum    = cq->mini_arr[cq->mini_arr_idx].checksum;
 	cq->title.op_own      &= 0xf0;
-	cq->title.op_own      |= 0x01 & (cqcc >> cq->wq.log_sz);
+	cq->title.op_own      |= 0x01 & (cqcc >> cq->wq.fbc.log_sz);
 	cq->title.wqe_counter  = cpu_to_be16(cq->decmprs_wqe_counter);
 
 	if (rq->wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ)

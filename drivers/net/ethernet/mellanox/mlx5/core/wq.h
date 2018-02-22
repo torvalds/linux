@@ -45,7 +45,7 @@ struct mlx5_wq_param {
 
 struct mlx5_wq_ctrl {
 	struct mlx5_core_dev	*mdev;
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf	buf;
 	struct mlx5_db		db;
 };
 
@@ -68,14 +68,9 @@ struct mlx5_wq_qp {
 };
 
 struct mlx5_cqwq {
-	struct mlx5_frag_buf	frag_buf;
-	__be32			*db;
-	u32			sz_m1;
-	u32			frag_sz_m1;
-	u32			cc; /* consumer counter */
-	u8			log_sz;
-	u8			log_stride;
-	u8			log_frag_strides;
+	struct mlx5_frag_buf_ctrl fbc;
+	__be32			  *db;
+	u32			  cc; /* consumer counter */
 };
 
 struct mlx5_wq_ll {
@@ -131,20 +126,17 @@ static inline int mlx5_wq_cyc_cc_bigger(u16 cc1, u16 cc2)
 
 static inline u32 mlx5_cqwq_get_ci(struct mlx5_cqwq *wq)
 {
-	return wq->cc & wq->sz_m1;
+	return wq->cc & wq->fbc.sz_m1;
 }
 
 static inline void *mlx5_cqwq_get_wqe(struct mlx5_cqwq *wq, u32 ix)
 {
-	unsigned int frag = (ix >> wq->log_frag_strides);
-
-	return wq->frag_buf.frags[frag].buf +
-		((wq->frag_sz_m1 & ix) << wq->log_stride);
+	return mlx5_frag_buf_get_wqe(&wq->fbc, ix);
 }
 
 static inline u32 mlx5_cqwq_get_wrap_cnt(struct mlx5_cqwq *wq)
 {
-	return wq->cc >> wq->log_sz;
+	return wq->cc >> wq->fbc.log_sz;
 }
 
 static inline void mlx5_cqwq_pop(struct mlx5_cqwq *wq)
