@@ -4467,3 +4467,33 @@ Parameters: none
 This capability indicates if the flic device will be able to get/set the
 AIS states for migration via the KVM_DEV_FLIC_AISM_ALL attribute and allows
 to discover this without having to create a flic device.
+
+8.14 KVM_CAP_S390_PSW
+
+Architectures: s390
+
+This capability indicates that the PSW is exposed via the kvm_run structure.
+
+8.15 KVM_CAP_S390_GMAP
+
+Architectures: s390
+
+This capability indicates that the user space memory used as guest mapping can
+be anywhere in the user memory address space, as long as the memory slots are
+aligned and sized to a segment (1MB) boundary.
+
+8.16 KVM_CAP_S390_COW
+
+Architectures: s390
+
+This capability indicates that the user space memory used as guest mapping can
+use copy-on-write semantics as well as dirty pages tracking via read-only page
+tables.
+
+8.17 KVM_CAP_S390_BPB
+
+Architectures: s390
+
+This capability indicates that kvm will implement the interfaces to handle
+reset, migration and nested KVM for branch prediction blocking. The stfle
+facility 82 should not be provided to the guest without this capability.
