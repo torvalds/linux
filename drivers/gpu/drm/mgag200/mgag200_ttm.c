@@ -216,21 +216,8 @@ static struct ttm_tt *mgag200_ttm_tt_create(struct ttm_bo_device *bdev,
 	return tt;
 }
 
-static int mgag200_ttm_tt_populate(struct ttm_tt *ttm,
-			struct ttm_operation_ctx *ctx)
-{
-	return ttm_pool_populate(ttm, ctx);
-}
-
-static void mgag200_ttm_tt_unpopulate(struct ttm_tt *ttm)
-{
-	ttm_pool_unpopulate(ttm);
-}
-
 struct ttm_bo_driver mgag200_bo_driver = {
 	.ttm_tt_create = mgag200_ttm_tt_create,
-	.ttm_tt_populate = mgag200_ttm_tt_populate,
-	.ttm_tt_unpopulate = mgag200_ttm_tt_unpopulate,
 	.init_mem_type = mgag200_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = mgag200_bo_evict_flags,
