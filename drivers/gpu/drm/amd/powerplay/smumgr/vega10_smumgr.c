@@ -83,12 +83,16 @@ static bool vega10_is_smc_ram_running(struct pp_hwmgr *hwmgr)
 static uint32_t vega10_wait_for_response(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg;
+	uint32_t ret;
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
 
-	phm_wait_for_register_unequal(hwmgr, reg,
+	ret = phm_wait_for_register_unequal(hwmgr, reg,
 			0, MP1_C2PMSG_90__CONTENT_MASK);
+
+	if (ret)
+		pr_err("No response from smu\n");
 
 	return cgs_read_register(hwmgr->device, reg);
 }
@@ -120,6 +124,7 @@ int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	uint32_t reg;
+	uint32_t ret;
 
 	vega10_wait_for_response(hwmgr);
 
@@ -129,8 +134,9 @@ int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 
 	vega10_send_msg_to_smc_without_waiting(hwmgr, msg);
 
-	if (vega10_wait_for_response(hwmgr) != 1)
-		pr_err("Failed to send message: 0x%x\n", msg);
+	ret = vega10_wait_for_response(hwmgr);
+	if (ret != 1)
+		pr_err("Failed to send message: 0x%x, ret value: 0x%x\n", msg, ret);
 
 	return 0;
 }
@@ -146,6 +152,7 @@ int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 		uint16_t msg, uint32_t parameter)
 {
 	uint32_t reg;
+	uint32_t ret;
 
 	vega10_wait_for_response(hwmgr);
 
@@ -159,8 +166,9 @@ int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 
 	vega10_send_msg_to_smc_without_waiting(hwmgr, msg);
 
-	if (vega10_wait_for_response(hwmgr) != 1)
-		pr_err("Failed to send message: 0x%x\n", msg);
+	ret = vega10_wait_for_response(hwmgr);
+	if (ret != 1)
+		pr_err("Failed to send message: 0x%x, ret value: 0x%x\n", msg, ret);
 
 	return 0;
 }
