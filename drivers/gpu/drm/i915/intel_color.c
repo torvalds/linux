@@ -86,7 +86,7 @@ static bool crtc_state_is_legacy_gamma(struct drm_crtc_state *state)
  * When using limited range, multiply the matrix given by userspace by
  * the matrix that we would use for the limited range.
  */
-static void ctm_mult_by_limited(u64 *result, const u64 *input)
+static u64 *ctm_mult_by_limited(u64 *result, const u64 *input)
 {
 	int i;
 
@@ -104,6 +104,8 @@ static void ctm_mult_by_limited(u64 *result, const u64 *input)
 		result[i] = mul_u32_u32(limited_coeff, abs_coeff) >> 30;
 		result[i] |= user_coeff & CTM_COEFF_SIGN;
 	}
+
+	return result;
 }
 
 static void i9xx_load_ycbcr_conversion_matrix(struct intel_crtc *intel_crtc)
@@ -146,14 +148,13 @@ static void i9xx_load_csc_matrix(struct drm_crtc_state *crtc_state)
 	} else if (crtc_state->ctm) {
 		struct drm_color_ctm *ctm =
 			(struct drm_color_ctm *)crtc_state->ctm->data;
-		uint64_t input[9] = { 0, };
+		const u64 *input;
+		u64 temp[9];
 
-		if (intel_crtc_state->limited_color_range) {
-			ctm_mult_by_limited(input, ctm->matrix);
-		} else {
-			for (i = 0; i < ARRAY_SIZE(input); i++)
-				input[i] = ctm->matrix[i];
-		}
+		if (intel_crtc_state->limited_color_range)
+			input = ctm_mult_by_limited(temp, ctm->matrix);
+		else
+			input = ctm->matrix;
 
 		/*
 		 * Convert fixed point S31.32 input to format supported by the
