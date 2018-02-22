@@ -2003,6 +2003,17 @@ out:
 		int chunk_stride = map->reg_stride;
 		size_t chunk_size = val_bytes;
 		size_t chunk_count = val_count;
+		void *wval;
+
+		if (!val_count)
+			return -EINVAL;
+
+		wval = kmemdup(val, val_count * val_bytes, map->alloc_flags);
+		if (!wval)
+			return -ENOMEM;
+
+		for (i = 0; i < val_count * val_bytes; i += val_bytes)
+			map->format.parse_inplace(wval + i);
 
 		if (!map->use_single_write) {
 			chunk_size = map->max_raw_write;
@@ -2017,7 +2028,7 @@ out:
 		for (i = 0; i < chunk_count; i++) {
 			ret = _regmap_raw_write(map,
 						reg + (i * chunk_stride),
-						val + (i * chunk_size),
+						wval + (i * chunk_size),
 						chunk_size);
 			if (ret)
 				break;
@@ -2026,10 +2037,12 @@ out:
 		/* Write remaining bytes */
 		if (!ret && chunk_size * i < total_size) {
 			ret = _regmap_raw_write(map, reg + (i * chunk_stride),
-						val + (i * chunk_size),
+						wval + (i * chunk_size),
 						total_size - i * chunk_size);
 		}
 		map->unlock(map->lock_arg);
+
+		kfree(wval);
 	} else {
 		void *wval;
 
