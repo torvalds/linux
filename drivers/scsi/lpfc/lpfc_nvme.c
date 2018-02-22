@@ -655,7 +655,7 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 
 	/* Word 0-2 - NVME CMND IU (embedded payload) */
 	wqe->generic.bde.tus.f.bdeFlags = BUFF_TYPE_BDE_IMMED;
-	wqe->generic.bde.tus.f.bdeSize = 60;
+	wqe->generic.bde.tus.f.bdeSize = 56;
 	wqe->generic.bde.addrHigh = 0;
 	wqe->generic.bde.addrLow =  64;  /* Word 16 */
 
