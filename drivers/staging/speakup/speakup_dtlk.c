@@ -266,7 +266,7 @@ static char synth_read_tts(void)
 	outb_p(ch, speakup_info.port_tts);
 	while (synth_readable())
 		cpu_relax();
-	return (char) ch;
+	return (char)ch;
 }
 
 /* interrogate the DoubleTalk PC and return its settings */
