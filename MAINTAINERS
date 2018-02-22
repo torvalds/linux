@@ -13634,6 +13634,12 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/rc/ttusbir.c
 
+TECHWELL TW9910 VIDEO DECODER
+L:	linux-media@vger.kernel.org
+S:	Orphan
+F:	drivers/media/i2c/tw9910.c
+F:	include/media/i2c/tw9910.h
+
 TEE SUBSYSTEM
 M:	Jens Wiklander <jens.wiklander@linaro.org>
 S:	Maintained
