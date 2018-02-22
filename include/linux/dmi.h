@@ -147,4 +147,13 @@ static inline const struct dmi_system_id *
 
 #endif
 
+static inline int dmi_get_bios_year(void)
+{
+	int year;
+
+	dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL);
+
+	return year;
+}
+
 #endif	/* __DMI_H__ */
