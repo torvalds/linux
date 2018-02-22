@@ -316,15 +316,15 @@ static int ltc294x_get_temperature(const struct ltc294x_info *info, int *val)
 
 	if (info->id == LTC2942_ID) {
 		reg = LTC2942_REG_TEMPERATURE_MSB;
-		value = 60000;	/* Full-scale is 600 Kelvin */
+		value = 6000;	/* Full-scale is 600 Kelvin */
 	} else {
 		reg = LTC2943_REG_TEMPERATURE_MSB;
-		value = 51000;	/* Full-scale is 510 Kelvin */
+		value = 5100;	/* Full-scale is 510 Kelvin */
 	}
 	ret = ltc294x_read_regs(info->client, reg, &datar[0], 2);
 	value *= (datar[0] << 8) | datar[1];
-	/* Convert to centidegrees  */
-	*val = value / 0xFFFF - 27215;
+	/* Convert to tenths of degree Celsius */
+	*val = value / 0xFFFF - 2722;
 	return ret;
 }
 
