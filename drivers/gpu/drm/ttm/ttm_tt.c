@@ -410,7 +410,10 @@ int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
+	if (ttm->bdev->driver->ttm_tt_populate)
+		ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
+	else
+		ret = ttm_pool_populate(ttm, ctx);
 	if (!ret)
 		ttm_tt_add_mapping(ttm);
 	return ret;
@@ -436,5 +439,8 @@ void ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 
 	ttm_tt_clear_mapping(ttm);
-	ttm->bdev->driver->ttm_tt_unpopulate(ttm);
+	if (ttm->bdev->driver->ttm_tt_unpopulate)
+		ttm->bdev->driver->ttm_tt_unpopulate(ttm);
+	else
+		ttm_pool_unpopulate(ttm);
 }
