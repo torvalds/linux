@@ -169,6 +169,12 @@ typedef struct {
 	unsigned int id;
 	unsigned int active;
 	unsigned long vdso_base;
+#ifdef CONFIG_PPC_MM_SLICES
+	u16 user_psize;		/* page size index */
+	u64 low_slices_psize;	/* page size encodings */
+	unsigned char high_slices_psize[0];
+	unsigned long addr_limit;
+#endif
 } mm_context_t;
 
 #define PHYS_IMMR_BASE (mfspr(SPRN_IMMR) & 0xfff80000)
