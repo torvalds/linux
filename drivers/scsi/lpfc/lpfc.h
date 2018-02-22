@@ -782,6 +782,7 @@ struct lpfc_hba {
 	uint32_t cfg_fcp_io_channel;
 	uint32_t cfg_suppress_rsp;
 	uint32_t cfg_nvme_oas;
+	uint32_t cfg_nvme_embed_cmd;
 	uint32_t cfg_nvme_io_channel;
 	uint32_t cfg_nvmet_mrq;
 	uint32_t cfg_enable_nvmet;

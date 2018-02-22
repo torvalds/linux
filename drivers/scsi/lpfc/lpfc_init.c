@@ -10653,11 +10653,11 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->fcp_embed_io = 0;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_NVME,
-			"6422 XIB %d: FCP %d %d NVME %d %d %d\n",
+			"6422 XIB %d: FCP %d %d NVME %d %d %d %d\n",
 			bf_get(cfg_xib, mbx_sli4_parameters),
 			phba->fcp_embed_pbde, phba->fcp_embed_io,
 			phba->nvme_support, phba->nvme_embed_pbde,
-			phba->cfg_suppress_rsp);
+			phba->cfg_nvme_embed_cmd, phba->cfg_suppress_rsp);
 
 	if ((bf_get(cfg_cqpsize, mbx_sli4_parameters) & LPFC_CQ_16K_PAGE_SZ) &&
 	    (bf_get(cfg_wqpsize, mbx_sli4_parameters) & LPFC_WQ_16K_PAGE_SZ) &&

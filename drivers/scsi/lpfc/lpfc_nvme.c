@@ -617,9 +617,19 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 		       struct lpfc_nvme_buf *lpfc_ncmd,
 		       struct nvmefc_fcp_req *nCmd)
 {
+	struct lpfc_hba  *phba = vport->phba;
 	struct sli4_sge *sgl;
 	union lpfc_wqe128 *wqe;
 	uint32_t *wptr, *dptr;
+
+	/*
+	 * Get a local pointer to the built-in wqe and correct
+	 * the cmd size to match NVME's 96 bytes and fix
+	 * the dma address.
+	 */
+
+	/* 128 byte wqe support here */
+	wqe = (union lpfc_wqe128 *)&lpfc_ncmd->cur_iocbq.wqe;
 
 	/*
 	 * Adjust the FCP_CMD and FCP_RSP DMA data and sge_len to
@@ -630,6 +640,25 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 	 */
 	sgl = lpfc_ncmd->nvme_sgl;
 	sgl->sge_len = cpu_to_le32(nCmd->cmdlen);
+	if (phba->cfg_nvme_embed_cmd) {
+		sgl->addr_hi = 0;
+		sgl->addr_lo = 0;
+
+		/* Word 0-2 - NVME CMND IU (embedded payload) */
+		wqe->generic.bde.tus.f.bdeFlags = BUFF_TYPE_BDE_IMMED;
+		wqe->generic.bde.tus.f.bdeSize = 56;
+		wqe->generic.bde.addrHigh = 0;
+		wqe->generic.bde.addrLow =  64;  /* Word 16 */
+	} else {
+		sgl->addr_hi = cpu_to_le32(putPaddrHigh(nCmd->cmddma));
+		sgl->addr_lo = cpu_to_le32(putPaddrLow(nCmd->cmddma));
+
+		/* Word 0-2 - NVME CMND IU Inline BDE */
+		wqe->generic.bde.tus.f.bdeFlags =  BUFF_TYPE_BDE_64;
+		wqe->generic.bde.tus.f.bdeSize = nCmd->cmdlen;
+		wqe->generic.bde.addrHigh = sgl->addr_hi;
+		wqe->generic.bde.addrLow =  sgl->addr_lo;
+	}
 
 	sgl++;
 
@@ -644,27 +673,19 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 	sgl->word2 = cpu_to_le32(sgl->word2);
 	sgl->sge_len = cpu_to_le32(nCmd->rsplen);
 
-	/*
-	 * Get a local pointer to the built-in wqe and correct
-	 * the cmd size to match NVME's 96 bytes and fix
-	 * the dma address.
-	 */
-
-	/* 128 byte wqe support here */
-	wqe = (union lpfc_wqe128 *)&lpfc_ncmd->cur_iocbq.wqe;
-
-	/* Word 0-2 - NVME CMND IU (embedded payload) */
-	wqe->generic.bde.tus.f.bdeFlags = BUFF_TYPE_BDE_IMMED;
-	wqe->generic.bde.tus.f.bdeSize = 56;
-	wqe->generic.bde.addrHigh = 0;
-	wqe->generic.bde.addrLow =  64;  /* Word 16 */
-
 	/* Word 3 */
 	bf_set(payload_offset_len, &wqe->fcp_icmd,
 	       (nCmd->rsplen + nCmd->cmdlen));
 
 	/* Word 10 */
 	bf_set(wqe_nvme, &wqe->fcp_icmd.wqe_com, 1);
+
+	if (!phba->cfg_nvme_embed_cmd) {
+		bf_set(wqe_dbde, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_wqes, &wqe->fcp_icmd.wqe_com, 0);
+		return;
+	}
+	bf_set(wqe_dbde, &wqe->generic.wqe_com, 0);
 	bf_set(wqe_wqes, &wqe->fcp_icmd.wqe_com, 1);
 
 	/*
