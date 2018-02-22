@@ -1124,6 +1124,45 @@ class Tui(object):
         def is_child_field(field):
             return field.find('(') != -1
 
+        def insert_child(sorted_items, child, values, parent):
+            num = len(sorted_items)
+            for i in range(0, num):
+                # only add child if parent is present
+                if parent.startswith(sorted_items[i][0]):
+                    sorted_items.insert(i + 1, ('  ' + child, values))
+
+        def get_sorted_events(self, stats):
+            """ separate parent and child events """
+            if self._sorting == SORT_DEFAULT:
+                def sortkey((_k, v)):
+                    # sort by (delta value, overall value)
+                    return (v.delta, v.value)
+            else:
+                def sortkey((_k, v)):
+                    # sort by overall value
+                    return v.value
+
+            childs = []
+            sorted_items = []
+            # we can't rule out child events to appear prior to parents even
+            # when sorted - separate out all children first, and add in later
+            for key, values in sorted(stats.items(), key=sortkey,
+                                      reverse=True):
+                if values == (0, 0):
+                    continue
+                if key.find(' ') != -1:
+                    if not self.stats.child_events:
+                        continue
+                    childs.insert(0, (key, values))
+                else:
+                    sorted_items.append((key, values))
+            if self.stats.child_events:
+                for key, values in childs:
+                    (child, parent) = key.split(' ')
+                    insert_child(sorted_items, child, values, parent)
+
+            return sorted_items
+
         row = 3
         self.screen.move(row, 0)
         self.screen.clrtobot()
@@ -1143,44 +1182,34 @@ class Tui(object):
             # we don't have any fields, or all non-child events are filtered
             total = ctotal
 
-        if self._sorting == SORT_DEFAULT:
-            def sortkey((_k, v)):
-                # sort by (delta value, overall value)
-                return (v.delta, v.value)
-        else:
-            def sortkey((_k, v)):
-                # sort by overall value
-                return v.value
-
-        sorted_items = sorted(stats.items(), key=sortkey, reverse=True)
-
         # print events
         tavg = 0
-        for key, values in sorted_items:
-            if row >= self.screen.getmaxyx()[0] - 1:
+        tcur = 0
+        for key, values in get_sorted_events(self, stats):
+            if row >= self.screen.getmaxyx()[0] - 1 or values == (0, 0):
                 break
-            if values == (0, 0):
-                continue
-            if not self.stats.child_events and key.find(' ') != -1:
-                continue
-            if values.value is not None:
-                cur = int(round(values.delta / sleeptime)) if values.delta else ''
-                if self._display_guests:
-                    key = self.get_gname_from_pid(key)
-                    if not key:
-                        continue
-                self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' % (key
-                                   .split(' ')[0], values.value,
-                                   values.value * 100 / total, cur))
-                if cur != '' and key.find('(') == -1:
-                    tavg += cur
+            if self._display_guests:
+                key = self.get_gname_from_pid(key)
+                if not key:
+                    continue
+            cur = int(round(values.delta / sleeptime)) if values.delta else ''
+            if key[0] != ' ':
+                if values.delta:
+                    tcur += values.delta
+                ptotal = values.value
+                ltotal = total
+            else:
+                ltotal = ptotal
+            self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' % (key,
+                               values.value,
+                               values.value * 100 / float(ltotal), cur))
             row += 1
         if row == 3:
             self.screen.addstr(4, 1, 'No matching events reported yet')
         else:
+            tavg = int(round(tcur / sleeptime)) if tcur > 0 else ''
             self.screen.addstr(row, 1, '%-40s %10d        %8s' %
-                               ('Total', total, tavg if tavg else ''),
-                               curses.A_BOLD)
+                               ('Total', total, tavg), curses.A_BOLD)
         self.screen.refresh()
 
     def _show_msg(self, text):
