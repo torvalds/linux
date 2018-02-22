@@ -598,8 +598,11 @@ struct drm_mode_crtc_lut {
 };
 
 struct drm_color_ctm {
-	/* Conversion matrix in S31.32 format. */
-	__s64 matrix[9];
+	/*
+	 * Conversion matrix in S31.32 sign-magnitude
+	 * (not two's complement!) format.
+	 */
+	__u64 matrix[9];
 };
 
 struct drm_color_lut {
