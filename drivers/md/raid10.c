@@ -4693,17 +4693,11 @@ static void raid10_finish_reshape(struct mddev *mddev)
 		return;
 
 	if (mddev->delta_disks > 0) {
-		sector_t size = raid10_size(mddev, 0, 0);
-		md_set_array_sectors(mddev, size);
 		if (mddev->recovery_cp > mddev->resync_max_sectors) {
 			mddev->recovery_cp = mddev->resync_max_sectors;
 			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 		}
-		mddev->resync_max_sectors = size;
-		if (mddev->queue) {
-			set_capacity(mddev->gendisk, mddev->array_sectors);
-			revalidate_disk(mddev->gendisk);
-		}
+		mddev->resync_max_sectors = mddev->array_sectors;
 	} else {
 		int d;
 		rcu_read_lock();
