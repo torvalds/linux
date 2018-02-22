@@ -10,7 +10,6 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/kdev_t.h>
-#include <linux/fs_struct.h>
 #include <linux/proc_fs.h>
 #include <linux/file.h>
 #include <linux/sched/mm.h>

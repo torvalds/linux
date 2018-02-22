@@ -38,7 +38,6 @@
  */
 
 #include <linux/sched.h>
-#include <linux/fs_struct.h>
 
 #include <linux/compat.h>
 #include <linux/thread_info.h>

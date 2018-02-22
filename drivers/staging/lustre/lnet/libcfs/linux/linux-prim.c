@@ -34,7 +34,6 @@
 #define DEBUG_SUBSYSTEM S_LNET
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/fs_struct.h>
 #include <linux/sched/signal.h>
 
 #include <linux/libcfs/libcfs.h>

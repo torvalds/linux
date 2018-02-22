@@ -52,7 +52,6 @@
 #include <linux/nfs.h>
 #include <linux/nfs4.h>
 #include <linux/nfs_fs.h>
-#include <linux/fs_struct.h>
 
 #include "nfs4_fs.h"
 #include "internal.h"
