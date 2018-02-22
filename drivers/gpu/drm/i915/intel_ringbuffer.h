@@ -356,9 +356,9 @@ struct intel_engine_cs {
 
 		spinlock_t rb_lock; /* protects the rb and wraps irq_lock */
 		struct rb_root waiters; /* sorted by retirement, priority */
-		struct rb_root signals; /* sorted by retirement */
+		struct list_head signals; /* sorted by retirement */
 		struct task_struct *signaler; /* used for fence signalling */
-		struct i915_request __rcu *first_signal;
+
 		struct timer_list fake_irq; /* used after a missed interrupt */
 		struct timer_list hangcheck; /* detect missed interrupts */
 

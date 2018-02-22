@@ -44,8 +44,8 @@ struct intel_wait {
 };
 
 struct intel_signal_node {
-	struct rb_node node;
 	struct intel_wait wait;
+	struct list_head link;
 };
 
 struct i915_dependency {
