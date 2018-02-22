@@ -4226,6 +4226,9 @@ struct wqe_common {
 #define wqe_irsp_SHIFT        4
 #define wqe_irsp_MASK         0x00000001
 #define wqe_irsp_WORD         word11
+#define wqe_pbde_SHIFT        5
+#define wqe_pbde_MASK         0x00000001
+#define wqe_pbde_WORD         word11
 #define wqe_sup_SHIFT         6
 #define wqe_sup_MASK          0x00000001
 #define wqe_sup_WORD          word11

@@ -1170,6 +1170,7 @@ lpfc_nvme_prep_io_dma(struct lpfc_vport *vport,
 	struct sli4_sge *sgl = lpfc_ncmd->nvme_sgl;
 	struct scatterlist *data_sg;
 	struct sli4_sge *first_data_sgl;
+	struct ulp_bde64 *bde;
 	dma_addr_t physaddr;
 	uint32_t num_bde = 0;
 	uint32_t dma_len;
@@ -1237,7 +1238,24 @@ lpfc_nvme_prep_io_dma(struct lpfc_vport *vport,
 			data_sg = sg_next(data_sg);
 			sgl++;
 		}
+		if (phba->nvme_embed_pbde) {
+			/* Use PBDE support for first SGL only, offset == 0 */
+			/* Words 13-15 */
+			bde = (struct ulp_bde64 *)
+				&wqe->words[13];
+			bde->addrLow = first_data_sgl->addr_lo;
+			bde->addrHigh = first_data_sgl->addr_hi;
+			bde->tus.f.bdeSize =
+				le32_to_cpu(first_data_sgl->sge_len);
+			bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+			bde->tus.w = cpu_to_le32(bde->tus.w);
+			bf_set(wqe_pbde, &wqe->generic.wqe_com, 1);
+		} else
+			bf_set(wqe_pbde, &wqe->generic.wqe_com, 0);
+
 	} else {
+		bf_set(wqe_pbde, &wqe->generic.wqe_com, 0);
+
 		/* For this clause to be valid, the payload_length
 		 * and sg_cnt must zero.
 		 */

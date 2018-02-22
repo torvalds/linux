@@ -3304,8 +3304,12 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 			dma_offset += dma_len;
 			sgl++;
 		}
-		/* setup the performance hint (first data BDE) if enabled */
-		if (phba->sli3_options & LPFC_SLI4_PERFH_ENABLED) {
+		/*
+		 * Setup the first Payload BDE. For FCoE we just key off
+		 * Performance Hints, for FC we utilize fcp_embed_pbde.
+		 */
+		if ((phba->sli3_options & LPFC_SLI4_PERFH_ENABLED) ||
+		    phba->fcp_embed_pbde) {
 			bde = (struct ulp_bde64 *)
 					&(iocb_cmd->unsli3.sli3Words[5]);
 			bde->addrLow = first_data_sgl->addr_lo;
