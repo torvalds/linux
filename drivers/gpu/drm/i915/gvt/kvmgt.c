@@ -452,7 +452,7 @@ static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 	vgpu = intel_gvt_ops->vgpu_create(gvt, type);
 	if (IS_ERR_OR_NULL(vgpu)) {
 		ret = vgpu == NULL ? -EFAULT : PTR_ERR(vgpu);
-		gvt_vgpu_err("failed to create intel vgpu: %d\n", ret);
+		gvt_err("failed to create intel vgpu: %d\n", ret);
 		goto out;
 	}
 
