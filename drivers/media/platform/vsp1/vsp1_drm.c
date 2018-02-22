@@ -119,9 +119,9 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 			 * Remove the RPF from the pipe and the list of BRU
 			 * inputs.
 			 */
-			WARN_ON(list_empty(&rpf->entity.list_pipe));
+			WARN_ON(!rpf->entity.pipe);
 			rpf->entity.pipe = NULL;
-			list_del_init(&rpf->entity.list_pipe);
+			list_del(&rpf->entity.list_pipe);
 			pipe->inputs[i] = NULL;
 
 			bru->inputs[rpf->bru_input].rpf = NULL;
@@ -537,7 +537,7 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 			continue;
 		}
 
-		if (list_empty(&rpf->entity.list_pipe)) {
+		if (!rpf->entity.pipe) {
 			rpf->entity.pipe = pipe;
 			list_add_tail(&rpf->entity.list_pipe, &pipe->entities);
 		}
@@ -566,7 +566,7 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 					   VI6_DPR_NODE_UNUSED);
 
 			entity->pipe = NULL;
-			list_del_init(&entity->list_pipe);
+			list_del(&entity->list_pipe);
 
 			continue;
 		}
