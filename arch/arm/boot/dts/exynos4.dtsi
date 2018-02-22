@@ -821,12 +821,6 @@
 			status = "disabled";
 		};
 
-		ppmu_acp: ppmu_acp@10ae0000 {
-			compatible = "samsung,exynos-ppmu";
-			reg = <0x106e0000 0x2000>;
-			status = "disabled";
-		};
-
 		ppmu_rightbus: ppmu_rightbus@112a0000 {
 			compatible = "samsung,exynos-ppmu";
 			reg = <0x112a0000 0x2000>;

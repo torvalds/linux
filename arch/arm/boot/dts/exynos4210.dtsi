@@ -162,6 +162,12 @@
 			iommus = <&sysmmu_g2d>;
 		};
 
+		ppmu_acp: ppmu_acp@10ae0000 {
+			compatible = "samsung,exynos-ppmu";
+			reg = <0x10ae0000 0x2000>;
+			status = "disabled";
+		};
+
 		ppmu_lcd1: ppmu_lcd1@12240000 {
 			compatible = "samsung,exynos-ppmu";
 			reg = <0x12240000 0x2000>;
