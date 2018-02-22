@@ -431,6 +431,11 @@ int orangefs_inode_setattr(struct inode *inode)
 	copy_attributes_from_inode(inode,
 	    &new_op->upcall.req.setattr.attributes);
 	orangefs_inode->attr_valid = 0;
+	if (!new_op->upcall.req.setattr.attributes.mask) {
+		spin_unlock(&inode->i_lock);
+		op_release(new_op);
+		return 0;
+	}
 	spin_unlock(&inode->i_lock);
 
 	ret = service_operation(new_op, __func__,
