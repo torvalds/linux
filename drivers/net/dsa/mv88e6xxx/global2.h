@@ -266,6 +266,11 @@
 #define MV88E6352_G2_SCRATCH_GPIO_PCTL5		0x6D
 #define MV88E6352_G2_SCRATCH_GPIO_PCTL6		0x6E
 #define MV88E6352_G2_SCRATCH_GPIO_PCTL7		0x6F
+#define MV88E6352_G2_SCRATCH_CONFIG_DATA0	0x70
+#define MV88E6352_G2_SCRATCH_CONFIG_DATA1	0x71
+#define MV88E6352_G2_SCRATCH_CONFIG_DATA1_NO_CPU	BIT(2)
+#define MV88E6352_G2_SCRATCH_CONFIG_DATA2	0x72
+#define MV88E6352_G2_SCRATCH_CONFIG_DATA2_P0_MODE_MASK	0x3
 
 #define MV88E6352_G2_SCRATCH_GPIO_PCTL_GPIO	0
 #define MV88E6352_G2_SCRATCH_GPIO_PCTL_TRIG	1
@@ -324,6 +329,9 @@ extern const struct mv88e6xxx_avb_ops mv88e6352_avb_ops;
 extern const struct mv88e6xxx_avb_ops mv88e6390_avb_ops;
 
 extern const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops;
+
+int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
+				      bool external);
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 
@@ -464,6 +472,12 @@ static const struct mv88e6xxx_avb_ops mv88e6352_avb_ops = {};
 static const struct mv88e6xxx_avb_ops mv88e6390_avb_ops = {};
 
 static const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops = {};
+
+static inline int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
+						    bool external)
+{
+	return -EOPNOTSUPP;
+}
 
 #endif /* CONFIG_NET_DSA_MV88E6XXX_GLOBAL2 */
 

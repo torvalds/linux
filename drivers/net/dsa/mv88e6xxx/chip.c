@@ -2165,6 +2165,15 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 	struct mii_bus *bus;
 	int err;
 
+	if (external) {
+		mutex_lock(&chip->reg_lock);
+		err = mv88e6xxx_g2_scratch_gpio_set_smi(chip, true);
+		mutex_unlock(&chip->reg_lock);
+
+		if (err)
+			return err;
+	}
+
 	bus = devm_mdiobus_alloc_size(chip->dev, sizeof(*mdio_bus));
 	if (!bus)
 		return -ENOMEM;
