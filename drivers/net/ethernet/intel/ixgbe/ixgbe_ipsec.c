@@ -724,23 +724,10 @@ static bool ixgbe_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *xs)
 	return true;
 }
 
-/**
- * ixgbe_ipsec_free - called by xfrm garbage collections
- * @xs: pointer to transformer state struct
- *
- * We don't have any garbage to collect, so we shouldn't bother
- * implementing this function, but the XFRM code doesn't check for
- * existence before calling the API callback.
- **/
-static void ixgbe_ipsec_free(struct xfrm_state *xs)
-{
-}
-
 static const struct xfrmdev_ops ixgbe_xfrmdev_ops = {
 	.xdo_dev_state_add = ixgbe_ipsec_add_sa,
 	.xdo_dev_state_delete = ixgbe_ipsec_del_sa,
 	.xdo_dev_offload_ok = ixgbe_ipsec_offload_ok,
-	.xdo_dev_state_free = ixgbe_ipsec_free,
 };
 
 /**
