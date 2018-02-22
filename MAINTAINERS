@@ -8686,6 +8686,16 @@ T:	git git://linuxtv.org/media_tree.git
 S:	Supported
 F:	drivers/media/pci/netup_unidvb/*
 
+MEDIA DRIVERS FOR RENESAS - CEU
+M:	Jacopo Mondi <jacopo@jmondi.org>
+L:	linux-media@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Supported
+F:	Documentation/devicetree/bindings/media/renesas,ceu.txt
+F:	drivers/media/platform/renesas-ceu.c
+F:	include/media/drv-intf/renesas-ceu.h
+
 MEDIA DRIVERS FOR RENESAS - DRIF
 M:	Ramesh Shanmugasundaram <ramesh.shanmugasundaram@bp.renesas.com>
 L:	linux-media@vger.kernel.org
