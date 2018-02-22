@@ -3961,6 +3961,9 @@ struct lpfc_acqe_fc_la {
 #define LPFC_FC_LA_SPEED_10G		0xA
 #define LPFC_FC_LA_SPEED_16G		0x10
 #define LPFC_FC_LA_SPEED_32G            0x20
+#define LPFC_FC_LA_SPEED_64G            0x21
+#define LPFC_FC_LA_SPEED_128G           0x22
+#define LPFC_FC_LA_SPEED_256G           0x23
 #define lpfc_acqe_fc_la_topology_SHIFT		16
 #define lpfc_acqe_fc_la_topology_MASK		0x000000FF
 #define lpfc_acqe_fc_la_topology_WORD		word0

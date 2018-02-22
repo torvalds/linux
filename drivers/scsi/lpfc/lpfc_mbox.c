@@ -557,6 +557,10 @@ lpfc_init_link(struct lpfc_hba * phba,
 			mb->un.varInitLnk.link_flags |= FLAGS_LINK_SPEED;
 			mb->un.varInitLnk.link_speed = LINK_SPEED_32G;
 			break;
+		case LPFC_USER_LINK_SPEED_64G:
+			mb->un.varInitLnk.link_flags |= FLAGS_LINK_SPEED;
+			mb->un.varInitLnk.link_speed = LINK_SPEED_64G;
+			break;
 		case LPFC_USER_LINK_SPEED_AUTO:
 		default:
 			mb->un.varInitLnk.link_speed = LINK_SPEED_AUTO;

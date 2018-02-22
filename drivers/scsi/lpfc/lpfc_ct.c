@@ -2130,6 +2130,8 @@ lpfc_fdmi_port_attr_support_speed(struct lpfc_vport *vport,
 
 	ae->un.AttrInt = 0;
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {
+		if (phba->lmt & LMT_64Gb)
+			ae->un.AttrInt |= HBA_PORTSPEED_64GFC;
 		if (phba->lmt & LMT_32Gb)
 			ae->un.AttrInt |= HBA_PORTSPEED_32GFC;
 		if (phba->lmt & LMT_16Gb)
@@ -2200,6 +2202,9 @@ lpfc_fdmi_port_attr_speed(struct lpfc_vport *vport,
 			break;
 		case LPFC_LINK_SPEED_32GHZ:
 			ae->un.AttrInt = HBA_PORTSPEED_32GFC;
+			break;
+		case LPFC_LINK_SPEED_64GHZ:
+			ae->un.AttrInt = HBA_PORTSPEED_64GFC;
 			break;
 		default:
 			ae->un.AttrInt = HBA_PORTSPEED_UNKNOWN;
