@@ -28,12 +28,12 @@ ____xchg(_u8, volatile char *m, unsigned long val)
 	"	or	%1,%2,%2\n"
 	"	stq_c	%2,0(%3)\n"
 	"	beq	%2,2f\n"
-		__ASM__MB
 	".subsection 2\n"
 	"2:	br	1b\n"
 	".previous"
 	: "=&r" (ret), "=&r" (val), "=&r" (tmp), "=&r" (addr64)
 	: "r" ((long)m), "1" (val) : "memory");
+	smp_mb();
 
 	return ret;
 }
@@ -52,12 +52,12 @@ ____xchg(_u16, volatile short *m, unsigned long val)
 	"	or	%1,%2,%2\n"
 	"	stq_c	%2,0(%3)\n"
 	"	beq	%2,2f\n"
-		__ASM__MB
 	".subsection 2\n"
 	"2:	br	1b\n"
 	".previous"
 	: "=&r" (ret), "=&r" (val), "=&r" (tmp), "=&r" (addr64)
 	: "r" ((long)m), "1" (val) : "memory");
+	smp_mb();
 
 	return ret;
 }
@@ -72,12 +72,12 @@ ____xchg(_u32, volatile int *m, unsigned long val)
 	"	bis $31,%3,%1\n"
 	"	stl_c %1,%2\n"
 	"	beq %1,2f\n"
-		__ASM__MB
 	".subsection 2\n"
 	"2:	br 1b\n"
 	".previous"
 	: "=&r" (val), "=&r" (dummy), "=m" (*m)
 	: "rI" (val), "m" (*m) : "memory");
+	smp_mb();
 
 	return val;
 }
@@ -92,12 +92,12 @@ ____xchg(_u64, volatile long *m, unsigned long val)
 	"	bis $31,%3,%1\n"
 	"	stq_c %1,%2\n"
 	"	beq %1,2f\n"
-		__ASM__MB
 	".subsection 2\n"
 	"2:	br 1b\n"
 	".previous"
 	: "=&r" (val), "=&r" (dummy), "=m" (*m)
 	: "rI" (val), "m" (*m) : "memory");
+	smp_mb();
 
 	return val;
 }
@@ -150,12 +150,12 @@ ____cmpxchg(_u8, volatile char *m, unsigned char old, unsigned char new)
 	"	stq_c	%2,0(%4)\n"
 	"	beq	%2,3f\n"
 	"2:\n"
-		__ASM__MB
 	".subsection 2\n"
 	"3:	br	1b\n"
 	".previous"
 	: "=&r" (prev), "=&r" (new), "=&r" (tmp), "=&r" (cmp), "=&r" (addr64)
 	: "r" ((long)m), "Ir" (old), "1" (new) : "memory");
+	smp_mb();
 
 	return prev;
 }
@@ -177,12 +177,12 @@ ____cmpxchg(_u16, volatile short *m, unsigned short old, unsigned short new)
 	"	stq_c	%2,0(%4)\n"
 	"	beq	%2,3f\n"
 	"2:\n"
-		__ASM__MB
 	".subsection 2\n"
 	"3:	br	1b\n"
 	".previous"
 	: "=&r" (prev), "=&r" (new), "=&r" (tmp), "=&r" (cmp), "=&r" (addr64)
 	: "r" ((long)m), "Ir" (old), "1" (new) : "memory");
+	smp_mb();
 
 	return prev;
 }
@@ -200,12 +200,12 @@ ____cmpxchg(_u32, volatile int *m, int old, int new)
 	"	stl_c %1,%2\n"
 	"	beq %1,3f\n"
 	"2:\n"
-		__ASM__MB
 	".subsection 2\n"
 	"3:	br 1b\n"
 	".previous"
 	: "=&r"(prev), "=&r"(cmp), "=m"(*m)
 	: "r"((long) old), "r"(new), "m"(*m) : "memory");
+	smp_mb();
 
 	return prev;
 }
@@ -223,12 +223,12 @@ ____cmpxchg(_u64, volatile long *m, unsigned long old, unsigned long new)
 	"	stq_c %1,%2\n"
 	"	beq %1,3f\n"
 	"2:\n"
-		__ASM__MB
 	".subsection 2\n"
 	"3:	br 1b\n"
 	".previous"
 	: "=&r"(prev), "=&r"(cmp), "=m"(*m)
 	: "r"((long) old), "r"(new), "m"(*m) : "memory");
+	smp_mb();
 
 	return prev;
 }
