@@ -1472,19 +1472,19 @@ static void rtl8168_driver_stop(struct rtl8169_private *tp)
 	}
 }
 
-static int r8168dp_check_dash(struct rtl8169_private *tp)
+static bool r8168dp_check_dash(struct rtl8169_private *tp)
 {
 	u16 reg = rtl8168_get_ocp_reg(tp);
 
-	return (ocp_read(tp, 0x0f, reg) & 0x00008000) ? 1 : 0;
+	return !!(ocp_read(tp, 0x0f, reg) & 0x00008000);
 }
 
-static int r8168ep_check_dash(struct rtl8169_private *tp)
+static bool r8168ep_check_dash(struct rtl8169_private *tp)
 {
-	return (ocp_read(tp, 0x0f, 0x128) & 0x00000001) ? 1 : 0;
+	return !!(ocp_read(tp, 0x0f, 0x128) & 0x00000001);
 }
 
-static int r8168_check_dash(struct rtl8169_private *tp)
+static bool r8168_check_dash(struct rtl8169_private *tp)
 {
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_27:
@@ -1496,7 +1496,7 @@ static int r8168_check_dash(struct rtl8169_private *tp)
 	case RTL_GIGA_MAC_VER_51:
 		return r8168ep_check_dash(tp);
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -4982,15 +4982,8 @@ static void r8168_pll_power_down(struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
 
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_27 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_28 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_31 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_49 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_50 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_51) &&
-	    r8168_check_dash(tp)) {
+	if (r8168_check_dash(tp))
 		return;
-	}
 
 	if ((tp->mac_version == RTL_GIGA_MAC_VER_23 ||
 	     tp->mac_version == RTL_GIGA_MAC_VER_24) &&
@@ -8202,15 +8195,8 @@ static void rtl_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct rtl8169_private *tp = netdev_priv(dev);
 
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_27 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_28 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_31 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_49 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_50 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_51) &&
-	    r8168_check_dash(tp)) {
+	if (r8168_check_dash(tp))
 		rtl8168_driver_stop(tp);
-	}
 
 	netif_napi_del(&tp->napi);
 
@@ -8640,15 +8626,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   rtl_chip_infos[chipset].jumbo_tx_csum ? "ok" : "ko");
 	}
 
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_27 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_28 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_31 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_49 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_50 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_51) &&
-	    r8168_check_dash(tp)) {
+	if (r8168_check_dash(tp))
 		rtl8168_driver_start(tp);
-	}
 
 	netif_carrier_off(dev);
 
