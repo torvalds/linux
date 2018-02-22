@@ -228,20 +228,15 @@ int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table version!", return -EINVAL);
 	PP_ASSERT_WITH_CODE(priv->smu_tables.entry[table_id].size != 0,
 			"Invalid SMU Table Length!", return -EINVAL);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			priv->smu_tables.entry[table_id].table_addr_high) == 0,
-			"[CopyTableFromSMC] Attempt to Set Dram Addr High Failed!", return -EINVAL);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+			priv->smu_tables.entry[table_id].table_addr_high);
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			priv->smu_tables.entry[table_id].table_addr_low) == 0,
-			"[CopyTableFromSMC] Attempt to Set Dram Addr Low Failed!",
-			return -EINVAL);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+			priv->smu_tables.entry[table_id].table_addr_low);
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
-			priv->smu_tables.entry[table_id].table_id) == 0,
-			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
-			return -EINVAL);
+			priv->smu_tables.entry[table_id].table_id);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -270,21 +265,15 @@ int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
 
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			priv->smu_tables.entry[table_id].table_addr_high) == 0,
-			"[CopyTableToSMC] Attempt to Set Dram Addr High Failed!",
-			return -EINVAL;);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+			priv->smu_tables.entry[table_id].table_addr_high);
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			priv->smu_tables.entry[table_id].table_addr_low) == 0,
-			"[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!",
-			return -EINVAL);
-	PP_ASSERT_WITH_CODE(vega10_send_msg_to_smc_with_parameter(hwmgr,
+			priv->smu_tables.entry[table_id].table_addr_low);
+	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
-			priv->smu_tables.entry[table_id].table_id) == 0,
-			"[CopyTableToSMC] Attempt to Transfer Table To SMU Failed!",
-			return -EINVAL);
+			priv->smu_tables.entry[table_id].table_id);
 
 	return 0;
 }
@@ -323,13 +312,9 @@ int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
 	if (features_enabled == NULL)
 		return -EINVAL;
 
-	if (!vega10_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetEnabledSmuFeatures)) {
-		vega10_read_arg_from_smc(hwmgr, features_enabled);
-		return 0;
-	}
-
-	return -EINVAL;
+	vega10_send_msg_to_smc(hwmgr, PPSMC_MSG_GetEnabledSmuFeatures);
+	vega10_read_arg_from_smc(hwmgr, features_enabled);
+	return 0;
 }
 
 int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
@@ -339,12 +324,12 @@ int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 
 	if (priv->smu_tables.entry[TOOLSTABLE].table_addr_high ||
 			priv->smu_tables.entry[TOOLSTABLE].table_addr_low) {
-		if (!vega10_send_msg_to_smc_with_parameter(hwmgr,
+		vega10_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrHigh,
-				priv->smu_tables.entry[TOOLSTABLE].table_addr_high))
-			vega10_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_SetToolsDramAddrLow,
-					priv->smu_tables.entry[TOOLSTABLE].table_addr_low);
+				priv->smu_tables.entry[TOOLSTABLE].table_addr_high);
+		vega10_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetToolsDramAddrLow,
+				priv->smu_tables.entry[TOOLSTABLE].table_addr_low);
 	}
 	return 0;
 }

@@ -850,7 +850,6 @@ static int vega10_program_gc_didt_config_registers(struct pp_hwmgr *hwmgr, const
 static void vega10_didt_set_mask(struct pp_hwmgr *hwmgr, const bool enable)
 {
 	uint32_t data;
-	int result;
 	uint32_t en = (enable ? 1 : 0);
 	uint32_t didt_block_info = SQ_IR_MASK | TCP_IR_MASK | TD_PCC_MASK;
 
@@ -924,11 +923,10 @@ static void vega10_didt_set_mask(struct pp_hwmgr *hwmgr, const bool enable)
 		}
 	}
 
-	if (enable) {
-		/* For Vega10, SMC does not support any mask yet. */
-		result = smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ConfigureGfxDidt, didt_block_info);
-		PP_ASSERT((0 == result), "[EnableDiDtConfig] SMC Configure Gfx Didt Failed!");
-	}
+	/* For Vega10, SMC does not support any mask yet. */
+	if (enable)
+		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ConfigureGfxDidt, didt_block_info);
+
 }
 
 static int vega10_enable_cac_driving_se_didt_config(struct pp_hwmgr *hwmgr)
@@ -1344,7 +1342,7 @@ int vega10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 
 	if (data->registry_data.enable_pkg_pwr_tracking_feature)
-		return smum_send_msg_to_smc_with_parameter(hwmgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetPptLimit, n);
 
 	return 0;
@@ -1406,24 +1404,24 @@ int vega10_disable_power_containment(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int vega10_set_overdrive_target_percentage(struct pp_hwmgr *hwmgr,
+static void vega10_set_overdrive_target_percentage(struct pp_hwmgr *hwmgr,
 		uint32_t adjust_percent)
 {
-	return smum_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_OverDriveSetPercentage, adjust_percent);
 }
 
 int vega10_power_control_set_level(struct pp_hwmgr *hwmgr)
 {
-	int adjust_percent, result = 0;
+	int adjust_percent;
 
 	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
 		adjust_percent =
 				hwmgr->platform_descriptor.TDPAdjustmentPolarity ?
 				hwmgr->platform_descriptor.TDPAdjustment :
 				(-1 * hwmgr->platform_descriptor.TDPAdjustment);
-		result = vega10_set_overdrive_target_percentage(hwmgr,
+		vega10_set_overdrive_target_percentage(hwmgr,
 				(uint32_t)adjust_percent);
 	}
-	return result;
+	return 0;
 }

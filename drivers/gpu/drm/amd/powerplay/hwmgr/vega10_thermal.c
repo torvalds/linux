@@ -31,14 +31,8 @@
 
 static int vega10_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
-				PPSMC_MSG_GetCurrentRpm),
-			"Attempt to get current RPM from SMC Failed!",
-			return -1);
-	PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr,
-			current_rpm),
-			"Attempt to read current RPM from SMC Failed!",
-			return -1);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentRpm);
+	vega10_read_arg_from_smc(hwmgr, current_rpm);
 	return 0;
 }
 
