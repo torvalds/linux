@@ -162,7 +162,7 @@ static int pp_hw_init(void *handle)
 		if(hwmgr->smumgr_funcs->start_smu(pp_handle->hwmgr)) {
 			pr_err("smc start failed\n");
 			hwmgr->smumgr_funcs->smu_fini(pp_handle->hwmgr);
-			return -EINVAL;;
+			return -EINVAL;
 		}
 		if (ret == PP_DPM_DISABLED)
 			goto exit;

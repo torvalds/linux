@@ -461,7 +461,7 @@ void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched, struct drm_sched_jo
 {
 	struct drm_sched_job *s_job;
 	struct drm_sched_entity *entity, *tmp;
-	int i;;
+	int i;
 
 	spin_lock(&sched->job_list_lock);
 	list_for_each_entry_reverse(s_job, &sched->ring_mirror_list, node) {
