@@ -148,12 +148,51 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 	return 0;
 }
 
+/* Setup the BRU source pad. */
+static int vsp1_du_pipeline_setup_bru(struct vsp1_device *vsp1,
+				      struct vsp1_pipeline *pipe)
+{
+	struct vsp1_drm_pipeline *drm_pipe = to_vsp1_drm_pipeline(pipe);
+	struct v4l2_subdev_format format = {
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	int ret;
+
+	/*
+	 * Configure the format on the BRU source and verify that it matches the
+	 * requested format. We don't set the media bus code as it is configured
+	 * on the BRU sink pad 0 and propagated inside the entity, not on the
+	 * source pad.
+	 */
+	format.pad = pipe->bru->source_pad;
+	format.format.width = drm_pipe->width;
+	format.format.height = drm_pipe->height;
+	format.format.field = V4L2_FIELD_NONE;
+
+	ret = v4l2_subdev_call(&pipe->bru->subdev, pad, set_fmt, NULL,
+			       &format);
+	if (ret < 0)
+		return ret;
+
+	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
+		__func__, format.format.width, format.format.height,
+		format.format.code, BRU_NAME(pipe->bru), pipe->bru->source_pad);
+
+	if (format.format.width != drm_pipe->width ||
+	    format.format.height != drm_pipe->height) {
+		dev_dbg(vsp1->dev, "%s: format mismatch\n", __func__);
+		return -EPIPE;
+	}
+
+	return 0;
+}
+
 static unsigned int rpf_zpos(struct vsp1_device *vsp1, struct vsp1_rwpf *rpf)
 {
 	return vsp1->drm->inputs[rpf->entity.index].zpos;
 }
 
-/* Setup the input side of the pipeline (RPFs and BRU sink pads). */
+/* Setup the input side of the pipeline (RPFs and BRU). */
 static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 					 struct vsp1_pipeline *pipe)
 {
@@ -189,6 +228,18 @@ static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 		}
 
 		inputs[j] = rpf;
+	}
+
+	/*
+	 * Setup the BRU. This must be done before setting up the RPF input
+	 * pipelines as the BRU sink compose rectangles depend on the BRU source
+	 * format.
+	 */
+	ret = vsp1_du_pipeline_setup_bru(vsp1, pipe);
+	if (ret < 0) {
+		dev_err(vsp1->dev, "%s: failed to setup %s source\n", __func__,
+			BRU_NAME(pipe->bru));
+		return ret;
 	}
 
 	/* Setup the RPF input pipeline for every enabled input. */
@@ -354,6 +405,9 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 
 		return 0;
 	}
+
+	drm_pipe->width = cfg->width;
+	drm_pipe->height = cfg->height;
 
 	dev_dbg(vsp1->dev, "%s: configuring LIF%u with format %ux%u\n",
 		__func__, pipe_index, cfg->width, cfg->height);

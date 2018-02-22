@@ -20,11 +20,16 @@
 /**
  * vsp1_drm_pipeline - State for the API exposed to the DRM driver
  * @pipe: the VSP1 pipeline used for display
+ * @width: output display width
+ * @height: output display height
  * @du_complete: frame completion callback for the DU driver (optional)
  * @du_private: data to be passed to the du_complete callback
  */
 struct vsp1_drm_pipeline {
 	struct vsp1_pipeline pipe;
+
+	unsigned int width;
+	unsigned int height;
 
 	/* Frame synchronisation */
 	void (*du_complete)(void *, bool);
