@@ -213,21 +213,8 @@ static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
 	return tt;
 }
 
-static int vbox_ttm_tt_populate(struct ttm_tt *ttm,
-				struct ttm_operation_ctx *ctx)
-{
-	return ttm_pool_populate(ttm, ctx);
-}
-
-static void vbox_ttm_tt_unpopulate(struct ttm_tt *ttm)
-{
-	ttm_pool_unpopulate(ttm);
-}
-
 static struct ttm_bo_driver vbox_bo_driver = {
 	.ttm_tt_create = vbox_ttm_tt_create,
-	.ttm_tt_populate = vbox_ttm_tt_populate,
-	.ttm_tt_unpopulate = vbox_ttm_tt_unpopulate,
 	.init_mem_type = vbox_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = vbox_bo_evict_flags,
