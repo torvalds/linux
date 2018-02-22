@@ -314,6 +314,25 @@ lpfc_sli4_eq_clr_intr(struct lpfc_queue *q)
 }
 
 /**
+ * lpfc_sli4_if6_eq_clr_intr - Turn off interrupts from this EQ
+ * @q: The Event Queue to disable interrupts
+ *
+ **/
+inline void
+lpfc_sli4_if6_eq_clr_intr(struct lpfc_queue *q)
+{
+	struct lpfc_register doorbell;
+
+	doorbell.word0 = 0;
+	bf_set(lpfc_eqcq_doorbell_eqci, &doorbell, 1);
+	bf_set(lpfc_eqcq_doorbell_qt, &doorbell, LPFC_QUEUE_TYPE_EVENT);
+	bf_set(lpfc_eqcq_doorbell_eqid_hi, &doorbell,
+		(q->queue_id >> LPFC_EQID_HI_FIELD_SHIFT));
+	bf_set(lpfc_eqcq_doorbell_eqid_lo, &doorbell, q->queue_id);
+	writel(doorbell.word0, q->phba->sli4_hba.EQDBregaddr);
+}
+
+/**
  * lpfc_sli4_eq_release - Indicates the host has finished processing an EQ
  * @q: The Event Queue that the host has completed processing for.
  * @arm: Indicates whether the host wants to arms this CQ.
@@ -360,6 +379,55 @@ lpfc_sli4_eq_release(struct lpfc_queue *q, bool arm)
 	bf_set(lpfc_eqcq_doorbell_eqid_hi, &doorbell,
 			(q->queue_id >> LPFC_EQID_HI_FIELD_SHIFT));
 	bf_set(lpfc_eqcq_doorbell_eqid_lo, &doorbell, q->queue_id);
+	writel(doorbell.word0, q->phba->sli4_hba.EQDBregaddr);
+	/* PCI read to flush PCI pipeline on re-arming for INTx mode */
+	if ((q->phba->intr_type == INTx) && (arm == LPFC_QUEUE_REARM))
+		readl(q->phba->sli4_hba.EQDBregaddr);
+	return released;
+}
+
+/**
+ * lpfc_sli4_if6_eq_release - Indicates the host has finished processing an EQ
+ * @q: The Event Queue that the host has completed processing for.
+ * @arm: Indicates whether the host wants to arms this CQ.
+ *
+ * This routine will mark all Event Queue Entries on @q, from the last
+ * known completed entry to the last entry that was processed, as completed
+ * by clearing the valid bit for each completion queue entry. Then it will
+ * notify the HBA, by ringing the doorbell, that the EQEs have been processed.
+ * The internal host index in the @q will be updated by this routine to indicate
+ * that the host has finished processing the entries. The @arm parameter
+ * indicates that the queue should be rearmed when ringing the doorbell.
+ *
+ * This function will return the number of EQEs that were popped.
+ **/
+uint32_t
+lpfc_sli4_if6_eq_release(struct lpfc_queue *q, bool arm)
+{
+	uint32_t released = 0;
+	struct lpfc_eqe *temp_eqe;
+	struct lpfc_register doorbell;
+
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return 0;
+
+	/* while there are valid entries */
+	while (q->hba_index != q->host_index) {
+		temp_eqe = q->qe[q->host_index].eqe;
+		bf_set_le32(lpfc_eqe_valid, temp_eqe, 0);
+		released++;
+		q->host_index = ((q->host_index + 1) % q->entry_count);
+	}
+	if (unlikely(released == 0 && !arm))
+		return 0;
+
+	/* ring doorbell for number popped */
+	doorbell.word0 = 0;
+	if (arm)
+		bf_set(lpfc_if6_eq_doorbell_arm, &doorbell, 1);
+	bf_set(lpfc_if6_eq_doorbell_num_released, &doorbell, released);
+	bf_set(lpfc_if6_eq_doorbell_eqid, &doorbell, q->queue_id);
 	writel(doorbell.word0, q->phba->sli4_hba.EQDBregaddr);
 	/* PCI read to flush PCI pipeline on re-arming for INTx mode */
 	if ((q->phba->intr_type == INTx) && (arm == LPFC_QUEUE_REARM))
@@ -453,6 +521,51 @@ lpfc_sli4_cq_release(struct lpfc_queue *q, bool arm)
 	bf_set(lpfc_eqcq_doorbell_cqid_hi, &doorbell,
 			(q->queue_id >> LPFC_CQID_HI_FIELD_SHIFT));
 	bf_set(lpfc_eqcq_doorbell_cqid_lo, &doorbell, q->queue_id);
+	writel(doorbell.word0, q->phba->sli4_hba.CQDBregaddr);
+	return released;
+}
+
+/**
+ * lpfc_sli4_if6_cq_release - Indicates the host has finished processing a CQ
+ * @q: The Completion Queue that the host has completed processing for.
+ * @arm: Indicates whether the host wants to arms this CQ.
+ *
+ * This routine will mark all Completion queue entries on @q, from the last
+ * known completed entry to the last entry that was processed, as completed
+ * by clearing the valid bit for each completion queue entry. Then it will
+ * notify the HBA, by ringing the doorbell, that the CQEs have been processed.
+ * The internal host index in the @q will be updated by this routine to indicate
+ * that the host has finished processing the entries. The @arm parameter
+ * indicates that the queue should be rearmed when ringing the doorbell.
+ *
+ * This function will return the number of CQEs that were released.
+ **/
+uint32_t
+lpfc_sli4_if6_cq_release(struct lpfc_queue *q, bool arm)
+{
+	uint32_t released = 0;
+	struct lpfc_cqe *temp_qe;
+	struct lpfc_register doorbell;
+
+	/* sanity check on queue memory */
+	if (unlikely(!q))
+		return 0;
+	/* while there are valid entries */
+	while (q->hba_index != q->host_index) {
+		temp_qe = q->qe[q->host_index].cqe;
+		bf_set_le32(lpfc_cqe_valid, temp_qe, 0);
+		released++;
+		q->host_index = ((q->host_index + 1) % q->entry_count);
+	}
+	if (unlikely(released == 0 && !arm))
+		return 0;
+
+	/* ring doorbell for number popped */
+	doorbell.word0 = 0;
+	if (arm)
+		bf_set(lpfc_if6_cq_doorbell_arm, &doorbell, 1);
+	bf_set(lpfc_if6_cq_doorbell_num_released, &doorbell, released);
+	bf_set(lpfc_if6_cq_doorbell_cqid, &doorbell, q->queue_id);
 	writel(doorbell.word0, q->phba->sli4_hba.CQDBregaddr);
 	return released;
 }
@@ -2331,7 +2444,7 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) {
 		if (phba->sli_rev == LPFC_SLI_REV4 &&
 		    (bf_get(lpfc_sli_intf_if_type,
-		     &phba->sli4_hba.sli_intf) ==
+		     &phba->sli4_hba.sli_intf) >=
 		     LPFC_SLI_INTF_IF_TYPE_2)) {
 			if (ndlp) {
 				lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
@@ -8792,7 +8905,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 					iocbq->context2)->virt);
 		if_type = bf_get(lpfc_sli_intf_if_type,
 					&phba->sli4_hba.sli_intf);
-		if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
 			if (pcmd && (*pcmd == ELS_CMD_FLOGI ||
 				*pcmd == ELS_CMD_SCR ||
 				*pcmd == ELS_CMD_FDISC ||
@@ -9089,7 +9202,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 
 		if_type = bf_get(lpfc_sli_intf_if_type,
 					&phba->sli4_hba.sli_intf);
-		if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
 			if (iocbq->vport->fc_flag & FC_PT2PT) {
 				bf_set(els_rsp64_sp, &wqe->xmit_els_rsp, 1);
 				bf_set(els_rsp64_sid, &wqe->xmit_els_rsp,
@@ -11673,6 +11786,7 @@ lpfc_sli4_eratt_read(struct lpfc_hba *phba)
 		}
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
+	case LPFC_SLI_INTF_IF_TYPE_6:
 		if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 			&portstat_reg.word0) ||
 			lpfc_readl(phba->sli4_hba.PSMPHRregaddr,

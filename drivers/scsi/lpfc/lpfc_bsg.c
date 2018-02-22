@@ -3867,7 +3867,7 @@ lpfc_bsg_sli_cfg_read_cmd_ext(struct lpfc_hba *phba, struct bsg_job *job,
 				"ext_buf_cnt:%d\n", ext_buf_cnt);
 	} else {
 		/* sanity check on interface type for support */
-		if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+		if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
 		    LPFC_SLI_INTF_IF_TYPE_2) {
 			rc = -ENODEV;
 			goto job_error;
@@ -4053,7 +4053,7 @@ lpfc_bsg_sli_cfg_write_cmd_ext(struct lpfc_hba *phba, struct bsg_job *job,
 				"ext_buf_cnt:%d\n", ext_buf_cnt);
 	} else {
 		/* sanity check on interface type for support */
-		if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+		if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
 		    LPFC_SLI_INTF_IF_TYPE_2)
 			return -ENODEV;
 		/* nemb_tp == nemb_hbd */

@@ -1761,7 +1761,7 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 	int rc;
 	uint32_t intr_mode;
 
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
 	    LPFC_SLI_INTF_IF_TYPE_2) {
 		/*
 		 * On error status condition, driver need to wait for port
@@ -1892,6 +1892,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		break;
 
 	case LPFC_SLI_INTF_IF_TYPE_2:
+	case LPFC_SLI_INTF_IF_TYPE_6:
 		pci_rd_rc1 = lpfc_readl(
 				phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&portstat_reg.word0);
@@ -6018,7 +6019,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		return -ENOMEM;
 
 	/* IF Type 2 ports get initialized now. */
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
 	    LPFC_SLI_INTF_IF_TYPE_2) {
 		rc = lpfc_pci_function_reset(phba);
 		if (unlikely(rc)) {
@@ -7348,6 +7349,7 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			}
 			break;
 		case LPFC_SLI_INTF_IF_TYPE_2:
+		case LPFC_SLI_INTF_IF_TYPE_6:
 			/* Final checks.  The port status should be clean. */
 			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&reg_data.word0) ||
@@ -7438,6 +7440,28 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 		phba->sli4_hba.BMBXregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_BMBX;
 		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
+		phba->sli4_hba.u.if_type2.EQDregaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_EQ_DELAY_OFFSET;
+		phba->sli4_hba.u.if_type2.ERR1regaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_ER1_OFFSET;
+		phba->sli4_hba.u.if_type2.ERR2regaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_ER2_OFFSET;
+		phba->sli4_hba.u.if_type2.CTRLregaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_CTL_OFFSET;
+		phba->sli4_hba.u.if_type2.STATUSregaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_STA_OFFSET;
+		phba->sli4_hba.PSMPHRregaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_SEM_OFFSET;
+		phba->sli4_hba.BMBXregaddr =
+			phba->sli4_hba.conf_regs_memmap_p + LPFC_BMBX;
+		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
 		dev_printk(KERN_ERR, &phba->pcidev->dev,
@@ -7451,20 +7475,43 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
  * lpfc_sli4_bar1_register_memmap - Set up SLI4 BAR1 register memory map.
  * @phba: pointer to lpfc hba data structure.
  *
- * This routine is invoked to set up SLI4 BAR1 control status register (CSR)
- * memory map.
+ * This routine is invoked to set up SLI4 BAR1 register memory map.
  **/
 static void
-lpfc_sli4_bar1_register_memmap(struct lpfc_hba *phba)
+lpfc_sli4_bar1_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 {
-	phba->sli4_hba.PSMPHRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
-		LPFC_SLIPORT_IF0_SMPHR;
-	phba->sli4_hba.ISRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
-		LPFC_HST_ISR0;
-	phba->sli4_hba.IMRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
-		LPFC_HST_IMR0;
-	phba->sli4_hba.ISCRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
-		LPFC_HST_ISCR0;
+	switch (if_type) {
+	case LPFC_SLI_INTF_IF_TYPE_0:
+		phba->sli4_hba.PSMPHRregaddr =
+			phba->sli4_hba.ctrl_regs_memmap_p +
+			LPFC_SLIPORT_IF0_SMPHR;
+		phba->sli4_hba.ISRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
+			LPFC_HST_ISR0;
+		phba->sli4_hba.IMRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
+			LPFC_HST_IMR0;
+		phba->sli4_hba.ISCRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
+			LPFC_HST_ISCR0;
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
+		phba->sli4_hba.RQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_RQ_DOORBELL;
+		phba->sli4_hba.WQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_WQ_DOORBELL;
+		phba->sli4_hba.CQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_CQ_DOORBELL;
+		phba->sli4_hba.EQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_EQ_DOORBELL;
+		phba->sli4_hba.MQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_MQ_DOORBELL;
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_2:
+	case LPFC_SLI_INTF_IF_TYPE_1:
+	default:
+		dev_err(&phba->pcidev->dev,
+			   "FATAL - unsupported SLI4 interface type - %d\n",
+			   if_type);
+		break;
+	}
 }
 
 /**
@@ -7729,7 +7776,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 
 	/* Update link speed if forced link speed is supported */
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
-	if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+	if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
 		forced_link_speed =
 			bf_get(lpfc_mbx_rd_conf_link_speed, rd_config);
 		if (forced_link_speed) {
@@ -7789,7 +7836,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->cfg_hba_queue_depth = length;
 	}
 
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
 	    LPFC_SLI_INTF_IF_TYPE_2)
 		goto read_cfg_out;
 
@@ -7903,6 +7950,7 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
 		}
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
 	case LPFC_SLI_INTF_IF_TYPE_2:
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
@@ -9314,6 +9362,7 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 		}
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
+	case LPFC_SLI_INTF_IF_TYPE_6:
 wait:
 		/*
 		 * Poll the Port Status Register and wait for RDY for
@@ -9469,7 +9518,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	} else {
 		phba->pci_bar0_map = pci_resource_start(pdev, 1);
 		bar0map_len = pci_resource_len(pdev, 1);
-		if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
 			dev_printk(KERN_ERR, &pdev->dev,
 			   "FATAL - No BAR0 mapping for SLI4, if_type 2\n");
 			goto out;
@@ -9506,11 +9555,30 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			}
 			phba->pci_bar2_memmap_p =
 					 phba->sli4_hba.ctrl_regs_memmap_p;
-			lpfc_sli4_bar1_register_memmap(phba);
+			lpfc_sli4_bar1_register_memmap(phba, if_type);
 		} else {
 			error = -ENOMEM;
 			goto out_iounmap_conf;
 		}
+	}
+
+	if ((if_type == LPFC_SLI_INTF_IF_TYPE_6) &&
+	    (pci_resource_start(pdev, PCI_64BIT_BAR2))) {
+		/*
+		 * Map SLI4 if type 6 HBA Doorbell Register base to a kernel
+		 * virtual address and setup the registers.
+		 */
+		phba->pci_bar1_map = pci_resource_start(pdev, PCI_64BIT_BAR2);
+		bar1map_len = pci_resource_len(pdev, PCI_64BIT_BAR2);
+		phba->sli4_hba.drbl_regs_memmap_p =
+				ioremap(phba->pci_bar1_map, bar1map_len);
+		if (!phba->sli4_hba.drbl_regs_memmap_p) {
+			dev_err(&pdev->dev,
+			   "ioremap failed for SLI4 HBA doorbell registers.\n");
+			goto out_iounmap_conf;
+		}
+		phba->pci_bar2_memmap_p = phba->sli4_hba.drbl_regs_memmap_p;
+		lpfc_sli4_bar1_register_memmap(phba, if_type);
 	}
 
 	if (if_type == LPFC_SLI_INTF_IF_TYPE_0) {
@@ -9544,10 +9612,20 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	}
 
 	/* Set up the EQ/CQ register handeling functions now */
-	if (if_type <= LPFC_SLI_INTF_IF_TYPE_2) {
+	switch (if_type) {
+	case LPFC_SLI_INTF_IF_TYPE_0:
+	case LPFC_SLI_INTF_IF_TYPE_2:
 		phba->sli4_hba.sli4_eq_clr_intr = lpfc_sli4_eq_clr_intr;
 		phba->sli4_hba.sli4_eq_release = lpfc_sli4_eq_release;
 		phba->sli4_hba.sli4_cq_release = lpfc_sli4_cq_release;
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
+		phba->sli4_hba.sli4_eq_clr_intr = lpfc_sli4_if6_eq_clr_intr;
+		phba->sli4_hba.sli4_eq_release = lpfc_sli4_if6_eq_release;
+		phba->sli4_hba.sli4_cq_release = lpfc_sli4_if6_cq_release;
+		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -9582,6 +9660,10 @@ lpfc_sli4_pci_mem_unset(struct lpfc_hba *phba)
 		iounmap(phba->sli4_hba.conf_regs_memmap_p);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
+		iounmap(phba->sli4_hba.conf_regs_memmap_p);
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
+		iounmap(phba->sli4_hba.drbl_regs_memmap_p);
 		iounmap(phba->sli4_hba.conf_regs_memmap_p);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
@@ -11288,7 +11370,7 @@ lpfc_sli4_request_firmware_update(struct lpfc_hba *phba, uint8_t fw_upgrade)
 	const struct firmware *fw;
 
 	/* Only supported on SLI4 interface type 2 for now */
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
 	    LPFC_SLI_INTF_IF_TYPE_2)
 		return -EPERM;
 
