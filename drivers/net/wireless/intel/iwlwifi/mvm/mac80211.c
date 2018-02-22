@@ -2132,10 +2132,10 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 		 * Send the bcast station. At this stage the TBTT and DTIM time
 		 * events are added and applied to the scheduler
 		 */
-		iwl_mvm_send_add_bcast_sta(mvm, vif);
+		ret = iwl_mvm_send_add_bcast_sta(mvm, vif);
 		if (ret)
 			goto out_unbind;
-		iwl_mvm_add_mcast_sta(mvm, vif);
+		ret = iwl_mvm_add_mcast_sta(mvm, vif);
 		if (ret) {
 			iwl_mvm_send_rm_bcast_sta(mvm, vif);
 			goto out_unbind;
