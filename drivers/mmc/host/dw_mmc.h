@@ -65,8 +65,7 @@ struct dw_mci_dma_slave {
  * @fifo_reg: Pointer to MMIO registers for data FIFO
  * @sg: Scatterlist entry currently being processed by PIO code, if any.
  * @sg_miter: PIO mapping scatterlist iterator.
- * @cur_slot: The slot which is currently using the controller.
- * @mrq: The request currently being processed on @cur_slot,
+ * @mrq: The request currently being processed on @slot,
  *	or NULL if the controller is idle.
  * @cmd: The command currently being sent to the card, or NULL.
  * @data: The data currently being transferred, or NULL if no data
@@ -102,7 +101,6 @@ struct dw_mci_dma_slave {
  * @bus_hz: The rate of @mck in Hz. This forms the basis for MMC bus
  *	rate and timeout calculations.
  * @current_speed: Configured rate of the controller.
- * @num_slots: Number of slots available.
  * @fifoth_val: The value of FIFOTH register.
  * @verid: Denote Version ID.
  * @dev: Device associated with the MMC controller.
@@ -134,16 +132,16 @@ struct dw_mci_dma_slave {
  * =======
  *
  * @lock is a softirq-safe spinlock protecting @queue as well as
+ * @slot, @mrq and @state. These must always be updated
  * at the same time while holding @lock.
+ * The @mrq field of struct dw_mci_slot is also protected by @lock,
+ * and must always be written at the same time as the slot is added to
+ * @queue.
  *
  * @irq_lock is an irq-safe spinlock protecting the INTMASK register
  * to allow the interrupt handler to modify it directly.  Held for only long
  * enough to read-modify-write INTMASK and no other locks are grabbed when
  * holding this one.
- *
- * The @mrq field of struct dw_mci_slot is also protected by @lock,
- * and must always be written at the same time as the slot is added to
- * @queue.
  *
  * @pending_events and @completed_events are accessed using atomic bit
  * operations, so they don't need any locking.
@@ -321,8 +319,8 @@ struct dw_mci_board {
 #define SDMMC_ENABLE_SHIFT	0x110
 #define SDMMC_DATA(x)		(x)
 /*
-* Registers to support idmac 64-bit address mode
-*/
+ * Registers to support idmac 64-bit address mode
+ */
 #define SDMMC_DBADDRL		0x088
 #define SDMMC_DBADDRU		0x08c
 #define SDMMC_IDSTS64		0x090
@@ -449,7 +447,8 @@ struct dw_mci_board {
 	(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET)
 
 /* FIFO register access macros. These should not change the data endian-ness
- * as they are written to memory to be dealt with by the upper layers */
+ * as they are written to memory to be dealt with by the upper layers
+ */
 #define mci_fifo_readw(__reg)	__raw_readw(__reg)
 #define mci_fifo_readl(__reg)	__raw_readl(__reg)
 #define mci_fifo_readq(__reg)	__raw_readq(__reg)
