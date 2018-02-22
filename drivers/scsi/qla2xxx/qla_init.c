@@ -213,6 +213,7 @@ done_free_sp:
 	sp->free(sp);
 	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
+	fcport->flags &= ~FCF_ASYNC_ACTIVE;
 	return rval;
 }
 
@@ -263,7 +264,7 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 done_free_sp:
 	sp->free(sp);
 done:
-	fcport->flags &= ~FCF_ASYNC_SENT;
+	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	return rval;
 }
 
@@ -271,6 +272,7 @@ void
 qla2x00_async_prlo_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
+	fcport->flags &= ~FCF_ASYNC_ACTIVE;
 	/* Don't re-login in target mode */
 	if (!fcport->tgt_session)
 		qla2x00_mark_device_lost(vha, fcport, 1, 0);
@@ -284,6 +286,7 @@ qla2x00_async_prlo_sp_done(void *s, int res)
 	struct srb_iocb *lio = &sp->u.iocb_cmd;
 	struct scsi_qla_host *vha = sp->vha;
 
+	sp->fcport->flags &= ~FCF_ASYNC_ACTIVE;
 	if (!test_bit(UNLOADING, &vha->dpc_flags))
 		qla2x00_post_async_prlo_done_work(sp->fcport->vha, sp->fcport,
 		    lio->u.logio.data);
@@ -322,6 +325,7 @@ qla2x00_async_prlo(struct scsi_qla_host *vha, fc_port_t *fcport)
 done_free_sp:
 	sp->free(sp);
 done:
+	fcport->flags &= ~FCF_ASYNC_ACTIVE;
 	return rval;
 }
 
@@ -375,6 +379,8 @@ qla2x00_async_adisc_sp_done(void *ptr, int res)
 	    "Async done-%s res %x %8phC\n",
 	    sp->name, res, sp->fcport->port_name);
 
+	sp->fcport->flags &= ~FCF_ASYNC_SENT;
+
 	memset(&ea, 0, sizeof(ea));
 	ea.event = FCME_ADISC_DONE;
 	ea.rc = res;
@@ -425,7 +431,7 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 done_free_sp:
 	sp->free(sp);
 done:
-	fcport->flags &= ~FCF_ASYNC_SENT;
+	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	qla2x00_post_async_adisc_work(vha, fcport, data);
 	return rval;
 }
@@ -1799,6 +1805,7 @@ qla2x00_async_logout_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	qla2x00_mark_device_lost(vha, fcport, 1, 0);
 	qlt_logo_completion_handler(fcport, data[0]);
 	fcport->login_gen++;
+	fcport->flags &= ~FCF_ASYNC_ACTIVE;
 	return;
 }
 
@@ -1806,6 +1813,7 @@ void
 qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
+	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 	if (data[0] == MBS_COMMAND_COMPLETE) {
 		qla2x00_update_fcport(vha, fcport);
 
@@ -1813,7 +1821,6 @@ qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	}
 
 	/* Retry login. */
-	fcport->flags &= ~FCF_ASYNC_SENT;
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 	else
