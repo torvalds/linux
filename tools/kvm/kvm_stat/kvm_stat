@@ -331,9 +331,6 @@ class perf_event_attr(ctypes.Structure):
 PERF_TYPE_TRACEPOINT = 2
 PERF_FORMAT_GROUP = 1 << 3
 
-PATH_DEBUGFS_TRACING = '/sys/kernel/debug/tracing'
-PATH_DEBUGFS_KVM = '/sys/kernel/debug/kvm'
-
 
 class Group(object):
     """Represents a perf event group."""
@@ -1544,17 +1541,6 @@ Press any other key to refresh statistics immediately.
 
 def check_access(options):
     """Exits if the current user can't access all needed directories."""
-    if not os.path.exists('/sys/kernel/debug'):
-        sys.stderr.write('Please enable CONFIG_DEBUG_FS in your kernel.')
-        sys.exit(1)
-
-    if not os.path.exists(PATH_DEBUGFS_KVM):
-        sys.stderr.write("Please make sure, that debugfs is mounted and "
-                         "readable by the current user:\n"
-                         "('mount -t debugfs debugfs /sys/kernel/debug')\n"
-                         "Also ensure, that the kvm modules are loaded.\n")
-        sys.exit(1)
-
     if not os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints or
                                                      not options.debugfs):
         sys.stderr.write("Please enable CONFIG_TRACING in your kernel "
@@ -1572,7 +1558,33 @@ def check_access(options):
     return options
 
 
+def assign_globals():
+    global PATH_DEBUGFS_KVM
+    global PATH_DEBUGFS_TRACING
+
+    debugfs = ''
+    for line in file('/proc/mounts'):
+        if line.split(' ')[0] == 'debugfs':
+            debugfs = line.split(' ')[1]
+            break
+    if debugfs == '':
+        sys.stderr.write("Please make sure that CONFIG_DEBUG_FS is enabled in "
+                         "your kernel, mounted and\nreadable by the current "
+                         "user:\n"
+                         "('mount -t debugfs debugfs /sys/kernel/debug')\n")
+        sys.exit(1)
+
+    PATH_DEBUGFS_KVM = os.path.join(debugfs, 'kvm')
+    PATH_DEBUGFS_TRACING = os.path.join(debugfs, 'tracing')
+
+    if not os.path.exists(PATH_DEBUGFS_KVM):
+        sys.stderr.write("Please make sure that CONFIG_KVM is enabled in "
+                         "your kernel and that the modules are loaded.\n")
+        sys.exit(1)
+
+
 def main():
+    assign_globals()
     options = get_options()
     options = check_access(options)
 
