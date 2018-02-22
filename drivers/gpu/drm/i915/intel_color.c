@@ -66,13 +66,13 @@
  * of the CTM coefficient and we write the value from bit 3. We also round the
  * value.
  */
-#define I9XX_CSC_COEFF_FP(coeff, fbits)	\
+#define ILK_CSC_COEFF_FP(coeff, fbits)	\
 	(clamp_val(((coeff) >> (32 - (fbits) - 3)) + 4, 0, 0xfff) & 0xff8)
 
-#define I9XX_CSC_COEFF_LIMITED_RANGE	\
-	I9XX_CSC_COEFF_FP(CTM_COEFF_LIMITED_RANGE, 9)
-#define I9XX_CSC_COEFF_1_0		\
-	((7 << 12) | I9XX_CSC_COEFF_FP(CTM_COEFF_1_0, 8))
+#define ILK_CSC_COEFF_LIMITED_RANGE	\
+	ILK_CSC_COEFF_FP(CTM_COEFF_LIMITED_RANGE, 9)
+#define ILK_CSC_COEFF_1_0		\
+	((7 << 12) | ILK_CSC_COEFF_FP(CTM_COEFF_1_0, 8))
 
 static bool crtc_state_is_legacy_gamma(struct drm_crtc_state *state)
 {
@@ -108,7 +108,7 @@ static u64 *ctm_mult_by_limited(u64 *result, const u64 *input)
 	return result;
 }
 
-static void i9xx_load_ycbcr_conversion_matrix(struct intel_crtc *intel_crtc)
+static void ilk_load_ycbcr_conversion_matrix(struct intel_crtc *intel_crtc)
 {
 	int pipe = intel_crtc->pipe;
 	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
@@ -132,8 +132,7 @@ static void i9xx_load_ycbcr_conversion_matrix(struct intel_crtc *intel_crtc)
 	I915_WRITE(PIPE_CSC_MODE(pipe), 0);
 }
 
-/* Set up the pipe CSC unit. */
-static void i9xx_load_csc_matrix(struct drm_crtc_state *crtc_state)
+static void ilk_load_csc_matrix(struct drm_crtc_state *crtc_state)
 {
 	struct drm_crtc *crtc = crtc_state->crtc;
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
@@ -143,7 +142,7 @@ static void i9xx_load_csc_matrix(struct drm_crtc_state *crtc_state)
 	struct intel_crtc_state *intel_crtc_state = to_intel_crtc_state(crtc_state);
 
 	if (intel_crtc_state->ycbcr420) {
-		i9xx_load_ycbcr_conversion_matrix(intel_crtc);
+		ilk_load_ycbcr_conversion_matrix(intel_crtc);
 		return;
 	} else if (crtc_state->ctm) {
 		struct drm_color_ctm *ctm =
@@ -175,21 +174,21 @@ static void i9xx_load_csc_matrix(struct drm_crtc_state *crtc_state)
 
 			if (abs_coeff < CTM_COEFF_0_125)
 				coeffs[i] |= (3 << 12) |
-					I9XX_CSC_COEFF_FP(abs_coeff, 12);
+					ILK_CSC_COEFF_FP(abs_coeff, 12);
 			else if (abs_coeff < CTM_COEFF_0_25)
 				coeffs[i] |= (2 << 12) |
-					I9XX_CSC_COEFF_FP(abs_coeff, 11);
+					ILK_CSC_COEFF_FP(abs_coeff, 11);
 			else if (abs_coeff < CTM_COEFF_0_5)
 				coeffs[i] |= (1 << 12) |
-					I9XX_CSC_COEFF_FP(abs_coeff, 10);
+					ILK_CSC_COEFF_FP(abs_coeff, 10);
 			else if (abs_coeff < CTM_COEFF_1_0)
-				coeffs[i] |= I9XX_CSC_COEFF_FP(abs_coeff, 9);
+				coeffs[i] |= ILK_CSC_COEFF_FP(abs_coeff, 9);
 			else if (abs_coeff < CTM_COEFF_2_0)
 				coeffs[i] |= (7 << 12) |
-					I9XX_CSC_COEFF_FP(abs_coeff, 8);
+					ILK_CSC_COEFF_FP(abs_coeff, 8);
 			else
 				coeffs[i] |= (6 << 12) |
-					I9XX_CSC_COEFF_FP(abs_coeff, 7);
+					ILK_CSC_COEFF_FP(abs_coeff, 7);
 		}
 	} else {
 		/*
@@ -203,9 +202,9 @@ static void i9xx_load_csc_matrix(struct drm_crtc_state *crtc_state)
 		for (i = 0; i < 3; i++) {
 			if (intel_crtc_state->limited_color_range)
 				coeffs[i * 3 + i] =
-					I9XX_CSC_COEFF_LIMITED_RANGE;
+					ILK_CSC_COEFF_LIMITED_RANGE;
 			else
-				coeffs[i * 3 + i] = I9XX_CSC_COEFF_1_0;
+				coeffs[i * 3 + i] = ILK_CSC_COEFF_1_0;
 		}
 	}
 
@@ -651,14 +650,14 @@ void intel_color_init(struct drm_crtc *crtc)
 		dev_priv->display.load_csc_matrix = cherryview_load_csc_matrix;
 		dev_priv->display.load_luts = cherryview_load_luts;
 	} else if (IS_HASWELL(dev_priv)) {
-		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
+		dev_priv->display.load_csc_matrix = ilk_load_csc_matrix;
 		dev_priv->display.load_luts = haswell_load_luts;
 	} else if (IS_BROADWELL(dev_priv) || IS_GEN9_BC(dev_priv) ||
 		   IS_BROXTON(dev_priv)) {
-		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
+		dev_priv->display.load_csc_matrix = ilk_load_csc_matrix;
 		dev_priv->display.load_luts = broadwell_load_luts;
 	} else if (IS_GEMINILAKE(dev_priv) || IS_CANNONLAKE(dev_priv)) {
-		dev_priv->display.load_csc_matrix = i9xx_load_csc_matrix;
+		dev_priv->display.load_csc_matrix = ilk_load_csc_matrix;
 		dev_priv->display.load_luts = glk_load_luts;
 	} else {
 		dev_priv->display.load_luts = i9xx_load_luts;
