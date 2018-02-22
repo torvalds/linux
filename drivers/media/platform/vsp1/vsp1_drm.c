@@ -412,47 +412,19 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	dev_dbg(vsp1->dev, "%s: configuring LIF%u with format %ux%u\n",
 		__func__, pipe_index, cfg->width, cfg->height);
 
-	/*
-	 * Configure the format at the BRU sinks and propagate it through the
-	 * pipeline.
-	 */
+	/* Setup formats through the pipeline. */
+	ret = vsp1_du_pipeline_setup_inputs(vsp1, pipe);
+	if (ret < 0)
+		return ret;
+
 	memset(&format, 0, sizeof(format));
 	format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-
-	for (i = 0; i < pipe->bru->source_pad; ++i) {
-		format.pad = i;
-
-		format.format.width = cfg->width;
-		format.format.height = cfg->height;
-		format.format.code = MEDIA_BUS_FMT_ARGB8888_1X32;
-		format.format.field = V4L2_FIELD_NONE;
-
-		ret = v4l2_subdev_call(&pipe->bru->subdev, pad,
-				       set_fmt, NULL, &format);
-		if (ret < 0)
-			return ret;
-
-		dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
-			__func__, format.format.width, format.format.height,
-			format.format.code, BRU_NAME(pipe->bru), i);
-	}
-
-	format.pad = pipe->bru->source_pad;
+	format.pad = RWPF_PAD_SINK;
 	format.format.width = cfg->width;
 	format.format.height = cfg->height;
 	format.format.code = MEDIA_BUS_FMT_ARGB8888_1X32;
 	format.format.field = V4L2_FIELD_NONE;
 
-	ret = v4l2_subdev_call(&pipe->bru->subdev, pad, set_fmt, NULL,
-			       &format);
-	if (ret < 0)
-		return ret;
-
-	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
-		__func__, format.format.width, format.format.height,
-		format.format.code, BRU_NAME(pipe->bru), i);
-
-	format.pad = RWPF_PAD_SINK;
 	ret = v4l2_subdev_call(&pipe->output->entity.subdev, pad, set_fmt, NULL,
 			       &format);
 	if (ret < 0)
