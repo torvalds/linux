@@ -53,11 +53,9 @@
 int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
-	int ret = 0;
 	uint32_t page_flags = 0;
 
 	reservation_object_assert_held(bo->resv);
-	bo->ttm = NULL;
 
 	if (bdev->need_dma32)
 		page_flags |= TTM_PAGE_FLAG_DMA32;
@@ -69,28 +67,27 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 	case ttm_bo_type_device:
 		if (zero_alloc)
 			page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
+		break;
 	case ttm_bo_type_kernel:
-		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-						      page_flags);
-		if (unlikely(bo->ttm == NULL))
-			ret = -ENOMEM;
 		break;
 	case ttm_bo_type_sg:
-		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-						      page_flags | TTM_PAGE_FLAG_SG);
-		if (unlikely(bo->ttm == NULL)) {
-			ret = -ENOMEM;
-			break;
-		}
-		bo->ttm->sg = bo->sg;
+		page_flags |= TTM_PAGE_FLAG_SG;
 		break;
 	default:
+		bo->ttm = NULL;
 		pr_err("Illegal buffer object type\n");
-		ret = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 
-	return ret;
+	bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
+					      page_flags);
+	if (unlikely(bo->ttm == NULL))
+		return -ENOMEM;
+
+	if (bo->type == ttm_bo_type_sg)
+		bo->ttm->sg = bo->sg;
+
+	return 0;
 }
 
 /**
