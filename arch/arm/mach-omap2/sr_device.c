@@ -89,6 +89,8 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 	sr_data->nvalue_count = j;
 }
 
+extern struct omap_sr_data omap_sr_pdata[];
+
 static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 {
 	struct omap_sr_data *sr_data;
