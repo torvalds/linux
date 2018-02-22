@@ -247,6 +247,8 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine)
 	spin_unlock(&b->irq_lock);
 
 	rbtree_postorder_for_each_entry_safe(wait, n, &b->waiters, node) {
+		GEM_BUG_ON(!i915_seqno_passed(intel_engine_get_seqno(engine),
+					      wait->seqno));
 		RB_CLEAR_NODE(&wait->node);
 		wake_up_process(wait->tsk);
 	}
