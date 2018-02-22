@@ -52,6 +52,7 @@
 #include "eswitch.h"
 #include "vxlan.h"
 #include "fs_core.h"
+#include "en/port.h"
 
 struct mlx5_nic_flow_attr {
 	u32 action;
@@ -613,7 +614,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 
 	params.q_counter = priv->q_counter;
 	/* set hairpin pair per each 50Gbs share of the link */
-	mlx5e_get_max_linkspeed(priv->mdev, &link_speed);
+	mlx5e_port_max_linkspeed(priv->mdev, &link_speed);
 	link_speed = max_t(u32, link_speed, 50000);
 	link_speed64 = link_speed;
 	do_div(link_speed64, 50000);
