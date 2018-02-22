@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
+ * Copyright 2018 Omnibond Systems, L.L.C.
  *
  * See COPYING in top-level directory.
  */
@@ -348,63 +349,11 @@ static ssize_t orangefs_file_read_iter(struct kiocb *iocb,
 	return generic_file_read_iter(iocb, iter);
 }
 
-static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *iter)
+static ssize_t orangefs_file_write_iter(struct kiocb *iocb,
+    struct iov_iter *iter)
 {
-	struct file *file = iocb->ki_filp;
-	loff_t pos;
-	ssize_t rc;
-
-	truncate_inode_pages(file->f_mapping, 0);
-
-	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_write_iter\n");
-
-	inode_lock(file->f_mapping->host);
-
-	/* Make sure generic_write_checks sees an up to date inode size. */
-	if (file->f_flags & O_APPEND) {
-		rc = orangefs_inode_getattr(file->f_mapping->host,
-		    ORANGEFS_GETATTR_SIZE);
-		if (rc == -ESTALE)
-			rc = -EIO;
-		if (rc) {
-			gossip_err("%s: orangefs_inode_getattr failed, "
-			    "rc:%zd:.\n", __func__, rc);
-			goto out;
-		}
-	}
-
-	rc = generic_write_checks(iocb, iter);
-
-	if (rc <= 0) {
-		gossip_err("%s: generic_write_checks failed, rc:%zd:.\n",
-			   __func__, rc);
-		goto out;
-	}
-
-	/*
-	 * if we are appending, generic_write_checks would have updated
-	 * pos to the end of the file, so we will wait till now to set
-	 * pos...
-	 */
-	pos = iocb->ki_pos;
-
-	rc = do_readv_writev(ORANGEFS_IO_WRITE,
-			     file,
-			     &pos,
-			     iter);
-	if (rc < 0) {
-		gossip_err("%s: do_readv_writev failed, rc:%zd:.\n",
-			   __func__, rc);
-		goto out;
-	}
-
-	iocb->ki_pos = pos;
 	orangefs_stats.writes++;
-
-out:
-
-	inode_unlock(file->f_mapping->host);
-	return rc;
+	return generic_file_write_iter(iocb, iter);
 }
 
 /*
@@ -499,9 +448,6 @@ static int orangefs_file_mmap(struct file *file, struct vm_area_struct *vma)
 			(char *)file->f_path.dentry->d_name.name :
 			(char *)"Unknown"));
 
-	if ((vma->vm_flags & VM_SHARED) && (vma->vm_flags & VM_MAYWRITE))
-		return -EINVAL;
-
 	/* set the sequential readahead hint */
 	vma->vm_flags |= VM_SEQ_READ;
 	vma->vm_flags &= ~VM_RAND_READ;
@@ -541,8 +487,6 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "flush_racache finished\n");
 		}
-		truncate_inode_pages(file_inode(file)->i_mapping,
-				     0);
 	}
 	return 0;
 }
@@ -559,6 +503,11 @@ static int orangefs_fsync(struct file *file,
 	struct orangefs_inode_s *orangefs_inode =
 		ORANGEFS_I(file_inode(file));
 	struct orangefs_kernel_op_s *new_op = NULL;
+
+	ret = filemap_write_and_wait_range(file_inode(file)->i_mapping,
+	    start, end);
+	if (ret < 0)
+		return ret;
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_FSYNC);
 	if (!new_op)
@@ -641,6 +590,11 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 	return rc;
 }
 
+static int orangefs_flush(struct file *file, fl_owner_t id)
+{
+	return vfs_fsync(file, 0);
+}
+
 /** ORANGEFS implementation of VFS file operations */
 const struct file_operations orangefs_file_operations = {
 	.llseek		= orangefs_file_llseek,
@@ -650,6 +604,7 @@ const struct file_operations orangefs_file_operations = {
 	.unlocked_ioctl	= orangefs_ioctl,
 	.mmap		= orangefs_file_mmap,
 	.open		= generic_file_open,
+	.flush		= orangefs_flush,
 	.release	= orangefs_file_release,
 	.fsync		= orangefs_fsync,
 };

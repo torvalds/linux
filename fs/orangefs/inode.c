@@ -15,6 +15,50 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
+static int orangefs_writepage(struct page *page, struct writeback_control *wbc)
+{
+	struct inode *inode = page->mapping->host;
+	struct iov_iter iter;
+	struct bio_vec bv;
+	size_t len, wlen;
+	ssize_t ret;
+	loff_t off;
+
+	set_page_writeback(page);
+
+	off = page_offset(page);
+	len = i_size_read(inode);
+	if (off > len) {
+		/* The file was truncated; there is nothing to write. */
+		unlock_page(page);
+		end_page_writeback(page);
+		return 0;
+	}
+	if (off + PAGE_SIZE > len)
+		wlen = len - off;
+	else
+		wlen = PAGE_SIZE;
+
+	bv.bv_page = page;
+	bv.bv_len = wlen;
+	bv.bv_offset = off % PAGE_SIZE;
+	if (wlen == 0)
+		dump_stack();
+	iov_iter_bvec(&iter, WRITE, &bv, 1, wlen);
+
+	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
+	    len);
+	if (ret < 0) {
+		SetPageError(page);
+		mapping_set_error(page->mapping, ret);
+	} else {
+		ret = 0;
+	}
+	unlock_page(page);
+	end_page_writeback(page);
+	return ret;
+}
+
 static int orangefs_readpage(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
@@ -48,6 +92,15 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	return ret;
 }
 
+static int orangefs_write_end(struct file *file, struct address_space *mapping,
+    loff_t pos, unsigned len, unsigned copied, struct page *page, void *fsdata)
+{
+	int r;
+	r = simple_write_end(file, mapping, pos, len, copied, page, fsdata);
+	mark_inode_dirty_sync(file_inode(file));
+	return r;
+}
+
 static void orangefs_invalidatepage(struct page *page,
 				 unsigned int offset,
 				 unsigned int length)
@@ -77,17 +130,17 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 {
 	struct file *file = iocb->ki_filp;
 	loff_t pos = *(&iocb->ki_pos);
-	/*
-	 * This cannot happen until write_iter becomes
-	 * generic_file_write_iter.
-	 */
-	BUG_ON(iov_iter_rw(iter) != READ);
-	return do_readv_writev(ORANGEFS_IO_READ, file, &pos, iter);
+	return do_readv_writev(iov_iter_rw(iter) == WRITE ?
+	    ORANGEFS_IO_WRITE : ORANGEFS_IO_READ, file, &pos, iter);
 }
 
 /** ORANGEFS2 implementation of address space operations */
 static const struct address_space_operations orangefs_address_operations = {
+	.writepage = orangefs_writepage,
 	.readpage = orangefs_readpage,
+	.set_page_dirty = __set_page_dirty_nobuffers,
+	.write_begin = simple_write_begin,
+	.write_end = orangefs_write_end,
 	.invalidatepage = orangefs_invalidatepage,
 	.releasepage = orangefs_releasepage,
 	.direct_IO = orangefs_direct_IO,
