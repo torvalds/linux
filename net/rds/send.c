@@ -941,7 +941,8 @@ static int rds_cmsg_zcopy(struct rds_sock *rs, struct rds_message *rm,
 {
 	u32 *cookie;
 
-	if (cmsg->cmsg_len < CMSG_LEN(sizeof(*cookie)))
+	if (cmsg->cmsg_len < CMSG_LEN(sizeof(*cookie)) ||
+	    !rm->data.op_mmp_znotifier)
 		return -EINVAL;
 	cookie = CMSG_DATA(cmsg);
 	rm->data.op_mmp_znotifier->z_cookie = *cookie;
