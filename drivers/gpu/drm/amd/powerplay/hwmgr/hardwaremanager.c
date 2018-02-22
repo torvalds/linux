@@ -79,6 +79,11 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	bool enabled;
 	PHM_FUNC_CHECK(hwmgr);
 
+	if (smum_is_dpm_running(hwmgr)) {
+		pr_info("dpm has been enabled\n");
+		return 0;
+	}
+
 	if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
 		ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
 
@@ -95,6 +100,11 @@ int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	bool enabled;
 
 	PHM_FUNC_CHECK(hwmgr);
+
+	if (!smum_is_dpm_running(hwmgr)) {
+		pr_info("dpm has been disabled\n");
+		return 0;
+	}
 
 	if (hwmgr->hwmgr_func->dynamic_state_management_disable)
 		ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);

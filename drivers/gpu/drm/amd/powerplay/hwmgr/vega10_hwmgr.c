@@ -2859,11 +2859,6 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 	int tmp_result, result = 0;
 
-	tmp_result = (!smum_is_dpm_running(hwmgr)) ? 0 : -1;
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"DPM is already running right , skipping re-enablement!",
-			return 0);
-
 	if ((hwmgr->smu_version == 0x001c2c00) ||
 			(hwmgr->smu_version == 0x001c2d00))
 		smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -4686,11 +4681,6 @@ vega10_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmg
 static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
-
-	tmp_result = (smum_is_dpm_running(hwmgr)) ? 0 : -1;
-	PP_ASSERT_WITH_CODE(tmp_result == 0,
-			"DPM is not running right now, no need to disable DPM!",
-			return 0);
 
 	if (PP_CAP(PHM_PlatformCaps_ThermalController))
 		vega10_disable_thermal_protection(hwmgr);

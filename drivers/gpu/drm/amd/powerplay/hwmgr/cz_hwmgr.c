@@ -1011,10 +1011,6 @@ static void cz_reset_acp_boot_level(struct pp_hwmgr *hwmgr)
 
 static int cz_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	if (!smum_is_dpm_running(hwmgr)) {
-		pr_info("dpm has been disabled\n");
-		return 0;
-	}
 	cz_disable_nb_dpm(hwmgr);
 
 	cz_clear_voting_clients(hwmgr);
@@ -1026,11 +1022,6 @@ static int cz_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 static int cz_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	if (smum_is_dpm_running(hwmgr)) {
-		pr_info("dpm has been enabled\n");
-		return 0;
-	}
-
 	cz_program_voting_clients(hwmgr);
 	if (cz_start_dpm(hwmgr))
 		return -EINVAL;
