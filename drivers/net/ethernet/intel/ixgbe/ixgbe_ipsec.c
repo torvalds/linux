@@ -423,14 +423,20 @@ static int ixgbe_ipsec_parse_proto_keys(struct xfrm_state *xs,
 	const char aes_gcm_name[] = "rfc4106(gcm(aes))";
 	int key_len;
 
-	if (xs->aead) {
-		key_data = &xs->aead->alg_key[0];
-		key_len = xs->aead->alg_key_len;
-		alg_name = xs->aead->alg_name;
-	} else {
+	if (!xs->aead) {
 		netdev_err(dev, "Unsupported IPsec algorithm\n");
 		return -EINVAL;
 	}
+
+	if (xs->aead->alg_icv_len != IXGBE_IPSEC_AUTH_BITS) {
+		netdev_err(dev, "IPsec offload requires %d bit authentication\n",
+			   IXGBE_IPSEC_AUTH_BITS);
+		return -EINVAL;
+	}
+
+	key_data = &xs->aead->alg_key[0];
+	key_len = xs->aead->alg_key_len;
+	alg_name = xs->aead->alg_name;
 
 	if (strcmp(alg_name, aes_gcm_name)) {
 		netdev_err(dev, "Unsupported IPsec algorithm - please use %s\n",
