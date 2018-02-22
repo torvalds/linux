@@ -24,6 +24,7 @@
 #include <linux/platform_data/pinctrl-single.h>
 #include <linux/platform_data/hsmmc-omap.h>
 #include <linux/platform_data/iommu-omap.h>
+#include <linux/platform_data/ti-sysc.h>
 #include <linux/platform_data/wkup_m3.h>
 #include <linux/platform_data/pwm_omap_dmtimer.h>
 #include <linux/platform_data/media/ir-rx51.h>
@@ -455,6 +456,42 @@ static void __init dra7x_evm_mmc_quirk(void)
 }
 #endif
 
+static int ti_sysc_enable_module(struct device *dev,
+				 const struct ti_sysc_cookie *cookie)
+{
+	if (!cookie->data)
+		return -EINVAL;
+
+	return omap_hwmod_enable(cookie->data);
+}
+
+static int ti_sysc_idle_module(struct device *dev,
+			       const struct ti_sysc_cookie *cookie)
+{
+	if (!cookie->data)
+		return -EINVAL;
+
+	return omap_hwmod_idle(cookie->data);
+}
+
+static int ti_sysc_shutdown_module(struct device *dev,
+				   const struct ti_sysc_cookie *cookie)
+{
+	if (!cookie->data)
+		return -EINVAL;
+
+	return omap_hwmod_shutdown(cookie->data);
+}
+
+static struct of_dev_auxdata omap_auxdata_lookup[];
+
+static struct ti_sysc_platform_data ti_sysc_pdata = {
+	.auxdata = omap_auxdata_lookup,
+	.enable_module = ti_sysc_enable_module,
+	.idle_module = ti_sysc_idle_module,
+	.shutdown_module = ti_sysc_shutdown_module,
+};
+
 static struct pcs_pdata pcs_pdata;
 
 void omap_pcs_legacy_init(int irq, void (*rearm)(void))
@@ -545,7 +582,7 @@ static struct pdata_init auxdata_quirks[] __initdata = {
 
 struct omap_sr_data __maybe_unused omap_sr_pdata[OMAP_SR_NR];
 
-static struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
+static struct of_dev_auxdata omap_auxdata_lookup[] = {
 #ifdef CONFIG_MACH_NOKIA_N8X0
 	OF_DEV_AUXDATA("ti,omap2420-mmc", 0x4809c000, "mmci-omap.0", NULL),
 	OF_DEV_AUXDATA("menelaus", 0x72, "1-0072", &n8x0_menelaus_platform_data),
@@ -603,6 +640,7 @@ static struct of_dev_auxdata omap_auxdata_lookup[] __initdata = {
 		       &dra7_hsmmc_data_mmc3),
 #endif
 	/* Common auxdata */
+	OF_DEV_AUXDATA("ti,sysc", 0, NULL, &ti_sysc_pdata),
 	OF_DEV_AUXDATA("pinctrl-single", 0, NULL, &pcs_pdata),
 	{ /* sentinel */ },
 };

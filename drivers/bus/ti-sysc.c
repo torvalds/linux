@@ -25,13 +25,6 @@
 
 #include <dt-bindings/bus/ti-sysc.h>
 
-enum sysc_registers {
-	SYSC_REVISION,
-	SYSC_SYSCONFIG,
-	SYSC_SYSSTATUS,
-	SYSC_MAX_REGS,
-};
-
 static const char * const reg_names[] = { "rev", "sysc", "syss", };
 
 enum sysc_clocks {
@@ -70,6 +63,7 @@ struct sysc {
 	const char *legacy_mode;
 	const struct sysc_capabilities *cap;
 	struct sysc_config cfg;
+	struct ti_sysc_cookie cookie;
 	const char *name;
 	u32 revision;
 	bool enabled;
@@ -494,6 +488,7 @@ static void sysc_show_registers(struct sysc *ddata)
 		bufp += sysc_show_reg(ddata, bufp, i);
 
 	bufp += sysc_show_rev(bufp, ddata);
+	bufp += sysc_show_rev(bufp, ddata);
 
 	dev_dbg(ddata->dev, "%llx:%x%s\n",
 		ddata->module_pa, ddata->module_size,
@@ -502,13 +497,30 @@ static void sysc_show_registers(struct sysc *ddata)
 
 static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 {
+	struct ti_sysc_platform_data *pdata;
 	struct sysc *ddata;
-	int i;
+	int error = 0, i;
 
 	ddata = dev_get_drvdata(dev);
 
-	if (ddata->legacy_mode)
+	if (!ddata->enabled)
 		return 0;
+
+	if (ddata->legacy_mode) {
+		pdata = dev_get_platdata(ddata->dev);
+		if (!pdata)
+			return 0;
+
+		if (!pdata->idle_module)
+			return -ENODEV;
+
+		error = pdata->idle_module(dev, &ddata->cookie);
+		if (error)
+			dev_err(dev, "%s: could not idle: %i\n",
+				__func__, error);
+
+		goto idled;
+	}
 
 	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
 		if (IS_ERR_OR_NULL(ddata->clocks[i]))
@@ -516,18 +528,38 @@ static int __maybe_unused sysc_runtime_suspend(struct device *dev)
 		clk_disable(ddata->clocks[i]);
 	}
 
-	return 0;
+idled:
+	ddata->enabled = false;
+
+	return error;
 }
 
 static int __maybe_unused sysc_runtime_resume(struct device *dev)
 {
+	struct ti_sysc_platform_data *pdata;
 	struct sysc *ddata;
-	int i, error;
+	int error = 0, i;
 
 	ddata = dev_get_drvdata(dev);
 
-	if (ddata->legacy_mode)
+	if (ddata->enabled)
 		return 0;
+
+	if (ddata->legacy_mode) {
+		pdata = dev_get_platdata(ddata->dev);
+		if (!pdata)
+			return 0;
+
+		if (!pdata->enable_module)
+			return -ENODEV;
+
+		error = pdata->enable_module(dev, &ddata->cookie);
+		if (error)
+			dev_err(dev, "%s: could not enable: %i\n",
+				__func__, error);
+
+		goto awake;
+	}
 
 	for (i = 0; i < SYSC_MAX_CLOCKS; i++) {
 		if (IS_ERR_OR_NULL(ddata->clocks[i]))
@@ -537,7 +569,10 @@ static int __maybe_unused sysc_runtime_resume(struct device *dev)
 			return error;
 	}
 
-	return 0;
+awake:
+	ddata->enabled = true;
+
+	return error;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1007,6 +1042,33 @@ static const struct sysc_capabilities sysc_omap4_usb_host_fs = {
 	.regbits = &sysc_regbits_omap4_usb_host_fs,
 };
 
+static int sysc_init_pdata(struct sysc *ddata)
+{
+	struct ti_sysc_platform_data *pdata = dev_get_platdata(ddata->dev);
+	struct ti_sysc_module_data mdata;
+	int error = 0;
+
+	if (!pdata || !ddata->legacy_mode)
+		return 0;
+
+	mdata.name = ddata->legacy_mode;
+	mdata.module_pa = ddata->module_pa;
+	mdata.module_size = ddata->module_size;
+	mdata.offsets = ddata->offsets;
+	mdata.nr_offsets = SYSC_MAX_REGS;
+	mdata.cap = ddata->cap;
+	mdata.cfg = &ddata->cfg;
+
+	if (!pdata->init_module)
+		return -ENODEV;
+
+	error = pdata->init_module(ddata->dev, &mdata, &ddata->cookie);
+	if (error == -EEXIST)
+		error = 0;
+
+	return error;
+}
+
 static int sysc_init_match(struct sysc *ddata)
 {
 	const struct sysc_capabilities *cap;
@@ -1034,6 +1096,7 @@ static void ti_sysc_idle(struct work_struct *work)
 
 static int sysc_probe(struct platform_device *pdev)
 {
+	struct ti_sysc_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct sysc *ddata;
 	int error;
 
@@ -1072,6 +1135,10 @@ static int sysc_probe(struct platform_device *pdev)
 	if (error)
 		goto unprepare;
 
+	error = sysc_init_pdata(ddata);
+	if (error)
+		goto unprepare;
+
 	pm_runtime_enable(ddata->dev);
 
 	error = sysc_init_module(ddata);
@@ -1089,7 +1156,8 @@ static int sysc_probe(struct platform_device *pdev)
 
 	ddata->dev->type = &sysc_device_type;
 	error = of_platform_populate(ddata->dev->of_node,
-				     NULL, NULL, ddata->dev);
+				     NULL, pdata ? pdata->auxdata : NULL,
+				     ddata->dev);
 	if (error)
 		goto err;
 
