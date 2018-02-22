@@ -233,6 +233,7 @@ static void free_obj_work(struct work_struct *work)
 	 */
 	if (obj_nr_tofree) {
 		hlist_move_list(&obj_to_free, &tofree);
+		debug_objects_freed += obj_nr_tofree;
 		obj_nr_tofree = 0;
 	}
 	raw_spin_unlock_irqrestore(&pool_lock, flags);
