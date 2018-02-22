@@ -569,7 +569,8 @@ struct lpfc_sli4_hba {
 	/* IF type 0, BAR 0 and if type 2, BAR 0 doorbell register memory map */
 	void __iomem *RQDBregaddr;	/* RQ_DOORBELL register */
 	void __iomem *WQDBregaddr;	/* WQ_DOORBELL register */
-	void __iomem *EQCQDBregaddr;	/* EQCQ_DOORBELL register */
+	void __iomem *CQDBregaddr;	/* CQ_DOORBELL register */
+	void __iomem *EQDBregaddr;	/* EQ_DOORBELL register */
 	void __iomem *MQDBregaddr;	/* MQ_DOORBELL register */
 	void __iomem *BMBXregaddr;	/* BootStrap MBX register */
 

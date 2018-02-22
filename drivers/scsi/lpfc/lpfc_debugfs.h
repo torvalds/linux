@@ -126,12 +126,13 @@
 #define LPFC_DRB_ACC_WR_CMD_ARG 2
 #define LPFC_DRB_ACC_BUF_SIZE 256
 
-#define LPFC_DRB_EQCQ 1
-#define LPFC_DRB_MQ   2
-#define LPFC_DRB_WQ   3
-#define LPFC_DRB_RQ   4
+#define LPFC_DRB_EQ   1
+#define LPFC_DRB_CQ   2
+#define LPFC_DRB_MQ   3
+#define LPFC_DRB_WQ   4
+#define LPFC_DRB_RQ   5
 
-#define LPFC_DRB_MAX  4
+#define LPFC_DRB_MAX  5
 
 #define IDIAG_DRBACC_REGID_INDX 0
 #define IDIAG_DRBACC_VALUE_INDX 1

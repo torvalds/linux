@@ -7430,8 +7430,9 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 		phba->sli4_hba.WQDBregaddr =
 			phba->sli4_hba.conf_regs_memmap_p +
 						LPFC_ULP0_WQ_DOORBELL;
-		phba->sli4_hba.EQCQDBregaddr =
+		phba->sli4_hba.CQDBregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_EQCQ_DOORBELL;
+		phba->sli4_hba.EQDBregaddr = phba->sli4_hba.CQDBregaddr;
 		phba->sli4_hba.MQDBregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_MQ_DOORBELL;
 		phba->sli4_hba.BMBXregaddr =
@@ -7488,8 +7489,10 @@ lpfc_sli4_bar2_register_memmap(struct lpfc_hba *phba, uint32_t vf)
 	phba->sli4_hba.WQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
 				vf * LPFC_VFR_PAGE_SIZE +
 					LPFC_ULP0_WQ_DOORBELL);
-	phba->sli4_hba.EQCQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
-				vf * LPFC_VFR_PAGE_SIZE + LPFC_EQCQ_DOORBELL);
+	phba->sli4_hba.CQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
+				vf * LPFC_VFR_PAGE_SIZE +
+					LPFC_EQCQ_DOORBELL);
+	phba->sli4_hba.EQDBregaddr = phba->sli4_hba.CQDBregaddr;
 	phba->sli4_hba.MQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
 				vf * LPFC_VFR_PAGE_SIZE + LPFC_MQ_DOORBELL);
 	phba->sli4_hba.BMBXregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
