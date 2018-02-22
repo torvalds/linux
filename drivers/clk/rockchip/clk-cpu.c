@@ -155,29 +155,20 @@ static int rockchip_cpuclk_pre_rate_change(struct rockchip_cpuclk *cpuclk,
 			alt_div = reg_data->div_core_mask;
 		}
 
-		/*
-		 * Change parents and add dividers in a single transaction.
-		 *
-		 * NOTE: we do this in a single transaction so we're never
-		 * dividing the primary parent by the extra dividers that were
-		 * needed for the alt.
-		 */
 		pr_debug("%s: setting div %lu as alt-rate %lu > old-rate %lu\n",
 			 __func__, alt_div, alt_prate, ndata->old_rate);
 
+		/* add dividers */
 		writel(HIWORD_UPDATE(alt_div, reg_data->div_core_mask,
-					      reg_data->div_core_shift) |
-		       HIWORD_UPDATE(reg_data->mux_core_alt,
-				     reg_data->mux_core_mask,
-				     reg_data->mux_core_shift),
-		       cpuclk->reg_base + reg_data->core_reg);
-	} else {
-		/* select alternate parent */
-		writel(HIWORD_UPDATE(reg_data->mux_core_alt,
-				     reg_data->mux_core_mask,
-				     reg_data->mux_core_shift),
+				     reg_data->div_core_shift),
 		       cpuclk->reg_base + reg_data->core_reg);
 	}
+
+	/* select alternate parent */
+	writel(HIWORD_UPDATE(reg_data->mux_core_alt,
+			     reg_data->mux_core_mask,
+			     reg_data->mux_core_shift),
+	       cpuclk->reg_base + reg_data->core_reg);
 
 	spin_unlock_irqrestore(cpuclk->lock, flags);
 	return 0;
@@ -202,18 +193,15 @@ static int rockchip_cpuclk_post_rate_change(struct rockchip_cpuclk *cpuclk,
 	if (ndata->old_rate < ndata->new_rate)
 		rockchip_cpuclk_set_dividers(cpuclk, rate);
 
-	/*
-	 * post-rate change event, re-mux to primary parent and remove dividers.
-	 *
-	 * NOTE: we do this in a single transaction so we're never dividing the
-	 * primary parent by the extra dividers that were needed for the alt.
-	 */
+	/* re-mux to primary parent  */
+	writel(HIWORD_UPDATE(reg_data->mux_core_main,
+			     reg_data->mux_core_mask,
+			     reg_data->mux_core_shift),
+	       cpuclk->reg_base + reg_data->core_reg);
 
+	/* remove dividers */
 	writel(HIWORD_UPDATE(0, reg_data->div_core_mask,
-				reg_data->div_core_shift) |
-	       HIWORD_UPDATE(reg_data->mux_core_main,
-				reg_data->mux_core_mask,
-				reg_data->mux_core_shift),
+			     reg_data->div_core_shift),
 	       cpuclk->reg_base + reg_data->core_reg);
 
 	if (ndata->old_rate > ndata->new_rate)
