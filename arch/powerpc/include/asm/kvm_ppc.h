@@ -295,7 +295,6 @@ struct kvmppc_ops {
 				     const struct kvm_userspace_memory_region *mem,
 				     const struct kvm_memory_slot *old,
 				     const struct kvm_memory_slot *new);
-	int (*unmap_hva)(struct kvm *kvm, unsigned long hva);
 	int (*unmap_hva_range)(struct kvm *kvm, unsigned long start,
 			   unsigned long end);
 	int (*age_hva)(struct kvm *kvm, unsigned long start, unsigned long end);
