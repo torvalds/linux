@@ -6020,7 +6020,7 @@ intel_dp_init_connector_port_info(struct intel_digital_port *intel_dig_port)
 
 	encoder->hpd_pin = intel_hpd_pin_default(dev_priv, encoder->port);
 
-	switch (encoder->port) {
+	switch (intel_aux_port(dev_priv, encoder->port)) {
 	case PORT_A:
 		intel_dp->aux_power_domain = POWER_DOMAIN_AUX_A;
 		break;
@@ -6031,10 +6031,6 @@ intel_dp_init_connector_port_info(struct intel_digital_port *intel_dig_port)
 		intel_dp->aux_power_domain = POWER_DOMAIN_AUX_C;
 		break;
 	case PORT_D:
-		intel_dp->aux_power_domain = POWER_DOMAIN_AUX_D;
-		break;
-	case PORT_E:
-		/* FIXME: Check VBT for actual wiring of PORT E */
 		intel_dp->aux_power_domain = POWER_DOMAIN_AUX_D;
 		break;
 	case PORT_F:
