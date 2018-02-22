@@ -1418,13 +1418,13 @@ static void tda1997x_irq_rate(struct tda1997x_state *state, u8 *flags)
 	struct v4l2_subdev *sd = &state->sd;
 	u8 reg, source;
 
-	u8 irq_status, last_irq_status;
+	u8 irq_status;
 
 	source = io_read(sd, REG_INT_FLG_CLR_RATE);
 	io_write(sd, REG_INT_FLG_CLR_RATE, source);
 
 	/* read status regs */
-	last_irq_status = irq_status = tda1997x_read_activity_status_regs(sd);
+	irq_status = tda1997x_read_activity_status_regs(sd);
 
 	/*
 	 * read clock status reg until INT_FLG_CLR_RATE is still 0
