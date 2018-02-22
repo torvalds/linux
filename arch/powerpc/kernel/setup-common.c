@@ -919,6 +919,8 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_PPC64
 	if (!radix_enabled())
 		init_mm.context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
+#elif defined(CONFIG_PPC_8xx)
+	init_mm.context.slb_addr_limit = DEFAULT_MAP_WINDOW;
 #else
 #error	"context.addr_limit not initialized."
 #endif
