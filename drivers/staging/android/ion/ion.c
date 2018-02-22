@@ -522,7 +522,6 @@ DEFINE_SIMPLE_ATTRIBUTE(debug_shrink_fops, debug_shrink_get,
 
 void ion_device_add_heap(struct ion_heap *heap)
 {
-	struct dentry *debug_file;
 	struct ion_device *dev = internal_dev;
 	int ret;
 
@@ -556,12 +555,8 @@ void ion_device_add_heap(struct ion_heap *heap)
 		char debug_name[64];
 
 		snprintf(debug_name, 64, "%s_shrink", heap->name);
-		debug_file = debugfs_create_file(debug_name,
-						 0644, dev->debug_root, heap,
-						 &debug_shrink_fops);
-		if (!debug_file)
-			pr_err("Failed to create ion heap shrinker debugfs at %s\n",
-			       debug_name);
+		debugfs_create_file(debug_name, 0644, dev->debug_root,
+				    heap, &debug_shrink_fops);
 	}
 
 	dev->heap_cnt++;
