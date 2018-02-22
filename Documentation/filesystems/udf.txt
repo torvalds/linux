@@ -53,16 +53,8 @@ The following expect a offset from 0.
 
 	session=	Set the CDROM session (default= last session)
 	anchor=		Override standard anchor location. (default= 256)
-	volume=		Override the VolumeDesc location. (unused)
-	partition=	Override the PartitionDesc location. (unused)
 	lastblock=	Set the last block of the filesystem/
 
-The following expect a offset from the partition root.
-
-	fileset=	Override the fileset block location. (unused)
-	rootdir=	Override the root directory location. (unused)
-			WARNING: overriding the rootdir to a non-directory may
-				yield highly unpredictable results.
 -------------------------------------------------------------------------------
 
 

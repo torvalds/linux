@@ -222,10 +222,6 @@ struct udf_options {
 	unsigned int session;
 	unsigned int lastblock;
 	unsigned int anchor;
-	unsigned int volume;
-	unsigned short partition;
-	unsigned int fileset;
-	unsigned int rootdir;
 	unsigned int flags;
 	umode_t umask;
 	kgid_t gid;
@@ -366,10 +362,6 @@ static int udf_show_options(struct seq_file *seq, struct dentry *root)
 		seq_printf(seq, ",lastblock=%u", sbi->s_last_block);
 	if (sbi->s_anchor != 0)
 		seq_printf(seq, ",anchor=%u", sbi->s_anchor);
-	/*
-	 * volume, partition, fileset and rootdir seem to be ignored
-	 * currently
-	 */
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_UTF8))
 		seq_puts(seq, ",utf8");
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP) && sbi->s_nls_map)
@@ -482,13 +474,9 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 	int option;
 
 	uopt->novrs = 0;
-	uopt->partition = 0xFFFF;
 	uopt->session = 0xFFFFFFFF;
 	uopt->lastblock = 0;
 	uopt->anchor = 0;
-	uopt->volume = 0xFFFFFFFF;
-	uopt->rootdir = 0xFFFFFFFF;
-	uopt->fileset = 0xFFFFFFFF;
 	uopt->nls_map = NULL;
 
 	if (!options)
@@ -577,24 +565,10 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 			uopt->anchor = option;
 			break;
 		case Opt_volume:
-			if (match_int(args, &option))
-				return 0;
-			uopt->volume = option;
-			break;
 		case Opt_partition:
-			if (match_int(args, &option))
-				return 0;
-			uopt->partition = option;
-			break;
 		case Opt_fileset:
-			if (match_int(args, &option))
-				return 0;
-			uopt->fileset = option;
-			break;
 		case Opt_rootdir:
-			if (match_int(args, &option))
-				return 0;
-			uopt->rootdir = option;
+			/* Ignored (never implemented properly) */
 			break;
 		case Opt_utf8:
 			uopt->flags |= (1 << UDF_FLAG_UTF8);
