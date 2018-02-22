@@ -140,6 +140,14 @@ static void ilk_load_csc_matrix(struct drm_crtc_state *crtc_state)
 	int i, pipe = intel_crtc->pipe;
 	uint16_t coeffs[9] = { 0, };
 	struct intel_crtc_state *intel_crtc_state = to_intel_crtc_state(crtc_state);
+	bool limited_color_range = false;
+
+	/*
+	 * FIXME if there's a gamma LUT after the CSC, we should
+	 * do the range compression using the gamma LUT instead.
+	 */
+	if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv))
+		limited_color_range = intel_crtc_state->limited_color_range;
 
 	if (intel_crtc_state->ycbcr420) {
 		ilk_load_ycbcr_conversion_matrix(intel_crtc);
@@ -150,7 +158,7 @@ static void ilk_load_csc_matrix(struct drm_crtc_state *crtc_state)
 		const u64 *input;
 		u64 temp[9];
 
-		if (intel_crtc_state->limited_color_range)
+		if (limited_color_range)
 			input = ctm_mult_by_limited(temp, ctm->matrix);
 		else
 			input = ctm->matrix;
@@ -200,7 +208,7 @@ static void ilk_load_csc_matrix(struct drm_crtc_state *crtc_state)
 		 * into consideration.
 		 */
 		for (i = 0; i < 3; i++) {
-			if (intel_crtc_state->limited_color_range)
+			if (limited_color_range)
 				coeffs[i * 3 + i] =
 					ILK_CSC_COEFF_LIMITED_RANGE;
 			else
@@ -224,7 +232,7 @@ static void ilk_load_csc_matrix(struct drm_crtc_state *crtc_state)
 	if (INTEL_GEN(dev_priv) > 6) {
 		uint16_t postoff = 0;
 
-		if (intel_crtc_state->limited_color_range)
+		if (limited_color_range)
 			postoff = (16 * (1 << 12) / 255) & 0x1fff;
 
 		I915_WRITE(PIPE_CSC_POSTOFF_HI(pipe), postoff);
@@ -235,7 +243,7 @@ static void ilk_load_csc_matrix(struct drm_crtc_state *crtc_state)
 	} else {
 		uint32_t mode = CSC_MODE_YUV_TO_RGB;
 
-		if (intel_crtc_state->limited_color_range)
+		if (limited_color_range)
 			mode |= CSC_BLACK_SCREEN_OFFSET;
 
 		I915_WRITE(PIPE_CSC_MODE(pipe), mode);
