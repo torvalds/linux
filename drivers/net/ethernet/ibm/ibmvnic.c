@@ -461,7 +461,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 	if (!adapter->rx_pool)
 		return;
 
-	for (i = 0; i < adapter->num_active_rx_scrqs; i++) {
+	for (i = 0; i < adapter->num_active_rx_pools; i++) {
 		rx_pool = &adapter->rx_pool[i];
 
 		netdev_dbg(adapter->netdev, "Releasing rx_pool[%d]\n", i);
@@ -484,6 +484,7 @@ static void release_rx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->rx_pool);
 	adapter->rx_pool = NULL;
+	adapter->num_active_rx_pools = 0;
 }
 
 static int init_rx_pools(struct net_device *netdev)
@@ -507,6 +508,8 @@ static int init_rx_pools(struct net_device *netdev)
 		dev_err(dev, "Failed to allocate rx pools\n");
 		return -1;
 	}
+
+	adapter->num_active_rx_pools = rxadd_subcrqs;
 
 	for (i = 0; i < rxadd_subcrqs; i++) {
 		rx_pool = &adapter->rx_pool[i];
@@ -608,7 +611,7 @@ static void release_tx_pools(struct ibmvnic_adapter *adapter)
 	if (!adapter->tx_pool)
 		return;
 
-	for (i = 0; i < adapter->num_active_tx_scrqs; i++) {
+	for (i = 0; i < adapter->num_active_tx_pools; i++) {
 		netdev_dbg(adapter->netdev, "Releasing tx_pool[%d]\n", i);
 		tx_pool = &adapter->tx_pool[i];
 		kfree(tx_pool->tx_buff);
@@ -619,6 +622,7 @@ static void release_tx_pools(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->tx_pool);
 	adapter->tx_pool = NULL;
+	adapter->num_active_tx_pools = 0;
 }
 
 static int init_tx_pools(struct net_device *netdev)
@@ -634,6 +638,8 @@ static int init_tx_pools(struct net_device *netdev)
 				   sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
 	if (!adapter->tx_pool)
 		return -1;
+
+	adapter->num_active_tx_pools = tx_subcrqs;
 
 	for (i = 0; i < tx_subcrqs; i++) {
 		tx_pool = &adapter->tx_pool[i];
@@ -745,6 +751,7 @@ static int init_napi(struct ibmvnic_adapter *adapter)
 			       ibmvnic_poll, NAPI_POLL_WEIGHT);
 	}
 
+	adapter->num_active_rx_napi = adapter->req_rx_queues;
 	return 0;
 }
 
@@ -755,7 +762,7 @@ static void release_napi(struct ibmvnic_adapter *adapter)
 	if (!adapter->napi)
 		return;
 
-	for (i = 0; i < adapter->num_active_rx_scrqs; i++) {
+	for (i = 0; i < adapter->num_active_rx_napi; i++) {
 		if (&adapter->napi[i]) {
 			netdev_dbg(adapter->netdev,
 				   "Releasing napi[%d]\n", i);
@@ -765,6 +772,7 @@ static void release_napi(struct ibmvnic_adapter *adapter)
 
 	kfree(adapter->napi);
 	adapter->napi = NULL;
+	adapter->num_active_rx_napi = 0;
 }
 
 static int ibmvnic_login(struct net_device *netdev)
@@ -998,10 +1006,6 @@ static int init_resources(struct ibmvnic_adapter *adapter)
 		return rc;
 
 	rc = init_tx_pools(netdev);
-
-	adapter->num_active_tx_scrqs = adapter->req_tx_queues;
-	adapter->num_active_rx_scrqs = adapter->req_rx_queues;
-
 	return rc;
 }
 
@@ -1706,9 +1710,6 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 
 			release_napi(adapter);
 			init_napi(adapter);
-
-			adapter->num_active_tx_scrqs = adapter->req_tx_queues;
-			adapter->num_active_rx_scrqs = adapter->req_rx_queues;
 		} else {
 			rc = reset_tx_pools(adapter);
 			if (rc)
@@ -2398,19 +2399,10 @@ zero_page_failed:
 
 static void release_sub_crqs(struct ibmvnic_adapter *adapter, bool do_h_free)
 {
-	u64 num_tx_scrqs, num_rx_scrqs;
 	int i;
 
-	if (adapter->state == VNIC_PROBED) {
-		num_tx_scrqs = adapter->req_tx_queues;
-		num_rx_scrqs = adapter->req_rx_queues;
-	} else {
-		num_tx_scrqs = adapter->num_active_tx_scrqs;
-		num_rx_scrqs = adapter->num_active_rx_scrqs;
-	}
-
 	if (adapter->tx_scrq) {
-		for (i = 0; i < num_tx_scrqs; i++) {
+		for (i = 0; i < adapter->num_active_tx_scrqs; i++) {
 			if (!adapter->tx_scrq[i])
 				continue;
 
@@ -2429,10 +2421,11 @@ static void release_sub_crqs(struct ibmvnic_adapter *adapter, bool do_h_free)
 
 		kfree(adapter->tx_scrq);
 		adapter->tx_scrq = NULL;
+		adapter->num_active_tx_scrqs = 0;
 	}
 
 	if (adapter->rx_scrq) {
-		for (i = 0; i < num_rx_scrqs; i++) {
+		for (i = 0; i < adapter->num_active_rx_scrqs; i++) {
 			if (!adapter->rx_scrq[i])
 				continue;
 
@@ -2451,6 +2444,7 @@ static void release_sub_crqs(struct ibmvnic_adapter *adapter, bool do_h_free)
 
 		kfree(adapter->rx_scrq);
 		adapter->rx_scrq = NULL;
+		adapter->num_active_rx_scrqs = 0;
 	}
 }
 
@@ -2718,6 +2712,7 @@ static int init_sub_crqs(struct ibmvnic_adapter *adapter)
 	for (i = 0; i < adapter->req_tx_queues; i++) {
 		adapter->tx_scrq[i] = allqueues[i];
 		adapter->tx_scrq[i]->pool_index = i;
+		adapter->num_active_tx_scrqs++;
 	}
 
 	adapter->rx_scrq = kcalloc(adapter->req_rx_queues,
@@ -2728,6 +2723,7 @@ static int init_sub_crqs(struct ibmvnic_adapter *adapter)
 	for (i = 0; i < adapter->req_rx_queues; i++) {
 		adapter->rx_scrq[i] = allqueues[i + adapter->req_tx_queues];
 		adapter->rx_scrq[i]->scrq_num = i;
+		adapter->num_active_rx_scrqs++;
 	}
 
 	kfree(allqueues);
