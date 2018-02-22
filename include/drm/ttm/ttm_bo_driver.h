@@ -225,8 +225,7 @@ struct ttm_bo_driver {
 	/**
 	 * ttm_tt_create
 	 *
-	 * @bdev: pointer to a struct ttm_bo_device:
-	 * @size: Size of the data needed backing.
+	 * @bo: The buffer object to create the ttm for.
 	 * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
 	 *
 	 * Create a struct ttm_tt to back data with system memory pages.
@@ -234,8 +233,7 @@ struct ttm_bo_driver {
 	 * Returns:
 	 * NULL: Out of memory.
 	 */
-	struct ttm_tt *(*ttm_tt_create)(struct ttm_bo_device *bdev,
-					unsigned long size,
+	struct ttm_tt *(*ttm_tt_create)(struct ttm_buffer_object *bo,
 					uint32_t page_flags);
 
 	/**

@@ -110,9 +110,9 @@ static struct ttm_backend_func ttm_agp_func = {
 	.destroy = ttm_agp_destroy,
 };
 
-struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
+struct ttm_tt *ttm_agp_tt_create(struct ttm_buffer_object *bo,
 				 struct agp_bridge_data *bridge,
-				 unsigned long size, uint32_t page_flags)
+				 uint32_t page_flags)
 {
 	struct ttm_agp_backend *agp_be;
 
@@ -124,7 +124,7 @@ struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
 	agp_be->bridge = bridge;
 	agp_be->ttm.func = &ttm_agp_func;
 
-	if (ttm_tt_init(&agp_be->ttm, bdev, size, page_flags)) {
+	if (ttm_tt_init(&agp_be->ttm, bo, page_flags)) {
 		kfree(agp_be);
 		return NULL;
 	}

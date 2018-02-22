@@ -73,8 +73,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
 		return -EINVAL;
 	}
 
-	bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-					      page_flags);
+	bo->ttm = bdev->driver->ttm_tt_create(bo, page_flags);
 	if (unlikely(bo->ttm == NULL))
 		return -ENOMEM;
 
@@ -237,21 +236,21 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 	ttm->func->destroy(ttm);
 }
 
-void ttm_tt_init_fields(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
-			unsigned long size, uint32_t page_flags)
+void ttm_tt_init_fields(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
+			uint32_t page_flags)
 {
-	ttm->bdev = bdev;
-	ttm->num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	ttm->bdev = bo->bdev;
+	ttm->num_pages = bo->num_pages;
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
 	ttm->state = tt_unpopulated;
 	ttm->swap_storage = NULL;
 }
 
-int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
-		unsigned long size, uint32_t page_flags)
+int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
+		uint32_t page_flags)
 {
-	ttm_tt_init_fields(ttm, bdev, size, page_flags);
+	ttm_tt_init_fields(ttm, bo, page_flags);
 
 	if (ttm_tt_alloc_page_directory(ttm)) {
 		ttm_tt_destroy(ttm);
@@ -269,12 +268,12 @@ void ttm_tt_fini(struct ttm_tt *ttm)
 }
 EXPORT_SYMBOL(ttm_tt_fini);
 
-int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
-		    unsigned long size, uint32_t page_flags)
+int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
+		    uint32_t page_flags)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
-	ttm_tt_init_fields(ttm, bdev, size, page_flags);
+	ttm_tt_init_fields(ttm, bo, page_flags);
 
 	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	if (ttm_dma_tt_alloc_page_directory(ttm_dma)) {
@@ -286,13 +285,13 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 }
 EXPORT_SYMBOL(ttm_dma_tt_init);
 
-int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
-		   unsigned long size, uint32_t page_flags)
+int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
+		   uint32_t page_flags)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 	int ret;
 
-	ttm_tt_init_fields(ttm, bdev, size, page_flags);
+	ttm_tt_init_fields(ttm, bo, page_flags);
 
 	INIT_LIST_HEAD(&ttm_dma->pages_list);
 	if (page_flags & TTM_PAGE_FLAG_SG)

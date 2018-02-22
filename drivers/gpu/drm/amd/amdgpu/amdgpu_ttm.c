@@ -982,20 +982,20 @@ static struct ttm_backend_func amdgpu_backend_func = {
 	.destroy = &amdgpu_ttm_backend_destroy,
 };
 
-static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_bo_device *bdev,
-				    unsigned long size, uint32_t page_flags)
+static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
+					   uint32_t page_flags)
 {
 	struct amdgpu_device *adev;
 	struct amdgpu_ttm_tt *gtt;
 
-	adev = amdgpu_ttm_adev(bdev);
+	adev = amdgpu_ttm_adev(bo->bdev);
 
 	gtt = kzalloc(sizeof(struct amdgpu_ttm_tt), GFP_KERNEL);
 	if (gtt == NULL) {
 		return NULL;
 	}
 	gtt->ttm.ttm.func = &amdgpu_backend_func;
-	if (ttm_sg_tt_init(&gtt->ttm, bdev, size, page_flags)) {
+	if (ttm_sg_tt_init(&gtt->ttm, bo, page_flags)) {
 		kfree(gtt);
 		return NULL;
 	}

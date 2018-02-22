@@ -150,8 +150,7 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  * ttm_tt_init
  *
  * @ttm: The struct ttm_tt.
- * @bdev: pointer to a struct ttm_bo_device:
- * @size: Size of the data needed backing.
+ * @bo: The buffer object we create the ttm for.
  * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
  *
  * Create a struct ttm_tt to back data with system memory pages.
@@ -159,12 +158,12 @@ int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
  * Returns:
  * NULL: Out of memory.
  */
-int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
-		unsigned long size, uint32_t page_flags);
-int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
-		    unsigned long size, uint32_t page_flags);
-int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
-		   unsigned long size, uint32_t page_flags);
+int ttm_tt_init(struct ttm_tt *ttm, struct ttm_buffer_object *bo,
+		uint32_t page_flags);
+int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
+		    uint32_t page_flags);
+int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_buffer_object *bo,
+		   uint32_t page_flags);
 
 /**
  * ttm_tt_fini
@@ -254,9 +253,8 @@ void ttm_tt_unpopulate(struct ttm_tt *ttm);
 /**
  * ttm_agp_tt_create
  *
- * @bdev: Pointer to a struct ttm_bo_device.
+ * @bo: Buffer object we allocate the ttm for.
  * @bridge: The agp bridge this device is sitting on.
- * @size: Size of the data needed backing.
  * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
  *
  *
@@ -264,9 +262,9 @@ void ttm_tt_unpopulate(struct ttm_tt *ttm);
  * for TT memory. This function uses the linux agpgart interface to
  * bind and unbind memory backing a ttm_tt.
  */
-struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
+struct ttm_tt *ttm_agp_tt_create(struct ttm_buffer_object *bo,
 				 struct agp_bridge_data *bridge,
-				 unsigned long size, uint32_t page_flags);
+				 uint32_t page_flags);
 int ttm_agp_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx);
 void ttm_agp_tt_unpopulate(struct ttm_tt *ttm);
 #endif

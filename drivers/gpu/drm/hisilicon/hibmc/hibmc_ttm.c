@@ -200,8 +200,7 @@ static struct ttm_backend_func hibmc_tt_backend_func = {
 	.destroy = &hibmc_ttm_backend_destroy,
 };
 
-static struct ttm_tt *hibmc_ttm_tt_create(struct ttm_bo_device *bdev,
-					  unsigned long size,
+static struct ttm_tt *hibmc_ttm_tt_create(struct ttm_buffer_object *bo,
 					  u32 page_flags)
 {
 	struct ttm_tt *tt;
@@ -213,7 +212,7 @@ static struct ttm_tt *hibmc_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 	}
 	tt->func = &hibmc_tt_backend_func;
-	ret = ttm_tt_init(tt, bdev, size, page_flags);
+	ret = ttm_tt_init(tt, bo, page_flags);
 	if (ret) {
 		DRM_ERROR("failed to initialize ttm_tt: %d\n", ret);
 		kfree(tt);

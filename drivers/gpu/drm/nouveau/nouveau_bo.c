@@ -604,19 +604,17 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 }
 
 static struct ttm_tt *
-nouveau_ttm_tt_create(struct ttm_bo_device *bdev, unsigned long size,
-		      uint32_t page_flags)
+nouveau_ttm_tt_create(struct ttm_buffer_object *bo, uint32_t page_flags)
 {
 #if IS_ENABLED(CONFIG_AGP)
-	struct nouveau_drm *drm = nouveau_bdev(bdev);
+	struct nouveau_drm *drm = nouveau_bdev(bo->bdev);
 
 	if (drm->agp.bridge) {
-		return ttm_agp_tt_create(bdev, drm->agp.bridge, size,
-					 page_flags);
+		return ttm_agp_tt_create(bo, drm->agp.bridge, page_flags);
 	}
 #endif
 
-	return nouveau_sgdma_create_ttm(bdev, size, page_flags);
+	return nouveau_sgdma_create_ttm(bo, page_flags);
 }
 
 static int
