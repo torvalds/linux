@@ -344,14 +344,6 @@ bool amdgpu_get_bios(struct amdgpu_device *adev);
 bool amdgpu_read_bios(struct amdgpu_device *adev);
 
 /*
- * Dummy page
- */
-struct amdgpu_dummy_page {
-	struct page	*page;
-	dma_addr_t	addr;
-};
-
-/*
  * Clocks
  */
 
@@ -1505,7 +1497,7 @@ struct amdgpu_device {
 	/* MC */
 	struct amdgpu_gmc		gmc;
 	struct amdgpu_gart		gart;
-	struct amdgpu_dummy_page	dummy_page;
+	dma_addr_t			dummy_page_addr;
 	struct amdgpu_vm_manager	vm_manager;
 	struct amdgpu_vmhub             vmhub[AMDGPU_MAX_VMHUBS];
 
