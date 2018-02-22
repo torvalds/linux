@@ -1217,7 +1217,7 @@ static void cx231xx_config_tuner(struct cx231xx *dev)
 static int read_eeprom(struct cx231xx *dev, struct i2c_client *client,
 		       u8 *eedata, int len)
 {
-	int ret = 0;
+	int ret;
 	u8 start_offset = 0;
 	int len_todo = len;
 	u8 *eedata_cur = eedata;

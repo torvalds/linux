@@ -227,7 +227,7 @@ int go7007_snd_init(struct go7007 *go)
 {
 	static int dev;
 	struct go7007_snd *gosnd;
-	int ret = 0;
+	int ret;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;

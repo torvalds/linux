@@ -630,7 +630,7 @@ static void unregister_dvb(struct cx231xx_dvb *dvb)
 
 static int dvb_init(struct cx231xx *dev)
 {
-	int result = 0;
+	int result;
 	struct cx231xx_dvb *dvb;
 	struct i2c_adapter *tuner_i2c;
 	struct i2c_adapter *demod_i2c;
