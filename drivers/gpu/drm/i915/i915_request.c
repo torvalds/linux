@@ -1213,12 +1213,12 @@ static bool __i915_wait_request_check_and_reset(struct i915_request *request)
 }
 
 /**
- * i915_wait_request - wait until execution of request has finished
+ * i915_request_wait - wait until execution of request has finished
  * @rq: the request to wait upon
  * @flags: how to wait
  * @timeout: how long to wait in jiffies
  *
- * i915_wait_request() waits for the request to be completed, for a
+ * i915_request_wait() waits for the request to be completed, for a
  * maximum of @timeout jiffies (with MAX_SCHEDULE_TIMEOUT implying an
  * unbounded wait).
  *

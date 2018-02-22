@@ -876,7 +876,7 @@ static int igt_wait_reset(void *arg)
 
 	timeout = i915_request_wait(rq, I915_WAIT_LOCKED, 10);
 	if (timeout < 0) {
-		pr_err("i915_wait_request failed on a stuck request: err=%ld\n",
+		pr_err("i915_request_wait failed on a stuck request: err=%ld\n",
 		       timeout);
 		err = timeout;
 		goto out_rq;
