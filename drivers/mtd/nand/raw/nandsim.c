@@ -23,6 +23,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  */
 
+#define pr_fmt(fmt)  "[nandsim]" fmt
+
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -179,20 +181,17 @@ MODULE_PARM_DESC(bch,		 "Enable BCH ecc and set how many bits should "
 /* The largest possible page size */
 #define NS_LARGEST_PAGE_SIZE	4096
 
-/* The prefix for simulator output */
-#define NS_OUTPUT_PREFIX "[nandsim]"
-
 /* Simulator's output macros (logging, debugging, warning, error) */
 #define NS_LOG(args...) \
-	do { if (log) printk(KERN_DEBUG NS_OUTPUT_PREFIX " log: " args); } while(0)
+	do { if (log) pr_debug(" log: " args); } while(0)
 #define NS_DBG(args...) \
-	do { if (dbg) printk(KERN_DEBUG NS_OUTPUT_PREFIX " debug: " args); } while(0)
+	do { if (dbg) pr_debug(" debug: " args); } while(0)
 #define NS_WARN(args...) \
-	do { printk(KERN_WARNING NS_OUTPUT_PREFIX " warning: " args); } while(0)
+	do { pr_warn(" warning: " args); } while(0)
 #define NS_ERR(args...) \
-	do { printk(KERN_ERR NS_OUTPUT_PREFIX " error: " args); } while(0)
+	do { pr_err(" error: " args); } while(0)
 #define NS_INFO(args...) \
-	do { printk(KERN_INFO NS_OUTPUT_PREFIX " " args); } while(0)
+	do { pr_info(" " args); } while(0)
 
 /* Busy-wait delay macros (microseconds, milliseconds) */
 #define NS_UDELAY(us) \

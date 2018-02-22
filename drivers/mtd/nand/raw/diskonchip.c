@@ -409,7 +409,7 @@ static uint16_t __init doc200x_ident_chip(struct mtd_info *mtd, int nr)
 
 		ident.dword = readl(docptr + DoC_2k_CDSN_IO);
 		if (((ident.byte[0] << 8) | ident.byte[1]) == ret) {
-			printk(KERN_INFO "DiskOnChip 2000 responds to DWORD access\n");
+			pr_info("DiskOnChip 2000 responds to DWORD access\n");
 			this->read_buf = &doc2000_readbuf_dword;
 		}
 	}
@@ -436,7 +436,7 @@ static void __init doc2000_count_chips(struct mtd_info *mtd)
 			break;
 	}
 	doc->chips_per_floor = i;
-	printk(KERN_DEBUG "Detected %d chips per floor.\n", i);
+	pr_debug("Detected %d chips per floor.\n", i);
 }
 
 static int doc200x_wait(struct mtd_info *mtd, struct nand_chip *this)
@@ -932,14 +932,15 @@ static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat,
 
 		ret = doc_ecc_decode(rs_decoder, dat, calc_ecc);
 		if (ret > 0)
-			printk(KERN_ERR "doc200x_correct_data corrected %d errors\n", ret);
+			pr_err("doc200x_correct_data corrected %d errors\n",
+			       ret);
 	}
 	if (DoC_is_MillenniumPlus(doc))
 		WriteDOC(DOC_ECC_DIS, docptr, Mplus_ECCConf);
 	else
 		WriteDOC(DOC_ECC_DIS, docptr, ECCConf);
 	if (no_ecc_failures && mtd_is_eccerr(ret)) {
-		printk(KERN_ERR "suppressing ECC failure\n");
+		pr_err("suppressing ECC failure\n");
 		ret = 0;
 	}
 	return ret;
@@ -1012,11 +1013,11 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf, const ch
 		if (retlen != mtd->writesize)
 			continue;
 		if (ret) {
-			printk(KERN_WARNING "ECC error scanning DOC at 0x%x\n", offs);
+			pr_warn("ECC error scanning DOC at 0x%x\n", offs);
 		}
 		if (memcmp(buf, id, 6))
 			continue;
-		printk(KERN_INFO "Found DiskOnChip %s Media Header at 0x%x\n", id, offs);
+		pr_info("Found DiskOnChip %s Media Header at 0x%x\n", id, offs);
 		if (doc->mh0_page == -1) {
 			doc->mh0_page = offs >> this->page_shift;
 			if (!findmirror)
@@ -1027,7 +1028,7 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf, const ch
 		return 2;
 	}
 	if (doc->mh0_page == -1) {
-		printk(KERN_WARNING "DiskOnChip %s Media Header not found.\n", id);
+		pr_warn("DiskOnChip %s Media Header not found.\n", id);
 		return 0;
 	}
 	/* Only one mediaheader was found.  We want buf to contain a
@@ -1036,7 +1037,7 @@ static int __init find_media_headers(struct mtd_info *mtd, u_char *buf, const ch
 	ret = mtd_read(mtd, offs, mtd->writesize, &retlen, buf);
 	if (retlen != mtd->writesize) {
 		/* Insanity.  Give up. */
-		printk(KERN_ERR "Read DiskOnChip Media Header once, but can't reread it???\n");
+		pr_err("Read DiskOnChip Media Header once, but can't reread it???\n");
 		return 0;
 	}
 	return 1;
@@ -1066,11 +1067,11 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 	le16_to_cpus(&mh->FirstPhysicalEUN);
 	le32_to_cpus(&mh->FormattedSize);
 
-	printk(KERN_INFO "    DataOrgID        = %s\n"
-			 "    NumEraseUnits    = %d\n"
-			 "    FirstPhysicalEUN = %d\n"
-			 "    FormattedSize    = %d\n"
-			 "    UnitSizeFactor   = %d\n",
+	pr_info("    DataOrgID        = %s\n"
+		"    NumEraseUnits    = %d\n"
+		"    FirstPhysicalEUN = %d\n"
+		"    FormattedSize    = %d\n"
+		"    UnitSizeFactor   = %d\n",
 		mh->DataOrgID, mh->NumEraseUnits,
 		mh->FirstPhysicalEUN, mh->FormattedSize,
 		mh->UnitSizeFactor);
@@ -1090,7 +1091,7 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 			maxblocks = min(32768U, (maxblocks << 1) + psize);
 			mh->UnitSizeFactor--;
 		}
-		printk(KERN_WARNING "UnitSizeFactor=0x00 detected.  Correct value is assumed to be 0x%02x.\n", mh->UnitSizeFactor);
+		pr_warn("UnitSizeFactor=0x00 detected.  Correct value is assumed to be 0x%02x.\n", mh->UnitSizeFactor);
 	}
 
 	/* NOTE: The lines below modify internal variables of the NAND and MTD
@@ -1101,13 +1102,13 @@ static inline int __init nftl_partscan(struct mtd_info *mtd, struct mtd_partitio
 	if (mh->UnitSizeFactor != 0xff) {
 		this->bbt_erase_shift += (0xff - mh->UnitSizeFactor);
 		mtd->erasesize <<= (0xff - mh->UnitSizeFactor);
-		printk(KERN_INFO "Setting virtual erase size to %d\n", mtd->erasesize);
+		pr_info("Setting virtual erase size to %d\n", mtd->erasesize);
 		blocks = mtd->size >> this->bbt_erase_shift;
 		maxblocks = min(32768U, mtd->erasesize - psize);
 	}
 
 	if (blocks > maxblocks) {
-		printk(KERN_ERR "UnitSizeFactor of 0x%02x is inconsistent with device size.  Aborting.\n", mh->UnitSizeFactor);
+		pr_err("UnitSizeFactor of 0x%02x is inconsistent with device size.  Aborting.\n", mh->UnitSizeFactor);
 		goto out;
 	}
 
@@ -1178,14 +1179,14 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 	le32_to_cpus(&mh->FormatFlags);
 	le32_to_cpus(&mh->PercentUsed);
 
-	printk(KERN_INFO "    bootRecordID          = %s\n"
-			 "    NoOfBootImageBlocks   = %d\n"
-			 "    NoOfBinaryPartitions  = %d\n"
-			 "    NoOfBDTLPartitions    = %d\n"
-			 "    BlockMultiplerBits    = %d\n"
-			 "    FormatFlgs            = %d\n"
-			 "    OsakVersion           = %d.%d.%d.%d\n"
-			 "    PercentUsed           = %d\n",
+	pr_info("    bootRecordID          = %s\n"
+		"    NoOfBootImageBlocks   = %d\n"
+		"    NoOfBinaryPartitions  = %d\n"
+		"    NoOfBDTLPartitions    = %d\n"
+		"    BlockMultiplerBits    = %d\n"
+		"    FormatFlgs            = %d\n"
+		"    OsakVersion           = %d.%d.%d.%d\n"
+		"    PercentUsed           = %d\n",
 		mh->bootRecordID, mh->NoOfBootImageBlocks,
 		mh->NoOfBinaryPartitions,
 		mh->NoOfBDTLPartitions,
@@ -1200,13 +1201,13 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 
 	blocks = mtd->size >> vshift;
 	if (blocks > 32768) {
-		printk(KERN_ERR "BlockMultiplierBits=%d is inconsistent with device size.  Aborting.\n", mh->BlockMultiplierBits);
+		pr_err("BlockMultiplierBits=%d is inconsistent with device size.  Aborting.\n", mh->BlockMultiplierBits);
 		goto out;
 	}
 
 	blocks = doc->chips_per_floor << (this->chip_shift - this->phys_erase_shift);
 	if (inftl_bbt_write && (blocks > mtd->erasesize)) {
-		printk(KERN_ERR "Writeable BBTs spanning more than one erase block are not yet supported.  FIX ME!\n");
+		pr_err("Writeable BBTs spanning more than one erase block are not yet supported.  FIX ME!\n");
 		goto out;
 	}
 
@@ -1220,7 +1221,7 @@ static inline int __init inftl_partscan(struct mtd_info *mtd, struct mtd_partiti
 		le32_to_cpus(&ip->spareUnits);
 		le32_to_cpus(&ip->Reserved0);
 
-		printk(KERN_INFO	"    PARTITION[%d] ->\n"
+		pr_info("    PARTITION[%d] ->\n"
 			"        virtualUnits    = %d\n"
 			"        firstUnit       = %d\n"
 			"        lastUnit        = %d\n"
@@ -1306,7 +1307,7 @@ static int __init inftl_scan_bbt(struct mtd_info *mtd)
 	struct mtd_partition parts[5];
 
 	if (this->numchips > doc->chips_per_floor) {
-		printk(KERN_ERR "Multi-floor INFTL devices not yet supported.\n");
+		pr_err("Multi-floor INFTL devices not yet supported.\n");
 		return -EIO;
 	}
 
@@ -1434,7 +1435,8 @@ static int __init doc_probe(unsigned long physadr)
 		return -EBUSY;
 	virtadr = ioremap(physadr, DOC_IOREMAP_LEN);
 	if (!virtadr) {
-		printk(KERN_ERR "Diskonchip ioremap failed: 0x%x bytes at 0x%lx\n", DOC_IOREMAP_LEN, physadr);
+		pr_err("Diskonchip ioremap failed: 0x%x bytes at 0x%lx\n",
+		       DOC_IOREMAP_LEN, physadr);
 		ret = -EIO;
 		goto error_ioremap;
 	}
@@ -1493,7 +1495,7 @@ static int __init doc_probe(unsigned long physadr)
 			reg = DoC_Mplus_Toggle;
 			break;
 		case DOC_ChipID_DocMilPlus32:
-			printk(KERN_ERR "DiskOnChip Millennium Plus 32MB is not supported, ignoring.\n");
+			pr_err("DiskOnChip Millennium Plus 32MB is not supported, ignoring.\n");
 		default:
 			ret = -ENODEV;
 			goto notfound;
@@ -1509,7 +1511,7 @@ static int __init doc_probe(unsigned long physadr)
 	tmpb = ReadDOC_(virtadr, reg) & DOC_TOGGLE_BIT;
 	tmpc = ReadDOC_(virtadr, reg) & DOC_TOGGLE_BIT;
 	if ((tmp == tmpb) || (tmp != tmpc)) {
-		printk(KERN_WARNING "Possible DiskOnChip at 0x%lx failed TOGGLE test, dropping.\n", physadr);
+		pr_warn("Possible DiskOnChip at 0x%lx failed TOGGLE test, dropping.\n", physadr);
 		ret = -ENODEV;
 		goto notfound;
 	}
@@ -1543,12 +1545,13 @@ static int __init doc_probe(unsigned long physadr)
 		}
 		newval = ~newval;
 		if (oldval == newval) {
-			printk(KERN_DEBUG "Found alias of DOC at 0x%lx to 0x%lx\n", doc->physadr, physadr);
+			pr_debug("Found alias of DOC at 0x%lx to 0x%lx\n",
+				 doc->physadr, physadr);
 			goto notfound;
 		}
 	}
 
-	printk(KERN_NOTICE "DiskOnChip found at 0x%lx\n", physadr);
+	pr_notice("DiskOnChip found at 0x%lx\n", physadr);
 
 	len = sizeof(struct nand_chip) + sizeof(struct doc_priv) +
 	      (2 * sizeof(struct nand_bbt_descr));
@@ -1663,12 +1666,13 @@ static int __init init_nanddoc(void)
 	 */
 	rs_decoder = init_rs(10, 0x409, FCR, 1, NROOTS);
 	if (!rs_decoder) {
-		printk(KERN_ERR "DiskOnChip: Could not create a RS decoder\n");
+		pr_err("DiskOnChip: Could not create a RS decoder\n");
 		return -ENOMEM;
 	}
 
 	if (doc_config_location) {
-		printk(KERN_INFO "Using configured DiskOnChip probe address 0x%lx\n", doc_config_location);
+		pr_info("Using configured DiskOnChip probe address 0x%lx\n",
+			doc_config_location);
 		ret = doc_probe(doc_config_location);
 		if (ret < 0)
 			goto outerr;
@@ -1680,7 +1684,7 @@ static int __init init_nanddoc(void)
 	/* No banner message any more. Print a message if no DiskOnChip
 	   found, so the user knows we at least tried. */
 	if (!doclist) {
-		printk(KERN_INFO "No valid DiskOnChip devices found\n");
+		pr_info("No valid DiskOnChip devices found\n");
 		ret = -ENODEV;
 		goto outerr;
 	}

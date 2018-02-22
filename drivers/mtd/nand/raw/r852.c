@@ -7,6 +7,9 @@
  * published by the Free Software Foundation.
  */
 
+#define DRV_NAME "r852"
+#define pr_fmt(fmt)  DRV_NAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/jiffies.h>
@@ -932,7 +935,7 @@ static int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 		&dev->card_detect_work, 0);
 
 
-	printk(KERN_NOTICE DRV_NAME ": driver loaded successfully\n");
+	pr_notice("driver loaded successfully\n");
 	return 0;
 
 error10:
