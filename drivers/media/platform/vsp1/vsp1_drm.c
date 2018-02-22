@@ -109,8 +109,6 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 		if (ret == -ETIMEDOUT)
 			dev_err(vsp1->dev, "DRM pipeline stop timeout\n");
 
-		media_pipeline_stop(&pipe->output->entity.subdev.entity);
-
 		for (i = 0; i < ARRAY_SIZE(pipe->inputs); ++i) {
 			struct vsp1_rwpf *rpf = pipe->inputs[i];
 
@@ -223,13 +221,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 		return -EPIPE;
 	}
 
-	/*
-	 * Mark the pipeline as streaming and enable the VSP1. This will store
-	 * the pipeline pointer in all entities, which the s_stream handlers
-	 * will need. We don't start the entities themselves right at this point
-	 * as there's no plane configured yet, so we can't start processing
-	 * buffers.
-	 */
+	/* Enable the VSP1. */
 	ret = vsp1_device_get(vsp1);
 	if (ret < 0)
 		return ret;
@@ -240,14 +232,6 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	 */
 	drm_pipe->du_complete = cfg->callback;
 	drm_pipe->du_private = cfg->callback_data;
-
-	ret = media_pipeline_start(&pipe->output->entity.subdev.entity,
-					  &pipe->pipe);
-	if (ret < 0) {
-		dev_dbg(vsp1->dev, "%s: pipeline start failed\n", __func__);
-		vsp1_device_put(vsp1);
-		return ret;
-	}
 
 	/* Disable the display interrupts. */
 	vsp1_write(vsp1, VI6_DISP_IRQ_STA, 0);
