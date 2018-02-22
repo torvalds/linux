@@ -1206,7 +1206,7 @@ class Tui(object):
             row += 1
         if row == 3:
             self.screen.addstr(4, 1, 'No matching events reported yet')
-        else:
+        if row > 4:
             tavg = int(round(tcur / sleeptime)) if tcur > 0 else ''
             self.screen.addstr(row, 1, '%-40s %10d        %8s' %
                                ('Total', total, tavg), curses.A_BOLD)
