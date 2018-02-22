@@ -840,26 +840,6 @@ static char* obj_op_name(enum obj_operation_type op_type)
 }
 
 /*
- * Get a ceph client with specific addr and configuration, if one does
- * not exist create it.  Either way, ceph_opts is consumed by this
- * function.
- */
-static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
-{
-	struct rbd_client *rbdc;
-
-	mutex_lock_nested(&client_mutex, SINGLE_DEPTH_NESTING);
-	rbdc = rbd_client_find(ceph_opts);
-	if (rbdc)	/* using an existing client */
-		ceph_destroy_options(ceph_opts);
-	else
-		rbdc = rbd_client_create(ceph_opts);
-	mutex_unlock(&client_mutex);
-
-	return rbdc;
-}
-
-/*
  * Destroy ceph client
  *
  * Caller must hold rbd_client_list_lock.
@@ -885,6 +865,26 @@ static void rbd_put_client(struct rbd_client *rbdc)
 {
 	if (rbdc)
 		kref_put(&rbdc->kref, rbd_client_release);
+}
+
+/*
+ * Get a ceph client with specific addr and configuration, if one does
+ * not exist create it.  Either way, ceph_opts is consumed by this
+ * function.
+ */
+static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
+{
+	struct rbd_client *rbdc;
+
+	mutex_lock_nested(&client_mutex, SINGLE_DEPTH_NESTING);
+	rbdc = rbd_client_find(ceph_opts);
+	if (rbdc)	/* using an existing client */
+		ceph_destroy_options(ceph_opts);
+	else
+		rbdc = rbd_client_create(ceph_opts);
+	mutex_unlock(&client_mutex);
+
+	return rbdc;
 }
 
 static bool rbd_image_format_valid(u32 image_format)
