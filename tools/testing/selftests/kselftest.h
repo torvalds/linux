@@ -57,7 +57,8 @@ static inline int ksft_get_error_cnt(void) { return ksft_cnt.ksft_error; }
 
 static inline void ksft_print_header(void)
 {
-	printf("TAP version 13\n");
+	if (!(getenv("KSFT_TAP_LEVEL")))
+		printf("TAP version 13\n");
 }
 
 static inline void ksft_print_cnts(void)
