@@ -23,6 +23,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
+#include "xfs_shared.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_trans.h"
@@ -456,10 +457,12 @@ xfs_cui_recover(
 	 * transaction.  Normally, any work that needs to be deferred
 	 * gets attached to the same defer_ops that scheduled the
 	 * refcount update.  However, we're in log recovery here, so we
-	 * we create our own defer_ops and use that to finish up any
-	 * work that doesn't fit.
+	 * we use the passed in defer_ops and to finish up any work that
+	 * doesn't fit.  We need to reserve enough blocks to handle a
+	 * full btree split on either end of the refcount range.
 	 */
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
+			mp->m_refc_maxlevels * 2, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
 	cudp = xfs_trans_get_cud(tp, cuip);

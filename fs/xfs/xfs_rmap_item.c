@@ -23,6 +23,7 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
+#include "xfs_shared.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_trans.h"
@@ -470,7 +471,8 @@ xfs_rui_recover(
 		}
 	}
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
+			mp->m_rmap_maxlevels, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
 	rudp = xfs_trans_get_rud(tp, ruip);
