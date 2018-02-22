@@ -30,7 +30,6 @@ FULL_AMD_DISPLAY_PATH = $(FULL_AMD_PATH)/$(DISPLAY_FOLDER_NAME)
 ccflags-y := -I$(FULL_AMD_PATH)/include/asic_reg \
 	-I$(FULL_AMD_PATH)/include \
 	-I$(FULL_AMD_PATH)/amdgpu \
-	-I$(FULL_AMD_PATH)/scheduler \
 	-I$(FULL_AMD_PATH)/powerplay/inc \
 	-I$(FULL_AMD_PATH)/acp/include \
 	-I$(FULL_AMD_DISPLAY_PATH) \
