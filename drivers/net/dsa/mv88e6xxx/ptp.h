@@ -89,7 +89,7 @@ void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip);
 
 #else /* !CONFIG_NET_DSA_MV88E6XXX_PTP */
 
-static long mv88e6xxx_hwtstamp_work(struct ptp_clock_info *ptp)
+static inline long mv88e6xxx_hwtstamp_work(struct ptp_clock_info *ptp)
 {
 	return -1;
 }
@@ -99,7 +99,7 @@ static inline int mv88e6xxx_ptp_setup(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
-static void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
+static inline void mv88e6xxx_ptp_free(struct mv88e6xxx_chip *chip)
 {
 }
 
