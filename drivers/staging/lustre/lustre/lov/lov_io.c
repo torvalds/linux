@@ -483,7 +483,7 @@ lov_io_data_version_end(const struct lu_env *env, const struct cl_io_slice *ios)
 	struct lov_io_sub *sub;
 
 	list_for_each_entry(sub, &lio->lis_active, sub_linkage) {
-		lov_io_end_wrapper(env, sub->sub_io);
+		lov_io_end_wrapper(sub->sub_env, sub->sub_io);
 
 		parent->u.ci_data_version.dv_data_version +=
 			sub->sub_io->u.ci_data_version.dv_data_version;
