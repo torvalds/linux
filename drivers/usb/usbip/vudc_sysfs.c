@@ -105,10 +105,14 @@ static ssize_t usbip_sockfd_store(struct device *dev, struct device_attribute *a
 	if (rv != 0)
 		return -EINVAL;
 
+	if (!udc) {
+		dev_err(dev, "no device");
+		return -ENODEV;
+	}
 	spin_lock_irqsave(&udc->lock, flags);
 	/* Don't export what we don't have */
-	if (!udc || !udc->driver || !udc->pullup) {
-		dev_err(dev, "no device or gadget not bound");
+	if (!udc->driver || !udc->pullup) {
+		dev_err(dev, "gadget not bound");
 		ret = -ENODEV;
 		goto unlock;
 	}
