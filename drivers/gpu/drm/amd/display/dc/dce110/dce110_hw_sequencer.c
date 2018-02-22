@@ -2106,9 +2106,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 			return status;
 	}
 
-	/* pplib is notified if disp_num changed */
-	dc->hwss.set_bandwidth(dc, context, true);
-
 	/* to save power */
 	apply_min_clocks(dc, context, &clocks_state, false);
 
