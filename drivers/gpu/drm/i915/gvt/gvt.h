@@ -132,11 +132,9 @@ struct intel_vgpu_opregion {
 
 #define vgpu_opregion(vgpu) (&(vgpu->opregion))
 
-#define INTEL_GVT_MAX_PORT 5
-
 struct intel_vgpu_display {
 	struct intel_vgpu_i2c_edid i2c_edid;
-	struct intel_vgpu_port ports[INTEL_GVT_MAX_PORT];
+	struct intel_vgpu_port ports[I915_MAX_PORTS];
 	struct intel_vgpu_sbi sbi;
 };
 
