@@ -6,7 +6,7 @@
 #include "imx6ull-colibri.dtsi"
 
 / {
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x20000000>;
 	};
 

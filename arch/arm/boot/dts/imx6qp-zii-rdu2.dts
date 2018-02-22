@@ -49,7 +49,7 @@
 	compatible = "zii,imx6qp-zii-rdu2", "fsl,imx6qp";
 
 	/* Will be filled by the bootloader */
-	memory {
-		reg = <0 0>;
+	memory@10000000 {
+		reg = <0x10000000 0>;
 	};
 };

@@ -49,8 +49,8 @@
 	compatible = "technologic,imx6q-ts7970", "fsl,imx6q";
 
 	/* Will be filled by the bootloader */
-	memory {
-		reg = <0 0>;
+	memory@10000000 {
+		reg = <0x10000000 0>;
 	};
 };
 
