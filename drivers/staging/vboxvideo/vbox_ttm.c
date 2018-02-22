@@ -331,7 +331,7 @@ int vbox_bo_create(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&vbox->ttm.bdev, &vboxbo->bo, size,
 			  ttm_bo_type_device, &vboxbo->placement,
-			  align >> PAGE_SHIFT, false, NULL, acc_size,
+			  align >> PAGE_SHIFT, false, acc_size,
 			  NULL, NULL, vbox_bo_ttm_destroy);
 	if (ret)
 		goto err_free_vboxbo;

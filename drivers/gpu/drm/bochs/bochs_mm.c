@@ -368,7 +368,7 @@ static int bochs_bo_create(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&bochs->ttm.bdev, &bochsbo->bo, size,
 			  ttm_bo_type_device, &bochsbo->placement,
-			  align >> PAGE_SHIFT, false, NULL, acc_size,
+			  align >> PAGE_SHIFT, false, acc_size,
 			  NULL, NULL, bochs_bo_ttm_destroy);
 	if (ret)
 		return ret;

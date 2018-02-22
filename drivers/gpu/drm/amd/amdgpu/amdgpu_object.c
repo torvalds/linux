@@ -418,8 +418,8 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev,
 	amdgpu_ttm_placement_from_domain(bo, domain);
 
 	r = ttm_bo_init_reserved(&adev->mman.bdev, &bo->tbo, size, type,
-				 &bo->placement, page_align, &ctx, NULL,
-				 acc_size, sg, resv, &amdgpu_ttm_bo_destroy);
+				 &bo->placement, page_align, &ctx, acc_size,
+				 sg, resv, &amdgpu_ttm_bo_destroy);
 	if (unlikely(r != 0))
 		return r;
 

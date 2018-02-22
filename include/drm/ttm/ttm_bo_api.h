@@ -467,11 +467,6 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
  * @flags: Initial placement flags.
  * @page_alignment: Data alignment in pages.
  * @ctx: TTM operation context for memory allocation.
- * @persistent_swap_storage: Usually the swap storage is deleted for buffers
- * pinned in physical memory. If this behaviour is not desired, this member
- * holds a pointer to a persistent shmem object. Typically, this would
- * point to the shmem object backing a GEM object if TTM is used to back a
- * GEM user interface.
  * @acc_size: Accounted size for this object.
  * @resv: Pointer to a reservation_object, or NULL to let ttm allocate one.
  * @destroy: Destroy function. Use NULL for kfree().
@@ -504,7 +499,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
 			 struct ttm_operation_ctx *ctx,
-			 struct file *persistent_swap_storage,
 			 size_t acc_size,
 			 struct sg_table *sg,
 			 struct reservation_object *resv,
@@ -521,7 +515,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
  * @page_alignment: Data alignment in pages.
  * @interruptible: If needing to sleep to wait for GPU resources,
  * sleep interruptible.
- * @persistent_swap_storage: Usually the swap storage is deleted for buffers
  * pinned in physical memory. If this behaviour is not desired, this member
  * holds a pointer to a persistent shmem object. Typically, this would
  * point to the shmem object backing a GEM object if TTM is used to back a
@@ -551,8 +544,7 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 int ttm_bo_init(struct ttm_bo_device *bdev, struct ttm_buffer_object *bo,
 		unsigned long size, enum ttm_bo_type type,
 		struct ttm_placement *placement,
-		uint32_t page_alignment, bool interrubtible,
-		struct file *persistent_swap_storage, size_t acc_size,
+		uint32_t page_alignment, bool interrubtible, size_t acc_size,
 		struct sg_table *sg, struct reservation_object *resv,
 		void (*destroy) (struct ttm_buffer_object *));
 
@@ -566,11 +558,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev, struct ttm_buffer_object *bo,
  * @page_alignment: Data alignment in pages.
  * @interruptible: If needing to sleep while waiting for GPU resources,
  * sleep interruptible.
- * @persistent_swap_storage: Usually the swap storage is deleted for buffers
- * pinned in physical memory. If this behaviour is not desired, this member
- * holds a pointer to a persistent shmem object. Typically, this would
- * point to the shmem object backing a GEM object if TTM is used to back a
- * GEM user interface.
  * @p_bo: On successful completion *p_bo points to the created object.
  *
  * This function allocates a ttm_buffer_object, and then calls ttm_bo_init
@@ -583,7 +570,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev, struct ttm_buffer_object *bo,
 int ttm_bo_create(struct ttm_bo_device *bdev, unsigned long size,
 		  enum ttm_bo_type type, struct ttm_placement *placement,
 		  uint32_t page_alignment, bool interruptible,
-		  struct file *persistent_swap_storage,
 		  struct ttm_buffer_object **p_bo);
 
 /**

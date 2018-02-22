@@ -255,8 +255,8 @@ int radeon_bo_create(struct radeon_device *rdev,
 	/* Kernel allocation are uninterruptible */
 	down_read(&rdev->pm.mclk_lock);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, page_align, !kernel, NULL,
-			acc_size, sg, resv, &radeon_ttm_bo_destroy);
+			&bo->placement, page_align, !kernel, acc_size,
+			sg, resv, &radeon_ttm_bo_destroy);
 	up_read(&rdev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
 		return r;

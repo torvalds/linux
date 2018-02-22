@@ -1149,7 +1149,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 			 struct ttm_placement *placement,
 			 uint32_t page_alignment,
 			 struct ttm_operation_ctx *ctx,
-			 struct file *persistent_swap_storage,
 			 size_t acc_size,
 			 struct sg_table *sg,
 			 struct reservation_object *resv,
@@ -1202,7 +1201,6 @@ int ttm_bo_init_reserved(struct ttm_bo_device *bdev,
 	bo->mem.bus.io_reserved_count = 0;
 	bo->moving = NULL;
 	bo->mem.placement = (TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED);
-	bo->persistent_swap_storage = persistent_swap_storage;
 	bo->acc_size = acc_size;
 	bo->sg = sg;
 	if (resv) {
@@ -1261,7 +1259,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		struct ttm_placement *placement,
 		uint32_t page_alignment,
 		bool interruptible,
-		struct file *persistent_swap_storage,
 		size_t acc_size,
 		struct sg_table *sg,
 		struct reservation_object *resv,
@@ -1271,8 +1268,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	int ret;
 
 	ret = ttm_bo_init_reserved(bdev, bo, size, type, placement,
-				   page_alignment, &ctx,
-				   persistent_swap_storage, acc_size,
+				   page_alignment, &ctx, acc_size,
 				   sg, resv, destroy);
 	if (ret)
 		return ret;
@@ -1318,7 +1314,6 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 			struct ttm_placement *placement,
 			uint32_t page_alignment,
 			bool interruptible,
-			struct file *persistent_swap_storage,
 			struct ttm_buffer_object **p_bo)
 {
 	struct ttm_buffer_object *bo;
@@ -1331,7 +1326,7 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 
 	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct ttm_buffer_object));
 	ret = ttm_bo_init(bdev, bo, size, type, placement, page_alignment,
-			  interruptible, persistent_swap_storage, acc_size,
+			  interruptible, acc_size,
 			  NULL, NULL, NULL);
 	if (likely(ret == 0))
 		*p_bo = bo;
