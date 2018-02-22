@@ -1965,17 +1965,10 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 		return -EINVAL;
 
 	/*
-	 * Some devices don't support bulk write, for
-	 * them we have a series of single write operations in the first two if
-	 * blocks.
-	 *
-	 * The first if block is used for memory mapped io. It does not allow
-	 * val_bytes of 3 for example.
-	 * The second one is for busses that do not provide raw I/O.
-	 * The third one is used for busses which do not have these limitations
-	 * and can write arbitrary value lengths.
+	 * Some devices don't support bulk write, for them we have a series of
+	 * single write operations.
 	 */
-	if (!map->bus) {
+	if (!map->bus || !map->format.parse_inplace) {
 		map->lock(map->lock_arg);
 		for (i = 0; i < val_count; i++) {
 			unsigned int ival;
@@ -2008,32 +2001,6 @@ int regmap_bulk_write(struct regmap *map, unsigned int reg, const void *val,
 		}
 out:
 		map->unlock(map->lock_arg);
-	} else if (map->bus && !map->format.parse_inplace) {
-		const u8 *u8 = val;
-		const u16 *u16 = val;
-		const u32 *u32 = val;
-		unsigned int ival;
-
-		for (i = 0; i < val_count; i++) {
-			switch (map->format.val_bytes) {
-			case 4:
-				ival = u32[i];
-				break;
-			case 2:
-				ival = u16[i];
-				break;
-			case 1:
-				ival = u8[i];
-				break;
-			default:
-				return -EINVAL;
-			}
-
-			ret = regmap_write(map, reg + regmap_get_offset(map, i),
-					   ival);
-			if (ret)
-				return ret;
-		}
 	} else {
 		void *wval;
 
