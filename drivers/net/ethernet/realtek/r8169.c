@@ -8512,10 +8512,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->txd_version = rtl_chip_infos[chipset].txd_version;
 
 	RTL_W8(Cfg9346, Cfg9346_Unlock);
-	RTL_W8(Config1, RTL_R8(Config1) | PMEnable);
-	RTL_W8(Config5, RTL_R8(Config5) & (BWF | MWF | UWF | LanWake | PMEStatus));
 	tp->features |= rtl_try_msi(tp, cfg);
 	RTL_W8(Cfg9346, Cfg9346_Lock);
+
+	/* override BIOS settings, use userspace tools to enable WOL */
+	__rtl8169_set_wol(tp, 0);
 
 	if (rtl_tbi_enabled(tp)) {
 		tp->set_speed = rtl8169_set_speed_tbi;
