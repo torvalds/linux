@@ -1232,10 +1232,15 @@ F:	Documentation/devicetree/bindings/i2c/i2c-aspeed.txt
 
 ARM/ASPEED MACHINE SUPPORT
 M:	Joel Stanley <joel@jms.id.au>
-S:	Maintained
+R:	Andrew Jeffery <andrew@aj.id.au>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+L:	linux-aspeed@lists.ozlabs.org (moderated for non-subscribers)
+Q:	https://patchwork.ozlabs.org/project/linux-aspeed/list/
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joel/aspeed.git
 F:	arch/arm/mach-aspeed/
 F:	arch/arm/boot/dts/aspeed-*
-F:	drivers/*/*aspeed*
+N:	aspeed
 
 ARM/ATMEL AT91 Clock Support
 M:	Boris Brezillon <boris.brezillon@free-electrons.com>
