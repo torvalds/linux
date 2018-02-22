@@ -670,7 +670,7 @@ static int lst_test_add_ioctl(struct lstio_test_args *args)
 			     args->lstio_tes_param_len,
 			     &ret, args->lstio_tes_resultp);
 
-	if (ret)
+	if (!rc && ret)
 		rc = (copy_to_user(args->lstio_tes_retp, &ret,
 				   sizeof(ret))) ? -EFAULT : 0;
 out:
