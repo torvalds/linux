@@ -206,6 +206,50 @@ static int sysc_parse_and_check_child_range(struct sysc *ddata)
 	return 0;
 }
 
+static struct device_node *stdout_path;
+
+static void sysc_init_stdout_path(struct sysc *ddata)
+{
+	struct device_node *np = NULL;
+	const char *uart;
+
+	if (IS_ERR(stdout_path))
+		return;
+
+	if (stdout_path)
+		return;
+
+	np = of_find_node_by_path("/chosen");
+	if (!np)
+		goto err;
+
+	uart = of_get_property(np, "stdout-path", NULL);
+	if (!uart)
+		goto err;
+
+	np = of_find_node_by_path(uart);
+	if (!np)
+		goto err;
+
+	stdout_path = np;
+
+	return;
+
+err:
+	stdout_path = ERR_PTR(-ENODEV);
+}
+
+static void sysc_check_quirk_stdout(struct sysc *ddata,
+				    struct device_node *np)
+{
+	sysc_init_stdout_path(ddata);
+	if (np != stdout_path)
+		return;
+
+	ddata->cfg.quirks |= SYSC_QUIRK_NO_IDLE_ON_INIT |
+				SYSC_QUIRK_NO_RESET_ON_INIT;
+}
+
 /**
  * sysc_check_one_child - check child configuration
  * @ddata: device driver data
@@ -223,6 +267,8 @@ static int sysc_check_one_child(struct sysc *ddata,
 	name = of_get_property(np, "ti,hwmods", NULL);
 	if (name)
 		dev_warn(ddata->dev, "really a child ti,hwmods property?");
+
+	sysc_check_quirk_stdout(ddata, np);
 
 	return 0;
 }
