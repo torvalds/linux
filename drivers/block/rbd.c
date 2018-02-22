@@ -867,6 +867,23 @@ static void rbd_put_client(struct rbd_client *rbdc)
 		kref_put(&rbdc->kref, rbd_client_release);
 }
 
+static int wait_for_latest_osdmap(struct ceph_client *client)
+{
+	u64 newest_epoch;
+	int ret;
+
+	ret = ceph_monc_get_version(&client->monc, "osdmap", &newest_epoch);
+	if (ret)
+		return ret;
+
+	if (client->osdc.osdmap->epoch >= newest_epoch)
+		return 0;
+
+	ceph_osdc_maybe_request_map(&client->osdc);
+	return ceph_monc_wait_osdmap(&client->monc, newest_epoch,
+				     client->options->mount_timeout);
+}
+
 /*
  * Get a ceph client with specific addr and configuration, if one does
  * not exist create it.  Either way, ceph_opts is consumed by this
@@ -875,13 +892,26 @@ static void rbd_put_client(struct rbd_client *rbdc)
 static struct rbd_client *rbd_get_client(struct ceph_options *ceph_opts)
 {
 	struct rbd_client *rbdc;
+	int ret;
 
 	mutex_lock_nested(&client_mutex, SINGLE_DEPTH_NESTING);
 	rbdc = rbd_client_find(ceph_opts);
-	if (rbdc)	/* using an existing client */
+	if (rbdc) {
 		ceph_destroy_options(ceph_opts);
-	else
+
+		/*
+		 * Using an existing client.  Make sure ->pg_pools is up to
+		 * date before we look up the pool id in do_rbd_add().
+		 */
+		ret = wait_for_latest_osdmap(rbdc->client);
+		if (ret) {
+			rbd_warn(NULL, "failed to get latest osdmap: %d", ret);
+			rbd_put_client(rbdc);
+			rbdc = ERR_PTR(ret);
+		}
+	} else {
 		rbdc = rbd_client_create(ceph_opts);
+	}
 	mutex_unlock(&client_mutex);
 
 	return rbdc;
@@ -5185,39 +5215,6 @@ out_err:
 	return ret;
 }
 
-/*
- * Return pool id (>= 0) or a negative error code.
- */
-static int rbd_add_get_pool_id(struct rbd_client *rbdc, const char *pool_name)
-{
-	struct ceph_options *opts = rbdc->client->options;
-	u64 newest_epoch;
-	int tries = 0;
-	int ret;
-
-again:
-	ret = ceph_pg_poolid_by_name(rbdc->client->osdc.osdmap, pool_name);
-	if (ret == -ENOENT && tries++ < 1) {
-		ret = ceph_monc_get_version(&rbdc->client->monc, "osdmap",
-					    &newest_epoch);
-		if (ret < 0)
-			return ret;
-
-		if (rbdc->client->osdc.osdmap->epoch < newest_epoch) {
-			ceph_osdc_maybe_request_map(&rbdc->client->osdc);
-			(void) ceph_monc_wait_osdmap(&rbdc->client->monc,
-						     newest_epoch,
-						     opts->mount_timeout);
-			goto again;
-		} else {
-			/* the osdmap we have is new enough */
-			return -ENOENT;
-		}
-	}
-
-	return ret;
-}
-
 static void rbd_dev_image_unlock(struct rbd_device *rbd_dev)
 {
 	down_write(&rbd_dev->lock_rwsem);
@@ -5646,7 +5643,7 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	}
 
 	/* pick the pool */
-	rc = rbd_add_get_pool_id(rbdc, spec->pool_name);
+	rc = ceph_pg_poolid_by_name(rbdc->client->osdc.osdmap, spec->pool_name);
 	if (rc < 0) {
 		if (rc == -ENOENT)
 			pr_info("pool %s does not exist\n", spec->pool_name);
