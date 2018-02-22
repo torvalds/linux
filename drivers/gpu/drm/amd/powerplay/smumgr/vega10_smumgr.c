@@ -317,6 +317,18 @@ int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static bool vega10_is_dpm_running(struct pp_hwmgr *hwmgr)
+{
+	uint32_t features_enabled = 0;
+
+	vega10_get_smc_features(hwmgr, &features_enabled);
+
+	if (features_enabled & SMC_DPM_FEATURES)
+		return true;
+	else
+		return false;
+}
+
 int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_smumgr *priv =
@@ -583,4 +595,5 @@ const struct pp_smumgr_func vega10_smu_funcs = {
 	.send_msg_to_smc_with_parameter = &vega10_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
+	.is_dpm_running = vega10_is_dpm_running,
 };

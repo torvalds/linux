@@ -171,7 +171,6 @@ struct cz_power_state {
 #define DPMFlags_Debug				0x80000000
 
 #define SMU_EnabledFeatureScoreboard_AcpDpmOn   0x00000001 /* bit 0 */
-#define SMU_EnabledFeatureScoreboard_SclkDpmOn    0x00200000
 #define SMU_EnabledFeatureScoreboard_UvdDpmOn   0x00800000 /* bit 23 */
 #define SMU_EnabledFeatureScoreboard_VceDpmOn   0x01000000 /* bit 24 */
 

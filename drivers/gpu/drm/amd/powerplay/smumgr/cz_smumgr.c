@@ -855,6 +855,29 @@ static int cz_smu_fini(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static bool cz_dpm_check_smu_features(struct pp_hwmgr *hwmgr,
+				unsigned long check_feature)
+{
+	int result;
+	unsigned long features;
+
+	result = cz_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetFeatureStatus, 0);
+	if (result == 0) {
+		features = smum_get_argument(hwmgr);
+		if (features & check_feature)
+			return true;
+	}
+
+	return false;
+}
+
+static bool cz_is_dpm_running(struct pp_hwmgr *hwmgr)
+{
+	if (cz_dpm_check_smu_features(hwmgr, SMU_EnabledFeatureScoreboard_SclkDpmOn))
+		return true;
+	return false;
+}
+
 const struct pp_smumgr_func cz_smu_funcs = {
 	.smu_init = cz_smu_init,
 	.smu_fini = cz_smu_fini,
@@ -867,5 +890,6 @@ const struct pp_smumgr_func cz_smu_funcs = {
 	.send_msg_to_smc_with_parameter = cz_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = cz_download_pptable_settings,
 	.upload_pptable_settings = cz_upload_pptable_settings,
+	.is_dpm_running = cz_is_dpm_running,
 };
 

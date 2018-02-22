@@ -931,17 +931,6 @@ static int vega10_setup_asic_task(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static bool vega10_is_dpm_running(struct pp_hwmgr *hwmgr)
-{
-	uint32_t features_enabled;
-
-	if (!vega10_get_smc_features(hwmgr, &features_enabled)) {
-		if (features_enabled & SMC_DPM_FEATURES)
-			return true;
-	}
-	return false;
-}
-
 /**
 * Remove repeated voltage values and create table with unique values.
 *
@@ -2874,7 +2863,7 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_NumOfDisplays, 0);
 
-	tmp_result = (!vega10_is_dpm_running(hwmgr)) ? 0 : -1;
+	tmp_result = (!smum_is_dpm_running(hwmgr)) ? 0 : -1;
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"DPM is already running right , skipping re-enablement!",
 			return 0);
@@ -4699,7 +4688,7 @@ static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
 
-	tmp_result = (vega10_is_dpm_running(hwmgr)) ? 0 : -1;
+	tmp_result = (smum_is_dpm_running(hwmgr)) ? 0 : -1;
 	PP_ASSERT_WITH_CODE(tmp_result == 0,
 			"DPM is not running right now, no need to disable DPM!",
 			return 0);

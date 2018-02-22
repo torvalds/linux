@@ -31,6 +31,8 @@
 #define CZ_SCRATCH_SIZE_SDMA_METADATA           1024
 #define CZ_SCRATCH_SIZE_IH                      ((2*256+1)*4)
 
+#define SMU_EnabledFeatureScoreboard_SclkDpmOn    0x00200000
+
 enum cz_scratch_entry {
 	CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0 = 0,
 	CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1,
