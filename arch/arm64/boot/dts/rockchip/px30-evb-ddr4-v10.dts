@@ -158,7 +158,7 @@
 	panel@0 {
 		compatible = "sitronix,st7703", "simple-panel-dsi";
 		reg = <0>;
-		//power-supply = <&vcc3v3_lcd>;
+		power-supply = <&vcc3v3_lcd>;
 		backlight = <&backlight>;
 		prepare-delay-ms = <2>;
 		reset-delay-ms = <1>;
@@ -487,7 +487,6 @@
 			};
 
 			vcc3v3_lcd: SWITCH_REG1 {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-name = "vcc3v3_lcd";
 			};
