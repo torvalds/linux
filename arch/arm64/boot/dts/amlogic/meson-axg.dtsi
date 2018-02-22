@@ -165,14 +165,14 @@
 
 			uart_A: serial@24000 {
 				compatible = "amlogic,meson-gx-uart", "amlogic,meson-uart";
-				reg = <0x0 0x24000 0x0 0x14>;
+				reg = <0x0 0x24000 0x0 0x18>;
 				interrupts = <GIC_SPI 26 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
 
 			uart_B: serial@23000 {
 				compatible = "amlogic,meson-gx-uart", "amlogic,meson-uart";
-				reg = <0x0 0x23000 0x0 0x14>;
+				reg = <0x0 0x23000 0x0 0x18>;
 				interrupts = <GIC_SPI 75 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 			};
