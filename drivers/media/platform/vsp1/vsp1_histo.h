@@ -25,7 +25,6 @@
 #include "vsp1_entity.h"
 
 struct vsp1_device;
-struct vsp1_pipeline;
 
 #define HISTO_PAD_SINK				0
 #define HISTO_PAD_SOURCE			1
@@ -37,8 +36,6 @@ struct vsp1_histogram_buffer {
 };
 
 struct vsp1_histogram {
-	struct vsp1_pipeline *pipe;
-
 	struct vsp1_entity entity;
 	struct video_device video;
 	struct media_pad pad;

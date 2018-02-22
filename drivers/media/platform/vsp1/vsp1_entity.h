@@ -106,6 +106,8 @@ struct vsp1_entity {
 	unsigned int index;
 	const struct vsp1_route *route;
 
+	struct vsp1_pipeline *pipe;
+
 	struct list_head list_dev;
 	struct list_head list_pipe;
 

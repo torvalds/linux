@@ -63,7 +63,7 @@ static irqreturn_t vsp1_irq_handler(int irq, void *data)
 		vsp1_write(vsp1, VI6_WPF_IRQ_STA(i), ~status & mask);
 
 		if (status & VI6_WFP_IRQ_STA_DFE) {
-			vsp1_pipeline_frame_end(wpf->pipe);
+			vsp1_pipeline_frame_end(wpf->entity.pipe);
 			ret = IRQ_HANDLED;
 		}
 	}

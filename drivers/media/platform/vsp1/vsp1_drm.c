@@ -120,6 +120,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 			 * inputs.
 			 */
 			WARN_ON(list_empty(&rpf->entity.list_pipe));
+			rpf->entity.pipe = NULL;
 			list_del_init(&rpf->entity.list_pipe);
 			pipe->inputs[i] = NULL;
 
@@ -536,8 +537,10 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 			continue;
 		}
 
-		if (list_empty(&rpf->entity.list_pipe))
+		if (list_empty(&rpf->entity.list_pipe)) {
+			rpf->entity.pipe = pipe;
 			list_add_tail(&rpf->entity.list_pipe, &pipe->entities);
+		}
 
 		bru->inputs[i].rpf = rpf;
 		rpf->bru_input = i;
@@ -562,6 +565,7 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 			vsp1_dl_list_write(dl, entity->route->reg,
 					   VI6_DPR_NODE_UNUSED);
 
+			entity->pipe = NULL;
 			list_del_init(&entity->list_pipe);
 
 			continue;
@@ -625,24 +629,28 @@ int vsp1_drm_init(struct vsp1_device *vsp1)
 
 		vsp1_pipeline_init(pipe);
 
+		pipe->frame_end = vsp1_du_pipeline_frame_end;
+
 		/*
 		 * The DRM pipeline is static, add entities manually. The first
 		 * pipeline uses the BRU and the second pipeline the BRS.
 		 */
 		pipe->bru = i == 0 ? &vsp1->bru->entity : &vsp1->brs->entity;
-		pipe->lif = &vsp1->lif[i]->entity;
 		pipe->output = vsp1->wpf[i];
-		pipe->output->pipe = pipe;
-		pipe->frame_end = vsp1_du_pipeline_frame_end;
+		pipe->lif = &vsp1->lif[i]->entity;
 
+		pipe->bru->pipe = pipe;
 		pipe->bru->sink = &pipe->output->entity;
 		pipe->bru->sink_pad = 0;
+		list_add_tail(&pipe->bru->list_pipe, &pipe->entities);
+
+		pipe->output->entity.pipe = pipe;
 		pipe->output->entity.sink = pipe->lif;
 		pipe->output->entity.sink_pad = 0;
-
-		list_add_tail(&pipe->bru->list_pipe, &pipe->entities);
-		list_add_tail(&pipe->lif->list_pipe, &pipe->entities);
 		list_add_tail(&pipe->output->entity.list_pipe, &pipe->entities);
+
+		pipe->lif->pipe = pipe;
+		list_add_tail(&pipe->lif->list_pipe, &pipe->entities);
 	}
 
 	/* Disable all RPFs initially. */

@@ -185,6 +185,7 @@ const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 {
+	struct vsp1_entity *entity;
 	unsigned int i;
 
 	if (pipe->bru) {
@@ -194,29 +195,13 @@ void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 			bru->inputs[i].rpf = NULL;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(pipe->inputs); ++i) {
-		if (pipe->inputs[i]) {
-			pipe->inputs[i]->pipe = NULL;
-			pipe->inputs[i] = NULL;
-		}
-	}
+	for (i = 0; i < ARRAY_SIZE(pipe->inputs); ++i)
+		pipe->inputs[i] = NULL;
 
-	if (pipe->output) {
-		pipe->output->pipe = NULL;
-		pipe->output = NULL;
-	}
+	pipe->output = NULL;
 
-	if (pipe->hgo) {
-		struct vsp1_hgo *hgo = to_hgo(&pipe->hgo->subdev);
-
-		hgo->histo.pipe = NULL;
-	}
-
-	if (pipe->hgt) {
-		struct vsp1_hgt *hgt = to_hgt(&pipe->hgt->subdev);
-
-		hgt->histo.pipe = NULL;
-	}
+	list_for_each_entry(entity, &pipe->entities, list_pipe)
+		entity->pipe = NULL;
 
 	INIT_LIST_HEAD(&pipe->entities);
 	pipe->state = VSP1_PIPELINE_STOPPED;
@@ -423,7 +408,7 @@ void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
 		if (wpf == NULL)
 			continue;
 
-		pipe = wpf->pipe;
+		pipe = wpf->entity.pipe;
 		if (pipe == NULL)
 			continue;
 
@@ -440,7 +425,7 @@ void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
 		if (wpf == NULL)
 			continue;
 
-		pipe = wpf->pipe;
+		pipe = wpf->entity.pipe;
 		if (pipe == NULL)
 			continue;
 
@@ -465,7 +450,7 @@ void vsp1_pipelines_resume(struct vsp1_device *vsp1)
 		if (wpf == NULL)
 			continue;
 
-		pipe = wpf->pipe;
+		pipe = wpf->entity.pipe;
 		if (pipe == NULL)
 			continue;
 

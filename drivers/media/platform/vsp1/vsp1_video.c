@@ -324,7 +324,7 @@ static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
 static struct vsp1_vb2_buffer *
 vsp1_video_complete_buffer(struct vsp1_video *video)
 {
-	struct vsp1_pipeline *pipe = video->rwpf->pipe;
+	struct vsp1_pipeline *pipe = video->rwpf->entity.pipe;
 	struct vsp1_vb2_buffer *next = NULL;
 	struct vsp1_vb2_buffer *done;
 	unsigned long flags;
@@ -598,20 +598,19 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 		subdev = media_entity_to_v4l2_subdev(entity);
 		e = to_vsp1_entity(subdev);
 		list_add_tail(&e->list_pipe, &pipe->entities);
+		e->pipe = pipe;
 
 		switch (e->type) {
 		case VSP1_ENTITY_RPF:
 			rwpf = to_rwpf(subdev);
 			pipe->inputs[rwpf->entity.index] = rwpf;
 			rwpf->video->pipe_index = ++pipe->num_inputs;
-			rwpf->pipe = pipe;
 			break;
 
 		case VSP1_ENTITY_WPF:
 			rwpf = to_rwpf(subdev);
 			pipe->output = rwpf;
 			rwpf->video->pipe_index = 0;
-			rwpf->pipe = pipe;
 			break;
 
 		case VSP1_ENTITY_LIF:
@@ -625,12 +624,10 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 
 		case VSP1_ENTITY_HGO:
 			pipe->hgo = e;
-			to_hgo(subdev)->histo.pipe = pipe;
 			break;
 
 		case VSP1_ENTITY_HGT:
 			pipe->hgt = e;
-			to_hgt(subdev)->histo.pipe = pipe;
 			break;
 
 		default:
@@ -682,7 +679,7 @@ static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)
 	 * Otherwise allocate a new pipeline and initialize it, it will be freed
 	 * when the last reference is released.
 	 */
-	if (!video->rwpf->pipe) {
+	if (!video->rwpf->entity.pipe) {
 		pipe = kzalloc(sizeof(*pipe), GFP_KERNEL);
 		if (!pipe)
 			return ERR_PTR(-ENOMEM);
@@ -694,7 +691,7 @@ static struct vsp1_pipeline *vsp1_video_pipeline_get(struct vsp1_video *video)
 			return ERR_PTR(ret);
 		}
 	} else {
-		pipe = video->rwpf->pipe;
+		pipe = video->rwpf->entity.pipe;
 		kref_get(&pipe->kref);
 	}
 
@@ -777,7 +774,7 @@ static void vsp1_video_buffer_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vsp1_video *video = vb2_get_drv_priv(vb->vb2_queue);
-	struct vsp1_pipeline *pipe = video->rwpf->pipe;
+	struct vsp1_pipeline *pipe = video->rwpf->entity.pipe;
 	struct vsp1_vb2_buffer *buf = to_vsp1_vb2_buffer(vbuf);
 	unsigned long flags;
 	bool empty;
@@ -872,7 +869,7 @@ static void vsp1_video_cleanup_pipeline(struct vsp1_pipeline *pipe)
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
-	struct vsp1_pipeline *pipe = video->rwpf->pipe;
+	struct vsp1_pipeline *pipe = video->rwpf->entity.pipe;
 	bool start_pipeline = false;
 	unsigned long flags;
 	int ret;
@@ -913,7 +910,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
-	struct vsp1_pipeline *pipe = video->rwpf->pipe;
+	struct vsp1_pipeline *pipe = video->rwpf->entity.pipe;
 	unsigned long flags;
 	int ret;
 

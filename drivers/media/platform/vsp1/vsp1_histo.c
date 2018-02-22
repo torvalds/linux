@@ -61,7 +61,7 @@ void vsp1_histogram_buffer_complete(struct vsp1_histogram *histo,
 				    struct vsp1_histogram_buffer *buf,
 				    size_t size)
 {
-	struct vsp1_pipeline *pipe = histo->pipe;
+	struct vsp1_pipeline *pipe = histo->entity.pipe;
 	unsigned long flags;
 
 	/*
