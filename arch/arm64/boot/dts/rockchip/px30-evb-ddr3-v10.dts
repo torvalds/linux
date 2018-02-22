@@ -314,7 +314,7 @@
 				regulator-name = "vdd_logic";
 				regulator-state-mem {
 					regulator-on-in-suspend;
-					regulator-suspend-microvolt = <700000>;
+					regulator-suspend-microvolt = <950000>;
 				};
 			};
 
@@ -328,7 +328,7 @@
 				regulator-name = "vdd_arm";
 				regulator-state-mem {
 					regulator-off-in-suspend;
-					regulator-suspend-microvolt = <800000>;
+					regulator-suspend-microvolt = <950000>;
 				};
 			};
 
@@ -388,7 +388,7 @@
 
 				regulator-name = "vcc1v0_soc";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <1000000>;
 				};
 			};
@@ -401,7 +401,7 @@
 
 				regulator-name = "vcc3v0_pmu";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
 					regulator-suspend-microvolt = <3000000>;
 
 				};
