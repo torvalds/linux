@@ -971,6 +971,7 @@ struct intel_dp {
 	bool detect_done;
 	bool channel_eq_status;
 	bool reset_link_params;
+	enum aux_ch aux_ch;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
 	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
