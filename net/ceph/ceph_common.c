@@ -72,6 +72,7 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_MON_GET_VERSION: return "mon_get_version";
 	case CEPH_MSG_MON_GET_VERSION_REPLY: return "mon_get_version_reply";
 	case CEPH_MSG_MDS_MAP: return "mds_map";
+	case CEPH_MSG_FS_MAP_USER: return "fs_map_user";
 	case CEPH_MSG_CLIENT_SESSION: return "client_session";
 	case CEPH_MSG_CLIENT_RECONNECT: return "client_reconnect";
 	case CEPH_MSG_CLIENT_REQUEST: return "client_request";
@@ -81,6 +82,10 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_CLIENT_CAPRELEASE: return "client_cap_release";
 	case CEPH_MSG_CLIENT_SNAP: return "client_snap";
 	case CEPH_MSG_CLIENT_LEASE: return "client_lease";
+	case CEPH_MSG_POOLOP_REPLY: return "poolop_reply";
+	case CEPH_MSG_POOLOP: return "poolop";
+	case CEPH_MSG_MON_COMMAND: return "mon_command";
+	case CEPH_MSG_MON_COMMAND_ACK: return "mon_command_ack";
 	case CEPH_MSG_OSD_MAP: return "osd_map";
 	case CEPH_MSG_OSD_OP: return "osd_op";
 	case CEPH_MSG_OSD_OPREPLY: return "osd_opreply";
