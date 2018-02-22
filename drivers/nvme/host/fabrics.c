@@ -493,7 +493,7 @@ EXPORT_SYMBOL_GPL(nvmf_should_reconnect);
  */
 int nvmf_register_transport(struct nvmf_transport_ops *ops)
 {
-	if (!ops->create_ctrl || !ops->module)
+	if (!ops->create_ctrl)
 		return -EINVAL;
 
 	down_write(&nvmf_transports_rwsem);
