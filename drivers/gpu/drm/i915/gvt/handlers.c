@@ -1391,8 +1391,8 @@ static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
 	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
 
 	if (!intel_gvt_ggtt_validate_range(vgpu, value, I915_GTT_PAGE_SIZE)) {
-		gvt_vgpu_err("VM(%d) write invalid HWSP address, reg:0x%x, value:0x%x\n",
-			      vgpu->id, offset, value);
+		gvt_vgpu_err("write invalid HWSP address, reg:0x%x, value:0x%x\n",
+			      offset, value);
 		return -EINVAL;
 	}
 	/*
@@ -1401,8 +1401,8 @@ static int hws_pga_write(struct intel_vgpu *vgpu, unsigned int offset,
 	 * support BDW, SKL or other platforms with same HWSP registers.
 	 */
 	if (unlikely(ring_id < 0 || ring_id >= I915_NUM_ENGINES)) {
-		gvt_vgpu_err("VM(%d) access unknown hardware status page register:0x%x\n",
-			     vgpu->id, offset);
+		gvt_vgpu_err("access unknown hardware status page register:0x%x\n",
+			     offset);
 		return -EINVAL;
 	}
 	vgpu->hws_pga[ring_id] = value;
