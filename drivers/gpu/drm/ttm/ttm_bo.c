@@ -222,52 +222,6 @@ void ttm_bo_move_to_lru_tail(struct ttm_buffer_object *bo)
 }
 EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
 
-/*
- * Call bo->mutex locked.
- */
-static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
-{
-	struct ttm_bo_device *bdev = bo->bdev;
-	int ret = 0;
-	uint32_t page_flags = 0;
-
-	reservation_object_assert_held(bo->resv);
-	bo->ttm = NULL;
-
-	if (bdev->need_dma32)
-		page_flags |= TTM_PAGE_FLAG_DMA32;
-
-	if (bdev->no_retry)
-		page_flags |= TTM_PAGE_FLAG_NO_RETRY;
-
-	switch (bo->type) {
-	case ttm_bo_type_device:
-		if (zero_alloc)
-			page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
-	case ttm_bo_type_kernel:
-		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-						      page_flags);
-		if (unlikely(bo->ttm == NULL))
-			ret = -ENOMEM;
-		break;
-	case ttm_bo_type_sg:
-		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-						      page_flags | TTM_PAGE_FLAG_SG);
-		if (unlikely(bo->ttm == NULL)) {
-			ret = -ENOMEM;
-			break;
-		}
-		bo->ttm->sg = bo->sg;
-		break;
-	default:
-		pr_err("Illegal buffer object type\n");
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
 static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem, bool evict,
 				  struct ttm_operation_ctx *ctx)
@@ -295,7 +249,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	if (!(new_man->flags & TTM_MEMTYPE_FLAG_FIXED)) {
 		if (bo->ttm == NULL) {
 			bool zero = !(old_man->flags & TTM_MEMTYPE_FLAG_FIXED);
-			ret = ttm_bo_add_ttm(bo, zero);
+			ret = ttm_tt_create(bo, zero);
 			if (ret)
 				goto out_err;
 		}
@@ -1134,7 +1088,7 @@ int ttm_bo_validate(struct ttm_buffer_object *bo,
 	 * We might need to add a TTM.
 	 */
 	if (bo->mem.mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
-		ret = ttm_bo_add_ttm(bo, true);
+		ret = ttm_tt_create(bo, true);
 		if (ret)
 			return ret;
 	}

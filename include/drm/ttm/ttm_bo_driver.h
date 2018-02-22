@@ -611,6 +611,17 @@ ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
 }
 
 /**
+ * ttm_tt_create
+ *
+ * @bo: pointer to a struct ttm_buffer_object
+ * @zero_alloc: true if allocated pages needs to be zeroed
+ *
+ * Make sure we have a TTM structure allocated for the given BO.
+ * No pages are actually allocated.
+ */
+int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
+
+/**
  * ttm_tt_init
  *
  * @ttm: The struct ttm_tt.
