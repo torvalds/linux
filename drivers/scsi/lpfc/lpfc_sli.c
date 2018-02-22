@@ -299,7 +299,7 @@ lpfc_sli4_eq_get(struct lpfc_queue *q)
  * @q: The Event Queue to disable interrupts
  *
  **/
-static inline void
+inline void
 lpfc_sli4_eq_clr_intr(struct lpfc_queue *q)
 {
 	struct lpfc_register doorbell;
@@ -5302,41 +5302,42 @@ static void
 lpfc_sli4_arm_cqeq_intr(struct lpfc_hba *phba)
 {
 	int qidx;
+	struct lpfc_sli4_hba *sli4_hba = &phba->sli4_hba;
 
-	lpfc_sli4_cq_release(phba->sli4_hba.mbx_cq, LPFC_QUEUE_REARM);
-	lpfc_sli4_cq_release(phba->sli4_hba.els_cq, LPFC_QUEUE_REARM);
-	if (phba->sli4_hba.nvmels_cq)
-		lpfc_sli4_cq_release(phba->sli4_hba.nvmels_cq,
+	sli4_hba->sli4_cq_release(sli4_hba->mbx_cq, LPFC_QUEUE_REARM);
+	sli4_hba->sli4_cq_release(sli4_hba->els_cq, LPFC_QUEUE_REARM);
+	if (sli4_hba->nvmels_cq)
+		sli4_hba->sli4_cq_release(sli4_hba->nvmels_cq,
 						LPFC_QUEUE_REARM);
 
-	if (phba->sli4_hba.fcp_cq)
+	if (sli4_hba->fcp_cq)
 		for (qidx = 0; qidx < phba->cfg_fcp_io_channel; qidx++)
-			lpfc_sli4_cq_release(phba->sli4_hba.fcp_cq[qidx],
+			sli4_hba->sli4_cq_release(sli4_hba->fcp_cq[qidx],
 						LPFC_QUEUE_REARM);
 
-	if (phba->sli4_hba.nvme_cq)
+	if (sli4_hba->nvme_cq)
 		for (qidx = 0; qidx < phba->cfg_nvme_io_channel; qidx++)
-			lpfc_sli4_cq_release(phba->sli4_hba.nvme_cq[qidx],
+			sli4_hba->sli4_cq_release(sli4_hba->nvme_cq[qidx],
 						LPFC_QUEUE_REARM);
 
 	if (phba->cfg_fof)
-		lpfc_sli4_cq_release(phba->sli4_hba.oas_cq, LPFC_QUEUE_REARM);
+		sli4_hba->sli4_cq_release(sli4_hba->oas_cq, LPFC_QUEUE_REARM);
 
-	if (phba->sli4_hba.hba_eq)
+	if (sli4_hba->hba_eq)
 		for (qidx = 0; qidx < phba->io_channel_irqs; qidx++)
-			lpfc_sli4_eq_release(phba->sli4_hba.hba_eq[qidx],
-						LPFC_QUEUE_REARM);
+			sli4_hba->sli4_eq_release(sli4_hba->hba_eq[qidx],
+							LPFC_QUEUE_REARM);
 
 	if (phba->nvmet_support) {
 		for (qidx = 0; qidx < phba->cfg_nvmet_mrq; qidx++) {
-			lpfc_sli4_cq_release(
-				phba->sli4_hba.nvmet_cqset[qidx],
+			sli4_hba->sli4_cq_release(
+				sli4_hba->nvmet_cqset[qidx],
 				LPFC_QUEUE_REARM);
 		}
 	}
 
 	if (phba->cfg_fof)
-		lpfc_sli4_eq_release(phba->sli4_hba.fof_eq, LPFC_QUEUE_REARM);
+		sli4_hba->sli4_eq_release(sli4_hba->fof_eq, LPFC_QUEUE_REARM);
 }
 
 /**
@@ -7270,7 +7271,7 @@ lpfc_sli4_mbox_completions_pending(struct lpfc_hba *phba)
 bool
 lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 {
-
+	struct lpfc_sli4_hba *sli4_hba = &phba->sli4_hba;
 	uint32_t eqidx;
 	struct lpfc_queue *fpeq = NULL;
 	struct lpfc_eqe *eqe;
@@ -7281,11 +7282,11 @@ lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 
 	/* Find the eq associated with the mcq */
 
-	if (phba->sli4_hba.hba_eq)
+	if (sli4_hba->hba_eq)
 		for (eqidx = 0; eqidx < phba->io_channel_irqs; eqidx++)
-			if (phba->sli4_hba.hba_eq[eqidx]->queue_id ==
-			    phba->sli4_hba.mbx_cq->assoc_qid) {
-				fpeq = phba->sli4_hba.hba_eq[eqidx];
+			if (sli4_hba->hba_eq[eqidx]->queue_id ==
+			    sli4_hba->mbx_cq->assoc_qid) {
+				fpeq = sli4_hba->hba_eq[eqidx];
 				break;
 			}
 	if (!fpeq)
@@ -7293,7 +7294,7 @@ lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 
 	/* Turn off interrupts from this EQ */
 
-	lpfc_sli4_eq_clr_intr(fpeq);
+	sli4_hba->sli4_eq_clr_intr(fpeq);
 
 	/* Check to see if a mbox completion is pending */
 
@@ -7314,7 +7315,7 @@ lpfc_sli4_process_missed_mbox_completions(struct lpfc_hba *phba)
 
 	/* Always clear and re-arm the EQ */
 
-	lpfc_sli4_eq_release(fpeq, LPFC_QUEUE_REARM);
+	sli4_hba->sli4_eq_release(fpeq, LPFC_QUEUE_REARM);
 
 	return mbox_pending;
 
@@ -9494,7 +9495,7 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 				fpeq = phba->sli4_hba.hba_eq[idx];
 
 				/* Turn off interrupts from this EQ */
-				lpfc_sli4_eq_clr_intr(fpeq);
+				phba->sli4_hba.sli4_eq_clr_intr(fpeq);
 
 				/*
 				 * Process all the events on FCP EQ
@@ -9506,7 +9507,7 @@ lpfc_sli_issue_iocb(struct lpfc_hba *phba, uint32_t ring_number,
 				}
 
 				/* Always clear and re-arm the EQ */
-				lpfc_sli4_eq_release(fpeq,
+				phba->sli4_hba.sli4_eq_release(fpeq,
 					LPFC_QUEUE_REARM);
 			}
 			atomic_inc(&hba_eq_hdl->hba_eq_in_use);
@@ -13136,7 +13137,7 @@ lpfc_sli4_sp_process_cq(struct work_struct *work)
 				"(x%x), type (%d)\n", cq->queue_id, cq->type);
 
 	/* In any case, flash and re-arm the RCQ */
-	lpfc_sli4_cq_release(cq, LPFC_QUEUE_REARM);
+	phba->sli4_hba.sli4_cq_release(cq, LPFC_QUEUE_REARM);
 
 	/* wake up worker thread if there are works to be done */
 	if (workposted)
@@ -13568,7 +13569,7 @@ lpfc_sli4_hba_process_cq(struct work_struct *work)
 				"queue fcpcqid=%d\n", cq->queue_id);
 
 	/* In any case, flash and re-arm the CQ */
-	lpfc_sli4_cq_release(cq, LPFC_QUEUE_REARM);
+	phba->sli4_hba.sli4_cq_release(cq, LPFC_QUEUE_REARM);
 
 	/* wake up worker thread if there are works to be done */
 	if (workposted)
@@ -13585,7 +13586,7 @@ lpfc_sli4_eq_flush(struct lpfc_hba *phba, struct lpfc_queue *eq)
 		;
 
 	/* Clear and re-arm the EQ */
-	lpfc_sli4_eq_release(eq, LPFC_QUEUE_REARM);
+	phba->sli4_hba.sli4_eq_release(eq, LPFC_QUEUE_REARM);
 }
 
 
@@ -13733,7 +13734,7 @@ lpfc_sli4_fof_intr_handler(int irq, void *dev_id)
 		}
 	}
 	/* Always clear and re-arm the fast-path EQ */
-	lpfc_sli4_eq_release(eq, LPFC_QUEUE_REARM);
+	phba->sli4_hba.sli4_eq_release(eq, LPFC_QUEUE_REARM);
 	return IRQ_HANDLED;
 }
 
@@ -13791,7 +13792,7 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 
 	if (lpfc_fcp_look_ahead) {
 		if (atomic_dec_and_test(&hba_eq_hdl->hba_eq_in_use))
-			lpfc_sli4_eq_clr_intr(fpeq);
+			phba->sli4_hba.sli4_eq_clr_intr(fpeq);
 		else {
 			atomic_inc(&hba_eq_hdl->hba_eq_in_use);
 			return IRQ_NONE;
@@ -13826,7 +13827,7 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 		fpeq->EQ_max_eqe = ecount;
 
 	/* Always clear and re-arm the fast-path EQ */
-	lpfc_sli4_eq_release(fpeq, LPFC_QUEUE_REARM);
+	phba->sli4_hba.sli4_eq_release(fpeq, LPFC_QUEUE_REARM);
 
 	if (unlikely(ecount == 0)) {
 		fpeq->EQ_no_entry++;

@@ -9540,6 +9540,13 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		}
 	}
 
+	/* Set up the EQ/CQ register handeling functions now */
+	if (if_type <= LPFC_SLI_INTF_IF_TYPE_2) {
+		phba->sli4_hba.sli4_eq_clr_intr = lpfc_sli4_eq_clr_intr;
+		phba->sli4_hba.sli4_eq_release = lpfc_sli4_eq_release;
+		phba->sli4_hba.sli4_cq_release = lpfc_sli4_cq_release;
+	}
+
 	return 0;
 
 out_iounmap_all:
