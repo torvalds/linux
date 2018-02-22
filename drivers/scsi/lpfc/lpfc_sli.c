@@ -283,16 +283,18 @@ lpfc_sli4_mq_release(struct lpfc_queue *q)
 static struct lpfc_eqe *
 lpfc_sli4_eq_get(struct lpfc_queue *q)
 {
+	struct lpfc_hba *phba;
 	struct lpfc_eqe *eqe;
 	uint32_t idx;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return NULL;
+	phba = q->phba;
 	eqe = q->qe[q->hba_index].eqe;
 
 	/* If the next EQE is not valid then we are done */
-	if (!bf_get_le32(lpfc_eqe_valid, eqe))
+	if (bf_get_le32(lpfc_eqe_valid, eqe) != q->qe_valid)
 		return NULL;
 	/* If the host has not yet processed the next entry then we are done */
 	idx = ((q->hba_index + 1) % q->entry_count);
@@ -300,6 +302,10 @@ lpfc_sli4_eq_get(struct lpfc_queue *q)
 		return NULL;
 
 	q->hba_index = idx;
+	/* if the index wrapped around, toggle the valid bit */
+	if (phba->sli4_hba.pc_sli4_params.eqav && !q->hba_index)
+		q->qe_valid = (q->qe_valid) ? 0 : 1;
+
 
 	/*
 	 * insert barrier for instruction interlock : data from the hardware
@@ -371,17 +377,21 @@ uint32_t
 lpfc_sli4_eq_release(struct lpfc_queue *q, bool arm)
 {
 	uint32_t released = 0;
+	struct lpfc_hba *phba;
 	struct lpfc_eqe *temp_eqe;
 	struct lpfc_register doorbell;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return 0;
+	phba = q->phba;
 
 	/* while there are valid entries */
 	while (q->hba_index != q->host_index) {
-		temp_eqe = q->qe[q->host_index].eqe;
-		bf_set_le32(lpfc_eqe_valid, temp_eqe, 0);
+		if (!phba->sli4_hba.pc_sli4_params.eqav) {
+			temp_eqe = q->qe[q->host_index].eqe;
+			bf_set_le32(lpfc_eqe_valid, temp_eqe, 0);
+		}
 		released++;
 		q->host_index = ((q->host_index + 1) % q->entry_count);
 	}
@@ -425,17 +435,21 @@ uint32_t
 lpfc_sli4_if6_eq_release(struct lpfc_queue *q, bool arm)
 {
 	uint32_t released = 0;
+	struct lpfc_hba *phba;
 	struct lpfc_eqe *temp_eqe;
 	struct lpfc_register doorbell;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return 0;
+	phba = q->phba;
 
 	/* while there are valid entries */
 	while (q->hba_index != q->host_index) {
-		temp_eqe = q->qe[q->host_index].eqe;
-		bf_set_le32(lpfc_eqe_valid, temp_eqe, 0);
+		if (!phba->sli4_hba.pc_sli4_params.eqav) {
+			temp_eqe = q->qe[q->host_index].eqe;
+			bf_set_le32(lpfc_eqe_valid, temp_eqe, 0);
+		}
 		released++;
 		q->host_index = ((q->host_index + 1) % q->entry_count);
 	}
@@ -467,23 +481,28 @@ lpfc_sli4_if6_eq_release(struct lpfc_queue *q, bool arm)
 static struct lpfc_cqe *
 lpfc_sli4_cq_get(struct lpfc_queue *q)
 {
+	struct lpfc_hba *phba;
 	struct lpfc_cqe *cqe;
 	uint32_t idx;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return NULL;
+	phba = q->phba;
+	cqe = q->qe[q->hba_index].cqe;
 
 	/* If the next CQE is not valid then we are done */
-	if (!bf_get_le32(lpfc_cqe_valid, q->qe[q->hba_index].cqe))
+	if (bf_get_le32(lpfc_cqe_valid, cqe) != q->qe_valid)
 		return NULL;
 	/* If the host has not yet processed the next entry then we are done */
 	idx = ((q->hba_index + 1) % q->entry_count);
 	if (idx == q->host_index)
 		return NULL;
 
-	cqe = q->qe[q->hba_index].cqe;
 	q->hba_index = idx;
+	/* if the index wrapped around, toggle the valid bit */
+	if (phba->sli4_hba.pc_sli4_params.cqav && !q->hba_index)
+		q->qe_valid = (q->qe_valid) ? 0 : 1;
 
 	/*
 	 * insert barrier for instruction interlock : data from the hardware
@@ -516,16 +535,21 @@ uint32_t
 lpfc_sli4_cq_release(struct lpfc_queue *q, bool arm)
 {
 	uint32_t released = 0;
+	struct lpfc_hba *phba;
 	struct lpfc_cqe *temp_qe;
 	struct lpfc_register doorbell;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return 0;
+	phba = q->phba;
+
 	/* while there are valid entries */
 	while (q->hba_index != q->host_index) {
-		temp_qe = q->qe[q->host_index].cqe;
-		bf_set_le32(lpfc_cqe_valid, temp_qe, 0);
+		if (!phba->sli4_hba.pc_sli4_params.cqav) {
+			temp_qe = q->qe[q->host_index].cqe;
+			bf_set_le32(lpfc_cqe_valid, temp_qe, 0);
+		}
 		released++;
 		q->host_index = ((q->host_index + 1) % q->entry_count);
 	}
@@ -564,16 +588,21 @@ uint32_t
 lpfc_sli4_if6_cq_release(struct lpfc_queue *q, bool arm)
 {
 	uint32_t released = 0;
+	struct lpfc_hba *phba;
 	struct lpfc_cqe *temp_qe;
 	struct lpfc_register doorbell;
 
 	/* sanity check on queue memory */
 	if (unlikely(!q))
 		return 0;
+	phba = q->phba;
+
 	/* while there are valid entries */
 	while (q->hba_index != q->host_index) {
-		temp_qe = q->qe[q->host_index].cqe;
-		bf_set_le32(lpfc_cqe_valid, temp_qe, 0);
+		if (!phba->sli4_hba.pc_sli4_params.cqav) {
+			temp_qe = q->qe[q->host_index].cqe;
+			bf_set_le32(lpfc_cqe_valid, temp_qe, 0);
+		}
 		released++;
 		q->host_index = ((q->host_index + 1) % q->entry_count);
 	}
@@ -7367,6 +7396,7 @@ lpfc_sli4_mbox_completions_pending(struct lpfc_hba *phba)
 	struct lpfc_queue *mcq;
 	struct lpfc_mcqe *mcqe;
 	bool pending_completions = false;
+	uint8_t	qe_valid;
 
 	if (unlikely(!phba) || (phba->sli_rev != LPFC_SLI_REV4))
 		return false;
@@ -7375,7 +7405,8 @@ lpfc_sli4_mbox_completions_pending(struct lpfc_hba *phba)
 
 	mcq = phba->sli4_hba.mbx_cq;
 	idx = mcq->hba_index;
-	while (bf_get_le32(lpfc_cqe_valid, mcq->qe[idx].cqe)) {
+	qe_valid = mcq->qe_valid;
+	while (bf_get_le32(lpfc_cqe_valid, mcq->qe[idx].cqe) == qe_valid) {
 		mcqe = (struct lpfc_mcqe *)mcq->qe[idx].cqe;
 		if (bf_get_le32(lpfc_trailer_completed, mcqe) &&
 		    (!bf_get_le32(lpfc_trailer_async, mcqe))) {
@@ -7385,6 +7416,10 @@ lpfc_sli4_mbox_completions_pending(struct lpfc_hba *phba)
 		idx = (idx + 1) % mcq->entry_count;
 		if (mcq->hba_index == idx)
 			break;
+
+		/* if the index wrapped around, toggle the valid bit */
+		if (phba->sli4_hba.pc_sli4_params.cqav && !idx)
+			qe_valid = (qe_valid) ? 0 : 1;
 	}
 	return pending_completions;
 
@@ -8258,7 +8293,7 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	} else if (flag == MBX_POLL) {
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
 				"(%d):2542 Try to issue mailbox command "
-				"x%x (x%x/x%x) synchronously ahead of async"
+				"x%x (x%x/x%x) synchronously ahead of async "
 				"mailbox command queue: x%x x%x\n",
 				mboxq->vport ? mboxq->vport->vpi : 0,
 				mboxq->u.mb.mbxCommand,
@@ -14335,11 +14370,21 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 			 LPFC_MBOX_OPCODE_EQ_CREATE,
 			 length, LPFC_SLI4_MBX_EMBED);
 	eq_create = &mbox->u.mqe.un.eq_create;
+	shdr = (union lpfc_sli4_cfg_shdr *) &eq_create->header.cfg_shdr;
 	bf_set(lpfc_mbx_eq_create_num_pages, &eq_create->u.request,
 	       eq->page_count);
 	bf_set(lpfc_eq_context_size, &eq_create->u.request.context,
 	       LPFC_EQE_SIZE);
 	bf_set(lpfc_eq_context_valid, &eq_create->u.request.context, 1);
+
+	/* Use version 2 of CREATE_EQ if eqav is set */
+	if (phba->sli4_hba.pc_sli4_params.eqav) {
+		bf_set(lpfc_mbox_hdr_version, &shdr->request,
+		       LPFC_Q_CREATE_VERSION_2);
+		bf_set(lpfc_eq_context_autovalid, &eq_create->u.request.context,
+		       phba->sli4_hba.pc_sli4_params.eqav);
+	}
+
 	/* don't setup delay multiplier using EQ_CREATE */
 	dmult = 0;
 	bf_set(lpfc_eq_context_delay_multi, &eq_create->u.request.context,
@@ -14384,7 +14429,6 @@ lpfc_eq_create(struct lpfc_hba *phba, struct lpfc_queue *eq, uint32_t imax)
 	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	mbox->context1 = NULL;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
-	shdr = (union lpfc_sli4_cfg_shdr *) &eq_create->header.cfg_shdr;
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status || rc) {
@@ -14467,6 +14511,8 @@ lpfc_cq_create(struct lpfc_hba *phba, struct lpfc_queue *cq,
 		       (cq->page_size / SLI4_PAGE_SIZE));
 		bf_set(lpfc_cq_eq_id_2, &cq_create->u.request.context,
 		       eq->queue_id);
+		bf_set(lpfc_cq_context_autovalid, &cq_create->u.request.context,
+		       phba->sli4_hba.pc_sli4_params.cqav);
 	} else {
 		bf_set(lpfc_cq_eq_id, &cq_create->u.request.context,
 		       eq->queue_id);
@@ -14638,6 +14684,9 @@ lpfc_cq_create_set(struct lpfc_hba *phba, struct lpfc_queue **cqp,
 			       &cq_set->u.request, 0);
 			bf_set(lpfc_mbx_cq_create_set_num_cq,
 			       &cq_set->u.request, numcq);
+			bf_set(lpfc_mbx_cq_create_set_autovalid,
+			       &cq_set->u.request,
+			       phba->sli4_hba.pc_sli4_params.cqav);
 			switch (cq->entry_count) {
 			case 2048:
 			case 4096:

@@ -1040,6 +1040,9 @@ struct eq_context {
 #define lpfc_eq_context_valid_SHIFT	29
 #define lpfc_eq_context_valid_MASK	0x00000001
 #define lpfc_eq_context_valid_WORD	word0
+#define lpfc_eq_context_autovalid_SHIFT 28
+#define lpfc_eq_context_autovalid_MASK  0x00000001
+#define lpfc_eq_context_autovalid_WORD  word0
 	uint32_t word1;
 #define lpfc_eq_context_count_SHIFT	26
 #define lpfc_eq_context_count_MASK	0x00000003
@@ -1173,6 +1176,9 @@ struct cq_context {
 #define LPFC_CQ_CNT_512		0x1
 #define LPFC_CQ_CNT_1024	0x2
 #define LPFC_CQ_CNT_WORD7	0x3
+#define lpfc_cq_context_autovalid_SHIFT 15
+#define lpfc_cq_context_autovalid_MASK  0x00000001
+#define lpfc_cq_context_autovalid_WORD  word0
 	uint32_t word1;
 #define lpfc_cq_eq_id_SHIFT		22	/* Version 0 Only */
 #define lpfc_cq_eq_id_MASK		0x000000FF
@@ -1231,9 +1237,9 @@ struct lpfc_mbx_cq_create_set {
 #define lpfc_mbx_cq_create_set_cqe_size_SHIFT	25
 #define lpfc_mbx_cq_create_set_cqe_size_MASK	0x00000003
 #define lpfc_mbx_cq_create_set_cqe_size_WORD	word1
-#define lpfc_mbx_cq_create_set_auto_SHIFT	15
-#define lpfc_mbx_cq_create_set_auto_MASK	0x0000001
-#define lpfc_mbx_cq_create_set_auto_WORD	word1
+#define lpfc_mbx_cq_create_set_autovalid_SHIFT	15
+#define lpfc_mbx_cq_create_set_autovalid_MASK	0x0000001
+#define lpfc_mbx_cq_create_set_autovalid_WORD	word1
 #define lpfc_mbx_cq_create_set_nodelay_SHIFT	14
 #define lpfc_mbx_cq_create_set_nodelay_MASK	0x00000001
 #define lpfc_mbx_cq_create_set_nodelay_WORD	word1
@@ -3288,6 +3294,9 @@ struct lpfc_sli4_parameters {
 #define cfg_sli_hint_2_MASK			0x0000001f
 #define cfg_sli_hint_2_WORD			word1
 	uint32_t word2;
+#define cfg_eqav_SHIFT				31
+#define cfg_eqav_MASK				0x00000001
+#define cfg_eqav_WORD				word2
 	uint32_t word3;
 	uint32_t word4;
 #define cfg_cqv_SHIFT				14
@@ -3296,6 +3305,9 @@ struct lpfc_sli4_parameters {
 #define cfg_cqpsize_SHIFT			16
 #define cfg_cqpsize_MASK			0x000000ff
 #define cfg_cqpsize_WORD			word4
+#define cfg_cqav_SHIFT				31
+#define cfg_cqav_MASK				0x00000001
+#define cfg_cqav_WORD				word4
 	uint32_t word5;
 	uint32_t word6;
 #define cfg_mqv_SHIFT				14

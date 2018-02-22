@@ -216,6 +216,7 @@ struct lpfc_queue {
 	struct work_struct spwork;
 
 	uint64_t isr_timestamp;
+	uint8_t	qe_valid;
 	struct lpfc_queue *assoc_qp;
 	union sli4_qe qe[1];	/* array to index entries (must be last) */
 };
@@ -486,6 +487,8 @@ struct lpfc_pc_sli4_params {
 	uint8_t mqv;
 	uint8_t wqv;
 	uint8_t rqv;
+	uint8_t eqav;
+	uint8_t cqav;
 	uint8_t wqsize;
 #define LPFC_WQ_SZ64_SUPPORT	1
 #define LPFC_WQ_SZ128_SUPPORT	2
