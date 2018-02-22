@@ -6,7 +6,7 @@ mlx5_core-y :=	main.o cmd.o debugfs.o fw.o eq.o uar.o pagealloc.o \
 		health.o mcg.o cq.o srq.o alloc.o qp.o port.o mr.o pd.o \
 		mad.o transobj.o vport.o sriov.o fs_cmd.o fs_core.o \
 		fs_counters.o rl.o lag.o dev.o wq.o lib/gid.o lib/clock.o \
-		diag/fs_tracepoint.o
+		diag/fs_tracepoint.o diag/fw_tracer.o
 
 mlx5_core-$(CONFIG_MLX5_ACCEL) += accel/ipsec.o accel/tls.o
 

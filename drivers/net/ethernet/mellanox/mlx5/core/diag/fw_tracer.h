@@ -170,6 +170,6 @@ struct mlx5_fw_tracer *mlx5_fw_tracer_create(struct mlx5_core_dev *dev);
 int mlx5_fw_tracer_init(struct mlx5_fw_tracer *tracer);
 void mlx5_fw_tracer_cleanup(struct mlx5_fw_tracer *tracer);
 void mlx5_fw_tracer_destroy(struct mlx5_fw_tracer *tracer);
-void mlx5_fw_tracer_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe) { return; }
+void mlx5_fw_tracer_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
 
 #endif
