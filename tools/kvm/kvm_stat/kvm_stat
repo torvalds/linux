@@ -373,8 +373,8 @@ class Event(object):
         self.syscall = self.libc.syscall
         self.name = name
         self.fd = None
-        self.setup_event(group, trace_cpu, trace_pid, trace_point,
-                         trace_filter, trace_set)
+        self._setup_event(group, trace_cpu, trace_pid, trace_point,
+                          trace_filter, trace_set)
 
     def __del__(self):
         """Closes the event's file descriptor.
@@ -387,7 +387,7 @@ class Event(object):
         if self.fd:
             os.close(self.fd)
 
-    def perf_event_open(self, attr, pid, cpu, group_fd, flags):
+    def _perf_event_open(self, attr, pid, cpu, group_fd, flags):
         """Wrapper for the sys_perf_evt_open() syscall.
 
         Used to set up performance events, returns a file descriptor or -1
@@ -406,7 +406,7 @@ class Event(object):
                             ctypes.c_int(pid), ctypes.c_int(cpu),
                             ctypes.c_int(group_fd), ctypes.c_long(flags))
 
-    def setup_event_attribute(self, trace_set, trace_point):
+    def _setup_event_attribute(self, trace_set, trace_point):
         """Returns an initialized ctype perf_event_attr struct."""
 
         id_path = os.path.join(PATH_DEBUGFS_TRACING, 'events', trace_set,
@@ -416,8 +416,8 @@ class Event(object):
         event_attr.config = int(open(id_path).read())
         return event_attr
 
-    def setup_event(self, group, trace_cpu, trace_pid, trace_point,
-                    trace_filter, trace_set):
+    def _setup_event(self, group, trace_cpu, trace_pid, trace_point,
+                     trace_filter, trace_set):
         """Sets up the perf event in Linux.
 
         Issues the syscall to register the event in the kernel and
@@ -425,7 +425,7 @@ class Event(object):
 
         """
 
-        event_attr = self.setup_event_attribute(trace_set, trace_point)
+        event_attr = self._setup_event_attribute(trace_set, trace_point)
 
         # First event will be group leader.
         group_leader = -1
@@ -434,8 +434,8 @@ class Event(object):
         if group.events:
             group_leader = group.events[0].fd
 
-        fd = self.perf_event_open(event_attr, trace_pid,
-                                  trace_cpu, group_leader, 0)
+        fd = self._perf_event_open(event_attr, trace_pid,
+                                   trace_cpu, group_leader, 0)
         if fd == -1:
             err = ctypes.get_errno()
             raise OSError(err, os.strerror(err),
@@ -497,12 +497,12 @@ class TracepointProvider(Provider):
     """
     def __init__(self, pid, fields_filter):
         self.group_leaders = []
-        self.filters = self.get_filters()
+        self.filters = self._get_filters()
         self.update_fields(fields_filter)
         self.pid = pid
 
     @staticmethod
-    def get_filters():
+    def _get_filters():
         """Returns a dict of trace events, their filter ids and
         the values that can be filtered.
 
@@ -518,7 +518,7 @@ class TracepointProvider(Provider):
             filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
         return filters
 
-    def get_available_fields(self):
+    def _get_available_fields(self):
         """Returns a list of available event's of format 'event name(filter
         name)'.
 
@@ -546,11 +546,11 @@ class TracepointProvider(Provider):
 
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
-        self.fields = [field for field in self.get_available_fields()
+        self.fields = [field for field in self._get_available_fields()
                        if self.is_field_wanted(fields_filter, field)]
 
     @staticmethod
-    def get_online_cpus():
+    def _get_online_cpus():
         """Returns a list of cpu id integers."""
         def parse_int_list(list_string):
             """Returns an int list from a string of comma separated integers and
@@ -572,17 +572,17 @@ class TracepointProvider(Provider):
             cpu_string = cpu_list.readline()
             return parse_int_list(cpu_string)
 
-    def setup_traces(self):
+    def _setup_traces(self):
         """Creates all event and group objects needed to be able to retrieve
         data."""
-        fields = self.get_available_fields()
+        fields = self._get_available_fields()
         if self._pid > 0:
             # Fetch list of all threads of the monitored pid, as qemu
             # starts a thread for each vcpu.
             path = os.path.join('/proc', str(self._pid), 'task')
             groupids = self.walkdir(path)[1]
         else:
-            groupids = self.get_online_cpus()
+            groupids = self._get_online_cpus()
 
         # The constant is needed as a buffer for python libs, std
         # streams and other files that the script opens.
@@ -660,7 +660,7 @@ class TracepointProvider(Provider):
         # The garbage collector will get rid of all Event/Group
         # objects and open files after removing the references.
         self.group_leaders = []
-        self.setup_traces()
+        self._setup_traces()
         self.fields = self._fields
 
     def read(self, by_guest=0):
@@ -689,9 +689,9 @@ class DebugfsProvider(Provider):
         self.paths = []
         self.pid = pid
         if include_past:
-            self.restore()
+            self._restore()
 
-    def get_available_fields(self):
+    def _get_available_fields(self):
         """"Returns a list of available fields.
 
         The fields are all available KVM debugfs files
@@ -701,7 +701,7 @@ class DebugfsProvider(Provider):
 
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
-        self._fields = [field for field in self.get_available_fields()
+        self._fields = [field for field in self._get_available_fields()
                         if self.is_field_wanted(fields_filter, field)]
 
     @property
@@ -755,7 +755,7 @@ class DebugfsProvider(Provider):
                     paths.append(dir)
         for path in paths:
             for field in self._fields:
-                value = self.read_field(field, path)
+                value = self._read_field(field, path)
                 key = path + field
                 if reset == 1:
                     self._baseline[key] = value
@@ -776,7 +776,7 @@ class DebugfsProvider(Provider):
 
         return results
 
-    def read_field(self, field, path):
+    def _read_field(self, field, path):
         """Returns the value of a single field from a specific VM."""
         try:
             return int(open(os.path.join(PATH_DEBUGFS_KVM,
@@ -791,7 +791,7 @@ class DebugfsProvider(Provider):
         self._baseline = {}
         self.read(1)
 
-    def restore(self):
+    def _restore(self):
         """Reset field counters"""
         self._baseline = {}
         self.read(2)
@@ -808,13 +808,12 @@ class Stats(object):
 
     """
     def __init__(self, options):
-        self.providers = self.get_providers(options)
+        self.providers = self._get_providers(options)
         self._pid_filter = options.pid
         self._fields_filter = options.fields
         self.values = {}
 
-    @staticmethod
-    def get_providers(options):
+    def _get_providers(self, options):
         """Returns a list of data providers depending on the passed options."""
         providers = []
 
@@ -826,7 +825,7 @@ class Stats(object):
 
         return providers
 
-    def update_provider_filters(self):
+    def _update_provider_filters(self):
         """Propagates fields filters to providers."""
         # As we reset the counters when updating the fields we can
         # also clear the cache of old values.
@@ -847,7 +846,7 @@ class Stats(object):
     def fields_filter(self, fields_filter):
         if fields_filter != self._fields_filter:
             self._fields_filter = fields_filter
-            self.update_provider_filters()
+            self._update_provider_filters()
 
     @property
     def pid_filter(self):
@@ -969,7 +968,7 @@ class Tui(object):
 
         return res
 
-    def print_all_gnames(self, row):
+    def _print_all_gnames(self, row):
         """Print a list of all running guests along with their pids."""
         self.screen.addstr(row, 2, '%8s  %-60s' %
                            ('Pid', 'Guest Name (fuzzy list, might be '
@@ -1032,7 +1031,7 @@ class Tui(object):
 
         return name
 
-    def update_drilldown(self):
+    def _update_drilldown(self):
         """Sets or removes a filter that only allows fields without braces."""
         if not self.stats.fields_filter:
             self.stats.fields_filter = DEFAULT_REGEX
@@ -1040,11 +1039,11 @@ class Tui(object):
         elif self.stats.fields_filter == DEFAULT_REGEX:
             self.stats.fields_filter = None
 
-    def update_pid(self, pid):
+    def _update_pid(self, pid):
         """Propagates pid selection to stats object."""
         self.stats.pid_filter = pid
 
-    def refresh_header(self, pid=None):
+    def _refresh_header(self, pid=None):
         """Refreshes the header."""
         if pid is None:
             pid = self.stats.pid_filter
@@ -1075,7 +1074,7 @@ class Tui(object):
         self.screen.addstr(4, 1, 'Collecting data...')
         self.screen.refresh()
 
-    def refresh_body(self, sleeptime):
+    def _refresh_body(self, sleeptime):
         row = 3
         self.screen.move(row, 0)
         self.screen.clrtobot()
@@ -1124,7 +1123,7 @@ class Tui(object):
                                curses.A_BOLD)
         self.screen.refresh()
 
-    def show_msg(self, text):
+    def _show_msg(self, text):
         """Display message centered text and exit on key press"""
         hint = 'Press any key to continue'
         curses.cbreak()
@@ -1139,7 +1138,7 @@ class Tui(object):
                            curses.A_STANDOUT)
         self.screen.getkey()
 
-    def show_help_interactive(self):
+    def _show_help_interactive(self):
         """Display help with list of interactive commands"""
         msg = ('   b     toggle events by guests (debugfs only, honors'
                ' filters)',
@@ -1165,9 +1164,9 @@ class Tui(object):
             self.screen.addstr(row, 0, line)
             row += 1
         self.screen.getkey()
-        self.refresh_header()
+        self._refresh_header()
 
-    def show_filter_selection(self):
+    def _show_filter_selection(self):
         """Draws filter selection mask.
 
         Asks for a valid regex and sets the fields filter accordingly.
@@ -1189,18 +1188,18 @@ class Tui(object):
             curses.noecho()
             if len(regex) == 0:
                 self.stats.fields_filter = DEFAULT_REGEX
-                self.refresh_header()
+                self._refresh_header()
                 return
             try:
                 re.compile(regex)
                 self.stats.fields_filter = regex
-                self.refresh_header()
+                self._refresh_header()
                 return
             except re.error:
                 msg = '"' + regex + '": Not a valid regular expression'
                 continue
 
-    def show_vm_selection_by_pid(self):
+    def _show_vm_selection_by_pid(self):
         """Draws PID selection mask.
 
         Asks for a pid until a valid pid or 0 has been entered.
@@ -1216,7 +1215,7 @@ class Tui(object):
                                'This might limit the shown data to the trace '
                                'statistics.')
             self.screen.addstr(5, 0, msg)
-            self.print_all_gnames(7)
+            self._print_all_gnames(7)
 
             curses.echo()
             self.screen.addstr(3, 0, "Pid [0 or pid]: ")
@@ -1232,13 +1231,13 @@ class Tui(object):
                         continue
                 else:
                     pid = 0
-                self.refresh_header(pid)
-                self.update_pid(pid)
+                self._refresh_header(pid)
+                self._update_pid(pid)
                 break
             except ValueError:
                 msg = '"' + str(pid) + '": Not a valid pid'
 
-    def show_set_update_interval(self):
+    def _show_set_update_interval(self):
         """Draws update interval selection mask."""
         msg = ''
         while True:
@@ -1268,9 +1267,9 @@ class Tui(object):
 
             except ValueError:
                 msg = '"' + str(val) + '": Invalid value'
-        self.refresh_header()
+        self._refresh_header()
 
-    def show_vm_selection_by_guest_name(self):
+    def _show_vm_selection_by_guest_name(self):
         """Draws guest selection mask.
 
         Asks for a guest name until a valid guest name or '' is entered.
@@ -1286,15 +1285,15 @@ class Tui(object):
                                'This might limit the shown data to the trace '
                                'statistics.')
             self.screen.addstr(5, 0, msg)
-            self.print_all_gnames(7)
+            self._print_all_gnames(7)
             curses.echo()
             self.screen.addstr(3, 0, "Guest [ENTER or guest]: ")
             gname = self.screen.getstr().decode(ENCODING)
             curses.noecho()
 
             if not gname:
-                self.refresh_header(0)
-                self.update_pid(0)
+                self._refresh_header(0)
+                self._update_pid(0)
                 break
             else:
                 pids = []
@@ -1311,17 +1310,17 @@ class Tui(object):
                     msg = '"' + gname + '": Multiple matches found, use pid ' \
                           'filter instead'
                     continue
-                self.refresh_header(pids[0])
-                self.update_pid(pids[0])
+                self._refresh_header(pids[0])
+                self._update_pid(pids[0])
                 break
 
     def show_stats(self):
         """Refreshes the screen and processes user input."""
         sleeptime = self._delay_initial
-        self.refresh_header()
+        self._refresh_header()
         start = 0.0  # result based on init value never appears on screen
         while True:
-            self.refresh_body(time.time() - start)
+            self._refresh_body(time.time() - start)
             curses.halfdelay(int(sleeptime * 10))
             start = time.time()
             sleeptime = self._delay_regular
@@ -1330,32 +1329,33 @@ class Tui(object):
                 if char == 'b':
                     self._display_guests = not self._display_guests
                     if self.stats.toggle_display_guests(self._display_guests):
-                        self.show_msg(['Command not available with tracepoints'
-                                       ' enabled', 'Restart with debugfs only '
-                                       '(see option \'-d\') and try again!'])
+                        self._show_msg(['Command not available with '
+                                        'tracepoints enabled', 'Restart with '
+                                        'debugfs only (see option \'-d\') and '
+                                        'try again!'])
                         self._display_guests = not self._display_guests
-                    self.refresh_header()
+                    self._refresh_header()
                 if char == 'c':
                     self.stats.fields_filter = DEFAULT_REGEX
-                    self.refresh_header(0)
-                    self.update_pid(0)
+                    self._refresh_header(0)
+                    self._update_pid(0)
                 if char == 'f':
                     curses.curs_set(1)
-                    self.show_filter_selection()
+                    self._show_filter_selection()
                     curses.curs_set(0)
                     sleeptime = self._delay_initial
                 if char == 'g':
                     curses.curs_set(1)
-                    self.show_vm_selection_by_guest_name()
+                    self._show_vm_selection_by_guest_name()
                     curses.curs_set(0)
                     sleeptime = self._delay_initial
                 if char == 'h':
-                    self.show_help_interactive()
+                    self._show_help_interactive()
                 if char == 'o':
                     self._sorting = not self._sorting
                 if char == 'p':
                     curses.curs_set(1)
-                    self.show_vm_selection_by_pid()
+                    self._show_vm_selection_by_pid()
                     curses.curs_set(0)
                     sleeptime = self._delay_initial
                 if char == 'q':
@@ -1364,11 +1364,11 @@ class Tui(object):
                     self.stats.reset()
                 if char == 's':
                     curses.curs_set(1)
-                    self.show_set_update_interval()
+                    self._show_set_update_interval()
                     curses.curs_set(0)
                     sleeptime = self._delay_initial
                 if char == 'x':
-                    self.update_drilldown()
+                    self._update_drilldown()
                     # prevents display of current values on next refresh
                     self.stats.get(self._display_guests)
             except KeyboardInterrupt:
