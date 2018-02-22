@@ -73,10 +73,12 @@ static void slice_range_to_mask(unsigned long start, unsigned long len,
 	unsigned long end = start + len - 1;
 
 	ret->low_slices = 0;
-	bitmap_zero(ret->high_slices, SLICE_NUM_HIGH);
+	if (SLICE_NUM_HIGH)
+		bitmap_zero(ret->high_slices, SLICE_NUM_HIGH);
 
 	if (start < SLICE_LOW_TOP) {
-		unsigned long mend = min(end, (SLICE_LOW_TOP - 1));
+		unsigned long mend = min(end,
+					 (unsigned long)(SLICE_LOW_TOP - 1));
 
 		ret->low_slices = (1u << (GET_LOW_SLICE_INDEX(mend) + 1))
 			- (1u << GET_LOW_SLICE_INDEX(start));
@@ -113,11 +115,13 @@ static int slice_high_has_vma(struct mm_struct *mm, unsigned long slice)
 	unsigned long start = slice << SLICE_HIGH_SHIFT;
 	unsigned long end = start + (1ul << SLICE_HIGH_SHIFT);
 
+#ifdef CONFIG_PPC64
 	/* Hack, so that each addresses is controlled by exactly one
 	 * of the high or low area bitmaps, the first high area starts
 	 * at 4GB, not 0 */
 	if (start == 0)
 		start = SLICE_LOW_TOP;
+#endif
 
 	return !slice_area_is_free(mm, start, end - start);
 }
@@ -128,7 +132,8 @@ static void slice_mask_for_free(struct mm_struct *mm, struct slice_mask *ret,
 	unsigned long i;
 
 	ret->low_slices = 0;
-	bitmap_zero(ret->high_slices, SLICE_NUM_HIGH);
+	if (SLICE_NUM_HIGH)
+		bitmap_zero(ret->high_slices, SLICE_NUM_HIGH);
 
 	for (i = 0; i < SLICE_NUM_LOW; i++)
 		if (!slice_low_has_vma(mm, i))
@@ -151,7 +156,8 @@ static void slice_mask_for_size(struct mm_struct *mm, int psize, struct slice_ma
 	u64 lpsizes;
 
 	ret->low_slices = 0;
-	bitmap_zero(ret->high_slices, SLICE_NUM_HIGH);
+	if (SLICE_NUM_HIGH)
+		bitmap_zero(ret->high_slices, SLICE_NUM_HIGH);
 
 	lpsizes = mm->context.low_slices_psize;
 	for (i = 0; i < SLICE_NUM_LOW; i++)
@@ -180,6 +186,10 @@ static int slice_check_fit(struct mm_struct *mm,
 	 */
 	unsigned long slice_count = GET_HIGH_SLICE_INDEX(mm->context.slb_addr_limit);
 
+	if (!SLICE_NUM_HIGH)
+		return (mask.low_slices & available.low_slices) ==
+		       mask.low_slices;
+
 	bitmap_and(result, mask.high_slices,
 		   available.high_slices, slice_count);
 
@@ -189,6 +199,7 @@ static int slice_check_fit(struct mm_struct *mm,
 
 static void slice_flush_segments(void *parm)
 {
+#ifdef CONFIG_PPC64
 	struct mm_struct *mm = parm;
 	unsigned long flags;
 
@@ -200,6 +211,7 @@ static void slice_flush_segments(void *parm)
 	local_irq_save(flags);
 	slb_flush_and_rebolt();
 	local_irq_restore(flags);
+#endif
 }
 
 static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psize)
@@ -389,6 +401,8 @@ static unsigned long slice_find_area(struct mm_struct *mm, unsigned long len,
 static inline void slice_or_mask(struct slice_mask *dst, struct slice_mask *src)
 {
 	dst->low_slices |= src->low_slices;
+	if (!SLICE_NUM_HIGH)
+		return;
 	bitmap_or(dst->high_slices, dst->high_slices, src->high_slices,
 		  SLICE_NUM_HIGH);
 }
@@ -397,6 +411,8 @@ static inline void slice_andnot_mask(struct slice_mask *dst, struct slice_mask *
 {
 	dst->low_slices &= ~src->low_slices;
 
+	if (!SLICE_NUM_HIGH)
+		return;
 	bitmap_andnot(dst->high_slices, dst->high_slices, src->high_slices,
 		      SLICE_NUM_HIGH);
 }
@@ -446,14 +462,17 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	 * init different masks
 	 */
 	mask.low_slices = 0;
-	bitmap_zero(mask.high_slices, SLICE_NUM_HIGH);
 
 	/* silence stupid warning */;
 	potential_mask.low_slices = 0;
-	bitmap_zero(potential_mask.high_slices, SLICE_NUM_HIGH);
 
 	compat_mask.low_slices = 0;
-	bitmap_zero(compat_mask.high_slices, SLICE_NUM_HIGH);
+
+	if (SLICE_NUM_HIGH) {
+		bitmap_zero(mask.high_slices, SLICE_NUM_HIGH);
+		bitmap_zero(potential_mask.high_slices, SLICE_NUM_HIGH);
+		bitmap_zero(compat_mask.high_slices, SLICE_NUM_HIGH);
+	}
 
 	/* Sanity checks */
 	BUG_ON(mm->task_size == 0);
@@ -591,7 +610,9 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
  convert:
 	slice_andnot_mask(&mask, &good_mask);
 	slice_andnot_mask(&mask, &compat_mask);
-	if (mask.low_slices || !bitmap_empty(mask.high_slices, SLICE_NUM_HIGH)) {
+	if (mask.low_slices ||
+	    (SLICE_NUM_HIGH &&
+	     !bitmap_empty(mask.high_slices, SLICE_NUM_HIGH))) {
 		slice_convert(mm, mask, psize);
 		if (psize > MMU_PAGE_BASE)
 			on_each_cpu(slice_flush_segments, mm, 1);
