@@ -228,6 +228,7 @@ IOCTL_NUMBERS = {
 }
 
 ENCODING = locale.getpreferredencoding(False)
+TRACE_FILTER = re.compile(r'^[^\(]*$')
 
 
 class Arch(object):
@@ -260,12 +261,21 @@ class Arch(object):
                     return ArchX86(SVM_EXIT_REASONS)
                 return
 
+    def tracepoint_is_child(self, field):
+        if (TRACE_FILTER.match(field)):
+            return None
+        return field.split('(', 1)[0]
+
 
 class ArchX86(Arch):
     def __init__(self, exit_reasons):
         self.sc_perf_evt_open = 298
         self.ioctl_numbers = IOCTL_NUMBERS
         self.exit_reasons = exit_reasons
+
+    def debugfs_is_child(self, field):
+        """ Returns name of parent if 'field' is a child, None otherwise """
+        return None
 
 
 class ArchPPC(Arch):
@@ -282,6 +292,10 @@ class ArchPPC(Arch):
         self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
         self.exit_reasons = {}
 
+    def debugfs_is_child(self, field):
+        """ Returns name of parent if 'field' is a child, None otherwise """
+        return None
+
 
 class ArchA64(Arch):
     def __init__(self):
@@ -289,12 +303,22 @@ class ArchA64(Arch):
         self.ioctl_numbers = IOCTL_NUMBERS
         self.exit_reasons = AARCH64_EXIT_REASONS
 
+    def debugfs_is_child(self, field):
+        """ Returns name of parent if 'field' is a child, None otherwise """
+        return None
+
 
 class ArchS390(Arch):
     def __init__(self):
         self.sc_perf_evt_open = 331
         self.ioctl_numbers = IOCTL_NUMBERS
         self.exit_reasons = None
+
+    def debugfs_is_child(self, field):
+        """ Returns name of parent if 'field' is a child, None otherwise """
+        if field.startswith('instruction_'):
+            return 'exit_instruction'
+
 
 ARCH = Arch.get_arch()
 
@@ -472,6 +496,10 @@ class Event(object):
 
 class Provider(object):
     """Encapsulates functionalities used by all providers."""
+    def __init__(self, pid):
+        self.child_events = False
+        self.pid = pid
+
     @staticmethod
     def is_field_wanted(fields_filter, field):
         """Indicate whether field is valid according to fields_filter."""
@@ -499,7 +527,7 @@ class TracepointProvider(Provider):
         self.group_leaders = []
         self.filters = self._get_filters()
         self.update_fields(fields_filter)
-        self.pid = pid
+        super(TracepointProvider, self).__init__(pid)
 
     @staticmethod
     def _get_filters():
@@ -519,7 +547,7 @@ class TracepointProvider(Provider):
         return filters
 
     def _get_available_fields(self):
-        """Returns a list of available event's of format 'event name(filter
+        """Returns a list of available events of format 'event name(filter
         name)'.
 
         All available events have directories under
@@ -547,7 +575,8 @@ class TracepointProvider(Provider):
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self.fields = [field for field in self._get_available_fields()
-                       if self.is_field_wanted(fields_filter, field)]
+                       if self.is_field_wanted(fields_filter, field) or
+                       ARCH.tracepoint_is_child(field)]
 
     @staticmethod
     def _get_online_cpus():
@@ -668,8 +697,12 @@ class TracepointProvider(Provider):
         ret = defaultdict(int)
         for group in self.group_leaders:
             for name, val in group.read().items():
-                if name in self._fields:
-                    ret[name] += val
+                if name not in self._fields:
+                    continue
+                parent = ARCH.tracepoint_is_child(name)
+                if parent:
+                    name += ' ' + parent
+                ret[name] += val
         return ret
 
     def reset(self):
@@ -687,7 +720,7 @@ class DebugfsProvider(Provider):
         self._baseline = {}
         self.do_read = True
         self.paths = []
-        self.pid = pid
+        super(DebugfsProvider, self).__init__(pid)
         if include_past:
             self._restore()
 
@@ -702,7 +735,8 @@ class DebugfsProvider(Provider):
     def update_fields(self, fields_filter):
         """Refresh fields, applying fields_filter"""
         self._fields = [field for field in self._get_available_fields()
-                        if self.is_field_wanted(fields_filter, field)]
+                        if self.is_field_wanted(fields_filter, field) or
+                        ARCH.debugfs_is_child(field)]
 
     @property
     def fields(self):
@@ -763,14 +797,15 @@ class DebugfsProvider(Provider):
                     self._baseline[key] = 0
                 if self._baseline.get(key, -1) == -1:
                     self._baseline[key] = value
-                increment = (results.get(field, 0) + value -
-                             self._baseline.get(key, 0))
-                if by_guest:
-                    pid = key.split('-')[0]
-                    if pid in results:
-                        results[pid] += increment
-                    else:
-                        results[pid] = increment
+                parent = ARCH.debugfs_is_child(field)
+                if parent:
+                    field = field + ' ' + parent
+                else:
+                    if by_guest:
+                        field = key.split('-')[0]    # set 'field' to 'pid'
+                increment = value - self._baseline.get(key, 0)
+                if field in results:
+                    results[field] += increment
                 else:
                     results[field] = increment
 
@@ -812,6 +847,7 @@ class Stats(object):
         self._pid_filter = options.pid
         self._fields_filter = options.fields
         self.values = {}
+        self._child_events = False
 
     def _get_providers(self, options):
         """Returns a list of data providers depending on the passed options."""
@@ -860,12 +896,29 @@ class Stats(object):
             for provider in self.providers:
                 provider.pid = self._pid_filter
 
+    @property
+    def child_events(self):
+        return self._child_events
+
+    @child_events.setter
+    def child_events(self, val):
+        self._child_events = val
+        for provider in self.providers:
+            provider.child_events = val
+
     def get(self, by_guest=0):
         """Returns a dict with field -> (value, delta to last value) of all
-        provider data."""
+        provider data.
+        Key formats:
+          * plain: 'key' is event name
+          * child-parent: 'key' is in format '<child> <parent>'
+          * pid: 'key' is the pid of the guest, and the record contains the
+               aggregated event data
+        These formats are generated by the providers, and handled in class TUI.
+        """
         for provider in self.providers:
             new = provider.read(by_guest=by_guest)
-            for key in new if by_guest else provider.fields:
+            for key in new:
                 oldval = self.values.get(key, EventStat(0, 0)).value
                 newval = new.get(key, 0)
                 newdelta = newval - oldval
@@ -898,10 +951,10 @@ class Stats(object):
         self.get(to_pid)
         return 0
 
+
 DELAY_DEFAULT = 3.0
 MAX_GUEST_NAME_LEN = 48
 MAX_REGEX_LEN = 44
-DEFAULT_REGEX = r'^[^\(]*$'
 SORT_DEFAULT = 0
 
 
@@ -1031,14 +1084,6 @@ class Tui(object):
 
         return name
 
-    def _update_drilldown(self):
-        """Sets or removes a filter that only allows fields without braces."""
-        if not self.stats.fields_filter:
-            self.stats.fields_filter = DEFAULT_REGEX
-
-        elif self.stats.fields_filter == DEFAULT_REGEX:
-            self.stats.fields_filter = None
-
     def _update_pid(self, pid):
         """Propagates pid selection to stats object."""
         self.screen.addstr(4, 1, 'Updating pid filter...')
@@ -1060,8 +1105,7 @@ class Tui(object):
                                .format(pid, gname), curses.A_BOLD)
         else:
             self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
-        if self.stats.fields_filter and self.stats.fields_filter \
-           != DEFAULT_REGEX:
+        if self.stats.fields_filter:
             regex = self.stats.fields_filter
             if len(regex) > MAX_REGEX_LEN:
                 regex = regex[:MAX_REGEX_LEN] + '...'
@@ -1077,6 +1121,9 @@ class Tui(object):
         self.screen.refresh()
 
     def _refresh_body(self, sleeptime):
+        def is_child_field(field):
+            return field.find('(') != -1
+
         row = 3
         self.screen.move(row, 0)
         self.screen.clrtobot()
@@ -1084,7 +1131,11 @@ class Tui(object):
         total = 0.
         ctotal = 0.
         for key, values in stats.items():
-            if key.find('(') == -1:
+            if self._display_guests:
+                if self.get_gname_from_pid(key):
+                    total += values.value
+                continue
+            if not key.find(' ') != -1:
                 total += values.value
             else:
                 ctotal += values.value
@@ -1101,19 +1152,26 @@ class Tui(object):
                 # sort by overall value
                 return v.value
 
+        sorted_items = sorted(stats.items(), key=sortkey, reverse=True)
+
+        # print events
         tavg = 0
-        for key, values in sorted(stats.items(), key=sortkey, reverse=True):
+        for key, values in sorted_items:
             if row >= self.screen.getmaxyx()[0] - 1:
                 break
-            if not values.value and not values.delta:
-                break
+            if values == (0, 0):
+                continue
+            if not self.stats.child_events and key.find(' ') != -1:
+                continue
             if values.value is not None:
                 cur = int(round(values.delta / sleeptime)) if values.delta else ''
                 if self._display_guests:
                     key = self.get_gname_from_pid(key)
-                self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' %
-                                   (key, values.value, values.value * 100 / total,
-                                    cur))
+                    if not key:
+                        continue
+                self.screen.addstr(row, 1, '%-40s %10d%7.1f %8s' % (key
+                                   .split(' ')[0], values.value,
+                                   values.value * 100 / total, cur))
                 if cur != '' and key.find('(') == -1:
                     tavg += cur
             row += 1
@@ -1189,7 +1247,7 @@ class Tui(object):
             regex = self.screen.getstr().decode(ENCODING)
             curses.noecho()
             if len(regex) == 0:
-                self.stats.fields_filter = DEFAULT_REGEX
+                self.stats.fields_filter = ''
                 self._refresh_header()
                 return
             try:
@@ -1307,7 +1365,7 @@ class Tui(object):
                         self._display_guests = not self._display_guests
                     self._refresh_header()
                 if char == 'c':
-                    self.stats.fields_filter = DEFAULT_REGEX
+                    self.stats.fields_filter = ''
                     self._refresh_header(0)
                     self._update_pid(0)
                 if char == 'f':
@@ -1332,9 +1390,7 @@ class Tui(object):
                     curses.curs_set(0)
                     sleeptime = self._delay_initial
                 if char == 'x':
-                    self._update_drilldown()
-                    # prevents display of current values on next refresh
-                    self.stats.get(self._display_guests)
+                    self.stats.child_events = not self.stats.child_events
             except KeyboardInterrupt:
                 break
             except curses.error:
@@ -1348,7 +1404,8 @@ def batch(stats):
         time.sleep(1)
         s = stats.get()
         for key, values in sorted(s.items()):
-            print('%-42s%10d%10d' % (key, values.value, values.delta))
+            print('%-42s%10d%10d' % (key.split(' ')[0], values.value,
+                  values.delta))
     except KeyboardInterrupt:
         pass
 
@@ -1359,7 +1416,7 @@ def log(stats):
 
     def banner():
         for key in keys:
-            print(key, end=' ')
+            print(key.split(' ')[0], end=' ')
         print()
 
     def statline():
@@ -1470,7 +1527,7 @@ Press any other key to refresh statistics immediately.
                          )
     optparser.add_option('-f', '--fields',
                          action='store',
-                         default=DEFAULT_REGEX,
+                         default='',
                          dest='fields',
                          help='''fields to display (regex)
                                  "-f help" for a list of available events''',
