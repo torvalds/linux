@@ -121,6 +121,7 @@ config QCOM_SYSMON
 	tristate "Qualcomm sysmon driver"
 	depends on RPMSG
 	depends on ARCH_QCOM
+	depends on NET
 	select QCOM_QMI_HELPERS
 	help
 	  The sysmon driver implements a sysmon QMI client and a handler for

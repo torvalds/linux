@@ -66,6 +66,7 @@ config SAMPLE_QMI_CLIENT
 	tristate "Build qmi client sample -- loadable modules only"
 	depends on m
 	depends on ARCH_QCOM
+	depends on NET
 	select QCOM_QMI_HELPERS
 	help
 	  Build an QMI client sample driver, which demonstrates how to
