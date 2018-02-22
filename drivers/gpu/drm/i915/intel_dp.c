@@ -1238,6 +1238,17 @@ out:
 
 #define BARE_ADDRESS_SIZE	3
 #define HEADER_SIZE		(BARE_ADDRESS_SIZE + 1)
+
+static void
+intel_dp_aux_header(u8 txbuf[HEADER_SIZE],
+		    const struct drm_dp_aux_msg *msg)
+{
+	txbuf[0] = (msg->request << 4) | ((msg->address >> 16) & 0xf);
+	txbuf[1] = (msg->address >> 8) & 0xff;
+	txbuf[2] = msg->address & 0xff;
+	txbuf[3] = msg->size - 1;
+}
+
 static ssize_t
 intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 {
@@ -1246,11 +1257,7 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	size_t txsize, rxsize;
 	int ret;
 
-	txbuf[0] = (msg->request << 4) |
-		((msg->address >> 16) & 0xf);
-	txbuf[1] = (msg->address >> 8) & 0xff;
-	txbuf[2] = msg->address & 0xff;
-	txbuf[3] = msg->size - 1;
+	intel_dp_aux_header(txbuf, msg);
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_WRITE:
@@ -5004,7 +5011,12 @@ int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 				u8 *an)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_dig_port->base.base);
-	uint8_t txbuf[4+5] = {}, rxbuf[2], reply = 0;
+	static const struct drm_dp_aux_msg msg = {
+		.request = DP_AUX_NATIVE_WRITE,
+		.address = DP_AUX_HDCP_AKSV,
+		.size = DRM_HDCP_KSV_LEN,
+	};
+	uint8_t txbuf[HEADER_SIZE + DRM_HDCP_KSV_LEN] = {}, rxbuf[2], reply = 0;
 	ssize_t dpcd_ret;
 	int ret;
 
@@ -5022,13 +5034,9 @@ int intel_dp_hdcp_write_an_aksv(struct intel_digital_port *intel_dig_port,
 	 * we were writing the data, and then tickle the hardware to output the
 	 * data once the header is sent out.
 	 */
-	txbuf[0] = (DP_AUX_NATIVE_WRITE << 4) |
-		   ((DP_AUX_HDCP_AKSV >> 16) & 0xf);
-	txbuf[1] = (DP_AUX_HDCP_AKSV >> 8) & 0xff;
-	txbuf[2] = DP_AUX_HDCP_AKSV & 0xff;
-	txbuf[3] = DRM_HDCP_KSV_LEN - 1;
+	intel_dp_aux_header(txbuf, &msg);
 
-	ret = intel_dp_aux_xfer(intel_dp, txbuf, sizeof(txbuf),
+	ret = intel_dp_aux_xfer(intel_dp, txbuf, HEADER_SIZE + msg.size,
 				rxbuf, sizeof(rxbuf),
 				DP_AUX_CH_CTL_AUX_AKSV_SELECT);
 	if (ret < 0) {
