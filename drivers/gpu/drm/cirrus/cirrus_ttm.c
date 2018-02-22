@@ -216,21 +216,8 @@ static struct ttm_tt *cirrus_ttm_tt_create(struct ttm_bo_device *bdev,
 	return tt;
 }
 
-static int cirrus_ttm_tt_populate(struct ttm_tt *ttm,
-		struct ttm_operation_ctx *ctx)
-{
-	return ttm_pool_populate(ttm, ctx);
-}
-
-static void cirrus_ttm_tt_unpopulate(struct ttm_tt *ttm)
-{
-	ttm_pool_unpopulate(ttm);
-}
-
 struct ttm_bo_driver cirrus_bo_driver = {
 	.ttm_tt_create = cirrus_ttm_tt_create,
-	.ttm_tt_populate = cirrus_ttm_tt_populate,
-	.ttm_tt_unpopulate = cirrus_ttm_tt_unpopulate,
 	.init_mem_type = cirrus_bo_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = cirrus_bo_evict_flags,
