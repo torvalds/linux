@@ -200,10 +200,12 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_1T_SEGMENT)
 5:
 	/*
 	 * Handle lpsizes
-	 * r9 is get_paca()->context.low_slices_psize, r11 is index
+	 * r9 is get_paca()->context.low_slices_psize[index], r11 is mask_index
 	 */
-	ld	r9,PACALOWSLICESPSIZE(r13)
-	mr	r11,r10
+	srdi    r11,r10,1 /* index */
+	addi	r9,r11,PACALOWSLICESPSIZE
+	lbzx	r9,r13,r9		/* r9 is lpsizes[r11] */
+	rldicl	r11,r10,0,63		/* r11 = r10 & 0x1 */
 6:
 	sldi	r11,r11,2  /* index * 4 */
 	/* Extract the psize and multiply to get an array offset */

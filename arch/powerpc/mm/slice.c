@@ -150,19 +150,21 @@ static void slice_mask_for_free(struct mm_struct *mm, struct slice_mask *ret,
 static void slice_mask_for_size(struct mm_struct *mm, int psize, struct slice_mask *ret,
 				unsigned long high_limit)
 {
-	unsigned char *hpsizes;
+	unsigned char *hpsizes, *lpsizes;
 	int index, mask_index;
 	unsigned long i;
-	u64 lpsizes;
 
 	ret->low_slices = 0;
 	if (SLICE_NUM_HIGH)
 		bitmap_zero(ret->high_slices, SLICE_NUM_HIGH);
 
 	lpsizes = mm->context.low_slices_psize;
-	for (i = 0; i < SLICE_NUM_LOW; i++)
-		if (((lpsizes >> (i * 4)) & 0xf) == psize)
+	for (i = 0; i < SLICE_NUM_LOW; i++) {
+		mask_index = i & 0x1;
+		index = i >> 1;
+		if (((lpsizes[index] >> (mask_index * 4)) & 0xf) == psize)
 			ret->low_slices |= 1u << i;
+	}
 
 	if (high_limit <= SLICE_LOW_TOP)
 		return;
@@ -218,8 +220,7 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 {
 	int index, mask_index;
 	/* Write the new slice psize bits */
-	unsigned char *hpsizes;
-	u64 lpsizes;
+	unsigned char *hpsizes, *lpsizes;
 	unsigned long i, flags;
 
 	slice_dbg("slice_convert(mm=%p, psize=%d)\n", mm, psize);
@@ -232,12 +233,13 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 
 	lpsizes = mm->context.low_slices_psize;
 	for (i = 0; i < SLICE_NUM_LOW; i++)
-		if (mask.low_slices & (1u << i))
-			lpsizes = (lpsizes & ~(0xful << (i * 4))) |
-				(((unsigned long)psize) << (i * 4));
-
-	/* Assign the value back */
-	mm->context.low_slices_psize = lpsizes;
+		if (mask.low_slices & (1u << i)) {
+			mask_index = i & 0x1;
+			index = i >> 1;
+			lpsizes[index] = (lpsizes[index] &
+					  ~(0xf << (mask_index * 4))) |
+				(((unsigned long)psize) << (mask_index * 4));
+		}
 
 	hpsizes = mm->context.high_slices_psize;
 	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.slb_addr_limit); i++) {
@@ -644,7 +646,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp,
 
 unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
 {
-	unsigned char *hpsizes;
+	unsigned char *psizes;
 	int index, mask_index;
 
 	/*
@@ -658,15 +660,14 @@ unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
 #endif
 	}
 	if (addr < SLICE_LOW_TOP) {
-		u64 lpsizes;
-		lpsizes = mm->context.low_slices_psize;
+		psizes = mm->context.low_slices_psize;
 		index = GET_LOW_SLICE_INDEX(addr);
-		return (lpsizes >> (index * 4)) & 0xf;
+	} else {
+		psizes = mm->context.high_slices_psize;
+		index = GET_HIGH_SLICE_INDEX(addr);
 	}
-	hpsizes = mm->context.high_slices_psize;
-	index = GET_HIGH_SLICE_INDEX(addr);
 	mask_index = index & 0x1;
-	return (hpsizes[index >> 1] >> (mask_index * 4)) & 0xf;
+	return (psizes[index >> 1] >> (mask_index * 4)) & 0xf;
 }
 EXPORT_SYMBOL_GPL(get_slice_psize);
 
@@ -687,8 +688,8 @@ EXPORT_SYMBOL_GPL(get_slice_psize);
 void slice_set_user_psize(struct mm_struct *mm, unsigned int psize)
 {
 	int index, mask_index;
-	unsigned char *hpsizes;
-	unsigned long flags, lpsizes;
+	unsigned char *hpsizes, *lpsizes;
+	unsigned long flags;
 	unsigned int old_psize;
 	int i;
 
@@ -706,12 +707,14 @@ void slice_set_user_psize(struct mm_struct *mm, unsigned int psize)
 	wmb();
 
 	lpsizes = mm->context.low_slices_psize;
-	for (i = 0; i < SLICE_NUM_LOW; i++)
-		if (((lpsizes >> (i * 4)) & 0xf) == old_psize)
-			lpsizes = (lpsizes & ~(0xful << (i * 4))) |
-				(((unsigned long)psize) << (i * 4));
-	/* Assign the value back */
-	mm->context.low_slices_psize = lpsizes;
+	for (i = 0; i < SLICE_NUM_LOW; i++) {
+		mask_index = i & 0x1;
+		index = i >> 1;
+		if (((lpsizes[index] >> (mask_index * 4)) & 0xf) == old_psize)
+			lpsizes[index] = (lpsizes[index] &
+					  ~(0xf << (mask_index * 4))) |
+				(((unsigned long)psize) << (mask_index * 4));
+	}
 
 	hpsizes = mm->context.high_slices_psize;
 	for (i = 0; i < SLICE_NUM_HIGH; i++) {
