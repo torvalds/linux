@@ -84,9 +84,6 @@ static uint32_t vega10_wait_for_response(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg;
 
-	if (!vega10_is_smc_ram_running(hwmgr))
-		return -EINVAL;
-
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
 
@@ -107,9 +104,6 @@ int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 {
 	uint32_t reg;
 
-	if (!vega10_is_smc_ram_running(hwmgr))
-		return -EINVAL;
-
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_66_BASE_IDX, mmMP1_SMN_C2PMSG_66);
 	cgs_write_register(hwmgr->device, reg, msg);
@@ -126,9 +120,6 @@ int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	uint32_t reg;
-
-	if (!vega10_is_smc_ram_running(hwmgr))
-		return -EINVAL;
 
 	vega10_wait_for_response(hwmgr);
 
@@ -155,9 +146,6 @@ int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 		uint16_t msg, uint32_t parameter)
 {
 	uint32_t reg;
-
-	if (!vega10_is_smc_ram_running(hwmgr))
-		return -EINVAL;
 
 	vega10_wait_for_response(hwmgr);
 
@@ -581,6 +569,9 @@ static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
 
 static int vega10_start_smu(struct pp_hwmgr *hwmgr)
 {
+	if (!vega10_is_smc_ram_running(hwmgr))
+		return -EINVAL;
+
 	PP_ASSERT_WITH_CODE(!vega10_verify_smc_interface(hwmgr),
 			"Failed to verify SMC interface!",
 			return -EINVAL);
