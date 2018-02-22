@@ -588,37 +588,6 @@ static void __dentry_kill(struct dentry *dentry)
 		dentry_free(dentry);
 }
 
-/*
- * Finish off a dentry we've decided to kill.
- * dentry->d_lock must be held, returns with it unlocked.
- * Returns dentry requiring refcount drop, or NULL if we're done.
- */
-static struct dentry *dentry_kill(struct dentry *dentry)
-	__releases(dentry->d_lock)
-{
-	struct inode *inode = dentry->d_inode;
-	struct dentry *parent = NULL;
-
-	if (inode && unlikely(!spin_trylock(&inode->i_lock)))
-		goto failed;
-
-	if (!IS_ROOT(dentry)) {
-		parent = dentry->d_parent;
-		if (unlikely(!spin_trylock(&parent->d_lock))) {
-			if (inode)
-				spin_unlock(&inode->i_lock);
-			goto failed;
-		}
-	}
-
-	__dentry_kill(dentry);
-	return parent;
-
-failed:
-	spin_unlock(&dentry->d_lock);
-	return dentry; /* try again with same dentry */
-}
-
 static inline struct dentry *lock_parent(struct dentry *dentry)
 {
 	struct dentry *parent = dentry->d_parent;
@@ -656,6 +625,37 @@ again:
 	}
 	rcu_read_unlock();
 	return parent;
+}
+
+/*
+ * Finish off a dentry we've decided to kill.
+ * dentry->d_lock must be held, returns with it unlocked.
+ * Returns dentry requiring refcount drop, or NULL if we're done.
+ */
+static struct dentry *dentry_kill(struct dentry *dentry)
+	__releases(dentry->d_lock)
+{
+	struct inode *inode = dentry->d_inode;
+	struct dentry *parent = NULL;
+
+	if (inode && unlikely(!spin_trylock(&inode->i_lock)))
+		goto failed;
+
+	if (!IS_ROOT(dentry)) {
+		parent = dentry->d_parent;
+		if (unlikely(!spin_trylock(&parent->d_lock))) {
+			if (inode)
+				spin_unlock(&inode->i_lock);
+			goto failed;
+		}
+	}
+
+	__dentry_kill(dentry);
+	return parent;
+
+failed:
+	spin_unlock(&dentry->d_lock);
+	return dentry; /* try again with same dentry */
 }
 
 /*
