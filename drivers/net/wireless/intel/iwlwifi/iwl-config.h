@@ -420,7 +420,7 @@ struct iwl_cfg {
 	u32 soc_latency;
 	u16 nvm_ver;
 	u16 nvm_calib_ver;
-	u16 rx_with_siso_diversity:1,
+	u32 rx_with_siso_diversity:1,
 	    bt_shared_single_ant:1,
 	    internal_wimax_coex:1,
 	    host_interrupt_operation_mode:1,
