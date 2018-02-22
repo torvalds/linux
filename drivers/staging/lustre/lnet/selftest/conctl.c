@@ -650,10 +650,8 @@ static int lst_test_add_ioctl(struct lstio_test_args *args)
 	if (args->lstio_tes_param) {
 		param = memdup_user(args->lstio_tes_param,
 				    args->lstio_tes_param_len);
-		if (IS_ERR(param)) {
-			rc = PTR_ERR(param);
-			goto out;
-		}
+		if (IS_ERR(param))
+			return PTR_ERR(param);
 	}
 
 	rc = -EFAULT;
