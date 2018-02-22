@@ -1812,40 +1812,35 @@ int _regmap_raw_write(struct regmap *map, unsigned int reg,
 {
 	size_t val_bytes = map->format.val_bytes;
 	size_t val_count = val_len / val_bytes;
-	int chunk_stride = map->reg_stride;
-	size_t chunk_size = val_bytes;
-	size_t chunk_count = val_count;
+	size_t chunk_count, chunk_bytes;
+	size_t chunk_regs = val_count;
 	int ret, i;
 
 	if (!val_count)
 		return -EINVAL;
 
-	if (!map->use_single_write) {
-		if (map->max_raw_write)
-			chunk_size = map->max_raw_write;
-		else
-			chunk_size = val_len;
-		if (chunk_size % val_bytes)
-			chunk_size -= chunk_size % val_bytes;
-		chunk_count = val_len / chunk_size;
-		chunk_stride *= chunk_size / val_bytes;
-	}
+	if (map->use_single_write)
+		chunk_regs = 1;
+	else if (map->max_raw_write && val_len > map->max_raw_write)
+		chunk_regs = map->max_raw_write / val_bytes;
+
+	chunk_count = val_count / chunk_regs;
+	chunk_bytes = chunk_regs * val_bytes;
 
 	/* Write as many bytes as possible with chunk_size */
 	for (i = 0; i < chunk_count; i++) {
-		ret = _regmap_raw_write_impl(map,
-					     reg + (i * chunk_stride),
-					     val + (i * chunk_size),
-					     chunk_size);
+		ret = _regmap_raw_write_impl(map, reg, val, chunk_bytes);
 		if (ret)
 			return ret;
+
+		reg += regmap_get_offset(map, chunk_regs);
+		val += chunk_bytes;
+		val_len -= chunk_bytes;
 	}
 
 	/* Write remaining bytes */
-	if (!ret && chunk_size * i < val_len)
-		ret = _regmap_raw_write_impl(map, reg + (i * chunk_stride),
-					     val + (i * chunk_size),
-					     val_len - i * chunk_size);
+	if (val_len)
+		ret = _regmap_raw_write_impl(map, reg, val, val_len);
 
 	return ret;
 }
