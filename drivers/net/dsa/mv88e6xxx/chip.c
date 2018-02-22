@@ -253,9 +253,8 @@ static void mv88e6xxx_g1_irq_unmask(struct irq_data *d)
 	chip->g1_irq.masked &= ~(1 << n);
 }
 
-static irqreturn_t mv88e6xxx_g1_irq_thread_fn(int irq, void *dev_id)
+static irqreturn_t mv88e6xxx_g1_irq_thread_work(struct mv88e6xxx_chip *chip)
 {
-	struct mv88e6xxx_chip *chip = dev_id;
 	unsigned int nhandled = 0;
 	unsigned int sub_irq;
 	unsigned int n;
@@ -278,6 +277,13 @@ static irqreturn_t mv88e6xxx_g1_irq_thread_fn(int irq, void *dev_id)
 	}
 out:
 	return (nhandled > 0 ? IRQ_HANDLED : IRQ_NONE);
+}
+
+static irqreturn_t mv88e6xxx_g1_irq_thread_fn(int irq, void *dev_id)
+{
+	struct mv88e6xxx_chip *chip = dev_id;
+
+	return mv88e6xxx_g1_irq_thread_work(chip);
 }
 
 static void mv88e6xxx_g1_irq_bus_lock(struct irq_data *d)
@@ -335,7 +341,7 @@ static const struct irq_domain_ops mv88e6xxx_g1_irq_domain_ops = {
 	.xlate	= irq_domain_xlate_twocell,
 };
 
-static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
+static void mv88e6xxx_g1_irq_free_common(struct mv88e6xxx_chip *chip)
 {
 	int irq, virq;
 	u16 mask;
@@ -343,8 +349,6 @@ static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
 	mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &mask);
 	mask &= ~GENMASK(chip->g1_irq.nirqs, 0);
 	mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, mask);
-
-	free_irq(chip->irq, chip);
 
 	for (irq = 0; irq < chip->g1_irq.nirqs; irq++) {
 		virq = irq_find_mapping(chip->g1_irq.domain, irq);
@@ -354,7 +358,14 @@ static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
 	irq_domain_remove(chip->g1_irq.domain);
 }
 
-static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
+static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
+{
+	mv88e6xxx_g1_irq_free(chip);
+
+	free_irq(chip->irq, chip);
+}
+
+static int mv88e6xxx_g1_irq_setup_common(struct mv88e6xxx_chip *chip)
 {
 	int err, irq, virq;
 	u16 reg, mask;
@@ -387,13 +398,6 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 	if (err)
 		goto out_disable;
 
-	err = request_threaded_irq(chip->irq, NULL,
-				   mv88e6xxx_g1_irq_thread_fn,
-				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
-				   dev_name(chip->dev), chip);
-	if (err)
-		goto out_disable;
-
 	return 0;
 
 out_disable:
@@ -409,6 +413,62 @@ out_mapping:
 	irq_domain_remove(chip->g1_irq.domain);
 
 	return err;
+}
+
+static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	err = mv88e6xxx_g1_irq_setup_common(chip);
+	if (err)
+		return err;
+
+	err = request_threaded_irq(chip->irq, NULL,
+				   mv88e6xxx_g1_irq_thread_fn,
+				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
+				   dev_name(chip->dev), chip);
+	if (err)
+		mv88e6xxx_g1_irq_free_common(chip);
+
+	return err;
+}
+
+static void mv88e6xxx_irq_poll(struct kthread_work *work)
+{
+	struct mv88e6xxx_chip *chip = container_of(work,
+						   struct mv88e6xxx_chip,
+						   irq_poll_work.work);
+	mv88e6xxx_g1_irq_thread_work(chip);
+
+	kthread_queue_delayed_work(chip->kworker, &chip->irq_poll_work,
+				   msecs_to_jiffies(100));
+}
+
+static int mv88e6xxx_irq_poll_setup(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	err = mv88e6xxx_g1_irq_setup_common(chip);
+	if (err)
+		return err;
+
+	kthread_init_delayed_work(&chip->irq_poll_work,
+				  mv88e6xxx_irq_poll);
+
+	chip->kworker = kthread_create_worker(0, dev_name(chip->dev));
+	if (IS_ERR(chip->kworker))
+		return PTR_ERR(chip->kworker);
+
+	kthread_queue_delayed_work(chip->kworker, &chip->irq_poll_work,
+				   msecs_to_jiffies(100));
+
+	return 0;
+}
+
+static void mv88e6xxx_irq_poll_free(struct mv88e6xxx_chip *chip)
+{
+	kthread_cancel_delayed_work_sync(&chip->irq_poll_work);
+	kthread_destroy_worker(chip->kworker);
 }
 
 int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg, u16 mask)
@@ -4034,32 +4094,33 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 		goto out;
 	}
 
-	if (chip->irq > 0) {
-		/* Has to be performed before the MDIO bus is created,
-		 * because the PHYs will link there interrupts to these
-		 * interrupt controllers
-		 */
-		mutex_lock(&chip->reg_lock);
+	/* Has to be performed before the MDIO bus is created, because
+	 * the PHYs will link there interrupts to these interrupt
+	 * controllers
+	 */
+	mutex_lock(&chip->reg_lock);
+	if (chip->irq > 0)
 		err = mv88e6xxx_g1_irq_setup(chip);
-		mutex_unlock(&chip->reg_lock);
+	else
+		err = mv88e6xxx_irq_poll_setup(chip);
+	mutex_unlock(&chip->reg_lock);
 
+	if (err)
+		goto out;
+
+	if (chip->info->g2_irqs > 0) {
+		err = mv88e6xxx_g2_irq_setup(chip);
 		if (err)
-			goto out;
-
-		if (chip->info->g2_irqs > 0) {
-			err = mv88e6xxx_g2_irq_setup(chip);
-			if (err)
-				goto out_g1_irq;
-		}
-
-		err = mv88e6xxx_g1_atu_prob_irq_setup(chip);
-		if (err)
-			goto out_g2_irq;
-
-		err = mv88e6xxx_g1_vtu_prob_irq_setup(chip);
-		if (err)
-			goto out_g1_atu_prob_irq;
+			goto out_g1_irq;
 	}
+
+	err = mv88e6xxx_g1_atu_prob_irq_setup(chip);
+	if (err)
+		goto out_g2_irq;
+
+	err = mv88e6xxx_g1_vtu_prob_irq_setup(chip);
+	if (err)
+		goto out_g1_atu_prob_irq;
 
 	err = mv88e6xxx_mdios_register(chip, np);
 	if (err)
@@ -4074,20 +4135,19 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 out_mdio:
 	mv88e6xxx_mdios_unregister(chip);
 out_g1_vtu_prob_irq:
-	if (chip->irq > 0)
-		mv88e6xxx_g1_vtu_prob_irq_free(chip);
+	mv88e6xxx_g1_vtu_prob_irq_free(chip);
 out_g1_atu_prob_irq:
-	if (chip->irq > 0)
-		mv88e6xxx_g1_atu_prob_irq_free(chip);
+	mv88e6xxx_g1_atu_prob_irq_free(chip);
 out_g2_irq:
-	if (chip->info->g2_irqs > 0 && chip->irq > 0)
+	if (chip->info->g2_irqs > 0)
 		mv88e6xxx_g2_irq_free(chip);
 out_g1_irq:
-	if (chip->irq > 0) {
-		mutex_lock(&chip->reg_lock);
+	mutex_lock(&chip->reg_lock);
+	if (chip->irq > 0)
 		mv88e6xxx_g1_irq_free(chip);
-		mutex_unlock(&chip->reg_lock);
-	}
+	else
+		mv88e6xxx_irq_poll_free(chip);
+	mutex_unlock(&chip->reg_lock);
 out:
 	return err;
 }

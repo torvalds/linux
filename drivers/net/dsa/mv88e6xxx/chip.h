@@ -15,6 +15,7 @@
 #include <linux/if_vlan.h>
 #include <linux/irq.h>
 #include <linux/gpio/consumer.h>
+#include <linux/kthread.h>
 #include <linux/phy.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/timecounter.h>
@@ -245,6 +246,8 @@ struct mv88e6xxx_chip {
 	int watchdog_irq;
 	int atu_prob_irq;
 	int vtu_prob_irq;
+	struct kthread_worker *kworker;
+	struct kthread_delayed_work irq_poll_work;
 
 	/* GPIO resources */
 	u8 gpio_data[2];
