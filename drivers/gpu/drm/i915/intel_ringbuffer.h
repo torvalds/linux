@@ -258,6 +258,16 @@ struct intel_engine_execlists {
 	unsigned int port_mask;
 
 	/**
+	 * @queue_priority: Highest pending priority.
+	 *
+	 * When we add requests into the queue, or adjust the priority of
+	 * executing requests, we compute the maximum priority of those
+	 * pending requests. We can then use this value to determine if
+	 * we need to preempt the executing requests to service the queue.
+	 */
+	int queue_priority;
+
+	/**
 	 * @queue: queue of requests, in priority lists
 	 */
 	struct rb_root queue;

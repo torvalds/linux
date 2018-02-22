@@ -169,6 +169,23 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring);
 
+static inline struct i915_priolist *to_priolist(struct rb_node *rb)
+{
+	return rb_entry(rb, struct i915_priolist, node);
+}
+
+static inline int rq_prio(const struct i915_request *rq)
+{
+	return rq->priotree.priority;
+}
+
+static inline bool need_preempt(const struct intel_engine_cs *engine,
+				const struct i915_request *last,
+				int prio)
+{
+	return engine->i915->preempt_context && prio > max(rq_prio(last), 0);
+}
+
 /**
  * intel_lr_context_descriptor_update() - calculate & cache the descriptor
  * 					  descriptor for a pinned context
@@ -224,7 +241,7 @@ find_priolist:
 	parent = &execlists->queue.rb_node;
 	while (*parent) {
 		rb = *parent;
-		p = rb_entry(rb, typeof(*p), node);
+		p = to_priolist(rb);
 		if (prio > p->priority) {
 			parent = &rb->rb_left;
 		} else if (prio < p->priority) {
@@ -264,7 +281,7 @@ find_priolist:
 	if (first)
 		execlists->first = &p->node;
 
-	return ptr_pack_bits(p, first, 1);
+	return p;
 }
 
 static void unwind_wa_tail(struct i915_request *rq)
@@ -290,14 +307,10 @@ static void __unwind_incomplete_requests(struct intel_engine_cs *engine)
 		__i915_request_unsubmit(rq);
 		unwind_wa_tail(rq);
 
-		GEM_BUG_ON(rq->priotree.priority == I915_PRIORITY_INVALID);
-		if (rq->priotree.priority != last_prio) {
-			p = lookup_priolist(engine,
-					    &rq->priotree,
-					    rq->priotree.priority);
-			p = ptr_mask_bits(p, 1);
-
-			last_prio = rq->priotree.priority;
+		GEM_BUG_ON(rq_prio(rq) == I915_PRIORITY_INVALID);
+		if (rq_prio(rq) != last_prio) {
+			last_prio = rq_prio(rq);
+			p = lookup_priolist(engine, &rq->priotree, last_prio);
 		}
 
 		list_add(&rq->priotree.link, &p->requests);
@@ -397,10 +410,11 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 			desc = execlists_update_context(rq);
 			GEM_DEBUG_EXEC(port[n].context_id = upper_32_bits(desc));
 
-			GEM_TRACE("%s in[%d]:  ctx=%d.%d, seqno=%x\n",
+			GEM_TRACE("%s in[%d]:  ctx=%d.%d, seqno=%x, prio=%d\n",
 				  engine->name, n,
 				  port[n].context_id, count,
-				  rq->global_seqno);
+				  rq->global_seqno,
+				  rq_prio(rq));
 		} else {
 			GEM_BUG_ON(!n);
 			desc = 0;
@@ -453,12 +467,17 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 		   _MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 				      CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT));
 
+	/*
+	 * Switch to our empty preempt context so
+	 * the state of the GPU is known (idle).
+	 */
 	GEM_TRACE("%s\n", engine->name);
 	for (n = execlists_num_ports(&engine->execlists); --n; )
 		elsp_write(0, engine->execlists.elsp);
 
 	elsp_write(ce->lrc_desc, engine->execlists.elsp);
 	execlists_clear_active(&engine->execlists, EXECLISTS_ACTIVE_HWACK);
+	execlists_set_active(&engine->execlists, EXECLISTS_ACTIVE_PREEMPT);
 }
 
 static void execlists_dequeue(struct intel_engine_cs *engine)
@@ -495,8 +514,6 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 	spin_lock_irq(&engine->timeline->lock);
 	rb = execlists->first;
 	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
-	if (!rb)
-		goto unlock;
 
 	if (last) {
 		/*
@@ -519,54 +536,48 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		if (!execlists_is_active(execlists, EXECLISTS_ACTIVE_HWACK))
 			goto unlock;
 
-		if (engine->i915->preempt_context &&
-		    rb_entry(rb, struct i915_priolist, node)->priority >
-		    max(last->priotree.priority, 0)) {
-			/*
-			 * Switch to our empty preempt context so
-			 * the state of the GPU is known (idle).
-			 */
+		if (need_preempt(engine, last, execlists->queue_priority)) {
 			inject_preempt_context(engine);
-			execlists_set_active(execlists,
-					     EXECLISTS_ACTIVE_PREEMPT);
 			goto unlock;
-		} else {
-			/*
-			 * In theory, we could coalesce more requests onto
-			 * the second port (the first port is active, with
-			 * no preemptions pending). However, that means we
-			 * then have to deal with the possible lite-restore
-			 * of the second port (as we submit the ELSP, there
-			 * may be a context-switch) but also we may complete
-			 * the resubmission before the context-switch. Ergo,
-			 * coalescing onto the second port will cause a
-			 * preemption event, but we cannot predict whether
-			 * that will affect port[0] or port[1].
-			 *
-			 * If the second port is already active, we can wait
-			 * until the next context-switch before contemplating
-			 * new requests. The GPU will be busy and we should be
-			 * able to resubmit the new ELSP before it idles,
-			 * avoiding pipeline bubbles (momentary pauses where
-			 * the driver is unable to keep up the supply of new
-			 * work).
-			 */
-			if (port_count(&port[1]))
-				goto unlock;
-
-			/* WaIdleLiteRestore:bdw,skl
-			 * Apply the wa NOOPs to prevent
-			 * ring:HEAD == rq:TAIL as we resubmit the
-			 * request. See gen8_emit_breadcrumb() for
-			 * where we prepare the padding after the
-			 * end of the request.
-			 */
-			last->tail = last->wa_tail;
 		}
+
+		/*
+		 * In theory, we could coalesce more requests onto
+		 * the second port (the first port is active, with
+		 * no preemptions pending). However, that means we
+		 * then have to deal with the possible lite-restore
+		 * of the second port (as we submit the ELSP, there
+		 * may be a context-switch) but also we may complete
+		 * the resubmission before the context-switch. Ergo,
+		 * coalescing onto the second port will cause a
+		 * preemption event, but we cannot predict whether
+		 * that will affect port[0] or port[1].
+		 *
+		 * If the second port is already active, we can wait
+		 * until the next context-switch before contemplating
+		 * new requests. The GPU will be busy and we should be
+		 * able to resubmit the new ELSP before it idles,
+		 * avoiding pipeline bubbles (momentary pauses where
+		 * the driver is unable to keep up the supply of new
+		 * work). However, we have to double check that the
+		 * priorities of the ports haven't been switch.
+		 */
+		if (port_count(&port[1]))
+			goto unlock;
+
+		/*
+		 * WaIdleLiteRestore:bdw,skl
+		 * Apply the wa NOOPs to prevent
+		 * ring:HEAD == rq:TAIL as we resubmit the
+		 * request. See gen8_emit_breadcrumb() for
+		 * where we prepare the padding after the
+		 * end of the request.
+		 */
+		last->tail = last->wa_tail;
 	}
 
-	do {
-		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
+	while (rb) {
+		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
 
 		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
@@ -628,8 +639,9 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
-	} while (rb);
+	}
 done:
+	execlists->queue_priority = rb ? to_priolist(rb)->priority : INT_MIN;
 	execlists->first = rb;
 	if (submit)
 		port_assign(port, last);
@@ -690,7 +702,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	/* Flush the queued requests to the timeline list (for retiring). */
 	rb = execlists->first;
 	while (rb) {
-		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
+		struct i915_priolist *p = to_priolist(rb);
 
 		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
 			INIT_LIST_HEAD(&rq->priotree.link);
@@ -708,7 +720,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	/* Remaining _unready_ requests will be nop'ed when submitted */
 
-
+	execlists->queue_priority = INT_MIN;
 	execlists->queue = RB_ROOT;
 	execlists->first = NULL;
 	GEM_BUG_ON(port_isset(execlists->port));
@@ -864,10 +876,11 @@ static void execlists_submission_tasklet(unsigned long data)
 							EXECLISTS_ACTIVE_USER));
 
 			rq = port_unpack(port, &count);
-			GEM_TRACE("%s out[0]: ctx=%d.%d, seqno=%x\n",
+			GEM_TRACE("%s out[0]: ctx=%d.%d, seqno=%x, prio=%d\n",
 				  engine->name,
 				  port->context_id, count,
-				  rq ? rq->global_seqno : 0);
+				  rq ? rq->global_seqno : 0,
+				  rq ? rq_prio(rq) : 0);
 
 			/* Check the context/desc id for this event matches */
 			GEM_DEBUG_BUG_ON(buf[2 * head + 1] != port->context_id);
@@ -912,15 +925,19 @@ static void execlists_submission_tasklet(unsigned long data)
 		intel_uncore_forcewake_put(dev_priv, execlists->fw_domains);
 }
 
-static void insert_request(struct intel_engine_cs *engine,
-			   struct i915_priotree *pt,
-			   int prio)
+static void queue_request(struct intel_engine_cs *engine,
+			  struct i915_priotree *pt,
+			  int prio)
 {
-	struct i915_priolist *p = lookup_priolist(engine, pt, prio);
+	list_add_tail(&pt->link, &lookup_priolist(engine, pt, prio)->requests);
+}
 
-	list_add_tail(&pt->link, &ptr_mask_bits(p, 1)->requests);
-	if (ptr_unmask_bits(p, 1))
+static void submit_queue(struct intel_engine_cs *engine, int prio)
+{
+	if (prio > engine->execlists.queue_priority) {
+		engine->execlists.queue_priority = prio;
 		tasklet_hi_schedule(&engine->execlists.tasklet);
+	}
 }
 
 static void execlists_submit_request(struct i915_request *request)
@@ -931,7 +948,8 @@ static void execlists_submit_request(struct i915_request *request)
 	/* Will be called from irq-context when using foreign fences. */
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 
-	insert_request(engine, &request->priotree, request->priotree.priority);
+	queue_request(engine, &request->priotree, rq_prio(request));
+	submit_queue(engine, rq_prio(request));
 
 	GEM_BUG_ON(!engine->execlists.first);
 	GEM_BUG_ON(list_empty(&request->priotree.link));
@@ -987,7 +1005,7 @@ static void execlists_schedule(struct i915_request *request, int prio)
 	 * static void update_priorities(struct i915_priotree *pt, prio) {
 	 *	list_for_each_entry(dep, &pt->signalers_list, signal_link)
 	 *		update_priorities(dep->signal, prio)
-	 *	insert_request(pt);
+	 *	queue_request(pt);
 	 * }
 	 * but that may have unlimited recursion depth and so runs a very
 	 * real risk of overunning the kernel stack. Instead, we build
@@ -1050,8 +1068,9 @@ static void execlists_schedule(struct i915_request *request, int prio)
 		pt->priority = prio;
 		if (!list_empty(&pt->link)) {
 			__list_del_entry(&pt->link);
-			insert_request(engine, pt, prio);
+			queue_request(engine, pt, prio);
 		}
+		submit_queue(engine, prio);
 	}
 
 	spin_unlock_irq(&engine->timeline->lock);

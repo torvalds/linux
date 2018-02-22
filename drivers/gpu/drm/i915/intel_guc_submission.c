@@ -75,6 +75,11 @@
  *
  */
 
+static inline struct i915_priolist *to_priolist(struct rb_node *rb)
+{
+	return rb_entry(rb, struct i915_priolist, node);
+}
+
 static inline bool is_high_priority(struct intel_guc_client *client)
 {
 	return (client->priority == GUC_CLIENT_PRIORITY_KMD_HIGH ||
@@ -682,15 +687,12 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 	rb = execlists->first;
 	GEM_BUG_ON(rb_first(&execlists->queue) != rb);
 
-	if (!rb)
-		goto unlock;
-
 	if (port_isset(port)) {
 		if (engine->i915->preempt_context) {
 			struct guc_preempt_work *preempt_work =
 				&engine->i915->guc.preempt_work[engine->id];
 
-			if (rb_entry(rb, struct i915_priolist, node)->priority >
+			if (execlists->queue_priority >
 			    max(port_request(port)->priotree.priority, 0)) {
 				execlists_set_active(execlists,
 						     EXECLISTS_ACTIVE_PREEMPT);
@@ -706,8 +708,8 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 	}
 	GEM_BUG_ON(port_isset(port));
 
-	do {
-		struct i915_priolist *p = rb_entry(rb, typeof(*p), node);
+	while (rb) {
+		struct i915_priolist *p = to_priolist(rb);
 		struct i915_request *rq, *rn;
 
 		list_for_each_entry_safe(rq, rn, &p->requests, priotree.link) {
@@ -736,8 +738,9 @@ static void guc_dequeue(struct intel_engine_cs *engine)
 		INIT_LIST_HEAD(&p->requests);
 		if (p->priority != I915_PRIORITY_NORMAL)
 			kmem_cache_free(engine->i915->priorities, p);
-	} while (rb);
+	}
 done:
+	execlists->queue_priority = rb ? to_priolist(rb)->priority : INT_MIN;
 	execlists->first = rb;
 	if (submit) {
 		port_assign(port, last);

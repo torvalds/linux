@@ -423,6 +423,7 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 	BUILD_BUG_ON_NOT_POWER_OF_2(execlists_num_ports(execlists));
 	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
 
+	execlists->queue_priority = INT_MIN;
 	execlists->queue = RB_ROOT;
 	execlists->first = NULL;
 }
@@ -1903,6 +1904,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	spin_lock_irq(&engine->timeline->lock);
 	list_for_each_entry(rq, &engine->timeline->requests, link)
 		print_request(m, rq, "\t\tE ");
+	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
 	for (rb = execlists->first; rb; rb = rb_next(rb)) {
 		struct i915_priolist *p =
 			rb_entry(rb, typeof(*p), node);
