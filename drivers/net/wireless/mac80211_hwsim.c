@@ -493,6 +493,7 @@ static LIST_HEAD(hwsim_radios);
 static struct workqueue_struct *hwsim_wq;
 static struct rhashtable hwsim_radios_rht;
 static int hwsim_radio_idx;
+static int hwsim_radios_generation = 1;
 
 static struct platform_driver mac80211_hwsim_driver = {
 	.driver = {
@@ -637,6 +638,7 @@ static const struct nla_policy hwsim_genl_policy[HWSIM_ATTR_MAX + 1] = {
 	[HWSIM_ATTR_RADIO_NAME] = { .type = NLA_STRING },
 	[HWSIM_ATTR_NO_VIF] = { .type = NLA_FLAG },
 	[HWSIM_ATTR_FREQ] = { .type = NLA_U32 },
+	[HWSIM_ATTR_PERM_ADDR] = { .type = NLA_UNSPEC, .len = ETH_ALEN },
 };
 
 static void mac80211_hwsim_tx_frame(struct ieee80211_hw *hw,
@@ -2408,6 +2410,7 @@ struct hwsim_new_radio_params {
 	bool destroy_on_close;
 	const char *hwname;
 	bool no_vif;
+	const u8 *perm_addr;
 };
 
 static void hwsim_mcast_config_msg(struct sk_buff *mcast_skb,
@@ -2572,15 +2575,25 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	skb_queue_head_init(&data->pending);
 
 	SET_IEEE80211_DEV(hw, data->dev);
-	eth_zero_addr(addr);
-	addr[0] = 0x02;
-	addr[3] = idx >> 8;
-	addr[4] = idx;
-	memcpy(data->addresses[0].addr, addr, ETH_ALEN);
-	memcpy(data->addresses[1].addr, addr, ETH_ALEN);
-	data->addresses[1].addr[0] |= 0x40;
-	hw->wiphy->n_addresses = 2;
-	hw->wiphy->addresses = data->addresses;
+	if (!param->perm_addr) {
+		eth_zero_addr(addr);
+		addr[0] = 0x02;
+		addr[3] = idx >> 8;
+		addr[4] = idx;
+		memcpy(data->addresses[0].addr, addr, ETH_ALEN);
+		/* Why need here second address ? */
+		data->addresses[1].addr[0] |= 0x40;
+		memcpy(data->addresses[1].addr, addr, ETH_ALEN);
+		hw->wiphy->n_addresses = 2;
+		hw->wiphy->addresses = data->addresses;
+		/* possible address clash is checked at hash table insertion */
+	} else {
+		memcpy(data->addresses[0].addr, param->perm_addr, ETH_ALEN);
+		/* compatibility with automatically generated mac addr */
+		memcpy(data->addresses[1].addr, param->perm_addr, ETH_ALEN);
+		hw->wiphy->n_addresses = 2;
+		hw->wiphy->addresses = data->addresses;
+	}
 
 	data->channels = param->channels;
 	data->use_chanctx = param->use_chanctx;
@@ -2785,13 +2798,17 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	err = rhashtable_insert_fast(&hwsim_radios_rht, &data->rht,
 				     hwsim_rht_params);
 	if (err < 0) {
-		pr_debug("mac80211_hwsim: radio index %d already present\n",
-			 idx);
+		if (info) {
+			GENL_SET_ERR_MSG(info, "perm addr already present");
+			NL_SET_BAD_ATTR(info->extack,
+					info->attrs[HWSIM_ATTR_PERM_ADDR]);
+		}
 		spin_unlock_bh(&hwsim_radio_lock);
 		goto failed_final_insert;
 	}
 
 	list_add_tail(&data->list, &hwsim_radios);
+	hwsim_radios_generation++;
 	spin_unlock_bh(&hwsim_radio_lock);
 
 	if (idx > 0)
@@ -3210,6 +3227,19 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 		param.regd = hwsim_world_regdom_custom[idx];
 	}
 
+	if (info->attrs[HWSIM_ATTR_PERM_ADDR]) {
+		if (!is_valid_ether_addr(
+				nla_data(info->attrs[HWSIM_ATTR_PERM_ADDR]))) {
+			GENL_SET_ERR_MSG(info,"MAC is no valid source addr");
+			NL_SET_BAD_ATTR(info->extack,
+					info->attrs[HWSIM_ATTR_PERM_ADDR]);
+			return -EINVAL;
+		}
+
+
+		param.perm_addr = nla_data(info->attrs[HWSIM_ATTR_PERM_ADDR]);
+	}
+
 	ret = mac80211_hwsim_new_radio(info, &param);
 	kfree(hwname);
 	return ret;
@@ -3249,6 +3279,7 @@ static int hwsim_del_radio_nl(struct sk_buff *msg, struct genl_info *info)
 		list_del(&data->list);
 		rhashtable_remove_fast(&hwsim_radios_rht, &data->rht,
 				       hwsim_rht_params);
+		hwsim_radios_generation++;
 		spin_unlock_bh(&hwsim_radio_lock);
 		mac80211_hwsim_del_radio(data, wiphy_name(data->hw->wiphy),
 					 info);
@@ -3305,17 +3336,19 @@ out_err:
 static int hwsim_dump_radio_nl(struct sk_buff *skb,
 			       struct netlink_callback *cb)
 {
-	int idx = cb->args[0];
+	int last_idx = cb->args[0];
 	struct mac80211_hwsim_data *data = NULL;
-	int res;
+	int res = 0;
+	void *hdr;
 
 	spin_lock_bh(&hwsim_radio_lock);
+	cb->seq = hwsim_radios_generation;
 
-	if (idx == hwsim_radio_idx)
+	if (last_idx >= hwsim_radio_idx-1)
 		goto done;
 
 	list_for_each_entry(data, &hwsim_radios, list) {
-		if (data->idx < idx)
+		if (data->idx <= last_idx)
 			continue;
 
 		if (!net_eq(wiphy_net(data->hw->wiphy), sock_net(skb->sk)))
@@ -3328,14 +3361,25 @@ static int hwsim_dump_radio_nl(struct sk_buff *skb,
 		if (res < 0)
 			break;
 
-		idx = data->idx + 1;
+		last_idx = data->idx;
 	}
 
-	cb->args[0] = idx;
+	cb->args[0] = last_idx;
+
+	/* list changed, but no new element sent, set interrupted flag */
+	if (skb->len == 0 && cb->prev_seq && cb->seq != cb->prev_seq) {
+		hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
+				  cb->nlh->nlmsg_seq, &hwsim_genl_family,
+				  NLM_F_MULTI, HWSIM_CMD_GET_RADIO);
+		if (!hdr)
+			res = -EMSGSIZE;
+		genl_dump_check_consistent(cb, hdr);
+		genlmsg_end(skb, hdr);
+	}
 
 done:
 	spin_unlock_bh(&hwsim_radio_lock);
-	return skb->len;
+	return res ?: skb->len;
 }
 
 /* Generic Netlink operations array */
@@ -3393,6 +3437,7 @@ static void destroy_radio(struct work_struct *work)
 	struct mac80211_hwsim_data *data =
 		container_of(work, struct mac80211_hwsim_data, destroy_work);
 
+	hwsim_radios_generation++;
 	mac80211_hwsim_del_radio(data, wiphy_name(data->hw->wiphy), NULL);
 }
 

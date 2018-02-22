@@ -6,6 +6,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -934,6 +935,7 @@ struct ieee80211_tx_info {
 			u8 ampdu_len;
 			u8 antenna;
 			u16 tx_time;
+			bool is_valid_ack_signal;
 			void *status_driver_data[19 / sizeof(void *)];
 		} status;
 		struct {
@@ -1098,6 +1100,9 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	the first subframe.
  * @RX_FLAG_ICV_STRIPPED: The ICV is stripped from this frame. CRC checking must
  *	be done in the hardware.
+ * @RX_FLAG_AMPDU_EOF_BIT: Value of the EOF bit in the A-MPDU delimiter for this
+ *	frame
+ * @RX_FLAG_AMPDU_EOF_BIT_KNOWN: The EOF value is known
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR		= BIT(0),
@@ -1124,6 +1129,8 @@ enum mac80211_rx_flags {
 	RX_FLAG_MIC_STRIPPED		= BIT(21),
 	RX_FLAG_ALLOW_SAME_PN		= BIT(22),
 	RX_FLAG_ICV_STRIPPED		= BIT(23),
+	RX_FLAG_AMPDU_EOF_BIT		= BIT(24),
+	RX_FLAG_AMPDU_EOF_BIT_KNOWN	= BIT(25),
 };
 
 /**
@@ -2063,6 +2070,14 @@ struct ieee80211_txq {
  * @IEEE80211_HW_SUPPORTS_TDLS_BUFFER_STA: Hardware supports buffer STA on
  *	TDLS links.
  *
+ * @IEEE80211_HW_DEAUTH_NEED_MGD_TX_PREP: The driver requires the
+ *	mgd_prepare_tx() callback to be called before transmission of a
+ *	deauthentication frame in case the association was completed but no
+ *	beacon was heard. This is required in multi-channel scenarios, where the
+ *	virtual interface might not be given air time for the transmission of
+ *	the frame, as it is not synced with the AP/P2P GO yet, and thus the
+ *	deauthentication frame might not be transmitted.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2106,6 +2121,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_REPORTS_LOW_ACK,
 	IEEE80211_HW_SUPPORTS_TX_FRAG,
 	IEEE80211_HW_SUPPORTS_TDLS_BUFFER_STA,
+	IEEE80211_HW_DEAUTH_NEED_MGD_TX_PREP,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -3350,6 +3366,9 @@ enum ieee80211_reconfig_type {
  *	management frame prior to having successfully associated to allow the
  *	driver to give it channel time for the transmission, to get a response
  *	and to be able to synchronize with the GO.
+ *	For drivers that set %IEEE80211_HW_DEAUTH_NEED_MGD_TX_PREP, mac80211
+ *	would also call this function before transmitting a deauthentication
+ *	frame in case that no beacon was heard from the AP/P2P GO.
  *	The callback will be called before each transmission and upon return
  *	mac80211 will transmit the frame right away.
  *	The callback is optional and can (should!) sleep.

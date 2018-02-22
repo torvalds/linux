@@ -439,6 +439,10 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 			flags |= IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_ERR;
 		if (status->flag & RX_FLAG_AMPDU_DELIM_CRC_KNOWN)
 			flags |= IEEE80211_RADIOTAP_AMPDU_DELIM_CRC_KNOWN;
+		if (status->flag & RX_FLAG_AMPDU_EOF_BIT_KNOWN)
+			flags |= IEEE80211_RADIOTAP_AMPDU_EOF_KNOWN;
+		if (status->flag & RX_FLAG_AMPDU_EOF_BIT)
+			flags |= IEEE80211_RADIOTAP_AMPDU_EOF;
 		put_unaligned_le16(flags, pos);
 		pos += 2;
 		if (status->flag & RX_FLAG_AMPDU_DELIM_CRC_KNOWN)
@@ -1185,7 +1189,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 
 	ack_policy = *ieee80211_get_qos_ctl(hdr) &
 		     IEEE80211_QOS_CTL_ACK_POLICY_MASK;
-	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+	tid = ieee80211_get_tid(hdr);
 
 	tid_agg_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[tid]);
 	if (!tid_agg_rx) {
@@ -1524,9 +1528,7 @@ ieee80211_rx_h_uapsd_and_pspoll(struct ieee80211_rx_data *rx)
 		   ieee80211_has_pm(hdr->frame_control) &&
 		   (ieee80211_is_data_qos(hdr->frame_control) ||
 		    ieee80211_is_qos_nullfunc(hdr->frame_control))) {
-		u8 tid;
-
-		tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
+		u8 tid = ieee80211_get_tid(hdr);
 
 		ieee80211_sta_uapsd_trigger(&rx->sta->sta, tid);
 	}
@@ -2848,6 +2850,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		case WLAN_HT_ACTION_SMPS: {
 			struct ieee80211_supported_band *sband;
 			enum ieee80211_smps_mode smps_mode;
+			struct sta_opmode_info sta_opmode = {};
 
 			/* convert to HT capability */
 			switch (mgmt->u.action.u.ht_smps.smps_control) {
@@ -2868,17 +2871,24 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (rx->sta->sta.smps_mode == smps_mode)
 				goto handled;
 			rx->sta->sta.smps_mode = smps_mode;
+			sta_opmode.smps_mode = smps_mode;
+			sta_opmode.changed = STA_OPMODE_SMPS_MODE_CHANGED;
 
 			sband = rx->local->hw.wiphy->bands[status->band];
 
 			rate_control_rate_update(local, sband, rx->sta,
 						 IEEE80211_RC_SMPS_CHANGED);
+			cfg80211_sta_opmode_change_notify(sdata->dev,
+							  rx->sta->addr,
+							  &sta_opmode,
+							  GFP_KERNEL);
 			goto handled;
 		}
 		case WLAN_HT_ACTION_NOTIFY_CHANWIDTH: {
 			struct ieee80211_supported_band *sband;
 			u8 chanwidth = mgmt->u.action.u.ht_notify_cw.chanwidth;
 			enum ieee80211_sta_rx_bandwidth max_bw, new_bw;
+			struct sta_opmode_info sta_opmode = {};
 
 			/* If it doesn't support 40 MHz it can't change ... */
 			if (!(rx->sta->sta.ht_cap.cap &
@@ -2899,9 +2909,15 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 			rx->sta->sta.bandwidth = new_bw;
 			sband = rx->local->hw.wiphy->bands[status->band];
+			sta_opmode.bw = new_bw;
+			sta_opmode.changed = STA_OPMODE_MAX_BW_CHANGED;
 
 			rate_control_rate_update(local, sband, rx->sta,
 						 IEEE80211_RC_BW_CHANGED);
+			cfg80211_sta_opmode_change_notify(sdata->dev,
+							  rx->sta->addr,
+							  &sta_opmode,
+							  GFP_KERNEL);
 			goto handled;
 		}
 		default:

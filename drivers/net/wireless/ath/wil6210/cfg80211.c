@@ -1599,7 +1599,8 @@ static void wil_probe_client_handle(struct wil6210_priv *wil,
 	 */
 	bool alive = (sta->status == wil_sta_connected);
 
-	cfg80211_probe_status(ndev, sta->addr, req->cookie, alive, GFP_KERNEL);
+	cfg80211_probe_status(ndev, sta->addr, req->cookie, alive,
+			      0, false, GFP_KERNEL);
 }
 
 static struct list_head *next_probe_client(struct wil6210_priv *wil)
