@@ -960,8 +960,6 @@ struct intel_dp_compliance {
 
 struct intel_dp {
 	i915_reg_t output_reg;
-	i915_reg_t aux_ch_ctl_reg;
-	i915_reg_t aux_ch_data_reg[5];
 	uint32_t DP;
 	int link_rate;
 	uint8_t lane_count;
@@ -1045,6 +1043,9 @@ struct intel_dp {
 				     bool has_aux_irq,
 				     int send_bytes,
 				     uint32_t aux_clock_divider);
+
+	i915_reg_t (*aux_ch_ctl_reg)(struct intel_dp *dp);
+	i915_reg_t (*aux_ch_data_reg)(struct intel_dp *dp, int index);
 
 	/* This is called before a link training is starterd */
 	void (*prepare_link_retrain)(struct intel_dp *intel_dp);

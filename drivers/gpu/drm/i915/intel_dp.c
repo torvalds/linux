@@ -934,7 +934,7 @@ static uint32_t
 intel_dp_aux_wait_done(struct intel_dp *intel_dp, bool has_aux_irq)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
-	i915_reg_t ch_ctl = intel_dp->aux_ch_ctl_reg;
+	i915_reg_t ch_ctl = intel_dp->aux_ch_ctl_reg(intel_dp);
 	uint32_t status;
 	bool done;
 
@@ -1068,13 +1068,17 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv =
 			to_i915(intel_dig_port->base.base.dev);
-	i915_reg_t ch_ctl = intel_dp->aux_ch_ctl_reg;
+	i915_reg_t ch_ctl, ch_data[5];
 	uint32_t aux_clock_divider;
 	int i, ret, recv_bytes;
 	uint32_t status;
 	int try, clock = 0;
 	bool has_aux_irq = HAS_AUX_IRQ(dev_priv);
 	bool vdd;
+
+	ch_ctl = intel_dp->aux_ch_ctl_reg(intel_dp);
+	for (i = 0; i < ARRAY_SIZE(ch_data); i++)
+		ch_data[i] = intel_dp->aux_ch_data_reg(intel_dp, i);
 
 	pps_lock(intel_dp);
 
@@ -1132,7 +1136,7 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 		for (try = 0; try < 5; try++) {
 			/* Load the send data into the aux channel data registers */
 			for (i = 0; i < send_bytes; i += 4)
-				I915_WRITE(intel_dp->aux_ch_data_reg[i >> 2],
+				I915_WRITE(ch_data[i >> 2],
 					   intel_dp_pack_aux(send + i,
 							     send_bytes - i));
 
@@ -1217,7 +1221,7 @@ done:
 		recv_bytes = recv_size;
 
 	for (i = 0; i < recv_bytes; i += 4)
-		intel_dp_unpack_aux(I915_READ(intel_dp->aux_ch_data_reg[i >> 2]),
+		intel_dp_unpack_aux(I915_READ(ch_data[i >> 2]),
 				    recv + i, recv_bytes - i);
 
 	ret = recv_bytes;
@@ -1372,9 +1376,11 @@ intel_aux_power_domain(struct intel_dp *intel_dp)
 	}
 }
 
-static i915_reg_t g4x_aux_ctl_reg(struct drm_i915_private *dev_priv,
-				  enum aux_ch aux_ch)
+static i915_reg_t g4x_aux_ctl_reg(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	enum aux_ch aux_ch = intel_dp->aux_ch;
+
 	switch (aux_ch) {
 	case AUX_CH_B:
 	case AUX_CH_C:
@@ -1386,9 +1392,11 @@ static i915_reg_t g4x_aux_ctl_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
-static i915_reg_t g4x_aux_data_reg(struct drm_i915_private *dev_priv,
-				   enum aux_ch aux_ch, int index)
+static i915_reg_t g4x_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	enum aux_ch aux_ch = intel_dp->aux_ch;
+
 	switch (aux_ch) {
 	case AUX_CH_B:
 	case AUX_CH_C:
@@ -1400,9 +1408,11 @@ static i915_reg_t g4x_aux_data_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
-static i915_reg_t ilk_aux_ctl_reg(struct drm_i915_private *dev_priv,
-				  enum aux_ch aux_ch)
+static i915_reg_t ilk_aux_ctl_reg(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	enum aux_ch aux_ch = intel_dp->aux_ch;
+
 	switch (aux_ch) {
 	case AUX_CH_A:
 		return DP_AUX_CH_CTL(aux_ch);
@@ -1416,9 +1426,11 @@ static i915_reg_t ilk_aux_ctl_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
-static i915_reg_t ilk_aux_data_reg(struct drm_i915_private *dev_priv,
-				   enum aux_ch aux_ch, int index)
+static i915_reg_t ilk_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	enum aux_ch aux_ch = intel_dp->aux_ch;
+
 	switch (aux_ch) {
 	case AUX_CH_A:
 		return DP_AUX_CH_DATA(aux_ch, index);
@@ -1432,9 +1444,11 @@ static i915_reg_t ilk_aux_data_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
-static i915_reg_t skl_aux_ctl_reg(struct drm_i915_private *dev_priv,
-				  enum aux_ch aux_ch)
+static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	enum aux_ch aux_ch = intel_dp->aux_ch;
+
 	switch (aux_ch) {
 	case AUX_CH_A:
 	case AUX_CH_B:
@@ -1448,9 +1462,11 @@ static i915_reg_t skl_aux_ctl_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
-static i915_reg_t skl_aux_data_reg(struct drm_i915_private *dev_priv,
-				   enum aux_ch aux_ch, int index)
+static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
+	enum aux_ch aux_ch = intel_dp->aux_ch;
+
 	switch (aux_ch) {
 	case AUX_CH_A:
 	case AUX_CH_B:
@@ -1464,37 +1480,20 @@ static i915_reg_t skl_aux_data_reg(struct drm_i915_private *dev_priv,
 	}
 }
 
-static i915_reg_t intel_aux_ctl_reg(struct drm_i915_private *dev_priv,
-				    enum aux_ch aux_ch)
-{
-	if (INTEL_GEN(dev_priv) >= 9)
-		return skl_aux_ctl_reg(dev_priv, aux_ch);
-	else if (HAS_PCH_SPLIT(dev_priv))
-		return ilk_aux_ctl_reg(dev_priv, aux_ch);
-	else
-		return g4x_aux_ctl_reg(dev_priv, aux_ch);
-}
-
-static i915_reg_t intel_aux_data_reg(struct drm_i915_private *dev_priv,
-				     enum aux_ch aux_ch, int index)
-{
-	if (INTEL_GEN(dev_priv) >= 9)
-		return skl_aux_data_reg(dev_priv, aux_ch, index);
-	else if (HAS_PCH_SPLIT(dev_priv))
-		return ilk_aux_data_reg(dev_priv, aux_ch, index);
-	else
-		return g4x_aux_data_reg(dev_priv, aux_ch, index);
-}
-
 static void intel_aux_reg_init(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = to_i915(intel_dp_to_dev(intel_dp));
-	enum aux_ch aux_ch = intel_dp->aux_ch;
-	int i;
 
-	intel_dp->aux_ch_ctl_reg = intel_aux_ctl_reg(dev_priv, aux_ch);
-	for (i = 0; i < ARRAY_SIZE(intel_dp->aux_ch_data_reg); i++)
-		intel_dp->aux_ch_data_reg[i] = intel_aux_data_reg(dev_priv, aux_ch, i);
+	if (INTEL_GEN(dev_priv) >= 9) {
+		intel_dp->aux_ch_ctl_reg = skl_aux_ctl_reg;
+		intel_dp->aux_ch_data_reg = skl_aux_data_reg;
+	} else if (HAS_PCH_SPLIT(dev_priv)) {
+		intel_dp->aux_ch_ctl_reg = ilk_aux_ctl_reg;
+		intel_dp->aux_ch_data_reg = ilk_aux_data_reg;
+	} else {
+		intel_dp->aux_ch_ctl_reg = g4x_aux_ctl_reg;
+		intel_dp->aux_ch_data_reg = g4x_aux_data_reg;
+	}
 }
 
 static void
