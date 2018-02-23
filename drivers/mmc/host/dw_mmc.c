@@ -165,12 +165,16 @@ static int dw_mci_regs_show(struct seq_file *s, void *v)
 {
 	struct dw_mci *host = s->private;
 
+	pm_runtime_get_sync(host->dev);
+
 	seq_printf(s, "STATUS:\t0x%08x\n", mci_readl(host, STATUS));
 	seq_printf(s, "RINTSTS:\t0x%08x\n", mci_readl(host, RINTSTS));
 	seq_printf(s, "CMD:\t0x%08x\n", mci_readl(host, CMD));
 	seq_printf(s, "CTRL:\t0x%08x\n", mci_readl(host, CTRL));
 	seq_printf(s, "INTMASK:\t0x%08x\n", mci_readl(host, INTMASK));
 	seq_printf(s, "CLKENA:\t0x%08x\n", mci_readl(host, CLKENA));
+
+	pm_runtime_put_autosuspend(host->dev);
 
 	return 0;
 }
