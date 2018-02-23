@@ -155,13 +155,16 @@ static inline struct nonce null_nonce(void)
 static inline struct nonce extent_nonce(struct bversion version,
 					struct bch_extent_crc_unpacked crc)
 {
-	unsigned size = crc.compression_type ? crc.uncompressed_size : 0;
+	unsigned compression_type = crc_is_compressed(crc)
+		? crc.compression_type
+		: 0;
+	unsigned size = compression_type ? crc.uncompressed_size : 0;
 	struct nonce nonce = (struct nonce) {{
 		[0] = cpu_to_le32(size << 22),
 		[1] = cpu_to_le32(version.lo),
 		[2] = cpu_to_le32(version.lo >> 32),
 		[3] = cpu_to_le32(version.hi|
-				  (crc.compression_type << 24))^BCH_NONCE_EXTENT,
+				  (compression_type << 24))^BCH_NONCE_EXTENT,
 	}};
 
 	return nonce_add(nonce, crc.nonce << 9);

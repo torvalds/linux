@@ -434,7 +434,7 @@ out:
 	bio_unmap_or_unbounce(c, dst_data);
 	return compression_type;
 err:
-	compression_type = 0;
+	compression_type = BCH_COMPRESSION_TYPE_incompressible;
 	goto out;
 }
 

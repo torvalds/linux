@@ -175,6 +175,12 @@ bch2_extent_crc_unpack(const struct bkey *k, const union bch_extent_crc *crc)
 #undef common_fields
 }
 
+static inline bool crc_is_compressed(struct bch_extent_crc_unpacked crc)
+{
+	return (crc.compression_type != BCH_COMPRESSION_TYPE_none &&
+		crc.compression_type != BCH_COMPRESSION_TYPE_incompressible);
+}
+
 /* bkey_ptrs: generically over any key type that has ptrs */
 
 struct bkey_ptrs_c {
@@ -483,6 +489,7 @@ static inline struct bch_devs_list bch2_bkey_cached_devs(struct bkey_s_c k)
 unsigned bch2_bkey_nr_ptrs(struct bkey_s_c);
 unsigned bch2_bkey_nr_ptrs_allocated(struct bkey_s_c);
 unsigned bch2_bkey_nr_ptrs_fully_allocated(struct bkey_s_c);
+bool bch2_bkey_is_incompressible(struct bkey_s_c);
 unsigned bch2_bkey_sectors_compressed(struct bkey_s_c);
 bool bch2_check_range_allocated(struct bch_fs *, struct bpos, u64, unsigned);
 unsigned bch2_bkey_durability(struct bch_fs *, struct bkey_s_c);

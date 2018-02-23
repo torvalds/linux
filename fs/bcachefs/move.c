@@ -214,6 +214,9 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 			    enum btree_id btree_id,
 			    struct bkey_s_c k)
 {
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 	int ret;
 
 	m->btree_id	= btree_id;
@@ -222,9 +225,14 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 	m->nr_ptrs_reserved = 0;
 
 	bch2_write_op_init(&m->op, c, io_opts);
-	m->op.compression_type =
-		bch2_compression_opt_to_type[io_opts.background_compression ?:
-					     io_opts.compression];
+
+	if (!bch2_bkey_is_incompressible(k))
+		m->op.compression_type =
+			bch2_compression_opt_to_type[io_opts.background_compression ?:
+						     io_opts.compression];
+	else
+		m->op.incompressible = true;
+
 	m->op.target	= data_opts.target,
 	m->op.write_point = wp;
 
@@ -264,14 +272,11 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 		break;
 	}
 	case DATA_REWRITE: {
-		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-		const union bch_extent_entry *entry;
-		struct extent_ptr_decoded p;
 		unsigned compressed_sectors = 0;
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 			if (!p.ptr.cached &&
-			    p.crc.compression_type != BCH_COMPRESSION_TYPE_none &&
+			    crc_is_compressed(p.crc) &&
 			    bch2_dev_in_target(c, p.ptr.dev, data_opts.target))
 				compressed_sectors += p.crc.compressed_size;
 

@@ -1298,7 +1298,8 @@ LE64_BITMASK(BCH_SB_ERASURE_CODE,	struct bch_sb, flags[3],  0, 16);
 	x(reflink,			6)	\
 	x(new_siphash,			7)	\
 	x(inline_data,			8)	\
-	x(new_extent_overwrite,		9)
+	x(new_extent_overwrite,		9)	\
+	x(incompressible,		10)
 
 enum bch_sb_feature {
 #define x(f, n) BCH_FEATURE_##f,
@@ -1378,11 +1379,12 @@ enum bch_csum_opts {
 };
 
 #define BCH_COMPRESSION_TYPES()		\
-	x(none,		0)		\
-	x(lz4_old,	1)		\
-	x(gzip,		2)		\
-	x(lz4,		3)		\
-	x(zstd,		4)
+	x(none,			0)	\
+	x(lz4_old,		1)	\
+	x(gzip,			2)	\
+	x(lz4,			3)	\
+	x(zstd,			4)	\
+	x(incompressible,	5)
 
 enum bch_compression_type {
 #define x(t, n) BCH_COMPRESSION_TYPE_##t,

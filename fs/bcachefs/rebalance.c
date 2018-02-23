@@ -30,7 +30,8 @@ static int __bch2_rebalance_pred(struct bch_fs *c,
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
 
-	if (io_opts->background_compression)
+	if (io_opts->background_compression &&
+	    !bch2_bkey_is_incompressible(k))
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
 			if (!p.ptr.cached &&
 			    p.crc.compression_type !=

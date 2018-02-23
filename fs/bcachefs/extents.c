@@ -336,7 +336,7 @@ enum merge_result bch2_extent_merge(struct bch_fs *c,
 			if (!bch2_checksum_mergeable(crc_l.csum_type))
 				return BCH_MERGE_NOMERGE;
 
-			if (crc_l.compression_type)
+			if (crc_is_compressed(crc_l))
 				return BCH_MERGE_NOMERGE;
 
 			if (crc_l.csum_type &&
@@ -447,7 +447,7 @@ static inline bool bch2_crc_unpacked_cmp(struct bch_extent_crc_unpacked l,
 static inline bool can_narrow_crc(struct bch_extent_crc_unpacked u,
 				  struct bch_extent_crc_unpacked n)
 {
-	return !u.compression_type &&
+	return !crc_is_compressed(u) &&
 		u.csum_type &&
 		u.uncompressed_size > u.live_size &&
 		bch2_csum_type_is_encryption(u.csum_type) ==
@@ -491,7 +491,7 @@ bool bch2_bkey_narrow_crcs(struct bkey_i *k, struct bch_extent_crc_unpacked n)
 	/* Find a checksum entry that covers only live data: */
 	if (!n.csum_type) {
 		bkey_for_each_crc(&k->k, ptrs, u, i)
-			if (!u.compression_type &&
+			if (!crc_is_compressed(u) &&
 			    u.csum_type &&
 			    u.live_size == u.uncompressed_size) {
 				n = u;
@@ -500,7 +500,7 @@ bool bch2_bkey_narrow_crcs(struct bkey_i *k, struct bch_extent_crc_unpacked n)
 		return false;
 	}
 found:
-	BUG_ON(n.compression_type);
+	BUG_ON(crc_is_compressed(n));
 	BUG_ON(n.offset);
 	BUG_ON(n.live_size != k->k.size);
 
@@ -609,8 +609,7 @@ unsigned bch2_bkey_nr_ptrs_fully_allocated(struct bkey_s_c k)
 		struct extent_ptr_decoded p;
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-			ret += !p.ptr.cached &&
-				p.crc.compression_type == BCH_COMPRESSION_TYPE_none;
+			ret += !p.ptr.cached && !crc_is_compressed(p.crc);
 	}
 
 	return ret;
@@ -624,11 +623,22 @@ unsigned bch2_bkey_sectors_compressed(struct bkey_s_c k)
 	unsigned ret = 0;
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-		if (!p.ptr.cached &&
-		    p.crc.compression_type != BCH_COMPRESSION_TYPE_none)
+		if (!p.ptr.cached && crc_is_compressed(p.crc))
 			ret += p.crc.compressed_size;
 
 	return ret;
+}
+
+bool bch2_bkey_is_incompressible(struct bkey_s_c k)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct bch_extent_crc_unpacked crc;
+
+	bkey_for_each_crc(k.k, ptrs, crc, entry)
+		if (crc.compression_type == BCH_COMPRESSION_TYPE_incompressible)
+			return true;
+	return false;
 }
 
 bool bch2_check_range_allocated(struct bch_fs *c, struct bpos pos, u64 size,

@@ -326,7 +326,7 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 
 	BUG_ON(len_a + len_b > bio_sectors(bio));
 	BUG_ON(crc_old.uncompressed_size != bio_sectors(bio));
-	BUG_ON(crc_old.compression_type);
+	BUG_ON(crc_is_compressed(crc_old));
 	BUG_ON(bch2_csum_type_is_encryption(crc_old.csum_type) !=
 	       bch2_csum_type_is_encryption(new_csum_type));
 
@@ -355,6 +355,7 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 		if (i->crc)
 			*i->crc = (struct bch_extent_crc_unpacked) {
 				.csum_type		= i->csum_type,
+				.compression_type	= crc_old.compression_type,
 				.compressed_size	= i->len,
 				.uncompressed_size	= i->len,
 				.offset			= 0,

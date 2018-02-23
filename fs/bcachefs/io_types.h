@@ -107,6 +107,7 @@ struct bch_write_op {
 	unsigned		nr_replicas:4;
 	unsigned		nr_replicas_required:4;
 	unsigned		alloc_reserve:4;
+	unsigned		incompressible:1;
 
 	struct bch_devs_list	devs_have;
 	u16			target;
