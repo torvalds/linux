@@ -193,6 +193,7 @@ void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc)
 	struct drm_property_blob *blob = crtc->base.ctm;
 	struct dc_stream_state *stream = crtc->stream;
 	struct drm_color_ctm *ctm;
+	int64_t val;
 	int i;
 
 	if (!blob) {
@@ -206,7 +207,9 @@ void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc)
 	 * DRM gives a 3x3 matrix, but DC wants 3x4. Assuming we're operating
 	 * with homogeneous coordinates, augment the matrix with 0's.
 	 *
-	 * The format provided is S31.32, which is the same as our fixed31_32.
+	 * The format provided is S31.32, using signed-magnitude representation.
+	 * Our fixed31_32 is also S31.32, but is using 2's complement. We have
+	 * to convert from signed-magnitude to 2's complement.
 	 */
 	for (i = 0; i < 12; i++) {
 		/* Skip 4th element */
@@ -214,8 +217,14 @@ void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc)
 			stream->gamut_remap_matrix.matrix[i] = dal_fixed31_32_zero;
 			continue;
 		}
-		/* csc[i] = ctm[i - floor(i/4)] */
-		stream->gamut_remap_matrix.matrix[i].value = ctm->matrix[i - (i/4)];
+
+		/* gamut_remap_matrix[i] = ctm[i - floor(i/4)] */
+		val = ctm->matrix[i - (i/4)];
+		/* If negative, convert to 2's complement. */
+		if (val & (1ULL << 63))
+			val = -(val & ~(1ULL << 63));
+
+		stream->gamut_remap_matrix.matrix[i].value = val;
 	}
 }
 
