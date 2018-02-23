@@ -675,47 +675,36 @@ static int replace_filter_string(struct event_filter *filter,
 	return 0;
 }
 
-static int append_filter_string(struct event_filter *filter,
-				char *string)
-{
-	int newlen;
-	char *new_filter_string;
-
-	if (WARN_ON(!filter->filter_string))
-		return -EINVAL;
-	newlen = strlen(filter->filter_string) + strlen(string) + 1;
-	new_filter_string = kmalloc(newlen, GFP_KERNEL);
-	if (!new_filter_string)
-		return -ENOMEM;
-
-	strcpy(new_filter_string, filter->filter_string);
-	strcat(new_filter_string, string);
-	kfree(filter->filter_string);
-	filter->filter_string = new_filter_string;
-
-	return 0;
-}
-
 static void append_filter_err(struct filter_parse_state *ps,
 			      struct event_filter *filter)
 {
+	struct trace_seq *s;
 	int pos = ps->lasterr_pos;
-	char *buf, *pbuf;
+	char *buf;
+	int len;
 
-	buf = (char *)__get_free_page(GFP_KERNEL);
-	if (!buf)
+	if (WARN_ON(!filter->filter_string))
 		return;
 
-	append_filter_string(filter, "\n");
-	memset(buf, ' ', PAGE_SIZE);
-	if (pos > PAGE_SIZE - 128)
-		pos = 0;
-	buf[pos] = '^';
-	pbuf = &buf[pos] + 1;
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return;
+	trace_seq_init(s);
 
-	sprintf(pbuf, "\nparse_error: %s\n", err_text[ps->lasterr]);
-	append_filter_string(filter, buf);
-	free_page((unsigned long) buf);
+	len = strlen(filter->filter_string);
+	if (pos > len)
+		len = pos;
+
+	trace_seq_puts(s, filter->filter_string);
+	trace_seq_printf(s, "\n%*s", pos, "^");
+	trace_seq_printf(s, "\nparse_error: %s\n", err_text[ps->lasterr]);
+	trace_seq_putc(s, 0);
+	buf = kmemdup_nul(s->buffer, s->seq.len, GFP_KERNEL);
+	if (buf) {
+		kfree(filter->filter_string);
+		filter->filter_string = buf;
+	}
+	kfree(s);
 }
 
 static inline struct event_filter *event_filter(struct trace_event_file *file)
