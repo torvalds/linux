@@ -3750,12 +3750,7 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 		/* 4-addr is harder to deal with, later maybe */
 		if (sdata->u.mgd.use_4addr)
 			goto clear;
-		/* software powersave is a huge mess, avoid all of it */
-		if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK))
-			goto clear;
-		if (ieee80211_hw_check(&local->hw, SUPPORTS_PS) &&
-		    !ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
-			goto clear;
+
 		if (sta->sta.tdls) {
 			fastrx.da_offs = offsetof(struct ieee80211_hdr, addr1);
 			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr2);
@@ -3767,6 +3762,16 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 			fastrx.expected_ds_bits =
 				cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		}
+
+		if (!sdata->u.mgd.powersave)
+			break;
+
+		/* software powersave is a huge mess, avoid all of it */
+		if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK))
+			goto clear;
+		if (ieee80211_hw_check(&local->hw, SUPPORTS_PS) &&
+		    !ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
+			goto clear;
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_AP:
