@@ -274,7 +274,7 @@ static int stm32_dfsdm_probe(struct platform_device *pdev)
 
 	dfsdm->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "dfsdm",
 						  dfsdm->base,
-						  &stm32h7_dfsdm_regmap_cfg);
+						  dev_data->regmap_cfg);
 	if (IS_ERR(dfsdm->regmap)) {
 		ret = PTR_ERR(dfsdm->regmap);
 		dev_err(&pdev->dev, "%s: Failed to allocate regmap: %d\n",
