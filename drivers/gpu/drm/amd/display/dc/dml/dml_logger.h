@@ -27,8 +27,11 @@
 #ifndef __DML_LOGGER_H_
 #define __DML_LOGGER_H_
 
-#define dml_print(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
-#define DTRACE(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
+#define DC_LOGGER \
+	mode_lib->logger
+
+#define dml_print(str, ...) {DC_LOG_DML(str, ##__VA_ARGS__); }
+#define DTRACE(str, ...) {DC_LOG_DML(str, ##__VA_ARGS__); }
 
 #endif
 

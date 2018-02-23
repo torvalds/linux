@@ -36,26 +36,22 @@
 #include "hw_sequencer.h"
 
 #include "resource.h"
+#define DC_LOGGER \
+	logger
 
 #define SURFACE_TRACE(...) do {\
 		if (dc->debug.surface_trace) \
-			dm_logger_write(logger, \
-					LOG_IF_TRACE, \
-					##__VA_ARGS__); \
+			DC_LOG_IF_TRACE(__VA_ARGS__); \
 } while (0)
 
 #define TIMING_TRACE(...) do {\
 	if (dc->debug.timing_trace) \
-		dm_logger_write(logger, \
-				LOG_SYNC, \
-				##__VA_ARGS__); \
+		DC_LOG_SYNC(__VA_ARGS__); \
 } while (0)
 
 #define CLOCK_TRACE(...) do {\
 	if (dc->debug.clock_trace) \
-		dm_logger_write(logger, \
-				LOG_BANDWIDTH_CALCS, \
-				##__VA_ARGS__); \
+		DC_LOG_BANDWIDTH_CALCS(__VA_ARGS__); \
 } while (0)
 
 void pre_surface_trace(

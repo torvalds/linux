@@ -767,8 +767,7 @@ void dce110_link_encoder_construct(
 				bp_cap_info.DP_HBR3_EN;
 		enc110->base.features.flags.bits.HDMI_6GB_EN = bp_cap_info.HDMI_6GB_EN;
 	} else {
-		dm_logger_write(enc110->base.ctx->logger, LOG_WARNING,
-				"%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
+		DC_LOG_WARNING("%s: Failed to get encoder_cap_info from VBIOS with error code %d!\n",
 				__func__,
 				result);
 	}
