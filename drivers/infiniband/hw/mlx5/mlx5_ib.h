@@ -371,7 +371,7 @@ struct mlx5_ib_qp {
 		struct mlx5_ib_rss_qp rss_qp;
 		struct mlx5_ib_dct dct;
 	};
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf	buf;
 
 	struct mlx5_db		db;
 	struct mlx5_ib_wq	rq;
@@ -413,7 +413,7 @@ struct mlx5_ib_qp {
 };
 
 struct mlx5_ib_cq_buf {
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf_ctrl fbc;
 	struct ib_umem		*umem;
 	int			cqe_size;
 	int			nent;
@@ -495,7 +495,7 @@ struct mlx5_ib_wc {
 struct mlx5_ib_srq {
 	struct ib_srq		ibsrq;
 	struct mlx5_core_srq	msrq;
-	struct mlx5_buf		buf;
+	struct mlx5_frag_buf	buf;
 	struct mlx5_db		db;
 	u64		       *wrid;
 	/* protect SRQ hanlding
