@@ -109,7 +109,8 @@ struct fib_rule_notifier_info {
 	[FRA_SUPPRESS_IFGROUP] = { .type = NLA_U32 }, \
 	[FRA_GOTO]	= { .type = NLA_U32 }, \
 	[FRA_L3MDEV]	= { .type = NLA_U8 }, \
-	[FRA_UID_RANGE]	= { .len = sizeof(struct fib_rule_uid_range) }
+	[FRA_UID_RANGE]	= { .len = sizeof(struct fib_rule_uid_range) }, \
+	[FRA_PROTOCOL]  = { .type = NLA_U8 }
 
 static inline void fib_rule_get(struct fib_rule *rule)
 {

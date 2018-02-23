@@ -1145,6 +1145,7 @@ static inline size_t vrf_fib_rule_nl_size(void)
 	sz  = NLMSG_ALIGN(sizeof(struct fib_rule_hdr));
 	sz += nla_total_size(sizeof(u8));	/* FRA_L3MDEV */
 	sz += nla_total_size(sizeof(u32));	/* FRA_PRIORITY */
+	sz += nla_total_size(sizeof(u8));       /* FRA_PROTOCOL */
 
 	return sz;
 }
@@ -1174,7 +1175,9 @@ static int vrf_fib_rule(const struct net_device *dev, __u8 family, bool add_it)
 	memset(frh, 0, sizeof(*frh));
 	frh->family = family;
 	frh->action = FR_ACT_TO_TBL;
-	frh->proto = RTPROT_KERNEL;
+
+	if (nla_put_u8(skb, FRA_PROTOCOL, RTPROT_KERNEL))
+		goto nla_put_failure;
 
 	if (nla_put_u8(skb, FRA_L3MDEV, 1))
 		goto nla_put_failure;
