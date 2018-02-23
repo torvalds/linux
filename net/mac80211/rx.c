@@ -3783,6 +3783,15 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 			!(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
 			(sdata->vif.type != NL80211_IFTYPE_AP_VLAN ||
 			 !sdata->u.vlan.sta);
+
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+		    sdata->u.vlan.sta) {
+			fastrx.expected_ds_bits |=
+				cpu_to_le16(IEEE80211_FCTL_FROMDS);
+			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr4);
+			fastrx.internal_forward = 0;
+		}
+
 		break;
 	default:
 		goto clear;
