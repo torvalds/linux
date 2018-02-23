@@ -61,9 +61,9 @@ static void virtio_gpu_user_framebuffer_destroy(struct drm_framebuffer *fb)
 static int
 virtio_gpu_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 				     struct drm_file *file_priv,
-				     unsigned flags, unsigned color,
+				     unsigned int flags, unsigned int color,
 				     struct drm_clip_rect *clips,
-				     unsigned num_clips)
+				     unsigned int num_clips)
 {
 	struct virtio_gpu_framebuffer *virtio_gpu_fb
 		= to_virtio_gpu_framebuffer(fb);

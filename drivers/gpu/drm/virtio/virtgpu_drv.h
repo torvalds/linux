@@ -246,7 +246,7 @@ int virtio_gpu_fbdev_init(struct virtio_gpu_device *vgdev);
 void virtio_gpu_fbdev_fini(struct virtio_gpu_device *vgdev);
 int virtio_gpu_surface_dirty(struct virtio_gpu_framebuffer *qfb,
 			     struct drm_clip_rect *clips,
-			     unsigned num_clips);
+			     unsigned int num_clips);
 /* virtio vg */
 int virtio_gpu_alloc_vbufs(struct virtio_gpu_device *vgdev);
 void virtio_gpu_free_vbufs(struct virtio_gpu_device *vgdev);

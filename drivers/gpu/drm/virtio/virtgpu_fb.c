@@ -118,7 +118,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 
 int virtio_gpu_surface_dirty(struct virtio_gpu_framebuffer *vgfb,
 			     struct drm_clip_rect *clips,
-			     unsigned num_clips)
+			     unsigned int num_clips)
 {
 	struct virtio_gpu_device *vgdev = vgfb->base.dev->dev_private;
 	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(vgfb->obj);
