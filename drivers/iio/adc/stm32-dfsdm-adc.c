@@ -1108,8 +1108,8 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, adc);
 
 	ret = of_property_read_u32(dev->of_node, "reg", &adc->fl_id);
-	if (ret != 0) {
-		dev_err(dev, "Missing reg property\n");
+	if (ret != 0 || adc->fl_id >= adc->dfsdm->num_fls) {
+		dev_err(dev, "Missing or bad reg property\n");
 		return -EINVAL;
 	}
 
