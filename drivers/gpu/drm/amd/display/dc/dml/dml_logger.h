@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Advanced Micro Devices, Inc.
+ * Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,15 +23,13 @@
  *
  */
 
-#ifndef __DC_COMMON_DEFS_H__
-#define __DC_COMMON_DEFS_H__
 
-#include "dm_services.h"
-#include "dc_features.h"
-#include "display_mode_structs.h"
-#include "display_mode_enums.h"
+#ifndef __DML_LOGGER_H_
+#define __DML_LOGGER_H_
+
+#define dml_print(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
+#define DTRACE(str, ...) {dm_logger_write(mode_lib->logger, LOG_DML, str, ##__VA_ARGS__); }
+
+#endif
 
 
-double dml_round(double a);
-
-#endif /* __DC_COMMON_DEFS_H__ */
