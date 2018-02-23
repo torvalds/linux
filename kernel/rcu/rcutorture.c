@@ -909,34 +909,38 @@ rcu_torture_writer(void *arg)
 	int nsynctypes = 0;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_writer task started");
-	if (!can_expedite) {
+	if (!can_expedite)
 		pr_alert("%s" TORTURE_FLAG
-			 " GP expediting controlled from boot/sysfs for %s,\n",
+			 " GP expediting controlled from boot/sysfs for %s.\n",
 			 torture_type, cur_ops->name);
-		pr_alert("%s" TORTURE_FLAG
-			 " Disabled dynamic grace-period expediting.\n",
-			 torture_type);
-	}
 
 	/* Initialize synctype[] array.  If none set, take default. */
 	if (!gp_cond1 && !gp_exp1 && !gp_normal1 && !gp_sync1)
 		gp_cond1 = gp_exp1 = gp_normal1 = gp_sync1 = true;
-	if (gp_cond1 && cur_ops->get_state && cur_ops->cond_sync)
+	if (gp_cond1 && cur_ops->get_state && cur_ops->cond_sync) {
 		synctype[nsynctypes++] = RTWS_COND_GET;
-	else if (gp_cond && (!cur_ops->get_state || !cur_ops->cond_sync))
-		pr_alert("rcu_torture_writer: gp_cond without primitives.\n");
-	if (gp_exp1 && cur_ops->exp_sync)
+		pr_info("%s: Testing conditional GPs.\n", __func__);
+	} else if (gp_cond && (!cur_ops->get_state || !cur_ops->cond_sync)) {
+		pr_alert("%s: gp_cond without primitives.\n", __func__);
+	}
+	if (gp_exp1 && cur_ops->exp_sync) {
 		synctype[nsynctypes++] = RTWS_EXP_SYNC;
-	else if (gp_exp && !cur_ops->exp_sync)
-		pr_alert("rcu_torture_writer: gp_exp without primitives.\n");
-	if (gp_normal1 && cur_ops->deferred_free)
+		pr_info("%s: Testing expedited GPs.\n", __func__);
+	} else if (gp_exp && !cur_ops->exp_sync) {
+		pr_alert("%s: gp_exp without primitives.\n", __func__);
+	}
+	if (gp_normal1 && cur_ops->deferred_free) {
 		synctype[nsynctypes++] = RTWS_DEF_FREE;
-	else if (gp_normal && !cur_ops->deferred_free)
-		pr_alert("rcu_torture_writer: gp_normal without primitives.\n");
-	if (gp_sync1 && cur_ops->sync)
+		pr_info("%s: Testing asynchronous GPs.\n", __func__);
+	} else if (gp_normal && !cur_ops->deferred_free) {
+		pr_alert("%s: gp_normal without primitives.\n", __func__);
+	}
+	if (gp_sync1 && cur_ops->sync) {
 		synctype[nsynctypes++] = RTWS_SYNC;
-	else if (gp_sync && !cur_ops->sync)
-		pr_alert("rcu_torture_writer: gp_sync without primitives.\n");
+		pr_info("%s: Testing normal GPs.\n", __func__);
+	} else if (gp_sync && !cur_ops->sync) {
+		pr_alert("%s: gp_sync without primitives.\n", __func__);
+	}
 	if (WARN_ONCE(nsynctypes == 0,
 		      "rcu_torture_writer: No update-side primitives.\n")) {
 		/*
@@ -1011,6 +1015,9 @@ rcu_torture_writer(void *arg)
 				rcu_unexpedite_gp();
 			if (++expediting > 3)
 				expediting = -expediting;
+		} else if (!can_expedite) { /* Disabled during boot, recheck. */
+			can_expedite = !rcu_gp_is_expedited() &&
+				       !rcu_gp_is_normal();
 		}
 		rcu_torture_writer_state = RTWS_STUTTER;
 		stutter_wait("rcu_torture_writer");
@@ -1021,6 +1028,10 @@ rcu_torture_writer(void *arg)
 	while (can_expedite && expediting++ < 0)
 		rcu_unexpedite_gp();
 	WARN_ON_ONCE(can_expedite && rcu_gp_is_expedited());
+	if (!can_expedite)
+		pr_alert("%s" TORTURE_FLAG
+			 " Dynamic grace-period expediting was disabled.\n",
+			 torture_type);
 	rcu_torture_writer_state = RTWS_STOPPING;
 	torture_kthread_stopping("rcu_torture_writer");
 	return 0;
@@ -1045,13 +1056,13 @@ rcu_torture_fakewriter(void *arg)
 		    torture_random(&rand) % (nfakewriters * 8) == 0) {
 			cur_ops->cb_barrier();
 		} else if (gp_normal == gp_exp) {
-			if (torture_random(&rand) & 0x80)
+			if (cur_ops->sync && torture_random(&rand) & 0x80)
 				cur_ops->sync();
-			else
+			else if (cur_ops->exp_sync)
 				cur_ops->exp_sync();
-		} else if (gp_normal) {
+		} else if (gp_normal && cur_ops->sync) {
 			cur_ops->sync();
-		} else {
+		} else if (cur_ops->exp_sync) {
 			cur_ops->exp_sync();
 		}
 		stutter_wait("rcu_torture_fakewriter");
@@ -1557,11 +1568,10 @@ static int rcu_torture_barrier_init(void)
 	atomic_set(&barrier_cbs_count, 0);
 	atomic_set(&barrier_cbs_invoked, 0);
 	barrier_cbs_tasks =
-		kzalloc(n_barrier_cbs * sizeof(barrier_cbs_tasks[0]),
+		kcalloc(n_barrier_cbs, sizeof(barrier_cbs_tasks[0]),
 			GFP_KERNEL);
 	barrier_cbs_wq =
-		kzalloc(n_barrier_cbs * sizeof(barrier_cbs_wq[0]),
-			GFP_KERNEL);
+		kcalloc(n_barrier_cbs, sizeof(barrier_cbs_wq[0]), GFP_KERNEL);
 	if (barrier_cbs_tasks == NULL || !barrier_cbs_wq)
 		return -ENOMEM;
 	for (i = 0; i < n_barrier_cbs; i++) {
@@ -1674,7 +1684,7 @@ static void rcu_torture_err_cb(struct rcu_head *rhp)
 	 * next grace period.  Unlikely, but can happen.  If it
 	 * does happen, the debug-objects subsystem won't have splatted.
 	 */
-	pr_alert("rcutorture: duplicated callback was invoked.\n");
+	pr_alert("%s: duplicated callback was invoked.\n", KBUILD_MODNAME);
 }
 #endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 
@@ -1691,7 +1701,7 @@ static void rcu_test_debug_objects(void)
 
 	init_rcu_head_on_stack(&rh1);
 	init_rcu_head_on_stack(&rh2);
-	pr_alert("rcutorture: WARN: Duplicate call_rcu() test starting.\n");
+	pr_alert("%s: WARN: Duplicate call_rcu() test starting.\n", KBUILD_MODNAME);
 
 	/* Try to queue the rh2 pair of callbacks for the same grace period. */
 	preempt_disable(); /* Prevent preemption from interrupting test. */
@@ -1706,11 +1716,11 @@ static void rcu_test_debug_objects(void)
 
 	/* Wait for them all to get done so we can safely return. */
 	rcu_barrier();
-	pr_alert("rcutorture: WARN: Duplicate call_rcu() test complete.\n");
+	pr_alert("%s: WARN: Duplicate call_rcu() test complete.\n", KBUILD_MODNAME);
 	destroy_rcu_head_on_stack(&rh1);
 	destroy_rcu_head_on_stack(&rh2);
 #else /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
-	pr_alert("rcutorture: !CONFIG_DEBUG_OBJECTS_RCU_HEAD, not testing duplicate call_rcu()\n");
+	pr_alert("%s: !CONFIG_DEBUG_OBJECTS_RCU_HEAD, not testing duplicate call_rcu()\n", KBUILD_MODNAME);
 #endif /* #else #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
 }
 
@@ -1799,7 +1809,7 @@ rcu_torture_init(void)
 	if (firsterr)
 		goto unwind;
 	if (nfakewriters > 0) {
-		fakewriter_tasks = kzalloc(nfakewriters *
+		fakewriter_tasks = kcalloc(nfakewriters,
 					   sizeof(fakewriter_tasks[0]),
 					   GFP_KERNEL);
 		if (fakewriter_tasks == NULL) {
@@ -1814,7 +1824,7 @@ rcu_torture_init(void)
 		if (firsterr)
 			goto unwind;
 	}
-	reader_tasks = kzalloc(nrealreaders * sizeof(reader_tasks[0]),
+	reader_tasks = kcalloc(nrealreaders, sizeof(reader_tasks[0]),
 			       GFP_KERNEL);
 	if (reader_tasks == NULL) {
 		VERBOSE_TOROUT_ERRSTRING("out of memory");
