@@ -685,7 +685,7 @@ static void gdm_lte_multi_sdu_pkt(struct phy_dev *phy_dev, char *buf, int len)
 	struct net_device *dev;
 	struct multi_sdu *multi_sdu = (struct multi_sdu *)buf;
 	struct sdu *sdu = NULL;
-	struct gdm_endian *endian = phy_dev->get_endian(phy_dev->priv_dev);
+	u8 endian = phy_dev->get_endian(phy_dev->priv_dev);
 	u8 *data = (u8 *)multi_sdu->data;
 	u16 i = 0;
 	u16 num_packet;
@@ -730,10 +730,9 @@ static void gdm_lte_pdn_table(struct net_device *dev, char *buf, int len)
 {
 	struct nic *nic = netdev_priv(dev);
 	struct hci_pdn_table_ind *pdn_table = (struct hci_pdn_table_ind *)buf;
+	u8 ed;
 
 	if (pdn_table->activate) {
-		struct gdm_endian *ed;
-
 		nic->pdn_table.activate = pdn_table->activate;
 
 		ed = nic->phy_dev->get_endian(nic->phy_dev->priv_dev);
@@ -752,9 +751,9 @@ static int gdm_lte_receive_pkt(struct phy_dev *phy_dev, char *buf, int len)
 {
 	struct hci_packet *hci = (struct hci_packet *)buf;
 	struct hci_pdn_table_ind *pdn_table = (struct hci_pdn_table_ind *)buf;
-	struct gdm_endian *endian = phy_dev->get_endian(phy_dev->priv_dev);
 	struct sdu *sdu;
 	struct net_device *dev;
+	u8 endian = phy_dev->get_endian(phy_dev->priv_dev);
 	int ret = 0;
 	u16 cmd_evt;
 	u32 nic_type;
