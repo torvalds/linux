@@ -1351,7 +1351,7 @@ static struct drm_property_blob *setcmap_new_gamma_lut(struct drm_crtc *crtc,
 	if (IS_ERR(gamma_lut))
 		return gamma_lut;
 
-	lut = (struct drm_color_lut *)gamma_lut->data;
+	lut = gamma_lut->data;
 	if (cmap->start || cmap->len != size) {
 		u16 *r = crtc->gamma_store;
 		u16 *g = r + crtc->gamma_size;

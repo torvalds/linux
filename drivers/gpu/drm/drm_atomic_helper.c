@@ -3818,7 +3818,7 @@ int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
 	}
 
 	/* Prepare GAMMA_LUT with the legacy values. */
-	blob_data = (struct drm_color_lut *) blob->data;
+	blob_data = blob->data;
 	for (i = 0; i < size; i++) {
 		blob_data[i].red = red[i];
 		blob_data[i].green = green[i];

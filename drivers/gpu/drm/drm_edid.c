@@ -1554,8 +1554,7 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	struct edid *override = NULL;
 
 	if (connector->override_edid)
-		override = drm_edid_duplicate((const struct edid *)
-					      connector->edid_blob_ptr->data);
+		override = drm_edid_duplicate(connector->edid_blob_ptr->data);
 
 	if (!override)
 		override = drm_load_edid_firmware(connector);
