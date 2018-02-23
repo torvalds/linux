@@ -5,6 +5,7 @@
  * Copyright 2017 David Lechner <david@lechnology.com>
  */
 
+#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/dma-buf.h>
 #include <linux/gpio/consumer.h>
@@ -163,7 +164,7 @@ static int st7735r_probe(struct spi_device *spi)
 		return PTR_ERR(dc);
 	}
 
-	mipi->backlight = tinydrm_of_find_backlight(dev);
+	mipi->backlight = devm_of_find_backlight(dev);
 	if (IS_ERR(mipi->backlight))
 		return PTR_ERR(mipi->backlight);
 

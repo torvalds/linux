@@ -22,6 +22,20 @@ struct drm_simple_display_pipe;
  */
 struct drm_simple_display_pipe_funcs {
 	/**
+	 * @mode_valid:
+	 *
+	 * This function is called to filter out valid modes from the
+	 * suggestions suggested by the bridge or display. This optional
+	 * hook is passed in when initializing the pipeline.
+	 *
+	 * RETURNS:
+	 *
+	 * drm_mode_status Enum
+	 */
+	enum drm_mode_status (*mode_valid)(struct drm_crtc *crtc,
+					   const struct drm_display_mode *mode);
+
+	/**
 	 * @enable:
 	 *
 	 * This function should be used to enable the pipeline.

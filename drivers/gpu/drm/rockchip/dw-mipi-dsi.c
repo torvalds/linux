@@ -1202,9 +1202,6 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 		return ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	dsi->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(dsi->base))
 		return PTR_ERR(dsi->base);

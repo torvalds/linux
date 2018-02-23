@@ -547,8 +547,9 @@ Explicit Fencing Properties
 Existing KMS Properties
 -----------------------
 
-The following table gives description of drm properties exposed by
-various modules/drivers.
+The following table gives description of drm properties exposed by various
+modules/drivers. Because this table is very unwieldy, do not add any new
+properties here. Instead document them in a section above.
 
 .. csv-table::
    :header-rows: 1

@@ -329,6 +329,13 @@
 # define DP_DS_12BPC		            2
 # define DP_DS_16BPC		            3
 
+/* DP Forward error Correction Registers */
+#define DP_FEC_CAPABILITY		    0x090    /* 1.4 */
+# define DP_FEC_CAPABLE			    (1 << 0)
+# define DP_FEC_UNCORR_BLK_ERROR_COUNT_CAP  (1 << 1)
+# define DP_FEC_CORR_BLK_ERROR_COUNT_CAP    (1 << 2)
+# define DP_FEC_BIT_ERROR_COUNT_CAP	    (1 << 3)
+
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
 # define DP_LINK_RATE_TABLE		    0x00    /* eDP 1.4 */
@@ -444,6 +451,19 @@
 
 #define DP_UPSTREAM_DEVICE_DP_PWR_NEED	    0x118   /* 1.2 */
 # define DP_PWR_NOT_NEEDED		    (1 << 0)
+
+#define DP_FEC_CONFIGURATION		    0x120    /* 1.4 */
+# define DP_FEC_READY			    (1 << 0)
+# define DP_FEC_ERR_COUNT_SEL_MASK	    (7 << 1)
+# define DP_FEC_ERR_COUNT_DIS		    (0 << 1)
+# define DP_FEC_UNCORR_BLK_ERROR_COUNT	    (1 << 1)
+# define DP_FEC_CORR_BLK_ERROR_COUNT	    (2 << 1)
+# define DP_FEC_BIT_ERROR_COUNT		    (3 << 1)
+# define DP_FEC_LANE_SELECT_MASK	    (3 << 4)
+# define DP_FEC_LANE_0_SELECT		    (0 << 4)
+# define DP_FEC_LANE_1_SELECT		    (1 << 4)
+# define DP_FEC_LANE_2_SELECT		    (2 << 4)
+# define DP_FEC_LANE_3_SELECT		    (3 << 4)
 
 #define DP_AUX_FRAME_SYNC_VALUE		    0x15c   /* eDP 1.4 */
 # define DP_AUX_FRAME_SYNC_VALID	    (1 << 0)
@@ -619,6 +639,16 @@
 
 #define DP_TEST_SINK			    0x270
 # define DP_TEST_SINK_START		    (1 << 0)
+
+#define DP_FEC_STATUS			    0x280    /* 1.4 */
+# define DP_FEC_DECODE_EN_DETECTED	    (1 << 0)
+# define DP_FEC_DECODE_DIS_DETECTED	    (1 << 1)
+
+#define DP_FEC_ERROR_COUNT_LSB		    0x0281    /* 1.4 */
+
+#define DP_FEC_ERROR_COUNT_MSB		    0x0282    /* 1.4 */
+# define DP_FEC_ERROR_COUNT_MASK	    0x7F
+# define DP_FEC_ERR_COUNT_VALID		    (1 << 7)
 
 #define DP_PAYLOAD_TABLE_UPDATE_STATUS      0x2c0   /* 1.2 MST */
 # define DP_PAYLOAD_TABLE_UPDATED           (1 << 0)

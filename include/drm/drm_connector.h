@@ -342,7 +342,11 @@ int drm_display_info_set_bus_formats(struct drm_display_info *info,
 /**
  * struct drm_tv_connector_state - TV connector related states
  * @subconnector: selected subconnector
- * @margins: left/right/top/bottom margins
+ * @margins: margins
+ * @margins.left: left margin
+ * @margins.right: right margin
+ * @margins.top: top margin
+ * @margins.bottom: bottom margin
  * @mode: TV mode
  * @brightness: brightness in percent
  * @contrast: contrast in percent

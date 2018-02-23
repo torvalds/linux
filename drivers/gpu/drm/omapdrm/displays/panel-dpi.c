@@ -87,11 +87,7 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 	}
 
 	gpiod_set_value_cansleep(ddata->enable_gpio, 1);
-
-	if (ddata->backlight) {
-		ddata->backlight->props.power = FB_BLANK_UNBLANK;
-		backlight_update_status(ddata->backlight);
-	}
+	backlight_enable(ddata->backlight);
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
@@ -106,10 +102,7 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
 
-	if (ddata->backlight) {
-		ddata->backlight->props.power = FB_BLANK_POWERDOWN;
-		backlight_update_status(ddata->backlight);
-	}
+	backlight_disable(ddata->backlight);
 
 	gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 	regulator_disable(ddata->vcc_supply);
@@ -164,7 +157,6 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
-	struct device_node *bl_node;
 	struct omap_dss_device *in;
 	int r;
 	struct display_timing timing;
@@ -190,19 +182,15 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 	if (IS_ERR(ddata->vcc_supply))
 		return PTR_ERR(ddata->vcc_supply);
 
-	bl_node = of_parse_phandle(node, "backlight", 0);
-	if (bl_node) {
-		ddata->backlight = of_find_backlight_by_node(bl_node);
-		of_node_put(bl_node);
+	ddata->backlight = devm_of_find_backlight(&pdev->dev);
 
-		if (!ddata->backlight)
-			return -EPROBE_DEFER;
-	}
+	if (IS_ERR(ddata->backlight))
+		return PTR_ERR(ddata->backlight);
 
 	r = of_get_display_timing(node, "panel-timing", &timing);
 	if (r) {
 		dev_err(&pdev->dev, "failed to get video timing\n");
-		goto error_free_backlight;
+		return r;
 	}
 
 	videomode_from_timing(&timing, &ddata->vm);
@@ -210,19 +198,12 @@ static int panel_dpi_probe_of(struct platform_device *pdev)
 	in = omapdss_of_find_source_for_first_ep(node);
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
-		r = PTR_ERR(in);
-		goto error_free_backlight;
+		return PTR_ERR(in);
 	}
 
 	ddata->in = in;
 
 	return 0;
-
-error_free_backlight:
-	if (ddata->backlight)
-		put_device(&ddata->backlight->dev);
-
-	return r;
 }
 
 static int panel_dpi_probe(struct platform_device *pdev)
@@ -276,9 +257,6 @@ static int __exit panel_dpi_remove(struct platform_device *pdev)
 	panel_dpi_disconnect(dssdev);
 
 	omap_dss_put_device(in);
-
-	if (ddata->backlight)
-		put_device(&ddata->backlight->dev);
 
 	return 0;
 }

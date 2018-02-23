@@ -64,6 +64,52 @@ Required properties:
     first port should be the input endpoint. The second should be the
     output, usually to an HDMI connector.
 
+DWC HDMI TX Encoder
+-------------------
+
+The HDMI transmitter is a Synopsys DesignWare HDMI 1.4 TX controller IP
+with Allwinner's own PHY IP. It supports audio and video outputs and CEC.
+
+These DT bindings follow the Synopsys DWC HDMI TX bindings defined in
+Documentation/devicetree/bindings/display/bridge/dw_hdmi.txt with the
+following device-specific properties.
+
+Required properties:
+
+  - compatible: value must be one of:
+    * "allwinner,sun8i-a83t-dw-hdmi"
+  - reg: base address and size of memory-mapped region
+  - reg-io-width: See dw_hdmi.txt. Shall be 1.
+  - interrupts: HDMI interrupt number
+  - clocks: phandles to the clocks feeding the HDMI encoder
+    * iahb: the HDMI bus clock
+    * isfr: the HDMI register clock
+    * tmds: TMDS clock
+  - clock-names: the clock names mentioned above
+  - resets: phandle to the reset controller
+  - reset-names: must be "ctrl"
+  - phys: phandle to the DWC HDMI PHY
+  - phy-names: must be "phy"
+
+  - ports: A ports node with endpoint definitions as defined in
+    Documentation/devicetree/bindings/media/video-interfaces.txt. The
+    first port should be the input endpoint. The second should be the
+    output, usually to an HDMI connector.
+
+DWC HDMI PHY
+------------
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun8i-a83t-hdmi-phy
+  - reg: base address and size of memory-mapped region
+  - clocks: phandles to the clocks feeding the HDMI PHY
+    * bus: the HDMI PHY interface clock
+    * mod: the HDMI PHY module clock
+  - clock-names: the clock names mentioned above
+  - resets: phandle to the reset controller driving the PHY
+  - reset-names: must be "phy"
+
 TV Encoder
 ----------
 
@@ -94,24 +140,26 @@ Required properties:
    * allwinner,sun7i-a20-tcon
    * allwinner,sun8i-a33-tcon
    * allwinner,sun8i-a83t-tcon-lcd
+   * allwinner,sun8i-a83t-tcon-tv
    * allwinner,sun8i-v3s-tcon
  - reg: base address and size of memory-mapped region
  - interrupts: interrupt associated to this IP
- - clocks: phandles to the clocks feeding the TCON. Three are needed:
+ - clocks: phandles to the clocks feeding the TCON.
    - 'ahb': the interface clocks
-   - 'tcon-ch0': The clock driving the TCON channel 0
+   - 'tcon-ch0': The clock driving the TCON channel 0, except for A83T TV TCON
  - resets: phandles to the reset controllers driving the encoder
    - "lcd": the reset line for the TCON channel 0
 
  - clock-names: the clock names mentioned above
  - reset-names: the reset names mentioned above
- - clock-output-names: Name of the pixel clock created
+ - clock-output-names: Name of the pixel clock created, if TCON supports
+   channel 0.
 
 - ports: A ports node with endpoint definitions as defined in
   Documentation/devicetree/bindings/media/video-interfaces.txt. The
   first port should be the input endpoint, the second one the output
 
-  The output may have multiple endpoints. The TCON has two channels,
+  The output may have multiple endpoints. TCON can have 1 or 2 channels,
   usually with the first channel being used for the panels interfaces
   (RGB, LVDS, etc.), and the second being used for the outputs that
   require another controller (TV Encoder, HDMI, etc.). The endpoints
@@ -122,8 +170,8 @@ Required properties:
 On SoCs other than the A33 and V3s, there is one more clock required:
    - 'tcon-ch1': The clock driving the TCON channel 1
 
-On SoCs that support LVDS (all SoCs but the A13, H3, H5 and V3s), you
-need one more reset line:
+When TCON support LVDS (all TCONs except TV TCON on A83T and those found
+in A13, H3, H5 and V3s SoCs), you need one more reset line:
    - 'lvds': The reset line driving the LVDS logic
 
 And on the A23, A31, A31s and A33, you need one more clock line:
@@ -226,6 +274,7 @@ supported.
 Required properties:
   - compatible: value must be one of:
     * allwinner,sun8i-a83t-de2-mixer-0
+    * allwinner,sun8i-a83t-de2-mixer-1
     * allwinner,sun8i-v3s-de2-mixer
   - reg: base address and size of the memory-mapped region.
   - clocks: phandles to the clocks feeding the mixer
