@@ -6,3 +6,6 @@ obj-$(CONFIG_VIDEOBUF2_VMALLOC) += videobuf2-vmalloc.o
 obj-$(CONFIG_VIDEOBUF2_DMA_CONTIG) += videobuf2-dma-contig.o
 obj-$(CONFIG_VIDEOBUF2_DMA_SG) += videobuf2-dma-sg.o
 obj-$(CONFIG_VIDEOBUF2_DVB) += videobuf2-dvb.o
+ifeq ($(CONFIG_TRACEPOINTS),y)
+  obj-$(CONFIG_VIDEOBUF2_CORE) += vb2-trace.o
+endif
