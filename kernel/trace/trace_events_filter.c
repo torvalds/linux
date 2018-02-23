@@ -681,7 +681,8 @@ static int append_filter_string(struct event_filter *filter,
 	int newlen;
 	char *new_filter_string;
 
-	BUG_ON(!filter->filter_string);
+	if (WARN_ON(!filter->filter_string))
+		return -EINVAL;
 	newlen = strlen(filter->filter_string) + strlen(string) + 1;
 	new_filter_string = kmalloc(newlen, GFP_KERNEL);
 	if (!new_filter_string)
