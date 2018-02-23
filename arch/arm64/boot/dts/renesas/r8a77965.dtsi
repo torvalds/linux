@@ -521,6 +521,9 @@
 		};
 
 		avb: ethernet@e6800000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			reg = <0 0xe6800000 0 0x800>, <0 0xe6a00000 0 0x10000>;
 			/* placeholder */
 		};
@@ -528,11 +531,21 @@
 		csi20: csi2@fea80000 {
 			reg = <0 0xfea80000 0 0x10000>;
 			/* placeholder */
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		csi40: csi2@feaa0000 {
 			reg = <0 0xfeaa0000 0 0x10000>;
 			/* placeholder */
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		vin0: video@e6ef0000 {
@@ -611,6 +624,9 @@
 		};
 
 		i2c2: i2c@e6510000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			reg = <0 0xe6510000 0 0x40>;
 			/* placeholder */
 		};
@@ -621,6 +637,9 @@
 		};
 
 		i2c4: i2c@e66d8000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			reg = <0 0xe66d8000 0 0x40>;
 			/* placeholder */
 		};
@@ -636,6 +655,9 @@
 		};
 
 		i2c_dvfs: i2c@e60b0000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			reg = <0 0xe60b0000 0 0x425>;
 			/* placeholder */
 		};
@@ -681,6 +703,9 @@
 			/* placeholder */
 
 			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
 				port@0 {
 					reg = <0>;
 					du_out_rgb: endpoint {
