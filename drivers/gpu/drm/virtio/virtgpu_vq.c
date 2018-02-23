@@ -383,7 +383,8 @@ retry:
 }
 
 /* just create gem objects for userspace and long lived objects,
-   just use dma_alloced pages for the queue objects? */
+ * just use dma_alloced pages for the queue objects?
+ */
 
 /* create a basic resource */
 void virtio_gpu_cmd_create_resource(struct virtio_gpu_device *vgdev,
