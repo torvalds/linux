@@ -1252,8 +1252,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	 */
 	if (is_sync_kiocb(iocb))
 		dio->is_async = false;
-	else if (!(dio->flags & DIO_ASYNC_EXTEND) &&
-		 iov_iter_rw(iter) == WRITE && end > i_size_read(inode))
+	else if (iov_iter_rw(iter) == WRITE && end > i_size_read(inode))
 		dio->is_async = false;
 	else
 		dio->is_async = true;
