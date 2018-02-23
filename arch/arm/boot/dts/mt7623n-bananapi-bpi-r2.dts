@@ -147,7 +147,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
-			pinctrl-names = "default";
 			reset-gpios = <&pio 33 0>;
 			core-supply = <&mt6323_vpa_reg>;
 			io-supply = <&mt6323_vemc3v3_reg>;
