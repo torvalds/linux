@@ -1821,6 +1821,24 @@ static void dcn10_otg_blank(
 	}
 }
 
+static void set_hdr_multiplier(struct pipe_ctx *pipe_ctx)
+{
+	struct fixed31_32 multiplier = dal_fixed31_32_from_fraction(
+			pipe_ctx->plane_state->sdr_white_level, 80);
+	uint32_t hw_mult = 0x1f000; // 1.0 default multiplier
+	struct custom_float_format fmt;
+
+	fmt.exponenta_bits = 6;
+	fmt.mantissa_bits = 12;
+	fmt.sign = true;
+
+	if (pipe_ctx->plane_state->sdr_white_level > 80)
+		convert_to_custom_float_format(multiplier, &fmt, &hw_mult);
+
+	pipe_ctx->plane_res.dpp->funcs->dpp_set_hdr_multiplier(
+			pipe_ctx->plane_res.dpp, hw_mult);
+}
+
 static void program_all_pipe_in_tree(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
@@ -1847,6 +1865,8 @@ static void program_all_pipe_in_tree(
 			dcn10_enable_plane(dc, pipe_ctx, context);
 
 		update_dchubp_dpp(dc, pipe_ctx, context);
+
+		set_hdr_multiplier(pipe_ctx);
 
 		if (pipe_ctx->plane_state->update_flags.bits.full_update ||
 				pipe_ctx->plane_state->update_flags.bits.in_transfer_func_change ||

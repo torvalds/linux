@@ -464,6 +464,7 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.set_cursor_attributes = dpp1_set_cursor_attributes,
 		.set_cursor_position = dpp1_set_cursor_position,
 		.dpp_dppclk_control = dpp1_dppclk_control,
+		.dpp_set_hdr_multiplier = dpp1_set_hdr_multiplier,
 };
 
 static struct dpp_caps dcn10_dpp_cap = {
