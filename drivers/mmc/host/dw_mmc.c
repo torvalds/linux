@@ -2001,7 +2001,6 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			set_bit(EVENT_CMD_COMPLETE, &host->completed_events);
 			err = dw_mci_command_complete(host, cmd);
 			if (cmd == mrq->sbc && !err) {
-				prev_state = state = STATE_SENDING_CMD;
 				__dw_mci_start_request(host, host->slot,
 						       mrq->cmd);
 				goto unlock;
