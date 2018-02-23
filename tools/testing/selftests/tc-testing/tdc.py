@@ -445,7 +445,7 @@ def generate_case_ids(alltests):
     for c in alltests:
         if (c["id"] == ""):
             while True:
-                newid = str('%04x' % random.randrange(16**4))
+                newid = str('{:04x}'.format(random.randrange(16**4)))
                 if (does_id_exist(alltests, newid)):
                     continue
                 else:
