@@ -251,8 +251,6 @@ struct dma_pdata;
 
 /* Board platform data */
 struct dw_mci_board {
-	u32 num_slots;
-
 	unsigned int bus_hz; /* Clock speed at the cclk_in pad */
 
 	u32 caps;	/* Capabilities */
