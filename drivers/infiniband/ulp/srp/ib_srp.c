@@ -327,29 +327,10 @@ static int srp_new_ib_cm_id(struct srp_rdma_ch *ch)
 	return 0;
 }
 
-static const char *inet_ntop(const void *sa, char *dst, unsigned int size)
-{
-	switch (((struct sockaddr *)sa)->sa_family) {
-	case AF_INET:
-		snprintf(dst, size, "%pI4",
-			 &((struct sockaddr_in *)sa)->sin_addr);
-		break;
-	case AF_INET6:
-		snprintf(dst, size, "%pI6",
-			 &((struct sockaddr_in6 *)sa)->sin6_addr);
-		break;
-	default:
-		snprintf(dst, size, "???");
-		break;
-	}
-	return dst;
-}
-
 static int srp_new_rdma_cm_id(struct srp_rdma_ch *ch)
 {
 	struct srp_target_port *target = ch->target;
 	struct rdma_cm_id *new_cm_id;
-	char src_addr[64], dst_addr[64];
 	int ret;
 
 	new_cm_id = rdma_create_id(target->net, srp_rdma_cm_handler, ch,
@@ -366,13 +347,8 @@ static int srp_new_rdma_cm_id(struct srp_rdma_ch *ch)
 				(struct sockaddr *)&target->rdma_cm.dst,
 				SRP_PATH_REC_TIMEOUT_MS);
 	if (ret) {
-		pr_err("No route available from %s to %s (%d)\n",
-		       target->rdma_cm.src_specified ?
-		       inet_ntop(&target->rdma_cm.src, src_addr,
-				 sizeof(src_addr)) : "(any)",
-		       inet_ntop(&target->rdma_cm.dst, dst_addr,
-				 sizeof(dst_addr)),
-		       ret);
+		pr_err("No route available from %pIS to %pIS (%d)\n",
+		       &target->rdma_cm.src, &target->rdma_cm.dst, ret);
 		goto out;
 	}
 	ret = wait_for_completion_interruptible(&ch->done);
@@ -381,10 +357,8 @@ static int srp_new_rdma_cm_id(struct srp_rdma_ch *ch)
 
 	ret = ch->status;
 	if (ret) {
-		pr_err("Resolving address %s failed (%d)\n",
-		       inet_ntop(&target->rdma_cm.dst, dst_addr,
-				 sizeof(dst_addr)),
-		       ret);
+		pr_err("Resolving address %pIS failed (%d)\n",
+		       &target->rdma_cm.dst, ret);
 		goto out;
 	}
 
@@ -3778,14 +3752,11 @@ static ssize_t srp_create_target(struct device *dev,
 
 	if (!srp_conn_unique(target->srp_host, target)) {
 		if (target->using_rdma_cm) {
-			char dst_addr[64];
-
 			shost_printk(KERN_INFO, target->scsi_host,
-				     PFX "Already connected to target port with id_ext=%016llx;ioc_guid=%016llx;dest=%s\n",
+				     PFX "Already connected to target port with id_ext=%016llx;ioc_guid=%016llx;dest=%pIS\n",
 				     be64_to_cpu(target->id_ext),
 				     be64_to_cpu(target->ioc_guid),
-				     inet_ntop(&target->rdma_cm.dst, dst_addr,
-					       sizeof(dst_addr)));
+				     &target->rdma_cm.dst);
 		} else {
 			shost_printk(KERN_INFO, target->scsi_host,
 				     PFX "Already connected to target port with id_ext=%016llx;ioc_guid=%016llx;initiator_ext=%016llx\n",
@@ -3894,8 +3865,8 @@ static ssize_t srp_create_target(struct device *dev,
 				char dst[64];
 
 				if (target->using_rdma_cm)
-					inet_ntop(&target->rdma_cm.dst, dst,
-						  sizeof(dst));
+					snprintf(dst, sizeof(dst), "%pIS",
+						 &target->rdma_cm.dst);
 				else
 					snprintf(dst, sizeof(dst), "%pI6",
 						 target->ib_cm.orig_dgid.raw);
@@ -3928,14 +3899,11 @@ connected:
 
 	if (target->state != SRP_TARGET_REMOVED) {
 		if (target->using_rdma_cm) {
-			char dst[64];
-
-			inet_ntop(&target->rdma_cm.dst, dst, sizeof(dst));
 			shost_printk(KERN_DEBUG, target->scsi_host, PFX
-				     "new target: id_ext %016llx ioc_guid %016llx sgid %pI6 dest %s\n",
+				     "new target: id_ext %016llx ioc_guid %016llx sgid %pI6 dest %pIS\n",
 				     be64_to_cpu(target->id_ext),
 				     be64_to_cpu(target->ioc_guid),
-				     target->sgid.raw, dst);
+				     target->sgid.raw, &target->rdma_cm.dst);
 		} else {
 			shost_printk(KERN_DEBUG, target->scsi_host, PFX
 				     "new target: id_ext %016llx ioc_guid %016llx pkey %04x service_id %016llx sgid %pI6 dgid %pI6\n",
