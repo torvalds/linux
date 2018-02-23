@@ -722,7 +722,7 @@ config GPIO_TS5500
 
 config GPIO_WINBOND
 	tristate "Winbond Super I/O GPIO support"
-	depends on ISA_BUS_API
+	select ISA_BUS_API
 	help
 	  This option enables support for GPIOs found on Winbond Super I/O
 	  chips.
