@@ -347,9 +347,9 @@ def check_default_settings(args, remaining, pm):
     global NAMES
 
     if args.path != None:
-         NAMES['TC'] = args.path
+        NAMES['TC'] = args.path
     if args.device != None:
-         NAMES['DEV2'] = args.device
+        NAMES['DEV2'] = args.device
     if not os.path.isfile(NAMES['TC']):
         print("The specified tc path " + NAMES['TC'] + " does not exist.")
         exit(1)
