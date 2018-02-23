@@ -83,6 +83,7 @@ static void virtio_gpu_unref_list(struct list_head *head)
 	struct ttm_validate_buffer *buf;
 	struct ttm_buffer_object *bo;
 	struct virtio_gpu_object *qobj;
+
 	list_for_each_entry(buf, head, head) {
 		bo = buf->bo;
 		qobj = container_of(bo, struct virtio_gpu_object, tbo);
@@ -478,6 +479,7 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	int ret;
 	struct virtio_gpu_drv_cap_cache *cache_ent;
 	void *ptr;
+
 	if (vgdev->num_capsets == 0)
 		return -ENOSYS;
 

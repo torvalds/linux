@@ -54,6 +54,7 @@ static int virtio_gpu_probe(struct virtio_device *vdev)
 static void virtio_gpu_remove(struct virtio_device *vdev)
 {
 	struct drm_device *dev = vdev->priv;
+
 	drm_put_dev(dev);
 }
 

@@ -62,6 +62,7 @@ void virtio_gpu_ctrl_ack(struct virtqueue *vq)
 {
 	struct drm_device *dev = vq->vdev->priv;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
+
 	schedule_work(&vgdev->ctrlq.dequeue_work);
 }
 
@@ -69,6 +70,7 @@ void virtio_gpu_cursor_ack(struct virtqueue *vq)
 {
 	struct drm_device *dev = vq->vdev->priv;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
+
 	schedule_work(&vgdev->cursorq.dequeue_work);
 }
 
@@ -852,6 +854,7 @@ int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 
 	if (!obj->pages) {
 		int ret;
+
 		ret = virtio_gpu_object_get_sg_table(vgdev, obj);
 		if (ret)
 			return ret;
