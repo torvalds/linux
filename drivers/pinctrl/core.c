@@ -1416,6 +1416,7 @@ int pinctrl_register_mappings(const struct pinctrl_map *maps,
 {
 	return pinctrl_register_map(maps, num_maps, true);
 }
+EXPORT_SYMBOL_GPL(pinctrl_register_mappings);
 
 void pinctrl_unregister_map(const struct pinctrl_map *map)
 {
