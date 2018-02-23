@@ -144,7 +144,7 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 				      DP_SINK_DEVICE_AUX_FRAME_SYNC_CAP,
 				      &frame_sync_cap) != 1)
 			frame_sync_cap = 0;
-		dev_priv->psr.aux_frame_sync = frame_sync_cap ? true : false;
+		dev_priv->psr.aux_frame_sync = frame_sync_cap & DP_AUX_FRAME_SYNC_CAP;
 		/* PSR2 needs frame sync as well */
 		dev_priv->psr.psr2_support = dev_priv->psr.aux_frame_sync;
 		DRM_DEBUG_KMS("PSR2 %s on sink",
