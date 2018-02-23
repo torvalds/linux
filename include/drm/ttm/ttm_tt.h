@@ -163,6 +163,8 @@ int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
 		unsigned long size, uint32_t page_flags);
 int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 		    unsigned long size, uint32_t page_flags);
+int ttm_sg_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
+		   unsigned long size, uint32_t page_flags);
 
 /**
  * ttm_tt_fini
