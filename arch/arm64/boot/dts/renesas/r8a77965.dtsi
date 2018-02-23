@@ -795,6 +795,7 @@
 
 		usb3_phy0: usb-phy@e65ee000 {
 			reg = <0 0xe65ee000 0 0x90>;
+			#phy-cells = <0>;
 			/* placeholder */
 		};
 
