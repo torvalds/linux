@@ -1491,12 +1491,11 @@ static int issue_discard_thread(void *data)
 		if (kthread_should_stop())
 			return 0;
 
-		if (dcc->discard_wake) {
+		if (dcc->discard_wake)
 			dcc->discard_wake = 0;
-			if (sbi->gc_thread && sbi->gc_thread->gc_urgent)
-				init_discard_policy(&dpolicy,
-							DPOLICY_FORCE, 1);
-		}
+
+		if (sbi->gc_thread && sbi->gc_thread->gc_urgent)
+			init_discard_policy(&dpolicy, DPOLICY_FORCE, 1);
 
 		sb_start_intwrite(sbi->sb);
 
@@ -1807,7 +1806,7 @@ void init_discard_policy(struct discard_policy *dpolicy,
 	} else if (discard_type == DPOLICY_FORCE) {
 		dpolicy->min_interval = DEF_MIN_DISCARD_ISSUE_TIME;
 		dpolicy->max_interval = DEF_MAX_DISCARD_ISSUE_TIME;
-		dpolicy->io_aware = true;
+		dpolicy->io_aware = false;
 	} else if (discard_type == DPOLICY_FSTRIM) {
 		dpolicy->io_aware = false;
 	} else if (discard_type == DPOLICY_UMOUNT) {
