@@ -928,6 +928,8 @@ static int vega10_setup_asic_task(struct pp_hwmgr *hwmgr)
 			"Failed to set up led dpm config!",
 			return -EINVAL);
 
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_NumOfDisplays, 0);
+
 	return 0;
 }
 
@@ -2857,12 +2859,6 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 	int tmp_result, result = 0;
 
-	smum_send_msg_to_smc_with_parameter(hwmgr,
-		PPSMC_MSG_ConfigureTelemetry, data->config_telemetry);
-
-	smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_NumOfDisplays, 0);
-
 	tmp_result = (!smum_is_dpm_running(hwmgr)) ? 0 : -1;
 	PP_ASSERT_WITH_CODE(!tmp_result,
 			"DPM is already running right , skipping re-enablement!",
@@ -2872,6 +2868,9 @@ static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			(hwmgr->smu_version == 0x001c2d00))
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_UpdatePkgPwrPidAlpha, 1);
+
+	smum_send_msg_to_smc_with_parameter(hwmgr,
+		PPSMC_MSG_ConfigureTelemetry, data->config_telemetry);
 
 	tmp_result = vega10_construct_voltage_tables(hwmgr);
 	PP_ASSERT_WITH_CODE(!tmp_result,
