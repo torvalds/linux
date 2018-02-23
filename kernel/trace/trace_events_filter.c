@@ -866,14 +866,6 @@ void free_event_filter(struct event_filter *filter)
 	__free_filter(filter);
 }
 
-static struct event_filter *__alloc_filter(void)
-{
-	struct event_filter *filter;
-
-	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
-	return filter;
-}
-
 static int __alloc_preds(struct event_filter *filter, int n_preds)
 {
 	struct filter_pred *pred;
@@ -1812,7 +1804,7 @@ static int replace_system_preds(struct trace_subsystem_dir *dir,
 
 		list_add_tail(&filter_item->list, &filter_list);
 
-		filter_item->filter = __alloc_filter();
+		filter_item->filter = kzalloc(sizeof(*filter), GFP_KERNEL);
 		if (!filter_item->filter)
 			goto fail_mem;
 		filter = filter_item->filter;
@@ -1886,7 +1878,7 @@ static int create_filter_start(char *filter_str, bool set_str,
 	WARN_ON_ONCE(*psp || *filterp);
 
 	/* allocate everything, and if any fails, free all and fail */
-	filter = __alloc_filter();
+	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
 	if (filter && set_str)
 		err = replace_filter_string(filter, filter_str);
 
