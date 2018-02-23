@@ -147,19 +147,7 @@ static int dw_mci_req_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-
-static int dw_mci_req_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dw_mci_req_show, inode->i_private);
-}
-
-static const struct file_operations dw_mci_req_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dw_mci_req_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dw_mci_req);
 
 static int dw_mci_regs_show(struct seq_file *s, void *v)
 {
@@ -178,19 +166,7 @@ static int dw_mci_regs_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-
-static int dw_mci_regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, dw_mci_regs_show, inode->i_private);
-}
-
-static const struct file_operations dw_mci_regs_fops = {
-	.owner		= THIS_MODULE,
-	.open		= dw_mci_regs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(dw_mci_regs);
 
 static void dw_mci_init_debugfs(struct dw_mci_slot *slot)
 {
