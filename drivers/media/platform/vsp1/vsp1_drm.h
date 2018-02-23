@@ -20,13 +20,11 @@
 /**
  * vsp1_drm_pipeline - State for the API exposed to the DRM driver
  * @pipe: the VSP1 pipeline used for display
- * @enabled: pipeline state at the beginning of an update
  * @du_complete: frame completion callback for the DU driver (optional)
  * @du_private: data to be passed to the du_complete callback
  */
 struct vsp1_drm_pipeline {
 	struct vsp1_pipeline pipe;
-	bool enabled;
 
 	/* Frame synchronisation */
 	void (*du_complete)(void *, bool);

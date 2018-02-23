@@ -273,10 +273,6 @@ EXPORT_SYMBOL_GPL(vsp1_du_setup_lif);
  */
 void vsp1_du_atomic_begin(struct device *dev, unsigned int pipe_index)
 {
-	struct vsp1_device *vsp1 = dev_get_drvdata(dev);
-	struct vsp1_drm_pipeline *drm_pipe = &vsp1->drm->pipe[pipe_index];
-
-	drm_pipe->enabled = drm_pipe->pipe.num_inputs != 0;
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
