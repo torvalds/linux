@@ -1080,16 +1080,16 @@ static int mvs_94xx_gpio_write(struct mvs_prv_info *mvs_prv,
 			void __iomem *regs = mvi->regs_ex - 0x10200;
 
 			int drive = (i/3) & (4-1); /* drive number on host */
-			u32 block = mr32(MVS_SGPIO_DCTRL +
+			int driveshift = drive * 8; /* bit offset of drive */
+			u32 block = ioread32be(regs + MVS_SGPIO_DCTRL +
 				MVS_SGPIO_HOST_OFFSET * mvi->id);
-
 
 			/*
 			* if bit is set then create a mask with the first
 			* bit of the drive set in the mask ...
 			*/
-			u32 bit = (write_data[i/8] & (1 << (i&(8-1)))) ?
-				1<<(24-drive*8) : 0;
+			u32 bit = get_unaligned_be32(write_data) & (1 << i) ?
+				1 << driveshift : 0;
 
 			/*
 			* ... and then shift it to the right position based
@@ -1098,26 +1098,27 @@ static int mvs_94xx_gpio_write(struct mvs_prv_info *mvs_prv,
 			switch (i%3) {
 			case 0: /* activity */
 				block &= ~((0x7 << MVS_SGPIO_DCTRL_ACT_SHIFT)
-					<< (24-drive*8));
+					<< driveshift);
 					/* hardwire activity bit to SOF */
 				block |= LED_BLINKA_SOF << (
 					MVS_SGPIO_DCTRL_ACT_SHIFT +
-					(24-drive*8));
+					driveshift);
 				break;
 			case 1: /* id */
 				block &= ~((0x3 << MVS_SGPIO_DCTRL_LOC_SHIFT)
-					<< (24-drive*8));
+					<< driveshift);
 				block |= bit << MVS_SGPIO_DCTRL_LOC_SHIFT;
 				break;
 			case 2: /* fail */
 				block &= ~((0x7 << MVS_SGPIO_DCTRL_ERR_SHIFT)
-					<< (24-drive*8));
+					<< driveshift);
 				block |= bit << MVS_SGPIO_DCTRL_ERR_SHIFT;
 				break;
 			}
 
-			mw32(MVS_SGPIO_DCTRL + MVS_SGPIO_HOST_OFFSET * mvi->id,
-				block);
+			iowrite32be(block,
+				regs + MVS_SGPIO_DCTRL +
+				MVS_SGPIO_HOST_OFFSET * mvi->id);
 
 		}
 
@@ -1132,7 +1133,7 @@ static int mvs_94xx_gpio_write(struct mvs_prv_info *mvs_prv,
 			void __iomem *regs = mvi->regs_ex - 0x10200;
 
 			mw32(MVS_SGPIO_DCTRL + MVS_SGPIO_HOST_OFFSET * mvi->id,
-				be32_to_cpu(((u32 *) write_data)[i]));
+				((u32 *) write_data)[i]);
 		}
 		return reg_count;
 	}
