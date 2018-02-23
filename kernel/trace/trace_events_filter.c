@@ -664,17 +664,6 @@ static void remove_filter_string(struct event_filter *filter)
 	filter->filter_string = NULL;
 }
 
-static int replace_filter_string(struct event_filter *filter,
-				 char *filter_string)
-{
-	kfree(filter->filter_string);
-	filter->filter_string = kstrdup(filter_string, GFP_KERNEL);
-	if (!filter->filter_string)
-		return -ENOMEM;
-
-	return 0;
-}
-
 static void append_filter_err(struct filter_parse_state *ps,
 			      struct event_filter *filter)
 {
@@ -1802,9 +1791,8 @@ static int replace_system_preds(struct trace_subsystem_dir *dir,
 		if (!filter)
 			goto fail_mem;
 
-		/* Can only fail on no memory */
-		err = replace_filter_string(filter, filter_string);
-		if (err)
+		filter->filter_string = kstrdup(filter_string, GFP_KERNEL);
+		if (!filter->filter_string)
 			goto fail_mem;
 
 		err = replace_preds(file->event_call, filter, ps, false);
@@ -1868,7 +1856,7 @@ static int replace_system_preds(struct trace_subsystem_dir *dir,
 	return -ENOMEM;
 }
 
-static int create_filter_start(char *filter_str, bool set_str,
+static int create_filter_start(char *filter_string, bool set_str,
 			       struct filter_parse_state **psp,
 			       struct event_filter **filterp)
 {
@@ -1880,8 +1868,11 @@ static int create_filter_start(char *filter_str, bool set_str,
 
 	/* allocate everything, and if any fails, free all and fail */
 	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
-	if (filter && set_str)
-		err = replace_filter_string(filter, filter_str);
+	if (filter && set_str) {
+		filter->filter_string = kstrdup(filter_string, GFP_KERNEL);
+		if (!filter->filter_string)
+			err = -ENOMEM;
+	}
 
 	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
 
@@ -1895,7 +1886,7 @@ static int create_filter_start(char *filter_str, bool set_str,
 	*filterp = filter;
 	*psp = ps;
 
-	parse_init(ps, filter_ops, filter_str);
+	parse_init(ps, filter_ops, filter_string);
 	err = filter_parse(ps);
 	if (err && set_str)
 		append_filter_err(ps, filter);
