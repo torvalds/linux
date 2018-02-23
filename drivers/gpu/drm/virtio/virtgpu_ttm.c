@@ -177,7 +177,6 @@ static void ttm_bo_man_put_node(struct ttm_mem_type_manager *man,
 				struct ttm_mem_reg *mem)
 {
 	mem->mm_node = (void *)NULL;
-	return;
 }
 
 static int ttm_bo_man_init(struct ttm_mem_type_manager *man,
@@ -244,7 +243,6 @@ static void virtio_gpu_evict_flags(struct ttm_buffer_object *bo,
 	placement->busy_placement = &placements;
 	placement->num_placement = 1;
 	placement->num_busy_placement = 1;
-	return;
 }
 
 static int virtio_gpu_verify_access(struct ttm_buffer_object *bo,
