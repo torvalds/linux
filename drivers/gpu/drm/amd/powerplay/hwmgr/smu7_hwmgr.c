@@ -4977,6 +4977,26 @@ static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 	return size;
 }
 
+static void smu7_patch_compute_profile_mode(struct pp_hwmgr *hwmgr,
+					enum PP_SMC_POWER_PROFILE requst)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	uint32_t tmp, level;
+
+	if (requst == PP_SMC_POWER_PROFILE_COMPUTE) {
+		if (data->dpm_level_enable_mask.sclk_dpm_enable_mask) {
+			level = 0;
+			tmp = data->dpm_level_enable_mask.sclk_dpm_enable_mask;
+			while (tmp >>= 1)
+				level++;
+			if (level > 0)
+				smu7_force_clock_level(hwmgr, PP_SCLK, 3 << (level-1));
+		}
+	} else if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE) {
+		smu7_force_clock_level(hwmgr, PP_SCLK, data->dpm_level_enable_mask.sclk_dpm_enable_mask);
+	}
+}
+
 static int smu7_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint32_t size)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -5027,6 +5047,7 @@ static int smu7_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint
 				data->current_profile_setting.mclk_down_hyst = tmp.mclk_down_hyst;
 				data->current_profile_setting.mclk_activity = tmp.mclk_activity;
 			}
+			smu7_patch_compute_profile_mode(hwmgr, mode);
 			hwmgr->power_profile_mode = mode;
 		}
 		break;
