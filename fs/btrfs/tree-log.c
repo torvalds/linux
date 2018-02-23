@@ -26,6 +26,7 @@
 #include "print-tree.h"
 #include "backref.h"
 #include "hash.h"
+#include "inode-map.h"
 
 /* magic values for the inode_only field in btrfs_log_inode:
  *
@@ -2445,6 +2446,9 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 							next);
 					btrfs_wait_tree_block_writeback(next);
 					btrfs_tree_unlock(next);
+				} else {
+					if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &next->bflags))
+						clear_extent_buffer_dirty(next);
 				}
 
 				WARN_ON(root_owner !=
@@ -2524,6 +2528,9 @@ static noinline int walk_up_log_tree(struct btrfs_trans_handle *trans,
 							next);
 					btrfs_wait_tree_block_writeback(next);
 					btrfs_tree_unlock(next);
+				} else {
+					if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &next->bflags))
+						clear_extent_buffer_dirty(next);
 				}
 
 				WARN_ON(root_owner != BTRFS_TREE_LOG_OBJECTID);
@@ -2600,6 +2607,9 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 				clean_tree_block(trans, log->fs_info, next);
 				btrfs_wait_tree_block_writeback(next);
 				btrfs_tree_unlock(next);
+			} else {
+				if (test_and_clear_bit(EXTENT_BUFFER_DIRTY, &next->bflags))
+					clear_extent_buffer_dirty(next);
 			}
 
 			WARN_ON(log->root_key.objectid !=
@@ -5512,6 +5522,23 @@ again:
 		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
 			ret = fixup_inode_link_counts(trans, wc.replay_dest,
 						      path);
+		}
+
+		if (!ret && wc.stage == LOG_WALK_REPLAY_ALL) {
+			struct btrfs_root *root = wc.replay_dest;
+
+			btrfs_release_path(path);
+
+			/*
+			 * We have just replayed everything, and the highest
+			 * objectid of fs roots probably has changed in case
+			 * some inode_item's got replayed.
+			 *
+			 * root->objectid_mutex is not acquired as log replay
+			 * could only happen during mount.
+			 */
+			ret = btrfs_find_highest_objectid(root,
+						  &root->highest_objectid);
 		}
 
 		key.offset = found_key.offset - 1;
