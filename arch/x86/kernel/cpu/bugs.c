@@ -94,9 +94,10 @@ static const char *spectre_v2_strings[] = {
 
 static enum spectre_v2_mitigation spectre_v2_enabled = SPECTRE_V2_NONE;
 
-static bool spectre_v2_bad_module;
 
 #ifdef RETPOLINE
+static bool spectre_v2_bad_module;
+
 bool retpoline_module_ok(bool has_retpoline)
 {
 	if (spectre_v2_enabled == SPECTRE_V2_NONE || has_retpoline)
@@ -106,6 +107,13 @@ bool retpoline_module_ok(bool has_retpoline)
 	spectre_v2_bad_module = true;
 	return false;
 }
+
+static inline const char *spectre_v2_module_string(void)
+{
+	return spectre_v2_bad_module ? " - vulnerable module loaded" : "";
+}
+#else
+static inline const char *spectre_v2_module_string(void) { return ""; }
 #endif
 
 static void __init spec2_print_if_insecure(const char *reason)
@@ -293,6 +301,6 @@ ssize_t cpu_show_spectre_v2(struct device *dev,
 		return sprintf(buf, "Not affected\n");
 
 	return sprintf(buf, "%s%s\n", spectre_v2_strings[spectre_v2_enabled],
-		       spectre_v2_bad_module ? " - vulnerable module loaded" : "");
+		       spectre_v2_module_string());
 }
 #endif
