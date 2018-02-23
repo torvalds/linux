@@ -501,7 +501,7 @@ int aio_port_set_clk(struct uniphier_aio_sub *sub)
 				OPORTMXCTR2_MSSEL_MASTER |
 				OPORTMXCTR2_EXTLSIFSSEL_36 |
 				OPORTMXCTR2_DACCKSEL_1_2;
-		} else {
+		} else if (sub->swm->type == PORT_TYPE_SPDIF) {
 			if (sub->aio->pll_out >= ARRAY_SIZE(v_pll)) {
 				dev_err(dev, "PLL(%d) is invalid\n",
 					sub->aio->pll_out);
@@ -521,6 +521,11 @@ int aio_port_set_clk(struct uniphier_aio_sub *sub)
 				v |= OPORTMXCTR2_EXTLSIFSSEL_24;
 				break;
 			}
+		} else {
+			v = OPORTMXCTR2_ACLKSEL_A1 |
+				OPORTMXCTR2_MSSEL_MASTER |
+				OPORTMXCTR2_EXTLSIFSSEL_36 |
+				OPORTMXCTR2_DACCKSEL_1_2;
 		}
 		regmap_write(r, OPORTMXCTR2(sub->swm->oport.map), v);
 	} else {
@@ -550,11 +555,19 @@ int aio_port_set_param(struct uniphier_aio_sub *sub, int pass_through,
 		       const struct snd_pcm_hw_params *params)
 {
 	struct regmap *r = sub->aio->chip->regmap;
+	unsigned int rate;
 	u32 v;
 	int ret;
 
 	if (!pass_through) {
-		ret = aio_port_set_rate(sub, params_rate(params));
+		if (sub->swm->type == PORT_TYPE_EVE ||
+		    sub->swm->type == PORT_TYPE_CONV) {
+			rate = 48000;
+		} else {
+			rate = params_rate(params);
+		}
+
+		ret = aio_port_set_rate(sub, rate);
 		if (ret)
 			return ret;
 
