@@ -64,6 +64,22 @@ uint16_t convert_to_vddc(uint8_t vid)
 	return (uint16_t) ((6200 - (vid * 25)) / VOLTAGE_SCALE);
 }
 
+uint32_t phm_set_field_to_u32(u32 offset, u32 original_data, u32 field, u32 size)
+{
+	u32 mask = 0;
+	u32 shift = 0;
+
+	shift = (offset % 4) << 3;
+	if (size == sizeof(uint8_t))
+		mask = 0xFF << shift;
+	else if (size == sizeof(uint16_t))
+		mask = 0xFFFF << shift;
+
+	original_data &= ~mask;
+	original_data |= (field << shift);
+	return original_data;
+}
+
 static int phm_thermal_l2h_irq(void *private_data,
 		 unsigned src_id, const uint32_t *iv_entry)
 {

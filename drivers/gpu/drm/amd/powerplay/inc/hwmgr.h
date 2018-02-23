@@ -829,6 +829,8 @@ extern int rv_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint32_t sclk, uint16_t id, uint16_t *voltage);
 
+extern uint32_t phm_set_field_to_u32(u32 offset, u32 original_data, u32 field, u32 size);
+
 #define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 
 #define PHM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
