@@ -270,6 +270,8 @@ static int mlxsw_sp_kvdl_part_init(struct mlxsw_sp *mlxsw_sp,
 	case MLXSW_SP_KVDL_PART_LARGE_CHUNKS:
 		resource_id = MLXSW_SP_RESOURCE_KVD_LINEAR_LARGE_CHUNKS;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	err = devlink_resource_size_get(devlink, resource_id, &resource_size);
