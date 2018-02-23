@@ -113,7 +113,6 @@ static const struct file_operations virtio_gpu_driver_fops = {
 	.llseek = noop_llseek,
 };
 
-
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
 	.load = virtio_gpu_driver_load,
