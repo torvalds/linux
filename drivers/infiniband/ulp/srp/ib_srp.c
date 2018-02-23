@@ -765,18 +765,11 @@ static void srp_path_rec_completion(int status,
 static int srp_ib_lookup_path(struct srp_rdma_ch *ch)
 {
 	struct srp_target_port *target = ch->target;
-	int ret = -ENODEV;
+	int ret;
 
 	ch->ib_cm.path.numb_path = 1;
 
 	init_completion(&ch->done);
-
-	/*
-	 * Avoid that the SCSI host can be removed by srp_remove_target()
-	 * before srp_path_rec_completion() is called.
-	 */
-	if (!scsi_host_get(target->scsi_host))
-		goto out;
 
 	ch->ib_cm.path_query_id = ib_sa_path_rec_get(&srp_sa_client,
 					       target->srp_host->srp_dev->dev,
@@ -791,27 +784,21 @@ static int srp_ib_lookup_path(struct srp_rdma_ch *ch)
 					       GFP_KERNEL,
 					       srp_path_rec_completion,
 					       ch, &ch->ib_cm.path_query);
-	ret = ch->ib_cm.path_query_id;
-	if (ret < 0)
-		goto put;
+	if (ch->ib_cm.path_query_id < 0)
+		return ch->ib_cm.path_query_id;
 
 	ret = wait_for_completion_interruptible(&ch->done);
 	if (ret < 0)
-		goto put;
+		return ret;
 
-	ret = ch->status;
-	if (ret < 0)
+	if (ch->status < 0)
 		shost_printk(KERN_WARNING, target->scsi_host,
 			     PFX "Path record query failed: sgid %pI6, dgid %pI6, pkey %#04x, service_id %#16llx\n",
 			     ch->ib_cm.path.sgid.raw, ch->ib_cm.path.dgid.raw,
 			     be16_to_cpu(target->ib_cm.pkey),
 			     be64_to_cpu(target->ib_cm.service_id));
 
-put:
-	scsi_host_put(target->scsi_host);
-
-out:
-	return ret;
+	return ch->status;
 }
 
 static int srp_rdma_lookup_path(struct srp_rdma_ch *ch)
