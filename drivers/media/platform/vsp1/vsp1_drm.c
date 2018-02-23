@@ -190,6 +190,10 @@ static int vsp1_du_pipeline_setup_bru(struct vsp1_device *vsp1,
 
 		/* Release our BRU if we have one. */
 		if (pipe->bru) {
+			dev_dbg(vsp1->dev, "%s: pipe %u: releasing %s\n",
+				__func__, pipe->lif->index,
+				BRU_NAME(pipe->bru));
+
 			/*
 			 * The BRU might be acquired by the other pipeline in
 			 * the next step. We must thus remove it from the list
@@ -219,6 +223,9 @@ static int vsp1_du_pipeline_setup_bru(struct vsp1_device *vsp1,
 		if (bru->pipe) {
 			struct vsp1_drm_pipeline *owner_pipe;
 
+			dev_dbg(vsp1->dev, "%s: pipe %u: waiting for %s\n",
+				__func__, pipe->lif->index, BRU_NAME(bru));
+
 			owner_pipe = to_vsp1_drm_pipeline(bru->pipe);
 			owner_pipe->force_bru_release = true;
 
@@ -245,6 +252,9 @@ static int vsp1_du_pipeline_setup_bru(struct vsp1_device *vsp1,
 				      &pipe->entities);
 
 		/* Add the BRU to the pipeline. */
+		dev_dbg(vsp1->dev, "%s: pipe %u: acquired %s\n",
+			__func__, pipe->lif->index, BRU_NAME(bru));
+
 		pipe->bru = bru;
 		pipe->bru->pipe = pipe;
 		pipe->bru->sink = &pipe->output->entity;
@@ -547,6 +557,10 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 
 		drm_pipe->du_complete = NULL;
 		pipe->num_inputs = 0;
+
+		dev_dbg(vsp1->dev, "%s: pipe %u: releasing %s\n",
+			__func__, pipe->lif->index,
+			BRU_NAME(pipe->bru));
 
 		list_del(&pipe->bru->list_pipe);
 		pipe->bru->pipe = NULL;
