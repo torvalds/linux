@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/stm.h>
+#include <uapi/linux/stm.h>
 
 static ssize_t notrace
 dummy_stm_packet(struct stm_data *stm_data, unsigned int master,
@@ -44,6 +45,18 @@ static unsigned int fail_mode;
 
 module_param(fail_mode, int, 0600);
 
+static unsigned int master_min;
+
+module_param(master_min, int, 0400);
+
+static unsigned int master_max = STP_MASTER_MAX;
+
+module_param(master_max, int, 0400);
+
+static unsigned int nr_channels = STP_CHANNEL_MAX;
+
+module_param(nr_channels, int, 0400);
+
 static int dummy_stm_link(struct stm_data *data, unsigned int master,
 			  unsigned int channel)
 {
@@ -60,14 +73,19 @@ static int dummy_stm_init(void)
 	if (nr_dummies < 0 || nr_dummies > DUMMY_STM_MAX)
 		return -EINVAL;
 
+	if (master_min > master_max ||
+	    master_max > STP_MASTER_MAX ||
+	    nr_channels > STP_CHANNEL_MAX)
+		return -EINVAL;
+
 	for (i = 0; i < nr_dummies; i++) {
 		dummy_stm[i].name = kasprintf(GFP_KERNEL, "dummy_stm.%d", i);
 		if (!dummy_stm[i].name)
 			goto fail_unregister;
 
-		dummy_stm[i].sw_start		= 0x0000;
-		dummy_stm[i].sw_end		= 0xffff;
-		dummy_stm[i].sw_nchannels	= 0xffff;
+		dummy_stm[i].sw_start		= master_min;
+		dummy_stm[i].sw_end		= master_max;
+		dummy_stm[i].sw_nchannels	= nr_channels;
 		dummy_stm[i].packet		= dummy_stm_packet;
 		dummy_stm[i].link		= dummy_stm_link;
 

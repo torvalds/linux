@@ -12,6 +12,10 @@
 
 #include <linux/types.h>
 
+/* Maximum allowed master and channel values */
+#define STP_MASTER_MAX	0xffff
+#define STP_CHANNEL_MAX	0xffff
+
 /**
  * struct stp_policy_id - identification for the STP policy
  * @size:	size of the structure including real id[] length
