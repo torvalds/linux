@@ -2369,6 +2369,10 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
 		if (*vm_flags & VM_SAO)
 			return 0;
 #endif
+#ifdef VM_SPARC_ADI
+		if (*vm_flags & VM_SPARC_ADI)
+			return 0;
+#endif
 
 		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
 			err = __ksm_enter(mm);
