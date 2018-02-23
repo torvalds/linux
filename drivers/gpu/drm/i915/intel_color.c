@@ -39,7 +39,7 @@
 #define CTM_COEFF_NEGATIVE(coeff)	(((coeff) & CTM_COEFF_SIGN) != 0)
 #define CTM_COEFF_ABS(coeff)		((coeff) & (CTM_COEFF_SIGN - 1))
 
-#define LEGACY_LUT_LENGTH		(sizeof(struct drm_color_lut) * 256)
+#define LEGACY_LUT_LENGTH		256
 
 /* Post offset values for RGB->YCBCR conversion */
 #define POSTOFF_RGB_TO_YUV_HI 0x800
@@ -79,7 +79,7 @@ static bool crtc_state_is_legacy_gamma(struct drm_crtc_state *state)
 	return !state->degamma_lut &&
 		!state->ctm &&
 		state->gamma_lut &&
-		state->gamma_lut->length == LEGACY_LUT_LENGTH;
+		drm_color_lut_size(state->gamma_lut) == LEGACY_LUT_LENGTH;
 }
 
 /*
@@ -612,19 +612,17 @@ int intel_color_check(struct drm_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	size_t gamma_length, degamma_length;
 
-	degamma_length = INTEL_INFO(dev_priv)->color.degamma_lut_size *
-		sizeof(struct drm_color_lut);
-	gamma_length = INTEL_INFO(dev_priv)->color.gamma_lut_size *
-		sizeof(struct drm_color_lut);
+	degamma_length = INTEL_INFO(dev_priv)->color.degamma_lut_size;
+	gamma_length = INTEL_INFO(dev_priv)->color.gamma_lut_size;
 
 	/*
 	 * We allow both degamma & gamma luts at the right size or
 	 * NULL.
 	 */
 	if ((!crtc_state->degamma_lut ||
-	     crtc_state->degamma_lut->length == degamma_length) &&
+	     drm_color_lut_size(crtc_state->degamma_lut) == degamma_length) &&
 	    (!crtc_state->gamma_lut ||
-	     crtc_state->gamma_lut->length == gamma_length))
+	     drm_color_lut_size(crtc_state->gamma_lut) == gamma_length))
 		return 0;
 
 	/*
