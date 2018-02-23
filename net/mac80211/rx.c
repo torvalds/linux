@@ -3747,10 +3747,6 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
-		/* 4-addr is harder to deal with, later maybe */
-		if (sdata->u.mgd.use_4addr)
-			goto clear;
-
 		if (sta->sta.tdls) {
 			fastrx.da_offs = offsetof(struct ieee80211_hdr, addr1);
 			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr2);
@@ -3761,6 +3757,13 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr3);
 			fastrx.expected_ds_bits =
 				cpu_to_le16(IEEE80211_FCTL_FROMDS);
+		}
+
+		if (sdata->u.mgd.use_4addr && !sta->sta.tdls) {
+			fastrx.expected_ds_bits |=
+				cpu_to_le16(IEEE80211_FCTL_TODS);
+			fastrx.da_offs = offsetof(struct ieee80211_hdr, addr3);
+			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr4);
 		}
 
 		if (!sdata->u.mgd.powersave)
