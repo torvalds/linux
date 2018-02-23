@@ -59,6 +59,7 @@
 	((mpidr >> (MPIDR_LEVEL_BITS * level)) & MPIDR_LEVEL_MASK)
 
 #define ARM_CPU_IMP_ARM			0x41
+#define ARM_CPU_IMP_BRCM		0x42
 #define ARM_CPU_IMP_DEC			0x44
 #define ARM_CPU_IMP_INTEL		0x69
 
@@ -75,6 +76,9 @@
 #define ARM_CPU_PART_CORTEX_A17		0x4100c0e0
 #define ARM_CPU_PART_CORTEX_A15		0x4100c0f0
 #define ARM_CPU_PART_MASK		0xff00fff0
+
+/* Broadcom implemented processors */
+#define ARM_CPU_PART_BRAHMA_B53		0x42001000
 
 /* DEC implemented cores */
 #define ARM_CPU_PART_SA1100		0x4400a110
