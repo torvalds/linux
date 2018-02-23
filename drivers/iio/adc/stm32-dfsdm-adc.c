@@ -254,7 +254,8 @@ static int stm32_dfsdm_start_filter(struct stm32_dfsdm *dfsdm,
 				  DFSDM_CR1_RSWSTART(1));
 }
 
-static void stm32_dfsdm_stop_filter(struct stm32_dfsdm *dfsdm, unsigned int fl_id)
+static void stm32_dfsdm_stop_filter(struct stm32_dfsdm *dfsdm,
+				    unsigned int fl_id)
 {
 	/* Disable conversion */
 	regmap_update_bits(dfsdm->regmap, DFSDM_CR1(fl_id),
@@ -338,7 +339,7 @@ static int stm32_dfsdm_channel_parse_of(struct stm32_dfsdm *dfsdm,
 					    "st,adc-channel-types", chan_idx,
 					    &of_str);
 	if (!ret) {
-		val  = stm32_dfsdm_str2val(of_str, stm32_dfsdm_chan_type);
+		val = stm32_dfsdm_str2val(of_str, stm32_dfsdm_chan_type);
 		if (val < 0)
 			return val;
 	} else {
@@ -350,7 +351,7 @@ static int stm32_dfsdm_channel_parse_of(struct stm32_dfsdm *dfsdm,
 					    "st,adc-channel-clk-src", chan_idx,
 					    &of_str);
 	if (!ret) {
-		val  = stm32_dfsdm_str2val(of_str, stm32_dfsdm_chan_src);
+		val = stm32_dfsdm_str2val(of_str, stm32_dfsdm_chan_src);
 		if (val < 0)
 			return val;
 	} else {
@@ -1090,7 +1091,6 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	char *name;
 	int ret, irq, val;
 
-
 	dev_data = of_device_get_match_data(dev);
 	iio = devm_iio_device_alloc(dev, sizeof(*adc));
 	if (!iio) {
@@ -1158,7 +1158,6 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_cleanup;
 
-	dev_err(dev, "of_platform_populate\n");
 	if (dev_data->type == DFSDM_AUDIO) {
 		ret = of_platform_populate(np, NULL, NULL, dev);
 		if (ret < 0) {
