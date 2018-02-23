@@ -376,7 +376,8 @@ static inline void dw_mci_set_cto(struct dw_mci *host)
 	cto_div = (mci_readl(host, CLKDIV) & 0xff) * 2;
 	if (cto_div == 0)
 		cto_div = 1;
-	cto_ms = DIV_ROUND_UP(MSEC_PER_SEC * cto_clks * cto_div, host->bus_hz);
+	cto_ms = DIV_ROUND_UP_ULL(MSEC_PER_SEC * cto_clks * cto_div,
+				  host->bus_hz);
 
 	/* add a bit spare time */
 	cto_ms += 10;
