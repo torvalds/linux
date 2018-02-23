@@ -78,6 +78,7 @@
 #define ARM_CPU_PART_MASK		0xff00fff0
 
 /* Broadcom implemented processors */
+#define ARM_CPU_PART_BRAHMA_B15		0x420000f0
 #define ARM_CPU_PART_BRAHMA_B53		0x42001000
 
 /* DEC implemented cores */
