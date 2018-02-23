@@ -1952,6 +1952,14 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->has_audio && INTEL_GEN(dev_priv) >= 9)
 		min_cdclk = max(2 * 96000, min_cdclk);
 
+	/*
+	 * On Valleyview some DSI panels lose (v|h)sync when the clock is lower
+	 * than 320000KHz.
+	 */
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) &&
+	    IS_VALLEYVIEW(dev_priv))
+		min_cdclk = max(320000, min_cdclk);
+
 	if (min_cdclk > dev_priv->max_cdclk_freq) {
 		DRM_DEBUG_KMS("required cdclk (%d kHz) exceeds max (%d kHz)\n",
 			      min_cdclk, dev_priv->max_cdclk_freq);
