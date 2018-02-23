@@ -43,6 +43,47 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
 }
 
 /* -----------------------------------------------------------------------------
+ * Pipeline Configuration
+ */
+
+/* Configure all entities in the pipeline. */
+static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
+{
+	struct vsp1_entity *entity;
+	struct vsp1_entity *next;
+	struct vsp1_dl_list *dl;
+
+	dl = vsp1_dl_list_get(pipe->output->dlm);
+
+	list_for_each_entry_safe(entity, next, &pipe->entities, list_pipe) {
+		/* Disconnect unused RPFs from the pipeline. */
+		if (entity->type == VSP1_ENTITY_RPF &&
+		    !pipe->inputs[entity->index]) {
+			vsp1_dl_list_write(dl, entity->route->reg,
+					   VI6_DPR_NODE_UNUSED);
+
+			entity->pipe = NULL;
+			list_del(&entity->list_pipe);
+
+			continue;
+		}
+
+		vsp1_entity_route_setup(entity, pipe, dl);
+
+		if (entity->ops->configure) {
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_INIT);
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_RUNTIME);
+			entity->ops->configure(entity, pipe, dl,
+					       VSP1_ENTITY_PARAMS_PARTITION);
+		}
+	}
+
+	vsp1_dl_list_commit(dl);
+}
+
+/* -----------------------------------------------------------------------------
  * DU Driver API
  */
 
@@ -85,9 +126,6 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	struct vsp1_drm_pipeline *drm_pipe;
 	struct vsp1_pipeline *pipe;
 	struct vsp1_bru *bru;
-	struct vsp1_entity *entity;
-	struct vsp1_entity *next;
-	struct vsp1_dl_list *dl;
 	struct v4l2_subdev_format format;
 	unsigned long flags;
 	unsigned int i;
@@ -239,22 +277,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	vsp1_write(vsp1, VI6_DISP_IRQ_ENB, 0);
 
 	/* Configure all entities in the pipeline. */
-	dl = vsp1_dl_list_get(pipe->output->dlm);
-
-	list_for_each_entry_safe(entity, next, &pipe->entities, list_pipe) {
-		vsp1_entity_route_setup(entity, pipe, dl);
-
-		if (entity->ops->configure) {
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_INIT);
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_RUNTIME);
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_PARTITION);
-		}
-	}
-
-	vsp1_dl_list_commit(dl);
+	vsp1_du_pipeline_configure(pipe);
 
 	/* Start the pipeline. */
 	spin_lock_irqsave(&pipe->irqlock, flags);
@@ -490,14 +513,8 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 	struct vsp1_pipeline *pipe = &drm_pipe->pipe;
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF] = { NULL, };
 	struct vsp1_bru *bru = to_bru(&pipe->bru->subdev);
-	struct vsp1_entity *entity;
-	struct vsp1_entity *next;
-	struct vsp1_dl_list *dl;
 	unsigned int i;
 	int ret;
-
-	/* Prepare the display list. */
-	dl = vsp1_dl_list_get(pipe->output->dlm);
 
 	/* Count the number of enabled inputs and sort them by Z-order. */
 	pipe->num_inputs = 0;
@@ -557,33 +574,7 @@ void vsp1_du_atomic_flush(struct device *dev, unsigned int pipe_index)
 				__func__, rpf->entity.index);
 	}
 
-	/* Configure all entities in the pipeline. */
-	list_for_each_entry_safe(entity, next, &pipe->entities, list_pipe) {
-		/* Disconnect unused RPFs from the pipeline. */
-		if (entity->type == VSP1_ENTITY_RPF &&
-		    !pipe->inputs[entity->index]) {
-			vsp1_dl_list_write(dl, entity->route->reg,
-					   VI6_DPR_NODE_UNUSED);
-
-			entity->pipe = NULL;
-			list_del(&entity->list_pipe);
-
-			continue;
-		}
-
-		vsp1_entity_route_setup(entity, pipe, dl);
-
-		if (entity->ops->configure) {
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_INIT);
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_RUNTIME);
-			entity->ops->configure(entity, pipe, dl,
-					       VSP1_ENTITY_PARAMS_PARTITION);
-		}
-	}
-
-	vsp1_dl_list_commit(dl);
+	vsp1_du_pipeline_configure(pipe);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_flush);
 
