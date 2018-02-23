@@ -8377,13 +8377,13 @@ static void vmx_handle_external_intr(struct kvm_vcpu *vcpu)
 			"pushf\n\t"
 			"orl $0x200, (%%" _ASM_SP ")\n\t"
 			__ASM_SIZE(push) " $%c[cs]\n\t"
-			"call *%[entry]\n\t"
+			CALL_NOSPEC
 			:
 #ifdef CONFIG_X86_64
 			[sp]"=&r"(tmp)
 #endif
 			:
-			[entry]"r"(entry),
+			THUNK_TARGET(entry),
 			[ss]"i"(__KERNEL_DS),
 			[cs]"i"(__KERNEL_CS)
 			);
