@@ -1769,6 +1769,7 @@ static int replace_system_preds(struct trace_subsystem_dir *dir,
 {
 	struct trace_event_file *file;
 	struct filter_list *filter_item;
+	struct event_filter *filter = NULL;
 	struct filter_list *tmp;
 	LIST_HEAD(filter_list);
 	bool fail = true;
@@ -1790,7 +1791,6 @@ static int replace_system_preds(struct trace_subsystem_dir *dir,
 	}
 
 	list_for_each_entry(file, &tr->events, list) {
-		struct event_filter *filter;
 
 		if (file->system != dir)
 			continue;
@@ -1798,16 +1798,9 @@ static int replace_system_preds(struct trace_subsystem_dir *dir,
 		if (event_no_set_filter_flag(file))
 			continue;
 
-		filter_item = kzalloc(sizeof(*filter_item), GFP_KERNEL);
-		if (!filter_item)
+		filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+		if (!filter)
 			goto fail_mem;
-
-		list_add_tail(&filter_item->list, &filter_list);
-
-		filter_item->filter = kzalloc(sizeof(*filter), GFP_KERNEL);
-		if (!filter_item->filter)
-			goto fail_mem;
-		filter = filter_item->filter;
 
 		/* Can only fail on no memory */
 		err = replace_filter_string(filter, filter_string);
@@ -1821,13 +1814,20 @@ static int replace_system_preds(struct trace_subsystem_dir *dir,
 			append_filter_err(ps, filter);
 		} else
 			event_set_filtered_flag(file);
+
+
+		filter_item = kzalloc(sizeof(*filter_item), GFP_KERNEL);
+		if (!filter_item)
+			goto fail_mem;
+
+		list_add_tail(&filter_item->list, &filter_list);
 		/*
 		 * Regardless of if this returned an error, we still
 		 * replace the filter for the call.
 		 */
-		filter = event_filter(file);
-		event_set_filter(file, filter_item->filter);
-		filter_item->filter = filter;
+		filter_item->filter = event_filter(file);
+		event_set_filter(file, filter);
+		filter = NULL;
 
 		fail = false;
 	}
@@ -1856,6 +1856,7 @@ static int replace_system_preds(struct trace_subsystem_dir *dir,
 	parse_error(ps, FILT_ERR_BAD_SUBSYS_FILTER, 0);
 	return -EINVAL;
  fail_mem:
+	kfree(filter);
 	/* If any call succeeded, we still need to sync */
 	if (!fail)
 		synchronize_sched();
