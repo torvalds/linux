@@ -155,7 +155,7 @@ ENDPROC(cpu_do_switch_mm)
 
 .macro	__idmap_cpu_set_reserved_ttbr1, tmp1, tmp2
 	adrp	\tmp1, empty_zero_page
-	msr	ttbr1_el1, \tmp2
+	msr	ttbr1_el1, \tmp1
 	isb
 	tlbi	vmalle1
 	dsb	nsh
