@@ -1442,7 +1442,7 @@ static const struct vop_ctrl px30_ctrl_data = {
 	.bcsh_cos_hue = VOP_REG(RK3366_LIT_BCSH_H, 0x1ff, 16),
 
 	.afbdc_en = VOP_REG(PX30_AFBCD0_CTRL, 0x1, 0),
-	.afbdc_format = VOP_REG(PX30_AFBCD0_CTRL, 0xf, 4),
+	.afbdc_format = VOP_REG(PX30_AFBCD0_CTRL, 0x1f, 4),
 	.afbdc_pic_vir_width = VOP_REG(PX30_AFBCD0_CTRL, 0xffff, 16),
 	.afbdc_hdr_ptr = VOP_REG(PX30_AFBCD0_HDR_PTR, 0xffffffff, 0),
 	.afbdc_pic_size = VOP_REG(PX30_AFBCD0_PIC_SIZE, 0xffffffff, 0),
