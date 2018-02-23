@@ -51,6 +51,34 @@ static void mcip_update_gfrc_halt_mask(int cpu)
 	raw_spin_unlock_irqrestore(&mcip_lock, flags);
 }
 
+static void mcip_update_debug_halt_mask(int cpu)
+{
+	u32 mcip_mask = 0;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&mcip_lock, flags);
+
+	/*
+	 * mcip_mask is same for CMD_DEBUG_SET_SELECT and CMD_DEBUG_SET_MASK
+	 * commands. So read it once instead of reading both CMD_DEBUG_READ_MASK
+	 * and CMD_DEBUG_READ_SELECT.
+	 */
+	__mcip_cmd(CMD_DEBUG_READ_SELECT, 0);
+	mcip_mask = read_aux_reg(ARC_REG_MCIP_READBACK);
+
+	mcip_mask |= BIT(cpu);
+
+	__mcip_cmd_data(CMD_DEBUG_SET_SELECT, 0, mcip_mask);
+	/*
+	 * Parameter specified halt cause:
+	 * STATUS32[H]/actionpoint/breakpoint/self-halt
+	 * We choose all of them (0xF).
+	 */
+	__mcip_cmd_data(CMD_DEBUG_SET_MASK, 0xF, mcip_mask);
+
+	raw_spin_unlock_irqrestore(&mcip_lock, flags);
+}
+
 static void mcip_setup_per_cpu(int cpu)
 {
 	struct mcip_bcr mp;
@@ -63,6 +91,10 @@ static void mcip_setup_per_cpu(int cpu)
 	/* Update GFRC halt mask as new CPU came online */
 	if (mp.gfrc)
 		mcip_update_gfrc_halt_mask(cpu);
+
+	/* Update MCIP debug mask as new CPU came online */
+	if (mp.dbg)
+		mcip_update_debug_halt_mask(cpu);
 }
 
 static void mcip_ipi_send(int cpu)
@@ -138,11 +170,6 @@ static void mcip_probe_n_setup(void)
 		IS_AVAIL1(mp.gfrc, "GFRC"));
 
 	cpuinfo_arc700[0].extn.gfrc = mp.gfrc;
-
-	if (mp.dbg) {
-		__mcip_cmd_data(CMD_DEBUG_SET_SELECT, 0, 0xf);
-		__mcip_cmd_data(CMD_DEBUG_SET_MASK, 0xf, 0xf);
-	}
 }
 
 struct plat_smp_ops plat_smp_ops = {
