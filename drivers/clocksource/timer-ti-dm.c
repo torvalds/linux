@@ -166,17 +166,28 @@ static int omap_dm_timer_of_set_source(struct omap_dm_timer *timer)
 static int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 {
 	int ret;
-	char *parent_name = NULL;
+	const char *parent_name;
 	struct clk *parent;
 	struct dmtimer_platform_data *pdata;
 
-	if (unlikely(!timer))
+	if (unlikely(!timer) || IS_ERR(timer->fclk))
 		return -EINVAL;
+
+	switch (source) {
+	case OMAP_TIMER_SRC_SYS_CLK:
+		parent_name = "timer_sys_ck";
+		break;
+	case OMAP_TIMER_SRC_32_KHZ:
+		parent_name = "timer_32k_ck";
+		break;
+	case OMAP_TIMER_SRC_EXT_CLK:
+		parent_name = "timer_ext_ck";
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	pdata = timer->pdev->dev.platform_data;
-
-	if (source < 0 || source >= 3)
-		return -EINVAL;
 
 	/*
 	 * FIXME: Used for OMAP1 devices only because they do not currently
@@ -186,28 +197,11 @@ static int omap_dm_timer_set_source(struct omap_dm_timer *timer, int source)
 	if (pdata && pdata->set_timer_src)
 		return pdata->set_timer_src(timer->pdev, source);
 
-	if (IS_ERR(timer->fclk))
-		return -EINVAL;
-
 #if defined(CONFIG_COMMON_CLK)
 	/* Check if the clock has configurable parents */
 	if (clk_hw_get_num_parents(__clk_get_hw(timer->fclk)) < 2)
 		return 0;
 #endif
-
-	switch (source) {
-	case OMAP_TIMER_SRC_SYS_CLK:
-		parent_name = "timer_sys_ck";
-		break;
-
-	case OMAP_TIMER_SRC_32_KHZ:
-		parent_name = "timer_32k_ck";
-		break;
-
-	case OMAP_TIMER_SRC_EXT_CLK:
-		parent_name = "timer_ext_ck";
-		break;
-	}
 
 	parent = clk_get(&timer->pdev->dev, parent_name);
 	if (IS_ERR(parent)) {
