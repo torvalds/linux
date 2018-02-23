@@ -1205,14 +1205,6 @@ done:
 	if (recv_bytes == 0 || recv_bytes > 20) {
 		DRM_DEBUG_KMS("Forbidden recv_bytes = %d on aux transaction\n",
 			      recv_bytes);
-		/*
-		 * FIXME: This patch was created on top of a series that
-		 * organize the retries at drm level. There EBUSY should
-		 * also take care for 1ms wait before retrying.
-		 * That aux retries re-org is still needed and after that is
-		 * merged we remove this sleep from here.
-		 */
-		usleep_range(1000, 1500);
 		ret = -EBUSY;
 		goto out;
 	}
