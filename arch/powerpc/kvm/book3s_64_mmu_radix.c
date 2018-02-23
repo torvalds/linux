@@ -160,6 +160,17 @@ static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 	asm volatile("ptesync": : :"memory");
 }
 
+static void kvmppc_radix_flush_pwc(struct kvm *kvm, unsigned long addr)
+{
+	unsigned long rb = 0x2 << PPC_BITLSHIFT(53); /* IS = 2 */
+
+	asm volatile("ptesync": : :"memory");
+	/* RIC=1 PRS=0 R=1 IS=2 */
+	asm volatile(PPC_TLBIE_5(%0, %1, 1, 0, 1)
+		     : : "r" (rb), "r" (kvm->arch.lpid) : "memory");
+	asm volatile("ptesync": : :"memory");
+}
+
 unsigned long kvmppc_radix_update_pte(struct kvm *kvm, pte_t *ptep,
 				      unsigned long clr, unsigned long set,
 				      unsigned long addr, unsigned int shift)
@@ -261,6 +272,11 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 			ret = -EAGAIN;
 			goto out_unlock;
 		}
+		/* Check if we raced and someone else has set the same thing */
+		if (level == 1 && pmd_raw(*pmd) == pte_raw(pte)) {
+			ret = 0;
+			goto out_unlock;
+		}
 		/* Valid 2MB page here already, remove it */
 		old = kvmppc_radix_update_pte(kvm, pmdp_ptep(pmd),
 					      ~0UL, 0, lgpa, PMD_SHIFT);
@@ -275,12 +291,13 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 		}
 	} else if (level == 1 && !pmd_none(*pmd)) {
 		/*
-		 * There's a page table page here, but we wanted
-		 * to install a large page.  Tell the caller and let
-		 * it try installing a normal page if it wants.
+		 * There's a page table page here, but we wanted to
+		 * install a large page, so remove and free the page
+		 * table page.  new_ptep will be NULL since level == 1.
 		 */
-		ret = -EBUSY;
-		goto out_unlock;
+		new_ptep = pte_offset_kernel(pmd, 0);
+		pmd_clear(pmd);
+		kvmppc_radix_flush_pwc(kvm, gpa);
 	}
 	if (level == 0) {
 		if (pmd_none(*pmd)) {
@@ -291,6 +308,11 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 		}
 		ptep = pte_offset_kernel(pmd, gpa);
 		if (pte_present(*ptep)) {
+			/* Check if someone else set the same thing */
+			if (pte_raw(*ptep) == pte_raw(pte)) {
+				ret = 0;
+				goto out_unlock;
+			}
 			/* PTE was previously valid, so invalidate it */
 			old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT,
 						      0, gpa, 0);
@@ -469,16 +491,6 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 	/* Allocate space in the tree and write the PTE */
 	ret = kvmppc_create_pte(kvm, pte, gpa, level, mmu_seq);
-	if (ret == -EBUSY) {
-		/*
-		 * There's already a PMD where wanted to install a large page;
-		 * for now, fall back to installing a small page.
-		 */
-		level = 0;
-		pfn |= gfn & ((PMD_SIZE >> PAGE_SHIFT) - 1);
-		pte = pfn_pte(pfn, __pgprot(pgflags));
-		ret = kvmppc_create_pte(kvm, pte, gpa, level, mmu_seq);
-	}
 
 	if (page) {
 		if (!ret && (pgflags & _PAGE_WRITE))
