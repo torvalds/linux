@@ -64,6 +64,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "exit_validity", VCPU_STAT(exit_validity) },
 	{ "exit_stop_request", VCPU_STAT(exit_stop_request) },
 	{ "exit_external_request", VCPU_STAT(exit_external_request) },
+	{ "exit_io_request", VCPU_STAT(exit_io_request) },
 	{ "exit_external_interrupt", VCPU_STAT(exit_external_interrupt) },
 	{ "exit_instruction", VCPU_STAT(exit_instruction) },
 	{ "exit_pei", VCPU_STAT(exit_pei) },

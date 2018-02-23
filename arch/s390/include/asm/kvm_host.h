@@ -294,6 +294,7 @@ struct kvm_vcpu_stat {
 	u64 exit_userspace;
 	u64 exit_null;
 	u64 exit_external_request;
+	u64 exit_io_request;
 	u64 exit_external_interrupt;
 	u64 exit_stop_request;
 	u64 exit_validity;
