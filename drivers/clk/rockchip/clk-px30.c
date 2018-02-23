@@ -450,7 +450,7 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	COMPOSITE(SCLK_VOPB_PWM, "clk_vopb_pwm", mux_gpll_xin24m_p, 0,
 			PX30_CLKSEL_CON(7), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			PX30_CLKGATE_CON(2), 5, GFLAGS),
-	COMPOSITE(0, "dclk_vopb_src", mux_cpll_npll_p, 0,
+	COMPOSITE(0, "dclk_vopb_src", mux_cpll_npll_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 			PX30_CLKSEL_CON(5), 11, 1, MFLAGS, 0, 8, DFLAGS,
 			PX30_CLKGATE_CON(2), 2, GFLAGS),
 	COMPOSITE_FRACMUX(0, "dclk_vopb_frac", "dclk_vopb_src", CLK_SET_RATE_PARENT,
