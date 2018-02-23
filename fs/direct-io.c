@@ -315,8 +315,7 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, unsigned int flags)
 			dio_warn_stale_pagecache(dio->iocb->ki_filp);
 	}
 
-	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
-		inode_dio_end(dio->inode);
+	inode_dio_end(dio->inode);
 
 	if (flags & DIO_COMPLETE_ASYNC) {
 		/*
@@ -1296,8 +1295,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	/*
 	 * Will be decremented at I/O completion time.
 	 */
-	if (!(dio->flags & DIO_SKIP_DIO_COUNT))
-		inode_dio_begin(inode);
+	inode_dio_begin(inode);
 
 	retval = 0;
 	sdio.blkbits = blkbits;
