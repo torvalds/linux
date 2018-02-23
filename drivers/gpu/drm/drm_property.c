@@ -567,6 +567,7 @@ drm_property_create_blob(struct drm_device *dev, size_t length,
 	/* This must be explicitly initialised, so we can safely call list_del
 	 * on it in the removal handler, even if it isn't in a file list. */
 	INIT_LIST_HEAD(&blob->head_file);
+	blob->data = (void *)blob + sizeof(*blob);
 	blob->length = length;
 	blob->dev = dev;
 

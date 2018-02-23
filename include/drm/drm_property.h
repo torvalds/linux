@@ -209,7 +209,7 @@ struct drm_property_blob {
 	struct list_head head_global;
 	struct list_head head_file;
 	size_t length;
-	unsigned char data[];
+	void *data;
 };
 
 struct drm_prop_enum_list {
