@@ -278,7 +278,7 @@ static int mlxsw_sp_kvdl_part_init(struct mlxsw_sp *mlxsw_sp,
 		resource_size = info->end_index - info->start_index + 1;
 	}
 
-	nr_entries = resource_size / info->alloc_size;
+	nr_entries = div_u64(resource_size, info->alloc_size);
 	usage_size = BITS_TO_LONGS(nr_entries) * sizeof(unsigned long);
 	part = kzalloc(sizeof(*part) + usage_size, GFP_KERNEL);
 	if (!part)
