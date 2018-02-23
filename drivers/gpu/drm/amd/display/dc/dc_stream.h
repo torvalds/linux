@@ -75,7 +75,7 @@ struct dc_stream_state {
 	/* TODO: CEA VIC */
 
 	/* DMCU info */
-	struct abm_setting abm_settings;
+	unsigned int abm_level;
 
 	/* from core_stream struct */
 	struct dc_context *ctx;
@@ -109,7 +109,7 @@ struct dc_stream_update {
 	struct dc_transfer_func *out_transfer_func;
 	struct dc_hdr_static_metadata *hdr_static_metadata;
 	enum color_transfer_func color_output_tf;
-	struct abm_setting abm_setting;
+	unsigned int *abm_level;
 };
 
 bool dc_is_stream_unchanged(

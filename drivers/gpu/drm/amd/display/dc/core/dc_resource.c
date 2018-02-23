@@ -1124,6 +1124,7 @@ bool dc_add_plane_to_context(
 		ASSERT(tail_pipe);
 
 		free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
+		free_pipe->stream_res.abm = tail_pipe->stream_res.abm;
 		free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
 		free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
 		free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
@@ -1735,6 +1736,10 @@ enum dc_status resource_map_pool_resources(
 			update_audio_usage(&context->res_ctx, pool,
 					   pipe_ctx->stream_res.audio, true);
 	}
+
+	/* Add ABM to the resource if on EDP */
+	if (pipe_ctx->stream && dc_is_embedded_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream_res.abm = pool->abm;
 
 	for (i = 0; i < context->stream_count; i++)
 		if (context->streams[i] == stream) {

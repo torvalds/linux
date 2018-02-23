@@ -194,6 +194,8 @@ struct stream_resource {
 
 	struct pixel_clk_params pix_clk_params;
 	struct encoder_info_frame encoder_info_frame;
+
+	struct abm *abm;
 };
 
 struct plane_resource {

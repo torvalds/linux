@@ -1781,20 +1781,31 @@ static void update_dchubp_dpp(
 }
 
 static void dcn10_otg_blank(
+		struct dc *dc,
 		struct stream_resource stream_res,
-		struct abm *abm,
 		struct dc_stream_state *stream,
 		bool blank)
 {
+	enum dc_color_space color_space;
+	struct tg_color black_color = {0};
+
+	/* program otg blank color */
+	color_space = stream->output_color_space;
+	color_space_to_black_color(dc, color_space, &black_color);
+
+	if (stream_res.tg->funcs->set_blank_color)
+		stream_res.tg->funcs->set_blank_color(
+				stream_res.tg,
+				&black_color);
 
 	if (!blank) {
 		if (stream_res.tg->funcs->set_blank)
 			stream_res.tg->funcs->set_blank(stream_res.tg, blank);
-		if (abm)
-			abm->funcs->set_abm_level(abm, stream->abm_settings.abm_level);
+		if (stream_res.abm)
+			stream_res.abm->funcs->set_abm_level(stream_res.abm, stream->abm_level);
 	} else if (blank) {
-		if (abm)
-			abm->funcs->set_abm_immediate_disable(abm);
+		if (stream_res.abm)
+			stream_res.abm->funcs->set_abm_immediate_disable(stream_res.abm);
 		if (stream_res.tg->funcs->set_blank)
 			stream_res.tg->funcs->set_blank(stream_res.tg, blank);
 	}
@@ -1817,7 +1828,7 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->stream_res.tg->funcs->program_global_sync(
 				pipe_ctx->stream_res.tg);
 
-		dcn10_otg_blank(pipe_ctx->stream_res, dc->res_pool->abm,
+		dcn10_otg_blank(dc, pipe_ctx->stream_res,
 				pipe_ctx->stream, blank);
 	}
 
@@ -1941,7 +1952,7 @@ static void dcn10_apply_ctx_for_surface(
 
 	if (num_planes == 0) {
 		/* OTG blank before remove all front end */
-		dcn10_otg_blank(top_pipe_to_program->stream_res, dc->res_pool->abm, top_pipe_to_program->stream, true);
+		dcn10_otg_blank(dc, top_pipe_to_program->stream_res, top_pipe_to_program->stream, true);
 	}
 
 	/* Disconnect unused mpcc */
