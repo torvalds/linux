@@ -187,6 +187,153 @@ static void load_render_mocs(struct drm_i915_private *dev_priv)
 	gen9_render_mocs.initialized = true;
 }
 
+static int
+restore_context_mmio_for_inhibit(struct intel_vgpu *vgpu,
+				 struct i915_request *req)
+{
+	u32 *cs;
+	int ret;
+	struct engine_mmio *mmio;
+	struct intel_gvt *gvt = vgpu->gvt;
+	int ring_id = req->engine->id;
+	int count = gvt->engine_mmio_list.ctx_mmio_count[ring_id];
+
+	if (count == 0)
+		return 0;
+
+	ret = req->engine->emit_flush(req, EMIT_BARRIER);
+	if (ret)
+		return ret;
+
+	cs = intel_ring_begin(req, count * 2 + 2);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_LOAD_REGISTER_IMM(count);
+	for (mmio = gvt->engine_mmio_list.mmio;
+	     i915_mmio_reg_valid(mmio->reg); mmio++) {
+		if (mmio->ring_id != ring_id ||
+		    !mmio->in_context)
+			continue;
+
+		*cs++ = i915_mmio_reg_offset(mmio->reg);
+		*cs++ = vgpu_vreg_t(vgpu, mmio->reg) |
+				(mmio->mask << 16);
+		gvt_dbg_core("add lri reg pair 0x%x:0x%x in inhibit ctx, vgpu:%d, rind_id:%d\n",
+			      *(cs-2), *(cs-1), vgpu->id, ring_id);
+	}
+
+	*cs++ = MI_NOOP;
+	intel_ring_advance(req, cs);
+
+	ret = req->engine->emit_flush(req, EMIT_BARRIER);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int
+restore_render_mocs_control_for_inhibit(struct intel_vgpu *vgpu,
+					struct i915_request *req)
+{
+	unsigned int index;
+	u32 *cs;
+
+	cs = intel_ring_begin(req, 2 * GEN9_MOCS_SIZE + 2);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_LOAD_REGISTER_IMM(GEN9_MOCS_SIZE);
+
+	for (index = 0; index < GEN9_MOCS_SIZE; index++) {
+		*cs++ = i915_mmio_reg_offset(GEN9_GFX_MOCS(index));
+		*cs++ = vgpu_vreg_t(vgpu, GEN9_GFX_MOCS(index));
+		gvt_dbg_core("add lri reg pair 0x%x:0x%x in inhibit ctx, vgpu:%d, rind_id:%d\n",
+			      *(cs-2), *(cs-1), vgpu->id, req->engine->id);
+
+	}
+
+	*cs++ = MI_NOOP;
+	intel_ring_advance(req, cs);
+
+	return 0;
+}
+
+static int
+restore_render_mocs_l3cc_for_inhibit(struct intel_vgpu *vgpu,
+				     struct i915_request *req)
+{
+	unsigned int index;
+	u32 *cs;
+
+	cs = intel_ring_begin(req, 2 * GEN9_MOCS_SIZE / 2 + 2);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_LOAD_REGISTER_IMM(GEN9_MOCS_SIZE / 2);
+
+	for (index = 0; index < GEN9_MOCS_SIZE / 2; index++) {
+		*cs++ = i915_mmio_reg_offset(GEN9_LNCFCMOCS(index));
+		*cs++ = vgpu_vreg_t(vgpu, GEN9_LNCFCMOCS(index));
+		gvt_dbg_core("add lri reg pair 0x%x:0x%x in inhibit ctx, vgpu:%d, rind_id:%d\n",
+			      *(cs-2), *(cs-1), vgpu->id, req->engine->id);
+
+	}
+
+	*cs++ = MI_NOOP;
+	intel_ring_advance(req, cs);
+
+	return 0;
+}
+
+/*
+ * Use lri command to initialize the mmio which is in context state image for
+ * inhibit context, it contains tracked engine mmio, render_mocs and
+ * render_mocs_l3cc.
+ */
+int intel_vgpu_restore_inhibit_context(struct intel_vgpu *vgpu,
+				       struct i915_request *req)
+{
+	int ret;
+	u32 *cs;
+
+	cs = intel_ring_begin(req, 2);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+	*cs++ = MI_NOOP;
+	intel_ring_advance(req, cs);
+
+	ret = restore_context_mmio_for_inhibit(vgpu, req);
+	if (ret)
+		goto out;
+
+	/* no MOCS register in context except render engine */
+	if (req->engine->id != RCS)
+		goto out;
+
+	ret = restore_render_mocs_control_for_inhibit(vgpu, req);
+	if (ret)
+		goto out;
+
+	ret = restore_render_mocs_l3cc_for_inhibit(vgpu, req);
+	if (ret)
+		goto out;
+
+out:
+	cs = intel_ring_begin(req, 2);
+	if (IS_ERR(cs))
+		return PTR_ERR(cs);
+
+	*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
+	*cs++ = MI_NOOP;
+	intel_ring_advance(req, cs);
+
+	return ret;
+}
+
 static void handle_tlb_pending_event(struct intel_vgpu *vgpu, int ring_id)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
@@ -251,6 +398,9 @@ static void switch_mocs(struct intel_vgpu *pre, struct intel_vgpu *next,
 
 	dev_priv = pre ? pre->gvt->dev_priv : next->gvt->dev_priv;
 	if (WARN_ON(ring_id >= ARRAY_SIZE(regs)))
+		return;
+
+	if (IS_KABYLAKE(dev_priv) && ring_id == RCS)
 		return;
 
 	if (!pre && !gen9_render_mocs.initialized)
@@ -319,10 +469,18 @@ static void switch_mmio(struct intel_vgpu *pre,
 	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
 		switch_mocs(pre, next, ring_id);
 
-	for (mmio = dev_priv->gvt->engine_mmio_list;
+	for (mmio = dev_priv->gvt->engine_mmio_list.mmio;
 	     i915_mmio_reg_valid(mmio->reg); mmio++) {
 		if (mmio->ring_id != ring_id)
 			continue;
+		/*
+		 * No need to do save or restore of the mmio which is in context
+		 * state image on kabylake, it's initialized by lri command and
+		 * save or restore with context together.
+		 */
+		if (IS_KABYLAKE(dev_priv) && mmio->in_context)
+			continue;
+
 		// save
 		if (pre) {
 			vgpu_vreg_t(pre, mmio->reg) = I915_READ_FW(mmio->reg);
@@ -411,8 +569,16 @@ void intel_gvt_switch_mmio(struct intel_vgpu *pre,
  */
 void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt)
 {
+	struct engine_mmio *mmio;
+
 	if (IS_SKYLAKE(gvt->dev_priv) || IS_KABYLAKE(gvt->dev_priv))
-		gvt->engine_mmio_list = gen9_engine_mmio_list;
+		gvt->engine_mmio_list.mmio = gen9_engine_mmio_list;
 	else
-		gvt->engine_mmio_list = gen8_engine_mmio_list;
+		gvt->engine_mmio_list.mmio = gen8_engine_mmio_list;
+
+	for (mmio = gvt->engine_mmio_list.mmio;
+	     i915_mmio_reg_valid(mmio->reg); mmio++) {
+		if (mmio->in_context)
+			gvt->engine_mmio_list.ctx_mmio_count[mmio->ring_id]++;
+	}
 }

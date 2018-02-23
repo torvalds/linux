@@ -225,6 +225,11 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	struct intel_vgpu *vgpu = workload->vgpu;
 	void *shadow_ring_buffer_va;
 	u32 *cs;
+	struct i915_request *req = workload->req;
+
+	if (IS_KABYLAKE(req->i915) &&
+	    is_inhibit_context(req->ctx, req->engine->id))
+		intel_vgpu_restore_inhibit_context(vgpu, req);
 
 	/* allocate shadow ring buffer */
 	cs = intel_ring_begin(workload->req, workload->rb_len / sizeof(u32));
