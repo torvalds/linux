@@ -315,7 +315,7 @@ int amdgpu_gart_bind(struct amdgpu_device *adev, uint64_t offset,
 	t = offset / AMDGPU_GPU_PAGE_SIZE;
 	p = t / (PAGE_SIZE / AMDGPU_GPU_PAGE_SIZE);
 	for (i = 0; i < pages; i++, p++)
-		adev->gart.pages[p] = pagelist[i];
+		adev->gart.pages[p] = pagelist ? pagelist[i] : NULL;
 #endif
 
 	if (!adev->gart.ptr)
