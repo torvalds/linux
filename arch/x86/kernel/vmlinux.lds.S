@@ -116,14 +116,6 @@ SECTIONS
 		*(.fixup)
 		*(.gnu.warning)
 
-#ifdef CONFIG_X86_64
-		. = ALIGN(PAGE_SIZE);
-		_entry_trampoline = .;
-		*(.entry_trampoline)
-		. = ALIGN(PAGE_SIZE);
-		ASSERT(. - _entry_trampoline == PAGE_SIZE, "entry trampoline is too big");
-#endif
-
 #ifdef CONFIG_RETPOLINE
 		__indirect_thunk_start = .;
 		*(.text.__x86.indirect_thunk)
