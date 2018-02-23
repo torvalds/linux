@@ -726,25 +726,6 @@ inno_hdmi_phy_rk3228_pre_pll_update(struct inno_hdmi_phy *inno,
 	return 0;
 }
 
-static void inno_hdmi_phy_rk3328_init(struct inno_hdmi_phy *inno)
-{
-	/*
-	 * Use phy internal register control
-	 * rxsense/poweron/pllpd/pdataen signal.
-	 */
-	inno_write(inno, 0x01, 0x07);
-	inno_write(inno, 0x02, 0x91);
-
-	/*
-	 * reg0xc8 default value is 0xc0, if phy had been set in uboot,
-	 * the value of bit[7:6] will be zero.
-	 */
-	if ((inno_read(inno, 0xc8) & 0xc0) == 0) {
-		dev_info(inno->dev, "phy had been powered up\n");
-		inno->phy->power_count = 1;
-	}
-}
-
 static int
 inno_hdmi_phy_rk3328_power_on(struct inno_hdmi_phy *inno,
 			      const struct post_pll_config *cfg,
@@ -836,6 +817,28 @@ static void inno_hdmi_phy_rk3328_power_off(struct inno_hdmi_phy *inno)
 	inno_update_bits(inno, 0xb0, 4, 0);
 	/* Power off post pll */
 	inno_update_bits(inno, 0xaa, 1, 1);
+}
+
+static void inno_hdmi_phy_rk3328_init(struct inno_hdmi_phy *inno)
+{
+	/*
+	 * Use phy internal register control
+	 * rxsense/poweron/pllpd/pdataen signal.
+	 */
+	inno_write(inno, 0x01, 0x07);
+	inno_write(inno, 0x02, 0x91);
+
+	/*
+	 * reg0xc8 default value is 0xc0, if phy had been set in uboot,
+	 * the value of bit[7:6] will be zero.
+	 */
+	if ((inno_read(inno, 0xc8) & 0xc0) == 0) {
+		dev_info(inno->dev, "phy had been powered up\n");
+		inno->phy->power_count = 1;
+	} else {
+		/* manual power down post-PLL */
+		inno_hdmi_phy_rk3328_power_off(inno);
+	}
 }
 
 static int
