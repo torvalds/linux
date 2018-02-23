@@ -679,7 +679,6 @@ static int phylink_bringup_phy(struct phylink *pl, struct phy_device *phy)
 
 	mutex_lock(&phy->lock);
 	mutex_lock(&pl->state_mutex);
-	pl->netdev->phydev = phy;
 	pl->phydev = phy;
 	linkmode_copy(pl->supported, supported);
 	linkmode_copy(pl->link_config.advertising, config.advertising);
@@ -817,7 +816,6 @@ void phylink_disconnect_phy(struct phylink *pl)
 	if (phy) {
 		mutex_lock(&phy->lock);
 		mutex_lock(&pl->state_mutex);
-		pl->netdev->phydev = NULL;
 		pl->phydev = NULL;
 		mutex_unlock(&pl->state_mutex);
 		mutex_unlock(&phy->lock);
