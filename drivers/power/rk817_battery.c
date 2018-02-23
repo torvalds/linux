@@ -15,6 +15,8 @@
  *
  */
 
+#define pr_fmt(fmt) "rk817-bat: " fmt
+
 #include <linux/delay.h>
 #include <linux/extcon.h>
 #include <linux/fb.h>
@@ -48,7 +50,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 		} \
 	} while (0)
 
-#define BAT_INFO(fmt, args...) pr_info("rk817-bat: "fmt, ##args)
+#define BAT_INFO(fmt, args...) pr_info(fmt, ##args)
 
 #define DRIVER_VERSION	"1.00"
 #define SFT_SET_KB	1
