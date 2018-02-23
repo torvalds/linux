@@ -132,7 +132,8 @@ static inline void selinux_netlbl_inet_csk_clone(struct sock *sk, u16 family)
 {
 	return;
 }
-static inline void selinux_netlbl_sctp_sk_clone(struct sock *sk, sock *newsk)
+static inline void selinux_netlbl_sctp_sk_clone(struct sock *sk,
+						struct sock *newsk)
 {
 	return;
 }
