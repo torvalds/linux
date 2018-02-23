@@ -15,6 +15,7 @@
 
 #define ARC_REG_MCIP_BCR	0x0d0
 #define ARC_REG_MCIP_IDU_BCR	0x0D5
+#define ARC_REG_GFRC_BUILD	0x0D6
 #define ARC_REG_MCIP_CMD	0x600
 #define ARC_REG_MCIP_WDATA	0x601
 #define ARC_REG_MCIP_READBACK	0x602
@@ -40,6 +41,8 @@ struct mcip_cmd {
 
 #define CMD_GFRC_READ_LO		0x42
 #define CMD_GFRC_READ_HI		0x43
+#define CMD_GFRC_SET_CORE		0x47
+#define CMD_GFRC_READ_CORE		0x48
 
 #define CMD_IDU_ENABLE			0x71
 #define CMD_IDU_DISABLE			0x72
