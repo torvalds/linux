@@ -730,21 +730,21 @@ static void gdm_lte_pdn_table(struct net_device *dev, char *buf, int len)
 {
 	struct nic *nic = netdev_priv(dev);
 	struct hci_pdn_table_ind *pdn_table = (struct hci_pdn_table_ind *)buf;
-	u8 ed;
+	u8 ed = nic->phy_dev->get_endian(nic->phy_dev->priv_dev);
 
-	if (pdn_table->activate) {
-		nic->pdn_table.activate = pdn_table->activate;
-
-		ed = nic->phy_dev->get_endian(nic->phy_dev->priv_dev);
-		nic->pdn_table.dft_eps_id = gdm_dev32_to_cpu(ed, pdn_table->dft_eps_id);
-		nic->pdn_table.nic_type = gdm_dev32_to_cpu(ed, pdn_table->nic_type);
-
-		netdev_info(dev, "pdn activated, nic_type=0x%x\n",
-			    nic->pdn_table.nic_type);
-	} else {
+	if (!pdn_table->activate) {
 		memset(&nic->pdn_table, 0x00, sizeof(struct pdn_table));
 		netdev_info(dev, "pdn deactivated\n");
+
+		return;
 	}
+
+	nic->pdn_table.activate = pdn_table->activate;
+	nic->pdn_table.dft_eps_id = gdm_dev32_to_cpu(ed, pdn_table->dft_eps_id);
+	nic->pdn_table.nic_type = gdm_dev32_to_cpu(ed, pdn_table->nic_type);
+
+	netdev_info(dev, "pdn activated, nic_type=0x%x\n",
+		    nic->pdn_table.nic_type);
 }
 
 static int gdm_lte_receive_pkt(struct phy_dev *phy_dev, char *buf, int len)
