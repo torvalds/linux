@@ -615,8 +615,10 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		case BPF_ALU | BPF_MUL | BPF_X:
 		case BPF_ALU64 | BPF_MUL | BPF_K:
 		case BPF_ALU64 | BPF_MUL | BPF_X:
-			EMIT1(0x50); /* push rax */
-			EMIT1(0x52); /* push rdx */
+			if (dst_reg != BPF_REG_0)
+				EMIT1(0x50); /* push rax */
+			if (dst_reg != BPF_REG_3)
+				EMIT1(0x52); /* push rdx */
 
 			/* mov r11, dst_reg */
 			EMIT_mov(AUX_REG, dst_reg);
@@ -636,14 +638,13 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			/* mul(q) r11 */
 			EMIT2(0xF7, add_1reg(0xE0, AUX_REG));
 
-			/* mov r11, rax */
-			EMIT_mov(AUX_REG, BPF_REG_0);
-
-			EMIT1(0x5A); /* pop rdx */
-			EMIT1(0x58); /* pop rax */
-
-			/* mov dst_reg, r11 */
-			EMIT_mov(dst_reg, AUX_REG);
+			if (dst_reg != BPF_REG_3)
+				EMIT1(0x5A); /* pop rdx */
+			if (dst_reg != BPF_REG_0) {
+				/* mov dst_reg, rax */
+				EMIT_mov(dst_reg, BPF_REG_0);
+				EMIT1(0x58); /* pop rax */
+			}
 			break;
 
 			/* shifts */
