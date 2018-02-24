@@ -285,7 +285,23 @@ struct ceph_cap *ceph_get_cap(struct ceph_mds_client *mdsc,
 			mdsc->caps_use_count++;
 			mdsc->caps_total_count++;
 			spin_unlock(&mdsc->caps_list_lock);
+		} else {
+			spin_lock(&mdsc->caps_list_lock);
+			if (mdsc->caps_avail_count) {
+				BUG_ON(list_empty(&mdsc->caps_list));
+
+				mdsc->caps_avail_count--;
+				mdsc->caps_use_count++;
+				cap = list_first_entry(&mdsc->caps_list,
+						struct ceph_cap, caps_item);
+				list_del(&cap->caps_item);
+
+				BUG_ON(mdsc->caps_total_count != mdsc->caps_use_count +
+				       mdsc->caps_reserve_count + mdsc->caps_avail_count);
+			}
+			spin_unlock(&mdsc->caps_list_lock);
 		}
+
 		return cap;
 	}
 
