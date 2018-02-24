@@ -2788,8 +2788,15 @@ static int dw_mci_init_slot_caps(struct dw_mci_slot *slot)
 	} else {
 		ctrl_id = to_platform_device(host->dev)->id;
 	}
-	if (drv_data && drv_data->caps)
+
+	if (drv_data && drv_data->caps) {
+		if (ctrl_id >= drv_data->num_caps) {
+			dev_err(host->dev, "invalid controller id %d\n",
+				ctrl_id);
+			return -EINVAL;
+		}
 		mmc->caps |= drv_data->caps[ctrl_id];
+	}
 
 	if (host->pdata->caps2)
 		mmc->caps2 = host->pdata->caps2;
