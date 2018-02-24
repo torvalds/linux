@@ -157,6 +157,7 @@ static int pcf85363_nvram_write(void *priv, unsigned int offset, void *val,
 static const struct regmap_config regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
+	.max_register = 0x7f,
 };
 
 static int pcf85363_probe(struct i2c_client *client,
