@@ -1193,13 +1193,12 @@ static int ll_update_lsm_md(struct inode *inode, struct lustre_md *md)
 			lmv_free_memmd(lli->lli_lsm_md);
 			lli->lli_lsm_md = NULL;
 			return 0;
-		} else {
-			/*
-			 * The lustre_md from req does not include stripeEA,
-			 * see ll_md_setattr
-			 */
-			return 0;
 		}
+		/*
+		 * The lustre_md from req does not include stripeEA,
+		 * see ll_md_setattr
+		 */
+		return 0;
 	}
 
 	/* set the directory layout */
