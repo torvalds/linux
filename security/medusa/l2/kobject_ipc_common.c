@@ -14,28 +14,26 @@ static struct medusa_kobject_s storage;
 int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
 {
 	struct medusa_l1_ipc_s* security_s;
-	struct medusa_kobject_s concrete_ipc_object;
 	unsigned int ipc_class;
 
 	security_s = (struct medusa_l1_ipc_s*) ipcp->security;
 	ipc_class = security_s->ipc_class;
 	printk("kern2kobj: IPC_CLASS:%d", ipc_class);
 	switch(ipc_class){
-		case MED_IPC_SEM: 
-			ipc_sem_kern2kobj(&concrete_ipc_object, ipcp);
-			printk("before memcpy sem concrete: %p, size: %d\n", concrete_ipc_object, sizeof(struct ipc_sem_kobject));
-			//memcpy(ipck->data, (unsigned char *)&concrete_ipc_object, sizeof(struct ipc_sem_kobject));
+		case MED_IPC_SEM:
+			ipc_sem_kern2kobj(&storage, ipcp);
+			memcpy(ipck->data, (unsigned char *)&storage, sizeof(struct ipc_sem_kobject));
 			break;
-		case MED_IPC_MSG: 
-			ipc_msg_kern2kobj(&concrete_ipc_object, ipcp);
+		case MED_IPC_MSG:
+			return 0; 
+			ipc_msg_kern2kobj(&storage, ipcp);
 			printk("before memcpy msg\n");
-			//memcpy(ipck->data, (unsigned char *)&concrete_ipc_object, sizeof(struct ipc_msg_kobject));
+			memcpy(ipck->data, (unsigned char *)&storage, sizeof(struct ipc_msg_kobject));
 			break;
 		case MED_IPC_SHM: 
-			ipc_shm_kern2kobj(&concrete_ipc_object, ipcp);
+			ipc_shm_kern2kobj(&storage, ipcp);
 			printk("before memcpy shm 2\n");
-			printk("before memcpy shm concrete: %p, size: %d\n", concrete_ipc_object, sizeof(struct ipc_shm_kobject));
-			//memcpy(ipck->data, (unsigned char *)&concrete_ipc_object, sizeof(struct ipc_shm_kobject));
+			memcpy(ipck->data, (unsigned char *)&storage, sizeof(struct ipc_shm_kobject));
 			break;
 		default: {
 			printk("Unkown ipc_class\n");

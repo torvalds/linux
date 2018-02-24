@@ -31,13 +31,11 @@ medusa_answer_t medusa_ipc_validate(struct kern_ipc_perm *ipcp) {
 	INIT_MEDUSA_OBJECT_VARS(ipc_security(ipcp));
 	INIT_MEDUSA_SUBJECT_VARS(ipc_security(ipcp));
 	printk("ipc validate before kern2kobj\n");		
-	ipc_kern2kobj(&sender, ipcp);
-	printk("ipc validate after kern2kobj\n");		
-	return MED_OK;
-	retval = MED_DECIDE(ipc_event, &event, &sender, &sender);
-	if (retval == MED_ERR)
-		retval = MED_OK;
-		
+	if(ipc_kern2kobj(&sender, ipcp) == 0){
+		retval = MED_DECIDE(ipc_event, &event, &sender, &sender);
+		if (retval == MED_ERR)
+			retval = MED_OK;
+	}
 	return retval;
 }
 __initcall(ipc_evtype_init);
