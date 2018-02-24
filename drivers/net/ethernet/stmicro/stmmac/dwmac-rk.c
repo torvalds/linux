@@ -89,6 +89,8 @@ struct rk_priv_data {
 /* PX30_GRF_GMAC_CON1 */
 #define PX30_GMAC_PHY_INTF_SEL_RMII	(GRF_CLR_BIT(4) | GRF_CLR_BIT(5) | \
 					GRF_BIT(6))
+#define PX30_GMAC_SPEED_10M		GRF_CLR_BIT(2)
+#define PX30_GMAC_SPEED_100M		GRF_BIT(2)
 
 static void px30_set_to_rmii(struct rk_priv_data *bsp_priv)
 {
@@ -114,11 +116,17 @@ static void px30_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 	}
 
 	if (speed == 10) {
+		regmap_write(bsp_priv->grf, PX30_GRF_GMAC_CON1,
+			     PX30_GMAC_SPEED_10M);
+
 		ret = clk_set_rate(bsp_priv->clk_mac_speed, 2500000);
 		if (ret)
 			dev_err(dev, "%s: set clk_mac_speed rate 2500000 failed: %d\n",
 				__func__, ret);
 	} else if (speed == 100) {
+		regmap_write(bsp_priv->grf, PX30_GRF_GMAC_CON1,
+			     PX30_GMAC_SPEED_100M);
+
 		ret = clk_set_rate(bsp_priv->clk_mac_speed, 25000000);
 		if (ret)
 			dev_err(dev, "%s: set clk_mac_speed rate 25000000 failed: %d\n",
