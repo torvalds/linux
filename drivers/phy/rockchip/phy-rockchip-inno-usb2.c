@@ -198,6 +198,7 @@ struct rockchip_usb2phy_cfg {
  *	false	- use bvalid to get vbus status
  * @vbus_attached: otg device vbus status.
  * @vbus_always_on: otg vbus is always powered on.
+ * @vbus_enabled: vbus regulator status.
  * @bypass_uart_en: usb bypass uart enable, passed from DT.
  * @bvalid_irq: IRQ number assigned for vbus valid rise detection.
  * @ls_irq: IRQ number assigned for linestate detection.
@@ -209,6 +210,7 @@ struct rockchip_usb2phy_cfg {
  * @bypass_uart_work: usb bypass uart work.
  * @otg_sm_work: OTG state machine work.
  * @sm_work: HOST state machine work.
+ * @vbus: vbus regulator supply on few rockchip boards.
  * @port_cfg: port register configuration, assigned by driver data.
  * @event_nb: hold event notification callback.
  * @state: define OTG enumeration states before device reset.
@@ -222,6 +224,7 @@ struct rockchip_usb2phy_port {
 	bool		utmi_avalid;
 	bool		vbus_attached;
 	bool		vbus_always_on;
+	bool		vbus_enabled;
 	bool		bypass_uart_en;
 	int		bvalid_irq;
 	int		ls_irq;
@@ -232,6 +235,7 @@ struct rockchip_usb2phy_port {
 	struct		delayed_work chg_work;
 	struct		delayed_work otg_sm_work;
 	struct		delayed_work sm_work;
+	struct		regulator *vbus;
 	const struct	rockchip_usb2phy_port_cfg *port_cfg;
 	struct notifier_block	event_nb;
 	enum usb_otg_state	state;
@@ -742,6 +746,29 @@ static int rockchip_usb2phy_exit(struct phy *phy)
 	return 0;
 }
 
+static int rockchip_set_vbus_power(struct rockchip_usb2phy_port *rport,
+				   bool en)
+{
+	int ret = 0;
+
+	if (!rport->vbus)
+		return 0;
+
+	if (en && !rport->vbus_enabled) {
+		ret = regulator_enable(rport->vbus);
+		if (ret)
+			dev_err(&rport->phy->dev,
+				"Failed to enable VBUS supply\n");
+	} else if (!en && rport->vbus_enabled) {
+		ret = regulator_disable(rport->vbus);
+	}
+
+	if (ret == 0)
+		rport->vbus_enabled = en;
+
+	return ret;
+}
+
 static int rockchip_usb2phy_set_mode(struct phy *phy,
 				     enum phy_mode mode, int submode)
 {
@@ -761,9 +788,21 @@ static int rockchip_usb2phy_set_mode(struct phy *phy,
 		 */
 		fallthrough;
 	case PHY_MODE_USB_DEVICE:
+		/* Disable VBUS supply */
+		rockchip_set_vbus_power(rport, false);
+		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, false);
 		vbus_det_en = true;
 		break;
 	case PHY_MODE_USB_HOST:
+		/* Enable VBUS supply */
+		ret = rockchip_set_vbus_power(rport, true);
+		if (ret) {
+			dev_err(&rport->phy->dev,
+				"Failed to set host mode\n");
+			return ret;
+		}
+
+		extcon_set_state_sync(rphy->edev, EXTCON_USB_VBUS_EN, true);
 		fallthrough;
 	case PHY_MODE_INVALID:
 		vbus_det_en = false;
@@ -1419,6 +1458,7 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 {
 	struct rockchip_usb2phy_port *rport = data;
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
+	bool cable_vbus_state = false;
 
 	if (!property_enabled(rphy->grf, &rport->port_cfg->idfall_det_st) &&
 	    !property_enabled(rphy->grf, &rport->port_cfg->idrise_det_st))
@@ -1430,17 +1470,21 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 	if (property_enabled(rphy->grf, &rport->port_cfg->idfall_det_st)) {
 		property_enable(rphy->grf, &rport->port_cfg->idfall_det_clr,
 				true);
-		extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
-		extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
+		cable_vbus_state = true;
 	} else if (property_enabled(rphy->grf, &rport->port_cfg->idrise_det_st)) {
 		property_enable(rphy->grf, &rport->port_cfg->idrise_det_clr,
 				true);
-		extcon_set_state(rphy->edev, EXTCON_USB_HOST, false);
-		extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, false);
+		cable_vbus_state = false;
 	}
+
+
+	extcon_set_state(rphy->edev, EXTCON_USB_HOST, cable_vbus_state);
+	extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, cable_vbus_state);
 
 	extcon_sync(rphy->edev, EXTCON_USB_HOST);
 	extcon_sync(rphy->edev, EXTCON_USB_VBUS_EN);
+
+	rockchip_set_vbus_power(rport, cable_vbus_state);
 
 	mutex_unlock(&rport->mutex);
 
@@ -1511,6 +1555,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	rport->port_cfg = &rphy->phy_cfg->port_cfgs[USB2PHY_PORT_OTG];
 	rport->state = OTG_STATE_UNDEFINED;
 	rport->vbus_attached = false;
+	rport->vbus_enabled = false;
 	rport->perip_connected = false;
 
 	mutex_init(&rport->mutex);
@@ -1523,13 +1568,34 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	rport->utmi_avalid =
 		of_property_read_bool(child_np, "rockchip,utmi-avalid");
 
+	/* Get Vbus regulators */
+	rport->vbus = devm_regulator_get_optional(&rport->phy->dev, "vbus");
+	if (IS_ERR(rport->vbus)) {
+		ret = PTR_ERR(rport->vbus);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+
+		dev_warn(&rport->phy->dev, "Failed to get VBUS supply regulator\n");
+		rport->vbus = NULL;
+	}
+
 	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
 	if (rport->mode == USB_DR_MODE_HOST ||
-	    rport->mode == USB_DR_MODE_UNKNOWN ||
-	    rport->vbus_always_on) {
-		ret = 0;
+	    rport->mode == USB_DR_MODE_UNKNOWN) {
+		if (rphy->edev_self) {
+			extcon_set_state(rphy->edev, EXTCON_USB, false);
+			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
+			/* Enable VBUS supply */
+			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
+			ret = rockchip_set_vbus_power(rport, true);
+			if (ret)
+				return ret;
+		}
 		goto out;
 	}
+
+	if (rport->vbus_always_on)
+		goto out;
 
 	INIT_DELAYED_WORK(&rport->bypass_uart_work,
 			  rockchip_usb_bypass_uart_work);
@@ -1610,9 +1676,10 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 			extcon_set_state(rphy->edev, EXTCON_USB, false);
 			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
 			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
-		} else {
-			extcon_set_state(rphy->edev, EXTCON_USB_HOST, false);
-			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, false);
+			/* Enable VBUS supply */
+			ret = rockchip_set_vbus_power(rport, true);
+			if (ret)
+				return ret;
 		}
 	}
 
@@ -1966,6 +2033,23 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 				dev_err(rphy->dev,
 					"failed to enable id irq\n");
 				return ret;
+			}
+
+			if (!property_enabled(rphy->grf,
+					      &rport->port_cfg->utmi_iddig) &&
+			    !extcon_get_state(rphy->edev, EXTCON_USB_HOST)) {
+				dev_dbg(&rport->phy->dev,
+					"port power on when resume\n");
+				extcon_set_state_sync(rphy->edev,
+						      EXTCON_USB_HOST,
+						      true);
+				/* Enable VBUS supply */
+				extcon_set_state_sync(rphy->edev,
+						      EXTCON_USB_VBUS_EN,
+						      true);
+				ret = rockchip_set_vbus_power(rport, true);
+				if (ret)
+					return ret;
 			}
 		}
 	}
