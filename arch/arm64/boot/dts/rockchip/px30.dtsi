@@ -133,6 +133,13 @@
 		};
 	};
 
+	gmac_clkin: external-gmac-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <50000000>;
+		clock-output-names = "gmac_clkin";
+		#clock-cells = <0>;
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
