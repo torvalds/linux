@@ -431,7 +431,6 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
 			bitmap = this_cpu_xchg(ida_bitmap, NULL);
 			if (!bitmap)
 				return -EAGAIN;
-			memset(bitmap, 0, sizeof(*bitmap));
 			bitmap->bitmap[0] = tmp >> RADIX_TREE_EXCEPTIONAL_SHIFT;
 			rcu_assign_pointer(*slot, bitmap);
 		}
@@ -464,7 +463,6 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
 			bitmap = this_cpu_xchg(ida_bitmap, NULL);
 			if (!bitmap)
 				return -EAGAIN;
-			memset(bitmap, 0, sizeof(*bitmap));
 			__set_bit(bit, bitmap->bitmap);
 			radix_tree_iter_replace(root, &iter, slot, bitmap);
 		}

@@ -1920,6 +1920,11 @@ restart_poll:
 			dev_kfree_skb_any(rx_buff->skb);
 			remove_buff_from_pool(adapter, rx_buff);
 			continue;
+		} else if (!rx_buff->skb) {
+			/* free the entry */
+			next->rx_comp.first = 0;
+			remove_buff_from_pool(adapter, rx_buff);
+			continue;
 		}
 
 		length = be32_to_cpu(next->rx_comp.len);
@@ -3786,7 +3791,6 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 
 	dma_unmap_single(dev, adapter->login_buf_token, adapter->login_buf_sz,
 			 DMA_BIDIRECTIONAL);
-	release_login_buffer(adapter);
 	dma_unmap_single(dev, adapter->login_rsp_buf_token,
 			 adapter->login_rsp_buf_sz, DMA_BIDIRECTIONAL);
 
@@ -3817,6 +3821,7 @@ static int handle_login_rsp(union ibmvnic_crq *login_rsp_crq,
 		ibmvnic_remove(adapter->vdev);
 		return -EIO;
 	}
+	release_login_buffer(adapter);
 	complete(&adapter->init_done);
 
 	return 0;

@@ -7909,7 +7909,6 @@ S:	Maintained
 F:	scripts/leaking_addresses.pl
 
 LED SUBSYSTEM
-M:	Richard Purdie <rpurdie@rpsys.net>
 M:	Jacek Anaszewski <jacek.anaszewski@gmail.com>
 M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-leds@vger.kernel.org
