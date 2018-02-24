@@ -1363,7 +1363,7 @@ static void commit_planes_for_stream(struct dc *dc,
 			dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
 
-			if (stream_update->abm_level && pipe_ctx->stream_res.abm) {
+			if (stream_update && stream_update->abm_level && pipe_ctx->stream_res.abm) {
 				if (pipe_ctx->stream_res.tg->funcs->is_blanked) {
 					// if otg funcs defined check if blanked before programming
 					if (!pipe_ctx->stream_res.tg->funcs->is_blanked(pipe_ctx->stream_res.tg))
