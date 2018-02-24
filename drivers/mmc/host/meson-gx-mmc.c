@@ -716,22 +716,6 @@ static int meson_mmc_clk_phase_tuning(struct mmc_host *mmc, u32 opcode,
 static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct meson_host *host = mmc_priv(mmc);
-	int ret;
-
-	/*
-	 * If this is the initial tuning, try to get a sane Rx starting
-	 * phase before doing the actual tuning.
-	 */
-	if (!mmc->doing_retune) {
-		ret = meson_mmc_clk_phase_tuning(mmc, opcode, host->rx_clk);
-
-		if (ret)
-			return ret;
-	}
-
-	ret = meson_mmc_clk_phase_tuning(mmc, opcode, host->tx_clk);
-	if (ret)
-		return ret;
 
 	return meson_mmc_clk_phase_tuning(mmc, opcode, host->rx_clk);
 }
@@ -762,9 +746,8 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
 
-		/* Reset phases */
+		/* Reset rx phase */
 		clk_set_phase(host->rx_clk, 0);
-		clk_set_phase(host->tx_clk, 270);
 
 		break;
 

@@ -1617,7 +1617,7 @@ USE_TEXT_SECTION()
 	.balign	IFETCH_ALIGN_BYTES
 do_hash_page:
 	#ifdef CONFIG_PPC_STD_MMU_64
-	lis	r0,DSISR_BAD_FAULT_64S@h
+	lis	r0,(DSISR_BAD_FAULT_64S|DSISR_DABRMATCH)@h
 	ori	r0,r0,DSISR_BAD_FAULT_64S@l
 	and.	r0,r4,r0		/* weird error? */
 	bne-	handle_page_fault	/* if not, try to insert a HPTE */

@@ -42,7 +42,6 @@
 #include <linux/edac.h>
 #endif
 
-#include <asm/kmemcheck.h>
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
 #include <asm/debugreg.h>
@@ -181,7 +180,7 @@ int fixup_bug(struct pt_regs *regs, int trapnr)
 		break;
 
 	case BUG_TRAP_TYPE_WARN:
-		regs->ip += LEN_UD0;
+		regs->ip += LEN_UD2;
 		return 1;
 	}
 
@@ -763,10 +762,6 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	 */
 	if (!dr6 && user_mode(regs))
 		user_icebp = 1;
-
-	/* Catch kmemcheck conditions! */
-	if ((dr6 & DR_STEP) && kmemcheck_trap(regs))
-		goto exit;
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;

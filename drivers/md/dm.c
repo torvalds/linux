@@ -815,7 +815,8 @@ static void dec_pending(struct dm_io *io, blk_status_t error)
 			queue_io(md, bio);
 		} else {
 			/* done with normal IO or empty flush */
-			bio->bi_status = io_error;
+			if (io_error)
+				bio->bi_status = io_error;
 			bio_endio(bio);
 		}
 	}

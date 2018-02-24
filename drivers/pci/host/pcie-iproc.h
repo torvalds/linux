@@ -74,6 +74,7 @@ struct iproc_msi;
  * @ob: outbound mapping related parameters
  * @ob_map: outbound mapping related parameters specific to the controller
  *
+ * @need_ib_cfg: indicates SW needs to configure the inbound mapping window
  * @ib: inbound mapping related parameters
  * @ib_map: outbound mapping region related parameters
  *
@@ -101,6 +102,7 @@ struct iproc_pcie {
 	struct iproc_pcie_ob ob;
 	const struct iproc_pcie_ob_map *ob_map;
 
+	bool need_ib_cfg;
 	struct iproc_pcie_ib ib;
 	const struct iproc_pcie_ib_map *ib_map;
 

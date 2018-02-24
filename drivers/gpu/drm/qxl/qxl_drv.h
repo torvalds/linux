@@ -113,6 +113,8 @@ struct qxl_bo {
 	/* Constant after initialization */
 	struct drm_gem_object		gem_base;
 	bool is_primary; /* is this now a primary surface */
+	bool is_dumb;
+	struct qxl_bo *shadow;
 	bool hw_surf_alloc;
 	struct qxl_surface surf;
 	uint32_t surface_id;
@@ -133,6 +135,8 @@ struct qxl_bo_list {
 struct qxl_crtc {
 	struct drm_crtc base;
 	int index;
+
+	struct qxl_bo *cursor_bo;
 };
 
 struct qxl_output {

@@ -1201,7 +1201,7 @@ mlx5_get_vector_affinity(struct mlx5_core_dev *dev, int vector)
 	int eqn;
 	int err;
 
-	err = mlx5_vector2eqn(dev, vector, &eqn, &irq);
+	err = mlx5_vector2eqn(dev, MLX5_EQ_VEC_COMP_BASE + vector, &eqn, &irq);
 	if (err)
 		return NULL;
 

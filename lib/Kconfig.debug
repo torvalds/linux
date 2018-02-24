@@ -504,7 +504,7 @@ config DEBUG_OBJECTS_ENABLE_DEFAULT
 
 config DEBUG_SLAB
 	bool "Debug slab memory allocations"
-	depends on DEBUG_KERNEL && SLAB && !KMEMCHECK
+	depends on DEBUG_KERNEL && SLAB
 	help
 	  Say Y here to have the kernel do limited verification on memory
 	  allocation as well as poisoning memory on free to catch use of freed
@@ -516,7 +516,7 @@ config DEBUG_SLAB_LEAK
 
 config SLUB_DEBUG_ON
 	bool "SLUB debugging on by default"
-	depends on SLUB && SLUB_DEBUG && !KMEMCHECK
+	depends on SLUB && SLUB_DEBUG
 	default n
 	help
 	  Boot with debugging on by default. SLUB boots by default with
@@ -729,8 +729,6 @@ config DEBUG_STACKOVERFLOW
 	  corruption, especially if it appears in 'struct thread_info'
 
 	  If in doubt, say "N".
-
-source "lib/Kconfig.kmemcheck"
 
 source "lib/Kconfig.kasan"
 
