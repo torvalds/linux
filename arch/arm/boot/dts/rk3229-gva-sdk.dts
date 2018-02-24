@@ -139,6 +139,16 @@
 		};
 	};
 
+	vcc_otg_vbus: otg-vbus-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&otg_vbus_drv>;
+		regulator-name = "vcc_otg_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+	};
 };
 
 &gpu {
@@ -373,6 +383,11 @@
 		};
 	};
 
+	usb {
+		otg_vbus_drv: otg-vbus-drv {
+			rockchip,pins = <3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &sdio {
@@ -391,4 +406,8 @@
 		|RKPM_CTR_PMIC
 		)
 	>;
+};
+
+&u2phy0_otg {
+	vbus-supply = <&vcc_otg_vbus>;
 };

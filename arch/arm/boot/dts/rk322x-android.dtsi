@@ -179,7 +179,6 @@
 };
 
 &u2phy0 {
-	otg-vbus-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	u2phy0_otg: otg-port {
