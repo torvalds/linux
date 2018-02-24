@@ -210,6 +210,7 @@ static int dw_mci_hi6220_execute_tuning(struct dw_mci_slot *slot, u32 opcode)
 
 static const struct dw_mci_drv_data hi6220_data = {
 	.caps			= dw_mci_hi6220_caps,
+	.num_caps		= ARRAY_SIZE(dw_mci_hi6220_caps),
 	.switch_voltage		= dw_mci_hi6220_switch_voltage,
 	.set_ios		= dw_mci_hi6220_set_ios,
 	.parse_dt		= dw_mci_hi6220_parse_dt,
