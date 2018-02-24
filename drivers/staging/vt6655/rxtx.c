@@ -320,7 +320,6 @@ s_uGetDataDuration(
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbLastFragmentSize, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
 				else
 					uNextPktTime = s_uGetTxRsvTime(pDevice, byPktType, cbFrameLength, wFB_Opt1[FB_RATE0][wRate-RATE_18M], bNeedAck);
-
 			}
 
 			if (bNeedAck) {
@@ -490,10 +489,8 @@ s_uFillDataHead(
 	bool is_pspoll
 )
 {
-
 	if (!pTxDataHead)
 		return 0;
-
 
 	if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
 		if (byFBOption == AUTO_FB_NONE) {
@@ -617,7 +614,6 @@ s_uFillDataHead(
 	}
 	return 0;
 }
-
 
 static
 void
@@ -1388,7 +1384,6 @@ int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
 		else if (priv->byAutoFBCtrl == AUTO_FB_1)
 			tx_buffer_head->fifo_ctl |=
 						cpu_to_le16(FIFOCTL_AUTO_FB_1);
-
 	}
 
 	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
