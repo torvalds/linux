@@ -106,6 +106,10 @@
 #define PIN_IO_INTA_OUT	2
 #define PIN_IO_INTA_HIZ	3
 
+#define STOP_EN_STOP	BIT(0)
+
+#define RESET_CPR	0xa4
+
 #define NVRAM_SIZE	0x40
 
 static struct i2c_driver pcf85363_driver;
@@ -148,8 +152,12 @@ static int pcf85363_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int pcf85363_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct pcf85363 *pcf85363 = dev_get_drvdata(dev);
-	unsigned char buf[DT_YEARS + 1];
-	int len = sizeof(buf);
+	unsigned char tmp[11];
+	unsigned char *buf = &tmp[2];
+	int ret;
+
+	tmp[0] = STOP_EN_STOP;
+	tmp[1] = RESET_CPR;
 
 	buf[DT_100THS] = 0;
 	buf[DT_SECS] = bin2bcd(tm->tm_sec);
@@ -160,8 +168,12 @@ static int pcf85363_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	buf[DT_MONTHS] = bin2bcd(tm->tm_mon + 1);
 	buf[DT_YEARS] = bin2bcd(tm->tm_year % 100);
 
-	return regmap_bulk_write(pcf85363->regmap, DT_100THS,
-				 buf, len);
+	ret = regmap_bulk_write(pcf85363->regmap, CTRL_STOP_EN,
+				tmp, sizeof(tmp));
+	if (ret)
+		return ret;
+
+	return regmap_write(pcf85363->regmap, CTRL_STOP_EN, 0);
 }
 
 static int pcf85363_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
