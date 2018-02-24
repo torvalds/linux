@@ -196,9 +196,11 @@
        1) v0.0x21.9 may not fix all the case of iommu issue caused by the
        unexpected termination of process cameraserver, so we force to release
        all iommu resource in |.release| of fops aganin if needed.
+*v0.0x27.0:
+       1) revert v0.0x22.5.
 */
 
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x26, 0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x27, 0)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
