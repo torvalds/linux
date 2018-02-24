@@ -9,7 +9,7 @@
 			 <0x40000000 0x40000000 0x00001000>;
 		dma-ranges = <0xc0000000 0x00000000 0x3f000000>;
 
-		local_intc: local_intc {
+		local_intc: local_intc@40000000 {
 			compatible = "brcm,bcm2836-l1-intc";
 			reg = <0x40000000 0x100>;
 			interrupt-controller;
