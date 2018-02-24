@@ -753,6 +753,7 @@ static struct sh_eth_cpu_data sh7757_data = {
 	.rpadir		= 1,
 	.rpadir_value   = 2 << 16,
 	.rtrate		= 1,
+	.dual_port	= 1,
 };
 
 #define SH_GIGA_ETH_BASE	0xfee00000UL
@@ -831,6 +832,7 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.tsu		= 1,
+	.dual_port	= 1,
 };
 
 /* SH7734 */
@@ -901,6 +903,7 @@ static struct sh_eth_cpu_data sh7763_data = {
 	.tsu		= 1,
 	.irq_flags	= IRQF_SHARED,
 	.magic		= 1,
+	.dual_port	= 1,
 };
 
 static struct sh_eth_cpu_data sh7619_data = {
@@ -933,6 +936,7 @@ static struct sh_eth_cpu_data sh771x_data = {
 			  EESIPR_RRFIP | EESIPR_RTLFIP | EESIPR_RTSFIP |
 			  EESIPR_PREIP | EESIPR_CERFIP,
 	.tsu		= 1,
+	.dual_port	= 1,
 };
 
 static void sh_eth_set_default_cpu_data(struct sh_eth_cpu_data *cd)
@@ -2911,7 +2915,7 @@ static int sh_eth_vlan_rx_kill_vid(struct net_device *ndev,
 /* SuperH's TSU register init function */
 static void sh_eth_tsu_init(struct sh_eth_private *mdp)
 {
-	if (sh_eth_is_rz_fast_ether(mdp)) {
+	if (!mdp->cd->dual_port) {
 		sh_eth_tsu_write(mdp, 0, TSU_TEN); /* Disable all CAM entry */
 		sh_eth_tsu_write(mdp, TSU_FWSLC_POSTENU | TSU_FWSLC_POSTENL,
 				 TSU_FWSLC);	/* Enable POST registers */
