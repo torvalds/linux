@@ -650,6 +650,7 @@
 
 &sdmmc {
 	cap-mmc-highspeed;
+	cap-sd-highspeed;
 	supports-sd;
 	broken-cd;
 	card-detect-delay = <800>;
