@@ -130,3 +130,11 @@ Rockchip platforms device tree bindings
 - Rockchip PX30 evb ddr4 board:
     Required root node properties:
       - compatible = "rockchip,px30-evb-ddr4-v10", "rockchip,px30";
+
+- Rockchip android things full function board:
+    Required root node properties:
+      - compatible = "rockchip,rk3229-at-3nod", "rockchip,rk3229";
+
+- Rockchip android things full function board:
+    Required root node properties:
+      - compatible = "rockchip,rk3229-at-3nod-func", "rockchip,rk3229";

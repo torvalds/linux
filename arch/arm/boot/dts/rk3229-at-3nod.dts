@@ -1,0 +1,132 @@
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * SPDX-License-Identifier: (GPL-2.0+ OR MIT).
+ */
+
+/dts-v1/;
+
+#include "rk3229-at-som.dtsi"
+
+/ {
+	model = "RK3229 ANDROID THINGS Full Function Board";
+	compatible = "rockchip,rk3229-at-3nod", "rockchip,rk3229";
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwr_key>;
+
+		power_key {
+			label = "GPIO Key Power";
+			gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
+			linux,code = <116>;
+			debounce-interval = <100>;
+			wakeup-source;
+		};
+	};
+
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		clocks = <&rk805 1>;
+		clock-names = "ext_clock";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_enable_h>;
+
+		/*
+		 * On the module itself this is one of these (depending
+		 * on the actual card populated):
+		 * - SDIO_RESET_L_WL_REG_ON
+		 * - PDN (power down when low)
+		 */
+		reset-gpios = <&gpio3 15 GPIO_ACTIVE_LOW>; /* GPIO3_B7 */
+	};
+
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		clocks = <&rk805 1>;
+		clock-names = "ext_clock";
+		uart_rts_gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart11_rts>;
+		pinctrl-1 = <&uart11_rts_gpio>;
+		BT,reset_gpio    = <&gpio2 29 GPIO_ACTIVE_HIGH>;
+		BT,wake_gpio     = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		wifi_chip_type = "ap6255";
+		WIFI,host_wake_irq = <&gpio0 28 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+&emmc {
+	/*
+	 * enable emmc ddr mode, choose the
+	 * according parameter base on the emmc
+	 * io voltage.
+	 */
+	mmc-ddr-1_8v;
+	status = "okay";
+};
+
+&gpu {
+	status = "okay";
+};
+
+&nandc {
+	status = "disabled";
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	/*
+	 * sdmmc, pwm0, pwm2, ir, and spdif pins are defaultly set as gpio,
+	 * if you want to enable it, please remove below besides fixed_gpio.
+	 */
+	pinctrl-0 = <&sdmmc_gpio &pwm0_gpio &pwm2_gpio
+		     &ir_gpio &spdif_gpio &fixed_gpio>;
+
+	keys {
+		pwr_key: pwr-key {
+			rockchip,pins = <3 23 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+	};
+
+	sdio-pwrseq {
+		wifi_enable_h: wifi-enable-h {
+			rockchip,pins = <3 15 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&reboot_mode {
+	/delete-property/ mode-bootloader;
+};
+
+&sdio {
+	max-frequency = <150000000>;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	num-slots = <1>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&vop {
+	assigned-clocks = <&cru DCLK_VOP>;
+	assigned-clock-parents = <&cru HDMIPHY>;
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};

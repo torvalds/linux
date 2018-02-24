@@ -523,6 +523,8 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3128-fireprime.dtb \
 	rk3188-radxarock.dtb \
 	rk3228-evb.dtb \
+	rk3229-at-3nod.dtb \
+	rk3229-at-3nod-func.dtb \
 	rk3229-at-gva.dtb \
 	rk3229-echo-v10.dtb \
 	rk3229-evb.dtb \
