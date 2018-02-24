@@ -253,6 +253,8 @@ struct mt76_dev {
 	u32 rev;
 	unsigned long state;
 
+	u8 antenna_mask;
+
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
 	struct debugfs_blob_wrapper eeprom;
