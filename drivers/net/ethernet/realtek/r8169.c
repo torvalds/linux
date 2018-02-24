@@ -736,8 +736,7 @@ struct ring_info {
 };
 
 enum features {
-	RTL_FEATURE_MSI		= (1 << 0),
-	RTL_FEATURE_GMII	= (1 << 1),
+	RTL_FEATURE_GMII	= (1 << 0),
 };
 
 struct rtl8169_counters {
@@ -7847,7 +7846,7 @@ static int rtl8169_close(struct net_device *dev)
 
 	cancel_work_sync(&tp->wk.work);
 
-	free_irq(pdev->irq, dev);
+	pci_free_irq(pdev, 0, dev);
 
 	dma_free_coherent(&pdev->dev, R8169_RX_RING_BYTES, tp->RxDescArray,
 			  tp->RxPhyAddr);
@@ -7903,9 +7902,8 @@ static int rtl_open(struct net_device *dev)
 
 	rtl_request_firmware(tp);
 
-	retval = request_irq(pdev->irq, rtl8169_interrupt,
-			     (tp->features & RTL_FEATURE_MSI) ? 0 : IRQF_SHARED,
-			     dev->name, dev);
+	retval = pci_request_irq(pdev, 0, rtl8169_interrupt, NULL, dev,
+				 dev->name);
 	if (retval < 0)
 		goto err_release_fw_2;
 
@@ -8253,7 +8251,7 @@ static const struct rtl_cfg_info {
 		.region		= 2,
 		.align		= 8,
 		.event_slow	= SYSErr | LinkChg | RxOverflow,
-		.features	= RTL_FEATURE_GMII | RTL_FEATURE_MSI,
+		.features	= RTL_FEATURE_GMII,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
 		.default_ver	= RTL_GIGA_MAC_VER_11,
 	},
@@ -8263,32 +8261,26 @@ static const struct rtl_cfg_info {
 		.align		= 8,
 		.event_slow	= SYSErr | LinkChg | RxOverflow | RxFIFOOver |
 				  PCSTimeout,
-		.features	= RTL_FEATURE_MSI,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
 		.default_ver	= RTL_GIGA_MAC_VER_13,
 	}
 };
 
-/* Cfg9346_Unlock assumed. */
-static unsigned rtl_try_msi(struct rtl8169_private *tp,
-			    const struct rtl_cfg_info *cfg)
+static int rtl_alloc_irq(struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
-	unsigned msi = 0;
-	u8 cfg2;
+	unsigned int flags;
 
-	cfg2 = RTL_R8(Config2) & ~MSIEnable;
-	if (cfg->features & RTL_FEATURE_MSI) {
-		if (pci_enable_msi(tp->pci_dev)) {
-			netif_info(tp, hw, tp->dev, "no MSI. Back to INTx.\n");
-		} else {
-			cfg2 |= MSIEnable;
-			msi = RTL_FEATURE_MSI;
-		}
+	if (tp->mac_version <= RTL_GIGA_MAC_VER_06) {
+		RTL_W8(Cfg9346, Cfg9346_Unlock);
+		RTL_W8(Config2, RTL_R8(Config2) & ~MSIEnable);
+		RTL_W8(Cfg9346, Cfg9346_Lock);
+		flags = PCI_IRQ_LEGACY;
+	} else {
+		flags = PCI_IRQ_ALL_TYPES;
 	}
-	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
-		RTL_W8(Config2, cfg2);
-	return msi;
+
+	return pci_alloc_irq_vectors(tp->pci_dev, 1, 1, flags);
 }
 
 DECLARE_RTL_COND(rtl_link_list_ready_cond)
@@ -8497,9 +8489,11 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	chipset = tp->mac_version;
 	tp->txd_version = rtl_chip_infos[chipset].txd_version;
 
-	RTL_W8(Cfg9346, Cfg9346_Unlock);
-	tp->features |= rtl_try_msi(tp, cfg);
-	RTL_W8(Cfg9346, Cfg9346_Lock);
+	rc = rtl_alloc_irq(tp);
+	if (rc < 0) {
+		netif_err(tp, probe, dev, "Can't allocate interrupt\n");
+		return rc;
+	}
 
 	/* override BIOS settings, use userspace tools to enable WOL */
 	__rtl8169_set_wol(tp, 0);
