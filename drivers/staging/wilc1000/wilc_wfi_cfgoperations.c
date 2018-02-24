@@ -959,18 +959,14 @@ static int add_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 				}
 
 				kfree(priv->wilc_ptk[key_index]->key);
-
 				priv->wilc_ptk[key_index]->key = kmalloc(params->key_len, GFP_KERNEL);
-
-				kfree(priv->wilc_ptk[key_index]->seq);
-
-				if (params->seq_len > 0)
-					priv->wilc_ptk[key_index]->seq = kmalloc(params->seq_len, GFP_KERNEL);
-
 				memcpy(priv->wilc_ptk[key_index]->key, params->key, params->key_len);
 
-				if (params->seq_len > 0)
+				kfree(priv->wilc_ptk[key_index]->seq);
+				if (params->seq_len > 0) {
+					priv->wilc_ptk[key_index]->seq = kmalloc(params->seq_len, GFP_KERNEL);
 					memcpy(priv->wilc_ptk[key_index]->seq, params->seq, params->seq_len);
+				}
 
 				priv->wilc_ptk[key_index]->cipher = params->cipher;
 				priv->wilc_ptk[key_index]->key_len = params->key_len;
