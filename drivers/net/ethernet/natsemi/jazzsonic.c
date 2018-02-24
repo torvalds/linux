@@ -142,16 +142,13 @@ static int sonic_probe1(struct net_device *dev)
 		i++;
 
 	if (known_revisions[i] == 0xffff) {
-		printk("SONIC ethernet controller not found (0x%4x)\n",
-		       silicon_revision);
+		pr_info("SONIC ethernet controller not found (0x%4x)\n",
+			silicon_revision);
 		goto out;
 	}
 
 	if (sonic_debug  &&  version_printed++ == 0)
 		printk(version);
-
-	printk(KERN_INFO "%s: Sonic ethernet found at 0x%08lx, ",
-	       dev_name(lp->device), dev->base_addr);
 
 	/*
 	 * Put the sonic into software reset, then
@@ -245,11 +242,13 @@ static int jazz_sonic_probe(struct platform_device *pdev)
 	err = sonic_probe1(dev);
 	if (err)
 		goto out;
+
+	pr_info("SONIC ethernet @%08lx, MAC %pM, IRQ %d\n",
+		dev->base_addr, dev->dev_addr, dev->irq);
+
 	err = register_netdev(dev);
 	if (err)
 		goto out1;
-
-	printk("%s: MAC %pM IRQ %d\n", dev->name, dev->dev_addr, dev->irq);
 
 	return 0;
 

@@ -311,8 +311,6 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 	int sr;
 	bool commslot = macintosh_config->expansion_type == MAC_EXP_PDS_COMM;
 
-	printk(KERN_INFO "Checking for internal Macintosh ethernet (SONIC).. ");
-
 	/* Bogus probing, on the models which may or may not have
 	   Ethernet (BTW, the Ethernet *is* always at the same
 	   address, and nothing else lives there, at least if Apple's
@@ -322,12 +320,10 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 
 		card_present = hwreg_present((void*)ONBOARD_SONIC_REGISTERS);
 		if (!card_present) {
-			printk("none.\n");
+			pr_info("Onboard/comm-slot SONIC not found\n");
 			return -ENODEV;
 		}
 	}
-
-	printk("yes\n");
 
 	/* Danger!  My arms are flailing wildly!  You *must* set lp->reg_offset
 	 * and dev->base_addr before using SONIC_READ() or SONIC_WRITE() */
@@ -341,14 +337,11 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 		printk(KERN_INFO "%s", version);
 		sonic_version_printed = 1;
 	}
-	printk(KERN_INFO "%s: onboard / comm-slot SONIC at 0x%08lx\n",
-	       dev_name(lp->device), dev->base_addr);
 
 	/* The PowerBook's SONIC is 16 bit always. */
 	if (macintosh_config->ident == MAC_MODEL_PB520) {
 		lp->reg_offset = 0;
 		lp->dma_bitmode = SONIC_BITMODE16;
-		sr = SONIC_READ(SONIC_SR);
 	} else if (commslot) {
 		/* Some of the comm-slot cards are 16 bit.  But some
 		   of them are not.  The 32-bit cards use offset 2 and
@@ -365,22 +358,21 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 		else {
 			lp->dma_bitmode = SONIC_BITMODE16;
 			lp->reg_offset = 0;
-			sr = SONIC_READ(SONIC_SR);
 		}
 	} else {
 		/* All onboard cards are at offset 2 with 32 bit DMA. */
 		lp->reg_offset = 2;
 		lp->dma_bitmode = SONIC_BITMODE32;
-		sr = SONIC_READ(SONIC_SR);
 	}
-	printk(KERN_INFO
-	       "%s: revision 0x%04x, using %d bit DMA and register offset %d\n",
-	       dev_name(lp->device), sr, lp->dma_bitmode?32:16, lp->reg_offset);
 
-#if 0 /* This is sometimes useful to find out how MacOS configured the card. */
-	printk(KERN_INFO "%s: DCR: 0x%04x, DCR2: 0x%04x\n", dev_name(lp->device),
-	       SONIC_READ(SONIC_DCR) & 0xffff, SONIC_READ(SONIC_DCR2) & 0xffff);
-#endif
+	pr_info("Onboard/comm-slot SONIC, revision 0x%04x, %d bit DMA, register offset %d\n",
+		SONIC_READ(SONIC_SR), lp->dma_bitmode ? 32 : 16,
+		lp->reg_offset);
+
+	/* This is sometimes useful to find out how MacOS configured the card */
+	pr_debug("%s: DCR=0x%04x, DCR2=0x%04x\n", __func__,
+		 SONIC_READ(SONIC_DCR) & 0xffff,
+		 SONIC_READ(SONIC_DCR2) & 0xffff);
 
 	/* Software reset, then initialize control registers. */
 	SONIC_WRITE(SONIC_CMD, SONIC_CR_RST);
@@ -400,6 +392,9 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 
 	/* Now look for the MAC address. */
 	mac_onboard_sonic_ethernet_addr(dev);
+
+	pr_info("SONIC ethernet @%08lx, MAC %pM, IRQ %d\n",
+		dev->base_addr, dev->dev_addr, dev->irq);
 
 	/* Shared init code */
 	return macsonic_init(dev);
@@ -508,15 +503,15 @@ static int mac_sonic_nubus_probe_board(struct nubus_board *board, int id,
 		printk(KERN_INFO "%s", version);
 		sonic_version_printed = 1;
 	}
-	printk(KERN_INFO "%s: %s in slot %X\n",
-	       dev_name(lp->device), board->name, board->slot);
-	printk(KERN_INFO "%s: revision 0x%04x, using %d bit DMA and register offset %d\n",
-	       dev_name(lp->device), SONIC_READ(SONIC_SR), dma_bitmode?32:16, reg_offset);
 
-#if 0 /* This is sometimes useful to find out how MacOS configured the card. */
-	printk(KERN_INFO "%s: DCR: 0x%04x, DCR2: 0x%04x\n", dev_name(lp->device),
-	       SONIC_READ(SONIC_DCR) & 0xffff, SONIC_READ(SONIC_DCR2) & 0xffff);
-#endif
+	dev_info(&board->dev, "%s, revision 0x%04x, %d bit DMA, register offset %d\n",
+		 board->name, SONIC_READ(SONIC_SR),
+		 lp->dma_bitmode ? 32 : 16, lp->reg_offset);
+
+	/* This is sometimes useful to find out how MacOS configured the card */
+	dev_dbg(&board->dev, "%s: DCR=0x%04x, DCR2=0x%04x\n", __func__,
+		SONIC_READ(SONIC_DCR) & 0xffff,
+		SONIC_READ(SONIC_DCR2) & 0xffff);
 
 	/* Software reset, then initialize control registers. */
 	SONIC_WRITE(SONIC_CMD, SONIC_CR_RST);
@@ -563,8 +558,6 @@ static int mac_sonic_platform_probe(struct platform_device *pdev)
 	err = register_netdev(dev);
 	if (err)
 		goto out;
-
-	printk("%s: MAC %pM IRQ %d\n", dev->name, dev->dev_addr, dev->irq);
 
 	return 0;
 
