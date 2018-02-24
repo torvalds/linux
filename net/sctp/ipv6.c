@@ -427,6 +427,41 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 	rcu_read_unlock();
 }
 
+/* Copy over any ip options */
+static void sctp_v6_copy_ip_options(struct sock *sk, struct sock *newsk)
+{
+	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
+	struct ipv6_txoptions *opt;
+
+	newnp = inet6_sk(newsk);
+
+	rcu_read_lock();
+	opt = rcu_dereference(np->opt);
+	if (opt) {
+		opt = ipv6_dup_options(newsk, opt);
+		if (!opt)
+			pr_err("%s: Failed to copy ip options\n", __func__);
+	}
+	RCU_INIT_POINTER(newnp->opt, opt);
+	rcu_read_unlock();
+}
+
+/* Account for the IP options */
+static int sctp_v6_ip_options_len(struct sock *sk)
+{
+	struct ipv6_pinfo *np = inet6_sk(sk);
+	struct ipv6_txoptions *opt;
+	int len = 0;
+
+	rcu_read_lock();
+	opt = rcu_dereference(np->opt);
+	if (opt)
+		len = opt->opt_flen + opt->opt_nflen;
+
+	rcu_read_unlock();
+	return len;
+}
+
 /* Initialize a sockaddr_storage from in incoming skb. */
 static void sctp_v6_from_skb(union sctp_addr *addr, struct sk_buff *skb,
 			     int is_saddr)
@@ -666,7 +701,6 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	struct sock *newsk;
 	struct ipv6_pinfo *newnp, *np = inet6_sk(sk);
 	struct sctp6_sock *newsctp6sk;
-	struct ipv6_txoptions *opt;
 
 	newsk = sk_alloc(sock_net(sk), PF_INET6, GFP_KERNEL, sk->sk_prot, kern);
 	if (!newsk)
@@ -689,12 +723,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	newnp->ipv6_ac_list = NULL;
 	newnp->ipv6_fl_list = NULL;
 
-	rcu_read_lock();
-	opt = rcu_dereference(np->opt);
-	if (opt)
-		opt = ipv6_dup_options(newsk, opt);
-	RCU_INIT_POINTER(newnp->opt, opt);
-	rcu_read_unlock();
+	sctp_v6_copy_ip_options(sk, newsk);
 
 	/* Initialize sk's sport, dport, rcv_saddr and daddr for getsockname()
 	 * and getpeername().
@@ -1041,6 +1070,7 @@ static struct sctp_af sctp_af_inet6 = {
 	.ecn_capable	   = sctp_v6_ecn_capable,
 	.net_header_len	   = sizeof(struct ipv6hdr),
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
+	.ip_options_len	   = sctp_v6_ip_options_len,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_ipv6_setsockopt,
 	.compat_getsockopt = compat_ipv6_getsockopt,
@@ -1059,6 +1089,7 @@ static struct sctp_pf sctp_pf_inet6 = {
 	.addr_to_user  = sctp_v6_addr_to_user,
 	.to_sk_saddr   = sctp_v6_to_sk_saddr,
 	.to_sk_daddr   = sctp_v6_to_sk_daddr,
+	.copy_ip_options = sctp_v6_copy_ip_options,
 	.af            = &sctp_af_inet6,
 };
 
