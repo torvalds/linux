@@ -156,6 +156,15 @@ static void mt76_init_stream_cap(struct mt76_dev *dev,
 	vht_cap->vht_mcs.tx_mcs_map = cpu_to_le16(mcs_map);
 }
 
+void mt76_set_stream_caps(struct mt76_dev *dev, bool vht)
+{
+	if (dev->cap.has_2ghz)
+		mt76_init_stream_cap(dev, &dev->sband_2g.sband, false);
+	if (dev->cap.has_5ghz)
+		mt76_init_stream_cap(dev, &dev->sband_5g.sband, vht);
+}
+EXPORT_SYMBOL_GPL(mt76_set_stream_caps);
+
 static int
 mt76_init_sband(struct mt76_dev *dev, struct mt76_sband *msband,
 		const struct ieee80211_channel *chan, int n_chan,
