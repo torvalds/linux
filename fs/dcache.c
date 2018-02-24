@@ -2377,32 +2377,22 @@ EXPORT_SYMBOL(d_hash_and_lookup);
  
 void d_delete(struct dentry * dentry)
 {
-	struct inode *inode;
-	int isdir = 0;
+	struct inode *inode = dentry->d_inode;
+	int isdir = d_is_dir(dentry);
+
+	spin_lock(&inode->i_lock);
+	spin_lock(&dentry->d_lock);
 	/*
 	 * Are we the only user?
 	 */
-again:
-	spin_lock(&dentry->d_lock);
-	inode = dentry->d_inode;
-	isdir = S_ISDIR(inode->i_mode);
 	if (dentry->d_lockref.count == 1) {
-		if (!spin_trylock(&inode->i_lock)) {
-			spin_unlock(&dentry->d_lock);
-			cpu_relax();
-			goto again;
-		}
 		dentry->d_flags &= ~DCACHE_CANT_MOUNT;
 		dentry_unlink_inode(dentry);
-		fsnotify_nameremove(dentry, isdir);
-		return;
-	}
-
-	if (!d_unhashed(dentry))
+	} else {
 		__d_drop(dentry);
-
-	spin_unlock(&dentry->d_lock);
-
+		spin_unlock(&dentry->d_lock);
+		spin_unlock(&inode->i_lock);
+	}
 	fsnotify_nameremove(dentry, isdir);
 }
 EXPORT_SYMBOL(d_delete);
