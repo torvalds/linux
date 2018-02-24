@@ -769,24 +769,6 @@ static void vpu_service_session_clear(struct vpu_subdev_data *data,
 	}
 }
 
-static void vpu_service_clear(struct vpu_subdev_data *data)
-{
-	struct vpu_reg *reg, *n;
-	struct vpu_session *session, *s;
-	struct vpu_service_info *pservice = data->pservice;
-
-	list_for_each_entry_safe(reg, n, &pservice->waiting, status_link) {
-		reg_deinit(reg->data, reg);
-	}
-
-	/* wake up session wait event to prevent the timeout hw reset
-	 * during reboot procedure.
-	 */
-	list_for_each_entry_safe(session, s,
-				 &pservice->session, list_session)
-		wake_up(&session->wait);
-}
-
 #if VCODEC_CLOCK_ENABLE
 static void set_div_clk(struct clk *clock, int divide)
 {
@@ -3503,13 +3485,15 @@ static void vcodec_shutdown(struct platform_device *pdev)
 {
 	struct vpu_subdev_data *data = platform_get_drvdata(pdev);
 	struct vpu_service_info *pservice = data->pservice;
-	struct device_node *np = pdev->dev.of_node;
 	int val;
 	int ret;
-	int i;
 
 	dev_info(&pdev->dev, "vcodec shutdown");
 
+	/*
+	 * just wait for hardware finishing his work
+	 * and do nothing else.
+	 */
 	mutex_lock(&pservice->shutdown_lock);
 	atomic_set(&pservice->service_on, 0);
 	mutex_unlock(&pservice->shutdown_lock);
@@ -3521,22 +3505,6 @@ static void vcodec_shutdown(struct platform_device *pdev)
 		dev_err(&pdev->dev, "wait total running time out\n");
 
 	data->pservice->curr_mode = VCODEC_RUNNING_MODE_NONE;
-	vpu_service_clear(data);
-	if (of_property_read_bool(np, "subcnt")) {
-		for (i = 0; i < pservice->subcnt; i++) {
-			struct device_node *sub_np;
-			struct platform_device *sub_pdev;
-
-			sub_np = of_parse_phandle(np, "rockchip,sub", i);
-			sub_pdev = of_find_device_by_node(sub_np);
-			vcodec_subdev_remove(platform_get_drvdata(sub_pdev));
-		}
-
-	} else {
-		vcodec_subdev_remove(data);
-	}
-
-	pm_runtime_disable(&pdev->dev);
 }
 
 MODULE_DEVICE_TABLE(of, vcodec_service_dt_ids);
