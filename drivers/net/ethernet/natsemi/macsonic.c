@@ -311,9 +311,6 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 	int sr;
 	bool commslot = macintosh_config->expansion_type == MAC_EXP_PDS_COMM;
 
-	if (!MACH_IS_MAC)
-		return -ENODEV;
-
 	printk(KERN_INFO "Checking for internal Macintosh ethernet (SONIC).. ");
 
 	/* Bogus probing, on the models which may or may not have
