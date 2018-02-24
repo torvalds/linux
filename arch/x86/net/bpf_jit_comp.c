@@ -60,7 +60,12 @@ static bool is_imm8(int value)
 
 static bool is_simm32(s64 value)
 {
-	return value == (s64) (s32) value;
+	return value == (s64)(s32)value;
+}
+
+static bool is_uimm32(u64 value)
+{
+	return value == (u64)(u32)value;
 }
 
 /* mov dst, src */
@@ -355,6 +360,68 @@ static void emit_load_skb_data_hlen(u8 **pprog)
 	*pprog = prog;
 }
 
+static void emit_mov_imm32(u8 **pprog, bool sign_propagate,
+			   u32 dst_reg, const u32 imm32)
+{
+	u8 *prog = *pprog;
+	u8 b1, b2, b3;
+	int cnt = 0;
+
+	/* optimization: if imm32 is positive, use 'mov %eax, imm32'
+	 * (which zero-extends imm32) to save 2 bytes.
+	 */
+	if (sign_propagate && (s32)imm32 < 0) {
+		/* 'mov %rax, imm32' sign extends imm32 */
+		b1 = add_1mod(0x48, dst_reg);
+		b2 = 0xC7;
+		b3 = 0xC0;
+		EMIT3_off32(b1, b2, add_1reg(b3, dst_reg), imm32);
+		goto done;
+	}
+
+	/* optimization: if imm32 is zero, use 'xor %eax, %eax'
+	 * to save 3 bytes.
+	 */
+	if (imm32 == 0) {
+		if (is_ereg(dst_reg))
+			EMIT1(add_2mod(0x40, dst_reg, dst_reg));
+		b2 = 0x31; /* xor */
+		b3 = 0xC0;
+		EMIT2(b2, add_2reg(b3, dst_reg, dst_reg));
+		goto done;
+	}
+
+	/* mov %eax, imm32 */
+	if (is_ereg(dst_reg))
+		EMIT1(add_1mod(0x40, dst_reg));
+	EMIT1_off32(add_1reg(0xB8, dst_reg), imm32);
+done:
+	*pprog = prog;
+}
+
+static void emit_mov_imm64(u8 **pprog, u32 dst_reg,
+			   const u32 imm32_hi, const u32 imm32_lo)
+{
+	u8 *prog = *pprog;
+	int cnt = 0;
+
+	if (is_uimm32(((u64)imm32_hi << 32) | (u32)imm32_lo)) {
+		/* For emitting plain u32, where sign bit must not be
+		 * propagated LLVM tends to load imm64 over mov32
+		 * directly, so save couple of bytes by just doing
+		 * 'mov %eax, imm32' instead.
+		 */
+		emit_mov_imm32(&prog, false, dst_reg, imm32_lo);
+	} else {
+		/* movabsq %rax, imm64 */
+		EMIT2(add_1mod(0x48, dst_reg), add_1reg(0xB8, dst_reg));
+		EMIT(imm32_lo, 4);
+		EMIT(imm32_hi, 4);
+	}
+
+	*pprog = prog;
+}
+
 static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		  int oldproglen, struct jit_context *ctx)
 {
@@ -377,7 +444,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 		const s32 imm32 = insn->imm;
 		u32 dst_reg = insn->dst_reg;
 		u32 src_reg = insn->src_reg;
-		u8 b1 = 0, b2 = 0, b3 = 0;
+		u8 b2 = 0, b3 = 0;
 		s64 jmp_offset;
 		u8 jmp_cond;
 		bool reload_skb_data;
@@ -485,58 +552,13 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			break;
 
 		case BPF_ALU64 | BPF_MOV | BPF_K:
-			/* optimization: if imm32 is positive,
-			 * use 'mov eax, imm32' (which zero-extends imm32)
-			 * to save 2 bytes
-			 */
-			if (imm32 < 0) {
-				/* 'mov rax, imm32' sign extends imm32 */
-				b1 = add_1mod(0x48, dst_reg);
-				b2 = 0xC7;
-				b3 = 0xC0;
-				EMIT3_off32(b1, b2, add_1reg(b3, dst_reg), imm32);
-				break;
-			}
-
 		case BPF_ALU | BPF_MOV | BPF_K:
-			/* optimization: if imm32 is zero, use 'xor <dst>,<dst>'
-			 * to save 3 bytes.
-			 */
-			if (imm32 == 0) {
-				if (is_ereg(dst_reg))
-					EMIT1(add_2mod(0x40, dst_reg, dst_reg));
-				b2 = 0x31; /* xor */
-				b3 = 0xC0;
-				EMIT2(b2, add_2reg(b3, dst_reg, dst_reg));
-				break;
-			}
-
-			/* mov %eax, imm32 */
-			if (is_ereg(dst_reg))
-				EMIT1(add_1mod(0x40, dst_reg));
-			EMIT1_off32(add_1reg(0xB8, dst_reg), imm32);
+			emit_mov_imm32(&prog, BPF_CLASS(insn->code) == BPF_ALU64,
+				       dst_reg, imm32);
 			break;
 
 		case BPF_LD | BPF_IMM | BPF_DW:
-			/* optimization: if imm64 is zero, use 'xor <dst>,<dst>'
-			 * to save 7 bytes.
-			 */
-			if (insn[0].imm == 0 && insn[1].imm == 0) {
-				b1 = add_2mod(0x48, dst_reg, dst_reg);
-				b2 = 0x31; /* xor */
-				b3 = 0xC0;
-				EMIT3(b1, b2, add_2reg(b3, dst_reg, dst_reg));
-
-				insn++;
-				i++;
-				break;
-			}
-
-			/* movabsq %rax, imm64 */
-			EMIT2(add_1mod(0x48, dst_reg), add_1reg(0xB8, dst_reg));
-			EMIT(insn[0].imm, 4);
-			EMIT(insn[1].imm, 4);
-
+			emit_mov_imm64(&prog, dst_reg, insn[1].imm, insn[0].imm);
 			insn++;
 			i++;
 			break;
@@ -604,7 +626,8 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 				EMIT_mov(BPF_REG_0, src_reg);
 			else
 				/* mov rax, imm32 */
-				EMIT3_off32(0x48, 0xC7, 0xC0, imm32);
+				emit_mov_imm32(&prog, true,
+					       BPF_REG_0, imm32);
 
 			if (BPF_CLASS(insn->code) == BPF_ALU64)
 				EMIT1(add_1mod(0x48, AUX_REG));
