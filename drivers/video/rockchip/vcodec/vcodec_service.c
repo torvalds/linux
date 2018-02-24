@@ -2198,6 +2198,21 @@ static void vcodec_get_reg_freq_default(struct vpu_subdev_data *data,
 					struct vpu_reg *reg)
 {
 	reg->freq = VPU_FREQ_300M;
+
+	if (data->hw_id == HEVC_ID) {
+		if (reg_probe_hevc_y_stride(reg) > 60000)
+			reg->freq = VPU_FREQ_400M;
+	}
+
+	if (reg->type == VPU_PP)
+		reg->freq = VPU_FREQ_400M;
+}
+
+static void vcodec_get_reg_freq_rk3288(struct vpu_subdev_data *data,
+				       struct vpu_reg *reg)
+{
+	vcodec_get_reg_freq_default(data, reg);
+
 	if (reg->type == VPU_DEC || reg->type == VPU_DEC_PP) {
 		if (reg_check_fmt(reg) == VPU_DEC_FMT_H264) {
 			if (reg_probe_width(reg) > 2560) {
@@ -2211,14 +2226,6 @@ static void vcodec_get_reg_freq_default(struct vpu_subdev_data *data,
 			reg->freq = VPU_FREQ_400M;
 		}
 	}
-
-	if (data->hw_id == HEVC_ID) {
-		if (reg_probe_hevc_y_stride(reg) > 60000)
-			reg->freq = VPU_FREQ_400M;
-	}
-
-	if (reg->type == VPU_PP)
-		reg->freq = VPU_FREQ_400M;
 }
 
 static void vcodec_set_freq_default(struct vpu_service_info *pservice,
@@ -2630,6 +2637,8 @@ static void vcodec_set_hw_ops(struct vpu_service_info *pservice)
 		} else if (of_machine_is_compatible("rockchip,rk3126") ||
 				of_machine_is_compatible("rockchip,rk3128")) {
 			pservice->hw_ops->power_on = vcodec_power_on_rk312x;
+		} else if (of_machine_is_compatible("rockchip,rk3288")) {
+			pservice->hw_ops->get_freq = vcodec_get_reg_freq_rk3288;
 		}
 	}
 }
