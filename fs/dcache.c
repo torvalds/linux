@@ -588,13 +588,9 @@ static void __dentry_kill(struct dentry *dentry)
 		dentry_free(dentry);
 }
 
-static inline struct dentry *lock_parent(struct dentry *dentry)
+static struct dentry *__lock_parent(struct dentry *dentry)
 {
-	struct dentry *parent = dentry->d_parent;
-	if (IS_ROOT(dentry))
-		return NULL;
-	if (likely(spin_trylock(&parent->d_lock)))
-		return parent;
+	struct dentry *parent;
 	rcu_read_lock();
 	spin_unlock(&dentry->d_lock);
 again:
@@ -618,6 +614,16 @@ again:
 	else
 		parent = NULL;
 	return parent;
+}
+
+static inline struct dentry *lock_parent(struct dentry *dentry)
+{
+	struct dentry *parent = dentry->d_parent;
+	if (IS_ROOT(dentry))
+		return NULL;
+	if (likely(spin_trylock(&parent->d_lock)))
+		return parent;
+	return __lock_parent(dentry);
 }
 
 /*
