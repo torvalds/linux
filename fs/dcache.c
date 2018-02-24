@@ -651,23 +651,43 @@ static struct dentry *dentry_kill(struct dentry *dentry)
 	struct dentry *parent = NULL;
 
 	if (inode && unlikely(!spin_trylock(&inode->i_lock)))
-		goto failed;
+		goto slow_positive;
 
 	if (!IS_ROOT(dentry)) {
 		parent = dentry->d_parent;
 		if (unlikely(!spin_trylock(&parent->d_lock))) {
-			if (inode)
-				spin_unlock(&inode->i_lock);
-			goto failed;
+			parent = __lock_parent(dentry);
+			if (likely(inode || !dentry->d_inode))
+				goto got_locks;
+			/* negative that became positive */
+			if (parent)
+				spin_unlock(&parent->d_lock);
+			inode = dentry->d_inode;
+			goto slow_positive;
 		}
 	}
-
 	__dentry_kill(dentry);
 	return parent;
 
-failed:
+slow_positive:
 	spin_unlock(&dentry->d_lock);
-	return dentry; /* try again with same dentry */
+	spin_lock(&inode->i_lock);
+	spin_lock(&dentry->d_lock);
+	parent = lock_parent(dentry);
+got_locks:
+	if (unlikely(dentry->d_lockref.count != 1)) {
+		dentry->d_lockref.count--;
+	} else if (likely(!retain_dentry(dentry))) {
+		__dentry_kill(dentry);
+		return parent;
+	}
+	/* we are keeping it, after all */
+	if (inode)
+		spin_unlock(&inode->i_lock);
+	if (parent)
+		spin_unlock(&parent->d_lock);
+	spin_unlock(&dentry->d_lock);
+	return NULL;
 }
 
 /*
