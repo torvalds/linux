@@ -934,7 +934,7 @@ long adv_camera_module_ioctl(struct v4l2_subdev *sd,
 			adv_timings.fine_integration_time_min;
 
 		if (cam_mod->custom.g_exposure_valid_frame)
-			timings->exposure_valid_frame =
+			timings->exposure_valid_frame[0] =
 				cam_mod->custom.g_exposure_valid_frame(cam_mod);
 		if (cam_mod->exp_config.exp_time)
 			timings->exp_time = cam_mod->exp_config.exp_time;
