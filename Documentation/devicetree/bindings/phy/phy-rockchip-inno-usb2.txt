@@ -21,8 +21,8 @@ Optional properties:
 		 usb-phy output 480m and xin24m.
 		 Refer to clk/clock-bindings.txt for generic clock
 		 consumer properties.
- - rockchip,u2phy-tuning; when set, tuning u2phy to improve usb2 SI.
- - otg-vbus-gpios : assign the gpio to control vbus of otg port.
+ - rockchip,u2phy-tuning: when set, tuning u2phy to improve usb2 SI.
+ - vbus-supply: regulator phandle for vbus power source.
 
 Required nodes : a sub-node is required for each port the phy provides.
 		 The sub-node name is used to identify host or otg port,
