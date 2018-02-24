@@ -974,56 +974,86 @@ restart:
 }
 EXPORT_SYMBOL(d_prune_aliases);
 
+/*
+ * Lock a dentry from shrink list.
+ * Note that dentry is *not* protected from concurrent dentry_kill(),
+ * d_delete(), etc.  It is protected from freeing (by the fact of
+ * being on a shrink list), but everything else is fair game.
+ * Return false if dentry has been disrupted or grabbed, leaving
+ * the caller to kick it off-list.  Otherwise, return true and have
+ * that dentry's inode and parent both locked.
+ */
+static bool shrink_lock_dentry(struct dentry *dentry)
+{
+	struct inode *inode;
+	struct dentry *parent;
+
+	if (dentry->d_lockref.count)
+		return false;
+
+	inode = dentry->d_inode;
+	if (inode && unlikely(!spin_trylock(&inode->i_lock))) {
+		rcu_read_lock();	/* to protect inode */
+		spin_unlock(&dentry->d_lock);
+		spin_lock(&inode->i_lock);
+		spin_lock(&dentry->d_lock);
+		if (unlikely(dentry->d_lockref.count))
+			goto out;
+		/* changed inode means that somebody had grabbed it */
+		if (unlikely(inode != dentry->d_inode))
+			goto out;
+		rcu_read_unlock();
+	}
+
+	parent = dentry->d_parent;
+	if (IS_ROOT(dentry) || likely(spin_trylock(&parent->d_lock)))
+		return true;
+
+	rcu_read_lock();		/* to protect parent */
+	spin_unlock(&dentry->d_lock);
+	parent = READ_ONCE(dentry->d_parent);
+	spin_lock(&parent->d_lock);
+	if (unlikely(parent != dentry->d_parent)) {
+		spin_unlock(&parent->d_lock);
+		spin_lock(&dentry->d_lock);
+		goto out;
+	}
+	spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
+	if (likely(!dentry->d_lockref.count)) {
+		rcu_read_unlock();
+		return true;
+	}
+	spin_unlock(&parent->d_lock);
+out:
+	if (inode)
+		spin_unlock(&inode->i_lock);
+	rcu_read_unlock();
+	return false;
+}
+
 static void shrink_dentry_list(struct list_head *list)
 {
-	struct dentry *dentry, *parent;
-
 	while (!list_empty(list)) {
+		struct dentry *dentry, *parent;
 		struct inode *inode;
+
 		dentry = list_entry(list->prev, struct dentry, d_lru);
 		spin_lock(&dentry->d_lock);
-		parent = lock_parent(dentry);
-
-		/*
-		 * The dispose list is isolated and dentries are not accounted
-		 * to the LRU here, so we can simply remove it from the list
-		 * here regardless of whether it is referenced or not.
-		 */
-		d_shrink_del(dentry);
-
-		/*
-		 * We found an inuse dentry which was not removed from
-		 * the LRU because of laziness during lookup. Do not free it.
-		 */
-		if (dentry->d_lockref.count > 0) {
+		if (!shrink_lock_dentry(dentry)) {
+			bool can_free = false;
+			d_shrink_del(dentry);
+			if (dentry->d_lockref.count < 0)
+				can_free = dentry->d_flags & DCACHE_MAY_FREE;
 			spin_unlock(&dentry->d_lock);
-			if (parent)
-				spin_unlock(&parent->d_lock);
-			continue;
-		}
-
-
-		if (unlikely(dentry->d_flags & DCACHE_DENTRY_KILLED)) {
-			bool can_free = dentry->d_flags & DCACHE_MAY_FREE;
-			spin_unlock(&dentry->d_lock);
-			if (parent)
-				spin_unlock(&parent->d_lock);
 			if (can_free)
 				dentry_free(dentry);
 			continue;
 		}
-
-		inode = dentry->d_inode;
-		if (inode && unlikely(!spin_trylock(&inode->i_lock))) {
-			d_shrink_add(dentry, list);
-			spin_unlock(&dentry->d_lock);
-			if (parent)
-				spin_unlock(&parent->d_lock);
-			continue;
-		}
-
+		d_shrink_del(dentry);
+		parent = dentry->d_parent;
 		__dentry_kill(dentry);
-
+		if (parent == dentry)
+			continue;
 		/*
 		 * We need to prune ancestors too. This is necessary to prevent
 		 * quadratic behavior of shrink_dcache_parent(), but is also
