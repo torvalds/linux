@@ -449,8 +449,9 @@ static void speak_char(u16 ch)
 		if (*cp == '^') {
 			cp++;
 			synth_printf(" %s%s ", spk_msg_get(MSG_CTRL), cp);
-		} else
+		} else {
 			synth_printf(" %s ", cp);
+		}
 	}
 }
 
@@ -561,7 +562,7 @@ static u_long get_word(struct vc_data *vc)
 		   get_char(vc, (u_short *)&tmp_pos + 1, &temp) > SPACE) {
 		tmp_pos += 2;
 		tmpx++;
-	} else
+	} else {
 		while (tmpx > 0) {
 			ch = get_char(vc, (u_short *)tmp_pos - 1, &temp);
 			if ((ch == SPACE || ch == 0 ||
@@ -571,6 +572,7 @@ static u_long get_word(struct vc_data *vc)
 			tmp_pos -= 2;
 			tmpx--;
 		}
+	}
 	attr_ch = get_char(vc, (u_short *)tmp_pos, &spk_attr);
 	buf[cnt++] = attr_ch;
 	while (tmpx < vc->vc_cols - 1) {
