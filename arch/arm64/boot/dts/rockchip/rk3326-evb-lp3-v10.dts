@@ -28,25 +28,25 @@
 		esc-key {
 			linux,code = <KEY_ESC>;
 			label = "esc";
-			press-threshold-microvolt = <1270000>;
+			press-threshold-microvolt = <1310000>;
 		};
 
 		home-key {
 			linux,code = <KEY_HOME>;
 			label = "home";
-			press-threshold-microvolt = <602000>;
+			press-threshold-microvolt = <624000>;
 		};
 
 		menu-key {
 			linux,code = <KEY_MENU>;
 			label = "menu";
-			press-threshold-microvolt = <952000>;
+			press-threshold-microvolt = <987000>;
 		};
 
 		vol-down-key {
 			linux,code = <KEY_VOLUMEDOWN>;
 			label = "volume down";
-			press-threshold-microvolt = <290000>;
+			press-threshold-microvolt = <300000>;
 		};
 
 		vol-up-key {

@@ -28,7 +28,7 @@
 		vol-down-key {
 			linux,code = <KEY_VOLUMEDOWN>;
 			label = "volume down";
-			press-threshold-microvolt = <290000>;
+			press-threshold-microvolt = <300000>;
 		};
 
 		vol-up-key {
