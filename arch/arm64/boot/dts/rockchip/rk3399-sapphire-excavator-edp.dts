@@ -118,38 +118,6 @@
 	enable-gpios = <&gpio4 29 GPIO_ACTIVE_HIGH>;
 };
 
-&dfi {
-	status = "disabled";
-};
-
-&dmc {
-	status = "disabled";
-	center-supply = <&vdd_center>;
-	upthreshold = <45>;
-	downdifferential = <20>;
-	system-status-freq = <
-		/*system status         freq(KHz)*/
-		SYS_STATUS_NORMAL       800000
-		SYS_STATUS_REBOOT       528000
-		SYS_STATUS_SUSPEND      200000
-		SYS_STATUS_VIDEO_1080P  200000
-		SYS_STATUS_VIDEO_4K     600000
-		SYS_STATUS_VIDEO_4K_10B 800000
-		SYS_STATUS_PERFORMANCE  800000
-		SYS_STATUS_BOOST        400000
-		SYS_STATUS_DUALVIEW     600000
-		SYS_STATUS_ISP          600000
-	>;
-	vop-bw-dmc-freq = <
-	/* min_bw(MB/s) max_bw(MB/s) freq(KHz) */
-		0       762      200000
-		763     1893     400000
-		1894    3012     528000
-		3013    99999    800000
-	>;
-	auto-min-freq = <200000>;
-};
-
 &edp {
 	status = "okay";
 	force-hpd;
