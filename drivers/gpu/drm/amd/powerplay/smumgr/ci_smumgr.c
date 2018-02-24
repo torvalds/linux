@@ -2766,32 +2766,6 @@ static bool ci_is_dpm_running(struct pp_hwmgr *hwmgr)
 	return ci_is_smc_ram_running(hwmgr);
 }
 
-static int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
-						struct amd_pp_profile *request)
-{
-	struct ci_smumgr *smu_data = (struct ci_smumgr *)
-			(hwmgr->smu_backend);
-	struct SMU7_Discrete_GraphicsLevel *levels =
-			smu_data->smc_state_table.GraphicsLevel;
-	uint32_t array = smu_data->dpm_table_start +
-			offsetof(SMU7_Discrete_DpmTable, GraphicsLevel);
-	uint32_t array_size = sizeof(struct SMU7_Discrete_GraphicsLevel) *
-			SMU7_MAX_LEVELS_GRAPHICS;
-	uint32_t i;
-
-	for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
-		levels[i].ActivityLevel =
-				cpu_to_be16(request->activity_threshold);
-		levels[i].EnabledForActivity = 1;
-		levels[i].UpH = request->up_hyst;
-		levels[i].DownH = request->down_hyst;
-	}
-
-	return ci_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
-				array_size, SMC_RAM_END);
-}
-
-
 static int ci_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct ci_smumgr *ci_priv = NULL;
@@ -2936,6 +2910,5 @@ const struct pp_smumgr_func ci_smu_funcs = {
 	.get_mac_definition = ci_get_mac_definition,
 	.initialize_mc_reg_table = ci_initialize_mc_reg_table,
 	.is_dpm_running = ci_is_dpm_running,
-	.populate_requested_graphic_levels = ci_populate_requested_graphic_levels,
 	.update_dpm_settings = ci_update_dpm_settings,
 };

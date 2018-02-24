@@ -129,9 +129,6 @@ extern uint32_t smum_get_mac_definition(struct pp_hwmgr *hwmgr, uint32_t value);
 
 extern bool smum_is_dpm_running(struct pp_hwmgr *hwmgr);
 
-extern int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request);
-
 extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 
 extern int smum_update_dpm_settings(struct pp_hwmgr *hwmgr, void *profile_setting);

@@ -4584,82 +4584,6 @@ static int smu7_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type
 	return 0;
 }
 
-static void smu7_find_min_clock_masks(struct pp_hwmgr *hwmgr,
-		uint32_t *sclk_mask, uint32_t *mclk_mask,
-		uint32_t min_sclk, uint32_t min_mclk)
-{
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct smu7_dpm_table *dpm_table = &(data->dpm_table);
-	uint32_t i;
-
-	for (i = 0; i < dpm_table->sclk_table.count; i++) {
-		if (dpm_table->sclk_table.dpm_levels[i].enabled &&
-			dpm_table->sclk_table.dpm_levels[i].value >= min_sclk)
-			*sclk_mask |= 1 << i;
-	}
-
-	for (i = 0; i < dpm_table->mclk_table.count; i++) {
-		if (dpm_table->mclk_table.dpm_levels[i].enabled &&
-			dpm_table->mclk_table.dpm_levels[i].value >= min_mclk)
-			*mclk_mask |= 1 << i;
-	}
-}
-
-static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request)
-{
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	int tmp_result, result = 0;
-	uint32_t sclk_mask = 0, mclk_mask = 0;
-
-	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
-		return -EINVAL;
-
-	if (smum_is_dpm_running(hwmgr)) {
-		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_FreezeLevel);
-
-		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_FreezeLevel);
-	}
-
-	tmp_result = smum_populate_requested_graphic_levels(hwmgr, request);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to populate requested graphic levels!",
-			result = tmp_result);
-
-	if (smum_is_dpm_running(hwmgr)) {
-		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_UnfreezeLevel);
-
-		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_UnfreezeLevel);
-	}
-
-	smu7_find_min_clock_masks(hwmgr, &sclk_mask, &mclk_mask,
-			request->min_sclk, request->min_mclk);
-
-	if (sclk_mask) {
-		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SCLKDPM_SetEnabledMask,
-				data->dpm_level_enable_mask.
-				sclk_dpm_enable_mask &
-				sclk_mask);
-	}
-
-	if (mclk_mask) {
-		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_MCLKDPM_SetEnabledMask,
-				data->dpm_level_enable_mask.
-				mclk_dpm_enable_mask &
-				mclk_mask);
-	}
-
-	return result;
-}
-
 static int smu7_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
@@ -5104,7 +5028,6 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_clock_by_type = smu7_get_clock_by_type,
 	.read_sensor = smu7_read_sensor,
 	.dynamic_state_management_disable = smu7_disable_dpm_tasks,
-	.set_power_profile_state = smu7_set_power_profile_state,
 	.avfs_control = smu7_avfs_control,
 	.disable_smc_firmware_ctf = smu7_thermal_disable_alert,
 	.start_thermal_controller = smu7_start_thermal_controller,

@@ -252,13 +252,6 @@ struct amd_pm_funcs {
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
 	void (*debugfs_print_current_performance_level)(void *handle, struct seq_file *m);
-
-	int (*reset_power_profile_state)(void *handle,
-			struct amd_pp_profile *request);
-	int (*get_power_profile_state)(void *handle,
-			struct amd_pp_profile *query);
-	int (*set_power_profile_state)(void *handle,
-			struct amd_pp_profile *request);
 	int (*switch_power_profile)(void *handle,
 			enum amd_pp_profile_type type);
 /* export to amdgpu */

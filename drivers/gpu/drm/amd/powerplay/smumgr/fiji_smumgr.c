@@ -1960,44 +1960,6 @@ static int fiji_init_arb_table_index(struct pp_hwmgr *hwmgr)
 			smu_data->smu7_data.arb_table_start,  tmp, SMC_RAM_END);
 }
 
-static int fiji_save_default_power_profile(struct pp_hwmgr *hwmgr)
-{
-	struct fiji_smumgr *data = (struct fiji_smumgr *)(hwmgr->smu_backend);
-	struct SMU73_Discrete_GraphicsLevel *levels =
-				data->smc_state_table.GraphicsLevel;
-	unsigned min_level = 1;
-
-	hwmgr->default_gfx_power_profile.activity_threshold =
-			be16_to_cpu(levels[0].ActivityLevel);
-	hwmgr->default_gfx_power_profile.up_hyst = levels[0].UpHyst;
-	hwmgr->default_gfx_power_profile.down_hyst = levels[0].DownHyst;
-	hwmgr->default_gfx_power_profile.type = AMD_PP_GFX_PROFILE;
-
-	hwmgr->default_compute_power_profile = hwmgr->default_gfx_power_profile;
-	hwmgr->default_compute_power_profile.type = AMD_PP_COMPUTE_PROFILE;
-
-	/* Workaround compute SDMA instability: disable lowest SCLK
-	 * DPM level. Optimize compute power profile: Use only highest
-	 * 2 power levels (if more than 2 are available), Hysteresis:
-	 * 0ms up, 5ms down
-	 */
-	if (data->smc_state_table.GraphicsDpmLevelCount > 2)
-		min_level = data->smc_state_table.GraphicsDpmLevelCount - 2;
-	else if (data->smc_state_table.GraphicsDpmLevelCount == 2)
-		min_level = 1;
-	else
-		min_level = 0;
-	hwmgr->default_compute_power_profile.min_sclk =
-			be32_to_cpu(levels[min_level].SclkFrequency);
-	hwmgr->default_compute_power_profile.up_hyst = 0;
-	hwmgr->default_compute_power_profile.down_hyst = 5;
-
-	hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
-	hwmgr->compute_power_profile = hwmgr->default_compute_power_profile;
-
-	return 0;
-}
-
 static int fiji_setup_dpm_led_config(struct pp_hwmgr *hwmgr)
 {
 	pp_atomctrl_voltage_table param_led_dpm;
@@ -2237,8 +2199,6 @@ static int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = fiji_setup_dpm_led_config(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			    "Failed to setup dpm led config", return result);
-
-	fiji_save_default_power_profile(hwmgr);
 
 	return 0;
 }
@@ -2694,31 +2654,6 @@ static bool fiji_is_dpm_running(struct pp_hwmgr *hwmgr)
 			? true : false;
 }
 
-static int fiji_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request)
-{
-	struct fiji_smumgr *smu_data = (struct fiji_smumgr *)
-			(hwmgr->smu_backend);
-	struct SMU73_Discrete_GraphicsLevel *levels =
-			smu_data->smc_state_table.GraphicsLevel;
-	uint32_t array = smu_data->smu7_data.dpm_table_start +
-			offsetof(SMU73_Discrete_DpmTable, GraphicsLevel);
-	uint32_t array_size = sizeof(struct SMU73_Discrete_GraphicsLevel) *
-			SMU73_MAX_LEVELS_GRAPHICS;
-	uint32_t i;
-
-	for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
-		levels[i].ActivityLevel =
-				cpu_to_be16(request->activity_threshold);
-		levels[i].EnabledForActivity = 1;
-		levels[i].UpHyst = request->up_hyst;
-		levels[i].DownHyst = request->down_hyst;
-	}
-
-	return smu7_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
-				array_size, SMC_RAM_END);
-}
-
 static int fiji_update_dpm_settings(struct pp_hwmgr *hwmgr,
 				void *profile_setting)
 {
@@ -2838,7 +2773,6 @@ const struct pp_smumgr_func fiji_smu_funcs = {
 	.get_mac_definition = fiji_get_mac_definition,
 	.initialize_mc_reg_table = fiji_initialize_mc_reg_table,
 	.is_dpm_running = fiji_is_dpm_running,
-	.populate_requested_graphic_levels = fiji_populate_requested_graphic_levels,
 	.is_hw_avfs_present = fiji_is_hw_avfs_present,
 	.update_dpm_settings = fiji_update_dpm_settings,
 };

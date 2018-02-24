@@ -236,8 +236,6 @@ struct pp_smumgr_func {
 	uint32_t (*get_offsetof)(uint32_t type, uint32_t member);
 	uint32_t (*get_mac_definition)(uint32_t value);
 	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
-	int (*populate_requested_graphic_levels)(struct pp_hwmgr *hwmgr,
-			struct amd_pp_profile *request);
 	bool (*is_hw_avfs_present)(struct pp_hwmgr  *hwmgr);
 	int (*update_dpm_settings)(struct pp_hwmgr *hwmgr, void *profile_setting);
 };
@@ -329,8 +327,6 @@ struct pp_hwmgr_func {
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, void *value, int *size);
-	int (*set_power_profile_state)(struct pp_hwmgr *hwmgr,
-			struct amd_pp_profile *request);
 	int (*avfs_control)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*disable_smc_firmware_ctf)(struct pp_hwmgr *hwmgr);
 	int (*set_active_display_count)(struct pp_hwmgr *hwmgr, uint32_t count);
@@ -753,11 +749,6 @@ struct pp_hwmgr {
 	uint32_t feature_mask;
 
 	/* UMD Pstate */
-	struct amd_pp_profile gfx_power_profile;
-	struct amd_pp_profile compute_power_profile;
-	struct amd_pp_profile default_gfx_power_profile;
-	struct amd_pp_profile default_compute_power_profile;
-	enum amd_pp_profile_type current_power_profile;
 	bool en_umd_pstate;
 	uint32_t power_profile_mode;
 	uint32_t default_power_profile_mode;
