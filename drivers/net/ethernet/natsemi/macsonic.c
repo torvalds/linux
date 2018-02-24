@@ -70,15 +70,6 @@
 #define SONIC_WRITE(reg,val) (nubus_writew(val, dev->base_addr + (reg * 4) \
 	      + lp->reg_offset))
 
-/* use 0 for production, 1 for verification, >1 for debug */
-#ifdef SONIC_DEBUG
-static unsigned int sonic_debug = SONIC_DEBUG;
-#else
-static unsigned int sonic_debug = 1;
-#endif
-
-static int sonic_version_printed;
-
 /* For onboard SONIC */
 #define ONBOARD_SONIC_REGISTERS	0x50F0A000
 #define ONBOARD_SONIC_PROM_BASE	0x50f08000
@@ -333,11 +324,6 @@ static int mac_onboard_sonic_probe(struct net_device *dev)
 	else
 		dev->irq = IRQ_NUBUS_9;
 
-	if (!sonic_version_printed) {
-		printk(KERN_INFO "%s", version);
-		sonic_version_printed = 1;
-	}
-
 	/* The PowerBook's SONIC is 16 bit always. */
 	if (macintosh_config->ident == MAC_MODEL_PB520) {
 		lp->reg_offset = 0;
@@ -499,11 +485,6 @@ static int mac_sonic_nubus_probe_board(struct nubus_board *board, int id,
 	lp->dma_bitmode = dma_bitmode;
 	dev->irq = SLOT2IRQ(board->slot);
 
-	if (!sonic_version_printed) {
-		printk(KERN_INFO "%s", version);
-		sonic_version_printed = 1;
-	}
-
 	dev_info(&board->dev, "%s, revision 0x%04x, %d bit DMA, register offset %d\n",
 		 board->name, SONIC_READ(SONIC_SR),
 		 lp->dma_bitmode ? 32 : 16, lp->reg_offset);
@@ -555,6 +536,8 @@ static int mac_sonic_platform_probe(struct platform_device *pdev)
 	if (err)
 		goto out;
 
+	sonic_msg_init(dev);
+
 	err = register_netdev(dev);
 	if (err)
 		goto out;
@@ -568,8 +551,6 @@ out:
 }
 
 MODULE_DESCRIPTION("Macintosh SONIC ethernet driver");
-module_param(sonic_debug, int, 0);
-MODULE_PARM_DESC(sonic_debug, "macsonic debug level (1-4)");
 MODULE_ALIAS("platform:macsonic");
 
 #include "sonic.c"
@@ -632,6 +613,8 @@ static int mac_sonic_nubus_probe(struct nubus_board *board)
 	err = mac_sonic_nubus_probe_board(board, id, ndev);
 	if (err)
 		goto out;
+
+	sonic_msg_init(ndev);
 
 	err = register_netdev(ndev);
 	if (err)

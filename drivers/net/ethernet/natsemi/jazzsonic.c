@@ -60,14 +60,6 @@ do {									\
 	*((volatile unsigned int *)dev->base_addr+(reg)) = (val);		\
 } while (0)
 
-
-/* use 0 for production, 1 for verification, >1 for debug */
-#ifdef SONIC_DEBUG
-static unsigned int sonic_debug = SONIC_DEBUG;
-#else
-static unsigned int sonic_debug = 1;
-#endif
-
 /*
  * We cannot use station (ethernet) address prefixes to detect the
  * sonic controller since these are board manufacturer depended.
@@ -117,7 +109,6 @@ static const struct net_device_ops sonic_netdev_ops = {
 
 static int sonic_probe1(struct net_device *dev)
 {
-	static unsigned version_printed;
 	unsigned int silicon_revision;
 	unsigned int val;
 	struct sonic_local *lp = netdev_priv(dev);
@@ -133,9 +124,6 @@ static int sonic_probe1(struct net_device *dev)
 	 * the expected location.
 	 */
 	silicon_revision = SONIC_READ(SONIC_SR);
-	if (sonic_debug > 1)
-		printk("SONIC Silicon Revision = 0x%04x\n",silicon_revision);
-
 	i = 0;
 	while (known_revisions[i] != 0xffff &&
 	       known_revisions[i] != silicon_revision)
@@ -146,9 +134,6 @@ static int sonic_probe1(struct net_device *dev)
 			silicon_revision);
 		goto out;
 	}
-
-	if (sonic_debug  &&  version_printed++ == 0)
-		printk(version);
 
 	/*
 	 * Put the sonic into software reset, then
@@ -246,6 +231,8 @@ static int jazz_sonic_probe(struct platform_device *pdev)
 	pr_info("SONIC ethernet @%08lx, MAC %pM, IRQ %d\n",
 		dev->base_addr, dev->dev_addr, dev->irq);
 
+	sonic_msg_init(dev);
+
 	err = register_netdev(dev);
 	if (err)
 		goto out1;
@@ -261,8 +248,6 @@ out:
 }
 
 MODULE_DESCRIPTION("Jazz SONIC ethernet driver");
-module_param(sonic_debug, int, 0);
-MODULE_PARM_DESC(sonic_debug, "jazzsonic debug level (1-4)");
 MODULE_ALIAS("platform:jazzsonic");
 
 #include "sonic.c"
