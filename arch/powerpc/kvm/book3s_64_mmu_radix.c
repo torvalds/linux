@@ -345,7 +345,7 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	unsigned long gpa, gfn, hva, pfn;
 	struct kvm_memory_slot *memslot;
 	struct page *page = NULL, *pages[1];
-	long ret, npages, ok;
+	long ret, npages;
 	unsigned int writing;
 	struct vm_area_struct *vma;
 	unsigned long flags;
@@ -397,43 +397,29 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	if (dsisr & DSISR_SET_RC) {
 		/*
 		 * Need to set an R or C bit in the 2nd-level tables;
-		 * if the relevant bits aren't already set in the linux
-		 * page tables, fall through to do the gup_fast to
-		 * set them in the linux page tables too.
+		 * since we are just helping out the hardware here,
+		 * it is sufficient to do what the hardware does.
 		 */
-		ok = 0;
 		pgflags = _PAGE_ACCESSED;
 		if (writing)
 			pgflags |= _PAGE_DIRTY;
-		local_irq_save(flags);
-		ptep = find_current_mm_pte(current->mm->pgd, hva, NULL, NULL);
-		if (ptep) {
-			pte = READ_ONCE(*ptep);
-			if (pte_present(pte) &&
-			    (pte_val(pte) & pgflags) == pgflags)
-				ok = 1;
+		/*
+		 * We are walking the secondary page table here. We can do this
+		 * without disabling irq.
+		 */
+		spin_lock(&kvm->mmu_lock);
+		ptep = __find_linux_pte(kvm->arch.pgtable,
+					gpa, NULL, &shift);
+		if (ptep && pte_present(*ptep) &&
+		    (!writing || pte_write(*ptep))) {
+			kvmppc_radix_update_pte(kvm, ptep, 0, pgflags,
+						gpa, shift);
+			dsisr &= ~DSISR_SET_RC;
 		}
-		local_irq_restore(flags);
-		if (ok) {
-			spin_lock(&kvm->mmu_lock);
-			if (mmu_notifier_retry(vcpu->kvm, mmu_seq)) {
-				spin_unlock(&kvm->mmu_lock);
-				return RESUME_GUEST;
-			}
-			/*
-			 * We are walking the secondary page table here. We can do this
-			 * without disabling irq.
-			 */
-			ptep = __find_linux_pte(kvm->arch.pgtable,
-						gpa, NULL, &shift);
-			if (ptep && pte_present(*ptep)) {
-				kvmppc_radix_update_pte(kvm, ptep, 0, pgflags,
-							gpa, shift);
-				spin_unlock(&kvm->mmu_lock);
-				return RESUME_GUEST;
-			}
-			spin_unlock(&kvm->mmu_lock);
-		}
+		spin_unlock(&kvm->mmu_lock);
+		if (!(dsisr & (DSISR_BAD_FAULT_64S | DSISR_NOHPTE |
+			       DSISR_PROTFAULT | DSISR_SET_RC)))
+			return RESUME_GUEST;
 	}
 
 	ret = -EFAULT;
