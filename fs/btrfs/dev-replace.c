@@ -312,7 +312,7 @@ void btrfs_after_dev_replace_commit(struct btrfs_fs_info *fs_info)
 
 static char* btrfs_dev_name(struct btrfs_device *device)
 {
-	if (test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
+	if (!device || test_bit(BTRFS_DEV_STATE_MISSING, &device->dev_state))
 		return "<missing disk>";
 	else
 		return rcu_str_deref(device->name);
