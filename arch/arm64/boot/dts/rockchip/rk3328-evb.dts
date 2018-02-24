@@ -127,6 +127,28 @@
 		#sound-dai-cells = <0>;
 	};
 
+	vcc_host_vbus: host-vbus-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&host_vbus_drv>;
+		regulator-name = "vcc_host_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+	};
+
+	vcc_otg_vbus: otg-vbus-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&otg_vbus_drv>;
+		regulator-name = "vcc_otg_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+	};
+
 	vcc_phy: vcc-phy-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_phy";
@@ -401,6 +423,18 @@
 			<1 18 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	usb {
+		host_vbus_drv: host-vbus-drv {
+			rockchip,pins =
+				<0 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		otg_vbus_drv: otg-vbus-drv {
+			rockchip,pins =
+				<0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
 };
 
 &pwm3 {
@@ -544,7 +578,6 @@
 };
 
 &u2phy {
-	otg-vbus-gpios = <&gpio0 RK_PD3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
 	u2phy_host: host-port {
@@ -552,12 +585,13 @@
 	};
 
 	u2phy_otg: otg-port {
+		vbus-supply = <&vcc_otg_vbus>;
 		status = "okay";
 	};
 };
 
 &u3phy {
-	vbus-drv-gpios = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+	vbus-supply = <&vcc_host_vbus>;
 	status = "okay";
 };
 
