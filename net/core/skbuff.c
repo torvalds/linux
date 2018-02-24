@@ -77,8 +77,8 @@
 #include <linux/capability.h>
 #include <linux/user_namespace.h>
 
-struct kmem_cache *skbuff_head_cache __read_mostly;
-static struct kmem_cache *skbuff_fclone_cache __read_mostly;
+struct kmem_cache *skbuff_head_cache __ro_after_init;
+static struct kmem_cache *skbuff_fclone_cache __ro_after_init;
 int sysctl_max_skb_frags __read_mostly = MAX_SKB_FRAGS;
 EXPORT_SYMBOL(sysctl_max_skb_frags);
 

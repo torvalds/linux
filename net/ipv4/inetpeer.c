@@ -6,6 +6,7 @@
  *  Authors:	Andrey V. Savochkin <saw@msu.ru>
  */
 
+#include <linux/cache.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -51,7 +52,7 @@
  *		daddr: unchangeable
  */
 
-static struct kmem_cache *peer_cachep __read_mostly;
+static struct kmem_cache *peer_cachep __ro_after_init;
 
 void inet_peer_base_init(struct inet_peer_base *bp)
 {

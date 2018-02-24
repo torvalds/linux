@@ -233,7 +233,7 @@ static int move_addr_to_user(struct sockaddr_storage *kaddr, int klen,
 	return __put_user(klen, ulen);
 }
 
-static struct kmem_cache *sock_inode_cachep __read_mostly;
+static struct kmem_cache *sock_inode_cachep __ro_after_init;
 
 static struct inode *sock_alloc_inode(struct super_block *sb)
 {

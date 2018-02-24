@@ -362,7 +362,7 @@ static void dec_net_namespaces(struct ucounts *ucounts)
 	dec_ucount(ucounts, UCOUNT_NET_NAMESPACES);
 }
 
-static struct kmem_cache *net_cachep;
+static struct kmem_cache *net_cachep __ro_after_init;
 static struct workqueue_struct *netns_wq;
 
 static struct net *net_alloc(void)
