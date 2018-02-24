@@ -640,7 +640,11 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			case BPF_RSH: b3 = 0xE8; break;
 			case BPF_ARSH: b3 = 0xF8; break;
 			}
-			EMIT3(0xC1, add_1reg(b3, dst_reg), imm32);
+
+			if (imm32 == 1)
+				EMIT2(0xD1, add_1reg(b3, dst_reg));
+			else
+				EMIT3(0xC1, add_1reg(b3, dst_reg), imm32);
 			break;
 
 		case BPF_ALU | BPF_LSH | BPF_X:
