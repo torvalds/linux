@@ -150,7 +150,9 @@ static void kvmppc_radix_tlbie_page(struct kvm *kvm, unsigned long addr,
 {
 	int psize = MMU_BASE_PSIZE;
 
-	if (pshift >= PMD_SHIFT)
+	if (pshift >= PUD_SHIFT)
+		psize = MMU_PAGE_1G;
+	else if (pshift >= PMD_SHIFT)
 		psize = MMU_PAGE_2M;
 	addr &= ~0xfffUL;
 	addr |= mmu_psize_defs[psize].ap << 5;
@@ -231,9 +233,9 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 		new_pud = pud_alloc_one(kvm->mm, gpa);
 
 	pmd = NULL;
-	if (pud && pud_present(*pud))
+	if (pud && pud_present(*pud) && !pud_huge(*pud))
 		pmd = pmd_offset(pud, gpa);
-	else
+	else if (level <= 1)
 		new_pmd = pmd_alloc_one(kvm->mm, gpa);
 
 	if (level == 0 && !(pmd && pmd_present(*pmd) && !pmd_is_leaf(*pmd)))
@@ -254,6 +256,50 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 		new_pud = NULL;
 	}
 	pud = pud_offset(pgd, gpa);
+	if (pud_huge(*pud)) {
+		unsigned long hgpa = gpa & PUD_MASK;
+
+		/*
+		 * If we raced with another CPU which has just put
+		 * a 1GB pte in after we saw a pmd page, try again.
+		 */
+		if (level <= 1 && !new_pmd) {
+			ret = -EAGAIN;
+			goto out_unlock;
+		}
+		/* Check if we raced and someone else has set the same thing */
+		if (level == 2 && pud_raw(*pud) == pte_raw(pte)) {
+			ret = 0;
+			goto out_unlock;
+		}
+		/* Valid 1GB page here already, remove it */
+		old = kvmppc_radix_update_pte(kvm, (pte_t *)pud,
+					      ~0UL, 0, hgpa, PUD_SHIFT);
+		kvmppc_radix_tlbie_page(kvm, hgpa, PUD_SHIFT);
+		if (old & _PAGE_DIRTY) {
+			unsigned long gfn = hgpa >> PAGE_SHIFT;
+			struct kvm_memory_slot *memslot;
+			memslot = gfn_to_memslot(kvm, gfn);
+			if (memslot && memslot->dirty_bitmap)
+				kvmppc_update_dirty_map(memslot,
+							gfn, PUD_SIZE);
+		}
+	}
+	if (level == 2) {
+		if (!pud_none(*pud)) {
+			/*
+			 * There's a page table page here, but we wanted to
+			 * install a large page, so remove and free the page
+			 * table page.  new_pmd will be NULL since level == 2.
+			 */
+			new_pmd = pmd_offset(pud, 0);
+			pud_clear(pud);
+			kvmppc_radix_flush_pwc(kvm, gpa);
+		}
+		kvmppc_radix_set_pte_at(kvm, gpa, (pte_t *)pud, pte);
+		ret = 0;
+		goto out_unlock;
+	}
 	if (pud_none(*pud)) {
 		if (!new_pmd)
 			goto out_unlock;
@@ -289,41 +335,43 @@ static int kvmppc_create_pte(struct kvm *kvm, pte_t pte, unsigned long gpa,
 				kvmppc_update_dirty_map(memslot,
 							gfn, PMD_SIZE);
 		}
-	} else if (level == 1 && !pmd_none(*pmd)) {
-		/*
-		 * There's a page table page here, but we wanted to
-		 * install a large page, so remove and free the page
-		 * table page.  new_ptep will be NULL since level == 1.
-		 */
-		new_ptep = pte_offset_kernel(pmd, 0);
-		pmd_clear(pmd);
-		kvmppc_radix_flush_pwc(kvm, gpa);
 	}
-	if (level == 0) {
-		if (pmd_none(*pmd)) {
-			if (!new_ptep)
-				goto out_unlock;
-			pmd_populate(kvm->mm, pmd, new_ptep);
-			new_ptep = NULL;
+	if (level == 1) {
+		if (!pmd_none(*pmd)) {
+			/*
+			 * There's a page table page here, but we wanted to
+			 * install a large page, so remove and free the page
+			 * table page.  new_ptep will be NULL since level == 1.
+			 */
+			new_ptep = pte_offset_kernel(pmd, 0);
+			pmd_clear(pmd);
+			kvmppc_radix_flush_pwc(kvm, gpa);
 		}
-		ptep = pte_offset_kernel(pmd, gpa);
-		if (pte_present(*ptep)) {
-			/* Check if someone else set the same thing */
-			if (pte_raw(*ptep) == pte_raw(pte)) {
-				ret = 0;
-				goto out_unlock;
-			}
-			/* PTE was previously valid, so invalidate it */
-			old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT,
-						      0, gpa, 0);
-			kvmppc_radix_tlbie_page(kvm, gpa, 0);
-			if (old & _PAGE_DIRTY)
-				mark_page_dirty(kvm, gpa >> PAGE_SHIFT);
-		}
-		kvmppc_radix_set_pte_at(kvm, gpa, ptep, pte);
-	} else {
 		kvmppc_radix_set_pte_at(kvm, gpa, pmdp_ptep(pmd), pte);
+		ret = 0;
+		goto out_unlock;
 	}
+	if (pmd_none(*pmd)) {
+		if (!new_ptep)
+			goto out_unlock;
+		pmd_populate(kvm->mm, pmd, new_ptep);
+		new_ptep = NULL;
+	}
+	ptep = pte_offset_kernel(pmd, gpa);
+	if (pte_present(*ptep)) {
+		/* Check if someone else set the same thing */
+		if (pte_raw(*ptep) == pte_raw(pte)) {
+			ret = 0;
+			goto out_unlock;
+		}
+		/* PTE was previously valid, so invalidate it */
+		old = kvmppc_radix_update_pte(kvm, ptep, _PAGE_PRESENT,
+					      0, gpa, 0);
+		kvmppc_radix_tlbie_page(kvm, gpa, 0);
+		if (old & _PAGE_DIRTY)
+			mark_page_dirty(kvm, gpa >> PAGE_SHIFT);
+	}
+	kvmppc_radix_set_pte_at(kvm, gpa, ptep, pte);
 	ret = 0;
 
  out_unlock:
@@ -446,8 +494,13 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		pfn = page_to_pfn(page);
 		if (PageCompound(page)) {
 			pte_size <<= compound_order(compound_head(page));
-			/* See if we can insert a 2MB large-page PTE here */
-			if (pte_size >= PMD_SIZE &&
+			/* See if we can insert a 1GB or 2MB large PTE here */
+			if (pte_size >= PUD_SIZE &&
+			    (gpa & (PUD_SIZE - PAGE_SIZE)) ==
+			    (hva & (PUD_SIZE - PAGE_SIZE))) {
+				level = 2;
+				pfn &= ~((PUD_SIZE >> PAGE_SHIFT) - 1);
+			} else if (pte_size >= PMD_SIZE &&
 			    (gpa & (PMD_SIZE - PAGE_SIZE)) ==
 			    (hva & (PMD_SIZE - PAGE_SIZE))) {
 				level = 1;
@@ -657,6 +710,10 @@ void kvmppc_free_radix(struct kvm *kvm)
 		for (iu = 0; iu < PTRS_PER_PUD; ++iu, ++pud) {
 			if (!pud_present(*pud))
 				continue;
+			if (pud_huge(*pud)) {
+				pud_clear(pud);
+				continue;
+			}
 			pmd = pmd_offset(pud, 0);
 			for (im = 0; im < PTRS_PER_PMD; ++im, ++pmd) {
 				if (pmd_is_leaf(*pmd)) {
