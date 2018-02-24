@@ -1323,19 +1323,25 @@ void expr_gstr_print(struct expr *e, struct gstr *gs)
  */
 static void expr_print_revdep(struct expr *e,
 			      void (*fn)(void *, struct symbol *, const char *),
-			      void *data)
+			      void *data, tristate pr_type, const char **title)
 {
 	if (e->type == E_OR) {
-		expr_print_revdep(e->left.expr, fn, data);
-		expr_print_revdep(e->right.expr, fn, data);
-	} else {
+		expr_print_revdep(e->left.expr, fn, data, pr_type, title);
+		expr_print_revdep(e->right.expr, fn, data, pr_type, title);
+	} else if (expr_calc_value(e) == pr_type) {
+		if (*title) {
+			fn(data, NULL, *title);
+			*title = NULL;
+		}
+
 		fn(data, NULL, "  - ");
 		expr_print(e, fn, data, E_NONE);
 		fn(data, NULL, "\n");
 	}
 }
 
-void expr_gstr_print_revdep(struct expr *e, struct gstr *gs)
+void expr_gstr_print_revdep(struct expr *e, struct gstr *gs,
+			    tristate pr_type, const char *title)
 {
-	expr_print_revdep(e, expr_print_gstr_helper, gs);
+	expr_print_revdep(e, expr_print_gstr_helper, gs, pr_type, &title);
 }
