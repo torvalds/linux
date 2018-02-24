@@ -168,7 +168,7 @@ int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 
 	ret = vega10_wait_for_response(hwmgr);
 	if (ret != 1)
-		pr_err("Failed to send message: 0x%x, ret value: 0x%x\n", msg, ret);
+		pr_err("Failed message: 0x%x, input parameter: 0x%x, error code: 0x%x\n", msg, parameter, ret);
 
 	return 0;
 }
