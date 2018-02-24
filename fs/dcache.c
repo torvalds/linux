@@ -626,6 +626,24 @@ static inline struct dentry *lock_parent(struct dentry *dentry)
 	return __lock_parent(dentry);
 }
 
+static inline bool retain_dentry(struct dentry *dentry)
+{
+	WARN_ON(d_in_lookup(dentry));
+
+	/* Unreachable? Get rid of it */
+	if (unlikely(d_unhashed(dentry)))
+		return false;
+
+	if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED))
+		return false;
+
+	if (unlikely(dentry->d_flags & DCACHE_OP_DELETE)) {
+		if (dentry->d_op->d_delete(dentry))
+			return false;
+	}
+	return true;
+}
+
 /*
  * Finish off a dentry we've decided to kill.
  * dentry->d_lock must be held, returns with it unlocked.
@@ -804,27 +822,13 @@ repeat:
 	/* Slow case: now with the dentry lock held */
 	rcu_read_unlock();
 
-	WARN_ON(d_in_lookup(dentry));
-
-	/* Unreachable? Get rid of it */
-	if (unlikely(d_unhashed(dentry)))
-		goto kill_it;
-
-	if (unlikely(dentry->d_flags & DCACHE_DISCONNECTED))
-		goto kill_it;
-
-	if (unlikely(dentry->d_flags & DCACHE_OP_DELETE)) {
-		if (dentry->d_op->d_delete(dentry))
-			goto kill_it;
+	if (likely(retain_dentry(dentry))) {
+		dentry_lru_add(dentry);
+		dentry->d_lockref.count--;
+		spin_unlock(&dentry->d_lock);
+		return;
 	}
 
-	dentry_lru_add(dentry);
-
-	dentry->d_lockref.count--;
-	spin_unlock(&dentry->d_lock);
-	return;
-
-kill_it:
 	dentry = dentry_kill(dentry);
 	if (dentry) {
 		cond_resched();
