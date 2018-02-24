@@ -568,8 +568,9 @@
 		dmas = <&dmac 12>, <&dmac 13>;
 		#dma-cells = <2>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default";
+		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi0_clk &spi0_csn &spi0_miso &spi0_mosi>;
+		pinctrl-1 = <&spi0_clk_hs &spi0_csn &spi0_miso_hs &spi0_mosi_hs>;
 		status = "disabled";
 	};
 
@@ -584,8 +585,9 @@
 		dmas = <&dmac 14>, <&dmac 15>;
 		#dma-cells = <2>;
 		dma-names = "tx", "rx";
-		pinctrl-names = "default";
+		pinctrl-names = "default", "high_speed";
 		pinctrl-0 = <&spi1_clk &spi1_csn0 &spi1_csn1 &spi1_miso &spi1_mosi>;
+		pinctrl-1 = <&spi1_clk_hs &spi1_csn0 &spi1_csn1 &spi1_miso_hs &spi1_mosi_hs>;
 		status = "disabled";
 	};
 
@@ -1834,49 +1836,79 @@
 		spi0 {
 			spi0_clk: spi0-clk {
 				rockchip,pins =
-					<1 RK_PB7 RK_FUNC_3 &pcfg_pull_up>;
+					<1 RK_PB7 RK_FUNC_3 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_csn: spi0-csn {
 				rockchip,pins =
-					<1 RK_PB6 RK_FUNC_3 &pcfg_pull_up>;
+					<1 RK_PB6 RK_FUNC_3 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_miso: spi0-miso {
 				rockchip,pins =
-					<1 RK_PB5 RK_FUNC_3 &pcfg_pull_up>;
+					<1 RK_PB5 RK_FUNC_3 &pcfg_pull_up_4ma>;
 			};
 
 			spi0_mosi: spi0-mosi {
 				rockchip,pins =
-					<1 RK_PB4 RK_FUNC_3 &pcfg_pull_up>;
+					<1 RK_PB4 RK_FUNC_3 &pcfg_pull_up_4ma>;
+			};
+
+			spi0_clk_hs: spi0-clk-hs {
+				rockchip,pins =
+					<1 RK_PB7 RK_FUNC_3 &pcfg_pull_up_8ma>;
+			};
+
+			spi0_miso_hs: spi0-miso-hs {
+				rockchip,pins =
+					<1 RK_PB5 RK_FUNC_3 &pcfg_pull_up_8ma>;
+			};
+
+			spi0_mosi_hs: spi0-mosi-hs {
+				rockchip,pins =
+					<1 RK_PB4 RK_FUNC_3 &pcfg_pull_up_8ma>;
 			};
 		};
 
 		spi1 {
 			spi1_clk: spi1-clk {
 				rockchip,pins =
-					<3 RK_PB7 RK_FUNC_4 &pcfg_pull_up>;
+					<3 RK_PB7 RK_FUNC_4 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_csn0: spi1-csn0 {
 				rockchip,pins =
-					<3 RK_PB1 RK_FUNC_4 &pcfg_pull_up>;
+					<3 RK_PB1 RK_FUNC_4 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_csn1: spi1-csn1 {
 				rockchip,pins =
-					<3 RK_PB2 RK_FUNC_2 &pcfg_pull_up>;
+					<3 RK_PB2 RK_FUNC_2 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_miso: spi1-miso {
 				rockchip,pins =
-					<3 RK_PB6 RK_FUNC_4 &pcfg_pull_up>;
+					<3 RK_PB6 RK_FUNC_4 &pcfg_pull_up_4ma>;
 			};
 
 			spi1_mosi: spi1-mosi {
 				rockchip,pins =
-					<3 RK_PB4 RK_FUNC_4 &pcfg_pull_up>;
+					<3 RK_PB4 RK_FUNC_4 &pcfg_pull_up_4ma>;
+			};
+
+			spi1_clk_hs: spi1-clk-hs {
+				rockchip,pins =
+					<3 RK_PB7 RK_FUNC_4 &pcfg_pull_up_8ma>;
+			};
+
+			spi1_miso_hs: spi1-miso-hs {
+				rockchip,pins =
+					<3 RK_PB6 RK_FUNC_4 &pcfg_pull_up_8ma>;
+			};
+
+			spi1_mosi_hs: spi1-mosi-hs {
+				rockchip,pins =
+					<3 RK_PB4 RK_FUNC_4 &pcfg_pull_up_8ma>;
 			};
 		};
 
