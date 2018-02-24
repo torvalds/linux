@@ -71,6 +71,13 @@ then
     git pull
   fi
 
+  if [[ "$action" == "umount" ]];
+  then
+    umount /media/$USER/BPI-BOOT
+    umount /media/$USER/BPI-ROOT
+  fi
+
+
   if [[ "$action" == "defconfig" ]];
   then
     nano arch/arm/configs/mt7623n_evb_fwu_defconfig
