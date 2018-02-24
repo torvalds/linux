@@ -75,6 +75,7 @@ struct rockchip_pm_domain {
 	int num_clks;
 	struct clk_bulk_data *clks;
 	bool is_ignore_pwr;
+	bool is_qos_saved;
 };
 
 struct rockchip_pmu {
@@ -377,6 +378,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 
 		if (!power_on) {
 			rockchip_pmu_save_qos(pd);
+			pd->is_qos_saved = true;
 
 			/* if powering down, idle request to NIU first */
 			rockchip_pmu_set_idle_request(pd, true);
@@ -388,7 +390,8 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 			/* if powering up, leave idle mode */
 			rockchip_pmu_set_idle_request(pd, false);
 
-			rockchip_pmu_restore_qos(pd);
+			if (pd->is_qos_saved)
+				rockchip_pmu_restore_qos(pd);
 		}
 
 		clk_bulk_disable(pd->num_clks, pd->clks);
