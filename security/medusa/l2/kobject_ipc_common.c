@@ -1,24 +1,49 @@
+#include <linux/medusa/l3/registry.h>
+#include <linux/medusa/l1/ipc.h>
 #include "../../../ipc/util.h" //TODO
 #include "kobject_ipc_common.h"
 #include "ipc_utils.h"
 
+MED_ATTRS(ipc_kobject) {
+	MED_ATTR		(ipc_kobject, data, "data", MED_BYTES),
+	MED_ATTR_END
+};
+
 static struct medusa_kobject_s storage;
 
-
-int ipc_kern2kobj(struct medusa_kobject_s * ipck, struct kern_ipc_perm * ipcp, unsigned int ipc_class)
+int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
 {
+	struct medusa_l1_ipc_s* security_s;
+	struct medusa_kobject_s concrete_ipc_object;
+	unsigned int ipc_class;
+
+	security_s = (struct medusa_l1_ipc_s*) ipcp->security;
+	ipc_class = security_s->ipc_class;
+	printk("kern2kobj: IPC_CLASS:%d", ipc_class);
 	switch(ipc_class){
 		case MED_IPC_SEM: 
-			return ips_sem_kern2kobj(ipck, ipcp);
+			ipc_sem_kern2kobj(&concrete_ipc_object, ipcp);
+			printk("before memcpy sem concrete: %p, size: %d\n", concrete_ipc_object, sizeof(struct ipc_sem_kobject));
+			//memcpy(ipck->data, (unsigned char *)&concrete_ipc_object, sizeof(struct ipc_sem_kobject));
+			break;
 		case MED_IPC_MSG: 
-			return ips_msg_kern2kobj(ipck, ipcp);
+			ipc_msg_kern2kobj(&concrete_ipc_object, ipcp);
+			printk("before memcpy msg\n");
+			//memcpy(ipck->data, (unsigned char *)&concrete_ipc_object, sizeof(struct ipc_msg_kobject));
+			break;
 		case MED_IPC_SHM: 
-			return ips_shm_kern2kobj(ipck, ipcp);
+			ipc_shm_kern2kobj(&concrete_ipc_object, ipcp);
+			printk("before memcpy shm 2\n");
+			printk("before memcpy shm concrete: %p, size: %d\n", concrete_ipc_object, sizeof(struct ipc_shm_kobject));
+			//memcpy(ipck->data, (unsigned char *)&concrete_ipc_object, sizeof(struct ipc_shm_kobject));
+			break;
 		default: {
 			printk("Unkown ipc_class\n");
-			return NULL;		
+			return -1;		
 		}
 	}
+	printk("ipc_kern2kobj end return 0\n");
+	return 0;
 }
 
 struct medusa_kobject_s * ipc_fetch(unsigned int id, unsigned int ipc_class, int (*ipc_kern2kobj)(struct medusa_kobject_s *, struct kern_ipc_perm *))
@@ -55,28 +80,19 @@ medusa_answer_t ipc_update(unsigned int id, unsigned int ipc_class, struct medus
 	ids = medusa_get_ipc_ids(ipc_class);
 	if(!ids)
 		goto out_err;
-	printk("update 1\n");
 	//down_write(&(ids->rwsem));
 	
-	printk("update 2\n");
 	rcu_read_lock();
 
-	printk("update 3\n");
 	ipcp = ipc_obtain_object_check(ids, id);
 	if(IS_ERR(ipcp) || !ipcp)
 		goto out_err_unlock;
 	
-	printk("update 4\n");
 	//ipc_lock_object(ipcp);
-	printk("update 5\n");
 	retval = ipc_kobj2kern(kobj, ipcp);
-	printk("update 6\n");
 	//ipc_unlock_object(ipcp);
-	printk("update 7\n");
 	//up_write(&(ids->rwsem));
-	printk("update 8\n");
 	rcu_read_unlock();
-	printk("update 9\n");
 	return retval;
 out_err_unlock:
 	//up_write(&(ids->rwsem));
@@ -84,3 +100,22 @@ out_err_unlock:
 out_err:
 	return MED_ERR;
 }
+
+MED_KCLASS(ipc_kobject) {
+	MEDUSA_KCLASS_HEADER(ipc_kobject),
+	"ipc",
+	NULL,		/* init kclass */
+	NULL,		/* destroy kclass */
+	NULL,
+	NULL,
+	NULL,		/* unmonitor */
+};
+
+void ipc_kobject_rmmod(void);
+
+int __init ipc_kobject_init(void) {
+	MED_REGISTER_KCLASS(ipc_kobject);
+	return 0;
+}
+
+__initcall(ipc_kobject_init);

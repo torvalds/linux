@@ -3,7 +3,6 @@
 #include <linux/syscalls.h>
 #include <linux/sem.h>
 #include "kobject_ipc_common.h"
-#include "kobject_ipc_sem.h"
 
 /*
 * ipc_class = MED_IPC_SEM, MED_IPC_MSG, MED_IPC_SHM look l1/ipc.h

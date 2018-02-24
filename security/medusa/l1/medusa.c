@@ -66,6 +66,7 @@
 #include "../l2/kobject_file.h"
 #include "../l2/kobject_fuck.h"
 #include "../l0/init_medusa.h"
+#include "../../../ipc/util.h"
 
 int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 int medusa_l1_inode_alloc_security(struct inode *inode);
@@ -683,8 +684,12 @@ void medusa_l1_ipc_free_security(struct kern_ipc_perm *ipcp)
 
 static int medusa_l1_ipc_permission(struct kern_ipc_perm *ipcp, short flag)
 {
-	if(medusa_ipc_perm(ipcp, flag) == MED_NO)
+	ipc_lock_object(ipcp);
+	if(medusa_ipc_permission(ipcp, flag) == MED_NO){
+		ipc_unlock_object(ipcp);
 		return -EPERM;	
+	}
+	ipc_unlock_object(ipcp);
 	return 0;
 }
 

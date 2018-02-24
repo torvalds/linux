@@ -3,7 +3,6 @@
 #include <linux/syscalls.h>
 #include <linux/shm.h>
 #include "kobject_ipc_common.h"
-#include "kobject_ipc_shm.h"
 
 /*
 * ipc_class = MED_IPC_SEM, MED_IPC_MSG, MED_IPC_SHM look l1/ipc.h
@@ -22,13 +21,15 @@ int ipc_shm_kern2kobj(struct medusa_kobject_s * ipck, struct kern_ipc_perm * ipc
 	struct medusa_l1_ipc_s* security_s;
 	struct ipc_shm_kobject * ipck_shm;
 	struct shmid_kernel * shmid_kernel;
-
+	printk("shm 1\n");
 	security_s = (struct medusa_l1_ipc_s*) ipcp->security;
 	ipck_shm = (struct ipc_shm_kobject *)ipck;
 	shmid_kernel = container_of(ipcp, struct shmid_kernel, shm_perm);
 	
-        memset(ipck_shm, '\0', sizeof(struct ipc_shm_kobject));
+	printk("shm 2\n");
+    memset(ipck_shm, '\0', sizeof(struct ipc_shm_kobject));
 	
+	printk("shm 3\n");
 	if(!security_s)
 		return -1;
 	
@@ -37,8 +38,10 @@ int ipc_shm_kern2kobj(struct medusa_kobject_s * ipck, struct kern_ipc_perm * ipc
 	ipck_shm->uid = ipcp->uid;
 	ipck_shm->gid = ipcp->gid;
 	
+	printk("shm 4\n");
 	COPY_MEDUSA_SUBJECT_VARS(ipck_shm, security_s);
 	COPY_MEDUSA_OBJECT_VARS(ipck_shm, security_s);
+	printk("shm 5\n");
 	return 0;
 }
 
