@@ -24,7 +24,7 @@ Required properties (phy (parent) node):
    * "u3phy-pipe-apb" for the USB 3.0 PHY pipe apb
 
 Optional properties:
- - vbus-drv-gpios : gpio phandle for vbus supply.
+ - vbus-supply: regulator phandle for vbus power source.
 
 Required nodes : a sub-node is required for USB 3.0 or USB 2.0 the phy provides.
 		 The sub-node name is used to identify phy type, and shall be
@@ -68,7 +68,6 @@ u3phy: usb3-phy@ff470000 {
 	reset-names = "u3phy-u2-por", "u3phy-u3-por",
 		      "u3phy-pipe-mac", "u3phy-utmi-mac",
 		      "u3phy-utmi-apb", "u3phy-pipe-apb";
-	vbus-drv-gpios = <&gpio0 0 GPIO_ACTIVE_HIGH>;
 	#address-cells = <2>;
 	#size-cells = <2>;
 	ranges;

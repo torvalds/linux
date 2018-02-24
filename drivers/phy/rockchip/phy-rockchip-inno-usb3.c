@@ -144,12 +144,13 @@ struct rockchip_u3phy {
 	int um_ls_irq;
 	struct clk *clks[U3PHY_MAX_CLKS];
 	struct dentry *root;
-	struct gpio_desc *vbus_drv_gpio;
+	struct regulator *vbus;
 	struct reset_control *rsts[U3PHY_RESET_MAX];
 	struct rockchip_u3phy_apbcfg apbcfg;
 	const struct rockchip_u3phy_cfg *cfgs;
 	struct rockchip_u3phy_port ports[U3PHY_PORT_NUM];
 	struct usb_phy usb_phy;
+	bool vbus_enabled;
 };
 
 static inline int param_write(void __iomem *base,
@@ -180,6 +181,28 @@ static inline bool param_exped(void __iomem *base,
 
 	tmp = (orig & mask) >> reg->bitstart;
 	return tmp == value;
+}
+
+static int rockchip_set_vbus_power(struct rockchip_u3phy *u3phy, bool en)
+{
+	int ret = 0;
+
+	if (!u3phy->vbus)
+		return 0;
+
+	if (en && !u3phy->vbus_enabled) {
+		ret = regulator_enable(u3phy->vbus);
+		if (ret)
+			dev_err(u3phy->dev,
+				"Failed to enable VBUS supply\n");
+	} else if (!en && u3phy->vbus_enabled) {
+		ret = regulator_disable(u3phy->vbus);
+	}
+
+	if (ret == 0)
+		u3phy->vbus_enabled = en;
+
+	return ret;
 }
 
 static int rockchip_u3phy_usb2_only_show(struct seq_file *s, void *unused)
@@ -219,7 +242,7 @@ static ssize_t rockchip_u3phy_usb2_only_write(struct file *file,
 			&u3phy->cfgs->grfcfg.u2_only_ctrl, 1)) {
 		dev_info(u3phy->dev, "Set usb3.0 and usb2.0 mode successfully\n");
 
-		gpiod_set_value_cansleep(u3phy->vbus_drv_gpio, 0);
+		rockchip_set_vbus_power(u3phy, false);
 
 		param_write(u3phy->grf,
 			    &u3phy->cfgs->grfcfg.u3_disable, false);
@@ -235,13 +258,13 @@ static ssize_t rockchip_u3phy_usb2_only_write(struct file *file,
 
 		atomic_notifier_call_chain(&u3phy->usb_phy.notifier, 0, NULL);
 
-		gpiod_set_value_cansleep(u3phy->vbus_drv_gpio, 1);
+		rockchip_set_vbus_power(u3phy, true);
 	} else if (!strncmp(buf, "u2", 2) &&
 		   param_exped(u3phy->u3phy_grf,
 			       &u3phy->cfgs->grfcfg.u2_only_ctrl, 0)) {
 		dev_info(u3phy->dev, "Set usb2.0 only mode successfully\n");
 
-		gpiod_set_value_cansleep(u3phy->vbus_drv_gpio, 0);
+		rockchip_set_vbus_power(u3phy, false);
 
 		param_write(u3phy->grf,
 			    &u3phy->cfgs->grfcfg.u3_disable, true);
@@ -257,7 +280,7 @@ static ssize_t rockchip_u3phy_usb2_only_write(struct file *file,
 
 		atomic_notifier_call_chain(&u3phy->usb_phy.notifier, 0, NULL);
 
-		gpiod_set_value_cansleep(u3phy->vbus_drv_gpio, 1);
+		rockchip_set_vbus_power(u3phy, true);
 	} else {
 		dev_info(u3phy->dev, "Same or illegal mode\n");
 	}
@@ -441,6 +464,7 @@ static int rockchip_u3phy_power_on(struct phy *phy)
 	}
 
 done:
+	rockchip_set_vbus_power(u3phy, true);
 	u3phy_port->suspended = false;
 	return 0;
 }
@@ -704,14 +728,15 @@ static int rockchip_u3phy_parse_dt(struct rockchip_u3phy *u3phy,
 		return -ENXIO;
 	}
 
-	u3phy->vbus_drv_gpio = devm_gpiod_get_optional(dev, "vbus-drv",
-						       GPIOD_OUT_HIGH);
+	/* Get Vbus regulators */
+	u3phy->vbus = devm_regulator_get_optional(dev, "vbus");
+	if (IS_ERR(u3phy->vbus)) {
+		ret = PTR_ERR(u3phy->vbus);
+		if (ret == -EPROBE_DEFER)
+			return ret;
 
-	if (!u3phy->vbus_drv_gpio) {
-		dev_warn(&pdev->dev, "vbus_drv is not assigned\n");
-	} else if (IS_ERR(u3phy->vbus_drv_gpio)) {
-		dev_err(&pdev->dev, "failed to get vbus_drv\n");
-		return PTR_ERR(u3phy->vbus_drv_gpio);
+		dev_warn(dev, "Failed to get VBUS supply regulator\n");
+		u3phy->vbus = NULL;
 	}
 
 	for (clk = 0; clk < U3PHY_MAX_CLKS; clk++) {
@@ -885,6 +910,7 @@ static int rockchip_u3phy_probe(struct platform_device *pdev)
 	}
 
 	u3phy->dev = dev;
+	u3phy->vbus_enabled = false;
 	phy_cfgs = match->data;
 	platform_set_drvdata(pdev, u3phy);
 
