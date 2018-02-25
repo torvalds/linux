@@ -445,3 +445,19 @@
 &usb_host2_ohci {
 	status = "okay";
 };
+
+&vpu_service {
+	status = "okay";
+};
+
+&vpu_mmu {
+	status = "okay";
+};
+
+&rkvdec {
+	status = "okay";
+};
+
+&rkvdec_mmu {
+	status = "okay";
+};
