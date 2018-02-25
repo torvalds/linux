@@ -89,6 +89,10 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 long sys_swapcontext(struct ucontext __user *old_ctx,
 		    struct ucontext __user *new_ctx,
 		    int ctx_size, int r6, int r7, int r8, struct pt_regs *regs);
+int sys_debug_setcontext(struct ucontext __user *ctx,
+			 int ndbg, struct sig_dbg_op __user *dbg,
+			 int r6, int r7, int r8,
+			 struct pt_regs *regs);
 #endif
 long sys_switch_endian(void);
 notrace unsigned int __check_irq_replay(void);
