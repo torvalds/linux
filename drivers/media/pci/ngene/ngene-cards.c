@@ -728,7 +728,7 @@ static int cineS2_probe(struct ngene_channel *chan)
 		dev_info(pdev, "STV0367 on channel %d\n", chan->number);
 		demod_attach_stv0367(chan, i2c);
 	} else {
-		dev_err(pdev, "No demod found on chan %d\n", chan->number);
+		dev_info(pdev, "No demod found on chan %d\n", chan->number);
 		return -ENODEV;
 	}
 	return 0;
