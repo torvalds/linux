@@ -157,6 +157,8 @@ static struct net_bridge_vlan *br_vlan_get_master(struct net_bridge *br, u16 vid
 		masterv = br_vlan_find(vg, vid);
 		if (WARN_ON(!masterv))
 			return NULL;
+		refcount_set(&masterv->refcnt, 1);
+		return masterv;
 	}
 	refcount_inc(&masterv->refcnt);
 
