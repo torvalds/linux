@@ -426,6 +426,9 @@ static unsigned long rockchip_rk3036_pll_recalc_rate(struct clk_hw *hw,
 	struct rockchip_pll_rate_table cur;
 	u64 rate64 = prate;
 
+	if (pll->sel && pll->scaling)
+		return pll->scaling;
+
 	if (pll->type == pll_rk3366)
 		rockchip_rk3366_pll_get_params(pll, &cur);
 	else
