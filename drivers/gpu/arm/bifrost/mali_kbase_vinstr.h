@@ -1,24 +1,28 @@
 /*
  *
- * (C) COPYRIGHT 2015-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 #ifndef _KBASE_VINSTR_H_
 #define _KBASE_VINSTR_H_
 
-#include <mali_kbase.h>
 #include <mali_kbase_hwcnt_reader.h>
 
 /*****************************************************************************/
@@ -26,6 +30,29 @@
 struct kbase_vinstr_context;
 struct kbase_vinstr_client;
 
+struct kbase_uk_hwcnt_setup {
+	/* IN */
+	u64 dump_buffer;
+	u32 jm_bm;
+	u32 shader_bm;
+	u32 tiler_bm;
+	u32 unused_1; /* keep for backwards compatibility */
+	u32 mmu_l2_bm;
+	u32 padding;
+	/* OUT */
+};
+
+struct kbase_uk_hwcnt_reader_setup {
+	/* IN */
+	u32 buffer_count;
+	u32 jm_bm;
+	u32 shader_bm;
+	u32 tiler_bm;
+	u32 mmu_l2_bm;
+
+	/* OUT */
+	s32 fd;
+};
 /*****************************************************************************/
 
 /**

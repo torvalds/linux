@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -94,7 +99,6 @@ static int kbase_device_as_init(struct kbase_device *kbdev, int i)
 			destroy_workqueue(kbdev->as[i].pf_wq);
 			return -EINVAL;
 		}
-		KBASE_DEBUG_ASSERT(!object_is_on_stack(poke_work));
 		INIT_WORK(poke_work, kbasep_as_do_poke);
 
 		hrtimer_init(poke_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);

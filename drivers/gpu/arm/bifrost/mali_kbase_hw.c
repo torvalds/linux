@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -50,6 +55,21 @@ void kbase_hw_set_features_mask(struct kbase_device *kbdev)
 			break;
 		case GPU_ID2_PRODUCT_TDVX:
 			features = base_hw_features_tDVx;
+			break;
+		case GPU_ID2_PRODUCT_TNOX:
+			features = base_hw_features_tNOx;
+			break;
+		case GPU_ID2_PRODUCT_TGOX:
+			features = base_hw_features_tGOx;
+			break;
+		case GPU_ID2_PRODUCT_TKAX:
+			features = base_hw_features_tKAx;
+			break;
+		case GPU_ID2_PRODUCT_TTRX:
+			features = base_hw_features_tTRx;
+			break;
+		case GPU_ID2_PRODUCT_TBOX:
+			features = base_hw_features_tBOx;
 			break;
 		default:
 			features = base_hw_features_generic;
@@ -150,9 +170,25 @@ static const enum base_hw_issue *kbase_hw_get_issues_for_new_id(
 		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tDVx_r0p0},
 		  {U32_MAX, NULL} } },
 
+		{GPU_ID2_PRODUCT_TNOX,
+		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tNOx_r0p0},
+		  {U32_MAX, NULL} } },
 
+		{GPU_ID2_PRODUCT_TGOX,
+		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tGOx_r0p0},
+		  {U32_MAX, NULL} } },
 
+		{GPU_ID2_PRODUCT_TKAX,
+		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tKAx_r0p0},
+		  {U32_MAX, NULL} } },
 
+		{GPU_ID2_PRODUCT_TTRX,
+		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tTRx_r0p0},
+		  {U32_MAX, NULL} } },
+
+		{GPU_ID2_PRODUCT_TBOX,
+		 {{GPU_ID2_VERSION_MAKE(0, 0, 0), base_hw_issues_tBOx_r0p0},
+		  {U32_MAX, NULL} } },
 	};
 
 	u32 gpu_id = kbdev->gpu_props.props.raw_props.gpu_id;
@@ -369,6 +405,21 @@ int kbase_hw_set_issues_mask(struct kbase_device *kbdev)
 				break;
 			case GPU_ID2_PRODUCT_TDVX:
 				issues = base_hw_issues_model_tDVx;
+				break;
+			case GPU_ID2_PRODUCT_TNOX:
+				issues = base_hw_issues_model_tNOx;
+				break;
+			case GPU_ID2_PRODUCT_TGOX:
+				issues = base_hw_issues_model_tGOx;
+				break;
+			case GPU_ID2_PRODUCT_TKAX:
+				issues = base_hw_issues_model_tKAx;
+				break;
+			case GPU_ID2_PRODUCT_TTRX:
+				issues = base_hw_issues_model_tTRx;
+				break;
+			case GPU_ID2_PRODUCT_TBOX:
+				issues = base_hw_issues_model_tBOx;
 				break;
 			default:
 				dev_err(kbdev->dev,

@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 #ifndef _KERNEL_UTF_SUITE_H_
 #define _KERNEL_UTF_SUITE_H_
@@ -27,9 +32,16 @@
  */
 
 #include <linux/kref.h>
+#include <linux/workqueue.h>
+#include <linux/wait.h>
 
 #include <kutf/kutf_mem.h>
 #include <kutf/kutf_resultset.h>
+
+/* Arbitrary maximum size to prevent user space allocating too much kernel
+ * memory
+ */
+#define KUTF_MAX_LINE_LENGTH (1024u)
 
 /**
  * Pseudo-flag indicating an absence of any specified test class. Note that
@@ -149,24 +161,42 @@ union kutf_callback_data {
 };
 
 /**
- * struct kutf_userdata_ops- Structure defining methods to exchange data
- *                           with userspace via the 'data' file
- * @open:		Function used to notify when the 'data' file was opened
- * @release:		Function used to notify when the 'data' file was closed
- * @notify_ended:	Function used to notify when the test has ended.
- * @consumer:		Function used to consume writes from userspace
- * @producer:		Function used to produce data for userspace to read
- *
- * All ops can be NULL.
+ * struct kutf_userdata_line - A line of user data to be returned to the user
+ * @node:   struct list_head to link this into a list
+ * @str:    The line of user data to return to user space
+ * @size:   The number of bytes within @str
  */
-struct kutf_userdata_ops {
-	int (*open)(void *priv);
-	void (*release)(void *priv);
-	void (*notify_ended)(void *priv);
-	ssize_t (*consumer)(void *priv, const char  __user *userbuf,
-			size_t userbuf_len, loff_t *ppos);
-	ssize_t (*producer)(void *priv, char  __user *userbuf,
-			size_t userbuf_len, loff_t *ppos);
+struct kutf_userdata_line {
+	struct list_head node;
+	char *str;
+	size_t size;
+};
+
+/**
+ * KUTF_USERDATA_WARNING_OUTPUT - Flag specifying that a warning has been output
+ *
+ * If user space reads the "run" file while the test is waiting for user data,
+ * then the framework will output a warning message and set this flag within
+ * struct kutf_userdata. A subsequent read will then simply return an end of
+ * file condition rather than outputting the warning again. The upshot of this
+ * is that simply running 'cat' on a test which requires user data will produce
+ * the warning followed by 'cat' exiting due to EOF - which is much more user
+ * friendly than blocking indefinitely waiting for user data.
+ */
+#define KUTF_USERDATA_WARNING_OUTPUT  1
+
+/**
+ * struct kutf_userdata - Structure holding user data
+ * @flags:       See %KUTF_USERDATA_WARNING_OUTPUT
+ * @input_head:  List of struct kutf_userdata_line containing user data
+ *               to be read by the kernel space test.
+ * @input_waitq: Wait queue signalled when there is new user data to be
+ *               read by the kernel space test.
+ */
+struct kutf_userdata {
+	unsigned long flags;
+	struct list_head input_head;
+	wait_queue_head_t input_waitq;
 };
 
 /**
@@ -185,13 +215,8 @@ struct kutf_userdata_ops {
  * @status:		The status of the currently running fixture.
  * @expected_status:	The expected status on exist of the currently
  *                      running fixture.
- * @userdata_consumer_priv:	Parameter to pass into kutf_userdata_ops
- *                              consumer function. Must not be NULL if a
- *                              consumer function was specified
- * @userdata_producer_priv:	Parameter to pass into kutf_userdata_ops
- *                              producer function. Must not be NULL if a
- *                              producer function was specified
- * @userdata_dentry:	The debugfs file for userdata exchange
+ * @work:		Work item to enqueue onto the work queue to run the test
+ * @userdata:		Structure containing the user data for the test to read
  */
 struct kutf_context {
 	struct kref                     kref;
@@ -205,9 +230,9 @@ struct kutf_context {
 	struct kutf_result_set          *result_set;
 	enum kutf_result_status         status;
 	enum kutf_result_status         expected_status;
-	void                            *userdata_consumer_priv;
-	void                            *userdata_producer_priv;
-	struct dentry                   *userdata_dentry;
+
+	struct work_struct              work;
+	struct kutf_userdata            userdata;
 };
 
 /**
@@ -390,30 +415,6 @@ void kutf_add_test_with_filters_and_data(
 		void (*execute)(struct kutf_context *context),
 		unsigned int filters,
 		union kutf_callback_data test_data);
-
-/**
- * kutf_add_test_with_filters_data_and_userdata() - Add a test to a kernel test suite with filters and setup for
- *                                                  receiving data from userside
- * @suite:		The suite to add the test to.
- * @id:			The ID of the test.
- * @name:		The name of the test.
- * @execute:		Callback to the test function to run.
- * @filters:		A set of filtering flags, assigning test categories.
- * @test_data:		Test specific callback data, provided during the
- *			running of the test in the kutf_context
- * @userdata_ops:	Callbacks to use for sending and receiving data to
- *			userspace. A copy of the struct kutf_userdata_ops is
- *			taken. Each callback can be NULL.
- *
- */
-void kutf_add_test_with_filters_data_and_userdata(
-		struct kutf_suite *suite,
-		unsigned int id,
-		const char *name,
-		void (*execute)(struct kutf_context *context),
-		unsigned int filters,
-		union kutf_callback_data test_data,
-		struct kutf_userdata_ops *userdata_ops);
 
 
 /* ============================================================================

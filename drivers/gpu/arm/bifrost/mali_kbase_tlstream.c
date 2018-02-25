@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 #include <linux/anon_inodes.h>
 #include <linux/atomic.h>
@@ -144,7 +149,7 @@ enum tl_msg_id_obj {
 	KBASE_TL_ATTRIB_ATOM_CONFIG,
 	KBASE_TL_ATTRIB_ATOM_PRIORITY,
 	KBASE_TL_ATTRIB_ATOM_STATE,
-	KBASE_TL_ATTRIB_ATOM_PRIORITY_CHANGE,
+	KBASE_TL_ATTRIB_ATOM_PRIORITIZED,
 	KBASE_TL_ATTRIB_ATOM_JIT,
 	KBASE_TL_ATTRIB_AS_CONFIG,
 	KBASE_TL_EVENT_LPU_SOFTSTOP,
@@ -453,8 +458,8 @@ static const struct tp_desc tp_desc_obj[] = {
 		"atom,state"
 	},
 	{
-		KBASE_TL_ATTRIB_ATOM_PRIORITY_CHANGE,
-		__stringify(KBASE_TL_ATTRIB_ATOM_PRIORITY_CHANGE),
+		KBASE_TL_ATTRIB_ATOM_PRIORITIZED,
+		__stringify(KBASE_TL_ATTRIB_ATOM_PRIORITIZED),
 		"atom caused priority change",
 		"@p",
 		"atom"
@@ -2208,9 +2213,9 @@ void __kbase_tlstream_tl_attrib_atom_state(void *atom, u32 state)
 	kbasep_tlstream_msgbuf_release(TL_STREAM_TYPE_OBJ, flags);
 }
 
-void __kbase_tlstream_tl_attrib_atom_priority_change(void *atom)
+void __kbase_tlstream_tl_attrib_atom_prioritized(void *atom)
 {
-	const u32     msg_id = KBASE_TL_ATTRIB_ATOM_PRIORITY_CHANGE;
+	const u32     msg_id = KBASE_TL_ATTRIB_ATOM_PRIORITIZED;
 	const size_t  msg_size =
 		sizeof(msg_id) + sizeof(u64) + sizeof(atom);
 	unsigned long flags;

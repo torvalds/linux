@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 #ifndef _KERNEL_UTF_HELPERS_USER_H_
 #define _KERNEL_UTF_HELPERS_USER_H_
@@ -80,18 +85,16 @@ enum kutf_helper_err {
 };
 
 
-/* textbuf Send named NAME=value pair, u64 value
+/* Send named NAME=value pair, u64 value
  *
  * NAME must match [A-Z0-9_]\+ and can be up to MAX_VAL_NAME_LEN characters long
- *
- * This is assuming the kernel-side test is using the 'textbuf' helpers
  *
  * Any failure will be logged on the suite's current test fixture
  *
  * Returns 0 on success, non-zero on failure
  */
-int kutf_helper_textbuf_send_named_u64(struct kutf_context *context,
-		struct kutf_helper_textbuf *textbuf, char *val_name, u64 val);
+int kutf_helper_send_named_u64(struct kutf_context *context,
+		const char *val_name, u64 val);
 
 /* Get the maximum length of a string that can be represented as a particular
  * NAME="value" pair without string-value truncation in the kernel's buffer
@@ -101,53 +104,48 @@ int kutf_helper_textbuf_send_named_u64(struct kutf_context *context,
  * without having the string value truncated. Any string longer than this will
  * be truncated at some point during communication to this size.
  *
- * The calculation is valid both for sending strings of val_str_len to kernel,
- * and for receiving a string that was originally val_str_len from the kernel.
- *
- * It is assumed that valname is a valid name for
- * kutf_test_helpers_textbuf_send_named_str(), and no checking will be made to
+ * It is assumed that val_name is a valid name for
+ * kutf_helper_send_named_str(), and no checking will be made to
  * ensure this.
  *
  * Returns the maximum string length that can be represented, or a negative
  * value if the NAME="value" encoding itself wouldn't fit in kern_buf_sz
  */
-int kutf_helper_textbuf_max_str_len_for_kern(char *val_name, int kern_buf_sz);
+int kutf_helper_max_str_len_for_kern(const char *val_name, int kern_buf_sz);
 
-/* textbuf Send named NAME="str" pair
+/* Send named NAME="str" pair
  *
  * no escaping allowed in str. Any of the following characters will terminate
  * the string: '"' '\\' '\n'
  *
  * NAME must match [A-Z0-9_]\+ and can be up to MAX_VAL_NAME_LEN characters long
  *
- * This is assuming the kernel-side test is using the 'textbuf' helpers
- *
  * Any failure will be logged on the suite's current test fixture
  *
  * Returns 0 on success, non-zero on failure */
-int kutf_helper_textbuf_send_named_str(struct kutf_context *context,
-		struct kutf_helper_textbuf *textbuf, char *val_name,
-		char *val_str);
+int kutf_helper_send_named_str(struct kutf_context *context,
+		const char *val_name, const char *val_str);
 
-/* textbuf Receive named NAME=value pair
+/* Receive named NAME=value pair
  *
  * This can receive u64 and string values - check named_val->type
  *
  * If you are not planning on dynamic handling of the named value's name and
- * type, then kutf_test_helpers_textbuf_receive_check_val() is more useful as a
+ * type, then kutf_helper_receive_check_val() is more useful as a
  * convenience function.
  *
  * String members of named_val will come from memory allocated on the fixture's mempool
  *
- * Returns 0 on success. Negative value on failure to receive from the 'data'
+ * Returns 0 on success. Negative value on failure to receive from the 'run'
  * file, positive value indicates an enum kutf_helper_err value for correct
  * reception of data but invalid parsing */
-int kutf_helper_textbuf_receive_named_val(struct kutf_helper_named_val *named_val,
-		struct kutf_helper_textbuf *textbuf);
+int kutf_helper_receive_named_val(
+		struct kutf_context *context,
+		struct kutf_helper_named_val *named_val);
 
-/* textbuf Receive and validate NAME=value pair
+/* Receive and validate NAME=value pair
  *
- * As with kutf_test_helpers_textbuf_receive_named_val, but validate that the
+ * As with kutf_helper_receive_named_val, but validate that the
  * name and type are as expected, as a convenience for a common pattern found
  * in tests.
  *
@@ -168,9 +166,11 @@ int kutf_helper_textbuf_receive_named_val(struct kutf_helper_named_val *named_va
  *
  * The rationale behind this is that we'd prefer to continue the rest of the
  * test with failures propagated, rather than hitting a timeout */
-int kutf_helper_textbuf_receive_check_val(struct kutf_helper_named_val *named_val,
-		struct kutf_context *context, struct kutf_helper_textbuf *textbuf,
-		char *expect_val_name, enum kutf_helper_valtype expect_val_type);
+int kutf_helper_receive_check_val(
+		struct kutf_helper_named_val *named_val,
+		struct kutf_context *context,
+		const char *expect_val_name,
+		enum kutf_helper_valtype expect_val_type);
 
 /* Output a named value to kmsg */
 void kutf_helper_output_named_val(struct kutf_helper_named_val *named_val);

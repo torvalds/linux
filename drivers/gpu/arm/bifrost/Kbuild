@@ -6,14 +6,21 @@
 # Foundation, and any use by you of this program is subject to the terms
 # of such GNU licence.
 #
-# A copy of the licence is included with the program, and can also be obtained
-# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-# Boston, MA  02110-1301, USA.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+# SPDX-License-Identifier: GPL-2.0
 #
 #
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r8p0-01rel0"
+MALI_RELEASE_NAME ?= "r10p0-01rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -31,7 +38,6 @@ MALI_KERNEL_TEST_API ?= 0
 MALI_ERROR_INJECT_ON ?= 0
 MALI_MOCK_TEST ?= 0
 MALI_COVERAGE ?= 0
-MALI_INSTRUMENTATION_LEVEL ?= 0
 CONFIG_MALI_PLATFORM_NAME ?= "devicetree"
 # This workaround is for what seems to be a compiler bug we observed in
 # GCC 4.7 on AOSP 4.3.  The bug caused an intermittent failure compiling
@@ -53,7 +59,6 @@ DEFINES = \
 	-DMALI_ERROR_INJECT_ON=$(MALI_ERROR_INJECT_ON) \
 	-DMALI_MOCK_TEST=$(MALI_MOCK_TEST) \
 	-DMALI_COVERAGE=$(MALI_COVERAGE) \
-	-DMALI_INSTRUMENTATION_LEVEL=$(MALI_INSTRUMENTATION_LEVEL) \
 	-DMALI_RELEASE_NAME=\"$(MALI_RELEASE_NAME)\" \
 	-DMALI_GCC_WORKAROUND_MIDCOM_4598=$(MALI_GCC_WORKAROUND_MIDCOM_4598)
 
@@ -111,10 +116,13 @@ SRC := \
 	mali_kbase_tlstream.c \
 	mali_kbase_strings.c \
 	mali_kbase_as_fault_debugfs.c \
-	mali_kbase_regs_history_debugfs.c
+	mali_kbase_regs_history_debugfs.c \
+	thirdparty/mali_kbase_mmap.c
 
 
-
+ifeq ($(CONFIG_MALI_JOB_DUMP),y)
+	SRC += mali_kbase_gwt.c
+endif
 
 ifeq ($(MALI_UNIT_TEST),1)
 	SRC += mali_kbase_tlstream_test.c

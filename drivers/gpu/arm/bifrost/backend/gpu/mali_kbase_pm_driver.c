@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -304,10 +309,8 @@ u64 kbase_pm_get_present_cores(struct kbase_device *kbdev,
 		return kbdev->gpu_props.props.raw_props.shader_present;
 	case KBASE_PM_CORE_TILER:
 		return kbdev->gpu_props.props.raw_props.tiler_present;
-#ifdef CONFIG_MALI_CORESTACK
 	case KBASE_PM_CORE_STACK:
 		return kbdev->gpu_props.props.raw_props.stack_present;
-#endif /* CONFIG_MALI_CORESTACK */
 	default:
 		break;
 	}
@@ -585,7 +588,7 @@ u64 kbase_pm_core_stack_mask(u64 cores)
 		if (test_bit(i, (unsigned long *)&cores)) {
 			/* Every core which ID >= 16 is filled to stacks 4-7
 			 * instead of 0-3 */
-			size_t const stack_num = (i > 16) ?
+			size_t const stack_num = (i >= 16) ?
 				(i % NUM_CORES_PER_STACK) + 4 :
 				(i % NUM_CORES_PER_STACK);
 			set_bit(stack_num, (unsigned long *)&stack_mask);
@@ -1229,15 +1232,25 @@ static void kbase_pm_hw_issues_detect(struct kbase_device *kbdev)
 	kbdev->hw_quirks_mmu = kbase_reg_read(kbdev,
 			GPU_CONTROL_REG(L2_MMU_CONFIG), NULL);
 
-	/* Limit read ID width for AXI */
-	kbdev->hw_quirks_mmu &= ~(L2_MMU_CONFIG_LIMIT_EXTERNAL_READS);
-	kbdev->hw_quirks_mmu |= (DEFAULT_ARID_LIMIT & 0x3) <<
+
+	/* Limit read & write ID width for AXI */
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_3BIT_EXT_RW_L2_MMU_CONFIG)) {
+		kbdev->hw_quirks_mmu &= ~(L2_MMU_CONFIG_3BIT_LIMIT_EXTERNAL_READS);
+		kbdev->hw_quirks_mmu |= (DEFAULT_3BIT_ARID_LIMIT & 0x7) <<
+				L2_MMU_CONFIG_3BIT_LIMIT_EXTERNAL_READS_SHIFT;
+
+		kbdev->hw_quirks_mmu &= ~(L2_MMU_CONFIG_3BIT_LIMIT_EXTERNAL_WRITES);
+		kbdev->hw_quirks_mmu |= (DEFAULT_3BIT_AWID_LIMIT & 0x7) <<
+				L2_MMU_CONFIG_3BIT_LIMIT_EXTERNAL_WRITES_SHIFT;
+	} else {
+		kbdev->hw_quirks_mmu &= ~(L2_MMU_CONFIG_LIMIT_EXTERNAL_READS);
+		kbdev->hw_quirks_mmu |= (DEFAULT_ARID_LIMIT & 0x3) <<
 				L2_MMU_CONFIG_LIMIT_EXTERNAL_READS_SHIFT;
 
-	/* Limit write ID width for AXI */
-	kbdev->hw_quirks_mmu &= ~(L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES);
-	kbdev->hw_quirks_mmu |= (DEFAULT_AWID_LIMIT & 0x3) <<
+		kbdev->hw_quirks_mmu &= ~(L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES);
+		kbdev->hw_quirks_mmu |= (DEFAULT_AWID_LIMIT & 0x3) <<
 				L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES_SHIFT;
+	}
 
 	if (kbdev->system_coherency == COHERENCY_ACE) {
 		/* Allow memory configuration disparity to be ignored, we
@@ -1297,6 +1310,8 @@ static void kbase_pm_hw_issues_detect(struct kbase_device *kbdev)
 		}
 	}
 
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_TLS_HASHING))
+		kbdev->hw_quirks_sc |= SC_TLS_HASH_ENABLE;
 
 	if (!kbdev->hw_quirks_jm)
 		kbdev->hw_quirks_jm = kbase_reg_read(kbdev,

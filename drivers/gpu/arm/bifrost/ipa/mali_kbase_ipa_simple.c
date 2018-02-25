@@ -7,14 +7,20 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
 
-
-
+#include <uapi/linux/thermal.h>
 #include <linux/thermal.h>
 #ifdef CONFIG_DEVFREQ_THERMAL
 #include <linux/devfreq_cooling.h>
@@ -46,7 +52,7 @@ static int dummy_temp;
 
 static int kbase_simple_power_model_get_dummy_temp(
 	struct thermal_zone_device *tz,
-	int *dummy_temp)
+	int *temp)
 {
 	*temp = ACCESS_ONCE(dummy_temp);
 	return 0;
@@ -91,7 +97,7 @@ struct kbase_ipa_model_simple_data {
 	u32 dynamic_coefficient;
 	u32 static_coefficient;
 	s32 ts[4];
-	char tz_name[16];
+	char tz_name[THERMAL_NAME_LENGTH];
 	struct thermal_zone_device *gpu_tz;
 	struct task_struct *poll_temperature_thread;
 	int current_temperature;
@@ -113,10 +119,10 @@ struct kbase_ipa_model_simple_data {
 static u32 calculate_temp_scaling_factor(s32 ts[4], s64 t)
 {
 	/* Range: -2^24 < t2 < 2^24 m(Deg^2) */
-	const s64 t2 = (t * t) / 1000;
+	const s64 t2 = div_s64((t * t), 1000);
 
 	/* Range: -2^31 < t3 < 2^31 m(Deg^3) */
-	const s64 t3 = (t * t2) / 1000;
+	const s64 t3 = div_s64((t * t2), 1000);
 
 	/*
 	 * Sum the parts. t^[1-3] are in m(Deg^N), but the coefficients are in
@@ -129,7 +135,7 @@ static u32 calculate_temp_scaling_factor(s32 ts[4], s64 t)
 			  + ts[0] * 1000; /* +/- 2^41 */
 
 	/* Range: -2^60 < res_unclamped < 2^60 */
-	s64 res_unclamped = res_big / 1000;
+	s64 res_unclamped = div_s64(res_big, 1000);
 
 	/* Clamp to range of 0x to 10x the static power */
 	return clamp(res_unclamped, (s64) 0, (s64) 10000000);
@@ -192,7 +198,7 @@ static int model_static_coeff(struct kbase_ipa_model *model, u32 *coeffp)
 	 * 0 <= static_coefficient < 2^28.
 	 */
 	coeff_big = (u64) model_data->static_coefficient * (u64) temp_scaling_factor;
-	*coeffp = coeff_big / 1000000;
+	*coeffp = div_u64(coeff_big, 1000000);
 
 	return 0;
 }
@@ -283,20 +289,43 @@ static int kbase_simple_power_model_recalculate(struct kbase_ipa_model *model)
 			(struct kbase_ipa_model_simple_data *)model->model_data;
 	struct thermal_zone_device *tz;
 
+	lockdep_assert_held(&model->kbdev->ipa.lock);
+
 	if (!strnlen(model_data->tz_name, sizeof(model_data->tz_name))) {
-		tz = NULL;
+		model_data->gpu_tz = NULL;
 	} else {
-		tz = thermal_zone_get_zone_by_name(model_data->tz_name);
+		char tz_name[THERMAL_NAME_LENGTH];
+
+		strlcpy(tz_name, model_data->tz_name, sizeof(tz_name));
+
+		/* Release ipa.lock so that thermal_list_lock is not acquired
+		 * with ipa.lock held, thereby avoid lock ordering violation
+		 * lockdep warning. The warning comes as a chain of locks
+		 * ipa.lock --> thermal_list_lock --> tz->lock gets formed
+		 * on registering devfreq cooling device when probe method
+		 * of mali platform driver is invoked.
+		 */
+		mutex_unlock(&model->kbdev->ipa.lock);
+		tz = thermal_zone_get_zone_by_name(tz_name);
+		mutex_lock(&model->kbdev->ipa.lock);
 
 		if (IS_ERR_OR_NULL(tz)) {
 			pr_warn_ratelimited("Error %ld getting thermal zone \'%s\', not yet ready?\n",
-					    PTR_ERR(tz), model_data->tz_name);
-			tz = NULL;
+					    PTR_ERR(tz), tz_name);
 			return -EPROBE_DEFER;
 		}
-	}
 
-	ACCESS_ONCE(model_data->gpu_tz) = tz;
+		/* Check if another thread raced against us & updated the
+		 * thermal zone name string. Update the gpu_tz pointer only if
+		 * the name string did not change whilst we retrieved the new
+		 * thermal_zone_device pointer, otherwise model_data->tz_name &
+		 * model_data->gpu_tz would become inconsistent with each other.
+		 * The below check will succeed only for the thread which last
+		 * updated the name string.
+		 */
+		if (strncmp(tz_name, model_data->tz_name, sizeof(tz_name)) == 0)
+			model_data->gpu_tz = tz;
+	}
 
 	return 0;
 }
@@ -320,3 +349,4 @@ struct kbase_ipa_model_ops kbase_simple_ipa_model_ops = {
 		.get_static_coeff = &model_static_coeff,
 		.do_utilization_scaling_in_framework = true,
 };
+KBASE_EXPORT_TEST_API(kbase_simple_ipa_model_ops);

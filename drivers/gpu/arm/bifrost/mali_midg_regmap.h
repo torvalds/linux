@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 #ifndef _MIDGARD_REGMAP_H_
 #define _MIDGARD_REGMAP_H_
@@ -92,6 +97,7 @@
 #define TEXTURE_FEATURES_0      0x0B0	/* (RO) Support flags for indexed texture formats 0..31 */
 #define TEXTURE_FEATURES_1      0x0B4	/* (RO) Support flags for indexed texture formats 32..63 */
 #define TEXTURE_FEATURES_2      0x0B8	/* (RO) Support flags for indexed texture formats 64..95 */
+#define TEXTURE_FEATURES_3      0x0BC	/* (RO) Support flags for texture order */
 
 #define TEXTURE_FEATURES_REG(n) GPU_CONTROL_REG(TEXTURE_FEATURES_0 + ((n) << 2))
 
@@ -557,6 +563,13 @@
 #define L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES_OCTANT      (0x1 << L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES_SHIFT)
 #define L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES_QUARTER     (0x2 << L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES_SHIFT)
 #define L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES_HALF        (0x3 << L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES_SHIFT)
+
+#define L2_MMU_CONFIG_3BIT_LIMIT_EXTERNAL_READS_SHIFT      (12)
+#define L2_MMU_CONFIG_3BIT_LIMIT_EXTERNAL_READS            (0x7 << L2_MMU_CONFIG_LIMIT_EXTERNAL_READS_SHIFT)
+
+#define L2_MMU_CONFIG_3BIT_LIMIT_EXTERNAL_WRITES_SHIFT     (15)
+#define L2_MMU_CONFIG_3BIT_LIMIT_EXTERNAL_WRITES           (0x7 << L2_MMU_CONFIG_LIMIT_EXTERNAL_WRITES_SHIFT)
+
 /* End L2_MMU_CONFIG register */
 
 /* THREAD_* registers */

@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -24,14 +29,12 @@
 
 #include <mali_kbase_debug.h>
 
-#include <asm/page.h>
-
 #include <linux/atomic.h>
 #include <linux/highmem.h>
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
-#include <linux/mm_types.h>
+#include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
@@ -45,7 +48,6 @@
 #include <linux/workqueue.h>
 
 #include "mali_base_kernel.h"
-#include <mali_kbase_uku.h>
 #include <mali_kbase_linux.h>
 
 /*
@@ -112,6 +114,49 @@ void kbase_set_profiling_control(struct kbase_device *kbdev, u32 control, u32 va
 struct kbase_context *
 kbase_create_context(struct kbase_device *kbdev, bool is_compat);
 void kbase_destroy_context(struct kbase_context *kctx);
+
+
+/**
+ * kbase_get_unmapped_area() - get an address range which is currently
+ *                             unmapped.
+ * @filp: File operations associated with kbase device.
+ * @addr: CPU mapped address (set to 0 since MAP_FIXED mapping is not allowed
+ *        as Mali GPU driver decides about the mapping).
+ * @len: Length of the address range.
+ * @pgoff: Page offset within the GPU address space of the kbase context.
+ * @flags: Flags for the allocation.
+ *
+ * Finds the unmapped address range which satisfies requirements specific to
+ * GPU and those provided by the call parameters.
+ *
+ * 1) Requirement for allocations greater than 2MB:
+ * - alignment offset is set to 2MB and the alignment mask to 2MB decremented
+ * by 1.
+ *
+ * 2) Requirements imposed for the shader memory alignment:
+ * - alignment is decided by the number of GPU pc bits which can be read from
+ * GPU properties of the device associated with this kbase context; alignment
+ * offset is set to this value in bytes and the alignment mask to the offset
+ * decremented by 1.
+ * - allocations must not to be at 4GB boundaries. Such cases are indicated
+ * by the flag KBASE_REG_GPU_NX not being set (check the flags of the kbase
+ * region). 4GB boundaries can be checked against @ref BASE_MEM_MASK_4GB.
+ *
+ * 3) Requirements imposed for tiler memory alignment, cases indicated by
+ * the flag @ref KBASE_REG_TILER_ALIGN_TOP (check the flags of the kbase
+ * region):
+ * - alignment offset is set to the difference between the kbase region
+ * extent (converted from the original value in pages to bytes) and the kbase
+ * region initial_commit (also converted from the original value in pages to
+ * bytes); alignment mask is set to the kbase region extent in bytes and
+ * decremented by 1.
+ *
+ * Return: if successful, address of the unmapped area aligned as required;
+ *         error code (negative) in case of failure;
+ */
+unsigned long kbase_get_unmapped_area(struct file *filp,
+		const unsigned long addr, const unsigned long len,
+		const unsigned long pgoff, const unsigned long flags);
 
 int kbase_jd_init(struct kbase_context *kctx);
 void kbase_jd_exit(struct kbase_context *kctx);
@@ -221,10 +266,6 @@ void kbase_device_trace_register_access(struct kbase_context *kctx, enum kbase_r
 int kbase_device_trace_buffer_install(
 		struct kbase_context *kctx, u32 *tb, size_t size);
 void kbase_device_trace_buffer_uninstall(struct kbase_context *kctx);
-
-/* api to be ported per OS, only need to do the raw register access */
-void kbase_os_reg_write(struct kbase_device *kbdev, u16 offset, u32 value);
-u32 kbase_os_reg_read(struct kbase_device *kbdev, u16 offset);
 
 void kbasep_as_do_poke(struct work_struct *work);
 
@@ -545,20 +586,6 @@ void kbasep_trace_clear(struct kbase_device *kbdev);
 #endif /* KBASE_TRACE_ENABLE */
 /** PRIVATE - do not use directly. Use KBASE_TRACE_DUMP() instead */
 void kbasep_trace_dump(struct kbase_device *kbdev);
-
-#ifdef CONFIG_MALI_BIFROST_DEBUG
-/**
- * kbase_set_driver_inactive - Force driver to go inactive
- * @kbdev:    Device pointer
- * @inactive: true if driver should go inactive, false otherwise
- *
- * Forcing the driver inactive will cause all future IOCTLs to wait until the
- * driver is made active again. This is intended solely for the use of tests
- * which require that no jobs are running while the test executes.
- */
-void kbase_set_driver_inactive(struct kbase_device *kbdev, bool inactive);
-#endif /* CONFIG_MALI_BIFROST_DEBUG */
-
 
 #if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_BIFROST_NO_MALI)
 

@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -411,13 +416,28 @@ void kbase_pm_release_gpu_cycle_counter_nolock(struct kbase_device *kbdev);
 void kbase_pm_wait_for_poweroff_complete(struct kbase_device *kbdev);
 
 /**
+ * kbase_pm_runtime_init - Initialize runtime-pm for Mali GPU platform device
+ *
+ * Setup the power management callbacks and initialize/enable the runtime-pm
+ * for the Mali GPU platform device, using the callback function. This must be
+ * called before the kbase_pm_register_access_enable() function.
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ */
+int kbase_pm_runtime_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_pm_runtime_term - Disable runtime-pm for Mali GPU platform device
+ *
+ * @kbdev: The kbase device structure for the device (must be a valid pointer)
+ */
+void kbase_pm_runtime_term(struct kbase_device *kbdev);
+
+/**
  * kbase_pm_register_access_enable - Enable access to GPU registers
  *
  * Enables access to the GPU registers before power management has powered up
  * the GPU with kbase_pm_powerup().
- *
- * Access to registers should be done using kbase_os_reg_read()/write() at this
- * stage, not kbase_reg_read()/write().
  *
  * This results in the power management callbacks provided in the driver
  * configuration to get called to turn on power and/or clocks to the GPU. See

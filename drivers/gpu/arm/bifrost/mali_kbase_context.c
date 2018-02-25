@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -59,6 +64,11 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 	atomic_set(&kctx->refcount, 0);
 	if (is_compat)
 		kbase_ctx_flag_set(kctx, KCTX_COMPAT);
+#if defined(CONFIG_64BIT)
+	else
+		kbase_ctx_flag_set(kctx, KCTX_FORCE_SAME_VA);
+#endif /* !defined(CONFIG_64BIT) */
+
 #ifdef CONFIG_MALI_BIFROST_TRACE_TIMELINE
 	kctx->timeline.owner_tgid = task_tgid_nr(current);
 #endif
@@ -114,9 +124,6 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 
 	INIT_LIST_HEAD(&kctx->waiting_soft_jobs);
 	spin_lock_init(&kctx->waiting_soft_jobs_lock);
-#ifdef CONFIG_KDS
-	INIT_LIST_HEAD(&kctx->waiting_kds_resource);
-#endif
 	err = kbase_dma_fence_init(kctx);
 	if (err)
 		goto free_event;
@@ -296,8 +303,6 @@ void kbase_destroy_context(struct kbase_context *kctx)
 
 	kbase_jd_exit(kctx);
 
-	kbase_pm_context_idle(kbdev);
-
 	kbase_dma_fence_term(kctx);
 
 	mutex_lock(&kbdev->mmu_hw_mutex);
@@ -318,6 +323,8 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	WARN_ON(atomic_read(&kctx->nonmapped_pages) != 0);
 
 	vfree(kctx);
+
+	kbase_pm_context_idle(kbdev);
 }
 KBASE_EXPORT_SYMBOL(kbase_destroy_context);
 

@@ -6,12 +6,18 @@
 # Foundation, and any use by you of this program is subject to the terms
 # of such GNU licence.
 #
-# A copy of the licence is included with the program, and can also be obtained
-# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-# Boston, MA  02110-1301, USA.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+# SPDX-License-Identifier: GPL-2.0
 #
 #
-
 
 
 KDIR ?= /lib/modules/$(shell uname -r)/build
@@ -19,7 +25,6 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 BUSLOG_PATH_RELATIVE = $(CURDIR)/../../../..
 UMP_PATH_RELATIVE = $(CURDIR)/../../../base/ump
 KBASE_PATH_RELATIVE = $(CURDIR)
-KDS_PATH_RELATIVE = $(CURDIR)/../../../..
 EXTRA_SYMBOLS = $(UMP_PATH_RELATIVE)/src/Module.symvers
 
 ifeq ($(MALI_UNIT_TEST), 1)
@@ -30,9 +35,6 @@ ifeq ($(CONFIG_MALI_FPGA_BUS_LOGGER),y)
 #Add bus logger symbols
 EXTRA_SYMBOLS += $(BUSLOG_PATH_RELATIVE)/drivers/base/bus_logger/Module.symvers
 endif
-
-# GPL driver supports KDS
-EXTRA_SYMBOLS += $(KDS_PATH_RELATIVE)/drivers/base/kds/Module.symvers
 
 # we get the symbols from modules using KBUILD_EXTRA_SYMBOLS to prevent warnings about unknown functions
 all:

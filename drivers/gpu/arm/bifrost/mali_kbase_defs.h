@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -34,6 +39,7 @@
 #include <mali_kbase_mmu_hw.h>
 #include <mali_kbase_instr_defs.h>
 #include <mali_kbase_pm.h>
+#include <mali_kbase_gpuprops_types.h>
 #include <protected_mode_switcher.h>
 
 #include <linux/atomic.h>
@@ -46,10 +52,6 @@
 #include <linux/bus_logger.h>
 #endif
 
-
-#ifdef CONFIG_KDS
-#include <linux/kds.h>
-#endif				/* CONFIG_KDS */
 
 #if defined(CONFIG_SYNC)
 #include <sync.h>
@@ -439,12 +441,9 @@ struct kbase_jd_atom {
 	u32 device_nr;
 	u64 affinity;
 	u64 jc;
+	/* Copy of data read from the user space buffer that jc points to */
+	void *softjob_data;
 	enum kbase_atom_coreref_state coreref_state;
-#ifdef CONFIG_KDS
-	struct list_head node;
-	struct kds_resource_set *kds_rset;
-	bool kds_dep_satisfied;
-#endif				/* CONFIG_KDS */
 #if defined(CONFIG_SYNC)
 	/* Stores either an input or output fence, depending on soft-job type */
 	struct sync_fence *fence;
@@ -521,10 +520,6 @@ struct kbase_jd_atom {
 	/* Note: refer to kbasep_js_atom_retained_state, which will take a copy of some of the following members */
 	enum base_jd_event_code event_code;
 	base_jd_core_req core_req;	    /**< core requirements */
-	/** Job Slot to retry submitting to if submission from IRQ handler failed
-	 *
-	 * NOTE: see if this can be unified into the another member e.g. the event */
-	int retry_submit_on_slot;
 
 	u32 ticks;
 	/* JS atom priority with respect to other atoms on its kctx. */
@@ -655,9 +650,6 @@ struct kbase_jd_context {
 	u32 *tb;
 	size_t tb_wrap_offset;
 
-#ifdef CONFIG_KDS
-	struct kds_callback kds_cb;
-#endif				/* CONFIG_KDS */
 #ifdef CONFIG_GPU_TRACEPOINTS
 	atomic_t work_id;
 #endif
@@ -1287,6 +1279,14 @@ struct kbase_device {
 
 	/* Current serialization mode. See KBASE_SERIALIZE_* for details */
 	u8 serialize_jobs;
+
+#ifdef CONFIG_MALI_JOB_DUMP
+	/* Used to backup status of job serialization mode
+	 * when we use GWT and restore when GWT is disabled.
+	 * GWT uses full serialization mode.
+	 */
+	u8 backup_serialize_jobs;
+#endif
 };
 
 /**
@@ -1343,6 +1343,14 @@ struct jsctx_queue {
  * context, to disable use of implicit dma-buf fences. This is used to avoid
  * potential synchronization deadlocks.
  *
+ * @KCTX_FORCE_SAME_VA: Set when BASE_MEM_SAME_VA should be forced on memory
+ * allocations. For 64-bit clients it is enabled by default, and disabled by
+ * default on 32-bit clients. Being able to clear this flag is only used for
+ * testing purposes of the custom zone allocation on 64-bit user-space builds,
+ * where we also require more control than is available through e.g. the JIT
+ * allocation mechanism. However, the 64-bit user-space client must still
+ * reserve a JIT region using KBASE_IOCTL_MEM_JIT_INIT
+ *
  * All members need to be separate bits. This enum is intended for use in a
  * bitmask where multiple values get OR-ed together.
  */
@@ -1358,6 +1366,7 @@ enum kbase_context_flags {
 	KCTX_SCHEDULED = 1U << 8,
 	KCTX_DYING = 1U << 9,
 	KCTX_NO_IMPLICIT_SYNC = 1U << 10,
+	KCTX_FORCE_SAME_VA = 1U << 11,
 };
 
 struct kbase_sub_alloc {
@@ -1420,9 +1429,6 @@ struct kbase_context {
 
 	struct list_head waiting_soft_jobs;
 	spinlock_t waiting_soft_jobs_lock;
-#ifdef CONFIG_KDS
-	struct list_head waiting_kds_resource;
-#endif
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	struct {
 		struct list_head waiting_resource;
@@ -1545,7 +1551,49 @@ struct kbase_context {
 
 	/* Current age count, used to determine age for newly submitted atoms */
 	u32 age_count;
+
+#ifdef CONFIG_MALI_JOB_DUMP
+	/* Used for tracking GPU writes.
+	 * (protected by kbase_context.reg_lock)
+	 */
+	bool gwt_enabled;
+
+	/* Simple sticky bit flag to know if GWT was ever enabled
+	 * (protected by kbase_context.reg_lock)
+	 */
+	bool gwt_was_enabled;
+
+	/* Current list of GPU writes.
+	 * (protected by kbase_context.reg_lock)
+	 */
+	struct list_head gwt_current_list;
+
+	 /* Snapshot of list of GPU writes for sending to user space. */
+	struct list_head gwt_snapshot_list;
+
+#endif
 };
+
+#ifdef CONFIG_MALI_JOB_DUMP
+/**
+ * struct kbasep_gwt_list_element - Structure used to collect GPU
+ *                                  write faults.
+ * @link:                           List head for adding write faults.
+ * @handle:                         The handle for the modified region.
+ * @offset:                         The offset in pages of the modified
+ *                                  part of the region.
+ * @num_pages:                      The number of pages modified.
+ *
+ * Using this structure all GPU write faults are stored in a list.
+ */
+struct kbasep_gwt_list_element {
+	struct list_head link;
+	u64 handle;
+	u64 offset;
+	u64 num_pages;
+};
+
+#endif
 
 /**
  * struct kbase_ctx_ext_res_meta - Structure which binds an external resource

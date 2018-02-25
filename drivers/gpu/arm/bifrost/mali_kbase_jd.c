@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -24,7 +29,6 @@
 #include <linux/compat.h>
 #endif
 #include <mali_kbase.h>
-#include <mali_kbase_uku.h>
 #include <linux/random.h>
 #include <linux/version.h>
 #include <linux/ratelimit.h>
@@ -106,7 +110,7 @@ static int jd_run_atom(struct kbase_jd_atom *katom)
 	return kbasep_js_add_job(kctx, katom);
 }
 
-#if defined(CONFIG_KDS) || defined(CONFIG_MALI_BIFROST_DMA_FENCE)
+#if defined(CONFIG_MALI_BIFROST_DMA_FENCE)
 void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom)
 {
 	struct kbase_device *kbdev;
@@ -139,91 +143,8 @@ void kbase_jd_dep_clear_locked(struct kbase_jd_atom *katom)
 }
 #endif
 
-#ifdef CONFIG_KDS
-
-/* Add the katom to the kds waiting list.
- * Atoms must be added to the waiting list after a successful call to kds_async_waitall.
- * The caller must hold the kbase_jd_context.lock */
-
-static void kbase_jd_kds_waiters_add(struct kbase_jd_atom *katom)
-{
-	struct kbase_context *kctx;
-
-	KBASE_DEBUG_ASSERT(katom);
-
-	kctx = katom->kctx;
-
-	list_add_tail(&katom->node, &kctx->waiting_kds_resource);
-}
-
-/* Remove the katom from the kds waiting list.
- * Atoms must be removed from the waiting list before a call to kds_resource_set_release_sync.
- * The supplied katom must first have been added to the list with a call to kbase_jd_kds_waiters_add.
- * The caller must hold the kbase_jd_context.lock */
-
-static void kbase_jd_kds_waiters_remove(struct kbase_jd_atom *katom)
-{
-	KBASE_DEBUG_ASSERT(katom);
-	list_del(&katom->node);
-}
-
-static void kds_dep_clear(void *callback_parameter, void *callback_extra_parameter)
-{
-	struct kbase_jd_atom *katom;
-	struct kbase_jd_context *ctx;
-
-	katom = (struct kbase_jd_atom *)callback_parameter;
-	KBASE_DEBUG_ASSERT(katom);
-
-	ctx = &katom->kctx->jctx;
-
-	/* If KDS resource has already been satisfied (e.g. due to zapping)
-	 * do nothing.
-	 */
-	mutex_lock(&ctx->lock);
-	if (!katom->kds_dep_satisfied) {
-		katom->kds_dep_satisfied = true;
-		kbase_jd_dep_clear_locked(katom);
-	}
-	mutex_unlock(&ctx->lock);
-}
-
-static void kbase_cancel_kds_wait_job(struct kbase_jd_atom *katom)
-{
-	KBASE_DEBUG_ASSERT(katom);
-
-	/* Prevent job_done_nolock from being called twice on an atom when
-	 *  there is a race between job completion and cancellation */
-
-	if (katom->status == KBASE_JD_ATOM_STATE_QUEUED) {
-		/* Wait was cancelled - zap the atom */
-		katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
-		if (jd_done_nolock(katom, NULL))
-			kbase_js_sched_all(katom->kctx->kbdev);
-	}
-}
-#endif				/* CONFIG_KDS */
-
 void kbase_jd_free_external_resources(struct kbase_jd_atom *katom)
 {
-#ifdef CONFIG_KDS
-	if (katom->kds_rset) {
-		struct kbase_jd_context *jctx = &katom->kctx->jctx;
-
-		/*
-		 * As the atom is no longer waiting, remove it from
-		 * the waiting list.
-		 */
-
-		mutex_lock(&jctx->lock);
-		kbase_jd_kds_waiters_remove(katom);
-		mutex_unlock(&jctx->lock);
-
-		/* Release the kds resource or cancel if zapping */
-		kds_resource_set_release_sync(&katom->kds_rset);
-	}
-#endif				/* CONFIG_KDS */
-
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	/* Flush dma-fence workqueue to ensure that any callbacks that may have
 	 * been queued are done before continuing.
@@ -239,12 +160,6 @@ static void kbase_jd_post_external_resources(struct kbase_jd_atom *katom)
 {
 	KBASE_DEBUG_ASSERT(katom);
 	KBASE_DEBUG_ASSERT(katom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES);
-
-#ifdef CONFIG_KDS
-	/* Prevent the KDS resource from triggering the atom in case of zapping */
-	if (katom->kds_rset)
-		katom->kds_dep_satisfied = true;
-#endif				/* CONFIG_KDS */
 
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	kbase_dma_fence_signal(katom);
@@ -281,11 +196,6 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 {
 	int err_ret_val = -EINVAL;
 	u32 res_no;
-#ifdef CONFIG_KDS
-	u32 kds_res_count = 0;
-	struct kds_resource **kds_resources = NULL;
-	unsigned long *kds_access_bitmap = NULL;
-#endif				/* CONFIG_KDS */
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	struct kbase_dma_fence_resv_info info = {
 		.dma_fence_resv_count = 0,
@@ -332,25 +242,6 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 		err_ret_val = -EINVAL;
 		goto early_err_out;
 	}
-#ifdef CONFIG_KDS
-	/* assume we have to wait for all */
-	KBASE_DEBUG_ASSERT(0 != katom->nr_extres);
-	kds_resources = kmalloc_array(katom->nr_extres, sizeof(struct kds_resource *), GFP_KERNEL);
-
-	if (!kds_resources) {
-		err_ret_val = -ENOMEM;
-		goto early_err_out;
-	}
-
-	KBASE_DEBUG_ASSERT(0 != katom->nr_extres);
-	kds_access_bitmap = kcalloc(BITS_TO_LONGS(katom->nr_extres),
-				    sizeof(unsigned long),
-				    GFP_KERNEL);
-	if (!kds_access_bitmap) {
-		err_ret_val = -ENOMEM;
-		goto early_err_out;
-	}
-#endif				/* CONFIG_KDS */
 
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	if (implicit_sync) {
@@ -401,12 +292,7 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 		}
 
 		alloc = kbase_map_external_resource(katom->kctx, reg,
-				current->mm
-#ifdef CONFIG_KDS
-				, &kds_res_count, kds_resources,
-				kds_access_bitmap, exclusive
-#endif
-				);
+				current->mm);
 		if (!alloc) {
 			err_ret_val = -EINVAL;
 			goto failed_loop;
@@ -434,35 +320,11 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 		katom->extres[res_no].alloc = alloc;
 	}
 	/* successfully parsed the extres array */
-	/* drop the vm lock before we call into kds */
+	/* drop the vm lock now */
 	kbase_gpu_vm_unlock(katom->kctx);
 
 	/* Release the processes mmap lock */
 	up_read(&current->mm->mmap_sem);
-
-#ifdef CONFIG_KDS
-	if (kds_res_count) {
-		int wait_failed;
-
-		/* We have resources to wait for with kds */
-		katom->kds_dep_satisfied = false;
-
-		wait_failed = kds_async_waitall(&katom->kds_rset,
-				&katom->kctx->jctx.kds_cb, katom, NULL,
-				kds_res_count, kds_access_bitmap,
-				kds_resources);
-
-		if (wait_failed)
-			goto failed_kds_setup;
-		else
-			kbase_jd_kds_waiters_add(katom);
-	} else {
-		/* Nothing to wait for, so kds dep met */
-		katom->kds_dep_satisfied = true;
-	}
-	kfree(kds_resources);
-	kfree(kds_access_bitmap);
-#endif				/* CONFIG_KDS */
 
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	if (implicit_sync) {
@@ -486,24 +348,6 @@ static int kbase_jd_pre_external_resources(struct kbase_jd_atom *katom, const st
 
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 failed_dma_fence_setup:
-#ifdef CONFIG_KDS
-	/* If we are here, dma_fence setup failed but KDS didn't.
-	 * Revert KDS setup if any.
-	 */
-	if (kds_res_count) {
-		mutex_unlock(&katom->kctx->jctx.lock);
-		kds_resource_set_release_sync(&katom->kds_rset);
-		mutex_lock(&katom->kctx->jctx.lock);
-
-		kbase_jd_kds_waiters_remove(katom);
-		katom->kds_dep_satisfied = true;
-	}
-#endif /* CONFIG_KDS */
-#endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
-#ifdef CONFIG_KDS
-failed_kds_setup:
-#endif
-#if defined(CONFIG_KDS) || defined(CONFIG_MALI_BIFROST_DMA_FENCE)
 	/* Lock the processes mmap lock */
 	down_read(&current->mm->mmap_sem);
 
@@ -526,10 +370,6 @@ failed_kds_setup:
  early_err_out:
 	kfree(katom->extres);
 	katom->extres = NULL;
-#ifdef CONFIG_KDS
-	kfree(kds_resources);
-	kfree(kds_access_bitmap);
-#endif				/* CONFIG_KDS */
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	if (implicit_sync) {
 		kfree(info.resv_objs);
@@ -559,15 +399,6 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 
 		if (katom->event_code != BASE_JD_EVENT_DONE &&
 			(dep_type != BASE_JD_DEP_TYPE_ORDER)) {
-#ifdef CONFIG_KDS
-			if (!dep_atom->kds_dep_satisfied) {
-				/* Just set kds_dep_satisfied to true. If the callback happens after this then it will early out and
-				 * do nothing. If the callback doesn't happen then kbase_jd_post_external_resources will clean up
-				 */
-				dep_atom->kds_dep_satisfied = true;
-			}
-#endif
-
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 			kbase_dma_fence_cancel_callbacks(dep_atom);
 #endif
@@ -576,7 +407,7 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 			KBASE_DEBUG_ASSERT(dep_atom->status !=
 						KBASE_JD_ATOM_STATE_UNUSED);
 
-			if ((dep_atom->core_req & BASE_JD_REQ_SOFT_REPLAY)
+			if ((dep_atom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE)
 					!= BASE_JD_REQ_SOFT_REPLAY) {
 				dep_atom->will_fail_event_code =
 					dep_atom->event_code;
@@ -616,10 +447,6 @@ static inline void jd_resolve_dep(struct list_head *out_list,
 				dep_satisfied = false;
 			}
 #endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
-
-#ifdef CONFIG_KDS
-			dep_satisfied = dep_satisfied && dep_atom->kds_dep_satisfied;
-#endif
 
 			if (dep_satisfied) {
 				dep_atom->in_jd_list = true;
@@ -756,10 +583,6 @@ static void jd_try_submitting_deps(struct list_head *out_list,
 					dep_satisfied = false;
 				}
 #endif /* CONFIG_MALI_BIFROST_DMA_FENCE */
-#ifdef CONFIG_KDS
-				dep_satisfied = dep_satisfied &&
-						dep_atom->kds_dep_satisfied;
-#endif
 
 				if (dep0_valid && dep1_valid && dep_satisfied) {
 					dep_atom->in_jd_list = true;
@@ -997,6 +820,7 @@ bool jd_submit_atom(struct kbase_context *kctx, const struct base_jd_atom_v2 *us
 	katom->x_pre_dep = NULL;
 	katom->x_post_dep = NULL;
 	katom->will_fail_event_code = BASE_JD_EVENT_NOT_STARTED;
+	katom->softjob_data = NULL;
 
 	/* Implicitly sets katom->protected_state.enter as well. */
 	katom->protected_state.exit = KBASE_ATOM_EXIT_PROTECTED_CHECK;
@@ -1004,12 +828,6 @@ bool jd_submit_atom(struct kbase_context *kctx, const struct base_jd_atom_v2 *us
 	katom->age = kctx->age_count++;
 
 	INIT_LIST_HEAD(&katom->jd_item);
-#ifdef CONFIG_KDS
-	/* Start by assuming that the KDS dependencies are satisfied,
-	 * kbase_jd_pre_external_resources will correct this if there are dependencies */
-	katom->kds_dep_satisfied = true;
-	katom->kds_rset = NULL;
-#endif				/* CONFIG_KDS */
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	kbase_fence_dep_count_set(katom, -1);
 #endif
@@ -1185,6 +1003,16 @@ bool jd_submit_atom(struct kbase_context *kctx, const struct base_jd_atom_v2 *us
 		goto out;
 	}
 
+	/* Reject fence wait soft-job atoms accessing external resources */
+	if ((katom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES) &&
+			 ((katom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) == BASE_JD_REQ_SOFT_FENCE_WAIT)) {
+		dev_warn(kctx->kbdev->dev,
+				"Rejecting fence wait soft-job atom accessing external resources");
+		katom->event_code = BASE_JD_EVENT_JOB_INVALID;
+		ret = jd_done_nolock(katom, NULL);
+		goto out;
+	}
+
 	if (katom->core_req & BASE_JD_REQ_EXTERNAL_RESOURCES) {
 		/* handle what we need to do to access the external resources */
 		if (kbase_jd_pre_external_resources(katom, user_atom) != 0) {
@@ -1227,14 +1055,6 @@ bool jd_submit_atom(struct kbase_context *kctx, const struct base_jd_atom_v2 *us
 		ret = false;
 		goto out;
 	}
-#ifdef CONFIG_KDS
-	if (!katom->kds_dep_satisfied) {
-		/* Queue atom due to KDS dependency */
-		ret = false;
-		goto out;
-	}
-#endif				/* CONFIG_KDS */
-
 
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	if (kbase_fence_dep_count_read(katom) != -1) {
@@ -1321,12 +1141,6 @@ int kbase_jd_submit(struct kbase_context *kctx,
 				&kctx->timeline.jd_atoms_in_flight));
 			break;
 		}
-
-#ifdef BASE_LEGACY_UK10_2_SUPPORT
-		if (KBASE_API_VERSION(10, 3) > kctx->api_version)
-			user_atom.core_req = (u32)(user_atom.compat_core_req
-					      & 0x7fff);
-#endif /* BASE_LEGACY_UK10_2_SUPPORT */
 
 		user_addr = (void __user *)((uintptr_t) user_addr + stride);
 
@@ -1673,7 +1487,6 @@ void kbase_jd_done(struct kbase_jd_atom *katom, int slot_nr,
 #endif
 
 	WARN_ON(work_pending(&katom->work));
-	KBASE_DEBUG_ASSERT(0 == object_is_on_stack(&katom->work));
 	INIT_WORK(&katom->work, kbase_jd_done_worker);
 	queue_work(kctx->jctx.job_done_wq, &katom->work);
 }
@@ -1698,7 +1511,6 @@ void kbase_jd_cancel(struct kbase_device *kbdev, struct kbase_jd_atom *katom)
 
 	katom->event_code = BASE_JD_EVENT_JOB_CANCELLED;
 
-	KBASE_DEBUG_ASSERT(0 == object_is_on_stack(&katom->work));
 	INIT_WORK(&katom->work, jd_cancel_worker);
 	queue_work(kctx->jctx.job_done_wq, &katom->work);
 }
@@ -1732,24 +1544,6 @@ void kbase_jd_zap_context(struct kbase_context *kctx)
 	}
 
 
-#ifdef CONFIG_KDS
-
-	/* For each job waiting on a kds resource, cancel the wait and force the job to
-	 * complete early, this is done so that we don't leave jobs outstanding waiting
-	 * on kds resources which may never be released when contexts are zapped, resulting
-	 * in a hang.
-	 *
-	 * Note that we can safely iterate over the list as the struct kbase_jd_context lock is held,
-	 * this prevents items being removed when calling job_done_nolock in kbase_cancel_kds_wait_job.
-	 */
-
-	list_for_each(entry, &kctx->waiting_kds_resource) {
-		katom = list_entry(entry, struct kbase_jd_atom, node);
-
-		kbase_cancel_kds_wait_job(katom);
-	}
-#endif
-
 #ifdef CONFIG_MALI_BIFROST_DMA_FENCE
 	kbase_dma_fence_cancel_all_atoms(kctx);
 #endif
@@ -1772,9 +1566,6 @@ int kbase_jd_init(struct kbase_context *kctx)
 {
 	int i;
 	int mali_err = 0;
-#ifdef CONFIG_KDS
-	int err;
-#endif				/* CONFIG_KDS */
 
 	KBASE_DEBUG_ASSERT(kctx);
 
@@ -1809,24 +1600,12 @@ int kbase_jd_init(struct kbase_context *kctx)
 
 	spin_lock_init(&kctx->jctx.tb_lock);
 
-#ifdef CONFIG_KDS
-	err = kds_callback_init(&kctx->jctx.kds_cb, 0, kds_dep_clear);
-	if (0 != err) {
-		mali_err = -EINVAL;
-		goto out2;
-	}
-#endif				/* CONFIG_KDS */
-
 	kctx->jctx.job_nr = 0;
 	INIT_LIST_HEAD(&kctx->completed_jobs);
 	atomic_set(&kctx->work_count, 0);
 
 	return 0;
 
-#ifdef CONFIG_KDS
- out2:
-	destroy_workqueue(kctx->jctx.job_done_wq);
-#endif				/* CONFIG_KDS */
  out1:
 	return mali_err;
 }
@@ -1837,9 +1616,6 @@ void kbase_jd_exit(struct kbase_context *kctx)
 {
 	KBASE_DEBUG_ASSERT(kctx);
 
-#ifdef CONFIG_KDS
-	kds_callback_term(&kctx->jctx.kds_cb);
-#endif				/* CONFIG_KDS */
 	/* Work queue is emptied by this */
 	destroy_workqueue(kctx->jctx.job_done_wq);
 }

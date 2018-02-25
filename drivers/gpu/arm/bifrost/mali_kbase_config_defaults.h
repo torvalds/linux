@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 /**
  * @file mali_kbase_config_defaults.h
@@ -74,6 +79,35 @@ enum {
 	KBASE_AID_4  = 0x1
 };
 
+enum {
+	/**
+	 * Use unrestricted Address ID width on the AXI bus.
+	 * Restricting ID width will reduce performance & bus load due to GPU.
+	 */
+	KBASE_3BIT_AID_32 = 0x0,
+
+	/* Restrict GPU to 7/8 of maximum Address ID count. */
+	KBASE_3BIT_AID_28 = 0x1,
+
+	/* Restrict GPU to 3/4 of maximum Address ID count. */
+	KBASE_3BIT_AID_24 = 0x2,
+
+	/* Restrict GPU to 5/8 of maximum Address ID count. */
+	KBASE_3BIT_AID_20 = 0x3,
+
+	/* Restrict GPU to 1/2 of maximum Address ID count.  */
+	KBASE_3BIT_AID_16 = 0x4,
+
+	/* Restrict GPU to 3/8 of maximum Address ID count. */
+	KBASE_3BIT_AID_12 = 0x5,
+
+	/* Restrict GPU to 1/4 of maximum Address ID count. */
+	KBASE_3BIT_AID_8  = 0x6,
+
+	/* Restrict GPU to 1/8 of maximum Address ID count. */
+	KBASE_3BIT_AID_4  = 0x7
+};
+
 /**
  * Default setting for read Address ID limiting on AXI bus.
  *
@@ -99,6 +133,22 @@ enum {
  * may limit to a lower value.
  */
 #define DEFAULT_AWID_LIMIT KBASE_AID_32
+
+/**
+ * Default setting for read Address ID limiting on AXI bus.
+ *
+ * Default value: KBASE_3BIT_AID_32 (no limit). Note hardware implementation
+ * may limit to a lower value.
+ */
+#define DEFAULT_3BIT_ARID_LIMIT KBASE_3BIT_AID_32
+
+/**
+ * Default setting for write Address ID limiting on AXI.
+ *
+ * Default value: KBASE_3BIT_AID_32 (no limit). Note hardware implementation
+ * may limit to a lower value.
+ */
+#define DEFAULT_3BIT_AWID_LIMIT KBASE_3BIT_AID_32
 
 /**
  * Default UMP device mapping. A UMP_DEVICE_<device>_SHIFT value which
@@ -221,6 +271,14 @@ enum {
  * the available power policies to coarse_demand and always_on.
  */
 #define PLATFORM_POWER_DOWN_ONLY (0)
+
+/*
+ * Maximum frequency (in kHz) that the GPU can be clocked. For some platforms
+ * this isn't available, so we simply define a dummy value here. If devfreq
+ * is enabled the value will be read from there, otherwise this should be
+ * overridden by defining GPU_FREQ_KHZ_MAX in the platform file.
+ */
+#define DEFAULT_GPU_FREQ_KHZ_MAX (5000)
 
 #endif /* _KBASE_CONFIG_DEFAULTS_H_ */
 

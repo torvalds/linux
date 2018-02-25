@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 /*
  * Debugfs interface to dump the memory visible to the GPU
@@ -299,7 +304,7 @@ void kbase_debug_mem_view_init(struct file *kctx_file)
 {
 	struct kbase_context *kctx = kctx_file->private_data;
 
-	debugfs_create_file("mem_view", S_IRUGO, kctx->kctx_dentry, kctx_file,
+	debugfs_create_file("mem_view", S_IRUSR, kctx->kctx_dentry, kctx_file,
 			&kbase_debug_mem_view_fops);
 }
 

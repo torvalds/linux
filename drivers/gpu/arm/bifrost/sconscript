@@ -6,12 +6,18 @@
 # Foundation, and any use by you of this program is subject to the terms
 # of such GNU licence.
 #
-# A copy of the licence is included with the program, and can also be obtained
-# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-# Boston, MA  02110-1301, USA.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+# SPDX-License-Identifier: GPL-2.0
 #
 #
-
 
 import sys
 Import('env')
@@ -27,6 +33,7 @@ kbase_src = [
 	Glob('internal/*/*.c'),
 	Glob('ipa/*.c'),
 	Glob('platform/%s/*.c' % env['platform_config']),
+	Glob('thirdparty/*.c'),
 ]
 
 if env['platform_config']=='juno_soc':
@@ -46,19 +53,11 @@ make_args = env.kernel_get_config_defines(ret_list = True) + [
 	'MALI_RELEASE_NAME=%s' % env['mali_release_name'],
 	'MALI_MOCK_TEST=%s' % mock_test,
 	'MALI_CUSTOMER_RELEASE=%s' % env['release'],
-	'MALI_INSTRUMENTATION_LEVEL=%s' % env['instr'],
 	'MALI_COVERAGE=%s' % env['coverage'],
 ]
 
 kbase = env.BuildKernelModule('$STATIC_LIB_PATH/mali_kbase.ko', kbase_src,
                               make_args = make_args)
-
-# Add a dependency on kds.ko.
-# Only necessary when KDS is not built into the kernel.
-#
-if env['os'] != 'android':
-	if not env.KernelConfigEnabled("CONFIG_KDS"):
-		env.Depends(kbase, '$STATIC_LIB_PATH/kds.ko')
 
 # need Module.symvers from ump.ko build
 if int(env['ump']) == 1:

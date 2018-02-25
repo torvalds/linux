@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -30,9 +35,6 @@
 #endif
 
 #include <linux/kref.h>
-#ifdef CONFIG_KDS
-#include <linux/kds.h>
-#endif				/* CONFIG_KDS */
 #ifdef CONFIG_UMP
 #include <linux/ump.h>
 #endif				/* CONFIG_UMP */
@@ -128,8 +130,6 @@ struct kbase_mem_phy_alloc {
 	enum kbase_memory_type type;
 
 	unsigned long properties;
-
-	struct list_head       zone_cache;
 
 	/* member in union valid based on @a type */
 	union {
@@ -238,6 +238,9 @@ struct kbase_va_region {
 
 	u64 start_pfn;		/* The PFN in GPU space */
 	size_t nr_pages;
+	/* Initial commit, for aligning the start address and correctly growing
+	 * KBASE_REG_TILER_ALIGN_TOP regions */
+	size_t initial_commit;
 
 /* Free region */
 #define KBASE_REG_FREE              (1ul << 0)
@@ -289,6 +292,13 @@ struct kbase_va_region {
  * Do not remove, use the next unreserved bit for new flags */
 #define KBASE_REG_RESERVED_BIT_22   (1ul << 22)
 
+/* The top of the initial commit is aligned to extent pages.
+ * Extent must be a power of 2 */
+#define KBASE_REG_TILER_ALIGN_TOP   (1ul << 23)
+
+/* Memory is handled by JIT - user space should not be able to free it */
+#define KBASE_REG_JIT               (1ul << 24)
+
 #define KBASE_REG_ZONE_SAME_VA      KBASE_REG_ZONE(0)
 
 /* only used with 32-bit clients */
@@ -319,9 +329,6 @@ struct kbase_va_region {
 
 	struct kbase_mem_phy_alloc *cpu_alloc; /* the one alloc object we mmap to the CPU when mapping this region */
 	struct kbase_mem_phy_alloc *gpu_alloc; /* the one alloc object we mmap to the GPU when mapping this region */
-
-	/* non-NULL if this memory object is a kds_resource */
-	struct kds_resource *kds_res;
 
 	/* List head used to store the region in the JIT allocation pool */
 	struct list_head jit_node;
@@ -406,7 +413,6 @@ static inline struct kbase_mem_phy_alloc *kbase_alloc_create(size_t nr_pages, en
 	alloc->pages = (void *)(alloc + 1);
 	INIT_LIST_HEAD(&alloc->mappings);
 	alloc->type = type;
-	INIT_LIST_HEAD(&alloc->zone_cache);
 
 	if (type == KBASE_MEM_TYPE_IMPORTED_USER_BUF)
 		alloc->imported.user_buf.dma_addrs =
@@ -441,7 +447,6 @@ static inline int kbase_reg_prepare_native(struct kbase_va_region *reg,
 		reg->gpu_alloc = kbase_mem_phy_alloc_get(reg->cpu_alloc);
 	}
 
-	INIT_LIST_HEAD(&reg->jit_node);
 	reg->flags &= ~KBASE_REG_FREE;
 	return 0;
 }
@@ -675,6 +680,25 @@ bool kbase_check_alloc_flags(unsigned long flags);
 bool kbase_check_import_flags(unsigned long flags);
 
 /**
+ * kbase_check_alloc_sizes - check user space sizes parameters for an
+ *                           allocation
+ *
+ * @kctx:         kbase context
+ * @flags:        The flags passed from user space
+ * @va_pages:     The size of the requested region, in pages.
+ * @commit_pages: Number of pages to commit initially.
+ * @extent:       Number of pages to grow by on GPU page fault and/or alignment
+ *                (depending on flags)
+ *
+ * Makes checks on the size parameters passed in from user space for a memory
+ * allocation call, with respect to the flags requested.
+ *
+ * Return: 0 if sizes are valid for these flags, negative error code otherwise
+ */
+int kbase_check_alloc_sizes(struct kbase_context *kctx, unsigned long flags,
+		u64 va_pages, u64 commit_pages, u64 extent);
+
+/**
  * kbase_update_region_flags - Convert user space flags to kernel region flags
  *
  * @kctx:  kbase context
@@ -710,6 +734,9 @@ int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn,
 					unsigned long flags);
 
 int kbase_mmu_teardown_pages(struct kbase_context *kctx, u64 vpfn, size_t nr);
+int kbase_mmu_update_pages_no_flush(struct kbase_context *kctx, u64 vpfn,
+					struct tagged_addr *phys, size_t nr,
+					unsigned long flags);
 int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn,
 			   struct tagged_addr *phys, size_t nr,
 			   unsigned long flags);
@@ -863,6 +890,32 @@ static inline void kbase_process_page_usage_dec(struct kbase_context *kctx, int 
 int kbasep_find_enclosing_cpu_mapping_offset(
 		struct kbase_context *kctx,
 		unsigned long uaddr, size_t size, u64 *offset);
+
+/**
+ * kbasep_find_enclosing_gpu_mapping_start_and_offset() - Find the address of
+ * the start of GPU virtual memory region which encloses @gpu_addr for the
+ * @size length in bytes
+ *
+ * Searches for the memory region in GPU virtual memory space which contains
+ * the region defined by the @gpu_addr and @size, where @gpu_addr is the
+ * beginning and @size the length in bytes of the provided region. If found,
+ * the location of the start address of the GPU virtual memory region is
+ * passed in @start pointer and the location of the offset of the region into
+ * the GPU virtual memory region is passed in @offset pointer.
+ *
+ * @kctx:	The kernel base context within which the memory is searched.
+ * @gpu_addr:	GPU virtual address for which the region is sought; defines
+ *              the beginning of the provided region.
+ * @size:       The length (in bytes) of the provided region for which the
+ *              GPU virtual memory region is sought.
+ * @start:      Pointer to the location where the address of the start of
+ *              the found GPU virtual memory region is.
+ * @offset:     Pointer to the location where the offset of @gpu_addr into
+ *              the found GPU virtual memory region is.
+ */
+int kbasep_find_enclosing_gpu_mapping_start_and_offset(
+		struct kbase_context *kctx,
+		u64 gpu_addr, size_t size, u64 *start, u64 *offset);
 
 enum hrtimer_restart kbasep_as_poke_timer_callback(struct hrtimer *timer);
 void kbase_as_poking_timer_retain_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom);
@@ -1040,22 +1093,13 @@ void kbase_jit_term(struct kbase_context *kctx);
  * @kctx:              kbase context.
  * @reg:               The region to map.
  * @locked_mm:         The mm_struct which has been locked for this operation.
- * @kds_res_count:     The number of KDS resources.
- * @kds_resources:     Array of KDS resources.
- * @kds_access_bitmap: Access bitmap for KDS.
- * @exclusive:         If the KDS resource requires exclusive access.
  *
  * Return: The physical allocation which backs the region on success or NULL
  * on failure.
  */
 struct kbase_mem_phy_alloc *kbase_map_external_resource(
 		struct kbase_context *kctx, struct kbase_va_region *reg,
-		struct mm_struct *locked_mm
-#ifdef CONFIG_KDS
-		, u32 *kds_res_count, struct kds_resource **kds_resources,
-		unsigned long *kds_access_bitmap, bool exclusive
-#endif
-		);
+		struct mm_struct *locked_mm);
 
 /**
  * kbase_unmap_external_resource - Unmap an external resource from the GPU.
@@ -1105,38 +1149,5 @@ bool kbase_sticky_resource_release(struct kbase_context *kctx,
  * @kctx: kbase context
  */
 void kbase_sticky_resource_term(struct kbase_context *kctx);
-
-/**
- * kbase_zone_cache_update - Update the memory zone cache after new pages have
- * been added.
- * @alloc:        The physical memory allocation to build the cache for.
- * @start_offset: Offset to where the new pages start.
- *
- * Updates an existing memory zone cache, updating the counters for the
- * various zones.
- * If the memory allocation doesn't already have a zone cache assume that
- * one isn't created and thus don't do anything.
- *
- * Return: Zero cache was updated, negative error code on error.
- */
-int kbase_zone_cache_update(struct kbase_mem_phy_alloc *alloc,
-		size_t start_offset);
-
-/**
- * kbase_zone_cache_build - Build the memory zone cache.
- * @alloc:        The physical memory allocation to build the cache for.
- *
- * Create a new zone cache for the provided physical memory allocation if
- * one doesn't already exist, if one does exist then just return.
- *
- * Return: Zero if the zone cache was created, negative error code on error.
- */
-int kbase_zone_cache_build(struct kbase_mem_phy_alloc *alloc);
-
-/**
- * kbase_zone_cache_clear - Clear the memory zone cache.
- * @alloc:        The physical memory allocation to clear the cache on.
- */
-void kbase_zone_cache_clear(struct kbase_mem_phy_alloc *alloc);
 
 #endif				/* _KBASE_MEM_H_ */

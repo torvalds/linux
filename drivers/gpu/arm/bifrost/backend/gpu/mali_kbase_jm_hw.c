@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 /*
  * Base kernel job manager APIs
@@ -235,10 +240,8 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 	int i;
 	u32 count = 0;
 	ktime_t end_timestamp = ktime_get();
-	struct kbasep_js_device_data *js_devdata;
 
 	KBASE_DEBUG_ASSERT(kbdev);
-	js_devdata = &kbdev->js_data;
 
 	KBASE_TRACE_ADD(kbdev, JM_IRQ, NULL, NULL, 0, done);
 
@@ -747,7 +750,7 @@ void kbase_job_slot_ctx_priority_check_locked(struct kbase_context *kctx,
 
 		if (katom->sched_priority > priority) {
 			if (!stop_sent)
-				KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY_CHANGE(
+				KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITIZED(
 						target_katom);
 
 			kbase_job_slot_softstop(kbdev, js, katom);
@@ -756,92 +759,43 @@ void kbase_job_slot_ctx_priority_check_locked(struct kbase_context *kctx,
 	}
 }
 
-struct zap_reset_data {
-	/* The stages are:
-	 * 1. The timer has never been called
-	 * 2. The zap has timed out, all slots are soft-stopped - the GPU reset
-	 *    will happen. The GPU has been reset when
-	 *    kbdev->hwaccess.backend.reset_waitq is signalled
-	 *
-	 * (-1 - The timer has been cancelled)
-	 */
-	int stage;
-	struct kbase_device *kbdev;
-	struct hrtimer timer;
-	spinlock_t lock; /* protects updates to stage member */
-};
-
-static enum hrtimer_restart zap_timeout_callback(struct hrtimer *timer)
-{
-	struct zap_reset_data *reset_data = container_of(timer,
-						struct zap_reset_data, timer);
-	struct kbase_device *kbdev = reset_data->kbdev;
-	unsigned long flags;
-
-	spin_lock_irqsave(&reset_data->lock, flags);
-
-	if (reset_data->stage == -1)
-		goto out;
-
-#if KBASE_GPU_RESET_EN
-	if (kbase_prepare_to_reset_gpu(kbdev)) {
-		dev_err(kbdev->dev, "Issueing GPU soft-reset because jobs failed to be killed (within %d ms) as part of context termination (e.g. process exit)\n",
-								ZAP_TIMEOUT);
-		kbase_reset_gpu(kbdev);
-	}
-#endif /* KBASE_GPU_RESET_EN */
-	reset_data->stage = 2;
-
- out:
-	spin_unlock_irqrestore(&reset_data->lock, flags);
-
-	return HRTIMER_NORESTART;
-}
-
 void kbase_jm_wait_for_zero_jobs(struct kbase_context *kctx)
 {
 	struct kbase_device *kbdev = kctx->kbdev;
-	struct zap_reset_data reset_data;
-	unsigned long flags;
+	unsigned long timeout = msecs_to_jiffies(ZAP_TIMEOUT);
 
-	hrtimer_init_on_stack(&reset_data.timer, CLOCK_MONOTONIC,
-							HRTIMER_MODE_REL);
-	reset_data.timer.function = zap_timeout_callback;
+	timeout = wait_event_timeout(kctx->jctx.zero_jobs_wait,
+			kctx->jctx.job_nr == 0, timeout);
 
-	spin_lock_init(&reset_data.lock);
+	if (timeout != 0)
+		timeout = wait_event_timeout(
+			kctx->jctx.sched_info.ctx.is_scheduled_wait,
+			!kbase_ctx_flag(kctx, KCTX_SCHEDULED),
+			timeout);
 
-	reset_data.kbdev = kbdev;
-	reset_data.stage = 1;
+	/* Neither wait timed out; all done! */
+	if (timeout != 0)
+		goto exit;
 
-	hrtimer_start(&reset_data.timer, HR_TIMER_DELAY_MSEC(ZAP_TIMEOUT),
-							HRTIMER_MODE_REL);
-
-	/* Wait for all jobs to finish, and for the context to be not-scheduled
-	 * (due to kbase_job_zap_context(), we also guarentee it's not in the JS
-	 * policy queue either */
-	wait_event(kctx->jctx.zero_jobs_wait, kctx->jctx.job_nr == 0);
-	wait_event(kctx->jctx.sched_info.ctx.is_scheduled_wait,
-		   !kbase_ctx_flag(kctx, KCTX_SCHEDULED));
-
-	spin_lock_irqsave(&reset_data.lock, flags);
-	if (reset_data.stage == 1) {
-		/* The timer hasn't run yet - so cancel it */
-		reset_data.stage = -1;
+#if KBASE_GPU_RESET_EN
+	if (kbase_prepare_to_reset_gpu(kbdev)) {
+		dev_err(kbdev->dev,
+			"Issueing GPU soft-reset because jobs failed to be killed (within %d ms) as part of context termination (e.g. process exit)\n",
+			ZAP_TIMEOUT);
+		kbase_reset_gpu(kbdev);
 	}
-	spin_unlock_irqrestore(&reset_data.lock, flags);
 
-	hrtimer_cancel(&reset_data.timer);
+	/* Wait for the reset to complete */
+	wait_event(kbdev->hwaccess.backend.reset_wait,
+			atomic_read(&kbdev->hwaccess.backend.reset_gpu)
+			== KBASE_RESET_GPU_NOT_PENDING);
+#else
+	dev_warn(kbdev->dev,
+		"Jobs failed to be killed (within %d ms) as part of context termination (e.g. process exit)\n",
+		ZAP_TIMEOUT);
 
-	if (reset_data.stage == 2) {
-		/* The reset has already started.
-		 * Wait for the reset to complete
-		 */
-		wait_event(kbdev->hwaccess.backend.reset_wait,
-				atomic_read(&kbdev->hwaccess.backend.reset_gpu)
-						== KBASE_RESET_GPU_NOT_PENDING);
-	}
-	destroy_hrtimer_on_stack(&reset_data.timer);
-
+#endif
+exit:
 	dev_dbg(kbdev->dev, "Zap: Finished Context %p", kctx);
 
 	/* Ensure that the signallers of the waitqs have finished */
@@ -874,8 +828,6 @@ int kbase_job_slot_init(struct kbase_device *kbdev)
 	if (NULL == kbdev->hwaccess.backend.reset_workq)
 		return -EINVAL;
 
-	KBASE_DEBUG_ASSERT(0 ==
-		object_is_on_stack(&kbdev->hwaccess.backend.reset_work));
 	INIT_WORK(&kbdev->hwaccess.backend.reset_work,
 						kbasep_reset_timeout_worker);
 

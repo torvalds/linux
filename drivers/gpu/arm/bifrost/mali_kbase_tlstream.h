@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 #if !defined(_KBASE_TLSTREAM_H)
 #define _KBASE_TLSTREAM_H
@@ -134,7 +139,7 @@ void __kbase_tlstream_tl_attrib_atom_config(
 		void *atom, u64 jd, u64 affinity, u32 config);
 void __kbase_tlstream_tl_attrib_atom_priority(void *atom, u32 prio);
 void __kbase_tlstream_tl_attrib_atom_state(void *atom, u32 state);
-void __kbase_tlstream_tl_attrib_atom_priority_change(void *atom);
+void __kbase_tlstream_tl_attrib_atom_prioritized(void *atom);
 void __kbase_tlstream_tl_attrib_atom_jit(
 		void *atom, u64 edit_addr, u64 new_addr);
 void __kbase_tlstream_tl_attrib_as_config(
@@ -480,13 +485,13 @@ extern atomic_t kbase_tlstream_enabled;
 	__TRACE_IF_ENABLED_LATENCY(tl_attrib_atom_state, atom, state)
 
 /**
- * KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY_CHANGE - atom caused priority change
+ * KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITIZED - atom was prioritized
  * @atom:  name of the atom object
  *
  * Function emits a timeline message signalling priority change
  */
-#define KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY_CHANGE(atom) \
-	__TRACE_IF_ENABLED_LATENCY(tl_attrib_atom_priority_change, atom)
+#define KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITIZED(atom) \
+	__TRACE_IF_ENABLED_LATENCY(tl_attrib_atom_prioritized, atom)
 
 /**
  * KBASE_TLSTREAM_TL_ATTRIB_ATOM_JIT - jit happened on atom

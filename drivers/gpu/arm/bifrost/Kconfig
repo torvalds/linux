@@ -6,12 +6,18 @@
 # Foundation, and any use by you of this program is subject to the terms
 # of such GNU licence.
 #
-# A copy of the licence is included with the program, and can also be obtained
-# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-# Boston, MA  02110-1301, USA.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+# SPDX-License-Identifier: GPL-2.0
 #
 #
-
 
 
 menuconfig MALI_BIFROST
@@ -61,13 +67,13 @@ config MALI_BIFROST_DEVFREQ
 
 config MALI_BIFROST_DMA_FENCE
 	bool "DMA_BUF fence support for Mali"
-	depends on MALI_BIFROST && !KDS
+	depends on MALI_BIFROST
 	default n
 	help
 	  Support DMA_BUF fences for Mali.
 
-	  This option should only be enabled if KDS is not present and
-	  the Linux Kernel has built in support for DMA_BUF fences.
+	  This option should only be enabled if the Linux Kernel has built in
+	  support for DMA_BUF fences.
 
 config MALI_PLATFORM_NAME
 	depends on MALI_BIFROST
@@ -174,6 +180,16 @@ config MALI_BIFROST_SYSTEM_TRACE
 	  minimal overhead when not in use. Enable only if you know what
 	  you are doing.
 
+config MALI_JOB_DUMPING
+	bool "Enable system level support needed for job dumping"
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
+	default n
+	help
+	  Choose this option to enable system level support needed for
+	  job dumping.	This is typically used for instrumentation but has
+	  minimal overhead when not in use. Enable only if you know what
+	  you are doing.
+
 config MALI_2MB_ALLOC
 	bool "Attempt to allocate 2MB pages"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
@@ -187,11 +203,15 @@ config MALI_2MB_ALLOC
 
 config MALI_PWRSOFT_765
 	bool "PWRSOFT-765 ticket"
+	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 	default n
 	help
-	  PWRSOFT-765 fixes devfreq cooling devices issues. However, they are
-	  not merged in mainline kernel yet. So this define helps to guard those
-	  parts of the code.
+	  PWRSOFT-765 fixes devfreq cooling devices issues. The fix was merged
+	  in kernel v4.10, however if backported into the kernel then this
+	  option must be manually selected.
+
+	  If using kernel >= v4.10 then say N, otherwise if devfreq cooling
+	  changes have been backported say Y to avoid compilation errors.
 
 source "drivers/gpu/arm/bifrost/platform/Kconfig"
 # source "drivers/gpu/arm/bifrost/tests/Kconfig"

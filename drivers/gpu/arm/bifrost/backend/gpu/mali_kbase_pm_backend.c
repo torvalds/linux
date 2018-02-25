@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 /*
@@ -31,6 +36,57 @@
 #include <backend/gpu/mali_kbase_jm_internal.h>
 
 static void kbase_pm_gpu_poweroff_wait_wq(struct work_struct *data);
+
+int kbase_pm_runtime_init(struct kbase_device *kbdev)
+{
+	struct kbase_pm_callback_conf *callbacks;
+
+	callbacks = (struct kbase_pm_callback_conf *)POWER_MANAGEMENT_CALLBACKS;
+	if (callbacks) {
+		kbdev->pm.backend.callback_power_on =
+					callbacks->power_on_callback;
+		kbdev->pm.backend.callback_power_off =
+					callbacks->power_off_callback;
+		kbdev->pm.backend.callback_power_suspend =
+					callbacks->power_suspend_callback;
+		kbdev->pm.backend.callback_power_resume =
+					callbacks->power_resume_callback;
+		kbdev->pm.callback_power_runtime_init =
+					callbacks->power_runtime_init_callback;
+		kbdev->pm.callback_power_runtime_term =
+					callbacks->power_runtime_term_callback;
+		kbdev->pm.backend.callback_power_runtime_on =
+					callbacks->power_runtime_on_callback;
+		kbdev->pm.backend.callback_power_runtime_off =
+					callbacks->power_runtime_off_callback;
+		kbdev->pm.backend.callback_power_runtime_idle =
+					callbacks->power_runtime_idle_callback;
+
+		if (callbacks->power_runtime_init_callback)
+			return callbacks->power_runtime_init_callback(kbdev);
+		else
+			return 0;
+	}
+
+	kbdev->pm.backend.callback_power_on = NULL;
+	kbdev->pm.backend.callback_power_off = NULL;
+	kbdev->pm.backend.callback_power_suspend = NULL;
+	kbdev->pm.backend.callback_power_resume = NULL;
+	kbdev->pm.callback_power_runtime_init = NULL;
+	kbdev->pm.callback_power_runtime_term = NULL;
+	kbdev->pm.backend.callback_power_runtime_on = NULL;
+	kbdev->pm.backend.callback_power_runtime_off = NULL;
+	kbdev->pm.backend.callback_power_runtime_idle = NULL;
+
+	return 0;
+}
+
+void kbase_pm_runtime_term(struct kbase_device *kbdev)
+{
+	if (kbdev->pm.callback_power_runtime_term) {
+		kbdev->pm.callback_power_runtime_term(kbdev);
+	}
+}
 
 void kbase_pm_register_access_enable(struct kbase_device *kbdev)
 {
@@ -59,7 +115,6 @@ void kbase_pm_register_access_disable(struct kbase_device *kbdev)
 int kbase_hwaccess_pm_init(struct kbase_device *kbdev)
 {
 	int ret = 0;
-	struct kbase_pm_callback_conf *callbacks;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 
@@ -80,38 +135,6 @@ int kbase_hwaccess_pm_init(struct kbase_device *kbdev)
 #endif /* CONFIG_MALI_BIFROST_DEBUG */
 	kbdev->pm.backend.gpu_in_desired_state = true;
 	init_waitqueue_head(&kbdev->pm.backend.gpu_in_desired_state_wait);
-
-	callbacks = (struct kbase_pm_callback_conf *)POWER_MANAGEMENT_CALLBACKS;
-	if (callbacks) {
-		kbdev->pm.backend.callback_power_on =
-					callbacks->power_on_callback;
-		kbdev->pm.backend.callback_power_off =
-					callbacks->power_off_callback;
-		kbdev->pm.backend.callback_power_suspend =
-					callbacks->power_suspend_callback;
-		kbdev->pm.backend.callback_power_resume =
-					callbacks->power_resume_callback;
-		kbdev->pm.callback_power_runtime_init =
-					callbacks->power_runtime_init_callback;
-		kbdev->pm.callback_power_runtime_term =
-					callbacks->power_runtime_term_callback;
-		kbdev->pm.backend.callback_power_runtime_on =
-					callbacks->power_runtime_on_callback;
-		kbdev->pm.backend.callback_power_runtime_off =
-					callbacks->power_runtime_off_callback;
-		kbdev->pm.backend.callback_power_runtime_idle =
-					callbacks->power_runtime_idle_callback;
-	} else {
-		kbdev->pm.backend.callback_power_on = NULL;
-		kbdev->pm.backend.callback_power_off = NULL;
-		kbdev->pm.backend.callback_power_suspend = NULL;
-		kbdev->pm.backend.callback_power_resume = NULL;
-		kbdev->pm.callback_power_runtime_init = NULL;
-		kbdev->pm.callback_power_runtime_term = NULL;
-		kbdev->pm.backend.callback_power_runtime_on = NULL;
-		kbdev->pm.backend.callback_power_runtime_off = NULL;
-		kbdev->pm.backend.callback_power_runtime_idle = NULL;
-	}
 
 	/* Initialise the metrics subsystem */
 	ret = kbasep_pm_metrics_init(kbdev);

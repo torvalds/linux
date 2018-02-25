@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -25,10 +30,10 @@
 #ifndef _KBASE_CONFIG_H_
 #define _KBASE_CONFIG_H_
 
-#include <asm/page.h>
-
+#include <linux/mm.h>
 #include <mali_malisw.h>
 #include <mali_kbase_backend_config.h>
+#include <linux/rbtree.h>
 
 /**
  * @addtogroup base_api
@@ -44,8 +49,6 @@
  * @addtogroup kbase_config Configuration API and Attributes
  * @{
  */
-
-#include <linux/rbtree.h>
 
 /* Forward declaration of struct kbase_device */
 struct kbase_device;
@@ -208,41 +211,6 @@ struct kbase_pm_callback_conf {
 	int (*power_runtime_idle_callback)(struct kbase_device *kbdev);
 };
 
-/**
- * kbase_cpuprops_get_default_clock_speed - default for CPU_SPEED_FUNC
- * @clock_speed - see  kbase_cpu_clk_speed_func for details on the parameters
- *
- * Returns 0 on success, negative error code otherwise.
- *
- * Default implementation of CPU_SPEED_FUNC. This function sets clock_speed
- * to 100, so will be an underestimate for any real system.
- */
-int kbase_cpuprops_get_default_clock_speed(u32 * const clock_speed);
-
-/**
- * kbase_cpu_clk_speed_func - Type of the function pointer for CPU_SPEED_FUNC
- * @param clock_speed - pointer to store the current CPU clock speed in MHz
- *
- * Returns 0 on success, otherwise negative error code.
- *
- * This is mainly used to implement OpenCL's clGetDeviceInfo().
- */
-typedef int (*kbase_cpu_clk_speed_func) (u32 *clock_speed);
-
-/**
- * kbase_gpu_clk_speed_func - Type of the function pointer for GPU_SPEED_FUNC
- * @param clock_speed - pointer to store the current GPU clock speed in MHz
- *
- * Returns 0 on success, otherwise negative error code.
- * When an error is returned the caller assumes maximum GPU speed stored in
- * gpu_freq_khz_max.
- *
- * If the system timer is not available then this function is required
- * for the OpenCL queue profiling to return correct timing information.
- *
- */
-typedef int (*kbase_gpu_clk_speed_func) (u32 *clock_speed);
-
 #ifdef CONFIG_OF
 struct kbase_platform_config {
 };
@@ -303,18 +271,6 @@ int kbasep_platform_device_init(struct kbase_device *kbdev);
  *
  */
 void kbasep_platform_device_term(struct kbase_device *kbdev);
-
-
-/**
- * kbase_platform_early_init - Early initialisation of the platform code
- *
- * This function will be called when the module is loaded to perform any
- * early initialisation required by the platform code. Such as reading
- * platform specific device tree entries for the GPU.
- *
- * Return: 0 for success, any other fail causes module initialisation to fail
- */
-int kbase_platform_early_init(void);
 
 #ifndef CONFIG_OF
 /**

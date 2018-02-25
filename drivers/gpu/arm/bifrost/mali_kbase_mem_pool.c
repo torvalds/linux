@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 #include <mali_kbase.h>
 #include <linux/mm.h>
@@ -70,8 +75,6 @@ static void kbase_mem_pool_add_locked(struct kbase_mem_pool *pool,
 	list_add(&p->lru, &pool->page_list);
 	pool->cur_size++;
 
-	zone_page_state_add(1, page_zone(p), NR_SLAB_RECLAIMABLE);
-
 	pool_dbg(pool, "added page\n");
 }
 
@@ -85,13 +88,7 @@ static void kbase_mem_pool_add(struct kbase_mem_pool *pool, struct page *p)
 static void kbase_mem_pool_add_list_locked(struct kbase_mem_pool *pool,
 		struct list_head *page_list, size_t nr_pages)
 {
-	struct page *p;
-
 	lockdep_assert_held(&pool->pool_lock);
-
-	list_for_each_entry(p, page_list, lru) {
-		zone_page_state_add(1, page_zone(p), NR_SLAB_RECLAIMABLE);
-	}
 
 	list_splice(page_list, &pool->page_list);
 	pool->cur_size += nr_pages;
@@ -119,8 +116,6 @@ static struct page *kbase_mem_pool_remove_locked(struct kbase_mem_pool *pool)
 	p = list_first_entry(&pool->page_list, struct page, lru);
 	list_del_init(&p->lru);
 	pool->cur_size--;
-
-	zone_page_state_add(-1, page_zone(p), NR_SLAB_RECLAIMABLE);
 
 	pool_dbg(pool, "removed page\n");
 
@@ -638,10 +633,6 @@ void kbase_mem_pool_free_pages(struct kbase_mem_pool *pool, size_t nr_pages,
 		}
 
 		p = phys_to_page(as_phys_addr_t(pages[i]));
-
-		if (reclaimed)
-			zone_page_state_add(-1, page_zone(p),
-					NR_SLAB_RECLAIMABLE);
 
 		kbase_mem_pool_free_page(pool, p);
 		pages[i] = as_tagged(0);

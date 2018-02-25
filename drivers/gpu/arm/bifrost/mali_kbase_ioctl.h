@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 #ifndef _KBASE_IOCTL_H_
 #define _KBASE_IOCTL_H_
@@ -25,6 +30,22 @@ extern "C" {
 #include <linux/types.h>
 
 #define KBASE_IOCTL_TYPE 0x80
+
+/*
+ * 11.1:
+ * - Add BASE_MEM_TILER_ALIGN_TOP under base_mem_alloc_flags
+ * 11.2:
+ * - KBASE_MEM_QUERY_FLAGS can return KBASE_REG_PF_GROW and KBASE_REG_SECURE,
+ *   which some user-side clients prior to 11.2 might fault if they received
+ *   them
+ * 11.3:
+ * - New ioctls KBASE_IOCTL_STICKY_RESOURCE_MAP and
+ *   KBASE_IOCTL_STICKY_RESOURCE_UNMAP
+ * 11.4:
+ * - New ioctl KBASE_IOCTL_MEM_FIND_GPU_START_AND_OFFSET
+ */
+#define BASE_UK_VERSION_MAJOR 11
+#define BASE_UK_VERSION_MINOR 4
 
 #ifdef ANDROID
 /* Android's definition of ioctl is incorrect, specifying the type argument as
@@ -246,6 +267,7 @@ struct kbase_ioctl_disjoint_query {
  * struct kbase_ioctl_get_ddk_version - Query the kernel version
  * @version_buffer: Buffer to receive the kernel version string
  * @size: Size of the buffer
+ * @padding: Padding
  *
  * The ioctl will return the number of bytes written into version_buffer
  * (which includes a NULL byte) or a negative error code
@@ -253,6 +275,7 @@ struct kbase_ioctl_disjoint_query {
 struct kbase_ioctl_get_ddk_version {
 	__u64 version_buffer;
 	__u32 size;
+	__u32 padding;
 };
 
 #define KBASE_IOCTL_GET_DDK_VERSION \
@@ -472,10 +495,12 @@ struct kbase_ioctl_fence_validate {
  * struct kbase_ioctl_get_profiling_controls - Get the profiling controls
  * @count: The size of @buffer in u32 words
  * @buffer: The buffer to receive the profiling controls
+ * @padding: Padding
  */
 struct kbase_ioctl_get_profiling_controls {
 	__u64 buffer;
 	__u32 count;
+	__u32 padding;
 };
 
 #define KBASE_IOCTL_GET_PROFILING_CONTROLS \
@@ -513,7 +538,106 @@ struct kbase_ioctl_soft_event_update {
 #define KBASE_IOCTL_SOFT_EVENT_UPDATE \
 	_IOW(KBASE_IOCTL_TYPE, 28, struct kbase_ioctl_soft_event_update)
 
-/* IOCTLs 29-32 are reserved */
+/**
+ * struct kbase_ioctl_sticky_resource_map - Permanently map an external resource
+ * @count: Number of resources
+ * @address: Array of u64 GPU addresses of the external resources to map
+ */
+struct kbase_ioctl_sticky_resource_map {
+	__u64 count;
+	__u64 address;
+};
+
+#define KBASE_IOCTL_STICKY_RESOURCE_MAP \
+	_IOW(KBASE_IOCTL_TYPE, 29, struct kbase_ioctl_sticky_resource_map)
+
+/**
+ * struct kbase_ioctl_sticky_resource_map - Unmap a resource mapped which was
+ *                                          previously permanently mapped
+ * @count: Number of resources
+ * @address: Array of u64 GPU addresses of the external resources to unmap
+ */
+struct kbase_ioctl_sticky_resource_unmap {
+	__u64 count;
+	__u64 address;
+};
+
+#define KBASE_IOCTL_STICKY_RESOURCE_UNMAP \
+	_IOW(KBASE_IOCTL_TYPE, 30, struct kbase_ioctl_sticky_resource_unmap)
+
+/**
+ * union kbase_ioctl_mem_find_gpu_start_and_offset - Find the start address of
+ *                                                   the GPU memory region for
+ *                                                   the given gpu address and
+ *                                                   the offset of that address
+ *                                                   into the region
+ *
+ * @gpu_addr: GPU virtual address
+ * @size: Size in bytes within the region
+ * @start: Address of the beginning of the memory region enclosing @gpu_addr
+ *         for the length of @offset bytes
+ * @offset: The offset from the start of the memory region to @gpu_addr
+ *
+ * @in: Input parameters
+ * @out: Output parameters
+ */
+union kbase_ioctl_mem_find_gpu_start_and_offset {
+	struct {
+		__u64 gpu_addr;
+		__u64 size;
+	} in;
+	struct {
+		__u64 start;
+		__u64 offset;
+	} out;
+};
+
+#define KBASE_IOCTL_MEM_FIND_GPU_START_AND_OFFSET \
+	_IOWR(KBASE_IOCTL_TYPE, 31, union kbase_ioctl_mem_find_gpu_start_and_offset)
+
+/* IOCTL 32 is free for use */
+
+#define KBASE_IOCTL_CINSTR_GWT_START \
+	_IO(KBASE_IOCTL_TYPE, 33)
+
+#define KBASE_IOCTL_CINSTR_GWT_STOP \
+	_IO(KBASE_IOCTL_TYPE, 34)
+
+/**
+ * union kbase_ioctl_gwt_dump - Used to collect all GPU write fault addresses.
+ * @handle_buffer: Address of buffer to hold handles of modified areas.
+ * @offset_buffer: Address of buffer to hold offset size of modified areas
+ *                 (in pages)
+ * @size_buffer: Address of buffer to hold size of modified areas (in pages)
+ * @len: Number of addresses the buffers can hold.
+ * @more_data_available: Status indicating if more addresses are available.
+ * @no_of_addr_collected: Number of addresses collected into addr_buffer.
+ *
+ * @in: Input parameters
+ * @out: Output parameters
+ * This structure is used when performing a call to dump GPU write fault
+ * addresses.
+ */
+union kbase_ioctl_cinstr_gwt_dump {
+	struct {
+		__u64 handle_buffer;
+		__u64 offset_buffer;
+		__u64 size_buffer;
+		__u32 len;
+		__u32 padding;
+
+	} in;
+	struct {
+		__u32 no_of_addr_collected;
+		__u8 more_data_available;
+		__u8 padding[27];
+	} out;
+};
+
+#define KBASE_IOCTL_CINSTR_GWT_DUMP \
+	_IOWR(KBASE_IOCTL_TYPE, 35, union kbase_ioctl_cinstr_gwt_dump)
+
+/* IOCTLs 36-41 are reserved */
 
 /***************
  * test ioctls *
@@ -570,9 +694,9 @@ struct kbase_ioctl_tlstream_stats {
 #define KBASE_GPUPROP_VERSION_STATUS			2
 #define KBASE_GPUPROP_MINOR_REVISION			3
 #define KBASE_GPUPROP_MAJOR_REVISION			4
-#define KBASE_GPUPROP_GPU_SPEED_MHZ			5
+/* 5 previously used for GPU speed */
 #define KBASE_GPUPROP_GPU_FREQ_KHZ_MAX			6
-#define KBASE_GPUPROP_GPU_FREQ_KHZ_MIN			7
+/* 7 previously used for minimum GPU speed */
 #define KBASE_GPUPROP_LOG2_PROGRAM_COUNTER_SIZE		8
 #define KBASE_GPUPROP_TEXTURE_FEATURES_0		9
 #define KBASE_GPUPROP_TEXTURE_FEATURES_1		10
@@ -650,6 +774,9 @@ struct kbase_ioctl_tlstream_stats {
 #define KBASE_GPUPROP_COHERENCY_GROUP_13		77
 #define KBASE_GPUPROP_COHERENCY_GROUP_14		78
 #define KBASE_GPUPROP_COHERENCY_GROUP_15		79
+
+#define KBASE_GPUPROP_TEXTURE_FEATURES_3		80
+#define KBASE_GPUPROP_RAW_TEXTURE_FEATURES_3		81
 
 #ifdef __cpluscplus
 }

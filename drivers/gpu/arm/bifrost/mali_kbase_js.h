@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 
 
@@ -667,37 +672,6 @@ static inline void kbasep_js_clear_submit_allowed(struct kbasep_js_device_data *
 }
 
 /**
- * @brief Manage the 'retry_submit_on_slot' part of a kbase_jd_atom
- */
-static inline void kbasep_js_clear_job_retry_submit(struct kbase_jd_atom *atom)
-{
-	atom->retry_submit_on_slot = KBASEP_JS_RETRY_SUBMIT_SLOT_INVALID;
-}
-
-/**
- * Mark a slot as requiring resubmission by carrying that information on a
- * completing atom.
- *
- * @note This can ASSERT in debug builds if the submit slot has been set to
- * something other than the current value for @a js. This is because you might
- * be unintentionally stopping more jobs being submitted on the old submit
- * slot, and that might cause a scheduling-hang.
- *
- * @note If you can guarantee that the atoms for the original slot will be
- * submitted on some other slot, then call kbasep_js_clear_job_retry_submit()
- * first to silence the ASSERT.
- */
-static inline void kbasep_js_set_job_retry_submit_slot(struct kbase_jd_atom *atom, int js)
-{
-	KBASE_DEBUG_ASSERT(0 <= js && js <= BASE_JM_MAX_NR_SLOTS);
-	KBASE_DEBUG_ASSERT((atom->retry_submit_on_slot ==
-					KBASEP_JS_RETRY_SUBMIT_SLOT_INVALID)
-				|| (atom->retry_submit_on_slot == js));
-
-	atom->retry_submit_on_slot = js;
-}
-
-/**
  * Create an initial 'invalid' atom retained state, that requires no
  * atom-related work to be done on releasing with
  * kbasep_js_runpool_release_ctx_and_katom_retained_state()
@@ -706,7 +680,6 @@ static inline void kbasep_js_atom_retained_state_init_invalid(struct kbasep_js_a
 {
 	retained_state->event_code = BASE_JD_EVENT_NOT_STARTED;
 	retained_state->core_req = KBASEP_JS_ATOM_RETAINED_STATE_CORE_REQ_INVALID;
-	retained_state->retry_submit_on_slot = KBASEP_JS_RETRY_SUBMIT_SLOT_INVALID;
 }
 
 /**
@@ -717,7 +690,6 @@ static inline void kbasep_js_atom_retained_state_copy(struct kbasep_js_atom_reta
 {
 	retained_state->event_code = katom->event_code;
 	retained_state->core_req = katom->core_req;
-	retained_state->retry_submit_on_slot = katom->retry_submit_on_slot;
 	retained_state->sched_priority = katom->sched_priority;
 	retained_state->device_nr = katom->device_nr;
 }
@@ -751,14 +723,6 @@ static inline bool kbasep_js_has_atom_finished(const struct kbasep_js_atom_retai
 static inline bool kbasep_js_atom_retained_state_is_valid(const struct kbasep_js_atom_retained_state *katom_retained_state)
 {
 	return (bool) (katom_retained_state->core_req != KBASEP_JS_ATOM_RETAINED_STATE_CORE_REQ_INVALID);
-}
-
-static inline bool kbasep_js_get_atom_retry_submit_slot(const struct kbasep_js_atom_retained_state *katom_retained_state, int *res)
-{
-	int js = katom_retained_state->retry_submit_on_slot;
-
-	*res = js;
-	return (bool) (js >= 0);
 }
 
 /**

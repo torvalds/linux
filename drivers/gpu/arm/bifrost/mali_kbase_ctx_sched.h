@@ -7,13 +7,18 @@
  * Foundation, and any use by you of this program is subject to the terms
  * of such GNU licence.
  *
- * A copy of the licence is included with the program, and can also be obtained
- * from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
- * Boston, MA  02110-1301, USA.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
+ *
+ * SPDX-License-Identifier: GPL-2.0
  *
  */
-
-
 
 #ifndef _KBASE_CTX_SCHED_H_
 #define _KBASE_CTX_SCHED_H_
@@ -28,7 +33,7 @@
  * The initial implementation of the Context Scheduler does not schedule
  * contexts. Instead it relies on the Job Scheduler to make decisions of
  * when to schedule/evict contexts if address spaces are starved. In the
- * future, once an interface between the CS and JS have been devised to
+ * future, once an interface between the CS and JS has been devised to
  * provide enough information about how each context is consuming GPU resources,
  * those decisions can be made in the CS itself, thereby reducing duplicated
  * code.
