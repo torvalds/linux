@@ -117,7 +117,8 @@ static void sun4i_pwm_get_state(struct pwm_chip *chip,
 
 	val = sun4i_pwm_readl(sun4i_pwm, PWM_CTRL_REG);
 
-	if ((val == PWM_PRESCAL_MASK) && sun4i_pwm->data->has_prescaler_bypass)
+	if ((PWM_REG_PRESCAL(val, pwm->hwpwm) == PWM_PRESCAL_MASK) &&
+	    sun4i_pwm->data->has_prescaler_bypass)
 		prescaler = 1;
 	else
 		prescaler = prescaler_table[PWM_REG_PRESCAL(val, pwm->hwpwm)];
@@ -130,7 +131,8 @@ static void sun4i_pwm_get_state(struct pwm_chip *chip,
 	else
 		state->polarity = PWM_POLARITY_INVERSED;
 
-	if (val & BIT_CH(PWM_CLK_GATING | PWM_EN, pwm->hwpwm))
+	if ((val & BIT_CH(PWM_CLK_GATING | PWM_EN, pwm->hwpwm)) ==
+	    BIT_CH(PWM_CLK_GATING | PWM_EN, pwm->hwpwm))
 		state->enabled = true;
 	else
 		state->enabled = false;
