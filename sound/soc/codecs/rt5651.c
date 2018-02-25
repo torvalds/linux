@@ -1521,8 +1521,6 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt5651_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
-	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
-
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (SND_SOC_BIAS_STANDBY == snd_soc_component_get_bias_level(component)) {
@@ -1558,11 +1556,9 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 		/* Do not touch the LDO voltage select bits on bias-off */
 		snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 			~RT5651_PWR_LDO_DVO_MASK, 0);
-		if (rt5651->jd_src) {
-			snd_soc_component_write(component, RT5651_PWR_ANLG2, 0x0204);
-		} else {
-			snd_soc_component_write(component, RT5651_PWR_ANLG2, 0x0000);
-		}
+		/* Leave PLL1 and jack-detect power as is, all others off */
+		snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
+				    ~(RT5651_PWR_PLL | RT5651_PWR_JD_M), 0);
 		break;
 
 	default:
