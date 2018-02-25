@@ -21,18 +21,19 @@
 int ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 {
 	const struct ipv6hdr *iph = ipv6_hdr(skb);
+	struct sock *sk = sk_to_full_sk(skb->sk);
 	unsigned int hh_len;
 	struct dst_entry *dst;
 	struct flowi6 fl6 = {
-		.flowi6_oif = skb->sk ? skb->sk->sk_bound_dev_if : 0,
+		.flowi6_oif = sk ? sk->sk_bound_dev_if : 0,
 		.flowi6_mark = skb->mark,
-		.flowi6_uid = sock_net_uid(net, skb->sk),
+		.flowi6_uid = sock_net_uid(net, sk),
 		.daddr = iph->daddr,
 		.saddr = iph->saddr,
 	};
 	int err;
 
-	dst = ip6_route_output(net, skb->sk, &fl6);
+	dst = ip6_route_output(net, sk, &fl6);
 	err = dst->error;
 	if (err) {
 		IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
@@ -50,7 +51,7 @@ int ip6_route_me_harder(struct net *net, struct sk_buff *skb)
 	if (!(IP6CB(skb)->flags & IP6SKB_XFRM_TRANSFORMED) &&
 	    xfrm_decode_session(skb, flowi6_to_flowi(&fl6), AF_INET6) == 0) {
 		skb_dst_set(skb, NULL);
-		dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), skb->sk, 0);
+		dst = xfrm_lookup(net, dst, flowi6_to_flowi(&fl6), sk, 0);
 		if (IS_ERR(dst))
 			return PTR_ERR(dst);
 		skb_dst_set(skb, dst);
