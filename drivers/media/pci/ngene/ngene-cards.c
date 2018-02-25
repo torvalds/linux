@@ -45,6 +45,7 @@
 #include "stv0367.h"
 #include "stv0367_priv.h"
 #include "tda18212.h"
+#include "cxd2841er.h"
 
 /****************************************************************************/
 /* I2C transfer functions used for demod/tuner probing***********************/
@@ -277,6 +278,10 @@ static int tuner_attach_probe(struct ngene_channel *chan)
 	case DEMOD_TYPE_DRXK:
 		return tuner_attach_tda18271(chan);
 	case DEMOD_TYPE_STV0367:
+	case DEMOD_TYPE_SONY_CT2:
+	case DEMOD_TYPE_SONY_ISDBT:
+	case DEMOD_TYPE_SONY_C2T2:
+	case DEMOD_TYPE_SONY_C2T2I:
 		return tuner_attach_tda18212(chan, chan->demod_type);
 	}
 
@@ -358,6 +363,34 @@ static int demod_attach_stv0367(struct ngene_channel *chan,
 	return 0;
 }
 
+static int demod_attach_cxd28xx(struct ngene_channel *chan,
+				struct i2c_adapter *i2c, int osc24)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct cxd2841er_config cfg;
+
+	/* the cxd2841er driver expects 8bit/shifted I2C addresses */
+	cfg.i2c_addr = ((chan->number & 1) ? 0x6d : 0x6c) << 1;
+
+	cfg.xtal = osc24 ? SONY_XTAL_24000 : SONY_XTAL_20500;
+	cfg.flags = CXD2841ER_AUTO_IFHZ | CXD2841ER_EARLY_TUNE |
+		CXD2841ER_NO_WAIT_LOCK | CXD2841ER_NO_AGCNEG |
+		CXD2841ER_TSBITS | CXD2841ER_TS_SERIAL;
+
+	/* attach frontend */
+	chan->fe = dvb_attach(cxd2841er_attach_t_c, &cfg, i2c);
+
+	if (!chan->fe) {
+		dev_err(pdev, "CXD28XX attach failed!\n");
+		return -ENODEV;
+	}
+
+	chan->fe->sec_priv = chan;
+	chan->gate_ctrl = chan->fe->ops.i2c_gate_ctrl;
+	chan->fe->ops.i2c_gate_ctrl = drxk_gate_ctrl;
+	return 0;
+}
+
 static void cineS2_tuner_i2c_lock(struct dvb_frontend *fe, int lock)
 {
 	struct ngene_channel *chan = fe->analog_demod_priv;
@@ -426,7 +459,7 @@ static int demod_attach_drxk(struct ngene_channel *chan,
 /* XO2 related lists and functions ******************************************/
 /****************************************************************************/
 
-static char __maybe_unused *xo2names[] = {
+static char *xo2names[] = {
 	"DUAL DVB-S2",
 	"DUAL DVB-C/T/T2",
 	"DUAL DVB-ISDBT",
@@ -513,7 +546,8 @@ static int cineS2_probe(struct ngene_channel *chan)
 	struct i2c_adapter *i2c;
 	struct stv090x_config *fe_conf;
 	u8 buf[3];
-	u8 xo2_type, xo2_id;
+	u8 xo2_type, xo2_id, xo2_demodtype;
+	u8 sony_osc24 = 0;
 	struct i2c_msg i2c_msg = { .flags = 0, .buf = buf };
 	int rc;
 
@@ -537,9 +571,28 @@ static int cineS2_probe(struct ngene_channel *chan)
 			else
 				init_xo2(chan, i2c);
 
-			/* TODO: implement support for XO2 module types */
-			dev_warn(pdev, "XO2 not supported\n");
-			return -ENODEV;
+			xo2_demodtype = DEMOD_TYPE_XO2 + xo2_id;
+
+			switch (xo2_demodtype) {
+			case DEMOD_TYPE_SONY_CT2:
+			case DEMOD_TYPE_SONY_ISDBT:
+			case DEMOD_TYPE_SONY_C2T2:
+			case DEMOD_TYPE_SONY_C2T2I:
+				dev_info(pdev, "%s (XO2) on channel %d\n",
+					 xo2names[xo2_id], chan->number);
+				chan->demod_type = xo2_demodtype;
+				if (xo2_demodtype == DEMOD_TYPE_SONY_C2T2I)
+					sony_osc24 = 1;
+
+				demod_attach_cxd28xx(chan, i2c, sony_osc24);
+				break;
+			default:
+				dev_warn(pdev,
+					 "Unsupported XO2 module on channel %d\n",
+					 chan->number);
+				return -ENODEV;
+			}
+			break;
 		case NGENE_XO2_TYPE_CI:
 			dev_info(pdev, "DuoFlex CI modules not supported\n");
 			return -ENODEV;
