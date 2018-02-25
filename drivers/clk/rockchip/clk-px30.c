@@ -536,19 +536,19 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 			PX30_CLKSEL_CON(22), 7, 1, MFLAGS, 0, 7, DFLAGS,
 			PX30_CLKGATE_CON(6), 7, GFLAGS),
 
-	MMC(SCLK_SDMMC_DRV, "sdmmc_drv", "sclk_sdmmc",
+	MMC(SCLK_SDMMC_DRV, "sdmmc_drv", "clk_sdmmc",
 	    PX30_SDMMC_CON0, 1),
-	MMC(SCLK_SDMMC_SAMPLE, "sdmmc_sample", "sclk_sdmmc",
+	MMC(SCLK_SDMMC_SAMPLE, "sdmmc_sample", "clk_sdmmc",
 	    PX30_SDMMC_CON1, 1),
 
-	MMC(SCLK_SDIO_DRV, "sdio_drv", "sclk_sdio",
+	MMC(SCLK_SDIO_DRV, "sdio_drv", "clk_sdio",
 	    PX30_SDIO_CON0, 1),
-	MMC(SCLK_SDIO_SAMPLE, "sdio_sample", "sclk_sdio",
+	MMC(SCLK_SDIO_SAMPLE, "sdio_sample", "clk_sdio",
 	    PX30_SDIO_CON1, 1),
 
-	MMC(SCLK_EMMC_DRV, "emmc_drv", "sclk_emmc",
+	MMC(SCLK_EMMC_DRV, "emmc_drv", "clk_emmc",
 	    PX30_EMMC_CON0, 1),
-	MMC(SCLK_EMMC_SAMPLE, "emmc_sample", "sclk_emmc",
+	MMC(SCLK_EMMC_SAMPLE, "emmc_sample", "clk_emmc",
 	    PX30_EMMC_CON1, 1),
 
 	/* PD_SDCARD */
