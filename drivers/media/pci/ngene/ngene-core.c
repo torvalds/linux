@@ -1408,6 +1408,7 @@ static void release_channel(struct ngene_channel *chan)
 {
 	struct dvb_demux *dvbdemux = &chan->demux;
 	struct ngene *dev = chan->dev;
+	struct i2c_client *client;
 
 	if (chan->running)
 		set_transfer(chan, 0);
@@ -1424,6 +1425,16 @@ static void release_channel(struct ngene_channel *chan)
 
 	if (chan->fe) {
 		dvb_unregister_frontend(chan->fe);
+
+		/* release I2C client (tuner) if needed */
+		client = chan->i2c_client[0];
+		if (chan->i2c_client_fe && client) {
+			module_put(client->dev.driver->owner);
+			i2c_unregister_device(client);
+			chan->i2c_client[0] = NULL;
+			client = NULL;
+		}
+
 		dvb_frontend_detach(chan->fe);
 		chan->fe = NULL;
 	}
@@ -1459,6 +1470,7 @@ static int init_channel(struct ngene_channel *chan)
 	chan->users = 0;
 	chan->type = io;
 	chan->mode = chan->type;	/* for now only one mode */
+	chan->i2c_client_fe = 0;	/* be sure this is set to zero */
 
 	if (io & NGENE_IO_TSIN) {
 		chan->fe = NULL;

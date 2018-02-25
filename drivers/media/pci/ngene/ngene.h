@@ -53,6 +53,7 @@
 
 #define DEMOD_TYPE_STV090X	0
 #define DEMOD_TYPE_DRXK		1
+#define DEMOD_TYPE_STV0367	2
 
 enum STREAM {
 	STREAM_VIDEOIN1 = 0,        /* ITU656 or TS Input */
@@ -634,6 +635,7 @@ struct ngene_channel {
 	struct device         device;
 	struct i2c_adapter    i2c_adapter;
 	struct i2c_client    *i2c_client[1];
+	int                   i2c_client_fe;
 
 	struct ngene         *dev;
 	int                   number;
