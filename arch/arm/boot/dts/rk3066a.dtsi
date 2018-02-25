@@ -802,22 +802,22 @@
 };
 
 &pwm0 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm0_out>;
 };
 
 &pwm1 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm1_out>;
 };
 
 &pwm2 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm2_out>;
 };
 
 &pwm3 {
-	pinctrl-names = "default";
+	pinctrl-names = "active";
 	pinctrl-0 = <&pwm3_out>;
 };
 

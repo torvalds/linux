@@ -362,7 +362,7 @@
 		compatible = "rockchip,rk3308-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff180000 0x0 0x10>;
 		#pwm-cells = <3>;
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0_pin>;
 		clocks = <&cru SCLK_PWM>, <&cru PCLK_PWM>;
 		clock-names = "pwm", "pclk";
@@ -373,7 +373,7 @@
 		compatible = "rockchip,rk3308-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff180010 0x0 0x10>;
 		#pwm-cells = <3>;
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1_pin>;
 		clocks = <&cru SCLK_PWM>, <&cru PCLK_PWM>;
 		clock-names = "pwm", "pclk";
@@ -384,7 +384,7 @@
 		compatible = "rockchip,rk3308-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff180020 0x0 0x10>;
 		#pwm-cells = <3>;
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2_pin>;
 		clocks = <&cru SCLK_PWM>, <&cru PCLK_PWM>;
 		clock-names = "pwm", "pclk";
@@ -395,7 +395,7 @@
 		compatible = "rockchip,rk3308-pwm", "rockchip,rk3328-pwm";
 		reg = <0x0 0xff180030 0x0 0x10>;
 		#pwm-cells = <3>;
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3_pin>;
 		clocks = <&cru SCLK_PWM>, <&cru PCLK_PWM>;
 		clock-names = "pwm", "pclk";
