@@ -79,28 +79,32 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		rockchip,leakage-scaling-sel = <
+			0   254   13
+		>;
+		clocks = <&cru PLL_APLL>;
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "cpu_leakage";
 
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <1075000>;
+			opp-microvolt = <950000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <1075000>;
+			opp-microvolt = <950000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <1125000>;
+			opp-microvolt = <1075000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <1225000>;
+			opp-microvolt = <1200000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
@@ -110,9 +114,18 @@
 		};
 		opp-1296000000 {
 			opp-hz = /bits/ 64 <1296000000>;
-			opp-microvolt = <1425000>;
+			opp-microvolt = <1350000>;
 			clock-latency-ns = <40000>;
-			status = "disabled";
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <1350000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1512000000 {
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-microvolt = <1350000>;
+			clock-latency-ns = <40000>;
 		};
 	};
 
@@ -1058,19 +1071,19 @@
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <1025000>;
+			opp-microvolt = <1000000>;
 		};
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <1075000>;
+			opp-microvolt = <1000000>;
 		};
 		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <1150000>;
+			opp-microvolt = <1000000>;
 		};
 		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <1225000>;
+			opp-microvolt = <1075000>;
 		};
 	};
 
