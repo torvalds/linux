@@ -46,6 +46,9 @@
 #include "stv0367_priv.h"
 #include "tda18212.h"
 #include "cxd2841er.h"
+#include "stv0910.h"
+#include "stv6111.h"
+#include "lnbh25.h"
 
 /****************************************************************************/
 /* I2C transfer functions used for demod/tuner probing***********************/
@@ -149,6 +152,30 @@ static int tuner_attach_stv6110(struct ngene_channel *chan)
 	feconf->tuner_set_refclk    = ctl->tuner_set_refclk;
 	feconf->tuner_get_status    = ctl->tuner_get_status;
 
+	return 0;
+}
+
+static int tuner_attach_stv6111(struct ngene_channel *chan)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct i2c_adapter *i2c;
+	struct dvb_frontend *fe;
+	u8 adr = 4 + ((chan->number & 1) ? 0x63 : 0x60);
+
+	/* tuner 1+2: i2c adapter #0, tuner 3+4: i2c adapter #1 */
+	if (chan->number < 2)
+		i2c = &chan->dev->channel[0].i2c_adapter;
+	else
+		i2c = &chan->dev->channel[1].i2c_adapter;
+
+	fe = dvb_attach(stv6111_attach, chan->fe, i2c, adr);
+	if (!fe) {
+		fe = dvb_attach(stv6111_attach, chan->fe, i2c, adr & ~4);
+		if (!fe) {
+			dev_err(pdev, "stv6111_attach() failed!\n");
+			return -ENODEV;
+		}
+	}
 	return 0;
 }
 
@@ -283,6 +310,8 @@ static int tuner_attach_probe(struct ngene_channel *chan)
 	case DEMOD_TYPE_SONY_C2T2:
 	case DEMOD_TYPE_SONY_C2T2I:
 		return tuner_attach_tda18212(chan, chan->demod_type);
+	case DEMOD_TYPE_STV0910:
+		return tuner_attach_stv6111(chan);
 	}
 
 	return -EINVAL;
@@ -321,6 +350,54 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 		dvb_frontend_detach(chan->fe);
 		chan->fe = NULL;
 		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static struct stv0910_cfg stv0910_p = {
+	.adr      = 0x68,
+	.parallel = 1,
+	.rptlvl   = 4,
+	.clk      = 30000000,
+};
+
+static struct lnbh25_config lnbh25_cfg = {
+	.i2c_address = 0x0c << 1,
+	.data2_config = LNBH25_TEN
+};
+
+static int demod_attach_stv0910(struct ngene_channel *chan,
+				struct i2c_adapter *i2c)
+{
+	struct device *pdev = &chan->dev->pci_dev->dev;
+	struct stv0910_cfg cfg = stv0910_p;
+	struct lnbh25_config lnbcfg = lnbh25_cfg;
+
+	chan->fe = dvb_attach(stv0910_attach, i2c, &cfg, (chan->number & 1));
+	if (!chan->fe) {
+		cfg.adr = 0x6c;
+		chan->fe = dvb_attach(stv0910_attach, i2c,
+				      &cfg, (chan->number & 1));
+	}
+	if (!chan->fe) {
+		dev_err(pdev, "stv0910_attach() failed!\n");
+		return -ENODEV;
+	}
+
+	/*
+	 * attach lnbh25 - leftshift by one as the lnbh25 driver expects 8bit
+	 * i2c addresses
+	 */
+	lnbcfg.i2c_address = (((chan->number & 1) ? 0x0d : 0x0c) << 1);
+	if (!dvb_attach(lnbh25_attach, chan->fe, &lnbcfg, i2c)) {
+		lnbcfg.i2c_address = (((chan->number & 1) ? 0x09 : 0x08) << 1);
+		if (!dvb_attach(lnbh25_attach, chan->fe, &lnbcfg, i2c)) {
+			dev_err(pdev, "lnbh25_attach() failed!\n");
+			dvb_frontend_detach(chan->fe);
+			chan->fe = NULL;
+			return -ENODEV;
+		}
 	}
 
 	return 0;
@@ -585,6 +662,12 @@ static int cineS2_probe(struct ngene_channel *chan)
 					sony_osc24 = 1;
 
 				demod_attach_cxd28xx(chan, i2c, sony_osc24);
+				break;
+			case DEMOD_TYPE_STV0910:
+				dev_info(pdev, "%s (XO2) on channel %d\n",
+					 xo2names[xo2_id], chan->number);
+				chan->demod_type = xo2_demodtype;
+				demod_attach_stv0910(chan, i2c);
 				break;
 			default:
 				dev_warn(pdev,
