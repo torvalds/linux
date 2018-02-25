@@ -820,6 +820,11 @@
 				reg = <0>;
 				remote-endpoint = <&hdmi_in_vop>;
 			};
+
+			vop_out_tve: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&tve_in_vop>;
+			};
 		};
 	};
 
@@ -885,6 +890,32 @@
 				hdmi_in_vop: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vop_out_hdmi>;
+				};
+			};
+		};
+	};
+
+	tve: tve@20053e00 {
+		compatible = "rockchip,rk3328-tve";
+		reg = <0x20053e00 0x100>,
+		      <0x12020000 0x10000>;
+		rockchip,saturation = <0x00305b46>;
+		rockchip,brightcontrast = <0x00009900>;
+		rockchip,adjtiming = <0xd6c00880>;
+		rockchip,lumafilter0 = <0x02ff0001>;
+		rockchip,lumafilter1 = <0xf40200fe>;
+		rockchip,lumafilter2 = <0xf332d910>;
+		rockchip,daclevel = <0x15>;
+		rockchip,dac1level = <0x7>;
+		status = "disabled";
+
+		ports {
+			tve_in: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				tve_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_tve>;
 				};
 			};
 		};
