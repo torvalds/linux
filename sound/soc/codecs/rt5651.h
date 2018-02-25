@@ -2065,6 +2065,7 @@ struct rt5651_priv {
 	struct delayed_work jack_detect_work;
 	enum rt5651_jd_src jd_src;
 
+	int irq;
 	int sysclk;
 	int sysclk_src;
 	int lrck[RT5651_AIFS];

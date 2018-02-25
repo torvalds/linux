@@ -1586,7 +1586,6 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 static int rt5651_probe(struct snd_soc_component *component)
 {
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
 	rt5651->component = component;
 
@@ -1601,15 +1600,6 @@ static int rt5651_probe(struct snd_soc_component *component)
 		RT5651_PWR_FV1 | RT5651_PWR_FV2);
 
 	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
-
-	if (rt5651->jd_src) {
-		snd_soc_dapm_force_enable_pin(dapm, "JD Power");
-		snd_soc_dapm_force_enable_pin(dapm, "LDO");
-		snd_soc_dapm_sync(dapm);
-
-		regmap_update_bits(rt5651->regmap, RT5651_MICBIAS,
-				   0x38, 0x38);
-	}
 
 	return 0;
 }
@@ -1840,10 +1830,65 @@ static void rt5651_jack_detect_work(struct work_struct *work)
 int rt5651_set_jack_detect(struct snd_soc_component *component,
 			   struct snd_soc_jack *hp_jack)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+	int ret;
+
+	if (!rt5651->irq)
+		return -EINVAL;
+
+	/* IRQ output on GPIO1 */
+	snd_soc_component_update_bits(component, RT5651_GPIO_CTRL1,
+		RT5651_GP1_PIN_MASK, RT5651_GP1_PIN_IRQ);
+
+	/* Select jack detect source */
+	switch (rt5651->jd_src) {
+	case RT5651_JD1_1:
+		snd_soc_component_update_bits(component, RT5651_JD_CTRL2,
+			RT5651_JD_TRG_SEL_MASK, RT5651_JD_TRG_SEL_JD1_1);
+		snd_soc_component_update_bits(component, RT5651_IRQ_CTRL1,
+			RT5651_JD1_1_IRQ_EN, RT5651_JD1_1_IRQ_EN);
+		break;
+	case RT5651_JD1_2:
+		snd_soc_component_update_bits(component, RT5651_JD_CTRL2,
+			RT5651_JD_TRG_SEL_MASK, RT5651_JD_TRG_SEL_JD1_2);
+		snd_soc_component_update_bits(component, RT5651_IRQ_CTRL1,
+			RT5651_JD1_2_IRQ_EN, RT5651_JD1_2_IRQ_EN);
+		break;
+	case RT5651_JD2:
+		snd_soc_component_update_bits(component, RT5651_JD_CTRL2,
+			RT5651_JD_TRG_SEL_MASK, RT5651_JD_TRG_SEL_JD2);
+		snd_soc_component_update_bits(component, RT5651_IRQ_CTRL1,
+			RT5651_JD2_IRQ_EN, RT5651_JD2_IRQ_EN);
+		break;
+	case RT5651_JD_NULL:
+		return 0;
+	default:
+		dev_err(component->dev, "Currently only JD1_1 / JD1_2 / JD2 are supported\n");
+		return -EINVAL;
+	}
+
+	snd_soc_dapm_force_enable_pin(dapm, "JD Power");
+	snd_soc_dapm_force_enable_pin(dapm, "LDO");
+	snd_soc_dapm_sync(dapm);
+
+	snd_soc_component_update_bits(component, RT5651_MICBIAS, 0x38, 0x38);
 
 	rt5651->hp_jack = hp_jack;
-	rt5651_irq(0, rt5651);
+
+	ret = devm_request_threaded_irq(component->dev, rt5651->irq, NULL,
+					rt5651_irq,
+					IRQF_TRIGGER_RISING |
+					IRQF_TRIGGER_FALLING |
+					IRQF_ONESHOT, "rt5651", rt5651);
+	if (ret) {
+		dev_err(component->dev, "Failed to reguest IRQ: %d\n", ret);
+		return ret;
+	}
+
+	/* sync initial jack state */
+	queue_delayed_work(system_power_efficient_wq,
+			   &rt5651->jack_detect_work, 0);
 
 	return 0;
 }
@@ -1895,60 +1940,10 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5651->regmap, RT5651_GPIO_CTRL1,
 				RT5651_GP2_PIN_MASK, RT5651_GP2_PIN_DMIC1_SCL);
 
+	rt5651->irq = i2c->irq;
 	rt5651->hp_mute = 1;
 
-	if (rt5651->jd_src) {
-
-		/* IRQ output on GPIO1 */
-		regmap_update_bits(rt5651->regmap, RT5651_GPIO_CTRL1,
-				   RT5651_GP1_PIN_MASK, RT5651_GP1_PIN_IRQ);
-
-		switch (rt5651->jd_src) {
-		case RT5651_JD1_1:
-			regmap_update_bits(rt5651->regmap, RT5651_JD_CTRL2,
-					   RT5651_JD_TRG_SEL_MASK,
-					   RT5651_JD_TRG_SEL_JD1_1);
-			regmap_update_bits(rt5651->regmap, RT5651_IRQ_CTRL1,
-					   RT5651_JD1_1_IRQ_EN,
-					   RT5651_JD1_1_IRQ_EN);
-			break;
-		case RT5651_JD1_2:
-			regmap_update_bits(rt5651->regmap, RT5651_JD_CTRL2,
-					   RT5651_JD_TRG_SEL_MASK,
-					   RT5651_JD_TRG_SEL_JD1_2);
-			regmap_update_bits(rt5651->regmap, RT5651_IRQ_CTRL1,
-					   RT5651_JD1_2_IRQ_EN,
-					   RT5651_JD1_2_IRQ_EN);
-			break;
-		case RT5651_JD2:
-			regmap_update_bits(rt5651->regmap, RT5651_JD_CTRL2,
-					   RT5651_JD_TRG_SEL_MASK,
-					   RT5651_JD_TRG_SEL_JD2);
-			regmap_update_bits(rt5651->regmap, RT5651_IRQ_CTRL1,
-					   RT5651_JD2_IRQ_EN,
-					   RT5651_JD2_IRQ_EN);
-			break;
-		case RT5651_JD_NULL:
-			break;
-		default:
-			dev_warn(&i2c->dev, "Currently only JD1_1 / JD1_2 / JD2 are supported\n");
-			break;
-		}
-	}
-
 	INIT_DELAYED_WORK(&rt5651->jack_detect_work, rt5651_jack_detect_work);
-
-	if (i2c->irq) {
-		ret = devm_request_threaded_irq(&i2c->dev, i2c->irq, NULL,
-						rt5651_irq,
-						IRQF_TRIGGER_RISING |
-						IRQF_TRIGGER_FALLING |
-						IRQF_ONESHOT, "rt5651", rt5651);
-		if (ret) {
-			dev_err(&i2c->dev, "Failed to reguest IRQ: %d\n", ret);
-			return ret;
-		}
-	}
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 				&soc_component_dev_rt5651,
