@@ -111,6 +111,7 @@ static int nf_flow_dnat_ip(const struct flow_offload *flow, struct sk_buff *skb,
 	default:
 		return -1;
 	}
+	csum_replace4(&iph->check, addr, new_addr);
 
 	return nf_flow_nat_ip_l4proto(skb, iph, thoff, addr, new_addr);
 }
