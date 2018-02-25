@@ -123,10 +123,13 @@ static int tuner_attach_tda18271(struct ngene_channel *chan)
 
 static int tuner_attach_probe(struct ngene_channel *chan)
 {
-	if (chan->demod_type == 0)
+	switch (chan->demod_type) {
+	case DEMOD_TYPE_STV090X:
 		return tuner_attach_stv6110(chan);
-	if (chan->demod_type == 1)
+	case DEMOD_TYPE_DRXK:
 		return tuner_attach_tda18271(chan);
+	}
+
 	return -EINVAL;
 }
 
@@ -251,7 +254,7 @@ static int cineS2_probe(struct ngene_channel *chan)
 		i2c = &chan->dev->channel[1].i2c_adapter;
 
 	if (port_has_stv0900(i2c, chan->number)) {
-		chan->demod_type = 0;
+		chan->demod_type = DEMOD_TYPE_STV090X;
 		fe_conf = chan->dev->card_info->fe_config[chan->number];
 		/* demod found, attach it */
 		rc = demod_attach_stv0900(chan);
@@ -280,7 +283,7 @@ static int cineS2_probe(struct ngene_channel *chan)
 			return -EIO;
 		}
 	} else if (port_has_drxk(i2c, chan->number^2)) {
-		chan->demod_type = 1;
+		chan->demod_type = DEMOD_TYPE_DRXK;
 		demod_attach_drxk(chan, i2c);
 	} else {
 		dev_err(pdev, "No demod found on chan %d\n", chan->number);

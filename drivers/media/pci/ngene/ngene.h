@@ -51,6 +51,9 @@
 #define VIDEO_CAP_MPEG4 512
 #endif
 
+#define DEMOD_TYPE_STV090X	0
+#define DEMOD_TYPE_DRXK		1
+
 enum STREAM {
 	STREAM_VIDEOIN1 = 0,        /* ITU656 or TS Input */
 	STREAM_VIDEOIN2,
