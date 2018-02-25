@@ -663,6 +663,7 @@ int medusa_l1_ipc_alloc_security(struct kern_ipc_perm *ipcp, unsigned int ipc_cl
 	if (med == NULL)
 		return -ENOMEM;
 
+	mutex_init(&med->rwmutex);
 	med->ipc_class = ipc_class;
 	ipcp->security = med;
 	return 0;

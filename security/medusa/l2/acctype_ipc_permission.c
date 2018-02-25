@@ -47,7 +47,9 @@ medusa_answer_t medusa_ipc_permission(struct kern_ipc_perm *ipcp, u32 perms)
 		access.perms = ipc_security(ipcp)->ipc_class;
 		process_kern2kobj(&process, current);
 		if(ipc_kern2kobj(&object, ipcp) == 0) {
+			printk("ipc_permission DECIDE 1\n");
 			retval = MED_DECIDE(ipc_perm_access, &access, &process, &object);
+			printk("ipc_permission DECIDE 2\n");
 			if (retval == MED_ERR)
 				retval = MED_OK;
 		}

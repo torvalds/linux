@@ -19,7 +19,7 @@ int ipc_kern2kobj(struct ipc_kobject * ipck, struct kern_ipc_perm * ipcp)
 	struct medusa_l1_ipc_s* security_s;
 	unsigned int ipc_class;
 
-	security_s = (struct medusa_l1_ipc_s*) ipcp->security;
+	security_s = ipc_security(ipcp);
 	ipc_class = security_s->ipc_class;
 	printk("kern2kobj: IPC_CLASS:%d", ipc_class);
 	switch(ipc_class){
@@ -95,6 +95,7 @@ out_err:
  */
 medusa_answer_t ipc_update(unsigned int id, unsigned int ipc_class, struct medusa_kobject_s * kobj, int (*ipc_kobj2kern)(struct medusa_kobject_s *, struct kern_ipc_perm *))
 {
+	struct medusa_l1_ipc_s* security_s;
 	struct kern_ipc_perm *ipcp;
 	struct ipc_ids *ids;
 	int retval;
@@ -102,23 +103,34 @@ medusa_answer_t ipc_update(unsigned int id, unsigned int ipc_class, struct medus
 	ids = medusa_get_ipc_ids(ipc_class);
 	if(!ids)
 		goto out_err;
-	//down_write(&(ids->rwsem));
+	
+	security_s = ipc_security(ipcp);
+
+	//mutex_lock(&security_s->rwmutex);
+	down_write_trylock(&(ids->rwsem));
 	
 	rcu_read_lock();
 
+	//Call inside RCU critical section
+	//Object is not locked on exit
 	ipcp = ipc_obtain_object_check(ids, id);
 	if(IS_ERR(ipcp) || !ipcp)
 		goto out_err_unlock;
 	
-	//ipc_lock_object(ipcp);
+	ipc_lock_object(ipcp);
+	
 	retval = ipc_kobj2kern(kobj, ipcp);
-	//ipc_unlock_object(ipcp);
-	//up_write(&(ids->rwsem));
+	
+	ipc_unlock_object(ipcp);
 	rcu_read_unlock();
+	up_write(&(ids->rwsem));
+	//mutex_unlock(&security_s->rwmutex);
+	
 	return retval;
 out_err_unlock:
-	//up_write(&(ids->rwsem));
 	rcu_read_unlock();
+	up_write(&(ids->rwsem));
+	//mutex_unlock(&security_s->rwmutex);
 out_err:
 	return MED_ERR;
 }
