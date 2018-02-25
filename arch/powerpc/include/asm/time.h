@@ -205,6 +205,7 @@ struct cpu_usage {
 DECLARE_PER_CPU(struct cpu_usage, cpu_usage_array);
 
 extern void secondary_cpu_time_init(void);
+extern void __init time_init(void);
 
 DECLARE_PER_CPU(u64, decrementers_next_tb);
 
