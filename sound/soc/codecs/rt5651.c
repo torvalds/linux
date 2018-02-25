@@ -1526,6 +1526,13 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (SND_SOC_BIAS_STANDBY == snd_soc_component_get_bias_level(component)) {
+			if (snd_soc_component_read32(component, RT5651_PLL_MODE_1) & 0x9200)
+				snd_soc_component_update_bits(component, RT5651_D_MISC,
+						    0xc00, 0xc00);
+		}
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		if (SND_SOC_BIAS_OFF == snd_soc_component_get_bias_level(component)) {
 			snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 				RT5651_PWR_VREF1 | RT5651_PWR_MB |
 				RT5651_PWR_BG | RT5651_PWR_VREF2,
@@ -1539,13 +1546,10 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 				RT5651_PWR_LDO_DVO_MASK,
 				RT5651_PWR_LDO_DVO_1_2V);
 			snd_soc_component_update_bits(component, RT5651_D_MISC, 0x1, 0x1);
-			if (snd_soc_component_read32(component, RT5651_PLL_MODE_1) & 0x9200)
-				snd_soc_component_update_bits(component, RT5651_D_MISC,
-						    0xc00, 0xc00);
 		}
 		break;
 
-	case SND_SOC_BIAS_STANDBY:
+	case SND_SOC_BIAS_OFF:
 		snd_soc_component_write(component, RT5651_D_MISC, 0x0010);
 		snd_soc_component_write(component, RT5651_PWR_DIG1, 0x0000);
 		snd_soc_component_write(component, RT5651_PWR_DIG2, 0x0000);
