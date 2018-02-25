@@ -93,7 +93,11 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 			 int ndbg, struct sig_dbg_op __user *dbg,
 			 int r6, int r7, int r8,
 			 struct pt_regs *regs);
+int
+ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct timeval __user *tvp);
 #endif
+long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
+		      u32 len_high, u32 len_low);
 long sys_switch_endian(void);
 notrace unsigned int __check_irq_replay(void);
 void notrace restore_interrupts(void);
