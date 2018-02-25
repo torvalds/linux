@@ -477,7 +477,6 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 	uopt->session = 0xFFFFFFFF;
 	uopt->lastblock = 0;
 	uopt->anchor = 0;
-	uopt->nls_map = NULL;
 
 	if (!options)
 		return 1;
@@ -575,8 +574,12 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 			break;
 #ifdef CONFIG_UDF_NLS
 		case Opt_iocharset:
-			uopt->nls_map = load_nls(args[0].from);
-			uopt->flags |= (1 << UDF_FLAG_NLS_MAP);
+			if (!remount) {
+				if (uopt->nls_map)
+					unload_nls(uopt->nls_map);
+				uopt->nls_map = load_nls(args[0].from);
+				uopt->flags |= (1 << UDF_FLAG_NLS_MAP);
+			}
 			break;
 #endif
 		case Opt_uforget:
@@ -627,6 +630,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	uopt.umask = sbi->s_umask;
 	uopt.fmode = sbi->s_fmode;
 	uopt.dmode = sbi->s_dmode;
+	uopt.nls_map = NULL;
 
 	if (!udf_parse_options(options, &uopt, true))
 		return -EINVAL;
@@ -2095,6 +2099,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	uopt.umask = 0;
 	uopt.fmode = UDF_INVALID_MODE;
 	uopt.dmode = UDF_INVALID_MODE;
+	uopt.nls_map = NULL;
 
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -2275,8 +2280,8 @@ error_out:
 	iput(sbi->s_vat_inode);
 parse_options_failure:
 #ifdef CONFIG_UDF_NLS
-	if (UDF_QUERY_FLAG(sb, UDF_FLAG_NLS_MAP))
-		unload_nls(sbi->s_nls_map);
+	if (uopt.nls_map)
+		unload_nls(uopt.nls_map);
 #endif
 	if (lvid_open)
 		udf_close_lvid(sb);
