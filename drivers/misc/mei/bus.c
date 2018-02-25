@@ -74,6 +74,23 @@ ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 		goto out;
 	}
 
+	while (cl->tx_cb_queued >= bus->tx_queue_limit) {
+		mutex_unlock(&bus->device_lock);
+		rets = wait_event_interruptible(cl->tx_wait,
+				cl->writing_state == MEI_WRITE_COMPLETE ||
+				(!mei_cl_is_connected(cl)));
+		mutex_lock(&bus->device_lock);
+		if (rets) {
+			if (signal_pending(current))
+				rets = -EINTR;
+			goto out;
+		}
+		if (!mei_cl_is_connected(cl)) {
+			rets = -ENODEV;
+			goto out;
+		}
+	}
+
 	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_WRITE, NULL);
 	if (!cb) {
 		rets = -ENOMEM;
