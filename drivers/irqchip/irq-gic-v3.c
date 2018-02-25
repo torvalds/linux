@@ -613,9 +613,17 @@ static void gic_cpu_sys_reg_init(void)
 		pr_crit_once("RSS is required but GICD doesn't support it\n");
 }
 
+static bool gicv3_nolpi;
+
+static int __init gicv3_nolpi_cfg(char *buf)
+{
+	return strtobool(buf, &gicv3_nolpi);
+}
+early_param("irqchip.gicv3_nolpi", gicv3_nolpi_cfg);
+
 static int gic_dist_supports_lpis(void)
 {
-	return !!(readl_relaxed(gic_data.dist_base + GICD_TYPER) & GICD_TYPER_LPIS);
+	return !!(readl_relaxed(gic_data.dist_base + GICD_TYPER) & GICD_TYPER_LPIS) && !gicv3_nolpi;
 }
 
 static void gic_cpu_init(void)
