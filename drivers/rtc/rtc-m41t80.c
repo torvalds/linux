@@ -885,7 +885,6 @@ static int m41t80_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	int rc = 0;
-	struct rtc_device *rtc = NULL;
 	struct rtc_time tm;
 	struct m41t80_data *m41t80_data = NULL;
 	bool wakeup_source = false;
@@ -908,6 +907,10 @@ static int m41t80_probe(struct i2c_client *client,
 	else
 		m41t80_data->features = id->driver_data;
 	i2c_set_clientdata(client, m41t80_data);
+
+	m41t80_data->rtc =  devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(m41t80_data->rtc))
+		return PTR_ERR(m41t80_data->rtc);
 
 #ifdef CONFIG_OF
 	wakeup_source = of_property_read_bool(client->dev.of_node,
@@ -932,15 +935,11 @@ static int m41t80_probe(struct i2c_client *client,
 		device_init_wakeup(&client->dev, true);
 	}
 
-	rtc = devm_rtc_device_register(&client->dev, client->name,
-				       &m41t80_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
+	m41t80_data->rtc->ops = &m41t80_rtc_ops;
 
-	m41t80_data->rtc = rtc;
 	if (client->irq <= 0) {
 		/* We cannot support UIE mode if we do not have an IRQ line */
-		rtc->uie_unsupported = 1;
+		m41t80_data->rtc->uie_unsupported = 1;
 	}
 
 	/* Make sure HT (Halt Update) bit is cleared */
@@ -993,6 +992,11 @@ static int m41t80_probe(struct i2c_client *client,
 	if (m41t80_data->features & M41T80_FEATURE_SQ)
 		m41t80_sqw_register_clk(m41t80_data);
 #endif
+
+	rc = rtc_register_device(m41t80_data->rtc);
+	if (rc)
+		return rc;
+
 	return 0;
 }
 
