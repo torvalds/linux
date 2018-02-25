@@ -270,6 +270,14 @@ int rockchip_of_get_lkg_scale_sel(struct device *dev, char *name)
 			dev_info(dev, "%s-scale-sel=%d\n", name, volt_sel);
 			return volt_sel;
 		}
+	} else {
+		dev_info(dev, "get %s fail\n", name);
+		ret = rockchip_get_volt_sel(np, "rockchip,leakage-scaling-sel",
+					    0, &volt_sel);
+		if (!ret) {
+			dev_info(dev, "%s-scale-sel=%d\n", name, volt_sel);
+			return volt_sel;
+		}
 	}
 
 	return ret;
