@@ -1659,6 +1659,18 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 	return 0;
 }
 
+void rt5651_apply_properties(struct snd_soc_component *component)
+{
+	if (device_property_read_bool(component->dev, "realtek,in2-differential"))
+		snd_soc_component_update_bits(component, RT5651_IN1_IN2,
+				RT5651_IN_DF2, RT5651_IN_DF2);
+
+	if (device_property_read_bool(component->dev, "realtek,dmic-en"))
+		snd_soc_component_update_bits(component, RT5651_GPIO_CTRL1,
+				RT5651_GP2_PIN_MASK, RT5651_GP2_PIN_DMIC1_SCL);
+}
+EXPORT_SYMBOL_GPL(rt5651_apply_properties);
+
 static int rt5651_probe(struct snd_soc_component *component)
 {
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
@@ -1676,6 +1688,8 @@ static int rt5651_probe(struct snd_soc_component *component)
 		RT5651_PWR_FV1 | RT5651_PWR_FV2);
 
 	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
+
+	rt5651_apply_properties(component);
 
 	return 0;
 }
@@ -1931,14 +1945,6 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 				    ARRAY_SIZE(init_list));
 	if (ret != 0)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
-
-	if (device_property_read_bool(&i2c->dev, "realtek,in2-differential"))
-		regmap_update_bits(rt5651->regmap, RT5651_IN1_IN2,
-					RT5651_IN_DF2, RT5651_IN_DF2);
-
-	if (device_property_read_bool(&i2c->dev, "realtek,dmic-en"))
-		regmap_update_bits(rt5651->regmap, RT5651_GPIO_CTRL1,
-				RT5651_GP2_PIN_MASK, RT5651_GP2_PIN_DMIC1_SCL);
 
 	rt5651->irq = i2c->irq;
 	rt5651->hp_mute = 1;
