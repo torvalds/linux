@@ -173,7 +173,7 @@ void __msr_check_and_clear(unsigned long bits)
 EXPORT_SYMBOL(__msr_check_and_clear);
 
 #ifdef CONFIG_PPC_FPU
-void __giveup_fpu(struct task_struct *tsk)
+static void __giveup_fpu(struct task_struct *tsk)
 {
 	unsigned long msr;
 
@@ -556,7 +556,7 @@ void restore_math(struct pt_regs *regs)
 	regs->msr = msr;
 }
 
-void save_all(struct task_struct *tsk)
+static void save_all(struct task_struct *tsk)
 {
 	unsigned long usermsr;
 
