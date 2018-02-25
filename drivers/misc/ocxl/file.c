@@ -133,8 +133,10 @@ static long afu_ioctl(struct file *file, unsigned int cmd,
 		if (!rc) {
 			rc = copy_to_user((u64 __user *) args, &irq_offset,
 					sizeof(irq_offset));
-			if (rc)
+			if (rc) {
 				ocxl_afu_irq_free(ctx, irq_offset);
+				return -EFAULT;
+			}
 		}
 		break;
 
@@ -329,7 +331,7 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 
 	used += sizeof(header);
 
-	rc = (ssize_t) used;
+	rc = used;
 	return rc;
 }
 

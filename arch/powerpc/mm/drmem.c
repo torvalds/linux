@@ -98,7 +98,7 @@ static void init_drconf_v2_cell(struct of_drconf_cell_v2 *dr_cell,
 	dr_cell->base_addr = cpu_to_be64(lmb->base_addr);
 	dr_cell->drc_index = cpu_to_be32(lmb->drc_index);
 	dr_cell->aa_index = cpu_to_be32(lmb->aa_index);
-	dr_cell->flags = cpu_to_be32(lmb->flags);
+	dr_cell->flags = cpu_to_be32(drmem_lmb_flags(lmb));
 }
 
 static int drmem_update_dt_v2(struct device_node *memory,
@@ -121,7 +121,7 @@ static int drmem_update_dt_v2(struct device_node *memory,
 		}
 
 		if (prev_lmb->aa_index != lmb->aa_index ||
-		    prev_lmb->flags != lmb->flags)
+		    drmem_lmb_flags(prev_lmb) != drmem_lmb_flags(lmb))
 			lmb_sets++;
 
 		prev_lmb = lmb;
@@ -150,7 +150,7 @@ static int drmem_update_dt_v2(struct device_node *memory,
 		}
 
 		if (prev_lmb->aa_index != lmb->aa_index ||
-		    prev_lmb->flags != lmb->flags) {
+		    drmem_lmb_flags(prev_lmb) != drmem_lmb_flags(lmb)) {
 			/* end of one set, start of another */
 			dr_cell->seq_lmbs = cpu_to_be32(seq_lmbs);
 			dr_cell++;
