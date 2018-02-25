@@ -869,10 +869,6 @@ static const struct snd_soc_dapm_widget rt5651_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("ADC ASRC", 1, RT5651_PLL_MODE_2,
 			      11, 0, NULL, 0),
 
-	/* Input Side */
-	SND_SOC_DAPM_SUPPLY("JD Power", RT5651_PWR_ANLG2,
-		RT5651_PWM_JD_M_BIT, 0, NULL, 0),
-
 	/* micbias */
 	SND_SOC_DAPM_SUPPLY("LDO", RT5651_PWR_ANLG1,
 			RT5651_PWR_LDO_BIT, 0, NULL, 0),
@@ -1616,7 +1612,10 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	snd_soc_dapm_force_enable_pin(dapm, "JD Power");
+	/* Enable jack detect power */
+	snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
+		RT5651_PWR_JD_M, RT5651_PWR_JD_M);
+
 	snd_soc_dapm_force_enable_pin(dapm, "LDO");
 	snd_soc_dapm_sync(dapm);
 
