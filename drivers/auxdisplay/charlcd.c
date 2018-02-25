@@ -363,6 +363,7 @@ static inline int handle_lcd_special_code(struct charlcd *lcd)
 		break;
 	case 'N':	/* Two Lines */
 		priv->flags |= LCD_FLAG_N;
+		processed = 1;
 		break;
 	case 'l':	/* Shift Cursor Left */
 		if (priv->addr.x > 0) {
