@@ -18,12 +18,4 @@ enum rt5651_jd_src {
 	RT5651_JD2,
 };
 
-struct rt5651_platform_data {
-	/* IN2 can optionally be differential */
-	bool in2_diff;
-
-	bool dmic_en;
-	enum rt5651_jd_src jd_src;
-};
-
 #endif
