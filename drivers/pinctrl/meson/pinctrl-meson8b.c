@@ -884,20 +884,24 @@ static struct meson_pmx_func meson8b_aobus_functions[] = {
 };
 
 static struct meson_bank meson8b_cbus_banks[] = {
-	/*   name    first              last        irq      pullen  pull    dir     out     in  */
-	BANK("X",    GPIOX_0,		GPIOX_21,   97, 118, 4,  0,  4,  0,  0,  0,  1,  0,  2,  0),
-	BANK("Y",    GPIOY_0,		GPIOY_14,   80,  96, 3,  0,  3,  0,  3,  0,  4,  0,  5,  0),
-	BANK("DV",   GPIODV_9,		GPIODV_29,  59,  79, 0,  0,  0,  0,  7,  0,  8,  0,  9,  0),
-	BANK("H",    GPIOH_0,		GPIOH_9,    14,  23, 1, 16,  1, 16,  9, 19, 10, 19, 11, 19),
-	BANK("CARD", CARD_0,		CARD_6,     43,  49, 2, 20,  2, 20,  0, 22,  1, 22,  2, 22),
-	BANK("BOOT", BOOT_0,		BOOT_18,    24,  42, 2,  0,  2,  0,  9,  0, 10,  0, 11,  0),
+	/*   name        first          last        irq       pullen   pull     dir      out      in   */
+	BANK("X0..11",	 GPIOX_0,	GPIOX_11,   97, 108,  4,  0,   4,  0,   0,  0,   1,  0,   2,  0),
+	BANK("X16..21",	 GPIOX_16,	GPIOX_21,  113, 118,  4, 16,   4, 16,   0, 16,   1, 16,   2, 16),
+	BANK("Y0..1",	 GPIOY_0,	GPIOY_1,    80,  81,  3,  0,   3,  0,   3,  0,   4,  0,   5,  0),
+	BANK("Y3",	 GPIOY_3,	GPIOY_3,    83,  83,  3,  3,   3,  3,   3,  3,   4,  3,   5,  3),
+	BANK("Y6..14",	 GPIOY_6,	GPIOY_14,   86,  94,  3,  6,   3,  6,   3,  6,   4,  6,   5,  6),
+	BANK("DV9",	 GPIODV_9,	GPIODV_9,   59,  59,  0,  9,   0,  9,   7,  9,   8,  9,   9,  9),
+	BANK("DV24..29", GPIODV_24,	GPIODV_29,  74,  79,  0, 24,   0, 24,   7, 24,   8, 24,   9, 24),
+	BANK("H",	 GPIOH_0,	GPIOH_9,    14,  23,  1, 16,   1, 16,   9, 19,  10, 19,  11, 19),
+	BANK("CARD",	 CARD_0,	CARD_6,     43,  49,  2, 20,   2, 20,   0, 22,   1, 22,   2, 22),
+	BANK("BOOT",	 BOOT_0,	BOOT_18,    24,  42,  2,  0,   2,  0,   9,  0,  10,  0,  11,  0),
 
 	/*
 	 * The following bank is not mentionned in the public datasheet
 	 * There is no information whether it can be used with the gpio
 	 * interrupt controller
 	 */
-	BANK("DIF",  DIF_0_P,		DIF_4_N,    -1,  -1, 5,  8,  5,  8, 12, 12, 13, 12, 14, 12),
+	BANK("DIF",	 DIF_0_P,	DIF_4_N,    -1,  -1,  5,  8,   5,  8,  12, 12,  13, 12,  14, 12),
 };
 
 static struct meson_bank meson8b_aobus_banks[] = {
