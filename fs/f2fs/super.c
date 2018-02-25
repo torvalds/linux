@@ -1298,6 +1298,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 	sbi->inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
 	sbi->whint_mode = WHINT_MODE_OFF;
 	sbi->alloc_mode = ALLOC_MODE_DEFAULT;
+	sbi->readdir_ra = 1;
 
 	set_opt(sbi, BG_GC);
 	set_opt(sbi, INLINE_XATTR);
