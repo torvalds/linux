@@ -254,12 +254,26 @@ out_nomem:
 int ceph_unreserve_caps(struct ceph_mds_client *mdsc,
 			struct ceph_cap_reservation *ctx)
 {
+	int i;
+	struct ceph_cap *cap;
+
 	dout("unreserve caps ctx=%p count=%d\n", ctx, ctx->count);
 	if (ctx->count) {
 		spin_lock(&mdsc->caps_list_lock);
 		BUG_ON(mdsc->caps_reserve_count < ctx->count);
 		mdsc->caps_reserve_count -= ctx->count;
-		mdsc->caps_avail_count += ctx->count;
+		if (mdsc->caps_avail_count >=
+		    mdsc->caps_reserve_count + mdsc->caps_min_count) {
+			mdsc->caps_total_count -= ctx->count;
+			for (i = 0; i < ctx->count; i++) {
+				cap = list_first_entry(&mdsc->caps_list,
+					struct ceph_cap, caps_item);
+				list_del(&cap->caps_item);
+				kmem_cache_free(ceph_cap_cachep, cap);
+			}
+		} else {
+			mdsc->caps_avail_count += ctx->count;
+		}
 		ctx->count = 0;
 		dout("unreserve caps %d = %d used + %d resv + %d avail\n",
 		     mdsc->caps_total_count, mdsc->caps_use_count,
