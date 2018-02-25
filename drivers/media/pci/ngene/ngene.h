@@ -909,6 +909,9 @@ int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level);
 void set_transfer(struct ngene_channel *chan, int state);
 void FillTSBuffer(void *Buffer, int Length, u32 Flags);
 
+/* Provided by ngene-cards.c */
+int ngene_port_has_cxd2099(struct i2c_adapter *i2c, u8 *type);
+
 /* Provided by ngene-i2c.c */
 int ngene_i2c_init(struct ngene *dev, int dev_nr);
 

@@ -505,6 +505,25 @@ static int port_has_stv0367(struct i2c_adapter *i2c)
 	return 1;
 }
 
+int ngene_port_has_cxd2099(struct i2c_adapter *i2c, u8 *type)
+{
+	u8 val;
+	u8 probe[4] = { 0xe0, 0x00, 0x00, 0x00 }, data[4];
+	struct i2c_msg msgs[2] = {{ .addr = 0x40,  .flags = 0,
+				    .buf  = probe, .len   = 4 },
+				  { .addr = 0x40,  .flags = I2C_M_RD,
+				    .buf  = data,  .len   = 4 } };
+	val = i2c_transfer(i2c, msgs, 2);
+	if (val != 2)
+		return 0;
+
+	if (data[0] == 0x02 && data[1] == 0x2b && data[3] == 0x43)
+		*type = 2;
+	else
+		*type = 1;
+	return 1;
+}
+
 static int demod_attach_drxk(struct ngene_channel *chan,
 			     struct i2c_adapter *i2c)
 {

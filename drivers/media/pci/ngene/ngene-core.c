@@ -1589,6 +1589,20 @@ static void cxd_attach(struct ngene *dev)
 		.addr = 0x40,
 		.platform_data = &cxd_cfg,
 	};
+	int ret;
+	u8 type;
+
+	/* check for CXD2099AR presence before attaching */
+	ret = ngene_port_has_cxd2099(&dev->channel[0].i2c_adapter, &type);
+	if (!ret) {
+		dev_dbg(pdev, "No CXD2099AR found\n");
+		return;
+	}
+
+	if (type != 1) {
+		dev_warn(pdev, "CXD2099AR is uninitialized!\n");
+		return;
+	}
 
 	cxd_cfg.en = &ci->en;
 
