@@ -398,20 +398,6 @@ static int set_dmic_clk(struct snd_soc_dapm_widget *w,
 	return idx;
 }
 
-static int is_sysclk_from_pll(struct snd_soc_dapm_widget *source,
-			 struct snd_soc_dapm_widget *sink)
-{
-	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
-	unsigned int val;
-
-	val = snd_soc_component_read32(component, RT5651_GLB_CLK);
-	val &= RT5651_SCLK_SRC_MASK;
-	if (val == RT5651_SCLK_SRC_PLL1)
-		return 1;
-	else
-		return 0;
-}
-
 /* Digital Mixer */
 static const struct snd_kcontrol_new rt5651_sto1_adc_l_mix[] = {
 	SOC_DAPM_SINGLE("ADC1 Switch", RT5651_STO1_ADC_MIXER,
@@ -883,8 +869,6 @@ static const struct snd_soc_dapm_widget rt5651_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("ADC ASRC", 1, RT5651_PLL_MODE_2,
 			      11, 0, NULL, 0),
 
-	SND_SOC_DAPM_SUPPLY("PLL1", RT5651_PWR_ANLG2,
-			RT5651_PWR_PLL_BIT, 0, NULL, 0),
 	/* Input Side */
 	SND_SOC_DAPM_SUPPLY("JD Power", RT5651_PWR_ANLG2,
 		RT5651_PWM_JD_M_BIT, 0, NULL, 0),
@@ -1167,7 +1151,6 @@ static const struct snd_soc_dapm_route rt5651_dapm_routes[] = {
 	{"Stereo1 ADC MIXL", "ADC1 Switch", "Stereo1 ADC L1 Mux"},
 	{"Stereo1 ADC MIXL", "ADC2 Switch", "Stereo1 ADC L2 Mux"},
 	{"Stereo1 ADC MIXL", NULL, "Stereo1 Filter"},
-	{"Stereo1 Filter", NULL, "PLL1", is_sysclk_from_pll},
 	{"Stereo1 Filter", NULL, "ADC ASRC"},
 
 	{"Stereo1 ADC MIXR", "ADC1 Switch", "Stereo1 ADC R1 Mux"},
@@ -1177,7 +1160,6 @@ static const struct snd_soc_dapm_route rt5651_dapm_routes[] = {
 	{"Stereo2 ADC MIXL", "ADC1 Switch", "Stereo2 ADC L1 Mux"},
 	{"Stereo2 ADC MIXL", "ADC2 Switch", "Stereo2 ADC L2 Mux"},
 	{"Stereo2 ADC MIXL", NULL, "Stereo2 Filter"},
-	{"Stereo2 Filter", NULL, "PLL1", is_sysclk_from_pll},
 	{"Stereo2 Filter", NULL, "ADC ASRC"},
 
 	{"Stereo2 ADC MIXR", "ADC1 Switch", "Stereo2 ADC R1 Mux"},
@@ -1244,10 +1226,8 @@ static const struct snd_soc_dapm_route rt5651_dapm_routes[] = {
 	{"PDM R Mux", "DD MIX", "DAC MIXR"},
 
 	{"DAC L1", NULL, "Stereo DAC MIXL"},
-	{"DAC L1", NULL, "PLL1", is_sysclk_from_pll},
 	{"DAC L1", NULL, "DAC L1 Power"},
 	{"DAC R1", NULL, "Stereo DAC MIXR"},
-	{"DAC R1", NULL, "PLL1", is_sysclk_from_pll},
 	{"DAC R1", NULL, "DAC R1 Power"},
 
 	{"DD MIXL", "DAC L1 Switch", "DAC MIXL"},
@@ -1443,6 +1423,7 @@ static int rt5651_set_dai_sysclk(struct snd_soc_dai *dai,
 	struct snd_soc_component *component = dai->component;
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 	unsigned int reg_val = 0;
+	unsigned int pll_bit = 0;
 
 	if (freq == rt5651->sysclk && clk_id == rt5651->sysclk_src)
 		return 0;
@@ -1453,6 +1434,7 @@ static int rt5651_set_dai_sysclk(struct snd_soc_dai *dai,
 		break;
 	case RT5651_SCLK_S_PLL1:
 		reg_val |= RT5651_SCLK_SRC_PLL1;
+		pll_bit |= RT5651_PWR_PLL;
 		break;
 	case RT5651_SCLK_S_RCCLK:
 		reg_val |= RT5651_SCLK_SRC_RCCLK;
@@ -1461,6 +1443,8 @@ static int rt5651_set_dai_sysclk(struct snd_soc_dai *dai,
 		dev_err(component->dev, "Invalid clock id (%d)\n", clk_id);
 		return -EINVAL;
 	}
+	snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
+		RT5651_PWR_PLL, pll_bit);
 	snd_soc_component_update_bits(component, RT5651_GLB_CLK,
 		RT5651_SCLK_SRC_MASK, reg_val);
 	rt5651->sysclk = freq;
