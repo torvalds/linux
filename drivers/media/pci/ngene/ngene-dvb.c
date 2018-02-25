@@ -152,7 +152,9 @@ void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 				stripped++;
 
 			if (ok % 100 == 0 && overflow)
-				printk(KERN_WARNING "%s: ok %u overflow %u dropped %u\n", __func__, ok, overflow, stripped);
+				dev_warn(&dev->pci_dev->dev,
+					 "%s: ok %u overflow %u dropped %u\n",
+					 __func__, ok, overflow, stripped);
 #endif
 			buf += 188;
 			len -= 188;

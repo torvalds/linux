@@ -23,6 +23,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -48,6 +50,7 @@
 
 static int tuner_attach_stv6110(struct ngene_channel *chan)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct i2c_adapter *i2c;
 	struct stv090x_config *feconf = (struct stv090x_config *)
 		chan->dev->card_info->fe_config[chan->number];
@@ -63,7 +66,7 @@ static int tuner_attach_stv6110(struct ngene_channel *chan)
 
 	ctl = dvb_attach(stv6110x_attach, chan->fe, tunerconf, i2c);
 	if (ctl == NULL) {
-		printk(KERN_ERR	DEVICE_NAME ": No STV6110X found!\n");
+		dev_err(pdev, "No STV6110X found!\n");
 		return -ENODEV;
 	}
 
@@ -100,6 +103,7 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 static int tuner_attach_tda18271(struct ngene_channel *chan)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct i2c_adapter *i2c;
 	struct dvb_frontend *fe;
 
@@ -110,7 +114,7 @@ static int tuner_attach_tda18271(struct ngene_channel *chan)
 	if (chan->fe->ops.i2c_gate_ctrl)
 		chan->fe->ops.i2c_gate_ctrl(chan->fe, 0);
 	if (!fe) {
-		printk(KERN_ERR "No TDA18271 found!\n");
+		dev_err(pdev, "No TDA18271 found!\n");
 		return -ENODEV;
 	}
 
@@ -128,6 +132,7 @@ static int tuner_attach_probe(struct ngene_channel *chan)
 
 static int demod_attach_stv0900(struct ngene_channel *chan)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct i2c_adapter *i2c;
 	struct stv090x_config *feconf = (struct stv090x_config *)
 		chan->dev->card_info->fe_config[chan->number];
@@ -144,7 +149,7 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 			(chan->number & 1) == 0 ? STV090x_DEMODULATOR_0
 						: STV090x_DEMODULATOR_1);
 	if (chan->fe == NULL) {
-		printk(KERN_ERR	DEVICE_NAME ": No STV0900 found!\n");
+		dev_err(pdev, "No STV0900 found!\n");
 		return -ENODEV;
 	}
 
@@ -154,7 +159,7 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 
 	if (!dvb_attach(lnbh24_attach, chan->fe, i2c, 0,
 			0, chan->dev->card_info->lnb[chan->number])) {
-		printk(KERN_ERR DEVICE_NAME ": No LNBH24 found!\n");
+		dev_err(pdev, "No LNBH24 found!\n");
 		dvb_frontend_detach(chan->fe);
 		chan->fe = NULL;
 		return -ENODEV;
@@ -211,6 +216,7 @@ static int port_has_drxk(struct i2c_adapter *i2c, int port)
 static int demod_attach_drxk(struct ngene_channel *chan,
 			     struct i2c_adapter *i2c)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct drxk_config config;
 
 	memset(&config, 0, sizeof(config));
@@ -220,7 +226,7 @@ static int demod_attach_drxk(struct ngene_channel *chan,
 
 	chan->fe = dvb_attach(drxk_attach, &config, i2c);
 	if (!chan->fe) {
-		printk(KERN_ERR "No DRXK found!\n");
+		dev_err(pdev, "No DRXK found!\n");
 		return -ENODEV;
 	}
 	chan->fe->sec_priv = chan;
@@ -231,6 +237,7 @@ static int demod_attach_drxk(struct ngene_channel *chan,
 
 static int cineS2_probe(struct ngene_channel *chan)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct i2c_adapter *i2c;
 	struct stv090x_config *fe_conf;
 	u8 buf[3];
@@ -269,14 +276,14 @@ static int cineS2_probe(struct ngene_channel *chan)
 		}
 		rc = i2c_transfer(i2c, &i2c_msg, 1);
 		if (rc != 1) {
-			printk(KERN_ERR DEVICE_NAME ": could not setup DPNx\n");
+			dev_err(pdev, "Could not setup DPNx\n");
 			return -EIO;
 		}
 	} else if (port_has_drxk(i2c, chan->number^2)) {
 		chan->demod_type = 1;
 		demod_attach_drxk(chan, i2c);
 	} else {
-		printk(KERN_ERR "No demod found on chan %d\n", chan->number);
+		dev_err(pdev, "No demod found on chan %d\n", chan->number);
 		return -ENODEV;
 	}
 	return 0;
@@ -299,9 +306,11 @@ static struct mt2131_config m780_tunerconfig = {
  */
 static int demod_attach_lg330x(struct ngene_channel *chan)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
+
 	chan->fe = dvb_attach(lgdt330x_attach, &aver_m780, &chan->i2c_adapter);
 	if (chan->fe == NULL) {
-		printk(KERN_ERR	DEVICE_NAME ": No LGDT330x found!\n");
+		dev_err(pdev, "No LGDT330x found!\n");
 		return -ENODEV;
 	}
 
@@ -313,6 +322,7 @@ static int demod_attach_lg330x(struct ngene_channel *chan)
 
 static int demod_attach_drxd(struct ngene_channel *chan)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct drxd_config *feconf;
 
 	feconf = chan->dev->card_info->fe_config[chan->number];
@@ -320,7 +330,7 @@ static int demod_attach_drxd(struct ngene_channel *chan)
 	chan->fe = dvb_attach(drxd_attach, feconf, chan,
 			&chan->i2c_adapter, &chan->dev->pci_dev->dev);
 	if (!chan->fe) {
-		pr_err("No DRXD found!\n");
+		dev_err(pdev, "No DRXD found!\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -328,6 +338,7 @@ static int demod_attach_drxd(struct ngene_channel *chan)
 
 static int tuner_attach_dtt7520x(struct ngene_channel *chan)
 {
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct drxd_config *feconf;
 
 	feconf = chan->dev->card_info->fe_config[chan->number];
@@ -335,7 +346,7 @@ static int tuner_attach_dtt7520x(struct ngene_channel *chan)
 	if (!dvb_attach(dvb_pll_attach, chan->fe, feconf->pll_address,
 			&chan->i2c_adapter,
 			feconf->pll_type)) {
-		pr_err("No pll(%d) found!\n", feconf->pll_type);
+		dev_err(pdev, "No pll(%d) found!\n", feconf->pll_type);
 		return -ENODEV;
 	}
 	return 0;
@@ -371,12 +382,13 @@ static int tuner_attach_dtt7520x(struct ngene_channel *chan)
 static int i2c_write_eeprom(struct i2c_adapter *adapter,
 			    u8 adr, u16 reg, u8 data)
 {
+	struct device *pdev = adapter->dev.parent;
 	u8 m[3] = {(reg >> 8), (reg & 0xff), data};
 	struct i2c_msg msg = {.addr = adr, .flags = 0, .buf = m,
 			      .len = sizeof(m)};
 
 	if (i2c_transfer(adapter, &msg, 1) != 1) {
-		pr_err(DEVICE_NAME ": Error writing EEPROM!\n");
+		dev_err(pdev, "Error writing EEPROM!\n");
 		return -EIO;
 	}
 	return 0;
@@ -385,6 +397,7 @@ static int i2c_write_eeprom(struct i2c_adapter *adapter,
 static int i2c_read_eeprom(struct i2c_adapter *adapter,
 			   u8 adr, u16 reg, u8 *data, int len)
 {
+	struct device *pdev = adapter->dev.parent;
 	u8 msg[2] = {(reg >> 8), (reg & 0xff)};
 	struct i2c_msg msgs[2] = {{.addr = adr, .flags = 0,
 				   .buf = msg, .len = 2 },
@@ -392,7 +405,7 @@ static int i2c_read_eeprom(struct i2c_adapter *adapter,
 				   .buf = data, .len = len} };
 
 	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		pr_err(DEVICE_NAME ": Error reading EEPROM\n");
+		dev_err(pdev, "Error reading EEPROM\n");
 		return -EIO;
 	}
 	return 0;
@@ -401,6 +414,7 @@ static int i2c_read_eeprom(struct i2c_adapter *adapter,
 static int ReadEEProm(struct i2c_adapter *adapter,
 		      u16 Tag, u32 MaxLen, u8 *data, u32 *pLength)
 {
+	struct device *pdev = adapter->dev.parent;
 	int status = 0;
 	u16 Addr = MICNG_EE_START, Length, tag = 0;
 	u8  EETag[3];
@@ -416,9 +430,8 @@ static int ReadEEProm(struct i2c_adapter *adapter,
 		Addr += sizeof(u16) + 1 + EETag[2];
 	}
 	if (Addr + sizeof(u16) + 1 + EETag[2] > MICNG_EE_END) {
-		pr_err(DEVICE_NAME
-		       ": Reached EOEE @ Tag = %04x Length = %3d\n",
-		       tag, EETag[2]);
+		dev_err(pdev, "Reached EOEE @ Tag = %04x Length = %3d\n",
+			tag, EETag[2]);
 		return -1;
 	}
 	Length = EETag[2];
@@ -441,6 +454,7 @@ static int ReadEEProm(struct i2c_adapter *adapter,
 static int WriteEEProm(struct i2c_adapter *adapter,
 		       u16 Tag, u32 Length, u8 *data)
 {
+	struct device *pdev = adapter->dev.parent;
 	int status = 0;
 	u16 Addr = MICNG_EE_START;
 	u8 EETag[3];
@@ -458,9 +472,8 @@ static int WriteEEProm(struct i2c_adapter *adapter,
 		Addr += sizeof(u16) + 1 + EETag[2];
 	}
 	if (Addr + sizeof(u16) + 1 + EETag[2] > MICNG_EE_END) {
-		pr_err(DEVICE_NAME
-		       ": Reached EOEE @ Tag = %04x Length = %3d\n",
-		       tag, EETag[2]);
+		dev_err(pdev, "Reached EOEE @ Tag = %04x Length = %3d\n",
+			tag, EETag[2]);
 		return -1;
 	}
 
@@ -487,13 +500,11 @@ static int WriteEEProm(struct i2c_adapter *adapter,
 			if (status)
 				break;
 			if (Tmp != data[i])
-				pr_err(DEVICE_NAME
-				       "eeprom write error\n");
+				dev_err(pdev, "eeprom write error\n");
 			retry -= 1;
 		}
 		if (status) {
-			pr_err(DEVICE_NAME
-			       ": Timeout polling eeprom\n");
+			dev_err(pdev, "Timeout polling eeprom\n");
 			break;
 		}
 	}
@@ -532,19 +543,20 @@ static int eeprom_write_ushort(struct i2c_adapter *adapter, u16 tag, u16 data)
 static s16 osc_deviation(void *priv, s16 deviation, int flag)
 {
 	struct ngene_channel *chan = priv;
+	struct device *pdev = &chan->dev->pci_dev->dev;
 	struct i2c_adapter *adap = &chan->i2c_adapter;
 	u16 data = 0;
 
 	if (flag) {
 		data = (u16) deviation;
-		pr_info(DEVICE_NAME ": write deviation %d\n",
-		       deviation);
+		dev_info(pdev, "write deviation %d\n",
+			 deviation);
 		eeprom_write_ushort(adap, 0x1000 + chan->number, data);
 	} else {
 		if (eeprom_read_ushort(adap, 0x1000 + chan->number, &data))
 			data = 0;
-		pr_info(DEVICE_NAME ": read deviation %d\n",
-		       (s16) data);
+		dev_info(pdev, "read deviation %d\n",
+			 (s16)data);
 	}
 
 	return (s16) data;
@@ -771,7 +783,7 @@ MODULE_DEVICE_TABLE(pci, ngene_id_tbl);
 static pci_ers_result_t ngene_error_detected(struct pci_dev *dev,
 					     enum pci_channel_state state)
 {
-	printk(KERN_ERR DEVICE_NAME ": PCI error\n");
+	dev_err(&dev->dev, "PCI error\n");
 	if (state == pci_channel_io_perm_failure)
 		return PCI_ERS_RESULT_DISCONNECT;
 	if (state == pci_channel_io_frozen)
@@ -781,13 +793,13 @@ static pci_ers_result_t ngene_error_detected(struct pci_dev *dev,
 
 static pci_ers_result_t ngene_slot_reset(struct pci_dev *dev)
 {
-	printk(KERN_INFO DEVICE_NAME ": slot reset\n");
+	dev_info(&dev->dev, "slot reset\n");
 	return 0;
 }
 
 static void ngene_resume(struct pci_dev *dev)
 {
-	printk(KERN_INFO DEVICE_NAME ": resume\n");
+	dev_info(&dev->dev, "resume\n");
 }
 
 static const struct pci_error_handlers ngene_errors = {
@@ -807,8 +819,9 @@ static struct pci_driver ngene_pci_driver = {
 
 static __init int module_init_ngene(void)
 {
-	printk(KERN_INFO
-	       "nGene PCIE bridge driver, Copyright (C) 2005-2007 Micronas\n");
+	/* pr_*() since we don't have a device to use with dev_*() yet */
+	pr_info("nGene PCIE bridge driver, Copyright (C) 2005-2007 Micronas\n");
+
 	return pci_register_driver(&ngene_pci_driver);
 }
 
