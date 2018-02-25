@@ -38,6 +38,7 @@ then point your browser at **Documentation/output/labs/index.html**.
    lectures/intro.rst
    labs/vm.rst
    labs/exercises.rst
+   labs/introduction.rst
    labs/kernel_modules.rst
    labs/kernel_api.rst
    labs/device_drivers.rst
