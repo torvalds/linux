@@ -2948,18 +2948,16 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	u16 op;
 	u8 tx_affinity = 0;
 
+	mlx5_st = to_mlx5_st(ibqp->qp_type == IB_QPT_DRIVER ?
+			     qp->qp_sub_type : ibqp->qp_type);
+	if (mlx5_st < 0)
+		return -EINVAL;
+
 	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		return -ENOMEM;
 
-	err = to_mlx5_st(ibqp->qp_type == IB_QPT_DRIVER ?
-			 qp->qp_sub_type : ibqp->qp_type);
-	if (err < 0) {
-		mlx5_ib_dbg(dev, "unsupported qp type %d\n", ibqp->qp_type);
-		goto out;
-	}
-
-	context->flags = cpu_to_be32(err << 16);
+	context->flags = cpu_to_be32(mlx5_st << 16);
 
 	if (!(attr_mask & IB_QP_PATH_MIG_STATE)) {
 		context->flags |= cpu_to_be32(MLX5_QP_PM_MIGRATED << 11);
@@ -3113,10 +3111,6 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 	mlx5_cur = to_mlx5_state(cur_state);
 	mlx5_new = to_mlx5_state(new_state);
-	mlx5_st = to_mlx5_st(ibqp->qp_type == IB_QPT_DRIVER ?
-			     qp->qp_sub_type : ibqp->qp_type);
-	if (mlx5_st < 0)
-		goto out;
 
 	if (mlx5_cur >= MLX5_QP_NUM_STATE || mlx5_new >= MLX5_QP_NUM_STATE ||
 	    !optab[mlx5_cur][mlx5_new])
