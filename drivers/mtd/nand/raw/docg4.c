@@ -1341,7 +1341,7 @@ static int __init probe_docg4(struct platform_device *pdev)
 	nand = kzalloc(len, GFP_KERNEL);
 	if (nand == NULL) {
 		retval = -ENOMEM;
-		goto fail_unmap;
+		goto unmap;
 	}
 
 	mtd = nand_to_mtd(nand);
@@ -1357,7 +1357,7 @@ static int __init probe_docg4(struct platform_device *pdev)
 	doc->bch = init_bch(DOCG4_M, DOCG4_T, DOCG4_PRIMITIVE_POLY);
 	if (doc->bch == NULL) {
 		retval = -EINVAL;
-		goto fail;
+		goto free_nand;
 	}
 
 	platform_set_drvdata(pdev, doc);
@@ -1366,30 +1366,32 @@ static int __init probe_docg4(struct platform_device *pdev)
 	retval = read_id_reg(mtd);
 	if (retval == -ENODEV) {
 		dev_warn(dev, "No diskonchip G4 device found.\n");
-		goto fail;
+		goto free_bch;
 	}
 
 	retval = nand_scan_tail(mtd);
 	if (retval)
-		goto fail;
+		goto free_bch;
 
 	retval = read_factory_bbt(mtd);
 	if (retval)
-		goto fail;
+		goto cleanup_nand;
 
 	retval = mtd_device_parse_register(mtd, part_probes, NULL, NULL, 0);
 	if (retval)
-		goto fail;
+		goto cleanup_nand;
 
 	doc->mtd = mtd;
+
 	return 0;
 
-fail:
-	nand_release(mtd); /* deletes partitions and mtd devices */
+cleanup_nand:
+	nand_cleanup(nand);
+free_bch:
 	free_bch(doc->bch);
+free_nand:
 	kfree(nand);
-
-fail_unmap:
+unmap:
 	iounmap(virtadr);
 
 	return retval;
