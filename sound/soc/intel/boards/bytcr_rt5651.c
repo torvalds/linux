@@ -370,7 +370,7 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 		return ret;
 	}
 
-	rt5651_set_jack_detect(codec, &priv->jack);
+	snd_soc_component_set_jack(codec, &priv->jack, NULL);
 
 	return ret;
 }

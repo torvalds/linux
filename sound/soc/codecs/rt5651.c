@@ -1593,8 +1593,8 @@ static irqreturn_t rt5651_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int rt5651_set_jack_detect(struct snd_soc_component *component,
-			   struct snd_soc_jack *hp_jack)
+static int rt5651_set_jack(struct snd_soc_component *component,
+			   struct snd_soc_jack *hp_jack, void *data)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
@@ -1658,7 +1658,6 @@ int rt5651_set_jack_detect(struct snd_soc_component *component,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt5651_set_jack_detect);
 
 static int rt5651_probe(struct snd_soc_component *component)
 {
@@ -1762,6 +1761,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt5651 = {
 	.suspend		= rt5651_suspend,
 	.resume			= rt5651_resume,
 	.set_bias_level		= rt5651_set_bias_level,
+	.set_jack		= rt5651_set_jack,
 	.controls		= rt5651_snd_controls,
 	.num_controls		= ARRAY_SIZE(rt5651_snd_controls),
 	.dapm_widgets		= rt5651_dapm_widgets,
