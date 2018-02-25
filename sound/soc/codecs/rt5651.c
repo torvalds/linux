@@ -1540,9 +1540,6 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 			snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 				RT5651_PWR_FV1 | RT5651_PWR_FV2,
 				RT5651_PWR_FV1 | RT5651_PWR_FV2);
-			snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
-				RT5651_PWR_LDO_DVO_MASK,
-				RT5651_PWR_LDO_DVO_1_2V);
 			snd_soc_component_update_bits(component, RT5651_D_MISC, 0x1, 0x1);
 		}
 		break;
@@ -1661,6 +1658,9 @@ static int rt5651_probe(struct snd_soc_component *component)
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 
 	rt5651->component = component;
+
+	snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
+		RT5651_PWR_LDO_DVO_MASK, RT5651_PWR_LDO_DVO_1_2V);
 
 	snd_soc_component_force_bias_level(component, SND_SOC_BIAS_OFF);
 
