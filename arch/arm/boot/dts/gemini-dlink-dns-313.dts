@@ -59,14 +59,13 @@
 			label = "dns313:green:disk";
 			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
-			linux,default-trigger = "ide-disk";
-			/* Ideally should activate while reading */
+			linux,default-trigger = "disk-read";
 		};
 		led-disk-red {
 			label = "dns313:red:disk";
 			gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
-			/* Ideally should activate while writing */
+			linux,default-trigger = "disk-write";
 		};
 	};
 
