@@ -1,4 +1,3 @@
-#include <linux/spinlock.h>
 #include <linux/nsproxy.h>
 #include <linux/ipc_namespace.h>
 #include <linux/medusa/l1/ipc.h>
@@ -12,7 +11,7 @@
 
 /**
  * medusa_get_ipc_ids - retrieve ipc_ids structure from namespace
- * @ipc_class - type of ipc mechanizme define in l1/ipc.h
+ * @ipc_class - type of ipc mechanism define in l1/ipc.h
  * Return: ipc_ids or NULL if error
  */
 struct ipc_ids * medusa_get_ipc_ids(unsigned int ipc_class)

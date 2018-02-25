@@ -30,7 +30,6 @@ medusa_answer_t medusa_ipc_validate(struct kern_ipc_perm *ipcp) {
 	memset(&event, '\0', sizeof(struct ipc_event));
 	INIT_MEDUSA_OBJECT_VARS(ipc_security(ipcp));
 	INIT_MEDUSA_SUBJECT_VARS(ipc_security(ipcp));
-	printk("ipc validate before kern2kobj\n");		
 	if(ipc_kern2kobj(&sender, ipcp) == 0){
 		retval = MED_DECIDE(ipc_event, &event, &sender, &sender);
 		if (retval == MED_ERR)

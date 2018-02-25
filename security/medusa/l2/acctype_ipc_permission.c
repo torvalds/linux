@@ -43,8 +43,6 @@ medusa_answer_t medusa_ipc_permission(struct kern_ipc_perm *ipcp, u32 perms)
 	if (!MED_MAGIC_VALID(ipc_security(ipcp)) && medusa_ipc_validate(ipcp) <= 0)
 		return MED_OK;
 
-	return retval;
-	
 	if (MEDUSA_MONITORED_ACCESS_S(ipc_perm_access, &task_security(current))) {
 		access.perms = ipc_security(ipcp)->ipc_class;
 		process_kern2kobj(&process, current);

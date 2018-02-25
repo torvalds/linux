@@ -1,12 +1,6 @@
-#include <linux/medusa/l3/registry.h>
-#include <linux/medusa/l1/ipc.h>
-#include <linux/syscalls.h>
 #include <linux/sem.h>
 #include "kobject_ipc_common.h"
 
-/*
-* ipc_class = MED_IPC_SEM, MED_IPC_MSG, MED_IPC_SHM look l1/ipc.h
-*/
 MED_ATTRS(ipc_sem_kobject) {
 	MED_ATTR_RO		(ipc_sem_kobject, ipc_class, "ipc_class", MED_UNSIGNED),
 	MED_ATTR_RO		(ipc_sem_kobject, id, "id", MED_SIGNED),
@@ -16,30 +10,34 @@ MED_ATTRS(ipc_sem_kobject) {
 	MED_ATTR_END
 };
 
+static struct ipc_sem_kobject storage;
 
-int ipc_sem_kern2kobj(struct medusa_kobject_s * ipck, struct kern_ipc_perm * ipcp)
+/**
+ * ipc_sem_kern2kobj - convert function from kernel structure to kobject
+ * @ipcp - pointer to kernel structure used to get data
+ * Return: void pointer to sem_kobject structure or NULL on error
+ */
+void * ipc_sem_kern2kobj(struct kern_ipc_perm * ipcp)
 {
 	struct medusa_l1_ipc_s* security_s;
-	struct ipc_sem_kobject * ipck_sem;
 	struct sem_array * sem_array;
 
 	security_s = (struct medusa_l1_ipc_s*) ipcp->security;
-	ipck_sem = (struct ipc_sem_kobject *)ipck;
 	sem_array = container_of(ipcp, struct sem_array, sem_perm);
 	
-        memset(ipck_sem, '\0', sizeof(struct ipc_sem_kobject));
+    memset(&storage, '\0', sizeof(struct ipc_sem_kobject));
 	
 	if(!security_s)
-		return -1;
+		return NULL;
 	
-	ipck_sem->id = ipcp->id;
-	ipck_sem->ipc_class = security_s->ipc_class;
-	ipck_sem->uid = ipcp->uid;
-	ipck_sem->gid = ipcp->gid;
-	ipck_sem->sem_nsems = sem_array->sem_nsems;
-	COPY_MEDUSA_SUBJECT_VARS(ipck_sem, security_s);
-	COPY_MEDUSA_OBJECT_VARS(ipck_sem, security_s);
-	return 0;
+	storage.id = ipcp->id;
+	storage.ipc_class = security_s->ipc_class;
+	storage.uid = ipcp->uid;
+	storage.gid = ipcp->gid;
+	storage.sem_nsems = sem_array->sem_nsems;
+	COPY_MEDUSA_OBJECT_VARS(&storage, security_s);
+
+	return (void *)&storage;
 }
 
 medusa_answer_t ipc_sem_kobj2kern(struct medusa_kobject_s * ipck, struct kern_ipc_perm * ipcp)
@@ -53,7 +51,6 @@ medusa_answer_t ipc_sem_kobj2kern(struct medusa_kobject_s * ipck, struct kern_ip
 	ipcp->uid = ipck_sem->uid;
 	ipcp->gid = ipck_sem->gid;
 
-	COPY_MEDUSA_SUBJECT_VARS(security_s, ipck_sem);
 	COPY_MEDUSA_OBJECT_VARS(security_s, ipck_sem);
 	return MED_OK;
 }
@@ -63,7 +60,7 @@ static struct medusa_kobject_s * ipc_sem_fetch(struct medusa_kobject_s * kobj)
 	struct ipc_sem_kobject * ipc_kobj;
 	struct medusa_kobject_s * new_kobj;
 	ipc_kobj = (struct ipc_sem_kobject *)kobj;
-	new_kobj = ipc_fetch(ipc_kobj->id, ipc_kobj->ipc_class, ipc_sem_kern2kobj);
+	new_kobj = (struct medusa_kobject_s *)ipc_fetch(ipc_kobj->id, ipc_kobj->ipc_class, ipc_sem_kern2kobj);
 	return new_kobj;
 }
 
