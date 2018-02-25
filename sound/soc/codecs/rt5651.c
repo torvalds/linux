@@ -1642,7 +1642,7 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 				      RT5651_MIC1_OVTH_MASK |
 				      RT5651_PWR_CLK12M_MASK |
 				      RT5651_PWR_MB_MASK,
-				      RT5651_MIC1_OVCD_DIS |
+				      RT5651_MIC1_OVCD_EN |
 				      RT5651_MIC1_OVTH_600UA |
 				      RT5651_PWR_MB_PU |
 				      RT5651_PWR_CLK12M_PU);
@@ -1849,9 +1849,6 @@ static int rt5651_jack_detect(struct snd_soc_component *component, int jack_inse
 
 	if (jack_insert) {
 		rt5651_enable_micbias1_for_ovcd(component);
-		snd_soc_component_update_bits(component, RT5651_MICBIAS,
-				    RT5651_MIC1_OVCD_MASK,
-				    RT5651_MIC1_OVCD_EN);
 		msleep(100);
 		if (snd_soc_component_read32(component, RT5651_IRQ_CTRL2) & RT5651_MB1_OC_CLR)
 			jack_type = SND_JACK_HEADPHONE;
@@ -1862,10 +1859,6 @@ static int rt5651_jack_detect(struct snd_soc_component *component, int jack_inse
 		rt5651_disable_micbias1_for_ovcd(component);
 	} else { /* jack out */
 		jack_type = 0;
-
-		snd_soc_component_update_bits(component, RT5651_MICBIAS,
-				    RT5651_MIC1_OVCD_MASK,
-				    RT5651_MIC1_OVCD_DIS);
 	}
 
 	return jack_type;
