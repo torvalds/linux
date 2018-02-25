@@ -1561,6 +1561,28 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static void rt5651_enable_micbias1_for_ovcd(struct snd_soc_component *component)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+
+	snd_soc_dapm_mutex_lock(dapm);
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "LDO");
+	snd_soc_dapm_force_enable_pin_unlocked(dapm, "micbias1");
+	snd_soc_dapm_sync_unlocked(dapm);
+	snd_soc_dapm_mutex_unlock(dapm);
+}
+
+static void rt5651_disable_micbias1_for_ovcd(struct snd_soc_component *component)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+
+	snd_soc_dapm_mutex_lock(dapm);
+	snd_soc_dapm_disable_pin_unlocked(dapm, "micbias1");
+	snd_soc_dapm_disable_pin_unlocked(dapm, "LDO");
+	snd_soc_dapm_sync_unlocked(dapm);
+	snd_soc_dapm_mutex_unlock(dapm);
+}
+
 static irqreturn_t rt5651_irq(int irq, void *data)
 {
 	struct rt5651_priv *rt5651 = data;
@@ -1574,7 +1596,6 @@ static irqreturn_t rt5651_irq(int irq, void *data)
 static int rt5651_set_jack(struct snd_soc_component *component,
 			   struct snd_soc_jack *hp_jack, void *data)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
 	int ret;
 
@@ -1615,9 +1636,6 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 	/* Enable jack detect power */
 	snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
 		RT5651_PWR_JD_M, RT5651_PWR_JD_M);
-
-	snd_soc_dapm_force_enable_pin(dapm, "LDO");
-	snd_soc_dapm_sync(dapm);
 
 	snd_soc_component_update_bits(component, RT5651_MICBIAS, 0x38, 0x38);
 
@@ -1819,13 +1837,10 @@ static const struct dmi_system_id rt5651_quirk_table[] = {
 
 static int rt5651_jack_detect(struct snd_soc_component *component, int jack_insert)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	int jack_type;
 
 	if (jack_insert) {
-		snd_soc_dapm_force_enable_pin(dapm, "LDO");
-		snd_soc_dapm_sync(dapm);
-
+		rt5651_enable_micbias1_for_ovcd(component);
 		snd_soc_component_update_bits(component, RT5651_MICBIAS,
 				    RT5651_MIC1_OVCD_MASK |
 				    RT5651_MIC1_OVTH_MASK |
@@ -1842,6 +1857,7 @@ static int rt5651_jack_detect(struct snd_soc_component *component, int jack_inse
 			jack_type = SND_JACK_HEADSET;
 		snd_soc_component_update_bits(component, RT5651_IRQ_CTRL2,
 				    RT5651_MB1_OC_CLR, 0);
+		rt5651_disable_micbias1_for_ovcd(component);
 	} else { /* jack out */
 		jack_type = 0;
 
