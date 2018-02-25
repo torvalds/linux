@@ -37,7 +37,7 @@
 };
 
 &gpmc {
-	ranges = <0 0 0x00000000 0x1000000>;	/* CS0: 16MB for NAND */
+	ranges = <0 0 0x30000000 0x1000000>;	/* CS0: 16MB for NAND */
 
 	nand@0,0 {
 		compatible = "ti,omap2-nand";
@@ -121,7 +121,7 @@
 
 &mmc3 {
 	interrupts-extended = <&intc 94 &omap3_pmx_core2 0x46>;
-	pinctrl-0 = <&mmc3_pins>;
+	pinctrl-0 = <&mmc3_pins &wl127x_gpio>;
 	pinctrl-names = "default";
 	vmmc-supply = <&wl12xx_vmmc>;
 	non-removable;
@@ -132,8 +132,8 @@
 	wlcore: wlcore@2 {
 		compatible = "ti,wl1273";
 		reg = <2>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <24 IRQ_TYPE_LEVEL_HIGH>; /* gpio 152 */
+		interrupt-parent = <&gpio1>;
+		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>; /* gpio 2 */
 		ref-clock-frequency = <26000000>;
 	};
 };
@@ -157,8 +157,6 @@
 			OMAP3_CORE1_IOPAD(0x2166, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat5.sdmmc3_dat1 */
 			OMAP3_CORE1_IOPAD(0x2168, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat6.sdmmc3_dat2 */
 			OMAP3_CORE1_IOPAD(0x216a, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat6.sdmmc3_dat3 */
-			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcbsp4_clkx.gpio_152 */
-			OMAP3_CORE1_IOPAD(0x2a0c, PIN_OUTPUT | MUX_MODE4)	/* sys_boot1.gpio_3 */
 			OMAP3_CORE1_IOPAD(0x21d0, PIN_INPUT_PULLUP | MUX_MODE3) /* mcspi1_cs1.sdmmc3_cmd */
 			OMAP3_CORE1_IOPAD(0x21d2, PIN_INPUT_PULLUP | MUX_MODE3)	/* mcspi1_cs2.sdmmc_clk */
 		>;
@@ -226,6 +224,12 @@
 	hsusb2_reset_pin: pinmux_hsusb1_reset_pin {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a0e, PIN_OUTPUT | MUX_MODE4)	/* sys_boot2.gpio_4 */
+		>;
+	};
+	wl127x_gpio: pinmux_wl127x_gpio_pin {
+		pinctrl-single,pins = <
+			OMAP3_WKUP_IOPAD(0x2a0c, PIN_INPUT | MUX_MODE4)		/* sys_boot0.gpio_2 */
+			OMAP3_WKUP_IOPAD(0x2a0c, PIN_OUTPUT | MUX_MODE4)	/* sys_boot1.gpio_3 */
 		>;
 	};
 };

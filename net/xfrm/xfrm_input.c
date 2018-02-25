@@ -207,7 +207,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	xfrm_address_t *daddr;
 	struct xfrm_mode *inner_mode;
 	u32 mark = skb->mark;
-	unsigned int family;
+	unsigned int family = AF_UNSPEC;
 	int decaps = 0;
 	int async = 0;
 	bool xfrm_gro = false;
@@ -216,6 +216,16 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 	if (encap_type < 0) {
 		x = xfrm_input_state(skb);
+
+		if (unlikely(x->km.state != XFRM_STATE_VALID)) {
+			if (x->km.state == XFRM_STATE_ACQ)
+				XFRM_INC_STATS(net, LINUX_MIB_XFRMACQUIREERROR);
+			else
+				XFRM_INC_STATS(net,
+					       LINUX_MIB_XFRMINSTATEINVALID);
+			goto drop;
+		}
+
 		family = x->outer_mode->afinfo->family;
 
 		/* An encap_type of -1 indicates async resumption. */

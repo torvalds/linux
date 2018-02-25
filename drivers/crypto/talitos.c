@@ -1124,6 +1124,11 @@ int talitos_sg_map(struct device *dev, struct scatterlist *src,
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	bool is_sec1 = has_ftr_sec1(priv);
 
+	if (!src) {
+		*ptr = zero_entry;
+		return 1;
+	}
+
 	to_talitos_ptr_len(ptr, len, is_sec1);
 	to_talitos_ptr_ext_set(ptr, 0, is_sec1);
 

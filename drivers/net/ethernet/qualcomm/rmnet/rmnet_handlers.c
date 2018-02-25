@@ -166,12 +166,12 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 
 	if (skb_headroom(skb) < required_headroom) {
 		if (pskb_expand_head(skb, required_headroom, 0, GFP_KERNEL))
-			return RMNET_MAP_CONSUMED;
+			goto fail;
 	}
 
 	map_header = rmnet_map_add_map_header(skb, additional_header_len, 0);
 	if (!map_header)
-		return RMNET_MAP_CONSUMED;
+		goto fail;
 
 	if (port->egress_data_format & RMNET_EGRESS_FORMAT_MUXING) {
 		if (ep->mux_id == 0xff)
@@ -183,6 +183,10 @@ static int rmnet_map_egress_handler(struct sk_buff *skb,
 	skb->protocol = htons(ETH_P_MAP);
 
 	return RMNET_MAP_SUCCESS;
+
+fail:
+	kfree_skb(skb);
+	return RMNET_MAP_CONSUMED;
 }
 
 /* Ingress / Egress Entry Points */

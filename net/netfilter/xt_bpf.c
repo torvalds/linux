@@ -27,6 +27,9 @@ static int __bpf_mt_check_bytecode(struct sock_filter *insns, __u16 len,
 {
 	struct sock_fprog_kern program;
 
+	if (len > XT_BPF_MAX_NUM_INSTR)
+		return -EINVAL;
+
 	program.len = len;
 	program.filter = insns;
 
@@ -54,6 +57,9 @@ static int __bpf_mt_check_path(const char *path, struct bpf_prog **ret)
 {
 	mm_segment_t oldfs = get_fs();
 	int retval, fd;
+
+	if (strnlen(path, XT_BPF_PATH_MAX) == XT_BPF_PATH_MAX)
+		return -EINVAL;
 
 	set_fs(KERNEL_DS);
 	fd = bpf_obj_get_user(path);

@@ -1387,8 +1387,13 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	if (!csk)
 		return -EINVAL;
 
-	/* We must prevent loops or risk deadlock ! */
-	if (csk->sk_family == PF_KCM)
+	/* Only allow TCP sockets to be attached for now */
+	if ((csk->sk_family != AF_INET && csk->sk_family != AF_INET6) ||
+	    csk->sk_protocol != IPPROTO_TCP)
+		return -EOPNOTSUPP;
+
+	/* Don't allow listeners or closed sockets */
+	if (csk->sk_state == TCP_LISTEN || csk->sk_state == TCP_CLOSE)
 		return -EOPNOTSUPP;
 
 	psock = kmem_cache_zalloc(kcm_psockp, GFP_KERNEL);
@@ -1405,9 +1410,18 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 		return err;
 	}
 
-	sock_hold(csk);
-
 	write_lock_bh(&csk->sk_callback_lock);
+
+	/* Check if sk_user_data is aready by KCM or someone else.
+	 * Must be done under lock to prevent race conditions.
+	 */
+	if (csk->sk_user_data) {
+		write_unlock_bh(&csk->sk_callback_lock);
+		strp_done(&psock->strp);
+		kmem_cache_free(kcm_psockp, psock);
+		return -EALREADY;
+	}
+
 	psock->save_data_ready = csk->sk_data_ready;
 	psock->save_write_space = csk->sk_write_space;
 	psock->save_state_change = csk->sk_state_change;
@@ -1415,7 +1429,10 @@ static int kcm_attach(struct socket *sock, struct socket *csock,
 	csk->sk_data_ready = psock_data_ready;
 	csk->sk_write_space = psock_write_space;
 	csk->sk_state_change = psock_state_change;
+
 	write_unlock_bh(&csk->sk_callback_lock);
+
+	sock_hold(csk);
 
 	/* Finished initialization, now add the psock to the MUX. */
 	spin_lock_bh(&mux->lock);

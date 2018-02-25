@@ -49,6 +49,7 @@
 
 struct quirk_entry {
 	u8 touchpad_led;
+	u8 kbd_led_levels_off_1;
 
 	int needs_kbd_timeouts;
 	/*
@@ -77,6 +78,10 @@ static int __init dmi_matched(const struct dmi_system_id *dmi)
 static struct quirk_entry quirk_dell_xps13_9333 = {
 	.needs_kbd_timeouts = 1,
 	.kbd_timeouts = { 0, 5, 15, 60, 5 * 60, 15 * 60, -1 },
+};
+
+static struct quirk_entry quirk_dell_latitude_e6410 = {
+	.kbd_led_levels_off_1 = 1,
 };
 
 static struct platform_driver platform_driver = {
@@ -279,6 +284,15 @@ static const struct dmi_system_id dell_quirks[] __initconst = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "XPS13 9333"),
 		},
 		.driver_data = &quirk_dell_xps13_9333,
+	},
+	{
+		.callback = dmi_matched,
+		.ident = "Dell Latitude E6410",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Latitude E6410"),
+		},
+		.driver_data = &quirk_dell_latitude_e6410,
 	},
 	{ }
 };
@@ -1199,6 +1213,9 @@ static int kbd_get_info(struct kbd_info *info)
 	info->triggers = buffer->output[2] & 0xFF;
 	units = (buffer->output[2] >> 8) & 0xFF;
 	info->levels = (buffer->output[2] >> 16) & 0xFF;
+
+	if (quirks && quirks->kbd_led_levels_off_1 && info->levels)
+		info->levels--;
 
 	if (units & BIT(0))
 		info->seconds = (buffer->output[3] >> 0) & 0xFF;

@@ -354,7 +354,7 @@
 		elm: elm@48078000 {
 			compatible = "ti,am3352-elm";
 			reg = <0x48078000 0x2000>;
-			interrupts = <4>;
+			interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "elm";
 			status = "disabled";
 		};
@@ -861,14 +861,12 @@
 			usbhsohci: ohci@4a064800 {
 				compatible = "ti,ohci-omap3";
 				reg = <0x4a064800 0x400>;
-				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			usbhsehci: ehci@4a064c00 {
 				compatible = "ti,ehci-omap";
 				reg = <0x4a064c00 0x400>;
-				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};

@@ -67,6 +67,7 @@ struct perf_evsel_config_term {
 		bool	overwrite;
 		char	*branch;
 	} val;
+	bool weak;
 };
 
 /** struct perf_evsel - event selector

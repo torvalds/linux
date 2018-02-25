@@ -313,13 +313,14 @@ retry:
 	if ((type && !try_module_get(type->owner)))
 		type = NULL;
 
+	rcu_read_unlock();
+
 	if (!type && try_load) {
 		request_module("xfrm-offload-%d-%d", family, proto);
 		try_load = 0;
 		goto retry;
 	}
 
-	rcu_read_unlock();
 	return type;
 }
 

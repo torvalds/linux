@@ -546,6 +546,7 @@ int
 bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port,
 			struct device *dev)
 {
+	struct bfad_im_port_pointer *im_portp;
 	int error = 1;
 
 	mutex_lock(&bfad_mutex);
@@ -564,7 +565,8 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port,
 		goto out_free_idr;
 	}
 
-	im_port->shost->hostdata[0] = (unsigned long)im_port;
+	im_portp = shost_priv(im_port->shost);
+	im_portp->p = im_port;
 	im_port->shost->unique_id = im_port->idr_id;
 	im_port->shost->this_id = -1;
 	im_port->shost->max_id = MAX_FCP_TARGET;
@@ -748,7 +750,7 @@ bfad_scsi_host_alloc(struct bfad_im_port_s *im_port, struct bfad_s *bfad)
 
 	sht->sg_tablesize = bfad->cfg_data.io_max_sge;
 
-	return scsi_host_alloc(sht, sizeof(unsigned long));
+	return scsi_host_alloc(sht, sizeof(struct bfad_im_port_pointer));
 }
 
 void

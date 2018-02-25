@@ -890,10 +890,13 @@ static void flush_pending_writes(struct r10conf *conf)
 	spin_lock_irq(&conf->device_lock);
 
 	if (conf->pending_bio_list.head) {
+		struct blk_plug plug;
 		struct bio *bio;
+
 		bio = bio_list_get(&conf->pending_bio_list);
 		conf->pending_count = 0;
 		spin_unlock_irq(&conf->device_lock);
+		blk_start_plug(&plug);
 		/* flush any pending bitmap writes to disk
 		 * before proceeding w/ I/O */
 		bitmap_unplug(conf->mddev->bitmap);
@@ -914,6 +917,7 @@ static void flush_pending_writes(struct r10conf *conf)
 				generic_make_request(bio);
 			bio = next;
 		}
+		blk_finish_plug(&plug);
 	} else
 		spin_unlock_irq(&conf->device_lock);
 }

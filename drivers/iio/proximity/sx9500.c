@@ -871,12 +871,21 @@ static int sx9500_init_device(struct iio_dev *indio_dev)
 static void sx9500_gpio_probe(struct i2c_client *client,
 			      struct sx9500_data *data)
 {
+	struct gpio_desc *gpiod_int;
 	struct device *dev;
 
 	if (!client)
 		return;
 
 	dev = &client->dev;
+
+	if (client->irq <= 0) {
+		gpiod_int = devm_gpiod_get(dev, SX9500_GPIO_INT, GPIOD_IN);
+		if (IS_ERR(gpiod_int))
+			dev_err(dev, "gpio get irq failed\n");
+		else
+			client->irq = gpiod_to_irq(gpiod_int);
+	}
 
 	data->gpiod_rst = devm_gpiod_get(dev, SX9500_GPIO_RESET, GPIOD_OUT_HIGH);
 	if (IS_ERR(data->gpiod_rst)) {
