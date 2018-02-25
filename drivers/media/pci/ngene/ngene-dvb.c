@@ -84,18 +84,41 @@ static ssize_t ts_read(struct file *file, char __user *buf,
 	return count;
 }
 
+static __poll_t ts_poll(struct file *file, poll_table *wait)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct ngene_channel *chan = dvbdev->priv;
+	struct ngene *dev = chan->dev;
+	struct dvb_ringbuffer *rbuf = &dev->tsin_rbuf;
+	struct dvb_ringbuffer *wbuf = &dev->tsout_rbuf;
+	__poll_t mask = 0;
+
+	poll_wait(file, &rbuf->queue, wait);
+	poll_wait(file, &wbuf->queue, wait);
+
+	if (!dvb_ringbuffer_empty(rbuf))
+		mask |= EPOLLIN | EPOLLRDNORM;
+	if (dvb_ringbuffer_free(wbuf) >= 188)
+		mask |= EPOLLOUT | EPOLLWRNORM;
+
+	return mask;
+}
+
 static const struct file_operations ci_fops = {
 	.owner   = THIS_MODULE,
 	.read    = ts_read,
 	.write   = ts_write,
 	.open    = dvb_generic_open,
 	.release = dvb_generic_release,
+	.poll    = ts_poll,
+	.mmap    = NULL,
 };
 
 struct dvb_device ngene_dvbdev_ci = {
-	.readers = -1,
-	.writers = -1,
-	.users   = -1,
+	.priv    = NULL,
+	.readers = 1,
+	.writers = 1,
+	.users   = 2,
 	.fops    = &ci_fops,
 };
 
