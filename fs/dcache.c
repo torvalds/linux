@@ -25,17 +25,14 @@
 #include <linux/cache.h>
 #include <linux/export.h>
 #include <linux/mount.h>
-#include <linux/file.h>
 #include <linux/uaccess.h>
 #include <linux/security.h>
 #include <linux/seqlock.h>
-#include <linux/swap.h>
 #include <linux/bootmem.h>
 #include <linux/fs_struct.h>
 #include <linux/bit_spinlock.h>
 #include <linux/rculist_bl.h>
 #include <linux/prefetch.h>
-#include <linux/ratelimit.h>
 #include <linux/list_lru.h>
 #include "internal.h"
 #include "mount.h"
