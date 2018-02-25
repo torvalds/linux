@@ -10,18 +10,13 @@
  * Thanks. --rmk
  */
 
-#include <linux/smp.h>
-#include <linux/linkage.h>
 #include <linux/cache.h>
 #include <linux/spinlock.h>
 #include <linux/cpumask.h>
-#include <linux/gfp.h>
 #include <linux/irqhandler.h>
 #include <linux/irqreturn.h>
 #include <linux/irqnr.h>
-#include <linux/errno.h>
 #include <linux/topology.h>
-#include <linux/wait.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 
