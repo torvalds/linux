@@ -192,7 +192,11 @@ int sm_register_device(struct mtd_info *mtd, int smartmedia)
 	if (ret)
 		return ret;
 
-	return mtd_device_register(mtd, NULL, 0);
+	ret = mtd_device_register(mtd, NULL, 0);
+	if (ret)
+		nand_cleanup(chip);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sm_register_device);
 
