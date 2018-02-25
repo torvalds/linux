@@ -615,7 +615,7 @@
 		reg = <0x0 0xff200000 0x0 0x10>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm0_pin>;
 		#pwm-cells = <3>;
 		status = "disabled";
@@ -626,7 +626,7 @@
 		reg = <0x0 0xff200010 0x0 0x10>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm1_pin>;
 		#pwm-cells = <3>;
 		status = "disabled";
@@ -637,7 +637,7 @@
 		reg = <0x0 0xff200020 0x0 0x10>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm2_pin>;
 		#pwm-cells = <3>;
 		status = "disabled";
@@ -648,7 +648,7 @@
 		reg = <0x0 0xff200030 0x0 0x10>;
 		clocks = <&cru SCLK_PWM0>, <&cru PCLK_PWM0>;
 		clock-names = "pwm", "pclk";
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm3_pin>;
 		#pwm-cells = <3>;
 		status = "disabled";
@@ -659,7 +659,7 @@
 		reg = <0x0 0xff208000 0x0 0x10>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm4_pin>;
 		#pwm-cells = <3>;
 		status = "disabled";
@@ -670,7 +670,7 @@
 		reg = <0x0 0xff208010 0x0 0x10>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm5_pin>;
 		#pwm-cells = <3>;
 		status = "disabled";
@@ -681,7 +681,7 @@
 		reg = <0x0 0xff208020 0x0 0x10>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm6_pin>;
 		#pwm-cells = <3>;
 		status = "disabled";
@@ -692,7 +692,7 @@
 		reg = <0x0 0xff208030 0x0 0x10>;
 		clocks = <&cru SCLK_PWM1>, <&cru PCLK_PWM1>;
 		clock-names = "pwm", "pclk";
-		pinctrl-names = "default";
+		pinctrl-names = "active";
 		pinctrl-0 = <&pwm7_pin>;
 		#pwm-cells = <3>;
 		status = "disabled";
