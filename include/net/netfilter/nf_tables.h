@@ -1109,9 +1109,6 @@ struct nft_flowtable {
 struct nft_flowtable *nf_tables_flowtable_lookup(const struct nft_table *table,
 						 const struct nlattr *nla,
 						 u8 genmask);
-void nft_flow_table_iterate(struct net *net,
-			    void (*iter)(struct nf_flowtable *flowtable, void *data),
-			    void *data);
 
 void nft_register_flowtable_type(struct nf_flowtable_type *type);
 void nft_unregister_flowtable_type(struct nf_flowtable_type *type);

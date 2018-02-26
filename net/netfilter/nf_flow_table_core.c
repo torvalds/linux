@@ -18,6 +18,9 @@ struct flow_offload_entry {
 	struct rcu_head		rcu_head;
 };
 
+static DEFINE_MUTEX(flowtable_lock);
+static LIST_HEAD(flowtables);
+
 static void
 flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
 		      struct nf_flow_route *route,
@@ -410,6 +413,10 @@ int nf_flow_table_init(struct nf_flowtable *flowtable)
 	queue_delayed_work(system_power_efficient_wq,
 			   &flowtable->gc_work, HZ);
 
+	mutex_lock(&flowtable_lock);
+	list_add(&flowtable->list, &flowtables);
+	mutex_unlock(&flowtable_lock);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_init);
@@ -425,20 +432,28 @@ static void nf_flow_table_do_cleanup(struct flow_offload *flow, void *data)
 }
 
 static void nf_flow_table_iterate_cleanup(struct nf_flowtable *flowtable,
-					  void *data)
+					  struct net_device *dev)
 {
-	nf_flow_table_iterate(flowtable, nf_flow_table_do_cleanup, data);
+	nf_flow_table_iterate(flowtable, nf_flow_table_do_cleanup, dev);
 	flush_delayed_work(&flowtable->gc_work);
 }
 
 void nf_flow_table_cleanup(struct net *net, struct net_device *dev)
 {
-	nft_flow_table_iterate(net, nf_flow_table_iterate_cleanup, dev);
+	struct nf_flowtable *flowtable;
+
+	mutex_lock(&flowtable_lock);
+	list_for_each_entry(flowtable, &flowtables, list)
+		nf_flow_table_iterate_cleanup(flowtable, dev);
+	mutex_unlock(&flowtable_lock);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_cleanup);
 
 void nf_flow_table_free(struct nf_flowtable *flow_table)
 {
+	mutex_lock(&flowtable_lock);
+	list_del(&flow_table->list);
+	mutex_unlock(&flowtable_lock);
 	cancel_delayed_work_sync(&flow_table->gc_work);
 	nf_flow_table_iterate(flow_table, nf_flow_table_do_cleanup, NULL);
 	WARN_ON(!nf_flow_offload_gc_step(flow_table));

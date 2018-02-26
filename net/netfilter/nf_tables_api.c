@@ -5060,23 +5060,6 @@ static const struct nf_flowtable_type *nft_flowtable_type_get(u8 family)
 	return ERR_PTR(-ENOENT);
 }
 
-void nft_flow_table_iterate(struct net *net,
-			    void (*iter)(struct nf_flowtable *flowtable, void *data),
-			    void *data)
-{
-	struct nft_flowtable *flowtable;
-	const struct nft_table *table;
-
-	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	list_for_each_entry(table, &net->nft.tables, list) {
-		list_for_each_entry(flowtable, &table->flowtables, list) {
-			iter(&flowtable->data, data);
-		}
-	}
-	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-}
-EXPORT_SYMBOL_GPL(nft_flow_table_iterate);
-
 static void nft_unregister_flowtable_net_hooks(struct net *net,
 					       struct nft_flowtable *flowtable)
 {
