@@ -817,10 +817,7 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
 	}
 
 	if (disk && unlikely(disk->flags & GENHD_FL_HIDDEN)) {
-		struct module *owner = disk->fops->owner;
-
-		put_disk(disk);
-		module_put(owner);
+		put_disk_and_module(disk);
 		disk = NULL;
 	}
 	return disk;
@@ -1482,6 +1479,21 @@ void put_disk(struct gendisk *disk)
 		kobject_put(&disk_to_dev(disk)->kobj);
 }
 EXPORT_SYMBOL(put_disk);
+
+/*
+ * This is a counterpart of get_disk_and_module() and thus also of
+ * get_gendisk().
+ */
+void put_disk_and_module(struct gendisk *disk)
+{
+	if (disk) {
+		struct module *owner = disk->fops->owner;
+
+		put_disk(disk);
+		module_put(owner);
+	}
+}
+EXPORT_SYMBOL(put_disk_and_module);
 
 static void set_disk_ro_uevent(struct gendisk *gd, int ro)
 {
