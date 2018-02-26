@@ -815,7 +815,7 @@ static void wilc_wlan_handle_rxq(struct wilc *wilc)
 						IS_MANAGMEMENT_CALLBACK |
 						IS_MGMT_STATUS_SUCCES);
 
-				WILC_WFI_mgmt_rx(wilc, &buffer[offset + HOST_HDR_OFFSET], pkt_len);
+				wilc_wfi_mgmt_rx(wilc, &buffer[offset + HOST_HDR_OFFSET], pkt_len);
 			} else {
 				if (!is_cfg_packet) {
 					if (pkt_len > 0) {
