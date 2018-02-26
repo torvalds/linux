@@ -174,6 +174,12 @@ static void flow_offload_del(struct nf_flowtable *flow_table,
 	flow_offload_free(flow);
 }
 
+void flow_offload_teardown(struct flow_offload *flow)
+{
+	flow->flags |= FLOW_OFFLOAD_TEARDOWN;
+}
+EXPORT_SYMBOL_GPL(flow_offload_teardown);
+
 struct flow_offload_tuple_rhash *
 flow_offload_lookup(struct nf_flowtable *flow_table,
 		    struct flow_offload_tuple *tuple)
@@ -226,11 +232,6 @@ static inline bool nf_flow_has_expired(const struct flow_offload *flow)
 	return (__s32)(flow->timeout - (u32)jiffies) <= 0;
 }
 
-static inline bool nf_flow_is_dying(const struct flow_offload *flow)
-{
-	return flow->flags & FLOW_OFFLOAD_DYING;
-}
-
 static int nf_flow_offload_gc_step(struct nf_flowtable *flow_table)
 {
 	struct flow_offload_tuple_rhash *tuplehash;
@@ -258,7 +259,8 @@ static int nf_flow_offload_gc_step(struct nf_flowtable *flow_table)
 		flow = container_of(tuplehash, struct flow_offload, tuplehash[0]);
 
 		if (nf_flow_has_expired(flow) ||
-		    nf_flow_is_dying(flow))
+		    (flow->flags & (FLOW_OFFLOAD_DYING |
+				    FLOW_OFFLOAD_TEARDOWN)))
 			flow_offload_del(flow_table, flow);
 	}
 out:
@@ -419,10 +421,14 @@ static void nf_flow_table_do_cleanup(struct flow_offload *flow, void *data)
 {
 	struct net_device *dev = data;
 
-	if (dev && flow->tuplehash[0].tuple.iifidx != dev->ifindex)
+	if (!dev) {
+		flow_offload_teardown(flow);
 		return;
+	}
 
-	flow_offload_dead(flow);
+	if (flow->tuplehash[0].tuple.iifidx == dev->ifindex ||
+	    flow->tuplehash[1].tuple.iifidx == dev->ifindex)
+		flow_offload_dead(flow);
 }
 
 static void nf_flow_table_iterate_cleanup(struct nf_flowtable *flowtable,
