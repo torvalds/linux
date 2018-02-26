@@ -164,11 +164,13 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 		return NULL;
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	if (gpu->funcs->debugfs_init) {
 		gpu->funcs->debugfs_init(gpu, dev->primary);
 		gpu->funcs->debugfs_init(gpu, dev->render);
 		gpu->funcs->debugfs_init(gpu, dev->control);
 	}
+#endif
 
 	return gpu;
 }
