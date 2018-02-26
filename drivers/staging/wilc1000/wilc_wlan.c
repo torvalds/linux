@@ -707,49 +707,51 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 	offset = 0;
 	i = 0;
 	do {
+		u32 header, buffer_offset;
+		char *bssid;
+
 		tqe = wilc_wlan_txq_remove_from_head(dev);
-		if (tqe && vmm_table[i] != 0) {
-			u32 header, buffer_offset;
-
-			vmm_table[i] = cpu_to_le32(vmm_table[i]);
-			vmm_sz = (vmm_table[i] & 0x3ff);
-			vmm_sz *= 4;
-			header = (tqe->type << 31) |
-				 (tqe->buffer_size << 15) |
-				 vmm_sz;
-			if (tqe->type == WILC_MGMT_PKT)
-				header |= BIT(30);
-			else
-				header &= ~BIT(30);
-
-			header = cpu_to_le32(header);
-			memcpy(&txb[offset], &header, 4);
-			if (tqe->type == WILC_CFG_PKT) {
-				buffer_offset = ETH_CONFIG_PKT_HDR_OFFSET;
-			} else if (tqe->type == WILC_NET_PKT) {
-				char *bssid = ((struct tx_complete_data *)(tqe->priv))->bssid;
-
-				buffer_offset = ETH_ETHERNET_HDR_OFFSET;
-				memcpy(&txb[offset + 8], bssid, 6);
-			} else {
-				buffer_offset = HOST_HDR_OFFSET;
-			}
-
-			memcpy(&txb[offset + buffer_offset],
-			       tqe->buffer, tqe->buffer_size);
-			offset += vmm_sz;
-			i++;
-			tqe->status = 1;
-			if (tqe->tx_complete_func)
-				tqe->tx_complete_func(tqe->priv,
-						      tqe->status);
-			if (tqe->tcp_pending_ack_idx != NOT_TCP_ACK &&
-			    tqe->tcp_pending_ack_idx < MAX_PENDING_ACKS)
-				pending_acks_info[tqe->tcp_pending_ack_idx].txqe = NULL;
-			kfree(tqe);
-		} else {
+		if (!tqe)
 			break;
+
+		if (vmm_table[i] == 0)
+			break;
+
+		vmm_table[i] = cpu_to_le32(vmm_table[i]);
+		vmm_sz = (vmm_table[i] & 0x3ff);
+		vmm_sz *= 4;
+		header = (tqe->type << 31) |
+			 (tqe->buffer_size << 15) |
+			 vmm_sz;
+		if (tqe->type == WILC_MGMT_PKT)
+			header |= BIT(30);
+		else
+			header &= ~BIT(30);
+
+		header = cpu_to_le32(header);
+		memcpy(&txb[offset], &header, 4);
+		if (tqe->type == WILC_CFG_PKT) {
+			buffer_offset = ETH_CONFIG_PKT_HDR_OFFSET;
+		} else if (tqe->type == WILC_NET_PKT) {
+			bssid = ((struct tx_complete_data *)(tqe->priv))->bssid;
+
+			buffer_offset = ETH_ETHERNET_HDR_OFFSET;
+			memcpy(&txb[offset + 8], bssid, 6);
+		} else {
+			buffer_offset = HOST_HDR_OFFSET;
 		}
+
+		memcpy(&txb[offset + buffer_offset],
+		       tqe->buffer, tqe->buffer_size);
+		offset += vmm_sz;
+		i++;
+		tqe->status = 1;
+		if (tqe->tx_complete_func)
+			tqe->tx_complete_func(tqe->priv, tqe->status);
+		if (tqe->tcp_pending_ack_idx != NOT_TCP_ACK &&
+		    tqe->tcp_pending_ack_idx < MAX_PENDING_ACKS)
+			pending_acks_info[tqe->tcp_pending_ack_idx].txqe = NULL;
+		kfree(tqe);
 	} while (--entries);
 
 	acquire_bus(wilc, ACQUIRE_AND_WAKEUP);
