@@ -136,51 +136,6 @@ l2tp_session_id_hash_2(struct l2tp_net *pn, u32 session_id)
 
 }
 
-/* Lookup the tunnel socket, possibly involving the fs code if the socket is
- * owned by userspace.  A struct sock returned from this function must be
- * released using l2tp_tunnel_sock_put once you're done with it.
- */
-static struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel)
-{
-	int err = 0;
-	struct socket *sock = NULL;
-	struct sock *sk = NULL;
-
-	if (!tunnel)
-		goto out;
-
-	if (tunnel->fd >= 0) {
-		/* Socket is owned by userspace, who might be in the process
-		 * of closing it.  Look the socket up using the fd to ensure
-		 * consistency.
-		 */
-		sock = sockfd_lookup(tunnel->fd, &err);
-		if (sock)
-			sk = sock->sk;
-	} else {
-		/* Socket is owned by kernelspace */
-		sk = tunnel->sock;
-		sock_hold(sk);
-	}
-
-out:
-	return sk;
-}
-
-/* Drop a reference to a tunnel socket obtained via. l2tp_tunnel_sock_put */
-static void l2tp_tunnel_sock_put(struct sock *sk)
-{
-	struct l2tp_tunnel *tunnel = l2tp_sock_to_tunnel(sk);
-	if (tunnel) {
-		if (tunnel->fd >= 0) {
-			/* Socket is owned by userspace */
-			sockfd_put(sk->sk_socket);
-		}
-		sock_put(sk);
-	}
-	sock_put(sk);
-}
-
 /* Session hash list.
  * The session_id SHOULD be random according to RFC2661, but several
  * L2TP implementations (Cisco and Microsoft) use incrementing
@@ -192,6 +147,13 @@ l2tp_session_id_hash(struct l2tp_tunnel *tunnel, u32 session_id)
 {
 	return &tunnel->session_hlist[hash_32(session_id, L2TP_HASH_BITS)];
 }
+
+void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
+{
+	sock_put(tunnel->sock);
+	/* the tunnel is freed in the socket destructor */
+}
+EXPORT_SYMBOL(l2tp_tunnel_free);
 
 /* Lookup a tunnel. A new reference is held on the returned tunnel. */
 struct l2tp_tunnel *l2tp_tunnel_get(const struct net *net, u32 tunnel_id)
@@ -345,13 +307,11 @@ int l2tp_session_register(struct l2tp_session *session,
 			}
 
 		l2tp_tunnel_inc_refcount(tunnel);
-		sock_hold(tunnel->sock);
 		hlist_add_head_rcu(&session->global_hlist, g_head);
 
 		spin_unlock_bh(&pn->l2tp_session_hlist_lock);
 	} else {
 		l2tp_tunnel_inc_refcount(tunnel);
-		sock_hold(tunnel->sock);
 	}
 
 	hlist_add_head(&session->hlist, head);
@@ -969,7 +929,7 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct l2tp_tunnel *tunnel;
 
-	tunnel = l2tp_sock_to_tunnel(sk);
+	tunnel = l2tp_tunnel(sk);
 	if (tunnel == NULL)
 		goto pass_up;
 
@@ -977,13 +937,10 @@ int l2tp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		 tunnel->name, skb->len);
 
 	if (l2tp_udp_recv_core(tunnel, skb, tunnel->recv_payload_hook))
-		goto pass_up_put;
+		goto pass_up;
 
-	sock_put(sk);
 	return 0;
 
-pass_up_put:
-	sock_put(sk);
 pass_up:
 	return 1;
 }
@@ -1207,13 +1164,11 @@ EXPORT_SYMBOL_GPL(l2tp_xmit_skb);
 static void l2tp_tunnel_destruct(struct sock *sk)
 {
 	struct l2tp_tunnel *tunnel = l2tp_tunnel(sk);
-	struct l2tp_net *pn;
 
 	if (tunnel == NULL)
 		goto end;
 
 	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: closing...\n", tunnel->name);
-
 
 	/* Disable udp encapsulation */
 	switch (tunnel->encap) {
@@ -1231,18 +1186,11 @@ static void l2tp_tunnel_destruct(struct sock *sk)
 	sk->sk_destruct = tunnel->old_sk_destruct;
 	sk->sk_user_data = NULL;
 
-	/* Remove the tunnel struct from the tunnel list */
-	pn = l2tp_pernet(tunnel->l2tp_net);
-	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
-	list_del_rcu(&tunnel->list);
-	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
-
-	tunnel->sock = NULL;
-	l2tp_tunnel_dec_refcount(tunnel);
-
 	/* Call the original destructor */
 	if (sk->sk_destruct)
 		(*sk->sk_destruct)(sk);
+
+	kfree_rcu(tunnel, rcu);
 end:
 	return;
 }
@@ -1303,49 +1251,43 @@ EXPORT_SYMBOL_GPL(l2tp_tunnel_closeall);
 /* Tunnel socket destroy hook for UDP encapsulation */
 static void l2tp_udp_encap_destroy(struct sock *sk)
 {
-	struct l2tp_tunnel *tunnel = l2tp_sock_to_tunnel(sk);
-	if (tunnel) {
-		l2tp_tunnel_closeall(tunnel);
-		sock_put(sk);
-	}
+	struct l2tp_tunnel *tunnel = l2tp_tunnel(sk);
+
+	if (tunnel)
+		l2tp_tunnel_delete(tunnel);
 }
 
 /* Workqueue tunnel deletion function */
 static void l2tp_tunnel_del_work(struct work_struct *work)
 {
-	struct l2tp_tunnel *tunnel = NULL;
-	struct socket *sock = NULL;
-	struct sock *sk = NULL;
-
-	tunnel = container_of(work, struct l2tp_tunnel, del_work);
+	struct l2tp_tunnel *tunnel = container_of(work, struct l2tp_tunnel,
+						  del_work);
+	struct sock *sk = tunnel->sock;
+	struct socket *sock = sk->sk_socket;
+	struct l2tp_net *pn;
 
 	l2tp_tunnel_closeall(tunnel);
 
-	sk = l2tp_tunnel_sock_lookup(tunnel);
-	if (!sk)
-		goto out;
-
-	sock = sk->sk_socket;
-
-	/* If the tunnel socket was created by userspace, then go through the
-	 * inet layer to shut the socket down, and let userspace close it.
-	 * Otherwise, if we created the socket directly within the kernel, use
+	/* If the tunnel socket was created within the kernel, use
 	 * the sk API to release it here.
-	 * In either case the tunnel resources are freed in the socket
-	 * destructor when the tunnel socket goes away.
 	 */
-	if (tunnel->fd >= 0) {
-		if (sock)
-			inet_shutdown(sock, 2);
-	} else {
+	if (tunnel->fd < 0) {
 		if (sock) {
 			kernel_sock_shutdown(sock, SHUT_RDWR);
 			sock_release(sock);
 		}
 	}
 
-	l2tp_tunnel_sock_put(sk);
-out:
+	/* Remove the tunnel struct from the tunnel list */
+	pn = l2tp_pernet(tunnel->l2tp_net);
+	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
+	list_del_rcu(&tunnel->list);
+	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
+
+	/* drop initial ref */
+	l2tp_tunnel_dec_refcount(tunnel);
+
+	/* drop workqueue ref */
 	l2tp_tunnel_dec_refcount(tunnel);
 }
 
@@ -1598,13 +1540,22 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 		sk->sk_user_data = tunnel;
 	}
 
+	/* Bump the reference count. The tunnel context is deleted
+	 * only when this drops to zero. A reference is also held on
+	 * the tunnel socket to ensure that it is not released while
+	 * the tunnel is extant. Must be done before sk_destruct is
+	 * set.
+	 */
+	refcount_set(&tunnel->ref_count, 1);
+	sock_hold(sk);
+	tunnel->sock = sk;
+	tunnel->fd = fd;
+
 	/* Hook on the tunnel socket destructor so that we can cleanup
 	 * if the tunnel socket goes away.
 	 */
 	tunnel->old_sk_destruct = sk->sk_destruct;
 	sk->sk_destruct = &l2tp_tunnel_destruct;
-	tunnel->sock = sk;
-	tunnel->fd = fd;
 	lockdep_set_class_and_name(&sk->sk_lock.slock, &l2tp_socket_class, "l2tp_sock");
 
 	sk->sk_allocation = GFP_ATOMIC;
@@ -1614,11 +1565,6 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 
 	/* Add tunnel to our list */
 	INIT_LIST_HEAD(&tunnel->list);
-
-	/* Bump the reference count. The tunnel context is deleted
-	 * only when this drops to zero. Must be done before list insertion
-	 */
-	refcount_set(&tunnel->ref_count, 1);
 	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
 	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
 	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
@@ -1659,8 +1605,6 @@ void l2tp_session_free(struct l2tp_session *session)
 
 	if (tunnel) {
 		BUG_ON(tunnel->magic != L2TP_TUNNEL_MAGIC);
-		sock_put(tunnel->sock);
-		session->tunnel = NULL;
 		l2tp_tunnel_dec_refcount(tunnel);
 	}
 
