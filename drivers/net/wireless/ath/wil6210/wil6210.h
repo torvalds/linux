@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include "wmi.h"
 #include "wil_platform.h"
+#include "fw.h"
 
 extern bool no_fw_recovery;
 extern unsigned int mtu_max;
@@ -1012,6 +1013,9 @@ int wmi_stop_discovery(struct wil6210_priv *wil);
 int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct cfg80211_mgmt_tx_params *params,
 			 u64 *cookie);
+int wil_cfg80211_iface_combinations_from_fw(
+	struct wil6210_priv *wil,
+	const struct wil_fw_record_concurrency *conc);
 
 #if defined(CONFIG_WIL6210_DEBUGFS)
 int wil6210_debugfs_init(struct wil6210_priv *wil);

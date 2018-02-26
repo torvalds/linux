@@ -20,6 +20,7 @@
 #include <net/netlink.h>
 #include "wil6210.h"
 #include "wmi.h"
+#include "fw.h"
 
 #define WIL_MAX_ROC_DURATION_MS 5000
 
@@ -1896,6 +1897,71 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 #endif
 }
 
+int wil_cfg80211_iface_combinations_from_fw(
+	struct wil6210_priv *wil, const struct wil_fw_record_concurrency *conc)
+{
+	struct wiphy *wiphy = wil_to_wiphy(wil);
+	u32 total_limits = 0;
+	u16 n_combos;
+	const struct wil_fw_concurrency_combo *combo;
+	const struct wil_fw_concurrency_limit *limit;
+	struct ieee80211_iface_combination *iface_combinations;
+	struct ieee80211_iface_limit *iface_limit;
+	int i, j;
+
+	if (wiphy->iface_combinations) {
+		wil_dbg_misc(wil, "iface_combinations already set, skipping\n");
+		return 0;
+	}
+
+	combo = conc->combos;
+	n_combos = le16_to_cpu(conc->n_combos);
+	for (i = 0; i < n_combos; i++) {
+		total_limits += combo->n_limits;
+		limit = combo->limits + combo->n_limits;
+		combo = (struct wil_fw_concurrency_combo *)limit;
+	}
+
+	iface_combinations =
+		kzalloc(n_combos * sizeof(struct ieee80211_iface_combination) +
+			total_limits * sizeof(struct ieee80211_iface_limit),
+			GFP_KERNEL);
+	if (!iface_combinations)
+		return -ENOMEM;
+	iface_limit = (struct ieee80211_iface_limit *)(iface_combinations +
+						       n_combos);
+	combo = conc->combos;
+	for (i = 0; i < n_combos; i++) {
+		iface_combinations[i].max_interfaces = combo->max_interfaces;
+		iface_combinations[i].num_different_channels =
+			combo->n_diff_channels;
+		iface_combinations[i].beacon_int_infra_match =
+			combo->same_bi;
+		iface_combinations[i].n_limits = combo->n_limits;
+		wil_dbg_misc(wil,
+			     "iface_combination %d: max_if %d, num_ch %d, bi_match %d\n",
+			     i, iface_combinations[i].max_interfaces,
+			     iface_combinations[i].num_different_channels,
+			     iface_combinations[i].beacon_int_infra_match);
+		limit = combo->limits;
+		for (j = 0; j < combo->n_limits; j++) {
+			iface_limit[j].max = le16_to_cpu(limit[j].max);
+			iface_limit[j].types = le16_to_cpu(limit[j].types);
+			wil_dbg_misc(wil,
+				     "limit %d: max %d types 0x%x\n", j,
+				     iface_limit[j].max, iface_limit[j].types);
+		}
+		iface_combinations[i].limits = iface_limit;
+		iface_limit += combo->n_limits;
+		limit += combo->n_limits;
+		combo = (struct wil_fw_concurrency_combo *)limit;
+	}
+
+	wiphy->n_iface_combinations = n_combos;
+	wiphy->iface_combinations = iface_combinations;
+	return 0;
+}
+
 struct wil6210_priv *wil_cfg80211_init(struct device *dev)
 {
 	struct wiphy *wiphy;
@@ -1933,6 +1999,9 @@ void wil_cfg80211_deinit(struct wil6210_priv *wil)
 
 	if (!wiphy)
 		return;
+
+	kfree(wiphy->iface_combinations);
+	wiphy->iface_combinations = NULL;
 
 	wiphy_free(wiphy);
 	/* do not access wil6210_priv after returning from here */
