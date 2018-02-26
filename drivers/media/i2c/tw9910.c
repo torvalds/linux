@@ -339,6 +339,7 @@ static int tw9910_mask_set(struct i2c_client *client, u8 command,
 			   u8 mask, u8 set)
 {
 	s32 val = i2c_smbus_read_byte_data(client, command);
+
 	if (val < 0)
 		return val;
 
@@ -389,7 +390,7 @@ static int tw9910_set_hsync(struct i2c_client *client)
 
 	/* So far only revisions 0 and 1 have been seen */
 	/* bit 2 - 0 */
-	if (1 == priv->revision)
+	if (priv->revision == 1)
 		ret = tw9910_mask_set(client, HSLOWCTL, 0x77,
 				      (HSYNC_START & 0x0007) << 4 |
 				      (HSYNC_END   & 0x0007));
@@ -511,10 +512,10 @@ static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
-	const unsigned hact = 720;
-	const unsigned hdelay = 15;
-	unsigned vact;
-	unsigned vdelay;
+	const unsigned int hact = 720;
+	const unsigned int hdelay = 15;
+	unsigned int vact;
+	unsigned int vdelay;
 	int ret;
 
 	if (!(norm & (V4L2_STD_NTSC | V4L2_STD_PAL)))
@@ -532,16 +533,16 @@ static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	}
 	if (!ret)
 		ret = i2c_smbus_write_byte_data(client, CROP_HI,
-			((vdelay >> 2) & 0xc0) |
+						((vdelay >> 2) & 0xc0) |
 			((vact >> 4) & 0x30) |
 			((hdelay >> 6) & 0x0c) |
 			((hact >> 8) & 0x03));
 	if (!ret)
 		ret = i2c_smbus_write_byte_data(client, VDELAY_LO,
-			vdelay & 0xff);
+						vdelay & 0xff);
 	if (!ret)
 		ret = i2c_smbus_write_byte_data(client, VACTIVE_LO,
-			vact & 0xff);
+						vact & 0xff);
 
 	return ret;
 }
@@ -731,7 +732,7 @@ tw9910_set_fmt_error:
 }
 
 static int tw9910_get_selection(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -756,7 +757,7 @@ static int tw9910_get_selection(struct v4l2_subdev *sd,
 }
 
 static int tw9910_get_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -807,7 +808,7 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 }
 
 static int tw9910_set_fmt(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+			  struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
@@ -818,9 +819,9 @@ static int tw9910_set_fmt(struct v4l2_subdev *sd,
 	if (format->pad)
 		return -EINVAL;
 
-	if (V4L2_FIELD_ANY == mf->field) {
+	if (mf->field == V4L2_FIELD_ANY) {
 		mf->field = V4L2_FIELD_INTERLACED_BT;
-	} else if (V4L2_FIELD_INTERLACED_BT != mf->field) {
+	} else if (mf->field != V4L2_FIELD_INTERLACED_BT) {
 		dev_err(&client->dev, "Field type %d invalid.\n", mf->field);
 		return -EINVAL;
 	}
@@ -870,8 +871,7 @@ static int tw9910_video_probe(struct i2c_client *client)
 	priv->revision = GET_REV(id);
 	id = GET_ID(id);
 
-	if (0x0B != id ||
-	    0x01 < priv->revision) {
+	if (id != 0x0b || priv->revision > 0x01) {
 		dev_err(&client->dev,
 			"Product ID error %x:%x\n",
 			id, priv->revision);
@@ -899,7 +899,7 @@ static const struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 };
 
 static int tw9910_enum_mbus_code(struct v4l2_subdev *sd,
-		struct v4l2_subdev_pad_config *cfg,
+				 struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index)
