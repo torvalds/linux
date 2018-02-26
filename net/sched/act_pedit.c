@@ -465,6 +465,7 @@ static struct pernet_operations pedit_net_ops = {
 	.exit_batch = pedit_exit_net,
 	.id   = &pedit_net_id,
 	.size = sizeof(struct tc_action_net),
+	.async = true,
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002-4)");
