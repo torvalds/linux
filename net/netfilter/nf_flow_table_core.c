@@ -184,8 +184,21 @@ struct flow_offload_tuple_rhash *
 flow_offload_lookup(struct nf_flowtable *flow_table,
 		    struct flow_offload_tuple *tuple)
 {
-	return rhashtable_lookup_fast(&flow_table->rhashtable, tuple,
-				      nf_flow_offload_rhash_params);
+	struct flow_offload_tuple_rhash *tuplehash;
+	struct flow_offload *flow;
+	int dir;
+
+	tuplehash = rhashtable_lookup_fast(&flow_table->rhashtable, tuple,
+					   nf_flow_offload_rhash_params);
+	if (!tuplehash)
+		return NULL;
+
+	dir = tuplehash->tuple.dir;
+	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
+	if (flow->flags & (FLOW_OFFLOAD_DYING | FLOW_OFFLOAD_TEARDOWN))
+		return NULL;
+
+	return tuplehash;
 }
 EXPORT_SYMBOL_GPL(flow_offload_lookup);
 
