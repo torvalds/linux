@@ -878,9 +878,14 @@
 		rockchip,grf = <&grf>;
 		status = "disabled";
 
-		port {
-			hdmi_in_vop: endpoint {
-				remote-endpoint = <&vop_out_hdmi>;
+		ports {
+			hdmi_in: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				hdmi_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_hdmi>;
+				};
 			};
 		};
 	};
