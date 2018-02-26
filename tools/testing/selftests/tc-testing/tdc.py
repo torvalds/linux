@@ -15,6 +15,7 @@ import importlib
 import json
 import subprocess
 import time
+import traceback
 from collections import OrderedDict
 from string import Template
 
@@ -22,6 +23,13 @@ from tdc_config import *
 from tdc_helper import *
 
 import TdcPlugin
+
+
+class PluginMgrTestFail(Exception):
+    def __init__(self, stage, output, message):
+        self.stage = stage
+        self.output = output
+        self.message = message
 
 class PluginMgr:
     def __init__(self, argparser):
@@ -135,7 +143,7 @@ def exec_cmd(args, pm, stage, command):
     return proc, foutput
 
 
-def prepare_env(args, pm, stage, prefix, cmdlist):
+def prepare_env(args, pm, stage, prefix, cmdlist, output = None):
     """
     Execute the setup/teardown commands for a test case.
     Optionally terminate test execution if the command fails.
@@ -164,7 +172,9 @@ def prepare_env(args, pm, stage, prefix, cmdlist):
             print("\n{} *** Aborting test run.".format(prefix), file=sys.stderr)
             print("\n\n{} *** stdout ***".format(proc.stdout), file=sys.stderr)
             print("\n\n{} *** stderr ***".format(proc.stderr), file=sys.stderr)
-            raise Exception('"{}" did not complete successfully'.format(prefix))
+            raise PluginMgrTestFail(
+                stage, output,
+                '"{}" did not complete successfully'.format(prefix))
 
 def run_one_test(pm, args, index, tidx):
     result = True
@@ -194,8 +204,11 @@ def run_one_test(pm, args, index, tidx):
         match_pattern = re.compile(
             str(tidx["matchPattern"]), re.DOTALL | re.MULTILINE)
         (p, procout) = exec_cmd(args, pm, 'verify', tidx["verifyCmd"])
-        match_index = re.findall(match_pattern, procout)
-        if len(match_index) != int(tidx["matchCount"]):
+        if procout:
+            match_index = re.findall(match_pattern, procout)
+            if len(match_index) != int(tidx["matchCount"]):
+                result = False
+        elif int(tidx["matchCount"]) != 0:
             result = False
 
     if not result:
@@ -204,9 +217,12 @@ def run_one_test(pm, args, index, tidx):
     tap += tresult
 
     if result == False:
-        tap += procout
+        if procout:
+            tap += procout
+        else:
+            tap += 'No output!\n'
 
-    prepare_env(args, pm, 'teardown', '-----> teardown stage', tidx['teardown'])
+    prepare_env(args, pm, 'teardown', '-----> teardown stage', tidx['teardown'], procout)
     pm.call_post_case()
 
     index += 1
@@ -227,30 +243,70 @@ def test_runner(pm, args, filtered_tests):
     index = 1
     tap = str(index) + ".." + str(tcount) + "\n"
     badtest = None
+    stage = None
+    emergency_exit = False
+    emergency_exit_message = ''
 
-    pm.call_pre_suite(tcount, [tidx['id'] for tidx in testlist])
+    try:
+        pm.call_pre_suite(tcount, [tidx['id'] for tidx in testlist])
+    except Exception as ee:
+        ex_type, ex, ex_tb = sys.exc_info()
+        print('Exception {} {} (caught in pre_suite).'.
+              format(ex_type, ex))
+        # when the extra print statements are uncommented,
+        # the traceback does not appear between them
+        # (it appears way earlier in the tdc.py output)
+        # so don't bother ...
+        # print('--------------------(')
+        # print('traceback')
+        traceback.print_tb(ex_tb)
+        # print('--------------------)')
+        emergency_exit_message = 'EMERGENCY EXIT, call_pre_suite failed with exception {} {}\n'.format(ex_type, ex)
+        emergency_exit = True
+        stage = 'pre-SUITE'
 
+    if emergency_exit:
+        pm.call_post_suite(index)
+        return emergency_exit_message
     if args.verbose > 1:
-        print('Run tests here')
+        print('give test rig 2 seconds to stabilize')
+    time.sleep(2)
     for tidx in testlist:
         if "flower" in tidx["category"] and args.device == None:
+            if args.verbose > 1:
+                print('Not executing test {} {} because DEV2 not defined'.
+                      format(tidx['id'], tidx['name']))
             continue
         try:
             badtest = tidx  # in case it goes bad
             tap += run_one_test(pm, args, index, tidx)
-        except Exception as ee:
-            print('Exception {} (caught in test_runner, running test {} {} {})'.
-                  format(ee, index, tidx['id'], tidx['name']))
+        except PluginMgrTestFail as pmtf:
+            ex_type, ex, ex_tb = sys.exc_info()
+            stage = pmtf.stage
+            message = pmtf.message
+            output = pmtf.output
+            print(message)
+            print('Exception {} {} (caught in test_runner, running test {} {} {} stage {})'.
+                  format(ex_type, ex, index, tidx['id'], tidx['name'], stage))
+            print('---------------')
+            print('traceback')
+            traceback.print_tb(ex_tb)
+            print('---------------')
+            if stage == 'teardown':
+                print('accumulated output for this test:')
+                if pmtf.output:
+                    print(pmtf.output)
+            print('---------------')
             break
         index += 1
 
     # if we failed in setup or teardown,
-    # fill in the remaining tests with not ok
+    # fill in the remaining tests with ok-skipped
     count = index
     tap += 'about to flush the tap output if tests need to be skipped\n'
     if tcount + 1 != index:
         for tidx in testlist[index - 1:]:
-            msg = 'skipped - previous setup or teardown failed'
+            msg = 'skipped - previous {} failed'.format(stage)
             tap += 'ok {} - {} # {} {} {}\n'.format(
                 count, tidx['id'], msg, index, badtest.get('id', '--Unknown--'))
             count += 1
@@ -347,9 +403,9 @@ def check_default_settings(args, remaining, pm):
     global NAMES
 
     if args.path != None:
-         NAMES['TC'] = args.path
+        NAMES['TC'] = args.path
     if args.device != None:
-         NAMES['DEV2'] = args.device
+        NAMES['DEV2'] = args.device
     if not os.path.isfile(NAMES['TC']):
         print("The specified tc path " + NAMES['TC'] + " does not exist.")
         exit(1)
