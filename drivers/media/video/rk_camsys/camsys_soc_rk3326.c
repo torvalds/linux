@@ -13,6 +13,7 @@
 #ifdef CONFIG_ARM64
 #include "camsys_soc_priv.h"
 #include "camsys_soc_rk3326.h"
+#include "camsys_marvin.h"
 
 struct mipiphy_hsfreqrange_s {
 	unsigned int range_l;
@@ -156,6 +157,11 @@ fail:
 }
 
 #define VI_IRCL			    0x0014
+/**
+ * reset on too high aclk rate will result in bus dead,
+ * and 200M is a maximum safe value from experiment.
+ */
+#define SAFETY_RESET_ACLK_RATE_LIMIT 200000000
 int camsys_rk3326_cfg
 (
 	camsys_dev_t *camsys_dev,
@@ -194,23 +200,29 @@ int camsys_rk3326_cfg
 	}
 
 	case Isp_SoftRst: {/* ddl@rock-chips.com: v0.d.0 */
-#if 0
+		camsys_mrv_clk_t *clk = (camsys_mrv_clk_t *)camsys_dev->clk;
+		long old_aclk_rate = clk_get_rate(clk->aclk_isp);
 		unsigned long reset;
 
 		reset = (unsigned long)cfg_para;
 
-		if (reset == 1)
+		if (reset == 1) {
+			/* limit the aclk to 200M before isp reset operation */
+			if (old_aclk_rate > SAFETY_RESET_ACLK_RATE_LIMIT)
+				clk_set_rate(clk->aclk_isp,
+					     SAFETY_RESET_ACLK_RATE_LIMIT);
 			__raw_writel(0x80, (void *)(camsys_dev->rk_isp_base +
 			VI_IRCL));
-		else
+		} else {
 			__raw_writel(0x00, (void *)(camsys_dev->rk_isp_base +
 			VI_IRCL));
-			camsys_trace(2, "Isp self soft rst: %ld", reset);
-			break;
-#else
-		break;
-#endif
+			/* recover the old aclk after reset */
+			if (old_aclk_rate != SAFETY_RESET_ACLK_RATE_LIMIT)
+				clk_set_rate(clk->aclk_isp, old_aclk_rate);
 		}
+		camsys_trace(2, "Isp self soft rst: %ld", reset);
+		break;
+	}
 	default:
 	{
 		camsys_warn("cfg_cmd: 0x%x isn't support", cfg_cmd);

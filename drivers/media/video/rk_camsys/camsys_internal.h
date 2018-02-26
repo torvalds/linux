@@ -198,6 +198,10 @@
        all iommu resource in |.release| of fops aganin if needed.
 *v0.0x27.0:
        1) revert v0.0x22.5.
+*v0.0x28.0:
+       1) fix isp soft reset failure for rk3326.
+       reset on too high aclk rate will result in bus dead, so we reduce the aclk
+       before reset and then recover it after reset.
 */
 
 #define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x27, 0)
