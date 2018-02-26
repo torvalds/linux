@@ -5161,6 +5161,11 @@ static int nf_tables_delflowtable(struct net *net, struct sock *nlsk,
 	struct nft_table *table;
 	struct nft_ctx ctx;
 
+	if (!nla[NFTA_FLOWTABLE_TABLE] ||
+	    (!nla[NFTA_FLOWTABLE_NAME] &&
+	     !nla[NFTA_FLOWTABLE_HANDLE]))
+		return -EINVAL;
+
 	table = nf_tables_table_lookup(net, nla[NFTA_FLOWTABLE_TABLE],
 				       family, genmask);
 	if (IS_ERR(table))
