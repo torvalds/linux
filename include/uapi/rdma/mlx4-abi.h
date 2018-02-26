@@ -156,4 +156,18 @@ enum mlx4_ib_rx_hash_fields {
 	MLX4_IB_RX_HASH_INNER		= 1ULL << 31,
 };
 
+struct mlx4_ib_rss_caps {
+	__u64 rx_hash_fields_mask; /* enum mlx4_ib_rx_hash_fields */
+	__u8 rx_hash_function; /* enum mlx4_ib_rx_hash_function_flags */
+	__u8 reserved[7];
+};
+
+struct mlx4_uverbs_ex_query_device_resp {
+	__u32			comp_mask;
+	__u32			response_length;
+	__u64			hca_core_clock_offset;
+	__u32			max_inl_recv_sz;
+	struct mlx4_ib_rss_caps	rss_caps;
+};
+
 #endif /* MLX4_ABI_USER_H */
