@@ -1112,7 +1112,7 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	cgs_get_active_displays_info(hwmgr->device, &info);
 
 	if (hwmgr->od_enabled)
-		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_mclk;
 	else
 		vdd_dep_table = table_info->vdd_dep_on_mclk;
 

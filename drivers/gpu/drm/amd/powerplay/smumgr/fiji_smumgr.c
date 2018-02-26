@@ -1205,7 +1205,7 @@ static int fiji_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
 	if (hwmgr->od_enabled)
-		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_mclk;
 	else
 		vdd_dep_table = table_info->vdd_dep_on_mclk;
 
