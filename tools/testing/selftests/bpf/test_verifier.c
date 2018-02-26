@@ -2587,6 +2587,32 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
+		"runtime/jit: pass negative index to tail_call",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, -1),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 1 },
+		.result = ACCEPT,
+	},
+	{
+		"runtime/jit: pass > 32bit index to tail_call",
+		.insns = {
+			BPF_LD_IMM64(BPF_REG_3, 0x100000000ULL),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 2 },
+		.result = ACCEPT,
+	},
+	{
 		"stack pointer arithmetic",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_1, 4),

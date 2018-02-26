@@ -102,10 +102,13 @@ ipu_prg_lookup_by_phandle(struct device *dev, const char *name, int ipu_id)
 			mutex_unlock(&ipu_prg_list_mutex);
 			device_link_add(dev, prg->dev, DL_FLAG_AUTOREMOVE);
 			prg->id = ipu_id;
+			of_node_put(prg_node);
 			return prg;
 		}
 	}
 	mutex_unlock(&ipu_prg_list_mutex);
+
+	of_node_put(prg_node);
 
 	return NULL;
 }

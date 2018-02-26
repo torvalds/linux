@@ -602,6 +602,9 @@ static enum usb_charger_type mxs_phy_charger_detect(struct usb_phy *phy)
 	void __iomem *base = phy->io_priv;
 	enum usb_charger_type chgr_type = UNKNOWN_TYPE;
 
+	if (!regmap)
+		return UNKNOWN_TYPE;
+
 	if (mxs_charger_data_contact_detect(mxs_phy))
 		return chgr_type;
 

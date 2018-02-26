@@ -2508,6 +2508,7 @@
 #define TG3_APE_LOCK_PHY3		5
 #define TG3_APE_LOCK_GPIO		7
 
+#define TG3_APE_HB_INTERVAL             (tp->ape_hb_interval)
 #define TG3_EEPROM_SB_F1R2_MBA_OFF	0x10
 
 
@@ -3423,6 +3424,10 @@ struct tg3 {
 	struct device			*hwmon_dev;
 	bool				link_up;
 	bool				pcierr_recovery;
+
+	u32                             ape_hb;
+	unsigned long                   ape_hb_interval;
+	unsigned long                   ape_hb_jiffies;
 };
 
 /* Accessor macros for chip and asic attributes

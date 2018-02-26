@@ -75,6 +75,8 @@ EXPORT_SYMBOL(cavium_ptp_get);
 
 void cavium_ptp_put(struct cavium_ptp *ptp)
 {
+	if (!ptp)
+		return;
 	pci_dev_put(ptp->pdev);
 }
 EXPORT_SYMBOL(cavium_ptp_put);
