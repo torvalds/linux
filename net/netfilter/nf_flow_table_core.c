@@ -113,12 +113,6 @@ void flow_offload_free(struct flow_offload *flow)
 }
 EXPORT_SYMBOL_GPL(flow_offload_free);
 
-void flow_offload_dead(struct flow_offload *flow)
-{
-	flow->flags |= FLOW_OFFLOAD_DYING;
-}
-EXPORT_SYMBOL_GPL(flow_offload_dead);
-
 static u32 flow_offload_hash(const void *data, u32 len, u32 seed)
 {
 	const struct flow_offload_tuple *tuple = data;

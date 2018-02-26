@@ -103,7 +103,10 @@ void nf_flow_table_cleanup(struct net *net, struct net_device *dev);
 int nf_flow_table_init(struct nf_flowtable *flow_table);
 void nf_flow_table_free(struct nf_flowtable *flow_table);
 
-void flow_offload_dead(struct flow_offload *flow);
+static inline void flow_offload_dead(struct flow_offload *flow)
+{
+	flow->flags |= FLOW_OFFLOAD_DYING;
+}
 
 int nf_flow_snat_port(const struct flow_offload *flow,
 		      struct sk_buff *skb, unsigned int thoff,
