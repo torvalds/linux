@@ -99,7 +99,7 @@ struct vsp1_partition {
  * @num_inputs: number of RPFs
  * @inputs: array of RPFs in the pipeline (indexed by RPF index)
  * @output: WPF at the output of the pipeline
- * @bru: BRU entity, if present
+ * @brx: BRx entity, if present
  * @hgo: HGO entity, if present
  * @hgt: HGT entity, if present
  * @lif: LIF entity, if present
@@ -129,7 +129,7 @@ struct vsp1_pipeline {
 	unsigned int num_inputs;
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
 	struct vsp1_rwpf *output;
-	struct vsp1_entity *bru;
+	struct vsp1_entity *brx;
 	struct vsp1_entity *hgo;
 	struct vsp1_entity *hgt;
 	struct vsp1_entity *lif;

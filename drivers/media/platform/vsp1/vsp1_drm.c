@@ -20,14 +20,14 @@
 #include <media/vsp1.h>
 
 #include "vsp1.h"
-#include "vsp1_bru.h"
+#include "vsp1_brx.h"
 #include "vsp1_dl.h"
 #include "vsp1_drm.h"
 #include "vsp1_lif.h"
 #include "vsp1_pipe.h"
 #include "vsp1_rwpf.h"
 
-#define BRU_NAME(e)	(e)->type == VSP1_ENTITY_BRU ? "BRU" : "BRS"
+#define BRX_NAME(e)	(e)->type == VSP1_ENTITY_BRU ? "BRU" : "BRS"
 
 /* -----------------------------------------------------------------------------
  * Interrupt Handling
@@ -43,7 +43,7 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
 		drm_pipe->du_complete(drm_pipe->du_private, complete);
 
 	if (completion & VSP1_DL_FRAME_END_INTERNAL) {
-		drm_pipe->force_bru_release = false;
+		drm_pipe->force_brx_release = false;
 		wake_up(&drm_pipe->wait_queue);
 	}
 }
@@ -52,11 +52,11 @@ static void vsp1_du_pipeline_frame_end(struct vsp1_pipeline *pipe,
  * Pipeline Configuration
  */
 
-/* Setup one RPF and the connected BRU sink pad. */
+/* Setup one RPF and the connected BRx sink pad. */
 static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 				      struct vsp1_pipeline *pipe,
 				      struct vsp1_rwpf *rpf,
-				      unsigned int bru_input)
+				      unsigned int brx_input)
 {
 	struct v4l2_subdev_selection sel;
 	struct v4l2_subdev_format format;
@@ -65,7 +65,7 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 
 	/*
 	 * Configure the format on the RPF sink pad and propagate it up to the
-	 * BRU sink pad.
+	 * BRx sink pad.
 	 */
 	crop = &vsp1->drm->inputs[rpf->entity.index].crop;
 
@@ -126,114 +126,114 @@ static int vsp1_du_pipeline_setup_rpf(struct vsp1_device *vsp1,
 	if (ret < 0)
 		return ret;
 
-	/* BRU sink, propagate the format from the RPF source. */
-	format.pad = bru_input;
+	/* BRx sink, propagate the format from the RPF source. */
+	format.pad = brx_input;
 
-	ret = v4l2_subdev_call(&pipe->bru->subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&pipe->brx->subdev, pad, set_fmt, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
 		__func__, format.format.width, format.format.height,
-		format.format.code, BRU_NAME(pipe->bru), format.pad);
+		format.format.code, BRX_NAME(pipe->brx), format.pad);
 
-	sel.pad = bru_input;
+	sel.pad = brx_input;
 	sel.target = V4L2_SEL_TGT_COMPOSE;
 	sel.r = vsp1->drm->inputs[rpf->entity.index].compose;
 
-	ret = v4l2_subdev_call(&pipe->bru->subdev, pad, set_selection, NULL,
+	ret = v4l2_subdev_call(&pipe->brx->subdev, pad, set_selection, NULL,
 			       &sel);
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(vsp1->dev, "%s: set selection (%u,%u)/%ux%u on %s pad %u\n",
 		__func__, sel.r.left, sel.r.top, sel.r.width, sel.r.height,
-		BRU_NAME(pipe->bru), sel.pad);
+		BRX_NAME(pipe->brx), sel.pad);
 
 	return 0;
 }
 
-/* Setup the BRU source pad. */
+/* Setup the BRx source pad. */
 static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 					 struct vsp1_pipeline *pipe);
 static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe);
 
-static int vsp1_du_pipeline_setup_bru(struct vsp1_device *vsp1,
+static int vsp1_du_pipeline_setup_brx(struct vsp1_device *vsp1,
 				      struct vsp1_pipeline *pipe)
 {
 	struct vsp1_drm_pipeline *drm_pipe = to_vsp1_drm_pipeline(pipe);
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
-	struct vsp1_entity *bru;
+	struct vsp1_entity *brx;
 	int ret;
 
 	/*
-	 * Pick a BRU:
-	 * - If we need more than two inputs, use the main BRU.
-	 * - Otherwise, if we are not forced to release our BRU, keep it.
-	 * - Else, use any free BRU (randomly starting with the main BRU).
+	 * Pick a BRx:
+	 * - If we need more than two inputs, use the BRU.
+	 * - Otherwise, if we are not forced to release our BRx, keep it.
+	 * - Else, use any free BRx (randomly starting with the BRU).
 	 */
 	if (pipe->num_inputs > 2)
-		bru = &vsp1->bru->entity;
-	else if (pipe->bru && !drm_pipe->force_bru_release)
-		bru = pipe->bru;
+		brx = &vsp1->bru->entity;
+	else if (pipe->brx && !drm_pipe->force_brx_release)
+		brx = pipe->brx;
 	else if (!vsp1->bru->entity.pipe)
-		bru = &vsp1->bru->entity;
+		brx = &vsp1->bru->entity;
 	else
-		bru = &vsp1->brs->entity;
+		brx = &vsp1->brs->entity;
 
-	/* Switch BRU if needed. */
-	if (bru != pipe->bru) {
-		struct vsp1_entity *released_bru = NULL;
+	/* Switch BRx if needed. */
+	if (brx != pipe->brx) {
+		struct vsp1_entity *released_brx = NULL;
 
-		/* Release our BRU if we have one. */
-		if (pipe->bru) {
+		/* Release our BRx if we have one. */
+		if (pipe->brx) {
 			dev_dbg(vsp1->dev, "%s: pipe %u: releasing %s\n",
 				__func__, pipe->lif->index,
-				BRU_NAME(pipe->bru));
+				BRX_NAME(pipe->brx));
 
 			/*
-			 * The BRU might be acquired by the other pipeline in
+			 * The BRx might be acquired by the other pipeline in
 			 * the next step. We must thus remove it from the list
 			 * of entities for this pipeline. The other pipeline's
-			 * hardware configuration will reconfigure the BRU
+			 * hardware configuration will reconfigure the BRx
 			 * routing.
 			 *
 			 * However, if the other pipeline doesn't acquire our
-			 * BRU, we need to keep it in the list, otherwise the
+			 * BRx, we need to keep it in the list, otherwise the
 			 * hardware configuration step won't disconnect it from
-			 * the pipeline. To solve this, store the released BRU
+			 * the pipeline. To solve this, store the released BRx
 			 * pointer to add it back to the list of entities later
 			 * if it isn't acquired by the other pipeline.
 			 */
-			released_bru = pipe->bru;
+			released_brx = pipe->brx;
 
-			list_del(&pipe->bru->list_pipe);
-			pipe->bru->sink = NULL;
-			pipe->bru->pipe = NULL;
-			pipe->bru = NULL;
+			list_del(&pipe->brx->list_pipe);
+			pipe->brx->sink = NULL;
+			pipe->brx->pipe = NULL;
+			pipe->brx = NULL;
 		}
 
 		/*
-		 * If the BRU we need is in use, force the owner pipeline to
-		 * switch to the other BRU and wait until the switch completes.
+		 * If the BRx we need is in use, force the owner pipeline to
+		 * switch to the other BRx and wait until the switch completes.
 		 */
-		if (bru->pipe) {
+		if (brx->pipe) {
 			struct vsp1_drm_pipeline *owner_pipe;
 
 			dev_dbg(vsp1->dev, "%s: pipe %u: waiting for %s\n",
-				__func__, pipe->lif->index, BRU_NAME(bru));
+				__func__, pipe->lif->index, BRX_NAME(brx));
 
-			owner_pipe = to_vsp1_drm_pipeline(bru->pipe);
-			owner_pipe->force_bru_release = true;
+			owner_pipe = to_vsp1_drm_pipeline(brx->pipe);
+			owner_pipe->force_brx_release = true;
 
 			vsp1_du_pipeline_setup_inputs(vsp1, &owner_pipe->pipe);
 			vsp1_du_pipeline_configure(&owner_pipe->pipe);
 
 			ret = wait_event_timeout(owner_pipe->wait_queue,
-						 !owner_pipe->force_bru_release,
+						 !owner_pipe->force_brx_release,
 						 msecs_to_jiffies(500));
 			if (ret == 0)
 				dev_warn(vsp1->dev,
@@ -242,46 +242,46 @@ static int vsp1_du_pipeline_setup_bru(struct vsp1_device *vsp1,
 		}
 
 		/*
-		 * If the BRU we have released previously hasn't been acquired
+		 * If the BRx we have released previously hasn't been acquired
 		 * by the other pipeline, add it back to the entities list (with
 		 * the pipe pointer NULL) to let vsp1_du_pipeline_configure()
 		 * disconnect it from the hardware pipeline.
 		 */
-		if (released_bru && !released_bru->pipe)
-			list_add_tail(&released_bru->list_pipe,
+		if (released_brx && !released_brx->pipe)
+			list_add_tail(&released_brx->list_pipe,
 				      &pipe->entities);
 
-		/* Add the BRU to the pipeline. */
+		/* Add the BRx to the pipeline. */
 		dev_dbg(vsp1->dev, "%s: pipe %u: acquired %s\n",
-			__func__, pipe->lif->index, BRU_NAME(bru));
+			__func__, pipe->lif->index, BRX_NAME(brx));
 
-		pipe->bru = bru;
-		pipe->bru->pipe = pipe;
-		pipe->bru->sink = &pipe->output->entity;
-		pipe->bru->sink_pad = 0;
+		pipe->brx = brx;
+		pipe->brx->pipe = pipe;
+		pipe->brx->sink = &pipe->output->entity;
+		pipe->brx->sink_pad = 0;
 
-		list_add_tail(&pipe->bru->list_pipe, &pipe->entities);
+		list_add_tail(&pipe->brx->list_pipe, &pipe->entities);
 	}
 
 	/*
-	 * Configure the format on the BRU source and verify that it matches the
+	 * Configure the format on the BRx source and verify that it matches the
 	 * requested format. We don't set the media bus code as it is configured
-	 * on the BRU sink pad 0 and propagated inside the entity, not on the
+	 * on the BRx sink pad 0 and propagated inside the entity, not on the
 	 * source pad.
 	 */
-	format.pad = pipe->bru->source_pad;
+	format.pad = pipe->brx->source_pad;
 	format.format.width = drm_pipe->width;
 	format.format.height = drm_pipe->height;
 	format.format.field = V4L2_FIELD_NONE;
 
-	ret = v4l2_subdev_call(&pipe->bru->subdev, pad, set_fmt, NULL,
+	ret = v4l2_subdev_call(&pipe->brx->subdev, pad, set_fmt, NULL,
 			       &format);
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(vsp1->dev, "%s: set format %ux%u (%x) on %s pad %u\n",
 		__func__, format.format.width, format.format.height,
-		format.format.code, BRU_NAME(pipe->bru), pipe->bru->source_pad);
+		format.format.code, BRX_NAME(pipe->brx), pipe->brx->source_pad);
 
 	if (format.format.width != drm_pipe->width ||
 	    format.format.height != drm_pipe->height) {
@@ -297,12 +297,12 @@ static unsigned int rpf_zpos(struct vsp1_device *vsp1, struct vsp1_rwpf *rpf)
 	return vsp1->drm->inputs[rpf->entity.index].zpos;
 }
 
-/* Setup the input side of the pipeline (RPFs and BRU). */
+/* Setup the input side of the pipeline (RPFs and BRx). */
 static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
-					 struct vsp1_pipeline *pipe)
+					struct vsp1_pipeline *pipe)
 {
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF] = { NULL, };
-	struct vsp1_bru *bru;
+	struct vsp1_brx *brx;
 	unsigned int i;
 	int ret;
 
@@ -327,25 +327,25 @@ static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 	}
 
 	/*
-	 * Setup the BRU. This must be done before setting up the RPF input
-	 * pipelines as the BRU sink compose rectangles depend on the BRU source
+	 * Setup the BRx. This must be done before setting up the RPF input
+	 * pipelines as the BRx sink compose rectangles depend on the BRx source
 	 * format.
 	 */
-	ret = vsp1_du_pipeline_setup_bru(vsp1, pipe);
+	ret = vsp1_du_pipeline_setup_brx(vsp1, pipe);
 	if (ret < 0) {
 		dev_err(vsp1->dev, "%s: failed to setup %s source\n", __func__,
-			BRU_NAME(pipe->bru));
+			BRX_NAME(pipe->brx));
 		return ret;
 	}
 
-	bru = to_bru(&pipe->bru->subdev);
+	brx = to_brx(&pipe->brx->subdev);
 
 	/* Setup the RPF input pipeline for every enabled input. */
-	for (i = 0; i < pipe->bru->source_pad; ++i) {
+	for (i = 0; i < pipe->brx->source_pad; ++i) {
 		struct vsp1_rwpf *rpf = inputs[i];
 
 		if (!rpf) {
-			bru->inputs[i].rpf = NULL;
+			brx->inputs[i].rpf = NULL;
 			continue;
 		}
 
@@ -354,13 +354,13 @@ static int vsp1_du_pipeline_setup_inputs(struct vsp1_device *vsp1,
 			list_add_tail(&rpf->entity.list_pipe, &pipe->entities);
 		}
 
-		bru->inputs[i].rpf = rpf;
-		rpf->bru_input = i;
-		rpf->entity.sink = pipe->bru;
+		brx->inputs[i].rpf = rpf;
+		rpf->brx_input = i;
+		rpf->entity.sink = pipe->brx;
 		rpf->entity.sink_pad = i;
 
 		dev_dbg(vsp1->dev, "%s: connecting RPF.%u to %s:%u\n",
-			__func__, rpf->entity.index, BRU_NAME(pipe->bru), i);
+			__func__, rpf->entity.index, BRX_NAME(pipe->brx), i);
 
 		ret = vsp1_du_pipeline_setup_rpf(vsp1, pipe, rpf, i);
 		if (ret < 0) {
@@ -467,7 +467,7 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 		}
 	}
 
-	vsp1_dl_list_commit(dl, drm_pipe->force_bru_release);
+	vsp1_dl_list_commit(dl, drm_pipe->force_brx_release);
 }
 
 /* -----------------------------------------------------------------------------
@@ -492,8 +492,8 @@ EXPORT_SYMBOL_GPL(vsp1_du_init);
  * @cfg: the LIF configuration
  *
  * Configure the output part of VSP DRM pipeline for the given frame @cfg.width
- * and @cfg.height. This sets up formats on the blend unit (BRU or BRS) source
- * pad, the WPF sink and source pads, and the LIF sink pad.
+ * and @cfg.height. This sets up formats on the BRx source pad, the WPF sink and
+ * source pads, and the LIF sink pad.
  *
  * The @pipe_index argument selects which DRM pipeline to setup. The number of
  * available pipelines depend on the VSP instance.
@@ -523,11 +523,11 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 	pipe = &drm_pipe->pipe;
 
 	if (!cfg) {
-		struct vsp1_bru *bru;
+		struct vsp1_brx *brx;
 
 		mutex_lock(&vsp1->drm->lock);
 
-		bru = to_bru(&pipe->bru->subdev);
+		brx = to_brx(&pipe->brx->subdev);
 
 		/*
 		 * NULL configuration means the CRTC is being disabled, stop
@@ -544,7 +544,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 				continue;
 
 			/*
-			 * Remove the RPF from the pipe and the list of BRU
+			 * Remove the RPF from the pipe and the list of BRx
 			 * inputs.
 			 */
 			WARN_ON(!rpf->entity.pipe);
@@ -552,7 +552,7 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 			list_del(&rpf->entity.list_pipe);
 			pipe->inputs[i] = NULL;
 
-			bru->inputs[rpf->bru_input].rpf = NULL;
+			brx->inputs[rpf->brx_input].rpf = NULL;
 		}
 
 		drm_pipe->du_complete = NULL;
@@ -560,11 +560,11 @@ int vsp1_du_setup_lif(struct device *dev, unsigned int pipe_index,
 
 		dev_dbg(vsp1->dev, "%s: pipe %u: releasing %s\n",
 			__func__, pipe->lif->index,
-			BRU_NAME(pipe->bru));
+			BRX_NAME(pipe->brx));
 
-		list_del(&pipe->bru->list_pipe);
-		pipe->bru->pipe = NULL;
-		pipe->bru = NULL;
+		list_del(&pipe->brx->list_pipe);
+		pipe->brx->pipe = NULL;
+		pipe->brx = NULL;
 
 		mutex_unlock(&vsp1->drm->lock);
 

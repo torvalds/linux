@@ -20,7 +20,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "vsp1.h"
-#include "vsp1_bru.h"
+#include "vsp1_brx.h"
 #include "vsp1_dl.h"
 #include "vsp1_entity.h"
 #include "vsp1_hgo.h"
@@ -188,11 +188,11 @@ void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 	struct vsp1_entity *entity;
 	unsigned int i;
 
-	if (pipe->bru) {
-		struct vsp1_bru *bru = to_bru(&pipe->bru->subdev);
+	if (pipe->brx) {
+		struct vsp1_brx *brx = to_brx(&pipe->brx->subdev);
 
-		for (i = 0; i < ARRAY_SIZE(bru->inputs); ++i)
-			bru->inputs[i].rpf = NULL;
+		for (i = 0; i < ARRAY_SIZE(brx->inputs); ++i)
+			brx->inputs[i].rpf = NULL;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(pipe->inputs); ++i)
@@ -207,7 +207,7 @@ void vsp1_pipeline_reset(struct vsp1_pipeline *pipe)
 	pipe->state = VSP1_PIPELINE_STOPPED;
 	pipe->buffers_ready = 0;
 	pipe->num_inputs = 0;
-	pipe->bru = NULL;
+	pipe->brx = NULL;
 	pipe->hgo = NULL;
 	pipe->hgt = NULL;
 	pipe->lif = NULL;

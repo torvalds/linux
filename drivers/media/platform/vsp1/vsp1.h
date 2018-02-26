@@ -30,7 +30,7 @@ struct rcar_fcp_device;
 struct vsp1_drm;
 struct vsp1_entity;
 struct vsp1_platform_data;
-struct vsp1_bru;
+struct vsp1_brx;
 struct vsp1_clu;
 struct vsp1_hgo;
 struct vsp1_hgt;
@@ -78,8 +78,8 @@ struct vsp1_device {
 	struct rcar_fcp_device *fcp;
 	struct device *bus_master;
 
-	struct vsp1_bru *brs;
-	struct vsp1_bru *bru;
+	struct vsp1_brx *brs;
+	struct vsp1_brx *bru;
 	struct vsp1_clu *clu;
 	struct vsp1_hgo *hgo;
 	struct vsp1_hgt *hgt;

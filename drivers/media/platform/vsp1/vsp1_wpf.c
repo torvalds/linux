@@ -436,7 +436,7 @@ static void wpf_configure(struct vsp1_entity *entity,
 	vsp1_dl_list_write(dl, VI6_WPF_WRBCK_CTRL, 0);
 
 	/*
-	 * Sources. If the pipeline has a single input and BRU is not used,
+	 * Sources. If the pipeline has a single input and BRx is not used,
 	 * configure it as the master layer. Otherwise configure all
 	 * inputs as sub-layers and select the virtual RPF as the master
 	 * layer.
@@ -447,13 +447,13 @@ static void wpf_configure(struct vsp1_entity *entity,
 		if (!input)
 			continue;
 
-		srcrpf |= (!pipe->bru && pipe->num_inputs == 1)
+		srcrpf |= (!pipe->brx && pipe->num_inputs == 1)
 			? VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index)
 			: VI6_WPF_SRCRPF_RPF_ACT_SUB(input->entity.index);
 	}
 
-	if (pipe->bru)
-		srcrpf |= pipe->bru->type == VSP1_ENTITY_BRU
+	if (pipe->brx)
+		srcrpf |= pipe->brx->type == VSP1_ENTITY_BRU
 			? VI6_WPF_SRCRPF_VIRACT_MST
 			: VI6_WPF_SRCRPF_VIRACT2_MST;
 

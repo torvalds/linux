@@ -24,8 +24,8 @@
  * @pipe: the VSP1 pipeline used for display
  * @width: output display width
  * @height: output display height
- * @force_bru_release: when set, release the BRU during the next reconfiguration
- * @wait_queue: wait queue to wait for BRU release completion
+ * @force_brx_release: when set, release the BRx during the next reconfiguration
+ * @wait_queue: wait queue to wait for BRx release completion
  * @du_complete: frame completion callback for the DU driver (optional)
  * @du_private: data to be passed to the du_complete callback
  */
@@ -35,7 +35,7 @@ struct vsp1_drm_pipeline {
 	unsigned int width;
 	unsigned int height;
 
-	bool force_bru_release;
+	bool force_brx_release;
 	wait_queue_head_t wait_queue;
 
 	/* Frame synchronisation */

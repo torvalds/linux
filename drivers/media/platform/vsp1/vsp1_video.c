@@ -28,7 +28,7 @@
 #include <media/videobuf2-dma-contig.h>
 
 #include "vsp1.h"
-#include "vsp1_bru.h"
+#include "vsp1_brx.h"
 #include "vsp1_dl.h"
 #include "vsp1_entity.h"
 #include "vsp1_hgo.h"
@@ -488,7 +488,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 	struct media_entity_enum ent_enum;
 	struct vsp1_entity *entity;
 	struct media_pad *pad;
-	struct vsp1_bru *bru = NULL;
+	struct vsp1_brx *brx = NULL;
 	int ret;
 
 	ret = media_entity_enum_init(&ent_enum, &input->entity.vsp1->media_dev);
@@ -524,14 +524,14 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 		if (entity->type == VSP1_ENTITY_BRU ||
 		    entity->type == VSP1_ENTITY_BRS) {
 			/* BRU and BRS can't be chained. */
-			if (bru) {
+			if (brx) {
 				ret = -EPIPE;
 				goto out;
 			}
 
-			bru = to_bru(&entity->subdev);
-			bru->inputs[pad->index].rpf = input;
-			input->bru_input = pad->index;
+			brx = to_brx(&entity->subdev);
+			brx->inputs[pad->index].rpf = input;
+			input->brx_input = pad->index;
 		}
 
 		/* We've reached the WPF, we're done. */
@@ -553,7 +553,7 @@ static int vsp1_video_pipeline_build_branch(struct vsp1_pipeline *pipe,
 			}
 
 			pipe->uds = entity;
-			pipe->uds_input = bru ? &bru->entity : &input->entity;
+			pipe->uds_input = brx ? &brx->entity : &input->entity;
 		}
 
 		/* Follow the source link, ignoring any HGO or HGT. */
@@ -619,7 +619,7 @@ static int vsp1_video_pipeline_build(struct vsp1_pipeline *pipe,
 
 		case VSP1_ENTITY_BRU:
 		case VSP1_ENTITY_BRS:
-			pipe->bru = e;
+			pipe->brx = e;
 			break;
 
 		case VSP1_ENTITY_HGO:

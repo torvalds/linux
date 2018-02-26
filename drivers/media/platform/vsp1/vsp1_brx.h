@@ -1,5 +1,5 @@
 /*
- * vsp1_bru.h  --  R-Car VSP1 Blend ROP Unit
+ * vsp1_brx.h  --  R-Car VSP1 Blend ROP Unit (BRU and BRS)
  *
  * Copyright (C) 2013 Renesas Corporation
  *
@@ -10,8 +10,8 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#ifndef __VSP1_BRU_H__
-#define __VSP1_BRU_H__
+#ifndef __VSP1_BRX_H__
+#define __VSP1_BRX_H__
 
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
@@ -22,9 +22,9 @@
 struct vsp1_device;
 struct vsp1_rwpf;
 
-#define BRU_PAD_SINK(n)				(n)
+#define BRX_PAD_SINK(n)				(n)
 
-struct vsp1_bru {
+struct vsp1_brx {
 	struct vsp1_entity entity;
 	unsigned int base;
 
@@ -37,12 +37,12 @@ struct vsp1_bru {
 	u32 bgcolor;
 };
 
-static inline struct vsp1_bru *to_bru(struct v4l2_subdev *subdev)
+static inline struct vsp1_brx *to_brx(struct v4l2_subdev *subdev)
 {
-	return container_of(subdev, struct vsp1_bru, entity.subdev);
+	return container_of(subdev, struct vsp1_brx, entity.subdev);
 }
 
-struct vsp1_bru *vsp1_bru_create(struct vsp1_device *vsp1,
+struct vsp1_brx *vsp1_brx_create(struct vsp1_device *vsp1,
 				 enum vsp1_entity_type type);
 
-#endif /* __VSP1_BRU_H__ */
+#endif /* __VSP1_BRX_H__ */
