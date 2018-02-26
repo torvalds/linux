@@ -202,9 +202,14 @@
        1) fix isp soft reset failure for rk3326.
        reset on too high aclk rate will result in bus dead, so we reduce the aclk
        before reset and then recover it after reset.
+*v0.0x28.1:
+       1) another reasonable solution of isp soft reset failure for rk3326.
+       reset on too high isp_clk rate will result in bus dead.
+       The signoff isp_clk rate is 350M, and the recommended rate
+       on reset from IC is NOT greater than 300M.
 */
 
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x27, 0)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x28, 1)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
