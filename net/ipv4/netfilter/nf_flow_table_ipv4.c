@@ -178,7 +178,7 @@ static int nf_flow_tuple_ip(struct sk_buff *skb, const struct net_device *dev,
 }
 
 /* Based on ip_exceeds_mtu(). */
-static bool __nf_flow_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
+static bool nf_flow_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
 {
 	if (skb->len <= mtu)
 		return false;
@@ -190,17 +190,6 @@ static bool __nf_flow_exceeds_mtu(const struct sk_buff *skb, unsigned int mtu)
 		return false;
 
 	return true;
-}
-
-static bool nf_flow_exceeds_mtu(struct sk_buff *skb, const struct rtable *rt)
-{
-	u32 mtu;
-
-	mtu = ip_dst_mtu_maybe_forward(&rt->dst, true);
-	if (__nf_flow_exceeds_mtu(skb, mtu))
-		return true;
-
-	return false;
 }
 
 unsigned int
@@ -233,9 +222,9 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 
 	dir = tuplehash->tuple.dir;
 	flow = container_of(tuplehash, struct flow_offload, tuplehash[dir]);
-
 	rt = (const struct rtable *)flow->tuplehash[dir].tuple.dst_cache;
-	if (unlikely(nf_flow_exceeds_mtu(skb, rt)))
+
+	if (unlikely(nf_flow_exceeds_mtu(skb, flow->tuplehash[dir].tuple.mtu)))
 		return NF_ACCEPT;
 
 	if (skb_try_make_writable(skb, sizeof(*iph)))

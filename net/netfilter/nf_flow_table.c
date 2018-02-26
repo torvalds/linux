@@ -4,6 +4,8 @@
 #include <linux/netfilter.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
+#include <net/ip.h>
+#include <net/ip6_route.h>
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <net/netfilter/nf_conntrack.h>
@@ -23,6 +25,7 @@ flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
 {
 	struct flow_offload_tuple *ft = &flow->tuplehash[dir].tuple;
 	struct nf_conntrack_tuple *ctt = &ct->tuplehash[dir].tuple;
+	struct dst_entry *dst = route->tuple[dir].dst;
 
 	ft->dir = dir;
 
@@ -30,10 +33,12 @@ flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
 	case NFPROTO_IPV4:
 		ft->src_v4 = ctt->src.u3.in;
 		ft->dst_v4 = ctt->dst.u3.in;
+		ft->mtu = ip_dst_mtu_maybe_forward(dst, true);
 		break;
 	case NFPROTO_IPV6:
 		ft->src_v6 = ctt->src.u3.in6;
 		ft->dst_v6 = ctt->dst.u3.in6;
+		ft->mtu = ip6_dst_mtu_forward(dst);
 		break;
 	}
 
@@ -44,8 +49,7 @@ flow_offload_fill_dir(struct flow_offload *flow, struct nf_conn *ct,
 
 	ft->iifidx = route->tuple[dir].ifindex;
 	ft->oifidx = route->tuple[!dir].ifindex;
-
-	ft->dst_cache = route->tuple[dir].dst;
+	ft->dst_cache = dst;
 }
 
 struct flow_offload *

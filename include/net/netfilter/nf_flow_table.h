@@ -55,6 +55,8 @@ struct flow_offload_tuple {
 
 	int				oifidx;
 
+	u16				mtu;
+
 	struct dst_entry		*dst_cache;
 };
 
