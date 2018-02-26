@@ -9,7 +9,9 @@ MODULE_LICENSE("GPL");
 
 static int hello_init(void)
 {
-	printk(KERN_DEBUG "Hello, World!\n");
+	/* TODO: Print "Hello, World!" */
+	pr_info("Hello, World!\n");
+
 	return 0;
 }
 
