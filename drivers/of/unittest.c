@@ -692,13 +692,13 @@ static void __init of_unittest_changeset(void)
 	struct device_node *n1, *n2, *n21, *nchangeset, *nremove, *parent, *np;
 	struct of_changeset chgset;
 
-	n1 = __of_node_dup(NULL, "/testcase-data/changeset/n1");
+	n1 = __of_node_dup(NULL, "n1");
 	unittest(n1, "testcase setup failure\n");
 
-	n2 = __of_node_dup(NULL, "/testcase-data/changeset/n2");
+	n2 = __of_node_dup(NULL, "n2");
 	unittest(n2, "testcase setup failure\n");
 
-	n21 = __of_node_dup(NULL, "%s/%s", "/testcase-data/changeset/n2", "n21");
+	n21 = __of_node_dup(NULL, "n21");
 	unittest(n21, "testcase setup failure %p\n", n21);
 
 	nchangeset = of_find_node_by_path("/testcase-data/changeset");
