@@ -85,9 +85,6 @@ static const struct wiphy_wowlan_support wowlan_support = {
 #define TCP_ACK_FILTER_LINK_SPEED_THRESH	54
 #define DEFAULT_LINK_SPEED			72
 
-#define IS_MANAGMEMENT				0x100
-#define IS_MANAGMEMENT_CALLBACK			0x080
-#define IS_MGMT_STATUS_SUCCES			0x040
 #define GET_PKT_OFFSET(a) (((a) >> 22) & 0x1ff)
 
 static struct network_info last_scanned_shadow[MAX_NUM_SCANNED_NETWORKS_SHADOW];
