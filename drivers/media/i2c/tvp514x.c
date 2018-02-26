@@ -749,7 +749,7 @@ static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 /**
  * tvp514x_g_frame_interval() - V4L2 decoder interface handler
  * @sd: pointer to standard V4L2 sub-device structure
- * @a: pointer to a v4l2_subdev_frame_interval structure
+ * @ival: pointer to a v4l2_subdev_frame_interval structure
  *
  * Returns the decoder's video CAPTURE parameters.
  */
@@ -773,7 +773,7 @@ tvp514x_g_frame_interval(struct v4l2_subdev *sd,
 /**
  * tvp514x_s_frame_interval() - V4L2 decoder interface handler
  * @sd: pointer to standard V4L2 sub-device structure
- * @a: pointer to a v4l2_subdev_frame_interval structure
+ * @ival: pointer to a v4l2_subdev_frame_interval structure
  *
  * Configures the decoder to use the input parameters, if possible. If
  * not possible, returns the appropriate error code.
