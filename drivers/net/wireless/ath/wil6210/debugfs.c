@@ -1201,12 +1201,13 @@ static int wil_link_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
 	struct station_info sinfo;
-	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	int i, rc;
 
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		struct wil_sta_info *p = &wil->sta[i];
 		char *status = "unknown";
+		struct wil6210_vif *vif;
+		u8 mid;
 
 		switch (p->status) {
 		case wil_sta_unused:
@@ -1219,9 +1220,15 @@ static int wil_link_debugfs_show(struct seq_file *s, void *data)
 			status = "connected";
 			break;
 		}
-		seq_printf(s, "[%d] %pM %s\n", i, p->addr, status);
+		mid = (p->status != wil_sta_unused) ? p->mid : U8_MAX;
+		seq_printf(s, "[%d][MID %d] %pM %s\n",
+			   i, mid, p->addr, status);
 
-		if (p->status == wil_sta_connected) {
+		if (p->status != wil_sta_connected)
+			continue;
+
+		vif = (mid < wil->max_vifs) ? wil->vifs[mid] : NULL;
+		if (vif) {
 			rc = wil_cid_fill_sinfo(vif, i, &sinfo);
 			if (rc)
 				return rc;
@@ -1229,6 +1236,8 @@ static int wil_link_debugfs_show(struct seq_file *s, void *data)
 			seq_printf(s, "  Tx_mcs = %d\n", sinfo.txrate.mcs);
 			seq_printf(s, "  Rx_mcs = %d\n", sinfo.rxrate.mcs);
 			seq_printf(s, "  SQ     = %d\n", sinfo.signal);
+		} else {
+			seq_puts(s, "  INVALID MID\n");
 		}
 	}
 
@@ -1420,6 +1429,7 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 		struct wil_sta_info *p = &wil->sta[i];
 		char *status = "unknown";
 		u8 aid = 0;
+		u8 mid;
 
 		switch (p->status) {
 		case wil_sta_unused:
@@ -1433,7 +1443,9 @@ __acquires(&p->tid_rx_lock) __releases(&p->tid_rx_lock)
 			aid = p->aid;
 			break;
 		}
-		seq_printf(s, "[%d] %pM %s AID %d\n", i, p->addr, status, aid);
+		mid = (p->status != wil_sta_unused) ? p->mid : U8_MAX;
+		seq_printf(s, "[%d] %pM %s MID %d AID %d\n", i, p->addr, status,
+			   mid, aid);
 
 		if (p->status == wil_sta_connected) {
 			spin_lock_bh(&p->tid_rx_lock);

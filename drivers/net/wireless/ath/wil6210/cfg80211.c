@@ -319,7 +319,7 @@ int wil_cid_fill_sinfo(struct wil6210_vif *vif, int cid,
 	sinfo->tx_packets = stats->tx_packets;
 	sinfo->tx_failed = stats->tx_errors;
 
-	if (test_bit(wil_status_fwconnected, wil->status)) {
+	if (test_bit(wil_vif_fwconnected, vif->status)) {
 		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
 		if (test_bit(WMI_FW_CAPABILITY_RSSI_REPORTING,
 			     wil->fw_capabilities))
@@ -490,11 +490,10 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 			return ERR_PTR(-EINVAL);
 		}
 
-		vif = kzalloc(sizeof(*vif), GFP_KERNEL);
-		if (!vif)
+		p2p_wdev = kzalloc(sizeof(*p2p_wdev), GFP_KERNEL);
+		if (!p2p_wdev)
 			return ERR_PTR(-ENOMEM);
 
-		p2p_wdev = vif_to_wdev(vif);
 		p2p_wdev->iftype = type;
 		p2p_wdev->wiphy = wiphy;
 		/* use our primary ethernet address */
@@ -904,8 +903,8 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "connect, mid=%d\n", vif->mid);
 	wil_print_connect_params(wil, sme);
 
-	if (test_bit(wil_status_fwconnecting, wil->status) ||
-	    test_bit(wil_status_fwconnected, wil->status))
+	if (test_bit(wil_vif_fwconnecting, vif->status) ||
+	    test_bit(wil_vif_fwconnected, vif->status))
 		return -EALREADY;
 
 	if (sme->ie_len > WMI_MAX_IE_LEN) {
@@ -1009,18 +1008,19 @@ static int wil_cfg80211_connect(struct wiphy *wiphy,
 	ether_addr_copy(conn.bssid, bss->bssid);
 	ether_addr_copy(conn.dst_mac, bss->bssid);
 
-	set_bit(wil_status_fwconnecting, wil->status);
+	set_bit(wil_vif_fwconnecting, vif->status);
 
 	rc = wmi_send(wil, WMI_CONNECT_CMDID, vif->mid, &conn, sizeof(conn));
 	if (rc == 0) {
 		netif_carrier_on(ndev);
-		wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
+		if (!wil_has_other_active_ifaces(wil, ndev, false, true))
+			wil6210_bus_request(wil, WIL_MAX_BUS_REQUEST_KBPS);
 		vif->bss = bss;
 		/* Connect can take lots of time */
 		mod_timer(&vif->connect_timer,
 			  jiffies + msecs_to_jiffies(5000));
 	} else {
-		clear_bit(wil_status_fwconnecting, wil->status);
+		clear_bit(wil_vif_fwconnecting, vif->status);
 	}
 
  out:
@@ -1040,8 +1040,8 @@ static int wil_cfg80211_disconnect(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "disconnect: reason=%d, mid=%d\n",
 		     reason_code, vif->mid);
 
-	if (!(test_bit(wil_status_fwconnecting, wil->status) ||
-	      test_bit(wil_status_fwconnected, wil->status))) {
+	if (!(test_bit(wil_vif_fwconnecting, vif->status) ||
+	      test_bit(wil_vif_fwconnected, vif->status))) {
 		wil_err(wil, "Disconnect was called while disconnected\n");
 		return 0;
 	}
@@ -1946,7 +1946,7 @@ static int wil_cfg80211_suspend(struct wiphy *wiphy,
 	mutex_lock(&wil->mutex);
 	mutex_lock(&wil->vif_mutex);
 	wil_p2p_stop_radio_operations(wil);
-	wil_abort_scan(ndev_to_vif(wil->main_ndev), true);
+	wil_abort_scan_all_vifs(wil, true);
 	mutex_unlock(&wil->vif_mutex);
 	mutex_unlock(&wil->mutex);
 
@@ -2234,7 +2234,6 @@ void wil_cfg80211_deinit(struct wil6210_priv *wil)
 void wil_p2p_wdev_free(struct wil6210_priv *wil)
 {
 	struct wireless_dev *p2p_wdev;
-	struct wil6210_vif *vif;
 
 	mutex_lock(&wil->vif_mutex);
 	p2p_wdev = wil->p2p_wdev;
@@ -2243,8 +2242,7 @@ void wil_p2p_wdev_free(struct wil6210_priv *wil)
 	mutex_unlock(&wil->vif_mutex);
 	if (p2p_wdev) {
 		cfg80211_unregister_wdev(p2p_wdev);
-		vif = wdev_to_vif(wil, p2p_wdev);
-		kfree(vif);
+		kfree(p2p_wdev);
 	}
 }
 
@@ -2538,7 +2536,7 @@ static int wil_rf_sector_get_selected(struct wiphy *wiphy,
 			return -ENOENT;
 		}
 	} else {
-		if (test_bit(wil_status_fwconnected, wil->status)) {
+		if (test_bit(wil_vif_fwconnected, vif->status)) {
 			wil_err(wil, "must specify MAC address when connected\n");
 			return -EINVAL;
 		}
@@ -2665,7 +2663,7 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 			cid = -1;
 		}
 	} else {
-		if (test_bit(wil_status_fwconnected, wil->status)) {
+		if (test_bit(wil_vif_fwconnected, vif->status)) {
 			wil_err(wil, "must specify MAC address when connected\n");
 			return -EINVAL;
 		}

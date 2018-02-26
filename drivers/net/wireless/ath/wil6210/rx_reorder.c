@@ -41,11 +41,10 @@ static inline int reorder_index(struct wil_tid_ampdu_rx *r, u16 seq)
 	return seq_sub(seq, r->ssn) % r->buf_size;
 }
 
-static void wil_release_reorder_frame(struct wil6210_priv *wil,
+static void wil_release_reorder_frame(struct net_device *ndev,
 				      struct wil_tid_ampdu_rx *r,
 				      int index)
 {
-	struct net_device *ndev = wil->main_ndev;
 	struct sk_buff *skb = r->reorder_buf[index];
 
 	if (!skb)
@@ -60,7 +59,7 @@ no_frame:
 	r->head_seq_num = seq_inc(r->head_seq_num);
 }
 
-static void wil_release_reorder_frames(struct wil6210_priv *wil,
+static void wil_release_reorder_frames(struct net_device *ndev,
 				       struct wil_tid_ampdu_rx *r,
 				       u16 hseq)
 {
@@ -74,18 +73,18 @@ static void wil_release_reorder_frames(struct wil6210_priv *wil,
 	 */
 	while (seq_less(r->head_seq_num, hseq) && r->stored_mpdu_num) {
 		index = reorder_index(r, r->head_seq_num);
-		wil_release_reorder_frame(wil, r, index);
+		wil_release_reorder_frame(ndev, r, index);
 	}
 	r->head_seq_num = hseq;
 }
 
-static void wil_reorder_release(struct wil6210_priv *wil,
+static void wil_reorder_release(struct net_device *ndev,
 				struct wil_tid_ampdu_rx *r)
 {
 	int index = reorder_index(r, r->head_seq_num);
 
 	while (r->reorder_buf[index]) {
-		wil_release_reorder_frame(wil, r, index);
+		wil_release_reorder_frame(ndev, r, index);
 		index = reorder_index(r, r->head_seq_num);
 	}
 }
@@ -94,7 +93,8 @@ static void wil_reorder_release(struct wil6210_priv *wil,
 void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
-	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif;
+	struct net_device *ndev;
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
 	int tid = wil_rxdesc_tid(d);
 	int cid = wil_rxdesc_cid(d);
@@ -108,6 +108,14 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 
 	wil_dbg_txrx(wil, "MID %d CID %d TID %d Seq 0x%03x mcast %01x\n",
 		     mid, cid, tid, seq, mcast);
+
+	vif = wil->vifs[mid];
+	if (unlikely(!vif)) {
+		wil_dbg_txrx(wil, "invalid VIF, mid %d\n", mid);
+		dev_kfree_skb(skb);
+		return;
+	}
+	ndev = vif_to_ndev(vif);
 
 	if (unlikely(mcast)) {
 		wil_netif_rx_any(skb, ndev);
@@ -169,7 +177,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	if (!seq_less(seq, r->head_seq_num + r->buf_size)) {
 		hseq = seq_inc(seq_sub(seq, r->buf_size));
 		/* release stored frames up to new head to stack */
-		wil_release_reorder_frames(wil, r, hseq);
+		wil_release_reorder_frames(ndev, r, hseq);
 	}
 
 	/* Now the new frame is always in the range of the reordering buffer */
@@ -200,16 +208,18 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 	r->reorder_buf[index] = skb;
 	r->reorder_time[index] = jiffies;
 	r->stored_mpdu_num++;
-	wil_reorder_release(wil, r);
+	wil_reorder_release(ndev, r);
 
 out:
 	spin_unlock(&sta->tid_rx_lock);
 }
 
 /* process BAR frame, called in NAPI context */
-void wil_rx_bar(struct wil6210_priv *wil, u8 cid, u8 tid, u16 seq)
+void wil_rx_bar(struct wil6210_priv *wil, struct wil6210_vif *vif,
+		u8 cid, u8 tid, u16 seq)
 {
 	struct wil_sta_info *sta = &wil->sta[cid];
+	struct net_device *ndev = vif_to_ndev(vif);
 	struct wil_tid_ampdu_rx *r;
 
 	spin_lock(&sta->tid_rx_lock);
@@ -224,9 +234,9 @@ void wil_rx_bar(struct wil6210_priv *wil, u8 cid, u8 tid, u16 seq)
 			seq, r->head_seq_num);
 		goto out;
 	}
-	wil_dbg_txrx(wil, "BAR: CID %d TID %d Seq 0x%03x head 0x%03x\n",
-		     cid, tid, seq, r->head_seq_num);
-	wil_release_reorder_frames(wil, r, seq);
+	wil_dbg_txrx(wil, "BAR: CID %d MID %d TID %d Seq 0x%03x head 0x%03x\n",
+		     cid, vif->mid, tid, seq, r->head_seq_num);
+	wil_release_reorder_frames(ndev, r, seq);
 
 out:
 	spin_unlock(&sta->tid_rx_lock);

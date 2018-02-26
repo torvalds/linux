@@ -475,8 +475,6 @@ struct vring_tx_data {
 
 enum { /* for wil6210_priv.status */
 	wil_status_fwready = 0, /* FW operational */
-	wil_status_fwconnecting,
-	wil_status_fwconnected,
 	wil_status_dontscan,
 	wil_status_mbox_ready, /* MBOX structures ready */
 	wil_status_irqen, /* interrupts enabled - for debug */
@@ -676,11 +674,18 @@ extern struct blink_on_off_time led_blink_time[WIL_LED_TIME_LAST];
 extern u8 led_id;
 extern u8 led_polarity;
 
+enum wil6210_vif_status {
+	wil_vif_fwconnecting,
+	wil_vif_fwconnected,
+	wil_vif_status_last /* keep last */
+};
+
 struct wil6210_vif {
 	struct wireless_dev wdev;
 	struct net_device *ndev;
 	struct wil6210_priv *wil;
 	u8 mid;
+	DECLARE_BITMAP(status, wil_vif_status_last);
 	u32 privacy; /* secure connection? */
 	u16 channel; /* relevant in AP mode */
 	u8 hidden_ssid; /* relevant in AP mode */
@@ -699,6 +704,7 @@ struct wil6210_vif {
 	struct list_head probe_client_pending;
 	struct mutex probe_client_mutex; /* protect @probe_client_pending */
 	struct work_struct probe_client_worker;
+	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
 };
 
 struct wil6210_priv {
@@ -726,6 +732,7 @@ struct wil6210_priv {
 	u8 max_vifs; /* maximum number of interfaces, including main */
 	struct wil6210_vif *vifs[WIL_MAX_VIFS];
 	struct mutex vif_mutex; /* protects access to VIF entries */
+	atomic_t connected_vifs;
 	/* profile */
 	struct cfg80211_chan_def monitor_chandef;
 	u32 monitor_flags;
@@ -759,9 +766,10 @@ struct wil6210_priv {
 	 */
 	spinlock_t wmi_ev_lock;
 	spinlock_t net_queue_lock; /* guarding stop/wake netif queue */
-	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
 	struct napi_struct napi_rx;
 	struct napi_struct napi_tx;
+	struct net_device napi_ndev; /* dummy net_device serving all VIFs */
+
 	/* DMA related */
 	struct vring vring_rx;
 	unsigned int rx_buf_len;
@@ -1077,6 +1085,7 @@ int wmi_pcp_stop(struct wil6210_vif *vif);
 int wmi_led_cfg(struct wil6210_priv *wil, bool enable);
 int wmi_abort_scan(struct wil6210_vif *vif);
 void wil_abort_scan(struct wil6210_vif *vif, bool sync);
+void wil_abort_scan_all_vifs(struct wil6210_priv *wil, bool sync);
 void wil6210_bus_request(struct wil6210_priv *wil, u32 kbps);
 void wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 			u16 reason_code, bool from_event);
@@ -1097,12 +1106,12 @@ int wil_bcast_init(struct wil6210_vif *vif);
 void wil_bcast_fini(struct wil6210_vif *vif);
 void wil_bcast_fini_all(struct wil6210_priv *wil);
 
-void wil_update_net_queues(struct wil6210_priv *wil, struct vring *vring,
-			   bool should_stop);
-void wil_update_net_queues_bh(struct wil6210_priv *wil, struct vring *vring,
-			      bool check_stop);
+void wil_update_net_queues(struct wil6210_priv *wil, struct wil6210_vif *vif,
+			   struct vring *vring, bool should_stop);
+void wil_update_net_queues_bh(struct wil6210_priv *wil, struct wil6210_vif *vif,
+			      struct vring *vring, bool check_stop);
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
-int wil_tx_complete(struct wil6210_priv *wil, int ringid);
+int wil_tx_complete(struct wil6210_vif *vif, int ringid);
 void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
 
 /* RX API */

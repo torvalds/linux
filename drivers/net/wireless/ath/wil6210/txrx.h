@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -63,7 +64,9 @@ static inline void wil_desc_addr_set(struct vring_dma_addr *addr,
  * [dword 1]
  * bit  0.. 3 : pkt_mode:4
  * bit      4 : pkt_mode_en:1
- * bit  5..14 : reserved0:10
+ * bit      5 : mac_id_en:1
+ * bit   6..7 : mac_id:2
+ * bit  8..14 : reserved0:7
  * bit     15 : ack_policy_en:1
  * bit 16..19 : dst_index:4
  * bit     20 : dst_index_en:1
@@ -131,6 +134,14 @@ struct vring_tx_mac {
 #define MAC_CFG_DESC_TX_1_PKT_MODE_EN_POS 4
 #define MAC_CFG_DESC_TX_1_PKT_MODE_EN_LEN 1
 #define MAC_CFG_DESC_TX_1_PKT_MODE_EN_MSK 0x10
+
+#define MAC_CFG_DESC_TX_1_MAC_ID_EN_POS 5
+#define MAC_CFG_DESC_TX_1_MAC_ID_EN_LEN 1
+#define MAC_CFG_DESC_TX_1_MAC_ID_EN_MSK 0x20
+
+#define MAC_CFG_DESC_TX_1_MAC_ID_POS 6
+#define MAC_CFG_DESC_TX_1_MAC_ID_LEN 2
+#define MAC_CFG_DESC_TX_1_MAC_ID_MSK 0xc0
 
 #define MAC_CFG_DESC_TX_1_ACK_POLICY_EN_POS 15
 #define MAC_CFG_DESC_TX_1_ACK_POLICY_EN_LEN 1
@@ -304,7 +315,7 @@ enum {
  * bit  0.. 3 : tid:4 The QoS (b3-0) TID Field
  * bit  4.. 6 : cid:3 The Source index that  was found during parsing the TA.
  *		This field is used to define the source of the packet
- * bit      7 : reserved:1
+ * bit      7 : MAC_id_valid:1, 1 if MAC virtual number is valid.
  * bit  8.. 9 : mid:2 The MAC virtual number
  * bit 10..11 : frame_type:2 : The FC (b3-2) - MPDU Type
  *		(management, data, control and extension)
@@ -395,6 +406,7 @@ struct vring_rx_mac {
 #define RX_DMA_D0_CMD_DMA_EOP	BIT(8)
 #define RX_DMA_D0_CMD_DMA_RT	BIT(9)  /* always 1 */
 #define RX_DMA_D0_CMD_DMA_IT	BIT(10) /* interrupt */
+#define RX_MAC_D0_MAC_ID_VALID	BIT(7)
 
 /* Error field */
 #define RX_DMA_ERROR_FCS	BIT(0)
@@ -451,7 +463,8 @@ static inline int wil_rxdesc_cid(struct vring_rx_desc *d)
 
 static inline int wil_rxdesc_mid(struct vring_rx_desc *d)
 {
-	return WIL_GET_BITS(d->mac.d0, 8, 9);
+	return (d->mac.d0 & RX_MAC_D0_MAC_ID_VALID) ?
+		WIL_GET_BITS(d->mac.d0, 8, 9) : 0;
 }
 
 static inline int wil_rxdesc_ftype(struct vring_rx_desc *d)
@@ -517,7 +530,8 @@ static inline struct vring_rx_desc *wil_skb_rxdesc(struct sk_buff *skb)
 
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev);
 void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb);
-void wil_rx_bar(struct wil6210_priv *wil, u8 cid, u8 tid, u16 seq);
+void wil_rx_bar(struct wil6210_priv *wil, struct wil6210_vif *vif,
+		u8 cid, u8 tid, u16 seq);
 struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 						int size, u16 ssn);
 void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,

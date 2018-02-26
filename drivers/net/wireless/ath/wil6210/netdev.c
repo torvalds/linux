@@ -43,6 +43,7 @@ bool wil_has_other_active_ifaces(struct wil6210_priv *wil,
 
 bool wil_has_active_ifaces(struct wil6210_priv *wil, bool up, bool ok)
 {
+	/* use NULL ndev argument to check all interfaces */
 	return wil_has_other_active_ifaces(wil, NULL, up, ok);
 }
 
@@ -130,11 +131,19 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		struct vring *vring = &wil->vring_tx[i];
 		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
+		struct wil6210_vif *vif;
 
-		if (!vring->va || !txdata->enabled)
+		if (!vring->va || !txdata->enabled ||
+		    txdata->mid >= wil->max_vifs)
 			continue;
 
-		tx_done += wil_tx_complete(wil, i);
+		vif = wil->vifs[txdata->mid];
+		if (unlikely(!vif)) {
+			wil_dbg_txrx(wil, "Invalid MID %d\n", txdata->mid);
+			continue;
+		}
+
+		tx_done += wil_tx_complete(vif, i);
 	}
 
 	if (tx_done < budget) {
@@ -232,6 +241,8 @@ static void wil_vif_init(struct wil6210_vif *vif)
 	INIT_WORK(&vif->p2p.delayed_listen_work, wil_p2p_delayed_listen_work);
 
 	INIT_LIST_HEAD(&vif->probe_client_pending);
+
+	vif->net_queue_stopped = 1;
 }
 
 static u8 wil_vif_find_free_mid(struct wil6210_priv *wil)
@@ -406,12 +417,14 @@ int wil_if_add(struct wil6210_priv *wil)
 		return rc;
 	}
 
-	netif_napi_add(ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
+	init_dummy_netdev(&wil->napi_ndev);
+	netif_napi_add(&wil->napi_ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
 		       WIL6210_NAPI_BUDGET);
-	netif_tx_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
+	netif_tx_napi_add(&wil->napi_ndev,
+			  &wil->napi_tx, wil6210_netdev_poll_tx,
 			  WIL6210_NAPI_BUDGET);
 
-	wil_update_net_queues_bh(wil, NULL, true);
+	wil_update_net_queues_bh(wil, vif, NULL, true);
 
 	rtnl_lock();
 	rc = wil_vif_add(wil, vif);
@@ -450,10 +463,29 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	 */
 	unregister_netdevice(ndev);
 
+	mutex_lock(&wil->mutex);
+	wil6210_disconnect(vif, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
+	mutex_unlock(&wil->mutex);
+
 	if (any_active && vif->mid != 0)
 		wmi_port_delete(wil, vif->mid);
 
+	/* make sure no one is accessing the VIF before removing */
+	mutex_lock(&wil->vif_mutex);
 	wil->vifs[mid] = NULL;
+	/* ensure NAPI code will see the NULL VIF */
+	wmb();
+	if (test_bit(wil_status_napi_en, wil->status)) {
+		napi_synchronize(&wil->napi_rx);
+		napi_synchronize(&wil->napi_tx);
+	}
+	mutex_unlock(&wil->vif_mutex);
+
+	flush_work(&wil->wmi_event_worker);
+	del_timer_sync(&vif->connect_timer);
+	cancel_work_sync(&vif->disconnect_worker);
+	wil_probe_client_flush(vif);
+	cancel_work_sync(&vif->probe_client_worker);
 	/* for VIFs, ndev will be freed by destructor after RTNL is unlocked.
 	 * the main interface will be freed in wil_if_free, we need to keep it
 	 * a bit longer so logging macros will work.
@@ -470,5 +502,9 @@ void wil_if_remove(struct wil6210_priv *wil)
 	rtnl_lock();
 	wil_vif_remove(wil, 0);
 	rtnl_unlock();
+
+	netif_napi_del(&wil->napi_tx);
+	netif_napi_del(&wil->napi_rx);
+
 	wiphy_unregister(wdev->wiphy);
 }

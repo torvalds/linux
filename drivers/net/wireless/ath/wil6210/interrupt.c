@@ -127,7 +127,7 @@ void wil6210_unmask_irq_tx(struct wil6210_priv *wil)
 
 void wil6210_unmask_irq_rx(struct wil6210_priv *wil)
 {
-	bool unmask_rx_htrsh = test_bit(wil_status_fwconnected, wil->status);
+	bool unmask_rx_htrsh = atomic_read(&wil->connected_vifs) > 0;
 
 	wil_w(wil, RGF_DMA_EP_RX_ICR + offsetof(struct RGF_ICR, IMC),
 	      unmask_rx_htrsh ? WIL6210_IMC_RX : WIL6210_IMC_RX_NO_RX_HTRSH);

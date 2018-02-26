@@ -886,7 +886,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 
 	if ((wdev->iftype == NL80211_IFTYPE_STATION) ||
 	    (wdev->iftype == NL80211_IFTYPE_P2P_CLIENT)) {
-		if (!test_bit(wil_status_fwconnecting, wil->status)) {
+		if (!test_bit(wil_vif_fwconnecting, vif->status)) {
 			wil_err(wil, "Not in connecting state\n");
 			mutex_unlock(&wil->mutex);
 			return;
@@ -965,15 +965,16 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 
 	wil->sta[evt->cid].status = wil_sta_connected;
 	wil->sta[evt->cid].aid = evt->aid;
-	set_bit(wil_status_fwconnected, wil->status);
-	wil_update_net_queues_bh(wil, NULL, false);
+	if (!test_and_set_bit(wil_vif_fwconnected, vif->status))
+		atomic_inc(&wil->connected_vifs);
+	wil_update_net_queues_bh(wil, vif, NULL, false);
 
 out:
 	if (rc) {
 		wil->sta[evt->cid].status = wil_sta_unused;
 		wil->sta[evt->cid].mid = U8_MAX;
 	}
-	clear_bit(wil_status_fwconnecting, wil->status);
+	clear_bit(wil_vif_fwconnecting, vif->status);
 	mutex_unlock(&wil->mutex);
 }
 

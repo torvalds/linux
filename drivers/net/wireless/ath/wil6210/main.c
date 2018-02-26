@@ -175,6 +175,15 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		     cid, sta->mid, sta->status);
 	/* inform upper/lower layers */
 	if (sta->status != wil_sta_unused) {
+		if (vif->mid != sta->mid) {
+			wil_err(wil, "STA MID mismatch with VIF MID(%d)\n",
+				vif->mid);
+			/* let FW override sta->mid but be more strict with
+			 * user space requests
+			 */
+			if (!from_event)
+				return;
+		}
 		if (!from_event) {
 			bool del_sta = (wdev->iftype == NL80211_IFTYPE_AP) ?
 						disable_ap_sme : false;
@@ -277,32 +286,35 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
 		wil_bcast_fini(vif);
-		wil_update_net_queues_bh(wil, NULL, true);
+		wil_update_net_queues_bh(wil, vif, NULL, true);
 		netif_carrier_off(ndev);
-		wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
+		if (!wil_has_other_active_ifaces(wil, ndev, false, true))
+			wil6210_bus_request(wil, WIL_DEFAULT_BUS_REQUEST_KBPS);
 
-		if (test_bit(wil_status_fwconnected, wil->status)) {
-			clear_bit(wil_status_fwconnected, wil->status);
+		if (test_and_clear_bit(wil_vif_fwconnected, vif->status)) {
+			atomic_dec(&wil->connected_vifs);
 			cfg80211_disconnected(ndev, reason_code,
 					      NULL, 0,
 					      vif->locally_generated_disc,
 					      GFP_KERNEL);
 			vif->locally_generated_disc = false;
-		} else if (test_bit(wil_status_fwconnecting, wil->status)) {
+		} else if (test_bit(wil_vif_fwconnecting, vif->status)) {
 			cfg80211_connect_result(ndev, bssid, NULL, 0, NULL, 0,
 						WLAN_STATUS_UNSPECIFIED_FAILURE,
 						GFP_KERNEL);
 			vif->bss = NULL;
 		}
-		clear_bit(wil_status_fwconnecting, wil->status);
+		clear_bit(wil_vif_fwconnecting, vif->status);
 		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_P2P_GO:
 		if (!wil_vif_is_connected(wil, vif->mid)) {
-			wil_update_net_queues_bh(wil, NULL, true);
-			clear_bit(wil_status_fwconnected, wil->status);
+			wil_update_net_queues_bh(wil, vif, NULL, true);
+			if (test_and_clear_bit(wil_vif_fwconnected,
+					       vif->status))
+				atomic_dec(&wil->connected_vifs);
 		} else {
-			wil_update_net_queues_bh(wil, NULL, false);
+			wil_update_net_queues_bh(wil, vif, NULL, false);
 		}
 		break;
 	default:
@@ -322,11 +334,11 @@ void wil_disconnect_worker(struct work_struct *work)
 		struct wmi_disconnect_event evt;
 	} __packed reply;
 
-	if (test_bit(wil_status_fwconnected, wil->status))
+	if (test_bit(wil_vif_fwconnected, vif->status))
 		/* connect succeeded after all */
 		return;
 
-	if (!test_bit(wil_status_fwconnecting, wil->status))
+	if (!test_bit(wil_vif_fwconnecting, vif->status))
 		/* already disconnected */
 		return;
 
@@ -338,11 +350,11 @@ void wil_disconnect_worker(struct work_struct *work)
 		return;
 	}
 
-	wil_update_net_queues_bh(wil, NULL, true);
+	wil_update_net_queues_bh(wil, vif, NULL, true);
 	netif_carrier_off(ndev);
 	cfg80211_connect_result(ndev, NULL, NULL, 0, NULL, 0,
 				WLAN_STATUS_UNSPECIFIED_FAILURE, GFP_KERNEL);
-	clear_bit(wil_status_fwconnecting, wil->status);
+	clear_bit(wil_vif_fwconnecting, vif->status);
 }
 
 static int wil_wait_for_recovery(struct wil6210_priv *wil)
@@ -1087,6 +1099,20 @@ void wil_abort_scan(struct wil6210_vif *vif, bool sync)
 	}
 }
 
+void wil_abort_scan_all_vifs(struct wil6210_priv *wil, bool sync)
+{
+	int i;
+
+	lockdep_assert_held(&wil->vif_mutex);
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		struct wil6210_vif *vif = wil->vifs[i];
+
+		if (vif)
+			wil_abort_scan(vif, sync);
+	}
+}
+
 int wil_ps_update(struct wil6210_priv *wil, enum wmi_ps_profile_type ps_profile)
 {
 	int rc;
@@ -1139,6 +1165,7 @@ static int wil_restore_vifs(struct wil6210_priv *wil)
 		vif = wil->vifs[i];
 		if (!vif)
 			continue;
+		vif->ap_isolate = 0;
 		if (vif->mid) {
 			ndev = vif_to_ndev(vif);
 			wdev = vif_to_wdev(vif);
@@ -1162,10 +1189,10 @@ static int wil_restore_vifs(struct wil6210_priv *wil)
  */
 int wil_reset(struct wil6210_priv *wil, bool load_fw)
 {
-	int rc;
+	int rc, i;
 	unsigned long status_flags = BIT(wil_status_resetting);
 	int no_flash;
-	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
+	struct wil6210_vif *vif;
 
 	wil_dbg_misc(wil, "reset\n");
 
@@ -1214,16 +1241,22 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		goto out;
 	}
 
-	cancel_work_sync(&vif->disconnect_worker);
-	wil6210_disconnect(vif, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
+	mutex_lock(&wil->vif_mutex);
+	wil_abort_scan_all_vifs(wil, false);
+	mutex_unlock(&wil->vif_mutex);
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+		if (vif) {
+			cancel_work_sync(&vif->disconnect_worker);
+			wil6210_disconnect(vif, NULL,
+					   WLAN_REASON_DEAUTH_LEAVING, false);
+		}
+	}
 	wil_bcast_fini_all(wil);
 
 	/* Disable device led before reset*/
 	wmi_led_cfg(wil, false);
-
-	mutex_lock(&wil->vif_mutex);
-	wil_abort_scan(vif, false);
-	mutex_unlock(&wil->vif_mutex);
 
 	/* prevent NAPI from being scheduled and prevent wmi commands */
 	mutex_lock(&wil->wmi_mutex);
@@ -1294,7 +1327,6 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	}
 
 	/* init after reset */
-	vif->ap_isolate = 0;
 	reinit_completion(&wil->wmi_ready);
 	reinit_completion(&wil->wmi_call);
 	reinit_completion(&wil->halp.comp);
@@ -1446,7 +1478,7 @@ int __wil_down(struct wil6210_priv *wil)
 
 	mutex_lock(&wil->vif_mutex);
 	wil_p2p_stop_radio_operations(wil);
-	wil_abort_scan(ndev_to_vif(wil->main_ndev), false);
+	wil_abort_scan_all_vifs(wil, false);
 	mutex_unlock(&wil->vif_mutex);
 
 	return wil_reset(wil, false);

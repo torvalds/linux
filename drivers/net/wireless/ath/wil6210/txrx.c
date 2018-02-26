@@ -475,7 +475,8 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 					 struct vring *vring)
 {
 	struct device *dev = wil_to_dev(wil);
-	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif;
+	struct net_device *ndev;
 	volatile struct vring_rx_desc *_d;
 	struct vring_rx_desc *d;
 	struct sk_buff *skb;
@@ -484,7 +485,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	unsigned int sz = wil->rx_buf_len + ETH_HLEN + snaplen;
 	u16 dmalen;
 	u8 ftype;
-	int cid;
+	int cid, mid;
 	int i;
 	struct wil_net_stats *stats;
 
@@ -521,6 +522,16 @@ again:
 			  (const void *)d, sizeof(*d), false);
 
 	cid = wil_rxdesc_cid(d);
+	mid = wil_rxdesc_mid(d);
+	vif = wil->vifs[mid];
+
+	if (unlikely(!vif)) {
+		wil_dbg_txrx(wil, "skipped RX descriptor with invalid mid %d",
+			     mid);
+		kfree_skb(skb);
+		goto again;
+	}
+	ndev = vif_to_ndev(vif);
 	stats = &wil->sta[cid].stats;
 
 	if (unlikely(dmalen > sz)) {
@@ -554,7 +565,6 @@ again:
 	ftype = wil_rxdesc_ftype(d) << 2;
 	if (unlikely(ftype != IEEE80211_FTYPE_DATA)) {
 		u8 fc1 = wil_rxdesc_fc1(d);
-		int mid = wil_rxdesc_mid(d);
 		int tid = wil_rxdesc_tid(d);
 		u16 seq = wil_rxdesc_seq(d);
 
@@ -566,7 +576,7 @@ again:
 			wil_dbg_txrx(wil,
 				     "BAR: MID %d CID %d TID %d Seq 0x%03x\n",
 				     mid, cid, tid, seq);
-			wil_rx_bar(wil, cid, tid, seq);
+			wil_rx_bar(wil, vif, cid, tid, seq);
 		} else {
 			/* print again all info. One can enable only this
 			 * without overhead for printing every Rx frame
@@ -622,6 +632,11 @@ again:
 /**
  * allocate and fill up to @count buffers in rx ring
  * buffers posted at @swtail
+ * Note: we have a single RX queue for servicing all VIFs, but we
+ * allocate skbs with headroom according to main interface only. This
+ * means it will not work with monitor interface together with other VIFs.
+ * Currently we only support monitor interface on its own without other VIFs,
+ * and we will need to fix this code once we add support.
  */
 static int wil_rx_refill(struct wil6210_priv *wil, int count)
 {
@@ -789,8 +804,8 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	if (skb) { /* deliver to local stack */
-
 		skb->protocol = eth_type_trans(skb, ndev);
+		skb->dev = ndev;
 		rc = napi_gro_receive(&wil->napi_rx, skb);
 		wil_dbg_txrx(wil, "Rx complete %d bytes => %s\n",
 			     len, gro_res_str[rc]);
@@ -1905,6 +1920,7 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct wil6210_vif *vif,
 
 /**
  * Check status of tx vrings and stop/wake net queues if needed
+ * It will start/stop net queues of a specific VIF net_device.
  *
  * This function does one of two checks:
  * In case check_stop is true, will check if net queues need to be stopped. If
@@ -1920,28 +1936,32 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct wil6210_vif *vif,
  * availability and modified vring has high descriptor availability.
  */
 static inline void __wil_update_net_queues(struct wil6210_priv *wil,
+					   struct wil6210_vif *vif,
 					   struct vring *vring,
 					   bool check_stop)
 {
 	int i;
 
-	if (vring)
-		wil_dbg_txrx(wil, "vring %d, check_stop=%d, stopped=%d",
-			     (int)(vring - wil->vring_tx), check_stop,
-			     wil->net_queue_stopped);
-	else
-		wil_dbg_txrx(wil, "check_stop=%d, stopped=%d",
-			     check_stop, wil->net_queue_stopped);
+	if (unlikely(!vif))
+		return;
 
-	if (check_stop == wil->net_queue_stopped)
+	if (vring)
+		wil_dbg_txrx(wil, "vring %d, mid %d, check_stop=%d, stopped=%d",
+			     (int)(vring - wil->vring_tx), vif->mid, check_stop,
+			     vif->net_queue_stopped);
+	else
+		wil_dbg_txrx(wil, "check_stop=%d, mid=%d, stopped=%d",
+			     check_stop, vif->mid, vif->net_queue_stopped);
+
+	if (check_stop == vif->net_queue_stopped)
 		/* net queues already in desired state */
 		return;
 
 	if (check_stop) {
 		if (!vring || unlikely(wil_vring_avail_low(vring))) {
 			/* not enough room in the vring */
-			netif_tx_stop_all_queues(wil->main_ndev);
-			wil->net_queue_stopped = true;
+			netif_tx_stop_all_queues(vif_to_ndev(vif));
+			vif->net_queue_stopped = true;
 			wil_dbg_txrx(wil, "netif_tx_stop called\n");
 		}
 		return;
@@ -1957,7 +1977,8 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 		struct vring *cur_vring = &wil->vring_tx[i];
 		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
 
-		if (!cur_vring->va || !txdata->enabled || cur_vring == vring)
+		if (txdata->mid != vif->mid || !cur_vring->va ||
+		    !txdata->enabled || cur_vring == vring)
 			continue;
 
 		if (wil_vring_avail_low(cur_vring)) {
@@ -1970,24 +1991,24 @@ static inline void __wil_update_net_queues(struct wil6210_priv *wil,
 	if (!vring || wil_vring_avail_high(vring)) {
 		/* enough room in the vring */
 		wil_dbg_txrx(wil, "calling netif_tx_wake\n");
-		netif_tx_wake_all_queues(wil->main_ndev);
-		wil->net_queue_stopped = false;
+		netif_tx_wake_all_queues(vif_to_ndev(vif));
+		vif->net_queue_stopped = false;
 	}
 }
 
-void wil_update_net_queues(struct wil6210_priv *wil, struct vring *vring,
-			   bool check_stop)
+void wil_update_net_queues(struct wil6210_priv *wil, struct wil6210_vif *vif,
+			   struct vring *vring, bool check_stop)
 {
 	spin_lock(&wil->net_queue_lock);
-	__wil_update_net_queues(wil, vring, check_stop);
+	__wil_update_net_queues(wil, vif, vring, check_stop);
 	spin_unlock(&wil->net_queue_lock);
 }
 
-void wil_update_net_queues_bh(struct wil6210_priv *wil, struct vring *vring,
-			      bool check_stop)
+void wil_update_net_queues_bh(struct wil6210_priv *wil, struct wil6210_vif *vif,
+			      struct vring *vring, bool check_stop)
 {
 	spin_lock_bh(&wil->net_queue_lock);
-	__wil_update_net_queues(wil, vring, check_stop);
+	__wil_update_net_queues(wil, vif, vring, check_stop);
 	spin_unlock_bh(&wil->net_queue_lock);
 }
 
@@ -2009,8 +2030,9 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		}
 		goto drop;
 	}
-	if (unlikely(!test_bit(wil_status_fwconnected, wil->status))) {
-		wil_dbg_ratelimited(wil, "FW not connected, packet dropped\n");
+	if (unlikely(!test_bit(wil_vif_fwconnected, vif->status))) {
+		wil_dbg_ratelimited(wil,
+				    "VIF not connected, packet dropped\n");
 		goto drop;
 	}
 	if (unlikely(vif->wdev.iftype == NL80211_IFTYPE_MONITOR)) {
@@ -2051,7 +2073,7 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	switch (rc) {
 	case 0:
 		/* shall we stop net queues? */
-		wil_update_net_queues_bh(wil, vring, true);
+		wil_update_net_queues_bh(wil, vif, vring, true);
 		/* statistics will be updated on the tx_complete */
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -2090,9 +2112,10 @@ static inline void wil_consume_skb(struct sk_buff *skb, bool acked)
  *
  * Safe to call from IRQ
  */
-int wil_tx_complete(struct wil6210_priv *wil, int ringid)
+int wil_tx_complete(struct wil6210_vif *vif, int ringid)
 {
-	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	struct net_device *ndev = vif_to_ndev(vif);
 	struct device *dev = wil_to_dev(wil);
 	struct vring *vring = &wil->vring_tx[ringid];
 	struct vring_tx_data *txdata = &wil->vring_tx_data[ringid];
@@ -2202,7 +2225,7 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 
 	/* shall we wake net queues? */
 	if (done)
-		wil_update_net_queues(wil, vring, false);
+		wil_update_net_queues(wil, vif, vring, false);
 
 	return done;
 }
