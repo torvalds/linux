@@ -59,6 +59,7 @@ static int hpwdt_start(struct watchdog_device *wdd)
 	int control = 0x81 | (pretimeout ? 0x4 : 0);
 	int reload = SECS_TO_TICKS(wdd->timeout);
 
+	dev_dbg(wdd->parent, "start watchdog 0x%08x:0x%02x\n", reload, control);
 	iowrite16(reload, hpwdt_timer_reg);
 	iowrite8(control, hpwdt_timer_con);
 
@@ -68,6 +69,8 @@ static int hpwdt_start(struct watchdog_device *wdd)
 static void hpwdt_stop(void)
 {
 	unsigned long data;
+
+	pr_debug("stop  watchdog\n");
 
 	data = ioread8(hpwdt_timer_con);
 	data &= 0xFE;
@@ -85,6 +88,7 @@ static int hpwdt_ping(struct watchdog_device *wdd)
 {
 	int reload = SECS_TO_TICKS(wdd->timeout);
 
+	dev_dbg(wdd->parent, "ping  watchdog 0x%08x\n", reload);
 	iowrite16(reload, hpwdt_timer_reg);
 
 	return 0;
@@ -97,8 +101,11 @@ static unsigned int hpwdt_gettimeleft(struct watchdog_device *wdd)
 
 static int hpwdt_settimeout(struct watchdog_device *wdd, unsigned int val)
 {
+	dev_dbg(wdd->parent, "set_timeout = %d\n", val);
+
 	wdd->timeout = val;
 	if (val <= wdd->pretimeout) {
+		dev_dbg(wdd->parent, "pretimeout < timeout. Setting to zero\n");
 		wdd->pretimeout = 0;
 		pretimeout = 0;
 		if (watchdog_active(wdd))
@@ -114,11 +121,15 @@ static int hpwdt_set_pretimeout(struct watchdog_device *wdd, unsigned int req)
 {
 	unsigned int val = 0;
 
+	dev_dbg(wdd->parent, "set_pretimeout = %d\n", req);
 	if (req) {
 		val = PRETIMEOUT_SEC;
 		if (val >= wdd->timeout)
 			return -EINVAL;
 	}
+
+	if (val != req)
+		dev_dbg(wdd->parent, "Rounding pretimeout to: %d\n", val);
 
 	wdd->pretimeout = val;
 	pretimeout = !!val;
