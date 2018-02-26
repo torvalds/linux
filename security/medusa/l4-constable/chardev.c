@@ -72,9 +72,6 @@ static MED_LOCK_DATA(constable_openclose);
 /* fetch or update answer */
 static atomic_t fetch_requests = ATOMIC_INIT(0);
 static atomic_t update_requests = ATOMIC_INIT(0);
- static struct medusa_kclass_s * answ_kclass = NULL;
- static struct medusa_kobject_s * answ_kobj = NULL;
- static MCPptr_t answ_seq = 0;
 
 /* to-register queue for constable */
 static MED_LOCK_DATA(registration_lock);
@@ -91,6 +88,9 @@ static MED_LOCK_DATA(registration_lock);
  static atomic_t questions = ATOMIC_INIT(0);
  static atomic_t questions_waiting = ATOMIC_INIT(0);
  static atomic_t decision_request_id = ATOMIC_INIT(0);
+ static atomic_t read_in_progress = ATOMIC_INIT(0);
+ static atomic_t point = ATOMIC_INIT(0);
+ static atomic_t write_in_progress = ATOMIC_INIT(0);
  /* and the answer */
  static medusa_answer_t user_answer = MED_ERR;
  // static DECLARE_WAIT_QUEUE_HEAD(userspace);
@@ -127,13 +127,16 @@ static teleport_insn_t *processed_teleport;
 
 static DEFINE_SEMAPHORE(ls_switch);
 static DEFINE_SEMAPHORE(lock_sem);
+static DEFINE_SEMAPHORE(prior_sem);
 typedef struct {
     struct semaphore* lock_sem;
+    struct semaphore* prior_sem;
     int counter;
 } lightswitch_t;
 static lightswitch_t lightswitch = {
     .lock_sem = &lock_sem,
     .counter = 0,
+    .prior_sem = &prior_sem,
 };
 
 static char* recv_type_name[] = {"FETCH_REQUEST", "UPDATE_REQUEST"};
@@ -182,6 +185,11 @@ int am_i_constable(void) {
 		ret = 1;
 		goto out;
 	}
+
+    // if (current == constable->parent || current == constable->real_parent) {
+    //     ret = 1;
+    //     goto out;
+    // }
 
 	list_for_each(i, &current->real_parent->children) {
 		task = list_entry(i, struct task_struct, sibling);
@@ -314,6 +322,8 @@ static int l4_add_evtype(struct medusa_evtype_s * at)
 }
 
 inline static void ls_lock(lightswitch_t* ls, struct semaphore* sem) {
+    down(ls->prior_sem);
+    up(ls->prior_sem);
     down(ls->lock_sem);
     ls->counter++;
     if (ls->counter == 1)
@@ -373,6 +383,7 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 #define decision_evtype (event->evtype_id)
 	tele_mem_decide[0].opcode = tp_PUTPtr;
 	tele_mem_decide[0].args.putPtr.what = (MCPptr_t)decision_evtype; // possibility to encryption JK march 2015
+    printk("Adresa eventu: %p\n", (MCPptr_t)decision_evtype);
   local_tele_item->size += sizeof(MCPptr_t);
 	tele_mem_decide[1].opcode = tp_PUT32;
 	tele_mem_decide[1].args.put32.what = atomic_read(&decision_request_id);
@@ -425,8 +436,14 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 	if (wait_event_timeout(userspace_answer,
                            local_req_id == recv_req_id || \
                            !atomic_read(&constable_present), 5*HZ) == 0){
+        printk("Prebiehalo citanie: %i\n", atomic_read(&read_in_progress));
+        printk("Dosiahol bod: %i\n", atomic_read(&point));
+        printk("Prebiehalo zapisovanie: %i\n", atomic_read(&write_in_progress));
         user_release(NULL, NULL);
     }
+    // wait_event(userspace_answer,
+    //                         local_req_id == recv_req_id || \
+    //                         !atomic_read(&constable_present));
 
 	if (atomic_read(&constable_present)) {
         atomic_dec(&questions_waiting);
@@ -567,12 +584,15 @@ static ssize_t user_read(struct file * filp, char * buf,
     int local_counter = counter++;
     char comm[TASK_COMM_LEN];
 
+    atomic_set(&read_in_progress, 1);
+
     ls_lock(&lightswitch, &ls_switch);
 
     printk("user_read: starting %i with %i to read\n", local_counter, count);
 	if (!atomic_read(&constable_present)) {
         printk("user_read: return constable fast disconnect %i\n", local_counter);
         ls_unlock(&lightswitch, &ls_switch);
+            atomic_set(&read_in_progress, 0);
         return -EPIPE;
     }
 
@@ -581,25 +601,29 @@ static ssize_t user_read(struct file * filp, char * buf,
         printk("user_read constable pointer %p\n", constable);
         // printk("user_read was called by  %s\n", get_task_comm(comm, constable));
         ls_unlock(&lightswitch, &ls_switch);
+            atomic_set(&read_in_progress, 0);
 		return -EPERM;
     }
 	if (*ppos != filp->f_pos) {
         printk("user_read: ppos error %i\n", local_counter);
         ls_unlock(&lightswitch, &ls_switch);
+            atomic_set(&read_in_progress, 0);
 		return -ESPIPE;
     }
 	if (!access_ok(VERIFY_WRITE, buf, count)){
         printk("user_read: EFAULT error %i\n", local_counter);
         ls_unlock(&lightswitch, &ls_switch);
+            atomic_set(&read_in_progress, 0);
 		return -EFAULT;
     }
 
 	/* do we have an unfinished write? (e.g. dumb user-space) */
-	if (atomic_read(&currently_receiving)) {
-        printk("user_read: unfininshed write\n");
-        ls_unlock(&lightswitch, &ls_switch);
-		return -EIO;
-    }
+	// if (atomic_read(&currently_receiving)) {
+    //     printk("user_read: unfininshed write\n");
+    //     ls_unlock(&lightswitch, &ls_switch);
+    //     atomic_set(&read_in_progress, 0);
+	// 	return -EAGAIN;
+    // }
   // Lock it before someone can change the userspace_buf
   DOWN(&user_read_lock);
 	userspace_buf = buf;
@@ -610,9 +634,11 @@ static ssize_t user_read(struct file * filp, char * buf,
       if (teleport_pop(0) == -ETIME) {
           ls_unlock(&lightswitch, &ls_switch);
           printk("user_read: return constable disconnected %i\n", local_counter);
+            atomic_set(&read_in_progress, 0);
           return -ETIME;
       }
     }
+    atomic_inc(&point);
     while (1) {
       retval = teleport_cycle(&teleport, count);
       printk("user_read: after teleport_read %i\n", local_counter);
@@ -623,6 +649,8 @@ static ssize_t user_read(struct file * filp, char * buf,
             up(&user_read_lock);
             printk("user_read: return error eith sum %i\n", local_counter);
             ls_unlock(&lightswitch, &ls_switch);
+            atomic_dec(&point);
+            atomic_set(&read_in_progress, 0);
             return retval_sum;
         } else {
             // this teleport was broken, we get rid of it
@@ -631,6 +659,8 @@ static ssize_t user_read(struct file * filp, char * buf,
             up(&user_read_lock);
             printk("user_read: unexpected error %i\n", local_counter);
             ls_unlock(&lightswitch, &ls_switch);
+            atomic_dec(&point);
+            atomic_set(&read_in_progress, 0);
             return retval;
         }
       }
@@ -664,6 +694,8 @@ static ssize_t user_read(struct file * filp, char * buf,
     up(&user_read_lock);
     printk("user_read: return normal %i\n", local_counter);
     ls_unlock(&lightswitch, &ls_switch);
+    atomic_dec(&point);
+    atomic_set(&read_in_progress, 0);
     return retval_sum;
   }
 
@@ -671,6 +703,8 @@ static ssize_t user_read(struct file * filp, char * buf,
   up(&user_read_lock);
   printk("user_read: returning zero %i\n", local_counter);
   ls_unlock(&lightswitch, &ls_switch);
+  atomic_dec(&point);
+  atomic_set(&read_in_progress, 0);
   return 0;
 }
 
@@ -699,13 +733,19 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
     int recv_phase;
     MCPptr_t recv_type;
     MCPptr_t answ_kclassid = 0;
+    atomic_set(&write_in_progress, 1);
     printk("user_write: entry %i\n", local_counter);
+    struct medusa_kobject_s * answ_kobj = NULL;
+    struct medusa_kclass_s * answ_kclass = NULL;
+    MCPptr_t answ_seq = 0;
 
     // Lightswitch
+    // has to be there so close can't occur during write
     ls_lock(&lightswitch, &ls_switch);
 
 	if (!atomic_read(&constable_present)) {
         printk("user_write: constable fast disconnect %i\n", local_counter);
+        ls_unlock(&lightswitch, &ls_switch);
         return -EPIPE;
     }
 
@@ -810,6 +850,12 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 				/* not so much to do... */
 				med_put_kclass(answ_kclass);
 			}
+
+			answ_kclassid = (*(MCPptr_t*)(recv_buf));
+			answ_seq = *(((MCPptr_t*)(recv_buf))+1);
+
+            up(&fetch_update_lock)
+
 			answ_kclass = cl;
 			if (recv_type == MEDUSA_COMM_FETCH_REQUEST) {
 				if (cl->fetch)
@@ -826,8 +872,6 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 				else
 					answ_result = MED_ERR;
 			}
-			answ_kclassid = (*(MCPptr_t*)(recv_buf));
-			answ_seq = *(((MCPptr_t*)(recv_buf))+1);
             // Dynamic telemem structure for fetch/update
             tele_mem_write = (teleport_insn_t*) kmalloc(sizeof(teleport_insn_t) * 6, GFP_KERNEL);
             local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
@@ -887,6 +931,7 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 	}
     printk("user_write: return %i\n", local_counter);
     ls_unlock(&lightswitch, &ls_switch);
+    atomic_set(&write_in_progress, 0);
 	return orig_count;
 }
 
@@ -1005,7 +1050,11 @@ static int user_release(struct inode *inode, struct file *file)
   struct list_head *pos, *next;
 	DECLARE_WAITQUEUE(wait,current);
 
+    // Operation close has to wait for read and write system calls to finish
+    // Close has priority, so starvation can't occur
+    down(&prior_sem);
     down(&ls_switch);
+    up(&prior_sem);
 
 	if (!atomic_read(&constable_present)) {
         up(&ls_switch);
@@ -1041,13 +1090,11 @@ static int user_release(struct inode *inode, struct file *file)
 	}
 	kclasses_registered = NULL;
 	MED_UNLOCK_W(registration_lock);
-	if (atomic_read(&fetch_requests) || atomic_read(&update_requests)) {
-		med_put_kclass(answ_kclass);
-	}
+    // if (atomic_read(&fetch_requests) || atomic_read(&update_requests)) {
+	//	 med_put_kclass(answ_kclass);
+	// }
     atomic_set(&fetch_requests, 0);
     atomic_set(&update_requests, 0);
-    answ_kclass = NULL;
-    answ_kobj = NULL;
     // answ_kclassid = 0;
     answ_seq = 0;
 
