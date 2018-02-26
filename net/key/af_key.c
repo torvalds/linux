@@ -3863,6 +3863,7 @@ static struct pernet_operations pfkey_net_ops = {
 	.exit = pfkey_net_exit,
 	.id   = &pfkey_net_id,
 	.size = sizeof(struct netns_pfkey),
+	.async = true,
 };
 
 static void __exit ipsec_pfkey_exit(void)
