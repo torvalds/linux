@@ -192,7 +192,7 @@ irqreturn_t dpaa2_io_irq(struct dpaa2_io *obj)
 			u64 q64;
 
 			q64 = qbman_result_SCN_ctx(dq);
-			ctx = (void *)q64;
+			ctx = (void *)(uintptr_t)q64;
 			ctx->cb(ctx);
 		} else {
 			pr_crit("fsl-mc-dpio: Unrecognised/ignored DQRR entry\n");
@@ -237,7 +237,7 @@ int dpaa2_io_service_register(struct dpaa2_io *d,
 		return -ENODEV;
 
 	ctx->dpio_id = d->dpio_desc.dpio_id;
-	ctx->qman64 = (u64)ctx;
+	ctx->qman64 = (u64)(uintptr_t)ctx;
 	ctx->dpio_private = d;
 	spin_lock_irqsave(&d->lock_notifications, irqflags);
 	list_add(&ctx->node, &d->notifications);
