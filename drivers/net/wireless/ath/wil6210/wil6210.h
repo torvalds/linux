@@ -944,9 +944,9 @@ wil_vif_alloc(struct wil6210_priv *wil, const char *name,
 	      unsigned char name_assign_type, enum nl80211_iftype iftype);
 void wil_vif_free(struct wil6210_vif *vif);
 void *wil_if_alloc(struct device *dev);
-bool wil_has_other_up_ifaces(struct wil6210_priv *wil,
-			     struct net_device *ndev);
-bool wil_has_up_ifaces(struct wil6210_priv *wil);
+bool wil_has_other_active_ifaces(struct wil6210_priv *wil,
+				 struct net_device *ndev, bool up, bool ok);
+bool wil_has_active_ifaces(struct wil6210_priv *wil, bool up, bool ok);
 void wil_if_free(struct wil6210_priv *wil);
 int wil_vif_add(struct wil6210_priv *wil, struct wil6210_vif *vif);
 int wil_if_add(struct wil6210_priv *wil);
@@ -1053,7 +1053,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 int wil_cfg80211_iface_combinations_from_fw(
 	struct wil6210_priv *wil,
 	const struct wil_fw_record_concurrency *conc);
-int wil_vif_prepare_stop(struct wil6210_priv *wil, struct wil6210_vif *vif);
+int wil_vif_prepare_stop(struct wil6210_vif *vif);
 
 #if defined(CONFIG_WIL6210_DEBUGFS)
 int wil6210_debugfs_init(struct wil6210_priv *wil);
@@ -1095,6 +1095,7 @@ int wil_tx_init(struct wil6210_vif *vif, int cid);
 int wil_vring_init_bcast(struct wil6210_vif *vif, int id, int size);
 int wil_bcast_init(struct wil6210_vif *vif);
 void wil_bcast_fini(struct wil6210_vif *vif);
+void wil_bcast_fini_all(struct wil6210_priv *wil);
 
 void wil_update_net_queues(struct wil6210_priv *wil, struct vring *vring,
 			   bool should_stop);

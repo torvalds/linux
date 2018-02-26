@@ -20,8 +20,8 @@
 #include "wil6210.h"
 #include "txrx.h"
 
-bool wil_has_other_up_ifaces(struct wil6210_priv *wil,
-			     struct net_device *ndev)
+bool wil_has_other_active_ifaces(struct wil6210_priv *wil,
+				 struct net_device *ndev, bool up, bool ok)
 {
 	int i;
 	struct wil6210_vif *vif;
@@ -31,17 +31,19 @@ bool wil_has_other_up_ifaces(struct wil6210_priv *wil,
 		vif = wil->vifs[i];
 		if (vif) {
 			ndev_i = vif_to_ndev(vif);
-			if (ndev_i != ndev && ndev_i->flags & IFF_UP)
-				return true;
+			if (ndev_i != ndev)
+				if ((up && (ndev_i->flags & IFF_UP)) ||
+				    (ok && netif_carrier_ok(ndev_i)))
+					return true;
 		}
 	}
 
 	return false;
 }
 
-bool wil_has_up_ifaces(struct wil6210_priv *wil)
+bool wil_has_active_ifaces(struct wil6210_priv *wil, bool up, bool ok)
 {
-	return wil_has_other_up_ifaces(wil, NULL);
+	return wil_has_other_active_ifaces(wil, NULL, up, ok);
 }
 
 static int wil_open(struct net_device *ndev)
@@ -57,7 +59,7 @@ static int wil_open(struct net_device *ndev)
 		return -EINVAL;
 	}
 
-	if (!wil_has_other_up_ifaces(wil, ndev)) {
+	if (!wil_has_other_active_ifaces(wil, ndev, true, false)) {
 		wil_dbg_misc(wil, "open, first iface\n");
 		rc = wil_pm_runtime_get(wil);
 		if (rc < 0)
@@ -78,7 +80,7 @@ static int wil_stop(struct net_device *ndev)
 
 	wil_dbg_misc(wil, "stop\n");
 
-	if (!wil_has_other_up_ifaces(wil, ndev)) {
+	if (!wil_has_other_active_ifaces(wil, ndev, true, false)) {
 		wil_dbg_misc(wil, "stop, last iface\n");
 		rc = wil_down(wil);
 		if (!rc)
@@ -359,7 +361,7 @@ int wil_vif_add(struct wil6210_priv *wil, struct wil6210_vif *vif)
 {
 	struct net_device *ndev = vif_to_ndev(vif);
 	struct wireless_dev *wdev = vif_to_wdev(vif);
-	bool any_active = wil_has_up_ifaces(wil);
+	bool any_active = wil_has_active_ifaces(wil, true, false);
 	int rc;
 
 	ASSERT_RTNL();
@@ -428,7 +430,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 {
 	struct wil6210_vif *vif;
 	struct net_device *ndev;
-	bool any_active = wil_has_up_ifaces(wil);
+	bool any_active = wil_has_active_ifaces(wil, true, false);
 
 	ASSERT_RTNL();
 	if (mid >= wil->max_vifs) {

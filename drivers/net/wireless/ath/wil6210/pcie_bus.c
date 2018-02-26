@@ -145,7 +145,7 @@ static void wil_remove_all_additional_vifs(struct wil6210_priv *wil)
 	for (i = 1; i < wil->max_vifs; i++) {
 		vif = wil->vifs[i];
 		if (vif) {
-			wil_vif_prepare_stop(wil, vif);
+			wil_vif_prepare_stop(vif);
 			wil_vif_remove(wil, vif->mid);
 		}
 	}

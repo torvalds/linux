@@ -508,6 +508,18 @@ void wil_bcast_fini(struct wil6210_vif *vif)
 	wil_vring_fini_tx(wil, ri);
 }
 
+void wil_bcast_fini_all(struct wil6210_priv *wil)
+{
+	int i;
+	struct wil6210_vif *vif;
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+		if (vif)
+			wil_bcast_fini(vif);
+	}
+}
+
 int wil_priv_init(struct wil6210_priv *wil)
 {
 	uint i;
@@ -1204,7 +1216,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 	cancel_work_sync(&vif->disconnect_worker);
 	wil6210_disconnect(vif, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
-	wil_bcast_fini(vif);
+	wil_bcast_fini_all(wil);
 
 	/* Disable device led before reset*/
 	wmi_led_cfg(wil, false);
