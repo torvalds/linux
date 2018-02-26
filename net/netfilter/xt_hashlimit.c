@@ -1345,6 +1345,7 @@ static struct pernet_operations hashlimit_net_ops = {
 	.exit	= hashlimit_net_exit,
 	.id	= &hashlimit_net_id,
 	.size	= sizeof(struct hashlimit_net),
+	.async	= true,
 };
 
 static int __init hashlimit_mt_init(void)
