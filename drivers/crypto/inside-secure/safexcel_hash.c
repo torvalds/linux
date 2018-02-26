@@ -43,6 +43,9 @@ struct safexcel_ahash_req {
 	u64 processed;
 
 	u8 cache[SHA256_BLOCK_SIZE] __aligned(sizeof(u32));
+	dma_addr_t cache_dma;
+	unsigned int cache_sz;
+
 	u8 cache_next[SHA256_BLOCK_SIZE] __aligned(sizeof(u32));
 };
 
@@ -165,7 +168,11 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 		sreq->result_dma = 0;
 	}
 
-	safexcel_free_context(priv, async);
+	if (sreq->cache_dma) {
+		dma_unmap_single(priv->dev, sreq->cache_dma, sreq->cache_sz,
+				 DMA_TO_DEVICE);
+		sreq->cache_dma = 0;
+	}
 
 	cache_len = sreq->len - sreq->processed;
 	if (cache_len)
@@ -227,24 +234,15 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 
 	/* Add a command descriptor for the cached data, if any */
 	if (cache_len) {
-		ctx->base.cache = kzalloc(cache_len, EIP197_GFP_FLAGS(*async));
-		if (!ctx->base.cache) {
-			ret = -ENOMEM;
-			goto unlock;
-		}
-		memcpy(ctx->base.cache, req->cache, cache_len);
-		ctx->base.cache_dma = dma_map_single(priv->dev, ctx->base.cache,
-						     cache_len, DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->dev, ctx->base.cache_dma)) {
-			ret = -EINVAL;
-			goto free_cache;
-		}
+		req->cache_dma = dma_map_single(priv->dev, req->cache,
+						cache_len, DMA_TO_DEVICE);
+		if (dma_mapping_error(priv->dev, req->cache_dma))
+			return -EINVAL;
 
-		ctx->base.cache_sz = cache_len;
+		req->cache_sz = cache_len;
 		first_cdesc = safexcel_add_cdesc(priv, ring, 1,
 						 (cache_len == len),
-						 ctx->base.cache_dma,
-						 cache_len, len,
+						 req->cache_dma, cache_len, len,
 						 ctx->base.ctxr_dma);
 		if (IS_ERR(first_cdesc)) {
 			ret = PTR_ERR(first_cdesc);
@@ -328,16 +326,12 @@ cdesc_rollback:
 	for (i = 0; i < n_cdesc; i++)
 		safexcel_ring_rollback_wptr(priv, &priv->ring[ring].cdr);
 unmap_cache:
-	if (ctx->base.cache_dma) {
-		dma_unmap_single(priv->dev, ctx->base.cache_dma,
-				 ctx->base.cache_sz, DMA_TO_DEVICE);
-		ctx->base.cache_sz = 0;
+	if (req->cache_dma) {
+		dma_unmap_single(priv->dev, req->cache_dma, req->cache_sz,
+				 DMA_TO_DEVICE);
+		req->cache_sz = 0;
 	}
-free_cache:
-	kfree(ctx->base.cache);
-	ctx->base.cache = NULL;
 
-unlock:
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
 	return ret;
 }

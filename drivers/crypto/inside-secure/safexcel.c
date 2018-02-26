@@ -537,20 +537,6 @@ finalize:
 	       EIP197_HIA_CDR(priv, ring) + EIP197_HIA_xDR_PREP_COUNT);
 }
 
-void safexcel_free_context(struct safexcel_crypto_priv *priv,
-			   struct crypto_async_request *req)
-{
-	struct safexcel_context *ctx = crypto_tfm_ctx(req->tfm);
-
-	if (ctx->cache) {
-		dma_unmap_single(priv->dev, ctx->cache_dma, ctx->cache_sz,
-				 DMA_TO_DEVICE);
-		kfree(ctx->cache);
-		ctx->cache = NULL;
-		ctx->cache_sz = 0;
-	}
-}
-
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring)
 {
 	struct safexcel_command_desc *cdesc;
