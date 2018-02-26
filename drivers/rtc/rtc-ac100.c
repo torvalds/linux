@@ -183,7 +183,29 @@ static int ac100_clkout_determine_rate(struct clk_hw *hw,
 
 	for (i = 0; i < num_parents; i++) {
 		struct clk_hw *parent = clk_hw_get_parent_by_index(hw, i);
-		unsigned long tmp, prate = clk_hw_get_rate(parent);
+		unsigned long tmp, prate;
+
+		/*
+		 * The clock has two parents, one is a fixed clock which is
+		 * internally registered by the ac100 driver. The other parent
+		 * is a clock from the codec side of the chip, which we
+		 * properly declare and reference in the devicetree and is
+		 * not implemented in any driver right now.
+		 * If the clock core looks for the parent of that second
+		 * missing clock, it can't find one that is registered and
+		 * returns NULL.
+		 * So we end up in a situation where clk_hw_get_num_parents
+		 * returns the amount of clocks we can be parented to, but
+		 * clk_hw_get_parent_by_index will not return the orphan
+		 * clocks.
+		 * Thus we need to check if the parent exists before
+		 * we get the parent rate, so we could use the RTC
+		 * without waiting for the codec to be supported.
+		 */
+		if (!parent)
+			continue;
+
+		prate = clk_hw_get_rate(parent);
 
 		tmp = ac100_clkout_round_rate(hw, req->rate, prate);
 
