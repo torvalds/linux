@@ -18,11 +18,6 @@ module_param_named(trypci, si_trypci, bool, 0);
 MODULE_PARM_DESC(trypci, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via pci");
 
-#define PCI_CLASS_SERIAL_IPMI		0x0c07
-#define PCI_CLASS_SERIAL_IPMI_SMIC	0x0c0700
-#define PCI_CLASS_SERIAL_IPMI_KCS	0x0c0701
-#define PCI_CLASS_SERIAL_IPMI_BT	0x0c0702
-
 #define PCI_DEVICE_ID_HP_MMC 0x121A
 
 static void ipmi_pci_cleanup(struct si_sm_io *io)
