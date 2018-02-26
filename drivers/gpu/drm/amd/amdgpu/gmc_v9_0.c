@@ -456,7 +456,10 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 	adev->mc.vram_width = amdgpu_atomfirmware_get_vram_width(adev);
 	if (!adev->mc.vram_width) {
 		/* hbm memory channel size */
-		chansize = 128;
+		if (adev->flags & AMD_IS_APU)
+			chansize = 64;
+		else
+			chansize = 128;
 
 		tmp = RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0);
 		tmp &= DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK;
