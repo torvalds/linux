@@ -4,7 +4,7 @@
  *
  *	SoftDog	0.05:	A Software Watchdog Device
  *
- *	(c) Copyright 2015 Hewlett Packard Enterprise Development LP
+ *	(c) Copyright 2018 Hewlett Packard Enterprise Development LP
  *	Thomas Mingarelli <thomas.mingarelli@hpe.com>
  *
  *	This program is free software; you can redistribute it and/or
@@ -425,7 +425,7 @@ static struct pci_driver hpwdt_driver = {
 };
 
 MODULE_AUTHOR("Tom Mingarelli");
-MODULE_DESCRIPTION("hp watchdog driver");
+MODULE_DESCRIPTION("hpe watchdog driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HPWDT_VERSION);
 
