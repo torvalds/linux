@@ -310,6 +310,9 @@ static void __device_link_del(struct device_link *link)
 	dev_info(link->consumer, "Dropping the link to %s\n",
 		 dev_name(link->supplier));
 
+	if (link->flags & DL_FLAG_PM_RUNTIME)
+		pm_runtime_drop_link(link->consumer);
+
 	list_del(&link->s_node);
 	list_del(&link->c_node);
 	device_link_free(link);

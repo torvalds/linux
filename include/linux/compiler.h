@@ -86,6 +86,11 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 # define barrier_data(ptr) barrier()
 #endif
 
+/* workaround for GCC PR82365 if needed */
+#ifndef barrier_before_unreachable
+# define barrier_before_unreachable() do { } while (0)
+#endif
+
 /* Unreachable code */
 #ifdef CONFIG_STACK_VALIDATION
 /*
