@@ -1755,7 +1755,7 @@ static int device_no_partial_completion(struct dm_target *ti, struct dm_dev *dev
 	char b[BDEVNAME_SIZE];
 
 	/* For now, NVMe devices are the only devices of this class */
-	return (strncmp(bdevname(dev->bdev, b), "nvme", 3) == 0);
+	return (strncmp(bdevname(dev->bdev, b), "nvme", 4) == 0);
 }
 
 static bool dm_table_does_not_support_partial_completion(struct dm_table *t)
