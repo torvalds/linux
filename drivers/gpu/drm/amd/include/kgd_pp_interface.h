@@ -136,14 +136,6 @@ enum amd_pp_task {
 	AMD_PP_TASK_MAX
 };
 
-struct amd_pp_init {
-	struct cgs_device *device;
-	uint32_t chip_family;
-	uint32_t chip_id;
-	bool pm_en;
-	uint32_t feature_mask;
-};
-
 enum PP_SMC_POWER_PROFILE {
 	PP_SMC_POWER_PROFILE_FULLSCREEN3D = 0x0,
 	PP_SMC_POWER_PROFILE_POWERSAVING  = 0x1,

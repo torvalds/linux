@@ -29,6 +29,7 @@
 #include "amd_powerplay.h"
 #include "pp_instance.h"
 #include "power_state.h"
+#include "amdgpu.h"
 
 #define PP_DPM_DISABLED 0xCCCC
 
@@ -52,27 +53,29 @@ static inline int pp_check(struct pp_instance *handle)
 	return 0;
 }
 
-static int amd_powerplay_create(struct amd_pp_init *pp_init,
-				void **handle)
+static int amd_powerplay_create(struct amdgpu_device *adev)
 {
 	struct pp_instance *instance;
 
-	if (pp_init == NULL || handle == NULL)
+	if (adev == NULL)
 		return -EINVAL;
 
 	instance = kzalloc(sizeof(struct pp_instance), GFP_KERNEL);
 	if (instance == NULL)
 		return -ENOMEM;
 
-	instance->chip_family = pp_init->chip_family;
-	instance->chip_id = pp_init->chip_id;
-	instance->pm_en = pp_init->pm_en;
-	instance->feature_mask = pp_init->feature_mask;
-	instance->device = pp_init->device;
+	instance->chip_family = adev->family;
+	instance->chip_id = adev->asic_type;
+	instance->pm_en = (amdgpu_dpm != 0 && !amdgpu_sriov_vf(adev)) ? true : false;
+	instance->feature_mask = amdgpu_pp_feature_mask;
+	instance->device = adev->powerplay.cgs_device;
 	mutex_init(&instance->pp_lock);
-	*handle = instance;
+
+	adev->powerplay.pp_handle = instance;
+
 	return 0;
 }
+
 
 static int amd_powerplay_destroy(void *handle)
 {
@@ -93,11 +96,14 @@ static int pp_early_init(void *handle)
 {
 	int ret;
 	struct pp_instance *pp_handle = NULL;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	pp_handle = cgs_register_pp_handle(handle, amd_powerplay_create);
+	ret = amd_powerplay_create(adev);
 
-	if (!pp_handle)
-		return -EINVAL;
+	if (ret != 0)
+		return ret;
+
+	pp_handle = adev->powerplay.pp_handle;
 
 	ret = hwmgr_early_init(pp_handle);
 	if (ret)
