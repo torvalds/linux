@@ -355,6 +355,16 @@ ENTRY(startup_64)
 	lretq
 lvl5:
 
+	/*
+	 * cleanup_trampoline() would restore trampoline memory.
+	 *
+	 * RSI holds real mode data and needs to be preserved across
+	 * this function call.
+	 */
+	pushq	%rsi
+	call	cleanup_trampoline
+	popq	%rsi
+
 	/* Zero EFLAGS */
 	pushq	$0
 	popfq

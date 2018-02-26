@@ -1,5 +1,6 @@
 #include <asm/processor.h>
 #include "pgtable.h"
+#include "../string.h"
 
 /*
  * __force_order is used by special_insns.h asm code to force instruction
@@ -17,6 +18,9 @@ struct paging_config {
 	unsigned long trampoline_start;
 	unsigned long l5_required;
 };
+
+/* Buffer to preserve trampoline memory */
+static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
 
 /*
  * Trampoline address will be printed by extract_kernel() for debugging
@@ -69,5 +73,14 @@ struct paging_config paging_prepare(void)
 
 	trampoline_32bit = (unsigned long *)paging_config.trampoline_start;
 
+	/* Preserve trampoline memory */
+	memcpy(trampoline_save, trampoline_32bit, TRAMPOLINE_32BIT_SIZE);
+
 	return paging_config;
+}
+
+void cleanup_trampoline(void)
+{
+	/* Restore trampoline memory */
+	memcpy(trampoline_32bit, trampoline_save, TRAMPOLINE_32BIT_SIZE);
 }
