@@ -5,7 +5,7 @@ This file documents the sysfs file block/<disk>/capability
 capability is a hex word indicating which capabilities a specific disk
 supports.  For more information on bits not listed here, see
 include/linux/genhd.h
-
+-------------------------------------------------------------------------------
 Capability				Value
 -------------------------------------------------------------------------------
 GENHD_FL_MEDIA_CHANGE_NOTIFY		4
