@@ -210,6 +210,22 @@ static ssize_t type_show(struct kobject *kobj,
 }
 IRQ_ATTR_RO(type);
 
+static ssize_t wakeup_show(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buf)
+{
+	struct irq_desc *desc = container_of(kobj, struct irq_desc, kobj);
+	ssize_t ret = 0;
+
+	raw_spin_lock_irq(&desc->lock);
+	ret = sprintf(buf, "%s\n",
+		      irqd_is_wakeup_set(&desc->irq_data) ? "enabled" : "disabled");
+	raw_spin_unlock_irq(&desc->lock);
+
+	return ret;
+
+}
+IRQ_ATTR_RO(wakeup);
+
 static ssize_t name_show(struct kobject *kobj,
 			 struct kobj_attribute *attr, char *buf)
 {
@@ -253,6 +269,7 @@ static struct attribute *irq_attrs[] = {
 	&chip_name_attr.attr,
 	&hwirq_attr.attr,
 	&type_attr.attr,
+	&wakeup_attr.attr,
 	&name_attr.attr,
 	&actions_attr.attr,
 	NULL
