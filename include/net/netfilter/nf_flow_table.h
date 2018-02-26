@@ -6,6 +6,7 @@
 #include <linux/netdevice.h>
 #include <linux/rhashtable.h>
 #include <linux/rcupdate.h>
+#include <linux/netfilter/nf_conntrack_tuple_common.h>
 #include <net/dst.h>
 
 struct nf_flowtable;
@@ -27,11 +28,10 @@ struct nf_flowtable {
 };
 
 enum flow_offload_tuple_dir {
-	FLOW_OFFLOAD_DIR_ORIGINAL,
-	FLOW_OFFLOAD_DIR_REPLY,
-	__FLOW_OFFLOAD_DIR_MAX		= FLOW_OFFLOAD_DIR_REPLY,
+	FLOW_OFFLOAD_DIR_ORIGINAL = IP_CT_DIR_ORIGINAL,
+	FLOW_OFFLOAD_DIR_REPLY = IP_CT_DIR_REPLY,
+	FLOW_OFFLOAD_DIR_MAX = IP_CT_DIR_MAX
 };
-#define FLOW_OFFLOAD_DIR_MAX	(__FLOW_OFFLOAD_DIR_MAX + 1)
 
 struct flow_offload_tuple {
 	union {
