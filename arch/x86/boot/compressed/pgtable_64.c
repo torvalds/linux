@@ -9,20 +9,19 @@
  */
 unsigned long __force_order;
 
-int l5_paging_required(void)
+struct paging_config {
+	unsigned long trampoline_start;
+	unsigned long l5_required;
+};
+
+struct paging_config paging_prepare(void)
 {
-	/* Check if leaf 7 is supported. */
+	struct paging_config paging_config = {};
 
-	if (native_cpuid_eax(0) < 7)
-		return 0;
+	/* Check if LA57 is desired and supported */
+	if (IS_ENABLED(CONFIG_X86_5LEVEL) && native_cpuid_eax(0) >= 7 &&
+			(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
+		paging_config.l5_required = 1;
 
-	/* Check if la57 is supported. */
-	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
-		return 0;
-
-	/* Check if 5-level paging has already been enabled. */
-	if (native_read_cr4() & X86_CR4_LA57)
-		return 0;
-
-	return 1;
+	return paging_config;
 }
