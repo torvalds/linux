@@ -958,6 +958,7 @@ static struct vmcs_config {
 	u32 cpu_based_2nd_exec_ctrl;
 	u32 vmexit_ctrl;
 	u32 vmentry_ctrl;
+	struct nested_vmx_msrs nested;
 } vmcs_config;
 
 static struct vmx_capability {
@@ -2689,6 +2690,11 @@ static inline bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
  */
 static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 {
+	if (!nested) {
+		memset(msrs, 0, sizeof(*msrs));
+		return;
+	}
+
 	/*
 	 * Note that as a general rule, the high half of the MSRs (bits in
 	 * the control fields which may be 1) should be initialized by the
@@ -2713,13 +2719,11 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 	msrs->pinbased_ctls_high &=
 		PIN_BASED_EXT_INTR_MASK |
 		PIN_BASED_NMI_EXITING |
-		PIN_BASED_VIRTUAL_NMIS;
+		PIN_BASED_VIRTUAL_NMIS |
+		(apicv ? PIN_BASED_POSTED_INTR : 0);
 	msrs->pinbased_ctls_high |=
 		PIN_BASED_ALWAYSON_WITHOUT_TRUE_MSR |
 		PIN_BASED_VMX_PREEMPTION_TIMER;
-	if (apicv)
-		msrs->pinbased_ctls_high |=
-			PIN_BASED_POSTED_INTR;
 
 	/* exit controls */
 	rdmsr(MSR_IA32_VMX_EXIT_CTLS,
@@ -3231,7 +3235,16 @@ static inline bool vmx_feature_control_msr_valid(struct kvm_vcpu *vcpu,
 
 static int vmx_get_msr_feature(struct kvm_msr_entry *msr)
 {
-	return 1;
+	switch (msr->index) {
+	case MSR_IA32_VMX_BASIC ... MSR_IA32_VMX_VMFUNC:
+		if (!nested)
+			return 1;
+		return vmx_get_vmx_msr(&vmcs_config.nested, msr->index, &msr->data);
+	default:
+		return 1;
+	}
+
+	return 0;
 }
 
 /*
@@ -3697,6 +3710,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	u32 _vmexit_control = 0;
 	u32 _vmentry_control = 0;
 
+	memset(vmcs_conf, 0, sizeof(*vmcs_conf));
 	min = CPU_BASED_HLT_EXITING |
 #ifdef CONFIG_X86_64
 	      CPU_BASED_CR8_LOAD_EXITING |
@@ -7091,6 +7105,7 @@ static __init int hardware_setup(void)
 		init_vmcs_shadow_fields();
 
 	kvm_set_posted_intr_wakeup_handler(wakeup_handler);
+	nested_vmx_setup_ctls_msrs(&vmcs_config.nested, enable_apicv);
 
 	kvm_mce_cap_supported |= MCG_LMCE_P;
 
@@ -9822,6 +9837,7 @@ static void __init vmx_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 	if (setup_vmcs_config(&vmcs_conf) < 0)
 		*(int *)rtn = -EIO;
+	nested_vmx_setup_ctls_msrs(&vmcs_conf.nested, enable_apicv);
 	if (memcmp(&vmcs_config, &vmcs_conf, sizeof(struct vmcs_config)) != 0) {
 		printk(KERN_ERR "kvm: CPU %d feature inconsistency!\n",
 				smp_processor_id());
