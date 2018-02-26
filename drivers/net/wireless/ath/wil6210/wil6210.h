@@ -669,10 +669,18 @@ extern struct blink_on_off_time led_blink_time[WIL_LED_TIME_LAST];
 extern u8 led_id;
 extern u8 led_polarity;
 
+struct wil6210_vif {
+	struct wireless_dev wdev;
+	struct wil6210_priv *wil;
+	u8 mid;
+};
+
 struct wil6210_priv {
 	struct pci_dev *pdev;
 	u32 bar_size;
+	struct wiphy *wiphy;
 	struct wireless_dev *wdev;
+	struct net_device *ndev;
 	void __iomem *csr;
 	DECLARE_BITMAP(status, wil_status_last);
 	u8 fw_version[ETHTOOL_FWVERS_LEN];
@@ -798,13 +806,15 @@ struct wil6210_priv {
 	u32 iccm_base;
 };
 
-#define wil_to_wiphy(i) (i->wdev->wiphy)
+#define wil_to_wiphy(i) (i->wiphy)
 #define wil_to_dev(i) (wiphy_dev(wil_to_wiphy(i)))
 #define wiphy_to_wil(w) (struct wil6210_priv *)(wiphy_priv(w))
 #define wil_to_wdev(i) (i->wdev)
 #define wdev_to_wil(w) (struct wil6210_priv *)(wdev_priv(w))
-#define wil_to_ndev(i) (wil_to_wdev(i)->netdev)
+#define wil_to_ndev(i) (i->ndev)
 #define ndev_to_wil(n) (wdev_to_wil(n->ieee80211_ptr))
+#define ndev_to_vif(n) (struct wil6210_vif *)(netdev_priv(n))
+#define wdev_to_vif(w) (container_of(w, struct wil6210_vif, wdev))
 
 __printf(2, 3)
 void wil_dbg_trace(struct wil6210_priv *wil, const char *fmt, ...);
@@ -900,6 +910,10 @@ void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 			size_t count);
 
+struct wil6210_vif *
+wil_vif_alloc(struct wil6210_priv *wil, const char *name,
+	      unsigned char name_assign_type, enum nl80211_iftype iftype,
+	      u8 mid);
 void *wil_if_alloc(struct device *dev);
 void wil_if_free(struct wil6210_priv *wil);
 int wil_if_add(struct wil6210_priv *wil);
@@ -1010,8 +1024,8 @@ static inline void wil6210_debugfs_remove(struct wil6210_priv *wil) {}
 int wil_cid_fill_sinfo(struct wil6210_priv *wil, int cid,
 		       struct station_info *sinfo);
 
-struct wireless_dev *wil_cfg80211_init(struct device *dev);
-void wil_wdev_free(struct wil6210_priv *wil);
+struct wil6210_priv *wil_cfg80211_init(struct device *dev);
+void wil_cfg80211_deinit(struct wil6210_priv *wil);
 void wil_p2p_wdev_free(struct wil6210_priv *wil);
 
 int wmi_set_mac_address(struct wil6210_priv *wil, void *addr);

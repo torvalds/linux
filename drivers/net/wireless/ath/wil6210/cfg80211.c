@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -418,6 +419,7 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	struct net_device *ndev = wil_to_ndev(wil);
+	struct wil6210_vif *vif;
 	struct wireless_dev *p2p_wdev;
 
 	wil_dbg_misc(wil, "add_iface\n");
@@ -432,10 +434,11 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	p2p_wdev = kzalloc(sizeof(*p2p_wdev), GFP_KERNEL);
-	if (!p2p_wdev)
+	vif = kzalloc(sizeof(*vif), GFP_KERNEL);
+	if (!vif)
 		return ERR_PTR(-ENOMEM);
 
+	p2p_wdev = &vif->wdev;
 	p2p_wdev->iftype = type;
 	p2p_wdev->wiphy = wiphy;
 	/* use our primary ethernet address */
@@ -1893,51 +1896,52 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 #endif
 }
 
-struct wireless_dev *wil_cfg80211_init(struct device *dev)
+struct wil6210_priv *wil_cfg80211_init(struct device *dev)
 {
-	int rc = 0;
-	struct wireless_dev *wdev;
+	struct wiphy *wiphy;
+	struct wil6210_priv *wil;
+	struct ieee80211_channel *ch;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	wdev = kzalloc(sizeof(*wdev), GFP_KERNEL);
-	if (!wdev)
+	/* Note: the wireless_dev structure is no longer allocated here.
+	 * Instead, it is allocated as part of the net_device structure
+	 * for main interface and each VIF.
+	 */
+	wiphy = wiphy_new(&wil_cfg80211_ops, sizeof(struct wil6210_priv));
+	if (!wiphy)
 		return ERR_PTR(-ENOMEM);
 
-	wdev->wiphy = wiphy_new(&wil_cfg80211_ops,
-				sizeof(struct wil6210_priv));
-	if (!wdev->wiphy) {
-		rc = -ENOMEM;
-		goto out;
-	}
+	set_wiphy_dev(wiphy, dev);
+	wil_wiphy_init(wiphy);
 
-	set_wiphy_dev(wdev->wiphy, dev);
-	wil_wiphy_init(wdev->wiphy);
+	wil = wiphy_to_wil(wiphy);
+	wil->wiphy = wiphy;
 
-	return wdev;
+	/* default monitor channel */
+	ch = wiphy->bands[NL80211_BAND_60GHZ]->channels;
+	cfg80211_chandef_create(&wil->monitor_chandef, ch, NL80211_CHAN_NO_HT);
 
-out:
-	kfree(wdev);
-
-	return ERR_PTR(rc);
+	return wil;
 }
 
-void wil_wdev_free(struct wil6210_priv *wil)
+void wil_cfg80211_deinit(struct wil6210_priv *wil)
 {
-	struct wireless_dev *wdev = wil_to_wdev(wil);
+	struct wiphy *wiphy = wil_to_wiphy(wil);
 
 	dev_dbg(wil_to_dev(wil), "%s()\n", __func__);
 
-	if (!wdev)
+	if (!wiphy)
 		return;
 
-	wiphy_free(wdev->wiphy);
-	kfree(wdev);
+	wiphy_free(wiphy);
+	/* do not access wil6210_priv after returning from here */
 }
 
 void wil_p2p_wdev_free(struct wil6210_priv *wil)
 {
 	struct wireless_dev *p2p_wdev;
+	struct wil6210_vif *vif;
 
 	mutex_lock(&wil->p2p_wdev_mutex);
 	p2p_wdev = wil->p2p_wdev;
@@ -1946,7 +1950,8 @@ void wil_p2p_wdev_free(struct wil6210_priv *wil)
 	mutex_unlock(&wil->p2p_wdev_mutex);
 	if (p2p_wdev) {
 		cfg80211_unregister_wdev(p2p_wdev);
-		kfree(p2p_wdev);
+		vif = wdev_to_vif(p2p_wdev);
+		kfree(vif);
 	}
 }
 

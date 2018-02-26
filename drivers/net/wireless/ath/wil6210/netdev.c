@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -121,43 +122,30 @@ static void wil_dev_setup(struct net_device *dev)
 	dev->tx_queue_len = WIL_TX_Q_LEN_DEFAULT;
 }
 
-void *wil_if_alloc(struct device *dev)
+struct wil6210_vif *
+wil_vif_alloc(struct wil6210_priv *wil, const char *name,
+	      unsigned char name_assign_type, enum nl80211_iftype iftype,
+	      u8 mid)
 {
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
-	struct wil6210_priv *wil;
-	struct ieee80211_channel *ch;
-	int rc = 0;
+	struct wil6210_vif *vif;
 
-	wdev = wil_cfg80211_init(dev);
-	if (IS_ERR(wdev)) {
-		dev_err(dev, "wil_cfg80211_init failed\n");
-		return wdev;
-	}
-
-	wil = wdev_to_wil(wdev);
-	wil->wdev = wdev;
-	wil->radio_wdev = wdev;
-
-	wil_dbg_misc(wil, "if_alloc\n");
-
-	rc = wil_priv_init(wil);
-	if (rc) {
-		dev_err(dev, "wil_priv_init failed\n");
-		goto out_wdev;
-	}
-
-	wdev->iftype = NL80211_IFTYPE_STATION; /* TODO */
-	/* default monitor channel */
-	ch = wdev->wiphy->bands[NL80211_BAND_60GHZ]->channels;
-	cfg80211_chandef_create(&wil->monitor_chandef, ch, NL80211_CHAN_NO_HT);
-
-	ndev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, wil_dev_setup);
+	ndev = alloc_netdev(sizeof(*vif), name, name_assign_type,
+			    wil_dev_setup);
 	if (!ndev) {
-		dev_err(dev, "alloc_netdev_mqs failed\n");
-		rc = -ENOMEM;
-		goto out_priv;
+		dev_err(wil_to_dev(wil), "alloc_netdev failed\n");
+		return ERR_PTR(-ENOMEM);
 	}
+	if (mid == 0)
+		wil->ndev = ndev;
+	vif = ndev_to_vif(ndev);
+	vif->wil = wil;
+	vif->mid = mid;
+
+	wdev = &vif->wdev;
+	wdev->wiphy = wil->wiphy;
+	wdev->iftype = iftype;
 
 	ndev->netdev_ops = &wil_netdev_ops;
 	wil_set_ethtoolops(ndev);
@@ -170,14 +158,49 @@ void *wil_if_alloc(struct device *dev)
 	ndev->features |= ndev->hw_features;
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
+	return vif;
+}
+
+void *wil_if_alloc(struct device *dev)
+{
+	struct wireless_dev *wdev;
+	struct wil6210_priv *wil;
+	struct wil6210_vif *vif;
+	int rc = 0;
+
+	wil = wil_cfg80211_init(dev);
+	if (IS_ERR(wil)) {
+		dev_err(dev, "wil_cfg80211_init failed\n");
+		return wil;
+	}
+
+	rc = wil_priv_init(wil);
+	if (rc) {
+		dev_err(dev, "wil_priv_init failed\n");
+		goto out_cfg;
+	}
+
+	wil_dbg_misc(wil, "if_alloc\n");
+
+	vif = wil_vif_alloc(wil, "wlan%d", NET_NAME_UNKNOWN,
+			    NL80211_IFTYPE_STATION, 0);
+	if (IS_ERR(vif)) {
+		dev_err(dev, "wil_vif_alloc failed\n");
+		rc = -ENOMEM;
+		goto out_priv;
+	}
+
+	wdev = &vif->wdev;
+	wil->wdev = wdev;
+	wil->radio_wdev = wdev;
 
 	return wil;
 
- out_priv:
+out_priv:
 	wil_priv_deinit(wil);
 
- out_wdev:
-	wil_wdev_free(wil);
+out_cfg:
+	wil_cfg80211_deinit(wil);
 
 	return ERR_PTR(rc);
 }
@@ -196,13 +219,13 @@ void wil_if_free(struct wil6210_priv *wil)
 	wil_to_ndev(wil) = NULL;
 	free_netdev(ndev);
 
-	wil_wdev_free(wil);
+	wil_cfg80211_deinit(wil);
 }
 
 int wil_if_add(struct wil6210_priv *wil)
 {
 	struct wireless_dev *wdev = wil_to_wdev(wil);
-	struct wiphy *wiphy = wdev->wiphy;
+	struct wiphy *wiphy = wil->wiphy;
 	struct net_device *ndev = wil_to_ndev(wil);
 	int rc;
 
