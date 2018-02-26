@@ -248,6 +248,7 @@
 			compatible = "ti,emif-am4372";
 			reg = <0x4c000000 0x1000000>;
 			ti,hwmods = "emif";
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
 			ti,no-idle;
 			sram = <&pm_sram_code
 				&pm_sram_data>;
