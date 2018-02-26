@@ -23,6 +23,14 @@ struct paging_config {
 static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
 
 /*
+ * The page table is going to be used instead of page table in the trampoline
+ * memory.
+ *
+ * It must not be in BSS as BSS is cleared after cleanup_trampoline().
+ */
+static char top_pgtable[PAGE_SIZE] __aligned(PAGE_SIZE) __section(.data);
+
+/*
  * Trampoline address will be printed by extract_kernel() for debugging
  * purposes.
  *
@@ -83,11 +91,64 @@ struct paging_config paging_prepare(void)
 	memcpy(trampoline_32bit + TRAMPOLINE_32BIT_CODE_OFFSET / sizeof(unsigned long),
 			&trampoline_32bit_src, TRAMPOLINE_32BIT_CODE_SIZE);
 
+	/*
+	 * The code below prepares page table in trampoline memory.
+	 *
+	 * The new page table will be used by trampoline code for switching
+	 * from 4- to 5-level paging or vice versa.
+	 *
+	 * If switching is not required, the page table is unused: trampoline
+	 * code wouldn't touch CR3.
+	 */
+
+	/*
+	 * We are not going to use the page table in trampoline memory if we
+	 * are already in the desired paging mode.
+	 */
+	if (paging_config.l5_required == !!(native_read_cr4() & X86_CR4_LA57))
+		goto out;
+
+	if (paging_config.l5_required) {
+		/*
+		 * For 4- to 5-level paging transition, set up current CR3 as
+		 * the first and the only entry in a new top-level page table.
+		 */
+		trampoline_32bit[TRAMPOLINE_32BIT_PGTABLE_OFFSET] = __native_read_cr3() | _PAGE_TABLE_NOENC;
+	} else {
+		unsigned long src;
+
+		/*
+		 * For 5- to 4-level paging transition, copy page table pointed
+		 * by first entry in the current top-level page table as our
+		 * new top-level page table.
+		 *
+		 * We cannot just point to the page table from trampoline as it
+		 * may be above 4G.
+		 */
+		src = *(unsigned long *)__native_read_cr3() & PAGE_MASK;
+		memcpy(trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET / sizeof(unsigned long),
+		       (void *)src, PAGE_SIZE);
+	}
+
+out:
 	return paging_config;
 }
 
 void cleanup_trampoline(void)
 {
+	void *trampoline_pgtable;
+
+	trampoline_pgtable = trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET;
+
+	/*
+	 * Move the top level page table out of trampoline memory,
+	 * if it's there.
+	 */
+	if ((void *)__native_read_cr3() == trampoline_pgtable) {
+		memcpy(top_pgtable, trampoline_pgtable, PAGE_SIZE);
+		native_write_cr3((unsigned long)top_pgtable);
+	}
+
 	/* Restore trampoline memory */
 	memcpy(trampoline_32bit, trampoline_save, TRAMPOLINE_32BIT_SIZE);
 }
