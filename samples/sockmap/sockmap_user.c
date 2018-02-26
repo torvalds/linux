@@ -566,6 +566,7 @@ run:
 	else
 		fprintf(stderr, "unknown test\n");
 out:
+	bpf_prog_detach2(prog_fd[2], cg_fd, BPF_CGROUP_SOCK_OPS);
 	close(s1);
 	close(s2);
 	close(p1);

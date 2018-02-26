@@ -11,6 +11,8 @@
 #include <linux/ptrace.h>
 #include <linux/bpf.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -42,6 +44,7 @@ static int bpf_find_map(const char *test, struct bpf_object *obj,
 
 int main(int argc, char **argv)
 {
+	struct rlimit limit  = { RLIM_INFINITY, RLIM_INFINITY };
 	const char *file = "test_tcpbpf_kern.o";
 	struct tcpbpf_globals g = {0};
 	int cg_fd, prog_fd, map_fd;
@@ -53,6 +56,9 @@ int main(int argc, char **argv)
 	__u32 key = 0;
 	int pid;
 	int rv;
+
+	if (setrlimit(RLIMIT_MEMLOCK, &limit) < 0)
+		perror("Unable to lift memlock rlimit");
 
 	if (argc > 1 && strcmp(argv[1], "-d") == 0)
 		debug_flag = true;
