@@ -1,31 +1,33 @@
-// SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2015-2018, Intel Corporation.
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (c) 2015-2018, Intel Corporation.
+ */
 
 #ifndef __KCS_BMC_H__
 #define __KCS_BMC_H__
 
 #include <linux/miscdevice.h>
 
-/* Different phases of the KCS BMC module :
- *  KCS_PHASE_IDLE :
+/* Different phases of the KCS BMC module.
+ *  KCS_PHASE_IDLE:
  *            BMC should not be expecting nor sending any data.
- *  KCS_PHASE_WRITE_START :
+ *  KCS_PHASE_WRITE_START:
  *            BMC is receiving a WRITE_START command from system software.
- *  KCS_PHASE_WRITE_DATA :
+ *  KCS_PHASE_WRITE_DATA:
  *            BMC is receiving a data byte from system software.
- *  KCS_PHASE_WRITE_END_CMD :
+ *  KCS_PHASE_WRITE_END_CMD:
  *            BMC is waiting a last data byte from system software.
- *  KCS_PHASE_WRITE_DONE :
+ *  KCS_PHASE_WRITE_DONE:
  *            BMC has received the whole request from system software.
- *  KCS_PHASE_WAIT_READ :
+ *  KCS_PHASE_WAIT_READ:
  *            BMC is waiting the response from the upper IPMI service.
- *  KCS_PHASE_READ :
+ *  KCS_PHASE_READ:
  *            BMC is transferring the response to system software.
- *  KCS_PHASE_ABORT_ERROR1 :
+ *  KCS_PHASE_ABORT_ERROR1:
  *            BMC is waiting error status request from system software.
- *  KCS_PHASE_ABORT_ERROR2 :
+ *  KCS_PHASE_ABORT_ERROR2:
  *            BMC is waiting for idle status afer error from system software.
- *  KCS_PHASE_ERROR :
+ *  KCS_PHASE_ERROR:
  *            BMC has detected a protocol violation at the interface level.
  */
 enum kcs_phases {
@@ -54,9 +56,9 @@ enum kcs_errors {
 };
 
 /* IPMI 2.0 - 9.5, KCS Interface Registers
- * @idr : Input Data Register
- * @odr : Output Data Register
- * @str : Status Register
+ * @idr: Input Data Register
+ * @odr: Output Data Register
+ * @str: Status Register
  */
 struct kcs_ioreg {
 	u32 idr;
@@ -103,4 +105,4 @@ static inline void *kcs_bmc_priv(struct kcs_bmc *kcs_bmc)
 int kcs_bmc_handle_event(struct kcs_bmc *kcs_bmc);
 struct kcs_bmc *kcs_bmc_alloc(struct device *dev, int sizeof_priv,
 					u32 channel);
-#endif
+#endif /* __KCS_BMC_H__ */

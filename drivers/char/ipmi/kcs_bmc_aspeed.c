@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2015-2018, Intel Corporation.
+/*
+ * Copyright (c) 2015-2018, Intel Corporation.
+ */
 
 #define pr_fmt(fmt) "aspeed-kcs-bmc: " fmt
 
@@ -301,19 +303,18 @@ static const struct of_device_id ast_kcs_bmc_match[] = {
 	{ .compatible = "aspeed,ast2500-kcs-bmc" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, ast_kcs_bmc_match);
 
 static struct platform_driver ast_kcs_bmc_driver = {
 	.driver = {
 		.name           = DEVICE_NAME,
 		.of_match_table = ast_kcs_bmc_match,
 	},
-	.probe = aspeed_kcs_probe,
+	.probe  = aspeed_kcs_probe,
 	.remove = aspeed_kcs_remove,
 };
-
 module_platform_driver(ast_kcs_bmc_driver);
 
-MODULE_DEVICE_TABLE(of, ast_kcs_bmc_match);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Haiyue Wang <haiyue.wang@linux.intel.com>");
 MODULE_DESCRIPTION("Aspeed device interface to the KCS BMC device");
