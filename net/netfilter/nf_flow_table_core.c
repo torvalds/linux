@@ -100,6 +100,43 @@ err_ct_refcnt:
 }
 EXPORT_SYMBOL_GPL(flow_offload_alloc);
 
+static void flow_offload_fixup_tcp(struct ip_ct_tcp *tcp)
+{
+	tcp->state = TCP_CONNTRACK_ESTABLISHED;
+	tcp->seen[0].td_maxwin = 0;
+	tcp->seen[1].td_maxwin = 0;
+}
+
+static void flow_offload_fixup_ct_state(struct nf_conn *ct)
+{
+	const struct nf_conntrack_l4proto *l4proto;
+	struct net *net = nf_ct_net(ct);
+	unsigned int *timeouts;
+	unsigned int timeout;
+	int l4num;
+
+	l4num = nf_ct_protonum(ct);
+	if (l4num == IPPROTO_TCP)
+		flow_offload_fixup_tcp(&ct->proto.tcp);
+
+	l4proto = __nf_ct_l4proto_find(nf_ct_l3num(ct), l4num);
+	if (!l4proto)
+		return;
+
+	timeouts = l4proto->get_timeouts(net);
+	if (!timeouts)
+		return;
+
+	if (l4num == IPPROTO_TCP)
+		timeout = timeouts[TCP_CONNTRACK_ESTABLISHED];
+	else if (l4num == IPPROTO_UDP)
+		timeout = timeouts[UDP_CT_REPLIED];
+	else
+		return;
+
+	ct->timeout = nfct_time_stamp + timeout;
+}
+
 void flow_offload_free(struct flow_offload *flow)
 {
 	struct flow_offload_entry *e;
@@ -107,7 +144,8 @@ void flow_offload_free(struct flow_offload *flow)
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_cache);
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_cache);
 	e = container_of(flow, struct flow_offload_entry, flow);
-	nf_ct_delete(e->ct, 0, 0);
+	if (flow->flags & FLOW_OFFLOAD_DYING)
+		nf_ct_delete(e->ct, 0, 0);
 	nf_ct_put(e->ct);
 	kfree_rcu(e, rcu_head);
 }
@@ -164,6 +202,8 @@ EXPORT_SYMBOL_GPL(flow_offload_add);
 static void flow_offload_del(struct nf_flowtable *flow_table,
 			     struct flow_offload *flow)
 {
+	struct flow_offload_entry *e;
+
 	rhashtable_remove_fast(&flow_table->rhashtable,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].node,
 			       nf_flow_offload_rhash_params);
@@ -171,12 +211,20 @@ static void flow_offload_del(struct nf_flowtable *flow_table,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].node,
 			       nf_flow_offload_rhash_params);
 
+	e = container_of(flow, struct flow_offload_entry, flow);
+	clear_bit(IPS_OFFLOAD_BIT, &e->ct->status);
+
 	flow_offload_free(flow);
 }
 
 void flow_offload_teardown(struct flow_offload *flow)
 {
+	struct flow_offload_entry *e;
+
 	flow->flags |= FLOW_OFFLOAD_TEARDOWN;
+
+	e = container_of(flow, struct flow_offload_entry, flow);
+	flow_offload_fixup_ct_state(e->ct);
 }
 EXPORT_SYMBOL_GPL(flow_offload_teardown);
 
