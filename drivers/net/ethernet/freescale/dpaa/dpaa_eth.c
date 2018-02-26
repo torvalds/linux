@@ -2204,14 +2204,8 @@ static enum qman_cb_dqrr_result rx_error_dqrr(struct qman_portal *portal,
 	if (dpaa_eth_napi_schedule(percpu_priv, portal))
 		return qman_cb_dqrr_stop;
 
-	if (dpaa_eth_refill_bpools(priv))
-		/* Unable to refill the buffer pool due to insufficient
-		 * system memory. Just release the frame back into the pool,
-		 * otherwise we'll soon end up with an empty buffer pool.
-		 */
-		dpaa_fd_release(net_dev, &dq->fd);
-	else
-		dpaa_rx_error(net_dev, priv, percpu_priv, &dq->fd, fq->fqid);
+	dpaa_eth_refill_bpools(priv);
+	dpaa_rx_error(net_dev, priv, percpu_priv, &dq->fd, fq->fqid);
 
 	return qman_cb_dqrr_consume;
 }
