@@ -715,7 +715,7 @@ static void wil_bl_prepare_halt(struct wil6210_priv *wil)
 		    offsetof(struct bl_dedicated_registers_v0,
 			     boot_loader_struct_version));
 	if (!tmp) {
-		wil_dbg_misc(wil, "old BL, skipping halt preperation\n");
+		wil_dbg_misc(wil, "old BL, skipping halt preparation\n");
 		return;
 	}
 
