@@ -373,7 +373,7 @@ static void arc_chk_core_config(void)
 {
 	struct cpuinfo_arc *cpu = &cpuinfo_arc700[smp_processor_id()];
 	int saved = 0, present = 0;
-	char *opt_nm = NULL;;
+	char *opt_nm = NULL;
 
 	if (!cpu->extn.timer0)
 		panic("Timer0 is not present!\n");

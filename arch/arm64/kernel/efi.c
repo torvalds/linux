@@ -90,7 +90,7 @@ static int __init set_permissions(pte_t *ptep, pgtable_t token,
 				  unsigned long addr, void *data)
 {
 	efi_memory_desc_t *md = data;
-	pte_t pte = *ptep;
+	pte_t pte = READ_ONCE(*ptep);
 
 	if (md->attribute & EFI_MEMORY_RO)
 		pte = set_pte_bit(pte, __pgprot(PTE_RDONLY));

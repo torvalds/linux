@@ -127,13 +127,6 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 			pdev->dev.of_node);
 	}
 
-	/*
-	 * Some platforms have all PMU IRQs OR'd into a single IRQ, with a
-	 * special platdata function that attempts to demux them.
-	 */
-	if (dev_get_platdata(&pdev->dev))
-		cpumask_setall(&pmu->supported_cpus);
-
 	for (i = 0; i < num_irqs; i++) {
 		int cpu, irq;
 
@@ -162,6 +155,36 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 	}
 
 	return 0;
+}
+
+static int armpmu_request_irqs(struct arm_pmu *armpmu)
+{
+	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
+	int cpu, err;
+
+	for_each_cpu(cpu, &armpmu->supported_cpus) {
+		int irq = per_cpu(hw_events->irq, cpu);
+		if (!irq)
+			continue;
+
+		err = armpmu_request_irq(irq, cpu);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+static void armpmu_free_irqs(struct arm_pmu *armpmu)
+{
+	int cpu;
+	struct pmu_hw_events __percpu *hw_events = armpmu->hw_events;
+
+	for_each_cpu(cpu, &armpmu->supported_cpus) {
+		int irq = per_cpu(hw_events->irq, cpu);
+
+		armpmu_free_irq(irq, cpu);
+	}
 }
 
 int arm_pmu_device_probe(struct platform_device *pdev,

@@ -718,7 +718,7 @@ static enum link_training_result perform_channel_equalization_sequence(
 	uint32_t retries_ch_eq;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
 	union lane_align_status_updated dpcd_lane_status_updated = {{0}};
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {{{0}}};;
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {{{0}}};
 
 	hw_tr_pattern = get_supported_tp(link);
 

@@ -803,7 +803,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 
 	case I915_CONTEXT_PARAM_PRIORITY:
 		{
-			int priority = args->value;
+			s64 priority = args->value;
 
 			if (args->size)
 				ret = -EINVAL;

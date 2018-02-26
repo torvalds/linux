@@ -89,6 +89,8 @@ struct bnxt_re_qp {
 	/* QP1 */
 	u32			send_psn;
 	struct ib_ud_header	qp1_hdr;
+	struct bnxt_re_cq	*scq;
+	struct bnxt_re_cq	*rcq;
 };
 
 struct bnxt_re_cq {
