@@ -504,7 +504,7 @@ int snd_dmaengine_pcm_register(struct device *dev,
 
 	ret = dmaengine_pcm_request_chan_of(pcm, dev, config);
 	if (ret)
-		goto err_free_pcm;
+		goto err_free_dma;
 
 	if (config && config->process)
 		ret = snd_soc_add_component(dev, &pcm->component,
@@ -520,7 +520,6 @@ int snd_dmaengine_pcm_register(struct device *dev,
 
 err_free_dma:
 	dmaengine_pcm_release_chan(pcm);
-err_free_pcm:
 	kfree(pcm);
 	return ret;
 }
