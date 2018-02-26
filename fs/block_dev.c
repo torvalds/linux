@@ -1058,6 +1058,27 @@ retry:
 	return 0;
 }
 
+static struct gendisk *bdev_get_gendisk(struct block_device *bdev, int *partno)
+{
+	struct gendisk *disk = get_gendisk(bdev->bd_dev, partno);
+
+	if (!disk)
+		return NULL;
+	/*
+	 * Now that we hold gendisk reference we make sure bdev we looked up is
+	 * not stale. If it is, it means device got removed and created before
+	 * we looked up gendisk and we fail open in such case. Associating
+	 * unhashed bdev with newly created gendisk could lead to two bdevs
+	 * (and thus two independent caches) being associated with one device
+	 * which is bad.
+	 */
+	if (inode_unhashed(bdev->bd_inode)) {
+		put_disk_and_module(disk);
+		return NULL;
+	}
+	return disk;
+}
+
 /**
  * bd_start_claiming - start claiming a block device
  * @bdev: block device of interest
@@ -1094,7 +1115,7 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 	 * @bdev might not have been initialized properly yet, look up
 	 * and grab the outer block device the hard way.
 	 */
-	disk = get_gendisk(bdev->bd_dev, &partno);
+	disk = bdev_get_gendisk(bdev, &partno);
 	if (!disk)
 		return ERR_PTR(-ENXIO);
 
@@ -1429,7 +1450,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
  restart:
 
 	ret = -ENXIO;
-	disk = get_gendisk(bdev->bd_dev, &partno);
+	disk = bdev_get_gendisk(bdev, &partno);
 	if (!disk)
 		goto out;
 
