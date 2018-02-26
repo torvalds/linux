@@ -403,7 +403,6 @@ static int xcan_do_set_mode(struct net_device *ndev, enum can_mode mode)
 static netdev_tx_t xcan_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct xcan_priv *priv = netdev_priv(ndev);
-	struct net_device_stats *stats = &ndev->stats;
 	struct can_frame *cf = (struct can_frame *)skb->data;
 	u32 id, dlc, data[2] = {0, 0};
 	unsigned long flags;
@@ -469,7 +468,6 @@ static netdev_tx_t xcan_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		 * write triggers tranmission
 		 */
 		priv->write_reg(priv, XCAN_TXFIFO_DW2_OFFSET, data[1]);
-		stats->tx_bytes += cf->can_dlc;
 	}
 
 	/* Clear TX-FIFO-empty interrupt for xcan_tx_interrupt() */
@@ -889,8 +887,8 @@ static void xcan_tx_interrupt(struct net_device *ndev, u32 isr)
 	}
 
 	while (frames_sent--) {
-		can_get_echo_skb(ndev, priv->tx_tail %
-					priv->tx_max);
+		stats->tx_bytes += can_get_echo_skb(ndev, priv->tx_tail %
+						    priv->tx_max);
 		priv->tx_tail++;
 		stats->tx_packets++;
 	}
