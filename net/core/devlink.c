@@ -2332,7 +2332,7 @@ devlink_resource_validate_children(struct devlink_resource *resource)
 	list_for_each_entry(child_resource, &resource->resource_list, list)
 		parts_size += child_resource->size_new;
 
-	if (parts_size > resource->size)
+	if (parts_size > resource->size_new)
 		size_valid = false;
 out:
 	resource->size_valid = size_valid;
