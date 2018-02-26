@@ -1495,6 +1495,42 @@ static const struct file_operations fops_sta = {
 	.llseek		= seq_lseek,
 };
 
+static int wil_mids_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	struct wil6210_vif *vif;
+	struct net_device *ndev;
+	int i;
+
+	mutex_lock(&wil->vif_mutex);
+	for (i = 0; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+
+		if (vif) {
+			ndev = vif_to_ndev(vif);
+			seq_printf(s, "[%d] %pM %s\n", i, ndev->dev_addr,
+				   ndev->name);
+		} else {
+			seq_printf(s, "[%d] unused\n", i);
+		}
+	}
+	mutex_unlock(&wil->vif_mutex);
+
+	return 0;
+}
+
+static int wil_mids_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_mids_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_mids = {
+	.open		= wil_mids_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
 static ssize_t wil_read_file_led_cfg(struct file *file, char __user *user_buf,
 				     size_t count, loff_t *ppos)
 {
@@ -1749,6 +1785,7 @@ static const struct {
 	{"mbox",	0444,		&fops_mbox},
 	{"vrings",	0444,		&fops_vring},
 	{"stations", 0444,		&fops_sta},
+	{"mids",	0444,		&fops_mids},
 	{"desc",	0444,		&fops_txdesc},
 	{"bf",		0444,		&fops_bf},
 	{"mem_val",	0644,		&fops_memread},
