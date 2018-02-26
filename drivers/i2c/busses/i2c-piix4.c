@@ -462,13 +462,13 @@ static int piix4_transaction(struct i2c_adapter *piix4_adapter)
 
 	/* We will always wait for a fraction of a second! (See PIIX4 docs errata) */
 	if (srvrworks_csb5_delay) /* Extra delay for SERVERWORKS_CSB5 */
-		msleep(2);
+		usleep_range(2000, 2100);
 	else
-		msleep(1);
+		usleep_range(250, 500);
 
 	while ((++timeout < MAX_TIMEOUT) &&
 	       ((temp = inb_p(SMBHSTSTS)) & 0x01))
-		msleep(1);
+		usleep_range(250, 500);
 
 	/* If the SMBus is still busy, we give up */
 	if (timeout == MAX_TIMEOUT) {
