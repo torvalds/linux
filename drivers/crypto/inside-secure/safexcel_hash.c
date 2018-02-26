@@ -34,6 +34,7 @@ struct safexcel_ahash_req {
 	bool needs_inv;
 
 	int nents;
+	dma_addr_t result_dma;
 
 	u8 state_sz;    /* expected sate size, only set once */
 	u32 state[SHA256_DIGEST_SIZE / sizeof(u32)] __aligned(sizeof(u32));
@@ -158,7 +159,13 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 		sreq->nents = 0;
 	}
 
-	safexcel_free_context(priv, async, sreq->state_sz);
+	if (sreq->result_dma) {
+		dma_unmap_single(priv->dev, sreq->result_dma, sreq->state_sz,
+				 DMA_FROM_DEVICE);
+		sreq->result_dma = 0;
+	}
+
+	safexcel_free_context(priv, async);
 
 	cache_len = sreq->len - sreq->processed;
 	if (cache_len)
@@ -291,15 +298,15 @@ send_command:
 	/* Add the token */
 	safexcel_hash_token(first_cdesc, len, req->state_sz);
 
-	ctx->base.result_dma = dma_map_single(priv->dev, req->state,
-					      req->state_sz, DMA_FROM_DEVICE);
-	if (dma_mapping_error(priv->dev, ctx->base.result_dma)) {
+	req->result_dma = dma_map_single(priv->dev, req->state, req->state_sz,
+					 DMA_FROM_DEVICE);
+	if (dma_mapping_error(priv->dev, req->result_dma)) {
 		ret = -EINVAL;
 		goto cdesc_rollback;
 	}
 
 	/* Add a result descriptor */
-	rdesc = safexcel_add_rdesc(priv, ring, 1, 1, ctx->base.result_dma,
+	rdesc = safexcel_add_rdesc(priv, ring, 1, 1, req->result_dma,
 				   req->state_sz);
 	if (IS_ERR(rdesc)) {
 		ret = PTR_ERR(rdesc);
