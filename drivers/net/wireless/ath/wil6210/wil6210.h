@@ -725,6 +725,7 @@ struct wil6210_priv {
 	wait_queue_head_t wq; /* for all wait_event() use */
 	u8 max_vifs; /* maximum number of interfaces, including main */
 	struct wil6210_vif *vifs[WIL_MAX_VIFS];
+	struct mutex vif_mutex; /* protects access to VIF entries */
 	/* profile */
 	struct cfg80211_chan_def monitor_chandef;
 	u32 monitor_flags;
@@ -793,7 +794,6 @@ struct wil6210_priv {
 
 	/* P2P_DEVICE vif */
 	struct wireless_dev *p2p_wdev;
-	struct mutex p2p_wdev_mutex; /* protect @p2p_wdev and @scan_request */
 	struct wireless_dev *radio_wdev;
 
 	/* High Access Latency Policy voting */

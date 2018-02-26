@@ -536,8 +536,8 @@ int wil_priv_init(struct wil6210_priv *wil)
 		spin_lock_init(&wil->vring_tx_data[i].lock);
 
 	mutex_init(&wil->mutex);
+	mutex_init(&wil->vif_mutex);
 	mutex_init(&wil->wmi_mutex);
-	mutex_init(&wil->p2p_wdev_mutex);
 	mutex_init(&wil->halp.lock);
 
 	init_completion(&wil->wmi_ready);
@@ -1066,21 +1066,21 @@ void wil_abort_scan(struct wil6210_vif *vif, bool sync)
 		.aborted = true,
 	};
 
-	lockdep_assert_held(&wil->p2p_wdev_mutex);
+	lockdep_assert_held(&wil->vif_mutex);
 
 	if (!vif->scan_request)
 		return;
 
 	wil_dbg_misc(wil, "Abort scan_request 0x%p\n", vif->scan_request);
 	del_timer_sync(&vif->scan_timer);
-	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->vif_mutex);
 	rc = wmi_abort_scan(vif);
 	if (!rc && sync)
 		wait_event_interruptible_timeout(wil->wq, !vif->scan_request,
 						 msecs_to_jiffies(
 						 WAIT_FOR_SCAN_ABORT_MS));
 
-	mutex_lock(&wil->p2p_wdev_mutex);
+	mutex_lock(&wil->vif_mutex);
 	if (vif->scan_request) {
 		cfg80211_scan_done(vif->scan_request, &info);
 		vif->scan_request = NULL;
@@ -1221,9 +1221,9 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	/* Disable device led before reset*/
 	wmi_led_cfg(wil, false);
 
-	mutex_lock(&wil->p2p_wdev_mutex);
+	mutex_lock(&wil->vif_mutex);
 	wil_abort_scan(vif, false);
-	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->vif_mutex);
 
 	/* prevent NAPI from being scheduled and prevent wmi commands */
 	mutex_lock(&wil->wmi_mutex);
@@ -1444,10 +1444,10 @@ int __wil_down(struct wil6210_priv *wil)
 	}
 	wil_enable_irq(wil);
 
-	mutex_lock(&wil->p2p_wdev_mutex);
+	mutex_lock(&wil->vif_mutex);
 	wil_p2p_stop_radio_operations(wil);
 	wil_abort_scan(ndev_to_vif(wil->main_ndev), false);
-	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->vif_mutex);
 
 	return wil_reset(wil, false);
 }

@@ -766,10 +766,10 @@ static void wmi_evt_rx_mgmt(struct wil6210_vif *vif, int id, void *d, int len)
 			wil_err(wil, "cfg80211_inform_bss_frame() failed\n");
 		}
 	} else {
-		mutex_lock(&wil->p2p_wdev_mutex);
+		mutex_lock(&wil->vif_mutex);
 		cfg80211_rx_mgmt(vif_to_radio_wdev(wil, vif), freq, signal,
 				 (void *)rx_mgmt_frame, d_len, 0);
-		mutex_unlock(&wil->p2p_wdev_mutex);
+		mutex_unlock(&wil->vif_mutex);
 	}
 }
 
@@ -789,7 +789,7 @@ static void wmi_evt_scan_complete(struct wil6210_vif *vif, int id,
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 
-	mutex_lock(&wil->p2p_wdev_mutex);
+	mutex_lock(&wil->vif_mutex);
 	if (vif->scan_request) {
 		struct wmi_scan_complete_event *data = d;
 		int status = le32_to_cpu(data->status);
@@ -814,7 +814,7 @@ static void wmi_evt_scan_complete(struct wil6210_vif *vif, int id,
 	} else {
 		wil_err(wil, "SCAN_COMPLETE while not scanning\n");
 	}
-	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->vif_mutex);
 }
 
 static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)

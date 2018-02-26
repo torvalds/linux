@@ -412,10 +412,10 @@ static void wil_cfg80211_stop_p2p_device(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "stop_p2p_device: entered\n");
 	mutex_lock(&wil->mutex);
-	mutex_lock(&wil->p2p_wdev_mutex);
+	mutex_lock(&wil->vif_mutex);
 	wil_p2p_stop_radio_operations(wil);
 	wil->p2p_dev_started = 0;
-	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->vif_mutex);
 	mutex_unlock(&wil->mutex);
 }
 
@@ -706,14 +706,14 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 
 	mutex_lock(&wil->mutex);
 
-	mutex_lock(&wil->p2p_wdev_mutex);
+	mutex_lock(&wil->vif_mutex);
 	if (vif->scan_request || vif->p2p.discovery_started) {
 		wil_err(wil, "Already scanning\n");
-		mutex_unlock(&wil->p2p_wdev_mutex);
+		mutex_unlock(&wil->vif_mutex);
 		rc = -EAGAIN;
 		goto out;
 	}
-	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->vif_mutex);
 
 	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE) {
 		if (!wil->p2p_dev_started) {
@@ -825,7 +825,7 @@ static void wil_cfg80211_abort_scan(struct wiphy *wiphy,
 	wil_dbg_misc(wil, "wdev=0x%p iftype=%d\n", wdev, wdev->iftype);
 
 	mutex_lock(&wil->mutex);
-	mutex_lock(&wil->p2p_wdev_mutex);
+	mutex_lock(&wil->vif_mutex);
 
 	if (!vif->scan_request)
 		goto out;
@@ -841,7 +841,7 @@ static void wil_cfg80211_abort_scan(struct wiphy *wiphy,
 		wil_abort_scan(vif, true);
 
 out:
-	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->vif_mutex);
 	mutex_unlock(&wil->mutex);
 }
 
@@ -1944,10 +1944,10 @@ static int wil_cfg80211_suspend(struct wiphy *wiphy,
 	wil_dbg_pm(wil, "suspending\n");
 
 	mutex_lock(&wil->mutex);
-	mutex_lock(&wil->p2p_wdev_mutex);
+	mutex_lock(&wil->vif_mutex);
 	wil_p2p_stop_radio_operations(wil);
 	wil_abort_scan(ndev_to_vif(wil->main_ndev), true);
-	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->vif_mutex);
 	mutex_unlock(&wil->mutex);
 
 out:
@@ -2236,11 +2236,11 @@ void wil_p2p_wdev_free(struct wil6210_priv *wil)
 	struct wireless_dev *p2p_wdev;
 	struct wil6210_vif *vif;
 
-	mutex_lock(&wil->p2p_wdev_mutex);
+	mutex_lock(&wil->vif_mutex);
 	p2p_wdev = wil->p2p_wdev;
 	wil->p2p_wdev = NULL;
 	wil->radio_wdev = wil->main_ndev->ieee80211_ptr;
-	mutex_unlock(&wil->p2p_wdev_mutex);
+	mutex_unlock(&wil->vif_mutex);
 	if (p2p_wdev) {
 		cfg80211_unregister_wdev(p2p_wdev);
 		vif = wdev_to_vif(wil, p2p_wdev);
