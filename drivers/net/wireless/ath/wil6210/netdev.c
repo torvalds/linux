@@ -16,13 +16,38 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/rtnetlink.h>
 #include "wil6210.h"
 #include "txrx.h"
+
+bool wil_has_other_up_ifaces(struct wil6210_priv *wil,
+			     struct net_device *ndev)
+{
+	int i;
+	struct wil6210_vif *vif;
+	struct net_device *ndev_i;
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+		if (vif) {
+			ndev_i = vif_to_ndev(vif);
+			if (ndev_i != ndev && ndev_i->flags & IFF_UP)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+bool wil_has_up_ifaces(struct wil6210_priv *wil)
+{
+	return wil_has_other_up_ifaces(wil, NULL);
+}
 
 static int wil_open(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
-	int rc;
+	int rc = 0;
 
 	wil_dbg_misc(wil, "open\n");
 
@@ -32,13 +57,16 @@ static int wil_open(struct net_device *ndev)
 		return -EINVAL;
 	}
 
-	rc = wil_pm_runtime_get(wil);
-	if (rc < 0)
-		return rc;
+	if (!wil_has_other_up_ifaces(wil, ndev)) {
+		wil_dbg_misc(wil, "open, first iface\n");
+		rc = wil_pm_runtime_get(wil);
+		if (rc < 0)
+			return rc;
 
-	rc = wil_up(wil);
-	if (rc)
-		wil_pm_runtime_put(wil);
+		rc = wil_up(wil);
+		if (rc)
+			wil_pm_runtime_put(wil);
+	}
 
 	return rc;
 }
@@ -46,13 +74,16 @@ static int wil_open(struct net_device *ndev)
 static int wil_stop(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
-	int rc;
+	int rc = 0;
 
 	wil_dbg_misc(wil, "stop\n");
 
-	rc = wil_down(wil);
-	if (!rc)
-		wil_pm_runtime_put(wil);
+	if (!wil_has_other_up_ifaces(wil, ndev)) {
+		wil_dbg_misc(wil, "stop, last iface\n");
+		rc = wil_down(wil);
+		if (!rc)
+			wil_pm_runtime_put(wil);
+	}
 
 	return rc;
 }
@@ -201,14 +232,32 @@ static void wil_vif_init(struct wil6210_vif *vif)
 	INIT_LIST_HEAD(&vif->probe_client_pending);
 }
 
+static u8 wil_vif_find_free_mid(struct wil6210_priv *wil)
+{
+	u8 i;
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		if (!wil->vifs[i])
+			return i;
+	}
+
+	return U8_MAX;
+}
+
 struct wil6210_vif *
 wil_vif_alloc(struct wil6210_priv *wil, const char *name,
-	      unsigned char name_assign_type, enum nl80211_iftype iftype,
-	      u8 mid)
+	      unsigned char name_assign_type, enum nl80211_iftype iftype)
 {
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
 	struct wil6210_vif *vif;
+	u8 mid;
+
+	mid = wil_vif_find_free_mid(wil);
+	if (mid == U8_MAX) {
+		wil_err(wil, "no available virtual interface\n");
+		return ERR_PTR(-EINVAL);
+	}
 
 	ndev = alloc_netdev(sizeof(*vif), name, name_assign_type,
 			    wil_dev_setup);
@@ -216,8 +265,13 @@ wil_vif_alloc(struct wil6210_priv *wil, const char *name,
 		dev_err(wil_to_dev(wil), "alloc_netdev failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
-	if (mid == 0)
+	if (mid == 0) {
 		wil->main_ndev = ndev;
+	} else {
+		ndev->priv_destructor = wil_ndev_destructor;
+		ndev->needs_free_netdev = true;
+	}
+
 	vif = ndev_to_vif(ndev);
 	vif->ndev = ndev;
 	vif->wil = wil;
@@ -263,7 +317,7 @@ void *wil_if_alloc(struct device *dev)
 	wil_dbg_misc(wil, "if_alloc\n");
 
 	vif = wil_vif_alloc(wil, "wlan%d", NET_NAME_UNKNOWN,
-			    NL80211_IFTYPE_STATION, 0);
+			    NL80211_IFTYPE_STATION);
 	if (IS_ERR(vif)) {
 		dev_err(dev, "wil_vif_alloc failed\n");
 		rc = -ENOMEM;
@@ -301,10 +355,43 @@ void wil_if_free(struct wil6210_priv *wil)
 	wil_cfg80211_deinit(wil);
 }
 
+int wil_vif_add(struct wil6210_priv *wil, struct wil6210_vif *vif)
+{
+	struct net_device *ndev = vif_to_ndev(vif);
+	struct wireless_dev *wdev = vif_to_wdev(vif);
+	bool any_active = wil_has_up_ifaces(wil);
+	int rc;
+
+	ASSERT_RTNL();
+
+	if (wil->vifs[vif->mid]) {
+		dev_err(&ndev->dev, "VIF with mid %d already in use\n",
+			vif->mid);
+		return -EEXIST;
+	}
+	if (any_active && vif->mid != 0) {
+		rc = wmi_port_allocate(wil, vif->mid, ndev->dev_addr,
+				       wdev->iftype);
+		if (rc)
+			return rc;
+	}
+	rc = register_netdevice(ndev);
+	if (rc < 0) {
+		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
+		if (any_active && vif->mid != 0)
+			wmi_port_delete(wil, vif->mid);
+		return rc;
+	}
+
+	wil->vifs[vif->mid] = vif;
+	return 0;
+}
+
 int wil_if_add(struct wil6210_priv *wil)
 {
 	struct wiphy *wiphy = wil->wiphy;
 	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	int rc;
 
 	wil_dbg_misc(wil, "entered");
@@ -324,17 +411,51 @@ int wil_if_add(struct wil6210_priv *wil)
 
 	wil_update_net_queues_bh(wil, NULL, true);
 
-	rc = register_netdev(ndev);
-	if (rc < 0) {
-		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
+	rtnl_lock();
+	rc = wil_vif_add(wil, vif);
+	rtnl_unlock();
+	if (rc < 0)
 		goto out_wiphy;
-	}
 
 	return 0;
 
 out_wiphy:
 	wiphy_unregister(wiphy);
 	return rc;
+}
+
+void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
+{
+	struct wil6210_vif *vif;
+	struct net_device *ndev;
+	bool any_active = wil_has_up_ifaces(wil);
+
+	ASSERT_RTNL();
+	if (mid >= wil->max_vifs) {
+		wil_err(wil, "invalid MID: %d\n", mid);
+		return;
+	}
+
+	vif = wil->vifs[mid];
+	if (!vif) {
+		wil_err(wil, "MID %d not registered\n", mid);
+		return;
+	}
+
+	ndev = vif_to_ndev(vif);
+	/* during unregister_netdevice cfg80211_leave may perform operations
+	 * such as stop AP, disconnect, so we only clear the VIF afterwards
+	 */
+	unregister_netdevice(ndev);
+
+	if (any_active && vif->mid != 0)
+		wmi_port_delete(wil, vif->mid);
+
+	wil->vifs[mid] = NULL;
+	/* for VIFs, ndev will be freed by destructor after RTNL is unlocked.
+	 * the main interface will be freed in wil_if_free, we need to keep it
+	 * a bit longer so logging macros will work.
+	 */
 }
 
 void wil_if_remove(struct wil6210_priv *wil)
@@ -344,6 +465,8 @@ void wil_if_remove(struct wil6210_priv *wil)
 
 	wil_dbg_misc(wil, "if_remove\n");
 
-	unregister_netdev(ndev);
+	rtnl_lock();
+	wil_vif_remove(wil, 0);
+	rtnl_unlock();
 	wiphy_unregister(wdev->wiphy);
 }

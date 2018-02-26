@@ -50,6 +50,11 @@ extern bool disable_ap_sme;
 #define WIL_DEFAULT_BUS_REQUEST_KBPS 128000 /* ~1Gbps */
 #define WIL_MAX_BUS_REQUEST_KBPS 800000 /* ~6.1Gbps */
 
+/* maximum number of virtual interfaces the driver supports
+ * (including the main interface)
+ */
+#define WIL_MAX_VIFS 4
+
 /**
  * extract bits [@b0:@b1] (inclusive) from the value @x
  * it should be @b0 <= @b1, or result is incorrect
@@ -714,11 +719,12 @@ struct wil6210_priv {
 	DECLARE_BITMAP(hw_capa, hw_capa_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	DECLARE_BITMAP(platform_capa, WIL_PLATFORM_CAPA_MAX);
-	u8 n_mids; /* number of additional MIDs as reported by FW */
 	u32 recovery_count; /* num of FW recovery attempts in a short time */
 	u32 recovery_state; /* FW recovery state machine */
 	unsigned long last_fw_recovery; /* jiffies of last fw recovery */
 	wait_queue_head_t wq; /* for all wait_event() use */
+	u8 max_vifs; /* maximum number of interfaces, including main */
+	struct wil6210_vif *vifs[WIL_MAX_VIFS];
 	/* profile */
 	struct cfg80211_chan_def monitor_chandef;
 	u32 monitor_flags;
@@ -935,11 +941,16 @@ void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 
 struct wil6210_vif *
 wil_vif_alloc(struct wil6210_priv *wil, const char *name,
-	      unsigned char name_assign_type, enum nl80211_iftype iftype,
-	      u8 mid);
+	      unsigned char name_assign_type, enum nl80211_iftype iftype);
+void wil_vif_free(struct wil6210_vif *vif);
 void *wil_if_alloc(struct device *dev);
+bool wil_has_other_up_ifaces(struct wil6210_priv *wil,
+			     struct net_device *ndev);
+bool wil_has_up_ifaces(struct wil6210_priv *wil);
 void wil_if_free(struct wil6210_priv *wil);
+int wil_vif_add(struct wil6210_priv *wil, struct wil6210_vif *vif);
 int wil_if_add(struct wil6210_priv *wil);
+void wil_vif_remove(struct wil6210_priv *wil, u8 mid);
 void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
@@ -998,6 +1009,9 @@ int wmi_ps_dev_profile_cfg(struct wil6210_priv *wil,
 int wmi_set_mgmt_retry(struct wil6210_priv *wil, u8 retry_short);
 int wmi_get_mgmt_retry(struct wil6210_priv *wil, u8 *retry_short);
 int wmi_new_sta(struct wil6210_vif *vif, const u8 *mac, u8 aid);
+int wmi_port_allocate(struct wil6210_priv *wil, u8 mid,
+		      const u8 *mac, enum nl80211_iftype iftype);
+int wmi_port_delete(struct wil6210_priv *wil, u8 mid);
 int wil_addba_rx_request(struct wil6210_priv *wil, u8 mid,
 			 u8 cidxtid, u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl);
@@ -1039,6 +1053,7 @@ int wil_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 int wil_cfg80211_iface_combinations_from_fw(
 	struct wil6210_priv *wil,
 	const struct wil_fw_record_concurrency *conc);
+int wil_vif_prepare_stop(struct wil6210_priv *wil, struct wil6210_vif *vif);
 
 #if defined(CONFIG_WIL6210_DEBUGFS)
 int wil6210_debugfs_init(struct wil6210_priv *wil);

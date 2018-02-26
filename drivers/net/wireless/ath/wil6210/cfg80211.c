@@ -18,6 +18,7 @@
 #include <linux/etherdevice.h>
 #include <linux/moduleparam.h>
 #include <net/netlink.h>
+#include <net/cfg80211.h>
 #include "wil6210.h"
 #include "wmi.h"
 #include "fw.h"
@@ -418,6 +419,53 @@ static void wil_cfg80211_stop_p2p_device(struct wiphy *wiphy,
 	mutex_unlock(&wil->mutex);
 }
 
+static int wil_cfg80211_validate_add_iface(struct wil6210_priv *wil,
+					   enum nl80211_iftype new_type)
+{
+	int i;
+	struct wireless_dev *wdev;
+	struct iface_combination_params params = {
+		.num_different_channels = 1,
+	};
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		if (wil->vifs[i]) {
+			wdev = vif_to_wdev(wil->vifs[i]);
+			params.iftype_num[wdev->iftype]++;
+		}
+	}
+	params.iftype_num[new_type]++;
+	return cfg80211_check_combinations(wil->wiphy, &params);
+}
+
+static int wil_cfg80211_validate_change_iface(struct wil6210_priv *wil,
+					      struct wil6210_vif *vif,
+					      enum nl80211_iftype new_type)
+{
+	int i, ret = 0;
+	struct wireless_dev *wdev;
+	struct iface_combination_params params = {
+		.num_different_channels = 1,
+	};
+	bool check_combos = false;
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		struct wil6210_vif *vif_pos = wil->vifs[i];
+
+		if (vif_pos && vif != vif_pos) {
+			wdev = vif_to_wdev(vif_pos);
+			params.iftype_num[wdev->iftype]++;
+			check_combos = true;
+		}
+	}
+
+	if (check_combos) {
+		params.iftype_num[new_type]++;
+		ret = cfg80211_check_combinations(wil->wiphy, &params);
+	}
+	return ret;
+}
+
 static struct wireless_dev *
 wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 		       unsigned char name_assign_type,
@@ -425,53 +473,136 @@ wil_cfg80211_add_iface(struct wiphy *wiphy, const char *name,
 		       struct vif_params *params)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
-	struct net_device *ndev = wil->main_ndev;
+	struct net_device *ndev_main = wil->main_ndev, *ndev;
 	struct wil6210_vif *vif;
-	struct wireless_dev *p2p_wdev;
+	struct wireless_dev *p2p_wdev, *wdev;
+	int rc;
 
-	wil_dbg_misc(wil, "add_iface\n");
+	wil_dbg_misc(wil, "add_iface, type %d\n", type);
 
-	if (type != NL80211_IFTYPE_P2P_DEVICE) {
-		wil_err(wil, "unsupported iftype %d\n", type);
+	/* P2P device is not a real virtual interface, it is a management-only
+	 * interface that shares the main interface.
+	 * Skip concurrency checks here.
+	 */
+	if (type == NL80211_IFTYPE_P2P_DEVICE) {
+		if (wil->p2p_wdev) {
+			wil_err(wil, "P2P_DEVICE interface already created\n");
+			return ERR_PTR(-EINVAL);
+		}
+
+		vif = kzalloc(sizeof(*vif), GFP_KERNEL);
+		if (!vif)
+			return ERR_PTR(-ENOMEM);
+
+		p2p_wdev = vif_to_wdev(vif);
+		p2p_wdev->iftype = type;
+		p2p_wdev->wiphy = wiphy;
+		/* use our primary ethernet address */
+		ether_addr_copy(p2p_wdev->address, ndev_main->perm_addr);
+
+		wil->p2p_wdev = p2p_wdev;
+
+		return p2p_wdev;
+	}
+
+	if (!wil->wiphy->n_iface_combinations) {
+		wil_err(wil, "virtual interfaces not supported\n");
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (wil->p2p_wdev) {
-		wil_err(wil, "P2P_DEVICE interface already created\n");
-		return ERR_PTR(-EINVAL);
+	rc = wil_cfg80211_validate_add_iface(wil, type);
+	if (rc) {
+		wil_err(wil, "iface validation failed, err=%d\n", rc);
+		return ERR_PTR(rc);
 	}
 
-	vif = kzalloc(sizeof(*vif), GFP_KERNEL);
-	if (!vif)
-		return ERR_PTR(-ENOMEM);
+	vif = wil_vif_alloc(wil, name, name_assign_type, type);
+	if (IS_ERR(vif))
+		return ERR_CAST(vif);
 
-	p2p_wdev = &vif->wdev;
-	p2p_wdev->iftype = type;
-	p2p_wdev->wiphy = wiphy;
-	/* use our primary ethernet address */
-	ether_addr_copy(p2p_wdev->address, ndev->perm_addr);
+	ndev = vif_to_ndev(vif);
+	ether_addr_copy(ndev->perm_addr, ndev_main->perm_addr);
+	if (is_valid_ether_addr(params->macaddr)) {
+		ether_addr_copy(ndev->dev_addr, params->macaddr);
+	} else {
+		ether_addr_copy(ndev->dev_addr, ndev_main->perm_addr);
+		ndev->dev_addr[0] = (ndev->dev_addr[0] ^ (1 << vif->mid)) |
+			0x2; /* locally administered */
+	}
+	wdev = vif_to_wdev(vif);
+	ether_addr_copy(wdev->address, ndev->dev_addr);
 
-	wil->p2p_wdev = p2p_wdev;
+	rc = wil_vif_add(wil, vif);
+	if (rc)
+		goto out;
 
-	return p2p_wdev;
+	wil_info(wil, "added VIF, mid %d iftype %d MAC %pM\n",
+		 vif->mid, type, wdev->address);
+	return wdev;
+out:
+	wil_vif_free(vif);
+	return ERR_PTR(rc);
+}
+
+int wil_vif_prepare_stop(struct wil6210_priv *wil, struct wil6210_vif *vif)
+{
+	struct wireless_dev *wdev = vif_to_wdev(vif);
+	struct net_device *ndev;
+	int rc;
+
+	if (wdev->iftype != NL80211_IFTYPE_AP)
+		return 0;
+
+	ndev = vif_to_ndev(vif);
+	if (netif_carrier_ok(ndev)) {
+		rc = wmi_pcp_stop(vif);
+		if (rc) {
+			wil_info(wil, "failed to stop AP, status %d\n",
+				 rc);
+			/* continue */
+		}
+		netif_carrier_off(ndev);
+	}
+
+	return 0;
 }
 
 static int wil_cfg80211_del_iface(struct wiphy *wiphy,
 				  struct wireless_dev *wdev)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
+	struct wil6210_vif *vif = wdev_to_vif(wil, wdev);
+	int rc;
 
 	wil_dbg_misc(wil, "del_iface\n");
 
-	if (wdev != wil->p2p_wdev) {
-		wil_err(wil, "delete of incorrect interface 0x%p\n", wdev);
+	if (wdev->iftype == NL80211_IFTYPE_P2P_DEVICE) {
+		if (wdev != wil->p2p_wdev) {
+			wil_err(wil, "delete of incorrect interface 0x%p\n",
+				wdev);
+			return -EINVAL;
+		}
+
+		wil_cfg80211_stop_p2p_device(wiphy, wdev);
+		wil_p2p_wdev_free(wil);
+		return 0;
+	}
+
+	if (vif->mid == 0) {
+		wil_err(wil, "cannot remove the main interface\n");
 		return -EINVAL;
 	}
 
-	wil_cfg80211_stop_p2p_device(wiphy, wdev);
-	wil_p2p_wdev_free(wil);
+	rc = wil_vif_prepare_stop(wil, vif);
+	if (rc)
+		goto out;
 
-	return 0;
+	wil_info(wil, "deleted VIF, mid %d iftype %d MAC %pM\n",
+		 vif->mid, wdev->iftype, wdev->address);
+
+	wil_vif_remove(wil, vif->mid);
+out:
+	return rc;
 }
 
 static int wil_cfg80211_change_iface(struct wiphy *wiphy,
@@ -486,7 +617,19 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 
 	wil_dbg_misc(wil, "change_iface: type=%d\n", type);
 
-	if (netif_running(ndev) && !wil_is_recovery_blocked(wil)) {
+	if (wiphy->n_iface_combinations) {
+		rc = wil_cfg80211_validate_change_iface(wil, vif, type);
+		if (rc) {
+			wil_err(wil, "iface validation failed, err=%d\n", rc);
+			return rc;
+		}
+	}
+
+	/* do not reset FW when there are active VIFs,
+	 * because it can cause significant disruption
+	 */
+	if (!wil_has_other_up_ifaces(wil, ndev) &&
+	    netif_running(ndev) && !wil_is_recovery_blocked(wil)) {
 		wil_dbg_misc(wil, "interface is up. resetting...\n");
 		mutex_lock(&wil->mutex);
 		__wil_down(wil);
@@ -511,8 +654,17 @@ static int wil_cfg80211_change_iface(struct wiphy *wiphy,
 		return -EOPNOTSUPP;
 	}
 
-	wdev->iftype = type;
+	if (vif->mid != 0 && wil_has_up_ifaces(wil)) {
+		wil_vif_prepare_stop(wil, vif);
+		rc = wmi_port_delete(wil, vif->mid);
+		if (rc)
+			return rc;
+		rc = wmi_port_allocate(wil, vif->mid, ndev->dev_addr, type);
+		if (rc)
+			return rc;
+	}
 
+	wdev->iftype = type;
 	return 0;
 }
 
@@ -2007,6 +2159,13 @@ int wil_cfg80211_iface_combinations_from_fw(
 		combo = (struct wil_fw_concurrency_combo *)limit;
 	}
 
+	wil_dbg_misc(wil, "multiple VIFs supported, n_mids %d\n", conc->n_mids);
+	wil->max_vifs = conc->n_mids + 1; /* including main interface */
+	if (wil->max_vifs > WIL_MAX_VIFS) {
+		wil_info(wil, "limited number of VIFs supported(%d, FW %d)\n",
+			 WIL_MAX_VIFS, wil->max_vifs);
+		wil->max_vifs = WIL_MAX_VIFS;
+	}
 	wiphy->n_iface_combinations = n_combos;
 	wiphy->iface_combinations = iface_combinations;
 	return 0;

@@ -656,11 +656,14 @@ static void wmi_evt_ready(struct wil6210_vif *vif, int id, void *d, int len)
 	struct wiphy *wiphy = wil_to_wiphy(wil);
 	struct wmi_ready_event *evt = d;
 
-	wil->n_mids = evt->numof_additional_mids;
-
 	wil_info(wil, "FW ver. %s(SW %d); MAC %pM; %d MID's\n",
 		 wil->fw_version, le32_to_cpu(evt->sw_version),
-		 evt->mac, wil->n_mids);
+		 evt->mac, evt->numof_additional_mids);
+	if (evt->numof_additional_mids + 1 < wil->max_vifs) {
+		wil_err(wil, "FW does not support enough MIDs (need %d)",
+			wil->max_vifs - 1);
+		return; /* FW load will fail after timeout */
+	}
 	/* ignore MAC address, we already have it from the boot loader */
 	strlcpy(wiphy->fw_version, wil->fw_version, sizeof(wiphy->fw_version));
 
@@ -2372,6 +2375,92 @@ int wmi_resume(struct wil6210_priv *wil)
 	return reply.evt.status;
 }
 
+int wmi_port_allocate(struct wil6210_priv *wil, u8 mid,
+		      const u8 *mac, enum nl80211_iftype iftype)
+{
+	int rc;
+	struct wmi_port_allocate_cmd cmd = {
+		.mid = mid,
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_port_allocated_event evt;
+	} __packed reply;
+
+	wil_dbg_misc(wil, "port allocate, mid %d iftype %d, mac %pM\n",
+		     mid, iftype, mac);
+
+	ether_addr_copy(cmd.mac, mac);
+	switch (iftype) {
+	case NL80211_IFTYPE_STATION:
+		cmd.port_role = WMI_PORT_STA;
+		break;
+	case NL80211_IFTYPE_AP:
+		cmd.port_role = WMI_PORT_AP;
+		break;
+	case NL80211_IFTYPE_P2P_CLIENT:
+		cmd.port_role = WMI_PORT_P2P_CLIENT;
+		break;
+	case NL80211_IFTYPE_P2P_GO:
+		cmd.port_role = WMI_PORT_P2P_GO;
+		break;
+	/* what about monitor??? */
+	default:
+		wil_err(wil, "unsupported iftype: %d\n", iftype);
+		return -EINVAL;
+	}
+
+	reply.evt.status = WMI_FW_STATUS_FAILURE;
+
+	rc = wmi_call(wil, WMI_PORT_ALLOCATE_CMDID, mid,
+		      &cmd, sizeof(cmd),
+		      WMI_PORT_ALLOCATED_EVENTID, &reply,
+		      sizeof(reply), 300);
+	if (rc) {
+		wil_err(wil, "failed to allocate port, status %d\n", rc);
+		return rc;
+	}
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "WMI_PORT_ALLOCATE returned status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int wmi_port_delete(struct wil6210_priv *wil, u8 mid)
+{
+	int rc;
+	struct wmi_port_delete_cmd cmd = {
+		.mid = mid,
+	};
+	struct {
+		struct wmi_cmd_hdr wmi;
+		struct wmi_port_deleted_event evt;
+	} __packed reply;
+
+	wil_dbg_misc(wil, "port delete, mid %d\n", mid);
+
+	reply.evt.status = WMI_FW_STATUS_FAILURE;
+
+	rc = wmi_call(wil, WMI_PORT_DELETE_CMDID, mid,
+		      &cmd, sizeof(cmd),
+		      WMI_PORT_DELETED_EVENTID, &reply,
+		      sizeof(reply), 2000);
+	if (rc) {
+		wil_err(wil, "failed to delete port, status %d\n", rc);
+		return rc;
+	}
+	if (reply.evt.status != WMI_FW_STATUS_SUCCESS) {
+		wil_err(wil, "WMI_PORT_DELETE returned status %d\n",
+			reply.evt.status);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static bool wmi_evt_call_handler(struct wil6210_vif *vif, int id,
 				 void *d, int len)
 {
@@ -2391,7 +2480,7 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 			     struct wil6210_mbox_hdr *hdr)
 {
 	u16 len = le16_to_cpu(hdr->len);
-	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
+	struct wil6210_vif *vif;
 
 	if ((hdr->type == WIL_MBOX_HDR_TYPE_WMI) &&
 	    (len >= sizeof(struct wmi_cmd_hdr))) {
@@ -2403,6 +2492,20 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 		wil_dbg_wmi(wil, "Handle %s (0x%04x) (reply_id 0x%04x,%d)\n",
 			    eventid2name(id), id, wil->reply_id,
 			    wil->reply_mid);
+
+		if (mid == MID_BROADCAST)
+			mid = 0;
+		if (mid >= wil->max_vifs) {
+			wil_dbg_wmi(wil, "invalid mid %d, event skipped\n",
+				    mid);
+			return;
+		}
+		vif = wil->vifs[mid];
+		if (!vif) {
+			wil_dbg_wmi(wil, "event for empty VIF(%d), skipped\n",
+				    mid);
+			return;
+		}
 
 		/* check if someone waits for this event */
 		if (wil->reply_id && wil->reply_id == id &&

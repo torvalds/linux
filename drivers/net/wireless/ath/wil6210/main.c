@@ -565,6 +565,7 @@ int wil_priv_init(struct wil6210_priv *wil)
 	wil->vring_idle_trsh = 16;
 
 	wil->reply_mid = U8_MAX;
+	wil->max_vifs = 1;
 
 	return 0;
 
@@ -1115,6 +1116,33 @@ static void wil_pre_fw_config(struct wil6210_priv *wil)
 	}
 }
 
+static int wil_restore_vifs(struct wil6210_priv *wil)
+{
+	struct wil6210_vif *vif;
+	struct net_device *ndev;
+	struct wireless_dev *wdev;
+	int i, rc;
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+		if (!vif)
+			continue;
+		if (vif->mid) {
+			ndev = vif_to_ndev(vif);
+			wdev = vif_to_wdev(vif);
+			rc = wmi_port_allocate(wil, vif->mid, ndev->dev_addr,
+					       wdev->iftype);
+			if (rc) {
+				wil_err(wil, "fail to restore VIF %d type %d, rc %d\n",
+					i, wdev->iftype, rc);
+				return rc;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /*
  * We reset all the structures, and we reset the UMAC.
  * After calling this routine, you're expected to reload
@@ -1274,6 +1302,12 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		rc = wmi_echo(wil);
 		if (rc) {
 			wil_err(wil, "wmi_echo failed, rc %d\n", rc);
+			return rc;
+		}
+
+		rc = wil_restore_vifs(wil);
+		if (rc) {
+			wil_err(wil, "failed to restore vifs, rc %d\n", rc);
 			return rc;
 		}
 
