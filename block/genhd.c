@@ -547,7 +547,7 @@ static int exact_lock(dev_t devt, void *data)
 {
 	struct gendisk *p = data;
 
-	if (!get_disk(p))
+	if (!get_disk_and_module(p))
 		return -1;
 	return 0;
 }
@@ -809,7 +809,7 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
 
 		spin_lock_bh(&ext_devt_lock);
 		part = idr_find(&ext_devt_idr, blk_mangle_minor(MINOR(devt)));
-		if (part && get_disk(part_to_disk(part))) {
+		if (part && get_disk_and_module(part_to_disk(part))) {
 			*partno = part->partno;
 			disk = part_to_disk(part);
 		}
@@ -1456,7 +1456,7 @@ struct gendisk *__alloc_disk_node(int minors, int node_id)
 }
 EXPORT_SYMBOL(__alloc_disk_node);
 
-struct kobject *get_disk(struct gendisk *disk)
+struct kobject *get_disk_and_module(struct gendisk *disk)
 {
 	struct module *owner;
 	struct kobject *kobj;
@@ -1474,15 +1474,13 @@ struct kobject *get_disk(struct gendisk *disk)
 	return kobj;
 
 }
-
-EXPORT_SYMBOL(get_disk);
+EXPORT_SYMBOL(get_disk_and_module);
 
 void put_disk(struct gendisk *disk)
 {
 	if (disk)
 		kobject_put(&disk_to_dev(disk)->kobj);
 }
-
 EXPORT_SYMBOL(put_disk);
 
 static void set_disk_ro_uevent(struct gendisk *gd, int ro)
