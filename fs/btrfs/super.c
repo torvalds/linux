@@ -1737,7 +1737,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	unsigned long old_compress_type = fs_info->compress_type;
 	u64 old_max_inline = fs_info->max_inline;
 	u32 old_thread_pool_size = fs_info->thread_pool_size;
-	unsigned int old_metadata_ratio = fs_info->metadata_ratio;
+	u32 old_metadata_ratio = fs_info->metadata_ratio;
 	int ret;
 
 	sync_filesystem(sb);

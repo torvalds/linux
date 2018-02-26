@@ -994,8 +994,8 @@ struct btrfs_fs_info {
 	struct btrfs_balance_control *balance_ctl;
 	wait_queue_head_t balance_wait_q;
 
-	unsigned data_chunk_allocations;
-	unsigned metadata_ratio;
+	u32 data_chunk_allocations;
+	u32 metadata_ratio;
 
 	void *bdev_holder;
 
