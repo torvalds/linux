@@ -252,7 +252,6 @@ static int rockchip_otp_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver rockchip_otp_driver = {
-	.probe = rockchip_otp_probe,
 	.remove = rockchip_otp_remove,
 	.driver = {
 		.name = "rockchip-otp",
