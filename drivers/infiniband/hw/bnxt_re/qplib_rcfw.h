@@ -49,6 +49,7 @@
 #define RCFW_COMM_SIZE			0x104
 
 #define RCFW_DBR_PCI_BAR_REGION		2
+#define RCFW_DBR_BASE_PAGE_SHIFT	12
 
 #define RCFW_CMD_PREP(req, CMD, cmd_flags)				\
 	do {								\
