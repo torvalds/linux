@@ -11,6 +11,7 @@
  */
 
 #include <asm/asm.h>
+#include <asm/isa-rev.h>
 #include <asm/regdef.h>
 #include "bpf_jit.h"
 
@@ -65,7 +66,7 @@ FEXPORT(sk_load_word_positive)
 	lw	$r_A, 0(t1)
 	.set	noreorder
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
-# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
+# if MIPS_ISA_REV >= 2
 	wsbh	t0, $r_A
 	rotr	$r_A, t0, 16
 # else
@@ -92,7 +93,7 @@ FEXPORT(sk_load_half_positive)
 	PTR_ADDU t1, $r_skb_data, offset
 	lhu	$r_A, 0(t1)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
-# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
+# if MIPS_ISA_REV >= 2
 	wsbh	$r_A, $r_A
 # else
 	sll	t0, $r_A, 8
@@ -170,7 +171,7 @@ FEXPORT(sk_load_byte_positive)
 NESTED(bpf_slow_path_word, (6 * SZREG), $r_sp)
 	bpf_slow_path_common(4)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
-# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
+# if MIPS_ISA_REV >= 2
 	wsbh	t0, $r_s0
 	jr	$r_ra
 	 rotr	$r_A, t0, 16
@@ -196,7 +197,7 @@ NESTED(bpf_slow_path_word, (6 * SZREG), $r_sp)
 NESTED(bpf_slow_path_half, (6 * SZREG), $r_sp)
 	bpf_slow_path_common(2)
 #ifdef CONFIG_CPU_LITTLE_ENDIAN
-# if defined(__mips_isa_rev) && (__mips_isa_rev >= 2)
+# if MIPS_ISA_REV >= 2
 	jr	$r_ra
 	 wsbh	$r_A, $r_s0
 # else
