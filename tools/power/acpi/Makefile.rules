@@ -12,7 +12,7 @@ objdir := $(OUTPUT)tools/$(TOOL)/
 toolobjs := $(addprefix $(objdir),$(TOOL_OBJS))
 $(OUTPUT)$(TOOL): $(toolobjs) FORCE
 	$(ECHO) "  LD      " $(subst $(OUTPUT),,$@)
-	$(QUIET) $(LD) $(CFLAGS) $(LDFLAGS) $(toolobjs) -L$(OUTPUT) -o $@
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(toolobjs) -L$(OUTPUT) -o $@
 	$(ECHO) "  STRIP   " $(subst $(OUTPUT),,$@)
 	$(QUIET) $(STRIPCMD) $@
 
