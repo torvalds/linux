@@ -1009,9 +1009,9 @@ void btrfs_dev_replace_clear_lock_blocking(
 	ASSERT(atomic_read(&dev_replace->read_locks) > 0);
 	ASSERT(atomic_read(&dev_replace->blocking_readers) > 0);
 	read_lock(&dev_replace->lock);
-	if (atomic_dec_and_test(&dev_replace->blocking_readers) &&
-	    waitqueue_active(&dev_replace->read_lock_wq))
-		wake_up(&dev_replace->read_lock_wq);
+	/* Barrier implied by atomic_dec_and_test */
+	if (atomic_dec_and_test(&dev_replace->blocking_readers))
+		cond_wake_up_nomb(&dev_replace->read_lock_wq);
 }
 
 void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
@@ -1022,9 +1022,7 @@ void btrfs_bio_counter_inc_noblocked(struct btrfs_fs_info *fs_info)
 void btrfs_bio_counter_sub(struct btrfs_fs_info *fs_info, s64 amount)
 {
 	percpu_counter_sub(&fs_info->bio_counter, amount);
-
-	if (waitqueue_active(&fs_info->replace_wait))
-		wake_up(&fs_info->replace_wait);
+	cond_wake_up_nomb(&fs_info->replace_wait);
 }
 
 void btrfs_bio_counter_inc_blocked(struct btrfs_fs_info *fs_info)
