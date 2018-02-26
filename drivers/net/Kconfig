@@ -149,6 +149,7 @@ config MACVTAP
 config IPVLAN
     tristate "IP-VLAN support"
     depends on INET
+    depends on IPV6 || !IPV6
     depends on NETFILTER
     select NET_L3_MASTER_DEV
     ---help---
