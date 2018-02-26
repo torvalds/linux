@@ -300,6 +300,8 @@ module_param(vgif, int, 0444);
 static int sev = IS_ENABLED(CONFIG_AMD_MEM_ENCRYPT_ACTIVE_BY_DEFAULT);
 module_param(sev, int, 0444);
 
+static u8 rsm_ins_bytes[] = "\x0f\xaa";
+
 static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 static void svm_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa);
 static void svm_complete_interrupts(struct vcpu_svm *svm);
@@ -1383,6 +1385,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_intercept(svm, INTERCEPT_SKINIT);
 	set_intercept(svm, INTERCEPT_WBINVD);
 	set_intercept(svm, INTERCEPT_XSETBV);
+	set_intercept(svm, INTERCEPT_RSM);
 
 	if (!kvm_mwait_in_guest()) {
 		set_intercept(svm, INTERCEPT_MONITOR);
@@ -3699,6 +3702,12 @@ static int emulate_on_interception(struct vcpu_svm *svm)
 	return emulate_instruction(&svm->vcpu, 0) == EMULATE_DONE;
 }
 
+static int rsm_interception(struct vcpu_svm *svm)
+{
+	return x86_emulate_instruction(&svm->vcpu, 0, 0,
+				       rsm_ins_bytes, 2) == EMULATE_DONE;
+}
+
 static int rdpmc_interception(struct vcpu_svm *svm)
 {
 	int err;
@@ -4541,7 +4550,7 @@ static int (*const svm_exit_handlers[])(struct vcpu_svm *svm) = {
 	[SVM_EXIT_MWAIT]			= mwait_interception,
 	[SVM_EXIT_XSETBV]			= xsetbv_interception,
 	[SVM_EXIT_NPF]				= npf_interception,
-	[SVM_EXIT_RSM]                          = emulate_on_interception,
+	[SVM_EXIT_RSM]                          = rsm_interception,
 	[SVM_EXIT_AVIC_INCOMPLETE_IPI]		= avic_incomplete_ipi_interception,
 	[SVM_EXIT_AVIC_UNACCELERATED_ACCESS]	= avic_unaccelerated_access_interception,
 };
@@ -6236,16 +6245,18 @@ e_free:
 
 static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
+	void __user *measure = (void __user *)(uintptr_t)argp->data;
 	struct kvm_sev_info *sev = &kvm->arch.sev_info;
 	struct sev_data_launch_measure *data;
 	struct kvm_sev_launch_measure params;
+	void __user *p = NULL;
 	void *blob = NULL;
 	int ret;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
-	if (copy_from_user(&params, (void __user *)(uintptr_t)argp->data, sizeof(params)))
+	if (copy_from_user(&params, measure, sizeof(params)))
 		return -EFAULT;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -6256,14 +6267,10 @@ static int sev_launch_measure(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!params.len)
 		goto cmd;
 
-	if (params.uaddr) {
+	p = (void __user *)(uintptr_t)params.uaddr;
+	if (p) {
 		if (params.len > SEV_FW_BLOB_MAX_SIZE) {
 			ret = -EINVAL;
-			goto e_free;
-		}
-
-		if (!access_ok(VERIFY_WRITE, params.uaddr, params.len)) {
-			ret = -EFAULT;
 			goto e_free;
 		}
 
@@ -6290,13 +6297,13 @@ cmd:
 		goto e_free_blob;
 
 	if (blob) {
-		if (copy_to_user((void __user *)(uintptr_t)params.uaddr, blob, params.len))
+		if (copy_to_user(p, blob, params.len))
 			ret = -EFAULT;
 	}
 
 done:
 	params.len = data->len;
-	if (copy_to_user((void __user *)(uintptr_t)argp->data, &params, sizeof(params)))
+	if (copy_to_user(measure, &params, sizeof(params)))
 		ret = -EFAULT;
 e_free_blob:
 	kfree(blob);
@@ -6597,7 +6604,7 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	struct page **pages;
 	void *blob, *hdr;
 	unsigned long n;
-	int ret;
+	int ret, offset;
 
 	if (!sev_guest(kvm))
 		return -ENOTTY;
@@ -6623,6 +6630,10 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	if (!data)
 		goto e_unpin_memory;
 
+	offset = params.guest_uaddr & (PAGE_SIZE - 1);
+	data->guest_address = __sme_page_pa(pages[0]) + offset;
+	data->guest_len = params.guest_len;
+
 	blob = psp_copy_user_blob(params.trans_uaddr, params.trans_len);
 	if (IS_ERR(blob)) {
 		ret = PTR_ERR(blob);
@@ -6637,8 +6648,8 @@ static int sev_launch_secret(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		ret = PTR_ERR(hdr);
 		goto e_free_blob;
 	}
-	data->trans_address = __psp_pa(blob);
-	data->trans_len = params.trans_len;
+	data->hdr_address = __psp_pa(hdr);
+	data->hdr_len = params.hdr_len;
 
 	data->handle = sev->handle;
 	ret = sev_issue_cmd(kvm, SEV_CMD_LAUNCH_UPDATE_SECRET, data, &argp->error);
