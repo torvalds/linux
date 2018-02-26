@@ -504,7 +504,7 @@ static int ov2685_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 }
 #endif
 
-static int ov2685_runtime_resume(struct device *dev)
+static int __maybe_unused ov2685_runtime_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
@@ -513,7 +513,7 @@ static int ov2685_runtime_resume(struct device *dev)
 	return __ov2685_power_on(ov2685);
 }
 
-static int ov2685_runtime_suspend(struct device *dev)
+static int __maybe_unused ov2685_runtime_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
