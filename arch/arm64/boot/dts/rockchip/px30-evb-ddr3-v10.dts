@@ -445,7 +445,7 @@
 			vccio_sd: LDO_REG5 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3300000>;
+				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 
 				regulator-name = "vccio_sd";
@@ -649,25 +649,31 @@
 };
 
 &sdmmc {
+	bus-width = <4>;
 	cap-mmc-highspeed;
 	cap-sd-highspeed;
 	supports-sd;
-	broken-cd;
 	card-detect-delay = <800>;
 	ignore-pm-notify;
-	keep-power-in-suspend;
 	/*cd-gpios = <&gpio2 4 GPIO_ACTIVE_HIGH>; [> CD GPIO <]*/
-	status = "disabled";
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	vqmmc-supply = <&vccio_sd>;
+	vmmc-supply = <&vcc_sd>;
+	status = "okay";
 };
 
 &sdio {
-	max-frequency = <50000000>;
+	bus-width = <4>;
 	cap-sd-highspeed;
 	supports-sdio;
 	ignore-pm-notify;
 	keep-power-in-suspend;
 	non-removable;
 	mmc-pwrseq = <&sdio_pwrseq>;
+	sd-uhs-sdr104;
 	status = "okay";
 };
 
