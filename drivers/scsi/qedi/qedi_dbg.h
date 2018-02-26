@@ -103,7 +103,6 @@ int qedi_create_sysfs_attr(struct Scsi_Host *shost,
 void qedi_remove_sysfs_attr(struct Scsi_Host *shost,
 			    struct sysfs_bin_attrs *iter);
 
-#ifdef CONFIG_DEBUG_FS
 /* DebugFS related code */
 struct qedi_list_of_funcs {
 	char *oper_str;
@@ -139,6 +138,5 @@ void qedi_dbg_host_init(struct qedi_dbg_ctx *qedi,
 void qedi_dbg_host_exit(struct qedi_dbg_ctx *qedi);
 void qedi_dbg_init(char *drv_name);
 void qedi_dbg_exit(void);
-#endif /* CONFIG_DEBUG_FS */
 
 #endif /* _QEDI_DBG_H_ */
