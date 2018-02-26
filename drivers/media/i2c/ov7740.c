@@ -279,7 +279,7 @@ static int ov7740_get_register(struct v4l2_subdev *sd,
 	reg->val = val;
 	reg->size = 1;
 
-	return 0;
+	return ret;
 }
 
 static int ov7740_set_register(struct v4l2_subdev *sd,
