@@ -145,6 +145,19 @@
 				ngpios = <8>;
 				gpio-ranges = <&pinctrl 0 160 8>;
 			};
+
+			uart4_pins_a: uart4@0 {
+				pins1 {
+					pinmux = <STM32_PINMUX('G', 11, AF6)>; /* UART4_TX */
+					bias-disable;
+					drive-push-pull;
+					slew-rate = <0>;
+				};
+				pins2 {
+					pinmux = <STM32_PINMUX('B', 2, AF8)>; /* UART4_RX */
+					bias-disable;
+				};
+			};
 		};
 
 		pinctrl_z: pin-controller-z {
