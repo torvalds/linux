@@ -116,16 +116,50 @@ void flow_offload_dead(struct flow_offload *flow)
 }
 EXPORT_SYMBOL_GPL(flow_offload_dead);
 
+static u32 flow_offload_hash(const void *data, u32 len, u32 seed)
+{
+	const struct flow_offload_tuple *tuple = data;
+
+	return jhash(tuple, offsetof(struct flow_offload_tuple, dir), seed);
+}
+
+static u32 flow_offload_hash_obj(const void *data, u32 len, u32 seed)
+{
+	const struct flow_offload_tuple_rhash *tuplehash = data;
+
+	return jhash(&tuplehash->tuple, offsetof(struct flow_offload_tuple, dir), seed);
+}
+
+static int flow_offload_hash_cmp(struct rhashtable_compare_arg *arg,
+					const void *ptr)
+{
+	const struct flow_offload_tuple *tuple = arg->key;
+	const struct flow_offload_tuple_rhash *x = ptr;
+
+	if (memcmp(&x->tuple, tuple, offsetof(struct flow_offload_tuple, dir)))
+		return 1;
+
+	return 0;
+}
+
+static const struct rhashtable_params nf_flow_offload_rhash_params = {
+	.head_offset		= offsetof(struct flow_offload_tuple_rhash, node),
+	.hashfn			= flow_offload_hash,
+	.obj_hashfn		= flow_offload_hash_obj,
+	.obj_cmpfn		= flow_offload_hash_cmp,
+	.automatic_shrinking	= true,
+};
+
 int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow)
 {
 	flow->timeout = (u32)jiffies;
 
 	rhashtable_insert_fast(&flow_table->rhashtable,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].node,
-			       *flow_table->type->params);
+			       nf_flow_offload_rhash_params);
 	rhashtable_insert_fast(&flow_table->rhashtable,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].node,
-			       *flow_table->type->params);
+			       nf_flow_offload_rhash_params);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(flow_offload_add);
@@ -135,10 +169,10 @@ static void flow_offload_del(struct nf_flowtable *flow_table,
 {
 	rhashtable_remove_fast(&flow_table->rhashtable,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].node,
-			       *flow_table->type->params);
+			       nf_flow_offload_rhash_params);
 	rhashtable_remove_fast(&flow_table->rhashtable,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].node,
-			       *flow_table->type->params);
+			       nf_flow_offload_rhash_params);
 
 	flow_offload_free(flow);
 }
@@ -148,7 +182,7 @@ flow_offload_lookup(struct nf_flowtable *flow_table,
 		    struct flow_offload_tuple *tuple)
 {
 	return rhashtable_lookup_fast(&flow_table->rhashtable, tuple,
-				      *flow_table->type->params);
+				      nf_flow_offload_rhash_params);
 }
 EXPORT_SYMBOL_GPL(flow_offload_lookup);
 
@@ -237,7 +271,7 @@ out:
 	return 1;
 }
 
-void nf_flow_offload_work_gc(struct work_struct *work)
+static void nf_flow_offload_work_gc(struct work_struct *work)
 {
 	struct nf_flowtable *flow_table;
 
@@ -245,42 +279,6 @@ void nf_flow_offload_work_gc(struct work_struct *work)
 	nf_flow_offload_gc_step(flow_table);
 	queue_delayed_work(system_power_efficient_wq, &flow_table->gc_work, HZ);
 }
-EXPORT_SYMBOL_GPL(nf_flow_offload_work_gc);
-
-static u32 flow_offload_hash(const void *data, u32 len, u32 seed)
-{
-	const struct flow_offload_tuple *tuple = data;
-
-	return jhash(tuple, offsetof(struct flow_offload_tuple, dir), seed);
-}
-
-static u32 flow_offload_hash_obj(const void *data, u32 len, u32 seed)
-{
-	const struct flow_offload_tuple_rhash *tuplehash = data;
-
-	return jhash(&tuplehash->tuple, offsetof(struct flow_offload_tuple, dir), seed);
-}
-
-static int flow_offload_hash_cmp(struct rhashtable_compare_arg *arg,
-					const void *ptr)
-{
-	const struct flow_offload_tuple *tuple = arg->key;
-	const struct flow_offload_tuple_rhash *x = ptr;
-
-	if (memcmp(&x->tuple, tuple, offsetof(struct flow_offload_tuple, dir)))
-		return 1;
-
-	return 0;
-}
-
-const struct rhashtable_params nf_flow_offload_rhash_params = {
-	.head_offset		= offsetof(struct flow_offload_tuple_rhash, node),
-	.hashfn			= flow_offload_hash,
-	.obj_hashfn		= flow_offload_hash_obj,
-	.obj_cmpfn		= flow_offload_hash_cmp,
-	.automatic_shrinking	= true,
-};
-EXPORT_SYMBOL_GPL(nf_flow_offload_rhash_params);
 
 static int nf_flow_nat_port_tcp(struct sk_buff *skb, unsigned int thoff,
 				__be16 port, __be16 new_port)
@@ -398,6 +396,24 @@ int nf_flow_dnat_port(const struct flow_offload *flow,
 }
 EXPORT_SYMBOL_GPL(nf_flow_dnat_port);
 
+int nf_flow_table_init(struct nf_flowtable *flowtable)
+{
+	int err;
+
+	INIT_DEFERRABLE_WORK(&flowtable->gc_work, nf_flow_offload_work_gc);
+
+	err = rhashtable_init(&flowtable->rhashtable,
+			      &nf_flow_offload_rhash_params);
+	if (err < 0)
+		return err;
+
+	queue_delayed_work(system_power_efficient_wq,
+			   &flowtable->gc_work, HZ);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nf_flow_table_init);
+
 static void nf_flow_table_do_cleanup(struct flow_offload *flow, void *data)
 {
 	struct net_device *dev = data;
@@ -423,8 +439,10 @@ EXPORT_SYMBOL_GPL(nf_flow_table_cleanup);
 
 void nf_flow_table_free(struct nf_flowtable *flow_table)
 {
+	cancel_delayed_work_sync(&flow_table->gc_work);
 	nf_flow_table_iterate(flow_table, nf_flow_table_do_cleanup, NULL);
 	WARN_ON(!nf_flow_offload_gc_step(flow_table));
+	rhashtable_destroy(&flow_table->rhashtable);
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_free);
 

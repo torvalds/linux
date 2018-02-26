@@ -5150,14 +5150,14 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 	}
 
 	flowtable->data.type = type;
-	err = rhashtable_init(&flowtable->data.rhashtable, type->params);
+	err = type->init(&flowtable->data);
 	if (err < 0)
 		goto err3;
 
 	err = nf_tables_flowtable_parse_hook(&ctx, nla[NFTA_FLOWTABLE_HOOK],
 					     flowtable);
 	if (err < 0)
-		goto err3;
+		goto err4;
 
 	for (i = 0; i < flowtable->ops_len; i++) {
 		if (!flowtable->ops[i].dev)
@@ -5171,37 +5171,35 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 				if (flowtable->ops[i].dev == ft->ops[k].dev &&
 				    flowtable->ops[i].pf == ft->ops[k].pf) {
 					err = -EBUSY;
-					goto err4;
+					goto err5;
 				}
 			}
 		}
 
 		err = nf_register_net_hook(net, &flowtable->ops[i]);
 		if (err < 0)
-			goto err4;
+			goto err5;
 	}
 
 	err = nft_trans_flowtable_add(&ctx, NFT_MSG_NEWFLOWTABLE, flowtable);
 	if (err < 0)
-		goto err5;
-
-	INIT_DEFERRABLE_WORK(&flowtable->data.gc_work, type->gc);
-	queue_delayed_work(system_power_efficient_wq,
-			   &flowtable->data.gc_work, HZ);
+		goto err6;
 
 	list_add_tail_rcu(&flowtable->list, &table->flowtables);
 	table->use++;
 
 	return 0;
-err5:
+err6:
 	i = flowtable->ops_len;
-err4:
+err5:
 	for (k = i - 1; k >= 0; k--) {
 		kfree(flowtable->dev_name[k]);
 		nf_unregister_net_hook(net, &flowtable->ops[k]);
 	}
 
 	kfree(flowtable->ops);
+err4:
+	flowtable->data.type->free(&flowtable->data);
 err3:
 	module_put(type->owner);
 err2:
@@ -5485,11 +5483,9 @@ err:
 
 static void nf_tables_flowtable_destroy(struct nft_flowtable *flowtable)
 {
-	cancel_delayed_work_sync(&flowtable->data.gc_work);
 	kfree(flowtable->ops);
 	kfree(flowtable->name);
 	flowtable->data.type->free(&flowtable->data);
-	rhashtable_destroy(&flowtable->data.rhashtable);
 	module_put(flowtable->data.type->owner);
 }
 
