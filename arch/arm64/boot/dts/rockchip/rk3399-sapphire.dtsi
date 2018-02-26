@@ -471,21 +471,6 @@
 	gpio1830-supply = <&vcc_3v0>;
 };
 
-&pcie_phy {
-	status = "okay";
-};
-
-&pcie0 {
-	assigned-clocks = <&cru SCLK_PCIEPHY_REF>;
-	assigned-clock-parents = <&cru SCLK_PCIEPHY_REF100M>;
-	assigned-clock-rates = <100000000>;
-	ep-gpios = <&gpio2 RK_PA4 GPIO_ACTIVE_HIGH>;
-	num-lanes = <4>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&pcie_clkreqn_cpm>;
-	status = "okay";
-};
-
 &pmu_io_domains {
 	pmu1830-supply = <&vcc_3v0>;
 	status = "okay";
