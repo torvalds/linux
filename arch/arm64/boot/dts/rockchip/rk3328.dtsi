@@ -685,6 +685,8 @@
 		reg = <0x0 0xff330200 0 0x100>;
 		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "h265e_mmu";
+		clocks = <&cru ACLK_H265>, <&cru PCLK_H265>;
+		clock-names = "aclk", "hclk";
 		power-domains = <&power RK3328_PD_HEVC>;
 		#iommu-cells = <0>;
 	};
