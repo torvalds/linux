@@ -6396,6 +6396,7 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 		.linking = true,
 		.upper_info = upper_info,
 	};
+	struct net_device *master_dev;
 	int ret = 0;
 
 	ASSERT_RTNL();
@@ -6407,11 +6408,14 @@ static int __netdev_upper_dev_link(struct net_device *dev,
 	if (netdev_has_upper_dev(upper_dev, dev))
 		return -EBUSY;
 
-	if (netdev_has_upper_dev(dev, upper_dev))
-		return -EEXIST;
-
-	if (master && netdev_master_upper_dev_get(dev))
-		return -EBUSY;
+	if (!master) {
+		if (netdev_has_upper_dev(dev, upper_dev))
+			return -EEXIST;
+	} else {
+		master_dev = netdev_master_upper_dev_get(dev);
+		if (master_dev)
+			return master_dev == upper_dev ? -EEXIST : -EBUSY;
+	}
 
 	ret = call_netdevice_notifiers_info(NETDEV_PRECHANGEUPPER,
 					    &changeupper_info.info);
