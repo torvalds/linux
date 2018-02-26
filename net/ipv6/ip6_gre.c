@@ -1517,6 +1517,7 @@ static struct pernet_operations ip6gre_net_ops = {
 	.exit_batch = ip6gre_exit_batch_net,
 	.id   = &ip6gre_net_id,
 	.size = sizeof(struct ip6gre_net),
+	.async = true,
 };
 
 static int ip6gre_tunnel_validate(struct nlattr *tb[], struct nlattr *data[],
