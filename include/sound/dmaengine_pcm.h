@@ -161,4 +161,6 @@ int snd_dmaengine_pcm_prepare_slave_config(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct dma_slave_config *slave_config);
 
+#define SND_DMAENGINE_PCM_DRV_NAME "snd_dmaengine_pcm"
+
 #endif

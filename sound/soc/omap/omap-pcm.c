@@ -243,7 +243,7 @@ out:
 	return ret;
 }
 
-static const struct snd_soc_platform_driver omap_soc_platform = {
+static const struct snd_soc_component_driver omap_soc_component = {
 	.ops		= &omap_pcm_ops,
 	.pcm_new	= omap_pcm_new,
 	.pcm_free	= omap_pcm_free_dma_buffers,
@@ -252,7 +252,8 @@ static const struct snd_soc_platform_driver omap_soc_platform = {
 int omap_pcm_platform_register(struct device *dev)
 {
 	omap_pcm_limit_supported_formats();
-	return devm_snd_soc_register_platform(dev, &omap_soc_platform);
+	return devm_snd_soc_register_component(dev, &omap_soc_component,
+					       NULL, 0);
 }
 EXPORT_SYMBOL_GPL(omap_pcm_platform_register);
 

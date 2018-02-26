@@ -32,6 +32,7 @@ struct atmel_pdmic {
 	struct regmap *regmap;
 	struct clk *pclk;
 	struct clk *gclk;
+	struct device *dev;
 	int irq;
 	struct snd_pcm_substream *substream;
 	const struct atmel_pdmic_pdata *pdata;
@@ -206,7 +207,7 @@ atmel_pdmic_platform_configure_dma(struct snd_pcm_substream *substream,
 	ret = snd_hwparams_to_dma_slave_config(substream, params,
 					       slave_config);
 	if (ret) {
-		dev_err(rtd->platform->dev,
+		dev_err(dd->dev,
 			"hw params to dma slave configure failed\n");
 		return ret;
 	}
@@ -596,6 +597,7 @@ static int atmel_pdmic_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dd->pdata = pdata;
+	dd->dev = dev;
 
 	dd->irq = platform_get_irq(pdev, 0);
 	if (dd->irq < 0) {

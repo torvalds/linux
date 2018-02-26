@@ -1337,7 +1337,7 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 }
 
 /*
- *		snd_soc_platform
+ *		snd_soc_component
  */
 
 #define PREALLOC_BUFFER		(32 * 1024)
@@ -1364,12 +1364,9 @@ static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
 }
 
-static const struct snd_soc_platform_driver rsnd_soc_platform = {
+static const struct snd_soc_component_driver rsnd_soc_component = {
 	.ops		= &rsnd_pcm_ops,
 	.pcm_new	= rsnd_pcm_new,
-};
-
-static const struct snd_soc_component_driver rsnd_soc_component = {
 	.name		= "rsnd",
 };
 
@@ -1478,17 +1475,11 @@ static int rsnd_probe(struct platform_device *pdev)
 	/*
 	 *	asoc register
 	 */
-	ret = snd_soc_register_platform(dev, &rsnd_soc_platform);
-	if (ret < 0) {
-		dev_err(dev, "cannot snd soc register\n");
-		return ret;
-	}
-
-	ret = snd_soc_register_component(dev, &rsnd_soc_component,
+	ret = devm_snd_soc_register_component(dev, &rsnd_soc_component,
 					 priv->daidrv, rsnd_rdai_nr(priv));
 	if (ret < 0) {
 		dev_err(dev, "cannot snd dai register\n");
-		goto exit_snd_soc;
+		goto exit_snd_probe;
 	}
 
 	pm_runtime_enable(dev);
@@ -1496,8 +1487,6 @@ static int rsnd_probe(struct platform_device *pdev)
 	dev_info(dev, "probed\n");
 	return ret;
 
-exit_snd_soc:
-	snd_soc_unregister_platform(dev);
 exit_snd_probe:
 	for_each_rsnd_dai(rdai, priv, i) {
 		rsnd_dai_call(remove, &rdai->playback, priv);
@@ -1534,9 +1523,6 @@ static int rsnd_remove(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(remove_func); i++)
 		remove_func[i](priv);
-
-	snd_soc_unregister_component(&pdev->dev);
-	snd_soc_unregister_platform(&pdev->dev);
 
 	return ret;
 }
