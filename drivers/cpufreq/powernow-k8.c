@@ -1076,15 +1076,7 @@ static int powernowk8_cpu_init(struct cpufreq_policy *pol)
 
 	cpumask_copy(pol->cpus, topology_core_cpumask(pol->cpu));
 	data->available_cores = pol->cpus;
-
-	/* min/max the cpu is capable of */
-	if (cpufreq_table_validate_and_show(pol, data->powernow_table)) {
-		pr_err(FW_BUG "invalid powernow_table\n");
-		powernow_k8_cpu_exit_acpi(data);
-		kfree(data->powernow_table);
-		kfree(data);
-		return -EINVAL;
-	}
+	pol->freq_table = data->powernow_table;
 
 	pr_debug("cpu_init done, current fid 0x%x, vid 0x%x\n",
 		data->currfid, data->currvid);
