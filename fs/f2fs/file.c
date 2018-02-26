@@ -1968,7 +1968,7 @@ static int f2fs_ioc_get_encryption_pwsalt(struct file *filp, unsigned long arg)
 	if (err)
 		return err;
 
-	mutex_lock(&sbi->sb_lock);
+	down_write(&sbi->sb_lock);
 
 	if (uuid_is_nonzero(sbi->raw_super->encrypt_pw_salt))
 		goto got_it;
@@ -1987,7 +1987,7 @@ got_it:
 									16))
 		err = -EFAULT;
 out_err:
-	mutex_unlock(&sbi->sb_lock);
+	up_write(&sbi->sb_lock);
 	mnt_drop_write_file(filp);
 	return err;
 }

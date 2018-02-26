@@ -171,16 +171,52 @@ static int is_multimedia_file(const unsigned char *s, const char *sub)
 static inline void set_cold_files(struct f2fs_sb_info *sbi, struct inode *inode,
 		const unsigned char *name)
 {
-	int i;
-	__u8 (*extlist)[8] = sbi->raw_super->extension_list;
+	__u8 (*extlist)[F2FS_EXTENSION_LEN] = sbi->raw_super->extension_list;
+	int i, count;
 
-	int count = le32_to_cpu(sbi->raw_super->extension_count);
+	down_read(&sbi->sb_lock);
+
+	count = le32_to_cpu(sbi->raw_super->extension_count);
+
 	for (i = 0; i < count; i++) {
 		if (is_multimedia_file(name, extlist[i])) {
 			file_set_cold(inode);
 			break;
 		}
 	}
+
+	up_read(&sbi->sb_lock);
+}
+
+int update_extension_list(struct f2fs_sb_info *sbi, const char *name, bool set)
+{
+	__u8 (*extlist)[F2FS_EXTENSION_LEN] = sbi->raw_super->extension_list;
+	int count = le32_to_cpu(sbi->raw_super->extension_count);
+	int i;
+
+	for (i = 0; i < count; i++) {
+		if (strcmp(name, extlist[i]))
+			continue;
+
+		if (set)
+			return -EINVAL;
+
+		memcpy(extlist[i], extlist[i + 1],
+				F2FS_EXTENSION_LEN * (count - i - 1));
+		memset(extlist[count - 1], 0, F2FS_EXTENSION_LEN);
+		sbi->raw_super->extension_count = cpu_to_le32(count - 1);
+		return 0;
+	}
+
+	if (!set)
+		return -EINVAL;
+
+	if (count == F2FS_MAX_EXTENSION)
+		return -EINVAL;
+
+	strncpy(extlist[count], name, strlen(name));
+	sbi->raw_super->extension_count = cpu_to_le32(count + 1);
+	return 0;
 }
 
 static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,

@@ -21,6 +21,7 @@
 #define F2FS_BLKSIZE			4096	/* support only 4KB block */
 #define F2FS_BLKSIZE_BITS		12	/* bits for F2FS_BLKSIZE */
 #define F2FS_MAX_EXTENSION		64	/* # of extension entries */
+#define F2FS_EXTENSION_LEN		8	/* max size of extension */
 #define F2FS_BLK_ALIGN(x)	(((x) + F2FS_BLKSIZE - 1) >> F2FS_BLKSIZE_BITS)
 
 #define NULL_ADDR		((block_t)0)	/* used as block_t addresses */
@@ -101,7 +102,7 @@ struct f2fs_super_block {
 	__u8 uuid[16];			/* 128-bit uuid for volume */
 	__le16 volume_name[MAX_VOLUME_NAME];	/* volume name */
 	__le32 extension_count;		/* # of extensions below */
-	__u8 extension_list[F2FS_MAX_EXTENSION][8];	/* extension array */
+	__u8 extension_list[F2FS_MAX_EXTENSION][F2FS_EXTENSION_LEN];/* extension array */
 	__le32 cp_payload;
 	__u8 version[VERSION_LEN];	/* the kernel version */
 	__u8 init_version[VERSION_LEN];	/* the initial kernel version */
