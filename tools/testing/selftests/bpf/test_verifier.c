@@ -24,7 +24,6 @@
 #include <limits.h>
 
 #include <sys/capability.h>
-#include <sys/resource.h>
 
 #include <linux/unistd.h>
 #include <linux/filter.h>
@@ -41,7 +40,7 @@
 #  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
 # endif
 #endif
-
+#include "bpf_rlimit.h"
 #include "../../../include/linux/filter.h"
 
 #ifndef ARRAY_SIZE
@@ -11543,8 +11542,6 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 
 int main(int argc, char **argv)
 {
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-	struct rlimit rlim = { 1 << 20, 1 << 20 };
 	unsigned int from = 0, to = ARRAY_SIZE(tests);
 	bool unpriv = !is_admin();
 
@@ -11572,6 +11569,5 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	setrlimit(RLIMIT_MEMLOCK, unpriv ? &rlim : &rinf);
 	return do_test(unpriv, from, to);
 }

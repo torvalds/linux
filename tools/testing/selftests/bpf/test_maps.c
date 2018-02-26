@@ -17,13 +17,14 @@
 #include <stdlib.h>
 
 #include <sys/wait.h>
-#include <sys/resource.h>
 
 #include <linux/bpf.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+
 #include "bpf_util.h"
+#include "bpf_rlimit.h"
 
 static int map_flags;
 
@@ -1126,10 +1127,6 @@ static void run_all_tests(void)
 
 int main(void)
 {
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
-
 	map_flags = 0;
 	run_all_tests();
 
