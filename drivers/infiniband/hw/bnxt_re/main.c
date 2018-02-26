@@ -1240,9 +1240,12 @@ static void bnxt_re_task(struct work_struct *work)
 	switch (re_work->event) {
 	case NETDEV_REGISTER:
 		rc = bnxt_re_ib_reg(rdev);
-		if (rc)
+		if (rc) {
 			dev_err(rdev_to_dev(rdev),
 				"Failed to register with IB: %#x", rc);
+			bnxt_re_remove_one(rdev);
+			bnxt_re_dev_unreg(rdev);
+		}
 		break;
 	case NETDEV_UP:
 		bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
