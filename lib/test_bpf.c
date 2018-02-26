@@ -24,6 +24,7 @@
 #include <linux/if_vlan.h>
 #include <linux/random.h>
 #include <linux/highmem.h>
+#include <linux/sched.h>
 
 /* General test specific settings */
 #define MAX_SUBTESTS	3
@@ -6582,6 +6583,7 @@ static __init int test_bpf(void)
 		struct bpf_prog *fp;
 		int err;
 
+		cond_resched();
 		if (exclude_test(i))
 			continue;
 
