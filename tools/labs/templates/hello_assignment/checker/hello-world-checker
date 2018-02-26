@@ -1,0 +1,12 @@
+#!/bin/sh
+
+/bin/dmesg -c > /dev/null 2>&1
+/sbin/rmmod hello-world > /dev/null 2>&1
+/sbin/insmod hello-world.ko
+/bin/dmesg | grep 'Hello, World!' > /dev/null 2>&1
+if test $? -eq 0; then
+    echo "Test PASSED."
+else
+    echo "Test FAILED."
+fi
+/sbin/rmmod hello-world > /dev/null 2>&1
