@@ -2262,17 +2262,20 @@ struct video_info *rockchip_find_video_info(struct rockchip_dmcfreq *dmcfreq,
 	if (!video_info)
 		return NULL;
 
+	mutex_lock(&dmcfreq->lock);
 	list_for_each_entry(info, &dmcfreq->video_info_list, node) {
 		if ((info->width == video_info->width) &&
 		    (info->height == video_info->height) &&
 		    (info->ishevc == video_info->ishevc) &&
 		    (info->videoFramerate == video_info->videoFramerate) &&
 		    (info->streamBitrate == video_info->streamBitrate)) {
+			mutex_unlock(&dmcfreq->lock);
 			kfree(video_info);
 			return info;
 		}
 	}
 
+	mutex_unlock(&dmcfreq->lock);
 	kfree(video_info);
 
 	return NULL;
@@ -2281,14 +2284,20 @@ struct video_info *rockchip_find_video_info(struct rockchip_dmcfreq *dmcfreq,
 static void rockchip_add_video_info(struct rockchip_dmcfreq *dmcfreq,
 				    struct video_info *video_info)
 {
-	if (video_info)
+	if (video_info) {
+		mutex_lock(&dmcfreq->lock);
 		list_add(&video_info->node, &dmcfreq->video_info_list);
+		mutex_unlock(&dmcfreq->lock);
+	}
 }
 
-static void rockchip_del_video_info(struct video_info *video_info)
+static void rockchip_del_video_info(struct rockchip_dmcfreq *dmcfreq,
+				    struct video_info *video_info)
 {
 	if (video_info) {
+		mutex_lock(&dmcfreq->lock);
 		list_del(&video_info->node);
+		mutex_unlock(&dmcfreq->lock);
 		kfree(video_info);
 	}
 }
@@ -2298,7 +2307,9 @@ static void rockchip_update_video_info(struct rockchip_dmcfreq *dmcfreq)
 	struct video_info *video_info;
 	int max_res = 0, max_stream_bitrate = 0, res = 0;
 
+	mutex_lock(&dmcfreq->lock);
 	if (list_empty(&dmcfreq->video_info_list)) {
+		mutex_unlock(&dmcfreq->lock);
 		rockchip_clear_system_status(SYS_STATUS_VIDEO);
 		return;
 	}
@@ -2310,6 +2321,7 @@ static void rockchip_update_video_info(struct rockchip_dmcfreq *dmcfreq)
 		if (video_info->streamBitrate > max_stream_bitrate)
 			max_stream_bitrate = video_info->streamBitrate;
 	}
+	mutex_unlock(&dmcfreq->lock);
 
 	if (max_res <= VIDEO_1080P_SIZE) {
 		rockchip_set_system_status(SYS_STATUS_VIDEO_1080P);
@@ -2338,7 +2350,7 @@ static ssize_t rockchip_dmcfreq_status_store(struct device *dev,
 		/* clear video flag */
 		video_info = rockchip_find_video_info(dmcfreq, buf);
 		if (video_info) {
-			rockchip_del_video_info(video_info);
+			rockchip_del_video_info(dmcfreq, video_info);
 			rockchip_update_video_info(dmcfreq);
 		}
 		break;
