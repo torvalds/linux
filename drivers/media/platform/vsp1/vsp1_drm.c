@@ -346,13 +346,12 @@ static void vsp1_du_pipeline_configure(struct vsp1_pipeline *pipe)
 	dl = vsp1_dl_list_get(pipe->output->dlm);
 
 	list_for_each_entry_safe(entity, next, &pipe->entities, list_pipe) {
-		/* Disconnect unused RPFs from the pipeline. */
-		if (entity->type == VSP1_ENTITY_RPF &&
-		    !pipe->inputs[entity->index]) {
+		/* Disconnect unused entities from the pipeline. */
+		if (!entity->pipe) {
 			vsp1_dl_list_write(dl, entity->route->reg,
 					   VI6_DPR_NODE_UNUSED);
 
-			entity->pipe = NULL;
+			entity->sink = NULL;
 			list_del(&entity->list_pipe);
 
 			continue;
@@ -569,10 +568,11 @@ int vsp1_du_atomic_update(struct device *dev, unsigned int pipe_index,
 			rpf_index);
 
 		/*
-		 * Remove the RPF from the pipe's inputs. The atomic flush
-		 * handler will disable the input and remove the entity from the
-		 * pipe's entities list.
+		 * Remove the RPF from the pipeline's inputs. Keep it in the
+		 * pipeline's entity list to let vsp1_du_pipeline_configure()
+		 * remove it from the hardware pipeline.
 		 */
+		rpf->entity.pipe = NULL;
 		drm_pipe->pipe.inputs[rpf_index] = NULL;
 		return 0;
 	}
