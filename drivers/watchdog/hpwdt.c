@@ -31,11 +31,12 @@
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TIMER			TICKS_TO_SECS(65535)
 #define DEFAULT_MARGIN			30
+#define PRETIMEOUT_SEC			9
 
 static bool ilo5;
 static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
-static unsigned int reload;			/* the computed soft_margin */
 static bool nowayout = WATCHDOG_NOWAYOUT;
+static bool pretimeout = IS_ENABLED(CONFIG_HPWDT_NMI_DECODING);
 
 static void __iomem *pci_mem_addr;		/* the PCI-memory address */
 static unsigned long __iomem *hpwdt_nmistat;
@@ -55,10 +56,11 @@ MODULE_DEVICE_TABLE(pci, hpwdt_devices);
  */
 static int hpwdt_start(struct watchdog_device *wdd)
 {
-	reload = SECS_TO_TICKS(wdd->timeout);
+	int control = 0x81 | (pretimeout ? 0x4 : 0);
+	int reload = SECS_TO_TICKS(wdd->timeout);
 
 	iowrite16(reload, hpwdt_timer_reg);
-	iowrite8(0x85, hpwdt_timer_con);
+	iowrite8(control, hpwdt_timer_con);
 
 	return 0;
 }
@@ -81,7 +83,10 @@ static int hpwdt_stop_core(struct watchdog_device *wdd)
 
 static int hpwdt_ping(struct watchdog_device *wdd)
 {
+	int reload = SECS_TO_TICKS(wdd->timeout);
+
 	iowrite16(reload, hpwdt_timer_reg);
+
 	return 0;
 }
 
@@ -93,12 +98,37 @@ static unsigned int hpwdt_gettimeleft(struct watchdog_device *wdd)
 static int hpwdt_settimeout(struct watchdog_device *wdd, unsigned int val)
 {
 	wdd->timeout = val;
+	if (val <= wdd->pretimeout) {
+		wdd->pretimeout = 0;
+		pretimeout = 0;
+		if (watchdog_active(wdd))
+			hpwdt_start(wdd);
+	}
 	hpwdt_ping(wdd);
 
 	return 0;
 }
 
 #ifdef CONFIG_HPWDT_NMI_DECODING
+static int hpwdt_set_pretimeout(struct watchdog_device *wdd, unsigned int req)
+{
+	unsigned int val = 0;
+
+	if (req) {
+		val = PRETIMEOUT_SEC;
+		if (val >= wdd->timeout)
+			return -EINVAL;
+	}
+
+	wdd->pretimeout = val;
+	pretimeout = !!val;
+
+	if (watchdog_active(wdd))
+		hpwdt_start(wdd);
+
+	return 0;
+}
+
 static int hpwdt_my_nmi(void)
 {
 	return ioread8(hpwdt_nmistat) & 0x6;
@@ -121,6 +151,9 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 	if (ilo5 && ulReason == NMI_UNKNOWN && mynmi)
 		return NMI_DONE;
 
+	if (ilo5 && !pretimeout)
+		return NMI_DONE;
+
 	hpwdt_stop();
 
 	hex_byte_pack(panic_msg, mynmi);
@@ -132,7 +165,8 @@ static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 
 
 static const struct watchdog_info ident = {
-	.options = WDIOF_SETTIMEOUT |
+	.options = WDIOF_PRETIMEOUT    |
+		   WDIOF_SETTIMEOUT    |
 		   WDIOF_KEEPALIVEPING |
 		   WDIOF_MAGICCLOSE,
 	.identity = "HPE iLO2+ HW Watchdog Timer",
@@ -149,6 +183,9 @@ static const struct watchdog_ops hpwdt_ops = {
 	.ping		= hpwdt_ping,
 	.set_timeout	= hpwdt_settimeout,
 	.get_timeleft	= hpwdt_gettimeleft,
+#ifdef CONFIG_HPWDT_NMI_DECODING
+	.set_pretimeout	= hpwdt_set_pretimeout,
+#endif
 };
 
 static struct watchdog_device hpwdt_dev = {
@@ -157,6 +194,9 @@ static struct watchdog_device hpwdt_dev = {
 	.min_timeout	= 1,
 	.max_timeout	= HPWDT_MAX_TIMER,
 	.timeout	= DEFAULT_MARGIN,
+#ifdef CONFIG_HPWDT_NMI_DECODING
+	.pretimeout	= PRETIMEOUT_SEC,
+#endif
 };
 
 
@@ -316,5 +356,10 @@ MODULE_PARM_DESC(soft_margin, "Watchdog timeout in seconds");
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
+
+#ifdef CONFIG_HPWDT_NMI_DECODING
+module_param(pretimeout, bool, 0);
+MODULE_PARM_DESC(pretimeout, "Watchdog pretimeout enabled");
+#endif
 
 module_pci_driver(hpwdt_driver);
