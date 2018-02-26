@@ -389,6 +389,8 @@ static void dwmac4_rd_prepare_tso_tx_desc(struct dma_desc *p, int is_fs,
 
 static void dwmac4_release_tx_desc(struct dma_desc *p, int mode)
 {
+	p->des0 = 0;
+	p->des1 = 0;
 	p->des2 = 0;
 	p->des3 = 0;
 }
