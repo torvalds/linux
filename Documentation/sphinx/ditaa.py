@@ -190,16 +190,12 @@ def render_ditaa(app, code, options, format, prefix='ditaa'):
 def on_doctree_resolved(app, doctree):
     #print "app.builder.env.docname: ", app.builder.env.docname
     for node in doctree.traverse(ditaa):
-        try:
-            # Generate the output png files
-            relfn, outfn = render_ditaa(app, node['code'], node['options'], app.builder.format, "ditaa")
-            image = nodes.image(uri=relfn, candidates={'*': outfn}, **node['img_options'])
-            #for (k, v) in options.items():
-            #    image[k] = v
-            node.parent.replace(node, image)
-        except DitaaError, exc:
-            node.parent.remove(node)
-            raise nodes.SkipNode
+        # Generate the output png files
+        relfn, outfn = render_ditaa(app, node['code'], node['options'], app.builder.format, "ditaa")
+        image = nodes.image(uri=relfn, candidates={'*': outfn}, **node['img_options'])
+        #for (k, v) in options.items():
+        #    image[k] = v
+        node.parent.replace(node, image)
 
 def setup(app):
     app.add_node(ditaa, html=(None, None),
