@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -44,7 +45,7 @@ static void wil_release_reorder_frame(struct wil6210_priv *wil,
 				      struct wil_tid_ampdu_rx *r,
 				      int index)
 {
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
 	struct sk_buff *skb = r->reorder_buf[index];
 
 	if (!skb)
@@ -93,7 +94,7 @@ static void wil_reorder_release(struct wil6210_priv *wil,
 void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb)
 __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
 	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
 	int tid = wil_rxdesc_tid(d);
 	int cid = wil_rxdesc_cid(d);
@@ -292,8 +293,8 @@ static u16 wil_agg_size(struct wil6210_priv *wil, u16 req_agg_wsize)
 }
 
 /* Block Ack - Rx side (recipient) */
-int wil_addba_rx_request(struct wil6210_priv *wil, u8 cidxtid,
-			 u8 dialog_token, __le16 ba_param_set,
+int wil_addba_rx_request(struct wil6210_priv *wil, u8 mid,
+			 u8 cidxtid, u8 dialog_token, __le16 ba_param_set,
 			 __le16 ba_timeout, __le16 ba_seq_ctrl)
 __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 {
@@ -354,7 +355,7 @@ __acquires(&sta->tid_rx_lock) __releases(&sta->tid_rx_lock)
 		}
 	}
 
-	rc = wmi_addba_rx_resp(wil, cid, tid, dialog_token, status,
+	rc = wmi_addba_rx_resp(wil, mid, cid, tid, dialog_token, status,
 			       agg_amsdu, agg_wsize, agg_timeout);
 	if (rc || (status != WLAN_STATUS_SUCCESS)) {
 		wil_err(wil, "do not apply ba, rc(%d), status(%d)\n", rc,
@@ -393,7 +394,7 @@ int wil_addba_tx_request(struct wil6210_priv *wil, u8 ringid, u16 wsize)
 		goto out;
 	}
 	txdata->addba_in_progress = true;
-	rc = wmi_addba(wil, ringid, agg_wsize, agg_timeout);
+	rc = wmi_addba(wil, txdata->mid, ringid, agg_wsize, agg_timeout);
 	if (rc) {
 		wil_err(wil, "wmi_addba failed, rc (%d)", rc);
 		txdata->addba_in_progress = false;

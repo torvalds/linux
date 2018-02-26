@@ -122,6 +122,85 @@ static void wil_dev_setup(struct net_device *dev)
 	dev->tx_queue_len = WIL_TX_Q_LEN_DEFAULT;
 }
 
+static void wil_vif_deinit(struct wil6210_vif *vif)
+{
+	del_timer_sync(&vif->scan_timer);
+	del_timer_sync(&vif->p2p.discovery_timer);
+	cancel_work_sync(&vif->disconnect_worker);
+	cancel_work_sync(&vif->p2p.discovery_expired_work);
+	cancel_work_sync(&vif->p2p.delayed_listen_work);
+	wil_probe_client_flush(vif);
+	cancel_work_sync(&vif->probe_client_worker);
+}
+
+void wil_vif_free(struct wil6210_vif *vif)
+{
+	struct net_device *ndev = vif_to_ndev(vif);
+
+	wil_vif_deinit(vif);
+	free_netdev(ndev);
+}
+
+static void wil_ndev_destructor(struct net_device *ndev)
+{
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+
+	wil_vif_deinit(vif);
+}
+
+static void wil_connect_timer_fn(struct timer_list *t)
+{
+	struct wil6210_vif *vif = from_timer(vif, t, connect_timer);
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	bool q;
+
+	wil_err(wil, "Connect timeout detected, disconnect station\n");
+
+	/* reschedule to thread context - disconnect won't
+	 * run from atomic context.
+	 * queue on wmi_wq to prevent race with connect event.
+	 */
+	q = queue_work(wil->wmi_wq, &vif->disconnect_worker);
+	wil_dbg_wmi(wil, "queue_work of disconnect_worker -> %d\n", q);
+}
+
+static void wil_scan_timer_fn(struct timer_list *t)
+{
+	struct wil6210_vif *vif = from_timer(vif, t, scan_timer);
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	clear_bit(wil_status_fwready, wil->status);
+	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
+	wil_fw_error_recovery(wil);
+}
+
+static void wil_p2p_discovery_timer_fn(struct timer_list *t)
+{
+	struct wil6210_vif *vif = from_timer(vif, t, p2p.discovery_timer);
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	wil_dbg_misc(wil, "p2p_discovery_timer_fn\n");
+
+	schedule_work(&vif->p2p.discovery_expired_work);
+}
+
+static void wil_vif_init(struct wil6210_vif *vif)
+{
+	vif->bcast_vring = -1;
+
+	mutex_init(&vif->probe_client_mutex);
+
+	timer_setup(&vif->connect_timer, wil_connect_timer_fn, 0);
+	timer_setup(&vif->scan_timer, wil_scan_timer_fn, 0);
+	timer_setup(&vif->p2p.discovery_timer, wil_p2p_discovery_timer_fn, 0);
+
+	INIT_WORK(&vif->probe_client_worker, wil_probe_client_worker);
+	INIT_WORK(&vif->disconnect_worker, wil_disconnect_worker);
+	INIT_WORK(&vif->p2p.delayed_listen_work, wil_p2p_delayed_listen_work);
+
+	INIT_LIST_HEAD(&vif->probe_client_pending);
+}
+
 struct wil6210_vif *
 wil_vif_alloc(struct wil6210_priv *wil, const char *name,
 	      unsigned char name_assign_type, enum nl80211_iftype iftype,
@@ -138,10 +217,12 @@ wil_vif_alloc(struct wil6210_priv *wil, const char *name,
 		return ERR_PTR(-ENOMEM);
 	}
 	if (mid == 0)
-		wil->ndev = ndev;
+		wil->main_ndev = ndev;
 	vif = ndev_to_vif(ndev);
+	vif->ndev = ndev;
 	vif->wil = wil;
 	vif->mid = mid;
+	wil_vif_init(vif);
 
 	wdev = &vif->wdev;
 	wdev->wiphy = wil->wiphy;
@@ -163,7 +244,6 @@ wil_vif_alloc(struct wil6210_priv *wil, const char *name,
 
 void *wil_if_alloc(struct device *dev)
 {
-	struct wireless_dev *wdev;
 	struct wil6210_priv *wil;
 	struct wil6210_vif *vif;
 	int rc = 0;
@@ -190,9 +270,7 @@ void *wil_if_alloc(struct device *dev)
 		goto out_priv;
 	}
 
-	wdev = &vif->wdev;
-	wil->wdev = wdev;
-	wil->radio_wdev = wdev;
+	wil->radio_wdev = vif_to_wdev(vif);
 
 	return wil;
 
@@ -207,7 +285,7 @@ out_cfg:
 
 void wil_if_free(struct wil6210_priv *wil)
 {
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
 
 	wil_dbg_misc(wil, "if_free\n");
 
@@ -216,7 +294,8 @@ void wil_if_free(struct wil6210_priv *wil)
 
 	wil_priv_deinit(wil);
 
-	wil_to_ndev(wil) = NULL;
+	wil->main_ndev = NULL;
+	wil_ndev_destructor(ndev);
 	free_netdev(ndev);
 
 	wil_cfg80211_deinit(wil);
@@ -224,9 +303,8 @@ void wil_if_free(struct wil6210_priv *wil)
 
 int wil_if_add(struct wil6210_priv *wil)
 {
-	struct wireless_dev *wdev = wil_to_wdev(wil);
 	struct wiphy *wiphy = wil->wiphy;
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
 	int rc;
 
 	wil_dbg_misc(wil, "entered");
@@ -255,14 +333,14 @@ int wil_if_add(struct wil6210_priv *wil)
 	return 0;
 
 out_wiphy:
-	wiphy_unregister(wdev->wiphy);
+	wiphy_unregister(wiphy);
 	return rc;
 }
 
 void wil_if_remove(struct wil6210_priv *wil)
 {
-	struct net_device *ndev = wil_to_ndev(wil);
-	struct wireless_dev *wdev = wil_to_wdev(wil);
+	struct net_device *ndev = wil->main_ndev;
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 
 	wil_dbg_misc(wil, "if_remove\n");
 

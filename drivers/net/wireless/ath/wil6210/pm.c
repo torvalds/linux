@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014,2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -23,8 +24,8 @@
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 {
 	int rc = 0;
-	struct wireless_dev *wdev = wil->wdev;
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	bool wmi_only = test_bit(WMI_FW_CAPABILITY_WMI_ONLY,
 				 wil->fw_capabilities);
 
@@ -258,7 +259,7 @@ reject_suspend:
 static int wil_suspend_radio_off(struct wil6210_priv *wil)
 {
 	int rc = 0;
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
 
 	wil_dbg_pm(wil, "suspend radio off\n");
 
@@ -306,7 +307,7 @@ out:
 static int wil_resume_radio_off(struct wil6210_priv *wil)
 {
 	int rc = 0;
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
 
 	wil_dbg_pm(wil, "Enabling PCIe IRQ\n");
 	wil_enable_irq(wil);
