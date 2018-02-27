@@ -322,7 +322,7 @@ static u32 calc_l1ss_pwron(struct pci_dev *pdev, u32 scale, u32 val)
 
 static void encode_l12_threshold(u32 threshold_us, u32 *scale, u32 *value)
 {
-	u64 threshold_ns = threshold_us * 1000;
+	u32 threshold_ns = threshold_us * 1000;
 
 	/* See PCIe r3.1, sec 7.33.3 and sec 6.18 */
 	if (threshold_ns < 32) {
