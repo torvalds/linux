@@ -2928,8 +2928,13 @@ static bool sdhci_enable_irq_wakeups(struct sdhci_host *host)
 		irq_val |= SDHCI_INT_CARD_INSERT | SDHCI_INT_CARD_REMOVE;
 	}
 
-	wake_val |= SDHCI_WAKE_ON_INT;
-	irq_val |= SDHCI_INT_CARD_INT;
+	if (mmc_card_wake_sdio_irq(host->mmc)) {
+		wake_val |= SDHCI_WAKE_ON_INT;
+		irq_val |= SDHCI_INT_CARD_INT;
+	}
+
+	if (!irq_val)
+		return false;
 
 	val = sdhci_readb(host, SDHCI_WAKE_UP_CONTROL);
 	val &= ~mask;
