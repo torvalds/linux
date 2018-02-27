@@ -10,6 +10,14 @@
 # Use --debug to output path before parsing, this is useful to find files that
 # cause the script to choke.
 
+#
+# When the system is idle it is likely that most files under /proc/PID will be
+# identical for various processes.  Scanning _all_ the PIDs under /proc is
+# unnecessary and implies that we are thoroughly scanning /proc.  This is _not_
+# the case because there may be ways userspace can trigger creation of /proc
+# files that leak addresses but were not present during a scan.  For these two
+# reasons we exclude all PID directories under /proc except '1/'
+
 use warnings;
 use strict;
 use POSIX;
@@ -471,6 +479,10 @@ sub walk
 
 			my $path = "$pwd/$file";
 			next if (-l $path);
+
+			# skip /proc/PID except /proc/1
+			next if (($path =~ /^\/proc\/[0-9]+$/) &&
+				 ($path !~ /^\/proc\/1$/));
 
 			next if (skip($path));
 
