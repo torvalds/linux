@@ -501,6 +501,7 @@ void zero_fill_bio(struct bio *bio);
 extern struct bio_vec *bvec_alloc(gfp_t, int, unsigned long *, mempool_t *);
 extern void bvec_free(mempool_t *, struct bio_vec *, unsigned int);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
+extern const char *bio_devname(struct bio *bio, char *buffer);
 
 #define bio_set_dev(bio, bdev) 			\
 do {						\
@@ -518,9 +519,6 @@ do {						\
 
 #define bio_dev(bio) \
 	disk_devt((bio)->bi_disk)
-
-#define bio_devname(bio, buf) \
-	__bdevname(bio_dev(bio), (buf))
 
 #ifdef CONFIG_BLK_CGROUP
 int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css);
