@@ -5136,7 +5136,7 @@ err5:
 	i = flowtable->ops_len;
 err4:
 	for (k = i - 1; k >= 0; k--)
-		nf_unregister_net_hook(net, &flowtable->ops[i]);
+		nf_unregister_net_hook(net, &flowtable->ops[k]);
 
 	kfree(flowtable->ops);
 err3:
