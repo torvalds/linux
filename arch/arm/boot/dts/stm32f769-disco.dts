@@ -73,6 +73,18 @@
 			gpios = <&gpioj 13 GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+		button@0 {
+			label = "User";
+			linux,code = <KEY_HOME>;
+			gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>;
+		};
+	};
 };
 
 &cec {
