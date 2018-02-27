@@ -582,6 +582,8 @@ int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta)
 {
 	struct xt_af *xp = &xt[af];
 
+	WARN_ON(!mutex_is_locked(&xt[af].compat_mutex));
+
 	if (WARN_ON(!xp->compat_tab))
 		return -ENOMEM;
 
@@ -599,6 +601,8 @@ EXPORT_SYMBOL_GPL(xt_compat_add_offset);
 
 void xt_compat_flush_offsets(u_int8_t af)
 {
+	WARN_ON(!mutex_is_locked(&xt[af].compat_mutex));
+
 	if (xt[af].compat_tab) {
 		vfree(xt[af].compat_tab);
 		xt[af].compat_tab = NULL;
@@ -629,6 +633,8 @@ EXPORT_SYMBOL_GPL(xt_compat_calc_jump);
 int xt_compat_init_offsets(u8 af, unsigned int number)
 {
 	size_t mem;
+
+	WARN_ON(!mutex_is_locked(&xt[af].compat_mutex));
 
 	if (!number || number > (INT_MAX / sizeof(struct compat_delta)))
 		return -EINVAL;
