@@ -3059,6 +3059,8 @@ static int ixgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
 
 		for (i = 0; i < reta_entries; i++)
 			adapter->rss_indir_tbl[i] = indir[i];
+
+		ixgbe_store_reta(adapter);
 	}
 
 	/* Fill out the rss hash key */
@@ -3066,8 +3068,6 @@ static int ixgbe_set_rxfh(struct net_device *netdev, const u32 *indir,
 		memcpy(adapter->rss_key, key, ixgbe_get_rxfh_key_size(netdev));
 		ixgbe_store_key(adapter);
 	}
-
-	ixgbe_store_reta(adapter);
 
 	return 0;
 }
