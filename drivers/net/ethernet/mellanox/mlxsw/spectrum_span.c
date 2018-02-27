@@ -73,15 +73,40 @@ void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->span.entries);
 }
 
+static int
+mlxsw_sp_span_entry_configure(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_span_entry *span_entry,
+			      u8 local_port)
+{
+	char mpat_pl[MLXSW_REG_MPAT_LEN];
+	int pa_id = span_entry->id;
+
+	/* Create a new port analayzer entry for local_port. */
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
+			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+}
+
+static void
+mlxsw_sp_span_entry_deconfigure(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_span_entry *span_entry)
+{
+	u8 local_port = span_entry->local_port;
+	char mpat_pl[MLXSW_REG_MPAT_LEN];
+	int pa_id = span_entry->id;
+
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, false,
+			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+}
+
 static struct mlxsw_sp_span_entry *
 mlxsw_sp_span_entry_create(struct mlxsw_sp_port *port)
 {
 	struct mlxsw_sp_span_entry *span_entry = NULL;
 	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
-	char mpat_pl[MLXSW_REG_MPAT_LEN];
 	u8 local_port = port->local_port;
 	int i;
-	int err;
 
 	/* find a free entry to use */
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
@@ -93,11 +118,7 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp_port *port)
 	if (!span_entry)
 		return NULL;
 
-	/* create a new port analayzer entry for local_port */
-	mlxsw_reg_mpat_pack(mpat_pl, span_entry->id, local_port, true,
-			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
-	if (err)
+	if (mlxsw_sp_span_entry_configure(mlxsw_sp, span_entry, local_port))
 		return NULL;
 
 	span_entry->ref_count = 1;
@@ -108,13 +129,7 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp_port *port)
 static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_span_entry *span_entry)
 {
-	u8 local_port = span_entry->local_port;
-	char mpat_pl[MLXSW_REG_MPAT_LEN];
-	int pa_id = span_entry->id;
-
-	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, false,
-			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+	mlxsw_sp_span_entry_deconfigure(mlxsw_sp, span_entry);
 }
 
 struct mlxsw_sp_span_entry *
