@@ -737,10 +737,14 @@ static bool is_panel_backlight_on(struct dce_hwseq *hws)
 
 static bool is_panel_powered_on(struct dce_hwseq *hws)
 {
-	uint32_t value;
+	uint32_t pwr_seq_state, dig_on, dig_on_ovrd;
 
-	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &value);
-	return value == 1;
+
+	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &pwr_seq_state);
+
+	REG_GET_2(LVTMA_PWRSEQ_CNTL, LVTMA_DIGON, &dig_on, LVTMA_DIGON_OVRD, &dig_on_ovrd);
+
+	return (pwr_seq_state == 1) || (dig_on == 1 && dig_on_ovrd == 1);
 }
 
 static enum bp_result link_transmitter_control(
