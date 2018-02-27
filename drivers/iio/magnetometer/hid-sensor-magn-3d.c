@@ -167,7 +167,7 @@ static int magn_3d_read_raw(struct iio_dev *indio_dev,
 	*val = 0;
 	*val2 = 0;
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		hid_sensor_power_state(&magn_state->magn_flux_attributes, true);
 		report_id =
 			magn_state->magn[chan->address].report_id;
