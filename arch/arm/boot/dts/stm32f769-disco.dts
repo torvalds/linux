@@ -44,6 +44,7 @@
 #include "stm32f746.dtsi"
 #include "stm32f769-pinctrl.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "STMicroelectronics STM32F769-DISCO board";
@@ -62,6 +63,16 @@
 		serial0 = &usart1;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		green {
+			gpios = <&gpioj 5 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+		red {
+			gpios = <&gpioj 13 GPIO_ACTIVE_HIGH>;
+		};
+	};
 };
 
 &cec {
