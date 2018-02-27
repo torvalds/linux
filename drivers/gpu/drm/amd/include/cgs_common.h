@@ -157,38 +157,6 @@ struct cgs_display_info {
 
 typedef unsigned long cgs_handle_t;
 
-#define CGS_ACPI_METHOD_ATCS          0x53435441
-#define CGS_ACPI_METHOD_ATIF          0x46495441
-#define CGS_ACPI_METHOD_ATPX          0x58505441
-#define CGS_ACPI_FIELD_METHOD_NAME                      0x00000001
-#define CGS_ACPI_FIELD_INPUT_ARGUMENT_COUNT             0x00000002
-#define CGS_ACPI_MAX_BUFFER_SIZE     256
-#define CGS_ACPI_TYPE_ANY                      0x00
-#define CGS_ACPI_TYPE_INTEGER               0x01
-#define CGS_ACPI_TYPE_STRING                0x02
-#define CGS_ACPI_TYPE_BUFFER                0x03
-#define CGS_ACPI_TYPE_PACKAGE               0x04
-
-struct cgs_acpi_method_argument {
-	uint32_t type;
-	uint32_t data_length;
-	union{
-		uint32_t value;
-		void *pointer;
-	};
-};
-
-struct cgs_acpi_method_info {
-	uint32_t size;
-	uint32_t field;
-	uint32_t input_count;
-	uint32_t name;
-	struct cgs_acpi_method_argument *pinput_argument;
-	uint32_t output_count;
-	struct cgs_acpi_method_argument *poutput_argument;
-	uint32_t padding[9];
-};
-
 /**
  * cgs_alloc_gpu_mem() - Allocate GPU memory
  * @cgs_device:	opaque device handle
@@ -407,14 +375,6 @@ typedef int(*cgs_get_active_displays_info)(
 
 typedef int (*cgs_notify_dpm_enabled)(struct cgs_device *cgs_device, bool enabled);
 
-typedef int (*cgs_call_acpi_method)(struct cgs_device *cgs_device,
-					uint32_t acpi_method,
-					uint32_t acpi_function,
-					void *pinput, void *poutput,
-					uint32_t output_count,
-					uint32_t input_size,
-					uint32_t output_size);
-
 typedef int (*cgs_query_system_info)(struct cgs_device *cgs_device,
 				struct cgs_system_info *sys_info);
 
@@ -456,8 +416,6 @@ struct cgs_ops {
 	cgs_get_active_displays_info get_active_displays_info;
 	/* notify dpm enabled */
 	cgs_notify_dpm_enabled notify_dpm_enabled;
-	/* ACPI */
-	cgs_call_acpi_method call_acpi_method;
 	/* get system info */
 	cgs_query_system_info query_system_info;
 	cgs_is_virtualization_enabled_t is_virtualization_enabled;
@@ -525,8 +483,6 @@ struct cgs_device
 #define cgs_get_active_displays_info(dev, info)	\
 	CGS_CALL(get_active_displays_info, dev, info)
 
-#define cgs_call_acpi_method(dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)	\
-	CGS_CALL(call_acpi_method, dev, acpi_method, acpi_function, pintput, poutput, output_count, input_size, output_size)
 #define cgs_query_system_info(dev, sys_info)	\
 	CGS_CALL(query_system_info, dev, sys_info)
 #define cgs_get_pci_resource(cgs_device, resource_type, size, offset, \
