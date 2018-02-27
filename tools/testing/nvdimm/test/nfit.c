@@ -154,6 +154,7 @@ struct nfit_test {
 	void *nfit_buf;
 	dma_addr_t nfit_dma;
 	size_t nfit_size;
+	size_t nfit_filled;
 	int dcr_idx;
 	int num_dcr;
 	int num_pm;
@@ -2053,6 +2054,8 @@ static void nfit_test0_setup(struct nfit_test *t)
 		WARN_ON(offset != t->nfit_size);
 	}
 
+	t->nfit_filled = offset;
+
 	post_ars_status(&t->ars_state, &t->badrange, t->spa_set_dma[0],
 			SPA0_SIZE);
 
@@ -2171,6 +2174,8 @@ static void nfit_test1_setup(struct nfit_test *t)
 
 	/* sanity check to make sure we've filled the buffer */
 	WARN_ON(offset != t->nfit_size);
+
+	t->nfit_filled = offset;
 
 	post_ars_status(&t->ars_state, &t->badrange, t->spa_set_dma[0],
 			SPA2_SIZE);
@@ -2529,7 +2534,7 @@ static int nfit_test_probe(struct platform_device *pdev)
 	nd_desc->ndctl = nfit_test_ctl;
 
 	rc = acpi_nfit_init(acpi_desc, nfit_test->nfit_buf,
-			nfit_test->nfit_size);
+			nfit_test->nfit_filled);
 	if (rc)
 		return rc;
 
