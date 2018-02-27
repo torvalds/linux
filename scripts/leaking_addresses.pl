@@ -60,6 +60,7 @@ my $page_offset_32bit = 0;	# Page offset for 32-bit kernel.
 my @skip_abs = (
 	'/proc/kmsg',
 	'/proc/device-tree',
+	'/proc/1/syscall',
 	'/sys/firmware/devicetree',
 	'/sys/kernel/debug/tracing/trace_pipe',
 	'/sys/kernel/security/apparmor/revision');
