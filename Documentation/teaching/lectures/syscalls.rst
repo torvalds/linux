@@ -194,21 +194,19 @@ In summary, this is what happens during a system call:
    * The application is setting up the system call number and
      parameters and it issues a trap instruction
 
-   * The execution mode switches from user to kernel
-
-   * During this process, the CPU switches to a kernel stack, while
-     saving the user stack and return address to userspace
+   * The execution mode switches from user to kernel; the CPU switches
+     to a kernel stack; the user stack and the return address to user
+     space is saved on the kernel stack
 
    * The kernel entry point saves registers on the kernel stack
 
    * The system call dispatcher identifies the system call function
      and runs it
 
-   * When the system call function returns the userspace registers are
-     restored and execution is switched back to user mode by executing
-     an architecture specific instruction (e.g. IRET)
+   * The userspace registers are restored and execution is switched
+     back to user (e.g. calling IRET)
 
-   * userspace application resumes
+   * Userspace application resumes
 
 
 System call table
