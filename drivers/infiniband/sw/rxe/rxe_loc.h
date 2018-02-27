@@ -143,8 +143,7 @@ int advance_dma_data(struct rxe_dma_info *dma, unsigned int length);
 
 /* rxe_net.c */
 int rxe_loopback(struct sk_buff *skb);
-int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
-	     struct sk_buff *skb);
+int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb);
 struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
 				int paylen, struct rxe_pkt_info *pkt);
 int rxe_prepare(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
@@ -268,7 +267,7 @@ static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
 		memcpy(SKB_TO_PKT(skb), pkt, sizeof(*pkt));
 		err = rxe_loopback(skb);
 	} else {
-		err = rxe_send(rxe, pkt, skb);
+		err = rxe_send(pkt, skb);
 	}
 
 	if (err) {

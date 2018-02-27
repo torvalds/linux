@@ -450,7 +450,7 @@ static void rxe_skb_tx_dtor(struct sk_buff *skb)
 	rxe_drop_ref(qp);
 }
 
-int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt, struct sk_buff *skb)
+int rxe_send(struct rxe_pkt_info *pkt, struct sk_buff *skb)
 {
 	struct rxe_av *av;
 	int err;
