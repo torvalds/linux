@@ -135,12 +135,12 @@ static void restore_regulatory_settings(bool reset_user);
 
 static const struct ieee80211_regdomain *get_cfg80211_regdom(void)
 {
-	return rtnl_dereference(cfg80211_regdomain);
+	return rcu_dereference_rtnl(cfg80211_regdomain);
 }
 
 const struct ieee80211_regdomain *get_wiphy_regdom(struct wiphy *wiphy)
 {
-	return rtnl_dereference(wiphy->regd);
+	return rcu_dereference_rtnl(wiphy->regd);
 }
 
 static const char *reg_dfs_region_str(enum nl80211_dfs_regions dfs_region)
