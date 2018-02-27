@@ -80,7 +80,7 @@ Typical operating system architecture
 
 In the typical operating system architecture (see the figure below)
 the operating system kernel is responsible for access and sharing the
-hardware in a secure and fair manner with with multiple applications.
+hardware in a secure and fair manner with multiple applications.
 
 .. slide:: Typical operating system architecture
    :level: 2
@@ -118,7 +118,7 @@ In order to provide application compatibility, system calls are rarely
 changed. Linux particularly enforces this (as opposed to in kernel
 APIs that can change as needed).
 
-The kernel code itself can be logically be separated in core kernel
+The kernel code itself can be logically separated in core kernel
 code and device drivers code. Device drivers code is responsible of
 accessing particular devices while the core kernel code is
 generic. The core kernel can be further divided into multiple logical
@@ -341,7 +341,7 @@ virtual address space is shared between user processes and the kernel.
 
 In this case kernel space is located at the top of the address space,
 while user space at the bottom. In order to avoid the user processes
-from access kernel space, the kernel creates mappings that prevent
+access kernel space, the kernel creates mappings that prevent
 access to the kernel space from user mode.
 
 .. slide:: User and kernel sharing the virtual address space
@@ -428,13 +428,13 @@ Multitasking is the ability of the operating system to
 switching between running processes.
 
 Cooperative multitasking requires the programs to cooperate to achieve
-multitasking. A program will run into it relinquish CPU control back
+multitasking. A program will run and relinquish CPU control back
 to the OS, which will then schedule another program.
 
 With preemptive multitasking the kernel will enforce strict limits for
-each process, so that all processes have a fair change of
+each process, so that all processes have a fair chance of
 running. Each process is allowed to run a time slice (e.g. 100ms)
-after which, if it is still running, it is forcefully preempted an
+after which, if it is still running, it is forcefully preempted and
 another task is scheduled.
 
 Preemptive kernel
@@ -449,7 +449,7 @@ Preemptive kernel
    A kernel is preemptive if a process can be preempted while running
    in kernel mode.
 
-   However, not that non-preemptive kernels may support preemptive
+   However, note that non-preemptive kernels may support preemptive
    multitasking.
 
 
@@ -483,7 +483,7 @@ Portability
 -----------
 
 In order to increase portability across various architectures and
-hardware configurations modern kernels are organized as follows at the
+hardware configurations, modern kernels are organized as follows at the
 top level:
 
 .. slide:: Execution contexts
@@ -505,14 +505,14 @@ different architectures and machine configurations.
 Asymmetric MultiProcessing (ASMP)
 ---------------------------------
 
-Asymmetric MultiProcessing (ASMP) is way of supporting multiple
-processors (cores) by a kernel where a processor is dedicated to the
+Asymmetric MultiProcessing (ASMP) is a way of supporting multiple
+processors (cores) by a kernel, where a processor is dedicated to the
 kernel and all other processors run user space programs.
 
-The disadvantage of this approach is the kernel throughput
+The disadvantage of this approach is that the kernel throughput
 (e.g. system calls, interrupt handling, etc.) does not scale with the
 number of processors and hence typical processes frequently use system
-calls the scalability of the approach is limited to very specific
+calls. The scalability of the approach is limited to very specific
 systems (e.g. scientific applications).
 
 
@@ -553,7 +553,7 @@ Symmetric MultiProcessing (SMP)
 
 As opposed to ASMP, in SMP mode the kernel can run on any of the
 existing processes, just as user processes. This approach is more
-difficult to implement, because it create race conditions in the
+difficult to implement, because it creates race conditions in the
 kernel if two processes run kernel functions that access the same
 memory locations.
 
@@ -596,7 +596,7 @@ executing a critical section.
 CPU Scalability
 ---------------
 
-CPU scalability refers to how well does the performance scales with
+CPU scalability refers to how well the performance scales with
 the number of cores. There are a few things that the kernel developer
 should keep in mind with regard to CPU scalability:
 
@@ -634,10 +634,10 @@ Linux development model
      basis (rc1, rc2, etc.)
 
 The Linux kernel is one the largest open source projects in the world
-with thousands of developer contributing code and millions of lines of
+with thousands of developers contributing code and millions of lines of
 code changed for each release.
 
-It is distributed under the GPLv2 license, which simply put, it
+It is distributed under the GPLv2 license, which simply put,
 requires that any modification of the kernel done on software that is
 shipped to customer should be made available to them (the customers),
 although in practice most companies make the source code publicly
@@ -650,13 +650,13 @@ developers.
 The current development model is based on doing releases at fixed
 intervals of time (usually 3 - 4 months). New features are merged into
 the kernel during a one or two week merge window. After the merge
-window a release candidate is done on a weekly basis (rc1, rc2, etc.)
+window, a release candidate is done on a weekly basis (rc1, rc2, etc.)
 
 
 Maintainer hierarchy
 --------------------
 
-In order to scale the development process Linux uses a hierarchical
+In order to scale the development process, Linux uses a hierarchical
 maintainership model:
 
 .. slide:: Maintainer hierarchy
@@ -915,7 +915,7 @@ Device drivers
    * Many device driver types (TTY, serial, SCSI, fileystem, ethernet,
      USB, framebuffer, input, sound, etc.)
 
-The Linux kernel uses an unified device model who's purpose is to
+The Linux kernel uses a unified device model whose purpose is to
 maintain internal data structures that reflect the state and structure
 of the system. Such information includes what devices are present,
 what is their status, what bus they are attached to, to what driver
