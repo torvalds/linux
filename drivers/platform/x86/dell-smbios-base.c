@@ -556,7 +556,7 @@ static void free_group(struct platform_device *pdev)
 static int __init dell_smbios_init(void)
 {
 	const struct dmi_device *valid;
-	int ret;
+	int ret, wmi, smm;
 
 	valid = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, "Dell System", NULL);
 	if (!valid) {
@@ -591,7 +591,23 @@ static int __init dell_smbios_init(void)
 	if (ret)
 		goto fail_create_group;
 
+	/* register backends */
+	wmi = init_dell_smbios_wmi();
+	if (wmi)
+		pr_debug("Failed to initialize WMI backend: %d\n", wmi);
+	smm = init_dell_smbios_smm();
+	if (smm)
+		pr_debug("Failed to initialize SMM backend: %d\n", smm);
+	if (wmi && smm) {
+		pr_err("No SMBIOS backends available (wmi: %d, smm: %d)\n",
+			wmi, smm);
+		goto fail_sysfs;
+	}
+
 	return 0;
+
+fail_sysfs:
+	free_group(platform_device);
 
 fail_create_group:
 	platform_device_del(platform_device);
@@ -609,6 +625,8 @@ fail_platform_driver:
 
 static void __exit dell_smbios_exit(void)
 {
+	exit_dell_smbios_wmi();
+	exit_dell_smbios_smm();
 	mutex_lock(&smbios_mutex);
 	if (platform_device) {
 		free_group(platform_device);
@@ -625,5 +643,6 @@ module_exit(dell_smbios_exit);
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
 MODULE_AUTHOR("Gabriele Mazzotta <gabriele.mzt@gmail.com>");
 MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
+MODULE_AUTHOR("Mario Limonciello <mario.limonciello@dell.com>");
 MODULE_DESCRIPTION("Common functions for kernel modules using Dell SMBIOS");
 MODULE_LICENSE("GPL");

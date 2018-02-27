@@ -58,7 +58,7 @@ static const struct dmi_system_id dell_device_table[] __initconst = {
 };
 MODULE_DEVICE_TABLE(dmi, dell_device_table);
 
-static void __init parse_da_table(const struct dmi_header *dm)
+static void parse_da_table(const struct dmi_header *dm)
 {
 	struct calling_interface_structure *table =
 		container_of(dm, struct calling_interface_structure, header);
@@ -73,7 +73,7 @@ static void __init parse_da_table(const struct dmi_header *dm)
 	da_command_code = table->cmdIOCode;
 }
 
-static void __init find_cmd_address(const struct dmi_header *dm, void *dummy)
+static void find_cmd_address(const struct dmi_header *dm, void *dummy)
 {
 	switch (dm->type) {
 	case 0xda: /* Calling interface */
@@ -128,7 +128,7 @@ static bool test_wsmt_enabled(void)
 	return false;
 }
 
-static int __init dell_smbios_smm_init(void)
+int init_dell_smbios_smm(void)
 {
 	int ret;
 	/*
@@ -176,7 +176,7 @@ fail_platform_device_alloc:
 	return ret;
 }
 
-static void __exit dell_smbios_smm_exit(void)
+void exit_dell_smbios_smm(void)
 {
 	if (platform_device) {
 		dell_smbios_unregister_device(&platform_device->dev);
@@ -184,13 +184,3 @@ static void __exit dell_smbios_smm_exit(void)
 		free_page((unsigned long)buffer);
 	}
 }
-
-subsys_initcall(dell_smbios_smm_init);
-module_exit(dell_smbios_smm_exit);
-
-MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
-MODULE_AUTHOR("Gabriele Mazzotta <gabriele.mzt@gmail.com>");
-MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
-MODULE_AUTHOR("Mario Limonciello <mario.limonciello@dell.com>");
-MODULE_DESCRIPTION("Dell SMBIOS communications over SMI");
-MODULE_LICENSE("GPL");
