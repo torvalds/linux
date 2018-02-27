@@ -1266,11 +1266,6 @@ mlxsw_sp_port_add_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 		return -EINVAL;
 	}
 
-	if (!mlxsw_sp_port_dev_check(to_dev)) {
-		netdev_err(mlxsw_sp_port->dev, "Cannot mirror to a non-spectrum port");
-		return -EOPNOTSUPP;
-	}
-
 	mirror->ingress = ingress;
 	span_type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
 	return mlxsw_sp_span_mirror_add(mlxsw_sp_port, to_dev, span_type,

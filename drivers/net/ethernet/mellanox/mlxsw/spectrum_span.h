@@ -50,11 +50,28 @@ struct mlxsw_sp_span_inspected_port {
 	u8 local_port;
 };
 
+struct mlxsw_sp_span_parms {
+	struct mlxsw_sp_port *dest_port; /* NULL for unoffloaded SPAN. */
+};
+
+struct mlxsw_sp_span_entry_ops;
+
 struct mlxsw_sp_span_entry {
 	const struct net_device *to_dev;
+	const struct mlxsw_sp_span_entry_ops *ops;
+	struct mlxsw_sp_span_parms parms;
 	struct list_head bound_ports_list;
 	int ref_count;
 	int id;
+};
+
+struct mlxsw_sp_span_entry_ops {
+	bool (*can_handle)(const struct net_device *to_dev);
+	int (*parms)(const struct net_device *to_dev,
+		     struct mlxsw_sp_span_parms *sparmsp);
+	int (*configure)(struct mlxsw_sp_span_entry *span_entry,
+			 struct mlxsw_sp_span_parms sparms);
+	void (*deconfigure)(struct mlxsw_sp_span_entry *span_entry);
 };
 
 int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp);

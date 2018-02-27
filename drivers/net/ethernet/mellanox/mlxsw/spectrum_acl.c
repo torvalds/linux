@@ -581,9 +581,6 @@ int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 	binding = list_first_entry(&block->binding_list,
 				   struct mlxsw_sp_acl_block_binding, list);
 	in_port = binding->mlxsw_sp_port;
-	if (!mlxsw_sp_port_dev_check(out_dev))
-		return -EINVAL;
-
 	out_port = netdev_priv(out_dev);
 	if (out_port->mlxsw_sp != mlxsw_sp)
 		return -EINVAL;
