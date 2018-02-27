@@ -2289,10 +2289,12 @@ int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 	if (!sock)
 		return err;
 
-	err = sock_error(sock->sk);
-	if (err) {
-		datagrams = err;
-		goto out_put;
+	if (likely(!(flags & MSG_ERRQUEUE))) {
+		err = sock_error(sock->sk);
+		if (err) {
+			datagrams = err;
+			goto out_put;
+		}
 	}
 
 	entry = mmsg;
