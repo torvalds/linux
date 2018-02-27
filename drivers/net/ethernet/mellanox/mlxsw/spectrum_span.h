@@ -35,6 +35,9 @@
 #define _MLXSW_SPECTRUM_SPAN_H
 
 #include <linux/types.h>
+#include <linux/if_ether.h>
+
+#include "spectrum_router.h"
 
 struct mlxsw_sp;
 struct mlxsw_sp_port;
@@ -52,6 +55,11 @@ struct mlxsw_sp_span_inspected_port {
 
 struct mlxsw_sp_span_parms {
 	struct mlxsw_sp_port *dest_port; /* NULL for unoffloaded SPAN. */
+	unsigned int ttl;
+	unsigned char dmac[ETH_ALEN];
+	unsigned char smac[ETH_ALEN];
+	union mlxsw_sp_l3addr daddr;
+	union mlxsw_sp_l3addr saddr;
 };
 
 struct mlxsw_sp_span_entry_ops;

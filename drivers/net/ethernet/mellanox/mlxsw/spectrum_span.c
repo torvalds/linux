@@ -1,6 +1,7 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/mlxsw_span.c
  * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018 Petr Machata <petrm@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,9 +33,12 @@
  */
 
 #include <linux/list.h>
+#include <net/arp.h>
+#include <net/gre.h>
 
 #include "spectrum.h"
 #include "spectrum_span.h"
+#include "spectrum_ipip.h"
 
 int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 {
@@ -127,17 +131,176 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_phys = {
 	.deconfigure = mlxsw_sp_span_entry_phys_deconfigure,
 };
 
+static struct net_device *
+mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
+			    __be32 *saddrp, __be32 *daddrp)
+{
+	struct ip_tunnel *tun = netdev_priv(to_dev);
+	struct net_device *dev = NULL;
+	struct ip_tunnel_parm parms;
+	struct rtable *rt = NULL;
+	struct flowi4 fl4;
+
+	/* We assume "dev" stays valid after rt is put. */
+	ASSERT_RTNL();
+
+	parms = mlxsw_sp_ipip_netdev_parms4(to_dev);
+	ip_tunnel_init_flow(&fl4, parms.iph.protocol, *daddrp, *saddrp,
+			    0, 0, parms.link, tun->fwmark);
+
+	rt = ip_route_output_key(tun->net, &fl4);
+	if (IS_ERR(rt))
+		return NULL;
+
+	if (rt->rt_type != RTN_UNICAST)
+		goto out;
+
+	dev = rt->dst.dev;
+	*saddrp = fl4.saddr;
+	*daddrp = rt->rt_gateway;
+
+out:
+	ip_rt_put(rt);
+	return dev;
+}
+
+static int mlxsw_sp_span_dmac(struct neigh_table *tbl,
+			      const void *pkey,
+			      struct net_device *l3edev,
+			      unsigned char dmac[ETH_ALEN])
+{
+	struct neighbour *neigh = neigh_lookup(tbl, pkey, l3edev);
+	int err = 0;
+
+	if (!neigh) {
+		neigh = neigh_create(tbl, pkey, l3edev);
+		if (IS_ERR(neigh))
+			return PTR_ERR(neigh);
+	}
+
+	neigh_event_send(neigh, NULL);
+
+	read_lock_bh(&neigh->lock);
+	if ((neigh->nud_state & NUD_VALID) && !neigh->dead)
+		memcpy(dmac, neigh->ha, ETH_ALEN);
+	else
+		err = -ENOENT;
+	read_unlock_bh(&neigh->lock);
+
+	neigh_release(neigh);
+	return err;
+}
+
+static int
+mlxsw_sp_span_entry_unoffloadable(struct mlxsw_sp_span_parms *sparmsp)
+{
+	sparmsp->dest_port = NULL;
+	return 0;
+}
+
+static int
+mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
+					union mlxsw_sp_l3addr saddr,
+					union mlxsw_sp_l3addr daddr,
+					union mlxsw_sp_l3addr gw,
+					__u8 ttl,
+					struct neigh_table *tbl,
+					struct mlxsw_sp_span_parms *sparmsp)
+{
+	unsigned char dmac[ETH_ALEN];
+
+	if (mlxsw_sp_l3addr_is_zero(gw))
+		gw = daddr;
+
+	if (!l3edev || !mlxsw_sp_port_dev_check(l3edev) ||
+	    mlxsw_sp_span_dmac(tbl, &gw, l3edev, dmac))
+		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+
+	sparmsp->dest_port = netdev_priv(l3edev);
+	sparmsp->ttl = ttl;
+	memcpy(sparmsp->dmac, dmac, ETH_ALEN);
+	memcpy(sparmsp->smac, l3edev->dev_addr, ETH_ALEN);
+	sparmsp->saddr = saddr;
+	sparmsp->daddr = daddr;
+	return 0;
+}
+
+static int
+mlxsw_sp_span_entry_gretap4_parms(const struct net_device *to_dev,
+				  struct mlxsw_sp_span_parms *sparmsp)
+{
+	struct ip_tunnel_parm tparm = mlxsw_sp_ipip_netdev_parms4(to_dev);
+	union mlxsw_sp_l3addr saddr = { .addr4 = tparm.iph.saddr };
+	union mlxsw_sp_l3addr daddr = { .addr4 = tparm.iph.daddr };
+	bool inherit_tos = tparm.iph.tos & 0x1;
+	bool inherit_ttl = !tparm.iph.ttl;
+	union mlxsw_sp_l3addr gw = daddr;
+	struct net_device *l3edev;
+
+	if (!(to_dev->flags & IFF_UP) ||
+	    /* Reject tunnels with GRE keys, checksums, etc. */
+	    tparm.i_flags || tparm.o_flags ||
+	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
+	    inherit_ttl || !inherit_tos ||
+	    /* A destination address may not be "any". */
+	    mlxsw_sp_l3addr_is_zero(daddr))
+		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+
+	l3edev = mlxsw_sp_span_gretap4_route(to_dev, &saddr.addr4, &gw.addr4);
+	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
+						       tparm.iph.ttl,
+						       &arp_tbl, sparmsp);
+}
+
+static int
+mlxsw_sp_span_entry_gretap4_configure(struct mlxsw_sp_span_entry *span_entry,
+				      struct mlxsw_sp_span_parms sparms)
+{
+	struct mlxsw_sp_port *dest_port = sparms.dest_port;
+	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
+	u8 local_port = dest_port->local_port;
+	char mpat_pl[MLXSW_REG_MPAT_LEN];
+	int pa_id = span_entry->id;
+
+	/* Create a new port analayzer entry for local_port. */
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
+			    MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+	mlxsw_reg_mpat_eth_rspan_l2_pack(mpat_pl,
+				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_NO_HEADER,
+				    sparms.dmac, false);
+	mlxsw_reg_mpat_eth_rspan_l3_ipv4_pack(mpat_pl,
+					      sparms.ttl, sparms.smac,
+					      be32_to_cpu(sparms.saddr.addr4),
+					      be32_to_cpu(sparms.daddr.addr4));
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+}
+
+static void
+mlxsw_sp_span_entry_gretap4_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+	mlxsw_sp_span_entry_deconfigure_common(span_entry,
+					MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+}
+
+static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap4 = {
+	.can_handle = is_gretap_dev,
+	.parms = mlxsw_sp_span_entry_gretap4_parms,
+	.configure = mlxsw_sp_span_entry_gretap4_configure,
+	.deconfigure = mlxsw_sp_span_entry_gretap4_deconfigure,
+};
+
 static const
 struct mlxsw_sp_span_entry_ops *const mlxsw_sp_span_entry_types[] = {
 	&mlxsw_sp_span_entry_ops_phys,
+	&mlxsw_sp_span_entry_ops_gretap4,
 };
 
 static int
 mlxsw_sp_span_entry_nop_parms(const struct net_device *to_dev,
 			      struct mlxsw_sp_span_parms *sparmsp)
 {
-	sparmsp->dest_port = NULL;
-	return 0;
+	return mlxsw_sp_span_entry_unoffloadable(sparmsp);
 }
 
 static int
