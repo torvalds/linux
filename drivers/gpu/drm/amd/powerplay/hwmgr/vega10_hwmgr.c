@@ -44,7 +44,6 @@
 #include "vega10_pptable.h"
 #include "vega10_thermal.h"
 #include "pp_debug.h"
-#include "pp_acpi.h"
 #include "amd_pcie_helpers.h"
 #include "cgs_linux.h"
 #include "ppinterrupt.h"

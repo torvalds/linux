@@ -33,7 +33,6 @@
 #include "pppcielanes.h"
 #include "ppatomctrl.h"
 #include "ppsmc.h"
-#include "pp_acpi.h"
 #include "amd_acpi.h"
 #include "pp_psm.h"
 
@@ -895,8 +894,7 @@ void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UVDDPM);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VCEDPM);
 
-	if (acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_PERFORMANCE_REQUEST) &&
-		acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION))
+	if (amdgpu_acpi_is_pcie_performance_request_supported(hwmgr->adev))
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PCIEPerformanceRequest);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
