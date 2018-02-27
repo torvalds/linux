@@ -111,7 +111,7 @@ static int ibmvnic_poll(struct napi_struct *napi, int data);
 static void send_map_query(struct ibmvnic_adapter *adapter);
 static void send_request_map(struct ibmvnic_adapter *, dma_addr_t, __be32, u8);
 static void send_request_unmap(struct ibmvnic_adapter *, u8);
-static void send_login(struct ibmvnic_adapter *adapter);
+static int send_login(struct ibmvnic_adapter *adapter);
 static void send_cap_queries(struct ibmvnic_adapter *adapter);
 static int init_sub_crqs(struct ibmvnic_adapter *);
 static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
@@ -809,8 +809,11 @@ static int ibmvnic_login(struct net_device *netdev)
 		}
 
 		reinit_completion(&adapter->init_done);
-		send_login(adapter);
-		if (!wait_for_completion_timeout(&adapter->init_done,
+		rc = send_login(adapter);
+		if (rc) {
+			dev_err(dev, "Unable to attempt device login\n");
+			return rc;
+		} else if (!wait_for_completion_timeout(&adapter->init_done,
 						 timeout)) {
 			dev_err(dev, "Login timeout\n");
 			return -1;
@@ -3074,7 +3077,7 @@ static void vnic_add_client_data(struct ibmvnic_adapter *adapter,
 	strncpy(&vlcd->name, adapter->netdev->name, len);
 }
 
-static void send_login(struct ibmvnic_adapter *adapter)
+static int send_login(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_login_rsp_buffer *login_rsp_buffer;
 	struct ibmvnic_login_buffer *login_buffer;
@@ -3089,6 +3092,12 @@ static void send_login(struct ibmvnic_adapter *adapter)
 	int client_data_len;
 	struct vnic_login_client_data *vlcd;
 	int i;
+
+	if (!adapter->tx_scrq || !adapter->rx_scrq) {
+		netdev_err(adapter->netdev,
+			   "RX or TX queues are not allocated, device login failed\n");
+		return -1;
+	}
 
 	release_login_rsp_buffer(adapter);
 	client_data_len = vnic_client_data_len(adapter);
@@ -3187,7 +3196,7 @@ static void send_login(struct ibmvnic_adapter *adapter)
 	crq.login.len = cpu_to_be32(buffer_size);
 	ibmvnic_send_crq(adapter, &crq);
 
-	return;
+	return 0;
 
 buf_rsp_map_failed:
 	kfree(login_rsp_buffer);
@@ -3196,7 +3205,7 @@ buf_rsp_alloc_failed:
 buf_map_failed:
 	kfree(login_buffer);
 buf_alloc_failed:
-	return;
+	return -1;
 }
 
 static void send_request_map(struct ibmvnic_adapter *adapter, dma_addr_t addr,
