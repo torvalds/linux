@@ -26,7 +26,6 @@ typedef __u16 __sum16;
 
 #include <sys/ioctl.h>
 #include <sys/wait.h>
-#include <sys/resource.h>
 #include <sys/types.h>
 #include <fcntl.h>
 
@@ -34,9 +33,11 @@ typedef __u16 __sum16;
 #include <linux/err.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+
 #include "test_iptunnel_common.h"
 #include "bpf_util.h"
 #include "bpf_endian.h"
+#include "bpf_rlimit.h"
 
 static int error_cnt, pass_cnt;
 
@@ -965,10 +966,6 @@ out:
 
 int main(void)
 {
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
-
 	test_pkt_access();
 	test_xdp();
 	test_l4lb_all();
