@@ -734,7 +734,7 @@ Linux source code layout
 These are the top level of the Linux source code folders:
 
 * arch - contains architecture specific code; each architecture is
-implemented in a specific sub-folder (e.g. arm, arm64, x86)
+  implemented in a specific sub-folder (e.g. arm, arm64, x86)
 
 * block - contains the block subsystem code that deals with reading
   and writing data from block devices: creating block I/O requests,
