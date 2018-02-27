@@ -815,13 +815,11 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 	if (!macaddr)
 		return NULL;
 
-	spin_lock_bh(&adapter->mac_vlan_list_lock);
-
 	f = i40evf_find_filter(adapter, macaddr);
 	if (!f) {
 		f = kzalloc(sizeof(*f), GFP_ATOMIC);
 		if (!f)
-			goto clearout;
+			return f;
 
 		ether_addr_copy(f->macaddr, macaddr);
 
@@ -832,8 +830,6 @@ i40evf_mac_filter *i40evf_add_filter(struct i40evf_adapter *adapter,
 		f->remove = false;
 	}
 
-clearout:
-	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 	return f;
 }
 
@@ -868,9 +864,10 @@ static int i40evf_set_mac(struct net_device *netdev, void *p)
 		adapter->aq_required |= I40EVF_FLAG_AQ_DEL_MAC_FILTER;
 	}
 
+	f = i40evf_add_filter(adapter, addr->sa_data);
+
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
-	f = i40evf_add_filter(adapter, addr->sa_data);
 	if (f) {
 		ether_addr_copy(hw->mac.addr, addr->sa_data);
 		ether_addr_copy(netdev->dev_addr, adapter->hw.mac.addr);
@@ -2493,6 +2490,7 @@ static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
 	u16 addr_type = 0;
 	u16 n_proto = 0;
 	int i = 0;
+	struct virtchnl_filter *vf = &filter->f;
 
 	if (f->dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
@@ -2540,7 +2538,7 @@ static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
 			return -EINVAL;
 		if (n_proto == ETH_P_IPV6) {
 			/* specify flow type as TCP IPv6 */
-			filter->f.flow_type = VIRTCHNL_TCP_V6_FLOW;
+			vf->flow_type = VIRTCHNL_TCP_V6_FLOW;
 		}
 
 		if (key->ip_proto != IPPROTO_TCP) {
@@ -2585,9 +2583,8 @@ static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
 			    is_multicast_ether_addr(key->dst)) {
 				/* set the mask if a valid dst_mac address */
 				for (i = 0; i < ETH_ALEN; i++)
-					filter->f.mask.tcp_spec.dst_mac[i] |=
-									0xff;
-				ether_addr_copy(filter->f.data.tcp_spec.dst_mac,
+					vf->mask.tcp_spec.dst_mac[i] |= 0xff;
+				ether_addr_copy(vf->data.tcp_spec.dst_mac,
 						key->dst);
 			}
 
@@ -2596,9 +2593,8 @@ static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
 			    is_multicast_ether_addr(key->src)) {
 				/* set the mask if a valid dst_mac address */
 				for (i = 0; i < ETH_ALEN; i++)
-					filter->f.mask.tcp_spec.src_mac[i] |=
-									0xff;
-				ether_addr_copy(filter->f.data.tcp_spec.src_mac,
+					vf->mask.tcp_spec.src_mac[i] |= 0xff;
+				ether_addr_copy(vf->data.tcp_spec.src_mac,
 						key->src);
 		}
 	}
@@ -2622,8 +2618,8 @@ static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
 				return I40E_ERR_CONFIG;
 			}
 		}
-		filter->f.mask.tcp_spec.vlan_id |= cpu_to_be16(0xffff);
-		filter->f.data.tcp_spec.vlan_id = cpu_to_be16(key->vlan_id);
+		vf->mask.tcp_spec.vlan_id |= cpu_to_be16(0xffff);
+		vf->data.tcp_spec.vlan_id = cpu_to_be16(key->vlan_id);
 	}
 
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
@@ -2670,14 +2666,12 @@ static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
 			return I40E_ERR_CONFIG;
 		}
 		if (key->dst) {
-			filter->f.mask.tcp_spec.dst_ip[0] |=
-							cpu_to_be32(0xffffffff);
-			filter->f.data.tcp_spec.dst_ip[0] = key->dst;
+			vf->mask.tcp_spec.dst_ip[0] |= cpu_to_be32(0xffffffff);
+			vf->data.tcp_spec.dst_ip[0] = key->dst;
 		}
 		if (key->src) {
-			filter->f.mask.tcp_spec.src_ip[0] |=
-							cpu_to_be32(0xffffffff);
-			filter->f.data.tcp_spec.src_ip[0] = key->src;
+			vf->mask.tcp_spec.src_ip[0] |= cpu_to_be32(0xffffffff);
+			vf->data.tcp_spec.src_ip[0] = key->src;
 		}
 	}
 
@@ -2710,22 +2704,14 @@ static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
 		if (!ipv6_addr_any(&mask->dst) || !ipv6_addr_any(&mask->src))
 			field_flags |= I40EVF_CLOUD_FIELD_IIP;
 
-		if (key->dst.s6_addr) {
-			for (i = 0; i < 4; i++)
-				filter->f.mask.tcp_spec.dst_ip[i] |=
-							cpu_to_be32(0xffffffff);
-			memcpy(&filter->f.data.tcp_spec.dst_ip,
-			       &key->dst.s6_addr32,
-			       sizeof(filter->f.data.tcp_spec.dst_ip));
-		}
-		if (key->src.s6_addr) {
-			for (i = 0; i < 4; i++)
-				filter->f.mask.tcp_spec.src_ip[i] |=
-							cpu_to_be32(0xffffffff);
-			memcpy(&filter->f.data.tcp_spec.src_ip,
-			       &key->src.s6_addr32,
-			       sizeof(filter->f.data.tcp_spec.src_ip));
-		}
+		for (i = 0; i < 4; i++)
+			vf->mask.tcp_spec.dst_ip[i] |= cpu_to_be32(0xffffffff);
+		memcpy(&vf->data.tcp_spec.dst_ip, &key->dst.s6_addr32,
+		       sizeof(vf->data.tcp_spec.dst_ip));
+		for (i = 0; i < 4; i++)
+			vf->mask.tcp_spec.src_ip[i] |= cpu_to_be32(0xffffffff);
+		memcpy(&vf->data.tcp_spec.src_ip, &key->src.s6_addr32,
+		       sizeof(vf->data.tcp_spec.src_ip));
 	}
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_PORTS)) {
 		struct flow_dissector_key_ports *key =
@@ -2757,16 +2743,16 @@ static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
 			}
 		}
 		if (key->dst) {
-			filter->f.mask.tcp_spec.dst_port |= cpu_to_be16(0xffff);
-			filter->f.data.tcp_spec.dst_port = key->dst;
+			vf->mask.tcp_spec.dst_port |= cpu_to_be16(0xffff);
+			vf->data.tcp_spec.dst_port = key->dst;
 		}
 
 		if (key->src) {
-			filter->f.mask.tcp_spec.src_port |= cpu_to_be16(0xffff);
-			filter->f.data.tcp_spec.src_port = key->dst;
+			vf->mask.tcp_spec.src_port |= cpu_to_be16(0xffff);
+			vf->data.tcp_spec.src_port = key->dst;
 		}
 	}
-	filter->f.field_flags = field_flags;
+	vf->field_flags = field_flags;
 
 	return 0;
 }
@@ -3040,7 +3026,12 @@ static int i40evf_open(struct net_device *netdev)
 	if (err)
 		goto err_req_irq;
 
+	spin_lock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_add_filter(adapter, adapter->hw.mac.addr);
+
+	spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
 	i40evf_configure(adapter);
 
 	i40evf_up_complete(adapter);

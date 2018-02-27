@@ -196,7 +196,7 @@ void i40evf_detect_recover_hung(struct i40e_vsi *vsi)
 			 */
 			smp_rmb();
 			tx_ring->tx_stats.prev_pkt_ctr =
-			  i40evf_get_tx_pending(tx_ring, false) ? packets : -1;
+			  i40evf_get_tx_pending(tx_ring, true) ? packets : -1;
 		}
 	}
 }

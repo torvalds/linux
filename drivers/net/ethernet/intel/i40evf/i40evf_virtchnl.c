@@ -1048,24 +1048,28 @@ void i40evf_disable_channels(struct i40evf_adapter *adapter)
  * Print the cloud filter
  **/
 static void i40evf_print_cloud_filter(struct i40evf_adapter *adapter,
-				      struct virtchnl_filter f)
+				      struct virtchnl_filter *f)
 {
-	switch (f.flow_type) {
+	switch (f->flow_type) {
 	case VIRTCHNL_TCP_V4_FLOW:
 		dev_info(&adapter->pdev->dev, "dst_mac: %pM src_mac: %pM vlan_id: %hu dst_ip: %pI4 src_ip %pI4 dst_port %hu src_port %hu\n",
-			 &f.data.tcp_spec.dst_mac, &f.data.tcp_spec.src_mac,
-			 ntohs(f.data.tcp_spec.vlan_id),
-			 &f.data.tcp_spec.dst_ip[0], &f.data.tcp_spec.src_ip[0],
-			 ntohs(f.data.tcp_spec.dst_port),
-			 ntohs(f.data.tcp_spec.src_port));
+			 &f->data.tcp_spec.dst_mac,
+			 &f->data.tcp_spec.src_mac,
+			 ntohs(f->data.tcp_spec.vlan_id),
+			 &f->data.tcp_spec.dst_ip[0],
+			 &f->data.tcp_spec.src_ip[0],
+			 ntohs(f->data.tcp_spec.dst_port),
+			 ntohs(f->data.tcp_spec.src_port));
 		break;
 	case VIRTCHNL_TCP_V6_FLOW:
 		dev_info(&adapter->pdev->dev, "dst_mac: %pM src_mac: %pM vlan_id: %hu dst_ip: %pI6 src_ip %pI6 dst_port %hu src_port %hu\n",
-			 &f.data.tcp_spec.dst_mac, &f.data.tcp_spec.src_mac,
-			 ntohs(f.data.tcp_spec.vlan_id),
-			 &f.data.tcp_spec.dst_ip, &f.data.tcp_spec.src_ip,
-			 ntohs(f.data.tcp_spec.dst_port),
-			 ntohs(f.data.tcp_spec.src_port));
+			 &f->data.tcp_spec.dst_mac,
+			 &f->data.tcp_spec.src_mac,
+			 ntohs(f->data.tcp_spec.vlan_id),
+			 &f->data.tcp_spec.dst_ip,
+			 &f->data.tcp_spec.src_ip,
+			 ntohs(f->data.tcp_spec.dst_port),
+			 ntohs(f->data.tcp_spec.src_port));
 		break;
 	}
 }
@@ -1303,7 +1307,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 						 i40evf_stat_str(&adapter->hw,
 								 v_retval));
 					i40evf_print_cloud_filter(adapter,
-								  cf->f);
+								  &cf->f);
 					list_del(&cf->list);
 					kfree(cf);
 					adapter->num_cloud_filters--;
@@ -1322,7 +1326,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 						 i40evf_stat_str(&adapter->hw,
 								 v_retval));
 					i40evf_print_cloud_filter(adapter,
-								  cf->f);
+								  &cf->f);
 				}
 			}
 			}
