@@ -242,7 +242,7 @@ struct em28xx_usb_bufs {
 	struct urb			**urb;
 
 		/* transfer buffers for isoc/bulk transfer */
-	char				**transfer_buffer;
+	char				**buf;
 };
 
 struct em28xx_usb_ctl {
