@@ -291,8 +291,6 @@ static int mmc_read_switch(struct mmc_card *card)
 		return 0;
 	}
 
-	err = -EIO;
-
 	status = kmalloc(64, GFP_KERNEL);
 	if (!status)
 		return -ENOMEM;
