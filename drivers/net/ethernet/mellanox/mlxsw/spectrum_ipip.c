@@ -1,7 +1,7 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum_ipip.c
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Petr Machata <petrm@mellanox.com>
+ * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018 Petr Machata <petrm@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -122,6 +122,13 @@ mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
 	return (union mlxsw_sp_l3addr) {0};
 }
 
+bool mlxsw_sp_l3addr_is_zero(union mlxsw_sp_l3addr addr)
+{
+	union mlxsw_sp_l3addr naddr = {0};
+
+	return !memcmp(&addr, &naddr, sizeof(naddr));
+}
+
 static int
 mlxsw_sp_ipip_nexthop_update_gre4(struct mlxsw_sp *mlxsw_sp, u32 adj_index,
 				  struct mlxsw_sp_ipip_entry *ipip_entry)
@@ -215,15 +222,14 @@ static bool mlxsw_sp_ipip_tunnel_complete(enum mlxsw_sp_l3proto proto,
 {
 	union mlxsw_sp_l3addr saddr = mlxsw_sp_ipip_netdev_saddr(proto, ol_dev);
 	union mlxsw_sp_l3addr daddr = mlxsw_sp_ipip_netdev_daddr(proto, ol_dev);
-	union mlxsw_sp_l3addr naddr = {0};
 
 	/* Tunnels with unset local or remote address are valid in Linux and
 	 * used for lightweight tunnels (LWT) and Non-Broadcast Multi-Access
 	 * (NBMA) tunnels. In principle these can be offloaded, but the driver
 	 * currently doesn't support this. So punt.
 	 */
-	return memcmp(&saddr, &naddr, sizeof(naddr)) &&
-	       memcmp(&daddr, &naddr, sizeof(naddr));
+	return !mlxsw_sp_l3addr_is_zero(saddr) &&
+	       !mlxsw_sp_l3addr_is_zero(daddr);
 }
 
 static bool mlxsw_sp_ipip_can_offload_gre4(const struct mlxsw_sp *mlxsw_sp,
