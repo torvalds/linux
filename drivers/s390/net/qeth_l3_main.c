@@ -67,6 +67,24 @@ void qeth_l3_ipaddr_to_string(enum qeth_prot_versions proto, const __u8 *addr,
 		qeth_l3_ipaddr6_to_string(addr, buf);
 }
 
+static struct qeth_ipaddr *qeth_l3_find_addr_by_ip(struct qeth_card *card,
+						   struct qeth_ipaddr *query)
+{
+	u64 key = qeth_l3_ipaddr_hash(query);
+	struct qeth_ipaddr *addr;
+
+	if (query->is_multicast) {
+		hash_for_each_possible(card->ip_mc_htable, addr, hnode, key)
+			if (qeth_l3_addr_match_ip(addr, query))
+				return addr;
+	} else {
+		hash_for_each_possible(card->ip_htable,  addr, hnode, key)
+			if (qeth_l3_addr_match_ip(addr, query))
+				return addr;
+	}
+	return NULL;
+}
+
 static void qeth_l3_convert_addr_to_bits(u8 *addr, u8 *bits, int len)
 {
 	int i, j;
@@ -120,34 +138,6 @@ static bool qeth_l3_is_addr_covered_by_ipato(struct qeth_card *card,
 	return rc;
 }
 
-inline int
-qeth_l3_ipaddrs_is_equal(struct qeth_ipaddr *addr1, struct qeth_ipaddr *addr2)
-{
-	return addr1->proto == addr2->proto &&
-	       !memcmp(&addr1->u, &addr2->u, sizeof(addr1->u)) &&
-	       ether_addr_equal_64bits(addr1->mac, addr2->mac);
-}
-
-static struct qeth_ipaddr *
-qeth_l3_ip_from_hash(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
-{
-	struct qeth_ipaddr *addr;
-
-	if (tmp_addr->is_multicast) {
-		hash_for_each_possible(card->ip_mc_htable,  addr,
-				hnode, qeth_l3_ipaddr_hash(tmp_addr))
-			if (qeth_l3_ipaddrs_is_equal(tmp_addr, addr))
-				return addr;
-	} else {
-		hash_for_each_possible(card->ip_htable,  addr,
-				hnode, qeth_l3_ipaddr_hash(tmp_addr))
-			if (qeth_l3_ipaddrs_is_equal(tmp_addr, addr))
-				return addr;
-	}
-
-	return NULL;
-}
-
 int qeth_l3_delete_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 {
 	int rc = 0;
@@ -162,8 +152,8 @@ int qeth_l3_delete_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 		QETH_CARD_HEX(card, 4, ((char *)&tmp_addr->u.a6.addr) + 8, 8);
 	}
 
-	addr = qeth_l3_ip_from_hash(card, tmp_addr);
-	if (!addr)
+	addr = qeth_l3_find_addr_by_ip(card, tmp_addr);
+	if (!addr || !qeth_l3_addr_match_all(addr, tmp_addr))
 		return -ENOENT;
 
 	addr->ref_counter--;
@@ -185,6 +175,7 @@ int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 {
 	int rc = 0;
 	struct qeth_ipaddr *addr;
+	char buf[40];
 
 	QETH_CARD_TEXT(card, 4, "addip");
 
@@ -195,8 +186,20 @@ int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 		QETH_CARD_HEX(card, 4, ((char *)&tmp_addr->u.a6.addr) + 8, 8);
 	}
 
-	addr = qeth_l3_ip_from_hash(card, tmp_addr);
-	if (!addr) {
+	addr = qeth_l3_find_addr_by_ip(card, tmp_addr);
+	if (addr) {
+		if (tmp_addr->type != QETH_IP_TYPE_NORMAL)
+			return -EADDRINUSE;
+		if (qeth_l3_addr_match_all(addr, tmp_addr)) {
+			addr->ref_counter++;
+			return 0;
+		}
+		qeth_l3_ipaddr_to_string(tmp_addr->proto, (u8 *)&tmp_addr->u,
+					 buf);
+		dev_warn(&card->gdev->dev,
+			 "Registering IP address %s failed\n", buf);
+		return -EADDRINUSE;
+	} else {
 		addr = qeth_l3_get_addr_buffer(tmp_addr->proto);
 		if (!addr)
 			return -ENOMEM;
@@ -244,11 +247,7 @@ int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 			hash_del(&addr->hnode);
 			kfree(addr);
 		}
-	} else {
-			if (addr->type == QETH_IP_TYPE_NORMAL)
-				addr->ref_counter++;
 	}
-
 	return rc;
 }
 
@@ -634,12 +633,7 @@ int qeth_l3_add_vipa(struct qeth_card *card, enum qeth_prot_versions proto,
 		return -ENOMEM;
 
 	spin_lock_bh(&card->ip_lock);
-
-	if (qeth_l3_ip_from_hash(card, ipaddr))
-		rc = -EEXIST;
-	else
-		rc = qeth_l3_add_ip(card, ipaddr);
-
+	rc = qeth_l3_add_ip(card, ipaddr);
 	spin_unlock_bh(&card->ip_lock);
 
 	kfree(ipaddr);
@@ -704,12 +698,7 @@ int qeth_l3_add_rxip(struct qeth_card *card, enum qeth_prot_versions proto,
 		return -ENOMEM;
 
 	spin_lock_bh(&card->ip_lock);
-
-	if (qeth_l3_ip_from_hash(card, ipaddr))
-		rc = -EEXIST;
-	else
-		rc = qeth_l3_add_ip(card, ipaddr);
-
+	rc = qeth_l3_add_ip(card, ipaddr);
 	spin_unlock_bh(&card->ip_lock);
 
 	kfree(ipaddr);
@@ -1230,8 +1219,9 @@ qeth_l3_add_mc_to_hash(struct qeth_card *card, struct in_device *in4_dev)
 		tmp->u.a4.addr = be32_to_cpu(im4->multiaddr);
 		tmp->is_multicast = 1;
 
-		ipm = qeth_l3_ip_from_hash(card, tmp);
+		ipm = qeth_l3_find_addr_by_ip(card, tmp);
 		if (ipm) {
+			/* for mcast, by-IP match means full match */
 			ipm->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
 		} else {
 			ipm = qeth_l3_get_addr_buffer(QETH_PROT_IPV4);
@@ -1310,8 +1300,9 @@ static void qeth_l3_add_mc6_to_hash(struct qeth_card *card,
 		       sizeof(struct in6_addr));
 		tmp->is_multicast = 1;
 
-		ipm = qeth_l3_ip_from_hash(card, tmp);
+		ipm = qeth_l3_find_addr_by_ip(card, tmp);
 		if (ipm) {
+			/* for mcast, by-IP match means full match */
 			ipm->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
 			continue;
 		}
