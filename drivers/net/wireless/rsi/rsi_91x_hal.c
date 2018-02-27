@@ -15,6 +15,7 @@
  */
 
 #include <linux/firmware.h>
+#include <net/bluetooth/bluetooth.h>
 #include "rsi_mgmt.h"
 #include "rsi_hal.h"
 #include "rsi_sdio.h"
@@ -24,6 +25,7 @@
 static struct ta_metadata metadata_flash_content[] = {
 	{"flash_content", 0x00010000},
 	{"rsi/rs9113_wlan_qspi.rps", 0x00010000},
+	{"rsi/rs9113_wlan_bt_dual_mode.rps", 0x00010000},
 };
 
 int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb)
@@ -354,6 +356,43 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 
 err:
 	rsi_indicate_tx_status(common->priv, skb, status);
+	return status;
+}
+
+int rsi_send_bt_pkt(struct rsi_common *common, struct sk_buff *skb)
+{
+	int status = -EINVAL;
+	u8 header_size = 0;
+	struct rsi_bt_desc *bt_desc;
+	u8 queueno = ((skb->data[1] >> 4) & 0xf);
+
+	if (queueno == RSI_BT_MGMT_Q) {
+		status = rsi_send_pkt_to_bus(common, skb);
+		if (status)
+			rsi_dbg(ERR_ZONE, "%s: Failed to write bt mgmt pkt\n",
+				__func__);
+		goto out;
+	}
+	header_size = FRAME_DESC_SZ;
+	if (header_size > skb_headroom(skb)) {
+		rsi_dbg(ERR_ZONE, "%s: Not enough headroom\n", __func__);
+		status = -ENOSPC;
+		goto out;
+	}
+	skb_push(skb, header_size);
+	memset(skb->data, 0, header_size);
+	bt_desc = (struct rsi_bt_desc *)skb->data;
+
+	rsi_set_len_qno(&bt_desc->len_qno, (skb->len - FRAME_DESC_SZ),
+			RSI_BT_DATA_Q);
+	bt_desc->bt_pkt_type = cpu_to_le16(bt_cb(skb)->pkt_type);
+
+	status = rsi_send_pkt_to_bus(common, skb);
+	if (status)
+		rsi_dbg(ERR_ZONE, "%s: Failed to write bt pkt\n", __func__);
+
+out:
+	dev_kfree_skb(skb);
 	return status;
 }
 

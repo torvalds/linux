@@ -291,6 +291,8 @@ struct rsi_common {
 	bool p2p_enabled;
 	struct timer_list roc_timer;
 	struct ieee80211_vif *roc_vif;
+
+	void *bt_adapter;
 };
 
 struct eepromrw_info {
@@ -364,5 +366,6 @@ struct rsi_host_intf_ops {
 };
 
 enum rsi_host_intf rsi_get_host_intf(void *priv);
+void rsi_set_bt_context(void *priv, void *bt_context);
 
 #endif

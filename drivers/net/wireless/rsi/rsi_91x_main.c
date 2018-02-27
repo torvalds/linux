@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/firmware.h>
+#include <net/rsi_91x.h>
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
 #include "rsi_coex.h"
@@ -34,6 +35,14 @@ u32 rsi_zone_enabled = /* INFO_ZONE |
 			ERR_ZONE |
 			0;
 EXPORT_SYMBOL_GPL(rsi_zone_enabled);
+
+#ifdef CONFIG_RSI_COEX
+static struct rsi_proto_ops g_proto_ops = {
+	.coex_send_pkt = rsi_coex_send_pkt,
+	.get_host_intf = rsi_get_host_intf,
+	.set_bt_context = rsi_set_bt_context,
+};
+#endif
 
 /**
  * rsi_dbg() - This function outputs informational messages.
@@ -144,6 +153,9 @@ int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len)
 	u32 index, length = 0, queueno = 0;
 	u16 actual_length = 0, offset;
 	struct sk_buff *skb = NULL;
+#ifdef CONFIG_RSI_COEX
+	u8 bt_pkt_type;
+#endif
 
 	index = 0;
 	do {
@@ -184,6 +196,25 @@ int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len)
 		case RSI_WIFI_MGMT_Q:
 			rsi_mgmt_pkt_recv(common, (frame_desc + offset));
 			break;
+
+#ifdef CONFIG_RSI_COEX
+		case RSI_BT_MGMT_Q:
+		case RSI_BT_DATA_Q:
+#define BT_RX_PKT_TYPE_OFST	14
+#define BT_CARD_READY_IND	0x89
+			bt_pkt_type = frame_desc[offset + BT_RX_PKT_TYPE_OFST];
+			if (bt_pkt_type == BT_CARD_READY_IND) {
+				rsi_dbg(INFO_ZONE, "BT Card ready recvd\n");
+				if (rsi_bt_ops.attach(common, &g_proto_ops))
+					rsi_dbg(ERR_ZONE,
+						"Failed to attach BT module\n");
+			} else {
+				if (common->bt_adapter)
+					rsi_bt_ops.recv_pkt(common->bt_adapter,
+							frame_desc + offset);
+			}
+			break;
+#endif
 
 		default:
 			rsi_dbg(ERR_ZONE, "%s: pkt from invalid queue: %d\n",
@@ -231,6 +262,13 @@ enum rsi_host_intf rsi_get_host_intf(void *priv)
 	struct rsi_common *common = (struct rsi_common *)priv;
 
 	return common->priv->rsi_host_intf;
+}
+
+void rsi_set_bt_context(void *priv, void *bt_context)
+{
+	struct rsi_common *common = (struct rsi_common *)priv;
+
+	common->bt_adapter = bt_context;
 }
 #endif
 
@@ -323,12 +361,17 @@ void rsi_91x_deinit(struct rsi_hw *adapter)
 	for (ii = 0; ii < NUM_SOFT_QUEUES; ii++)
 		skb_queue_purge(&common->tx_queue[ii]);
 
-	common->init_done = false;
-
 #ifdef CONFIG_RSI_COEX
-	if (common->coex_mode > 1)
+	if (common->coex_mode > 1) {
+		if (common->bt_adapter) {
+			rsi_bt_ops.detach(common->bt_adapter);
+			common->bt_adapter = NULL;
+		}
 		rsi_coex_detach(common);
+	}
 #endif
+
+	common->init_done = false;
 
 	kfree(common);
 	kfree(adapter->rsi_dev);

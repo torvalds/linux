@@ -145,8 +145,18 @@ struct rsi_data_desc {
 	u8 sta_id;
 } __packed;
 
+struct rsi_bt_desc {
+	__le16 len_qno;
+	__le16 reserved1;
+	__le32 reserved2;
+	__le32 reserved3;
+	__le16 reserved4;
+	__le16 bt_pkt_type;
+} __packed;
+
 int rsi_hal_device_init(struct rsi_hw *adapter);
 int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb);
+int rsi_send_bt_pkt(struct rsi_common *common, struct sk_buff *skb);
 
 #endif
