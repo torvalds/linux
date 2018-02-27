@@ -305,11 +305,21 @@ struct media_v2_interface {
 	};
 } __attribute__ ((packed));
 
+/*
+ * Appeared in 4.19.0.
+ *
+ * The media_version argument comes from the media_version field in
+ * struct media_device_info.
+ */
+#define MEDIA_V2_PAD_HAS_INDEX(media_version) \
+	((media_version) >= ((4 << 16) | (19 << 8) | 0))
+
 struct media_v2_pad {
 	__u32 id;
 	__u32 entity_id;
 	__u32 flags;
-	__u32 reserved[5];
+	__u32 index;
+	__u32 reserved[4];
 } __attribute__ ((packed));
 
 struct media_v2_link {
