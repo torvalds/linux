@@ -518,6 +518,35 @@ static int xt_check_entry_match(const char *match, const char *target,
 	return 0;
 }
 
+/** xt_check_table_hooks - check hook entry points are sane
+ *
+ * @info xt_table_info to check
+ * @valid_hooks - hook entry points that we can enter from
+ *
+ * Validates that the hook entry and underflows points are set up.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int xt_check_table_hooks(const struct xt_table_info *info, unsigned int valid_hooks)
+{
+	unsigned int i;
+
+	BUILD_BUG_ON(ARRAY_SIZE(info->hook_entry) != ARRAY_SIZE(info->underflow));
+
+	for (i = 0; i < ARRAY_SIZE(info->hook_entry); i++) {
+		if (!(valid_hooks & (1 << i)))
+			continue;
+
+		if (info->hook_entry[i] == 0xFFFFFFFF)
+			return -EINVAL;
+		if (info->underflow[i] == 0xFFFFFFFF)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(xt_check_table_hooks);
+
 #ifdef CONFIG_COMPAT
 int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta)
 {

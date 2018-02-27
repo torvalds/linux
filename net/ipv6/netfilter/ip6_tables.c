@@ -720,16 +720,9 @@ translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
 	if (i != repl->num_entries)
 		goto out_free;
 
-	/* Check hooks all assigned */
-	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
-		/* Only hooks which are valid */
-		if (!(repl->valid_hooks & (1 << i)))
-			continue;
-		if (newinfo->hook_entry[i] == 0xFFFFFFFF)
-			goto out_free;
-		if (newinfo->underflow[i] == 0xFFFFFFFF)
-			goto out_free;
-	}
+	ret = xt_check_table_hooks(newinfo, repl->valid_hooks);
+	if (ret)
+		goto out_free;
 
 	if (!mark_source_chains(newinfo, repl->valid_hooks, entry0, offsets)) {
 		ret = -ELOOP;
