@@ -1482,6 +1482,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if ((*hdrs >> 7) & 1) {
 		build_hdr_descs_arr(tx_buff, &num_entries, *hdrs);
 		tx_crq.v1.n_crq_elem = num_entries;
+		tx_buff->num_entries = num_entries;
 		tx_buff->indir_arr[0] = tx_crq;
 		tx_buff->indir_dma = dma_map_single(dev, tx_buff->indir_arr,
 						    sizeof(tx_buff->indir_arr),
@@ -1500,6 +1501,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 					       (u64)tx_buff->indir_dma,
 					       (u64)num_entries);
 	} else {
+		tx_buff->num_entries = num_entries;
 		lpar_rc = send_subcrq(adapter, handle_array[queue_num],
 				      &tx_crq);
 	}
@@ -1536,7 +1538,6 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		netif_stop_subqueue(netdev, queue_num);
 	}
 
-	tx_buff->num_entries = num_entries;
 	tx_packets++;
 	tx_bytes += skb->len;
 	txq->trans_start = jiffies;
