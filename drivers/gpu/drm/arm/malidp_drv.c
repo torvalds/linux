@@ -677,8 +677,10 @@ static void malidp_unbind(struct device *dev)
 	drm_fb_cma_fbdev_fini(drm);
 	drm_kms_helper_poll_fini(drm);
 	pm_runtime_get_sync(dev);
+	drm_crtc_vblank_off(&malidp->crtc);
 	malidp_se_irq_fini(drm);
 	malidp_de_irq_fini(drm);
+	drm->irq_enabled = false;
 	component_unbind_all(dev, drm);
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
