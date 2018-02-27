@@ -4517,9 +4517,9 @@ int pci_try_reset_function(struct pci_dev *dev)
 
 	pci_dev_save_and_disable(dev);
 	rc = __pci_reset_function_locked(dev);
+	pci_dev_restore(dev);
 	pci_dev_unlock(dev);
 
-	pci_dev_restore(dev);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(pci_try_reset_function);
@@ -4727,7 +4727,9 @@ static void pci_slot_restore(struct pci_slot *slot)
 	list_for_each_entry(dev, &slot->bus->devices, bus_list) {
 		if (!dev->slot || dev->slot != slot)
 			continue;
+		pci_dev_lock(dev);
 		pci_dev_restore(dev);
+		pci_dev_unlock(dev);
 		if (dev->subordinate)
 			pci_bus_restore(dev->subordinate);
 	}
