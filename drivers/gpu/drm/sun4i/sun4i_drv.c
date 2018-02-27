@@ -140,6 +140,8 @@ static int sun4i_drv_bind(struct device *dev)
 	if (ret)
 		goto finish_poll;
 
+	dev_set_drvdata(dev, drm);
+
 	return 0;
 
 finish_poll:
