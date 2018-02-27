@@ -131,7 +131,6 @@ static void tpd_set_timings(struct omap_dss_device *dssdev,
 	struct omap_dss_device *in = ddata->in;
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
 	in->ops.hdmi->set_timings(in, vm);
 }

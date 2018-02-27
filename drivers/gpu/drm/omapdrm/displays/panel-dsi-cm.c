@@ -956,9 +956,8 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 	}
 
 	/* XXX no need to send this every frame, but dsi break if not done */
-	r = dsicm_set_update_window(ddata, 0, 0,
-			dssdev->panel.vm.hactive,
-			dssdev->panel.vm.vactive);
+	r = dsicm_set_update_window(ddata, 0, 0, ddata->vm.hactive,
+				    ddata->vm.vactive);
 	if (r)
 		goto err;
 
@@ -1089,7 +1088,7 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 	}
 
 	size = min((u32)w * h * 3,
-		   dssdev->panel.vm.hactive * dssdev->panel.vm.vactive * 3);
+		   ddata->vm.hactive * ddata->vm.vactive * 3);
 
 	in->ops.dsi->bus_lock(in);
 
@@ -1331,7 +1330,6 @@ static int dsicm_probe(struct platform_device *pdev)
 	dssdev = &ddata->dssdev;
 	dssdev->dev = dev;
 	dssdev->driver = &dsicm_ops;
-	dssdev->panel.vm = ddata->vm;
 	dssdev->type = OMAP_DISPLAY_TYPE_DSI;
 	dssdev->owner = THIS_MODULE;
 

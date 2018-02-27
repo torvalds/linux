@@ -137,7 +137,6 @@ static void tfp410_set_timings(struct omap_dss_device *dssdev,
 	tfp410_fix_timings(vm);
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
 	in->ops.dpi->set_timings(in, vm);
 }

@@ -170,7 +170,6 @@ static void sharp_ls_set_timings(struct omap_dss_device *dssdev,
 	struct omap_dss_device *in = ddata->in;
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
 	in->ops.dpi->set_timings(in, vm);
 }
@@ -281,7 +280,6 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	dssdev->driver = &sharp_ls_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.vm = ddata->vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

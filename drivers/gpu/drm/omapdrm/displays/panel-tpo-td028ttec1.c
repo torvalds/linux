@@ -340,7 +340,6 @@ static void td028ttec1_panel_set_timings(struct omap_dss_device *dssdev,
 	struct omap_dss_device *in = ddata->in;
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
 	in->ops.dpi->set_timings(in, vm);
 }
@@ -406,7 +405,6 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 	dssdev->driver = &td028ttec1_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.vm = ddata->vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

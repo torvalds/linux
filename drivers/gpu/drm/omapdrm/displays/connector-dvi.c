@@ -139,7 +139,6 @@ static void dvic_set_timings(struct omap_dss_device *dssdev,
 	struct omap_dss_device *in = ddata->in;
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
 	in->ops.dvi->set_timings(in, vm);
 }
@@ -403,7 +402,6 @@ static int dvic_probe(struct platform_device *pdev)
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.vm = dvic_default_vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

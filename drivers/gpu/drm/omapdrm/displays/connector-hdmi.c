@@ -142,7 +142,6 @@ static void hdmic_set_timings(struct omap_dss_device *dssdev,
 	struct omap_dss_device *in = ddata->in;
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
 	in->ops.hdmi->set_timings(in, vm);
 }
@@ -368,7 +367,6 @@ static int hdmic_probe(struct platform_device *pdev)
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_HDMI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.vm = hdmic_default_vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

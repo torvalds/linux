@@ -132,7 +132,6 @@ static void tvc_set_timings(struct omap_dss_device *dssdev,
 	struct omap_dss_device *in = ddata->in;
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
 	in->ops.atv->set_timings(in, vm);
 }
@@ -186,7 +185,6 @@ static int tvc_probe(struct platform_device *pdev)
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_VENC;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.vm = tvc_pal_vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {

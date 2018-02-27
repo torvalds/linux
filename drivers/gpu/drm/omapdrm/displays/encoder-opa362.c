@@ -143,7 +143,6 @@ static void opa362_set_timings(struct omap_dss_device *dssdev,
 	dev_dbg(dssdev->dev, "set_timings\n");
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
 	in->ops.atv->set_timings(in, vm);
 }

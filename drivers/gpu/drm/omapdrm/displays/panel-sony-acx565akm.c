@@ -671,7 +671,6 @@ static void acx565akm_set_timings(struct omap_dss_device *dssdev,
 	struct omap_dss_device *in = ddata->in;
 
 	ddata->vm = *vm;
-	dssdev->panel.vm = *vm;
 
 	in->ops.sdi->set_timings(in, vm);
 }
@@ -812,7 +811,6 @@ static int acx565akm_probe(struct spi_device *spi)
 	dssdev->driver = &acx565akm_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_SDI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.vm = ddata->vm;
 
 	r = omapdss_register_display(dssdev);
 	if (r) {
