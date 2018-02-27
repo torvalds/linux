@@ -350,7 +350,7 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
  * We do this by temporarily clearing all FS-related capabilities and
  * switching the fsuid/fsgid around to the real ones.
  */
-SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+static long vfs_faccessat(int dfd, const char __user *filename, int mode)
 {
 	const struct cred *old_cred;
 	struct cred *override_cred;
@@ -426,9 +426,14 @@ out:
 	return res;
 }
 
+SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+{
+	return vfs_faccessat(dfd, filename, mode);
+}
+
 SYSCALL_DEFINE2(access, const char __user *, filename, int, mode)
 {
-	return sys_faccessat(AT_FDCWD, filename, mode);
+	return vfs_faccessat(AT_FDCWD, filename, mode);
 }
 
 SYSCALL_DEFINE1(chdir, const char __user *, filename)
@@ -554,7 +559,7 @@ SYSCALL_DEFINE2(fchmod, unsigned int, fd, umode_t, mode)
 	return err;
 }
 
-SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename, umode_t, mode)
+static long vfs_fchmodat(int dfd, const char __user *filename, umode_t mode)
 {
 	struct path path;
 	int error;
@@ -572,9 +577,14 @@ retry:
 	return error;
 }
 
+SYSCALL_DEFINE3(fchmodat, int, dfd, const char __user *, filename, umode_t, mode)
+{
+	return vfs_fchmodat(dfd, filename, mode);
+}
+
 SYSCALL_DEFINE2(chmod, const char __user *, filename, umode_t, mode)
 {
-	return sys_fchmodat(AT_FDCWD, filename, mode);
+	return vfs_fchmodat(AT_FDCWD, filename, mode);
 }
 
 static int chown_common(const struct path *path, uid_t user, gid_t group)
@@ -619,8 +629,7 @@ retry_deleg:
 	return error;
 }
 
-SYSCALL_DEFINE5(fchownat, int, dfd, const char __user *, filename, uid_t, user,
-		gid_t, group, int, flag)
+static long vfs_fchownat(int  dfd, const char __user *  filename, uid_t  user, gid_t group, int flag)
 {
 	struct path path;
 	int error = -EINVAL;
@@ -651,15 +660,20 @@ out:
 	return error;
 }
 
+SYSCALL_DEFINE5(fchownat, int, dfd, const char __user *, filename, uid_t, user,
+		gid_t, group, int, flag)
+{
+	return vfs_fchownat(dfd, filename, user, group, flag);
+}
+
 SYSCALL_DEFINE3(chown, const char __user *, filename, uid_t, user, gid_t, group)
 {
-	return sys_fchownat(AT_FDCWD, filename, user, group, 0);
+	return vfs_fchownat(AT_FDCWD, filename, user, group, 0);
 }
 
 SYSCALL_DEFINE3(lchown, const char __user *, filename, uid_t, user, gid_t, group)
 {
-	return sys_fchownat(AT_FDCWD, filename, user, group,
-			    AT_SYMLINK_NOFOLLOW);
+	return vfs_fchownat(AT_FDCWD, filename, user, group, AT_SYMLINK_NOFOLLOW);
 }
 
 SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
@@ -1114,7 +1128,12 @@ COMPAT_SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, fla
  */
 SYSCALL_DEFINE2(creat, const char __user *, pathname, umode_t, mode)
 {
-	return sys_open(pathname, O_CREAT | O_WRONLY | O_TRUNC, mode);
+	int flags = O_CREAT | O_WRONLY | O_TRUNC;
+
+	if (force_o_largefile())
+		flags |= O_LARGEFILE;
+	
+	return do_sys_open(AT_FDCWD, pathname, flags, mode);
 }
 
 #endif
@@ -1150,7 +1169,7 @@ EXPORT_SYMBOL(filp_close);
  * releasing the fd. This ensures that one clone task can't release
  * an fd while another clone is opening it.
  */
-SYSCALL_DEFINE1(close, unsigned int, fd)
+long vfs_close(unsigned int fd)
 {
 	int retval = __close_fd(current->files, fd);
 
@@ -1163,7 +1182,13 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 
 	return retval;
 }
-EXPORT_SYMBOL(sys_close);
+EXPORT_SYMBOL(vfs_close);
+
+SYSCALL_DEFINE1(close, unsigned int, fd)
+{
+	return vfs_close(fd);
+}
+
 
 /*
  * This routine simulates a hangup on the tty, to arrange that users

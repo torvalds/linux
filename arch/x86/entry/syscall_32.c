@@ -7,13 +7,13 @@
 #include <asm/asm-offsets.h>
 #include <asm/syscall.h>
 
-#define __SYSCALL_I386(nr, sym, qual) extern asmlinkage long sym(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long) ;
+#define __SYSCALL_I386(nr, sym, qual) extern asmlinkage long sym(struct pt_regs *);
 #include <asm/syscalls_32.h>
 #undef __SYSCALL_I386
 
 #define __SYSCALL_I386(nr, sym, qual) [nr] = sym,
 
-extern asmlinkage long sys_ni_syscall(unsigned long, unsigned long, unsigned long, unsigned long, unsigned long, unsigned long);
+extern asmlinkage long sys_ni_syscall(struct pt_regs *);
 
 __visible const sys_call_ptr_t ia32_sys_call_table[__NR_syscall_compat_max+1] = {
 	/*

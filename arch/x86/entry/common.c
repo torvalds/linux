@@ -284,9 +284,7 @@ __visible void do_syscall_64(unsigned long nr, struct pt_regs *regs)
 	nr &= __SYSCALL_MASK;
 	if (likely(nr < NR_syscalls)) {
 		nr = array_index_nospec(nr, NR_syscalls);
-		regs->ax = sys_call_table[nr](
-			regs->di, regs->si, regs->dx,
-			regs->r10, regs->r8, regs->r9);
+		regs->ax = sys_call_table[nr](regs);
 	}
 
 	syscall_return_slowpath(regs);
@@ -327,10 +325,7 @@ static __always_inline void do_syscall_32_irqs_on(struct pt_regs *regs)
 		 * the high bits are zero.  Make sure we zero-extend all
 		 * of the args.
 		 */
-		regs->ax = ia32_sys_call_table[nr](
-			(unsigned int)regs->bx, (unsigned int)regs->cx,
-			(unsigned int)regs->dx, (unsigned int)regs->si,
-			(unsigned int)regs->di, (unsigned int)regs->bp);
+		regs->ax = ia32_sys_call_table[nr](regs);
 	}
 
 	syscall_return_slowpath(regs);

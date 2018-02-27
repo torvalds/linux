@@ -4885,14 +4885,14 @@ SYSCALL_DEFINE3(sched_getaffinity, pid_t, pid, unsigned int, len,
 }
 
 /**
- * sys_sched_yield - yield the current processor to other threads.
+ * sched_yield - yield the current processor to other threads.
  *
  * This function yields the current CPU to other tasks. If there are no
  * other threads running on this CPU then this function will return.
  *
  * Return: 0.
  */
-SYSCALL_DEFINE0(sched_yield)
+static long sched_yield(void)
 {
 	struct rq_flags rf;
 	struct rq *rq;
@@ -4915,6 +4915,11 @@ SYSCALL_DEFINE0(sched_yield)
 	schedule();
 
 	return 0;
+}
+
+SYSCALL_DEFINE0(sched_yield)
+{
+	return sched_yield();
 }
 
 #ifndef CONFIG_PREEMPT
@@ -4997,7 +5002,7 @@ EXPORT_SYMBOL(__cond_resched_softirq);
 void __sched yield(void)
 {
 	set_current_state(TASK_RUNNING);
-	sys_sched_yield();
+	sched_yield();
 }
 EXPORT_SYMBOL(yield);
 
