@@ -22,6 +22,7 @@
 #include <linux/irqdomain.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <asm/mach/irq.h>
 #include <asm/exception.h>
 
@@ -51,7 +52,12 @@
 
 #define AVIC_NUM_IRQS 64
 
+/* low power interrupt mask registers */
+#define MX25_CCM_LPIMR0	0x68
+#define MX25_CCM_LPIMR1	0x6C
+
 static void __iomem *avic_base;
+static void __iomem *mx25_ccm_base;
 static struct irq_domain *domain;
 
 #ifdef CONFIG_FIQ
@@ -93,6 +99,18 @@ static void avic_irq_suspend(struct irq_data *d)
 
 	avic_saved_mask_reg[idx] = imx_readl(avic_base + ct->regs.mask);
 	imx_writel(gc->wake_active, avic_base + ct->regs.mask);
+
+	if (mx25_ccm_base) {
+		u8 offs = d->hwirq < AVIC_NUM_IRQS / 2 ?
+			MX25_CCM_LPIMR0 : MX25_CCM_LPIMR1;
+		/*
+		 * The interrupts which are still enabled will be used as wakeup
+		 * sources. Allow those interrupts in low-power mode.
+		 * The LPIMR registers use 0 to allow an interrupt, the AVIC
+		 * registers use 1.
+		 */
+		imx_writel(~gc->wake_active, mx25_ccm_base + offs);
+	}
 }
 
 static void avic_irq_resume(struct irq_data *d)
@@ -102,6 +120,13 @@ static void avic_irq_resume(struct irq_data *d)
 	int idx = d->hwirq >> 5;
 
 	imx_writel(avic_saved_mask_reg[idx], avic_base + ct->regs.mask);
+
+	if (mx25_ccm_base) {
+		u8 offs = d->hwirq < AVIC_NUM_IRQS / 2 ?
+			MX25_CCM_LPIMR0 : MX25_CCM_LPIMR1;
+
+		imx_writel(0xffffffff, mx25_ccm_base + offs);
+	}
 }
 
 #else
@@ -157,6 +182,18 @@ void __init mxc_init_irq(void __iomem *irqbase)
 	int i;
 
 	avic_base = irqbase;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx25-ccm");
+	mx25_ccm_base = of_iomap(np, 0);
+
+	if (mx25_ccm_base) {
+		/*
+		 * By default, we mask all interrupts. We set the actual mask
+		 * before we go into low-power mode.
+		 */
+		imx_writel(0xffffffff, mx25_ccm_base + MX25_CCM_LPIMR0);
+		imx_writel(0xffffffff, mx25_ccm_base + MX25_CCM_LPIMR1);
+	}
 
 	/* put the AVIC into the reset value with
 	 * all interrupts disabled
