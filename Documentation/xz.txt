@@ -76,7 +76,8 @@ dictionaries cannot be used for files that are intended to be decoded
 by the kernel. 1 MiB is probably the maximum reasonable dictionary
 size for in-kernel use (maybe more is OK for initramfs). The presets
 in XZ Utils may not be optimal when creating files for the kernel,
-so don't hesitate to use custom settings. Example::
+so don't hesitate to use custom settings. 
+Example:
 
 	xz --check=crc32 --lzma2=dict=512KiB inputfile
 
