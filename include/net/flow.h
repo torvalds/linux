@@ -125,7 +125,7 @@ static inline void flowi4_update_output(struct flowi4 *fl4, int oif, __u8 tos,
 	fl4->daddr = daddr;
 	fl4->saddr = saddr;
 }
-				      
+
 
 struct flowi6 {
 	struct flowi_common	__fl_common;

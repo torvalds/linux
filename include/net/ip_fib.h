@@ -157,7 +157,7 @@ struct fib_result_nl {
 	unsigned char	nh_sel;
 	unsigned char	type;
 	unsigned char	scope;
-	int             err;      
+	int             err;
 };
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH

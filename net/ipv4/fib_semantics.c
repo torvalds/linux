@@ -171,7 +171,7 @@ static void free_nh_exceptions(struct fib_nh *nh)
 		fnhe = rcu_dereference_protected(hash[i].chain, 1);
 		while (fnhe) {
 			struct fib_nh_exception *next;
-			
+
 			next = rcu_dereference_protected(fnhe->fnhe_next, 1);
 
 			rt_fibinfo_free(&fnhe->fnhe_rth_input);

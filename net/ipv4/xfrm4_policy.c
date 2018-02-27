@@ -379,4 +379,3 @@ void __init xfrm4_init(void)
 	xfrm4_protocol_init();
 	register_pernet_subsys(&xfrm4_net_ops);
 }
-
