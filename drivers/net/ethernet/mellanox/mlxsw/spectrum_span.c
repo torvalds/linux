@@ -164,7 +164,11 @@ mlxsw_sp_span_entry_configure(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_span_parms sparms)
 {
 	if (sparms.dest_port) {
-		if (span_entry->ops->configure(span_entry, sparms)) {
+		if (sparms.dest_port->mlxsw_sp != mlxsw_sp) {
+			netdev_err(span_entry->to_dev, "Cannot mirror to %s, which belongs to a different mlxsw instance",
+				   sparms.dest_port->dev->name);
+			sparms.dest_port = NULL;
+		} else if (span_entry->ops->configure(span_entry, sparms)) {
 			netdev_err(span_entry->to_dev, "Failed to offload mirror to %s",
 				   sparms.dest_port->dev->name);
 			sparms.dest_port = NULL;
