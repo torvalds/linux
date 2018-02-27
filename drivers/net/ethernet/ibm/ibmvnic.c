@@ -111,7 +111,7 @@ static int ibmvnic_poll(struct napi_struct *napi, int data);
 static void send_map_query(struct ibmvnic_adapter *adapter);
 static void send_request_map(struct ibmvnic_adapter *, dma_addr_t, __be32, u8);
 static void send_request_unmap(struct ibmvnic_adapter *, u8);
-static void send_login(struct ibmvnic_adapter *adapter);
+static int send_login(struct ibmvnic_adapter *adapter);
 static void send_cap_queries(struct ibmvnic_adapter *adapter);
 static int init_sub_crqs(struct ibmvnic_adapter *);
 static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
@@ -809,8 +809,11 @@ static int ibmvnic_login(struct net_device *netdev)
 		}
 
 		reinit_completion(&adapter->init_done);
-		send_login(adapter);
-		if (!wait_for_completion_timeout(&adapter->init_done,
+		rc = send_login(adapter);
+		if (rc) {
+			dev_err(dev, "Unable to attempt device login\n");
+			return rc;
+		} else if (!wait_for_completion_timeout(&adapter->init_done,
 						 timeout)) {
 			dev_err(dev, "Login timeout\n");
 			return -1;
@@ -845,8 +848,6 @@ static void release_resources(struct ibmvnic_adapter *adapter)
 	release_tx_pools(adapter);
 	release_rx_pools(adapter);
 
-	release_stats_token(adapter);
-	release_stats_buffers(adapter);
 	release_error_buffers(adapter);
 	release_napi(adapter);
 	release_login_rsp_buffer(adapter);
@@ -974,14 +975,6 @@ static int init_resources(struct ibmvnic_adapter *adapter)
 	if (rc)
 		return rc;
 
-	rc = init_stats_buffers(adapter);
-	if (rc)
-		return rc;
-
-	rc = init_stats_token(adapter);
-	if (rc)
-		return rc;
-
 	adapter->vpd = kzalloc(sizeof(*adapter->vpd), GFP_KERNEL);
 	if (!adapter->vpd)
 		return -ENOMEM;
@@ -1091,6 +1084,7 @@ static int ibmvnic_open(struct net_device *netdev)
 static void clean_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_rx_pool *rx_pool;
+	struct ibmvnic_rx_buff *rx_buff;
 	u64 rx_entries;
 	int rx_scrqs;
 	int i, j;
@@ -1104,14 +1098,15 @@ static void clean_rx_pools(struct ibmvnic_adapter *adapter)
 	/* Free any remaining skbs in the rx buffer pools */
 	for (i = 0; i < rx_scrqs; i++) {
 		rx_pool = &adapter->rx_pool[i];
-		if (!rx_pool)
+		if (!rx_pool || !rx_pool->rx_buff)
 			continue;
 
 		netdev_dbg(adapter->netdev, "Cleaning rx_pool[%d]\n", i);
 		for (j = 0; j < rx_entries; j++) {
-			if (rx_pool->rx_buff[j].skb) {
-				dev_kfree_skb_any(rx_pool->rx_buff[j].skb);
-				rx_pool->rx_buff[j].skb = NULL;
+			rx_buff = &rx_pool->rx_buff[j];
+			if (rx_buff && rx_buff->skb) {
+				dev_kfree_skb_any(rx_buff->skb);
+				rx_buff->skb = NULL;
 			}
 		}
 	}
@@ -1120,6 +1115,7 @@ static void clean_rx_pools(struct ibmvnic_adapter *adapter)
 static void clean_tx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_tx_pool *tx_pool;
+	struct ibmvnic_tx_buff *tx_buff;
 	u64 tx_entries;
 	int tx_scrqs;
 	int i, j;
@@ -1133,14 +1129,15 @@ static void clean_tx_pools(struct ibmvnic_adapter *adapter)
 	/* Free any remaining skbs in the tx buffer pools */
 	for (i = 0; i < tx_scrqs; i++) {
 		tx_pool = &adapter->tx_pool[i];
-		if (!tx_pool)
+		if (!tx_pool && !tx_pool->tx_buff)
 			continue;
 
 		netdev_dbg(adapter->netdev, "Cleaning tx_pool[%d]\n", i);
 		for (j = 0; j < tx_entries; j++) {
-			if (tx_pool->tx_buff[j].skb) {
-				dev_kfree_skb_any(tx_pool->tx_buff[j].skb);
-				tx_pool->tx_buff[j].skb = NULL;
+			tx_buff = &tx_pool->tx_buff[j];
+			if (tx_buff && tx_buff->skb) {
+				dev_kfree_skb_any(tx_buff->skb);
+				tx_buff->skb = NULL;
 			}
 		}
 	}
@@ -1482,6 +1479,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if ((*hdrs >> 7) & 1) {
 		build_hdr_descs_arr(tx_buff, &num_entries, *hdrs);
 		tx_crq.v1.n_crq_elem = num_entries;
+		tx_buff->num_entries = num_entries;
 		tx_buff->indir_arr[0] = tx_crq;
 		tx_buff->indir_dma = dma_map_single(dev, tx_buff->indir_arr,
 						    sizeof(tx_buff->indir_arr),
@@ -1500,6 +1498,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 					       (u64)tx_buff->indir_dma,
 					       (u64)num_entries);
 	} else {
+		tx_buff->num_entries = num_entries;
 		lpar_rc = send_subcrq(adapter, handle_array[queue_num],
 				      &tx_crq);
 	}
@@ -1532,11 +1531,10 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (atomic_add_return(num_entries, &tx_scrq->used)
 					>= adapter->req_tx_entries_per_subcrq) {
-		netdev_info(netdev, "Stopping queue %d\n", queue_num);
+		netdev_dbg(netdev, "Stopping queue %d\n", queue_num);
 		netif_stop_subqueue(netdev, queue_num);
 	}
 
-	tx_buff->num_entries = num_entries;
 	tx_packets++;
 	tx_bytes += skb->len;
 	txq->trans_start = jiffies;
@@ -2546,8 +2544,8 @@ restart_loop:
 		    __netif_subqueue_stopped(adapter->netdev,
 					     scrq->pool_index)) {
 			netif_wake_subqueue(adapter->netdev, scrq->pool_index);
-			netdev_info(adapter->netdev, "Started queue %d\n",
-				    scrq->pool_index);
+			netdev_dbg(adapter->netdev, "Started queue %d\n",
+				   scrq->pool_index);
 		}
 	}
 
@@ -3079,7 +3077,7 @@ static void vnic_add_client_data(struct ibmvnic_adapter *adapter,
 	strncpy(&vlcd->name, adapter->netdev->name, len);
 }
 
-static void send_login(struct ibmvnic_adapter *adapter)
+static int send_login(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_login_rsp_buffer *login_rsp_buffer;
 	struct ibmvnic_login_buffer *login_buffer;
@@ -3094,6 +3092,12 @@ static void send_login(struct ibmvnic_adapter *adapter)
 	int client_data_len;
 	struct vnic_login_client_data *vlcd;
 	int i;
+
+	if (!adapter->tx_scrq || !adapter->rx_scrq) {
+		netdev_err(adapter->netdev,
+			   "RX or TX queues are not allocated, device login failed\n");
+		return -1;
+	}
 
 	release_login_rsp_buffer(adapter);
 	client_data_len = vnic_client_data_len(adapter);
@@ -3192,7 +3196,7 @@ static void send_login(struct ibmvnic_adapter *adapter)
 	crq.login.len = cpu_to_be32(buffer_size);
 	ibmvnic_send_crq(adapter, &crq);
 
-	return;
+	return 0;
 
 buf_rsp_map_failed:
 	kfree(login_rsp_buffer);
@@ -3201,7 +3205,7 @@ buf_rsp_alloc_failed:
 buf_map_failed:
 	kfree(login_buffer);
 buf_alloc_failed:
-	return;
+	return -1;
 }
 
 static void send_request_map(struct ibmvnic_adapter *adapter, dma_addr_t addr,
@@ -4430,6 +4434,14 @@ static int ibmvnic_init(struct ibmvnic_adapter *adapter)
 		release_crq_queue(adapter);
 	}
 
+	rc = init_stats_buffers(adapter);
+	if (rc)
+		return rc;
+
+	rc = init_stats_token(adapter);
+	if (rc)
+		return rc;
+
 	return rc;
 }
 
@@ -4536,6 +4548,9 @@ static int ibmvnic_remove(struct vio_dev *dev)
 	release_resources(adapter);
 	release_sub_crqs(adapter, 1);
 	release_crq_queue(adapter);
+
+	release_stats_token(adapter);
+	release_stats_buffers(adapter);
 
 	adapter->state = VNIC_REMOVED;
 
