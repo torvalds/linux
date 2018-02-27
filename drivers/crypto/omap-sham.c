@@ -2051,9 +2051,47 @@ static ssize_t fallback_store(struct device *dev, struct device_attribute *attr,
 	return size;
 }
 
+static ssize_t queue_len_show(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct omap_sham_dev *dd = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", dd->queue.max_qlen);
+}
+
+static ssize_t queue_len_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t size)
+{
+	struct omap_sham_dev *dd = dev_get_drvdata(dev);
+	ssize_t status;
+	long value;
+	unsigned long flags;
+
+	status = kstrtol(buf, 0, &value);
+	if (status)
+		return status;
+
+	if (value < 1)
+		return -EINVAL;
+
+	/*
+	 * Changing the queue size in fly is safe, if size becomes smaller
+	 * than current size, it will just not accept new entries until
+	 * it has shrank enough.
+	 */
+	spin_lock_irqsave(&dd->lock, flags);
+	dd->queue.max_qlen = value;
+	spin_unlock_irqrestore(&dd->lock, flags);
+
+	return size;
+}
+
+static DEVICE_ATTR_RW(queue_len);
 static DEVICE_ATTR_RW(fallback);
 
 static struct attribute *omap_sham_attrs[] = {
+	&dev_attr_queue_len.attr,
 	&dev_attr_fallback.attr,
 	NULL,
 };
