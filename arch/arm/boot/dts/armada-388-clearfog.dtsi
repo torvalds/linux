@@ -143,8 +143,7 @@
 };
 
 &i2c0 {
-	/* Is there anything on this? */
-	clock-frequency = <100000>;
+	clock-frequency = <400000>;
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
 	status = "okay";
@@ -239,13 +238,11 @@
 		};
 	};
 
-	/* The MCP3021 is 100kHz clock only */
+	/* The MCP3021 supports standard and fast modes */
 	mikrobus_adc: mcp3021@4c {
 		compatible = "microchip,mcp3021";
 		reg = <0x4c>;
 	};
-
-	/* Also something at 0x64 */
 };
 
 &i2c1 {
