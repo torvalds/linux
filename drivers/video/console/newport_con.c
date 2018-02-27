@@ -680,7 +680,7 @@ static int newport_set_origin(struct vc_data *vc)
 
 static void newport_save_screen(struct vc_data *vc) { }
 
-static const struct consw newport_con = {
+const struct consw newport_con = {
 	.owner		  = THIS_MODULE,
 	.con_startup	  = newport_startup,
 	.con_init	  = newport_init,
