@@ -6868,7 +6868,8 @@ MLXSW_ITEM32(reg, mpat, eth_rspan_sip4, 0x5C, 0, 32);
 MLXSW_ITEM_BUF(reg, mpat, eth_rspan_sip6, 0x50, 16);
 
 static inline void mlxsw_reg_mpat_pack(char *payload, u8 pa_id,
-				       u16 system_port, bool e)
+				       u16 system_port, bool e,
+				       enum mlxsw_reg_mpat_span_type span_type)
 {
 	MLXSW_REG_ZERO(mpat, payload);
 	mlxsw_reg_mpat_pa_id_set(payload, pa_id);
@@ -6876,6 +6877,7 @@ static inline void mlxsw_reg_mpat_pack(char *payload, u8 pa_id,
 	mlxsw_reg_mpat_e_set(payload, e);
 	mlxsw_reg_mpat_qos_set(payload, 1);
 	mlxsw_reg_mpat_be_set(payload, 1);
+	mlxsw_reg_mpat_span_type_set(payload, span_type);
 }
 
 static inline void mlxsw_reg_mpat_eth_rspan_pack(char *payload, u16 vid)

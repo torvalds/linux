@@ -93,7 +93,8 @@ mlxsw_sp_span_entry_create(struct mlxsw_sp_port *port)
 		return NULL;
 
 	/* create a new port analayzer entry for local_port */
-	mlxsw_reg_mpat_pack(mpat_pl, index, local_port, true);
+	mlxsw_reg_mpat_pack(mpat_pl, index, local_port, true,
+			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
 	if (err)
 		return NULL;
@@ -111,7 +112,8 @@ static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 	char mpat_pl[MLXSW_REG_MPAT_LEN];
 	int pa_id = span_entry->id;
 
-	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, false);
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, false,
+			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
 }
 
