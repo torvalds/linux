@@ -51,8 +51,12 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 	if (!mlxsw_sp->span.entries)
 		return -ENOMEM;
 
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++)
-		INIT_LIST_HEAD(&mlxsw_sp->span.entries[i].bound_ports_list);
+	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+
+		INIT_LIST_HEAD(&curr->bound_ports_list);
+		curr->id = i;
+	}
 
 	return 0;
 }
@@ -72,34 +76,30 @@ void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 static struct mlxsw_sp_span_entry *
 mlxsw_sp_span_entry_create(struct mlxsw_sp_port *port)
 {
+	struct mlxsw_sp_span_entry *span_entry = NULL;
 	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
-	struct mlxsw_sp_span_entry *span_entry;
 	char mpat_pl[MLXSW_REG_MPAT_LEN];
 	u8 local_port = port->local_port;
-	int index;
 	int i;
 	int err;
 
 	/* find a free entry to use */
-	index = -1;
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
 		if (!mlxsw_sp->span.entries[i].ref_count) {
-			index = i;
 			span_entry = &mlxsw_sp->span.entries[i];
 			break;
 		}
 	}
-	if (index < 0)
+	if (!span_entry)
 		return NULL;
 
 	/* create a new port analayzer entry for local_port */
-	mlxsw_reg_mpat_pack(mpat_pl, index, local_port, true,
+	mlxsw_reg_mpat_pack(mpat_pl, span_entry->id, local_port, true,
 			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
 	if (err)
 		return NULL;
 
-	span_entry->id = index;
 	span_entry->ref_count = 1;
 	span_entry->local_port = local_port;
 	return span_entry;
