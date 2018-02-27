@@ -1528,7 +1528,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (atomic_add_return(num_entries, &tx_scrq->used)
 					>= adapter->req_tx_entries_per_subcrq) {
-		netdev_info(netdev, "Stopping queue %d\n", queue_num);
+		netdev_dbg(netdev, "Stopping queue %d\n", queue_num);
 		netif_stop_subqueue(netdev, queue_num);
 	}
 
@@ -2541,8 +2541,8 @@ restart_loop:
 		    __netif_subqueue_stopped(adapter->netdev,
 					     scrq->pool_index)) {
 			netif_wake_subqueue(adapter->netdev, scrq->pool_index);
-			netdev_info(adapter->netdev, "Started queue %d\n",
-				    scrq->pool_index);
+			netdev_dbg(adapter->netdev, "Started queue %d\n",
+				   scrq->pool_index);
 		}
 	}
 
