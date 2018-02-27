@@ -195,7 +195,8 @@ static int attach_device(char *host, char *busid)
 
 	rhport = query_import_device(sockfd, busid);
 	if (rhport < 0) {
-		err("query");
+		err("Attach request for Device %s. Is this device exported?",
+		    busid);
 		return -1;
 	}
 
