@@ -4017,7 +4017,7 @@ int pci_wait_for_pending_transaction(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pci_wait_for_pending_transaction);
 
-static void pci_flr_wait(struct pci_dev *dev)
+static int pci_flr_wait(struct pci_dev *dev)
 {
 	int delay = 1, timeout = 60000;
 	u32 id;
@@ -4046,7 +4046,7 @@ static void pci_flr_wait(struct pci_dev *dev)
 		if (delay > timeout) {
 			pci_warn(dev, "not ready %dms after FLR; giving up\n",
 				 100 + delay - 1);
-			return;
+			return -ENOTTY;
 		}
 
 		if (delay > 1000)
@@ -4060,6 +4060,8 @@ static void pci_flr_wait(struct pci_dev *dev)
 
 	if (delay > 1000)
 		pci_info(dev, "ready %dms after FLR\n", 100 + delay - 1);
+
+	return 0;
 }
 
 /**
@@ -4088,13 +4090,13 @@ static bool pcie_has_flr(struct pci_dev *dev)
  * device supports FLR before calling this function, e.g. by using the
  * pcie_has_flr() helper.
  */
-void pcie_flr(struct pci_dev *dev)
+int pcie_flr(struct pci_dev *dev)
 {
 	if (!pci_wait_for_pending_transaction(dev))
 		pci_err(dev, "timed out waiting for pending transaction; performing function level reset anyway\n");
 
 	pcie_capability_set_word(dev, PCI_EXP_DEVCTL, PCI_EXP_DEVCTL_BCR_FLR);
-	pci_flr_wait(dev);
+	return pci_flr_wait(dev);
 }
 EXPORT_SYMBOL_GPL(pcie_flr);
 
@@ -4127,8 +4129,7 @@ static int pci_af_flr(struct pci_dev *dev, int probe)
 		pci_err(dev, "timed out waiting for pending transaction; performing AF function level reset anyway\n");
 
 	pci_write_config_byte(dev, pos + PCI_AF_CTRL, PCI_AF_CTRL_FLR);
-	pci_flr_wait(dev);
-	return 0;
+	return pci_flr_wait(dev);
 }
 
 /**
@@ -4379,8 +4380,9 @@ int __pci_reset_function_locked(struct pci_dev *dev)
 	if (rc != -ENOTTY)
 		return rc;
 	if (pcie_has_flr(dev)) {
-		pcie_flr(dev);
-		return 0;
+		rc = pcie_flr(dev);
+		if (rc != -ENOTTY)
+			return rc;
 	}
 	rc = pci_af_flr(dev, 0);
 	if (rc != -ENOTTY)
