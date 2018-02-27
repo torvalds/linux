@@ -229,6 +229,7 @@ struct omap_sham_dev {
 	u8			xmit_buf[BUFLEN] OMAP_ALIGNED;
 
 	unsigned long		flags;
+	int			fallback_sz;
 	struct crypto_queue	queue;
 	struct ahash_request	*req;
 
@@ -1009,7 +1010,7 @@ static int omap_sham_update_req(struct omap_sham_dev *dd)
 		 ctx->total, ctx->digcnt, (ctx->flags & BIT(FLAGS_FINUP)) != 0);
 
 	if (ctx->total < get_block_size(ctx) ||
-	    ctx->total < OMAP_SHA_DMA_THRESHOLD)
+	    ctx->total < dd->fallback_sz)
 		ctx->flags |= BIT(FLAGS_CPU);
 
 	if (ctx->flags & BIT(FLAGS_CPU))
@@ -1265,11 +1266,11 @@ static int omap_sham_final(struct ahash_request *req)
 	/*
 	 * OMAP HW accel works only with buffers >= 9.
 	 * HMAC is always >= 9 because ipad == block size.
-	 * If buffersize is less than DMA_THRESHOLD, we use fallback
+	 * If buffersize is less than fallback_sz, we use fallback
 	 * SW encoding, as using DMA + HW in this case doesn't provide
 	 * any benefit.
 	 */
-	if (!ctx->digcnt && ctx->bufcnt < OMAP_SHA_DMA_THRESHOLD)
+	if (!ctx->digcnt && ctx->bufcnt < ctx->dd->fallback_sz)
 		return omap_sham_final_shash(req);
 	else if (ctx->bufcnt)
 		return omap_sham_enqueue(req, OP_FINAL);
@@ -2020,6 +2021,47 @@ err:
 	return err;
 }
 
+static ssize_t fallback_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct omap_sham_dev *dd = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", dd->fallback_sz);
+}
+
+static ssize_t fallback_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t size)
+{
+	struct omap_sham_dev *dd = dev_get_drvdata(dev);
+	ssize_t status;
+	long value;
+
+	status = kstrtol(buf, 0, &value);
+	if (status)
+		return status;
+
+	/* HW accelerator only works with buffers > 9 */
+	if (value < 9) {
+		dev_err(dev, "minimum fallback size 9\n");
+		return -EINVAL;
+	}
+
+	dd->fallback_sz = value;
+
+	return size;
+}
+
+static DEVICE_ATTR_RW(fallback);
+
+static struct attribute *omap_sham_attrs[] = {
+	&dev_attr_fallback.attr,
+	NULL,
+};
+
+static struct attribute_group omap_sham_attr_group = {
+	.attrs = omap_sham_attrs,
+};
+
 static int omap_sham_probe(struct platform_device *pdev)
 {
 	struct omap_sham_dev *dd;
@@ -2081,6 +2123,8 @@ static int omap_sham_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, DEFAULT_AUTOSUSPEND_DELAY);
 
+	dd->fallback_sz = OMAP_SHA_DMA_THRESHOLD;
+
 	pm_runtime_enable(dev);
 	pm_runtime_irq_safe(dev);
 
@@ -2116,6 +2160,12 @@ static int omap_sham_probe(struct platform_device *pdev)
 
 			dd->pdata->algs_info[i].registered++;
 		}
+	}
+
+	err = sysfs_create_group(&dev->kobj, &omap_sham_attr_group);
+	if (err) {
+		dev_err(dev, "could not create sysfs device attrs\n");
+		goto err_algs;
 	}
 
 	return 0;
