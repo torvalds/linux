@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 
 #define XLP9XX_I2C_DIV			0x0
 #define XLP9XX_I2C_CTRL			0x1
@@ -35,6 +36,8 @@
 #define XLP9XX_I2C_WAITCNT		0xF
 #define XLP9XX_I2C_TIMEOUT		0X10
 #define XLP9XX_I2C_GENCALLADDR		0x11
+
+#define XLP9XX_I2C_STATUS_BUSY		BIT(0)
 
 #define XLP9XX_I2C_CMD_START		BIT(7)
 #define XLP9XX_I2C_CMD_STOP		BIT(6)
@@ -71,6 +74,7 @@
 #define XLP9XX_I2C_HIGH_FREQ		400000
 #define XLP9XX_I2C_FIFO_SIZE		0x80U
 #define XLP9XX_I2C_TIMEOUT_MS		1000
+#define XLP9XX_I2C_BUSY_TIMEOUT		50
 
 #define XLP9XX_I2C_FIFO_WCNT_MASK	0xff
 #define XLP9XX_I2C_STATUS_ERRMASK	(XLP9XX_I2C_INTEN_ARLOST | \
@@ -241,6 +245,26 @@ xfer_done:
 	return IRQ_HANDLED;
 }
 
+static int xlp9xx_i2c_check_bus_status(struct xlp9xx_i2c_dev *priv)
+{
+	u32 status;
+	u32 busy_timeout = XLP9XX_I2C_BUSY_TIMEOUT;
+
+	while (busy_timeout) {
+		status = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_STATUS);
+		if ((status & XLP9XX_I2C_STATUS_BUSY) == 0)
+			break;
+
+		busy_timeout--;
+		usleep_range(1000, 1100);
+	}
+
+	if (!busy_timeout)
+		return -EIO;
+
+	return 0;
+}
+
 static int xlp9xx_i2c_init(struct xlp9xx_i2c_dev *priv)
 {
 	u32 prescale;
@@ -362,6 +386,14 @@ static int xlp9xx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 {
 	int i, ret;
 	struct xlp9xx_i2c_dev *priv = i2c_get_adapdata(adap);
+
+	ret = xlp9xx_i2c_check_bus_status(priv);
+	if (ret) {
+		xlp9xx_i2c_init(priv);
+		ret = xlp9xx_i2c_check_bus_status(priv);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < num; i++) {
 		ret = xlp9xx_i2c_xfer_msg(priv, &msgs[i], i == num - 1);
