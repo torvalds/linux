@@ -29,7 +29,10 @@
 
 #ifdef CONFIG_DRM_I915_DEBUG_GEM
 #define GEM_BUG_ON(condition) do { if (unlikely((condition))) {	\
-		printk(KERN_ERR "GEM_BUG_ON(%s)\n", __stringify(condition)); \
+		pr_err("%s:%d GEM_BUG_ON(%s)\n", \
+		       __func__, __LINE__, __stringify(condition)); \
+		GEM_TRACE("%s:%d GEM_BUG_ON(%s)\n", \
+			  __func__, __LINE__, __stringify(condition)); \
 		BUG(); \
 		} \
 	} while(0)
