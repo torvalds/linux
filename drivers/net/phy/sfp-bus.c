@@ -180,10 +180,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 		       unsigned long *support)
 {
 	unsigned int br_min, br_nom, br_max;
-
-	phylink_set(support, Autoneg);
-	phylink_set(support, Pause);
-	phylink_set(support, Asym_Pause);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(modes) = { 0, };
 
 	/* Decode the bitrate information to MBd */
 	br_min = br_nom = br_max = 0;
@@ -201,20 +198,20 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 
 	/* Set ethtool support from the compliance fields. */
 	if (id->base.e10g_base_sr)
-		phylink_set(support, 10000baseSR_Full);
+		phylink_set(modes, 10000baseSR_Full);
 	if (id->base.e10g_base_lr)
-		phylink_set(support, 10000baseLR_Full);
+		phylink_set(modes, 10000baseLR_Full);
 	if (id->base.e10g_base_lrm)
-		phylink_set(support, 10000baseLRM_Full);
+		phylink_set(modes, 10000baseLRM_Full);
 	if (id->base.e10g_base_er)
-		phylink_set(support, 10000baseER_Full);
+		phylink_set(modes, 10000baseER_Full);
 	if (id->base.e1000_base_sx ||
 	    id->base.e1000_base_lx ||
 	    id->base.e1000_base_cx)
-		phylink_set(support, 1000baseX_Full);
+		phylink_set(modes, 1000baseX_Full);
 	if (id->base.e1000_base_t) {
-		phylink_set(support, 1000baseT_Half);
-		phylink_set(support, 1000baseT_Full);
+		phylink_set(modes, 1000baseT_Half);
+		phylink_set(modes, 1000baseT_Full);
 	}
 
 	/* 1000Base-PX or 1000Base-BX10 */
@@ -228,20 +225,20 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	if ((id->base.sfp_ct_passive || id->base.sfp_ct_active) && br_nom) {
 		/* This may look odd, but some manufacturers use 12000MBd */
 		if (br_min <= 12000 && br_max >= 10300)
-			phylink_set(support, 10000baseCR_Full);
+			phylink_set(modes, 10000baseCR_Full);
 		if (br_min <= 3200 && br_max >= 3100)
-			phylink_set(support, 2500baseX_Full);
+			phylink_set(modes, 2500baseX_Full);
 		if (br_min <= 1300 && br_max >= 1200)
-			phylink_set(support, 1000baseX_Full);
+			phylink_set(modes, 1000baseX_Full);
 	}
 	if (id->base.sfp_ct_passive) {
 		if (id->base.passive.sff8431_app_e)
-			phylink_set(support, 10000baseCR_Full);
+			phylink_set(modes, 10000baseCR_Full);
 	}
 	if (id->base.sfp_ct_active) {
 		if (id->base.active.sff8431_app_e ||
 		    id->base.active.sff8431_lim) {
-			phylink_set(support, 10000baseCR_Full);
+			phylink_set(modes, 10000baseCR_Full);
 		}
 	}
 
@@ -249,18 +246,18 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	case 0x00: /* Unspecified */
 		break;
 	case 0x02: /* 100Gbase-SR4 or 25Gbase-SR */
-		phylink_set(support, 100000baseSR4_Full);
-		phylink_set(support, 25000baseSR_Full);
+		phylink_set(modes, 100000baseSR4_Full);
+		phylink_set(modes, 25000baseSR_Full);
 		break;
 	case 0x03: /* 100Gbase-LR4 or 25Gbase-LR */
 	case 0x04: /* 100Gbase-ER4 or 25Gbase-ER */
-		phylink_set(support, 100000baseLR4_ER4_Full);
+		phylink_set(modes, 100000baseLR4_ER4_Full);
 		break;
 	case 0x0b: /* 100Gbase-CR4 or 25Gbase-CR CA-L */
 	case 0x0c: /* 25Gbase-CR CA-S */
 	case 0x0d: /* 25Gbase-CR CA-N */
-		phylink_set(support, 100000baseCR4_Full);
-		phylink_set(support, 25000baseCR_Full);
+		phylink_set(modes, 100000baseCR4_Full);
+		phylink_set(modes, 25000baseCR_Full);
 		break;
 	default:
 		dev_warn(bus->sfp_dev,
@@ -274,10 +271,28 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	    id->base.fc_speed_200 ||
 	    id->base.fc_speed_400) {
 		if (id->base.br_nominal >= 31)
-			phylink_set(support, 2500baseX_Full);
+			phylink_set(modes, 2500baseX_Full);
 		if (id->base.br_nominal >= 12)
-			phylink_set(support, 1000baseX_Full);
+			phylink_set(modes, 1000baseX_Full);
 	}
+
+	/* If we haven't discovered any modes that this module supports, try
+	 * the encoding and bitrate to determine supported modes. Some BiDi
+	 * modules (eg, 1310nm/1550nm) are not 1000BASE-BX compliant due to
+	 * the differing wavelengths, so do not set any transceiver bits.
+	 */
+	if (bitmap_empty(modes, __ETHTOOL_LINK_MODE_MASK_NBITS)) {
+		/* If the encoding and bit rate allows 1000baseX */
+		if (id->base.encoding == SFP_ENCODING_8B10B && br_nom &&
+		    br_min <= 1300 && br_max >= 1200)
+			phylink_set(modes, 1000baseX_Full);
+	}
+
+	bitmap_or(support, support, modes, __ETHTOOL_LINK_MODE_MASK_NBITS);
+
+	phylink_set(support, Autoneg);
+	phylink_set(support, Pause);
+	phylink_set(support, Asym_Pause);
 }
 EXPORT_SYMBOL_GPL(sfp_parse_support);
 
