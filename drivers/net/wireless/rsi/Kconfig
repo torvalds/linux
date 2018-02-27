@@ -42,4 +42,13 @@ config RSI_USB
 	  This option enables the USB bus support in rsi drivers.
 	  Select M (recommended), if you have a RSI 1x1 wireless module.
 
+config RSI_COEX
+	bool "Redpine Signals WLAN BT Coexistence support"
+	depends on BT_HCIRSI && RSI_91X
+	default y
+	---help---
+	  This option enables the WLAN BT coex support in rsi drivers.
+	  Select M (recommended), if you have want to use this feature
+	  and you have RS9113 module.
+
 endif # WLAN_VENDOR_RSI

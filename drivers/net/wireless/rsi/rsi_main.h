@@ -206,6 +206,7 @@ struct rsi_common {
 	struct rsi_hw *priv;
 	struct vif_priv vif_info[RSI_MAX_VIFS];
 
+	void *coex_cb;
 	bool mgmt_q_block;
 	struct version_info lmac_ver;
 
@@ -270,6 +271,8 @@ struct rsi_common {
 	u8 obm_ant_sel_val;
 	int tx_power;
 	u8 ant_in_use;
+	/* Mutex used for writing packet to bus */
+	struct mutex tx_bus_mutex;
 	bool hibernate_resume;
 	bool reinit_hw;
 	u8 wow_flags;
@@ -359,4 +362,7 @@ struct rsi_host_intf_ops {
 				      u8 *fw);
 	int (*reinit_device)(struct rsi_hw *adapter);
 };
+
+enum rsi_host_intf rsi_get_host_intf(void *priv);
+
 #endif

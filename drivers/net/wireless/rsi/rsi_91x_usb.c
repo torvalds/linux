@@ -16,8 +16,10 @@
  */
 
 #include <linux/module.h>
+#include <net/rsi_91x.h>
 #include "rsi_usb.h"
 #include "rsi_hal.h"
+#include "rsi_coex.h"
 
 /**
  * rsi_usb_card_write() - This function writes to the USB Card.

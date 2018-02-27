@@ -31,8 +31,15 @@ int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_hw *adapter = common->priv;
 	int status;
 
+	if (common->coex_mode > 1)
+		mutex_lock(&common->tx_bus_mutex);
+
 	status = adapter->host_intf_ops->write_pkt(common->priv,
 						   skb->data, skb->len);
+
+	if (common->coex_mode > 1)
+		mutex_unlock(&common->tx_bus_mutex);
+
 	return status;
 }
 
@@ -296,8 +303,7 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	if (status)
 		goto err;
 
-	status = adapter->host_intf_ops->write_pkt(common->priv, skb->data,
-						   skb->len);
+	status = rsi_send_pkt_to_bus(common, skb);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write pkt\n", __func__);
 
@@ -342,8 +348,7 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		goto err;
 
 	rsi_prepare_mgmt_desc(common, skb);
-	status = adapter->host_intf_ops->write_pkt(common->priv,
-						   (u8 *)skb->data, skb->len);
+	status = rsi_send_pkt_to_bus(common, skb);
 	if (status)
 		rsi_dbg(ERR_ZONE, "%s: Failed to write the packet\n", __func__);
 
@@ -925,10 +930,6 @@ fail:
 int rsi_hal_device_init(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
-
-	common->coex_mode = RSI_DEV_COEX_MODE_WIFI_ALONE;
-	common->oper_mode = RSI_DEV_OPMODE_WIFI_ALONE;
-	adapter->device_model = RSI_DEV_9113;
 
 	switch (adapter->device_model) {
 	case RSI_DEV_9113:

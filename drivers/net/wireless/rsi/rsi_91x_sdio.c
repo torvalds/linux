@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include "rsi_sdio.h"
 #include "rsi_common.h"
+#include "rsi_coex.h"
 #include "rsi_hal.h"
 
 /**

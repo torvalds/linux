@@ -20,6 +20,7 @@
 #include <linux/firmware.h>
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
+#include "rsi_coex.h"
 #include "rsi_hal.h"
 
 u32 rsi_zone_enabled = /* INFO_ZONE |
@@ -160,8 +161,15 @@ int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len)
 
 		switch (queueno) {
 		case RSI_COEX_Q:
-			rsi_mgmt_pkt_recv(common, (frame_desc + offset));
+#ifdef CONFIG_RSI_COEX
+			if (common->coex_mode > 1)
+				rsi_coex_recv_pkt(common, frame_desc + offset);
+			else
+#endif
+				rsi_mgmt_pkt_recv(common,
+						  (frame_desc + offset));
 			break;
+
 		case RSI_WIFI_DATA_Q:
 			skb = rsi_prepare_skb(common,
 					      (frame_desc + offset),
@@ -217,6 +225,15 @@ static void rsi_tx_scheduler_thread(struct rsi_common *common)
 	complete_and_exit(&common->tx_thread.completion, 0);
 }
 
+#ifdef CONFIG_RSI_COEX
+enum rsi_host_intf rsi_get_host_intf(void *priv)
+{
+	struct rsi_common *common = (struct rsi_common *)priv;
+
+	return common->priv->rsi_host_intf;
+}
+#endif
+
 /**
  * rsi_91x_init() - This function initializes os interface operations.
  * @void: Void.
@@ -251,6 +268,7 @@ struct rsi_hw *rsi_91x_init(void)
 	mutex_init(&common->mutex);
 	mutex_init(&common->tx_lock);
 	mutex_init(&common->rx_lock);
+	mutex_init(&common->tx_bus_mutex);
 
 	if (rsi_create_kthread(common,
 			       &common->tx_thread,
@@ -265,6 +283,19 @@ struct rsi_hw *rsi_91x_init(void)
 	timer_setup(&common->roc_timer, rsi_roc_timeout, 0);
 	init_completion(&common->wlan_init_completion);
 	common->init_done = true;
+
+	common->coex_mode = RSI_DEV_COEX_MODE_WIFI_ALONE;
+	common->oper_mode = RSI_DEV_OPMODE_WIFI_ALONE;
+	adapter->device_model = RSI_DEV_9113;
+#ifdef CONFIG_RSI_COEX
+	if (common->coex_mode > 1) {
+		if (rsi_coex_attach(common)) {
+			rsi_dbg(ERR_ZONE, "Failed to init coex module\n");
+			goto err;
+		}
+	}
+#endif
+
 	return adapter;
 
 err:
@@ -293,6 +324,11 @@ void rsi_91x_deinit(struct rsi_hw *adapter)
 		skb_queue_purge(&common->tx_queue[ii]);
 
 	common->init_done = false;
+
+#ifdef CONFIG_RSI_COEX
+	if (common->coex_mode > 1)
+		rsi_coex_detach(common);
+#endif
 
 	kfree(common);
 	kfree(adapter->rsi_dev);
