@@ -19,16 +19,37 @@
 #include <linux/linkage.h>
 #include <linux/arm-smccc.h>
 
+#include <asm/alternative.h>
+
 .macro hyp_ventry
 	.align 7
 1:	.rept 27
 	nop
 	.endr
+/*
+ * The default sequence is to directly branch to the KVM vectors,
+ * using the computed offset. This applies for VHE as well as
+ * !ARM64_HARDEN_EL2_VECTORS.
+ *
+ * For ARM64_HARDEN_EL2_VECTORS configurations, this gets replaced
+ * with:
+ *
+ * stp	x0, x1, [sp, #-16]!
+ * movz	x0, #(addr & 0xffff)
+ * movk	x0, #((addr >> 16) & 0xffff), lsl #16
+ * movk	x0, #((addr >> 32) & 0xffff), lsl #32
+ * br	x0
+ *
+ * Where addr = kern_hyp_va(__kvm_hyp_vector) + vector-offset + 4.
+ * See kvm_patch_vector_branch for details.
+ */
+alternative_cb	kvm_patch_vector_branch
 	b	__kvm_hyp_vector + (1b - 0b)
 	nop
 	nop
 	nop
 	nop
+alternative_cb_end
 .endm
 
 .macro generate_vectors

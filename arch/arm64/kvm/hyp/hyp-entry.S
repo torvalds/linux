@@ -212,6 +212,8 @@ ENDPROC(\label)
 .macro invalid_vect target
 	.align 7
 	b	\target
+	ldp	x0, x1, [sp], #16
+	b	\target
 .endm
 
 ENTRY(__kvm_hyp_vector)
