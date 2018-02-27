@@ -21,6 +21,14 @@
 #include "rsi_coex.h"
 #include "rsi_hal.h"
 
+/* Default operating mode is wlan STA + BT */
+static u16 dev_oper_mode = DEV_OPMODE_STA_BT_DUAL;
+module_param(dev_oper_mode, ushort, 0444);
+MODULE_PARM_DESC(dev_oper_mode,
+		 "1[Wi-Fi], 4[BT], 8[BT LE], 5[Wi-Fi STA + BT classic]\n"
+		 "9[Wi-Fi STA + BT LE], 13[Wi-Fi STA + BT classic + BT LE]\n"
+		 "6[AP + BT classic], 14[AP + BT classic + BT LE]");
+
 /**
  * rsi_sdio_set_cmd52_arg() - This function prepares cmd 52 read/write arg.
  * @rw: Read/write
@@ -926,7 +934,7 @@ static int rsi_probe(struct sdio_func *pfunction,
 
 	rsi_dbg(INIT_ZONE, "%s: Init function called\n", __func__);
 
-	adapter = rsi_91x_init();
+	adapter = rsi_91x_init(dev_oper_mode);
 	if (!adapter) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to init os intf ops\n",
 			__func__);

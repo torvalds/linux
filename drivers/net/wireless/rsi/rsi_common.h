@@ -81,7 +81,7 @@ static inline int rsi_kill_thread(struct rsi_thread *handle)
 
 void rsi_mac80211_detach(struct rsi_hw *hw);
 u16 rsi_get_connected_channel(struct ieee80211_vif *vif);
-struct rsi_hw *rsi_91x_init(void);
+struct rsi_hw *rsi_91x_init(u16 oper_mode);
 void rsi_91x_deinit(struct rsi_hw *adapter);
 int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len);
 #ifdef CONFIG_PM

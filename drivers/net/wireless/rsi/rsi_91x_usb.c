@@ -21,6 +21,14 @@
 #include "rsi_hal.h"
 #include "rsi_coex.h"
 
+/* Default operating mode is wlan STA + BT */
+static u16 dev_oper_mode = DEV_OPMODE_STA_BT_DUAL;
+module_param(dev_oper_mode, ushort, 0444);
+MODULE_PARM_DESC(dev_oper_mode,
+		 "1[Wi-Fi], 4[BT], 8[BT LE], 5[Wi-Fi STA + BT classic]\n"
+		 "9[Wi-Fi STA + BT LE], 13[Wi-Fi STA + BT classic + BT LE]\n"
+		 "6[AP + BT classic], 14[AP + BT classic + BT LE]");
+
 /**
  * rsi_usb_card_write() - This function writes to the USB Card.
  * @adapter: Pointer to the adapter structure.
@@ -708,7 +716,7 @@ static int rsi_probe(struct usb_interface *pfunction,
 
 	rsi_dbg(INIT_ZONE, "%s: Init function called\n", __func__);
 
-	adapter = rsi_91x_init();
+	adapter = rsi_91x_init(dev_oper_mode);
 	if (!adapter) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to init os intf ops\n",
 			__func__);

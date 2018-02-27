@@ -70,8 +70,24 @@ EXPORT_SYMBOL_GPL(rsi_dbg);
 static char *opmode_str(int oper_mode)
 {
 	switch (oper_mode) {
-	case RSI_DEV_OPMODE_WIFI_ALONE:
+	case DEV_OPMODE_WIFI_ALONE:
 		return "Wi-Fi alone";
+	case DEV_OPMODE_BT_ALONE:
+		return "BT EDR alone";
+	case DEV_OPMODE_BT_LE_ALONE:
+		return "BT LE alone";
+	case DEV_OPMODE_BT_DUAL:
+		return "BT Dual";
+	case DEV_OPMODE_STA_BT:
+		return "Wi-Fi STA + BT EDR";
+	case DEV_OPMODE_STA_BT_LE:
+		return "Wi-Fi STA + BT LE";
+	case DEV_OPMODE_STA_BT_DUAL:
+		return "Wi-Fi STA + BT DUAL";
+	case DEV_OPMODE_AP_BT:
+		return "Wi-Fi AP + BT EDR";
+	case DEV_OPMODE_AP_BT_DUAL:
+		return "Wi-Fi AP + BT DUAL";
 	}
 
 	return "Unknown";
@@ -278,7 +294,7 @@ void rsi_set_bt_context(void *priv, void *bt_context)
  *
  * Return: Pointer to the adapter structure on success, NULL on failure .
  */
-struct rsi_hw *rsi_91x_init(void)
+struct rsi_hw *rsi_91x_init(u16 oper_mode)
 {
 	struct rsi_hw *adapter = NULL;
 	struct rsi_common *common = NULL;
@@ -321,9 +337,33 @@ struct rsi_hw *rsi_91x_init(void)
 	timer_setup(&common->roc_timer, rsi_roc_timeout, 0);
 	init_completion(&common->wlan_init_completion);
 	common->init_done = true;
+	adapter->device_model = RSI_DEV_9113;
+	common->oper_mode = oper_mode;
 
-	common->coex_mode = RSI_DEV_COEX_MODE_WIFI_ALONE;
-	common->oper_mode = RSI_DEV_OPMODE_WIFI_ALONE;
+	/* Determine coex mode */
+	switch (common->oper_mode) {
+	case DEV_OPMODE_STA_BT_DUAL:
+	case DEV_OPMODE_STA_BT:
+	case DEV_OPMODE_STA_BT_LE:
+	case DEV_OPMODE_BT_ALONE:
+	case DEV_OPMODE_BT_LE_ALONE:
+	case DEV_OPMODE_BT_DUAL:
+		common->coex_mode = 2;
+		break;
+	case DEV_OPMODE_AP_BT_DUAL:
+	case DEV_OPMODE_AP_BT:
+		common->coex_mode = 4;
+		break;
+	case DEV_OPMODE_WIFI_ALONE:
+		common->coex_mode = 1;
+		break;
+	default:
+		common->oper_mode = 1;
+		common->coex_mode = 1;
+	}
+	rsi_dbg(INFO_ZONE, "%s: oper_mode = %d, coex_mode = %d\n",
+		__func__, common->oper_mode, common->coex_mode);
+
 	adapter->device_model = RSI_DEV_9113;
 #ifdef CONFIG_RSI_COEX
 	if (common->coex_mode > 1) {

@@ -17,6 +17,17 @@
 #ifndef __RSI_HAL_H__
 #define __RSI_HAL_H__
 
+/* Device Operating modes */
+#define DEV_OPMODE_WIFI_ALONE		1
+#define DEV_OPMODE_BT_ALONE		4
+#define DEV_OPMODE_BT_LE_ALONE		8
+#define DEV_OPMODE_BT_DUAL		12
+#define DEV_OPMODE_STA_BT		5
+#define DEV_OPMODE_STA_BT_LE		9
+#define DEV_OPMODE_STA_BT_DUAL		13
+#define DEV_OPMODE_AP_BT		6
+#define DEV_OPMODE_AP_BT_DUAL		14
+
 #define FLASH_WRITE_CHUNK_SIZE		(4 * 1024)
 #define FLASH_SECTOR_SIZE		(4 * 1024)
 
