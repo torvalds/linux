@@ -700,6 +700,7 @@ enum PP_TABLE_VERSION {
  * The main hardware manager structure.
  */
 struct pp_hwmgr {
+	void *adev;
 	uint32_t chip_family;
 	uint32_t chip_id;
 	uint32_t smu_version;

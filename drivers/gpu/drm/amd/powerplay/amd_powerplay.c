@@ -30,6 +30,7 @@
 #include "pp_instance.h"
 #include "power_state.h"
 #include "amdgpu.h"
+#include "hwmgr.h"
 
 #define PP_DPM_DISABLED 0xCCCC
 
@@ -64,13 +65,10 @@ static int amd_powerplay_create(struct amdgpu_device *adev)
 	if (instance == NULL)
 		return -ENOMEM;
 
-	instance->chip_family = adev->family;
-	instance->chip_id = adev->asic_type;
+	instance->parent = adev;
 	instance->pm_en = (amdgpu_dpm != 0 && !amdgpu_sriov_vf(adev)) ? true : false;
-	instance->feature_mask = amdgpu_pp_feature_mask;
 	instance->device = adev->powerplay.cgs_device;
 	mutex_init(&instance->pp_lock);
-
 	adev->powerplay.pp_handle = instance;
 
 	return 0;

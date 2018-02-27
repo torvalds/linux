@@ -23,14 +23,12 @@
 #ifndef _PP_INSTANCE_H_
 #define _PP_INSTANCE_H_
 
-#include "hwmgr.h"
+struct pp_hwmgr;
 
 struct pp_instance {
-	uint32_t chip_family;
-	uint32_t chip_id;
+	void *parent; /* e.g. amdgpu_device */
+	void *device; /* e.g. cgs_device */
 	bool pm_en;
-	uint32_t feature_mask;
-	void *device;
 	struct pp_hwmgr *hwmgr;
 	struct mutex pp_lock;
 };

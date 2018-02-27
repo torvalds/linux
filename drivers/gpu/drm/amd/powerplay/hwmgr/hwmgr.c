@@ -146,10 +146,11 @@ int hwmgr_early_init(struct pp_instance *handle)
 		return -ENOMEM;
 
 	handle->hwmgr = hwmgr;
+	hwmgr->adev = handle->parent;
 	hwmgr->device = handle->device;
-	hwmgr->chip_family = handle->chip_family;
-	hwmgr->chip_id = handle->chip_id;
-	hwmgr->feature_mask = handle->feature_mask;
+	hwmgr->chip_family = ((struct amdgpu_device *)handle->parent)->family;
+	hwmgr->chip_id = ((struct amdgpu_device *)handle->parent)->asic_type;
+	hwmgr->feature_mask = amdgpu_pp_feature_mask;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
 	hwmgr->pp_table_version = PP_TABLE_V1;
