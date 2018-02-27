@@ -40,15 +40,6 @@
 #include "rxe_queue.h"
 #include "rxe_task.h"
 
-char *rxe_qp_state_name[] = {
-	[QP_STATE_RESET]	= "RESET",
-	[QP_STATE_INIT]		= "INIT",
-	[QP_STATE_READY]	= "READY",
-	[QP_STATE_DRAIN]	= "DRAIN",
-	[QP_STATE_DRAINED]	= "DRAINED",
-	[QP_STATE_ERROR]	= "ERROR",
-};
-
 static int rxe_qp_chk_cap(struct rxe_dev *rxe, struct ib_qp_cap *cap,
 			  int has_srq)
 {

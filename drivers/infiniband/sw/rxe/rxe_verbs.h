@@ -139,8 +139,6 @@ enum rxe_qp_state {
 	QP_STATE_ERROR
 };
 
-extern char *rxe_qp_state_name[];
-
 struct rxe_req_info {
 	enum rxe_qp_state	state;
 	int			wqe_index;
