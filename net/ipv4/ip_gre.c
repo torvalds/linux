@@ -951,9 +951,6 @@ static void __gre_tunnel_init(struct net_device *dev)
 
 	t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
-	dev->needed_headroom	= LL_MAX_HEADER + t_hlen + 4;
-	dev->mtu		= ETH_DATA_LEN - t_hlen - 4;
-
 	dev->features		|= GRE_FEATURES;
 	dev->hw_features	|= GRE_FEATURES;
 
@@ -1253,8 +1250,6 @@ static int erspan_tunnel_init(struct net_device *dev)
 		       sizeof(struct erspanhdr);
 	t_hlen = tunnel->hlen + sizeof(struct iphdr);
 
-	dev->needed_headroom = LL_MAX_HEADER + t_hlen + 4;
-	dev->mtu = ETH_DATA_LEN - t_hlen - 4;
 	dev->features		|= GRE_FEATURES;
 	dev->hw_features	|= GRE_FEATURES;
 	dev->priv_flags		|= IFF_LIVE_ADDR_CHANGE;
