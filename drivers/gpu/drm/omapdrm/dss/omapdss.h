@@ -309,8 +309,6 @@ struct omapdss_dpi_ops {
 			     struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
-	void (*get_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
 };
 
 struct omapdss_sdi_ops {
@@ -325,8 +323,6 @@ struct omapdss_sdi_ops {
 	int (*check_timings)(struct omap_dss_device *dssdev,
 			     struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
-	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
 };
 
@@ -343,8 +339,6 @@ struct omapdss_dvi_ops {
 			     struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
-	void (*get_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
 };
 
 struct omapdss_atv_ops {
@@ -360,8 +354,6 @@ struct omapdss_atv_ops {
 			     struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
-	void (*get_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
 };
 
 struct omapdss_hdmi_ops {
@@ -376,8 +368,6 @@ struct omapdss_hdmi_ops {
 	int (*check_timings)(struct omap_dss_device *dssdev,
 			     struct videomode *vm);
 	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
-	void (*get_timings)(struct omap_dss_device *dssdev,
 			    struct videomode *vm);
 
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);

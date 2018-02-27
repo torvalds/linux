@@ -237,14 +237,6 @@ static void sdi_set_timings(struct omap_dss_device *dssdev,
 	sdi->vm = *vm;
 }
 
-static void sdi_get_timings(struct omap_dss_device *dssdev,
-			    struct videomode *vm)
-{
-	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
-
-	*vm = sdi->vm;
-}
-
 static int sdi_check_timings(struct omap_dss_device *dssdev,
 			     struct videomode *vm)
 {
@@ -328,7 +320,6 @@ static const struct omapdss_sdi_ops sdi_ops = {
 
 	.check_timings = sdi_check_timings,
 	.set_timings = sdi_set_timings,
-	.get_timings = sdi_get_timings,
 };
 
 static void sdi_init_output(struct sdi_device *sdi)

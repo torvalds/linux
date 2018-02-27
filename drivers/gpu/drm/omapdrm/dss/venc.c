@@ -614,18 +614,6 @@ static int venc_check_timings(struct omap_dss_device *dssdev,
 	}
 }
 
-static void venc_get_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
-{
-	struct venc_device *venc = dssdev_to_venc(dssdev);
-
-	mutex_lock(&venc->venc_lock);
-
-	*vm = venc->vm;
-
-	mutex_unlock(&venc->venc_lock);
-}
-
 static int venc_init_regulator(struct venc_device *venc)
 {
 	struct regulator *vdda_dac;
@@ -771,7 +759,6 @@ static const struct omapdss_atv_ops venc_ops = {
 
 	.check_timings = venc_check_timings,
 	.set_timings = venc_set_timings,
-	.get_timings = venc_get_timings,
 };
 
 static void venc_init_output(struct venc_device *venc)

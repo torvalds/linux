@@ -136,14 +136,6 @@ static void tpd_set_timings(struct omap_dss_device *dssdev,
 	in->ops.hdmi->set_timings(in, vm);
 }
 
-static void tpd_get_timings(struct omap_dss_device *dssdev,
-			    struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	*vm = ddata->vm;
-}
-
 static int tpd_check_timings(struct omap_dss_device *dssdev,
 			     struct videomode *vm)
 {
@@ -249,7 +241,6 @@ static const struct omapdss_hdmi_ops tpd_hdmi_ops = {
 
 	.check_timings		= tpd_check_timings,
 	.set_timings		= tpd_set_timings,
-	.get_timings		= tpd_get_timings,
 
 	.read_edid		= tpd_read_edid,
 	.detect			= tpd_detect,

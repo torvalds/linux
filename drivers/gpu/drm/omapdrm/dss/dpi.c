@@ -491,18 +491,6 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 	mutex_unlock(&dpi->lock);
 }
 
-static void dpi_get_timings(struct omap_dss_device *dssdev,
-			    struct videomode *vm)
-{
-	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-
-	mutex_lock(&dpi->lock);
-
-	*vm = dpi->vm;
-
-	mutex_unlock(&dpi->lock);
-}
-
 static int dpi_check_timings(struct omap_dss_device *dssdev,
 			     struct videomode *vm)
 {
@@ -702,7 +690,6 @@ static const struct omapdss_dpi_ops dpi_ops = {
 
 	.check_timings = dpi_check_timings,
 	.set_timings = dpi_set_timings,
-	.get_timings = dpi_get_timings,
 };
 
 static void dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)

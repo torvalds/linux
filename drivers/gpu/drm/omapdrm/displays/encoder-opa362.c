@@ -148,16 +148,6 @@ static void opa362_set_timings(struct omap_dss_device *dssdev,
 	in->ops.atv->set_timings(in, vm);
 }
 
-static void opa362_get_timings(struct omap_dss_device *dssdev,
-			       struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	dev_dbg(dssdev->dev, "get_timings\n");
-
-	*vm = ddata->vm;
-}
-
 static int opa362_check_timings(struct omap_dss_device *dssdev,
 				struct videomode *vm)
 {
@@ -178,7 +168,6 @@ static const struct omapdss_atv_ops opa362_atv_ops = {
 
 	.check_timings	= opa362_check_timings,
 	.set_timings	= opa362_set_timings,
-	.get_timings	= opa362_get_timings,
 };
 
 static int opa362_probe(struct platform_device *pdev)

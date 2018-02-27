@@ -296,14 +296,6 @@ static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	mutex_unlock(&hdmi->lock);
 }
 
-static void hdmi_display_get_timings(struct omap_dss_device *dssdev,
-				     struct videomode *vm)
-{
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-
-	*vm = hdmi->cfg.vm;
-}
-
 static int hdmi_dump_regs(struct seq_file *s, void *p)
 {
 	struct omap_hdmi *hdmi = s->private;
@@ -557,7 +549,6 @@ static const struct omapdss_hdmi_ops hdmi_ops = {
 
 	.check_timings		= hdmi_display_check_timing,
 	.set_timings		= hdmi_display_set_timing,
-	.get_timings		= hdmi_display_get_timings,
 
 	.read_edid		= hdmi_read_edid,
 	.lost_hotplug		= hdmi_lost_hotplug,

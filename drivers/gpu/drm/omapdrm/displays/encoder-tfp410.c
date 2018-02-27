@@ -142,14 +142,6 @@ static void tfp410_set_timings(struct omap_dss_device *dssdev,
 	in->ops.dpi->set_timings(in, vm);
 }
 
-static void tfp410_get_timings(struct omap_dss_device *dssdev,
-			       struct videomode *vm)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-
-	*vm = ddata->vm;
-}
-
 static int tfp410_check_timings(struct omap_dss_device *dssdev,
 				struct videomode *vm)
 {
@@ -170,7 +162,6 @@ static const struct omapdss_dvi_ops tfp410_dvi_ops = {
 
 	.check_timings	= tfp410_check_timings,
 	.set_timings	= tfp410_set_timings,
-	.get_timings	= tfp410_get_timings,
 };
 
 static int tfp410_probe_of(struct platform_device *pdev)
