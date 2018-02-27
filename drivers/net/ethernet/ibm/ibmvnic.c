@@ -1081,6 +1081,7 @@ static int ibmvnic_open(struct net_device *netdev)
 static void clean_rx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_rx_pool *rx_pool;
+	struct ibmvnic_rx_buff *rx_buff;
 	u64 rx_entries;
 	int rx_scrqs;
 	int i, j;
@@ -1094,14 +1095,15 @@ static void clean_rx_pools(struct ibmvnic_adapter *adapter)
 	/* Free any remaining skbs in the rx buffer pools */
 	for (i = 0; i < rx_scrqs; i++) {
 		rx_pool = &adapter->rx_pool[i];
-		if (!rx_pool)
+		if (!rx_pool || !rx_pool->rx_buff)
 			continue;
 
 		netdev_dbg(adapter->netdev, "Cleaning rx_pool[%d]\n", i);
 		for (j = 0; j < rx_entries; j++) {
-			if (rx_pool->rx_buff[j].skb) {
-				dev_kfree_skb_any(rx_pool->rx_buff[j].skb);
-				rx_pool->rx_buff[j].skb = NULL;
+			rx_buff = &rx_pool->rx_buff[j];
+			if (rx_buff && rx_buff->skb) {
+				dev_kfree_skb_any(rx_buff->skb);
+				rx_buff->skb = NULL;
 			}
 		}
 	}
@@ -1110,6 +1112,7 @@ static void clean_rx_pools(struct ibmvnic_adapter *adapter)
 static void clean_tx_pools(struct ibmvnic_adapter *adapter)
 {
 	struct ibmvnic_tx_pool *tx_pool;
+	struct ibmvnic_tx_buff *tx_buff;
 	u64 tx_entries;
 	int tx_scrqs;
 	int i, j;
@@ -1123,14 +1126,15 @@ static void clean_tx_pools(struct ibmvnic_adapter *adapter)
 	/* Free any remaining skbs in the tx buffer pools */
 	for (i = 0; i < tx_scrqs; i++) {
 		tx_pool = &adapter->tx_pool[i];
-		if (!tx_pool)
+		if (!tx_pool && !tx_pool->tx_buff)
 			continue;
 
 		netdev_dbg(adapter->netdev, "Cleaning tx_pool[%d]\n", i);
 		for (j = 0; j < tx_entries; j++) {
-			if (tx_pool->tx_buff[j].skb) {
-				dev_kfree_skb_any(tx_pool->tx_buff[j].skb);
-				tx_pool->tx_buff[j].skb = NULL;
+			tx_buff = &tx_pool->tx_buff[j];
+			if (tx_buff && tx_buff->skb) {
+				dev_kfree_skb_any(tx_buff->skb);
+				tx_buff->skb = NULL;
 			}
 		}
 	}
