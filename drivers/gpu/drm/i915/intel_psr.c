@@ -508,6 +508,11 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		return;
 	}
 
+	if (!(intel_dp->edp_dpcd[1] & DP_EDP_SET_POWER_CAP)) {
+		DRM_DEBUG_KMS("PSR condition failed: panel lacks power state control\n");
+		return;
+	}
+
 	/*
 	 * FIXME psr2_support is messed up. It's both computed
 	 * dynamically during PSR enable, and extracted from sink
