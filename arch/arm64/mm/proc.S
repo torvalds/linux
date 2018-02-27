@@ -36,6 +36,12 @@
 #define TCR_TG_FLAGS	TCR_TG0_4K | TCR_TG1_4K
 #endif
 
+#ifdef CONFIG_RANDOMIZE_BASE
+#define TCR_KASLR_FLAGS	TCR_NFD1
+#else
+#define TCR_KASLR_FLAGS	0
+#endif
+
 #define TCR_SMP_FLAGS	TCR_SHARED
 
 /* PTWs cacheable, inner/outer WBWA */
@@ -432,7 +438,8 @@ ENTRY(__cpu_setup)
 	 * both user and kernel.
 	 */
 	ldr	x10, =TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
-			TCR_TG_FLAGS | TCR_ASID16 | TCR_TBI0 | TCR_A1
+			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
+			TCR_TBI0 | TCR_A1
 	tcr_set_idmap_t0sz	x10, x9
 
 	/*
