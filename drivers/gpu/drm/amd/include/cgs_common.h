@@ -88,33 +88,6 @@ enum cgs_ucode_id {
 	CGS_UCODE_ID_MAXIMUM,
 };
 
-enum cgs_system_info_id {
-	CGS_SYSTEM_INFO_ADAPTER_BDF_ID = 1,
-	CGS_SYSTEM_INFO_PCIE_GEN_INFO,
-	CGS_SYSTEM_INFO_PCIE_MLW,
-	CGS_SYSTEM_INFO_PCIE_DEV,
-	CGS_SYSTEM_INFO_PCIE_REV,
-	CGS_SYSTEM_INFO_CG_FLAGS,
-	CGS_SYSTEM_INFO_PG_FLAGS,
-	CGS_SYSTEM_INFO_GFX_CU_INFO,
-	CGS_SYSTEM_INFO_GFX_SE_INFO,
-	CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID,
-	CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID,
-	CGS_SYSTEM_INFO_PCIE_BUS_DEVFN,
-	CGS_SYSTEM_INFO_VRAM_WIDTH,
-	CGS_SYSTEM_INFO_ID_MAXIMUM,
-};
-
-struct cgs_system_info {
-	uint64_t			size;
-	enum cgs_system_info_id		info_id;
-	union {
-		void			*ptr;
-		uint64_t		value;
-	};
-	uint64_t			padding[13];
-};
-
 /*
  * enum cgs_resource_type - GPU resource type
  */
@@ -375,9 +348,6 @@ typedef int(*cgs_get_active_displays_info)(
 
 typedef int (*cgs_notify_dpm_enabled)(struct cgs_device *cgs_device, bool enabled);
 
-typedef int (*cgs_query_system_info)(struct cgs_device *cgs_device,
-				struct cgs_system_info *sys_info);
-
 typedef int (*cgs_is_virtualization_enabled_t)(void *cgs_device);
 
 typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
@@ -416,8 +386,6 @@ struct cgs_ops {
 	cgs_get_active_displays_info get_active_displays_info;
 	/* notify dpm enabled */
 	cgs_notify_dpm_enabled notify_dpm_enabled;
-	/* get system info */
-	cgs_query_system_info query_system_info;
 	cgs_is_virtualization_enabled_t is_virtualization_enabled;
 	cgs_enter_safe_mode enter_safe_mode;
 	cgs_lock_grbm_idx lock_grbm_idx;
@@ -483,8 +451,6 @@ struct cgs_device
 #define cgs_get_active_displays_info(dev, info)	\
 	CGS_CALL(get_active_displays_info, dev, info)
 
-#define cgs_query_system_info(dev, sys_info)	\
-	CGS_CALL(query_system_info, dev, sys_info)
 #define cgs_get_pci_resource(cgs_device, resource_type, size, offset, \
 	resource_base) \
 	CGS_CALL(get_pci_resource, cgs_device, resource_type, size, offset, \

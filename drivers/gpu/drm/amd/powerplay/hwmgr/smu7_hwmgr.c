@@ -1468,8 +1468,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	data->dll_default_on = false;
 	data->mclk_dpm0_activity_target = 0xa;
@@ -1590,17 +1589,13 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->pcie_lane_power_saving.max = 0;
 	data->pcie_lane_power_saving.min = 16;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PG_FLAGS;
-	result = cgs_query_system_info(hwmgr->device, &sys_info);
-	if (!result) {
-		if (sys_info.value & AMD_PG_SUPPORT_UVD)
-			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				      PHM_PlatformCaps_UVDPowerGating);
-		if (sys_info.value & AMD_PG_SUPPORT_VCE)
-			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				      PHM_PlatformCaps_VCEPowerGating);
-	}
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_UVD)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			      PHM_PlatformCaps_UVDPowerGating);
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCE)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			      PHM_PlatformCaps_VCEPowerGating);
 }
 
 /**
@@ -2035,7 +2030,7 @@ static int smu7_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_voltage_lookup_table *lookup_table;
 	uint32_t i;
 	uint32_t hw_revision, sub_vendor_id, sub_sys_id;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	if (table_info != NULL) {
 		dep_mclk_table = table_info->vdd_dep_on_mclk;
@@ -2043,19 +2038,9 @@ static int smu7_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 	} else
 		return 0;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_REV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	hw_revision = (uint32_t)sys_info.value;
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	sub_sys_id = (uint32_t)sys_info.value;
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	sub_vendor_id = (uint32_t)sys_info.value;
+	hw_revision = adev->pdev->revision;
+	sub_sys_id = adev->pdev->subsystem_device;
+	sub_vendor_id = adev->pdev->subsystem_vendor;
 
 	if (hwmgr->chip_id == CHIP_POLARIS10 && hw_revision == 0xC7 &&
 			((sub_sys_id == 0xb37 && sub_vendor_id == 0x1002) ||
@@ -2498,7 +2483,7 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	result = phm_initializa_dynamic_state_adjustment_rule_settings(hwmgr);
 
 	if (0 == result) {
-		struct cgs_system_info sys_info = {0};
+		struct amdgpu_device *adev = hwmgr->adev;
 
 		data->is_tlu_enabled = false;
 
@@ -2507,22 +2492,10 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
 		hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
 
-		sys_info.size = sizeof(struct cgs_system_info);
-		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_GEN_INFO;
-		result = cgs_query_system_info(hwmgr->device, &sys_info);
-		if (result)
-			data->pcie_gen_cap = AMDGPU_DEFAULT_PCIE_GEN_MASK;
-		else
-			data->pcie_gen_cap = (uint32_t)sys_info.value;
+		data->pcie_gen_cap = adev->pm.pcie_gen_mask;
 		if (data->pcie_gen_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
 			data->pcie_spc_cap = 20;
-		sys_info.size = sizeof(struct cgs_system_info);
-		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_MLW;
-		result = cgs_query_system_info(hwmgr->device, &sys_info);
-		if (result)
-			data->pcie_lane_cap = AMDGPU_DEFAULT_PCIE_MLW_MASK;
-		else
-			data->pcie_lane_cap = (uint32_t)sys_info.value;
+		data->pcie_lane_cap = adev->pm.pcie_mlw_mask;
 
 		hwmgr->platform_descriptor.vbiosInterruptId = 0x20000400; /* IRQ_SOURCE1_SW_INT */
 /* The true clock step depends on the frequency, typically 4.5 or 9 MHz. Here we use 5. */

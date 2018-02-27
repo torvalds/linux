@@ -1623,19 +1623,12 @@ static int tonga_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table =
 			table_info->vdd_dep_on_sclk;
 	uint32_t hw_revision, dev_id;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	stretch_amount = (uint8_t)table_info->cac_dtp_table->usClockStretchAmount;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_REV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	hw_revision = (uint32_t)sys_info.value;
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
+	hw_revision = adev->pdev->revision;
+	dev_id = adev->pdev->device;
 
 	/* Read SMU_Eefuse to read and calculate RO and determine
 	 * if the part is SS or FF. if RO >= 1660MHz, part is FF.

@@ -64,30 +64,16 @@ uint16_t convert_to_vddc(uint8_t vid)
 	return (uint16_t) ((6200 - (vid * 25)) / VOLTAGE_SCALE);
 }
 
-static int phm_get_pci_bus_devfn(struct pp_hwmgr *hwmgr,
-		struct cgs_system_info *sys_info)
-{
-	sys_info->size = sizeof(struct cgs_system_info);
-	sys_info->info_id = CGS_SYSTEM_INFO_PCIE_BUS_DEVFN;
-
-	return cgs_query_system_info(hwmgr->device, sys_info);
-}
-
 static int phm_thermal_l2h_irq(void *private_data,
 		 unsigned src_id, const uint32_t *iv_entry)
 {
 	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	result = phm_get_pci_bus_devfn(hwmgr, &sys_info);
-	if (result)
-		return -EINVAL;
-
-	pr_warn("GPU over temperature range detected on PCIe %lld:%lld.%lld!\n",
-			PCI_BUS_NUM(sys_info.value),
-			PCI_SLOT(sys_info.value),
-			PCI_FUNC(sys_info.value));
+	pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
+			PCI_BUS_NUM(adev->pdev->devfn),
+			PCI_SLOT(adev->pdev->devfn),
+			PCI_FUNC(adev->pdev->devfn));
 	return 0;
 }
 
@@ -95,17 +81,12 @@ static int phm_thermal_h2l_irq(void *private_data,
 		 unsigned src_id, const uint32_t *iv_entry)
 {
 	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	result = phm_get_pci_bus_devfn(hwmgr, &sys_info);
-	if (result)
-		return -EINVAL;
-
-	pr_warn("GPU under temperature range detected on PCIe %lld:%lld.%lld!\n",
-			PCI_BUS_NUM(sys_info.value),
-			PCI_SLOT(sys_info.value),
-			PCI_FUNC(sys_info.value));
+	pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
+			PCI_BUS_NUM(adev->pdev->devfn),
+			PCI_SLOT(adev->pdev->devfn),
+			PCI_FUNC(adev->pdev->devfn));
 	return 0;
 }
 
@@ -113,17 +94,12 @@ static int phm_ctf_irq(void *private_data,
 		 unsigned src_id, const uint32_t *iv_entry)
 {
 	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	result = phm_get_pci_bus_devfn(hwmgr, &sys_info);
-	if (result)
-		return -EINVAL;
-
-	pr_warn("GPU Critical Temperature Fault detected on PCIe %lld:%lld.%lld!\n",
-			PCI_BUS_NUM(sys_info.value),
-			PCI_SLOT(sys_info.value),
-			PCI_FUNC(sys_info.value));
+	pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
+			PCI_BUS_NUM(adev->pdev->devfn),
+			PCI_SLOT(adev->pdev->devfn),
+			PCI_FUNC(adev->pdev->devfn));
 	return 0;
 }
 

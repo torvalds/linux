@@ -190,8 +190,7 @@ static int vega10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 			(struct vega10_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)hwmgr->pptable;
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
@@ -206,15 +205,11 @@ static int vega10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_EnableSMU7ThermalManagement);
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PG_FLAGS;
-	result = cgs_query_system_info(hwmgr->device, &sys_info);
-
-	if (!result && (sys_info.value & AMD_PG_SUPPORT_UVD))
+	if (adev->pg_flags & AMD_PG_SUPPORT_UVD)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_UVDPowerGating);
 
-	if (!result && (sys_info.value & AMD_PG_SUPPORT_VCE))
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCE)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_VCEPowerGating);
 
@@ -750,7 +745,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	struct vega10_hwmgr *data;
 	uint32_t config_telemetry = 0;
 	struct pp_atomfwctrl_voltage_table vol_table;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
 	data = kzalloc(sizeof(struct vega10_hwmgr), GFP_KERNEL);
@@ -843,10 +838,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	hwmgr->platform_descriptor.clockStep.engineClock = 500;
 	hwmgr->platform_descriptor.clockStep.memoryClock = 500;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_GFX_CU_INFO;
-	result = cgs_query_system_info(hwmgr->device, &sys_info);
-	data->total_active_cus = sys_info.value;
+	data->total_active_cus = adev->gfx.cu_info.number;
 	/* Setup default Overdrive Fan control settings */
 	data->odn_fan_table.target_fan_speed =
 			hwmgr->thermal_controller.advanceFanControlParameters.usMaxFanRPM;

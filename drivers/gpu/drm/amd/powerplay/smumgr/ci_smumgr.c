@@ -236,13 +236,10 @@ static int ci_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 static void ci_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t dev_id;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
+	dev_id = adev->pdev->device;
 
 	switch (dev_id) {
 	case 0x67BA:
@@ -1309,7 +1306,7 @@ static int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 	struct ci_smumgr *smu_data = (struct ci_smumgr *)(hwmgr->smu_backend);
 	struct smu7_dpm_table *dpm_table = &data->dpm_table;
 	int result;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t dev_id;
 
 	uint32_t level_array_address = smu_data->dpm_table_start + offsetof(SMU7_Discrete_DpmTable, MemoryLevel);
@@ -1330,10 +1327,7 @@ static int ci_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 
 	smu_data->smc_state_table.MemoryLevel[0].EnabledForActivity = 1;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
+	dev_id = adev->pdev->device;
 
 	if ((dpm_table->mclk_table.count >= 2)
 		&& ((dev_id == 0x67B0) ||  (dev_id == 0x67B1))) {

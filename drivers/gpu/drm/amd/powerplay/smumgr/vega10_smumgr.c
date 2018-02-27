@@ -349,7 +349,7 @@ int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 {
 	uint32_t smc_driver_if_version;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t dev_id;
 	uint32_t rev_id;
 
@@ -359,15 +359,8 @@ static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 			return -EINVAL);
 	vega10_read_arg_from_smc(hwmgr, &smc_driver_if_version);
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
-
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_REV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	rev_id = (uint32_t)sys_info.value;
+	dev_id = adev->pdev->device;
+	rev_id = adev->pdev->revision;
 
 	if (!((dev_id == 0x687f) &&
 		((rev_id == 0xc0) ||

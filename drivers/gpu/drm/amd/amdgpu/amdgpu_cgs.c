@@ -835,64 +835,6 @@ static int amdgpu_cgs_is_virtualization_enabled(void *cgs_device)
 	return amdgpu_sriov_vf(adev);
 }
 
-static int amdgpu_cgs_query_system_info(struct cgs_device *cgs_device,
-					struct cgs_system_info *sys_info)
-{
-	CGS_FUNC_ADEV;
-
-	if (NULL == sys_info)
-		return -ENODEV;
-
-	if (sizeof(struct cgs_system_info) != sys_info->size)
-		return -ENODEV;
-
-	switch (sys_info->info_id) {
-	case CGS_SYSTEM_INFO_ADAPTER_BDF_ID:
-		sys_info->value = adev->pdev->devfn | (adev->pdev->bus->number << 8);
-		break;
-	case CGS_SYSTEM_INFO_PCIE_GEN_INFO:
-		sys_info->value = adev->pm.pcie_gen_mask;
-		break;
-	case CGS_SYSTEM_INFO_PCIE_MLW:
-		sys_info->value = adev->pm.pcie_mlw_mask;
-		break;
-	case CGS_SYSTEM_INFO_PCIE_DEV:
-		sys_info->value = adev->pdev->device;
-		break;
-	case CGS_SYSTEM_INFO_PCIE_REV:
-		sys_info->value = adev->pdev->revision;
-		break;
-	case CGS_SYSTEM_INFO_CG_FLAGS:
-		sys_info->value = adev->cg_flags;
-		break;
-	case CGS_SYSTEM_INFO_PG_FLAGS:
-		sys_info->value = adev->pg_flags;
-		break;
-	case CGS_SYSTEM_INFO_GFX_CU_INFO:
-		sys_info->value = adev->gfx.cu_info.number;
-		break;
-	case CGS_SYSTEM_INFO_GFX_SE_INFO:
-		sys_info->value = adev->gfx.config.max_shader_engines;
-		break;
-	case CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID:
-		sys_info->value = adev->pdev->subsystem_device;
-		break;
-	case CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID:
-		sys_info->value = adev->pdev->subsystem_vendor;
-		break;
-	case CGS_SYSTEM_INFO_PCIE_BUS_DEVFN:
-		sys_info->value = adev->pdev->devfn;
-		break;
-	case CGS_SYSTEM_INFO_VRAM_WIDTH:
-		sys_info->value = adev->gmc.vram_width;
-		break;
-	default:
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static int amdgpu_cgs_get_active_displays_info(struct cgs_device *cgs_device,
 					  struct cgs_display_info *info)
 {
@@ -996,7 +938,6 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	.set_clockgating_state = amdgpu_cgs_set_clockgating_state,
 	.get_active_displays_info = amdgpu_cgs_get_active_displays_info,
 	.notify_dpm_enabled = amdgpu_cgs_notify_dpm_enabled,
-	.query_system_info = amdgpu_cgs_query_system_info,
 	.is_virtualization_enabled = amdgpu_cgs_is_virtualization_enabled,
 	.enter_safe_mode = amdgpu_cgs_enter_safe_mode,
 	.lock_grbm_idx = amdgpu_cgs_lock_grbm_idx,

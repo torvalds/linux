@@ -933,13 +933,10 @@ static int vega10_enable_cac_driving_se_didt_config(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	uint32_t num_se = 0, count, data;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_GFX_SE_INFO;
-	if (cgs_query_system_info(hwmgr->device, &sys_info) == 0)
-		num_se = sys_info.value;
+	num_se = adev->gfx.config.max_shader_engines;
 
 	cgs_enter_safe_mode(hwmgr->device, true);
 
@@ -987,13 +984,10 @@ static int vega10_enable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	uint32_t num_se = 0, count, data;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_GFX_SE_INFO;
-	if (cgs_query_system_info(hwmgr->device, &sys_info) == 0)
-		num_se = sys_info.value;
+	num_se = adev->gfx.config.max_shader_engines;
 
 	cgs_enter_safe_mode(hwmgr->device, true);
 
@@ -1052,13 +1046,10 @@ static int vega10_enable_se_edc_config(struct pp_hwmgr *hwmgr)
 {
 	int result;
 	uint32_t num_se = 0, count, data;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_GFX_SE_INFO;
-	if (cgs_query_system_info(hwmgr->device, &sys_info) == 0)
-		num_se = sys_info.value;
+	num_se = adev->gfx.config.max_shader_engines;
 
 	cgs_enter_safe_mode(hwmgr->device, true);
 
@@ -1103,13 +1094,10 @@ static int vega10_enable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 	int result;
 	uint32_t num_se = 0;
 	uint32_t count, data;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_GFX_SE_INFO;
-	if (cgs_query_system_info(hwmgr->device, &sys_info) == 0)
-		num_se = sys_info.value;
+	num_se = adev->gfx.config.max_shader_engines;
 
 	cgs_enter_safe_mode(hwmgr->device, true);
 
