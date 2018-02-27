@@ -30,7 +30,7 @@
 
 int evm_initialized;
 
-static char *integrity_status_msg[] = {
+static const char * const integrity_status_msg[] = {
 	"pass", "pass_immutable", "fail", "no_label", "no_xattrs", "unknown"
 };
 int evm_hmac_attrs;
