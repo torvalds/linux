@@ -23,7 +23,7 @@
 
 extern const struct xattr_handler *btrfs_xattr_handlers[];
 
-ssize_t btrfs_getxattr(struct inode *inode, const char *name,
+int btrfs_getxattr(struct inode *inode, const char *name,
 		void *buffer, size_t size);
 int btrfs_setxattr(struct btrfs_trans_handle *trans,
 			    struct inode *inode, const char *name,

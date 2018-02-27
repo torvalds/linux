@@ -33,7 +33,7 @@
 #include "locking.h"
 
 
-ssize_t btrfs_getxattr(struct inode *inode, const char *name,
+int btrfs_getxattr(struct inode *inode, const char *name,
 				void *buffer, size_t size)
 {
 	struct btrfs_dir_item *di;
