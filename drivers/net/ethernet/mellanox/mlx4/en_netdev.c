@@ -3634,10 +3634,6 @@ int mlx4_en_reset_config(struct net_device *dev,
 		mlx4_en_stop_port(dev, 1);
 	}
 
-	en_warn(priv, "Changing device configuration rx filter(%x) rx vlan(%x)\n",
-		ts_config.rx_filter,
-		!!(features & NETIF_F_HW_VLAN_CTAG_RX));
-
 	mlx4_en_safe_replace_resources(priv, tmp);
 
 	if (DEV_FEATURE_CHANGED(dev, features, NETIF_F_HW_VLAN_CTAG_RX)) {
