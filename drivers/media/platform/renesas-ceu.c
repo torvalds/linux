@@ -95,7 +95,7 @@
 
 /* CEU operating flag bit. */
 #define CEU_CAPCR_CTNCP			BIT(16)
-#define CEU_CSTRST_CPTON		BIT(1)
+#define CEU_CSTRST_CPTON		BIT(0)
 
 /* Platform specific IRQ source flags. */
 #define CEU_CETCR_ALL_IRQS_RZ		0x397f313
