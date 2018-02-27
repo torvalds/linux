@@ -3256,6 +3256,10 @@ void mlx4_en_set_stats_bitmap(struct mlx4_dev *dev,
 
 	bitmap_set(stats_bitmap->bitmap, last_i, NUM_XDP_STATS);
 	last_i += NUM_XDP_STATS;
+
+	if (!mlx4_is_slave(dev))
+		bitmap_set(stats_bitmap->bitmap, last_i, NUM_PHY_STATS);
+	last_i += NUM_PHY_STATS;
 }
 
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
