@@ -12,10 +12,6 @@
  * Atomic exchange.
  * Since it can be used to implement critical sections
  * it must clobber "memory" (also for interrupts in UP).
- *
- * The leading and the trailing memory barriers guarantee that these
- * operations are fully ordered.
- *
  */
 
 static inline unsigned long
@@ -23,7 +19,6 @@ ____xchg(_u8, volatile char *m, unsigned long val)
 {
 	unsigned long ret, tmp, addr64;
 
-	smp_mb();
 	__asm__ __volatile__(
 	"	andnot	%4,7,%3\n"
 	"	insbl	%1,%4,%1\n"
@@ -38,7 +33,6 @@ ____xchg(_u8, volatile char *m, unsigned long val)
 	".previous"
 	: "=&r" (ret), "=&r" (val), "=&r" (tmp), "=&r" (addr64)
 	: "r" ((long)m), "1" (val) : "memory");
-	smp_mb();
 
 	return ret;
 }
@@ -48,7 +42,6 @@ ____xchg(_u16, volatile short *m, unsigned long val)
 {
 	unsigned long ret, tmp, addr64;
 
-	smp_mb();
 	__asm__ __volatile__(
 	"	andnot	%4,7,%3\n"
 	"	inswl	%1,%4,%1\n"
@@ -63,7 +56,6 @@ ____xchg(_u16, volatile short *m, unsigned long val)
 	".previous"
 	: "=&r" (ret), "=&r" (val), "=&r" (tmp), "=&r" (addr64)
 	: "r" ((long)m), "1" (val) : "memory");
-	smp_mb();
 
 	return ret;
 }
@@ -73,7 +65,6 @@ ____xchg(_u32, volatile int *m, unsigned long val)
 {
 	unsigned long dummy;
 
-	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldl_l %0,%4\n"
 	"	bis $31,%3,%1\n"
@@ -84,7 +75,6 @@ ____xchg(_u32, volatile int *m, unsigned long val)
 	".previous"
 	: "=&r" (val), "=&r" (dummy), "=m" (*m)
 	: "rI" (val), "m" (*m) : "memory");
-	smp_mb();
 
 	return val;
 }
@@ -94,7 +84,6 @@ ____xchg(_u64, volatile long *m, unsigned long val)
 {
 	unsigned long dummy;
 
-	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldq_l %0,%4\n"
 	"	bis $31,%3,%1\n"
@@ -105,7 +94,6 @@ ____xchg(_u64, volatile long *m, unsigned long val)
 	".previous"
 	: "=&r" (val), "=&r" (dummy), "=m" (*m)
 	: "rI" (val), "m" (*m) : "memory");
-	smp_mb();
 
 	return val;
 }
@@ -135,13 +123,6 @@ ____xchg(, volatile void *ptr, unsigned long x, int size)
  * Atomic compare and exchange.  Compare OLD with MEM, if identical,
  * store NEW in MEM.  Return the initial value in MEM.  Success is
  * indicated by comparing RETURN with OLD.
- *
- * The leading and the trailing memory barriers guarantee that these
- * operations are fully ordered.
- *
- * The trailing memory barrier is placed in SMP unconditionally, in
- * order to guarantee that dependency ordering is preserved when a
- * dependency is headed by an unsuccessful operation.
  */
 
 static inline unsigned long
@@ -149,7 +130,6 @@ ____cmpxchg(_u8, volatile char *m, unsigned char old, unsigned char new)
 {
 	unsigned long prev, tmp, cmp, addr64;
 
-	smp_mb();
 	__asm__ __volatile__(
 	"	andnot	%5,7,%4\n"
 	"	insbl	%1,%5,%1\n"
@@ -167,7 +147,6 @@ ____cmpxchg(_u8, volatile char *m, unsigned char old, unsigned char new)
 	".previous"
 	: "=&r" (prev), "=&r" (new), "=&r" (tmp), "=&r" (cmp), "=&r" (addr64)
 	: "r" ((long)m), "Ir" (old), "1" (new) : "memory");
-	smp_mb();
 
 	return prev;
 }
@@ -177,7 +156,6 @@ ____cmpxchg(_u16, volatile short *m, unsigned short old, unsigned short new)
 {
 	unsigned long prev, tmp, cmp, addr64;
 
-	smp_mb();
 	__asm__ __volatile__(
 	"	andnot	%5,7,%4\n"
 	"	inswl	%1,%5,%1\n"
@@ -195,7 +173,6 @@ ____cmpxchg(_u16, volatile short *m, unsigned short old, unsigned short new)
 	".previous"
 	: "=&r" (prev), "=&r" (new), "=&r" (tmp), "=&r" (cmp), "=&r" (addr64)
 	: "r" ((long)m), "Ir" (old), "1" (new) : "memory");
-	smp_mb();
 
 	return prev;
 }
@@ -205,7 +182,6 @@ ____cmpxchg(_u32, volatile int *m, int old, int new)
 {
 	unsigned long prev, cmp;
 
-	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldl_l %0,%5\n"
 	"	cmpeq %0,%3,%1\n"
@@ -219,7 +195,6 @@ ____cmpxchg(_u32, volatile int *m, int old, int new)
 	".previous"
 	: "=&r"(prev), "=&r"(cmp), "=m"(*m)
 	: "r"((long) old), "r"(new), "m"(*m) : "memory");
-	smp_mb();
 
 	return prev;
 }
@@ -229,7 +204,6 @@ ____cmpxchg(_u64, volatile long *m, unsigned long old, unsigned long new)
 {
 	unsigned long prev, cmp;
 
-	smp_mb();
 	__asm__ __volatile__(
 	"1:	ldq_l %0,%5\n"
 	"	cmpeq %0,%3,%1\n"
@@ -243,7 +217,6 @@ ____cmpxchg(_u64, volatile long *m, unsigned long old, unsigned long new)
 	".previous"
 	: "=&r"(prev), "=&r"(cmp), "=m"(*m)
 	: "r"((long) old), "r"(new), "m"(*m) : "memory");
-	smp_mb();
 
 	return prev;
 }
