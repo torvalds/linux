@@ -33,8 +33,6 @@ int evm_initialized;
 static char *integrity_status_msg[] = {
 	"pass", "pass_immutable", "fail", "no_label", "no_xattrs", "unknown"
 };
-char *evm_hmac = "hmac(sha1)";
-char *evm_hash = "sha1";
 int evm_hmac_attrs;
 
 char *evm_config_xattrnames[] = {
