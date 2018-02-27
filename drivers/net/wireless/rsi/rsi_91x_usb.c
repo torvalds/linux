@@ -103,41 +103,42 @@ static int rsi_find_bulk_in_and_out_endpoints(struct usb_interface *interface,
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	__le16 buffer_size;
-	int ii, bep_found = 0;
+	int ii, bin_found = 0, bout_found = 0;
 
 	iface_desc = &(interface->altsetting[0]);
 
 	for (ii = 0; ii < iface_desc->desc.bNumEndpoints; ++ii) {
 		endpoint = &(iface_desc->endpoint[ii].desc);
 
-		if ((!(dev->bulkin_endpoint_addr)) &&
+		if (!dev->bulkin_endpoint_addr[bin_found] &&
 		    (endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes &
-		    USB_ENDPOINT_XFERTYPE_MASK) ==
+		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
 		    USB_ENDPOINT_XFER_BULK)) {
 			buffer_size = endpoint->wMaxPacketSize;
-			dev->bulkin_size = buffer_size;
-			dev->bulkin_endpoint_addr =
+			dev->bulkin_size[bin_found] = buffer_size;
+			dev->bulkin_endpoint_addr[bin_found] =
 				endpoint->bEndpointAddress;
+			bin_found++;
 		}
 
-		if (!dev->bulkout_endpoint_addr[bep_found] &&
+		if (!dev->bulkout_endpoint_addr[bout_found] &&
 		    !(endpoint->bEndpointAddress & USB_DIR_IN) &&
 		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
-		      USB_ENDPOINT_XFER_BULK)) {
-			dev->bulkout_endpoint_addr[bep_found] =
+		    USB_ENDPOINT_XFER_BULK)) {
+			buffer_size = endpoint->wMaxPacketSize;
+			dev->bulkout_endpoint_addr[bout_found] =
 				endpoint->bEndpointAddress;
 			buffer_size = endpoint->wMaxPacketSize;
-			dev->bulkout_size[bep_found] = buffer_size;
-			bep_found++;
+			dev->bulkout_size[bout_found] = buffer_size;
+			bout_found++;
 		}
 
-		if (bep_found >= MAX_BULK_EP)
+		if (bin_found >= MAX_BULK_EP || bout_found >= MAX_BULK_EP)
 			break;
 	}
 
-	if (!(dev->bulkin_endpoint_addr) &&
-	    (dev->bulkout_endpoint_addr[0]))
+	if (!(dev->bulkin_endpoint_addr[0]) &&
+	    dev->bulkout_endpoint_addr[0])
 		return -EINVAL;
 
 	return 0;
@@ -273,7 +274,7 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num)
 	usb_fill_bulk_urb(urb,
 			  dev->usbdev,
 			  usb_rcvbulkpipe(dev->usbdev,
-				dev->bulkin_endpoint_addr),
+			  dev->bulkin_endpoint_addr[ep_num - 1]),
 			  urb->transfer_buffer,
 			  3000,
 			  rsi_rx_done_handler,
@@ -744,6 +745,12 @@ static int rsi_probe(struct usb_interface *pfunction,
 	status = rsi_rx_urb_submit(adapter, WLAN_EP);
 	if (status)
 		goto err1;
+
+	if (adapter->priv->coex_mode > 1) {
+		status = rsi_rx_urb_submit(adapter, BT_EP);
+		if (status)
+			goto err1;
+	}
 
 	return 0;
 err1:

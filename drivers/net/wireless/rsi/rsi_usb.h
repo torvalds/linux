@@ -31,7 +31,7 @@
 #define USB_VENDOR_REGISTER_WRITE    0x16
 #define RSI_USB_TX_HEAD_ROOM         128
 
-#define MAX_RX_URBS                  1
+#define MAX_RX_URBS                  2
 #define MAX_BULK_EP                  8
 #define WLAN_EP                      1
 #define BT_EP                        2
@@ -54,8 +54,8 @@ struct rsi_91x_usbdev {
 	struct usb_interface *pfunction;
 	struct rx_usb_ctrl_block rx_cb[MAX_RX_URBS];
 	u8 *tx_buffer;
-	__le16 bulkin_size;
-	u8 bulkin_endpoint_addr;
+	__le16 bulkin_size[MAX_BULK_EP];
+	u8 bulkin_endpoint_addr[MAX_BULK_EP];
 	__le16 bulkout_size[MAX_BULK_EP];
 	u8 bulkout_endpoint_addr[MAX_BULK_EP];
 	u32 tx_blk_size;
