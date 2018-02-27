@@ -1358,7 +1358,6 @@ static const struct consw sisusb_dummy_con = {
 	.con_switch =		SISUSBCONDUMMY,
 	.con_blank =		SISUSBCONDUMMY,
 	.con_font_set =		SISUSBCONDUMMY,
-	.con_font_get =		SISUSBCONDUMMY,
 	.con_font_default =	SISUSBCONDUMMY,
 	.con_font_copy =	SISUSBCONDUMMY,
 };
