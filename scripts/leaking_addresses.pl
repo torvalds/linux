@@ -31,7 +31,6 @@ use bigint qw/hex/;
 use feature 'state';
 
 my $P = $0;
-my $V = '0.01';
 
 # Directories to scan.
 my @DIRS = ('/proc', '/sys');
@@ -85,7 +84,6 @@ sub help
 	print << "EOM";
 
 Usage: $P [OPTIONS]
-Version: $V
 
 Options:
 
