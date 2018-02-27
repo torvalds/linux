@@ -1,7 +1,7 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum_ipip.h
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Petr Machata <petrm@mellanox.com>
+ * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018 Petr Machata <petrm@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -41,10 +41,14 @@
 
 struct ip_tunnel_parm
 mlxsw_sp_ipip_netdev_parms4(const struct net_device *ol_dev);
+struct __ip6_tnl_parm
+mlxsw_sp_ipip_netdev_parms6(const struct net_device *ol_dev);
 
 union mlxsw_sp_l3addr
 mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev);
+
+bool mlxsw_sp_l3addr_is_zero(union mlxsw_sp_l3addr addr);
 
 enum mlxsw_sp_ipip_type {
 	MLXSW_SP_IPIP_TYPE_GRE4,

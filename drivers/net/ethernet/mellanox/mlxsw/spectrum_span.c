@@ -1,6 +1,7 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/mlxsw_span.c
  * Copyright (c) 2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2018 Petr Machata <petrm@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,9 +33,14 @@
  */
 
 #include <linux/list.h>
+#include <net/arp.h>
+#include <net/gre.h>
+#include <net/ndisc.h>
+#include <net/ip6_tunnel.h>
 
 #include "spectrum.h"
 #include "spectrum_span.h"
+#include "spectrum_ipip.h"
 
 int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 {
@@ -51,8 +57,12 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 	if (!mlxsw_sp->span.entries)
 		return -ENOMEM;
 
-	for (i = 0; i < mlxsw_sp->span.entries_count; i++)
-		INIT_LIST_HEAD(&mlxsw_sp->span.entries[i].bound_ports_list);
+	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+
+		INIT_LIST_HEAD(&curr->bound_ports_list);
+		curr->id = i;
+	}
 
 	return 0;
 }
@@ -69,80 +79,460 @@ void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->span.entries);
 }
 
-static struct mlxsw_sp_span_entry *
-mlxsw_sp_span_entry_create(struct mlxsw_sp_port *port)
+static int
+mlxsw_sp_span_entry_phys_parms(const struct net_device *to_dev,
+			       struct mlxsw_sp_span_parms *sparmsp)
 {
-	struct mlxsw_sp *mlxsw_sp = port->mlxsw_sp;
-	struct mlxsw_sp_span_entry *span_entry;
+	sparmsp->dest_port = netdev_priv(to_dev);
+	return 0;
+}
+
+static int
+mlxsw_sp_span_entry_phys_configure(struct mlxsw_sp_span_entry *span_entry,
+				   struct mlxsw_sp_span_parms sparms)
+{
+	struct mlxsw_sp_port *dest_port = sparms.dest_port;
+	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
+	u8 local_port = dest_port->local_port;
 	char mpat_pl[MLXSW_REG_MPAT_LEN];
-	u8 local_port = port->local_port;
-	int index;
+	int pa_id = span_entry->id;
+
+	/* Create a new port analayzer entry for local_port. */
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
+			    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+}
+
+static void
+mlxsw_sp_span_entry_deconfigure_common(struct mlxsw_sp_span_entry *span_entry,
+				       enum mlxsw_reg_mpat_span_type span_type)
+{
+	struct mlxsw_sp_port *dest_port = span_entry->parms.dest_port;
+	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
+	u8 local_port = dest_port->local_port;
+	char mpat_pl[MLXSW_REG_MPAT_LEN];
+	int pa_id = span_entry->id;
+
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, false, span_type);
+	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+}
+
+static void
+mlxsw_sp_span_entry_phys_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+	mlxsw_sp_span_entry_deconfigure_common(span_entry,
+					    MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH);
+}
+
+static const
+struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_phys = {
+	.can_handle = mlxsw_sp_port_dev_check,
+	.parms = mlxsw_sp_span_entry_phys_parms,
+	.configure = mlxsw_sp_span_entry_phys_configure,
+	.deconfigure = mlxsw_sp_span_entry_phys_deconfigure,
+};
+
+static struct net_device *
+mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
+			    __be32 *saddrp, __be32 *daddrp)
+{
+	struct ip_tunnel *tun = netdev_priv(to_dev);
+	struct net_device *dev = NULL;
+	struct ip_tunnel_parm parms;
+	struct rtable *rt = NULL;
+	struct flowi4 fl4;
+
+	/* We assume "dev" stays valid after rt is put. */
+	ASSERT_RTNL();
+
+	parms = mlxsw_sp_ipip_netdev_parms4(to_dev);
+	ip_tunnel_init_flow(&fl4, parms.iph.protocol, *daddrp, *saddrp,
+			    0, 0, parms.link, tun->fwmark);
+
+	rt = ip_route_output_key(tun->net, &fl4);
+	if (IS_ERR(rt))
+		return NULL;
+
+	if (rt->rt_type != RTN_UNICAST)
+		goto out;
+
+	dev = rt->dst.dev;
+	*saddrp = fl4.saddr;
+	*daddrp = rt->rt_gateway;
+
+out:
+	ip_rt_put(rt);
+	return dev;
+}
+
+static int mlxsw_sp_span_dmac(struct neigh_table *tbl,
+			      const void *pkey,
+			      struct net_device *l3edev,
+			      unsigned char dmac[ETH_ALEN])
+{
+	struct neighbour *neigh = neigh_lookup(tbl, pkey, l3edev);
+	int err = 0;
+
+	if (!neigh) {
+		neigh = neigh_create(tbl, pkey, l3edev);
+		if (IS_ERR(neigh))
+			return PTR_ERR(neigh);
+	}
+
+	neigh_event_send(neigh, NULL);
+
+	read_lock_bh(&neigh->lock);
+	if ((neigh->nud_state & NUD_VALID) && !neigh->dead)
+		memcpy(dmac, neigh->ha, ETH_ALEN);
+	else
+		err = -ENOENT;
+	read_unlock_bh(&neigh->lock);
+
+	neigh_release(neigh);
+	return err;
+}
+
+static int
+mlxsw_sp_span_entry_unoffloadable(struct mlxsw_sp_span_parms *sparmsp)
+{
+	sparmsp->dest_port = NULL;
+	return 0;
+}
+
+static int
+mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
+					union mlxsw_sp_l3addr saddr,
+					union mlxsw_sp_l3addr daddr,
+					union mlxsw_sp_l3addr gw,
+					__u8 ttl,
+					struct neigh_table *tbl,
+					struct mlxsw_sp_span_parms *sparmsp)
+{
+	unsigned char dmac[ETH_ALEN];
+
+	if (mlxsw_sp_l3addr_is_zero(gw))
+		gw = daddr;
+
+	if (!l3edev || !mlxsw_sp_port_dev_check(l3edev) ||
+	    mlxsw_sp_span_dmac(tbl, &gw, l3edev, dmac))
+		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+
+	sparmsp->dest_port = netdev_priv(l3edev);
+	sparmsp->ttl = ttl;
+	memcpy(sparmsp->dmac, dmac, ETH_ALEN);
+	memcpy(sparmsp->smac, l3edev->dev_addr, ETH_ALEN);
+	sparmsp->saddr = saddr;
+	sparmsp->daddr = daddr;
+	return 0;
+}
+
+static int
+mlxsw_sp_span_entry_gretap4_parms(const struct net_device *to_dev,
+				  struct mlxsw_sp_span_parms *sparmsp)
+{
+	struct ip_tunnel_parm tparm = mlxsw_sp_ipip_netdev_parms4(to_dev);
+	union mlxsw_sp_l3addr saddr = { .addr4 = tparm.iph.saddr };
+	union mlxsw_sp_l3addr daddr = { .addr4 = tparm.iph.daddr };
+	bool inherit_tos = tparm.iph.tos & 0x1;
+	bool inherit_ttl = !tparm.iph.ttl;
+	union mlxsw_sp_l3addr gw = daddr;
+	struct net_device *l3edev;
+
+	if (!(to_dev->flags & IFF_UP) ||
+	    /* Reject tunnels with GRE keys, checksums, etc. */
+	    tparm.i_flags || tparm.o_flags ||
+	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
+	    inherit_ttl || !inherit_tos ||
+	    /* A destination address may not be "any". */
+	    mlxsw_sp_l3addr_is_zero(daddr))
+		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+
+	l3edev = mlxsw_sp_span_gretap4_route(to_dev, &saddr.addr4, &gw.addr4);
+	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
+						       tparm.iph.ttl,
+						       &arp_tbl, sparmsp);
+}
+
+static int
+mlxsw_sp_span_entry_gretap4_configure(struct mlxsw_sp_span_entry *span_entry,
+				      struct mlxsw_sp_span_parms sparms)
+{
+	struct mlxsw_sp_port *dest_port = sparms.dest_port;
+	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
+	u8 local_port = dest_port->local_port;
+	char mpat_pl[MLXSW_REG_MPAT_LEN];
+	int pa_id = span_entry->id;
+
+	/* Create a new port analayzer entry for local_port. */
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
+			    MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+	mlxsw_reg_mpat_eth_rspan_l2_pack(mpat_pl,
+				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_NO_HEADER,
+				    sparms.dmac, false);
+	mlxsw_reg_mpat_eth_rspan_l3_ipv4_pack(mpat_pl,
+					      sparms.ttl, sparms.smac,
+					      be32_to_cpu(sparms.saddr.addr4),
+					      be32_to_cpu(sparms.daddr.addr4));
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+}
+
+static void
+mlxsw_sp_span_entry_gretap4_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+	mlxsw_sp_span_entry_deconfigure_common(span_entry,
+					MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+}
+
+static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap4 = {
+	.can_handle = is_gretap_dev,
+	.parms = mlxsw_sp_span_entry_gretap4_parms,
+	.configure = mlxsw_sp_span_entry_gretap4_configure,
+	.deconfigure = mlxsw_sp_span_entry_gretap4_deconfigure,
+};
+
+static struct net_device *
+mlxsw_sp_span_gretap6_route(const struct net_device *to_dev,
+			    struct in6_addr *saddrp,
+			    struct in6_addr *daddrp)
+{
+	struct ip6_tnl *t = netdev_priv(to_dev);
+	struct flowi6 fl6 = t->fl.u.ip6;
+	struct net_device *dev = NULL;
+	struct dst_entry *dst;
+	struct rt6_info *rt6;
+
+	/* We assume "dev" stays valid after dst is released. */
+	ASSERT_RTNL();
+
+	fl6.flowi6_mark = t->parms.fwmark;
+	if (!ip6_tnl_xmit_ctl(t, &fl6.saddr, &fl6.daddr))
+		return NULL;
+
+	dst = ip6_route_output(t->net, NULL, &fl6);
+	if (!dst || dst->error)
+		goto out;
+
+	rt6 = container_of(dst, struct rt6_info, dst);
+
+	dev = dst->dev;
+	*saddrp = fl6.saddr;
+	*daddrp = rt6->rt6i_gateway;
+
+out:
+	dst_release(dst);
+	return dev;
+}
+
+static int
+mlxsw_sp_span_entry_gretap6_parms(const struct net_device *to_dev,
+				  struct mlxsw_sp_span_parms *sparmsp)
+{
+	struct __ip6_tnl_parm tparm = mlxsw_sp_ipip_netdev_parms6(to_dev);
+	bool inherit_tos = tparm.flags & IP6_TNL_F_USE_ORIG_TCLASS;
+	union mlxsw_sp_l3addr saddr = { .addr6 = tparm.laddr };
+	union mlxsw_sp_l3addr daddr = { .addr6 = tparm.raddr };
+	bool inherit_ttl = !tparm.hop_limit;
+	union mlxsw_sp_l3addr gw = daddr;
+	struct net_device *l3edev;
+
+	if (!(to_dev->flags & IFF_UP) ||
+	    /* Reject tunnels with GRE keys, checksums, etc. */
+	    tparm.i_flags || tparm.o_flags ||
+	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
+	    inherit_ttl || !inherit_tos ||
+	    /* A destination address may not be "any". */
+	    mlxsw_sp_l3addr_is_zero(daddr))
+		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+
+	l3edev = mlxsw_sp_span_gretap6_route(to_dev, &saddr.addr6, &gw.addr6);
+	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
+						       tparm.hop_limit,
+						       &nd_tbl, sparmsp);
+}
+
+static int
+mlxsw_sp_span_entry_gretap6_configure(struct mlxsw_sp_span_entry *span_entry,
+				      struct mlxsw_sp_span_parms sparms)
+{
+	struct mlxsw_sp_port *dest_port = sparms.dest_port;
+	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
+	u8 local_port = dest_port->local_port;
+	char mpat_pl[MLXSW_REG_MPAT_LEN];
+	int pa_id = span_entry->id;
+
+	/* Create a new port analayzer entry for local_port. */
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
+			    MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+	mlxsw_reg_mpat_eth_rspan_l2_pack(mpat_pl,
+				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_NO_HEADER,
+				    sparms.dmac, false);
+	mlxsw_reg_mpat_eth_rspan_l3_ipv6_pack(mpat_pl, sparms.ttl, sparms.smac,
+					      sparms.saddr.addr6,
+					      sparms.daddr.addr6);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+}
+
+static void
+mlxsw_sp_span_entry_gretap6_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+	mlxsw_sp_span_entry_deconfigure_common(span_entry,
+					MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+}
+
+static const
+struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap6 = {
+	.can_handle = is_ip6gretap_dev,
+	.parms = mlxsw_sp_span_entry_gretap6_parms,
+	.configure = mlxsw_sp_span_entry_gretap6_configure,
+	.deconfigure = mlxsw_sp_span_entry_gretap6_deconfigure,
+};
+
+static const
+struct mlxsw_sp_span_entry_ops *const mlxsw_sp_span_entry_types[] = {
+	&mlxsw_sp_span_entry_ops_phys,
+	&mlxsw_sp_span_entry_ops_gretap4,
+	&mlxsw_sp_span_entry_ops_gretap6,
+};
+
+static int
+mlxsw_sp_span_entry_nop_parms(const struct net_device *to_dev,
+			      struct mlxsw_sp_span_parms *sparmsp)
+{
+	return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+}
+
+static int
+mlxsw_sp_span_entry_nop_configure(struct mlxsw_sp_span_entry *span_entry,
+				  struct mlxsw_sp_span_parms sparms)
+{
+	return 0;
+}
+
+static void
+mlxsw_sp_span_entry_nop_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+}
+
+static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_nop = {
+	.parms = mlxsw_sp_span_entry_nop_parms,
+	.configure = mlxsw_sp_span_entry_nop_configure,
+	.deconfigure = mlxsw_sp_span_entry_nop_deconfigure,
+};
+
+static void
+mlxsw_sp_span_entry_configure(struct mlxsw_sp *mlxsw_sp,
+			      struct mlxsw_sp_span_entry *span_entry,
+			      struct mlxsw_sp_span_parms sparms)
+{
+	if (sparms.dest_port) {
+		if (sparms.dest_port->mlxsw_sp != mlxsw_sp) {
+			netdev_err(span_entry->to_dev, "Cannot mirror to %s, which belongs to a different mlxsw instance",
+				   sparms.dest_port->dev->name);
+			sparms.dest_port = NULL;
+		} else if (span_entry->ops->configure(span_entry, sparms)) {
+			netdev_err(span_entry->to_dev, "Failed to offload mirror to %s",
+				   sparms.dest_port->dev->name);
+			sparms.dest_port = NULL;
+		}
+	}
+
+	span_entry->parms = sparms;
+}
+
+static void
+mlxsw_sp_span_entry_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+	if (span_entry->parms.dest_port)
+		span_entry->ops->deconfigure(span_entry);
+}
+
+static struct mlxsw_sp_span_entry *
+mlxsw_sp_span_entry_create(struct mlxsw_sp *mlxsw_sp,
+			   const struct net_device *to_dev,
+			   const struct mlxsw_sp_span_entry_ops *ops,
+			   struct mlxsw_sp_span_parms sparms)
+{
+	struct mlxsw_sp_span_entry *span_entry = NULL;
 	int i;
-	int err;
 
 	/* find a free entry to use */
-	index = -1;
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
 		if (!mlxsw_sp->span.entries[i].ref_count) {
-			index = i;
 			span_entry = &mlxsw_sp->span.entries[i];
 			break;
 		}
 	}
-	if (index < 0)
+	if (!span_entry)
 		return NULL;
 
-	/* create a new port analayzer entry for local_port */
-	mlxsw_reg_mpat_pack(mpat_pl, index, local_port, true);
-	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
-	if (err)
-		return NULL;
-
-	span_entry->id = index;
+	span_entry->ops = ops;
 	span_entry->ref_count = 1;
-	span_entry->local_port = local_port;
+	span_entry->to_dev = to_dev;
+	mlxsw_sp_span_entry_configure(mlxsw_sp, span_entry, sparms);
+
 	return span_entry;
 }
 
-static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp *mlxsw_sp,
-					struct mlxsw_sp_span_entry *span_entry)
+static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp_span_entry *span_entry)
 {
-	u8 local_port = span_entry->local_port;
-	char mpat_pl[MLXSW_REG_MPAT_LEN];
-	int pa_id = span_entry->id;
-
-	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, false);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+	mlxsw_sp_span_entry_deconfigure(span_entry);
 }
 
 struct mlxsw_sp_span_entry *
-mlxsw_sp_span_entry_find(struct mlxsw_sp *mlxsw_sp, u8 local_port)
+mlxsw_sp_span_entry_find_by_port(struct mlxsw_sp *mlxsw_sp,
+				 const struct net_device *to_dev)
 {
 	int i;
 
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
 
-		if (curr->ref_count && curr->local_port == local_port)
+		if (curr->ref_count && curr->to_dev == to_dev)
+			return curr;
+	}
+	return NULL;
+}
+
+void mlxsw_sp_span_entry_invalidate(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_span_entry *span_entry)
+{
+	mlxsw_sp_span_entry_deconfigure(span_entry);
+	span_entry->ops = &mlxsw_sp_span_entry_ops_nop;
+}
+
+static struct mlxsw_sp_span_entry *
+mlxsw_sp_span_entry_find_by_id(struct mlxsw_sp *mlxsw_sp, int span_id)
+{
+	int i;
+
+	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+
+		if (curr->ref_count && curr->id == span_id)
 			return curr;
 	}
 	return NULL;
 }
 
 static struct mlxsw_sp_span_entry *
-mlxsw_sp_span_entry_get(struct mlxsw_sp_port *port)
+mlxsw_sp_span_entry_get(struct mlxsw_sp *mlxsw_sp,
+			const struct net_device *to_dev,
+			const struct mlxsw_sp_span_entry_ops *ops,
+			struct mlxsw_sp_span_parms sparms)
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
-	span_entry = mlxsw_sp_span_entry_find(port->mlxsw_sp,
-					      port->local_port);
+	span_entry = mlxsw_sp_span_entry_find_by_port(mlxsw_sp, to_dev);
 	if (span_entry) {
 		/* Already exists, just take a reference */
 		span_entry->ref_count++;
 		return span_entry;
 	}
 
-	return mlxsw_sp_span_entry_create(port);
+	return mlxsw_sp_span_entry_create(mlxsw_sp, to_dev, ops, sparms);
 }
 
 static int mlxsw_sp_span_entry_put(struct mlxsw_sp *mlxsw_sp,
@@ -150,7 +540,7 @@ static int mlxsw_sp_span_entry_put(struct mlxsw_sp *mlxsw_sp,
 {
 	WARN_ON(!span_entry->ref_count);
 	if (--span_entry->ref_count == 0)
-		mlxsw_sp_span_entry_destroy(mlxsw_sp, span_entry);
+		mlxsw_sp_span_entry_destroy(span_entry);
 	return 0;
 }
 
@@ -312,15 +702,41 @@ mlxsw_sp_span_inspected_port_del(struct mlxsw_sp_port *port,
 	kfree(inspected_port);
 }
 
+static const struct mlxsw_sp_span_entry_ops *
+mlxsw_sp_span_entry_ops(struct mlxsw_sp *mlxsw_sp,
+			const struct net_device *to_dev)
+{
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_span_entry_types); ++i)
+		if (mlxsw_sp_span_entry_types[i]->can_handle(to_dev))
+			return mlxsw_sp_span_entry_types[i];
+
+	return NULL;
+}
+
 int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
-			     struct mlxsw_sp_port *to,
-			     enum mlxsw_sp_span_type type, bool bind)
+			     const struct net_device *to_dev,
+			     enum mlxsw_sp_span_type type, bool bind,
+			     int *p_span_id)
 {
 	struct mlxsw_sp *mlxsw_sp = from->mlxsw_sp;
+	const struct mlxsw_sp_span_entry_ops *ops;
+	struct mlxsw_sp_span_parms sparms = {0};
 	struct mlxsw_sp_span_entry *span_entry;
 	int err;
 
-	span_entry = mlxsw_sp_span_entry_get(to);
+	ops = mlxsw_sp_span_entry_ops(mlxsw_sp, to_dev);
+	if (!ops) {
+		netdev_err(to_dev, "Cannot mirror to %s", to_dev->name);
+		return -EOPNOTSUPP;
+	}
+
+	err = ops->parms(to_dev, &sparms);
+	if (err)
+		return err;
+
+	span_entry = mlxsw_sp_span_entry_get(mlxsw_sp, to_dev, ops, sparms);
 	if (!span_entry)
 		return -ENOENT;
 
@@ -331,6 +747,7 @@ int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 	if (err)
 		goto err_port_bind;
 
+	*p_span_id = span_entry->id;
 	return 0;
 
 err_port_bind:
@@ -338,13 +755,12 @@ err_port_bind:
 	return err;
 }
 
-void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, u8 destination_port,
+void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, int span_id,
 			      enum mlxsw_sp_span_type type, bool bind)
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
-	span_entry = mlxsw_sp_span_entry_find(from->mlxsw_sp,
-					      destination_port);
+	span_entry = mlxsw_sp_span_entry_find_by_id(from->mlxsw_sp, span_id);
 	if (!span_entry) {
 		netdev_err(from->dev, "no span entry found\n");
 		return;
@@ -353,4 +769,28 @@ void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, u8 destination_port,
 	netdev_dbg(from->dev, "removing inspected port from SPAN entry %d\n",
 		   span_entry->id);
 	mlxsw_sp_span_inspected_port_del(from, span_entry, type, bind);
+}
+
+void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp)
+{
+	int i;
+	int err;
+
+	ASSERT_RTNL();
+	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+		struct mlxsw_sp_span_parms sparms = {0};
+
+		if (!curr->ref_count)
+			continue;
+
+		err = curr->ops->parms(curr->to_dev, &sparms);
+		if (err)
+			continue;
+
+		if (memcmp(&sparms, &curr->parms, sizeof(sparms))) {
+			mlxsw_sp_span_entry_deconfigure(curr);
+			mlxsw_sp_span_entry_configure(mlxsw_sp, curr, sparms);
+		}
+	}
 }

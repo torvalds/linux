@@ -1,11 +1,11 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/reg.h
- * Copyright (c) 2015-2017 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2015-2016 Ido Schimmel <idosch@mellanox.com>
  * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
  * Copyright (c) 2015-2017 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2016 Yotam Gigi <yotamg@mellanox.com>
- * Copyright (c) 2017 Petr Machata <petrm@mellanox.com>
+ * Copyright (c) 2017-2018 Petr Machata <petrm@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -6772,8 +6772,104 @@ MLXSW_ITEM32(reg, mpat, qos, 0x04, 26, 1);
  */
 MLXSW_ITEM32(reg, mpat, be, 0x04, 25, 1);
 
+enum mlxsw_reg_mpat_span_type {
+	/* Local SPAN Ethernet.
+	 * The original packet is not encapsulated.
+	 */
+	MLXSW_REG_MPAT_SPAN_TYPE_LOCAL_ETH = 0x0,
+
+	/* Encapsulated Remote SPAN Ethernet L3 GRE.
+	 * The packet is encapsulated with GRE header.
+	 */
+	MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3 = 0x3,
+};
+
+/* reg_mpat_span_type
+ * SPAN type.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, span_type, 0x04, 0, 4);
+
+/* Remote SPAN - Ethernet VLAN
+ * - - - - - - - - - - - - - -
+ */
+
+/* reg_mpat_eth_rspan_vid
+ * Encapsulation header VLAN ID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, eth_rspan_vid, 0x18, 0, 12);
+
+/* Encapsulated Remote SPAN - Ethernet L2
+ * - - - - - - - - - - - - - - - - - - -
+ */
+
+enum mlxsw_reg_mpat_eth_rspan_version {
+	MLXSW_REG_MPAT_ETH_RSPAN_VERSION_NO_HEADER = 15,
+};
+
+/* reg_mpat_eth_rspan_version
+ * RSPAN mirror header version.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, eth_rspan_version, 0x10, 18, 4);
+
+/* reg_mpat_eth_rspan_mac
+ * Destination MAC address.
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, mpat, eth_rspan_mac, 0x12, 6);
+
+/* reg_mpat_eth_rspan_tp
+ * Tag Packet. Indicates whether the mirroring header should be VLAN tagged.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, eth_rspan_tp, 0x18, 16, 1);
+
+/* Encapsulated Remote SPAN - Ethernet L3
+ * - - - - - - - - - - - - - - - - - - -
+ */
+
+enum mlxsw_reg_mpat_eth_rspan_protocol {
+	MLXSW_REG_MPAT_ETH_RSPAN_PROTOCOL_IPV4,
+	MLXSW_REG_MPAT_ETH_RSPAN_PROTOCOL_IPV6,
+};
+
+/* reg_mpat_eth_rspan_protocol
+ * SPAN encapsulation protocol.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, eth_rspan_protocol, 0x18, 24, 4);
+
+/* reg_mpat_eth_rspan_ttl
+ * Encapsulation header Time-to-Live/HopLimit.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, eth_rspan_ttl, 0x1C, 4, 8);
+
+/* reg_mpat_eth_rspan_smac
+ * Source MAC address
+ * Access: RW
+ */
+MLXSW_ITEM_BUF(reg, mpat, eth_rspan_smac, 0x22, 6);
+
+/* reg_mpat_eth_rspan_dip*
+ * Destination IP address. The IP version is configured by protocol.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, eth_rspan_dip4, 0x4C, 0, 32);
+MLXSW_ITEM_BUF(reg, mpat, eth_rspan_dip6, 0x40, 16);
+
+/* reg_mpat_eth_rspan_sip*
+ * Source IP address. The IP version is configured by protocol.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mpat, eth_rspan_sip4, 0x5C, 0, 32);
+MLXSW_ITEM_BUF(reg, mpat, eth_rspan_sip6, 0x50, 16);
+
 static inline void mlxsw_reg_mpat_pack(char *payload, u8 pa_id,
-				       u16 system_port, bool e)
+				       u16 system_port, bool e,
+				       enum mlxsw_reg_mpat_span_type span_type)
 {
 	MLXSW_REG_ZERO(mpat, payload);
 	mlxsw_reg_mpat_pa_id_set(payload, pa_id);
@@ -6781,6 +6877,49 @@ static inline void mlxsw_reg_mpat_pack(char *payload, u8 pa_id,
 	mlxsw_reg_mpat_e_set(payload, e);
 	mlxsw_reg_mpat_qos_set(payload, 1);
 	mlxsw_reg_mpat_be_set(payload, 1);
+	mlxsw_reg_mpat_span_type_set(payload, span_type);
+}
+
+static inline void mlxsw_reg_mpat_eth_rspan_pack(char *payload, u16 vid)
+{
+	mlxsw_reg_mpat_eth_rspan_vid_set(payload, vid);
+}
+
+static inline void
+mlxsw_reg_mpat_eth_rspan_l2_pack(char *payload,
+				 enum mlxsw_reg_mpat_eth_rspan_version version,
+				 const char *mac,
+				 bool tp)
+{
+	mlxsw_reg_mpat_eth_rspan_version_set(payload, version);
+	mlxsw_reg_mpat_eth_rspan_mac_memcpy_to(payload, mac);
+	mlxsw_reg_mpat_eth_rspan_tp_set(payload, tp);
+}
+
+static inline void
+mlxsw_reg_mpat_eth_rspan_l3_ipv4_pack(char *payload, u8 ttl,
+				      const char *smac,
+				      u32 sip, u32 dip)
+{
+	mlxsw_reg_mpat_eth_rspan_ttl_set(payload, ttl);
+	mlxsw_reg_mpat_eth_rspan_smac_memcpy_to(payload, smac);
+	mlxsw_reg_mpat_eth_rspan_protocol_set(payload,
+				    MLXSW_REG_MPAT_ETH_RSPAN_PROTOCOL_IPV4);
+	mlxsw_reg_mpat_eth_rspan_sip4_set(payload, sip);
+	mlxsw_reg_mpat_eth_rspan_dip4_set(payload, dip);
+}
+
+static inline void
+mlxsw_reg_mpat_eth_rspan_l3_ipv6_pack(char *payload, u8 ttl,
+				      const char *smac,
+				      struct in6_addr sip, struct in6_addr dip)
+{
+	mlxsw_reg_mpat_eth_rspan_ttl_set(payload, ttl);
+	mlxsw_reg_mpat_eth_rspan_smac_memcpy_to(payload, smac);
+	mlxsw_reg_mpat_eth_rspan_protocol_set(payload,
+				    MLXSW_REG_MPAT_ETH_RSPAN_PROTOCOL_IPV6);
+	mlxsw_reg_mpat_eth_rspan_sip6_memcpy_to(payload, (void *)&sip);
+	mlxsw_reg_mpat_eth_rspan_dip6_memcpy_to(payload, (void *)&dip);
 }
 
 /* MPAR - Monitoring Port Analyzer Register

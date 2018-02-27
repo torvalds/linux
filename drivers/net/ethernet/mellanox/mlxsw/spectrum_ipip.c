@@ -1,7 +1,7 @@
 /*
  * drivers/net/ethernet/mellanox/mlxsw/spectrum_ipip.c
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Petr Machata <petrm@mellanox.com>
+ * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2017-2018 Petr Machata <petrm@mellanox.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -33,6 +33,7 @@
  */
 
 #include <net/ip_tunnels.h>
+#include <net/ip6_tunnel.h>
 
 #include "spectrum_ipip.h"
 
@@ -40,6 +41,14 @@ struct ip_tunnel_parm
 mlxsw_sp_ipip_netdev_parms4(const struct net_device *ol_dev)
 {
 	struct ip_tunnel *tun = netdev_priv(ol_dev);
+
+	return tun->parms;
+}
+
+struct __ip6_tnl_parm
+mlxsw_sp_ipip_netdev_parms6(const struct net_device *ol_dev)
+{
+	struct ip6_tnl *tun = netdev_priv(ol_dev);
 
 	return tun->parms;
 }
@@ -73,9 +82,21 @@ mlxsw_sp_ipip_parms4_saddr(struct ip_tunnel_parm parms)
 }
 
 static union mlxsw_sp_l3addr
+mlxsw_sp_ipip_parms6_saddr(struct __ip6_tnl_parm parms)
+{
+	return (union mlxsw_sp_l3addr) { .addr6 = parms.laddr };
+}
+
+static union mlxsw_sp_l3addr
 mlxsw_sp_ipip_parms4_daddr(struct ip_tunnel_parm parms)
 {
 	return (union mlxsw_sp_l3addr) { .addr4 = parms.iph.daddr };
+}
+
+static union mlxsw_sp_l3addr
+mlxsw_sp_ipip_parms6_daddr(struct __ip6_tnl_parm parms)
+{
+	return (union mlxsw_sp_l3addr) { .addr6 = parms.raddr };
 }
 
 union mlxsw_sp_l3addr
@@ -83,13 +104,15 @@ mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev)
 {
 	struct ip_tunnel_parm parms4;
+	struct __ip6_tnl_parm parms6;
 
 	switch (proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
 		parms4 = mlxsw_sp_ipip_netdev_parms4(ol_dev);
 		return mlxsw_sp_ipip_parms4_saddr(parms4);
 	case MLXSW_SP_L3_PROTO_IPV6:
-		break;
+		parms6 = mlxsw_sp_ipip_netdev_parms6(ol_dev);
+		return mlxsw_sp_ipip_parms6_saddr(parms6);
 	}
 
 	WARN_ON(1);
@@ -109,17 +132,26 @@ mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev)
 {
 	struct ip_tunnel_parm parms4;
+	struct __ip6_tnl_parm parms6;
 
 	switch (proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
 		parms4 = mlxsw_sp_ipip_netdev_parms4(ol_dev);
 		return mlxsw_sp_ipip_parms4_daddr(parms4);
 	case MLXSW_SP_L3_PROTO_IPV6:
-		break;
+		parms6 = mlxsw_sp_ipip_netdev_parms6(ol_dev);
+		return mlxsw_sp_ipip_parms6_daddr(parms6);
 	}
 
 	WARN_ON(1);
 	return (union mlxsw_sp_l3addr) {0};
+}
+
+bool mlxsw_sp_l3addr_is_zero(union mlxsw_sp_l3addr addr)
+{
+	union mlxsw_sp_l3addr naddr = {0};
+
+	return !memcmp(&addr, &naddr, sizeof(naddr));
 }
 
 static int
@@ -215,15 +247,14 @@ static bool mlxsw_sp_ipip_tunnel_complete(enum mlxsw_sp_l3proto proto,
 {
 	union mlxsw_sp_l3addr saddr = mlxsw_sp_ipip_netdev_saddr(proto, ol_dev);
 	union mlxsw_sp_l3addr daddr = mlxsw_sp_ipip_netdev_daddr(proto, ol_dev);
-	union mlxsw_sp_l3addr naddr = {0};
 
 	/* Tunnels with unset local or remote address are valid in Linux and
 	 * used for lightweight tunnels (LWT) and Non-Broadcast Multi-Access
 	 * (NBMA) tunnels. In principle these can be offloaded, but the driver
 	 * currently doesn't support this. So punt.
 	 */
-	return memcmp(&saddr, &naddr, sizeof(naddr)) &&
-	       memcmp(&daddr, &naddr, sizeof(naddr));
+	return !mlxsw_sp_l3addr_is_zero(saddr) &&
+	       !mlxsw_sp_l3addr_is_zero(daddr);
 }
 
 static bool mlxsw_sp_ipip_can_offload_gre4(const struct mlxsw_sp *mlxsw_sp,

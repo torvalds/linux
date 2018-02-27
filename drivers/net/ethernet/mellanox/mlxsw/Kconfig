@@ -78,6 +78,10 @@ config MLXSW_SPECTRUM
 	depends on IPV6 || IPV6=n
 	select PARMAN
 	select MLXFW
+	depends on NET_IPGRE
+	depends on !(MLXSW_CORE=y && NET_IPGRE=m)
+	depends on IPV6_GRE
+	depends on !(MLXSW_CORE=y && IPV6_GRE=m)
 	default m
 	---help---
 	  This driver supports Mellanox Technologies Spectrum Ethernet

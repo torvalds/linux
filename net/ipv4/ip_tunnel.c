@@ -290,22 +290,6 @@ failed:
 	return ERR_PTR(err);
 }
 
-static inline void init_tunnel_flow(struct flowi4 *fl4,
-				    int proto,
-				    __be32 daddr, __be32 saddr,
-				    __be32 key, __u8 tos, int oif,
-				    __u32 mark)
-{
-	memset(fl4, 0, sizeof(*fl4));
-	fl4->flowi4_oif = oif;
-	fl4->daddr = daddr;
-	fl4->saddr = saddr;
-	fl4->flowi4_tos = tos;
-	fl4->flowi4_proto = proto;
-	fl4->fl4_gre_key = key;
-	fl4->flowi4_mark = mark;
-}
-
 static int ip_tunnel_bind_dev(struct net_device *dev)
 {
 	struct net_device *tdev = NULL;
@@ -322,10 +306,10 @@ static int ip_tunnel_bind_dev(struct net_device *dev)
 		struct flowi4 fl4;
 		struct rtable *rt;
 
-		init_tunnel_flow(&fl4, iph->protocol, iph->daddr,
-				 iph->saddr, tunnel->parms.o_key,
-				 RT_TOS(iph->tos), tunnel->parms.link,
-				 tunnel->fwmark);
+		ip_tunnel_init_flow(&fl4, iph->protocol, iph->daddr,
+				    iph->saddr, tunnel->parms.o_key,
+				    RT_TOS(iph->tos), tunnel->parms.link,
+				    tunnel->fwmark);
 		rt = ip_route_output_key(tunnel->net, &fl4);
 
 		if (!IS_ERR(rt)) {
@@ -581,8 +565,8 @@ void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev, u8 proto)
 		else if (skb->protocol == htons(ETH_P_IPV6))
 			tos = ipv6_get_dsfield((const struct ipv6hdr *)inner_iph);
 	}
-	init_tunnel_flow(&fl4, proto, key->u.ipv4.dst, key->u.ipv4.src, 0,
-			 RT_TOS(tos), tunnel->parms.link, tunnel->fwmark);
+	ip_tunnel_init_flow(&fl4, proto, key->u.ipv4.dst, key->u.ipv4.src, 0,
+			    RT_TOS(tos), tunnel->parms.link, tunnel->fwmark);
 	if (tunnel->encap.type != TUNNEL_ENCAP_NONE)
 		goto tx_error;
 	rt = ip_route_output_key(tunnel->net, &fl4);
@@ -711,14 +695,14 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	if (tunnel->fwmark) {
-		init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
-				 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
-				 tunnel->fwmark);
+		ip_tunnel_init_flow(&fl4, protocol, dst, tnl_params->saddr,
+				    tunnel->parms.o_key, RT_TOS(tos),
+				    tunnel->parms.link, tunnel->fwmark);
 	}
 	else {
-		init_tunnel_flow(&fl4, protocol, dst, tnl_params->saddr,
-				 tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
-				 skb->mark);
+		ip_tunnel_init_flow(&fl4, protocol, dst, tnl_params->saddr,
+				    tunnel->parms.o_key, RT_TOS(tos),
+				    tunnel->parms.link, skb->mark);
 	}
 
 	if (ip_tunnel_encap(skb, tunnel, &protocol, &fl4) < 0)
