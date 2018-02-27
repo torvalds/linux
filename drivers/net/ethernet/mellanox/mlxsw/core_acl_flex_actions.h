@@ -50,7 +50,7 @@ struct mlxsw_afa_ops {
 	void (*counter_index_put)(void *priv, unsigned int counter_index);
 	int (*mirror_add)(void *priv, u8 locol_in_port, u8 local_out_port,
 			  bool ingress, int *p_span_id);
-	void (*mirror_del)(void *priv, u8 locol_in_port, u8 local_out_port,
+	void (*mirror_del)(void *priv, u8 local_in_port, int span_id,
 			   bool ingress);
 };
 

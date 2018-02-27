@@ -124,7 +124,7 @@ enum mlxsw_sp_port_mall_action_type {
 };
 
 struct mlxsw_sp_port_mall_mirror_tc_entry {
-	u8 to_local_port;
+	int span_id;
 	bool ingress;
 };
 

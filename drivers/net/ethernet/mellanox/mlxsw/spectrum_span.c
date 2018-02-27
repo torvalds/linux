@@ -118,7 +118,7 @@ static void mlxsw_sp_span_entry_destroy(struct mlxsw_sp *mlxsw_sp,
 }
 
 struct mlxsw_sp_span_entry *
-mlxsw_sp_span_entry_find(struct mlxsw_sp *mlxsw_sp, u8 local_port)
+mlxsw_sp_span_entry_find_by_port(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 {
 	int i;
 
@@ -132,12 +132,26 @@ mlxsw_sp_span_entry_find(struct mlxsw_sp *mlxsw_sp, u8 local_port)
 }
 
 static struct mlxsw_sp_span_entry *
+mlxsw_sp_span_entry_find_by_id(struct mlxsw_sp *mlxsw_sp, int span_id)
+{
+	int i;
+
+	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
+		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
+
+		if (curr->ref_count && curr->id == span_id)
+			return curr;
+	}
+	return NULL;
+}
+
+static struct mlxsw_sp_span_entry *
 mlxsw_sp_span_entry_get(struct mlxsw_sp_port *port)
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
-	span_entry = mlxsw_sp_span_entry_find(port->mlxsw_sp,
-					      port->local_port);
+	span_entry = mlxsw_sp_span_entry_find_by_port(port->mlxsw_sp,
+						      port->local_port);
 	if (span_entry) {
 		/* Already exists, just take a reference */
 		span_entry->ref_count++;
@@ -316,7 +330,8 @@ mlxsw_sp_span_inspected_port_del(struct mlxsw_sp_port *port,
 
 int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 			     struct mlxsw_sp_port *to,
-			     enum mlxsw_sp_span_type type, bool bind)
+			     enum mlxsw_sp_span_type type, bool bind,
+			     int *p_span_id)
 {
 	struct mlxsw_sp *mlxsw_sp = from->mlxsw_sp;
 	struct mlxsw_sp_span_entry *span_entry;
@@ -333,6 +348,7 @@ int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 	if (err)
 		goto err_port_bind;
 
+	*p_span_id = span_entry->id;
 	return 0;
 
 err_port_bind:
@@ -340,13 +356,12 @@ err_port_bind:
 	return err;
 }
 
-void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, u8 destination_port,
+void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, int span_id,
 			      enum mlxsw_sp_span_type type, bool bind)
 {
 	struct mlxsw_sp_span_entry *span_entry;
 
-	span_entry = mlxsw_sp_span_entry_find(from->mlxsw_sp,
-					      destination_port);
+	span_entry = mlxsw_sp_span_entry_find_by_id(from->mlxsw_sp, span_id);
 	if (!span_entry) {
 		netdev_err(from->dev, "no span entry found\n");
 		return;

@@ -1273,11 +1273,10 @@ mlxsw_sp_port_add_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 	to_port = netdev_priv(to_dev);
 
-	mirror->to_local_port = to_port->local_port;
 	mirror->ingress = ingress;
 	span_type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
 	return mlxsw_sp_span_mirror_add(mlxsw_sp_port, to_port, span_type,
-					true);
+					true, &mirror->span_id);
 }
 
 static void
@@ -1288,7 +1287,7 @@ mlxsw_sp_port_del_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	span_type = mirror->ingress ?
 			MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	mlxsw_sp_span_mirror_del(mlxsw_sp_port, mirror->to_local_port,
+	mlxsw_sp_span_mirror_del(mlxsw_sp_port, mirror->span_id,
 				 span_type, true);
 }
 
