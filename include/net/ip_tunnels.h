@@ -254,6 +254,22 @@ static inline __be32 tunnel_id_to_key32(__be64 tun_id)
 
 #ifdef CONFIG_INET
 
+static inline void ip_tunnel_init_flow(struct flowi4 *fl4,
+				       int proto,
+				       __be32 daddr, __be32 saddr,
+				       __be32 key, __u8 tos, int oif,
+				       __u32 mark)
+{
+	memset(fl4, 0, sizeof(*fl4));
+	fl4->flowi4_oif = oif;
+	fl4->daddr = daddr;
+	fl4->saddr = saddr;
+	fl4->flowi4_tos = tos;
+	fl4->flowi4_proto = proto;
+	fl4->fl4_gre_key = key;
+	fl4->flowi4_mark = mark;
+}
+
 int ip_tunnel_init(struct net_device *dev);
 void ip_tunnel_uninit(struct net_device *dev);
 void  ip_tunnel_dellink(struct net_device *dev, struct list_head *head);
