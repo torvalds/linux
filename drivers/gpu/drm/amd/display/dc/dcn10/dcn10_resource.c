@@ -440,6 +440,12 @@ static const struct dc_debug debug_defaults_drv = {
 		.timing_trace = false,
 		.clock_trace = true,
 
+		/* raven smu dones't allow 0 disp clk,
+		 * smu min disp clk limit is 50Mhz
+		 * keep min disp clk 100Mhz avoid smu hang
+		 */
+		.min_disp_clk_khz = 100000,
+
 		.disable_pplib_clock_request = true,
 		.disable_pplib_wm_range = false,
 		.pplib_wm_report_mode = WM_REPORT_DEFAULT,

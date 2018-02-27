@@ -871,10 +871,10 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 				context->streams[i]->timing.pix_clk_khz);
 	}
 
+	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
+
 	/* pplib is notified if disp_num changed */
 	dc->hwss.set_bandwidth(dc, context, true);
-
-	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
 	dc_release_state(dc->current_state);
 
