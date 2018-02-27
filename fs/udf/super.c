@@ -1988,7 +1988,10 @@ static void udf_open_lvid(struct super_block *sb)
 	lvidiu->impIdent.identSuffix[1] = UDF_OS_ID_LINUX;
 	ktime_get_real_ts(&ts);
 	udf_time_to_disk_stamp(&lvid->recordingDateAndTime, ts);
-	lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN);
+	if (le32_to_cpu(lvid->integrityType) == LVID_INTEGRITY_TYPE_CLOSE)
+		lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_OPEN);
+	else
+		UDF_SET_FLAG(sb, UDF_FLAG_INCONSISTENT);
 
 	lvid->descTag.descCRC = cpu_to_le16(
 		crc_itu_t(0, (char *)lvid + sizeof(struct tag),
@@ -2028,7 +2031,8 @@ static void udf_close_lvid(struct super_block *sb)
 		lvidiu->minUDFReadRev = cpu_to_le16(sbi->s_udfrev);
 	if (sbi->s_udfrev > le16_to_cpu(lvidiu->minUDFWriteRev))
 		lvidiu->minUDFWriteRev = cpu_to_le16(sbi->s_udfrev);
-	lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_CLOSE);
+	if (!UDF_QUERY_FLAG(sb, UDF_FLAG_INCONSISTENT))
+		lvid->integrityType = cpu_to_le32(LVID_INTEGRITY_TYPE_CLOSE);
 
 	lvid->descTag.descCRC = cpu_to_le16(
 			crc_itu_t(0, (char *)lvid + sizeof(struct tag),
