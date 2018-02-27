@@ -1503,6 +1503,7 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 			.conf.cipher = gtkdata.cipher,
 			.conf.keyidx = status->gtk.key_index,
 		};
+		__be64 replay_ctr;
 
 		switch (gtkdata.cipher) {
 		case WLAN_CIPHER_SUITE_CCMP:
@@ -1524,11 +1525,9 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 		if (IS_ERR(key))
 			return false;
 		iwl_mvm_set_key_rx_seq(mvm, key, status);
-	}
 
-	if (status->num_of_gtk_rekeys) {
-		__be64 replay_ctr =
-			cpu_to_be64(le64_to_cpu(status->replay_ctr));
+		replay_ctr = cpu_to_be64(le64_to_cpu(status->replay_ctr));
+
 		ieee80211_gtk_rekey_notify(vif, vif->bss_conf.bssid,
 					   (void *)&replay_ctr, GFP_KERNEL);
 	}
