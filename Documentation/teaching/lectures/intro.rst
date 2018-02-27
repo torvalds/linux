@@ -360,9 +360,9 @@ access to the kernel space from user mode.
                   |                   |  |
                   |                   |  |
                   |                   |  |
-		  |                   |  |
-		  |                   |  |
-		  |                   |  |
+                  |                   |  |
+                  |                   |  |
+                  |                   |  |
                   |                   |  |
       0x00000000  +-------------------+  v
 
@@ -709,21 +709,21 @@ Linux source code layout
         |  | arch | | block | | certs | | crypto | | Documentation | | drivers |
         |  +------+ +-------+ +-------+ +--------+ +---------------+ +---------+
         |
-	+-------+----------+--------+---------+--------+--------+---------+
+        +-------+----------+--------+---------+--------+--------+---------+
         |       |          |        |         |        |        |         |
         |       v          v        v         v        v        v         v
         |  +----------+ +----+ +---------+ +------+ +-----+ +--------+ +-----+
         |  | firmware | | fs | | include | | init | | ipc | | kernel | | lib |
         |  +----------+ +----+ +---------+ +------+ +-----+ +--------+ +-----+
         |
-	+-----+------+---------+------------+------------+------------+
+        +-----+------+---------+------------+------------+------------+
         |     |      |         |            |            |            |
         |     v      v         v            v            v            v
         |  +----+ +-----+ +---------+ +---------+  +----------+ +-------+
         |  | mm | | net | | samples | | scripts |  | security | | sound |
         |  +----+ +-----+ +---------+ +---------+  +----------+ +-------+
         |
-	+------+--------+--------+
+        +------+--------+--------+
                |        |        |
                v        v        v
            +-------+ +-----+ +------+
@@ -734,7 +734,7 @@ Linux source code layout
 These are the top level of the Linux source code folders:
 
 * arch - contains architecture specific code; each architecture is
-implemented in a specific sub-folder (e.g. arm, arm64, x86)
+  implemented in a specific sub-folder (e.g. arm, arm64, x86)
 
 * block - contains the block subsystem code that deals with reading
   and writing data from block devices: creating block I/O requests,
@@ -851,9 +851,9 @@ Linux kernel architecture
       | +----------+ +-----+ +----+ +---+    |  +----------+   |
       | |filesystem| |input| |iio | |usb|    |  | machine 2|   |
       | +----------+ +-----+ +----+ +---+    |  +----------+   |
-      | +-----------+ +----------+  +---+    |		       |
-      | |framebuffer| | platform |  |drm|    |     ...	       |
-      | +-----------+ +----------+  +---+    |		       |
+      | +-----------+ +----------+  +---+    |                 |
+      | |framebuffer| | platform |  |drm|    |     ...         |
+      | +-----------+ +----------+  +---+    |                 |
       +-------------------------+----+-------+-----------------+
               |                 |                      |
               v                 v                      v
@@ -1071,27 +1071,27 @@ introduces certain filesystem abstractions such as:
              v                    v                    v
       +------------------------------------------------------------+
       |                   Virtual Filesystem Switch                |
-      |								   |
-      |								   |
-      |    /-------\           /--------\           /--------\	   |
-      |    | inode |<----------+ dentry |<----------+  FILE  |	   |
-      |    \---+---/           \----+---/           \---+----/	   |
-      |	       |		    |  	      		|    	   |
-      |	       |		    |	      		| 	   |
-      |	       v		    v		       	v 	   |
-      |    +-------+           +--------+           +-------+	   |
-      |	   | inode |	       | dentry |	    | page  |	   |
-      |	   | cache |	       | cache  |	    | cache |	   |
-      |	   +-------+	       +--------+	    +-------+	   |
+      |                                                            |
+      |                                                            |
+      |    /-------\           /--------\           /--------\     |
+      |    | inode |<----------+ dentry |<----------+  FILE  |     |
+      |    \---+---/           \----+---/           \---+----/     |
+      |        |                    |                   |          |
+      |        |                    |                   |          |
+      |        v                    v                   v          |
+      |    +-------+           +--------+           +-------+      |
+      |    | inode |           | dentry |           | page  |      |
+      |    | cache |           | cache  |           | cache |      |
+      |    +-------+           +--------+           +-------+      |
       |                                                            |
       +------------------------------------------------------------+
-       	       	   ^   	       	       	       	      ^
-		   | 				      |
-		   v   				      v
+                   ^                                  ^
+                   |                                  |
+                   v                                  v
             +-------------+                    +-------------+
-            | Filesystem  |		       | Filesystem  |
-            |   driver    |		       |   driver    |
-            +-------------+		       +-------------+
+            | Filesystem  |                    | Filesystem  |
+            |   driver    |                    |   driver    |
+            +-------------+                    +-------------+
 
 
 The Linux VFS also implements a complex caching mechanism which

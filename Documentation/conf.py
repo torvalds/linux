@@ -53,6 +53,7 @@ except:
     None
 
 extensions.append("ditaa")
+extensions.append("asciicast")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -196,11 +197,9 @@ except ImportError:
 
 html_static_path = ['sphinx-static']
 
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',
-    ],
-}
+def setup(app):
+    app.add_stylesheet('theme_overrides.css')
+
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
