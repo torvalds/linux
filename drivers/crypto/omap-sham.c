@@ -759,6 +759,13 @@ static int omap_sham_align_sgs(struct scatterlist *sg,
 	while (nbytes > 0 && sg_tmp) {
 		n++;
 
+#ifdef CONFIG_ZONE_DMA
+		if (page_zonenum(sg_page(sg_tmp)) != ZONE_DMA) {
+			aligned = false;
+			break;
+		}
+#endif
+
 		if (offset < sg_tmp->length) {
 			if (!IS_ALIGNED(offset + sg_tmp->offset, 4)) {
 				aligned = false;
