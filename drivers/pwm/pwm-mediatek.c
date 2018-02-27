@@ -121,13 +121,18 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct mtk_pwm_chip *pc = to_mtk_pwm_chip(chip);
 	struct clk *clk = pc->clks[MTK_CLK_PWM1 + pwm->hwpwm];
 	u32 resolution, clkdiv = 0;
+	ulong clock;
 	int ret;
 
 	ret = mtk_pwm_clk_enable(chip, pwm);
 	if (ret < 0)
 		return ret;
 
-	resolution = NSEC_PER_SEC / clk_get_rate(clk);
+	clock=clk_get_rate(clk) / 4;
+	printk(KERN_NOTICE "[mtk_pwm_config] clock: %lu, clockrate: %lu",clock,clk_get_rate(clk));
+
+	//resolution = NSEC_PER_SEC / ( clk_get_rate(clk) / 4 );
+	resolution = NSEC_PER_SEC / clock;
 
 	while (period_ns / resolution > 8191) {
 		resolution *= 2;
