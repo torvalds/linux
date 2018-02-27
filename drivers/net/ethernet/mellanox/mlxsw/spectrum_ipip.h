@@ -41,6 +41,8 @@
 
 struct ip_tunnel_parm
 mlxsw_sp_ipip_netdev_parms4(const struct net_device *ol_dev);
+struct __ip6_tnl_parm
+mlxsw_sp_ipip_netdev_parms6(const struct net_device *ol_dev);
 
 union mlxsw_sp_l3addr
 mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,

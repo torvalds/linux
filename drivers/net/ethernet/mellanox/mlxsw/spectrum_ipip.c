@@ -33,6 +33,7 @@
  */
 
 #include <net/ip_tunnels.h>
+#include <net/ip6_tunnel.h>
 
 #include "spectrum_ipip.h"
 
@@ -40,6 +41,14 @@ struct ip_tunnel_parm
 mlxsw_sp_ipip_netdev_parms4(const struct net_device *ol_dev)
 {
 	struct ip_tunnel *tun = netdev_priv(ol_dev);
+
+	return tun->parms;
+}
+
+struct __ip6_tnl_parm
+mlxsw_sp_ipip_netdev_parms6(const struct net_device *ol_dev)
+{
+	struct ip6_tnl *tun = netdev_priv(ol_dev);
 
 	return tun->parms;
 }
@@ -73,9 +82,21 @@ mlxsw_sp_ipip_parms4_saddr(struct ip_tunnel_parm parms)
 }
 
 static union mlxsw_sp_l3addr
+mlxsw_sp_ipip_parms6_saddr(struct __ip6_tnl_parm parms)
+{
+	return (union mlxsw_sp_l3addr) { .addr6 = parms.laddr };
+}
+
+static union mlxsw_sp_l3addr
 mlxsw_sp_ipip_parms4_daddr(struct ip_tunnel_parm parms)
 {
 	return (union mlxsw_sp_l3addr) { .addr4 = parms.iph.daddr };
+}
+
+static union mlxsw_sp_l3addr
+mlxsw_sp_ipip_parms6_daddr(struct __ip6_tnl_parm parms)
+{
+	return (union mlxsw_sp_l3addr) { .addr6 = parms.raddr };
 }
 
 union mlxsw_sp_l3addr
@@ -83,13 +104,15 @@ mlxsw_sp_ipip_netdev_saddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev)
 {
 	struct ip_tunnel_parm parms4;
+	struct __ip6_tnl_parm parms6;
 
 	switch (proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
 		parms4 = mlxsw_sp_ipip_netdev_parms4(ol_dev);
 		return mlxsw_sp_ipip_parms4_saddr(parms4);
 	case MLXSW_SP_L3_PROTO_IPV6:
-		break;
+		parms6 = mlxsw_sp_ipip_netdev_parms6(ol_dev);
+		return mlxsw_sp_ipip_parms6_saddr(parms6);
 	}
 
 	WARN_ON(1);
@@ -109,13 +132,15 @@ mlxsw_sp_ipip_netdev_daddr(enum mlxsw_sp_l3proto proto,
 			   const struct net_device *ol_dev)
 {
 	struct ip_tunnel_parm parms4;
+	struct __ip6_tnl_parm parms6;
 
 	switch (proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
 		parms4 = mlxsw_sp_ipip_netdev_parms4(ol_dev);
 		return mlxsw_sp_ipip_parms4_daddr(parms4);
 	case MLXSW_SP_L3_PROTO_IPV6:
-		break;
+		parms6 = mlxsw_sp_ipip_netdev_parms6(ol_dev);
+		return mlxsw_sp_ipip_parms6_daddr(parms6);
 	}
 
 	WARN_ON(1);
