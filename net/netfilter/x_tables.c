@@ -654,6 +654,11 @@ struct compat_xt_standard_target {
 	compat_uint_t verdict;
 };
 
+struct compat_xt_error_target {
+	struct compat_xt_entry_target t;
+	char errorname[XT_FUNCTION_MAXNAMELEN];
+};
+
 static bool verdict_ok(int verdict)
 {
 	if (verdict > 0)
@@ -677,6 +682,12 @@ static bool verdict_ok(int verdict)
 	}
 
 	return false;
+}
+
+static bool error_tg_ok(unsigned int usersize, unsigned int kernsize,
+			const char *msg, unsigned int msglen)
+{
+	return usersize == kernsize && strnlen(msg, msglen) < msglen;
 }
 
 int xt_compat_check_entry_offsets(const void *base, const char *elems,
@@ -707,6 +718,12 @@ int xt_compat_check_entry_offsets(const void *base, const char *elems,
 			return -EINVAL;
 
 		if (!verdict_ok(st->verdict))
+			return -EINVAL;
+	} else if (strcmp(t->u.user.name, XT_ERROR_TARGET) == 0) {
+		const struct compat_xt_error_target *et = (const void *)t;
+
+		if (!error_tg_ok(t->u.target_size, sizeof(*et),
+				 et->errorname, sizeof(et->errorname)))
 			return -EINVAL;
 	}
 
@@ -795,6 +812,12 @@ int xt_check_entry_offsets(const void *base,
 			return -EINVAL;
 
 		if (!verdict_ok(st->verdict))
+			return -EINVAL;
+	} else if (strcmp(t->u.user.name, XT_ERROR_TARGET) == 0) {
+		const struct xt_error_target *et = (const void *)t;
+
+		if (!error_tg_ok(t->u.target_size, sizeof(*et),
+				 et->errorname, sizeof(et->errorname)))
 			return -EINVAL;
 	}
 
