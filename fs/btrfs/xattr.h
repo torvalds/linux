@@ -28,6 +28,7 @@ int btrfs_getxattr(struct inode *inode, const char *name,
 int btrfs_setxattr(struct btrfs_trans_handle *trans,
 			    struct inode *inode, const char *name,
 			    const void *value, size_t size, int flags);
+ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
 int btrfs_xattr_security_init(struct btrfs_trans_handle *trans,
 				     struct inode *inode, struct inode *dir,
