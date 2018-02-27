@@ -247,12 +247,13 @@ static int rsi_usb_reg_write(struct usb_device *usbdev,
  */
 static void rsi_rx_done_handler(struct urb *urb)
 {
-	struct rsi_hw *adapter = urb->context;
-	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rx_usb_ctrl_block *rx_cb = urb->context;
+	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)rx_cb->data;
 
 	if (urb->status)
 		return;
 
+	rx_cb->pend = 1;
 	rsi_set_event(&dev->rx_thread.event);
 }
 
@@ -262,10 +263,11 @@ static void rsi_rx_done_handler(struct urb *urb)
  *
  * Return: 0 on success, a negative error code on failure.
  */
-static int rsi_rx_urb_submit(struct rsi_hw *adapter)
+static int rsi_rx_urb_submit(struct rsi_hw *adapter, u8 ep_num)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
-	struct urb *urb = dev->rx_usb_urb[0];
+	struct rx_usb_ctrl_block *rx_cb = &dev->rx_cb[ep_num - 1];
+	struct urb *urb = rx_cb->rx_urb;
 	int status;
 
 	usb_fill_bulk_urb(urb,
@@ -275,7 +277,7 @@ static int rsi_rx_urb_submit(struct rsi_hw *adapter)
 			  urb->transfer_buffer,
 			  3000,
 			  rsi_rx_done_handler,
-			  adapter);
+			  rx_cb);
 
 	status = usb_submit_urb(urb, GFP_KERNEL);
 	if (status)
@@ -484,12 +486,52 @@ static struct rsi_host_intf_ops usb_host_intf_ops = {
  */
 static void rsi_deinit_usb_interface(struct rsi_hw *adapter)
 {
+	u8 idx;
+
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 
 	rsi_kill_thread(&dev->rx_thread);
-	usb_free_urb(dev->rx_usb_urb[0]);
+
+	for (idx = 0; idx < MAX_RX_URBS; idx++) {
+		usb_free_urb(dev->rx_cb[idx].rx_urb);
+		kfree(dev->rx_cb[idx].rx_buffer);
+	}
+
 	kfree(adapter->priv->rx_data_pkt);
 	kfree(dev->tx_buffer);
+}
+
+static int rsi_usb_init_rx(struct rsi_hw *adapter)
+{
+	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
+	struct rx_usb_ctrl_block *rx_cb;
+	u8 idx;
+
+	for (idx = 0; idx < MAX_RX_URBS; idx++) {
+		rx_cb = &dev->rx_cb[idx];
+
+		rx_cb->rx_buffer = kzalloc(RSI_USB_BUF_SIZE * 2,
+					   GFP_KERNEL);
+		if (!rx_cb->rx_buffer)
+			goto err;
+
+		rx_cb->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!rx_cb->rx_urb) {
+			rsi_dbg(ERR_ZONE, "Failed alloc rx urb[%d]\n", idx);
+			goto err;
+		}
+		rx_cb->rx_urb->transfer_buffer = rx_cb->rx_buffer;
+		rx_cb->ep_num = idx + 1;
+		rx_cb->data = (void *)dev;
+	}
+	return 0;
+
+err:
+	for (idx = 0; idx < MAX_RX_URBS; idx++) {
+		kfree(dev->rx_cb[idx].rx_buffer);
+		kfree(dev->rx_cb[idx].rx_urb);
+	}
+	return -1;
 }
 
 /**
@@ -504,7 +546,7 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 {
 	struct rsi_91x_usbdev *rsi_dev;
 	struct rsi_common *common = adapter->priv;
-	int status;
+	int status, i;
 
 	rsi_dev = kzalloc(sizeof(*rsi_dev), GFP_KERNEL);
 	if (!rsi_dev)
@@ -531,12 +573,12 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 		status = -ENOMEM;
 		goto fail_tx;
 	}
-	rsi_dev->rx_usb_urb[0] = usb_alloc_urb(0, GFP_KERNEL);
-	if (!rsi_dev->rx_usb_urb[0]) {
-		status = -ENOMEM;
-		goto fail_rx;
+
+	if (rsi_usb_init_rx(adapter)) {
+		rsi_dbg(ERR_ZONE, "Failed to init RX handle\n");
+		return -ENOMEM;
 	}
-	rsi_dev->rx_usb_urb[0]->transfer_buffer = adapter->priv->rx_data_pkt;
+
 	rsi_dev->tx_blk_size = 252;
 	adapter->block_size = rsi_dev->tx_blk_size;
 
@@ -564,9 +606,10 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 	return 0;
 
 fail_thread:
-	usb_free_urb(rsi_dev->rx_usb_urb[0]);
-fail_rx:
-	kfree(rsi_dev->tx_buffer);
+	for (i = 0; i < MAX_RX_URBS; i++) {
+		kfree(rsi_dev->rx_cb[i].rx_buffer);
+		kfree(rsi_dev->rx_cb[i].rx_urb);
+	}
 fail_tx:
 	kfree(common->rx_data_pkt);
 	return status;
@@ -698,7 +741,7 @@ static int rsi_probe(struct usb_interface *pfunction,
 		rsi_dbg(INIT_ZONE, "%s: Device Init Done\n", __func__);
 	}
 
-	status = rsi_rx_urb_submit(adapter);
+	status = rsi_rx_urb_submit(adapter, WLAN_EP);
 	if (status)
 		goto err1;
 

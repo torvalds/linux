@@ -118,7 +118,7 @@ static int rsi_process_pkt(struct rsi_common *common)
 		goto fail;
 	}
 
-	status = rsi_read_pkt(common, rcv_pkt_len);
+	status = rsi_read_pkt(common, common->rx_data_pkt, rcv_pkt_len);
 
 fail:
 	kfree(common->rx_data_pkt);

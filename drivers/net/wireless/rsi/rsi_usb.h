@@ -39,12 +39,20 @@
 #define RSI_USB_BUF_SIZE	     4096
 #define RSI_USB_CTRL_BUF_SIZE	     0x04
 
+struct rx_usb_ctrl_block {
+	u8 *data;
+	struct urb *rx_urb;
+	u8 *rx_buffer;
+	u8 ep_num;
+	u8 pend;
+};
+
 struct rsi_91x_usbdev {
 	struct rsi_thread rx_thread;
 	u8 endpoint;
 	struct usb_device *usbdev;
 	struct usb_interface *pfunction;
-	struct urb *rx_usb_urb[MAX_RX_URBS];
+	struct rx_usb_ctrl_block rx_cb[MAX_RX_URBS];
 	u8 *tx_buffer;
 	__le16 bulkin_size;
 	u8 bulkin_endpoint_addr;

@@ -137,7 +137,7 @@ static struct sk_buff *rsi_prepare_skb(struct rsi_common *common,
  *
  * Return: 0 on success, -1 on failure.
  */
-int rsi_read_pkt(struct rsi_common *common, s32 rcv_pkt_len)
+int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len)
 {
 	u8 *frame_desc = NULL, extended_desc = 0;
 	u32 index, length = 0, queueno = 0;
@@ -146,7 +146,7 @@ int rsi_read_pkt(struct rsi_common *common, s32 rcv_pkt_len)
 
 	index = 0;
 	do {
-		frame_desc = &common->rx_data_pkt[index];
+		frame_desc = &rx_pkt[index];
 		actual_length = *(u16 *)&frame_desc[0];
 		offset = *(u16 *)&frame_desc[2];
 

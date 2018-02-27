@@ -343,7 +343,7 @@ struct rsi_hw {
 	void *rsi_dev;
 	struct rsi_host_intf_ops *host_intf_ops;
 	int (*check_hw_queue_status)(struct rsi_hw *adapter, u8 q_num);
-	int (*rx_urb_submit)(struct rsi_hw *adapter);
+	int (*rx_urb_submit)(struct rsi_hw *adapter, u8 ep_num);
 	int (*determine_event_timeout)(struct rsi_hw *adapter);
 };
 
