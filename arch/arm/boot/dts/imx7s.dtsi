@@ -130,6 +130,12 @@
 		#phy-cells = <0>;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a7-pmu";
+		interrupt-parent = <&gpc>;
+		interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&cpu0>;
+	};
 
 	replicator {
 		/*
