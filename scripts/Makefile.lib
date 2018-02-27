@@ -217,7 +217,7 @@ $(filter %.tab.c,$(targets)): $(obj)/%.tab.c: $(src)/%.y FORCE
 	$(call if_changed,bison)
 
 quiet_cmd_bison_h = YACC    $@
-      cmd_bison_h = bison -o/dev/null --defines=$@ -t -l -p $(YACC_PREFIX) $<
+      cmd_bison_h = bison -o/dev/null --defines=$@ -t -l $<
 
 ifdef REGENERATE_PARSERS
 .PRECIOUS: $(src)/%.tab.h_shipped
