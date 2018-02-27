@@ -654,6 +654,31 @@ struct compat_xt_standard_target {
 	compat_uint_t verdict;
 };
 
+static bool verdict_ok(int verdict)
+{
+	if (verdict > 0)
+		return true;
+
+	if (verdict < 0) {
+		int v = -verdict - 1;
+
+		if (verdict == XT_RETURN)
+			return true;
+
+		switch (v) {
+		case NF_ACCEPT: return true;
+		case NF_DROP: return true;
+		case NF_QUEUE: return true;
+		default:
+			break;
+		}
+
+		return false;
+	}
+
+	return false;
+}
+
 int xt_compat_check_entry_offsets(const void *base, const char *elems,
 				  unsigned int target_offset,
 				  unsigned int next_offset)
@@ -675,9 +700,15 @@ int xt_compat_check_entry_offsets(const void *base, const char *elems,
 	if (target_offset + t->u.target_size > next_offset)
 		return -EINVAL;
 
-	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0 &&
-	    COMPAT_XT_ALIGN(target_offset + sizeof(struct compat_xt_standard_target)) != next_offset)
-		return -EINVAL;
+	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0) {
+		const struct compat_xt_standard_target *st = (const void *)t;
+
+		if (COMPAT_XT_ALIGN(target_offset + sizeof(*st)) != next_offset)
+			return -EINVAL;
+
+		if (!verdict_ok(st->verdict))
+			return -EINVAL;
+	}
 
 	/* compat_xt_entry match has less strict alignment requirements,
 	 * otherwise they are identical.  In case of padding differences
@@ -757,9 +788,15 @@ int xt_check_entry_offsets(const void *base,
 	if (target_offset + t->u.target_size > next_offset)
 		return -EINVAL;
 
-	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0 &&
-	    XT_ALIGN(target_offset + sizeof(struct xt_standard_target)) != next_offset)
-		return -EINVAL;
+	if (strcmp(t->u.user.name, XT_STANDARD_TARGET) == 0) {
+		const struct xt_standard_target *st = (const void *)t;
+
+		if (XT_ALIGN(target_offset + sizeof(*st)) != next_offset)
+			return -EINVAL;
+
+		if (!verdict_ok(st->verdict))
+			return -EINVAL;
+	}
 
 	return xt_check_entry_match(elems, base + target_offset,
 				    __alignof__(struct xt_entry_match));
