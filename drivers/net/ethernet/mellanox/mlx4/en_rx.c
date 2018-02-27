@@ -649,6 +649,12 @@ static int check_csum(struct mlx4_cqe *cqe, struct sk_buff *skb, void *va,
 	return get_fixed_ipv4_csum(hw_checksum, skb, hdr);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+#define MLX4_CQE_STATUS_IP_ANY (MLX4_CQE_STATUS_IPV4 | MLX4_CQE_STATUS_IPV6)
+#else
+#define MLX4_CQE_STATUS_IP_ANY (MLX4_CQE_STATUS_IPV4)
+#endif
+
 int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int budget)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -662,11 +668,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	int polled = 0;
 	int index;
 
-	if (unlikely(!priv->port_up))
+	if (unlikely(!priv->port_up || budget <= 0))
 		return 0;
-
-	if (unlikely(budget <= 0))
-		return polled;
 
 	ring = priv->rx_ring[cq_ring];
 
@@ -838,12 +841,7 @@ xdp_drop_no_cnt:
 				ring->csum_ok++;
 			} else {
 				if (!(priv->flags & MLX4_EN_FLAG_RX_CSUM_NON_TCP_UDP &&
-				      (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPV4 |
-#if IS_ENABLED(CONFIG_IPV6)
-								 MLX4_CQE_STATUS_IPV6))))
-#else
-								 0))))
-#endif
+				      (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IP_ANY))))
 					goto csum_none;
 				if (check_csum(cqe, skb, va, dev->features))
 					goto csum_none;
