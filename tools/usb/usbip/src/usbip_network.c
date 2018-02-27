@@ -179,8 +179,8 @@ int usbip_net_recv_op_common(int sockfd, uint16_t *code)
 	PACK_OP_COMMON(0, &op_common);
 
 	if (op_common.version != USBIP_VERSION) {
-		dbg("version mismatch: %d %d", op_common.version,
-		    USBIP_VERSION);
+		err("USBIP Kernel and tool version mismatch: %d %d:",
+		    op_common.version, USBIP_VERSION);
 		goto err;
 	}
 
