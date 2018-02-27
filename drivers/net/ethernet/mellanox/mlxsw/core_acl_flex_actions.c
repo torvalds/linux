@@ -863,9 +863,8 @@ mlxsw_afa_mirror_destructor(struct mlxsw_afa_block *block,
 }
 
 static struct mlxsw_afa_mirror *
-mlxsw_afa_mirror_create(struct mlxsw_afa_block *block,
-			u8 local_in_port, u8 local_out_port,
-			bool ingress)
+mlxsw_afa_mirror_create(struct mlxsw_afa_block *block, u8 local_in_port,
+			const struct net_device *out_dev, bool ingress)
 {
 	struct mlxsw_afa_mirror *mirror;
 	int err;
@@ -875,7 +874,7 @@ mlxsw_afa_mirror_create(struct mlxsw_afa_block *block,
 		return ERR_PTR(-ENOMEM);
 
 	err = block->afa->ops->mirror_add(block->afa->ops_priv,
-					  local_in_port, local_out_port,
+					  local_in_port, out_dev,
 					  ingress, &mirror->span_id);
 	if (err)
 		goto err_mirror_add;
@@ -907,13 +906,13 @@ mlxsw_afa_block_append_allocated_mirror(struct mlxsw_afa_block *block,
 }
 
 int
-mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
-			      u8 local_in_port, u8 local_out_port, bool ingress)
+mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block, u8 local_in_port,
+			      const struct net_device *out_dev, bool ingress)
 {
 	struct mlxsw_afa_mirror *mirror;
 	int err;
 
-	mirror = mlxsw_afa_mirror_create(block, local_in_port, local_out_port,
+	mirror = mlxsw_afa_mirror_create(block, local_in_port, out_dev,
 					 ingress);
 	if (IS_ERR(mirror))
 		return PTR_ERR(mirror);

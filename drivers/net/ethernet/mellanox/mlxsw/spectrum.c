@@ -1258,7 +1258,6 @@ mlxsw_sp_port_add_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 				      bool ingress)
 {
 	enum mlxsw_sp_span_type span_type;
-	struct mlxsw_sp_port *to_port;
 	struct net_device *to_dev;
 
 	to_dev = tcf_mirred_dev(a);
@@ -1271,11 +1270,10 @@ mlxsw_sp_port_add_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 		netdev_err(mlxsw_sp_port->dev, "Cannot mirror to a non-spectrum port");
 		return -EOPNOTSUPP;
 	}
-	to_port = netdev_priv(to_dev);
 
 	mirror->ingress = ingress;
 	span_type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	return mlxsw_sp_span_mirror_add(mlxsw_sp_port, to_port, span_type,
+	return mlxsw_sp_span_mirror_add(mlxsw_sp_port, to_dev, span_type,
 					true, &mirror->span_id);
 }
 
@@ -4638,10 +4636,17 @@ static int mlxsw_sp_netdevice_event(struct notifier_block *nb,
 				    unsigned long event, void *ptr)
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
+	struct mlxsw_sp_span_entry *span_entry;
 	struct mlxsw_sp *mlxsw_sp;
 	int err = 0;
 
 	mlxsw_sp = container_of(nb, struct mlxsw_sp, netdevice_nb);
+	if (event == NETDEV_UNREGISTER) {
+		span_entry = mlxsw_sp_span_entry_find_by_port(mlxsw_sp, dev);
+		if (span_entry)
+			mlxsw_sp_span_entry_invalidate(mlxsw_sp, span_entry);
+	}
+
 	if (mlxsw_sp_netdev_is_ipip_ol(mlxsw_sp, dev))
 		err = mlxsw_sp_netdevice_ipip_ol_event(mlxsw_sp, dev,
 						       event, ptr);

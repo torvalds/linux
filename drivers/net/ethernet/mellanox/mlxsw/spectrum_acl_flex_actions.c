@@ -126,18 +126,18 @@ mlxsw_sp_act_counter_index_put(void *priv, unsigned int counter_index)
 }
 
 static int
-mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port, u8 local_out_port,
+mlxsw_sp_act_mirror_add(void *priv, u8 local_in_port,
+			const struct net_device *out_dev,
 			bool ingress, int *p_span_id)
 {
-	struct mlxsw_sp_port *in_port, *out_port;
+	struct mlxsw_sp_port *in_port;
 	struct mlxsw_sp *mlxsw_sp = priv;
 	enum mlxsw_sp_span_type type;
 
 	type = ingress ? MLXSW_SP_SPAN_INGRESS : MLXSW_SP_SPAN_EGRESS;
-	out_port = mlxsw_sp->ports[local_out_port];
 	in_port = mlxsw_sp->ports[local_in_port];
 
-	return mlxsw_sp_span_mirror_add(in_port, out_port, type,
+	return mlxsw_sp_span_mirror_add(in_port, out_dev, type,
 					false, p_span_id);
 }
 

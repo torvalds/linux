@@ -51,7 +51,7 @@ struct mlxsw_sp_span_inspected_port {
 };
 
 struct mlxsw_sp_span_entry {
-	u8 local_port;
+	const struct net_device *to_dev;
 	struct list_head bound_ports_list;
 	int ref_count;
 	int id;
@@ -61,13 +61,17 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp);
 
 int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
-			     struct mlxsw_sp_port *to,
+			     const struct net_device *to_dev,
 			     enum mlxsw_sp_span_type type,
 			     bool bind, int *p_span_id);
 void mlxsw_sp_span_mirror_del(struct mlxsw_sp_port *from, int span_id,
 			      enum mlxsw_sp_span_type type, bool bind);
 struct mlxsw_sp_span_entry *
-mlxsw_sp_span_entry_find_by_port(struct mlxsw_sp *mlxsw_sp, u8 local_port);
+mlxsw_sp_span_entry_find_by_port(struct mlxsw_sp *mlxsw_sp,
+				 const struct net_device *to_dev);
+
+void mlxsw_sp_span_entry_invalidate(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_span_entry *span_entry);
 
 int mlxsw_sp_span_port_mtu_update(struct mlxsw_sp_port *port, u16 mtu);
 

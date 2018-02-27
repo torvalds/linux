@@ -590,7 +590,7 @@ int mlxsw_sp_acl_rulei_act_mirror(struct mlxsw_sp *mlxsw_sp,
 
 	return mlxsw_afa_block_append_mirror(rulei->act_block,
 					     in_port->local_port,
-					     out_port->local_port,
+					     out_dev,
 					     binding->ingress);
 }
 
