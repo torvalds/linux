@@ -36,7 +36,7 @@ static DEFINE_MUTEX(smbios_mutex);
 struct smbios_device {
 	struct list_head list;
 	struct device *device;
-	int (*call_fn)(struct calling_interface_buffer *);
+	int (*call_fn)(struct calling_interface_buffer *arg);
 };
 
 struct smbios_call {
@@ -352,8 +352,10 @@ static void __init parse_da_table(const struct dmi_header *dm)
 	struct calling_interface_structure *table =
 		container_of(dm, struct calling_interface_structure, header);
 
-	/* 4 bytes of table header, plus 7 bytes of Dell header, plus at least
-	   6 bytes of entry */
+	/*
+	 * 4 bytes of table header, plus 7 bytes of Dell header
+	 * plus at least 6 bytes of entry
+	 */
 
 	if (dm->length < 17)
 		return;
