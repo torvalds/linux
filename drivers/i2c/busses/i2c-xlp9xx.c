@@ -352,7 +352,9 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 
 	/* set cmd reg */
 	cmd = XLP9XX_I2C_CMD_START;
-	cmd |= (priv->msg_read ? XLP9XX_I2C_CMD_READ : XLP9XX_I2C_CMD_WRITE);
+	if (msg->len)
+		cmd |= (priv->msg_read ?
+			XLP9XX_I2C_CMD_READ : XLP9XX_I2C_CMD_WRITE);
 	if (last_msg)
 		cmd |= XLP9XX_I2C_CMD_STOP;
 
@@ -361,12 +363,12 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 	timeleft = msecs_to_jiffies(XLP9XX_I2C_TIMEOUT_MS);
 	timeleft = wait_for_completion_timeout(&priv->msg_complete, timeleft);
 
-	if (priv->msg_err) {
+	if (priv->msg_err & XLP9XX_I2C_INTEN_BUSERR) {
 		dev_dbg(priv->dev, "transfer error %x!\n", priv->msg_err);
-		if (priv->msg_err & XLP9XX_I2C_INTEN_BUSERR)
-			xlp9xx_i2c_init(priv);
-		return (priv->msg_err & XLP9XX_I2C_INTEN_NACKADDR) ?
-			-ENXIO : -EIO;
+		xlp9xx_write_i2c_reg(priv, XLP9XX_I2C_CMD, XLP9XX_I2C_CMD_STOP);
+		return -EIO;
+	} else if (priv->msg_err & XLP9XX_I2C_INTEN_NACKADDR) {
+		return -ENXIO;
 	}
 
 	if (timeleft == 0) {
