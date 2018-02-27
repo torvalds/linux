@@ -76,6 +76,7 @@ struct mlxsw_sp_span_entry_ops {
 
 int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp);
+void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp);
 
 int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 			     const struct net_device *to_dev,
