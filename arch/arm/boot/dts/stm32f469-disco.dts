@@ -78,6 +78,23 @@
 		dma-ranges = <0xc0000000 0x0 0x10000000>;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		green {
+			gpios = <&gpiog 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+		};
+		orange {
+			gpios = <&gpiod 4 GPIO_ACTIVE_LOW>;
+		};
+		red {
+			gpios = <&gpiod 5 GPIO_ACTIVE_LOW>;
+		};
+		blue {
+			gpios = <&gpiok 3 GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	/* This turns on vbus for otg for host mode (dwc2) */
 	vcc5v_otg: vcc5v-otg-regulator {
 		compatible = "regulator-fixed";
