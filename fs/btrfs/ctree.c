@@ -5145,9 +5145,6 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
  * into min_key, so you can call btrfs_search_slot with cow=1 on the
  * key and get a writable path.
  *
- * This does lock as it descends, and path->keep_locks should be set
- * to 1 by the caller.
- *
  * This honors path->lowest_level to prevent descent past a given level
  * of the tree.
  *
