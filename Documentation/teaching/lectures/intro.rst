@@ -340,8 +340,8 @@ A typical implementation for user and kernel spaces is one where the
 virtual address space is shared between user processes and the kernel.
 
 In this case kernel space is located at the top of the address space,
-while user space at the bottom. In order to avoid the user processes
-access kernel space, the kernel creates mappings that prevent
+while user space at the bottom. In order to prevent the user processes
+from accessing kernel space, the kernel creates mappings that prevent
 access to the kernel space from user mode.
 
 .. slide:: User and kernel sharing the virtual address space
