@@ -20,6 +20,7 @@
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <net/mac80211.h>
+#include <net/rsi_91x.h>
 
 struct rsi_sta {
 	struct ieee80211_sta *sta;
@@ -85,10 +86,6 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define MGMT_HW_Q			10
 #define BEACON_HW_Q			11
 
-/* Queue information */
-#define RSI_COEX_Q			0x0
-#define RSI_WIFI_MGMT_Q                 0x4
-#define RSI_WIFI_DATA_Q                 0x5
 #define IEEE80211_MGMT_FRAME            0x00
 #define IEEE80211_CTL_FRAME             0x04
 
@@ -293,11 +290,6 @@ struct rsi_common {
 	struct ieee80211_vif *roc_vif;
 };
 
-enum host_intf {
-	RSI_HOST_INTF_SDIO = 0,
-	RSI_HOST_INTF_USB
-};
-
 struct eepromrw_info {
 	u32 offset;
 	u32 length;
@@ -322,7 +314,7 @@ struct rsi_hw {
 	struct device *device;
 	u8 sc_nvifs;
 
-	enum host_intf rsi_host_intf;
+	enum rsi_host_intf rsi_host_intf;
 	u16 block_size;
 	enum ps_state ps_state;
 	struct rsi_ps_info ps_info;
