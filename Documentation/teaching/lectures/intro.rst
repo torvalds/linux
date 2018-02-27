@@ -59,7 +59,7 @@ disabled or enable while running in kernel mode. If such an operation
 is attempted while running in user mode an exception will be generated
 and the kernel will take over to handle it.
 
-.. [#hypervisor] some processors may have even higher privileges then
+.. [#hypervisor] some processors may have even higher privileges than
                  kernel mode, e.g. a hypervisor mode, that is only
                  accessible to code running in a hypervisor (virtual
                  machine monitor)
@@ -997,7 +997,7 @@ Block I/O management
 ....................
 
 The Linux Block I/O subsystem deals with reading and writing data from
-block devices: creating block I/O requests, transforming block I/O
+or to block devices: creating block I/O requests, transforming block I/O
 requests (e.g. for software RAID or LVM), merging and sorting the
 requests and scheduling them via various I/O schedulers to the block
 device drivers.
