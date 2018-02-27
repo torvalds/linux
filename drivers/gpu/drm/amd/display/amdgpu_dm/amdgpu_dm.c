@@ -1365,6 +1365,43 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 
 #endif
 
+static int initialize_plane(struct amdgpu_display_manager *dm,
+			     struct amdgpu_mode_info *mode_info,
+			     int plane_id)
+{
+	struct amdgpu_plane *plane;
+	unsigned long possible_crtcs;
+	int ret = 0;
+
+	plane = kzalloc(sizeof(struct amdgpu_plane), GFP_KERNEL);
+	mode_info->planes[plane_id] = plane;
+
+	if (!plane) {
+		DRM_ERROR("KMS: Failed to allocate plane\n");
+		return -ENOMEM;
+	}
+	plane->base.type = mode_info->plane_type[plane_id];
+
+	/*
+	 * HACK: IGT tests expect that each plane can only have one
+	 * one possible CRTC. For now, set one CRTC for each
+	 * plane that is not an underlay, but still allow multiple
+	 * CRTCs for underlay planes.
+	 */
+	possible_crtcs = 1 << plane_id;
+	if (plane_id >= dm->dc->caps.max_streams)
+		possible_crtcs = 0xff;
+
+	ret = amdgpu_dm_plane_init(dm, mode_info->planes[plane_id], possible_crtcs);
+
+	if (ret) {
+		DRM_ERROR("KMS: Failed to initialize plane\n");
+		return ret;
+	}
+
+	return ret;
+}
+
 /* In this architecture, the association
  * connector -> encoder -> crtc
  * id not really requried. The crtc and connector will hold the
@@ -1375,12 +1412,12 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 {
 	struct amdgpu_display_manager *dm = &adev->dm;
-	uint32_t i;
+	int32_t i;
 	struct amdgpu_dm_connector *aconnector = NULL;
 	struct amdgpu_encoder *aencoder = NULL;
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
 	uint32_t link_cnt;
-	unsigned long possible_crtcs;
+	int32_t total_overlay_planes, total_primary_planes;
 
 	link_cnt = dm->dc->caps.max_links;
 	if (amdgpu_dm_mode_config_init(dm->adev)) {
@@ -1388,30 +1425,22 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		return -1;
 	}
 
-	for (i = 0; i < dm->dc->caps.max_planes; i++) {
-		struct amdgpu_plane *plane;
+	/* Identify the number of planes to be initialized */
+	total_overlay_planes = dm->dc->caps.max_slave_planes;
+	total_primary_planes = dm->dc->caps.max_planes - dm->dc->caps.max_slave_planes;
 
-		plane = kzalloc(sizeof(struct amdgpu_plane), GFP_KERNEL);
-		mode_info->planes[i] = plane;
-
-		if (!plane) {
-			DRM_ERROR("KMS: Failed to allocate plane\n");
+	/* First initialize overlay planes, index starting after primary planes */
+	for (i = (total_overlay_planes - 1); i >= 0; i--) {
+		if (initialize_plane(dm, mode_info, (total_primary_planes + i))) {
+			DRM_ERROR("KMS: Failed to initialize overlay plane\n");
 			goto fail;
 		}
-		plane->base.type = mode_info->plane_type[i];
+	}
 
-		/*
-		 * HACK: IGT tests expect that each plane can only have one
-		 * one possible CRTC. For now, set one CRTC for each
-		 * plane that is not an underlay, but still allow multiple
-		 * CRTCs for underlay planes.
-		 */
-		possible_crtcs = 1 << i;
-		if (i >= dm->dc->caps.max_streams)
-			possible_crtcs = 0xff;
-
-		if (amdgpu_dm_plane_init(dm, mode_info->planes[i], possible_crtcs)) {
-			DRM_ERROR("KMS: Failed to initialize plane\n");
+	/* Initialize primary planes */
+	for (i = (total_primary_planes - 1); i >= 0; i--) {
+		if (initialize_plane(dm, mode_info, i)) {
+			DRM_ERROR("KMS: Failed to initialize primary plane\n");
 			goto fail;
 		}
 	}
@@ -4695,8 +4724,8 @@ static int dm_update_planes_state(struct dc *dc,
 	int ret = 0;
 
 
-	/* Add new planes */
-	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+	/* Add new planes, in reverse order as DC expectation */
+	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
 		new_plane_crtc = new_plane_state->crtc;
 		old_plane_crtc = old_plane_state->crtc;
 		dm_new_plane_state = to_dm_plane_state(new_plane_state);
