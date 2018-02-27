@@ -555,14 +555,8 @@ int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta)
 {
 	struct xt_af *xp = &xt[af];
 
-	if (!xp->compat_tab) {
-		if (!xp->number)
-			return -EINVAL;
-		xp->compat_tab = vmalloc(sizeof(struct compat_delta) * xp->number);
-		if (!xp->compat_tab)
-			return -ENOMEM;
-		xp->cur = 0;
-	}
+	if (WARN_ON(!xp->compat_tab))
+		return -ENOMEM;
 
 	if (xp->cur >= xp->number)
 		return -EINVAL;
@@ -607,6 +601,22 @@ EXPORT_SYMBOL_GPL(xt_compat_calc_jump);
 
 int xt_compat_init_offsets(u8 af, unsigned int number)
 {
+	size_t mem;
+
+	if (!number || number > (INT_MAX / sizeof(struct compat_delta)))
+		return -EINVAL;
+
+	if (WARN_ON(xt[af].compat_tab))
+		return -EINVAL;
+
+	mem = sizeof(struct compat_delta) * number;
+	if (mem > XT_MAX_TABLE_SIZE)
+		return -ENOMEM;
+
+	xt[af].compat_tab = vmalloc(mem);
+	if (!xt[af].compat_tab)
+		return -ENOMEM;
+
 	xt[af].number = number;
 	xt[af].cur = 0;
 
