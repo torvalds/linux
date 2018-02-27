@@ -1864,7 +1864,7 @@ static int bcm2048_probe(struct bcm2048_device *bdev)
 		goto unlock;
 
 	err = bcm2048_set_fm_search_rssi_threshold(bdev,
-						   BCM2048_DEFAULT_RSSI_THRESHOLD);
+					BCM2048_DEFAULT_RSSI_THRESHOLD);
 	if (err < 0)
 		goto unlock;
 
@@ -1942,9 +1942,9 @@ static irqreturn_t bcm2048_handler(int irq, void *dev)
  */
 #define property_write(prop, type, mask, check)				\
 static ssize_t bcm2048_##prop##_write(struct device *dev,		\
-				      struct device_attribute *attr,	\
-				      const char *buf,			\
-				      size_t count)			\
+					struct device_attribute *attr,	\
+					const char *buf,		\
+					size_t count)			\
 {									\
 	struct bcm2048_device *bdev = dev_get_drvdata(dev);		\
 	type value;							\
@@ -1966,8 +1966,8 @@ static ssize_t bcm2048_##prop##_write(struct device *dev,		\
 
 #define property_read(prop, mask)					\
 static ssize_t bcm2048_##prop##_read(struct device *dev,		\
-				     struct device_attribute *attr,	\
-				     char *buf)				\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
 	struct bcm2048_device *bdev = dev_get_drvdata(dev);		\
 	int value;							\
@@ -1985,8 +1985,8 @@ static ssize_t bcm2048_##prop##_read(struct device *dev,		\
 
 #define property_signed_read(prop, size, mask)				\
 static ssize_t bcm2048_##prop##_read(struct device *dev,		\
-				     struct device_attribute *attr,	\
-				     char *buf)				\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
 	struct bcm2048_device *bdev = dev_get_drvdata(dev);		\
 	size value;							\
@@ -2005,8 +2005,8 @@ property_read(prop, mask)						\
 
 #define property_str_read(prop, size)					\
 static ssize_t bcm2048_##prop##_read(struct device *dev,		\
-				     struct device_attribute *attr,	\
-				     char *buf)				\
+					struct device_attribute *attr,	\
+					char *buf)			\
 {									\
 	struct bcm2048_device *bdev = dev_get_drvdata(dev);		\
 	int count;							\
@@ -2175,7 +2175,7 @@ static int bcm2048_fops_release(struct file *file)
 }
 
 static __poll_t bcm2048_fops_poll(struct file *file,
-				  struct poll_table_struct *pts)
+				      struct poll_table_struct *pts)
 {
 	struct bcm2048_device *bdev = video_drvdata(file);
 	__poll_t retval = 0;
