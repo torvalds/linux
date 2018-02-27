@@ -35,6 +35,8 @@
 #include <linux/list.h>
 #include <net/arp.h>
 #include <net/gre.h>
+#include <net/ndisc.h>
+#include <net/ip6_tunnel.h>
 
 #include "spectrum.h"
 #include "spectrum_span.h"
@@ -290,10 +292,109 @@ static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap4 = {
 	.deconfigure = mlxsw_sp_span_entry_gretap4_deconfigure,
 };
 
+static struct net_device *
+mlxsw_sp_span_gretap6_route(const struct net_device *to_dev,
+			    struct in6_addr *saddrp,
+			    struct in6_addr *daddrp)
+{
+	struct ip6_tnl *t = netdev_priv(to_dev);
+	struct flowi6 fl6 = t->fl.u.ip6;
+	struct net_device *dev = NULL;
+	struct dst_entry *dst;
+	struct rt6_info *rt6;
+
+	/* We assume "dev" stays valid after dst is released. */
+	ASSERT_RTNL();
+
+	fl6.flowi6_mark = t->parms.fwmark;
+	if (!ip6_tnl_xmit_ctl(t, &fl6.saddr, &fl6.daddr))
+		return NULL;
+
+	dst = ip6_route_output(t->net, NULL, &fl6);
+	if (!dst || dst->error)
+		goto out;
+
+	rt6 = container_of(dst, struct rt6_info, dst);
+
+	dev = dst->dev;
+	*saddrp = fl6.saddr;
+	*daddrp = rt6->rt6i_gateway;
+
+out:
+	dst_release(dst);
+	return dev;
+}
+
+static int
+mlxsw_sp_span_entry_gretap6_parms(const struct net_device *to_dev,
+				  struct mlxsw_sp_span_parms *sparmsp)
+{
+	struct __ip6_tnl_parm tparm = mlxsw_sp_ipip_netdev_parms6(to_dev);
+	bool inherit_tos = tparm.flags & IP6_TNL_F_USE_ORIG_TCLASS;
+	union mlxsw_sp_l3addr saddr = { .addr6 = tparm.laddr };
+	union mlxsw_sp_l3addr daddr = { .addr6 = tparm.raddr };
+	bool inherit_ttl = !tparm.hop_limit;
+	union mlxsw_sp_l3addr gw = daddr;
+	struct net_device *l3edev;
+
+	if (!(to_dev->flags & IFF_UP) ||
+	    /* Reject tunnels with GRE keys, checksums, etc. */
+	    tparm.i_flags || tparm.o_flags ||
+	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
+	    inherit_ttl || !inherit_tos ||
+	    /* A destination address may not be "any". */
+	    mlxsw_sp_l3addr_is_zero(daddr))
+		return mlxsw_sp_span_entry_unoffloadable(sparmsp);
+
+	l3edev = mlxsw_sp_span_gretap6_route(to_dev, &saddr.addr6, &gw.addr6);
+	return mlxsw_sp_span_entry_tunnel_parms_common(l3edev, saddr, daddr, gw,
+						       tparm.hop_limit,
+						       &nd_tbl, sparmsp);
+}
+
+static int
+mlxsw_sp_span_entry_gretap6_configure(struct mlxsw_sp_span_entry *span_entry,
+				      struct mlxsw_sp_span_parms sparms)
+{
+	struct mlxsw_sp_port *dest_port = sparms.dest_port;
+	struct mlxsw_sp *mlxsw_sp = dest_port->mlxsw_sp;
+	u8 local_port = dest_port->local_port;
+	char mpat_pl[MLXSW_REG_MPAT_LEN];
+	int pa_id = span_entry->id;
+
+	/* Create a new port analayzer entry for local_port. */
+	mlxsw_reg_mpat_pack(mpat_pl, pa_id, local_port, true,
+			    MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+	mlxsw_reg_mpat_eth_rspan_l2_pack(mpat_pl,
+				    MLXSW_REG_MPAT_ETH_RSPAN_VERSION_NO_HEADER,
+				    sparms.dmac, false);
+	mlxsw_reg_mpat_eth_rspan_l3_ipv6_pack(mpat_pl, sparms.ttl, sparms.smac,
+					      sparms.saddr.addr6,
+					      sparms.daddr.addr6);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mpat), mpat_pl);
+}
+
+static void
+mlxsw_sp_span_entry_gretap6_deconfigure(struct mlxsw_sp_span_entry *span_entry)
+{
+	mlxsw_sp_span_entry_deconfigure_common(span_entry,
+					MLXSW_REG_MPAT_SPAN_TYPE_REMOTE_ETH_L3);
+}
+
+static const
+struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap6 = {
+	.can_handle = is_ip6gretap_dev,
+	.parms = mlxsw_sp_span_entry_gretap6_parms,
+	.configure = mlxsw_sp_span_entry_gretap6_configure,
+	.deconfigure = mlxsw_sp_span_entry_gretap6_deconfigure,
+};
+
 static const
 struct mlxsw_sp_span_entry_ops *const mlxsw_sp_span_entry_types[] = {
 	&mlxsw_sp_span_entry_ops_phys,
 	&mlxsw_sp_span_entry_ops_gretap4,
+	&mlxsw_sp_span_entry_ops_gretap6,
 };
 
 static int
