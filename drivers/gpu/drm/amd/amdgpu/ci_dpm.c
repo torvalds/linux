@@ -5903,7 +5903,7 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	pi->pcie_dpm_key_disabled = 0;
 	pi->thermal_sclk_dpm_enabled = 0;
 
-	if (amdgpu_pp_feature_mask & PP_SCLK_DEEP_SLEEP_MASK)
+	if (adev->powerplay.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
 		pi->caps_sclk_ds = true;
 	else
 		pi->caps_sclk_ds = false;
