@@ -94,15 +94,6 @@ static const struct dp_link_dpll chv_dpll[] = {
 		{ .p1 = 2, .p2 = 1, .n = 1, .m1 = 2, .m2 = 0x6c00000 } }
 };
 
-static const int bxt_rates[] = { 162000, 216000, 243000, 270000,
-				  324000, 432000, 540000 };
-static const int skl_rates[] = { 162000, 216000, 270000,
-				  324000, 432000, 540000 };
-static const int cnl_rates[] = { 162000, 216000, 270000,
-				 324000, 432000, 540000,
-				 648000, 810000 };
-static const int default_rates[] = { 162000, 270000, 540000 };
-
 /**
  * intel_dp_is_edp - is the given port attached to an eDP panel (either CPU or PCH)
  * @intel_dp: DP struct
@@ -142,14 +133,17 @@ static void intel_dp_unset_edid(struct intel_dp *intel_dp);
 /* update sink rates from dpcd */
 static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 {
+	static const int dp_rates[] = {
+		162000, 270000, 540000
+	};
 	int i, max_rate;
 
 	max_rate = drm_dp_bw_code_to_link_rate(intel_dp->dpcd[DP_MAX_LINK_RATE]);
 
-	for (i = 0; i < ARRAY_SIZE(default_rates); i++) {
-		if (default_rates[i] > max_rate)
+	for (i = 0; i < ARRAY_SIZE(dp_rates); i++) {
+		if (dp_rates[i] > max_rate)
 			break;
-		intel_dp->sink_rates[i] = default_rates[i];
+		intel_dp->sink_rates[i] = dp_rates[i];
 	}
 
 	intel_dp->num_sink_rates = i;
@@ -266,6 +260,22 @@ static int cnl_max_source_rate(struct intel_dp *intel_dp)
 static void
 intel_dp_set_source_rates(struct intel_dp *intel_dp)
 {
+	/* The values must be in increasing order */
+	static const int cnl_rates[] = {
+		162000, 216000, 270000, 324000, 432000, 540000, 648000, 810000
+	};
+	static const int bxt_rates[] = {
+		162000, 216000, 243000, 270000, 324000, 432000, 540000
+	};
+	static const int skl_rates[] = {
+		162000, 216000, 270000, 324000, 432000, 540000
+	};
+	static const int hsw_rates[] = {
+		162000, 270000, 540000
+	};
+	static const int g4x_rates[] = {
+		162000, 270000
+	};
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
 	const struct ddi_vbt_port_info *info =
@@ -288,11 +298,11 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 		size = ARRAY_SIZE(skl_rates);
 	} else if ((IS_HASWELL(dev_priv) && !IS_HSW_ULX(dev_priv)) ||
 		   IS_BROADWELL(dev_priv)) {
-		source_rates = default_rates;
-		size = ARRAY_SIZE(default_rates);
+		source_rates = hsw_rates;
+		size = ARRAY_SIZE(hsw_rates);
 	} else {
-		source_rates = default_rates;
-		size = ARRAY_SIZE(default_rates) - 1;
+		source_rates = g4x_rates;
+		size = ARRAY_SIZE(g4x_rates);
 	}
 
 	if (max_rate && vbt_max_rate)
@@ -354,7 +364,7 @@ static void intel_dp_set_common_rates(struct intel_dp *intel_dp)
 
 	/* Paranoia, there should always be something in common. */
 	if (WARN_ON(intel_dp->num_common_rates == 0)) {
-		intel_dp->common_rates[0] = default_rates[0];
+		intel_dp->common_rates[0] = 162000;
 		intel_dp->num_common_rates = 1;
 	}
 }
