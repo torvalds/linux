@@ -342,9 +342,7 @@ static void imx_port_rts_auto(struct imx_port *sport, unsigned long *ucr2)
 	*ucr2 |= UCR2_CTSC;
 }
 
-/*
- * interrupts disabled on entry
- */
+/* called with port.lock taken and irqs off */
 static void imx_stop_tx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
@@ -377,9 +375,7 @@ static void imx_stop_tx(struct uart_port *port)
 	}
 }
 
-/*
- * interrupts disabled on entry
- */
+/* called with port.lock taken and irqs off */
 static void imx_stop_rx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
@@ -402,9 +398,7 @@ static void imx_stop_rx(struct uart_port *port)
 	writel(temp & ~UCR1_RRDYEN, sport->port.membase + UCR1);
 }
 
-/*
- * Set the modem control timer to fire immediately.
- */
+/* called with port.lock taken and irqs off */
 static void imx_enable_ms(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
@@ -415,6 +409,8 @@ static void imx_enable_ms(struct uart_port *port)
 }
 
 static void imx_dma_tx(struct imx_port *sport);
+
+/* called with port.lock taken and irqs off */
 static inline void imx_transmit_buffer(struct imx_port *sport)
 {
 	struct circ_buf *xmit = &sport->port.state->xmit;
@@ -501,6 +497,7 @@ static void dma_tx_callback(void *data)
 	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_dma_tx(struct imx_port *sport)
 {
 	struct circ_buf *xmit = &sport->port.state->xmit;
@@ -557,9 +554,7 @@ static void imx_dma_tx(struct imx_port *sport)
 	return;
 }
 
-/*
- * interrupts disabled on entry
- */
+/* called with port.lock taken and irqs off */
 static void imx_start_tx(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
@@ -850,6 +845,7 @@ static unsigned int imx_tx_empty(struct uart_port *port)
 	return ret;
 }
 
+/* called with port.lock taken and irqs off */
 static unsigned int imx_get_mctrl(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
@@ -860,6 +856,7 @@ static unsigned int imx_get_mctrl(struct uart_port *port)
 	return ret;
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
 	struct imx_port *sport = (struct imx_port *)port;
@@ -1364,6 +1361,7 @@ static void imx_shutdown(struct uart_port *port)
 	clk_disable_unprepare(sport->clk_ipg);
 }
 
+/* called with port.lock taken and irqs off */
 static void imx_flush_buffer(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
@@ -1689,6 +1687,7 @@ static void imx_poll_put_char(struct uart_port *port, unsigned char c)
 }
 #endif
 
+/* called with port.lock taken and irqs off or from .probe without locking */
 static int imx_rs485_config(struct uart_port *port,
 			    struct serial_rs485 *rs485conf)
 {
