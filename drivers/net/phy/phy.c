@@ -841,7 +841,7 @@ void phy_start(struct phy_device *phydev)
 		break;
 	case PHY_HALTED:
 		/* if phy was suspended, bring the physical link up again */
-		phy_resume(phydev);
+		__phy_resume(phydev);
 
 		/* make sure interrupts are re-enabled for the PHY */
 		if (phy_interrupt_is_valid(phydev)) {
