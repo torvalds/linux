@@ -344,27 +344,53 @@ static int do_setup_tx(int domain, int type, int protocol)
 	return fd;
 }
 
-static int do_process_zerocopy_cookies(struct sock_extended_err *serr,
-				       uint32_t *ckbuf, size_t nbytes)
+static uint32_t do_process_zerocopy_cookies(struct rds_zcopy_cookies *ck)
 {
-	int ncookies, i;
+	int i;
 
-	if (serr->ee_errno != 0)
-		error(1, 0, "serr: wrong error code: %u", serr->ee_errno);
-	ncookies = serr->ee_data;
-	if (ncookies > SO_EE_ORIGIN_MAX_ZCOOKIES)
+	if (ck->num > RDS_MAX_ZCOOKIES)
 		error(1, 0, "Returned %d cookies, max expected %d\n",
-		      ncookies, SO_EE_ORIGIN_MAX_ZCOOKIES);
-	if (nbytes != ncookies * sizeof(uint32_t))
-		error(1, 0, "Expected %d cookies, got %ld\n",
-		      ncookies, nbytes/sizeof(uint32_t));
-	for (i = 0; i < ncookies; i++)
+		      ck->num, RDS_MAX_ZCOOKIES);
+	for (i = 0; i < ck->num; i++)
 		if (cfg_verbose >= 2)
-			fprintf(stderr, "%d\n", ckbuf[i]);
-	return ncookies;
+			fprintf(stderr, "%d\n", ck->cookies[i]);
+	return ck->num;
 }
 
-static bool do_recv_completion(int fd)
+static bool do_recvmsg_completion(int fd)
+{
+	char cmsgbuf[CMSG_SPACE(sizeof(struct rds_zcopy_cookies))];
+	struct rds_zcopy_cookies *ck;
+	struct cmsghdr *cmsg;
+	struct msghdr msg;
+	bool ret = false;
+
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_control = cmsgbuf;
+	msg.msg_controllen = sizeof(cmsgbuf);
+
+	if (recvmsg(fd, &msg, MSG_DONTWAIT))
+		return ret;
+
+	if (msg.msg_flags & MSG_CTRUNC)
+		error(1, errno, "recvmsg notification: truncated");
+
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level == SOL_RDS &&
+		    cmsg->cmsg_type == RDS_CMSG_ZCOPY_COMPLETION) {
+
+			ck = (struct rds_zcopy_cookies *)CMSG_DATA(cmsg);
+			completions += do_process_zerocopy_cookies(ck);
+			ret = true;
+			break;
+		}
+		error(0, 0, "ignoring cmsg at level %d type %d\n",
+			    cmsg->cmsg_level, cmsg->cmsg_type);
+	}
+	return ret;
+}
+
+static bool do_recv_completion(int fd, int domain)
 {
 	struct sock_extended_err *serr;
 	struct msghdr msg = {};
@@ -372,16 +398,12 @@ static bool do_recv_completion(int fd)
 	uint32_t hi, lo, range;
 	int ret, zerocopy;
 	char control[100];
-	uint32_t ckbuf[SO_EE_ORIGIN_MAX_ZCOOKIES];
-	struct iovec iov;
+
+	if (domain == PF_RDS)
+		return do_recvmsg_completion(fd);
 
 	msg.msg_control = control;
 	msg.msg_controllen = sizeof(control);
-
-	iov.iov_base = ckbuf;
-	iov.iov_len = (SO_EE_ORIGIN_MAX_ZCOOKIES * sizeof(ckbuf[0]));
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
 
 	ret = recvmsg(fd, &msg, MSG_ERRQUEUE);
 	if (ret == -1 && errno == EAGAIN)
@@ -402,10 +424,6 @@ static bool do_recv_completion(int fd)
 
 	serr = (void *) CMSG_DATA(cm);
 
-	if (serr->ee_origin == SO_EE_ORIGIN_ZCOOKIE) {
-		completions += do_process_zerocopy_cookies(serr, ckbuf, ret);
-		return true;
-	}
 	if (serr->ee_origin != SO_EE_ORIGIN_ZEROCOPY)
 		error(1, 0, "serr: wrong origin: %u", serr->ee_origin);
 	if (serr->ee_errno != 0)
@@ -440,20 +458,20 @@ static bool do_recv_completion(int fd)
 }
 
 /* Read all outstanding messages on the errqueue */
-static void do_recv_completions(int fd)
+static void do_recv_completions(int fd, int domain)
 {
-	while (do_recv_completion(fd)) {}
+	while (do_recv_completion(fd, domain)) {}
 }
 
 /* Wait for all remaining completions on the errqueue */
-static void do_recv_remaining_completions(int fd)
+static void do_recv_remaining_completions(int fd, int domain)
 {
 	int64_t tstop = gettimeofday_ms() + cfg_waittime_ms;
 
 	while (completions < expected_completions &&
 	       gettimeofday_ms() < tstop) {
-		if (do_poll(fd, POLLERR))
-			do_recv_completions(fd);
+		if (do_poll(fd, domain == PF_RDS ? POLLIN : POLLERR))
+			do_recv_completions(fd, domain);
 	}
 
 	if (completions < expected_completions)
@@ -534,13 +552,13 @@ static void do_tx(int domain, int type, int protocol)
 
 		while (!do_poll(fd, POLLOUT)) {
 			if (cfg_zerocopy)
-				do_recv_completions(fd);
+				do_recv_completions(fd, domain);
 		}
 
 	} while (gettimeofday_ms() < tstop);
 
 	if (cfg_zerocopy)
-		do_recv_remaining_completions(fd);
+		do_recv_remaining_completions(fd, domain);
 
 	if (close(fd))
 		error(1, errno, "close");
@@ -631,40 +649,6 @@ static void do_flush_datagram(int fd, int type)
 	bytes += cfg_payload_len;
 }
 
-
-static void do_recvmsg(int fd)
-{
-	int ret, off = 0;
-	char *buf;
-	struct iovec iov;
-	struct msghdr msg;
-	struct sockaddr_storage din;
-
-	buf = calloc(cfg_payload_len, sizeof(char));
-	iov.iov_base = buf;
-	iov.iov_len = cfg_payload_len;
-
-	memset(&msg, 0, sizeof(msg));
-	msg.msg_name = &din;
-	msg.msg_namelen = sizeof(din);
-	msg.msg_iov = &iov;
-	msg.msg_iovlen = 1;
-
-	ret = recvmsg(fd, &msg, MSG_TRUNC);
-
-	if (ret == -1)
-		error(1, errno, "recv");
-	if (ret != cfg_payload_len)
-		error(1, 0, "recv: ret=%u != %u", ret, cfg_payload_len);
-
-	if (memcmp(buf + off, payload, ret))
-		error(1, 0, "recv: data mismatch");
-
-	free(buf);
-	packets++;
-	bytes += cfg_payload_len;
-}
-
 static void do_rx(int domain, int type, int protocol)
 {
 	uint64_t tstop;
@@ -676,8 +660,6 @@ static void do_rx(int domain, int type, int protocol)
 	do {
 		if (type == SOCK_STREAM)
 			do_flush_tcp(fd);
-		else if (domain == PF_RDS)
-			do_recvmsg(fd);
 		else
 			do_flush_datagram(fd, type);
 

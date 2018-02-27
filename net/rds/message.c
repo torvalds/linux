@@ -58,32 +58,26 @@ EXPORT_SYMBOL_GPL(rds_message_addref);
 
 static inline bool skb_zcookie_add(struct sk_buff *skb, u32 cookie)
 {
-	struct sock_exterr_skb *serr = SKB_EXT_ERR(skb);
-	int ncookies;
-	u32 *ptr;
+	struct rds_zcopy_cookies *ck = (struct rds_zcopy_cookies *)skb->cb;
+	int ncookies = ck->num;
 
-	if (serr->ee.ee_origin != SO_EE_ORIGIN_ZCOOKIE)
+	if (ncookies == RDS_MAX_ZCOOKIES)
 		return false;
-	ncookies = serr->ee.ee_data;
-	if (ncookies == SO_EE_ORIGIN_MAX_ZCOOKIES)
-		return false;
-	ptr = skb_put(skb, sizeof(u32));
-	*ptr = cookie;
-	serr->ee.ee_data = ++ncookies;
+	ck->cookies[ncookies] = cookie;
+	ck->num =  ++ncookies;
 	return true;
 }
 
 static void rds_rm_zerocopy_callback(struct rds_sock *rs,
 				     struct rds_znotifier *znotif)
 {
-	struct sock *sk = rds_rs_to_sk(rs);
 	struct sk_buff *skb, *tail;
-	struct sock_exterr_skb *serr;
 	unsigned long flags;
 	struct sk_buff_head *q;
 	u32 cookie = znotif->z_cookie;
+	struct rds_zcopy_cookies *ck;
 
-	q = &sk->sk_error_queue;
+	q = &rs->rs_zcookie_queue;
 	spin_lock_irqsave(&q->lock, flags);
 	tail = skb_peek_tail(q);
 
@@ -91,22 +85,19 @@ static void rds_rm_zerocopy_callback(struct rds_sock *rs,
 		spin_unlock_irqrestore(&q->lock, flags);
 		mm_unaccount_pinned_pages(&znotif->z_mmp);
 		consume_skb(rds_skb_from_znotifier(znotif));
-		sk->sk_error_report(sk);
+		/* caller invokes rds_wake_sk_sleep() */
 		return;
 	}
 
 	skb = rds_skb_from_znotifier(znotif);
-	serr = SKB_EXT_ERR(skb);
-	memset(&serr->ee, 0, sizeof(serr->ee));
-	serr->ee.ee_errno = 0;
-	serr->ee.ee_origin = SO_EE_ORIGIN_ZCOOKIE;
-	serr->ee.ee_info = 0;
+	ck = (struct rds_zcopy_cookies *)skb->cb;
+	memset(ck, 0, sizeof(*ck));
 	WARN_ON(!skb_zcookie_add(skb, cookie));
 
 	__skb_queue_tail(q, skb);
 
 	spin_unlock_irqrestore(&q->lock, flags);
-	sk->sk_error_report(sk);
+	/* caller invokes rds_wake_sk_sleep() */
 
 	mm_unaccount_pinned_pages(&znotif->z_mmp);
 }
@@ -129,6 +120,7 @@ static void rds_message_purge(struct rds_message *rm)
 		if (rm->data.op_mmp_znotifier) {
 			zcopy = true;
 			rds_rm_zerocopy_callback(rs, rm->data.op_mmp_znotifier);
+			rds_wake_sk_sleep(rs);
 			rm->data.op_mmp_znotifier = NULL;
 		}
 		sock_put(rds_rs_to_sk(rs));
@@ -362,10 +354,12 @@ int rds_message_copy_from_user(struct rds_message *rm, struct iov_iter *from,
 		int total_copied = 0;
 		struct sk_buff *skb;
 
-		skb = alloc_skb(SO_EE_ORIGIN_MAX_ZCOOKIES * sizeof(u32),
-				GFP_KERNEL);
+		skb = alloc_skb(0, GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
+		BUILD_BUG_ON(sizeof(skb->cb) <
+			     max_t(int, sizeof(struct rds_znotifier),
+				   sizeof(struct rds_zcopy_cookies)));
 		rm->data.op_mmp_znotifier = RDS_ZCOPY_SKB(skb);
 		if (mm_account_pinned_pages(&rm->data.op_mmp_znotifier->z_mmp,
 					    length)) {

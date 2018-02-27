@@ -577,6 +577,32 @@ out:
 	return ret;
 }
 
+static bool rds_recvmsg_zcookie(struct rds_sock *rs, struct msghdr *msg)
+{
+	struct sk_buff *skb;
+	struct sk_buff_head *q = &rs->rs_zcookie_queue;
+	struct rds_zcopy_cookies *done;
+
+	if (!msg->msg_control)
+		return false;
+
+	if (!sock_flag(rds_rs_to_sk(rs), SOCK_ZEROCOPY) ||
+	    msg->msg_controllen < CMSG_SPACE(sizeof(*done)))
+		return false;
+
+	skb = skb_dequeue(q);
+	if (!skb)
+		return false;
+	done = (struct rds_zcopy_cookies *)skb->cb;
+	if (put_cmsg(msg, SOL_RDS, RDS_CMSG_ZCOPY_COMPLETION, sizeof(*done),
+		     done)) {
+		skb_queue_head(q, skb);
+		return false;
+	}
+	consume_skb(skb);
+	return true;
+}
+
 int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		int msg_flags)
 {
@@ -611,7 +637,9 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 
 		if (!rds_next_incoming(rs, &inc)) {
 			if (nonblock) {
-				ret = -EAGAIN;
+				bool reaped = rds_recvmsg_zcookie(rs, msg);
+
+				ret = reaped ?  0 : -EAGAIN;
 				break;
 			}
 
@@ -660,6 +688,7 @@ int rds_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 			ret = -EFAULT;
 			goto out;
 		}
+		rds_recvmsg_zcookie(rs, msg);
 
 		rds_stats_inc(s_recv_delivered);
 
