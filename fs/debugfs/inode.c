@@ -40,7 +40,7 @@ static bool debugfs_registered;
 static int debugfs_setattr(struct dentry *dentry, struct iattr *ia)
 {
 	if ((ia->ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID)) &&
-	    kernel_is_locked_down("debugfs"))
+	    kernel_is_locked_down("changing perms in debugfs"))
 		return -EPERM;
 	return simple_setattr(dentry, ia);
 }

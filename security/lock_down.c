@@ -12,6 +12,7 @@
 #include <linux/export.h>
 #include <linux/sched.h>
 #include <linux/sysrq.h>
+#include <linux/efi.h>
 #include <asm/setup.h>
 
 #ifndef CONFIG_LOCK_DOWN_MANDATORY
@@ -54,6 +55,10 @@ void __init init_lockdown(void)
 {
 #ifdef CONFIG_LOCK_DOWN_MANDATORY
 	pr_notice("Kernel is locked down from config; see man kernel_lockdown.7\n");
+#endif
+#ifdef CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT
+	if (efi_enabled(EFI_SECURE_BOOT))
+		lock_kernel_down("EFI secure boot");
 #endif
 }
 
