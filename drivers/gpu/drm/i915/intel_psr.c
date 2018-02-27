@@ -523,9 +523,9 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		return;
 	}
 
-	/* PSR2 is restricted to work with panel resolutions upto 3200x2000 */
-	if (adjusted_mode->crtc_hdisplay > 3200 ||
-	    adjusted_mode->crtc_vdisplay > 2000) {
+	/* PSR2 is restricted to work with panel resolutions up to 3640x2304 */
+	if (adjusted_mode->crtc_hdisplay > 3640 ||
+	    adjusted_mode->crtc_vdisplay > 2304) {
 		DRM_DEBUG_KMS("PSR2 disabled, panel resolution too big\n");
 		return;
 	}
