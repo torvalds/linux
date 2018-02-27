@@ -276,13 +276,13 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 	/* This should only be done once */
 	WARN_ON(intel_dp->source_rates || intel_dp->num_source_rates);
 
-	if (IS_GEN9_LP(dev_priv)) {
-		source_rates = bxt_rates;
-		size = ARRAY_SIZE(bxt_rates);
-	} else if (IS_CANNONLAKE(dev_priv)) {
+	if (IS_CANNONLAKE(dev_priv)) {
 		source_rates = cnl_rates;
 		size = ARRAY_SIZE(cnl_rates);
 		max_rate = cnl_max_source_rate(intel_dp);
+	} else if (IS_GEN9_LP(dev_priv)) {
+		source_rates = bxt_rates;
+		size = ARRAY_SIZE(bxt_rates);
 	} else if (IS_GEN9_BC(dev_priv)) {
 		source_rates = skl_rates;
 		size = ARRAY_SIZE(skl_rates);
