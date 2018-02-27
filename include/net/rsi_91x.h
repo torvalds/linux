@@ -49,6 +49,8 @@ struct rsi_proto_ops {
 struct rsi_mod_ops {
 	int (*attach)(void *priv, struct rsi_proto_ops *ops);
 	void (*detach)(void *priv);
-	int (*recv_pkt)(void *priv, u8 *msg);
+	int (*recv_pkt)(void *priv, const u8 *msg);
 };
+
+extern const struct rsi_mod_ops rsi_bt_ops;
 #endif
