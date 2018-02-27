@@ -35,96 +35,27 @@
  * Register manipulation
  */
 
+#define ADV748X_REGMAP_CONF(n) \
+{ \
+	.name = n, \
+	.reg_bits = 8, \
+	.val_bits = 8, \
+	.max_register = 0xff, \
+	.cache_type = REGCACHE_NONE, \
+}
+
 static const struct regmap_config adv748x_regmap_cnf[] = {
-	{
-		.name			= "io",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-	{
-		.name			= "dpll",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-	{
-		.name			= "cp",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-	{
-		.name			= "hdmi",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-	{
-		.name			= "edid",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-	{
-		.name			= "repeater",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-	{
-		.name			= "infoframe",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-	{
-		.name			= "cec",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-	{
-		.name			= "sdp",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-
-	{
-		.name			= "txb",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
-	{
-		.name			= "txa",
-		.reg_bits		= 8,
-		.val_bits		= 8,
-
-		.max_register		= 0xff,
-		.cache_type		= REGCACHE_NONE,
-	},
+	ADV748X_REGMAP_CONF("io"),
+	ADV748X_REGMAP_CONF("dpll"),
+	ADV748X_REGMAP_CONF("cp"),
+	ADV748X_REGMAP_CONF("hdmi"),
+	ADV748X_REGMAP_CONF("edid"),
+	ADV748X_REGMAP_CONF("repeater"),
+	ADV748X_REGMAP_CONF("infoframe"),
+	ADV748X_REGMAP_CONF("cec"),
+	ADV748X_REGMAP_CONF("sdp"),
+	ADV748X_REGMAP_CONF("txa"),
+	ADV748X_REGMAP_CONF("txb"),
 };
 
 static int adv748x_configure_regmap(struct adv748x_state *state, int region)
