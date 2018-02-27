@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -2484,19 +2485,19 @@ ath10k_wmi_tlv_op_gen_request_stats(struct ath10k *ar, u32 stats_mask)
 }
 
 static struct sk_buff *
-ath10k_wmi_tlv_op_gen_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
+ath10k_wmi_tlv_op_gen_mgmt_tx_send(struct ath10k *ar, struct sk_buff *msdu,
+				   dma_addr_t paddr)
 {
 	struct ath10k_skb_cb *cb = ATH10K_SKB_CB(msdu);
 	struct wmi_tlv_mgmt_tx_cmd *cmd;
-	struct wmi_tlv *tlv;
 	struct ieee80211_hdr *hdr;
+	struct ath10k_vif *arvif;
+	u32 buf_len = msdu->len;
+	struct wmi_tlv *tlv;
 	struct sk_buff *skb;
+	u32 vdev_id;
 	void *ptr;
 	int len;
-	u32 buf_len = msdu->len;
-	struct ath10k_vif *arvif;
-	dma_addr_t mgmt_frame_dma;
-	u32 vdev_id;
 
 	if (!cb->vif)
 		return ERR_PTR(-EINVAL);
@@ -2537,12 +2538,7 @@ ath10k_wmi_tlv_op_gen_mgmt_tx(struct ath10k *ar, struct sk_buff *msdu)
 	cmd->chanfreq = 0;
 	cmd->buf_len = __cpu_to_le32(buf_len);
 	cmd->frame_len = __cpu_to_le32(msdu->len);
-	mgmt_frame_dma = dma_map_single(arvif->ar->dev, msdu->data,
-					msdu->len, DMA_TO_DEVICE);
-	if (!mgmt_frame_dma)
-		return ERR_PTR(-ENOMEM);
-
-	cmd->paddr = __cpu_to_le64(mgmt_frame_dma);
+	cmd->paddr = __cpu_to_le64(paddr);
 
 	ptr += sizeof(*tlv);
 	ptr += sizeof(*cmd);
@@ -3701,7 +3697,7 @@ static const struct wmi_ops wmi_tlv_ops = {
 	.gen_request_stats = ath10k_wmi_tlv_op_gen_request_stats,
 	.gen_force_fw_hang = ath10k_wmi_tlv_op_gen_force_fw_hang,
 	/* .gen_mgmt_tx = not implemented; HTT is used */
-	.gen_mgmt_tx =  ath10k_wmi_tlv_op_gen_mgmt_tx,
+	.gen_mgmt_tx_send = ath10k_wmi_tlv_op_gen_mgmt_tx_send,
 	.gen_dbglog_cfg = ath10k_wmi_tlv_op_gen_dbglog_cfg,
 	.gen_pktlog_enable = ath10k_wmi_tlv_op_gen_pktlog_enable,
 	.gen_pktlog_disable = ath10k_wmi_tlv_op_gen_pktlog_disable,
