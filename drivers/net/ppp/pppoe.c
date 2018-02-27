@@ -1161,6 +1161,7 @@ static struct pernet_operations pppoe_net_ops = {
 	.exit = pppoe_exit_net,
 	.id   = &pppoe_net_id,
 	.size = sizeof(struct pppoe_net),
+	.async = true,
 };
 
 static int __init pppoe_init(void)

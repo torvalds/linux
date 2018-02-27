@@ -323,6 +323,7 @@ static struct pernet_operations nat_net_ops = {
 	.exit_batch = nat_exit_net,
 	.id   = &nat_net_id,
 	.size = sizeof(struct tc_action_net),
+	.async = true,
 };
 
 MODULE_DESCRIPTION("Stateless NAT actions");

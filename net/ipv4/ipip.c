@@ -669,6 +669,7 @@ static struct pernet_operations ipip_net_ops = {
 	.exit_batch = ipip_exit_batch_net,
 	.id   = &ipip_net_id,
 	.size = sizeof(struct ip_tunnel_net),
+	.async = true,
 };
 
 static int __init ipip_init(void)

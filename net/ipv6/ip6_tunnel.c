@@ -2250,6 +2250,7 @@ static struct pernet_operations ip6_tnl_net_ops = {
 	.exit_batch = ip6_tnl_exit_batch_net,
 	.id   = &ip6_tnl_net_id,
 	.size = sizeof(struct ip6_tnl_net),
+	.async = true,
 };
 
 /**

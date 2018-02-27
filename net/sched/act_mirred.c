@@ -353,6 +353,7 @@ static struct pernet_operations mirred_net_ops = {
 	.exit_batch = mirred_exit_net,
 	.id   = &mirred_net_id,
 	.size = sizeof(struct tc_action_net),
+	.async = true,
 };
 
 MODULE_AUTHOR("Jamal Hadi Salim(2002)");

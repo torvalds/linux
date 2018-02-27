@@ -433,6 +433,7 @@ static void kcm_proc_exit_net(struct net *net)
 static struct pernet_operations kcm_net_ops = {
 	.init = kcm_proc_init_net,
 	.exit = kcm_proc_exit_net,
+	.async = true,
 };
 
 int __init kcm_proc_init(void)

@@ -840,6 +840,7 @@ static struct pernet_operations clusterip_net_ops = {
 	.exit = clusterip_net_exit,
 	.id   = &clusterip_net_id,
 	.size = sizeof(struct clusterip_net),
+	.async = true,
 };
 
 static int __init clusterip_tg_init(void)
