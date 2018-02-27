@@ -1584,31 +1584,36 @@ static int phylink_sfp_module_insert(void *upstream,
 	bool changed;
 	u8 port;
 
-	sfp_parse_support(pl->sfp_bus, id, support);
-	port = sfp_parse_port(pl->sfp_bus, id, support);
-	iface = sfp_parse_interface(pl->sfp_bus, id);
-
 	ASSERT_RTNL();
 
-	switch (iface) {
-	case PHY_INTERFACE_MODE_SGMII:
-	case PHY_INTERFACE_MODE_1000BASEX:
-	case PHY_INTERFACE_MODE_2500BASEX:
-	case PHY_INTERFACE_MODE_10GKR:
-		break;
-	default:
-		return -EINVAL;
-	}
+	sfp_parse_support(pl->sfp_bus, id, support);
+	port = sfp_parse_port(pl->sfp_bus, id, support);
 
 	memset(&config, 0, sizeof(config));
 	linkmode_copy(config.advertising, support);
-	config.interface = iface;
+	config.interface = PHY_INTERFACE_MODE_NA;
 	config.speed = SPEED_UNKNOWN;
 	config.duplex = DUPLEX_UNKNOWN;
 	config.pause = MLO_PAUSE_AN;
 	config.an_enabled = pl->link_config.an_enabled;
 
 	/* Ignore errors if we're expecting a PHY to attach later */
+	ret = phylink_validate(pl, support, &config);
+	if (ret) {
+		netdev_err(pl->netdev, "validation with support %*pb failed: %d\n",
+			   __ETHTOOL_LINK_MODE_MASK_NBITS, support, ret);
+		return ret;
+	}
+
+	iface = sfp_select_interface(pl->sfp_bus, id, config.advertising);
+	if (iface == PHY_INTERFACE_MODE_NA) {
+		netdev_err(pl->netdev,
+			   "selection of interface failed, advertisment %*pb\n",
+			   __ETHTOOL_LINK_MODE_MASK_NBITS, config.advertising);
+		return -EINVAL;
+	}
+
+	config.interface = iface;
 	ret = phylink_validate(pl, support, &config);
 	if (ret) {
 		netdev_err(pl->netdev, "validation of %s/%s with support %*pb failed: %d\n",
