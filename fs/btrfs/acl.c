@@ -46,12 +46,12 @@ struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		BUG();
 	}
 
-	size = __btrfs_getxattr(inode, name, "", 0);
+	size = btrfs_getxattr(inode, name, "", 0);
 	if (size > 0) {
 		value = kzalloc(size, GFP_KERNEL);
 		if (!value)
 			return ERR_PTR(-ENOMEM);
-		size = __btrfs_getxattr(inode, name, value, size);
+		size = btrfs_getxattr(inode, name, value, size);
 	}
 	if (size > 0) {
 		acl = posix_acl_from_xattr(&init_user_ns, value, size);
@@ -101,7 +101,7 @@ static int __btrfs_set_acl(struct btrfs_trans_handle *trans,
 			goto out;
 	}
 
-	ret = __btrfs_setxattr(trans, inode, name, value, size, 0);
+	ret = btrfs_setxattr(trans, inode, name, value, size, 0);
 out:
 	kfree(value);
 
