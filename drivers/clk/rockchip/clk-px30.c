@@ -164,10 +164,6 @@ PNAME(mux_uart5_p)		= { "clk_uart5_src", "dummy", "clk_uart5_frac" };
 PNAME(mux_cif_out_p)		= { "xin24m", "cpll", "npll", "usb480m" };
 PNAME(mux_dclk_vopb_p)		= { "dclk_vopb_src", "dclk_vopb_frac", "xin24m" };
 PNAME(mux_dclk_vopl_p)		= { "dclk_vopl_src", "dclk_vopl_frac", "xin24m" };
-PNAME(mux_nandc_p)		= { "clk_nandc_div", "clk_nandc_div50" };
-PNAME(mux_sdio_p)		= { "clk_sdio_div", "clk_sdio_div50" };
-PNAME(mux_emmc_p)		= { "clk_emmc_div", "clk_emmc_div50" };
-PNAME(mux_sdmmc_p)		= { "clk_sdmmc_div", "clk_sdmmc_div50" };
 PNAME(mux_gmac_p)		= { "clk_gmac_src", "gmac_clkin" };
 PNAME(mux_gmac_rmii_sel_p)	= { "clk_gmac_rx_tx_div20", "clk_gmac_rx_tx_div2" };
 PNAME(mux_rtc32k_pmu_p)		= { "xin32k", "pmu_pvtm_32k", "clk_rtc32k_frac", };
@@ -460,40 +456,16 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	/* PD_MMC_NAND */
 	GATE(HCLK_MMC_NAND, "hclk_mmc_nand", "hclk_peri_pre", 0,
 			PX30_CLKGATE_CON(6), 0, GFLAGS),
-	MUX(0, "clk_nandc_src", mux_gpll_cpll_npll_p,  0,
-			PX30_CLKSEL_CON(15), 6, 2, MFLAGS),
-	COMPOSITE_NOMUX(SCLK_NANDC_DIV, "clk_nandc_div", "clk_nandc_src", CLK_SET_RATE_PARENT,
-			PX30_CLKSEL_CON(15), 0, 5, DFLAGS,
-			PX30_CLKGATE_CON(5), 11, GFLAGS),
-	COMPOSITE_NOMUX(SCLK_NANDC_DIV50, "clk_nandc_div50", "clk_nandc_src", CLK_SET_RATE_PARENT,
-			PX30_CLKSEL_CON(15), 8, 5, DFLAGS,
-			PX30_CLKGATE_CON(5), 12, GFLAGS),
-	COMPOSITE_NODIV(SCLK_NANDC, "clk_nandc", mux_nandc_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
-			PX30_CLKSEL_CON(15), 15, 1, MFLAGS,
+	COMPOSITE(SCLK_NANDC, "clk_nandc", mux_gpll_cpll_npll_p, 0,
+			PX30_CLKSEL_CON(15), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			PX30_CLKGATE_CON(5), 13, GFLAGS),
 
-	MUX(0, "clk_sdio_src", mux_gpll_cpll_npll_xin24m_p,  0,
-			PX30_CLKSEL_CON(18), 14, 2, MFLAGS),
-	COMPOSITE_NOMUX(SCLK_SDIO_DIV, "clk_sdio_div", "clk_sdio_src", CLK_SET_RATE_PARENT,
-			PX30_CLKSEL_CON(18), 0, 5, DFLAGS,
-			PX30_CLKGATE_CON(6), 1, GFLAGS),
-	COMPOSITE_NOMUX(SCLK_SDIO_DIV50, "clk_sdio_div50", "clk_sdio_src", CLK_SET_RATE_PARENT,
-			PX30_CLKSEL_CON(19), 0, 8, DFLAGS,
-			PX30_CLKGATE_CON(6), 2, GFLAGS),
-	COMPOSITE_NODIV(SCLK_SDIO, "clk_sdio", mux_sdio_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
-			PX30_CLKSEL_CON(19), 15, 1, MFLAGS,
+	COMPOSITE(SCLK_SDIO, "clk_sdio", mux_gpll_cpll_npll_xin24m_p, 0,
+			PX30_CLKSEL_CON(18), 14, 2, MFLAGS, 0, 8, DFLAGS,
 			PX30_CLKGATE_CON(6), 3, GFLAGS),
 
-	MUX(0, "clk_emmc_src", mux_gpll_cpll_npll_xin24m_p,  0,
-			PX30_CLKSEL_CON(20), 14, 2, MFLAGS),
-	COMPOSITE_NOMUX(SCLK_EMMC_DIV, "clk_emmc_div", "clk_emmc_src", CLK_SET_RATE_PARENT,
-			PX30_CLKSEL_CON(20), 0, 8, DFLAGS,
-			PX30_CLKGATE_CON(6), 4, GFLAGS),
-	COMPOSITE_NOMUX(SCLK_EMMC_DIV50, "clk_emmc_div50", "clk_emmc_src", CLK_SET_RATE_PARENT,
-			PX30_CLKSEL_CON(21), 0, 8, DFLAGS,
-			PX30_CLKGATE_CON(6), 5, GFLAGS),
-	COMPOSITE_NODIV(SCLK_EMMC, "clk_emmc", mux_emmc_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
-			PX30_CLKSEL_CON(21), 15, 1, MFLAGS,
+	COMPOSITE(SCLK_EMMC, "clk_emmc", mux_gpll_cpll_npll_xin24m_p, 0,
+			PX30_CLKSEL_CON(20), 14, 2, MFLAGS, 0, 8, DFLAGS,
 			PX30_CLKGATE_CON(6), 6, GFLAGS),
 
 	COMPOSITE(SCLK_SFC, "clk_sfc", mux_gpll_cpll_p, 0,
@@ -518,16 +490,8 @@ static struct rockchip_clk_branch px30_clk_branches[] __initdata = {
 	/* PD_SDCARD */
 	GATE(0, "hclk_sdmmc_pre", "hclk_peri_pre", 0,
 			PX30_CLKGATE_CON(6), 12, GFLAGS),
-	MUX(0, "clk_sdmmc_src", mux_gpll_cpll_npll_xin24m_p,  0,
-			PX30_CLKSEL_CON(16), 14, 2, MFLAGS),
-	COMPOSITE_NOMUX(0, "clk_sdmmc_div", "clk_sdmmc_src", 0,
-			PX30_CLKSEL_CON(16), 0, 8, DFLAGS,
-			PX30_CLKGATE_CON(6), 13, GFLAGS),
-	COMPOSITE_NOMUX(0, "clk_sdmmc_div50", "clk_sdmmc_src", 0,
-			PX30_CLKSEL_CON(17), 0, 8, DFLAGS,
-			PX30_CLKGATE_CON(6), 14, GFLAGS),
-	COMPOSITE_NODIV(SCLK_SDMMC, "clk_sdmmc", mux_sdmmc_p, CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
-			PX30_CLKSEL_CON(17), 15, 1, MFLAGS,
+	COMPOSITE(SCLK_SDMMC, "clk_sdmmc", mux_gpll_cpll_npll_xin24m_p, 0,
+			PX30_CLKSEL_CON(16), 14, 2, MFLAGS, 0, 8, DFLAGS,
 			PX30_CLKGATE_CON(6), 15, GFLAGS),
 
 	/* PD_USB */
