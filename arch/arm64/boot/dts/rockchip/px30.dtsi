@@ -809,14 +809,8 @@
 		#clock-cells = <1>;
 		#reset-cells = <1>;
 
-		assigned-clocks =
-			<&cru APLL_BOOST_H>, <&cru APLL_BOOST_L>,
-			<&cru PLL_NPLL>, <&cru PLL_CPLL>,
-			<&cru ARMCLK>;
-		assigned-clock-rates =
-			<1608000000>, <1416000000>,
-			<1188000000>, <1188000000>,
-			<816000000>;
+		assigned-clocks = <&cru PLL_NPLL>, <&cru ARMCLK>;
+		assigned-clock-rates = <1188000000>, <816000000>;
 	};
 
 	pmucru: pmu-clock-controller@ff2bc000 {
