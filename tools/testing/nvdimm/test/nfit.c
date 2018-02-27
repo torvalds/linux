@@ -104,7 +104,8 @@ enum {
 	NUM_HINTS = 8,
 	NUM_BDW = NUM_DCR,
 	NUM_SPA = NUM_PM + NUM_DCR + NUM_BDW,
-	NUM_MEM = NUM_DCR + NUM_BDW + 2 /* spa0 iset */ + 4 /* spa1 iset */,
+	NUM_MEM = NUM_DCR + NUM_BDW + 2 /* spa0 iset */
+		+ 4 /* spa1 iset */ + 1 /* spa11 iset */,
 	DIMM_SIZE = SZ_32M,
 	LABEL_SIZE = SZ_128K,
 	SPA_VCD_SIZE = SZ_4M,
@@ -2047,6 +2048,9 @@ static void nfit_test0_setup(struct nfit_test *t)
 			flush->hint_address[i] = t->flush_dma[4]
 				+ i * sizeof(u64);
 		offset += flush->header.length;
+
+		/* sanity check to make sure we've filled the buffer */
+		WARN_ON(offset != t->nfit_size);
 	}
 
 	post_ars_status(&t->ars_state, &t->badrange, t->spa_set_dma[0],
@@ -2164,6 +2168,9 @@ static void nfit_test1_setup(struct nfit_test *t)
 	dcr->code = NFIT_FIC_BYTE;
 	dcr->windows = 0;
 	offset += dcr->header.length;
+
+	/* sanity check to make sure we've filled the buffer */
+	WARN_ON(offset != t->nfit_size);
 
 	post_ars_status(&t->ars_state, &t->badrange, t->spa_set_dma[0],
 			SPA2_SIZE);
