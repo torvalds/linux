@@ -446,6 +446,41 @@ static void hsw_psr_activate(struct intel_dp *intel_dp)
 		hsw_activate_psr1(intel_dp);
 }
 
+static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
+				    struct intel_crtc_state *crtc_state)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->base.adjusted_mode;
+
+	/*
+	 * FIXME psr2_support is messed up. It's both computed
+	 * dynamically during PSR enable, and extracted from sink
+	 * caps during eDP detection.
+	 */
+	if (!dev_priv->psr.psr2_support)
+		return false;
+
+	/* PSR2 is restricted to work with panel resolutions up to 3640x2304 */
+	if (adjusted_mode->crtc_hdisplay > 3640 ||
+	    adjusted_mode->crtc_vdisplay > 2304) {
+		DRM_DEBUG_KMS("PSR2 not enabled, panel resolution too big\n");
+		return false;
+	}
+
+	/*
+	 * FIXME:enable psr2 only for y-cordinate psr2 panels
+	 * After gtc implementation , remove this restriction.
+	 */
+	if (!dev_priv->psr.y_cord_support) {
+		DRM_DEBUG_KMS("PSR2 not enabled, panel does not support Y coordinate\n");
+		return false;
+	}
+
+	return true;
+}
+
 void intel_psr_compute_config(struct intel_dp *intel_dp,
 			      struct intel_crtc_state *crtc_state)
 {
@@ -513,34 +548,9 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 		return;
 	}
 
-	/*
-	 * FIXME psr2_support is messed up. It's both computed
-	 * dynamically during PSR enable, and extracted from sink
-	 * caps during eDP detection.
-	 */
-	if (!dev_priv->psr.psr2_support) {
-		crtc_state->has_psr = true;
-		return;
-	}
-
-	/* PSR2 is restricted to work with panel resolutions up to 3640x2304 */
-	if (adjusted_mode->crtc_hdisplay > 3640 ||
-	    adjusted_mode->crtc_vdisplay > 2304) {
-		DRM_DEBUG_KMS("PSR2 disabled, panel resolution too big\n");
-		return;
-	}
-
-	/*
-	 * FIXME:enable psr2 only for y-cordinate psr2 panels
-	 * After gtc implementation , remove this restriction.
-	 */
-	if (!dev_priv->psr.y_cord_support) {
-		DRM_DEBUG_KMS("PSR2 disabled, panel does not support Y coordinate\n");
-		return;
-	}
-
 	crtc_state->has_psr = true;
-	crtc_state->has_psr2 = true;
+	crtc_state->has_psr2 = intel_psr2_config_valid(intel_dp, crtc_state);
+	DRM_DEBUG_KMS("Enabling PSR%s\n", crtc_state->has_psr2 ? "2" : "");
 }
 
 static void intel_psr_activate(struct intel_dp *intel_dp)
