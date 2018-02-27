@@ -662,11 +662,8 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	int polled = 0;
 	int index;
 
-	if (unlikely(!priv->port_up))
+	if (unlikely(!priv->port_up || budget <= 0))
 		return 0;
-
-	if (unlikely(budget <= 0))
-		return polled;
 
 	ring = priv->rx_ring[cq_ring];
 
