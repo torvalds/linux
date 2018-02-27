@@ -1784,7 +1784,7 @@ enum qed_iwarp_mpa_pkt_type {
 /* fpdu can be fragmented over maximum 3 bds: header, partial mpa, unaligned */
 #define QED_IWARP_MAX_BDS_PER_FPDU 3
 
-char *pkt_type_str[] = {
+static const char * const pkt_type_str[] = {
 	"QED_IWARP_MPA_PKT_PACKED",
 	"QED_IWARP_MPA_PKT_PARTIAL",
 	"QED_IWARP_MPA_PKT_UNALIGNED"
