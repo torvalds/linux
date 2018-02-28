@@ -2378,7 +2378,7 @@ EXPORT_SYMBOL(netdev_set_num_tc);
 
 /*
  * Routine to help set real_num_tx_queues. To avoid skbs mapped to queues
- * greater then real_num_tx_queues stale skbs on the qdisc must be flushed.
+ * greater than real_num_tx_queues stale skbs on the qdisc must be flushed.
  */
 int netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
 {
