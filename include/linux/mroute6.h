@@ -111,12 +111,12 @@ extern int ip6mr_get_route(struct net *net, struct sk_buff *skb,
 			   struct rtmsg *rtm, u32 portid);
 
 #ifdef CONFIG_IPV6_MROUTE
-extern struct sock *mroute6_socket(struct net *net, struct sk_buff *skb);
+bool mroute6_is_socket(struct net *net, struct sk_buff *skb);
 extern int ip6mr_sk_done(struct sock *sk);
 #else
-static inline struct sock *mroute6_socket(struct net *net, struct sk_buff *skb)
+static inline bool mroute6_is_socket(struct net *net, struct sk_buff *skb)
 {
-	return NULL;
+	return false;
 }
 static inline int ip6mr_sk_done(struct sock *sk)
 {
