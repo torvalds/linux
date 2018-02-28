@@ -1766,12 +1766,12 @@ static void ixgbevf_set_rx_buffer_len(struct ixgbevf_adapter *adapter,
 
 	set_ring_build_skb_enabled(rx_ring);
 
-#if (PAGE_SIZE < 8192)
-	if (max_frame <= IXGBEVF_MAX_FRAME_BUILD_SKB)
-		return;
+	if (PAGE_SIZE < 8192) {
+		if (max_frame <= IXGBEVF_MAX_FRAME_BUILD_SKB)
+			return;
 
-	set_ring_uses_large_buffer(rx_ring);
-#endif
+		set_ring_uses_large_buffer(rx_ring);
+	}
 }
 
 /**
