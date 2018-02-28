@@ -109,25 +109,33 @@ void ipvlan_ht_addr_del(struct ipvl_addr *addr)
 struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
 				   const void *iaddr, bool is_v6)
 {
-	struct ipvl_addr *addr;
+	struct ipvl_addr *addr, *ret = NULL;
 
-	list_for_each_entry(addr, &ipvlan->addrs, anode)
-		if (addr_equal(is_v6, addr, iaddr))
-			return addr;
-	return NULL;
+	rcu_read_lock();
+	list_for_each_entry_rcu(addr, &ipvlan->addrs, anode) {
+		if (addr_equal(is_v6, addr, iaddr)) {
+			ret = addr;
+			break;
+		}
+	}
+	rcu_read_unlock();
+	return ret;
 }
 
 bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6)
 {
 	struct ipvl_dev *ipvlan;
+	bool ret = false;
 
-	ASSERT_RTNL();
-
-	list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
-		if (ipvlan_find_addr(ipvlan, iaddr, is_v6))
-			return true;
+	rcu_read_lock();
+	list_for_each_entry_rcu(ipvlan, &port->ipvlans, pnode) {
+		if (ipvlan_find_addr(ipvlan, iaddr, is_v6)) {
+			ret = true;
+			break;
+		}
 	}
-	return false;
+	rcu_read_unlock();
+	return ret;
 }
 
 static void *ipvlan_get_L3_hdr(struct ipvl_port *port, struct sk_buff *skb, int *type)
