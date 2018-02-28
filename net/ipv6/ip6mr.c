@@ -61,8 +61,9 @@ struct mr6_table {
 	struct sock __rcu	*mroute6_sk;
 	struct timer_list	ipmr_expire_timer;
 	struct list_head	mfc6_unres_queue;
-	struct list_head	mfc6_cache_array[MFC6_LINES];
 	struct vif_device	vif6_table[MAXMIFS];
+	struct rhltable		mfc6_hash;
+	struct list_head	mfc6_cache_list;
 	int			maxvif;
 	atomic_t		cache_resolve_queue_len;
 	bool			mroute_do_assert;
@@ -299,10 +300,29 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 }
 #endif
 
+static int ip6mr_hash_cmp(struct rhashtable_compare_arg *arg,
+			  const void *ptr)
+{
+	const struct mfc6_cache_cmp_arg *cmparg = arg->key;
+	struct mfc6_cache *c = (struct mfc6_cache *)ptr;
+
+	return !ipv6_addr_equal(&c->mf6c_mcastgrp, &cmparg->mf6c_mcastgrp) ||
+	       !ipv6_addr_equal(&c->mf6c_origin, &cmparg->mf6c_origin);
+}
+
+static const struct rhashtable_params ip6mr_rht_params = {
+	.head_offset = offsetof(struct mfc6_cache, mnode),
+	.key_offset = offsetof(struct mfc6_cache, cmparg),
+	.key_len = sizeof(struct mfc6_cache_cmp_arg),
+	.nelem_hint = 3,
+	.locks_mul = 1,
+	.obj_cmpfn = ip6mr_hash_cmp,
+	.automatic_shrinking = true,
+};
+
 static struct mr6_table *ip6mr_new_table(struct net *net, u32 id)
 {
 	struct mr6_table *mrt;
-	unsigned int i;
 
 	mrt = ip6mr_get_table(net, id);
 	if (mrt)
@@ -314,10 +334,8 @@ static struct mr6_table *ip6mr_new_table(struct net *net, u32 id)
 	mrt->id = id;
 	write_pnet(&mrt->net, net);
 
-	/* Forwarding cache */
-	for (i = 0; i < MFC6_LINES; i++)
-		INIT_LIST_HEAD(&mrt->mfc6_cache_array[i]);
-
+	rhltable_init(&mrt->mfc6_hash, &ip6mr_rht_params);
+	INIT_LIST_HEAD(&mrt->mfc6_cache_list);
 	INIT_LIST_HEAD(&mrt->mfc6_unres_queue);
 
 	timer_setup(&mrt->ipmr_expire_timer, ipmr_expire_process, 0);
@@ -335,6 +353,7 @@ static void ip6mr_free_table(struct mr6_table *mrt)
 {
 	del_timer_sync(&mrt->ipmr_expire_timer);
 	mroute_clean_tables(mrt, true);
+	rhltable_destroy(&mrt->mfc6_hash);
 	kfree(mrt);
 }
 
@@ -344,7 +363,6 @@ struct ipmr_mfc_iter {
 	struct seq_net_private p;
 	struct mr6_table *mrt;
 	struct list_head *cache;
-	int ct;
 };
 
 
@@ -354,14 +372,12 @@ static struct mfc6_cache *ipmr_mfc_seq_idx(struct net *net,
 	struct mr6_table *mrt = it->mrt;
 	struct mfc6_cache *mfc;
 
-	read_lock(&mrt_lock);
-	for (it->ct = 0; it->ct < MFC6_LINES; it->ct++) {
-		it->cache = &mrt->mfc6_cache_array[it->ct];
-		list_for_each_entry(mfc, it->cache, list)
-			if (pos-- == 0)
-				return mfc;
-	}
-	read_unlock(&mrt_lock);
+	rcu_read_lock();
+	it->cache = &mrt->mfc6_cache_list;
+	list_for_each_entry_rcu(mfc, &mrt->mfc6_cache_list, list)
+		if (pos-- == 0)
+			return mfc;
+	rcu_read_unlock();
 
 	spin_lock_bh(&mfc_unres_lock);
 	it->cache = &mrt->mfc6_unres_queue;
@@ -517,19 +533,9 @@ static void *ipmr_mfc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	if (it->cache == &mrt->mfc6_unres_queue)
 		goto end_of_list;
 
-	BUG_ON(it->cache != &mrt->mfc6_cache_array[it->ct]);
-
-	while (++it->ct < MFC6_LINES) {
-		it->cache = &mrt->mfc6_cache_array[it->ct];
-		if (list_empty(it->cache))
-			continue;
-		return list_first_entry(it->cache, struct mfc6_cache, list);
-	}
-
 	/* exhausted cache_array, show unresolved */
-	read_unlock(&mrt_lock);
+	rcu_read_unlock();
 	it->cache = &mrt->mfc6_unres_queue;
-	it->ct = 0;
 
 	spin_lock_bh(&mfc_unres_lock);
 	if (!list_empty(it->cache))
@@ -549,8 +555,8 @@ static void ipmr_mfc_seq_stop(struct seq_file *seq, void *v)
 
 	if (it->cache == &mrt->mfc6_unres_queue)
 		spin_unlock_bh(&mfc_unres_lock);
-	else if (it->cache == &mrt->mfc6_cache_array[it->ct])
-		read_unlock(&mrt_lock);
+	else if (it->cache == &mrt->mfc6_cache_list)
+		rcu_read_unlock();
 }
 
 static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
@@ -827,9 +833,16 @@ static int mif6_delete(struct mr6_table *mrt, int vifi, int notify,
 	return 0;
 }
 
+static inline void ip6mr_cache_free_rcu(struct rcu_head *head)
+{
+	struct mfc6_cache *c = container_of(head, struct mfc6_cache, rcu);
+
+	kmem_cache_free(mrt_cachep, c);
+}
+
 static inline void ip6mr_cache_free(struct mfc6_cache *c)
 {
-	kmem_cache_free(mrt_cachep, c);
+	call_rcu(&c->rcu, ip6mr_cache_free_rcu);
 }
 
 /* Destroy an unresolved cache entry, killing queued skbs
@@ -1002,14 +1015,17 @@ static struct mfc6_cache *ip6mr_cache_find(struct mr6_table *mrt,
 					   const struct in6_addr *origin,
 					   const struct in6_addr *mcastgrp)
 {
-	int line = MFC6_HASH(mcastgrp, origin);
+	struct mfc6_cache_cmp_arg arg = {
+		.mf6c_origin = *origin,
+		.mf6c_mcastgrp = *mcastgrp,
+	};
+	struct rhlist_head *tmp, *list;
 	struct mfc6_cache *c;
 
-	list_for_each_entry(c, &mrt->mfc6_cache_array[line], list) {
-		if (ipv6_addr_equal(&c->mf6c_origin, origin) &&
-		    ipv6_addr_equal(&c->mf6c_mcastgrp, mcastgrp))
-			return c;
-	}
+	list = rhltable_lookup(&mrt->mfc6_hash, &arg, ip6mr_rht_params);
+	rhl_for_each_entry_rcu(c, tmp, list, mnode)
+		return c;
+
 	return NULL;
 }
 
@@ -1017,13 +1033,16 @@ static struct mfc6_cache *ip6mr_cache_find(struct mr6_table *mrt,
 static struct mfc6_cache *ip6mr_cache_find_any_parent(struct mr6_table *mrt,
 						      mifi_t mifi)
 {
-	int line = MFC6_HASH(&in6addr_any, &in6addr_any);
+	struct mfc6_cache_cmp_arg arg = {
+		.mf6c_origin = in6addr_any,
+		.mf6c_mcastgrp = in6addr_any,
+	};
+	struct rhlist_head *tmp, *list;
 	struct mfc6_cache *c;
 
-	list_for_each_entry(c, &mrt->mfc6_cache_array[line], list)
-		if (ipv6_addr_any(&c->mf6c_origin) &&
-		    ipv6_addr_any(&c->mf6c_mcastgrp) &&
-		    (c->mfc_un.res.ttls[mifi] < 255))
+	list = rhltable_lookup(&mrt->mfc6_hash, &arg, ip6mr_rht_params);
+	rhl_for_each_entry_rcu(c, tmp, list, mnode)
+		if (c->mfc_un.res.ttls[mifi] < 255)
 			return c;
 
 	return NULL;
@@ -1034,27 +1053,51 @@ static struct mfc6_cache *ip6mr_cache_find_any(struct mr6_table *mrt,
 					       struct in6_addr *mcastgrp,
 					       mifi_t mifi)
 {
-	int line = MFC6_HASH(mcastgrp, &in6addr_any);
+	struct mfc6_cache_cmp_arg arg = {
+		.mf6c_origin = in6addr_any,
+		.mf6c_mcastgrp = *mcastgrp,
+	};
+	struct rhlist_head *tmp, *list;
 	struct mfc6_cache *c, *proxy;
 
 	if (ipv6_addr_any(mcastgrp))
 		goto skip;
 
-	list_for_each_entry(c, &mrt->mfc6_cache_array[line], list)
-		if (ipv6_addr_any(&c->mf6c_origin) &&
-		    ipv6_addr_equal(&c->mf6c_mcastgrp, mcastgrp)) {
-			if (c->mfc_un.res.ttls[mifi] < 255)
-				return c;
+	list = rhltable_lookup(&mrt->mfc6_hash, &arg, ip6mr_rht_params);
+	rhl_for_each_entry_rcu(c, tmp, list, mnode) {
+		if (c->mfc_un.res.ttls[mifi] < 255)
+			return c;
 
-			/* It's ok if the mifi is part of the static tree */
-			proxy = ip6mr_cache_find_any_parent(mrt,
-							    c->mf6c_parent);
-			if (proxy && proxy->mfc_un.res.ttls[mifi] < 255)
-				return c;
-		}
+		/* It's ok if the mifi is part of the static tree */
+		proxy = ip6mr_cache_find_any_parent(mrt, c->mf6c_parent);
+		if (proxy && proxy->mfc_un.res.ttls[mifi] < 255)
+			return c;
+	}
 
 skip:
 	return ip6mr_cache_find_any_parent(mrt, mifi);
+}
+
+/* Look for a (S,G,iif) entry if parent != -1 */
+static struct mfc6_cache *
+ip6mr_cache_find_parent(struct mr6_table *mrt,
+			const struct in6_addr *origin,
+			const struct in6_addr *mcastgrp,
+			int parent)
+{
+	struct mfc6_cache_cmp_arg arg = {
+		.mf6c_origin = *origin,
+		.mf6c_mcastgrp = *mcastgrp,
+	};
+	struct rhlist_head *tmp, *list;
+	struct mfc6_cache *c;
+
+	list = rhltable_lookup(&mrt->mfc6_hash, &arg, ip6mr_rht_params);
+	rhl_for_each_entry_rcu(c, tmp, list, mnode)
+		if (parent == -1 || parent == c->mf6c_parent)
+			return c;
+
+	return NULL;
 }
 
 /*
@@ -1296,26 +1339,21 @@ ip6mr_cache_unresolved(struct mr6_table *mrt, mifi_t mifi, struct sk_buff *skb)
 static int ip6mr_mfc_delete(struct mr6_table *mrt, struct mf6cctl *mfc,
 			    int parent)
 {
-	int line;
-	struct mfc6_cache *c, *next;
+	struct mfc6_cache *c;
 
-	line = MFC6_HASH(&mfc->mf6cc_mcastgrp.sin6_addr, &mfc->mf6cc_origin.sin6_addr);
+	/* The entries are added/deleted only under RTNL */
+	rcu_read_lock();
+	c = ip6mr_cache_find_parent(mrt, &mfc->mf6cc_origin.sin6_addr,
+				    &mfc->mf6cc_mcastgrp.sin6_addr, parent);
+	rcu_read_unlock();
+	if (!c)
+		return -ENOENT;
+	rhltable_remove(&mrt->mfc6_hash, &c->mnode, ip6mr_rht_params);
+	list_del_rcu(&c->list);
 
-	list_for_each_entry_safe(c, next, &mrt->mfc6_cache_array[line], list) {
-		if (ipv6_addr_equal(&c->mf6c_origin, &mfc->mf6cc_origin.sin6_addr) &&
-		    ipv6_addr_equal(&c->mf6c_mcastgrp,
-				    &mfc->mf6cc_mcastgrp.sin6_addr) &&
-		    (parent == -1 || parent == c->mf6c_parent)) {
-			write_lock_bh(&mrt_lock);
-			list_del(&c->list);
-			write_unlock_bh(&mrt_lock);
-
-			mr6_netlink_event(mrt, c, RTM_DELROUTE);
-			ip6mr_cache_free(c);
-			return 0;
-		}
-	}
-	return -ENOENT;
+	mr6_netlink_event(mrt, c, RTM_DELROUTE);
+	ip6mr_cache_free(c);
+	return 0;
 }
 
 static int ip6mr_device_event(struct notifier_block *this,
@@ -1448,11 +1486,10 @@ void ip6_mr_cleanup(void)
 static int ip6mr_mfc_add(struct net *net, struct mr6_table *mrt,
 			 struct mf6cctl *mfc, int mrtsock, int parent)
 {
-	bool found = false;
-	int line;
-	struct mfc6_cache *uc, *c;
 	unsigned char ttls[MAXMIFS];
-	int i;
+	struct mfc6_cache *uc, *c;
+	bool found;
+	int i, err;
 
 	if (mfc->mf6cc_parent >= MAXMIFS)
 		return -ENFILE;
@@ -1461,22 +1498,14 @@ static int ip6mr_mfc_add(struct net *net, struct mr6_table *mrt,
 	for (i = 0; i < MAXMIFS; i++) {
 		if (IF_ISSET(i, &mfc->mf6cc_ifset))
 			ttls[i] = 1;
-
 	}
 
-	line = MFC6_HASH(&mfc->mf6cc_mcastgrp.sin6_addr, &mfc->mf6cc_origin.sin6_addr);
-
-	list_for_each_entry(c, &mrt->mfc6_cache_array[line], list) {
-		if (ipv6_addr_equal(&c->mf6c_origin, &mfc->mf6cc_origin.sin6_addr) &&
-		    ipv6_addr_equal(&c->mf6c_mcastgrp,
-				    &mfc->mf6cc_mcastgrp.sin6_addr) &&
-		    (parent == -1 || parent == mfc->mf6cc_parent)) {
-			found = true;
-			break;
-		}
-	}
-
-	if (found) {
+	/* The entries are added/deleted only under RTNL */
+	rcu_read_lock();
+	c = ip6mr_cache_find_parent(mrt, &mfc->mf6cc_origin.sin6_addr,
+				    &mfc->mf6cc_mcastgrp.sin6_addr, parent);
+	rcu_read_unlock();
+	if (c) {
 		write_lock_bh(&mrt_lock);
 		c->mf6c_parent = mfc->mf6cc_parent;
 		ip6mr_update_thresholds(mrt, c, ttls);
@@ -1502,13 +1531,17 @@ static int ip6mr_mfc_add(struct net *net, struct mr6_table *mrt,
 	if (!mrtsock)
 		c->mfc_flags |= MFC_STATIC;
 
-	write_lock_bh(&mrt_lock);
-	list_add(&c->list, &mrt->mfc6_cache_array[line]);
-	write_unlock_bh(&mrt_lock);
+	err = rhltable_insert_key(&mrt->mfc6_hash, &c->cmparg, &c->mnode,
+				  ip6mr_rht_params);
+	if (err) {
+		pr_err("ip6mr: rhtable insert error %d\n", err);
+		ip6mr_cache_free(c);
+		return err;
+	}
+	list_add_tail_rcu(&c->list, &mrt->mfc6_cache_list);
 
-	/*
-	 *	Check to see if we resolved a queued list. If so we
-	 *	need to send on the frames and tidy up.
+	/* Check to see if we resolved a queued list. If so we
+	 * need to send on the frames and tidy up.
 	 */
 	found = false;
 	spin_lock_bh(&mfc_unres_lock);
@@ -1539,13 +1572,11 @@ static int ip6mr_mfc_add(struct net *net, struct mr6_table *mrt,
 
 static void mroute_clean_tables(struct mr6_table *mrt, bool all)
 {
-	int i;
+	struct mfc6_cache *c, *tmp;
 	LIST_HEAD(list);
-	struct mfc6_cache *c, *next;
+	int i;
 
-	/*
-	 *	Shut down all active vif entries
-	 */
+	/* Shut down all active vif entries */
 	for (i = 0; i < mrt->maxvif; i++) {
 		if (!all && (mrt->vif6_table[i].flags & VIFF_STATIC))
 			continue;
@@ -1553,25 +1584,19 @@ static void mroute_clean_tables(struct mr6_table *mrt, bool all)
 	}
 	unregister_netdevice_many(&list);
 
-	/*
-	 *	Wipe the cache
-	 */
-	for (i = 0; i < MFC6_LINES; i++) {
-		list_for_each_entry_safe(c, next, &mrt->mfc6_cache_array[i], list) {
-			if (!all && (c->mfc_flags & MFC_STATIC))
-				continue;
-			write_lock_bh(&mrt_lock);
-			list_del(&c->list);
-			write_unlock_bh(&mrt_lock);
-
-			mr6_netlink_event(mrt, c, RTM_DELROUTE);
-			ip6mr_cache_free(c);
-		}
+	/* Wipe the cache */
+	list_for_each_entry_safe(c, tmp, &mrt->mfc6_cache_list, list) {
+		if (!all && (c->mfc_flags & MFC_STATIC))
+			continue;
+		rhltable_remove(&mrt->mfc6_hash, &c->mnode, ip6mr_rht_params);
+		list_del_rcu(&c->list);
+		mr6_netlink_event(mrt, c, RTM_DELROUTE);
+		ip6mr_cache_free(c);
 	}
 
 	if (atomic_read(&mrt->cache_resolve_queue_len) != 0) {
 		spin_lock_bh(&mfc_unres_lock);
-		list_for_each_entry_safe(c, next, &mrt->mfc6_unres_queue, list) {
+		list_for_each_entry_safe(c, tmp, &mrt->mfc6_unres_queue, list) {
 			list_del(&c->list);
 			mr6_netlink_event(mrt, c, RTM_DELROUTE);
 			ip6mr_destroy_unres(mrt, c);
@@ -1905,19 +1930,19 @@ int ip6mr_ioctl(struct sock *sk, int cmd, void __user *arg)
 		if (copy_from_user(&sr, arg, sizeof(sr)))
 			return -EFAULT;
 
-		read_lock(&mrt_lock);
+		rcu_read_lock();
 		c = ip6mr_cache_find(mrt, &sr.src.sin6_addr, &sr.grp.sin6_addr);
 		if (c) {
 			sr.pktcnt = c->mfc_un.res.pkt;
 			sr.bytecnt = c->mfc_un.res.bytes;
 			sr.wrong_if = c->mfc_un.res.wrong_if;
-			read_unlock(&mrt_lock);
+			rcu_read_unlock();
 
 			if (copy_to_user(arg, &sr, sizeof(sr)))
 				return -EFAULT;
 			return 0;
 		}
-		read_unlock(&mrt_lock);
+		rcu_read_unlock();
 		return -EADDRNOTAVAIL;
 	default:
 		return -ENOIOCTLCMD;
@@ -1979,19 +2004,19 @@ int ip6mr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 		if (copy_from_user(&sr, arg, sizeof(sr)))
 			return -EFAULT;
 
-		read_lock(&mrt_lock);
+		rcu_read_lock();
 		c = ip6mr_cache_find(mrt, &sr.src.sin6_addr, &sr.grp.sin6_addr);
 		if (c) {
 			sr.pktcnt = c->mfc_un.res.pkt;
 			sr.bytecnt = c->mfc_un.res.bytes;
 			sr.wrong_if = c->mfc_un.res.wrong_if;
-			read_unlock(&mrt_lock);
+			rcu_read_unlock();
 
 			if (copy_to_user(arg, &sr, sizeof(sr)))
 				return -EFAULT;
 			return 0;
 		}
-		read_unlock(&mrt_lock);
+		rcu_read_unlock();
 		return -EADDRNOTAVAIL;
 	default:
 		return -ENOIOCTLCMD;
@@ -2115,10 +2140,14 @@ static void ip6_mr_forward(struct net *net, struct mr6_table *mrt,
 		/* For an (*,G) entry, we only check that the incoming
 		 * interface is part of the static tree.
 		 */
+		rcu_read_lock();
 		cache_proxy = ip6mr_cache_find_any_parent(mrt, vif);
 		if (cache_proxy &&
-		    cache_proxy->mfc_un.res.ttls[true_vifi] < 255)
+		    cache_proxy->mfc_un.res.ttls[true_vifi] < 255) {
+			rcu_read_unlock();
 			goto forward;
+		}
+		rcu_read_unlock();
 	}
 
 	/*
@@ -2535,34 +2564,30 @@ static int ip6mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 	struct mr6_table *mrt;
 	struct mfc6_cache *mfc;
 	unsigned int t = 0, s_t;
-	unsigned int h = 0, s_h;
 	unsigned int e = 0, s_e;
 
 	s_t = cb->args[0];
-	s_h = cb->args[1];
-	s_e = cb->args[2];
+	s_e = cb->args[1];
 
-	read_lock(&mrt_lock);
+	rcu_read_lock();
 	ip6mr_for_each_table(mrt, net) {
 		if (t < s_t)
 			goto next_table;
-		if (t > s_t)
-			s_h = 0;
-		for (h = s_h; h < MFC6_LINES; h++) {
-			list_for_each_entry(mfc, &mrt->mfc6_cache_array[h], list) {
-				if (e < s_e)
-					goto next_entry;
-				if (ip6mr_fill_mroute(mrt, skb,
-						      NETLINK_CB(cb->skb).portid,
-						      cb->nlh->nlmsg_seq,
-						      mfc, RTM_NEWROUTE,
-						      NLM_F_MULTI) < 0)
-					goto done;
+		list_for_each_entry_rcu(mfc, &mrt->mfc6_cache_list, list) {
+			if (e < s_e)
+				goto next_entry;
+			if (ip6mr_fill_mroute(mrt, skb,
+					      NETLINK_CB(cb->skb).portid,
+					      cb->nlh->nlmsg_seq,
+					      mfc, RTM_NEWROUTE,
+					      NLM_F_MULTI) < 0)
+				goto done;
 next_entry:
-				e++;
-			}
-			e = s_e = 0;
+			e++;
 		}
+		e = 0;
+		s_e = 0;
+
 		spin_lock_bh(&mfc_unres_lock);
 		list_for_each_entry(mfc, &mrt->mfc6_unres_queue, list) {
 			if (e < s_e)
@@ -2580,15 +2605,13 @@ next_entry2:
 		}
 		spin_unlock_bh(&mfc_unres_lock);
 		e = s_e = 0;
-		s_h = 0;
 next_table:
 		t++;
 	}
 done:
-	read_unlock(&mrt_lock);
+	rcu_read_unlock();
 
-	cb->args[2] = e;
-	cb->args[1] = h;
+	cb->args[1] = e;
 	cb->args[0] = t;
 
 	return skb->len;

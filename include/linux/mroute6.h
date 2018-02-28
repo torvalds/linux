@@ -8,6 +8,7 @@
 #include <net/net_namespace.h>
 #include <uapi/linux/mroute6.h>
 #include <linux/mroute_base.h>
+#include <linux/rhashtable.h>
 
 #ifdef CONFIG_IPV6_MROUTE
 static inline int ip6_mroute_opt(int opt)
@@ -65,10 +66,20 @@ static inline void ip6_mr_cleanup(void)
 
 #define VIFF_STATIC 0x8000
 
+struct mfc6_cache_cmp_arg {
+	struct in6_addr mf6c_mcastgrp;
+	struct in6_addr mf6c_origin;
+};
+
 struct mfc6_cache {
-	struct list_head list;
-	struct in6_addr mf6c_mcastgrp;			/* Group the entry belongs to 	*/
-	struct in6_addr mf6c_origin;			/* Source of packet 		*/
+	struct rhlist_head mnode;
+	union {
+		struct {
+			struct in6_addr mf6c_mcastgrp;
+			struct in6_addr mf6c_origin;
+		};
+		struct mfc6_cache_cmp_arg cmparg;
+	};
 	mifi_t mf6c_parent;			/* Source interface		*/
 	int mfc_flags;				/* Flags on line		*/
 
@@ -88,21 +99,12 @@ struct mfc6_cache {
 			unsigned char ttls[MAXMIFS];	/* TTL thresholds		*/
 		} res;
 	} mfc_un;
+	struct list_head list;
+	struct rcu_head rcu;
 };
 
 #define MFC_STATIC		1
 #define MFC_NOTIFY		2
-
-#define MFC6_LINES		64
-
-#define MFC6_HASH(a, g) (((__force u32)(a)->s6_addr32[0] ^ \
-			  (__force u32)(a)->s6_addr32[1] ^ \
-			  (__force u32)(a)->s6_addr32[2] ^ \
-			  (__force u32)(a)->s6_addr32[3] ^ \
-			  (__force u32)(g)->s6_addr32[0] ^ \
-			  (__force u32)(g)->s6_addr32[1] ^ \
-			  (__force u32)(g)->s6_addr32[2] ^ \
-			  (__force u32)(g)->s6_addr32[3]) % MFC6_LINES)
 
 #define MFC_ASSERT_THRESH (3*HZ)		/* Maximal freq. of asserts */
 
