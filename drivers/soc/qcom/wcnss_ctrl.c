@@ -249,7 +249,7 @@ static int wcnss_download_nv(struct wcnss_ctrl *wcnss, bool *expect_cbc)
 		/* Increment for next fragment */
 		req->seq++;
 
-		data += req->hdr.len;
+		data += NV_FRAGMENT_SIZE;
 		left -= NV_FRAGMENT_SIZE;
 	} while (left > 0);
 
