@@ -270,6 +270,13 @@ link_stats_tx_packets_get()
        ip -j -s link show dev $if_name | jq '.[]["stats64"]["tx"]["packets"]'
 }
 
+mac_get()
+{
+	local if_name=$1
+
+	ip -j link show dev $if_name | jq -r '.[]["address"]'
+}
+
 bridge_ageing_time_get()
 {
 	local bridge=$1
