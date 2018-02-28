@@ -50,10 +50,6 @@ LDFLAGS_MODULE
 --------------------------------------------------
 Additional options used for $(LD) when linking modules.
 
-LDFLAGS_vmlinux
---------------------------------------------------
-Additional options passed to final link of vmlinux.
-
 KBUILD_VERBOSE
 --------------------------------------------------
 Set the kbuild verbosity. Can be assigned same values as "V=...".
