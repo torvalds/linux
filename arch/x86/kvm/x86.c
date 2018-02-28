@@ -1048,6 +1048,7 @@ static unsigned num_emulated_msrs;
  */
 static u32 msr_based_features[] = {
 	MSR_F10H_DECFG,
+	MSR_IA32_UCODE_REV,
 };
 
 static unsigned int num_msr_based_features;
@@ -1055,6 +1056,9 @@ static unsigned int num_msr_based_features;
 static int kvm_get_msr_feature(struct kvm_msr_entry *msr)
 {
 	switch (msr->index) {
+	case MSR_IA32_UCODE_REV:
+		rdmsrl(msr->index, msr->data);
+		break;
 	default:
 		if (kvm_x86_ops->get_msr_feature(msr))
 			return 1;
@@ -2192,7 +2196,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 	switch (msr) {
 	case MSR_AMD64_NB_CFG:
-	case MSR_IA32_UCODE_REV:
 	case MSR_IA32_UCODE_WRITE:
 	case MSR_VM_HSAVE_PA:
 	case MSR_AMD64_PATCH_LOADER:
@@ -2200,6 +2203,10 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_AMD64_DC_CFG:
 		break;
 
+	case MSR_IA32_UCODE_REV:
+		if (msr_info->host_initiated)
+			vcpu->arch.microcode_version = data;
+		break;
 	case MSR_EFER:
 		return set_efer(vcpu, data);
 	case MSR_K7_HWCR:
@@ -2486,7 +2493,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = 0;
 		break;
 	case MSR_IA32_UCODE_REV:
-		msr_info->data = 0x100000000ULL;
+		msr_info->data = vcpu->arch.microcode_version;
 		break;
 	case MSR_MTRRcap:
 	case 0x200 ... 0x2ff:

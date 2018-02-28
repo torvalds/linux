@@ -1618,6 +1618,7 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	u32 dummy;
 	u32 eax = 1;
 
+	vcpu->arch.microcode_version = 0x01000065;
 	svm->spec_ctrl = 0;
 	svm->virt_spec_ctrl = 0;
 
@@ -3654,9 +3655,6 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 
 		msr_info->data = svm->virt_spec_ctrl;
-		break;
-	case MSR_IA32_UCODE_REV:
-		msr_info->data = 0x01000065;
 		break;
 	case MSR_F15H_IC_CFG: {
 
