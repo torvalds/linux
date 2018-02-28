@@ -6,6 +6,8 @@
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
+#include <dt-bindings/clock/sprd,sc9860-clk.h>
+
 / {
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -102,6 +104,21 @@
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&ext_26m>;
 				status = "disabled";
+			};
+		};
+
+		aon {
+			compatible = "simple-bus";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			hwlock: hwspinlock@40500000 {
+				compatible = "sprd,hwspinlock-r3p0";
+				reg = <0 0x40500000 0 0x1000>;
+				#hwlock-cells = <1>;
+				clock-names = "enable";
+				clocks = <&aon_gate CLK_SPLK_EB>;
 			};
 		};
 	};
