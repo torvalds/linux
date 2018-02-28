@@ -236,8 +236,6 @@ rpcrdma_connect_worker(struct work_struct *work)
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 
 	spin_lock_bh(&xprt->transport_lock);
-	if (++xprt->connect_cookie == 0)	/* maintain a reserved value */
-		++xprt->connect_cookie;
 	if (ep->rep_connected > 0) {
 		if (!xprt_test_and_set_connected(xprt))
 			xprt_wake_pending_tasks(xprt, 0);
@@ -650,7 +648,6 @@ xprt_rdma_allocate(struct rpc_task *task)
 	if (!rpcrdma_get_recvbuf(r_xprt, req, rqst->rq_rcvsize, flags))
 		goto out_fail;
 
-	req->rl_connect_cookie = 0;	/* our reserved value */
 	rpcrdma_set_xprtdata(rqst, req);
 	rqst->rq_buffer = req->rl_sendbuf->rg_base;
 	rqst->rq_rbuffer = req->rl_recvbuf->rg_base;
@@ -721,9 +718,8 @@ xprt_rdma_send_request(struct rpc_task *task)
 		rpcrdma_recv_buffer_get(req);
 
 	/* Must suppress retransmit to maintain credits */
-	if (req->rl_connect_cookie == xprt->connect_cookie)
+	if (rqst->rq_connect_cookie == xprt->connect_cookie)
 		goto drop_connection;
-	req->rl_connect_cookie = xprt->connect_cookie;
 
 	__set_bit(RPCRDMA_REQ_F_PENDING, &req->rl_flags);
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))

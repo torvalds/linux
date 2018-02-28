@@ -255,6 +255,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		/* Return 1 to ensure the core destroys the id. */
 		return 1;
 	case RDMA_CM_EVENT_ESTABLISHED:
+		++xprt->rx_xprt.connect_cookie;
 		connstate = 1;
 		rpcrdma_update_connect_private(xprt, &event->param.conn);
 		goto connected;
@@ -273,6 +274,7 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 			connstate = -EAGAIN;
 		goto connected;
 	case RDMA_CM_EVENT_DISCONNECTED:
+		++xprt->rx_xprt.connect_cookie;
 		connstate = -ECONNABORTED;
 connected:
 		xprt->rx_buf.rb_credits = 1;
