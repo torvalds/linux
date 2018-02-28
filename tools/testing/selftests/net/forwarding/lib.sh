@@ -267,6 +267,21 @@ bridge_ageing_time_get()
 	echo $((ageing_time / 100))
 }
 
+forwarding_enable()
+{
+       ipv4_fwd=$(sysctl -n net.ipv4.conf.all.forwarding)
+       ipv6_fwd=$(sysctl -n net.ipv6.conf.all.forwarding)
+
+       sysctl -q -w net.ipv4.conf.all.forwarding=1
+       sysctl -q -w net.ipv6.conf.all.forwarding=1
+}
+
+forwarding_restore()
+{
+       sysctl -q -w net.ipv6.conf.all.forwarding=$ipv6_fwd
+       sysctl -q -w net.ipv4.conf.all.forwarding=$ipv4_fwd
+}
+
 ##############################################################################
 # Tests
 
