@@ -7,6 +7,7 @@
 # Can be overridden by the configuration file.
 PING=${PING:=ping}
 PING6=${PING6:=ping6}
+MZ=${MZ:=mausezahn}
 WAIT_TIME=${WAIT_TIME:=5}
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
@@ -31,6 +32,11 @@ fi
 
 if [[ ! -x "$(command -v jq)" ]]; then
 	echo "SKIP: jq not installed"
+	exit 0
+fi
+
+if [[ ! -x "$(command -v $MZ)" ]]; then
+	echo "SKIP: $MZ not installed"
 	exit 0
 fi
 
@@ -250,6 +256,17 @@ master_name_get()
 	ip -j link show dev $if_name | jq -r '.[]["master"]'
 }
 
+bridge_ageing_time_get()
+{
+	local bridge=$1
+	local ageing_time
+
+	# Need to divide by 100 to convert to seconds.
+	ageing_time=$(ip -j -d link show dev $bridge \
+		      | jq '.[]["linkinfo"]["info_data"]["ageing_time"]')
+	echo $((ageing_time / 100))
+}
+
 ##############################################################################
 # Tests
 
@@ -279,4 +296,79 @@ ping6_test()
 	ip vrf exec $vrf_name $PING6 $dip -c 10 -i 0.1 -w 2 &> /dev/null
 	check_err $?
 	log_test "ping6"
+}
+
+learning_test()
+{
+	local bridge=$1
+	local br_port1=$2	# Connected to `host1_if`.
+	local host1_if=$3
+	local host2_if=$4
+	local mac=de:ad:be:ef:13:37
+	local ageing_time
+
+	RET=0
+
+	bridge -j fdb show br $bridge brport $br_port1 \
+		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
+	check_fail $? "Found FDB record when should not"
+
+	# Disable unknown unicast flooding on `br_port1` to make sure
+	# packets are only forwarded through the port after a matching
+	# FDB entry was installed.
+	bridge link set dev $br_port1 flood off
+
+	tc qdisc add dev $host1_if ingress
+	tc filter add dev $host1_if ingress protocol ip pref 1 handle 101 \
+		flower dst_mac $mac action drop
+
+	$MZ $host2_if -c 1 -p 64 -b $mac -t ip -q
+	sleep 1
+
+	tc -j -s filter show dev $host1_if ingress \
+		| jq -e ".[] | select(.options.handle == 101) \
+		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
+	check_fail $? "Packet reached second host when should not"
+
+	$MZ $host1_if -c 1 -p 64 -a $mac -t ip -q
+	sleep 1
+
+	bridge -j fdb show br $bridge brport $br_port1 \
+		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
+	check_err $? "Did not find FDB record when should"
+
+	$MZ $host2_if -c 1 -p 64 -b $mac -t ip -q
+	sleep 1
+
+	tc -j -s filter show dev $host1_if ingress \
+		| jq -e ".[] | select(.options.handle == 101) \
+		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
+	check_err $? "Packet did not reach second host when should"
+
+	# Wait for 10 seconds after the ageing time to make sure FDB
+	# record was aged-out.
+	ageing_time=$(bridge_ageing_time_get $bridge)
+	sleep $((ageing_time + 10))
+
+	bridge -j fdb show br $bridge brport $br_port1 \
+		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
+	check_fail $? "Found FDB record when should not"
+
+	bridge link set dev $br_port1 learning off
+
+	$MZ $host1_if -c 1 -p 64 -a $mac -t ip -q
+	sleep 1
+
+	bridge -j fdb show br $bridge brport $br_port1 \
+		| jq -e ".[] | select(.mac == \"$mac\")" &> /dev/null
+	check_fail $? "Found FDB record when should not"
+
+	bridge link set dev $br_port1 learning on
+
+	tc filter del dev $host1_if ingress protocol ip pref 1 handle 101 flower
+	tc qdisc del dev $host1_if ingress
+
+	bridge link set dev $br_port1 flood on
+
+	log_test "FDB learning"
 }
