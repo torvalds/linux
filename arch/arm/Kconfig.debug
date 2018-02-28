@@ -22,6 +22,7 @@ config ARM_PTDUMP_DEBUGFS
 
 config DEBUG_WX
 	bool "Warn on W+X mappings at boot"
+	depends on MMU
 	select ARM_PTDUMP_CORE
 	---help---
 		Generate a warning if any W+X mappings are found at boot.
