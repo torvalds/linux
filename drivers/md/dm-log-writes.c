@@ -52,10 +52,11 @@
  * in fact we want to do the data and the discard in the order that they
  * completed.
  */
-#define LOG_FLUSH_FLAG (1 << 0)
-#define LOG_FUA_FLAG (1 << 1)
-#define LOG_DISCARD_FLAG (1 << 2)
-#define LOG_MARK_FLAG (1 << 3)
+#define LOG_FLUSH_FLAG		(1 << 0)
+#define LOG_FUA_FLAG		(1 << 1)
+#define LOG_DISCARD_FLAG	(1 << 2)
+#define LOG_MARK_FLAG		(1 << 3)
+#define LOG_METADATA_FLAG	(1 << 4)
 
 #define WRITE_LOG_VERSION 1ULL
 #define WRITE_LOG_MAGIC 0x6a736677736872ULL
@@ -699,6 +700,7 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 	bool flush_bio = (bio->bi_opf & REQ_PREFLUSH);
 	bool fua_bio = (bio->bi_opf & REQ_FUA);
 	bool discard_bio = (bio_op(bio) == REQ_OP_DISCARD);
+	bool meta_bio = (bio->bi_opf & REQ_META);
 
 	pb->block = NULL;
 
@@ -743,6 +745,8 @@ static int log_writes_map(struct dm_target *ti, struct bio *bio)
 		block->flags |= LOG_FUA_FLAG;
 	if (discard_bio)
 		block->flags |= LOG_DISCARD_FLAG;
+	if (meta_bio)
+		block->flags |= LOG_METADATA_FLAG;
 
 	block->sector = bio_to_dev_sectors(lc, bio->bi_iter.bi_sector);
 	block->nr_sectors = bio_to_dev_sectors(lc, bio_sectors(bio));
