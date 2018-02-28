@@ -184,7 +184,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return BLK_STS_OK;
 	}
 
-	if (blk_rq_bytes(req)) {
+	if (blk_rq_payload_bytes(req)) {
 		iod->sg_table.sgl = iod->first_sgl;
 		if (sg_alloc_table_chained(&iod->sg_table,
 				blk_rq_nr_phys_segments(req),
@@ -193,7 +193,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 		iod->req.sg = iod->sg_table.sgl;
 		iod->req.sg_cnt = blk_rq_map_sg(req->q, req, iod->sg_table.sgl);
-		iod->req.transfer_len = blk_rq_bytes(req);
+		iod->req.transfer_len = blk_rq_payload_bytes(req);
 	}
 
 	blk_mq_start_request(req);
