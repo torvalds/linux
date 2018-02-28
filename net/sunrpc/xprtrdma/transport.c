@@ -689,7 +689,8 @@ xprt_rdma_free(struct rpc_task *task)
  * Returns:
  *	%0 if the RPC message has been sent
  *	%-ENOTCONN if the caller should reconnect and call again
- *	%-ENOBUFS if the caller should call again later
+ *	%-EAGAIN if the caller should call again
+ *	%-ENOBUFS if the caller should call again after a delay
  *	%-EIO if a permanent error occurred and the request was not
  *		sent. Do not try to send this message again.
  */

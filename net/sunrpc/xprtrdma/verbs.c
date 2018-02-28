@@ -1048,8 +1048,9 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 	list_splice(&all, &buf->rb_all);
 	r_xprt->rx_stats.mrs_allocated += count;
 	spin_unlock(&buf->rb_mrlock);
-
 	trace_xprtrdma_createmrs(r_xprt, count);
+
+	xprt_write_space(&r_xprt->rx_xprt);
 }
 
 static void

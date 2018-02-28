@@ -191,7 +191,7 @@ fmr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 
 	mr = rpcrdma_mr_get(r_xprt);
 	if (!mr)
-		return ERR_PTR(-ENOBUFS);
+		return ERR_PTR(-EAGAIN);
 
 	pageoff = offset_in_page(seg1->mr_offset);
 	seg1->mr_offset -= pageoff;	/* start of page */
