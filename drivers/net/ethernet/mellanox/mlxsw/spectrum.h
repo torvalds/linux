@@ -210,6 +210,8 @@ struct mlxsw_sp_port_xstats {
 	u64 wred_drop[TC_MAX_QUEUE];
 	u64 tail_drop[TC_MAX_QUEUE];
 	u64 backlog[TC_MAX_QUEUE];
+	u64 tx_bytes[IEEE_8021QAZ_MAX_TCS];
+	u64 tx_packets[IEEE_8021QAZ_MAX_TCS];
 };
 
 struct mlxsw_sp_port {
@@ -247,6 +249,7 @@ struct mlxsw_sp_port {
 	struct mlxsw_sp_port_sample *sample;
 	struct list_head vlans_list;
 	struct mlxsw_sp_qdisc *root_qdisc;
+	struct mlxsw_sp_qdisc *tclass_qdiscs;
 	unsigned acl_rule_count;
 	struct mlxsw_sp_acl_block *ing_acl_block;
 	struct mlxsw_sp_acl_block *eg_acl_block;
