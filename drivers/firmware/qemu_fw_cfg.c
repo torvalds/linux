@@ -211,7 +211,9 @@ static const struct {
 /* fw_cfg_sysfs_entry type */
 struct fw_cfg_sysfs_entry {
 	struct kobject kobj;
-	struct fw_cfg_file f;
+	u32 size;
+	u16 select;
+	char name[FW_CFG_MAX_FILE_PATH];
 	struct list_head list;
 };
 
@@ -275,17 +277,17 @@ struct fw_cfg_sysfs_attribute fw_cfg_sysfs_attr_##_attr = { \
 
 static ssize_t fw_cfg_sysfs_show_size(struct fw_cfg_sysfs_entry *e, char *buf)
 {
-	return sprintf(buf, "%u\n", e->f.size);
+	return sprintf(buf, "%u\n", e->size);
 }
 
 static ssize_t fw_cfg_sysfs_show_key(struct fw_cfg_sysfs_entry *e, char *buf)
 {
-	return sprintf(buf, "%u\n", e->f.select);
+	return sprintf(buf, "%u\n", e->select);
 }
 
 static ssize_t fw_cfg_sysfs_show_name(struct fw_cfg_sysfs_entry *e, char *buf)
 {
-	return sprintf(buf, "%s\n", e->f.name);
+	return sprintf(buf, "%s\n", e->name);
 }
 
 static FW_CFG_SYSFS_ATTR(size);
@@ -336,13 +338,13 @@ static ssize_t fw_cfg_sysfs_read_raw(struct file *filp, struct kobject *kobj,
 {
 	struct fw_cfg_sysfs_entry *entry = to_entry(kobj);
 
-	if (pos > entry->f.size)
+	if (pos > entry->size)
 		return -EINVAL;
 
-	if (count > entry->f.size - pos)
-		count = entry->f.size - pos;
+	if (count > entry->size - pos)
+		count = entry->size - pos;
 
-	fw_cfg_read_blob(entry->f.select, buf, pos, count);
+	fw_cfg_read_blob(entry->select, buf, pos, count);
 	return count;
 }
 
@@ -461,11 +463,13 @@ static int fw_cfg_register_file(const struct fw_cfg_file *f)
 		return -ENOMEM;
 
 	/* set file entry information */
-	memcpy(&entry->f, f, sizeof(struct fw_cfg_file));
+	entry->size = be32_to_cpu(f->size);
+	entry->select = be16_to_cpu(f->select);
+	memcpy(entry->name, f->name, FW_CFG_MAX_FILE_PATH);
 
 	/* register entry under "/sys/firmware/qemu_fw_cfg/by_key/" */
 	err = kobject_init_and_add(&entry->kobj, &fw_cfg_sysfs_entry_ktype,
-				   fw_cfg_sel_ko, "%d", entry->f.select);
+				   fw_cfg_sel_ko, "%d", entry->select);
 	if (err)
 		goto err_register;
 
@@ -475,7 +479,7 @@ static int fw_cfg_register_file(const struct fw_cfg_file *f)
 		goto err_add_raw;
 
 	/* try adding "/sys/firmware/qemu_fw_cfg/by_name/" symlink */
-	fw_cfg_build_symlink(fw_cfg_fname_kset, &entry->kobj, entry->f.name);
+	fw_cfg_build_symlink(fw_cfg_fname_kset, &entry->kobj, entry->name);
 
 	/* success, add entry to global cache */
 	fw_cfg_sysfs_cache_enlist(entry);
@@ -507,8 +511,6 @@ static int fw_cfg_register_dir_entries(void)
 	fw_cfg_read_blob(FW_CFG_FILE_DIR, dir, sizeof(count), dir_size);
 
 	for (i = 0; i < count; i++) {
-		dir[i].size = be32_to_cpu(dir[i].size);
-		dir[i].select = be16_to_cpu(dir[i].select);
 		ret = fw_cfg_register_file(&dir[i]);
 		if (ret)
 			break;
