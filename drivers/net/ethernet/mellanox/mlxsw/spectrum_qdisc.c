@@ -122,6 +122,24 @@ mlxsw_sp_qdisc_find(struct mlxsw_sp_port *mlxsw_sp_port, u32 parent,
 	return &mlxsw_sp_port->tclass_qdiscs[tclass];
 }
 
+static struct mlxsw_sp_qdisc *
+mlxsw_sp_qdisc_find_by_handle(struct mlxsw_sp_port *mlxsw_sp_port, u32 handle)
+{
+	int i;
+
+	if (mlxsw_sp_port->root_qdisc->handle == handle)
+		return mlxsw_sp_port->root_qdisc;
+
+	if (mlxsw_sp_port->root_qdisc->handle == TC_H_UNSPEC)
+		return NULL;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		if (mlxsw_sp_port->tclass_qdiscs[i].handle == handle)
+			return &mlxsw_sp_port->tclass_qdiscs[i];
+
+	return NULL;
+}
+
 static int
 mlxsw_sp_qdisc_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 		       struct mlxsw_sp_qdisc *mlxsw_sp_qdisc)
@@ -643,6 +661,39 @@ static struct mlxsw_sp_qdisc_ops mlxsw_sp_qdisc_ops_prio = {
 	.clean_stats = mlxsw_sp_setup_tc_qdisc_prio_clean_stats,
 };
 
+/* Grafting is not supported in mlxsw. It will result in un-offloading of the
+ * grafted qdisc as well as the qdisc in the qdisc new location.
+ * (However, if the graft is to the location where the qdisc is already at, it
+ * will be ignored completely and won't cause un-offloading).
+ */
+static int
+mlxsw_sp_qdisc_prio_graft(struct mlxsw_sp_port *mlxsw_sp_port,
+			  struct mlxsw_sp_qdisc *mlxsw_sp_qdisc,
+			  struct tc_prio_qopt_offload_graft_params *p)
+{
+	int tclass_num = MLXSW_SP_PRIO_BAND_TO_TCLASS(p->band);
+	struct mlxsw_sp_qdisc *old_qdisc;
+
+	/* Check if the grafted qdisc is already in its "new" location. If so -
+	 * nothing needs to be done.
+	 */
+	if (p->band < IEEE_8021QAZ_MAX_TCS &&
+	    mlxsw_sp_port->tclass_qdiscs[tclass_num].handle == p->child_handle)
+		return 0;
+
+	/* See if the grafted qdisc is already offloaded on any tclass. If so,
+	 * unoffload it.
+	 */
+	old_qdisc = mlxsw_sp_qdisc_find_by_handle(mlxsw_sp_port,
+						  p->child_handle);
+	if (old_qdisc)
+		mlxsw_sp_qdisc_destroy(mlxsw_sp_port, old_qdisc);
+
+	mlxsw_sp_qdisc_destroy(mlxsw_sp_port,
+			       &mlxsw_sp_port->tclass_qdiscs[tclass_num]);
+	return -EOPNOTSUPP;
+}
+
 int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct tc_prio_qopt_offload *p)
 {
@@ -668,6 +719,9 @@ int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 	case TC_PRIO_STATS:
 		return mlxsw_sp_qdisc_get_stats(mlxsw_sp_port, mlxsw_sp_qdisc,
 						&p->stats);
+	case TC_PRIO_GRAFT:
+		return mlxsw_sp_qdisc_prio_graft(mlxsw_sp_port, mlxsw_sp_qdisc,
+						 &p->graft_params);
 	default:
 		return -EOPNOTSUPP;
 	}
