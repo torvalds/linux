@@ -28,6 +28,7 @@
 #include <core/option.h>
 
 #include <subdev/bios.h>
+#include <subdev/therm.h>
 
 static DEFINE_MUTEX(nv_devices_mutex);
 static LIST_HEAD(nv_devices);
@@ -1682,7 +1683,7 @@ nve4_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk104_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1721,7 +1722,7 @@ nve6_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk104_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1760,7 +1761,7 @@ nve7_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk104_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1811,7 +1812,7 @@ nvf0_chipset = {
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
 	.devinit = gf100_devinit_new,
-	.fb = gk104_fb_new,
+	.fb = gk110_fb_new,
 	.fuse = gf100_fuse_new,
 	.gpio = gk104_gpio_new,
 	.i2c = gk104_i2c_new,
@@ -1824,7 +1825,7 @@ nvf0_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk110_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1849,7 +1850,7 @@ nvf1_chipset = {
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
 	.devinit = gf100_devinit_new,
-	.fb = gk104_fb_new,
+	.fb = gk110_fb_new,
 	.fuse = gf100_fuse_new,
 	.gpio = gk104_gpio_new,
 	.i2c = gk104_i2c_new,
@@ -1862,7 +1863,7 @@ nvf1_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk110_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1887,7 +1888,7 @@ nv106_chipset = {
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
 	.devinit = gf100_devinit_new,
-	.fb = gk104_fb_new,
+	.fb = gk110_fb_new,
 	.fuse = gf100_fuse_new,
 	.gpio = gk104_gpio_new,
 	.i2c = gk104_i2c_new,
@@ -1900,7 +1901,7 @@ nv106_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk208_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -1925,7 +1926,7 @@ nv108_chipset = {
 	.bus = gf100_bus_new,
 	.clk = gk104_clk_new,
 	.devinit = gf100_devinit_new,
-	.fb = gk104_fb_new,
+	.fb = gk110_fb_new,
 	.fuse = gf100_fuse_new,
 	.gpio = gk104_gpio_new,
 	.i2c = gk104_i2c_new,
@@ -1938,7 +1939,7 @@ nv108_chipset = {
 	.mxm = nv50_mxm_new,
 	.pci = gk104_pci_new,
 	.pmu = gk208_pmu_new,
-	.therm = gf119_therm_new,
+	.therm = gk104_therm_new,
 	.timer = nv41_timer_new,
 	.top = gk104_top_new,
 	.volt = gk104_volt_new,
@@ -2345,6 +2346,7 @@ nv138_chipset = {
 	.mc = gp100_mc_new,
 	.mmu = gp100_mmu_new,
 	.therm = gp100_therm_new,
+	.secboot = gp108_secboot_new,
 	.pci = gp100_pci_new,
 	.pmu = gp102_pmu_new,
 	.timer = gk20a_timer_new,
@@ -2356,6 +2358,10 @@ nv138_chipset = {
 	.disp = gp102_disp_new,
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
+	.gr = gp107_gr_new,
+	.nvdec = gp102_nvdec_new,
+	.sec2 = gp102_sec2_new,
+	.sw = gf100_sw_new,
 };
 
 static const struct nvkm_device_chip
@@ -2508,6 +2514,7 @@ nvkm_device_fini(struct nvkm_device *device, bool suspend)
 		}
 	}
 
+	nvkm_therm_clkgate_fini(device->therm, suspend);
 
 	if (device->func->fini)
 		device->func->fini(device, suspend);
@@ -2597,6 +2604,7 @@ nvkm_device_init(struct nvkm_device *device)
 	}
 
 	nvkm_acpi_init(device);
+	nvkm_therm_clkgate_enable(device->therm);
 
 	time = ktime_to_us(ktime_get()) - time;
 	nvdev_trace(device, "init completed in %lldus\n", time);

@@ -997,9 +997,11 @@ static inline void ppgtt_generate_shadow_entry(struct intel_gvt_gtt_entry *se,
 static int ppgtt_populate_shadow_page(struct intel_vgpu_ppgtt_spt *spt)
 {
 	struct intel_vgpu *vgpu = spt->vgpu;
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct intel_gvt_gtt_pte_ops *ops = gvt->gtt.pte_ops;
 	struct intel_vgpu_ppgtt_spt *s;
 	struct intel_gvt_gtt_entry se, ge;
-	unsigned long i;
+	unsigned long gfn, i;
 	int ret;
 
 	trace_spt_change(spt->vgpu->id, "born", spt,
@@ -1007,9 +1009,10 @@ static int ppgtt_populate_shadow_page(struct intel_vgpu_ppgtt_spt *spt)
 
 	if (gtt_type_is_pte_pt(spt->shadow_page.type)) {
 		for_each_present_guest_entry(spt, &ge, i) {
-			ret = gtt_entry_p2m(vgpu, &ge, &se);
-			if (ret)
-				goto fail;
+			gfn = ops->get_pfn(&ge);
+			if (!intel_gvt_hypervisor_is_valid_gfn(vgpu, gfn) ||
+				gtt_entry_p2m(vgpu, &ge, &se))
+				ops->set_pfn(&se, gvt->gtt.scratch_mfn);
 			ppgtt_set_shadow_entry(spt, &se, i);
 		}
 		return 0;
@@ -1906,7 +1909,7 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	struct intel_vgpu_mm *ggtt_mm = vgpu->gtt.ggtt_mm;
 	struct intel_gvt_gtt_pte_ops *ops = gvt->gtt.pte_ops;
 	unsigned long g_gtt_index = off >> info->gtt_entry_size_shift;
-	unsigned long gma;
+	unsigned long gma, gfn;
 	struct intel_gvt_gtt_entry e, m;
 	int ret;
 
@@ -1925,6 +1928,16 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 			bytes);
 
 	if (ops->test_present(&e)) {
+		gfn = ops->get_pfn(&e);
+
+		/* one PTE update may be issued in multiple writes and the
+		 * first write may not construct a valid gfn
+		 */
+		if (!intel_gvt_hypervisor_is_valid_gfn(vgpu, gfn)) {
+			ops->set_pfn(&m, gvt->gtt.scratch_mfn);
+			goto out;
+		}
+
 		ret = gtt_entry_p2m(vgpu, &e, &m);
 		if (ret) {
 			gvt_vgpu_err("fail to translate guest gtt entry\n");
@@ -1939,6 +1952,7 @@ static int emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 		ops->set_pfn(&m, gvt->gtt.scratch_mfn);
 	}
 
+out:
 	ggtt_set_shadow_entry(ggtt_mm, &m, g_gtt_index);
 	gtt_invalidate(gvt->dev_priv);
 	ggtt_set_guest_entry(ggtt_mm, &e, g_gtt_index);

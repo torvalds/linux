@@ -3,6 +3,7 @@
 #define __NVKM_FB_PRIV_H__
 #define nvkm_fb(p) container_of((p), struct nvkm_fb, subdev)
 #include <subdev/fb.h>
+#include <subdev/therm.h>
 struct nvkm_bios;
 
 struct nvkm_fb_func {
@@ -27,6 +28,7 @@ struct nvkm_fb_func {
 	int (*ram_new)(struct nvkm_fb *, struct nvkm_ram **);
 
 	u8 default_bigpage;
+	const struct nvkm_therm_clkgate_pack *clkgate_pack;
 };
 
 void nvkm_fb_ctor(const struct nvkm_fb_func *, struct nvkm_device *device,

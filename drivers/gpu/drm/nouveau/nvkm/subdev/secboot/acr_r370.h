@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,46 +20,30 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __NVKM_SECBOOT_PRIV_H__
-#define __NVKM_SECBOOT_PRIV_H__
+#ifndef __NVKM_SECBOOT_ACR_R370_H__
+#define __NVKM_SECBOOT_ACR_R370_H__
 
-#include <subdev/secboot.h>
-#include <subdev/mmu.h>
-struct nvkm_gpuobj;
+#include "priv.h"
+struct hsf_load_header;
 
-struct nvkm_secboot_func {
-	int (*oneinit)(struct nvkm_secboot *);
-	int (*fini)(struct nvkm_secboot *, bool suspend);
-	void *(*dtor)(struct nvkm_secboot *);
-	int (*run_blob)(struct nvkm_secboot *, struct nvkm_gpuobj *,
-			struct nvkm_falcon *);
+/* Same as acr_r361_flcn_bl_desc, plus argc/argv */
+struct acr_r370_flcn_bl_desc {
+	u32 reserved[4];
+	u32 signature[4];
+	u32 ctx_dma;
+	struct flcn_u64 code_dma_base;
+	u32 non_sec_code_off;
+	u32 non_sec_code_size;
+	u32 sec_code_off;
+	u32 sec_code_size;
+	u32 code_entry_point;
+	struct flcn_u64 data_dma_base;
+	u32 data_size;
+	u32 argc;
+	u32 argv;
 };
 
-int nvkm_secboot_ctor(const struct nvkm_secboot_func *, struct nvkm_acr *,
-		      struct nvkm_device *, int, struct nvkm_secboot *);
-int nvkm_secboot_falcon_reset(struct nvkm_secboot *);
-int nvkm_secboot_falcon_run(struct nvkm_secboot *);
-
-extern const struct nvkm_secboot_func gp102_secboot;
-
-struct flcn_u64 {
-	u32 lo;
-	u32 hi;
-};
-
-static inline u64 flcn64_to_u64(const struct flcn_u64 f)
-{
-	return ((u64)f.hi) << 32 | f.lo;
-}
-
-static inline struct flcn_u64 u64_to_flcn64(u64 u)
-{
-	struct flcn_u64 ret;
-
-	ret.hi = upper_32_bits(u);
-	ret.lo = lower_32_bits(u);
-
-	return ret;
-}
-
+void acr_r370_generate_hs_bl_desc(const struct hsf_load_header *, void *, u64);
+extern const struct acr_r352_ls_func acr_r370_ls_fecs_func;
+extern const struct acr_r352_ls_func acr_r370_ls_gpccs_func;
 #endif

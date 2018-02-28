@@ -308,8 +308,15 @@ static int tbs_sched_init_vgpu(struct intel_vgpu *vgpu)
 
 static void tbs_sched_clean_vgpu(struct intel_vgpu *vgpu)
 {
+	struct intel_gvt *gvt = vgpu->gvt;
+	struct gvt_sched_data *sched_data = gvt->scheduler.sched_data;
+
 	kfree(vgpu->sched_data);
 	vgpu->sched_data = NULL;
+
+	/* this vgpu id has been removed */
+	if (idr_is_empty(&gvt->vgpu_idr))
+		hrtimer_cancel(&sched_data->timer);
 }
 
 static void tbs_sched_start_schedule(struct intel_vgpu *vgpu)
