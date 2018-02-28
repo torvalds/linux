@@ -112,6 +112,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define RSI_WOW_NO_CONNECTION		BIT(1)
 
 #define RSI_DEV_9113		1
+#define RSI_MAX_RX_PKTS		64
 
 struct version_info {
 	u16 major;

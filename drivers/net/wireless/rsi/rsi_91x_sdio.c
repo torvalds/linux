@@ -933,6 +933,8 @@ static int rsi_probe(struct sdio_func *pfunction,
 		     const struct sdio_device_id *id)
 {
 	struct rsi_hw *adapter;
+	struct rsi_91x_sdiodev *sdev;
+	int status;
 
 	rsi_dbg(INIT_ZONE, "%s: Init function called\n", __func__);
 
@@ -940,7 +942,7 @@ static int rsi_probe(struct sdio_func *pfunction,
 	if (!adapter) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to init os intf ops\n",
 			__func__);
-		return 1;
+		return -EINVAL;
 	}
 	adapter->rsi_host_intf = RSI_HOST_INTF_SDIO;
 	adapter->host_intf_ops = &sdio_host_intf_ops;
@@ -948,39 +950,58 @@ static int rsi_probe(struct sdio_func *pfunction,
 	if (rsi_init_sdio_interface(adapter, pfunction)) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to init sdio interface\n",
 			__func__);
-		goto fail;
+		status = -EIO;
+		goto fail_free_adapter;
 	}
+	sdev = (struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	rsi_init_event(&sdev->rx_thread.event);
+	status = rsi_create_kthread(adapter->priv, &sdev->rx_thread,
+				    rsi_sdio_rx_thread, "SDIO-RX-Thread");
+	if (status) {
+		rsi_dbg(ERR_ZONE, "%s: Unable to init rx thrd\n", __func__);
+		goto fail_free_adapter;
+	}
+	skb_queue_head_init(&sdev->rx_q.head);
+	sdev->rx_q.num_rx_pkts = 0;
+
 	sdio_claim_host(pfunction);
 	if (sdio_claim_irq(pfunction, rsi_handle_interrupt)) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to request IRQ\n", __func__);
 		sdio_release_host(pfunction);
-		goto fail;
+		status = -EIO;
+		goto fail_kill_thread;
 	}
 	sdio_release_host(pfunction);
 	rsi_dbg(INIT_ZONE, "%s: Registered Interrupt handler\n", __func__);
 
 	if (rsi_hal_device_init(adapter)) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in device init\n", __func__);
-		sdio_claim_host(pfunction);
-		sdio_release_irq(pfunction);
-		sdio_disable_func(pfunction);
-		sdio_release_host(pfunction);
-		goto fail;
+		status = -EINVAL;
+		goto fail_kill_thread;
 	}
 	rsi_dbg(INFO_ZONE, "===> RSI Device Init Done <===\n");
 
 	if (rsi_sdio_master_access_msword(adapter, MISC_CFG_BASE_ADDR)) {
 		rsi_dbg(ERR_ZONE, "%s: Unable to set ms word reg\n", __func__);
-		return -EIO;
+		status = -EIO;
+		goto fail_dev_init;
 	}
 
 	adapter->priv->hibernate_resume = false;
 	adapter->priv->reinit_hw = false;
 	return 0;
-fail:
+
+fail_dev_init:
+	sdio_claim_host(pfunction);
+	sdio_release_irq(pfunction);
+	sdio_disable_func(pfunction);
+	sdio_release_host(pfunction);
+fail_kill_thread:
+	rsi_kill_thread(&sdev->rx_thread);
+fail_free_adapter:
 	rsi_91x_deinit(adapter);
 	rsi_dbg(ERR_ZONE, "%s: Failed in probe...Exiting\n", __func__);
-	return 1;
+	return status;
 }
 
 static void ulp_read_write(struct rsi_hw *adapter, u16 addr, u32 data,
@@ -1076,6 +1097,8 @@ static void rsi_disconnect(struct sdio_func *pfunction)
 		return;
 
 	dev = (struct rsi_91x_sdiodev *)adapter->rsi_dev;
+
+	rsi_kill_thread(&dev->rx_thread);
 	sdio_claim_host(pfunction);
 	sdio_release_irq(pfunction);
 	sdio_release_host(pfunction);
