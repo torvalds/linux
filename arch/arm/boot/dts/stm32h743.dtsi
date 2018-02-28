@@ -101,6 +101,27 @@
 			};
 		};
 
+		spi2: spi@40003800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40003800 0x400>;
+			interrupts = <36>;
+			clocks = <&rcc SPI2_CK>;
+			status = "disabled";
+
+		};
+
+		spi3: spi@40003c00 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40003c00 0x400>;
+			interrupts = <51>;
+			clocks = <&rcc SPI3_CK>;
+			status = "disabled";
+		};
+
 		usart2: serial@40004400 {
 			compatible = "st,stm32f7-uart";
 			reg = <0x40004400 0x400>;
@@ -139,6 +160,36 @@
 			interrupts = <37>;
 			status = "disabled";
 			clocks = <&rcc USART1_CK>;
+		};
+
+		spi1: spi@40013000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40013000 0x400>;
+			interrupts = <35>;
+			clocks = <&rcc SPI1_CK>;
+			status = "disabled";
+		};
+
+		spi4: spi@40013400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40013400 0x400>;
+			interrupts = <84>;
+			clocks = <&rcc SPI4_CK>;
+			status = "disabled";
+		};
+
+		spi5: spi@40015000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x40015000 0x400>;
+			interrupts = <85>;
+			clocks = <&rcc SPI5_CK>;
+			status = "disabled";
 		};
 
 		dma1: dma@40020000 {
@@ -260,6 +311,16 @@
 		syscfg: system-config@58000400 {
 			compatible = "syscon";
 			reg = <0x58000400 0x400>;
+		};
+
+		spi6: spi@58001400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "st,stm32h7-spi";
+			reg = <0x58001400 0x400>;
+			interrupts = <86>;
+			clocks = <&rcc SPI6_CK>;
+			status = "disabled";
 		};
 
 		lptimer2: timer@58002400 {
