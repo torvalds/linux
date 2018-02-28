@@ -45,6 +45,15 @@ struct vif_device {
 
 #define VIF_EXISTS(_mrt, _idx) (!!((_mrt)->vif_table[_idx].dev))
 
+/* mfc_flags:
+ * MFC_STATIC - the entry was added statically (not by a routing daemon)
+ * MFC_OFFLOAD - the entry was offloaded to the hardware
+ */
+enum {
+	MFC_STATIC = BIT(0),
+	MFC_OFFLOAD = BIT(1),
+};
+
 /**
  * struct mr_mfc - common multicast routing entries
  * @mnode: rhashtable list

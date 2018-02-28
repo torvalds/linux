@@ -81,9 +81,6 @@ struct mfc6_cache {
 	};
 };
 
-#define MFC_STATIC		1
-#define MFC_NOTIFY		2
-
 #define MFC_ASSERT_THRESH (3*HZ)		/* Maximal freq. of asserts */
 
 struct rtmsg;

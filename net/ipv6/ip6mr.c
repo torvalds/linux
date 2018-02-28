@@ -2203,9 +2203,6 @@ int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 		return err;
 	}
 
-	if (rtm->rtm_flags & RTM_F_NOTIFY)
-		cache->_c.mfc_flags |= MFC_NOTIFY;
-
 	err = __ip6mr_fill_mroute(mrt, skb, cache, rtm);
 	read_unlock(&mrt_lock);
 	return err;
