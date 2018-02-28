@@ -225,8 +225,13 @@ static int str_ends_with(const char *s, int slen, const char *sub)
 static void parse_config_file(const char *p)
 {
 	const char *q, *r;
+	const char *start = p;
 
 	while ((p = strstr(p, "CONFIG_"))) {
+		if (p > start && (isalnum(p[-1]) || p[-1] == '_')) {
+			p += 7;
+			continue;
+		}
 		p += 7;
 		q = p;
 		while (*q && (isalnum(*q) || *q == '_'))
