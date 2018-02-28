@@ -206,11 +206,27 @@ static ssize_t queue_write_hint_store(void *data, const char __user *buf,
 	return count;
 }
 
+static int queue_zone_wlock_show(void *data, struct seq_file *m)
+{
+	struct request_queue *q = data;
+	unsigned int i;
+
+	if (!q->seq_zones_wlock)
+		return 0;
+
+	for (i = 0; i < blk_queue_nr_zones(q); i++)
+		if (test_bit(i, q->seq_zones_wlock))
+			seq_printf(m, "%u\n", i);
+
+	return 0;
+}
+
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_queue_attrs[] = {
 	{ "poll_stat", 0400, queue_poll_stat_show },
 	{ "requeue_list", 0400, .seq_ops = &queue_requeue_list_seq_ops },
 	{ "state", 0600, queue_state_show, queue_state_write },
 	{ "write_hints", 0600, queue_write_hint_show, queue_write_hint_store },
+	{ "zone_wlock", 0400, queue_zone_wlock_show, NULL },
 	{ },
 };
 
