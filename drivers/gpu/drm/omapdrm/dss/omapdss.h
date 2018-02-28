@@ -450,6 +450,7 @@ struct omap_dss_device {
 
 	struct module *owner;
 
+	struct list_head list;
 	struct list_head panel_list;
 
 	unsigned int alias_id;
@@ -559,6 +560,9 @@ static inline bool omapdss_is_initialized(void)
 
 int omapdss_register_display(struct omap_dss_device *dssdev);
 void omapdss_unregister_display(struct omap_dss_device *dssdev);
+
+void omapdss_device_register(struct omap_dss_device *dssdev);
+void omapdss_device_unregister(struct omap_dss_device *dssdev);
 
 struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev);
 void omap_dss_put_device(struct omap_dss_device *dssdev);

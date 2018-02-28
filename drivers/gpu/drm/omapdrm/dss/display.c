@@ -56,6 +56,8 @@ int omapdss_register_display(struct omap_dss_device *dssdev)
 	mutex_lock(&panel_list_mutex);
 	list_add_tail(&dssdev->panel_list, &panel_list);
 	mutex_unlock(&panel_list_mutex);
+
+	omapdss_device_register(dssdev);
 	return 0;
 }
 EXPORT_SYMBOL(omapdss_register_display);
@@ -65,6 +67,8 @@ void omapdss_unregister_display(struct omap_dss_device *dssdev)
 	mutex_lock(&panel_list_mutex);
 	list_del(&dssdev->panel_list);
 	mutex_unlock(&panel_list_mutex);
+
+	omapdss_device_register(dssdev);
 }
 EXPORT_SYMBOL(omapdss_unregister_display);
 

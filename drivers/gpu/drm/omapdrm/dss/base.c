@@ -14,23 +14,16 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_graph.h>
-#include <linux/list.h>
 
 #include "dss.h"
 #include "omapdss.h"
 
 static struct dss_device *dss_device;
-
-static struct list_head omapdss_comp_list;
-
-struct omapdss_comp_node {
-	struct list_head list;
-	struct device_node *node;
-	bool dss_core_component;
-};
 
 struct dss_device *omapdss_get_dss(void)
 {
@@ -55,6 +48,40 @@ const struct dispc_ops *dispc_get_ops(struct dss_device *dss)
 	return dss->dispc_ops;
 }
 EXPORT_SYMBOL(dispc_get_ops);
+
+
+/* -----------------------------------------------------------------------------
+ * OMAP DSS Devices Handling
+ */
+
+static LIST_HEAD(omapdss_devices_list);
+static DEFINE_MUTEX(omapdss_devices_lock);
+
+void omapdss_device_register(struct omap_dss_device *dssdev)
+{
+	mutex_lock(&omapdss_devices_lock);
+	list_add_tail(&dssdev->list, &omapdss_devices_list);
+	mutex_unlock(&omapdss_devices_lock);
+}
+
+void omapdss_device_unregister(struct omap_dss_device *dssdev)
+{
+	mutex_lock(&omapdss_devices_lock);
+	list_del(&dssdev->list);
+	mutex_unlock(&omapdss_devices_lock);
+}
+
+/* -----------------------------------------------------------------------------
+ * Components Handling
+ */
+
+static struct list_head omapdss_comp_list;
+
+struct omapdss_comp_node {
+	struct list_head list;
+	struct device_node *node;
+	bool dss_core_component;
+};
 
 static bool omapdss_list_contains(const struct device_node *node)
 {

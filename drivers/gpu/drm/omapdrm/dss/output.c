@@ -97,6 +97,7 @@ EXPORT_SYMBOL(omapdss_output_unset_device);
 int omapdss_register_output(struct omap_dss_device *out)
 {
 	list_add_tail(&out->output_list, &output_list);
+	omapdss_device_register(out);
 	return 0;
 }
 EXPORT_SYMBOL(omapdss_register_output);
@@ -104,6 +105,7 @@ EXPORT_SYMBOL(omapdss_register_output);
 void omapdss_unregister_output(struct omap_dss_device *out)
 {
 	list_del(&out->output_list);
+	omapdss_device_unregister(out);
 }
 EXPORT_SYMBOL(omapdss_unregister_output);
 
