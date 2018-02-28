@@ -46,6 +46,21 @@ if [[ ! -v NUM_NETIFS ]]; then
 fi
 
 ##############################################################################
+# Command line options handling
+
+count=0
+
+while [[ $# -gt 0 ]]; do
+	if [[ "$count" -eq "0" ]]; then
+		unset NETIFS
+		declare -A NETIFS
+	fi
+	count=$((count + 1))
+	NETIFS[p$count]="$1"
+	shift
+done
+
+##############################################################################
 # Network interfaces configuration
 
 for i in $(eval echo {1..$NUM_NETIFS}); do
