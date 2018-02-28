@@ -1459,6 +1459,7 @@ mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 	}
 
 	mlxsw_sp_port_vlan->mlxsw_sp_port = mlxsw_sp_port;
+	mlxsw_sp_port_vlan->ref_count = 1;
 	mlxsw_sp_port_vlan->vid = vid;
 	list_add(&mlxsw_sp_port_vlan->list, &mlxsw_sp_port->vlans_list);
 
@@ -1486,8 +1487,10 @@ mlxsw_sp_port_vlan_get(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
-	if (mlxsw_sp_port_vlan)
+	if (mlxsw_sp_port_vlan) {
+		mlxsw_sp_port_vlan->ref_count++;
 		return mlxsw_sp_port_vlan;
+	}
 
 	return mlxsw_sp_port_vlan_create(mlxsw_sp_port, vid);
 }
@@ -1495,6 +1498,9 @@ mlxsw_sp_port_vlan_get(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 void mlxsw_sp_port_vlan_put(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 {
 	struct mlxsw_sp_fid *fid = mlxsw_sp_port_vlan->fid;
+
+	if (--mlxsw_sp_port_vlan->ref_count != 0)
+		return;
 
 	if (mlxsw_sp_port_vlan->bridge_port)
 		mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
