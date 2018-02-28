@@ -105,6 +105,39 @@ void *mr_mfc_find_any(struct mr_table *mrt, int vifi, void *hasharg)
 EXPORT_SYMBOL(mr_mfc_find_any);
 
 #ifdef CONFIG_PROC_FS
+void *mr_vif_seq_idx(struct net *net, struct mr_vif_iter *iter, loff_t pos)
+{
+	struct mr_table *mrt = iter->mrt;
+
+	for (iter->ct = 0; iter->ct < mrt->maxvif; ++iter->ct) {
+		if (!VIF_EXISTS(mrt, iter->ct))
+			continue;
+		if (pos-- == 0)
+			return &mrt->vif_table[iter->ct];
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(mr_vif_seq_idx);
+
+void *mr_vif_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	struct mr_vif_iter *iter = seq->private;
+	struct net *net = seq_file_net(seq);
+	struct mr_table *mrt = iter->mrt;
+
+	++*pos;
+	if (v == SEQ_START_TOKEN)
+		return mr_vif_seq_idx(net, iter, 0);
+
+	while (++iter->ct < mrt->maxvif) {
+		if (!VIF_EXISTS(mrt, iter->ct))
+			continue;
+		return &mrt->vif_table[iter->ct];
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(mr_vif_seq_next);
+
 void *mr_mfc_seq_idx(struct net *net,
 		     struct mr_mfc_iter *it, loff_t pos)
 {

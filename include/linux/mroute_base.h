@@ -206,6 +206,12 @@ static inline void *mr_mfc_find(struct mr_table *mrt, void *hasharg)
 }
 
 #ifdef CONFIG_PROC_FS
+struct mr_vif_iter {
+	struct seq_net_private p;
+	struct mr_table *mrt;
+	int ct;
+};
+
 struct mr_mfc_iter {
 	struct seq_net_private p;
 	struct mr_table *mrt;
@@ -216,6 +222,16 @@ struct mr_mfc_iter {
 };
 
 #ifdef CONFIG_IP_MROUTE_COMMON
+void *mr_vif_seq_idx(struct net *net, struct mr_vif_iter *iter, loff_t pos);
+void *mr_vif_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+
+static inline void *mr_vif_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	return *pos ? mr_vif_seq_idx(seq_file_net(seq),
+				     seq->private, *pos - 1)
+		    : SEQ_START_TOKEN;
+}
+
 /* These actually return 'struct mr_mfc *', but to avoid need for explicit
  * castings they simply return void.
  */
@@ -249,6 +265,23 @@ static inline void mr_mfc_seq_stop(struct seq_file *seq, void *v)
 		rcu_read_unlock();
 }
 #else
+static inline void *mr_vif_seq_idx(struct net *net, struct mr_vif_iter *iter,
+				   loff_t pos)
+{
+	return NULL;
+}
+
+static inline void *mr_vif_seq_next(struct seq_file *seq,
+				    void *v, loff_t *pos)
+{
+	return NULL;
+}
+
+static inline void *mr_vif_seq_start(struct seq_file *seq, loff_t *pos)
+{
+	return NULL;
+}
+
 static inline void *mr_mfc_seq_idx(struct net *net,
 				   struct mr_mfc_iter *it, loff_t pos)
 {

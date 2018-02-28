@@ -2908,31 +2908,11 @@ out:
 /* The /proc interfaces to multicast routing :
  * /proc/net/ip_mr_cache & /proc/net/ip_mr_vif
  */
-struct ipmr_vif_iter {
-	struct seq_net_private p;
-	struct mr_table *mrt;
-	int ct;
-};
-
-static struct vif_device *ipmr_vif_seq_idx(struct net *net,
-					    struct ipmr_vif_iter *iter,
-					    loff_t pos)
-{
-	struct mr_table *mrt = iter->mrt;
-
-	for (iter->ct = 0; iter->ct < mrt->maxvif; ++iter->ct) {
-		if (!VIF_EXISTS(mrt, iter->ct))
-			continue;
-		if (pos-- == 0)
-			return &mrt->vif_table[iter->ct];
-	}
-	return NULL;
-}
 
 static void *ipmr_vif_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(mrt_lock)
 {
-	struct ipmr_vif_iter *iter = seq->private;
+	struct mr_vif_iter *iter = seq->private;
 	struct net *net = seq_file_net(seq);
 	struct mr_table *mrt;
 
@@ -2943,26 +2923,7 @@ static void *ipmr_vif_seq_start(struct seq_file *seq, loff_t *pos)
 	iter->mrt = mrt;
 
 	read_lock(&mrt_lock);
-	return *pos ? ipmr_vif_seq_idx(net, seq->private, *pos - 1)
-		: SEQ_START_TOKEN;
-}
-
-static void *ipmr_vif_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	struct ipmr_vif_iter *iter = seq->private;
-	struct net *net = seq_file_net(seq);
-	struct mr_table *mrt = iter->mrt;
-
-	++*pos;
-	if (v == SEQ_START_TOKEN)
-		return ipmr_vif_seq_idx(net, iter, 0);
-
-	while (++iter->ct < mrt->maxvif) {
-		if (!VIF_EXISTS(mrt, iter->ct))
-			continue;
-		return &mrt->vif_table[iter->ct];
-	}
-	return NULL;
+	return mr_vif_seq_start(seq, pos);
 }
 
 static void ipmr_vif_seq_stop(struct seq_file *seq, void *v)
@@ -2973,7 +2934,7 @@ static void ipmr_vif_seq_stop(struct seq_file *seq, void *v)
 
 static int ipmr_vif_seq_show(struct seq_file *seq, void *v)
 {
-	struct ipmr_vif_iter *iter = seq->private;
+	struct mr_vif_iter *iter = seq->private;
 	struct mr_table *mrt = iter->mrt;
 
 	if (v == SEQ_START_TOKEN) {
@@ -2996,7 +2957,7 @@ static int ipmr_vif_seq_show(struct seq_file *seq, void *v)
 
 static const struct seq_operations ipmr_vif_seq_ops = {
 	.start = ipmr_vif_seq_start,
-	.next  = ipmr_vif_seq_next,
+	.next  = mr_vif_seq_next,
 	.stop  = ipmr_vif_seq_stop,
 	.show  = ipmr_vif_seq_show,
 };
@@ -3004,7 +2965,7 @@ static const struct seq_operations ipmr_vif_seq_ops = {
 static int ipmr_vif_open(struct inode *inode, struct file *file)
 {
 	return seq_open_net(inode, file, &ipmr_vif_seq_ops,
-			    sizeof(struct ipmr_vif_iter));
+			    sizeof(struct mr_vif_iter));
 }
 
 static const struct file_operations ipmr_vif_fops = {

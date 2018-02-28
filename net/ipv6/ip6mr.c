@@ -337,31 +337,10 @@ static void ip6mr_free_table(struct mr_table *mrt)
  * /proc/ip6_mr_cache /proc/ip6_mr_vif
  */
 
-struct ipmr_vif_iter {
-	struct seq_net_private p;
-	struct mr_table *mrt;
-	int ct;
-};
-
-static struct vif_device *ip6mr_vif_seq_idx(struct net *net,
-					    struct ipmr_vif_iter *iter,
-					    loff_t pos)
-{
-	struct mr_table *mrt = iter->mrt;
-
-	for (iter->ct = 0; iter->ct < mrt->maxvif; ++iter->ct) {
-		if (!VIF_EXISTS(mrt, iter->ct))
-			continue;
-		if (pos-- == 0)
-			return &mrt->vif_table[iter->ct];
-	}
-	return NULL;
-}
-
 static void *ip6mr_vif_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(mrt_lock)
 {
-	struct ipmr_vif_iter *iter = seq->private;
+	struct mr_vif_iter *iter = seq->private;
 	struct net *net = seq_file_net(seq);
 	struct mr_table *mrt;
 
@@ -372,26 +351,7 @@ static void *ip6mr_vif_seq_start(struct seq_file *seq, loff_t *pos)
 	iter->mrt = mrt;
 
 	read_lock(&mrt_lock);
-	return *pos ? ip6mr_vif_seq_idx(net, seq->private, *pos - 1)
-		: SEQ_START_TOKEN;
-}
-
-static void *ip6mr_vif_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	struct ipmr_vif_iter *iter = seq->private;
-	struct net *net = seq_file_net(seq);
-	struct mr_table *mrt = iter->mrt;
-
-	++*pos;
-	if (v == SEQ_START_TOKEN)
-		return ip6mr_vif_seq_idx(net, iter, 0);
-
-	while (++iter->ct < mrt->maxvif) {
-		if (!VIF_EXISTS(mrt, iter->ct))
-			continue;
-		return &mrt->vif_table[iter->ct];
-	}
-	return NULL;
+	return mr_vif_seq_start(seq, pos);
 }
 
 static void ip6mr_vif_seq_stop(struct seq_file *seq, void *v)
@@ -402,7 +362,7 @@ static void ip6mr_vif_seq_stop(struct seq_file *seq, void *v)
 
 static int ip6mr_vif_seq_show(struct seq_file *seq, void *v)
 {
-	struct ipmr_vif_iter *iter = seq->private;
+	struct mr_vif_iter *iter = seq->private;
 	struct mr_table *mrt = iter->mrt;
 
 	if (v == SEQ_START_TOKEN) {
@@ -424,7 +384,7 @@ static int ip6mr_vif_seq_show(struct seq_file *seq, void *v)
 
 static const struct seq_operations ip6mr_vif_seq_ops = {
 	.start = ip6mr_vif_seq_start,
-	.next  = ip6mr_vif_seq_next,
+	.next  = mr_vif_seq_next,
 	.stop  = ip6mr_vif_seq_stop,
 	.show  = ip6mr_vif_seq_show,
 };
@@ -432,7 +392,7 @@ static const struct seq_operations ip6mr_vif_seq_ops = {
 static int ip6mr_vif_open(struct inode *inode, struct file *file)
 {
 	return seq_open_net(inode, file, &ip6mr_vif_seq_ops,
-			    sizeof(struct ipmr_vif_iter));
+			    sizeof(struct mr_vif_iter));
 }
 
 static const struct file_operations ip6mr_vif_fops = {
