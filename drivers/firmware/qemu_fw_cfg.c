@@ -68,9 +68,12 @@ static void __iomem *fw_cfg_reg_data;
 static DEFINE_MUTEX(fw_cfg_dev_lock);
 
 /* pick appropriate endianness for selector key */
-static inline u16 fw_cfg_sel_endianness(u16 key)
+static void fw_cfg_sel_endianness(u16 key)
 {
-	return fw_cfg_is_mmio ? cpu_to_be16(key) : cpu_to_le16(key);
+	if (fw_cfg_is_mmio)
+		iowrite16be(key, fw_cfg_reg_ctrl);
+	else
+		iowrite16(key, fw_cfg_reg_ctrl);
 }
 
 /* read chunk of given fw_cfg blob (caller responsible for sanity-check) */
@@ -92,7 +95,7 @@ static inline void fw_cfg_read_blob(u16 key,
 	}
 
 	mutex_lock(&fw_cfg_dev_lock);
-	iowrite16(fw_cfg_sel_endianness(key), fw_cfg_reg_ctrl);
+	fw_cfg_sel_endianness(key);
 	while (pos-- > 0)
 		ioread8(fw_cfg_reg_data);
 	ioread8_rep(fw_cfg_reg_data, buf, count);
