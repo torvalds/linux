@@ -72,24 +72,6 @@ void omapdss_unregister_display(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_unregister_display);
 
-bool omapdss_component_is_display(struct device_node *node)
-{
-	struct omap_dss_device *dssdev;
-	bool found = false;
-
-	mutex_lock(&panel_list_mutex);
-	list_for_each_entry(dssdev, &panel_list, panel_list) {
-		if (dssdev->dev->of_node == node) {
-			found = true;
-			goto out;
-		}
-	}
-out:
-	mutex_unlock(&panel_list_mutex);
-	return found;
-}
-EXPORT_SYMBOL(omapdss_component_is_display);
-
 struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev)
 {
 	if (!try_module_get(dssdev->owner))

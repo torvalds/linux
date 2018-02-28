@@ -109,19 +109,6 @@ void omapdss_unregister_output(struct omap_dss_device *out)
 }
 EXPORT_SYMBOL(omapdss_unregister_output);
 
-bool omapdss_component_is_output(struct device_node *node)
-{
-	struct omap_dss_device *out;
-
-	list_for_each_entry(out, &output_list, output_list) {
-		if (out->dev->of_node == node)
-			return true;
-	}
-
-	return false;
-}
-EXPORT_SYMBOL(omapdss_component_is_output);
-
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id)
 {
 	struct omap_dss_device *out;

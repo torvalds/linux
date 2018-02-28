@@ -71,6 +71,24 @@ void omapdss_device_unregister(struct omap_dss_device *dssdev)
 	mutex_unlock(&omapdss_devices_lock);
 }
 
+static bool omapdss_device_is_registered(struct device_node *node)
+{
+	struct omap_dss_device *dssdev;
+	bool found = false;
+
+	mutex_lock(&omapdss_devices_lock);
+
+	list_for_each_entry(dssdev, &omapdss_devices_list, list) {
+		if (dssdev->dev->of_node == node) {
+			found = true;
+			break;
+		}
+	}
+
+	mutex_unlock(&omapdss_devices_lock);
+	return found;
+}
+
 /* -----------------------------------------------------------------------------
  * Components Handling
  */
@@ -157,9 +175,7 @@ static bool omapdss_component_is_loaded(struct omapdss_comp_node *comp)
 {
 	if (comp->dss_core_component)
 		return true;
-	if (omapdss_component_is_display(comp->node))
-		return true;
-	if (omapdss_component_is_output(comp->node))
+	if (omapdss_device_is_registered(comp->node))
 		return true;
 
 	return false;

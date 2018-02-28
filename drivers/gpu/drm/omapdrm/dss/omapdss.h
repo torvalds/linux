@@ -737,9 +737,6 @@ struct dispc_ops {
 struct dispc_device *dispc_get_dispc(struct dss_device *dss);
 const struct dispc_ops *dispc_get_ops(struct dss_device *dss);
 
-bool omapdss_component_is_display(struct device_node *node);
-bool omapdss_component_is_output(struct device_node *node);
-
 bool omapdss_stack_is_ready(void);
 void omapdss_gather_components(struct device *dev);
 
