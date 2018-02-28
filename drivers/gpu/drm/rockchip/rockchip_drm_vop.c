@@ -2439,6 +2439,13 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	mutex_lock(&vop->vop_lock);
 	vop_initial(crtc);
 
+	VOP_CTRL_SET(vop, standby, 0);
+	if (vop_crtc_mode_update(crtc)) {
+		vop_disable_all_planes(vop);
+		vop->mode_update = true;
+		DRM_DEV_INFO(vop->dev, "Update mode to %d*%d, close all win\n",
+			     hdisplay, vdisplay);
+	}
 	VOP_CTRL_SET(vop, dclk_pol, 1);
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
 		   0 : BIT(HSYNC_POSITIVE);
@@ -2553,20 +2560,9 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, cabc_global_dn_limit_en, 1);
 	VOP_CTRL_SET(vop, win_csc_mode_sel, 1);
 
-	if (vop_crtc_mode_update(crtc)) {
-		vop_disable_all_planes(vop);
-		vop->mode_update = true;
-		DRM_DEV_INFO(vop->dev, "Update mode to %d*%d, close all win\n",
-			      hdisplay, vdisplay);
-	}
-
 	clk_set_rate(vop->dclk, adjusted_mode->crtc_clock * 1000);
 
 	vop_cfg_done(vop);
-	/*
-	 * enable vop, all the register would take effect when vop exit standby
-	 */
-	VOP_CTRL_SET(vop, standby, 0);
 
 	enable_irq(vop->irq);
 	drm_crtc_vblank_on(crtc);
