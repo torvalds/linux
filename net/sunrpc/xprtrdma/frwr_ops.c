@@ -357,8 +357,7 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	struct rpcrdma_mr *mr;
 	struct ib_mr *ibmr;
 	struct ib_reg_wr *reg_wr;
-	struct ib_send_wr *bad_wr;
-	int rc, i, n;
+	int i, n;
 	u8 key;
 
 	mr = NULL;
@@ -407,21 +406,11 @@ frwr_op_map(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr_seg *seg,
 	ib_update_fast_reg_key(ibmr, ++key);
 
 	reg_wr = &frwr->fr_regwr;
-	reg_wr->wr.next = NULL;
-	reg_wr->wr.opcode = IB_WR_REG_MR;
-	frwr->fr_cqe.done = frwr_wc_fastreg;
-	reg_wr->wr.wr_cqe = &frwr->fr_cqe;
-	reg_wr->wr.num_sge = 0;
-	reg_wr->wr.send_flags = 0;
 	reg_wr->mr = ibmr;
 	reg_wr->key = ibmr->rkey;
 	reg_wr->access = writing ?
 			 IB_ACCESS_REMOTE_WRITE | IB_ACCESS_LOCAL_WRITE :
 			 IB_ACCESS_REMOTE_READ;
-
-	rc = ib_post_send(ia->ri_id->qp, &reg_wr->wr, &bad_wr);
-	if (rc)
-		goto out_senderr;
 
 	mr->mr_handle = ibmr->rkey;
 	mr->mr_length = ibmr->length;
@@ -442,11 +431,40 @@ out_mapmr_err:
 	       frwr->fr_mr, n, mr->mr_nents);
 	rpcrdma_mr_defer_recovery(mr);
 	return ERR_PTR(-EIO);
+}
 
-out_senderr:
-	pr_err("rpcrdma: FRWR registration ib_post_send returned %i\n", rc);
-	rpcrdma_mr_defer_recovery(mr);
-	return ERR_PTR(-ENOTCONN);
+/* Post Send WR containing the RPC Call message.
+ *
+ * For FRMR, chain any FastReg WRs to the Send WR. Only a
+ * single ib_post_send call is needed to register memory
+ * and then post the Send WR.
+ */
+static int
+frwr_op_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
+{
+	struct ib_send_wr *post_wr, *bad_wr;
+	struct rpcrdma_mr *mr;
+
+	post_wr = &req->rl_sendctx->sc_wr;
+	list_for_each_entry(mr, &req->rl_registered, mr_list) {
+		struct rpcrdma_frwr *frwr;
+
+		frwr = &mr->frwr;
+
+		frwr->fr_cqe.done = frwr_wc_fastreg;
+		frwr->fr_regwr.wr.next = post_wr;
+		frwr->fr_regwr.wr.wr_cqe = &frwr->fr_cqe;
+		frwr->fr_regwr.wr.num_sge = 0;
+		frwr->fr_regwr.wr.opcode = IB_WR_REG_MR;
+		frwr->fr_regwr.wr.send_flags = 0;
+
+		post_wr = &frwr->fr_regwr.wr;
+	}
+
+	/* If ib_post_send fails, the next ->send_request for
+	 * @req will queue these MWs for recovery.
+	 */
+	return ib_post_send(ia->ri_id->qp, post_wr, &bad_wr);
 }
 
 /* Handle a remotely invalidated mr on the @mrs list
@@ -561,6 +579,7 @@ reset_mrs:
 
 const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops = {
 	.ro_map				= frwr_op_map,
+	.ro_send			= frwr_op_send,
 	.ro_reminv			= frwr_op_reminv,
 	.ro_unmap_sync			= frwr_op_unmap_sync,
 	.ro_recover_mr			= frwr_op_recover_mr,

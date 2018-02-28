@@ -1535,7 +1535,6 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		struct rpcrdma_req *req)
 {
 	struct ib_send_wr *send_wr = &req->rl_sendctx->sc_wr;
-	struct ib_send_wr *send_wr_fail;
 	int rc;
 
 	if (req->rl_reply) {
@@ -1554,7 +1553,7 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		--ep->rep_send_count;
 	}
 
-	rc = ib_post_send(ia->ri_id->qp, send_wr, &send_wr_fail);
+	rc = ia->ri_ops->ro_send(ia, req);
 	trace_xprtrdma_post_send(req, rc);
 	if (rc)
 		return -ENOTCONN;
