@@ -547,7 +547,12 @@ mlxsw_sp_qdisc_prio_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 			child_qdisc->stats_base.backlog = backlog;
 		}
 	}
-
+	for (; band < IEEE_8021QAZ_MAX_TCS; band++) {
+		tclass = MLXSW_SP_PRIO_BAND_TO_TCLASS(band);
+		child_qdisc = &mlxsw_sp_port->tclass_qdiscs[tclass];
+		child_qdisc->prio_bitmap = 0;
+		mlxsw_sp_qdisc_destroy(mlxsw_sp_port, child_qdisc);
+	}
 	return 0;
 }
 

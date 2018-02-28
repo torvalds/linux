@@ -142,9 +142,8 @@ prio_reset(struct Qdisc *sch)
 	sch->q.qlen = 0;
 }
 
-static int prio_offload(struct Qdisc *sch, bool enable)
+static int prio_offload(struct Qdisc *sch, struct tc_prio_qopt *qopt)
 {
-	struct prio_sched_data *q = qdisc_priv(sch);
 	struct net_device *dev = qdisc_dev(sch);
 	struct tc_prio_qopt_offload opt = {
 		.handle = sch->handle,
@@ -154,10 +153,10 @@ static int prio_offload(struct Qdisc *sch, bool enable)
 	if (!tc_can_offload(dev) || !dev->netdev_ops->ndo_setup_tc)
 		return -EOPNOTSUPP;
 
-	if (enable) {
+	if (qopt) {
 		opt.command = TC_PRIO_REPLACE;
-		opt.replace_params.bands = q->bands;
-		memcpy(&opt.replace_params.priomap, q->prio2band,
+		opt.replace_params.bands = qopt->bands;
+		memcpy(&opt.replace_params.priomap, qopt->priomap,
 		       TC_PRIO_MAX + 1);
 		opt.replace_params.qstats = &sch->qstats;
 	} else {
@@ -174,7 +173,7 @@ prio_destroy(struct Qdisc *sch)
 	struct prio_sched_data *q = qdisc_priv(sch);
 
 	tcf_block_put(q->block);
-	prio_offload(sch, false);
+	prio_offload(sch, NULL);
 	for (prio = 0; prio < q->bands; prio++)
 		qdisc_destroy(q->queues[prio]);
 }
@@ -211,6 +210,7 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 		}
 	}
 
+	prio_offload(sch, qopt);
 	sch_tree_lock(sch);
 	q->bands = qopt->bands;
 	memcpy(q->prio2band, qopt->priomap, TC_PRIO_MAX+1);
@@ -230,7 +230,6 @@ static int prio_tune(struct Qdisc *sch, struct nlattr *opt,
 	}
 
 	sch_tree_unlock(sch);
-	prio_offload(sch, true);
 	return 0;
 }
 
