@@ -81,28 +81,13 @@ struct mfc_cache_cmp_arg {
 
 /**
  * struct mfc_cache - multicast routing entries
- * @mnode: rhashtable list
+ * @_c: Common multicast routing information; has to be first [for casting]
  * @mfc_mcastgrp: destination multicast group address
  * @mfc_origin: source address
  * @cmparg: used for rhashtable comparisons
- * @mfc_parent: source interface (iif)
- * @mfc_flags: entry flags
- * @expires: unresolved entry expire time
- * @unresolved: unresolved cached skbs
- * @last_assert: time of last assert
- * @minvif: minimum VIF id
- * @maxvif: maximum VIF id
- * @bytes: bytes that have passed for this entry
- * @pkt: packets that have passed for this entry
- * @wrong_if: number of wrong source interface hits
- * @lastuse: time of last use of the group (traffic or update)
- * @ttls: OIF TTL threshold array
- * @refcount: reference count for this entry
- * @list: global entry list
- * @rcu: used for entry destruction
  */
 struct mfc_cache {
-	struct rhlist_head mnode;
+	struct mr_mfc _c;
 	union {
 		struct {
 			__be32 mfc_mcastgrp;
@@ -110,28 +95,6 @@ struct mfc_cache {
 		};
 		struct mfc_cache_cmp_arg cmparg;
 	};
-	vifi_t mfc_parent;
-	int mfc_flags;
-
-	union {
-		struct {
-			unsigned long expires;
-			struct sk_buff_head unresolved;
-		} unres;
-		struct {
-			unsigned long last_assert;
-			int minvif;
-			int maxvif;
-			unsigned long bytes;
-			unsigned long pkt;
-			unsigned long wrong_if;
-			unsigned long lastuse;
-			unsigned char ttls[MAXVIFS];
-			refcount_t refcount;
-		} res;
-	} mfc_un;
-	struct list_head list;
-	struct rcu_head	rcu;
 };
 
 struct mfc_entry_notifier_info {
@@ -155,12 +118,12 @@ static inline void ipmr_cache_free(struct mfc_cache *mfc_cache)
 
 static inline void ipmr_cache_put(struct mfc_cache *c)
 {
-	if (refcount_dec_and_test(&c->mfc_un.res.refcount))
+	if (refcount_dec_and_test(&c->_c.mfc_un.res.refcount))
 		ipmr_cache_free(c);
 }
 static inline void ipmr_cache_hold(struct mfc_cache *c)
 {
-	refcount_inc(&c->mfc_un.res.refcount);
+	refcount_inc(&c->_c.mfc_un.res.refcount);
 }
 
 #endif

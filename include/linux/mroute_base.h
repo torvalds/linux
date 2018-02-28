@@ -45,6 +45,51 @@ struct vif_device {
 #define VIF_EXISTS(_mrt, _idx) (!!((_mrt)->vif_table[_idx].dev))
 
 /**
+ * struct mr_mfc - common multicast routing entries
+ * @mnode: rhashtable list
+ * @mfc_parent: source interface (iif)
+ * @mfc_flags: entry flags
+ * @expires: unresolved entry expire time
+ * @unresolved: unresolved cached skbs
+ * @last_assert: time of last assert
+ * @minvif: minimum VIF id
+ * @maxvif: maximum VIF id
+ * @bytes: bytes that have passed for this entry
+ * @pkt: packets that have passed for this entry
+ * @wrong_if: number of wrong source interface hits
+ * @lastuse: time of last use of the group (traffic or update)
+ * @ttls: OIF TTL threshold array
+ * @refcount: reference count for this entry
+ * @list: global entry list
+ * @rcu: used for entry destruction
+ */
+struct mr_mfc {
+	struct rhlist_head mnode;
+	unsigned short mfc_parent;
+	int mfc_flags;
+
+	union {
+		struct {
+			unsigned long expires;
+			struct sk_buff_head unresolved;
+		} unres;
+		struct {
+			unsigned long last_assert;
+			int minvif;
+			int maxvif;
+			unsigned long bytes;
+			unsigned long pkt;
+			unsigned long wrong_if;
+			unsigned long lastuse;
+			unsigned char ttls[MAXVIFS];
+			refcount_t refcount;
+		} res;
+	} mfc_un;
+	struct list_head list;
+	struct rcu_head	rcu;
+};
+
+/**
  * struct mr_table - a multicast routing table
  * @list: entry within a list of multicast routing tables
  * @net: net where this table belongs

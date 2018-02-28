@@ -71,7 +71,7 @@ struct mfc6_cache_cmp_arg {
 };
 
 struct mfc6_cache {
-	struct rhlist_head mnode;
+	struct mr_mfc _c;
 	union {
 		struct {
 			struct in6_addr mf6c_mcastgrp;
@@ -79,27 +79,6 @@ struct mfc6_cache {
 		};
 		struct mfc6_cache_cmp_arg cmparg;
 	};
-	mifi_t mf6c_parent;			/* Source interface		*/
-	int mfc_flags;				/* Flags on line		*/
-
-	union {
-		struct {
-			unsigned long expires;
-			struct sk_buff_head unresolved;	/* Unresolved buffers		*/
-		} unres;
-		struct {
-			unsigned long last_assert;
-			int minvif;
-			int maxvif;
-			unsigned long bytes;
-			unsigned long pkt;
-			unsigned long wrong_if;
-			unsigned long lastuse;
-			unsigned char ttls[MAXMIFS];	/* TTL thresholds		*/
-		} res;
-	} mfc_un;
-	struct list_head list;
-	struct rcu_head rcu;
 };
 
 #define MFC_STATIC		1

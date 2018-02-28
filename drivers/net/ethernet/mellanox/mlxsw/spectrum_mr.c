@@ -126,8 +126,8 @@ mlxsw_sp_mr_route_ivif_in_evifs(const struct mlxsw_sp_mr_route *mr_route)
 
 	switch (mr_route->mr_table->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
-		ivif = mr_route->mfc4->mfc_parent;
-		return mr_route->mfc4->mfc_un.res.ttls[ivif] != 255;
+		ivif = mr_route->mfc4->_c.mfc_parent;
+		return mr_route->mfc4->_c.mfc_un.res.ttls[ivif] != 255;
 	case MLXSW_SP_L3_PROTO_IPV6:
 		/* fall through */
 	default:
@@ -364,7 +364,7 @@ mlxsw_sp_mr_route4_create(struct mlxsw_sp_mr_table *mr_table,
 	mr_route->mfc4 = mfc;
 	mr_route->mr_table = mr_table;
 	for (i = 0; i < MAXVIFS; i++) {
-		if (mfc->mfc_un.res.ttls[i] != 255) {
+		if (mfc->_c.mfc_un.res.ttls[i] != 255) {
 			err = mlxsw_sp_mr_route_evif_link(mr_route,
 							  &mr_table->vifs[i]);
 			if (err)
@@ -374,7 +374,8 @@ mlxsw_sp_mr_route4_create(struct mlxsw_sp_mr_table *mr_table,
 				mr_route->min_mtu = mr_table->vifs[i].dev->mtu;
 		}
 	}
-	mlxsw_sp_mr_route_ivif_link(mr_route, &mr_table->vifs[mfc->mfc_parent]);
+	mlxsw_sp_mr_route_ivif_link(mr_route,
+				    &mr_table->vifs[mfc->_c.mfc_parent]);
 
 	mr_route->route_action = mlxsw_sp_mr_route_action(mr_route);
 	return mr_route;
@@ -418,9 +419,9 @@ static void mlxsw_sp_mr_mfc_offload_set(struct mlxsw_sp_mr_route *mr_route,
 	switch (mr_route->mr_table->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
 		if (offload)
-			mr_route->mfc4->mfc_flags |= MFC_OFFLOAD;
+			mr_route->mfc4->_c.mfc_flags |= MFC_OFFLOAD;
 		else
-			mr_route->mfc4->mfc_flags &= ~MFC_OFFLOAD;
+			mr_route->mfc4->_c.mfc_flags &= ~MFC_OFFLOAD;
 		break;
 	case MLXSW_SP_L3_PROTO_IPV6:
 		/* fall through */
@@ -943,10 +944,10 @@ static void mlxsw_sp_mr_route_stats_update(struct mlxsw_sp *mlxsw_sp,
 
 	switch (mr_route->mr_table->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
-		if (mr_route->mfc4->mfc_un.res.pkt != packets)
-			mr_route->mfc4->mfc_un.res.lastuse = jiffies;
-		mr_route->mfc4->mfc_un.res.pkt = packets;
-		mr_route->mfc4->mfc_un.res.bytes = bytes;
+		if (mr_route->mfc4->_c.mfc_un.res.pkt != packets)
+			mr_route->mfc4->_c.mfc_un.res.lastuse = jiffies;
+		mr_route->mfc4->_c.mfc_un.res.pkt = packets;
+		mr_route->mfc4->_c.mfc_un.res.bytes = bytes;
 		break;
 	case MLXSW_SP_L3_PROTO_IPV6:
 		/* fall through */
