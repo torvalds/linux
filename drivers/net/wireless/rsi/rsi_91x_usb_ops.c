@@ -30,15 +30,16 @@ void rsi_usb_rx_thread(struct rsi_common *common)
 	struct rsi_hw *adapter = common->priv;
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	struct rx_usb_ctrl_block *rx_cb;
-	int status, idx;
+	int status, idx, num_rx_cb;
 
+	num_rx_cb = (adapter->priv->coex_mode > 1 ? 2 : 1);
 	do {
 		rsi_wait_event(&dev->rx_thread.event, EVENT_WAIT_FOREVER);
 
 		if (atomic_read(&dev->rx_thread.thread_done))
 			goto out;
 
-		for (idx = 0; idx < MAX_RX_URBS; idx++) {
+		for (idx = 0; idx < num_rx_cb; idx++) {
 			rx_cb = &dev->rx_cb[idx];
 			if (!rx_cb->pend)
 				continue;

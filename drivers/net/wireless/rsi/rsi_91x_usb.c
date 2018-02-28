@@ -497,15 +497,15 @@ static struct rsi_host_intf_ops usb_host_intf_ops = {
  */
 static void rsi_deinit_usb_interface(struct rsi_hw *adapter)
 {
-	u8 idx;
-
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 
 	rsi_kill_thread(&dev->rx_thread);
 
-	for (idx = 0; idx < MAX_RX_URBS; idx++) {
-		usb_free_urb(dev->rx_cb[idx].rx_urb);
-		kfree(dev->rx_cb[idx].rx_buffer);
+	usb_free_urb(dev->rx_cb[0].rx_urb);
+	kfree(dev->rx_cb[0].rx_buffer);
+	if (adapter->priv->coex_mode > 1) {
+		usb_free_urb(dev->rx_cb[1].rx_urb);
+		kfree(dev->rx_cb[1].rx_buffer);
 	}
 
 	kfree(adapter->priv->rx_data_pkt);
@@ -516,9 +516,11 @@ static int rsi_usb_init_rx(struct rsi_hw *adapter)
 {
 	struct rsi_91x_usbdev *dev = (struct rsi_91x_usbdev *)adapter->rsi_dev;
 	struct rx_usb_ctrl_block *rx_cb;
-	u8 idx;
+	u8 idx, num_rx_cb;
 
-	for (idx = 0; idx < MAX_RX_URBS; idx++) {
+	num_rx_cb = (adapter->priv->coex_mode > 1 ? 2 : 1);
+
+	for (idx = 0; idx < num_rx_cb; idx++) {
 		rx_cb = &dev->rx_cb[idx];
 
 		rx_cb->rx_buffer = kzalloc(RSI_USB_BUF_SIZE * 2,
@@ -538,9 +540,11 @@ static int rsi_usb_init_rx(struct rsi_hw *adapter)
 	return 0;
 
 err:
-	for (idx = 0; idx < MAX_RX_URBS; idx++) {
-		kfree(dev->rx_cb[idx].rx_buffer);
-		kfree(dev->rx_cb[idx].rx_urb);
+	kfree(dev->rx_cb[0].rx_buffer);
+	usb_free_urb(dev->rx_cb[0].rx_urb);
+	if (adapter->priv->coex_mode > 1) {
+		kfree(dev->rx_cb[1].rx_buffer);
+		usb_free_urb(dev->rx_cb[1].rx_urb);
 	}
 	return -1;
 }
@@ -557,7 +561,7 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 {
 	struct rsi_91x_usbdev *rsi_dev;
 	struct rsi_common *common = adapter->priv;
-	int status, i;
+	int status;
 
 	rsi_dev = kzalloc(sizeof(*rsi_dev), GFP_KERNEL);
 	if (!rsi_dev)
@@ -617,9 +621,11 @@ static int rsi_init_usb_interface(struct rsi_hw *adapter,
 	return 0;
 
 fail_thread:
-	for (i = 0; i < MAX_RX_URBS; i++) {
-		kfree(rsi_dev->rx_cb[i].rx_buffer);
-		kfree(rsi_dev->rx_cb[i].rx_urb);
+	kfree(rsi_dev->rx_cb[0].rx_buffer);
+	usb_free_urb(rsi_dev->rx_cb[0].rx_urb);
+	if (common->coex_mode > 1) {
+		kfree(rsi_dev->rx_cb[1].rx_buffer);
+		usb_free_urb(rsi_dev->rx_cb[1].rx_urb);
 	}
 fail_tx:
 	kfree(common->rx_data_pkt);
