@@ -3977,7 +3977,8 @@ i915_wedged_set(void *data, u64 val)
 		engine->hangcheck.stalled = true;
 	}
 
-	i915_handle_error(i915, val, "Manually setting wedged to %llu", val);
+	i915_handle_error(i915, val, "Manually set wedged engine mask = %llx",
+			  val);
 
 	wait_on_bit(&i915->gpu_error.flags,
 		    I915_RESET_HANDOFF,
