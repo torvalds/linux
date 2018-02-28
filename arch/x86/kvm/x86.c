@@ -1052,13 +1052,25 @@ static u32 msr_based_features[] = {
 
 static unsigned int num_msr_based_features;
 
+static int kvm_get_msr_feature(struct kvm_msr_entry *msr)
+{
+	switch (msr->index) {
+	default:
+		if (kvm_x86_ops->get_msr_feature(msr))
+			return 1;
+	}
+	return 0;
+}
+
 static int do_get_msr_feature(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
 	struct kvm_msr_entry msr;
+	int r;
 
 	msr.index = index;
-	if (kvm_x86_ops->get_msr_feature(&msr))
-		return 1;
+	r = kvm_get_msr_feature(&msr);
+	if (r)
+		return r;
 
 	*data = msr.data;
 
@@ -4392,7 +4404,7 @@ static void kvm_init_msr_list(void)
 		struct kvm_msr_entry msr;
 
 		msr.index = msr_based_features[i];
-		if (kvm_x86_ops->get_msr_feature(&msr))
+		if (kvm_get_msr_feature(&msr))
 			continue;
 
 		if (j < i)
