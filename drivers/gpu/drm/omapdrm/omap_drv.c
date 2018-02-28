@@ -159,7 +159,7 @@ static void omap_disconnect_dssdevs(struct drm_device *ddev)
 	for (i = 0; i < priv->num_dssdevs; i++) {
 		struct omap_dss_device *dssdev = priv->dssdevs[i];
 
-		dssdev->driver->disconnect(dssdev);
+		omapdss_device_disconnect(dssdev, NULL);
 		priv->dssdevs[i] = NULL;
 		omap_dss_put_device(dssdev);
 	}
@@ -189,7 +189,7 @@ static int omap_connect_dssdevs(struct drm_device *ddev)
 		return -EPROBE_DEFER;
 
 	for_each_dss_dev(dssdev) {
-		r = dssdev->driver->connect(dssdev);
+		r = omapdss_device_connect(dssdev, NULL);
 		if (r == -EPROBE_DEFER) {
 			omap_dss_put_device(dssdev);
 			goto cleanup;

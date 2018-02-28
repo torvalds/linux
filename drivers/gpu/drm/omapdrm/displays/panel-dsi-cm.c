@@ -772,7 +772,7 @@ static int dsicm_connect(struct omap_dss_device *dssdev)
 		return PTR_ERR(in);
 	}
 
-	r = in->ops->connect(in, dssdev);
+	r = omapdss_device_connect(in, dssdev);
 	if (r) {
 		dev_err(dev, "Failed to connect to video source\n");
 		goto err_connect;
@@ -796,7 +796,7 @@ static int dsicm_connect(struct omap_dss_device *dssdev)
 err_vc_id:
 	in->ops->dsi.release_vc(in, ddata->channel);
 err_req_vc:
-	in->ops->disconnect(in, dssdev);
+	omapdss_device_disconnect(in, dssdev);
 err_connect:
 	omap_dss_put_device(in);
 	return r;
@@ -811,7 +811,7 @@ static void dsicm_disconnect(struct omap_dss_device *dssdev)
 		return;
 
 	in->ops->dsi.release_vc(in, ddata->channel);
-	in->ops->disconnect(in, dssdev);
+	omapdss_device_disconnect(in, dssdev);
 
 	omap_dss_put_device(in);
 	ddata->in = NULL;

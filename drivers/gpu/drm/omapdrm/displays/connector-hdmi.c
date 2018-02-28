@@ -69,7 +69,7 @@ static int hdmic_connect(struct omap_dss_device *dssdev)
 		return PTR_ERR(in);
 	}
 
-	r = in->ops->connect(in, dssdev);
+	r = omapdss_device_connect(in, dssdev);
 	if (r) {
 		omap_dss_put_device(in);
 		return r;
@@ -89,7 +89,7 @@ static void hdmic_disconnect(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_connected(dssdev))
 		return;
 
-	in->ops->disconnect(in, dssdev);
+	omapdss_device_disconnect(in, dssdev);
 
 	omap_dss_put_device(in);
 	ddata->in = NULL;

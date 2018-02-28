@@ -498,6 +498,10 @@ void omapdss_device_register(struct omap_dss_device *dssdev);
 void omapdss_device_unregister(struct omap_dss_device *dssdev);
 struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 						    unsigned int port);
+int omapdss_device_connect(struct omap_dss_device *src,
+			   struct omap_dss_device *dst);
+void omapdss_device_disconnect(struct omap_dss_device *src,
+			       struct omap_dss_device *dst);
 
 struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev);
 void omap_dss_put_device(struct omap_dss_device *dssdev);
