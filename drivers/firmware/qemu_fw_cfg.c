@@ -32,29 +32,11 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <uapi/linux/qemu_fw_cfg.h>
 
 MODULE_AUTHOR("Gabriel L. Somlo <somlo@cmu.edu>");
 MODULE_DESCRIPTION("QEMU fw_cfg sysfs support");
 MODULE_LICENSE("GPL");
-
-/* selector key values for "well-known" fw_cfg entries */
-#define FW_CFG_SIGNATURE  0x00
-#define FW_CFG_ID         0x01
-#define FW_CFG_FILE_DIR   0x19
-
-/* size in bytes of fw_cfg signature */
-#define FW_CFG_SIG_SIZE 4
-
-/* fw_cfg "file name" is up to 56 characters (including terminating nul) */
-#define FW_CFG_MAX_FILE_PATH 56
-
-/* fw_cfg file directory entry type */
-struct fw_cfg_file {
-	u32 size;
-	u16 select;
-	u16 reserved;
-	char name[FW_CFG_MAX_FILE_PATH];
-};
 
 /* fw_cfg device i/o register addresses */
 static bool fw_cfg_is_mmio;
@@ -616,7 +598,7 @@ MODULE_DEVICE_TABLE(of, fw_cfg_sysfs_mmio_match);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id fw_cfg_sysfs_acpi_match[] = {
-	{ "QEMU0002", },
+	{ FW_CFG_ACPI_DEVICE_ID, },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, fw_cfg_sysfs_acpi_match);
