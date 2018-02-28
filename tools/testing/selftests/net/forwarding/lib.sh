@@ -30,6 +30,12 @@ if [[ $? -ne 0 ]]; then
 	exit 0
 fi
 
+tc filter help 2>&1 | grep block &> /dev/null
+if [[ $? -ne 0 ]]; then
+	echo "SKIP: iproute2 too old, missing shared block support"
+	exit 0
+fi
+
 if [[ ! -x "$(command -v jq)" ]]; then
 	echo "SKIP: jq not installed"
 	exit 0
