@@ -15,38 +15,7 @@
 #include <asm/memory.h>
 #include <asm/page.h>
 
-#define PROC_INFO							\
-	. = ALIGN(4);							\
-	VMLINUX_SYMBOL(__proc_info_begin) = .;				\
-	*(.proc.info.init)						\
-	VMLINUX_SYMBOL(__proc_info_end) = .;
-
-#define IDMAP_TEXT							\
-	ALIGN_FUNCTION();						\
-	VMLINUX_SYMBOL(__idmap_text_start) = .;				\
-	*(.idmap.text)							\
-	VMLINUX_SYMBOL(__idmap_text_end) = .;				\
-	. = ALIGN(PAGE_SIZE);						\
-	VMLINUX_SYMBOL(__hyp_idmap_text_start) = .;			\
-	*(.hyp.idmap.text)						\
-	VMLINUX_SYMBOL(__hyp_idmap_text_end) = .;
-
-#ifdef CONFIG_HOTPLUG_CPU
-#define ARM_CPU_DISCARD(x)
-#define ARM_CPU_KEEP(x)		x
-#else
-#define ARM_CPU_DISCARD(x)	x
-#define ARM_CPU_KEEP(x)
-#endif
-
-#if (defined(CONFIG_SMP_ON_UP) && !defined(CONFIG_DEBUG_SPINLOCK)) || \
-	defined(CONFIG_GENERIC_BUG)
-#define ARM_EXIT_KEEP(x)	x
-#define ARM_EXIT_DISCARD(x)
-#else
-#define ARM_EXIT_KEEP(x)
-#define ARM_EXIT_DISCARD(x)	x
-#endif
+#include "vmlinux.lds.h"
 
 OUTPUT_ARCH(arm)
 ENTRY(stext)
@@ -100,10 +69,12 @@ SECTIONS
 			*(.entry.text)
 			__entry_text_end = .;
 			IRQENTRY_TEXT
+			SOFTIRQENTRY_TEXT
 			TEXT_TEXT
 			SCHED_TEXT
 			CPUIDLE_TEXT
 			LOCK_TEXT
+			HYPERVISOR_TEXT
 			KPROBES_TEXT
 			*(.gnu.warning)
 			*(.glue_7)
