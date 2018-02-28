@@ -41,7 +41,11 @@ static const struct drm_mode_config_funcs mode_config_funcs = {
 	.fb_create = msm_framebuffer_create,
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = msm_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
+};
+
+static const struct drm_mode_config_helper_funcs mode_config_helper_funcs = {
+	.atomic_commit_tail = msm_atomic_commit_tail,
 };
 
 #ifdef CONFIG_DRM_MSM_REGISTER_LOGGING
@@ -438,6 +442,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	}
 
 	ddev->mode_config.funcs = &mode_config_funcs;
+	ddev->mode_config.helper_private = &mode_config_helper_funcs;
 
 	ret = drm_vblank_init(ddev, priv->num_crtcs);
 	if (ret < 0) {
