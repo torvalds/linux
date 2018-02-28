@@ -360,6 +360,16 @@ static void ipmr_new_table_set(struct mr_table *mrt,
 #endif
 }
 
+static struct mfc_cache_cmp_arg ipmr_mr_table_ops_cmparg_any = {
+	.mfc_mcastgrp = htonl(INADDR_ANY),
+	.mfc_origin = htonl(INADDR_ANY),
+};
+
+static struct mr_table_ops ipmr_mr_table_ops = {
+	.rht_params = &ipmr_rht_params,
+	.cmparg_any = &ipmr_mr_table_ops_cmparg_any,
+};
+
 static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 {
 	struct mr_table *mrt;
@@ -372,7 +382,7 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 	if (mrt)
 		return mrt;
 
-	return mr_table_alloc(net, id, &ipmr_rht_params,
+	return mr_table_alloc(net, id, &ipmr_mr_table_ops,
 			      ipmr_expire_process, ipmr_new_table_set);
 }
 
@@ -973,33 +983,8 @@ static struct mfc_cache *ipmr_cache_find(struct mr_table *mrt,
 			.mfc_mcastgrp = mcastgrp,
 			.mfc_origin = origin
 	};
-	struct rhlist_head *tmp, *list;
-	struct mr_mfc *c;
 
-	list = rhltable_lookup(&mrt->mfc_hash, &arg, ipmr_rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
-		return (struct mfc_cache *)c;
-
-	return NULL;
-}
-
-/* Look for a (*,*,oif) entry */
-static struct mfc_cache *ipmr_cache_find_any_parent(struct mr_table *mrt,
-						    int vifi)
-{
-	struct mfc_cache_cmp_arg arg = {
-			.mfc_mcastgrp = htonl(INADDR_ANY),
-			.mfc_origin = htonl(INADDR_ANY)
-	};
-	struct rhlist_head *tmp, *list;
-	struct mr_mfc *c;
-
-	list = rhltable_lookup(&mrt->mfc_hash, &arg, ipmr_rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
-		if (c->mfc_un.res.ttls[vifi] < 255)
-			return (struct mfc_cache *)c;
-
-	return NULL;
+	return mr_mfc_find(mrt, &arg);
 }
 
 /* Look for a (*,G) entry */
@@ -1010,27 +995,10 @@ static struct mfc_cache *ipmr_cache_find_any(struct mr_table *mrt,
 			.mfc_mcastgrp = mcastgrp,
 			.mfc_origin = htonl(INADDR_ANY)
 	};
-	struct rhlist_head *tmp, *list;
-	struct mr_mfc *c;
 
 	if (mcastgrp == htonl(INADDR_ANY))
-		goto skip;
-
-	list = rhltable_lookup(&mrt->mfc_hash, &arg, ipmr_rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode) {
-		struct mfc_cache *proxy;
-
-		if (c->mfc_un.res.ttls[vifi] < 255)
-			return (struct mfc_cache *)c;
-
-		/* It's ok if the vifi is part of the static tree */
-		proxy = ipmr_cache_find_any_parent(mrt, c->mfc_parent);
-		if (proxy && proxy->_c.mfc_un.res.ttls[vifi] < 255)
-			return (struct mfc_cache *)c;
-	}
-
-skip:
-	return ipmr_cache_find_any_parent(mrt, vifi);
+		return mr_mfc_find_any_parent(mrt, vifi);
+	return mr_mfc_find_any(mrt, vifi, &arg);
 }
 
 /* Look for a (S,G,iif) entry if parent != -1 */
@@ -1042,15 +1010,8 @@ static struct mfc_cache *ipmr_cache_find_parent(struct mr_table *mrt,
 			.mfc_mcastgrp = mcastgrp,
 			.mfc_origin = origin,
 	};
-	struct rhlist_head *tmp, *list;
-	struct mr_mfc *c;
 
-	list = rhltable_lookup(&mrt->mfc_hash, &arg, ipmr_rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
-		if (parent == -1 || parent == c->mfc_parent)
-			return (struct mfc_cache *)c;
-
-	return NULL;
+	return mr_mfc_find_parent(mrt, &arg, parent);
 }
 
 /* Allocate a multicast cache entry */
@@ -2010,7 +1971,7 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 		/* For an (*,G) entry, we only check that the incomming
 		 * interface is part of the static tree.
 		 */
-		cache_proxy = ipmr_cache_find_any_parent(mrt, vif);
+		cache_proxy = mr_mfc_find_any_parent(mrt, vif);
 		if (cache_proxy &&
 		    cache_proxy->_c.mfc_un.res.ttls[true_vifi] < 255)
 			goto forward;

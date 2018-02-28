@@ -302,6 +302,16 @@ static void ip6mr_new_table_set(struct mr_table *mrt,
 #endif
 }
 
+static struct mfc6_cache_cmp_arg ip6mr_mr_table_ops_cmparg_any = {
+	.mf6c_origin = IN6ADDR_ANY_INIT,
+	.mf6c_mcastgrp = IN6ADDR_ANY_INIT,
+};
+
+static struct mr_table_ops ip6mr_mr_table_ops = {
+	.rht_params = &ip6mr_rht_params,
+	.cmparg_any = &ip6mr_mr_table_ops_cmparg_any,
+};
+
 static struct mr_table *ip6mr_new_table(struct net *net, u32 id)
 {
 	struct mr_table *mrt;
@@ -310,7 +320,7 @@ static struct mr_table *ip6mr_new_table(struct net *net, u32 id)
 	if (mrt)
 		return mrt;
 
-	return mr_table_alloc(net, id, &ip6mr_rht_params,
+	return mr_table_alloc(net, id, &ip6mr_mr_table_ops,
 			      ipmr_expire_process, ip6mr_new_table_set);
 }
 
@@ -988,33 +998,8 @@ static struct mfc6_cache *ip6mr_cache_find(struct mr_table *mrt,
 		.mf6c_origin = *origin,
 		.mf6c_mcastgrp = *mcastgrp,
 	};
-	struct rhlist_head *tmp, *list;
-	struct mr_mfc *c;
 
-	list = rhltable_lookup(&mrt->mfc_hash, &arg, ip6mr_rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
-		return (struct mfc6_cache *)c;
-
-	return NULL;
-}
-
-/* Look for a (*,*,oif) entry */
-static struct mfc6_cache *ip6mr_cache_find_any_parent(struct mr_table *mrt,
-						      mifi_t mifi)
-{
-	struct mfc6_cache_cmp_arg arg = {
-		.mf6c_origin = in6addr_any,
-		.mf6c_mcastgrp = in6addr_any,
-	};
-	struct rhlist_head *tmp, *list;
-	struct mr_mfc *c;
-
-	list = rhltable_lookup(&mrt->mfc_hash, &arg, ip6mr_rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
-		if (c->mfc_un.res.ttls[mifi] < 255)
-			return (struct mfc6_cache *)c;
-
-	return NULL;
+	return mr_mfc_find(mrt, &arg);
 }
 
 /* Look for a (*,G) entry */
@@ -1026,26 +1011,10 @@ static struct mfc6_cache *ip6mr_cache_find_any(struct mr_table *mrt,
 		.mf6c_origin = in6addr_any,
 		.mf6c_mcastgrp = *mcastgrp,
 	};
-	struct rhlist_head *tmp, *list;
-	struct mr_mfc *c;
-	struct mfc6_cache *proxy;
 
 	if (ipv6_addr_any(mcastgrp))
-		goto skip;
-
-	list = rhltable_lookup(&mrt->mfc_hash, &arg, ip6mr_rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode) {
-		if (c->mfc_un.res.ttls[mifi] < 255)
-			return (struct mfc6_cache *)c;
-
-		/* It's ok if the mifi is part of the static tree */
-		proxy = ip6mr_cache_find_any_parent(mrt, c->mfc_parent);
-		if (proxy && proxy->_c.mfc_un.res.ttls[mifi] < 255)
-			return (struct mfc6_cache *)c;
-	}
-
-skip:
-	return ip6mr_cache_find_any_parent(mrt, mifi);
+		return mr_mfc_find_any_parent(mrt, mifi);
+	return mr_mfc_find_any(mrt, mifi, &arg);
 }
 
 /* Look for a (S,G,iif) entry if parent != -1 */
@@ -1059,20 +1028,11 @@ ip6mr_cache_find_parent(struct mr_table *mrt,
 		.mf6c_origin = *origin,
 		.mf6c_mcastgrp = *mcastgrp,
 	};
-	struct rhlist_head *tmp, *list;
-	struct mr_mfc *c;
 
-	list = rhltable_lookup(&mrt->mfc_hash, &arg, ip6mr_rht_params);
-	rhl_for_each_entry_rcu(c, tmp, list, mnode)
-		if (parent == -1 || parent == c->mfc_parent)
-			return (struct mfc6_cache *)c;
-
-	return NULL;
+	return mr_mfc_find_parent(mrt, &arg, parent);
 }
 
-/*
- *	Allocate a multicast cache entry
- */
+/* Allocate a multicast cache entry */
 static struct mfc6_cache *ip6mr_cache_alloc(void)
 {
 	struct mfc6_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_KERNEL);
@@ -2107,7 +2067,7 @@ static void ip6_mr_forward(struct net *net, struct mr_table *mrt,
 		 * interface is part of the static tree.
 		 */
 		rcu_read_lock();
-		cache_proxy = ip6mr_cache_find_any_parent(mrt, vif);
+		cache_proxy = mr_mfc_find_any_parent(mrt, vif);
 		if (cache_proxy &&
 		    cache_proxy->_c.mfc_un.res.ttls[true_vifi] < 255) {
 			rcu_read_unlock();

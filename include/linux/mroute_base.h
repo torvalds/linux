@@ -89,10 +89,23 @@ struct mr_mfc {
 	struct rcu_head	rcu;
 };
 
+struct mr_table;
+
+/**
+ * struct mr_table_ops - callbacks and info for protocol-specific ops
+ * @rht_params: parameters for accessing the MFC hash
+ * @cmparg_any: a hash key to be used for matching on (*,*) routes
+ */
+struct mr_table_ops {
+	const struct rhashtable_params *rht_params;
+	void *cmparg_any;
+};
+
 /**
  * struct mr_table - a multicast routing table
  * @list: entry within a list of multicast routing tables
  * @net: net where this table belongs
+ * @ops: protocol specific operations
  * @id: identifier of the table
  * @mroute_sk: socket associated with the table
  * @ipmr_expire_timer: timer for handling unresolved routes
@@ -109,6 +122,7 @@ struct mr_mfc {
 struct mr_table {
 	struct list_head	list;
 	possible_net_t		net;
+	struct mr_table_ops	ops;
 	u32			id;
 	struct sock __rcu	*mroute_sk;
 	struct timer_list	ipmr_expire_timer;
@@ -133,10 +147,19 @@ void vif_device_init(struct vif_device *v,
 
 struct mr_table *
 mr_table_alloc(struct net *net, u32 id,
-	       const struct rhashtable_params *rht_params,
+	       struct mr_table_ops *ops,
 	       void (*expire_func)(struct timer_list *t),
 	       void (*table_set)(struct mr_table *mrt,
 				 struct net *net));
+
+/* These actually return 'struct mr_mfc *', but to avoid need for explicit
+ * castings they simply return void.
+ */
+void *mr_mfc_find_parent(struct mr_table *mrt,
+			 void *hasharg, int parent);
+void *mr_mfc_find_any_parent(struct mr_table *mrt, int vifi);
+void *mr_mfc_find_any(struct mr_table *mrt, int vifi, void *hasharg);
+
 #else
 static inline void vif_device_init(struct vif_device *v,
 				   struct net_device *dev,
@@ -147,14 +170,37 @@ static inline void vif_device_init(struct vif_device *v,
 {
 }
 
-static inline struct mr_table *
+static inline void *
 mr_table_alloc(struct net *net, u32 id,
-	       const struct rhashtable_params *rht_params,
+	       struct mr_table_ops *ops,
 	       void (*expire_func)(struct timer_list *t),
 	       void (*table_set)(struct mr_table *mrt,
 				 struct net *net))
 {
 	return NULL;
 }
+
+static inline void *mr_mfc_find_parent(struct mr_table *mrt,
+				       void *hasharg, int parent)
+{
+	return NULL;
+}
+
+static inline void *mr_mfc_find_any_parent(struct mr_table *mrt,
+					   int vifi)
+{
+	return NULL;
+}
+
+static inline struct mr_mfc *mr_mfc_find_any(struct mr_table *mrt,
+					     int vifi, void *hasharg)
+{
+	return NULL;
+}
 #endif
+
+static inline void *mr_mfc_find(struct mr_table *mrt, void *hasharg)
+{
+	return mr_mfc_find_parent(mrt, hasharg, -1);
+}
 #endif
