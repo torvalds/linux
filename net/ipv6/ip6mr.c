@@ -333,40 +333,8 @@ static void ip6mr_free_table(struct mr_table *mrt)
 }
 
 #ifdef CONFIG_PROC_FS
-
-struct ipmr_mfc_iter {
-	struct seq_net_private p;
-	struct mr_table *mrt;
-	struct list_head *cache;
-};
-
-
-static struct mfc6_cache *ipmr_mfc_seq_idx(struct net *net,
-					   struct ipmr_mfc_iter *it, loff_t pos)
-{
-	struct mr_table *mrt = it->mrt;
-	struct mr_mfc *mfc;
-
-	rcu_read_lock();
-	it->cache = &mrt->mfc_cache_list;
-	list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list)
-		if (pos-- == 0)
-			return (struct mfc6_cache *)mfc;
-	rcu_read_unlock();
-
-	spin_lock_bh(&mfc_unres_lock);
-	it->cache = &mrt->mfc_unres_queue;
-	list_for_each_entry(mfc, it->cache, list)
-		if (pos-- == 0)
-			return (struct mfc6_cache *)mfc;
-	spin_unlock_bh(&mfc_unres_lock);
-
-	it->cache = NULL;
-	return NULL;
-}
-
-/*
- *	The /proc interfaces to multicast routing /proc/ip6_mr_cache /proc/ip6_mr_vif
+/* The /proc interfaces to multicast routing
+ * /proc/ip6_mr_cache /proc/ip6_mr_vif
  */
 
 struct ipmr_vif_iter {
@@ -476,7 +444,6 @@ static const struct file_operations ip6mr_vif_fops = {
 
 static void *ipmr_mfc_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct ipmr_mfc_iter *it = seq->private;
 	struct net *net = seq_file_net(seq);
 	struct mr_table *mrt;
 
@@ -484,57 +451,7 @@ static void *ipmr_mfc_seq_start(struct seq_file *seq, loff_t *pos)
 	if (!mrt)
 		return ERR_PTR(-ENOENT);
 
-	it->mrt = mrt;
-	it->cache = NULL;
-	return *pos ? ipmr_mfc_seq_idx(net, seq->private, *pos - 1)
-		: SEQ_START_TOKEN;
-}
-
-static void *ipmr_mfc_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	struct mfc6_cache *mfc = v;
-	struct ipmr_mfc_iter *it = seq->private;
-	struct net *net = seq_file_net(seq);
-	struct mr_table *mrt = it->mrt;
-
-	++*pos;
-
-	if (v == SEQ_START_TOKEN)
-		return ipmr_mfc_seq_idx(net, seq->private, 0);
-
-	if (mfc->_c.list.next != it->cache)
-		return (struct mfc6_cache *)(list_entry(mfc->_c.list.next,
-							struct mr_mfc, list));
-
-	if (it->cache == &mrt->mfc_unres_queue)
-		goto end_of_list;
-
-	/* exhausted cache_array, show unresolved */
-	rcu_read_unlock();
-	it->cache = &mrt->mfc_unres_queue;
-
-	spin_lock_bh(&mfc_unres_lock);
-	if (!list_empty(it->cache))
-		return (struct mfc6_cache *)(list_first_entry(it->cache,
-							      struct mr_mfc,
-							      list));
-
- end_of_list:
-	spin_unlock_bh(&mfc_unres_lock);
-	it->cache = NULL;
-
-	return NULL;
-}
-
-static void ipmr_mfc_seq_stop(struct seq_file *seq, void *v)
-{
-	struct ipmr_mfc_iter *it = seq->private;
-	struct mr_table *mrt = it->mrt;
-
-	if (it->cache == &mrt->mfc_unres_queue)
-		spin_unlock_bh(&mfc_unres_lock);
-	else if (it->cache == &mrt->mfc_cache_list)
-		rcu_read_unlock();
+	return mr_mfc_seq_start(seq, pos, mrt, &mfc_unres_lock);
 }
 
 static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
@@ -548,7 +465,7 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 			 "Iif      Pkts  Bytes     Wrong  Oifs\n");
 	} else {
 		const struct mfc6_cache *mfc = v;
-		const struct ipmr_mfc_iter *it = seq->private;
+		const struct mr_mfc_iter *it = seq->private;
 		struct mr_table *mrt = it->mrt;
 
 		seq_printf(seq, "%pI6 %pI6 %-3hd",
@@ -581,15 +498,15 @@ static int ipmr_mfc_seq_show(struct seq_file *seq, void *v)
 
 static const struct seq_operations ipmr_mfc_seq_ops = {
 	.start = ipmr_mfc_seq_start,
-	.next  = ipmr_mfc_seq_next,
-	.stop  = ipmr_mfc_seq_stop,
+	.next  = mr_mfc_seq_next,
+	.stop  = mr_mfc_seq_stop,
 	.show  = ipmr_mfc_seq_show,
 };
 
 static int ipmr_mfc_open(struct inode *inode, struct file *file)
 {
 	return seq_open_net(inode, file, &ipmr_mfc_seq_ops,
-			    sizeof(struct ipmr_mfc_iter));
+			    sizeof(struct mr_mfc_iter));
 }
 
 static const struct file_operations ip6mr_mfc_fops = {

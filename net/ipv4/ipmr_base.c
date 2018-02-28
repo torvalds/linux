@@ -103,3 +103,65 @@ void *mr_mfc_find_any(struct mr_table *mrt, int vifi, void *hasharg)
 	return mr_mfc_find_any_parent(mrt, vifi);
 }
 EXPORT_SYMBOL(mr_mfc_find_any);
+
+#ifdef CONFIG_PROC_FS
+void *mr_mfc_seq_idx(struct net *net,
+		     struct mr_mfc_iter *it, loff_t pos)
+{
+	struct mr_table *mrt = it->mrt;
+	struct mr_mfc *mfc;
+
+	rcu_read_lock();
+	it->cache = &mrt->mfc_cache_list;
+	list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list)
+		if (pos-- == 0)
+			return mfc;
+	rcu_read_unlock();
+
+	spin_lock_bh(it->lock);
+	it->cache = &mrt->mfc_unres_queue;
+	list_for_each_entry(mfc, it->cache, list)
+		if (pos-- == 0)
+			return mfc;
+	spin_unlock_bh(it->lock);
+
+	it->cache = NULL;
+	return NULL;
+}
+EXPORT_SYMBOL(mr_mfc_seq_idx);
+
+void *mr_mfc_seq_next(struct seq_file *seq, void *v,
+		      loff_t *pos)
+{
+	struct mr_mfc_iter *it = seq->private;
+	struct net *net = seq_file_net(seq);
+	struct mr_table *mrt = it->mrt;
+	struct mr_mfc *c = v;
+
+	++*pos;
+
+	if (v == SEQ_START_TOKEN)
+		return mr_mfc_seq_idx(net, seq->private, 0);
+
+	if (c->list.next != it->cache)
+		return list_entry(c->list.next, struct mr_mfc, list);
+
+	if (it->cache == &mrt->mfc_unres_queue)
+		goto end_of_list;
+
+	/* exhausted cache_array, show unresolved */
+	rcu_read_unlock();
+	it->cache = &mrt->mfc_unres_queue;
+
+	spin_lock_bh(it->lock);
+	if (!list_empty(it->cache))
+		return list_first_entry(it->cache, struct mr_mfc, list);
+
+end_of_list:
+	spin_unlock_bh(it->lock);
+	it->cache = NULL;
+
+	return NULL;
+}
+EXPORT_SYMBOL(mr_mfc_seq_next);
+#endif

@@ -3,6 +3,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/rhashtable.h>
+#include <linux/spinlock.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
 
@@ -203,4 +204,72 @@ static inline void *mr_mfc_find(struct mr_table *mrt, void *hasharg)
 {
 	return mr_mfc_find_parent(mrt, hasharg, -1);
 }
+
+#ifdef CONFIG_PROC_FS
+struct mr_mfc_iter {
+	struct seq_net_private p;
+	struct mr_table *mrt;
+	struct list_head *cache;
+
+	/* Lock protecting the mr_table's unresolved queue */
+	spinlock_t *lock;
+};
+
+#ifdef CONFIG_IP_MROUTE_COMMON
+/* These actually return 'struct mr_mfc *', but to avoid need for explicit
+ * castings they simply return void.
+ */
+void *mr_mfc_seq_idx(struct net *net,
+		     struct mr_mfc_iter *it, loff_t pos);
+void *mr_mfc_seq_next(struct seq_file *seq, void *v,
+		      loff_t *pos);
+
+static inline void *mr_mfc_seq_start(struct seq_file *seq, loff_t *pos,
+				     struct mr_table *mrt, spinlock_t *lock)
+{
+	struct mr_mfc_iter *it = seq->private;
+
+	it->mrt = mrt;
+	it->cache = NULL;
+	it->lock = lock;
+
+	return *pos ? mr_mfc_seq_idx(seq_file_net(seq),
+				     seq->private, *pos - 1)
+		    : SEQ_START_TOKEN;
+}
+
+static inline void mr_mfc_seq_stop(struct seq_file *seq, void *v)
+{
+	struct mr_mfc_iter *it = seq->private;
+	struct mr_table *mrt = it->mrt;
+
+	if (it->cache == &mrt->mfc_unres_queue)
+		spin_unlock_bh(it->lock);
+	else if (it->cache == &mrt->mfc_cache_list)
+		rcu_read_unlock();
+}
+#else
+static inline void *mr_mfc_seq_idx(struct net *net,
+				   struct mr_mfc_iter *it, loff_t pos)
+{
+	return NULL;
+}
+
+static inline void *mr_mfc_seq_next(struct seq_file *seq, void *v,
+				    loff_t *pos)
+{
+	return NULL;
+}
+
+static inline void *mr_mfc_seq_start(struct seq_file *seq, loff_t *pos,
+				     struct mr_table *mrt, spinlock_t *lock)
+{
+	return NULL;
+}
+
+static inline void mr_mfc_seq_stop(struct seq_file *seq, void *v)
+{
+}
+#endif
+#endif
 #endif
