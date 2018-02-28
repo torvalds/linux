@@ -65,7 +65,7 @@ void rtc_time64_to_tm(time64_t time, struct rtc_time *tm)
 	days -= (year - 1970) * 365
 		+ LEAPS_THRU_END_OF(year - 1)
 		- LEAPS_THRU_END_OF(1970 - 1);
-	if (days < 0) {
+	while (days < 0) {
 		year -= 1;
 		days += 365 + is_leap_year(year);
 	}
