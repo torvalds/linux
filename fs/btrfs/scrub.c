@@ -4480,7 +4480,8 @@ static int check_extent_to_block(struct btrfs_inode *inode, u64 start, u64 len,
 	 * move on to the next inode.
 	 */
 	if (em->block_start > logical ||
-	    em->block_start + em->block_len < logical + len) {
+	    em->block_start + em->block_len < logical + len ||
+	    test_bit(EXTENT_FLAG_PREALLOC, &em->flags)) {
 		free_extent_map(em);
 		ret = 1;
 		goto out_unlock;
