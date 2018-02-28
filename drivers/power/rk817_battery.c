@@ -2129,7 +2129,7 @@ static void rk817_bat_smooth_algorithm(struct rk817_battery_device *battery)
 			if (battery->smooth_soc < battery->dsoc)
 				return;
 
-				battery->dsoc = battery->smooth_soc;
+			battery->dsoc = battery->smooth_soc;
 			if (battery->dsoc <= 0)
 				battery->dsoc = 0;
 		}
@@ -2917,8 +2917,8 @@ static int rk817_bat_pm_resume(struct device *dev)
 	    interval_sec);
 
 	/* sleep: enough time and discharge */
-	if ((battery->sleep_dischrg_sec > time_step) &&
-	    (!battery->sleep_chrg_online)) {
+	if ((!battery->sleep_chrg_online) &&
+	    (battery->sleep_dischrg_sec > time_step)) {
 		if (rk817_bat_sleep_dischrg(battery))
 			battery->sleep_dischrg_sec = 0;
 	}
