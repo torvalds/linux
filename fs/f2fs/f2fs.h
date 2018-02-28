@@ -2399,12 +2399,6 @@ static inline int f2fs_has_inline_dentry(struct inode *inode)
 	return is_inode_flag_set(inode, FI_INLINE_DENTRY);
 }
 
-static inline void f2fs_dentry_kunmap(struct inode *dir, struct page *page)
-{
-	if (!f2fs_has_inline_dentry(dir))
-		kunmap(page);
-}
-
 static inline int is_file(struct inode *inode, int type)
 {
 	return F2FS_I(inode)->i_advise & type;
