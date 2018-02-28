@@ -241,12 +241,17 @@ def test_runner(pm, args, filtered_tests):
     testlist = filtered_tests
     tcount = len(testlist)
     index = 1
-    tap = str(index) + ".." + str(tcount) + "\n"
+    tap = ''
     badtest = None
     stage = None
     emergency_exit = False
     emergency_exit_message = ''
 
+    if args.notap:
+        if args.verbose:
+            tap = 'notap requested:  omitting test plan\n'
+    else:
+        tap = str(index) + ".." + str(tcount) + "\n"
     try:
         pm.call_pre_suite(tcount, [tidx['id'] for tidx in testlist])
     except Exception as ee:
@@ -303,15 +308,16 @@ def test_runner(pm, args, filtered_tests):
     # if we failed in setup or teardown,
     # fill in the remaining tests with ok-skipped
     count = index
-    tap += 'about to flush the tap output if tests need to be skipped\n'
-    if tcount + 1 != index:
-        for tidx in testlist[index - 1:]:
-            msg = 'skipped - previous {} failed'.format(stage)
-            tap += 'ok {} - {} # {} {} {}\n'.format(
-                count, tidx['id'], msg, index, badtest.get('id', '--Unknown--'))
-            count += 1
+    if not args.notap:
+        tap += 'about to flush the tap output if tests need to be skipped\n'
+        if tcount + 1 != index:
+            for tidx in testlist[index - 1:]:
+                msg = 'skipped - previous {} failed'.format(stage)
+                tap += 'ok {} - {} # {} {} {}\n'.format(
+                    count, tidx['id'], msg, index, badtest.get('id', '--Unknown--'))
+                count += 1
 
-    tap += 'done flushing skipped test tap output\n'
+        tap += 'done flushing skipped test tap output\n'
     pm.call_post_suite(index)
 
     return tap
@@ -389,6 +395,9 @@ def set_args(parser):
     parser.add_argument(
         '-v', '--verbose', action='count', default=0,
         help='Show the commands that are being run')
+    parser.add_argument(
+        '-N', '--notap', action='store_true',
+        help='Suppress tap results for command under test')
     parser.add_argument('-d', '--device',
                         help='Execute the test case in flower category')
     return parser
@@ -601,7 +610,10 @@ def set_operation_mode(pm, args):
         catresults = test_runner(pm, args, alltests)
     else:
         catresults = 'No tests found\n'
-    print('All test results: \n\n{}'.format(catresults))
+    if args.notap:
+        print('Tap output suppression requested\n')
+    else:
+        print('All test results: \n\n{}'.format(catresults))
 
 def main():
     """
