@@ -125,6 +125,8 @@ struct sseu_dev_info {
 	u8 has_eu_pg:1;
 };
 
+typedef u8 intel_ring_mask_t;
+
 struct intel_device_info {
 	u16 device_id;
 	u16 gen_mask;
@@ -132,7 +134,7 @@ struct intel_device_info {
 	u8 gen;
 	u8 gt; /* GT number, 0 if undefined */
 	u8 num_rings;
-	u8 ring_mask; /* Rings supported by the HW */
+	intel_ring_mask_t ring_mask; /* Rings supported by the HW */
 
 	enum intel_platform platform;
 	u32 platform_mask;

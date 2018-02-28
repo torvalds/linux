@@ -542,6 +542,9 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 		info->num_scalers[PIPE_C] = 1;
 	}
 
+	BUILD_BUG_ON(I915_NUM_ENGINES >
+		     sizeof(intel_ring_mask_t) * BITS_PER_BYTE);
+
 	/*
 	 * Skylake and Broxton currently don't expose the topmost plane as its
 	 * use is exclusive with the legacy cursor and we only want to expose

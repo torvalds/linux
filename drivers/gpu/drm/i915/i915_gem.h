@@ -57,6 +57,6 @@
 #define GEM_TRACE(...) do { } while (0)
 #endif
 
-#define I915_NUM_ENGINES 5
+#define I915_NUM_ENGINES 8
 
 #endif /* __I915_GEM_H__ */

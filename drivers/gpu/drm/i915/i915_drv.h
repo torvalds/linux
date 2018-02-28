@@ -2746,6 +2746,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define BLT_RING	ENGINE_MASK(BCS)
 #define VEBOX_RING	ENGINE_MASK(VECS)
 #define BSD2_RING	ENGINE_MASK(VCS2)
+#define BSD3_RING	ENGINE_MASK(VCS3)
+#define BSD4_RING	ENGINE_MASK(VCS4)
+#define VEBOX2_RING	ENGINE_MASK(VECS2)
 #define ALL_ENGINES	(~0)
 
 #define HAS_ENGINE(dev_priv, id) \
