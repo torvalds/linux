@@ -296,6 +296,19 @@ forwarding_restore()
        sysctl -q -w net.ipv4.conf.all.forwarding=$ipv4_fwd
 }
 
+tc_offload_check()
+{
+	for i in $(eval echo {1..$NUM_NETIFS}); do
+		ethtool -k ${NETIFS[p$i]} \
+			| grep "hw-tc-offload: on" &> /dev/null
+		if [[ $? -ne 0 ]]; then
+			return 1
+		fi
+	done
+
+	return 0
+}
+
 ##############################################################################
 # Tests
 
