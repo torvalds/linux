@@ -1173,7 +1173,8 @@ static int fiemap_for_stripe(const struct lu_env *env, struct cl_object *obj,
 
 	/* If this is a continuation FIEMAP call and we are on
 	 * starting stripe then lun_start needs to be set to
-	 * end_offset */
+	 * end_offset
+	 */
 	if (fs->fs_end_offset != 0 && stripeno == fs->fs_start_stripe)
 		lun_start = fs->fs_end_offset;
 
@@ -1198,7 +1199,8 @@ static int fiemap_for_stripe(const struct lu_env *env, struct cl_object *obj,
 	if (IS_ERR(subobj))
 		return PTR_ERR(subobj);
 	/* If the output buffer is very large and the objects have many
-	 * extents we may need to loop on a single OST repeatedly */
+	 * extents we may need to loop on a single OST repeatedly
+	 */
 	do {
 		if (fiemap->fm_extent_count > 0) {
 			/* Don't get too many extents. */
@@ -1248,7 +1250,8 @@ inactive_tgt:
 			ost_done = true;
 			fs->fs_device_done = true;
 			/* If last stripe has hold at the end,
-			 * we need to return */
+			 * we need to return
+			 */
 			if (stripeno == fs->fs_last_stripe) {
 				fiemap->fm_mapped_extents = 0;
 				fs->fs_finish = true;
@@ -1282,7 +1285,8 @@ inactive_tgt:
 		}
 
 		/* Clear the EXTENT_LAST flag which can be present on
-		 * the last extent */
+		 * the last extent
+		 */
 		if (fm_ext[ext_count - 1].fe_flags & FIEMAP_EXTENT_LAST)
 			fm_ext[ext_count - 1].fe_flags &= ~FIEMAP_EXTENT_LAST;
 		if (lov_stripe_size(lsm, fm_ext[ext_count - 1].fe_logical +
