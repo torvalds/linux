@@ -97,17 +97,11 @@ static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 	}
 }
 
-/* The (potentially) asynchronous part of the commit.  At this point
- * nothing can fail short of armageddon.
- */
-static void complete_commit(struct msm_commit *c, bool async)
+static void msm_atomic_commit_tail(struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = c->state;
 	struct drm_device *dev = state->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-
-	drm_atomic_helper_wait_for_fences(dev, state, false);
 
 	kms->funcs->prepare_commit(kms, state);
 
@@ -135,6 +129,19 @@ static void complete_commit(struct msm_commit *c, bool async)
 	drm_atomic_helper_cleanup_planes(dev, state);
 
 	kms->funcs->complete_commit(kms, state);
+}
+
+/* The (potentially) asynchronous part of the commit.  At this point
+ * nothing can fail short of armageddon.
+ */
+static void complete_commit(struct msm_commit *c)
+{
+	struct drm_atomic_state *state = c->state;
+	struct drm_device *dev = state->dev;
+
+	drm_atomic_helper_wait_for_fences(dev, state, false);
+
+	msm_atomic_commit_tail(state);
 
 	drm_atomic_state_put(state);
 
@@ -143,7 +150,7 @@ static void complete_commit(struct msm_commit *c, bool async)
 
 static void commit_worker(struct work_struct *work)
 {
-	complete_commit(container_of(work, struct msm_commit, work), true);
+	complete_commit(container_of(work, struct msm_commit, work));
 }
 
 /**
@@ -248,7 +255,7 @@ int msm_atomic_commit(struct drm_device *dev,
 		return 0;
 	}
 
-	complete_commit(c, false);
+	complete_commit(c);
 
 	return 0;
 
