@@ -296,80 +296,7 @@ struct omap_dss_writeback_info {
 	u8 pre_mult_alpha;
 };
 
-struct omapdss_dpi_ops {
-	int (*connect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-	void (*disconnect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-
-	int (*enable)(struct omap_dss_device *dssdev);
-	void (*disable)(struct omap_dss_device *dssdev);
-
-	int (*check_timings)(struct omap_dss_device *dssdev,
-			     struct videomode *vm);
-	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
-};
-
-struct omapdss_sdi_ops {
-	int (*connect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-	void (*disconnect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-
-	int (*enable)(struct omap_dss_device *dssdev);
-	void (*disable)(struct omap_dss_device *dssdev);
-
-	int (*check_timings)(struct omap_dss_device *dssdev,
-			     struct videomode *vm);
-	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
-};
-
-struct omapdss_dvi_ops {
-	int (*connect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-	void (*disconnect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-
-	int (*enable)(struct omap_dss_device *dssdev);
-	void (*disable)(struct omap_dss_device *dssdev);
-
-	int (*check_timings)(struct omap_dss_device *dssdev,
-			     struct videomode *vm);
-	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
-};
-
-struct omapdss_atv_ops {
-	int (*connect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-	void (*disconnect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-
-	int (*enable)(struct omap_dss_device *dssdev);
-	void (*disable)(struct omap_dss_device *dssdev);
-
-	int (*check_timings)(struct omap_dss_device *dssdev,
-			     struct videomode *vm);
-	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
-};
-
 struct omapdss_hdmi_ops {
-	int (*connect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-	void (*disconnect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-
-	int (*enable)(struct omap_dss_device *dssdev);
-	void (*disable)(struct omap_dss_device *dssdev);
-
-	int (*check_timings)(struct omap_dss_device *dssdev,
-			     struct videomode *vm);
-	void (*set_timings)(struct omap_dss_device *dssdev,
-			    struct videomode *vm);
-
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
 	void (*lost_hotplug)(struct omap_dss_device *dssdev);
 	bool (*detect)(struct omap_dss_device *dssdev);
@@ -388,12 +315,6 @@ struct omapdss_hdmi_ops {
 };
 
 struct omapdss_dsi_ops {
-	int (*connect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-	void (*disconnect)(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
-
-	int (*enable)(struct omap_dss_device *dssdev);
 	void (*disable)(struct omap_dss_device *dssdev, bool disconnect_lanes,
 			bool enter_ulps);
 
@@ -444,6 +365,26 @@ struct omapdss_dsi_ops {
 			int channel, u16 plen);
 };
 
+struct omap_dss_device_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			     struct videomode *vm);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			    struct videomode *vm);
+
+	union {
+		const struct omapdss_hdmi_ops hdmi;
+		const struct omapdss_dsi_ops dsi;
+	};
+};
+
 struct omap_dss_device {
 	struct kobject kobj;
 	struct device *dev;
@@ -461,15 +402,7 @@ struct omap_dss_device {
 	const char *name;
 
 	const struct omap_dss_driver *driver;
-
-	union {
-		const struct omapdss_dpi_ops *dpi;
-		const struct omapdss_sdi_ops *sdi;
-		const struct omapdss_dvi_ops *dvi;
-		const struct omapdss_hdmi_ops *hdmi;
-		const struct omapdss_atv_ops *atv;
-		const struct omapdss_dsi_ops *dsi;
-	} ops;
+	const struct omap_dss_device_ops *ops;
 
 	/* helper variable for driver suspend/resume */
 	bool activate_after_resume;

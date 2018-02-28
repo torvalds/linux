@@ -750,7 +750,7 @@ static void venc_disconnect(struct omap_dss_device *dssdev,
 	dss_mgr_disconnect(&venc->output, dssdev);
 }
 
-static const struct omapdss_atv_ops venc_ops = {
+static const struct omap_dss_device_ops venc_ops = {
 	.connect = venc_connect,
 	.disconnect = venc_disconnect,
 
@@ -770,7 +770,7 @@ static void venc_init_output(struct venc_device *venc)
 	out->output_type = OMAP_DISPLAY_TYPE_VENC;
 	out->name = "venc.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
-	out->ops.atv = &venc_ops;
+	out->ops = &venc_ops;
 	out->owner = THIS_MODULE;
 
 	omapdss_register_output(out);

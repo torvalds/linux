@@ -73,7 +73,7 @@ static int sharp_ls_connect(struct omap_dss_device *dssdev)
 		return PTR_ERR(in);
 	}
 
-	r = in->ops.dpi->connect(in, dssdev);
+	r = in->ops->connect(in, dssdev);
 	if (r) {
 		omap_dss_put_device(in);
 		return r;
@@ -91,7 +91,7 @@ static void sharp_ls_disconnect(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_connected(dssdev))
 		return;
 
-	in->ops.dpi->disconnect(in, dssdev);
+	in->ops->disconnect(in, dssdev);
 
 	omap_dss_put_device(in);
 	ddata->in = NULL;
@@ -109,7 +109,7 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_timings(in, &ddata->vm);
+	in->ops->set_timings(in, &ddata->vm);
 
 	if (ddata->vcc) {
 		r = regulator_enable(ddata->vcc);
@@ -117,7 +117,7 @@ static int sharp_ls_enable(struct omap_dss_device *dssdev)
 			return r;
 	}
 
-	r = in->ops.dpi->enable(in);
+	r = in->ops->enable(in);
 	if (r) {
 		regulator_disable(ddata->vcc);
 		return r;
@@ -155,7 +155,7 @@ static void sharp_ls_disable(struct omap_dss_device *dssdev)
 
 	msleep(100);
 
-	in->ops.dpi->disable(in);
+	in->ops->disable(in);
 
 	if (ddata->vcc)
 		regulator_disable(ddata->vcc);
@@ -171,7 +171,7 @@ static void sharp_ls_set_timings(struct omap_dss_device *dssdev,
 
 	ddata->vm = *vm;
 
-	in->ops.dpi->set_timings(in, vm);
+	in->ops->set_timings(in, vm);
 }
 
 static void sharp_ls_get_timings(struct omap_dss_device *dssdev,
@@ -188,7 +188,7 @@ static int sharp_ls_check_timings(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.dpi->check_timings(in, vm);
+	return in->ops->check_timings(in, vm);
 }
 
 static const struct omap_dss_driver sharp_ls_ops = {

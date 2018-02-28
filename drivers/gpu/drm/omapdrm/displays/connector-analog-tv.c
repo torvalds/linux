@@ -59,7 +59,7 @@ static int tvc_connect(struct omap_dss_device *dssdev)
 		return PTR_ERR(in);
 	}
 
-	r = in->ops.atv->connect(in, dssdev);
+	r = in->ops->connect(in, dssdev);
 	if (r) {
 		omap_dss_put_device(in);
 		return r;
@@ -79,7 +79,7 @@ static void tvc_disconnect(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_connected(dssdev))
 		return;
 
-	in->ops.atv->disconnect(in, dssdev);
+	in->ops->disconnect(in, dssdev);
 
 	omap_dss_put_device(in);
 	ddata->in = NULL;
@@ -99,9 +99,9 @@ static int tvc_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.atv->set_timings(in, &ddata->vm);
+	in->ops->set_timings(in, &ddata->vm);
 
-	r = in->ops.atv->enable(in);
+	r = in->ops->enable(in);
 	if (r)
 		return r;
 
@@ -120,7 +120,7 @@ static void tvc_disable(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
 
-	in->ops.atv->disable(in);
+	in->ops->disable(in);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
@@ -133,7 +133,7 @@ static void tvc_set_timings(struct omap_dss_device *dssdev,
 
 	ddata->vm = *vm;
 
-	in->ops.atv->set_timings(in, vm);
+	in->ops->set_timings(in, vm);
 }
 
 static void tvc_get_timings(struct omap_dss_device *dssdev,
@@ -150,7 +150,7 @@ static int tvc_check_timings(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.atv->check_timings(in, vm);
+	return in->ops->check_timings(in, vm);
 }
 
 static const struct omap_dss_driver tvc_driver = {

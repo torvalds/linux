@@ -5000,43 +5000,45 @@ static void dsi_disconnect(struct omap_dss_device *dssdev,
 	dss_mgr_disconnect(&dsi->output, dssdev);
 }
 
-static const struct omapdss_dsi_ops dsi_ops = {
+static const struct omap_dss_device_ops dsi_ops = {
 	.connect = dsi_connect,
 	.disconnect = dsi_disconnect,
-
-	.bus_lock = dsi_bus_lock,
-	.bus_unlock = dsi_bus_unlock,
-
 	.enable = dsi_display_enable,
-	.disable = dsi_display_disable,
 
-	.enable_hs = dsi_vc_enable_hs,
+	.dsi = {
+		.bus_lock = dsi_bus_lock,
+		.bus_unlock = dsi_bus_unlock,
 
-	.configure_pins = dsi_configure_pins,
-	.set_config = dsi_set_config,
+		.disable = dsi_display_disable,
 
-	.enable_video_output = dsi_enable_video_output,
-	.disable_video_output = dsi_disable_video_output,
+		.enable_hs = dsi_vc_enable_hs,
 
-	.update = dsi_update,
+		.configure_pins = dsi_configure_pins,
+		.set_config = dsi_set_config,
 
-	.enable_te = dsi_enable_te,
+		.enable_video_output = dsi_enable_video_output,
+		.disable_video_output = dsi_disable_video_output,
 
-	.request_vc = dsi_request_vc,
-	.set_vc_id = dsi_set_vc_id,
-	.release_vc = dsi_release_vc,
+		.update = dsi_update,
 
-	.dcs_write = dsi_vc_dcs_write,
-	.dcs_write_nosync = dsi_vc_dcs_write_nosync,
-	.dcs_read = dsi_vc_dcs_read,
+		.enable_te = dsi_enable_te,
 
-	.gen_write = dsi_vc_generic_write,
-	.gen_write_nosync = dsi_vc_generic_write_nosync,
-	.gen_read = dsi_vc_generic_read,
+		.request_vc = dsi_request_vc,
+		.set_vc_id = dsi_set_vc_id,
+		.release_vc = dsi_release_vc,
 
-	.bta_sync = dsi_vc_send_bta_sync,
+		.dcs_write = dsi_vc_dcs_write,
+		.dcs_write_nosync = dsi_vc_dcs_write_nosync,
+		.dcs_read = dsi_vc_dcs_read,
 
-	.set_max_rx_packet_size = dsi_vc_set_max_rx_packet_size,
+		.gen_write = dsi_vc_generic_write,
+		.gen_write_nosync = dsi_vc_generic_write_nosync,
+		.gen_read = dsi_vc_generic_read,
+
+		.bta_sync = dsi_vc_send_bta_sync,
+
+		.set_max_rx_packet_size = dsi_vc_set_max_rx_packet_size,
+	},
 };
 
 static void dsi_init_output(struct dsi_data *dsi)
@@ -5050,7 +5052,7 @@ static void dsi_init_output(struct dsi_data *dsi)
 	out->output_type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
 	out->dispc_channel = dsi_get_channel(dsi);
-	out->ops.dsi = &dsi_ops;
+	out->ops = &dsi_ops;
 	out->owner = THIS_MODULE;
 
 	omapdss_register_output(out);

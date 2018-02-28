@@ -532,7 +532,7 @@ static int hdmi_set_hdmi_mode(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static const struct omapdss_hdmi_ops hdmi_ops = {
+static const struct omap_dss_device_ops hdmi_ops = {
 	.connect		= hdmi_connect,
 	.disconnect		= hdmi_disconnect,
 
@@ -542,9 +542,11 @@ static const struct omapdss_hdmi_ops hdmi_ops = {
 	.check_timings		= hdmi_display_check_timing,
 	.set_timings		= hdmi_display_set_timing,
 
-	.read_edid		= hdmi_read_edid,
-	.set_infoframe		= hdmi_set_infoframe,
-	.set_hdmi_mode		= hdmi_set_hdmi_mode,
+	.hdmi = {
+		.read_edid		= hdmi_read_edid,
+		.set_infoframe		= hdmi_set_infoframe,
+		.set_hdmi_mode		= hdmi_set_hdmi_mode,
+	},
 };
 
 static void hdmi_init_output(struct omap_hdmi *hdmi)
@@ -556,7 +558,7 @@ static void hdmi_init_output(struct omap_hdmi *hdmi)
 	out->output_type = OMAP_DISPLAY_TYPE_HDMI;
 	out->name = "hdmi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
-	out->ops.hdmi = &hdmi_ops;
+	out->ops = &hdmi_ops;
 	out->owner = THIS_MODULE;
 
 	omapdss_register_output(out);

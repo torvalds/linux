@@ -44,7 +44,7 @@ static int tfp410_connect(struct omap_dss_device *dssdev,
 		return PTR_ERR(in);
 	}
 
-	r = in->ops.dpi->connect(in, dssdev);
+	r = in->ops->connect(in, dssdev);
 	if (r) {
 		omap_dss_put_device(in);
 		return r;
@@ -74,7 +74,7 @@ static void tfp410_disconnect(struct omap_dss_device *dssdev,
 	dst->src = NULL;
 	dssdev->dst = NULL;
 
-	in->ops.dpi->disconnect(in, &ddata->dssdev);
+	in->ops->disconnect(in, &ddata->dssdev);
 
 	omap_dss_put_device(in);
 	ddata->in = NULL;
@@ -92,9 +92,9 @@ static int tfp410_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_timings(in, &ddata->vm);
+	in->ops->set_timings(in, &ddata->vm);
 
-	r = in->ops.dpi->enable(in);
+	r = in->ops->enable(in);
 	if (r)
 		return r;
 
@@ -117,7 +117,7 @@ static void tfp410_disable(struct omap_dss_device *dssdev)
 	if (gpio_is_valid(ddata->pd_gpio))
 		gpio_set_value_cansleep(ddata->pd_gpio, 0);
 
-	in->ops.dpi->disable(in);
+	in->ops->disable(in);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
@@ -138,7 +138,7 @@ static void tfp410_set_timings(struct omap_dss_device *dssdev,
 
 	ddata->vm = *vm;
 
-	in->ops.dpi->set_timings(in, vm);
+	in->ops->set_timings(in, vm);
 }
 
 static int tfp410_check_timings(struct omap_dss_device *dssdev,
@@ -149,16 +149,14 @@ static int tfp410_check_timings(struct omap_dss_device *dssdev,
 
 	tfp410_fix_timings(vm);
 
-	return in->ops.dpi->check_timings(in, vm);
+	return in->ops->check_timings(in, vm);
 }
 
-static const struct omapdss_dvi_ops tfp410_dvi_ops = {
+static const struct omap_dss_device_ops tfp410_ops = {
 	.connect	= tfp410_connect,
 	.disconnect	= tfp410_disconnect,
-
 	.enable		= tfp410_enable,
 	.disable	= tfp410_disable,
-
 	.check_timings	= tfp410_check_timings,
 	.set_timings	= tfp410_set_timings,
 };
@@ -209,7 +207,7 @@ static int tfp410_probe(struct platform_device *pdev)
 	}
 
 	dssdev = &ddata->dssdev;
-	dssdev->ops.dvi = &tfp410_dvi_ops;
+	dssdev->ops = &tfp410_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->output_type = OMAP_DISPLAY_TYPE_DVI;

@@ -50,7 +50,7 @@ static int opa362_connect(struct omap_dss_device *dssdev,
 		return PTR_ERR(in);
 	}
 
-	r = in->ops.atv->connect(in, dssdev);
+	r = in->ops->connect(in, dssdev);
 	if (r) {
 		omap_dss_put_device(in);
 		return r;
@@ -82,7 +82,7 @@ static void opa362_disconnect(struct omap_dss_device *dssdev,
 	dst->src = NULL;
 	dssdev->dst = NULL;
 
-	in->ops.atv->disconnect(in, &ddata->dssdev);
+	in->ops->disconnect(in, &ddata->dssdev);
 
 	omap_dss_put_device(in);
 	ddata->in = NULL;
@@ -102,9 +102,9 @@ static int opa362_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.atv->set_timings(in, &ddata->vm);
+	in->ops->set_timings(in, &ddata->vm);
 
-	r = in->ops.atv->enable(in);
+	r = in->ops->enable(in);
 	if (r)
 		return r;
 
@@ -129,7 +129,7 @@ static void opa362_disable(struct omap_dss_device *dssdev)
 	if (ddata->enable_gpio)
 		gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 
-	in->ops.atv->disable(in);
+	in->ops->disable(in);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
@@ -144,7 +144,7 @@ static void opa362_set_timings(struct omap_dss_device *dssdev,
 
 	ddata->vm = *vm;
 
-	in->ops.atv->set_timings(in, vm);
+	in->ops->set_timings(in, vm);
 }
 
 static int opa362_check_timings(struct omap_dss_device *dssdev,
@@ -155,16 +155,14 @@ static int opa362_check_timings(struct omap_dss_device *dssdev,
 
 	dev_dbg(dssdev->dev, "check_timings\n");
 
-	return in->ops.atv->check_timings(in, vm);
+	return in->ops->check_timings(in, vm);
 }
 
-static const struct omapdss_atv_ops opa362_atv_ops = {
+static const struct omap_dss_device_ops opa362_ops = {
 	.connect	= opa362_connect,
 	.disconnect	= opa362_disconnect,
-
 	.enable		= opa362_enable,
 	.disable	= opa362_disable,
-
 	.check_timings	= opa362_check_timings,
 	.set_timings	= opa362_set_timings,
 };
@@ -191,7 +189,7 @@ static int opa362_probe(struct platform_device *pdev)
 	ddata->enable_gpio = gpio;
 
 	dssdev = &ddata->dssdev;
-	dssdev->ops.atv = &opa362_atv_ops;
+	dssdev->ops = &opa362_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_VENC;
 	dssdev->output_type = OMAP_DISPLAY_TYPE_VENC;

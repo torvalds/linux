@@ -146,7 +146,7 @@ static int dsicm_dcs_read_1(struct panel_drv_data *ddata, u8 dcs_cmd, u8 *data)
 	int r;
 	u8 buf[1];
 
-	r = in->ops.dsi->dcs_read(in, ddata->channel, dcs_cmd, buf, 1);
+	r = in->ops->dsi.dcs_read(in, ddata->channel, dcs_cmd, buf, 1);
 
 	if (r < 0)
 		return r;
@@ -159,7 +159,7 @@ static int dsicm_dcs_read_1(struct panel_drv_data *ddata, u8 dcs_cmd, u8 *data)
 static int dsicm_dcs_write_0(struct panel_drv_data *ddata, u8 dcs_cmd)
 {
 	struct omap_dss_device *in = ddata->in;
-	return in->ops.dsi->dcs_write(in, ddata->channel, &dcs_cmd, 1);
+	return in->ops->dsi.dcs_write(in, ddata->channel, &dcs_cmd, 1);
 }
 
 static int dsicm_dcs_write_1(struct panel_drv_data *ddata, u8 dcs_cmd, u8 param)
@@ -167,7 +167,7 @@ static int dsicm_dcs_write_1(struct panel_drv_data *ddata, u8 dcs_cmd, u8 param)
 	struct omap_dss_device *in = ddata->in;
 	u8 buf[2] = { dcs_cmd, param };
 
-	return in->ops.dsi->dcs_write(in, ddata->channel, buf, 2);
+	return in->ops->dsi.dcs_write(in, ddata->channel, buf, 2);
 }
 
 static int dsicm_sleep_in(struct panel_drv_data *ddata)
@@ -180,7 +180,7 @@ static int dsicm_sleep_in(struct panel_drv_data *ddata)
 	hw_guard_wait(ddata);
 
 	cmd = MIPI_DCS_ENTER_SLEEP_MODE;
-	r = in->ops.dsi->dcs_write_nosync(in, ddata->channel, &cmd, 1);
+	r = in->ops->dsi.dcs_write_nosync(in, ddata->channel, &cmd, 1);
 	if (r)
 		return r;
 
@@ -242,7 +242,7 @@ static int dsicm_set_update_window(struct panel_drv_data *ddata,
 	buf[3] = (x2 >> 8) & 0xff;
 	buf[4] = (x2 >> 0) & 0xff;
 
-	r = in->ops.dsi->dcs_write_nosync(in, ddata->channel, buf, sizeof(buf));
+	r = in->ops->dsi.dcs_write_nosync(in, ddata->channel, buf, sizeof(buf));
 	if (r)
 		return r;
 
@@ -252,11 +252,11 @@ static int dsicm_set_update_window(struct panel_drv_data *ddata,
 	buf[3] = (y2 >> 8) & 0xff;
 	buf[4] = (y2 >> 0) & 0xff;
 
-	r = in->ops.dsi->dcs_write_nosync(in, ddata->channel, buf, sizeof(buf));
+	r = in->ops->dsi.dcs_write_nosync(in, ddata->channel, buf, sizeof(buf));
 	if (r)
 		return r;
 
-	in->ops.dsi->bta_sync(in, ddata->channel);
+	in->ops->dsi.bta_sync(in, ddata->channel);
 
 	return r;
 }
@@ -290,7 +290,7 @@ static int dsicm_enter_ulps(struct panel_drv_data *ddata)
 	if (ddata->ext_te_gpio)
 		disable_irq(gpiod_to_irq(ddata->ext_te_gpio));
 
-	in->ops.dsi->disable(in, false, true);
+	in->ops->dsi.disable(in, false, true);
 
 	ddata->ulps_enabled = true;
 
@@ -315,13 +315,13 @@ static int dsicm_exit_ulps(struct panel_drv_data *ddata)
 	if (!ddata->ulps_enabled)
 		return 0;
 
-	r = in->ops.dsi->enable(in);
+	r = in->ops->enable(in);
 	if (r) {
 		dev_err(&ddata->pdev->dev, "failed to enable DSI\n");
 		goto err1;
 	}
 
-	in->ops.dsi->enable_hs(in, ddata->channel, true);
+	in->ops->dsi.enable_hs(in, ddata->channel, true);
 
 	r = _dsicm_enable_te(ddata, true);
 	if (r) {
@@ -381,13 +381,13 @@ static int dsicm_bl_update_status(struct backlight_device *dev)
 	mutex_lock(&ddata->lock);
 
 	if (ddata->enabled) {
-		in->ops.dsi->bus_lock(in);
+		in->ops->dsi.bus_lock(in);
 
 		r = dsicm_wake_up(ddata);
 		if (!r)
 			r = dsicm_dcs_write_1(ddata, DCS_BRIGHTNESS, level);
 
-		in->ops.dsi->bus_unlock(in);
+		in->ops->dsi.bus_unlock(in);
 	}
 
 	mutex_unlock(&ddata->lock);
@@ -421,14 +421,14 @@ static ssize_t dsicm_num_errors_show(struct device *dev,
 	mutex_lock(&ddata->lock);
 
 	if (ddata->enabled) {
-		in->ops.dsi->bus_lock(in);
+		in->ops->dsi.bus_lock(in);
 
 		r = dsicm_wake_up(ddata);
 		if (!r)
 			r = dsicm_dcs_read_1(ddata, DCS_READ_NUM_ERRORS,
 					&errors);
 
-		in->ops.dsi->bus_unlock(in);
+		in->ops->dsi.bus_unlock(in);
 	} else {
 		r = -ENODEV;
 	}
@@ -453,13 +453,13 @@ static ssize_t dsicm_hw_revision_show(struct device *dev,
 	mutex_lock(&ddata->lock);
 
 	if (ddata->enabled) {
-		in->ops.dsi->bus_lock(in);
+		in->ops->dsi.bus_lock(in);
 
 		r = dsicm_wake_up(ddata);
 		if (!r)
 			r = dsicm_get_id(ddata, &id1, &id2, &id3);
 
-		in->ops.dsi->bus_unlock(in);
+		in->ops->dsi.bus_unlock(in);
 	} else {
 		r = -ENODEV;
 	}
@@ -489,14 +489,14 @@ static ssize_t dsicm_store_ulps(struct device *dev,
 	mutex_lock(&ddata->lock);
 
 	if (ddata->enabled) {
-		in->ops.dsi->bus_lock(in);
+		in->ops->dsi.bus_lock(in);
 
 		if (t)
 			r = dsicm_enter_ulps(ddata);
 		else
 			r = dsicm_wake_up(ddata);
 
-		in->ops.dsi->bus_unlock(in);
+		in->ops->dsi.bus_unlock(in);
 	}
 
 	mutex_unlock(&ddata->lock);
@@ -541,9 +541,9 @@ static ssize_t dsicm_store_ulps_timeout(struct device *dev,
 
 	if (ddata->enabled) {
 		/* dsicm_wake_up will restart the timer */
-		in->ops.dsi->bus_lock(in);
+		in->ops->dsi.bus_lock(in);
 		r = dsicm_wake_up(ddata);
-		in->ops.dsi->bus_unlock(in);
+		in->ops->dsi.bus_unlock(in);
 	}
 
 	mutex_unlock(&ddata->lock);
@@ -635,7 +635,7 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 	}
 
 	if (ddata->pin_config.num_pins > 0) {
-		r = in->ops.dsi->configure_pins(in, &ddata->pin_config);
+		r = in->ops->dsi.configure_pins(in, &ddata->pin_config);
 		if (r) {
 			dev_err(&ddata->pdev->dev,
 				"failed to configure DSI pins\n");
@@ -643,13 +643,13 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 		}
 	}
 
-	r = in->ops.dsi->set_config(in, &dsi_config);
+	r = in->ops->dsi.set_config(in, &dsi_config);
 	if (r) {
 		dev_err(&ddata->pdev->dev, "failed to configure DSI\n");
 		goto err_vddi;
 	}
 
-	r = in->ops.dsi->enable(in);
+	r = in->ops->enable(in);
 	if (r) {
 		dev_err(&ddata->pdev->dev, "failed to enable DSI\n");
 		goto err_vddi;
@@ -657,7 +657,7 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 
 	dsicm_hw_reset(ddata);
 
-	in->ops.dsi->enable_hs(in, ddata->channel, false);
+	in->ops->dsi.enable_hs(in, ddata->channel, false);
 
 	r = dsicm_sleep_out(ddata);
 	if (r)
@@ -689,7 +689,7 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 	if (r)
 		goto err;
 
-	r = in->ops.dsi->enable_video_output(in, ddata->channel);
+	r = in->ops->dsi.enable_video_output(in, ddata->channel);
 	if (r)
 		goto err;
 
@@ -701,7 +701,7 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 		ddata->intro_printed = true;
 	}
 
-	in->ops.dsi->enable_hs(in, ddata->channel, true);
+	in->ops->dsi.enable_hs(in, ddata->channel, true);
 
 	return 0;
 err:
@@ -709,7 +709,7 @@ err:
 
 	dsicm_hw_reset(ddata);
 
-	in->ops.dsi->disable(in, true, false);
+	in->ops->dsi.disable(in, true, false);
 err_vddi:
 	if (ddata->vddi)
 		regulator_disable(ddata->vddi);
@@ -725,7 +725,7 @@ static void dsicm_power_off(struct panel_drv_data *ddata)
 	struct omap_dss_device *in = ddata->in;
 	int r;
 
-	in->ops.dsi->disable_video_output(in, ddata->channel);
+	in->ops->dsi.disable_video_output(in, ddata->channel);
 
 	r = dsicm_dcs_write_0(ddata, MIPI_DCS_SET_DISPLAY_OFF);
 	if (!r)
@@ -737,7 +737,7 @@ static void dsicm_power_off(struct panel_drv_data *ddata)
 		dsicm_hw_reset(ddata);
 	}
 
-	in->ops.dsi->disable(in, true, false);
+	in->ops->dsi.disable(in, true, false);
 
 	if (ddata->vddi)
 		regulator_disable(ddata->vddi);
@@ -772,19 +772,19 @@ static int dsicm_connect(struct omap_dss_device *dssdev)
 		return PTR_ERR(in);
 	}
 
-	r = in->ops.dsi->connect(in, dssdev);
+	r = in->ops->connect(in, dssdev);
 	if (r) {
 		dev_err(dev, "Failed to connect to video source\n");
 		goto err_connect;
 	}
 
-	r = in->ops.dsi->request_vc(in, &ddata->channel);
+	r = in->ops->dsi.request_vc(in, &ddata->channel);
 	if (r) {
 		dev_err(dev, "failed to get virtual channel\n");
 		goto err_req_vc;
 	}
 
-	r = in->ops.dsi->set_vc_id(in, ddata->channel, TCH);
+	r = in->ops->dsi.set_vc_id(in, ddata->channel, TCH);
 	if (r) {
 		dev_err(dev, "failed to set VC_ID\n");
 		goto err_vc_id;
@@ -794,9 +794,9 @@ static int dsicm_connect(struct omap_dss_device *dssdev)
 	return 0;
 
 err_vc_id:
-	in->ops.dsi->release_vc(in, ddata->channel);
+	in->ops->dsi.release_vc(in, ddata->channel);
 err_req_vc:
-	in->ops.dsi->disconnect(in, dssdev);
+	in->ops->disconnect(in, dssdev);
 err_connect:
 	omap_dss_put_device(in);
 	return r;
@@ -810,8 +810,8 @@ static void dsicm_disconnect(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_connected(dssdev))
 		return;
 
-	in->ops.dsi->release_vc(in, ddata->channel);
-	in->ops.dsi->disconnect(in, dssdev);
+	in->ops->dsi.release_vc(in, ddata->channel);
+	in->ops->disconnect(in, dssdev);
 
 	omap_dss_put_device(in);
 	ddata->in = NULL;
@@ -837,11 +837,11 @@ static int dsicm_enable(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-	in->ops.dsi->bus_lock(in);
+	in->ops->dsi.bus_lock(in);
 
 	r = dsicm_power_on(ddata);
 
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_unlock(in);
 
 	if (r)
 		goto err;
@@ -873,7 +873,7 @@ static void dsicm_disable(struct omap_dss_device *dssdev)
 
 	dsicm_cancel_ulps_work(ddata);
 
-	in->ops.dsi->bus_lock(in);
+	in->ops->dsi.bus_lock(in);
 
 	if (omapdss_device_is_enabled(dssdev)) {
 		r = dsicm_wake_up(ddata);
@@ -881,7 +881,7 @@ static void dsicm_disable(struct omap_dss_device *dssdev)
 			dsicm_power_off(ddata);
 	}
 
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_unlock(in);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 
@@ -894,7 +894,7 @@ static void dsicm_framedone_cb(int err, void *data)
 	struct omap_dss_device *in = ddata->in;
 
 	dev_dbg(&ddata->pdev->dev, "framedone, err %d\n", err);
-	in->ops.dsi->bus_unlock(ddata->in);
+	in->ops->dsi.bus_unlock(ddata->in);
 }
 
 static irqreturn_t dsicm_te_isr(int irq, void *data)
@@ -909,7 +909,7 @@ static irqreturn_t dsicm_te_isr(int irq, void *data)
 	if (old) {
 		cancel_delayed_work(&ddata->te_timeout_work);
 
-		r = in->ops.dsi->update(in, ddata->channel, dsicm_framedone_cb,
+		r = in->ops->dsi.update(in, ddata->channel, dsicm_framedone_cb,
 				ddata);
 		if (r)
 			goto err;
@@ -918,7 +918,7 @@ static irqreturn_t dsicm_te_isr(int irq, void *data)
 	return IRQ_HANDLED;
 err:
 	dev_err(&ddata->pdev->dev, "start update failed\n");
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_unlock(in);
 	return IRQ_HANDLED;
 }
 
@@ -931,7 +931,7 @@ static void dsicm_te_timeout_work_callback(struct work_struct *work)
 	dev_err(&ddata->pdev->dev, "TE not received for 250ms!\n");
 
 	atomic_set(&ddata->do_update, 0);
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_unlock(in);
 }
 
 static int dsicm_update(struct omap_dss_device *dssdev,
@@ -944,7 +944,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 	dev_dbg(&ddata->pdev->dev, "update %d, %d, %d x %d\n", x, y, w, h);
 
 	mutex_lock(&ddata->lock);
-	in->ops.dsi->bus_lock(in);
+	in->ops->dsi.bus_lock(in);
 
 	r = dsicm_wake_up(ddata);
 	if (r)
@@ -966,7 +966,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 				msecs_to_jiffies(250));
 		atomic_set(&ddata->do_update, 1);
 	} else {
-		r = in->ops.dsi->update(in, ddata->channel, dsicm_framedone_cb,
+		r = in->ops->dsi.update(in, ddata->channel, dsicm_framedone_cb,
 				ddata);
 		if (r)
 			goto err;
@@ -976,7 +976,7 @@ static int dsicm_update(struct omap_dss_device *dssdev,
 	mutex_unlock(&ddata->lock);
 	return 0;
 err:
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_unlock(in);
 	mutex_unlock(&ddata->lock);
 	return r;
 }
@@ -989,8 +989,8 @@ static int dsicm_sync(struct omap_dss_device *dssdev)
 	dev_dbg(&ddata->pdev->dev, "sync\n");
 
 	mutex_lock(&ddata->lock);
-	in->ops.dsi->bus_lock(in);
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_lock(in);
+	in->ops->dsi.bus_unlock(in);
 	mutex_unlock(&ddata->lock);
 
 	dev_dbg(&ddata->pdev->dev, "sync done\n");
@@ -1009,7 +1009,7 @@ static int _dsicm_enable_te(struct panel_drv_data *ddata, bool enable)
 		r = dsicm_dcs_write_0(ddata, MIPI_DCS_SET_TEAR_OFF);
 
 	if (!ddata->ext_te_gpio)
-		in->ops.dsi->enable_te(in, enable);
+		in->ops->dsi.enable_te(in, enable);
 
 	/* possible panel bug */
 	msleep(100);
@@ -1028,7 +1028,7 @@ static int dsicm_enable_te(struct omap_dss_device *dssdev, bool enable)
 	if (ddata->te_enabled == enable)
 		goto end;
 
-	in->ops.dsi->bus_lock(in);
+	in->ops->dsi.bus_lock(in);
 
 	if (ddata->enabled) {
 		r = dsicm_wake_up(ddata);
@@ -1042,13 +1042,13 @@ static int dsicm_enable_te(struct omap_dss_device *dssdev, bool enable)
 
 	ddata->te_enabled = enable;
 
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_unlock(in);
 end:
 	mutex_unlock(&ddata->lock);
 
 	return 0;
 err:
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_unlock(in);
 	mutex_unlock(&ddata->lock);
 
 	return r;
@@ -1090,7 +1090,7 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 	size = min((u32)w * h * 3,
 		   ddata->vm.hactive * ddata->vm.vactive * 3);
 
-	in->ops.dsi->bus_lock(in);
+	in->ops->dsi.bus_lock(in);
 
 	r = dsicm_wake_up(ddata);
 	if (r)
@@ -1106,7 +1106,7 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 
 	dsicm_set_update_window(ddata, x, y, w, h);
 
-	r = in->ops.dsi->set_max_rx_packet_size(in, ddata->channel, plen);
+	r = in->ops->dsi.set_max_rx_packet_size(in, ddata->channel, plen);
 	if (r)
 		goto err2;
 
@@ -1114,7 +1114,7 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 		u8 dcs_cmd = first ? 0x2e : 0x3e;
 		first = 0;
 
-		r = in->ops.dsi->dcs_read(in, ddata->channel, dcs_cmd,
+		r = in->ops->dsi.dcs_read(in, ddata->channel, dcs_cmd,
 				buf + buf_used, size - buf_used);
 
 		if (r < 0) {
@@ -1140,9 +1140,9 @@ static int dsicm_memory_read(struct omap_dss_device *dssdev,
 	r = buf_used;
 
 err3:
-	in->ops.dsi->set_max_rx_packet_size(in, ddata->channel, 1);
+	in->ops->dsi.set_max_rx_packet_size(in, ddata->channel, 1);
 err2:
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_unlock(in);
 err1:
 	mutex_unlock(&ddata->lock);
 	return r;
@@ -1162,11 +1162,11 @@ static void dsicm_ulps_work(struct work_struct *work)
 		return;
 	}
 
-	in->ops.dsi->bus_lock(in);
+	in->ops->dsi.bus_lock(in);
 
 	dsicm_enter_ulps(ddata);
 
-	in->ops.dsi->bus_unlock(in);
+	in->ops->dsi.bus_unlock(in);
 	mutex_unlock(&ddata->lock);
 }
 

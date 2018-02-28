@@ -681,7 +681,7 @@ static void dpi_disconnect(struct omap_dss_device *dssdev,
 	dss_mgr_disconnect(&dpi->output, dssdev);
 }
 
-static const struct omapdss_dpi_ops dpi_ops = {
+static const struct omap_dss_device_ops dpi_ops = {
 	.connect = dpi_connect,
 	.disconnect = dpi_disconnect,
 
@@ -720,7 +720,7 @@ static void dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 	out->output_type = OMAP_DISPLAY_TYPE_DPI;
 	out->dispc_channel = dpi_get_channel(dpi, port_num);
 	out->port_num = port_num;
-	out->ops.dpi = &dpi_ops;
+	out->ops = &dpi_ops;
 	out->owner = THIS_MODULE;
 
 	omapdss_register_output(out);

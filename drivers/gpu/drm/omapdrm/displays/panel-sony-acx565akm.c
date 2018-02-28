@@ -522,7 +522,7 @@ static int acx565akm_connect(struct omap_dss_device *dssdev)
 		return PTR_ERR(in);
 	}
 
-	r = in->ops.sdi->connect(in, dssdev);
+	r = in->ops->connect(in, dssdev);
 	if (r) {
 		omap_dss_put_device(in);
 		return r;
@@ -540,7 +540,7 @@ static void acx565akm_disconnect(struct omap_dss_device *dssdev)
 	if (!omapdss_device_is_connected(dssdev))
 		return;
 
-	in->ops.sdi->disconnect(in, dssdev);
+	in->ops->disconnect(in, dssdev);
 
 	omap_dss_put_device(in);
 	ddata->in = NULL;
@@ -554,9 +554,9 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
-	in->ops.sdi->set_timings(in, &ddata->vm);
+	in->ops->set_timings(in, &ddata->vm);
 
-	r = in->ops.sdi->enable(in);
+	r = in->ops->enable(in);
 	if (r) {
 		pr_err("%s sdi enable failed\n", __func__);
 		return r;
@@ -621,7 +621,7 @@ static void acx565akm_panel_power_off(struct omap_dss_device *dssdev)
 	/* FIXME need to tweak this delay */
 	msleep(100);
 
-	in->ops.sdi->disable(in);
+	in->ops->disable(in);
 }
 
 static int acx565akm_enable(struct omap_dss_device *dssdev)
@@ -672,7 +672,7 @@ static void acx565akm_set_timings(struct omap_dss_device *dssdev,
 
 	ddata->vm = *vm;
 
-	in->ops.sdi->set_timings(in, vm);
+	in->ops->set_timings(in, vm);
 }
 
 static void acx565akm_get_timings(struct omap_dss_device *dssdev,
@@ -689,7 +689,7 @@ static int acx565akm_check_timings(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	return in->ops.sdi->check_timings(in, vm);
+	return in->ops->check_timings(in, vm);
 }
 
 static const struct omap_dss_driver acx565akm_ops = {
