@@ -2179,7 +2179,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	struct nvme_fc_cmd_iu *cmdiu = &op->cmd_iu;
 	struct nvme_command *sqe = &cmdiu->sqe;
 	u32 csn;
-	int ret;
+	int ret, opstate;
 
 	/*
 	 * before attempting to send the io, check to see if we believe
@@ -2257,6 +2257,9 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 					queue->lldd_handle, &op->fcp_req);
 
 	if (ret) {
+		opstate = atomic_xchg(&op->state, FCPOP_STATE_COMPLETE);
+		__nvme_fc_fcpop_chk_teardowns(ctrl, op, opstate);
+
 		if (!(op->flags & FCOP_FLAGS_AEN))
 			nvme_fc_unmap_data(ctrl, op->rq, op);
 
