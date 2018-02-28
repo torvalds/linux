@@ -174,6 +174,7 @@ static int smc_lgr_create(struct smc_sock *smc, __be32 peer_in_addr,
 
 	lnk = &lgr->lnk[SMC_SINGLE_LINK];
 	/* initialize link */
+	lnk->link_id = SMC_SINGLE_LINK;
 	lnk->smcibdev = smcibdev;
 	lnk->ibport = ibport;
 	lnk->path_mtu = smcibdev->pattr[ibport - 1].active_mtu;
