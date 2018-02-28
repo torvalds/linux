@@ -767,18 +767,4 @@ static struct platform_driver mac_mace_driver = {
 	},
 };
 
-static int __init mac_mace_init_module(void)
-{
-	if (!MACH_IS_MAC)
-		return -ENODEV;
-
-	return platform_driver_register(&mac_mace_driver);
-}
-
-static void __exit mac_mace_cleanup_module(void)
-{
-	platform_driver_unregister(&mac_mace_driver);
-}
-
-module_init(mac_mace_init_module);
-module_exit(mac_mace_cleanup_module);
+module_platform_driver(mac_mace_driver);
