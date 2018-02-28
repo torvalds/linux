@@ -22,13 +22,16 @@
 #define pr_fmt(fmt) "microcode: " fmt
 
 #include <linux/platform_device.h>
+#include <linux/stop_machine.h>
 #include <linux/syscore_ops.h>
 #include <linux/miscdevice.h>
 #include <linux/capability.h>
 #include <linux/firmware.h>
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/cpu.h>
+#include <linux/nmi.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 
@@ -63,6 +66,11 @@ LIST_HEAD(microcode_cache);
  * updated at any particular moment of time.
  */
 static DEFINE_MUTEX(microcode_mutex);
+
+/*
+ * Serialize late loading so that CPUs get updated one-by-one.
+ */
+static DEFINE_SPINLOCK(update_lock);
 
 struct ucode_cpu_info		ucode_cpu_info[NR_CPUS];
 
@@ -486,6 +494,19 @@ static void __exit microcode_dev_exit(void)
 /* fake device for request_firmware */
 static struct platform_device	*microcode_pdev;
 
+/*
+ * Late loading dance. Why the heavy-handed stomp_machine effort?
+ *
+ * - HT siblings must be idle and not execute other code while the other sibling
+ *   is loading microcode in order to avoid any negative interactions caused by
+ *   the loading.
+ *
+ * - In addition, microcode update on the cores must be serialized until this
+ *   requirement can be relaxed in the future. Right now, this is conservative
+ *   and good.
+ */
+#define SPINUNIT 100 /* 100 nsec */
+
 static int check_online_cpus(void)
 {
 	if (num_online_cpus() == num_present_cpus())
@@ -496,23 +517,85 @@ static int check_online_cpus(void)
 	return -EINVAL;
 }
 
-static enum ucode_state reload_for_cpu(int cpu)
+static atomic_t late_cpus;
+
+/*
+ * Returns:
+ * < 0 - on error
+ *   0 - no update done
+ *   1 - microcode was updated
+ */
+static int __reload_late(void *info)
 {
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	unsigned int timeout = NSEC_PER_SEC;
+	int all_cpus = num_online_cpus();
+	int cpu = smp_processor_id();
+	enum ucode_state err;
+	int ret = 0;
 
-	if (!uci->valid)
-		return UCODE_OK;
+	atomic_dec(&late_cpus);
 
-	return apply_microcode_on_target(cpu);
+	/*
+	 * Wait for all CPUs to arrive. A load will not be attempted unless all
+	 * CPUs show up.
+	 * */
+	while (atomic_read(&late_cpus)) {
+		if (timeout < SPINUNIT) {
+			pr_err("Timeout while waiting for CPUs rendezvous, remaining: %d\n",
+				atomic_read(&late_cpus));
+			return -1;
+		}
+
+		ndelay(SPINUNIT);
+		timeout -= SPINUNIT;
+
+		touch_nmi_watchdog();
+	}
+
+	spin_lock(&update_lock);
+	apply_microcode_local(&err);
+	spin_unlock(&update_lock);
+
+	if (err > UCODE_NFOUND) {
+		pr_warn("Error reloading microcode on CPU %d\n", cpu);
+		ret = -1;
+	} else if (err == UCODE_UPDATED) {
+		ret = 1;
+	}
+
+	atomic_inc(&late_cpus);
+
+	while (atomic_read(&late_cpus) != all_cpus)
+		cpu_relax();
+
+	return ret;
+}
+
+/*
+ * Reload microcode late on all CPUs. Wait for a sec until they
+ * all gather together.
+ */
+static int microcode_reload_late(void)
+{
+	int ret;
+
+	atomic_set(&late_cpus, num_online_cpus());
+
+	ret = stop_machine_cpuslocked(__reload_late, NULL, cpu_online_mask);
+	if (ret < 0)
+		return ret;
+	else if (ret > 0)
+		microcode_check();
+
+	return ret;
 }
 
 static ssize_t reload_store(struct device *dev,
 			    struct device_attribute *attr,
 			    const char *buf, size_t size)
 {
-	int cpu, bsp = boot_cpu_data.cpu_index;
 	enum ucode_state tmp_ret = UCODE_OK;
-	bool do_callback = false;
+	int bsp = boot_cpu_data.cpu_index;
 	unsigned long val;
 	ssize_t ret = 0;
 
@@ -534,30 +617,13 @@ static ssize_t reload_store(struct device *dev,
 		goto put;
 
 	mutex_lock(&microcode_mutex);
-
-	for_each_online_cpu(cpu) {
-		tmp_ret = reload_for_cpu(cpu);
-		if (tmp_ret > UCODE_NFOUND) {
-			pr_warn("Error reloading microcode on CPU %d\n", cpu);
-
-			/* set retval for the first encountered reload error */
-			if (!ret)
-				ret = -EINVAL;
-		}
-
-		if (tmp_ret == UCODE_UPDATED)
-			do_callback = true;
-	}
-
-	if (!ret && do_callback)
-		microcode_check();
-
+	ret = microcode_reload_late();
 	mutex_unlock(&microcode_mutex);
 
 put:
 	put_online_cpus();
 
-	if (!ret)
+	if (ret >= 0)
 		ret = size;
 
 	return ret;
