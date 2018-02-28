@@ -9,6 +9,7 @@
 /dts-v1/;
 
 #include "sc9860.dtsi"
+#include "sc2731.dtsi"
 
 / {
 	model = "Spreadtrum SP9860G 3GFHD Board";
