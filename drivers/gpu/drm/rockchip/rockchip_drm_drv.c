@@ -1268,6 +1268,7 @@ static int rockchip_drm_bind(struct device *dev)
 	int ret;
 	struct device_node *np = dev->of_node;
 	struct device_node *parent_np;
+	struct drm_crtc *crtc;
 
 	drm_dev = drm_dev_alloc(&rockchip_drm_driver, dev);
 	if (!drm_dev)
@@ -1392,6 +1393,10 @@ static int rockchip_drm_bind(struct device *dev)
 	if (ret)
 		goto err_kms_helper_poll_fini;
 
+	drm_for_each_crtc(crtc, drm_dev) {
+		struct drm_fb_helper *helper = private->fbdev_helper;
+		crtc->primary->fb = helper->fb;
+	}
 	drm_dev->mode_config.allow_fb_modifiers = true;
 
 	ret = drm_dev_register(drm_dev, 0);
