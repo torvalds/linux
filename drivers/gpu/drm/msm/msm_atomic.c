@@ -21,66 +21,6 @@
 #include "msm_gem.h"
 #include "msm_fence.h"
 
-struct msm_commit {
-	struct drm_device *dev;
-	struct drm_atomic_state *state;
-	struct work_struct work;
-	uint32_t crtc_mask;
-};
-
-static void commit_worker(struct work_struct *work);
-
-/* block until specified crtcs are no longer pending update, and
- * atomically mark them as pending update
- */
-static int start_atomic(struct msm_drm_private *priv, uint32_t crtc_mask)
-{
-	int ret;
-
-	spin_lock(&priv->pending_crtcs_event.lock);
-	ret = wait_event_interruptible_locked(priv->pending_crtcs_event,
-			!(priv->pending_crtcs & crtc_mask));
-	if (ret == 0) {
-		DBG("start: %08x", crtc_mask);
-		priv->pending_crtcs |= crtc_mask;
-	}
-	spin_unlock(&priv->pending_crtcs_event.lock);
-
-	return ret;
-}
-
-/* clear specified crtcs (no longer pending update)
- */
-static void end_atomic(struct msm_drm_private *priv, uint32_t crtc_mask)
-{
-	spin_lock(&priv->pending_crtcs_event.lock);
-	DBG("end: %08x", crtc_mask);
-	priv->pending_crtcs &= ~crtc_mask;
-	wake_up_all_locked(&priv->pending_crtcs_event);
-	spin_unlock(&priv->pending_crtcs_event.lock);
-}
-
-static struct msm_commit *commit_init(struct drm_atomic_state *state)
-{
-	struct msm_commit *c = kzalloc(sizeof(*c), GFP_KERNEL);
-
-	if (!c)
-		return NULL;
-
-	c->dev = state->dev;
-	c->state = state;
-
-	INIT_WORK(&c->work, commit_worker);
-
-	return c;
-}
-
-static void commit_destroy(struct msm_commit *c)
-{
-	end_atomic(c->dev->dev_private, c->crtc_mask);
-	kfree(c);
-}
-
 static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 		struct drm_atomic_state *old_state)
 {
@@ -148,31 +88,37 @@ static void msm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	msm_atomic_wait_for_commit_done(dev, state);
 
-	drm_atomic_helper_cleanup_planes(dev, state);
-
 	kms->funcs->complete_commit(kms, state);
+
+	drm_atomic_helper_wait_for_vblanks(dev, state);
+
+	drm_atomic_helper_commit_hw_done(state);
+
+	drm_atomic_helper_cleanup_planes(dev, state);
 }
 
 /* The (potentially) asynchronous part of the commit.  At this point
  * nothing can fail short of armageddon.
  */
-static void complete_commit(struct msm_commit *c)
+static void commit_tail(struct drm_atomic_state *state)
 {
-	struct drm_atomic_state *state = c->state;
-	struct drm_device *dev = state->dev;
+	drm_atomic_helper_wait_for_fences(state->dev, state, false);
 
-	drm_atomic_helper_wait_for_fences(dev, state, false);
+	drm_atomic_helper_wait_for_dependencies(state);
 
 	msm_atomic_commit_tail(state);
 
-	drm_atomic_state_put(state);
+	drm_atomic_helper_commit_cleanup_done(state);
 
-	commit_destroy(c);
+	drm_atomic_state_put(state);
 }
 
-static void commit_worker(struct work_struct *work)
+static void commit_work(struct work_struct *work)
 {
-	complete_commit(container_of(work, struct msm_commit, work));
+	struct drm_atomic_state *state = container_of(work,
+						      struct drm_atomic_state,
+						      commit_work);
+	commit_tail(state);
 }
 
 /**
@@ -191,16 +137,11 @@ int msm_atomic_commit(struct drm_device *dev,
 		struct drm_atomic_state *state, bool nonblock)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_commit *c;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state, *new_plane_state;
 	int i, ret;
-
-	ret = drm_atomic_helper_prepare_planes(dev, state);
-	if (ret)
-		return ret;
 
 	/*
 	 * Note that plane->atomic_async_check() should fail if we need
@@ -209,45 +150,39 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * cases.
 	 */
 	if (state->async_update) {
+		ret = drm_atomic_helper_prepare_planes(dev, state);
+		if (ret)
+			return ret;
+
 		drm_atomic_helper_async_commit(dev, state);
 		drm_atomic_helper_cleanup_planes(dev, state);
 		return 0;
 	}
 
-	c = commit_init(state);
-	if (!c) {
-		ret = -ENOMEM;
-		goto error;
-	}
-
-	/*
-	 * Figure out what crtcs we have:
-	 */
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
-		c->crtc_mask |= drm_crtc_mask(crtc);
-
-	/*
-	 * Figure out what fence to wait for:
-	 */
-	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
-		if ((new_plane_state->fb != old_plane_state->fb) && new_plane_state->fb) {
-			struct drm_gem_object *obj = msm_framebuffer_bo(new_plane_state->fb, 0);
-			struct msm_gem_object *msm_obj = to_msm_bo(obj);
-			struct dma_fence *fence = reservation_object_get_excl_rcu(msm_obj->resv);
-
-			drm_atomic_set_fence_for_plane(new_plane_state, fence);
-		}
-	}
-
-	/*
-	 * Wait for pending updates on any of the same crtc's and then
-	 * mark our set of crtc's as busy:
-	 */
-	ret = start_atomic(dev->dev_private, c->crtc_mask);
+	ret = drm_atomic_helper_setup_commit(state, nonblock);
 	if (ret)
-		goto err_free;
+		return ret;
 
-	BUG_ON(drm_atomic_helper_swap_state(state, false) < 0);
+	INIT_WORK(&state->commit_work, commit_work);
+
+	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (ret)
+		return ret;
+
+	if (!nonblock) {
+		ret = drm_atomic_helper_wait_for_fences(dev, state, true);
+		if (ret)
+			goto error;
+	}
+
+	/*
+	 * This is the point of no return - everything below never fails except
+	 * when the hw goes bonghits. Which means we can commit the new state on
+	 * the software side now.
+	 *
+	 * swap driver private state while still holding state_lock
+	 */
+	BUG_ON(drm_atomic_helper_swap_state(state, true) < 0);
 
 	/*
 	 * This is the point of no return - everything below never fails except
@@ -272,17 +207,13 @@ int msm_atomic_commit(struct drm_device *dev,
 	 */
 
 	drm_atomic_state_get(state);
-	if (nonblock) {
-		queue_work(priv->atomic_wq, &c->work);
-		return 0;
-	}
-
-	complete_commit(c);
+	if (nonblock)
+		queue_work(system_unbound_wq, &state->commit_work);
+	else
+		commit_tail(state);
 
 	return 0;
 
-err_free:
-	kfree(c);
 error:
 	drm_atomic_helper_cleanup_planes(dev, state);
 	return ret;
