@@ -75,7 +75,7 @@ static int
 mt7601u_efuse_physical_size_check(struct mt7601u_dev *dev)
 {
 	const int map_reads = DIV_ROUND_UP(MT_EFUSE_USAGE_MAP_SIZE, 16);
-	u8 data[map_reads * 16];
+	u8 data[round_up(MT_EFUSE_USAGE_MAP_SIZE, 16)];
 	int ret, i;
 	u32 start = 0, end = 0, cnt_free;
 
