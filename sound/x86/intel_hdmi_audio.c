@@ -1835,6 +1835,8 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		ctx->port = single_port ? -1 : port;
 		ctx->pipe = -1;
 
+		spin_lock_init(&ctx->had_spinlock);
+		mutex_init(&ctx->mutex);
 		INIT_WORK(&ctx->hdmi_audio_wq, had_audio_wq);
 
 		ret = snd_pcm_new(card, INTEL_HAD, port, MAX_PB_STREAMS,
