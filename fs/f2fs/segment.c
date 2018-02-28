@@ -2667,7 +2667,8 @@ static int __get_segment_type_6(struct f2fs_io_info *fio)
 
 		if (is_cold_data(fio->page) || file_is_cold(inode))
 			return CURSEG_COLD_DATA;
-		if (is_inode_flag_set(inode, FI_HOT_DATA))
+		if (file_is_hot(inode) ||
+				is_inode_flag_set(inode, FI_HOT_DATA))
 			return CURSEG_HOT_DATA;
 		/* rw_hint_to_seg_type(inode->i_write_hint); */
 		return CURSEG_WARM_DATA;

@@ -139,10 +139,19 @@ static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
 	if (!strcmp(a->attr.name, "extension_list")) {
 		__u8 (*extlist)[F2FS_EXTENSION_LEN] =
 					sbi->raw_super->extension_list;
-		int count = le32_to_cpu(sbi->raw_super->extension_count);
+		int cold_count = le32_to_cpu(sbi->raw_super->extension_count);
+		int hot_count = sbi->raw_super->hot_ext_count;
 		int len = 0, i;
 
-		for (i = 0; i < count; i++)
+		len += snprintf(buf + len, PAGE_SIZE - len,
+						"cold file extenstion:\n");
+		for (i = 0; i < cold_count; i++)
+			len += snprintf(buf + len, PAGE_SIZE - len, "%s\n",
+								extlist[i]);
+
+		len += snprintf(buf + len, PAGE_SIZE - len,
+						"hot file extenstion:\n");
+		for (i = cold_count; i < cold_count + hot_count; i++)
 			len += snprintf(buf + len, PAGE_SIZE - len, "%s\n",
 								extlist[i]);
 		return len;
@@ -168,9 +177,18 @@ static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
 
 	if (!strcmp(a->attr.name, "extension_list")) {
 		const char *name = strim((char *)buf);
-		bool set = true;
+		bool set = true, hot;
 
-		if (name[0] == '!') {
+		if (!strncmp(name, "[h]", 3))
+			hot = true;
+		else if (!strncmp(name, "[c]", 3))
+			hot = false;
+		else
+			return -EINVAL;
+
+		name += 3;
+
+		if (*name == '!') {
 			name++;
 			set = false;
 		}
@@ -180,13 +198,13 @@ static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
 
 		down_write(&sbi->sb_lock);
 
-		ret = update_extension_list(sbi, name, set);
+		ret = update_extension_list(sbi, name, hot, set);
 		if (ret)
 			goto out;
 
 		ret = f2fs_commit_super(sbi, false);
 		if (ret)
-			update_extension_list(sbi, name, !set);
+			update_extension_list(sbi, name, hot, !set);
 out:
 		up_write(&sbi->sb_lock);
 		return ret ? ret : count;

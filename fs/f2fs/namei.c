@@ -142,7 +142,7 @@ fail_drop:
 	return ERR_PTR(err);
 }
 
-static int is_multimedia_file(const unsigned char *s, const char *sub)
+static int is_extension_exist(const unsigned char *s, const char *sub)
 {
 	size_t slen = strlen(s);
 	size_t sublen = strlen(sub);
@@ -168,33 +168,59 @@ static int is_multimedia_file(const unsigned char *s, const char *sub)
 /*
  * Set multimedia files as cold files for hot/cold data separation
  */
-static inline void set_cold_files(struct f2fs_sb_info *sbi, struct inode *inode,
+static inline void set_file_temperature(struct f2fs_sb_info *sbi, struct inode *inode,
 		const unsigned char *name)
 {
 	__u8 (*extlist)[F2FS_EXTENSION_LEN] = sbi->raw_super->extension_list;
-	int i, count;
+	int i, cold_count, hot_count;
 
 	down_read(&sbi->sb_lock);
 
-	count = le32_to_cpu(sbi->raw_super->extension_count);
+	cold_count = le32_to_cpu(sbi->raw_super->extension_count);
+	hot_count = sbi->raw_super->hot_ext_count;
 
-	for (i = 0; i < count; i++) {
-		if (is_multimedia_file(name, extlist[i])) {
+	for (i = 0; i < cold_count + hot_count; i++) {
+		if (!is_extension_exist(name, extlist[i]))
+			continue;
+		if (i < cold_count)
 			file_set_cold(inode);
-			break;
-		}
+		else
+			file_set_hot(inode);
+		break;
 	}
 
 	up_read(&sbi->sb_lock);
 }
 
-int update_extension_list(struct f2fs_sb_info *sbi, const char *name, bool set)
+int update_extension_list(struct f2fs_sb_info *sbi, const char *name,
+							bool hot, bool set)
 {
 	__u8 (*extlist)[F2FS_EXTENSION_LEN] = sbi->raw_super->extension_list;
-	int count = le32_to_cpu(sbi->raw_super->extension_count);
+	int cold_count = le32_to_cpu(sbi->raw_super->extension_count);
+	int hot_count = sbi->raw_super->hot_ext_count;
+	int total_count = cold_count + hot_count;
+	int start, count;
 	int i;
 
-	for (i = 0; i < count; i++) {
+	if (set) {
+		if (total_count == F2FS_MAX_EXTENSION)
+			return -EINVAL;
+	} else {
+		if (!hot && !cold_count)
+			return -EINVAL;
+		if (hot && !hot_count)
+			return -EINVAL;
+	}
+
+	if (hot) {
+		start = cold_count;
+		count = total_count;
+	} else {
+		start = 0;
+		count = cold_count;
+	}
+
+	for (i = start; i < count; i++) {
 		if (strcmp(name, extlist[i]))
 			continue;
 
@@ -202,20 +228,33 @@ int update_extension_list(struct f2fs_sb_info *sbi, const char *name, bool set)
 			return -EINVAL;
 
 		memcpy(extlist[i], extlist[i + 1],
-				F2FS_EXTENSION_LEN * (count - i - 1));
-		memset(extlist[count - 1], 0, F2FS_EXTENSION_LEN);
-		sbi->raw_super->extension_count = cpu_to_le32(count - 1);
+				F2FS_EXTENSION_LEN * (total_count - i - 1));
+		memset(extlist[total_count - 1], 0, F2FS_EXTENSION_LEN);
+		if (hot)
+			sbi->raw_super->hot_ext_count = hot_count - 1;
+		else
+			sbi->raw_super->extension_count =
+						cpu_to_le32(cold_count - 1);
 		return 0;
 	}
 
 	if (!set)
 		return -EINVAL;
 
-	if (count == F2FS_MAX_EXTENSION)
-		return -EINVAL;
+	if (hot) {
+		strncpy(extlist[count], name, strlen(name));
+		sbi->raw_super->hot_ext_count = hot_count + 1;
+	} else {
+		char buf[F2FS_MAX_EXTENSION][F2FS_EXTENSION_LEN];
 
-	strncpy(extlist[count], name, strlen(name));
-	sbi->raw_super->extension_count = cpu_to_le32(count + 1);
+		memcpy(buf, &extlist[cold_count],
+				F2FS_EXTENSION_LEN * hot_count);
+		memset(extlist[cold_count], 0, F2FS_EXTENSION_LEN);
+		strncpy(extlist[cold_count], name, strlen(name));
+		memcpy(&extlist[cold_count + 1], buf,
+				F2FS_EXTENSION_LEN * hot_count);
+		sbi->raw_super->extension_count = cpu_to_le32(cold_count + 1);
+	}
 	return 0;
 }
 
@@ -239,7 +278,7 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		return PTR_ERR(inode);
 
 	if (!test_opt(sbi, DISABLE_EXT_IDENTIFY))
-		set_cold_files(sbi, inode, dentry->d_name.name);
+		set_file_temperature(sbi, inode, dentry->d_name.name);
 
 	inode->i_op = &f2fs_file_inode_operations;
 	inode->i_fop = &f2fs_file_operations;
