@@ -78,6 +78,7 @@ struct mlxsw_sp_qdisc_ops {
 struct mlxsw_sp_qdisc {
 	u32 handle;
 	u8 tclass_num;
+	u8 prio_bitmap;
 	union {
 		struct red_stats red;
 	} xstats_base;
@@ -467,6 +468,7 @@ mlxsw_sp_qdisc_prio_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 					  MLXSW_SP_PORT_DEFAULT_TCLASS);
 		mlxsw_sp_qdisc_destroy(mlxsw_sp_port,
 				       &mlxsw_sp_port->tclass_qdiscs[i]);
+		mlxsw_sp_port->tclass_qdiscs[i].prio_bitmap = 0;
 	}
 
 	return 0;
@@ -494,11 +496,15 @@ mlxsw_sp_qdisc_prio_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 	int tclass, i;
 	int err;
 
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		mlxsw_sp_port->tclass_qdiscs[i].prio_bitmap = 0;
+
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		tclass = MLXSW_SP_PRIO_BAND_TO_TCLASS(p->priomap[i]);
 		err = mlxsw_sp_port_prio_tc_set(mlxsw_sp_port, i, tclass);
 		if (err)
 			return err;
+		mlxsw_sp_port->tclass_qdiscs[tclass].prio_bitmap |= BIT(i);
 	}
 
 	return 0;
@@ -628,6 +634,7 @@ int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port)
 		goto err_root_qdisc_init;
 
 	mlxsw_sp_port->root_qdisc = mlxsw_sp_qdisc;
+	mlxsw_sp_port->root_qdisc->prio_bitmap = 0xff;
 	mlxsw_sp_port->root_qdisc->tclass_num = MLXSW_SP_PORT_DEFAULT_TCLASS;
 
 	mlxsw_sp_qdisc = kzalloc(sizeof(*mlxsw_sp_qdisc) * IEEE_8021QAZ_MAX_TCS,
