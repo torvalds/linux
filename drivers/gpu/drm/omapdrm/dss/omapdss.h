@@ -391,6 +391,9 @@ struct omap_dss_device {
 
 	struct module *owner;
 
+	struct omap_dss_device *src;
+	struct omap_dss_device *dst;
+
 	struct list_head list;
 	struct list_head panel_list;
 
@@ -409,8 +412,6 @@ struct omap_dss_device {
 
 	enum omap_display_caps caps;
 
-	struct omap_dss_device *src;
-
 	enum omap_dss_display_state state;
 
 	/* OMAP DSS output specific fields */
@@ -426,9 +427,6 @@ struct omap_dss_device {
 
 	/* the port number in the DT node */
 	int port_num;
-
-	/* dynamic fields */
-	struct omap_dss_device *dst;
 };
 
 struct omap_dss_driver {

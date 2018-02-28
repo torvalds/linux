@@ -55,9 +55,6 @@ static int tpd_connect(struct omap_dss_device *dssdev,
 		return r;
 	}
 
-	dst->src = dssdev;
-	dssdev->dst = dst;
-
 	gpiod_set_value_cansleep(ddata->ct_cp_hpd_gpio, 1);
 	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 1);
 
@@ -74,16 +71,8 @@ static void tpd_disconnect(struct omap_dss_device *dssdev,
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
 
-	WARN_ON(dst != dssdev->dst);
-
-	if (dst != dssdev->dst)
-		return;
-
 	gpiod_set_value_cansleep(ddata->ct_cp_hpd_gpio, 0);
 	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 0);
-
-	dst->src = NULL;
-	dssdev->dst = NULL;
 
 	omapdss_device_disconnect(in, &ddata->dssdev);
 

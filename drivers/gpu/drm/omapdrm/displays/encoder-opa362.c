@@ -51,9 +51,6 @@ static int opa362_connect(struct omap_dss_device *dssdev,
 		return r;
 	}
 
-	dst->src = dssdev;
-	dssdev->dst = dst;
-
 	ddata->in = in;
 	return 0;
 }
@@ -63,13 +60,6 @@ static void opa362_disconnect(struct omap_dss_device *dssdev,
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-
-	WARN_ON(dst != dssdev->dst);
-	if (dst != dssdev->dst)
-		return;
-
-	dst->src = NULL;
-	dssdev->dst = NULL;
 
 	omapdss_device_disconnect(in, &ddata->dssdev);
 

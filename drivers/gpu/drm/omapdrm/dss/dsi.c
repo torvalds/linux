@@ -4990,11 +4990,6 @@ static void dsi_disconnect(struct omap_dss_device *dssdev,
 {
 	struct dsi_data *dsi = to_dsi_data(dssdev);
 
-	WARN_ON(dst != dssdev->dst);
-
-	if (dst != dssdev->dst)
-		return;
-
 	omapdss_output_unset_device(dssdev);
 
 	dss_mgr_disconnect(&dsi->output, dssdev);

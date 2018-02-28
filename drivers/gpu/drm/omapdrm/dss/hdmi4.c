@@ -478,11 +478,6 @@ static void hdmi_disconnect(struct omap_dss_device *dssdev,
 {
 	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 
-	WARN_ON(dst != dssdev->dst);
-
-	if (dst != dssdev->dst)
-		return;
-
 	omapdss_output_unset_device(dssdev);
 
 	dss_mgr_disconnect(&hdmi->output, dssdev);

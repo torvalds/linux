@@ -671,11 +671,6 @@ static void dpi_disconnect(struct omap_dss_device *dssdev,
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
-	WARN_ON(dst != dssdev->dst);
-
-	if (dst != dssdev->dst)
-		return;
-
 	omapdss_output_unset_device(dssdev);
 
 	dss_mgr_disconnect(&dpi->output, dssdev);

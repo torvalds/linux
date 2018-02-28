@@ -47,9 +47,6 @@ int omapdss_output_set_device(struct omap_dss_device *out,
 		goto err;
 	}
 
-	out->dst = dssdev;
-	dssdev->src = out;
-
 	mutex_unlock(&output_lock);
 
 	return 0;
@@ -80,9 +77,6 @@ int omapdss_output_unset_device(struct omap_dss_device *out)
 		r = -EINVAL;
 		goto err;
 	}
-
-	out->dst->src = NULL;
-	out->dst = NULL;
 
 	mutex_unlock(&output_lock);
 

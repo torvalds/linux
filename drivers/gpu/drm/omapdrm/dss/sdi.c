@@ -301,11 +301,6 @@ static void sdi_disconnect(struct omap_dss_device *dssdev,
 {
 	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 
-	WARN_ON(dst != dssdev->dst);
-
-	if (dst != dssdev->dst)
-		return;
-
 	omapdss_output_unset_device(dssdev);
 
 	dss_mgr_disconnect(&sdi->output, dssdev);
