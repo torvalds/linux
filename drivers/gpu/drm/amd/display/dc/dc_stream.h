@@ -48,6 +48,8 @@ struct dc_stream_status {
 struct dc_stream_state {
 	struct dc_sink *sink;
 	struct dc_crtc_timing timing;
+	struct dc_crtc_timing_adjust timing_adjust;
+	struct vrr_params vrr_params;
 
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */

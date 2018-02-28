@@ -447,6 +447,7 @@ union surface_update_flags {
 
 struct dc_plane_state {
 	struct dc_plane_address address;
+	struct dc_plane_flip_time time;
 	struct scaling_taps scaling_quality;
 	struct rect src_rect;
 	struct rect dst_rect;
@@ -557,6 +558,7 @@ struct dc_transfer_func *dc_create_transfer_func(void);
  */
 struct dc_flip_addrs {
 	struct dc_plane_address address;
+	unsigned int flip_timestamp_in_us;
 	bool flip_immediate;
 	/* TODO: add flip duration for FreeSync */
 };
