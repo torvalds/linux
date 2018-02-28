@@ -5888,7 +5888,7 @@ int btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 * this will force the logging code to walk the dentry chain
 	 * up for the file
 	 */
-	if (S_ISREG(inode->vfs_inode.i_mode))
+	if (!S_ISDIR(inode->vfs_inode.i_mode))
 		inode->last_unlink_trans = trans->transid;
 
 	/*
