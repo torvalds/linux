@@ -42,12 +42,12 @@
 struct rx_usb_ctrl_block {
 	u8 *data;
 	struct urb *rx_urb;
-	u8 *rx_buffer;
+	struct sk_buff *rx_skb;
 	u8 ep_num;
-	u8 pend;
 };
 
 struct rsi_91x_usbdev {
+	void *priv;
 	struct rsi_thread rx_thread;
 	u8 endpoint;
 	struct usb_device *usbdev;
@@ -60,6 +60,7 @@ struct rsi_91x_usbdev {
 	u8 bulkout_endpoint_addr[MAX_BULK_EP];
 	u32 tx_blk_size;
 	u8 write_fail;
+	struct sk_buff_head rx_q;
 };
 
 static inline int rsi_usb_check_queue_status(struct rsi_hw *adapter, u8 q_num)
