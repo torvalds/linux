@@ -127,7 +127,7 @@ char ebc_func_buf[] = {
 
 char *ebc_funcbufptr = ebc_func_buf;
 int ebc_funcbufsize = sizeof(ebc_func_buf);
-int ebc_funcbufleft = 0;	  /* space left */
+int ebc_funcbufleft;		/* space left */
 
 char *ebc_func_table[MAX_NR_FUNC] = {
 	ebc_func_buf + 0,
