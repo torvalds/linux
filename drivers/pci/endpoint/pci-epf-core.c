@@ -203,16 +203,14 @@ struct pci_epf *pci_epf_create(const char *name)
 	int len;
 
 	epf = kzalloc(sizeof(*epf), GFP_KERNEL);
-	if (!epf) {
-		ret = -ENOMEM;
-		goto err_ret;
-	}
+	if (!epf)
+		return ERR_PTR(-ENOMEM);
 
 	len = strchrnul(name, '.') - name;
 	epf->name = kstrndup(name, len, GFP_KERNEL);
 	if (!epf->name) {
-		ret = -ENOMEM;
-		goto free_epf;
+		kfree(epf);
+		return ERR_PTR(-ENOMEM);
 	}
 
 	dev = &epf->dev;
@@ -221,24 +219,18 @@ struct pci_epf *pci_epf_create(const char *name)
 	dev->type = &pci_epf_type;
 
 	ret = dev_set_name(dev, "%s", name);
-	if (ret)
-		goto put_dev;
+	if (ret) {
+		put_device(dev);
+		return ERR_PTR(ret);
+	}
 
 	ret = device_add(dev);
-	if (ret)
-		goto put_dev;
+	if (ret) {
+		put_device(dev);
+		return ERR_PTR(ret);
+	}
 
 	return epf;
-
-put_dev:
-	put_device(dev);
-	return ERR_PTR(ret);
-
-free_epf:
-	kfree(epf);
-
-err_ret:
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(pci_epf_create);
 
