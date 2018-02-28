@@ -93,7 +93,7 @@ int rtc_nvmem_register(struct rtc_device *rtc,
 	if (!nvmem_config)
 		return -ENODEV;
 
-	nvmem_config->dev = &rtc->dev;
+	nvmem_config->dev = rtc->dev.parent;
 	nvmem_config->owner = rtc->owner;
 	rtc->nvmem = nvmem_register(nvmem_config);
 	if (IS_ERR_OR_NULL(rtc->nvmem))

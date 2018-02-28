@@ -293,8 +293,6 @@ EXPORT_SYMBOL_GPL(rtc_device_register);
  */
 void rtc_device_unregister(struct rtc_device *rtc)
 {
-	rtc_nvmem_unregister(rtc);
-
 	mutex_lock(&rtc->ops_lock);
 	/*
 	 * Remove innards of this RTC, then disable it, before
@@ -312,6 +310,7 @@ static void devm_rtc_device_release(struct device *dev, void *res)
 {
 	struct rtc_device *rtc = *(struct rtc_device **)res;
 
+	rtc_nvmem_unregister(rtc);
 	rtc_device_unregister(rtc);
 }
 
@@ -381,6 +380,8 @@ EXPORT_SYMBOL_GPL(devm_rtc_device_unregister);
 static void devm_rtc_release_device(struct device *dev, void *res)
 {
 	struct rtc_device *rtc = *(struct rtc_device **)res;
+
+	rtc_nvmem_unregister(rtc);
 
 	if (rtc->registered)
 		rtc_device_unregister(rtc);
