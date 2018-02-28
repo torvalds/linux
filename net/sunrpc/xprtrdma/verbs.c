@@ -1068,17 +1068,27 @@ struct rpcrdma_req *
 rpcrdma_create_req(struct rpcrdma_xprt *r_xprt)
 {
 	struct rpcrdma_buffer *buffer = &r_xprt->rx_buf;
+	struct rpcrdma_regbuf *rb;
 	struct rpcrdma_req *req;
 
 	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (req == NULL)
 		return ERR_PTR(-ENOMEM);
 
+	rb = rpcrdma_alloc_regbuf(RPCRDMA_HDRBUF_SIZE,
+				  DMA_TO_DEVICE, GFP_KERNEL);
+	if (IS_ERR(rb)) {
+		kfree(req);
+		return ERR_PTR(-ENOMEM);
+	}
+	req->rl_rdmabuf = rb;
+	xdr_buf_init(&req->rl_hdrbuf, rb->rg_base, rdmab_length(rb));
+	req->rl_buffer = buffer;
+	INIT_LIST_HEAD(&req->rl_registered);
+
 	spin_lock(&buffer->rb_reqslock);
 	list_add(&req->rl_all, &buffer->rb_allreqs);
 	spin_unlock(&buffer->rb_reqslock);
-	req->rl_buffer = &r_xprt->rx_buf;
-	INIT_LIST_HEAD(&req->rl_registered);
 	return req;
 }
 
