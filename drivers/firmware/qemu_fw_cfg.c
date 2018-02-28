@@ -77,8 +77,8 @@ static void fw_cfg_sel_endianness(u16 key)
 }
 
 /* read chunk of given fw_cfg blob (caller responsible for sanity-check) */
-static inline void fw_cfg_read_blob(u16 key,
-				    void *buf, loff_t pos, size_t count)
+static void fw_cfg_read_blob(u16 key,
+			void *buf, loff_t pos, size_t count)
 {
 	u32 glk = -1U;
 	acpi_status status;
