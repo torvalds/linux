@@ -87,8 +87,6 @@ static void ip6_mr_forward(struct net *net, struct mr_table *mrt,
 			   struct sk_buff *skb, struct mfc6_cache *cache);
 static int ip6mr_cache_report(struct mr_table *mrt, struct sk_buff *pkt,
 			      mifi_t mifi, int assert);
-static int __ip6mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
-			       struct mfc6_cache *c, struct rtmsg *rtm);
 static void mr6_netlink_event(struct mr_table *mrt, struct mfc6_cache *mfc,
 			      int cmd);
 static void mrt6msg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt);
@@ -100,6 +98,23 @@ static void ipmr_expire_process(struct timer_list *t);
 #ifdef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
 #define ip6mr_for_each_table(mrt, net) \
 	list_for_each_entry_rcu(mrt, &net->ipv6.mr6_tables, list)
+
+static struct mr_table *ip6mr_mr_table_iter(struct net *net,
+					    struct mr_table *mrt)
+{
+	struct mr_table *ret;
+
+	if (!mrt)
+		ret = list_entry_rcu(net->ipv6.mr6_tables.next,
+				     struct mr_table, list);
+	else
+		ret = list_entry_rcu(mrt->list.next,
+				     struct mr_table, list);
+
+	if (&ret->list == &net->ipv6.mr6_tables)
+		return NULL;
+	return ret;
+}
 
 static struct mr_table *ip6mr_get_table(struct net *net, u32 id)
 {
@@ -246,6 +261,14 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 #else
 #define ip6mr_for_each_table(mrt, net) \
 	for (mrt = net->ipv6.mrt6; mrt; mrt = NULL)
+
+static struct mr_table *ip6mr_mr_table_iter(struct net *net,
+					    struct mr_table *mrt)
+{
+	if (!mrt)
+		return net->ipv6.mrt6;
+	return NULL;
+}
 
 static struct mr_table *ip6mr_get_table(struct net *net, u32 id)
 {
@@ -948,7 +971,8 @@ static void ip6mr_cache_resolve(struct net *net, struct mr_table *mrt,
 			struct nlmsghdr *nlh = skb_pull(skb,
 							sizeof(struct ipv6hdr));
 
-			if (__ip6mr_fill_mroute(mrt, skb, c, nlmsg_data(nlh)) > 0) {
+			if (mr_fill_mroute(mrt, skb, &c->_c,
+					   nlmsg_data(nlh)) > 0) {
 				nlh->nlmsg_len = skb_tail_pointer(skb) - (u8 *)nlh;
 			} else {
 				nlh->nlmsg_type = NLMSG_ERROR;
@@ -2081,63 +2105,6 @@ int ip6_mr_input(struct sk_buff *skb)
 	return 0;
 }
 
-
-static int __ip6mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
-			       struct mfc6_cache *c, struct rtmsg *rtm)
-{
-	struct rta_mfc_stats mfcs;
-	struct nlattr *mp_attr;
-	struct rtnexthop *nhp;
-	unsigned long lastuse;
-	int ct;
-
-	/* If cache is unresolved, don't try to parse IIF and OIF */
-	if (c->_c.mfc_parent >= MAXMIFS) {
-		rtm->rtm_flags |= RTNH_F_UNRESOLVED;
-		return -ENOENT;
-	}
-
-	if (VIF_EXISTS(mrt, c->_c.mfc_parent) &&
-	    nla_put_u32(skb, RTA_IIF,
-			mrt->vif_table[c->_c.mfc_parent].dev->ifindex) < 0)
-		return -EMSGSIZE;
-	mp_attr = nla_nest_start(skb, RTA_MULTIPATH);
-	if (!mp_attr)
-		return -EMSGSIZE;
-
-	for (ct = c->_c.mfc_un.res.minvif;
-	     ct < c->_c.mfc_un.res.maxvif; ct++) {
-		if (VIF_EXISTS(mrt, ct) && c->_c.mfc_un.res.ttls[ct] < 255) {
-			nhp = nla_reserve_nohdr(skb, sizeof(*nhp));
-			if (!nhp) {
-				nla_nest_cancel(skb, mp_attr);
-				return -EMSGSIZE;
-			}
-
-			nhp->rtnh_flags = 0;
-			nhp->rtnh_hops = c->_c.mfc_un.res.ttls[ct];
-			nhp->rtnh_ifindex = mrt->vif_table[ct].dev->ifindex;
-			nhp->rtnh_len = sizeof(*nhp);
-		}
-	}
-
-	nla_nest_end(skb, mp_attr);
-
-	lastuse = READ_ONCE(c->_c.mfc_un.res.lastuse);
-	lastuse = time_after_eq(jiffies, lastuse) ? jiffies - lastuse : 0;
-
-	mfcs.mfcs_packets = c->_c.mfc_un.res.pkt;
-	mfcs.mfcs_bytes = c->_c.mfc_un.res.bytes;
-	mfcs.mfcs_wrong_if = c->_c.mfc_un.res.wrong_if;
-	if (nla_put_64bit(skb, RTA_MFC_STATS, sizeof(mfcs), &mfcs, RTA_PAD) ||
-	    nla_put_u64_64bit(skb, RTA_EXPIRES, jiffies_to_clock_t(lastuse),
-			      RTA_PAD))
-		return -EMSGSIZE;
-
-	rtm->rtm_type = RTN_MULTICAST;
-	return 1;
-}
-
 int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 		    u32 portid)
 {
@@ -2203,7 +2170,7 @@ int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 		return err;
 	}
 
-	err = __ip6mr_fill_mroute(mrt, skb, cache, rtm);
+	err = mr_fill_mroute(mrt, skb, &cache->_c, rtm);
 	read_unlock(&mrt_lock);
 	return err;
 }
@@ -2239,7 +2206,7 @@ static int ip6mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	if (nla_put_in6_addr(skb, RTA_SRC, &c->mf6c_origin) ||
 	    nla_put_in6_addr(skb, RTA_DST, &c->mf6c_mcastgrp))
 		goto nla_put_failure;
-	err = __ip6mr_fill_mroute(mrt, skb, c, rtm);
+	err = mr_fill_mroute(mrt, skb, &c->_c, rtm);
 	/* do not break the dump if cache is unresolved */
 	if (err < 0 && err != -ENOENT)
 		goto nla_put_failure;
@@ -2250,6 +2217,14 @@ static int ip6mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
 	return -EMSGSIZE;
+}
+
+static int _ip6mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
+			      u32 portid, u32 seq, struct mr_mfc *c,
+			      int cmd, int flags)
+{
+	return ip6mr_fill_mroute(mrt, skb, portid, seq, (struct mfc6_cache *)c,
+				 cmd, flags);
 }
 
 static int mr6_msgsize(bool unresolved, int maxvif)
@@ -2365,59 +2340,6 @@ errout:
 
 static int ip6mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = sock_net(skb->sk);
-	unsigned int t = 0, s_t;
-	unsigned int e = 0, s_e;
-	struct mr_table *mrt;
-	struct mr_mfc *mfc;
-
-	s_t = cb->args[0];
-	s_e = cb->args[1];
-
-	rcu_read_lock();
-	ip6mr_for_each_table(mrt, net) {
-		if (t < s_t)
-			goto next_table;
-		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
-			if (e < s_e)
-				goto next_entry;
-			if (ip6mr_fill_mroute(mrt, skb,
-					      NETLINK_CB(cb->skb).portid,
-					      cb->nlh->nlmsg_seq,
-					      (struct mfc6_cache *)mfc,
-					      RTM_NEWROUTE, NLM_F_MULTI) < 0)
-				goto done;
-next_entry:
-			e++;
-		}
-		e = 0;
-		s_e = 0;
-
-		spin_lock_bh(&mfc_unres_lock);
-		list_for_each_entry(mfc, &mrt->mfc_unres_queue, list) {
-			if (e < s_e)
-				goto next_entry2;
-			if (ip6mr_fill_mroute(mrt, skb,
-					      NETLINK_CB(cb->skb).portid,
-					      cb->nlh->nlmsg_seq,
-					     (struct mfc6_cache *)mfc,
-					      RTM_NEWROUTE, NLM_F_MULTI) < 0) {
-				spin_unlock_bh(&mfc_unres_lock);
-				goto done;
-			}
-next_entry2:
-			e++;
-		}
-		spin_unlock_bh(&mfc_unres_lock);
-		e = s_e = 0;
-next_table:
-		t++;
-	}
-done:
-	rcu_read_unlock();
-
-	cb->args[1] = e;
-	cb->args[0] = t;
-
-	return skb->len;
+	return mr_rtm_dumproute(skb, cb, ip6mr_mr_table_iter,
+				_ip6mr_fill_mroute, &mfc_unres_lock);
 }

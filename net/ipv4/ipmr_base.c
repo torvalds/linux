@@ -198,3 +198,126 @@ end_of_list:
 }
 EXPORT_SYMBOL(mr_mfc_seq_next);
 #endif
+
+int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
+		   struct mr_mfc *c, struct rtmsg *rtm)
+{
+	struct rta_mfc_stats mfcs;
+	struct nlattr *mp_attr;
+	struct rtnexthop *nhp;
+	unsigned long lastuse;
+	int ct;
+
+	/* If cache is unresolved, don't try to parse IIF and OIF */
+	if (c->mfc_parent >= MAXVIFS) {
+		rtm->rtm_flags |= RTNH_F_UNRESOLVED;
+		return -ENOENT;
+	}
+
+	if (VIF_EXISTS(mrt, c->mfc_parent) &&
+	    nla_put_u32(skb, RTA_IIF,
+			mrt->vif_table[c->mfc_parent].dev->ifindex) < 0)
+		return -EMSGSIZE;
+
+	if (c->mfc_flags & MFC_OFFLOAD)
+		rtm->rtm_flags |= RTNH_F_OFFLOAD;
+
+	mp_attr = nla_nest_start(skb, RTA_MULTIPATH);
+	if (!mp_attr)
+		return -EMSGSIZE;
+
+	for (ct = c->mfc_un.res.minvif; ct < c->mfc_un.res.maxvif; ct++) {
+		if (VIF_EXISTS(mrt, ct) && c->mfc_un.res.ttls[ct] < 255) {
+			struct vif_device *vif;
+
+			nhp = nla_reserve_nohdr(skb, sizeof(*nhp));
+			if (!nhp) {
+				nla_nest_cancel(skb, mp_attr);
+				return -EMSGSIZE;
+			}
+
+			nhp->rtnh_flags = 0;
+			nhp->rtnh_hops = c->mfc_un.res.ttls[ct];
+			vif = &mrt->vif_table[ct];
+			nhp->rtnh_ifindex = vif->dev->ifindex;
+			nhp->rtnh_len = sizeof(*nhp);
+		}
+	}
+
+	nla_nest_end(skb, mp_attr);
+
+	lastuse = READ_ONCE(c->mfc_un.res.lastuse);
+	lastuse = time_after_eq(jiffies, lastuse) ? jiffies - lastuse : 0;
+
+	mfcs.mfcs_packets = c->mfc_un.res.pkt;
+	mfcs.mfcs_bytes = c->mfc_un.res.bytes;
+	mfcs.mfcs_wrong_if = c->mfc_un.res.wrong_if;
+	if (nla_put_64bit(skb, RTA_MFC_STATS, sizeof(mfcs), &mfcs, RTA_PAD) ||
+	    nla_put_u64_64bit(skb, RTA_EXPIRES, jiffies_to_clock_t(lastuse),
+			      RTA_PAD))
+		return -EMSGSIZE;
+
+	rtm->rtm_type = RTN_MULTICAST;
+	return 1;
+}
+EXPORT_SYMBOL(mr_fill_mroute);
+
+int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
+		     struct mr_table *(*iter)(struct net *net,
+					      struct mr_table *mrt),
+		     int (*fill)(struct mr_table *mrt,
+				 struct sk_buff *skb,
+				 u32 portid, u32 seq, struct mr_mfc *c,
+				 int cmd, int flags),
+		     spinlock_t *lock)
+{
+	unsigned int t = 0, e = 0, s_t = cb->args[0], s_e = cb->args[1];
+	struct net *net = sock_net(skb->sk);
+	struct mr_table *mrt;
+	struct mr_mfc *mfc;
+
+	rcu_read_lock();
+	for (mrt = iter(net, NULL); mrt; mrt = iter(net, mrt)) {
+		if (t < s_t)
+			goto next_table;
+		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
+			if (e < s_e)
+				goto next_entry;
+			if (fill(mrt, skb, NETLINK_CB(cb->skb).portid,
+				 cb->nlh->nlmsg_seq, mfc,
+				 RTM_NEWROUTE, NLM_F_MULTI) < 0)
+				goto done;
+next_entry:
+			e++;
+		}
+		e = 0;
+		s_e = 0;
+
+		spin_lock_bh(lock);
+		list_for_each_entry(mfc, &mrt->mfc_unres_queue, list) {
+			if (e < s_e)
+				goto next_entry2;
+			if (fill(mrt, skb, NETLINK_CB(cb->skb).portid,
+				 cb->nlh->nlmsg_seq, mfc,
+				 RTM_NEWROUTE, NLM_F_MULTI) < 0) {
+				spin_unlock_bh(lock);
+				goto done;
+			}
+next_entry2:
+			e++;
+		}
+		spin_unlock_bh(lock);
+		e = 0;
+		s_e = 0;
+next_table:
+		t++;
+	}
+done:
+	rcu_read_unlock();
+
+	cb->args[1] = e;
+	cb->args[0] = t;
+
+	return skb->len;
+}
+EXPORT_SYMBOL(mr_rtm_dumproute);

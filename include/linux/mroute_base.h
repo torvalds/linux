@@ -170,6 +170,16 @@ void *mr_mfc_find_parent(struct mr_table *mrt,
 void *mr_mfc_find_any_parent(struct mr_table *mrt, int vifi);
 void *mr_mfc_find_any(struct mr_table *mrt, int vifi, void *hasharg);
 
+int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
+		   struct mr_mfc *c, struct rtmsg *rtm);
+int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
+		     struct mr_table *(*iter)(struct net *net,
+					      struct mr_table *mrt),
+		     int (*fill)(struct mr_table *mrt,
+				 struct sk_buff *skb,
+				 u32 portid, u32 seq, struct mr_mfc *c,
+				 int cmd, int flags),
+		     spinlock_t *lock);
 #else
 static inline void vif_device_init(struct vif_device *v,
 				   struct net_device *dev,
@@ -206,6 +216,25 @@ static inline struct mr_mfc *mr_mfc_find_any(struct mr_table *mrt,
 					     int vifi, void *hasharg)
 {
 	return NULL;
+}
+
+static inline int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
+				 struct mr_mfc *c, struct rtmsg *rtm)
+{
+	return -EINVAL;
+}
+
+static inline int
+mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
+		 struct mr_table *(*iter)(struct net *net,
+					  struct mr_table *mrt),
+		 int (*fill)(struct mr_table *mrt,
+			     struct sk_buff *skb,
+			     u32 portid, u32 seq, struct mr_mfc *c,
+			     int cmd, int flags),
+		 spinlock_t *lock)
+{
+	return -EINVAL;
 }
 #endif
 

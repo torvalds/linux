@@ -105,8 +105,6 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 			  struct mfc_cache *cache, int local);
 static int ipmr_cache_report(struct mr_table *mrt,
 			     struct sk_buff *pkt, vifi_t vifi, int assert);
-static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
-			      struct mr_mfc *c, struct rtmsg *rtm);
 static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 				 int cmd);
 static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt);
@@ -116,6 +114,23 @@ static void ipmr_expire_process(struct timer_list *t);
 #ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
 #define ipmr_for_each_table(mrt, net) \
 	list_for_each_entry_rcu(mrt, &net->ipv4.mr_tables, list)
+
+static struct mr_table *ipmr_mr_table_iter(struct net *net,
+					   struct mr_table *mrt)
+{
+	struct mr_table *ret;
+
+	if (!mrt)
+		ret = list_entry_rcu(net->ipv4.mr_tables.next,
+				     struct mr_table, list);
+	else
+		ret = list_entry_rcu(mrt->list.next,
+				     struct mr_table, list);
+
+	if (&ret->list == &net->ipv4.mr_tables)
+		return NULL;
+	return ret;
+}
 
 static struct mr_table *ipmr_get_table(struct net *net, u32 id)
 {
@@ -283,6 +298,14 @@ EXPORT_SYMBOL(ipmr_rule_default);
 #else
 #define ipmr_for_each_table(mrt, net) \
 	for (mrt = net->ipv4.mrt; mrt; mrt = NULL)
+
+static struct mr_table *ipmr_mr_table_iter(struct net *net,
+					   struct mr_table *mrt)
+{
+	if (!mrt)
+		return net->ipv4.mrt;
+	return NULL;
+}
 
 static struct mr_table *ipmr_get_table(struct net *net, u32 id)
 {
@@ -1051,8 +1074,8 @@ static void ipmr_cache_resolve(struct net *net, struct mr_table *mrt,
 			struct nlmsghdr *nlh = skb_pull(skb,
 							sizeof(struct iphdr));
 
-			if (__ipmr_fill_mroute(mrt, skb, &c->_c,
-					       nlmsg_data(nlh)) > 0) {
+			if (mr_fill_mroute(mrt, skb, &c->_c,
+					   nlmsg_data(nlh)) > 0) {
 				nlh->nlmsg_len = skb_tail_pointer(skb) -
 						 (u8 *)nlh;
 			} else {
@@ -2256,66 +2279,6 @@ drop:
 }
 #endif
 
-static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
-			      struct mr_mfc *c, struct rtmsg *rtm)
-{
-	struct rta_mfc_stats mfcs;
-	struct nlattr *mp_attr;
-	struct rtnexthop *nhp;
-	unsigned long lastuse;
-	int ct;
-
-	/* If cache is unresolved, don't try to parse IIF and OIF */
-	if (c->mfc_parent >= MAXVIFS) {
-		rtm->rtm_flags |= RTNH_F_UNRESOLVED;
-		return -ENOENT;
-	}
-
-	if (VIF_EXISTS(mrt, c->mfc_parent) &&
-	    nla_put_u32(skb, RTA_IIF,
-			mrt->vif_table[c->mfc_parent].dev->ifindex) < 0)
-		return -EMSGSIZE;
-
-	if (c->mfc_flags & MFC_OFFLOAD)
-		rtm->rtm_flags |= RTNH_F_OFFLOAD;
-
-	if (!(mp_attr = nla_nest_start(skb, RTA_MULTIPATH)))
-		return -EMSGSIZE;
-
-	for (ct = c->mfc_un.res.minvif; ct < c->mfc_un.res.maxvif; ct++) {
-		if (VIF_EXISTS(mrt, ct) && c->mfc_un.res.ttls[ct] < 255) {
-			struct vif_device *vif;
-
-			if (!(nhp = nla_reserve_nohdr(skb, sizeof(*nhp)))) {
-				nla_nest_cancel(skb, mp_attr);
-				return -EMSGSIZE;
-			}
-
-			nhp->rtnh_flags = 0;
-			nhp->rtnh_hops = c->mfc_un.res.ttls[ct];
-			vif = &mrt->vif_table[ct];
-			nhp->rtnh_ifindex = vif->dev->ifindex;
-			nhp->rtnh_len = sizeof(*nhp);
-		}
-	}
-
-	nla_nest_end(skb, mp_attr);
-
-	lastuse = READ_ONCE(c->mfc_un.res.lastuse);
-	lastuse = time_after_eq(jiffies, lastuse) ? jiffies - lastuse : 0;
-
-	mfcs.mfcs_packets = c->mfc_un.res.pkt;
-	mfcs.mfcs_bytes = c->mfc_un.res.bytes;
-	mfcs.mfcs_wrong_if = c->mfc_un.res.wrong_if;
-	if (nla_put_64bit(skb, RTA_MFC_STATS, sizeof(mfcs), &mfcs, RTA_PAD) ||
-	    nla_put_u64_64bit(skb, RTA_EXPIRES, jiffies_to_clock_t(lastuse),
-			      RTA_PAD))
-		return -EMSGSIZE;
-
-	rtm->rtm_type = RTN_MULTICAST;
-	return 1;
-}
-
 int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		   __be32 saddr, __be32 daddr,
 		   struct rtmsg *rtm, u32 portid)
@@ -2373,7 +2336,7 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 	}
 
 	read_lock(&mrt_lock);
-	err = __ipmr_fill_mroute(mrt, skb, &cache->_c, rtm);
+	err = mr_fill_mroute(mrt, skb, &cache->_c, rtm);
 	read_unlock(&mrt_lock);
 	rcu_read_unlock();
 	return err;
@@ -2410,7 +2373,7 @@ static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	if (nla_put_in_addr(skb, RTA_SRC, c->mfc_origin) ||
 	    nla_put_in_addr(skb, RTA_DST, c->mfc_mcastgrp))
 		goto nla_put_failure;
-	err = __ipmr_fill_mroute(mrt, skb, &c->_c, rtm);
+	err = mr_fill_mroute(mrt, skb, &c->_c, rtm);
 	/* do not break the dump if cache is unresolved */
 	if (err < 0 && err != -ENOENT)
 		goto nla_put_failure;
@@ -2421,6 +2384,14 @@ static int ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
 	return -EMSGSIZE;
+}
+
+static int _ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
+			     u32 portid, u32 seq, struct mr_mfc *c, int cmd,
+			     int flags)
+{
+	return ipmr_fill_mroute(mrt, skb, portid, seq, (struct mfc_cache *)c,
+				cmd, flags);
 }
 
 static size_t mroute_msgsize(bool unresolved, int maxvif)
@@ -2596,62 +2567,8 @@ errout_free:
 
 static int ipmr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = sock_net(skb->sk);
-	unsigned int t = 0, s_t;
-	unsigned int e = 0, s_e;
-	struct mr_table *mrt;
-	struct mr_mfc *mfc;
-
-	s_t = cb->args[0];
-	s_e = cb->args[1];
-
-	rcu_read_lock();
-	ipmr_for_each_table(mrt, net) {
-		if (t < s_t)
-			goto next_table;
-		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list) {
-			if (e < s_e)
-				goto next_entry;
-			if (ipmr_fill_mroute(mrt, skb,
-					     NETLINK_CB(cb->skb).portid,
-					     cb->nlh->nlmsg_seq,
-					     (struct mfc_cache *)mfc,
-					     RTM_NEWROUTE, NLM_F_MULTI) < 0)
-				goto done;
-next_entry:
-			e++;
-		}
-		e = 0;
-		s_e = 0;
-
-		spin_lock_bh(&mfc_unres_lock);
-		list_for_each_entry(mfc, &mrt->mfc_unres_queue, list) {
-			if (e < s_e)
-				goto next_entry2;
-			if (ipmr_fill_mroute(mrt, skb,
-					     NETLINK_CB(cb->skb).portid,
-					     cb->nlh->nlmsg_seq,
-					     (struct mfc_cache *)mfc,
-					     RTM_NEWROUTE, NLM_F_MULTI) < 0) {
-				spin_unlock_bh(&mfc_unres_lock);
-				goto done;
-			}
-next_entry2:
-			e++;
-		}
-		spin_unlock_bh(&mfc_unres_lock);
-		e = 0;
-		s_e = 0;
-next_table:
-		t++;
-	}
-done:
-	rcu_read_unlock();
-
-	cb->args[1] = e;
-	cb->args[0] = t;
-
-	return skb->len;
+	return mr_rtm_dumproute(skb, cb, ipmr_mr_table_iter,
+				_ipmr_fill_mroute, &mfc_unres_lock);
 }
 
 static const struct nla_policy rtm_ipmr_policy[RTA_MAX + 1] = {
