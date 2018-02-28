@@ -1226,8 +1226,8 @@
 			clocks = <&pmucru SCLK_USBPHY_REF>;
 			clock-names = "phyclk";
 			#clock-cells = <0>;
-			assigned-clocks = <&cru USB480M>;
-			assigned-clock-parents = <&u2phy>;
+			assigned-clocks = <&cru USB480M>, <&cru SCLK_UART1_SRC>;
+			assigned-clock-parents = <&u2phy>, <&cru USB480M>;
 			clock-output-names = "usb480m_phy";
 			status = "disabled";
 
