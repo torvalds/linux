@@ -235,8 +235,6 @@ static inline dma_addr_t dma_nommu_map_page(struct device *dev,
 					     enum dma_data_direction dir,
 					     unsigned long attrs)
 {
-	BUG_ON(dir == DMA_NONE);
-
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
 		__dma_sync_page(page, offset, size, dir);
 
