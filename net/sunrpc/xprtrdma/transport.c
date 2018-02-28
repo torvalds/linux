@@ -728,6 +728,12 @@ xprt_rdma_send_request(struct rpc_task *task)
 
 	rqst->rq_xmit_bytes_sent += rqst->rq_snd_buf.len;
 	rqst->rq_bytes_sent = 0;
+
+	/* An RPC with no reply will throw off credit accounting,
+	 * so drop the connection to reset the credit grant.
+	 */
+	if (!rpc_reply_expected(task))
+		goto drop_connection;
 	return 0;
 
 failed_marshal:
