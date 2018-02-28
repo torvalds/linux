@@ -766,7 +766,7 @@ static int ide_init_queue(ide_drive_t *drive)
 	 *	limits and LBA48 we could raise it but as yet
 	 *	do not.
 	 */
-	q = blk_alloc_queue_node(GFP_KERNEL, hwif_to_node(hwif));
+	q = blk_alloc_queue_node(GFP_KERNEL, hwif_to_node(hwif), NULL);
 	if (!q)
 		return 1;
 

@@ -2223,7 +2223,7 @@ struct request_queue *scsi_old_alloc_queue(struct scsi_device *sdev)
 	struct Scsi_Host *shost = sdev->host;
 	struct request_queue *q;
 
-	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE);
+	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE, NULL);
 	if (!q)
 		return NULL;
 	q->cmd_size = sizeof(struct scsi_cmnd) + shost->hostt->cmd_size;

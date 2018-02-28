@@ -384,7 +384,7 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 		goto err_dev;
 	}
 
-	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node);
+	tqueue = blk_alloc_queue_node(GFP_KERNEL, dev->q->node, NULL);
 	if (!tqueue) {
 		ret = -ENOMEM;
 		goto err_disk;
