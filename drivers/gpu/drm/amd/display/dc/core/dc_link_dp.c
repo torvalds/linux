@@ -1465,7 +1465,7 @@ void decide_link_settings(struct dc_stream_state *stream,
 	/* MST doesn't perform link training for now
 	 * TODO: add MST specific link training routine
 	 */
-	if (is_mst_supported(link)) {
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		*link_setting = link->verified_link_cap;
 		return;
 	}
