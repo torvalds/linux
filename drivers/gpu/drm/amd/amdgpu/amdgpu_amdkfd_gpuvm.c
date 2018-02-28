@@ -2084,7 +2084,12 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 			pr_debug("Memory eviction: Validate BOs failed. Try again\n");
 			goto validate_map_fail;
 		}
-
+		ret = amdgpu_sync_fence(amdgpu_ttm_adev(bo->tbo.bdev),
+					&sync_obj, bo->tbo.moving, false);
+		if (ret) {
+			pr_debug("Memory eviction: Sync BO fence failed. Try again\n");
+			goto validate_map_fail;
+		}
 		list_for_each_entry(bo_va_entry, &mem->bo_va_list,
 				    bo_list) {
 			ret = update_gpuvm_pte((struct amdgpu_device *)
@@ -2105,6 +2110,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 		goto validate_map_fail;
 	}
 
+	/* Wait for validate and PT updates to finish */
 	amdgpu_sync_wait(&sync_obj, false);
 
 	/* Release old eviction fence and create new one, because fence only
@@ -2123,10 +2129,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 	process_info->eviction_fence = new_fence;
 	*ef = dma_fence_get(&new_fence->base);
 
-	/* Wait for validate to finish and attach new eviction fence */
-	list_for_each_entry(mem, &process_info->kfd_bo_list,
-		validate_list.head)
-		ttm_bo_wait(&mem->bo->tbo, false, false);
+	/* Attach new eviction fence to all BOs */
 	list_for_each_entry(mem, &process_info->kfd_bo_list,
 		validate_list.head)
 		amdgpu_bo_fence(mem->bo,
