@@ -361,6 +361,6 @@
 		};
 	};
 	chosen {
-		linux,stdout-path = &MPSC0;
+		stdout-path = &MPSC0;
 	};
 };

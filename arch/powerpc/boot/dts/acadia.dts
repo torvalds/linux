@@ -219,6 +219,6 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/plb/opb/serial@ef600300";
+		stdout-path = "/plb/opb/serial@ef600300";
 	};
 };
