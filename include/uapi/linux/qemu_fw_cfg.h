@@ -54,6 +54,7 @@
 
 /* FW_CFG_ID bits */
 #define FW_CFG_VERSION		0x01
+#define FW_CFG_VERSION_DMA	0x02
 
 /* fw_cfg file directory entry type */
 struct fw_cfg_file {
@@ -61,6 +62,36 @@ struct fw_cfg_file {
 	__be16 select;
 	__u16 reserved;
 	char name[FW_CFG_MAX_FILE_PATH];
+};
+
+/* FW_CFG_DMA_CONTROL bits */
+#define FW_CFG_DMA_CTL_ERROR	0x01
+#define FW_CFG_DMA_CTL_READ	0x02
+#define FW_CFG_DMA_CTL_SKIP	0x04
+#define FW_CFG_DMA_CTL_SELECT	0x08
+#define FW_CFG_DMA_CTL_WRITE	0x10
+
+#define FW_CFG_DMA_SIGNATURE    0x51454d5520434647ULL /* "QEMU CFG" */
+
+/* Control as first field allows for different structures selected by this
+ * field, which might be useful in the future
+ */
+struct fw_cfg_dma_access {
+	__be32 control;
+	__be32 length;
+	__be64 address;
+};
+
+#define FW_CFG_VMCOREINFO_FILENAME "etc/vmcoreinfo"
+
+#define FW_CFG_VMCOREINFO_FORMAT_NONE 0x0
+#define FW_CFG_VMCOREINFO_FORMAT_ELF 0x1
+
+struct fw_cfg_vmcoreinfo {
+	__le16 host_format;
+	__le16 guest_format;
+	__le32 size;
+	__le64 paddr;
 };
 
 #endif
