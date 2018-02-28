@@ -62,7 +62,7 @@ struct mr6_table {
 	struct timer_list	ipmr_expire_timer;
 	struct list_head	mfc6_unres_queue;
 	struct list_head	mfc6_cache_array[MFC6_LINES];
-	struct mif_device	vif6_table[MAXMIFS];
+	struct vif_device	vif6_table[MAXMIFS];
 	int			maxvif;
 	atomic_t		cache_resolve_queue_len;
 	bool			mroute_do_assert;
@@ -384,7 +384,7 @@ struct ipmr_vif_iter {
 	int ct;
 };
 
-static struct mif_device *ip6mr_vif_seq_idx(struct net *net,
+static struct vif_device *ip6mr_vif_seq_idx(struct net *net,
 					    struct ipmr_vif_iter *iter,
 					    loff_t pos)
 {
@@ -450,7 +450,7 @@ static int ip6mr_vif_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq,
 			 "Interface      BytesIn  PktsIn  BytesOut PktsOut Flags\n");
 	} else {
-		const struct mif_device *vif = v;
+		const struct vif_device *vif = v;
 		const char *name = vif->dev ? vif->dev->name : "none";
 
 		seq_printf(seq,
@@ -776,7 +776,7 @@ failure:
 static int mif6_delete(struct mr6_table *mrt, int vifi, int notify,
 		       struct list_head *head)
 {
-	struct mif_device *v;
+	struct vif_device *v;
 	struct net_device *dev;
 	struct inet6_dev *in6_dev;
 
@@ -929,7 +929,7 @@ static int mif6_add(struct net *net, struct mr6_table *mrt,
 		    struct mif6ctl *vifc, int mrtsock)
 {
 	int vifi = vifc->mif6c_mifi;
-	struct mif_device *v = &mrt->vif6_table[vifi];
+	struct vif_device *v = &mrt->vif6_table[vifi];
 	struct net_device *dev;
 	struct inet6_dev *in6_dev;
 	int err;
@@ -980,21 +980,10 @@ static int mif6_add(struct net *net, struct mr6_table *mrt,
 					     dev->ifindex, &in6_dev->cnf);
 	}
 
-	/*
-	 *	Fill in the VIF structures
-	 */
-	v->rate_limit = vifc->vifc_rate_limit;
-	v->flags = vifc->mif6c_flags;
-	if (!mrtsock)
-		v->flags |= VIFF_STATIC;
-	v->threshold = vifc->vifc_threshold;
-	v->bytes_in = 0;
-	v->bytes_out = 0;
-	v->pkt_in = 0;
-	v->pkt_out = 0;
-	v->link = dev->ifindex;
-	if (v->flags & MIFF_REGISTER)
-		v->link = dev_get_iflink(dev);
+	/* Fill in the VIF structures */
+	vif_device_init(v, dev, vifc->vifc_rate_limit, vifc->vifc_threshold,
+			vifc->mif6c_flags | (!mrtsock ? VIFF_STATIC : 0),
+			MIFF_REGISTER);
 
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
@@ -1332,7 +1321,7 @@ static int ip6mr_device_event(struct notifier_block *this,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct mr6_table *mrt;
-	struct mif_device *v;
+	struct vif_device *v;
 	int ct;
 
 	if (event != NETDEV_UNREGISTER)
@@ -1873,7 +1862,7 @@ int ip6mr_ioctl(struct sock *sk, int cmd, void __user *arg)
 {
 	struct sioc_sg_req6 sr;
 	struct sioc_mif_req6 vr;
-	struct mif_device *vif;
+	struct vif_device *vif;
 	struct mfc6_cache *c;
 	struct net *net = sock_net(sk);
 	struct mr6_table *mrt;
@@ -1947,7 +1936,7 @@ int ip6mr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 {
 	struct compat_sioc_sg_req6 sr;
 	struct compat_sioc_mif_req6 vr;
-	struct mif_device *vif;
+	struct vif_device *vif;
 	struct mfc6_cache *c;
 	struct net *net = sock_net(sk);
 	struct mr6_table *mrt;
@@ -2018,7 +2007,7 @@ static int ip6mr_forward2(struct net *net, struct mr6_table *mrt,
 			  struct sk_buff *skb, struct mfc6_cache *c, int vifi)
 {
 	struct ipv6hdr *ipv6h;
-	struct mif_device *vif = &mrt->vif6_table[vifi];
+	struct vif_device *vif = &mrt->vif6_table[vifi];
 	struct net_device *dev;
 	struct dst_entry *dst;
 	struct flowi6 fl6;

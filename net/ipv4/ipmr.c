@@ -945,6 +945,10 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	ip_rt_multicast_event(in_dev);
 
 	/* Fill in the VIF structures */
+	vif_device_init(v, dev, vifc->vifc_rate_limit,
+			vifc->vifc_threshold,
+			vifc->vifc_flags | (!mrtsock ? VIFF_STATIC : 0),
+			(VIFF_TUNNEL | VIFF_REGISTER));
 
 	attr.orig_dev = dev;
 	if (!switchdev_port_attr_get(dev, &attr)) {
@@ -953,20 +957,9 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	} else {
 		v->dev_parent_id.id_len = 0;
 	}
-	v->rate_limit = vifc->vifc_rate_limit;
+
 	v->local = vifc->vifc_lcl_addr.s_addr;
 	v->remote = vifc->vifc_rmt_addr.s_addr;
-	v->flags = vifc->vifc_flags;
-	if (!mrtsock)
-		v->flags |= VIFF_STATIC;
-	v->threshold = vifc->vifc_threshold;
-	v->bytes_in = 0;
-	v->bytes_out = 0;
-	v->pkt_in = 0;
-	v->pkt_out = 0;
-	v->link = dev->ifindex;
-	if (v->flags & (VIFF_TUNNEL | VIFF_REGISTER))
-		v->link = dev_get_iflink(dev);
 
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
@@ -2316,7 +2309,8 @@ static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	}
 
 	if (VIF_EXISTS(mrt, c->mfc_parent) &&
-	    nla_put_u32(skb, RTA_IIF, mrt->vif_table[c->mfc_parent].dev->ifindex) < 0)
+	    nla_put_u32(skb, RTA_IIF,
+			mrt->vif_table[c->mfc_parent].dev->ifindex) < 0)
 		return -EMSGSIZE;
 
 	if (c->mfc_flags & MFC_OFFLOAD)
@@ -2327,6 +2321,8 @@ static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 
 	for (ct = c->mfc_un.res.minvif; ct < c->mfc_un.res.maxvif; ct++) {
 		if (VIF_EXISTS(mrt, ct) && c->mfc_un.res.ttls[ct] < 255) {
+			struct vif_device *vif;
+
 			if (!(nhp = nla_reserve_nohdr(skb, sizeof(*nhp)))) {
 				nla_nest_cancel(skb, mp_attr);
 				return -EMSGSIZE;
@@ -2334,7 +2330,8 @@ static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 
 			nhp->rtnh_flags = 0;
 			nhp->rtnh_hops = c->mfc_un.res.ttls[ct];
-			nhp->rtnh_ifindex = mrt->vif_table[ct].dev->ifindex;
+			vif = &mrt->vif_table[ct];
+			nhp->rtnh_ifindex = vif->dev->ifindex;
 			nhp->rtnh_len = sizeof(*nhp);
 		}
 	}
@@ -2954,8 +2951,8 @@ struct ipmr_vif_iter {
 };
 
 static struct vif_device *ipmr_vif_seq_idx(struct net *net,
-					   struct ipmr_vif_iter *iter,
-					   loff_t pos)
+					    struct ipmr_vif_iter *iter,
+					    loff_t pos)
 {
 	struct mr_table *mrt = iter->mrt;
 
@@ -3020,7 +3017,8 @@ static int ipmr_vif_seq_show(struct seq_file *seq, void *v)
 			 "Interface      BytesIn  PktsIn  BytesOut PktsOut Flags Local    Remote\n");
 	} else {
 		const struct vif_device *vif = v;
-		const char *name =  vif->dev ? vif->dev->name : "none";
+		const char *name =  vif->dev ?
+				    vif->dev->name : "none";
 
 		seq_printf(seq,
 			   "%2td %-10s %8ld %7ld  %8ld %7ld %05X %08X %08X\n",

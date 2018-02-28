@@ -7,6 +7,7 @@
 #include <linux/skbuff.h>	/* for struct sk_buff_head */
 #include <net/net_namespace.h>
 #include <uapi/linux/mroute6.h>
+#include <linux/mroute_base.h>
 
 #ifdef CONFIG_IPV6_MROUTE
 static inline int ip6_mroute_opt(int opt)
@@ -61,16 +62,6 @@ static inline void ip6_mr_cleanup(void)
 	return;
 }
 #endif
-
-struct mif_device {
-	struct net_device 	*dev;			/* Device we are using */
-	unsigned long	bytes_in,bytes_out;
-	unsigned long	pkt_in,pkt_out;		/* Statistics 			*/
-	unsigned long	rate_limit;		/* Traffic shaping (NI) 	*/
-	unsigned char	threshold;		/* TTL threshold 		*/
-	unsigned short	flags;			/* Control flags 		*/
-	int		link;			/* Physical interface index	*/
-};
 
 #define VIFF_STATIC 0x8000
 

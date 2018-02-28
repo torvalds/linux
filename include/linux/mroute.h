@@ -9,6 +9,7 @@
 #include <net/fib_rules.h>
 #include <net/fib_notifier.h>
 #include <uapi/linux/mroute.h>
+#include <linux/mroute_base.h>
 
 #ifdef CONFIG_IP_MROUTE
 static inline int ip_mroute_opt(int opt)
@@ -55,18 +56,6 @@ static inline bool ipmr_rule_default(const struct fib_rule *rule)
 	return true;
 }
 #endif
-
-struct vif_device {
-	struct net_device 	*dev;			/* Device we are using */
-	struct netdev_phys_item_id dev_parent_id;	/* Device parent ID    */
-	unsigned long	bytes_in,bytes_out;
-	unsigned long	pkt_in,pkt_out;		/* Statistics 			*/
-	unsigned long	rate_limit;		/* Traffic shaping (NI) 	*/
-	unsigned char	threshold;		/* TTL threshold 		*/
-	unsigned short	flags;			/* Control flags 		*/
-	__be32		local,remote;		/* Addresses(remote for tunnels)*/
-	int		link;			/* Physical interface index	*/
-};
 
 struct vif_entry_notifier_info {
 	struct fib_notifier_info info;
