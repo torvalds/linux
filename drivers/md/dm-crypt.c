@@ -2942,7 +2942,8 @@ static void crypt_resume(struct dm_target *ti)
  *	key set <key>
  *	key wipe
  */
-static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
+static int crypt_message(struct dm_target *ti, unsigned argc, char **argv,
+			 char *result, unsigned maxlen)
 {
 	struct crypt_config *cc = ti->private;
 	int key_size, ret = -EINVAL;

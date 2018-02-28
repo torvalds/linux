@@ -466,7 +466,8 @@ static int process_set_region_mappings(struct switch_ctx *sctx,
  *
  * Only set_region_mappings is supported.
  */
-static int switch_message(struct dm_target *ti, unsigned argc, char **argv)
+static int switch_message(struct dm_target *ti, unsigned argc, char **argv,
+			  char *result, unsigned maxlen)
 {
 	static DEFINE_MUTEX(message_mutex);
 

@@ -1811,7 +1811,8 @@ static void multipath_status(struct dm_target *ti, status_type_t type,
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 
-static int multipath_message(struct dm_target *ti, unsigned argc, char **argv)
+static int multipath_message(struct dm_target *ti, unsigned argc, char **argv,
+			     char *result, unsigned maxlen)
 {
 	int r = -EINVAL;
 	struct dm_dev *dev;

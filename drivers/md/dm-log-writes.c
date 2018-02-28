@@ -887,7 +887,8 @@ static int log_writes_iterate_devices(struct dm_target *ti,
  * Messages supported:
  *   mark <mark data> - specify the marked data.
  */
-static int log_writes_message(struct dm_target *ti, unsigned argc, char **argv)
+static int log_writes_message(struct dm_target *ti, unsigned argc, char **argv,
+			      char *result, unsigned maxlen)
 {
 	int r = -EINVAL;
 	struct log_writes_c *lc = ti->private;
