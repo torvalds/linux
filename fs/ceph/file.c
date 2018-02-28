@@ -165,7 +165,7 @@ out:
  */
 static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 {
-	struct ceph_file_info *cf;
+	struct ceph_file_info *fi;
 	int ret = 0;
 
 	switch (inode->i_mode & S_IFMT) {
@@ -175,19 +175,19 @@ static int ceph_init_file(struct inode *inode, struct file *file, int fmode)
 	case S_IFDIR:
 		dout("init_file %p %p 0%o (regular)\n", inode, file,
 		     inode->i_mode);
-		cf = kmem_cache_zalloc(ceph_file_cachep, GFP_KERNEL);
-		if (!cf) {
+		fi = kmem_cache_zalloc(ceph_file_cachep, GFP_KERNEL);
+		if (!fi) {
 			ceph_put_fmode(ceph_inode(inode), fmode); /* clean up */
 			return -ENOMEM;
 		}
-		cf->fmode = fmode;
+		fi->fmode = fmode;
 
-		spin_lock_init(&cf->rw_contexts_lock);
-		INIT_LIST_HEAD(&cf->rw_contexts);
+		spin_lock_init(&fi->rw_contexts_lock);
+		INIT_LIST_HEAD(&fi->rw_contexts);
 
-		cf->next_offset = 2;
-		cf->readdir_cache_idx = -1;
-		file->private_data = cf;
+		fi->next_offset = 2;
+		fi->readdir_cache_idx = -1;
+		file->private_data = fi;
 		BUG_ON(inode->i_fop->release != ceph_release);
 		break;
 
@@ -278,11 +278,11 @@ int ceph_open(struct inode *inode, struct file *file)
 	struct ceph_fs_client *fsc = ceph_sb_to_client(inode->i_sb);
 	struct ceph_mds_client *mdsc = fsc->mdsc;
 	struct ceph_mds_request *req;
-	struct ceph_file_info *cf = file->private_data;
+	struct ceph_file_info *fi = file->private_data;
 	int err;
 	int flags, fmode, wanted;
 
-	if (cf) {
+	if (fi) {
 		dout("open file %p is already opened\n", file);
 		return 0;
 	}
@@ -460,16 +460,16 @@ out_acl:
 int ceph_release(struct inode *inode, struct file *file)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_file_info *cf = file->private_data;
+	struct ceph_file_info *fi = file->private_data;
 
 	dout("release inode %p file %p\n", inode, file);
-	ceph_put_fmode(ci, cf->fmode);
-	if (cf->last_readdir)
-		ceph_mdsc_put_request(cf->last_readdir);
-	kfree(cf->last_name);
-	kfree(cf->dir_info);
-	WARN_ON(!list_empty(&cf->rw_contexts));
-	kmem_cache_free(ceph_file_cachep, cf);
+	ceph_put_fmode(ci, fi->fmode);
+	if (fi->last_readdir)
+		ceph_mdsc_put_request(fi->last_readdir);
+	kfree(fi->last_name);
+	kfree(fi->dir_info);
+	WARN_ON(!list_empty(&fi->rw_contexts));
+	kmem_cache_free(ceph_file_cachep, fi);
 
 	/* wake up anyone waiting for caps on this inode */
 	wake_up_all(&ci->i_cap_wq);
