@@ -358,9 +358,7 @@ static void conf(struct menu *menu)
 
 		switch (prop->type) {
 		case P_MENU:
-			if ((input_mode == silentoldconfig ||
-			     input_mode == listnewconfig ||
-			     input_mode == olddefconfig) &&
+			if (input_mode == silentoldconfig &&
 			    rootEntry != menu) {
 				check_conf(menu);
 				return;
