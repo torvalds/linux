@@ -42,6 +42,8 @@
 #include "reg.h"
 
 #define MLXSW_SP_PRIO_BAND_TO_TCLASS(band) (IEEE_8021QAZ_MAX_TCS - band - 1)
+#define MLXSW_SP_PRIO_CHILD_TO_TCLASS(child) \
+	MLXSW_SP_PRIO_BAND_TO_TCLASS((child - 1))
 
 enum mlxsw_sp_qdisc_type {
 	MLXSW_SP_QDISC_NO_QDISC,
@@ -97,6 +99,26 @@ mlxsw_sp_qdisc_compare(struct mlxsw_sp_qdisc *mlxsw_sp_qdisc, u32 handle,
 	return mlxsw_sp_qdisc && mlxsw_sp_qdisc->ops &&
 	       mlxsw_sp_qdisc->ops->type == type &&
 	       mlxsw_sp_qdisc->handle == handle;
+}
+
+static struct mlxsw_sp_qdisc *
+mlxsw_sp_qdisc_find(struct mlxsw_sp_port *mlxsw_sp_port, u32 parent,
+		    bool root_only)
+{
+	int tclass, child_index;
+
+	if (parent == TC_H_ROOT)
+		return mlxsw_sp_port->root_qdisc;
+
+	if (root_only || !mlxsw_sp_port->root_qdisc ||
+	    !mlxsw_sp_port->root_qdisc->ops ||
+	    TC_H_MAJ(parent) != mlxsw_sp_port->root_qdisc->handle ||
+	    TC_H_MIN(parent) > IEEE_8021QAZ_MAX_TCS)
+		return NULL;
+
+	child_index = TC_H_MIN(parent);
+	tclass = MLXSW_SP_PRIO_CHILD_TO_TCLASS(child_index);
+	return &mlxsw_sp_port->tclass_qdiscs[tclass];
 }
 
 static int
@@ -406,10 +428,9 @@ int mlxsw_sp_setup_tc_red(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
 
-	if (p->parent != TC_H_ROOT)
+	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent, false);
+	if (!mlxsw_sp_qdisc)
 		return -EOPNOTSUPP;
-
-	mlxsw_sp_qdisc = mlxsw_sp_port->root_qdisc;
 
 	if (p->command == TC_RED_REPLACE)
 		return mlxsw_sp_qdisc_replace(mlxsw_sp_port, p->handle,
@@ -441,9 +462,12 @@ mlxsw_sp_qdisc_prio_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	int i;
 
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		mlxsw_sp_port_prio_tc_set(mlxsw_sp_port, i,
 					  MLXSW_SP_PORT_DEFAULT_TCLASS);
+		mlxsw_sp_qdisc_destroy(mlxsw_sp_port,
+				       &mlxsw_sp_port->tclass_qdiscs[i]);
+	}
 
 	return 0;
 }
@@ -569,10 +593,10 @@ int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
 
-	if (p->parent != TC_H_ROOT)
+	mlxsw_sp_qdisc = mlxsw_sp_qdisc_find(mlxsw_sp_port, p->parent, true);
+	if (!mlxsw_sp_qdisc)
 		return -EOPNOTSUPP;
 
-	mlxsw_sp_qdisc = mlxsw_sp_port->root_qdisc;
 	if (p->command == TC_PRIO_REPLACE)
 		return mlxsw_sp_qdisc_replace(mlxsw_sp_port, p->handle,
 					      mlxsw_sp_qdisc,
@@ -596,17 +620,35 @@ int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 
 int mlxsw_sp_tc_qdisc_init(struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	mlxsw_sp_port->root_qdisc = kzalloc(sizeof(*mlxsw_sp_port->root_qdisc),
-					    GFP_KERNEL);
-	if (!mlxsw_sp_port->root_qdisc)
-		return -ENOMEM;
+	struct mlxsw_sp_qdisc *mlxsw_sp_qdisc;
+	int i;
 
+	mlxsw_sp_qdisc = kzalloc(sizeof(*mlxsw_sp_qdisc), GFP_KERNEL);
+	if (!mlxsw_sp_qdisc)
+		goto err_root_qdisc_init;
+
+	mlxsw_sp_port->root_qdisc = mlxsw_sp_qdisc;
 	mlxsw_sp_port->root_qdisc->tclass_num = MLXSW_SP_PORT_DEFAULT_TCLASS;
 
+	mlxsw_sp_qdisc = kzalloc(sizeof(*mlxsw_sp_qdisc) * IEEE_8021QAZ_MAX_TCS,
+				 GFP_KERNEL);
+	if (!mlxsw_sp_qdisc)
+		goto err_tclass_qdiscs_init;
+
+	mlxsw_sp_port->tclass_qdiscs = mlxsw_sp_qdisc;
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		mlxsw_sp_port->tclass_qdiscs[i].tclass_num = i;
+
 	return 0;
+
+err_tclass_qdiscs_init:
+	kfree(mlxsw_sp_port->root_qdisc);
+err_root_qdisc_init:
+	return -ENOMEM;
 }
 
 void mlxsw_sp_tc_qdisc_fini(struct mlxsw_sp_port *mlxsw_sp_port)
 {
+	kfree(mlxsw_sp_port->tclass_qdiscs);
 	kfree(mlxsw_sp_port->root_qdisc);
 }
