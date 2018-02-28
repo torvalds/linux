@@ -2283,7 +2283,7 @@ static void do_nocb_deferred_wakeup(struct rcu_data *rdp)
 void __init rcu_init_nohz(void)
 {
 	int cpu;
-	bool need_rcu_nocb_mask = true;
+	bool need_rcu_nocb_mask = false;
 	struct rcu_state *rsp;
 
 #if defined(CONFIG_NO_HZ_FULL)
@@ -2306,7 +2306,7 @@ void __init rcu_init_nohz(void)
 #endif /* #if defined(CONFIG_NO_HZ_FULL) */
 
 	if (!cpumask_subset(rcu_nocb_mask, cpu_possible_mask)) {
-		pr_info("\tNote: kernel parameter 'rcu_nocbs=' contains nonexistent CPUs.\n");
+		pr_info("\tNote: kernel parameter 'rcu_nocbs=', 'nohz_full', or 'isolcpus=' contains nonexistent CPUs.\n");
 		cpumask_and(rcu_nocb_mask, cpu_possible_mask,
 			    rcu_nocb_mask);
 	}
