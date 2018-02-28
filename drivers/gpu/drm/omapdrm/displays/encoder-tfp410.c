@@ -35,9 +35,6 @@ static int tfp410_connect(struct omap_dss_device *dssdev,
 	struct omap_dss_device *in;
 	int r;
 
-	if (omapdss_device_is_connected(dssdev))
-		return -EBUSY;
-
 	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
 	if (IS_ERR(in)) {
 		dev_err(dssdev->dev, "failed to find video source\n");
@@ -62,10 +59,6 @@ static void tfp410_disconnect(struct omap_dss_device *dssdev,
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-
-	WARN_ON(!omapdss_device_is_connected(dssdev));
-	if (!omapdss_device_is_connected(dssdev))
-		return;
 
 	WARN_ON(dst != dssdev->dst);
 	if (dst != dssdev->dst)

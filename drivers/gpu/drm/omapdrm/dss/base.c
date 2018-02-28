@@ -105,6 +105,11 @@ struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 int omapdss_device_connect(struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
+	dev_dbg(src->dev, "connect\n");
+
+	if (omapdss_device_is_connected(src))
+		return -EBUSY;
+
 	if (src->driver)
 		return src->driver->connect(src);
 	else
@@ -115,6 +120,13 @@ EXPORT_SYMBOL_GPL(omapdss_device_connect);
 void omapdss_device_disconnect(struct omap_dss_device *src,
 			       struct omap_dss_device *dst)
 {
+	dev_dbg(src->dev, "disconnect\n");
+
+	if (!src->id && !omapdss_device_is_connected(src)) {
+		WARN_ON(!src->driver);
+		return;
+	}
+
 	if (src->driver)
 		src->driver->disconnect(src);
 	else

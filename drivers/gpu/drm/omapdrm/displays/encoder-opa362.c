@@ -39,11 +39,6 @@ static int opa362_connect(struct omap_dss_device *dssdev,
 	struct omap_dss_device *in;
 	int r;
 
-	dev_dbg(dssdev->dev, "connect\n");
-
-	if (omapdss_device_is_connected(dssdev))
-		return -EBUSY;
-
 	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
 	if (IS_ERR(in)) {
 		dev_err(dssdev->dev, "failed to find video source\n");
@@ -68,12 +63,6 @@ static void opa362_disconnect(struct omap_dss_device *dssdev,
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-
-	dev_dbg(dssdev->dev, "disconnect\n");
-
-	WARN_ON(!omapdss_device_is_connected(dssdev));
-	if (!omapdss_device_is_connected(dssdev))
-		return;
 
 	WARN_ON(dst != dssdev->dst);
 	if (dst != dssdev->dst)

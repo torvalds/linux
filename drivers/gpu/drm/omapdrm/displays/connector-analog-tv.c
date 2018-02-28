@@ -48,11 +48,6 @@ static int tvc_connect(struct omap_dss_device *dssdev)
 	struct omap_dss_device *in;
 	int r;
 
-	dev_dbg(ddata->dev, "connect\n");
-
-	if (omapdss_device_is_connected(dssdev))
-		return 0;
-
 	in = omapdss_of_find_source_for_first_ep(ddata->dev->of_node);
 	if (IS_ERR(in)) {
 		dev_err(ddata->dev, "failed to find video source\n");
@@ -73,11 +68,6 @@ static void tvc_disconnect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *in = ddata->in;
-
-	dev_dbg(ddata->dev, "disconnect\n");
-
-	if (!omapdss_device_is_connected(dssdev))
-		return;
 
 	omapdss_device_disconnect(in, dssdev);
 
