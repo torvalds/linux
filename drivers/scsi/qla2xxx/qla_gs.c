@@ -3973,6 +3973,9 @@ out:
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
 	spin_unlock_irqrestore(&vha->work_lock, flags);
+
+	if ((fc4type == FC4_TYPE_FCP_SCSI) && vha->flags.nvme_enabled)
+		qla24xx_async_gpnft(vha, FC4_TYPE_NVME);
 }
 
 static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
