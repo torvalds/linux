@@ -50,8 +50,8 @@
 	compatible = "karo,tx53", "fsl,imx53";
 
 	/* Will be filled by the bootloader */
-	memory {
-		reg = <0 0>;
+	memory@70000000 {
+		reg = <0x70000000 0>;
 	};
 
 	aliases {

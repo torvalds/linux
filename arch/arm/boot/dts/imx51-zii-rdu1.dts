@@ -52,8 +52,8 @@
 	};
 
 	/* Will be filled by the bootloader */
-	memory {
-		reg = <0 0>;
+	memory@90000000 {
+		reg = <0x90000000 0>;
 	};
 
 	aliases {
