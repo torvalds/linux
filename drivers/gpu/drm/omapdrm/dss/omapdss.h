@@ -457,11 +457,6 @@ struct omap_dss_device {
 	enum omap_display_type type;
 	enum omap_display_type output_type;
 
-	struct {
-		enum omap_dss_dsi_pixel_format dsi_pix_fmt;
-		enum omap_dss_dsi_mode dsi_mode;
-	} panel;
-
 	const char *name;
 
 	const struct omap_dss_driver *driver;
