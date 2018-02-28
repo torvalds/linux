@@ -98,7 +98,7 @@ static int regulator_quirk_notify(struct notifier_block *nb,
 
 		dev_info(&client->dev, "clearing da9063/da9210 interrupts\n");
 		ret = i2c_transfer(client->adapter, da9xxx_msgs, len);
-		if (ret != ARRAY_SIZE(da9xxx_msgs))
+		if (ret != len)
 			dev_err(&client->dev, "i2c error %d\n", ret);
 	}
 
