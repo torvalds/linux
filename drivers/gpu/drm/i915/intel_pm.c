@@ -8026,7 +8026,10 @@ void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 	dev_priv->gt_pm.rc6.enabled = true; /* force RC6 disabling */
 	intel_disable_gt_powersave(dev_priv);
 
-	gen6_reset_rps_interrupts(dev_priv);
+	if (INTEL_GEN(dev_priv) < 11)
+		gen6_reset_rps_interrupts(dev_priv);
+	else
+		WARN_ON_ONCE(1);
 }
 
 static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
@@ -8139,6 +8142,8 @@ static void intel_enable_rps(struct drm_i915_private *dev_priv)
 		cherryview_enable_rps(dev_priv);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		valleyview_enable_rps(dev_priv);
+	} else if (WARN_ON_ONCE(INTEL_GEN(dev_priv) >= 11)) {
+		/* TODO */
 	} else if (INTEL_GEN(dev_priv) >= 9) {
 		gen9_enable_rps(dev_priv);
 	} else if (IS_BROADWELL(dev_priv)) {
