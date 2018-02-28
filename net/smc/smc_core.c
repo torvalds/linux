@@ -465,7 +465,7 @@ create:
 		rc = smc_link_determine_gid(conn->lgr);
 	}
 	conn->local_tx_ctrl.common.type = SMC_CDC_MSG_TYPE;
-	conn->local_tx_ctrl.len = sizeof(struct smc_cdc_msg);
+	conn->local_tx_ctrl.len = SMC_WR_TX_SIZE;
 #ifndef KERNEL_HAS_ATOMIC64
 	spin_lock_init(&conn->acurs_lock);
 #endif
