@@ -80,7 +80,8 @@
 #define PPSMC_MSG_SetSoftMaxSocclkByFreq        0x32
 #define PPSMC_MSG_SetSoftMaxFclkByFreq          0x33
 #define PPSMC_MSG_SetSoftMaxVcn                 0x34
-#define PPSMC_Message_Count                     0x35
+#define PPSMC_MSG_PowerGateMmHub                0x35
+#define PPSMC_Message_Count                     0x36
 
 
 typedef uint16_t PPSMC_Result;

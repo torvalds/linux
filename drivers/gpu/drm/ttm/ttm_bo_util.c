@@ -375,8 +375,8 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 	/*
 	 * TTM might be null for moves within the same region.
 	 */
-	if (ttm && ttm->state == tt_unpopulated) {
-		ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
+	if (ttm) {
+		ret = ttm_tt_populate(ttm, ctx);
 		if (ret)
 			goto out1;
 	}
@@ -402,8 +402,9 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 						    PAGE_KERNEL);
 			ret = ttm_copy_io_ttm_page(ttm, old_iomap, page,
 						   prot);
-		} else
+		} else {
 			ret = ttm_copy_io_page(new_iomap, old_iomap, page);
+		}
 		if (ret)
 			goto out1;
 	}
@@ -556,11 +557,9 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 
 	BUG_ON(!ttm);
 
-	if (ttm->state == tt_unpopulated) {
-		ret = ttm->bdev->driver->ttm_tt_populate(ttm, &ctx);
-		if (ret)
-			return ret;
-	}
+	ret = ttm_tt_populate(ttm, &ctx);
+	if (ret)
+		return ret;
 
 	if (num_pages == 1 && (mem->placement & TTM_PL_FLAG_CACHED)) {
 		/*

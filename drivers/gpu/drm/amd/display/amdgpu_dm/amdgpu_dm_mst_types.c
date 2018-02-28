@@ -174,12 +174,6 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 	.atomic_get_property = amdgpu_dm_connector_atomic_get_property
 };
 
-static int dm_connector_update_modes(struct drm_connector *connector,
-				struct edid *edid)
-{
-	return drm_add_edid_modes(connector, edid);
-}
-
 void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
@@ -188,6 +182,12 @@ void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 	struct dc_sink_init_data init_params = {
 			.link = aconnector->dc_link,
 			.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
+
+	/*
+	 * TODO: Need to further figure out why ddc.algo is NULL while MST port exists
+	 */
+	if (!aconnector->port || !aconnector->port->aux.ddc.algo)
+		return;
 
 	edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
 
@@ -222,7 +222,7 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 	int ret = 0;
 
 	if (!aconnector)
-		return dm_connector_update_modes(connector, NULL);
+		return drm_add_edid_modes(connector, NULL);
 
 	if (!aconnector->edid) {
 		struct edid *edid;
@@ -258,7 +258,7 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 						&aconnector->base, edid);
 	}
 
-	ret = dm_connector_update_modes(connector, aconnector->edid);
+	ret = drm_add_edid_modes(connector, aconnector->edid);
 
 	return ret;
 }

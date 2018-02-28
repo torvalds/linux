@@ -856,6 +856,27 @@ static uint32_t vi_get_rev_id(struct amdgpu_device *adev)
 			>> PCIE_EFUSE4__STRAP_BIF_ATI_REV_ID__SHIFT;
 }
 
+static void vi_flush_hdp(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	if (!ring || !ring->funcs->emit_wreg) {
+		WREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+		RREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL);
+	} else {
+		amdgpu_ring_emit_wreg(ring, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 1);
+	}
+}
+
+static void vi_invalidate_hdp(struct amdgpu_device *adev,
+			      struct amdgpu_ring *ring)
+{
+	if (!ring || !ring->funcs->emit_wreg) {
+		WREG32(mmHDP_DEBUG0, 1);
+		RREG32(mmHDP_DEBUG0);
+	} else {
+		amdgpu_ring_emit_wreg(ring, mmHDP_DEBUG0, 1);
+	}
+}
+
 static const struct amdgpu_asic_funcs vi_asic_funcs =
 {
 	.read_disabled_bios = &vi_read_disabled_bios,
@@ -867,6 +888,8 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 	.set_uvd_clocks = &vi_set_uvd_clocks,
 	.set_vce_clocks = &vi_set_vce_clocks,
 	.get_config_memsize = &vi_get_config_memsize,
+	.flush_hdp = &vi_flush_hdp,
+	.invalidate_hdp = &vi_invalidate_hdp,
 };
 
 #define CZ_REV_BRISTOL(rev)	 \

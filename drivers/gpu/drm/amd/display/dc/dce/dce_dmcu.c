@@ -360,7 +360,7 @@ static void dcn10_get_dmcu_version(struct dmcu *dmcu)
 	dmcu->dmcu_version.year = ((REG_READ(DMCU_IRAM_RD_DATA) << 8) |
 						REG_READ(DMCU_IRAM_RD_DATA));
 	dmcu->dmcu_version.month = REG_READ(DMCU_IRAM_RD_DATA);
-	dmcu->dmcu_version.day = REG_READ(DMCU_IRAM_RD_DATA);
+	dmcu->dmcu_version.date = REG_READ(DMCU_IRAM_RD_DATA);
 
 	/* Disable write access to IRAM to allow dynamic sleep state */
 	REG_UPDATE_2(DMCU_RAM_ACCESS_CTRL,
@@ -521,6 +521,9 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 	if (dmcu->dmcu_state != DMCU_RUNNING)
 		return;
 
+	dcn10_get_dmcu_psr_state(dmcu, &psr_state);
+	if (psr_state == 0 && !enable)
+		return;
 	/* waitDMCUReadyForCmd */
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
 				dmcu_wait_reg_ready_interval,

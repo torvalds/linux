@@ -3319,7 +3319,6 @@ const struct amd_ip_funcs kv_dpm_ip_funcs = {
 };
 
 const struct amd_pm_funcs kv_dpm_funcs = {
-	.get_temperature = &kv_dpm_get_temp,
 	.pre_set_power_state = &kv_dpm_pre_set_power_state,
 	.set_power_state = &kv_dpm_set_power_state,
 	.post_set_power_state = &kv_dpm_post_set_power_state,

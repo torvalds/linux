@@ -3795,14 +3795,11 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 	.get_gpio_pin_info = bios_parser_get_gpio_pin_info,
 
-	.get_embedded_panel_info = bios_parser_get_embedded_panel_info,
-
-	.get_gpio_pin_info = bios_parser_get_gpio_pin_info,
-
 	.get_encoder_cap_info = bios_parser_get_encoder_cap_info,
 
 	/* bios scratch register communication */
 	.is_accelerated_mode = bios_is_accelerated_mode,
+	.get_vga_enabled_displays = bios_get_vga_enabled_displays,
 
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 

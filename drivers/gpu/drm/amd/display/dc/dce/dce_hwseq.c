@@ -197,9 +197,9 @@ void dce_crtc_switch_to_clk_src(struct dce_hwseq *hws,
 }
 
 /* Only use LUT for 8 bit formats */
-bool dce_use_lut(const struct dc_plane_state *plane_state)
+bool dce_use_lut(enum surface_pixel_format format)
 {
-	switch (plane_state->format) {
+	switch (format) {
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
 		return true;

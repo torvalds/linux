@@ -131,7 +131,6 @@ struct dcn_optc_registers {
 	uint32_t OTG_GSL_WINDOW_X;
 	uint32_t OTG_GSL_WINDOW_Y;
 	uint32_t OTG_VUPDATE_KEEPOUT;
-	uint32_t OTG_DSC_START_POSITION;
 };
 
 #define TG_COMMON_MASK_SH_LIST_DCN(mask_sh)\
@@ -241,7 +240,7 @@ struct dcn_optc_registers {
 	SF(OTG0_OTG_TEST_PATTERN_COLOR, OTG_TEST_PATTERN_DATA, mask_sh),\
 	SF(ODM0_OPTC_DATA_SOURCE_SELECT, OPTC_SRC_SEL, mask_sh)
 
-#define TG_REG_FIELD_LIST(type) \
+#define TG_REG_FIELD_LIST_DCN1_0(type) \
 	type VSTARTUP_START;\
 	type VUPDATE_OFFSET;\
 	type VUPDATE_WIDTH;\
@@ -352,9 +351,10 @@ struct dcn_optc_registers {
 	type OTG_MASTER_UPDATE_LOCK_GSL_EN;\
 	type MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_START_OFFSET;\
 	type MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_END_OFFSET;\
-	type OTG_DSC_START_POSITION_X;\
-	type OTG_DSC_START_POSITION_LINE_NUM;\
 	type OTG_MASTER_UPDATE_LOCK_VUPDATE_KEEPOUT_EN;
+
+#define TG_REG_FIELD_LIST(type) \
+	TG_REG_FIELD_LIST_DCN1_0(type)
 
 
 struct dcn_optc_shift {

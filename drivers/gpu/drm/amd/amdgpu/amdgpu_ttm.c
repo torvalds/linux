@@ -161,7 +161,7 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		break;
 	case TTM_PL_TT:
 		man->func = &amdgpu_gtt_mgr_func;
-		man->gpu_offset = adev->mc.gart_start;
+		man->gpu_offset = adev->gmc.gart_start;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE | TTM_MEMTYPE_FLAG_CMA;
@@ -169,7 +169,7 @@ static int amdgpu_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
 		man->func = &amdgpu_vram_mgr_func;
-		man->gpu_offset = adev->mc.vram_start;
+		man->gpu_offset = adev->gmc.vram_start;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED | TTM_PL_FLAG_WC;
@@ -217,9 +217,9 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		    adev->mman.buffer_funcs_ring &&
 		    adev->mman.buffer_funcs_ring->ready == false) {
 			amdgpu_ttm_placement_from_domain(abo, AMDGPU_GEM_DOMAIN_CPU);
-		} else if (adev->mc.visible_vram_size < adev->mc.real_vram_size &&
+		} else if (adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
 			   !(abo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED)) {
-			unsigned fpfn = adev->mc.visible_vram_size >> PAGE_SHIFT;
+			unsigned fpfn = adev->gmc.visible_vram_size >> PAGE_SHIFT;
 			struct drm_mm_node *node = bo->mem.mm_node;
 			unsigned long pages_left;
 
@@ -638,9 +638,9 @@ static int amdgpu_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->start << PAGE_SHIFT;
 		/* check if it's visible */
-		if ((mem->bus.offset + mem->bus.size) > adev->mc.visible_vram_size)
+		if ((mem->bus.offset + mem->bus.size) > adev->gmc.visible_vram_size)
 			return -EINVAL;
-		mem->bus.base = adev->mc.aper_base;
+		mem->bus.base = adev->gmc.aper_base;
 		mem->bus.is_iomem = true;
 		break;
 	default:
@@ -891,7 +891,7 @@ int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo)
 	placement.num_busy_placement = 1;
 	placement.busy_placement = &placements;
 	placements.fpfn = 0;
-	placements.lpfn = adev->mc.gart_size >> PAGE_SHIFT;
+	placements.lpfn = adev->gmc.gart_size >> PAGE_SHIFT;
 	placements.flags = (bo->mem.placement & ~TTM_PL_MASK_MEM) |
 		TTM_PL_FLAG_TT;
 
@@ -996,9 +996,6 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm,
 	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
-
-	if (ttm->state != tt_unpopulated)
-		return 0;
 
 	if (gtt && gtt->userptr) {
 		ttm->sg = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
@@ -1212,7 +1209,7 @@ static int amdgpu_ttm_access_memory(struct ttm_buffer_object *bo,
 	nodes = amdgpu_find_mm_node(&abo->tbo.mem, &offset);
 	pos = (nodes->start << PAGE_SHIFT) + offset;
 
-	while (len && pos < adev->mc.mc_vram_size) {
+	while (len && pos < adev->gmc.mc_vram_size) {
 		uint64_t aligned_pos = pos & ~(uint64_t)3;
 		uint32_t bytes = 4 - (pos & 3);
 		uint32_t shift = (pos & 3) * 8;
@@ -1298,7 +1295,7 @@ static int amdgpu_ttm_fw_reserve_vram_init(struct amdgpu_device *adev)
 	struct ttm_operation_ctx ctx = { false, false };
 	int r = 0;
 	int i;
-	u64 vram_size = adev->mc.visible_vram_size;
+	u64 vram_size = adev->gmc.visible_vram_size;
 	u64 offset = adev->fw_vram_usage.start_offset;
 	u64 size = adev->fw_vram_usage.size;
 	struct amdgpu_bo *bo;
@@ -1312,7 +1309,7 @@ static int amdgpu_ttm_fw_reserve_vram_init(struct amdgpu_device *adev)
 		r = amdgpu_bo_create(adev, adev->fw_vram_usage.size,
 			PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
 			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS, NULL, NULL, 0,
+			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS, NULL, NULL,
 			&adev->fw_vram_usage.reserved_bo);
 		if (r)
 			goto error_create;
@@ -1387,8 +1384,12 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		return r;
 	}
 	adev->mman.initialized = true;
+
+	/* We opt to avoid OOM on system pages allocations */
+	adev->mman.bdev.no_retry = true;
+
 	r = ttm_bo_init_mm(&adev->mman.bdev, TTM_PL_VRAM,
-				adev->mc.real_vram_size >> PAGE_SHIFT);
+				adev->gmc.real_vram_size >> PAGE_SHIFT);
 	if (r) {
 		DRM_ERROR("Failed initializing VRAM heap.\n");
 		return r;
@@ -1397,11 +1398,11 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* Reduce size of CPU-visible VRAM if requested */
 	vis_vram_limit = (u64)amdgpu_vis_vram_limit * 1024 * 1024;
 	if (amdgpu_vis_vram_limit > 0 &&
-	    vis_vram_limit <= adev->mc.visible_vram_size)
-		adev->mc.visible_vram_size = vis_vram_limit;
+	    vis_vram_limit <= adev->gmc.visible_vram_size)
+		adev->gmc.visible_vram_size = vis_vram_limit;
 
 	/* Change the size here instead of the init above so only lpfn is affected */
-	amdgpu_ttm_set_active_vram_size(adev, adev->mc.visible_vram_size);
+	amdgpu_ttm_set_active_vram_size(adev, adev->gmc.visible_vram_size);
 
 	/*
 	 *The reserved vram for firmware must be pinned to the specified
@@ -1412,21 +1413,21 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	r = amdgpu_bo_create_kernel(adev, adev->mc.stolen_size, PAGE_SIZE,
+	r = amdgpu_bo_create_kernel(adev, adev->gmc.stolen_size, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_VRAM,
 				    &adev->stolen_vga_memory,
 				    NULL, NULL);
 	if (r)
 		return r;
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
-		 (unsigned) (adev->mc.real_vram_size / (1024 * 1024)));
+		 (unsigned) (adev->gmc.real_vram_size / (1024 * 1024)));
 
 	if (amdgpu_gtt_size == -1) {
 		struct sysinfo si;
 
 		si_meminfo(&si);
 		gtt_size = min(max((AMDGPU_DEFAULT_GTT_SIZE_MB << 20),
-			       adev->mc.mc_vram_size),
+			       adev->gmc.mc_vram_size),
 			       ((uint64_t)si.totalram * si.mem_unit * 3/4));
 	}
 	else
@@ -1559,7 +1560,7 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 	BUG_ON(adev->mman.buffer_funcs->copy_max_bytes <
 	       AMDGPU_GTT_MAX_TRANSFER_SIZE * 8);
 
-	*addr = adev->mc.gart_start;
+	*addr = adev->gmc.gart_start;
 	*addr += (u64)window * AMDGPU_GTT_MAX_TRANSFER_SIZE *
 		AMDGPU_GPU_PAGE_SIZE;
 
@@ -1677,13 +1678,12 @@ error_free:
 }
 
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
-		       uint64_t src_data,
+		       uint32_t src_data,
 		       struct reservation_object *resv,
 		       struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	uint32_t max_bytes = 8 *
-			adev->vm_manager.vm_pte_funcs->set_max_nums_pte_pde;
+	uint32_t max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 
 	struct drm_mm_node *mm_node;
@@ -1714,9 +1714,7 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 		num_pages -= mm_node->size;
 		++mm_node;
 	}
-
-	/* num of dwords for each SDMA_OP_PTEPDE cmd */
-	num_dw = num_loops * adev->vm_manager.vm_pte_funcs->set_pte_pde_num_dw;
+	num_dw = num_loops * adev->mman.buffer_funcs->fill_num_dw;
 
 	/* for IB padding */
 	num_dw += 64;
@@ -1741,16 +1739,12 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 		uint32_t byte_count = mm_node->size << PAGE_SHIFT;
 		uint64_t dst_addr;
 
-		WARN_ONCE(byte_count & 0x7, "size should be a multiple of 8");
-
 		dst_addr = amdgpu_mm_node_addr(&bo->tbo, mm_node, &bo->tbo.mem);
 		while (byte_count) {
 			uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
 
-			amdgpu_vm_set_pte_pde(adev, &job->ibs[0],
-					dst_addr, 0,
-					cur_size_in_bytes >> 3, 0,
-					src_data);
+			amdgpu_emit_fill_buffer(adev, &job->ibs[0], src_data,
+						dst_addr, cur_size_in_bytes);
 
 			dst_addr += cur_size_in_bytes;
 			byte_count -= cur_size_in_bytes;
@@ -1811,14 +1805,14 @@ static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
 
-	if (*pos >= adev->mc.mc_vram_size)
+	if (*pos >= adev->gmc.mc_vram_size)
 		return -ENXIO;
 
 	while (size) {
 		unsigned long flags;
 		uint32_t value;
 
-		if (*pos >= adev->mc.mc_vram_size)
+		if (*pos >= adev->gmc.mc_vram_size)
 			return result;
 
 		spin_lock_irqsave(&adev->mmio_idx_lock, flags);
@@ -1850,14 +1844,14 @@ static ssize_t amdgpu_ttm_vram_write(struct file *f, const char __user *buf,
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
 
-	if (*pos >= adev->mc.mc_vram_size)
+	if (*pos >= adev->gmc.mc_vram_size)
 		return -ENXIO;
 
 	while (size) {
 		unsigned long flags;
 		uint32_t value;
 
-		if (*pos >= adev->mc.mc_vram_size)
+		if (*pos >= adev->gmc.mc_vram_size)
 			return result;
 
 		r = get_user(value, (uint32_t *)buf);
@@ -2001,9 +1995,9 @@ static int amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 		if (IS_ERR(ent))
 			return PTR_ERR(ent);
 		if (ttm_debugfs_entries[count].domain == TTM_PL_VRAM)
-			i_size_write(ent->d_inode, adev->mc.mc_vram_size);
+			i_size_write(ent->d_inode, adev->gmc.mc_vram_size);
 		else if (ttm_debugfs_entries[count].domain == TTM_PL_TT)
-			i_size_write(ent->d_inode, adev->mc.gart_size);
+			i_size_write(ent->d_inode, adev->gmc.gart_size);
 		adev->mman.debugfs_entries[count] = ent;
 	}
 

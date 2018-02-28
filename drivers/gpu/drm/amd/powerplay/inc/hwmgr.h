@@ -42,6 +42,7 @@ struct pp_atomctrl_voltage_table;
 #define VOLTAGE_SCALE 4
 
 uint8_t convert_to_vid(uint16_t vddc);
+uint16_t convert_to_vddc(uint8_t vid);
 
 enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
@@ -83,6 +84,7 @@ enum PP_FEATURE_MASK {
 	PP_OD_FUZZY_FAN_CONTROL_MASK = 0x800,
 	PP_SOCCLK_DPM_MASK = 0x1000,
 	PP_DCEFCLK_DPM_MASK = 0x2000,
+	PP_OVERDRIVE_MASK = 0x4000,
 };
 
 enum PHM_BackEnd_Magic {
@@ -277,7 +279,6 @@ struct pp_hwmgr_func {
 						const uint32_t *msg_id);
 	int (*set_max_fan_rpm_output)(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm);
 	int (*set_max_fan_pwm_output)(struct pp_hwmgr *hwmgr, uint16_t us_max_fan_pwm);
-	int (*get_temperature)(struct pp_hwmgr *hwmgr);
 	int (*stop_thermal_controller)(struct pp_hwmgr *hwmgr);
 	int (*get_fan_speed_info)(struct pp_hwmgr *hwmgr, struct phm_fan_speed_info *fan_speed_info);
 	void (*set_fan_control_mode)(struct pp_hwmgr *hwmgr, uint32_t mode);
@@ -339,6 +340,15 @@ struct pp_hwmgr_func {
 					uint32_t mc_addr_low,
 					uint32_t mc_addr_hi,
 					uint32_t size);
+	int (*get_thermal_temperature_range)(struct pp_hwmgr *hwmgr,
+					struct PP_TemperatureRange *range);
+	int (*get_power_profile_mode)(struct pp_hwmgr *hwmgr, char *buf);
+	int (*set_power_profile_mode)(struct pp_hwmgr *hwmgr, long *input, uint32_t size);
+	int (*odn_edit_dpm_table)(struct pp_hwmgr *hwmgr,
+					enum PP_OD_DPM_TABLE_COMMAND type,
+					long *input, uint32_t size);
+	int (*set_power_limit)(struct pp_hwmgr *hwmgr, uint32_t n);
+	int (*set_mmhub_powergating_by_smu)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
@@ -608,7 +618,6 @@ struct phm_dynamic_state_info {
 	struct phm_ppm_table                          *ppm_parameter_table;
 	struct phm_cac_tdp_table                      *cac_dtp_table;
 	struct phm_clock_voltage_dependency_table	*vdd_gfx_dependency_on_sclk;
-	struct phm_vq_budgeting_table				*vq_budgeting_table;
 };
 
 struct pp_fan_info {
@@ -747,6 +756,13 @@ struct pp_hwmgr {
 	struct amd_pp_profile default_compute_power_profile;
 	enum amd_pp_profile_type current_power_profile;
 	bool en_umd_pstate;
+	uint32_t power_profile_mode;
+	uint32_t default_power_profile_mode;
+	uint32_t pstate_sclk;
+	uint32_t pstate_mclk;
+	bool od_enabled;
+	uint32_t power_limit;
+	uint32_t default_power_limit;
 };
 
 struct cgs_irq_src_funcs {
@@ -761,7 +777,7 @@ extern int hwmgr_hw_suspend(struct pp_instance *handle);
 extern int hwmgr_hw_resume(struct pp_instance *handle);
 extern int hwmgr_handle_task(struct pp_instance *handle,
 				enum amd_pp_task task_id,
-				void *input, void *output);
+				enum amd_pm_state_type *user_state);
 extern int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 				uint32_t value, uint32_t mask);
 

@@ -920,6 +920,7 @@ static void dce110_stream_encoder_dp_blank(
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
 	uint32_t retries = 0;
+	uint32_t  reg1 = 0;
 	uint32_t max_retries = DP_BLANK_MAX_RETRY * 10;
 
 	/* Note: For CZ, we are changing driver default to disable
@@ -928,7 +929,10 @@ static void dce110_stream_encoder_dp_blank(
 	 * handful of panels that cannot handle disable stream at
 	 * HBLANK and will result in a white line flash across the
 	 * screen on stream disable. */
-
+	REG_GET(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, &reg1);
+	if ((reg1 & 0x1) == 0)
+		/*stream not enabled*/
+		return;
 	/* Specify the video stream disable point
 	 * (2 = start of the next vertical blank) */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_DIS_DEFER, 2);

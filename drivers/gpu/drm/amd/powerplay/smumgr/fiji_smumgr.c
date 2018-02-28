@@ -368,7 +368,6 @@ static bool fiji_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 
 static int fiji_smu_init(struct pp_hwmgr *hwmgr)
 {
-	int i;
 	struct fiji_smumgr *fiji_priv = NULL;
 
 	fiji_priv = kzalloc(sizeof(struct fiji_smumgr), GFP_KERNEL);
@@ -380,9 +379,6 @@ static int fiji_smu_init(struct pp_hwmgr *hwmgr)
 
 	if (smu7_init(hwmgr))
 		return -EINVAL;
-
-	for (i = 0; i < SMU73_MAX_LEVELS_GRAPHICS; i++)
-		fiji_priv->activity_target[i] = 30;
 
 	return 0;
 }
@@ -972,8 +968,7 @@ static int fiji_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 }
 
 static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
-		uint32_t clock, uint16_t sclk_al_threshold,
-		struct SMU73_Discrete_GraphicsLevel *level)
+		uint32_t clock, struct SMU73_Discrete_GraphicsLevel *level)
 {
 	int result;
 	/* PP_Clocks minClocks; */
@@ -981,12 +976,18 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
 	result = fiji_calculate_sclk_params(hwmgr, clock, level);
 
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = table_info->vdd_dep_on_sclk;
+
 	/* populate graphics levels */
 	result = fiji_get_dependency_volt_by_clk(hwmgr,
-			table_info->vdd_dep_on_sclk, clock,
+			vdd_dep_table, clock,
 			(uint32_t *)(&level->MinVoltage), &mvdd);
 	PP_ASSERT_WITH_CODE((0 == result),
 			"can not find VDDC voltage value for "
@@ -994,13 +995,13 @@ static int fiji_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 			return result);
 
 	level->SclkFrequency = clock;
-	level->ActivityLevel = sclk_al_threshold;
+	level->ActivityLevel = data->current_profile_setting.sclk_activity;
 	level->CcPwrDynRm = 0;
 	level->CcPwrDynRm1 = 0;
 	level->EnabledForActivity = 0;
 	level->EnabledForThrottle = 1;
-	level->UpHyst = 10;
-	level->DownHyst = 0;
+	level->UpHyst = data->current_profile_setting.sclk_up_hyst;
+	level->DownHyst = data->current_profile_setting.sclk_down_hyst;
 	level->VoltageDownHyst = 0;
 	level->PowerThrottle = 0;
 
@@ -1057,7 +1058,6 @@ static int fiji_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = fiji_populate_single_graphic_level(hwmgr,
 				dpm_table->sclk_table.dpm_levels[i].value,
-				(uint16_t)smu_data->activity_target[i],
 				&levels[i]);
 		if (result)
 			return result;
@@ -1202,10 +1202,16 @@ static int fiji_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	int result = 0;
 	uint32_t mclk_stutter_mode_threshold = 60000;
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
-	if (table_info->vdd_dep_on_mclk) {
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = table_info->vdd_dep_on_mclk;
+
+	if (vdd_dep_table) {
 		result = fiji_get_dependency_volt_by_clk(hwmgr,
-				table_info->vdd_dep_on_mclk, clock,
+				vdd_dep_table, clock,
 				(uint32_t *)(&mem_level->MinVoltage), &mem_level->MinMvdd);
 		PP_ASSERT_WITH_CODE((0 == result),
 				"can not find MinVddc voltage value from memory "
@@ -1214,10 +1220,10 @@ static int fiji_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 
 	mem_level->EnabledForThrottle = 1;
 	mem_level->EnabledForActivity = 0;
-	mem_level->UpHyst = 0;
-	mem_level->DownHyst = 100;
+	mem_level->UpHyst = data->current_profile_setting.mclk_up_hyst;
+	mem_level->DownHyst = data->current_profile_setting.mclk_down_hyst;
 	mem_level->VoltageDownHyst = 0;
-	mem_level->ActivityLevel = (uint16_t)data->mclk_activity_target;
+	mem_level->ActivityLevel = data->current_profile_setting.mclk_activity;
 	mem_level->StutterEnable = false;
 
 	mem_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
@@ -1435,7 +1441,7 @@ static int fiji_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.DownHyst = 100;
 	table->MemoryACPILevel.VoltageDownHyst = 0;
 	table->MemoryACPILevel.ActivityLevel =
-			PP_HOST_TO_SMC_US((uint16_t)data->mclk_activity_target);
+			PP_HOST_TO_SMC_US(data->current_profile_setting.mclk_activity);
 
 	table->MemoryACPILevel.StutterEnable = false;
 	CONVERT_FROM_HOST_TO_SMC_UL(table->MemoryACPILevel.MclkFrequency);
@@ -1799,7 +1805,7 @@ static int fiji_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ClockStretcher);
 		PP_ASSERT_WITH_CODE(false,
-				"Stretch Amount in PPTable not supported\n",
+				"Stretch Amount in PPTable not supported",
 				return -EINVAL);
 	}
 
@@ -2141,7 +2147,7 @@ static int fiji_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = fiji_populate_vr_config(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to populate VRConfig setting!", return result);
-
+	data->vr_config = table->VRConfig;
 	table->ThermGpio = 17;
 	table->SclkStepSize = 0x4000;
 

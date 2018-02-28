@@ -1357,9 +1357,10 @@ int vega10_enable_power_containment(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	struct phm_tdp_table *tdp_table = table_info->tdp_table;
-	uint32_t default_pwr_limit =
-			(uint32_t)(tdp_table->usMaximumPowerDeliveryLimit);
 	int result = 0;
+
+	hwmgr->default_power_limit = hwmgr->power_limit =
+			(uint32_t)(tdp_table->usMaximumPowerDeliveryLimit);
 
 	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
 		if (data->smu_features[GNLD_PPT].supported)
@@ -1374,7 +1375,7 @@ int vega10_enable_power_containment(struct pp_hwmgr *hwmgr)
 					"Attempt to enable PPT feature Failed!",
 					data->smu_features[GNLD_TDC].supported = false);
 
-		result = vega10_set_power_limit(hwmgr, default_pwr_limit);
+		result = vega10_set_power_limit(hwmgr, hwmgr->power_limit);
 		PP_ASSERT_WITH_CODE(!result,
 				"Failed to set Default Power Limit in SMC!",
 				return result);

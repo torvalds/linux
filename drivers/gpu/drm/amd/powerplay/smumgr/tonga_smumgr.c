@@ -222,7 +222,6 @@ static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *tonga_priv = NULL;
-	int  i;
 
 	tonga_priv = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
 	if (tonga_priv == NULL)
@@ -232,9 +231,6 @@ static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 
 	if (smu7_init(hwmgr))
 		return -EINVAL;
-
-	for (i = 0; i < SMU72_MAX_LEVELS_GRAPHICS; i++)
-		tonga_priv->activity_target[i] = 30;
 
 	return 0;
 }
@@ -416,7 +412,7 @@ static int tonga_populate_cac_tables(struct pp_hwmgr *hwmgr,
 			convert_to_vid(vddc_lookup_table->entries[index].us_cac_high);
 	}
 
-	if ((data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2)) {
+	if (data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2) {
 		/* We are populating vddgfx CAC data to BapmVddgfx table in split mode */
 		for (count = 0; count < vddgfx_level_count; count++) {
 			index = phm_get_voltage_index(vddgfx_lookup_table,
@@ -612,7 +608,6 @@ static int tonga_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 
 static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 						uint32_t engine_clock,
-				uint16_t sclk_activity_level_threshold,
 				SMU72_Discrete_GraphicsLevel *graphic_level)
 {
 	int result;
@@ -620,12 +615,18 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *pptable_info =
 			    (struct phm_ppt_v1_information *)(hwmgr->pptable);
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
 	result = tonga_calculate_sclk_params(hwmgr, engine_clock, graphic_level);
 
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = pptable_info->vdd_dep_on_sclk;
+
 	/* populate graphics levels*/
 	result = tonga_get_dependency_volt_by_clk(hwmgr,
-		pptable_info->vdd_dep_on_sclk, engine_clock,
+		vdd_dep_table, engine_clock,
 		&graphic_level->MinVoltage, &mvdd);
 	PP_ASSERT_WITH_CODE((!result),
 		"can not find VDDC voltage value for VDDC "
@@ -634,7 +635,7 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	/* SCLK frequency in units of 10KHz*/
 	graphic_level->SclkFrequency = engine_clock;
 	/* Indicates maximum activity level for this performance level. 50% for now*/
-	graphic_level->ActivityLevel = sclk_activity_level_threshold;
+	graphic_level->ActivityLevel = data->current_profile_setting.sclk_activity;
 
 	graphic_level->CcPwrDynRm = 0;
 	graphic_level->CcPwrDynRm1 = 0;
@@ -642,8 +643,8 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	graphic_level->EnabledForActivity = 0;
 	/* this level can be used for throttling.*/
 	graphic_level->EnabledForThrottle = 1;
-	graphic_level->UpHyst = 0;
-	graphic_level->DownHyst = 0;
+	graphic_level->UpHyst = data->current_profile_setting.sclk_up_hyst;
+	graphic_level->DownHyst = data->current_profile_setting.sclk_down_hyst;
 	graphic_level->VoltageDownHyst = 0;
 	graphic_level->PowerThrottle = 0;
 
@@ -702,7 +703,6 @@ static int tonga_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = tonga_populate_single_graphic_level(hwmgr,
 					dpm_table->sclk_table.dpm_levels[i].value,
-					(uint16_t)smu_data->activity_target[i],
 					&(smu_data->smc_state_table.GraphicsLevel[i]));
 		if (result != 0)
 			return result;
@@ -966,10 +966,16 @@ static int tonga_populate_single_memory_level(
 	uint32_t mclk_stutter_mode_threshold = 30000;
 	uint32_t mclk_edc_enable_threshold = 40000;
 	uint32_t mclk_strobe_mode_threshold = 40000;
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
-	if (NULL != pptable_info->vdd_dep_on_mclk) {
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = pptable_info->vdd_dep_on_mclk;
+
+	if (NULL != vdd_dep_table) {
 		result = tonga_get_dependency_volt_by_clk(hwmgr,
-				pptable_info->vdd_dep_on_mclk,
+				vdd_dep_table,
 				memory_clock,
 				&memory_level->MinVoltage, &mvdd);
 		PP_ASSERT_WITH_CODE(
@@ -986,12 +992,12 @@ static int tonga_populate_single_memory_level(
 
 	memory_level->EnabledForThrottle = 1;
 	memory_level->EnabledForActivity = 0;
-	memory_level->UpHyst = 0;
-	memory_level->DownHyst = 100;
+	memory_level->UpHyst = data->current_profile_setting.mclk_up_hyst;
+	memory_level->DownHyst = data->current_profile_setting.mclk_down_hyst;
 	memory_level->VoltageDownHyst = 0;
 
 	/* Indicates maximum activity level for this performance level.*/
-	memory_level->ActivityLevel = (uint16_t)data->mclk_activity_target;
+	memory_level->ActivityLevel = data->current_profile_setting.mclk_activity;
 	memory_level->StutterEnable = 0;
 	memory_level->StrobeEnable = 0;
 	memory_level->EdcReadEnable = 0;
@@ -1281,7 +1287,7 @@ static int tonga_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.VoltageDownHyst = 0;
 	/* Indicates maximum activity level for this performance level.*/
 	table->MemoryACPILevel.ActivityLevel =
-			PP_HOST_TO_SMC_US((uint16_t)data->mclk_activity_target);
+			PP_HOST_TO_SMC_US(data->current_profile_setting.mclk_activity);
 
 	table->MemoryACPILevel.StutterEnable = 0;
 	table->MemoryACPILevel.StrobeEnable = 0;
@@ -1699,7 +1705,7 @@ static int tonga_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ClockStretcher);
 		PP_ASSERT_WITH_CODE(false,
-				"Stretch Amount in PPTable not supported\n",
+				"Stretch Amount in PPTable not supported",
 				return -EINVAL);
 	}
 
@@ -2434,7 +2440,7 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = tonga_populate_vr_config(hwmgr, table);
 	PP_ASSERT_WITH_CODE(!result,
 		"Failed to populate VRConfig setting !", return result);
-
+	data->vr_config = table->VRConfig;
 	table->ThermGpio  = 17;
 	table->SclkStepSize = 0x4000;
 
@@ -2501,7 +2507,6 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	for (i = 0; i < SMU72_MAX_ENTRIES_SMIO; i++)
 		table->Smio[i] = PP_HOST_TO_SMC_UL(table->Smio[i]);
-
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SystemFlags);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->VRConfig);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMask1);

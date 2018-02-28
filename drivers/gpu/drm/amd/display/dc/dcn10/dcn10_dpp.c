@@ -196,7 +196,7 @@ static void dpp1_cm_set_regamma_pwl(
 	case OPP_REGAMMA_SRGB:
 		re_mode = 1;
 		break;
-	case OPP_REGAMMA_3_6:
+	case OPP_REGAMMA_XVYCC:
 		re_mode = 2;
 		break;
 	case OPP_REGAMMA_USER:
@@ -424,6 +424,26 @@ void dpp1_set_cursor_position(
 
 }
 
+void dpp1_dppclk_control(
+		struct dpp *dpp_base,
+		bool dppclk_div,
+		bool enable)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	if (enable) {
+		if (dpp->tf_mask->DPPCLK_RATE_CONTROL) {
+			REG_UPDATE_2(DPP_CONTROL,
+				DPPCLK_RATE_CONTROL, dppclk_div,
+				DPP_CLOCK_ENABLE, 1);
+		} else {
+			ASSERT(dppclk_div == false);
+			REG_UPDATE(DPP_CONTROL, DPP_CLOCK_ENABLE, 1);
+		}
+	} else
+		REG_UPDATE(DPP_CONTROL, DPP_CLOCK_ENABLE, 0);
+}
+
 static const struct dpp_funcs dcn10_dpp_funcs = {
 		.dpp_reset = dpp_reset,
 		.dpp_set_scaler = dpp1_dscl_set_scaler_manual_scale,
@@ -445,6 +465,7 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.dpp_full_bypass		= dpp1_full_bypass,
 		.set_cursor_attributes = dpp1_set_cursor_attributes,
 		.set_cursor_position = dpp1_set_cursor_position,
+		.dpp_dppclk_control = dpp1_dppclk_control,
 };
 
 static struct dpp_caps dcn10_dpp_cap = {

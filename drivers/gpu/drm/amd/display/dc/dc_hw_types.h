@@ -413,12 +413,14 @@ struct dc_cursor_mi_param {
 enum {
 	GAMMA_RGB_256_ENTRIES = 256,
 	GAMMA_RGB_FLOAT_1024_ENTRIES = 1024,
-	GAMMA_MAX_ENTRIES = 1024
+	GAMMA_CS_TFM_1D_ENTRIES = 4096,
+	GAMMA_MAX_ENTRIES = 4096
 };
 
 enum dc_gamma_type {
 	GAMMA_RGB_256 = 1,
-	GAMMA_RGB_FLOAT_1024 = 2
+	GAMMA_RGB_FLOAT_1024 = 2,
+	GAMMA_CS_TFM_1D = 3,
 };
 
 struct dc_gamma {
@@ -434,6 +436,8 @@ struct dc_gamma {
 
 	/* private to DC core */
 	struct dc_context *ctx;
+
+	bool is_identity;
 };
 
 /* Used by both ipp amd opp functions*/

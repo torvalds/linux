@@ -323,6 +323,15 @@ static bool dce_abm_immediate_disable(struct abm *abm)
 	/* notifyDMCUMsg */
 	REG_UPDATE(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 1);
 
+	abm->stored_backlight_registers.BL_PWM_CNTL =
+		REG_READ(BL_PWM_CNTL);
+	abm->stored_backlight_registers.BL_PWM_CNTL2 =
+		REG_READ(BL_PWM_CNTL2);
+	abm->stored_backlight_registers.BL_PWM_PERIOD_CNTL =
+		REG_READ(BL_PWM_PERIOD_CNTL);
+
+	REG_GET(LVTMA_PWRSEQ_REF_DIV, BL_PWM_REF_DIV,
+		&abm->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV);
 	return true;
 }
 

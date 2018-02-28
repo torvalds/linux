@@ -417,12 +417,7 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	pci_save_state(adev->pdev);
 
-	for (i = 0; i < AMDGPU_MAX_IP_NUM; i++) {
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP){
-			adev->ip_blocks[i].version->funcs->soft_reset((void *)adev);
-			break;
-		}
-	}
+	psp_gpu_reset(adev);
 
 	pci_restore_state(adev->pdev);
 
@@ -583,6 +578,21 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 	return adev->nbio_funcs->get_rev_id(adev);
 }
 
+static void soc15_flush_hdp(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	adev->nbio_funcs->hdp_flush(adev, ring);
+}
+
+static void soc15_invalidate_hdp(struct amdgpu_device *adev,
+				 struct amdgpu_ring *ring)
+{
+	if (!ring || !ring->funcs->emit_wreg)
+		WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_READ_CACHE_INVALIDATE, 1);
+	else
+		amdgpu_ring_emit_wreg(ring, SOC15_REG_OFFSET(
+			HDP, 0, mmHDP_READ_CACHE_INVALIDATE), 1);
+}
+
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
@@ -594,6 +604,8 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.set_uvd_clocks = &soc15_set_uvd_clocks,
 	.set_vce_clocks = &soc15_set_vce_clocks,
 	.get_config_memsize = &soc15_get_config_memsize,
+	.flush_hdp = &soc15_flush_hdp,
+	.invalidate_hdp = &soc15_invalidate_hdp,
 };
 
 static int soc15_common_early_init(void *handle)

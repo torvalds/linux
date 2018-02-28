@@ -131,6 +131,11 @@ struct dpp_funcs {
 			uint32_t width
 			);
 
+	void (*dpp_dppclk_control)(
+			struct dpp *dpp_base,
+			bool dppclk_div,
+			bool enable);
+
 };
 
 

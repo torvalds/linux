@@ -210,6 +210,7 @@ static ssize_t ttm_pool_store(struct kobject *kobj, struct attribute *attr,
 		container_of(kobj, struct ttm_pool_manager, kobj);
 	int chars;
 	unsigned val;
+
 	chars = sscanf(buffer, "%u", &val);
 	if (chars == 0)
 		return size;
@@ -217,11 +218,11 @@ static ssize_t ttm_pool_store(struct kobject *kobj, struct attribute *attr,
 	/* Convert kb to number of pages */
 	val = val / (PAGE_SIZE >> 10);
 
-	if (attr == &ttm_page_pool_max)
+	if (attr == &ttm_page_pool_max) {
 		m->options.max_size = val;
-	else if (attr == &ttm_page_pool_small)
+	} else if (attr == &ttm_page_pool_small) {
 		m->options.small = val;
-	else if (attr == &ttm_page_pool_alloc_size) {
+	} else if (attr == &ttm_page_pool_alloc_size) {
 		if (val > NUM_PAGES_TO_ALLOC*8) {
 			pr_err("Setting allocation size to %lu is not allowed. Recommended size is %lu\n",
 			       NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 7),
@@ -389,14 +390,12 @@ static void ttm_dma_page_put(struct dma_pool *pool, struct dma_page *d_page)
 {
 	struct page *page = d_page->p;
 	unsigned i, num_pages;
-	int ret;
 
 	/* Don't set WB on WB page pool. */
 	if (!(pool->type & IS_CACHED)) {
 		num_pages = pool->size / PAGE_SIZE;
 		for (i = 0; i < num_pages; ++i, ++page) {
-			ret = set_pages_array_wb(&page, 1);
-			if (ret) {
+			if (set_pages_array_wb(&page, 1)) {
 				pr_err("%s: Failed to set %d pages to wb!\n",
 				       pool->dev_name, 1);
 			}
@@ -681,10 +680,10 @@ err_mem:
 static struct dma_pool *ttm_dma_find_pool(struct device *dev,
 					  enum pool_type type)
 {
-	struct dma_pool *pool, *tmp, *found = NULL;
+	struct dma_pool *pool, *tmp;
 
 	if (type == IS_UNDEFINED)
-		return found;
+		return NULL;
 
 	/* NB: We iterate on the 'struct dev' which has no spinlock, but
 	 * it does have a kref which we have taken. The kref is taken during
@@ -697,13 +696,10 @@ static struct dma_pool *ttm_dma_find_pool(struct device *dev,
 	 * thing is at that point of time there are no pages associated with the
 	 * driver so this function will not be called.
 	 */
-	list_for_each_entry_safe(pool, tmp, &dev->dma_pools, pools) {
-		if (pool->type != type)
-			continue;
-		found = pool;
-		break;
-	}
-	return found;
+	list_for_each_entry_safe(pool, tmp, &dev->dma_pools, pools)
+		if (pool->type == type)
+			return pool;
+	return NULL;
 }
 
 /*
@@ -765,10 +761,9 @@ static int ttm_dma_pool_alloc_new_pages(struct dma_pool *pool,
 		return -ENOMEM;
 	}
 
-	if (count > 1) {
+	if (count > 1)
 		pr_debug("%s: (%s:%d) Getting %d pages\n",
 			 pool->dev_name, pool->name, current->pid, count);
-	}
 
 	for (i = 0, cpages = 0; i < count; ++i) {
 		dma_p = __ttm_dma_alloc_page(pool);
@@ -919,6 +914,9 @@ static gfp_t ttm_dma_pool_gfp_flags(struct ttm_dma_tt *ttm_dma, bool huge)
 		gfp_flags &= ~__GFP_MOVABLE;
 		gfp_flags &= ~__GFP_COMP;
 	}
+
+	if (ttm->page_flags & TTM_PAGE_FLAG_NO_RETRY)
+		gfp_flags |= __GFP_RETRY_MAYFAIL;
 
 	return gfp_flags;
 }

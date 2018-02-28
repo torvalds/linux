@@ -38,6 +38,7 @@
 #include "cz_hwmgr.h"
 #include "power_state.h"
 #include "cz_clockpowergating.h"
+#include "pp_thermal.h"
 
 #define ixSMUSVI_NB_CURRENTVID 0xD8230044
 #define CURRENT_NB_VID_MASK 0xff000000
@@ -172,15 +173,11 @@ static uint32_t cz_get_max_sclk_level(struct pp_hwmgr *hwmgr)
 static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
-	uint32_t i;
 	struct cgs_system_info sys_info = {0};
 	int result;
 
 	cz_hwmgr->gfx_ramp_step = 256*25/100;
 	cz_hwmgr->gfx_ramp_delay = 1; /* by default, we delay 1us */
-
-	for (i = 0; i < CZ_MAX_HARDWARE_POWERLEVELS; i++)
-		cz_hwmgr->activity_target[i] = CZ_AT_DFLT;
 
 	cz_hwmgr->mgcg_cgtt_local0 = 0x00000000;
 	cz_hwmgr->mgcg_cgtt_local1 = 0x00000000;
@@ -1188,6 +1185,8 @@ static int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 
 	cz_hwmgr->sclk_dpm.soft_min_clk = table->entries[0].clk;
 	cz_hwmgr->sclk_dpm.hard_min_clk = table->entries[0].clk;
+	hwmgr->pstate_sclk = table->entries[0].clk;
+	hwmgr->pstate_mclk = 0;
 
 	level = cz_get_max_sclk_level(hwmgr) - 1;
 
@@ -1559,9 +1558,6 @@ static int cz_get_dal_power_level(struct pp_hwmgr *hwmgr,
 static int cz_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
-	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
-		return -EINVAL;
-
 	switch (type) {
 	case PP_SCLK:
 		smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -1581,6 +1577,7 @@ static int cz_force_clock_level(struct pp_hwmgr *hwmgr,
 static int cz_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
+	struct cz_hwmgr *data = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_clock_voltage_dependency_table *sclk_table =
 			hwmgr->dyn_state.vddc_dependency_on_sclk;
 	int i, now, size = 0;
@@ -1597,6 +1594,18 @@ static int cz_print_clock_levels(struct pp_hwmgr *hwmgr,
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
 					i, sclk_table->entries[i].clk / 100,
 					(i == now) ? "*" : "");
+		break;
+	case PP_MCLK:
+		now = PHM_GET_FIELD(cgs_read_ind_register(hwmgr->device,
+				CGS_IND_REG__SMC,
+				ixTARGET_AND_CURRENT_PROFILE_INDEX),
+				TARGET_AND_CURRENT_PROFILE_INDEX,
+				CURR_MCLK_INDEX);
+
+		for (i = CZ_NUM_NBPMEMORYCLOCK; i > 0; i--)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					CZ_NUM_NBPMEMORYCLOCK-i, data->sys_info.nbp_memory_clock[i-1] / 100,
+					(CZ_NUM_NBPMEMORYCLOCK-i == now) ? "*" : "");
 		break;
 	default:
 		break;
@@ -1858,6 +1867,19 @@ static int cz_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int cz_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
+		struct PP_TemperatureRange *thermal_data)
+{
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+
+	memcpy(thermal_data, &SMU7ThermalPolicy[0], sizeof(struct PP_TemperatureRange));
+
+	thermal_data->max = (cz_hwmgr->thermal_auto_throttling_treshold +
+			cz_hwmgr->sys_info.htc_hyst_lmt) *
+			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return 0;
+}
 
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.backend_init = cz_hwmgr_backend_init,
@@ -1882,7 +1904,6 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.get_current_shallow_sleep_clocks = cz_get_current_shallow_sleep_clocks,
 	.get_clock_by_type = cz_get_clock_by_type,
 	.get_max_high_clocks = cz_get_max_high_clocks,
-	.get_temperature = cz_thermal_get_temperature,
 	.read_sensor = cz_read_sensor,
 	.power_off_asic = cz_power_off_asic,
 	.asic_setup = cz_setup_asic_task,
@@ -1890,6 +1911,7 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.power_state_set = cz_set_power_state_tasks,
 	.dynamic_state_management_disable = cz_disable_dpm_tasks,
 	.notify_cac_buffer_info = cz_notify_cac_buffer_info,
+	.get_thermal_temperature_range = cz_get_thermal_temperature_range,
 };
 
 int cz_init_function_pointers(struct pp_hwmgr *hwmgr)

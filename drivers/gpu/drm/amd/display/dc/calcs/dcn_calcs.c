@@ -486,6 +486,7 @@ static void split_stream_across_pipes(
 	secondary_pipe->plane_res.ipp = pool->ipps[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.xfm = pool->transforms[secondary_pipe->pipe_idx];
 	secondary_pipe->plane_res.dpp = pool->dpps[secondary_pipe->pipe_idx];
+	secondary_pipe->plane_res.mpcc_inst = pool->dpps[secondary_pipe->pipe_idx]->inst;
 	if (primary_pipe->bottom_pipe) {
 		ASSERT(primary_pipe->bottom_pipe != secondary_pipe);
 		secondary_pipe->bottom_pipe = primary_pipe->bottom_pipe;
@@ -625,7 +626,7 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 	return updated;
 }
 
-void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
+static void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 {
 	/*
 	 * disable optional pipe split by lower dispclk bounding box
@@ -634,7 +635,7 @@ void hack_disable_optional_pipe_split(struct dcn_bw_internal_vars *v)
 	v->max_dispclk[0] = v->max_dppclk_vmin0p65;
 }
 
-void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
+static void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 		unsigned int pixel_rate_khz)
 {
 	float pixel_rate_mhz = pixel_rate_khz / 1000;
@@ -647,25 +648,20 @@ void hack_force_pipe_split(struct dcn_bw_internal_vars *v,
 		v->max_dppclk[0] = pixel_rate_mhz;
 }
 
-void hack_bounding_box(struct dcn_bw_internal_vars *v,
+static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 		struct dc_debug *dbg,
 		struct dc_state *context)
 {
-	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID) {
+	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID)
 		hack_disable_optional_pipe_split(v);
-	}
 
 	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID_MULT_DISP &&
-		context->stream_count >= 2) {
+		context->stream_count >= 2)
 		hack_disable_optional_pipe_split(v);
-	}
 
 	if (context->stream_count == 1 &&
-			dbg->force_single_disp_pipe_split) {
-		struct dc_stream_state *stream0 = context->streams[0];
-
-		hack_force_pipe_split(v, stream0->timing.pix_clk_khz);
-	}
+			dbg->force_single_disp_pipe_split)
+		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_khz);
 }
 
 bool dcn_validate_bandwidth(
@@ -799,22 +795,9 @@ bool dcn_validate_bandwidth(
 	v->phyclk_per_state[2] = v->phyclkv_nom0p8;
 	v->phyclk_per_state[1] = v->phyclkv_mid0p72;
 	v->phyclk_per_state[0] = v->phyclkv_min0p65;
-
-	hack_bounding_box(v, &dc->debug, context);
-
-	if (v->voltage_override == dcn_bw_v_max0p9) {
-		v->voltage_override_level = number_of_states - 1;
-	} else if (v->voltage_override == dcn_bw_v_nom0p8) {
-		v->voltage_override_level = number_of_states - 2;
-	} else if (v->voltage_override == dcn_bw_v_mid0p72) {
-		v->voltage_override_level = number_of_states - 3;
-	} else {
-		v->voltage_override_level = 0;
-	}
 	v->synchronized_vblank = dcn_bw_no;
 	v->ta_pscalculation = dcn_bw_override;
 	v->allow_different_hratio_vratio = dcn_bw_yes;
-
 
 	for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -948,7 +931,18 @@ bool dcn_validate_bandwidth(
 	v->number_of_active_planes = input_idx;
 
 	scaler_settings_calculation(v);
+
+	hack_bounding_box(v, &dc->debug, context);
+
 	mode_support_and_system_configuration(v);
+
+	/* Unhack dppclk: dont bother with trying to pipe split if we cannot maintain dpm0 */
+	if (v->voltage_level != 0
+			&& context->stream_count == 1
+			&& dc->debug.force_single_disp_pipe_split) {
+		v->max_dppclk[0] = v->max_dppclk_vmin0p65;
+		mode_support_and_system_configuration(v);
+	}
 
 	if (v->voltage_level == 0 &&
 			(dc->debug.sr_exit_time_dpm0_ns
