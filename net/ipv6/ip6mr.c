@@ -31,7 +31,6 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/compat.h>
 #include <net/protocol.h>
 #include <linux/skbuff.h>
@@ -295,6 +294,14 @@ static const struct rhashtable_params ip6mr_rht_params = {
 	.automatic_shrinking = true,
 };
 
+static void ip6mr_new_table_set(struct mr_table *mrt,
+				struct net *net)
+{
+#ifdef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
+	list_add_tail_rcu(&mrt->list, &net->ipv6.mr6_tables);
+#endif
+}
+
 static struct mr_table *ip6mr_new_table(struct net *net, u32 id)
 {
 	struct mr_table *mrt;
@@ -303,25 +310,8 @@ static struct mr_table *ip6mr_new_table(struct net *net, u32 id)
 	if (mrt)
 		return mrt;
 
-	mrt = kzalloc(sizeof(*mrt), GFP_KERNEL);
-	if (!mrt)
-		return NULL;
-	mrt->id = id;
-	write_pnet(&mrt->net, net);
-
-	rhltable_init(&mrt->mfc_hash, &ip6mr_rht_params);
-	INIT_LIST_HEAD(&mrt->mfc_cache_list);
-	INIT_LIST_HEAD(&mrt->mfc_unres_queue);
-
-	timer_setup(&mrt->ipmr_expire_timer, ipmr_expire_process, 0);
-
-#ifdef CONFIG_IPV6_PIMSM_V2
-	mrt->mroute_reg_vif_num = -1;
-#endif
-#ifdef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
-	list_add_tail_rcu(&mrt->list, &net->ipv6.mr6_tables);
-#endif
-	return mrt;
+	return mr_table_alloc(net, id, &ip6mr_rht_params,
+			      ipmr_expire_process, ip6mr_new_table_set);
 }
 
 static void ip6mr_free_table(struct mr_table *mrt)

@@ -85,6 +85,13 @@ void vif_device_init(struct vif_device *v,
 		     unsigned char threshold,
 		     unsigned short flags,
 		     unsigned short get_iflink_mask);
+
+struct mr_table *
+mr_table_alloc(struct net *net, u32 id,
+	       const struct rhashtable_params *rht_params,
+	       void (*expire_func)(struct timer_list *t),
+	       void (*table_set)(struct mr_table *mrt,
+				 struct net *net));
 #else
 static inline void vif_device_init(struct vif_device *v,
 				   struct net_device *dev,
@@ -93,6 +100,16 @@ static inline void vif_device_init(struct vif_device *v,
 				   unsigned short flags,
 				   unsigned short get_iflink_mask)
 {
+}
+
+static inline struct mr_table *
+mr_table_alloc(struct net *net, u32 id,
+	       const struct rhashtable_params *rht_params,
+	       void (*expire_func)(struct timer_list *t),
+	       void (*table_set)(struct mr_table *mrt,
+				 struct net *net))
+{
+	return NULL;
 }
 #endif
 #endif

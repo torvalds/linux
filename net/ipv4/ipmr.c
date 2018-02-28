@@ -352,6 +352,14 @@ static const struct rhashtable_params ipmr_rht_params = {
 	.automatic_shrinking = true,
 };
 
+static void ipmr_new_table_set(struct mr_table *mrt,
+			       struct net *net)
+{
+#ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
+	list_add_tail_rcu(&mrt->list, &net->ipv4.mr_tables);
+#endif
+}
+
 static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 {
 	struct mr_table *mrt;
@@ -364,23 +372,8 @@ static struct mr_table *ipmr_new_table(struct net *net, u32 id)
 	if (mrt)
 		return mrt;
 
-	mrt = kzalloc(sizeof(*mrt), GFP_KERNEL);
-	if (!mrt)
-		return ERR_PTR(-ENOMEM);
-	write_pnet(&mrt->net, net);
-	mrt->id = id;
-
-	rhltable_init(&mrt->mfc_hash, &ipmr_rht_params);
-	INIT_LIST_HEAD(&mrt->mfc_cache_list);
-	INIT_LIST_HEAD(&mrt->mfc_unres_queue);
-
-	timer_setup(&mrt->ipmr_expire_timer, ipmr_expire_process, 0);
-
-	mrt->mroute_reg_vif_num = -1;
-#ifdef CONFIG_IP_MROUTE_MULTIPLE_TABLES
-	list_add_tail_rcu(&mrt->list, &net->ipv4.mr_tables);
-#endif
-	return mrt;
+	return mr_table_alloc(net, id, &ipmr_rht_params,
+			      ipmr_expire_process, ipmr_new_table_set);
 }
 
 static void ipmr_free_table(struct mr_table *mrt)
