@@ -130,7 +130,7 @@ MED_ATTRS(process_kobject) {
 	MED_ATTR_END
 };
 
-static struct process_kobject storage;
+// static struct process_kobject storage;
 
 struct task_struct* find_task_by_pid(pid_t pid) {
 	return pid_task(find_vpid(pid), PIDTYPE_PID);
@@ -144,9 +144,9 @@ static struct medusa_kobject_s * process_fetch(struct medusa_kobject_s * key_obj
 	p = find_task_by_pid(((struct process_kobject *)key_obj)->pid);
 	if (!p)
 		goto out_err;
-	process_kern2kobj(&storage, p);
+	process_kern2kobj(&key_obj, p);
 	read_unlock_irq(&tasklist_lock);
-	return (struct medusa_kobject_s *)&storage;
+	return (struct medusa_kobject_s *)&key_obj;
 out_err:
 	read_unlock_irq(&tasklist_lock);
 	return NULL;

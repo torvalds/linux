@@ -30,7 +30,7 @@ struct fuck_path {
 	char path[0];
 };
 
-static struct fuck_kobject storage;
+// static struct fuck_kobject storage;
 
 static struct fuck_path* get_from_hash(char* path, int hash, struct medusa_l1_inode_s* inode) {
 	struct fuck_path* fuck_item;
@@ -125,12 +125,12 @@ static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 		return NULL;
 
 	fuck_inode = path.dentry->d_inode;
-	storage.ino = fuck_inode->i_ino;
-	storage.dev = fuck_inode->i_sb->s_dev;
-	memset(storage.action, '\0', sizeof(storage.action));
-	strncpy(storage.path, fkobj->path, PATH_MAX);
+	kobj.ino = fuck_inode->i_ino;
+	kobj.dev = fuck_inode->i_sb->s_dev;
+	memset(kobj.action, '\0', sizeof(kobj.action));
+	strncpy(kobj.path, fkobj->path, PATH_MAX);
 
-	return (struct medusa_kobject_s *) &storage;
+	return (struct medusa_kobject_s *) &kobj;
 }
 
 /**
