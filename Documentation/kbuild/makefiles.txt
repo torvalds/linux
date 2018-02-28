@@ -837,12 +837,6 @@ When kbuild executes, the following steps are followed (roughly):
 	Note: ldflags-y can be used to further customise
 	the flags used. See chapter 3.7.
 
-    LDFLAGS_MODULE	Options for $(LD) when linking modules
-
-	LDFLAGS_MODULE is used to set specific flags for $(LD) when
-	linking the .ko files used for modules.
-	Default is "-r", for relocatable output.
-
     LDFLAGS_vmlinux	Options for $(LD) when linking vmlinux
 
 	LDFLAGS_vmlinux is used to specify additional flags to pass to
