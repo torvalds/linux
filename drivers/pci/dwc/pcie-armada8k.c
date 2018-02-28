@@ -247,8 +247,7 @@ static int armada8k_pcie_probe(struct platform_device *pdev)
 	return 0;
 
 fail:
-	if (!IS_ERR(pcie->clk))
-		clk_disable_unprepare(pcie->clk);
+	clk_disable_unprepare(pcie->clk);
 
 	return ret;
 }
