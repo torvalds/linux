@@ -294,6 +294,12 @@ static int
 mlxsw_sp_qdisc_red_destroy(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct mlxsw_sp_qdisc *mlxsw_sp_qdisc)
 {
+	struct mlxsw_sp_qdisc *root_qdisc = mlxsw_sp_port->root_qdisc;
+
+	if (root_qdisc != mlxsw_sp_qdisc)
+		root_qdisc->stats_base.backlog -=
+					mlxsw_sp_qdisc->stats_base.backlog;
+
 	return mlxsw_sp_tclass_congestion_disable(mlxsw_sp_port,
 						  mlxsw_sp_qdisc->tclass_num);
 }
@@ -358,6 +364,7 @@ mlxsw_sp_qdisc_red_unoffload(struct mlxsw_sp_port *mlxsw_sp_port,
 	backlog = mlxsw_sp_cells_bytes(mlxsw_sp_port->mlxsw_sp,
 				       mlxsw_sp_qdisc->stats_base.backlog);
 	p->qstats->backlog -= backlog;
+	mlxsw_sp_qdisc->stats_base.backlog = 0;
 }
 
 static int
@@ -512,7 +519,7 @@ mlxsw_sp_qdisc_prio_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct tc_prio_qopt_offload_params *p = params;
 	struct mlxsw_sp_qdisc *child_qdisc;
-	int tclass, i, band;
+	int tclass, i, band, backlog;
 	u8 old_priomap;
 	int err;
 
@@ -533,9 +540,12 @@ mlxsw_sp_qdisc_prio_replace(struct mlxsw_sp_port *mlxsw_sp_port,
 			}
 		}
 		if (old_priomap != child_qdisc->prio_bitmap &&
-		    child_qdisc->ops && child_qdisc->ops->clean_stats)
+		    child_qdisc->ops && child_qdisc->ops->clean_stats) {
+			backlog = child_qdisc->stats_base.backlog;
 			child_qdisc->ops->clean_stats(mlxsw_sp_port,
 						      child_qdisc);
+			child_qdisc->stats_base.backlog = backlog;
+		}
 	}
 
 	return 0;
