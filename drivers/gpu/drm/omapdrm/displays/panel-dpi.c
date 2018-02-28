@@ -23,7 +23,6 @@
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
-	struct omap_dss_device *in;
 
 	struct videomode vm;
 
@@ -37,41 +36,37 @@ struct panel_drv_data {
 
 static int panel_dpi_connect(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in;
+	struct omap_dss_device *src;
 	int r;
 
-	in = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
-	if (IS_ERR(in)) {
+	src = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
+	if (IS_ERR(src)) {
 		dev_err(dssdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
+		return PTR_ERR(src);
 	}
 
-	r = omapdss_device_connect(in, dssdev);
+	r = omapdss_device_connect(src, dssdev);
 	if (r) {
-		omap_dss_put_device(in);
+		omap_dss_put_device(src);
 		return r;
 	}
 
-	ddata->in = in;
 	return 0;
 }
 
 static void panel_dpi_disconnect(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
-	omapdss_device_disconnect(in, dssdev);
+	omapdss_device_disconnect(src, dssdev);
 
-	omap_dss_put_device(in);
-	ddata->in = NULL;
+	omap_dss_put_device(src);
 }
 
 static int panel_dpi_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 	int r;
 
 	if (!omapdss_device_is_connected(dssdev))
@@ -80,15 +75,15 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops->set_timings(in, &ddata->vm);
+	src->ops->set_timings(src, &ddata->vm);
 
-	r = in->ops->enable(in);
+	r = src->ops->enable(src);
 	if (r)
 		return r;
 
 	r = regulator_enable(ddata->vcc_supply);
 	if (r) {
-		in->ops->disable(in);
+		src->ops->disable(src);
 		return r;
 	}
 
@@ -103,7 +98,7 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 static void panel_dpi_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
@@ -113,7 +108,7 @@ static void panel_dpi_disable(struct omap_dss_device *dssdev)
 	gpiod_set_value_cansleep(ddata->enable_gpio, 0);
 	regulator_disable(ddata->vcc_supply);
 
-	in->ops->disable(in);
+	src->ops->disable(src);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
@@ -122,11 +117,11 @@ static void panel_dpi_set_timings(struct omap_dss_device *dssdev,
 				  struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	ddata->vm = *vm;
 
-	in->ops->set_timings(in, vm);
+	src->ops->set_timings(src, vm);
 }
 
 static void panel_dpi_get_timings(struct omap_dss_device *dssdev,
@@ -140,10 +135,9 @@ static void panel_dpi_get_timings(struct omap_dss_device *dssdev,
 static int panel_dpi_check_timings(struct omap_dss_device *dssdev,
 				   struct videomode *vm)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
-	return in->ops->check_timings(in, vm);
+	return src->ops->check_timings(src, vm);
 }
 
 static const struct omap_dss_driver panel_dpi_ops = {

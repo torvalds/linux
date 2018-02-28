@@ -37,7 +37,6 @@ static const struct videomode hdmic_default_vm = {
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
-	struct omap_dss_device *in;
 	void (*hpd_cb)(void *cb_data, enum drm_connector_status status);
 	void *hpd_cb_data;
 	bool hpd_enabled;
@@ -55,40 +54,37 @@ struct panel_drv_data {
 static int hdmic_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in;
+	struct omap_dss_device *src;
 	int r;
 
-	in = omapdss_of_find_source_for_first_ep(ddata->dev->of_node);
-	if (IS_ERR(in)) {
+	src = omapdss_of_find_source_for_first_ep(ddata->dev->of_node);
+	if (IS_ERR(src)) {
 		dev_err(ddata->dev, "failed to find video source\n");
-		return PTR_ERR(in);
+		return PTR_ERR(src);
 	}
 
-	r = omapdss_device_connect(in, dssdev);
+	r = omapdss_device_connect(src, dssdev);
 	if (r) {
-		omap_dss_put_device(in);
+		omap_dss_put_device(src);
 		return r;
 	}
 
-	ddata->in = in;
 	return 0;
 }
 
 static void hdmic_disconnect(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
-	omapdss_device_disconnect(in, dssdev);
+	omapdss_device_disconnect(src, dssdev);
 
-	omap_dss_put_device(in);
-	ddata->in = NULL;
+	omap_dss_put_device(src);
 }
 
 static int hdmic_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 	int r;
 
 	dev_dbg(ddata->dev, "enable\n");
@@ -99,9 +95,9 @@ static int hdmic_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops->set_timings(in, &ddata->vm);
+	src->ops->set_timings(src, &ddata->vm);
 
-	r = in->ops->enable(in);
+	r = src->ops->enable(src);
 	if (r)
 		return r;
 
@@ -113,14 +109,14 @@ static int hdmic_enable(struct omap_dss_device *dssdev)
 static void hdmic_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	dev_dbg(ddata->dev, "disable\n");
 
 	if (!omapdss_device_is_enabled(dssdev))
 		return;
 
-	in->ops->disable(in);
+	src->ops->disable(src);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
@@ -129,11 +125,11 @@ static void hdmic_set_timings(struct omap_dss_device *dssdev,
 			      struct videomode *vm)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	ddata->vm = *vm;
 
-	in->ops->set_timings(in, vm);
+	src->ops->set_timings(src, vm);
 }
 
 static void hdmic_get_timings(struct omap_dss_device *dssdev,
@@ -147,33 +143,31 @@ static void hdmic_get_timings(struct omap_dss_device *dssdev,
 static int hdmic_check_timings(struct omap_dss_device *dssdev,
 			       struct videomode *vm)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
-	return in->ops->check_timings(in, vm);
+	return src->ops->check_timings(src, vm);
 }
 
 static int hdmic_read_edid(struct omap_dss_device *dssdev,
 		u8 *edid, int len)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
-	return in->ops->hdmi.read_edid(in, edid, len);
+	return src->ops->hdmi.read_edid(src, edid, len);
 }
 
 static bool hdmic_detect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 	bool connected;
 
 	if (gpio_is_valid(ddata->hpd_gpio))
 		connected = gpio_get_value_cansleep(ddata->hpd_gpio);
 	else
-		connected = in->ops->hdmi.detect(in);
-	if (!connected && in->ops->hdmi.lost_hotplug)
-		in->ops->hdmi.lost_hotplug(in);
+		connected = src->ops->hdmi.detect(src);
+	if (!connected && src->ops->hdmi.lost_hotplug)
+		src->ops->hdmi.lost_hotplug(src);
 	return connected;
 }
 
@@ -183,7 +177,7 @@ static int hdmic_register_hpd_cb(struct omap_dss_device *dssdev,
 				 void *cb_data)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	if (gpio_is_valid(ddata->hpd_gpio)) {
 		mutex_lock(&ddata->hpd_lock);
@@ -191,8 +185,8 @@ static int hdmic_register_hpd_cb(struct omap_dss_device *dssdev,
 		ddata->hpd_cb_data = cb_data;
 		mutex_unlock(&ddata->hpd_lock);
 		return 0;
-	} else if (in->ops->hdmi.register_hpd_cb) {
-		return in->ops->hdmi.register_hpd_cb(in, cb, cb_data);
+	} else if (src->ops->hdmi.register_hpd_cb) {
+		return src->ops->hdmi.register_hpd_cb(src, cb, cb_data);
 	}
 
 	return -ENOTSUPP;
@@ -201,61 +195,59 @@ static int hdmic_register_hpd_cb(struct omap_dss_device *dssdev,
 static void hdmic_unregister_hpd_cb(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	if (gpio_is_valid(ddata->hpd_gpio)) {
 		mutex_lock(&ddata->hpd_lock);
 		ddata->hpd_cb = NULL;
 		ddata->hpd_cb_data = NULL;
 		mutex_unlock(&ddata->hpd_lock);
-	} else if (in->ops->hdmi.unregister_hpd_cb) {
-		in->ops->hdmi.unregister_hpd_cb(in);
+	} else if (src->ops->hdmi.unregister_hpd_cb) {
+		src->ops->hdmi.unregister_hpd_cb(src);
 	}
 }
 
 static void hdmic_enable_hpd(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	if (gpio_is_valid(ddata->hpd_gpio)) {
 		mutex_lock(&ddata->hpd_lock);
 		ddata->hpd_enabled = true;
 		mutex_unlock(&ddata->hpd_lock);
-	} else if (in->ops->hdmi.enable_hpd) {
-		in->ops->hdmi.enable_hpd(in);
+	} else if (src->ops->hdmi.enable_hpd) {
+		src->ops->hdmi.enable_hpd(src);
 	}
 }
 
 static void hdmic_disable_hpd(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
 	if (gpio_is_valid(ddata->hpd_gpio)) {
 		mutex_lock(&ddata->hpd_lock);
 		ddata->hpd_enabled = false;
 		mutex_unlock(&ddata->hpd_lock);
-	} else if (in->ops->hdmi.disable_hpd) {
-		in->ops->hdmi.disable_hpd(in);
+	} else if (src->ops->hdmi.disable_hpd) {
+		src->ops->hdmi.disable_hpd(src);
 	}
 }
 
 static int hdmic_set_hdmi_mode(struct omap_dss_device *dssdev, bool hdmi_mode)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
-	return in->ops->hdmi.set_hdmi_mode(in, hdmi_mode);
+	return src->ops->hdmi.set_hdmi_mode(src, hdmi_mode);
 }
 
 static int hdmic_set_infoframe(struct omap_dss_device *dssdev,
 		const struct hdmi_avi_infoframe *avi)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *src = dssdev->src;
 
-	return in->ops->hdmi.set_infoframe(in, avi);
+	return src->ops->hdmi.set_infoframe(src, avi);
 }
 
 static const struct omap_dss_driver hdmic_driver = {
