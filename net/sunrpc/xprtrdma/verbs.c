@@ -589,11 +589,8 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 
 	/* Client offers RDMA Read but does not initiate */
 	ep->rep_remote_cma.initiator_depth = 0;
-	if (ia->ri_device->attrs.max_qp_rd_atom > 32)	/* arbitrary but <= 255 */
-		ep->rep_remote_cma.responder_resources = 32;
-	else
-		ep->rep_remote_cma.responder_resources =
-						ia->ri_device->attrs.max_qp_rd_atom;
+	ep->rep_remote_cma.responder_resources =
+		min_t(int, U8_MAX, ia->ri_device->attrs.max_qp_rd_atom);
 
 	/* Limit transport retries so client can detect server
 	 * GID changes quickly. RPC layer handles re-establishing
