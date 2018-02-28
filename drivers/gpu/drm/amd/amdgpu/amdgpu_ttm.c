@@ -679,7 +679,6 @@ struct amdgpu_ttm_gup_task_list {
 
 struct amdgpu_ttm_tt {
 	struct ttm_dma_tt	ttm;
-	struct amdgpu_device	*adev;
 	u64			offset;
 	uint64_t		userptr;
 	struct mm_struct	*usermm;
@@ -837,6 +836,7 @@ static void amdgpu_ttm_tt_unpin_userptr(struct ttm_tt *ttm)
 static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 				   struct ttm_mem_reg *bo_mem)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void*)ttm;
 	uint64_t flags;
 	int r = 0;
@@ -863,9 +863,9 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 		return 0;
 	}
 
-	flags = amdgpu_ttm_tt_pte_flags(gtt->adev, ttm, bo_mem);
+	flags = amdgpu_ttm_tt_pte_flags(adev, ttm, bo_mem);
 	gtt->offset = (u64)bo_mem->start << PAGE_SHIFT;
-	r = amdgpu_gart_bind(gtt->adev, gtt->offset, ttm->num_pages,
+	r = amdgpu_gart_bind(adev, gtt->offset, ttm->num_pages,
 		ttm->pages, gtt->ttm.dma_address, flags);
 
 	if (r)
@@ -942,6 +942,7 @@ int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo)
 
 static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 {
+	struct amdgpu_device *adev = amdgpu_ttm_adev(ttm->bdev);
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
 	int r;
 
@@ -952,7 +953,7 @@ static int amdgpu_ttm_backend_unbind(struct ttm_tt *ttm)
 		return 0;
 
 	/* unbind shouldn't be done for GDS/GWS/OA in ttm_bo_clean_mm */
-	r = amdgpu_gart_unbind(gtt->adev, gtt->offset, ttm->num_pages);
+	r = amdgpu_gart_unbind(adev, gtt->offset, ttm->num_pages);
 	if (r)
 		DRM_ERROR("failed to unbind %lu pages at 0x%08llX\n",
 			  gtt->ttm.ttm.num_pages, gtt->offset);
@@ -986,7 +987,6 @@ static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 	}
 	gtt->ttm.ttm.func = &amdgpu_backend_func;
-	gtt->adev = adev;
 	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags)) {
 		kfree(gtt);
 		return NULL;
