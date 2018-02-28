@@ -1224,6 +1224,12 @@ static inline int mlx5_core_is_pf(struct mlx5_core_dev *dev)
 	return !(dev->priv.pci_dev_data & MLX5_PCI_DEV_IS_VF);
 }
 
+#define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs((mdev)->pdev))
+#define MLX5_VPORT_MANAGER(mdev) \
+	(MLX5_CAP_GEN(mdev, vport_group_manager) && \
+	 (MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) && \
+	 mlx5_core_is_pf(mdev))
+
 static inline int mlx5_get_gid_table_len(u16 param)
 {
 	if (param > 4) {

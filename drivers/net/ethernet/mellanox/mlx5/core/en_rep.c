@@ -1156,6 +1156,15 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	kfree(ppriv); /* mlx5e_rep_priv */
 }
 
+static void *mlx5e_vport_rep_get_proto_dev(struct mlx5_eswitch_rep *rep)
+{
+	struct mlx5e_rep_priv *rpriv;
+
+	rpriv = mlx5e_rep_to_rep_priv(rep);
+
+	return rpriv->netdev;
+}
+
 static void mlx5e_rep_register_vf_vports(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
@@ -1168,6 +1177,7 @@ static void mlx5e_rep_register_vf_vports(struct mlx5e_priv *priv)
 
 		rep_if.load = mlx5e_vport_rep_load;
 		rep_if.unload = mlx5e_vport_rep_unload;
+		rep_if.get_proto_dev = mlx5e_vport_rep_get_proto_dev;
 		mlx5_eswitch_register_vport_rep(esw, vport, &rep_if, REP_ETH);
 	}
 }
@@ -1195,6 +1205,7 @@ void mlx5e_register_vport_reps(struct mlx5e_priv *priv)
 
 	rep_if.load = mlx5e_nic_rep_load;
 	rep_if.unload = mlx5e_nic_rep_unload;
+	rep_if.get_proto_dev = mlx5e_vport_rep_get_proto_dev;
 	rep_if.priv = rpriv;
 	INIT_LIST_HEAD(&rpriv->vport_sqs_list);
 	mlx5_eswitch_register_vport_rep(esw, 0, &rep_if, REP_ETH); /* UPLINK PF vport*/
