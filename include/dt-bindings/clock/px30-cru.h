@@ -97,6 +97,7 @@
 #define SCLK_EMMC_DIV		82
 #define SCLK_EMMC_DIV50		83
 #define SCLK_DDRCLK		84
+#define SCLK_UART1_SRC		85
 
 /* dclk gates */
 #define DCLK_VOPB		150
