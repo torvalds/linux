@@ -96,14 +96,14 @@ EXPORT_SYMBOL(omapdss_output_unset_device);
 
 int omapdss_register_output(struct omap_dss_device *out)
 {
-	list_add_tail(&out->list, &output_list);
+	list_add_tail(&out->output_list, &output_list);
 	return 0;
 }
 EXPORT_SYMBOL(omapdss_register_output);
 
 void omapdss_unregister_output(struct omap_dss_device *out)
 {
-	list_del(&out->list);
+	list_del(&out->output_list);
 }
 EXPORT_SYMBOL(omapdss_unregister_output);
 
@@ -111,7 +111,7 @@ bool omapdss_component_is_output(struct device_node *node)
 {
 	struct omap_dss_device *out;
 
-	list_for_each_entry(out, &output_list, list) {
+	list_for_each_entry(out, &output_list, output_list) {
 		if (out->dev->of_node == node)
 			return true;
 	}
@@ -124,7 +124,7 @@ struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id)
 {
 	struct omap_dss_device *out;
 
-	list_for_each_entry(out, &output_list, list) {
+	list_for_each_entry(out, &output_list, output_list) {
 		if (out->id == id)
 			return out;
 	}
@@ -145,7 +145,7 @@ struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *po
 
 	reg = dss_of_port_get_port_number(port);
 
-	list_for_each_entry(out, &output_list, list) {
+	list_for_each_entry(out, &output_list, output_list) {
 		if (out->dev->of_node == src_node && out->port_num == reg) {
 			of_node_put(src_node);
 			return omap_dss_get_device(out);

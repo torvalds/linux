@@ -481,7 +481,7 @@ struct omap_dss_device {
 
 	/* OMAP DSS output specific fields */
 
-	struct list_head list;
+	struct list_head output_list;
 
 	/* DISPC channel for this output */
 	enum omap_channel dispc_channel;
