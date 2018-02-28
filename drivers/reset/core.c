@@ -23,6 +23,9 @@
 static DEFINE_MUTEX(reset_list_mutex);
 static LIST_HEAD(reset_controller_list);
 
+static DEFINE_MUTEX(reset_lookup_mutex);
+static LIST_HEAD(reset_lookup_list);
+
 /**
  * struct reset_control - a reset control
  * @rcdev: a pointer to the reset controller device
@@ -147,6 +150,36 @@ int devm_reset_controller_register(struct device *dev,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(devm_reset_controller_register);
+
+/**
+ * reset_controller_add_lookup - register a set of lookup entries
+ * @rcdev: initialized reset controller device owning the reset line
+ * @lookup: array of reset lookup entries
+ * @num_entries: number of entries in the lookup array
+ */
+void reset_controller_add_lookup(struct reset_controller_dev *rcdev,
+				 struct reset_control_lookup *lookup,
+				 unsigned int num_entries)
+{
+	struct reset_control_lookup *entry;
+	unsigned int i;
+
+	mutex_lock(&reset_lookup_mutex);
+	for (i = 0; i < num_entries; i++) {
+		entry = &lookup[i];
+
+		if (!entry->dev_id) {
+			pr_warn("%s(): reset lookup entry has no dev_id, skipping\n",
+				__func__);
+			continue;
+		}
+
+		entry->rcdev = rcdev;
+		list_add_tail(&entry->list, &reset_lookup_list);
+	}
+	mutex_unlock(&reset_lookup_mutex);
+}
+EXPORT_SYMBOL_GPL(reset_controller_add_lookup);
 
 static inline struct reset_control_array *
 rstc_to_array(struct reset_control *rstc) {
@@ -493,6 +526,43 @@ struct reset_control *__of_reset_control_get(struct device_node *node,
 }
 EXPORT_SYMBOL_GPL(__of_reset_control_get);
 
+static struct reset_control *
+__reset_control_get_from_lookup(struct device *dev, const char *con_id,
+				bool shared, bool optional)
+{
+	const struct reset_control_lookup *lookup;
+	const char *dev_id = dev_name(dev);
+	struct reset_control *rstc = NULL;
+
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	mutex_lock(&reset_lookup_mutex);
+
+	list_for_each_entry(lookup, &reset_lookup_list, list) {
+		if (strcmp(lookup->dev_id, dev_id))
+			continue;
+
+		if ((!con_id && !lookup->con_id) ||
+		    ((con_id && lookup->con_id) &&
+		     !strcmp(con_id, lookup->con_id))) {
+			mutex_lock(&reset_list_mutex);
+			rstc = __reset_control_get_internal(lookup->rcdev,
+							    lookup->index,
+							    shared);
+			mutex_unlock(&reset_list_mutex);
+			break;
+		}
+	}
+
+	mutex_unlock(&reset_lookup_mutex);
+
+	if (!rstc)
+		return optional ? NULL : ERR_PTR(-ENOENT);
+
+	return rstc;
+}
+
 struct reset_control *__reset_control_get(struct device *dev, const char *id,
 					  int index, bool shared, bool optional)
 {
@@ -500,7 +570,7 @@ struct reset_control *__reset_control_get(struct device *dev, const char *id,
 		return __of_reset_control_get(dev->of_node, id, index, shared,
 					      optional);
 
-	return optional ? NULL : ERR_PTR(-EINVAL);
+	return __reset_control_get_from_lookup(dev, id, shared, optional);
 }
 EXPORT_SYMBOL_GPL(__reset_control_get);
 
