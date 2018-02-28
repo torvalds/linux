@@ -210,6 +210,8 @@ struct mlxsw_sp_port_xstats {
 	u64 wred_drop[TC_MAX_QUEUE];
 	u64 tail_drop[TC_MAX_QUEUE];
 	u64 backlog[TC_MAX_QUEUE];
+	u64 tx_bytes[IEEE_8021QAZ_MAX_TCS];
+	u64 tx_packets[IEEE_8021QAZ_MAX_TCS];
 };
 
 struct mlxsw_sp_port {

@@ -1040,6 +1040,16 @@ mlxsw_sp_port_get_hw_xstats(struct net_device *dev,
 		xstats->tail_drop[i] =
 			mlxsw_reg_ppcnt_tc_no_buffer_discard_uc_get(ppcnt_pl);
 	}
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		err = mlxsw_sp_port_get_stats_raw(dev, MLXSW_REG_PPCNT_PRIO_CNT,
+						  i, ppcnt_pl);
+		if (err)
+			continue;
+
+		xstats->tx_packets[i] = mlxsw_reg_ppcnt_tx_frames_get(ppcnt_pl);
+		xstats->tx_bytes[i] = mlxsw_reg_ppcnt_tx_octets_get(ppcnt_pl);
+	}
 }
 
 static void update_stats_cache(struct work_struct *work)
