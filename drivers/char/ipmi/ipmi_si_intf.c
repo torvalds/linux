@@ -235,6 +235,9 @@ struct smi_info {
 	/* Have we added the device group to the device? */
 	bool dev_group_added;
 
+	/* Have we added the platform device? */
+	bool pdev_registered;
+
 	/* Counters and things for the proc filesystem. */
 	atomic_t stats[SI_NUM_STATS];
 
@@ -258,7 +261,8 @@ static int num_max_busy_us;
 static bool unload_when_empty = true;
 
 static int try_smi_init(struct smi_info *smi);
-static void cleanup_one_si(struct smi_info *to_clean);
+static void shutdown_one_si(struct smi_info *smi_info);
+static void cleanup_one_si(struct smi_info *smi_info);
 static void cleanup_ipmi_si(void);
 
 #ifdef DEBUG_TIMING
@@ -2025,7 +2029,6 @@ static int try_smi_init(struct smi_info *new_smi)
 	int rv = 0;
 	int i;
 	char *init_name = NULL;
-	bool platform_device_registered = false;
 
 	pr_info(PFX "Trying %s-specified %s state machine at %s address 0x%lx, slave address 0x%x, irq %d\n",
 		ipmi_addr_src_to_str(new_smi->io.addr_source),
@@ -2146,7 +2149,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		atomic_set(&new_smi->req_events, 1);
 	}
 
-	if (new_smi->pdev) {
+	if (new_smi->pdev && !new_smi->pdev_registered) {
 		rv = platform_device_add(new_smi->pdev);
 		if (rv) {
 			dev_err(new_smi->io.dev,
@@ -2154,7 +2157,7 @@ static int try_smi_init(struct smi_info *new_smi)
 				rv);
 			goto out_err;
 		}
-		platform_device_registered = true;
+		new_smi->pdev_registered = true;
 	}
 
 	dev_set_drvdata(new_smi->io.dev, new_smi);
@@ -2163,7 +2166,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		dev_err(new_smi->io.dev,
 			"Unable to add device attributes: error %d\n",
 			rv);
-		goto out_err_stop_timer;
+		goto out_err;
 	}
 	new_smi->dev_group_added = true;
 
@@ -2175,7 +2178,7 @@ static int try_smi_init(struct smi_info *new_smi)
 		dev_err(new_smi->io.dev,
 			"Unable to register device: error %d\n",
 			rv);
-		goto out_err_remove_attrs;
+		goto out_err;
 	}
 
 #ifdef CONFIG_IPMI_PROC_INTERFACE
@@ -2185,7 +2188,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	if (rv) {
 		dev_err(new_smi->io.dev,
 			"Unable to create proc entry: %d\n", rv);
-		goto out_err_stop_timer;
+		goto out_err;
 	}
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "si_stats",
@@ -2194,7 +2197,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	if (rv) {
 		dev_err(new_smi->io.dev,
 			"Unable to create proc entry: %d\n", rv);
-		goto out_err_stop_timer;
+		goto out_err;
 	}
 
 	rv = ipmi_smi_add_proc_entry(new_smi->intf, "params",
@@ -2203,7 +2206,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	if (rv) {
 		dev_err(new_smi->io.dev,
 			"Unable to create proc entry: %d\n", rv);
-		goto out_err_stop_timer;
+		goto out_err;
 	}
 #endif
 
@@ -2218,60 +2221,8 @@ static int try_smi_init(struct smi_info *new_smi)
 
 	return 0;
 
-out_err_remove_attrs:
-	if (new_smi->dev_group_added) {
-		device_remove_group(new_smi->io.dev, &ipmi_si_dev_attr_group);
-		new_smi->dev_group_added = false;
-	}
-	dev_set_drvdata(new_smi->io.dev, NULL);
-
-out_err_stop_timer:
-	stop_timer_and_thread(new_smi);
-
 out_err:
-	new_smi->interrupt_disabled = true;
-
-	if (new_smi->intf) {
-		ipmi_smi_t intf = new_smi->intf;
-		new_smi->intf = NULL;
-		ipmi_unregister_smi(intf);
-	}
-
-	if (new_smi->io.irq_cleanup) {
-		new_smi->io.irq_cleanup(&new_smi->io);
-		new_smi->io.irq_cleanup = NULL;
-	}
-
-	/*
-	 * Wait until we know that we are out of any interrupt
-	 * handlers might have been running before we freed the
-	 * interrupt.
-	 */
-	synchronize_sched();
-
-	if (new_smi->si_sm) {
-		if (new_smi->handlers)
-			new_smi->handlers->cleanup(new_smi->si_sm);
-		kfree(new_smi->si_sm);
-		new_smi->si_sm = NULL;
-	}
-	if (new_smi->io.addr_source_cleanup) {
-		new_smi->io.addr_source_cleanup(&new_smi->io);
-		new_smi->io.addr_source_cleanup = NULL;
-	}
-	if (new_smi->io.io_cleanup) {
-		new_smi->io.io_cleanup(&new_smi->io);
-		new_smi->io.io_cleanup = NULL;
-	}
-
-	if (new_smi->pdev) {
-		if (platform_device_registered)
-			platform_device_unregister(new_smi->pdev);
-		else
-			platform_device_put(new_smi->pdev);
-		new_smi->pdev = NULL;
-		new_smi->io.dev = NULL;
-	}
+	shutdown_one_si(new_smi);
 
 	kfree(init_name);
 
@@ -2349,17 +2300,14 @@ skip_fallback_noirq:
 }
 module_init(init_ipmi_si);
 
-static void cleanup_one_si(struct smi_info *to_clean)
+static void shutdown_one_si(struct smi_info *smi_info)
 {
 	int           rv = 0;
 
-	if (!to_clean)
-		return;
+	if (smi_info->intf) {
+		ipmi_smi_t intf = smi_info->intf;
 
-	if (to_clean->intf) {
-		ipmi_smi_t intf = to_clean->intf;
-
-		to_clean->intf = NULL;
+		smi_info->intf = NULL;
 		rv = ipmi_unregister_smi(intf);
 		if (rv) {
 			pr_err(PFX "Unable to unregister device: errno=%d\n",
@@ -2367,51 +2315,79 @@ static void cleanup_one_si(struct smi_info *to_clean)
 		}
 	}
 
-	if (to_clean->dev_group_added)
-		device_remove_group(to_clean->io.dev, &ipmi_si_dev_attr_group);
-	if (to_clean->io.dev)
-		dev_set_drvdata(to_clean->io.dev, NULL);
-
-	list_del(&to_clean->link);
+	if (smi_info->dev_group_added) {
+		device_remove_group(smi_info->io.dev, &ipmi_si_dev_attr_group);
+		smi_info->dev_group_added = false;
+	}
+	if (smi_info->io.dev)
+		dev_set_drvdata(smi_info->io.dev, NULL);
 
 	/*
 	 * Make sure that interrupts, the timer and the thread are
 	 * stopped and will not run again.
 	 */
-	if (to_clean->io.irq_cleanup)
-		to_clean->io.irq_cleanup(&to_clean->io);
-	stop_timer_and_thread(to_clean);
+	smi_info->interrupt_disabled = true;
+	if (smi_info->io.irq_cleanup) {
+		smi_info->io.irq_cleanup(&smi_info->io);
+		smi_info->io.irq_cleanup = NULL;
+	}
+	stop_timer_and_thread(smi_info);
+
+	/*
+	 * Wait until we know that we are out of any interrupt
+	 * handlers might have been running before we freed the
+	 * interrupt.
+	 */
+	synchronize_sched();
 
 	/*
 	 * Timeouts are stopped, now make sure the interrupts are off
 	 * in the BMC.  Note that timers and CPU interrupts are off,
 	 * so no need for locks.
 	 */
-	while (to_clean->curr_msg || (to_clean->si_state != SI_NORMAL)) {
-		poll(to_clean);
+	while (smi_info->curr_msg || (smi_info->si_state != SI_NORMAL)) {
+		poll(smi_info);
 		schedule_timeout_uninterruptible(1);
 	}
-	if (to_clean->handlers)
-		disable_si_irq(to_clean);
-	while (to_clean->curr_msg || (to_clean->si_state != SI_NORMAL)) {
-		poll(to_clean);
+	if (smi_info->handlers)
+		disable_si_irq(smi_info);
+	while (smi_info->curr_msg || (smi_info->si_state != SI_NORMAL)) {
+		poll(smi_info);
 		schedule_timeout_uninterruptible(1);
 	}
+	if (smi_info->handlers)
+		smi_info->handlers->cleanup(smi_info->si_sm);
 
-	if (to_clean->handlers)
-		to_clean->handlers->cleanup(to_clean->si_sm);
+	if (smi_info->io.addr_source_cleanup) {
+		smi_info->io.addr_source_cleanup(&smi_info->io);
+		smi_info->io.addr_source_cleanup = NULL;
+	}
+	if (smi_info->io.io_cleanup) {
+		smi_info->io.io_cleanup(&smi_info->io);
+		smi_info->io.io_cleanup = NULL;
+	}
 
-	kfree(to_clean->si_sm);
+	kfree(smi_info->si_sm);
+	smi_info->si_sm = NULL;
+}
 
-	if (to_clean->io.addr_source_cleanup)
-		to_clean->io.addr_source_cleanup(&to_clean->io);
-	if (to_clean->io.io_cleanup)
-		to_clean->io.io_cleanup(&to_clean->io);
+static void cleanup_one_si(struct smi_info *smi_info)
+{
+	if (!smi_info)
+		return;
 
-	if (to_clean->pdev)
-		platform_device_unregister(to_clean->pdev);
+	list_del(&smi_info->link);
 
-	kfree(to_clean);
+	shutdown_one_si(smi_info);
+
+	if (smi_info->pdev) {
+		if (smi_info->pdev_registered)
+			platform_device_unregister(smi_info->pdev);
+		else
+			platform_device_put(smi_info->pdev);
+	}
+
+	kfree(smi_info);
 }
 
 int ipmi_si_remove_by_dev(struct device *dev)
