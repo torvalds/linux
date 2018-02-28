@@ -530,6 +530,7 @@ static inline void fw_cfg_kobj_cleanup(struct kobject *kobj)
 static int fw_cfg_sysfs_probe(struct platform_device *pdev)
 {
 	int err;
+	__le32 rev;
 
 	/* NOTE: If we supported multiple fw_cfg devices, we'd first create
 	 * a subdirectory named after e.g. pdev->id, then hang per-device
@@ -555,8 +556,8 @@ static int fw_cfg_sysfs_probe(struct platform_device *pdev)
 		goto err_probe;
 
 	/* get revision number, add matching top-level attribute */
-	fw_cfg_read_blob(FW_CFG_ID, &fw_cfg_rev, 0, sizeof(fw_cfg_rev));
-	fw_cfg_rev = le32_to_cpu(fw_cfg_rev);
+	fw_cfg_read_blob(FW_CFG_ID, &rev, 0, sizeof(rev));
+	fw_cfg_rev = le32_to_cpu(rev);
 	err = sysfs_create_file(fw_cfg_top_ko, &fw_cfg_rev_attr.attr);
 	if (err)
 		goto err_rev;
