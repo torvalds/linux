@@ -8,7 +8,6 @@
 #include <net/net_namespace.h>
 #include <uapi/linux/mroute6.h>
 #include <linux/mroute_base.h>
-#include <linux/rhashtable.h>
 
 #ifdef CONFIG_IPV6_MROUTE
 static inline int ip6_mroute_opt(int opt)

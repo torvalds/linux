@@ -85,7 +85,7 @@ struct netns_ipv6 {
 	struct sock		*mc_autojoin_sk;
 #ifdef CONFIG_IPV6_MROUTE
 #ifndef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
-	struct mr6_table	*mrt6;
+	struct mr_table		*mrt6;
 #else
 	struct list_head	mr6_tables;
 	struct fib_rules_ops	*mr6_rules_ops;

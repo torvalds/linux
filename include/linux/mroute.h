@@ -4,8 +4,6 @@
 
 #include <linux/in.h>
 #include <linux/pim.h>
-#include <linux/rhashtable.h>
-#include <net/sock.h>
 #include <net/fib_rules.h>
 #include <net/fib_notifier.h>
 #include <uapi/linux/mroute.h>
@@ -66,25 +64,6 @@ struct vif_entry_notifier_info {
 };
 
 #define VIFF_STATIC 0x8000
-
-#define VIF_EXISTS(_mrt, _idx) ((_mrt)->vif_table[_idx].dev != NULL)
-
-struct mr_table {
-	struct list_head	list;
-	possible_net_t		net;
-	u32			id;
-	struct sock __rcu	*mroute_sk;
-	struct timer_list	ipmr_expire_timer;
-	struct list_head	mfc_unres_queue;
-	struct vif_device	vif_table[MAXVIFS];
-	struct rhltable		mfc_hash;
-	struct list_head	mfc_cache_list;
-	int			maxvif;
-	atomic_t		cache_resolve_queue_len;
-	bool			mroute_do_assert;
-	bool			mroute_do_pim;
-	int			mroute_reg_vif_num;
-};
 
 /* mfc_flags:
  * MFC_STATIC - the entry was added statically (not by a routing daemon)
