@@ -93,14 +93,6 @@
  * (Note: it'd be easy to port over the complete mkdep state machine,
  *  but I don't think the added complexity is worth it)
  */
-/*
- * Note 2: if somebody writes HELLO_CONFIG_BOOM in a file, it will depend onto
- * CONFIG_BOOM. This could seem a bug (not too hard to fix), but please do not
- * fix it! Some UserModeLinux files (look at arch/um/) call CONFIG_BOOM as
- * UML_CONFIG_BOOM, to avoid conflicts with /usr/include/linux/autoconf.h,
- * through arch/um/include/uml-config.h; this fixdep "bug" makes sure that
- * those files will have correct dependencies.
- */
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -286,7 +278,6 @@ static int is_ignored_file(const char *s, int len)
 {
 	return str_ends_with(s, len, "include/generated/autoconf.h") ||
 	       str_ends_with(s, len, "include/generated/autoksyms.h") ||
-	       str_ends_with(s, len, "arch/um/include/uml-config.h") ||
 	       str_ends_with(s, len, "include/linux/kconfig.h") ||
 	       str_ends_with(s, len, ".ver");
 }
