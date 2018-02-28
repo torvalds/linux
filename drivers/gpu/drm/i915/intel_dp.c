@@ -134,7 +134,7 @@ static void intel_dp_unset_edid(struct intel_dp *intel_dp);
 static void intel_dp_set_sink_rates(struct intel_dp *intel_dp)
 {
 	static const int dp_rates[] = {
-		162000, 270000, 540000
+		162000, 270000, 540000, 810000
 	};
 	int i, max_rate;
 
