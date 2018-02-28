@@ -113,6 +113,13 @@ log_test()
 	return 0
 }
 
+log_info()
+{
+	local msg=$1
+
+	echo "INFO: $msg"
+}
+
 setup_wait()
 {
 	for i in $(eval echo {1..$NUM_NETIFS}); do
@@ -254,6 +261,13 @@ master_name_get()
 	local if_name=$1
 
 	ip -j link show dev $if_name | jq -r '.[]["master"]'
+}
+
+link_stats_tx_packets_get()
+{
+       local if_name=$1
+
+       ip -j -s link show dev $if_name | jq '.[]["stats64"]["tx"]["packets"]'
 }
 
 bridge_ageing_time_get()
