@@ -1023,7 +1023,7 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 	LIST_HEAD(free);
 	LIST_HEAD(all);
 
-	for (count = 0; count < 32; count++) {
+	for (count = 0; count < 3; count++) {
 		struct rpcrdma_mr *mr;
 		int rc;
 
