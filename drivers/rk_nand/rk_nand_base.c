@@ -7,22 +7,24 @@
  * (at your option) any later version.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
+#include <asm/cacheflush.h>
+#include <linux/bootmem.h>
+#include <linux/clk.h>
+#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
-#include <asm/cacheflush.h>
-#include <linux/platform_device.h>
-#include <linux/clk.h>
-#include <linux/uaccess.h>
+#include <linux/kernel.h>
 #include <linux/miscdevice.h>
-#include <linux/debugfs.h>
+#include <linux/module.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+
 #include "rk_nand_blk.h"
 #include "rk_ftl_api.h"
 
@@ -318,7 +320,7 @@ int rk_nandc_irq_init(void)
 	nandc0_xfer_completed_flag = 0;
 	ret = rk_nandc_irq_config(0, 1, rk_nandc_interrupt);
 
-	if (g_nandc_info[1].reg_base != 0) {
+	if (!g_nandc_info[1].reg_base) {
 		nandc1_ready_completed_flag = 0;
 		nandc1_xfer_completed_flag = 0;
 		rk_nandc_irq_config(1, 1, rk_nandc_interrupt);
@@ -328,12 +330,10 @@ int rk_nandc_irq_init(void)
 
 int rk_nandc_irq_deinit(void)
 {
-	int ret = 0;
-
 	rk_nandc_irq_config(0, 0, rk_nandc_interrupt);
-	if (g_nandc_info[1].reg_base != 0)
+	if (!g_nandc_info[1].reg_base)
 		rk_nandc_irq_config(1, 0, rk_nandc_interrupt);
-	return ret;
+	return 0;
 }
 
 static int rknand_probe(struct platform_device *pdev)
@@ -346,7 +346,7 @@ static int rknand_probe(struct platform_device *pdev)
 	g_nand_device = &pdev->dev;
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	membase = devm_ioremap_resource(&pdev->dev, mem);
-	if (membase == 0) {
+	if (!membase) {
 		dev_err(&pdev->dev, "no reg resource?\n");
 		return -1;
 	}
@@ -397,6 +397,9 @@ static int rknand_probe(struct platform_device *pdev)
 	if (!(IS_ERR(g_nandc_info[id].gclk)))
 		clk_prepare_enable(g_nandc_info[id].gclk);
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	return 0;
 }
 
@@ -431,6 +434,30 @@ void rknand_dev_cache_flush(void)
 	rknand_dev_flush();
 }
 
+static int rknand_pm_suspend(struct device *dev)
+{
+	if (rk_nand_suspend_state == 0) {
+		rk_nand_suspend_state = 1;
+		rknand_dev_suspend();
+		pm_runtime_put(dev);
+	}
+	return 0;
+}
+
+static int rknand_pm_resume(struct device *dev)
+{
+	if (rk_nand_suspend_state == 1) {
+		rk_nand_suspend_state = 0;
+		pm_runtime_get_sync(dev);
+		rknand_dev_resume();
+	}
+	return 0;
+}
+
+static const struct dev_pm_ops rknand_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rknand_pm_suspend, rknand_pm_resume)
+};
+
 #ifdef CONFIG_OF
 static const struct of_device_id of_rk_nandc_match[] = {
 	{.compatible = "rockchip,rk-nandc"},
@@ -448,7 +475,7 @@ static struct platform_driver rknand_driver = {
 #ifdef CONFIG_OF
 		.of_match_table	= of_rk_nandc_match,
 #endif
-		.owner	= THIS_MODULE,
+		.pm = &rknand_dev_pm_ops,
 	},
 };
 
