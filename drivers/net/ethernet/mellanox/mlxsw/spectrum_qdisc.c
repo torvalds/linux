@@ -584,6 +584,7 @@ mlxsw_sp_qdisc_get_prio_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		drops += xstats->tail_drop[i];
+		drops += xstats->wred_drop[i];
 		backlog += xstats->backlog[i];
 	}
 	drops = drops - stats_base->drops;
@@ -619,8 +620,10 @@ mlxsw_sp_setup_tc_qdisc_prio_clean_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 	stats_base->tx_bytes = stats->tx_bytes;
 
 	stats_base->drops = 0;
-	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
 		stats_base->drops += xstats->tail_drop[i];
+		stats_base->drops += xstats->wred_drop[i];
+	}
 
 	mlxsw_sp_qdisc->stats_base.backlog = 0;
 }
