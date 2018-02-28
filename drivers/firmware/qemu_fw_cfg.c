@@ -77,8 +77,8 @@ static void fw_cfg_sel_endianness(u16 key)
 }
 
 /* read chunk of given fw_cfg blob (caller responsible for sanity-check) */
-static void fw_cfg_read_blob(u16 key,
-			void *buf, loff_t pos, size_t count)
+static ssize_t fw_cfg_read_blob(u16 key,
+				void *buf, loff_t pos, size_t count)
 {
 	u32 glk = -1U;
 	acpi_status status;
@@ -91,7 +91,7 @@ static void fw_cfg_read_blob(u16 key,
 		/* Should never get here */
 		WARN(1, "fw_cfg_read_blob: Failed to lock ACPI!\n");
 		memset(buf, 0, count);
-		return;
+		return -EINVAL;
 	}
 
 	mutex_lock(&fw_cfg_dev_lock);
@@ -102,6 +102,7 @@ static void fw_cfg_read_blob(u16 key,
 	mutex_unlock(&fw_cfg_dev_lock);
 
 	acpi_release_global_lock(glk);
+	return count;
 }
 
 /* clean up fw_cfg device i/o */
@@ -183,8 +184,9 @@ static int fw_cfg_do_platform_probe(struct platform_device *pdev)
 	}
 
 	/* verify fw_cfg device signature */
-	fw_cfg_read_blob(FW_CFG_SIGNATURE, sig, 0, FW_CFG_SIG_SIZE);
-	if (memcmp(sig, "QEMU", FW_CFG_SIG_SIZE) != 0) {
+	if (fw_cfg_read_blob(FW_CFG_SIGNATURE, sig,
+				0, FW_CFG_SIG_SIZE) < 0 ||
+		memcmp(sig, "QEMU", FW_CFG_SIG_SIZE) != 0) {
 		fw_cfg_io_cleanup();
 		return -ENODEV;
 	}
@@ -344,8 +346,7 @@ static ssize_t fw_cfg_sysfs_read_raw(struct file *filp, struct kobject *kobj,
 	if (count > entry->size - pos)
 		count = entry->size - pos;
 
-	fw_cfg_read_blob(entry->select, buf, pos, count);
-	return count;
+	return fw_cfg_read_blob(entry->select, buf, pos, count);
 }
 
 static struct bin_attribute fw_cfg_sysfs_attr_raw = {
@@ -501,7 +502,11 @@ static int fw_cfg_register_dir_entries(void)
 	struct fw_cfg_file *dir;
 	size_t dir_size;
 
-	fw_cfg_read_blob(FW_CFG_FILE_DIR, &files_count, 0, sizeof(files_count));
+	ret = fw_cfg_read_blob(FW_CFG_FILE_DIR, &files_count,
+			0, sizeof(files_count));
+	if (ret < 0)
+		return ret;
+
 	count = be32_to_cpu(files_count);
 	dir_size = count * sizeof(struct fw_cfg_file);
 
@@ -509,7 +514,10 @@ static int fw_cfg_register_dir_entries(void)
 	if (!dir)
 		return -ENOMEM;
 
-	fw_cfg_read_blob(FW_CFG_FILE_DIR, dir, sizeof(files_count), dir_size);
+	ret = fw_cfg_read_blob(FW_CFG_FILE_DIR, dir,
+			sizeof(files_count), dir_size);
+	if (ret < 0)
+		goto end;
 
 	for (i = 0; i < count; i++) {
 		ret = fw_cfg_register_file(&dir[i]);
@@ -517,6 +525,7 @@ static int fw_cfg_register_dir_entries(void)
 			break;
 	}
 
+end:
 	kfree(dir);
 	return ret;
 }
@@ -557,7 +566,10 @@ static int fw_cfg_sysfs_probe(struct platform_device *pdev)
 		goto err_probe;
 
 	/* get revision number, add matching top-level attribute */
-	fw_cfg_read_blob(FW_CFG_ID, &rev, 0, sizeof(rev));
+	err = fw_cfg_read_blob(FW_CFG_ID, &rev, 0, sizeof(rev));
+	if (err < 0)
+		goto err_probe;
+
 	fw_cfg_rev = le32_to_cpu(rev);
 	err = sysfs_create_file(fw_cfg_top_ko, &fw_cfg_rev_attr.attr);
 	if (err)
