@@ -372,3 +372,92 @@ learning_test()
 
 	log_test "FDB learning"
 }
+
+flood_test_do()
+{
+	local should_flood=$1
+	local mac=$2
+	local ip=$3
+	local host1_if=$4
+	local host2_if=$5
+	local err=0
+
+	# Add an ACL on `host2_if` which will tell us whether the packet
+	# was flooded to it or not.
+	tc qdisc add dev $host2_if ingress
+	tc filter add dev $host2_if ingress protocol ip pref 1 handle 101 \
+		flower dst_mac $mac action drop
+
+	$MZ $host1_if -c 1 -p 64 -b $mac -B $ip -t ip -q
+	sleep 1
+
+	tc -j -s filter show dev $host2_if ingress \
+		| jq -e ".[] | select(.options.handle == 101) \
+		| select(.options.actions[0].stats.packets == 1)" &> /dev/null
+	if [[ $? -ne 0 && $should_flood == "true" || \
+	      $? -eq 0 && $should_flood == "false" ]]; then
+		err=1
+	fi
+
+	tc filter del dev $host2_if ingress protocol ip pref 1 handle 101 flower
+	tc qdisc del dev $host2_if ingress
+
+	return $err
+}
+
+flood_unicast_test()
+{
+	local br_port=$1
+	local host1_if=$2
+	local host2_if=$3
+	local mac=de:ad:be:ef:13:37
+	local ip=192.0.2.100
+
+	RET=0
+
+	bridge link set dev $br_port flood off
+
+	flood_test_do false $mac $ip $host1_if $host2_if
+	check_err $? "Packet flooded when should not"
+
+	bridge link set dev $br_port flood on
+
+	flood_test_do true $mac $ip $host1_if $host2_if
+	check_err $? "Packet was not flooded when should"
+
+	log_test "Unknown unicast flood"
+}
+
+flood_multicast_test()
+{
+	local br_port=$1
+	local host1_if=$2
+	local host2_if=$3
+	local mac=01:00:5e:00:00:01
+	local ip=239.0.0.1
+
+	RET=0
+
+	bridge link set dev $br_port mcast_flood off
+
+	flood_test_do false $mac $ip $host1_if $host2_if
+	check_err $? "Packet flooded when should not"
+
+	bridge link set dev $br_port mcast_flood on
+
+	flood_test_do true $mac $ip $host1_if $host2_if
+	check_err $? "Packet was not flooded when should"
+
+	log_test "Unregistered multicast flood"
+}
+
+flood_test()
+{
+	# `br_port` is connected to `host2_if`
+	local br_port=$1
+	local host1_if=$2
+	local host2_if=$3
+
+	flood_unicast_test $br_port $host1_if $host2_if
+	flood_multicast_test $br_port $host1_if $host2_if
+}

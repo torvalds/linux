@@ -82,5 +82,6 @@ setup_wait
 ping_test $h1 192.0.2.2
 ping6_test $h1 2001:db8:1::2
 learning_test "br0" $swp1 $h1 $h2
+flood_test $swp2 $h1 $h2
 
 exit $EXIT_STATUS
