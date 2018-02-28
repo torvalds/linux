@@ -16,7 +16,7 @@
 
 	chosen {
 		bootargs = "console=ttyAS1,115200 clk_ignore_unused";
-		linux,stdout-path = &uart1;
+		stdout-path = &uart1;
 	};
 
 	memory@40000000 {

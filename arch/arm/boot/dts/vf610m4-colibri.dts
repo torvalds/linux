@@ -51,7 +51,7 @@
 
 	chosen {
 		bootargs = "console=ttyLP2,115200 clk_ignore_unused init=/linuxrc rw";
-		linux,stdout-path = "&uart2";
+		stdout-path = "&uart2";
 	};
 
 	memory {
