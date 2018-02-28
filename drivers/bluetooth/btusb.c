@@ -387,13 +387,6 @@ static const struct usb_device_id blacklist_table[] = {
  * the module itself. So we use a DMI list to match known broken platforms.
  */
 static const struct dmi_system_id btusb_needs_reset_resume_table[] = {
-	{
-		/* Lenovo Yoga 920 (QCA Rome device 0cf3:e300) */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo YOGA 920"),
-		},
-	},
 	{}
 };
 
