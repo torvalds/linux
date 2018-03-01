@@ -325,10 +325,16 @@ static int max9867_dai_set_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	/* for i2s compatible mode */
-	iface1A |= MAX9867_I2S_DLY;
-	/* SDOUT goes to hiz state after all data is transferred */
-	iface1A |= MAX9867_SDOUT_HIZ;
+	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+	case SND_SOC_DAIFMT_I2S:
+		iface1A |= MAX9867_I2S_DLY;
+		break;
+	case SND_SOC_DAIFMT_DSP_A:
+		iface1A |= MAX9867_TDM_MODE | MAX9867_SDOUT_HIZ;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/* Clock inversion bits, BCI and WCI */
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
