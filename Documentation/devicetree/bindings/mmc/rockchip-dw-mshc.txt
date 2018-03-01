@@ -21,7 +21,7 @@ Required Properties:
 	- "rockchip,rk3399-dw-mshc", "rockchip,rk3288-dw-mshc": for Rockchip RK3399
 
 Optional Properties:
-* clocks: from common clock binding: if ciu_drive and ciu_sample are
+* clocks: from common clock binding: if ciu-drive and ciu-sample are
   specified in clock-names, should contain handles to these clocks.
 
 * clock-names: Apart from the clock-names described in synopsys-dw-mshc.txt
@@ -29,7 +29,7 @@ Optional Properties:
   to control the clock phases, "ciu-sample" is required for tuning high-
   speed modes.
 
-* rockchip,default-sample-phase: The default phase to set ciu_sample at
+* rockchip,default-sample-phase: The default phase to set ciu-sample at
   probing, low speeds or in case where all phases work at tuning time.
   If not specified 0 deg will be used.
 
