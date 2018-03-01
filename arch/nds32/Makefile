@@ -5,7 +5,8 @@ KBUILD_DEFCONFIG := defconfig
 
 comma = ,
 
-KBUILD_CFLAGS	+=-mno-sched-prolog-epilog -mcmodel=large
+KBUILD_CFLAGS	+= $(call cc-option, -mno-sched-prolog-epilog)
+KBUILD_CFLAGS	+= -mcmodel=large
 
 KBUILD_CFLAGS	+=$(arch-y) $(tune-y)
 KBUILD_AFLAGS	+=$(arch-y) $(tune-y)
@@ -33,9 +34,9 @@ BUILTIN_DTB := n
 endif
 
 ifdef CONFIG_CPU_LITTLE_ENDIAN
-KBUILD_CFLAGS   += -EL
+KBUILD_CFLAGS   += $(call cc-option, -EL)
 else
-KBUILD_CFLAGS   += -EB
+KBUILD_CFLAGS   += $(call cc-option, -EB)
 endif
 
 boot := arch/nds32/boot
