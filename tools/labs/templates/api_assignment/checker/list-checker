@@ -1,0 +1,775 @@
+#!/bin/sh
+
+#
+# List kernel API checker
+#
+#
+
+# Enable/disable debug (1/0).
+DEBUG_=1
+
+DEBUG()
+{
+    if test "x$DEBUG_" = "x1"; then
+        $@ 1>&2
+    fi
+}
+
+max_points=90
+
+# Enable/disable exiting when program fails.
+EXIT_IF_FAIL=0
+
+test_do_fail()
+{
+    points=$1
+    printf "failed  [  0/%02d]\n" "$max_points"
+    if test "x$EXIT_IF_FAIL" = "x1"; then
+        exit 1
+    fi
+}
+
+test_do_pass()
+{
+    points=$1
+    printf "passed  [%02d/%02d]\n" "$points" "$max_points"
+}
+
+basic_test()
+{
+    message=$1
+    points=$2
+    shift 2
+    test_command=$@
+
+    printf "%s" "$message"
+
+    i=0
+    limit=$((60 - ${#message}))
+    while test "$i" -lt "$limit"; do
+        printf "."
+        i=$(($i+1))
+    done
+
+    $test_command > /dev/null 2>&1
+    if test $? -eq 0; then
+        test_do_pass "$points"
+    else
+        test_do_fail "$points"
+    fi
+}
+
+module="list"
+module_file="$module".ko
+proc_folder="/proc/list"
+preview="$proc_folder/preview"
+management="$proc_folder/management"
+
+init_test()
+{
+    dmesg -c > /dev/null 2>&1
+    insmod "$module_file"
+    if test $? -ne 0; then
+        echo "Error inserting module." 1>&2
+        exit 1
+    fi
+    sleep 1
+}
+
+cleanup_test()
+{
+    rmmod "$module"
+}
+
+test_module_exists()
+{
+    init_test
+
+    lsmod 2> /dev/null | grep -w list > /dev/null 2>&1
+    basic_test "module_exists" 1 test "$?" -eq 0
+
+    cleanup_test
+}
+
+test_proc_folder_exits()
+{
+    init_test
+
+    basic_test "folder_exists" 1 test -d "$proc_folder"
+
+    cleanup_test
+}
+
+test_preview_exits()
+{
+    init_test
+
+    basic_test "preview_exists" 1 test -f "$preview"
+
+    cleanup_test
+}
+
+test_management_exits()
+{
+    init_test
+
+    basic_test "management_exists" 1 test -f "$management"
+
+    cleanup_test
+}
+
+test_preview_is_readable()
+{
+    init_test
+
+    cat "$preview" > /dev/null 2>&1
+    basic_test "preview_is_readable" 1 test $? -eq 0
+
+    cleanup_test
+}
+
+test_preview_is_not_writable()
+{
+    init_test
+
+    echo "hello" 2>&1 > "$preview" | grep "Input/output error" > /dev/null
+    basic_test "preview_is_not_writable" 1 test $? -eq 0
+
+    cleanup_test
+}
+
+test_management_is_writable()
+{
+    init_test
+
+    echo "hello" 2>&1 > "$management" | grep "Input/output error" > /dev/null
+    basic_test "management_is_writable" 1 test $? -ne 0
+
+    cleanup_test
+}
+
+test_management_is_not_readable()
+{
+    init_test
+
+    cat "$management" > /dev/null 2>&1
+    basic_test "management_is_not_readable" 1 test $? -ne 0
+
+    cleanup_test
+}
+
+test_addf_no_error()
+{
+    init_test
+
+    echo "addf lorem" > "$management" 2> /dev/null
+    basic_test "addf_no_error" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_addf_print()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    cat "$preview" | grep "lorem" > /dev/null
+    basic_test "addf_print" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_addf_print_once()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    no=$(cat "$preview" | grep "lorem" | wc -l)
+    basic_test "addf_print_once" 2 test "$no" -eq 1
+
+    cleanup_test
+}
+
+test_adde_no_error()
+{
+    init_test
+
+    echo "adde lorem" > "$management" 2> /dev/null
+    basic_test "adde_no_error" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_adde_print()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    cat "$preview" | grep "lorem" > /dev/null
+    basic_test "adde_print" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_adde_print_once()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    no=$(cat "$preview" | grep "lorem" | wc -l)
+    basic_test "adde_print_once" 2 test "$no" -eq 1
+
+    cleanup_test
+}
+
+test_addf_two_number()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "addf_two_number" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_addf_two_content()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    cat "$preview" | grep "lorem" > /dev/null
+    ret1=$?
+    cat "$preview" | grep "ipsum" > /dev/null
+    ret2=$?
+    basic_test "addf_two_content" 2 test "$ret1" -eq 0 -a "$ret2" -eq 0
+
+    cleanup_test
+}
+
+test_addf_same_twice_number()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf lorem" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "addf_same_twice_number" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_addf_same_twice_content()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf lorem" > "$management"
+    cat "$preview" | grep "lorem" > /dev/null
+    basic_test "addf_same_twice_content" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_addf_same_twice_content_number()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf lorem" > "$management"
+    no=$(cat "$preview" | grep "lorem" | wc -l)
+    basic_test "addf_same_twice_content_number" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_adde_two_number()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "adde ipsum" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "adde_two_number" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_adde_two_content()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "adde ipsum" > "$management"
+    cat "$preview" | grep "lorem" > /dev/null
+    ret1=$?
+    cat "$preview" | grep "ipsum" > /dev/null
+    ret2=$?
+    basic_test "adde_two_content" 2 test "$ret1" -eq 0 -a "$ret2" -eq 0
+
+    cleanup_test
+}
+
+test_adde_same_twice_number()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "adde lorem" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "adde_same_twice_number" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_adde_same_twice_content()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "adde lorem" > "$management"
+    cat "$preview" | grep "lorem" > /dev/null
+    basic_test "adde_same_twice_content" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_adde_same_twice_content_number()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "adde lorem" > "$management"
+    no=$(cat "$preview" | grep "lorem" | wc -l)
+    basic_test "adde_same_twice_content_number" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_addf_front_after_addf()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf ipsum" > "$management"
+
+    # "ipsum" must be first.
+    cat "$preview" | head -n 1 | grep "ipsum" > /dev/null
+    basic_test "addf_front_after_addf" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_addf_front_after_adde()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "addf ipsum" > "$management"
+
+    # "ipsum" must be first.
+    cat "$preview" | head -n 1 | grep "ipsum" > /dev/null
+    basic_test "addf_front_after_adde" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_addf_front_after_adde_addf()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "addf dolor" > "$management"
+
+    # "dolor" must be first.
+    cat "$preview" | head -n 1 | grep "dolor" > /dev/null
+    basic_test "addf_front_after_adde_addf" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_addf_front_after_addf_adde()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "adde ipsum" > "$management"
+    echo "addf dolor" > "$management"
+
+    # "dolor" must be first.
+    cat "$preview" | head -n 1 | grep "dolor" > /dev/null
+    basic_test "addf_front_after_addf_adde" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_adde_end_after_addf()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "adde ipsum" > "$management"
+
+    # "ipsum" must be last.
+    cat "$preview" | tail -n -1 | grep "ipsum" > /dev/null
+    basic_test "adde_end_after_addf" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_adde_end_after_adde()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "adde ipsum" > "$management"
+
+    # "ipsum" must be last.
+    cat "$preview" | tail -n -1 | grep "ipsum" > /dev/null
+    basic_test "addf_end_after_adde" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_adde_end_after_adde_addf()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "adde dolor" > "$management"
+
+    # "dolor" must be last.
+    cat "$preview" | tail -n -1 | grep "dolor" > /dev/null
+    basic_test "adde_end_after_adde_addf" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_adde_end_after_addf_adde()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "adde ipsum" > "$management"
+    echo "adde dolor" > "$management"
+
+    # "dolor" must be last.
+    cat "$preview" | tail -n -1 | grep "dolor" > /dev/null
+    basic_test "adde_end_after_addf_adde" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_delf_no_error()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "delf lorem" > "$management"
+    basic_test "delf_no_error" 2 test $? -eq 0
+
+    cleanup_test
+}
+
+test_delf_removes_front()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "delf lorem" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "delf_removes_front" 2 test "$no" -eq 0
+
+    cleanup_test
+}
+
+test_delf_removes_end()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "delf lorem" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "delf_removes_end" 2 test "$no" -eq 0
+
+    cleanup_test
+}
+
+test_delf_front_number()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "addf dolor" > "$management"
+    echo "delf lorem" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "delf_front_number" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_delf_front_content()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "addf dolor" > "$management"
+    echo "delf lorem" > "$management"
+    cat "$preview" | grep "lorem" > /dev/null
+    basic_test "delf_front_content" 2 test $? -ne 0
+
+    cleanup_test
+}
+
+test_delf_first()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "addf dolor" > "$management"
+    echo "delf ipsum" > "$management"
+    cat "$preview" | grep "ipsum" > /dev/null
+    basic_test "delf_first" 2 test $? -ne 0
+
+    cleanup_test
+}
+
+test_delf_none()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "adde ipsum" > "$management"
+    echo "delf dolor" > "$management" 2> /dev/null
+    no=$(cat "$preview" | wc -l)
+    basic_test "delf_none" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_dela_one_number()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "addf dolor" > "$management"
+    echo "dela ipsum" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "dela_one_number" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_dela_one_content()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "addf dolor" > "$management"
+    echo "dela ipsum" > "$management"
+    cat "$preview" | grep "ipsum" > /dev/null
+    basic_test "dela_one_content" 2 test $? -ne 0
+
+    cleanup_test
+}
+
+test_dela_two_number()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "addf dolor" > "$management"
+    echo "adde ipsum" > "$management"
+    echo "dela ipsum" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "dela_one_number" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_dela_two_content()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "addf dolor" > "$management"
+    echo "adde ipsum" > "$management"
+    echo "dela ipsum" > "$management"
+    cat "$preview" | grep "ipsum" > /dev/null
+    basic_test "dela_one_content" 2 test $? -ne 0
+
+    cleanup_test
+}
+
+test_dela_all_five_number()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "adde lorem" > "$management"
+    echo "addf lorem" > "$management"
+    echo "adde lorem" > "$management"
+    echo "addf lorem" > "$management"
+    echo "dela lorem" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "dela_all_five_number" 2 test "$no" -eq 0
+
+    cleanup_test
+}
+
+test_dela_all_five_content()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "adde lorem" > "$management"
+    echo "addf lorem" > "$management"
+    echo "adde lorem" > "$management"
+    echo "addf lorem" > "$management"
+    echo "dela lorem" > "$management"
+    cat "$preview" | grep "lorem" > /dev/null
+    basic_test "dela_all_five_content" 2 test $? -ne 0
+
+    cleanup_test
+}
+
+test_dela_none()
+{
+    init_test
+
+    echo "adde lorem" > "$management"
+    echo "addf ipsum" > "$management"
+    echo "dela dolor" > "$management" 2> /dev/null
+    no=$(cat "$preview" | wc -l)
+    basic_test "dela_none" 2 test "$no" -eq 2
+
+    cleanup_test
+}
+
+test_mix_number()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "adde ipsum" > "$management"
+    echo "adde dolor" > "$management"
+    echo "addf sit" > "$management"
+    echo "adde sit" > "$management"
+    echo "addf sit" > "$management"
+    echo "addf lorem" > "$management"
+    echo "delf lorem" > "$management"
+    echo "delf dolor" > "$management"
+    echo "adde dolor" > "$management"
+    echo "dela sit" > "$management"
+    echo "delf ipsum" > "$management"
+    echo "delf ipsum" > "$management"
+    echo "dela dolor" > "$management"
+    no=$(cat "$preview" | wc -l)
+    basic_test "mix_number" 3 test "$no" -eq 1
+
+    cleanup_test
+}
+
+test_mix_content()
+{
+    init_test
+
+    echo "addf lorem" > "$management"
+    echo "adde ipsum" > "$management"
+    echo "adde dolor" > "$management"
+    echo "addf sit" > "$management"
+    echo "adde sit" > "$management"
+    echo "addf sit" > "$management"
+    echo "addf lorem" > "$management"
+    echo "delf lorem" > "$management"
+    echo "delf dolor" > "$management"
+    echo "adde dolor" > "$management"
+    echo "dela sit" > "$management"
+    echo "delf ipsum" > "$management"
+    echo "delf ipsum" > "$management"
+    echo "dela dolor" > "$management"
+    cat "$preview" | grep "lorem" > /dev/null
+    basic_test "mix_content" 3 test "$no" -eq 1
+
+    cleanup_test
+}
+
+run_tests()
+{
+    test_module_exists
+    test_proc_folder_exits
+    test_preview_exits
+    test_management_exits
+    test_preview_is_readable
+    test_preview_is_not_writable
+    test_management_is_writable
+    test_management_is_not_readable
+    test_addf_no_error
+    test_addf_print
+    test_addf_print_once
+    test_adde_no_error
+    test_adde_print
+    test_adde_print_once
+    test_addf_two_number
+    test_addf_two_content
+    test_addf_same_twice_number
+    test_addf_same_twice_content
+    test_addf_same_twice_content_number
+    test_adde_two_number
+    test_adde_two_content
+    test_adde_same_twice_number
+    test_adde_same_twice_content
+    test_adde_same_twice_content_number
+    test_addf_front_after_addf
+    test_addf_front_after_adde
+    test_addf_front_after_adde_addf
+    test_addf_front_after_addf_adde
+    test_adde_end_after_addf
+    test_adde_end_after_adde
+    test_adde_end_after_adde_addf
+    test_adde_end_after_addf_adde
+    test_delf_no_error
+    test_delf_removes_front
+    test_delf_removes_end
+    test_delf_front_number
+    test_delf_front_content
+    test_delf_first
+    test_delf_none
+    test_dela_one_number
+    test_dela_one_content
+    test_dela_two_number
+    test_dela_two_content
+    test_dela_all_five_number
+    test_dela_all_five_content
+    test_dela_none
+    test_mix_number
+    test_mix_content
+}
+
+run_tests | tee results.txt
+
+cat results.txt | grep '\[.*\]$' | awk -F '[] /[]+' '
+BEGIN {
+    sum=0
+}
+
+{
+    sum += $(NF-2);
+}
+
+END {
+    printf "\n%66s  [%02d/90]\n", "Total:", sum;
+}'
+
+rm results.txt
