@@ -286,8 +286,6 @@ struct ap_info_t {
 	__le16 capability;	/* +12 */
 	u8 frame_type;	/* +14 */
 	u8 ch_info;	/* +15 */
-#define FRAME_TYPE_BEACON	0x80
-#define FRAME_TYPE_PROBE_RESP	0x50
 	__le16 body_size;	/* +16 */
 	u8 body[1024];	/* +18 */
 	/* +1032 */
@@ -465,8 +463,6 @@ struct last_associate_t {
 
 struct association_request_t {
 	u8 type;
-#define FRAME_TYPE_ASSOC_REQ	0x00
-#define FRAME_TYPE_REASSOC_REQ	0x20
 	u8 pad;
 	__le16 capability;
 	__le16 listen_interval;
@@ -476,8 +472,6 @@ struct association_request_t {
 
 struct association_response_t {
 	u8 type;
-#define FRAME_TYPE_ASSOC_RESP	0x10
-#define FRAME_TYPE_REASSOC_RESP	0x30
 	u8 pad;
 	__le16 capability;
 	__le16 status;

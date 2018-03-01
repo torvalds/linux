@@ -847,7 +847,7 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 				   priv->aplist.ap[i].bssid, ETH_ALEN) != 0)
 				continue;
 
-			if (ap_info->frame_type == FRAME_TYPE_PROBE_RESP)
+			if (ap_info->frame_type == IEEE80211_STYPE_PROBE_RESP)
 				get_ap_information(priv, ap_info,
 						   &priv->aplist.ap[i]);
 			return;
