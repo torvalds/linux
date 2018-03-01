@@ -51,6 +51,11 @@ struct intel_gvt_mpt {
 	int (*write_gpa)(unsigned long handle, unsigned long gpa, void *buf,
 			 unsigned long len);
 	unsigned long (*gfn_to_mfn)(unsigned long handle, unsigned long gfn);
+
+	int (*dma_map_guest_page)(unsigned long handle, unsigned long gfn,
+				  dma_addr_t *dma_addr);
+	void (*dma_unmap_guest_page)(unsigned long handle, dma_addr_t dma_addr);
+
 	int (*map_gfn_to_mfn)(unsigned long handle, unsigned long gfn,
 			      unsigned long mfn, unsigned int nr, bool map);
 	int (*set_trap_area)(unsigned long handle, u64 start, u64 end,

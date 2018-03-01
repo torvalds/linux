@@ -822,6 +822,23 @@ static int ppgtt_invalidate_spt_by_shadow_entry(struct intel_vgpu *vgpu,
 	return ppgtt_invalidate_spt(s);
 }
 
+static inline void ppgtt_invalidate_pte(struct intel_vgpu_ppgtt_spt *spt,
+		struct intel_gvt_gtt_entry *entry)
+{
+	struct intel_vgpu *vgpu = spt->vgpu;
+	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
+	unsigned long pfn;
+	int type;
+
+	pfn = ops->get_pfn(entry);
+	type = spt->shadow_page.type;
+
+	if (pfn == vgpu->gtt.scratch_pt[type].page_mfn)
+		return;
+
+	intel_gvt_hypervisor_dma_unmap_guest_page(vgpu, pfn << PAGE_SHIFT);
+}
+
 static int ppgtt_invalidate_spt(struct intel_vgpu_ppgtt_spt *spt)
 {
 	struct intel_vgpu *vgpu = spt->vgpu;
@@ -838,14 +855,12 @@ static int ppgtt_invalidate_spt(struct intel_vgpu_ppgtt_spt *spt)
 	if (atomic_dec_return(&spt->refcount) > 0)
 		return 0;
 
-	if (gtt_type_is_pte_pt(spt->shadow_page.type))
-		goto release;
-
 	for_each_present_shadow_entry(spt, &e, index) {
 		switch (e.type) {
 		case GTT_TYPE_PPGTT_PTE_4K_ENTRY:
 			gvt_vdbg_mm("invalidate 4K entry\n");
-			continue;
+			ppgtt_invalidate_pte(spt, &e);
+			break;
 		case GTT_TYPE_PPGTT_PTE_2M_ENTRY:
 		case GTT_TYPE_PPGTT_PTE_1G_ENTRY:
 			WARN(1, "GVT doesn't support 2M/1GB page\n");
@@ -863,7 +878,7 @@ static int ppgtt_invalidate_spt(struct intel_vgpu_ppgtt_spt *spt)
 			GEM_BUG_ON(1);
 		}
 	}
-release:
+
 	trace_spt_change(spt->vgpu->id, "release", spt,
 			 spt->guest_page.gfn, spt->shadow_page.type);
 	ppgtt_free_spt(spt);
@@ -932,7 +947,9 @@ static int ppgtt_populate_shadow_entry(struct intel_vgpu *vgpu,
 {
 	struct intel_gvt_gtt_pte_ops *pte_ops = vgpu->gvt->gtt.pte_ops;
 	struct intel_gvt_gtt_entry se = *ge;
-	unsigned long gfn, mfn;
+	unsigned long gfn;
+	dma_addr_t dma_addr;
+	int ret;
 
 	if (!pte_ops->test_present(ge))
 		return 0;
@@ -952,11 +969,11 @@ static int ppgtt_populate_shadow_entry(struct intel_vgpu *vgpu,
 	};
 
 	/* direct shadow */
-	mfn = intel_gvt_hypervisor_gfn_to_mfn(vgpu, gfn);
-	if (mfn == INTEL_GVT_INVALID_ADDR)
+	ret = intel_gvt_hypervisor_dma_map_guest_page(vgpu, gfn, &dma_addr);
+	if (ret)
 		return -ENXIO;
 
-	pte_ops->set_pfn(&se, mfn);
+	pte_ops->set_pfn(&se, dma_addr >> PAGE_SHIFT);
 	ppgtt_set_shadow_entry(spt, &se, index);
 	return 0;
 }
@@ -1035,7 +1052,9 @@ static int ppgtt_handle_guest_entry_removal(struct intel_vgpu_ppgtt_spt *spt,
 		ret = ppgtt_invalidate_spt(s);
 		if (ret)
 			goto fail;
-	}
+	} else
+		ppgtt_invalidate_pte(spt, se);
+
 	return 0;
 fail:
 	gvt_vgpu_err("fail: shadow page %p guest entry 0x%llx type %d\n",
@@ -1807,8 +1826,10 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	struct intel_vgpu_mm *ggtt_mm = vgpu->gtt.ggtt_mm;
 	struct intel_gvt_gtt_pte_ops *ops = gvt->gtt.pte_ops;
 	unsigned long g_gtt_index = off >> info->gtt_entry_size_shift;
-	unsigned long gma, gfn, mfn;
+	unsigned long gma, gfn;
 	struct intel_gvt_gtt_entry e, m;
+	dma_addr_t dma_addr;
+	int ret;
 
 	if (bytes != 4 && bytes != 8)
 		return -EINVAL;
@@ -1836,8 +1857,9 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 			goto out;
 		}
 
-		mfn = intel_gvt_hypervisor_gfn_to_mfn(vgpu, gfn);
-		if (mfn == INTEL_GVT_INVALID_ADDR) {
+		ret = intel_gvt_hypervisor_dma_map_guest_page(vgpu, gfn,
+							      &dma_addr);
+		if (ret) {
 			gvt_vgpu_err("fail to populate guest ggtt entry\n");
 			/* guest driver may read/write the entry when partial
 			 * update the entry in this situation p2m will fail
@@ -1845,7 +1867,7 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 			 */
 			ops->set_pfn(&m, gvt->gtt.scratch_mfn);
 		} else
-			ops->set_pfn(&m, mfn);
+			ops->set_pfn(&m, dma_addr >> PAGE_SHIFT);
 	} else
 		ops->set_pfn(&m, gvt->gtt.scratch_mfn);
 

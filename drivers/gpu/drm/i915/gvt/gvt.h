@@ -201,8 +201,15 @@ struct intel_vgpu {
 		int num_regions;
 		struct eventfd_ctx *intx_trigger;
 		struct eventfd_ctx *msi_trigger;
-		struct rb_root cache;
+
+		/*
+		 * Two caches are used to avoid mapping duplicated pages (eg.
+		 * scratch pages). This help to reduce dma setup overhead.
+		 */
+		struct rb_root gfn_cache;
+		struct rb_root dma_addr_cache;
 		struct mutex cache_lock;
+
 		struct notifier_block iommu_notifier;
 		struct notifier_block group_notifier;
 		struct kvm *kvm;
