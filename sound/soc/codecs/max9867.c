@@ -291,7 +291,9 @@ static int max9867_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		value |= MAX9867_PSCLK_40_60;
 		max9867->pclk =  freq/4;
 	} else {
-		pr_err("bad clock frequency %d", freq);
+		dev_err(component->dev,
+			"Invalid clock frequency %uHz (required 10-60MHz)\n",
+			freq);
 		return -EINVAL;
 	}
 	value = value << MAX9867_PSCLK_SHIFT;
@@ -486,8 +488,7 @@ static int max9867_i2c_probe(struct i2c_client *i2c,
 	max9867->regmap = devm_regmap_init_i2c(i2c, &max9867_regmap);
 	if (IS_ERR(max9867->regmap)) {
 		ret = PTR_ERR(max9867->regmap);
-		dev_err(&i2c->dev,
-				"Failed to allocate regmap: %d\n", ret);
+		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
 		return ret;
 	}
 	ret = regmap_read(max9867->regmap,
