@@ -5505,19 +5505,13 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 	if (udev->usb2_hw_lpm_enabled == 1)
 		usb_set_usb2_hardware_lpm(udev, 0);
 
-	/* Disable LPM and LTM while we reset the device and reinstall the alt
-	 * settings.  Device-initiated LPM settings, and system exit latency
-	 * settings are cleared when the device is reset, so we have to set
-	 * them up again.
+	/* Disable LPM while we reset the device and reinstall the alt settings.
+	 * Device-initiated LPM, and system exit latency settings are cleared
+	 * when the device is reset, so we have to set them up again.
 	 */
 	ret = usb_unlocked_disable_lpm(udev);
 	if (ret) {
 		dev_err(&udev->dev, "%s Failed to disable LPM\n", __func__);
-		goto re_enumerate_no_bos;
-	}
-	ret = usb_disable_ltm(udev);
-	if (ret) {
-		dev_err(&udev->dev, "%s Failed to disable LTM\n", __func__);
 		goto re_enumerate_no_bos;
 	}
 
