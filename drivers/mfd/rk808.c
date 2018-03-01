@@ -781,14 +781,6 @@ static const struct rk808_reg_data rk817_pre_init_reg[] = {
 					   RK817_HOTDIE_105 | RK817_TSD_140},
 };
 
-static struct rk808_reg_data rk817_suspend_reg[] = {
-	{RK817_BUCK3_ON_VSEL_REG, PWM_MODE_MSK, AUTO_PWM_MODE},
-};
-
-static struct rk808_reg_data rk817_resume_reg[] = {
-	{RK817_BUCK3_ON_VSEL_REG, PWM_MODE_MSK, FPWM_MODE},
-};
-
 static int (*pm_shutdown)(struct regmap *regmap);
 static int (*pm_shutdown_prepare)(struct regmap *regmap);
 static struct i2c_client *rk808_i2c_client;
@@ -1038,10 +1030,6 @@ static int rk808_probe(struct i2c_client *client,
 		pm_shutdown_prepare_fn = rk817_shutdown_prepare;
 		on_source = RK817_ON_SOURCE_REG;
 		off_source = RK817_OFF_SOURCE_REG;
-		suspend_reg = rk817_suspend_reg;
-		suspend_reg_num = ARRAY_SIZE(rk817_suspend_reg);
-		resume_reg = rk817_resume_reg;
-		resume_reg_num = ARRAY_SIZE(rk817_resume_reg);
 		break;
 	default:
 		dev_err(&client->dev, "unsupported RK8XX ID 0x%lx\n",
