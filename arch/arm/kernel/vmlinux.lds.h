@@ -78,3 +78,17 @@
 		. = ALIGN(4);						\
 		*(.got)			/* Global offset table */	\
 		ARM_CPU_KEEP(PROC_INFO)
+
+/* Stack unwinding tables */
+#define ARM_UNWIND_SECTIONS						\
+	. = ALIGN(8);							\
+	.ARM.unwind_idx : {						\
+		__start_unwind_idx = .;					\
+		*(.ARM.exidx*)						\
+		__stop_unwind_idx = .;					\
+	}								\
+	.ARM.unwind_tab : {						\
+		__start_unwind_tab = .;					\
+		*(.ARM.extab*)						\
+		__stop_unwind_tab = .;					\
+	}
