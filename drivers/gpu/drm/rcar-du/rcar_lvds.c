@@ -32,6 +32,9 @@ enum rcar_lvds_mode {
 };
 
 #define RCAR_LVDS_QUIRK_LANES	(1 << 0)	/* LVDS lanes 1 and 3 inverted */
+#define RCAR_LVDS_QUIRK_GEN2_PLLCR (1 << 1)	/* LVDPLLCR has gen2 layout */
+#define RCAR_LVDS_QUIRK_GEN3_LVEN (1 << 2)	/* LVEN bit needs to be set */
+						/* on R8A77970/R8A7799x */
 
 struct rcar_lvds_device_info {
 	unsigned int gen;
@@ -191,7 +194,7 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 	rcar_lvds_write(lvds, LVDCHCR, lvdhcr);
 
 	/* PLL clock configuration. */
-	if (lvds->info->gen < 3)
+	if (lvds->info->quirks & RCAR_LVDS_QUIRK_GEN2_PLLCR)
 		lvdpllcr = rcar_lvds_lvdpllcr_gen2(mode->clock);
 	else
 		lvdpllcr = rcar_lvds_lvdpllcr_gen3(mode->clock);
@@ -221,6 +224,12 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 	if (lvds->info->gen > 2) {
 		/* Set LVDS normal mode. */
 		lvdcr0 |= LVDCR0_PWD;
+		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
+	}
+
+	if (lvds->info->quirks & RCAR_LVDS_QUIRK_GEN3_LVEN) {
+		/* Turn on the LVDS PHY. */
+		lvdcr0 |= LVDCR0_LVEN;
 		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 	}
 
@@ -485,15 +494,21 @@ static int rcar_lvds_remove(struct platform_device *pdev)
 
 static const struct rcar_lvds_device_info rcar_lvds_gen2_info = {
 	.gen = 2,
+	.quirks = RCAR_LVDS_QUIRK_GEN2_PLLCR,
 };
 
 static const struct rcar_lvds_device_info rcar_lvds_r8a7790_info = {
 	.gen = 2,
-	.quirks = RCAR_LVDS_QUIRK_LANES,
+	.quirks = RCAR_LVDS_QUIRK_GEN2_PLLCR | RCAR_LVDS_QUIRK_LANES,
 };
 
 static const struct rcar_lvds_device_info rcar_lvds_gen3_info = {
 	.gen = 3,
+};
+
+static const struct rcar_lvds_device_info rcar_lvds_r8a77970_info = {
+	.gen = 3,
+	.quirks = RCAR_LVDS_QUIRK_GEN2_PLLCR | RCAR_LVDS_QUIRK_GEN3_LVEN,
 };
 
 static const struct of_device_id rcar_lvds_of_table[] = {
@@ -503,6 +518,7 @@ static const struct of_device_id rcar_lvds_of_table[] = {
 	{ .compatible = "renesas,r8a7793-lvds", .data = &rcar_lvds_gen2_info },
 	{ .compatible = "renesas,r8a7795-lvds", .data = &rcar_lvds_gen3_info },
 	{ .compatible = "renesas,r8a7796-lvds", .data = &rcar_lvds_gen3_info },
+	{ .compatible = "renesas,r8a77970-lvds", .data = &rcar_lvds_r8a77970_info },
 	{ }
 };
 
