@@ -955,6 +955,13 @@ static inline bool imap_needs_alloc(struct inode *inode,
 		(IS_DAX(inode) && imap->br_state == XFS_EXT_UNWRITTEN);
 }
 
+static inline bool needs_cow_for_zeroing(struct xfs_bmbt_irec *imap, int nimaps)
+{
+	return nimaps &&
+		imap->br_startblock != HOLESTARTBLOCK &&
+		imap->br_state != XFS_EXT_UNWRITTEN;
+}
+
 static inline bool need_excl_ilock(struct xfs_inode *ip, unsigned flags)
 {
 	/*
@@ -1024,7 +1031,9 @@ xfs_file_iomap_begin(
 			goto out_unlock;
 	}
 
-	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && xfs_is_reflink_inode(ip)) {
+	if (xfs_is_reflink_inode(ip) &&
+	    ((flags & IOMAP_WRITE) ||
+	     ((flags & IOMAP_ZERO) && needs_cow_for_zeroing(&imap, nimaps)))) {
 		if (flags & IOMAP_DIRECT) {
 			/*
 			 * A reflinked inode will result in CoW alloc.
