@@ -712,14 +712,17 @@ static int __init init_caches(void)
 		goto bad_dentry;
 
 	ceph_file_cachep = KMEM_CACHE(ceph_file_info, SLAB_MEM_SPREAD);
-
 	if (!ceph_file_cachep)
 		goto bad_file;
 
-	if ((error = ceph_fscache_register()))
-		goto bad_file;
+	error = ceph_fscache_register();
+	if (error)
+		goto bad_fscache;
 
 	return 0;
+
+bad_fscache:
+	kmem_cache_destroy(ceph_file_cachep);
 bad_file:
 	kmem_cache_destroy(ceph_dentry_cachep);
 bad_dentry:
