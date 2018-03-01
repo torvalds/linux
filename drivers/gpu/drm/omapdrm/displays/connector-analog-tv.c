@@ -154,7 +154,6 @@ static int tvc_probe(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata;
 	struct omap_dss_device *dssdev;
-	int r;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
@@ -172,11 +171,7 @@ static int tvc_probe(struct platform_device *pdev)
 	dssdev->owner = THIS_MODULE;
 
 	omapdss_display_init(dssdev);
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&pdev->dev, "Failed to register panel\n");
-		return r;
-	}
+	omapdss_device_register(dssdev);
 
 	return 0;
 }
@@ -186,7 +181,7 @@ static int __exit tvc_remove(struct platform_device *pdev)
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 
-	omapdss_unregister_display(&ddata->dssdev);
+	omapdss_device_unregister(&ddata->dssdev);
 
 	tvc_disable(dssdev);
 	omapdss_device_disconnect(dssdev, NULL);

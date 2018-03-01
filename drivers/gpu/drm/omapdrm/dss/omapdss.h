@@ -395,7 +395,6 @@ struct omap_dss_device {
 	struct omap_dss_device *dst;
 
 	struct list_head list;
-	struct list_head panel_list;
 
 	unsigned int alias_id;
 
@@ -488,8 +487,6 @@ static inline bool omapdss_is_initialized(void)
 }
 
 void omapdss_display_init(struct omap_dss_device *dssdev);
-int omapdss_register_display(struct omap_dss_device *dssdev);
-void omapdss_unregister_display(struct omap_dss_device *dssdev);
 #define for_each_dss_display(d) \
 	while ((d = omapdss_device_get_next(d, true)) != NULL)
 

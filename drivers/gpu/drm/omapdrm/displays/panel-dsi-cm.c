@@ -1329,11 +1329,7 @@ static int dsicm_probe(struct platform_device *pdev)
 		OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;
 
 	omapdss_display_init(dssdev);
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(dev, "Failed to register panel\n");
-		goto err_reg;
-	}
+	omapdss_device_register(dssdev);
 
 	mutex_init(&ddata->lock);
 
@@ -1404,7 +1400,7 @@ static int __exit dsicm_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "remove\n");
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
 	dsicm_disable(dssdev);
 	omapdss_device_disconnect(dssdev, NULL);

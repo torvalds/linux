@@ -28,8 +28,6 @@
 
 #include "omapdss.h"
 
-static LIST_HEAD(panel_list);
-static DEFINE_MUTEX(panel_list_mutex);
 static int disp_num_counter;
 
 void omapdss_display_init(struct omap_dss_device *dssdev)
@@ -54,27 +52,6 @@ void omapdss_display_init(struct omap_dss_device *dssdev)
 					      "display%u", id);
 }
 EXPORT_SYMBOL_GPL(omapdss_display_init);
-
-int omapdss_register_display(struct omap_dss_device *dssdev)
-{
-	mutex_lock(&panel_list_mutex);
-	list_add_tail(&dssdev->panel_list, &panel_list);
-	mutex_unlock(&panel_list_mutex);
-
-	omapdss_device_register(dssdev);
-	return 0;
-}
-EXPORT_SYMBOL(omapdss_register_display);
-
-void omapdss_unregister_display(struct omap_dss_device *dssdev)
-{
-	mutex_lock(&panel_list_mutex);
-	list_del(&dssdev->panel_list);
-	mutex_unlock(&panel_list_mutex);
-
-	omapdss_device_register(dssdev);
-}
-EXPORT_SYMBOL(omapdss_unregister_display);
 
 struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev)
 {

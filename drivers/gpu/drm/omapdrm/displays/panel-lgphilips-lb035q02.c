@@ -271,11 +271,7 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	dssdev->owner = THIS_MODULE;
 
 	omapdss_display_init(dssdev);
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&spi->dev, "Failed to register panel\n");
-		return r;
-	}
+	omapdss_device_register(dssdev);
 
 	return 0;
 }
@@ -285,7 +281,7 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
 	lb035q02_disable(dssdev);
 	omapdss_device_disconnect(dssdev, NULL);

@@ -294,11 +294,7 @@ static int nec_8048_probe(struct spi_device *spi)
 	dssdev->owner = THIS_MODULE;
 
 	omapdss_display_init(dssdev);
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&spi->dev, "Failed to register panel\n");
-		return r;
-	}
+	omapdss_device_register(dssdev);
 
 	return 0;
 }
@@ -310,7 +306,7 @@ static int nec_8048_remove(struct spi_device *spi)
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
 	nec_8048_disable(dssdev);
 	omapdss_device_disconnect(dssdev, NULL);

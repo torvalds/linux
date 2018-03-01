@@ -509,8 +509,7 @@ static int tpo_td043_probe(struct spi_device *spi)
 	ddata->vcc_reg = devm_regulator_get(&spi->dev, "vcc");
 	if (IS_ERR(ddata->vcc_reg)) {
 		dev_err(&spi->dev, "failed to get LCD VCC regulator\n");
-		r = PTR_ERR(ddata->vcc_reg);
-		goto err_regulator;
+		return PTR_ERR(ddata->vcc_reg);
 	}
 
 	if (gpio_is_valid(ddata->nreset_gpio)) {
@@ -519,14 +518,14 @@ static int tpo_td043_probe(struct spi_device *spi)
 				"lcd reset");
 		if (r < 0) {
 			dev_err(&spi->dev, "couldn't request reset GPIO\n");
-			goto err_gpio_req;
+			return r;
 		}
 	}
 
 	r = sysfs_create_group(&spi->dev.kobj, &tpo_td043_attr_group);
 	if (r) {
 		dev_err(&spi->dev, "failed to create sysfs files\n");
-		goto err_sysfs;
+		return r;
 	}
 
 	ddata->vm = tpo_td043_vm;
@@ -538,20 +537,9 @@ static int tpo_td043_probe(struct spi_device *spi)
 	dssdev->owner = THIS_MODULE;
 
 	omapdss_display_init(dssdev);
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&spi->dev, "Failed to register panel\n");
-		goto err_reg;
-	}
+	omapdss_device_register(dssdev);
 
 	return 0;
-
-err_reg:
-	sysfs_remove_group(&spi->dev.kobj, &tpo_td043_attr_group);
-err_sysfs:
-err_gpio_req:
-err_regulator:
-	return r;
 }
 
 static int tpo_td043_remove(struct spi_device *spi)
@@ -561,7 +549,7 @@ static int tpo_td043_remove(struct spi_device *spi)
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
 	tpo_td043_disable(dssdev);
 	omapdss_device_disconnect(dssdev, NULL);

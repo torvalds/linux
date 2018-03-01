@@ -219,11 +219,7 @@ static int panel_dpi_probe(struct platform_device *pdev)
 	dssdev->owner = THIS_MODULE;
 
 	omapdss_display_init(dssdev);
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&pdev->dev, "Failed to register panel\n");
-		return r;
-	}
+	omapdss_device_register(dssdev);
 
 	return 0;
 }
@@ -233,7 +229,7 @@ static int __exit panel_dpi_remove(struct platform_device *pdev)
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
 	panel_dpi_disable(dssdev);
 	omapdss_device_disconnect(dssdev, NULL);

@@ -733,7 +733,7 @@ static int acx565akm_probe(struct spi_device *spi)
 		r = devm_gpio_request_one(&spi->dev, ddata->reset_gpio,
 				GPIOF_OUT_INIT_LOW, "lcd reset");
 		if (r)
-			goto err_gpio;
+			return r;
 	}
 
 	if (gpio_is_valid(ddata->reset_gpio))
@@ -754,7 +754,7 @@ static int acx565akm_probe(struct spi_device *spi)
 
 	if (r) {
 		dev_err(&spi->dev, "%s panel detect error\n", __func__);
-		goto err_detect;
+		return r;
 	}
 
 	memset(&props, 0, sizeof(props));
@@ -764,17 +764,15 @@ static int acx565akm_probe(struct spi_device *spi)
 
 	bldev = backlight_device_register("acx565akm", &ddata->spi->dev,
 			ddata, &acx565akm_bl_ops, &props);
-	if (IS_ERR(bldev)) {
-		r = PTR_ERR(bldev);
-		goto err_reg_bl;
-	}
+	if (IS_ERR(bldev))
+		return PTR_ERR(bldev);
 	ddata->bl_dev = bldev;
 	if (ddata->has_cabc) {
 		r = sysfs_create_group(&bldev->dev.kobj, &bldev_attr_group);
 		if (r) {
 			dev_err(&bldev->dev,
 				"%s failed to create sysfs files\n", __func__);
-			goto err_sysfs;
+			goto err_backlight_unregister;
 		}
 		ddata->cabc_mode = get_hw_cabc_mode(ddata);
 	}
@@ -801,21 +799,12 @@ static int acx565akm_probe(struct spi_device *spi)
 	dssdev->owner = THIS_MODULE;
 
 	omapdss_display_init(dssdev);
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&spi->dev, "Failed to register panel\n");
-		goto err_reg;
-	}
+	omapdss_device_register(dssdev);
 
 	return 0;
 
-err_reg:
-	sysfs_remove_group(&bldev->dev.kobj, &bldev_attr_group);
-err_sysfs:
+err_backlight_unregister:
 	backlight_device_unregister(bldev);
-err_reg_bl:
-err_detect:
-err_gpio:
 	return r;
 }
 
@@ -829,7 +818,7 @@ static int acx565akm_remove(struct spi_device *spi)
 	sysfs_remove_group(&ddata->bl_dev->dev.kobj, &bldev_attr_group);
 	backlight_device_unregister(ddata->bl_dev);
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
 	acx565akm_disable(dssdev);
 	omapdss_device_disconnect(dssdev, NULL);

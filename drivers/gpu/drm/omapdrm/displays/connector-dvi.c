@@ -391,19 +391,9 @@ static int dvic_probe(struct platform_device *pdev)
 	dssdev->owner = THIS_MODULE;
 
 	omapdss_display_init(dssdev);
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&pdev->dev, "Failed to register panel\n");
-		goto err_reg;
-	}
+	omapdss_device_register(dssdev);
 
 	return 0;
-
-err_reg:
-	i2c_put_adapter(ddata->i2c_adapter);
-	mutex_destroy(&ddata->hpd_lock);
-
-	return r;
 }
 
 static int __exit dvic_remove(struct platform_device *pdev)
@@ -411,7 +401,7 @@ static int __exit dvic_remove(struct platform_device *pdev)
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 
-	omapdss_unregister_display(&ddata->dssdev);
+	omapdss_device_unregister(&ddata->dssdev);
 
 	dvic_disable(dssdev);
 	omapdss_device_disconnect(dssdev, NULL);
