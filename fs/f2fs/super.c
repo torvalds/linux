@@ -1341,6 +1341,11 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	bool no_extent_cache = !test_opt(sbi, EXTENT_CACHE);
 	int old_whint_mode = sbi->whint_mode;
 	int old_alloc_mode = sbi->alloc_mode;
+	int old_inline_xattr_size = sbi->inline_xattr_size;
+	block_t old_root_reserved_blocks = sbi->root_reserved_blocks;
+	kuid_t old_resuid = sbi->s_resuid;
+	kgid_t old_resgid = sbi->s_resgid;
+	int old_write_io_size_bits = sbi->write_io_size_bits;
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	struct f2fs_fault_info ffi = sbi->fault_info;
 #endif
@@ -1490,6 +1495,11 @@ restore_opts:
 		sbi->s_qf_names[i] = s_qf_names[i];
 	}
 #endif
+	sbi->write_io_size_bits = old_write_io_size_bits;
+	sbi->s_resgid = old_resgid;
+	sbi->s_resuid = old_resuid;
+	sbi->root_reserved_blocks = old_root_reserved_blocks;
+	sbi->inline_xattr_size = old_inline_xattr_size;
 	sbi->alloc_mode = old_alloc_mode;
 	sbi->whint_mode = old_whint_mode;
 	sbi->mount_opt = org_mount_opt;
