@@ -124,7 +124,6 @@ struct smc_rtoken {				/* address/key of remote RMB */
 struct smc_link_group {
 	struct list_head	list;
 	enum smc_lgr_role	role;		/* client or server */
-	__be32			daddr;		/* destination ip address */
 	struct smc_link		lnk[SMC_LINKS_PER_LGR_MAX];	/* smc link */
 	char			peer_systemid[SMC_SYSTEMID_LEN];
 						/* unique system_id of peer */

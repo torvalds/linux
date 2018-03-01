@@ -144,7 +144,7 @@ free:
 }
 
 /* create a new SMC link group */
-static int smc_lgr_create(struct smc_sock *smc, __be32 peer_in_addr,
+static int smc_lgr_create(struct smc_sock *smc,
 			  struct smc_ib_device *smcibdev, u8 ibport,
 			  char *peer_systemid, unsigned short vlan_id)
 {
@@ -161,7 +161,6 @@ static int smc_lgr_create(struct smc_sock *smc, __be32 peer_in_addr,
 	}
 	lgr->role = smc->listen_smc ? SMC_SERV : SMC_CLNT;
 	lgr->sync_err = false;
-	lgr->daddr = peer_in_addr;
 	memcpy(lgr->peer_systemid, peer_systemid, SMC_SYSTEMID_LEN);
 	lgr->vlan_id = vlan_id;
 	rwlock_init(&lgr->sndbufs_lock);
@@ -400,7 +399,7 @@ static int smc_link_determine_gid(struct smc_link_group *lgr)
 }
 
 /* create a new SMC connection (and a new link group if necessary) */
-int smc_conn_create(struct smc_sock *smc, __be32 peer_in_addr,
+int smc_conn_create(struct smc_sock *smc,
 		    struct smc_ib_device *smcibdev, u8 ibport,
 		    struct smc_clc_msg_local *lcl, int srv_first_contact)
 {
@@ -457,7 +456,7 @@ int smc_conn_create(struct smc_sock *smc, __be32 peer_in_addr,
 
 create:
 	if (local_contact == SMC_FIRST_CONTACT) {
-		rc = smc_lgr_create(smc, peer_in_addr, smcibdev, ibport,
+		rc = smc_lgr_create(smc, smcibdev, ibport,
 				    lcl->id_for_peer, vlan_id);
 		if (rc)
 			goto out;
