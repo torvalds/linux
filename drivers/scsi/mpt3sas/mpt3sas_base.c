@@ -225,14 +225,14 @@ _base_get_chain(struct MPT3SAS_ADAPTER *ioc, u16 smid,
  *
  * @Return - Physical chain address.
  */
-static inline void *
+static inline phys_addr_t
 _base_get_chain_phys(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 		u8 sge_chain_count)
 {
-	void *base_chain_phys, *chain_phys;
+	phys_addr_t base_chain_phys, chain_phys;
 	u16 cmd_credit = ioc->facts.RequestCredit + 1;
 
-	base_chain_phys  = (void *)ioc->chip_phys + MPI_FRAME_START_OFFSET +
+	base_chain_phys  = ioc->chip_phys + MPI_FRAME_START_OFFSET +
 		(cmd_credit * ioc->request_sz) +
 		REPLY_FREE_POOL_SIZE;
 	chain_phys = base_chain_phys + (smid * ioc->facts.MaxChainDepth *
@@ -272,11 +272,11 @@ _base_get_buffer_bar0(struct MPT3SAS_ADAPTER *ioc, u16 smid)
  *
  * @Returns - Pointer to buffer location in BAR0.
  */
-static void *
+static phys_addr_t
 _base_get_buffer_phys_bar0(struct MPT3SAS_ADAPTER *ioc, u16 smid)
 {
 	u16 cmd_credit = ioc->facts.RequestCredit + 1;
-	void *chain_end_phys = _base_get_chain_phys(ioc,
+	phys_addr_t chain_end_phys = _base_get_chain_phys(ioc,
 			cmd_credit + 1,
 			ioc->facts.MaxChainDepth);
 	return chain_end_phys + (smid * 64 * 1024);
@@ -330,11 +330,12 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 	bool is_write = 0;
 	u16 i = 0;
 	void __iomem *buffer_iomem;
-	void  *buffer_iomem_phys;
+	phys_addr_t buffer_iomem_phys;
 	void __iomem *buff_ptr;
-	void *buff_ptr_phys;
+	phys_addr_t buff_ptr_phys;
 	void __iomem *dst_chain_addr[MCPU_MAX_CHAINS_PER_IO];
-	void *src_chain_addr[MCPU_MAX_CHAINS_PER_IO], *dst_addr_phys;
+	void *src_chain_addr[MCPU_MAX_CHAINS_PER_IO];
+	phys_addr_t dst_addr_phys;
 	MPI2RequestHeader_t *request_hdr;
 	struct scsi_cmnd *scmd;
 	struct scatterlist *sg_scmd = NULL;
@@ -391,6 +392,7 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 
 	buff_ptr = buffer_iomem;
 	buff_ptr_phys = buffer_iomem_phys;
+	WARN_ON(buff_ptr_phys > U32_MAX);
 
 	if (sgel->FlagsLength &
 			(MPI2_SGE_FLAGS_HOST_TO_IOC << MPI2_SGE_FLAGS_SHIFT))
@@ -421,10 +423,10 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 					smid, sge_chain_count);
 			src_chain_addr[sge_chain_count] =
 						(void *) sgel_next;
-			dst_addr_phys =
-				_base_get_chain_phys(ioc,
+			dst_addr_phys = _base_get_chain_phys(ioc,
 						smid, sge_chain_count);
-			sgel->Address = (dma_addr_t)dst_addr_phys;
+			WARN_ON(dst_addr_phys > U32_MAX);
+			sgel->Address = (u32)dst_addr_phys;
 			sgel = sgel_next;
 			sge_chain_count++;
 			break;
@@ -434,14 +436,16 @@ static void _clone_sg_entries(struct MPT3SAS_ADAPTER *ioc,
 					_base_clone_to_sys_mem(buff_ptr,
 					    sg_virt(sg_scmd),
 					    (sgel->FlagsLength & 0x00ffffff));
-					sgel->Address =
-						(dma_addr_t)buff_ptr_phys;
+					/*
+					 * FIXME: this relies on a a zero
+					 * PCI mem_offset.
+					 */
+					sgel->Address = (u32)buff_ptr_phys;
 				} else {
 					_base_clone_to_sys_mem(buff_ptr,
 					    ioc->config_vaddr,
 					    (sgel->FlagsLength & 0x00ffffff));
-					sgel->Address =
-					    (dma_addr_t)buff_ptr_phys;
+					sgel->Address = (u32)buff_ptr_phys;
 				}
 			}
 			buff_ptr += (sgel->FlagsLength & 0x00ffffff);
@@ -2938,7 +2942,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	u32 pio_sz;
 	int i, r = 0;
 	u64 pio_chip = 0;
-	u64 chip_phys = 0;
+	phys_addr_t chip_phys = 0;
 	struct adapter_reply_queue *reply_q;
 
 	dinitprintk(ioc, pr_info(MPT3SAS_FMT "%s\n",
@@ -2986,7 +2990,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 			if (memap_sz)
 				continue;
 			ioc->chip_phys = pci_resource_start(pdev, i);
-			chip_phys = (u64)ioc->chip_phys;
+			chip_phys = ioc->chip_phys;
 			memap_sz = pci_resource_len(pdev, i);
 			ioc->chip = ioremap(ioc->chip_phys, memap_sz);
 		}
@@ -3061,8 +3065,8 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 		    "IO-APIC enabled"),
 		    pci_irq_vector(ioc->pdev, reply_q->msix_index));
 
-	pr_info(MPT3SAS_FMT "iomem(0x%016llx), mapped(0x%p), size(%d)\n",
-	    ioc->name, (unsigned long long)chip_phys, ioc->chip, memap_sz);
+	pr_info(MPT3SAS_FMT "iomem(%pap), mapped(0x%p), size(%d)\n",
+	    ioc->name, &chip_phys, ioc->chip, memap_sz);
 	pr_info(MPT3SAS_FMT "ioport(0x%016llx), size(%d)\n",
 	    ioc->name, (unsigned long long)pio_chip, pio_sz);
 

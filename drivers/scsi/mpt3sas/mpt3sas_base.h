@@ -1103,7 +1103,7 @@ struct MPT3SAS_ADAPTER {
 	char		tmp_string[MPT_STRING_LENGTH];
 	struct pci_dev	*pdev;
 	Mpi2SystemInterfaceRegs_t __iomem *chip;
-	resource_size_t	chip_phys;
+	phys_addr_t	chip_phys;
 	int		logging_level;
 	int		fwfault_debug;
 	u8		ir_firmware;
