@@ -1411,7 +1411,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		adev->gmc.visible_vram_size = vis_vram_limit;
 
 	/* Change the size here instead of the init above so only lpfn is affected */
-	amdgpu_ttm_set_active_vram_size(adev, adev->gmc.visible_vram_size);
+	amdgpu_ttm_set_buffer_funcs_status(adev, false);
 #ifdef CONFIG_64BIT
 	adev->mman.aper_base_kaddr = ioremap_wc(adev->gmc.aper_base,
 						adev->gmc.visible_vram_size);
@@ -1526,17 +1526,28 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	DRM_INFO("amdgpu: ttm finalized\n");
 }
 
-/* this should only be called at bootup or when userspace
- * isn't running */
-void amdgpu_ttm_set_active_vram_size(struct amdgpu_device *adev, u64 size)
+/**
+ * amdgpu_ttm_set_buffer_funcs_status - enable/disable use of buffer functions
+ *
+ * @adev: amdgpu_device pointer
+ * @enable: true when we can use buffer functions.
+ *
+ * Enable/disable use of buffer functions during suspend/resume. This should
+ * only be called at bootup or when userspace isn't running.
+ */
+void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 {
-	struct ttm_mem_type_manager *man;
+	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_VRAM];
+	uint64_t size;
 
 	if (!adev->mman.initialized)
 		return;
 
-	man = &adev->mman.bdev.man[TTM_PL_VRAM];
 	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
+	if (enable)
+		size = adev->gmc.real_vram_size;
+	else
+		size = adev->gmc.visible_vram_size;
 	man->size = size >> PAGE_SHIFT;
 }
 

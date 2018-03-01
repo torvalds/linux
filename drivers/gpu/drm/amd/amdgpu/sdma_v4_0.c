@@ -426,7 +426,7 @@ static void sdma_v4_0_gfx_stop(struct amdgpu_device *adev)
 
 	if ((adev->mman.buffer_funcs_ring == sdma0) ||
 	    (adev->mman.buffer_funcs_ring == sdma1))
-		amdgpu_ttm_set_active_vram_size(adev, adev->gmc.visible_vram_size);
+			amdgpu_ttm_set_buffer_funcs_status(adev, false);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_RB_CNTL));
@@ -668,7 +668,7 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_active_vram_size(adev, adev->gmc.real_vram_size);
+			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 
 	}
 
