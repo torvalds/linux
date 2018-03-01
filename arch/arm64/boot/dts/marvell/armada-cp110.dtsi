@@ -303,7 +303,9 @@
 			reg-shift = <2>;
 			interrupts = <ICU_GRP_NSR 122 IRQ_TYPE_LEVEL_HIGH>;
 			reg-io-width = <1>;
-			clocks = <&CP110_LABEL(clk) 1 21>;
+			clock-names = "baudclk", "apb_pclk";
+			clocks = <&CP110_LABEL(clk) 1 21>,
+				 <&CP110_LABEL(clk) 1 17>;
 			status = "disabled";
 		};
 
@@ -313,7 +315,9 @@
 			reg-shift = <2>;
 			interrupts = <ICU_GRP_NSR 123 IRQ_TYPE_LEVEL_HIGH>;
 			reg-io-width = <1>;
-			clocks = <&CP110_LABEL(clk) 1 21>;
+			clock-names = "baudclk", "apb_pclk";
+			clocks = <&CP110_LABEL(clk) 1 21>,
+				 <&CP110_LABEL(clk) 1 17>;
 			status = "disabled";
 		};
 
@@ -323,7 +327,9 @@
 			reg-shift = <2>;
 			interrupts = <ICU_GRP_NSR 124 IRQ_TYPE_LEVEL_HIGH>;
 			reg-io-width = <1>;
-			clocks = <&CP110_LABEL(clk) 1 21>;
+			clock-names = "baudclk", "apb_pclk";
+			clocks = <&CP110_LABEL(clk) 1 21>,
+				 <&CP110_LABEL(clk) 1 17>;
 			status = "disabled";
 		};
 
@@ -333,7 +339,9 @@
 			reg-shift = <2>;
 			interrupts = <ICU_GRP_NSR 125 IRQ_TYPE_LEVEL_HIGH>;
 			reg-io-width = <1>;
-			clocks = <&CP110_LABEL(clk) 1 21>;
+			clock-names = "baudclk", "apb_pclk";
+			clocks = <&CP110_LABEL(clk) 1 21>,
+				 <&CP110_LABEL(clk) 1 17>;
 			status = "disabled";
 		};
 
