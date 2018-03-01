@@ -46,6 +46,8 @@
 
 #define FREESYNC_NO_STATIC_FOR_INTERNAL_REGKEY "DalFreeSyncNoStaticForInternal"
 
+#define FREESYNC_DEFAULT_REGKEY "LCDFreeSyncDefault"
+
 struct gradual_static_ramp {
 	bool ramp_is_active;
 	bool ramp_direction_is_up;
@@ -125,6 +127,8 @@ struct freesync_entity {
 struct freesync_registry_options {
 	bool drr_external_supported;
 	bool drr_internal_supported;
+	bool lcd_freesync_default_set;
+	int lcd_freesync_default_value;
 };
 
 struct core_freesync {
@@ -187,6 +191,16 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 			&data, sizeof(data), &flag)) {
 		core_freesync->opts.drr_external_supported =
 				(data & 1) ? false : true;
+	}
+
+	if (dm_read_persistent_data(dc->ctx, NULL, NULL,
+			FREESYNC_DEFAULT_REGKEY,
+			&data, sizeof(data), &flag)) {
+		core_freesync->opts.lcd_freesync_default_set = true;
+		core_freesync->opts.lcd_freesync_default_value = data;
+	} else {
+		core_freesync->opts.lcd_freesync_default_set = false;
+		core_freesync->opts.lcd_freesync_default_value = 0;
 	}
 
 	return &core_freesync->public;
@@ -294,6 +308,18 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 			core_freesync->map[core_freesync->num_entities].user_enable.
 				enable_for_video =
 				(persistent_freesync_enable & 4) ? true : false;
+		/* If FreeSync display and LCDFreeSyncDefault is set, use as default values write back to userenable */
+		} else if (caps->supported && (core_freesync->opts.lcd_freesync_default_set)) {
+			core_freesync->map[core_freesync->num_entities].user_enable.enable_for_gaming =
+				(core_freesync->opts.lcd_freesync_default_value & 1) ? true : false;
+			core_freesync->map[core_freesync->num_entities].user_enable.enable_for_static =
+				(core_freesync->opts.lcd_freesync_default_value & 2) ? true : false;
+			core_freesync->map[core_freesync->num_entities].user_enable.enable_for_video =
+				(core_freesync->opts.lcd_freesync_default_value & 4) ? true : false;
+			dm_write_persistent_data(dc->ctx, stream->sink,
+						FREESYNC_REGISTRY_NAME,
+						"userenable", &core_freesync->opts.lcd_freesync_default_value,
+						sizeof(int), &flag);
 		} else {
 			core_freesync->map[core_freesync->num_entities].user_enable.
 					enable_for_gaming = false;
