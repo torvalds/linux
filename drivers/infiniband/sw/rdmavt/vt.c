@@ -91,7 +91,7 @@ module_exit(rvt_cleanup);
  */
 struct rvt_dev_info *rvt_alloc_device(size_t size, int nports)
 {
-	struct rvt_dev_info *rdi = ERR_PTR(-ENOMEM);
+	struct rvt_dev_info *rdi;
 
 	rdi = (struct rvt_dev_info *)ib_alloc_device(size);
 	if (!rdi)
