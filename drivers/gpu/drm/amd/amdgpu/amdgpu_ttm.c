@@ -1540,7 +1540,7 @@ void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev, bool enable)
 	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[TTM_PL_VRAM];
 	uint64_t size;
 
-	if (!adev->mman.initialized)
+	if (!adev->mman.initialized || adev->in_gpu_reset)
 		return;
 
 	/* this just adjusts TTM size idea, which sets lpfn to the correct value */
