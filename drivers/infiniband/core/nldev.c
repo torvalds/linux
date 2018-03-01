@@ -212,10 +212,10 @@ err:
 	return ret;
 }
 
-static int fill_res_qp_entry(struct sk_buff *msg,
-			     struct ib_qp *qp, uint32_t port)
+static int fill_res_qp_entry(struct sk_buff *msg, struct netlink_callback *cb,
+			     struct rdma_restrack_entry *res, uint32_t port)
 {
-	struct rdma_restrack_entry *res = &qp->res;
+	struct ib_qp *qp = container_of(res, struct ib_qp, res);
 	struct ib_qp_init_attr qp_init_attr;
 	struct nlattr *entry_attr;
 	struct ib_qp_attr qp_attr;
@@ -558,23 +558,40 @@ static int nldev_res_get_dumpit(struct sk_buff *skb,
 	return ib_enum_all_devs(_nldev_res_get_dumpit, skb, cb);
 }
 
-static int nldev_res_get_qp_dumpit(struct sk_buff *skb,
-				   struct netlink_callback *cb)
+struct nldev_fill_res_entry {
+	int (*fill_res_func)(struct sk_buff *msg, struct netlink_callback *cb,
+			     struct rdma_restrack_entry *res, u32 port);
+	enum rdma_nldev_attr nldev_attr;
+	enum rdma_nldev_command nldev_cmd;
+};
+
+static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
+	[RDMA_RESTRACK_QP] = {
+		.fill_res_func = fill_res_qp_entry,
+		.nldev_cmd = RDMA_NLDEV_CMD_RES_QP_GET,
+		.nldev_attr = RDMA_NLDEV_ATTR_RES_QP,
+	},
+};
+
+static int res_get_common_dumpit(struct sk_buff *skb,
+				 struct netlink_callback *cb,
+				 enum rdma_restrack_type res_type)
 {
+	const struct nldev_fill_res_entry *fe = &fill_entries[res_type];
 	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX];
 	struct rdma_restrack_entry *res;
 	int err, ret = 0, idx = 0;
 	struct nlattr *table_attr;
 	struct ib_device *device;
 	int start = cb->args[0];
-	struct ib_qp *qp = NULL;
 	struct nlmsghdr *nlh;
 	u32 index, port = 0;
+	bool filled = false;
 
 	err = nlmsg_parse(cb->nlh, 0, tb, RDMA_NLDEV_ATTR_MAX - 1,
 			  nldev_policy, NULL);
 	/*
-	 * Right now, we are expecting the device index to get QP information,
+	 * Right now, we are expecting the device index to get res information,
 	 * but it is possible to extend this code to return all devices in
 	 * one shot by checking the existence of RDMA_NLDEV_ATTR_DEV_INDEX.
 	 * if it doesn't exist, we will iterate over all devices.
@@ -601,7 +618,7 @@ static int nldev_res_get_qp_dumpit(struct sk_buff *skb,
 	}
 
 	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
-			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, RDMA_NLDEV_CMD_RES_QP_GET),
+			RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, fe->nldev_cmd),
 			0, NLM_F_MULTI);
 
 	if (fill_nldev_handle(skb, device)) {
@@ -609,24 +626,26 @@ static int nldev_res_get_qp_dumpit(struct sk_buff *skb,
 		goto err;
 	}
 
-	table_attr = nla_nest_start(skb, RDMA_NLDEV_ATTR_RES_QP);
+	table_attr = nla_nest_start(skb, fe->nldev_attr);
 	if (!table_attr) {
 		ret = -EMSGSIZE;
 		goto err;
 	}
 
 	down_read(&device->res.rwsem);
-	hash_for_each_possible(device->res.hash, res, node, RDMA_RESTRACK_QP) {
+	hash_for_each_possible(device->res.hash, res, node, res_type) {
 		if (idx < start)
 			goto next;
 
 		if ((rdma_is_kernel_res(res) &&
 		     task_active_pid_ns(current) != &init_pid_ns) ||
-		    (!rdma_is_kernel_res(res) &&
-		     task_active_pid_ns(current) != task_active_pid_ns(res->task)))
+		    (!rdma_is_kernel_res(res) && task_active_pid_ns(current) !=
+		     task_active_pid_ns(res->task)))
 			/*
-			 * 1. Kernel QPs should be visible in init namspace only
-			 * 2. Present only QPs visible in the current namespace
+			 * 1. Kern resources should be visible in init
+			 *    namspace only
+			 * 2. Present only resources visible in the current
+			 *    namespace
 			 */
 			goto next;
 
@@ -638,10 +657,10 @@ static int nldev_res_get_qp_dumpit(struct sk_buff *skb,
 			 */
 			goto next;
 
-		qp = container_of(res, struct ib_qp, res);
+		filled = true;
 
 		up_read(&device->res.rwsem);
-		ret = fill_res_qp_entry(skb, qp, port);
+		ret = fe->fill_res_func(skb, cb, res, port);
 		down_read(&device->res.rwsem);
 		/*
 		 * Return resource back, but it won't be released till
@@ -667,10 +686,10 @@ next:		idx++;
 	cb->args[0] = idx;
 
 	/*
-	 * No more QPs to fill, cancel the message and
+	 * No more entries to fill, cancel the message and
 	 * return 0 to mark end of dumpit.
 	 */
-	if (!qp)
+	if (!filled)
 		goto err;
 
 	put_device(&device->dev);
@@ -686,6 +705,12 @@ err:
 err_index:
 	put_device(&device->dev);
 	return ret;
+}
+
+static int nldev_res_get_qp_dumpit(struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_QP);
 }
 
 static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
