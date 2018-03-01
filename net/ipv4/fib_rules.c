@@ -182,6 +182,17 @@ static int fib4_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	if (r->tos && (r->tos != fl4->flowi4_tos))
 		return 0;
 
+	if (rule->ip_proto && (rule->ip_proto != fl4->flowi4_proto))
+		return 0;
+
+	if (fib_rule_port_range_set(&rule->sport_range) &&
+	    !fib_rule_port_inrange(&rule->sport_range, fl4->fl4_sport))
+		return 0;
+
+	if (fib_rule_port_range_set(&rule->dport_range) &&
+	    !fib_rule_port_inrange(&rule->dport_range, fl4->fl4_dport))
+		return 0;
+
 	return 1;
 }
 
