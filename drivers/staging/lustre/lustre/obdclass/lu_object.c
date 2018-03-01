@@ -1380,12 +1380,8 @@ static void key_fini(struct lu_context *ctx, int index)
 		lu_ref_del(&key->lct_reference, "ctx", ctx);
 		atomic_dec(&key->lct_used);
 
-		if ((ctx->lc_tags & LCT_NOREF) == 0) {
-#ifdef CONFIG_MODULE_UNLOAD
-			LINVRNT(module_refcount(key->lct_owner) > 0);
-#endif
+		if ((ctx->lc_tags & LCT_NOREF) == 0)
 			module_put(key->lct_owner);
-		}
 		ctx->lc_value[index] = NULL;
 	}
 }
@@ -1619,7 +1615,6 @@ static int keys_fill(struct lu_context *ctx)
 			LINVRNT(key->lct_init);
 			LINVRNT(key->lct_index == i);
 
-			LASSERT(key->lct_owner);
 			if (!(ctx->lc_tags & LCT_NOREF) &&
 			    !try_module_get(key->lct_owner)) {
 				/* module is unloading, skip this key */
