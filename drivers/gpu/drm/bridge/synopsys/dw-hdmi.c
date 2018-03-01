@@ -378,6 +378,14 @@ static void repo_hpd_event(struct work_struct *p_work)
 	struct dw_hdmi *hdmi = container_of(p_work, struct dw_hdmi, work.work);
 	enum drm_connector_status status = hdmi->hpd_state ?
 		connector_status_connected : connector_status_disconnected;
+	u8 phy_stat = hdmi_readb(hdmi, HDMI_PHY_STAT0);
+
+	mutex_lock(&hdmi->mutex);
+	if (!(phy_stat & HDMI_PHY_RX_SENSE))
+		hdmi->rxsense = false;
+	if (phy_stat & HDMI_PHY_HPD)
+		hdmi->rxsense = true;
+	mutex_unlock(&hdmi->mutex);
 
 	if (hdmi->bridge.dev) {
 		drm_helper_hpd_irq_event(hdmi->bridge.dev);
