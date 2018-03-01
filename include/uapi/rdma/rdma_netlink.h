@@ -238,6 +238,8 @@ enum rdma_nldev_command {
 
 	RDMA_NLDEV_CMD_RES_QP_GET, /* can dump */
 
+	RDMA_NLDEV_CMD_RES_CM_ID_GET, /* can dump */
+
 	RDMA_NLDEV_NUM_OPS
 };
 
@@ -349,6 +351,18 @@ enum rdma_nldev_attr {
 	 * to read /proc/PID/comm file.
 	 */
 	RDMA_NLDEV_ATTR_RES_KERN_NAME,		/* string */
+
+	RDMA_NLDEV_ATTR_RES_CM_ID,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_CM_ID_ENTRY,	/* nested table */
+	/*
+	 * rdma_cm_id port space.
+	 */
+	RDMA_NLDEV_ATTR_RES_PS,			/* u32 */
+	/*
+	 * Source and destination socket addresses
+	 */
+	RDMA_NLDEV_ATTR_RES_SRC_ADDR,		/* __kernel_sockaddr_storage */
+	RDMA_NLDEV_ATTR_RES_DST_ADDR,		/* __kernel_sockaddr_storage */
 
 	RDMA_NLDEV_ATTR_MAX
 };

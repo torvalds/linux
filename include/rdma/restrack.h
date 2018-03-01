@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/kref.h>
 #include <linux/completion.h>
+#include <linux/sched/task.h>
 
 /**
  * enum rdma_restrack_type - HW objects to track
@@ -28,6 +29,10 @@ enum rdma_restrack_type {
 	 * @RDMA_RESTRACK_QP: Queue pair (QP)
 	 */
 	RDMA_RESTRACK_QP,
+	/**
+	 * @RDMA_RESTRACK_CM_ID: Connection Manager ID (CM_ID)
+	 */
+	RDMA_RESTRACK_CM_ID,
 	/**
 	 * @RDMA_RESTRACK_MAX: Last entry, used for array dclarations
 	 */
@@ -150,4 +155,19 @@ int __must_check rdma_restrack_get(struct rdma_restrack_entry *res);
  * @res:  resource entry
  */
 int rdma_restrack_put(struct rdma_restrack_entry *res);
+
+/**
+ * rdma_restrack_set_task() - set the task for this resource
+ * @res:  resource entry
+ * @task: task struct
+ */
+static inline void rdma_restrack_set_task(struct rdma_restrack_entry *res,
+					  struct task_struct *task)
+{
+	if (res->task)
+		put_task_struct(res->task);
+	get_task_struct(task);
+	res->task = task;
+}
+
 #endif /* _RDMA_RESTRACK_H_ */

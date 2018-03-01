@@ -157,6 +157,11 @@ struct rdma_cm_id {
 	u8			 port_num;
 };
 
+struct rdma_cm_id *__rdma_create_id(struct net *net,
+				  rdma_cm_event_handler event_handler,
+				  void *context, enum rdma_port_space ps,
+				  enum ib_qp_type qp_type, const char *caller);
+
 /**
  * rdma_create_id - Create an RDMA identifier.
  *
@@ -169,10 +174,9 @@ struct rdma_cm_id {
  *
  * The id holds a reference on the network namespace until it is destroyed.
  */
-struct rdma_cm_id *rdma_create_id(struct net *net,
-				  rdma_cm_event_handler event_handler,
-				  void *context, enum rdma_port_space ps,
-				  enum ib_qp_type qp_type);
+#define rdma_create_id(net, event_handler, context, ps, qp_type) \
+	__rdma_create_id((net), (event_handler), (context), (ps), (qp_type), \
+			 KBUILD_MODNAME)
 
 /**
   * rdma_destroy_id - Destroys an RDMA identifier.
@@ -284,6 +288,9 @@ int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
  */
 int rdma_listen(struct rdma_cm_id *id, int backlog);
 
+int __rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		  const char *caller);
+
 /**
  * rdma_accept - Called to accept a connection request or response.
  * @id: Connection identifier associated with the request.
@@ -299,7 +306,8 @@ int rdma_listen(struct rdma_cm_id *id, int backlog);
  * state of the qp associated with the id is modified to error, such that any
  * previously posted receive buffers would be flushed.
  */
-int rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
+#define rdma_accept(id, conn_param) \
+	__rdma_accept((id), (conn_param),  KBUILD_MODNAME)
 
 /**
  * rdma_notify - Notifies the RDMA CM of an asynchronous event that has

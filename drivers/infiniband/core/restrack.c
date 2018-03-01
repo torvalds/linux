@@ -3,11 +3,14 @@
  * Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved.
  */
 
+#include <rdma/rdma_cm.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/restrack.h>
 #include <linux/mutex.h>
 #include <linux/sched/task.h>
 #include <linux/pid_namespace.h>
+
+#include "cma_priv.h"
 
 void rdma_restrack_init(struct rdma_restrack_root *res)
 {
@@ -44,7 +47,7 @@ static void set_kern_name(struct rdma_restrack_entry *res)
 	struct ib_qp *qp;
 
 	if (type != RDMA_RESTRACK_QP)
-		/* PD and CQ types already have this name embedded in */
+		/* Other types already have this name embedded in */
 		return;
 
 	qp = container_of(res, struct ib_qp, res);
@@ -67,6 +70,9 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 		return container_of(res, struct ib_cq, res)->device;
 	case RDMA_RESTRACK_QP:
 		return container_of(res, struct ib_qp, res)->device;
+	case RDMA_RESTRACK_CM_ID:
+		return container_of(res, struct rdma_id_private,
+				    res)->id.device;
 	default:
 		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
 		return NULL;
@@ -82,6 +88,8 @@ static bool res_is_user(struct rdma_restrack_entry *res)
 		return container_of(res, struct ib_cq, res)->uobject;
 	case RDMA_RESTRACK_QP:
 		return container_of(res, struct ib_qp, res)->uobject;
+	case RDMA_RESTRACK_CM_ID:
+		return !res->kern_name;
 	default:
 		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
 		return false;
@@ -96,8 +104,8 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 		return;
 
 	if (res_is_user(res)) {
-		get_task_struct(current);
-		res->task = current;
+		if (!res->task)
+			rdma_restrack_set_task(res, current);
 		res->kern_name = NULL;
 	} else {
 		set_kern_name(res);
