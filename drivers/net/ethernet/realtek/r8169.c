@@ -8169,7 +8169,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct rtl8169_private *tp;
 	struct mii_if_info *mii;
 	struct net_device *dev;
-	void __iomem *ioaddr;
 	int chipset, i;
 	int rc;
 
@@ -8227,20 +8226,13 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
-	rc = pci_request_regions(pdev, MODULENAME);
+	rc = pcim_iomap_regions(pdev, BIT(region), MODULENAME);
 	if (rc < 0) {
-		netif_err(tp, probe, dev, "could not request regions\n");
+		netif_err(tp, probe, dev, "cannot remap MMIO, aborting\n");
 		return rc;
 	}
 
-	/* ioremap MMIO region */
-	ioaddr = devm_ioremap(&pdev->dev, pci_resource_start(pdev, region),
-			      R8169_REGS_SIZE);
-	if (!ioaddr) {
-		netif_err(tp, probe, dev, "cannot remap MMIO, aborting\n");
-		return -EIO;
-	}
-	tp->mmio_addr = ioaddr;
+	tp->mmio_addr = pcim_iomap_table(pdev)[region];
 
 	if (!pci_is_pcie(pdev))
 		netif_info(tp, probe, dev, "not PCI Express\n");
@@ -8412,7 +8404,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, dev);
 
 	netif_info(tp, probe, dev, "%s at 0x%p, %pM, XID %08x IRQ %d\n",
-		   rtl_chip_infos[chipset].name, ioaddr, dev->dev_addr,
+		   rtl_chip_infos[chipset].name, tp->mmio_addr, dev->dev_addr,
 		   (u32)(RTL_R32(tp, TxConfig) & 0x9cf0f8ff),
 		   pci_irq_vector(pdev, 0));
 	if (rtl_chip_infos[chipset].jumbo_max != JUMBO_1K) {
