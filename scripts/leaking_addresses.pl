@@ -363,7 +363,7 @@ sub may_leak_address
 	}
 
 	$address_re = get_address_re();
-	while (/($address_re)/g) {
+	while ($line =~ /($address_re)/g) {
 		if (!is_false_positive($1)) {
 			return 1;
 		}
