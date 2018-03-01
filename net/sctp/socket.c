@@ -1892,6 +1892,21 @@ static union sctp_addr *sctp_sendmsg_get_daddr(struct sock *sk,
 	return daddr;
 }
 
+static void sctp_sendmsg_update_sinfo(struct sctp_association *asoc,
+				      struct sctp_sndrcvinfo *sinfo,
+				      struct sctp_cmsgs *cmsgs)
+{
+	if (!cmsgs->srinfo && !cmsgs->sinfo) {
+		sinfo->sinfo_stream = asoc->default_stream;
+		sinfo->sinfo_ppid = asoc->default_ppid;
+		sinfo->sinfo_context = asoc->default_context;
+		sinfo->sinfo_assoc_id = sctp_assoc2id(asoc);
+	}
+
+	if (!cmsgs->srinfo)
+		sinfo->sinfo_timetolive = asoc->default_timetolive;
+}
+
 static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 {
 	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
@@ -1951,15 +1966,8 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 		new_asoc = asoc;
 	}
 
-	if (!cmsgs.srinfo && !cmsgs.sinfo) {
-		sinfo->sinfo_stream = asoc->default_stream;
-		sinfo->sinfo_ppid = asoc->default_ppid;
-		sinfo->sinfo_context = asoc->default_context;
-		sinfo->sinfo_assoc_id = sctp_assoc2id(asoc);
-	}
-
-	if (!cmsgs.srinfo)
-		sinfo->sinfo_timetolive = asoc->default_timetolive;
+	/* Update snd_info with the asoc */
+	sctp_sendmsg_update_sinfo(asoc, sinfo, &cmsgs);
 
 	/* If an address is passed with the sendto/sendmsg call, it is used
 	 * to override the primary destination address in the TCP model, or
