@@ -188,7 +188,7 @@ static int omap_connect_dssdevs(struct drm_device *ddev)
 	if (!omapdss_stack_is_ready())
 		return -EPROBE_DEFER;
 
-	for_each_dss_dev(dssdev) {
+	for_each_dss_display(dssdev) {
 		r = omapdss_device_connect(dssdev, NULL);
 		if (r == -EPROBE_DEFER) {
 			omap_dss_put_device(dssdev);
@@ -200,7 +200,7 @@ static int omap_connect_dssdevs(struct drm_device *ddev)
 			omap_dss_get_device(dssdev);
 			priv->dssdevs[priv->num_dssdevs++] = dssdev;
 			if (priv->num_dssdevs == ARRAY_SIZE(priv->dssdevs)) {
-				/* To balance the 'for_each_dss_dev' loop */
+				/* To balance the 'for_each_dss_display' loop */
 				omap_dss_put_device(dssdev);
 				break;
 			}

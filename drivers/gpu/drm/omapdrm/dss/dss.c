@@ -1557,7 +1557,7 @@ static void dss_shutdown(struct platform_device *pdev)
 
 	DSSDBG("shutdown\n");
 
-	for_each_dss_dev(dssdev) {
+	for_each_dss_display(dssdev) {
 		if (!dssdev->driver)
 			continue;
 
