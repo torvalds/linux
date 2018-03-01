@@ -3,7 +3,7 @@
 # Kernel configuration targets
 # These targets are used from top-level makefile
 
-PHONY += xconfig gconfig menuconfig config silentoldconfig update-po-config \
+PHONY += xconfig gconfig menuconfig config syncconfig update-po-config \
 	localmodconfig localyesconfig
 
 ifdef KBUILD_KCONFIG
@@ -36,7 +36,7 @@ nconfig: $(obj)/nconf
 
 # This has become an internal implementation detail and is now deprecated
 # for external use.
-silentoldconfig: $(obj)/conf
+syncconfig: $(obj)/conf
 	$(Q)mkdir -p include/config include/generated
 	$(Q)test -e include/generated/autoksyms.h || \
 	    touch   include/generated/autoksyms.h
@@ -88,7 +88,7 @@ PHONY += $(simple-targets)
 $(simple-targets): $(obj)/conf
 	$< $(silent) --$@ $(Kconfig)
 
-PHONY += oldnoconfig savedefconfig defconfig
+PHONY += oldnoconfig silentoldconfig savedefconfig defconfig
 
 # oldnoconfig is an alias of olddefconfig, because people already are dependent
 # on its behavior (sets new symbols to their default value but not 'n') with the
@@ -96,6 +96,13 @@ PHONY += oldnoconfig savedefconfig defconfig
 oldnoconfig: olddefconfig
 	@echo "  WARNING: \"oldnoconfig\" target will be removed after Linux 4.19"
 	@echo "            Please use \"olddefconfig\" instead, which is an alias."
+
+# We do not expect manual invokcation of "silentoldcofig" (or "syncconfig").
+silentoldconfig: syncconfig
+	@echo "  WARNING: \"silentoldconfig\" has been renamed to \"syncconfig\""
+	@echo "            and is now an internal implementation detail."
+	@echo "            What you want is probably \"oldconfig\"."
+	@echo "            \"silentoldconfig\" will be removed after Linux 4.19"
 
 savedefconfig: $(obj)/conf
 	$< $(silent) --$@=defconfig $(Kconfig)
