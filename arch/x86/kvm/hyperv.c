@@ -737,6 +737,9 @@ static bool kvm_hv_msr_partition_wide(u32 msr)
 	case HV_X64_MSR_CRASH_CTL:
 	case HV_X64_MSR_CRASH_P0 ... HV_X64_MSR_CRASH_P4:
 	case HV_X64_MSR_RESET:
+	case HV_X64_MSR_REENLIGHTENMENT_CONTROL:
+	case HV_X64_MSR_TSC_EMULATION_CONTROL:
+	case HV_X64_MSR_TSC_EMULATION_STATUS:
 		r = true;
 		break;
 	}
@@ -982,6 +985,15 @@ static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 			kvm_make_request(KVM_REQ_HV_RESET, vcpu);
 		}
 		break;
+	case HV_X64_MSR_REENLIGHTENMENT_CONTROL:
+		hv->hv_reenlightenment_control = data;
+		break;
+	case HV_X64_MSR_TSC_EMULATION_CONTROL:
+		hv->hv_tsc_emulation_control = data;
+		break;
+	case HV_X64_MSR_TSC_EMULATION_STATUS:
+		hv->hv_tsc_emulation_status = data;
+		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V uhandled wrmsr: 0x%x data 0x%llx\n",
 			    msr, data);
@@ -1105,6 +1117,15 @@ static int kvm_hv_get_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		return kvm_hv_msr_get_crash_ctl(vcpu, pdata);
 	case HV_X64_MSR_RESET:
 		data = 0;
+		break;
+	case HV_X64_MSR_REENLIGHTENMENT_CONTROL:
+		data = hv->hv_reenlightenment_control;
+		break;
+	case HV_X64_MSR_TSC_EMULATION_CONTROL:
+		data = hv->hv_tsc_emulation_control;
+		break;
+	case HV_X64_MSR_TSC_EMULATION_STATUS:
+		data = hv->hv_tsc_emulation_status;
 		break;
 	default:
 		vcpu_unimpl(vcpu, "Hyper-V unhandled rdmsr: 0x%x\n", msr);

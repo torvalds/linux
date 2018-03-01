@@ -756,6 +756,10 @@ struct kvm_hv {
 	HV_REFERENCE_TSC_PAGE tsc_ref;
 
 	struct idr conn_to_evt;
+
+	u64 hv_reenlightenment_control;
+	u64 hv_tsc_emulation_control;
+	u64 hv_tsc_emulation_status;
 };
 
 enum kvm_irqchip_mode {
