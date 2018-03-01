@@ -2196,9 +2196,10 @@ static int enic_dev_wait(struct vnic_dev *vdev,
 static int enic_dev_open(struct enic *enic)
 {
 	int err;
+	u32 flags = CMD_OPENF_IG_DESCCACHE;
 
 	err = enic_dev_wait(enic->vdev, vnic_dev_open,
-		vnic_dev_open_done, 0);
+		vnic_dev_open_done, flags);
 	if (err)
 		dev_err(enic_get_dev(enic), "vNIC device open failed, err %d\n",
 			err);
