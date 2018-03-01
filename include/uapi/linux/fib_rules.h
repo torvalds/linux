@@ -35,6 +35,11 @@ struct fib_rule_uid_range {
 	__u32		end;
 };
 
+struct fib_rule_port_range {
+	__u16		start;
+	__u16		end;
+};
+
 enum {
 	FRA_UNSPEC,
 	FRA_DST,	/* destination address */
@@ -59,6 +64,9 @@ enum {
 	FRA_L3MDEV,	/* iif or oif is l3mdev goto its table */
 	FRA_UID_RANGE,	/* UID range */
 	FRA_PROTOCOL,   /* Originator of the rule */
+	FRA_IP_PROTO,	/* ip proto */
+	FRA_SPORT_RANGE, /* sport */
+	FRA_DPORT_RANGE, /* dport */
 	__FRA_MAX
 };
 

@@ -33,6 +33,10 @@ bool fib_rule_matchall(const struct fib_rule *rule)
 	if (!uid_eq(rule->uid_range.start, fib_kuid_range_unset.start) ||
 	    !uid_eq(rule->uid_range.end, fib_kuid_range_unset.end))
 		return false;
+	if (fib_rule_port_range_set(&rule->sport_range))
+		return false;
+	if (fib_rule_port_range_set(&rule->dport_range))
+		return false;
 	return true;
 }
 EXPORT_SYMBOL_GPL(fib_rule_matchall);
@@ -219,6 +223,26 @@ static int nla_put_uid_range(struct sk_buff *skb, struct fib_kuid_range *range)
 	};
 
 	return nla_put(skb, FRA_UID_RANGE, sizeof(out), &out);
+}
+
+static int nla_get_port_range(struct nlattr *pattr,
+			      struct fib_rule_port_range *port_range)
+{
+	const struct fib_rule_port_range *pr = nla_data(pattr);
+
+	if (!fib_rule_port_range_valid(pr))
+		return -EINVAL;
+
+	port_range->start = pr->start;
+	port_range->end = pr->end;
+
+	return 0;
+}
+
+static int nla_put_port_range(struct sk_buff *skb, int attrtype,
+			      struct fib_rule_port_range *range)
+{
+	return nla_put(skb, attrtype, sizeof(*range), range);
 }
 
 static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
@@ -425,6 +449,17 @@ static int rule_exists(struct fib_rules_ops *ops, struct fib_rule_hdr *frh,
 		    !uid_eq(r->uid_range.end, rule->uid_range.end))
 			continue;
 
+		if (r->ip_proto != rule->ip_proto)
+			continue;
+
+		if (!fib_rule_port_range_compare(&r->sport_range,
+						 &rule->sport_range))
+			continue;
+
+		if (!fib_rule_port_range_compare(&r->dport_range,
+						 &rule->dport_range))
+			continue;
+
 		if (!ops->compare(r, frh, tb))
 			continue;
 		return 1;
@@ -569,6 +604,23 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		rule->uid_range = fib_kuid_range_unset;
 	}
 
+	if (tb[FRA_IP_PROTO])
+		rule->ip_proto = nla_get_u8(tb[FRA_IP_PROTO]);
+
+	if (tb[FRA_SPORT_RANGE]) {
+		err = nla_get_port_range(tb[FRA_SPORT_RANGE],
+					 &rule->sport_range);
+		if (err)
+			goto errout_free;
+	}
+
+	if (tb[FRA_DPORT_RANGE]) {
+		err = nla_get_port_range(tb[FRA_DPORT_RANGE],
+					 &rule->dport_range);
+		if (err)
+			goto errout_free;
+	}
+
 	if ((nlh->nlmsg_flags & NLM_F_EXCL) &&
 	    rule_exists(ops, frh, tb, rule)) {
 		err = -EEXIST;
@@ -634,6 +686,8 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 {
 	struct net *net = sock_net(skb->sk);
 	struct fib_rule_hdr *frh = nlmsg_data(nlh);
+	struct fib_rule_port_range sprange = {0, 0};
+	struct fib_rule_port_range dprange = {0, 0};
 	struct fib_rules_ops *ops = NULL;
 	struct fib_rule *rule, *r;
 	struct nlattr *tb[FRA_MAX+1];
@@ -665,6 +719,20 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 	} else {
 		range = fib_kuid_range_unset;
+	}
+
+	if (tb[FRA_SPORT_RANGE]) {
+		err = nla_get_port_range(tb[FRA_SPORT_RANGE],
+					 &sprange);
+		if (err)
+			goto errout;
+	}
+
+	if (tb[FRA_DPORT_RANGE]) {
+		err = nla_get_port_range(tb[FRA_DPORT_RANGE],
+					 &dprange);
+		if (err)
+			goto errout;
 	}
 
 	list_for_each_entry(rule, &ops->rules_list, list) {
@@ -710,6 +778,18 @@ int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		if (uid_range_set(&range) &&
 		    (!uid_eq(rule->uid_range.start, range.start) ||
 		     !uid_eq(rule->uid_range.end, range.end)))
+			continue;
+
+		if (tb[FRA_IP_PROTO] &&
+		    (rule->ip_proto != nla_get_u8(tb[FRA_IP_PROTO])))
+			continue;
+
+		if (fib_rule_port_range_set(&sprange) &&
+		    !fib_rule_port_range_compare(&rule->sport_range, &sprange))
+			continue;
+
+		if (fib_rule_port_range_set(&dprange) &&
+		    !fib_rule_port_range_compare(&rule->dport_range, &dprange))
 			continue;
 
 		if (!ops->compare(rule, frh, tb))
@@ -790,7 +870,10 @@ static inline size_t fib_rule_nlmsg_size(struct fib_rules_ops *ops,
 			 + nla_total_size(4) /* FRA_FWMASK */
 			 + nla_total_size_64bit(8) /* FRA_TUN_ID */
 			 + nla_total_size(sizeof(struct fib_kuid_range))
-			 + nla_total_size(1); /* FRA_PROTOCOL */
+			 + nla_total_size(1) /* FRA_PROTOCOL */
+			 + nla_total_size(1) /* FRA_IP_PROTO */
+			 + nla_total_size(sizeof(struct fib_rule_port_range)) /* FRA_SPORT_RANGE */
+			 + nla_total_size(sizeof(struct fib_rule_port_range)); /* FRA_DPORT_RANGE */
 
 	if (ops->nlmsg_payload)
 		payload += ops->nlmsg_payload(rule);
@@ -855,7 +938,12 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 	    (rule->l3mdev &&
 	     nla_put_u8(skb, FRA_L3MDEV, rule->l3mdev)) ||
 	    (uid_range_set(&rule->uid_range) &&
-	     nla_put_uid_range(skb, &rule->uid_range)))
+	     nla_put_uid_range(skb, &rule->uid_range)) ||
+	    (fib_rule_port_range_set(&rule->sport_range) &&
+	     nla_put_port_range(skb, FRA_SPORT_RANGE, &rule->sport_range)) ||
+	    (fib_rule_port_range_set(&rule->dport_range) &&
+	     nla_put_port_range(skb, FRA_DPORT_RANGE, &rule->dport_range)) ||
+	    (rule->ip_proto && nla_put_u8(skb, FRA_IP_PROTO, rule->ip_proto)))
 		goto nla_put_failure;
 
 	if (rule->suppress_ifgroup != -1) {
