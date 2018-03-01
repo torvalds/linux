@@ -445,7 +445,7 @@ static const struct tw9910_scale_ctrl *tw9910_select_norm(v4l2_std_id norm,
 
 	for (i = 0; i < size; i++) {
 		tmp = abs(width - scale[i].width) +
-			abs(height - scale[i].height);
+		      abs(height - scale[i].height);
 		if (tmp < diff) {
 			diff = tmp;
 			ret = scale + i;
@@ -534,9 +534,9 @@ static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	if (!ret)
 		ret = i2c_smbus_write_byte_data(client, CROP_HI,
 						((vdelay >> 2) & 0xc0) |
-			((vact >> 4) & 0x30) |
-			((hdelay >> 6) & 0x0c) |
-			((hact >> 8) & 0x03));
+						((vact >> 4) & 0x30) |
+						((hdelay >> 6) & 0x0c) |
+						((hact >> 8) & 0x03));
 	if (!ret)
 		ret = i2c_smbus_write_byte_data(client, VDELAY_LO,
 						vdelay & 0xff);
@@ -642,8 +642,7 @@ static int tw9910_s_power(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
 
-	return on ? tw9910_power_on(priv) :
-		    tw9910_power_off(priv);
+	return on ? tw9910_power_on(priv) : tw9910_power_off(priv);
 }
 
 static int tw9910_set_frame(struct v4l2_subdev *sd, u32 *width, u32 *height)
@@ -721,7 +720,7 @@ tw9910_set_fmt_error:
 
 static int tw9910_get_selection(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_selection *sel)
+				struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct tw9910_priv *priv = to_tw9910(client);
@@ -746,7 +745,7 @@ static int tw9910_get_selection(struct v4l2_subdev *sd,
 
 static int tw9910_get_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_format *format)
+			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -795,7 +794,7 @@ static int tw9910_s_fmt(struct v4l2_subdev *sd,
 
 static int tw9910_set_fmt(struct v4l2_subdev *sd,
 			  struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_format *format)
+			  struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -882,7 +881,7 @@ static const struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 
 static int tw9910_enum_mbus_code(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
-		struct v4l2_subdev_mbus_code_enum *code)
+				 struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad || code->index)
 		return -EINVAL;
