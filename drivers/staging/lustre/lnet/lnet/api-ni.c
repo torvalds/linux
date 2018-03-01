@@ -1214,6 +1214,7 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 	struct lnet_lnd *lnd;
 	struct lnet_tx_queue *tq;
 	int i;
+	u32 seed;
 
 	lnd_type = LNET_NETTYP(LNET_NIDNET(ni->ni_nid));
 
@@ -1351,6 +1352,12 @@ lnet_startup_lndni(struct lnet_ni *ni, struct lnet_ioctl_config_data *conf)
 		tq->tq_credits_max =
 		tq->tq_credits = lnet_ni_tq_credits(ni);
 	}
+
+	/* Nodes with small feet have little entropy. The NID for this
+	 * node gives the most entropy in the low bits.
+	 */
+	seed = LNET_NIDADDR(ni->ni_nid);
+	add_device_randomness(&seed, sizeof(seed));
 
 	CDEBUG(D_LNI, "Added LNI %s [%d/%d/%d/%d]\n",
 	       libcfs_nid2str(ni->ni_nid), ni->ni_peertxcredits,
