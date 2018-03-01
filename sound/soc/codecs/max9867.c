@@ -369,19 +369,20 @@ static struct snd_soc_dai_driver max9867_dai[] = {
 	.name = "max9867-aif1",
 	.playback = {
 		.stream_name = "HiFi Playback",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = MAX9867_RATES,
 		.formats = MAX9867_FORMATS,
 	},
 	.capture = {
 		.stream_name = "HiFi Capture",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = MAX9867_RATES,
 		.formats = MAX9867_FORMATS,
 	},
 	.ops = &max9867_dai_ops,
+	.symmetric_rates = 1,
 	}
 };
 
