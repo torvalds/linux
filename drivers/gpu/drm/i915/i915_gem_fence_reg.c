@@ -64,7 +64,7 @@ static void i965_write_fence_reg(struct drm_i915_fence_reg *fence,
 	int fence_pitch_shift;
 	u64 val;
 
-	if (INTEL_INFO(fence->i915)->gen >= 6) {
+	if (INTEL_GEN(fence->i915) >= 6) {
 		fence_reg_lo = FENCE_REG_GEN6_LO(fence->id);
 		fence_reg_hi = FENCE_REG_GEN6_HI(fence->id);
 		fence_pitch_shift = GEN6_FENCE_PITCH_SHIFT;

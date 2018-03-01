@@ -505,6 +505,8 @@ eb_add_vma(struct i915_execbuffer *eb, unsigned int i, struct i915_vma *vma)
 		list_add_tail(&vma->exec_link, &eb->unbound);
 		if (drm_mm_node_allocated(&vma->node))
 			err = i915_vma_unbind(vma);
+		if (unlikely(err))
+			vma->exec_flags = NULL;
 	}
 	return err;
 }
@@ -1073,7 +1075,7 @@ static int __reloc_gpu_alloc(struct i915_execbuffer *eb,
 	u32 *cmd;
 	int err;
 
-	GEM_BUG_ON(vma->obj->base.write_domain & I915_GEM_DOMAIN_CPU);
+	GEM_BUG_ON(vma->obj->write_domain & I915_GEM_DOMAIN_CPU);
 
 	obj = i915_gem_batch_pool_get(&eb->engine->batch_pool, PAGE_SIZE);
 	if (IS_ERR(obj))
@@ -1861,16 +1863,16 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	i915_gem_active_set(&vma->last_read[idx], req);
 	list_move_tail(&vma->vm_link, &vma->vm->active_list);
 
-	obj->base.write_domain = 0;
+	obj->write_domain = 0;
 	if (flags & EXEC_OBJECT_WRITE) {
-		obj->base.write_domain = I915_GEM_DOMAIN_RENDER;
+		obj->write_domain = I915_GEM_DOMAIN_RENDER;
 
 		if (intel_fb_obj_invalidate(obj, ORIGIN_CS))
 			i915_gem_active_set(&obj->frontbuffer_write, req);
 
-		obj->base.read_domains = 0;
+		obj->read_domains = 0;
 	}
-	obj->base.read_domains |= I915_GEM_GPU_DOMAINS;
+	obj->read_domains |= I915_GEM_GPU_DOMAINS;
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE)
 		i915_gem_active_set(&vma->last_fence, req);
@@ -1973,7 +1975,7 @@ static int eb_submit(struct i915_execbuffer *eb)
 	return 0;
 }
 
-/**
+/*
  * Find one BSD ring to dispatch the corresponding BSD command.
  * The engine index is returned.
  */
@@ -2410,7 +2412,7 @@ err_request:
 	if (out_fence) {
 		if (err == 0) {
 			fd_install(out_fence_fd, out_fence->file);
-			args->rsvd2 &= GENMASK_ULL(0, 31); /* keep in-fence */
+			args->rsvd2 &= GENMASK_ULL(31, 0); /* keep in-fence */
 			args->rsvd2 |= (u64)out_fence_fd << 32;
 			out_fence_fd = -1;
 		} else {
@@ -2463,8 +2465,8 @@ static bool check_buffer_count(size_t count)
  * list array and passes it to the real function.
  */
 int
-i915_gem_execbuffer(struct drm_device *dev, void *data,
-		    struct drm_file *file)
+i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file)
 {
 	struct drm_i915_gem_execbuffer *args = data;
 	struct drm_i915_gem_execbuffer2 exec2;
@@ -2554,8 +2556,8 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 }
 
 int
-i915_gem_execbuffer2(struct drm_device *dev, void *data,
-		     struct drm_file *file)
+i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
+			   struct drm_file *file)
 {
 	struct drm_i915_gem_execbuffer2 *args = data;
 	struct drm_i915_gem_exec_object2 *exec2_list;

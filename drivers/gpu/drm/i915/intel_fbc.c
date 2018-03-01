@@ -183,7 +183,7 @@ static void g4x_fbc_activate(struct drm_i915_private *dev_priv)
 	else
 		dpfc_ctl |= DPFC_CTL_LIMIT_1X;
 
-	if (params->vma->fence) {
+	if (params->flags & PLANE_HAS_FENCE) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN | params->vma->fence->id;
 		I915_WRITE(DPFC_FENCE_YOFF, params->crtc.fence_y_offset);
 	} else {
@@ -241,7 +241,7 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	if (params->vma->fence) {
+	if (params->flags & PLANE_HAS_FENCE) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN;
 		if (IS_GEN5(dev_priv))
 			dpfc_ctl |= params->vma->fence->id;
@@ -324,7 +324,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	if (params->vma->fence) {
+	if (params->flags & PLANE_HAS_FENCE) {
 		dpfc_ctl |= IVB_DPFC_CTL_FENCE_EN;
 		I915_WRITE(SNB_DPFC_CTL_SA,
 			   SNB_CPU_FENCE_ENABLE |
@@ -753,6 +753,7 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 
 	cache->vma = NULL;
+	cache->flags = 0;
 
 	cache->crtc.mode_flags = crtc_state->base.adjusted_mode.flags;
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
@@ -778,6 +779,9 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->fb.stride = fb->pitches[0];
 
 	cache->vma = plane_state->vma;
+	cache->flags = plane_state->flags;
+	if (WARN_ON(cache->flags & PLANE_HAS_FENCE && !cache->vma->fence))
+		cache->flags &= ~PLANE_HAS_FENCE;
 }
 
 static bool intel_fbc_can_activate(struct intel_crtc *crtc)
@@ -816,7 +820,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 	 * so have no fence associated with it) due to aperture constaints
 	 * at the time of pinning.
 	 */
-	if (!cache->vma->fence) {
+	if (!(cache->flags & PLANE_HAS_FENCE)) {
 		fbc->no_fbc_reason = "framebuffer not tiled or fenced";
 		return false;
 	}
@@ -897,6 +901,7 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 	memset(params, 0, sizeof(*params));
 
 	params->vma = cache->vma;
+	params->flags = cache->flags;
 
 	params->crtc.pipe = crtc->pipe;
 	params->crtc.i9xx_plane = to_intel_plane(crtc->base.primary)->i9xx_plane;

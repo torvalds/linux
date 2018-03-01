@@ -29,6 +29,8 @@
 #include <linux/list.h>
 #include <linux/radix-tree.h>
 
+#include "i915_gem.h"
+
 struct pid;
 
 struct drm_device;
@@ -36,6 +38,7 @@ struct drm_file;
 
 struct drm_i915_private;
 struct drm_i915_file_private;
+struct drm_i915_gem_request;
 struct i915_hw_ppgtt;
 struct i915_vma;
 struct intel_ring;

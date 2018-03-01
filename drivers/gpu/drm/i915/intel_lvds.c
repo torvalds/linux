@@ -189,7 +189,7 @@ static void intel_lvds_pps_get_hw_state(struct drm_i915_private *dev_priv,
 	/* Convert from 100ms to 100us units */
 	pps->t4 = val * 1000;
 
-	if (INTEL_INFO(dev_priv)->gen <= 4 &&
+	if (INTEL_GEN(dev_priv) <= 4 &&
 	    pps->t1_t2 == 0 && pps->t5 == 0 && pps->t3 == 0 && pps->tx == 0) {
 		DRM_DEBUG_KMS("Panel power timings uninitialized, "
 			      "setting defaults\n");
@@ -268,7 +268,9 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	/* set the corresponsding LVDS_BORDER bit */
 	temp &= ~LVDS_BORDER_ENABLE;
 	temp |= pipe_config->gmch_pfit.lvds_border_bits;
-	/* Set the B0-B3 data pairs corresponding to whether we're going to
+
+	/*
+	 * Set the B0-B3 data pairs corresponding to whether we're going to
 	 * set the DPLLs for dual-channel mode or not.
 	 */
 	if (lvds_encoder->is_dual_link)
@@ -276,7 +278,8 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	else
 		temp &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
 
-	/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
+	/*
+	 * It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
 	 * appropriately here, but we need to look more thoroughly into how
 	 * panels behave in the two modes. For now, let's just maintain the
 	 * value we got from the BIOS.
@@ -284,12 +287,16 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	temp &= ~LVDS_A3_POWER_MASK;
 	temp |= lvds_encoder->a3_power;
 
-	/* Set the dithering flag on LVDS as needed, note that there is no
+	/*
+	 * Set the dithering flag on LVDS as needed, note that there is no
 	 * special lvds dither control bit on pch-split platforms, dithering is
-	 * only controlled through the PIPECONF reg. */
+	 * only controlled through the PIPECONF reg.
+	 */
 	if (IS_GEN4(dev_priv)) {
-		/* Bspec wording suggests that LVDS port dithering only exists
-		 * for 18bpp panels. */
+		/*
+		 * Bspec wording suggests that LVDS port dithering only exists
+		 * for 18bpp panels.
+		 */
 		if (pipe_config->dither && pipe_config->pipe_bpp == 18)
 			temp |= LVDS_ENABLE_DITHER;
 		else
@@ -304,7 +311,7 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 	I915_WRITE(lvds_encoder->reg, temp);
 }
 
-/**
+/*
  * Sets the power state for the panel.
  */
 static void intel_enable_lvds(struct intel_encoder *encoder,
@@ -441,7 +448,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	return true;
 }
 
-/**
+/*
  * Detect the LVDS connection.
  *
  * Since LVDS doesn't have hotlug, we use the lid as a proxy.  Open means
@@ -464,7 +471,7 @@ intel_lvds_detect(struct drm_connector *connector, bool force)
 	return connector_status_connected;
 }
 
-/**
+/*
  * Return the list of DDC modes if available, or the BIOS fixed mode otherwise.
  */
 static int intel_lvds_get_modes(struct drm_connector *connector)
@@ -893,7 +900,8 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	if (dmi_check_system(intel_dual_link_lvds))
 		return true;
 
-	/* BIOS should set the proper LVDS register value at boot, but
+	/*
+	 * BIOS should set the proper LVDS register value at boot, but
 	 * in reality, it doesn't set the value when the lid is closed;
 	 * we need to check "the value to be set" in VBT when LVDS
 	 * register is uninitialized.
@@ -907,13 +915,17 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 
 static bool intel_lvds_supported(struct drm_i915_private *dev_priv)
 {
-	/* With the introduction of the PCH we gained a dedicated
-	 * LVDS presence pin, use it. */
+	/*
+	 * With the introduction of the PCH we gained a dedicated
+	 * LVDS presence pin, use it.
+	 */
 	if (HAS_PCH_IBX(dev_priv) || HAS_PCH_CPT(dev_priv))
 		return true;
 
-	/* Otherwise LVDS was only attached to mobile products,
-	 * except for the inglorious 830gm */
+	/*
+	 * Otherwise LVDS was only attached to mobile products,
+	 * except for the inglorious 830gm
+	 */
 	if (INTEL_GEN(dev_priv) <= 4 &&
 	    IS_MOBILE(dev_priv) && !IS_I830(dev_priv))
 		return true;
@@ -923,7 +935,7 @@ static bool intel_lvds_supported(struct drm_i915_private *dev_priv)
 
 /**
  * intel_lvds_init - setup LVDS connectors on this device
- * @dev: drm device
+ * @dev_priv: i915 device
  *
  * Create the connector, register the LVDS DDC bus, and try to figure out what
  * modes we can display on the LVDS panel (if present).

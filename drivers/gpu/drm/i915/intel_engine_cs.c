@@ -631,7 +631,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 	 * Similarly the preempt context must always be available so that
 	 * we can interrupt the engine at any time.
 	 */
-	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915)) {
+	if (engine->i915->preempt_context) {
 		ring = engine->context_pin(engine,
 					   engine->i915->preempt_context);
 		if (IS_ERR(ring)) {
@@ -656,7 +656,7 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 err_breadcrumbs:
 	intel_engine_fini_breadcrumbs(engine);
 err_unpin_preempt:
-	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
+	if (engine->i915->preempt_context)
 		engine->context_unpin(engine, engine->i915->preempt_context);
 err_unpin_kernel:
 	engine->context_unpin(engine, engine->i915->kernel_context);
@@ -686,12 +686,12 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	if (engine->default_state)
 		i915_gem_object_put(engine->default_state);
 
-	if (HAS_LOGICAL_RING_PREEMPTION(engine->i915))
+	if (engine->i915->preempt_context)
 		engine->context_unpin(engine, engine->i915->preempt_context);
 	engine->context_unpin(engine, engine->i915->kernel_context);
 }
 
-u64 intel_engine_get_active_head(struct intel_engine_cs *engine)
+u64 intel_engine_get_active_head(const struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	u64 acthd;
@@ -707,7 +707,7 @@ u64 intel_engine_get_active_head(struct intel_engine_cs *engine)
 	return acthd;
 }
 
-u64 intel_engine_get_last_batch_head(struct intel_engine_cs *engine)
+u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	u64 bbaddr;
@@ -1464,7 +1464,9 @@ static bool ring_is_idle(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	bool idle = true;
 
-	intel_runtime_pm_get(dev_priv);
+	/* If the whole device is asleep, the engine must be idle */
+	if (!intel_runtime_pm_get_if_in_use(dev_priv))
+		return true;
 
 	/* First check that no commands are left in the ring */
 	if ((I915_READ_HEAD(engine) & HEAD_ADDR) !=
@@ -1502,10 +1504,6 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 
 	if (I915_SELFTEST_ONLY(engine->breadcrumbs.mock))
 		return true;
-
-	/* Interrupt/tasklet pending? */
-	if (test_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted))
-		return false;
 
 	/* Waiting to drain ELSP? */
 	if (READ_ONCE(engine->execlists.active))
@@ -1707,73 +1705,20 @@ static void hexdump(struct drm_printer *m, const void *buf, size_t len)
 	}
 }
 
-void intel_engine_dump(struct intel_engine_cs *engine,
-		       struct drm_printer *m,
-		       const char *header, ...)
+static void intel_engine_print_registers(const struct intel_engine_cs *engine,
+					 struct drm_printer *m)
 {
-	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
-	const struct intel_engine_execlists * const execlists = &engine->execlists;
-	struct i915_gpu_error * const error = &engine->i915->gpu_error;
 	struct drm_i915_private *dev_priv = engine->i915;
-	struct drm_i915_gem_request *rq;
-	struct rb_node *rb;
-	char hdr[80];
+	const struct intel_engine_execlists * const execlists =
+		&engine->execlists;
 	u64 addr;
 
-	if (header) {
-		va_list ap;
-
-		va_start(ap, header);
-		drm_vprintf(m, header, &ap);
-		va_end(ap);
-	}
-
-	if (i915_terminally_wedged(&engine->i915->gpu_error))
-		drm_printf(m, "*** WEDGED ***\n");
-
-	drm_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms], inflight %d\n",
-		   intel_engine_get_seqno(engine),
-		   intel_engine_last_submit(engine),
-		   engine->hangcheck.seqno,
-		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp),
-		   engine->timeline->inflight_seqnos);
-	drm_printf(m, "\tReset count: %d (global %d)\n",
-		   i915_reset_engine_count(error, engine),
-		   i915_reset_count(error));
-
-	rcu_read_lock();
-
-	drm_printf(m, "\tRequests:\n");
-
-	rq = list_first_entry(&engine->timeline->requests,
-			      struct drm_i915_gem_request, link);
-	if (&rq->link != &engine->timeline->requests)
-		print_request(m, rq, "\t\tfirst  ");
-
-	rq = list_last_entry(&engine->timeline->requests,
-			     struct drm_i915_gem_request, link);
-	if (&rq->link != &engine->timeline->requests)
-		print_request(m, rq, "\t\tlast   ");
-
-	rq = i915_gem_find_active_request(engine);
-	if (rq) {
-		print_request(m, rq, "\t\tactive ");
-		drm_printf(m,
-			   "\t\t[head %04x, postfix %04x, tail %04x, batch 0x%08x_%08x]\n",
-			   rq->head, rq->postfix, rq->tail,
-			   rq->batch ? upper_32_bits(rq->batch->node.start) : ~0u,
-			   rq->batch ? lower_32_bits(rq->batch->node.start) : ~0u);
-	}
-
-	drm_printf(m, "\tRING_START: 0x%08x [0x%08x]\n",
-		   I915_READ(RING_START(engine->mmio_base)),
-		   rq ? i915_ggtt_offset(rq->ring->vma) : 0);
-	drm_printf(m, "\tRING_HEAD:  0x%08x [0x%08x]\n",
-		   I915_READ(RING_HEAD(engine->mmio_base)) & HEAD_ADDR,
-		   rq ? rq->ring->head : 0);
-	drm_printf(m, "\tRING_TAIL:  0x%08x [0x%08x]\n",
-		   I915_READ(RING_TAIL(engine->mmio_base)) & TAIL_ADDR,
-		   rq ? rq->ring->tail : 0);
+	drm_printf(m, "\tRING_START: 0x%08x\n",
+		   I915_READ(RING_START(engine->mmio_base)));
+	drm_printf(m, "\tRING_HEAD:  0x%08x\n",
+		   I915_READ(RING_HEAD(engine->mmio_base)) & HEAD_ADDR);
+	drm_printf(m, "\tRING_TAIL:  0x%08x\n",
+		   I915_READ(RING_TAIL(engine->mmio_base)) & TAIL_ADDR);
 	drm_printf(m, "\tRING_CTL:   0x%08x%s\n",
 		   I915_READ(RING_CTL(engine->mmio_base)),
 		   I915_READ(RING_CTL(engine->mmio_base)) & (RING_WAIT | RING_WAIT_SEMAPHORE) ? " [waiting]" : "");
@@ -1782,6 +1727,11 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			   I915_READ(RING_MI_MODE(engine->mmio_base)),
 			   I915_READ(RING_MI_MODE(engine->mmio_base)) & (MODE_IDLE) ? " [idle]" : "");
 	}
+
+	if (INTEL_GEN(dev_priv) >= 6) {
+		drm_printf(m, "\tRING_IMR: %08x\n", I915_READ_IMR(engine));
+	}
+
 	if (HAS_LEGACY_SEMAPHORES(dev_priv)) {
 		drm_printf(m, "\tSYNC_0: 0x%08x\n",
 			   I915_READ(RING_SYNC_0(engine->mmio_base)));
@@ -1791,8 +1741,6 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			drm_printf(m, "\tSYNC_2: 0x%08x\n",
 				   I915_READ(RING_SYNC_2(engine->mmio_base)));
 	}
-
-	rcu_read_unlock();
 
 	addr = intel_engine_get_active_head(engine);
 	drm_printf(m, "\tACTHD:  0x%08x_%08x\n",
@@ -1855,10 +1803,13 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 
 		rcu_read_lock();
 		for (idx = 0; idx < execlists_num_ports(execlists); idx++) {
+			struct drm_i915_gem_request *rq;
 			unsigned int count;
 
 			rq = port_unpack(&execlists->port[idx], &count);
 			if (rq) {
+				char hdr[80];
+
 				snprintf(hdr, sizeof(hdr),
 					 "\t\tELSP[%d] count=%d, rq: ",
 					 idx, count);
@@ -1876,6 +1827,77 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			   I915_READ(RING_PP_DIR_BASE_READ(engine)));
 		drm_printf(m, "\tPP_DIR_DCLV: 0x%08x\n",
 			   I915_READ(RING_PP_DIR_DCLV(engine)));
+	}
+}
+
+void intel_engine_dump(struct intel_engine_cs *engine,
+		       struct drm_printer *m,
+		       const char *header, ...)
+{
+	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
+	const struct intel_engine_execlists * const execlists = &engine->execlists;
+	struct i915_gpu_error * const error = &engine->i915->gpu_error;
+	struct drm_i915_gem_request *rq;
+	struct rb_node *rb;
+
+	if (header) {
+		va_list ap;
+
+		va_start(ap, header);
+		drm_vprintf(m, header, &ap);
+		va_end(ap);
+	}
+
+	if (i915_terminally_wedged(&engine->i915->gpu_error))
+		drm_printf(m, "*** WEDGED ***\n");
+
+	drm_printf(m, "\tcurrent seqno %x, last %x, hangcheck %x [%d ms], inflight %d\n",
+		   intel_engine_get_seqno(engine),
+		   intel_engine_last_submit(engine),
+		   engine->hangcheck.seqno,
+		   jiffies_to_msecs(jiffies - engine->hangcheck.action_timestamp),
+		   engine->timeline->inflight_seqnos);
+	drm_printf(m, "\tReset count: %d (global %d)\n",
+		   i915_reset_engine_count(error, engine),
+		   i915_reset_count(error));
+
+	rcu_read_lock();
+
+	drm_printf(m, "\tRequests:\n");
+
+	rq = list_first_entry(&engine->timeline->requests,
+			      struct drm_i915_gem_request, link);
+	if (&rq->link != &engine->timeline->requests)
+		print_request(m, rq, "\t\tfirst  ");
+
+	rq = list_last_entry(&engine->timeline->requests,
+			     struct drm_i915_gem_request, link);
+	if (&rq->link != &engine->timeline->requests)
+		print_request(m, rq, "\t\tlast   ");
+
+	rq = i915_gem_find_active_request(engine);
+	if (rq) {
+		print_request(m, rq, "\t\tactive ");
+		drm_printf(m,
+			   "\t\t[head %04x, postfix %04x, tail %04x, batch 0x%08x_%08x]\n",
+			   rq->head, rq->postfix, rq->tail,
+			   rq->batch ? upper_32_bits(rq->batch->node.start) : ~0u,
+			   rq->batch ? lower_32_bits(rq->batch->node.start) : ~0u);
+		drm_printf(m, "\t\tring->start: 0x%08x\n",
+			   i915_ggtt_offset(rq->ring->vma));
+		drm_printf(m, "\t\tring->head:  0x%08x\n",
+			   rq->ring->head);
+		drm_printf(m, "\t\tring->tail:  0x%08x\n",
+			   rq->ring->tail);
+	}
+
+	rcu_read_unlock();
+
+	if (intel_runtime_pm_get_if_in_use(engine->i915)) {
+		intel_engine_print_registers(engine, m);
+		intel_runtime_pm_put(engine->i915);
+	} else {
+		drm_printf(m, "\tDevice is asleep; skipping register dump\n");
 	}
 
 	spin_lock_irq(&engine->timeline->lock);
@@ -1898,10 +1920,6 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			   w->tsk->comm, w->tsk->pid, w->seqno);
 	}
 	spin_unlock_irq(&b->rb_lock);
-
-	if (INTEL_GEN(dev_priv) >= 6) {
-		drm_printf(m, "\tRING_IMR: %08x\n", I915_READ_IMR(engine));
-	}
 
 	drm_printf(m, "IRQ? 0x%lx (breadcrumbs? %s) (execlists? %s)\n",
 		   engine->irq_posted,

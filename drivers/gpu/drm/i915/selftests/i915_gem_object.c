@@ -212,8 +212,11 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		return -EINTR;
 
 	err = i915_gem_object_set_tiling(obj, tile->tiling, tile->stride);
-	if (err)
+	if (err) {
+		pr_err("Failed to set tiling mode=%u, stride=%u, err=%d\n",
+		       tile->tiling, tile->stride, err);
 		return err;
+	}
 
 	GEM_BUG_ON(i915_gem_object_get_tiling(obj) != tile->tiling);
 	GEM_BUG_ON(i915_gem_object_get_stride(obj) != tile->stride);
@@ -230,13 +233,16 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		GEM_BUG_ON(view.partial.size > nreal);
 
 		err = i915_gem_object_set_to_gtt_domain(obj, true);
-		if (err)
+		if (err) {
+			pr_err("Failed to flush to GTT write domain; err=%d\n",
+			       err);
 			return err;
+		}
 
 		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
 		if (IS_ERR(vma)) {
-			pr_err("Failed to pin partial view: offset=%lu\n",
-			       page);
+			pr_err("Failed to pin partial view: offset=%lu; err=%d\n",
+			       page, (int)PTR_ERR(vma));
 			return PTR_ERR(vma);
 		}
 
@@ -246,8 +252,8 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		io = i915_vma_pin_iomap(vma);
 		i915_vma_unpin(vma);
 		if (IS_ERR(io)) {
-			pr_err("Failed to iomap partial view: offset=%lu\n",
-			       page);
+			pr_err("Failed to iomap partial view: offset=%lu; err=%d\n",
+			       page, (int)PTR_ERR(io));
 			return PTR_ERR(io);
 		}
 

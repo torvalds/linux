@@ -673,27 +673,22 @@ static void free_pd(struct i915_address_space *vm,
 static void gen8_initialize_pd(struct i915_address_space *vm,
 			       struct i915_page_directory *pd)
 {
-	unsigned int i;
-
 	fill_px(vm, pd,
 		gen8_pde_encode(px_dma(vm->scratch_pt), I915_CACHE_LLC));
-	for (i = 0; i < I915_PDES; i++)
-		pd->page_table[i] = vm->scratch_pt;
+	memset_p((void **)pd->page_table, vm->scratch_pt, I915_PDES);
 }
 
 static int __pdp_init(struct i915_address_space *vm,
 		      struct i915_page_directory_pointer *pdp)
 {
 	const unsigned int pdpes = i915_pdpes_per_pdp(vm);
-	unsigned int i;
 
 	pdp->page_directory = kmalloc_array(pdpes, sizeof(*pdp->page_directory),
 					    GFP_KERNEL | __GFP_NOWARN);
 	if (unlikely(!pdp->page_directory))
 		return -ENOMEM;
 
-	for (i = 0; i < pdpes; i++)
-		pdp->page_directory[i] = vm->scratch_pd;
+	memset_p((void **)pdp->page_directory, vm->scratch_pd, pdpes);
 
 	return 0;
 }
@@ -715,7 +710,7 @@ alloc_pdp(struct i915_address_space *vm)
 	struct i915_page_directory_pointer *pdp;
 	int ret = -ENOMEM;
 
-	WARN_ON(!use_4lvl(vm));
+	GEM_BUG_ON(!use_4lvl(vm));
 
 	pdp = kzalloc(sizeof(*pdp), GFP_KERNEL);
 	if (!pdp)
@@ -764,12 +759,9 @@ static void gen8_initialize_pdp(struct i915_address_space *vm,
 static void gen8_initialize_pml4(struct i915_address_space *vm,
 				 struct i915_pml4 *pml4)
 {
-	unsigned int i;
-
 	fill_px(vm, pml4,
 		gen8_pml4e_encode(px_dma(vm->scratch_pdp), I915_CACHE_LLC));
-	for (i = 0; i < GEN8_PML4ES_PER_PML4; i++)
-		pml4->pdps[i] = vm->scratch_pdp;
+	memset_p((void **)pml4->pdps, vm->scratch_pdp, GEN8_PML4ES_PER_PML4);
 }
 
 /* Broadwell Page Directory Pointer Descriptors */
@@ -2109,7 +2101,7 @@ static int __hw_ppgtt_init(struct i915_hw_ppgtt *ppgtt,
 	ppgtt->base.i915 = dev_priv;
 	ppgtt->base.dma = &dev_priv->drm.pdev->dev;
 
-	if (INTEL_INFO(dev_priv)->gen < 8)
+	if (INTEL_GEN(dev_priv) < 8)
 		return gen6_ppgtt_init(ppgtt);
 	else
 		return gen8_ppgtt_init(ppgtt);
@@ -2257,9 +2249,9 @@ void i915_ppgtt_release(struct kref *kref)
 	trace_i915_ppgtt_release(&ppgtt->base);
 
 	/* vmas should already be unbound and destroyed */
-	WARN_ON(!list_empty(&ppgtt->base.active_list));
-	WARN_ON(!list_empty(&ppgtt->base.inactive_list));
-	WARN_ON(!list_empty(&ppgtt->base.unbound_list));
+	GEM_BUG_ON(!list_empty(&ppgtt->base.active_list));
+	GEM_BUG_ON(!list_empty(&ppgtt->base.inactive_list));
+	GEM_BUG_ON(!list_empty(&ppgtt->base.unbound_list));
 
 	ppgtt->base.cleanup(&ppgtt->base);
 	i915_address_space_fini(&ppgtt->base);
@@ -2822,10 +2814,10 @@ int i915_gem_init_aliasing_ppgtt(struct drm_i915_private *i915)
 
 	i915->mm.aliasing_ppgtt = ppgtt;
 
-	WARN_ON(ggtt->base.bind_vma != ggtt_bind_vma);
+	GEM_BUG_ON(ggtt->base.bind_vma != ggtt_bind_vma);
 	ggtt->base.bind_vma = aliasing_gtt_bind_vma;
 
-	WARN_ON(ggtt->base.unbind_vma != ggtt_unbind_vma);
+	GEM_BUG_ON(ggtt->base.unbind_vma != ggtt_unbind_vma);
 	ggtt->base.unbind_vma = aliasing_gtt_unbind_vma;
 
 	return 0;
@@ -2916,7 +2908,7 @@ void i915_ggtt_cleanup_hw(struct drm_i915_private *dev_priv)
 	ggtt->base.closed = true;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
-	WARN_ON(!list_empty(&ggtt->base.active_list));
+	GEM_BUG_ON(!list_empty(&ggtt->base.active_list));
 	list_for_each_entry_safe(vma, vn, &ggtt->base.inactive_list, vm_link)
 		WARN_ON(i915_vma_unbind(vma));
 	mutex_unlock(&dev_priv->drm.struct_mutex);
@@ -3809,6 +3801,9 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(vma->obj));
 
 	switch (vma->ggtt_view.type) {
+	default:
+		GEM_BUG_ON(vma->ggtt_view.type);
+		/* fall through */
 	case I915_GGTT_VIEW_NORMAL:
 		vma->pages = vma->obj->mm.pages;
 		return 0;
@@ -3821,11 +3816,6 @@ i915_get_ggtt_vma_pages(struct i915_vma *vma)
 	case I915_GGTT_VIEW_PARTIAL:
 		vma->pages = intel_partial_pages(&vma->ggtt_view, vma->obj);
 		break;
-
-	default:
-		WARN_ONCE(1, "GGTT view %u not implemented!\n",
-			  vma->ggtt_view.type);
-		return -EINVAL;
 	}
 
 	ret = 0;

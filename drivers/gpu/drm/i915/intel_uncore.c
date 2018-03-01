@@ -1522,9 +1522,11 @@ static void gen3_stop_engine(struct intel_engine_cs *engine)
 				 engine->name);
 
 	I915_WRITE_FW(RING_HEAD(base), I915_READ_FW(RING_TAIL(base)));
+	POSTING_READ_FW(RING_HEAD(base)); /* paranoia */
 
 	I915_WRITE_FW(RING_HEAD(base), 0);
 	I915_WRITE_FW(RING_TAIL(base), 0);
+	POSTING_READ_FW(RING_TAIL(base));
 
 	/* The ring must be empty before it is disabled */
 	I915_WRITE_FW(RING_CTL(base), 0);
@@ -1548,24 +1550,31 @@ static void i915_stop_engines(struct drm_i915_private *dev_priv,
 		gen3_stop_engine(engine);
 }
 
-static bool i915_reset_complete(struct pci_dev *pdev)
+static bool i915_in_reset(struct pci_dev *pdev)
 {
 	u8 gdrst;
 
 	pci_read_config_byte(pdev, I915_GDRST, &gdrst);
-	return (gdrst & GRDOM_RESET_STATUS) == 0;
+	return gdrst & GRDOM_RESET_STATUS;
 }
 
 static int i915_do_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 {
 	struct pci_dev *pdev = dev_priv->drm.pdev;
+	int err;
 
-	/* assert reset for at least 20 usec */
+	/* Assert reset for at least 20 usec, and wait for acknowledgement. */
 	pci_write_config_byte(pdev, I915_GDRST, GRDOM_RESET_ENABLE);
 	usleep_range(50, 200);
-	pci_write_config_byte(pdev, I915_GDRST, 0);
+	err = wait_for(i915_in_reset(pdev), 500);
 
-	return wait_for(i915_reset_complete(pdev), 500);
+	/* Clear the reset request. */
+	pci_write_config_byte(pdev, I915_GDRST, 0);
+	usleep_range(50, 200);
+	if (!err)
+		err = wait_for(!i915_in_reset(pdev), 500);
+
+	return err;
 }
 
 static bool g4x_reset_complete(struct pci_dev *pdev)
@@ -1874,9 +1883,9 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 	if (!i915_modparams.reset)
 		return NULL;
 
-	if (INTEL_INFO(dev_priv)->gen >= 8)
+	if (INTEL_GEN(dev_priv) >= 8)
 		return gen8_reset_engines;
-	else if (INTEL_INFO(dev_priv)->gen >= 6)
+	else if (INTEL_GEN(dev_priv) >= 6)
 		return gen6_reset_engines;
 	else if (IS_GEN5(dev_priv))
 		return ironlake_do_reset;
@@ -1884,7 +1893,7 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 		return g4x_do_reset;
 	else if (IS_G33(dev_priv) || IS_PINEVIEW(dev_priv))
 		return g33_do_reset;
-	else if (INTEL_INFO(dev_priv)->gen >= 3)
+	else if (INTEL_GEN(dev_priv) >= 3)
 		return i915_do_reset;
 	else
 		return NULL;

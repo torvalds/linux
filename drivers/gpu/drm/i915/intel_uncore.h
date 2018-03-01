@@ -198,4 +198,9 @@ int intel_wait_for_register_fw(struct drm_i915_private *dev_priv,
 					    2, timeout_ms, NULL);
 }
 
+#define raw_reg_read(base, reg) \
+	readl(base + i915_mmio_reg_offset(reg))
+#define raw_reg_write(base, reg, value) \
+	writel(value, base + i915_mmio_reg_offset(reg))
+
 #endif /* !__INTEL_UNCORE_H__ */

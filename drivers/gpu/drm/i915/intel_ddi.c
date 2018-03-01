@@ -2152,7 +2152,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 
 		I915_WRITE(DPLL_CTRL2, val);
 
-	} else if (INTEL_INFO(dev_priv)->gen < 9) {
+	} else if (INTEL_GEN(dev_priv) < 9) {
 		I915_WRITE(PORT_CLK_SEL(port), hsw_pll_to_ddi_pll_sel(pll));
 	}
 
