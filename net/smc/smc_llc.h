@@ -26,7 +26,10 @@ enum smc_llc_reqresp {
 
 enum smc_llc_msg_type {
 	SMC_LLC_CONFIRM_LINK		= 0x01,
+	SMC_LLC_CONFIRM_RKEY		= 0x06,
 	SMC_LLC_TEST_LINK		= 0x07,
+	SMC_LLC_CONFIRM_RKEY_CONT	= 0x08,
+	SMC_LLC_DELETE_RKEY		= 0x09,
 };
 
 /* transmit */

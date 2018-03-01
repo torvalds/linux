@@ -697,27 +697,55 @@ static inline int smc_rmb_reserve_rtoken_idx(struct smc_link_group *lgr)
 	return -ENOSPC;
 }
 
-/* save rkey and dma_addr received from peer during clc handshake */
-int smc_rmb_rtoken_handling(struct smc_connection *conn,
-			    struct smc_clc_msg_accept_confirm *clc)
+/* add a new rtoken from peer */
+int smc_rtoken_add(struct smc_link_group *lgr, __be64 nw_vaddr, __be32 nw_rkey)
 {
-	u64 dma_addr = be64_to_cpu(clc->rmb_dma_addr);
-	struct smc_link_group *lgr = conn->lgr;
-	u32 rkey = ntohl(clc->rmb_rkey);
+	u64 dma_addr = be64_to_cpu(nw_vaddr);
+	u32 rkey = ntohl(nw_rkey);
 	int i;
 
 	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
 		if ((lgr->rtokens[i][SMC_SINGLE_LINK].rkey == rkey) &&
 		    (lgr->rtokens[i][SMC_SINGLE_LINK].dma_addr == dma_addr) &&
 		    test_bit(i, lgr->rtokens_used_mask)) {
-			conn->rtoken_idx = i;
+			/* already in list */
+			return i;
+		}
+	}
+	i = smc_rmb_reserve_rtoken_idx(lgr);
+	if (i < 0)
+		return i;
+	lgr->rtokens[i][SMC_SINGLE_LINK].rkey = rkey;
+	lgr->rtokens[i][SMC_SINGLE_LINK].dma_addr = dma_addr;
+	return i;
+}
+
+/* delete an rtoken */
+int smc_rtoken_delete(struct smc_link_group *lgr, __be32 nw_rkey)
+{
+	u32 rkey = ntohl(nw_rkey);
+	int i;
+
+	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
+		if (lgr->rtokens[i][SMC_SINGLE_LINK].rkey == rkey &&
+		    test_bit(i, lgr->rtokens_used_mask)) {
+			lgr->rtokens[i][SMC_SINGLE_LINK].rkey = 0;
+			lgr->rtokens[i][SMC_SINGLE_LINK].dma_addr = 0;
+
+			clear_bit(i, lgr->rtokens_used_mask);
 			return 0;
 		}
 	}
-	conn->rtoken_idx = smc_rmb_reserve_rtoken_idx(lgr);
+	return -ENOENT;
+}
+
+/* save rkey and dma_addr received from peer during clc handshake */
+int smc_rmb_rtoken_handling(struct smc_connection *conn,
+			    struct smc_clc_msg_accept_confirm *clc)
+{
+	conn->rtoken_idx = smc_rtoken_add(conn->lgr, clc->rmb_dma_addr,
+					  clc->rmb_rkey);
 	if (conn->rtoken_idx < 0)
 		return conn->rtoken_idx;
-	lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].rkey = rkey;
-	lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].dma_addr = dma_addr;
 	return 0;
 }
