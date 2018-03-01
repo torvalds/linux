@@ -32,7 +32,7 @@ Optional Properties:
 - rx-sample-delay-ns: nanoseconds to delay after the SCLK edge before sampling
 		Rx data (may need to be fine tuned for high capacitance lines).
 		No delay (0) by default.
-
+- pinctrl-names: high_speed for speed is higher than 24MHz
 
 Example:
 
@@ -47,4 +47,7 @@ Example:
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
+		pinctrl-names = "default", "high_speed";
+		pinctrl-0 = <&spi0_clk &spi0_csn0 &spi0_csn1 &spi0_miso &spi0_mosi>;
+		pinctrl-1 = <&spi0_clk_hs &spi0_csn0 &spi0_csn1 &spi0_miso_hs &spi0_mosi_hs>;
 	};
