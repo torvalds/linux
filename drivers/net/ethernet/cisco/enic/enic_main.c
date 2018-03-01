@@ -191,8 +191,16 @@ static void enic_udp_tunnel_add(struct net_device *netdev,
 		goto error;
 	}
 
-	if (ti->sa_family != AF_INET) {
-		netdev_info(netdev, "vxlan: only IPv4 offload supported");
+	switch (ti->sa_family) {
+	case AF_INET6:
+		if (!(enic->vxlan.flags & ENIC_VXLAN_OUTER_IPV6)) {
+			netdev_info(netdev, "vxlan: only IPv4 offload supported");
+			goto error;
+		}
+		/* Fall through */
+	case AF_INET:
+		break;
+	default:
 		goto error;
 	}
 
@@ -271,22 +279,37 @@ static netdev_features_t enic_features_check(struct sk_buff *skb,
 	struct enic *enic = netdev_priv(dev);
 	struct udphdr *udph;
 	u16 port = 0;
-	u16 proto;
+	u8 proto;
 
 	if (!skb->encapsulation)
 		return features;
 
 	features = vxlan_features_check(skb, features);
 
-	/* hardware only supports IPv4 vxlan tunnel */
-	if (vlan_get_protocol(skb) != htons(ETH_P_IP))
+	switch (vlan_get_protocol(skb)) {
+	case htons(ETH_P_IPV6):
+		if (!(enic->vxlan.flags & ENIC_VXLAN_OUTER_IPV6))
+			goto out;
+		proto = ipv6_hdr(skb)->nexthdr;
+		break;
+	case htons(ETH_P_IP):
+		proto = ip_hdr(skb)->protocol;
+		break;
+	default:
 		goto out;
+	}
 
-	/* hardware does not support offload of ipv6 inner pkt */
-	if (eth->h_proto != ntohs(ETH_P_IP))
+	switch (eth->h_proto) {
+	case ntohs(ETH_P_IPV6):
+		if (!(enic->vxlan.flags & ENIC_VXLAN_INNER_IPV6))
+			goto out;
+		/* Fall through */
+	case ntohs(ETH_P_IP):
+		break;
+	default:
 		goto out;
+	}
 
-	proto = ip_hdr(skb)->protocol;
 
 	if (proto == IPPROTO_UDP) {
 		udph = udp_hdr(skb);
@@ -2914,9 +2937,11 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->hw_features |= NETIF_F_RXCSUM;
 	if (ENIC_SETTING(enic, VXLAN)) {
 		u64 patch_level;
+		u64 a1 = 0;
 
 		netdev->hw_enc_features |= NETIF_F_RXCSUM		|
 					   NETIF_F_TSO			|
+					   NETIF_F_TSO6			|
 					   NETIF_F_TSO_ECN		|
 					   NETIF_F_GSO_UDP_TUNNEL	|
 					   NETIF_F_HW_CSUM		|
@@ -2935,9 +2960,10 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		 */
 		err = vnic_dev_get_supported_feature_ver(enic->vdev,
 							 VIC_FEATURE_VXLAN,
-							 &patch_level);
+							 &patch_level, &a1);
 		if (err)
 			patch_level = 0;
+		enic->vxlan.flags = (u8)a1;
 		/* mask bits that are supported by driver
 		 */
 		patch_level &= BIT_ULL(0) | BIT_ULL(2);

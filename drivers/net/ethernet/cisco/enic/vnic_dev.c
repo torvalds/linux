@@ -1269,14 +1269,13 @@ int vnic_dev_overlay_offload_cfg(struct vnic_dev *vdev, u8 overlay,
 }
 
 int vnic_dev_get_supported_feature_ver(struct vnic_dev *vdev, u8 feature,
-				       u64 *supported_versions)
+				       u64 *supported_versions, u64 *a1)
 {
 	u64 a0 = feature;
 	int wait = 1000;
-	u64 a1 = 0;
 	int ret;
 
-	ret = vnic_dev_cmd(vdev, CMD_GET_SUPP_FEATURE_VER, &a0, &a1, wait);
+	ret = vnic_dev_cmd(vdev, CMD_GET_SUPP_FEATURE_VER, &a0, a1, wait);
 	if (!ret)
 		*supported_versions = a0;
 

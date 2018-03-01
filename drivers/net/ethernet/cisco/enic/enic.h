@@ -140,6 +140,7 @@ struct enic_rfs_flw_tbl {
 struct vxlan_offload {
 	u16 vxlan_udp_port_number;
 	u8 patch_level;
+	u8 flags;
 };
 
 /* Per-instance private data structure */

@@ -697,6 +697,9 @@ enum overlay_ofld_cmd {
 
 #define OVERLAY_CFG_VXLAN_PORT_UPDATE	0
 
+#define ENIC_VXLAN_INNER_IPV6		BIT(0)
+#define ENIC_VXLAN_OUTER_IPV6		BIT(1)
+
 /* Use this enum to get the supported versions for each of these features
  * If you need to use the devcmd_get_supported_feature_version(), add
  * the new feature into this enum and install function handler in devcmd.c
