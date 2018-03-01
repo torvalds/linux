@@ -689,8 +689,8 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 	return value;
 }
 
-static void mv88e6xxx_stats_get_strings(struct mv88e6xxx_chip *chip,
-					uint8_t *data, int types)
+static int mv88e6xxx_stats_get_strings(struct mv88e6xxx_chip *chip,
+				       uint8_t *data, int types)
 {
 	struct mv88e6xxx_hw_stat *stat;
 	int i, j;
@@ -703,31 +703,39 @@ static void mv88e6xxx_stats_get_strings(struct mv88e6xxx_chip *chip,
 			j++;
 		}
 	}
+
+	return j;
 }
 
-static void mv88e6095_stats_get_strings(struct mv88e6xxx_chip *chip,
-					uint8_t *data)
+static int mv88e6095_stats_get_strings(struct mv88e6xxx_chip *chip,
+				       uint8_t *data)
 {
-	mv88e6xxx_stats_get_strings(chip, data,
-				    STATS_TYPE_BANK0 | STATS_TYPE_PORT);
+	return mv88e6xxx_stats_get_strings(chip, data,
+					   STATS_TYPE_BANK0 | STATS_TYPE_PORT);
 }
 
-static void mv88e6320_stats_get_strings(struct mv88e6xxx_chip *chip,
-					uint8_t *data)
+static int mv88e6320_stats_get_strings(struct mv88e6xxx_chip *chip,
+				       uint8_t *data)
 {
-	mv88e6xxx_stats_get_strings(chip, data,
-				    STATS_TYPE_BANK0 | STATS_TYPE_BANK1);
+	return mv88e6xxx_stats_get_strings(chip, data,
+					   STATS_TYPE_BANK0 | STATS_TYPE_BANK1);
 }
 
 static void mv88e6xxx_get_strings(struct dsa_switch *ds, int port,
 				  uint8_t *data)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
+	int count = 0;
 
 	mutex_lock(&chip->reg_lock);
 
 	if (chip->info->ops->stats_get_strings)
-		chip->info->ops->stats_get_strings(chip, data);
+		count = chip->info->ops->stats_get_strings(chip, data);
+
+	if (chip->info->ops->serdes_get_strings) {
+		data += count * ETH_GSTRING_LEN;
+		chip->info->ops->serdes_get_strings(chip, port, data);
+	}
 
 	mutex_unlock(&chip->reg_lock);
 }
@@ -761,19 +769,31 @@ static int mv88e6320_stats_get_sset_count(struct mv88e6xxx_chip *chip)
 static int mv88e6xxx_get_sset_count(struct dsa_switch *ds, int port)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-	int ret = 0;
+	int serdes_count = 0;
+	int count = 0;
 
 	mutex_lock(&chip->reg_lock);
 	if (chip->info->ops->stats_get_sset_count)
-		ret = chip->info->ops->stats_get_sset_count(chip);
+		count = chip->info->ops->stats_get_sset_count(chip);
+	if (count < 0)
+		goto out;
+
+	if (chip->info->ops->serdes_get_sset_count)
+		serdes_count = chip->info->ops->serdes_get_sset_count(chip,
+								      port);
+	if (serdes_count < 0)
+		count = serdes_count;
+	else
+		count += serdes_count;
+out:
 	mutex_unlock(&chip->reg_lock);
 
-	return ret;
+	return count;
 }
 
-static void mv88e6xxx_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
-				      uint64_t *data, int types,
-				      u16 bank1_select, u16 histogram)
+static int mv88e6xxx_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
+				     uint64_t *data, int types,
+				     u16 bank1_select, u16 histogram)
 {
 	struct mv88e6xxx_hw_stat *stat;
 	int i, j;
@@ -790,18 +810,19 @@ static void mv88e6xxx_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
 			j++;
 		}
 	}
+	return j;
 }
 
-static void mv88e6095_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
-				      uint64_t *data)
+static int mv88e6095_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
+				     uint64_t *data)
 {
 	return mv88e6xxx_stats_get_stats(chip, port, data,
 					 STATS_TYPE_BANK0 | STATS_TYPE_PORT,
 					 0, MV88E6XXX_G1_STATS_OP_HIST_RX_TX);
 }
 
-static void mv88e6320_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
-				      uint64_t *data)
+static int mv88e6320_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
+				     uint64_t *data)
 {
 	return mv88e6xxx_stats_get_stats(chip, port, data,
 					 STATS_TYPE_BANK0 | STATS_TYPE_BANK1,
@@ -809,8 +830,8 @@ static void mv88e6320_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
 					 MV88E6XXX_G1_STATS_OP_HIST_RX_TX);
 }
 
-static void mv88e6390_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
-				      uint64_t *data)
+static int mv88e6390_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
+				     uint64_t *data)
 {
 	return mv88e6xxx_stats_get_stats(chip, port, data,
 					 STATS_TYPE_BANK0 | STATS_TYPE_BANK1,
@@ -821,8 +842,15 @@ static void mv88e6390_stats_get_stats(struct mv88e6xxx_chip *chip, int port,
 static void mv88e6xxx_get_stats(struct mv88e6xxx_chip *chip, int port,
 				uint64_t *data)
 {
+	int count = 0;
+
 	if (chip->info->ops->stats_get_stats)
-		chip->info->ops->stats_get_stats(chip, port, data);
+		count = chip->info->ops->stats_get_stats(chip, port, data);
+
+	if (chip->info->ops->serdes_get_stats) {
+		data += count;
+		chip->info->ops->serdes_get_stats(chip, port, data);
+	}
 }
 
 static void mv88e6xxx_get_ethtool_stats(struct dsa_switch *ds, int port,
