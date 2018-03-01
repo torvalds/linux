@@ -392,11 +392,11 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	unsigned long mmu_seq, pte_size;
 	unsigned long gpa, gfn, hva, pfn;
 	struct kvm_memory_slot *memslot;
-	struct page *page = NULL, *pages[1];
-	long ret, npages;
-	unsigned int writing;
-	struct vm_area_struct *vma;
-	unsigned long flags;
+	struct page *page = NULL;
+	long ret;
+	bool writing;
+	bool upgrade_write = false;
+	bool *upgrade_p = &upgrade_write;
 	pte_t pte, *ptep;
 	unsigned long pgflags;
 	unsigned int shift, level;
@@ -436,12 +436,17 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 					      dsisr & DSISR_ISSTORE);
 	}
 
-	/* used to check for invalidations in progress */
-	mmu_seq = kvm->mmu_notifier_seq;
-	smp_rmb();
-
 	writing = (dsisr & DSISR_ISSTORE) != 0;
-	hva = gfn_to_hva_memslot(memslot, gfn);
+	if (memslot->flags & KVM_MEM_READONLY) {
+		if (writing) {
+			/* give the guest a DSI */
+			dsisr = DSISR_ISSTORE | DSISR_PROTFAULT;
+			kvmppc_core_queue_data_storage(vcpu, ea, dsisr);
+			return RESUME_GUEST;
+		}
+		upgrade_p = NULL;
+	}
+
 	if (dsisr & DSISR_SET_RC) {
 		/*
 		 * Need to set an R or C bit in the 2nd-level tables;
@@ -470,69 +475,92 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			return RESUME_GUEST;
 	}
 
-	ret = -EFAULT;
-	pfn = 0;
-	pte_size = PAGE_SIZE;
-	pgflags = _PAGE_READ | _PAGE_EXEC;
-	level = 0;
-	npages = get_user_pages_fast(hva, 1, writing, pages);
-	if (npages < 1) {
-		/* Check if it's an I/O mapping */
-		down_read(&current->mm->mmap_sem);
-		vma = find_vma(current->mm, hva);
-		if (vma && vma->vm_start <= hva && hva < vma->vm_end &&
-		    (vma->vm_flags & VM_PFNMAP)) {
-			pfn = vma->vm_pgoff +
-				((hva - vma->vm_start) >> PAGE_SHIFT);
-			pgflags = pgprot_val(vma->vm_page_prot);
-		}
-		up_read(&current->mm->mmap_sem);
-		if (!pfn)
-			return -EFAULT;
-	} else {
-		page = pages[0];
+	/* used to check for invalidations in progress */
+	mmu_seq = kvm->mmu_notifier_seq;
+	smp_rmb();
+
+	/*
+	 * Do a fast check first, since __gfn_to_pfn_memslot doesn't
+	 * do it with !atomic && !async, which is how we call it.
+	 * We always ask for write permission since the common case
+	 * is that the page is writable.
+	 */
+	hva = gfn_to_hva_memslot(memslot, gfn);
+	if (upgrade_p && __get_user_pages_fast(hva, 1, 1, &page) == 1) {
 		pfn = page_to_pfn(page);
-		if (PageCompound(page)) {
-			pte_size <<= compound_order(compound_head(page));
-			/* See if we can insert a 1GB or 2MB large PTE here */
-			if (pte_size >= PUD_SIZE &&
-			    (gpa & (PUD_SIZE - PAGE_SIZE)) ==
-			    (hva & (PUD_SIZE - PAGE_SIZE))) {
-				level = 2;
-				pfn &= ~((PUD_SIZE >> PAGE_SHIFT) - 1);
-			} else if (pte_size >= PMD_SIZE &&
-			    (gpa & (PMD_SIZE - PAGE_SIZE)) ==
-			    (hva & (PMD_SIZE - PAGE_SIZE))) {
-				level = 1;
-				pfn &= ~((PMD_SIZE >> PAGE_SHIFT) - 1);
-			}
+		upgrade_write = true;
+	} else {
+		/* Call KVM generic code to do the slow-path check */
+		pfn = __gfn_to_pfn_memslot(memslot, gfn, false, NULL,
+					   writing, upgrade_p);
+		if (is_error_noslot_pfn(pfn))
+			return -EFAULT;
+		page = NULL;
+		if (pfn_valid(pfn)) {
+			page = pfn_to_page(pfn);
+			if (PageReserved(page))
+				page = NULL;
 		}
-		/* See if we can provide write access */
-		if (writing) {
-			pgflags |= _PAGE_WRITE;
-		} else {
-			local_irq_save(flags);
-			ptep = find_current_mm_pte(current->mm->pgd,
-						   hva, NULL, NULL);
-			if (ptep && pte_write(*ptep))
-				pgflags |= _PAGE_WRITE;
-			local_irq_restore(flags);
+	}
+
+	/* See if we can insert a 1GB or 2MB large PTE here */
+	level = 0;
+	if (page && PageCompound(page)) {
+		pte_size = PAGE_SIZE << compound_order(compound_head(page));
+		if (pte_size >= PUD_SIZE &&
+		    (gpa & (PUD_SIZE - PAGE_SIZE)) ==
+		    (hva & (PUD_SIZE - PAGE_SIZE))) {
+			level = 2;
+			pfn &= ~((PUD_SIZE >> PAGE_SHIFT) - 1);
+		} else if (pte_size >= PMD_SIZE &&
+			   (gpa & (PMD_SIZE - PAGE_SIZE)) ==
+			   (hva & (PMD_SIZE - PAGE_SIZE))) {
+			level = 1;
+			pfn &= ~((PMD_SIZE >> PAGE_SHIFT) - 1);
 		}
 	}
 
 	/*
 	 * Compute the PTE value that we need to insert.
 	 */
-	pgflags |= _PAGE_PRESENT | _PAGE_PTE | _PAGE_ACCESSED;
-	if (pgflags & _PAGE_WRITE)
-		pgflags |= _PAGE_DIRTY;
-	pte = pfn_pte(pfn, __pgprot(pgflags));
+	if (page) {
+		pgflags = _PAGE_READ | _PAGE_EXEC | _PAGE_PRESENT | _PAGE_PTE |
+			_PAGE_ACCESSED;
+		if (writing || upgrade_write)
+			pgflags |= _PAGE_WRITE | _PAGE_DIRTY;
+		pte = pfn_pte(pfn, __pgprot(pgflags));
+	} else {
+		/*
+		 * Read the PTE from the process' radix tree and use that
+		 * so we get the attribute bits.
+		 */
+		local_irq_disable();
+		ptep = __find_linux_pte(vcpu->arch.pgdir, hva, NULL, &shift);
+		pte = *ptep;
+		local_irq_enable();
+		if (shift == PUD_SHIFT &&
+		    (gpa & (PUD_SIZE - PAGE_SIZE)) ==
+		    (hva & (PUD_SIZE - PAGE_SIZE))) {
+			level = 2;
+		} else if (shift == PMD_SHIFT &&
+			   (gpa & (PMD_SIZE - PAGE_SIZE)) ==
+			   (hva & (PMD_SIZE - PAGE_SIZE))) {
+			level = 1;
+		} else if (shift && shift != PAGE_SHIFT) {
+			/* Adjust PFN */
+			unsigned long mask = (1ul << shift) - PAGE_SIZE;
+			pte = __pte(pte_val(pte) | (hva & mask));
+		}
+		if (!(writing || upgrade_write))
+			pte = __pte(pte_val(pte) & ~ _PAGE_WRITE);
+		pte = __pte(pte_val(pte) | _PAGE_EXEC);
+	}
 
 	/* Allocate space in the tree and write the PTE */
 	ret = kvmppc_create_pte(kvm, pte, gpa, level, mmu_seq);
 
 	if (page) {
-		if (!ret && (pgflags & _PAGE_WRITE))
+		if (!ret && (pte_val(pte) & _PAGE_WRITE))
 			set_page_dirty_lock(page);
 		put_page(page);
 	}
