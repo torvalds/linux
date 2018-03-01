@@ -2685,20 +2685,35 @@ int em28xx_tuner_callback(void *ptr, int component, int command, int arg)
 }
 EXPORT_SYMBOL_GPL(em28xx_tuner_callback);
 
-static inline void em28xx_set_model(struct em28xx *dev)
+static inline void em28xx_set_xclk_i2c_speed(struct em28xx *dev)
 {
-	dev->board = em28xx_boards[dev->model];
+	struct em28xx_board *board = &em28xx_boards[dev->model];
+	u8 xclk = board->xclk, i2c_speed = board->i2c_speed;
 
 	/* Those are the default values for the majority of boards
 	   Use those values if not specified otherwise at boards entry
 	 */
-	if (!dev->board.xclk)
-		dev->board.xclk = EM28XX_XCLK_IR_RC5_MODE |
+	if (!xclk)
+		xclk = EM28XX_XCLK_IR_RC5_MODE |
 				  EM28XX_XCLK_FREQUENCY_12MHZ;
 
-	if (!dev->board.i2c_speed)
-		dev->board.i2c_speed = EM28XX_I2C_CLK_WAIT_ENABLE |
-				       EM28XX_I2C_FREQ_100_KHZ;
+	em28xx_write_reg(dev, EM28XX_R0F_XCLK, xclk);
+
+
+	if (!i2c_speed)
+		i2c_speed = EM28XX_I2C_CLK_WAIT_ENABLE |
+			    EM28XX_I2C_FREQ_100_KHZ;
+
+	if (!dev->board.is_em2800)
+		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, i2c_speed);
+	msleep(50);
+}
+
+static inline void em28xx_set_model(struct em28xx *dev)
+{
+	dev->board = em28xx_boards[dev->model];
+
+	em28xx_set_xclk_i2c_speed(dev);
 
 	/* Should be initialized early, for I2C to work */
 	dev->def_i2c_bus = dev->board.def_i2c_bus;
@@ -2741,10 +2756,7 @@ static void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	/* Set the initial XCLK and I2C clock values based on the board
 	   definition */
-	em28xx_write_reg(dev, EM28XX_R0F_XCLK, dev->board.xclk & 0x7f);
-	if (!dev->board.is_em2800)
-		em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
-	msleep(50);
+	em28xx_set_xclk_i2c_speed(dev);
 
 	/* request some modules */
 	switch (dev->model) {
@@ -3398,17 +3410,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	}
 
 	em28xx_pre_card_setup(dev);
-
-	if (!dev->board.is_em2800) {
-		/* Resets I2C speed */
-		retval = em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, dev->board.i2c_speed);
-		if (retval < 0) {
-			dev_err(&dev->intf->dev,
-			       "%s: em28xx_write_reg failed! retval [%d]\n",
-			       __func__, retval);
-			return retval;
-		}
-	}
 
 	rt_mutex_init(&dev->i2c_bus_lock);
 
