@@ -5407,7 +5407,7 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 			       sk->sk_protocol, nlh->nlmsg_type,
 			       secclass_map[sksec->sclass - 1].name,
 			       task_pid_nr(current), current->comm);
-			if (!is_enforcing(&selinux_state) ||
+			if (!enforcing_enabled(&selinux_state) ||
 			    security_get_allow_unknown(&selinux_state))
 				err = 0;
 		}
@@ -6937,7 +6937,7 @@ static __init int selinux_init(void)
 	printk(KERN_INFO "SELinux:  Initializing.\n");
 
 	memset(&selinux_state, 0, sizeof(selinux_state));
-	set_enforcing(&selinux_state, selinux_enforcing_boot);
+	enforcing_set(&selinux_state, selinux_enforcing_boot);
 	selinux_state.checkreqprot = selinux_checkreqprot_boot;
 	selinux_ss_init(&selinux_state.ss);
 

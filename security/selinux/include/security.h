@@ -111,22 +111,22 @@ void selinux_ss_init(struct selinux_ss **ss);
 extern struct selinux_state selinux_state;
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
-static inline bool is_enforcing(struct selinux_state *state)
+static inline bool enforcing_enabled(struct selinux_state *state)
 {
 	return state->enforcing;
 }
 
-static inline void set_enforcing(struct selinux_state *state, bool value)
+static inline void enforcing_set(struct selinux_state *state, bool value)
 {
 	state->enforcing = value;
 }
 #else
-static inline bool is_enforcing(struct selinux_state *state)
+static inline bool enforcing_enabled(struct selinux_state *state)
 {
 	return true;
 }
 
-static inline void set_enforcing(struct selinux_state *state, bool value)
+static inline void enforcing_set(struct selinux_state *state, bool value)
 {
 }
 #endif
