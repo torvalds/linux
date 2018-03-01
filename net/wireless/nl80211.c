@@ -7551,12 +7551,13 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_chan_def chandef;
 	enum nl80211_dfs_regions dfs_region;
 	unsigned int cac_time_ms;
 	int err;
 
-	dfs_region = reg_get_dfs_region(wdev->wiphy);
+	dfs_region = reg_get_dfs_region(wiphy);
 	if (dfs_region == NL80211_DFS_UNSET)
 		return -EINVAL;
 
@@ -7570,16 +7571,19 @@ static int nl80211_start_radar_detection(struct sk_buff *skb,
 	if (wdev->cac_started)
 		return -EBUSY;
 
-	err = cfg80211_chandef_dfs_required(wdev->wiphy, &chandef,
-					    wdev->iftype);
+	err = cfg80211_chandef_dfs_required(wiphy, &chandef, wdev->iftype);
 	if (err < 0)
 		return err;
 
 	if (err == 0)
 		return -EINVAL;
 
-	if (!cfg80211_chandef_dfs_usable(wdev->wiphy, &chandef))
+	if (!cfg80211_chandef_dfs_usable(wiphy, &chandef))
 		return -EINVAL;
+
+	/* CAC start is offloaded to HW and can't be started manually */
+	if (wiphy_ext_feature_isset(wiphy, NL80211_EXT_FEATURE_DFS_OFFLOAD))
+		return -EOPNOTSUPP;
 
 	if (!rdev->ops->start_radar_detection)
 		return -EOPNOTSUPP;
