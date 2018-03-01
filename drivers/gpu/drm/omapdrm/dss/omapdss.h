@@ -576,7 +576,8 @@ int omap_dss_get_num_overlays(void);
 int omapdss_register_output(struct omap_dss_device *output);
 void omapdss_unregister_output(struct omap_dss_device *output);
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id);
-struct omap_dss_device *omap_dss_find_output_by_port_node(struct device_node *port);
+struct omap_dss_device *omap_dss_find_output_by_port(struct device_node *src,
+						     unsigned int port);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);
@@ -602,9 +603,6 @@ static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
 
 struct omap_dss_device *
 omapdss_of_find_source_for_first_ep(struct device_node *node);
-
-struct device_node *dss_of_port_get_parent_device(struct device_node *port);
-u32 dss_of_port_get_port_number(struct device_node *port);
 
 enum dss_writeback_channel {
 	DSS_WB_LCD1_MGR =	0,
