@@ -60,31 +60,17 @@ static void set_kern_name(struct rdma_restrack_entry *res)
 
 static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 {
-	enum rdma_restrack_type type = res->type;
-	struct ib_device *dev;
-	struct ib_pd *pd;
-	struct ib_cq *cq;
-	struct ib_qp *qp;
-
-	switch (type) {
+	switch (res->type) {
 	case RDMA_RESTRACK_PD:
-		pd = container_of(res, struct ib_pd, res);
-		dev = pd->device;
-		break;
+		return container_of(res, struct ib_pd, res)->device;
 	case RDMA_RESTRACK_CQ:
-		cq = container_of(res, struct ib_cq, res);
-		dev = cq->device;
-		break;
+		return container_of(res, struct ib_cq, res)->device;
 	case RDMA_RESTRACK_QP:
-		qp = container_of(res, struct ib_qp, res);
-		dev = qp->device;
-		break;
+		return container_of(res, struct ib_qp, res)->device;
 	default:
-		WARN_ONCE(true, "Wrong resource tracking type %u\n", type);
+		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
 		return NULL;
 	}
-
-	return dev;
 }
 
 static bool res_is_user(struct rdma_restrack_entry *res)
