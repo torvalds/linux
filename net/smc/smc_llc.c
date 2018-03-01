@@ -41,8 +41,15 @@ struct smc_llc_msg_confirm_link {	/* type 0x01 */
 	u8 reserved[9];
 };
 
+struct smc_llc_msg_test_link {		/* type 0x07 */
+	struct smc_llc_hdr hd;
+	u8 user_data[16];
+	u8 reserved[24];
+};
+
 union smc_llc_msg {
 	struct smc_llc_msg_confirm_link confirm_link;
+	struct smc_llc_msg_test_link test_link;
 	struct {
 		struct smc_llc_hdr hdr;
 		u8 data[SMC_LLC_DATA_LEN];
@@ -130,6 +137,30 @@ int smc_llc_send_confirm_link(struct smc_link *link, u8 mac[],
 	return rc;
 }
 
+/* send LLC test link request or response */
+int smc_llc_send_test_link(struct smc_link *link, u8 user_data[16],
+			   enum smc_llc_reqresp reqresp)
+{
+	struct smc_llc_msg_test_link *testllc;
+	struct smc_wr_tx_pend_priv *pend;
+	struct smc_wr_buf *wr_buf;
+	int rc;
+
+	rc = smc_llc_add_pending_send(link, &wr_buf, &pend);
+	if (rc)
+		return rc;
+	testllc = (struct smc_llc_msg_test_link *)wr_buf;
+	memset(testllc, 0, sizeof(*testllc));
+	testllc->hd.common.type = SMC_LLC_TEST_LINK;
+	testllc->hd.length = sizeof(struct smc_llc_msg_test_link);
+	if (reqresp == SMC_LLC_RESP)
+		testllc->hd.flags |= SMC_LLC_FLAG_RESP;
+	memcpy(testllc->user_data, user_data, sizeof(testllc->user_data));
+	/* send llc message */
+	rc = smc_wr_tx_send(link, pend);
+	return rc;
+}
+
 /********************************* receive ***********************************/
 
 static void smc_llc_rx_confirm_link(struct smc_link *link,
@@ -149,6 +180,16 @@ static void smc_llc_rx_confirm_link(struct smc_link *link,
 	}
 }
 
+static void smc_llc_rx_test_link(struct smc_link *link,
+				 struct smc_llc_msg_test_link *llc)
+{
+	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
+		/* unused as long as we don't send this type of msg */
+	} else {
+		smc_llc_send_test_link(link, llc->user_data, SMC_LLC_RESP);
+	}
+}
+
 static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
 {
 	struct smc_link *link = (struct smc_link *)wc->qp->qp_context;
@@ -158,8 +199,15 @@ static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
 		return; /* short message */
 	if (llc->raw.hdr.length != sizeof(*llc))
 		return; /* invalid message */
-	if (llc->raw.hdr.common.type == SMC_LLC_CONFIRM_LINK)
+
+	switch (llc->raw.hdr.common.type) {
+	case SMC_LLC_TEST_LINK:
+		smc_llc_rx_test_link(link, &llc->test_link);
+		break;
+	case SMC_LLC_CONFIRM_LINK:
 		smc_llc_rx_confirm_link(link, &llc->confirm_link);
+		break;
+	}
 }
 
 /***************************** init, exit, misc ******************************/
@@ -168,6 +216,10 @@ static struct smc_wr_rx_handler smc_llc_rx_handlers[] = {
 	{
 		.handler	= smc_llc_rx_handler,
 		.type		= SMC_LLC_CONFIRM_LINK
+	},
+	{
+		.handler	= smc_llc_rx_handler,
+		.type		= SMC_LLC_TEST_LINK
 	},
 	{
 		.handler	= NULL,
