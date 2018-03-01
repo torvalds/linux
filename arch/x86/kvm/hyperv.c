@@ -96,9 +96,17 @@ static int synic_set_sint(struct kvm_vcpu_hv_synic *synic, int sint,
 			  u64 data, bool host)
 {
 	int vector, old_vector;
+	bool masked;
 
 	vector = data & HV_SYNIC_SINT_VECTOR_MASK;
-	if (vector < HV_SYNIC_FIRST_VALID_VECTOR && !host)
+	masked = data & HV_SYNIC_SINT_MASKED;
+
+	/*
+	 * Valid vectors are 16-255, however, nested Hyper-V attempts to write
+	 * default '0x10000' value on boot and this should not #GP. We need to
+	 * allow zero-initing the register from host as well.
+	 */
+	if (vector < HV_SYNIC_FIRST_VALID_VECTOR && !host && !masked)
 		return 1;
 	/*
 	 * Guest may configure multiple SINTs to use the same vector, so
