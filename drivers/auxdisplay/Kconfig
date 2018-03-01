@@ -166,7 +166,7 @@ config ARM_CHARLCD
 
 endif # AUXDISPLAY
 
-config PANEL
+menuconfig PANEL
 	tristate "Parallel port LCD/Keypad Panel support"
 	depends on PARPORT
 	select CHARLCD
