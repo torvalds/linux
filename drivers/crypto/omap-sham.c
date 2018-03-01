@@ -817,9 +817,6 @@ static int omap_sham_prepare_request(struct ahash_request *req, bool update)
 	bool final = rctx->flags & BIT(FLAGS_FINUP);
 	int xmit_len, hash_later;
 
-	if (!req)
-		return 0;
-
 	bs = get_block_size(rctx);
 
 	if (update)
