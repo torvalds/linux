@@ -185,25 +185,29 @@ static int malidp_set_and_wait_config_valid(struct drm_device *drm)
 
 static void malidp_atomic_commit_hw_done(struct drm_atomic_state *state)
 {
-	struct drm_pending_vblank_event *event;
 	struct drm_device *drm = state->dev;
 	struct malidp_drm *malidp = drm->dev_private;
 
-	if (malidp->crtc.enabled) {
+	malidp->event = malidp->crtc.state->event;
+	malidp->crtc.state->event = NULL;
+
+	if (malidp->crtc.state->active) {
+		/*
+		 * if we have an event to deliver to userspace, make sure
+		 * the vblank is enabled as we are sending it from the IRQ
+		 * handler.
+		 */
+		if (malidp->event)
+			drm_crtc_vblank_get(&malidp->crtc);
+
 		/* only set config_valid if the CRTC is enabled */
-		if (malidp_set_and_wait_config_valid(drm))
+		if (malidp_set_and_wait_config_valid(drm) < 0)
 			DRM_DEBUG_DRIVER("timed out waiting for updated configuration\n");
-	}
-
-	event = malidp->crtc.state->event;
-	if (event) {
-		malidp->crtc.state->event = NULL;
-
+	} else if (malidp->event) {
+		/* CRTC inactive means vblank IRQ is disabled, send event directly */
 		spin_lock_irq(&drm->event_lock);
-		if (drm_crtc_vblank_get(&malidp->crtc) == 0)
-			drm_crtc_arm_vblank_event(&malidp->crtc, event);
-		else
-			drm_crtc_send_vblank_event(&malidp->crtc, event);
+		drm_crtc_send_vblank_event(&malidp->crtc, malidp->event);
+		malidp->event = NULL;
 		spin_unlock_irq(&drm->event_lock);
 	}
 	drm_atomic_helper_commit_hw_done(state);
@@ -231,8 +235,6 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_commit_modeset_enables(drm, state);
 
 	malidp_atomic_commit_hw_done(state);
-
-	drm_atomic_helper_wait_for_vblanks(drm, state);
 
 	pm_runtime_put(drm->dev);
 

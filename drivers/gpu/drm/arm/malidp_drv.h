@@ -22,6 +22,7 @@ struct malidp_drm {
 	struct malidp_hw_device *dev;
 	struct drm_crtc crtc;
 	wait_queue_head_t wq;
+	struct drm_pending_vblank_event *event;
 	atomic_t config_valid;
 	u32 core_id;
 };

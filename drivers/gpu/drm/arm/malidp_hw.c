@@ -782,9 +782,15 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 	/* first handle the config valid IRQ */
 	dc_status = malidp_hw_read(hwdev, hw->map.dc_base + MALIDP_REG_STATUS);
 	if (dc_status & hw->map.dc_irq_map.vsync_irq) {
-		/* we have a page flip event */
-		atomic_set(&malidp->config_valid, 1);
 		malidp_hw_clear_irq(hwdev, MALIDP_DC_BLOCK, dc_status);
+		/* do we have a page flip event? */
+		if (malidp->event != NULL) {
+			spin_lock(&drm->event_lock);
+			drm_crtc_send_vblank_event(&malidp->crtc, malidp->event);
+			malidp->event = NULL;
+			spin_unlock(&drm->event_lock);
+		}
+		atomic_set(&malidp->config_valid, 1);
 		ret = IRQ_WAKE_THREAD;
 	}
 
@@ -794,7 +800,7 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 
 	mask = malidp_hw_read(hwdev, MALIDP_REG_MASKIRQ);
 	status &= mask;
-	if (status & de->vsync_irq)
+	if ((status & de->vsync_irq) && malidp->crtc.enabled)
 		drm_crtc_handle_vblank(&malidp->crtc);
 
 	malidp_hw_clear_irq(hwdev, MALIDP_DE_BLOCK, status);
