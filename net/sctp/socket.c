@@ -1911,7 +1911,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 {
 	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
 	struct sctp_association *new_asoc = NULL, *asoc = NULL;
-	struct sctp_transport *transport, *chunk_tp;
+	struct sctp_transport *transport = NULL;
 	struct sctp_sndrcvinfo _sinfo, *sinfo;
 	sctp_assoc_t associd = 0;
 	struct sctp_cmsgs cmsgs = { NULL };
@@ -1966,29 +1966,17 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 		new_asoc = asoc;
 	}
 
+	if (!sctp_style(sk, TCP) && !(sinfo_flags & SCTP_ADDR_OVER))
+		transport = NULL;
+
 	/* Update snd_info with the asoc */
 	sctp_sendmsg_update_sinfo(asoc, sinfo, &cmsgs);
 
-	/* If an address is passed with the sendto/sendmsg call, it is used
-	 * to override the primary destination address in the TCP model, or
-	 * when SCTP_ADDR_OVER flag is set in the UDP model.
-	 */
-	if ((sctp_style(sk, TCP) && daddr) ||
-	    (sinfo_flags & SCTP_ADDR_OVER)) {
-		chunk_tp = sctp_assoc_lookup_paddr(asoc, daddr);
-		if (!chunk_tp) {
-			err = -EINVAL;
-			goto out_free;
-		}
-	} else
-		chunk_tp = NULL;
-
 	/* Send msg to the asoc */
-	err = sctp_sendmsg_to_asoc(asoc, msg, msg_len, chunk_tp, sinfo);
-
-out_free:
+	err = sctp_sendmsg_to_asoc(asoc, msg, msg_len, transport, sinfo);
 	if (err < 0 && err != -ESRCH && new_asoc)
 		sctp_association_free(asoc);
+
 out_unlock:
 	release_sock(sk);
 out_nounlock:
