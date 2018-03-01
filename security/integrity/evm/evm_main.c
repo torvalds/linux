@@ -124,6 +124,7 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 	struct evm_ima_xattr_data *xattr_data = NULL;
 	struct evm_ima_xattr_data calc;
 	enum integrity_status evm_status = INTEGRITY_PASS;
+	struct inode *inode;
 	int rc, xattr_len;
 
 	if (iint && (iint->evm_status == INTEGRITY_PASS ||
@@ -178,12 +179,15 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 					(const char *)xattr_data, xattr_len,
 					calc.digest, sizeof(calc.digest));
 		if (!rc) {
+			inode = d_backing_inode(dentry);
+
 			if (xattr_data->type == EVM_XATTR_PORTABLE_DIGSIG) {
 				if (iint)
 					iint->flags |= EVM_IMMUTABLE_DIGSIG;
 				evm_status = INTEGRITY_PASS_IMMUTABLE;
-			} else if (!IS_RDONLY(d_backing_inode(dentry)) &&
-				   !IS_IMMUTABLE(d_backing_inode(dentry))) {
+			} else if (!IS_RDONLY(inode) &&
+				   !(inode->i_sb->s_readonly_remount) &&
+				   !IS_IMMUTABLE(inode)) {
 				evm_update_evmxattr(dentry, xattr_name,
 						    xattr_value,
 						    xattr_value_len);
