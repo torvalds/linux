@@ -3196,7 +3196,7 @@ glp_get_event_constraints(struct cpu_hw_events *cpuc, int idx,
  * Therefore the effective (average) period matches the requested period,
  * despite coarser hardware granularity.
  */
-static unsigned bdw_limit_period(struct perf_event *event, unsigned left)
+static u64 bdw_limit_period(struct perf_event *event, u64 left)
 {
 	if ((event->hw.config & INTEL_ARCH_EVENT_MASK) ==
 			X86_CONFIG(.event=0xc0, .umask=0x01)) {
