@@ -115,14 +115,9 @@ struct net_local {
 	int rx_mode;
 	int curr_rx_cfg;
         int send_underrun;      /* keep track of how many underruns in a row we get */
-	struct sk_buff *skb;
 };
 
 /* Index to functions, as function prototypes. */
-
-#if 0
-extern void reset_chip(struct net_device *dev);
-#endif
 static int net_open(struct net_device *dev);
 static int net_send_packet(struct sk_buff *skb, struct net_device *dev);
 static irqreturn_t net_interrupt(int irq, void *dev_id);
@@ -131,10 +126,6 @@ static void net_rx(struct net_device *dev);
 static int net_close(struct net_device *dev);
 static struct net_device_stats *net_get_stats(struct net_device *dev);
 static int set_mac_address(struct net_device *dev, void *addr);
-
-
-/* Example routines you must write ;->. */
-#define tx_done(dev) 1
 
 /* For reading/writing registers ISA-style */
 static inline int
@@ -297,24 +288,6 @@ out:
 	return ERR_PTR(err);
 }
 
-#if 0
-/* This is useful for something, but I don't know what yet. */
-void __init reset_chip(struct net_device *dev)
-{
-	int reset_start_time;
-
-	writereg(dev, PP_SelfCTL, readreg(dev, PP_SelfCTL) | POWER_ON_RESET);
-
-	/* wait 30 ms */
-	msleep_interruptible(30);
-
-	/* Wait until the chip is reset */
-	reset_start_time = jiffies;
-	while( (readreg(dev, PP_SelfST) & INIT_DONE) == 0 && jiffies - reset_start_time < 2)
-		;
-}
-#endif
-
 /* Open/initialize the board.  This is called (in the current kernel)
    sometime after booting when the 'ifconfig' program is run.
 
@@ -415,11 +388,6 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 	struct net_device *dev = dev_id;
 	struct net_local *lp;
 	int ioaddr, status;
-
-	if (dev == NULL) {
-		printk ("net_interrupt(): irq %d for unknown device.\n", irq);
-		return IRQ_NONE;
-	}
 
 	ioaddr = dev->base_addr;
 	lp = netdev_priv(dev);
