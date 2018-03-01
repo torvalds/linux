@@ -128,11 +128,7 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (ret < 0)
 		return ret;
 
-	clock=clk_get_rate(clk) / 4;
-	printk(KERN_NOTICE "[mtk_pwm_config] clock: %lu, clockrate: %lu",clock,clk_get_rate(clk));
-
-	//resolution = NSEC_PER_SEC / ( clk_get_rate(clk) / 4 );
-	resolution = NSEC_PER_SEC / clock;
+	resolution = NSEC_PER_SEC / clk_get_rate(clk);
 
 	while (period_ns / resolution > 8191) {
 		resolution *= 2;
