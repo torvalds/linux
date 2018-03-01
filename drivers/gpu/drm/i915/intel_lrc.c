@@ -2574,8 +2574,10 @@ populate_lr_context(struct i915_gem_context *ctx,
 
 		defaults = i915_gem_object_pin_map(engine->default_state,
 						   I915_MAP_WB);
-		if (IS_ERR(defaults))
-			return PTR_ERR(defaults);
+		if (IS_ERR(defaults)) {
+			ret = PTR_ERR(defaults);
+			goto err_unpin_ctx;
+		}
 
 		memcpy(vaddr + start, defaults + start, engine->context_size);
 		i915_gem_object_unpin_map(engine->default_state);
@@ -2593,9 +2595,9 @@ populate_lr_context(struct i915_gem_context *ctx,
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 					   CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT);
 
+err_unpin_ctx:
 	i915_gem_object_unpin_map(ctx_obj);
-
-	return 0;
+	return ret;
 }
 
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
