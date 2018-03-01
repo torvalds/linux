@@ -666,7 +666,7 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 			return UINT64_MAX;
 
 		low = reg;
-		if (s->sizeof_stat == 4) {
+		if (s->size == 4) {
 			err = mv88e6xxx_port_read(chip, port, s->reg + 1, &reg);
 			if (err)
 				return UINT64_MAX;
@@ -679,7 +679,7 @@ static uint64_t _mv88e6xxx_get_ethtool_stat(struct mv88e6xxx_chip *chip,
 	case STATS_TYPE_BANK0:
 		reg |= s->reg | histogram;
 		mv88e6xxx_g1_stats_read(chip, reg, &low);
-		if (s->sizeof_stat == 8)
+		if (s->size == 8)
 			mv88e6xxx_g1_stats_read(chip, reg + 1, &high);
 		break;
 	default:
@@ -3225,6 +3225,9 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.serdes_power = mv88e6352_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6352_avb_ops,
+	.serdes_get_sset_count = mv88e6352_serdes_get_sset_count,
+	.serdes_get_strings = mv88e6352_serdes_get_strings,
+	.serdes_get_stats = mv88e6352_serdes_get_stats,
 };
 
 static const struct mv88e6xxx_ops mv88e6390_ops = {

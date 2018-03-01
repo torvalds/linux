@@ -191,6 +191,10 @@ struct mv88e6xxx_port_hwtstamp {
 	struct hwtstamp_config tstamp_config;
 };
 
+struct mv88e6xxx_port {
+	u64 serdes_stats[2];
+};
+
 struct mv88e6xxx_chip {
 	const struct mv88e6xxx_info *info;
 
@@ -244,6 +248,7 @@ struct mv88e6xxx_chip {
 	int irq;
 	int device_irq;
 	int watchdog_irq;
+
 	int atu_prob_irq;
 	int vtu_prob_irq;
 	struct kthread_worker *kworker;
@@ -268,6 +273,9 @@ struct mv88e6xxx_chip {
 
 	/* Per-port timestamping resources. */
 	struct mv88e6xxx_port_hwtstamp port_hwtstamp[DSA_MAX_PORTS];
+
+	/* Array of port structures. */
+	struct mv88e6xxx_port ports[DSA_MAX_PORTS];
 };
 
 struct mv88e6xxx_bus_ops {
@@ -469,7 +477,7 @@ struct mv88e6xxx_avb_ops {
 
 struct mv88e6xxx_hw_stat {
 	char string[ETH_GSTRING_LEN];
-	int sizeof_stat;
+	size_t size;
 	int reg;
 	int type;
 };

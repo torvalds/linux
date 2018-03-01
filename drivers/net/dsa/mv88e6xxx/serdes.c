@@ -87,6 +87,90 @@ int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
 	return 0;
 }
 
+struct mv88e6352_serdes_hw_stat {
+	char string[ETH_GSTRING_LEN];
+	int sizeof_stat;
+	int reg;
+};
+
+static struct mv88e6352_serdes_hw_stat mv88e6352_serdes_hw_stats[] = {
+	{ "serdes_fibre_rx_error", 16, 21 },
+	{ "serdes_PRBS_error", 32, 24 },
+};
+
+int mv88e6352_serdes_get_sset_count(struct mv88e6xxx_chip *chip, int port)
+{
+	if (mv88e6352_port_has_serdes(chip, port))
+		return ARRAY_SIZE(mv88e6352_serdes_hw_stats);
+
+	return 0;
+}
+
+void mv88e6352_serdes_get_strings(struct mv88e6xxx_chip *chip,
+				  int port, uint8_t *data)
+{
+	struct mv88e6352_serdes_hw_stat *stat;
+	int i;
+
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(mv88e6352_serdes_hw_stats); i++) {
+		stat = &mv88e6352_serdes_hw_stats[i];
+		memcpy(data + i * ETH_GSTRING_LEN, stat->string,
+		       ETH_GSTRING_LEN);
+	}
+}
+
+static uint64_t mv88e6352_serdes_get_stat(struct mv88e6xxx_chip *chip,
+					  struct mv88e6352_serdes_hw_stat *stat)
+{
+	u64 val = 0;
+	u16 reg;
+	int err;
+
+	err = mv88e6352_serdes_read(chip, stat->reg, &reg);
+	if (err) {
+		dev_err(chip->dev, "failed to read statistic\n");
+		return 0;
+	}
+
+	val = reg;
+
+	if (stat->sizeof_stat == 32) {
+		err = mv88e6352_serdes_read(chip, stat->reg + 1, &reg);
+		if (err) {
+			dev_err(chip->dev, "failed to read statistic\n");
+			return 0;
+		}
+		val = val << 16 | reg;
+	}
+
+	return val;
+}
+
+void mv88e6352_serdes_get_stats(struct mv88e6xxx_chip *chip, int port,
+				uint64_t *data)
+{
+	struct mv88e6xxx_port *mv88e6xxx_port = &chip->ports[port];
+	struct mv88e6352_serdes_hw_stat *stat;
+	u64 value;
+	int i;
+
+	if (!mv88e6352_port_has_serdes(chip, port))
+		return;
+
+	BUILD_BUG_ON(ARRAY_SIZE(mv88e6352_serdes_hw_stats) >
+		     ARRAY_SIZE(mv88e6xxx_port->serdes_stats));
+
+	for (i = 0; i < ARRAY_SIZE(mv88e6352_serdes_hw_stats); i++) {
+		stat = &mv88e6352_serdes_hw_stats[i];
+		value = mv88e6352_serdes_get_stat(chip, stat);
+		mv88e6xxx_port->serdes_stats[i] += value;
+		data[i] = mv88e6xxx_port->serdes_stats[i];
+	}
+}
+
 /* Set the power on/off for 10GBASE-R and 10GBASE-X4/X2 */
 static int mv88e6390_serdes_10g(struct mv88e6xxx_chip *chip, int addr, bool on)
 {
