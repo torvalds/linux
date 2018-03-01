@@ -1010,7 +1010,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	MLX5_SET(cqc, cqc, uar_page, index);
 	MLX5_SET(cqc, cqc, c_eqn, eqn);
 	MLX5_SET64(cqc, cqc, dbr_addr, cq->db.dma);
-	if (cq->create_flags & IB_CQ_FLAGS_IGNORE_OVERRUN)
+	if (cq->create_flags & IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN)
 		MLX5_SET(cqc, cqc, oi, 1);
 
 	err = mlx5_core_create_cq(dev->mdev, &cq->mcq, cqb, inlen);

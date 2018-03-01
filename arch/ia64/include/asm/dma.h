@@ -20,6 +20,4 @@ extern unsigned long MAX_DMA_ADDRESS;
 
 #define free_dma(x)
 
-void dma_mark_clean(void *addr, size_t size);
-
 #endif /* _ASM_IA64_DMA_H */

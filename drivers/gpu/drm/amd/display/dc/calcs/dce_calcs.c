@@ -623,7 +623,7 @@ static void calculate_bandwidth(
 				}
 				else {
 					/*graphics portrait tiling mode*/
-					if ((data->graphics_micro_tile_mode == bw_def_rotated_micro_tiling)) {
+					if (data->graphics_micro_tile_mode == bw_def_rotated_micro_tiling) {
 						data->orthogonal_rotation[i] = 0;
 					}
 					else {
@@ -634,7 +634,7 @@ static void calculate_bandwidth(
 			else {
 				if ((i < 4)) {
 					/*underlay landscape tiling mode is only supported*/
-					if ((data->underlay_micro_tile_mode == bw_def_display_micro_tiling)) {
+					if (data->underlay_micro_tile_mode == bw_def_display_micro_tiling) {
 						data->orthogonal_rotation[i] = 0;
 					}
 					else {
@@ -643,7 +643,7 @@ static void calculate_bandwidth(
 				}
 				else {
 					/*graphics landscape tiling mode*/
-					if ((data->graphics_micro_tile_mode == bw_def_display_micro_tiling)) {
+					if (data->graphics_micro_tile_mode == bw_def_display_micro_tiling) {
 						data->orthogonal_rotation[i] = 0;
 					}
 					else {
@@ -947,14 +947,14 @@ static void calculate_bandwidth(
 	}
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
-			if ((data->number_of_displays == 1 && data->number_of_underlay_surfaces == 0)) {
+			if (data->number_of_displays == 1 && data->number_of_underlay_surfaces == 0) {
 				/*set maximum chunk limit if only one graphic pipe is enabled*/
 				data->outstanding_chunk_request_limit[i] = bw_int_to_fixed(127);
 			}
 			else {
 				data->outstanding_chunk_request_limit[i] = bw_ceil2(bw_div(data->adjusted_data_buffer_size[i], data->pipe_chunk_size_in_bytes[i]), bw_int_to_fixed(1));
 				/*clamp maximum chunk limit in the graphic display pipe*/
-				if ((i >= 4)) {
+				if (i >= 4) {
 					data->outstanding_chunk_request_limit[i] = bw_max2(bw_int_to_fixed(127), data->outstanding_chunk_request_limit[i]);
 				}
 			}
@@ -1337,7 +1337,7 @@ static void calculate_bandwidth(
 	/*if stutter and dram clock state change are gated before cursor then the cursor latency hiding does not limit stutter or dram clock state change*/
 	for (i = 0; i <= maximum_number_of_surfaces - 1; i++) {
 		if (data->enable[i]) {
-			if ((dceip->graphics_lb_nodownscaling_multi_line_prefetching == 1)) {
+			if (dceip->graphics_lb_nodownscaling_multi_line_prefetching == 1) {
 				data->maximum_latency_hiding[i] = bw_add(data->minimum_latency_hiding[i], bw_mul(bw_frc_to_fixed(8, 10), data->total_dmifmc_urgent_latency));
 			}
 			else {
@@ -1396,7 +1396,7 @@ static void calculate_bandwidth(
 	}
 	/*determine the number of displays with margin to switch in the v_active region*/
 	for (k = 0; k <= maximum_number_of_surfaces - 1; k++) {
-		if ((data->enable[k] == 1 && data->display_pstate_change_enable[k] == 1)) {
+		if (data->enable[k] == 1 && data->display_pstate_change_enable[k] == 1) {
 			number_of_displays_enabled_with_margin = number_of_displays_enabled_with_margin + 1;
 		}
 	}
@@ -1442,7 +1442,7 @@ static void calculate_bandwidth(
 		data->nbp_state_change_enable = bw_def_no;
 	}
 	/*dram clock change is possible only in vblank if all displays are aligned and have no margin*/
-	if ((number_of_aligned_displays_with_no_margin == number_of_displays_enabled)) {
+	if (number_of_aligned_displays_with_no_margin == number_of_displays_enabled) {
 		nbp_state_change_enable_blank = bw_def_yes;
 	}
 	else {
@@ -1470,7 +1470,7 @@ static void calculate_bandwidth(
 		}
 	}
 	/*compute minimum time to read one chunk from the dmif buffer*/
-	if ((number_of_displays_enabled > 2)) {
+	if (number_of_displays_enabled > 2) {
 		data->chunk_request_delay = 0;
 	}
 	else {
@@ -1804,7 +1804,7 @@ static void calculate_bandwidth(
 				data->stutter_exit_watermark[i] = bw_add(bw_sub(vbios->stutter_self_refresh_exit_latency, data->total_dmifmc_urgent_latency), data->urgent_watermark[i]);
 				data->stutter_entry_watermark[i] = bw_add(bw_sub(bw_add(vbios->stutter_self_refresh_exit_latency, vbios->stutter_self_refresh_entry_latency), data->total_dmifmc_urgent_latency), data->urgent_watermark[i]);
 				/*unconditionally remove black out time from the nb p_state watermark*/
-				if ((data->display_pstate_change_enable[i] == 1)) {
+				if (data->display_pstate_change_enable[i] == 1) {
 					data->nbp_state_change_watermark[i] = bw_add(bw_add(vbios->nbp_state_change_latency, data->dmif_burst_time[data->y_clk_level][data->sclk_level]), bw_max2(data->line_source_pixels_transfer_time, data->dram_speed_change_line_source_transfer_time[i][data->y_clk_level][data->sclk_level]));
 				}
 				else {
@@ -1816,7 +1816,7 @@ static void calculate_bandwidth(
 				data->urgent_watermark[i] = bw_add(bw_add(bw_add(bw_add(bw_add(vbios->mcifwrmc_urgent_latency, data->mcifwr_burst_time[data->y_clk_level][data->sclk_level]), bw_max2(data->line_source_pixels_transfer_time, data->line_source_transfer_time[i][data->y_clk_level][data->sclk_level])), vbios->blackout_duration), data->chunk_request_time), data->cursor_request_time);
 				data->stutter_exit_watermark[i] = bw_int_to_fixed(0);
 				data->stutter_entry_watermark[i] = bw_int_to_fixed(0);
-				if ((data->display_pstate_change_enable[i] == 1)) {
+				if (data->display_pstate_change_enable[i] == 1) {
 					data->nbp_state_change_watermark[i] = bw_add(bw_add(vbios->nbp_state_change_latency, data->mcifwr_burst_time[data->y_clk_level][data->sclk_level]), bw_max2(data->line_source_pixels_transfer_time, data->dram_speed_change_line_source_transfer_time[i][data->y_clk_level][data->sclk_level]));
 				}
 				else {
@@ -2033,8 +2033,8 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		vbios.cursor_width = 32;
 		vbios.average_compression_rate = 4;
 		vbios.number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
-		vbios.blackout_duration = bw_int_to_fixed(18); /* us */
-		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(20);
+		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
+		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
 		dceip.large_cursor = false;
 		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);
@@ -2366,8 +2366,8 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		vbios.cursor_width = 32;
 		vbios.average_compression_rate = 4;
 		vbios.number_of_request_slots_gmc_reserves_for_dmif_per_channel = 256;
-		vbios.blackout_duration = bw_int_to_fixed(18); /* us */
-		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(20);
+		vbios.blackout_duration = bw_int_to_fixed(0); /* us */
+		vbios.maximum_blackout_recovery_time = bw_int_to_fixed(0);
 
 		dceip.large_cursor = false;
 		dceip.dmif_request_buffer_size = bw_int_to_fixed(768);

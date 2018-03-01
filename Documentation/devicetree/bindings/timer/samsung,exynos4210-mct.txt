@@ -51,7 +51,7 @@ Example 2: In this example, the timer interrupts are connected to two separate
 	   interrupt controllers. Hence, an interrupt-map is created to map
 	   the interrupts to the respective interrupt controllers.
 
-	mct@101C0000 {
+	mct@101c0000 {
 		compatible = "samsung,exynos4210-mct";
 		reg = <0x101C0000 0x800>;
 		interrupt-parent = <&mct_map>;

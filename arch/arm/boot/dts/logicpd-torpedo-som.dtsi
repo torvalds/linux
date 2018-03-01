@@ -30,17 +30,6 @@
 			linux,default-trigger = "none";
 		};
 	};
-
-	wl12xx_vmmc: wl12xx_vmmc {
-		compatible = "regulator-fixed";
-		regulator-name = "vwl1271";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		gpio = <&gpio5 29 0>;   /* gpio157 */
-		startup-delay-us = <70000>;
-		enable-active-high;
-		vin-supply = <&vmmc2>;
-	};
 };
 
 &gpmc {
@@ -73,33 +62,6 @@
 		gpmc,device-width = <2>;
 		#address-cells = <1>;
 		#size-cells = <1>;
-
-		/* u-boot uses mtdparts=omap2-nand.0:512k(x-loader),1920k(u-boot),128k(u-boot-env),4m(kernel),-(fs) */
-
-		x-loader@0 {
-			label = "x-loader";
-			reg = <0 0x80000>;
-		};
-
-		bootloaders@80000 {
-			label = "u-boot";
-			reg = <0x80000 0x1e0000>;
-		};
-
-		bootloaders_env@260000 {
-			label = "u-boot-env";
-			reg = <0x260000 0x20000>;
-		};
-
-		kernel@280000 {
-			label = "kernel";
-			reg = <0x280000 0x400000>;
-		};
-
-		filesystem@680000 {
-			label = "fs";
-			reg = <0x680000 0>;	/* 0 = MTDPART_SIZ_FULL */
-		};
 	};
 };
 
@@ -131,44 +93,7 @@
 	};
 };
 
-/*
- * Only found on the wireless SOM. For the SOM without wireless, the pins for
- * MMC3 can be routed with jumpers to the second MMC slot on the devkit and
- * gpio157 is not connected. So this should be OK to keep common for now,
- * probably device tree overlays is the way to go with the various SOM and
- * jumpering combinations for the long run.
- */
-&mmc3 {
-	interrupts-extended = <&intc 94 &omap3_pmx_core2 0x46>;
-	pinctrl-0 = <&mmc3_pins &mmc3_core2_pins>;
-	pinctrl-names = "default";
-	vmmc-supply = <&wl12xx_vmmc>;
-	non-removable;
-	bus-width = <4>;
-	cap-power-off-card;
-	#address-cells = <1>;
-	#size-cells = <0>;
-	wlcore: wlcore@2 {
-		compatible = "ti,wl1283";
-		reg = <2>;
-		interrupt-parent = <&gpio5>;
-		interrupts = <24 IRQ_TYPE_LEVEL_HIGH>; /* gpio 152 */
-		ref-clock-frequency = <26000000>;
-		tcxo-clock-frequency = <26000000>;
-	};
-};
-
 &omap3_pmx_core {
-	mmc3_pins: pinmux_mm3_pins {
-		pinctrl-single,pins = <
-			OMAP3_CORE1_IOPAD(0x2164, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat4.sdmmc3_dat0 */
-			OMAP3_CORE1_IOPAD(0x2166, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat5.sdmmc3_dat1 */
-			OMAP3_CORE1_IOPAD(0x2168, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat6.sdmmc3_dat2 */
-			OMAP3_CORE1_IOPAD(0x216a, PIN_INPUT_PULLUP | MUX_MODE3)	/* sdmmc2_dat6.sdmmc3_dat3 */
-			OMAP3_CORE1_IOPAD(0x2184, PIN_INPUT_PULLUP | MUX_MODE4)	/* mcbsp4_clkx.gpio_152 */
-			OMAP3_CORE1_IOPAD(0x218e, PIN_OUTPUT | MUX_MODE4)	/* mcbsp1_fsr.gpio_157 */
-		>;
-	};
 	mcbsp2_pins: pinmux_mcbsp2_pins {
 		pinctrl-single,pins = <
 			OMAP3_CORE1_IOPAD(0x213c, PIN_INPUT | MUX_MODE0)        /* mcbsp2_fsx */
@@ -222,15 +147,6 @@
 &mcspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcspi1_pins>;
-};
-
-&omap3_pmx_core2 {
-	mmc3_core2_pins: pinmux_mmc3_core2_pins {
-		pinctrl-single,pins = <
-			OMAP3630_CORE2_IOPAD(0x25d8, PIN_INPUT_PULLUP | MUX_MODE2)   /* etk_clk.sdmmc3_clk */
-			OMAP3630_CORE2_IOPAD(0x25da, PIN_INPUT_PULLUP | MUX_MODE2)   /* etk_ctl.sdmmc3_cmd */
-		>;
-	};
 };
 
 #include "twl4030.dtsi"

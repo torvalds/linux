@@ -960,7 +960,9 @@
 			};
 
 			tcb0: timer@f801c000 {
-				compatible = "atmel,at91sam9x5-tcb";
+				compatible = "atmel,at91sam9x5-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xf801c000 0x100>;
 				interrupts = <40 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&tcb0_clk>, <&clk32k>;
@@ -1188,10 +1190,22 @@
 			};
 
 			tcb1: timer@fc020000 {
-				compatible = "atmel,at91sam9x5-tcb";
+				compatible = "atmel,at91sam9x5-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xfc020000 0x100>;
 				interrupts = <41 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&tcb1_clk>, <&clk32k>;
+				clock-names = "t0_clk", "slow_clk";
+			};
+
+			tcb2: timer@fc024000 {
+				compatible = "atmel,at91sam9x5-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0xfc024000 0x100>;
+				interrupts = <42 IRQ_TYPE_LEVEL_HIGH 0>;
+				clocks = <&tcb2_clk>, <&clk32k>;
 				clock-names = "t0_clk", "slow_clk";
 			};
 

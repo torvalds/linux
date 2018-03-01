@@ -651,6 +651,39 @@ static int intel_vgpu_bar_rw(struct intel_vgpu *vgpu, int bar, uint64_t off,
 	return ret;
 }
 
+static inline bool intel_vgpu_in_aperture(struct intel_vgpu *vgpu, uint64_t off)
+{
+	return off >= vgpu_aperture_offset(vgpu) &&
+	       off < vgpu_aperture_offset(vgpu) + vgpu_aperture_sz(vgpu);
+}
+
+static int intel_vgpu_aperture_rw(struct intel_vgpu *vgpu, uint64_t off,
+		void *buf, unsigned long count, bool is_write)
+{
+	void *aperture_va;
+
+	if (!intel_vgpu_in_aperture(vgpu, off) ||
+	    !intel_vgpu_in_aperture(vgpu, off + count)) {
+		gvt_vgpu_err("Invalid aperture offset %llu\n", off);
+		return -EINVAL;
+	}
+
+	aperture_va = io_mapping_map_wc(&vgpu->gvt->dev_priv->ggtt.iomap,
+					ALIGN_DOWN(off, PAGE_SIZE),
+					count + offset_in_page(off));
+	if (!aperture_va)
+		return -EIO;
+
+	if (is_write)
+		memcpy(aperture_va + offset_in_page(off), buf, count);
+	else
+		memcpy(buf, aperture_va + offset_in_page(off), count);
+
+	io_mapping_unmap(aperture_va);
+
+	return 0;
+}
+
 static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 			size_t count, loff_t *ppos, bool is_write)
 {
@@ -679,8 +712,7 @@ static ssize_t intel_vgpu_rw(struct mdev_device *mdev, char *buf,
 					buf, count, is_write);
 		break;
 	case VFIO_PCI_BAR2_REGION_INDEX:
-		ret = intel_vgpu_bar_rw(vgpu, PCI_BASE_ADDRESS_2, pos,
-					buf, count, is_write);
+		ret = intel_vgpu_aperture_rw(vgpu, pos, buf, count, is_write);
 		break;
 	case VFIO_PCI_BAR1_REGION_INDEX:
 	case VFIO_PCI_BAR3_REGION_INDEX:
@@ -1019,6 +1051,8 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 			if (!sparse)
 				return -ENOMEM;
 
+			sparse->header.id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
+			sparse->header.version = 1;
 			sparse->nr_areas = nr_areas;
 			cap_type_id = VFIO_REGION_INFO_CAP_SPARSE_MMAP;
 			sparse->areas[0].offset =
@@ -1044,7 +1078,9 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 			break;
 		default:
 			{
-				struct vfio_region_info_cap_type cap_type;
+				struct vfio_region_info_cap_type cap_type = {
+					.header.id = VFIO_REGION_INFO_CAP_TYPE,
+					.header.version = 1 };
 
 				if (info.index >= VFIO_PCI_NUM_REGIONS +
 						vgpu->vdev.num_regions)
@@ -1061,8 +1097,8 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 				cap_type.subtype = vgpu->vdev.region[i].subtype;
 
 				ret = vfio_info_add_capability(&caps,
-						VFIO_REGION_INFO_CAP_TYPE,
-						&cap_type);
+							&cap_type.header,
+							sizeof(cap_type));
 				if (ret)
 					return ret;
 			}
@@ -1072,8 +1108,9 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 			switch (cap_type_id) {
 			case VFIO_REGION_INFO_CAP_SPARSE_MMAP:
 				ret = vfio_info_add_capability(&caps,
-					VFIO_REGION_INFO_CAP_SPARSE_MMAP,
-					sparse);
+					&sparse->header, sizeof(*sparse) +
+					(sparse->nr_areas *
+						sizeof(*sparse->areas)));
 				kfree(sparse);
 				if (ret)
 					return ret;

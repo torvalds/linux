@@ -23,8 +23,8 @@
 #define CXD2820R_PRIV_H
 
 #include <linux/dvb/version.h>
-#include "dvb_frontend.h"
-#include "dvb_math.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_math.h>
 #include "cxd2820r.h"
 #include <linux/gpio.h>
 #include <linux/math64.h>

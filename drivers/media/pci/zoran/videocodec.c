@@ -325,7 +325,6 @@ static int proc_videocodecs_show(struct seq_file *m, void *v)
 	seq_printf(m, "<S>lave or attached <M>aster name  type flags    magic    ");
 	seq_printf(m, "(connected as)\n");
 
-	h = codeclist_top;
 	while (h) {
 		seq_printf(m, "S %32s %04x %08lx %08lx (TEMPLATE)\n",
 			      h->codec->name, h->codec->type,

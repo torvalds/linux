@@ -57,9 +57,6 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 			       cdcpend->conn);
 	}
 	smc_tx_sndbuf_nonfull(smc);
-	if (smc->sk.sk_state != SMC_ACTIVE)
-		/* wake up smc_close_wait_tx_pends() */
-		smc->sk.sk_state_change(&smc->sk);
 	bh_unlock_sock(&smc->sk);
 }
 
@@ -68,9 +65,14 @@ int smc_cdc_get_free_slot(struct smc_connection *conn,
 			  struct smc_cdc_tx_pend **pend)
 {
 	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
+	int rc;
 
-	return smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
-				       (struct smc_wr_tx_pend_priv **)pend);
+	rc = smc_wr_tx_get_free_slot(link, smc_cdc_tx_handler, wr_buf,
+				     (struct smc_wr_tx_pend_priv **)pend);
+	if (!conn->alert_token_local)
+		/* abnormal termination */
+		rc = -EPIPE;
+	return rc;
 }
 
 static inline void smc_cdc_add_pending_send(struct smc_connection *conn,
@@ -155,14 +157,6 @@ void smc_cdc_tx_dismiss_slots(struct smc_connection *conn)
 				(unsigned long)conn);
 }
 
-bool smc_cdc_tx_has_pending(struct smc_connection *conn)
-{
-	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
-
-	return smc_wr_tx_has_pending(link, SMC_CDC_MSG_TYPE,
-				     smc_cdc_tx_filter, (unsigned long)conn);
-}
-
 /********************************* receive ***********************************/
 
 static inline bool smc_cdc_before(u16 seq1, u16 seq2)
@@ -213,6 +207,17 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		/* guarantee 0 <= bytes_to_rcv <= rmbe_size */
 		smp_mb__after_atomic();
 		smc->sk.sk_data_ready(&smc->sk);
+	} else if ((conn->local_rx_ctrl.prod_flags.write_blocked) ||
+		   (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req)) {
+		smc->sk.sk_data_ready(&smc->sk);
+	}
+
+	/* piggy backed tx info */
+	/* trigger sndbuf consumer: RDMA write into peer RMBE and CDC */
+	if (diff_cons && smc_tx_prepared_sends(conn)) {
+		smc_tx_sndbuf_nonempty(conn);
+		/* trigger socket release if connection closed */
+		smc_close_wake_tx_prepared(smc);
 	}
 
 	if (conn->local_rx_ctrl.conn_state_flags.peer_conn_abort) {
@@ -224,25 +229,10 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		if (smc->clcsock && smc->clcsock->sk)
 			smc->clcsock->sk->sk_shutdown |= RCV_SHUTDOWN;
 		sock_set_flag(&smc->sk, SOCK_DONE);
-		schedule_work(&conn->close_work);
+		sock_hold(&smc->sk); /* sock_put in close_work */
+		if (!schedule_work(&conn->close_work))
+			sock_put(&smc->sk);
 	}
-
-	/* piggy backed tx info */
-	/* trigger sndbuf consumer: RDMA write into peer RMBE and CDC */
-	if (diff_cons && smc_tx_prepared_sends(conn)) {
-		smc_tx_sndbuf_nonempty(conn);
-		/* trigger socket release if connection closed */
-		smc_close_wake_tx_prepared(smc);
-	}
-
-	/* socket connected but not accepted */
-	if (!smc->sk.sk_socket)
-		return;
-
-	/* data available */
-	if ((conn->local_rx_ctrl.prod_flags.write_blocked) ||
-	    (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req))
-		smc_tx_consumer_update(conn);
 }
 
 /* called under tasklet context */

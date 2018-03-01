@@ -1,71 +1,125 @@
+config SND_SOC_INTEL_SST_TOPLEVEL
+	bool "Intel ASoC SST drivers"
+	default y
+	depends on X86 || COMPILE_TEST
+	select SND_SOC_INTEL_MACH
+	help
+	  Intel ASoC SST Platform Drivers. If you have a Intel machine that
+	  has an audio controller with a DSP and I2S or DMIC port, then
+	  enable this option by saying Y
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Intel SST drivers.
+
+if SND_SOC_INTEL_SST_TOPLEVEL
+
 config SND_SST_IPC
 	tristate
+	# This option controls the IPC core for HiFi2 platforms
 
 config SND_SST_IPC_PCI
 	tristate
 	select SND_SST_IPC
+	# This option controls the PCI-based IPC for HiFi2 platforms
+	#  (Medfield, Merrifield).
 
 config SND_SST_IPC_ACPI
 	tristate
 	select SND_SST_IPC
-	select SND_SOC_INTEL_SST
-	select IOSF_MBI
+	# This option controls the ACPI-based IPC for HiFi2 platforms
+	# (Baytrail, Cherrytrail)
 
-config SND_SOC_INTEL_COMMON
+config SND_SOC_INTEL_SST_ACPI
 	tristate
+	# This option controls ACPI-based probing on
+	# Haswell/Broadwell/Baytrail legacy and will be set
+	# when these platforms are enabled
 
 config SND_SOC_INTEL_SST
 	tristate
-	select SND_SOC_INTEL_SST_ACPI if ACPI
 
 config SND_SOC_INTEL_SST_FIRMWARE
 	tristate
 	select DW_DMAC_CORE
-
-config SND_SOC_INTEL_SST_ACPI
-	tristate
-
-config SND_SOC_ACPI_INTEL_MATCH
-	tristate
-	select SND_SOC_ACPI if ACPI
-
-config SND_SOC_INTEL_SST_TOPLEVEL
-	tristate "Intel ASoC SST drivers"
-	depends on X86 || COMPILE_TEST
-	select SND_SOC_INTEL_MACH
-	select SND_SOC_INTEL_COMMON
-	help
-          Intel ASoC Audio Drivers. If you have a Intel machine that
-          has audio controller with a DSP and I2S or DMIC port, then
-          enable this option by saying Y or M
-          If unsure select "N".
+	# This option controls firmware download on
+	# Haswell/Broadwell/Baytrail legacy and will be set
+	# when these platforms are enabled
 
 config SND_SOC_INTEL_HASWELL
-	tristate "Intel ASoC SST driver for Haswell/Broadwell"
-	depends on SND_SOC_INTEL_SST_TOPLEVEL && SND_DMA_SGBUF
-	depends on DMADEVICES
+	tristate "Haswell/Broadwell Platforms"
+	depends on SND_DMA_SGBUF
+	depends on DMADEVICES && ACPI
 	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_SST_ACPI
 	select SND_SOC_INTEL_SST_FIRMWARE
+	select SND_SOC_ACPI_INTEL_MATCH
+	help
+	  If you have a Intel Haswell or Broadwell platform connected to
+	  an I2S codec, then enable this option by saying Y or m. This is
+	  typically used for Chromebooks. This is a recommended option.
 
 config SND_SOC_INTEL_BAYTRAIL
-	tristate "Intel ASoC SST driver for Baytrail (legacy)"
-	depends on SND_SOC_INTEL_SST_TOPLEVEL
-	depends on DMADEVICES
+	tristate "Baytrail (legacy) Platforms"
+	depends on DMADEVICES && ACPI
 	select SND_SOC_INTEL_SST
+	select SND_SOC_INTEL_SST_ACPI
 	select SND_SOC_INTEL_SST_FIRMWARE
+	select SND_SOC_ACPI_INTEL_MATCH
+	help
+	  If you have a Intel Baytrail platform connected to an I2S codec,
+	  then enable this option by saying Y or m. This was typically used
+	  for Baytrail Chromebooks but this option is now deprecated and is
+	  not recommended, use SND_SST_ATOM_HIFI2_PLATFORM instead.
+
+config SND_SST_ATOM_HIFI2_PLATFORM_PCI
+	tristate "PCI HiFi2 (Medfield, Merrifield) Platforms"
+	depends on X86 && PCI
+	select SND_SST_IPC_PCI
+	select SND_SOC_COMPRESS
+	help
+	  If you have a Intel Medfield or Merrifield/Edison platform, then
+	  enable this option by saying Y or m. Distros will typically not
+	  enable this option: Medfield devices are not available to
+	  developers and while Merrifield/Edison can run a mainline kernel with
+	  limited functionality it will require a firmware file which
+	  is not in the standard firmware tree
 
 config SND_SST_ATOM_HIFI2_PLATFORM
-	tristate "Intel ASoC SST driver for HiFi2 platforms (*field, *trail)"
-	depends on SND_SOC_INTEL_SST_TOPLEVEL && X86
+	tristate "ACPI HiFi2 (Baytrail, Cherrytrail) Platforms"
+	depends on X86 && ACPI
+	select SND_SST_IPC_ACPI
 	select SND_SOC_COMPRESS
+	select SND_SOC_ACPI_INTEL_MATCH
+	select IOSF_MBI
+	help
+	  If you have a Intel Baytrail or Cherrytrail platform with an I2S
+	  codec, then enable this option by saying Y or m. This is a
+	  recommended option
+
+config SND_SOC_INTEL_SKYLAKE_SSP_CLK
+	tristate
 
 config SND_SOC_INTEL_SKYLAKE
-	tristate "Intel ASoC SST driver for SKL/BXT/KBL/GLK/CNL"
-	depends on SND_SOC_INTEL_SST_TOPLEVEL && PCI && ACPI
+	tristate "SKL/BXT/KBL/GLK/CNL... Platforms"
+	depends on PCI && ACPI
 	select SND_HDA_EXT_CORE
 	select SND_HDA_DSP_LOADER
 	select SND_SOC_TOPOLOGY
 	select SND_SOC_INTEL_SST
+	select SND_SOC_ACPI_INTEL_MATCH
+	help
+	  If you have a Intel Skylake/Broxton/ApolloLake/KabyLake/
+	  GeminiLake or CannonLake platform with the DSP enabled in the BIOS
+	  then enable this option by saying Y or m.
+
+config SND_SOC_ACPI_INTEL_MATCH
+	tristate
+	select SND_SOC_ACPI if ACPI
+	# this option controls the compilation of ACPI matching tables and
+	# helpers and is not meant to be selected by the user.
+
+endif ## SND_SOC_INTEL_SST_TOPLEVEL
 
 # ASoC codec drivers
 source "sound/soc/intel/boards/Kconfig"

@@ -261,33 +261,6 @@ out_error:
 }
 
 /**
- * mpt3sas_scsi_direct_io_get - returns direct io flag
- * @ioc: per adapter object
- * @smid: system request message index
- *
- * Returns the smid stored scmd pointer.
- */
-inline u8
-mpt3sas_scsi_direct_io_get(struct MPT3SAS_ADAPTER *ioc, u16 smid)
-{
-	return ioc->scsi_lookup[smid - 1].direct_io;
-}
-
-/**
- * mpt3sas_scsi_direct_io_set - sets direct io flag
- * @ioc: per adapter object
- * @smid: system request message index
- * @direct_io: Zero or non-zero value to set in the direct_io flag
- *
- * Returns Nothing.
- */
-inline void
-mpt3sas_scsi_direct_io_set(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 direct_io)
-{
-	ioc->scsi_lookup[smid - 1].direct_io = direct_io;
-}
-
-/**
  * mpt3sas_setup_direct_io - setup MPI request for WARPDRIVE Direct I/O
  * @ioc: per adapter object
  * @scmd: pointer to scsi command object
@@ -299,12 +272,12 @@ mpt3sas_scsi_direct_io_set(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 direct_io)
  */
 void
 mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
-	struct _raid_device *raid_device, Mpi25SCSIIORequest_t *mpi_request,
-	u16 smid)
+	struct _raid_device *raid_device, Mpi25SCSIIORequest_t *mpi_request)
 {
 	sector_t v_lba, p_lba, stripe_off, column, io_size;
 	u32 stripe_sz, stripe_exp;
 	u8 num_pds, cmd = scmd->cmnd[0];
+	struct scsiio_tracker *st = scsi_cmd_priv(scmd);
 
 	if (cmd != READ_10 && cmd != WRITE_10 &&
 	    cmd != READ_16 && cmd != WRITE_16)
@@ -340,5 +313,5 @@ mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	else
 		put_unaligned_be64(p_lba, &mpi_request->CDB.CDB32[2]);
 
-	mpt3sas_scsi_direct_io_set(ioc, smid, 1);
+	st->direct_io = 1;
 }

@@ -18,7 +18,7 @@
 #define __TUNER_SIMPLE_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #if IS_REACHABLE(CONFIG_MEDIA_TUNER_SIMPLE)
 extern struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,

@@ -70,8 +70,6 @@ struct ci_smumgr {
 	const struct ci_pt_defaults  *power_tune_defaults;
 	SMU7_Discrete_MCRegisters      mc_regs;
 	struct ci_mc_reg_table mc_reg_table;
-	uint32_t        activity_target[SMU7_MAX_LEVELS_GRAPHICS];
-
 };
 
 #endif

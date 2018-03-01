@@ -68,12 +68,14 @@
 			clock-latency = <61036>; /* two CLK32 periods */
 			operating-points = <
 				/* kHz	uV */
+				696000	1275000
 				528000	1175000
 				396000	1025000
 				198000	950000
 			>;
 			fsl,soc-operating-points = <
 				/* KHz	uV */
+				696000	1275000
 				528000	1175000
 				396000	1175000
 				198000	1175000
@@ -136,18 +138,29 @@
 		clock-output-names = "ipp_di1";
 	};
 
+	tempmon: tempmon {
+		compatible = "fsl,imx6ul-tempmon", "fsl,imx6sx-tempmon";
+		interrupt-parent = <&gpc>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+		fsl,tempmon = <&anatop>;
+		nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+		nvmem-cell-names = "calib", "temp_grade";
+		clocks = <&clks IMX6UL_CLK_PLL3_USB_OTG>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a7-pmu";
+		interrupt-parent = <&gpc>;
+		interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		interrupt-parent = <&gpc>;
 		ranges;
-
-		pmu {
-			compatible = "arm,cortex-a7-pmu";
-			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
-		};
 
 		ocram: sram@900000 {
 			compatible = "mmio-sram";
@@ -476,6 +489,7 @@
 			fec2: ethernet@20b4000 {
 				compatible = "fsl,imx6ul-fec", "fsl,imx6q-fec";
 				reg = <0x020b4000 0x4000>;
+				interrupt-names = "int0", "pps";
 				interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 121 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6UL_CLK_ENET>,
@@ -530,8 +544,11 @@
 				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-				reg_3p0: regulator-3p0 {
+				reg_3p0: regulator-3p0@20c8110 {
+					reg = <0x20c8110>;
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vdd3p0";
 					regulator-min-microvolt = <2625000>;
@@ -545,7 +562,8 @@
 					anatop-enable-bit = <0>;
 				};
 
-				reg_arm: regulator-vddcore {
+				reg_arm: regulator-vddcore@20c8140 {
+					reg = <0x20c8140>;
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "cpu";
 					regulator-min-microvolt = <725000>;
@@ -562,7 +580,8 @@
 					anatop-max-voltage = <1450000>;
 				};
 
-				reg_soc: regulator-vddsoc {
+				reg_soc: regulator-vddsoc@20c8140 {
+					reg = <0x20c8140>;
 					compatible = "fsl,anatop-regulator";
 					regulator-name = "vddsoc";
 					regulator-min-microvolt = <725000>;
@@ -598,15 +617,6 @@
 				fsl,anatop = <&anatop>;
 			};
 
-			tempmon: tempmon {
-				compatible = "fsl,imx6ul-tempmon", "fsl,imx6sx-tempmon";
-				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-				fsl,tempmon = <&anatop>;
-				nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
-				nvmem-cell-names = "calib", "temp_grade";
-				clocks = <&clks IMX6UL_CLK_PLL3_USB_OTG>;
-			};
-
 			snvs: snvs@20cc000 {
 				compatible = "fsl,sec-v4.0-mon", "syscon", "simple-mfd";
 				reg = <0x020cc000 0x4000>;
@@ -634,6 +644,10 @@
 					interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
 					linux,keycode = <KEY_POWER>;
 					wakeup-source;
+				};
+
+				snvs_lpgpr: snvs-lpgpr {
+					compatible = "fsl,imx6ul-snvs-lpgpr";
 				};
 			};
 
@@ -784,6 +798,7 @@
 			fec1: ethernet@2188000 {
 				compatible = "fsl,imx6ul-fec", "fsl,imx6q-fec";
 				reg = <0x02188000 0x4000>;
+				interrupt-names = "int0", "pps";
 				interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX6UL_CLK_ENET>,

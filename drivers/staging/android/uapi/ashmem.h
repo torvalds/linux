@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR Apache-2.0)
 /*
  * drivers/staging/android/uapi/ashmem.h
  *

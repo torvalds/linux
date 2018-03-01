@@ -10,6 +10,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -454,11 +455,11 @@
 /* Various constants */
 
 /* Coalescing */
-#define MVPP2_TXDONE_COAL_PKTS_THRESH	15
+#define MVPP2_TXDONE_COAL_PKTS_THRESH	64
 #define MVPP2_TXDONE_HRTIMER_PERIOD_NS	1000000UL
 #define MVPP2_TXDONE_COAL_USEC		1000
 #define MVPP2_RX_COAL_PKTS		32
-#define MVPP2_RX_COAL_USEC		100
+#define MVPP2_RX_COAL_USEC		64
 
 /* The two bytes Marvell header. Either contains a special value used
  * by Marvell switches when a specific hardware mode is enabled (not
@@ -504,10 +505,12 @@
 #define MVPP2_DEFAULT_RXQ		4
 
 /* Max number of Rx descriptors */
-#define MVPP2_MAX_RXD			128
+#define MVPP2_MAX_RXD_MAX		1024
+#define MVPP2_MAX_RXD_DFLT		128
 
 /* Max number of Tx descriptors */
-#define MVPP2_MAX_TXD			1024
+#define MVPP2_MAX_TXD_MAX		2048
+#define MVPP2_MAX_TXD_DFLT		1024
 
 /* Amount of Tx descriptors that can be reserved at once by CPU */
 #define MVPP2_CPU_DESC_CHUNK		64
@@ -863,7 +866,7 @@ struct mvpp2 {
 
 	/* List of pointers to port structures */
 	int port_count;
-	struct mvpp2_port **port_list;
+	struct mvpp2_port *port_list[MVPP2_MAX_PORTS];
 
 	/* Aggregated TXQs */
 	struct mvpp2_tx_queue *aggr_txqs;
@@ -929,6 +932,9 @@ struct mvpp2_port {
 	int link_irq;
 
 	struct mvpp2 *priv;
+
+	/* Firmware node associated to the port */
+	struct fwnode_handle *fwnode;
 
 	/* Per-port registers' base address */
 	void __iomem *base;
@@ -5802,6 +5808,7 @@ static int mvpp2_txq_init(struct mvpp2_port *port,
 		txq_pcpu->reserved_num = 0;
 		txq_pcpu->txq_put_index = 0;
 		txq_pcpu->txq_get_index = 0;
+		txq_pcpu->tso_headers = NULL;
 
 		txq_pcpu->stop_threshold = txq->size - MVPP2_MAX_SKB_DESCS;
 		txq_pcpu->wake_threshold = txq_pcpu->stop_threshold / 2;
@@ -5829,10 +5836,13 @@ static void mvpp2_txq_deinit(struct mvpp2_port *port,
 		txq_pcpu = per_cpu_ptr(txq->pcpu, cpu);
 		kfree(txq_pcpu->buffs);
 
-		dma_free_coherent(port->dev->dev.parent,
-				  txq_pcpu->size * TSO_HEADER_SIZE,
-				  txq_pcpu->tso_headers,
-				  txq_pcpu->tso_headers_dma);
+		if (txq_pcpu->tso_headers)
+			dma_free_coherent(port->dev->dev.parent,
+					  txq_pcpu->size * TSO_HEADER_SIZE,
+					  txq_pcpu->tso_headers,
+					  txq_pcpu->tso_headers_dma);
+
+		txq_pcpu->tso_headers = NULL;
 	}
 
 	if (txq->descs)
@@ -6832,13 +6842,13 @@ static int mvpp2_check_ringparam_valid(struct net_device *dev,
 	if (ring->rx_pending == 0 || ring->tx_pending == 0)
 		return -EINVAL;
 
-	if (ring->rx_pending > MVPP2_MAX_RXD)
-		new_rx_pending = MVPP2_MAX_RXD;
+	if (ring->rx_pending > MVPP2_MAX_RXD_MAX)
+		new_rx_pending = MVPP2_MAX_RXD_MAX;
 	else if (!IS_ALIGNED(ring->rx_pending, 16))
 		new_rx_pending = ALIGN(ring->rx_pending, 16);
 
-	if (ring->tx_pending > MVPP2_MAX_TXD)
-		new_tx_pending = MVPP2_MAX_TXD;
+	if (ring->tx_pending > MVPP2_MAX_TXD_MAX)
+		new_tx_pending = MVPP2_MAX_TXD_MAX;
 	else if (!IS_ALIGNED(ring->tx_pending, 32))
 		new_tx_pending = ALIGN(ring->tx_pending, 32);
 
@@ -7318,9 +7328,10 @@ static int mvpp2_ethtool_get_coalesce(struct net_device *dev,
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
-	c->rx_coalesce_usecs        = port->rxqs[0]->time_coal;
-	c->rx_max_coalesced_frames  = port->rxqs[0]->pkts_coal;
-	c->tx_max_coalesced_frames =  port->txqs[0]->done_pkts_coal;
+	c->rx_coalesce_usecs       = port->rxqs[0]->time_coal;
+	c->rx_max_coalesced_frames = port->rxqs[0]->pkts_coal;
+	c->tx_max_coalesced_frames = port->txqs[0]->done_pkts_coal;
+	c->tx_coalesce_usecs       = port->tx_time_coal;
 	return 0;
 }
 
@@ -7340,8 +7351,8 @@ static void mvpp2_ethtool_get_ringparam(struct net_device *dev,
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 
-	ring->rx_max_pending = MVPP2_MAX_RXD;
-	ring->tx_max_pending = MVPP2_MAX_TXD;
+	ring->rx_max_pending = MVPP2_MAX_RXD_MAX;
+	ring->tx_max_pending = MVPP2_MAX_TXD_MAX;
 	ring->rx_pending = port->rx_ring_size;
 	ring->tx_pending = port->tx_ring_size;
 }
@@ -7492,7 +7503,10 @@ static int mvpp2_multi_queue_vectors_init(struct mvpp2_port *port,
 			strncpy(irqname, "rx-shared", sizeof(irqname));
 		}
 
-		v->irq = of_irq_get_byname(port_node, irqname);
+		if (port_node)
+			v->irq = of_irq_get_byname(port_node, irqname);
+		else
+			v->irq = fwnode_irq_get(port->fwnode, i);
 		if (v->irq <= 0) {
 			ret = -EINVAL;
 			goto err;
@@ -7704,17 +7718,16 @@ static bool mvpp2_port_has_tx_irqs(struct mvpp2 *priv,
 }
 
 static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
-				     struct device_node *port_node,
+				     struct fwnode_handle *fwnode,
 				     char **mac_from)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
 	char hw_mac_addr[ETH_ALEN] = {0};
-	const char *dt_mac_addr;
+	char fw_mac_addr[ETH_ALEN];
 
-	dt_mac_addr = of_get_mac_address(port_node);
-	if (dt_mac_addr && is_valid_ether_addr(dt_mac_addr)) {
-		*mac_from = "device tree";
-		ether_addr_copy(dev->dev_addr, dt_mac_addr);
+	if (fwnode_get_mac_address(fwnode, fw_mac_addr, ETH_ALEN)) {
+		*mac_from = "firmware node";
+		ether_addr_copy(dev->dev_addr, fw_mac_addr);
 		return;
 	}
 
@@ -7733,13 +7746,14 @@ static void mvpp2_port_copy_mac_addr(struct net_device *dev, struct mvpp2 *priv,
 
 /* Ports initialization */
 static int mvpp2_port_probe(struct platform_device *pdev,
-			    struct device_node *port_node,
-			    struct mvpp2 *priv, int index)
+			    struct fwnode_handle *port_fwnode,
+			    struct mvpp2 *priv)
 {
 	struct device_node *phy_node;
-	struct phy *comphy;
+	struct phy *comphy = NULL;
 	struct mvpp2_port *port;
 	struct mvpp2_port_pcpu *port_pcpu;
+	struct device_node *port_node = to_of_node(port_fwnode);
 	struct net_device *dev;
 	struct resource *res;
 	char *mac_from = "";
@@ -7750,7 +7764,12 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	int phy_mode;
 	int err, i, cpu;
 
-	has_tx_irqs = mvpp2_port_has_tx_irqs(priv, port_node);
+	if (port_node) {
+		has_tx_irqs = mvpp2_port_has_tx_irqs(priv, port_node);
+	} else {
+		has_tx_irqs = true;
+		queue_mode = MVPP2_QDIST_MULTI_MODE;
+	}
 
 	if (!has_tx_irqs)
 		queue_mode = MVPP2_QDIST_SINGLE_MODE;
@@ -7765,36 +7784,43 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	if (!dev)
 		return -ENOMEM;
 
-	phy_node = of_parse_phandle(port_node, "phy", 0);
-	phy_mode = of_get_phy_mode(port_node);
+	if (port_node)
+		phy_node = of_parse_phandle(port_node, "phy", 0);
+	else
+		phy_node = NULL;
+
+	phy_mode = fwnode_get_phy_mode(port_fwnode);
 	if (phy_mode < 0) {
 		dev_err(&pdev->dev, "incorrect phy mode\n");
 		err = phy_mode;
 		goto err_free_netdev;
 	}
 
-	comphy = devm_of_phy_get(&pdev->dev, port_node, NULL);
-	if (IS_ERR(comphy)) {
-		if (PTR_ERR(comphy) == -EPROBE_DEFER) {
-			err = -EPROBE_DEFER;
-			goto err_free_netdev;
+	if (port_node) {
+		comphy = devm_of_phy_get(&pdev->dev, port_node, NULL);
+		if (IS_ERR(comphy)) {
+			if (PTR_ERR(comphy) == -EPROBE_DEFER) {
+				err = -EPROBE_DEFER;
+				goto err_free_netdev;
+			}
+			comphy = NULL;
 		}
-		comphy = NULL;
 	}
 
-	if (of_property_read_u32(port_node, "port-id", &id)) {
+	if (fwnode_property_read_u32(port_fwnode, "port-id", &id)) {
 		err = -EINVAL;
 		dev_err(&pdev->dev, "missing port-id value\n");
 		goto err_free_netdev;
 	}
 
-	dev->tx_queue_len = MVPP2_MAX_TXD;
+	dev->tx_queue_len = MVPP2_MAX_TXD_MAX;
 	dev->watchdog_timeo = 5 * HZ;
 	dev->netdev_ops = &mvpp2_netdev_ops;
 	dev->ethtool_ops = &mvpp2_eth_tool_ops;
 
 	port = netdev_priv(dev);
 	port->dev = dev;
+	port->fwnode = port_fwnode;
 	port->ntxqs = ntxqs;
 	port->nrxqs = nrxqs;
 	port->priv = priv;
@@ -7804,7 +7830,10 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	if (err)
 		goto err_free_netdev;
 
-	port->link_irq = of_irq_get_byname(port_node, "link");
+	if (port_node)
+		port->link_irq = of_irq_get_byname(port_node, "link");
+	else
+		port->link_irq = fwnode_irq_get(port_fwnode, port->nqvecs + 1);
 	if (port->link_irq == -EPROBE_DEFER) {
 		err = -EPROBE_DEFER;
 		goto err_deinit_qvecs;
@@ -7813,7 +7842,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		/* the link irq is optional */
 		port->link_irq = 0;
 
-	if (of_property_read_bool(port_node, "marvell,loopback"))
+	if (fwnode_property_read_bool(port_fwnode, "marvell,loopback"))
 		port->flags |= MVPP2_F_LOOPBACK;
 
 	port->id = id;
@@ -7838,8 +7867,8 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 				   MVPP21_MIB_COUNTERS_OFFSET +
 				   port->gop_id * MVPP21_MIB_COUNTERS_PORT_SZ;
 	} else {
-		if (of_property_read_u32(port_node, "gop-port-id",
-					 &port->gop_id)) {
+		if (fwnode_property_read_u32(port_fwnode, "gop-port-id",
+					     &port->gop_id)) {
 			err = -EINVAL;
 			dev_err(&pdev->dev, "missing gop-port-id value\n");
 			goto err_deinit_qvecs;
@@ -7869,10 +7898,10 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	mutex_init(&port->gather_stats_lock);
 	INIT_DELAYED_WORK(&port->stats_work, mvpp2_gather_hw_statistics);
 
-	mvpp2_port_copy_mac_addr(dev, priv, port_node, &mac_from);
+	mvpp2_port_copy_mac_addr(dev, priv, port_fwnode, &mac_from);
 
-	port->tx_ring_size = MVPP2_MAX_TXD;
-	port->rx_ring_size = MVPP2_MAX_RXD;
+	port->tx_ring_size = MVPP2_MAX_TXD_DFLT;
+	port->rx_ring_size = MVPP2_MAX_RXD_DFLT;
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	err = mvpp2_port_init(port);
@@ -7927,7 +7956,8 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 	}
 	netdev_info(dev, "Using %s mac address %pM\n", mac_from, dev->dev_addr);
 
-	priv->port_list[index] = port;
+	priv->port_list[priv->port_count++] = port;
+
 	return 0;
 
 err_free_port_pcpu:
@@ -8186,8 +8216,9 @@ static int mvpp2_init(struct platform_device *pdev, struct mvpp2 *priv)
 
 static int mvpp2_probe(struct platform_device *pdev)
 {
-	struct device_node *dn = pdev->dev.of_node;
-	struct device_node *port_node;
+	const struct acpi_device_id *acpi_id;
+	struct fwnode_handle *fwnode = pdev->dev.fwnode;
+	struct fwnode_handle *port_fwnode;
 	struct mvpp2 *priv;
 	struct resource *res;
 	void __iomem *base;
@@ -8198,8 +8229,14 @@ static int mvpp2_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->hw_version =
-		(unsigned long)of_device_get_match_data(&pdev->dev);
+	if (has_acpi_companion(&pdev->dev)) {
+		acpi_id = acpi_match_device(pdev->dev.driver->acpi_match_table,
+					    &pdev->dev);
+		priv->hw_version = (unsigned long)acpi_id->driver_data;
+	} else {
+		priv->hw_version =
+			(unsigned long)of_device_get_match_data(&pdev->dev);
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -8213,10 +8250,23 @@ static int mvpp2_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->lms_base);
 	} else {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (has_acpi_companion(&pdev->dev)) {
+			/* In case the MDIO memory region is declared in
+			 * the ACPI, it can already appear as 'in-use'
+			 * in the OS. Because it is overlapped by second
+			 * region of the network controller, make
+			 * sure it is released, before requesting it again.
+			 * The care is taken by mvpp2 driver to avoid
+			 * concurrent access to this memory region.
+			 */
+			release_resource(res);
+		}
 		priv->iface_base = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(priv->iface_base))
 			return PTR_ERR(priv->iface_base);
+	}
 
+	if (priv->hw_version == MVPP22 && dev_of_node(&pdev->dev)) {
 		priv->sysctrl_base =
 			syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 							"marvell,system-controller");
@@ -8242,32 +8292,34 @@ static int mvpp2_probe(struct platform_device *pdev)
 	else
 		priv->max_port_rxqs = 32;
 
-	priv->pp_clk = devm_clk_get(&pdev->dev, "pp_clk");
-	if (IS_ERR(priv->pp_clk))
-		return PTR_ERR(priv->pp_clk);
-	err = clk_prepare_enable(priv->pp_clk);
-	if (err < 0)
-		return err;
-
-	priv->gop_clk = devm_clk_get(&pdev->dev, "gop_clk");
-	if (IS_ERR(priv->gop_clk)) {
-		err = PTR_ERR(priv->gop_clk);
-		goto err_pp_clk;
-	}
-	err = clk_prepare_enable(priv->gop_clk);
-	if (err < 0)
-		goto err_pp_clk;
-
-	if (priv->hw_version == MVPP22) {
-		priv->mg_clk = devm_clk_get(&pdev->dev, "mg_clk");
-		if (IS_ERR(priv->mg_clk)) {
-			err = PTR_ERR(priv->mg_clk);
-			goto err_gop_clk;
-		}
-
-		err = clk_prepare_enable(priv->mg_clk);
+	if (dev_of_node(&pdev->dev)) {
+		priv->pp_clk = devm_clk_get(&pdev->dev, "pp_clk");
+		if (IS_ERR(priv->pp_clk))
+			return PTR_ERR(priv->pp_clk);
+		err = clk_prepare_enable(priv->pp_clk);
 		if (err < 0)
-			goto err_gop_clk;
+			return err;
+
+		priv->gop_clk = devm_clk_get(&pdev->dev, "gop_clk");
+		if (IS_ERR(priv->gop_clk)) {
+			err = PTR_ERR(priv->gop_clk);
+			goto err_pp_clk;
+		}
+		err = clk_prepare_enable(priv->gop_clk);
+		if (err < 0)
+			goto err_pp_clk;
+
+		if (priv->hw_version == MVPP22) {
+			priv->mg_clk = devm_clk_get(&pdev->dev, "mg_clk");
+			if (IS_ERR(priv->mg_clk)) {
+				err = PTR_ERR(priv->mg_clk);
+				goto err_gop_clk;
+			}
+
+			err = clk_prepare_enable(priv->mg_clk);
+			if (err < 0)
+				goto err_gop_clk;
+		}
 
 		priv->axi_clk = devm_clk_get(&pdev->dev, "axi_clk");
 		if (IS_ERR(priv->axi_clk)) {
@@ -8280,10 +8332,14 @@ static int mvpp2_probe(struct platform_device *pdev)
 			if (err < 0)
 				goto err_gop_clk;
 		}
-	}
 
-	/* Get system's tclk rate */
-	priv->tclk = clk_get_rate(priv->pp_clk);
+		/* Get system's tclk rate */
+		priv->tclk = clk_get_rate(priv->pp_clk);
+	} else if (device_property_read_u32(&pdev->dev, "clock-frequency",
+					    &priv->tclk)) {
+		dev_err(&pdev->dev, "missing clock-frequency value\n");
+		return -EINVAL;
+	}
 
 	if (priv->hw_version == MVPP22) {
 		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(40));
@@ -8306,28 +8362,17 @@ static int mvpp2_probe(struct platform_device *pdev)
 		goto err_mg_clk;
 	}
 
-	priv->port_count = of_get_available_child_count(dn);
+	/* Initialize ports */
+	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
+		err = mvpp2_port_probe(pdev, port_fwnode, priv);
+		if (err < 0)
+			goto err_port_probe;
+	}
+
 	if (priv->port_count == 0) {
 		dev_err(&pdev->dev, "no ports enabled\n");
 		err = -ENODEV;
 		goto err_mg_clk;
-	}
-
-	priv->port_list = devm_kcalloc(&pdev->dev, priv->port_count,
-				       sizeof(*priv->port_list),
-				       GFP_KERNEL);
-	if (!priv->port_list) {
-		err = -ENOMEM;
-		goto err_mg_clk;
-	}
-
-	/* Initialize ports */
-	i = 0;
-	for_each_available_child_of_node(dn, port_node) {
-		err = mvpp2_port_probe(pdev, port_node, priv, i);
-		if (err < 0)
-			goto err_port_probe;
-		i++;
 	}
 
 	/* Statistics must be gathered regularly because some of them (like
@@ -8350,7 +8395,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 
 err_port_probe:
 	i = 0;
-	for_each_available_child_of_node(dn, port_node) {
+	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
 		if (priv->port_list[i])
 			mvpp2_port_remove(priv->port_list[i]);
 		i++;
@@ -8369,14 +8414,14 @@ err_pp_clk:
 static int mvpp2_remove(struct platform_device *pdev)
 {
 	struct mvpp2 *priv = platform_get_drvdata(pdev);
-	struct device_node *dn = pdev->dev.of_node;
-	struct device_node *port_node;
+	struct fwnode_handle *fwnode = pdev->dev.fwnode;
+	struct fwnode_handle *port_fwnode;
 	int i = 0;
 
 	flush_workqueue(priv->stats_queue);
 	destroy_workqueue(priv->stats_queue);
 
-	for_each_available_child_of_node(dn, port_node) {
+	fwnode_for_each_available_child_node(fwnode, port_fwnode) {
 		if (priv->port_list[i]) {
 			mutex_destroy(&priv->port_list[i]->gather_stats_lock);
 			mvpp2_port_remove(priv->port_list[i]);
@@ -8399,6 +8444,9 @@ static int mvpp2_remove(struct platform_device *pdev)
 				  aggr_txq->descs_dma);
 	}
 
+	if (is_acpi_node(port_fwnode))
+		return 0;
+
 	clk_disable_unprepare(priv->axi_clk);
 	clk_disable_unprepare(priv->mg_clk);
 	clk_disable_unprepare(priv->pp_clk);
@@ -8420,12 +8468,19 @@ static const struct of_device_id mvpp2_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mvpp2_match);
 
+static const struct acpi_device_id mvpp2_acpi_match[] = {
+	{ "MRVL0110", MVPP22 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, mvpp2_acpi_match);
+
 static struct platform_driver mvpp2_driver = {
 	.probe = mvpp2_probe,
 	.remove = mvpp2_remove,
 	.driver = {
 		.name = MVPP2_DRIVER_NAME,
 		.of_match_table = mvpp2_match,
+		.acpi_match_table = ACPI_PTR(mvpp2_acpi_match),
 	},
 };
 

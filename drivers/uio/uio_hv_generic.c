@@ -10,11 +10,13 @@
  * Since the driver does not declare any device ids, you must allocate
  * id and bind the device to the driver yourself.  For example:
  *
+ * Associate Network GUID with UIO device
  * # echo "f8615163-df3e-46c5-913f-f2d2f965ed0e" \
- *    > /sys/bus/vmbus/drivers/uio_hv_generic
- * # echo -n vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3 \
+ *    > /sys/bus/vmbus/drivers/uio_hv_generic/new_id
+ * Then rebind
+ * # echo -n "ed963694-e847-4b2a-85af-bc9cfc11d6f3" \
  *    > /sys/bus/vmbus/drivers/hv_netvsc/unbind
- * # echo -n vmbus-ed963694-e847-4b2a-85af-bc9cfc11d6f3 \
+ * # echo -n "ed963694-e847-4b2a-85af-bc9cfc11d6f3" \
  *    > /sys/bus/vmbus/drivers/uio_hv_generic/bind
  */
 
@@ -37,6 +39,10 @@
 #define DRIVER_AUTHOR	"Stephen Hemminger <sthemmin at microsoft.com>"
 #define DRIVER_DESC	"Generic UIO driver for VMBus devices"
 
+#define HV_RING_SIZE	 512	/* pages */
+#define SEND_BUFFER_SIZE (15 * 1024 * 1024)
+#define RECV_BUFFER_SIZE (15 * 1024 * 1024)
+
 /*
  * List of resources to be mapped to user space
  * can be extended up to MAX_UIO_MAPS(5) items
@@ -45,32 +51,22 @@ enum hv_uio_map {
 	TXRX_RING_MAP = 0,
 	INT_PAGE_MAP,
 	MON_PAGE_MAP,
+	RECV_BUF_MAP,
+	SEND_BUF_MAP
 };
-
-#define HV_RING_SIZE	512
 
 struct hv_uio_private_data {
 	struct uio_info info;
 	struct hv_device *device;
+
+	void	*recv_buf;
+	u32	recv_gpadl;
+	char	recv_name[32];	/* "recv_4294967295" */
+
+	void	*send_buf;
+	u32	send_gpadl;
+	char	send_name[32];
 };
-
-static int
-hv_uio_mmap(struct uio_info *info, struct vm_area_struct *vma)
-{
-	int mi;
-
-	if (vma->vm_pgoff >= MAX_UIO_MAPS)
-		return -EINVAL;
-
-	if (info->mem[vma->vm_pgoff].size == 0)
-		return -EINVAL;
-
-	mi = (int)vma->vm_pgoff;
-
-	return remap_pfn_range(vma, vma->vm_start,
-			info->mem[mi].addr >> PAGE_SHIFT,
-			vma->vm_end - vma->vm_start, vma->vm_page_prot);
-}
 
 /*
  * This is the irqcontrol callback to be registered to uio_info.
@@ -107,6 +103,36 @@ static void hv_uio_channel_cb(void *context)
 	uio_event_notify(&pdata->info);
 }
 
+/*
+ * Callback from vmbus_event when channel is rescinded.
+ */
+static void hv_uio_rescind(struct vmbus_channel *channel)
+{
+	struct hv_device *hv_dev = channel->primary_channel->device_obj;
+	struct hv_uio_private_data *pdata = hv_get_drvdata(hv_dev);
+
+	/*
+	 * Turn off the interrupt file handle
+	 * Next read for event will return -EIO
+	 */
+	pdata->info.irq = 0;
+
+	/* Wake up reader */
+	uio_event_notify(&pdata->info);
+}
+
+static void
+hv_uio_cleanup(struct hv_device *dev, struct hv_uio_private_data *pdata)
+{
+	if (pdata->send_gpadl)
+		vmbus_teardown_gpadl(dev->channel, pdata->send_gpadl);
+	vfree(pdata->send_buf);
+
+	if (pdata->recv_gpadl)
+		vmbus_teardown_gpadl(dev->channel, pdata->recv_gpadl);
+	vfree(pdata->recv_buf);
+}
+
 static int
 hv_uio_probe(struct hv_device *dev,
 	     const struct hv_vmbus_device_id *dev_id)
@@ -124,35 +150,81 @@ hv_uio_probe(struct hv_device *dev,
 	if (ret)
 		goto fail;
 
+	/* Communicating with host has to be via shared memory not hypercall */
+	if (!dev->channel->offermsg.monitor_allocated) {
+		dev_err(&dev->device, "vmbus channel requires hypercall\n");
+		ret = -ENOTSUPP;
+		goto fail_close;
+	}
+
 	dev->channel->inbound.ring_buffer->interrupt_mask = 1;
-	set_channel_read_mode(dev->channel, HV_CALL_DIRECT);
+	set_channel_read_mode(dev->channel, HV_CALL_ISR);
 
 	/* Fill general uio info */
 	pdata->info.name = "uio_hv_generic";
 	pdata->info.version = DRIVER_VERSION;
 	pdata->info.irqcontrol = hv_uio_irqcontrol;
-	pdata->info.mmap = hv_uio_mmap;
 	pdata->info.irq = UIO_IRQ_CUSTOM;
 
 	/* mem resources */
 	pdata->info.mem[TXRX_RING_MAP].name = "txrx_rings";
 	pdata->info.mem[TXRX_RING_MAP].addr
-		= virt_to_phys(dev->channel->ringbuffer_pages);
+		= (uintptr_t)dev->channel->ringbuffer_pages;
 	pdata->info.mem[TXRX_RING_MAP].size
-		= dev->channel->ringbuffer_pagecount * PAGE_SIZE;
+		= dev->channel->ringbuffer_pagecount << PAGE_SHIFT;
 	pdata->info.mem[TXRX_RING_MAP].memtype = UIO_MEM_LOGICAL;
 
 	pdata->info.mem[INT_PAGE_MAP].name = "int_page";
-	pdata->info.mem[INT_PAGE_MAP].addr =
-		virt_to_phys(vmbus_connection.int_page);
+	pdata->info.mem[INT_PAGE_MAP].addr
+		= (uintptr_t)vmbus_connection.int_page;
 	pdata->info.mem[INT_PAGE_MAP].size = PAGE_SIZE;
 	pdata->info.mem[INT_PAGE_MAP].memtype = UIO_MEM_LOGICAL;
 
-	pdata->info.mem[MON_PAGE_MAP].name = "monitor_pages";
-	pdata->info.mem[MON_PAGE_MAP].addr =
-		virt_to_phys(vmbus_connection.monitor_pages[1]);
+	pdata->info.mem[MON_PAGE_MAP].name = "monitor_page";
+	pdata->info.mem[MON_PAGE_MAP].addr
+		= (uintptr_t)vmbus_connection.monitor_pages[1];
 	pdata->info.mem[MON_PAGE_MAP].size = PAGE_SIZE;
 	pdata->info.mem[MON_PAGE_MAP].memtype = UIO_MEM_LOGICAL;
+
+	pdata->recv_buf = vzalloc(RECV_BUFFER_SIZE);
+	if (pdata->recv_buf == NULL) {
+		ret = -ENOMEM;
+		goto fail_close;
+	}
+
+	ret = vmbus_establish_gpadl(dev->channel, pdata->recv_buf,
+				    RECV_BUFFER_SIZE, &pdata->recv_gpadl);
+	if (ret)
+		goto fail_close;
+
+	/* put Global Physical Address Label in name */
+	snprintf(pdata->recv_name, sizeof(pdata->recv_name),
+		 "recv:%u", pdata->recv_gpadl);
+	pdata->info.mem[RECV_BUF_MAP].name = pdata->recv_name;
+	pdata->info.mem[RECV_BUF_MAP].addr
+		= (uintptr_t)pdata->recv_buf;
+	pdata->info.mem[RECV_BUF_MAP].size = RECV_BUFFER_SIZE;
+	pdata->info.mem[RECV_BUF_MAP].memtype = UIO_MEM_VIRTUAL;
+
+
+	pdata->send_buf = vzalloc(SEND_BUFFER_SIZE);
+	if (pdata->send_buf == NULL) {
+		ret = -ENOMEM;
+		goto fail_close;
+	}
+
+	ret = vmbus_establish_gpadl(dev->channel, pdata->send_buf,
+				    SEND_BUFFER_SIZE, &pdata->send_gpadl);
+	if (ret)
+		goto fail_close;
+
+	snprintf(pdata->send_name, sizeof(pdata->send_name),
+		 "send:%u", pdata->send_gpadl);
+	pdata->info.mem[SEND_BUF_MAP].name = pdata->send_name;
+	pdata->info.mem[SEND_BUF_MAP].addr
+		= (uintptr_t)pdata->send_buf;
+	pdata->info.mem[SEND_BUF_MAP].size = SEND_BUFFER_SIZE;
+	pdata->info.mem[SEND_BUF_MAP].memtype = UIO_MEM_VIRTUAL;
 
 	pdata->info.priv = pdata;
 	pdata->device = dev;
@@ -163,11 +235,14 @@ hv_uio_probe(struct hv_device *dev,
 		goto fail_close;
 	}
 
+	vmbus_set_chn_rescind_callback(dev->channel, hv_uio_rescind);
+
 	hv_set_drvdata(dev, pdata);
 
 	return 0;
 
 fail_close:
+	hv_uio_cleanup(dev, pdata);
 	vmbus_close(dev->channel);
 fail:
 	kfree(pdata);
@@ -184,6 +259,7 @@ hv_uio_remove(struct hv_device *dev)
 		return 0;
 
 	uio_unregister_device(&pdata->info);
+	hv_uio_cleanup(dev, pdata);
 	hv_set_drvdata(dev, NULL);
 	vmbus_close(dev->channel);
 	kfree(pdata);

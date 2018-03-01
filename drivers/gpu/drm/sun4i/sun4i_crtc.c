@@ -25,6 +25,7 @@
 
 #include <video/videomode.h>
 
+#include "sun4i_backend.h"
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sunxi_engine.h"
@@ -46,11 +47,25 @@ static struct drm_encoder *sun4i_crtc_get_encoder(struct drm_crtc *crtc)
 	return NULL;
 }
 
+static int sun4i_crtc_atomic_check(struct drm_crtc *crtc,
+				    struct drm_crtc_state *state)
+{
+	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
+	struct sunxi_engine *engine = scrtc->engine;
+	int ret = 0;
+
+	if (engine && engine->ops && engine->ops->atomic_check)
+		ret = engine->ops->atomic_check(engine, state);
+
+	return ret;
+}
+
 static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
+	struct sunxi_engine *engine = scrtc->engine;
 	unsigned long flags;
 
 	if (crtc->state->event) {
@@ -60,7 +75,10 @@ static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
 		scrtc->event = crtc->state->event;
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		crtc->state->event = NULL;
-	 }
+	}
+
+	if (engine->ops->atomic_begin)
+		engine->ops->atomic_begin(engine, old_state);
 }
 
 static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -125,6 +143,7 @@ static void sun4i_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
+	.atomic_check	= sun4i_crtc_atomic_check,
 	.atomic_begin	= sun4i_crtc_atomic_begin,
 	.atomic_flush	= sun4i_crtc_atomic_flush,
 	.atomic_enable	= sun4i_crtc_atomic_enable,

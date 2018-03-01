@@ -34,6 +34,20 @@ static const struct drm_encoder_funcs drm_simple_kms_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
+static enum drm_mode_status
+drm_simple_kms_crtc_mode_valid(struct drm_crtc *crtc,
+			       const struct drm_display_mode *mode)
+{
+	struct drm_simple_display_pipe *pipe;
+
+	pipe = container_of(crtc, struct drm_simple_display_pipe, crtc);
+	if (!pipe->funcs || !pipe->funcs->mode_valid)
+		/* Anything goes */
+		return MODE_OK;
+
+	return pipe->funcs->mode_valid(crtc, mode);
+}
+
 static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
@@ -72,6 +86,7 @@ static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs drm_simple_kms_crtc_helper_funcs = {
+	.mode_valid = drm_simple_kms_crtc_mode_valid,
 	.atomic_check = drm_simple_kms_crtc_check,
 	.atomic_enable = drm_simple_kms_crtc_enable,
 	.atomic_disable = drm_simple_kms_crtc_disable,
@@ -100,8 +115,9 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc_state->enable)
 		return 0; /* nothing to check when disabling or disabled */
 
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	if (crtc_state->enable)
+		drm_mode_get_hv_timing(&crtc_state->mode,
+				       &clip.x2, &clip.y2);
 
 	ret = drm_atomic_helper_check_plane_state(plane_state, crtc_state,
 						  &clip,

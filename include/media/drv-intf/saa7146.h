@@ -118,7 +118,7 @@ struct saa7146_dev
 {
 	struct module			*module;
 
-	struct v4l2_device 		v4l2_dev;
+	struct v4l2_device		v4l2_dev;
 	struct v4l2_ctrl_handler	ctrl_handler;
 
 	/* different device locks */

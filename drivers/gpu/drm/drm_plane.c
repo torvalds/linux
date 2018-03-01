@@ -173,6 +173,10 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	unsigned int format_modifier_count = 0;
 	int ret;
 
+	/* plane index is used with 32bit bitmasks */
+	if (WARN_ON(config->num_total_plane >= 32))
+		return -EINVAL;
+
 	ret = drm_mode_object_add(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
 	if (ret)
 		return ret;

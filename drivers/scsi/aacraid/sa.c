@@ -329,6 +329,22 @@ int aac_sa_init(struct aac_dev *dev)
 	instance = dev->id;
 	name     = dev->name;
 
+	/*
+	 *	Fill in the function dispatch table.
+	 */
+
+	dev->a_ops.adapter_interrupt = aac_sa_interrupt_adapter;
+	dev->a_ops.adapter_disable_int = aac_sa_disable_interrupt;
+	dev->a_ops.adapter_enable_int = aac_sa_enable_interrupt;
+	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
+	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
+	dev->a_ops.adapter_check_health = aac_sa_check_health;
+	dev->a_ops.adapter_restart = aac_sa_restart_adapter;
+	dev->a_ops.adapter_start = aac_sa_start_adapter;
+	dev->a_ops.adapter_intr = aac_sa_intr;
+	dev->a_ops.adapter_deliver = aac_rx_deliver_producer;
+	dev->a_ops.adapter_ioremap = aac_sa_ioremap;
+
 	if (aac_sa_ioremap(dev, dev->base_size)) {
 		printk(KERN_WARNING "%s: unable to map adapter.\n", name);
 		goto error_iounmap;
@@ -361,22 +377,6 @@ int aac_sa_init(struct aac_dev *dev)
 		}
 		msleep(1);
 	}
-
-	/*
-	 *	Fill in the function dispatch table.
-	 */
-
-	dev->a_ops.adapter_interrupt = aac_sa_interrupt_adapter;
-	dev->a_ops.adapter_disable_int = aac_sa_disable_interrupt;
-	dev->a_ops.adapter_enable_int = aac_sa_enable_interrupt;
-	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
-	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
-	dev->a_ops.adapter_check_health = aac_sa_check_health;
-	dev->a_ops.adapter_restart = aac_sa_restart_adapter;
-	dev->a_ops.adapter_start = aac_sa_start_adapter;
-	dev->a_ops.adapter_intr = aac_sa_intr;
-	dev->a_ops.adapter_deliver = aac_rx_deliver_producer;
-	dev->a_ops.adapter_ioremap = aac_sa_ioremap;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that 

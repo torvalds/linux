@@ -526,12 +526,11 @@ static ssize_t mei_dbgfs_read_state(struct file *file, char __user *ubuf,
 				    size_t cnt, loff_t *ppos)
 {
 	struct mei_wdt *wdt = file->private_data;
-	const size_t bufsz = 32;
-	char buf[bufsz];
+	char buf[32];
 	ssize_t pos;
 
-	pos = scnprintf(buf, bufsz, "state: %s\n",
-			 mei_wdt_state_str(wdt->state));
+	pos = scnprintf(buf, sizeof(buf), "state: %s\n",
+			mei_wdt_state_str(wdt->state));
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, pos);
 }

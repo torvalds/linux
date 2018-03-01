@@ -527,7 +527,7 @@ static void hisi_thermal_toggle_sensor(struct hisi_thermal_sensor *sensor,
 static int hisi_thermal_probe(struct platform_device *pdev)
 {
 	struct hisi_thermal_data *data;
-	int const (*platform_probe)(struct hisi_thermal_data *);
+	int (*platform_probe)(struct hisi_thermal_data *);
 	struct device *dev = &pdev->dev;
 	int ret;
 

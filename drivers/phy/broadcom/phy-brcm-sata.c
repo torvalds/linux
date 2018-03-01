@@ -150,6 +150,9 @@ enum sata_phy_regs {
 	TXPMD_TX_FREQ_CTRL_CONTROL2_FMIN_MASK	= 0x3ff,
 	TXPMD_TX_FREQ_CTRL_CONTROL3		= 0x84,
 	TXPMD_TX_FREQ_CTRL_CONTROL3_FMAX_MASK	= 0x3ff,
+
+	RXPMD_REG_BANK				= 0x1c0,
+	RXPMD_RX_FREQ_MON_CONTROL1		= 0x87,
 };
 
 enum sata_phy_ctrl_regs {
@@ -505,8 +508,36 @@ static int brcm_sata_phy_init(struct phy *phy)
 	return rc;
 }
 
+static void brcm_stb_sata_calibrate(struct brcm_sata_port *port)
+{
+	void __iomem *base = brcm_sata_pcb_base(port);
+	u32 tmp = BIT(8);
+
+	brcm_sata_phy_wr(base, RXPMD_REG_BANK, RXPMD_RX_FREQ_MON_CONTROL1,
+			 ~tmp, tmp);
+}
+
+static int brcm_sata_phy_calibrate(struct phy *phy)
+{
+	struct brcm_sata_port *port = phy_get_drvdata(phy);
+	int rc = -EOPNOTSUPP;
+
+	switch (port->phy_priv->version) {
+	case BRCM_SATA_PHY_STB_28NM:
+	case BRCM_SATA_PHY_STB_40NM:
+		brcm_stb_sata_calibrate(port);
+		rc = 0;
+		break;
+	default:
+		break;
+	}
+
+	return rc;
+}
+
 static const struct phy_ops phy_ops = {
 	.init		= brcm_sata_phy_init,
+	.calibrate	= brcm_sata_phy_calibrate,
 	.owner		= THIS_MODULE,
 };
 

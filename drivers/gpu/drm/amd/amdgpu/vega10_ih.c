@@ -278,9 +278,9 @@ static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
 	/* Track retry faults in per-VM fault FIFO. */
 	spin_lock(&adev->vm_manager.pasid_lock);
 	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
-	spin_unlock(&adev->vm_manager.pasid_lock);
-	if (WARN_ON_ONCE(!vm)) {
+	if (!vm) {
 		/* VM not found, process it normally */
+		spin_unlock(&adev->vm_manager.pasid_lock);
 		amdgpu_ih_clear_fault(adev, key);
 		return true;
 	}
@@ -288,9 +288,11 @@ static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
 	r = kfifo_put(&vm->faults, key);
 	if (!r) {
 		/* FIFO is full. Ignore it until there is space */
+		spin_unlock(&adev->vm_manager.pasid_lock);
 		amdgpu_ih_clear_fault(adev, key);
 		goto ignore_iv;
 	}
+	spin_unlock(&adev->vm_manager.pasid_lock);
 
 	/* It's the first fault for this address, process it normally */
 	return true;
@@ -331,7 +333,7 @@ static void vega10_ih_decode_iv(struct amdgpu_device *adev,
 	entry->vmid_src = (dw[0] >> 31);
 	entry->timestamp = dw[1] | ((u64)(dw[2] & 0xffff) << 32);
 	entry->timestamp_src = dw[2] >> 31;
-	entry->pas_id = dw[3] & 0xffff;
+	entry->pasid = dw[3] & 0xffff;
 	entry->pasid_src = dw[3] >> 31;
 	entry->src_data[0] = dw[4];
 	entry->src_data[1] = dw[5];

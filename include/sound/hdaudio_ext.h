@@ -193,7 +193,7 @@ struct hda_dai_map {
  * @pvt_data - private data, for asoc contains asoc codec object
  */
 struct hdac_ext_device {
-	struct hdac_device hdac;
+	struct hdac_device hdev;
 	struct hdac_ext_bus *ebus;
 
 	/* soc-dai to nid map */
@@ -213,7 +213,7 @@ struct hdac_ext_dma_params {
 	u8 stream_tag;
 };
 #define to_ehdac_device(dev) (container_of((dev), \
-				 struct hdac_ext_device, hdac))
+				 struct hdac_ext_device, hdev))
 /*
  * HD-audio codec base driver
  */

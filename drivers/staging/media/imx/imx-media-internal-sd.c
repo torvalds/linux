@@ -60,73 +60,68 @@ static const struct internal_subdev_id {
 	},
 };
 
+struct internal_subdev;
+
 struct internal_link {
-	const struct internal_subdev_id *remote_id;
+	const struct internal_subdev *remote;
+	int local_pad;
 	int remote_pad;
 };
 
+/* max pads per internal-sd */
+#define MAX_INTERNAL_PADS   8
+/* max links per internal-sd pad */
+#define MAX_INTERNAL_LINKS  8
+
 struct internal_pad {
-	bool devnode; /* does this pad link to a device node */
-	struct internal_link link[IMX_MEDIA_MAX_LINKS];
+	struct internal_link link[MAX_INTERNAL_LINKS];
 };
 
 static const struct internal_subdev {
 	const struct internal_subdev_id *id;
-	struct internal_pad pad[IMX_MEDIA_MAX_PADS];
-	int num_sink_pads;
-	int num_src_pads;
-} internal_subdev[num_isd] = {
+	struct internal_pad pad[MAX_INTERNAL_PADS];
+} int_subdev[num_isd] = {
 	[isd_csi0] = {
 		.id = &isd_id[isd_csi0],
-		.num_sink_pads = CSI_NUM_SINK_PADS,
-		.num_src_pads = CSI_NUM_SRC_PADS,
 		.pad[CSI_SRC_PAD_DIRECT] = {
 			.link = {
 				{
-					.remote_id = &isd_id[isd_ic_prp],
+					.local_pad = CSI_SRC_PAD_DIRECT,
+					.remote = &int_subdev[isd_ic_prp],
 					.remote_pad = PRP_SINK_PAD,
 				}, {
-					.remote_id =  &isd_id[isd_vdic],
+					.local_pad = CSI_SRC_PAD_DIRECT,
+					.remote = &int_subdev[isd_vdic],
 					.remote_pad = VDIC_SINK_PAD_DIRECT,
 				},
 			},
-		},
-		.pad[CSI_SRC_PAD_IDMAC] = {
-			.devnode = true,
 		},
 	},
 
 	[isd_csi1] = {
 		.id = &isd_id[isd_csi1],
-		.num_sink_pads = CSI_NUM_SINK_PADS,
-		.num_src_pads = CSI_NUM_SRC_PADS,
 		.pad[CSI_SRC_PAD_DIRECT] = {
 			.link = {
 				{
-					.remote_id = &isd_id[isd_ic_prp],
+					.local_pad = CSI_SRC_PAD_DIRECT,
+					.remote = &int_subdev[isd_ic_prp],
 					.remote_pad = PRP_SINK_PAD,
 				}, {
-					.remote_id =  &isd_id[isd_vdic],
+					.local_pad = CSI_SRC_PAD_DIRECT,
+					.remote = &int_subdev[isd_vdic],
 					.remote_pad = VDIC_SINK_PAD_DIRECT,
 				},
 			},
-		},
-		.pad[CSI_SRC_PAD_IDMAC] = {
-			.devnode = true,
 		},
 	},
 
 	[isd_vdic] = {
 		.id = &isd_id[isd_vdic],
-		.num_sink_pads = VDIC_NUM_SINK_PADS,
-		.num_src_pads = VDIC_NUM_SRC_PADS,
-		.pad[VDIC_SINK_PAD_IDMAC] = {
-			.devnode = true,
-		},
 		.pad[VDIC_SRC_PAD_DIRECT] = {
 			.link = {
 				{
-					.remote_id =  &isd_id[isd_ic_prp],
+					.local_pad = VDIC_SRC_PAD_DIRECT,
+					.remote = &int_subdev[isd_ic_prp],
 					.remote_pad = PRP_SINK_PAD,
 				},
 			},
@@ -135,12 +130,11 @@ static const struct internal_subdev {
 
 	[isd_ic_prp] = {
 		.id = &isd_id[isd_ic_prp],
-		.num_sink_pads = PRP_NUM_SINK_PADS,
-		.num_src_pads = PRP_NUM_SRC_PADS,
 		.pad[PRP_SRC_PAD_PRPENC] = {
 			.link = {
 				{
-					.remote_id = &isd_id[isd_ic_prpenc],
+					.local_pad = PRP_SRC_PAD_PRPENC,
+					.remote = &int_subdev[isd_ic_prpenc],
 					.remote_pad = 0,
 				},
 			},
@@ -148,7 +142,8 @@ static const struct internal_subdev {
 		.pad[PRP_SRC_PAD_PRPVF] = {
 			.link = {
 				{
-					.remote_id = &isd_id[isd_ic_prpvf],
+					.local_pad = PRP_SRC_PAD_PRPVF,
+					.remote = &int_subdev[isd_ic_prpvf],
 					.remote_pad = 0,
 				},
 			},
@@ -157,70 +152,111 @@ static const struct internal_subdev {
 
 	[isd_ic_prpenc] = {
 		.id = &isd_id[isd_ic_prpenc],
-		.num_sink_pads = PRPENCVF_NUM_SINK_PADS,
-		.num_src_pads = PRPENCVF_NUM_SRC_PADS,
-		.pad[PRPENCVF_SRC_PAD] = {
-			.devnode = true,
-		},
 	},
 
 	[isd_ic_prpvf] = {
 		.id = &isd_id[isd_ic_prpvf],
-		.num_sink_pads = PRPENCVF_NUM_SINK_PADS,
-		.num_src_pads = PRPENCVF_NUM_SRC_PADS,
-		.pad[PRPENCVF_SRC_PAD] = {
-			.devnode = true,
-		},
 	},
 };
 
-/* form a device name given a group id and ipu id */
-static inline void isd_id_to_devname(char *devname, int sz,
-				     const struct internal_subdev_id *id,
-				     int ipu_id)
+/* form a device name given an internal subdev and ipu id */
+static inline void isd_to_devname(char *devname, int sz,
+				  const struct internal_subdev *isd,
+				  int ipu_id)
 {
-	int pdev_id = ipu_id * num_isd + id->index;
+	int pdev_id = ipu_id * num_isd + isd->id->index;
 
-	snprintf(devname, sz, "%s.%d", id->name, pdev_id);
+	snprintf(devname, sz, "%s.%d", isd->id->name, pdev_id);
 }
 
-/* adds the links from given internal subdev */
-static int add_internal_links(struct imx_media_dev *imxmd,
-			      const struct internal_subdev *isd,
-			      struct imx_media_subdev *imxsd,
-			      int ipu_id)
+static const struct internal_subdev *find_intsd_by_grp_id(u32 grp_id)
 {
-	int i, num_pads, ret;
+	enum isd_enum i;
 
-	num_pads = isd->num_sink_pads + isd->num_src_pads;
+	for (i = 0; i < num_isd; i++) {
+		const struct internal_subdev *isd = &int_subdev[i];
 
-	for (i = 0; i < num_pads; i++) {
-		const struct internal_pad *intpad = &isd->pad[i];
-		struct imx_media_pad *pad = &imxsd->pad[i];
-		int j;
+		if (isd->id->grp_id == grp_id)
+			return isd;
+	}
 
-		/* init the pad flags for this internal subdev */
-		pad->pad.flags = (i < isd->num_sink_pads) ?
-			MEDIA_PAD_FL_SINK : MEDIA_PAD_FL_SOURCE;
-		/* export devnode pad flag to the subdevs */
-		pad->devnode = intpad->devnode;
+	return NULL;
+}
+
+static struct v4l2_subdev *find_sink(struct imx_media_dev *imxmd,
+				     struct v4l2_subdev *src,
+				     const struct internal_link *link)
+{
+	char sink_devname[32];
+	int ipu_id;
+
+	/*
+	 * retrieve IPU id from subdev name, note: can't get this from
+	 * struct imx_media_internal_sd_platformdata because if src is
+	 * a CSI, it has different struct ipu_client_platformdata which
+	 * does not contain IPU id.
+	 */
+	if (sscanf(src->name, "ipu%d", &ipu_id) != 1)
+		return NULL;
+
+	isd_to_devname(sink_devname, sizeof(sink_devname),
+		       link->remote, ipu_id - 1);
+
+	return imx_media_find_subdev_by_devname(imxmd, sink_devname);
+}
+
+static int create_ipu_internal_link(struct imx_media_dev *imxmd,
+				    struct v4l2_subdev *src,
+				    const struct internal_link *link)
+{
+	struct v4l2_subdev *sink;
+	int ret;
+
+	sink = find_sink(imxmd, src, link);
+	if (!sink)
+		return -ENODEV;
+
+	v4l2_info(&imxmd->v4l2_dev, "%s:%d -> %s:%d\n",
+		  src->name, link->local_pad,
+		  sink->name, link->remote_pad);
+
+	ret = media_create_pad_link(&src->entity, link->local_pad,
+				    &sink->entity, link->remote_pad, 0);
+	if (ret)
+		v4l2_err(&imxmd->v4l2_dev,
+			 "create_pad_link failed: %d\n", ret);
+
+	return ret;
+}
+
+int imx_media_create_internal_links(struct imx_media_dev *imxmd,
+				    struct v4l2_subdev *sd)
+{
+	const struct internal_subdev *intsd;
+	const struct internal_pad *intpad;
+	const struct internal_link *link;
+	struct media_pad *pad;
+	int i, j, ret;
+
+	intsd = find_intsd_by_grp_id(sd->grp_id);
+	if (!intsd)
+		return -ENODEV;
+
+	/* create the source->sink links */
+	for (i = 0; i < sd->entity.num_pads; i++) {
+		intpad = &intsd->pad[i];
+		pad = &sd->entity.pads[i];
+
+		if (!(pad->flags & MEDIA_PAD_FL_SOURCE))
+			continue;
 
 		for (j = 0; ; j++) {
-			const struct internal_link *link;
-			char remote_devname[32];
-
 			link = &intpad->link[j];
 
-			if (!link->remote_id)
+			if (!link->remote)
 				break;
 
-			isd_id_to_devname(remote_devname,
-					  sizeof(remote_devname),
-					  link->remote_id, ipu_id);
-
-			ret = imx_media_add_pad_link(imxmd, pad,
-						     NULL, remote_devname,
-						     i, link->remote_pad);
+			ret = create_ipu_internal_link(imxmd, sd, link);
 			if (ret)
 				return ret;
 		}
@@ -230,14 +266,12 @@ static int add_internal_links(struct imx_media_dev *imxmd,
 }
 
 /* register an internal subdev as a platform device */
-static struct imx_media_subdev *
-add_internal_subdev(struct imx_media_dev *imxmd,
-		    const struct internal_subdev *isd,
-		    int ipu_id)
+static int add_internal_subdev(struct imx_media_dev *imxmd,
+			       const struct internal_subdev *isd,
+			       int ipu_id)
 {
 	struct imx_media_internal_sd_platformdata pdata;
 	struct platform_device_info pdevinfo = {0};
-	struct imx_media_subdev *imxsd;
 	struct platform_device *pdev;
 
 	pdata.grp_id = isd->id->grp_id;
@@ -258,73 +292,51 @@ add_internal_subdev(struct imx_media_dev *imxmd,
 
 	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev))
-		return ERR_CAST(pdev);
+		return PTR_ERR(pdev);
 
-	imxsd = imx_media_add_async_subdev(imxmd, NULL, pdev);
-	if (IS_ERR(imxsd))
-		return imxsd;
-
-	imxsd->num_sink_pads = isd->num_sink_pads;
-	imxsd->num_src_pads = isd->num_src_pads;
-
-	return imxsd;
+	return imx_media_add_async_subdev(imxmd, NULL, pdev);
 }
 
 /* adds the internal subdevs in one ipu */
-static int add_ipu_internal_subdevs(struct imx_media_dev *imxmd,
-				    struct imx_media_subdev *csi0,
-				    struct imx_media_subdev *csi1,
-				    int ipu_id)
+static int add_ipu_internal_subdevs(struct imx_media_dev *imxmd, int ipu_id)
 {
 	enum isd_enum i;
-	int ret;
 
 	for (i = 0; i < num_isd; i++) {
-		const struct internal_subdev *isd = &internal_subdev[i];
-		struct imx_media_subdev *imxsd;
+		const struct internal_subdev *isd = &int_subdev[i];
+		int ret;
 
 		/*
 		 * the CSIs are represented in the device-tree, so those
-		 * devices are added already, and are added to the async
-		 * subdev list by of_parse_subdev(), so we are given those
-		 * subdevs as csi0 and csi1.
+		 * devices are already added to the async subdev list by
+		 * of_parse_subdev().
 		 */
 		switch (isd->id->grp_id) {
 		case IMX_MEDIA_GRP_ID_CSI0:
-			imxsd = csi0;
-			break;
 		case IMX_MEDIA_GRP_ID_CSI1:
-			imxsd = csi1;
+			ret = 0;
 			break;
 		default:
-			imxsd = add_internal_subdev(imxmd, isd, ipu_id);
+			ret = add_internal_subdev(imxmd, isd, ipu_id);
 			break;
 		}
 
-		if (IS_ERR(imxsd))
-			return PTR_ERR(imxsd);
-
-		/* add the links from this subdev */
-		if (imxsd) {
-			ret = add_internal_links(imxmd, isd, imxsd, ipu_id);
-			if (ret)
-				return ret;
-		}
+		if (ret)
+			return ret;
 	}
 
 	return 0;
 }
 
-int imx_media_add_internal_subdevs(struct imx_media_dev *imxmd,
-				   struct imx_media_subdev *csi[4])
+int imx_media_add_internal_subdevs(struct imx_media_dev *imxmd)
 {
 	int ret;
 
-	ret = add_ipu_internal_subdevs(imxmd, csi[0], csi[1], 0);
+	ret = add_ipu_internal_subdevs(imxmd, 0);
 	if (ret)
 		goto remove;
 
-	ret = add_ipu_internal_subdevs(imxmd, csi[2], csi[3], 1);
+	ret = add_ipu_internal_subdevs(imxmd, 1);
 	if (ret)
 		goto remove;
 
@@ -337,13 +349,12 @@ remove:
 
 void imx_media_remove_internal_subdevs(struct imx_media_dev *imxmd)
 {
-	struct imx_media_subdev *imxsd;
-	int i;
+	struct imx_media_async_subdev *imxasd;
 
-	for (i = 0; i < imxmd->subdev_notifier.num_subdevs; i++) {
-		imxsd = &imxmd->subdev[i];
-		if (!imxsd->pdev)
+	list_for_each_entry(imxasd, &imxmd->asd_list, list) {
+		if (!imxasd->pdev)
 			continue;
-		platform_device_unregister(imxsd->pdev);
+
+		platform_device_unregister(imxasd->pdev);
 	}
 }

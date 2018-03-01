@@ -225,10 +225,8 @@ static void adv748x_unregister_clients(struct adv748x_state *state)
 {
 	unsigned int i;
 
-	for (i = 1; i < ARRAY_SIZE(state->i2c_clients); ++i) {
-		if (state->i2c_clients[i])
-			i2c_unregister_device(state->i2c_clients[i]);
-	}
+	for (i = 1; i < ARRAY_SIZE(state->i2c_clients); ++i)
+		i2c_unregister_device(state->i2c_clients[i]);
 }
 
 static int adv748x_initialise_clients(struct adv748x_state *state)
@@ -646,14 +644,12 @@ static int adv748x_parse_dt(struct adv748x_state *state)
 
 	for_each_endpoint_of_node(state->dev->of_node, ep_np) {
 		of_graph_parse_endpoint(ep_np, &ep);
-		adv_info(state, "Endpoint %s on port %d",
-				of_node_full_name(ep.local_node),
-				ep.port);
+		adv_info(state, "Endpoint %pOF on port %d", ep.local_node,
+			 ep.port);
 
 		if (ep.port >= ADV748X_PORT_MAX) {
-			adv_err(state, "Invalid endpoint %s on port %d",
-				of_node_full_name(ep.local_node),
-				ep.port);
+			adv_err(state, "Invalid endpoint %pOF on port %d",
+				ep.local_node, ep.port);
 
 			continue;
 		}

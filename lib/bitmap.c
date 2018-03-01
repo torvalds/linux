@@ -1106,93 +1106,6 @@ int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order)
 EXPORT_SYMBOL(bitmap_allocate_region);
 
 /**
- * bitmap_from_u32array - copy the contents of a u32 array of bits to bitmap
- *	@bitmap: array of unsigned longs, the destination bitmap, non NULL
- *	@nbits: number of bits in @bitmap
- *	@buf: array of u32 (in host byte order), the source bitmap, non NULL
- *	@nwords: number of u32 words in @buf
- *
- * copy min(nbits, 32*nwords) bits from @buf to @bitmap, remaining
- * bits between nword and nbits in @bitmap (if any) are cleared. In
- * last word of @bitmap, the bits beyond nbits (if any) are kept
- * unchanged.
- *
- * Return the number of bits effectively copied.
- */
-unsigned int
-bitmap_from_u32array(unsigned long *bitmap, unsigned int nbits,
-		     const u32 *buf, unsigned int nwords)
-{
-	unsigned int dst_idx, src_idx;
-
-	for (src_idx = dst_idx = 0; dst_idx < BITS_TO_LONGS(nbits); ++dst_idx) {
-		unsigned long part = 0;
-
-		if (src_idx < nwords)
-			part = buf[src_idx++];
-
-#if BITS_PER_LONG == 64
-		if (src_idx < nwords)
-			part |= ((unsigned long) buf[src_idx++]) << 32;
-#endif
-
-		if (dst_idx < nbits/BITS_PER_LONG)
-			bitmap[dst_idx] = part;
-		else {
-			unsigned long mask = BITMAP_LAST_WORD_MASK(nbits);
-
-			bitmap[dst_idx] = (bitmap[dst_idx] & ~mask)
-				| (part & mask);
-		}
-	}
-
-	return min_t(unsigned int, nbits, 32*nwords);
-}
-EXPORT_SYMBOL(bitmap_from_u32array);
-
-/**
- * bitmap_to_u32array - copy the contents of bitmap to a u32 array of bits
- *	@buf: array of u32 (in host byte order), the dest bitmap, non NULL
- *	@nwords: number of u32 words in @buf
- *	@bitmap: array of unsigned longs, the source bitmap, non NULL
- *	@nbits: number of bits in @bitmap
- *
- * copy min(nbits, 32*nwords) bits from @bitmap to @buf. Remaining
- * bits after nbits in @buf (if any) are cleared.
- *
- * Return the number of bits effectively copied.
- */
-unsigned int
-bitmap_to_u32array(u32 *buf, unsigned int nwords,
-		   const unsigned long *bitmap, unsigned int nbits)
-{
-	unsigned int dst_idx = 0, src_idx = 0;
-
-	while (dst_idx < nwords) {
-		unsigned long part = 0;
-
-		if (src_idx < BITS_TO_LONGS(nbits)) {
-			part = bitmap[src_idx];
-			if (src_idx >= nbits/BITS_PER_LONG)
-				part &= BITMAP_LAST_WORD_MASK(nbits);
-			src_idx++;
-		}
-
-		buf[dst_idx++] = part & 0xffffffffUL;
-
-#if BITS_PER_LONG == 64
-		if (dst_idx < nwords) {
-			part >>= 32;
-			buf[dst_idx++] = part & 0xffffffffUL;
-		}
-#endif
-	}
-
-	return min_t(unsigned int, nbits, 32*nwords);
-}
-EXPORT_SYMBOL(bitmap_to_u32array);
-
-/**
  * bitmap_copy_le - copy a bitmap, putting the bits into little-endian order.
  * @dst:   destination buffer
  * @src:   bitmap to copy
@@ -1213,4 +1126,60 @@ void bitmap_copy_le(unsigned long *dst, const unsigned long *src, unsigned int n
 	}
 }
 EXPORT_SYMBOL(bitmap_copy_le);
+#endif
+
+#if BITS_PER_LONG == 64
+/**
+ * bitmap_from_arr32 - copy the contents of u32 array of bits to bitmap
+ *	@bitmap: array of unsigned longs, the destination bitmap
+ *	@buf: array of u32 (in host byte order), the source bitmap
+ *	@nbits: number of bits in @bitmap
+ */
+void bitmap_from_arr32(unsigned long *bitmap, const u32 *buf,
+						unsigned int nbits)
+{
+	unsigned int i, halfwords;
+
+	if (!nbits)
+		return;
+
+	halfwords = DIV_ROUND_UP(nbits, 32);
+	for (i = 0; i < halfwords; i++) {
+		bitmap[i/2] = (unsigned long) buf[i];
+		if (++i < halfwords)
+			bitmap[i/2] |= ((unsigned long) buf[i]) << 32;
+	}
+
+	/* Clear tail bits in last word beyond nbits. */
+	if (nbits % BITS_PER_LONG)
+		bitmap[(halfwords - 1) / 2] &= BITMAP_LAST_WORD_MASK(nbits);
+}
+EXPORT_SYMBOL(bitmap_from_arr32);
+
+/**
+ * bitmap_to_arr32 - copy the contents of bitmap to a u32 array of bits
+ *	@buf: array of u32 (in host byte order), the dest bitmap
+ *	@bitmap: array of unsigned longs, the source bitmap
+ *	@nbits: number of bits in @bitmap
+ */
+void bitmap_to_arr32(u32 *buf, const unsigned long *bitmap, unsigned int nbits)
+{
+	unsigned int i, halfwords;
+
+	if (!nbits)
+		return;
+
+	halfwords = DIV_ROUND_UP(nbits, 32);
+	for (i = 0; i < halfwords; i++) {
+		buf[i] = (u32) (bitmap[i/2] & UINT_MAX);
+		if (++i < halfwords)
+			buf[i] = (u32) (bitmap[i/2] >> 32);
+	}
+
+	/* Clear tail bits in last element of array beyond nbits. */
+	if (nbits % BITS_PER_LONG)
+		buf[halfwords - 1] &= (u32) (UINT_MAX >> ((-nbits) & 31));
+}
+EXPORT_SYMBOL(bitmap_to_arr32);
+
 #endif

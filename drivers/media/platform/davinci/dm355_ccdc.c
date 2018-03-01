@@ -20,10 +20,10 @@
  * pre-process the Bayer RGB data, before writing it to SDRAM.
  *
  * TODO: 1) Raw bayer parameter settings and bayer capture
- * 	 2) Split module parameter structure to module specific ioctl structs
+ *	 2) Split module parameter structure to module specific ioctl structs
  *	 3) add support for lense shading correction
  *	 4) investigate if enum used for user space type definition
- * 	    to be replaced by #defines or integer
+ *	    to be replaced by #defines or integer
  */
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>

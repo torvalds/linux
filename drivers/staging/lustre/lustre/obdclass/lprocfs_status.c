@@ -1093,7 +1093,7 @@ int lprocfs_stats_alloc_one(struct lprocfs_stats *stats, unsigned int cpuid)
 	LASSERT((stats->ls_flags & LPROCFS_STATS_FLAG_NOPERCPU) == 0);
 
 	percpusize = lprocfs_stats_counter_size(stats);
-	LIBCFS_ALLOC_ATOMIC(stats->ls_percpu[cpuid], percpusize);
+	stats->ls_percpu[cpuid] = kzalloc(percpusize, GFP_ATOMIC);
 	if (stats->ls_percpu[cpuid]) {
 		rc = 0;
 		if (unlikely(stats->ls_biggest_alloc_num <= cpuid)) {
@@ -1137,7 +1137,8 @@ struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 		num_entry = num_possible_cpus();
 
 	/* alloc percpu pointers for all possible cpu slots */
-	LIBCFS_ALLOC(stats, offsetof(typeof(*stats), ls_percpu[num_entry]));
+	stats = kvzalloc(offsetof(typeof(*stats), ls_percpu[num_entry]),
+			 GFP_KERNEL);
 	if (!stats)
 		return NULL;
 
@@ -1146,15 +1147,16 @@ struct lprocfs_stats *lprocfs_alloc_stats(unsigned int num,
 	spin_lock_init(&stats->ls_lock);
 
 	/* alloc num of counter headers */
-	LIBCFS_ALLOC(stats->ls_cnt_header,
-		     stats->ls_num * sizeof(struct lprocfs_counter_header));
+	stats->ls_cnt_header = kvmalloc_array(stats->ls_num,
+					      sizeof(struct lprocfs_counter_header),
+					      GFP_KERNEL | __GFP_ZERO);
 	if (!stats->ls_cnt_header)
 		goto fail;
 
 	if ((flags & LPROCFS_STATS_FLAG_NOPERCPU) != 0) {
 		/* contains only one set counters */
 		percpusize = lprocfs_stats_counter_size(stats);
-		LIBCFS_ALLOC_ATOMIC(stats->ls_percpu[0], percpusize);
+		stats->ls_percpu[0] = kzalloc(percpusize, GFP_ATOMIC);
 		if (!stats->ls_percpu[0])
 			goto fail;
 		stats->ls_biggest_alloc_num = 1;
@@ -1191,12 +1193,9 @@ void lprocfs_free_stats(struct lprocfs_stats **statsh)
 
 	percpusize = lprocfs_stats_counter_size(stats);
 	for (i = 0; i < num_entry; i++)
-		if (stats->ls_percpu[i])
-			LIBCFS_FREE(stats->ls_percpu[i], percpusize);
-	if (stats->ls_cnt_header)
-		LIBCFS_FREE(stats->ls_cnt_header, stats->ls_num *
-					sizeof(struct lprocfs_counter_header));
-	LIBCFS_FREE(stats, offsetof(typeof(*stats), ls_percpu[num_entry]));
+		kfree(stats->ls_percpu[i]);
+	kvfree(stats->ls_cnt_header);
+	kvfree(stats);
 }
 EXPORT_SYMBOL(lprocfs_free_stats);
 

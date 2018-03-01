@@ -101,6 +101,7 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_VC4_PARAM_SUPPORTS_THREADED_FS:
 	case DRM_VC4_PARAM_SUPPORTS_FIXED_RCL_ORDER:
 	case DRM_VC4_PARAM_SUPPORTS_MADVISE:
+	case DRM_VC4_PARAM_SUPPORTS_PERFMON:
 		args->value = true;
 		break;
 	default:
@@ -109,6 +110,26 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	}
 
 	return 0;
+}
+
+static int vc4_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct vc4_file *vc4file;
+
+	vc4file = kzalloc(sizeof(*vc4file), GFP_KERNEL);
+	if (!vc4file)
+		return -ENOMEM;
+
+	vc4_perfmon_open_file(vc4file);
+	file->driver_priv = vc4file;
+	return 0;
+}
+
+static void vc4_close(struct drm_device *dev, struct drm_file *file)
+{
+	struct vc4_file *vc4file = file->driver_priv;
+
+	vc4_perfmon_close_file(vc4file);
 }
 
 static const struct vm_operations_struct vc4_vm_ops = {
@@ -143,6 +164,9 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_GET_TILING, vc4_get_tiling_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_LABEL_BO, vc4_label_bo_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VC4_GEM_MADVISE, vc4_gem_madvise_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_PERFMON_CREATE, vc4_perfmon_create_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_PERFMON_DESTROY, vc4_perfmon_destroy_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_PERFMON_GET_VALUES, vc4_perfmon_get_values_ioctl, DRM_RENDER_ALLOW),
 };
 
 static struct drm_driver vc4_drm_driver = {
@@ -153,6 +177,8 @@ static struct drm_driver vc4_drm_driver = {
 			    DRIVER_RENDER |
 			    DRIVER_PRIME),
 	.lastclose = drm_fb_helper_lastclose,
+	.open = vc4_open,
+	.postclose = vc4_close,
 	.irq_handler = vc4_irq,
 	.irq_preinstall = vc4_irq_preinstall,
 	.irq_postinstall = vc4_irq_postinstall,

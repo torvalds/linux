@@ -26,6 +26,10 @@
 #include <linux/interrupt.h>
 #include <asm/page.h>
 
+#define PASID_ENTRY_P		BIT_ULL(0)
+#define PASID_ENTRY_FLPM_5LP	BIT_ULL(9)
+#define PASID_ENTRY_SRE		BIT_ULL(11)
+
 static irqreturn_t prq_event_thread(int irq, void *d);
 
 struct pasid_entry {
@@ -40,6 +44,14 @@ int intel_svm_alloc_pasid_tables(struct intel_iommu *iommu)
 {
 	struct page *pages;
 	int order;
+
+	if (cpu_feature_enabled(X86_FEATURE_GBPAGES) &&
+			!cap_fl1gp_support(iommu->cap))
+		return -EINVAL;
+
+	if (cpu_feature_enabled(X86_FEATURE_LA57) &&
+			!cap_5lp_support(iommu->cap))
+		return -EINVAL;
 
 	/* Start at 2 because it's defined as 2^(1+PSS) */
 	iommu->pasid_max = 2 << ecap_pss(iommu->ecap);
@@ -129,6 +141,7 @@ int intel_svm_enable_prq(struct intel_iommu *iommu)
 		pr_err("IOMMU: %s: Failed to request IRQ for page request queue\n",
 		       iommu->name);
 		dmar_free_hwirq(irq);
+		iommu->pr_irq = 0;
 		goto err;
 	}
 	dmar_writeq(iommu->reg + DMAR_PQH_REG, 0ULL);
@@ -144,9 +157,11 @@ int intel_svm_finish_prq(struct intel_iommu *iommu)
 	dmar_writeq(iommu->reg + DMAR_PQT_REG, 0ULL);
 	dmar_writeq(iommu->reg + DMAR_PQA_REG, 0ULL);
 
-	free_irq(iommu->pr_irq, iommu);
-	dmar_free_hwirq(iommu->pr_irq);
-	iommu->pr_irq = 0;
+	if (iommu->pr_irq) {
+		free_irq(iommu->pr_irq, iommu);
+		dmar_free_hwirq(iommu->pr_irq);
+		iommu->pr_irq = 0;
+	}
 
 	free_pages((unsigned long)iommu->prq, PRQ_ORDER);
 	iommu->prq = NULL;
@@ -276,6 +291,7 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 }
 
 static const struct mmu_notifier_ops intel_mmuops = {
+	.flags = MMU_INVALIDATE_DOES_NOT_BLOCK,
 	.release = intel_mm_release,
 	.change_pte = intel_change_pte,
 	.invalidate_range = intel_invalidate_range,
@@ -289,6 +305,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 	struct intel_svm_dev *sdev;
 	struct intel_svm *svm = NULL;
 	struct mm_struct *mm = NULL;
+	u64 pasid_entry_val;
 	int pasid_max;
 	int ret;
 
@@ -395,9 +412,15 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 				kfree(sdev);
 				goto out;
 			}
-			iommu->pasid_table[svm->pasid].val = (u64)__pa(mm->pgd) | 1;
+			pasid_entry_val = (u64)__pa(mm->pgd) | PASID_ENTRY_P;
 		} else
-			iommu->pasid_table[svm->pasid].val = (u64)__pa(init_mm.pgd) | 1 | (1ULL << 11);
+			pasid_entry_val = (u64)__pa(init_mm.pgd) |
+					  PASID_ENTRY_P | PASID_ENTRY_SRE;
+		if (cpu_feature_enabled(X86_FEATURE_LA57))
+			pasid_entry_val |= PASID_ENTRY_FLPM_5LP;
+
+		iommu->pasid_table[svm->pasid].val = pasid_entry_val;
+
 		wmb();
 		/* In caching mode, we still have to flush with PASID 0 when
 		 * a PASID table entry becomes present. Not entirely clear

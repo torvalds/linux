@@ -58,6 +58,9 @@ struct xive_irq_data {
 #define XIVE_IRQ_FLAG_EOI_FW	0x10
 #define XIVE_IRQ_FLAG_H_INT_ESB	0x20
 
+/* Special flag set by KVM for excalation interrupts */
+#define XIVE_IRQ_NO_EOI		0x80
+
 #define XIVE_INVALID_CHIP_ID	-1
 
 /* A queue tracking structure in a CPU */
@@ -71,41 +74,6 @@ struct xive_q {
 	atomic_t		count;
 	atomic_t		pending_count;
 };
-
-/*
- * "magic" Event State Buffer (ESB) MMIO offsets.
- *
- * Each interrupt source has a 2-bit state machine called ESB
- * which can be controlled by MMIO. It's made of 2 bits, P and
- * Q. P indicates that an interrupt is pending (has been sent
- * to a queue and is waiting for an EOI). Q indicates that the
- * interrupt has been triggered while pending.
- *
- * This acts as a coalescing mechanism in order to guarantee
- * that a given interrupt only occurs at most once in a queue.
- *
- * When doing an EOI, the Q bit will indicate if the interrupt
- * needs to be re-triggered.
- *
- * The following offsets into the ESB MMIO allow to read or
- * manipulate the PQ bits. They must be used with an 8-bytes
- * load instruction. They all return the previous state of the
- * interrupt (atomically).
- *
- * Additionally, some ESB pages support doing an EOI via a
- * store at 0 and some ESBs support doing a trigger via a
- * separate trigger page.
- */
-#define XIVE_ESB_STORE_EOI	0x400 /* Store */
-#define XIVE_ESB_LOAD_EOI	0x000 /* Load */
-#define XIVE_ESB_GET		0x800 /* Load */
-#define XIVE_ESB_SET_PQ_00	0xc00 /* Load */
-#define XIVE_ESB_SET_PQ_01	0xd00 /* Load */
-#define XIVE_ESB_SET_PQ_10	0xe00 /* Load */
-#define XIVE_ESB_SET_PQ_11	0xf00 /* Load */
-
-#define XIVE_ESB_VAL_P		0x2
-#define XIVE_ESB_VAL_Q		0x1
 
 /* Global enable flags for the XIVE support */
 extern bool __xive_enabled;
@@ -143,9 +111,10 @@ extern void xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio);
 
 extern void xive_native_sync_source(u32 hw_irq);
 extern bool is_xive_irq(struct irq_chip *chip);
-extern int xive_native_enable_vp(u32 vp_id);
+extern int xive_native_enable_vp(u32 vp_id, bool single_escalation);
 extern int xive_native_disable_vp(u32 vp_id);
 extern int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id);
+extern bool xive_native_has_single_escalation(void);
 
 #else
 
@@ -154,7 +123,7 @@ static inline bool xive_enabled(void) { return false; }
 static inline bool xive_spapr_init(void) { return false; }
 static inline bool xive_native_init(void) { return false; }
 static inline void xive_smp_probe(void) { }
-extern inline int  xive_smp_prepare_cpu(unsigned int cpu) { return -EINVAL; }
+static inline int  xive_smp_prepare_cpu(unsigned int cpu) { return -EINVAL; }
 static inline void xive_smp_setup_cpu(void) { }
 static inline void xive_smp_disable_cpu(void) { }
 static inline void xive_kexec_teardown_cpu(int secondary) { }

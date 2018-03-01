@@ -999,6 +999,7 @@ struct boot_params *efi_main(struct efi_config *c,
 
 	/* Ask the firmware to clear memory on unclean shutdown */
 	efi_enable_reset_attack_mitigation(sys_table);
+	efi_retrieve_tpm2_eventlog(sys_table);
 
 	setup_graphics(boot_params);
 

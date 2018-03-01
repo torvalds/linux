@@ -1,9 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) STMicroelectronics 2016
- *
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _LINUX_STM32_GPTIMER_H_

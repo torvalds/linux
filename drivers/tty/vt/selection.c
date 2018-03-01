@@ -186,11 +186,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 	}
 
 	if (ps > pe)	/* make sel_start <= sel_end */
-	{
-		int tmp = ps;
-		ps = pe;
-		pe = tmp;
-	}
+		swap(ps, pe);
 
 	if (sel_cons != vc_cons[fg_console].d) {
 		clear_selection();

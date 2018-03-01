@@ -1744,6 +1744,20 @@ static void igb_configure_cbs(struct igb_adapter *adapter, int queue,
 		 *     value = idleSlope * 61034
 		 *             -----------------                          (E6)
 		 *                  1000000
+		 *
+		 * NOTE: For i210, given the above, we can see that idleslope
+		 *       is represented in 16.38431 kbps units by the value at
+		 *       the TQAVCC register (1Gbps / 61034), which reduces
+		 *       the granularity for idleslope increments.
+		 *       For instance, if you want to configure a 2576kbps
+		 *       idleslope, the value to be written on the register
+		 *       would have to be 157.23. If rounded down, you end
+		 *       up with less bandwidth available than originally
+		 *       required (~2572 kbps). If rounded up, you end up
+		 *       with a higher bandwidth (~2589 kbps). Below the
+		 *       approach we take is to always round up the
+		 *       calculated value, so the resulting bandwidth might
+		 *       be slightly higher for some configurations.
 		 */
 		value = DIV_ROUND_UP_ULL(idleslope * 61034ULL, 1000000);
 
@@ -3200,8 +3214,6 @@ static int igb_enable_sriov(struct pci_dev *pdev, int num_vfs)
 	/* if allocation failed then we do not support SR-IOV */
 	if (!adapter->vf_data) {
 		adapter->vfs_allocated_count = 0;
-		dev_err(&pdev->dev,
-			"Unable to allocate memory for VF Data Storage\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -3373,10 +3385,10 @@ static void igb_probe_vfs(struct igb_adapter *adapter)
 #endif /* CONFIG_PCI_IOV */
 }
 
-static void igb_init_queue_configuration(struct igb_adapter *adapter)
+unsigned int igb_get_max_rss_queues(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u32 max_rss_queues;
+	unsigned int max_rss_queues;
 
 	/* Determine the maximum number of RSS queues supported. */
 	switch (hw->mac.type) {
@@ -3407,6 +3419,14 @@ static void igb_init_queue_configuration(struct igb_adapter *adapter)
 		break;
 	}
 
+	return max_rss_queues;
+}
+
+static void igb_init_queue_configuration(struct igb_adapter *adapter)
+{
+	u32 max_rss_queues;
+
+	max_rss_queues = igb_get_max_rss_queues(adapter);
 	adapter->rss_queues = min_t(u32, max_rss_queues, num_online_cpus());
 
 	igb_set_flag_queue_pairs(adapter, max_rss_queues);
@@ -3676,7 +3696,7 @@ static int __igb_close(struct net_device *netdev, bool suspending)
 
 int igb_close(struct net_device *netdev)
 {
-	if (netif_device_present(netdev))
+	if (netif_device_present(netdev) || netdev->dismantle)
 		return __igb_close(netdev, false);
 	return 0;
 }
@@ -8718,7 +8738,8 @@ static void igb_rar_set_index(struct igb_adapter *adapter, u32 index)
 
 	/* Indicate to hardware the Address is Valid. */
 	if (adapter->mac_table[index].state & IGB_MAC_STATE_IN_USE) {
-		rar_high |= E1000_RAH_AV;
+		if (is_valid_ether_addr(addr))
+			rar_high |= E1000_RAH_AV;
 
 		if (hw->mac.type == e1000_82575)
 			rar_high |= E1000_RAH_POOL_1 *
@@ -8756,17 +8777,36 @@ static int igb_set_vf_mac(struct igb_adapter *adapter,
 static int igb_ndo_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
-	if (!is_valid_ether_addr(mac) || (vf >= adapter->vfs_allocated_count))
+
+	if (vf >= adapter->vfs_allocated_count)
 		return -EINVAL;
-	adapter->vf_data[vf].flags |= IGB_VF_FLAG_PF_SET_MAC;
-	dev_info(&adapter->pdev->dev, "setting MAC %pM on VF %d\n", mac, vf);
-	dev_info(&adapter->pdev->dev,
-		 "Reload the VF driver to make this change effective.");
-	if (test_bit(__IGB_DOWN, &adapter->state)) {
-		dev_warn(&adapter->pdev->dev,
-			 "The VF MAC address has been set, but the PF device is not up.\n");
-		dev_warn(&adapter->pdev->dev,
-			 "Bring the PF device up before attempting to use the VF device.\n");
+
+	/* Setting the VF MAC to 0 reverts the IGB_VF_FLAG_PF_SET_MAC
+	 * flag and allows to overwrite the MAC via VF netdev.  This
+	 * is necessary to allow libvirt a way to restore the original
+	 * MAC after unbinding vfio-pci and reloading igbvf after shutting
+	 * down a VM.
+	 */
+	if (is_zero_ether_addr(mac)) {
+		adapter->vf_data[vf].flags &= ~IGB_VF_FLAG_PF_SET_MAC;
+		dev_info(&adapter->pdev->dev,
+			 "remove administratively set MAC on VF %d\n",
+			 vf);
+	} else if (is_valid_ether_addr(mac)) {
+		adapter->vf_data[vf].flags |= IGB_VF_FLAG_PF_SET_MAC;
+		dev_info(&adapter->pdev->dev, "setting MAC %pM on VF %d\n",
+			 mac, vf);
+		dev_info(&adapter->pdev->dev,
+			 "Reload the VF driver to make this change effective.");
+		/* Generate additional warning if PF is down */
+		if (test_bit(__IGB_DOWN, &adapter->state)) {
+			dev_warn(&adapter->pdev->dev,
+				 "The VF MAC address has been set, but the PF device is not up.\n");
+			dev_warn(&adapter->pdev->dev,
+				 "Bring the PF device up before attempting to use the VF device.\n");
+		}
+	} else {
+		return -EINVAL;
 	}
 	return igb_set_vf_mac(adapter, vf, mac);
 }

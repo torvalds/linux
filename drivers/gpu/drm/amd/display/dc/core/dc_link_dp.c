@@ -718,7 +718,7 @@ static enum link_training_result perform_channel_equalization_sequence(
 	uint32_t retries_ch_eq;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
 	union lane_align_status_updated dpcd_lane_status_updated = {{0}};
-	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {{{0}}};;
+	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {{{0}}};
 
 	hw_tr_pattern = get_supported_tp(link);
 
@@ -1465,7 +1465,7 @@ void decide_link_settings(struct dc_stream_state *stream,
 	/* MST doesn't perform link training for now
 	 * TODO: add MST specific link training routine
 	 */
-	if (is_mst_supported(link)) {
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
 		*link_setting = link->verified_link_cap;
 		return;
 	}
@@ -2235,13 +2235,14 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 		link->wa_flags.dp_keep_receiver_powered = false;
 }
 
-static void retrieve_link_cap(struct dc_link *link)
+static bool retrieve_link_cap(struct dc_link *link)
 {
 	uint8_t dpcd_data[DP_TRAINING_AUX_RD_INTERVAL - DP_DPCD_REV + 1];
 
 	union down_stream_port_count down_strm_port_count;
 	union edp_configuration_cap edp_config_cap;
 	union dp_downstream_port_present ds_port = { 0 };
+	enum dc_status status = DC_ERROR_UNEXPECTED;
 
 	memset(dpcd_data, '\0', sizeof(dpcd_data));
 	memset(&down_strm_port_count,
@@ -2249,11 +2250,16 @@ static void retrieve_link_cap(struct dc_link *link)
 	memset(&edp_config_cap, '\0',
 		sizeof(union edp_configuration_cap));
 
-	core_link_read_dpcd(
-		link,
-		DP_DPCD_REV,
-		dpcd_data,
-		sizeof(dpcd_data));
+	status = core_link_read_dpcd(
+			link,
+			DP_DPCD_REV,
+			dpcd_data,
+			sizeof(dpcd_data));
+
+	if (status != DC_OK) {
+		dm_error("%s: Read dpcd data failed.\n", __func__);
+		return false;
+	}
 
 	{
 		union training_aux_rd_interval aux_rd_interval;
@@ -2315,11 +2321,13 @@ static void retrieve_link_cap(struct dc_link *link)
 
 	/* Connectivity log: detection */
 	CONN_DATA_DETECT(link, dpcd_data, sizeof(dpcd_data), "Rx Caps: ");
+
+	return true;
 }
 
-void detect_dp_sink_caps(struct dc_link *link)
+bool detect_dp_sink_caps(struct dc_link *link)
 {
-	retrieve_link_cap(link);
+	return retrieve_link_cap(link);
 
 	/* dc init_hw has power encoder using default
 	 * signal for connector. For native DP, no

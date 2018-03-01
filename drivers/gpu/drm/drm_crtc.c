@@ -282,6 +282,10 @@ int drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *crtc,
 	WARN_ON(primary && primary->type != DRM_PLANE_TYPE_PRIMARY);
 	WARN_ON(cursor && cursor->type != DRM_PLANE_TYPE_CURSOR);
 
+	/* crtc index is used with 32bit bitmasks */
+	if (WARN_ON(config->num_crtc >= 32))
+		return -EINVAL;
+
 	crtc->dev = dev;
 	crtc->funcs = funcs;
 
@@ -610,7 +614,7 @@ retry:
 			goto out;
 		}
 
-		ret = drm_mode_convert_umode(mode, &crtc_req->mode);
+		ret = drm_mode_convert_umode(dev, mode, &crtc_req->mode);
 		if (ret) {
 			DRM_DEBUG_KMS("Invalid mode\n");
 			goto out;

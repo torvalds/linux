@@ -1,12 +1,10 @@
-/* tuner-xc2028
- *
- * Copyright (c) 2007-2008 Mauro Carvalho Chehab (mchehab@infradead.org)
- *
- * Copyright (c) 2007 Michel Ludwig (michel.ludwig@gmail.com)
- *       - frontend interface
- *
- * This code is placed under the terms of the GNU General Public License v2
- */
+// SPDX-License-Identifier: GPL-2.0
+// tuner-xc2028
+//
+// Copyright (c) 2007-2008 Mauro Carvalho Chehab (mchehab@infradead.org)
+//
+// Copyright (c) 2007 Michel Ludwig (michel.ludwig@gmail.com)
+//       - frontend interface
 
 #include <linux/i2c.h>
 #include <asm/div64.h>
@@ -22,7 +20,7 @@
 #include "tuner-xc2028-types.h"
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /* Max transfer size done by I2C transfer functions */
 #define MAX_XFER_SIZE  80
@@ -89,7 +87,7 @@ struct firmware_properties {
 	v4l2_std_id	std_req;
 	__u16		int_freq;
 	unsigned int	scode_table;
-	int 		scode_nr;
+	int		scode_nr;
 };
 
 enum xc2028_state {
@@ -139,7 +137,7 @@ struct xc2028_data {
 				       ibuf, isize);			\
 	if (isize != _rc)						\
 		tuner_err("i2c input error: rc = %d (should be %d)\n",	\
-			   _rc, (int)isize); 				\
+			   _rc, (int)isize);				\
 	if (priv->ctrl.msleep)						\
 		msleep(priv->ctrl.msleep);				\
 	_rc;								\
@@ -174,7 +172,7 @@ static int xc2028_get_reg(struct xc2028_data *priv, u16 reg, u16 *val)
 	return 0;
 }
 
-#define dump_firm_type(t) 	dump_firm_type_and_int_freq(t, 0)
+#define dump_firm_type(t)	dump_firm_type_and_int_freq(t, 0)
 static void dump_firm_type_and_int_freq(unsigned int type, u16 int_freq)
 {
 	if (type & BASE)
@@ -1521,6 +1519,6 @@ EXPORT_SYMBOL(xc2028_attach);
 MODULE_DESCRIPTION("Xceive xc2028/xc3028 tuner driver");
 MODULE_AUTHOR("Michel Ludwig <michel.ludwig@gmail.com>");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_FIRMWARE(XC2028_DEFAULT_FIRMWARE);
 MODULE_FIRMWARE(XC3028L_DEFAULT_FIRMWARE);

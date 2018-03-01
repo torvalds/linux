@@ -119,8 +119,7 @@ xfs_da_mount(
 
 
 	ASSERT(mp->m_sb.sb_versionnum & XFS_SB_VERSION_DIRV2BIT);
-	ASSERT((1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog)) <=
-	       XFS_MAX_BLOCKSIZE);
+	ASSERT(xfs_dir2_dirblock_bytes(&mp->m_sb) <= XFS_MAX_BLOCKSIZE);
 
 	mp->m_dir_inode_ops = xfs_dir_get_ops(mp, NULL);
 	mp->m_nondir_inode_ops = xfs_nondir_get_ops(mp, NULL);
@@ -140,7 +139,7 @@ xfs_da_mount(
 	dageo = mp->m_dir_geo;
 	dageo->blklog = mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog;
 	dageo->fsblog = mp->m_sb.sb_blocklog;
-	dageo->blksize = 1 << dageo->blklog;
+	dageo->blksize = xfs_dir2_dirblock_bytes(&mp->m_sb);
 	dageo->fsbcount = 1 << mp->m_sb.sb_dirblklog;
 
 	/*

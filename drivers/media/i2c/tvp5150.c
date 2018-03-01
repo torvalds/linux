@@ -1,9 +1,8 @@
-/*
- * tvp5150 - Texas Instruments TVP5150A/AM1 and TVP5151 video decoder driver
- *
- * Copyright (c) 2005,2006 Mauro Carvalho Chehab (mchehab@infradead.org)
- * This code is placed under the terms of the GNU General Public License v2
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// tvp5150 - Texas Instruments TVP5150A/AM1 and TVP5151 video decoder driver
+//
+// Copyright (c) 2005,2006 Mauro Carvalho Chehab <mchehab@infradead.org>
 
 #include <dt-bindings/media/tvp5150.h>
 #include <linux/i2c.h>
@@ -30,7 +29,7 @@
 
 MODULE_DESCRIPTION("Texas Instruments TVP5150A/TVP5150AM1/TVP5151 video decoder driver");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 
 
 static int debug;

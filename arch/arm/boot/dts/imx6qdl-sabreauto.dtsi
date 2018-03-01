@@ -235,6 +235,9 @@
 };
 
 &hdmi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hdmi_cec>;
+	ddc-i2c-bus = <&i2c2>;
 	status = "okay";
 };
 
@@ -450,6 +453,12 @@
 				MX6QDL_PAD_NANDF_D6__NAND_DATA06	0xb0b1
 				MX6QDL_PAD_NANDF_D7__NAND_DATA07	0xb0b1
 				MX6QDL_PAD_SD4_DAT0__NAND_DQS		0x00b1
+			>;
+		};
+
+		pinctrl_hdmi_cec: hdmicecgrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_A25__HDMI_TX_CEC_LINE	0x1f8b0
 			>;
 		};
 

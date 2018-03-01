@@ -543,3 +543,7 @@ static void p9_trans_xen_exit(void)
 	return xenbus_unregister_driver(&xen_9pfs_front_driver);
 }
 module_exit(p9_trans_xen_exit);
+
+MODULE_AUTHOR("Stefano Stabellini <stefano@aporeto.com>");
+MODULE_DESCRIPTION("Xen Transport for 9P");
+MODULE_LICENSE("GPL");

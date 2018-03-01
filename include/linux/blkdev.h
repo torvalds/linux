@@ -27,6 +27,8 @@
 #include <linux/percpu-refcount.h>
 #include <linux/scatterlist.h>
 #include <linux/blkzoned.h>
+#include <linux/seqlock.h>
+#include <linux/u64_stats_sync.h>
 
 struct module;
 struct scsi_ioctl_command;
@@ -121,6 +123,12 @@ typedef __u32 __bitwise req_flags_t;
 /* Look at ->special_vec for the actual data payload instead of the
    bio chain. */
 #define RQF_SPECIAL_PAYLOAD	((__force req_flags_t)(1 << 18))
+/* The per-zone write lock is held for this request */
+#define RQF_ZONE_WRITE_LOCKED	((__force req_flags_t)(1 << 19))
+/* timeout is expired */
+#define RQF_MQ_TIMEOUT_EXPIRED	((__force req_flags_t)(1 << 20))
+/* already slept for hybrid poll */
+#define RQF_MQ_POLL_SLEPT	((__force req_flags_t)(1 << 21))
 
 /* flags that prevent us from merging requests: */
 #define RQF_NOMERGE_FLAGS \
@@ -133,12 +141,6 @@ typedef __u32 __bitwise req_flags_t;
  * especially blk_mq_rq_ctx_init() to take care of the added fields.
  */
 struct request {
-	struct list_head queuelist;
-	union {
-		struct __call_single_data csd;
-		u64 fifo_time;
-	};
-
 	struct request_queue *q;
 	struct blk_mq_ctx *mq_ctx;
 
@@ -148,8 +150,6 @@ struct request {
 
 	int internal_tag;
 
-	unsigned long atomic_flags;
-
 	/* the following two fields are internal, NEVER access directly */
 	unsigned int __data_len;	/* total data len */
 	int tag;
@@ -157,6 +157,8 @@ struct request {
 
 	struct bio *bio;
 	struct bio *biotail;
+
+	struct list_head queuelist;
 
 	/*
 	 * The hash is used inside the scheduler, and killed once the
@@ -205,19 +207,16 @@ struct request {
 	struct hd_struct *part;
 	unsigned long start_time;
 	struct blk_issue_stat issue_stat;
-#ifdef CONFIG_BLK_CGROUP
-	struct request_list *rl;		/* rl this rq is alloced from */
-	unsigned long long start_time_ns;
-	unsigned long long io_start_time_ns;    /* when passed to hardware */
-#endif
 	/* Number of scatter-gather DMA addr+len pairs after
 	 * physical address coalescing is performed.
 	 */
 	unsigned short nr_phys_segments;
+
 #if defined(CONFIG_BLK_DEV_INTEGRITY)
 	unsigned short nr_integrity_segments;
 #endif
 
+	unsigned short write_hint;
 	unsigned short ioprio;
 
 	unsigned int timeout;
@@ -226,10 +225,36 @@ struct request {
 
 	unsigned int extra_len;	/* length of alignment and padding */
 
-	unsigned short write_hint;
+	/*
+	 * On blk-mq, the lower bits of ->gstate (generation number and
+	 * state) carry the MQ_RQ_* state value and the upper bits the
+	 * generation number which is monotonically incremented and used to
+	 * distinguish the reuse instances.
+	 *
+	 * ->gstate_seq allows updates to ->gstate and other fields
+	 * (currently ->deadline) during request start to be read
+	 * atomically from the timeout path, so that it can operate on a
+	 * coherent set of information.
+	 */
+	seqcount_t gstate_seq;
+	u64 gstate;
 
-	unsigned long deadline;
+	/*
+	 * ->aborted_gstate is used by the timeout to claim a specific
+	 * recycle instance of this request.  See blk_mq_timeout_work().
+	 */
+	struct u64_stats_sync aborted_gstate_sync;
+	u64 aborted_gstate;
+
+	/* access through blk_rq_set_deadline, blk_rq_deadline */
+	unsigned long __deadline;
+
 	struct list_head timeout_list;
+
+	union {
+		struct __call_single_data csd;
+		u64 fifo_time;
+	};
 
 	/*
 	 * completion callback.
@@ -239,6 +264,12 @@ struct request {
 
 	/* for bidi */
 	struct request *next_rq;
+
+#ifdef CONFIG_BLK_CGROUP
+	struct request_list *rl;		/* rl this rq is alloced from */
+	unsigned long long start_time_ns;
+	unsigned long long io_start_time_ns;    /* when passed to hardware */
+#endif
 };
 
 static inline bool blk_op_is_scsi(unsigned int op)
@@ -564,6 +595,22 @@ struct request_queue {
 	struct queue_limits	limits;
 
 	/*
+	 * Zoned block device information for request dispatch control.
+	 * nr_zones is the total number of zones of the device. This is always
+	 * 0 for regular block devices. seq_zones_bitmap is a bitmap of nr_zones
+	 * bits which indicates if a zone is conventional (bit clear) or
+	 * sequential (bit set). seq_zones_wlock is a bitmap of nr_zones
+	 * bits which indicates if a zone is write locked, that is, if a write
+	 * request targeting the zone was dispatched. All three fields are
+	 * initialized by the low level device driver (e.g. scsi/sd.c).
+	 * Stacking drivers (device mappers) may or may not initialize
+	 * these fields.
+	 */
+	unsigned int		nr_zones;
+	unsigned long		*seq_zones_bitmap;
+	unsigned long		*seq_zones_wlock;
+
+	/*
 	 * sg stuff
 	 */
 	unsigned int		sg_timeout;
@@ -807,6 +854,27 @@ static inline unsigned int blk_queue_zone_sectors(struct request_queue *q)
 	return blk_queue_is_zoned(q) ? q->limits.chunk_sectors : 0;
 }
 
+static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
+{
+	return q->nr_zones;
+}
+
+static inline unsigned int blk_queue_zone_no(struct request_queue *q,
+					     sector_t sector)
+{
+	if (!blk_queue_is_zoned(q))
+		return 0;
+	return sector >> ilog2(q->limits.chunk_sectors);
+}
+
+static inline bool blk_queue_zone_is_seq(struct request_queue *q,
+					 sector_t sector)
+{
+	if (!blk_queue_is_zoned(q) || !q->seq_zones_bitmap)
+		return false;
+	return test_bit(blk_queue_zone_no(q, sector), q->seq_zones_bitmap);
+}
+
 static inline bool rq_is_sync(struct request *rq)
 {
 	return op_is_sync(rq->cmd_flags);
@@ -1044,6 +1112,16 @@ static inline unsigned int blk_rq_sectors(const struct request *rq)
 static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 {
 	return blk_rq_cur_bytes(rq) >> 9;
+}
+
+static inline unsigned int blk_rq_zone_no(struct request *rq)
+{
+	return blk_queue_zone_no(rq->q, blk_rq_pos(rq));
+}
+
+static inline unsigned int blk_rq_zone_is_seq(struct request *rq)
+{
+	return blk_queue_zone_is_seq(rq->q, blk_rq_pos(rq));
 }
 
 /*
@@ -1595,7 +1673,15 @@ static inline unsigned int bdev_zone_sectors(struct block_device *bdev)
 
 	if (q)
 		return blk_queue_zone_sectors(q);
+	return 0;
+}
 
+static inline unsigned int bdev_nr_zones(struct block_device *bdev)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+
+	if (q)
+		return blk_queue_nr_zones(q);
 	return 0;
 }
 
@@ -1731,8 +1817,6 @@ static inline bool req_gap_front_merge(struct request *req, struct bio *bio)
 
 int kblockd_schedule_work(struct work_struct *work);
 int kblockd_schedule_work_on(int cpu, struct work_struct *work);
-int kblockd_schedule_delayed_work(struct delayed_work *dwork, unsigned long delay);
-int kblockd_schedule_delayed_work_on(int cpu, struct delayed_work *dwork, unsigned long delay);
 int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork, unsigned long delay);
 
 #ifdef CONFIG_BLK_CGROUP
@@ -1971,6 +2055,60 @@ extern int __blkdev_driver_ioctl(struct block_device *, fmode_t, unsigned int,
 extern int bdev_read_page(struct block_device *, sector_t, struct page *);
 extern int bdev_write_page(struct block_device *, sector_t, struct page *,
 						struct writeback_control *);
+
+#ifdef CONFIG_BLK_DEV_ZONED
+bool blk_req_needs_zone_write_lock(struct request *rq);
+void __blk_req_zone_write_lock(struct request *rq);
+void __blk_req_zone_write_unlock(struct request *rq);
+
+static inline void blk_req_zone_write_lock(struct request *rq)
+{
+	if (blk_req_needs_zone_write_lock(rq))
+		__blk_req_zone_write_lock(rq);
+}
+
+static inline void blk_req_zone_write_unlock(struct request *rq)
+{
+	if (rq->rq_flags & RQF_ZONE_WRITE_LOCKED)
+		__blk_req_zone_write_unlock(rq);
+}
+
+static inline bool blk_req_zone_is_write_locked(struct request *rq)
+{
+	return rq->q->seq_zones_wlock &&
+		test_bit(blk_rq_zone_no(rq), rq->q->seq_zones_wlock);
+}
+
+static inline bool blk_req_can_dispatch_to_zone(struct request *rq)
+{
+	if (!blk_req_needs_zone_write_lock(rq))
+		return true;
+	return !blk_req_zone_is_write_locked(rq);
+}
+#else
+static inline bool blk_req_needs_zone_write_lock(struct request *rq)
+{
+	return false;
+}
+
+static inline void blk_req_zone_write_lock(struct request *rq)
+{
+}
+
+static inline void blk_req_zone_write_unlock(struct request *rq)
+{
+}
+static inline bool blk_req_zone_is_write_locked(struct request *rq)
+{
+	return false;
+}
+
+static inline bool blk_req_can_dispatch_to_zone(struct request *rq)
+{
+	return true;
+}
+#endif /* CONFIG_BLK_DEV_ZONED */
+
 #else /* CONFIG_BLOCK */
 
 struct block_device;

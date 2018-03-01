@@ -66,7 +66,6 @@ struct nvme_rdma_request {
 	struct ib_sge		sge[1 + NVME_RDMA_MAX_INLINE_SEGMENTS];
 	u32			num_sge;
 	int			nents;
-	bool			inline_data;
 	struct ib_reg_wr	reg_wr;
 	struct ib_cqe		reg_cqe;
 	struct nvme_rdma_queue  *queue;
@@ -1092,7 +1091,6 @@ static int nvme_rdma_map_sg_inline(struct nvme_rdma_queue *queue,
 	sg->length = cpu_to_le32(sg_dma_len(req->sg_table.sgl));
 	sg->type = (NVME_SGL_FMT_DATA_DESC << 4) | NVME_SGL_FMT_OFFSET;
 
-	req->inline_data = true;
 	req->num_sge++;
 	return 0;
 }
@@ -1164,7 +1162,6 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 	int count, ret;
 
 	req->num_sge = 1;
-	req->inline_data = false;
 	refcount_set(&req->ref, 2); /* send and recv completions */
 
 	c->common.flags |= NVME_CMD_SGL_METABUF;
@@ -2018,6 +2015,7 @@ out_free_ctrl:
 
 static struct nvmf_transport_ops nvme_rdma_transport = {
 	.name		= "rdma",
+	.module		= THIS_MODULE,
 	.required_opts	= NVMF_OPT_TRADDR,
 	.allowed_opts	= NVMF_OPT_TRSVCID | NVMF_OPT_RECONNECT_DELAY |
 			  NVMF_OPT_HOST_TRADDR | NVMF_OPT_CTRL_LOSS_TMO,
@@ -2040,7 +2038,7 @@ static void nvme_rdma_remove_one(struct ib_device *ib_device, void *client_data)
 	}
 	mutex_unlock(&nvme_rdma_ctrl_mutex);
 
-	flush_workqueue(nvme_wq);
+	flush_workqueue(nvme_delete_wq);
 }
 
 static struct ib_client nvme_rdma_ib_client = {

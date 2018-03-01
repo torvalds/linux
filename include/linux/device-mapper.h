@@ -28,6 +28,7 @@ enum dm_queue_mode {
 	DM_TYPE_REQUEST_BASED	 = 2,
 	DM_TYPE_MQ_REQUEST_BASED = 3,
 	DM_TYPE_DAX_BIO_BASED	 = 4,
+	DM_TYPE_NVME_BIO_BASED	 = 5,
 };
 
 typedef enum { STATUSTYPE_INFO, STATUSTYPE_TABLE } status_type_t;
@@ -221,14 +222,6 @@ struct target_type {
 #define dm_target_is_wildcard(type)	((type)->features & DM_TARGET_WILDCARD)
 
 /*
- * Some targets need to be sent the same WRITE bio severals times so
- * that they can send copies of it to different devices.  This function
- * examines any supplied bio and returns the number of copies of it the
- * target requires.
- */
-typedef unsigned (*dm_num_write_bios_fn) (struct dm_target *ti, struct bio *bio);
-
-/*
  * A target implements own bio data integrity.
  */
 #define DM_TARGET_INTEGRITY		0x00000010
@@ -291,13 +284,6 @@ struct dm_target {
 	 */
 	unsigned per_io_data_size;
 
-	/*
-	 * If defined, this function is called to find out how many
-	 * duplicate bios should be sent to the target when writing
-	 * data.
-	 */
-	dm_num_write_bios_fn num_write_bios;
-
 	/* target specific data */
 	void *private;
 
@@ -329,35 +315,9 @@ struct dm_target_callbacks {
 	int (*congested_fn) (struct dm_target_callbacks *, int);
 };
 
-/*
- * For bio-based dm.
- * One of these is allocated for each bio.
- * This structure shouldn't be touched directly by target drivers.
- * It is here so that we can inline dm_per_bio_data and
- * dm_bio_from_per_bio_data
- */
-struct dm_target_io {
-	struct dm_io *io;
-	struct dm_target *ti;
-	unsigned target_bio_nr;
-	unsigned *len_ptr;
-	struct bio clone;
-};
-
-static inline void *dm_per_bio_data(struct bio *bio, size_t data_size)
-{
-	return (char *)bio - offsetof(struct dm_target_io, clone) - data_size;
-}
-
-static inline struct bio *dm_bio_from_per_bio_data(void *data, size_t data_size)
-{
-	return (struct bio *)((char *)data + data_size + offsetof(struct dm_target_io, clone));
-}
-
-static inline unsigned dm_bio_get_target_bio_nr(const struct bio *bio)
-{
-	return container_of(bio, struct dm_target_io, clone)->target_bio_nr;
-}
+void *dm_per_bio_data(struct bio *bio, size_t data_size);
+struct bio *dm_bio_from_per_bio_data(void *data, size_t data_size);
+unsigned dm_bio_get_target_bio_nr(const struct bio *bio);
 
 int dm_register_target(struct target_type *t);
 void dm_unregister_target(struct target_type *t);
@@ -500,6 +460,11 @@ void dm_table_set_type(struct dm_table *t, enum dm_queue_mode type);
 int dm_table_complete(struct dm_table *t);
 
 /*
+ * Destroy the table when finished.
+ */
+void dm_table_destroy(struct dm_table *t);
+
+/*
  * Target may require that it is never sent I/O larger than len.
  */
 int __must_check dm_set_target_max_io_len(struct dm_target *ti, sector_t len);
@@ -585,6 +550,7 @@ do {									\
 #define DM_ENDIO_DONE		0
 #define DM_ENDIO_INCOMPLETE	1
 #define DM_ENDIO_REQUEUE	2
+#define DM_ENDIO_DELAY_REQUEUE	3
 
 /*
  * Definitions of return values from target map function.
@@ -592,7 +558,7 @@ do {									\
 #define DM_MAPIO_SUBMITTED	0
 #define DM_MAPIO_REMAPPED	1
 #define DM_MAPIO_REQUEUE	DM_ENDIO_REQUEUE
-#define DM_MAPIO_DELAY_REQUEUE	3
+#define DM_MAPIO_DELAY_REQUEUE	DM_ENDIO_DELAY_REQUEUE
 #define DM_MAPIO_KILL		4
 
 #define dm_sector_div64(x, y)( \

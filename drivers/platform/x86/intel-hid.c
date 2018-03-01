@@ -25,6 +25,7 @@
 #include <linux/acpi.h>
 #include <linux/suspend.h>
 #include <acpi/acpi_bus.h>
+#include <linux/dmi.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Hung");
@@ -71,6 +72,24 @@ static const struct key_entry intel_array_keymap[] = {
 	{ KE_KEY,    0xCE, { KEY_POWER } },                   /* Press */
 	{ KE_IGNORE, 0xCF, { KEY_POWER } },                   /* Release */
 	{ KE_END },
+};
+
+static const struct dmi_system_id button_array_table[] = {
+	{
+		.ident = "Wacom MobileStudio Pro 13",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Wacom Co.,Ltd"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Wacom MobileStudio Pro 13"),
+		},
+	},
+	{
+		.ident = "Wacom MobileStudio Pro 16",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Wacom Co.,Ltd"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Wacom MobileStudio Pro 16"),
+		},
+	},
+	{ }
 };
 
 struct intel_hid_priv {
@@ -263,10 +282,27 @@ wakeup:
 			 ev_index);
 }
 
+static bool button_array_present(struct platform_device *device)
+{
+	acpi_handle handle = ACPI_HANDLE(&device->dev);
+	unsigned long long event_cap;
+	acpi_status status;
+	bool supported = false;
+
+	status = acpi_evaluate_integer(handle, "HEBC", NULL, &event_cap);
+	if (ACPI_SUCCESS(status) && (event_cap & 0x20000))
+		supported = true;
+
+	if (dmi_check_system(button_array_table))
+		supported = true;
+
+	return supported;
+}
+
 static int intel_hid_probe(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
-	unsigned long long event_cap, mode;
+	unsigned long long mode;
 	struct intel_hid_priv *priv;
 	acpi_status status;
 	int err;
@@ -299,8 +335,7 @@ static int intel_hid_probe(struct platform_device *device)
 	}
 
 	/* Setup 5 button array */
-	status = acpi_evaluate_integer(handle, "HEBC", NULL, &event_cap);
-	if (ACPI_SUCCESS(status) && (event_cap & 0x20000)) {
+	if (button_array_present(device)) {
 		dev_info(&device->dev, "platform supports 5 button array\n");
 		err = intel_button_array_input_setup(device);
 		if (err)

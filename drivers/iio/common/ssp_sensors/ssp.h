@@ -188,7 +188,7 @@ struct ssp_sensorhub_info {
  */
 struct ssp_data {
 	struct spi_device *spi;
-	struct ssp_sensorhub_info *sensorhub_info;
+	const struct ssp_sensorhub_info *sensorhub_info;
 	struct timer_list wdt_timer;
 	struct work_struct work_wdt;
 	struct delayed_work work_refresh;

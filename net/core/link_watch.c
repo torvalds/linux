@@ -92,7 +92,7 @@ static bool linkwatch_urgent_event(struct net_device *dev)
 	if (dev->ifindex != dev_get_iflink(dev))
 		return true;
 
-	if (dev->priv_flags & IFF_TEAM_PORT)
+	if (netif_is_lag_port(dev) || netif_is_lag_master(dev))
 		return true;
 
 	return netif_carrier_ok(dev) &&	qdisc_tx_changing(dev);

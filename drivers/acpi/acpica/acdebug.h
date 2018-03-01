@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -221,6 +221,10 @@ ACPI_DBR_DEPENDENT_RETURN_VOID(void
  */
 void
 acpi_db_execute(char *name, char **args, acpi_object_type *types, u32 flags);
+
+void
+acpi_db_create_execution_thread(char *method_name_arg,
+				char **arguments, acpi_object_type *types);
 
 void
 acpi_db_create_execution_threads(char *num_threads_arg,

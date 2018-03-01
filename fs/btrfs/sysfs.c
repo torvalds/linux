@@ -897,7 +897,7 @@ static int btrfs_init_debugfs(void)
 	return 0;
 }
 
-int btrfs_init_sysfs(void)
+int __init btrfs_init_sysfs(void)
 {
 	int ret;
 

@@ -94,6 +94,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	const struct drm_display_mode *mode = &cstate->mode;
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_connector *connector = priv->connector;
+	struct drm_bridge *bridge = priv->bridge;
 	u32 cntl;
 	u32 ppl, hsw, hfp, hbp;
 	u32 lpp, vsw, vfp, vbp;
@@ -137,17 +138,46 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	tim2 = readl(priv->regs + CLCD_TIM2);
 	tim2 &= (TIM2_BCD | TIM2_PCD_LO_MASK | TIM2_PCD_HI_MASK);
 
+	if (priv->variant->broken_clockdivider)
+		tim2 |= TIM2_BCD;
+
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
 		tim2 |= TIM2_IHS;
 
 	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
 		tim2 |= TIM2_IVS;
 
-	if (connector->display_info.bus_flags & DRM_BUS_FLAG_DE_LOW)
-		tim2 |= TIM2_IOE;
+	if (connector) {
+		if (connector->display_info.bus_flags & DRM_BUS_FLAG_DE_LOW)
+			tim2 |= TIM2_IOE;
 
-	if (connector->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
-		tim2 |= TIM2_IPC;
+		if (connector->display_info.bus_flags &
+		    DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+			tim2 |= TIM2_IPC;
+	}
+
+	if (bridge) {
+		const struct drm_bridge_timings *btimings = bridge->timings;
+
+		/*
+		 * Here is when things get really fun. Sometimes the bridge
+		 * timings are such that the signal out from PL11x is not
+		 * stable before the receiving bridge (such as a dumb VGA DAC
+		 * or similar) samples it. If that happens, we compensate by
+		 * the only method we have: output the data on the opposite
+		 * edge of the clock so it is for sure stable when it gets
+		 * sampled.
+		 *
+		 * The PL111 manual does not contain proper timining diagrams
+		 * or data for these details, but we know from experiments
+		 * that the setup time is more than 3000 picoseconds (3 ns).
+		 * If we have a bridge that requires the signal to be stable
+		 * earlier than 3000 ps before the clock pulse, we have to
+		 * output the data on the opposite edge to avoid flicker.
+		 */
+		if (btimings && btimings->setup_time_ps >= 3000)
+			tim2 ^= TIM2_IPC;
+	}
 
 	tim2 |= cpl << 16;
 	writel(tim2, priv->regs + CLCD_TIM2);
@@ -172,10 +202,17 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 		cntl |= CNTL_LCDBPP24 | CNTL_BGR;
 		break;
 	case DRM_FORMAT_BGR565:
-		cntl |= CNTL_LCDBPP16_565;
+		if (priv->variant->is_pl110)
+			cntl |= CNTL_LCDBPP16;
+		else
+			cntl |= CNTL_LCDBPP16_565;
 		break;
 	case DRM_FORMAT_RGB565:
-		cntl |= CNTL_LCDBPP16_565 | CNTL_BGR;
+		if (priv->variant->is_pl110)
+			cntl |= CNTL_LCDBPP16;
+		else
+			cntl |= CNTL_LCDBPP16_565;
+		cntl |= CNTL_BGR;
 		break;
 	case DRM_FORMAT_ABGR1555:
 	case DRM_FORMAT_XBGR1555:
@@ -199,6 +236,10 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 		break;
 	}
 
+	/* The PL110 in Integrator/Versatile does the BGR routing externally */
+	if (priv->variant->external_bgr)
+		cntl &= ~CNTL_BGR;
+
 	/* Power sequence: first enable and chill */
 	writel(cntl, priv->regs + priv->ctrl);
 
@@ -215,7 +256,8 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	cntl |= CNTL_LCDPWR;
 	writel(cntl, priv->regs + priv->ctrl);
 
-	drm_crtc_vblank_on(crtc);
+	if (!priv->variant->broken_vblank)
+		drm_crtc_vblank_on(crtc);
 }
 
 void pl111_display_disable(struct drm_simple_display_pipe *pipe)
@@ -225,7 +267,8 @@ void pl111_display_disable(struct drm_simple_display_pipe *pipe)
 	struct pl111_drm_dev_private *priv = drm->dev_private;
 	u32 cntl;
 
-	drm_crtc_vblank_off(crtc);
+	if (!priv->variant->broken_vblank)
+		drm_crtc_vblank_off(crtc);
 
 	/* Power Down */
 	cntl = readl(priv->regs + priv->ctrl);
@@ -416,6 +459,11 @@ pl111_init_clock_divider(struct drm_device *drm)
 	if (IS_ERR(parent)) {
 		dev_err(drm->dev, "CLCD: unable to get clcdclk.\n");
 		return PTR_ERR(parent);
+	}
+	/* If the clock divider is broken, use the parent directly */
+	if (priv->variant->broken_clockdivider) {
+		priv->clk = parent;
+		return 0;
 	}
 	parent_name = __clk_get_name(parent);
 

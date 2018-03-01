@@ -809,6 +809,7 @@ skip_rio:
 		break;
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
+		SAVE_TOPO(ha);
 		ha->flags.n2n_ae = 0;
 		ha->flags.lip_ae = 0;
 		ha->current_topology = 0;
@@ -922,7 +923,6 @@ skip_rio:
 		set_bit(REGISTER_FC4_NEEDED, &vha->dpc_flags);
 		set_bit(REGISTER_FDMI_NEEDED, &vha->dpc_flags);
 
-		ha->flags.gpsc_supported = 1;
 		vha->flags.management_server_logged_in = 0;
 		break;
 
@@ -1009,7 +1009,7 @@ skip_rio:
 			if (qla_ini_mode_enabled(vha)) {
 				qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
 				fcport->logout_on_delete = 0;
-				qlt_schedule_sess_for_deletion_lock(fcport);
+				qlt_schedule_sess_for_deletion(fcport);
 			}
 			break;
 
@@ -1059,8 +1059,7 @@ global_port_update:
 		 * Mark all devices as missing so we will login again.
 		 */
 		atomic_set(&vha->loop_state, LOOP_UP);
-
-		qla2x00_mark_all_devices_lost(vha, 1);
+		vha->scan.scan_retry = 0;
 
 		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
@@ -1202,6 +1201,7 @@ global_port_update:
 				qla2xxx_wake_dpc(vha);
 			}
 		}
+		/* fall through */
 	case MBA_IDC_COMPLETE:
 		if (ha->notify_lb_portup_comp && !vha->vp_idx)
 			complete(&ha->lb_portup_comp);
@@ -1574,7 +1574,7 @@ qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
 		/* borrowing sts_entry_24xx.comp_status.
 		   same location as ct_entry_24xx.comp_status
 		 */
-		res = qla2x00_chk_ms_status(vha, (ms_iocb_entry_t *)pkt,
+		res = qla2x00_chk_ms_status(sp->vha, (ms_iocb_entry_t *)pkt,
 			(struct ct_sns_rsp *)sp->u.iocb_cmd.u.ctarg.rsp,
 			sp->name);
 		sp->done(sp, res);
@@ -1769,7 +1769,7 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);
 		}
-		/* drop through */
+		/* fall through */
 	default:
 		data[0] = MBS_COMMAND_ERROR;
 		break;
@@ -1934,6 +1934,37 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 		}
 	}
 	sp->done(sp, ret);
+}
+
+static void qla_ctrlvp_completed(scsi_qla_host_t *vha, struct req_que *req,
+    struct vp_ctrl_entry_24xx *vce)
+{
+	const char func[] = "CTRLVP-IOCB";
+	srb_t *sp;
+	int rval = QLA_SUCCESS;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, vce);
+	if (!sp)
+		return;
+
+	if (vce->entry_status != 0) {
+		ql_dbg(ql_dbg_vport, vha, 0x10c4,
+		    "%s: Failed to complete IOCB -- error status (%x)\n",
+		    sp->name, vce->entry_status);
+		rval = QLA_FUNCTION_FAILED;
+	} else if (vce->comp_status != cpu_to_le16(CS_COMPLETE)) {
+		ql_dbg(ql_dbg_vport, vha, 0x10c5,
+		    "%s: Failed to complete IOCB -- completion status (%x) vpidx %x\n",
+		    sp->name, le16_to_cpu(vce->comp_status),
+		    le16_to_cpu(vce->vp_idx_failed));
+		rval = QLA_FUNCTION_FAILED;
+	} else {
+		ql_dbg(ql_dbg_vport, vha, 0x10c6,
+		    "Done %s.\n", __func__);
+	}
+
+	sp->rc = rval;
+	sp->done(sp, rval);
 }
 
 /**
@@ -2369,7 +2400,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 	int res = 0;
 	uint16_t state_flags = 0;
 	uint16_t retry_delay = 0;
-	uint8_t no_logout = 0;
 
 	sts = (sts_entry_t *) pkt;
 	sts24 = (struct sts_entry_24xx *) pkt;
@@ -2640,7 +2670,6 @@ check_scsi_status:
 		break;
 
 	case CS_PORT_LOGGED_OUT:
-		no_logout = 1;
 	case CS_PORT_CONFIG_CHG:
 	case CS_PORT_BUSY:
 	case CS_INCOMPLETE:
@@ -2671,11 +2700,8 @@ check_scsi_status:
 				port_state_str[atomic_read(&fcport->state)],
 				comp_status);
 
-			if (no_logout)
-				fcport->logout_on_delete = 0;
-
 			qla2x00_mark_device_lost(fcport->vha, fcport, 1, 1);
-			qlt_schedule_sess_for_deletion_lock(fcport);
+			qlt_schedule_sess_for_deletion(fcport);
 		}
 
 		break;
@@ -2972,9 +2998,9 @@ process_err:
 				    (response_t *)pkt);
 				break;
 			} else {
-				/* drop through */
 				qlt_24xx_process_atio_queue(vha, 1);
 			}
+			/* fall through */
 		case ABTS_RESP_24XX:
 		case CTIO_TYPE7:
 		case CTIO_CRC2:
@@ -3004,6 +3030,10 @@ process_err:
 		case MBX_IOCB_TYPE:
 			qla24xx_mbx_iocb_entry(vha, rsp->req,
 			    (struct mbx_24xx_entry *)pkt);
+			break;
+		case VP_CTRL_IOCB_TYPE:
+			qla_ctrlvp_completed(vha, rsp->req,
+			    (struct vp_ctrl_entry_24xx *)pkt);
 			break;
 		default:
 			/* Type Not Supported. */

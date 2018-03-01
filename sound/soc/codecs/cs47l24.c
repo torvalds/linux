@@ -1120,9 +1120,11 @@ static int cs47l24_codec_probe(struct snd_soc_codec *codec)
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct cs47l24_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona *arizona = priv->core.arizona;
 	int ret;
 
-	priv->core.arizona->dapm = dapm;
+	arizona->dapm = dapm;
+	snd_soc_codec_init_regmap(codec, arizona->regmap);
 
 	ret = arizona_init_spk(codec);
 	if (ret < 0)
@@ -1175,17 +1177,9 @@ static unsigned int cs47l24_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_4L,
 };
 
-static struct regmap *cs47l24_get_regmap(struct device *dev)
-{
-	struct cs47l24_priv *priv = dev_get_drvdata(dev);
-
-	return priv->core.arizona->regmap;
-}
-
 static const struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
 	.probe = cs47l24_codec_probe,
 	.remove = cs47l24_codec_remove,
-	.get_regmap = cs47l24_get_regmap,
 
 	.idle_bias_off = true,
 

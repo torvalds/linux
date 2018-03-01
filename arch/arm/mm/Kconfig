@@ -909,6 +909,14 @@ config OUTER_CACHE_SYNC
 	  The outer cache has a outer_cache_fns.sync function pointer
 	  that can be used to drain the write buffer of the outer cache.
 
+config CACHE_B15_RAC
+	bool "Enable the Broadcom Brahma-B15 read-ahead cache controller"
+	depends on ARCH_BRCMSTB
+	default y
+	help
+	  This option enables the Broadcom Brahma-B15 read-ahead cache
+	  controller. If disabled, the read-ahead cache remains off.
+
 config CACHE_FEROCEON_L2
 	bool "Enable the Feroceon L2 cache controller"
 	depends on ARCH_MV78XX0 || ARCH_MVEBU

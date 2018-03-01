@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.27"
+#define DC_VER "3.1.34"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -48,6 +48,18 @@
 /*******************************************************************************
  * Display Core Interfaces
  ******************************************************************************/
+struct dmcu_version {
+	unsigned int date;
+	unsigned int month;
+	unsigned int year;
+	unsigned int interface_version;
+};
+
+struct dc_versions {
+	const char *dc_ver;
+	struct dmcu_version dmcu_version;
+};
+
 struct dc_caps {
 	uint32_t max_streams;
 	uint32_t max_links;
@@ -62,6 +74,7 @@ struct dc_caps {
 	bool dcc_const_color;
 	bool dynamic_audio;
 	bool is_apu;
+	bool dual_link_dvi;
 };
 
 struct dc_dcc_surface_param {
@@ -94,6 +107,7 @@ struct dc_surface_dcc_cap {
 };
 
 struct dc_static_screen_events {
+	bool force_trigger;
 	bool cursor_update;
 	bool surface_update;
 	bool overlay_update;
@@ -211,11 +225,15 @@ struct dc_debug {
 	bool disable_stereo_support;
 	bool vsr_support;
 	bool performance_trace;
+	bool az_endpoint_mute_only;
+	bool always_use_regamma;
+	bool p010_mpo_support;
 };
 struct dc_state;
 struct resource_pool;
 struct dce_hwseq;
 struct dc {
+	struct dc_versions versions;
 	struct dc_caps caps;
 	struct dc_cap_funcs cap_funcs;
 	struct dc_config config;
@@ -251,6 +269,8 @@ struct dc {
 	struct dm_pp_display_configuration prev_display_config;
 
 	bool optimized_required;
+
+	bool apply_edp_fast_boot_optimization;
 
 	/* FBC compressor */
 #if defined(CONFIG_DRM_AMD_DC_FBC)
@@ -288,9 +308,6 @@ struct dc_init_data {
 
 	struct dc_config flags;
 	uint32_t log_mask;
-#if defined(CONFIG_DRM_AMD_DC_FBC)
-	uint64_t fbc_gpu_addr;
-#endif
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
@@ -369,6 +386,8 @@ struct dc_transfer_func {
 	struct dc_transfer_func_distributed_points tf_pts;
 	enum dc_transfer_func_type type;
 	enum dc_transfer_func_predefined tf;
+	/* FP16 1.0 reference level in nits, default is 80 nits, only for PQ*/
+	uint32_t sdr_ref_white_level;
 	struct dc_context *ctx;
 };
 
@@ -397,12 +416,15 @@ union surface_update_flags {
 		uint32_t swizzle_change:1;
 		uint32_t scaling_change:1;
 		uint32_t position_change:1;
-		uint32_t in_transfer_func:1;
+		uint32_t in_transfer_func_change:1;
 		uint32_t input_csc_change:1;
+		uint32_t output_tf_change:1;
+		uint32_t pixel_format_change:1;
 
 		/* Full updates */
 		uint32_t new_plane:1;
 		uint32_t bpp_change:1;
+		uint32_t gamma_change:1;
 		uint32_t bandwidth_change:1;
 		uint32_t clock_change:1;
 		uint32_t stereo_format_change:1;
@@ -429,6 +451,7 @@ struct dc_plane_state {
 	struct dc_bias_and_scale *bias_and_scale;
 	struct csc_transform input_csc_color_matrix;
 	struct fixed31_32 coeff_reduction_factor;
+	uint32_t sdr_white_level;
 
 	// TODO: No longer used, remove
 	struct dc_hdr_static_metadata hdr_static_ctx;
@@ -465,6 +488,7 @@ struct dc_plane_info {
 	enum plane_stereo_format stereo_format;
 	enum dc_color_space color_space;
 	enum color_transfer_func input_tf;
+	unsigned int sdr_white_level;
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
@@ -489,10 +513,8 @@ struct dc_surface_update {
 	/* following updates require alloc/sleep/spin that is not isr safe,
 	 * null means no updates
 	 */
-	/* gamma TO BE REMOVED */
 	struct dc_gamma *gamma;
 	enum color_transfer_func color_input_tf;
-	enum color_transfer_func color_output_tf;
 	struct dc_transfer_func *in_transfer_func;
 
 	struct csc_transform *input_csc_color_matrix;

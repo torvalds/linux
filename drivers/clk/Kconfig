@@ -142,6 +142,18 @@ config COMMON_CLK_GEMINI
 	  This driver supports the SoC clocks on the Cortina Systems Gemini
 	  platform, also known as SL3516 or CS3516.
 
+config COMMON_CLK_ASPEED
+	bool "Clock driver for Aspeed BMC SoCs"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	default ARCH_ASPEED
+	select MFD_SYSCON
+	select RESET_CONTROLLER
+	---help---
+	  This driver supports the SoC clocks on the Aspeed BMC platforms.
+
+	  The G4 and G5 series, including the ast2400 and ast2500, are supported
+	  by this driver.
+
 config COMMON_CLK_S2MPS11
 	tristate "Clock driver for S2MPS1X/S5M8767 MFD"
 	depends on MFD_SEC_CORE || COMPILE_TEST
@@ -236,6 +248,7 @@ source "drivers/clk/mvebu/Kconfig"
 source "drivers/clk/qcom/Kconfig"
 source "drivers/clk/renesas/Kconfig"
 source "drivers/clk/samsung/Kconfig"
+source "drivers/clk/sprd/Kconfig"
 source "drivers/clk/sunxi-ng/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"

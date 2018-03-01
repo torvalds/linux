@@ -17,7 +17,7 @@
 #ifndef A8293_H
 #define A8293_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /*
  * I2C address

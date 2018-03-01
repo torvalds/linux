@@ -94,8 +94,6 @@ static struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe)
 	return list_first_entry_or_null(&pipe->list, struct usbhs_pkt, node);
 }
 
-static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,
-			      struct usbhs_fifo *fifo);
 static void usbhsf_fifo_unselect(struct usbhs_pipe *pipe,
 				 struct usbhs_fifo *fifo);
 static struct dma_chan *usbhsf_dma_chan_get(struct usbhs_fifo *fifo,
@@ -124,9 +122,10 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
 			chan = usbhsf_dma_chan_get(fifo, pkt);
 		if (chan) {
 			dmaengine_terminate_all(chan);
-			usbhsf_fifo_clear(pipe, fifo);
 			usbhsf_dma_unmap(pkt);
 		}
+
+		usbhs_pipe_clear_without_sequence(pipe, 0, 0);
 
 		__usbhsf_pkt_del(pkt);
 	}
@@ -256,15 +255,9 @@ static void usbhsf_send_terminator(struct usbhs_pipe *pipe,
 static int usbhsf_fifo_barrier(struct usbhs_priv *priv,
 			       struct usbhs_fifo *fifo)
 {
-	int timeout = 1024;
-
-	do {
-		/* The FIFO port is accessible */
-		if (usbhs_read(priv, fifo->ctr) & FRDY)
-			return 0;
-
-		udelay(10);
-	} while (timeout--);
+	/* The FIFO port is accessible */
+	if (usbhs_read(priv, fifo->ctr) & FRDY)
+		return 0;
 
 	return -EBUSY;
 }
@@ -278,8 +271,8 @@ static void usbhsf_fifo_clear(struct usbhs_pipe *pipe,
 	if (!usbhs_pipe_is_dcp(pipe)) {
 		/*
 		 * This driver checks the pipe condition first to avoid -EBUSY
-		 * from usbhsf_fifo_barrier() with about 10 msec delay in
-		 * the interrupt handler if the pipe is RX direction and empty.
+		 * from usbhsf_fifo_barrier() if the pipe is RX direction and
+		 * empty.
 		 */
 		if (usbhs_pipe_is_dir_in(pipe))
 			ret = usbhs_pipe_is_accessible(pipe);

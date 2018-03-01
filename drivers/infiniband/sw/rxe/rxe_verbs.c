@@ -271,13 +271,12 @@ static int rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 		return err;
 	}
 
-	err = rxe_av_from_attr(rxe, rdma_ah_get_port_num(attr), av, attr);
-	if (!err)
-		err = rxe_av_fill_ip_info(rxe, av, attr, &sgid_attr, &sgid);
+	rxe_av_from_attr(rdma_ah_get_port_num(attr), av, attr);
+	rxe_av_fill_ip_info(av, attr, &sgid_attr, &sgid);
 
 	if (sgid_attr.ndev)
 		dev_put(sgid_attr.ndev);
-	return err;
+	return 0;
 }
 
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
@@ -335,12 +334,11 @@ static int rxe_modify_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 
 static int rxe_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr)
 {
-	struct rxe_dev *rxe = to_rdev(ibah->device);
 	struct rxe_ah *ah = to_rah(ibah);
 
 	memset(attr, 0, sizeof(*attr));
 	attr->type = ibah->type;
-	rxe_av_to_attr(rxe, &ah->av, attr);
+	rxe_av_to_attr(&ah->av, attr);
 	return 0;
 }
 
@@ -814,6 +812,8 @@ static int rxe_post_send_kernel(struct rxe_qp *qp, struct ib_send_wr *wr,
 			(queue_count(qp->sq.queue) > 1);
 
 	rxe_run_task(&qp->req.task, must_sched);
+	if (unlikely(qp->req.state == QP_STATE_ERROR))
+		rxe_run_task(&qp->comp.task, 1);
 
 	return err;
 }

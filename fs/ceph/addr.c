@@ -299,7 +299,8 @@ unlock:
  * start an async read(ahead) operation.  return nr_pages we submitted
  * a read for on success, or negative error code.
  */
-static int start_read(struct inode *inode, struct list_head *page_list, int max)
+static int start_read(struct inode *inode, struct ceph_rw_context *rw_ctx,
+		      struct list_head *page_list, int max)
 {
 	struct ceph_osd_client *osdc =
 		&ceph_inode_to_client(inode)->client->osdc;
@@ -316,7 +317,7 @@ static int start_read(struct inode *inode, struct list_head *page_list, int max)
 	int got = 0;
 	int ret = 0;
 
-	if (!current->journal_info) {
+	if (!rw_ctx) {
 		/* caller of readpages does not hold buffer and read caps
 		 * (fadvise, madvise and readahead cases) */
 		int want = CEPH_CAP_FILE_CACHE;
@@ -437,6 +438,8 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = file_inode(file);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct ceph_file_info *ci = file->private_data;
+	struct ceph_rw_context *rw_ctx;
 	int rc = 0;
 	int max = 0;
 
@@ -449,11 +452,12 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	if (rc == 0)
 		goto out;
 
+	rw_ctx = ceph_find_rw_context(ci);
 	max = fsc->mount_options->rsize >> PAGE_SHIFT;
-	dout("readpages %p file %p nr_pages %d max %d\n",
-	     inode, file, nr_pages, max);
+	dout("readpages %p file %p ctx %p nr_pages %d max %d\n",
+	     inode, file, rw_ctx, nr_pages, max);
 	while (!list_empty(page_list)) {
-		rc = start_read(inode, page_list, max);
+		rc = start_read(inode, rw_ctx, page_list, max);
 		if (rc < 0)
 			goto out;
 	}
@@ -574,7 +578,6 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	struct ceph_fs_client *fsc;
 	struct ceph_snap_context *snapc, *oldest;
 	loff_t page_off = page_offset(page);
-	long writeback_stat;
 	int err, len = PAGE_SIZE;
 	struct ceph_writeback_ctl ceph_wbc;
 
@@ -615,8 +618,7 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	dout("writepage %p page %p index %lu on %llu~%u snapc %p seq %lld\n",
 	     inode, page, page->index, page_off, len, snapc, snapc->seq);
 
-	writeback_stat = atomic_long_inc_return(&fsc->writeback_count);
-	if (writeback_stat >
+	if (atomic_long_inc_return(&fsc->writeback_count) >
 	    CONGESTION_ON_THRESH(fsc->mount_options->congestion_kb))
 		set_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
 
@@ -651,6 +653,11 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	end_page_writeback(page);
 	ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
 	ceph_put_snap_context(snapc);  /* page's reference */
+
+	if (atomic_long_dec_return(&fsc->writeback_count) <
+	    CONGESTION_OFF_THRESH(fsc->mount_options->congestion_kb))
+		clear_bdi_congested(inode_to_bdi(inode), BLK_RW_ASYNC);
+
 	return err;
 }
 
@@ -1450,9 +1457,10 @@ static int ceph_filemap_fault(struct vm_fault *vmf)
 
 	if ((got & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO)) ||
 	    ci->i_inline_version == CEPH_INLINE_NONE) {
-		current->journal_info = vma->vm_file;
+		CEPH_DEFINE_RW_CONTEXT(rw_ctx, got);
+		ceph_add_rw_context(fi, &rw_ctx);
 		ret = filemap_fault(vmf);
-		current->journal_info = NULL;
+		ceph_del_rw_context(fi, &rw_ctx);
 	} else
 		ret = -EAGAIN;
 

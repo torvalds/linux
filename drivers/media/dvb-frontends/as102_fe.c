@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  */
 
-#include <dvb_frontend.h>
+#include <media/dvb_frontend.h>
 
 #include "as102_fe.h"
 

@@ -10,6 +10,7 @@ util/ctype.c
 util/evlist.c
 util/evsel.c
 util/cpumap.c
+util/memswap.c
 util/mmap.c
 util/namespaces.c
 ../lib/bitmap.c

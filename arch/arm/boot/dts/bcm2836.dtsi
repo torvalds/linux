@@ -13,24 +13,24 @@
 			compatible = "brcm,bcm2836-l1-intc";
 			reg = <0x40000000 0x100>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 			interrupt-parent = <&local_intc>;
 		};
 
 		arm-pmu {
 			compatible = "arm,cortex-a7-pmu";
 			interrupt-parent = <&local_intc>;
-			interrupts = <9>;
+			interrupts = <9 IRQ_TYPE_LEVEL_HIGH>;
 		};
 	};
 
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupt-parent = <&local_intc>;
-		interrupts = <0>, // PHYS_SECURE_PPI
-			     <1>, // PHYS_NONSECURE_PPI
-			     <3>, // VIRT_PPI
-			     <2>; // HYP_PPI
+		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>, // PHYS_SECURE_PPI
+			     <1 IRQ_TYPE_LEVEL_HIGH>, // PHYS_NONSECURE_PPI
+			     <3 IRQ_TYPE_LEVEL_HIGH>, // VIRT_PPI
+			     <2 IRQ_TYPE_LEVEL_HIGH>; // HYP_PPI
 		always-on;
 	};
 
@@ -76,7 +76,7 @@
 	compatible = "brcm,bcm2836-armctrl-ic";
 	reg = <0x7e00b200 0x200>;
 	interrupt-parent = <&local_intc>;
-	interrupts = <8>;
+	interrupts = <8 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &cpu_thermal {

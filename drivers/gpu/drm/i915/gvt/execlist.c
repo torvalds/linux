@@ -521,24 +521,23 @@ static void init_vgpu_execlist(struct intel_vgpu *vgpu, int ring_id)
 
 	ctx_status_ptr_reg = execlist_ring_mmio(vgpu->gvt, ring_id,
 			_EL_OFFSET_STATUS_PTR);
-
 	ctx_status_ptr.dw = vgpu_vreg(vgpu, ctx_status_ptr_reg);
 	ctx_status_ptr.read_ptr = 0;
 	ctx_status_ptr.write_ptr = 0x7;
 	vgpu_vreg(vgpu, ctx_status_ptr_reg) = ctx_status_ptr.dw;
 }
 
-static void clean_execlist(struct intel_vgpu *vgpu)
+static void clean_execlist(struct intel_vgpu *vgpu, unsigned long engine_mask)
 {
-	enum intel_engine_id i;
+	unsigned int tmp;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine;
+	struct intel_vgpu_submission *s = &vgpu->submission;
 
-	for_each_engine(engine, vgpu->gvt->dev_priv, i) {
-		struct intel_vgpu_submission *s = &vgpu->submission;
-
-		kfree(s->ring_scan_buffer[i]);
-		s->ring_scan_buffer[i] = NULL;
-		s->ring_scan_buffer_size[i] = 0;
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
+		kfree(s->ring_scan_buffer[engine->id]);
+		s->ring_scan_buffer[engine->id] = NULL;
+		s->ring_scan_buffer_size[engine->id] = 0;
 	}
 }
 
@@ -553,9 +552,10 @@ static void reset_execlist(struct intel_vgpu *vgpu,
 		init_vgpu_execlist(vgpu, engine->id);
 }
 
-static int init_execlist(struct intel_vgpu *vgpu)
+static int init_execlist(struct intel_vgpu *vgpu,
+			 unsigned long engine_mask)
 {
-	reset_execlist(vgpu, ALL_ENGINES);
+	reset_execlist(vgpu, engine_mask);
 	return 0;
 }
 

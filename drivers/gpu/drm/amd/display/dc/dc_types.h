@@ -193,6 +193,10 @@ union display_content_support {
 	} bits;
 };
 
+struct dc_panel_patch {
+	unsigned int dppowerup_delay;
+};
+
 struct dc_edid_caps {
 	/* sink identification */
 	uint16_t manufacturer_id;
@@ -219,6 +223,8 @@ struct dc_edid_caps {
 
 	bool edid_hdmi;
 	bool hdr_supported;
+
+	struct dc_panel_patch panel_patch;
 };
 
 struct view {

@@ -3,7 +3,7 @@ Documentation for /proc/sys/user/*	kernel version 4.9.0
 
 ==============================================================
 
-This file contains the documetation for the sysctl files in
+This file contains the documentation for the sysctl files in
 /proc/sys/user.
 
 The files in this directory can be used to override the default

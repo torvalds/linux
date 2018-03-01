@@ -166,12 +166,12 @@
 #define MANTIS_CARD_PLUGOUT		(0x01 <<  0)
 
 #define MANTIS_GPIF_BRADDR		0xa0
-#define MANTIS_GPIF_PCMCIAREG		(0x01 		<< 27)
-#define MANTIS_GPIF_PCMCIAIOM		(0x01 		<< 26)
+#define MANTIS_GPIF_PCMCIAREG		(0x01		<< 27)
+#define MANTIS_GPIF_PCMCIAIOM		(0x01		<< 26)
 #define MANTIS_GPIF_BR_ADDR		(0xfffffff	<<  0)
 
 #define MANTIS_GPIF_BRBYTES		0xa4
-#define MANTIS_GPIF_BRCNT		(0xfff 		<<  0)
+#define MANTIS_GPIF_BRCNT		(0xfff		<<  0)
 
 #define MANTIS_PCMCIA_RESET		0xa8
 #define MANTIS_PCMCIA_RSTVAL		(0xff << 0)

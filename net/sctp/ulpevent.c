@@ -443,8 +443,8 @@ struct sctp_ulpevent *sctp_ulpevent_make_send_failed(
 		goto fail;
 
 	/* Pull off the common chunk header and DATA header.  */
-	skb_pull(skb, sizeof(struct sctp_data_chunk));
-	len -= sizeof(struct sctp_data_chunk);
+	skb_pull(skb, sctp_datachk_len(&asoc->stream));
+	len -= sctp_datachk_len(&asoc->stream);
 
 	/* Embed the event fields inside the cloned skb.  */
 	event = sctp_skb2event(skb);
@@ -705,8 +705,6 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	sctp_ulpevent_receive_data(event, asoc);
 
 	event->stream = ntohs(chunk->subh.data_hdr->stream);
-	event->ssn = ntohs(chunk->subh.data_hdr->ssn);
-	event->ppid = chunk->subh.data_hdr->ppid;
 	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
 		event->flags |= SCTP_UNORDERED;
 		event->cumtsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map);
@@ -732,8 +730,9 @@ fail:
  *   various events.
  */
 struct sctp_ulpevent *sctp_ulpevent_make_pdapi(
-	const struct sctp_association *asoc, __u32 indication,
-	gfp_t gfp)
+					const struct sctp_association *asoc,
+					__u32 indication, __u32 sid, __u32 seq,
+					__u32 flags, gfp_t gfp)
 {
 	struct sctp_ulpevent *event;
 	struct sctp_pdapi_event *pd;
@@ -754,7 +753,9 @@ struct sctp_ulpevent *sctp_ulpevent_make_pdapi(
 	 *   Currently unused.
 	 */
 	pd->pdapi_type = SCTP_PARTIAL_DELIVERY_EVENT;
-	pd->pdapi_flags = 0;
+	pd->pdapi_flags = flags;
+	pd->pdapi_stream = sid;
+	pd->pdapi_seq = seq;
 
 	/* pdapi_length: 32 bits (unsigned integer)
 	 *

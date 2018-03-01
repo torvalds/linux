@@ -16,9 +16,9 @@
 #ifndef _AS102_DRV_H
 #define _AS102_DRV_H
 #include <linux/usb.h>
-#include <dvb_demux.h>
-#include <dvb_frontend.h>
-#include <dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dmxdev.h>
 #include "as10x_handle.h"
 #include "as10x_cmd.h"
 #include "as102_usb_drv.h"

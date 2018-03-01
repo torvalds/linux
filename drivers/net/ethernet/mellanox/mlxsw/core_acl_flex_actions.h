@@ -46,6 +46,12 @@ struct mlxsw_afa_ops {
 	void (*kvdl_set_del)(void *priv, u32 kvdl_index, bool is_first);
 	int (*kvdl_fwd_entry_add)(void *priv, u32 *p_kvdl_index, u8 local_port);
 	void (*kvdl_fwd_entry_del)(void *priv, u32 kvdl_index);
+	int (*counter_index_get)(void *priv, unsigned int *p_counter_index);
+	void (*counter_index_put)(void *priv, unsigned int counter_index);
+	int (*mirror_add)(void *priv, u8 locol_in_port, u8 local_out_port,
+			  bool ingress, int *p_span_id);
+	void (*mirror_del)(void *priv, u8 locol_in_port, u8 local_out_port,
+			   bool ingress);
 };
 
 struct mlxsw_afa *mlxsw_afa_create(unsigned int max_acts_per_set,
@@ -63,12 +69,17 @@ int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id);
 int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 					    u16 trap_id);
+int mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
+				  u8 local_in_port, u8 local_out_port,
+				  bool ingress);
 int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
 			       u8 local_port, bool in_port);
 int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 				       u16 vid, u8 pcp, u8 et);
+int mlxsw_afa_block_append_allocated_counter(struct mlxsw_afa_block *block,
+					     u32 counter_index);
 int mlxsw_afa_block_append_counter(struct mlxsw_afa_block *block,
-				   u32 counter_index);
+				   u32 *p_counter_index);
 int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid);
 int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 				    u16 expected_irif, u16 min_mtu,

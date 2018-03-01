@@ -1,0 +1,95 @@
+FPGA Regions
+
+Alan Tull 2017
+
+CONTENTS
+ - Introduction
+ - The FPGA region API
+ - Usage example
+
+Introduction
+============
+
+This document is meant to be an brief overview of the FPGA region API usage.  A
+more conceptual look at regions can be found in [1].
+
+For the purposes of this API document, let's just say that a region associates
+an FPGA Manager and a bridge (or bridges) with a reprogrammable region of an
+FPGA or the whole FPGA.  The API provides a way to register a region and to
+program a region.
+
+Currently the only layer above fpga-region.c in the kernel is the Device Tree
+support (of-fpga-region.c) described in [1].  The DT support layer uses regions
+to program the FPGA and then DT to handle enumeration.  The common region code
+is intended to be used by other schemes that have other ways of accomplishing
+enumeration after programming.
+
+An fpga-region can be set up to know the following things:
+* which FPGA manager to use to do the programming
+* which bridges to disable before programming and enable afterwards.
+
+Additional info needed to program the FPGA image is passed in the struct
+fpga_image_info [2] including:
+* pointers to the image as either a scatter-gather buffer, a contiguous
+  buffer, or the name of firmware file
+* flags indicating specifics such as whether the image if for partial
+  reconfiguration.
+
+===================
+The FPGA region API
+===================
+
+To register or unregister a region:
+-----------------------------------
+
+	int fpga_region_register(struct device *dev,
+				 struct fpga_region *region);
+	int fpga_region_unregister(struct fpga_region *region);
+
+An example of usage can be seen in the probe function of [3]
+
+To program an FPGA:
+-------------------
+	int fpga_region_program_fpga(struct fpga_region *region);
+
+This function operates on info passed in the fpga_image_info
+(region->info).
+
+This function will attempt to:
+ * lock the region's mutex
+ * lock the region's FPGA manager
+ * build a list of FPGA bridges if a method has been specified to do so
+ * disable the bridges
+ * program the FPGA
+ * re-enable the bridges
+ * release the locks
+
+=============
+Usage example
+=============
+
+First, allocate the info struct:
+
+	info = fpga_image_info_alloc(dev);
+	if (!info)
+		return -ENOMEM;
+
+Set flags as needed, i.e.
+
+	info->flags |= FPGA_MGR_PARTIAL_RECONFIG;
+
+Point to your FPGA image, such as:
+
+	info->sgt = &sgt;
+
+Add info to region and do the programming:
+
+	region->info = info;
+	ret = fpga_region_program_fpga(region);
+
+Then enumerate whatever hardware has appeared in the FPGA.
+
+--
+[1] ../devicetree/bindings/fpga/fpga-region.txt
+[2] ./fpga-mgr.txt
+[3] ../../drivers/fpga/of-fpga-region.c

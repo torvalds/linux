@@ -126,6 +126,8 @@ static bool program_hpd_filter(
 	int delay_on_connect_in_ms = 0;
 	int delay_on_disconnect_in_ms = 0;
 
+	if (link->is_hpd_filter_disabled)
+		return false;
 	/* Verify feature is supported */
 	switch (link->connector_signal) {
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
@@ -464,7 +466,7 @@ static void link_disconnect_sink(struct dc_link *link)
 	link->dpcd_sink_count = 0;
 }
 
-static void detect_dp(
+static bool detect_dp(
 	struct dc_link *link,
 	struct display_sink_capability *sink_caps,
 	bool *converter_disable_audio,
@@ -478,7 +480,8 @@ static void detect_dp(
 
 	if (sink_caps->transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
 		sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
-		detect_dp_sink_caps(link);
+		if (!detect_dp_sink_caps(link))
+			return false;
 
 		if (is_mst_supported(link)) {
 			sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
@@ -529,7 +532,7 @@ static void detect_dp(
 				 * active dongle unplug processing for short irq
 				 */
 				link_disconnect_sink(link);
-				return;
+				return true;
 			}
 
 			if (link->dpcd_caps.dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER)
@@ -541,6 +544,8 @@ static void detect_dp(
 				sink_caps,
 				audio_support);
 	}
+
+	return true;
 }
 
 bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
@@ -604,11 +609,12 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		}
 
 		case SIGNAL_TYPE_DISPLAY_PORT: {
-			detect_dp(
+			if (!detect_dp(
 				link,
 				&sink_caps,
 				&converter_disable_audio,
-				aud_support, reason);
+				aud_support, reason))
+				return false;
 
 			/* Active dongle downstream unplug */
 			if (link->type == dc_connection_active_dongle
@@ -677,8 +683,6 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 		case EDID_NO_RESPONSE:
 			dm_logger_write(link->ctx->logger, LOG_ERROR,
 				"No EDID read.\n");
-			return false;
-
 		default:
 			break;
 		}
@@ -1248,6 +1252,12 @@ static enum dc_status enable_link_dp(
 		pipe_ctx->clock_source->id,
 		&link_settings);
 
+	if (stream->sink->edid_caps.panel_patch.dppowerup_delay > 0) {
+		int delay_dp_power_up_in_ms = stream->sink->edid_caps.panel_patch.dppowerup_delay;
+
+		msleep(delay_dp_power_up_in_ms);
+	}
+
 	panel_mode = dp_get_panel_mode(link);
 	dpcd_configure_panel_mode(link, panel_mode);
 
@@ -1279,13 +1289,12 @@ static enum dc_status enable_link_edp(
 	enum dc_status status;
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
-
+	/*in case it is not on*/
 	link->dc->hwss.edp_power_control(link, true);
 	link->dc->hwss.edp_wait_for_hpd_ready(link, true);
 
 	status = enable_link_dp(state, pipe_ctx);
 
-	link->dc->hwss.edp_backlight_control(link, true);
 
 	return status;
 }
@@ -1749,8 +1758,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 			link->link_enc,
 			pipe_ctx->clock_source->id,
 			display_color_depth,
-			pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A,
-			pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK,
+			pipe_ctx->stream->signal,
 			stream->phy_pix_clk);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
@@ -1788,9 +1796,21 @@ static enum dc_status enable_link(
 	}
 
 	if (pipe_ctx->stream_res.audio && status == DC_OK) {
+		struct dc *core_dc = pipe_ctx->stream->ctx->dc;
 		/* notify audio driver for audio modes of monitor */
+		struct pp_smu_funcs_rv *pp_smu = core_dc->res_pool->pp_smu;
+		unsigned int i, num_audio = 1;
+		for (i = 0; i < MAX_PIPES; i++) {
+			/*current_state not updated yet*/
+			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream_res.audio != NULL)
+				num_audio++;
+		}
+
 		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
 
+		if (num_audio == 1 && pp_smu != NULL && pp_smu->set_pme_wa_enable != NULL)
+			/*this is the first audio. apply the PME w/a in order to wake AZ from D3*/
+			pp_smu->set_pme_wa_enable(&pp_smu->pp_smu);
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
 		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
@@ -2268,7 +2288,16 @@ void core_link_enable_stream(
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
-	enum dc_status status = enable_link(state, pipe_ctx);
+	enum dc_status status;
+
+	/* eDP lit up by bios already, no need to enable again. */
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP &&
+		core_dc->apply_edp_fast_boot_optimization) {
+		core_dc->apply_edp_fast_boot_optimization = false;
+		return;
+	}
+
+	status = enable_link(state, pipe_ctx);
 
 	if (status != DC_OK) {
 			dm_logger_write(pipe_ctx->stream->ctx->logger,
@@ -2298,9 +2327,8 @@ void core_link_enable_stream(
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		allocate_mst_payload(pipe_ctx);
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		core_dc->hwss.unblank_stream(pipe_ctx,
-			&pipe_ctx->stream->sink->link->cur_link_settings);
+	core_dc->hwss.unblank_stream(pipe_ctx,
+		&pipe_ctx->stream->sink->link->cur_link_settings);
 }
 
 void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
@@ -2310,8 +2338,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
 
-	if (pipe_ctx->stream->signal == SIGNAL_TYPE_EDP)
-		core_dc->hwss.edp_backlight_control(pipe_ctx->stream->sink->link, false);
+	core_dc->hwss.blank_stream(pipe_ctx);
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 
@@ -2326,5 +2353,35 @@ void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 		return;
 
 	core_dc->hwss.set_avmute(pipe_ctx, enable);
+}
+
+void dc_link_disable_hpd_filter(struct dc_link *link)
+{
+	struct gpio *hpd;
+
+	if (!link->is_hpd_filter_disabled) {
+		link->is_hpd_filter_disabled = true;
+		/* Obtain HPD handle */
+		hpd = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
+
+		if (!hpd)
+			return;
+
+		/* Setup HPD filtering */
+		if (dal_gpio_open(hpd, GPIO_MODE_INTERRUPT) == GPIO_RESULT_OK) {
+			struct gpio_hpd_config config;
+
+			config.delay_on_connect = 0;
+			config.delay_on_disconnect = 0;
+
+			dal_irq_setup_hpd_filter(hpd, &config);
+
+			dal_gpio_close(hpd);
+		} else {
+			ASSERT_CRITICAL(false);
+		}
+		/* Release HPD handle */
+		dal_gpio_destroy_irq(&hpd);
+	}
 }
 

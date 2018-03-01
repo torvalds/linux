@@ -88,15 +88,17 @@
  * On top of this basic transformation additional properties can be exposed by
  * the driver:
  *
- * - Rotation is set up with drm_plane_create_rotation_property(). It adds a
- *   rotation and reflection step between the source and destination rectangles.
- *   Without this property the rectangle is only scaled, but not rotated or
- *   reflected.
+ * rotation:
+ *	Rotation is set up with drm_plane_create_rotation_property(). It adds a
+ *	rotation and reflection step between the source and destination rectangles.
+ *	Without this property the rectangle is only scaled, but not rotated or
+ *	reflected.
  *
- * - Z position is set up with drm_plane_create_zpos_immutable_property() and
- *   drm_plane_create_zpos_property(). It controls the visibility of overlapping
- *   planes. Without this property the primary plane is always below the cursor
- *   plane, and ordering between all other planes is undefined.
+ * zpos:
+ *	Z position is set up with drm_plane_create_zpos_immutable_property() and
+ *	drm_plane_create_zpos_property(). It controls the visibility of overlapping
+ *	planes. Without this property the primary plane is always below the cursor
+ *	plane, and ordering between all other planes is undefined.
  *
  * Note that all the property extensions described here apply either to the
  * plane or the CRTC (e.g. for the background color, which currently is not

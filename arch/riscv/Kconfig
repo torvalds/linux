@@ -22,6 +22,7 @@ config RISCV
 	select GENERIC_ATOMIC64 if !64BIT || !RISCV_ISA_A
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select HAVE_MEMBLOCK
+	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_GENERIC_DMA_COHERENT
@@ -43,6 +44,10 @@ config MMU
 config ARCH_PHYS_ADDR_T_64BIT
 	def_bool y
 
+config ZONE_DMA32
+	bool
+	default y
+
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool y
 
@@ -53,6 +58,9 @@ config PAGE_OFFSET
 	default 0xffffffe000000000 if 64BIT && MAXPHYSMEM_128GB
 
 config STACKTRACE_SUPPORT
+	def_bool y
+
+config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
@@ -83,7 +91,7 @@ config PGTABLE_LEVELS
 config HAVE_KPROBES
 	def_bool n
 
-config DMA_NOOP_OPS
+config DMA_DIRECT_OPS
 	def_bool y
 
 menu "Platform type"
@@ -107,6 +115,8 @@ config ARCH_RV64I
 	bool "RV64I"
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select 64BIT
+	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_GRAPH_TRACER
 
 endchoice
 

@@ -151,7 +151,7 @@ static int read_page(int log)
 	memcpy(&oldstats, &mtd->ecc_stats, sizeof(oldstats));
 
 	err = mtd_read(mtd, offset, mtd->writesize, &read, rbuffer);
-	if (err == -EUCLEAN)
+	if (!err || err == -EUCLEAN)
 		err = mtd->ecc_stats.corrected - oldstats.corrected;
 
 	if (err < 0 || read != mtd->writesize) {

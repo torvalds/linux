@@ -1,13 +1,8 @@
-/*
- * Copyright (c) 2017 Samsung Electronics Co., Ltd.
- * Author: Andi Shyti <andi.shyti@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * Samsung S6SY761 Touchscreen device driver
- */
+// SPDX-License-Identifier: GPL-2.0
+// Samsung S6SY761 Touchscreen device driver
+//
+// Copyright (c) 2017 Samsung Electronics Co., Ltd.
+// Copyright (c) 2017 Andi Shyti <andi.shyti@samsung.com>
 
 #include <asm/unaligned.h>
 #include <linux/delay.h>

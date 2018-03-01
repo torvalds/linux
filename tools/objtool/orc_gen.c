@@ -98,6 +98,11 @@ static int create_orc_entry(struct section *u_sec, struct section *ip_relasec,
 	struct orc_entry *orc;
 	struct rela *rela;
 
+	if (!insn_sec->sym) {
+		WARN("missing symbol for section %s", insn_sec->name);
+		return -1;
+	}
+
 	/* populate ORC data */
 	orc = (struct orc_entry *)u_sec->data->d_buf + idx;
 	memcpy(orc, o, sizeof(*orc));

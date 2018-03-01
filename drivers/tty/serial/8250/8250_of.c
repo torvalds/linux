@@ -136,8 +136,11 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	}
 
 	info->rst = devm_reset_control_get_optional_shared(&ofdev->dev, NULL);
-	if (IS_ERR(info->rst))
+	if (IS_ERR(info->rst)) {
+		ret = PTR_ERR(info->rst);
 		goto err_dispose;
+	}
+
 	ret = reset_control_deassert(info->rst);
 	if (ret)
 		goto err_dispose;

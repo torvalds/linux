@@ -43,6 +43,7 @@
 #include "../pwrseqcmd.h"
 #include "pwrseq.h"
 #include "../btcoexist/rtl_btc.h"
+#include <linux/kernel.h>
 
 #define LLT_CONFIG	5
 
@@ -1682,18 +1683,17 @@ void rtl8723be_card_disable(struct ieee80211_hw *hw)
 }
 
 void rtl8723be_interrupt_recognized(struct ieee80211_hw *hw,
-				    u32 *p_inta, u32 *p_intb,
-				    u32 *p_intc, u32 *p_intd)
+				    struct rtl_int *intvec)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
-	*p_inta = rtl_read_dword(rtlpriv, ISR) & rtlpci->irq_mask[0];
-	rtl_write_dword(rtlpriv, ISR, *p_inta);
+	intvec->inta = rtl_read_dword(rtlpriv, ISR) & rtlpci->irq_mask[0];
+	rtl_write_dword(rtlpriv, ISR, intvec->inta);
 
-	*p_intb = rtl_read_dword(rtlpriv, REG_HISRE) &
-					rtlpci->irq_mask[1];
-	rtl_write_dword(rtlpriv, REG_HISRE, *p_intb);
+	intvec->intb = rtl_read_dword(rtlpriv, REG_HISRE) &
+				      rtlpci->irq_mask[1];
+	rtl_write_dword(rtlpriv, REG_HISRE, intvec->intb);
 }
 
 void rtl8723be_set_beacon_related_registers(struct ieee80211_hw *hw)
@@ -2127,28 +2127,28 @@ static void _rtl8723be_read_adapter_info(struct ieee80211_hw *hw,
 
 	if (rtlhal->oem_id == RT_CID_DEFAULT) {
 		/* Does this one have a Toshiba SMID from group 1? */
-		for (i = 0; i < sizeof(toshiba_smid1) / sizeof(u16); i++) {
+		for (i = 0; i < ARRAY_SIZE(toshiba_smid1); i++) {
 			if (rtlefuse->eeprom_smid == toshiba_smid1[i]) {
 				is_toshiba_smid1 = true;
 				break;
 			}
 		}
 		/* Does this one have a Toshiba SMID from group 2? */
-		for (i = 0; i < sizeof(toshiba_smid2) / sizeof(u16); i++) {
+		for (i = 0; i < ARRAY_SIZE(toshiba_smid2); i++) {
 			if (rtlefuse->eeprom_smid == toshiba_smid2[i]) {
 				is_toshiba_smid2 = true;
 				break;
 			}
 		}
 		/* Does this one have a Samsung SMID? */
-		for (i = 0; i < sizeof(samsung_smid) / sizeof(u16); i++) {
+		for (i = 0; i < ARRAY_SIZE(samsung_smid); i++) {
 			if (rtlefuse->eeprom_smid == samsung_smid[i]) {
 				is_samsung_smid = true;
 				break;
 			}
 		}
 		/* Does this one have a Lenovo SMID? */
-		for (i = 0; i < sizeof(lenovo_smid) / sizeof(u16); i++) {
+		for (i = 0; i < ARRAY_SIZE(lenovo_smid); i++) {
 			if (rtlefuse->eeprom_smid == lenovo_smid[i]) {
 				is_lenovo_smid = true;
 				break;

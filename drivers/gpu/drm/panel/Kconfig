@@ -7,6 +7,16 @@ config DRM_PANEL
 menu "Display Panels"
 	depends on DRM && DRM_PANEL
 
+config DRM_PANEL_ARM_VERSATILE
+	tristate "ARM Versatile panel driver"
+	depends on OF
+	depends on MFD_SYSCON
+	select VIDEOMODE_HELPERS
+	help
+	  This driver supports the ARM Versatile panels connected to ARM
+	  reference designs. The panel is detected using special registers
+	  in the Versatile family syscon registers.
+
 config DRM_PANEL_LVDS
 	tristate "Generic LVDS panel driver"
 	depends on OF

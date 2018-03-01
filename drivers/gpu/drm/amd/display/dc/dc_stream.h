@@ -65,6 +65,7 @@ struct dc_stream_state {
 	enum dc_dither_option dither_option;
 
 	enum view_3d_format view_format;
+	enum color_transfer_func output_tf;
 
 	bool ignore_msa_timing_param;
 	/* TODO: custom INFO packets */
@@ -103,6 +104,7 @@ struct dc_stream_update {
 	struct rect dst;
 	struct dc_transfer_func *out_transfer_func;
 	struct dc_hdr_static_metadata *hdr_static_metadata;
+	enum color_transfer_func color_output_tf;
 };
 
 bool dc_is_stream_unchanged(
@@ -152,7 +154,7 @@ struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i);
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream);
 
 /* TODO: Return parsed values rather than direct register read
- * This has a dependency on the caller (amdgpu_get_crtc_scanoutpos)
+ * This has a dependency on the caller (amdgpu_display_get_crtc_scanoutpos)
  * being refactored properly to be dce-specific
  */
 bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
@@ -237,6 +239,8 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
  */
 struct dc_stream_state *dc_create_stream_for_sink(struct dc_sink *dc_sink);
 
+void update_stream_signal(struct dc_stream_state *stream);
+
 void dc_stream_retain(struct dc_stream_state *dc_stream);
 void dc_stream_release(struct dc_stream_state *dc_stream);
 
@@ -267,10 +271,24 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 				 unsigned int *v_pos,
 				 unsigned int *nom_v_pos);
 
+bool dc_stream_configure_crc(struct dc *dc,
+			     struct dc_stream_state *stream,
+			     bool enable,
+			     bool continuous);
+
+bool dc_stream_get_crc(struct dc *dc,
+		       struct dc_stream_state *stream,
+		       uint32_t *r_cr,
+		       uint32_t *g_y,
+		       uint32_t *b_cb);
+
 void dc_stream_set_static_screen_events(struct dc *dc,
 					struct dc_stream_state **stream,
 					int num_streams,
 					const struct dc_static_screen_events *events);
+
+void dc_stream_set_dither_option(struct dc_stream_state *stream,
+				 enum dc_dither_option option);
 
 
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,

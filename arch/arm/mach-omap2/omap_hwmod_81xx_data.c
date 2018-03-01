@@ -988,7 +988,7 @@ static struct omap_hwmod_class dm81xx_sata_hwmod_class = {
 
 static struct omap_hwmod dm81xx_sata_hwmod = {
 	.name		= "sata",
-	.clkdm_name	= "default_sata_clkdm",
+	.clkdm_name	= "default_clkdm",
 	.flags		= HWMOD_NO_IDLEST,
 	.prcm = {
 		.omap4 = {

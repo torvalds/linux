@@ -1248,7 +1248,7 @@ static inline bool iwl_mvm_has_new_tx_api(struct iwl_mvm *mvm)
 static inline bool iwl_mvm_has_unified_ucode(struct iwl_mvm *mvm)
 {
 	/* TODO - better define this */
-	return mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_A000;
+	return mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000;
 }
 
 static inline bool iwl_mvm_is_cdb_supported(struct iwl_mvm *mvm)
@@ -1272,16 +1272,16 @@ static inline bool iwl_mvm_has_new_rx_stats_api(struct iwl_mvm *mvm)
 			  IWL_UCODE_TLV_API_NEW_RX_STATS);
 }
 
-static inline bool iwl_mvm_has_new_ats_coex_api(struct iwl_mvm *mvm)
-{
-	return fw_has_api(&mvm->fw->ucode_capa,
-			  IWL_UCODE_TLV_API_COEX_ATS_EXTERNAL);
-}
-
 static inline bool iwl_mvm_has_quota_low_latency(struct iwl_mvm *mvm)
 {
 	return fw_has_api(&mvm->fw->ucode_capa,
 			  IWL_UCODE_TLV_API_QUOTA_LOW_LATENCY);
+}
+
+static inline bool iwl_mvm_has_tlc_offload(const struct iwl_mvm *mvm)
+{
+	return fw_has_capa(&mvm->fw->ucode_capa,
+			   IWL_UCODE_TLV_CAPA_TLC_OFFLOAD);
 }
 
 static inline struct agg_tx_status *
@@ -1600,9 +1600,9 @@ iwl_mvm_vif_dbgfs_clean(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 /* rate scaling */
 int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init);
 void iwl_mvm_update_frame_stats(struct iwl_mvm *mvm, u32 rate, bool agg);
-int rs_pretty_print_rate(char *buf, const u32 rate);
+int rs_pretty_print_rate(char *buf, int bufsz, const u32 rate);
 void rs_update_last_rssi(struct iwl_mvm *mvm,
-			 struct iwl_lq_sta *lq_sta,
+			 struct iwl_mvm_sta *mvmsta,
 			 struct ieee80211_rx_status *rx_status);
 
 /* power management */
@@ -1882,5 +1882,11 @@ void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void iwl_mvm_sta_add_debugfs(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_sta *sta,
+			     struct dentry *dir);
+#endif
 
 #endif /* __IWL_MVM_H__ */

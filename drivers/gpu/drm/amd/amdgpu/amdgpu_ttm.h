@@ -86,7 +86,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 			       struct reservation_object *resv,
 			       struct dma_fence **f);
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
-			uint64_t src_data,
+			uint32_t src_data,
 			struct reservation_object *resv,
 			struct dma_fence **fence);
 

@@ -154,6 +154,24 @@ function_trace_call(unsigned long ip, unsigned long parent_ip,
 	preempt_enable_notrace();
 }
 
+#ifdef CONFIG_UNWINDER_ORC
+/*
+ * Skip 2:
+ *
+ *   function_stack_trace_call()
+ *   ftrace_call()
+ */
+#define STACK_SKIP 2
+#else
+/*
+ * Skip 3:
+ *   __trace_stack()
+ *   function_stack_trace_call()
+ *   ftrace_call()
+ */
+#define STACK_SKIP 3
+#endif
+
 static void
 function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 			  struct ftrace_ops *op, struct pt_regs *pt_regs)
@@ -180,15 +198,7 @@ function_stack_trace_call(unsigned long ip, unsigned long parent_ip,
 	if (likely(disabled == 1)) {
 		pc = preempt_count();
 		trace_function(tr, ip, parent_ip, flags, pc);
-		/*
-		 * skip over 5 funcs:
-		 *    __ftrace_trace_stack,
-		 *    __trace_stack,
-		 *    function_stack_trace_call
-		 *    ftrace_list_func
-		 *    ftrace_call
-		 */
-		__trace_stack(tr, flags, 5, pc);
+		__trace_stack(tr, flags, STACK_SKIP, pc);
 	}
 
 	atomic_dec(&data->disabled);
@@ -367,14 +377,27 @@ ftrace_traceoff(unsigned long ip, unsigned long parent_ip,
 	tracer_tracing_off(tr);
 }
 
+#ifdef CONFIG_UNWINDER_ORC
 /*
- * Skip 4:
- *   ftrace_stacktrace()
+ * Skip 3:
+ *
  *   function_trace_probe_call()
- *   ftrace_ops_list_func()
+ *   ftrace_ops_assist_func()
  *   ftrace_call()
  */
-#define STACK_SKIP 4
+#define FTRACE_STACK_SKIP 3
+#else
+/*
+ * Skip 5:
+ *
+ *   __trace_stack()
+ *   ftrace_stacktrace()
+ *   function_trace_probe_call()
+ *   ftrace_ops_assist_func()
+ *   ftrace_call()
+ */
+#define FTRACE_STACK_SKIP 5
+#endif
 
 static __always_inline void trace_stack(struct trace_array *tr)
 {
@@ -384,7 +407,7 @@ static __always_inline void trace_stack(struct trace_array *tr)
 	local_save_flags(flags);
 	pc = preempt_count();
 
-	__trace_stack(tr, flags, STACK_SKIP, pc);
+	__trace_stack(tr, flags, FTRACE_STACK_SKIP, pc);
 }
 
 static void

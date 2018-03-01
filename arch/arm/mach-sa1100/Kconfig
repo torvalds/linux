@@ -5,6 +5,7 @@ menu "SA11x0 Implementations"
 config SA1100_ASSABET
 	bool "Assabet"
 	select ARM_SA1110_CPUFREQ
+	select GPIO_REG
 	help
 	  Say Y here if you are using the Intel(R) StrongARM(R) SA-1110
 	  Microprocessor Development Board (also known as the Assabet).

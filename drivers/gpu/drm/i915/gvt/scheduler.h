@@ -141,6 +141,7 @@ void intel_vgpu_reset_submission(struct intel_vgpu *vgpu,
 void intel_vgpu_clean_submission(struct intel_vgpu *vgpu);
 
 int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
+				     unsigned long engine_mask,
 				     unsigned int interface);
 
 extern const struct intel_vgpu_submission_ops

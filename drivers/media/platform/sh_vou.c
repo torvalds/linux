@@ -1181,7 +1181,7 @@ static int sh_vou_release(struct file *file)
 
 /* sh_vou display ioctl operations */
 static const struct v4l2_ioctl_ops sh_vou_ioctl_ops = {
-	.vidioc_querycap        	= sh_vou_querycap,
+	.vidioc_querycap		= sh_vou_querycap,
 	.vidioc_enum_fmt_vid_out	= sh_vou_enum_fmt_vid_out,
 	.vidioc_g_fmt_vid_out		= sh_vou_g_fmt_vid_out,
 	.vidioc_s_fmt_vid_out		= sh_vou_s_fmt_vid_out,

@@ -69,7 +69,7 @@ Optional properties:
   - nuvoton,jack-insert-debounce: number from 0 to 7 that sets debounce time to 2^(n+2) ms
   - nuvoton,jack-eject-debounce: number from 0 to 7 that sets debounce time to 2^(n+2) ms
 
-  - nuvoton,crosstalk-bypass: make crosstalk function bypass if set.
+  - nuvoton,crosstalk-enable: make crosstalk function enable if set.
 
   - clocks: list of phandle and clock specifier pairs according to common clock bindings for the
       clocks described in clock-names
@@ -98,7 +98,7 @@ Example:
       nuvoton,short-key-debounce = <2>;
       nuvoton,jack-insert-debounce = <7>;
       nuvoton,jack-eject-debounce = <7>;
-      nuvoton,crosstalk-bypass;
+      nuvoton,crosstalk-enable;
 
       clock-names = "mclk";
       clocks = <&tegra_car TEGRA210_CLK_CLK_OUT_2>;

@@ -1,0 +1,4 @@
+The ipx code will be removed soon from the kernel tree as it is old and
+obsolete and broken.
+
+Don't worry about fixing up anything here, it's not needed.

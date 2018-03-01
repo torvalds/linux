@@ -831,9 +831,6 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->drm_dev = drm;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores)
-		return -ENXIO;
-
 	hdmi->regs = devm_ioremap_resource(dev, iores);
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);

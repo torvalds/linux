@@ -82,13 +82,6 @@
 #define DCE110_DIG_FE_SOURCE_SELECT_DIGF 0x20
 #define DCE110_DIG_FE_SOURCE_SELECT_DIGG 0x40
 
-/* Minimum pixel clock, in KHz. For TMDS signal is 25.00 MHz */
-#define TMDS_MIN_PIXEL_CLOCK 25000
-/* Maximum pixel clock, in KHz. For TMDS signal is 165.00 MHz */
-#define TMDS_MAX_PIXEL_CLOCK 165000
-/* For current ASICs pixel clock - 600MHz */
-#define MAX_ENCODER_CLOCK 600000
-
 enum {
 	DP_MST_UPDATE_MAX_RETRY = 50
 };
@@ -828,6 +821,9 @@ void dce110_link_encoder_hw_init(
 	cntl.coherent = false;
 	cntl.hpd_sel = enc110->base.hpd_source;
 
+	if (enc110->base.connector.id == CONNECTOR_ID_EDP)
+		cntl.signal = SIGNAL_TYPE_EDP;
+
 	result = link_transmitter_control(enc110, &cntl);
 
 	if (result != BP_RESULT_OK) {
@@ -904,8 +900,7 @@ void dce110_link_encoder_enable_tmds_output(
 	struct link_encoder *enc,
 	enum clock_source_id clock_source,
 	enum dc_color_depth color_depth,
-	bool hdmi,
-	bool dual_link,
+	enum signal_type signal,
 	uint32_t pixel_clock)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
@@ -919,16 +914,12 @@ void dce110_link_encoder_enable_tmds_output(
 	cntl.engine_id = enc->preferred_engine;
 	cntl.transmitter = enc110->base.transmitter;
 	cntl.pll_id = clock_source;
-	if (hdmi) {
-		cntl.signal = SIGNAL_TYPE_HDMI_TYPE_A;
-		cntl.lanes_number = 4;
-	} else if (dual_link) {
-		cntl.signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+	cntl.signal = signal;
+	if (cntl.signal == SIGNAL_TYPE_DVI_DUAL_LINK)
 		cntl.lanes_number = 8;
-	} else {
-		cntl.signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+	else
 		cntl.lanes_number = 4;
-	}
+
 	cntl.hpd_sel = enc110->base.hpd_source;
 
 	cntl.pixel_clock = pixel_clock;

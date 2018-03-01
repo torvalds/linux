@@ -82,7 +82,6 @@ struct intel_gvt_device_info {
 struct intel_vgpu_gm {
 	u64 aperture_sz;
 	u64 hidden_sz;
-	void *aperture_va;
 	struct drm_mm_node low_gm_node;
 	struct drm_mm_node high_gm_node;
 };
@@ -127,7 +126,6 @@ struct intel_vgpu_irq {
 struct intel_vgpu_opregion {
 	bool mapped;
 	void *va;
-	void *va_gopregion;
 	u32 gfn[INTEL_GVT_OPREGION_PAGES];
 };
 
@@ -152,8 +150,8 @@ enum {
 
 struct intel_vgpu_submission_ops {
 	const char *name;
-	int (*init)(struct intel_vgpu *vgpu);
-	void (*clean)(struct intel_vgpu *vgpu);
+	int (*init)(struct intel_vgpu *vgpu, unsigned long engine_mask);
+	void (*clean)(struct intel_vgpu *vgpu, unsigned long engine_mask);
 	void (*reset)(struct intel_vgpu *vgpu, unsigned long engine_mask);
 };
 

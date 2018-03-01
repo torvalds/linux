@@ -474,7 +474,8 @@ static int agp_serverworks_probe(struct pci_dev *pdev,
 	}
 
 	/* Everything is on func 1 here so we are hardcoding function one */
-	bridge_dev = pci_get_bus_and_slot((unsigned int)pdev->bus->number,
+	bridge_dev = pci_get_domain_bus_and_slot(pci_domain_nr(pdev->bus),
+			(unsigned int)pdev->bus->number,
 			PCI_DEVFN(0, 1));
 	if (!bridge_dev) {
 		dev_info(&pdev->dev, "can't find secondary device\n");

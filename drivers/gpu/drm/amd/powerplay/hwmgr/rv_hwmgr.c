@@ -451,6 +451,9 @@ static int rv_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
 
+	hwmgr->pstate_sclk = RAVEN_UMD_PSTATE_GFXCLK;
+	hwmgr->pstate_mclk = RAVEN_UMD_PSTATE_FCLK;
+
 	return result;
 }
 
@@ -1023,6 +1026,11 @@ static int rv_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	return ret;
 }
 
+static int rv_set_mmhub_powergating_by_smu(struct pp_hwmgr *hwmgr)
+{
+	return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_PowerGateMmHub);
+}
+
 static const struct pp_hwmgr_func rv_hwmgr_funcs = {
 	.backend_init = rv_hwmgr_backend_init,
 	.backend_fini = rv_hwmgr_backend_fini,
@@ -1056,6 +1064,7 @@ static const struct pp_hwmgr_func rv_hwmgr_funcs = {
 	.asic_setup = rv_setup_asic_task,
 	.power_state_set = rv_set_power_state_tasks,
 	.dynamic_state_management_disable = rv_disable_dpm_tasks,
+	.set_mmhub_powergating_by_smu = rv_set_mmhub_powergating_by_smu,
 };
 
 int rv_init_function_pointers(struct pp_hwmgr *hwmgr)

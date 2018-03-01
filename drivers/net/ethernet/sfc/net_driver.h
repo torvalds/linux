@@ -191,6 +191,7 @@ struct efx_tx_buffer {
  *	Size of the region is efx_piobuf_size.
  * @piobuf_offset: Buffer offset to be specified in PIO descriptors
  * @initialised: Has hardware queue been initialised?
+ * @timestamping: Is timestamping enabled for this channel?
  * @handle_tso: TSO xmit preparation handler.  Sets up the TSO metadata and
  *	may also map tx data, depending on the nature of the TSO implementation.
  * @read_count: Current read pointer.
@@ -202,6 +203,10 @@ struct efx_tx_buffer {
  *	avoid cache-line ping-pong between the xmit path and the
  *	completion path.
  * @merge_events: Number of TX merged completion events
+ * @completed_desc_ptr: Most recent completed pointer - only used with
+ *      timestamping.
+ * @completed_timestamp_major: Top part of the most recent tx timestamp.
+ * @completed_timestamp_minor: Low part of the most recent tx timestamp.
  * @insert_count: Current insert pointer
  *	This is the number of buffers that have been added to the
  *	software ring.
@@ -247,6 +252,7 @@ struct efx_tx_queue {
 	void __iomem *piobuf;
 	unsigned int piobuf_offset;
 	bool initialised;
+	bool timestamping;
 
 	/* Function pointers used in the fast path. */
 	int (*handle_tso)(struct efx_tx_queue*, struct sk_buff*, bool *);
@@ -257,6 +263,9 @@ struct efx_tx_queue {
 	unsigned int merge_events;
 	unsigned int bytes_compl;
 	unsigned int pkts_compl;
+	unsigned int completed_desc_ptr;
+	u32 completed_timestamp_major;
+	u32 completed_timestamp_minor;
 
 	/* Members used only on the xmit path */
 	unsigned int insert_count ____cacheline_aligned_in_smp;
@@ -522,8 +531,12 @@ struct efx_msi_context {
  * @copy: Copy the channel state prior to reallocation.  May be %NULL if
  *	reallocation is not supported.
  * @receive_skb: Handle an skb ready to be passed to netif_receive_skb()
+ * @want_txqs: Determine whether this channel should have TX queues
+ *	created.  If %NULL, TX queues are not created.
  * @keep_eventq: Flag for whether event queue should be kept initialised
  *	while the device is stopped
+ * @want_pio: Flag for whether PIO buffers should be linked to this
+ *	channel's TX queues.
  */
 struct efx_channel_type {
 	void (*handle_no_channel)(struct efx_nic *);
@@ -532,7 +545,9 @@ struct efx_channel_type {
 	void (*get_name)(struct efx_channel *, char *buf, size_t len);
 	struct efx_channel *(*copy)(const struct efx_channel *);
 	bool (*receive_skb)(struct efx_channel *, struct sk_buff *);
+	bool (*want_txqs)(struct efx_channel *);
 	bool keep_eventq;
+	bool want_pio;
 };
 
 enum efx_led_mode {
@@ -708,6 +723,7 @@ struct vfdi_status;
  * @reset_work: Scheduled reset workitem
  * @membase_phys: Memory BAR value as physical address
  * @membase: Memory BAR value
+ * @vi_stride: step between per-VI registers / memory regions
  * @interrupt_mode: Interrupt mode
  * @timer_quantum_ns: Interrupt timer quantum, in nanoseconds
  * @timer_max_ns: Interrupt timer maximum value, in nanoseconds
@@ -734,6 +750,7 @@ struct vfdi_status;
  * @n_channels: Number of channels in use
  * @n_rx_channels: Number of channels used for RX (= number of RX queues)
  * @n_tx_channels: Number of channels used for TX
+ * @n_extra_tx_channels: Number of extra channels with TX queues
  * @rx_ip_align: RX DMA address offset to have IP header aligned in
  *	in accordance with NET_IP_ALIGN
  * @rx_dma_len: Current maximum RX DMA length
@@ -773,6 +790,8 @@ struct vfdi_status;
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
  * @fixed_features: Features which cannot be turned off
+ * @num_mac_stats: Number of MAC stats reported by firmware (MAC_STATS_NUM_STATS
+ *	field of %MC_CMD_GET_CAPABILITIES_V4 response, or %MC_CMD_MAC_NSTATS)
  * @stats_buffer: DMA buffer for statistics
  * @phy_type: PHY type
  * @phy_op: PHY interface
@@ -812,6 +831,7 @@ struct vfdi_status;
  * @vf_init_count: Number of VFs that have been fully initialised.
  * @vi_scale: log2 number of vnics per VF.
  * @ptp_data: PTP state data
+ * @ptp_warned: has this NIC seen and warned about unexpected PTP events?
  * @vpd_sn: Serial number read from VPD
  * @monitor_work: Hardware monitor workitem
  * @biu_lock: BIU (bus interface unit) lock
@@ -841,6 +861,8 @@ struct efx_nic {
 	struct work_struct reset_work;
 	resource_size_t membase_phys;
 	void __iomem *membase;
+
+	unsigned int vi_stride;
 
 	enum efx_int_mode interrupt_mode;
 	unsigned int timer_quantum_ns;
@@ -875,6 +897,7 @@ struct efx_nic {
 	unsigned rss_spread;
 	unsigned tx_channel_offset;
 	unsigned n_tx_channels;
+	unsigned n_extra_tx_channels;
 	unsigned int rx_ip_align;
 	unsigned int rx_dma_len;
 	unsigned int rx_buffer_order;
@@ -918,6 +941,7 @@ struct efx_nic {
 
 	netdev_features_t fixed_features;
 
+	u16 num_mac_stats;
 	struct efx_buffer stats_buffer;
 	u64 rx_nodesc_drops_total;
 	u64 rx_nodesc_drops_while_down;
@@ -930,7 +954,7 @@ struct efx_nic {
 	unsigned int mdio_bus;
 	enum efx_phy_mode phy_mode;
 
-	u32 link_advertising;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(link_advertising);
 	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;
 
@@ -965,6 +989,7 @@ struct efx_nic {
 #endif
 
 	struct efx_ptp_data *ptp_data;
+	bool ptp_warned;
 
 	char *vpd_sn;
 
@@ -1154,7 +1179,7 @@ struct efx_udp_tunnel {
  */
 struct efx_nic_type {
 	bool is_vf;
-	unsigned int mem_bar;
+	unsigned int (*mem_bar)(struct efx_nic *efx);
 	unsigned int (*mem_map_size)(struct efx_nic *efx);
 	int (*probe)(struct efx_nic *efx);
 	void (*remove)(struct efx_nic *efx);
@@ -1355,8 +1380,8 @@ efx_get_tx_queue(struct efx_nic *efx, unsigned index, unsigned type)
 
 static inline bool efx_channel_has_tx_queues(struct efx_channel *channel)
 {
-	return channel->channel - channel->efx->tx_channel_offset <
-		channel->efx->n_tx_channels;
+	return channel->type && channel->type->want_txqs &&
+				channel->type->want_txqs(channel);
 }
 
 static inline struct efx_tx_queue *

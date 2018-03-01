@@ -637,6 +637,7 @@ static void uld_init(struct adapter *adap, struct cxgb4_lld_info *lld)
 	lld->nchan = adap->params.nports;
 	lld->nports = adap->params.nports;
 	lld->wr_cred = adap->params.ofldq_wr_cred;
+	lld->crypto = adap->params.crypto;
 	lld->iscsi_iolen = MAXRXDATA_G(t4_read_reg(adap, TP_PARA_REG2_A));
 	lld->iscsi_tagmask = t4_read_reg(adap, ULP_RX_ISCSI_TAGMASK_A);
 	lld->iscsi_pgsz_order = t4_read_reg(adap, ULP_RX_ISCSI_PSZ_A);

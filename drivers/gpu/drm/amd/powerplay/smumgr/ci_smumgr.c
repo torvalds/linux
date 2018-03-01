@@ -411,8 +411,7 @@ static uint8_t ci_get_sleep_divider_id_from_clock(uint32_t clock,
 }
 
 static int ci_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
-		uint32_t clock, uint16_t sclk_al_threshold,
-		struct SMU7_Discrete_GraphicsLevel *level)
+		uint32_t clock, struct SMU7_Discrete_GraphicsLevel *level)
 {
 	int result;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -438,14 +437,14 @@ static int ci_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 				clock,
 				&level->MinVddcPhases);
 
-	level->ActivityLevel = sclk_al_threshold;
+	level->ActivityLevel = data->current_profile_setting.sclk_activity;
 	level->CcPwrDynRm = 0;
 	level->CcPwrDynRm1 = 0;
 	level->EnabledForActivity = 0;
 	/* this level can be used for throttling.*/
 	level->EnabledForThrottle = 1;
-	level->UpH = 0;
-	level->DownH = 0;
+	level->UpH = data->current_profile_setting.sclk_up_hyst;
+	level->DownH = data->current_profile_setting.sclk_down_hyst;
 	level->VoltageDownH = 0;
 	level->PowerThrottle = 0;
 
@@ -492,7 +491,6 @@ static int ci_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = ci_populate_single_graphic_level(hwmgr,
 				dpm_table->sclk_table.dpm_levels[i].value,
-				(uint16_t)smu_data->activity_target[i],
 				&levels[i]);
 		if (result)
 			return result;
@@ -860,10 +858,13 @@ static int ci_populate_smc_vddc_table(struct pp_hwmgr *hwmgr,
 		PP_ASSERT_WITH_CODE(0 == result, "do not populate SMC VDDC voltage table", return -EINVAL);
 
 		/* GPIO voltage control */
-		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->voltage_control)
-			table->VddcLevel[count].Smio |= data->vddc_voltage_table.entries[count].smio_low;
-		else
+		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->voltage_control) {
+			table->VddcLevel[count].Smio = (uint8_t) count;
+			table->Smio[count] |= data->vddc_voltage_table.entries[count].smio_low;
+			table->SmioMaskVddcVid |= data->vddc_voltage_table.entries[count].smio_low;
+		} else {
 			table->VddcLevel[count].Smio = 0;
+		}
 	}
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->VddcLevelCount);
@@ -885,10 +886,13 @@ static int ci_populate_smc_vdd_ci_table(struct pp_hwmgr *hwmgr,
 				&(data->vddci_voltage_table.entries[count]),
 				&(table->VddciLevel[count]));
 		PP_ASSERT_WITH_CODE(result == 0, "do not populate SMC VDDCI voltage table", return -EINVAL);
-		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control)
-			table->VddciLevel[count].Smio |= data->vddci_voltage_table.entries[count].smio_low;
-		else
-			table->VddciLevel[count].Smio |= 0;
+		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
+			table->VddciLevel[count].Smio = (uint8_t) count;
+			table->Smio[count] |= data->vddci_voltage_table.entries[count].smio_low;
+			table->SmioMaskVddciVid |= data->vddci_voltage_table.entries[count].smio_low;
+		} else {
+			table->VddciLevel[count].Smio = 0;
+		}
 	}
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->VddciLevelCount);
@@ -910,10 +914,13 @@ static int ci_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 				&(data->mvdd_voltage_table.entries[count]),
 				&table->MvddLevel[count]);
 		PP_ASSERT_WITH_CODE(result == 0, "do not populate SMC mvdd voltage table", return -EINVAL);
-		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control)
-			table->MvddLevel[count].Smio |= data->mvdd_voltage_table.entries[count].smio_low;
-		else
-			table->MvddLevel[count].Smio |= 0;
+		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
+			table->MvddLevel[count].Smio = (uint8_t) count;
+			table->Smio[count] |= data->mvdd_voltage_table.entries[count].smio_low;
+			table->SmioMaskMvddVid |= data->mvdd_voltage_table.entries[count].smio_low;
+		} else {
+			table->MvddLevel[count].Smio = 0;
+		}
 	}
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->MvddLevelCount);
@@ -1217,12 +1224,12 @@ static int ci_populate_single_memory_level(
 
 	memory_level->EnabledForThrottle = 1;
 	memory_level->EnabledForActivity = 1;
-	memory_level->UpH = 0;
-	memory_level->DownH = 100;
+	memory_level->UpH = data->current_profile_setting.mclk_up_hyst;
+	memory_level->DownH = data->current_profile_setting.mclk_down_hyst;
 	memory_level->VoltageDownH = 0;
 
 	/* Indicates maximum activity level for this performance level.*/
-	memory_level->ActivityLevel = (uint16_t)data->mclk_activity_target;
+	memory_level->ActivityLevel = data->current_profile_setting.mclk_activity;
 	memory_level->StutterEnable = 0;
 	memory_level->StrobeEnable = 0;
 	memory_level->EdcReadEnable = 0;
@@ -1506,7 +1513,7 @@ static int ci_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.DownH = 100;
 	table->MemoryACPILevel.VoltageDownH = 0;
 	/* Indicates maximum activity level for this performance level.*/
-	table->MemoryACPILevel.ActivityLevel = PP_HOST_TO_SMC_US((uint16_t)data->mclk_activity_target);
+	table->MemoryACPILevel.ActivityLevel = PP_HOST_TO_SMC_US(data->current_profile_setting.mclk_activity);
 
 	table->MemoryACPILevel.StutterEnable = 0;
 	table->MemoryACPILevel.StrobeEnable = 0;
@@ -1941,6 +1948,37 @@ static int ci_start_smc(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int ci_populate_vr_config(struct pp_hwmgr *hwmgr, SMU7_Discrete_DpmTable *table)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	uint16_t config;
+
+	config = VR_SVI2_PLANE_1;
+	table->VRConfig |= (config<<VRCONF_VDDGFX_SHIFT);
+
+	if (SMU7_VOLTAGE_CONTROL_BY_SVID2 == data->voltage_control) {
+		config = VR_SVI2_PLANE_2;
+		table->VRConfig |= config;
+	} else {
+		pr_info("VDDCshould be on SVI2 controller!");
+	}
+
+	if (SMU7_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control) {
+		config = VR_SVI2_PLANE_2;
+		table->VRConfig |= (config<<VRCONF_VDDCI_SHIFT);
+	} else if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control) {
+		config = VR_SMIO_PATTERN_1;
+		table->VRConfig |= (config<<VRCONF_VDDCI_SHIFT);
+	}
+
+	if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->mvdd_control) {
+		config = VR_SMIO_PATTERN_2;
+		table->VRConfig |= (config<<VRCONF_MVDD_SHIFT);
+	}
+
+	return 0;
+}
+
 static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
@@ -2064,6 +2102,11 @@ static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->PCIeBootLinkLevel = (uint8_t)data->dpm_table.pcie_speed_table.count;
 	table->PCIeGenInterval = 1;
 
+	result = ci_populate_vr_config(hwmgr, table);
+	PP_ASSERT_WITH_CODE(0 == result,
+			"Failed to populate VRConfig setting!", return result);
+	data->vr_config = table->VRConfig;
+
 	ci_populate_smc_svi2_config(hwmgr, table);
 
 	for (i = 0; i < SMU7_MAX_ENTRIES_SMIO; i++)
@@ -2084,6 +2127,7 @@ static int ci_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->AcDcGpio = SMU7_UNUSED_GPIO_PIN;
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SystemFlags);
+	CONVERT_FROM_HOST_TO_SMC_UL(table->VRConfig);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMaskVddcVid);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMaskVddcPhase);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMaskVddciVid);
@@ -2756,16 +2800,12 @@ static int ci_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
 
 static int ci_smu_init(struct pp_hwmgr *hwmgr)
 {
-	int i;
 	struct ci_smumgr *ci_priv = NULL;
 
 	ci_priv = kzalloc(sizeof(struct ci_smumgr), GFP_KERNEL);
 
 	if (ci_priv == NULL)
 		return -ENOMEM;
-
-	for (i = 0; i < SMU7_MAX_LEVELS_GRAPHICS; i++)
-		ci_priv->activity_target[i] = 30;
 
 	hwmgr->smu_backend = ci_priv;
 

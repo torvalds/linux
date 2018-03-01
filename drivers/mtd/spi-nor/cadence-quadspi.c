@@ -58,6 +58,7 @@ struct cqspi_flash_pdata {
 	u8		data_width;
 	u8		cs;
 	bool		registered;
+	bool		use_direct_mode;
 };
 
 struct cqspi_st {
@@ -68,6 +69,7 @@ struct cqspi_st {
 
 	void __iomem		*iobase;
 	void __iomem		*ahb_base;
+	resource_size_t		ahb_size;
 	struct completion	transfer_complete;
 	struct mutex		bus_mutex;
 
@@ -103,6 +105,7 @@ struct cqspi_st {
 /* Register map */
 #define CQSPI_REG_CONFIG			0x00
 #define CQSPI_REG_CONFIG_ENABLE_MASK		BIT(0)
+#define CQSPI_REG_CONFIG_ENB_DIR_ACC_CTRL	BIT(7)
 #define CQSPI_REG_CONFIG_DECODE_MASK		BIT(9)
 #define CQSPI_REG_CONFIG_CHIPSELECT_LSB		10
 #define CQSPI_REG_CONFIG_DMA_MASK		BIT(15)
@@ -450,16 +453,13 @@ static int cqspi_command_write_addr(struct spi_nor *nor,
 	return cqspi_exec_flash_cmd(cqspi, reg);
 }
 
-static int cqspi_indirect_read_setup(struct spi_nor *nor,
-				     const unsigned int from_addr)
+static int cqspi_read_setup(struct spi_nor *nor)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;
 	void __iomem *reg_base = cqspi->iobase;
 	unsigned int dummy_clk = 0;
 	unsigned int reg;
-
-	writel(from_addr, reg_base + CQSPI_REG_INDIRECTRDSTARTADDR);
 
 	reg = nor->read_opcode << CQSPI_REG_RD_INSTR_OPCODE_LSB;
 	reg |= cqspi_calc_rdreg(nor, nor->read_opcode);
@@ -493,8 +493,8 @@ static int cqspi_indirect_read_setup(struct spi_nor *nor,
 	return 0;
 }
 
-static int cqspi_indirect_read_execute(struct spi_nor *nor,
-				       u8 *rxbuf, const unsigned n_rx)
+static int cqspi_indirect_read_execute(struct spi_nor *nor, u8 *rxbuf,
+				       loff_t from_addr, const size_t n_rx)
 {
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
 	struct cqspi_st *cqspi = f_pdata->cqspi;
@@ -504,6 +504,7 @@ static int cqspi_indirect_read_execute(struct spi_nor *nor,
 	unsigned int bytes_to_read = 0;
 	int ret = 0;
 
+	writel(from_addr, reg_base + CQSPI_REG_INDIRECTRDSTARTADDR);
 	writel(remaining, reg_base + CQSPI_REG_INDIRECTRDBYTES);
 
 	/* Clear all interrupts. */
@@ -570,8 +571,7 @@ failrd:
 	return ret;
 }
 
-static int cqspi_indirect_write_setup(struct spi_nor *nor,
-				      const unsigned int to_addr)
+static int cqspi_write_setup(struct spi_nor *nor)
 {
 	unsigned int reg;
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
@@ -584,8 +584,6 @@ static int cqspi_indirect_write_setup(struct spi_nor *nor,
 	reg = cqspi_calc_rdreg(nor, nor->program_opcode);
 	writel(reg, reg_base + CQSPI_REG_RD_INSTR);
 
-	writel(to_addr, reg_base + CQSPI_REG_INDIRECTWRSTARTADDR);
-
 	reg = readl(reg_base + CQSPI_REG_SIZE);
 	reg &= ~CQSPI_REG_SIZE_ADDRESS_MASK;
 	reg |= (nor->addr_width - 1);
@@ -593,8 +591,8 @@ static int cqspi_indirect_write_setup(struct spi_nor *nor,
 	return 0;
 }
 
-static int cqspi_indirect_write_execute(struct spi_nor *nor,
-					const u8 *txbuf, const unsigned n_tx)
+static int cqspi_indirect_write_execute(struct spi_nor *nor, loff_t to_addr,
+					const u8 *txbuf, const size_t n_tx)
 {
 	const unsigned int page_size = nor->page_size;
 	struct cqspi_flash_pdata *f_pdata = nor->priv;
@@ -604,6 +602,7 @@ static int cqspi_indirect_write_execute(struct spi_nor *nor,
 	unsigned int write_bytes;
 	int ret;
 
+	writel(to_addr, reg_base + CQSPI_REG_INDIRECTWRSTARTADDR);
 	writel(remaining, reg_base + CQSPI_REG_INDIRECTWRBYTES);
 
 	/* Clear all interrupts. */
@@ -894,17 +893,22 @@ static int cqspi_set_protocol(struct spi_nor *nor, const int read)
 static ssize_t cqspi_write(struct spi_nor *nor, loff_t to,
 			   size_t len, const u_char *buf)
 {
+	struct cqspi_flash_pdata *f_pdata = nor->priv;
+	struct cqspi_st *cqspi = f_pdata->cqspi;
 	int ret;
 
 	ret = cqspi_set_protocol(nor, 0);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_write_setup(nor, to);
+	ret = cqspi_write_setup(nor);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_write_execute(nor, buf, len);
+	if (f_pdata->use_direct_mode)
+		memcpy_toio(cqspi->ahb_base + to, buf, len);
+	else
+		ret = cqspi_indirect_write_execute(nor, to, buf, len);
 	if (ret)
 		return ret;
 
@@ -914,17 +918,22 @@ static ssize_t cqspi_write(struct spi_nor *nor, loff_t to,
 static ssize_t cqspi_read(struct spi_nor *nor, loff_t from,
 			  size_t len, u_char *buf)
 {
+	struct cqspi_flash_pdata *f_pdata = nor->priv;
+	struct cqspi_st *cqspi = f_pdata->cqspi;
 	int ret;
 
 	ret = cqspi_set_protocol(nor, 1);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_read_setup(nor, from);
+	ret = cqspi_read_setup(nor);
 	if (ret)
 		return ret;
 
-	ret = cqspi_indirect_read_execute(nor, buf, len);
+	if (f_pdata->use_direct_mode)
+		memcpy_fromio(buf, cqspi->ahb_base + from, len);
+	else
+		ret = cqspi_indirect_read_execute(nor, buf, from, len);
 	if (ret)
 		return ret;
 
@@ -1059,6 +1068,8 @@ static int cqspi_of_get_pdata(struct platform_device *pdev)
 
 static void cqspi_controller_init(struct cqspi_st *cqspi)
 {
+	u32 reg;
+
 	cqspi_controller_enable(cqspi, 0);
 
 	/* Configure the remap address register, no remap */
@@ -1080,6 +1091,11 @@ static void cqspi_controller_init(struct cqspi_st *cqspi)
 	/* Program write watermark -- 1/8 of the FIFO. */
 	writel(cqspi->fifo_depth * cqspi->fifo_width / 8,
 	       cqspi->iobase + CQSPI_REG_INDIRECTWRWATERMARK);
+
+	/* Enable Direct Access Controller */
+	reg = readl(cqspi->iobase + CQSPI_REG_CONFIG);
+	reg |= CQSPI_REG_CONFIG_ENB_DIR_ACC_CTRL;
+	writel(reg, cqspi->iobase + CQSPI_REG_CONFIG);
 
 	cqspi_controller_enable(cqspi, 1);
 }
@@ -1156,6 +1172,12 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi, struct device_node *np)
 			goto err;
 
 		f_pdata->registered = true;
+
+		if (mtd->size <= cqspi->ahb_size) {
+			f_pdata->use_direct_mode = true;
+			dev_dbg(nor->dev, "using direct mode for %s\n",
+				mtd->name);
+		}
 	}
 
 	return 0;
@@ -1215,6 +1237,7 @@ static int cqspi_probe(struct platform_device *pdev)
 		dev_err(dev, "Cannot remap AHB address.\n");
 		return PTR_ERR(cqspi->ahb_base);
 	}
+	cqspi->ahb_size = resource_size(res_ahb);
 
 	init_completion(&cqspi->transfer_complete);
 

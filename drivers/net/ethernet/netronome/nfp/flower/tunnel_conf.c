@@ -50,9 +50,9 @@
  * @seq:		sequence number of the message
  * @count:		number of tunnels report in message
  * @flags:		options part of the request
- * @ipv4:		dest IPv4 address of active route
- * @egress_port:	port the encapsulated packet egressed
- * @extra:		reserved for future use
+ * @tun_info.ipv4:		dest IPv4 address of active route
+ * @tun_info.egress_port:	port the encapsulated packet egressed
+ * @tun_info.extra:		reserved for future use
  * @tun_info:		tunnels that have sent traffic in reported period
  */
 struct nfp_tun_active_tuns {
@@ -132,8 +132,8 @@ struct nfp_ipv4_addr_entry {
  * struct nfp_tun_mac_addr - configure MAC address of tunnel EP on NFP
  * @reserved:	reserved for future use
  * @count:	number of MAC addresses in the message
- * @index:	index of MAC address in the lookup table
- * @addr:	interface MAC address
+ * @addresses.index:	index of MAC address in the lookup table
+ * @addresses.addr:	interface MAC address
  * @addresses:	series of MACs to offload
  */
 struct nfp_tun_mac_addr {

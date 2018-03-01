@@ -201,10 +201,9 @@ static struct sbp_session *sbp_session_create(
 	snprintf(guid_str, sizeof(guid_str), "%016llx", guid);
 
 	sess = kmalloc(sizeof(*sess), GFP_KERNEL);
-	if (!sess) {
-		pr_err("failed to allocate session descriptor\n");
+	if (!sess)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	spin_lock_init(&sess->lock);
 	INIT_LIST_HEAD(&sess->login_list);
 	INIT_DELAYED_WORK(&sess->maint_work, session_maintenance_work);
@@ -2029,10 +2028,8 @@ static struct se_portal_group *sbp_make_tpg(
 	}
 
 	tpg = kzalloc(sizeof(*tpg), GFP_KERNEL);
-	if (!tpg) {
-		pr_err("Unable to allocate struct sbp_tpg\n");
+	if (!tpg)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	tpg->tport = tport;
 	tpg->tport_tpgt = tpgt;
@@ -2088,10 +2085,8 @@ static struct se_wwn *sbp_make_tport(
 		return ERR_PTR(-EINVAL);
 
 	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
-	if (!tport) {
-		pr_err("Unable to allocate struct sbp_tport\n");
+	if (!tport)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	tport->guid = guid;
 	sbp_format_wwn(tport->tport_name, SBP_NAMELEN, guid);

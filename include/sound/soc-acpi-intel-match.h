@@ -16,6 +16,7 @@
 #ifndef __LINUX_SND_SOC_ACPI_INTEL_MATCH_H
 #define __LINUX_SND_SOC_ACPI_INTEL_MATCH_H
 
+#include <linux/module.h>
 #include <linux/stddef.h>
 #include <linux/acpi.h>
 

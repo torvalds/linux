@@ -194,7 +194,7 @@ static struct ttm_tt *bochs_ttm_tt_create(struct ttm_bo_device *bdev,
 	return tt;
 }
 
-struct ttm_bo_driver bochs_bo_driver = {
+static struct ttm_bo_driver bochs_bo_driver = {
 	.ttm_tt_create = bochs_ttm_tt_create,
 	.ttm_tt_populate = ttm_pool_populate,
 	.ttm_tt_unpopulate = ttm_pool_unpopulate,

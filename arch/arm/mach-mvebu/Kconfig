@@ -10,7 +10,6 @@ menuconfig ARCH_MVEBU
 	select ZONE_DMA if ARM_LPAE
 	select GPIOLIB
 	select PCI_QUIRKS if PCI
-	select OF_ADDRESS_PCI
 
 if ARCH_MVEBU
 

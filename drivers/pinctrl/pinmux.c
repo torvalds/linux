@@ -493,8 +493,6 @@ void pinmux_disable_setting(const struct pinctrl_setting *setting)
 			continue;
 		}
 		if (desc->mux_setting == &(setting->data.mux)) {
-			desc->mux_setting = NULL;
-			/* And release the pin */
 			pin_free(pctldev, pins[i], NULL);
 		} else {
 			const char *gname;
@@ -619,7 +617,7 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 				   pctlops->get_group_name(pctldev,
 					desc->mux_setting->group));
 		else
-			seq_printf(s, "\n");
+			seq_putc(s, '\n');
 	}
 
 	mutex_unlock(&pctldev->mutex);

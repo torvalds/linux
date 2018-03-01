@@ -16,6 +16,8 @@ void lkdtm_OVERWRITE_ALLOCATION(void)
 {
 	size_t len = 1020;
 	u32 *data = kmalloc(len, GFP_KERNEL);
+	if (!data)
+		return;
 
 	data[1024 / sizeof(u32)] = 0x12345678;
 	kfree(data);
@@ -33,6 +35,8 @@ void lkdtm_WRITE_AFTER_FREE(void)
 	size_t offset = (len / sizeof(*base)) / 2;
 
 	base = kmalloc(len, GFP_KERNEL);
+	if (!base)
+		return;
 	pr_info("Allocated memory %p-%p\n", base, &base[offset * 2]);
 	pr_info("Attempting bad write to freed memory at %p\n",
 		&base[offset]);

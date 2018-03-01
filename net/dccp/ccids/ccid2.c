@@ -140,6 +140,9 @@ static void ccid2_hc_tx_rto_expire(struct timer_list *t)
 
 	ccid2_pr_debug("RTO_EXPIRE\n");
 
+	if (sk->sk_state == DCCP_CLOSED)
+		goto out;
+
 	/* back-off timer */
 	hc->tx_rto <<= 1;
 	if (hc->tx_rto > DCCP_RTO_MAX)

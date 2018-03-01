@@ -138,7 +138,7 @@ static const char *parse_syndrome(u8 syndrome)
 }
 
 void hfi1_trace_parse_9b_bth(struct ib_other_headers *ohdr,
-			     u8 *ack, u8 *becn, u8 *fecn, u8 *mig,
+			     u8 *ack, bool *becn, bool *fecn, u8 *mig,
 			     u8 *se, u8 *pad, u8 *opcode, u8 *tver,
 			     u16 *pkey, u32 *psn, u32 *qpn)
 {
@@ -184,7 +184,7 @@ void hfi1_trace_parse_9b_hdr(struct ib_header *hdr, bool sc5,
 }
 
 void hfi1_trace_parse_16b_hdr(struct hfi1_16b_header *hdr,
-			      u8 *age, u8 *becn, u8 *fecn,
+			      u8 *age, bool *becn, bool *fecn,
 			      u8 *l4, u8 *rc, u8 *sc,
 			      u16 *entropy, u16 *len, u16 *pkey,
 			      u32 *dlid, u32 *slid)
@@ -207,7 +207,7 @@ void hfi1_trace_parse_16b_hdr(struct hfi1_16b_header *hdr,
 #define LRH_16B_PRN "age:%d becn:%d fecn:%d l4:%d " \
 		    "rc:%d sc:%d pkey:0x%.4x entropy:0x%.4x"
 const char *hfi1_trace_fmt_lrh(struct trace_seq *p, bool bypass,
-			       u8 age, u8 becn, u8 fecn, u8 l4,
+			       u8 age, bool becn, bool fecn, u8 l4,
 			       u8 lnh, const char *lnh_name, u8 lver,
 			       u8 rc, u8 sc, u8 sl, u16 entropy,
 			       u16 len, u16 pkey, u32 dlid, u32 slid)
@@ -235,7 +235,7 @@ const char *hfi1_trace_fmt_lrh(struct trace_seq *p, bool bypass,
 	"op:0x%.2x,%s se:%d m:%d pad:%d tver:%d " \
 	"qpn:0x%.6x a:%d psn:0x%.8x"
 const char *hfi1_trace_fmt_bth(struct trace_seq *p, bool bypass,
-			       u8 ack, u8 becn, u8 fecn, u8 mig,
+			       u8 ack, bool becn, bool fecn, u8 mig,
 			       u8 se, u8 pad, u8 opcode, const char *opname,
 			       u8 tver, u16 pkey, u32 psn, u32 qpn)
 {

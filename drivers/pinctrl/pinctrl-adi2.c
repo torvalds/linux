@@ -827,13 +827,10 @@ static int adi_gpio_pint_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	struct gpio_pint *pint;
+	struct gpio_pint *pint = devm_kzalloc(dev, sizeof(*pint), GFP_KERNEL);
 
-	pint = devm_kzalloc(dev, sizeof(struct gpio_pint), GFP_KERNEL);
-	if (!pint) {
-		dev_err(dev, "Memory alloc failed\n");
+	if (!pint)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pint->base = devm_ioremap_resource(dev, res);
@@ -945,11 +942,9 @@ static int adi_gpio_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EINVAL;
 
-	port = devm_kzalloc(dev, sizeof(struct gpio_port), GFP_KERNEL);
-	if (!port) {
-		dev_err(dev, "Memory alloc failed\n");
+	port = devm_kzalloc(dev, sizeof(*port), GFP_KERNEL);
+	if (!port)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	port->base = devm_ioremap_resource(dev, res);

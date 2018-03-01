@@ -151,17 +151,12 @@ bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
 /*
  * Switches to specified vcpu, until a matching vcpu_put()
  */
-int vcpu_load(struct kvm_vcpu *vcpu)
+void vcpu_load(struct kvm_vcpu *vcpu)
 {
-	int cpu;
-
-	if (mutex_lock_killable(&vcpu->mutex))
-		return -EINTR;
-	cpu = get_cpu();
+	int cpu = get_cpu();
 	preempt_notifier_register(&vcpu->preempt_notifier);
 	kvm_arch_vcpu_load(vcpu, cpu);
 	put_cpu();
-	return 0;
 }
 EXPORT_SYMBOL_GPL(vcpu_load);
 
@@ -171,7 +166,6 @@ void vcpu_put(struct kvm_vcpu *vcpu)
 	kvm_arch_vcpu_put(vcpu);
 	preempt_notifier_unregister(&vcpu->preempt_notifier);
 	preempt_enable();
-	mutex_unlock(&vcpu->mutex);
 }
 EXPORT_SYMBOL_GPL(vcpu_put);
 
@@ -476,6 +470,7 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
 }
 
 static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
+	.flags			= MMU_INVALIDATE_DOES_NOT_BLOCK,
 	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
 	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
@@ -1322,17 +1317,6 @@ unsigned long kvm_vcpu_gfn_to_hva_prot(struct kvm_vcpu *vcpu, gfn_t gfn, bool *w
 	return gfn_to_hva_memslot_prot(slot, gfn, writable);
 }
 
-static int get_user_page_nowait(unsigned long start, int write,
-		struct page **page)
-{
-	int flags = FOLL_NOWAIT | FOLL_HWPOISON;
-
-	if (write)
-		flags |= FOLL_WRITE;
-
-	return get_user_pages(start, 1, flags, page, NULL);
-}
-
 static inline int check_user_page_hwpoison(unsigned long addr)
 {
 	int rc, flags = FOLL_HWPOISON | FOLL_WRITE;
@@ -1381,7 +1365,8 @@ static bool hva_to_pfn_fast(unsigned long addr, bool atomic, bool *async,
 static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 			   bool *writable, kvm_pfn_t *pfn)
 {
-	struct page *page[1];
+	unsigned int flags = FOLL_HWPOISON;
+	struct page *page;
 	int npages = 0;
 
 	might_sleep();
@@ -1389,35 +1374,26 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 	if (writable)
 		*writable = write_fault;
 
-	if (async) {
-		down_read(&current->mm->mmap_sem);
-		npages = get_user_page_nowait(addr, write_fault, page);
-		up_read(&current->mm->mmap_sem);
-	} else {
-		unsigned int flags = FOLL_HWPOISON;
+	if (write_fault)
+		flags |= FOLL_WRITE;
+	if (async)
+		flags |= FOLL_NOWAIT;
 
-		if (write_fault)
-			flags |= FOLL_WRITE;
-
-		npages = get_user_pages_unlocked(addr, 1, page, flags);
-	}
+	npages = get_user_pages_unlocked(addr, 1, &page, flags);
 	if (npages != 1)
 		return npages;
 
 	/* map read fault as writable if possible */
 	if (unlikely(!write_fault) && writable) {
-		struct page *wpage[1];
+		struct page *wpage;
 
-		npages = __get_user_pages_fast(addr, 1, 1, wpage);
-		if (npages == 1) {
+		if (__get_user_pages_fast(addr, 1, 1, &wpage) == 1) {
 			*writable = true;
-			put_page(page[0]);
-			page[0] = wpage[0];
+			put_page(page);
+			page = wpage;
 		}
-
-		npages = 1;
 	}
-	*pfn = page_to_pfn(page[0]);
+	*pfn = page_to_pfn(page);
 	return npages;
 }
 
@@ -1434,7 +1410,8 @@ static bool vma_is_valid(struct vm_area_struct *vma, bool write_fault)
 
 static int hva_to_pfn_remapped(struct vm_area_struct *vma,
 			       unsigned long addr, bool *async,
-			       bool write_fault, kvm_pfn_t *p_pfn)
+			       bool write_fault, bool *writable,
+			       kvm_pfn_t *p_pfn)
 {
 	unsigned long pfn;
 	int r;
@@ -1460,6 +1437,8 @@ static int hva_to_pfn_remapped(struct vm_area_struct *vma,
 
 	}
 
+	if (writable)
+		*writable = true;
 
 	/*
 	 * Get a reference here because callers of *hva_to_pfn* and
@@ -1525,7 +1504,7 @@ retry:
 	if (vma == NULL)
 		pfn = KVM_PFN_ERR_FAULT;
 	else if (vma->vm_flags & (VM_IO | VM_PFNMAP)) {
-		r = hva_to_pfn_remapped(vma, addr, async, write_fault, &pfn);
+		r = hva_to_pfn_remapped(vma, addr, async, write_fault, writable, &pfn);
 		if (r == -EAGAIN)
 			goto retry;
 		if (r < 0)
@@ -2418,7 +2397,10 @@ static struct file_operations kvm_vcpu_fops = {
  */
 static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 {
-	return anon_inode_getfd("kvm-vcpu", &kvm_vcpu_fops, vcpu, O_RDWR | O_CLOEXEC);
+	char name[8 + 1 + ITOA_MAX_LEN + 1];
+
+	snprintf(name, sizeof(name), "kvm-vcpu:%d", vcpu->vcpu_id);
+	return anon_inode_getfd(name, &kvm_vcpu_fops, vcpu, O_RDWR | O_CLOEXEC);
 }
 
 static int kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
@@ -2550,19 +2532,16 @@ static long kvm_vcpu_ioctl(struct file *filp,
 	if (unlikely(_IOC_TYPE(ioctl) != KVMIO))
 		return -EINVAL;
 
-#if defined(CONFIG_S390) || defined(CONFIG_PPC) || defined(CONFIG_MIPS)
 	/*
-	 * Special cases: vcpu ioctls that are asynchronous to vcpu execution,
-	 * so vcpu_load() would break it.
+	 * Some architectures have vcpu ioctls that are asynchronous to vcpu
+	 * execution; mutex_lock() would break them.
 	 */
-	if (ioctl == KVM_S390_INTERRUPT || ioctl == KVM_S390_IRQ || ioctl == KVM_INTERRUPT)
-		return kvm_arch_vcpu_ioctl(filp, ioctl, arg);
-#endif
-
-
-	r = vcpu_load(vcpu);
-	if (r)
+	r = kvm_arch_vcpu_async_ioctl(filp, ioctl, arg);
+	if (r != -ENOIOCTLCMD)
 		return r;
+
+	if (mutex_lock_killable(&vcpu->mutex))
+		return -EINTR;
 	switch (ioctl) {
 	case KVM_RUN: {
 		struct pid *oldpid;
@@ -2734,7 +2713,7 @@ out_free1:
 		r = kvm_arch_vcpu_ioctl(filp, ioctl, arg);
 	}
 out:
-	vcpu_put(vcpu);
+	mutex_unlock(&vcpu->mutex);
 	kfree(fpu);
 	kfree(kvm_sregs);
 	return r;
@@ -3186,21 +3165,18 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 		return PTR_ERR(kvm);
 #ifdef CONFIG_KVM_MMIO
 	r = kvm_coalesced_mmio_init(kvm);
-	if (r < 0) {
-		kvm_put_kvm(kvm);
-		return r;
-	}
+	if (r < 0)
+		goto put_kvm;
 #endif
 	r = get_unused_fd_flags(O_CLOEXEC);
-	if (r < 0) {
-		kvm_put_kvm(kvm);
-		return r;
-	}
+	if (r < 0)
+		goto put_kvm;
+
 	file = anon_inode_getfile("kvm-vm", &kvm_vm_fops, kvm, O_RDWR);
 	if (IS_ERR(file)) {
 		put_unused_fd(r);
-		kvm_put_kvm(kvm);
-		return PTR_ERR(file);
+		r = PTR_ERR(file);
+		goto put_kvm;
 	}
 
 	/*
@@ -3217,6 +3193,10 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	kvm_uevent_notify_change(KVM_EVENT_CREATE_VM, kvm);
 
 	fd_install(r, file);
+	return r;
+
+put_kvm:
+	kvm_put_kvm(kvm);
 	return r;
 }
 
@@ -4037,8 +4017,12 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 	/* A kmem cache lets us meet the alignment requirements of fx_save. */
 	if (!vcpu_align)
 		vcpu_align = __alignof__(struct kvm_vcpu);
-	kvm_vcpu_cache = kmem_cache_create("kvm_vcpu", vcpu_size, vcpu_align,
-					   SLAB_ACCOUNT, NULL);
+	kvm_vcpu_cache =
+		kmem_cache_create_usercopy("kvm_vcpu", vcpu_size, vcpu_align,
+					   SLAB_ACCOUNT,
+					   offsetof(struct kvm_vcpu, arch),
+					   sizeof_field(struct kvm_vcpu, arch),
+					   NULL);
 	if (!kvm_vcpu_cache) {
 		r = -ENOMEM;
 		goto out_free_3;

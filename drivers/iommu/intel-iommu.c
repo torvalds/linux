@@ -64,7 +64,7 @@
 #define IOAPIC_RANGE_END	(0xfeefffff)
 #define IOVA_START_ADDR		(0x1000)
 
-#define DEFAULT_DOMAIN_ADDRESS_WIDTH 48
+#define DEFAULT_DOMAIN_ADDRESS_WIDTH 57
 
 #define MAX_AGAW_WIDTH 64
 #define MAX_AGAW_PFN_WIDTH	(MAX_AGAW_WIDTH - VTD_PAGE_SHIFT)
@@ -1601,8 +1601,7 @@ static void iommu_flush_iotlb_psi(struct intel_iommu *iommu,
 	 * flush. However, device IOTLB doesn't need to be flushed in this case.
 	 */
 	if (!cap_caching_mode(iommu->cap) || !map)
-		iommu_flush_dev_iotlb(get_iommu_domain(iommu, did),
-				      addr, mask);
+		iommu_flush_dev_iotlb(domain, addr, mask);
 }
 
 static void iommu_flush_iova(struct iova_domain *iovad)
@@ -4808,7 +4807,7 @@ int __init intel_iommu_init(void)
 	up_write(&dmar_global_lock);
 	pr_info("Intel(R) Virtualization Technology for Directed I/O\n");
 
-#ifdef CONFIG_SWIOTLB
+#if defined(CONFIG_X86) && defined(CONFIG_SWIOTLB)
 	swiotlb = 0;
 #endif
 	dma_ops = &intel_dma_ops;

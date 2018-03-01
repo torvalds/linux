@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kobject.c - library routines for handling generic kernel objects
  *
  * Copyright (c) 2002-2003 Patrick Mochel <mochel@osdl.org>
  * Copyright (c) 2006-2007 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (c) 2006-2007 Novell Inc.
- *
- * This file is released under the GPLv2.
- *
  *
  * Please see the file Documentation/kobject.txt for critical information
  * about using the kobject interface.
@@ -1039,6 +1037,7 @@ void *kobj_ns_grab_current(enum kobj_ns_type type)
 
 	return ns;
 }
+EXPORT_SYMBOL_GPL(kobj_ns_grab_current);
 
 const void *kobj_ns_netlink(enum kobj_ns_type type, struct sock *sk)
 {
@@ -1074,3 +1073,4 @@ void kobj_ns_drop(enum kobj_ns_type type, void *ns)
 		kobj_ns_ops_tbl[type]->drop_ns(ns);
 	spin_unlock(&kobj_ns_type_lock);
 }
+EXPORT_SYMBOL_GPL(kobj_ns_drop);

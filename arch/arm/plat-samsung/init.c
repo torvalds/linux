@@ -1,15 +1,10 @@
-/* linux/arch/arm/plat-s3c/init.c
- *
- * Copyright (c) 2008 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *	http://armlinux.simtec.co.uk/
- *
- * S3C series CPU initialisation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2008 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//	http://armlinux.simtec.co.uk/
+//
+// S3C series CPU initialisation
 
 /*
  * NOTE: Code in this file is not used on S3C64xx when booting with

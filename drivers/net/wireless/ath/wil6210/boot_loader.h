@@ -1,4 +1,5 @@
 /* Copyright (c) 2015 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -39,7 +40,8 @@ struct bl_dedicated_registers_v1 {
 	/* valid only for version 2 and above */
 	__le32  bl_assert_code;         /* 0x880A58 BL Assert code */
 	__le32  bl_assert_blink;        /* 0x880A5C BL Assert Branch */
-	__le32  bl_reserved[22];        /* 0x880A60 - 0x880AB4 */
+	__le32  bl_shutdown_handshake;  /* 0x880A60 BL cleaner shutdown */
+	__le32  bl_reserved[21];        /* 0x880A64 - 0x880AB4 */
 	__le32  bl_magic_number;        /* 0x880AB8 BL Magic number */
 } __packed;
 
@@ -57,5 +59,10 @@ struct bl_dedicated_registers_v0 {
 	__le32	baseband_type;			/* 0x880A48 board type ID */
 	u8	mac_address[6];			/* 0x880A4c BL mac address */
 } __packed;
+
+/* bits for bl_shutdown_handshake */
+#define BL_SHUTDOWN_HS_GRTD		BIT(0)
+#define BL_SHUTDOWN_HS_RTD		BIT(1)
+#define BL_SHUTDOWN_HS_PROT_VER(x) WIL_GET_BITS(x, 28, 31)
 
 #endif /* BOOT_LOADER_EXPORT_H_ */

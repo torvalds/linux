@@ -35,8 +35,6 @@ enum nvme_fc_queue_flags {
 	NVME_FC_Q_LIVE,
 };
 
-#define NVMEFC_QUEUE_DELAY	3		/* ms units */
-
 #define NVME_FC_DEFAULT_DEV_LOSS_TMO	60	/* seconds */
 
 struct nvme_fc_queue {
@@ -2231,7 +2229,7 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 	 * the target device is present
 	 */
 	if (ctrl->rport->remoteport.port_state != FC_OBJSTATE_ONLINE)
-		goto busy;
+		return BLK_STS_RESOURCE;
 
 	if (!nvme_fc_ctrl_get(ctrl))
 		return BLK_STS_IOERR;
@@ -2311,16 +2309,10 @@ nvme_fc_start_fcp_op(struct nvme_fc_ctrl *ctrl, struct nvme_fc_queue *queue,
 				ret != -EBUSY)
 			return BLK_STS_IOERR;
 
-		goto busy;
+		return BLK_STS_RESOURCE;
 	}
 
 	return BLK_STS_OK;
-
-busy:
-	if (!(op->flags & FCOP_FLAGS_AEN) && queue->hctx)
-		blk_mq_delay_run_hw_queue(queue->hctx, NVMEFC_QUEUE_DELAY);
-
-	return BLK_STS_RESOURCE;
 }
 
 static inline blk_status_t nvme_fc_is_ready(struct nvme_fc_queue *queue,
@@ -2921,6 +2913,9 @@ nvme_fc_delete_association(struct nvme_fc_ctrl *ctrl)
 	__nvme_fc_delete_hw_queue(ctrl, &ctrl->queues[0], 0);
 	nvme_fc_free_queue(&ctrl->queues[0]);
 
+	/* re-enable the admin_q so anything new can fast fail */
+	blk_mq_unquiesce_queue(ctrl->ctrl.admin_q);
+
 	nvme_fc_ctlr_inactive_on_rport(ctrl);
 }
 
@@ -2935,6 +2930,9 @@ nvme_fc_delete_ctrl(struct nvme_ctrl *nctrl)
 	 * waiting for io to terminate
 	 */
 	nvme_fc_delete_association(ctrl);
+
+	/* resume the io queues so that things will fast fail */
+	nvme_start_queues(nctrl);
 }
 
 static void
@@ -3380,6 +3378,7 @@ nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts)
 
 static struct nvmf_transport_ops nvme_fc_transport = {
 	.name		= "fc",
+	.module		= THIS_MODULE,
 	.required_opts	= NVMF_OPT_TRADDR | NVMF_OPT_HOST_TRADDR,
 	.allowed_opts	= NVMF_OPT_RECONNECT_DELAY | NVMF_OPT_CTRL_LOSS_TMO,
 	.create_ctrl	= nvme_fc_create_ctrl,

@@ -752,13 +752,20 @@ static int raydium_i2c_fw_update(struct raydium_data *ts)
 {
 	struct i2c_client *client = ts->client;
 	const struct firmware *fw = NULL;
-	const char *fw_file = "raydium.fw";
+	char *fw_file;
 	int error;
+
+	fw_file = kasprintf(GFP_KERNEL, "raydium_%#04x.fw",
+			    le32_to_cpu(ts->info.hw_ver));
+	if (!fw_file)
+		return -ENOMEM;
+
+	dev_dbg(&client->dev, "firmware name: %s\n", fw_file);
 
 	error = request_firmware(&fw, fw_file, &client->dev);
 	if (error) {
 		dev_err(&client->dev, "Unable to open firmware %s\n", fw_file);
-		return error;
+		goto out_free_fw_file;
 	}
 
 	disable_irq(client->irq);
@@ -786,6 +793,9 @@ out_enable_irq:
 	msleep(100);
 
 	release_firmware(fw);
+
+out_free_fw_file:
+	kfree(fw_file);
 
 	return error;
 }

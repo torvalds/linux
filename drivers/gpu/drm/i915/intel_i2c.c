@@ -30,6 +30,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/export.h>
 #include <drm/drmP.h>
+#include <drm/drm_hdcp.h>
 #include "intel_drv.h"
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
@@ -415,7 +416,8 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 
 static int
 gmbus_xfer_write_chunk(struct drm_i915_private *dev_priv,
-		       unsigned short addr, u8 *buf, unsigned int len)
+		       unsigned short addr, u8 *buf, unsigned int len,
+		       u32 gmbus1_index)
 {
 	unsigned int chunk_size = len;
 	u32 val, loop;
@@ -428,7 +430,7 @@ gmbus_xfer_write_chunk(struct drm_i915_private *dev_priv,
 
 	I915_WRITE_FW(GMBUS3, val);
 	I915_WRITE_FW(GMBUS1,
-		      GMBUS_CYCLE_WAIT |
+		      gmbus1_index | GMBUS_CYCLE_WAIT |
 		      (chunk_size << GMBUS_BYTE_COUNT_SHIFT) |
 		      (addr << GMBUS_SLAVE_ADDR_SHIFT) |
 		      GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
@@ -451,7 +453,8 @@ gmbus_xfer_write_chunk(struct drm_i915_private *dev_priv,
 }
 
 static int
-gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
+gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
+		 u32 gmbus1_index)
 {
 	u8 *buf = msg->buf;
 	unsigned int tx_size = msg->len;
@@ -461,7 +464,8 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 	do {
 		len = min(tx_size, GMBUS_BYTE_COUNT_MAX);
 
-		ret = gmbus_xfer_write_chunk(dev_priv, msg->addr, buf, len);
+		ret = gmbus_xfer_write_chunk(dev_priv, msg->addr, buf, len,
+					     gmbus1_index);
 		if (ret)
 			return ret;
 
@@ -473,21 +477,21 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 }
 
 /*
- * The gmbus controller can combine a 1 or 2 byte write with a read that
- * immediately follows it by using an "INDEX" cycle.
+ * The gmbus controller can combine a 1 or 2 byte write with another read/write
+ * that immediately follows it by using an "INDEX" cycle.
  */
 static bool
-gmbus_is_index_read(struct i2c_msg *msgs, int i, int num)
+gmbus_is_index_xfer(struct i2c_msg *msgs, int i, int num)
 {
 	return (i + 1 < num &&
 		msgs[i].addr == msgs[i + 1].addr &&
 		!(msgs[i].flags & I2C_M_RD) &&
 		(msgs[i].len == 1 || msgs[i].len == 2) &&
-		(msgs[i + 1].flags & I2C_M_RD));
+		msgs[i + 1].len > 0);
 }
 
 static int
-gmbus_xfer_index_read(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
+gmbus_index_xfer(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
 {
 	u32 gmbus1_index = 0;
 	u32 gmbus5 = 0;
@@ -504,7 +508,10 @@ gmbus_xfer_index_read(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
 	if (gmbus5)
 		I915_WRITE_FW(GMBUS5, gmbus5);
 
-	ret = gmbus_xfer_read(dev_priv, &msgs[1], gmbus1_index);
+	if (msgs[1].flags & I2C_M_RD)
+		ret = gmbus_xfer_read(dev_priv, &msgs[1], gmbus1_index);
+	else
+		ret = gmbus_xfer_write(dev_priv, &msgs[1], gmbus1_index);
 
 	/* Clear GMBUS5 after each index transfer */
 	if (gmbus5)
@@ -514,7 +521,8 @@ gmbus_xfer_index_read(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
 }
 
 static int
-do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
+do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num,
+	      u32 gmbus0_source)
 {
 	struct intel_gmbus *bus = container_of(adapter,
 					       struct intel_gmbus,
@@ -531,17 +539,17 @@ do_gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 		pch_gmbus_clock_gating(dev_priv, false);
 
 retry:
-	I915_WRITE_FW(GMBUS0, bus->reg0);
+	I915_WRITE_FW(GMBUS0, gmbus0_source | bus->reg0);
 
 	for (; i < num; i += inc) {
 		inc = 1;
-		if (gmbus_is_index_read(msgs, i, num)) {
-			ret = gmbus_xfer_index_read(dev_priv, &msgs[i]);
-			inc = 2; /* an index read is two msgs */
+		if (gmbus_is_index_xfer(msgs, i, num)) {
+			ret = gmbus_index_xfer(dev_priv, &msgs[i]);
+			inc = 2; /* an index transmission is two msgs */
 		} else if (msgs[i].flags & I2C_M_RD) {
 			ret = gmbus_xfer_read(dev_priv, &msgs[i], 0);
 		} else {
-			ret = gmbus_xfer_write(dev_priv, &msgs[i]);
+			ret = gmbus_xfer_write(dev_priv, &msgs[i], 0);
 		}
 
 		if (!ret)
@@ -656,11 +664,50 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 		if (ret < 0)
 			bus->force_bit &= ~GMBUS_FORCE_BIT_RETRY;
 	} else {
-		ret = do_gmbus_xfer(adapter, msgs, num);
+		ret = do_gmbus_xfer(adapter, msgs, num, 0);
 		if (ret == -EAGAIN)
 			bus->force_bit |= GMBUS_FORCE_BIT_RETRY;
 	}
 
+	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
+
+	return ret;
+}
+
+int intel_gmbus_output_aksv(struct i2c_adapter *adapter)
+{
+	struct intel_gmbus *bus = container_of(adapter, struct intel_gmbus,
+					       adapter);
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+	int ret;
+	u8 cmd = DRM_HDCP_DDC_AKSV;
+	u8 buf[DRM_HDCP_KSV_LEN] = { 0 };
+	struct i2c_msg msgs[] = {
+		{
+			.addr = DRM_HDCP_DDC_ADDR,
+			.flags = 0,
+			.len = sizeof(cmd),
+			.buf = &cmd,
+		},
+		{
+			.addr = DRM_HDCP_DDC_ADDR,
+			.flags = 0,
+			.len = sizeof(buf),
+			.buf = buf,
+		}
+	};
+
+	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
+	mutex_lock(&dev_priv->gmbus_mutex);
+
+	/*
+	 * In order to output Aksv to the receiver, use an indexed write to
+	 * pass the i2c command, and tell GMBUS to use the HW-provided value
+	 * instead of sourcing GMBUS3 for the data.
+	 */
+	ret = do_gmbus_xfer(adapter, msgs, ARRAY_SIZE(msgs), GMBUS_AKSV_SELECT);
+
+	mutex_unlock(&dev_priv->gmbus_mutex);
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
 
 	return ret;

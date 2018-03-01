@@ -175,7 +175,7 @@
 				gpio-controller;
 			};
 
-			ucc2pio:ucc_pin@02 {
+			ucc2pio:ucc_pin@2 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					3  4  3  0  2  0 	/* MDIO */
@@ -197,7 +197,7 @@
 					0 30  1  0  1  0 	/* TX_EN */
 					0 31  2  0  1  0>;      /* CRS */
 			};
-			ucc3pio:ucc_pin@03 {
+			ucc3pio:ucc_pin@3 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0 13  2  0  1  0 	/* RX_CLK (CLK9) */
@@ -310,12 +310,12 @@
 			reg = <0x3120 0x18>;
 			compatible = "fsl,ucc-mdio";
 
-			phy00:ethernet-phy@00 {
+			phy00:ethernet-phy@0 {
 				interrupt-parent = <&ipic>;
 				interrupts = <0>;
 				reg = <0x0>;
 			};
-			phy04:ethernet-phy@04 {
+			phy04:ethernet-phy@4 {
 				interrupt-parent = <&ipic>;
 				interrupts = <0>;
 				reg = <0x4>;

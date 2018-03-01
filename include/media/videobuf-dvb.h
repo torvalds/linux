@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#include <dvbdev.h>
-#include <dmxdev.h>
-#include <dvb_demux.h>
-#include <dvb_net.h>
-#include <dvb_frontend.h>
+#include <media/dvbdev.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
+#include <media/dvb_frontend.h>
 
 #ifndef _VIDEOBUF_DVB_H_
 #define	_VIDEOBUF_DVB_H_

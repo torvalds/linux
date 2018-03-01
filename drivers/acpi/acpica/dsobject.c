@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,7 +112,9 @@ acpi_ds_build_internal_object(struct acpi_walk_state *walk_state,
 							 acpi_namespace_node,
 							 &(op->common.node)));
 				if (ACPI_FAILURE(status)) {
-					ACPI_ERROR_NAMESPACE(op->common.value.
+					ACPI_ERROR_NAMESPACE(walk_state->
+							     scope_info,
+							     op->common.value.
 							     string, status);
 					return_ACPI_STATUS(status);
 				}

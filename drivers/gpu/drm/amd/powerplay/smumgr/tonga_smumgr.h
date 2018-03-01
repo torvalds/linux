@@ -69,9 +69,6 @@ struct tonga_smumgr {
 	const struct tonga_pt_defaults  *power_tune_defaults;
 	SMU72_Discrete_MCRegisters      mc_regs;
 	struct tonga_mc_reg_table mc_reg_table;
-
-	uint32_t        activity_target[SMU72_MAX_LEVELS_GRAPHICS];
-
 };
 
 #endif

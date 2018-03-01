@@ -678,7 +678,7 @@ EXPORT_SYMBOL_GPL(hwmon_device_register_with_groups);
  * @dev: the parent device
  * @name: hwmon name attribute
  * @drvdata: driver data to attach to created device
- * @info: pointer to hwmon chip information
+ * @chip: pointer to hwmon chip information
  * @extra_groups: pointer to list of additional non-standard attribute groups
  *
  * hwmon_device_unregister() must be called when the device is no
@@ -785,11 +785,11 @@ EXPORT_SYMBOL_GPL(devm_hwmon_device_register_with_groups);
 
 /**
  * devm_hwmon_device_register_with_info - register w/ hwmon
- * @dev: the parent device
- * @name: hwmon name attribute
- * @drvdata: driver data to attach to created device
- * @info: Pointer to hwmon chip information
- * @groups - pointer to list of driver specific attribute groups
+ * @dev:	the parent device
+ * @name:	hwmon name attribute
+ * @drvdata:	driver data to attach to created device
+ * @chip:	pointer to hwmon chip information
+ * @groups:	pointer to list of driver specific attribute groups
  *
  * Returns the pointer to the new device. The new device is automatically
  * unregistered with the parent device.

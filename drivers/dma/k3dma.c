@@ -719,7 +719,7 @@ static int k3_dma_terminate_all(struct dma_chan *chan)
 		c->phy = NULL;
 		p->vchan = NULL;
 		if (p->ds_run) {
-			k3_dma_free_desc(&p->ds_run->vd);
+			vchan_terminate_vdesc(&p->ds_run->vd);
 			p->ds_run = NULL;
 		}
 		p->ds_done = NULL;
@@ -728,6 +728,13 @@ static int k3_dma_terminate_all(struct dma_chan *chan)
 	vchan_dma_desc_free_list(&c->vc, &head);
 
 	return 0;
+}
+
+static void k3_dma_synchronize(struct dma_chan *chan)
+{
+	struct k3_dma_chan *c = to_k3_chan(chan);
+
+	vchan_synchronize(&c->vc);
 }
 
 static int k3_dma_transfer_pause(struct dma_chan *chan)
@@ -868,6 +875,7 @@ static int k3_dma_probe(struct platform_device *op)
 	d->slave.device_pause = k3_dma_transfer_pause;
 	d->slave.device_resume = k3_dma_transfer_resume;
 	d->slave.device_terminate_all = k3_dma_terminate_all;
+	d->slave.device_synchronize = k3_dma_synchronize;
 	d->slave.copy_align = DMAENGINE_ALIGN_8_BYTES;
 
 	/* init virtual channel */

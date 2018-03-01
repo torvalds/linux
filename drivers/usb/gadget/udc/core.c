@@ -912,7 +912,7 @@ int usb_gadget_ep_match_desc(struct usb_gadget *gadget,
 		return 0;
 
 	/* "high bandwidth" works only at high speed */
-	if (!gadget_is_dualspeed(gadget) && usb_endpoint_maxp(desc) & (3<<11))
+	if (!gadget_is_dualspeed(gadget) && usb_endpoint_maxp_mult(desc) > 1)
 		return 0;
 
 	switch (type) {
@@ -1417,7 +1417,7 @@ EXPORT_SYMBOL_GPL(usb_gadget_unregister_driver);
 
 /* ------------------------------------------------------------------------- */
 
-static ssize_t usb_udc_srp_store(struct device *dev,
+static ssize_t srp_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
@@ -1427,9 +1427,9 @@ static ssize_t usb_udc_srp_store(struct device *dev,
 
 	return n;
 }
-static DEVICE_ATTR(srp, S_IWUSR, NULL, usb_udc_srp_store);
+static DEVICE_ATTR_WO(srp);
 
-static ssize_t usb_udc_softconn_store(struct device *dev,
+static ssize_t soft_connect_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t n)
 {
 	struct usb_udc		*udc = container_of(dev, struct usb_udc, dev);
@@ -1453,7 +1453,7 @@ static ssize_t usb_udc_softconn_store(struct device *dev,
 
 	return n;
 }
-static DEVICE_ATTR(soft_connect, S_IWUSR, NULL, usb_udc_softconn_store);
+static DEVICE_ATTR_WO(soft_connect);
 
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)

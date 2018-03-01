@@ -383,6 +383,8 @@ struct iwl_mvm_rxq_dup_data {
  * and from Tx response flow, it needs a spinlock.
  * @tid_data: per tid data + mgmt. Look at %iwl_mvm_tid_data.
  * @tid_to_baid: a simple map of TID to baid
+ * @lq_sta: holds rate scaling data, either for the case when RS is done in
+ *	the driver - %rs_drv or in the FW - %rs_fw.
  * @reserved_queue: the queue reserved for this STA for DQA purposes
  *	Every STA has is given one reserved queue to allow it to operate. If no
  *	such queue can be guaranteed, the STA addition will fail.
@@ -417,7 +419,10 @@ struct iwl_mvm_sta {
 	spinlock_t lock;
 	struct iwl_mvm_tid_data tid_data[IWL_MAX_TID_COUNT + 1];
 	u8 tid_to_baid[IWL_MAX_TID_COUNT];
-	struct iwl_lq_sta lq_sta;
+	union {
+		struct iwl_lq_sta_rs_fw rs_fw;
+		struct iwl_lq_sta rs_drv;
+	} lq_sta;
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_key_pn __rcu *ptk_pn[4];
 	struct iwl_mvm_rxq_dup_data *dup_data;

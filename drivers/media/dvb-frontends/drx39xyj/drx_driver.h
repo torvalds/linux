@@ -932,7 +932,7 @@ STRUCTS
  * Used by DRX_CTRL_LOAD_UCODE and DRX_CTRL_VERIFY_UCODE
  */
 struct drxu_code_info {
-	char 			*mc_file;
+	char			*mc_file;
 };
 
 /*

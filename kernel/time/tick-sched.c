@@ -1107,7 +1107,7 @@ static inline void tick_nohz_activate(struct tick_sched *ts, int mode)
 	ts->nohz_mode = mode;
 	/* One update is enough */
 	if (!test_and_set_bit(0, &tick_nohz_active))
-		timers_update_migration(true);
+		timers_update_nohz();
 }
 
 /**

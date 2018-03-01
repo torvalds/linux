@@ -11,15 +11,9 @@
  *  Copyright (C) 2002 Tensilica Inc.
  */
 
+#include <linux/linkage.h>
 #include <variant/core.h>
-
-/* Load or store instructions that may cause exceptions use the EX macro. */
-
-#define EX(insn,reg1,reg2,offset,handler)	\
-9:	insn	reg1, reg2, offset;		\
-	.section __ex_table, "a";		\
-	.word	9b, handler;			\
-	.previous
+#include <asm/asmmacro.h>
 
 /*
  * size_t __strnlen_user(const char *s, size_t len)
@@ -49,10 +43,8 @@
 #   a10/ tmp
 
 .text
-.align	4
-.global	__strnlen_user
-.type	__strnlen_user,@function
-__strnlen_user:
+ENTRY(__strnlen_user)
+
 	entry	sp, 16		# minimal stack frame
 	# a2/ s, a3/ len
 	addi	a4, a2, -4	# because we overincrement at the end;
@@ -77,7 +69,7 @@ __strnlen_user:
 	add	a10, a10, a4	# a10 = end of last 4B chunk
 #endif /* XCHAL_HAVE_LOOPS */
 .Loop:
-	EX(l32i, a9, a4, 4, lenfixup)	# get next word of string
+EX(10f)	l32i	a9, a4, 4		# get next word of string
 	addi	a4, a4, 4		# advance string pointer
 	bnone	a9, a5, .Lz0		# if byte 0 is zero
 	bnone	a9, a6, .Lz1		# if byte 1 is zero
@@ -88,7 +80,7 @@ __strnlen_user:
 #endif
 
 .Ldone:
-	EX(l32i, a9, a4, 4, lenfixup)	# load 4 bytes for remaining checks
+EX(10f)	l32i	a9, a4, 4	# load 4 bytes for remaining checks
 
 	bbci.l	a3, 1, .L100
 	# check two more bytes (bytes 0, 1 of word)
@@ -125,14 +117,14 @@ __strnlen_user:
 	retw
 
 .L1mod2:	# address is odd
-	EX(l8ui, a9, a4, 4, lenfixup)	# get byte 0
+EX(10f)	l8ui	a9, a4, 4		# get byte 0
 	addi	a4, a4, 1		# advance string pointer
 	beqz	a9, .Lz3		# if byte 0 is zero
 	bbci.l	a4, 1, .Laligned	# if string pointer is now word-aligned
 
 .L2mod4:	# address is 2 mod 4
 	addi	a4, a4, 2	# advance ptr for aligned access
-	EX(l32i, a9, a4, 0, lenfixup)	# get word with first two bytes of string
+EX(10f)	l32i	a9, a4, 0	# get word with first two bytes of string
 	bnone	a9, a7, .Lz2	# if byte 2 (of word, not string) is zero
 	bany	a9, a8, .Laligned # if byte 3 (of word, not string) is nonzero
 	# byte 3 is zero
@@ -140,8 +132,10 @@ __strnlen_user:
 	sub	a2, a4, a2	# subtract to get length
 	retw
 
+ENDPROC(__strnlen_user)
+
 	.section .fixup, "ax"
 	.align	4
-lenfixup:
+10:
 	movi	a2, 0
 	retw

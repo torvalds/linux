@@ -1520,7 +1520,7 @@ static int dcmi_graph_parse(struct stm32_dcmi *dcmi, struct device_node *node)
 		/* Remote node to connect */
 		dcmi->entity.node = remote;
 		dcmi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		dcmi->entity.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
+		dcmi->entity.asd.match.fwnode = of_fwnode_handle(remote);
 		return 0;
 	}
 }

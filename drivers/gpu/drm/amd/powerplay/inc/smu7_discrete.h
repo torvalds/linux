@@ -316,7 +316,8 @@ struct SMU7_Discrete_DpmTable
     uint8_t                             AcpLevelCount;
     uint8_t                             SamuLevelCount;
     uint8_t                             MasterDeepSleepControl;
-    uint32_t                            Reserved[5];
+    uint32_t                            VRConfig;
+    uint32_t                            Reserved[4];
 //    uint32_t                            SamuDefaultLevel;
 
     SMU7_Discrete_GraphicsLevel         GraphicsLevel           [SMU7_MAX_LEVELS_GRAPHICS];

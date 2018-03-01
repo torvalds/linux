@@ -114,6 +114,7 @@ static int rds_add_bound(struct rds_sock *rs, __be32 addr, __be16 *port)
 			  rs, &addr, (int)ntohs(*port));
 			break;
 		} else {
+			rs->rs_bound_addr = 0;
 			rds_sock_put(rs);
 			ret = -ENOMEM;
 			break;

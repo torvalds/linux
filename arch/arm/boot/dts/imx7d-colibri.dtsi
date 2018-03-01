@@ -49,6 +49,10 @@
 	};
 };
 
+&gpmi {
+	status = "okay";
+};
+
 &usbotg2 {
 	dr_mode = "host";
 };

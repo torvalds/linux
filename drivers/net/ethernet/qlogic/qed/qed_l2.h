@@ -190,7 +190,7 @@ struct qed_arfs_config_params {
 	bool udp;
 	bool ipv4;
 	bool ipv6;
-	bool arfs_enable;
+	enum qed_filter_config_mode mode;
 };
 
 struct qed_sp_vport_update_params {
@@ -276,6 +276,37 @@ qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
 void qed_get_vport_stats(struct qed_dev *cdev, struct qed_eth_stats *stats);
 
 void qed_reset_vport_stats(struct qed_dev *cdev);
+
+/**
+ * *@brief qed_arfs_mode_configure -
+ *
+ **Enable or disable rfs mode. It must accept atleast one of tcp or udp true
+ **and atleast one of ipv4 or ipv6 true to enable rfs mode.
+ *
+ **@param p_hwfn
+ **@param p_ptt
+ **@param p_cfg_params - arfs mode configuration parameters.
+ *
+ */
+void qed_arfs_mode_configure(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt,
+			     struct qed_arfs_config_params *p_cfg_params);
+
+/**
+ * @brief - qed_configure_rfs_ntuple_filter
+ *
+ * This ramrod should be used to add or remove arfs hw filter
+ *
+ * @params p_hwfn
+ * @params p_cb - Used for QED_SPQ_MODE_CB,where client would initialize
+ *		  it with cookie and callback function address, if not
+ *		  using this mode then client must pass NULL.
+ * @params p_params
+ */
+int
+qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
+				struct qed_spq_comp_cb *p_cb,
+				struct qed_ntuple_filter_params *p_params);
 
 #define MAX_QUEUES_PER_QZONE    (sizeof(unsigned long) * 8)
 #define QED_QUEUE_CID_SELF	(0xff)

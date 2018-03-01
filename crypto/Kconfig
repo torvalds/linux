@@ -106,6 +106,7 @@ config CRYPTO_KPP
 config CRYPTO_ACOMP2
 	tristate
 	select CRYPTO_ALGAPI2
+	select SGL_ALLOC
 
 config CRYPTO_ACOMP
 	tristate
@@ -130,7 +131,7 @@ config CRYPTO_DH
 
 config CRYPTO_ECDH
 	tristate "ECDH algorithm"
-	select CRYTPO_KPP
+	select CRYPTO_KPP
 	select CRYPTO_RNG_DEFAULT
 	help
 	  Generic implementation of the ECDH algorithm
@@ -1339,6 +1340,7 @@ config CRYPTO_SALSA20_586
 	tristate "Salsa20 stream cipher algorithm (i586)"
 	depends on (X86 || UML_X86) && !64BIT
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_SALSA20
 	help
 	  Salsa20 stream cipher algorithm.
 
@@ -1352,6 +1354,7 @@ config CRYPTO_SALSA20_X86_64
 	tristate "Salsa20 stream cipher algorithm (x86_64)"
 	depends on (X86 || UML_X86) && 64BIT
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_SALSA20
 	help
 	  Salsa20 stream cipher algorithm.
 

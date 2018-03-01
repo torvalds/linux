@@ -239,7 +239,7 @@ static int __init save_microcode_in_initrd(void)
 		break;
 	case X86_VENDOR_AMD:
 		if (c->x86 >= 0x10)
-			return save_microcode_in_initrd_amd(cpuid_eax(1));
+			ret = save_microcode_in_initrd_amd(cpuid_eax(1));
 		break;
 	default:
 		break;
@@ -560,7 +560,7 @@ static ssize_t pf_show(struct device *dev,
 	return sprintf(buf, "0x%x\n", uci->cpu_sig.pf);
 }
 
-static DEVICE_ATTR(reload, 0200, NULL, reload_store);
+static DEVICE_ATTR_WO(reload);
 static DEVICE_ATTR(version, 0400, version_show, NULL);
 static DEVICE_ATTR(processor_flags, 0400, pf_show, NULL);
 

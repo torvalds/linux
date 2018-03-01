@@ -18,8 +18,8 @@
 #define _FNIC_STATS_H_
 
 struct stats_timestamps {
-	struct timespec last_reset_time;
-	struct timespec last_read_time;
+	struct timespec64 last_reset_time;
+	struct timespec64 last_read_time;
 };
 
 struct io_path_stats {

@@ -20,7 +20,6 @@
 
 #include <linux/compiler.h>
 #include <linux/kvm_host.h>
-#include <asm/kvm_mmu.h>
 #include <asm/sysreg.h>
 
 #define __hyp_text __section(.hyp.text) notrace

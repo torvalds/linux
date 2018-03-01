@@ -402,7 +402,6 @@ static int nflog_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations nflog_file_ops = {
-	.owner	 = THIS_MODULE,
 	.open	 = nflog_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,

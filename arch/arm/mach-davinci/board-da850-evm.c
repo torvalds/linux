@@ -798,11 +798,11 @@ static int da850_lcd_hw_init(void)
 {
 	int status;
 
-	status = gpio_request(DA850_LCD_BL_PIN, "lcd bl\n");
+	status = gpio_request(DA850_LCD_BL_PIN, "lcd bl");
 	if (status < 0)
 		return status;
 
-	status = gpio_request(DA850_LCD_PWR_PIN, "lcd pwr\n");
+	status = gpio_request(DA850_LCD_PWR_PIN, "lcd pwr");
 	if (status < 0) {
 		gpio_free(DA850_LCD_BL_PIN);
 		return status;

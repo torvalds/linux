@@ -45,7 +45,6 @@
 
 /* Device, Driver information */
 #define DEVICE_NAME	"elants_i2c"
-#define DRV_VERSION	"1.0.9"
 
 /* Convert from rows or columns into resolution */
 #define ELAN_TS_RESOLUTION(n, m)   (((n) - 1) * (m))
@@ -1000,7 +999,7 @@ static ssize_t show_iap_mode(struct device *dev,
 				"Normal" : "Recovery");
 }
 
-static DEVICE_ATTR(calibrate, S_IWUSR, NULL, calibrate_store);
+static DEVICE_ATTR_WO(calibrate);
 static DEVICE_ATTR(iap_mode, S_IRUGO, show_iap_mode, NULL);
 static DEVICE_ATTR(update_fw, S_IWUSR, NULL, write_update_fw);
 
@@ -1406,5 +1405,4 @@ module_i2c_driver(elants_i2c_driver);
 
 MODULE_AUTHOR("Scott Liu <scott.liu@emc.com.tw>");
 MODULE_DESCRIPTION("Elan I2c Touchscreen driver");
-MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");

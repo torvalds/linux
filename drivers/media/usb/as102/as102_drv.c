@@ -27,7 +27,7 @@
 #include "as10x_cmd.h"
 #include "as102_fe.h"
 #include "as102_fw.h"
-#include "dvbdev.h"
+#include <media/dvbdev.h>
 
 int dual_tuner;
 module_param_named(dual_tuner, dual_tuner, int, 0644);

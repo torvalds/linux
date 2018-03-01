@@ -31,6 +31,24 @@ static const struct drm_mode_config_funcs drv_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
+static int stm_gem_cma_dumb_create(struct drm_file *file,
+				   struct drm_device *dev,
+				   struct drm_mode_create_dumb *args)
+{
+#ifdef CONFIG_MMU
+	unsigned int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+
+	/*
+	 * in order to optimize data transfer, pitch is aligned on
+	 * 128 bytes, height is aligned on 4 bytes
+	 */
+	args->pitch = roundup(min_pitch, 128);
+	args->height = roundup(args->height, 4);
+#endif
+
+	return drm_gem_cma_dumb_create_internal(file, dev, args);
+}
+
 DEFINE_DRM_GEM_CMA_FOPS(drv_driver_fops);
 
 static struct drm_driver drv_driver = {
@@ -44,7 +62,7 @@ static struct drm_driver drv_driver = {
 	.minor = 0,
 	.patchlevel = 0,
 	.fops = &drv_driver_fops,
-	.dumb_create = drm_gem_cma_dumb_create,
+	.dumb_create = stm_gem_cma_dumb_create,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,

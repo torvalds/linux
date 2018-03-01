@@ -153,11 +153,12 @@ void idr_nowait_test(void)
 	idr_destroy(&idr);
 }
 
-void idr_get_next_test(void)
+void idr_get_next_test(int base)
 {
 	unsigned long i;
 	int nextid;
 	DEFINE_IDR(idr);
+	idr_init_base(&idr, base);
 
 	int indices[] = {4, 7, 9, 15, 65, 128, 1000, 99999, 0};
 
@@ -207,11 +208,29 @@ void idr_checks(void)
 		assert(idr_alloc(&idr, item, i, i + 10, GFP_KERNEL) == i);
 	}
 	assert(idr_alloc(&idr, DUMMY_PTR, i - 2, i, GFP_KERNEL) == -ENOSPC);
+	assert(idr_alloc(&idr, DUMMY_PTR, i - 2, i + 10, GFP_KERNEL) == -ENOSPC);
 
 	idr_for_each(&idr, item_idr_free, &idr);
 	idr_destroy(&idr);
 	idr_destroy(&idr);
 
+	assert(idr_is_empty(&idr));
+
+	idr_set_cursor(&idr, INT_MAX - 3UL);
+	for (i = INT_MAX - 3UL; i < INT_MAX + 3UL; i++) {
+		struct item *item;
+		unsigned int id;
+		if (i <= INT_MAX)
+			item = item_create(i, 0);
+		else
+			item = item_create(i - INT_MAX - 1, 0);
+
+		id = idr_alloc_cyclic(&idr, item, 0, 0, GFP_KERNEL);
+		assert(id == item->index);
+	}
+
+	idr_for_each(&idr, item_idr_free, &idr);
+	idr_destroy(&idr);
 	assert(idr_is_empty(&idr));
 
 	for (i = 1; i < 10000; i++) {
@@ -226,7 +245,9 @@ void idr_checks(void)
 	idr_alloc_test();
 	idr_null_test();
 	idr_nowait_test();
-	idr_get_next_test();
+	idr_get_next_test(0);
+	idr_get_next_test(1);
+	idr_get_next_test(4);
 }
 
 /*
@@ -380,7 +401,7 @@ void ida_check_random(void)
 			do {
 				ida_pre_get(&ida, GFP_KERNEL);
 				err = ida_get_new_above(&ida, bit, &id);
-			} while (err == -ENOMEM);
+			} while (err == -EAGAIN);
 			assert(!err);
 			assert(id == bit);
 		}
@@ -489,7 +510,7 @@ static void *ida_random_fn(void *arg)
 
 void ida_thread_tests(void)
 {
-	pthread_t threads[10];
+	pthread_t threads[20];
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(threads); i++)

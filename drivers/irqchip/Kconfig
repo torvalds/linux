@@ -343,4 +343,12 @@ config MESON_IRQ_GPIO
        help
          Support Meson SoC Family GPIO Interrupt Multiplexer
 
+config GOLDFISH_PIC
+       bool "Goldfish programmable interrupt controller"
+       depends on MIPS && (GOLDFISH || COMPILE_TEST)
+       select IRQ_DOMAIN
+       help
+         Say yes here to enable Goldfish interrupt controller driver used
+         for Goldfish based virtual platforms.
+
 endmenu

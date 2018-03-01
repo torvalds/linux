@@ -18,7 +18,7 @@
 #define SI2168_PRIV_H
 
 #include "si2168.h"
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include <linux/firmware.h>
 #include <linux/i2c-mux.h>
 #include <linux/kernel.h>

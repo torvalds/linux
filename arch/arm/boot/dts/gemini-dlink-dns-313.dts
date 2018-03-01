@@ -1,0 +1,303 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree file for D-Link DNS-313 1-Bay Network Storage Enclosure
+ */
+
+/dts-v1/;
+
+#include "gemini.dtsi"
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/thermal/thermal.h>
+
+/ {
+	model = "D-Link DNS-313 1-Bay Network Storage Enclosure";
+	compatible = "dlink,dir-313", "cortina,gemini";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		/* 64 MB SDRAM in a Nanya NT5DS32M16BS-6K package */
+		device_type = "memory";
+		reg = <0x00000000 0x4000000>;
+	};
+
+	aliases {
+		mdio-gpio0 = &mdio0;
+	};
+
+	chosen {
+		stdout-path = "uart0:19200n8";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button-esc {
+			debounce_interval = <50>;
+			wakeup-source;
+			linux,code = <KEY_ESC>;
+			label = "reset";
+			gpios = <&gpio1 31 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led-power {
+			label = "dns313:blue:power";
+			gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+		led-disk-blue {
+			label = "dns313:blue:disk";
+			gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		led-disk-green {
+			label = "dns313:green:disk";
+			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "ide-disk";
+			/* Ideally should activate while reading */
+		};
+		led-disk-red {
+			label = "dns313:red:disk";
+			gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			/* Ideally should activate while writing */
+		};
+	};
+
+	/*
+	 * This is a ADDA AD0405GB-G73 fan @3000 and 6000 RPM.
+	 */
+	fan0: gpio-fan {
+		compatible = "gpio-fan";
+		gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>,
+			<&gpio0 12 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <0 0>, <3000 1>, <6000 2>;
+		cooling-min-level = <0>;
+		cooling-max-level = <2>;
+		#cooling-cells = <2>;
+	};
+
+
+	/* Global Mixed-Mode Technology G751 mounted on GPIO I2C */
+	gpio-i2c {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpio0 15 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio0 16 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		g751: temperature-sensor@48 {
+			compatible = "gmt,g751";
+			reg = <0x48>;
+			#thermal-sensor-cells = <0>;
+		};
+	};
+
+	thermal-zones {
+		chassis-thermal {
+			/* Poll every 20 seconds */
+			polling-delay = <20000>;
+			/* Poll every 2nd second when cooling */
+			polling-delay-passive = <2000>;
+
+			thermal-sensors = <&g751>;
+
+			/* Tripping points from the fan.script in the rootfs */
+			trips {
+				chassis_alert0: chassis-alert0 {
+					/* At 43 degrees turn on low speed */
+					temperature = <43000>;
+					hysteresis = <3000>;
+					type = "active";
+				};
+				chassis_alert1: chassis-alert1 {
+					/* At 47 degrees turn on high speed */
+					temperature = <47000>;
+					hysteresis = <3000>;
+					type = "active";
+				};
+				chassis_crit: chassis-crit {
+					/* Just shut down at 60 degrees */
+					temperature = <60000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&chassis_alert0>;
+					cooling-device = <&fan0 1 1>;
+				};
+				map1 {
+					trip = <&chassis_alert1>;
+					cooling-device = <&fan0 2 2>;
+				};
+			};
+		};
+	};
+
+	mdio0: ethernet-phy {
+		compatible = "virtual,mdio-gpio";
+		/* Uses MDC and MDIO */
+		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */
+			<&gpio0 21 GPIO_ACTIVE_HIGH>; /* MDIO */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* This is a Realtek RTL8211B Gigabit ethernet transceiver */
+		phy0: ethernet-phy@1 {
+			reg = <1>;
+			device_type = "ethernet-phy";
+		};
+	};
+
+	soc {
+		flash@30000000 {
+			status = "okay";
+			/* 512KB of flash */
+			reg = <0x30000000 0x00080000>;
+
+			/*
+			 * This "RedBoot" is the Storlink derivative.
+			 */
+			partition@0 {
+				label = "RedBoot";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+			partition@40000 {
+				label = "MTD1";
+				reg = <0x00040000 0x00020000>;
+				read-only;
+			};
+			partition@60000 {
+				label = "MTD2";
+				reg = <0x00060000 0x00020000>;
+				read-only;
+			};
+		};
+
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 */
+				gpio0_default_pins: pinctrl-gpio0 {
+					mux {
+						function = "gpio0";
+						groups =
+						/* Used by LEDs conflicts ICE */
+						"gpio0bgrp",
+						/* Used by ? conflicts ICE */
+						"gpio0cgrp",
+						/*
+						 * Used by fan & G751, conflicts LPC,
+						 * UART modem lines, SSP
+						 */
+						"gpio0egrp",
+						/* Used by G751 */
+						"gpio0fgrp",
+						/* Used by MDIO */
+						"gpio0igrp";
+					};
+				};
+				gpio1_default_pins: pinctrl-gpio1 {
+					mux {
+						function = "gpio1";
+						/* Used by "reset" button */
+						groups = "gpio1dgrp";
+					};
+				};
+				pinctrl-gmii {
+					mux {
+						function = "gmii";
+						groups = "gmii_gmac0_grp";
+					};
+					/*
+					 * In the vendor Linux tree, these values are set for the C3
+					 * version of the SL3512 ASIC with the comment "benson suggest"
+					 */
+					conf0 {
+						pins = "R8 GMAC0 RXDV", "U11 GMAC1 RXDV";
+						skew-delay = <0>;
+					};
+					conf1 {
+						pins = "T8 GMAC0 RXC";
+						skew-delay = <10>;
+					};
+					conf2 {
+						pins = "T11 GMAC1 RXC";
+						skew-delay = <15>;
+					};
+					conf3 {
+						pins = "P8 GMAC0 TXEN", "V11 GMAC1 TXEN";
+						skew-delay = <7>;
+					};
+					conf4 {
+						pins = "V7 GMAC0 TXC", "P10 GMAC1 TXC";
+						skew-delay = <10>;
+					};
+					conf5 {
+						/* The data lines all have default skew */
+						pins = "U8 GMAC0 RXD0", "V8 GMAC0 RXD1",
+						       "P9 GMAC0 RXD2", "R9 GMAC0 RXD3",
+						       "R11 GMAC1 RXD0", "P11 GMAC1 RXD1",
+						       "V12 GMAC1 RXD2", "U12 GMAC1 RXD3",
+						       "R10 GMAC1 TXD0", "T10 GMAC1 TXD1",
+						       "U10 GMAC1 TXD2", "V10 GMAC1 TXD3";
+						skew-delay = <7>;
+					};
+					conf6 {
+						pins = "U7 GMAC0 TXD0", "T7 GMAC0 TXD1",
+						       "R7 GMAC0 TXD2", "P7 GMAC0 TXD3";
+						skew-delay = <5>;
+					};
+					/* Set up drive strength on GMAC0 to 16 mA */
+					conf7 {
+						groups = "gmii_gmac0_grp";
+						drive-strength = <16>;
+					};
+				};
+			};
+		};
+
+		sata: sata@46000000 {
+			/* The ROM uses this muxmode */
+			cortina,gemini-ata-muxmode = <3>;
+			cortina,gemini-enable-sata-bridge;
+			status = "okay";
+		};
+
+		gpio0: gpio@4d000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio0_default_pins>;
+		};
+
+		gpio1: gpio@4e000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio1_default_pins>;
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy0>;
+			};
+			ethernet-port@1 {
+				/* Not used in this platform */
+			};
+		};
+
+		ata@63000000 {
+			status = "okay";
+		};
+	};
+};

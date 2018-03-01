@@ -189,12 +189,6 @@ struct vega10_vbios_boot_state {
 	uint32_t    dcef_clock;
 };
 
-#define DPMTABLE_OD_UPDATE_SCLK     0x00000001
-#define DPMTABLE_OD_UPDATE_MCLK     0x00000002
-#define DPMTABLE_UPDATE_SCLK        0x00000004
-#define DPMTABLE_UPDATE_MCLK        0x00000008
-#define DPMTABLE_OD_UPDATE_VDDC     0x00000010
-
 struct vega10_smc_state_table {
 	uint32_t        soc_boot_level;
 	uint32_t        gfx_boot_level;
@@ -389,6 +383,7 @@ struct vega10_hwmgr {
 	uint32_t                       config_telemetry;
 	uint32_t                       acg_loop_state;
 	uint32_t                       mem_channels;
+	uint8_t                       custom_profile_mode[4];
 };
 
 #define VEGA10_DPM2_NEAR_TDP_DEC                      10

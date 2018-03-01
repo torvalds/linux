@@ -32,6 +32,8 @@ extern unsigned int admin_timeout;
 #define NVME_KATO_GRACE		10
 
 extern struct workqueue_struct *nvme_wq;
+extern struct workqueue_struct *nvme_reset_wq;
+extern struct workqueue_struct *nvme_delete_wq;
 
 enum {
 	NVME_NS_LBA		= 0,
@@ -119,6 +121,7 @@ static inline struct nvme_request *nvme_req(struct request *req)
 enum nvme_ctrl_state {
 	NVME_CTRL_NEW,
 	NVME_CTRL_LIVE,
+	NVME_CTRL_ADMIN_ONLY,    /* Only admin queue live */
 	NVME_CTRL_RESETTING,
 	NVME_CTRL_RECONNECTING,
 	NVME_CTRL_DELETING,
@@ -393,6 +396,7 @@ int nvme_set_queue_count(struct nvme_ctrl *ctrl, int *count);
 void nvme_start_keep_alive(struct nvme_ctrl *ctrl);
 void nvme_stop_keep_alive(struct nvme_ctrl *ctrl);
 int nvme_reset_ctrl(struct nvme_ctrl *ctrl);
+int nvme_reset_ctrl_sync(struct nvme_ctrl *ctrl);
 int nvme_delete_ctrl(struct nvme_ctrl *ctrl);
 int nvme_delete_ctrl_sync(struct nvme_ctrl *ctrl);
 
@@ -401,7 +405,7 @@ extern const struct block_device_operations nvme_ns_head_ops;
 
 #ifdef CONFIG_NVME_MULTIPATH
 void nvme_failover_req(struct request *req);
-bool nvme_req_needs_failover(struct request *req);
+bool nvme_req_needs_failover(struct request *req, blk_status_t error);
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl);
 int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,struct nvme_ns_head *head);
 void nvme_mpath_add_disk(struct nvme_ns_head *head);
@@ -430,7 +434,8 @@ static inline void nvme_mpath_check_last_path(struct nvme_ns *ns)
 static inline void nvme_failover_req(struct request *req)
 {
 }
-static inline bool nvme_req_needs_failover(struct request *req)
+static inline bool nvme_req_needs_failover(struct request *req,
+					   blk_status_t error)
 {
 	return false;
 }

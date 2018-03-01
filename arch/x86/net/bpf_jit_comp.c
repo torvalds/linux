@@ -15,8 +15,6 @@
 #include <asm/set_memory.h>
 #include <linux/bpf.h>
 
-int bpf_jit_enable __read_mostly;
-
 /*
  * assembly code in arch/x86/net/bpf_jit.S
  */
@@ -152,6 +150,11 @@ static bool is_ereg(u32 reg)
 			     BIT(BPF_REG_8) |
 			     BIT(BPF_REG_9) |
 			     BIT(BPF_REG_AX));
+}
+
+static bool is_axreg(u32 reg)
+{
+	return reg == BPF_REG_0;
 }
 
 /* add modifiers if 'reg' maps to x64 registers r8..r15 */
@@ -447,16 +450,36 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			else if (is_ereg(dst_reg))
 				EMIT1(add_1mod(0x40, dst_reg));
 
+			/* b3 holds 'normal' opcode, b2 short form only valid
+			 * in case dst is eax/rax.
+			 */
 			switch (BPF_OP(insn->code)) {
-			case BPF_ADD: b3 = 0xC0; break;
-			case BPF_SUB: b3 = 0xE8; break;
-			case BPF_AND: b3 = 0xE0; break;
-			case BPF_OR: b3 = 0xC8; break;
-			case BPF_XOR: b3 = 0xF0; break;
+			case BPF_ADD:
+				b3 = 0xC0;
+				b2 = 0x05;
+				break;
+			case BPF_SUB:
+				b3 = 0xE8;
+				b2 = 0x2D;
+				break;
+			case BPF_AND:
+				b3 = 0xE0;
+				b2 = 0x25;
+				break;
+			case BPF_OR:
+				b3 = 0xC8;
+				b2 = 0x0D;
+				break;
+			case BPF_XOR:
+				b3 = 0xF0;
+				b2 = 0x35;
+				break;
 			}
 
 			if (is_imm8(imm32))
 				EMIT3(0x83, add_1reg(b3, dst_reg), imm32);
+			else if (is_axreg(dst_reg))
+				EMIT1_off32(b2, imm32);
 			else
 				EMIT2_off32(0x81, add_1reg(b3, dst_reg), imm32);
 			break;
@@ -544,26 +567,6 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image,
 			 * equivalent to 'xor rdx, rdx', but one byte less
 			 */
 			EMIT2(0x31, 0xd2);
-
-			if (BPF_SRC(insn->code) == BPF_X) {
-				/* if (src_reg == 0) return 0 */
-
-				/* cmp r11, 0 */
-				EMIT4(0x49, 0x83, 0xFB, 0x00);
-
-				/* jne .+9 (skip over pop, pop, xor and jmp) */
-				EMIT2(X86_JNE, 1 + 1 + 2 + 5);
-				EMIT1(0x5A); /* pop rdx */
-				EMIT1(0x58); /* pop rax */
-				EMIT2(0x31, 0xc0); /* xor eax, eax */
-
-				/* jmp cleanup_addr
-				 * addrs[i] - 11, because there are 11 bytes
-				 * after this insn: div, mov, pop, pop, mov
-				 */
-				jmp_offset = ctx->cleanup_addr - (addrs[i] - 11);
-				EMIT1_off32(0xE9, jmp_offset);
-			}
 
 			if (BPF_CLASS(insn->code) == BPF_ALU64)
 				/* div r11 */
@@ -1109,19 +1112,29 @@ common_load:
 	return proglen;
 }
 
+struct x64_jit_data {
+	struct bpf_binary_header *header;
+	int *addrs;
+	u8 *image;
+	int proglen;
+	struct jit_context ctx;
+};
+
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 {
 	struct bpf_binary_header *header = NULL;
 	struct bpf_prog *tmp, *orig_prog = prog;
+	struct x64_jit_data *jit_data;
 	int proglen, oldproglen = 0;
 	struct jit_context ctx = {};
 	bool tmp_blinded = false;
+	bool extra_pass = false;
 	u8 *image = NULL;
 	int *addrs;
 	int pass;
 	int i;
 
-	if (!bpf_jit_enable)
+	if (!prog->jit_requested)
 		return orig_prog;
 
 	tmp = bpf_jit_blind_constants(prog);
@@ -1135,10 +1148,28 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		prog = tmp;
 	}
 
+	jit_data = prog->aux->jit_data;
+	if (!jit_data) {
+		jit_data = kzalloc(sizeof(*jit_data), GFP_KERNEL);
+		if (!jit_data) {
+			prog = orig_prog;
+			goto out;
+		}
+		prog->aux->jit_data = jit_data;
+	}
+	addrs = jit_data->addrs;
+	if (addrs) {
+		ctx = jit_data->ctx;
+		oldproglen = jit_data->proglen;
+		image = jit_data->image;
+		header = jit_data->header;
+		extra_pass = true;
+		goto skip_init_addrs;
+	}
 	addrs = kmalloc(prog->len * sizeof(*addrs), GFP_KERNEL);
 	if (!addrs) {
 		prog = orig_prog;
-		goto out;
+		goto out_addrs;
 	}
 
 	/* Before first pass, make a rough estimation of addrs[]
@@ -1149,6 +1180,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		addrs[i] = proglen;
 	}
 	ctx.cleanup_addr = proglen;
+skip_init_addrs:
 
 	/* JITed image shrinks with every pass and the loop iterates
 	 * until the image stops shrinking. Very large bpf programs
@@ -1189,7 +1221,15 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 
 	if (image) {
 		bpf_flush_icache(header, image + proglen);
-		bpf_jit_binary_lock_ro(header);
+		if (!prog->is_func || extra_pass) {
+			bpf_jit_binary_lock_ro(header);
+		} else {
+			jit_data->addrs = addrs;
+			jit_data->ctx = ctx;
+			jit_data->proglen = proglen;
+			jit_data->image = image;
+			jit_data->header = header;
+		}
 		prog->bpf_func = (void *)image;
 		prog->jited = 1;
 		prog->jited_len = proglen;
@@ -1197,8 +1237,12 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		prog = orig_prog;
 	}
 
+	if (!prog->is_func || extra_pass) {
 out_addrs:
-	kfree(addrs);
+		kfree(addrs);
+		kfree(jit_data);
+		prog->aux->jit_data = NULL;
+	}
 out:
 	if (tmp_blinded)
 		bpf_jit_prog_release_other(prog, prog == orig_prog ?

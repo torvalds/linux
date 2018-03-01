@@ -1,19 +1,14 @@
-/*
- * S3C64xx specific support for pinctrl-samsung driver.
- *
- * Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
- *
- * Based on pinctrl-exynos.c, please see the file for original copyrights.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This file contains the Samsung S3C64xx specific information required by the
- * the Samsung pinctrl/gpiolib driver. It also includes the implementation of
- * external gpio and wakeup interrupt support.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// S3C64xx specific support for pinctrl-samsung driver.
+//
+// Copyright (c) 2013 Tomasz Figa <tomasz.figa@gmail.com>
+//
+// Based on pinctrl-exynos.c, please see the file for original copyrights.
+//
+// This file contains the Samsung S3C64xx specific information required by the
+// the Samsung pinctrl/gpiolib driver. It also includes the implementation of
+// external gpio and wakeup interrupt support.
 
 #include <linux/init.h>
 #include <linux/device.h>

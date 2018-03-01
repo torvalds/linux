@@ -472,7 +472,6 @@ static int iuu_clk(struct usb_serial_port *port, int dwFrq)
 				}
 	}
 	P2 = ((P - PO) / 2) - 4;
-	DIV = DIV;
 	PUMP = 0x04;
 	PBmsb = (P2 >> 8 & 0x03);
 	PBlsb = P2 & 0xFF;

@@ -184,12 +184,15 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (ring->funcs->init_cond_exec)
 		patch_offset = amdgpu_ring_init_cond_exec(ring);
 
-	if (ring->funcs->emit_hdp_flush
 #ifdef CONFIG_X86_64
-	    && !(adev->flags & AMD_IS_APU)
+	if (!(adev->flags & AMD_IS_APU))
 #endif
-	   )
-		amdgpu_ring_emit_hdp_flush(ring);
+	{
+		if (ring->funcs->emit_hdp_flush)
+			amdgpu_ring_emit_hdp_flush(ring);
+		else
+			amdgpu_asic_flush_hdp(adev, ring);
+	}
 
 	skip_preamble = ring->current_ctx == fence_ctx;
 	need_ctx_switch = ring->current_ctx != fence_ctx;
@@ -219,12 +222,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (ring->funcs->emit_tmz)
 		amdgpu_ring_emit_tmz(ring, false);
 
-	if (ring->funcs->emit_hdp_invalidate
 #ifdef CONFIG_X86_64
-	    && !(adev->flags & AMD_IS_APU)
+	if (!(adev->flags & AMD_IS_APU))
 #endif
-	   )
-		amdgpu_ring_emit_hdp_invalidate(ring);
+		amdgpu_asic_invalidate_hdp(adev, ring);
 
 	r = amdgpu_fence_emit(ring, f);
 	if (r) {

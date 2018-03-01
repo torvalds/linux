@@ -1462,8 +1462,6 @@ static void pcs_irq_chain_handler(struct irq_desc *desc)
 	pcs_irq_handle(pcs_soc);
 	/* REVISIT: export and add handle_bad_irq(irq, desc)? */
 	chained_irq_exit(chip, desc);
-
-	return;
 }
 
 static int pcs_irqdomain_map(struct irq_domain *d, unsigned int irq,
@@ -1649,10 +1647,9 @@ static int pcs_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	pcs = devm_kzalloc(&pdev->dev, sizeof(*pcs), GFP_KERNEL);
-	if (!pcs) {
-		dev_err(&pdev->dev, "could not allocate\n");
+	if (!pcs)
 		return -ENOMEM;
-	}
+
 	pcs->dev = &pdev->dev;
 	pcs->np = np;
 	raw_spin_lock_init(&pcs->lock);
@@ -1777,8 +1774,7 @@ static int pcs_probe(struct platform_device *pdev)
 			dev_warn(pcs->dev, "initialized with no interrupts\n");
 	}
 
-	dev_info(pcs->dev, "%i pins at pa %p size %u\n",
-		 pcs->desc.npins, pcs->base, pcs->size);
+	dev_info(pcs->dev, "%i pins, size %u\n", pcs->desc.npins, pcs->size);
 
 	return pinctrl_enable(pcs->pctl);
 

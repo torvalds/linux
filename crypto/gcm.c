@@ -1101,7 +1101,7 @@ static int crypto_rfc4543_init_tfm(struct crypto_aead *tfm)
 	if (IS_ERR(aead))
 		return PTR_ERR(aead);
 
-	null = crypto_get_default_null_skcipher2();
+	null = crypto_get_default_null_skcipher();
 	err = PTR_ERR(null);
 	if (IS_ERR(null))
 		goto err_free_aead;
@@ -1129,7 +1129,7 @@ static void crypto_rfc4543_exit_tfm(struct crypto_aead *tfm)
 	struct crypto_rfc4543_ctx *ctx = crypto_aead_ctx(tfm);
 
 	crypto_free_aead(ctx->child);
-	crypto_put_default_null_skcipher2();
+	crypto_put_default_null_skcipher();
 }
 
 static void crypto_rfc4543_free(struct aead_instance *inst)

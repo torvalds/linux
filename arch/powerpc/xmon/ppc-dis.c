@@ -93,10 +93,6 @@ lookup_powerpc (unsigned long insn, ppc_cpu_t dialect)
 {
   const struct powerpc_opcode *opcode;
   const struct powerpc_opcode *opcode_end;
-  unsigned long op;
-
-  /* Get the major opcode of the instruction.  */
-  op = PPC_OP (insn);
 
   opcode_end = powerpc_opcodes + powerpc_num_opcodes;
   /* Find the first match in the opcode table for this major opcode.  */

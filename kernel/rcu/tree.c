@@ -265,23 +265,10 @@ void rcu_bh_qs(void)
 #endif
 
 static DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
-	.dynticks_nesting = DYNTICK_TASK_EXIT_IDLE,
+	.dynticks_nesting = 1,
+	.dynticks_nmi_nesting = DYNTICK_IRQ_NONIDLE,
 	.dynticks = ATOMIC_INIT(RCU_DYNTICK_CTRL_CTR),
 };
-
-/*
- * There's a few places, currently just in the tracing infrastructure,
- * that uses rcu_irq_enter() to make sure RCU is watching. But there's
- * a small location where that will not even work. In those cases
- * rcu_irq_enter_disabled() needs to be checked to make sure rcu_irq_enter()
- * can be called.
- */
-static DEFINE_PER_CPU(bool, disable_rcu_irq_enter);
-
-bool rcu_irq_enter_disabled(void)
-{
-	return this_cpu_read(disable_rcu_irq_enter);
-}
 
 /*
  * Record entry into an extended quiescent state.  This is only to be
@@ -762,68 +749,39 @@ cpu_needs_another_gp(struct rcu_state *rsp, struct rcu_data *rdp)
 }
 
 /*
- * rcu_eqs_enter_common - current CPU is entering an extended quiescent state
+ * Enter an RCU extended quiescent state, which can be either the
+ * idle loop or adaptive-tickless usermode execution.
  *
- * Enter idle, doing appropriate accounting.  The caller must have
- * disabled interrupts.
+ * We crowbar the ->dynticks_nmi_nesting field to zero to allow for
+ * the possibility of usermode upcalls having messed up our count
+ * of interrupt nesting level during the prior busy period.
  */
-static void rcu_eqs_enter_common(bool user)
+static void rcu_eqs_enter(bool user)
 {
 	struct rcu_state *rsp;
 	struct rcu_data *rdp;
-	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+	struct rcu_dynticks *rdtp;
+
+	rdtp = this_cpu_ptr(&rcu_dynticks);
+	WRITE_ONCE(rdtp->dynticks_nmi_nesting, 0);
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
+		     rdtp->dynticks_nesting == 0);
+	if (rdtp->dynticks_nesting != 1) {
+		rdtp->dynticks_nesting--;
+		return;
+	}
 
 	lockdep_assert_irqs_disabled();
-	trace_rcu_dyntick(TPS("Start"), rdtp->dynticks_nesting, 0);
-	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-	    !user && !is_idle_task(current)) {
-		struct task_struct *idle __maybe_unused =
-			idle_task(smp_processor_id());
-
-		trace_rcu_dyntick(TPS("Error on entry: not idle task"), rdtp->dynticks_nesting, 0);
-		rcu_ftrace_dump(DUMP_ORIG);
-		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
-			  current->pid, current->comm,
-			  idle->pid, idle->comm); /* must be idle task! */
-	}
+	trace_rcu_dyntick(TPS("Start"), rdtp->dynticks_nesting, 0, rdtp->dynticks);
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
 	for_each_rcu_flavor(rsp) {
 		rdp = this_cpu_ptr(rsp->rda);
 		do_nocb_deferred_wakeup(rdp);
 	}
 	rcu_prepare_for_idle();
-	__this_cpu_inc(disable_rcu_irq_enter);
-	rdtp->dynticks_nesting = 0; /* Breaks tracing momentarily. */
-	rcu_dynticks_eqs_enter(); /* After this, tracing works again. */
-	__this_cpu_dec(disable_rcu_irq_enter);
+	WRITE_ONCE(rdtp->dynticks_nesting, 0); /* Avoid irq-access tearing. */
+	rcu_dynticks_eqs_enter();
 	rcu_dynticks_task_enter();
-
-	/*
-	 * It is illegal to enter an extended quiescent state while
-	 * in an RCU read-side critical section.
-	 */
-	RCU_LOCKDEP_WARN(lock_is_held(&rcu_lock_map),
-			 "Illegal idle entry in RCU read-side critical section.");
-	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map),
-			 "Illegal idle entry in RCU-bh read-side critical section.");
-	RCU_LOCKDEP_WARN(lock_is_held(&rcu_sched_lock_map),
-			 "Illegal idle entry in RCU-sched read-side critical section.");
-}
-
-/*
- * Enter an RCU extended quiescent state, which can be either the
- * idle loop or adaptive-tickless usermode execution.
- */
-static void rcu_eqs_enter(bool user)
-{
-	struct rcu_dynticks *rdtp;
-
-	rdtp = this_cpu_ptr(&rcu_dynticks);
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     (rdtp->dynticks_nesting & DYNTICK_TASK_NEST_MASK) == 0);
-	if ((rdtp->dynticks_nesting & DYNTICK_TASK_NEST_MASK) == DYNTICK_TASK_NEST_VALUE)
-		rcu_eqs_enter_common(user);
-	else
-		rdtp->dynticks_nesting -= DYNTICK_TASK_NEST_VALUE;
 }
 
 /**
@@ -833,10 +791,6 @@ static void rcu_eqs_enter(bool user)
  * read-side critical sections can occur.  (Though RCU read-side
  * critical sections can occur in irq handlers in idle, a possibility
  * handled by irq_enter() and irq_exit().)
- *
- * We crowbar the ->dynticks_nesting field to zero to allow for
- * the possibility of usermode upcalls having messed up our count
- * of interrupt nesting level during the prior busy period.
  *
  * If you add or remove a call to rcu_idle_enter(), be sure to test with
  * CONFIG_RCU_EQS_DEBUG=y.
@@ -867,6 +821,46 @@ void rcu_user_enter(void)
 #endif /* CONFIG_NO_HZ_FULL */
 
 /**
+ * rcu_nmi_exit - inform RCU of exit from NMI context
+ *
+ * If we are returning from the outermost NMI handler that interrupted an
+ * RCU-idle period, update rdtp->dynticks and rdtp->dynticks_nmi_nesting
+ * to let the RCU grace-period handling know that the CPU is back to
+ * being RCU-idle.
+ *
+ * If you add or remove a call to rcu_nmi_exit(), be sure to test
+ * with CONFIG_RCU_EQS_DEBUG=y.
+ */
+void rcu_nmi_exit(void)
+{
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
+
+	/*
+	 * Check for ->dynticks_nmi_nesting underflow and bad ->dynticks.
+	 * (We are exiting an NMI handler, so RCU better be paying attention
+	 * to us!)
+	 */
+	WARN_ON_ONCE(rdtp->dynticks_nmi_nesting <= 0);
+	WARN_ON_ONCE(rcu_dynticks_curr_cpu_in_eqs());
+
+	/*
+	 * If the nesting level is not 1, the CPU wasn't RCU-idle, so
+	 * leave it in non-RCU-idle state.
+	 */
+	if (rdtp->dynticks_nmi_nesting != 1) {
+		trace_rcu_dyntick(TPS("--="), rdtp->dynticks_nmi_nesting, rdtp->dynticks_nmi_nesting - 2, rdtp->dynticks);
+		WRITE_ONCE(rdtp->dynticks_nmi_nesting, /* No store tearing. */
+			   rdtp->dynticks_nmi_nesting - 2);
+		return;
+	}
+
+	/* This NMI interrupted an RCU-idle CPU, restore RCU-idleness. */
+	trace_rcu_dyntick(TPS("Startirq"), rdtp->dynticks_nmi_nesting, 0, rdtp->dynticks);
+	WRITE_ONCE(rdtp->dynticks_nmi_nesting, 0); /* Avoid store tearing. */
+	rcu_dynticks_eqs_enter();
+}
+
+/**
  * rcu_irq_exit - inform RCU that current CPU is exiting irq towards idle
  *
  * Exit from an interrupt handler, which might possibly result in entering
@@ -875,8 +869,8 @@ void rcu_user_enter(void)
  *
  * This code assumes that the idle loop never does anything that might
  * result in unbalanced calls to irq_enter() and irq_exit().  If your
- * architecture violates this assumption, RCU will give you what you
- * deserve, good and hard.  But very infrequently and irreproducibly.
+ * architecture's idle loop violates this assumption, RCU will give you what
+ * you deserve, good and hard.  But very infrequently and irreproducibly.
  *
  * Use things like work queues to work around this limitation.
  *
@@ -887,23 +881,14 @@ void rcu_user_enter(void)
  */
 void rcu_irq_exit(void)
 {
-	struct rcu_dynticks *rdtp;
+	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
 	lockdep_assert_irqs_disabled();
-	rdtp = this_cpu_ptr(&rcu_dynticks);
-
-	/* Page faults can happen in NMI handlers, so check... */
-	if (rdtp->dynticks_nmi_nesting)
-		return;
-
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     rdtp->dynticks_nesting < 1);
-	if (rdtp->dynticks_nesting <= 1) {
-		rcu_eqs_enter_common(true);
-	} else {
-		trace_rcu_dyntick(TPS("--="), rdtp->dynticks_nesting, rdtp->dynticks_nesting - 1);
-		rdtp->dynticks_nesting--;
-	}
+	if (rdtp->dynticks_nmi_nesting == 1)
+		rcu_prepare_for_idle();
+	rcu_nmi_exit();
+	if (rdtp->dynticks_nmi_nesting == 0)
+		rcu_dynticks_task_enter();
 }
 
 /*
@@ -922,55 +907,33 @@ void rcu_irq_exit_irqson(void)
 }
 
 /*
- * rcu_eqs_exit_common - current CPU moving away from extended quiescent state
- *
- * If the new value of the ->dynticks_nesting counter was previously zero,
- * we really have exited idle, and must do the appropriate accounting.
- * The caller must have disabled interrupts.
- */
-static void rcu_eqs_exit_common(long long oldval, int user)
-{
-	RCU_TRACE(struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);)
-
-	rcu_dynticks_task_exit();
-	rcu_dynticks_eqs_exit();
-	rcu_cleanup_after_idle();
-	trace_rcu_dyntick(TPS("End"), oldval, rdtp->dynticks_nesting);
-	if (IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-	    !user && !is_idle_task(current)) {
-		struct task_struct *idle __maybe_unused =
-			idle_task(smp_processor_id());
-
-		trace_rcu_dyntick(TPS("Error on exit: not idle task"),
-				  oldval, rdtp->dynticks_nesting);
-		rcu_ftrace_dump(DUMP_ORIG);
-		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
-			  current->pid, current->comm,
-			  idle->pid, idle->comm); /* must be idle task! */
-	}
-}
-
-/*
  * Exit an RCU extended quiescent state, which can be either the
  * idle loop or adaptive-tickless usermode execution.
+ *
+ * We crowbar the ->dynticks_nmi_nesting field to DYNTICK_IRQ_NONIDLE to
+ * allow for the possibility of usermode upcalls messing up our count of
+ * interrupt nesting level during the busy period that is just now starting.
  */
 static void rcu_eqs_exit(bool user)
 {
 	struct rcu_dynticks *rdtp;
-	long long oldval;
+	long oldval;
 
 	lockdep_assert_irqs_disabled();
 	rdtp = this_cpu_ptr(&rcu_dynticks);
 	oldval = rdtp->dynticks_nesting;
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && oldval < 0);
-	if (oldval & DYNTICK_TASK_NEST_MASK) {
-		rdtp->dynticks_nesting += DYNTICK_TASK_NEST_VALUE;
-	} else {
-		__this_cpu_inc(disable_rcu_irq_enter);
-		rdtp->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
-		rcu_eqs_exit_common(oldval, user);
-		__this_cpu_dec(disable_rcu_irq_enter);
+	if (oldval) {
+		rdtp->dynticks_nesting++;
+		return;
 	}
+	rcu_dynticks_task_exit();
+	rcu_dynticks_eqs_exit();
+	rcu_cleanup_after_idle();
+	trace_rcu_dyntick(TPS("End"), rdtp->dynticks_nesting, 1, rdtp->dynticks);
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
+	WRITE_ONCE(rdtp->dynticks_nesting, 1);
+	WRITE_ONCE(rdtp->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
 }
 
 /**
@@ -978,11 +941,6 @@ static void rcu_eqs_exit(bool user)
  *
  * Exit idle mode, in other words, -enter- the mode in which RCU
  * read-side critical sections can occur.
- *
- * We crowbar the ->dynticks_nesting field to DYNTICK_TASK_NEST to
- * allow for the possibility of usermode upcalls messing up our count
- * of interrupt nesting level during the busy period that is just
- * now starting.
  *
  * If you add or remove a call to rcu_idle_exit(), be sure to test with
  * CONFIG_RCU_EQS_DEBUG=y.
@@ -1013,65 +971,6 @@ void rcu_user_exit(void)
 #endif /* CONFIG_NO_HZ_FULL */
 
 /**
- * rcu_irq_enter - inform RCU that current CPU is entering irq away from idle
- *
- * Enter an interrupt handler, which might possibly result in exiting
- * idle mode, in other words, entering the mode in which read-side critical
- * sections can occur.  The caller must have disabled interrupts.
- *
- * Note that the Linux kernel is fully capable of entering an interrupt
- * handler that it never exits, for example when doing upcalls to
- * user mode!  This code assumes that the idle loop never does upcalls to
- * user mode.  If your architecture does do upcalls from the idle loop (or
- * does anything else that results in unbalanced calls to the irq_enter()
- * and irq_exit() functions), RCU will give you what you deserve, good
- * and hard.  But very infrequently and irreproducibly.
- *
- * Use things like work queues to work around this limitation.
- *
- * You have been warned.
- *
- * If you add or remove a call to rcu_irq_enter(), be sure to test with
- * CONFIG_RCU_EQS_DEBUG=y.
- */
-void rcu_irq_enter(void)
-{
-	struct rcu_dynticks *rdtp;
-	long long oldval;
-
-	lockdep_assert_irqs_disabled();
-	rdtp = this_cpu_ptr(&rcu_dynticks);
-
-	/* Page faults can happen in NMI handlers, so check... */
-	if (rdtp->dynticks_nmi_nesting)
-		return;
-
-	oldval = rdtp->dynticks_nesting;
-	rdtp->dynticks_nesting++;
-	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) &&
-		     rdtp->dynticks_nesting == 0);
-	if (oldval)
-		trace_rcu_dyntick(TPS("++="), oldval, rdtp->dynticks_nesting);
-	else
-		rcu_eqs_exit_common(oldval, true);
-}
-
-/*
- * Wrapper for rcu_irq_enter() where interrupts are enabled.
- *
- * If you add or remove a call to rcu_irq_enter_irqson(), be sure to test
- * with CONFIG_RCU_EQS_DEBUG=y.
- */
-void rcu_irq_enter_irqson(void)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	rcu_irq_enter();
-	local_irq_restore(flags);
-}
-
-/**
  * rcu_nmi_enter - inform RCU of entry to NMI context
  *
  * If the CPU was idle from RCU's viewpoint, update rdtp->dynticks and
@@ -1086,7 +985,7 @@ void rcu_irq_enter_irqson(void)
 void rcu_nmi_enter(void)
 {
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
-	int incby = 2;
+	long incby = 2;
 
 	/* Complain about underflow. */
 	WARN_ON_ONCE(rdtp->dynticks_nmi_nesting < 0);
@@ -1103,45 +1002,61 @@ void rcu_nmi_enter(void)
 		rcu_dynticks_eqs_exit();
 		incby = 1;
 	}
-	rdtp->dynticks_nmi_nesting += incby;
+	trace_rcu_dyntick(incby == 1 ? TPS("Endirq") : TPS("++="),
+			  rdtp->dynticks_nmi_nesting,
+			  rdtp->dynticks_nmi_nesting + incby, rdtp->dynticks);
+	WRITE_ONCE(rdtp->dynticks_nmi_nesting, /* Prevent store tearing. */
+		   rdtp->dynticks_nmi_nesting + incby);
 	barrier();
 }
 
 /**
- * rcu_nmi_exit - inform RCU of exit from NMI context
+ * rcu_irq_enter - inform RCU that current CPU is entering irq away from idle
  *
- * If we are returning from the outermost NMI handler that interrupted an
- * RCU-idle period, update rdtp->dynticks and rdtp->dynticks_nmi_nesting
- * to let the RCU grace-period handling know that the CPU is back to
- * being RCU-idle.
+ * Enter an interrupt handler, which might possibly result in exiting
+ * idle mode, in other words, entering the mode in which read-side critical
+ * sections can occur.  The caller must have disabled interrupts.
  *
- * If you add or remove a call to rcu_nmi_exit(), be sure to test
- * with CONFIG_RCU_EQS_DEBUG=y.
+ * Note that the Linux kernel is fully capable of entering an interrupt
+ * handler that it never exits, for example when doing upcalls to user mode!
+ * This code assumes that the idle loop never does upcalls to user mode.
+ * If your architecture's idle loop does do upcalls to user mode (or does
+ * anything else that results in unbalanced calls to the irq_enter() and
+ * irq_exit() functions), RCU will give you what you deserve, good and hard.
+ * But very infrequently and irreproducibly.
+ *
+ * Use things like work queues to work around this limitation.
+ *
+ * You have been warned.
+ *
+ * If you add or remove a call to rcu_irq_enter(), be sure to test with
+ * CONFIG_RCU_EQS_DEBUG=y.
  */
-void rcu_nmi_exit(void)
+void rcu_irq_enter(void)
 {
 	struct rcu_dynticks *rdtp = this_cpu_ptr(&rcu_dynticks);
 
-	/*
-	 * Check for ->dynticks_nmi_nesting underflow and bad ->dynticks.
-	 * (We are exiting an NMI handler, so RCU better be paying attention
-	 * to us!)
-	 */
-	WARN_ON_ONCE(rdtp->dynticks_nmi_nesting <= 0);
-	WARN_ON_ONCE(rcu_dynticks_curr_cpu_in_eqs());
+	lockdep_assert_irqs_disabled();
+	if (rdtp->dynticks_nmi_nesting == 0)
+		rcu_dynticks_task_exit();
+	rcu_nmi_enter();
+	if (rdtp->dynticks_nmi_nesting == 1)
+		rcu_cleanup_after_idle();
+}
 
-	/*
-	 * If the nesting level is not 1, the CPU wasn't RCU-idle, so
-	 * leave it in non-RCU-idle state.
-	 */
-	if (rdtp->dynticks_nmi_nesting != 1) {
-		rdtp->dynticks_nmi_nesting -= 2;
-		return;
-	}
+/*
+ * Wrapper for rcu_irq_enter() where interrupts are enabled.
+ *
+ * If you add or remove a call to rcu_irq_enter_irqson(), be sure to test
+ * with CONFIG_RCU_EQS_DEBUG=y.
+ */
+void rcu_irq_enter_irqson(void)
+{
+	unsigned long flags;
 
-	/* This NMI interrupted an RCU-idle CPU, restore RCU-idleness. */
-	rdtp->dynticks_nmi_nesting = 0;
-	rcu_dynticks_eqs_enter();
+	local_irq_save(flags);
+	rcu_irq_enter();
+	local_irq_restore(flags);
 }
 
 /**
@@ -1233,7 +1148,8 @@ EXPORT_SYMBOL_GPL(rcu_lockdep_current_cpu_online);
  */
 static int rcu_is_cpu_rrupt_from_idle(void)
 {
-	return __this_cpu_read(rcu_dynticks.dynticks_nesting) <= 1;
+	return __this_cpu_read(rcu_dynticks.dynticks_nesting) <= 0 &&
+	       __this_cpu_read(rcu_dynticks.dynticks_nmi_nesting) <= 1;
 }
 
 /*
@@ -2789,6 +2705,11 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
 		rdp->n_force_qs_snap = rsp->n_force_qs;
 	} else if (count < rdp->qlen_last_fqs_check - qhimark)
 		rdp->qlen_last_fqs_check = count;
+
+	/*
+	 * The following usually indicates a double call_rcu().  To track
+	 * this down, try building with CONFIG_DEBUG_OBJECTS_RCU_HEAD=y.
+	 */
 	WARN_ON_ONCE(rcu_segcblist_empty(&rdp->cblist) != (count == 0));
 
 	local_irq_restore(flags);
@@ -3723,7 +3644,7 @@ rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 	rdp->grpmask = leaf_node_cpu_bit(rdp->mynode, cpu);
 	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
-	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != DYNTICK_TASK_EXIT_IDLE);
+	WARN_ON_ONCE(rdp->dynticks->dynticks_nesting != 1);
 	WARN_ON_ONCE(rcu_dynticks_in_eqs(rcu_dynticks_snap(rdp->dynticks)));
 	rdp->cpu = cpu;
 	rdp->rsp = rsp;
@@ -3752,7 +3673,7 @@ rcu_init_percpu_data(int cpu, struct rcu_state *rsp)
 	if (rcu_segcblist_empty(&rdp->cblist) && /* No early-boot CBs? */
 	    !init_nocb_callback_list(rdp))
 		rcu_segcblist_init(&rdp->cblist);  /* Re-enable callbacks. */
-	rdp->dynticks->dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
+	rdp->dynticks->dynticks_nesting = 1;	/* CPU not up, no tearing. */
 	rcu_dynticks_eqs_online();
 	raw_spin_unlock_rcu_node(rnp);		/* irqs remain disabled. */
 

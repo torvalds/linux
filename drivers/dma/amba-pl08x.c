@@ -2182,7 +2182,7 @@ static int pl08x_terminate_all(struct dma_chan *chan)
 	}
 	/* Dequeue jobs and free LLIs */
 	if (plchan->at) {
-		pl08x_desc_free(&plchan->at->vd);
+		vchan_terminate_vdesc(&plchan->at->vd);
 		plchan->at = NULL;
 	}
 	/* Dequeue jobs not yet fired as well */
@@ -2191,6 +2191,13 @@ static int pl08x_terminate_all(struct dma_chan *chan)
 	spin_unlock_irqrestore(&plchan->vc.lock, flags);
 
 	return 0;
+}
+
+static void pl08x_synchronize(struct dma_chan *chan)
+{
+	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
+
+	vchan_synchronize(&plchan->vc);
 }
 
 static int pl08x_pause(struct dma_chan *chan)
@@ -2773,6 +2780,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	pl08x->memcpy.device_pause = pl08x_pause;
 	pl08x->memcpy.device_resume = pl08x_resume;
 	pl08x->memcpy.device_terminate_all = pl08x_terminate_all;
+	pl08x->memcpy.device_synchronize = pl08x_synchronize;
 	pl08x->memcpy.src_addr_widths = PL80X_DMA_BUSWIDTHS;
 	pl08x->memcpy.dst_addr_widths = PL80X_DMA_BUSWIDTHS;
 	pl08x->memcpy.directions = BIT(DMA_MEM_TO_MEM);
@@ -2802,6 +2810,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		pl08x->slave.device_pause = pl08x_pause;
 		pl08x->slave.device_resume = pl08x_resume;
 		pl08x->slave.device_terminate_all = pl08x_terminate_all;
+		pl08x->slave.device_synchronize = pl08x_synchronize;
 		pl08x->slave.src_addr_widths = PL80X_DMA_BUSWIDTHS;
 		pl08x->slave.dst_addr_widths = PL80X_DMA_BUSWIDTHS;
 		pl08x->slave.directions =

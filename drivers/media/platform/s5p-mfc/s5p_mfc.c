@@ -988,14 +988,14 @@ static int s5p_mfc_release(struct file *file)
 }
 
 /* Poll */
-static unsigned int s5p_mfc_poll(struct file *file,
+static __poll_t s5p_mfc_poll(struct file *file,
 				 struct poll_table_struct *wait)
 {
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct s5p_mfc_dev *dev = ctx->dev;
 	struct vb2_queue *src_q, *dst_q;
 	struct vb2_buffer *src_vb = NULL, *dst_vb = NULL;
-	unsigned int rc = 0;
+	__poll_t rc = 0;
 	unsigned long flags;
 
 	mutex_lock(&dev->mfc_mutex);
@@ -1008,7 +1008,7 @@ static unsigned int s5p_mfc_poll(struct file *file,
 	 */
 	if ((!src_q->streaming || list_empty(&src_q->queued_list))
 		&& (!dst_q->streaming || list_empty(&dst_q->queued_list))) {
-		rc = POLLERR;
+		rc = EPOLLERR;
 		goto end;
 	}
 	mutex_unlock(&dev->mfc_mutex);
@@ -1017,14 +1017,14 @@ static unsigned int s5p_mfc_poll(struct file *file,
 	poll_wait(file, &dst_q->done_wq, wait);
 	mutex_lock(&dev->mfc_mutex);
 	if (v4l2_event_pending(&ctx->fh))
-		rc |= POLLPRI;
+		rc |= EPOLLPRI;
 	spin_lock_irqsave(&src_q->done_lock, flags);
 	if (!list_empty(&src_q->done_list))
 		src_vb = list_first_entry(&src_q->done_list, struct vb2_buffer,
 								done_entry);
 	if (src_vb && (src_vb->state == VB2_BUF_STATE_DONE
 				|| src_vb->state == VB2_BUF_STATE_ERROR))
-		rc |= POLLOUT | POLLWRNORM;
+		rc |= EPOLLOUT | EPOLLWRNORM;
 	spin_unlock_irqrestore(&src_q->done_lock, flags);
 	spin_lock_irqsave(&dst_q->done_lock, flags);
 	if (!list_empty(&dst_q->done_list))
@@ -1032,7 +1032,7 @@ static unsigned int s5p_mfc_poll(struct file *file,
 								done_entry);
 	if (dst_vb && (dst_vb->state == VB2_BUF_STATE_DONE
 				|| dst_vb->state == VB2_BUF_STATE_ERROR))
-		rc |= POLLIN | POLLRDNORM;
+		rc |= EPOLLIN | EPOLLRDNORM;
 	spin_unlock_irqrestore(&dst_q->done_lock, flags);
 end:
 	mutex_unlock(&dev->mfc_mutex);
@@ -1308,6 +1308,12 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get mfc clock source\n");
 		goto err_dma;
 	}
+
+	/*
+	 * Load fails if fs isn't mounted. Try loading anyway.
+	 * _open() will load it, it it fails now. Ignore failure.
+	 */
+	s5p_mfc_load_firmware(dev);
 
 	mutex_init(&dev->mfc_mutex);
 	init_waitqueue_head(&dev->queue);

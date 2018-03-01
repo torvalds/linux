@@ -444,7 +444,7 @@ static int hfsplus_symlink(struct inode *dir, struct dentry *dentry,
 	int res = -ENOMEM;
 
 	mutex_lock(&sbi->vh_mutex);
-	inode = hfsplus_new_inode(dir->i_sb, S_IFLNK | S_IRWXUGO);
+	inode = hfsplus_new_inode(dir->i_sb, dir, S_IFLNK | S_IRWXUGO);
 	if (!inode)
 		goto out;
 
@@ -486,7 +486,7 @@ static int hfsplus_mknod(struct inode *dir, struct dentry *dentry,
 	int res = -ENOMEM;
 
 	mutex_lock(&sbi->vh_mutex);
-	inode = hfsplus_new_inode(dir->i_sb, mode);
+	inode = hfsplus_new_inode(dir->i_sb, dir, mode);
 	if (!inode)
 		goto out;
 

@@ -1601,7 +1601,7 @@ core_scsi3_decode_spec_i_port(
 			dest_rtpi = tmp_lun->lun_rtpi;
 
 			i_str = target_parse_pr_out_transport_id(tmp_tpg,
-					(const char *)ptr, &tid_len, &iport_ptr);
+					ptr, &tid_len, &iport_ptr);
 			if (!i_str)
 				continue;
 
@@ -3287,7 +3287,7 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 		goto out;
 	}
 	initiator_str = target_parse_pr_out_transport_id(dest_se_tpg,
-			(const char *)&buf[24], &tmp_tid_len, &iport_ptr);
+			&buf[24], &tmp_tid_len, &iport_ptr);
 	if (!initiator_str) {
 		pr_err("SPC-3 PR REGISTER_AND_MOVE: Unable to locate"
 			" initiator_str from Transport ID\n");

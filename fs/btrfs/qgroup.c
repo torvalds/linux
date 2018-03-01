@@ -2883,8 +2883,7 @@ cleanup:
 	ULIST_ITER_INIT(&uiter);
 	while ((unode = ulist_next(&reserved->range_changed, &uiter)))
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, unode->val,
-				 unode->aux, EXTENT_QGROUP_RESERVED, 0, 0, NULL,
-				 GFP_NOFS);
+				 unode->aux, EXTENT_QGROUP_RESERVED, 0, 0, NULL);
 	extent_changeset_release(reserved);
 	return ret;
 }

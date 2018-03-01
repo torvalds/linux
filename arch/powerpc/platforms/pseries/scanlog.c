@@ -179,7 +179,7 @@ static int __init scanlog_init(void)
 	if (!scanlog_buffer)
 		goto err;
 
-	ent = proc_create("powerpc/rtas/scan-log-dump", S_IRUSR, NULL,
+	ent = proc_create("powerpc/rtas/scan-log-dump", 0400, NULL,
 			  &scanlog_fops);
 	if (!ent)
 		goto err;

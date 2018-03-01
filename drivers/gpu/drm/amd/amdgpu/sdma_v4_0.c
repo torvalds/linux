@@ -375,16 +375,6 @@ static void sdma_v4_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(10)); /* retry count, poll interval */
 }
 
-static void sdma_v4_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, SOC15_REG_OFFSET(HDP, 0, mmHDP_READ_CACHE_INVALIDATE));
-	amdgpu_ring_write(ring, 1);
-}
-
 /**
  * sdma_v4_0_ring_emit_fence - emit a fence on the DMA ring
  *
@@ -440,7 +430,7 @@ static void sdma_v4_0_gfx_stop(struct amdgpu_device *adev)
 
 	if ((adev->mman.buffer_funcs_ring == sdma0) ||
 	    (adev->mman.buffer_funcs_ring == sdma1))
-		amdgpu_ttm_set_active_vram_size(adev, adev->mc.visible_vram_size);
+		amdgpu_ttm_set_active_vram_size(adev, adev->gmc.visible_vram_size);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_RB_CNTL));
@@ -682,7 +672,7 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_active_vram_size(adev, adev->mc.real_vram_size);
+			amdgpu_ttm_set_active_vram_size(adev, adev->gmc.real_vram_size);
 
 	}
 
@@ -1135,38 +1125,28 @@ static void sdma_v4_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 static void sdma_v4_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					 unsigned vmid, uint64_t pd_addr)
 {
-	struct amdgpu_vmhub *hub = &ring->adev->vmhub[ring->funcs->vmhub];
-	uint32_t req = ring->adev->gart.gart_funcs->get_invalidate_req(vmid);
-	uint64_t flags = AMDGPU_PTE_VALID;
-	unsigned eng = ring->vm_inv_eng;
+	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
+}
 
-	amdgpu_gart_get_vm_pde(ring->adev, -1, &pd_addr, &flags);
-	pd_addr |= flags;
-
+static void sdma_v4_0_ring_emit_wreg(struct amdgpu_ring *ring,
+				     uint32_t reg, uint32_t val)
+{
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
 			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, hub->ctx0_ptb_addr_lo32 + vmid * 2);
-	amdgpu_ring_write(ring, lower_32_bits(pd_addr));
+	amdgpu_ring_write(ring, reg);
+	amdgpu_ring_write(ring, val);
+}
 
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, hub->ctx0_ptb_addr_hi32 + vmid * 2);
-	amdgpu_ring_write(ring, upper_32_bits(pd_addr));
-
-	/* flush TLB */
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_SRBM_WRITE) |
-			  SDMA_PKT_SRBM_WRITE_HEADER_BYTE_EN(0xf));
-	amdgpu_ring_write(ring, hub->vm_inv_eng0_req + eng);
-	amdgpu_ring_write(ring, req);
-
-	/* wait for flush */
+static void sdma_v4_0_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
+					 uint32_t val, uint32_t mask)
+{
 	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_POLL_REGMEM) |
 			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(0) |
 			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3)); /* equal */
-	amdgpu_ring_write(ring, (hub->vm_inv_eng0_ack + eng) << 2);
+	amdgpu_ring_write(ring, reg << 2);
 	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, 1 << vmid); /* reference */
-	amdgpu_ring_write(ring, 1 << vmid); /* mask */
+	amdgpu_ring_write(ring, val); /* reference */
+	amdgpu_ring_write(ring, mask); /* mask */
 	amdgpu_ring_write(ring, SDMA_PKT_POLL_REGMEM_DW5_RETRY_COUNT(0xfff) |
 			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(10));
 }
@@ -1592,9 +1572,11 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 	.set_wptr = sdma_v4_0_ring_set_wptr,
 	.emit_frame_size =
 		6 + /* sdma_v4_0_ring_emit_hdp_flush */
-		3 + /* sdma_v4_0_ring_emit_hdp_invalidate */
+		3 + /* hdp invalidate */
 		6 + /* sdma_v4_0_ring_emit_pipeline_sync */
-		18 + /* sdma_v4_0_ring_emit_vm_flush */
+		/* sdma_v4_0_ring_emit_vm_flush */
+		SOC15_FLUSH_GPU_TLB_NUM_WREG * 3 +
+		SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT * 6 +
 		10 + 10 + 10, /* sdma_v4_0_ring_emit_fence x3 for user fence, vm fence */
 	.emit_ib_size = 7 + 6, /* sdma_v4_0_ring_emit_ib */
 	.emit_ib = sdma_v4_0_ring_emit_ib,
@@ -1602,11 +1584,12 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 	.emit_pipeline_sync = sdma_v4_0_ring_emit_pipeline_sync,
 	.emit_vm_flush = sdma_v4_0_ring_emit_vm_flush,
 	.emit_hdp_flush = sdma_v4_0_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = sdma_v4_0_ring_emit_hdp_invalidate,
 	.test_ring = sdma_v4_0_ring_test_ring,
 	.test_ib = sdma_v4_0_ring_test_ib,
 	.insert_nop = sdma_v4_0_ring_insert_nop,
 	.pad_ib = sdma_v4_0_ring_pad_ib,
+	.emit_wreg = sdma_v4_0_ring_emit_wreg,
+	.emit_reg_wait = sdma_v4_0_ring_emit_reg_wait,
 };
 
 static void sdma_v4_0_set_ring_funcs(struct amdgpu_device *adev)
@@ -1705,9 +1688,6 @@ static const struct amdgpu_vm_pte_funcs sdma_v4_0_vm_pte_funcs = {
 	.copy_pte = sdma_v4_0_vm_copy_pte,
 
 	.write_pte = sdma_v4_0_vm_write_pte,
-
-	.set_max_nums_pte_pde = 0x400000 >> 3,
-	.set_pte_pde_num_dw = 10,
 	.set_pte_pde = sdma_v4_0_vm_set_pte_pde,
 };
 

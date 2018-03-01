@@ -46,8 +46,8 @@ static void smc_tx_write_space(struct sock *sk)
 		wq = rcu_dereference(sk->sk_wq);
 		if (skwq_has_sleeper(wq))
 			wake_up_interruptible_poll(&wq->wait,
-						   POLLOUT | POLLWRNORM |
-						   POLLWRBAND);
+						   EPOLLOUT | EPOLLWRNORM |
+						   EPOLLWRBAND);
 		if (wq && wq->fasync_list && !(sk->sk_shutdown & SEND_SHUTDOWN))
 			sock_wake_async(wq, SOCK_WAKE_SPACE, POLL_OUT);
 		rcu_read_unlock();
@@ -86,7 +86,7 @@ static int smc_tx_wait_memory(struct smc_sock *smc, int flags)
 			rc = -EPIPE;
 			break;
 		}
-		if (conn->local_rx_ctrl.conn_state_flags.peer_conn_abort) {
+		if (smc_cdc_rxed_any_close(conn)) {
 			rc = -ECONNRESET;
 			break;
 		}
@@ -104,14 +104,12 @@ static int smc_tx_wait_memory(struct smc_sock *smc, int flags)
 		if (atomic_read(&conn->sndbuf_space))
 			break; /* at least 1 byte of free space available */
 		set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
-		sk->sk_write_pending++;
 		sk_wait_event(sk, &timeo,
 			      sk->sk_err ||
 			      (sk->sk_shutdown & SEND_SHUTDOWN) ||
-			      smc_cdc_rxed_any_close_or_senddone(conn) ||
+			      smc_cdc_rxed_any_close(conn) ||
 			      atomic_read(&conn->sndbuf_space),
 			      &wait);
-		sk->sk_write_pending--;
 	}
 	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
@@ -250,8 +248,10 @@ static int smc_tx_rdma_write(struct smc_connection *conn, int peer_rmbe_offset,
 		peer_rmbe_offset;
 	rdma_wr.rkey = lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].rkey;
 	rc = ib_post_send(link->roce_qp, &rdma_wr.wr, &failed_wr);
-	if (rc)
+	if (rc) {
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
+		smc_lgr_terminate(lgr);
+	}
 	return rc;
 }
 
@@ -408,8 +408,9 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 				goto out_unlock;
 			}
 			rc = 0;
-			schedule_delayed_work(&conn->tx_work,
-					      SMC_TX_WORK_DELAY);
+			if (conn->alert_token_local) /* connection healthy */
+				schedule_delayed_work(&conn->tx_work,
+						      SMC_TX_WORK_DELAY);
 		}
 		goto out_unlock;
 	}
@@ -440,19 +441,24 @@ static void smc_tx_work(struct work_struct *work)
 	int rc;
 
 	lock_sock(&smc->sk);
+	if (smc->sk.sk_err ||
+	    !conn->alert_token_local ||
+	    conn->local_rx_ctrl.conn_state_flags.peer_conn_abort)
+		goto out;
+
 	rc = smc_tx_sndbuf_nonempty(conn);
 	if (!rc && conn->local_rx_ctrl.prod_flags.write_blocked &&
 	    !atomic_read(&conn->bytes_to_rcv))
 		conn->local_rx_ctrl.prod_flags.write_blocked = 0;
+
+out:
 	release_sock(&smc->sk);
 }
 
 void smc_tx_consumer_update(struct smc_connection *conn)
 {
 	union smc_host_cursor cfed, cons;
-	struct smc_cdc_tx_pend *pend;
-	struct smc_wr_buf *wr_buf;
-	int to_confirm, rc;
+	int to_confirm;
 
 	smc_curs_write(&cons,
 		       smc_curs_read(&conn->local_tx_ctrl.cons, conn),
@@ -466,10 +472,8 @@ void smc_tx_consumer_update(struct smc_connection *conn)
 	    ((to_confirm > conn->rmbe_update_limit) &&
 	     ((to_confirm > (conn->rmbe_size / 2)) ||
 	      conn->local_rx_ctrl.prod_flags.write_blocked))) {
-		rc = smc_cdc_get_free_slot(conn, &wr_buf, &pend);
-		if (!rc)
-			rc = smc_cdc_msg_send(conn, wr_buf, pend);
-		if (rc < 0) {
+		if ((smc_cdc_get_slot_and_msg_send(conn) < 0) &&
+		    conn->alert_token_local) { /* connection healthy */
 			schedule_delayed_work(&conn->tx_work,
 					      SMC_TX_WORK_DELAY);
 			return;

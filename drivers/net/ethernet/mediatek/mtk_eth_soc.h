@@ -573,10 +573,13 @@ struct mtk_rx_ring {
  * @caps			Flags shown the extra capability for the SoC
  * @required_clks		Flags shown the bitmap for required clocks on
  *				the target SoC
+ * @required_pctl		A bool value to show whether the SoC requires
+ *				the extra setup for those pins used by GMAC.
  */
 struct mtk_soc_data {
 	u32		caps;
 	u32		required_clks;
+	bool		required_pctl;
 };
 
 /* currently no SoC has more than 2 macs */

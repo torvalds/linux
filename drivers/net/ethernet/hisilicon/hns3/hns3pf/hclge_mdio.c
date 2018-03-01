@@ -17,6 +17,7 @@
 #define HCLGE_PHY_SUPPORTED_FEATURES	(SUPPORTED_Autoneg | \
 					 SUPPORTED_TP | \
 					 SUPPORTED_Pause | \
+					 SUPPORTED_Asym_Pause | \
 					 PHY_10BT_FEATURES | \
 					 PHY_100BT_FEATURES | \
 					 PHY_1000BT_FEATURES)
@@ -183,6 +184,10 @@ static void hclge_mac_adjust_link(struct net_device *netdev)
 	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex);
 	if (ret)
 		netdev_err(netdev, "failed to adjust link.\n");
+
+	ret = hclge_cfg_flowctrl(hdev);
+	if (ret)
+		netdev_err(netdev, "failed to configure flow control.\n");
 }
 
 int hclge_mac_start_phy(struct hclge_dev *hdev)

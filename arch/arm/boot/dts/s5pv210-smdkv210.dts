@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's S5PV210 SoC device tree source
  *
@@ -11,10 +12,6 @@
  * NOTE: This file is completely based on original board file for mach-smdkv210
  * available in Linux 3.15 and intends to provide equivalent level of hardware
  * support. Due to lack of hardware, _no_ testing has been performed.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;

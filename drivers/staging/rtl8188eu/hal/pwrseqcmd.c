@@ -22,7 +22,7 @@
 u8 rtl88eu_pwrseqcmdparsing(struct adapter *padapter, u8 cut_vers,
 			    struct wl_pwr_cfg pwrseqcmd[])
 {
-	struct wl_pwr_cfg pwrcfgcmd = {0};
+	struct wl_pwr_cfg pwrcfgcmd;
 	u8 poll_bit = false;
 	u32 aryidx = 0;
 	u8 value = 0;

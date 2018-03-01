@@ -6459,9 +6459,18 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 	 * - LVDS dual channel mode
 	 * - Double wide pipe
 	 */
-	if ((intel_crtc_has_type(pipe_config, INTEL_OUTPUT_LVDS) &&
-	     intel_is_dual_link_lvds(dev)) || pipe_config->double_wide)
-		pipe_config->pipe_src_w &= ~1;
+	if (pipe_config->pipe_src_w & 1) {
+		if (pipe_config->double_wide) {
+			DRM_DEBUG_KMS("Odd pipe source width not supported with double wide pipe\n");
+			return -EINVAL;
+		}
+
+		if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_LVDS) &&
+		    intel_is_dual_link_lvds(dev)) {
+			DRM_DEBUG_KMS("Odd pipe source width not supported with dual link LVDS\n");
+			return -EINVAL;
+		}
+	}
 
 	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
 	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
@@ -9398,13 +9407,18 @@ static int intel_check_cursor(struct intel_crtc_state *crtc_state,
 			      struct intel_plane_state *plane_state)
 {
 	const struct drm_framebuffer *fb = plane_state->base.fb;
+	struct drm_rect clip = {};
 	int src_x, src_y;
 	u32 offset;
 	int ret;
 
+	if (crtc_state->base.enable)
+		drm_mode_get_hv_timing(&crtc_state->base.mode,
+				       &clip.x2, &clip.y2);
+
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,
 						  &crtc_state->base,
-						  &plane_state->clip,
+						  &clip,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  DRM_PLANE_HELPER_NO_SCALING,
 						  true, true);
@@ -12861,6 +12875,7 @@ intel_check_primary_plane(struct intel_plane *plane,
 	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	bool can_position = false;
+	struct drm_rect clip = {};
 	int ret;
 
 	if (INTEL_GEN(dev_priv) >= 9) {
@@ -12872,9 +12887,13 @@ intel_check_primary_plane(struct intel_plane *plane,
 		can_position = true;
 	}
 
+	if (crtc_state->base.enable)
+		drm_mode_get_hv_timing(&crtc_state->base.mode,
+				       &clip.x2, &clip.y2);
+
 	ret = drm_atomic_helper_check_plane_state(&state->base,
 						  &crtc_state->base,
-						  &state->clip,
+						  &clip,
 						  min_scale, max_scale,
 						  can_position, true);
 	if (ret)
@@ -14196,10 +14215,37 @@ static void intel_atomic_state_free(struct drm_atomic_state *state)
 	kfree(state);
 }
 
+static enum drm_mode_status
+intel_mode_valid(struct drm_device *dev,
+		 const struct drm_display_mode *mode)
+{
+	if (mode->vscan > 1)
+		return MODE_NO_VSCAN;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
+	if (mode->flags & DRM_MODE_FLAG_HSKEW)
+		return MODE_H_ILLEGAL;
+
+	if (mode->flags & (DRM_MODE_FLAG_CSYNC |
+			   DRM_MODE_FLAG_NCSYNC |
+			   DRM_MODE_FLAG_PCSYNC))
+		return MODE_HSYNC;
+
+	if (mode->flags & (DRM_MODE_FLAG_BCAST |
+			   DRM_MODE_FLAG_PIXMUX |
+			   DRM_MODE_FLAG_CLKDIV2))
+		return MODE_BAD;
+
+	return MODE_OK;
+}
+
 static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_create = intel_user_framebuffer_create,
 	.get_format_info = intel_get_format_info,
 	.output_poll_changed = intel_fbdev_output_poll_changed,
+	.mode_valid = intel_mode_valid,
 	.atomic_check = intel_atomic_check,
 	.atomic_commit = intel_atomic_commit,
 	.atomic_state_alloc = intel_atomic_state_alloc,
@@ -15350,6 +15396,10 @@ static void intel_hpd_poll_fini(struct drm_device *dev)
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		if (connector->modeset_retry_work.func)
 			cancel_work_sync(&connector->modeset_retry_work);
+		if (connector->hdcp_shim) {
+			cancel_delayed_work_sync(&connector->hdcp_check_work);
+			cancel_work_sync(&connector->hdcp_prop_work);
+		}
 	}
 	drm_connector_list_iter_end(&conn_iter);
 }

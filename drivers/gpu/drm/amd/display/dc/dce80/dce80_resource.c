@@ -790,9 +790,11 @@ static bool dce80_construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap.num_timing_generator;
+	pool->base.timing_generator_count = res_cap.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.max_cursor_size = 128;
+	dc->caps.dual_link_dvi = true;
 
 	/*************************************************
 	 *  Create resources                             *
@@ -954,6 +956,7 @@ static bool dce81_construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap_81.num_timing_generator;
+	pool->base.timing_generator_count = res_cap_81.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.max_cursor_size = 128;
@@ -1119,6 +1122,7 @@ static bool dce83_construct(
 	 *************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap_83.num_timing_generator;
+	pool->base.timing_generator_count = res_cap_83.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
 	dc->caps.max_cursor_size = 128;

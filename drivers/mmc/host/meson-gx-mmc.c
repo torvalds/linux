@@ -37,6 +37,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/bitfield.h>
+#include <linux/pinctrl/consumer.h>
 
 #define DRIVER_NAME "meson-gx-mmc"
 
@@ -1208,7 +1209,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
+	if (irq <= 0) {
 		dev_err(&pdev->dev, "failed to get interrupt resource.\n");
 		ret = -EINVAL;
 		goto free_host;

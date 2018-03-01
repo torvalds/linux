@@ -135,10 +135,7 @@ static void __evdev_flush_queue(struct evdev_client *client, unsigned int type)
 			continue;
 		} else if (head != i) {
 			/* move entry to fill the gap */
-			client->buffer[head].time = ev->time;
-			client->buffer[head].type = ev->type;
-			client->buffer[head].code = ev->code;
-			client->buffer[head].value = ev->value;
+			client->buffer[head] = *ev;
 		}
 
 		num++;
@@ -157,6 +154,7 @@ static void __evdev_queue_syn_dropped(struct evdev_client *client)
 {
 	struct input_event ev;
 	ktime_t time;
+	struct timespec64 ts;
 
 	time = client->clk_type == EV_CLK_REAL ?
 			ktime_get_real() :
@@ -164,7 +162,9 @@ static void __evdev_queue_syn_dropped(struct evdev_client *client)
 				ktime_get() :
 				ktime_get_boottime();
 
-	ev.time = ktime_to_timeval(time);
+	ts = ktime_to_timespec64(time);
+	ev.input_event_sec = ts.tv_sec;
+	ev.input_event_usec = ts.tv_nsec / NSEC_PER_USEC;
 	ev.type = EV_SYN;
 	ev.code = SYN_DROPPED;
 	ev.value = 0;
@@ -241,7 +241,10 @@ static void __pass_event(struct evdev_client *client,
 		 */
 		client->tail = (client->head - 2) & (client->bufsize - 1);
 
-		client->buffer[client->tail].time = event->time;
+		client->buffer[client->tail].input_event_sec =
+						event->input_event_sec;
+		client->buffer[client->tail].input_event_usec =
+						event->input_event_usec;
 		client->buffer[client->tail].type = EV_SYN;
 		client->buffer[client->tail].code = SYN_DROPPED;
 		client->buffer[client->tail].value = 0;
@@ -262,12 +265,15 @@ static void evdev_pass_values(struct evdev_client *client,
 	struct evdev *evdev = client->evdev;
 	const struct input_value *v;
 	struct input_event event;
+	struct timespec64 ts;
 	bool wakeup = false;
 
 	if (client->revoked)
 		return;
 
-	event.time = ktime_to_timeval(ev_time[client->clk_type]);
+	ts = ktime_to_timespec64(ev_time[client->clk_type]);
+	event.input_event_sec = ts.tv_sec;
+	event.input_event_usec = ts.tv_nsec / NSEC_PER_USEC;
 
 	/* Interrupts are disabled, just acquire the lock. */
 	spin_lock(&client->buffer_lock);
@@ -635,21 +641,21 @@ static ssize_t evdev_read(struct file *file, char __user *buffer,
 }
 
 /* No kernel lock - fine */
-static unsigned int evdev_poll(struct file *file, poll_table *wait)
+static __poll_t evdev_poll(struct file *file, poll_table *wait)
 {
 	struct evdev_client *client = file->private_data;
 	struct evdev *evdev = client->evdev;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &evdev->wait, wait);
 
 	if (evdev->exist && !client->revoked)
-		mask = POLLOUT | POLLWRNORM;
+		mask = EPOLLOUT | EPOLLWRNORM;
 	else
-		mask = POLLHUP | POLLERR;
+		mask = EPOLLHUP | EPOLLERR;
 
 	if (client->packet_head != client->tail)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

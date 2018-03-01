@@ -278,6 +278,12 @@
 		};
 	};
 
+	cec_clock: cec-clock {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12000000>;
+	};
+
 	hdmi-out {
 		compatible = "hdmi-connector";
 		type = "a";
@@ -306,9 +312,8 @@
 		#size-cells = <0>;
 		compatible = "i2c-gpio";
 		status = "disabled";
-		gpios = <&gpio7 16 GPIO_ACTIVE_HIGH /* sda */
-			 &gpio7 15 GPIO_ACTIVE_HIGH /* scl */
-			>;
+		sda-gpios = <&gpio7 16 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio7 15 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 		i2c-gpio,delay-us = <5>;
 	};
 
@@ -640,12 +645,6 @@
 		};
 	};
 
-	cec_clock: cec-clock {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <12000000>;
-	};
-
 	hdmi@39 {
 		compatible = "adi,adv7511w";
 		reg = <0x39>;
@@ -708,7 +707,7 @@
 	};
 
 	eeprom@50 {
-		compatible = "renesas,24c02", "atmel,24c02";
+		compatible = "renesas,r1ex24002", "atmel,24c02";
 		reg = <0x50>;
 		pagesize = <16>;
 	};

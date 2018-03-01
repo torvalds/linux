@@ -312,7 +312,7 @@ static int sync_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int sync_file_poll(struct file *file, poll_table *wait)
+static __poll_t sync_file_poll(struct file *file, poll_table *wait)
 {
 	struct sync_file *sync_file = file->private_data;
 
@@ -325,7 +325,7 @@ static unsigned int sync_file_poll(struct file *file, poll_table *wait)
 			wake_up_all(&sync_file->wq);
 	}
 
-	return dma_fence_is_signaled(sync_file->fence) ? POLLIN : 0;
+	return dma_fence_is_signaled(sync_file->fence) ? EPOLLIN : 0;
 }
 
 static long sync_file_ioctl_merge(struct sync_file *sync_file,

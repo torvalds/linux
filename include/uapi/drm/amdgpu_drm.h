@@ -664,6 +664,10 @@ struct drm_amdgpu_cs_chunk_data {
 	#define AMDGPU_INFO_SENSOR_VDDNB		0x6
 	/* Subquery id: Query graphics voltage */
 	#define AMDGPU_INFO_SENSOR_VDDGFX		0x7
+	/* Subquery id: Query GPU stable pstate shader clock */
+	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_SCLK		0x8
+	/* Subquery id: Query GPU stable pstate memory clock */
+	#define AMDGPU_INFO_SENSOR_STABLE_PSTATE_GFX_MCLK		0x9
 /* Number of VRAM page faults on CPU access. */
 #define AMDGPU_INFO_NUM_VRAM_CPU_PAGE_FAULTS	0x1E
 #define AMDGPU_INFO_VRAM_LOST_COUNTER		0x1F

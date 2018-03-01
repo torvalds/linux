@@ -206,7 +206,6 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 			    bool kernel, u32 domain, u64 flags,
 			    struct sg_table *sg,
 			    struct reservation_object *resv,
-			    uint64_t init_value,
 			    struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 			      unsigned long size, int align,

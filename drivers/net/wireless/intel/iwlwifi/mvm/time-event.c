@@ -101,7 +101,6 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 void iwl_mvm_roc_done_wk(struct work_struct *wk)
 {
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, roc_done_wk);
-	u32 queues = 0;
 
 	/*
 	 * Clear the ROC_RUNNING /ROC_AUX_RUNNING status bit.
@@ -110,14 +109,10 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * in the case that the time event actually completed in the firmware
 	 * (which is handled in iwl_mvm_te_handle_notif).
 	 */
-	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status)) {
-		queues |= BIT(IWL_MVM_OFFCHANNEL_QUEUE);
+	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status))
 		iwl_mvm_unref(mvm, IWL_MVM_REF_ROC);
-	}
-	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status)) {
-		queues |= BIT(mvm->aux_queue);
+	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
 		iwl_mvm_unref(mvm, IWL_MVM_REF_ROC_AUX);
-	}
 
 	synchronize_net();
 
@@ -776,12 +771,6 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		IWL_WARN(mvm, "P2P_DEVICE remain on channel already running\n");
 		return -EBUSY;
 	}
-
-	/*
-	 * Flush the done work, just in case it's still pending, so that
-	 * the work it does can complete and we can accept new frames.
-	 */
-	flush_work(&mvm->roc_done_wk);
 
 	time_cmd.action = cpu_to_le32(FW_CTXT_ACTION_ADD);
 	time_cmd.id_and_color =

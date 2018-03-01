@@ -68,12 +68,22 @@ static const struct dw_hdmi_plat_data rcar_dw_hdmi_plat_data = {
 
 static int rcar_dw_hdmi_probe(struct platform_device *pdev)
 {
-	return dw_hdmi_probe(pdev, &rcar_dw_hdmi_plat_data);
+	struct dw_hdmi *hdmi;
+
+	hdmi = dw_hdmi_probe(pdev, &rcar_dw_hdmi_plat_data);
+	if (IS_ERR(hdmi))
+		return PTR_ERR(hdmi);
+
+	platform_set_drvdata(pdev, hdmi);
+
+	return 0;
 }
 
 static int rcar_dw_hdmi_remove(struct platform_device *pdev)
 {
-	dw_hdmi_remove(pdev);
+	struct dw_hdmi *hdmi = platform_get_drvdata(pdev);
+
+	dw_hdmi_remove(hdmi);
 
 	return 0;
 }

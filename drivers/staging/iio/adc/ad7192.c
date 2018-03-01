@@ -271,7 +271,7 @@ static int ad7192_setup(struct ad7192_state *st,
 	if (pdata->sinc3_en)
 		st->mode |= AD7192_MODE_SINC3;
 
-	if (pdata->refin2_en && (st->devid != ID_AD7195))
+	if (pdata->refin2_en && st->devid != ID_AD7195)
 		st->conf |= AD7192_CONF_REFSEL;
 
 	if (pdata->chop_en) {

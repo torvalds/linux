@@ -25,15 +25,17 @@ int init_initiator_rw_fcoe_task(struct fcoe_task_params *task_params,
 				u32 task_retry_id,
 				u8 fcp_cmd_payload[32])
 {
-	struct fcoe_task_context *ctx = task_params->context;
+	struct e4_fcoe_task_context *ctx = task_params->context;
+	const u8 val_byte = ctx->ystorm_ag_context.byte0;
+	struct e4_ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct ystorm_fcoe_task_st_ctx *y_st_ctx;
 	struct tstorm_fcoe_task_st_ctx *t_st_ctx;
-	struct ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct mstorm_fcoe_task_st_ctx *m_st_ctx;
 	u32 io_size, val;
 	bool slow_sgl;
 
 	memset(ctx, 0, sizeof(*(ctx)));
+	ctx->ystorm_ag_context.byte0 = val_byte;
 	slow_sgl = scsi_is_slow_sgl(sgl_task_params->num_sges,
 				    sgl_task_params->small_mid_sge);
 	io_size = (task_params->task_type == FCOE_TASK_TYPE_WRITE_INITIATOR ?
@@ -43,20 +45,20 @@ int init_initiator_rw_fcoe_task(struct fcoe_task_params *task_params,
 	y_st_ctx = &ctx->ystorm_st_context;
 	y_st_ctx->data_2_trns_rem = cpu_to_le32(io_size);
 	y_st_ctx->task_rety_identifier = cpu_to_le32(task_retry_id);
-	y_st_ctx->task_type = task_params->task_type;
+	y_st_ctx->task_type = (u8)task_params->task_type;
 	memcpy(&y_st_ctx->tx_info_union.fcp_cmd_payload,
 	       fcp_cmd_payload, sizeof(struct fcoe_fcp_cmd_payload));
 
 	/* Tstorm ctx */
 	t_st_ctx = &ctx->tstorm_st_context;
-	t_st_ctx->read_only.dev_type = (task_params->is_tape_device == 1 ?
-					FCOE_TASK_DEV_TYPE_TAPE :
-					FCOE_TASK_DEV_TYPE_DISK);
+	t_st_ctx->read_only.dev_type = (u8)(task_params->is_tape_device == 1 ?
+					    FCOE_TASK_DEV_TYPE_TAPE :
+					    FCOE_TASK_DEV_TYPE_DISK);
 	t_st_ctx->read_only.cid = cpu_to_le32(task_params->conn_cid);
 	val = cpu_to_le32(task_params->cq_rss_number);
 	t_st_ctx->read_only.glbl_q_num = val;
 	t_st_ctx->read_only.fcp_cmd_trns_size = cpu_to_le32(io_size);
-	t_st_ctx->read_only.task_type = task_params->task_type;
+	t_st_ctx->read_only.task_type = (u8)task_params->task_type;
 	SET_FIELD(t_st_ctx->read_write.flags,
 		  FCOE_TSTORM_FCOE_TASK_ST_CTX_READ_WRITE_EXP_FIRST_FRAME, 1);
 	t_st_ctx->read_write.rx_id = cpu_to_le16(FCOE_RX_ID);
@@ -88,6 +90,8 @@ int init_initiator_rw_fcoe_task(struct fcoe_task_params *task_params,
 		SET_FIELD(m_st_ctx->flags,
 			  MSTORM_FCOE_TASK_ST_CTX_TX_SGL_MODE,
 			  (slow_sgl ? SCSI_TX_SLOW_SGL : SCSI_FAST_SGL));
+		m_st_ctx->sgl_params.sgl_num_sges =
+			cpu_to_le16(sgl_task_params->num_sges);
 	} else {
 		/* Tstorm ctx */
 		SET_FIELD(t_st_ctx->read_write.flags,
@@ -101,7 +105,9 @@ int init_initiator_rw_fcoe_task(struct fcoe_task_params *task_params,
 				      sgl_task_params);
 	}
 
+	/* Init Sqe */
 	init_common_sqe(task_params, SEND_FCOE_CMD);
+
 	return 0;
 }
 
@@ -112,14 +118,16 @@ int init_initiator_midpath_unsolicited_fcoe_task(
 	struct scsi_sgl_task_params *rx_sgl_task_params,
 	u8 fw_to_place_fc_header)
 {
-	struct fcoe_task_context *ctx = task_params->context;
+	struct e4_fcoe_task_context *ctx = task_params->context;
+	const u8 val_byte = ctx->ystorm_ag_context.byte0;
+	struct e4_ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct ystorm_fcoe_task_st_ctx *y_st_ctx;
 	struct tstorm_fcoe_task_st_ctx *t_st_ctx;
-	struct ustorm_fcoe_task_ag_ctx *u_ag_ctx;
 	struct mstorm_fcoe_task_st_ctx *m_st_ctx;
 	u32 val;
 
 	memset(ctx, 0, sizeof(*(ctx)));
+	ctx->ystorm_ag_context.byte0 = val_byte;
 
 	/* Init Ystorm */
 	y_st_ctx = &ctx->ystorm_st_context;
@@ -129,7 +137,7 @@ int init_initiator_midpath_unsolicited_fcoe_task(
 	SET_FIELD(y_st_ctx->sgl_mode,
 		  YSTORM_FCOE_TASK_ST_CTX_TX_SGL_MODE, SCSI_FAST_SGL);
 	y_st_ctx->data_2_trns_rem = cpu_to_le32(task_params->tx_io_size);
-	y_st_ctx->task_type = task_params->task_type;
+	y_st_ctx->task_type = (u8)task_params->task_type;
 	memcpy(&y_st_ctx->tx_info_union.tx_params.mid_path,
 	       mid_path_fc_header, sizeof(struct fcoe_tx_mid_path_params));
 
@@ -148,7 +156,7 @@ int init_initiator_midpath_unsolicited_fcoe_task(
 	t_st_ctx->read_only.cid = cpu_to_le32(task_params->conn_cid);
 	val = cpu_to_le32(task_params->cq_rss_number);
 	t_st_ctx->read_only.glbl_q_num = val;
-	t_st_ctx->read_only.task_type = task_params->task_type;
+	t_st_ctx->read_only.task_type = (u8)task_params->task_type;
 	SET_FIELD(t_st_ctx->read_write.flags,
 		  FCOE_TSTORM_FCOE_TASK_ST_CTX_READ_WRITE_EXP_FIRST_FRAME, 1);
 	t_st_ctx->read_write.rx_id = cpu_to_le16(FCOE_RX_ID);
@@ -182,9 +190,10 @@ int init_initiator_cleanup_fcoe_task(struct fcoe_task_params *task_params)
 }
 
 int init_initiator_sequence_recovery_fcoe_task(
-	struct fcoe_task_params *task_params, u32 off)
+	struct fcoe_task_params *task_params, u32 desired_offset)
 {
 	init_common_sqe(task_params, FCOE_SEQUENCE_RECOVERY);
-	task_params->sqe->additional_info_union.seq_rec_updated_offset = off;
+	task_params->sqe->additional_info_union.seq_rec_updated_offset =
+								desired_offset;
 	return 0;
 }

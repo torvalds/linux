@@ -41,20 +41,21 @@
 #include <drm/drm_atomic.h>
 
 /**
- * _wait_for - magic (register) wait macro
+ * __wait_for - magic wait macro
  *
- * Does the right thing for modeset paths when run under kdgb or similar atomic
- * contexts. Note that it's important that we check the condition again after
- * having timed out, since the timeout could be due to preemption or similar and
- * we've never had a chance to check the condition before the timeout.
+ * Macro to help avoid open coding check/wait/timeout patterns. Note that it's
+ * important that we check the condition again after having timed out, since the
+ * timeout could be due to preemption or similar and we've never had a chance to
+ * check the condition before the timeout.
  */
-#define _wait_for(COND, US, Wmin, Wmax) ({ \
+#define __wait_for(OP, COND, US, Wmin, Wmax) ({ \
 	unsigned long timeout__ = jiffies + usecs_to_jiffies(US) + 1;	\
 	long wait__ = (Wmin); /* recommended min for usleep is 10 us */	\
 	int ret__;							\
 	might_sleep();							\
 	for (;;) {							\
 		bool expired__ = time_after(jiffies, timeout__);	\
+		OP;							\
 		if (COND) {						\
 			ret__ = 0;					\
 			break;						\
@@ -70,7 +71,9 @@
 	ret__;								\
 })
 
-#define wait_for(COND, MS)	_wait_for((COND), (MS) * 1000, 10, 1000)
+#define _wait_for(COND, US, Wmin, Wmax)	__wait_for(, (COND), (US), (Wmin), \
+						   (Wmax))
+#define wait_for(COND, MS)		_wait_for((COND), (MS) * 1000, 10, 1000)
 
 /* If CONFIG_PREEMPT_COUNT is disabled, in_atomic() always reports false. */
 #if defined(CONFIG_DRM_I915_DEBUG) && defined(CONFIG_PREEMPT_COUNT)
@@ -299,6 +302,80 @@ struct intel_panel {
 	} backlight;
 };
 
+/*
+ * This structure serves as a translation layer between the generic HDCP code
+ * and the bus-specific code. What that means is that HDCP over HDMI differs
+ * from HDCP over DP, so to account for these differences, we need to
+ * communicate with the receiver through this shim.
+ *
+ * For completeness, the 2 buses differ in the following ways:
+ *	- DP AUX vs. DDC
+ *		HDCP registers on the receiver are set via DP AUX for DP, and
+ *		they are set via DDC for HDMI.
+ *	- Receiver register offsets
+ *		The offsets of the registers are different for DP vs. HDMI
+ *	- Receiver register masks/offsets
+ *		For instance, the ready bit for the KSV fifo is in a different
+ *		place on DP vs HDMI
+ *	- Receiver register names
+ *		Seriously. In the DP spec, the 16-bit register containing
+ *		downstream information is called BINFO, on HDMI it's called
+ *		BSTATUS. To confuse matters further, DP has a BSTATUS register
+ *		with a completely different definition.
+ *	- KSV FIFO
+ *		On HDMI, the ksv fifo is read all at once, whereas on DP it must
+ *		be read 3 keys at a time
+ *	- Aksv output
+ *		Since Aksv is hidden in hardware, there's different procedures
+ *		to send it over DP AUX vs DDC
+ */
+struct intel_hdcp_shim {
+	/* Outputs the transmitter's An and Aksv values to the receiver. */
+	int (*write_an_aksv)(struct intel_digital_port *intel_dig_port, u8 *an);
+
+	/* Reads the receiver's key selection vector */
+	int (*read_bksv)(struct intel_digital_port *intel_dig_port, u8 *bksv);
+
+	/*
+	 * Reads BINFO from DP receivers and BSTATUS from HDMI receivers. The
+	 * definitions are the same in the respective specs, but the names are
+	 * different. Call it BSTATUS since that's the name the HDMI spec
+	 * uses and it was there first.
+	 */
+	int (*read_bstatus)(struct intel_digital_port *intel_dig_port,
+			    u8 *bstatus);
+
+	/* Determines whether a repeater is present downstream */
+	int (*repeater_present)(struct intel_digital_port *intel_dig_port,
+				bool *repeater_present);
+
+	/* Reads the receiver's Ri' value */
+	int (*read_ri_prime)(struct intel_digital_port *intel_dig_port, u8 *ri);
+
+	/* Determines if the receiver's KSV FIFO is ready for consumption */
+	int (*read_ksv_ready)(struct intel_digital_port *intel_dig_port,
+			      bool *ksv_ready);
+
+	/* Reads the ksv fifo for num_downstream devices */
+	int (*read_ksv_fifo)(struct intel_digital_port *intel_dig_port,
+			     int num_downstream, u8 *ksv_fifo);
+
+	/* Reads a 32-bit part of V' from the receiver */
+	int (*read_v_prime_part)(struct intel_digital_port *intel_dig_port,
+				 int i, u32 *part);
+
+	/* Enables HDCP signalling on the port */
+	int (*toggle_signalling)(struct intel_digital_port *intel_dig_port,
+				 bool enable);
+
+	/* Ensures the link is still protected */
+	bool (*check_link)(struct intel_digital_port *intel_dig_port);
+
+	/* Detects panel's hdcp capability. This is optional for HDMI. */
+	int (*hdcp_capable)(struct intel_digital_port *intel_dig_port,
+			    bool *hdcp_capable);
+};
+
 struct intel_connector {
 	struct drm_connector base;
 	/*
@@ -330,6 +407,12 @@ struct intel_connector {
 
 	/* Work struct to schedule a uevent on link train failure */
 	struct work_struct modeset_retry_work;
+
+	const struct intel_hdcp_shim *hdcp_shim;
+	struct mutex hdcp_mutex;
+	uint64_t hdcp_value; /* protected by hdcp_mutex */
+	struct delayed_work hdcp_check_work;
+	struct work_struct hdcp_prop_work;
 };
 
 struct intel_digital_connector_state {
@@ -407,7 +490,6 @@ struct intel_atomic_state {
 
 struct intel_plane_state {
 	struct drm_plane_state base;
-	struct drm_rect clip;
 	struct i915_vma *vma;
 	unsigned long flags;
 #define PLANE_HAS_FENCE BIT(0)
@@ -1304,6 +1386,8 @@ void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 u32 bxt_signal_levels(struct intel_dp *intel_dp);
 uint32_t ddi_signal_levels(struct intel_dp *intel_dp);
 u8 intel_ddi_dp_voltage_max(struct intel_encoder *encoder);
+int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
+				     bool enable);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
 				   int plane, unsigned int height);
@@ -1769,6 +1853,16 @@ static inline void intel_backlight_device_unregister(struct intel_connector *con
 }
 #endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 
+/* intel_hdcp.c */
+void intel_hdcp_atomic_check(struct drm_connector *connector,
+			     struct drm_connector_state *old_state,
+			     struct drm_connector_state *new_state);
+int intel_hdcp_init(struct intel_connector *connector,
+		    const struct intel_hdcp_shim *hdcp_shim);
+int intel_hdcp_enable(struct intel_connector *connector);
+int intel_hdcp_disable(struct intel_connector *connector);
+int intel_hdcp_check_link(struct intel_connector *connector);
+bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port);
 
 /* intel_psr.c */
 #define CAN_PSR(dev_priv) (HAS_PSR(dev_priv) && dev_priv->psr.sink_support)

@@ -741,6 +741,9 @@ out:
 		if (ttm_flags & TTM_PAGE_FLAG_ZERO_ALLOC)
 			gfp_flags |= __GFP_ZERO;
 
+		if (ttm_flags & TTM_PAGE_FLAG_NO_RETRY)
+			gfp_flags |= __GFP_RETRY_MAYFAIL;
+
 		/* ttm_alloc_new_pages doesn't reference pool so we can run
 		 * multiple requests in parallel.
 		 **/
@@ -892,6 +895,9 @@ static int ttm_get_pages(struct page **pages, unsigned npages, int flags,
 		/* set zero flag for page allocation if required */
 		if (flags & TTM_PAGE_FLAG_ZERO_ALLOC)
 			gfp_flags |= __GFP_ZERO;
+
+		if (flags & TTM_PAGE_FLAG_NO_RETRY)
+			gfp_flags |= __GFP_RETRY_MAYFAIL;
 
 		if (flags & TTM_PAGE_FLAG_DMA32)
 			gfp_flags |= GFP_DMA32;
@@ -1063,6 +1069,28 @@ void ttm_page_alloc_fini(void)
 	_manager = NULL;
 }
 
+static void
+ttm_pool_unpopulate_helper(struct ttm_tt *ttm, unsigned mem_count_update)
+{
+	unsigned i;
+
+	if (mem_count_update == 0)
+		goto put_pages;
+
+	for (i = 0; i < mem_count_update; ++i) {
+		if (!ttm->pages[i])
+			continue;
+
+		ttm_mem_global_free_page(ttm->glob->mem_glob, ttm->pages[i],
+					 PAGE_SIZE);
+	}
+
+put_pages:
+	ttm_put_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
+		      ttm->caching_state);
+	ttm->state = tt_unpopulated;
+}
+
 int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
 	struct ttm_mem_global *mem_glob = ttm->glob->mem_glob;
@@ -1075,8 +1103,7 @@ int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 	ret = ttm_get_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
 			    ttm->caching_state);
 	if (unlikely(ret != 0)) {
-		ttm_put_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
-			      ttm->caching_state);
+		ttm_pool_unpopulate_helper(ttm, 0);
 		return ret;
 	}
 
@@ -1084,8 +1111,7 @@ int ttm_pool_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 		ret = ttm_mem_global_alloc_page(mem_glob, ttm->pages[i],
 						PAGE_SIZE, ctx);
 		if (unlikely(ret != 0)) {
-			ttm_put_pages(ttm->pages, ttm->num_pages,
-				      ttm->page_flags, ttm->caching_state);
+			ttm_pool_unpopulate_helper(ttm, i);
 			return -ENOMEM;
 		}
 	}
@@ -1105,18 +1131,7 @@ EXPORT_SYMBOL(ttm_pool_populate);
 
 void ttm_pool_unpopulate(struct ttm_tt *ttm)
 {
-	unsigned i;
-
-	for (i = 0; i < ttm->num_pages; ++i) {
-		if (!ttm->pages[i])
-			continue;
-
-		ttm_mem_global_free_page(ttm->glob->mem_glob, ttm->pages[i],
-					 PAGE_SIZE);
-	}
-	ttm_put_pages(ttm->pages, ttm->num_pages, ttm->page_flags,
-		      ttm->caching_state);
-	ttm->state = tt_unpopulated;
+	ttm_pool_unpopulate_helper(ttm, ttm->num_pages);
 }
 EXPORT_SYMBOL(ttm_pool_unpopulate);
 

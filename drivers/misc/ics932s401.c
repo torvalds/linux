@@ -33,7 +33,7 @@ static const unsigned short normal_i2c[] = { 0x69, I2C_CLIENT_END };
 
 /* ICS932S401 registers */
 #define ICS932S401_REG_CFG2			0x01
-#define 	ICS932S401_CFG1_SPREAD		0x01
+#define		ICS932S401_CFG1_SPREAD		0x01
 #define ICS932S401_REG_CFG7			0x06
 #define		ICS932S401_FS_MASK		0x07
 #define	ICS932S401_REG_VENDOR_REV		0x07
@@ -58,7 +58,7 @@ static const unsigned short normal_i2c[] = { 0x69, I2C_CLIENT_END };
 #define	ICS932S401_REG_SRC_SPREAD1		0x11
 #define ICS932S401_REG_SRC_SPREAD2		0x12
 #define ICS932S401_REG_CPU_DIVISOR		0x13
-#define 	ICS932S401_CPU_DIVISOR_SHIFT	4
+#define		ICS932S401_CPU_DIVISOR_SHIFT	4
 #define ICS932S401_REG_PCISRC_DIVISOR		0x14
 #define		ICS932S401_SRC_DIVISOR_MASK	0x0F
 #define		ICS932S401_PCI_DIVISOR_SHIFT	4
@@ -225,6 +225,7 @@ static ssize_t show_cpu_clock_sel(struct device *dev,
 	else {
 		/* Freq is neatly wrapped up for us */
 		int fid = data->regs[ICS932S401_REG_CFG7] & ICS932S401_FS_MASK;
+
 		freq = fs_speeds[fid];
 		if (data->regs[ICS932S401_REG_CTRL] & ICS932S401_CPU_ALT) {
 			switch (freq) {
@@ -352,8 +353,7 @@ static DEVICE_ATTR(ref_clock, S_IRUGO, show_value, NULL);
 static DEVICE_ATTR(cpu_spread, S_IRUGO, show_spread, NULL);
 static DEVICE_ATTR(src_spread, S_IRUGO, show_spread, NULL);
 
-static struct attribute *ics932s401_attr[] =
-{
+static struct attribute *ics932s401_attr[] = {
 	&dev_attr_spread_enabled.attr,
 	&dev_attr_cpu_clock_selection.attr,
 	&dev_attr_cpu_clock.attr,

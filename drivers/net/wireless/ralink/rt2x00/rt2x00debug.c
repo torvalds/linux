@@ -301,7 +301,7 @@ exit:
 	return status;
 }
 
-static unsigned int rt2x00debug_poll_queue_dump(struct file *file,
+static __poll_t rt2x00debug_poll_queue_dump(struct file *file,
 						poll_table *wait)
 {
 	struct rt2x00debug_intf *intf = file->private_data;
@@ -309,7 +309,7 @@ static unsigned int rt2x00debug_poll_queue_dump(struct file *file,
 	poll_wait(file, &intf->frame_dump_waitqueue, wait);
 
 	if (!skb_queue_empty(&intf->frame_dump_skbqueue))
-		return POLLOUT | POLLWRNORM;
+		return EPOLLOUT | EPOLLWRNORM;
 
 	return 0;
 }

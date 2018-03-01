@@ -38,21 +38,21 @@ int pci_probe_reset_function(struct pci_dev *dev);
  * struct pci_platform_pm_ops - Firmware PM callbacks
  *
  * @is_manageable: returns 'true' if given device is power manageable by the
- *                 platform firmware
+ *		   platform firmware
  *
  * @set_state: invokes the platform firmware to set the device's power state
  *
  * @get_state: queries the platform firmware for a device's current power state
  *
  * @choose_state: returns PCI power state of given device preferred by the
- *                platform; to be used during system-wide transitions from a
- *                sleeping state to the working state and vice versa
+ *		  platform; to be used during system-wide transitions from a
+ *		  sleeping state to the working state and vice versa
  *
  * @set_wakeup: enables/disables wakeup capability for the device
  *
  * @need_resume: returns 'true' if the given device (which is currently
- *		suspended) needs to be resumed to be configured for system
- *		wakeup.
+ *		 suspended) needs to be resumed to be configured for system
+ *		 wakeup.
  *
  * If given platform is generally capable of power managing PCI devices, all of
  * these callbacks are mandatory.
@@ -112,7 +112,7 @@ struct pci_vpd_ops {
 
 struct pci_vpd {
 	const struct pci_vpd_ops *ops;
-	struct bin_attribute *attr; /* descriptor for sysfs VPD entry */
+	struct bin_attribute *attr;	/* Descriptor for sysfs VPD entry */
 	struct mutex	lock;
 	unsigned int	len;
 	u16		flag;
@@ -199,7 +199,7 @@ extern const struct attribute_group *pci_bus_groups[];
 
 /**
  * pci_match_one_device - Tell if a PCI device structure has a matching
- *                        PCI device id structure
+ *			  PCI device id structure
  * @id: single PCI device id structure to match
  * @dev: the PCI device structure to match against
  *
@@ -231,7 +231,7 @@ struct pci_slot_attribute {
 
 enum pci_bar_type {
 	pci_bar_unknown,	/* Standard PCI BAR probe */
-	pci_bar_io,		/* An io port BAR */
+	pci_bar_io,		/* An I/O port BAR */
 	pci_bar_mem32,		/* A 32-bit memory BAR */
 	pci_bar_mem64,		/* A 64-bit memory BAR */
 };
@@ -255,24 +255,24 @@ void pci_disable_bridge_window(struct pci_dev *dev);
 
 /* Single Root I/O Virtualization */
 struct pci_sriov {
-	int pos;		/* capability position */
-	int nres;		/* number of resources */
-	u32 cap;		/* SR-IOV Capabilities */
-	u16 ctrl;		/* SR-IOV Control */
-	u16 total_VFs;		/* total VFs associated with the PF */
-	u16 initial_VFs;	/* initial VFs associated with the PF */
-	u16 num_VFs;		/* number of VFs available */
-	u16 offset;		/* first VF Routing ID offset */
-	u16 stride;		/* following VF stride */
-	u16 vf_device;		/* VF device ID */
-	u32 pgsz;		/* page size for BAR alignment */
-	u8 link;		/* Function Dependency Link */
-	u8 max_VF_buses;	/* max buses consumed by VFs */
-	u16 driver_max_VFs;	/* max num VFs driver supports */
-	struct pci_dev *dev;	/* lowest numbered PF */
-	struct pci_dev *self;	/* this PF */
-	resource_size_t barsz[PCI_SRIOV_NUM_BARS];	/* VF BAR size */
-	bool drivers_autoprobe;	/* auto probing of VFs by driver */
+	int		pos;		/* Capability position */
+	int		nres;		/* Number of resources */
+	u32		cap;		/* SR-IOV Capabilities */
+	u16		ctrl;		/* SR-IOV Control */
+	u16		total_VFs;	/* Total VFs associated with the PF */
+	u16		initial_VFs;	/* Initial VFs associated with the PF */
+	u16		num_VFs;	/* Number of VFs available */
+	u16		offset;		/* First VF Routing ID offset */
+	u16		stride;		/* Following VF stride */
+	u16		vf_device;	/* VF device ID */
+	u32		pgsz;		/* Page size for BAR alignment */
+	u8		link;		/* Function Dependency Link */
+	u8		max_VF_buses;	/* Max buses consumed by VFs */
+	u16		driver_max_VFs;	/* Max num VFs driver supports */
+	struct pci_dev	*dev;		/* Lowest numbered PF */
+	struct pci_dev	*self;		/* This PF */
+	resource_size_t	barsz[PCI_SRIOV_NUM_BARS];	/* VF BAR size */
+	bool		drivers_autoprobe; /* Auto probing of VFs by driver */
 };
 
 /* pci_dev priv_flags */
@@ -335,12 +335,32 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 	if (resno >= PCI_IOV_RESOURCES && resno <= PCI_IOV_RESOURCE_END)
 		return pci_sriov_resource_alignment(dev, resno);
 #endif
-	if (dev->class >> 8  == PCI_CLASS_BRIDGE_CARDBUS)
+	if (dev->class >> 8 == PCI_CLASS_BRIDGE_CARDBUS)
 		return pci_cardbus_resource_alignment(res);
 	return resource_alignment(res);
 }
 
 void pci_enable_acs(struct pci_dev *dev);
+
+#ifdef CONFIG_PCIEASPM
+void pcie_aspm_init_link_state(struct pci_dev *pdev);
+void pcie_aspm_exit_link_state(struct pci_dev *pdev);
+void pcie_aspm_pm_state_change(struct pci_dev *pdev);
+void pcie_aspm_powersave_config_link(struct pci_dev *pdev);
+#else
+static inline void pcie_aspm_init_link_state(struct pci_dev *pdev) { }
+static inline void pcie_aspm_exit_link_state(struct pci_dev *pdev) { }
+static inline void pcie_aspm_pm_state_change(struct pci_dev *pdev) { }
+static inline void pcie_aspm_powersave_config_link(struct pci_dev *pdev) { }
+#endif
+
+#ifdef CONFIG_PCIEASPM_DEBUG
+void pcie_aspm_create_sysfs_dev_files(struct pci_dev *pdev);
+void pcie_aspm_remove_sysfs_dev_files(struct pci_dev *pdev);
+#else
+static inline void pcie_aspm_create_sysfs_dev_files(struct pci_dev *pdev) { }
+static inline void pcie_aspm_remove_sysfs_dev_files(struct pci_dev *pdev) { }
+#endif
 
 #ifdef CONFIG_PCIE_PTM
 void pci_ptm_init(struct pci_dev *dev);

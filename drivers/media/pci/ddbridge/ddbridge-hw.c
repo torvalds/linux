@@ -185,7 +185,7 @@ static const struct ddb_info ddb_ctv7 = {
 	.board_control_2 = 4,
 };
 
-static const struct ddb_info ddb_satixS2v3 = {
+static const struct ddb_info ddb_satixs2v3 = {
 	.type     = DDB_OCTOPUS,
 	.name     = "Mystique SaTiX-S2 V3 DVB adapter",
 	.regmap   = &octopus_map,
@@ -336,7 +336,7 @@ static const struct ddb_device_id ddb_device_ids[] = {
 	DDB_DEVID(0x0006, 0x0022, ddb_v7),
 	DDB_DEVID(0x0006, 0x0024, ddb_v7a),
 	DDB_DEVID(0x0003, 0x0030, ddb_dvbct),
-	DDB_DEVID(0x0003, 0xdb03, ddb_satixS2v3),
+	DDB_DEVID(0x0003, 0xdb03, ddb_satixs2v3),
 	DDB_DEVID(0x0006, 0x0031, ddb_ctv7),
 	DDB_DEVID(0x0006, 0x0032, ddb_ctv7),
 	DDB_DEVID(0x0006, 0x0033, ddb_ctv7),
@@ -367,8 +367,8 @@ const struct ddb_info *get_ddb_info(u16 vendor, u16 device,
 		if (vendor == id->vendor &&
 		    device == id->device &&
 		    subvendor == id->subvendor &&
-		    ((subdevice == id->subdevice) ||
-		     (id->subdevice == 0xffff)))
+		    (subdevice == id->subdevice ||
+		     id->subdevice == 0xffff))
 			return id->info;
 	}
 

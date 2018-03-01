@@ -5231,7 +5231,7 @@ static int dasd_hosts_print(struct dasd_device *device, struct seq_file *m)
 	struct dasd_ckd_path_group_entry *entry;
 	struct dasd_ckd_host_information *info;
 	char sysplex[9] = "";
-	int rc, i, j;
+	int rc, i;
 
 	access = kzalloc(sizeof(*access), GFP_NOIO);
 	if (!access) {
@@ -5251,10 +5251,7 @@ static int dasd_hosts_print(struct dasd_device *device, struct seq_file *m)
 		entry = (struct dasd_ckd_path_group_entry *)
 			(info->entry + i * info->entry_size);
 		/* PGID */
-		seq_puts(m, "pgid ");
-		for (j = 0; j < 11; j++)
-			seq_printf(m, "%02x", entry->pgid[j]);
-		seq_putc(m, '\n');
+		seq_printf(m, "pgid %*phN\n", 11, entry->pgid);
 		/* FLAGS */
 		seq_printf(m, "status_flags %02x\n", entry->status_flags);
 		/* SYSPLEX NAME */

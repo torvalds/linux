@@ -1,3 +1,4 @@
+#include <linux/amba/clcd-regs.h>
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
@@ -64,10 +65,8 @@ static const struct of_device_id versatile_clcd_of_match[] = {
 #define INTEGRATOR_CLCD_LCDBIASEN	BIT(8)
 #define INTEGRATOR_CLCD_LCDBIASUP	BIT(9)
 #define INTEGRATOR_CLCD_LCDBIASDN	BIT(10)
-/* Bits 11,12,13 controls the LCD type */
-#define INTEGRATOR_CLCD_LCDMUX_MASK	(BIT(11)|BIT(12)|BIT(13))
+/* Bits 11,12,13 controls the LCD or VGA bridge type */
 #define INTEGRATOR_CLCD_LCDMUX_LCD24	BIT(11)
-#define INTEGRATOR_CLCD_LCDMUX_VGA565	BIT(12)
 #define INTEGRATOR_CLCD_LCDMUX_SHARP	(BIT(11)|BIT(12))
 #define INTEGRATOR_CLCD_LCDMUX_VGA555	BIT(13)
 #define INTEGRATOR_CLCD_LCDMUX_VGA24	(BIT(11)|BIT(12)|BIT(13))
@@ -82,16 +81,7 @@ static const struct of_device_id versatile_clcd_of_match[] = {
 /* 0 = 24bit VGA, 1 = 18bit VGA */
 #define INTEGRATOR_CLCD_LCD_N24BITEN	BIT(19)
 
-#define INTEGRATOR_CLCD_MASK		(INTEGRATOR_CLCD_LCDBIASEN | \
-					 INTEGRATOR_CLCD_LCDBIASUP | \
-					 INTEGRATOR_CLCD_LCDBIASDN | \
-					 INTEGRATOR_CLCD_LCDMUX_MASK | \
-					 INTEGRATOR_CLCD_LCD0_EN | \
-					 INTEGRATOR_CLCD_LCD1_EN | \
-					 INTEGRATOR_CLCD_LCD_STATIC1 | \
-					 INTEGRATOR_CLCD_LCD_STATIC2 | \
-					 INTEGRATOR_CLCD_LCD_STATIC | \
-					 INTEGRATOR_CLCD_LCD_N24BITEN)
+#define INTEGRATOR_CLCD_MASK		GENMASK(19, 8)
 
 static void pl111_integrator_enable(struct drm_device *drm, u32 format)
 {
@@ -106,11 +96,8 @@ static void pl111_integrator_enable(struct drm_device *drm, u32 format)
 	switch (format) {
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_XRGB8888:
-		break;
-	case DRM_FORMAT_BGR565:
-	case DRM_FORMAT_RGB565:
-		/* truecolor RGB565 */
-		val |= INTEGRATOR_CLCD_LCDMUX_VGA565;
+		/* 24bit formats */
+		val |= INTEGRATOR_CLCD_LCDMUX_VGA24;
 		break;
 	case DRM_FORMAT_XBGR1555:
 	case DRM_FORMAT_XRGB1555:
@@ -217,6 +204,57 @@ static void pl111_realview_clcd_enable(struct drm_device *drm, u32 format)
 			   SYS_CLCD_NLCDIOON | SYS_CLCD_PWR3V5SWITCH);
 }
 
+/* PL110 pixel formats for Integrator, vanilla PL110 */
+static const u32 pl110_integrator_pixel_formats[] = {
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555,
+};
+
+/* Extended PL110 pixel formats for Integrator and Versatile */
+static const u32 pl110_versatile_pixel_formats[] = {
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_BGR565, /* Uses external PLD */
+	DRM_FORMAT_RGB565, /* Uses external PLD */
+	DRM_FORMAT_ABGR1555,
+	DRM_FORMAT_XBGR1555,
+	DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_XRGB1555,
+};
+
+/*
+ * The Integrator variant is a PL110 with a bunch of broken, or not
+ * yet implemented features
+ */
+static const struct pl111_variant_data pl110_integrator = {
+	.name = "PL110 Integrator",
+	.is_pl110 = true,
+	.broken_clockdivider = true,
+	.broken_vblank = true,
+	.formats = pl110_integrator_pixel_formats,
+	.nformats = ARRAY_SIZE(pl110_integrator_pixel_formats),
+};
+
+/*
+ * This is the in-between PL110 variant found in the ARM Versatile,
+ * supporting RGB565/BGR565
+ */
+static const struct pl111_variant_data pl110_versatile = {
+	.name = "PL110 Versatile",
+	.is_pl110 = true,
+	.external_bgr = true,
+	.formats = pl110_versatile_pixel_formats,
+	.nformats = ARRAY_SIZE(pl110_versatile_pixel_formats),
+};
+
 int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 {
 	const struct of_device_id *clcd_id;
@@ -241,14 +279,24 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 	switch (versatile_clcd_type) {
 	case INTEGRATOR_CLCD_CM:
 		versatile_syscon_map = map;
+		priv->variant = &pl110_integrator;
 		priv->variant_display_enable = pl111_integrator_enable;
 		dev_info(dev, "set up callbacks for Integrator PL110\n");
 		break;
 	case VERSATILE_CLCD:
 		versatile_syscon_map = map;
+		/* This can do RGB565 with external PLD */
+		priv->variant = &pl110_versatile;
 		priv->variant_display_enable = pl111_versatile_enable;
 		priv->variant_display_disable = pl111_versatile_disable;
-		dev_info(dev, "set up callbacks for Versatile PL110+\n");
+		/*
+		 * The Versatile has a variant halfway between PL110
+		 * and PL111 where these two registers have already been
+		 * swapped.
+		 */
+		priv->ienb = CLCD_PL111_IENB;
+		priv->ctrl = CLCD_PL111_CNTL;
+		dev_info(dev, "set up callbacks for Versatile PL110\n");
 		break;
 	case REALVIEW_CLCD_EB:
 	case REALVIEW_CLCD_PB1176:

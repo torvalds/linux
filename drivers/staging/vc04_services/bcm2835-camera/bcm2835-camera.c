@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Broadcom BM2835 V4L2 driver
  *
  * Copyright © 2013 Raspberry Pi (Trading) Ltd.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive
- * for more details.
  *
  * Authors: Vincent Sanders <vincent.sanders@collabora.co.uk>
  *          Dave Stevenson <dsteve@broadcom.com>
@@ -328,11 +325,9 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 				pr_debug("Grab another frame");
 				vchiq_mmal_port_parameter_set(
 					instance,
-					dev->capture.
-					camera_port,
+					dev->capture.camera_port,
 					MMAL_PARAMETER_CAPTURE,
-					&dev->capture.
-					frame_count,
+					&dev->capture.frame_count,
 					sizeof(dev->capture.frame_count));
 			}
 		} else {
@@ -343,37 +338,17 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 		if (dev->capture.frame_count) {
 			if (dev->capture.vc_start_timestamp != -1 &&
 			    pts != 0) {
-				struct timeval timestamp;
+				ktime_t timestamp;
 				s64 runtime_us = pts -
 				    dev->capture.vc_start_timestamp;
-				u32 div = 0;
-				u32 rem = 0;
-
-				div =
-				    div_u64_rem(runtime_us, USEC_PER_SEC, &rem);
-				timestamp.tv_sec =
-				    dev->capture.kernel_start_ts.tv_sec + div;
-				timestamp.tv_usec =
-				    dev->capture.kernel_start_ts.tv_usec + rem;
-
-				if (timestamp.tv_usec >=
-				    USEC_PER_SEC) {
-					timestamp.tv_sec++;
-					timestamp.tv_usec -=
-					    USEC_PER_SEC;
-				}
+				timestamp = ktime_add_us(dev->capture.kernel_start_ts,
+							 runtime_us);
 				v4l2_dbg(1, bcm2835_v4l2_debug, &dev->v4l2_dev,
-					 "Convert start time %d.%06d and %llu "
-					 "with offset %llu to %d.%06d\n",
-					 (int)dev->capture.kernel_start_ts.
-					 tv_sec,
-					 (int)dev->capture.kernel_start_ts.
-					 tv_usec,
+					 "Convert start time %llu and %llu with offset %llu to %llu\n",
+					 ktime_to_ns(dev->capture.kernel_start_ts),
 					 dev->capture.vc_start_timestamp, pts,
-					 (int)timestamp.tv_sec,
-					 (int)timestamp.tv_usec);
-				buf->vb.vb2_buf.timestamp = timestamp.tv_sec * 1000000000ULL +
-					timestamp.tv_usec * 1000ULL;
+					 ktime_to_ns(timestamp));
+				buf->vb.vb2_buf.timestamp = ktime_to_ns(timestamp);
 			} else {
 				buf->vb.vb2_buf.timestamp = ktime_get_ns();
 			}
@@ -387,11 +362,9 @@ static void buffer_cb(struct vchiq_mmal_instance *instance,
 					 "Grab another frame as buffer has EOS");
 				vchiq_mmal_port_parameter_set(
 					instance,
-					dev->capture.
-					camera_port,
+					dev->capture.camera_port,
 					MMAL_PARAMETER_CAPTURE,
-					&dev->capture.
-					frame_count,
+					&dev->capture.frame_count,
 					sizeof(dev->capture.frame_count));
 			}
 		} else {
@@ -547,7 +520,7 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 			 "Start time %lld size %d\n",
 			 dev->capture.vc_start_timestamp, parameter_size);
 
-	v4l2_get_timestamp(&dev->capture.kernel_start_ts);
+	dev->capture.kernel_start_ts = ktime_get();
 
 	/* enable the camera port */
 	dev->capture.port->cb_ctx = dev;
@@ -555,8 +528,8 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	    vchiq_mmal_port_enable(dev->instance, dev->capture.port, buffer_cb);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev,
-			"Failed to enable capture port - error %d. "
-			"Disabling camera port again\n", ret);
+			"Failed to enable capture port - error %d. Disabling camera port again\n",
+			ret);
 
 		vchiq_mmal_port_disable(dev->instance,
 					dev->capture.camera_port);
@@ -1213,8 +1186,8 @@ static int mmal_setup_components(struct bm2835_mmal_dev *dev,
 					port->current_buffer.size =
 					    (f->fmt.pix.sizeimage <
 					     (100 << 10))
-					    ? (100 << 10) : f->fmt.pix.
-					    sizeimage;
+					    ? (100 << 10)
+					    : f->fmt.pix.sizeimage;
 				}
 				v4l2_dbg(1, bcm2835_v4l2_debug,
 					 &dev->v4l2_dev,

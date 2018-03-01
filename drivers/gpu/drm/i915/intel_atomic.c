@@ -110,6 +110,8 @@ int intel_digital_connector_atomic_check(struct drm_connector *conn,
 		to_intel_digital_connector_state(old_state);
 	struct drm_crtc_state *crtc_state;
 
+	intel_hdcp_atomic_check(conn, old_state, new_state);
+
 	if (!new_state->crtc)
 		return 0;
 

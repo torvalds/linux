@@ -28,4 +28,11 @@ struct iio_map {
 	void *consumer_data;
 };
 
+#define IIO_MAP(_provider_channel, _consumer_dev_name, _consumer_channel) \
+{									  \
+	.adc_channel_label = _provider_channel,				  \
+	.consumer_dev_name = _consumer_dev_name,			  \
+	.consumer_channel  = _consumer_channel,				  \
+}
+
 #endif

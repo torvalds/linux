@@ -95,7 +95,9 @@ dev_weight
 --------------
 
 The maximum number of packets that kernel can handle on a NAPI interrupt,
-it's a Per-CPU variable.
+it's a Per-CPU variable. For drivers that support LRO or GRO_HW, a hardware
+aggregated packet is counted as one packet in this context.
+
 Default: 64
 
 dev_weight_rx_bias

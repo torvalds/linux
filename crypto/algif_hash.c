@@ -34,11 +34,6 @@ struct hash_ctx {
 	struct ahash_request req;
 };
 
-struct algif_hash_tfm {
-	struct crypto_ahash *hash;
-	bool has_key;
-};
-
 static int hash_alloc_result(struct sock *sk, struct hash_ctx *ctx)
 {
 	unsigned ds;
@@ -307,7 +302,7 @@ static int hash_check_key(struct socket *sock)
 	int err = 0;
 	struct sock *psk;
 	struct alg_sock *pask;
-	struct algif_hash_tfm *tfm;
+	struct crypto_ahash *tfm;
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
 
@@ -321,7 +316,7 @@ static int hash_check_key(struct socket *sock)
 
 	err = -ENOKEY;
 	lock_sock_nested(psk, SINGLE_DEPTH_NESTING);
-	if (!tfm->has_key)
+	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		goto unlock;
 
 	if (!pask->refcnt++)
@@ -412,41 +407,17 @@ static struct proto_ops algif_hash_ops_nokey = {
 
 static void *hash_bind(const char *name, u32 type, u32 mask)
 {
-	struct algif_hash_tfm *tfm;
-	struct crypto_ahash *hash;
-
-	tfm = kzalloc(sizeof(*tfm), GFP_KERNEL);
-	if (!tfm)
-		return ERR_PTR(-ENOMEM);
-
-	hash = crypto_alloc_ahash(name, type, mask);
-	if (IS_ERR(hash)) {
-		kfree(tfm);
-		return ERR_CAST(hash);
-	}
-
-	tfm->hash = hash;
-
-	return tfm;
+	return crypto_alloc_ahash(name, type, mask);
 }
 
 static void hash_release(void *private)
 {
-	struct algif_hash_tfm *tfm = private;
-
-	crypto_free_ahash(tfm->hash);
-	kfree(tfm);
+	crypto_free_ahash(private);
 }
 
 static int hash_setkey(void *private, const u8 *key, unsigned int keylen)
 {
-	struct algif_hash_tfm *tfm = private;
-	int err;
-
-	err = crypto_ahash_setkey(tfm->hash, key, keylen);
-	tfm->has_key = !err;
-
-	return err;
+	return crypto_ahash_setkey(private, key, keylen);
 }
 
 static void hash_sock_destruct(struct sock *sk)
@@ -461,11 +432,10 @@ static void hash_sock_destruct(struct sock *sk)
 
 static int hash_accept_parent_nokey(void *private, struct sock *sk)
 {
-	struct hash_ctx *ctx;
+	struct crypto_ahash *tfm = private;
 	struct alg_sock *ask = alg_sk(sk);
-	struct algif_hash_tfm *tfm = private;
-	struct crypto_ahash *hash = tfm->hash;
-	unsigned len = sizeof(*ctx) + crypto_ahash_reqsize(hash);
+	struct hash_ctx *ctx;
+	unsigned int len = sizeof(*ctx) + crypto_ahash_reqsize(tfm);
 
 	ctx = sock_kmalloc(sk, len, GFP_KERNEL);
 	if (!ctx)
@@ -478,7 +448,7 @@ static int hash_accept_parent_nokey(void *private, struct sock *sk)
 
 	ask->private = ctx;
 
-	ahash_request_set_tfm(&ctx->req, hash);
+	ahash_request_set_tfm(&ctx->req, tfm);
 	ahash_request_set_callback(&ctx->req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				   crypto_req_done, &ctx->wait);
 
@@ -489,9 +459,9 @@ static int hash_accept_parent_nokey(void *private, struct sock *sk)
 
 static int hash_accept_parent(void *private, struct sock *sk)
 {
-	struct algif_hash_tfm *tfm = private;
+	struct crypto_ahash *tfm = private;
 
-	if (!tfm->has_key && crypto_ahash_has_setkey(tfm->hash))
+	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		return -ENOKEY;
 
 	return hash_accept_parent_nokey(private, sk);

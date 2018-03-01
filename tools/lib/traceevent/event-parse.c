@@ -1094,7 +1094,7 @@ static enum event_type __read_token(char **tok)
 		if (strcmp(*tok, "LOCAL_PR_FMT") == 0) {
 			free(*tok);
 			*tok = NULL;
-			return force_token("\"\%s\" ", tok);
+			return force_token("\"%s\" ", tok);
 		} else if (strcmp(*tok, "STA_PR_FMT") == 0) {
 			free(*tok);
 			*tok = NULL;
@@ -3970,6 +3970,11 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 				val &= ~fval;
 			}
 		}
+		if (val) {
+			if (print && arg->flags.delim)
+				trace_seq_puts(s, arg->flags.delim);
+			trace_seq_printf(s, "0x%llx", val);
+		}
 		break;
 	case PRINT_SYMBOL:
 		val = eval_num_arg(data, size, event, arg->symbol.field);
@@ -3980,6 +3985,8 @@ static void print_str_arg(struct trace_seq *s, void *data, int size,
 				break;
 			}
 		}
+		if (!flag)
+			trace_seq_printf(s, "0x%llx", val);
 		break;
 	case PRINT_HEX:
 	case PRINT_HEX_STR:
@@ -4293,6 +4300,26 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 				goto process_again;
 			case 'p':
 				ls = 1;
+				if (isalnum(ptr[1])) {
+					ptr++;
+					/* Check for special pointers */
+					switch (*ptr) {
+					case 's':
+					case 'S':
+					case 'f':
+					case 'F':
+						break;
+					default:
+						/*
+						 * Older kernels do not process
+						 * dereferenced pointers.
+						 * Only process if the pointer
+						 * value is a printable.
+						 */
+						if (isprint(*(char *)bptr))
+							goto process_string;
+					}
+				}
 				/* fall through */
 			case 'd':
 			case 'u':
@@ -4345,6 +4372,7 @@ static struct print_arg *make_bprint_args(char *fmt, void *data, int size, struc
 
 				break;
 			case 's':
+ process_string:
 				arg = alloc_arg();
 				if (!arg) {
 					do_warning_event(event, "%s(%d): not enough memory!",
@@ -4949,21 +4977,27 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 				else
 					ls = 2;
 
-				if (*(ptr+1) == 'F' || *(ptr+1) == 'f' ||
-				    *(ptr+1) == 'S' || *(ptr+1) == 's') {
+				if (isalnum(ptr[1]))
 					ptr++;
+
+				if (arg->type == PRINT_BSTRING) {
+					trace_seq_puts(s, arg->string.string);
+					break;
+				}
+
+				if (*ptr == 'F' || *ptr == 'f' ||
+				    *ptr == 'S' || *ptr == 's') {
 					show_func = *ptr;
-				} else if (*(ptr+1) == 'M' || *(ptr+1) == 'm') {
-					print_mac_arg(s, *(ptr+1), data, size, event, arg);
-					ptr++;
+				} else if (*ptr == 'M' || *ptr == 'm') {
+					print_mac_arg(s, *ptr, data, size, event, arg);
 					arg = arg->next;
 					break;
-				} else if (*(ptr+1) == 'I' || *(ptr+1) == 'i') {
+				} else if (*ptr == 'I' || *ptr == 'i') {
 					int n;
 
-					n = print_ip_arg(s, ptr+1, data, size, event, arg);
+					n = print_ip_arg(s, ptr, data, size, event, arg);
 					if (n > 0) {
-						ptr += n;
+						ptr += n - 1;
 						arg = arg->next;
 						break;
 					}
@@ -5532,8 +5566,14 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 
 	event = pevent_find_event_by_record(pevent, record);
 	if (!event) {
-		do_warning("ug! no event found for type %d",
-			   trace_parse_common_type(pevent, record->data));
+		int i;
+		int type = trace_parse_common_type(pevent, record->data);
+
+		do_warning("ug! no event found for type %d", type);
+		trace_seq_printf(s, "[UNKNOWN TYPE %d]", type);
+		for (i = 0; i < record->size; i++)
+			trace_seq_printf(s, " %02x",
+					 ((unsigned char *)record->data)[i]);
 		return;
 	}
 

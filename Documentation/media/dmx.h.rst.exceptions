@@ -54,3 +54,5 @@ ignore symbol DMX_OUT_DECODER
 ignore symbol DMX_OUT_TAP
 ignore symbol DMX_OUT_TS_TAP
 ignore symbol DMX_OUT_TSDEMUX_TAP
+
+replace ioctl DMX_DQBUF dmx_qbuf

@@ -23,9 +23,10 @@ struct lan9303 {
 	struct regmap_irq_chip_data *irq_data;
 	struct gpio_desc *reset_gpio;
 	u32 reset_duration; /* in [ms] */
-	bool phy_addr_sel_strap;
+	int phy_addr_base;
 	struct dsa_switch *ds;
 	struct mutex indirect_mutex; /* protect indexed register access */
+	struct mutex alr_mutex; /* protect ALR access */
 	const struct lan9303_phy_ops *ops;
 	bool is_bridged; /* true if port 1 and 2 are bridged */
 

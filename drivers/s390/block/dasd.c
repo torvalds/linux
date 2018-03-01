@@ -1393,10 +1393,6 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 			DBF_DEV_EVENT(DBF_ERR, device, "%s",
 				      "device gone, retry");
 			break;
-		case -EIO:
-			DBF_DEV_EVENT(DBF_ERR, device, "%s",
-				      "I/O error, retry");
-			break;
 		case -EINVAL:
 			/*
 			 * device not valid so no I/O could be running
@@ -1411,10 +1407,6 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 				      "EINVAL, handle as terminated");
 			/* fake rc to success */
 			rc = 0;
-			break;
-		case -EBUSY:
-			DBF_DEV_EVENT(DBF_ERR, device, "%s",
-				      "device busy, retry later");
 			break;
 		default:
 			/* internal error 10 - unknown rc*/
@@ -1488,10 +1480,6 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 	case -EBUSY:
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			      "start_IO: device busy, retry later");
-		break;
-	case -ETIMEDOUT:
-		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
-			      "start_IO: request timeout, retry later");
 		break;
 	case -EACCES:
 		/* -EACCES indicates that the request used only a subset of the

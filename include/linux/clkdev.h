@@ -12,7 +12,7 @@
 #ifndef __CLKDEV_H
 #define __CLKDEV_H
 
-#include <asm/clkdev.h>
+#include <linux/slab.h>
 
 struct clk;
 struct clk_hw;
@@ -51,10 +51,5 @@ int clk_add_alias(const char *, const char *, const char *, struct device *);
 
 int clk_register_clkdev(struct clk *, const char *, const char *);
 int clk_hw_register_clkdev(struct clk_hw *, const char *, const char *);
-
-#ifdef CONFIG_COMMON_CLK
-int __clk_get(struct clk *clk);
-void __clk_put(struct clk *clk);
-#endif
 
 #endif

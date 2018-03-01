@@ -37,8 +37,8 @@
 #include <linux/sched/signal.h>
 #include <linux/kthread.h>
 
-#include "dvb_ca_en50221.h"
-#include "dvb_ringbuffer.h"
+#include <media/dvb_ca_en50221.h>
+#include <media/dvb_ringbuffer.h>
 
 static int dvb_ca_en50221_debug;
 
@@ -786,7 +786,7 @@ exit:
  * @ca: CA instance.
  * @slot: Slot to write to.
  * @buf: The data in this buffer is treated as a complete link-level packet to
- * 	 be written.
+ *	 be written.
  * @bytes_write: Size of ebuf.
  *
  * return: Number of bytes written, or < 0 on error.
@@ -1473,6 +1473,9 @@ static ssize_t dvb_ca_en50221_io_write(struct file *file,
 		return -EFAULT;
 	buf += 2;
 	count -= 2;
+
+	if (slot >= ca->slot_count)
+		return -EINVAL;
 	sl = &ca->slot_info[slot];
 
 	/* check if the slot is actually running */
@@ -1782,18 +1785,18 @@ static int dvb_ca_en50221_io_release(struct inode *inode, struct file *file)
  *
  * return: Standard poll mask.
  */
-static unsigned int dvb_ca_en50221_io_poll(struct file *file, poll_table *wait)
+static __poll_t dvb_ca_en50221_io_poll(struct file *file, poll_table *wait)
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_ca_private *ca = dvbdev->priv;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	int slot;
 	int result = 0;
 
 	dprintk("%s\n", __func__);
 
 	if (dvb_ca_en50221_io_read_condition(ca, &result, &slot) == 1)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	/* if there is something, return now */
 	if (mask)
@@ -1803,7 +1806,7 @@ static unsigned int dvb_ca_en50221_io_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &ca->wait_queue, wait);
 
 	if (dvb_ca_en50221_io_read_condition(ca, &result, &slot) == 1)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	return mask;
 }

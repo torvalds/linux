@@ -10,7 +10,7 @@ config ARM_PSCI_FW
 
 config ARM_PSCI_CHECKER
 	bool "ARM PSCI checker"
-	depends on ARM_PSCI_FW && HOTPLUG_CPU && !TORTURE_TEST
+	depends on ARM_PSCI_FW && HOTPLUG_CPU && CPU_IDLE && !TORTURE_TEST
 	help
 	  Run the PSCI checker during startup. This checks that hotplug and
 	  suspend operations work correctly when using PSCI.
@@ -47,6 +47,14 @@ config ARM_SCPI_POWER_DOMAIN
 	help
 	  This enables support for the SCPI power domains which can be
 	  enabled or disabled via the SCP firmware
+
+config ARM_SDE_INTERFACE
+	bool "ARM Software Delegated Exception Interface (SDEI)"
+	depends on ARM64
+	help
+	  The Software Delegated Exception Interface (SDEI) is an ARM
+	  standard for registering callbacks from the platform firmware
+	  into the OS. This is typically used to implement RAS notifications.
 
 config EDD
 	tristate "BIOS Enhanced Disk Drive calls determine boot disk"

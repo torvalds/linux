@@ -2,7 +2,9 @@ Renesas R-Car CAN controller Device Tree Bindings
 -------------------------------------------------
 
 Required properties:
-- compatible: "renesas,can-r8a7778" if CAN controller is a part of R8A7778 SoC.
+- compatible: "renesas,can-r8a7743" if CAN controller is a part of R8A7743 SoC.
+	      "renesas,can-r8a7745" if CAN controller is a part of R8A7745 SoC.
+	      "renesas,can-r8a7778" if CAN controller is a part of R8A7778 SoC.
 	      "renesas,can-r8a7779" if CAN controller is a part of R8A7779 SoC.
 	      "renesas,can-r8a7790" if CAN controller is a part of R8A7790 SoC.
 	      "renesas,can-r8a7791" if CAN controller is a part of R8A7791 SoC.
@@ -12,7 +14,8 @@ Required properties:
 	      "renesas,can-r8a7795" if CAN controller is a part of R8A7795 SoC.
 	      "renesas,can-r8a7796" if CAN controller is a part of R8A7796 SoC.
 	      "renesas,rcar-gen1-can" for a generic R-Car Gen1 compatible device.
-	      "renesas,rcar-gen2-can" for a generic R-Car Gen2 compatible device.
+	      "renesas,rcar-gen2-can" for a generic R-Car Gen2 or RZ/G1
+	      compatible device.
 	      "renesas,rcar-gen3-can" for a generic R-Car Gen3 compatible device.
 	      When compatible with the generic version, nodes must list the
 	      SoC-specific version corresponding to the platform first

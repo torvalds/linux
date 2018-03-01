@@ -512,31 +512,31 @@ static void i40evf_set_itr_per_queue(struct i40evf_adapter *adapter,
 				     struct ethtool_coalesce *ec,
 				     int queue)
 {
+	struct i40e_ring *rx_ring = &adapter->rx_rings[queue];
+	struct i40e_ring *tx_ring = &adapter->tx_rings[queue];
 	struct i40e_vsi *vsi = &adapter->vsi;
 	struct i40e_hw *hw = &adapter->hw;
 	struct i40e_q_vector *q_vector;
 	u16 vector;
 
-	adapter->rx_rings[queue].rx_itr_setting = ec->rx_coalesce_usecs;
-	adapter->tx_rings[queue].tx_itr_setting = ec->tx_coalesce_usecs;
+	rx_ring->rx_itr_setting = ec->rx_coalesce_usecs;
+	tx_ring->tx_itr_setting = ec->tx_coalesce_usecs;
 
-	if (ec->use_adaptive_rx_coalesce)
-		adapter->rx_rings[queue].rx_itr_setting |= I40E_ITR_DYNAMIC;
-	else
-		adapter->rx_rings[queue].rx_itr_setting &= ~I40E_ITR_DYNAMIC;
+	rx_ring->rx_itr_setting |= I40E_ITR_DYNAMIC;
+	if (!ec->use_adaptive_rx_coalesce)
+		rx_ring->rx_itr_setting ^= I40E_ITR_DYNAMIC;
 
-	if (ec->use_adaptive_tx_coalesce)
-		adapter->tx_rings[queue].tx_itr_setting |= I40E_ITR_DYNAMIC;
-	else
-		adapter->tx_rings[queue].tx_itr_setting &= ~I40E_ITR_DYNAMIC;
+	tx_ring->tx_itr_setting |= I40E_ITR_DYNAMIC;
+	if (!ec->use_adaptive_tx_coalesce)
+		tx_ring->tx_itr_setting ^= I40E_ITR_DYNAMIC;
 
-	q_vector = adapter->rx_rings[queue].q_vector;
-	q_vector->rx.itr = ITR_TO_REG(adapter->rx_rings[queue].rx_itr_setting);
+	q_vector = rx_ring->q_vector;
+	q_vector->rx.itr = ITR_TO_REG(rx_ring->rx_itr_setting);
 	vector = vsi->base_vector + q_vector->v_idx;
 	wr32(hw, I40E_VFINT_ITRN1(I40E_RX_ITR, vector - 1), q_vector->rx.itr);
 
-	q_vector = adapter->tx_rings[queue].q_vector;
-	q_vector->tx.itr = ITR_TO_REG(adapter->tx_rings[queue].tx_itr_setting);
+	q_vector = tx_ring->q_vector;
+	q_vector->tx.itr = ITR_TO_REG(tx_ring->tx_itr_setting);
 	vector = vsi->base_vector + q_vector->v_idx;
 	wr32(hw, I40E_VFINT_ITRN1(I40E_TX_ITR, vector - 1), q_vector->tx.itr);
 

@@ -299,21 +299,13 @@ int intel_vgpu_opregion_base_write_handler(struct intel_vgpu *vgpu, u32 gpa)
 {
 
 	int i, ret = 0;
-	unsigned long pfn;
 
 	gvt_dbg_core("emulate opregion from kernel\n");
 
 	switch (intel_gvt_host.hypervisor_type) {
 	case INTEL_GVT_HYPERVISOR_KVM:
-		pfn = intel_gvt_hypervisor_gfn_to_mfn(vgpu, gpa >> PAGE_SHIFT);
-		vgpu_opregion(vgpu)->va_gopregion = memremap(pfn << PAGE_SHIFT,
-						INTEL_GVT_OPREGION_SIZE,
-						MEMREMAP_WB);
-		if (!vgpu_opregion(vgpu)->va_gopregion) {
-			gvt_vgpu_err("failed to map guest opregion\n");
-			ret = -EFAULT;
-		}
-		vgpu_opregion(vgpu)->mapped = true;
+		for (i = 0; i < INTEL_GVT_OPREGION_PAGES; i++)
+			vgpu_opregion(vgpu)->gfn[i] = (gpa >> PAGE_SHIFT) + i;
 		break;
 	case INTEL_GVT_HYPERVISOR_XEN:
 		/**
@@ -352,10 +344,7 @@ void intel_vgpu_clean_opregion(struct intel_vgpu *vgpu)
 		if (vgpu_opregion(vgpu)->mapped)
 			map_vgpu_opregion(vgpu, false);
 	} else if (intel_gvt_host.hypervisor_type == INTEL_GVT_HYPERVISOR_KVM) {
-		if (vgpu_opregion(vgpu)->mapped) {
-			memunmap(vgpu_opregion(vgpu)->va_gopregion);
-			vgpu_opregion(vgpu)->va_gopregion = NULL;
-		}
+		/* Guest opregion is released by VFIO */
 	}
 	free_pages((unsigned long)vgpu_opregion(vgpu)->va,
 		   get_order(INTEL_GVT_OPREGION_SIZE));
@@ -480,19 +469,40 @@ static bool querying_capabilities(u32 scic)
  */
 int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 {
-	u32 *scic, *parm;
+	u32 scic, parm;
 	u32 func, subfunc;
+	u64 scic_pa = 0, parm_pa = 0;
+	int ret;
 
 	switch (intel_gvt_host.hypervisor_type) {
 	case INTEL_GVT_HYPERVISOR_XEN:
-		scic = vgpu_opregion(vgpu)->va + INTEL_GVT_OPREGION_SCIC;
-		parm = vgpu_opregion(vgpu)->va + INTEL_GVT_OPREGION_PARM;
+		scic = *((u32 *)vgpu_opregion(vgpu)->va +
+					INTEL_GVT_OPREGION_SCIC);
+		parm = *((u32 *)vgpu_opregion(vgpu)->va +
+					INTEL_GVT_OPREGION_PARM);
 		break;
 	case INTEL_GVT_HYPERVISOR_KVM:
-		scic = vgpu_opregion(vgpu)->va_gopregion +
-						INTEL_GVT_OPREGION_SCIC;
-		parm = vgpu_opregion(vgpu)->va_gopregion +
-						INTEL_GVT_OPREGION_PARM;
+		scic_pa = (vgpu_opregion(vgpu)->gfn[0] << PAGE_SHIFT) +
+					INTEL_GVT_OPREGION_SCIC;
+		parm_pa = (vgpu_opregion(vgpu)->gfn[0] << PAGE_SHIFT) +
+					INTEL_GVT_OPREGION_PARM;
+
+		ret = intel_gvt_hypervisor_read_gpa(vgpu, scic_pa,
+						    &scic, sizeof(scic));
+		if (ret) {
+			gvt_vgpu_err("guest opregion read error %d, gpa 0x%llx, len %lu\n",
+				ret, scic_pa, sizeof(scic));
+			return ret;
+		}
+
+		ret = intel_gvt_hypervisor_read_gpa(vgpu, parm_pa,
+						    &parm, sizeof(parm));
+		if (ret) {
+			gvt_vgpu_err("guest opregion read error %d, gpa 0x%llx, len %lu\n",
+				ret, scic_pa, sizeof(scic));
+			return ret;
+		}
+
 		break;
 	default:
 		gvt_vgpu_err("not supported hypervisor\n");
@@ -510,9 +520,9 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 		return 0;
 	}
 
-	func = GVT_OPREGION_FUNC(*scic);
-	subfunc = GVT_OPREGION_SUBFUNC(*scic);
-	if (!querying_capabilities(*scic)) {
+	func = GVT_OPREGION_FUNC(scic);
+	subfunc = GVT_OPREGION_SUBFUNC(scic);
+	if (!querying_capabilities(scic)) {
 		gvt_vgpu_err("requesting runtime service: func \"%s\","
 				" subfunc \"%s\"\n",
 				opregion_func_name(func),
@@ -521,11 +531,43 @@ int intel_vgpu_emulate_opregion_request(struct intel_vgpu *vgpu, u32 swsci)
 		 * emulate exit status of function call, '0' means
 		 * "failure, generic, unsupported or unknown cause"
 		 */
-		*scic &= ~OPREGION_SCIC_EXIT_MASK;
-		return 0;
+		scic &= ~OPREGION_SCIC_EXIT_MASK;
+		goto out;
 	}
 
-	*scic = 0;
-	*parm = 0;
+	scic = 0;
+	parm = 0;
+
+out:
+	switch (intel_gvt_host.hypervisor_type) {
+	case INTEL_GVT_HYPERVISOR_XEN:
+		*((u32 *)vgpu_opregion(vgpu)->va +
+					INTEL_GVT_OPREGION_SCIC) = scic;
+		*((u32 *)vgpu_opregion(vgpu)->va +
+					INTEL_GVT_OPREGION_PARM) = parm;
+		break;
+	case INTEL_GVT_HYPERVISOR_KVM:
+		ret = intel_gvt_hypervisor_write_gpa(vgpu, scic_pa,
+						    &scic, sizeof(scic));
+		if (ret) {
+			gvt_vgpu_err("guest opregion write error %d, gpa 0x%llx, len %lu\n",
+				ret, scic_pa, sizeof(scic));
+			return ret;
+		}
+
+		ret = intel_gvt_hypervisor_write_gpa(vgpu, parm_pa,
+						    &parm, sizeof(parm));
+		if (ret) {
+			gvt_vgpu_err("guest opregion write error %d, gpa 0x%llx, len %lu\n",
+				ret, scic_pa, sizeof(scic));
+			return ret;
+		}
+
+		break;
+	default:
+		gvt_vgpu_err("not supported hypervisor\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }

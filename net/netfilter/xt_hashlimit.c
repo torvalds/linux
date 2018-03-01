@@ -353,7 +353,7 @@ static int htable_create(struct net *net, struct hashlimit_cfg3 *cfg,
 static bool select_all(const struct xt_hashlimit_htable *ht,
 		       const struct dsthash_ent *he)
 {
-	return 1;
+	return true;
 }
 
 static bool select_gc(const struct xt_hashlimit_htable *ht,
@@ -1266,7 +1266,6 @@ static int dl_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dl_file_ops_v2 = {
-	.owner   = THIS_MODULE,
 	.open    = dl_proc_open_v2,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -1274,7 +1273,6 @@ static const struct file_operations dl_file_ops_v2 = {
 };
 
 static const struct file_operations dl_file_ops_v1 = {
-	.owner   = THIS_MODULE,
 	.open    = dl_proc_open_v1,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
@@ -1282,7 +1280,6 @@ static const struct file_operations dl_file_ops_v1 = {
 };
 
 static const struct file_operations dl_file_ops = {
-	.owner   = THIS_MODULE,
 	.open    = dl_proc_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,

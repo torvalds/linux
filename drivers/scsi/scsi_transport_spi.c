@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>
+#include <linux/suspend.h>
 #include <scsi/scsi.h>
 #include "scsi_priv.h"
 #include <scsi/scsi_device.h>
@@ -1009,11 +1010,20 @@ spi_dv_device(struct scsi_device *sdev)
 	u8 *buffer;
 	const int len = SPI_MAX_ECHO_BUFFER_SIZE*2;
 
+	/*
+	 * Because this function and the power management code both call
+	 * scsi_device_quiesce(), it is not safe to perform domain validation
+	 * while suspend or resume is in progress. Hence the
+	 * lock/unlock_system_sleep() calls.
+	 */
+	lock_system_sleep();
+
 	if (unlikely(spi_dv_in_progress(starget)))
-		return;
+		goto unlock;
 
 	if (unlikely(scsi_device_get(sdev)))
-		return;
+		goto unlock;
+
 	spi_dv_in_progress(starget) = 1;
 
 	buffer = kzalloc(len, GFP_KERNEL);
@@ -1049,6 +1059,8 @@ spi_dv_device(struct scsi_device *sdev)
  out_put:
 	spi_dv_in_progress(starget) = 0;
 	scsi_device_put(sdev);
+unlock:
+	unlock_system_sleep();
 }
 EXPORT_SYMBOL(spi_dv_device);
 

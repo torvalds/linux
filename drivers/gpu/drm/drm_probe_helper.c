@@ -499,7 +499,7 @@ retry:
 
 	list_for_each_entry(mode, &connector->modes, head) {
 		if (mode->status == MODE_OK)
-			mode->status = drm_mode_validate_basic(mode);
+			mode->status = drm_mode_validate_driver(dev, mode);
 
 		if (mode->status == MODE_OK)
 			mode->status = drm_mode_validate_size(mode, maxX, maxY);

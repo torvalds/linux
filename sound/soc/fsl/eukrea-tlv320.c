@@ -29,7 +29,6 @@
 
 #include "../codecs/tlv320aic23.h"
 #include "imx-ssi.h"
-#include "fsl_ssi.h"
 #include "imx-audmux.h"
 
 #define CODEC_CLOCK 12000000

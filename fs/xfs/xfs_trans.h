@@ -50,7 +50,7 @@ typedef struct xfs_log_item {
 	uint				li_type;	/* item type */
 	uint				li_flags;	/* misc flags */
 	struct xfs_buf			*li_buf;	/* real buffer pointer */
-	struct xfs_log_item		*li_bio_list;	/* buffer item list */
+	struct list_head		li_bio_list;	/* buffer item list */
 	void				(*li_cb)(struct xfs_buf *,
 						 struct xfs_log_item *);
 							/* buffer item iodone */

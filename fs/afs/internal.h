@@ -36,6 +36,7 @@ struct afs_mount_params {
 	bool			rwpath;		/* T if the parent should be considered R/W */
 	bool			force;		/* T to force cell type */
 	bool			autocell;	/* T if set auto mount operation */
+	bool			dyn_root;	/* T if dynamic root */
 	afs_voltype_t		type;		/* type of volume requested */
 	int			volnamesz;	/* size of volume name */
 	const char		*volname;	/* name of volume to mount */
@@ -186,6 +187,7 @@ struct afs_super_info {
 	struct afs_net		*net;		/* Network namespace */
 	struct afs_cell		*cell;		/* The cell in which the volume resides */
 	struct afs_volume	*volume;	/* volume record */
+	bool			dyn_root;	/* True if dynamic root */
 };
 
 static inline struct afs_super_info *AFS_FS_S(struct super_block *sb)
@@ -634,10 +636,13 @@ extern bool afs_cm_incoming_call(struct afs_call *);
 /*
  * dir.c
  */
-extern bool afs_dir_check_page(struct inode *, struct page *);
-extern const struct inode_operations afs_dir_inode_operations;
-extern const struct dentry_operations afs_fs_dentry_operations;
 extern const struct file_operations afs_dir_file_operations;
+extern const struct inode_operations afs_dir_inode_operations;
+extern const struct file_operations afs_dynroot_file_operations;
+extern const struct inode_operations afs_dynroot_inode_operations;
+extern const struct dentry_operations afs_fs_dentry_operations;
+
+extern bool afs_dir_check_page(struct inode *, struct page *);
 
 /*
  * file.c
@@ -695,8 +700,7 @@ extern int afs_fs_get_capabilities(struct afs_net *, struct afs_server *,
  */
 extern int afs_fetch_status(struct afs_vnode *, struct key *);
 extern int afs_iget5_test(struct inode *, void *);
-extern struct inode *afs_iget_autocell(struct inode *, const char *, int,
-				       struct key *);
+extern struct inode *afs_iget_pseudo_dir(struct super_block *, bool);
 extern struct inode *afs_iget(struct super_block *, struct key *,
 			      struct afs_fid *, struct afs_file_status *,
 			      struct afs_callback *,

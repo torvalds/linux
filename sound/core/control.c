@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
+#include <linux/mm.h>
 #include <linux/sched/signal.h>
 #include <sound/core.h>
 #include <sound/minors.h>
@@ -1129,7 +1130,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 	if (size > 1024 * 128)	/* sane value */
 		return -EINVAL;
 
-	container = memdup_user(buf, size);
+	container = vmemdup_user(buf, size);
 	if (IS_ERR(container))
 		return PTR_ERR(container);
 
@@ -1137,7 +1138,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 	if (!change)
 		change = memcmp(ue->tlv_data, container, size) != 0;
 	if (!change) {
-		kfree(container);
+		kvfree(container);
 		return 0;
 	}
 
@@ -1148,7 +1149,7 @@ static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
 		mask = SNDRV_CTL_EVENT_MASK_INFO;
 	}
 
-	kfree(ue->tlv_data);
+	kvfree(ue->tlv_data);
 	ue->tlv_data = container;
 	ue->tlv_data_size = size;
 
@@ -1197,7 +1198,7 @@ static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 	if (ue->info.value.enumerated.names_length > 64 * 1024)
 		return -EINVAL;
 
-	names = memdup_user((const void __user *)user_ptrval,
+	names = vmemdup_user((const void __user *)user_ptrval,
 		ue->info.value.enumerated.names_length);
 	if (IS_ERR(names))
 		return PTR_ERR(names);
@@ -1208,7 +1209,7 @@ static int snd_ctl_elem_init_enum_names(struct user_element *ue)
 	for (i = 0; i < ue->info.value.enumerated.items; ++i) {
 		name_len = strnlen(p, buf_len);
 		if (name_len == 0 || name_len >= 64 || name_len == buf_len) {
-			kfree(names);
+			kvfree(names);
 			return -EINVAL;
 		}
 		p += name_len + 1;
@@ -1225,8 +1226,8 @@ static void snd_ctl_elem_user_free(struct snd_kcontrol *kcontrol)
 {
 	struct user_element *ue = kcontrol->private_data;
 
-	kfree(ue->tlv_data);
-	kfree(ue->priv_data);
+	kvfree(ue->tlv_data);
+	kvfree(ue->priv_data);
 	kfree(ue);
 }
 
@@ -1666,9 +1667,9 @@ static ssize_t snd_ctl_read(struct file *file, char __user *buffer,
       	return result > 0 ? result : err;
 }
 
-static unsigned int snd_ctl_poll(struct file *file, poll_table * wait)
+static __poll_t snd_ctl_poll(struct file *file, poll_table * wait)
 {
-	unsigned int mask;
+	__poll_t mask;
 	struct snd_ctl_file *ctl;
 
 	ctl = file->private_data;
@@ -1678,7 +1679,7 @@ static unsigned int snd_ctl_poll(struct file *file, poll_table * wait)
 
 	mask = 0;
 	if (!list_empty(&ctl->events))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

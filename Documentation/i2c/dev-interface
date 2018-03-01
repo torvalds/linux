@@ -17,13 +17,16 @@ i2c-10, ...). All 256 minor device numbers are reserved for i2c.
 C example
 =========
 
-So let's say you want to access an i2c adapter from a C program. The
-first thing to do is "#include <linux/i2c-dev.h>". Please note that
-there are two files named "i2c-dev.h" out there, one is distributed
-with the Linux kernel and is meant to be included from kernel
-driver code, the other one is distributed with i2c-tools and is
-meant to be included from user-space programs. You obviously want
-the second one here.
+So let's say you want to access an i2c adapter from a C program.
+First, you need to include these two headers:
+
+  #include <linux/i2c-dev.h>
+  #include <i2c/smbus.h>
+
+(Please note that there are two files named "i2c-dev.h" out there. One is
+distributed with the Linux kernel and the other one is included in the
+source tree of i2c-tools. They used to be different in content but since 2012
+they're identical. You should use "linux/i2c-dev.h").
 
 Now, you have to decide which adapter you want to access. You should
 inspect /sys/class/i2c-dev/ or run "i2cdetect -l" to decide this.

@@ -160,6 +160,8 @@ extern void arch_jump_label_transform_static(struct jump_entry *entry,
 extern int jump_label_text_reserved(void *start, void *end);
 extern void static_key_slow_inc(struct static_key *key);
 extern void static_key_slow_dec(struct static_key *key);
+extern void static_key_slow_inc_cpuslocked(struct static_key *key);
+extern void static_key_slow_dec_cpuslocked(struct static_key *key);
 extern void jump_label_apply_nops(struct module *mod);
 extern int static_key_count(struct static_key *key);
 extern void static_key_enable(struct static_key *key);
@@ -221,6 +223,9 @@ static inline void static_key_slow_dec(struct static_key *key)
 	STATIC_KEY_CHECK_USE(key);
 	atomic_dec(&key->enabled);
 }
+
+#define static_key_slow_inc_cpuslocked(key) static_key_slow_inc(key)
+#define static_key_slow_dec_cpuslocked(key) static_key_slow_dec(key)
 
 static inline int jump_label_text_reserved(void *start, void *end)
 {
@@ -388,7 +393,7 @@ extern bool ____wrong_branch_error(void);
 		branch = !arch_static_branch_jump(&(x)->key, true);		\
 	else									\
 		branch = ____wrong_branch_error();				\
-	branch;									\
+	likely(branch);								\
 })
 
 #define static_branch_unlikely(x)						\
@@ -400,7 +405,7 @@ extern bool ____wrong_branch_error(void);
 		branch = arch_static_branch(&(x)->key, false);			\
 	else									\
 		branch = ____wrong_branch_error();				\
-	branch;									\
+	unlikely(branch);							\
 })
 
 #else /* !HAVE_JUMP_LABEL */
@@ -416,6 +421,8 @@ extern bool ____wrong_branch_error(void);
 
 #define static_branch_inc(x)		static_key_slow_inc(&(x)->key)
 #define static_branch_dec(x)		static_key_slow_dec(&(x)->key)
+#define static_branch_inc_cpuslocked(x)	static_key_slow_inc_cpuslocked(&(x)->key)
+#define static_branch_dec_cpuslocked(x)	static_key_slow_dec_cpuslocked(&(x)->key)
 
 /*
  * Normal usage; boolean enable/disable.

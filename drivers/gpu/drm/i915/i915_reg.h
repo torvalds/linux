@@ -3108,6 +3108,7 @@ enum i915_power_well_id {
 # define GPIO_DATA_PULLUP_DISABLE	(1 << 13)
 
 #define GMBUS0			_MMIO(dev_priv->gpio_mmio_base + 0x5100) /* clock/port select */
+#define   GMBUS_AKSV_SELECT	(1<<11)
 #define   GMBUS_RATE_100KHZ	(0<<8)
 #define   GMBUS_RATE_50KHZ	(1<<8)
 #define   GMBUS_RATE_400KHZ	(2<<8) /* reserved on Pineview */
@@ -8206,6 +8207,7 @@ enum {
 #define     GEN9_MEM_LATENCY_LEVEL_1_5_SHIFT	8
 #define     GEN9_MEM_LATENCY_LEVEL_2_6_SHIFT	16
 #define     GEN9_MEM_LATENCY_LEVEL_3_7_SHIFT	24
+#define   SKL_PCODE_LOAD_HDCP_KEYS		0x5
 #define   SKL_PCODE_CDCLK_CONTROL		0x7
 #define     SKL_CDCLK_PREPARE_FOR_CHANGE	0x3
 #define     SKL_CDCLK_READY_FOR_CHANGE		0x1
@@ -8521,6 +8523,88 @@ enum skl_power_gate {
 #define   CNL_AUX_ANAOVRD1_ENABLE	(1<<16)
 #define   CNL_AUX_ANAOVRD1_LDO_BYPASS	(1<<23)
 
+/* HDCP Key Registers */
+#define HDCP_KEY_CONF			_MMIO(0x66c00)
+#define  HDCP_AKSV_SEND_TRIGGER		BIT(31)
+#define  HDCP_CLEAR_KEYS_TRIGGER	BIT(30)
+#define  HDCP_KEY_LOAD_TRIGGER		BIT(8)
+#define HDCP_KEY_STATUS			_MMIO(0x66c04)
+#define  HDCP_FUSE_IN_PROGRESS		BIT(7)
+#define  HDCP_FUSE_ERROR		BIT(6)
+#define  HDCP_FUSE_DONE			BIT(5)
+#define  HDCP_KEY_LOAD_STATUS		BIT(1)
+#define  HDCP_KEY_LOAD_DONE		BIT(0)
+#define HDCP_AKSV_LO			_MMIO(0x66c10)
+#define HDCP_AKSV_HI			_MMIO(0x66c14)
+
+/* HDCP Repeater Registers */
+#define HDCP_REP_CTL			_MMIO(0x66d00)
+#define  HDCP_DDIB_REP_PRESENT		BIT(30)
+#define  HDCP_DDIA_REP_PRESENT		BIT(29)
+#define  HDCP_DDIC_REP_PRESENT		BIT(28)
+#define  HDCP_DDID_REP_PRESENT		BIT(27)
+#define  HDCP_DDIF_REP_PRESENT		BIT(26)
+#define  HDCP_DDIE_REP_PRESENT		BIT(25)
+#define  HDCP_DDIB_SHA1_M0		(1 << 20)
+#define  HDCP_DDIA_SHA1_M0		(2 << 20)
+#define  HDCP_DDIC_SHA1_M0		(3 << 20)
+#define  HDCP_DDID_SHA1_M0		(4 << 20)
+#define  HDCP_DDIF_SHA1_M0		(5 << 20)
+#define  HDCP_DDIE_SHA1_M0		(6 << 20) /* Bspec says 5? */
+#define  HDCP_SHA1_BUSY			BIT(16)
+#define  HDCP_SHA1_READY		BIT(17)
+#define  HDCP_SHA1_COMPLETE		BIT(18)
+#define  HDCP_SHA1_V_MATCH		BIT(19)
+#define  HDCP_SHA1_TEXT_32		(1 << 1)
+#define  HDCP_SHA1_COMPLETE_HASH	(2 << 1)
+#define  HDCP_SHA1_TEXT_24		(4 << 1)
+#define  HDCP_SHA1_TEXT_16		(5 << 1)
+#define  HDCP_SHA1_TEXT_8		(6 << 1)
+#define  HDCP_SHA1_TEXT_0		(7 << 1)
+#define HDCP_SHA_V_PRIME_H0		_MMIO(0x66d04)
+#define HDCP_SHA_V_PRIME_H1		_MMIO(0x66d08)
+#define HDCP_SHA_V_PRIME_H2		_MMIO(0x66d0C)
+#define HDCP_SHA_V_PRIME_H3		_MMIO(0x66d10)
+#define HDCP_SHA_V_PRIME_H4		_MMIO(0x66d14)
+#define HDCP_SHA_V_PRIME(h)		_MMIO((0x66d04 + h * 4))
+#define HDCP_SHA_TEXT			_MMIO(0x66d18)
+
+/* HDCP Auth Registers */
+#define _PORTA_HDCP_AUTHENC		0x66800
+#define _PORTB_HDCP_AUTHENC		0x66500
+#define _PORTC_HDCP_AUTHENC		0x66600
+#define _PORTD_HDCP_AUTHENC		0x66700
+#define _PORTE_HDCP_AUTHENC		0x66A00
+#define _PORTF_HDCP_AUTHENC		0x66900
+#define _PORT_HDCP_AUTHENC(port, x)	_MMIO(_PICK(port, \
+					  _PORTA_HDCP_AUTHENC, \
+					  _PORTB_HDCP_AUTHENC, \
+					  _PORTC_HDCP_AUTHENC, \
+					  _PORTD_HDCP_AUTHENC, \
+					  _PORTE_HDCP_AUTHENC, \
+					  _PORTF_HDCP_AUTHENC) + x)
+#define PORT_HDCP_CONF(port)		_PORT_HDCP_AUTHENC(port, 0x0)
+#define  HDCP_CONF_CAPTURE_AN		BIT(0)
+#define  HDCP_CONF_AUTH_AND_ENC		(BIT(1) | BIT(0))
+#define PORT_HDCP_ANINIT(port)		_PORT_HDCP_AUTHENC(port, 0x4)
+#define PORT_HDCP_ANLO(port)		_PORT_HDCP_AUTHENC(port, 0x8)
+#define PORT_HDCP_ANHI(port)		_PORT_HDCP_AUTHENC(port, 0xC)
+#define PORT_HDCP_BKSVLO(port)		_PORT_HDCP_AUTHENC(port, 0x10)
+#define PORT_HDCP_BKSVHI(port)		_PORT_HDCP_AUTHENC(port, 0x14)
+#define PORT_HDCP_RPRIME(port)		_PORT_HDCP_AUTHENC(port, 0x18)
+#define PORT_HDCP_STATUS(port)		_PORT_HDCP_AUTHENC(port, 0x1C)
+#define  HDCP_STATUS_STREAM_A_ENC	BIT(31)
+#define  HDCP_STATUS_STREAM_B_ENC	BIT(30)
+#define  HDCP_STATUS_STREAM_C_ENC	BIT(29)
+#define  HDCP_STATUS_STREAM_D_ENC	BIT(28)
+#define  HDCP_STATUS_AUTH		BIT(21)
+#define  HDCP_STATUS_ENC		BIT(20)
+#define  HDCP_STATUS_RI_MATCH		BIT(19)
+#define  HDCP_STATUS_R0_READY		BIT(18)
+#define  HDCP_STATUS_AN_READY		BIT(17)
+#define  HDCP_STATUS_CIPHER		BIT(16)
+#define  HDCP_STATUS_FRAME_CNT(x)	((x >> 8) & 0xff)
+
 /* Per-pipe DDI Function Control */
 #define _TRANS_DDI_FUNC_CTL_A		0x60400
 #define _TRANS_DDI_FUNC_CTL_B		0x61400
@@ -8552,6 +8636,7 @@ enum skl_power_gate {
 #define  TRANS_DDI_EDP_INPUT_A_ONOFF	(4<<12)
 #define  TRANS_DDI_EDP_INPUT_B_ONOFF	(5<<12)
 #define  TRANS_DDI_EDP_INPUT_C_ONOFF	(6<<12)
+#define  TRANS_DDI_HDCP_SIGNALLING	(1<<9)
 #define  TRANS_DDI_DP_VC_PAYLOAD_ALLOC	(1<<8)
 #define  TRANS_DDI_HDMI_SCRAMBLER_CTS_ENABLE (1<<7)
 #define  TRANS_DDI_HDMI_SCRAMBLER_RESET_FREQ (1<<6)

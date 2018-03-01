@@ -124,9 +124,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 {
 	unsigned long n = (unsigned long) v - 1;
 
-	seq_printf(m, "processor\t\t: %ld\n", n);
-	seq_printf(m, "\n");
-
+	seq_printf(m, "processor\t\t: %ld\n\n", n);
 	return 0;
 }
 

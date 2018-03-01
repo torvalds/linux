@@ -256,7 +256,8 @@ struct ceph_inode_xattr {
  */
 struct ceph_dentry_info {
 	struct ceph_mds_session *lease_session;
-	u32 lease_gen, lease_shared_gen;
+	int lease_shared_gen;
+	u32 lease_gen;
 	u32 lease_seq;
 	unsigned long lease_renew_after, lease_renew_from;
 	struct list_head lru;
@@ -353,7 +354,7 @@ struct ceph_inode_info {
 	int i_rd_ref, i_rdcache_ref, i_wr_ref, i_wb_ref;
 	int i_wrbuffer_ref, i_wrbuffer_ref_head;
 	atomic_t i_filelock_ref;
-	u32 i_shared_gen;       /* increment each time we get FILE_SHARED */
+	atomic_t i_shared_gen;       /* increment each time we get FILE_SHARED */
 	u32 i_rdcache_gen;      /* incremented each time we get FILE_CACHE. */
 	u32 i_rdcache_revoking; /* RDCACHE gen to async invalidate, if any */
 
@@ -648,7 +649,7 @@ extern int __ceph_caps_mds_wanted(struct ceph_inode_info *ci, bool check);
 extern void ceph_caps_init(struct ceph_mds_client *mdsc);
 extern void ceph_caps_finalize(struct ceph_mds_client *mdsc);
 extern void ceph_adjust_min_caps(struct ceph_mds_client *mdsc, int delta);
-extern void ceph_reserve_caps(struct ceph_mds_client *mdsc,
+extern int ceph_reserve_caps(struct ceph_mds_client *mdsc,
 			     struct ceph_cap_reservation *ctx, int need);
 extern int ceph_unreserve_caps(struct ceph_mds_client *mdsc,
 			       struct ceph_cap_reservation *ctx);
@@ -668,6 +669,9 @@ struct ceph_file_info {
 	short fmode;     /* initialized on open */
 	short flags;     /* CEPH_F_* */
 
+	spinlock_t rw_contexts_lock;
+	struct list_head rw_contexts;
+
 	/* readdir: position within the dir */
 	u32 frag;
 	struct ceph_mds_request *last_readdir;
@@ -683,6 +687,49 @@ struct ceph_file_info {
 	char *dir_info;
 	int dir_info_len;
 };
+
+struct ceph_rw_context {
+	struct list_head list;
+	struct task_struct *thread;
+	int caps;
+};
+
+#define CEPH_DEFINE_RW_CONTEXT(_name, _caps)	\
+	struct ceph_rw_context _name = {	\
+		.thread = current,		\
+		.caps = _caps,			\
+	}
+
+static inline void ceph_add_rw_context(struct ceph_file_info *cf,
+				       struct ceph_rw_context *ctx)
+{
+	spin_lock(&cf->rw_contexts_lock);
+	list_add(&ctx->list, &cf->rw_contexts);
+	spin_unlock(&cf->rw_contexts_lock);
+}
+
+static inline void ceph_del_rw_context(struct ceph_file_info *cf,
+				       struct ceph_rw_context *ctx)
+{
+	spin_lock(&cf->rw_contexts_lock);
+	list_del(&ctx->list);
+	spin_unlock(&cf->rw_contexts_lock);
+}
+
+static inline struct ceph_rw_context*
+ceph_find_rw_context(struct ceph_file_info *cf)
+{
+	struct ceph_rw_context *ctx, *found = NULL;
+	spin_lock(&cf->rw_contexts_lock);
+	list_for_each_entry(ctx, &cf->rw_contexts, list) {
+		if (ctx->thread == current) {
+			found = ctx;
+			break;
+		}
+	}
+	spin_unlock(&cf->rw_contexts_lock);
+	return found;
+}
 
 struct ceph_readdir_cache_control {
 	struct page  *page;

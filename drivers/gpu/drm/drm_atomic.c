@@ -390,7 +390,7 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 
 	if (blob) {
 		if (blob->length != sizeof(struct drm_mode_modeinfo) ||
-		    drm_mode_convert_umode(&state->mode,
+		    drm_mode_convert_umode(state->crtc->dev, &state->mode,
 		                           (const struct drm_mode_modeinfo *)
 		                            blob->data))
 			return -EINVAL;
@@ -863,10 +863,10 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	int ret;
 
 	/* either *both* CRTC and FB must be set, or neither */
-	if (WARN_ON(state->crtc && !state->fb)) {
+	if (state->crtc && !state->fb) {
 		DRM_DEBUG_ATOMIC("CRTC set but no FB\n");
 		return -EINVAL;
-	} else if (WARN_ON(state->fb && !state->crtc)) {
+	} else if (state->fb && !state->crtc) {
 		DRM_DEBUG_ATOMIC("FB set but no CRTC\n");
 		return -EINVAL;
 	}
@@ -1224,6 +1224,12 @@ static int drm_atomic_connector_set_property(struct drm_connector *connector,
 		state->picture_aspect_ratio = val;
 	} else if (property == connector->scaling_mode_property) {
 		state->scaling_mode = val;
+	} else if (property == connector->content_protection_property) {
+		if (val == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
+			DRM_DEBUG_KMS("only drivers can set CP Enabled\n");
+			return -EINVAL;
+		}
+		state->content_protection = val;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
@@ -1303,6 +1309,8 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = state->picture_aspect_ratio;
 	} else if (property == connector->scaling_mode_property) {
 		*val = state->scaling_mode;
+	} else if (property == connector->content_protection_property) {
+		*val = state->content_protection;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);

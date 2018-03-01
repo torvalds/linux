@@ -96,16 +96,6 @@ config SERIO_RPCKBD
 	  To compile this driver as a module, choose M here: the
 	  module will be called rpckbd.
 
-config SERIO_AT32PSIF
-	tristate "AVR32 PSIF PS/2 keyboard and mouse controller"
-	depends on AVR32
-	help
-	  Say Y here if you want to use the PSIF peripheral on AVR32 devices
-	  and connect a PS/2 keyboard and/or mouse to it.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called at32psif.
-
 config SERIO_AMBAKMI
 	tristate "AMBA KMI keyboard controller"
 	depends on ARM_AMBA

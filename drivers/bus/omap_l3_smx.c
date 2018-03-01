@@ -309,3 +309,9 @@ static void __exit omap3_l3_exit(void)
 	platform_driver_unregister(&omap3_l3_driver);
 }
 module_exit(omap3_l3_exit);
+
+MODULE_AUTHOR("Felipe Balbi");
+MODULE_AUTHOR("Santosh Shilimkar");
+MODULE_AUTHOR("Sricharan R");
+MODULE_DESCRIPTION("OMAP3XXX L3 Interconnect Driver");
+MODULE_LICENSE("GPL");

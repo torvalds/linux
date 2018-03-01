@@ -1,6 +1,7 @@
 /*
  * extcon-axp288.c - X-Power AXP288 PMIC extcon cable detection driver
  *
+ * Copyright (C) 2016-2017 Hans de Goede <hdegoede@redhat.com>
  * Copyright (C) 2015 Intel Corporation
  * Author: Ramakrishna Pallala <ramakrishna.pallala@intel.com>
  *
@@ -24,8 +25,6 @@
 #include <linux/notifier.h>
 #include <linux/extcon-provider.h>
 #include <linux/regmap.h>
-#include <linux/gpio.h>
-#include <linux/gpio/consumer.h>
 #include <linux/mfd/axp20x.h>
 
 /* Power source status register */
@@ -79,11 +78,6 @@ enum axp288_extcon_reg {
 	AXP288_BC_DET_STAT_REG		= 0x2f,
 };
 
-enum axp288_mux_select {
-	EXTCON_GPIO_MUX_SEL_PMIC = 0,
-	EXTCON_GPIO_MUX_SEL_SOC,
-};
-
 enum axp288_extcon_irq {
 	VBUS_FALLING_IRQ = 0,
 	VBUS_RISING_IRQ,
@@ -104,11 +98,11 @@ struct axp288_extcon_info {
 	struct device *dev;
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *regmap_irqc;
-	struct gpio_desc *gpio_mux_cntl;
+	struct delayed_work det_work;
 	int irq[EXTCON_IRQ_END];
 	struct extcon_dev *edev;
-	struct notifier_block extcon_nb;
 	unsigned int previous_cable;
+	bool first_detect_done;
 };
 
 /* Power up/down reason string array */
@@ -144,6 +138,25 @@ static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
 
 	/* Clear the register value for next reboot (write 1 to clear bit) */
 	regmap_write(info->regmap, AXP288_PS_BOOT_REASON_REG, clear_mask);
+}
+
+static void axp288_chrg_detect_complete(struct axp288_extcon_info *info)
+{
+	/*
+	 * We depend on other drivers to do things like mux the data lines,
+	 * enable/disable vbus based on the id-pin, etc. Sometimes the BIOS has
+	 * not set these things up correctly resulting in the initial charger
+	 * cable type detection giving a wrong result and we end up not charging
+	 * or charging at only 0.5A.
+	 *
+	 * So we schedule a second cable type detection after 2 seconds to
+	 * give the other drivers time to load and do their thing.
+	 */
+	if (!info->first_detect_done) {
+		queue_delayed_work(system_wq, &info->det_work,
+				   msecs_to_jiffies(2000));
+		info->first_detect_done = true;
+	}
 }
 
 static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
@@ -192,20 +205,11 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 		cable = EXTCON_CHG_USB_DCP;
 		break;
 	default:
-		dev_warn(info->dev,
-			"disconnect or unknown or ID event\n");
+		dev_warn(info->dev, "unknown (reserved) bc detect result\n");
+		cable = EXTCON_CHG_USB_SDP;
 	}
 
 no_vbus:
-	/*
-	 * If VBUS is absent Connect D+/D- lines to PMIC for BC
-	 * detection. Else connect them to SOC for USB communication.
-	 */
-	if (info->gpio_mux_cntl)
-		gpiod_set_value(info->gpio_mux_cntl,
-			vbus_attach ? EXTCON_GPIO_MUX_SEL_SOC
-					: EXTCON_GPIO_MUX_SEL_PMIC);
-
 	extcon_set_state_sync(info->edev, info->previous_cable, false);
 	if (info->previous_cable == EXTCON_CHG_USB_SDP)
 		extcon_set_state_sync(info->edev, EXTCON_USB, false);
@@ -218,6 +222,8 @@ no_vbus:
 
 		info->previous_cable = cable;
 	}
+
+	axp288_chrg_detect_complete(info);
 
 	return 0;
 
@@ -240,8 +246,11 @@ static irqreturn_t axp288_extcon_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void axp288_extcon_enable(struct axp288_extcon_info *info)
+static void axp288_extcon_det_work(struct work_struct *work)
 {
+	struct axp288_extcon_info *info =
+		container_of(work, struct axp288_extcon_info, det_work.work);
+
 	regmap_update_bits(info->regmap, AXP288_BC_GLOBAL_REG,
 						BC_GLOBAL_RUN, 0);
 	/* Enable the charger detection logic */
@@ -253,8 +262,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 {
 	struct axp288_extcon_info *info;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
-	struct axp288_extcon_pdata *pdata = pdev->dev.platform_data;
-	int ret, i, pirq, gpio;
+	int ret, i, pirq;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -264,8 +272,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
 	info->previous_cable = EXTCON_NONE;
-	if (pdata)
-		info->gpio_mux_cntl = pdata->gpio_mux_cntl;
+	INIT_DELAYED_WORK(&info->det_work, axp288_extcon_det_work);
 
 	platform_set_drvdata(pdev, info);
 
@@ -286,21 +293,11 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Set up gpio control for USB Mux */
-	if (info->gpio_mux_cntl) {
-		gpio = desc_to_gpio(info->gpio_mux_cntl);
-		ret = devm_gpio_request(&pdev->dev, gpio, "USB_MUX");
-		if (ret < 0) {
-			dev_err(&pdev->dev,
-				"failed to request the gpio=%d\n", gpio);
-			return ret;
-		}
-		gpiod_direction_output(info->gpio_mux_cntl,
-						EXTCON_GPIO_MUX_SEL_PMIC);
-	}
-
 	for (i = 0; i < EXTCON_IRQ_END; i++) {
 		pirq = platform_get_irq(pdev, i);
+		if (pirq < 0)
+			return pirq;
+
 		info->irq[i] = regmap_irq_get_virq(info->regmap_irqc, pirq);
 		if (info->irq[i] < 0) {
 			dev_err(&pdev->dev,
@@ -321,7 +318,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	}
 
 	/* Start charger cable type detection */
-	axp288_extcon_enable(info);
+	queue_delayed_work(system_wq, &info->det_work, 0);
 
 	return 0;
 }

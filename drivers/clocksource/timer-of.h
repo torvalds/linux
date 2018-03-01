@@ -33,6 +33,7 @@ struct of_timer_clk {
 
 struct timer_of {
 	unsigned int flags;
+	struct device_node *np;
 	struct clock_event_device clkevt;
 	struct of_timer_base of_base;
 	struct of_timer_irq  of_irq;

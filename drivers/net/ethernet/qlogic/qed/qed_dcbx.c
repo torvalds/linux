@@ -954,9 +954,7 @@ void qed_dcbx_set_pf_update_params(struct qed_dcbx_results *p_src,
 				   struct pf_update_ramrod_data *p_dest)
 {
 	struct protocol_dcb_data *p_dcb_data;
-	bool update_flag = false;
-
-	p_dest->pf_id = p_src->pf_id;
+	u8 update_flag;
 
 	update_flag = p_src->arr[DCBX_PROTOCOL_FCOE].update;
 	p_dest->update_fcoe_dcb_data_mode = update_flag;

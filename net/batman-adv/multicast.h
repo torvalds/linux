@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (C) 2014-2017  B.A.T.M.A.N. contributors:
  *
  * Linus Lüssing
@@ -25,15 +26,21 @@ struct sk_buff;
 
 /**
  * enum batadv_forw_mode - the way a packet should be forwarded as
- * @BATADV_FORW_ALL: forward the packet to all nodes (currently via classic
- *  flooding)
- * @BATADV_FORW_SINGLE: forward the packet to a single node (currently via the
- *  BATMAN unicast routing protocol)
- * @BATADV_FORW_NONE: don't forward, drop it
  */
 enum batadv_forw_mode {
+	/**
+	 * @BATADV_FORW_ALL: forward the packet to all nodes (currently via
+	 *  classic flooding)
+	 */
 	BATADV_FORW_ALL,
+
+	/**
+	 * @BATADV_FORW_SINGLE: forward the packet to a single node (currently
+	 *  via the BATMAN unicast routing protocol)
+	 */
 	BATADV_FORW_SINGLE,
+
+	/** @BATADV_FORW_NONE: don't forward, drop it */
 	BATADV_FORW_NONE,
 };
 

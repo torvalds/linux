@@ -72,12 +72,10 @@ static inline int connection_based(struct sock *sk)
 static int receiver_wake_function(wait_queue_entry_t *wait, unsigned int mode, int sync,
 				  void *key)
 {
-	unsigned long bits = (unsigned long)key;
-
 	/*
 	 * Avoid a wakeup if event not interesting for us
 	 */
-	if (bits && !(bits & (POLLIN | POLLERR)))
+	if (key && !(key_to_poll(key) & (EPOLLIN | EPOLLERR)))
 		return 0;
 	return autoremove_wake_function(wait, mode, sync, key);
 }
@@ -833,33 +831,33 @@ EXPORT_SYMBOL(skb_copy_and_csum_datagram_msg);
  *	and you use a different write policy from sock_writeable()
  *	then please supply your own write_space callback.
  */
-unsigned int datagram_poll(struct file *file, struct socket *sock,
+__poll_t datagram_poll(struct file *file, struct socket *sock,
 			   poll_table *wait)
 {
 	struct sock *sk = sock->sk;
-	unsigned int mask;
+	__poll_t mask;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;
 
 	/* exceptional events? */
 	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
-		mask |= POLLERR |
-			(sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? POLLPRI : 0);
+		mask |= EPOLLERR |
+			(sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? EPOLLPRI : 0);
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		mask |= POLLRDHUP | POLLIN | POLLRDNORM;
+		mask |= EPOLLRDHUP | EPOLLIN | EPOLLRDNORM;
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 
 	/* readable? */
 	if (!skb_queue_empty(&sk->sk_receive_queue))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* Connection-based need to check for termination and startup */
 	if (connection_based(sk)) {
 		if (sk->sk_state == TCP_CLOSE)
-			mask |= POLLHUP;
+			mask |= EPOLLHUP;
 		/* connection hasn't started yet? */
 		if (sk->sk_state == TCP_SYN_SENT)
 			return mask;
@@ -867,7 +865,7 @@ unsigned int datagram_poll(struct file *file, struct socket *sock,
 
 	/* writable? */
 	if (sock_writeable(sk))
-		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 	else
 		sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 

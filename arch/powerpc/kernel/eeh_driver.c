@@ -228,6 +228,7 @@ static void *eeh_report_error(void *data, void *userdata)
 
 	edev->in_error = true;
 	eeh_pcid_put(dev);
+	pci_uevent_ers(dev, PCI_ERS_RESULT_NONE);
 	return NULL;
 }
 
@@ -381,6 +382,10 @@ static void *eeh_report_resume(void *data, void *userdata)
 	driver->err_handler->resume(dev);
 
 	eeh_pcid_put(dev);
+	pci_uevent_ers(dev, PCI_ERS_RESULT_RECOVERED);
+#ifdef CONFIG_PCI_IOV
+	eeh_ops->notify_resume(eeh_dev_to_pdn(edev));
+#endif
 	return NULL;
 }
 
@@ -416,6 +421,7 @@ static void *eeh_report_failure(void *data, void *userdata)
 	driver->err_handler->error_detected(dev, pci_channel_io_perm_failure);
 
 	eeh_pcid_put(dev);
+	pci_uevent_ers(dev, PCI_ERS_RESULT_DISCONNECT);
 	return NULL;
 }
 
@@ -440,7 +446,7 @@ static void *eeh_add_virt_device(void *data, void *userdata)
 			return NULL;
 	}
 
-#ifdef CONFIG_PPC_POWERNV
+#ifdef CONFIG_PCI_IOV
 	pci_iov_add_virtfn(edev->physfn, pdn->vf_index);
 #endif
 	return NULL;
@@ -496,7 +502,7 @@ static void *eeh_rmv_device(void *data, void *userdata)
 		(*removed)++;
 
 	if (edev->physfn) {
-#ifdef CONFIG_PPC_POWERNV
+#ifdef CONFIG_PCI_IOV
 		struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
 		pci_iov_remove_virtfn(edev->physfn, pdn->vf_index);

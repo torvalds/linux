@@ -17,6 +17,7 @@ struct target_backend {
 
 	struct config_item_type tb_dev_cit;
 	struct config_item_type tb_dev_attrib_cit;
+	struct config_item_type tb_dev_action_cit;
 	struct config_item_type tb_dev_pr_cit;
 	struct config_item_type tb_dev_wwn_cit;
 	struct config_item_type tb_dev_alua_tg_pt_gps_cit;
@@ -102,7 +103,7 @@ int	target_get_pr_transport_id(struct se_node_acl *nacl,
 		struct t10_pr_registration *pr_reg, int *format_code,
 		unsigned char *buf);
 const char *target_parse_pr_out_transport_id(struct se_portal_group *tpg,
-		const char *buf, u32 *out_tid_len, char **port_nexus_ptr);
+		char *buf, u32 *out_tid_len, char **port_nexus_ptr);
 
 /* target_core_hba.c */
 struct se_hba *core_alloc_hba(const char *, u32, u32);

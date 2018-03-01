@@ -22,7 +22,7 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_log.h>
 
-static unsigned int nf_ct_icmp_timeout __read_mostly = 30*HZ;
+static const unsigned int nf_ct_icmp_timeout = 30*HZ;
 
 static inline struct nf_icmp_net *icmp_pernet(struct net *net)
 {
@@ -351,7 +351,7 @@ static struct nf_proto_net *icmp_get_net_proto(struct net *net)
 	return &net->ct.nf_ct_proto.icmp.pn;
 }
 
-struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp __read_mostly =
+const struct nf_conntrack_l4proto nf_conntrack_l4proto_icmp =
 {
 	.l3proto		= PF_INET,
 	.l4proto		= IPPROTO_ICMP,

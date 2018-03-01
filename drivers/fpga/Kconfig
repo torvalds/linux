@@ -11,33 +11,6 @@ menuconfig FPGA
 
 if FPGA
 
-config FPGA_REGION
-	tristate "FPGA Region"
-	depends on OF && FPGA_BRIDGE
-	help
-	  FPGA Regions allow loading FPGA images under control of
-	  the Device Tree.
-
-config FPGA_MGR_ICE40_SPI
-	tristate "Lattice iCE40 SPI"
-	depends on OF && SPI
-	help
-	  FPGA manager driver support for Lattice iCE40 FPGAs over SPI.
-
-config FPGA_MGR_ALTERA_CVP
-	tristate "Altera Arria-V/Cyclone-V/Stratix-V CvP FPGA Manager"
-	depends on PCI
-	help
-	  FPGA manager driver support for Arria-V, Cyclone-V, Stratix-V
-	  and Arria 10 Altera FPGAs using the CvP interface over PCIe.
-
-config FPGA_MGR_ALTERA_PS_SPI
-	tristate "Altera FPGA Passive Serial over SPI"
-	depends on SPI
-	help
-	  FPGA manager driver support for Altera Arria/Cyclone/Stratix
-	  using the passive serial interface over SPI.
-
 config FPGA_MGR_SOCFPGA
 	tristate "Altera SOCFPGA FPGA Manager"
 	depends on ARCH_SOCFPGA || COMPILE_TEST
@@ -51,19 +24,31 @@ config FPGA_MGR_SOCFPGA_A10
 	help
 	  FPGA manager driver support for Altera Arria10 SoCFPGA.
 
-config FPGA_MGR_TS73XX
-	tristate "Technologic Systems TS-73xx SBC FPGA Manager"
-	depends on ARCH_EP93XX && MACH_TS72XX
-	help
-	  FPGA manager driver support for the Altera Cyclone II FPGA
-	  present on the TS-73xx SBC boards.
+config ALTERA_PR_IP_CORE
+        tristate "Altera Partial Reconfiguration IP Core"
+        help
+          Core driver support for Altera Partial Reconfiguration IP component
 
-config FPGA_MGR_XILINX_SPI
-	tristate "Xilinx Configuration over Slave Serial (SPI)"
+config ALTERA_PR_IP_CORE_PLAT
+	tristate "Platform support of Altera Partial Reconfiguration IP Core"
+	depends on ALTERA_PR_IP_CORE && OF && HAS_IOMEM
+	help
+	  Platform driver support for Altera Partial Reconfiguration IP
+	  component
+
+config FPGA_MGR_ALTERA_PS_SPI
+	tristate "Altera FPGA Passive Serial over SPI"
 	depends on SPI
 	help
-	  FPGA manager driver support for Xilinx FPGA configuration
-	  over slave serial interface.
+	  FPGA manager driver support for Altera Arria/Cyclone/Stratix
+	  using the passive serial interface over SPI.
+
+config FPGA_MGR_ALTERA_CVP
+	tristate "Altera Arria-V/Cyclone-V/Stratix-V CvP FPGA Manager"
+	depends on PCI
+	help
+	  FPGA manager driver support for Arria-V, Cyclone-V, Stratix-V
+	  and Arria 10 Altera FPGAs using the CvP interface over PCIe.
 
 config FPGA_MGR_ZYNQ_FPGA
 	tristate "Xilinx Zynq FPGA"
@@ -72,9 +57,28 @@ config FPGA_MGR_ZYNQ_FPGA
 	help
 	  FPGA manager driver support for Xilinx Zynq FPGAs.
 
+config FPGA_MGR_XILINX_SPI
+	tristate "Xilinx Configuration over Slave Serial (SPI)"
+	depends on SPI
+	help
+	  FPGA manager driver support for Xilinx FPGA configuration
+	  over slave serial interface.
+
+config FPGA_MGR_ICE40_SPI
+	tristate "Lattice iCE40 SPI"
+	depends on OF && SPI
+	help
+	  FPGA manager driver support for Lattice iCE40 FPGAs over SPI.
+
+config FPGA_MGR_TS73XX
+	tristate "Technologic Systems TS-73xx SBC FPGA Manager"
+	depends on ARCH_EP93XX && MACH_TS72XX
+	help
+	  FPGA manager driver support for the Altera Cyclone II FPGA
+	  present on the TS-73xx SBC boards.
+
 config FPGA_BRIDGE
 	tristate "FPGA Bridge Framework"
-	depends on OF
 	help
 	  Say Y here if you want to support bridges connected between host
 	  processors and FPGAs or between FPGAs.
@@ -95,18 +99,6 @@ config ALTERA_FREEZE_BRIDGE
 	  isolate one region of the FPGA from the busses while that
 	  region is being reprogrammed.
 
-config ALTERA_PR_IP_CORE
-        tristate "Altera Partial Reconfiguration IP Core"
-        help
-          Core driver support for Altera Partial Reconfiguration IP component
-
-config ALTERA_PR_IP_CORE_PLAT
-	tristate "Platform support of Altera Partial Reconfiguration IP Core"
-	depends on ALTERA_PR_IP_CORE && OF && HAS_IOMEM
-	help
-	  Platform driver support for Altera Partial Reconfiguration IP
-	  component
-
 config XILINX_PR_DECOUPLER
 	tristate "Xilinx LogiCORE PR Decoupler"
 	depends on FPGA_BRIDGE
@@ -116,5 +108,20 @@ config XILINX_PR_DECOUPLER
 	  The PR Decoupler exists in the FPGA fabric to isolate one
 	  region of the FPGA from the busses while that region is
 	  being reprogrammed during partial reconfig.
+
+config FPGA_REGION
+	tristate "FPGA Region"
+	depends on FPGA_BRIDGE
+	help
+	  FPGA Region common code.  A FPGA Region controls a FPGA Manager
+	  and the FPGA Bridges associated with either a reconfigurable
+	  region of an FPGA or a whole FPGA.
+
+config OF_FPGA_REGION
+	tristate "FPGA Region Device Tree Overlay Support"
+	depends on OF && FPGA_REGION
+	help
+	  Support for loading FPGA images by applying a Device Tree
+	  overlay.
 
 endif # FPGA

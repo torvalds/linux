@@ -542,14 +542,17 @@ static int x86_vector_alloc_irqs(struct irq_domain *domain, unsigned int virq,
 
 		err = assign_irq_vector_policy(irqd, info);
 		trace_vector_setup(virq + i, false, err);
-		if (err)
+		if (err) {
+			irqd->chip_data = NULL;
+			free_apic_chip_data(apicd);
 			goto error;
+		}
 	}
 
 	return 0;
 
 error:
-	x86_vector_free_irqs(domain, virq, i + 1);
+	x86_vector_free_irqs(domain, virq, i);
 	return err;
 }
 
