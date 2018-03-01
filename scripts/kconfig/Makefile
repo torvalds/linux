@@ -49,11 +49,11 @@ localyesconfig localmodconfig: $(obj)/streamline_config.pl $(obj)/conf
 			cmp -s .tmp.config .config ||			\
 			(mv -f .config .config.old.1;			\
 			 mv -f .tmp.config .config;			\
-			 $(obj)/conf $(silent) --silentoldconfig $(Kconfig); \
+			 $(obj)/conf $(silent) --oldconfig $(Kconfig);	\
 			 mv -f .config.old.1 .config.old)		\
 	else								\
 			mv -f .tmp.config .config;			\
-			$(obj)/conf $(silent) --silentoldconfig $(Kconfig); \
+			$(obj)/conf $(silent) --oldconfig $(Kconfig);	\
 	fi
 	$(Q)rm -f .tmp.config
 
