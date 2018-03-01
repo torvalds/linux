@@ -3417,25 +3417,22 @@ i915_gem_idle_work_handler(struct work_struct *work)
 		container_of(work, typeof(*dev_priv), gt.idle_work.work);
 	unsigned int epoch = I915_EPOCH_INVALID;
 	bool rearm_hangcheck;
-	ktime_t end;
 
 	if (!READ_ONCE(dev_priv->gt.awake))
 		return;
 
 	/*
 	 * Wait for last execlists context complete, but bail out in case a
-	 * new request is submitted.
+	 * new request is submitted. As we don't trust the hardware, we
+	 * continue on if the wait times out. This is necessary to allow
+	 * the machine to suspend even if the hardware dies, and we will
+	 * try to recover in resume (after depriving the hardware of power,
+	 * it may be in a better mmod).
 	 */
-	end = ktime_add_ms(ktime_get(), I915_IDLE_ENGINES_TIMEOUT);
-	do {
-		if (new_requests_since_last_retire(dev_priv))
-			return;
-
-		if (intel_engines_are_idle(dev_priv))
-			break;
-
-		usleep_range(100, 500);
-	} while (ktime_before(ktime_get(), end));
+	__wait_for(if (new_requests_since_last_retire(dev_priv)) return,
+		   intel_engines_are_idle(dev_priv),
+		   I915_IDLE_ENGINES_TIMEOUT * 1000,
+		   10, 500);
 
 	rearm_hangcheck =
 		cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
