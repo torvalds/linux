@@ -930,6 +930,10 @@ int intel_th_set_output(struct intel_th_device *thdev,
 	struct intel_th_device *hub = to_intel_th_hub(thdev);
 	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
 
+	/* In host mode, this is up to the external debugger, do nothing. */
+	if (hub->host_mode)
+		return 0;
+
 	if (!hubdrv->set_output)
 		return -ENOTSUPP;
 
