@@ -225,10 +225,9 @@ struct hostif_start_confirm_t {
 	__le16 result_code;
 } __packed;
 
-#define SSID_MAX_SIZE 32
 struct ssid_t {
 	u8 size;
-	u8 body[SSID_MAX_SIZE];
+	u8 body[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_pad;
 } __packed;
 

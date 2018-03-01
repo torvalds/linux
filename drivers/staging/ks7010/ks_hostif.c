@@ -253,12 +253,12 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 	while (bsize > offset) {
 		switch (*bp) { /* Information Element ID */
 		case WLAN_EID_SSID:
-			if (*(bp + 1) <= SSID_MAX_SIZE) {
+			if (*(bp + 1) <= IEEE80211_MAX_SSID_LEN) {
 				ap->ssid.size = *(bp + 1);
 			} else {
 				DPRINTK(1, "size over :: ssid size=%d\n",
 					*(bp + 1));
-				ap->ssid.size = SSID_MAX_SIZE;
+				ap->ssid.size = IEEE80211_MAX_SSID_LEN;
 			}
 			memcpy(ap->ssid.body, bp + 2, ap->ssid.size);
 			break;
