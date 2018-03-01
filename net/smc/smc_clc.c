@@ -22,6 +22,9 @@
 #include "smc_clc.h"
 #include "smc_ib.h"
 
+/* eye catcher "SMCR" EBCDIC for CLC messages */
+static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
+
 /* check if received message has a correct header length and contains valid
  * heading and trailing eyecatchers
  */

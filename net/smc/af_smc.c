@@ -312,7 +312,7 @@ out:
 	return rc;
 }
 
-static int smc_clnt_conf_first_link(struct smc_sock *smc, union ib_gid *gid)
+static int smc_clnt_conf_first_link(struct smc_sock *smc)
 {
 	struct smc_link_group *lgr = smc->conn.lgr;
 	struct smc_link *link;
@@ -346,7 +346,8 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc, union ib_gid *gid)
 	/* send CONFIRM LINK response over RoCE fabric */
 	rc = smc_llc_send_confirm_link(link,
 				       link->smcibdev->mac[link->ibport - 1],
-				       gid, SMC_LLC_RESP);
+				       &link->smcibdev->gid[link->ibport - 1],
+				       SMC_LLC_RESP);
 	if (rc < 0)
 		return SMC_CLC_DECL_TCL;
 
@@ -498,8 +499,7 @@ static int smc_connect_rdma(struct smc_sock *smc)
 
 	if (local_contact == SMC_FIRST_CONTACT) {
 		/* QP confirmation over RoCE fabric */
-		reason_code = smc_clnt_conf_first_link(
-			smc, &smcibdev->gid[ibport - 1]);
+		reason_code = smc_clnt_conf_first_link(smc);
 		if (reason_code < 0) {
 			rc = reason_code;
 			goto out_err_unlock;

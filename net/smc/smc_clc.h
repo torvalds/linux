@@ -22,9 +22,6 @@
 #define SMC_CLC_CONFIRM		0x03
 #define SMC_CLC_DECLINE		0x04
 
-/* eye catcher "SMCR" EBCDIC for CLC messages */
-static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
-
 #define SMC_CLC_V1		0x1		/* SMC version                */
 #define CLC_WAIT_TIME		(6 * HZ)	/* max. wait time on clcsock  */
 #define SMC_CLC_DECL_MEM	0x01010000  /* insufficient memory resources  */
@@ -123,9 +120,6 @@ smc_clc_proposal_get_prefix(struct smc_clc_msg_proposal *pclc)
 	return (struct smc_clc_msg_proposal_prefix *)
 	       ((u8 *)pclc + sizeof(*pclc) + ntohs(pclc->iparea_offset));
 }
-
-struct smc_sock;
-struct smc_ib_device;
 
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type);

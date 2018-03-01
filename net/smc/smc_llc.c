@@ -21,6 +21,36 @@
 #include "smc_clc.h"
 #include "smc_llc.h"
 
+#define SMC_LLC_DATA_LEN		40
+
+struct smc_llc_hdr {
+	struct smc_wr_rx_hdr common;
+	u8 length;	/* 44 */
+	u8 reserved;
+	u8 flags;
+};
+
+struct smc_llc_msg_confirm_link {	/* type 0x01 */
+	struct smc_llc_hdr hd;
+	u8 sender_mac[ETH_ALEN];
+	u8 sender_gid[SMC_GID_SIZE];
+	u8 sender_qp_num[3];
+	u8 link_num;
+	u8 link_uid[SMC_LGR_ID_SIZE];
+	u8 max_links;
+	u8 reserved[9];
+};
+
+union smc_llc_msg {
+	struct smc_llc_msg_confirm_link confirm_link;
+	struct {
+		struct smc_llc_hdr hdr;
+		u8 data[SMC_LLC_DATA_LEN];
+	} raw;
+};
+
+#define SMC_LLC_FLAG_RESP		0x80
+
 /********************************** send *************************************/
 
 struct smc_llc_tx_pend {
