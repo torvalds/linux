@@ -12,11 +12,23 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 
+struct sun8i_hdmi_phy;
+
+struct sun8i_hdmi_phy_variant {
+	void (*phy_init)(struct sun8i_hdmi_phy *phy);
+	void (*phy_disable)(struct dw_hdmi *hdmi,
+			    struct sun8i_hdmi_phy *phy);
+	int  (*phy_config)(struct dw_hdmi *hdmi,
+			   struct sun8i_hdmi_phy *phy,
+			   unsigned int clk_rate);
+};
+
 struct sun8i_hdmi_phy {
-	struct clk		*clk_bus;
-	struct clk		*clk_mod;
-	struct regmap		*regs;
-	struct reset_control	*rst_phy;
+	struct clk			*clk_bus;
+	struct clk			*clk_mod;
+	struct regmap			*regs;
+	struct reset_control		*rst_phy;
+	struct sun8i_hdmi_phy_variant	*variant;
 };
 
 struct sun8i_dw_hdmi {
