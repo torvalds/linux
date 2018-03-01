@@ -965,12 +965,10 @@ static inline bool needs_cow_for_zeroing(struct xfs_bmbt_irec *imap, int nimaps)
 static inline bool need_excl_ilock(struct xfs_inode *ip, unsigned flags)
 {
 	/*
-	 * COW writes will allocate delalloc space, so we need to make sure
-	 * to take the lock exclusively here.
+	 * COW writes may allocate delalloc space or convert unwritten COW
+	 * extents, so we need to make sure to take the lock exclusively here.
 	 */
 	if (xfs_is_reflink_inode(ip) && (flags & (IOMAP_WRITE | IOMAP_ZERO)))
-		return true;
-	if ((flags & IOMAP_DIRECT) && (flags & IOMAP_WRITE))
 		return true;
 	return false;
 }
