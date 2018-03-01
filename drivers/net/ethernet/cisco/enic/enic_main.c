@@ -635,12 +635,25 @@ static int enic_queue_wq_skb_csum_l4(struct enic *enic, struct vnic_wq *wq,
 
 static void enic_preload_tcp_csum_encap(struct sk_buff *skb)
 {
-	if (skb->protocol == cpu_to_be16(ETH_P_IP)) {
+	const struct ethhdr *eth = (struct ethhdr *)skb_inner_mac_header(skb);
+
+	switch (eth->h_proto) {
+	case ntohs(ETH_P_IP):
 		inner_ip_hdr(skb)->check = 0;
 		inner_tcp_hdr(skb)->check =
 			~csum_tcpudp_magic(inner_ip_hdr(skb)->saddr,
 					   inner_ip_hdr(skb)->daddr, 0,
 					   IPPROTO_TCP, 0);
+		break;
+	case ntohs(ETH_P_IPV6):
+		inner_tcp_hdr(skb)->check =
+			~csum_ipv6_magic(&inner_ipv6_hdr(skb)->saddr,
+					 &inner_ipv6_hdr(skb)->daddr, 0,
+					 IPPROTO_TCP, 0);
+		break;
+	default:
+		WARN_ONCE(1, "Non ipv4/ipv6 inner pkt for encap offload");
+		break;
 	}
 }
 
