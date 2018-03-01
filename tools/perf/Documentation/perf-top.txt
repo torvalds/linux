@@ -55,7 +55,9 @@ Default is to monitor all CPUS.
 
 -F <freq>::
 --freq=<freq>::
-	Profile at this frequency.
+	Profile at this frequency. Use 'max' to use the currently maximum
+	allowed frequency, i.e. the value in the kernel.perf_event_max_sample_rate
+	sysctl.
 
 -i::
 --inherit::
