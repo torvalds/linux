@@ -1814,14 +1814,35 @@ err:
 	return err;
 }
 
+static union sctp_addr *sctp_sendmsg_get_daddr(struct sock *sk,
+					       const struct msghdr *msg,
+					       struct sctp_cmsgs *cmsgs)
+{
+	union sctp_addr *daddr = NULL;
+	int err;
+
+	if (!sctp_style(sk, UDP_HIGH_BANDWIDTH) && msg->msg_name) {
+		int len = msg->msg_namelen;
+
+		if (len > sizeof(*daddr))
+			len = sizeof(*daddr);
+
+		daddr = (union sctp_addr *)msg->msg_name;
+
+		err = sctp_verify_addr(sk, daddr, len);
+		if (err)
+			return ERR_PTR(err);
+	}
+
+	return daddr;
+}
+
 static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 {
 	struct sctp_sock *sp;
 	struct sctp_endpoint *ep;
 	struct sctp_association *new_asoc = NULL, *asoc = NULL;
 	struct sctp_transport *transport, *chunk_tp;
-	union sctp_addr to;
-	struct sockaddr *msg_name = NULL;
 	struct sctp_sndrcvinfo default_sinfo;
 	struct sctp_sndrcvinfo *sinfo;
 	struct sctp_initmsg *sinit;
@@ -1829,6 +1850,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	struct sctp_cmsgs cmsgs = { NULL };
 	bool fill_sinfo_ttl = false;
 	__u16 sinfo_flags = 0;
+	union sctp_addr *daddr;
 	int err;
 
 	err = 0;
@@ -1851,23 +1873,11 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 		goto out_nounlock;
 	}
 
-	/* Fetch the destination address for this packet.  This
-	 * address only selects the association--it is not necessarily
-	 * the address we will send to.
-	 * For a peeled-off socket, msg_name is ignored.
-	 */
-	if (!sctp_style(sk, UDP_HIGH_BANDWIDTH) && msg->msg_name) {
-		int msg_namelen = msg->msg_namelen;
-
-		err = sctp_verify_addr(sk, (union sctp_addr *)msg->msg_name,
-				       msg_namelen);
-		if (err)
-			return err;
-
-		if (msg_namelen > sizeof(to))
-			msg_namelen = sizeof(to);
-		memcpy(&to, msg->msg_name, msg_namelen);
-		msg_name = msg->msg_name;
+	/* Get daddr from msg */
+	daddr = sctp_sendmsg_get_daddr(sk, msg, &cmsgs);
+	if (IS_ERR(daddr)) {
+		err = PTR_ERR(daddr);
+		goto out_nounlock;
 	}
 
 	sinit = cmsgs.init;
@@ -1925,9 +1935,9 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	lock_sock(sk);
 
 	/* If a msg_name has been specified, assume this is to be used.  */
-	if (msg_name) {
+	if (daddr) {
 		/* Look for a matching association on the endpoint. */
-		asoc = sctp_endpoint_lookup_assoc(ep, &to, &transport);
+		asoc = sctp_endpoint_lookup_assoc(ep, daddr, &transport);
 	} else {
 		asoc = sctp_id2assoc(sk, associd);
 		if (!asoc) {
@@ -1945,7 +1955,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 
 	/* Do we need to create the association?  */
 	if (!asoc) {
-		err = sctp_sendmsg_new_asoc(sk, sinfo_flags, &cmsgs, &to,
+		err = sctp_sendmsg_new_asoc(sk, sinfo_flags, &cmsgs, daddr,
 					    &transport);
 		if (err)
 			goto out_unlock;
@@ -1989,9 +1999,9 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	 * to override the primary destination address in the TCP model, or
 	 * when SCTP_ADDR_OVER flag is set in the UDP model.
 	 */
-	if ((sctp_style(sk, TCP) && msg_name) ||
+	if ((sctp_style(sk, TCP) && daddr) ||
 	    (sinfo_flags & SCTP_ADDR_OVER)) {
-		chunk_tp = sctp_assoc_lookup_paddr(asoc, &to);
+		chunk_tp = sctp_assoc_lookup_paddr(asoc, daddr);
 		if (!chunk_tp) {
 			err = -EINVAL;
 			goto out_free;
