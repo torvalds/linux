@@ -869,6 +869,10 @@ int ldlm_get_ref(void)
 {
 	int rc = 0;
 
+	rc = ptlrpc_inc_ref();
+	if (rc)
+		return rc;
+
 	mutex_lock(&ldlm_ref_mutex);
 	if (++ldlm_refcount == 1) {
 		rc = ldlm_setup();
@@ -877,14 +881,18 @@ int ldlm_get_ref(void)
 	}
 	mutex_unlock(&ldlm_ref_mutex);
 
+	if (rc)
+		ptlrpc_dec_ref();
+
 	return rc;
 }
 
 void ldlm_put_ref(void)
 {
+	int rc = 0;
 	mutex_lock(&ldlm_ref_mutex);
 	if (ldlm_refcount == 1) {
-		int rc = ldlm_cleanup();
+		rc = ldlm_cleanup();
 
 		if (rc)
 			CERROR("ldlm_cleanup failed: %d\n", rc);
@@ -894,6 +902,8 @@ void ldlm_put_ref(void)
 		ldlm_refcount--;
 	}
 	mutex_unlock(&ldlm_ref_mutex);
+	if (!rc)
+		ptlrpc_dec_ref();
 }
 
 static ssize_t cancel_unused_locks_before_replay_show(struct kobject *kobj,

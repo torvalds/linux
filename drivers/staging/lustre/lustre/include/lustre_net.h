@@ -1804,6 +1804,9 @@ int ptlrpc_register_rqbd(struct ptlrpc_request_buffer_desc *rqbd);
  */
 void ptlrpc_request_committed(struct ptlrpc_request *req, int force);
 
+int ptlrpc_inc_ref(void);
+void ptlrpc_dec_ref(void);
+
 void ptlrpc_init_client(int req_portal, int rep_portal, char *name,
 			struct ptlrpc_client *);
 struct ptlrpc_connection *ptlrpc_uuid_to_connection(struct obd_uuid *uuid);
