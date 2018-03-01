@@ -7,7 +7,6 @@
  *  applicable with RoCE-cards only
  *
  *  Initial restrictions:
- *    - non-blocking connect postponed
  *    - IPv6 support postponed
  *    - support for alternate links postponed
  *    - partial support for non-blocking sockets only
@@ -24,7 +23,6 @@
 
 #include <linux/module.h>
 #include <linux/socket.h>
-#include <linux/inetdevice.h>
 #include <linux/workqueue.h>
 #include <linux/in.h>
 #include <linux/sched/signal.h>
@@ -273,46 +271,7 @@ static void smc_copy_sock_settings_to_smc(struct smc_sock *smc)
 	smc_copy_sock_settings(&smc->sk, smc->clcsock->sk, SK_FLAGS_CLC_TO_SMC);
 }
 
-/* determine subnet and mask of internal TCP socket */
-int smc_netinfo_by_tcpsk(struct socket *clcsock,
-			 __be32 *subnet, u8 *prefix_len)
-{
-	struct dst_entry *dst = sk_dst_get(clcsock->sk);
-	struct in_device *in_dev;
-	struct sockaddr_in addr;
-	int rc = -ENOENT;
-
-	if (!dst) {
-		rc = -ENOTCONN;
-		goto out;
-	}
-	if (!dst->dev) {
-		rc = -ENODEV;
-		goto out_rel;
-	}
-
-	/* get address to which the internal TCP socket is bound */
-	kernel_getsockname(clcsock, (struct sockaddr *)&addr);
-	/* analyze IPv4 specific data of net_device belonging to TCP socket */
-	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(dst->dev);
-	for_ifa(in_dev) {
-		if (!inet_ifa_match(addr.sin_addr.s_addr, ifa))
-			continue;
-		*prefix_len = inet_mask_len(ifa->ifa_mask);
-		*subnet = ifa->ifa_address & ifa->ifa_mask;
-		rc = 0;
-		break;
-	} endfor_ifa(in_dev);
-	rcu_read_unlock();
-
-out_rel:
-	dst_release(dst);
-out:
-	return rc;
-}
-
-static int smc_clnt_conf_first_link(struct smc_sock *smc, union ib_gid *gid)
+static int smc_clnt_conf_first_link(struct smc_sock *smc)
 {
 	struct smc_link_group *lgr = smc->conn.lgr;
 	struct smc_link *link;
@@ -332,6 +291,9 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc, union ib_gid *gid)
 		return rc;
 	}
 
+	if (link->llc_confirm_rc)
+		return SMC_CLC_DECL_RMBE_EC;
+
 	rc = smc_ib_modify_qp_rts(link);
 	if (rc)
 		return SMC_CLC_DECL_INTERR;
@@ -346,11 +308,33 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc, union ib_gid *gid)
 	/* send CONFIRM LINK response over RoCE fabric */
 	rc = smc_llc_send_confirm_link(link,
 				       link->smcibdev->mac[link->ibport - 1],
-				       gid, SMC_LLC_RESP);
+				       &link->smcibdev->gid[link->ibport - 1],
+				       SMC_LLC_RESP);
 	if (rc < 0)
 		return SMC_CLC_DECL_TCL;
 
-	return rc;
+	/* receive ADD LINK request from server over RoCE fabric */
+	rest = wait_for_completion_interruptible_timeout(&link->llc_add,
+							 SMC_LLC_WAIT_TIME);
+	if (rest <= 0) {
+		struct smc_clc_msg_decline dclc;
+
+		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
+				      SMC_CLC_DECLINE);
+		return rc;
+	}
+
+	/* send add link reject message, only one link supported for now */
+	rc = smc_llc_send_add_link(link,
+				   link->smcibdev->mac[link->ibport - 1],
+				   &link->smcibdev->gid[link->ibport - 1],
+				   SMC_LLC_RESP);
+	if (rc < 0)
+		return SMC_CLC_DECL_TCL;
+
+	link->state = SMC_LNK_ACTIVE;
+
+	return 0;
 }
 
 static void smc_conn_save_peer_info(struct smc_sock *smc,
@@ -372,19 +356,9 @@ static void smc_link_save_peer_info(struct smc_link *link,
 	link->peer_mtu = clc->qp_mtu;
 }
 
-static void smc_lgr_forget(struct smc_link_group *lgr)
-{
-	spin_lock_bh(&smc_lgr_list.lock);
-	/* do not use this link group for new connections */
-	if (!list_empty(&lgr->list))
-		list_del_init(&lgr->list);
-	spin_unlock_bh(&smc_lgr_list.lock);
-}
-
 /* setup for RDMA connection of client */
 static int smc_connect_rdma(struct smc_sock *smc)
 {
-	struct sockaddr_in *inaddr = (struct sockaddr_in *)smc->addr;
 	struct smc_clc_msg_accept_confirm aclc;
 	int local_contact = SMC_FIRST_CONTACT;
 	struct smc_ib_device *smcibdev;
@@ -438,8 +412,8 @@ static int smc_connect_rdma(struct smc_sock *smc)
 
 	srv_first_contact = aclc.hdr.flag;
 	mutex_lock(&smc_create_lgr_pending);
-	local_contact = smc_conn_create(smc, inaddr->sin_addr.s_addr, smcibdev,
-					ibport, &aclc.lcl, srv_first_contact);
+	local_contact = smc_conn_create(smc, smcibdev, ibport, &aclc.lcl,
+					srv_first_contact);
 	if (local_contact < 0) {
 		rc = local_contact;
 		if (rc == -ENOMEM)
@@ -498,8 +472,7 @@ static int smc_connect_rdma(struct smc_sock *smc)
 
 	if (local_contact == SMC_FIRST_CONTACT) {
 		/* QP confirmation over RoCE fabric */
-		reason_code = smc_clnt_conf_first_link(
-			smc, &smcibdev->gid[ibport - 1]);
+		reason_code = smc_clnt_conf_first_link(smc);
 		if (reason_code < 0) {
 			rc = reason_code;
 			goto out_err_unlock;
@@ -558,7 +531,6 @@ static int smc_connect(struct socket *sock, struct sockaddr *addr,
 		goto out_err;
 	if (addr->sa_family != AF_INET)
 		goto out_err;
-	smc->addr = addr;	/* needed for nonblocking connect */
 
 	lock_sock(sk);
 	switch (sk->sk_state) {
@@ -748,9 +720,34 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 
 		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
 				      SMC_CLC_DECLINE);
+		return rc;
 	}
 
-	return rc;
+	if (link->llc_confirm_resp_rc)
+		return SMC_CLC_DECL_RMBE_EC;
+
+	/* send ADD LINK request to client over the RoCE fabric */
+	rc = smc_llc_send_add_link(link,
+				   link->smcibdev->mac[link->ibport - 1],
+				   &link->smcibdev->gid[link->ibport - 1],
+				   SMC_LLC_REQ);
+	if (rc < 0)
+		return SMC_CLC_DECL_TCL;
+
+	/* receive ADD LINK response from client over the RoCE fabric */
+	rest = wait_for_completion_interruptible_timeout(&link->llc_add_resp,
+							 SMC_LLC_WAIT_TIME);
+	if (rest <= 0) {
+		struct smc_clc_msg_decline dclc;
+
+		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
+				      SMC_CLC_DECLINE);
+		return rc;
+	}
+
+	link->state = SMC_LNK_ACTIVE;
+
+	return 0;
 }
 
 /* setup for RDMA connection of server */
@@ -766,7 +763,6 @@ static void smc_listen_work(struct work_struct *work)
 	struct sock *newsmcsk = &new_smc->sk;
 	struct smc_clc_msg_proposal *pclc;
 	struct smc_ib_device *smcibdev;
-	struct sockaddr_in peeraddr;
 	u8 buf[SMC_CLC_MAX_LEN];
 	struct smc_link *link;
 	int reason_code = 0;
@@ -808,7 +804,7 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	/* determine subnet and mask from internal TCP socket */
-	rc = smc_netinfo_by_tcpsk(newclcsock, &subnet, &prefix_len);
+	rc = smc_clc_netinfo_by_tcpsk(newclcsock, &subnet, &prefix_len);
 	if (rc) {
 		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
 		goto decline_rdma;
@@ -822,13 +818,10 @@ static void smc_listen_work(struct work_struct *work)
 		goto decline_rdma;
 	}
 
-	/* get address of the peer connected to the internal TCP socket */
-	kernel_getpeername(newclcsock, (struct sockaddr *)&peeraddr);
-
 	/* allocate connection / link group */
 	mutex_lock(&smc_create_lgr_pending);
-	local_contact = smc_conn_create(new_smc, peeraddr.sin_addr.s_addr,
-					smcibdev, ibport, &pclc->lcl, 0);
+	local_contact = smc_conn_create(new_smc, smcibdev, ibport, &pclc->lcl,
+					0);
 	if (local_contact < 0) {
 		rc = local_contact;
 		if (rc == -ENOMEM)

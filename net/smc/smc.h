@@ -172,7 +172,6 @@ struct smc_sock {				/* smc sock container */
 	struct sock		sk;
 	struct socket		*clcsock;	/* internal tcp socket */
 	struct smc_connection	conn;		/* smc connection */
-	struct sockaddr		*addr;		/* inet connect address */
 	struct smc_sock		*listen_smc;	/* listen parent */
 	struct work_struct	tcp_listen_work;/* handle tcp socket accepts */
 	struct work_struct	smc_listen_work;/* prepare new accept socket */
@@ -263,10 +262,8 @@ static inline bool using_ipsec(struct smc_sock *smc)
 
 struct smc_clc_msg_local;
 
-int smc_netinfo_by_tcpsk(struct socket *clcsock, __be32 *subnet,
-			 u8 *prefix_len);
 void smc_conn_free(struct smc_connection *conn);
-int smc_conn_create(struct smc_sock *smc, __be32 peer_in_addr,
+int smc_conn_create(struct smc_sock *smc,
 		    struct smc_ib_device *smcibdev, u8 ibport,
 		    struct smc_clc_msg_local *lcl, int srv_first_contact);
 struct sock *smc_accept_dequeue(struct sock *parent, struct socket *new_sock);

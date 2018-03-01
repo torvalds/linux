@@ -22,9 +22,6 @@
 #define SMC_CLC_CONFIRM		0x03
 #define SMC_CLC_DECLINE		0x04
 
-/* eye catcher "SMCR" EBCDIC for CLC messages */
-static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
-
 #define SMC_CLC_V1		0x1		/* SMC version                */
 #define CLC_WAIT_TIME		(6 * HZ)	/* max. wait time on clcsock  */
 #define SMC_CLC_DECL_MEM	0x01010000  /* insufficient memory resources  */
@@ -36,6 +33,7 @@ static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
 #define SMC_CLC_DECL_INTERR	0x99990000  /* internal error                 */
 #define SMC_CLC_DECL_TCL	0x02040000  /* timeout w4 QP confirm          */
 #define SMC_CLC_DECL_SEND	0x07000000  /* sending problem                */
+#define SMC_CLC_DECL_RMBE_EC	0x08000000  /* peer has eyecatcher in RMBE    */
 
 struct smc_clc_msg_hdr {	/* header1 of clc messages */
 	u8 eyecatcher[4];	/* eye catcher */
@@ -124,9 +122,8 @@ smc_clc_proposal_get_prefix(struct smc_clc_msg_proposal *pclc)
 	       ((u8 *)pclc + sizeof(*pclc) + ntohs(pclc->iparea_offset));
 }
 
-struct smc_sock;
-struct smc_ib_device;
-
+int smc_clc_netinfo_by_tcpsk(struct socket *clcsock, __be32 *subnet,
+			     u8 *prefix_len);
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type);
 int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);

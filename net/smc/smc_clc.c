@@ -11,6 +11,7 @@
  */
 
 #include <linux/in.h>
+#include <linux/inetdevice.h>
 #include <linux/if_ether.h>
 #include <linux/sched/signal.h>
 
@@ -21,6 +22,9 @@
 #include "smc_core.h"
 #include "smc_clc.h"
 #include "smc_ib.h"
+
+/* eye catcher "SMCR" EBCDIC for CLC messages */
+static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
 
 /* check if received message has a correct header length and contains valid
  * heading and trailing eyecatchers
@@ -68,6 +72,45 @@ static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm)
 	if (memcmp(trl->eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER)))
 		return false;
 	return true;
+}
+
+/* determine subnet and mask of internal TCP socket */
+int smc_clc_netinfo_by_tcpsk(struct socket *clcsock,
+			     __be32 *subnet, u8 *prefix_len)
+{
+	struct dst_entry *dst = sk_dst_get(clcsock->sk);
+	struct in_device *in_dev;
+	struct sockaddr_in addr;
+	int rc = -ENOENT;
+
+	if (!dst) {
+		rc = -ENOTCONN;
+		goto out;
+	}
+	if (!dst->dev) {
+		rc = -ENODEV;
+		goto out_rel;
+	}
+
+	/* get address to which the internal TCP socket is bound */
+	kernel_getsockname(clcsock, (struct sockaddr *)&addr);
+	/* analyze IPv4 specific data of net_device belonging to TCP socket */
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(dst->dev);
+	for_ifa(in_dev) {
+		if (!inet_ifa_match(addr.sin_addr.s_addr, ifa))
+			continue;
+		*prefix_len = inet_mask_len(ifa->ifa_mask);
+		*subnet = ifa->ifa_address & ifa->ifa_mask;
+		rc = 0;
+		break;
+	} endfor_ifa(in_dev);
+	rcu_read_unlock();
+
+out_rel:
+	dst_release(dst);
+out:
+	return rc;
 }
 
 /* Wait for data on the tcp-socket, analyze received data
@@ -211,8 +254,8 @@ int smc_clc_send_proposal(struct smc_sock *smc,
 
 	memset(&pclc_prfx, 0, sizeof(pclc_prfx));
 	/* determine subnet and mask from internal TCP socket */
-	rc = smc_netinfo_by_tcpsk(smc->clcsock, &pclc_prfx.outgoing_subnet,
-				  &pclc_prfx.prefix_len);
+	rc = smc_clc_netinfo_by_tcpsk(smc->clcsock, &pclc_prfx.outgoing_subnet,
+				      &pclc_prfx.prefix_len);
 	if (rc)
 		return SMC_CLC_DECL_CNFERR; /* configuration error */
 	pclc_prfx.ipv6_prefixes_cnt = 0;
