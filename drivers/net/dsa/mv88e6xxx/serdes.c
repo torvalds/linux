@@ -55,18 +55,30 @@ static int mv88e6352_serdes_power_set(struct mv88e6xxx_chip *chip, bool on)
 	return err;
 }
 
-int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
+static bool mv88e6352_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
 {
-	int err;
 	u8 cmode;
+	int err;
 
 	err = mv88e6xxx_port_get_cmode(chip, port, &cmode);
-	if (err)
-		return err;
+	if (err) {
+		dev_err(chip->dev, "failed to read cmode\n");
+		return 0;
+	}
 
 	if ((cmode == MV88E6XXX_PORT_STS_CMODE_100BASE_X) ||
 	    (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X) ||
-	    (cmode == MV88E6XXX_PORT_STS_CMODE_SGMII)) {
+	    (cmode == MV88E6XXX_PORT_STS_CMODE_SGMII))
+		return 1;
+
+	return 0;
+}
+
+int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
+{
+	int err;
+
+	if (mv88e6352_port_has_serdes(chip, port)) {
 		err = mv88e6352_serdes_power_set(chip, on);
 		if (err < 0)
 			return err;
