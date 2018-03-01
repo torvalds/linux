@@ -1323,7 +1323,6 @@ static int dss_bind(struct device *dev)
 
 	pm_set_vt_switch(0);
 
-	omapdss_gather_components(dev);
 	omapdss_set_dss(dss);
 
 	return 0;
@@ -1474,6 +1473,8 @@ static int dss_probe(struct platform_device *pdev)
 						   dss);
 
 	/* Add all the child devices as components. */
+	omapdss_gather_components(&pdev->dev);
+
 	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
 
 	r = component_master_add_with_match(&pdev->dev, &dss_component_ops, match);
