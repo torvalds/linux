@@ -191,11 +191,16 @@ OPTIONS
 -i::
 --no-inherit::
 	Child tasks do not inherit counters.
+
 -F::
 --freq=::
 	Profile at this frequency. Use 'max' to use the currently maximum
 	allowed frequency, i.e. the value in the kernel.perf_event_max_sample_rate
-	sysctl.
+	sysctl. Will throttle down to the currently maximum allowed frequency.
+	See --strict-freq.
+
+--strict-freq::
+	Fail if the specified frequency can't be used.
 
 -m::
 --mmap-pages=::

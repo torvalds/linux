@@ -216,11 +216,21 @@ static int record_opts__config_freq(struct record_opts *opts)
 	 * User specified frequency is over current maximum.
 	 */
 	if (user_freq && (max_rate < opts->freq)) {
-		pr_err("Maximum frequency rate (%u) reached.\n"
-		   "Please use -F freq option with lower value or consider\n"
-		   "tweaking /proc/sys/kernel/perf_event_max_sample_rate.\n",
-		   max_rate);
-		return -1;
+		if (opts->strict_freq) {
+			pr_err("error: Maximum frequency rate (%'u Hz) exceeded.\n"
+			       "       Please use -F freq option with a lower value or consider\n"
+			       "       tweaking /proc/sys/kernel/perf_event_max_sample_rate.\n",
+			       max_rate);
+			return -1;
+		} else {
+			pr_warning("warning: Maximum frequency rate (%'u Hz) exceeded, throttling from %'u Hz to %'u Hz.\n"
+				   "         The limit can be raised via /proc/sys/kernel/perf_event_max_sample_rate.\n"
+				   "         The kernel will lower it when perf's interrupts take too long.\n"
+				   "         Use --strict-freq to disable this throttling, refusing to record.\n",
+				   max_rate, opts->freq, max_rate);
+
+			opts->freq = max_rate;
+		}
 	}
 
 	/*
