@@ -62,6 +62,7 @@
 #include <rdma/iw_cm.h>
 
 #include "core_priv.h"
+#include "cma_priv.h"
 
 MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("Generic RDMA CM Agent");
@@ -327,46 +328,6 @@ struct ib_device *cma_get_ib_dev(struct cma_device *cma_dev)
  * We do this by disabling removal notification while a callback is in process,
  * and reporting it after the callback completes.
  */
-struct rdma_id_private {
-	struct rdma_cm_id	id;
-
-	struct rdma_bind_list	*bind_list;
-	struct hlist_node	node;
-	struct list_head	list; /* listen_any_list or cma_device.list */
-	struct list_head	listen_list; /* per device listens */
-	struct cma_device	*cma_dev;
-	struct list_head	mc_list;
-
-	int			internal_id;
-	enum rdma_cm_state	state;
-	spinlock_t		lock;
-	struct mutex		qp_mutex;
-
-	struct completion	comp;
-	atomic_t		refcount;
-	struct mutex		handler_mutex;
-
-	int			backlog;
-	int			timeout_ms;
-	struct ib_sa_query	*query;
-	int			query_id;
-	union {
-		struct ib_cm_id	*ib;
-		struct iw_cm_id	*iw;
-	} cm_id;
-
-	u32			seq_num;
-	u32			qkey;
-	u32			qp_num;
-	pid_t			owner;
-	u32			options;
-	u8			srq;
-	u8			tos;
-	bool			tos_set;
-	u8			reuseaddr;
-	u8			afonly;
-	enum ib_gid_type	gid_type;
-};
 
 struct cma_multicast {
 	struct rdma_id_private *id_priv;
