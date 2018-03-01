@@ -80,6 +80,11 @@ static const struct nla_policy nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
 			.len = sizeof(struct __kernel_sockaddr_storage) },
 	[RDMA_NLDEV_ATTR_RES_DST_ADDR]	= {
 			.len = sizeof(struct __kernel_sockaddr_storage) },
+	[RDMA_NLDEV_ATTR_RES_CQ]		= { .type = NLA_NESTED },
+	[RDMA_NLDEV_ATTR_RES_CQ_ENTRY]		= { .type = NLA_NESTED },
+	[RDMA_NLDEV_ATTR_RES_CQE]		= { .type = NLA_U32 },
+	[RDMA_NLDEV_ATTR_RES_USECNT]		= { .type = NLA_U64 },
+	[RDMA_NLDEV_ATTR_RES_POLL_CTX]		= { .type = NLA_U8 },
 };
 
 static int fill_nldev_handle(struct sk_buff *msg, struct ib_device *device)
@@ -345,6 +350,39 @@ static int fill_res_cm_id_entry(struct sk_buff *msg,
 	    nla_put(msg, RDMA_NLDEV_ATTR_RES_DST_ADDR,
 		    sizeof(cm_id->route.addr.dst_addr),
 		    &cm_id->route.addr.dst_addr))
+		goto err;
+
+	if (fill_res_name_pid(msg, res))
+		goto err;
+
+	nla_nest_end(msg, entry_attr);
+	return 0;
+
+err:
+	nla_nest_cancel(msg, entry_attr);
+out:
+	return -EMSGSIZE;
+}
+
+static int fill_res_cq_entry(struct sk_buff *msg, struct netlink_callback *cb,
+			     struct rdma_restrack_entry *res, uint32_t port)
+{
+	struct ib_cq *cq = container_of(res, struct ib_cq, res);
+	struct nlattr *entry_attr;
+
+	entry_attr = nla_nest_start(msg, RDMA_NLDEV_ATTR_RES_CQ_ENTRY);
+	if (!entry_attr)
+		goto out;
+
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_CQE, cq->cqe))
+		goto err;
+	if (nla_put_u64_64bit(msg, RDMA_NLDEV_ATTR_RES_USECNT,
+			      atomic_read(&cq->usecnt), 0))
+		goto err;
+
+	/* Poll context is only valid for kernel CQs */
+	if (rdma_is_kernel_res(res) &&
+	    nla_put_u8(msg, RDMA_NLDEV_ATTR_RES_POLL_CTX, cq->poll_ctx))
 		goto err;
 
 	if (fill_res_name_pid(msg, res))
@@ -651,6 +689,11 @@ static const struct nldev_fill_res_entry fill_entries[RDMA_RESTRACK_MAX] = {
 		.nldev_cmd = RDMA_NLDEV_CMD_RES_CM_ID_GET,
 		.nldev_attr = RDMA_NLDEV_ATTR_RES_CM_ID,
 	},
+	[RDMA_RESTRACK_CQ] = {
+		.fill_res_func = fill_res_cq_entry,
+		.nldev_cmd = RDMA_NLDEV_CMD_RES_CQ_GET,
+		.nldev_attr = RDMA_NLDEV_ATTR_RES_CQ,
+	},
 };
 
 static int res_get_common_dumpit(struct sk_buff *skb,
@@ -799,6 +842,12 @@ static int nldev_res_get_cm_id_dumpit(struct sk_buff *skb,
 	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_CM_ID);
 }
 
+static int nldev_res_get_cq_dumpit(struct sk_buff *skb,
+				   struct netlink_callback *cb)
+{
+	return res_get_common_dumpit(skb, cb, RDMA_RESTRACK_CQ);
+}
+
 static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	[RDMA_NLDEV_CMD_GET] = {
 		.doit = nldev_get_doit,
@@ -827,6 +876,9 @@ static const struct rdma_nl_cbs nldev_cb_table[RDMA_NLDEV_NUM_OPS] = {
 	},
 	[RDMA_NLDEV_CMD_RES_CM_ID_GET] = {
 		.dump = nldev_res_get_cm_id_dumpit,
+	},
+	[RDMA_NLDEV_CMD_RES_CQ_GET] = {
+		.dump = nldev_res_get_cq_dumpit,
 	},
 };
 
