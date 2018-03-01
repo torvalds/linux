@@ -1281,3 +1281,20 @@ int vnic_dev_get_supported_feature_ver(struct vnic_dev *vdev, u8 feature,
 
 	return ret;
 }
+
+bool vnic_dev_capable_udp_rss(struct vnic_dev *vdev)
+{
+	u64 a0 = CMD_NIC_CFG, a1 = 0;
+	u64 rss_hash_type;
+	int wait = 1000;
+	int err;
+
+	err = vnic_dev_cmd(vdev, CMD_CAPABILITY, &a0, &a1, wait);
+	if (err || !a0)
+		return 0;
+
+	rss_hash_type = (a1 >> NIC_CFG_RSS_HASH_TYPE_SHIFT) &
+			NIC_CFG_RSS_HASH_TYPE_MASK_FIELD;
+
+	return (rss_hash_type & NIC_CFG_RSS_HASH_TYPE_UDP);
+}
