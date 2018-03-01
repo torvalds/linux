@@ -3614,6 +3614,8 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		hdmi->disabled = false;
 		hdmi->bridge_is_on = true;
 		hdmi->phy.enabled = true;
+	} else if (ret & HDMI_PHY_TX_PHY_LOCK) {
+		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
 	}
 	init_hpd_work(hdmi);
 	initialize_hdmi_ih_mutes(hdmi);
