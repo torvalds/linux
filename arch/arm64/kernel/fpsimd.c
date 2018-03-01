@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 
+#include <asm/esr.h>
 #include <asm/fpsimd.h>
 #include <asm/cputype.h>
 #include <asm/simd.h>
@@ -866,18 +867,20 @@ asmlinkage void do_fpsimd_acc(unsigned int esr, struct pt_regs *regs)
 asmlinkage void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
 {
 	siginfo_t info;
-	unsigned int si_code = FPE_FIXME;
+	unsigned int si_code = FPE_FLTUNK;
 
-	if (esr & FPEXC_IOF)
-		si_code = FPE_FLTINV;
-	else if (esr & FPEXC_DZF)
-		si_code = FPE_FLTDIV;
-	else if (esr & FPEXC_OFF)
-		si_code = FPE_FLTOVF;
-	else if (esr & FPEXC_UFF)
-		si_code = FPE_FLTUND;
-	else if (esr & FPEXC_IXF)
-		si_code = FPE_FLTRES;
+	if (esr & ESR_ELx_FP_EXC_TFV) {
+		if (esr & FPEXC_IOF)
+			si_code = FPE_FLTINV;
+		else if (esr & FPEXC_DZF)
+			si_code = FPE_FLTDIV;
+		else if (esr & FPEXC_OFF)
+			si_code = FPE_FLTOVF;
+		else if (esr & FPEXC_UFF)
+			si_code = FPE_FLTUND;
+		else if (esr & FPEXC_IXF)
+			si_code = FPE_FLTRES;
+	}
 
 	memset(&info, 0, sizeof(info));
 	info.si_signo = SIGFPE;
