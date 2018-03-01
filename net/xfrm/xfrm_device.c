@@ -217,7 +217,7 @@ bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 		if (skb->len <= mtu)
 			goto ok;
 
-		if (skb_is_gso(skb) && skb_gso_validate_mtu(skb, mtu))
+		if (skb_is_gso(skb) && skb_gso_validate_network_len(skb, mtu))
 			goto ok;
 	}
 

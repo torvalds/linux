@@ -4955,19 +4955,20 @@ static inline bool skb_gso_size_check(const struct sk_buff *skb,
 }
 
 /**
- * skb_gso_validate_mtu - Return in case such skb fits a given MTU
+ * skb_gso_validate_network_len - Will a split GSO skb fit into a given MTU?
  *
  * @skb: GSO skb
  * @mtu: MTU to validate against
  *
- * skb_gso_validate_mtu validates if a given skb will fit a wanted MTU
- * once split.
+ * skb_gso_validate_network_len validates if a given skb will fit a
+ * wanted MTU once split. It considers L3 headers, L4 headers, and the
+ * payload.
  */
-bool skb_gso_validate_mtu(const struct sk_buff *skb, unsigned int mtu)
+bool skb_gso_validate_network_len(const struct sk_buff *skb, unsigned int mtu)
 {
 	return skb_gso_size_check(skb, skb_gso_network_seglen(skb), mtu);
 }
-EXPORT_SYMBOL_GPL(skb_gso_validate_mtu);
+EXPORT_SYMBOL_GPL(skb_gso_validate_network_len);
 
 /**
  * skb_gso_validate_mac_len - Will a split GSO skb fit in a given length?
