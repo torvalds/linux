@@ -308,7 +308,7 @@ static int mv3310_read_status(struct phy_device *phydev)
 		if (val < 0)
 			return val;
 
-		/* Read the link partner's 1G advertisment */
+		/* Read the link partner's 1G advertisement */
 		val = phy_read_mmd(phydev, MDIO_MMD_AN, MV_AN_STAT1000);
 		if (val < 0)
 			return val;

@@ -190,10 +190,10 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 }
 
 /**
- * phy_resolve_aneg_linkmode - resolve the advertisments into phy settings
+ * phy_resolve_aneg_linkmode - resolve the advertisements into phy settings
  * @phydev: The phy_device struct
  *
- * Resolve our and the link partner advertisments into their corresponding
+ * Resolve our and the link partner advertisements into their corresponding
  * speed and duplex. If full duplex was negotiated, extract the pause mode
  * from the link partner mask.
  */

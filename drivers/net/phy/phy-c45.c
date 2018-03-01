@@ -163,11 +163,11 @@ int genphy_c45_read_link(struct phy_device *phydev, u32 mmd_mask)
 EXPORT_SYMBOL_GPL(genphy_c45_read_link);
 
 /**
- * genphy_c45_read_lpa - read the link partner advertisment and pause
+ * genphy_c45_read_lpa - read the link partner advertisement and pause
  * @phydev: target phy_device struct
  *
  * Read the Clause 45 defined base (7.19) and 10G (7.33) status registers,
- * filling in the link partner advertisment, pause and asym_pause members
+ * filling in the link partner advertisement, pause and asym_pause members
  * in @phydev.  This assumes that the auto-negotiation MMD is present, and
  * the backplane bit (7.48.0) is clear.  Clause 45 PHY drivers are expected
  * to fill in the remainder of the link partner advert from vendor registers.
@@ -176,7 +176,7 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 {
 	int val;
 
-	/* Read the link partner's base page advertisment */
+	/* Read the link partner's base page advertisement */
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_LPA);
 	if (val < 0)
 		return val;
@@ -185,7 +185,7 @@ int genphy_c45_read_lpa(struct phy_device *phydev)
 	phydev->pause = val & LPA_PAUSE_CAP ? 1 : 0;
 	phydev->asym_pause = val & LPA_PAUSE_ASYM ? 1 : 0;
 
-	/* Read the link partner's 10G advertisment */
+	/* Read the link partner's 10G advertisement */
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_10GBT_STAT);
 	if (val < 0)
 		return val;

@@ -860,7 +860,7 @@ static int m88e1510_config_init(struct phy_device *phydev)
 			return err;
 
 		/* There appears to be a bug in the 88e1512 when used in
-		 * SGMII to copper mode, where the AN advertisment register
+		 * SGMII to copper mode, where the AN advertisement register
 		 * clears the pause bits each time a negotiation occurs.
 		 * This means we can never be truely sure what was advertised,
 		 * so disable Pause support.
