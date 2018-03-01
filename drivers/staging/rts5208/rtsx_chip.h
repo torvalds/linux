@@ -339,13 +339,13 @@ struct sense_data_t {
 #define CHK_BIT(data, idx)	((data) & (1 << (idx)))
 
 /* SG descriptor */
-#define SG_INT			0x04
-#define SG_END			0x02
-#define SG_VALID		0x01
+#define RTSX_SG_INT		0x04
+#define RTSX_SG_END		0x02
+#define RTSX_SG_VALID		0x01
 
-#define SG_NO_OP		0x00
-#define SG_TRANS_DATA		(0x02 << 4)
-#define SG_LINK_DESC		(0x03 << 4)
+#define RTSX_SG_NO_OP		0x00
+#define RTSX_SG_TRANS_DATA	(0x02 << 4)
+#define RTSX_SG_LINK_DESC	(0x03 << 4)
 
 struct rtsx_chip;
 
