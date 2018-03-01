@@ -1910,28 +1910,28 @@ static void sctp_sendmsg_update_sinfo(struct sctp_association *asoc,
 static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 {
 	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
-	struct sctp_association *new_asoc = NULL, *asoc = NULL;
 	struct sctp_transport *transport = NULL;
 	struct sctp_sndrcvinfo _sinfo, *sinfo;
-	sctp_assoc_t associd = 0;
-	struct sctp_cmsgs cmsgs = { NULL };
-	__u16 sinfo_flags = 0;
+	struct sctp_association *asoc;
+	struct sctp_cmsgs cmsgs;
 	union sctp_addr *daddr;
+	bool new = false;
+	__u16 sflags;
 	int err;
 
 	/* Parse and get snd_info */
 	err = sctp_sendmsg_parse(sk, &cmsgs, &_sinfo, msg, msg_len);
 	if (err)
-		goto out_nounlock;
+		goto out;
 
 	sinfo  = &_sinfo;
-	sinfo_flags = sinfo->sinfo_flags;
+	sflags = sinfo->sinfo_flags;
 
 	/* Get daddr from msg */
 	daddr = sctp_sendmsg_get_daddr(sk, msg, &cmsgs);
 	if (IS_ERR(daddr)) {
 		err = PTR_ERR(daddr);
-		goto out_nounlock;
+		goto out;
 	}
 
 	lock_sock(sk);
@@ -1941,7 +1941,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 		/* Look for a matching association on the endpoint. */
 		asoc = sctp_endpoint_lookup_assoc(ep, daddr, &transport);
 	} else {
-		asoc = sctp_id2assoc(sk, associd);
+		asoc = sctp_id2assoc(sk, sinfo->sinfo_assoc_id);
 		if (!asoc) {
 			err = -EPIPE;
 			goto out_unlock;
@@ -1949,24 +1949,23 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	}
 
 	if (asoc) {
-		err = sctp_sendmsg_check_sflags(asoc, sinfo_flags, msg,
-						msg_len);
+		err = sctp_sendmsg_check_sflags(asoc, sflags, msg, msg_len);
 		if (err <= 0)
 			goto out_unlock;
 	}
 
 	/* Do we need to create the association?  */
 	if (!asoc) {
-		err = sctp_sendmsg_new_asoc(sk, sinfo_flags, &cmsgs, daddr,
+		err = sctp_sendmsg_new_asoc(sk, sflags, &cmsgs, daddr,
 					    &transport);
 		if (err)
 			goto out_unlock;
 
 		asoc = transport->asoc;
-		new_asoc = asoc;
+		new = true;
 	}
 
-	if (!sctp_style(sk, TCP) && !(sinfo_flags & SCTP_ADDR_OVER))
+	if (!sctp_style(sk, TCP) && !(sflags & SCTP_ADDR_OVER))
 		transport = NULL;
 
 	/* Update snd_info with the asoc */
@@ -1974,12 +1973,12 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 
 	/* Send msg to the asoc */
 	err = sctp_sendmsg_to_asoc(asoc, msg, msg_len, transport, sinfo);
-	if (err < 0 && err != -ESRCH && new_asoc)
+	if (err < 0 && err != -ESRCH && new)
 		sctp_association_free(asoc);
 
 out_unlock:
 	release_sock(sk);
-out_nounlock:
+out:
 	return sctp_error(sk, msg->msg_flags, err);
 }
 
