@@ -1124,7 +1124,6 @@ static int ll_statahead_thread(void *arg)
 	while (thread_is_running(sa_thread)) {
 		wait_event_idle(sa_thread->t_ctl_waitq,
 				sa_has_callback(sai) ||
-				!agl_list_empty(sai) ||
 				!thread_is_running(sa_thread));
 
 		sa_handle_callback(sai);
