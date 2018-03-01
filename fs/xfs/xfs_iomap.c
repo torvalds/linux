@@ -970,6 +970,15 @@ static inline bool need_excl_ilock(struct xfs_inode *ip, unsigned flags)
 	 */
 	if (xfs_is_reflink_inode(ip) && (flags & (IOMAP_WRITE | IOMAP_ZERO)))
 		return true;
+
+	/*
+	 * Extents not yet cached requires exclusive access, don't block.
+	 * This is an opencoded xfs_ilock_data_map_shared() to cater for the
+	 * non-blocking behaviour.
+	 */
+	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
+	    !(ip->i_df.if_flags & XFS_IFEXTENTS))
+		return true;
 	return false;
 }
 
@@ -998,16 +1007,18 @@ xfs_file_iomap_begin(
 		return xfs_file_iomap_begin_delay(inode, offset, length, iomap);
 	}
 
-	if (need_excl_ilock(ip, flags)) {
+	if (need_excl_ilock(ip, flags))
 		lockmode = XFS_ILOCK_EXCL;
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-	} else {
-		lockmode = xfs_ilock_data_map_shared(ip);
-	}
+	else
+		lockmode = XFS_ILOCK_SHARED;
 
-	if ((flags & IOMAP_NOWAIT) && !(ip->i_df.if_flags & XFS_IFEXTENTS)) {
-		error = -EAGAIN;
-		goto out_unlock;
+	if (flags & IOMAP_NOWAIT) {
+		if (!(ip->i_df.if_flags & XFS_IFEXTENTS))
+			return -EAGAIN;
+		if (!xfs_ilock_nowait(ip, lockmode))
+			return -EAGAIN;
+	} else {
+		xfs_ilock(ip, lockmode);
 	}
 
 	ASSERT(offset <= mp->m_super->s_maxbytes);
