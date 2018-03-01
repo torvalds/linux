@@ -778,13 +778,13 @@ static int dsicm_connect(struct omap_dss_device *dssdev)
 		goto err_connect;
 	}
 
-	r = in->ops.dsi->request_vc(ddata->in, &ddata->channel);
+	r = in->ops.dsi->request_vc(in, &ddata->channel);
 	if (r) {
 		dev_err(dev, "failed to get virtual channel\n");
 		goto err_req_vc;
 	}
 
-	r = in->ops.dsi->set_vc_id(ddata->in, ddata->channel, TCH);
+	r = in->ops.dsi->set_vc_id(in, ddata->channel, TCH);
 	if (r) {
 		dev_err(dev, "failed to set VC_ID\n");
 		goto err_vc_id;
@@ -794,7 +794,7 @@ static int dsicm_connect(struct omap_dss_device *dssdev)
 	return 0;
 
 err_vc_id:
-	in->ops.dsi->release_vc(ddata->in, ddata->channel);
+	in->ops.dsi->release_vc(in, ddata->channel);
 err_req_vc:
 	in->ops.dsi->disconnect(in, dssdev);
 err_connect:
