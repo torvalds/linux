@@ -1,0 +1,24 @@
+charge-animation
+~~~~~~~~~~~~~~~~
+
+Required properties :
+ - compatible: "rockchip,uboot-charge"
+ - rockchip,uboot-charge-on: enable uboot charge animation
+ - rockchip,android-charge-on: enable android charge animation,
+	either uboot charge animation or android charge animation
+	can be executed, but not both
+
+Optional properties :
+ - rockchip,uboot-low-power-voltage: voltage threshold of power off
+ - rockchip,screen-on-voltage: voltage threshold of screen on
+
+Example:
+
+	charge-animation {
+		compatible = "rockchip,uboot-charge";
+		rockchip,uboot-charge-on = <1>;
+		rockchip,android-charge-on = <0>;
+		rockchip,uboot-low-power-voltage = <3500>;
+		rockchip,screen-on-voltage = <3600>;
+		status = "okay";
+	};
