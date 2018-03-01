@@ -51,7 +51,7 @@ static const struct id_to_str arc_cpu_rel[] = {
 	{ 0x51, "R2.0" },
 	{ 0x52, "R2.1" },
 	{ 0x53, "R3.0" },
-	{ 0x54, "R4.0" },
+	{ 0x54, "R3.10a" },
 #endif
 	{ 0x00, NULL   }
 };
