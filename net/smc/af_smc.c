@@ -356,15 +356,6 @@ static void smc_link_save_peer_info(struct smc_link *link,
 	link->peer_mtu = clc->qp_mtu;
 }
 
-static void smc_lgr_forget(struct smc_link_group *lgr)
-{
-	spin_lock_bh(&smc_lgr_list.lock);
-	/* do not use this link group for new connections */
-	if (!list_empty(&lgr->list))
-		list_del_init(&lgr->list);
-	spin_unlock_bh(&smc_lgr_list.lock);
-}
-
 /* setup for RDMA connection of client */
 static int smc_connect_rdma(struct smc_sock *smc)
 {

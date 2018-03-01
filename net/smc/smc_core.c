@@ -308,6 +308,15 @@ void smc_lgr_free(struct smc_link_group *lgr)
 	kfree(lgr);
 }
 
+void smc_lgr_forget(struct smc_link_group *lgr)
+{
+	spin_lock_bh(&smc_lgr_list.lock);
+	/* do not use this link group for new connections */
+	if (!list_empty(&lgr->list))
+		list_del_init(&lgr->list);
+	spin_unlock_bh(&smc_lgr_list.lock);
+}
+
 /* terminate linkgroup abnormally */
 void smc_lgr_terminate(struct smc_link_group *lgr)
 {
@@ -315,15 +324,7 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	struct smc_sock *smc;
 	struct rb_node *node;
 
-	spin_lock_bh(&smc_lgr_list.lock);
-	if (list_empty(&lgr->list)) {
-		/* termination already triggered */
-		spin_unlock_bh(&smc_lgr_list.lock);
-		return;
-	}
-	/* do not use this link group for new connections */
-	list_del_init(&lgr->list);
-	spin_unlock_bh(&smc_lgr_list.lock);
+	smc_lgr_forget(lgr);
 
 	write_lock_bh(&lgr->conns_lock);
 	node = rb_first(&lgr->conns_all);

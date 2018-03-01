@@ -384,6 +384,7 @@ static void smc_llc_rx_delete_link(struct smc_link *link,
 			smc_lgr_terminate(lgr);
 	} else {
 		if (lgr->role == SMC_SERV) {
+			smc_lgr_forget(lgr);
 			smc_llc_send_delete_link(link, SMC_LLC_REQ);
 		} else {
 			smc_llc_send_delete_link(link, SMC_LLC_RESP);
