@@ -460,7 +460,7 @@ static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
 	 * case it will always be non-zero. Otherwise now is the time to do it.
 	 */
 	if (!fl6->mp_hash)
-		fl6->mp_hash = rt6_multipath_hash(fl6, NULL);
+		fl6->mp_hash = rt6_multipath_hash(fl6, NULL, NULL);
 
 	if (fl6->mp_hash <= atomic_read(&match->rt6i_nh_upper_bound))
 		return match;
@@ -1786,10 +1786,12 @@ struct dst_entry *ip6_route_input_lookup(struct net *net,
 EXPORT_SYMBOL_GPL(ip6_route_input_lookup);
 
 static void ip6_multipath_l3_keys(const struct sk_buff *skb,
-				  struct flow_keys *keys)
+				  struct flow_keys *keys,
+				  struct flow_keys *flkeys)
 {
 	const struct ipv6hdr *outer_iph = ipv6_hdr(skb);
 	const struct ipv6hdr *key_iph = outer_iph;
+	struct flow_keys *_flkeys = flkeys;
 	const struct ipv6hdr *inner_iph;
 	const struct icmp6hdr *icmph;
 	struct ipv6hdr _inner_iph;
@@ -1811,22 +1813,31 @@ static void ip6_multipath_l3_keys(const struct sk_buff *skb,
 		goto out;
 
 	key_iph = inner_iph;
+	_flkeys = NULL;
 out:
 	memset(keys, 0, sizeof(*keys));
 	keys->control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
-	keys->addrs.v6addrs.src = key_iph->saddr;
-	keys->addrs.v6addrs.dst = key_iph->daddr;
-	keys->tags.flow_label = ip6_flowinfo(key_iph);
-	keys->basic.ip_proto = key_iph->nexthdr;
+	if (_flkeys) {
+		keys->addrs.v6addrs.src = _flkeys->addrs.v6addrs.src;
+		keys->addrs.v6addrs.dst = _flkeys->addrs.v6addrs.dst;
+		keys->tags.flow_label = _flkeys->tags.flow_label;
+		keys->basic.ip_proto = _flkeys->basic.ip_proto;
+	} else {
+		keys->addrs.v6addrs.src = key_iph->saddr;
+		keys->addrs.v6addrs.dst = key_iph->daddr;
+		keys->tags.flow_label = ip6_flowinfo(key_iph);
+		keys->basic.ip_proto = key_iph->nexthdr;
+	}
 }
 
 /* if skb is set it will be used and fl6 can be NULL */
-u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb)
+u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb,
+		       struct flow_keys *flkeys)
 {
 	struct flow_keys hash_keys;
 
 	if (skb) {
-		ip6_multipath_l3_keys(skb, &hash_keys);
+		ip6_multipath_l3_keys(skb, &hash_keys, flkeys);
 		return flow_hash_from_keys(&hash_keys) >> 1;
 	}
 
@@ -1847,12 +1858,17 @@ void ip6_route_input(struct sk_buff *skb)
 		.flowi6_mark = skb->mark,
 		.flowi6_proto = iph->nexthdr,
 	};
+	struct flow_keys *flkeys = NULL, _flkeys;
 
 	tun_info = skb_tunnel_info(skb);
 	if (tun_info && !(tun_info->mode & IP_TUNNEL_INFO_TX))
 		fl6.flowi6_tun_key.tun_id = tun_info->key.tun_id;
+
+	if (fib6_rules_early_flow_dissect(net, skb, &fl6, &_flkeys))
+		flkeys = &_flkeys;
+
 	if (unlikely(fl6.flowi6_proto == IPPROTO_ICMPV6))
-		fl6.mp_hash = rt6_multipath_hash(&fl6, skb);
+		fl6.mp_hash = rt6_multipath_hash(&fl6, skb, flkeys);
 	skb_dst_drop(skb);
 	skb_dst_set(skb, ip6_route_input_lookup(net, skb->dev, &fl6, flags));
 }

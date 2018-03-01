@@ -415,6 +415,24 @@ void fib6_rules_cleanup(void);
 bool fib6_rule_default(const struct fib_rule *rule);
 int fib6_rules_dump(struct net *net, struct notifier_block *nb);
 unsigned int fib6_rules_seq_read(struct net *net);
+
+static inline bool fib6_rules_early_flow_dissect(struct net *net,
+						 struct sk_buff *skb,
+						 struct flowi6 *fl6,
+						 struct flow_keys *flkeys)
+{
+	unsigned int flag = FLOW_DISSECTOR_F_STOP_AT_ENCAP;
+
+	if (!net->ipv6.fib6_rules_require_fldissect)
+		return false;
+
+	skb_flow_dissect_flow_keys(skb, flkeys, flag);
+	fl6->fl6_sport = flkeys->ports.src;
+	fl6->fl6_dport = flkeys->ports.dst;
+	fl6->flowi6_proto = flkeys->basic.ip_proto;
+
+	return true;
+}
 #else
 static inline int               fib6_rules_init(void)
 {
@@ -435,6 +453,13 @@ static inline int fib6_rules_dump(struct net *net, struct notifier_block *nb)
 static inline unsigned int fib6_rules_seq_read(struct net *net)
 {
 	return 0;
+}
+static inline bool fib6_rules_early_flow_dissect(struct net *net,
+						 struct sk_buff *skb,
+						 struct flowi6 *fl6,
+						 struct flow_keys *flkeys)
+{
+	return false;
 }
 #endif
 #endif
