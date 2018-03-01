@@ -699,6 +699,7 @@ enum overlay_ofld_cmd {
 
 #define ENIC_VXLAN_INNER_IPV6		BIT(0)
 #define ENIC_VXLAN_OUTER_IPV6		BIT(1)
+#define ENIC_VXLAN_MULTI_WQ		BIT(2)
 
 /* Use this enum to get the supported versions for each of these features
  * If you need to use the devcmd_get_supported_feature_version(), add

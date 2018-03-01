@@ -212,6 +212,11 @@ static void enic_udp_tunnel_add(struct net_device *netdev,
 
 		goto error;
 	}
+	if ((vnic_dev_get_res_count(enic->vdev, RES_TYPE_WQ) != 1) &&
+	    !(enic->vxlan.flags & ENIC_VXLAN_MULTI_WQ)) {
+		netdev_info(netdev, "vxlan: vxlan offload with multi wq not supported on this adapter");
+		goto error;
+	}
 
 	err = vnic_dev_overlay_offload_cfg(enic->vdev,
 					   OVERLAY_CFG_VXLAN_PORT_UPDATE,
