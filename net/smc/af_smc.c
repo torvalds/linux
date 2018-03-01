@@ -291,6 +291,9 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc)
 		return rc;
 	}
 
+	if (link->llc_confirm_rc)
+		return SMC_CLC_DECL_RMBE_EC;
+
 	rc = smc_ib_modify_qp_rts(link);
 	if (rc)
 		return SMC_CLC_DECL_INTERR;
@@ -310,7 +313,7 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc)
 	if (rc < 0)
 		return SMC_CLC_DECL_TCL;
 
-	return rc;
+	return 0;
 }
 
 static void smc_conn_save_peer_info(struct smc_sock *smc,
@@ -705,9 +708,13 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 
 		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
 				      SMC_CLC_DECLINE);
+		return rc;
 	}
 
-	return rc;
+	if (link->llc_confirm_resp_rc)
+		return SMC_CLC_DECL_RMBE_EC;
+
+	return 0;
 }
 
 /* setup for RDMA connection of server */

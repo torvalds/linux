@@ -30,6 +30,8 @@ struct smc_llc_hdr {
 	u8 flags;
 };
 
+#define SMC_LLC_FLAG_NO_RMBE_EYEC	0x03
+
 struct smc_llc_msg_confirm_link {	/* type 0x01 */
 	struct smc_llc_hdr hd;
 	u8 sender_mac[ETH_ALEN];
@@ -166,6 +168,7 @@ int smc_llc_send_confirm_link(struct smc_link *link, u8 mac[],
 	memset(confllc, 0, sizeof(*confllc));
 	confllc->hd.common.type = SMC_LLC_CONFIRM_LINK;
 	confllc->hd.length = sizeof(struct smc_llc_msg_confirm_link);
+	confllc->hd.flags |= SMC_LLC_FLAG_NO_RMBE_EYEC;
 	if (reqresp == SMC_LLC_RESP)
 		confllc->hd.flags |= SMC_LLC_FLAG_RESP;
 	memcpy(confllc->sender_mac, mac, ETH_ALEN);
@@ -225,13 +228,24 @@ static void smc_llc_rx_confirm_link(struct smc_link *link,
 				    struct smc_llc_msg_confirm_link *llc)
 {
 	struct smc_link_group *lgr;
+	int conf_rc;
 
 	lgr = container_of(link, struct smc_link_group, lnk[SMC_SINGLE_LINK]);
+
+	/* RMBE eyecatchers are not supported */
+	if (llc->hd.flags & SMC_LLC_FLAG_NO_RMBE_EYEC)
+		conf_rc = 0;
+	else
+		conf_rc = ENOTSUPP;
+
 	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
-		if (lgr->role == SMC_SERV)
+		if (lgr->role == SMC_SERV) {
+			link->llc_confirm_resp_rc = conf_rc;
 			complete(&link->llc_confirm_resp);
+		}
 	} else {
 		if (lgr->role == SMC_CLNT) {
+			link->llc_confirm_rc = conf_rc;
 			link->link_id = llc->link_num;
 			complete(&link->llc_confirm);
 		}

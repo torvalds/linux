@@ -89,6 +89,8 @@ struct smc_link {
 	u8			link_id;	/* unique # within link group */
 	struct completion	llc_confirm;	/* wait for rx of conf link */
 	struct completion	llc_confirm_resp; /* wait 4 rx of cnf lnk rsp */
+	int			llc_confirm_rc; /* rc from confirm link msg */
+	int			llc_confirm_resp_rc; /* rc from conf_resp msg */
 };
 
 /* For now we just allow one parallel link per link group. The SMC protocol

@@ -33,6 +33,7 @@
 #define SMC_CLC_DECL_INTERR	0x99990000  /* internal error                 */
 #define SMC_CLC_DECL_TCL	0x02040000  /* timeout w4 QP confirm          */
 #define SMC_CLC_DECL_SEND	0x07000000  /* sending problem                */
+#define SMC_CLC_DECL_RMBE_EC	0x08000000  /* peer has eyecatcher in RMBE    */
 
 struct smc_clc_msg_hdr {	/* header1 of clc messages */
 	u8 eyecatcher[4];	/* eye catcher */
