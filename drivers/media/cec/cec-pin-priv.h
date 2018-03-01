@@ -181,6 +181,18 @@ struct cec_pin {
 	struct cec_msg			rx_msg;
 	u32				rx_bit;
 	bool				rx_toggle;
+	u32				rx_start_bit_low_too_short_cnt;
+	u64				rx_start_bit_low_too_short_ts;
+	u32				rx_start_bit_low_too_short_delta;
+	u32				rx_start_bit_too_short_cnt;
+	u64				rx_start_bit_too_short_ts;
+	u32				rx_start_bit_too_short_delta;
+	u32				rx_start_bit_too_long_cnt;
+	u32				rx_data_bit_too_short_cnt;
+	u64				rx_data_bit_too_short_ts;
+	u32				rx_data_bit_too_short_delta;
+	u32				rx_data_bit_too_long_cnt;
+	u32				rx_low_drive_cnt;
 
 	struct cec_msg			work_rx_msg;
 	u8				work_tx_status;
@@ -205,6 +217,7 @@ struct cec_pin {
 	bool				tx_generated_poll;
 	bool				tx_post_eom;
 	u8				tx_extra_bytes;
+	u32				tx_low_drive_cnt;
 #ifdef CONFIG_CEC_PIN_ERROR_INJ
 	u64				error_inj[CEC_ERROR_INJ_OP_ANY + 1];
 	u8				error_inj_args[CEC_ERROR_INJ_OP_ANY + 1][CEC_ERROR_INJ_NUM_ARGS];

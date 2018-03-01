@@ -432,6 +432,7 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 			pin->state = CEC_ST_TX_WAIT_FOR_HIGH;
 			pin->work_tx_ts = ts;
 			pin->work_tx_status = CEC_TX_STATUS_LOW_DRIVE;
+			pin->tx_low_drive_cnt++;
 			wake_up_interruptible(&pin->kthread_waitq);
 			break;
 		}
@@ -463,6 +464,7 @@ static void cec_pin_tx_states(struct cec_pin *pin, ktime_t ts)
 				break;
 			pin->work_tx_ts = ts;
 			pin->work_tx_status = CEC_TX_STATUS_LOW_DRIVE;
+			pin->tx_low_drive_cnt++;
 			wake_up_interruptible(&pin->kthread_waitq);
 			break;
 		}
@@ -656,6 +658,10 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		delta = ktime_us_delta(ts, pin->ts);
 		/* Start bit low is too short, go back to idle */
 		if (delta < CEC_TIM_START_BIT_LOW_MIN - CEC_TIM_IDLE_SAMPLE) {
+			if (!pin->rx_start_bit_low_too_short_cnt++) {
+				pin->rx_start_bit_low_too_short_ts = pin->ts;
+				pin->rx_start_bit_low_too_short_delta = delta;
+			}
 			cec_pin_to_idle(pin);
 			break;
 		}
@@ -676,6 +682,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		 * and go to idle. We just pick TOTAL_LONG.
 		 */
 		if (v && delta > CEC_TIM_START_BIT_TOTAL_LONG) {
+			pin->rx_start_bit_too_long_cnt++;
 			cec_pin_to_idle(pin);
 			break;
 		}
@@ -683,6 +690,10 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 			break;
 		/* Start bit is too short, go back to idle */
 		if (delta < CEC_TIM_START_BIT_TOTAL_MIN - CEC_TIM_IDLE_SAMPLE) {
+			if (!pin->rx_start_bit_too_short_cnt++) {
+				pin->rx_start_bit_too_short_ts = pin->ts;
+				pin->rx_start_bit_too_short_delta = delta;
+			}
 			cec_pin_to_idle(pin);
 			break;
 		}
@@ -690,6 +701,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 			/* Error injection: go to low drive */
 			cec_pin_low(pin);
 			pin->state = CEC_ST_RX_LOW_DRIVE;
+			pin->rx_low_drive_cnt++;
 			break;
 		}
 		pin->state = CEC_ST_RX_DATA_SAMPLE;
@@ -728,6 +740,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		 * and go to idle. We just pick TOTAL_LONG.
 		 */
 		if (v && delta > CEC_TIM_DATA_BIT_TOTAL_LONG) {
+			pin->rx_data_bit_too_long_cnt++;
 			cec_pin_to_idle(pin);
 			break;
 		}
@@ -738,6 +751,7 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 			/* Error injection: go to low drive */
 			cec_pin_low(pin);
 			pin->state = CEC_ST_RX_LOW_DRIVE;
+			pin->rx_low_drive_cnt++;
 			break;
 		}
 
@@ -746,8 +760,13 @@ static void cec_pin_rx_states(struct cec_pin *pin, ktime_t ts)
 		 * too short.
 		 */
 		if (delta < CEC_TIM_DATA_BIT_TOTAL_MIN) {
+			if (!pin->rx_data_bit_too_short_cnt++) {
+				pin->rx_data_bit_too_short_ts = pin->ts;
+				pin->rx_data_bit_too_short_delta = delta;
+			}
 			cec_pin_low(pin);
 			pin->state = CEC_ST_RX_LOW_DRIVE;
+			pin->rx_low_drive_cnt++;
 			break;
 		}
 		pin->ts = ts;
@@ -1148,9 +1167,9 @@ static void cec_pin_adap_status(struct cec_adapter *adap,
 {
 	struct cec_pin *pin = adap->pin;
 
-	seq_printf(file, "state:   %s\n", states[pin->state].name);
-	seq_printf(file, "tx_bit:  %d\n", pin->tx_bit);
-	seq_printf(file, "rx_bit:  %d\n", pin->rx_bit);
+	seq_printf(file, "state: %s\n", states[pin->state].name);
+	seq_printf(file, "tx_bit: %d\n", pin->tx_bit);
+	seq_printf(file, "rx_bit: %d\n", pin->rx_bit);
 	seq_printf(file, "cec pin: %d\n", pin->ops->read(adap));
 	seq_printf(file, "irq failed: %d\n", pin->enable_irq_failed);
 	if (pin->timer_100ms_overruns) {
@@ -1163,11 +1182,44 @@ static void cec_pin_adap_status(struct cec_adapter *adap,
 		seq_printf(file, "avg timer overrun: %u usecs\n",
 			   pin->timer_sum_overrun / pin->timer_100ms_overruns);
 	}
+	if (pin->rx_start_bit_low_too_short_cnt)
+		seq_printf(file,
+			   "rx start bit low too short: %u (delta %u, ts %llu)\n",
+			   pin->rx_start_bit_low_too_short_cnt,
+			   pin->rx_start_bit_low_too_short_delta,
+			   pin->rx_start_bit_low_too_short_ts);
+	if (pin->rx_start_bit_too_short_cnt)
+		seq_printf(file,
+			   "rx start bit too short: %u (delta %u, ts %llu)\n",
+			   pin->rx_start_bit_too_short_cnt,
+			   pin->rx_start_bit_too_short_delta,
+			   pin->rx_start_bit_too_short_ts);
+	if (pin->rx_start_bit_too_long_cnt)
+		seq_printf(file, "rx start bit too long: %u\n",
+			   pin->rx_start_bit_too_long_cnt);
+	if (pin->rx_data_bit_too_short_cnt)
+		seq_printf(file,
+			   "rx data bit too short: %u (delta %u, ts %llu)\n",
+			   pin->rx_data_bit_too_short_cnt,
+			   pin->rx_data_bit_too_short_delta,
+			   pin->rx_data_bit_too_short_ts);
+	if (pin->rx_data_bit_too_long_cnt)
+		seq_printf(file, "rx data bit too long: %u\n",
+			   pin->rx_data_bit_too_long_cnt);
+	seq_printf(file, "rx initiated low drive: %u\n", pin->rx_low_drive_cnt);
+	seq_printf(file, "tx detected low drive: %u\n", pin->tx_low_drive_cnt);
 	pin->timer_cnt = 0;
 	pin->timer_100ms_overruns = 0;
 	pin->timer_300ms_overruns = 0;
 	pin->timer_max_overrun = 0;
 	pin->timer_sum_overrun = 0;
+	pin->rx_start_bit_low_too_short_cnt = 0;
+	pin->rx_start_bit_too_short_cnt = 0;
+	pin->rx_start_bit_too_long_cnt = 0;
+	pin->rx_data_bit_too_short_cnt = 0;
+	pin->rx_data_bit_too_long_cnt = 0;
+	pin->rx_low_drive_cnt = 0;
+	pin->tx_low_drive_cnt = 0;
 	if (pin->ops->status)
 		pin->ops->status(adap, file);
 }
