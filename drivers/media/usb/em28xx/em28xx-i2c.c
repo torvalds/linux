@@ -52,12 +52,42 @@ MODULE_PARM_DESC(i2c_debug, "i2c debug message level (1: normal debug, 2: show I
 
 
 /*
+ * Time in msecs to wait for i2c xfers to finish.
+ * 35ms is the maximum time a SMBUS device could wait when
+ * clock stretching is used. As the transfer itself will take
+ * some time to happen, set it to 35 ms.
+ *
+ * Ok, I2C doesn't specify any limit. So, eventually, we may need
+ * to increase this timeout.
+ */
+#define EM28XX_I2C_XFER_TIMEOUT         35 /* ms */
+
+static int em28xx_i2c_timeout(struct em28xx *dev)
+{
+	int time = EM28XX_I2C_XFER_TIMEOUT;
+
+	switch (dev->i2c_speed & 0x03) {
+	case EM28XX_I2C_FREQ_25_KHZ:
+		time += 4;		/* Assume 4 ms for transfers */
+		break;
+	case EM28XX_I2C_FREQ_100_KHZ:
+	case EM28XX_I2C_FREQ_400_KHZ:
+		time += 1;		/* Assume 1 ms for transfers */
+		break;
+	default: /* EM28XX_I2C_FREQ_1_5_MHZ */
+		break;
+	}
+
+	return msecs_to_jiffies(time);
+}
+
+/*
  * em2800_i2c_send_bytes()
  * send up to 4 bytes to the em2800 i2c device
  */
 static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_I2C_XFER_TIMEOUT);
+	unsigned long timeout = jiffies + em28xx_i2c_timeout(dev);
 	int ret;
 	u8 b2[6];
 
@@ -110,7 +140,7 @@ static int em2800_i2c_send_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
  */
 static int em2800_i2c_recv_bytes(struct em28xx *dev, u8 addr, u8 *buf, u16 len)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_I2C_XFER_TIMEOUT);
+	unsigned long timeout = jiffies + em28xx_i2c_timeout(dev);
 	u8 buf2[4];
 	int ret;
 	int i;
@@ -186,7 +216,7 @@ static int em2800_i2c_check_for_device(struct em28xx *dev, u8 addr)
 static int em28xx_i2c_send_bytes(struct em28xx *dev, u16 addr, u8 *buf,
 				 u16 len, int stop)
 {
-	unsigned long timeout = jiffies + msecs_to_jiffies(EM28XX_I2C_XFER_TIMEOUT);
+	unsigned long timeout = jiffies + em28xx_i2c_timeout(dev);
 	int ret;
 
 	if (len < 1 || len > 64)

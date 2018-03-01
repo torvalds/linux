@@ -195,22 +195,6 @@
 
 #define EM28XX_INTERLACED_DEFAULT 1
 
-/*
- * Time in msecs to wait for i2c xfers to finish.
- * 35ms is the maximum time a SMBUS device could wait when
- * clock stretching is used. As the transfer itself will take
- * some time to happen, set it to 35 ms.
- *
- * Ok, I2C doesn't specify any limit. So, eventually, we may need
- * to increase this timeout.
- *
- * FIXME: this assumes that an I2C message is not longer than 1ms.
- * This is actually dependent on the I2C bus speed, although most
- * devices use a 100kHz clock. So, this assumtion is true most of
- * the time.
- */
-#define EM28XX_I2C_XFER_TIMEOUT		36
-
 /* time in msecs to wait for AC97 xfers to finish */
 #define EM28XX_AC97_XFER_TIMEOUT	100
 
@@ -620,11 +604,12 @@ struct em28xx {
 	enum em28xx_chip_id chip_id;
 
 	unsigned int is_em25xx:1;	/* em25xx/em276x/7x/8x family bridge */
-	unsigned char disconnected:1;	/* device has been diconnected */
+	unsigned int disconnected:1;	/* device has been diconnected */
 	unsigned int has_video:1;
 	unsigned int is_audio_only:1;
 	unsigned int is_webcam:1;
 	unsigned int has_msp34xx:1;
+	unsigned int i2c_speed:2;
 	enum em28xx_int_audio_type int_audio_type;
 	enum em28xx_usb_audio_type usb_audio_type;
 	unsigned char name[32];
