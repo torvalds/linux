@@ -183,7 +183,8 @@ static const struct snd_soc_ops bdw_rt5677_ops = {
 
 static int bdw_rt5677_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct sst_pdata *pdata = dev_get_platdata(rtd->platform->dev);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct sst_pdata *pdata = dev_get_platdata(component->dev);
 	struct sst_hsw *broadwell = pdata->dsp;
 	int ret;
 
