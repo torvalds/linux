@@ -361,7 +361,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 			goto err_out;
 
 		if (USES_HUC(dev_priv)) {
-			ret = intel_huc_init_hw(huc);
+			ret = intel_huc_fw_upload(huc);
 			if (ret)
 				goto err_out;
 		}
