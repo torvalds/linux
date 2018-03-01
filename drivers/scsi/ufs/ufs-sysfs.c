@@ -57,29 +57,8 @@ static ssize_t rpm_lvl_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
-	int curr_len;
-	u8 lvl;
 
-	curr_len = snprintf(buf, PAGE_SIZE,
-			    "\nCurrent Runtime PM level [%d] => dev_state [%s] link_state [%s]\n",
-			    hba->rpm_lvl,
-			    ufschd_ufs_dev_pwr_mode_to_string(
-				ufs_pm_lvl_states[hba->rpm_lvl].dev_state),
-			    ufschd_uic_link_state_to_string(
-				ufs_pm_lvl_states[hba->rpm_lvl].link_state));
-
-	curr_len += snprintf((buf + curr_len), (PAGE_SIZE - curr_len),
-			     "\nAll available Runtime PM levels info:\n");
-	for (lvl = UFS_PM_LVL_0; lvl < UFS_PM_LVL_MAX; lvl++)
-		curr_len += snprintf((buf + curr_len), (PAGE_SIZE - curr_len),
-				     "\tRuntime PM level [%d] => dev_state [%s] link_state [%s]\n",
-				    lvl,
-				    ufschd_ufs_dev_pwr_mode_to_string(
-					ufs_pm_lvl_states[lvl].dev_state),
-				    ufschd_uic_link_state_to_string(
-					ufs_pm_lvl_states[lvl].link_state));
-
-	return curr_len;
+	return sprintf(buf, "%d\n", hba->rpm_lvl);
 }
 
 static ssize_t rpm_lvl_store(struct device *dev,
@@ -88,33 +67,30 @@ static ssize_t rpm_lvl_store(struct device *dev,
 	return ufs_sysfs_pm_lvl_store(dev, attr, buf, count, true);
 }
 
+static ssize_t rpm_target_dev_state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
+			ufs_pm_lvl_states[hba->rpm_lvl].dev_state));
+}
+
+static ssize_t rpm_target_link_state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", ufschd_uic_link_state_to_string(
+			ufs_pm_lvl_states[hba->rpm_lvl].link_state));
+}
+
 static ssize_t spm_lvl_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
-	int curr_len;
-	u8 lvl;
 
-	curr_len = snprintf(buf, PAGE_SIZE,
-			    "\nCurrent System PM level [%d] => dev_state [%s] link_state [%s]\n",
-			    hba->spm_lvl,
-			    ufschd_ufs_dev_pwr_mode_to_string(
-				ufs_pm_lvl_states[hba->spm_lvl].dev_state),
-			    ufschd_uic_link_state_to_string(
-				ufs_pm_lvl_states[hba->spm_lvl].link_state));
-
-	curr_len += snprintf((buf + curr_len), (PAGE_SIZE - curr_len),
-			     "\nAll available System PM levels info:\n");
-	for (lvl = UFS_PM_LVL_0; lvl < UFS_PM_LVL_MAX; lvl++)
-		curr_len += snprintf((buf + curr_len), (PAGE_SIZE - curr_len),
-				     "\tSystem PM level [%d] => dev_state [%s] link_state [%s]\n",
-				    lvl,
-				    ufschd_ufs_dev_pwr_mode_to_string(
-					ufs_pm_lvl_states[lvl].dev_state),
-				    ufschd_uic_link_state_to_string(
-					ufs_pm_lvl_states[lvl].link_state));
-
-	return curr_len;
+	return sprintf(buf, "%d\n", hba->spm_lvl);
 }
 
 static ssize_t spm_lvl_store(struct device *dev,
@@ -123,12 +99,38 @@ static ssize_t spm_lvl_store(struct device *dev,
 	return ufs_sysfs_pm_lvl_store(dev, attr, buf, count, false);
 }
 
+static ssize_t spm_target_dev_state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", ufschd_ufs_dev_pwr_mode_to_string(
+				ufs_pm_lvl_states[hba->spm_lvl].dev_state));
+}
+
+static ssize_t spm_target_link_state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct ufs_hba *hba = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", ufschd_uic_link_state_to_string(
+				ufs_pm_lvl_states[hba->spm_lvl].link_state));
+}
+
 static DEVICE_ATTR_RW(rpm_lvl);
+static DEVICE_ATTR_RO(rpm_target_dev_state);
+static DEVICE_ATTR_RO(rpm_target_link_state);
 static DEVICE_ATTR_RW(spm_lvl);
+static DEVICE_ATTR_RO(spm_target_dev_state);
+static DEVICE_ATTR_RO(spm_target_link_state);
 
 static struct attribute *ufs_sysfs_ufshcd_attrs[] = {
 	&dev_attr_rpm_lvl.attr,
+	&dev_attr_rpm_target_dev_state.attr,
+	&dev_attr_rpm_target_link_state.attr,
 	&dev_attr_spm_lvl.attr,
+	&dev_attr_spm_target_dev_state.attr,
+	&dev_attr_spm_target_link_state.attr,
 	NULL
 };
 

@@ -802,3 +802,70 @@ Description:	This file shows the The amount of physical memory needed
 		the particular logical unit. The full information about
 		the attribute could be found at UFS specifications 2.1.
 		The file is read only.
+
+
+What:		/sys/bus/platform/drivers/ufshcd/*/rpm_lvl
+Date:		September 2014
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry could be used to set or show the UFS device
+		runtime power management level. The current driver
+		implementation supports 6 levels with next target states:
+		0 - an UFS device will stay active, an UIC link will
+		stay active
+		1 - an UFS device will stay active, an UIC link will
+		hibernate
+		2 - an UFS device will moved to sleep, an UIC link will
+		stay active
+		3 - an UFS device will moved to sleep, an UIC link will
+		hibernate
+		4 - an UFS device will be powered off, an UIC link will
+		hibernate
+		5 - an UFS device will be powered off, an UIC link will
+		be powered off
+
+What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_dev_state
+Date:		February 2018
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry shows the target power mode of an UFS device
+		for the chosen runtime power management level.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_link_state
+Date:		February 2018
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry shows the target state of an UFS UIC link
+		for the chosen runtime power management level.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/spm_lvl
+Date:		September 2014
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry could be used to set or show the UFS device
+		system power management level. The current driver
+		implementation supports 6 levels with next target states:
+		0 - an UFS device will stay active, an UIC link will
+		stay active
+		1 - an UFS device will stay active, an UIC link will
+		hibernate
+		2 - an UFS device will moved to sleep, an UIC link will
+		stay active
+		3 - an UFS device will moved to sleep, an UIC link will
+		hibernate
+		4 - an UFS device will be powered off, an UIC link will
+		hibernate
+		5 - an UFS device will be powered off, an UIC link will
+		be powered off
+
+What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_dev_state
+Date:		February 2018
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry shows the target power mode of an UFS device
+		for the chosen system power management level.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_link_state
+Date:		February 2018
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry shows the target state of an UFS UIC link
+		for the chosen system power management level.
+		The file is read only.
