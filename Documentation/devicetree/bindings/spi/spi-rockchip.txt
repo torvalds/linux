@@ -38,6 +38,7 @@ Optional Properties:
 		the pins should be in during system suspend. See also
 		pinctrl/pinctrl-bindings.txt.
 
+- pinctrl-names: high_speed for speed is higher than 24MHz
 
 Example:
 
@@ -52,7 +53,8 @@ Example:
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
-		pinctrl-0 = <&spi1_pins>;
+		pinctrl-names = "default", "sleep", "high_speed";
+		pinctrl-0 = <&spi0_clk &spi0_csn0 &spi0_csn1 &spi0_miso &spi0_mosi>;
 		pinctrl-1 = <&spi1_sleep>;
-		pinctrl-names = "default", "sleep";
+		pinctrl-2 = <&spi0_clk_hs &spi0_csn0 &spi0_csn1 &spi0_miso_hs &spi0_mosi_hs>;
 	};
