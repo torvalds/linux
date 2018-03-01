@@ -317,16 +317,22 @@ static const struct vop_intr rk3288_vop_intr = {
 	.clear = VOP_REG(RK3288_INTR_CTRL0, 0xf, 8),
 };
 
-static const struct vop_data rk3288_vop = {
+static const struct vop_data rk3288_vop_big = {
 	.version = VOP_VERSION(3, 0),
 	.feature = VOP_FEATURE_OUTPUT_10BIT,
 	.max_input = {4096, 8192},
-	/*
-	 * TODO: rk3288 have two vop, big one support 3840x2160,
-	 * little one only support 2560x1600.
-	 * Now force use 3840x2160.
-	 */
 	.max_output = {3840, 2160},
+	.intr = &rk3288_vop_intr,
+	.ctrl = &rk3288_ctrl_data,
+	.win = rk3288_vop_win_data,
+	.win_size = ARRAY_SIZE(rk3288_vop_win_data),
+};
+
+static const struct vop_data rk3288_vop_lit = {
+	.version = VOP_VERSION(3, 0),
+	.feature = VOP_FEATURE_OUTPUT_10BIT,
+	.max_input = {4096, 8192},
+	.max_output = {2560, 1600},
 	.intr = &rk3288_vop_intr,
 	.ctrl = &rk3288_ctrl_data,
 	.win = rk3288_vop_win_data,
@@ -1540,8 +1546,10 @@ static const struct of_device_id vop_driver_dt_match[] = {
 	  .data = &px30_vop_lit },
 	{ .compatible = "rockchip,px30-vop-big",
 	  .data = &px30_vop_big },
-	{ .compatible = "rockchip,rk3288-vop",
-	  .data = &rk3288_vop },
+	{ .compatible = "rockchip,rk3288-vop-big",
+	  .data = &rk3288_vop_big },
+	{ .compatible = "rockchip,rk3288-vop-lit",
+	  .data = &rk3288_vop_lit },
 	{ .compatible = "rockchip,rk3368-vop",
 	  .data = &rk3368_vop },
 	{ .compatible = "rockchip,rk3366-vop",
