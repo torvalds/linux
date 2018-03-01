@@ -871,6 +871,9 @@ static int response_parse(const u8 *buf, size_t length,
 static size_t response_get_string(const struct parsed_resp *resp, int n,
 				  const char **store)
 {
+	u8 skip;
+	const struct opal_resp_tok *token;
+
 	*store = NULL;
 	if (!resp) {
 		pr_debug("Response is NULL\n");
@@ -883,13 +886,30 @@ static size_t response_get_string(const struct parsed_resp *resp, int n,
 		return 0;
 	}
 
-	if (resp->toks[n].type != OPAL_DTA_TOKENID_BYTESTRING) {
+	token = &resp->toks[n];
+	if (token->type != OPAL_DTA_TOKENID_BYTESTRING) {
 		pr_debug("Token is not a byte string!\n");
 		return 0;
 	}
 
-	*store = resp->toks[n].pos + 1;
-	return resp->toks[n].len - 1;
+	switch (token->width) {
+	case OPAL_WIDTH_TINY:
+	case OPAL_WIDTH_SHORT:
+		skip = 1;
+		break;
+	case OPAL_WIDTH_MEDIUM:
+		skip = 2;
+		break;
+	case OPAL_WIDTH_LONG:
+		skip = 4;
+		break;
+	default:
+		pr_debug("Token has invalid width!\n");
+		return 0;
+	}
+
+	*store = token->pos + skip;
+	return token->len - skip;
 }
 
 static u64 response_get_u64(const struct parsed_resp *resp, int n)
