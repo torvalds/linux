@@ -565,9 +565,10 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 	if (f.file)
 		fdput(f);
 
+	mutex_unlock(&file->device->xrcd_tree_mutex);
+
 	uobj_alloc_commit(&obj->uobject);
 
-	mutex_unlock(&file->device->xrcd_tree_mutex);
 	return in_len;
 
 err_copy:
@@ -606,10 +607,8 @@ ssize_t ib_uverbs_close_xrcd(struct ib_uverbs_file *file,
 
 	uobj  = uobj_get_write(uobj_get_type(xrcd), cmd.xrcd_handle,
 			       file->ucontext);
-	if (IS_ERR(uobj)) {
-		mutex_unlock(&file->device->xrcd_tree_mutex);
+	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
-	}
 
 	ret = uobj_remove_commit(uobj);
 	return ret ?: in_len;
@@ -1982,8 +1981,15 @@ static int modify_qp(struct ib_uverbs_file *file,
 		goto release_qp;
 	}
 
+	if ((cmd->base.attr_mask & IB_QP_AV) &&
+	    !rdma_is_port_valid(qp->device, cmd->base.dest.port_num)) {
+		ret = -EINVAL;
+		goto release_qp;
+	}
+
 	if ((cmd->base.attr_mask & IB_QP_ALT_PATH) &&
-	    !rdma_is_port_valid(qp->device, cmd->base.alt_port_num)) {
+	    (!rdma_is_port_valid(qp->device, cmd->base.alt_port_num) ||
+	    !rdma_is_port_valid(qp->device, cmd->base.alt_dest.port_num))) {
 		ret = -EINVAL;
 		goto release_qp;
 	}
