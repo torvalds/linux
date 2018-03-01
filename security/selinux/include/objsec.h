@@ -158,6 +158,4 @@ struct bpf_security_struct {
 	u32 sid;  /*SID of bpf obj creater*/
 };
 
-extern unsigned int selinux_checkreqprot;
-
 #endif /* _SELINUX_OBJSEC_H_ */

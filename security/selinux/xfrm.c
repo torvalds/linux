@@ -101,7 +101,8 @@ static int selinux_xfrm_alloc_user(struct xfrm_sec_ctx **ctxp,
 	ctx->ctx_len = str_len;
 	memcpy(ctx->ctx_str, &uctx[1], str_len);
 	ctx->ctx_str[str_len] = '\0';
-	rc = security_context_to_sid(ctx->ctx_str, str_len, &ctx->ctx_sid, gfp);
+	rc = security_context_to_sid(&selinux_state, ctx->ctx_str, str_len,
+				     &ctx->ctx_sid, gfp);
 	if (rc)
 		goto err;
 
@@ -352,7 +353,8 @@ int selinux_xfrm_state_alloc_acquire(struct xfrm_state *x,
 	if (secid == 0)
 		return -EINVAL;
 
-	rc = security_sid_to_context(secid, &ctx_str, &str_len);
+	rc = security_sid_to_context(&selinux_state, secid, &ctx_str,
+				     &str_len);
 	if (rc)
 		return rc;
 
