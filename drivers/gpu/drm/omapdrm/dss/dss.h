@@ -376,8 +376,6 @@ static inline void sdi_uninit_port(struct device_node *port)
 
 #ifdef CONFIG_OMAP2_DSS_DSI
 
-void dsi_dump_clocks(struct seq_file *s);
-
 void dsi_irq_handler(void);
 
 #endif

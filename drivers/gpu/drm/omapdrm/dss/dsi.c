@@ -403,6 +403,7 @@ struct dsi_data {
 	struct {
 		struct dss_debugfs_entry *irqs;
 		struct dss_debugfs_entry *regs;
+		struct dss_debugfs_entry *clks;
 	} debugfs;
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
@@ -440,27 +441,6 @@ module_param(dsi_perf, bool, 0644);
 static inline struct dsi_data *to_dsi_data(struct omap_dss_device *dssdev)
 {
 	return dev_get_drvdata(dssdev->dev);
-}
-
-static struct dsi_data *dsi_get_dsi_from_id(int module)
-{
-	struct omap_dss_device *out;
-	enum omap_dss_output_id	id;
-
-	switch (module) {
-	case 0:
-		id = OMAP_DSS_OUTPUT_DSI1;
-		break;
-	case 1:
-		id = OMAP_DSS_OUTPUT_DSI2;
-		break;
-	default:
-		return NULL;
-	}
-
-	out = omap_dss_get_output(id);
-
-	return out ? to_dsi_data(out) : NULL;
 }
 
 static inline void dsi_write_reg(struct dsi_data *dsi,
@@ -1448,8 +1428,9 @@ static void dsi_pll_disable(struct dss_pll *pll)
 	dsi_pll_uninit(dsi, true);
 }
 
-static void dsi_dump_dsi_clocks(struct dsi_data *dsi, struct seq_file *s)
+static int dsi_dump_dsi_clocks(struct seq_file *s, void *p)
 {
+	struct dsi_data *dsi = p;
 	struct dss_pll_clock_info *cinfo = &dsi->pll.cinfo;
 	enum dss_clk_source dispc_clk_src, dsi_clk_src;
 	int dsi_module = dsi->module_id;
@@ -1459,7 +1440,7 @@ static void dsi_dump_dsi_clocks(struct dsi_data *dsi, struct seq_file *s)
 	dsi_clk_src = dss_get_dsi_clk_source(dsi->dss, dsi_module);
 
 	if (dsi_runtime_get(dsi))
-		return;
+		return 0;
 
 	seq_printf(s,	"- DSI%d PLL -\n", dsi_module + 1);
 
@@ -1503,18 +1484,8 @@ static void dsi_dump_dsi_clocks(struct dsi_data *dsi, struct seq_file *s)
 	seq_printf(s,	"LP_CLK\t\t%lu\n", dsi->current_lp_cinfo.lp_clk);
 
 	dsi_runtime_put(dsi);
-}
 
-void dsi_dump_clocks(struct seq_file *s)
-{
-	struct dsi_data *dsi;
-	int i;
-
-	for  (i = 0; i < MAX_NUM_DSI; i++) {
-		dsi = dsi_get_dsi_from_id(i);
-		if (dsi)
-			dsi_dump_dsi_clocks(dsi, s);
-	}
+	return 0;
 }
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
@@ -5426,6 +5397,9 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	dsi->debugfs.irqs = dss_debugfs_create_file(dss, name,
 						    dsi_dump_dsi_irqs, &dsi);
 #endif
+	snprintf(name, sizeof(name), "dsi%u_clks", dsi->module_id + 1);
+	dsi->debugfs.clks = dss_debugfs_create_file(dss, name,
+						    dsi_dump_dsi_clocks, &dsi);
 
 	return 0;
 
@@ -5442,6 +5416,7 @@ static void dsi_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct dsi_data *dsi = dev_get_drvdata(dev);
 
+	dss_debugfs_remove_file(dsi->debugfs.clks);
 	dss_debugfs_remove_file(dsi->debugfs.irqs);
 	dss_debugfs_remove_file(dsi->debugfs.regs);
 
