@@ -149,6 +149,7 @@
 #define SUN4I_BACKEND_NUM_LAYERS		4
 #define SUN4I_BACKEND_NUM_ALPHA_LAYERS		1
 #define SUN4I_BACKEND_NUM_FRONTEND_LAYERS	1
+#define SUN4I_BACKEND_NUM_YUV_PLANES		1
 
 struct sun4i_backend {
 	struct sunxi_engine	engine;

@@ -42,6 +42,38 @@ static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x000001c1, 0x00003e88, 0x00003fb8, 0x00000808
 };
 
+static inline bool sun4i_backend_format_is_planar_yuv(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_YUV411:
+	case DRM_FORMAT_YUV422:
+	case DRM_FORMAT_YUV444:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static inline bool sun4i_backend_format_is_packed_yuv422(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+		return true;
+
+	default:
+		return false;
+	}
+}
+
+static inline bool sun4i_backend_format_is_yuv(uint32_t format)
+{
+	return sun4i_backend_format_is_planar_yuv(format) ||
+		sun4i_backend_format_is_packed_yuv422(format);
+}
+
 static void sun4i_backend_apply_color_correction(struct sunxi_engine *engine)
 {
 	int i;
@@ -330,6 +362,7 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 	unsigned int num_planes = 0;
 	unsigned int num_alpha_planes = 0;
 	unsigned int num_frontend_planes = 0;
+	unsigned int num_yuv_planes = 0;
 	unsigned int current_pipe = 0;
 	unsigned int i;
 
@@ -361,6 +394,11 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 						     &format_name));
 		if (fb->format->has_alpha)
 			num_alpha_planes++;
+
+		if (sun4i_backend_format_is_yuv(fb->format->format)) {
+			DRM_DEBUG_DRIVER("Plane FB format is YUV\n");
+			num_yuv_planes++;
+		}
 
 		DRM_DEBUG_DRIVER("Plane zpos is %d\n",
 				 plane_state->normalized_zpos);
@@ -430,13 +468,20 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 		s_state->pipe = current_pipe;
 	}
 
+	/* We can only have a single YUV plane at a time */
+	if (num_yuv_planes > SUN4I_BACKEND_NUM_YUV_PLANES) {
+		DRM_DEBUG_DRIVER("Too many planes with YUV, rejecting...\n");
+		return -EINVAL;
+	}
+
 	if (num_frontend_planes > SUN4I_BACKEND_NUM_FRONTEND_LAYERS) {
 		DRM_DEBUG_DRIVER("Too many planes going through the frontend, rejecting\n");
 		return -EINVAL;
 	}
 
-	DRM_DEBUG_DRIVER("State valid with %u planes, %u alpha, %u video\n",
-			 num_planes, num_alpha_planes, num_frontend_planes);
+	DRM_DEBUG_DRIVER("State valid with %u planes, %u alpha, %u video, %u YUV\n",
+			 num_planes, num_alpha_planes, num_frontend_planes,
+			 num_yuv_planes);
 
 	return 0;
 }
