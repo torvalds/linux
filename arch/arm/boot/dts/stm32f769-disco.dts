@@ -92,6 +92,13 @@
 		clocks = <&rcc 0 STM32F7_AHB1_CLOCK(OTGHSULPI)>;
 		clock-names = "main_clk";
 	};
+
+	mmc_vcard: mmc_vcard {
+		compatible = "regulator-fixed";
+		regulator-name = "mmc_vcard";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
 };
 
 &cec {
@@ -106,6 +113,18 @@
 
 &rtc {
 	status = "okay";
+};
+
+&sdio2 {
+	status = "okay";
+	vmmc-supply = <&mmc_vcard>;
+	cd-gpios = <&gpioi 15 GPIO_ACTIVE_HIGH>;
+	cd-inverted;
+	broken-cd;
+	pinctrl-names = "default", "opendrain";
+	pinctrl-0 = <&sdio_pins_b>;
+	pinctrl-1 = <&sdio_pins_od_b>;
+	bus-width = <4>;
 };
 
 &usart1 {
