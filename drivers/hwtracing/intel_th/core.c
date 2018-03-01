@@ -935,7 +935,7 @@ EXPORT_SYMBOL_GPL(intel_th_trace_disable);
 int intel_th_set_output(struct intel_th_device *thdev,
 			unsigned int master)
 {
-	struct intel_th_device *hub = to_intel_th_device(thdev->dev.parent);
+	struct intel_th_device *hub = to_intel_th_hub(thdev);
 	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
 
 	if (!hubdrv->set_output)
