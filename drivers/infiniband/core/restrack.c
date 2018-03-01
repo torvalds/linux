@@ -43,22 +43,28 @@ EXPORT_SYMBOL(rdma_restrack_count);
 
 static void set_kern_name(struct rdma_restrack_entry *res)
 {
-	enum rdma_restrack_type type = res->type;
-	struct ib_qp *qp;
+	struct ib_pd *pd;
 
-	if (type != RDMA_RESTRACK_QP)
-		/* Other types already have this name embedded in */
-		return;
-
-	qp = container_of(res, struct ib_qp, res);
-	if (!qp->pd) {
-		WARN_ONCE(true, "XRC QPs are not supported\n");
-		/* Survive, despite the programmer's error */
-		res->kern_name = " ";
-		return;
+	switch (res->type) {
+	case RDMA_RESTRACK_QP:
+		pd = container_of(res, struct ib_qp, res)->pd;
+		if (!pd) {
+			WARN_ONCE(true, "XRC QPs are not supported\n");
+			/* Survive, despite the programmer's error */
+			res->kern_name = " ";
+		}
+		break;
+	case RDMA_RESTRACK_MR:
+		pd = container_of(res, struct ib_mr, res)->pd;
+		break;
+	default:
+		/* Other types set kern_name directly */
+		pd = NULL;
+		break;
 	}
 
-	res->kern_name = qp->pd->res.kern_name;
+	if (pd)
+		res->kern_name = pd->res.kern_name;
 }
 
 static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
@@ -73,6 +79,8 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 	case RDMA_RESTRACK_CM_ID:
 		return container_of(res, struct rdma_id_private,
 				    res)->id.device;
+	case RDMA_RESTRACK_MR:
+		return container_of(res, struct ib_mr, res)->device;
 	default:
 		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
 		return NULL;
@@ -90,6 +98,8 @@ static bool res_is_user(struct rdma_restrack_entry *res)
 		return container_of(res, struct ib_qp, res)->uobject;
 	case RDMA_RESTRACK_CM_ID:
 		return !res->kern_name;
+	case RDMA_RESTRACK_MR:
+		return container_of(res, struct ib_mr, res)->pd->uobject;
 	default:
 		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
 		return false;

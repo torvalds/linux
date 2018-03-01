@@ -34,6 +34,10 @@ enum rdma_restrack_type {
 	 */
 	RDMA_RESTRACK_CM_ID,
 	/**
+	 * @RDMA_RESTRACK_MR: Memory Region (MR)
+	 */
+	RDMA_RESTRACK_MR,
+	/**
 	 * @RDMA_RESTRACK_MAX: Last entry, used for array dclarations
 	 */
 	RDMA_RESTRACK_MAX
