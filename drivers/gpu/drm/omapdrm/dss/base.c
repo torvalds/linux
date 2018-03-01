@@ -63,6 +63,7 @@ void omapdss_device_register(struct omap_dss_device *dssdev)
 	list_add_tail(&dssdev->list, &omapdss_devices_list);
 	mutex_unlock(&omapdss_devices_lock);
 }
+EXPORT_SYMBOL_GPL(omapdss_device_register);
 
 void omapdss_device_unregister(struct omap_dss_device *dssdev)
 {
@@ -70,6 +71,7 @@ void omapdss_device_unregister(struct omap_dss_device *dssdev)
 	list_del(&dssdev->list);
 	mutex_unlock(&omapdss_devices_lock);
 }
+EXPORT_SYMBOL_GPL(omapdss_device_unregister);
 
 static bool omapdss_device_is_registered(struct device_node *node)
 {

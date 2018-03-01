@@ -416,8 +416,6 @@ struct omap_dss_device {
 
 	/* OMAP DSS output specific fields */
 
-	struct list_head output_list;
-
 	/* DISPC channel for this output */
 	enum omap_channel dispc_channel;
 	bool dispc_channel_connected;
@@ -510,9 +508,6 @@ int omap_dss_get_num_overlay_managers(void);
 
 int omap_dss_get_num_overlays(void);
 
-int omapdss_register_output(struct omap_dss_device *output);
-void omapdss_unregister_output(struct omap_dss_device *output);
-struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);

@@ -718,7 +718,7 @@ static void dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 	out->ops = &dpi_ops;
 	out->owner = THIS_MODULE;
 
-	omapdss_register_output(out);
+	omapdss_device_register(out);
 }
 
 static void dpi_uninit_output_port(struct device_node *port)
@@ -726,7 +726,7 @@ static void dpi_uninit_output_port(struct device_node *port)
 	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
 
-	omapdss_unregister_output(out);
+	omapdss_device_unregister(out);
 }
 
 int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,

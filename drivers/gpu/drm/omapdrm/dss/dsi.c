@@ -4995,14 +4995,14 @@ static void dsi_init_output(struct dsi_data *dsi)
 	out->ops = &dsi_ops;
 	out->owner = THIS_MODULE;
 
-	omapdss_register_output(out);
+	omapdss_device_register(out);
 }
 
 static void dsi_uninit_output(struct dsi_data *dsi)
 {
 	struct omap_dss_device *out = &dsi->output;
 
-	omapdss_unregister_output(out);
+	omapdss_device_unregister(out);
 }
 
 static int dsi_probe_of(struct dsi_data *dsi)

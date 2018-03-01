@@ -768,12 +768,12 @@ static void venc_init_output(struct venc_device *venc)
 	out->ops = &venc_ops;
 	out->owner = THIS_MODULE;
 
-	omapdss_register_output(out);
+	omapdss_device_register(out);
 }
 
 static void venc_uninit_output(struct venc_device *venc)
 {
-	omapdss_unregister_output(&venc->output);
+	omapdss_device_unregister(&venc->output);
 }
 
 static int venc_probe_of(struct venc_device *venc)

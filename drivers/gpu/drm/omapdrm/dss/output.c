@@ -23,7 +23,6 @@
 
 #include "omapdss.h"
 
-static LIST_HEAD(output_list);
 static DEFINE_MUTEX(output_lock);
 
 int omapdss_output_set_device(struct omap_dss_device *out,
@@ -87,34 +86,6 @@ err:
 	return r;
 }
 EXPORT_SYMBOL(omapdss_output_unset_device);
-
-int omapdss_register_output(struct omap_dss_device *out)
-{
-	list_add_tail(&out->output_list, &output_list);
-	omapdss_device_register(out);
-	return 0;
-}
-EXPORT_SYMBOL(omapdss_register_output);
-
-void omapdss_unregister_output(struct omap_dss_device *out)
-{
-	list_del(&out->output_list);
-	omapdss_device_unregister(out);
-}
-EXPORT_SYMBOL(omapdss_unregister_output);
-
-struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id)
-{
-	struct omap_dss_device *out;
-
-	list_for_each_entry(out, &output_list, output_list) {
-		if (out->id == id)
-			return out;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(omap_dss_get_output);
 
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {

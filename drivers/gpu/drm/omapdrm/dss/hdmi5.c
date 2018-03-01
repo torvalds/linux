@@ -556,14 +556,14 @@ static void hdmi_init_output(struct omap_hdmi *hdmi)
 	out->ops = &hdmi_ops;
 	out->owner = THIS_MODULE;
 
-	omapdss_register_output(out);
+	omapdss_device_register(out);
 }
 
 static void hdmi_uninit_output(struct omap_hdmi *hdmi)
 {
 	struct omap_dss_device *out = &hdmi->output;
 
-	omapdss_unregister_output(out);
+	omapdss_device_unregister(out);
 }
 
 static int hdmi_probe_of(struct omap_hdmi *hdmi)

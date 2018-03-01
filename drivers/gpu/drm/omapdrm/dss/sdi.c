@@ -331,12 +331,12 @@ static void sdi_init_output(struct sdi_device *sdi)
 	out->ops = &sdi_ops;
 	out->owner = THIS_MODULE;
 
-	omapdss_register_output(out);
+	omapdss_device_register(out);
 }
 
 static void sdi_uninit_output(struct sdi_device *sdi)
 {
-	omapdss_unregister_output(&sdi->output);
+	omapdss_device_unregister(&sdi->output);
 }
 
 int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,

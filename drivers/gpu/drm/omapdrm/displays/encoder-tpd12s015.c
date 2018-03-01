@@ -301,11 +301,7 @@ static int tpd_probe(struct platform_device *pdev)
 	dssdev->owner = THIS_MODULE;
 	dssdev->port_num = 1;
 
-	r = omapdss_register_output(dssdev);
-	if (r) {
-		dev_err(&pdev->dev, "Failed to register output\n");
-		return r;
-	}
+	omapdss_device_register(dssdev);
 
 	return 0;
 }
@@ -315,7 +311,7 @@ static int __exit tpd_remove(struct platform_device *pdev)
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 
-	omapdss_unregister_output(&ddata->dssdev);
+	omapdss_device_unregister(&ddata->dssdev);
 
 	WARN_ON(omapdss_device_is_enabled(dssdev));
 	if (omapdss_device_is_enabled(dssdev))

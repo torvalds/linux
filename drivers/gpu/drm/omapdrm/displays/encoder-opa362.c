@@ -146,7 +146,6 @@ static int opa362_probe(struct platform_device *pdev)
 	struct panel_drv_data *ddata;
 	struct omap_dss_device *dssdev;
 	struct gpio_desc *gpio;
-	int r;
 
 	dev_dbg(&pdev->dev, "probe\n");
 
@@ -169,11 +168,7 @@ static int opa362_probe(struct platform_device *pdev)
 	dssdev->output_type = OMAP_DISPLAY_TYPE_VENC;
 	dssdev->owner = THIS_MODULE;
 
-	r = omapdss_register_output(dssdev);
-	if (r) {
-		dev_err(&pdev->dev, "Failed to register output\n");
-		return r;
-	}
+	omapdss_device_register(dssdev);
 
 	return 0;
 }
@@ -183,7 +178,7 @@ static int __exit opa362_remove(struct platform_device *pdev)
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 
-	omapdss_unregister_output(&ddata->dssdev);
+	omapdss_device_unregister(&ddata->dssdev);
 
 	WARN_ON(omapdss_device_is_enabled(dssdev));
 	if (omapdss_device_is_enabled(dssdev))
