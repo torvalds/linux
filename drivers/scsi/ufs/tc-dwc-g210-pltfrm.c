@@ -20,7 +20,7 @@
 #include "ufshcd-dwc.h"
 #include "tc-dwc-g210.h"
 
-/**
+/*
  * UFS DWC specific variant operations
  */
 static struct ufs_hba_variant_ops tc_dwc_g210_20bit_pltfm_hba_vops = {
