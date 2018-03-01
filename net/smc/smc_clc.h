@@ -121,6 +121,8 @@ smc_clc_proposal_get_prefix(struct smc_clc_msg_proposal *pclc)
 	       ((u8 *)pclc + sizeof(*pclc) + ntohs(pclc->iparea_offset));
 }
 
+int smc_clc_netinfo_by_tcpsk(struct socket *clcsock, __be32 *subnet,
+			     u8 *prefix_len);
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		     u8 expected_type);
 int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info);

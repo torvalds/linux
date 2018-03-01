@@ -263,8 +263,6 @@ static inline bool using_ipsec(struct smc_sock *smc)
 
 struct smc_clc_msg_local;
 
-int smc_netinfo_by_tcpsk(struct socket *clcsock, __be32 *subnet,
-			 u8 *prefix_len);
 void smc_conn_free(struct smc_connection *conn);
 int smc_conn_create(struct smc_sock *smc, __be32 peer_in_addr,
 		    struct smc_ib_device *smcibdev, u8 ibport,

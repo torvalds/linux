@@ -24,7 +24,6 @@
 
 #include <linux/module.h>
 #include <linux/socket.h>
-#include <linux/inetdevice.h>
 #include <linux/workqueue.h>
 #include <linux/in.h>
 #include <linux/sched/signal.h>
@@ -271,45 +270,6 @@ static void smc_copy_sock_settings_to_clc(struct smc_sock *smc)
 static void smc_copy_sock_settings_to_smc(struct smc_sock *smc)
 {
 	smc_copy_sock_settings(&smc->sk, smc->clcsock->sk, SK_FLAGS_CLC_TO_SMC);
-}
-
-/* determine subnet and mask of internal TCP socket */
-int smc_netinfo_by_tcpsk(struct socket *clcsock,
-			 __be32 *subnet, u8 *prefix_len)
-{
-	struct dst_entry *dst = sk_dst_get(clcsock->sk);
-	struct in_device *in_dev;
-	struct sockaddr_in addr;
-	int rc = -ENOENT;
-
-	if (!dst) {
-		rc = -ENOTCONN;
-		goto out;
-	}
-	if (!dst->dev) {
-		rc = -ENODEV;
-		goto out_rel;
-	}
-
-	/* get address to which the internal TCP socket is bound */
-	kernel_getsockname(clcsock, (struct sockaddr *)&addr);
-	/* analyze IPv4 specific data of net_device belonging to TCP socket */
-	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(dst->dev);
-	for_ifa(in_dev) {
-		if (!inet_ifa_match(addr.sin_addr.s_addr, ifa))
-			continue;
-		*prefix_len = inet_mask_len(ifa->ifa_mask);
-		*subnet = ifa->ifa_address & ifa->ifa_mask;
-		rc = 0;
-		break;
-	} endfor_ifa(in_dev);
-	rcu_read_unlock();
-
-out_rel:
-	dst_release(dst);
-out:
-	return rc;
 }
 
 static int smc_clnt_conf_first_link(struct smc_sock *smc)
@@ -808,7 +768,7 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	/* determine subnet and mask from internal TCP socket */
-	rc = smc_netinfo_by_tcpsk(newclcsock, &subnet, &prefix_len);
+	rc = smc_clc_netinfo_by_tcpsk(newclcsock, &subnet, &prefix_len);
 	if (rc) {
 		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
 		goto decline_rdma;
