@@ -126,40 +126,6 @@ int dpbp_disable(struct fsl_mc_io *mc_io,
 EXPORT_SYMBOL_GPL(dpbp_disable);
 
 /**
- * dpbp_is_enabled() - Check if the DPBP is enabled.
- * @mc_io:	Pointer to MC portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @token:	Token of DPBP object
- * @en:		Returns '1' if object is enabled; '0' otherwise
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dpbp_is_enabled(struct fsl_mc_io *mc_io,
-		    u32 cmd_flags,
-		    u16 token,
-		    int *en)
-{
-	struct mc_command cmd = { 0 };
-	struct dpbp_rsp_is_enabled *rsp_params;
-	int err;
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPBP_CMDID_IS_ENABLED, cmd_flags,
-					  token);
-
-	/* send command to mc*/
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	rsp_params = (struct dpbp_rsp_is_enabled *)cmd.params;
-	*en = rsp_params->enabled & DPBP_ENABLE;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(dpbp_is_enabled);
-
-/**
  * dpbp_reset() - Reset the DPBP, returns the object to initial state.
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
@@ -218,36 +184,3 @@ int dpbp_get_attributes(struct fsl_mc_io *mc_io,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dpbp_get_attributes);
-
-/**
- * dpbp_get_api_version - Get Data Path Buffer Pool API version
- * @mc_io:	Pointer to Mc portal's I/O object
- * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
- * @major_ver:	Major version of Buffer Pool API
- * @minor_ver:	Minor version of Buffer Pool API
- *
- * Return:	'0' on Success; Error code otherwise.
- */
-int dpbp_get_api_version(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 *major_ver,
-			 u16 *minor_ver)
-{
-	struct mc_command cmd = { 0 };
-	int err;
-
-	/* prepare command */
-	cmd.header = mc_encode_cmd_header(DPBP_CMDID_GET_API_VERSION,
-					  cmd_flags, 0);
-
-	/* send command to mc */
-	err = mc_send_command(mc_io, &cmd);
-	if (err)
-		return err;
-
-	/* retrieve response parameters */
-	mc_cmd_read_api_version(&cmd, major_ver, minor_ver);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(dpbp_get_api_version);

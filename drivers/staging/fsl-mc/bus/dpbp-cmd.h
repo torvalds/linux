@@ -19,27 +19,17 @@
 /* Command IDs */
 #define DPBP_CMDID_CLOSE		DPBP_CMD(0x800)
 #define DPBP_CMDID_OPEN			DPBP_CMD(0x804)
-#define DPBP_CMDID_GET_API_VERSION	DPBP_CMD(0xa04)
 
 #define DPBP_CMDID_ENABLE		DPBP_CMD(0x002)
 #define DPBP_CMDID_DISABLE		DPBP_CMD(0x003)
 #define DPBP_CMDID_GET_ATTR		DPBP_CMD(0x004)
 #define DPBP_CMDID_RESET		DPBP_CMD(0x005)
-#define DPBP_CMDID_IS_ENABLED		DPBP_CMD(0x006)
 
 struct dpbp_cmd_open {
 	__le32 dpbp_id;
 };
 
-struct dpbp_cmd_destroy {
-	__le32 object_id;
-};
-
 #define DPBP_ENABLE			0x1
-
-struct dpbp_rsp_is_enabled {
-	u8 enabled;
-};
 
 struct dpbp_rsp_get_attributes {
 	/* response word 0 */

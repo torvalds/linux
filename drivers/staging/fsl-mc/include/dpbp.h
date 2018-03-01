@@ -30,11 +30,6 @@ int dpbp_disable(struct fsl_mc_io *mc_io,
 		 u32 cmd_flags,
 		 u16 token);
 
-int dpbp_is_enabled(struct fsl_mc_io *mc_io,
-		    u32 cmd_flags,
-		    u16 token,
-		    int *en);
-
 int dpbp_reset(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       u16 token);
@@ -54,10 +49,5 @@ int dpbp_get_attributes(struct fsl_mc_io *mc_io,
 			u32 cmd_flags,
 			u16 token,
 			struct dpbp_attr *attr);
-
-int dpbp_get_api_version(struct fsl_mc_io *mc_io,
-			 u32 cmd_flags,
-			 u16 *major_ver,
-			 u16 *minor_ver);
 
 #endif /* __FSL_DPBP_H */
