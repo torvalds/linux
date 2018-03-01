@@ -582,11 +582,8 @@ static int atmel_classd_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	io_base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(io_base)) {
-		ret =  PTR_ERR(io_base);
-		dev_err(dev, "failed to remap register memory: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(io_base))
+		return PTR_ERR(io_base);
 
 	dd->phy_base = res->start;
 
