@@ -2531,8 +2531,7 @@ static inline bool f2fs_skip_inode_update(struct inode *inode, int dsync)
 	return ret;
 }
 
-#define sb_rdonly	f2fs_readonly
-static inline int f2fs_readonly(struct super_block *sb)
+static inline bool f2fs_readonly(struct super_block *sb)
 {
 	return sb->s_flags & MS_RDONLY;
 }

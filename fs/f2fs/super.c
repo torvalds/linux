@@ -336,7 +336,7 @@ static int f2fs_check_quota_options(struct f2fs_sb_info *sbi)
 			"QUOTA feature is enabled, so ignore jquota_fmt");
 		sbi->s_jquota_fmt = 0;
 	}
-	if (f2fs_sb_has_quota_ino(sbi->sb) && sb_rdonly(sbi->sb)) {
+	if (f2fs_sb_has_quota_ino(sbi->sb) && f2fs_readonly(sbi->sb)) {
 		f2fs_msg(sbi->sb, KERN_INFO,
 			 "Filesystem with quota feature cannot be mounted RDWR "
 			 "without CONFIG_QUOTA");
@@ -2813,7 +2813,7 @@ try_onemore:
 	 * Turn on quotas which were not enabled for read-only mounts if
 	 * filesystem has quota feature, so that they are updated correctly.
 	 */
-	if (f2fs_sb_has_quota_ino(sb) && !sb_rdonly(sb)) {
+	if (f2fs_sb_has_quota_ino(sb) && !f2fs_readonly(sb)) {
 		err = f2fs_enable_quotas(sb);
 		if (err) {
 			f2fs_msg(sb, KERN_ERR,
@@ -2898,7 +2898,7 @@ skip_recovery:
 
 free_meta:
 #ifdef CONFIG_QUOTA
-	if (f2fs_sb_has_quota_ino(sb) && !sb_rdonly(sb))
+	if (f2fs_sb_has_quota_ino(sb) && !f2fs_readonly(sb))
 		f2fs_quota_off_umount(sbi->sb);
 #endif
 	f2fs_sync_inode_meta(sbi);
