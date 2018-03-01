@@ -42,6 +42,24 @@ static const u32 sunxi_rgb2yuv_coef[12] = {
 	0x000001c1, 0x00003e88, 0x00003fb8, 0x00000808
 };
 
+/*
+ * These coefficients are taken from the A33 BSP from Allwinner.
+ *
+ * The formula is for each component, each coefficient being multiplied by
+ * 1024 and each constant being multiplied by 16:
+ * G = 1.164 * Y - 0.391 * U - 0.813 * V + 135
+ * R = 1.164 * Y + 1.596 * V - 222
+ * B = 1.164 * Y + 2.018 * U + 276
+ *
+ * This seems to be a conversion from Y[16:235] UV[16:240] to RGB[0:255],
+ * following the BT601 spec.
+ */
+static const u32 sunxi_bt601_yuv2rgb_coef[12] = {
+	0x000004a7, 0x00001e6f, 0x00001cbf, 0x00000877,
+	0x000004a7, 0x00000000, 0x00000662, 0x00003211,
+	0x000004a7, 0x00000812, 0x00000000, 0x00002eb1,
+};
+
 static inline bool sun4i_backend_format_is_planar_yuv(uint32_t format)
 {
 	switch (format) {
@@ -198,6 +216,61 @@ int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 	return 0;
 }
 
+static int sun4i_backend_update_yuv_format(struct sun4i_backend *backend,
+					   int layer, struct drm_plane *plane)
+{
+	struct drm_plane_state *state = plane->state;
+	struct drm_framebuffer *fb = state->fb;
+	uint32_t format = fb->format->format;
+	u32 val = SUN4I_BACKEND_IYUVCTL_EN;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sunxi_bt601_yuv2rgb_coef); i++)
+		regmap_write(backend->engine.regs,
+			     SUN4I_BACKEND_YGCOEF_REG(i),
+			     sunxi_bt601_yuv2rgb_coef[i]);
+
+	/*
+	 * We should do that only for a single plane, but the
+	 * framebuffer's atomic_check has our back on this.
+	 */
+	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_ATTCTL_REG0(layer),
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN,
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN);
+
+	/* TODO: Add support for the multi-planar YUV formats */
+	if (sun4i_backend_format_is_packed_yuv422(format))
+		val |= SUN4I_BACKEND_IYUVCTL_FBFMT_PACKED_YUV422;
+	else
+		DRM_DEBUG_DRIVER("Unsupported YUV format (0x%x)\n", format);
+
+	/*
+	 * Allwinner seems to list the pixel sequence from right to left, while
+	 * DRM lists it from left to right.
+	 */
+	switch (format) {
+	case DRM_FORMAT_YUYV:
+		val |= SUN4I_BACKEND_IYUVCTL_FBPS_VYUY;
+		break;
+	case DRM_FORMAT_YVYU:
+		val |= SUN4I_BACKEND_IYUVCTL_FBPS_UYVY;
+		break;
+	case DRM_FORMAT_UYVY:
+		val |= SUN4I_BACKEND_IYUVCTL_FBPS_YVYU;
+		break;
+	case DRM_FORMAT_VYUY:
+		val |= SUN4I_BACKEND_IYUVCTL_FBPS_YUYV;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("Unsupported YUV pixel sequence (0x%x)\n",
+				 format);
+	}
+
+	regmap_write(backend->engine.regs, SUN4I_BACKEND_IYUVCTL_REG, val);
+
+	return 0;
+}
+
 int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 				       int layer, struct drm_plane *plane)
 {
@@ -206,6 +279,10 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 	bool interlaced = false;
 	u32 val;
 	int ret;
+
+	/* Clear the YUV mode */
+	regmap_update_bits(backend->engine.regs, SUN4I_BACKEND_ATTCTL_REG0(layer),
+			   SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN, 0);
 
 	if (plane->state->crtc)
 		interlaced = plane->state->crtc->state->adjusted_mode.flags
@@ -217,6 +294,9 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 
 	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
 			 interlaced ? "on" : "off");
+
+	if (sun4i_backend_format_is_yuv(fb->format->format))
+		return sun4i_backend_update_yuv_format(backend, layer, plane);
 
 	ret = sun4i_backend_drm_format_to_layer(fb->format->format, &val);
 	if (ret) {
@@ -255,6 +335,21 @@ int sun4i_backend_update_layer_frontend(struct sun4i_backend *backend,
 	return 0;
 }
 
+static int sun4i_backend_update_yuv_buffer(struct sun4i_backend *backend,
+					   struct drm_framebuffer *fb,
+					   dma_addr_t paddr)
+{
+	/* TODO: Add support for the multi-planar YUV formats */
+	DRM_DEBUG_DRIVER("Setting packed YUV buffer address to %pad\n", &paddr);
+	regmap_write(backend->engine.regs, SUN4I_BACKEND_IYUVADD_REG(0), paddr);
+
+	DRM_DEBUG_DRIVER("Layer line width: %d bits\n", fb->pitches[0] * 8);
+	regmap_write(backend->engine.regs, SUN4I_BACKEND_IYUVLINEWIDTH_REG(0),
+		     fb->pitches[0] * 8);
+
+	return 0;
+}
+
 int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 				      int layer, struct drm_plane *plane)
 {
@@ -279,6 +374,9 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	 * address needs to be corrected.
 	 */
 	paddr -= PHYS_OFFSET;
+
+	if (sun4i_backend_format_is_yuv(fb->format->format))
+		return sun4i_backend_update_yuv_buffer(backend, fb, paddr);
 
 	/* Write the 32 lower bits of the address (in bits) */
 	lo_paddr = paddr << 3;
