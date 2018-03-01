@@ -432,7 +432,7 @@
 			compatible = "arm,pl180", "arm,primecell";
 			arm,primecell-periphid = <0x00880180>;
 			reg = <0x40011c00 0x400>;
-			clocks = <&rcc 0 167>;
+			clocks = <&rcc 0 STM32F7_APB2_CLOCK(SDMMC2)>;
 			clock-names = "apb_pclk";
 			interrupts = <103>;
 			max-frequency = <48000000>;
