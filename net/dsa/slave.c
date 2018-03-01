@@ -605,7 +605,7 @@ static int dsa_slave_get_sset_count(struct net_device *dev, int sset)
 
 		count = 4;
 		if (ds->ops->get_sset_count)
-			count += ds->ops->get_sset_count(ds);
+			count += ds->ops->get_sset_count(ds, dp->index);
 
 		return count;
 	}
