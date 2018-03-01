@@ -1977,6 +1977,14 @@ M:	Thor Thayer <thor.thayer@linux.intel.com>
 S:	Maintained
 F:	drivers/edac/altera_edac.
 
+ARM/SPREADTRUM SoC SUPPORT
+M:	Orson Zhai <orsonzhai@gmail.com>
+M:	Baolin Wang <baolin.wang@linaro.org>
+M:	Chunyan Zhang <zhang.lyra@gmail.com>
+S:	Maintained
+F:	arch/arm64/boot/dts/sprd
+N:	sprd
+
 ARM/STI ARCHITECTURE
 M:	Patrice Chotard <patrice.chotard@st.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
