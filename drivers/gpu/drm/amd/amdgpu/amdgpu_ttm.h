@@ -53,6 +53,7 @@ struct amdgpu_mman {
 	/* buffer handling */
 	const struct amdgpu_buffer_funcs	*buffer_funcs;
 	struct amdgpu_ring			*buffer_funcs_ring;
+	bool					buffer_funcs_enabled;
 
 	struct mutex				gtt_window_lock;
 	/* Scheduler entity for buffer moves */
