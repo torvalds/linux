@@ -1210,9 +1210,6 @@ static int s5p_hash_prepare_request(struct ahash_request *req, bool update)
 	int xmit_len, hash_later, nbytes;
 	int ret;
 
-	if (!req)
-		return 0;
-
 	if (update)
 		nbytes = req->nbytes;
 	else
