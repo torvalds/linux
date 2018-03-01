@@ -113,12 +113,6 @@ extern u64 ktime_get_mono_fast_ns(void);
 extern u64 ktime_get_raw_fast_ns(void);
 extern u64 ktime_get_real_fast_ns(void);
 
-/* Clock BOOTTIME compatibility wrappers */
-static inline u64 ktime_get_boot_fast_ns(void)
-{
-	return ktime_get_mono_fast_ns();
-}
-
 /*
  * timespec64 interfaces utilizing the ktime based ones
  */
