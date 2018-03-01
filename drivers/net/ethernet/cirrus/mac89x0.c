@@ -93,6 +93,7 @@ static const char version[] =
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/netdevice.h>
+#include <linux/platform_device.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
@@ -104,6 +105,10 @@ static const char version[] =
 #include <asm/macints.h>
 
 #include "cs89x0.h"
+
+static int debug;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "CS89[02]0 debug level (0-5)");
 
 static unsigned int net_debug = NET_DEBUG;
 
@@ -167,10 +172,9 @@ static const struct net_device_ops mac89x0_netdev_ops = {
 
 /* Probe for the CS8900 card in slot E.  We won't bother looking
    anywhere else until we have a really good reason to do so. */
-struct net_device * __init mac89x0_probe(int unit)
+static int mac89x0_device_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
-	static int once_is_enough;
 	struct net_local *lp;
 	static unsigned version_printed;
 	int i, slot;
@@ -180,21 +184,11 @@ struct net_device * __init mac89x0_probe(int unit)
 	int err = -ENODEV;
 	struct nubus_rsrc *fres;
 
-	if (!MACH_IS_MAC)
-		return ERR_PTR(-ENODEV);
+	net_debug = debug;
 
 	dev = alloc_etherdev(sizeof(struct net_local));
 	if (!dev)
-		return ERR_PTR(-ENOMEM);
-
-	if (unit >= 0) {
-		sprintf(dev->name, "eth%d", unit);
-		netdev_boot_setup_check(dev);
-	}
-
-	if (once_is_enough)
-		goto out;
-	once_is_enough = 1;
+		return -ENOMEM;
 
 	/* We might have to parameterize this later */
 	slot = 0xE;
@@ -220,6 +214,8 @@ struct net_device * __init mac89x0_probe(int unit)
 	sig = nubus_readw(ioaddr + DATA_PORT);
 	if (sig != swab16(CHIP_EISA_ID_SIG))
 		goto out;
+
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	/* Initialize the net_device structure. */
 	lp = netdev_priv(dev);
@@ -280,12 +276,14 @@ struct net_device * __init mac89x0_probe(int unit)
 	err = register_netdev(dev);
 	if (err)
 		goto out1;
-	return NULL;
+
+	platform_set_drvdata(pdev, dev);
+	return 0;
 out1:
 	nubus_writew(0, dev->base_addr + ADD_PORT);
 out:
 	free_netdev(dev);
-	return ERR_PTR(err);
+	return err;
 }
 
 /* Open/initialize the board.  This is called (in the current kernel)
@@ -571,32 +569,24 @@ static int set_mac_address(struct net_device *dev, void *addr)
 	return 0;
 }
 
-#ifdef MODULE
-
-static struct net_device *dev_cs89x0;
-static int debug;
-
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "CS89[02]0 debug level (0-5)");
 MODULE_LICENSE("GPL");
 
-int __init
-init_module(void)
+static int mac89x0_device_remove(struct platform_device *pdev)
 {
-	net_debug = debug;
-        dev_cs89x0 = mac89x0_probe(-1);
-	if (IS_ERR(dev_cs89x0)) {
-                printk(KERN_WARNING "mac89x0.c: No card found\n");
-		return PTR_ERR(dev_cs89x0);
-	}
+	struct net_device *dev = platform_get_drvdata(pdev);
+
+	unregister_netdev(dev);
+	nubus_writew(0, dev->base_addr + ADD_PORT);
+	free_netdev(dev);
 	return 0;
 }
 
-void
-cleanup_module(void)
-{
-	unregister_netdev(dev_cs89x0);
-	nubus_writew(0, dev_cs89x0->base_addr + ADD_PORT);
-	free_netdev(dev_cs89x0);
-}
-#endif /* MODULE */
+static struct platform_driver mac89x0_platform_driver = {
+	.probe = mac89x0_device_probe,
+	.remove = mac89x0_device_remove,
+	.driver = {
+		.name = "mac89x0",
+	},
+};
+
+module_platform_driver(mac89x0_platform_driver);
