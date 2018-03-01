@@ -4891,7 +4891,7 @@ EXPORT_SYMBOL_GPL(skb_scrub_packet);
  *
  * The MAC/L2 or network (IP, IPv6) headers are not accounted for.
  */
-unsigned int skb_gso_transport_seglen(const struct sk_buff *skb)
+static unsigned int skb_gso_transport_seglen(const struct sk_buff *skb)
 {
 	const struct skb_shared_info *shinfo = skb_shinfo(skb);
 	unsigned int thlen = 0;
@@ -4913,7 +4913,40 @@ unsigned int skb_gso_transport_seglen(const struct sk_buff *skb)
 	 */
 	return thlen + shinfo->gso_size;
 }
-EXPORT_SYMBOL_GPL(skb_gso_transport_seglen);
+
+/**
+ * skb_gso_network_seglen - Return length of individual segments of a gso packet
+ *
+ * @skb: GSO skb
+ *
+ * skb_gso_network_seglen is used to determine the real size of the
+ * individual segments, including Layer3 (IP, IPv6) and L4 headers (TCP/UDP).
+ *
+ * The MAC/L2 header is not accounted for.
+ */
+static unsigned int skb_gso_network_seglen(const struct sk_buff *skb)
+{
+	unsigned int hdr_len = skb_transport_header(skb) -
+			       skb_network_header(skb);
+
+	return hdr_len + skb_gso_transport_seglen(skb);
+}
+
+/**
+ * skb_gso_mac_seglen - Return length of individual segments of a gso packet
+ *
+ * @skb: GSO skb
+ *
+ * skb_gso_mac_seglen is used to determine the real size of the
+ * individual segments, including MAC/L2, Layer3 (IP, IPv6) and L4
+ * headers (TCP/UDP).
+ */
+static unsigned int skb_gso_mac_seglen(const struct sk_buff *skb)
+{
+	unsigned int hdr_len = skb_transport_header(skb) - skb_mac_header(skb);
+
+	return hdr_len + skb_gso_transport_seglen(skb);
+}
 
 /**
  * skb_gso_size_check - check the skb size, considering GSO_BY_FRAGS
