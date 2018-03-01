@@ -14,9 +14,6 @@ menuconfig AUXDISPLAY
 
 	  If you say N, all options in this submenu will be skipped and disabled.
 
-config CHARLCD
-	tristate "Character LCD core support" if COMPILE_TEST
-
 if AUXDISPLAY
 
 config HD44780
@@ -157,8 +154,6 @@ config HT16K33
 	  Say yes here to add support for Holtek HT16K33, RAM mapping 16*8
 	  LED controller driver with keyscan.
 
-endif # AUXDISPLAY
-
 config ARM_CHARLCD
 	bool "ARM Ltd. Character LCD Driver"
 	depends on PLAT_VERSATILE
@@ -168,6 +163,8 @@ config ARM_CHARLCD
 	  very much more than display the text "ARM Linux" on the first
 	  line and the Linux version on the second line, but that's
 	  still useful.
+
+endif # AUXDISPLAY
 
 config PANEL
 	tristate "Parallel port LCD/Keypad Panel support"
@@ -448,3 +445,6 @@ config PANEL_BOOT_MESSAGE
 	  printf()-formatted message is valid with newline and escape codes.
 
 endif # PANEL
+
+config CHARLCD
+	tristate "Character LCD core support" if COMPILE_TEST
