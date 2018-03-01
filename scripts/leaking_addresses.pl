@@ -463,6 +463,16 @@ sub parse_file
 	close $fh;
 }
 
+# Checks if the actual path name is leaking a kernel address.
+sub check_path_for_leaks
+{
+	my ($path) = @_;
+
+	if (may_leak_address($path)) {
+		printf("Path name may contain address: $path\n");
+	}
+}
+
 # Recursively walk directory tree.
 sub walk
 {
@@ -484,6 +494,8 @@ sub walk
 				 ($path !~ /^\/proc\/1$/));
 
 			next if (skip($path));
+
+			check_path_for_leaks($path);
 
 			if (-d $path) {
 				push @dirs, $path;
