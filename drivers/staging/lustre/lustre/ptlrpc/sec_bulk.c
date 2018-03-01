@@ -377,7 +377,7 @@ static inline void enc_pools_alloc(void)
 	page_pools.epp_pools =
 		kvzalloc(page_pools.epp_max_pools *
 				sizeof(*page_pools.epp_pools),
-				GFP_NOFS);
+				GFP_KERNEL);
 }
 
 static inline void enc_pools_free(void)

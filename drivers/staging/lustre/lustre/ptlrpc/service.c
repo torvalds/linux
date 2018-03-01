@@ -2046,7 +2046,7 @@ static int ptlrpc_main(void *arg)
 			goto out;
 	}
 
-	env = kzalloc(sizeof(*env), GFP_NOFS);
+	env = kzalloc(sizeof(*env), GFP_KERNEL);
 	if (!env) {
 		rc = -ENOMEM;
 		goto out_srv_fini;
@@ -2072,7 +2072,7 @@ static int ptlrpc_main(void *arg)
 	}
 
 	/* Alloc reply state structure for this one */
-	rs = kvzalloc(svc->srv_max_reply_size, GFP_NOFS);
+	rs = kvzalloc(svc->srv_max_reply_size, GFP_KERNEL);
 	if (!rs) {
 		rc = -ENOMEM;
 		goto out_srv_fini;
