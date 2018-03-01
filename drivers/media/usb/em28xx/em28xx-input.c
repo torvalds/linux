@@ -515,7 +515,8 @@ static void em28xx_query_buttons(struct work_struct *work)
 		j = 0;
 		while (dev->board.buttons[j].role >= 0 &&
 		       dev->board.buttons[j].role < EM28XX_NUM_BUTTON_ROLES) {
-			struct em28xx_button *button = &dev->board.buttons[j];
+			const struct em28xx_button *button = &dev->board.buttons[j];
+
 			/* Check if button uses the current address */
 			if (button->reg_r != dev->button_polling_addresses[i]) {
 				j++;
@@ -618,7 +619,8 @@ static void em28xx_init_buttons(struct em28xx *dev)
 	dev->button_polling_interval = EM28XX_BUTTONS_DEBOUNCED_QUERY_INTERVAL;
 	while (dev->board.buttons[i].role >= 0 &&
 	       dev->board.buttons[i].role < EM28XX_NUM_BUTTON_ROLES) {
-		struct em28xx_button *button = &dev->board.buttons[i];
+		const struct em28xx_button *button = &dev->board.buttons[i];
+
 		/* Check if polling address is already on the list */
 		addr_new = true;
 		for (j = 0; j < dev->num_button_polling_addresses; j++) {

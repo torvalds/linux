@@ -386,7 +386,7 @@ struct em28xx_input {
 	unsigned int vmux;
 	enum em28xx_amux amux;
 	enum em28xx_aout aout;
-	struct em28xx_reg_seq *gpio;
+	const struct em28xx_reg_seq *gpio;
 };
 
 #define INPUT(nr) (&em28xx_boards[dev->model].input[nr])
@@ -450,10 +450,10 @@ struct em28xx_board {
 	unsigned int tda9887_conf;
 
 	/* GPIO sequences */
-	struct em28xx_reg_seq *dvb_gpio;
-	struct em28xx_reg_seq *suspend_gpio;
-	struct em28xx_reg_seq *tuner_gpio;
-	struct em28xx_reg_seq *mute_gpio;
+	const struct em28xx_reg_seq *dvb_gpio;
+	const struct em28xx_reg_seq *suspend_gpio;
+	const struct em28xx_reg_seq *tuner_gpio;
+	const struct em28xx_reg_seq *mute_gpio;
 
 	unsigned int is_em2800:1;
 	unsigned int has_msp34xx:1;
@@ -480,7 +480,7 @@ struct em28xx_board {
 	struct em28xx_led	  *leds;
 
 	/* Buttons */
-	struct em28xx_button	  *buttons;
+	const struct em28xx_button *buttons;
 };
 
 struct em28xx_eeprom {
@@ -792,7 +792,7 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 void em28xx_uninit_usb_xfer(struct em28xx *dev, enum em28xx_mode mode);
 void em28xx_stop_urbs(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
-int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
+int em28xx_gpio_set(struct em28xx *dev, const struct em28xx_reg_seq *gpio);
 int em28xx_register_extension(struct em28xx_ops *dev);
 void em28xx_unregister_extension(struct em28xx_ops *dev);
 void em28xx_init_extension(struct em28xx *dev);
@@ -801,7 +801,7 @@ int em28xx_suspend_extension(struct em28xx *dev);
 int em28xx_resume_extension(struct em28xx *dev);
 
 /* Provided by em28xx-cards.c */
-extern struct em28xx_board em28xx_boards[];
+extern const struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_setup_xc3028(struct em28xx *dev, struct xc2028_ctrl *ctl);

@@ -712,7 +712,7 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 	return rc;
 }
 
-int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio)
+int em28xx_gpio_set(struct em28xx *dev, const struct em28xx_reg_seq *gpio)
 {
 	int rc = 0;
 
