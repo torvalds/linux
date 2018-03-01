@@ -7779,7 +7779,6 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 	if (r)
 		return r;
 	kvm_vcpu_reset(vcpu, false);
-	kvm_lapic_reset(vcpu, false);
 	kvm_mmu_setup(vcpu);
 	vcpu_put(vcpu);
 	return r;
@@ -7822,6 +7821,8 @@ void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 
 void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 {
+	kvm_lapic_reset(vcpu, init_event);
+
 	vcpu->arch.hflags = 0;
 
 	vcpu->arch.smi_pending = 0;
