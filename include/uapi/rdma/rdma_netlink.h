@@ -244,6 +244,8 @@ enum rdma_nldev_command {
 
 	RDMA_NLDEV_CMD_RES_MR_GET, /* can dump */
 
+	RDMA_NLDEV_CMD_RES_PD_GET, /* can dump */
+
 	RDMA_NLDEV_NUM_OPS
 };
 
@@ -380,6 +382,11 @@ enum rdma_nldev_attr {
 	RDMA_NLDEV_ATTR_RES_LKEY,		/* u32 */
 	RDMA_NLDEV_ATTR_RES_IOVA,		/* u64 */
 	RDMA_NLDEV_ATTR_RES_MRLEN,		/* u64 */
+
+	RDMA_NLDEV_ATTR_RES_PD,			/* nested table */
+	RDMA_NLDEV_ATTR_RES_PD_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY,	/* u32 */
+	RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY,	/* u32 */
 
 	RDMA_NLDEV_ATTR_MAX
 };
