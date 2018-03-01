@@ -138,7 +138,9 @@ static void tk_set_wall_to_mono(struct timekeeper *tk, struct timespec64 wtm)
 
 static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
 {
-	tk->offs_boot = ktime_add(tk->offs_boot, delta);
+	/* Update both bases so mono and raw stay coupled. */
+	tk->tkr_mono.base += delta;
+	tk->tkr_raw.base += delta;
 
 	/* Accumulate time spent in suspend */
 	tk->time_suspended += delta;
@@ -1622,7 +1624,6 @@ static void __timekeeping_inject_sleeptime(struct timekeeper *tk,
 		return;
 	}
 	tk_xtime_add(tk, delta);
-	tk_set_wall_to_mono(tk, timespec64_sub(tk->wall_to_monotonic, *delta));
 	tk_update_sleep_time(tk, timespec64_to_ktime(*delta));
 	tk_debug_account_sleep_time(delta);
 }
@@ -2155,7 +2156,7 @@ out:
 void getboottime64(struct timespec64 *ts)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
-	ktime_t t = ktime_sub(tk->offs_real, tk->offs_boot);
+	ktime_t t = ktime_sub(tk->offs_real, tk->time_suspended);
 
 	*ts = ktime_to_timespec64(t);
 }
