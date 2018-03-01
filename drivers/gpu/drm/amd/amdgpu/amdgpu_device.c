@@ -492,7 +492,7 @@ static int amdgpu_device_wb_init(struct amdgpu_device *adev)
 		memset(&adev->wb.used, 0, sizeof(adev->wb.used));
 
 		/* clear wb memory */
-		memset((char *)adev->wb.wb, 0, AMDGPU_MAX_WB * sizeof(uint32_t));
+		memset((char *)adev->wb.wb, 0, AMDGPU_MAX_WB * sizeof(uint32_t) * 8);
 	}
 
 	return 0;
@@ -530,8 +530,9 @@ int amdgpu_device_wb_get(struct amdgpu_device *adev, u32 *wb)
  */
 void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb)
 {
+	wb >>= 3;
 	if (wb < adev->wb.num_wb)
-		__clear_bit(wb >> 3, adev->wb.used);
+		__clear_bit(wb, adev->wb.used);
 }
 
 /**
@@ -1455,11 +1456,6 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.hw)
 			continue;
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
-			amdgpu_free_static_csa(adev);
-			amdgpu_device_wb_fini(adev);
-			amdgpu_device_vram_scratch_fini(adev);
-		}
 
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
 			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE) {
@@ -1486,6 +1482,13 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
 		if (!adev->ip_blocks[i].status.sw)
 			continue;
+
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_GMC) {
+			amdgpu_free_static_csa(adev);
+			amdgpu_device_wb_fini(adev);
+			amdgpu_device_vram_scratch_fini(adev);
+		}
+
 		r = adev->ip_blocks[i].version->funcs->sw_fini((void *)adev);
 		/* XXX handle errors */
 		if (r) {
