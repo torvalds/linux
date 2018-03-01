@@ -209,6 +209,7 @@ static int snd_bcm2835_playback_close(struct snd_pcm_substream *substream)
 	 */
 	if (alsa_stream->running) {
 		int err;
+
 		err = bcm2835_audio_stop(alsa_stream);
 		alsa_stream->running = 0;
 		if (err)
