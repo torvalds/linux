@@ -134,15 +134,12 @@ static const struct sun4i_hdmi_i2c_variant sun6i_variant = {
 
 static int fifo_transfer(struct sun4i_hdmi_i2c_drv *drv, u8 *buf, int len, bool read)
 {
-	/*
-	 * 1 byte takes 9 clock cycles (8 bits + 1 ACK) = 90 us for 100 kHz
-	 * clock. As clock rate is fixed, just round it up to 100 us.
-	 */
-	const unsigned long byte_time_ns = 100;
 	const u32 mask = SUN4I_HDMI_DDC_INT_STATUS_ERROR_MASK |
 			 SUN4I_HDMI_DDC_INT_STATUS_FIFO_REQUEST |
 			 SUN4I_HDMI_DDC_INT_STATUS_TRANSFER_COMPLETE;
 	u32 reg;
+	unsigned long byte_time_us;
+
 	/*
 	 * If threshold is inclusive, then the FIFO may only have
 	 * RX_THRESHOLD number of bytes, instead of RX_THRESHOLD + 1.
@@ -156,11 +153,19 @@ static int fifo_transfer(struct sun4i_hdmi_i2c_drv *drv, u8 *buf, int len, bool 
 	 */
 	len = min_t(int, len, read ? read_len : SUN4I_HDMI_DDC_FIFO_SIZE);
 
+	/*
+	 * 1 byte takes 9 clock cycles (8 bits + 1 ACK) times the number of
+	 * bytes to be transmitted. One additional 'round-up' byte is added
+	 * as a margin.
+	 */
+	byte_time_us = (len + 1) * 9 * clk_get_rate(drv->ddc_clk) / 10000;
+
 	/* Wait until error, FIFO request bit set or transfer complete */
 	if (regmap_field_read_poll_timeout(drv->field_ddc_int_status, reg,
-					   reg & mask, len * byte_time_ns,
-					   100000))
+					   reg & mask, byte_time_us, 100000)) {
+		dev_err(drv->dev, "DDC bus timeout after %lu us\n", byte_time_us);
 		return -ETIMEDOUT;
+	}
 
 	if (reg & SUN4I_HDMI_DDC_INT_STATUS_ERROR_MASK)
 		return -EIO;
