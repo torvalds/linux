@@ -74,7 +74,7 @@ omapdss_of_find_source_for_first_ep(struct device_node *node)
 		return NULL;
 
 	/* ... and finally the source. */
-	src = omap_dss_find_output_by_port(src_node, port_number);
+	src = omapdss_find_device_by_port(src_node, port_number);
 	of_node_put(src_node);
 
 	return src ? src : ERR_PTR(-EPROBE_DEFER);

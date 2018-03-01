@@ -563,6 +563,8 @@ void omapdss_unregister_display(struct omap_dss_device *dssdev);
 
 void omapdss_device_register(struct omap_dss_device *dssdev);
 void omapdss_device_unregister(struct omap_dss_device *dssdev);
+struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
+						    unsigned int port);
 
 struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev);
 void omap_dss_put_device(struct omap_dss_device *dssdev);
@@ -576,8 +578,6 @@ int omap_dss_get_num_overlays(void);
 int omapdss_register_output(struct omap_dss_device *output);
 void omapdss_unregister_output(struct omap_dss_device *output);
 struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id);
-struct omap_dss_device *omap_dss_find_output_by_port(struct device_node *src,
-						     unsigned int port);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);

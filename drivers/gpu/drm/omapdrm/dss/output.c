@@ -122,19 +122,6 @@ struct omap_dss_device *omap_dss_get_output(enum omap_dss_output_id id)
 }
 EXPORT_SYMBOL(omap_dss_get_output);
 
-struct omap_dss_device *omap_dss_find_output_by_port(struct device_node *src,
-						     unsigned int port)
-{
-	struct omap_dss_device *out;
-
-	list_for_each_entry(out, &output_list, output_list) {
-		if (out->dev->of_node == src && out->port_num == port)
-			return omap_dss_get_device(out);
-	}
-
-	return NULL;
-}
-
 struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
 {
 	while (dssdev->src)

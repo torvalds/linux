@@ -89,6 +89,19 @@ static bool omapdss_device_is_registered(struct device_node *node)
 	return found;
 }
 
+struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
+						    unsigned int port)
+{
+	struct omap_dss_device *dssdev;
+
+	list_for_each_entry(dssdev, &omapdss_devices_list, list) {
+		if (dssdev->dev->of_node == src && dssdev->port_num == port)
+			return omap_dss_get_device(dssdev);
+	}
+
+	return NULL;
+}
+
 /* -----------------------------------------------------------------------------
  * Components Handling
  */
