@@ -45,6 +45,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <locale.h>
 #include <poll.h>
 #include <unistd.h>
 #include <sched.h>
@@ -1542,7 +1543,9 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN(0, "tail-synthesize", &record.opts.tail_synthesize,
 		    "synthesize non-sample events at the end of output"),
 	OPT_BOOLEAN(0, "overwrite", &record.opts.overwrite, "use overwrite mode"),
-	OPT_UINTEGER('F', "freq", &record.opts.user_freq, "profile at this frequency"),
+	OPT_CALLBACK('F', "freq", &record.opts, "freq or 'max'",
+		     "profile at this frequency",
+		      record__parse_freq),
 	OPT_CALLBACK('m', "mmap-pages", &record.opts, "pages[,pages]",
 		     "number of mmap data pages and AUX area tracing mmap pages",
 		     record__parse_mmap_pages),
@@ -1650,6 +1653,8 @@ int cmd_record(int argc, const char **argv)
 	int err;
 	struct record *rec = &record;
 	char errbuf[BUFSIZ];
+
+	setlocale(LC_ALL, "");
 
 #ifndef HAVE_LIBBPF_SUPPORT
 # define set_nobuild(s, l, c) set_option_nobuild(record_options, s, l, "NO_LIBBPF=1", c)

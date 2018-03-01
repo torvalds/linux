@@ -5,6 +5,7 @@
 #include "parse-events.h"
 #include <errno.h>
 #include <api/fs/fs.h>
+#include <subcmd/parse-options.h>
 #include "util.h"
 #include "cloexec.h"
 
@@ -286,4 +287,26 @@ bool perf_evlist__can_select_event(struct perf_evlist *evlist, const char *str)
 out_delete:
 	perf_evlist__delete(temp_evlist);
 	return ret;
+}
+
+int record__parse_freq(const struct option *opt, const char *str, int unset __maybe_unused)
+{
+	unsigned int freq;
+	struct record_opts *opts = opt->value;
+
+	if (!str)
+		return -EINVAL;
+
+	if (strcasecmp(str, "max") == 0) {
+		if (get_max_rate(&freq)) {
+			pr_err("couldn't read /proc/sys/kernel/perf_event_max_sample_rate\n");
+			return -1;
+		}
+		pr_info("info: Using a maximum frequency rate of %'d Hz\n", freq);
+	} else {
+		freq = atoi(str);
+	}
+
+	opts->user_freq = freq;
+	return 0;
 }

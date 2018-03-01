@@ -193,7 +193,9 @@ OPTIONS
 	Child tasks do not inherit counters.
 -F::
 --freq=::
-	Profile at this frequency.
+	Profile at this frequency. Use 'max' to use the currently maximum
+	allowed frequency, i.e. the value in the kernel.perf_event_max_sample_rate
+	sysctl.
 
 -m::
 --mmap-pages=::
