@@ -602,6 +602,7 @@ inno_hdmi_phy_rk3228_power_on(struct inno_hdmi_phy *inno,
 	inno_update_bits(inno, 0x02, PDATAEN_MASK, PDATAEN_DISABLE);
 
 	/* Power down Post-PLL */
+	inno_update_bits(inno, 0xe0, PRE_PLL_POWER_MASK, PRE_PLL_POWER_DOWN);
 	inno_update_bits(inno, 0xe0, POST_PLL_POWER_MASK, POST_PLL_POWER_DOWN);
 
 	/* Post-PLL update */
@@ -635,6 +636,7 @@ inno_hdmi_phy_rk3228_power_on(struct inno_hdmi_phy *inno,
 
 	/* Power up Post-PLL */
 	inno_update_bits(inno, 0xe0, POST_PLL_POWER_MASK, POST_PLL_POWER_UP);
+	inno_update_bits(inno, 0xe0, PRE_PLL_POWER_MASK, PRE_PLL_POWER_UP);
 
 	/* BandGap enable */
 	inno_update_bits(inno, 0xe1, BANDGAP_MASK, BANDGAP_ENABLE);
