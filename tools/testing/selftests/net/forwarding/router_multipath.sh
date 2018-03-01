@@ -168,6 +168,13 @@ multipath_eval()
 
        RET=0
 
+       if [[ "$packets_rp12" -eq "0" || "$packets_rp13" -eq "0" ]]; then
+              check_err 1 "Packet difference is 0"
+              log_test "Multipath"
+              log_info "Expected ratio $weights_ratio"
+              return
+       fi
+
        if [[ "$weight_rp12" -gt "$weight_rp13" ]]; then
                weights_ratio=$(echo "scale=2; $weight_rp12 / $weight_rp13" \
 		       | bc -l)
