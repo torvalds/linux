@@ -378,7 +378,7 @@ static int em28xx_set_audio_source(struct em28xx *dev)
 			return ret;
 	}
 
-	if (dev->board.has_msp34xx)
+	if (dev->has_msp34xx)
 		input = EM28XX_AUDIO_SRC_TUNER;
 	else {
 		switch (dev->ctl_ainput) {
@@ -672,7 +672,7 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 			return rc;
 
 		if (start) {
-			if (dev->board.is_webcam)
+			if (dev->is_webcam)
 				rc = em28xx_write_reg(dev, 0x13, 0x0c);
 
 			/* Enable video capture */

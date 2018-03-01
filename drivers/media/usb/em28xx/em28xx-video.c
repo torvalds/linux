@@ -148,7 +148,7 @@ static inline unsigned int norm_maxw(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		return v4l2->sensor_xres;
 
 	if (dev->board.max_range_640_480)
@@ -161,7 +161,7 @@ static inline unsigned int norm_maxh(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
 
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		return v4l2->sensor_yres;
 
 	if (dev->board.max_range_640_480)
@@ -176,7 +176,7 @@ static int em28xx_vbi_supported(struct em28xx *dev)
 	if (disable_vbi == 1)
 		return 0;
 
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		return 0;
 
 	/* FIXME: check subdevices for VBI support */
@@ -976,7 +976,7 @@ static void em28xx_v4l2_create_entities(struct em28xx *dev)
 	}
 
 	/* Webcams don't have input connectors */
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		return;
 
 	/* Create entities for each input connector */
@@ -1277,7 +1277,7 @@ static void video_mux(struct em28xx *dev, int index)
 	v4l2_device_call_all(v4l2_dev, 0, video, s_routing,
 			     INPUT(index)->vmux, 0, 0);
 
-	if (dev->board.has_msp34xx) {
+	if (dev->has_msp34xx) {
 		if (dev->i2s_speed) {
 			v4l2_device_call_all(v4l2_dev, 0, audio,
 					     s_i2s_clock_freq, dev->i2s_speed);
@@ -1593,7 +1593,7 @@ static int vidioc_g_parm(struct file *file, void *priv,
 
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
 	p->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
-	if (dev->board.is_webcam) {
+	if (dev->is_webcam) {
 		rc = v4l2_device_call_until_err(&v4l2->v4l2_dev, 0,
 						video, g_frame_interval, &ival);
 		if (!rc)
@@ -1616,7 +1616,7 @@ static int vidioc_s_parm(struct file *file, void *priv,
 	};
 	int rc = 0;
 
-	if (!dev->board.is_webcam)
+	if (!dev->is_webcam)
 		return -ENOTTY;
 
 	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
@@ -1655,7 +1655,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 	i->std = dev->v4l2->vdev.tvnorms;
 	/* webcams do not have the STD API */
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		i->capabilities = 0;
 
 	return 0;
@@ -2369,7 +2369,7 @@ static void em28xx_vdev_init(struct em28xx *dev,
 	*vfd		= *template;
 	vfd->v4l2_dev	= &dev->v4l2->v4l2_dev;
 	vfd->lock	= &dev->lock;
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		vfd->tvnorms = 0;
 
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
@@ -2484,7 +2484,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2_ctrl_handler_init(hdl, 8);
 	v4l2->v4l2_dev.ctrl_handler = hdl;
 
-	if (dev->board.is_webcam)
+	if (dev->is_webcam)
 		v4l2->progressive = true;
 
 	/*
@@ -2496,7 +2496,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 
 	/* request some modules */
 
-	if (dev->board.has_msp34xx)
+	if (dev->has_msp34xx)
 		v4l2_i2c_new_subdev(&v4l2->v4l2_dev,
 				    &dev->i2c_adap[dev->def_i2c_bus],
 				    "msp3400", 0, msp3400_addrs);
@@ -2585,7 +2585,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	INIT_LIST_HEAD(&dev->vidq.active);
 	INIT_LIST_HEAD(&dev->vbiq.active);
 
-	if (dev->board.has_msp34xx) {
+	if (dev->has_msp34xx) {
 		/* Send a reset to other chips via gpio */
 		ret = em28xx_write_reg(dev, EM2820_R08_GPIO_CTRL, 0xf7);
 		if (ret < 0) {
@@ -2679,7 +2679,7 @@ static int em28xx_v4l2_init(struct em28xx *dev)
 	v4l2->vdev.queue->lock = &v4l2->vb_queue_lock;
 
 	/* disable inapplicable ioctls */
-	if (dev->board.is_webcam) {
+	if (dev->is_webcam) {
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_QUERYSTD);
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_G_STD);
 		v4l2_disable_ioctl(&v4l2->vdev, VIDIOC_S_STD);

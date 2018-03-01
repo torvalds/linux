@@ -623,6 +623,8 @@ struct em28xx {
 	unsigned char disconnected:1;	/* device has been diconnected */
 	unsigned int has_video:1;
 	unsigned int is_audio_only:1;
+	unsigned int is_webcam:1;
+	unsigned int has_msp34xx:1;
 	enum em28xx_int_audio_type int_audio_type;
 	enum em28xx_usb_audio_type usb_audio_type;
 	unsigned char name[32];

@@ -2712,6 +2712,8 @@ static inline void em28xx_set_xclk_i2c_speed(struct em28xx *dev)
 static inline void em28xx_set_model(struct em28xx *dev)
 {
 	dev->board = em28xx_boards[dev->model];
+	dev->has_msp34xx = dev->board.has_msp34xx;
+	dev->is_webcam = dev->board.is_webcam;
 
 	em28xx_set_xclk_i2c_speed(dev);
 
@@ -2871,7 +2873,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 {
 	int i;
 
-	if (dev->board.is_webcam) {
+	if (dev->is_webcam) {
 		if (dev->em28xx_sensor == EM28XX_MT9V011) {
 			dev->model = EM2820_BOARD_SILVERCREST_WEBCAM;
 		} else if (dev->em28xx_sensor == EM28XX_MT9M001 ||
@@ -2963,11 +2965,11 @@ static void em28xx_card_setup(struct em28xx *dev)
 	 * If the device can be a webcam, seek for a sensor.
 	 * If sensor is not found, then it isn't a webcam.
 	 */
-	if (dev->board.is_webcam) {
+	if (dev->is_webcam) {
 		em28xx_detect_sensor(dev);
 		if (dev->em28xx_sensor == EM28XX_NOSENSOR)
 			/* NOTE: error/unknown sensor/no sensor */
-			dev->board.is_webcam = 0;
+			dev->is_webcam = 0;
 	}
 
 	switch (dev->model) {
@@ -3029,7 +3031,7 @@ static void em28xx_card_setup(struct em28xx *dev)
 
 		if (tv.audio_processor == TVEEPROM_AUDPROC_MSP) {
 			dev->i2s_speed = 2048000;
-			dev->board.has_msp34xx = 1;
+			dev->has_msp34xx = 1;
 		}
 		break;
 	}
@@ -3742,7 +3744,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	if (usb_xfer_mode < 0) {
-		if (dev->board.is_webcam)
+		if (dev->is_webcam)
 			try_bulk = 1;
 		else
 			try_bulk = 0;
@@ -3794,7 +3796,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		dev->dev_next->board.has_ir_i2c = 0; /* No IR for 2nd tuner */
 
 		if (usb_xfer_mode < 0) {
-			if (dev->dev_next->board.is_webcam)
+			if (dev->dev_next->is_webcam)
 				try_bulk = 1;
 			else
 				try_bulk = 0;
