@@ -201,6 +201,7 @@
 				compatible = "st,stih407-hdmi";
 				reg = <0x8d04000 0x1000>;
 				reg-names = "hdmi-reg";
+				#sound-dai-cells = <0>;
 				interrupts = <GIC_SPI 106 IRQ_TYPE_NONE>;
 				interrupt-names	= "irq";
 				clock-names = "pix",
