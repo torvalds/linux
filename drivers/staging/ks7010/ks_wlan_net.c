@@ -1366,8 +1366,8 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
 	capabilities = ap->capability;
-	if (capabilities & (BSS_CAP_ESS | BSS_CAP_IBSS)) {
-		if (capabilities & BSS_CAP_ESS)
+	if (capabilities & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)) {
+		if (capabilities & WLAN_CAPABILITY_ESS)
 			iwe.u.mode = IW_MODE_INFRA;
 		else
 			iwe.u.mode = IW_MODE_ADHOC;
@@ -1396,7 +1396,7 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
-	if (capabilities & BSS_CAP_PRIVACY)
+	if (capabilities & WLAN_CAPABILITY_PRIVACY)
 		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
 	else
 		iwe.u.data.flags = IW_ENCODE_DISABLED;

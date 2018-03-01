@@ -284,16 +284,6 @@ struct ap_info_t {
 	u8 pad0;	/* +09 */
 	__le16 beacon_period;	/* +10 */
 	__le16 capability;	/* +12 */
-#define BSS_CAP_ESS             BIT(0)
-#define BSS_CAP_IBSS            BIT(1)
-#define BSS_CAP_CF_POLABLE      BIT(2)
-#define BSS_CAP_CF_POLL_REQ     BIT(3)
-#define BSS_CAP_PRIVACY         BIT(4)
-#define BSS_CAP_SHORT_PREAMBLE  BIT(5)
-#define BSS_CAP_PBCC            BIT(6)
-#define BSS_CAP_CHANNEL_AGILITY BIT(7)
-#define BSS_CAP_SHORT_SLOT_TIME BIT(10)
-#define BSS_CAP_DSSS_OFDM       BIT(13)
 	u8 frame_type;	/* +14 */
 	u8 ch_info;	/* +15 */
 #define FRAME_TYPE_BEACON	0x80
