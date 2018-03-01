@@ -1518,8 +1518,9 @@ void dsi_dump_clocks(struct seq_file *s)
 }
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-static void dsi_dump_dsi_irqs(struct dsi_data *dsi, struct seq_file *s)
+static int dsi_dump_dsi_irqs(struct seq_file *s, void *p)
 {
+	struct dsi_data *dsi = p;
 	unsigned long flags;
 	struct dsi_irq_stats stats;
 
@@ -1603,33 +1604,20 @@ static void dsi_dump_dsi_irqs(struct dsi_data *dsi, struct seq_file *s)
 	PIS(ULPSACTIVENOT_ALL0);
 	PIS(ULPSACTIVENOT_ALL1);
 #undef PIS
-}
 
-static int dsi1_dump_irqs(struct seq_file *s, void *p)
-{
-	struct dsi_data *dsi = dsi_get_dsi_from_id(0);
-
-	dsi_dump_dsi_irqs(dsi, s);
-	return 0;
-}
-
-static int dsi2_dump_irqs(struct seq_file *s, void *p)
-{
-	struct dsi_data *dsi = dsi_get_dsi_from_id(1);
-
-	dsi_dump_dsi_irqs(dsi, s);
 	return 0;
 }
 #endif
 
-static void dsi_dump_dsi_regs(struct dsi_data *dsi, struct seq_file *s)
+static int dsi_dump_dsi_regs(struct seq_file *s, void *p)
 {
-#define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dsi_read_reg(dsi, r))
+	struct dsi_data *dsi = p;
 
 	if (dsi_runtime_get(dsi))
-		return;
+		return 0;
 	dsi_enable_scp_clk(dsi);
 
+#define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dsi_read_reg(dsi, r))
 	DUMPREG(DSI_REVISION);
 	DUMPREG(DSI_SYSCONFIG);
 	DUMPREG(DSI_SYSSTATUS);
@@ -1699,25 +1687,11 @@ static void dsi_dump_dsi_regs(struct dsi_data *dsi, struct seq_file *s)
 	DUMPREG(DSI_PLL_GO);
 	DUMPREG(DSI_PLL_CONFIGURATION1);
 	DUMPREG(DSI_PLL_CONFIGURATION2);
+#undef DUMPREG
 
 	dsi_disable_scp_clk(dsi);
 	dsi_runtime_put(dsi);
-#undef DUMPREG
-}
 
-static int dsi1_dump_regs(struct seq_file *s, void *p)
-{
-	struct dsi_data *dsi = dsi_get_dsi_from_id(0);
-
-	dsi_dump_dsi_regs(dsi, s);
-	return 0;
-}
-
-static int dsi2_dump_regs(struct seq_file *s, void *p)
-{
-	struct dsi_data *dsi = dsi_get_dsi_from_id(1);
-
-	dsi_dump_dsi_regs(dsi, s);
 	return 0;
 }
 
@@ -5305,6 +5279,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	struct dsi_data *dsi;
 	struct resource *dsi_mem;
 	struct resource *res;
+	char name[10];
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
@@ -5443,23 +5418,13 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	dsi_runtime_put(dsi);
 
-	if (dsi->module_id == 0)
-		dsi->debugfs.regs = dss_debugfs_create_file(dss, "dsi1_regs",
-							    dsi1_dump_regs,
-							    &dsi);
-	else
-		dsi->debugfs.regs = dss_debugfs_create_file(dss, "dsi2_regs",
-							    dsi2_dump_regs,
-							    &dsi);
+	snprintf(name, sizeof(name), "dsi%u_regs", dsi->module_id + 1);
+	dsi->debugfs.regs = dss_debugfs_create_file(dss, name,
+						    dsi_dump_dsi_regs, &dsi);
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	if (dsi->module_id == 0)
-		dsi->debugfs.irqs = dss_debugfs_create_file(dss, "dsi1_irqs",
-							    dsi1_dump_irqs,
-							    &dsi);
-	else
-		dsi->debugfs.irqs = dss_debugfs_create_file(dss, "dsi2_irqs",
-							    dsi2_dump_irqs,
-							    &dsi);
+	snprintf(name, sizeof(name), "dsi%u_irqs", dsi->module_id + 1);
+	dsi->debugfs.irqs = dss_debugfs_create_file(dss, name,
+						    dsi_dump_dsi_irqs, &dsi);
 #endif
 
 	return 0;
