@@ -80,8 +80,8 @@ static unsigned long sun4i_ddc_recalc_rate(struct clk_hw *hw,
 	u8 m, n;
 
 	regmap_field_read(ddc->reg, &reg);
-	m = (reg >> 3) & 0xf;
-	n = reg & 0x7;
+	m = SUN4I_HDMI_DDC_CLK_M_GET(reg);
+	n = SUN4I_HDMI_DDC_CLK_N_GET(reg);
 
 	return (((parent_rate / ddc->pre_div) / 10) >> n) /
 	       (m + ddc->m_offset);

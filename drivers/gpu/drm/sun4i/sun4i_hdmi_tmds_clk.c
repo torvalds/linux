@@ -171,8 +171,7 @@ static u8 sun4i_tmds_get_parent(struct clk_hw *hw)
 	u32 reg;
 
 	reg = readl(tmds->hdmi->base + SUN4I_HDMI_PLL_DBG0_REG);
-	return ((reg & SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_MASK) >>
-		SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_SHIFT);
+	return SUN4I_HDMI_PLL_DBG0_TMDS_PARENT_GET(reg);
 }
 
 static int sun4i_tmds_set_parent(struct clk_hw *hw, u8 index)
