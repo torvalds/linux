@@ -4,9 +4,6 @@
  *
  *  Link Layer Control (LLC)
  *
- *  For now, we only support the necessary "confirm link" functionality
- *  which happens for the first RoCE link after successful CLC handshake.
- *
  *  Copyright IBM Corp. 2016
  *
  *  Author(s):  Klaus Wacker <Klaus.Wacker@de.ibm.com>
@@ -26,7 +23,13 @@
 struct smc_llc_hdr {
 	struct smc_wr_rx_hdr common;
 	u8 length;	/* 44 */
-	u8 reserved;
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u8 reserved:4,
+	   add_link_rej_rsn:4;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 add_link_rej_rsn:4,
+	   reserved:4;
+#endif
 	u8 flags;
 };
 
@@ -42,6 +45,33 @@ struct smc_llc_msg_confirm_link {	/* type 0x01 */
 	u8 max_links;
 	u8 reserved[9];
 };
+
+#define SMC_LLC_FLAG_ADD_LNK_REJ	0x40
+#define SMC_LLC_REJ_RSN_NO_ALT_PATH	1
+
+#define SMC_LLC_ADD_LNK_MAX_LINKS	2
+
+struct smc_llc_msg_add_link {		/* type 0x02 */
+	struct smc_llc_hdr hd;
+	u8 sender_mac[ETH_ALEN];
+	u8 reserved2[2];
+	u8 sender_gid[SMC_GID_SIZE];
+	u8 sender_qp_num[3];
+	u8 link_num;
+	u8 flags2;	/* QP mtu */
+	u8 initial_psn[3];
+	u8 reserved[8];
+};
+
+#define SMC_LLC_FLAG_DEL_LINK_ALL	0x40
+#define SMC_LLC_FLAG_DEL_LINK_ORDERLY	0x20
+
+struct smc_llc_msg_del_link {		/* type 0x04 */
+	struct smc_llc_hdr hd;
+	u8 link_num;
+	__be32 reason;
+	u8 reserved[35];
+} __packed;			/* format defined in RFC7609 */
 
 struct smc_llc_msg_test_link {		/* type 0x07 */
 	struct smc_llc_hdr hd;
@@ -88,6 +118,8 @@ struct smc_llc_msg_delete_rkey {	/* type 0x09 */
 
 union smc_llc_msg {
 	struct smc_llc_msg_confirm_link confirm_link;
+	struct smc_llc_msg_add_link add_link;
+	struct smc_llc_msg_del_link delete_link;
 
 	struct smc_llc_msg_confirm_rkey confirm_rkey;
 	struct smc_llc_msg_confirm_rkey_cont confirm_rkey_cont;
@@ -176,7 +208,64 @@ int smc_llc_send_confirm_link(struct smc_link *link, u8 mac[],
 	hton24(confllc->sender_qp_num, link->roce_qp->qp_num);
 	/* confllc->link_num = SMC_SINGLE_LINK; already done by memset above */
 	memcpy(confllc->link_uid, lgr->id, SMC_LGR_ID_SIZE);
-	confllc->max_links = SMC_LINKS_PER_LGR_MAX;
+	confllc->max_links = SMC_LLC_ADD_LNK_MAX_LINKS; /* enforce peer resp. */
+	/* send llc message */
+	rc = smc_wr_tx_send(link, pend);
+	return rc;
+}
+
+/* send ADD LINK request or response */
+int smc_llc_send_add_link(struct smc_link *link, u8 mac[],
+			  union ib_gid *gid,
+			  enum smc_llc_reqresp reqresp)
+{
+	struct smc_llc_msg_add_link *addllc;
+	struct smc_wr_tx_pend_priv *pend;
+	struct smc_wr_buf *wr_buf;
+	int rc;
+
+	rc = smc_llc_add_pending_send(link, &wr_buf, &pend);
+	if (rc)
+		return rc;
+	addllc = (struct smc_llc_msg_add_link *)wr_buf;
+	memset(addllc, 0, sizeof(*addllc));
+	addllc->hd.common.type = SMC_LLC_ADD_LINK;
+	addllc->hd.length = sizeof(struct smc_llc_msg_add_link);
+	if (reqresp == SMC_LLC_RESP) {
+		addllc->hd.flags |= SMC_LLC_FLAG_RESP;
+		/* always reject more links for now */
+		addllc->hd.flags |= SMC_LLC_FLAG_ADD_LNK_REJ;
+		addllc->hd.add_link_rej_rsn = SMC_LLC_REJ_RSN_NO_ALT_PATH;
+	}
+	memcpy(addllc->sender_mac, mac, ETH_ALEN);
+	memcpy(addllc->sender_gid, gid, SMC_GID_SIZE);
+	/* send llc message */
+	rc = smc_wr_tx_send(link, pend);
+	return rc;
+}
+
+/* send DELETE LINK request or response */
+int smc_llc_send_delete_link(struct smc_link *link,
+			     enum smc_llc_reqresp reqresp)
+{
+	struct smc_llc_msg_del_link *delllc;
+	struct smc_wr_tx_pend_priv *pend;
+	struct smc_wr_buf *wr_buf;
+	int rc;
+
+	rc = smc_llc_add_pending_send(link, &wr_buf, &pend);
+	if (rc)
+		return rc;
+	delllc = (struct smc_llc_msg_del_link *)wr_buf;
+	memset(delllc, 0, sizeof(*delllc));
+	delllc->hd.common.type = SMC_LLC_DELETE_LINK;
+	delllc->hd.length = sizeof(struct smc_llc_msg_add_link);
+	if (reqresp == SMC_LLC_RESP)
+		delllc->hd.flags |= SMC_LLC_FLAG_RESP;
+	/* DEL_LINK_ALL because only 1 link supported */
+	delllc->hd.flags |= SMC_LLC_FLAG_DEL_LINK_ALL;
+	delllc->hd.flags |= SMC_LLC_FLAG_DEL_LINK_ORDERLY;
+	delllc->link_num = link->link_id;
 	/* send llc message */
 	rc = smc_wr_tx_send(link, pend);
 	return rc;
@@ -239,15 +328,66 @@ static void smc_llc_rx_confirm_link(struct smc_link *link,
 		conf_rc = ENOTSUPP;
 
 	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
-		if (lgr->role == SMC_SERV) {
+		if (lgr->role == SMC_SERV &&
+		    link->state == SMC_LNK_ACTIVATING) {
 			link->llc_confirm_resp_rc = conf_rc;
 			complete(&link->llc_confirm_resp);
 		}
 	} else {
-		if (lgr->role == SMC_CLNT) {
+		if (lgr->role == SMC_CLNT &&
+		    link->state == SMC_LNK_ACTIVATING) {
 			link->llc_confirm_rc = conf_rc;
 			link->link_id = llc->link_num;
 			complete(&link->llc_confirm);
+		}
+	}
+}
+
+static void smc_llc_rx_add_link(struct smc_link *link,
+				struct smc_llc_msg_add_link *llc)
+{
+	struct smc_link_group *lgr = container_of(link, struct smc_link_group,
+						  lnk[SMC_SINGLE_LINK]);
+
+	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
+		if (link->state == SMC_LNK_ACTIVATING)
+			complete(&link->llc_add_resp);
+	} else {
+		if (link->state == SMC_LNK_ACTIVATING) {
+			complete(&link->llc_add);
+			return;
+		}
+
+		if (lgr->role == SMC_SERV) {
+			smc_llc_send_add_link(link,
+					link->smcibdev->mac[link->ibport - 1],
+					&link->smcibdev->gid[link->ibport - 1],
+					SMC_LLC_REQ);
+
+		} else {
+			smc_llc_send_add_link(link,
+					link->smcibdev->mac[link->ibport - 1],
+					&link->smcibdev->gid[link->ibport - 1],
+					SMC_LLC_RESP);
+		}
+	}
+}
+
+static void smc_llc_rx_delete_link(struct smc_link *link,
+				   struct smc_llc_msg_del_link *llc)
+{
+	struct smc_link_group *lgr = container_of(link, struct smc_link_group,
+						  lnk[SMC_SINGLE_LINK]);
+
+	if (llc->hd.flags & SMC_LLC_FLAG_RESP) {
+		if (lgr->role == SMC_SERV)
+			smc_lgr_terminate(lgr);
+	} else {
+		if (lgr->role == SMC_SERV) {
+			smc_llc_send_delete_link(link, SMC_LLC_REQ);
+		} else {
+			smc_llc_send_delete_link(link, SMC_LLC_RESP);
+			smc_lgr_terminate(lgr);
 		}
 	}
 }
@@ -343,6 +483,12 @@ static void smc_llc_rx_handler(struct ib_wc *wc, void *buf)
 	case SMC_LLC_CONFIRM_LINK:
 		smc_llc_rx_confirm_link(link, &llc->confirm_link);
 		break;
+	case SMC_LLC_ADD_LINK:
+		smc_llc_rx_add_link(link, &llc->add_link);
+		break;
+	case SMC_LLC_DELETE_LINK:
+		smc_llc_rx_delete_link(link, &llc->delete_link);
+		break;
 	case SMC_LLC_CONFIRM_RKEY:
 		smc_llc_rx_confirm_rkey(link, &llc->confirm_rkey);
 		break;
@@ -365,6 +511,14 @@ static struct smc_wr_rx_handler smc_llc_rx_handlers[] = {
 	{
 		.handler	= smc_llc_rx_handler,
 		.type		= SMC_LLC_TEST_LINK
+	},
+	{
+		.handler	= smc_llc_rx_handler,
+		.type		= SMC_LLC_ADD_LINK
+	},
+	{
+		.handler	= smc_llc_rx_handler,
+		.type		= SMC_LLC_DELETE_LINK
 	},
 	{
 		.handler	= smc_llc_rx_handler,

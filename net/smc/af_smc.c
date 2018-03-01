@@ -313,6 +313,27 @@ static int smc_clnt_conf_first_link(struct smc_sock *smc)
 	if (rc < 0)
 		return SMC_CLC_DECL_TCL;
 
+	/* receive ADD LINK request from server over RoCE fabric */
+	rest = wait_for_completion_interruptible_timeout(&link->llc_add,
+							 SMC_LLC_WAIT_TIME);
+	if (rest <= 0) {
+		struct smc_clc_msg_decline dclc;
+
+		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
+				      SMC_CLC_DECLINE);
+		return rc;
+	}
+
+	/* send add link reject message, only one link supported for now */
+	rc = smc_llc_send_add_link(link,
+				   link->smcibdev->mac[link->ibport - 1],
+				   &link->smcibdev->gid[link->ibport - 1],
+				   SMC_LLC_RESP);
+	if (rc < 0)
+		return SMC_CLC_DECL_TCL;
+
+	link->state = SMC_LNK_ACTIVE;
+
 	return 0;
 }
 
@@ -713,6 +734,27 @@ static int smc_serv_conf_first_link(struct smc_sock *smc)
 
 	if (link->llc_confirm_resp_rc)
 		return SMC_CLC_DECL_RMBE_EC;
+
+	/* send ADD LINK request to client over the RoCE fabric */
+	rc = smc_llc_send_add_link(link,
+				   link->smcibdev->mac[link->ibport - 1],
+				   &link->smcibdev->gid[link->ibport - 1],
+				   SMC_LLC_REQ);
+	if (rc < 0)
+		return SMC_CLC_DECL_TCL;
+
+	/* receive ADD LINK response from client over the RoCE fabric */
+	rest = wait_for_completion_interruptible_timeout(&link->llc_add_resp,
+							 SMC_LLC_WAIT_TIME);
+	if (rest <= 0) {
+		struct smc_clc_msg_decline dclc;
+
+		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
+				      SMC_CLC_DECLINE);
+		return rc;
+	}
+
+	link->state = SMC_LNK_ACTIVE;
 
 	return 0;
 }

@@ -176,6 +176,7 @@ static int smc_lgr_create(struct smc_sock *smc,
 
 	lnk = &lgr->lnk[SMC_SINGLE_LINK];
 	/* initialize link */
+	lnk->state = SMC_LNK_ACTIVATING;
 	lnk->smcibdev = smcibdev;
 	lnk->ibport = ibport;
 	lnk->path_mtu = smcibdev->pattr[ibport - 1].active_mtu;
@@ -197,6 +198,8 @@ static int smc_lgr_create(struct smc_sock *smc,
 		goto destroy_qp;
 	init_completion(&lnk->llc_confirm);
 	init_completion(&lnk->llc_confirm_resp);
+	init_completion(&lnk->llc_add);
+	init_completion(&lnk->llc_add_resp);
 
 	smc->conn.lgr = lgr;
 	rwlock_init(&lgr->conns_lock);
