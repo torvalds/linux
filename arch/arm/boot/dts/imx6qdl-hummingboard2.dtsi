@@ -196,6 +196,7 @@
 	sgtl5000: codec@a {
 		clocks = <&clks IMX6QDL_CLK_CKO>;
 		compatible = "fsl,sgtl5000";
+		#sound-dai-cells = <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_hummingboard2_sgtl5000>;
 		reg = <0x0a>;
