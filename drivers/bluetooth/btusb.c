@@ -387,6 +387,13 @@ static const struct usb_device_id blacklist_table[] = {
  * the module itself. So we use a DMI list to match known broken platforms.
  */
 static const struct dmi_system_id btusb_needs_reset_resume_table[] = {
+	{
+		/* Dell OptiPlex 3060 (QCA ROME device 0cf3:e007) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 3060"),
+		},
+	},
 	{}
 };
 
