@@ -61,6 +61,7 @@ struct itimerval {
  */
 #define CLOCK_SGI_CYCLE			10
 #define CLOCK_TAI			11
+#define CLOCK_MONOTONIC_ACTIVE		12
 
 #define MAX_CLOCKS			16
 #define CLOCKS_MASK			(CLOCK_REALTIME | CLOCK_MONOTONIC)

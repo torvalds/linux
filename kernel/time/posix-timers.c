@@ -263,6 +263,13 @@ static int posix_get_tai(clockid_t which_clock, struct timespec64 *tp)
 	return 0;
 }
 
+static int posix_get_monotonic_active(clockid_t which_clock,
+				      struct timespec64 *tp)
+{
+	ktime_get_active_ts64(tp);
+	return 0;
+}
+
 static int posix_get_hrtimer_res(clockid_t which_clock, struct timespec64 *tp)
 {
 	tp->tv_sec = 0;
@@ -1330,6 +1337,11 @@ static const struct k_clock clock_boottime = {
 	.timer_arm		= common_hrtimer_arm,
 };
 
+static const struct k_clock clock_monotonic_active = {
+	.clock_getres		= posix_get_hrtimer_res,
+	.clock_get		= posix_get_monotonic_active,
+};
+
 static const struct k_clock * const posix_clocks[] = {
 	[CLOCK_REALTIME]		= &clock_realtime,
 	[CLOCK_MONOTONIC]		= &clock_monotonic,
@@ -1342,6 +1354,7 @@ static const struct k_clock * const posix_clocks[] = {
 	[CLOCK_REALTIME_ALARM]		= &alarm_clock,
 	[CLOCK_BOOTTIME_ALARM]		= &alarm_clock,
 	[CLOCK_TAI]			= &clock_tai,
+	[CLOCK_MONOTONIC_ACTIVE]	= &clock_monotonic_active,
 };
 
 static const struct k_clock *clockid_to_kclock(const clockid_t id)

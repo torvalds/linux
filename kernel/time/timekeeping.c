@@ -139,6 +139,9 @@ static void tk_set_wall_to_mono(struct timekeeper *tk, struct timespec64 wtm)
 static inline void tk_update_sleep_time(struct timekeeper *tk, ktime_t delta)
 {
 	tk->offs_boot = ktime_add(tk->offs_boot, delta);
+
+	/* Accumulate time spent in suspend */
+	tk->time_suspended += delta;
 }
 
 /*
@@ -885,6 +888,39 @@ void ktime_get_ts64(struct timespec64 *ts)
 	timespec64_add_ns(ts, nsec + tomono.tv_nsec);
 }
 EXPORT_SYMBOL_GPL(ktime_get_ts64);
+
+/**
+ * ktime_get_active_ts64 - Get the active non-suspended monotonic clock
+ * @ts:		pointer to timespec variable
+ *
+ * The function calculates the monotonic clock from the realtime clock and
+ * the wall_to_monotonic offset, subtracts the accumulated suspend time and
+ * stores the result in normalized timespec64 format in the variable
+ * pointed to by @ts.
+ */
+void ktime_get_active_ts64(struct timespec64 *ts)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+	struct timespec64 tomono, tsusp;
+	u64 nsec, nssusp;
+	unsigned int seq;
+
+	WARN_ON(timekeeping_suspended);
+
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+		ts->tv_sec = tk->xtime_sec;
+		nsec = timekeeping_get_ns(&tk->tkr_mono);
+		tomono = tk->wall_to_monotonic;
+		nssusp = tk->time_suspended;
+	} while (read_seqcount_retry(&tk_core.seq, seq));
+
+	ts->tv_sec += tomono.tv_sec;
+	ts->tv_nsec = 0;
+	timespec64_add_ns(ts, nsec + tomono.tv_nsec);
+	tsusp = ns_to_timespec64(nssusp);
+	*ts = timespec64_sub(*ts, tsusp);
+}
 
 /**
  * ktime_get_seconds - Get the seconds portion of CLOCK_MONOTONIC
