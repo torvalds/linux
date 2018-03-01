@@ -1770,7 +1770,7 @@ void fib_select_path(struct net *net, struct fib_result *res,
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res->fi->fib_nhs > 1) {
-		int h = fib_multipath_hash(res->fi, fl4, skb);
+		int h = fib_multipath_hash(res->fi, fl4, skb, NULL);
 
 		fib_select_multipath(res, h);
 	}

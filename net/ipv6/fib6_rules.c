@@ -223,6 +223,17 @@ static int fib6_rule_match(struct fib_rule *rule, struct flowi *fl, int flags)
 	if (r->tclass && r->tclass != ip6_tclass(fl6->flowlabel))
 		return 0;
 
+	if (rule->ip_proto && (rule->ip_proto != fl6->flowi6_proto))
+		return 0;
+
+	if (fib_rule_port_range_set(&rule->sport_range) &&
+	    !fib_rule_port_inrange(&rule->sport_range, fl6->fl6_sport))
+		return 0;
+
+	if (fib_rule_port_range_set(&rule->dport_range) &&
+	    !fib_rule_port_inrange(&rule->dport_range, fl6->fl6_dport))
+		return 0;
+
 	return 1;
 }
 
@@ -258,10 +269,24 @@ static int fib6_rule_configure(struct fib_rule *rule, struct sk_buff *skb,
 	rule6->dst.plen = frh->dst_len;
 	rule6->tclass = frh->tos;
 
+	if (fib_rule_requires_fldissect(rule))
+		net->ipv6.fib6_rules_require_fldissect++;
+
 	net->ipv6.fib6_has_custom_rules = true;
 	err = 0;
 errout:
 	return err;
+}
+
+static int fib6_rule_delete(struct fib_rule *rule)
+{
+	struct net *net = rule->fr_net;
+
+	if (net->ipv6.fib6_rules_require_fldissect &&
+	    fib_rule_requires_fldissect(rule))
+		net->ipv6.fib6_rules_require_fldissect--;
+
+	return 0;
 }
 
 static int fib6_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
@@ -323,6 +348,7 @@ static const struct fib_rules_ops __net_initconst fib6_rules_ops_template = {
 	.match			= fib6_rule_match,
 	.suppress		= fib6_rule_suppress,
 	.configure		= fib6_rule_configure,
+	.delete			= fib6_rule_delete,
 	.compare		= fib6_rule_compare,
 	.fill			= fib6_rule_fill,
 	.nlmsg_payload		= fib6_rule_nlmsg_payload,
@@ -350,6 +376,7 @@ static int __net_init fib6_rules_net_init(struct net *net)
 		goto out_fib6_rules_ops;
 
 	net->ipv6.fib6_rules_ops = ops;
+	net->ipv6.fib6_rules_require_fldissect = 0;
 out:
 	return err;
 
