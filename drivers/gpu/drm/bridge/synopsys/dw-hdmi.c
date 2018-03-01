@@ -3107,6 +3107,8 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->disabled = false;
 		hdmi->bridge_is_on = true;
 		hdmi->phy.enabled = true;
+	} else if (ret & HDMI_PHY_TX_PHY_LOCK) {
+		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
 	}
 
 	init_hpd_work(hdmi);
