@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-2.0
 
 NUM_NETIFS=4
+CHECK_TC="yes"
 source lib.sh
 
 h1_create()

@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
 NUM_NETIFS=4
-source lib.sh
 source tc_common.sh
+source lib.sh
 
 tcflags="skip_hw"
 

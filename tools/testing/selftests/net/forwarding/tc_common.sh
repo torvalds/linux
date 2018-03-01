@@ -1,6 +1,8 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+CHECK_TC="yes"
+
 tc_check_packets()
 {
 	local id=$1
