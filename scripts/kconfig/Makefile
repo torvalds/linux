@@ -42,18 +42,18 @@ syncconfig: $(obj)/conf
 	    touch   include/generated/autoksyms.h
 	$< $(silent) --$@ $(Kconfig)
 
-localyesconfig localmodconfig: $(obj)/streamline_config.pl $(obj)/conf
+localyesconfig localmodconfig: $(obj)/conf
 	$(Q)mkdir -p include/config include/generated
-	$(Q)perl $< --$@ $(srctree) $(Kconfig) > .tmp.config
+	$(Q)perl $(srctree)/$(src)/streamline_config.pl --$@ $(srctree) $(Kconfig) > .tmp.config
 	$(Q)if [ -f .config ]; then 					\
 			cmp -s .tmp.config .config ||			\
 			(mv -f .config .config.old.1;			\
 			 mv -f .tmp.config .config;			\
-			 $(obj)/conf $(silent) --oldconfig $(Kconfig);	\
+			 $< $(silent) --oldconfig $(Kconfig);		\
 			 mv -f .config.old.1 .config.old)		\
 	else								\
 			mv -f .tmp.config .config;			\
-			$(obj)/conf $(silent) --oldconfig $(Kconfig);	\
+			$< $(silent) --oldconfig $(Kconfig);		\
 	fi
 	$(Q)rm -f .tmp.config
 
