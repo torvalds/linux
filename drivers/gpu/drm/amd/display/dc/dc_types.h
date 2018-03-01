@@ -370,12 +370,6 @@ struct dc_csc_adjustments {
 	struct fixed31_32 hue;
 };
 
-enum {
-	MAX_LANES = 2,
-	MAX_COFUNC_PATH = 6,
-	LAYER_INDEX_PRIMARY = -1,
-};
-
 enum dpcd_downstream_port_max_bpc {
 	DOWN_STREAM_MAX_8BPC = 0,
 	DOWN_STREAM_MAX_10BPC,
