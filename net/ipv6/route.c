@@ -450,7 +450,8 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 	return false;
 }
 
-static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
+static struct rt6_info *rt6_multipath_select(const struct net *net,
+					     struct rt6_info *match,
 					     struct flowi6 *fl6, int oif,
 					     const struct sk_buff *skb,
 					     int strict)
@@ -461,7 +462,7 @@ static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
 	 * case it will always be non-zero. Otherwise now is the time to do it.
 	 */
 	if (!fl6->mp_hash)
-		fl6->mp_hash = rt6_multipath_hash(fl6, skb, NULL);
+		fl6->mp_hash = rt6_multipath_hash(net, fl6, skb, NULL);
 
 	if (fl6->mp_hash <= atomic_read(&match->rt6i_nh_upper_bound))
 		return match;
@@ -932,7 +933,7 @@ restart:
 		rt = rt6_device_match(net, rt, &fl6->saddr,
 				      fl6->flowi6_oif, flags);
 		if (rt->rt6i_nsiblings && fl6->flowi6_oif == 0)
-			rt = rt6_multipath_select(rt, fl6, fl6->flowi6_oif,
+			rt = rt6_multipath_select(net, rt, fl6, fl6->flowi6_oif,
 						  skb, flags);
 	}
 	if (rt == net->ipv6.ip6_null_entry) {
@@ -1674,7 +1675,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 redo_rt6_select:
 	rt = rt6_select(net, fn, oif, strict);
 	if (rt->rt6i_nsiblings)
-		rt = rt6_multipath_select(rt, fl6, oif, skb, strict);
+		rt = rt6_multipath_select(net, rt, fl6, oif, skb, strict);
 	if (rt == net->ipv6.ip6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
 		if (fn)
@@ -1839,21 +1840,56 @@ out:
 }
 
 /* if skb is set it will be used and fl6 can be NULL */
-u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb,
-		       struct flow_keys *flkeys)
+u32 rt6_multipath_hash(const struct net *net, const struct flowi6 *fl6,
+		       const struct sk_buff *skb, struct flow_keys *flkeys)
 {
 	struct flow_keys hash_keys;
 	u32 mhash;
 
-	memset(&hash_keys, 0, sizeof(hash_keys));
-	hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
-	if (skb) {
-		ip6_multipath_l3_keys(skb, &hash_keys, flkeys);
-	} else {
-		hash_keys.addrs.v6addrs.src = fl6->saddr;
-		hash_keys.addrs.v6addrs.dst = fl6->daddr;
-		hash_keys.tags.flow_label = (__force u32)fl6->flowlabel;
-		hash_keys.basic.ip_proto = fl6->flowi6_proto;
+	switch (net->ipv6.sysctl.multipath_hash_policy) {
+	case 0:
+		memset(&hash_keys, 0, sizeof(hash_keys));
+		hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+		if (skb) {
+			ip6_multipath_l3_keys(skb, &hash_keys, flkeys);
+		} else {
+			hash_keys.addrs.v6addrs.src = fl6->saddr;
+			hash_keys.addrs.v6addrs.dst = fl6->daddr;
+			hash_keys.tags.flow_label = (__force u32)fl6->flowlabel;
+			hash_keys.basic.ip_proto = fl6->flowi6_proto;
+		}
+		break;
+	case 1:
+		if (skb) {
+			unsigned int flag = FLOW_DISSECTOR_F_STOP_AT_ENCAP;
+			struct flow_keys keys;
+
+			/* short-circuit if we already have L4 hash present */
+			if (skb->l4_hash)
+				return skb_get_hash_raw(skb) >> 1;
+
+			memset(&hash_keys, 0, sizeof(hash_keys));
+
+                        if (!flkeys) {
+				skb_flow_dissect_flow_keys(skb, &keys, flag);
+				flkeys = &keys;
+			}
+			hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+			hash_keys.addrs.v6addrs.src = flkeys->addrs.v6addrs.src;
+			hash_keys.addrs.v6addrs.dst = flkeys->addrs.v6addrs.dst;
+			hash_keys.ports.src = flkeys->ports.src;
+			hash_keys.ports.dst = flkeys->ports.dst;
+			hash_keys.basic.ip_proto = flkeys->basic.ip_proto;
+		} else {
+			memset(&hash_keys, 0, sizeof(hash_keys));
+			hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+			hash_keys.addrs.v6addrs.src = fl6->saddr;
+			hash_keys.addrs.v6addrs.dst = fl6->daddr;
+			hash_keys.ports.src = fl6->fl6_sport;
+			hash_keys.ports.dst = fl6->fl6_dport;
+			hash_keys.basic.ip_proto = fl6->flowi6_proto;
+		}
+		break;
 	}
 	mhash = flow_hash_from_keys(&hash_keys);
 
@@ -1884,7 +1920,7 @@ void ip6_route_input(struct sk_buff *skb)
 		flkeys = &_flkeys;
 
 	if (unlikely(fl6.flowi6_proto == IPPROTO_ICMPV6))
-		fl6.mp_hash = rt6_multipath_hash(&fl6, skb, flkeys);
+		fl6.mp_hash = rt6_multipath_hash(net, &fl6, skb, flkeys);
 	skb_dst_drop(skb);
 	skb_dst_set(skb,
 		    ip6_route_input_lookup(net, skb->dev, &fl6, skb, flags));
