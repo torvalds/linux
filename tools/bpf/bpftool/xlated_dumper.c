@@ -123,6 +123,37 @@ static void print_insn(struct bpf_verifier_env *env, const char *fmt, ...)
 	va_end(args);
 }
 
+static void
+print_insn_for_graph(struct bpf_verifier_env *env, const char *fmt, ...)
+{
+	char buf[64], *p;
+	va_list args;
+
+	va_start(args, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, args);
+	va_end(args);
+
+	p = buf;
+	while (*p != '\0') {
+		if (*p == '\n') {
+			memmove(p + 3, p, strlen(buf) + 1 - (p - buf));
+			/* Align each instruction dump row left. */
+			*p++ = '\\';
+			*p++ = 'l';
+			/* Output multiline concatenation. */
+			*p++ = '\\';
+		} else if (*p == '<' || *p == '>' || *p == '|' || *p == '&') {
+			memmove(p + 1, p, strlen(buf) + 1 - (p - buf));
+			/* Escape special character. */
+			*p++ = '\\';
+		}
+
+		p++;
+	}
+
+	printf("%s", buf);
+}
+
 static void print_insn_json(struct bpf_verifier_env *env, const char *fmt, ...)
 {
 	unsigned int l = strlen(fmt);
@@ -282,5 +313,26 @@ void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
 			}
 			printf("\n");
 		}
+	}
+}
+
+void dump_xlated_for_graph(struct dump_data *dd, void *buf_start, void *buf_end,
+			   unsigned int start_idx)
+{
+	const struct bpf_insn_cbs cbs = {
+		.cb_print	= print_insn_for_graph,
+		.cb_call	= print_call,
+		.cb_imm		= print_imm,
+		.private_data	= dd,
+	};
+	struct bpf_insn *insn_start = buf_start;
+	struct bpf_insn *insn_end = buf_end;
+	struct bpf_insn *cur = insn_start;
+
+	for (; cur <= insn_end; cur++) {
+		printf("% 4d: ", (int)(cur - insn_start + start_idx));
+		print_bpf_insn(&cbs, NULL, cur, true);
+		if (cur != insn_end)
+			printf(" | ");
 	}
 }

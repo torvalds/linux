@@ -58,5 +58,7 @@ void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 		      bool opcodes);
 void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
 		       bool opcodes);
+void dump_xlated_for_graph(struct dump_data *dd, void *buf, void *buf_end,
+			   unsigned int start_index);
 
 #endif

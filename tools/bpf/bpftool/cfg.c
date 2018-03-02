@@ -41,6 +41,7 @@
 
 #include "cfg.h"
 #include "main.h"
+#include "xlated_dumper.h"
 
 struct cfg {
 	struct list_head funcs;
@@ -408,6 +409,96 @@ static void cfg_destroy(struct cfg *cfg)
 	}
 }
 
+static void draw_bb_node(struct func_node *func, struct bb_node *bb)
+{
+	const char *shape;
+
+	if (bb->idx == ENTRY_BLOCK_INDEX || bb->idx == EXIT_BLOCK_INDEX)
+		shape = "Mdiamond";
+	else
+		shape = "record";
+
+	printf("\tfn_%d_bb_%d [shape=%s,style=filled,label=\"",
+	       func->idx, bb->idx, shape);
+
+	if (bb->idx == ENTRY_BLOCK_INDEX) {
+		printf("ENTRY");
+	} else if (bb->idx == EXIT_BLOCK_INDEX) {
+		printf("EXIT");
+	} else {
+		unsigned int start_idx;
+		struct dump_data dd = {};
+
+		printf("{");
+		kernel_syms_load(&dd);
+		start_idx = bb->head - func->start;
+		dump_xlated_for_graph(&dd, bb->head, bb->tail, start_idx);
+		kernel_syms_destroy(&dd);
+		printf("}");
+	}
+
+	printf("\"];\n\n");
+}
+
+static void draw_bb_succ_edges(struct func_node *func, struct bb_node *bb)
+{
+	const char *style = "\"solid,bold\"";
+	const char *color = "black";
+	int func_idx = func->idx;
+	struct edge_node *e;
+	int weight = 10;
+
+	if (list_empty(&bb->e_succs))
+		return;
+
+	list_for_each_entry(e, &bb->e_succs, l) {
+		printf("\tfn_%d_bb_%d:s -> fn_%d_bb_%d:n [style=%s, color=%s, weight=%d, constraint=true",
+		       func_idx, e->src->idx, func_idx, e->dst->idx,
+		       style, color, weight);
+		printf("];\n");
+	}
+}
+
+static void func_output_bb_def(struct func_node *func)
+{
+	struct bb_node *bb;
+
+	list_for_each_entry(bb, &func->bbs, l) {
+		draw_bb_node(func, bb);
+	}
+}
+
+static void func_output_edges(struct func_node *func)
+{
+	int func_idx = func->idx;
+	struct bb_node *bb;
+
+	list_for_each_entry(bb, &func->bbs, l) {
+		draw_bb_succ_edges(func, bb);
+	}
+
+	/* Add an invisible edge from ENTRY to EXIT, this is to
+	 * improve the graph layout.
+	 */
+	printf("\tfn_%d_bb_%d:s -> fn_%d_bb_%d:n [style=\"invis\", constraint=true];\n",
+	       func_idx, ENTRY_BLOCK_INDEX, func_idx, EXIT_BLOCK_INDEX);
+}
+
+static void cfg_dump(struct cfg *cfg)
+{
+	struct func_node *func;
+
+	printf("digraph \"DOT graph for eBPF program\" {\n");
+	list_for_each_entry(func, &cfg->funcs, l) {
+		printf("subgraph \"cluster_%d\" {\n\tstyle=\"dashed\";\n\tcolor=\"black\";\n\tlabel=\"func_%d ()\";\n",
+		       func->idx, func->idx);
+		func_output_bb_def(func);
+		func_output_edges(func);
+		printf("}\n");
+	}
+	printf("}\n");
+}
+
 void dump_xlated_cfg(void *buf, unsigned int len)
 {
 	struct bpf_insn *insn = buf;
@@ -416,6 +507,8 @@ void dump_xlated_cfg(void *buf, unsigned int len)
 	memset(&cfg, 0, sizeof(cfg));
 	if (cfg_build(&cfg, insn, len))
 		return;
+
+	cfg_dump(&cfg);
 
 	cfg_destroy(&cfg);
 }
