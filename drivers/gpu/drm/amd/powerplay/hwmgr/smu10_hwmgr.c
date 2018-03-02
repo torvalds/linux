@@ -42,6 +42,13 @@
 #define SMU10_DISPCLK_BYPASS_THRESHOLD     10000 /* 100Mhz */
 #define SMC_RAM_END                     0x40000
 
+#define mmPWR_MISC_CNTL_STATUS					0x0183
+#define mmPWR_MISC_CNTL_STATUS_BASE_IDX				0
+#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN__SHIFT	0x0
+#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT		0x1
+#define PWR_MISC_CNTL_STATUS__PWR_GFX_RLC_CGPG_EN_MASK		0x00000001L
+#define PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK		0x00000006L
+
 static const unsigned long SMU10_Magic = (unsigned long) PHM_Rv_Magic;
 
 
@@ -243,12 +250,30 @@ static int smu10_power_off_asic(struct pp_hwmgr *hwmgr)
 	return smu10_reset_cc6_data(hwmgr);
 }
 
+static bool smu10_is_gfx_on(struct pp_hwmgr *hwmgr)
+{
+	uint32_t reg;
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	reg = RREG32_SOC15(PWR, 0, mmPWR_MISC_CNTL_STATUS);
+	if ((reg & PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS_MASK) ==
+	    (0x2 << PWR_MISC_CNTL_STATUS__PWR_GFXOFF_STATUS__SHIFT))
+		return true;
+
+	return false;
+}
+
 static int smu10_disable_gfx_off(struct pp_hwmgr *hwmgr)
 {
 	struct smu10_hwmgr *smu10_data = (struct smu10_hwmgr *)(hwmgr->backend);
 
-	if (smu10_data->gfx_off_controled_by_driver)
+	if (smu10_data->gfx_off_controled_by_driver) {
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisableGfxOff);
+
+		/* confirm gfx is back to "on" state */
+		while (!smu10_is_gfx_on(hwmgr))
+			msleep(1);
+	}
 
 	return 0;
 }
@@ -271,6 +296,14 @@ static int smu10_enable_gfx_off(struct pp_hwmgr *hwmgr)
 static int smu10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	return smu10_enable_gfx_off(hwmgr);
+}
+
+static int smu10_gfx_off_control(struct pp_hwmgr *hwmgr, bool enable)
+{
+	if (enable)
+		return smu10_enable_gfx_off(hwmgr);
+	else
+		return smu10_disable_gfx_off(hwmgr);
 }
 
 static int smu10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
@@ -1060,6 +1093,7 @@ static const struct pp_hwmgr_func smu10_hwmgr_funcs = {
 	.power_state_set = smu10_set_power_state_tasks,
 	.dynamic_state_management_disable = smu10_disable_dpm_tasks,
 	.set_mmhub_powergating_by_smu = smu10_set_mmhub_powergating_by_smu,
+	.gfx_off_control = smu10_gfx_off_control,
 };
 
 int smu10_init_function_pointers(struct pp_hwmgr *hwmgr)
