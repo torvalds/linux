@@ -57,9 +57,9 @@ struct btrfs_ref;
  * filesystem data as well that can be used to read data in order to repair
  * read errors on other disks.
  *
- * Current value is derived from RAID1C3 with 3 copies.
+ * Current value is derived from RAID1C4 with 4 copies.
  */
-#define BTRFS_MAX_MIRRORS (3 + 1)
+#define BTRFS_MAX_MIRRORS (4 + 1)
 
 #define BTRFS_MAX_LEVEL 8
 
