@@ -299,6 +299,8 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
 	int i;
+	uint32_t sub_vendor_id, hw_revision;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	vega10_initialize_power_tune_defaults(hwmgr);
 
@@ -363,6 +365,7 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 			FEATURE_FAN_CONTROL_BIT;
 	data->smu_features[GNLD_ACG].smu_feature_id = FEATURE_ACG_BIT;
 	data->smu_features[GNLD_DIDT].smu_feature_id = FEATURE_GFX_EDC_BIT;
+	data->smu_features[GNLD_PCC_LIMIT].smu_feature_id = FEATURE_PCC_LIMIT_CONTROL_BIT;
 
 	if (!data->registry_data.prefetcher_dpm_key_disabled)
 		data->smu_features[GNLD_DPM_PREFETCHER].supported = true;
@@ -432,6 +435,15 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	if (data->registry_data.didt_support)
 		data->smu_features[GNLD_DIDT].supported = true;
 
+	hw_revision = adev->pdev->revision;
+	sub_vendor_id = adev->pdev->subsystem_vendor;
+
+	if ((hwmgr->chip_id == 0x6862 ||
+		hwmgr->chip_id == 0x6861 ||
+		hwmgr->chip_id == 0x6868) &&
+		(hw_revision == 0) &&
+		(sub_vendor_id != 0x1002))
+		data->smu_features[GNLD_PCC_LIMIT].supported = true;
 }
 
 #ifdef PPLIB_VEGA10_EVV_SUPPORT
@@ -2844,11 +2856,31 @@ static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 	return 0;
 }
 
+static int vega10_enable_disable_PCC_limit_feature(struct pp_hwmgr *hwmgr, bool enable)
+{
+	struct vega10_hwmgr *data =
+			(struct vega10_hwmgr *)(hwmgr->backend);
+
+	if (data->smu_features[GNLD_PCC_LIMIT].supported) {
+		if (enable == data->smu_features[GNLD_PCC_LIMIT].enabled)
+			pr_info("GNLD_PCC_LIMIT has been %s \n", enable ? "enabled" : "disabled");
+		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
+				enable, data->smu_features[GNLD_PCC_LIMIT].smu_feature_bitmap),
+				"Attempt to Enable PCC Limit feature Failed!",
+				return -EINVAL);
+		data->smu_features[GNLD_PCC_LIMIT].enabled = enable;
+	}
+
+	return 0;
+}
+
 static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data =
 			(struct vega10_hwmgr *)(hwmgr->backend);
 	int tmp_result, result = 0;
+
+	vega10_enable_disable_PCC_limit_feature(hwmgr, true);
 
 	if ((hwmgr->smu_version == 0x001c2c00) ||
 			(hwmgr->smu_version == 0x001c2d00))
@@ -4703,6 +4735,8 @@ static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	tmp_result =  vega10_acg_disable(hwmgr);
 	PP_ASSERT_WITH_CODE((tmp_result == 0),
 			"Failed to disable acg!", result = tmp_result);
+
+	vega10_enable_disable_PCC_limit_feature(hwmgr, false);
 	return result;
 }
 
