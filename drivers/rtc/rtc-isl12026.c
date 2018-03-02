@@ -433,7 +433,15 @@ static int isl12026_probe_new(struct i2c_client *client)
 {
 	struct isl12026 *priv;
 	int ret;
-	struct nvmem_config nvm_cfg;
+	struct nvmem_config nvm_cfg = {
+		.name = "isl12026-",
+		.base_dev = &client->dev,
+		.stride = 1,
+		.word_size = 1,
+		.size = 512,
+		.reg_read = isl12026_nvm_read,
+		.reg_write = isl12026_nvm_write,
+	};
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -ENODEV;
@@ -456,24 +464,12 @@ static int isl12026_probe_new(struct i2c_client *client)
 		return ret;
 
 	priv->rtc->ops = &isl12026_rtc_ops;
-	priv->rtc->nvram_old_abi = false;
-	ret = rtc_register_device(priv->rtc);
+	nvm_cfg.priv = priv;
+	ret = rtc_nvmem_register(priv->rtc, &nvm_cfg);
 	if (ret)
 		return ret;
 
-	memset(&nvm_cfg, 0, sizeof(nvm_cfg));
-	nvm_cfg.name = "eeprom";
-	nvm_cfg.read_only = false;
-	nvm_cfg.root_only = true;
-	nvm_cfg.base_dev = &client->dev;
-	nvm_cfg.priv = priv;
-	nvm_cfg.stride = 1;
-	nvm_cfg.word_size = 1;
-	nvm_cfg.size = 512;
-	nvm_cfg.reg_read = isl12026_nvm_read;
-	nvm_cfg.reg_write = isl12026_nvm_write;
-
-	return rtc_nvmem_register(priv->rtc, &nvm_cfg);
+	return rtc_register_device(priv->rtc);
 }
 
 static int isl12026_remove(struct i2c_client *client)
