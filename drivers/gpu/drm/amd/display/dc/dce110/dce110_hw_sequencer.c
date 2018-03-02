@@ -1132,7 +1132,7 @@ static void build_audio_output(
 static void get_surface_visual_confirm_color(const struct pipe_ctx *pipe_ctx,
 		struct tg_color *color)
 {
-	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->pipe_idx) / 4;
+	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->stream_res.tg->inst) / 4;
 
 	switch (pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB8888:
