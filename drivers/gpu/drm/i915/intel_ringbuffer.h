@@ -209,9 +209,17 @@ struct intel_engine_execlists {
 	bool no_priolist;
 
 	/**
-	 * @elsp: the ExecList Submission Port register
+	 * @submit_reg: gen-specific execlist submission register
+	 * set to the ExecList Submission Port (elsp) register pre-Gen11 and to
+	 * the ExecList Submission Queue Contents register array for Gen11+
 	 */
-	u32 __iomem *elsp;
+	u32 __iomem *submit_reg;
+
+	/**
+	 * @ctrl_reg: the enhanced execlists control register, used to load the
+	 * submit queue on the HW and to request preemptions to idle
+	 */
+	u32 __iomem *ctrl_reg;
 
 	/**
 	 * @port: execlist port states

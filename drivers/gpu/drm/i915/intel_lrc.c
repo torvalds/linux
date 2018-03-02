@@ -417,18 +417,30 @@ static u64 execlists_update_context(struct i915_request *rq)
 	return ce->lrc_desc;
 }
 
-static inline void elsp_write(u64 desc, u32 __iomem *elsp)
+static inline void write_desc(struct intel_engine_execlists *execlists, u64 desc, u32 port)
 {
-	writel(upper_32_bits(desc), elsp);
-	writel(lower_32_bits(desc), elsp);
+	if (execlists->ctrl_reg) {
+		writel(lower_32_bits(desc), execlists->submit_reg + port * 2);
+		writel(upper_32_bits(desc), execlists->submit_reg + port * 2 + 1);
+	} else {
+		writel(upper_32_bits(desc), execlists->submit_reg);
+		writel(lower_32_bits(desc), execlists->submit_reg);
+	}
 }
 
 static void execlists_submit_ports(struct intel_engine_cs *engine)
 {
-	struct execlist_port *port = engine->execlists.port;
+	struct intel_engine_execlists *execlists = &engine->execlists;
+	struct execlist_port *port = execlists->port;
 	unsigned int n;
 
-	for (n = execlists_num_ports(&engine->execlists); n--; ) {
+	/*
+	 * ELSQ note: the submit queue is not cleared after being submitted
+	 * to the HW so we need to make sure we always clean it up. This is
+	 * currently ensured by the fact that we always write the same number
+	 * of elsq entries, keep this in mind before changing the loop below.
+	 */
+	for (n = execlists_num_ports(execlists); n--; ) {
 		struct i915_request *rq;
 		unsigned int count;
 		u64 desc;
@@ -452,9 +464,14 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 			desc = 0;
 		}
 
-		elsp_write(desc, engine->execlists.elsp);
+		write_desc(execlists, desc, n);
 	}
-	execlists_clear_active(&engine->execlists, EXECLISTS_ACTIVE_HWACK);
+
+	/* we need to manually load the submit queue */
+	if (execlists->ctrl_reg)
+		writel(EL_CTRL_LOAD, execlists->ctrl_reg);
+
+	execlists_clear_active(execlists, EXECLISTS_ACTIVE_HWACK);
 }
 
 static bool ctx_single_port_submission(const struct i915_gem_context *ctx)
@@ -487,11 +504,12 @@ static void port_assign(struct execlist_port *port, struct i915_request *rq)
 
 static void inject_preempt_context(struct intel_engine_cs *engine)
 {
+	struct intel_engine_execlists *execlists = &engine->execlists;
 	struct intel_context *ce =
 		&engine->i915->preempt_context->engine[engine->id];
 	unsigned int n;
 
-	GEM_BUG_ON(engine->execlists.preempt_complete_status !=
+	GEM_BUG_ON(execlists->preempt_complete_status !=
 		   upper_32_bits(ce->lrc_desc));
 	GEM_BUG_ON((ce->lrc_reg_state[CTX_CONTEXT_CONTROL + 1] &
 		    _MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
@@ -504,10 +522,15 @@ static void inject_preempt_context(struct intel_engine_cs *engine)
 	 * the state of the GPU is known (idle).
 	 */
 	GEM_TRACE("%s\n", engine->name);
-	for (n = execlists_num_ports(&engine->execlists); --n; )
-		elsp_write(0, engine->execlists.elsp);
+	for (n = execlists_num_ports(execlists); --n; )
+		write_desc(execlists, 0, n);
 
-	elsp_write(ce->lrc_desc, engine->execlists.elsp);
+	write_desc(execlists, ce->lrc_desc, n);
+
+	/* we need to manually load the submit queue */
+	if (execlists->ctrl_reg)
+		writel(EL_CTRL_LOAD, execlists->ctrl_reg);
+
 	execlists_clear_active(&engine->execlists, EXECLISTS_ACTIVE_HWACK);
 	execlists_set_active(&engine->execlists, EXECLISTS_ACTIVE_PREEMPT);
 }
@@ -2131,8 +2154,15 @@ static int logical_ring_init(struct intel_engine_cs *engine)
 	if (ret)
 		goto error;
 
-	engine->execlists.elsp =
-		engine->i915->regs + i915_mmio_reg_offset(RING_ELSP(engine));
+	if (HAS_LOGICAL_RING_ELSQ(engine->i915)) {
+		engine->execlists.submit_reg = engine->i915->regs +
+			i915_mmio_reg_offset(RING_EXECLIST_SQ_CONTENTS(engine));
+		engine->execlists.ctrl_reg = engine->i915->regs +
+			i915_mmio_reg_offset(RING_EXECLIST_CONTROL(engine));
+	} else {
+		engine->execlists.submit_reg = engine->i915->regs +
+			i915_mmio_reg_offset(RING_ELSP(engine));
+	}
 
 	engine->execlists.preempt_complete_status = ~0u;
 	if (engine->i915->preempt_context)
@@ -2401,7 +2431,7 @@ populate_lr_context(struct i915_gem_context *ctx,
 	if (!engine->default_state)
 		regs[CTX_CONTEXT_CONTROL + 1] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT);
-	if (ctx == ctx->i915->preempt_context)
+	if (ctx == ctx->i915->preempt_context && INTEL_GEN(engine->i915) < 11)
 		regs[CTX_CONTEXT_CONTROL + 1] |=
 			_MASKED_BIT_ENABLE(CTX_CTRL_ENGINE_CTX_RESTORE_INHIBIT |
 					   CTX_CTRL_ENGINE_CTX_SAVE_INHIBIT);
