@@ -413,17 +413,7 @@ static int max9867_resume(struct device *dev)
 }
 #endif
 
-static int max9867_probe(struct snd_soc_component *component)
-{
-	struct max9867_priv *max9867 = snd_soc_component_get_drvdata(component);
-
-	dev_dbg(component->dev, "max98090_probe\n");
-	max9867->component = component;
-	return 0;
-}
-
 static const struct snd_soc_component_driver max9867_component = {
-	.probe			= max9867_probe,
 	.controls		= max9867_snd_controls,
 	.num_controls		= ARRAY_SIZE(max9867_snd_controls),
 	.dapm_routes		= max9867_audio_map,
