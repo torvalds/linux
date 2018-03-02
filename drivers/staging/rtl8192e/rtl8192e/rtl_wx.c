@@ -171,7 +171,7 @@ static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&(priv->rtllib->PowerSaveControl));
+					(&priv->rtllib->PowerSaveControl);
 	struct rtllib_device *ieee = priv->rtllib;
 
 	mutex_lock(&priv->wx_mutex);
@@ -202,7 +202,7 @@ static int _rtl92e_wx_set_lps_awake_interval(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&(priv->rtllib->PowerSaveControl));
+					(&priv->rtllib->PowerSaveControl);
 
 	mutex_lock(&priv->wx_mutex);
 
@@ -962,7 +962,7 @@ static int _rtl92e_wx_set_auth(struct net_device *dev,
 		return 0;
 
 	mutex_lock(&priv->wx_mutex);
-	ret = rtllib_wx_set_auth(priv->rtllib, info, &(data->param), extra);
+	ret = rtllib_wx_set_auth(priv->rtllib, info, &data->param, extra);
 	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
