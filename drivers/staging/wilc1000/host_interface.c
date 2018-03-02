@@ -1795,11 +1795,11 @@ static void handle_disconnect(struct wilc_vif *vif)
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	s32 result = 0;
-	u16 u16DummyReasonCode = 0;
+	u16 dummy_reason_code = 0;
 
 	wid.id = (u16)WID_DISCONNECT;
 	wid.type = WID_CHAR;
-	wid.val = (s8 *)&u16DummyReasonCode;
+	wid.val = (s8 *)&dummy_reason_code;
 	wid.size = sizeof(char);
 
 	wilc_optaining_ip = false;
