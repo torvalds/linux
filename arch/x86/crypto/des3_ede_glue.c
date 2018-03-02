@@ -404,7 +404,7 @@ static struct crypto_alg des3_ede_cipher = {
 	}
 };
 
-struct skcipher_alg des3_ede_skciphers[] = {
+static struct skcipher_alg des3_ede_skciphers[] = {
 	{
 		.base.cra_name		= "ecb(des3_ede)",
 		.base.cra_driver_name	= "ecb-des3_ede-asm",
