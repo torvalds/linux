@@ -1618,9 +1618,9 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	GEM_TRACE("%s seqno=%x\n",
 		  engine->name, request ? request->global_seqno : 0);
 
-	reset_irq(engine);
-
 	spin_lock_irqsave(&engine->timeline->lock, flags);
+
+	reset_irq(engine);
 
 	/*
 	 * Catch up with any missed context-switch interrupts.
@@ -1636,10 +1636,10 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	/* Push back any incomplete requests for replay after the reset. */
 	__unwind_incomplete_requests(engine);
 
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
-
 	/* Mark all CS interrupts as complete */
 	execlists->active = 0;
+
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 
 	/* If the request was innocent, we leave the request in the ELSP
 	 * and will try to replay it on restarting. The context image may
