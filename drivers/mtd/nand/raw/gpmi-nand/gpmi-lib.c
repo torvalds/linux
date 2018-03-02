@@ -26,15 +26,8 @@
 #include "gpmi-regs.h"
 #include "bch-regs.h"
 
-static struct timing_threshold timing_default_threshold = {
-	.max_data_setup_cycles       = (BM_GPMI_TIMING0_DATA_SETUP >>
-						BP_GPMI_TIMING0_DATA_SETUP),
-	.internal_data_setup_in_ns   = 0,
-	.max_sample_delay_factor     = (BM_GPMI_CTRL1_RDN_DELAY >>
-						BP_GPMI_CTRL1_RDN_DELAY),
-	.max_dll_clock_period_in_ns  = 32,
-	.max_dll_delay_in_ns         = 16,
-};
+/* Converts time to clock cycles */
+#define TO_CYCLES(duration, period) DIV_ROUND_UP_ULL(duration, period)
 
 #define MXS_SET_ADDR		0x4
 #define MXS_CLR_ADDR		0x8
@@ -181,7 +174,6 @@ int gpmi_init(struct gpmi_nand_data *this)
 	if (ret)
 		goto err_out;
 
-
 	/* Choose NAND mode. */
 	writel(BM_GPMI_CTRL1_GPMI_MODE, r->gpmi_regs + HW_GPMI_CTRL1_CLR);
 
@@ -320,399 +312,6 @@ err_out:
 	return ret;
 }
 
-/* Converts time in nanoseconds to cycles. */
-static unsigned int ns_to_cycles(unsigned int time,
-			unsigned int period, unsigned int min)
-{
-	unsigned int k;
-
-	k = (time + period - 1) / period;
-	return max(k, min);
-}
-
-#define DEF_MIN_PROP_DELAY	5
-#define DEF_MAX_PROP_DELAY	9
-/* Apply timing to current hardware conditions. */
-static void
-gpmi_nfc_compute_hardware_timings(struct gpmi_nand_data *this)
-{
-	struct gpmi_nfc_hardware_timing *hw = &this->hw;
-	struct timing_threshold *nfc = &timing_default_threshold;
-	struct nand_chip *nand = &this->nand;
-	struct nand_timing target = this->timing;
-	unsigned long clock_frequency_in_hz;
-	unsigned int clock_period_in_ns;
-	bool dll_use_half_periods;
-	unsigned int dll_delay_shift;
-	unsigned int max_sample_delay_in_ns;
-	unsigned int address_setup_in_cycles;
-	unsigned int data_setup_in_ns;
-	unsigned int data_setup_in_cycles;
-	unsigned int data_hold_in_cycles;
-	int ideal_sample_delay_in_ns;
-	unsigned int sample_delay_factor;
-	int tEYE;
-	unsigned int min_prop_delay_in_ns = DEF_MIN_PROP_DELAY;
-	unsigned int max_prop_delay_in_ns = DEF_MAX_PROP_DELAY;
-
-	/* Clock rate for non-EDO modes */
-	hw->clk_rate = 22000000;
-
-	/*
-	 * If there are multiple chips, we need to relax the timings to allow
-	 * for signal distortion due to higher capacitance.
-	 */
-	if (nand->numchips > 2) {
-		target.data_setup_in_ns    += 10;
-		target.data_hold_in_ns     += 10;
-		target.address_setup_in_ns += 10;
-	} else if (nand->numchips > 1) {
-		target.data_setup_in_ns    += 5;
-		target.data_hold_in_ns     += 5;
-		target.address_setup_in_ns += 5;
-	}
-
-	/* Inspect the clock. */
-	nfc->clock_frequency_in_hz = hw->clk_rate;
-	clock_frequency_in_hz = nfc->clock_frequency_in_hz;
-	clock_period_in_ns    = NSEC_PER_SEC / clock_frequency_in_hz;
-
-	/*
-	 * The NFC quantizes setup and hold parameters in terms of clock cycles.
-	 * Here, we quantize the setup and hold timing parameters to the
-	 * next-highest clock period to make sure we apply at least the
-	 * specified times.
-	 *
-	 * For data setup and data hold, the hardware interprets a value of zero
-	 * as the largest possible delay. This is not what's intended by a zero
-	 * in the input parameter, so we impose a minimum of one cycle.
-	 */
-	data_setup_in_cycles    = ns_to_cycles(target.data_setup_in_ns,
-							clock_period_in_ns, 1);
-	data_hold_in_cycles     = ns_to_cycles(target.data_hold_in_ns,
-							clock_period_in_ns, 1);
-	address_setup_in_cycles = ns_to_cycles(target.address_setup_in_ns,
-							clock_period_in_ns, 0);
-
-	/*
-	 * The clock's period affects the sample delay in a number of ways:
-	 *
-	 * (1) The NFC HAL tells us the maximum clock period the sample delay
-	 *     DLL can tolerate. If the clock period is greater than half that
-	 *     maximum, we must configure the DLL to be driven by half periods.
-	 *
-	 * (2) We need to convert from an ideal sample delay, in ns, to a
-	 *     "sample delay factor," which the NFC uses. This factor depends on
-	 *     whether we're driving the DLL with full or half periods.
-	 *     Paraphrasing the reference manual:
-	 *
-	 *         AD = SDF x 0.125 x RP
-	 *
-	 * where:
-	 *
-	 *     AD   is the applied delay, in ns.
-	 *     SDF  is the sample delay factor, which is dimensionless.
-	 *     RP   is the reference period, in ns, which is a full clock period
-	 *          if the DLL is being driven by full periods, or half that if
-	 *          the DLL is being driven by half periods.
-	 *
-	 * Let's re-arrange this in a way that's more useful to us:
-	 *
-	 *                        8
-	 *         SDF  =  AD x ----
-	 *                       RP
-	 *
-	 * The reference period is either the clock period or half that, so this
-	 * is:
-	 *
-	 *                        8       AD x DDF
-	 *         SDF  =  AD x -----  =  --------
-	 *                      f x P        P
-	 *
-	 * where:
-	 *
-	 *       f  is 1 or 1/2, depending on how we're driving the DLL.
-	 *       P  is the clock period.
-	 *     DDF  is the DLL Delay Factor, a dimensionless value that
-	 *          incorporates all the constants in the conversion.
-	 *
-	 * DDF will be either 8 or 16, both of which are powers of two. We can
-	 * reduce the cost of this conversion by using bit shifts instead of
-	 * multiplication or division. Thus:
-	 *
-	 *                 AD << DDS
-	 *         SDF  =  ---------
-	 *                     P
-	 *
-	 *     or
-	 *
-	 *         AD  =  (SDF >> DDS) x P
-	 *
-	 * where:
-	 *
-	 *     DDS  is the DLL Delay Shift, the logarithm to base 2 of the DDF.
-	 */
-	if (clock_period_in_ns > (nfc->max_dll_clock_period_in_ns >> 1)) {
-		dll_use_half_periods = true;
-		dll_delay_shift      = 3 + 1;
-	} else {
-		dll_use_half_periods = false;
-		dll_delay_shift      = 3;
-	}
-
-	/*
-	 * Compute the maximum sample delay the NFC allows, under current
-	 * conditions. If the clock is running too slowly, no sample delay is
-	 * possible.
-	 */
-	if (clock_period_in_ns > nfc->max_dll_clock_period_in_ns)
-		max_sample_delay_in_ns = 0;
-	else {
-		/*
-		 * Compute the delay implied by the largest sample delay factor
-		 * the NFC allows.
-		 */
-		max_sample_delay_in_ns =
-			(nfc->max_sample_delay_factor * clock_period_in_ns) >>
-								dll_delay_shift;
-
-		/*
-		 * Check if the implied sample delay larger than the NFC
-		 * actually allows.
-		 */
-		if (max_sample_delay_in_ns > nfc->max_dll_delay_in_ns)
-			max_sample_delay_in_ns = nfc->max_dll_delay_in_ns;
-	}
-
-	/*
-	 * Fold the read setup time required by the NFC into the maximum
-	 * propagation delay.
-	 */
-	max_prop_delay_in_ns += nfc->internal_data_setup_in_ns;
-
-	/*
-	 * Earlier, we computed the number of clock cycles required to satisfy
-	 * the data setup time. Now, we need to know the actual nanoseconds.
-	 */
-	data_setup_in_ns = clock_period_in_ns * data_setup_in_cycles;
-
-	/*
-	 * Compute tEYE, the width of the data eye when reading from the NAND
-	 * Flash. The eye width is fundamentally determined by the data setup
-	 * time, perturbed by propagation delays and some characteristics of the
-	 * NAND Flash device.
-	 *
-	 * start of the eye = max_prop_delay + tREA
-	 * end of the eye   = min_prop_delay + tRHOH + data_setup
-	 */
-	tEYE = (int)min_prop_delay_in_ns + (int)target.tRHOH_in_ns +
-							(int)data_setup_in_ns;
-
-	tEYE -= (int)max_prop_delay_in_ns + (int)target.tREA_in_ns;
-
-	/*
-	 * The eye must be open. If it's not, we can try to open it by
-	 * increasing its main forcer, the data setup time.
-	 *
-	 * In each iteration of the following loop, we increase the data setup
-	 * time by a single clock cycle. We do this until either the eye is
-	 * open or we run into NFC limits.
-	 */
-	while ((tEYE <= 0) &&
-			(data_setup_in_cycles < nfc->max_data_setup_cycles)) {
-		/* Give a cycle to data setup. */
-		data_setup_in_cycles++;
-		/* Synchronize the data setup time with the cycles. */
-		data_setup_in_ns += clock_period_in_ns;
-		/* Adjust tEYE accordingly. */
-		tEYE += clock_period_in_ns;
-	}
-
-	/*
-	 * When control arrives here, the eye is open. The ideal time to sample
-	 * the data is in the center of the eye:
-	 *
-	 *     end of the eye + start of the eye
-	 *     ---------------------------------  -  data_setup
-	 *                    2
-	 *
-	 * After some algebra, this simplifies to the code immediately below.
-	 */
-	ideal_sample_delay_in_ns =
-		((int)max_prop_delay_in_ns +
-			(int)target.tREA_in_ns +
-				(int)min_prop_delay_in_ns +
-					(int)target.tRHOH_in_ns -
-						(int)data_setup_in_ns) >> 1;
-
-	/*
-	 * The following figure illustrates some aspects of a NAND Flash read:
-	 *
-	 *
-	 *           __                   _____________________________________
-	 * RDN         \_________________/
-	 *
-	 *                                         <---- tEYE ----->
-	 *                                        /-----------------\
-	 * Read Data ----------------------------<                   >---------
-	 *                                        \-----------------/
-	 *             ^                 ^                 ^              ^
-	 *             |                 |                 |              |
-	 *             |<--Data Setup -->|<--Delay Time -->|              |
-	 *             |                 |                 |              |
-	 *             |                 |                                |
-	 *             |                 |<--   Quantized Delay Time   -->|
-	 *             |                 |                                |
-	 *
-	 *
-	 * We have some issues we must now address:
-	 *
-	 * (1) The *ideal* sample delay time must not be negative. If it is, we
-	 *     jam it to zero.
-	 *
-	 * (2) The *ideal* sample delay time must not be greater than that
-	 *     allowed by the NFC. If it is, we can increase the data setup
-	 *     time, which will reduce the delay between the end of the data
-	 *     setup and the center of the eye. It will also make the eye
-	 *     larger, which might help with the next issue...
-	 *
-	 * (3) The *quantized* sample delay time must not fall either before the
-	 *     eye opens or after it closes (the latter is the problem
-	 *     illustrated in the above figure).
-	 */
-
-	/* Jam a negative ideal sample delay to zero. */
-	if (ideal_sample_delay_in_ns < 0)
-		ideal_sample_delay_in_ns = 0;
-
-	/*
-	 * Extend the data setup as needed to reduce the ideal sample delay
-	 * below the maximum permitted by the NFC.
-	 */
-	while ((ideal_sample_delay_in_ns > max_sample_delay_in_ns) &&
-			(data_setup_in_cycles < nfc->max_data_setup_cycles)) {
-
-		/* Give a cycle to data setup. */
-		data_setup_in_cycles++;
-		/* Synchronize the data setup time with the cycles. */
-		data_setup_in_ns += clock_period_in_ns;
-		/* Adjust tEYE accordingly. */
-		tEYE += clock_period_in_ns;
-
-		/*
-		 * Decrease the ideal sample delay by one half cycle, to keep it
-		 * in the middle of the eye.
-		 */
-		ideal_sample_delay_in_ns -= (clock_period_in_ns >> 1);
-
-		/* Jam a negative ideal sample delay to zero. */
-		if (ideal_sample_delay_in_ns < 0)
-			ideal_sample_delay_in_ns = 0;
-	}
-
-	/*
-	 * Compute the sample delay factor that corresponds to the ideal sample
-	 * delay. If the result is too large, then use the maximum allowed
-	 * value.
-	 *
-	 * Notice that we use the ns_to_cycles function to compute the sample
-	 * delay factor. We do this because the form of the computation is the
-	 * same as that for calculating cycles.
-	 */
-	sample_delay_factor =
-		ns_to_cycles(ideal_sample_delay_in_ns << dll_delay_shift,
-							clock_period_in_ns, 0);
-
-	if (sample_delay_factor > nfc->max_sample_delay_factor)
-		sample_delay_factor = nfc->max_sample_delay_factor;
-
-	/*
-	 * These macros conveniently encapsulate a computation we'll use to
-	 * continuously evaluate whether or not the data sample delay is inside
-	 * the eye.
-	 */
-	#define IDEAL_DELAY  ((int) ideal_sample_delay_in_ns)
-
-	#define QUANTIZED_DELAY  \
-		((int) ((sample_delay_factor * clock_period_in_ns) >> \
-							dll_delay_shift))
-
-	#define DELAY_ERROR  (abs(QUANTIZED_DELAY - IDEAL_DELAY))
-
-	#define SAMPLE_IS_NOT_WITHIN_THE_EYE  (DELAY_ERROR > (tEYE >> 1))
-
-	/*
-	 * While the quantized sample time falls outside the eye, reduce the
-	 * sample delay or extend the data setup to move the sampling point back
-	 * toward the eye. Do not allow the number of data setup cycles to
-	 * exceed the maximum allowed by the NFC.
-	 */
-	while (SAMPLE_IS_NOT_WITHIN_THE_EYE &&
-			(data_setup_in_cycles < nfc->max_data_setup_cycles)) {
-		/*
-		 * If control arrives here, the quantized sample delay falls
-		 * outside the eye. Check if it's before the eye opens, or after
-		 * the eye closes.
-		 */
-		if (QUANTIZED_DELAY > IDEAL_DELAY) {
-			/*
-			 * If control arrives here, the quantized sample delay
-			 * falls after the eye closes. Decrease the quantized
-			 * delay time and then go back to re-evaluate.
-			 */
-			if (sample_delay_factor != 0)
-				sample_delay_factor--;
-			continue;
-		}
-
-		/*
-		 * If control arrives here, the quantized sample delay falls
-		 * before the eye opens. Shift the sample point by increasing
-		 * data setup time. This will also make the eye larger.
-		 */
-
-		/* Give a cycle to data setup. */
-		data_setup_in_cycles++;
-		/* Synchronize the data setup time with the cycles. */
-		data_setup_in_ns += clock_period_in_ns;
-		/* Adjust tEYE accordingly. */
-		tEYE += clock_period_in_ns;
-
-		/*
-		 * Decrease the ideal sample delay by one half cycle, to keep it
-		 * in the middle of the eye.
-		 */
-		ideal_sample_delay_in_ns -= (clock_period_in_ns >> 1);
-
-		/* ...and one less period for the delay time. */
-		ideal_sample_delay_in_ns -= clock_period_in_ns;
-
-		/* Jam a negative ideal sample delay to zero. */
-		if (ideal_sample_delay_in_ns < 0)
-			ideal_sample_delay_in_ns = 0;
-
-		/*
-		 * We have a new ideal sample delay, so re-compute the quantized
-		 * delay.
-		 */
-		sample_delay_factor =
-			ns_to_cycles(
-				ideal_sample_delay_in_ns << dll_delay_shift,
-							clock_period_in_ns, 0);
-
-		if (sample_delay_factor > nfc->max_sample_delay_factor)
-			sample_delay_factor = nfc->max_sample_delay_factor;
-	}
-
-	hw->data_setup_in_cycles    = data_setup_in_cycles;
-	hw->data_hold_in_cycles     = data_hold_in_cycles;
-	hw->address_setup_in_cycles = address_setup_in_cycles;
-	hw->use_half_periods        = dll_use_half_periods;
-	hw->sample_delay_factor     = sample_delay_factor;
-	hw->device_busy_timeout     = GPMI_DEFAULT_BUSY_TIMEOUT;
-	hw->wrn_dly_sel             = BV_GPMI_CTRL1_WRN_DLY_SEL_4_TO_8NS;
-}
-
 /*
  * <1> Firstly, we should know what's the GPMI-clock means.
  *     The GPMI-clock is the internal clock in the gpmi nand controller.
@@ -763,13 +362,10 @@ gpmi_nfc_compute_hardware_timings(struct gpmi_nand_data *this)
  *  4.1) From the aspect of the nand chip pins:
  *        Delay = (tREA + C - tRP)               {1}
  *
- *        tREA : the maximum read access time. From the ONFI nand standards,
- *               we know that tREA is 16ns in mode 5, tREA is 20ns is mode 4.
- *               Please check it in : www.onfi.org
- *        C    : a constant for adjust the delay. default is 4.
- *        tRP  : the read pulse width.
- *               Specified by the HW_GPMI_TIMING0:DATA_SETUP:
- *                    tRP = (GPMI-clock-period) * DATA_SETUP
+ *        tREA : the maximum read access time.
+ *        C    : a constant to adjust the delay. default is 4000ps.
+ *        tRP  : the read pulse width, which is exactly:
+ *                   tRP = (GPMI-clock-period) * DATA_SETUP
  *
  *  4.2) From the aspect of the GPMI nand controller:
  *         Delay = RDN_DELAY * 0.125 * RP        {2}
@@ -782,74 +378,81 @@ gpmi_nfc_compute_hardware_timings(struct gpmi_nand_data *this)
  *
  *            Set the HW_GPMI_CTRL1:HALF_PERIOD if GPMI-clock-period
  *            is greater DLL_THRETHOLD. In other SOCs, the DLL_THRETHOLD
- *            is 16ns, but in mx6q, we use 12ns.
+ *            is 16000ps, but in mx6q, we use 12000ps.
  *
  *  4.3) since {1} equals {2}, we get:
  *
- *                    (tREA + 4 - tRP) * 8
- *         RDN_DELAY = ---------------------     {3}
+ *                     (tREA + 4000 - tRP) * 8
+ *         RDN_DELAY = -----------------------     {3}
  *                           RP
- *
- *  4.4) We only support the fastest asynchronous mode of ONFI nand.
- *       For some ONFI nand, the mode 4 is the fastest mode;
- *       while for some ONFI nand, the mode 5 is the fastest mode.
- *       So we only support the mode 4 and mode 5. It is no need to
- *       support other modes.
  */
-static void gpmi_nfc_compute_edo_timings(struct gpmi_nand_data *this,
-					 int mode)
+static void gpmi_nfc_compute_timings(struct gpmi_nand_data *this,
+				     const struct nand_sdr_timings *sdr)
 {
 	struct gpmi_nfc_hardware_timing *hw = &this->hw;
-	int dll_threshold = this->devdata->max_chain_delay;
-	unsigned long delay;
-	unsigned long clk_period;
-	int t_rp, t_rea, rp;
+	unsigned int dll_threshold_ps = this->devdata->max_chain_delay;
+	unsigned int period_ps, reference_period_ps;
+	unsigned int data_setup_cycles, data_hold_cycles, addr_setup_cycles;
+	unsigned int tRP_ps;
+	bool use_half_period;
+	int sample_delay_ps, sample_delay_factor;
+	u16 busy_timeout_cycles;
+	u8 wrn_dly_sel;
 
-	/* Set the main clock to: 100MHz (mode 5) or 80MHz (mode 4) */
-	hw->clk_rate = (mode == 5) ? 100000000 : 80000000;
-
-	/*
-	 * [1] for GPMI_HW_GPMI_TIMING0:
-	 *     The async mode requires 40MHz for mode 4, 50MHz for mode 5.
-	 *     The GPMI can support 100MHz at most. So if we want to
-	 *     get the 40MHz or 50MHz, we have to set DS=1, DH=1.
-	 *     Set the ADDRESS_SETUP to 0 in mode 4.
-	 */
-	hw->data_setup_in_cycles = 1;
-	hw->data_hold_in_cycles = 1;
-	hw->address_setup_in_cycles = (mode == 5) ? 1 : 0;
-
-	/* [2] for GPMI_HW_GPMI_TIMING1 */
-	hw->device_busy_timeout = 0x9000;
-
-	/* [3] for GPMI_HW_GPMI_CTRL1 */
-	hw->wrn_dly_sel = BV_GPMI_CTRL1_WRN_DLY_SEL_NO_DELAY;
-
-	/*
-	 * Enlarge 10 times for the numerator and denominator in {3}.
-	 * This make us to get more accurate result.
-	 */
-	clk_period = NSEC_PER_SEC / (hw->clk_rate / 10);
-	dll_threshold *= 10;
-	t_rea = this->timing.tREA_in_ns * 10;
-	t_rp = clk_period * 1; /* DATA_SETUP is 1 */
-
-	if (clk_period > dll_threshold) {
-		hw->use_half_periods = 1;
-		rp = clk_period / 2;
+	if (sdr->tRC_min >= 30000) {
+		/* ONFI non-EDO modes [0-3] */
+		hw->clk_rate = 22000000;
+		wrn_dly_sel = BV_GPMI_CTRL1_WRN_DLY_SEL_4_TO_8NS;
+	} else if (sdr->tRC_min >= 25000) {
+		/* ONFI EDO mode 4 */
+		hw->clk_rate = 80000000;
+		wrn_dly_sel = BV_GPMI_CTRL1_WRN_DLY_SEL_NO_DELAY;
 	} else {
-		hw->use_half_periods = 0;
-		rp = clk_period;
+		/* ONFI EDO mode 5 */
+		hw->clk_rate = 100000000;
+		wrn_dly_sel = BV_GPMI_CTRL1_WRN_DLY_SEL_NO_DELAY;
 	}
 
-	/*
-	 * Multiply the numerator with 10, we could do a round off:
-	 *      7.8 round up to 8; 7.4 round down to 7.
-	 */
-	delay  = (((t_rea + 40 - t_rp) * 8) * 10) / rp;
-	delay = (delay + 5) / 10;
+	/* SDR core timings are given in picoseconds */
+	period_ps = div_u64((u64)NSEC_PER_SEC * 1000, hw->clk_rate);
 
-	hw->sample_delay_factor = delay;
+	addr_setup_cycles = TO_CYCLES(sdr->tALS_min, period_ps);
+	data_setup_cycles = TO_CYCLES(sdr->tDS_min, period_ps);
+	data_hold_cycles = TO_CYCLES(sdr->tDH_min, period_ps);
+	busy_timeout_cycles = TO_CYCLES(sdr->tWB_max + sdr->tR_max, period_ps);
+
+	hw->timing0 = BF_GPMI_TIMING0_ADDRESS_SETUP(addr_setup_cycles) |
+		      BF_GPMI_TIMING0_DATA_HOLD(data_hold_cycles) |
+		      BF_GPMI_TIMING0_DATA_SETUP(data_setup_cycles);
+	hw->timing1 = BF_GPMI_TIMING1_BUSY_TIMEOUT(busy_timeout_cycles * 4096);
+
+	/*
+	 * Derive NFC ideal delay from {3}:
+	 *
+	 *                     (tREA + 4000 - tRP) * 8
+	 *         RDN_DELAY = -----------------------
+	 *                                RP
+	 */
+	if (period_ps > dll_threshold_ps) {
+		use_half_period = true;
+		reference_period_ps = period_ps / 2;
+	} else {
+		use_half_period = false;
+		reference_period_ps = period_ps;
+	}
+
+	tRP_ps = data_setup_cycles * period_ps;
+	sample_delay_ps = (sdr->tREA_max + 4000 - tRP_ps) * 8;
+	if (sample_delay_ps > 0)
+		sample_delay_factor = sample_delay_ps / reference_period_ps;
+	else
+		sample_delay_factor = 0;
+
+	hw->ctrl1n = BF_GPMI_CTRL1_WRN_DLY_SEL(wrn_dly_sel);
+	if (sample_delay_factor)
+		hw->ctrl1n |= BF_GPMI_CTRL1_RDN_DELAY(sample_delay_factor) |
+			      BM_GPMI_CTRL1_DLL_ENABLE |
+			      (use_half_period ? BM_GPMI_CTRL1_HALF_PERIOD : 0);
 }
 
 void gpmi_nfc_apply_timings(struct gpmi_nand_data *this)
@@ -857,64 +460,27 @@ void gpmi_nfc_apply_timings(struct gpmi_nand_data *this)
 	struct gpmi_nfc_hardware_timing *hw = &this->hw;
 	struct resources *r = &this->resources;
 	void __iomem *gpmi_regs = r->gpmi_regs;
-	unsigned int   clock_period_in_ns;
-	uint32_t       reg;
-	unsigned int   dll_wait_time_in_us;
+	unsigned int dll_wait_time_us;
 
-	/* [0] Set the main clock rate */
 	clk_set_rate(r->clock[0], hw->clk_rate);
 
-	/* [1] Set HW_GPMI_TIMING0 */
-	reg = BF_GPMI_TIMING0_ADDRESS_SETUP(hw->address_setup_in_cycles) |
-	      BF_GPMI_TIMING0_DATA_HOLD(hw->data_hold_in_cycles) |
-	      BF_GPMI_TIMING0_DATA_SETUP(hw->data_setup_in_cycles);
-
-	writel(reg, gpmi_regs + HW_GPMI_TIMING0);
-
-	/* [2] Set HW_GPMI_TIMING1 */
-	writel(BF_GPMI_TIMING1_BUSY_TIMEOUT(hw->device_busy_timeout),
-	       gpmi_regs + HW_GPMI_TIMING1);
-
-	/* [3] The following code is to set the HW_GPMI_CTRL1. */
-
-	/* Set the WRN_DLY_SEL */
-	writel(BM_GPMI_CTRL1_WRN_DLY_SEL, gpmi_regs + HW_GPMI_CTRL1_CLR);
-	writel(BF_GPMI_CTRL1_WRN_DLY_SEL(hw->wrn_dly_sel),
-	       gpmi_regs + HW_GPMI_CTRL1_SET);
-
-	/* DLL_ENABLE must be set to 0 when setting RDN_DELAY or HALF_PERIOD. */
-	writel(BM_GPMI_CTRL1_DLL_ENABLE, gpmi_regs + HW_GPMI_CTRL1_CLR);
-
-	/* Clear out the DLL control fields. */
-	reg = BM_GPMI_CTRL1_RDN_DELAY | BM_GPMI_CTRL1_HALF_PERIOD;
-	writel(reg, gpmi_regs + HW_GPMI_CTRL1_CLR);
-
-	/* If no sample delay is called for, return immediately. */
-	if (!hw->sample_delay_factor)
-		return;
-
-	/* Set RDN_DELAY or HALF_PERIOD. */
-	reg = ((hw->use_half_periods) ? BM_GPMI_CTRL1_HALF_PERIOD : 0)
-		| BF_GPMI_CTRL1_RDN_DELAY(hw->sample_delay_factor);
-
-	writel(reg, gpmi_regs + HW_GPMI_CTRL1_SET);
-
-	/* At last, we enable the DLL. */
-	writel(BM_GPMI_CTRL1_DLL_ENABLE, gpmi_regs + HW_GPMI_CTRL1_SET);
+	writel(hw->timing0, gpmi_regs + HW_GPMI_TIMING0);
+	writel(hw->timing1, gpmi_regs + HW_GPMI_TIMING1);
 
 	/*
-	 * After we enable the GPMI DLL, we have to wait 64 clock cycles before
-	 * we can use the GPMI. Calculate the amount of time we need to wait,
-	 * in microseconds.
+	 * Clear several CTRL1 fields, DLL must be disabled when setting
+	 * RDN_DELAY or HALF_PERIOD.
 	 */
-	clock_period_in_ns = NSEC_PER_SEC / hw->clk_rate;
-	dll_wait_time_in_us = (clock_period_in_ns * 64) / 1000;
+	writel(BM_GPMI_CTRL1_CLEAR_MASK, gpmi_regs + HW_GPMI_CTRL1_CLR);
+	writel(hw->ctrl1n, gpmi_regs + HW_GPMI_CTRL1_SET);
 
-	if (!dll_wait_time_in_us)
-		dll_wait_time_in_us = 1;
+	/* Wait 64 clock cycles before using the GPMI after enabling the DLL */
+	dll_wait_time_us = USEC_PER_SEC / hw->clk_rate * 64;
+	if (!dll_wait_time_us)
+		dll_wait_time_us = 1;
 
 	/* Wait for the DLL to settle. */
-	udelay(dll_wait_time_in_us);
+	udelay(dll_wait_time_us);
 }
 
 int gpmi_setup_data_interface(struct mtd_info *mtd, int chipnr,
@@ -923,33 +489,22 @@ int gpmi_setup_data_interface(struct mtd_info *mtd, int chipnr,
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
 	const struct nand_sdr_timings *sdr;
-	bool edo_mode = false;
 
 	/* Retrieve required NAND timings */
 	sdr = nand_get_sdr_timings(conf);
 	if (IS_ERR(sdr))
 		return PTR_ERR(sdr);
 
-	if (sdr->tRC_min <= 25000)
-		edo_mode = true;
-
 	/* Only MX6 GPMI controller can reach EDO timings */
-	if (edo_mode && !GPMI_IS_MX6(this))
+	if (sdr->tRC_min <= 25000 && !GPMI_IS_MX6(this))
 		return -ENOTSUPP;
 
+	/* Stop here if this call was just a check */
 	if (chipnr < 0)
 		return 0;
 
-	this->timing.tREA_in_ns = sdr->tREA_max / 1000;
-	this->timing.tRLOH_in_ns = sdr->tRLOH_min / 1000;
-	this->timing.tRHOH_in_ns = sdr->tRHOH_min / 1000;
-
-	/* Compute GPMI parameters depending on the mode */
-	if (edo_mode)
-		gpmi_nfc_compute_edo_timings(this,
-					     sdr->tRC_min > 20000 ? 4 : 5);
-	else
-		gpmi_nfc_compute_hardware_timings(this);
+	/* Do the actual derivation of the controller timings */
+	gpmi_nfc_compute_timings(this, sdr);
 
 	this->hw.must_apply_timings = true;
 

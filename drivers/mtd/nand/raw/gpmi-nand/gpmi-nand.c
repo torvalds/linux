@@ -94,7 +94,7 @@ static const struct mtd_ooblayout_ops gpmi_ooblayout_ops = {
 static const struct gpmi_devdata gpmi_devdata_imx23 = {
 	.type = IS_MX23,
 	.bch_max_ecc_strength = 20,
-	.max_chain_delay = 16,
+	.max_chain_delay = 16000,
 	.clks = gpmi_clks_for_mx2x,
 	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx2x),
 };
@@ -102,7 +102,7 @@ static const struct gpmi_devdata gpmi_devdata_imx23 = {
 static const struct gpmi_devdata gpmi_devdata_imx28 = {
 	.type = IS_MX28,
 	.bch_max_ecc_strength = 20,
-	.max_chain_delay = 16,
+	.max_chain_delay = 16000,
 	.clks = gpmi_clks_for_mx2x,
 	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx2x),
 };
@@ -114,7 +114,7 @@ static const char * const gpmi_clks_for_mx6[] = {
 static const struct gpmi_devdata gpmi_devdata_imx6q = {
 	.type = IS_MX6Q,
 	.bch_max_ecc_strength = 40,
-	.max_chain_delay = 12,
+	.max_chain_delay = 12000,
 	.clks = gpmi_clks_for_mx6,
 	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx6),
 };
@@ -122,7 +122,7 @@ static const struct gpmi_devdata gpmi_devdata_imx6q = {
 static const struct gpmi_devdata gpmi_devdata_imx6sx = {
 	.type = IS_MX6SX,
 	.bch_max_ecc_strength = 62,
-	.max_chain_delay = 12,
+	.max_chain_delay = 12000,
 	.clks = gpmi_clks_for_mx6,
 	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx6),
 };
@@ -134,7 +134,7 @@ static const char * const gpmi_clks_for_mx7d[] = {
 static const struct gpmi_devdata gpmi_devdata_imx7d = {
 	.type = IS_MX7D,
 	.bch_max_ecc_strength = 62,
-	.max_chain_delay = 12,
+	.max_chain_delay = 12000,
 	.clks = gpmi_clks_for_mx7d,
 	.clks_count = ARRAY_SIZE(gpmi_clks_for_mx7d),
 };
@@ -693,34 +693,6 @@ exit_regs:
 static void release_resources(struct gpmi_nand_data *this)
 {
 	release_dma_channels(this);
-}
-
-static int init_hardware(struct gpmi_nand_data *this)
-{
-	int ret;
-
-	/*
-	 * This structure contains the "safe" GPMI timing that should succeed
-	 * with any NAND Flash device
-	 * (although, with less-than-optimal performance).
-	 */
-	struct nand_timing  safe_timing = {
-		.data_setup_in_ns        = 80,
-		.data_hold_in_ns         = 60,
-		.address_setup_in_ns     = 25,
-		.gpmi_sample_delay_in_ns =  6,
-		.tREA_in_ns              = -1,
-		.tRLOH_in_ns             = -1,
-		.tRHOH_in_ns             = -1,
-	};
-
-	/* Initialize the hardwares. */
-	ret = gpmi_init(this);
-	if (ret)
-		return ret;
-
-	this->timing = safe_timing;
-	return 0;
 }
 
 static int read_page_prepare(struct gpmi_nand_data *this,
@@ -2107,7 +2079,7 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto exit_acquire_resources;
 
-	ret = init_hardware(this);
+	ret = gpmi_init(this);
 	if (ret)
 		goto exit_nfc_init;
 

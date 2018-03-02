@@ -86,39 +86,6 @@ enum dma_ops_type {
 	DMA_FOR_WRITE_ECC_PAGE
 };
 
-/**
- * struct nand_timing - Fundamental timing attributes for NAND.
- * @data_setup_in_ns:         The data setup time, in nanoseconds. Usually the
- *                            maximum of tDS and tWP. A negative value
- *                            indicates this characteristic isn't known.
- * @data_hold_in_ns:          The data hold time, in nanoseconds. Usually the
- *                            maximum of tDH, tWH and tREH. A negative value
- *                            indicates this characteristic isn't known.
- * @address_setup_in_ns:      The address setup time, in nanoseconds. Usually
- *                            the maximum of tCLS, tCS and tALS. A negative
- *                            value indicates this characteristic isn't known.
- * @gpmi_sample_delay_in_ns:  A GPMI-specific timing parameter. A negative value
- *                            indicates this characteristic isn't known.
- * @tREA_in_ns:               tREA, in nanoseconds, from the data sheet. A
- *                            negative value indicates this characteristic isn't
- *                            known.
- * @tRLOH_in_ns:              tRLOH, in nanoseconds, from the data sheet. A
- *                            negative value indicates this characteristic isn't
- *                            known.
- * @tRHOH_in_ns:              tRHOH, in nanoseconds, from the data sheet. A
- *                            negative value indicates this characteristic isn't
- *                            known.
- */
-struct nand_timing {
-	int8_t  data_setup_in_ns;
-	int8_t  data_hold_in_ns;
-	int8_t  address_setup_in_ns;
-	int8_t  gpmi_sample_delay_in_ns;
-	int8_t  tREA_in_ns;
-	int8_t  tRLOH_in_ns;
-	int8_t  tRHOH_in_ns;
-};
-
 enum gpmi_type {
 	IS_MX23,
 	IS_MX28,
@@ -137,41 +104,21 @@ struct gpmi_devdata {
 
 /**
  * struct gpmi_nfc_hardware_timing - GPMI hardware timing parameters.
- * @timing_mode:               The timing mode to comply with.
  * @must_apply_timings:        Whether controller timings have already been
  *                             applied or not (useful only while there is
  *                             support for only one chip select)
  * @clk_rate:                  The clock rate that must be used to derive the
- *                             following parameters.
- * @data_setup_in_cycles:      The data setup time, in cycles.
- * @data_hold_in_cycles:       The data hold time, in cycles.
- * @address_setup_in_cycles:   The address setup time, in cycles.
- * @device_busy_timeout:       The timeout waiting for NAND Ready/Busy,
- *                             this value is the number of cycles multiplied
- *                             by 4096.
- * @use_half_periods:          Indicates the clock is running slowly, so the
- *                             NFC DLL should use half-periods.
- * @sample_delay_factor:       The sample delay factor.
- * @wrn_dly_sel:               The delay on the GPMI write strobe.
+ *                             following parameters
+ * @timing0:                   HW_GPMI_TIMING0 register
+ * @timing1:                   HW_GPMI_TIMING1 register
+ * @ctrl1n:                    HW_GPMI_CTRL1n register
  */
 struct gpmi_nfc_hardware_timing {
-	unsigned int timing_mode;
 	bool must_apply_timings;
 	unsigned long int clk_rate;
-
-	/* for HW_GPMI_TIMING0 */
-	u8 data_setup_in_cycles;
-	u8 data_hold_in_cycles;
-	u8 address_setup_in_cycles;
-
-	/* for HW_GPMI_TIMING1 */
-	u16 device_busy_timeout;
-#define GPMI_DEFAULT_BUSY_TIMEOUT	0x500 /* default busy timeout value.*/
-
-	/* for HW_GPMI_CTRL1 */
-	bool use_half_periods;
-	u8 sample_delay_factor;
-	u8 wrn_dly_sel;
+	u32 timing0;
+	u32 timing1;
+	u32 ctrl1n;
 };
 
 struct gpmi_nand_data {
@@ -186,8 +133,6 @@ struct gpmi_nand_data {
 	struct resources	resources;
 
 	/* Flash Hardware */
-	struct nand_timing	timing;
-	int			timing_mode;
 	struct gpmi_nfc_hardware_timing hw;
 
 	/* BCH */
@@ -239,40 +184,6 @@ struct gpmi_nand_data {
 
 	/* private */
 	void			*private;
-};
-
-/**
- * struct timing_threshold - Timing threshold
- * @max_data_setup_cycles:       The maximum number of data setup cycles that
- *                               can be expressed in the hardware.
- * @internal_data_setup_in_ns:   The time, in ns, that the NFC hardware requires
- *                               for data read internal setup. In the Reference
- *                               Manual, see the chapter "High-Speed NAND
- *                               Timing" for more details.
- * @max_sample_delay_factor:     The maximum sample delay factor that can be
- *                               expressed in the hardware.
- * @max_dll_clock_period_in_ns:  The maximum period of the GPMI clock that the
- *                               sample delay DLL hardware can possibly work
- *                               with (the DLL is unusable with longer periods).
- *                               If the full-cycle period is greater than HALF
- *                               this value, the DLL must be configured to use
- *                               half-periods.
- * @max_dll_delay_in_ns:         The maximum amount of delay, in ns, that the
- *                               DLL can implement.
- * @clock_frequency_in_hz:       The clock frequency, in Hz, during the current
- *                               I/O transaction. If no I/O transaction is in
- *                               progress, this is the clock frequency during
- *                               the most recent I/O transaction.
- */
-struct timing_threshold {
-	const unsigned int      max_chip_count;
-	const unsigned int      max_data_setup_cycles;
-	const unsigned int      internal_data_setup_in_ns;
-	const unsigned int      max_sample_delay_factor;
-	const unsigned int      max_dll_clock_period_in_ns;
-	const unsigned int      max_dll_delay_in_ns;
-	unsigned long           clock_frequency_in_hz;
-
 };
 
 /* Common Services */
