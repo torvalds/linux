@@ -135,11 +135,47 @@ struct gpmi_devdata {
 	const int clks_count;
 };
 
+/**
+ * struct gpmi_nfc_hardware_timing - GPMI hardware timing parameters.
+ * @timing_mode:               The timing mode to comply with.
+ * @must_apply_timings:        Whether controller timings have already been
+ *                             applied or not (useful only while there is
+ *                             support for only one chip select)
+ * @clk_rate:                  The clock rate that must be used to derive the
+ *                             following parameters.
+ * @data_setup_in_cycles:      The data setup time, in cycles.
+ * @data_hold_in_cycles:       The data hold time, in cycles.
+ * @address_setup_in_cycles:   The address setup time, in cycles.
+ * @device_busy_timeout:       The timeout waiting for NAND Ready/Busy,
+ *                             this value is the number of cycles multiplied
+ *                             by 4096.
+ * @use_half_periods:          Indicates the clock is running slowly, so the
+ *                             NFC DLL should use half-periods.
+ * @sample_delay_factor:       The sample delay factor.
+ * @wrn_dly_sel:               The delay on the GPMI write strobe.
+ */
+struct gpmi_nfc_hardware_timing {
+	unsigned int timing_mode;
+	bool must_apply_timings;
+	unsigned long int clk_rate;
+
+	/* for HW_GPMI_TIMING0 */
+	u8 data_setup_in_cycles;
+	u8 data_hold_in_cycles;
+	u8 address_setup_in_cycles;
+
+	/* for HW_GPMI_TIMING1 */
+	u16 device_busy_timeout;
+#define GPMI_DEFAULT_BUSY_TIMEOUT	0x500 /* default busy timeout value.*/
+
+	/* for HW_GPMI_CTRL1 */
+	bool use_half_periods;
+	u8 sample_delay_factor;
+	u8 wrn_dly_sel;
+};
+
 struct gpmi_nand_data {
-	/* flags */
-#define GPMI_ASYNC_EDO_ENABLED	(1 << 0)
-#define GPMI_TIMING_INIT_OK	(1 << 1)
-	int			flags;
+	/* Devdata */
 	const struct gpmi_devdata *devdata;
 
 	/* System Interface */
@@ -152,6 +188,7 @@ struct gpmi_nand_data {
 	/* Flash Hardware */
 	struct nand_timing	timing;
 	int			timing_mode;
+	struct gpmi_nfc_hardware_timing hw;
 
 	/* BCH */
 	struct bch_geometry	bch_geometry;
@@ -205,35 +242,6 @@ struct gpmi_nand_data {
 };
 
 /**
- * struct gpmi_nfc_hardware_timing - GPMI hardware timing parameters.
- * @data_setup_in_cycles:      The data setup time, in cycles.
- * @data_hold_in_cycles:       The data hold time, in cycles.
- * @address_setup_in_cycles:   The address setup time, in cycles.
- * @device_busy_timeout:       The timeout waiting for NAND Ready/Busy,
- *                             this value is the number of cycles multiplied
- *                             by 4096.
- * @use_half_periods:          Indicates the clock is running slowly, so the
- *                             NFC DLL should use half-periods.
- * @sample_delay_factor:       The sample delay factor.
- * @wrn_dly_sel:               The delay on the GPMI write strobe.
- */
-struct gpmi_nfc_hardware_timing {
-	/* for HW_GPMI_TIMING0 */
-	uint8_t  data_setup_in_cycles;
-	uint8_t  data_hold_in_cycles;
-	uint8_t  address_setup_in_cycles;
-
-	/* for HW_GPMI_TIMING1 */
-	uint16_t device_busy_timeout;
-#define GPMI_DEFAULT_BUSY_TIMEOUT	0x500 /* default busy timeout value.*/
-
-	/* for HW_GPMI_CTRL1 */
-	bool     use_half_periods;
-	uint8_t  sample_delay_factor;
-	uint8_t  wrn_dly_sel;
-};
-
-/**
  * struct timing_threshold - Timing threshold
  * @max_data_setup_cycles:       The maximum number of data setup cycles that
  *                               can be expressed in the hardware.
@@ -279,14 +287,16 @@ int start_dma_with_bch_irq(struct gpmi_nand_data *,
 
 /* GPMI-NAND helper function library */
 int gpmi_init(struct gpmi_nand_data *);
-int gpmi_extra_init(struct gpmi_nand_data *);
 void gpmi_clear_bch(struct gpmi_nand_data *);
 void gpmi_dump_info(struct gpmi_nand_data *);
 int bch_set_geometry(struct gpmi_nand_data *);
 int gpmi_is_ready(struct gpmi_nand_data *, unsigned chip);
 int gpmi_send_command(struct gpmi_nand_data *);
-void gpmi_begin(struct gpmi_nand_data *);
-void gpmi_end(struct gpmi_nand_data *);
+int gpmi_enable_clk(struct gpmi_nand_data *this);
+int gpmi_disable_clk(struct gpmi_nand_data *this);
+int gpmi_setup_data_interface(struct mtd_info *mtd, int chipnr,
+			      const struct nand_data_interface *conf);
+void gpmi_nfc_apply_timings(struct gpmi_nand_data *this);
 int gpmi_read_data(struct gpmi_nand_data *);
 int gpmi_send_data(struct gpmi_nand_data *);
 int gpmi_send_page(struct gpmi_nand_data *,

@@ -938,11 +938,32 @@ static void gpmi_select_chip(struct mtd_info *mtd, int chipnr)
 {
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct gpmi_nand_data *this = nand_get_controller_data(chip);
+	int ret;
 
-	if ((this->current_chip < 0) && (chipnr >= 0))
-		gpmi_begin(this);
-	else if ((this->current_chip >= 0) && (chipnr < 0))
-		gpmi_end(this);
+	/*
+	 * For power consumption matters, disable/enable the clock each time a
+	 * die is selected/unselected.
+	 */
+	if (this->current_chip < 0 && chipnr >= 0) {
+		ret = gpmi_enable_clk(this);
+		if (ret)
+			dev_err(this->dev, "Failed to enable the clock\n");
+	} else if (this->current_chip >= 0 && chipnr < 0) {
+		ret = gpmi_disable_clk(this);
+		if (ret)
+			dev_err(this->dev, "Failed to disable the clock\n");
+	}
+
+	/*
+	 * This driver currently supports only one NAND chip. Plus, dies share
+	 * the same configuration. So once timings have been applied on the
+	 * controller side, they will not change anymore. When the time will
+	 * come, the check on must_apply_timings will have to be dropped.
+	 */
+	if (chipnr >= 0 && this->hw.must_apply_timings) {
+		this->hw.must_apply_timings = false;
+		gpmi_nfc_apply_timings(this);
+	}
 
 	this->current_chip = chipnr;
 }
@@ -1955,14 +1976,6 @@ static int gpmi_init_last(struct gpmi_nand_data *this)
 		chip->options |= NAND_SUBPAGE_READ;
 	}
 
-	/*
-	 * Can we enable the extra features? such as EDO or Sync mode.
-	 *
-	 * We do not check the return value now. That's means if we fail in
-	 * enable the extra features, we still can run in the normal way.
-	 */
-	gpmi_extra_init(this);
-
 	return 0;
 }
 
@@ -1983,6 +1996,7 @@ static int gpmi_nand_init(struct gpmi_nand_data *this)
 	nand_set_controller_data(chip, this);
 	nand_set_flash_node(chip, this->pdev->dev.of_node);
 	chip->select_chip	= gpmi_select_chip;
+	chip->setup_data_interface = gpmi_setup_data_interface;
 	chip->cmd_ctrl		= gpmi_cmd_ctrl;
 	chip->dev_ready		= gpmi_dev_ready;
 	chip->read_byte		= gpmi_read_byte;
@@ -2141,7 +2155,6 @@ static int gpmi_pm_resume(struct device *dev)
 		return ret;
 
 	/* re-init the GPMI registers */
-	this->flags &= ~GPMI_TIMING_INIT_OK;
 	ret = gpmi_init(this);
 	if (ret) {
 		dev_err(this->dev, "Error setting GPMI : %d\n", ret);
@@ -2154,9 +2167,6 @@ static int gpmi_pm_resume(struct device *dev)
 		dev_err(this->dev, "Error setting BCH : %d\n", ret);
 		return ret;
 	}
-
-	/* re-init others */
-	gpmi_extra_init(this);
 
 	return 0;
 }
