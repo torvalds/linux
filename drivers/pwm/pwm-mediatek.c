@@ -120,18 +120,25 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct mtk_pwm_chip *pc = to_mtk_pwm_chip(chip);
 	struct clk *clk = pc->clks[MTK_CLK_PWM1 + pwm->hwpwm];
-	u32 resolution, clkdiv = 0;
+	u32 clkdiv = 0, cnt_period, cnt_duty, reg_width = PWMDWIDTH,
+	reg_thres = PWMTHRES;
+	u64 resolution;
 	int ret;
 
 	ret = mtk_pwm_clk_enable(chip, pwm);
 	if (ret < 0)
 		return ret;
 
-	resolution = NSEC_PER_SEC / clk_get_rate(clk);
+	/* Using resolution in picosecond gets accuracy higher */
+	resolution = (u64)NSEC_PER_SEC * 1000;
+	do_div(resolution, clk_get_rate(clk));
 
-	while (period_ns / resolution > 8191) {
+	cnt_period = DIV_ROUND_CLOSEST_ULL((u64)period_ns * 1000, resolution);
+	while (cnt_period > 8191) {
 		resolution *= 2;
 		clkdiv++;
+		cnt_period = DIV_ROUND_CLOSEST_ULL((u64)period_ns * 1000,
+						   resolution);
 	}
 
 	if (clkdiv > PWM_CLK_DIV_MAX) {
@@ -140,14 +147,15 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		return -EINVAL;
 	}
 
+	cnt_duty = DIV_ROUND_CLOSEST_ULL((u64)duty_ns * 1000, resolution);
 	mtk_pwm_writel(pc, pwm->hwpwm, PWMCON, BIT(15) | clkdiv);
 	if (pwm->hwpwm > 2) { //for PWM4 and PWM5
-		mtk_pwm_writel(pc, pwm->hwpwm, PWM45DWIDTH, period_ns / resolution);
-		mtk_pwm_writel(pc, pwm->hwpwm, PWM45THRES, duty_ns / resolution);
-	}else{
-		mtk_pwm_writel(pc, pwm->hwpwm, PWMDWIDTH, period_ns / resolution);
-		mtk_pwm_writel(pc, pwm->hwpwm, PWMTHRES, duty_ns / resolution);
+		reg_width = PWM45DWIDTH;
+    	reg_thres = PWM45THRES;
 	}
+	mtk_pwm_writel(pc, pwm->hwpwm, reg_width, cnt_period);
+	mtk_pwm_writel(pc, pwm->hwpwm, reg_thres, cnt_duty);
+
 	mtk_pwm_clk_disable(chip, pwm);
 
 	return 0;
