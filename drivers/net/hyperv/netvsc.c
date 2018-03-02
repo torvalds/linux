@@ -1207,9 +1207,10 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 	if (send_recv_completions(ndev, net_device, nvchan) == 0 &&
 	    work_done < budget &&
 	    napi_complete_done(napi, work_done) &&
-	    hv_end_read(&channel->inbound)) {
+	    hv_end_read(&channel->inbound) &&
+	    napi_schedule_prep(napi)) {
 		hv_begin_read(&channel->inbound);
-		napi_reschedule(napi);
+		__napi_schedule(napi);
 	}
 
 	/* Driver may overshoot since multiple packets per descriptor */
