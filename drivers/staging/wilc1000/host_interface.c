@@ -3520,7 +3520,10 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 
 	mutex_lock(&hif_deinit_lock);
 
-	id = ((buffer[length - 4]) | (buffer[length - 3] << 8) | (buffer[length - 2] << 16) | (buffer[length - 1] << 24));
+	id = buffer[length - 4];
+	id |= (buffer[length - 3] << 8);
+	id |= (buffer[length - 2] << 16);
+	id |= (buffer[length - 1] << 24);
 	vif = wilc_get_vif_from_idx(wilc, id);
 	if (!vif) {
 		mutex_unlock(&hif_deinit_lock);
