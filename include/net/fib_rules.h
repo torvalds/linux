@@ -112,7 +112,11 @@ struct fib_rule_notifier_info {
 	[FRA_GOTO]	= { .type = NLA_U32 }, \
 	[FRA_L3MDEV]	= { .type = NLA_U8 }, \
 	[FRA_UID_RANGE]	= { .len = sizeof(struct fib_rule_uid_range) }, \
-	[FRA_PROTOCOL]  = { .type = NLA_U8 }
+	[FRA_PROTOCOL]  = { .type = NLA_U8 }, \
+	[FRA_IP_PROTO]  = { .type = NLA_U8 }, \
+	[FRA_SPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) }, \
+	[FRA_DPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) }
+
 
 static inline void fib_rule_get(struct fib_rule *rule)
 {
