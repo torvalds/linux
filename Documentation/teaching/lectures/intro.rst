@@ -42,7 +42,7 @@ User vs Kernel
      * User-space
 
 
-Kernel and user are two terms that are often use in operating
+Kernel and user are two terms that are often used in operating
 systems. Their definition is pretty straight forward: The kernel is
 the part of the operating system that runs with higher privileges
 while user (space) usually means by applications running with low
@@ -265,7 +265,7 @@ goal:
      inline functions, function pointers
 
 
-There are a class of operating systems that (used to) claim to be
+There is a class of operating systems that (used to) claim to be
 hybrid kernels, in between monolithic and micro-kernels (e.g. Windows,
 Mac OS X). However, since all of the typical monolithic services run
 in kernel-mode in these operating systems, there is little merit to
