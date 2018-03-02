@@ -8788,6 +8788,41 @@ struct mlx5_ifc_qpts_reg_bits {
 	u8         trust_state[0x3];
 };
 
+struct mlx5_ifc_pptb_reg_bits {
+	u8         reserved_at_0[0x2];
+	u8         mm[0x2];
+	u8         reserved_at_4[0x4];
+	u8         local_port[0x8];
+	u8         reserved_at_10[0x6];
+	u8         cm[0x1];
+	u8         um[0x1];
+	u8         pm[0x8];
+
+	u8         prio_x_buff[0x20];
+
+	u8         pm_msb[0x8];
+	u8         reserved_at_48[0x10];
+	u8         ctrl_buff[0x4];
+	u8         untagged_buff[0x4];
+};
+
+struct mlx5_ifc_pbmc_reg_bits {
+	u8         reserved_at_0[0x8];
+	u8         local_port[0x8];
+	u8         reserved_at_10[0x10];
+
+	u8         xoff_timer_value[0x10];
+	u8         xoff_refresh[0x10];
+
+	u8         reserved_at_40[0x9];
+	u8         fullness_threshold[0x7];
+	u8         port_buffer_size[0x10];
+
+	struct mlx5_ifc_bufferx_reg_bits buffer[10];
+
+	u8         reserved_at_2e0[0x40];
+};
+
 struct mlx5_ifc_qtct_reg_bits {
 	u8         reserved_at_0[0x8];
 	u8         port_number[0x8];

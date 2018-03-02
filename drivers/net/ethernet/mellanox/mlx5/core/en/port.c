@@ -127,3 +127,111 @@ u32 mlx5e_port_speed2linkmodes(u32 speed)
 
 	return link_modes;
 }
+
+int mlx5e_port_query_pbmc(struct mlx5_core_dev *mdev, void *out)
+{
+	int sz = MLX5_ST_SZ_BYTES(pbmc_reg);
+	void *in;
+	int err;
+
+	in = kzalloc(sz, GFP_KERNEL);
+	if (!in)
+		return -ENOMEM;
+
+	MLX5_SET(pbmc_reg, in, local_port, 1);
+	err = mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PBMC, 0, 0);
+
+	kfree(in);
+	return err;
+}
+
+int mlx5e_port_set_pbmc(struct mlx5_core_dev *mdev, void *in)
+{
+	int sz = MLX5_ST_SZ_BYTES(pbmc_reg);
+	void *out;
+	int err;
+
+	out = kzalloc(sz, GFP_KERNEL);
+	if (!out)
+		return -ENOMEM;
+
+	MLX5_SET(pbmc_reg, in, local_port, 1);
+	err = mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PBMC, 0, 1);
+
+	kfree(out);
+	return err;
+}
+
+/* buffer[i]: buffer that priority i mapped to */
+int mlx5e_port_query_priority2buffer(struct mlx5_core_dev *mdev, u8 *buffer)
+{
+	int sz = MLX5_ST_SZ_BYTES(pptb_reg);
+	u32 prio_x_buff;
+	void *out;
+	void *in;
+	int prio;
+	int err;
+
+	in = kzalloc(sz, GFP_KERNEL);
+	out = kzalloc(sz, GFP_KERNEL);
+	if (!in || !out) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	MLX5_SET(pptb_reg, in, local_port, 1);
+	err = mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPTB, 0, 0);
+	if (err)
+		goto out;
+
+	prio_x_buff = MLX5_GET(pptb_reg, out, prio_x_buff);
+	for (prio = 0; prio < 8; prio++) {
+		buffer[prio] = (u8)(prio_x_buff >> (4 * prio)) & 0xF;
+		mlx5_core_dbg(mdev, "prio %d, buffer %d\n", prio, buffer[prio]);
+	}
+out:
+	kfree(in);
+	kfree(out);
+	return err;
+}
+
+int mlx5e_port_set_priority2buffer(struct mlx5_core_dev *mdev, u8 *buffer)
+{
+	int sz = MLX5_ST_SZ_BYTES(pptb_reg);
+	u32 prio_x_buff;
+	void *out;
+	void *in;
+	int prio;
+	int err;
+
+	in = kzalloc(sz, GFP_KERNEL);
+	out = kzalloc(sz, GFP_KERNEL);
+	if (!in || !out) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	/* First query the pptb register */
+	MLX5_SET(pptb_reg, in, local_port, 1);
+	err = mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPTB, 0, 0);
+	if (err)
+		goto out;
+
+	memcpy(in, out, sz);
+	MLX5_SET(pptb_reg, in, local_port, 1);
+
+	/* Update the pm and prio_x_buff */
+	MLX5_SET(pptb_reg, in, pm, 0xFF);
+
+	prio_x_buff = 0;
+	for (prio = 0; prio < 8; prio++)
+		prio_x_buff |= (buffer[prio] << (4 * prio));
+	MLX5_SET(pptb_reg, in, prio_x_buff, prio_x_buff);
+
+	err = mlx5_core_access_reg(mdev, in, sz, out, sz, MLX5_REG_PPTB, 0, 1);
+
+out:
+	kfree(in);
+	kfree(out);
+	return err;
+}

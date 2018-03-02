@@ -40,4 +40,9 @@ u32 mlx5e_port_ptys2speed(u32 eth_proto_oper);
 int mlx5e_port_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 int mlx5e_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 u32 mlx5e_port_speed2linkmodes(u32 speed);
+
+int mlx5e_port_query_pbmc(struct mlx5_core_dev *mdev, void *out);
+int mlx5e_port_set_pbmc(struct mlx5_core_dev *mdev, void *in);
+int mlx5e_port_query_priority2buffer(struct mlx5_core_dev *mdev, u8 *buffer);
+int mlx5e_port_set_priority2buffer(struct mlx5_core_dev *mdev, u8 *buffer);
 #endif

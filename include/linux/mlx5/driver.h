@@ -124,6 +124,8 @@ enum {
 	MLX5_REG_PAOS		 = 0x5006,
 	MLX5_REG_PFCC            = 0x5007,
 	MLX5_REG_PPCNT		 = 0x5008,
+	MLX5_REG_PPTB            = 0x500b,
+	MLX5_REG_PBMC            = 0x500c,
 	MLX5_REG_PMAOS		 = 0x5012,
 	MLX5_REG_PUDE		 = 0x5009,
 	MLX5_REG_PMPE		 = 0x5010,
