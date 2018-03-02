@@ -1412,8 +1412,17 @@ nodatasum_case:
 		if (!page_bad->io_error && !sctx->is_dev_replace)
 			continue;
 
-		/* try to find no-io-error page in mirrors */
-		if (page_bad->io_error) {
+		if (scrub_is_page_on_raid56(sblock_bad->pagev[0])) {
+			/*
+			 * In case of dev replace, if raid56 rebuild process
+			 * didn't work out correct data, then copy the content
+			 * in sblock_bad to make sure target device is identical
+			 * to source device, instead of writing garbage data in
+			 * sblock_for_recheck array to target device.
+			 */
+			sblock_other = NULL;
+		} else if (page_bad->io_error) {
+			/* try to find no-io-error page in mirrors */
 			for (mirror_index = 0;
 			     mirror_index < BTRFS_MAX_MIRRORS &&
 			     sblocks_for_recheck[mirror_index].page_count > 0;
