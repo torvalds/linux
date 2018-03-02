@@ -10,6 +10,7 @@ mc-bus-driver-objs := fsl-mc-bus.o \
 		      mc-sys.o \
 		      mc-io.o \
 		      dpbp.o \
+		      dpcon.o \
 		      dprc.o \
 		      dprc-driver.o \
 		      fsl-mc-allocator.o \

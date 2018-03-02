@@ -5,9 +5,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/fsl/mc.h>
-#include "../include/dpcon.h"
+#include <linux/fsl/mc.h>
 
-#include "dpcon-cmd.h"
+#include "fsl-mc-private.h"
 
 /**
  * dpcon_open() - Open a control session for the specified object
