@@ -42,7 +42,7 @@ static int tpd_connect(struct omap_dss_device *dssdev,
 	struct omap_dss_device *src;
 	int r;
 
-	src = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
+	src = omapdss_of_find_connected_device(dssdev->dev->of_node, 0);
 	if (IS_ERR(src)) {
 		dev_err(dssdev->dev, "failed to find video source\n");
 		return PTR_ERR(src);

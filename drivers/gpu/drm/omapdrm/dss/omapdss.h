@@ -532,7 +532,7 @@ static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
 }
 
 struct omap_dss_device *
-omapdss_of_find_source_for_first_ep(struct device_node *node);
+omapdss_of_find_connected_device(struct device_node *node, unsigned int port);
 
 enum dss_writeback_channel {
 	DSS_WB_LCD1_MGR =	0,

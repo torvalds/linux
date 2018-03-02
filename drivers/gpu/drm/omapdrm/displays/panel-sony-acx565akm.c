@@ -511,10 +511,10 @@ static int acx565akm_connect(struct omap_dss_device *dssdev)
 	struct omap_dss_device *src;
 	int r;
 
-	src = omapdss_of_find_source_for_first_ep(dssdev->dev->of_node);
-	if (IS_ERR(src)) {
+	src = omapdss_of_find_connected_device(dssdev->dev->of_node, 0);
+	if (IS_ERR_OR_NULL(src)) {
 		dev_err(dssdev->dev, "failed to find video source\n");
-		return PTR_ERR(src);
+		return src ? PTR_ERR(src) : -EINVAL;
 	}
 
 	r = omapdss_device_connect(dssdev->dss, src, dssdev);
