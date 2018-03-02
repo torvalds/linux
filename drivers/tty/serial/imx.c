@@ -413,7 +413,7 @@ static void imx_stop_tx(struct uart_port *port)
 	 * We are maybe in the SMP context, so if the DMA TX thread is running
 	 * on other cpu, we have to wait for it to finish.
 	 */
-	if (sport->dma_is_enabled && sport->dma_is_txing)
+	if (sport->dma_is_txing)
 		return;
 
 	temp = imx_uart_readl(sport, UCR1);
@@ -442,7 +442,7 @@ static void imx_stop_rx(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long temp;
 
-	if (sport->dma_is_enabled && sport->dma_is_rxing) {
+	if (sport->dma_is_rxing) {
 		if (sport->port.suspended) {
 			dmaengine_terminate_all(sport->dma_chan_rx);
 			sport->dma_is_rxing = 0;
@@ -900,7 +900,7 @@ static unsigned int imx_tx_empty(struct uart_port *port)
 	ret = (imx_uart_readl(sport, USR2) & USR2_TXDC) ?  TIOCSER_TEMT : 0;
 
 	/* If the TX DMA is working, return 0. */
-	if (sport->dma_is_enabled && sport->dma_is_txing)
+	if (sport->dma_is_txing)
 		ret = 0;
 
 	return ret;
