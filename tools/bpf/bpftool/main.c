@@ -195,7 +195,10 @@ static int do_batch(int argc, char **argv)
 	}
 	NEXT_ARG();
 
-	fp = fopen(*argv, "r");
+	if (!strcmp(*argv, "-"))
+		fp = stdin;
+	else
+		fp = fopen(*argv, "r");
 	if (!fp) {
 		p_err("Can't open file (%s): %s", *argv, strerror(errno));
 		return -1;
@@ -284,7 +287,8 @@ static int do_batch(int argc, char **argv)
 		err = 0;
 	}
 err_close:
-	fclose(fp);
+	if (fp != stdin)
+		fclose(fp);
 
 	if (json_output)
 		jsonw_end_array(json_wtr);
