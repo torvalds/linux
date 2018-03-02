@@ -67,7 +67,7 @@ static int dvic_connect(struct omap_dss_device *dssdev)
 		return PTR_ERR(src);
 	}
 
-	r = omapdss_device_connect(src, dssdev);
+	r = omapdss_device_connect(dssdev->dss, src, dssdev);
 	if (r) {
 		omapdss_device_put(src);
 		return r;

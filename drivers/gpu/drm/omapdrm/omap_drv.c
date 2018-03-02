@@ -189,7 +189,7 @@ static int omap_connect_dssdevs(struct drm_device *ddev)
 		return -EPROBE_DEFER;
 
 	for_each_dss_display(dssdev) {
-		r = omapdss_device_connect(dssdev, NULL);
+		r = omapdss_device_connect(priv->dss, dssdev, NULL);
 		if (r == -EPROBE_DEFER) {
 			omapdss_device_put(dssdev);
 			goto cleanup;

@@ -177,7 +177,8 @@ done:
 }
 EXPORT_SYMBOL(omapdss_device_get_next);
 
-int omapdss_device_connect(struct omap_dss_device *src,
+int omapdss_device_connect(struct dss_device *dss,
+			   struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
 	int ret;
@@ -187,13 +188,17 @@ int omapdss_device_connect(struct omap_dss_device *src,
 	if (omapdss_device_is_connected(src))
 		return -EBUSY;
 
+	src->dss = dss;
+
 	if (src->driver)
 		ret = src->driver->connect(src);
 	else
 		ret = src->ops->connect(src, dst);
 
-	if (ret < 0)
+	if (ret < 0) {
+		src->dss = NULL;
 		return ret;
+	}
 
 	if (dst) {
 		dst->src = src;
@@ -226,6 +231,8 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 		src->driver->disconnect(src);
 	else
 		src->ops->disconnect(src, dst);
+
+	src->dss = NULL;
 }
 EXPORT_SYMBOL_GPL(omapdss_device_disconnect);
 

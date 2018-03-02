@@ -391,6 +391,7 @@ struct omap_dss_device {
 
 	struct module *owner;
 
+	struct dss_device *dss;
 	struct omap_dss_device *src;
 	struct omap_dss_device *dst;
 
@@ -498,7 +499,8 @@ struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 						    unsigned int port);
 struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
 						bool display_only);
-int omapdss_device_connect(struct omap_dss_device *src,
+int omapdss_device_connect(struct dss_device *dss,
+			   struct omap_dss_device *src,
 			   struct omap_dss_device *dst);
 void omapdss_device_disconnect(struct omap_dss_device *src,
 			       struct omap_dss_device *dst);
