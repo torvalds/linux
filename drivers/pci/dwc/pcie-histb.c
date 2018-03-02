@@ -276,13 +276,12 @@ static int histb_pcie_host_enable(struct pcie_port *pp)
 	return 0;
 
 err_aux_clk:
-	clk_disable_unprepare(hipcie->aux_clk);
-err_pipe_clk:
 	clk_disable_unprepare(hipcie->pipe_clk);
-err_sys_clk:
+err_pipe_clk:
 	clk_disable_unprepare(hipcie->sys_clk);
-err_bus_clk:
+err_sys_clk:
 	clk_disable_unprepare(hipcie->bus_clk);
+err_bus_clk:
 
 	return ret;
 }
