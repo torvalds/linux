@@ -510,8 +510,7 @@ static void handle_cfg_param(struct wilc_vif *vif,
 		i++;
 	}
 	if (cfg_param_attr->flag & AUTHEN_TIMEOUT) {
-		if (cfg_param_attr->auth_timeout > 0 &&
-		    cfg_param_attr->auth_timeout < 65536) {
+		if (cfg_param_attr->auth_timeout > 0) {
 			wid_list[i].id = WID_AUTH_TIMEOUT;
 			wid_list[i].val = (s8 *)&cfg_param_attr->auth_timeout;
 			wid_list[i].type = WID_SHORT;
@@ -579,8 +578,7 @@ static void handle_cfg_param(struct wilc_vif *vif,
 		i++;
 	}
 	if (cfg_param_attr->flag & RTS_THRESHOLD) {
-		if (cfg_param_attr->rts_threshold > 255 &&
-		    cfg_param_attr->rts_threshold < 65536) {
+		if (cfg_param_attr->rts_threshold > 255) {
 			wid_list[i].id = WID_RTS_THRESHOLD;
 			wid_list[i].val = (s8 *)&cfg_param_attr->rts_threshold;
 			wid_list[i].type = WID_SHORT;
@@ -632,8 +630,7 @@ static void handle_cfg_param(struct wilc_vif *vif,
 		i++;
 	}
 	if (cfg_param_attr->flag & BEACON_INTERVAL) {
-		if (cfg_param_attr->beacon_interval > 0 &&
-		    cfg_param_attr->beacon_interval < 65536) {
+		if (cfg_param_attr->beacon_interval > 0) {
 			wid_list[i].id = WID_BEACON_INTERVAL;
 			wid_list[i].val = (s8 *)&cfg_param_attr->beacon_interval;
 			wid_list[i].type = WID_SHORT;
@@ -673,8 +670,7 @@ static void handle_cfg_param(struct wilc_vif *vif,
 		i++;
 	}
 	if (cfg_param_attr->flag & SITE_SURVEY_SCAN_TIME) {
-		if (cfg_param_attr->site_survey_scan_time > 0 &&
-		    cfg_param_attr->site_survey_scan_time < 65536) {
+		if (cfg_param_attr->site_survey_scan_time > 0) {
 			wid_list[i].id = WID_SITE_SURVEY_SCAN_TIME;
 			wid_list[i].val = (s8 *)&cfg_param_attr->site_survey_scan_time;
 			wid_list[i].type = WID_SHORT;
@@ -687,8 +683,7 @@ static void handle_cfg_param(struct wilc_vif *vif,
 		i++;
 	}
 	if (cfg_param_attr->flag & ACTIVE_SCANTIME) {
-		if (cfg_param_attr->active_scan_time > 0 &&
-		    cfg_param_attr->active_scan_time < 65536) {
+		if (cfg_param_attr->active_scan_time > 0) {
 			wid_list[i].id = WID_ACTIVE_SCAN_TIME;
 			wid_list[i].val = (s8 *)&cfg_param_attr->active_scan_time;
 			wid_list[i].type = WID_SHORT;
@@ -701,8 +696,7 @@ static void handle_cfg_param(struct wilc_vif *vif,
 		i++;
 	}
 	if (cfg_param_attr->flag & PASSIVE_SCANTIME) {
-		if (cfg_param_attr->passive_scan_time > 0 &&
-		    cfg_param_attr->passive_scan_time < 65536) {
+		if (cfg_param_attr->passive_scan_time > 0) {
 			wid_list[i].id = WID_PASSIVE_SCAN_TIME;
 			wid_list[i].val = (s8 *)&cfg_param_attr->passive_scan_time;
 			wid_list[i].type = WID_SHORT;
