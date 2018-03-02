@@ -125,6 +125,21 @@ static const struct cgs_irq_src_funcs thermal_irq_src[3] = {
 	{ .handler = phm_ctf_irq }
 };
 
+static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
+{
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D] = 2;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_POWERSAVING] = 0;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VIDEO] = 1;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VR] = 3;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_COMPUTE] = 4;
+
+	hwmgr->workload_setting[0] = PP_SMC_POWER_PROFILE_POWERSAVING;
+	hwmgr->workload_setting[1] = PP_SMC_POWER_PROFILE_VIDEO;
+	hwmgr->workload_setting[2] = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+	hwmgr->workload_setting[3] = PP_SMC_POWER_PROFILE_VR;
+	hwmgr->workload_setting[4] = PP_SMC_POWER_PROFILE_COMPUTE;
+}
+
 int hwmgr_early_init(struct pp_instance *handle)
 {
 	struct pp_hwmgr *hwmgr;
@@ -151,6 +166,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 	hwmgr_set_user_specify_caps(hwmgr);
 	hwmgr->fan_ctrl_is_in_default_mode = true;
 	hwmgr->reload_fw = 1;
+	hwmgr_init_workload_prority(hwmgr);
 
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CI:

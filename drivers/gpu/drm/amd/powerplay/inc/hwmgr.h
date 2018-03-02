@@ -696,6 +696,8 @@ enum PP_TABLE_VERSION {
 /**
  * The main hardware manager structure.
  */
+#define Workload_Policy_Max 5
+
 struct pp_hwmgr {
 	void *adev;
 	uint32_t chip_family;
@@ -757,6 +759,9 @@ struct pp_hwmgr {
 	bool od_enabled;
 	uint32_t power_limit;
 	uint32_t default_power_limit;
+	uint32_t workload_mask;
+	uint32_t workload_prority[Workload_Policy_Max];
+	uint32_t workload_setting[Workload_Policy_Max];
 };
 
 struct cgs_irq_src_funcs {

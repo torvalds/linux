@@ -766,13 +766,12 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->backend = data;
 
+	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VIDEO];
 	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_VIDEO;
 	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_VIDEO;
 
 	vega10_set_default_registry_data(hwmgr);
-
 	data->disable_dpm_mask = 0xff;
-	data->workload_mask = 0xff;
 
 	/* need to set voltage control types before EVV patching */
 	data->vddc_control = VEGA10_VOLTAGE_CONTROL_NONE;
@@ -4187,11 +4186,6 @@ static int vega10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 		break;
 	case AMD_DPM_FORCED_LEVEL_AUTO:
 		ret = vega10_unforce_dpm_levels(hwmgr);
-		if (hwmgr->default_power_profile_mode != hwmgr->power_profile_mode) {
-				smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_SetWorkloadMask,
-						1 << hwmgr->default_power_profile_mode);
-				hwmgr->power_profile_mode = hwmgr->default_power_profile_mode;
-		}
 		break;
 	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:

@@ -1510,6 +1510,9 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->current_profile_setting.mclk_up_hyst = 0;
 	data->current_profile_setting.mclk_down_hyst = 100;
 	data->current_profile_setting.mclk_activity = SMU7_MCLK_TARGETACTIVITY_DFLT;
+	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D];
+	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
 
 	if (hwmgr->chip_id == CHIP_POLARIS12 || hwmgr->is_kicker) {
 		uint8_t tmp1, tmp2;
@@ -2465,9 +2468,6 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	hwmgr->backend = data;
 	smu7_patch_voltage_workaround(hwmgr);
 	smu7_init_dpm_defaults(hwmgr);
-
-	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
-	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
 
 	/* Get leakage voltage based on leakage ID. */
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
