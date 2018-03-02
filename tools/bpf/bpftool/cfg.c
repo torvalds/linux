@@ -58,15 +58,32 @@ struct func_node {
 
 struct bb_node {
 	struct list_head l;
+	struct list_head e_prevs;
+	struct list_head e_succs;
 	struct bpf_insn *head;
 	struct bpf_insn *tail;
 	int idx;
 };
 
+#define EDGE_FLAG_EMPTY		0x0
+#define EDGE_FLAG_FALLTHROUGH	0x1
+#define EDGE_FLAG_JUMP		0x2
+struct edge_node {
+	struct list_head l;
+	struct bb_node *src;
+	struct bb_node *dst;
+	int flags;
+};
+
+#define ENTRY_BLOCK_INDEX	0
+#define EXIT_BLOCK_INDEX	1
+#define NUM_FIXED_BLOCKS	2
 #define func_prev(func)		list_prev_entry(func, l)
 #define func_next(func)		list_next_entry(func, l)
 #define bb_prev(bb)		list_prev_entry(bb, l)
 #define bb_next(bb)		list_next_entry(bb, l)
+#define entry_bb(func)		func_first_bb(func)
+#define exit_bb(func)		func_last_bb(func)
 #define cfg_first_func(cfg)	\
 	list_first_entry(&cfg->funcs, struct func_node, l)
 #define cfg_last_func(cfg)	\
@@ -120,9 +137,28 @@ static struct bb_node *func_append_bb(struct func_node *func,
 		return NULL;
 	}
 	new_bb->head = insn;
+	INIT_LIST_HEAD(&new_bb->e_prevs);
+	INIT_LIST_HEAD(&new_bb->e_succs);
 	list_add(&new_bb->l, &bb->l);
 
 	return new_bb;
+}
+
+static struct bb_node *func_insert_dummy_bb(struct list_head *after)
+{
+	struct bb_node *bb;
+
+	bb = calloc(1, sizeof(*bb));
+	if (!bb) {
+		p_err("OOM when allocating BB node");
+		return NULL;
+	}
+
+	INIT_LIST_HEAD(&bb->e_prevs);
+	INIT_LIST_HEAD(&bb->e_succs);
+	list_add(&bb->l, after);
+
+	return bb;
 }
 
 static bool cfg_partition_funcs(struct cfg *cfg, struct bpf_insn *cur,
@@ -190,8 +226,8 @@ static bool func_partition_bb_head(struct func_node *func)
 
 static void func_partition_bb_tail(struct func_node *func)
 {
+	unsigned int bb_idx = NUM_FIXED_BLOCKS;
 	struct bb_node *bb, *last;
-	unsigned int bb_idx = 0;
 
 	last = func_last_bb(func);
 	last->tail = func->end;
@@ -205,12 +241,119 @@ static void func_partition_bb_tail(struct func_node *func)
 	func->bb_num = bb_idx;
 }
 
+static bool func_add_special_bb(struct func_node *func)
+{
+	struct bb_node *bb;
+
+	bb = func_insert_dummy_bb(&func->bbs);
+	if (!bb)
+		return true;
+	bb->idx = ENTRY_BLOCK_INDEX;
+
+	bb = func_insert_dummy_bb(&func_last_bb(func)->l);
+	if (!bb)
+		return true;
+	bb->idx = EXIT_BLOCK_INDEX;
+
+	return false;
+}
+
 static bool func_partition_bb(struct func_node *func)
 {
 	if (func_partition_bb_head(func))
 		return true;
 
 	func_partition_bb_tail(func);
+
+	return false;
+}
+
+static struct bb_node *func_search_bb_with_head(struct func_node *func,
+						struct bpf_insn *insn)
+{
+	struct bb_node *bb;
+
+	list_for_each_entry(bb, &func->bbs, l) {
+		if (bb->head == insn)
+			return bb;
+	}
+
+	return NULL;
+}
+
+static struct edge_node *new_edge(struct bb_node *src, struct bb_node *dst,
+				  int flags)
+{
+	struct edge_node *e;
+
+	e = calloc(1, sizeof(*e));
+	if (!e) {
+		p_err("OOM when allocating edge node");
+		return NULL;
+	}
+
+	if (src)
+		e->src = src;
+	if (dst)
+		e->dst = dst;
+
+	e->flags |= flags;
+
+	return e;
+}
+
+static bool func_add_bb_edges(struct func_node *func)
+{
+	struct bpf_insn *insn;
+	struct edge_node *e;
+	struct bb_node *bb;
+
+	bb = entry_bb(func);
+	e = new_edge(bb, bb_next(bb), EDGE_FLAG_FALLTHROUGH);
+	if (!e)
+		return true;
+	list_add_tail(&e->l, &bb->e_succs);
+
+	bb = exit_bb(func);
+	e = new_edge(bb_prev(bb), bb, EDGE_FLAG_FALLTHROUGH);
+	if (!e)
+		return true;
+	list_add_tail(&e->l, &bb->e_prevs);
+
+	bb = entry_bb(func);
+	bb = bb_next(bb);
+	list_for_each_entry_from(bb, &exit_bb(func)->l, l) {
+		e = new_edge(bb, NULL, EDGE_FLAG_EMPTY);
+		if (!e)
+			return true;
+		e->src = bb;
+
+		insn = bb->tail;
+		if (BPF_CLASS(insn->code) != BPF_JMP ||
+		    BPF_OP(insn->code) == BPF_EXIT) {
+			e->dst = bb_next(bb);
+			e->flags |= EDGE_FLAG_FALLTHROUGH;
+			list_add_tail(&e->l, &bb->e_succs);
+			continue;
+		} else if (BPF_OP(insn->code) == BPF_JA) {
+			e->dst = func_search_bb_with_head(func,
+							  insn + insn->off + 1);
+			e->flags |= EDGE_FLAG_JUMP;
+			list_add_tail(&e->l, &bb->e_succs);
+			continue;
+		}
+
+		e->dst = bb_next(bb);
+		e->flags |= EDGE_FLAG_FALLTHROUGH;
+		list_add_tail(&e->l, &bb->e_succs);
+
+		e = new_edge(bb, NULL, EDGE_FLAG_JUMP);
+		if (!e)
+			return true;
+		e->src = bb;
+		e->dst = func_search_bb_with_head(func, insn + insn->off + 1);
+		list_add_tail(&e->l, &bb->e_succs);
+	}
 
 	return false;
 }
@@ -226,7 +369,10 @@ static bool cfg_build(struct cfg *cfg, struct bpf_insn *insn, unsigned int len)
 		return true;
 
 	list_for_each_entry(func, &cfg->funcs, l) {
-		if (func_partition_bb(func))
+		if (func_partition_bb(func) || func_add_special_bb(func))
+			return true;
+
+		if (func_add_bb_edges(func))
 			return true;
 	}
 
@@ -241,6 +387,18 @@ static void cfg_destroy(struct cfg *cfg)
 		struct bb_node *bb, *bb2;
 
 		list_for_each_entry_safe(bb, bb2, &func->bbs, l) {
+			struct edge_node *e, *e2;
+
+			list_for_each_entry_safe(e, e2, &bb->e_prevs, l) {
+				list_del(&e->l);
+				free(e);
+			}
+
+			list_for_each_entry_safe(e, e2, &bb->e_succs, l) {
+				list_del(&e->l);
+				free(e);
+			}
+
 			list_del(&bb->l);
 			free(bb);
 		}
