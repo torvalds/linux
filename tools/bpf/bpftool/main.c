@@ -46,6 +46,9 @@
 
 #include "main.h"
 
+#define BATCH_LINE_LEN_MAX 65536
+#define BATCH_ARG_NB_MAX 4096
+
 const char *bin_name;
 static int last_argc;
 static char **last_argv;
@@ -171,9 +174,9 @@ static const struct cmd cmds[] = {
 
 static int do_batch(int argc, char **argv)
 {
+	char buf[BATCH_LINE_LEN_MAX], contline[BATCH_LINE_LEN_MAX];
+	char *n_argv[BATCH_ARG_NB_MAX];
 	unsigned int lines = 0;
-	char *n_argv[4096];
-	char buf[65536];
 	int n_argc;
 	FILE *fp;
 	char *cp;
@@ -210,13 +213,38 @@ static int do_batch(int argc, char **argv)
 			break;
 		}
 
+		/* Append continuation lines if any (coming after a line ending
+		 * with '\' in the batch file).
+		 */
+		while ((cp = strstr(buf, "\\\n")) != NULL) {
+			if (!fgets(contline, sizeof(contline), fp) ||
+			    strlen(contline) == 0) {
+				p_err("missing continuation line on command %d",
+				      lines);
+				err = -1;
+				goto err_close;
+			}
+
+			cp = strchr(contline, '#');
+			if (cp)
+				*cp = '\0';
+
+			if (strlen(buf) + strlen(contline) + 1 > sizeof(buf)) {
+				p_err("command %d is too long", lines);
+				err = -1;
+				goto err_close;
+			}
+			buf[strlen(buf) - 2] = '\0';
+			strcat(buf, contline);
+		}
+
 		n_argc = 0;
 		n_argv[n_argc] = strtok(buf, " \t\n");
 
 		while (n_argv[n_argc]) {
 			n_argc++;
 			if (n_argc == ARRAY_SIZE(n_argv)) {
-				p_err("line %d has too many arguments, skip",
+				p_err("command %d has too many arguments, skip",
 				      lines);
 				n_argc = 0;
 				break;
@@ -252,7 +280,7 @@ static int do_batch(int argc, char **argv)
 		p_err("reading batch file failed: %s", strerror(errno));
 		err = -1;
 	} else {
-		p_info("processed %d lines", lines);
+		p_info("processed %d commands", lines);
 		err = 0;
 	}
 err_close:
