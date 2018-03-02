@@ -341,7 +341,7 @@ struct i40iw_cm_node {
 	int accept_pend;
 	struct list_head timer_entry;
 	struct list_head reset_entry;
-	struct list_head connected_entry;
+	struct list_head teardown_entry;
 	atomic_t passive_state;
 	bool qhash_set;
 	u8 user_pri;
@@ -403,7 +403,8 @@ struct i40iw_cm_core {
 	struct i40iw_sc_dev *dev;
 
 	struct list_head listen_nodes;
-	struct list_head connected_nodes;
+	struct list_head accelerated_list;
+	struct list_head non_accelerated_list;
 
 	struct timer_list tcp_timer;
 

@@ -1407,7 +1407,7 @@ struct i40iw_sc_qp *i40iw_ieq_get_qp(struct i40iw_sc_dev *dev,
 	rem_port = ntohs(tcph->source);
 
 	cm_node = i40iw_find_node(&iwdev->cm_core, rem_port, rem_addr, loc_port,
-				  loc_addr, false);
+				  loc_addr, false, true);
 	if (!cm_node)
 		return NULL;
 	iwqp = cm_node->iwqp;
