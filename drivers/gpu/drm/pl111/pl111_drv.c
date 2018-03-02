@@ -192,7 +192,7 @@ static int pl111_modeset_init(struct drm_device *dev)
 
 	drm_mode_config_reset(dev);
 
-	drm_fb_cma_fbdev_init(dev, 32, 0);
+	drm_fb_cma_fbdev_init(dev, priv->variant->fb_bpp, 0);
 
 	drm_kms_helper_poll_init(dev);
 
@@ -336,6 +336,7 @@ static const struct pl111_variant_data pl110_variant = {
 	.is_pl110 = true,
 	.formats = pl110_pixel_formats,
 	.nformats = ARRAY_SIZE(pl110_pixel_formats),
+	.fb_bpp = 16,
 };
 
 /* RealView, Versatile Express etc use this modern variant */
@@ -360,6 +361,7 @@ static const struct pl111_variant_data pl111_variant = {
 	.name = "PL111",
 	.formats = pl111_pixel_formats,
 	.nformats = ARRAY_SIZE(pl111_pixel_formats),
+	.fb_bpp = 32,
 };
 
 static const struct amba_id pl111_id_table[] = {

@@ -43,6 +43,7 @@ struct drm_minor;
  * @broken_vblank: the vblank IRQ is broken on this variant
  * @formats: array of supported pixel formats on this variant
  * @nformats: the length of the array of supported pixel formats
+ * @fb_bpp: desired bits per pixel on the default framebuffer
  */
 struct pl111_variant_data {
 	const char *name;
@@ -52,6 +53,7 @@ struct pl111_variant_data {
 	bool broken_vblank;
 	const u32 *formats;
 	unsigned int nformats;
+	unsigned int fb_bpp;
 };
 
 struct pl111_drm_dev_private {
