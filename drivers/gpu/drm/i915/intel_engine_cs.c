@@ -234,6 +234,9 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	GEM_BUG_ON(info->class >= ARRAY_SIZE(intel_engine_classes));
 	class_info = &intel_engine_classes[info->class];
 
+	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
+	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
+
 	if (GEM_WARN_ON(info->class > MAX_ENGINE_CLASS))
 		return -EINVAL;
 

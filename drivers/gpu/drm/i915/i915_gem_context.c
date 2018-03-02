@@ -211,9 +211,15 @@ static void context_close(struct i915_gem_context *ctx)
 static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
 {
 	int ret;
+	unsigned int max;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		max = GEN11_MAX_CONTEXT_HW_ID;
+	else
+		max = MAX_CONTEXT_HW_ID;
 
 	ret = ida_simple_get(&dev_priv->contexts.hw_ida,
-			     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
+			     0, max, GFP_KERNEL);
 	if (ret < 0) {
 		/* Contexts are only released when no longer active.
 		 * Flush any pending retires to hopefully release some
@@ -221,7 +227,7 @@ static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
 		 */
 		i915_retire_requests(dev_priv);
 		ret = ida_simple_get(&dev_priv->contexts.hw_ida,
-				     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
+				     0, max, GFP_KERNEL);
 		if (ret < 0)
 			return ret;
 	}
@@ -463,6 +469,7 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 
 	/* Using the simple ida interface, the max is limited by sizeof(int) */
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > INT_MAX);
+	BUILD_BUG_ON(GEN11_MAX_CONTEXT_HW_ID > INT_MAX);
 	ida_init(&dev_priv->contexts.hw_ida);
 
 	/* lowest priority; idle task */
