@@ -451,4 +451,46 @@ static inline bool is_fsl_mc_bus_dprtc(const struct fsl_mc_device *mc_dev)
 	return mc_dev->dev.type == &fsl_mc_bus_dprtc_type;
 }
 
+/*
+ * Data Path Buffer Pool (DPBP) API
+ * Contains initialization APIs and runtime control APIs for DPBP
+ */
+
+int dpbp_open(struct fsl_mc_io *mc_io,
+	      u32 cmd_flags,
+	      int dpbp_id,
+	      u16 *token);
+
+int dpbp_close(struct fsl_mc_io *mc_io,
+	       u32 cmd_flags,
+	       u16 token);
+
+int dpbp_enable(struct fsl_mc_io *mc_io,
+		u32 cmd_flags,
+		u16 token);
+
+int dpbp_disable(struct fsl_mc_io *mc_io,
+		 u32 cmd_flags,
+		 u16 token);
+
+int dpbp_reset(struct fsl_mc_io *mc_io,
+	       u32 cmd_flags,
+	       u16 token);
+
+/**
+ * struct dpbp_attr - Structure representing DPBP attributes
+ * @id:		DPBP object ID
+ * @bpid:	Hardware buffer pool ID; should be used as an argument in
+ *		acquire/release operations on buffers
+ */
+struct dpbp_attr {
+	int id;
+	u16 bpid;
+};
+
+int dpbp_get_attributes(struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			struct dpbp_attr *attr);
+
 #endif /* _FSL_MC_H_ */

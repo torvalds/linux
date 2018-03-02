@@ -5,9 +5,9 @@
  */
 #include <linux/kernel.h>
 #include <linux/fsl/mc.h>
-#include "../include/dpbp.h"
+#include <linux/fsl/mc.h>
 
-#include "dpbp-cmd.h"
+#include "fsl-mc-private.h"
 
 /**
  * dpbp_open() - Open a control session for the specified object.
