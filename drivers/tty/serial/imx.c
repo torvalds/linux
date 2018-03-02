@@ -1239,12 +1239,12 @@ static void imx_enable_dma(struct imx_port *sport)
 {
 	u32 ucr1;
 
+	imx_setup_ufcr(sport, TXTL_DMA, RXTL_DMA);
+
 	/* set UCR1 */
 	ucr1 = imx_uart_readl(sport, UCR1);
 	ucr1 |= UCR1_RXDMAEN | UCR1_TXDMAEN | UCR1_ATDMAEN;
 	imx_uart_writel(sport, ucr1, UCR1);
-
-	imx_setup_ufcr(sport, TXTL_DMA, RXTL_DMA);
 
 	sport->dma_is_enabled = 1;
 }
