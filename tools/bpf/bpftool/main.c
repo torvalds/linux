@@ -176,6 +176,7 @@ static int do_batch(int argc, char **argv)
 	char buf[65536];
 	int n_argc;
 	FILE *fp;
+	char *cp;
 	int err;
 	int i;
 
@@ -200,6 +201,10 @@ static int do_batch(int argc, char **argv)
 	if (json_output)
 		jsonw_start_array(json_wtr);
 	while (fgets(buf, sizeof(buf), fp)) {
+		cp = strchr(buf, '#');
+		if (cp)
+			*cp = '\0';
+
 		if (strlen(buf) == sizeof(buf) - 1) {
 			errno = E2BIG;
 			break;
