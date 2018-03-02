@@ -4517,22 +4517,29 @@ static int selinux_socket_bind(struct socket *sock, struct sockaddr *address, in
 		 * need to check address->sa_family as it is possible to have
 		 * sk->sk_family = PF_INET6 with addr->sa_family = AF_INET.
 		 */
-		if (address->sa_family == AF_INET) {
-			if (addrlen < sizeof(struct sockaddr_in)) {
-				err = -EINVAL;
-				goto out;
-			}
+		switch (address->sa_family) {
+		case AF_INET:
+			if (addrlen < sizeof(struct sockaddr_in))
+				return -EINVAL;
 			addr4 = (struct sockaddr_in *)address;
 			snum = ntohs(addr4->sin_port);
 			addrp = (char *)&addr4->sin_addr.s_addr;
-		} else {
-			if (addrlen < SIN6_LEN_RFC2133) {
-				err = -EINVAL;
-				goto out;
-			}
+			break;
+		case AF_INET6:
+			if (addrlen < SIN6_LEN_RFC2133)
+				return -EINVAL;
 			addr6 = (struct sockaddr_in6 *)address;
 			snum = ntohs(addr6->sin6_port);
 			addrp = (char *)&addr6->sin6_addr.s6_addr;
+			break;
+		default:
+			/* Note that SCTP services expect -EINVAL, whereas
+			 * others expect -EAFNOSUPPORT.
+			 */
+			if (sksec->sclass == SECCLASS_SCTP_SOCKET)
+				return -EINVAL;
+			else
+				return -EAFNOSUPPORT;
 		}
 
 		if (snum) {
@@ -4636,16 +4643,27 @@ static int selinux_socket_connect_helper(struct socket *sock,
 		 * need to check address->sa_family as it is possible to have
 		 * sk->sk_family = PF_INET6 with addr->sa_family = AF_INET.
 		 */
-		if (address->sa_family == AF_INET) {
+		switch (address->sa_family) {
+		case AF_INET:
 			addr4 = (struct sockaddr_in *)address;
 			if (addrlen < sizeof(struct sockaddr_in))
 				return -EINVAL;
 			snum = ntohs(addr4->sin_port);
-		} else {
+			break;
+		case AF_INET6:
 			addr6 = (struct sockaddr_in6 *)address;
 			if (addrlen < SIN6_LEN_RFC2133)
 				return -EINVAL;
 			snum = ntohs(addr6->sin6_port);
+			break;
+		default:
+			/* Note that SCTP services expect -EINVAL, whereas
+			 * others expect -EAFNOSUPPORT.
+			 */
+			if (sksec->sclass == SECCLASS_SCTP_SOCKET)
+				return -EINVAL;
+			else
+				return -EAFNOSUPPORT;
 		}
 
 		err = sel_netport_sid(sk->sk_protocol, snum, &sid);
