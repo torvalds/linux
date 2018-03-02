@@ -4770,7 +4770,7 @@ static bool smu7_check_clk_voltage_valid(struct pp_hwmgr *hwmgr,
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
 
 	if (table_info == NULL)
-		return -EINVAL;
+		return false;
 
 	dep_sclk_table = table_info->vdd_dep_on_sclk;
 	min_vddc = dep_sclk_table->entries[0].vddc;
