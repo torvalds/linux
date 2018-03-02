@@ -2858,10 +2858,12 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		return -ENOMEM;
 
 	if (rx_mic)
-		memcpy(msg.body.key_info.attr.wpa.key + 16, rx_mic, RX_MIC_KEY_LEN);
+		memcpy(msg.body.key_info.attr.wpa.key + 16, rx_mic,
+		       RX_MIC_KEY_LEN);
 
 	if (tx_mic)
-		memcpy(msg.body.key_info.attr.wpa.key + 24, tx_mic, TX_MIC_KEY_LEN);
+		memcpy(msg.body.key_info.attr.wpa.key + 24, tx_mic,
+		       TX_MIC_KEY_LEN);
 
 	msg.body.key_info.attr.wpa.key_len = key_len;
 	msg.body.key_info.attr.wpa.mac_addr = mac_addr;
