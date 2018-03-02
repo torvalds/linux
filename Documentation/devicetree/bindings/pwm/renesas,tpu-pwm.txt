@@ -3,7 +3,7 @@
 Required Properties:
 
   - compatible: should be one of the following.
-    - "renesas,tpu-r8a73a4": for R8A77A4 (R-Mobile APE6) compatible PWM controller.
+    - "renesas,tpu-r8a73a4": for R8A73A4 (R-Mobile APE6) compatible PWM controller.
     - "renesas,tpu-r8a7740": for R8A7740 (R-Mobile A1) compatible PWM controller.
     - "renesas,tpu-r8a7743": for R8A7743 (RZ/G1M) compatible PWM controller.
     - "renesas,tpu-r8a7745": for R8A7745 (RZ/G1E) compatible PWM controller.
@@ -20,7 +20,7 @@ Required Properties:
 Please refer to pwm.txt in this directory for details of the common PWM bindings
 used by client devices.
 
-Example: R8A7740 (R-Car A1) TPU controller node
+Example: R8A7740 (R-Mobile A1) TPU controller node
 
 	tpu: pwm@e6600000 {
 		compatible = "renesas,tpu-r8a7740", "renesas,tpu";
