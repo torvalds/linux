@@ -1225,26 +1225,27 @@ int wilc_wlan_cfg_set(struct wilc_vif *vif, int start, u16 wid, u8 *buffer,
 	offset += ret_size;
 	wilc->cfg_frame_offset = offset;
 
-	if (commit) {
-		netdev_dbg(vif->ndev,
-			   "[WILC]PACKET Commit with sequence number %d\n",
-			   wilc->cfg_seq_no);
-		netdev_dbg(vif->ndev, "Processing cfg_set()\n");
-		wilc->cfg_frame_in_use = 1;
+	if (!commit)
+		return ret_size;
 
-		if (wilc_wlan_cfg_commit(vif, WILC_CFG_SET, drv_handler))
-			ret_size = 0;
+	netdev_dbg(vif->ndev,
+		   "[WILC]PACKET Commit with sequence number %d\n",
+		   wilc->cfg_seq_no);
+	netdev_dbg(vif->ndev, "Processing cfg_set()\n");
+	wilc->cfg_frame_in_use = 1;
 
-		if (!wait_for_completion_timeout(&wilc->cfg_event,
-						 msecs_to_jiffies(CFG_PKTS_TIMEOUT))) {
-			netdev_dbg(vif->ndev, "Set Timed Out\n");
-			ret_size = 0;
-		}
+	if (wilc_wlan_cfg_commit(vif, WILC_CFG_SET, drv_handler))
+		ret_size = 0;
 
-		wilc->cfg_frame_in_use = 0;
-		wilc->cfg_frame_offset = 0;
-		wilc->cfg_seq_no += 1;
+	if (!wait_for_completion_timeout(&wilc->cfg_event,
+					 msecs_to_jiffies(CFG_PKTS_TIMEOUT))) {
+		netdev_dbg(vif->ndev, "Set Timed Out\n");
+		ret_size = 0;
 	}
+
+	wilc->cfg_frame_in_use = 0;
+	wilc->cfg_frame_offset = 0;
+	wilc->cfg_seq_no += 1;
 
 	return ret_size;
 }
