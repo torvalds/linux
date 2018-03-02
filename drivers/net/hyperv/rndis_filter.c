@@ -1340,6 +1340,9 @@ void rndis_filter_device_remove(struct hv_device *dev,
 {
 	struct rndis_device *rndis_dev = net_dev->extension;
 
+	/* Don't try and setup sub channels if about to halt */
+	cancel_work_sync(&net_dev->subchan_work);
+
 	/* Halt and release the rndis device */
 	rndis_filter_halt_device(rndis_dev);
 
