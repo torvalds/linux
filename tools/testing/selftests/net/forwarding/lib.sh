@@ -19,26 +19,33 @@ fi
 ##############################################################################
 # Sanity checks
 
+check_tc_version()
+{
+	tc -j &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing JSON support"
+		exit 1
+	fi
+
+	tc filter help 2>&1 | grep block &> /dev/null
+	if [[ $? -ne 0 ]]; then
+		echo "SKIP: iproute2 too old; tc is missing shared block support"
+		exit 1
+	fi
+}
+
 if [[ "$(id -u)" -ne 0 ]]; then
 	echo "SKIP: need root privileges"
 	exit 0
 fi
 
-tc -j &> /dev/null
-if [[ $? -ne 0 ]]; then
-	echo "SKIP: iproute2 too old, missing JSON support"
-	exit 0
-fi
-
-tc filter help 2>&1 | grep block &> /dev/null
-if [[ $? -ne 0 ]]; then
-	echo "SKIP: iproute2 too old, missing shared block support"
-	exit 0
+if [[ "$CHECK_TC" = "yes" ]]; then
+	check_tc_version
 fi
 
 if [[ ! -x "$(command -v jq)" ]]; then
 	echo "SKIP: jq not installed"
-	exit 0
+	exit 1
 fi
 
 if [[ ! -x "$(command -v $MZ)" ]]; then
