@@ -49,6 +49,7 @@ Required properties:
 
                 "nxp,se97b" - the fallback is "atmel,24c02",
                 "renesas,r1ex24002" - the fallback is "atmel,24c02"
+                "renesas,r1ex24128" - the fallback is "atmel,24c128"
                 "rohm,br24t01" - the fallback is "atmel,24c01"
 
   - reg: The I2C address of the EEPROM.
