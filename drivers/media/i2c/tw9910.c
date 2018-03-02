@@ -401,7 +401,7 @@ static int tw9910_set_hsync(struct i2c_client *client)
 static void tw9910_reset(struct i2c_client *client)
 {
 	tw9910_mask_set(client, ACNTL1, SRESET, SRESET);
-	msleep(1);
+	usleep_range(1000, 5000);
 }
 
 static int tw9910_power(struct i2c_client *client, int enable)
