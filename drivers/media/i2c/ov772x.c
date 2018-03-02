@@ -574,7 +574,7 @@ static int ov772x_reset(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
-	msleep(1);
+	usleep_range(1000, 5000);
 
 	return ov772x_mask_set(client, COM2, SOFT_SLEEP_MODE, SOFT_SLEEP_MODE);
 }
