@@ -2937,15 +2937,18 @@ void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
 
-	if (pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes)
+	if (pipe_ctx->plane_res.ipp &&
+	    pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes)
 		pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
 				pipe_ctx->plane_res.ipp, attributes);
 
-	if (pipe_ctx->plane_res.mi->funcs->set_cursor_attributes)
+	if (pipe_ctx->plane_res.mi &&
+	    pipe_ctx->plane_res.mi->funcs->set_cursor_attributes)
 		pipe_ctx->plane_res.mi->funcs->set_cursor_attributes(
 				pipe_ctx->plane_res.mi, attributes);
 
-	if (pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes)
+	if (pipe_ctx->plane_res.xfm &&
+	    pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes)
 		pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes(
 				pipe_ctx->plane_res.xfm, attributes);
 }
