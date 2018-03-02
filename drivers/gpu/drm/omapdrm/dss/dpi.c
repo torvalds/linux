@@ -688,7 +688,7 @@ static const struct omap_dss_device_ops dpi_ops = {
 	.set_timings = dpi_set_timings,
 };
 
-static void dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
+static int dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 {
 	struct omap_dss_device *out = &dpi->output;
 	u32 port_num = 0;
@@ -717,7 +717,16 @@ static void dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 	out->ops = &dpi_ops;
 	out->owner = THIS_MODULE;
 
+	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
+	if (IS_ERR(out->next)) {
+		if (PTR_ERR(out->next) != -EPROBE_DEFER)
+			dev_err(out->dev, "failed to find video sink\n");
+		return PTR_ERR(out->next);
+	}
+
 	omapdss_device_register(out);
+
+	return 0;
 }
 
 static void dpi_uninit_output_port(struct device_node *port)
@@ -725,6 +734,8 @@ static void dpi_uninit_output_port(struct device_node *port)
 	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
 
+	if (out->next)
+		omapdss_device_put(out->next);
 	omapdss_device_unregister(out);
 }
 
@@ -760,9 +771,7 @@ int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
 
 	mutex_init(&dpi->lock);
 
-	dpi_init_output_port(dpi, port);
-
-	return 0;
+	return dpi_init_output_port(dpi, port);
 }
 
 void dpi_uninit_port(struct device_node *port)

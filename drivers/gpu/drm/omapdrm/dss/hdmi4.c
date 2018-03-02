@@ -731,7 +731,7 @@ static const struct component_ops hdmi4_component_ops = {
  * Probe & Remove, Suspend & Resume
  */
 
-static void hdmi4_init_output(struct omap_hdmi *hdmi)
+static int hdmi4_init_output(struct omap_hdmi *hdmi)
 {
 	struct omap_dss_device *out = &hdmi->output;
 
@@ -744,13 +744,24 @@ static void hdmi4_init_output(struct omap_hdmi *hdmi)
 	out->owner = THIS_MODULE;
 	out->of_ports = BIT(0);
 
+	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
+	if (IS_ERR(out->next)) {
+		if (PTR_ERR(out->next) != -EPROBE_DEFER)
+			dev_err(out->dev, "failed to find video sink\n");
+		return PTR_ERR(out->next);
+	}
+
 	omapdss_device_register(out);
+
+	return 0;
 }
 
 static void hdmi4_uninit_output(struct omap_hdmi *hdmi)
 {
 	struct omap_dss_device *out = &hdmi->output;
 
+	if (out->next)
+		omapdss_device_put(out->next);
 	omapdss_device_unregister(out);
 }
 
@@ -820,7 +831,9 @@ static int hdmi4_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	hdmi4_init_output(hdmi);
+	r = hdmi4_init_output(hdmi);
+	if (r)
+		goto err_pm_disable;
 
 	r = component_add(&pdev->dev, &hdmi4_component_ops);
 	if (r)
@@ -830,6 +843,7 @@ static int hdmi4_probe(struct platform_device *pdev)
 
 err_uninit_output:
 	hdmi4_uninit_output(hdmi);
+err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 err_free:
 	kfree(hdmi);

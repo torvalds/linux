@@ -317,7 +317,7 @@ static const struct omap_dss_device_ops sdi_ops = {
 	.set_timings = sdi_set_timings,
 };
 
-static void sdi_init_output(struct sdi_device *sdi)
+static int sdi_init_output(struct sdi_device *sdi)
 {
 	struct omap_dss_device *out = &sdi->output;
 
@@ -331,11 +331,22 @@ static void sdi_init_output(struct sdi_device *sdi)
 	out->ops = &sdi_ops;
 	out->owner = THIS_MODULE;
 
+	out->next = omapdss_of_find_connected_device(out->dev->of_node, 1);
+	if (IS_ERR(out->next)) {
+		if (PTR_ERR(out->next) != -EPROBE_DEFER)
+			dev_err(out->dev, "failed to find video sink\n");
+		return PTR_ERR(out->next);
+	}
+
 	omapdss_device_register(out);
+
+	return 0;
 }
 
 static void sdi_uninit_output(struct sdi_device *sdi)
 {
+	if (sdi->output.next)
+		omapdss_device_put(sdi->output.next);
 	omapdss_device_unregister(&sdi->output);
 }
 
@@ -370,7 +381,9 @@ int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
 	sdi->pdev = pdev;
 	port->data = sdi;
 
-	sdi_init_output(sdi);
+	r = sdi_init_output(sdi);
+	if (r)
+		goto err_free;
 
 	return 0;
 

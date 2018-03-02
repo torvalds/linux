@@ -192,6 +192,13 @@ static int tfp410_probe(struct platform_device *pdev)
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(1) | BIT(0);
 
+	dssdev->next = omapdss_of_find_connected_device(pdev->dev.of_node, 1);
+	if (IS_ERR(dssdev->next)) {
+		if (PTR_ERR(dssdev->next) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to find video sink\n");
+		return PTR_ERR(dssdev->next);
+	}
+
 	omapdss_device_register(dssdev);
 
 	return 0;
@@ -202,6 +209,8 @@ static int __exit tfp410_remove(struct platform_device *pdev)
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
 
+	if (dssdev->next)
+		omapdss_device_put(dssdev->next);
 	omapdss_device_unregister(&ddata->dssdev);
 
 	WARN_ON(omapdss_device_is_enabled(dssdev));

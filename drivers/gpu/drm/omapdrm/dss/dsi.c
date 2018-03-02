@@ -5165,7 +5165,7 @@ static const struct component_ops dsi_component_ops = {
  * Probe & Remove, Suspend & Resume
  */
 
-static void dsi_init_output(struct dsi_data *dsi)
+static int dsi_init_output(struct dsi_data *dsi)
 {
 	struct omap_dss_device *out = &dsi->output;
 
@@ -5180,13 +5180,24 @@ static void dsi_init_output(struct dsi_data *dsi)
 	out->owner = THIS_MODULE;
 	out->of_ports = BIT(0);
 
+	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
+	if (IS_ERR(out->next)) {
+		if (PTR_ERR(out->next) != -EPROBE_DEFER)
+			dev_err(out->dev, "failed to find video sink\n");
+		return PTR_ERR(out->next);
+	}
+
 	omapdss_device_register(out);
+
+	return 0;
 }
 
 static void dsi_uninit_output(struct dsi_data *dsi)
 {
 	struct omap_dss_device *out = &dsi->output;
 
+	if (out->next)
+		omapdss_device_put(out->next);
 	omapdss_device_unregister(out);
 }
 
@@ -5431,7 +5442,9 @@ static int dsi_probe(struct platform_device *pdev)
 	else
 		dsi->num_lanes_supported = 3;
 
-	dsi_init_output(dsi);
+	r = dsi_init_output(dsi);
+	if (r)
+		goto err_pm_disable;
 
 	r = dsi_probe_of(dsi);
 	if (r) {
@@ -5451,6 +5464,7 @@ static int dsi_probe(struct platform_device *pdev)
 
 err_uninit_output:
 	dsi_uninit_output(dsi);
+err_pm_disable:
 	pm_runtime_disable(dev);
 	return r;
 }

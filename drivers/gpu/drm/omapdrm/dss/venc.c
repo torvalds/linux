@@ -800,7 +800,7 @@ static const struct component_ops venc_component_ops = {
  * Probe & Remove, Suspend & Resume
  */
 
-static void venc_init_output(struct venc_device *venc)
+static int venc_init_output(struct venc_device *venc)
 {
 	struct omap_dss_device *out = &venc->output;
 
@@ -813,11 +813,22 @@ static void venc_init_output(struct venc_device *venc)
 	out->owner = THIS_MODULE;
 	out->of_ports = BIT(0);
 
+	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
+	if (IS_ERR(out->next)) {
+		if (PTR_ERR(out->next) != -EPROBE_DEFER)
+			dev_err(out->dev, "failed to find video sink\n");
+		return PTR_ERR(out->next);
+	}
+
 	omapdss_device_register(out);
+
+	return 0;
 }
 
 static void venc_uninit_output(struct venc_device *venc)
 {
+	if (venc->output.next)
+		omapdss_device_put(venc->output.next);
 	omapdss_device_unregister(&venc->output);
 }
 
@@ -909,7 +920,9 @@ static int venc_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	venc_init_output(venc);
+	r = venc_init_output(venc);
+	if (r)
+		goto err_pm_disable;
 
 	r = component_add(&pdev->dev, &venc_component_ops);
 	if (r)
@@ -919,6 +932,7 @@ static int venc_probe(struct platform_device *pdev)
 
 err_uninit_output:
 	venc_uninit_output(venc);
+err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 err_free:
 	kfree(venc);
