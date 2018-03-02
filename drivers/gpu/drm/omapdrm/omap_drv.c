@@ -161,7 +161,7 @@ static void omap_disconnect_dssdevs(struct drm_device *ddev)
 
 		omapdss_device_disconnect(dssdev, NULL);
 		priv->dssdevs[i] = NULL;
-		omap_dss_put_device(dssdev);
+		omapdss_device_put(dssdev);
 	}
 
 	priv->num_dssdevs = 0;
@@ -191,17 +191,17 @@ static int omap_connect_dssdevs(struct drm_device *ddev)
 	for_each_dss_display(dssdev) {
 		r = omapdss_device_connect(dssdev, NULL);
 		if (r == -EPROBE_DEFER) {
-			omap_dss_put_device(dssdev);
+			omapdss_device_put(dssdev);
 			goto cleanup;
 		} else if (r) {
 			dev_warn(dssdev->dev, "could not connect display: %s\n",
 				dssdev->name);
 		} else {
-			omap_dss_get_device(dssdev);
+			omapdss_device_get(dssdev);
 			priv->dssdevs[priv->num_dssdevs++] = dssdev;
 			if (priv->num_dssdevs == ARRAY_SIZE(priv->dssdevs)) {
 				/* To balance the 'for_each_dss_display' loop */
-				omap_dss_put_device(dssdev);
+				omapdss_device_put(dssdev);
 				break;
 			}
 		}

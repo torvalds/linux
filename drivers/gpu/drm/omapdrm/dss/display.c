@@ -21,9 +21,6 @@
 #define DSS_SUBSYS_NAME "DISPLAY"
 
 #include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/jiffies.h>
-#include <linux/platform_device.h>
 #include <linux/of.h>
 
 #include "omapdss.h"
@@ -52,24 +49,3 @@ void omapdss_display_init(struct omap_dss_device *dssdev)
 					      "display%u", id);
 }
 EXPORT_SYMBOL_GPL(omapdss_display_init);
-
-struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev)
-{
-	if (!try_module_get(dssdev->owner))
-		return NULL;
-
-	if (get_device(dssdev->dev) == NULL) {
-		module_put(dssdev->owner);
-		return NULL;
-	}
-
-	return dssdev;
-}
-EXPORT_SYMBOL(omap_dss_get_device);
-
-void omap_dss_put_device(struct omap_dss_device *dssdev)
-{
-	put_device(dssdev->dev);
-	module_put(dssdev->owner);
-}
-EXPORT_SYMBOL(omap_dss_put_device);

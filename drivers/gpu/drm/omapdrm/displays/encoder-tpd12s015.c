@@ -50,7 +50,7 @@ static int tpd_connect(struct omap_dss_device *dssdev,
 
 	r = omapdss_device_connect(src, dssdev);
 	if (r) {
-		omap_dss_put_device(src);
+		omapdss_device_put(src);
 		return r;
 	}
 
@@ -74,7 +74,7 @@ static void tpd_disconnect(struct omap_dss_device *dssdev,
 
 	omapdss_device_disconnect(src, &ddata->dssdev);
 
-	omap_dss_put_device(src);
+	omapdss_device_put(src);
 }
 
 static int tpd_enable(struct omap_dss_device *dssdev)

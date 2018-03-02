@@ -794,7 +794,7 @@ err_vc_id:
 err_req_vc:
 	omapdss_device_disconnect(src, dssdev);
 err_connect:
-	omap_dss_put_device(src);
+	omapdss_device_put(src);
 	return r;
 }
 
@@ -806,7 +806,7 @@ static void dsicm_disconnect(struct omap_dss_device *dssdev)
 	src->ops->dsi.release_vc(src, ddata->channel);
 	omapdss_device_disconnect(src, dssdev);
 
-	omap_dss_put_device(src);
+	omapdss_device_put(src);
 }
 
 static int dsicm_enable(struct omap_dss_device *dssdev)

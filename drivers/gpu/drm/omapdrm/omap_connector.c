@@ -98,7 +98,7 @@ static void omap_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 	kfree(omap_connector);
 
-	omap_dss_put_device(dssdev);
+	omapdss_device_put(dssdev);
 }
 
 #define MAX_EDID  512
@@ -254,7 +254,7 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 
 	DBG("%s", dssdev->name);
 
-	omap_dss_get_device(dssdev);
+	omapdss_device_get(dssdev);
 
 	omap_connector = kzalloc(sizeof(*omap_connector), GFP_KERNEL);
 	if (!omap_connector)

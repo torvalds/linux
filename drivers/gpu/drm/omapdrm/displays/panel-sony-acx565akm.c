@@ -519,7 +519,7 @@ static int acx565akm_connect(struct omap_dss_device *dssdev)
 
 	r = omapdss_device_connect(src, dssdev);
 	if (r) {
-		omap_dss_put_device(src);
+		omapdss_device_put(src);
 		return r;
 	}
 
@@ -532,7 +532,7 @@ static void acx565akm_disconnect(struct omap_dss_device *dssdev)
 
 	omapdss_device_disconnect(src, dssdev);
 
-	omap_dss_put_device(src);
+	omapdss_device_put(src);
 }
 
 static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)

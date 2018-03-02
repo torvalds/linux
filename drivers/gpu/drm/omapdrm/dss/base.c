@@ -91,6 +91,27 @@ static bool omapdss_device_is_registered(struct device_node *node)
 	return found;
 }
 
+struct omap_dss_device *omapdss_device_get(struct omap_dss_device *dssdev)
+{
+	if (!try_module_get(dssdev->owner))
+		return NULL;
+
+	if (get_device(dssdev->dev) == NULL) {
+		module_put(dssdev->owner);
+		return NULL;
+	}
+
+	return dssdev;
+}
+EXPORT_SYMBOL(omapdss_device_get);
+
+void omapdss_device_put(struct omap_dss_device *dssdev)
+{
+	put_device(dssdev->dev);
+	module_put(dssdev->owner);
+}
+EXPORT_SYMBOL(omapdss_device_put);
+
 struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 						    unsigned int port)
 {
@@ -98,7 +119,7 @@ struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 
 	list_for_each_entry(dssdev, &omapdss_devices_list, list) {
 		if (dssdev->dev->of_node == src && dssdev->port_num == port)
-			return omap_dss_get_device(dssdev);
+			return omapdss_device_get(dssdev);
 	}
 
 	return NULL;
@@ -147,9 +168,9 @@ struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
 
 done:
 	if (from)
-		omap_dss_put_device(from);
+		omapdss_device_put(from);
 	if (dssdev)
-		omap_dss_get_device(dssdev);
+		omapdss_device_get(dssdev);
 
 	mutex_unlock(&omapdss_devices_lock);
 	return dssdev;

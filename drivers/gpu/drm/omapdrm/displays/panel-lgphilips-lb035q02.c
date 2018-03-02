@@ -129,7 +129,7 @@ static int lb035q02_connect(struct omap_dss_device *dssdev)
 
 	r = omapdss_device_connect(src, dssdev);
 	if (r) {
-		omap_dss_put_device(src);
+		omapdss_device_put(src);
 		return r;
 	}
 
@@ -144,7 +144,7 @@ static void lb035q02_disconnect(struct omap_dss_device *dssdev)
 
 	omapdss_device_disconnect(src, dssdev);
 
-	omap_dss_put_device(src);
+	omapdss_device_put(src);
 }
 
 static int lb035q02_enable(struct omap_dss_device *dssdev)

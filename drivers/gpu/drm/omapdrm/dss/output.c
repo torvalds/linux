@@ -93,7 +93,7 @@ struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device 
 		dssdev = dssdev->src;
 
 	if (dssdev->id != 0)
-		return omap_dss_get_device(dssdev);
+		return omapdss_device_get(dssdev);
 
 	return NULL;
 }

@@ -704,7 +704,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	out = omapdss_find_output_from_display(dssdev);
 	channel = out->dispc_channel;
-	omap_dss_put_device(out);
+	omapdss_device_put(out);
 
 	DBG("%s", channel_names[channel]);
 

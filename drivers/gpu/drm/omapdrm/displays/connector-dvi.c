@@ -69,7 +69,7 @@ static int dvic_connect(struct omap_dss_device *dssdev)
 
 	r = omapdss_device_connect(src, dssdev);
 	if (r) {
-		omap_dss_put_device(src);
+		omapdss_device_put(src);
 		return r;
 	}
 
@@ -82,7 +82,7 @@ static void dvic_disconnect(struct omap_dss_device *dssdev)
 
 	omapdss_device_disconnect(src, dssdev);
 
-	omap_dss_put_device(src);
+	omapdss_device_put(src);
 }
 
 static int dvic_enable(struct omap_dss_device *dssdev)
