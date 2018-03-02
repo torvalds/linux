@@ -519,8 +519,7 @@ static struct poweroff_function poweroff_functions[] = {
 	  .detect		= ipmi_chassis_detect,
 	  .poweroff_func	= ipmi_poweroff_chassis },
 };
-#define NUM_PO_FUNCS (sizeof(poweroff_functions) \
-		      / sizeof(struct poweroff_function))
+#define NUM_PO_FUNCS ARRAY_SIZE(poweroff_functions)
 
 
 /* Called on a powerdown request. */
