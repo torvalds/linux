@@ -1516,7 +1516,7 @@ SYSCALL_DEFINE2(listen, int, fd, int, backlog)
  *
  *	1003.1g adds the ability to recvmsg() to query connection pending
  *	status to recvmsg. We need to add that support in a way thats
- *	clean when we restucture accept also.
+ *	clean when we restructure accept also.
  */
 
 SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
