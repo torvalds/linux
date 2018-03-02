@@ -160,6 +160,54 @@ void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep)
 	}
 }
 
+/* Split command line into argument vector. */
+static int make_args(char *line, char *n_argv[], int maxargs, int cmd_nb)
+{
+	static const char ws[] = " \t\r\n";
+	char *cp = line;
+	int n_argc = 0;
+
+	while (*cp) {
+		/* Skip leading whitespace. */
+		cp += strspn(cp, ws);
+
+		if (*cp == '\0')
+			break;
+
+		if (n_argc >= (maxargs - 1)) {
+			p_err("too many arguments to command %d", cmd_nb);
+			return -1;
+		}
+
+		/* Word begins with quote. */
+		if (*cp == '\'' || *cp == '"') {
+			char quote = *cp++;
+
+			n_argv[n_argc++] = cp;
+			/* Find ending quote. */
+			cp = strchr(cp, quote);
+			if (!cp) {
+				p_err("unterminated quoted string in command %d",
+				      cmd_nb);
+				return -1;
+			}
+		} else {
+			n_argv[n_argc++] = cp;
+
+			/* Find end of word. */
+			cp += strcspn(cp, ws);
+			if (*cp == '\0')
+				break;
+		}
+
+		/* Separate words. */
+		*cp++ = 0;
+	}
+	n_argv[n_argc] = NULL;
+
+	return n_argc;
+}
+
 static int do_batch(int argc, char **argv);
 
 static const struct cmd cmds[] = {
@@ -241,22 +289,11 @@ static int do_batch(int argc, char **argv)
 			strcat(buf, contline);
 		}
 
-		n_argc = 0;
-		n_argv[n_argc] = strtok(buf, " \t\n");
-
-		while (n_argv[n_argc]) {
-			n_argc++;
-			if (n_argc == ARRAY_SIZE(n_argv)) {
-				p_err("command %d has too many arguments, skip",
-				      lines);
-				n_argc = 0;
-				break;
-			}
-			n_argv[n_argc] = strtok(NULL, " \t\n");
-		}
-
+		n_argc = make_args(buf, n_argv, BATCH_ARG_NB_MAX, lines);
 		if (!n_argc)
 			continue;
+		if (n_argc < 0)
+			goto err_close;
 
 		if (json_output) {
 			jsonw_start_object(json_wtr);
