@@ -400,7 +400,7 @@ static int proc_fib_multipath_hash_policy(struct ctl_table *table, int write,
 
 	ret = proc_dointvec_minmax(table, write, buffer, lenp, ppos);
 	if (write && ret == 0)
-		call_netevent_notifiers(NETEVENT_MULTIPATH_HASH_UPDATE, net);
+		call_netevent_notifiers(NETEVENT_IPV4_MPATH_HASH_UPDATE, net);
 
 	return ret;
 }

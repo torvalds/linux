@@ -2430,7 +2430,7 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 		mlxsw_core_schedule_work(&net_work->work);
 		mlxsw_sp_port_dev_put(mlxsw_sp_port);
 		break;
-	case NETEVENT_MULTIPATH_HASH_UPDATE:
+	case NETEVENT_IPV4_MPATH_HASH_UPDATE:
 		net = ptr;
 
 		if (!net_eq(net, &init_net))
