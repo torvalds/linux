@@ -158,14 +158,14 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 		desc.identity = &tps->partner_identity;
 	}
 
-	tps->partner = typec_register_partner(tps->port, &desc);
-	if (!tps->partner)
-		return -ENODEV;
-
 	typec_set_pwr_opmode(tps->port, mode);
 	typec_set_pwr_role(tps->port, TPS_STATUS_PORTROLE(status));
 	typec_set_vconn_role(tps->port, TPS_STATUS_VCONN(status));
 	typec_set_data_role(tps->port, TPS_STATUS_DATAROLE(status));
+
+	tps->partner = typec_register_partner(tps->port, &desc);
+	if (IS_ERR(tps->partner))
+		return PTR_ERR(tps->partner);
 
 	if (desc.identity)
 		typec_partner_set_identity(tps->partner);
@@ -175,7 +175,8 @@ static int tps6598x_connect(struct tps6598x *tps, u32 status)
 
 static void tps6598x_disconnect(struct tps6598x *tps, u32 status)
 {
-	typec_unregister_partner(tps->partner);
+	if (!IS_ERR(tps->partner))
+		typec_unregister_partner(tps->partner);
 	tps->partner = NULL;
 	typec_set_pwr_opmode(tps->port, TYPEC_PWR_MODE_USB);
 	typec_set_pwr_role(tps->port, TPS_STATUS_PORTROLE(status));
@@ -418,8 +419,8 @@ static int tps6598x_probe(struct i2c_client *client)
 	tps->typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
 
 	tps->port = typec_register_port(&client->dev, &tps->typec_cap);
-	if (!tps->port)
-		return -ENODEV;
+	if (IS_ERR(tps->port))
+		return PTR_ERR(tps->port);
 
 	if (status & TPS_STATUS_PLUG_PRESENT) {
 		ret = tps6598x_connect(tps, status);
