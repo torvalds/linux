@@ -267,7 +267,7 @@ static struct wilc_vif *join_req_vif;
 
 static void *host_int_parse_join_bss_param(struct network_info *info);
 static int host_int_get_ipaddress(struct wilc_vif *vif, u8 *ip_addr, u8 idx);
-static s32 handle_scan_done(struct wilc_vif *vif, enum scan_event enuEvent);
+static s32 handle_scan_done(struct wilc_vif *vif, enum scan_event evt);
 static void host_if_work(struct work_struct *work);
 
 /*!
@@ -863,15 +863,14 @@ ERRORHANDLER:
 	return result;
 }
 
-static s32 handle_scan_done(struct wilc_vif *vif,
-			    enum scan_event enuEvent)
+static s32 handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 {
 	s32 result = 0;
 	u8 u8abort_running_scan;
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	if (enuEvent == SCAN_EVENT_ABORTED) {
+	if (evt == SCAN_EVENT_ABORTED) {
 		u8abort_running_scan = 1;
 		wid.id = (u16)WID_ABORT_RUNNING_SCAN;
 		wid.type = WID_CHAR;
@@ -893,7 +892,7 @@ static s32 handle_scan_done(struct wilc_vif *vif,
 	}
 
 	if (hif_drv->usr_scan_req.scan_result) {
-		hif_drv->usr_scan_req.scan_result(enuEvent, NULL,
+		hif_drv->usr_scan_req.scan_result(evt, NULL,
 						  hif_drv->usr_scan_req.arg, NULL);
 		hif_drv->usr_scan_req.scan_result = NULL;
 	}
