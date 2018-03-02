@@ -568,35 +568,28 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	struct map_symbol *ms = browser->b.priv;
 	struct disasm_line *dl = disasm_line(browser->selection);
 	struct annotation *notes;
-	struct addr_map_symbol target = {
-		.map = ms->map,
-		.addr = map__objdump_2mem(ms->map, dl->ops.target.addr),
-	};
 	char title[SYM_TITLE_MAX_SIZE];
 
 	if (!ins__is_call(&dl->ins))
 		return false;
 
-	if (map_groups__find_ams(&target) ||
-	    map__rip_2objdump(target.map, target.map->map_ip(target.map,
-							     target.addr)) !=
-	    dl->ops.target.addr) {
+	if (!dl->ops.target.sym) {
 		ui_helpline__puts("The called function was not found.");
 		return true;
 	}
 
-	notes = symbol__annotation(target.sym);
+	notes = symbol__annotation(dl->ops.target.sym);
 	pthread_mutex_lock(&notes->lock);
 
-	if (notes->src == NULL && symbol__alloc_hist(target.sym) < 0) {
+	if (notes->src == NULL && symbol__alloc_hist(dl->ops.target.sym) < 0) {
 		pthread_mutex_unlock(&notes->lock);
 		ui__warning("Not enough memory for annotating '%s' symbol!\n",
-			    target.sym->name);
+			    dl->ops.target.sym->name);
 		return true;
 	}
 
 	pthread_mutex_unlock(&notes->lock);
-	symbol__tui_annotate(target.sym, target.map, evsel, hbt);
+	symbol__tui_annotate(dl->ops.target.sym, ms->map, evsel, hbt);
 	sym_title(ms->sym, ms->map, title, sizeof(title));
 	ui_browser__show_title(&browser->b, title);
 	return true;
