@@ -504,6 +504,7 @@ int omapdss_device_connect(struct dss_device *dss,
 			   struct omap_dss_device *dst);
 void omapdss_device_disconnect(struct omap_dss_device *src,
 			       struct omap_dss_device *dst);
+enum omap_channel omapdss_device_get_dispc_channel(struct omap_dss_device *dssdev);
 
 int omap_dss_get_num_overlay_managers(void);
 
@@ -512,8 +513,6 @@ int omap_dss_get_num_overlays(void);
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);
-
-struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev);
 
 typedef void (*omap_dispc_isr_t) (void *arg, u32 mask);
 int omap_dispc_register_isr(omap_dispc_isr_t isr, void *arg, u32 mask);

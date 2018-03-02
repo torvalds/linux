@@ -88,18 +88,6 @@ err:
 }
 EXPORT_SYMBOL(omapdss_output_unset_device);
 
-struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device *dssdev)
-{
-	while (dssdev->src)
-		dssdev = dssdev->src;
-
-	if (dssdev->id != 0)
-		return omapdss_device_get(dssdev);
-
-	return NULL;
-}
-EXPORT_SYMBOL(omapdss_find_output_from_display);
-
 int dss_install_mgr_ops(struct dss_device *dss,
 			const struct dss_mgr_ops *mgr_ops,
 			struct omap_drm_private *priv)

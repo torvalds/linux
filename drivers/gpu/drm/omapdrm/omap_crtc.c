@@ -699,12 +699,9 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	struct drm_crtc *crtc = NULL;
 	struct omap_crtc *omap_crtc;
 	enum omap_channel channel;
-	struct omap_dss_device *out;
 	int ret;
 
-	out = omapdss_find_output_from_display(dssdev);
-	channel = out->dispc_channel;
-	omapdss_device_put(out);
+	channel = omapdss_device_get_dispc_channel(dssdev);
 
 	DBG("%s", channel_names[channel]);
 
