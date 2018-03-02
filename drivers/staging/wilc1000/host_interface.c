@@ -1182,9 +1182,9 @@ ERRORHANDLER:
 static s32 handle_connect_timeout(struct wilc_vif *vif)
 {
 	s32 result = 0;
-	struct connect_info strConnectInfo;
+	struct connect_info info;
 	struct wid wid;
-	u16 u16DummyReasonCode = 0;
+	u16 dummy_reason_code = 0;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
 	if (!hif_drv) {
@@ -1196,37 +1196,37 @@ static s32 handle_connect_timeout(struct wilc_vif *vif)
 
 	scan_while_connected = false;
 
-	memset(&strConnectInfo, 0, sizeof(struct connect_info));
+	memset(&info, 0, sizeof(struct connect_info));
 
 	if (hif_drv->usr_conn_req.conn_result) {
 		if (hif_drv->usr_conn_req.bssid) {
-			memcpy(strConnectInfo.bssid,
+			memcpy(info.bssid,
 			       hif_drv->usr_conn_req.bssid, 6);
 		}
 
 		if (hif_drv->usr_conn_req.ies) {
-			strConnectInfo.req_ies_len = hif_drv->usr_conn_req.ies_len;
-			strConnectInfo.req_ies = kmalloc(hif_drv->usr_conn_req.ies_len, GFP_KERNEL);
-			memcpy(strConnectInfo.req_ies,
+			info.req_ies_len = hif_drv->usr_conn_req.ies_len;
+			info.req_ies = kmalloc(hif_drv->usr_conn_req.ies_len, GFP_KERNEL);
+			memcpy(info.req_ies,
 			       hif_drv->usr_conn_req.ies,
 			       hif_drv->usr_conn_req.ies_len);
 		}
 
 		hif_drv->usr_conn_req.conn_result(CONN_DISCONN_EVENT_CONN_RESP,
-						  &strConnectInfo,
+						  &info,
 						  MAC_DISCONNECTED,
 						  NULL,
 						  hif_drv->usr_conn_req.arg);
 
-		kfree(strConnectInfo.req_ies);
-		strConnectInfo.req_ies = NULL;
+		kfree(info.req_ies);
+		info.req_ies = NULL;
 	} else {
 		netdev_err(vif->ndev, "Connect callback is NULL\n");
 	}
 
 	wid.id = (u16)WID_DISCONNECT;
 	wid.type = WID_CHAR;
-	wid.val = (s8 *)&u16DummyReasonCode;
+	wid.val = (s8 *)&dummy_reason_code;
 	wid.size = sizeof(char);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
