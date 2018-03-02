@@ -651,6 +651,9 @@ static void imx_start_tx(struct uart_port *port)
 	struct imx_port *sport = (struct imx_port *)port;
 	u32 ucr1;
 
+	if (!sport->port.x_char && uart_circ_empty(&port->state->xmit))
+		return;
+
 	if (port->rs485.flags & SER_RS485_ENABLED) {
 		u32 ucr2;
 
