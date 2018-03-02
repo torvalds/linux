@@ -2431,6 +2431,7 @@ static int mlxsw_sp_router_netevent_event(struct notifier_block *nb,
 		mlxsw_sp_port_dev_put(mlxsw_sp_port);
 		break;
 	case NETEVENT_IPV4_MPATH_HASH_UPDATE:
+	case NETEVENT_IPV6_MPATH_HASH_UPDATE:
 		net = ptr;
 
 		if (!net_eq(net, &init_net))
@@ -7030,13 +7031,25 @@ static void mlxsw_sp_mp4_hash_init(char *recr2_pl)
 
 static void mlxsw_sp_mp6_hash_init(char *recr2_pl)
 {
+	bool only_l3 = !init_net.ipv6.sysctl.multipath_hash_policy;
+
 	mlxsw_sp_mp_hash_header_set(recr2_pl,
 				    MLXSW_REG_RECR2_IPV6_EN_NOT_TCP_NOT_UDP);
 	mlxsw_sp_mp_hash_header_set(recr2_pl, MLXSW_REG_RECR2_IPV6_EN_TCP_UDP);
 	mlxsw_reg_recr2_ipv6_sip_enable(recr2_pl);
 	mlxsw_reg_recr2_ipv6_dip_enable(recr2_pl);
-	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_IPV6_FLOW_LABEL);
 	mlxsw_sp_mp_hash_field_set(recr2_pl, MLXSW_REG_RECR2_IPV6_NEXT_HEADER);
+	if (only_l3) {
+		mlxsw_sp_mp_hash_field_set(recr2_pl,
+					   MLXSW_REG_RECR2_IPV6_FLOW_LABEL);
+	} else {
+		mlxsw_sp_mp_hash_header_set(recr2_pl,
+					    MLXSW_REG_RECR2_TCP_UDP_EN_IPV6);
+		mlxsw_sp_mp_hash_field_set(recr2_pl,
+					   MLXSW_REG_RECR2_TCP_UDP_SPORT);
+		mlxsw_sp_mp_hash_field_set(recr2_pl,
+					   MLXSW_REG_RECR2_TCP_UDP_DPORT);
+	}
 }
 
 static int mlxsw_sp_mp_hash_init(struct mlxsw_sp *mlxsw_sp)
