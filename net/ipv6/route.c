@@ -1833,15 +1833,21 @@ u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb,
 		       struct flow_keys *flkeys)
 {
 	struct flow_keys hash_keys;
+	u32 mhash;
 
+	memset(&hash_keys, 0, sizeof(hash_keys));
+	hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 	if (skb) {
-		memset(&hash_keys, 0, sizeof(hash_keys));
-		hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 		ip6_multipath_l3_keys(skb, &hash_keys, flkeys);
-		return flow_hash_from_keys(&hash_keys) >> 1;
+	} else {
+		hash_keys.addrs.v6addrs.src = fl6->saddr;
+		hash_keys.addrs.v6addrs.dst = fl6->daddr;
+		hash_keys.tags.flow_label = (__force u32)fl6->flowlabel;
+		hash_keys.basic.ip_proto = fl6->flowi6_proto;
 	}
+	mhash = flow_hash_from_keys(&hash_keys);
 
-	return get_hash_from_flowi6(fl6) >> 1;
+	return mhash >> 1;
 }
 
 void ip6_route_input(struct sk_buff *skb)
