@@ -99,10 +99,8 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	property->num_values = num_values;
 	INIT_LIST_HEAD(&property->enum_list);
 
-	if (name) {
-		strncpy(property->name, name, DRM_PROP_NAME_LEN);
-		property->name[DRM_PROP_NAME_LEN-1] = '\0';
-	}
+	strncpy(property->name, name, DRM_PROP_NAME_LEN);
+	property->name[DRM_PROP_NAME_LEN-1] = '\0';
 
 	list_add_tail(&property->head, &dev->mode_config.property_list);
 
