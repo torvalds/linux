@@ -47,6 +47,7 @@
 #include <bpf.h>
 #include <libbpf.h>
 
+#include "cfg.h"
 #include "main.h"
 #include "xlated_dumper.h"
 
@@ -415,6 +416,7 @@ static int do_dump(int argc, char **argv)
 	unsigned int buf_size;
 	char *filepath = NULL;
 	bool opcodes = false;
+	bool visual = false;
 	unsigned char *buf;
 	__u32 *member_len;
 	__u64 *member_ptr;
@@ -452,6 +454,9 @@ static int do_dump(int argc, char **argv)
 		NEXT_ARG();
 	} else if (is_prefix(*argv, "opcodes")) {
 		opcodes = true;
+		NEXT_ARG();
+	} else if (is_prefix(*argv, "visual")) {
+		visual = true;
 		NEXT_ARG();
 	}
 
@@ -536,6 +541,11 @@ static int do_dump(int argc, char **argv)
 		}
 
 		disasm_print_insn(buf, *member_len, opcodes, name);
+	} else if (visual) {
+		if (json_output)
+			jsonw_null(json_wtr);
+		else
+			dump_xlated_cfg(buf, *member_len);
 	} else {
 		kernel_syms_load(&dd);
 		if (json_output)
@@ -596,7 +606,7 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %s %s { show | list } [PROG]\n"
-		"       %s %s dump xlated PROG [{ file FILE | opcodes }]\n"
+		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
 		"       %s %s load  OBJ  FILE\n"
