@@ -2353,39 +2353,17 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 }
 
 static ieee80211_rx_result debug_noinline
-ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
+__ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx, u8 data_offset)
 {
 	struct net_device *dev = rx->sdata->dev;
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 fc = hdr->frame_control;
 	struct sk_buff_head frame_list;
-	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
 	struct ethhdr ethhdr;
 	const u8 *check_da = ethhdr.h_dest, *check_sa = ethhdr.h_source;
 
-	if (unlikely(!ieee80211_is_data(fc)))
-		return RX_CONTINUE;
-
-	if (unlikely(!ieee80211_is_data_present(fc)))
-		return RX_DROP_MONITOR;
-
-	if (!(status->rx_flags & IEEE80211_RX_AMSDU))
-		return RX_CONTINUE;
-
 	if (unlikely(ieee80211_has_a4(hdr->frame_control))) {
-		switch (rx->sdata->vif.type) {
-		case NL80211_IFTYPE_AP_VLAN:
-			if (!rx->sdata->u.vlan.sta)
-				return RX_DROP_UNUSABLE;
-			break;
-		case NL80211_IFTYPE_STATION:
-			if (!rx->sdata->u.mgd.use_4addr)
-				return RX_DROP_UNUSABLE;
-			break;
-		default:
-			return RX_DROP_UNUSABLE;
-		}
 		check_da = NULL;
 		check_sa = NULL;
 	} else switch (rx->sdata->vif.type) {
@@ -2405,15 +2383,13 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 			break;
 	}
 
-	if (is_multicast_ether_addr(hdr->addr1))
-		return RX_DROP_UNUSABLE;
-
 	skb->dev = dev;
 	__skb_queue_head_init(&frame_list);
 
 	if (ieee80211_data_to_8023_exthdr(skb, &ethhdr,
 					  rx->sdata->vif.addr,
-					  rx->sdata->vif.type))
+					  rx->sdata->vif.type,
+					  data_offset))
 		return RX_DROP_UNUSABLE;
 
 	ieee80211_amsdu_to_8023s(skb, &frame_list, dev->dev_addr,
@@ -2433,6 +2409,44 @@ ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
 	}
 
 	return RX_QUEUED;
+}
+
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_amsdu(struct ieee80211_rx_data *rx)
+{
+	struct sk_buff *skb = rx->skb;
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	__le16 fc = hdr->frame_control;
+
+	if (!(status->rx_flags & IEEE80211_RX_AMSDU))
+		return RX_CONTINUE;
+
+	if (unlikely(!ieee80211_is_data(fc)))
+		return RX_CONTINUE;
+
+	if (unlikely(!ieee80211_is_data_present(fc)))
+		return RX_DROP_MONITOR;
+
+	if (unlikely(ieee80211_has_a4(hdr->frame_control))) {
+		switch (rx->sdata->vif.type) {
+		case NL80211_IFTYPE_AP_VLAN:
+			if (!rx->sdata->u.vlan.sta)
+				return RX_DROP_UNUSABLE;
+			break;
+		case NL80211_IFTYPE_STATION:
+			if (!rx->sdata->u.mgd.use_4addr)
+				return RX_DROP_UNUSABLE;
+			break;
+		default:
+			return RX_DROP_UNUSABLE;
+		}
+	}
+
+	if (is_multicast_ether_addr(hdr->addr1))
+		return RX_DROP_UNUSABLE;
+
+	return __ieee80211_rx_h_amsdu(rx, 0);
 }
 
 #ifdef CONFIG_MAC80211_MESH
@@ -3747,15 +3761,6 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_STATION:
-		/* 4-addr is harder to deal with, later maybe */
-		if (sdata->u.mgd.use_4addr)
-			goto clear;
-		/* software powersave is a huge mess, avoid all of it */
-		if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK))
-			goto clear;
-		if (ieee80211_hw_check(&local->hw, SUPPORTS_PS) &&
-		    !ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
-			goto clear;
 		if (sta->sta.tdls) {
 			fastrx.da_offs = offsetof(struct ieee80211_hdr, addr1);
 			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr2);
@@ -3767,6 +3772,23 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 			fastrx.expected_ds_bits =
 				cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		}
+
+		if (sdata->u.mgd.use_4addr && !sta->sta.tdls) {
+			fastrx.expected_ds_bits |=
+				cpu_to_le16(IEEE80211_FCTL_TODS);
+			fastrx.da_offs = offsetof(struct ieee80211_hdr, addr3);
+			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr4);
+		}
+
+		if (!sdata->u.mgd.powersave)
+			break;
+
+		/* software powersave is a huge mess, avoid all of it */
+		if (ieee80211_hw_check(&local->hw, PS_NULLFUNC_STACK))
+			goto clear;
+		if (ieee80211_hw_check(&local->hw, SUPPORTS_PS) &&
+		    !ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))
+			goto clear;
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_AP:
@@ -3783,6 +3805,15 @@ void ieee80211_check_fast_rx(struct sta_info *sta)
 			!(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
 			(sdata->vif.type != NL80211_IFTYPE_AP_VLAN ||
 			 !sdata->u.vlan.sta);
+
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+		    sdata->u.vlan.sta) {
+			fastrx.expected_ds_bits |=
+				cpu_to_le16(IEEE80211_FCTL_FROMDS);
+			fastrx.sa_offs = offsetof(struct ieee80211_hdr, addr4);
+			fastrx.internal_forward = 0;
+		}
+
 		break;
 	default:
 		goto clear;
@@ -3881,7 +3912,8 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct sta_info *sta = rx->sta;
 	int orig_len = skb->len;
-	int snap_offs = ieee80211_hdrlen(hdr->frame_control);
+	int hdrlen = ieee80211_hdrlen(hdr->frame_control);
+	int snap_offs = hdrlen;
 	struct {
 		u8 snap[sizeof(rfc1042_header)];
 		__be16 proto;
@@ -3910,10 +3942,6 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	 */
 	if (fast_rx->key &&
 	    (status->flag & FAST_RX_CRYPT_FLAGS) != FAST_RX_CRYPT_FLAGS)
-		return false;
-
-	/* we don't deal with A-MSDU deaggregation here */
-	if (status->rx_flags & IEEE80211_RX_AMSDU)
 		return false;
 
 	if (unlikely(!ieee80211_is_data_present(hdr->frame_control)))
@@ -3947,21 +3975,24 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 		snap_offs += IEEE80211_CCMP_HDR_LEN;
 	}
 
-	if (!pskb_may_pull(skb, snap_offs + sizeof(*payload)))
-		goto drop;
-	payload = (void *)(skb->data + snap_offs);
+	if (!(status->rx_flags & IEEE80211_RX_AMSDU)) {
+		if (!pskb_may_pull(skb, snap_offs + sizeof(*payload)))
+			goto drop;
 
-	if (!ether_addr_equal(payload->snap, fast_rx->rfc1042_hdr))
-		return false;
+		payload = (void *)(skb->data + snap_offs);
 
-	/* Don't handle these here since they require special code.
-	 * Accept AARP and IPX even though they should come with a
-	 * bridge-tunnel header - but if we get them this way then
-	 * there's little point in discarding them.
-	 */
-	if (unlikely(payload->proto == cpu_to_be16(ETH_P_TDLS) ||
-		     payload->proto == fast_rx->control_port_protocol))
-		return false;
+		if (!ether_addr_equal(payload->snap, fast_rx->rfc1042_hdr))
+			return false;
+
+		/* Don't handle these here since they require special code.
+		 * Accept AARP and IPX even though they should come with a
+		 * bridge-tunnel header - but if we get them this way then
+		 * there's little point in discarding them.
+		 */
+		if (unlikely(payload->proto == cpu_to_be16(ETH_P_TDLS) ||
+			     payload->proto == fast_rx->control_port_protocol))
+			return false;
+	}
 
 	/* after this point, don't punt to the slowpath! */
 
@@ -3975,12 +4006,6 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 	}
 
 	/* statistics part of ieee80211_rx_h_sta_process() */
-	stats->last_rx = jiffies;
-	stats->last_rate = sta_stats_encode_rate(status);
-
-	stats->fragments++;
-	stats->packets++;
-
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		stats->last_signal = status->signal;
 		if (!fast_rx->uses_rss)
@@ -4008,6 +4033,20 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 
 	if (rx->key && !ieee80211_has_protected(hdr->frame_control))
 		goto drop;
+
+	if (status->rx_flags & IEEE80211_RX_AMSDU) {
+		if (__ieee80211_rx_h_amsdu(rx, snap_offs - hdrlen) !=
+		    RX_QUEUED)
+			goto drop;
+
+		return true;
+	}
+
+	stats->last_rx = jiffies;
+	stats->last_rate = sta_stats_encode_rate(status);
+
+	stats->fragments++;
+	stats->packets++;
 
 	/* do the header conversion - first grab the addresses */
 	ether_addr_copy(addrs.da, skb->data + fast_rx->da_offs);

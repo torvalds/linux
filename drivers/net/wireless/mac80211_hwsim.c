@@ -253,7 +253,7 @@ static inline void hwsim_clear_chanctx_magic(struct ieee80211_chanctx_conf *c)
 
 static unsigned int hwsim_net_id;
 
-static int hwsim_netgroup;
+static struct ida hwsim_netgroup_ida = IDA_INIT;
 
 struct hwsim_net {
 	int netgroup;
@@ -267,11 +267,13 @@ static inline int hwsim_net_get_netgroup(struct net *net)
 	return hwsim_net->netgroup;
 }
 
-static inline void hwsim_net_set_netgroup(struct net *net)
+static inline int hwsim_net_set_netgroup(struct net *net)
 {
 	struct hwsim_net *hwsim_net = net_generic(net, hwsim_net_id);
 
-	hwsim_net->netgroup = hwsim_netgroup++;
+	hwsim_net->netgroup = ida_simple_get(&hwsim_netgroup_ida,
+					     0, 0, GFP_KERNEL);
+	return hwsim_net->netgroup >= 0 ? 0 : -ENOMEM;
 }
 
 static inline u32 hwsim_net_get_wmediumd(struct net *net)
@@ -3507,9 +3509,7 @@ failure:
 
 static __net_init int hwsim_init_net(struct net *net)
 {
-	hwsim_net_set_netgroup(net);
-
-	return 0;
+	return hwsim_net_set_netgroup(net);
 }
 
 static void __net_exit hwsim_exit_net(struct net *net)
@@ -3532,6 +3532,8 @@ static void __net_exit hwsim_exit_net(struct net *net)
 		queue_work(hwsim_wq, &data->destroy_work);
 	}
 	spin_unlock_bh(&hwsim_radio_lock);
+
+	ida_simple_remove(&hwsim_netgroup_ida, hwsim_net_get_netgroup(net));
 }
 
 static struct pernet_operations hwsim_net_ops = {
@@ -3539,6 +3541,7 @@ static struct pernet_operations hwsim_net_ops = {
 	.exit = hwsim_exit_net,
 	.id   = &hwsim_net_id,
 	.size = sizeof(struct hwsim_net),
+	.async = true,
 };
 
 static void hwsim_exit_netlink(void)
