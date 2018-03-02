@@ -53,13 +53,12 @@ struct panel_drv_data {
 
 static int hdmic_connect(struct omap_dss_device *dssdev)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
 	struct omap_dss_device *src;
 	int r;
 
-	src = omapdss_of_find_connected_device(ddata->dev->of_node, 0);
+	src = omapdss_of_find_connected_device(dssdev->dev->of_node, 0);
 	if (IS_ERR_OR_NULL(src)) {
-		dev_err(ddata->dev, "failed to find video source\n");
+		dev_err(dssdev->dev, "failed to find video source\n");
 		return src ? PTR_ERR(src) : -EINVAL;
 	}
 
