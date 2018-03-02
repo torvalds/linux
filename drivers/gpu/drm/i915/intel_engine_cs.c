@@ -123,6 +123,22 @@ static const struct engine_info intel_engines[] = {
 		.mmio_base = GEN8_BSD2_RING_BASE,
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
 	},
+	[VCS3] = {
+		.hw_id = VCS3_HW,
+		.uabi_id = I915_EXEC_BSD,
+		.class = VIDEO_DECODE_CLASS,
+		.instance = 2,
+		.mmio_base = GEN11_BSD3_RING_BASE,
+		.irq_shift = 0, /* not used */
+	},
+	[VCS4] = {
+		.hw_id = VCS4_HW,
+		.uabi_id = I915_EXEC_BSD,
+		.class = VIDEO_DECODE_CLASS,
+		.instance = 3,
+		.mmio_base = GEN11_BSD4_RING_BASE,
+		.irq_shift = 0, /* not used */
+	},
 	[VECS] = {
 		.hw_id = VECS_HW,
 		.uabi_id = I915_EXEC_VEBOX,
@@ -130,6 +146,14 @@ static const struct engine_info intel_engines[] = {
 		.instance = 0,
 		.mmio_base = VEBOX_RING_BASE,
 		.irq_shift = GEN8_VECS_IRQ_SHIFT,
+	},
+	[VECS2] = {
+		.hw_id = VECS2_HW,
+		.uabi_id = I915_EXEC_VEBOX,
+		.class = VIDEO_ENHANCEMENT_CLASS,
+		.instance = 1,
+		.mmio_base = GEN11_VEBOX2_RING_BASE,
+		.irq_shift = 0, /* not used */
 	},
 };
 
@@ -230,7 +254,25 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 			 class_info->name, info->instance) >=
 		sizeof(engine->name));
 	engine->hw_id = engine->guc_id = info->hw_id;
-	engine->mmio_base = info->mmio_base;
+	if (INTEL_GEN(dev_priv) >= 11) {
+		switch (engine->id) {
+		case VCS:
+			engine->mmio_base = GEN11_BSD_RING_BASE;
+			break;
+		case VCS2:
+			engine->mmio_base = GEN11_BSD2_RING_BASE;
+			break;
+		case VECS:
+			engine->mmio_base = GEN11_VEBOX_RING_BASE;
+			break;
+		default:
+			/* take the original value for all other engines  */
+			engine->mmio_base = info->mmio_base;
+			break;
+		}
+	} else {
+		engine->mmio_base = info->mmio_base;
+	}
 	engine->irq_shift = info->irq_shift;
 	engine->class = info->class;
 	engine->instance = info->instance;
