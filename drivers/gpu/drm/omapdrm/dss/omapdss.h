@@ -487,6 +487,7 @@ static inline bool omapdss_is_initialized(void)
 	return !!omapdss_get_dss();
 }
 
+void omapdss_display_init(struct omap_dss_device *dssdev);
 int omapdss_register_display(struct omap_dss_device *dssdev);
 void omapdss_unregister_display(struct omap_dss_device *dssdev);
 #define for_each_dss_display(d) \

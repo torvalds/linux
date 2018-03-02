@@ -32,7 +32,7 @@ static LIST_HEAD(panel_list);
 static DEFINE_MUTEX(panel_list_mutex);
 static int disp_num_counter;
 
-int omapdss_register_display(struct omap_dss_device *dssdev)
+void omapdss_display_init(struct omap_dss_device *dssdev)
 {
 	int id;
 
@@ -52,7 +52,11 @@ int omapdss_register_display(struct omap_dss_device *dssdev)
 	if (dssdev->name == NULL)
 		dssdev->name = devm_kasprintf(dssdev->dev, GFP_KERNEL,
 					      "display%u", id);
+}
+EXPORT_SYMBOL_GPL(omapdss_display_init);
 
+int omapdss_register_display(struct omap_dss_device *dssdev)
+{
 	mutex_lock(&panel_list_mutex);
 	list_add_tail(&dssdev->panel_list, &panel_list);
 	mutex_unlock(&panel_list_mutex);

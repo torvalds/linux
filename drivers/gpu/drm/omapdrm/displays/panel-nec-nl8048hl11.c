@@ -293,6 +293,7 @@ static int nec_8048_probe(struct spi_device *spi)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 
+	omapdss_display_init(dssdev);
 	r = omapdss_register_display(dssdev);
 	if (r) {
 		dev_err(&spi->dev, "Failed to register panel\n");

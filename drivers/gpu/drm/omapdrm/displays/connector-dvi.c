@@ -390,6 +390,7 @@ static int dvic_probe(struct platform_device *pdev)
 	dssdev->type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
 
+	omapdss_display_init(dssdev);
 	r = omapdss_register_display(dssdev);
 	if (r) {
 		dev_err(&pdev->dev, "Failed to register panel\n");

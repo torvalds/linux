@@ -800,6 +800,7 @@ static int acx565akm_probe(struct spi_device *spi)
 	dssdev->type = OMAP_DISPLAY_TYPE_SDI;
 	dssdev->owner = THIS_MODULE;
 
+	omapdss_display_init(dssdev);
 	r = omapdss_register_display(dssdev);
 	if (r) {
 		dev_err(&spi->dev, "Failed to register panel\n");
