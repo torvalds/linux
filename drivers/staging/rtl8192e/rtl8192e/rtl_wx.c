@@ -243,7 +243,7 @@ static int _rtl92e_wx_set_debug(struct net_device *dev,
 	netdev_info(dev, "=====>%s(), *extra:%x, debugflag:%x\n", __func__,
 		    *extra, rt_global_debug_component);
 	if (c > 0)
-		rt_global_debug_component |= (1<<c);
+		rt_global_debug_component |= (1 << c);
 	else
 		rt_global_debug_component &= BIT31;
 	return 0;
@@ -352,7 +352,7 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 	range->min_pmp = 0;
 	range->max_pmp = 5000000;
 	range->min_pmt = 0;
-	range->max_pmt = 65535*1000;
+	range->max_pmt = 65535 * 1000;
 	range->pmp_flags = IW_POWER_PERIOD;
 	range->pmt_flags = IW_POWER_TIMEOUT;
 	range->pm_capa = IW_POWER_PERIOD | IW_POWER_TIMEOUT | IW_POWER_ALL_R;
@@ -360,7 +360,7 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 	range->we_version_source = 18;
 
 	for (i = 0, val = 0; i < 14; i++) {
-		if ((priv->rtllib->active_channel_map)[i+1]) {
+		if ((priv->rtllib->active_channel_map)[i + 1]) {
 			range->freq[val].i = i + 1;
 			range->freq[val].m = rtllib_wlan_frequencies[i] *
 					     100000;
@@ -373,8 +373,8 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 	}
 	range->num_frequency = val;
 	range->num_channels = val;
-	range->enc_capa = IW_ENC_CAPA_WPA|IW_ENC_CAPA_WPA2|
-			  IW_ENC_CAPA_CIPHER_TKIP|IW_ENC_CAPA_CIPHER_CCMP;
+	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
+			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 	range->scan_capa = IW_SCAN_CAPA_ESSID | IW_SCAN_CAPA_TYPE;
 
 	/* Event capability (kernel + driver) */
@@ -702,7 +702,7 @@ static int _rtl92e_wx_set_enc(struct net_device *dev,
 	}
 	if (wrqu->encoding.length != 0) {
 		for (i = 0; i < 4; i++) {
-			hwkey[i] |=  key[4*i+0]&mask;
+			hwkey[i] |=  key[4 * i + 0] & mask;
 			if (i == 1 && (4 * i + 1) == wrqu->encoding.length)
 				mask = 0x00;
 			if (i == 3 && (4 * i + 1) == wrqu->encoding.length)
@@ -1139,15 +1139,15 @@ static const struct iw_priv_args r8192_private_args[] = {
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "forcereset"
 	}, {
 		SIOCIWFIRSTPRIV + 0x6,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, IW_PRIV_TYPE_NONE,
 		"set_power"
 	}, {
 		SIOCIWFIRSTPRIV + 0xa,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, IW_PRIV_TYPE_NONE,
 		"lps_interv"
 	}, {
 		SIOCIWFIRSTPRIV + 0xb,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, IW_PRIV_TYPE_NONE,
 		"lps_force"
 	}, {
 		SIOCIWFIRSTPRIV + 0x16,
