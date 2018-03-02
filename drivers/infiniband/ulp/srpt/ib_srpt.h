@@ -42,6 +42,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_sa.h>
 #include <rdma/ib_cm.h>
+#include <rdma/rdma_cm.h>
 #include <rdma/rw.h>
 
 #include <scsi/srp.h>
@@ -261,6 +262,7 @@ enum rdma_ch_state {
  * @spinlock:      Protects free_list and state.
  * @free_list:     Head of list with free send I/O contexts.
  * @state:         channel state. See also enum rdma_ch_state.
+ * @using_rdma_cm: Whether the RDMA/CM or IB/CM is used for this channel.
  * @processing_wait_list: Whether or not cmd_wait_list is being processed.
  * @ioctx_ring:    Send ring.
  * @ioctx_recv_ring: Receive I/O context ring.
@@ -280,6 +282,9 @@ struct srpt_rdma_ch {
 		struct {
 			struct ib_cm_id		*cm_id;
 		} ib_cm;
+		struct {
+			struct rdma_cm_id	*cm_id;
+		} rdma_cm;
 	};
 	struct ib_cq		*cq;
 	struct ib_cqe		zw_cqe;
@@ -300,9 +305,10 @@ struct srpt_rdma_ch {
 	struct list_head	list;
 	struct list_head	cmd_wait_list;
 	uint16_t		pkey;
+	bool			using_rdma_cm;
 	bool			processing_wait_list;
 	struct se_session	*sess;
-	u8			sess_name[24];
+	u8			sess_name[40];
 	struct work_struct	release_work;
 };
 
