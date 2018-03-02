@@ -1261,7 +1261,7 @@ void netvsc_channel_cb(void *context)
 		/* disable interupts from host */
 		hv_begin_read(rbi);
 
-		__napi_schedule(&nvchan->napi);
+		__napi_schedule_irqoff(&nvchan->napi);
 	}
 }
 
