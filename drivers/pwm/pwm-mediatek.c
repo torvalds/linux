@@ -121,7 +121,6 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct mtk_pwm_chip *pc = to_mtk_pwm_chip(chip);
 	struct clk *clk = pc->clks[MTK_CLK_PWM1 + pwm->hwpwm];
 	u32 resolution, clkdiv = 0;
-	ulong clock;
 	int ret;
 
 	ret = mtk_pwm_clk_enable(chip, pwm);
@@ -140,9 +139,6 @@ static int mtk_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		dev_err(chip->dev, "period %d not supported\n", period_ns);
 		return -EINVAL;
 	}
-
-	printk(KERN_NOTICE "[mtk_pwm_config] period_ns: %d, duty_ns: %d",period_ns,duty_ns);
-	printk(KERN_NOTICE "[mtk_pwm_config] resolution: %d, clkdiv: %d",resolution,clkdiv);
 
 	mtk_pwm_writel(pc, pwm->hwpwm, PWMCON, BIT(15) | clkdiv);
 	if (pwm->hwpwm > 2) { //for PWM4 and PWM5
