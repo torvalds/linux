@@ -504,10 +504,9 @@ static inline void imx_transmit_buffer(struct imx_port *sport)
 			imx_uart_writel(sport, temp, UCR1);
 			imx_dma_tx(sport);
 		}
-	}
 
-	if (sport->dma_is_txing)
 		return;
+	}
 
 	while (!uart_circ_empty(xmit) &&
 	       !(imx_uart_readl(sport, uts_reg(sport)) & UTS_TXFULL)) {
