@@ -683,12 +683,12 @@ void omap_crtc_pre_init(struct omap_drm_private *priv)
 {
 	memset(omap_crtcs, 0, sizeof(omap_crtcs));
 
-	dss_install_mgr_ops(&mgr_ops, priv);
+	dss_install_mgr_ops(priv->dss, &mgr_ops, priv);
 }
 
-void omap_crtc_pre_uninit(void)
+void omap_crtc_pre_uninit(struct omap_drm_private *priv)
 {
-	dss_uninstall_mgr_ops();
+	dss_uninstall_mgr_ops(priv->dss);
 }
 
 /* initialize crtc */

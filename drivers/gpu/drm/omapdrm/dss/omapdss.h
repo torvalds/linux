@@ -574,9 +574,10 @@ struct dss_mgr_ops {
 			void (*handler)(void *), void *data);
 };
 
-int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops,
+int dss_install_mgr_ops(struct dss_device *dss,
+			const struct dss_mgr_ops *mgr_ops,
 			struct omap_drm_private *priv);
-void dss_uninstall_mgr_ops(void);
+void dss_uninstall_mgr_ops(struct dss_device *dss);
 
 int dss_mgr_connect(struct omap_dss_device *dssdev,
 		    struct omap_dss_device *dst);

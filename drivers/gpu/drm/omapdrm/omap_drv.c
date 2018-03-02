@@ -638,7 +638,7 @@ err_gem_deinit:
 	destroy_workqueue(priv->wq);
 	omap_disconnect_dssdevs(ddev);
 err_crtc_uninit:
-	omap_crtc_pre_uninit();
+	omap_crtc_pre_uninit(priv);
 	drm_dev_unref(ddev);
 	return ret;
 }
@@ -666,7 +666,7 @@ static void omapdrm_cleanup(struct omap_drm_private *priv)
 	destroy_workqueue(priv->wq);
 
 	omap_disconnect_dssdevs(ddev);
-	omap_crtc_pre_uninit();
+	omap_crtc_pre_uninit(priv);
 
 	drm_dev_unref(ddev);
 }

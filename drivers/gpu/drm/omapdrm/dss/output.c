@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 
+#include "dss.h"
 #include "omapdss.h"
 
 static DEFINE_MUTEX(output_lock);
@@ -99,90 +100,97 @@ struct omap_dss_device *omapdss_find_output_from_display(struct omap_dss_device 
 }
 EXPORT_SYMBOL(omapdss_find_output_from_display);
 
-static const struct dss_mgr_ops *dss_mgr_ops;
-static struct omap_drm_private *dss_mgr_ops_priv;
-
-int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops,
+int dss_install_mgr_ops(struct dss_device *dss,
+			const struct dss_mgr_ops *mgr_ops,
 			struct omap_drm_private *priv)
 {
-	if (dss_mgr_ops)
+	if (dss->mgr_ops)
 		return -EBUSY;
 
-	dss_mgr_ops = mgr_ops;
-	dss_mgr_ops_priv = priv;
+	dss->mgr_ops = mgr_ops;
+	dss->mgr_ops_priv = priv;
 
 	return 0;
 }
 EXPORT_SYMBOL(dss_install_mgr_ops);
 
-void dss_uninstall_mgr_ops(void)
+void dss_uninstall_mgr_ops(struct dss_device *dss)
 {
-	dss_mgr_ops = NULL;
-	dss_mgr_ops_priv = NULL;
+	dss->mgr_ops = NULL;
+	dss->mgr_ops_priv = NULL;
 }
 EXPORT_SYMBOL(dss_uninstall_mgr_ops);
 
 int dss_mgr_connect(struct omap_dss_device *dssdev, struct omap_dss_device *dst)
 {
-	return dss_mgr_ops->connect(dss_mgr_ops_priv,
-				    dssdev->dispc_channel, dst);
+	return dssdev->dss->mgr_ops->connect(dssdev->dss->mgr_ops_priv,
+					     dssdev->dispc_channel, dst);
 }
 EXPORT_SYMBOL(dss_mgr_connect);
 
 void dss_mgr_disconnect(struct omap_dss_device *dssdev,
 			struct omap_dss_device *dst)
 {
-	dss_mgr_ops->disconnect(dss_mgr_ops_priv, dssdev->dispc_channel, dst);
+	dssdev->dss->mgr_ops->disconnect(dssdev->dss->mgr_ops_priv,
+					 dssdev->dispc_channel, dst);
 }
 EXPORT_SYMBOL(dss_mgr_disconnect);
 
 void dss_mgr_set_timings(struct omap_dss_device *dssdev,
 			 const struct videomode *vm)
 {
-	dss_mgr_ops->set_timings(dss_mgr_ops_priv, dssdev->dispc_channel, vm);
+	dssdev->dss->mgr_ops->set_timings(dssdev->dss->mgr_ops_priv,
+					  dssdev->dispc_channel, vm);
 }
 EXPORT_SYMBOL(dss_mgr_set_timings);
 
 void dss_mgr_set_lcd_config(struct omap_dss_device *dssdev,
 		const struct dss_lcd_mgr_config *config)
 {
-	dss_mgr_ops->set_lcd_config(dss_mgr_ops_priv,
-				    dssdev->dispc_channel, config);
+	dssdev->dss->mgr_ops->set_lcd_config(dssdev->dss->mgr_ops_priv,
+					     dssdev->dispc_channel, config);
 }
 EXPORT_SYMBOL(dss_mgr_set_lcd_config);
 
 int dss_mgr_enable(struct omap_dss_device *dssdev)
 {
-	return dss_mgr_ops->enable(dss_mgr_ops_priv, dssdev->dispc_channel);
+	return dssdev->dss->mgr_ops->enable(dssdev->dss->mgr_ops_priv,
+					    dssdev->dispc_channel);
 }
 EXPORT_SYMBOL(dss_mgr_enable);
 
 void dss_mgr_disable(struct omap_dss_device *dssdev)
 {
-	dss_mgr_ops->disable(dss_mgr_ops_priv, dssdev->dispc_channel);
+	dssdev->dss->mgr_ops->disable(dssdev->dss->mgr_ops_priv,
+				      dssdev->dispc_channel);
 }
 EXPORT_SYMBOL(dss_mgr_disable);
 
 void dss_mgr_start_update(struct omap_dss_device *dssdev)
 {
-	dss_mgr_ops->start_update(dss_mgr_ops_priv, dssdev->dispc_channel);
+	dssdev->dss->mgr_ops->start_update(dssdev->dss->mgr_ops_priv,
+					   dssdev->dispc_channel);
 }
 EXPORT_SYMBOL(dss_mgr_start_update);
 
 int dss_mgr_register_framedone_handler(struct omap_dss_device *dssdev,
 		void (*handler)(void *), void *data)
 {
-	return dss_mgr_ops->register_framedone_handler(dss_mgr_ops_priv,
-						       dssdev->dispc_channel,
-						       handler, data);
+	struct dss_device *dss = dssdev->dss;
+
+	return dss->mgr_ops->register_framedone_handler(dss->mgr_ops_priv,
+							dssdev->dispc_channel,
+							handler, data);
 }
 EXPORT_SYMBOL(dss_mgr_register_framedone_handler);
 
 void dss_mgr_unregister_framedone_handler(struct omap_dss_device *dssdev,
 		void (*handler)(void *), void *data)
 {
-	dss_mgr_ops->unregister_framedone_handler(dss_mgr_ops_priv,
-						  dssdev->dispc_channel,
-						  handler, data);
+	struct dss_device *dss = dssdev->dss;
+
+	dss->mgr_ops->unregister_framedone_handler(dss->mgr_ops_priv,
+						   dssdev->dispc_channel,
+						   handler, data);
 }
 EXPORT_SYMBOL(dss_mgr_unregister_framedone_handler);

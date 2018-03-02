@@ -269,6 +269,8 @@ struct dss_device {
 
 	struct dispc_device *dispc;
 	const struct dispc_ops *dispc_ops;
+	const struct dss_mgr_ops *mgr_ops;
+	struct omap_drm_private *mgr_ops_priv;
 };
 
 /* core */
