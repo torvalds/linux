@@ -867,7 +867,7 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 
 	r = venc_runtime_get(venc);
 	if (r)
-		goto err_runtime_get;
+		goto err_pm_disable;
 
 	rev_id = (u8)(venc_read_reg(venc, VENC_REV_ID) & 0xff);
 	dev_dbg(&pdev->dev, "OMAP VENC rev %d\n", rev_id);
@@ -877,7 +877,7 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 	r = venc_probe_of(venc);
 	if (r) {
 		DSSERR("Invalid DT data\n");
-		goto err_probe_of;
+		goto err_pm_disable;
 	}
 
 	venc->debugfs = dss_debugfs_create_file(dss, "venc", venc_dump_regs,
@@ -887,8 +887,7 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 
 	return 0;
 
-err_probe_of:
-err_runtime_get:
+err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
 err_free:
 	kfree(venc);

@@ -745,14 +745,13 @@ int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
 		return 0;
 
 	r = of_property_read_u32(ep, "data-lines", &datalines);
+	of_node_put(ep);
 	if (r) {
 		DSSERR("failed to parse datalines\n");
-		goto err_datalines;
+		return r;
 	}
 
 	dpi->data_lines = datalines;
-
-	of_node_put(ep);
 
 	dpi->pdev = pdev;
 	dpi->dss_model = dss_model;
@@ -764,11 +763,6 @@ int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
 	dpi_init_output_port(dpi, port);
 
 	return 0;
-
-err_datalines:
-	of_node_put(ep);
-
-	return r;
 }
 
 void dpi_uninit_port(struct device_node *port)

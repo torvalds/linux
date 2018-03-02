@@ -358,15 +358,14 @@ int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
 	}
 
 	r = of_property_read_u32(ep, "datapairs", &datapairs);
+	of_node_put(ep);
 	if (r) {
 		DSSERR("failed to parse datapairs\n");
-		goto err_datapairs;
+		goto err_free;
 	}
 
 	sdi->datapairs = datapairs;
 	sdi->dss = dss;
-
-	of_node_put(ep);
 
 	sdi->pdev = pdev;
 	port->data = sdi;
@@ -375,8 +374,6 @@ int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
 
 	return 0;
 
-err_datapairs:
-	of_node_put(ep);
 err_free:
 	kfree(sdi);
 

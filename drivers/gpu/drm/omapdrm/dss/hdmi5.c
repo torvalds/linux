@@ -773,9 +773,7 @@ static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 	r = hdmi_audio_register(hdmi);
 	if (r) {
 		DSSERR("Registering HDMI audio failed %d\n", r);
-		hdmi_uninit_output(hdmi);
-		pm_runtime_disable(&pdev->dev);
-		return r;
+		goto err_uninit_output;
 	}
 
 	hdmi->debugfs = dss_debugfs_create_file(dss, "hdmi", hdmi_dump_regs,
@@ -783,6 +781,9 @@ static int hdmi5_bind(struct device *dev, struct device *master, void *data)
 
 	return 0;
 
+err_uninit_output:
+	hdmi_uninit_output(hdmi);
+	pm_runtime_disable(&pdev->dev);
 err_pll:
 	hdmi_pll_uninit(&hdmi->pll);
 err_free:
