@@ -78,7 +78,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 	if (ifindex == 0) {
 		struct rt6_info *rt;
 
-		rt = rt6_lookup(net, addr, NULL, 0, 0);
+		rt = rt6_lookup(net, addr, NULL, 0, NULL, 0);
 		if (rt) {
 			dev = rt->dst.dev;
 			ip6_rt_put(rt);
