@@ -38,9 +38,9 @@ Required properties:
 
                 "catalyst",
                 "microchip",
+                "nxp",
                 "ramtron",
                 "renesas",
-                "nxp",
                 "st",
 
                 Some vendors use different model names for chips which are just
