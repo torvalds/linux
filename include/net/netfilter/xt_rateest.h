@@ -21,7 +21,7 @@ struct xt_rateest {
 	struct net_rate_estimator __rcu *rate_est;
 };
 
-struct xt_rateest *xt_rateest_lookup(const char *name);
-void xt_rateest_put(struct xt_rateest *est);
+struct xt_rateest *xt_rateest_lookup(struct net *net, const char *name);
+void xt_rateest_put(struct net *net, struct xt_rateest *est);
 
 #endif /* _XT_RATEEST_H */
