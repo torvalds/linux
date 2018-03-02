@@ -2037,8 +2037,17 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 
 	engine->set_default_submission = execlists_set_default_submission;
 
-	engine->irq_enable = gen8_logical_ring_enable_irq;
-	engine->irq_disable = gen8_logical_ring_disable_irq;
+	if (INTEL_GEN(engine->i915) < 11) {
+		engine->irq_enable = gen8_logical_ring_enable_irq;
+		engine->irq_disable = gen8_logical_ring_disable_irq;
+	} else {
+		/*
+		 * TODO: On Gen11 interrupt masks need to be clear
+		 * to allow C6 entry. Keep interrupts enabled at
+		 * and take the hit of generating extra interrupts
+		 * until a more refined solution exists.
+		 */
+	}
 	engine->emit_bb_start = gen8_emit_bb_start;
 }
 
