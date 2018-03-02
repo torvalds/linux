@@ -47,9 +47,13 @@
 
 #else
 
-#define __access_ok(addr, size, segment)	\
-	(((addr) <= (segment).seg) &&		\
-	 (((size) == 0) || (((size) - 1) <= ((segment).seg - (addr)))))
+static inline int __access_ok(unsigned long addr, unsigned long size,
+			mm_segment_t seg)
+{
+	if (addr > seg.seg)
+		return 0;
+	return (size == 0 || size - 1 <= seg.seg - addr);
+}
 
 #endif
 
