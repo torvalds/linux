@@ -222,9 +222,18 @@ static int pp_set_powergating_state(void *handle,
 {
 	struct amdgpu_device *adev = handle;
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+	int ret;
 
 	if (!hwmgr || !hwmgr->pm_en)
 		return 0;
+
+	if (hwmgr->hwmgr_func->gfx_off_control) {
+		/* Enable/disable GFX off through SMU */
+		ret = hwmgr->hwmgr_func->gfx_off_control(hwmgr,
+							 state == AMD_PG_STATE_GATE);
+		if (ret)
+			pr_err("gfx off control failed!\n");
+	}
 
 	if (hwmgr->hwmgr_func->enable_per_cu_power_gating == NULL) {
 		pr_info("%s was not implemented.\n", __func__);
