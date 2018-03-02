@@ -689,10 +689,26 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	GEM_TRACE("%s\n", engine->name);
 
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	/*
+	 * Before we call engine->cancel_requests(), we should have exclusive
+	 * access to the submission state. This is arranged for us by the
+	 * caller disabling the interrupt generation, the tasklet and other
+	 * threads that may then access the same state, giving us a free hand
+	 * to reset state. However, we still need to let lockdep be aware that
+	 * we know this state may be accessed in hardirq context, so we
+	 * disable the irq around this manipulation and we want to keep
+	 * the spinlock focused on its duties and not accidentally conflate
+	 * coverage to the submission's irq state. (Similarly, although we
+	 * shouldn't need to disable irq around the manipulation of the
+	 * submission's irq state, we also wish to remind ourselves that
+	 * it is irq state.)
+	 */
+	local_irq_save(flags);
 
 	/* Cancel the requests on the HW and clear the ELSP tracker. */
 	execlists_cancel_port_requests(execlists);
+
+	spin_lock(&engine->timeline->lock);
 
 	/* Mark all executing requests as skipped. */
 	list_for_each_entry(rq, &engine->timeline->requests, link) {
@@ -727,6 +743,8 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	execlists->first = NULL;
 	GEM_BUG_ON(port_isset(execlists->port));
 
+	spin_unlock(&engine->timeline->lock);
+
 	/*
 	 * The port is checked prior to scheduling a tasklet, but
 	 * just in case we have suspended the tasklet to do the
@@ -738,7 +756,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	/* Mark all CS interrupts as complete */
 	execlists->active = 0;
 
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	local_irq_restore(flags);
 }
 
 /*
@@ -1618,7 +1636,8 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	GEM_TRACE("%s seqno=%x\n",
 		  engine->name, request ? request->global_seqno : 0);
 
-	spin_lock_irqsave(&engine->timeline->lock, flags);
+	/* See execlists_cancel_requests() for the irq/spinlock split. */
+	local_irq_save(flags);
 
 	reset_irq(engine);
 
@@ -1634,14 +1653,17 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	execlists_cancel_port_requests(execlists);
 
 	/* Push back any incomplete requests for replay after the reset. */
+	spin_lock(&engine->timeline->lock);
 	__unwind_incomplete_requests(engine);
+	spin_unlock(&engine->timeline->lock);
 
 	/* Mark all CS interrupts as complete */
 	execlists->active = 0;
 
-	spin_unlock_irqrestore(&engine->timeline->lock, flags);
+	local_irq_restore(flags);
 
-	/* If the request was innocent, we leave the request in the ELSP
+	/*
+	 * If the request was innocent, we leave the request in the ELSP
 	 * and will try to replay it on restarting. The context image may
 	 * have been corrupted by the reset, in which case we may have
 	 * to service a new GPU hang, but more likely we can continue on
@@ -1654,7 +1676,8 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	if (!request || request->fence.error != -EIO)
 		return;
 
-	/* We want a simple context + ring to execute the breadcrumb update.
+	/*
+	 * We want a simple context + ring to execute the breadcrumb update.
 	 * We cannot rely on the context being intact across the GPU hang,
 	 * so clear it and rebuild just what we need for the breadcrumb.
 	 * All pending requests for this context will be zapped, and any
