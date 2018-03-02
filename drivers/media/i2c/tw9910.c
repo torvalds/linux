@@ -533,9 +533,9 @@ static int tw9910_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	}
 	if (!ret)
 		ret = i2c_smbus_write_byte_data(client, CROP_HI,
-						((vdelay >> 2) & 0xc0) |
-						((vact >> 4) & 0x30) |
-						((hdelay >> 6) & 0x0c) |
+						((vdelay >> 2) & 0xc0)	|
+						((vact >> 4) & 0x30)	|
+						((hdelay >> 6) & 0x0c)	|
 						((hact >> 8) & 0x03));
 	if (!ret)
 		ret = i2c_smbus_write_byte_data(client, VDELAY_LO,
@@ -954,7 +954,7 @@ static int tw9910_probe(struct i2c_client *client,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->info   = info;
+	priv->info = info;
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &tw9910_subdev_ops);
 
