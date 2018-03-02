@@ -116,7 +116,6 @@ static int socfpga_pm_suspend(unsigned long arg)
 static int socfpga_pm_enter(suspend_state_t state)
 {
 	switch (state) {
-	case PM_SUSPEND_STANDBY:
 	case PM_SUSPEND_MEM:
 		outer_disable();
 		cpu_suspend(0, socfpga_pm_suspend);
