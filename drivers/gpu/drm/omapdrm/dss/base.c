@@ -104,6 +104,58 @@ struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 	return NULL;
 }
 
+/*
+ * Search for the next device starting at @from. If display_only is true, skip
+ * non-display devices. Release the reference to the @from device, and acquire
+ * a reference to the returned device if found.
+ */
+struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
+						bool display_only)
+{
+	struct omap_dss_device *dssdev;
+	struct list_head *list;
+
+	mutex_lock(&omapdss_devices_lock);
+
+	if (list_empty(&omapdss_devices_list)) {
+		dssdev = NULL;
+		goto done;
+	}
+
+	/*
+	 * Start from the from entry if given or from omapdss_devices_list
+	 * otherwise.
+	 */
+	list = from ? &from->list : &omapdss_devices_list;
+
+	list_for_each_entry(dssdev, list, list) {
+		/*
+		 * Stop if we reach the omapdss_devices_list, that's the end of
+		 * the list.
+		 */
+		if (&dssdev->list == &omapdss_devices_list) {
+			dssdev = NULL;
+			goto done;
+		}
+
+		/* Filter out non-display entries if display_only is set. */
+		if (!display_only || dssdev->driver)
+			goto done;
+	}
+
+	dssdev = NULL;
+
+done:
+	if (from)
+		omap_dss_put_device(from);
+	if (dssdev)
+		omap_dss_get_device(dssdev);
+
+	mutex_unlock(&omapdss_devices_lock);
+	return dssdev;
+}
+EXPORT_SYMBOL(omapdss_device_get_next);
+
 int omapdss_device_connect(struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
