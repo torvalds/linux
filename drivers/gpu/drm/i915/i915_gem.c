@@ -3205,8 +3205,10 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	 * rolling the global seqno forward (since this would complete requests
 	 * for which we haven't set the fence error to EIO yet).
 	 */
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, i915, id) {
+		i915_gem_reset_prepare_engine(engine);
 		engine->submit_request = nop_submit_request;
+	}
 
 	/*
 	 * Make sure no one is running the old callback before we proceed with
@@ -3244,6 +3246,8 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		intel_engine_init_global_seqno(engine,
 					       intel_engine_last_submit(engine));
 		spin_unlock_irqrestore(&engine->timeline->lock, flags);
+
+		i915_gem_reset_finish_engine(engine);
 	}
 
 	set_bit(I915_WEDGED, &i915->gpu_error.flags);
