@@ -1129,6 +1129,7 @@ static int ov772x_set_fmt(struct v4l2_subdev *sd,
 
 	priv->win = win;
 	priv->cfmt = cfmt;
+
 	return 0;
 }
 
@@ -1172,6 +1173,7 @@ static int ov772x_video_probe(struct ov772x_priv *priv)
 
 done:
 	ov772x_s_power(&priv->subdev, 0);
+
 	return ret;
 }
 
@@ -1213,6 +1215,7 @@ static int ov772x_enum_mbus_code(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	code->code = ov772x_cfmts[code->index].code;
+
 	return 0;
 }
 
@@ -1327,6 +1330,7 @@ static int ov772x_remove(struct i2c_client *client)
 		gpiod_put(priv->pwdn_gpio);
 	v4l2_device_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
+
 	return 0;
 }
 
