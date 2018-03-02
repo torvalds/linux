@@ -276,12 +276,12 @@ fail:
  * does the checks required to make sure the data is small enough
  * to fit as an inline extent.
  */
-static noinline int cow_file_range_inline(struct btrfs_root *root,
-					  struct inode *inode, u64 start,
+static noinline int cow_file_range_inline(struct inode *inode, u64 start,
 					  u64 end, size_t compressed_size,
 					  int compress_type,
 					  struct page **compressed_pages)
 {
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
 	u64 isize = i_size_read(inode);
@@ -457,7 +457,6 @@ static noinline void compress_file_range(struct inode *inode,
 					int *num_added)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 blocksize = fs_info->sectorsize;
 	u64 actual_end;
 	u64 isize = i_size_read(inode);
@@ -579,11 +578,11 @@ cont:
 			/* we didn't compress the entire range, try
 			 * to make an uncompressed inline extent.
 			 */
-			ret = cow_file_range_inline(root, inode, start, end,
-					    0, BTRFS_COMPRESS_NONE, NULL);
+			ret = cow_file_range_inline(inode, start, end, 0,
+						    BTRFS_COMPRESS_NONE, NULL);
 		} else {
 			/* try making a compressed inline extent */
-			ret = cow_file_range_inline(root, inode, start, end,
+			ret = cow_file_range_inline(inode, start, end,
 						    total_compressed,
 						    compress_type, pages);
 		}
@@ -983,8 +982,8 @@ static noinline int cow_file_range(struct inode *inode,
 
 	if (start == 0) {
 		/* lets try to make an inline extent */
-		ret = cow_file_range_inline(root, inode, start, end, 0,
-					BTRFS_COMPRESS_NONE, NULL);
+		ret = cow_file_range_inline(inode, start, end, 0,
+					    BTRFS_COMPRESS_NONE, NULL);
 		if (ret == 0) {
 			/*
 			 * We use DO_ACCOUNTING here because we need the
