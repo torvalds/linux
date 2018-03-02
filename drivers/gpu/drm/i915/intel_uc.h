@@ -39,6 +39,8 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv);
 void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
 int intel_uc_init(struct drm_i915_private *dev_priv);
 void intel_uc_fini(struct drm_i915_private *dev_priv);
+int intel_uc_suspend(struct drm_i915_private *dev_priv);
+int intel_uc_resume(struct drm_i915_private *dev_priv);
 
 static inline bool intel_uc_is_using_guc(void)
 {

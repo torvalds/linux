@@ -4920,7 +4920,7 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	i915_gem_contexts_lost(dev_priv);
 	mutex_unlock(&dev->struct_mutex);
 
-	intel_guc_suspend(dev_priv);
+	intel_uc_suspend(dev_priv);
 
 	cancel_delayed_work_sync(&dev_priv->gpu_error.hangcheck_work);
 	cancel_delayed_work_sync(&dev_priv->gt.retire_work);
@@ -4987,7 +4987,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	if (i915_gem_init_hw(i915))
 		goto err_wedged;
 
-	intel_guc_resume(i915);
+	intel_uc_resume(i915);
 
 	/* Always reload a context for powersaving. */
 	if (i915_gem_switch_to_kernel_context(i915))
