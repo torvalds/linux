@@ -395,7 +395,7 @@ int fib_sync_down_addr(struct net_device *dev, __be32 local);
 int fib_sync_up(struct net_device *dev, unsigned int nh_flags);
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-int fib_multipath_hash(const struct fib_info *fi, const struct flowi4 *fl4,
+int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 		       const struct sk_buff *skb, struct flow_keys *flkeys);
 #endif
 void fib_select_multipath(struct fib_result *res, int hash);

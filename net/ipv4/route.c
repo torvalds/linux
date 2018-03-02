@@ -1782,10 +1782,9 @@ static void ip_multipath_l3_keys(const struct sk_buff *skb,
 }
 
 /* if skb is set it will be used and fl4 can be NULL */
-int fib_multipath_hash(const struct fib_info *fi, const struct flowi4 *fl4,
+int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 		       const struct sk_buff *skb, struct flow_keys *flkeys)
 {
-	struct net *net = fi->fib_net;
 	struct flow_keys hash_keys;
 	u32 mhash;
 
@@ -1852,7 +1851,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res->fi && res->fi->fib_nhs > 1) {
-		int h = fib_multipath_hash(res->fi, NULL, skb, hkeys);
+		int h = fib_multipath_hash(res->fi->fib_net, NULL, skb, hkeys);
 
 		fib_select_multipath(res, h);
 	}
