@@ -6091,6 +6091,7 @@ unsigned int t4_get_tp_ch_map(struct adapter *adap, int pidx)
 
 	case CHELSIO_T6:
 		switch (nports) {
+		case 1:
 		case 2: return 1 << pidx;
 		}
 		break;
