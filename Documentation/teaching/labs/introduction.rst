@@ -64,10 +64,16 @@ cscope
 `Cscope <http://cscope.sourceforge.net/>`__ is a tool for
 efficient navigation of C sources. To use it, a cscope database must 
 be geberated from the existing sources. In a Linux tree, the command
-:command:`make ARCH = x86 cscope` is sufficient. Specification of the 
+:command:`make ARCH=x86 cscope` is sufficient. Specification of the 
 architecture through the ARCH variable is optional but recommended; 
 otherwise, some architecture dependent functions will appear multiple 
 times in the database.
+
+You can build the cscope database with the command :command:`make
+ARCH=x86 COMPILED_SOURCE=1 cscope`. This way, the cscope database will
+only contain symbols that have already been used in the compile
+process before, thus resulting in better performance when searching
+for symbols.
 
 Cscope can also be used as stand-alone, but it is more useful when 
 combined with an editor. To use cscope with :command:`vim`, it is necessary to
