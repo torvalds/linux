@@ -11327,12 +11327,6 @@ F:	include/sound/pxa2xx-lib.h
 F:	sound/arm/pxa*
 F:	sound/soc/pxa/
 
-PXA3xx NAND FLASH DRIVER
-M:	Ezequiel Garcia <ezequiel.garcia@free-electrons.com>
-L:	linux-mtd@lists.infradead.org
-S:	Maintained
-F:	drivers/mtd/nand/raw/pxa3xx_nand.c
-
 QAT DRIVER
 M:	Giovanni Cabiddu <giovanni.cabiddu@intel.com>
 L:	qat-linux@intel.com
