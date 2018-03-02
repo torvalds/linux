@@ -88,6 +88,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "deliver_restart_signal", VCPU_STAT(deliver_restart_signal) },
 	{ "deliver_program_interruption", VCPU_STAT(deliver_program_int) },
 	{ "deliver_io_interrupt", VCPU_STAT(deliver_io_int) },
+	{ "deliver_machine_check", VCPU_STAT(deliver_machine_check) },
 	{ "exit_wait_state", VCPU_STAT(exit_wait_state) },
 	{ "instruction_epsw", VCPU_STAT(instruction_epsw) },
 	{ "instruction_gs", VCPU_STAT(instruction_gs) },

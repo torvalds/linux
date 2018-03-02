@@ -595,6 +595,7 @@ static int __must_check __deliver_machine_check(struct kvm_vcpu *vcpu)
 		trace_kvm_s390_deliver_interrupt(vcpu->vcpu_id,
 						 KVM_S390_MCHK,
 						 mchk.cr14, mchk.mcic);
+		vcpu->stat.deliver_machine_check++;
 		rc = __write_machine_check(vcpu, &mchk);
 	}
 	return rc;

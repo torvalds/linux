@@ -320,6 +320,7 @@ struct kvm_vcpu_stat {
 	u64 deliver_restart_signal;
 	u64 deliver_program_int;
 	u64 deliver_io_int;
+	u64 deliver_machine_check;
 	u64 exit_wait_state;
 	u64 instruction_epsw;
 	u64 instruction_gs;
