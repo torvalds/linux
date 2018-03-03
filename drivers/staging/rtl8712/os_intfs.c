@@ -347,7 +347,6 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 	return _SUCCESS;
 }
 
-
 static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 {
 	/*   bit 8:
