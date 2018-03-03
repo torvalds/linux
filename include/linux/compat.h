@@ -32,7 +32,7 @@
 #endif
 
 #define COMPAT_SYSCALL_DEFINE0(name) \
-	asmlinkage long compat_sys_##name(void)
+	asmlinkage long compat_sys_i86_##sname(void)
 
 #define COMPAT_SYSCALL_DEFINE1(name, ...) \
         COMPAT_SYSCALL_DEFINEx(1, _##name, __VA_ARGS__)
@@ -55,6 +55,16 @@
 	asmlinkage long compat_SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__))\
 	{								\
 		return C_SYSC##name(__MAP(x,__SC_DELOUSE,__VA_ARGS__));	\
+	}								\
+	asmlinkage long compat_sys_i86##name(struct pt_regs *regs)	\
+	{								\
+		return compat_SyS##name(__MAP(x,__SC_ARGS			\
+			,,(unsigned int)regs->bx			\
+			,,(unsigned int)regs->cx			\
+			,,(unsigned int)regs->dx			\
+			,,(unsigned int)regs->si			\
+			,,(unsigned int)regs->di			\
+			,,(unsigned int)regs->bp));			\
 	}								\
 	static inline long C_SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 

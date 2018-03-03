@@ -17,6 +17,10 @@ asmlinkage long sys_ni_syscall(void)
 	return -ENOSYS;
 }
 
+cond_syscall(sys_x64_kcmp);
+cond_syscall(sys_i86_uselib);
+cond_syscall(sys_i86_kcmp);
+
 cond_syscall(sys_quotactl);
 cond_syscall(sys32_quotactl);
 cond_syscall(sys_acct);

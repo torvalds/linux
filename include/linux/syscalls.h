@@ -91,7 +91,7 @@ union bpf_attr;
  * for SYSCALL_DEFINE<n>/COMPAT_SYSCALL_DEFINE<n>
  */
 #define __MAP0(m,...)
-#define __MAP1(m,t,a) m(t,a)
+#define __MAP1(m,t,a,...) m(t,a)
 #define __MAP2(m,t,a,...) m(t,a), __MAP1(m,__VA_ARGS__)
 #define __MAP3(m,t,a,...) m(t,a), __MAP2(m,__VA_ARGS__)
 #define __MAP4(m,t,a,...) m(t,a), __MAP3(m,__VA_ARGS__)
@@ -189,8 +189,12 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 }
 #endif
 
-#define SYSCALL_DEFINE0(sname)					\
-	SYSCALL_METADATA(_##sname, 0);				\
+#define SYSCALL_DEFINE0(sname)						\
+	SYSCALL_METADATA(_##sname, 0);					\
+	asmlinkage long sys_i86_##sname(void)				\
+		__attribute__((alias(__stringify(sys_##sname))));	\
+	asmlinkage long sys_x64_##sname(void)				\
+		__attribute__((alias(__stringify(sys_##sname))));	\
 	asmlinkage long sys_##sname(void)
 
 #define SYSCALL_DEFINE1(name, ...) SYSCALL_DEFINEx(1, _##name, __VA_ARGS__)
@@ -211,13 +215,28 @@ static inline int is_syscall_trace_event(struct trace_event_call *tp_event)
 	asmlinkage long sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))	\
 		__attribute__((alias(__stringify(SyS##name))));		\
 	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__));	\
-	asmlinkage long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__));	\
 	asmlinkage long SyS##name(__MAP(x,__SC_LONG,__VA_ARGS__))	\
 	{								\
 		long ret = SYSC##name(__MAP(x,__SC_CAST,__VA_ARGS__));	\
 		__MAP(x,__SC_TEST,__VA_ARGS__);				\
 		__PROTECT(x, ret,__MAP(x,__SC_ARGS,__VA_ARGS__));	\
 		return ret;						\
+	}								\
+	asmlinkage long sys_x64##name(struct pt_regs *regs)		\
+	{								\
+		return SyS##name(__MAP(x,__SC_ARGS			\
+			,,regs->di,,regs->si,,regs->dx			\
+			,,regs->r10,,regs->r8,,regs->r9));		\
+	}								\
+	asmlinkage long sys_i86##name(struct pt_regs *regs)		\
+	{								\
+		return SyS##name(__MAP(x,__SC_ARGS			\
+			,,(unsigned int)regs->bx			\
+			,,(unsigned int)regs->cx			\
+			,,(unsigned int)regs->dx			\
+			,,(unsigned int)regs->si			\
+			,,(unsigned int)regs->di			\
+			,,(unsigned int)regs->bp));			\
 	}								\
 	static inline long SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__))
 
