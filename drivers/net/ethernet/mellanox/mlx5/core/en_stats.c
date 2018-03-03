@@ -81,7 +81,6 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_busy) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_waive) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, ch_eq_rearm) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, link_down_events_phy) },
 };
 
 #define NUM_SW_COUNTERS			ARRAY_SIZE(sw_stats_desc)
@@ -175,9 +174,6 @@ static void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 		}
 	}
 
-	s->link_down_events_phy = MLX5_GET(ppcnt_reg,
-				priv->stats.pport.phy_counters,
-				counter_set.phys_layer_cntrs.link_down_events);
 	memcpy(&priv->stats.sw, s, sizeof(*s));
 }
 
@@ -580,12 +576,13 @@ static const struct counter_desc pport_phy_statistical_stats_desc[] = {
 	{ "rx_corrected_bits_phy", PPORT_PHY_STATISTICAL_OFF(phy_corrected_bits) },
 };
 
-#define NUM_PPORT_PHY_COUNTERS		ARRAY_SIZE(pport_phy_statistical_stats_desc)
+#define NUM_PPORT_PHY_STATISTICAL_COUNTERS ARRAY_SIZE(pport_phy_statistical_stats_desc)
 
 static int mlx5e_grp_phy_get_num_stats(struct mlx5e_priv *priv)
 {
+	/* "1" for link_down_events special counter */
 	return MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group) ?
-		NUM_PPORT_PHY_COUNTERS : 0;
+		NUM_PPORT_PHY_STATISTICAL_COUNTERS + 1 : 1;
 }
 
 static int mlx5e_grp_phy_fill_strings(struct mlx5e_priv *priv, u8 *data,
@@ -593,10 +590,14 @@ static int mlx5e_grp_phy_fill_strings(struct mlx5e_priv *priv, u8 *data,
 {
 	int i;
 
-	if (MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group))
-		for (i = 0; i < NUM_PPORT_PHY_COUNTERS; i++)
-			strcpy(data + (idx++) * ETH_GSTRING_LEN,
-			       pport_phy_statistical_stats_desc[i].format);
+	strcpy(data + (idx++) * ETH_GSTRING_LEN, "link_down_events_phy");
+
+	if (!MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group))
+		return idx;
+
+	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       pport_phy_statistical_stats_desc[i].format);
 	return idx;
 }
 
@@ -604,11 +605,17 @@ static int mlx5e_grp_phy_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
 {
 	int i;
 
-	if (MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group))
-		for (i = 0; i < NUM_PPORT_PHY_COUNTERS; i++)
-			data[idx++] =
-				MLX5E_READ_CTR64_BE(&priv->stats.pport.phy_statistical_counters,
-						    pport_phy_statistical_stats_desc, i);
+	/* link_down_events_phy has special handling since it is not stored in __be64 format */
+	data[idx++] = MLX5_GET(ppcnt_reg, priv->stats.pport.phy_counters,
+			       counter_set.phys_layer_cntrs.link_down_events);
+
+	if (!MLX5_CAP_PCAM_FEATURE((priv)->mdev, ppcnt_statistical_group))
+		return idx;
+
+	for (i = 0; i < NUM_PPORT_PHY_STATISTICAL_COUNTERS; i++)
+		data[idx++] =
+			MLX5E_READ_CTR64_BE(&priv->stats.pport.phy_statistical_counters,
+					    pport_phy_statistical_stats_desc, i);
 	return idx;
 }
 

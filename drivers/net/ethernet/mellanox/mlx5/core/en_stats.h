@@ -97,9 +97,6 @@ struct mlx5e_sw_stats {
 	u64 tx_tls_ooo;
 	u64 tx_tls_resync_bytes;
 #endif
-
-	/* Special handling counters */
-	u64 link_down_events_phy;
 };
 
 struct mlx5e_qcounter_stats {
