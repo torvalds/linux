@@ -1022,6 +1022,7 @@ static int vga_switcheroo_runtime_suspend(struct device *dev)
 		vgasr_priv.handler->switchto(VGA_SWITCHEROO_IGD);
 		mutex_unlock(&vgasr_priv.mux_hw_lock);
 	}
+	pci_bus_set_current_state(pdev->bus, PCI_D3cold);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_OFF);
 	mutex_unlock(&vgasr_mutex);
 	return 0;
@@ -1035,6 +1036,7 @@ static int vga_switcheroo_runtime_resume(struct device *dev)
 	mutex_lock(&vgasr_mutex);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_ON);
 	mutex_unlock(&vgasr_mutex);
+	pci_wakeup_bus(pdev->bus);
 	ret = dev->bus->pm->runtime_resume(dev);
 	if (ret)
 		return ret;
