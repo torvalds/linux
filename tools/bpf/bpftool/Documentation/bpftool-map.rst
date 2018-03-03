@@ -31,7 +31,8 @@ MAP COMMANDS
 |	**bpftool** **map help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
-|	*VALUE* := { *BYTES* | *MAP* | *PROGRAM* }
+|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+|	*VALUE* := { *BYTES* | *MAP* | *PROG* }
 |	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
 
 DESCRIPTION

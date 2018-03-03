@@ -204,7 +204,7 @@ static inline int nicvf_alloc_rcv_buffer(struct nicvf *nic, struct rbdr *rbdr,
 
 	/* Reserve space for header modifications by BPF program */
 	if (rbdr->is_xdp)
-		buf_len += XDP_HEADROOM;
+		buf_len += XDP_PACKET_HEADROOM;
 
 	/* Check if it's recycled */
 	if (pgcache)
@@ -224,9 +224,8 @@ ret:
 			nic->rb_page = NULL;
 			return -ENOMEM;
 		}
-
 		if (pgcache)
-			pgcache->dma_addr = *rbuf + XDP_HEADROOM;
+			pgcache->dma_addr = *rbuf + XDP_PACKET_HEADROOM;
 		nic->rb_page_offset += buf_len;
 	}
 
@@ -1244,7 +1243,7 @@ int nicvf_xdp_sq_append_pkt(struct nicvf *nic, struct snd_queue *sq,
 	int qentry;
 
 	if (subdesc_cnt > sq->xdp_free_cnt)
-		return -1;
+		return 0;
 
 	qentry = nicvf_get_sq_desc(sq, subdesc_cnt);
 
@@ -1255,7 +1254,7 @@ int nicvf_xdp_sq_append_pkt(struct nicvf *nic, struct snd_queue *sq,
 
 	sq->xdp_desc_cnt += subdesc_cnt;
 
-	return 0;
+	return 1;
 }
 
 /* Calculate no of SQ subdescriptors needed to transmit all
@@ -1656,7 +1655,7 @@ static void nicvf_unmap_rcv_buffer(struct nicvf *nic, u64 dma_addr,
 		if (page_ref_count(page) != 1)
 			return;
 
-		len += XDP_HEADROOM;
+		len += XDP_PACKET_HEADROOM;
 		/* Receive buffers in XDP mode are mapped from page start */
 		dma_addr &= PAGE_MASK;
 	}

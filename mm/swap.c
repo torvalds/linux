@@ -446,30 +446,6 @@ void lru_cache_add(struct page *page)
 }
 
 /**
- * add_page_to_unevictable_list - add a page to the unevictable list
- * @page:  the page to be added to the unevictable list
- *
- * Add page directly to its zone's unevictable list.  To avoid races with
- * tasks that might be making the page evictable, through eg. munlock,
- * munmap or exit, while it's not on the lru, we want to add the page
- * while it's locked or otherwise "invisible" to other tasks.  This is
- * difficult to do when using the pagevec cache, so bypass that.
- */
-void add_page_to_unevictable_list(struct page *page)
-{
-	struct pglist_data *pgdat = page_pgdat(page);
-	struct lruvec *lruvec;
-
-	spin_lock_irq(&pgdat->lru_lock);
-	lruvec = mem_cgroup_page_lruvec(page, pgdat);
-	ClearPageActive(page);
-	SetPageUnevictable(page);
-	SetPageLRU(page);
-	add_page_to_lru_list(page, lruvec, LRU_UNEVICTABLE);
-	spin_unlock_irq(&pgdat->lru_lock);
-}
-
-/**
  * lru_cache_add_active_or_unevictable
  * @page:  the page to be added to LRU
  * @vma:   vma in which page is mapped for determining reclaimability
@@ -484,13 +460,9 @@ void lru_cache_add_active_or_unevictable(struct page *page,
 {
 	VM_BUG_ON_PAGE(PageLRU(page), page);
 
-	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
+	if (likely((vma->vm_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED))
 		SetPageActive(page);
-		lru_cache_add(page);
-		return;
-	}
-
-	if (!TestSetPageMlocked(page)) {
+	else if (!TestSetPageMlocked(page)) {
 		/*
 		 * We use the irq-unsafe __mod_zone_page_stat because this
 		 * counter is not modified from interrupt context, and the pte
@@ -500,7 +472,7 @@ void lru_cache_add_active_or_unevictable(struct page *page,
 				    hpage_nr_pages(page));
 		count_vm_event(UNEVICTABLE_PGMLOCKED);
 	}
-	add_page_to_unevictable_list(page);
+	lru_cache_add(page);
 }
 
 /*
@@ -886,15 +858,55 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
 static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
 				 void *arg)
 {
-	int file = page_is_file_cache(page);
-	int active = PageActive(page);
-	enum lru_list lru = page_lru(page);
+	enum lru_list lru;
+	int was_unevictable = TestClearPageUnevictable(page);
 
 	VM_BUG_ON_PAGE(PageLRU(page), page);
 
 	SetPageLRU(page);
+	/*
+	 * Page becomes evictable in two ways:
+	 * 1) Within LRU lock [munlock_vma_pages() and __munlock_pagevec()].
+	 * 2) Before acquiring LRU lock to put the page to correct LRU and then
+	 *   a) do PageLRU check with lock [check_move_unevictable_pages]
+	 *   b) do PageLRU check before lock [clear_page_mlock]
+	 *
+	 * (1) & (2a) are ok as LRU lock will serialize them. For (2b), we need
+	 * following strict ordering:
+	 *
+	 * #0: __pagevec_lru_add_fn		#1: clear_page_mlock
+	 *
+	 * SetPageLRU()				TestClearPageMlocked()
+	 * smp_mb() // explicit ordering	// above provides strict
+	 *					// ordering
+	 * PageMlocked()			PageLRU()
+	 *
+	 *
+	 * if '#1' does not observe setting of PG_lru by '#0' and fails
+	 * isolation, the explicit barrier will make sure that page_evictable
+	 * check will put the page in correct LRU. Without smp_mb(), SetPageLRU
+	 * can be reordered after PageMlocked check and can make '#1' to fail
+	 * the isolation of the page whose Mlocked bit is cleared (#0 is also
+	 * looking at the same page) and the evictable page will be stranded
+	 * in an unevictable LRU.
+	 */
+	smp_mb();
+
+	if (page_evictable(page)) {
+		lru = page_lru(page);
+		update_page_reclaim_stat(lruvec, page_is_file_cache(page),
+					 PageActive(page));
+		if (was_unevictable)
+			count_vm_event(UNEVICTABLE_PGRESCUED);
+	} else {
+		lru = LRU_UNEVICTABLE;
+		ClearPageActive(page);
+		SetPageUnevictable(page);
+		if (!was_unevictable)
+			count_vm_event(UNEVICTABLE_PGCULLED);
+	}
+
 	add_page_to_lru_list(page, lruvec, lru);
-	update_page_reclaim_stat(lruvec, file, active);
 	trace_mm_lru_insertion(page, lru);
 }
 
@@ -913,7 +925,7 @@ EXPORT_SYMBOL(__pagevec_lru_add);
  * @pvec:	Where the resulting entries are placed
  * @mapping:	The address_space to search
  * @start:	The starting entry index
- * @nr_pages:	The maximum number of pages
+ * @nr_entries:	The maximum number of pages
  * @indices:	The cache indices corresponding to the entries in @pvec
  *
  * pagevec_lookup_entries() will search for and return a group of up

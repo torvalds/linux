@@ -371,7 +371,7 @@ static __poll_t smsdvb_stats_poll(struct file *file, poll_table *wait)
 	rc = smsdvb_stats_wait_read(debug_data);
 	kref_put(&debug_data->refcount, smsdvb_debugfs_data_release);
 
-	return rc > 0 ? POLLIN | POLLRDNORM : 0;
+	return rc > 0 ? EPOLLIN | EPOLLRDNORM : 0;
 }
 
 static ssize_t smsdvb_stats_read(struct file *file, char __user *user_buf,

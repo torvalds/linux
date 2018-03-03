@@ -170,7 +170,7 @@ void rds_tcp_conn_path_shutdown(struct rds_conn_path *cp)
 		 cp->cp_conn, tc, sock);
 
 	if (sock) {
-		if (test_bit(RDS_DESTROY_PENDING, &cp->cp_flags))
+		if (rds_destroy_pending(cp->cp_conn))
 			rds_tcp_set_linger(sock);
 		sock->ops->shutdown(sock, RCV_SHUTDOWN | SEND_SHUTDOWN);
 		lock_sock(sock->sk);

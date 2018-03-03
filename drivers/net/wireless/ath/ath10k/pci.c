@@ -58,6 +58,9 @@ MODULE_PARM_DESC(reset_mode, "0: auto, 1: warm only (default: 0)");
 #define ATH10K_DIAG_TRANSFER_LIMIT	0x5000
 
 static const struct pci_device_id ath10k_pci_id_table[] = {
+	/* PCI-E QCA988X V2 (Ubiquiti branded) */
+	{ PCI_VDEVICE(UBIQUITI, QCA988X_2_0_DEVICE_ID_UBNT) },
+
 	{ PCI_VDEVICE(ATHEROS, QCA988X_2_0_DEVICE_ID) }, /* PCI-E QCA988X V2 */
 	{ PCI_VDEVICE(ATHEROS, QCA6164_2_1_DEVICE_ID) }, /* PCI-E QCA6164 V2.1 */
 	{ PCI_VDEVICE(ATHEROS, QCA6174_2_1_DEVICE_ID) }, /* PCI-E QCA6174 V2.1 */
@@ -74,6 +77,7 @@ static const struct ath10k_pci_supp_chip ath10k_pci_supp_chips[] = {
 	 * hacks. ath10k doesn't have them and these devices crash horribly
 	 * because of that.
 	 */
+	{ QCA988X_2_0_DEVICE_ID_UBNT, QCA988X_HW_2_0_CHIP_ID_REV },
 	{ QCA988X_2_0_DEVICE_ID, QCA988X_HW_2_0_CHIP_ID_REV },
 
 	{ QCA6164_2_1_DEVICE_ID, QCA6174_HW_2_1_CHIP_ID_REV },
@@ -2193,6 +2197,7 @@ static int ath10k_pci_get_num_banks(struct ath10k *ar)
 	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 
 	switch (ar_pci->pdev->device) {
+	case QCA988X_2_0_DEVICE_ID_UBNT:
 	case QCA988X_2_0_DEVICE_ID:
 	case QCA99X0_2_0_DEVICE_ID:
 	case QCA9888_2_0_DEVICE_ID:
@@ -3424,6 +3429,7 @@ static int ath10k_pci_probe(struct pci_dev *pdev,
 	u32 (*targ_cpu_to_ce_addr)(struct ath10k *ar, u32 addr);
 
 	switch (pci_dev->device) {
+	case QCA988X_2_0_DEVICE_ID_UBNT:
 	case QCA988X_2_0_DEVICE_ID:
 		hw_rev = ATH10K_HW_QCA988X;
 		pci_ps = false;

@@ -13,6 +13,7 @@ endif
 CFLAGS += -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include
 LDLIBS += -lcap -lelf -lrt -lpthread
 
+# Order correspond to 'make run_tests' order
 TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test_progs \
 	test_align test_verifier_log test_dev_cgroup test_tcpbpf_user
 
@@ -22,14 +23,23 @@ TEST_GEN_FILES = test_pkt_access.o test_xdp.o test_l4lb.o test_tcp_estats.o test
 	test_l4lb_noinline.o test_xdp_noinline.o test_stacktrace_map.o \
 	sample_map_ret0.o test_tcpbpf_kern.o
 
-TEST_PROGS := test_kmod.sh test_xdp_redirect.sh test_xdp_meta.sh \
+# Order correspond to 'make run_tests' order
+TEST_PROGS := test_kmod.sh \
+	test_libbpf.sh \
+	test_xdp_redirect.sh \
+	test_xdp_meta.sh \
 	test_offload.py
+
+# Compile but not part of 'make run_tests'
+TEST_GEN_PROGS_EXTENDED = test_libbpf_open
 
 include ../lib.mk
 
 BPFOBJ := $(OUTPUT)/libbpf.a cgroup_helpers.c
 
 $(TEST_GEN_PROGS): $(BPFOBJ)
+
+$(TEST_GEN_PROGS_EXTENDED): $(OUTPUT)/libbpf.a
 
 .PHONY: force
 

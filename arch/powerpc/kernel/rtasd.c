@@ -392,7 +392,7 @@ static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 {
 	poll_wait(file, &rtas_log_wait, wait);
 	if (rtas_log_size)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

@@ -92,7 +92,6 @@ extern const struct nfp_app_type app_flower;
  * @stop:	stop application logic
  * @ctrl_msg_rx:    control message handler
  * @setup_tc:	setup TC ndo
- * @tc_busy:	TC HW offload busy (rules loaded)
  * @bpf:	BPF ndo offload-related calls
  * @xdp_offload:    offload an XDP program
  * @eswitch_mode_get:    get SR-IOV eswitch mode
@@ -135,7 +134,6 @@ struct nfp_app_type {
 
 	int (*setup_tc)(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data);
-	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
 	int (*bpf)(struct nfp_app *app, struct nfp_net *nn,
 		   struct netdev_bpf *xdp);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
@@ -299,13 +297,6 @@ static inline const char *nfp_app_extra_cap(struct nfp_app *app,
 static inline bool nfp_app_has_tc(struct nfp_app *app)
 {
 	return app && app->type->setup_tc;
-}
-
-static inline bool nfp_app_tc_busy(struct nfp_app *app, struct nfp_net *nn)
-{
-	if (!app || !app->type->tc_busy)
-		return false;
-	return app->type->tc_busy(app, nn);
 }
 
 static inline int nfp_app_setup_tc(struct nfp_app *app,

@@ -399,9 +399,9 @@ static int snd_compr_mmap(struct file *f, struct vm_area_struct *vma)
 static __poll_t snd_compr_get_poll(struct snd_compr_stream *stream)
 {
 	if (stream->direction == SND_COMPRESS_PLAYBACK)
-		return POLLOUT | POLLWRNORM;
+		return EPOLLOUT | EPOLLWRNORM;
 	else
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 }
 
 static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
@@ -412,7 +412,7 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 	__poll_t retval = 0;
 
 	if (snd_BUG_ON(!data))
-		return POLLERR;
+		return EPOLLERR;
 
 	stream = &data->stream;
 
@@ -421,7 +421,7 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 	switch (stream->runtime->state) {
 	case SNDRV_PCM_STATE_OPEN:
 	case SNDRV_PCM_STATE_XRUN:
-		retval = snd_compr_get_poll(stream) | POLLERR;
+		retval = snd_compr_get_poll(stream) | EPOLLERR;
 		goto out;
 	default:
 		break;
@@ -447,7 +447,7 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 			retval = snd_compr_get_poll(stream);
 		break;
 	default:
-		retval = snd_compr_get_poll(stream) | POLLERR;
+		retval = snd_compr_get_poll(stream) | EPOLLERR;
 		break;
 	}
 out:

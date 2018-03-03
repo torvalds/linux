@@ -91,6 +91,35 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
 	},
 	{
+		.id = QCA988X_HW_2_0_VERSION,
+		.dev_id = QCA988X_2_0_DEVICE_ID_UBNT,
+		.name = "qca988x hw2.0 ubiquiti",
+		.patch_load_addr = QCA988X_HW_2_0_PATCH_LOAD_ADDR,
+		.uart_pin = 7,
+		.cc_wraparound_type = ATH10K_HW_CC_WRAP_SHIFTED_ALL,
+		.otp_exe_param = 0,
+		.channel_counters_freq_hz = 88000,
+		.max_probe_resp_desc_thres = 0,
+		.cal_data_len = 2116,
+		.fw = {
+			.dir = QCA988X_HW_2_0_FW_DIR,
+			.board = QCA988X_HW_2_0_BOARD_DATA_FILE,
+			.board_size = QCA988X_BOARD_DATA_SZ,
+			.board_ext_size = QCA988X_BOARD_EXT_DATA_SZ,
+		},
+		.hw_ops = &qca988x_ops,
+		.decap_align_bytes = 4,
+		.spectral_bin_discard = 0,
+		.vht160_mcs_rx_highest = 0,
+		.vht160_mcs_tx_highest = 0,
+		.n_cipher_suites = 8,
+		.num_peers = TARGET_TLV_NUM_PEERS,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
+		.target_64bit = false,
+		.rx_ring_fill_level = HTT_RX_RING_FILL_LEVEL,
+	},
+	{
 		.id = QCA9887_HW_1_0_VERSION,
 		.dev_id = QCA9887_1_0_DEVICE_ID,
 		.name = "qca9887 hw1.0",
@@ -1276,10 +1305,7 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 		len -= sizeof(*hdr);
 		data = hdr->data;
 
-		/* jump over the padding */
-		ie_len = ALIGN(ie_len, 4);
-
-		if (len < ie_len) {
+		if (len < ALIGN(ie_len, 4)) {
 			ath10k_err(ar, "invalid length for board ie_id %d ie_len %zu len %zu\n",
 				   ie_id, ie_len, len);
 			ret = -EINVAL;
@@ -1317,6 +1343,9 @@ static int ath10k_core_fetch_board_data_api_n(struct ath10k *ar,
 			/* board data found */
 			goto out;
 		}
+
+		/* jump over the padding */
+		ie_len = ALIGN(ie_len, 4);
 
 		len -= ie_len;
 		data += ie_len;
@@ -1448,9 +1477,6 @@ int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
 		len -= sizeof(*hdr);
 		data += sizeof(*hdr);
 
-		/* jump over the padding */
-		ie_len = ALIGN(ie_len, 4);
-
 		if (len < ie_len) {
 			ath10k_err(ar, "invalid length for FW IE %d (%zu < %zu)\n",
 				   ie_id, len, ie_len);
@@ -1555,6 +1581,9 @@ int ath10k_core_fetch_firmware_api_n(struct ath10k *ar, const char *name,
 				    le32_to_cpu(hdr->id));
 			break;
 		}
+
+		/* jump over the padding */
+		ie_len = ALIGN(ie_len, 4);
 
 		len -= ie_len;
 		data += ie_len;

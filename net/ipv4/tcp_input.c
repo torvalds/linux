@@ -315,7 +315,7 @@ static void tcp_sndbuf_expand(struct sock *sk)
 
 	/* Fast Recovery (RFC 5681 3.2) :
 	 * Cubic needs 1.7 factor, rounded to 2 to include
-	 * extra cushion (application might react slowly to POLLOUT)
+	 * extra cushion (application might react slowly to EPOLLOUT)
 	 */
 	sndmem = ca_ops->sndbuf_expand ? ca_ops->sndbuf_expand(sk) : 2;
 	sndmem *= nr_segs * per_mss;

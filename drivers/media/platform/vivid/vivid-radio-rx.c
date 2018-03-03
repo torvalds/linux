@@ -142,7 +142,7 @@ retry:
 
 __poll_t vivid_radio_rx_poll(struct file *file, struct poll_table_struct *wait)
 {
-	return POLLIN | POLLRDNORM | v4l2_ctrl_poll(file, wait);
+	return EPOLLIN | EPOLLRDNORM | v4l2_ctrl_poll(file, wait);
 }
 
 int vivid_radio_rx_enum_freq_bands(struct file *file, void *fh, struct v4l2_frequency_band *band)

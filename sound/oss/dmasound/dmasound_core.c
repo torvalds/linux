@@ -684,7 +684,7 @@ static __poll_t sq_poll(struct file *file, struct poll_table_struct *wait)
 		poll_wait(file, &write_sq.action_queue, wait);
 	if (file->f_mode & FMODE_WRITE)
 		if (write_sq.count < write_sq.max_active || write_sq.block_size - write_sq.rear_size > 0)
-			mask |= POLLOUT | POLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRNORM;
 	return mask;
 
 }

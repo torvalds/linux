@@ -1185,9 +1185,9 @@ static __poll_t hid_debug_events_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &list->hdev->debug_wait, wait);
 	if (list->head != list->tail)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	if (!list->hdev->debug)
-		return POLLERR | POLLHUP;
+		return EPOLLERR | EPOLLHUP;
 	return 0;
 }
 

@@ -115,7 +115,7 @@ static __poll_t inotify_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &group->notification_waitq, wait);
 	spin_lock(&group->notification_lock);
 	if (!fsnotify_notify_queue_is_empty(group))
-		ret = POLLIN | POLLRDNORM;
+		ret = EPOLLIN | EPOLLRDNORM;
 	spin_unlock(&group->notification_lock);
 
 	return ret;

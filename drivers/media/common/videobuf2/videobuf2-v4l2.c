@@ -658,7 +658,7 @@ int vb2_queue_init(struct vb2_queue *q)
 			== V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	/*
 	 * For compatibility with vb1: if QBUF hasn't been called yet, then
-	 * return POLLERR as well. This only affects capture queues, output
+	 * return EPOLLERR as well. This only affects capture queues, output
 	 * queues will always initialize waiting_for_buffers to false.
 	 */
 	q->quirk_poll_must_check_waiting_for_buffers = true;
@@ -683,8 +683,8 @@ __poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 		struct v4l2_fh *fh = file->private_data;
 
 		if (v4l2_event_pending(fh))
-			res = POLLPRI;
-		else if (req_events & POLLPRI)
+			res = EPOLLPRI;
+		else if (req_events & EPOLLPRI)
 			poll_wait(file, &fh->wait, wait);
 	}
 
@@ -921,7 +921,7 @@ __poll_t vb2_fop_poll(struct file *file, poll_table *wait)
 	WARN_ON(!lock);
 
 	if (lock && mutex_lock_interruptible(lock))
-		return POLLERR;
+		return EPOLLERR;
 
 	fileio = q->fileio;
 

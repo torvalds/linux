@@ -63,7 +63,7 @@ hwdep_poll(struct snd_hwdep *hwdep, struct file *file, poll_table *wait)
 
 	spin_lock_irq(&bebob->lock);
 	if (bebob->dev_lock_changed)
-		events = POLLIN | POLLRDNORM;
+		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;
 	spin_unlock_irq(&bebob->lock);

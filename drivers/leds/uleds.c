@@ -183,7 +183,7 @@ static __poll_t uleds_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &udev->waitq, wait);
 
 	if (udev->new_data)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }

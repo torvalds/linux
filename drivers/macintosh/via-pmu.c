@@ -2169,7 +2169,7 @@ pmu_fpoll(struct file *filp, poll_table *wait)
 	poll_wait(filp, &pp->wait, wait);
 	spin_lock_irqsave(&pp->lock, flags);
 	if (pp->rb_get != pp->rb_put)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 	spin_unlock_irqrestore(&pp->lock, flags);
 	return mask;
 }

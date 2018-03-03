@@ -237,7 +237,7 @@ static __poll_t timerfd_poll(struct file *file, poll_table *wait)
 
 	spin_lock_irqsave(&ctx->wqh.lock, flags);
 	if (ctx->ticks)
-		events |= POLLIN;
+		events |= EPOLLIN;
 	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
 
 	return events;

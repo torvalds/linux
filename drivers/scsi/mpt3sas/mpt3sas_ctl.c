@@ -546,7 +546,7 @@ _ctl_poll(struct file *filep, poll_table *wait)
 	list_for_each_entry(ioc, &mpt3sas_ioc_list, list) {
 		if (ioc->aen_event_read_flag) {
 			spin_unlock(&gioc_lock);
-			return POLLIN | POLLRDNORM;
+			return EPOLLIN | EPOLLRDNORM;
 		}
 	}
 	spin_unlock(&gioc_lock);

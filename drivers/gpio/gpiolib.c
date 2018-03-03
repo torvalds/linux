@@ -630,7 +630,7 @@ static __poll_t lineevent_poll(struct file *filep,
 	poll_wait(filep, &le->wait, wait);
 
 	if (!kfifo_is_empty(&le->events))
-		events = POLLIN | POLLRDNORM;
+		events = EPOLLIN | EPOLLRDNORM;
 
 	return events;
 }
@@ -775,7 +775,7 @@ static irqreturn_t lineevent_irq_thread(int irq, void *p)
 
 	ret = kfifo_put(&le->events, ge);
 	if (ret != 0)
-		wake_up_poll(&le->wait, POLLIN);
+		wake_up_poll(&le->wait, EPOLLIN);
 
 	return IRQ_HANDLED;
 }

@@ -74,8 +74,6 @@ static void dwmac1000_core_init(struct mac_device_info *hw,
 	/* Mask GMAC interrupts */
 	value = GMAC_INT_DEFAULT_MASK;
 
-	if (hw->pmt)
-		value &= ~GMAC_INT_DISABLE_PMT;
 	if (hw->pcs)
 		value &= ~GMAC_INT_DISABLE_PCS;
 

@@ -630,6 +630,7 @@ struct mt76x2_dev *mt76x2_alloc_device(struct device *pdev)
 		.tx_complete_skb = mt76x2_tx_complete_skb,
 		.rx_skb = mt76x2_queue_rx_skb,
 		.rx_poll_complete = mt76x2_rx_poll_complete,
+		.sta_ps = mt76x2_sta_ps,
 	};
 	struct ieee80211_hw *hw;
 	struct mt76x2_dev *dev;

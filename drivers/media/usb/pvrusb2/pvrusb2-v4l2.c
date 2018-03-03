@@ -1181,19 +1181,19 @@ static __poll_t pvr2_v4l2_poll(struct file *file, poll_table *wait)
 	int ret;
 
 	if (fh->fw_mode_flag) {
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 		return mask;
 	}
 
 	if (!fh->rhp) {
 		ret = pvr2_v4l2_iosetup(fh);
-		if (ret) return POLLERR;
+		if (ret) return EPOLLERR;
 	}
 
 	poll_wait(file,&fh->wait_data,wait);
 
 	if (pvr2_ioread_avail(fh->rhp) >= 0) {
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	}
 
 	return mask;

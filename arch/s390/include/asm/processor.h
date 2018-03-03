@@ -91,6 +91,7 @@ void cpu_detect_mhz_feature(void);
 extern const struct seq_operations cpuinfo_op;
 extern int sysctl_ieee_emulation_warnings;
 extern void execve_tail(void);
+extern void __bpon(void);
 
 /*
  * User space process size: 2GB for 31 bit, 4TB or 8PT for 64 bit.
@@ -376,6 +377,9 @@ extern void memcpy_absolute(void *, void *, size_t);
 	BUILD_BUG_ON(sizeof(__tmp) != sizeof(val));		\
 	memcpy_absolute(&(dest), &__tmp, sizeof(__tmp));	\
 } while (0)
+
+extern int s390_isolate_bp(void);
+extern int s390_isolate_bp_guest(void);
 
 #endif /* __ASSEMBLY__ */
 

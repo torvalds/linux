@@ -1265,13 +1265,13 @@ static __poll_t usbtmc_poll(struct file *file, poll_table *wait)
 	mutex_lock(&data->io_mutex);
 
 	if (data->zombie) {
-		mask = POLLHUP | POLLERR;
+		mask = EPOLLHUP | EPOLLERR;
 		goto no_poll;
 	}
 
 	poll_wait(file, &data->waitq, wait);
 
-	mask = (atomic_read(&data->srq_asserted)) ? POLLIN | POLLRDNORM : 0;
+	mask = (atomic_read(&data->srq_asserted)) ? EPOLLIN | EPOLLRDNORM : 0;
 
 no_poll:
 	mutex_unlock(&data->io_mutex);

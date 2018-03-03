@@ -362,7 +362,7 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
  */
 static int pci_read_irq_line(struct pci_dev *pci_dev)
 {
-	unsigned int virq = 0;
+	int virq;
 
 	pr_debug("PCI: Try to map irq for %s...\n", pci_name(pci_dev));
 
@@ -370,7 +370,8 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 	memset(&oirq, 0xff, sizeof(oirq));
 #endif
 	/* Try to get a mapping from the device-tree */
-	if (!of_irq_parse_and_map_pci(pci_dev, 0, 0)) {
+	virq = of_irq_parse_and_map_pci(pci_dev, 0, 0);
+	if (virq <= 0) {
 		u8 line, pin;
 
 		/* If that fails, lets fallback to what is in the config

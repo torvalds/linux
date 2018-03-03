@@ -162,7 +162,7 @@ restart:
 		goto out;
 	}
 
-	if (test_bit(RDS_DESTROY_PENDING, &cp->cp_flags)) {
+	if (rds_destroy_pending(cp->cp_conn)) {
 		release_in_xmit(cp);
 		ret = -ENETUNREACH; /* dont requeue send work */
 		goto out;
@@ -444,7 +444,7 @@ over_batch:
 			if (batch_count < send_batch_count)
 				goto restart;
 			rcu_read_lock();
-			if (test_bit(RDS_DESTROY_PENDING, &cp->cp_flags))
+			if (rds_destroy_pending(cp->cp_conn))
 				ret = -ENETUNREACH;
 			else
 				queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
@@ -1162,7 +1162,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	else
 		cpath = &conn->c_path[0];
 
-	if (test_bit(RDS_DESTROY_PENDING, &cpath->cp_flags)) {
+	if (rds_destroy_pending(conn)) {
 		ret = -EAGAIN;
 		goto out;
 	}
@@ -1209,7 +1209,7 @@ int rds_sendmsg(struct socket *sock, struct msghdr *msg, size_t payload_len)
 	if (ret == -ENOMEM || ret == -EAGAIN) {
 		ret = 0;
 		rcu_read_lock();
-		if (test_bit(RDS_DESTROY_PENDING, &cpath->cp_flags))
+		if (rds_destroy_pending(cpath->cp_conn))
 			ret = -ENETUNREACH;
 		else
 			queue_delayed_work(rds_wq, &cpath->cp_send_w, 1);
@@ -1295,7 +1295,7 @@ rds_send_probe(struct rds_conn_path *cp, __be16 sport,
 
 	/* schedule the send work on rds_wq */
 	rcu_read_lock();
-	if (!test_bit(RDS_DESTROY_PENDING, &cp->cp_flags))
+	if (!rds_destroy_pending(cp->cp_conn))
 		queue_delayed_work(rds_wq, &cp->cp_send_w, 1);
 	rcu_read_unlock();
 

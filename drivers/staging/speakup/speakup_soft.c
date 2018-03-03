@@ -325,7 +325,7 @@ static __poll_t softsynth_poll(struct file *fp, struct poll_table_struct *wait)
 
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 	if (!synth_buffer_empty() || speakup_info.flushing)
-		ret = POLLIN | POLLRDNORM;
+		ret = EPOLLIN | EPOLLRDNORM;
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return ret;
 }

@@ -2018,19 +2018,19 @@ static __poll_t cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 
 	rc = check_dev(dev);
 	if (rc < 0)
-		return POLLERR;
+		return EPOLLERR;
 
 	rc = res_get(fh);
 
 	if (unlikely(rc < 0))
-		return POLLERR;
+		return EPOLLERR;
 
 	if (v4l2_event_pending(&fh->fh))
-		res |= POLLPRI;
+		res |= EPOLLPRI;
 	else
 		poll_wait(filp, &fh->fh.wait, wait);
 
-	if (!(req_events & (POLLIN | POLLRDNORM)))
+	if (!(req_events & (EPOLLIN | EPOLLRDNORM)))
 		return res;
 
 	if ((V4L2_BUF_TYPE_VIDEO_CAPTURE == fh->type) ||
@@ -2040,7 +2040,7 @@ static __poll_t cx231xx_v4l2_poll(struct file *filp, poll_table *wait)
 		mutex_unlock(&dev->lock);
 		return res;
 	}
-	return res | POLLERR;
+	return res | EPOLLERR;
 }
 
 /*

@@ -140,16 +140,16 @@
 		};
 
 		agnoc@0 {
-			qcom,pcie@00600000 {
+			qcom,pcie@600000 {
 				perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
 			};
 
-			qcom,pcie@00608000 {
+			qcom,pcie@608000 {
 				status = "okay";
 				perst-gpio = <&msmgpio 130 GPIO_ACTIVE_LOW>;
 			};
 
-			qcom,pcie@00610000 {
+			qcom,pcie@610000 {
 				status = "okay";
 				perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
 			};

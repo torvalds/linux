@@ -1144,7 +1144,7 @@ static __poll_t ib_ucm_poll(struct file *filp,
 	poll_wait(filp, &file->poll_wait, wait);
 
 	if (!list_empty(&file->events))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

@@ -111,9 +111,10 @@ extern void xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio);
 
 extern void xive_native_sync_source(u32 hw_irq);
 extern bool is_xive_irq(struct irq_chip *chip);
-extern int xive_native_enable_vp(u32 vp_id);
+extern int xive_native_enable_vp(u32 vp_id, bool single_escalation);
 extern int xive_native_disable_vp(u32 vp_id);
 extern int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id);
+extern bool xive_native_has_single_escalation(void);
 
 #else
 

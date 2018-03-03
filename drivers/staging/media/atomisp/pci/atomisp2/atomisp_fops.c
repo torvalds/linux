@@ -1265,7 +1265,7 @@ static __poll_t atomisp_poll(struct file *file,
 	rt_mutex_lock(&isp->mutex);
 	if (pipe->capq.streaming != 1) {
 		rt_mutex_unlock(&isp->mutex);
-		return POLLERR;
+		return EPOLLERR;
 	}
 	rt_mutex_unlock(&isp->mutex);
 

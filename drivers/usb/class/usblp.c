@@ -479,8 +479,8 @@ static __poll_t usblp_poll(struct file *file, struct poll_table_struct *wait)
 	poll_wait(file, &usblp->rwait, wait);
 	poll_wait(file, &usblp->wwait, wait);
 	spin_lock_irqsave(&usblp->lock, flags);
-	ret = ((usblp->bidir && usblp->rcomplete) ? POLLIN  | POLLRDNORM : 0) |
-	   ((usblp->no_paper || usblp->wcomplete) ? POLLOUT | POLLWRNORM : 0);
+	ret = ((usblp->bidir && usblp->rcomplete) ? EPOLLIN  | EPOLLRDNORM : 0) |
+	   ((usblp->no_paper || usblp->wcomplete) ? EPOLLOUT | EPOLLWRNORM : 0);
 	spin_unlock_irqrestore(&usblp->lock, flags);
 	return ret;
 }

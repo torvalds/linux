@@ -217,9 +217,10 @@ static void smbd_destroy_rdma_work(struct work_struct *work)
 			spin_unlock_irqrestore(
 				&info->reassembly_queue_lock, flags);
 			put_receive_buffer(info, response);
-		}
+		} else
+			spin_unlock_irqrestore(&info->reassembly_queue_lock, flags);
 	} while (response);
-	spin_unlock_irqrestore(&info->reassembly_queue_lock, flags);
+
 	info->reassembly_data_length = 0;
 
 	log_rdma_event(INFO, "free receive buffers\n");
@@ -1934,15 +1935,16 @@ again:
 				 * No need to lock if we are not at the
 				 * end of the queue
 				 */
-				if (!queue_length)
+				if (queue_length)
+					list_del(&response->list);
+				else {
 					spin_lock_irq(
 						&info->reassembly_queue_lock);
-				list_del(&response->list);
-				queue_removed++;
-				if (!queue_length)
+					list_del(&response->list);
 					spin_unlock_irq(
 						&info->reassembly_queue_lock);
-
+				}
+				queue_removed++;
 				info->count_reassembly_queue--;
 				info->count_dequeue_reassembly_queue++;
 				put_receive_buffer(info, response);

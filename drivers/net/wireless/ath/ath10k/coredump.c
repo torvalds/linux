@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -616,7 +617,7 @@ static const struct ath10k_mem_region qca6174_hw30_mem_regions[] = {
 	{
 		.type = ATH10K_MEM_REGION_TYPE_DRAM,
 		.start = 0x400000,
-		.len = 0x90000,
+		.len = 0xa8000,
 		.name = "DRAM",
 		.section_table = {
 			.sections = NULL,

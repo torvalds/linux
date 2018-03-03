@@ -173,7 +173,7 @@ static __poll_t gpio_poll(struct file *file, poll_table *wait)
 
 	if ((data & priv->highalarm) ||
 	    (~data & priv->lowalarm)) {
-		mask = POLLIN|POLLRDNORM;
+		mask = EPOLLIN|EPOLLRDNORM;
 	}
 
 out:

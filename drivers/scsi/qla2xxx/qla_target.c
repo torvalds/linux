@@ -4871,8 +4871,6 @@ static int qlt_24xx_handle_els(struct scsi_qla_host *vha,
 				    sess);
 				qlt_send_term_imm_notif(vha, iocb, 1);
 				res = 0;
-				spin_lock_irqsave(&tgt->ha->tgt.sess_lock,
-				    flags);
 				break;
 			}
 

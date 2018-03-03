@@ -214,9 +214,9 @@ static __poll_t snd_info_entry_poll(struct file *file, poll_table *wait)
 					  data->file_private_data,
 					  file, wait);
 	if (entry->c.ops->read)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (entry->c.ops->write)
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	return mask;
 }
 

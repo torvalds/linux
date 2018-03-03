@@ -745,9 +745,9 @@ static __poll_t ts_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &input->dma->wq, wait);
 	poll_wait(file, &output->dma->wq, wait);
 	if (ddb_input_avail(input) >= 188)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (ddb_output_free(output) >= 188)
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	return mask;
 }
 

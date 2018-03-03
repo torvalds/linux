@@ -8,6 +8,9 @@
 #define MAX_WRITEBACKS_IN_PASS  5
 #define MAX_WRITESIZE_IN_PASS   5000	/* *512b */
 
+#define WRITEBACK_RATE_UPDATE_SECS_MAX		60
+#define WRITEBACK_RATE_UPDATE_SECS_DEFAULT	5
+
 /*
  * 14 (16384ths) is chosen here as something that each backing device
  * should be a reasonable fraction of the share, and not to blow up

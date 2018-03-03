@@ -45,7 +45,7 @@ struct eventfd_ctx {
  *
  * This function is supposed to be called by the kernel in paths that do not
  * allow sleeping. In this function we allow the counter to reach the ULLONG_MAX
- * value, and we signal this as overflow condition by returning a POLLERR
+ * value, and we signal this as overflow condition by returning a EPOLLERR
  * to poll(2).
  *
  * Returns the amount by which the counter was incremented.  This will be less
@@ -60,7 +60,7 @@ __u64 eventfd_signal(struct eventfd_ctx *ctx, __u64 n)
 		n = ULLONG_MAX - ctx->count;
 	ctx->count += n;
 	if (waitqueue_active(&ctx->wqh))
-		wake_up_locked_poll(&ctx->wqh, POLLIN);
+		wake_up_locked_poll(&ctx->wqh, EPOLLIN);
 	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
 
 	return n;
@@ -96,7 +96,7 @@ static int eventfd_release(struct inode *inode, struct file *file)
 {
 	struct eventfd_ctx *ctx = file->private_data;
 
-	wake_up_poll(&ctx->wqh, POLLHUP);
+	wake_up_poll(&ctx->wqh, EPOLLHUP);
 	eventfd_ctx_put(ctx);
 	return 0;
 }
@@ -150,11 +150,11 @@ static __poll_t eventfd_poll(struct file *file, poll_table *wait)
 	count = READ_ONCE(ctx->count);
 
 	if (count > 0)
-		events |= POLLIN;
+		events |= EPOLLIN;
 	if (count == ULLONG_MAX)
-		events |= POLLERR;
+		events |= EPOLLERR;
 	if (ULLONG_MAX - 1 > count)
-		events |= POLLOUT;
+		events |= EPOLLOUT;
 
 	return events;
 }
@@ -187,7 +187,7 @@ int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_entry_t *w
 	eventfd_ctx_do_read(ctx, cnt);
 	__remove_wait_queue(&ctx->wqh, wait);
 	if (*cnt != 0 && waitqueue_active(&ctx->wqh))
-		wake_up_locked_poll(&ctx->wqh, POLLOUT);
+		wake_up_locked_poll(&ctx->wqh, EPOLLOUT);
 	spin_unlock_irqrestore(&ctx->wqh.lock, flags);
 
 	return *cnt != 0 ? 0 : -EAGAIN;
@@ -231,7 +231,7 @@ static ssize_t eventfd_read(struct file *file, char __user *buf, size_t count,
 	if (likely(res > 0)) {
 		eventfd_ctx_do_read(ctx, &ucnt);
 		if (waitqueue_active(&ctx->wqh))
-			wake_up_locked_poll(&ctx->wqh, POLLOUT);
+			wake_up_locked_poll(&ctx->wqh, EPOLLOUT);
 	}
 	spin_unlock_irq(&ctx->wqh.lock);
 
@@ -281,7 +281,7 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 	if (likely(res > 0)) {
 		ctx->count += ucnt;
 		if (waitqueue_active(&ctx->wqh))
-			wake_up_locked_poll(&ctx->wqh, POLLIN);
+			wake_up_locked_poll(&ctx->wqh, EPOLLIN);
 	}
 	spin_unlock_irq(&ctx->wqh.lock);
 

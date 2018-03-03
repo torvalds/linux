@@ -834,7 +834,8 @@ void rxrpc_disconnect_client_call(struct rxrpc_call *call)
 	 * can be skipped if we find a follow-on call.  The first DATA packet
 	 * of the follow on call will implicitly ACK this call.
 	 */
-	if (test_bit(RXRPC_CALL_EXPOSED, &call->flags)) {
+	if (call->completion == RXRPC_CALL_SUCCEEDED &&
+	    test_bit(RXRPC_CALL_EXPOSED, &call->flags)) {
 		unsigned long final_ack_at = jiffies + 2;
 
 		WRITE_ONCE(chan->final_ack_at, final_ack_at);

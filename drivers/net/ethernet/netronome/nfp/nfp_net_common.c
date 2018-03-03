@@ -3210,10 +3210,9 @@ static int nfp_net_set_features(struct net_device *netdev,
 			new_ctrl &= ~NFP_NET_CFG_CTRL_GATHER;
 	}
 
-	if (changed & NETIF_F_HW_TC && nfp_app_tc_busy(nn->app, nn)) {
-		nn_err(nn, "Cannot disable HW TC offload while in use\n");
-		return -EBUSY;
-	}
+	err = nfp_port_set_features(netdev, features);
+	if (err)
+		return err;
 
 	nn_dbg(nn, "Feature change 0x%llx -> 0x%llx (changed=0x%llx)\n",
 	       netdev->features, features, changed);
@@ -3734,7 +3733,7 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 
 	netdev->features = netdev->hw_features;
 
-	if (nfp_app_has_tc(nn->app))
+	if (nfp_app_has_tc(nn->app) && nn->port)
 		netdev->hw_features |= NETIF_F_HW_TC;
 
 	/* Advertise but disable TSO by default. */
@@ -3750,6 +3749,8 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	/* MTU range: 68 - hw-specific max */
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = nn->max_mtu;
+
+	netdev->gso_max_segs = NFP_NET_LSO_MAX_SEGS;
 
 	netif_carrier_off(netdev);
 

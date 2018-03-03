@@ -633,12 +633,12 @@ static __poll_t ib_umad_poll(struct file *filp, struct poll_table_struct *wait)
 	struct ib_umad_file *file = filp->private_data;
 
 	/* we will always be able to post a MAD send */
-	__poll_t mask = POLLOUT | POLLWRNORM;
+	__poll_t mask = EPOLLOUT | EPOLLWRNORM;
 
 	poll_wait(filp, &file->recv_wait, wait);
 
 	if (!list_empty(&file->recv_list))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

@@ -144,7 +144,7 @@ static __poll_t xen_mce_chrdev_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &xen_mce_chrdev_wait, wait);
 
 	if (xen_mcelog.next)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }

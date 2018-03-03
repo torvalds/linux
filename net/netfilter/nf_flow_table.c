@@ -4,6 +4,7 @@
 #include <linux/netfilter.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
+#include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
@@ -124,7 +125,9 @@ void flow_offload_free(struct flow_offload *flow)
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].tuple.dst_cache);
 	dst_release(flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].tuple.dst_cache);
 	e = container_of(flow, struct flow_offload_entry, flow);
-	kfree(e);
+	nf_ct_delete(e->ct, 0, 0);
+	nf_ct_put(e->ct);
+	kfree_rcu(e, rcu_head);
 }
 EXPORT_SYMBOL_GPL(flow_offload_free);
 
@@ -148,11 +151,9 @@ int flow_offload_add(struct nf_flowtable *flow_table, struct flow_offload *flow)
 }
 EXPORT_SYMBOL_GPL(flow_offload_add);
 
-void flow_offload_del(struct nf_flowtable *flow_table,
-		      struct flow_offload *flow)
+static void flow_offload_del(struct nf_flowtable *flow_table,
+			     struct flow_offload *flow)
 {
-	struct flow_offload_entry *e;
-
 	rhashtable_remove_fast(&flow_table->rhashtable,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_ORIGINAL].node,
 			       *flow_table->type->params);
@@ -160,10 +161,8 @@ void flow_offload_del(struct nf_flowtable *flow_table,
 			       &flow->tuplehash[FLOW_OFFLOAD_DIR_REPLY].node,
 			       *flow_table->type->params);
 
-	e = container_of(flow, struct flow_offload_entry, flow);
-	kfree_rcu(e, rcu_head);
+	flow_offload_free(flow);
 }
-EXPORT_SYMBOL_GPL(flow_offload_del);
 
 struct flow_offload_tuple_rhash *
 flow_offload_lookup(struct nf_flowtable *flow_table,
@@ -173,15 +172,6 @@ flow_offload_lookup(struct nf_flowtable *flow_table,
 				      *flow_table->type->params);
 }
 EXPORT_SYMBOL_GPL(flow_offload_lookup);
-
-static void nf_flow_release_ct(const struct flow_offload *flow)
-{
-	struct flow_offload_entry *e;
-
-	e = container_of(flow, struct flow_offload_entry, flow);
-	nf_ct_delete(e->ct, 0, 0);
-	nf_ct_put(e->ct);
-}
 
 int nf_flow_table_iterate(struct nf_flowtable *flow_table,
 			  void (*iter)(struct flow_offload *flow, void *data),
@@ -231,19 +221,16 @@ static inline bool nf_flow_is_dying(const struct flow_offload *flow)
 	return flow->flags & FLOW_OFFLOAD_DYING;
 }
 
-void nf_flow_offload_work_gc(struct work_struct *work)
+static int nf_flow_offload_gc_step(struct nf_flowtable *flow_table)
 {
 	struct flow_offload_tuple_rhash *tuplehash;
-	struct nf_flowtable *flow_table;
 	struct rhashtable_iter hti;
 	struct flow_offload *flow;
 	int err;
 
-	flow_table = container_of(work, struct nf_flowtable, gc_work.work);
-
 	err = rhashtable_walk_init(&flow_table->rhashtable, &hti, GFP_KERNEL);
 	if (err)
-		goto schedule;
+		return 0;
 
 	rhashtable_walk_start(&hti);
 
@@ -261,15 +248,22 @@ void nf_flow_offload_work_gc(struct work_struct *work)
 		flow = container_of(tuplehash, struct flow_offload, tuplehash[0]);
 
 		if (nf_flow_has_expired(flow) ||
-		    nf_flow_is_dying(flow)) {
+		    nf_flow_is_dying(flow))
 			flow_offload_del(flow_table, flow);
-			nf_flow_release_ct(flow);
-		}
 	}
 out:
 	rhashtable_walk_stop(&hti);
 	rhashtable_walk_exit(&hti);
-schedule:
+
+	return 1;
+}
+
+void nf_flow_offload_work_gc(struct work_struct *work)
+{
+	struct nf_flowtable *flow_table;
+
+	flow_table = container_of(work, struct nf_flowtable, gc_work.work);
+	nf_flow_offload_gc_step(flow_table);
 	queue_delayed_work(system_power_efficient_wq, &flow_table->gc_work, HZ);
 }
 EXPORT_SYMBOL_GPL(nf_flow_offload_work_gc);
@@ -424,6 +418,36 @@ int nf_flow_dnat_port(const struct flow_offload *flow,
 	return nf_flow_nat_port(skb, thoff, protocol, port, new_port);
 }
 EXPORT_SYMBOL_GPL(nf_flow_dnat_port);
+
+static void nf_flow_table_do_cleanup(struct flow_offload *flow, void *data)
+{
+	struct net_device *dev = data;
+
+	if (dev && flow->tuplehash[0].tuple.iifidx != dev->ifindex)
+		return;
+
+	flow_offload_dead(flow);
+}
+
+static void nf_flow_table_iterate_cleanup(struct nf_flowtable *flowtable,
+					  void *data)
+{
+	nf_flow_table_iterate(flowtable, nf_flow_table_do_cleanup, data);
+	flush_delayed_work(&flowtable->gc_work);
+}
+
+void nf_flow_table_cleanup(struct net *net, struct net_device *dev)
+{
+	nft_flow_table_iterate(net, nf_flow_table_iterate_cleanup, dev);
+}
+EXPORT_SYMBOL_GPL(nf_flow_table_cleanup);
+
+void nf_flow_table_free(struct nf_flowtable *flow_table)
+{
+	nf_flow_table_iterate(flow_table, nf_flow_table_do_cleanup, NULL);
+	WARN_ON(!nf_flow_offload_gc_step(flow_table));
+}
+EXPORT_SYMBOL_GPL(nf_flow_table_free);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");

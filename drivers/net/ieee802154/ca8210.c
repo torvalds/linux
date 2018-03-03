@@ -2648,11 +2648,11 @@ static __poll_t ca8210_test_int_poll(
 
 	poll_wait(filp, &priv->test.readq, ptable);
 	if (!kfifo_is_empty(&priv->test.up_fifo))
-		return_flags |= (POLLIN | POLLRDNORM);
+		return_flags |= (EPOLLIN | EPOLLRDNORM);
 	if (wait_event_interruptible(
 		priv->test.readq,
 		!kfifo_is_empty(&priv->test.up_fifo))) {
-		return POLLERR;
+		return EPOLLERR;
 	}
 	return return_flags;
 }

@@ -306,9 +306,9 @@ static __poll_t vhci_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &data->read_wait, wait);
 
 	if (!skb_queue_empty(&data->readq))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
-	return POLLOUT | POLLWRNORM;
+	return EPOLLOUT | EPOLLWRNORM;
 }
 
 static void vhci_open_timeout(struct work_struct *work)

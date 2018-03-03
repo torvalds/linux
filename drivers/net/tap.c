@@ -377,7 +377,7 @@ rx_handler_result_t tap_handle_frame(struct sk_buff **pskb)
 	}
 
 wake_up:
-	wake_up_interruptible_poll(sk_sleep(&q->sk), POLLIN | POLLRDNORM | POLLRDBAND);
+	wake_up_interruptible_poll(sk_sleep(&q->sk), EPOLLIN | EPOLLRDNORM | EPOLLRDBAND);
 	return RX_HANDLER_CONSUMED;
 
 drop:
@@ -487,7 +487,7 @@ static void tap_sock_write_space(struct sock *sk)
 
 	wqueue = sk_sleep(sk);
 	if (wqueue && waitqueue_active(wqueue))
-		wake_up_interruptible_poll(wqueue, POLLOUT | POLLWRNORM | POLLWRBAND);
+		wake_up_interruptible_poll(wqueue, EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND);
 }
 
 static void tap_sock_destruct(struct sock *sk)
@@ -572,7 +572,7 @@ static int tap_release(struct inode *inode, struct file *file)
 static __poll_t tap_poll(struct file *file, poll_table *wait)
 {
 	struct tap_queue *q = file->private_data;
-	__poll_t mask = POLLERR;
+	__poll_t mask = EPOLLERR;
 
 	if (!q)
 		goto out;
@@ -581,12 +581,12 @@ static __poll_t tap_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &q->wq.wait, wait);
 
 	if (!ptr_ring_empty(&q->ring))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	if (sock_writeable(&q->sk) ||
 	    (!test_and_set_bit(SOCKWQ_ASYNC_NOSPACE, &q->sock.flags) &&
 	     sock_writeable(&q->sk)))
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 
 out:
 	return mask;

@@ -1141,11 +1141,11 @@ out:
 static __poll_t smc_accept_poll(struct sock *parent)
 {
 	struct smc_sock *isk = smc_sk(parent);
-	int mask = 0;
+	__poll_t mask = 0;
 
 	spin_lock(&isk->accept_q_lock);
 	if (!list_empty(&isk->accept_q))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 	spin_unlock(&isk->accept_q_lock);
 
 	return mask;
@@ -1160,7 +1160,7 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 	int rc;
 
 	if (!sk)
-		return POLLNVAL;
+		return EPOLLNVAL;
 
 	smc = smc_sk(sock->sk);
 	sock_hold(sk);
@@ -1171,16 +1171,16 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 		mask = smc->clcsock->ops->poll(file, smc->clcsock, wait);
 		/* if non-blocking connect finished ... */
 		lock_sock(sk);
-		if ((sk->sk_state == SMC_INIT) && (mask & POLLOUT)) {
+		if ((sk->sk_state == SMC_INIT) && (mask & EPOLLOUT)) {
 			sk->sk_err = smc->clcsock->sk->sk_err;
 			if (sk->sk_err) {
-				mask |= POLLERR;
+				mask |= EPOLLERR;
 			} else {
 				rc = smc_connect_rdma(smc);
 				if (rc < 0)
-					mask |= POLLERR;
+					mask |= EPOLLERR;
 				/* success cases including fallback */
-				mask |= POLLOUT | POLLWRNORM;
+				mask |= EPOLLOUT | EPOLLWRNORM;
 			}
 		}
 	} else {
@@ -1190,27 +1190,27 @@ static __poll_t smc_poll(struct file *file, struct socket *sock,
 			lock_sock(sk);
 		}
 		if (sk->sk_err)
-			mask |= POLLERR;
+			mask |= EPOLLERR;
 		if ((sk->sk_shutdown == SHUTDOWN_MASK) ||
 		    (sk->sk_state == SMC_CLOSED))
-			mask |= POLLHUP;
+			mask |= EPOLLHUP;
 		if (sk->sk_state == SMC_LISTEN) {
 			/* woken up by sk_data_ready in smc_listen_work() */
 			mask = smc_accept_poll(sk);
 		} else {
 			if (atomic_read(&smc->conn.sndbuf_space) ||
 			    sk->sk_shutdown & SEND_SHUTDOWN) {
-				mask |= POLLOUT | POLLWRNORM;
+				mask |= EPOLLOUT | EPOLLWRNORM;
 			} else {
 				sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 				set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 			}
 			if (atomic_read(&smc->conn.bytes_to_rcv))
-				mask |= POLLIN | POLLRDNORM;
+				mask |= EPOLLIN | EPOLLRDNORM;
 			if (sk->sk_shutdown & RCV_SHUTDOWN)
-				mask |= POLLIN | POLLRDNORM | POLLRDHUP;
+				mask |= EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
 			if (sk->sk_state == SMC_APPCLOSEWAIT1)
-				mask |= POLLIN;
+				mask |= EPOLLIN;
 		}
 
 	}

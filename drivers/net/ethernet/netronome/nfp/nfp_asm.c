@@ -107,7 +107,7 @@ u16 immed_get_value(u64 instr)
 	if (!unreg_is_imm(reg))
 		reg = FIELD_GET(OP_IMMED_B_SRC, instr);
 
-	return (reg & 0xff) | FIELD_GET(OP_IMMED_IMM, instr);
+	return (reg & 0xff) | FIELD_GET(OP_IMMED_IMM, instr) << 8;
 }
 
 void immed_set_value(u64 *instr, u16 immed)

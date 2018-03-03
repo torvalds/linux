@@ -656,7 +656,6 @@ static void bnxt_re_dev_remove(struct bnxt_re_dev *rdev)
 	mutex_unlock(&bnxt_re_dev_lock);
 
 	synchronize_rcu();
-	flush_workqueue(bnxt_re_wq);
 
 	ib_dealloc_device(&rdev->ibdev);
 	/* rdev is gone */
@@ -1441,7 +1440,7 @@ static void bnxt_re_task(struct work_struct *work)
 		break;
 	}
 	smp_mb__before_atomic();
-	clear_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
+	atomic_dec(&rdev->sched_count);
 	kfree(re_work);
 }
 
@@ -1503,7 +1502,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 		/* netdev notifier will call NETDEV_UNREGISTER again later since
 		 * we are still holding the reference to the netdev
 		 */
-		if (test_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags))
+		if (atomic_read(&rdev->sched_count) > 0)
 			goto exit;
 		bnxt_re_ib_unreg(rdev, false);
 		bnxt_re_remove_one(rdev);
@@ -1523,7 +1522,7 @@ static int bnxt_re_netdev_event(struct notifier_block *notifier,
 			re_work->vlan_dev = (real_dev == netdev ?
 					     NULL : netdev);
 			INIT_WORK(&re_work->work, bnxt_re_task);
-			set_bit(BNXT_RE_FLAG_TASK_IN_PROG, &rdev->flags);
+			atomic_inc(&rdev->sched_count);
 			queue_work(bnxt_re_wq, &re_work->work);
 		}
 	}
@@ -1578,6 +1577,11 @@ static void __exit bnxt_re_mod_exit(void)
 	*/
 	list_for_each_entry_safe_reverse(rdev, next, &to_be_deleted, list) {
 		dev_info(rdev_to_dev(rdev), "Unregistering Device");
+		/*
+		 * Flush out any scheduled tasks before destroying the
+		 * resources
+		 */
+		flush_workqueue(bnxt_re_wq);
 		bnxt_re_dev_stop(rdev);
 		bnxt_re_ib_unreg(rdev, true);
 		bnxt_re_remove_one(rdev);

@@ -45,7 +45,7 @@
  * generic accessors and iterators here
  */
 #define __real_pte __real_pte
-static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
+static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep, int offset)
 {
 	real_pte_t rpte;
 	unsigned long *hidxp;
@@ -59,7 +59,7 @@ static inline real_pte_t __real_pte(pte_t pte, pte_t *ptep)
 	 */
 	smp_rmb();
 
-	hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
+	hidxp = (unsigned long *)(ptep + offset);
 	rpte.hidx = *hidxp;
 	return rpte;
 }
@@ -86,9 +86,10 @@ static inline unsigned long __rpte_to_hidx(real_pte_t rpte, unsigned long index)
  * expected to modify the PTE bits accordingly and commit the PTE to memory.
  */
 static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
-		unsigned int subpg_index, unsigned long hidx)
+					 unsigned int subpg_index,
+					 unsigned long hidx, int offset)
 {
-	unsigned long *hidxp = (unsigned long *)(ptep + PTRS_PER_PTE);
+	unsigned long *hidxp = (unsigned long *)(ptep + offset);
 
 	rpte.hidx &= ~HIDX_BITS(0xfUL, subpg_index);
 	*hidxp = rpte.hidx  | HIDX_BITS(HIDX_SHIFT_BY_ONE(hidx), subpg_index);
@@ -140,13 +141,18 @@ static inline int hash__remap_4k_pfn(struct vm_area_struct *vma, unsigned long a
 }
 
 #define H_PTE_TABLE_SIZE	PTE_FRAG_SIZE
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined (CONFIG_HUGETLB_PAGE)
 #define H_PMD_TABLE_SIZE	((sizeof(pmd_t) << PMD_INDEX_SIZE) + \
 				 (sizeof(unsigned long) << PMD_INDEX_SIZE))
 #else
 #define H_PMD_TABLE_SIZE	(sizeof(pmd_t) << PMD_INDEX_SIZE)
 #endif
+#ifdef CONFIG_HUGETLB_PAGE
+#define H_PUD_TABLE_SIZE	((sizeof(pud_t) << PUD_INDEX_SIZE) +	\
+				 (sizeof(unsigned long) << PUD_INDEX_SIZE))
+#else
 #define H_PUD_TABLE_SIZE	(sizeof(pud_t) << PUD_INDEX_SIZE)
+#endif
 #define H_PGD_TABLE_SIZE	(sizeof(pgd_t) << PGD_INDEX_SIZE)
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE

@@ -580,7 +580,7 @@ static __poll_t ns_revision_poll(struct file *file, poll_table *pt)
 		mutex_lock_nested(&rev->ns->lock, rev->ns->level);
 		poll_wait(file, &rev->ns->wait, pt);
 		if (rev->last_read < rev->ns->revision)
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		mutex_unlock(&rev->ns->lock);
 	}
 

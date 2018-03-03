@@ -1841,6 +1841,7 @@ registers, find a list below:
   PPC	| KVM_REG_PPC_DBSR              | 32
   PPC   | KVM_REG_PPC_TIDR              | 64
   PPC   | KVM_REG_PPC_PSSCR             | 64
+  PPC   | KVM_REG_PPC_DEC_EXPIRY        | 64
   PPC   | KVM_REG_PPC_TM_GPR0           | 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31          | 64
@@ -3403,7 +3404,7 @@ invalid, if invalid pages are written to (e.g. after the end of memory)
 or if no page table is present for the addresses (e.g. when using
 hugepages).
 
-4.108 KVM_PPC_GET_CPU_CHAR
+4.109 KVM_PPC_GET_CPU_CHAR
 
 Capability: KVM_CAP_PPC_GET_CPU_CHAR
 Architectures: powerpc
@@ -3448,6 +3449,57 @@ array bounds check and the array access.
 
 These fields use the same bit definitions as the new
 H_GET_CPU_CHARACTERISTICS hypercall.
+
+4.110 KVM_MEMORY_ENCRYPT_OP
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: an opaque platform specific structure (in/out)
+Returns: 0 on success; -1 on error
+
+If the platform supports creating encrypted VMs then this ioctl can be used
+for issuing platform-specific memory encryption commands to manage those
+encrypted VMs.
+
+Currently, this ioctl is used for issuing Secure Encrypted Virtualization
+(SEV) commands on AMD Processors. The SEV commands are defined in
+Documentation/virtual/kvm/amd-memory-encryption.txt.
+
+4.111 KVM_MEMORY_ENCRYPT_REG_REGION
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: struct kvm_enc_region (in)
+Returns: 0 on success; -1 on error
+
+This ioctl can be used to register a guest memory region which may
+contain encrypted data (e.g. guest RAM, SMRAM etc).
+
+It is used in the SEV-enabled guest. When encryption is enabled, a guest
+memory region may contain encrypted data. The SEV memory encryption
+engine uses a tweak such that two identical plaintext pages, each at
+different locations will have differing ciphertexts. So swapping or
+moving ciphertext of those pages will not result in plaintext being
+swapped. So relocating (or migrating) physical backing pages for the SEV
+guest will require some additional steps.
+
+Note: The current SEV key management spec does not provide commands to
+swap or migrate (move) ciphertext pages. Hence, for now we pin the guest
+memory region registered with the ioctl.
+
+4.112 KVM_MEMORY_ENCRYPT_UNREG_REGION
+
+Capability: basic
+Architectures: x86
+Type: system
+Parameters: struct kvm_enc_region (in)
+Returns: 0 on success; -1 on error
+
+This ioctl can be used to unregister the guest memory region registered
+with KVM_MEMORY_ENCRYPT_REG_REGION ioctl above.
+
 
 5. The kvm_run structure
 ------------------------

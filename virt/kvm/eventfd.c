@@ -194,7 +194,7 @@ irqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 	unsigned seq;
 	int idx;
 
-	if (flags & POLLIN) {
+	if (flags & EPOLLIN) {
 		idx = srcu_read_lock(&kvm->irq_srcu);
 		do {
 			seq = read_seqcount_begin(&irqfd->irq_entry_sc);
@@ -208,7 +208,7 @@ irqfd_wakeup(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 		srcu_read_unlock(&kvm->irq_srcu, idx);
 	}
 
-	if (flags & POLLHUP) {
+	if (flags & EPOLLHUP) {
 		/* The eventfd is closing, detach from KVM */
 		unsigned long flags;
 
@@ -399,12 +399,12 @@ kvm_irqfd_assign(struct kvm *kvm, struct kvm_irqfd *args)
 	 */
 	events = f.file->f_op->poll(f.file, &irqfd->pt);
 
-	if (events & POLLIN)
+	if (events & EPOLLIN)
 		schedule_work(&irqfd->inject);
 
 	/*
 	 * do not drop the file until the irqfd is fully initialized, otherwise
-	 * we might race against the POLLHUP
+	 * we might race against the EPOLLHUP
 	 */
 	fdput(f);
 #ifdef CONFIG_HAVE_KVM_IRQ_BYPASS

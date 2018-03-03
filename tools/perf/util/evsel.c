@@ -41,17 +41,7 @@
 
 #include "sane_ctype.h"
 
-static struct {
-	bool sample_id_all;
-	bool exclude_guest;
-	bool mmap2;
-	bool cloexec;
-	bool clockid;
-	bool clockid_wrong;
-	bool lbr_flags;
-	bool write_backward;
-	bool group_read;
-} perf_missing_features;
+struct perf_missing_features perf_missing_features;
 
 static clockid_t clockid;
 

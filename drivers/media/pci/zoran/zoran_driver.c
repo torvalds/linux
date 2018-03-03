@@ -2513,10 +2513,10 @@ zoran_poll (struct file *file,
 
 	/* we should check whether buffers are ready to be synced on
 	 * (w/o waits - O_NONBLOCK) here
-	 * if ready for read (sync), return POLLIN|POLLRDNORM,
-	 * if ready for write (sync), return POLLOUT|POLLWRNORM,
-	 * if error, return POLLERR,
-	 * if no buffers queued or so, return POLLNVAL
+	 * if ready for read (sync), return EPOLLIN|EPOLLRDNORM,
+	 * if ready for write (sync), return EPOLLOUT|EPOLLWRNORM,
+	 * if error, return EPOLLERR,
+	 * if no buffers queued or so, return EPOLLNVAL
 	 */
 
 	switch (fh->map_mode) {
@@ -2536,7 +2536,7 @@ zoran_poll (struct file *file,
 		if (fh->buffers.active != ZORAN_FREE &&
 		    /* Buffer ready to DQBUF? */
 		    zr->v4l_buffers.buffer[frame].state == BUZ_STATE_DONE)
-			res |= POLLIN | POLLRDNORM;
+			res |= EPOLLIN | EPOLLRDNORM;
 		spin_unlock_irqrestore(&zr->spinlock, flags);
 
 		break;
@@ -2557,9 +2557,9 @@ zoran_poll (struct file *file,
 		if (fh->buffers.active != ZORAN_FREE &&
 		    zr->jpg_buffers.buffer[frame].state == BUZ_STATE_DONE) {
 			if (fh->map_mode == ZORAN_MAP_MODE_JPG_REC)
-				res |= POLLIN | POLLRDNORM;
+				res |= EPOLLIN | EPOLLRDNORM;
 			else
-				res |= POLLOUT | POLLWRNORM;
+				res |= EPOLLOUT | EPOLLWRNORM;
 		}
 		spin_unlock_irqrestore(&zr->spinlock, flags);
 
@@ -2570,7 +2570,7 @@ zoran_poll (struct file *file,
 			KERN_ERR
 			"%s: %s - internal error, unknown map_mode=%d\n",
 			ZR_DEVNAME(zr), __func__, fh->map_mode);
-		res |= POLLERR;
+		res |= EPOLLERR;
 	}
 
 	return res;

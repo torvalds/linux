@@ -520,6 +520,7 @@ int main(void)
 	OFFSET(VCPU_PENDING_EXC, kvm_vcpu, arch.pending_exceptions);
 	OFFSET(VCPU_CEDED, kvm_vcpu, arch.ceded);
 	OFFSET(VCPU_PRODDED, kvm_vcpu, arch.prodded);
+	OFFSET(VCPU_IRQ_PENDING, kvm_vcpu, arch.irq_pending);
 	OFFSET(VCPU_DBELL_REQ, kvm_vcpu, arch.doorbell_request);
 	OFFSET(VCPU_MMCR, kvm_vcpu, arch.mmcr);
 	OFFSET(VCPU_PMC, kvm_vcpu, arch.pmc);
@@ -739,6 +740,9 @@ int main(void)
 	DEFINE(VCPU_XIVE_CAM_WORD, offsetof(struct kvm_vcpu,
 					    arch.xive_cam_word));
 	DEFINE(VCPU_XIVE_PUSHED, offsetof(struct kvm_vcpu, arch.xive_pushed));
+	DEFINE(VCPU_XIVE_ESC_ON, offsetof(struct kvm_vcpu, arch.xive_esc_on));
+	DEFINE(VCPU_XIVE_ESC_RADDR, offsetof(struct kvm_vcpu, arch.xive_esc_raddr));
+	DEFINE(VCPU_XIVE_ESC_VADDR, offsetof(struct kvm_vcpu, arch.xive_esc_vaddr));
 #endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING

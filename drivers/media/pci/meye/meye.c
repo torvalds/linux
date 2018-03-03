@@ -1430,7 +1430,7 @@ static __poll_t meye_poll(struct file *file, poll_table *wait)
 	mutex_lock(&meye.lock);
 	poll_wait(file, &meye.proc_list, wait);
 	if (kfifo_len(&meye.doneq))
-		res |= POLLIN | POLLRDNORM;
+		res |= EPOLLIN | EPOLLRDNORM;
 	mutex_unlock(&meye.lock);
 	return res;
 }

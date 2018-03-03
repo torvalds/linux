@@ -244,7 +244,7 @@
  * The two separate pointers let us decouple read()s from tail pointer aging.
  *
  * The tail pointers are checked and updated at a limited rate within a hrtimer
- * callback (the same callback that is used for delivering POLLIN events)
+ * callback (the same callback that is used for delivering EPOLLIN events)
  *
  * Initially the tails are marked invalid with %INVALID_TAIL_PTR which
  * indicates that an updated tail pointer is needed.
@@ -2292,13 +2292,13 @@ static ssize_t i915_perf_read(struct file *file,
 		mutex_unlock(&dev_priv->perf.lock);
 	}
 
-	/* We allow the poll checking to sometimes report false positive POLLIN
+	/* We allow the poll checking to sometimes report false positive EPOLLIN
 	 * events where we might actually report EAGAIN on read() if there's
 	 * not really any data available. In this situation though we don't
-	 * want to enter a busy loop between poll() reporting a POLLIN event
+	 * want to enter a busy loop between poll() reporting a EPOLLIN event
 	 * and read() returning -EAGAIN. Clearing the oa.pollin state here
 	 * effectively ensures we back off until the next hrtimer callback
-	 * before reporting another POLLIN event.
+	 * before reporting another EPOLLIN event.
 	 */
 	if (ret >= 0 || ret == -EAGAIN) {
 		/* Maybe make ->pollin per-stream state if we support multiple
@@ -2358,7 +2358,7 @@ static __poll_t i915_perf_poll_locked(struct drm_i915_private *dev_priv,
 	 * samples to read.
 	 */
 	if (dev_priv->perf.oa.pollin)
-		events |= POLLIN;
+		events |= EPOLLIN;
 
 	return events;
 }

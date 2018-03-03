@@ -445,7 +445,7 @@ static ssize_t hung_up_tty_write(struct file *file, const char __user *buf,
 /* No kernel lock held - none needed ;) */
 static __poll_t hung_up_tty_poll(struct file *filp, poll_table *wait)
 {
-	return POLLIN | POLLOUT | POLLERR | POLLHUP | POLLRDNORM | POLLWRNORM;
+	return EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLRDNORM | EPOLLWRNORM;
 }
 
 static long hung_up_tty_ioctl(struct file *file, unsigned int cmd,
@@ -533,7 +533,7 @@ void tty_wakeup(struct tty_struct *tty)
 			tty_ldisc_deref(ld);
 		}
 	}
-	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
+	wake_up_interruptible_poll(&tty->write_wait, EPOLLOUT);
 }
 
 EXPORT_SYMBOL_GPL(tty_wakeup);
@@ -867,7 +867,7 @@ static ssize_t tty_read(struct file *file, char __user *buf, size_t count,
 static void tty_write_unlock(struct tty_struct *tty)
 {
 	mutex_unlock(&tty->atomic_write_lock);
-	wake_up_interruptible_poll(&tty->write_wait, POLLOUT);
+	wake_up_interruptible_poll(&tty->write_wait, EPOLLOUT);
 }
 
 static int tty_write_lock(struct tty_struct *tty, int ndelay)
@@ -1667,21 +1667,21 @@ int tty_release(struct inode *inode, struct file *filp)
 
 		if (tty->count <= 1) {
 			if (waitqueue_active(&tty->read_wait)) {
-				wake_up_poll(&tty->read_wait, POLLIN);
+				wake_up_poll(&tty->read_wait, EPOLLIN);
 				do_sleep++;
 			}
 			if (waitqueue_active(&tty->write_wait)) {
-				wake_up_poll(&tty->write_wait, POLLOUT);
+				wake_up_poll(&tty->write_wait, EPOLLOUT);
 				do_sleep++;
 			}
 		}
 		if (o_tty && o_tty->count <= 1) {
 			if (waitqueue_active(&o_tty->read_wait)) {
-				wake_up_poll(&o_tty->read_wait, POLLIN);
+				wake_up_poll(&o_tty->read_wait, EPOLLIN);
 				do_sleep++;
 			}
 			if (waitqueue_active(&o_tty->write_wait)) {
-				wake_up_poll(&o_tty->write_wait, POLLOUT);
+				wake_up_poll(&o_tty->write_wait, EPOLLOUT);
 				do_sleep++;
 			}
 		}

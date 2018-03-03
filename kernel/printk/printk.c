@@ -930,7 +930,7 @@ static __poll_t devkmsg_poll(struct file *file, poll_table *wait)
 	__poll_t ret = 0;
 
 	if (!user)
-		return POLLERR|POLLNVAL;
+		return EPOLLERR|EPOLLNVAL;
 
 	poll_wait(file, &log_wait, wait);
 
@@ -938,9 +938,9 @@ static __poll_t devkmsg_poll(struct file *file, poll_table *wait)
 	if (user->seq < log_next_seq) {
 		/* return error when data has vanished underneath us */
 		if (user->seq < log_first_seq)
-			ret = POLLIN|POLLRDNORM|POLLERR|POLLPRI;
+			ret = EPOLLIN|EPOLLRDNORM|EPOLLERR|EPOLLPRI;
 		else
-			ret = POLLIN|POLLRDNORM;
+			ret = EPOLLIN|EPOLLRDNORM;
 	}
 	logbuf_unlock_irq();
 
@@ -2397,7 +2397,7 @@ skip:
 
 		if (console_lock_spinning_disable_and_check()) {
 			printk_safe_exit_irqrestore(flags);
-			return;
+			goto out;
 		}
 
 		printk_safe_exit_irqrestore(flags);
@@ -2430,6 +2430,7 @@ skip:
 	if (retry && console_trylock())
 		goto again;
 
+out:
 	if (wake_klogd)
 		wake_up_klogd();
 }

@@ -204,13 +204,13 @@ snd_seq_oss_poll(struct seq_oss_devinfo *dp, struct file *file, poll_table * wai
 	/* input */
 	if (dp->readq && is_read_mode(dp->file_mode)) {
 		if (snd_seq_oss_readq_poll(dp->readq, file, wait))
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 	}
 
 	/* output */
 	if (dp->writeq && is_write_mode(dp->file_mode)) {
 		if (snd_seq_kernel_client_write_poll(dp->cseq, file, wait))
-			mask |= POLLOUT | POLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRNORM;
 	}
 	return mask;
 }

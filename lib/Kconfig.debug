@@ -351,7 +351,6 @@ config SECTION_MISMATCH_WARN_ONLY
 #
 config ARCH_WANT_FRAME_POINTERS
 	bool
-	help
 
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
@@ -1643,6 +1642,7 @@ config DMA_API_DEBUG
 
 menuconfig RUNTIME_TESTING_MENU
 	bool "Runtime Testing"
+	def_bool y
 
 if RUNTIME_TESTING_MENU
 

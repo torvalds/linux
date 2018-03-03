@@ -345,15 +345,15 @@ rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 {
 	struct inode *inode = file_inode(filp);
 	struct rpc_inode *rpci = RPC_I(inode);
-	__poll_t mask = POLLOUT | POLLWRNORM;
+	__poll_t mask = EPOLLOUT | EPOLLWRNORM;
 
 	poll_wait(filp, &rpci->waitq, wait);
 
 	inode_lock(inode);
 	if (rpci->pipe == NULL)
-		mask |= POLLERR | POLLHUP;
+		mask |= EPOLLERR | EPOLLHUP;
 	else if (filp->private_data || !list_empty(&rpci->pipe->pipe))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	inode_unlock(inode);
 	return mask;
 }

@@ -483,7 +483,7 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	if (likely(must_wait && !READ_ONCE(ctx->released) &&
 		   (return_to_userland ? !signal_pending(current) :
 		    !fatal_signal_pending(current)))) {
-		wake_up_poll(&ctx->fd_wqh, POLLIN);
+		wake_up_poll(&ctx->fd_wqh, EPOLLIN);
 		schedule();
 		ret |= VM_FAULT_MAJOR;
 
@@ -614,7 +614,7 @@ static void userfaultfd_event_wait_completion(struct userfaultfd_ctx *ctx,
 
 		spin_unlock(&ctx->event_wqh.lock);
 
-		wake_up_poll(&ctx->fd_wqh, POLLIN);
+		wake_up_poll(&ctx->fd_wqh, EPOLLIN);
 		schedule();
 
 		spin_lock(&ctx->event_wqh.lock);
@@ -904,7 +904,7 @@ wakeup:
 	/* Flush pending events that may still wait on event_wqh */
 	wake_up_all(&ctx->event_wqh);
 
-	wake_up_poll(&ctx->fd_wqh, POLLHUP);
+	wake_up_poll(&ctx->fd_wqh, EPOLLHUP);
 	userfaultfd_ctx_put(ctx);
 	return 0;
 }
@@ -949,14 +949,14 @@ static __poll_t userfaultfd_poll(struct file *file, poll_table *wait)
 
 	switch (ctx->state) {
 	case UFFD_STATE_WAIT_API:
-		return POLLERR;
+		return EPOLLERR;
 	case UFFD_STATE_RUNNING:
 		/*
 		 * poll() never guarantees that read won't block.
 		 * userfaults can be waken before they're read().
 		 */
 		if (unlikely(!(file->f_flags & O_NONBLOCK)))
-			return POLLERR;
+			return EPOLLERR;
 		/*
 		 * lockless access to see if there are pending faults
 		 * __pollwait last action is the add_wait_queue but
@@ -970,14 +970,14 @@ static __poll_t userfaultfd_poll(struct file *file, poll_table *wait)
 		ret = 0;
 		smp_mb();
 		if (waitqueue_active(&ctx->fault_pending_wqh))
-			ret = POLLIN;
+			ret = EPOLLIN;
 		else if (waitqueue_active(&ctx->event_wqh))
-			ret = POLLIN;
+			ret = EPOLLIN;
 
 		return ret;
 	default:
 		WARN_ON_ONCE(1);
-		return POLLERR;
+		return EPOLLERR;
 	}
 }
 

@@ -649,3 +649,4 @@ MODULE_FIRMWARE("netronome/nic_AMDA0099-0001_2x25.nffw");
 MODULE_AUTHOR("Netronome Systems <oss-drivers@netronome.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("The Netronome Flow Processor (NFP) driver.");
+MODULE_VERSION(UTS_RELEASE);

@@ -27,6 +27,7 @@
 #else
 #define PMD_CACHE_INDEX	PMD_INDEX_SIZE
 #endif
+#define PUD_CACHE_INDEX PUD_INDEX_SIZE
 
 /*
  * Define the address range of the kernel non-linear virtual area

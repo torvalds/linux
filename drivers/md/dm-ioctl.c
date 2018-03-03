@@ -1937,7 +1937,7 @@ static __poll_t dm_poll(struct file *filp, poll_table *wait)
 	poll_wait(filp, &dm_global_eventq, wait);
 
 	if ((int)(atomic_read(&dm_global_event_nr) - priv->global_event_nr) > 0)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	return mask;
 }

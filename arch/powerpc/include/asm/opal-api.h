@@ -1076,6 +1076,7 @@ enum {
 /* Flags for OPAL_XIVE_GET/SET_VP_INFO */
 enum {
 	OPAL_XIVE_VP_ENABLED		= 0x00000001,
+	OPAL_XIVE_VP_SINGLE_ESCALATION	= 0x00000002,
 };
 
 /* "Any chip" replacement for chip ID for allocation functions */

@@ -1008,6 +1008,7 @@ void __init hash__early_init_mmu(void)
 	__pmd_index_size = H_PMD_INDEX_SIZE;
 	__pud_index_size = H_PUD_INDEX_SIZE;
 	__pgd_index_size = H_PGD_INDEX_SIZE;
+	__pud_cache_index = H_PUD_CACHE_INDEX;
 	__pmd_cache_index = H_PMD_CACHE_INDEX;
 	__pte_table_size = H_PTE_TABLE_SIZE;
 	__pmd_table_size = H_PMD_TABLE_SIZE;

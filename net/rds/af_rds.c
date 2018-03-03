@@ -137,17 +137,17 @@ static int rds_getname(struct socket *sock, struct sockaddr *uaddr,
 
 /*
  * RDS' poll is without a doubt the least intuitive part of the interface,
- * as POLLIN and POLLOUT do not behave entirely as you would expect from
+ * as EPOLLIN and EPOLLOUT do not behave entirely as you would expect from
  * a network protocol.
  *
- * POLLIN is asserted if
+ * EPOLLIN is asserted if
  *  -	there is data on the receive queue.
  *  -	to signal that a previously congested destination may have become
  *	uncongested
  *  -	A notification has been queued to the socket (this can be a congestion
  *	update, or a RDMA completion).
  *
- * POLLOUT is asserted if there is room on the send queue. This does not mean
+ * EPOLLOUT is asserted if there is room on the send queue. This does not mean
  * however, that the next sendmsg() call will succeed. If the application tries
  * to send to a congested destination, the system call may still fail (and
  * return ENOBUFS).
@@ -167,22 +167,22 @@ static __poll_t rds_poll(struct file *file, struct socket *sock,
 
 	read_lock_irqsave(&rs->rs_recv_lock, flags);
 	if (!rs->rs_cong_monitor) {
-		/* When a congestion map was updated, we signal POLLIN for
+		/* When a congestion map was updated, we signal EPOLLIN for
 		 * "historical" reasons. Applications can also poll for
 		 * WRBAND instead. */
 		if (rds_cong_updated_since(&rs->rs_cong_track))
-			mask |= (POLLIN | POLLRDNORM | POLLWRBAND);
+			mask |= (EPOLLIN | EPOLLRDNORM | EPOLLWRBAND);
 	} else {
 		spin_lock(&rs->rs_lock);
 		if (rs->rs_cong_notify)
-			mask |= (POLLIN | POLLRDNORM);
+			mask |= (EPOLLIN | EPOLLRDNORM);
 		spin_unlock(&rs->rs_lock);
 	}
 	if (!list_empty(&rs->rs_recv_queue) ||
 	    !list_empty(&rs->rs_notify_queue))
-		mask |= (POLLIN | POLLRDNORM);
+		mask |= (EPOLLIN | EPOLLRDNORM);
 	if (rs->rs_snd_bytes < rds_sk_sndbuf(rs))
-		mask |= (POLLOUT | POLLWRNORM);
+		mask |= (EPOLLOUT | EPOLLWRNORM);
 	read_unlock_irqrestore(&rs->rs_recv_lock, flags);
 
 	/* clear state any time we wake a seen-congested socket */

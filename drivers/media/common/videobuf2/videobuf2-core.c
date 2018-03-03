@@ -2038,9 +2038,9 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 	struct vb2_buffer *vb = NULL;
 	unsigned long flags;
 
-	if (!q->is_output && !(req_events & (POLLIN | POLLRDNORM)))
+	if (!q->is_output && !(req_events & (EPOLLIN | EPOLLRDNORM)))
 		return 0;
-	if (q->is_output && !(req_events & (POLLOUT | POLLWRNORM)))
+	if (q->is_output && !(req_events & (EPOLLOUT | EPOLLWRNORM)))
 		return 0;
 
 	/*
@@ -2048,18 +2048,18 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 	 */
 	if (q->num_buffers == 0 && !vb2_fileio_is_active(q)) {
 		if (!q->is_output && (q->io_modes & VB2_READ) &&
-				(req_events & (POLLIN | POLLRDNORM))) {
+				(req_events & (EPOLLIN | EPOLLRDNORM))) {
 			if (__vb2_init_fileio(q, 1))
-				return POLLERR;
+				return EPOLLERR;
 		}
 		if (q->is_output && (q->io_modes & VB2_WRITE) &&
-				(req_events & (POLLOUT | POLLWRNORM))) {
+				(req_events & (EPOLLOUT | EPOLLWRNORM))) {
 			if (__vb2_init_fileio(q, 0))
-				return POLLERR;
+				return EPOLLERR;
 			/*
 			 * Write to OUTPUT queue can be done immediately.
 			 */
-			return POLLOUT | POLLWRNORM;
+			return EPOLLOUT | EPOLLWRNORM;
 		}
 	}
 
@@ -2068,24 +2068,24 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 	 * error flag is set.
 	 */
 	if (!vb2_is_streaming(q) || q->error)
-		return POLLERR;
+		return EPOLLERR;
 
 	/*
 	 * If this quirk is set and QBUF hasn't been called yet then
-	 * return POLLERR as well. This only affects capture queues, output
+	 * return EPOLLERR as well. This only affects capture queues, output
 	 * queues will always initialize waiting_for_buffers to false.
 	 * This quirk is set by V4L2 for backwards compatibility reasons.
 	 */
 	if (q->quirk_poll_must_check_waiting_for_buffers &&
-	    q->waiting_for_buffers && (req_events & (POLLIN | POLLRDNORM)))
-		return POLLERR;
+	    q->waiting_for_buffers && (req_events & (EPOLLIN | EPOLLRDNORM)))
+		return EPOLLERR;
 
 	/*
 	 * For output streams you can call write() as long as there are fewer
 	 * buffers queued than there are buffers available.
 	 */
 	if (q->is_output && q->fileio && q->queued_count < q->num_buffers)
-		return POLLOUT | POLLWRNORM;
+		return EPOLLOUT | EPOLLWRNORM;
 
 	if (list_empty(&q->done_list)) {
 		/*
@@ -2093,7 +2093,7 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 		 * return immediately. DQBUF will return -EPIPE.
 		 */
 		if (q->last_buffer_dequeued)
-			return POLLIN | POLLRDNORM;
+			return EPOLLIN | EPOLLRDNORM;
 
 		poll_wait(file, &q->done_wq, wait);
 	}
@@ -2110,8 +2110,8 @@ __poll_t vb2_core_poll(struct vb2_queue *q, struct file *file,
 	if (vb && (vb->state == VB2_BUF_STATE_DONE
 			|| vb->state == VB2_BUF_STATE_ERROR)) {
 		return (q->is_output) ?
-				POLLOUT | POLLWRNORM :
-				POLLIN | POLLRDNORM;
+				EPOLLOUT | EPOLLWRNORM :
+				EPOLLIN | EPOLLRDNORM;
 	}
 	return 0;
 }

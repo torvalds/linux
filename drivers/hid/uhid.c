@@ -760,7 +760,7 @@ static __poll_t uhid_char_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &uhid->waitq, wait);
 
 	if (uhid->head != uhid->tail)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }
