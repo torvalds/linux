@@ -1598,7 +1598,7 @@ static int rcu_oom_notify(struct notifier_block *self,
 
 	for_each_online_cpu(cpu) {
 		smp_call_function_single(cpu, rcu_oom_notify_cpu, NULL, 1);
-		cond_resched_rcu_qs();
+		cond_resched_tasks_rcu_qs();
 	}
 
 	/* Unconditionally decrement: no need to wake ourselves up. */
@@ -2227,7 +2227,7 @@ static int rcu_nocb_kthread(void *arg)
 				cl++;
 			c++;
 			local_bh_enable();
-			cond_resched_rcu_qs();
+			cond_resched_tasks_rcu_qs();
 			list = next;
 		}
 		trace_rcu_batch_end(rdp->rsp->name, c, !!list, 0, 0, 1);
