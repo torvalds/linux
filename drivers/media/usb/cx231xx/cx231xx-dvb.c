@@ -79,7 +79,7 @@ static struct s5h1432_config dvico_s5h1432_config = {
 	.vsb_if        = S5H1432_IF_4000,
 	.inversion     = S5H1432_INVERSION_OFF,
 	.status_mode   = S5H1432_DEMODLOCKING,
-	.mpeg_timing   = S5H1432_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1432_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 };
 
 static struct tda18271_std_map cnxt_rde253s_tda18271_std_map = {
@@ -108,7 +108,7 @@ static struct s5h1411_config tda18271_s5h1411_config = {
 	.qam_if        = S5H1411_IF_4000,
 	.inversion     = S5H1411_INVERSION_ON,
 	.status_mode   = S5H1411_DEMODLOCKING,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 };
 static struct s5h1411_config xc5000_s5h1411_config = {
 	.output_mode   = S5H1411_SERIAL_OUTPUT,
@@ -117,7 +117,7 @@ static struct s5h1411_config xc5000_s5h1411_config = {
 	.qam_if        = S5H1411_IF_3250,
 	.inversion     = S5H1411_INVERSION_OFF,
 	.status_mode   = S5H1411_DEMODLOCKING,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 };
 
 static struct lgdt3305_config hcw_lgdt3305_config = {
