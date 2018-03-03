@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "sched.h"
-
 /*
  * stop-task scheduling class.
  *
@@ -9,6 +7,7 @@
  *
  * See kernel/stop_machine.c
  */
+#include "sched.h"
 
 #ifdef CONFIG_SMP
 static int

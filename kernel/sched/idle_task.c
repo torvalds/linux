@@ -14,7 +14,7 @@ select_task_rq_idle(struct task_struct *p, int cpu, int sd_flag, int flags)
 {
 	return task_cpu(p); /* IDLE tasks as never migrated */
 }
-#endif /* CONFIG_SMP */
+#endif
 
 /*
  * Idle tasks are unconditionally rescheduled:
@@ -30,6 +30,7 @@ pick_next_task_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf
 	put_prev_task(rq, prev);
 	update_idle_core(rq);
 	schedstat_inc(rq->sched_goidle);
+
 	return rq->idle;
 }
 

@@ -135,7 +135,7 @@ struct rq *task_rq_lock(struct task_struct *p, struct rq_flags *rf)
 		 *					[L] ->on_rq
 		 *	RELEASE (rq->lock)
 		 *
-		 * If we observe the old cpu in task_rq_lock, the acquire of
+		 * If we observe the old CPU in task_rq_lock, the acquire of
 		 * the old rq->lock will fully serialize against the stores.
 		 *
 		 * If we observe the new CPU in task_rq_lock, the acquire will
@@ -1457,7 +1457,7 @@ EXPORT_SYMBOL_GPL(kick_process);
  *
  *  - cpu_active must be a subset of cpu_online
  *
- *  - on cpu-up we allow per-cpu kthreads on the online && !active cpu,
+ *  - on CPU-up we allow per-CPU kthreads on the online && !active CPU,
  *    see __set_cpus_allowed_ptr(). At this point the newly online
  *    CPU isn't yet part of the sched domains, and balancing will not
  *    see it.
@@ -3037,7 +3037,7 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 
 #if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
 	/*
-	 * 64-bit doesn't need locks to atomically read a 64bit value.
+	 * 64-bit doesn't need locks to atomically read a 64-bit value.
 	 * So we have a optimization chance when the task's delta_exec is 0.
 	 * Reading ->on_cpu is racy, but this is ok.
 	 *

@@ -1,5 +1,5 @@
 /*
- * Generic entry point for the idle threads
+ * Generic entry points for the idle threads
  */
 #include <linux/sched.h>
 #include <linux/sched/idle.h>
@@ -332,8 +332,8 @@ void cpu_startup_entry(enum cpuhp_state state)
 {
 	/*
 	 * This #ifdef needs to die, but it's too late in the cycle to
-	 * make this generic (arm and sh have never invoked the canary
-	 * init for the non boot cpus!). Will be fixed in 3.11
+	 * make this generic (ARM and SH have never invoked the canary
+	 * init for the non boot CPUs!). Will be fixed in 3.11
 	 */
 #ifdef CONFIG_X86
 	/*

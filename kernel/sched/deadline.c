@@ -539,12 +539,12 @@ static struct rq *dl_task_offline_migration(struct rq *rq, struct task_struct *p
 
 		/*
 		 * If we cannot preempt any rq, fall back to pick any
-		 * online cpu.
+		 * online CPU:
 		 */
 		cpu = cpumask_any_and(cpu_active_mask, &p->cpus_allowed);
 		if (cpu >= nr_cpu_ids) {
 			/*
-			 * Fail to find any suitable cpu.
+			 * Failed to find any suitable CPU.
 			 * The task will never come back!
 			 */
 			BUG_ON(dl_bandwidth_enabled());
@@ -608,8 +608,7 @@ static inline void queue_pull_task(struct rq *rq)
 
 static void enqueue_task_dl(struct rq *rq, struct task_struct *p, int flags);
 static void __dequeue_task_dl(struct rq *rq, struct task_struct *p, int flags);
-static void check_preempt_curr_dl(struct rq *rq, struct task_struct *p,
-				  int flags);
+static void check_preempt_curr_dl(struct rq *rq, struct task_struct *p, int flags);
 
 /*
  * We are being explicitly informed that a new instance is starting,
@@ -1873,7 +1872,7 @@ static int find_later_rq(struct task_struct *task)
 
 	/*
 	 * We have to consider system topology and task affinity
-	 * first, then we can look for a suitable cpu.
+	 * first, then we can look for a suitable CPU.
 	 */
 	if (!cpudl_find(&task_rq(task)->rd->cpudl, task, later_mask))
 		return -1;
@@ -1887,7 +1886,7 @@ static int find_later_rq(struct task_struct *task)
 	 * Now we check how well this matches with task's
 	 * affinity and system topology.
 	 *
-	 * The last cpu where the task run is our first
+	 * The last CPU where the task run is our first
 	 * guess, since it is most likely cache-hot there.
 	 */
 	if (cpumask_test_cpu(cpu, later_mask))
@@ -1917,9 +1916,9 @@ static int find_later_rq(struct task_struct *task)
 			best_cpu = cpumask_first_and(later_mask,
 							sched_domain_span(sd));
 			/*
-			 * Last chance: if a cpu being in both later_mask
+			 * Last chance: if a CPU being in both later_mask
 			 * and current sd span is valid, that becomes our
-			 * choice. Of course, the latest possible cpu is
+			 * choice. Of course, the latest possible CPU is
 			 * already under consideration through later_mask.
 			 */
 			if (best_cpu < nr_cpu_ids) {
@@ -2075,7 +2074,7 @@ retry:
 		if (task == next_task) {
 			/*
 			 * The task is still there. We don't try
-			 * again, some other cpu will pull it when ready.
+			 * again, some other CPU will pull it when ready.
 			 */
 			goto out;
 		}
@@ -2308,7 +2307,7 @@ static void switched_from_dl(struct rq *rq, struct task_struct *p)
 	/*
 	 * Since this might be the only -deadline task on the rq,
 	 * this is the right place to try to pull some other one
-	 * from an overloaded cpu, if any.
+	 * from an overloaded CPU, if any.
 	 */
 	if (!task_on_rq_queued(p) || rq->dl.dl_nr_running)
 		return;
@@ -2634,17 +2633,17 @@ void __dl_clear_params(struct task_struct *p)
 {
 	struct sched_dl_entity *dl_se = &p->dl;
 
-	dl_se->dl_runtime = 0;
-	dl_se->dl_deadline = 0;
-	dl_se->dl_period = 0;
-	dl_se->flags = 0;
-	dl_se->dl_bw = 0;
-	dl_se->dl_density = 0;
+	dl_se->dl_runtime		= 0;
+	dl_se->dl_deadline		= 0;
+	dl_se->dl_period		= 0;
+	dl_se->flags			= 0;
+	dl_se->dl_bw			= 0;
+	dl_se->dl_density		= 0;
 
-	dl_se->dl_throttled = 0;
-	dl_se->dl_yielded = 0;
-	dl_se->dl_non_contending = 0;
-	dl_se->dl_overrun = 0;
+	dl_se->dl_throttled		= 0;
+	dl_se->dl_yielded		= 0;
+	dl_se->dl_non_contending	= 0;
+	dl_se->dl_overrun		= 0;
 }
 
 bool dl_param_changed(struct task_struct *p, const struct sched_attr *attr)
@@ -2663,21 +2662,22 @@ bool dl_param_changed(struct task_struct *p, const struct sched_attr *attr)
 #ifdef CONFIG_SMP
 int dl_task_can_attach(struct task_struct *p, const struct cpumask *cs_cpus_allowed)
 {
-	unsigned int dest_cpu = cpumask_any_and(cpu_active_mask,
-							cs_cpus_allowed);
+	unsigned int dest_cpu;
 	struct dl_bw *dl_b;
 	bool overflow;
 	int cpus, ret;
 	unsigned long flags;
+
+	dest_cpu = cpumask_any_and(cpu_active_mask, cs_cpus_allowed);
 
 	rcu_read_lock_sched();
 	dl_b = dl_bw_of(dest_cpu);
 	raw_spin_lock_irqsave(&dl_b->lock, flags);
 	cpus = dl_bw_cpus(dest_cpu);
 	overflow = __dl_overflow(dl_b, cpus, 0, p->dl.dl_bw);
-	if (overflow)
+	if (overflow) {
 		ret = -EBUSY;
-	else {
+	} else {
 		/*
 		 * We reserve space for this task in the destination
 		 * root_domain, as we can't fail after this point.
@@ -2689,6 +2689,7 @@ int dl_task_can_attach(struct task_struct *p, const struct cpumask *cs_cpus_allo
 	}
 	raw_spin_unlock_irqrestore(&dl_b->lock, flags);
 	rcu_read_unlock_sched();
+
 	return ret;
 }
 
@@ -2709,6 +2710,7 @@ int dl_cpuset_cpumask_can_shrink(const struct cpumask *cur,
 		ret = 0;
 	raw_spin_unlock_irqrestore(&cur_dl_b->lock, flags);
 	rcu_read_unlock_sched();
+
 	return ret;
 }
 
@@ -2726,6 +2728,7 @@ bool dl_cpu_busy(unsigned int cpu)
 	overflow = __dl_overflow(dl_b, cpus, 0, 0);
 	raw_spin_unlock_irqrestore(&dl_b->lock, flags);
 	rcu_read_unlock_sched();
+
 	return overflow;
 }
 #endif

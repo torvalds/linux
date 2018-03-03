@@ -10,7 +10,6 @@
  *  as published by the Free Software Foundation; version 2
  *  of the License.
  */
-
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -147,9 +146,9 @@ int cpudl_find(struct cpudl *cp, struct task_struct *p,
 }
 
 /*
- * cpudl_clear - remove a cpu from the cpudl max-heap
+ * cpudl_clear - remove a CPU from the cpudl max-heap
  * @cp: the cpudl max-heap context
- * @cpu: the target cpu
+ * @cpu: the target CPU
  *
  * Notes: assumes cpu_rq(cpu)->lock is locked
  *
@@ -188,8 +187,8 @@ void cpudl_clear(struct cpudl *cp, int cpu)
 /*
  * cpudl_set - update the cpudl max-heap
  * @cp: the cpudl max-heap context
- * @cpu: the target cpu
- * @dl: the new earliest deadline for this cpu
+ * @cpu: the target CPU
+ * @dl: the new earliest deadline for this CPU
  *
  * Notes: assumes cpu_rq(cpu)->lock is locked
  *
@@ -224,7 +223,7 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl)
 /*
  * cpudl_set_freecpu - Set the cpudl.free_cpus
  * @cp: the cpudl max-heap context
- * @cpu: rd attached cpu
+ * @cpu: rd attached CPU
  */
 void cpudl_set_freecpu(struct cpudl *cp, int cpu)
 {
@@ -234,7 +233,7 @@ void cpudl_set_freecpu(struct cpudl *cp, int cpu)
 /*
  * cpudl_clear_freecpu - Clear the cpudl.free_cpus
  * @cp: the cpudl max-heap context
- * @cpu: rd attached cpu
+ * @cpu: rd attached CPU
  */
 void cpudl_clear_freecpu(struct cpudl *cp, int cpu)
 {
