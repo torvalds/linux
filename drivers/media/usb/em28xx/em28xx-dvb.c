@@ -1,25 +1,25 @@
-/*
- DVB device driver for em28xx
-
- (c) 2008-2011 Mauro Carvalho Chehab <mchehab@infradead.org>
-
- (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
-	- Fixes for the driver to properly work with HVR-950
-	- Fixes for the driver to properly work with Pinnacle PCTV HD Pro Stick
-	- Fixes for the driver to properly work with AMD ATI TV Wonder HD 600
-
- (c) 2008 Aidan Thornton <makosoft@googlemail.com>
-
- (c) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
-
- Based on cx88-dvb, saa7134-dvb and videobuf-dvb originally written by:
-	(c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
-	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
-
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// DVB device driver for em28xx
+//
+// (c) 2008-2011 Mauro Carvalho Chehab <mchehab@infradead.org>
+//
+// (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
+//	- Fixes for the driver to properly work with HVR-950
+//	- Fixes for the driver to properly work with Pinnacle PCTV HD Pro Stick
+//	- Fixes for the driver to properly work with AMD ATI TV Wonder HD 600
+//
+// (c) 2008 Aidan Thornton <makosoft@googlemail.com>
+//
+// (c) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
+//
+// Based on cx88-dvb, saa7134-dvb and videobuf-dvb originally written by:
+//	(c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
+//	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation version 2 of the License.
 
 #include "em28xx.h"
 
@@ -64,7 +64,7 @@
 #include "qm1d1c0042.h"
 
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION(DRIVER_DESC " - digital TV interface");
 MODULE_VERSION(EM28XX_VERSION);
 

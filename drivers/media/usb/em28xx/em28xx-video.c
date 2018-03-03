@@ -1,30 +1,26 @@
-/*
-   em28xx-video.c - driver for Empia EM2800/EM2820/2840 USB
-		    video capture devices
-
-   Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
-		      Markus Rechberger <mrechberger@gmail.com>
-		      Mauro Carvalho Chehab <mchehab@infradead.org>
-		      Sascha Sommer <saschasommer@freenet.de>
-   Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
-
-	Some parts based on SN9C10x PC Camera Controllers GPL driver made
-		by Luca Risolia <luca.risolia@studio.unibo.it>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// em28xx-video.c - driver for Empia EM2800/EM2820/2840 USB
+//		    video capture devices
+//
+// Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
+//		      Markus Rechberger <mrechberger@gmail.com>
+//		      Mauro Carvalho Chehab <mchehab@infradead.org>
+//		      Sascha Sommer <saschasommer@freenet.de>
+// Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
+//
+//	Some parts based on SN9C10x PC Camera Controllers GPL driver made
+//		by Luca Risolia <luca.risolia@studio.unibo.it>
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
 
 #include "em28xx.h"
 
@@ -77,7 +73,7 @@ MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC " - v4l2 interface");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(EM28XX_VERSION);
 
 #define EM25XX_FRMDATAHDR_BYTE1			0x02

@@ -1,4 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+
+/*
+ * em28xx-reg.h - Register definitions for em28xx driver
+ */
+
 #define EM_GPIO_0  (1 << 0)
 #define EM_GPIO_1  (1 << 1)
 #define EM_GPIO_2  (1 << 2)
