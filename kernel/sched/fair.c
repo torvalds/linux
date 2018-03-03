@@ -20,23 +20,9 @@
  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
  */
-#include <linux/sched/mm.h>
-#include <linux/sched/topology.h>
-
-#include <linux/latencytop.h>
-#include <linux/cpumask.h>
-#include <linux/cpuidle.h>
-#include <linux/slab.h>
-#include <linux/profile.h>
-#include <linux/interrupt.h>
-#include <linux/mempolicy.h>
-#include <linux/migrate.h>
-#include <linux/task_work.h>
-#include <linux/sched/isolation.h>
+#include "sched.h"
 
 #include <trace/events/sched.h>
-
-#include "sched.h"
 
 /*
  * Targeted preemption latency for CPU-bound tasks:

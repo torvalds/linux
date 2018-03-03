@@ -6,13 +6,6 @@
  * Copyright (C) 2017-2018 SUSE, Frederic Weisbecker
  *
  */
-#include <linux/sched/isolation.h>
-#include <linux/tick.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/static_key.h>
-#include <linux/ctype.h>
-
 #include "sched.h"
 
 DEFINE_STATIC_KEY_FALSE(housekeeping_overriden);

@@ -1,10 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_SCHED_AUTOGROUP
 
-#include <linux/kref.h>
-#include <linux/rwsem.h>
-#include <linux/sched/autogroup.h>
-
 struct autogroup {
 	/*
 	 * Reference doesn't mean how many threads attach to this

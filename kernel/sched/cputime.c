@@ -1,10 +1,6 @@
-#include <linux/export.h>
-#include <linux/sched.h>
-#include <linux/tsacct_kern.h>
-#include <linux/kernel_stat.h>
-#include <linux/static_key.h>
-#include <linux/context_tracking.h>
-#include <linux/sched/cputime.h>
+/*
+ * Simple CPU accounting cgroup controller
+ */
 #include "sched.h"
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING

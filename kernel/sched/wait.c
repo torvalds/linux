@@ -3,14 +3,7 @@
  *
  * (C) 2004 Nadia Yvette Chambers, Oracle
  */
-#include <linux/init.h>
-#include <linux/export.h>
-#include <linux/sched/signal.h>
-#include <linux/sched/debug.h>
-#include <linux/mm.h>
-#include <linux/wait.h>
-#include <linux/hash.h>
-#include <linux/kthread.h>
+#include "sched.h"
 
 void __init_waitqueue_head(struct wait_queue_head *wq_head, const char *name, struct lock_class_key *key)
 {

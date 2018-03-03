@@ -11,13 +11,9 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/cpufreq.h>
-#include <linux/kthread.h>
-#include <uapi/linux/sched/types.h>
-#include <linux/slab.h>
-#include <trace/events/power.h>
-
 #include "sched.h"
+
+#include <trace/events/power.h>
 
 struct sugov_tunables {
 	struct gov_attr_set	attr_set;

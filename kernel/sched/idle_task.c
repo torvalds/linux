@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "sched.h"
-
 /*
  * idle-task scheduling class.
  *
- * (NOTE: these are not related to SCHED_IDLE tasks which are
+ * (NOTE: these are not related to SCHED_IDLE batch scheduling tasks which are
  *  handled in sched/fair.c)
  */
+#include "sched.h"
 
 #ifdef CONFIG_SMP
 static int

@@ -10,10 +10,7 @@
  *  as published by the Free Software Foundation; version 2
  *  of the License.
  */
-#include <linux/gfp.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include "cpudeadline.h"
+#include "sched.h"
 
 static inline int parent(int i)
 {

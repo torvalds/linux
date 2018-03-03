@@ -1,22 +1,9 @@
 /*
  * Generic entry points for the idle threads
  */
-#include <linux/sched.h>
-#include <linux/sched/idle.h>
-#include <linux/cpu.h>
-#include <linux/cpuidle.h>
-#include <linux/cpuhotplug.h>
-#include <linux/tick.h>
-#include <linux/mm.h>
-#include <linux/stackprotector.h>
-#include <linux/suspend.h>
-#include <linux/livepatch.h>
-
-#include <asm/tlb.h>
+#include "sched.h"
 
 #include <trace/events/power.h>
-
-#include "sched.h"
 
 /* Linker adds these: start and end of __cpuidle functions */
 extern char __cpuidle_text_start[], __cpuidle_text_end[];

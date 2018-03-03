@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
-#include <linux/utsname.h>
-#include <linux/security.h>
-#include <linux/export.h>
-
+/*
+ * Auto-group scheduling implementation:
+ */
 #include "sched.h"
 
 unsigned int __read_mostly sysctl_sched_autogroup_enabled = 1;

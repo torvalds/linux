@@ -52,19 +52,7 @@
  * that is otherwise invisible (TSC gets stopped).
  *
  */
-#include <linux/spinlock.h>
-#include <linux/hardirq.h>
-#include <linux/export.h>
-#include <linux/percpu.h>
-#include <linux/ktime.h>
-#include <linux/sched.h>
-#include <linux/nmi.h>
-#include <linux/sched/clock.h>
-#include <linux/static_key.h>
-#include <linux/workqueue.h>
-#include <linux/compiler.h>
-#include <linux/tick.h>
-#include <linux/init.h>
+#include "sched.h"
 
 /*
  * Scheduler clock - returns current time in nanosec units.

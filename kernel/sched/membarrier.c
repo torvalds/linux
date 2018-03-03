@@ -13,14 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
-#include <linux/syscalls.h>
-#include <linux/membarrier.h>
-#include <linux/tick.h>
-#include <linux/cpumask.h>
-#include <linux/atomic.h>
-
-#include "sched.h"	/* for cpu_rq(). */
+#include "sched.h"
 
 /*
  * Bitmask made from a "or" of all commands within enum membarrier_cmd,

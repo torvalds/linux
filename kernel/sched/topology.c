@@ -2,10 +2,6 @@
 /*
  * Scheduler topology setup/handling methods
  */
-#include <linux/sched.h>
-#include <linux/mutex.h>
-#include <linux/sched/isolation.h>
-
 #include "sched.h"
 
 DEFINE_MUTEX(sched_domains_mutex);

@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
-
-#include <linux/slab.h>
-#include <linux/fs.h>
-#include <linux/seq_file.h>
-#include <linux/proc_fs.h>
-
+/*
+ * /proc/schedstat implementation
+ */
 #include "sched.h"
 
 /*
- * bump this up when changing the output format or the meaning of an existing
+ * Current schedstat API version.
+ *
+ * Bump this up when changing the output format or the meaning of an existing
  * format, so that tools can adapt (or abort)
  */
 #define SCHEDSTAT_VERSION 15

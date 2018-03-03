@@ -1,7 +1,7 @@
 /*
  * kernel/sched/debug.c
  *
- * Print the CFS rbtree
+ * Print the CFS rbtree and other debugging details
  *
  * Copyright(C) 2007, Red Hat, Inc., Ingo Molnar
  *
@@ -9,15 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#include <linux/proc_fs.h>
-#include <linux/sched/mm.h>
-#include <linux/sched/task.h>
-#include <linux/seq_file.h>
-#include <linux/kallsyms.h>
-#include <linux/utsname.h>
-#include <linux/mempolicy.h>
-#include <linux/debugfs.h>
-
 #include "sched.h"
 
 static DEFINE_SPINLOCK(sched_debug_lock);
