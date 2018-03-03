@@ -756,6 +756,50 @@ static const struct omap_dss_device_ops venc_ops = {
 	.set_timings = venc_set_timings,
 };
 
+/* -----------------------------------------------------------------------------
+ * Component Bind & Unbind
+ */
+
+static int venc_bind(struct device *dev, struct device *master, void *data)
+{
+	struct dss_device *dss = dss_get_device(master);
+	struct venc_device *venc = dev_get_drvdata(dev);
+	u8 rev_id;
+	int r;
+
+	venc->dss = dss;
+
+	r = venc_runtime_get(venc);
+	if (r)
+		return r;
+
+	rev_id = (u8)(venc_read_reg(venc, VENC_REV_ID) & 0xff);
+	dev_dbg(dev, "OMAP VENC rev %d\n", rev_id);
+
+	venc_runtime_put(venc);
+
+	venc->debugfs = dss_debugfs_create_file(dss, "venc", venc_dump_regs,
+						venc);
+
+	return 0;
+}
+
+static void venc_unbind(struct device *dev, struct device *master, void *data)
+{
+	struct venc_device *venc = dev_get_drvdata(dev);
+
+	dss_debugfs_remove_file(venc->debugfs);
+}
+
+static const struct component_ops venc_component_ops = {
+	.bind	= venc_bind,
+	.unbind	= venc_unbind,
+};
+
+/* -----------------------------------------------------------------------------
+ * Probe & Remove, Suspend & Resume
+ */
+
 static void venc_init_output(struct venc_device *venc)
 {
 	struct omap_dss_device *out = &venc->output;
@@ -820,19 +864,15 @@ err:
 	return r;
 }
 
-/* VENC HW IP initialisation */
 static const struct soc_device_attribute venc_soc_devices[] = {
 	{ .machine = "OMAP3[45]*" },
 	{ .machine = "AM35*" },
 	{ /* sentinel */ }
 };
 
-static int venc_bind(struct device *dev, struct device *master, void *data)
+static int venc_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dss_device *dss = dss_get_device(master);
 	struct venc_device *venc;
-	u8 rev_id;
 	struct resource *venc_mem;
 	int r;
 
@@ -841,8 +881,8 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 		return -ENOMEM;
 
 	venc->pdev = pdev;
-	venc->dss = dss;
-	dev_set_drvdata(dev, venc);
+
+	platform_set_drvdata(pdev, venc);
 
 	/* The OMAP34xx, OMAP35xx and AM35xx VENC require the TV DAC clock. */
 	if (soc_device_match(venc_soc_devices))
@@ -863,63 +903,39 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		goto err_free;
 
-	pm_runtime_enable(&pdev->dev);
-
-	r = venc_runtime_get(venc);
-	if (r)
-		goto err_pm_disable;
-
-	rev_id = (u8)(venc_read_reg(venc, VENC_REV_ID) & 0xff);
-	dev_dbg(&pdev->dev, "OMAP VENC rev %d\n", rev_id);
-
-	venc_runtime_put(venc);
-
 	r = venc_probe_of(venc);
-	if (r) {
-		DSSERR("Invalid DT data\n");
-		goto err_pm_disable;
-	}
+	if (r)
+		goto err_free;
 
-	venc->debugfs = dss_debugfs_create_file(dss, "venc", venc_dump_regs,
-						venc);
+	pm_runtime_enable(&pdev->dev);
 
 	venc_init_output(venc);
 
+	r = component_add(&pdev->dev, &venc_component_ops);
+	if (r)
+		goto err_uninit_output;
+
 	return 0;
 
-err_pm_disable:
+err_uninit_output:
+	venc_uninit_output(venc);
 	pm_runtime_disable(&pdev->dev);
 err_free:
 	kfree(venc);
 	return r;
 }
 
-static void venc_unbind(struct device *dev, struct device *master, void *data)
+static int venc_remove(struct platform_device *pdev)
 {
-	struct venc_device *venc = dev_get_drvdata(dev);
+	struct venc_device *venc = platform_get_drvdata(pdev);
 
-	dss_debugfs_remove_file(venc->debugfs);
+	component_del(&pdev->dev, &venc_component_ops);
 
 	venc_uninit_output(venc);
 
-	pm_runtime_disable(dev);
+	pm_runtime_disable(&pdev->dev);
 
 	kfree(venc);
-}
-
-static const struct component_ops venc_component_ops = {
-	.bind	= venc_bind,
-	.unbind	= venc_unbind,
-};
-
-static int venc_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &venc_component_ops);
-}
-
-static int venc_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &venc_component_ops);
 	return 0;
 }
 
