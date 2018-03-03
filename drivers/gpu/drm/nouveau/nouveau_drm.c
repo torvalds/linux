@@ -856,7 +856,6 @@ nouveau_pmops_runtime_suspend(struct device *dev)
 	}
 
 	drm_kms_helper_poll_disable(drm_dev);
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
 	nouveau_switcheroo_optimus_dsm();
 	ret = nouveau_do_suspend(drm_dev, true);
 	pci_save_state(pdev);
@@ -891,7 +890,6 @@ nouveau_pmops_runtime_resume(struct device *dev)
 
 	/* do magic */
 	nvif_mask(&device->object, 0x088488, (1 << 25), (1 << 25));
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
 
 	/* Monitors may have been connected / disconnected during suspend */
