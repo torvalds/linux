@@ -571,7 +571,8 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 
 		napi_gro_receive(napi, skb);
 
-		droq->stats.rx_bytes_received += len;
+		droq->stats.rx_bytes_received += len -
+			rh->r_dh.len * BYTES_PER_DHLEN_UNIT;
 		droq->stats.rx_pkts_received++;
 	} else {
 		recv_buffer_free(skb);
