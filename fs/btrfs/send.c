@@ -613,9 +613,9 @@ static int tlv_put_btrfs_timespec(struct send_ctx *sctx, u16 attr,
 }
 
 
-#define TLV_PUT(sctx, attrtype, attrlen, data) \
+#define TLV_PUT(sctx, attrtype, data, attrlen) \
 	do { \
-		ret = tlv_put(sctx, attrtype, attrlen, data); \
+		ret = tlv_put(sctx, attrtype, data, attrlen); \
 		if (ret < 0) \
 			goto tlv_put_failure; \
 	} while (0)
