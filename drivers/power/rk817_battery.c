@@ -101,8 +101,8 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define MIN_ZERO_OVERCNT		100
 #define MIN_ACCURACY			1
 #define DEF_PWRPATH_RES			50
-#define	WAIT_DSOC_DROP_SEC		15
-#define	WAIT_SHTD_DROP_SEC		30
+#define WAIT_DSOC_DROP_SEC		15
+#define WAIT_SHTD_DROP_SEC		30
 #define MIN_ZERO_GAP_XSOC1		10
 #define MIN_ZERO_GAP_XSOC2		5
 #define MIN_ZERO_GAP_XSOC3		3
@@ -149,6 +149,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define TIMER_MS_COUNTS		1000
 /* fcc */
 #define MIN_FCC				500
+#define CAP_INVALID			0x80
 
 /* virtual params */
 #define VIRTUAL_CURRENT			1000
@@ -1043,16 +1044,23 @@ static int rk817_bat_get_pwron_current(struct rk817_battery_device *battery)
 	return cur;
 }
 
+static bool rk817_bat_remain_cap_is_valid(struct rk817_battery_device *battery)
+{
+	return !(rk817_bat_field_read(battery, Q_PRESS_H3) & CAP_INVALID);
+}
+
 static u32 rk817_bat_get_capacity_uah(struct rk817_battery_device *battery)
 {
-	u32 val = 0, capacity;
+	u32 val = 0, capacity = 0;
 
-	val = rk817_bat_field_read(battery, Q_PRESS_H3) << 24;
-	val |= rk817_bat_field_read(battery, Q_PRESS_H2) << 16;
-	val |= rk817_bat_field_read(battery, Q_PRESS_L1) << 8;
-	val |= rk817_bat_field_read(battery, Q_PRESS_L0) << 0;
+	if (rk817_bat_remain_cap_is_valid(battery)) {
+		val = rk817_bat_field_read(battery, Q_PRESS_H3) << 24;
+		val |= rk817_bat_field_read(battery, Q_PRESS_H2) << 16;
+		val |= rk817_bat_field_read(battery, Q_PRESS_L1) << 8;
+		val |= rk817_bat_field_read(battery, Q_PRESS_L0) << 0;
 
-	capacity = ADC_TO_CAPACITY_UAH(val, battery->res_div);
+		capacity = ADC_TO_CAPACITY_UAH(val, battery->res_div);
+	}
 
 	DBG("xxxxxxxxxxxxx capacity = %d\n", capacity);
 	return  capacity;
@@ -1060,15 +1068,16 @@ static u32 rk817_bat_get_capacity_uah(struct rk817_battery_device *battery)
 
 static u32 rk817_bat_get_capacity_mah(struct rk817_battery_device *battery)
 {
-	u32 val, capacity;
+	u32 val, capacity = 0;
 
-	val = rk817_bat_field_read(battery, Q_PRESS_H3) << 24;
-	val |= rk817_bat_field_read(battery, Q_PRESS_H2) << 16;
-	val |= rk817_bat_field_read(battery, Q_PRESS_L1) << 8;
-	val |= rk817_bat_field_read(battery, Q_PRESS_L0) << 0;
+	if (rk817_bat_remain_cap_is_valid(battery)) {
+		val = rk817_bat_field_read(battery, Q_PRESS_H3) << 24;
+		val |= rk817_bat_field_read(battery, Q_PRESS_H2) << 16;
+		val |= rk817_bat_field_read(battery, Q_PRESS_L1) << 8;
+		val |= rk817_bat_field_read(battery, Q_PRESS_L0) << 0;
 
-	capacity = ADC_TO_CAPACITY(val, battery->res_div);
-
+		capacity = ADC_TO_CAPACITY(val, battery->res_div);
+	}
 	DBG("Q_PRESS_H3 = 0x%x\n", rk817_bat_field_read(battery, Q_PRESS_H3));
 	DBG("Q_PRESS_H2 = 0x%x\n", rk817_bat_field_read(battery, Q_PRESS_H2));
 	DBG("Q_PRESS_H1 = 0x%x\n", rk817_bat_field_read(battery, Q_PRESS_L1));
