@@ -4981,85 +4981,9 @@ static const struct omap_dss_device_ops dsi_ops = {
 	},
 };
 
-static void dsi_init_output(struct dsi_data *dsi)
-{
-	struct omap_dss_device *out = &dsi->output;
-
-	out->dev = dsi->dev;
-	out->id = dsi->module_id == 0 ?
-			OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
-
-	out->output_type = OMAP_DISPLAY_TYPE_DSI;
-	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
-	out->dispc_channel = dsi_get_channel(dsi);
-	out->ops = &dsi_ops;
-	out->owner = THIS_MODULE;
-	out->of_ports = BIT(0);
-
-	omapdss_device_register(out);
-}
-
-static void dsi_uninit_output(struct dsi_data *dsi)
-{
-	struct omap_dss_device *out = &dsi->output;
-
-	omapdss_device_unregister(out);
-}
-
-static int dsi_probe_of(struct dsi_data *dsi)
-{
-	struct device_node *node = dsi->dev->of_node;
-	struct property *prop;
-	u32 lane_arr[10];
-	int len, num_pins;
-	int r, i;
-	struct device_node *ep;
-	struct omap_dsi_pin_config pin_cfg;
-
-	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
-	if (!ep)
-		return 0;
-
-	prop = of_find_property(ep, "lanes", &len);
-	if (prop == NULL) {
-		dev_err(dsi->dev, "failed to find lane data\n");
-		r = -EINVAL;
-		goto err;
-	}
-
-	num_pins = len / sizeof(u32);
-
-	if (num_pins < 4 || num_pins % 2 != 0 ||
-		num_pins > dsi->num_lanes_supported * 2) {
-		dev_err(dsi->dev, "bad number of lanes\n");
-		r = -EINVAL;
-		goto err;
-	}
-
-	r = of_property_read_u32_array(ep, "lanes", lane_arr, num_pins);
-	if (r) {
-		dev_err(dsi->dev, "failed to read lane data\n");
-		goto err;
-	}
-
-	pin_cfg.num_pins = num_pins;
-	for (i = 0; i < num_pins; ++i)
-		pin_cfg.pins[i] = (int)lane_arr[i];
-
-	r = dsi_configure_pins(&dsi->output, &pin_cfg);
-	if (r) {
-		dev_err(dsi->dev, "failed to configure pins");
-		goto err;
-	}
-
-	of_node_put(ep);
-
-	return 0;
-
-err:
-	of_node_put(ep);
-	return r;
-}
+/* -----------------------------------------------------------------------------
+ * PLL
+ */
 
 static const struct dss_pll_ops dsi_pll_ops = {
 	.enable = dsi_pll_enable,
@@ -5174,7 +5098,153 @@ static int dsi_init_pll_data(struct dss_device *dss, struct dsi_data *dsi)
 	return 0;
 }
 
-/* DSI1 HW IP initialisation */
+/* -----------------------------------------------------------------------------
+ * Component Bind & Unbind
+ */
+
+static int dsi_bind(struct device *dev, struct device *master, void *data)
+{
+	struct dss_device *dss = dss_get_device(master);
+	struct dsi_data *dsi = dev_get_drvdata(dev);
+	char name[10];
+	u32 rev;
+	int r;
+
+	dsi->dss = dss;
+
+	dsi_init_pll_data(dss, dsi);
+
+	r = dsi_runtime_get(dsi);
+	if (r)
+		return r;
+
+	rev = dsi_read_reg(dsi, DSI_REVISION);
+	dev_dbg(dev, "OMAP DSI rev %d.%d\n",
+	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
+
+	dsi->line_buffer_size = dsi_get_line_buf_size(dsi);
+
+	dsi_runtime_put(dsi);
+
+	snprintf(name, sizeof(name), "dsi%u_regs", dsi->module_id + 1);
+	dsi->debugfs.regs = dss_debugfs_create_file(dss, name,
+						    dsi_dump_dsi_regs, &dsi);
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	snprintf(name, sizeof(name), "dsi%u_irqs", dsi->module_id + 1);
+	dsi->debugfs.irqs = dss_debugfs_create_file(dss, name,
+						    dsi_dump_dsi_irqs, &dsi);
+#endif
+	snprintf(name, sizeof(name), "dsi%u_clks", dsi->module_id + 1);
+	dsi->debugfs.clks = dss_debugfs_create_file(dss, name,
+						    dsi_dump_dsi_clocks, &dsi);
+
+	return 0;
+}
+
+static void dsi_unbind(struct device *dev, struct device *master, void *data)
+{
+	struct dsi_data *dsi = dev_get_drvdata(dev);
+
+	dss_debugfs_remove_file(dsi->debugfs.clks);
+	dss_debugfs_remove_file(dsi->debugfs.irqs);
+	dss_debugfs_remove_file(dsi->debugfs.regs);
+
+	of_platform_depopulate(dev);
+
+	WARN_ON(dsi->scp_clk_refcount > 0);
+
+	dss_pll_unregister(&dsi->pll);
+}
+
+static const struct component_ops dsi_component_ops = {
+	.bind	= dsi_bind,
+	.unbind	= dsi_unbind,
+};
+
+/* -----------------------------------------------------------------------------
+ * Probe & Remove, Suspend & Resume
+ */
+
+static void dsi_init_output(struct dsi_data *dsi)
+{
+	struct omap_dss_device *out = &dsi->output;
+
+	out->dev = dsi->dev;
+	out->id = dsi->module_id == 0 ?
+			OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
+
+	out->output_type = OMAP_DISPLAY_TYPE_DSI;
+	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
+	out->dispc_channel = dsi_get_channel(dsi);
+	out->ops = &dsi_ops;
+	out->owner = THIS_MODULE;
+	out->of_ports = BIT(0);
+
+	omapdss_device_register(out);
+}
+
+static void dsi_uninit_output(struct dsi_data *dsi)
+{
+	struct omap_dss_device *out = &dsi->output;
+
+	omapdss_device_unregister(out);
+}
+
+static int dsi_probe_of(struct dsi_data *dsi)
+{
+	struct device_node *node = dsi->dev->of_node;
+	struct property *prop;
+	u32 lane_arr[10];
+	int len, num_pins;
+	int r, i;
+	struct device_node *ep;
+	struct omap_dsi_pin_config pin_cfg;
+
+	ep = of_graph_get_endpoint_by_regs(node, 0, 0);
+	if (!ep)
+		return 0;
+
+	prop = of_find_property(ep, "lanes", &len);
+	if (prop == NULL) {
+		dev_err(dsi->dev, "failed to find lane data\n");
+		r = -EINVAL;
+		goto err;
+	}
+
+	num_pins = len / sizeof(u32);
+
+	if (num_pins < 4 || num_pins % 2 != 0 ||
+		num_pins > dsi->num_lanes_supported * 2) {
+		dev_err(dsi->dev, "bad number of lanes\n");
+		r = -EINVAL;
+		goto err;
+	}
+
+	r = of_property_read_u32_array(ep, "lanes", lane_arr, num_pins);
+	if (r) {
+		dev_err(dsi->dev, "failed to read lane data\n");
+		goto err;
+	}
+
+	pin_cfg.num_pins = num_pins;
+	for (i = 0; i < num_pins; ++i)
+		pin_cfg.pins[i] = (int)lane_arr[i];
+
+	r = dsi_configure_pins(&dsi->output, &pin_cfg);
+	if (r) {
+		dev_err(dsi->dev, "failed to configure pins");
+		goto err;
+	}
+
+	of_node_put(ep);
+
+	return 0;
+
+err:
+	of_node_put(ep);
+	return r;
+}
+
 static const struct dsi_of_data dsi_of_data_omap34xx = {
 	.model = DSI_MODEL_OMAP3,
 	.pll_hw = &dss_omap3_dsi_pll_hw,
@@ -5240,24 +5310,21 @@ static const struct soc_device_attribute dsi_soc_devices[] = {
 	{ /* sentinel */ }
 };
 
-static int dsi_bind(struct device *dev, struct device *master, void *data)
+static int dsi_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dss_device *dss = dss_get_device(master);
 	const struct soc_device_attribute *soc;
 	const struct dsi_module_id_data *d;
-	u32 rev;
-	int r, i;
+	struct device *dev = &pdev->dev;
 	struct dsi_data *dsi;
 	struct resource *dsi_mem;
 	struct resource *res;
-	char name[10];
+	unsigned int i;
+	int r;
 
 	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
 		return -ENOMEM;
 
-	dsi->dss = dss;
 	dsi->dev = dev;
 	dev_set_drvdata(dev, dsi);
 
@@ -5354,17 +5421,7 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		return r;
 
-	dsi_init_pll_data(dss, dsi);
-
 	pm_runtime_enable(dev);
-
-	r = dsi_runtime_get(dsi);
-	if (r)
-		goto err_pm_disable;
-
-	rev = dsi_read_reg(dsi, DSI_REVISION);
-	dev_dbg(dev, "OMAP DSI rev %d.%d\n",
-	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	/* DSI on OMAP3 doesn't have register DSI_GNQ, set number
 	 * of data to 3 by default */
@@ -5373,8 +5430,6 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 		dsi->num_lanes_supported = 1 + REG_GET(dsi, DSI_GNQ, 11, 9);
 	else
 		dsi->num_lanes_supported = 3;
-
-	dsi->line_buffer_size = dsi_get_line_buf_size(dsi);
 
 	dsi_init_output(dsi);
 
@@ -5388,67 +5443,33 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		DSSERR("Failed to populate DSI child devices: %d\n", r);
 
-	dsi_runtime_put(dsi);
-
-	snprintf(name, sizeof(name), "dsi%u_regs", dsi->module_id + 1);
-	dsi->debugfs.regs = dss_debugfs_create_file(dss, name,
-						    dsi_dump_dsi_regs, &dsi);
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	snprintf(name, sizeof(name), "dsi%u_irqs", dsi->module_id + 1);
-	dsi->debugfs.irqs = dss_debugfs_create_file(dss, name,
-						    dsi_dump_dsi_irqs, &dsi);
-#endif
-	snprintf(name, sizeof(name), "dsi%u_clks", dsi->module_id + 1);
-	dsi->debugfs.clks = dss_debugfs_create_file(dss, name,
-						    dsi_dump_dsi_clocks, &dsi);
+	r = component_add(&pdev->dev, &dsi_component_ops);
+	if (r)
+		goto err_uninit_output;
 
 	return 0;
 
 err_uninit_output:
 	dsi_uninit_output(dsi);
-	dsi_runtime_put(dsi);
-err_pm_disable:
 	pm_runtime_disable(dev);
 	return r;
 }
 
-static void dsi_unbind(struct device *dev, struct device *master, void *data)
+static int dsi_remove(struct platform_device *pdev)
 {
-	struct dsi_data *dsi = dev_get_drvdata(dev);
+	struct dsi_data *dsi = platform_get_drvdata(pdev);
 
-	dss_debugfs_remove_file(dsi->debugfs.clks);
-	dss_debugfs_remove_file(dsi->debugfs.irqs);
-	dss_debugfs_remove_file(dsi->debugfs.regs);
-
-	of_platform_depopulate(dev);
-
-	WARN_ON(dsi->scp_clk_refcount > 0);
-
-	dss_pll_unregister(&dsi->pll);
+	component_del(&pdev->dev, &dsi_component_ops);
 
 	dsi_uninit_output(dsi);
 
-	pm_runtime_disable(dev);
+	pm_runtime_disable(&pdev->dev);
 
 	if (dsi->vdds_dsi_reg != NULL && dsi->vdds_dsi_enabled) {
 		regulator_disable(dsi->vdds_dsi_reg);
 		dsi->vdds_dsi_enabled = false;
 	}
-}
 
-static const struct component_ops dsi_component_ops = {
-	.bind	= dsi_bind,
-	.unbind	= dsi_unbind,
-};
-
-static int dsi_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &dsi_component_ops);
-}
-
-static int dsi_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &dsi_component_ops);
 	return 0;
 }
 
