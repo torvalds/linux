@@ -346,7 +346,6 @@ static int ravb_ring_init(struct net_device *ndev, int q)
 	int ring_size;
 	int i;
 
-	/* +16 gets room from the status from the card. */
 	priv->rx_buf_sz = (ndev->mtu <= 1492 ? PKT_BUF_SZ : ndev->mtu) +
 		ETH_HLEN + VLAN_HLEN;
 
