@@ -115,9 +115,10 @@ config DELL_SMBIOS
 
 config DELL_SMBIOS_WMI
 	bool "Dell SMBIOS driver WMI backend"
+	default y
 	depends on ACPI_WMI
 	select DELL_WMI_DESCRIPTOR
-	select DELL_SMBIOS
+	depends on DELL_SMBIOS
 	---help---
 	This provides an implementation for the Dell SMBIOS calling interface
 	communicated over ACPI-WMI.
@@ -128,8 +129,9 @@ config DELL_SMBIOS_WMI
 
 config DELL_SMBIOS_SMM
 	bool "Dell SMBIOS driver SMM backend"
+	default y
 	depends on DCDBAS
-	select DELL_SMBIOS
+	depends on DELL_SMBIOS
 	---help---
 	This provides an implementation for the Dell SMBIOS calling interface
 	communicated over SMI/SMM.
