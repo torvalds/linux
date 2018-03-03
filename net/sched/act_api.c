@@ -1083,7 +1083,7 @@ tcf_add_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
 
 	if (tca_get_fill(skb, actions, portid, n->nlmsg_seq, n->nlmsg_flags,
 			 RTM_NEWACTION, 0, 0) <= 0) {
-		NL_SET_ERR_MSG(extack, "Failed to fill netlink attributes while deleting TC action");
+		NL_SET_ERR_MSG(extack, "Failed to fill netlink attributes while adding TC action");
 		kfree_skb(skb);
 		return -EINVAL;
 	}
