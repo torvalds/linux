@@ -24,7 +24,6 @@
 #include <limits.h>
 
 #include <sys/capability.h>
-#include <sys/resource.h>
 
 #include <linux/unistd.h>
 #include <linux/filter.h>
@@ -41,7 +40,7 @@
 #  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
 # endif
 #endif
-
+#include "bpf_rlimit.h"
 #include "../../../include/linux/filter.h"
 
 #ifndef ARRAY_SIZE
@@ -2590,17 +2589,74 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
+		"runtime/jit: tail_call within bounds, prog once",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 0),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 1 },
+		.result = ACCEPT,
+		.retval = 42,
+	},
+	{
+		"runtime/jit: tail_call within bounds, prog loop",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 1),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 1 },
+		.result = ACCEPT,
+		.retval = 41,
+	},
+	{
+		"runtime/jit: tail_call within bounds, no prog",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 2),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 1 },
+		.result = ACCEPT,
+		.retval = 1,
+	},
+	{
+		"runtime/jit: tail_call out of bounds",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_3, 256),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_tail_call),
+			BPF_MOV64_IMM(BPF_REG_0, 2),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_prog = { 1 },
+		.result = ACCEPT,
+		.retval = 2,
+	},
+	{
 		"runtime/jit: pass negative index to tail_call",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_3, -1),
 			BPF_LD_MAP_FD(BPF_REG_2, 0),
 			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 				     BPF_FUNC_tail_call),
-			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 2),
 			BPF_EXIT_INSN(),
 		},
 		.fixup_prog = { 1 },
 		.result = ACCEPT,
+		.retval = 2,
 	},
 	{
 		"runtime/jit: pass > 32bit index to tail_call",
@@ -2609,11 +2665,12 @@ static struct bpf_test tests[] = {
 			BPF_LD_MAP_FD(BPF_REG_2, 0),
 			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
 				     BPF_FUNC_tail_call),
-			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 2),
 			BPF_EXIT_INSN(),
 		},
 		.fixup_prog = { 2 },
 		.result = ACCEPT,
+		.retval = 42,
 	},
 	{
 		"stack pointer arithmetic",
@@ -11279,16 +11336,61 @@ static int create_map(uint32_t size_value, uint32_t max_elem)
 	return fd;
 }
 
+static int create_prog_dummy1(void)
+{
+	struct bpf_insn prog[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 42),
+		BPF_EXIT_INSN(),
+	};
+
+	return bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog,
+				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+}
+
+static int create_prog_dummy2(int mfd, int idx)
+{
+	struct bpf_insn prog[] = {
+		BPF_MOV64_IMM(BPF_REG_3, idx),
+		BPF_LD_MAP_FD(BPF_REG_2, mfd),
+		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+			     BPF_FUNC_tail_call),
+		BPF_MOV64_IMM(BPF_REG_0, 41),
+		BPF_EXIT_INSN(),
+	};
+
+	return bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog,
+				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+}
+
 static int create_prog_array(void)
 {
-	int fd;
+	int p1key = 0, p2key = 1;
+	int mfd, p1fd, p2fd;
 
-	fd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
-			    sizeof(int), 4, 0);
-	if (fd < 0)
+	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
+			     sizeof(int), 4, 0);
+	if (mfd < 0) {
 		printf("Failed to create prog array '%s'!\n", strerror(errno));
+		return -1;
+	}
 
-	return fd;
+	p1fd = create_prog_dummy1();
+	p2fd = create_prog_dummy2(mfd, p2key);
+	if (p1fd < 0 || p2fd < 0)
+		goto out;
+	if (bpf_map_update_elem(mfd, &p1key, &p1fd, BPF_ANY) < 0)
+		goto out;
+	if (bpf_map_update_elem(mfd, &p2key, &p2fd, BPF_ANY) < 0)
+		goto out;
+	close(p2fd);
+	close(p1fd);
+
+	return mfd;
+out:
+	close(p2fd);
+	close(p1fd);
+	close(mfd);
+	return -1;
 }
 
 static int create_map_in_map(void)
@@ -11543,8 +11645,6 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 
 int main(int argc, char **argv)
 {
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-	struct rlimit rlim = { 1 << 20, 1 << 20 };
 	unsigned int from = 0, to = ARRAY_SIZE(tests);
 	bool unpriv = !is_admin();
 
@@ -11572,6 +11672,5 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	setrlimit(RLIMIT_MEMLOCK, unpriv ? &rlim : &rinf);
 	return do_test(unpriv, from, to);
 }
