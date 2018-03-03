@@ -157,8 +157,12 @@
 
 	soc {
 		flash@30000000 {
+			/*
+			 * This is a Eon EN29LV400AB 512 KiB flash with
+			 * three partitions.
+			 */
+			compatible = "cortina,gemini-flash", "jedec-flash";
 			status = "okay";
-			/* 512KB of flash */
 			reg = <0x30000000 0x00080000>;
 
 			/*
