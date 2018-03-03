@@ -279,7 +279,8 @@ static int snd_bcm2835_pcm_prepare(struct snd_pcm_substream *substream)
 
 	/* notify the vchiq that it should enter spdif passthrough mode by
 	 * setting channels=0 (see
-	 * https://github.com/raspberrypi/linux/issues/528) */
+	 * https://github.com/raspberrypi/linux/issues/528)
+	 */
 	if (chip->spdif_status & IEC958_AES0_NONAUDIO)
 		channels = 0;
 	else
