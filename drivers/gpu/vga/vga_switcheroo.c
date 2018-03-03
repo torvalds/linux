@@ -686,7 +686,9 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 
 	active->active = false;
 
-	set_audio_state(active->id, VGA_SWITCHEROO_OFF);
+	/* let HDA controller autosuspend if GPU uses driver power control */
+	if (!active->driver_power_control)
+		set_audio_state(active->id, VGA_SWITCHEROO_OFF);
 
 	if (new_client->fb_info) {
 		struct fb_event event;
@@ -709,7 +711,9 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 	if (vga_switcheroo_pwr_state(active) == VGA_SWITCHEROO_ON)
 		vga_switchoff(active);
 
-	set_audio_state(new_client->id, VGA_SWITCHEROO_ON);
+	/* let HDA controller autoresume if GPU uses driver power control */
+	if (!new_client->driver_power_control)
+		set_audio_state(new_client->id, VGA_SWITCHEROO_ON);
 
 	new_client->active = true;
 	return 0;
