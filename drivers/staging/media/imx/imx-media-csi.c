@@ -1800,7 +1800,10 @@ static int imx_csi_probe(struct platform_device *pdev)
 	pinctrl = devm_pinctrl_get_select_default(priv->dev);
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(priv->vdev);
-		goto free;
+		dev_dbg(priv->dev,
+			"devm_pinctrl_get_select_default() failed: %d\n", ret);
+		if (ret != -ENODEV)
+			goto free;
 	}
 
 	ret = v4l2_async_register_subdev(&priv->sd);
