@@ -393,6 +393,19 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 					BYT_RT5651_OVCD_SF_0P75 |
 					BYT_RT5651_IN2_HS_IN3_MAP),
 	},
+	{
+		/* VIOS LTH17 */
+		.callback = byt_rt5651_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "VIOS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LTH17"),
+		},
+		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
+					BYT_RT5651_JD1_1 |
+					BYT_RT5651_OVCD_TH_2000UA |
+					BYT_RT5651_OVCD_SF_1P0 |
+					BYT_RT5651_IN1_IN2_MAP),
+	},
 	{}
 };
 
