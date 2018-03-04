@@ -78,6 +78,8 @@ struct tsl2x7x_settings {
 	int prox_thres_high;
 	int prox_pulse_count;
 	int prox_max_samples_cal;
+	int prox_diode;
+	int prox_power;
 };
 
 /**

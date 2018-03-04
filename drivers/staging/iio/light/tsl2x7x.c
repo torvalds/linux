@@ -109,15 +109,15 @@
 #define TSL2X7X_CNTL_INTPROXPON_ENBL	0x2F
 
 /*Prox diode to use */
-#define TSL2X7X_DIODE0			0x10
-#define TSL2X7X_DIODE1			0x20
-#define TSL2X7X_DIODE_BOTH		0x30
+#define TSL2X7X_DIODE0			0x01
+#define TSL2X7X_DIODE1			0x02
+#define TSL2X7X_DIODE_BOTH		0x03
 
 /* LED Power */
 #define TSL2X7X_100_mA			0x00
-#define TSL2X7X_50_mA			0x40
-#define TSL2X7X_25_mA			0x80
-#define TSL2X7X_13_mA			0xD0
+#define TSL2X7X_50_mA			0x01
+#define TSL2X7X_25_mA			0x02
+#define TSL2X7X_13_mA			0x03
 #define TSL2X7X_MAX_TIMER_CNT		0xFF
 
 #define TSL2X7X_MIN_ITIME		3
@@ -228,7 +228,7 @@ static const struct tsl2x7x_settings tsl2x7x_default_settings = {
 	.als_time = 219, /* 101 ms */
 	.als_gain = 0,
 	.prx_time = 254, /* 5.4 ms */
-	.prox_gain = 1,
+	.prox_gain = 0,
 	.wait_time = 245,
 	.prox_config = 0,
 	.als_gain_trim = 1000,
@@ -240,7 +240,9 @@ static const struct tsl2x7x_settings tsl2x7x_default_settings = {
 	.prox_thres_low  = 0,
 	.prox_thres_high = 512,
 	.prox_max_samples_cal = 30,
-	.prox_pulse_count = 8
+	.prox_pulse_count = 8,
+	.prox_diode = TSL2X7X_DIODE1,
+	.prox_power = TSL2X7X_100_mA
 };
 
 static const s16 tsl2x7x_als_gain[] = {
@@ -659,9 +661,10 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 
 	/* Set the gain based on tsl2x7x_settings struct */
 	chip->tsl2x7x_config[TSL2X7X_GAIN] =
-		chip->settings.als_gain |
-			(TSL2X7X_100_mA | TSL2X7X_DIODE1) |
-			(chip->settings.prox_gain << 2);
+		(chip->settings.als_gain & 0xFF) |
+		((chip->settings.prox_gain & 0xFF) << 2) |
+		(chip->settings.prox_diode << 4) |
+		(chip->settings.prox_power << 6);
 
 	/* set chip struct re scaling and saturation */
 	chip->als_saturation = als_count * 922; /* 90% of full scale */
