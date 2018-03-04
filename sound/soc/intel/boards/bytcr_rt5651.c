@@ -457,6 +457,11 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 
 	card->dapm.idle_bias_off = true;
 
+	/* Start with RC clk for jack-detect (we disable MCLK below) */
+	if (byt_rt5651_quirk & BYT_RT5651_MCLK_EN)
+		snd_soc_component_update_bits(codec, RT5651_GLB_CLK,
+			RT5651_SCLK_SRC_MASK, RT5651_SCLK_SRC_RCCLK);
+
 	switch (BYT_RT5651_MAP(byt_rt5651_quirk)) {
 	case BYT_RT5651_IN1_MAP:
 		custom_map = byt_rt5651_intmic_in1_map;
