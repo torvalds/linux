@@ -157,11 +157,14 @@ static void omap_disconnect_pipelines(struct drm_device *ddev)
 	unsigned int i;
 
 	for (i = 0; i < priv->num_pipes; i++) {
-		struct omap_dss_device *display = priv->pipes[i].display;
+		struct omap_drm_pipeline *pipe = &priv->pipes[i];
 
-		omapdss_device_disconnect(display, NULL);
-		priv->pipes[i].display = NULL;
-		omapdss_device_put(display);
+		omapdss_device_disconnect(NULL, pipe->output);
+
+		omapdss_device_put(pipe->output);
+		omapdss_device_put(pipe->display);
+		pipe->output = NULL;
+		pipe->display = NULL;
 	}
 
 	priv->num_pipes = 0;
@@ -182,26 +185,30 @@ static int omap_compare_pipes(const void *a, const void *b)
 static int omap_connect_pipelines(struct drm_device *ddev)
 {
 	struct omap_drm_private *priv = ddev->dev_private;
-	struct omap_dss_device *display = NULL;
+	struct omap_dss_device *output = NULL;
 	int r;
 
 	if (!omapdss_stack_is_ready())
 		return -EPROBE_DEFER;
 
-	for_each_dss_display(display) {
-		r = omapdss_device_connect(priv->dss, display, NULL);
+	for_each_dss_output(output) {
+		r = omapdss_device_connect(priv->dss, NULL, output);
 		if (r == -EPROBE_DEFER) {
-			omapdss_device_put(display);
+			omapdss_device_put(output);
 			goto cleanup;
 		} else if (r) {
-			dev_warn(display->dev, "could not connect display: %s\n",
-				display->name);
+			dev_warn(output->dev, "could not connect output %s\n",
+				 output->name);
 		} else {
-			omapdss_device_get(display);
-			priv->pipes[priv->num_pipes++].display = display;
+			struct omap_drm_pipeline *pipe;
+
+			pipe = &priv->pipes[priv->num_pipes++];
+			pipe->output = omapdss_device_get(output);
+			pipe->display = omapdss_display_get(output);
+
 			if (priv->num_pipes == ARRAY_SIZE(priv->pipes)) {
-				/* To balance the 'for_each_dss_display' loop */
-				omapdss_device_put(display);
+				/* To balance the 'for_each_dss_output' loop */
+				omapdss_device_put(output);
 				break;
 			}
 		}

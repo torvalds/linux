@@ -111,33 +111,15 @@ static int init_nec_8048_wvga_lcd(struct spi_device *spi)
 	return 0;
 }
 
-static int nec_8048_connect(struct omap_dss_device *dssdev)
+static int nec_8048_connect(struct omap_dss_device *src,
+			    struct omap_dss_device *dst)
 {
-	struct omap_dss_device *src;
-	int r;
-
-	src = omapdss_of_find_connected_device(dssdev->dev->of_node, 0);
-	if (IS_ERR_OR_NULL(src)) {
-		dev_err(dssdev->dev, "failed to find video source\n");
-		return src ? PTR_ERR(src) : -EINVAL;
-	}
-
-	r = omapdss_device_connect(dssdev->dss, src, dssdev);
-	if (r) {
-		omapdss_device_put(src);
-		return r;
-	}
-
 	return 0;
 }
 
-static void nec_8048_disconnect(struct omap_dss_device *dssdev)
+static void nec_8048_disconnect(struct omap_dss_device *src,
+				struct omap_dss_device *dst)
 {
-	struct omap_dss_device *src = dssdev->src;
-
-	omapdss_device_disconnect(src, dssdev);
-
-	omapdss_device_put(src);
 }
 
 static int nec_8048_enable(struct omap_dss_device *dssdev)
@@ -310,7 +292,6 @@ static int nec_8048_remove(struct spi_device *spi)
 	omapdss_device_unregister(dssdev);
 
 	nec_8048_disable(dssdev);
-	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

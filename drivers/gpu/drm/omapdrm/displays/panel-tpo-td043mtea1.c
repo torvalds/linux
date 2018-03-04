@@ -336,33 +336,15 @@ static void tpo_td043_power_off(struct panel_drv_data *ddata)
 	ddata->powered_on = 0;
 }
 
-static int tpo_td043_connect(struct omap_dss_device *dssdev)
+static int tpo_td043_connect(struct omap_dss_device *src,
+			     struct omap_dss_device *dst)
 {
-	struct omap_dss_device *src;
-	int r;
-
-	src = omapdss_of_find_connected_device(dssdev->dev->of_node, 0);
-	if (IS_ERR_OR_NULL(src)) {
-		dev_err(dssdev->dev, "failed to find video source\n");
-		return src ? PTR_ERR(src) : -EINVAL;
-	}
-
-	r = omapdss_device_connect(dssdev->dss, src, dssdev);
-	if (r) {
-		omapdss_device_put(src);
-		return r;
-	}
-
 	return 0;
 }
 
-static void tpo_td043_disconnect(struct omap_dss_device *dssdev)
+static void tpo_td043_disconnect(struct omap_dss_device *src,
+				 struct omap_dss_device *dst)
 {
-	struct omap_dss_device *src = dssdev->src;
-
-	omapdss_device_disconnect(src, dssdev);
-
-	omapdss_device_put(src);
 }
 
 static int tpo_td043_enable(struct omap_dss_device *dssdev)
@@ -553,7 +535,6 @@ static int tpo_td043_remove(struct spi_device *spi)
 	omapdss_device_unregister(dssdev);
 
 	tpo_td043_disable(dssdev);
-	omapdss_device_disconnect(dssdev, NULL);
 
 	sysfs_remove_group(&spi->dev.kobj, &tpo_td043_attr_group);
 

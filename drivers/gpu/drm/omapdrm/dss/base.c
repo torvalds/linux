@@ -190,24 +190,24 @@ int omapdss_device_connect(struct dss_device *dss,
 {
 	int ret;
 
-	dev_dbg(src->dev, "connect\n");
+	dev_dbg(dst->dev, "connect\n");
 
-	if (omapdss_device_is_connected(src))
+	if (omapdss_device_is_connected(dst))
 		return -EBUSY;
 
-	src->dss = dss;
+	dst->dss = dss;
 
-	if (src->driver)
-		ret = src->driver->connect(src);
+	if (dst->driver)
+		ret = dst->driver->connect(src, dst);
 	else
-		ret = src->ops->connect(src, dst);
+		ret = dst->ops->connect(src, dst);
 
 	if (ret < 0) {
-		src->dss = NULL;
+		dst->dss = NULL;
 		return ret;
 	}
 
-	if (dst) {
+	if (src) {
 		dst->src = src;
 		src->dst = dst;
 	}
@@ -219,14 +219,14 @@ EXPORT_SYMBOL_GPL(omapdss_device_connect);
 void omapdss_device_disconnect(struct omap_dss_device *src,
 			       struct omap_dss_device *dst)
 {
-	dev_dbg(src->dev, "disconnect\n");
+	dev_dbg(dst->dev, "disconnect\n");
 
-	if (!src->id && !omapdss_device_is_connected(src)) {
-		WARN_ON(!src->driver);
+	if (!dst->id && !omapdss_device_is_connected(dst)) {
+		WARN_ON(!dst->driver);
 		return;
 	}
 
-	if (dst) {
+	if (src) {
 		if (WARN_ON(dst != src->dst))
 			return;
 
@@ -234,12 +234,12 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 		src->dst = NULL;
 	}
 
-	if (src->driver)
-		src->driver->disconnect(src);
+	if (dst->driver)
+		dst->driver->disconnect(src, dst);
 	else
-		src->ops->disconnect(src, dst);
+		dst->ops->disconnect(src, dst);
 
-	src->dss = NULL;
+	dst->dss = NULL;
 }
 EXPORT_SYMBOL_GPL(omapdss_device_disconnect);
 

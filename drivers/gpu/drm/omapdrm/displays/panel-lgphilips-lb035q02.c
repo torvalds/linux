@@ -115,36 +115,19 @@ static void init_lb035q02_panel(struct spi_device *spi)
 	lb035q02_write_reg(spi, 0x3b, 0x0806);
 }
 
-static int lb035q02_connect(struct omap_dss_device *dssdev)
+static int lb035q02_connect(struct omap_dss_device *src,
+			    struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src;
-	int r;
-
-	src = omapdss_of_find_connected_device(dssdev->dev->of_node, 0);
-	if (IS_ERR_OR_NULL(src)) {
-		dev_err(dssdev->dev, "failed to find video source\n");
-		return src ? PTR_ERR(src) : -EINVAL;
-	}
-
-	r = omapdss_device_connect(dssdev->dss, src, dssdev);
-	if (r) {
-		omapdss_device_put(src);
-		return r;
-	}
+	struct panel_drv_data *ddata = to_panel_data(dst);
 
 	init_lb035q02_panel(ddata->spi);
 
 	return 0;
 }
 
-static void lb035q02_disconnect(struct omap_dss_device *dssdev)
+static void lb035q02_disconnect(struct omap_dss_device *src,
+				struct omap_dss_device *dst)
 {
-	struct omap_dss_device *src = dssdev->src;
-
-	omapdss_device_disconnect(src, dssdev);
-
-	omapdss_device_put(src);
 }
 
 static int lb035q02_enable(struct omap_dss_device *dssdev)
@@ -285,7 +268,6 @@ static int lb035q02_panel_spi_remove(struct spi_device *spi)
 	omapdss_device_unregister(dssdev);
 
 	lb035q02_disable(dssdev);
-	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

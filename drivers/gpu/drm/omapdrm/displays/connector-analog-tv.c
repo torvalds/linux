@@ -41,33 +41,15 @@ static const struct videomode tvc_pal_vm = {
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
 
-static int tvc_connect(struct omap_dss_device *dssdev)
+static int tvc_connect(struct omap_dss_device *src,
+		       struct omap_dss_device *dst)
 {
-	struct omap_dss_device *src;
-	int r;
-
-	src = omapdss_of_find_connected_device(dssdev->dev->of_node, 0);
-	if (IS_ERR_OR_NULL(src)) {
-		dev_err(dssdev->dev, "failed to find video source\n");
-		return src ? PTR_ERR(src) : -EINVAL;
-	}
-
-	r = omapdss_device_connect(dssdev->dss, src, dssdev);
-	if (r) {
-		omapdss_device_put(src);
-		return r;
-	}
-
 	return 0;
 }
 
-static void tvc_disconnect(struct omap_dss_device *dssdev)
+static void tvc_disconnect(struct omap_dss_device *src,
+			   struct omap_dss_device *dst)
 {
-	struct omap_dss_device *src = dssdev->src;
-
-	omapdss_device_disconnect(src, dssdev);
-
-	omapdss_device_put(src);
 }
 
 static int tvc_enable(struct omap_dss_device *dssdev)
@@ -184,7 +166,6 @@ static int __exit tvc_remove(struct platform_device *pdev)
 	omapdss_device_unregister(&ddata->dssdev);
 
 	tvc_disable(dssdev);
-	omapdss_device_disconnect(dssdev, NULL);
 
 	return 0;
 }

@@ -756,57 +756,35 @@ static int dsicm_panel_reset(struct panel_drv_data *ddata)
 	return dsicm_power_on(ddata);
 }
 
-static int dsicm_connect(struct omap_dss_device *dssdev)
+static int dsicm_connect(struct omap_dss_device *src,
+			 struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
+	struct panel_drv_data *ddata = to_panel_data(dst);
 	struct device *dev = &ddata->pdev->dev;
-	struct omap_dss_device *src;
 	int r;
-
-	src = omapdss_of_find_connected_device(dssdev->dev->of_node, 0);
-	if (IS_ERR_OR_NULL(src)) {
-		dev_err(dssdev->dev, "failed to find video source\n");
-		return src ? PTR_ERR(src) : -EINVAL;
-	}
-
-	r = omapdss_device_connect(dssdev->dss, src, dssdev);
-	if (r) {
-		dev_err(dev, "Failed to connect to video source\n");
-		goto err_connect;
-	}
 
 	r = src->ops->dsi.request_vc(src, &ddata->channel);
 	if (r) {
 		dev_err(dev, "failed to get virtual channel\n");
-		goto err_req_vc;
+		return r;
 	}
 
 	r = src->ops->dsi.set_vc_id(src, ddata->channel, TCH);
 	if (r) {
 		dev_err(dev, "failed to set VC_ID\n");
-		goto err_vc_id;
+		src->ops->dsi.release_vc(src, ddata->channel);
+		return r;
 	}
 
 	return 0;
-
-err_vc_id:
-	src->ops->dsi.release_vc(src, ddata->channel);
-err_req_vc:
-	omapdss_device_disconnect(src, dssdev);
-err_connect:
-	omapdss_device_put(src);
-	return r;
 }
 
-static void dsicm_disconnect(struct omap_dss_device *dssdev)
+static void dsicm_disconnect(struct omap_dss_device *src,
+			     struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
+	struct panel_drv_data *ddata = to_panel_data(dst);
 
 	src->ops->dsi.release_vc(src, ddata->channel);
-	omapdss_device_disconnect(src, dssdev);
-
-	omapdss_device_put(src);
 }
 
 static int dsicm_enable(struct omap_dss_device *dssdev)
@@ -1404,7 +1382,7 @@ static int __exit dsicm_remove(struct platform_device *pdev)
 	omapdss_device_unregister(dssdev);
 
 	dsicm_disable(dssdev);
-	omapdss_device_disconnect(dssdev, NULL);
+	omapdss_device_disconnect(dssdev->src, dssdev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &dsicm_attr_group);
 

@@ -35,24 +35,15 @@ struct panel_drv_data {
 
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
 
-static int tpd_connect(struct omap_dss_device *dssdev,
-		struct omap_dss_device *dst)
+static int tpd_connect(struct omap_dss_device *src,
+		       struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src;
+	struct panel_drv_data *ddata = to_panel_data(dst);
 	int r;
 
-	src = omapdss_of_find_connected_device(dssdev->dev->of_node, 0);
-	if (IS_ERR(src)) {
-		dev_err(dssdev->dev, "failed to find video source\n");
-		return PTR_ERR(src);
-	}
-
-	r = omapdss_device_connect(dssdev->dss, src, dssdev);
-	if (r) {
-		omapdss_device_put(src);
+	r = omapdss_device_connect(dst->dss, dst, dst->next);
+	if (r)
 		return r;
-	}
 
 	gpiod_set_value_cansleep(ddata->ct_cp_hpd_gpio, 1);
 	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 1);
@@ -63,18 +54,15 @@ static int tpd_connect(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static void tpd_disconnect(struct omap_dss_device *dssdev,
-		struct omap_dss_device *dst)
+static void tpd_disconnect(struct omap_dss_device *src,
+			   struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *src = dssdev->src;
+	struct panel_drv_data *ddata = to_panel_data(dst);
 
 	gpiod_set_value_cansleep(ddata->ct_cp_hpd_gpio, 0);
 	gpiod_set_value_cansleep(ddata->ls_oe_gpio, 0);
 
-	omapdss_device_disconnect(src, &ddata->dssdev);
-
-	omapdss_device_put(src);
+	omapdss_device_disconnect(dst, dst->next);
 }
 
 static int tpd_enable(struct omap_dss_device *dssdev)
@@ -328,7 +316,7 @@ static int __exit tpd_remove(struct platform_device *pdev)
 
 	WARN_ON(omapdss_device_is_connected(dssdev));
 	if (omapdss_device_is_connected(dssdev))
-		omapdss_device_disconnect(dssdev, dssdev->dst);
+		omapdss_device_disconnect(NULL, dssdev);
 
 	return 0;
 }

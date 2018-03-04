@@ -433,32 +433,42 @@ static void hdmi_core_disable(struct omap_hdmi *hdmi)
 	mutex_unlock(&hdmi->lock);
 }
 
-static int hdmi_connect(struct omap_dss_device *dssdev,
-		struct omap_dss_device *dst)
+static int hdmi_connect(struct omap_dss_device *src,
+			struct omap_dss_device *dst)
 {
 	int r;
 
-	r = dss_mgr_connect(dssdev);
+	r = dss_mgr_connect(dst);
 	if (r)
 		return r;
 
-	r = omapdss_output_set_device(dssdev, dst);
+	r = omapdss_output_set_device(dst, dst->next);
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(dssdev);
-		return r;
+		goto err_mgr_disconnect;
 	}
 
+	r = omapdss_device_connect(dst->dss, dst, dst->next);
+	if (r)
+		goto err_output_unset;
+
 	return 0;
+
+err_output_unset:
+	omapdss_output_unset_device(dst);
+err_mgr_disconnect:
+	dss_mgr_disconnect(dst);
+	return r;
 }
 
-static void hdmi_disconnect(struct omap_dss_device *dssdev,
-		struct omap_dss_device *dst)
+static void hdmi_disconnect(struct omap_dss_device *src,
+			    struct omap_dss_device *dst)
 {
-	omapdss_output_unset_device(dssdev);
+	omapdss_device_disconnect(dst, dst->next);
+	omapdss_output_unset_device(dst);
 
-	dss_mgr_disconnect(dssdev);
+	dss_mgr_disconnect(dst);
 }
 
 static int hdmi_read_edid(struct omap_dss_device *dssdev,
