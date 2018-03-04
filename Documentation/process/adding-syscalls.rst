@@ -222,7 +222,7 @@ your new syscall number may get adjusted to resolve conflicts.
 The file ``kernel/sys_ni.c`` provides a fallback stub implementation of each
 system call, returning ``-ENOSYS``.  Add your new system call here too::
 
-    cond_syscall(sys_xyzzy);
+    COND_SYSCALL(xyzzy);
 
 Your new kernel functionality, and the system call that controls it, should
 normally be optional, so add a ``CONFIG`` option (typically to
