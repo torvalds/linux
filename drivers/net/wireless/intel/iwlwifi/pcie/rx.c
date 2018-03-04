@@ -649,7 +649,6 @@ static void iwl_pcie_free_rxq_dma(struct iwl_trans *trans,
 				  struct iwl_rxq *rxq)
 {
 	struct device *dev = trans->dev;
-	struct iwl_rx_completion_desc *rx_cd;
 	bool use_rx_td = (trans->cfg->device_family >=
 			  IWL_DEVICE_FAMILY_22560);
 	int free_size = iwl_pcie_free_bd_size(trans, use_rx_td);
@@ -671,7 +670,7 @@ static void iwl_pcie_free_rxq_dma(struct iwl_trans *trans,
 
 	if (rxq->used_bd)
 		dma_free_coherent(trans->dev,
-				  (use_rx_td ? sizeof(*rx_cd) :
+				  (use_rx_td ? sizeof(*rxq->cd) :
 				   sizeof(__le32)) * rxq->queue_size,
 				  rxq->used_bd, rxq->used_bd_dma);
 	rxq->used_bd_dma = 0;
@@ -698,7 +697,6 @@ static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct device *dev = trans->dev;
-	struct iwl_rx_completion_desc *rx_cd;
 	int i;
 	int free_size;
 	bool use_rx_td = (trans->cfg->device_family >=
@@ -725,7 +723,7 @@ static int iwl_pcie_alloc_rxq_dma(struct iwl_trans *trans,
 	if (trans->cfg->mq_rx_supported) {
 		rxq->used_bd = dma_zalloc_coherent(dev,
 						   (use_rx_td ?
-						   sizeof(*rx_cd) :
+						   sizeof(*rxq->cd) :
 						   sizeof(__le32)) *
 						   rxq->queue_size,
 						   &rxq->used_bd_dma,
@@ -1371,18 +1369,10 @@ restart:
 			 * to retrieve the vid
 			 */
 			if (trans->cfg->device_family >=
-			    IWL_DEVICE_FAMILY_22560) {
-				struct iwl_rx_completion_desc *rx_cd =
-					&((struct iwl_rx_completion_desc *)
-					  rxq->used_bd)[i];
-
-				vid = le16_to_cpu(rx_cd->rbid) & 0x0FFF;
-			} else {
-				__le32 *used =
-					&((__le32 *)rxq->used_bd)[i];
-
-				vid = le32_to_cpu(*used) & 0x0FFF;
-			}
+			    IWL_DEVICE_FAMILY_22560)
+				vid = le16_to_cpu(rxq->cd[i].rbid) & 0x0FFF;
+			else
+				vid = le32_to_cpu(rxq->bd_32[i]) & 0x0FFF;
 
 			if (WARN(!vid ||
 				 vid > ARRAY_SIZE(trans_pcie->global_table),
@@ -1397,15 +1387,9 @@ restart:
 				goto out;
 			}
 			if (trans->cfg->device_family >=
-			    IWL_DEVICE_FAMILY_22560) {
-				struct iwl_rx_completion_desc *rx_cd =
-					&((struct iwl_rx_completion_desc *)
-					  rxq->used_bd)[i];
-
-				rxb->size = le32_to_cpu(rx_cd->size) &
+			    IWL_DEVICE_FAMILY_22560)
+				rxb->size = le32_to_cpu(rxq->cd[i].size) &
 					IWL_RX_CD_SIZE;
-			}
-
 			rxb->invalid = true;
 		} else {
 			rxb = rxq->queue[i];

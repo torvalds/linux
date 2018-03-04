@@ -235,7 +235,11 @@ struct iwl_rxq {
 	int id;
 	void *bd;
 	dma_addr_t bd_dma;
-	void *used_bd;
+	union {
+		void *used_bd;
+		__le32 *bd_32;
+		struct iwl_rx_completion_desc *cd;
+	};
 	dma_addr_t used_bd_dma;
 	__le16 *tr_tail;
 	dma_addr_t tr_tail_dma;
