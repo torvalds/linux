@@ -284,8 +284,6 @@ static int byt_rt5651_aif1_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int rate = params_rate(params);
 
-	snd_soc_dai_set_bclk_ratio(codec_dai, 50);
-
 	return byt_rt5651_prepare_and_enable_pll1(codec_dai, rate, 50);
 }
 
