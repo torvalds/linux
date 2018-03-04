@@ -49,6 +49,8 @@
 #define MODULENAME "chardev/linux"
 //#define wakeup(p) wake_up(p)
 #define CURRENTPTR current
+#define FAT_PTR_OFFSET_TYPE uint32_t
+#define FAT_PTR_OFFSET sizeof(FAT_PTR_OFFSET_TYPE)
 
 #include <linux/medusa/l3/registry.h>
 #include <linux/medusa/l3/server.h>
@@ -116,8 +118,15 @@ struct tele_item {
     teleport_insn_t *tele;
     struct list_head list;
     size_t size;
-    void (*post)(const void*);
+    void (*post)(void*);
 };
+
+// Mem caches for teleport and queue data structures
+static struct kmem_cache *queue_cache; 
+static struct kmem_cache *teleport_cache; 
+int cache_array_size = 0;
+static struct kmem_cache **med_cache_array;
+
 // Next three variables are used by user_open. They are here because we have to
 // free the underlying data structures and clear them in user_close.
 static size_t left_in_teleport = 0;
@@ -169,6 +178,134 @@ static struct medusa_authserver_s chardev_medusa = {
 	l4_decide		/* decide */
 };
 
+/**
+ * Computes binary logarithm rounded up
+ */
+static inline int get_log_index(int in) {
+    int ret = 1;
+    in--;
+    while (in >>= 1)
+        ret++;
+    return ret;
+}
+
+/**
+ * Creates a memory cache on a given index.
+ * If there is not enough space in the array, it will reallocate it.
+ * If a cache already exists, it does nothing.
+ */
+struct kmem_cache* med_cache_create(size_t index) {
+    if (index >= cache_array_size)
+        return NULL;
+    if (med_cache_array[index])
+        return med_cache_array[index];
+    med_cache_array[index] = kmem_cache_create("med_cache",
+                                    1 << index,
+                                    0,
+                                    SLAB_HWCACHE_ALIGN,
+                                    NULL);
+    return med_cache_array[index];
+}
+
+/**
+ * Allocates an array for memory caches and fills it with nulls.
+ */
+struct kmem_cache** alloc_med_cache_array(size_t size) {
+    int i;
+    if (med_cache_array)
+        return med_cache_array;
+    med_cache_array = (struct kmem_cache**) kmalloc(sizeof(struct kmem_cache*) * size, GFP_KERNEL);
+    if (med_cache_array) {
+        for (i = 0; i < size; i++)
+            med_cache_array[i] = NULL;
+        cache_array_size = size;
+    }
+    return med_cache_array;
+}
+
+/**
+ * Reallocates the memory cache array for a given size.
+ * If the size is smaller or the same as the existing array, it does nothing.
+ */
+struct kmem_cache** realloc_med_cache_array(size_t size) {
+    int i;
+    if (size <= cache_array_size)
+        return med_cache_array;
+    med_cache_array = (struct kmem_cache**) krealloc(med_cache_array, sizeof(struct kmem_cache*) * size, GFP_KERNEL);
+    if (med_cache_array) {
+        for (i = cache_array_size; i < size; i++)
+            med_cache_array[i] = NULL;
+        cache_array_size = size;
+    }
+    return med_cache_array;
+}
+
+/**
+ * Creates a memory cache for a given size if it doesn't exist
+ */
+int med_cache_register(size_t size) {
+    int log;
+    size += FAT_PTR_OFFSET;
+   log = get_log_index(size);
+   if (log >= cache_array_size)
+       if (!realloc_med_cache_array(log))
+           return -ENOMEM;
+   if (!med_cache_array[log])
+        if (!med_cache_create(log))
+            return -ENOMEM;
+   return 0;
+}
+
+/**
+ * Allocates memory from a memory pool chosen by the index argument
+ */
+void* med_cache_alloc_index(size_t index) {
+    void* ret;
+    ret = kmem_cache_alloc(med_cache_array[index], GFP_KERNEL);
+    *((FAT_PTR_OFFSET_TYPE*)ret) = index;
+    ret = ((FAT_PTR_OFFSET_TYPE*)ret) + 1;
+    return ret;
+}
+
+/**
+ * Allocates memory from a memory pool chosen by the size argument
+ */
+void* med_cache_alloc_size(size_t size) {
+    int log;
+    size += FAT_PTR_OFFSET;
+    log = get_log_index(size);
+    return med_cache_alloc_index(log);
+}
+
+/**
+ * Frees previously allocated memory
+ */
+void med_cache_free(void* mem) {
+    int log;
+    mem = ((FAT_PTR_OFFSET_TYPE*)mem) - 1;
+    log = *((FAT_PTR_OFFSET_TYPE*)mem);
+    kmem_cache_free(med_cache_array[log], mem);
+}
+
+/**
+ * Destroys all memory caches in the array
+ */
+void med_cache_destroy(void) {
+    int i;
+    for(i = 0; i < cache_array_size; i++) {
+        if (med_cache_array[i])
+            kmem_cache_destroy(med_cache_array[i]);
+    }
+}
+
+/**
+ * Frees the array of memory caches.
+ */
+void free_med_cache_array(void) {
+    med_cache_destroy();
+    kfree(med_cache_array);
+}
+
 int am_i_constable(void) {
 	struct task_struct* task;
 	struct list_head *i;
@@ -217,6 +354,15 @@ static int l4_add_kclass(struct medusa_kclass_s * cl)
 	struct medusa_attribute_s * attr_ptr;
     struct medusa_kclass_s * p;
 
+      tele_mem_kclass = (teleport_insn_t*) med_cache_alloc_size(sizeof(teleport_insn_t) * 5);
+      if (!tele_mem_kclass)
+          return -ENOMEM;
+      local_tele_item = (struct tele_item*) med_cache_alloc_size(sizeof(struct tele_item));
+      if (!local_tele_item) {
+          med_cache_free(tele_mem_kclass);
+          return -ENOMEM;
+      }
+
 	med_get_kclass(cl);
 	MED_LOCK_W(registration_lock);
 	// cl->cinfo = (cinfo_t)kclasses_to_register;
@@ -225,14 +371,12 @@ static int l4_add_kclass(struct medusa_kclass_s * cl)
       barrier();
       atomic_inc(&announce_ready);
       barrier();
-      tele_mem_kclass = (teleport_insn_t*) kmalloc(sizeof(teleport_insn_t) * 5, GFP_KERNEL);
 
       p = cl;
       // kclasses_to_register = (struct medusa_kclass_s *)p->cinfo;
 
       p->cinfo = (cinfo_t)kclasses_registered;
       kclasses_registered = p;
-      local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
       local_tele_item->size = 0;
       tele_mem_kclass[0].opcode = tp_PUTPtr;
       tele_mem_kclass[0].args.putPtr.what = 0;
@@ -254,9 +398,9 @@ static int l4_add_kclass(struct medusa_kclass_s * cl)
       local_tele_item->size += attr_num * sizeof(struct medusa_comm_attribute_s);
       tele_mem_kclass[4].opcode = tp_HALT;
       local_tele_item->tele = tele_mem_kclass;
-      local_tele_item->post = kfree;
+      local_tele_item->post = med_cache_free;
       down(&queue_lock);
-      printk("l4_add_kclass: adding %p\n", tele_mem_kclass);
+      printk("l4_add_kclass: adding %p, size: %i\n", tele_mem_kclass, p->kobject_size);
       list_add_tail(&(local_tele_item->list), &tele_queue);
       up(&queue_lock);
       up(&queue_items);
@@ -273,6 +417,16 @@ static int l4_add_evtype(struct medusa_evtype_s * at)
     int attr_num = 1;
 	struct medusa_attribute_s * attr_ptr;
     struct medusa_evtype_s * p;
+
+      tele_mem_evtype = (teleport_insn_t*) med_cache_alloc_size(sizeof(teleport_insn_t)*5);
+      if (!tele_mem_evtype)
+          return -ENOMEM;
+      local_tele_item = (struct tele_item*) med_cache_alloc_size(sizeof(struct tele_item));
+      if (!local_tele_item) {
+          med_cache_free(tele_mem_evtype);
+          return -ENOMEM;
+      }
+
 	MED_LOCK_W(registration_lock);
 	// at->cinfo = (cinfo_t)evtypes_to_register;
 	// evtypes_to_register=at;
@@ -280,14 +434,12 @@ static int l4_add_evtype(struct medusa_evtype_s * at)
       barrier();
       atomic_inc(&announce_ready);
       barrier();
-      tele_mem_evtype = (teleport_insn_t*) kmalloc(sizeof(teleport_insn_t) * 5, GFP_KERNEL);
 
       p = at;
       // evtypes_to_register = (struct medusa_evtype_s *)p->cinfo;
 
       p->cinfo = (cinfo_t)evtypes_registered;
       evtypes_registered = p;
-      local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
       local_tele_item->size = 0;
       tele_mem_evtype[0].opcode = tp_PUTPtr;
       tele_mem_evtype[0].args.putPtr.what = 0;
@@ -309,9 +461,9 @@ static int l4_add_evtype(struct medusa_evtype_s * at)
       local_tele_item->size += attr_num * sizeof(struct medusa_comm_attribute_s);
       tele_mem_evtype[4].opcode = tp_HALT;
       local_tele_item->tele = tele_mem_evtype;
-      local_tele_item->post = kfree;
+      local_tele_item->post = med_cache_free;
       down(&queue_lock);
-      printk("l4_add_evtype: adding %p\n", tele_mem_evtype);
+      printk("l4_add_evtype: adding %p, size: %i\n", tele_mem_evtype, p->event_size);
       list_add_tail(&(local_tele_item->list), &tele_queue);
       up(&queue_lock);
       up(&queue_items);
@@ -372,9 +524,9 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
     }
 #endif
 
-    local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
-    if (!local_tele_item)
-        return MED_ERR;
+      local_tele_item = (struct tele_item*) med_cache_alloc_size(sizeof(struct tele_item));
+      if (!local_tele_item)
+          return MED_ERR;
     local_tele_item->tele = tele_mem_decide;
     local_tele_item->size = 0;
     local_tele_item->post = NULL;
@@ -383,7 +535,7 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
 #define decision_evtype (event->evtype_id)
 	tele_mem_decide[0].opcode = tp_PUTPtr;
 	tele_mem_decide[0].args.putPtr.what = (MCPptr_t)decision_evtype; // possibility to encryption JK march 2015
-    printk("Adresa eventu: %p\n", (MCPptr_t)decision_evtype);
+    printk("Adresa eventu: %.16llx\n", (MCPptr_t)decision_evtype);
   local_tele_item->size += sizeof(MCPptr_t);
 	tele_mem_decide[1].opcode = tp_PUT32;
 	tele_mem_decide[1].args.put32.what = atomic_read(&decision_request_id);
@@ -414,7 +566,7 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
     ls_lock(&lightswitch, &ls_switch);
 
 	if (!atomic_read(&constable_present)) {
-        kfree(local_tele_item);
+        med_cache_free(local_tele_item);
         ls_unlock(&lightswitch, &ls_switch);
 		return MED_ERR;
     }
@@ -441,9 +593,9 @@ static medusa_answer_t l4_decide(struct medusa_event_s * event,
         printk("Prebiehalo zapisovanie: %i\n", atomic_read(&write_in_progress));
         user_release(NULL, NULL);
     }
-    // wait_event(userspace_answer,
-    //                         local_req_id == recv_req_id || \
-    //                         !atomic_read(&constable_present));
+    /* wait_event(userspace_answer,
+                            local_req_id == recv_req_id || \
+                            !atomic_read(&constable_present));*/
 
 	if (atomic_read(&constable_present)) {
         atomic_dec(&questions_waiting);
@@ -566,7 +718,7 @@ static inline int teleport_pop(int trylock) {
 static inline void teleport_put(void) {
   if (local_list_item->post)
     local_list_item->post(processed_teleport);
-  kfree(local_list_item);
+  med_cache_free(local_list_item);
   processed_teleport = NULL;
   local_list_item = NULL;
 }
@@ -582,13 +734,13 @@ static ssize_t user_read(struct file * filp, char * buf,
     size_t retval_sum = 0;
     static int counter = 0;
     int local_counter = counter++;
-    char comm[TASK_COMM_LEN];
+    // char comm[TASK_COMM_LEN];
 
     atomic_set(&read_in_progress, 1);
 
     ls_lock(&lightswitch, &ls_switch);
 
-    printk("user_read: starting %i with %i to read\n", local_counter, count);
+    printk("user_read: starting %i with %zu to read\n", local_counter, count);
 	if (!atomic_read(&constable_present)) {
         printk("user_read: return constable fast disconnect %i\n", local_counter);
         ls_unlock(&lightswitch, &ls_switch);
@@ -733,11 +885,13 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
     int recv_phase;
     MCPptr_t recv_type;
     MCPptr_t answ_kclassid = 0;
-    atomic_set(&write_in_progress, 1);
-    printk("user_write: entry %i\n", local_counter);
     struct medusa_kobject_s * answ_kobj = NULL;
     struct medusa_kclass_s * answ_kclass = NULL;
     MCPptr_t answ_seq = 0;
+    int i;
+    atomic_set(&write_in_progress, 1);
+
+    printk("user_write: entry %i\n", local_counter);
 
     // Lightswitch
     // has to be there so close can't occur during write
@@ -766,13 +920,12 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
     }
 
 	while (count) {
-    printk("user_write: count is %i\n", count);
+    printk("user_write: count is %zu\n", count);
 		if (!atomic_read(&currently_receiving)) {
 			recv_phase = 0;
 			atomic_set(&currently_receiving, 1);
 		}
         printk("buf: ");
-        int i;
         for (i = 0; i < count/8; i++) {
             printk("%.16llx\n", *(((uint64_t*)buf)+i));
         }
@@ -849,12 +1002,13 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 			if (atomic_read(&fetch_requests) || atomic_read(&update_requests)) {
 				/* not so much to do... */
 				med_put_kclass(answ_kclass);
+                // ked si to uzivatel precita, tak urob put - tam, kde sa rusi objekt
 			}
 
 			answ_kclassid = (*(MCPptr_t*)(recv_buf));
 			answ_seq = *(((MCPptr_t*)(recv_buf))+1);
 
-            up(&fetch_update_lock)
+            up(&fetch_update_lock);
 
 			answ_kclass = cl;
 			if (recv_type == MEDUSA_COMM_FETCH_REQUEST) {
@@ -873,8 +1027,14 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 					answ_result = MED_ERR;
 			}
             // Dynamic telemem structure for fetch/update
-            tele_mem_write = (teleport_insn_t*) kmalloc(sizeof(teleport_insn_t) * 6, GFP_KERNEL);
-            local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
+            tele_mem_write = (teleport_insn_t*) med_cache_alloc_size(sizeof(teleport_insn_t)*6);
+            if (!tele_mem_write)
+                return -ENOMEM;
+            local_tele_item = (struct tele_item*) med_cache_alloc_size(sizeof(struct tele_item));
+            if (!local_tele_item) {
+                med_cache_free(tele_mem_write);
+                return -ENOMEM;
+            }
             local_tele_item->size = 0;
             tele_mem_write[0].opcode = tp_PUTPtr;
             tele_mem_write[0].args.putPtr.what = 0;
@@ -910,7 +1070,7 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
                 tele_mem_write[4].opcode = tp_HALT;
             med_put_kclass(answ_kclass); /* slightly too soon */ // TODO Find out what is this
             local_tele_item->tele = tele_mem_write;
-            local_tele_item->post = kfree;
+            local_tele_item->post = med_cache_free;
             down(&queue_lock);
             printk("user_write: adding %p\n", tele_mem_write);
             list_add(&(local_tele_item->list), &tele_queue);
@@ -997,6 +1157,42 @@ static int user_open(struct inode *inode, struct file *file)
 	if (atomic_read(&constable_present))
 		goto out;
 
+    if (!alloc_med_cache_array(15)) {
+        printk("medusa: user_open error 1\n");
+        retval = -ENOMEM;
+        goto out;
+    }
+    if (med_cache_register(sizeof(struct tele_item))) {
+        printk("medusa: user_open error 2\n");
+        retval = -ENOMEM;
+        goto out;
+    }
+    if (med_cache_register(sizeof(teleport_insn_t)*2)) {
+        printk("medusa: user_open error 3\n");
+        retval = -ENOMEM;
+        goto out;
+    }
+    if (med_cache_register(sizeof(teleport_insn_t)*5)) {
+        printk("medusa: user_open error 4\n");
+        retval = -ENOMEM;
+        goto out;
+    }
+    if (med_cache_register(sizeof(teleport_insn_t)*6)) {
+        printk("medusa: user_open error 5\n");
+        retval = -ENOMEM;
+        goto out;
+    }
+    tele_mem_open = (teleport_insn_t*) med_cache_alloc_size(sizeof(teleport_insn_t)*2);
+    if (!tele_mem_open) {
+      retval = -ENOMEM;
+      goto out;
+    }
+    local_tele_item = (struct tele_item*) med_cache_alloc_size(sizeof(struct tele_item));
+    if (!local_tele_item) {
+        retval = -ENOMEM;
+        goto out;
+    }
+
 	constable = CURRENTPTR;
 	if (strstr(current->parent->comm, "gdb"))
 		gdb = current->parent;
@@ -1011,14 +1207,12 @@ static int user_open(struct inode *inode, struct file *file)
     sema_init(&next_question, 1);
 
 	atomic_set(&currently_receiving, 0);
-    tele_mem_open = (teleport_insn_t*) kmalloc(sizeof(teleport_insn_t) * 2, GFP_KERNEL);
-    local_tele_item = (struct tele_item*) kmalloc(sizeof(struct tele_item), GFP_KERNEL);
       tele_mem_open[0].opcode = tp_PUTPtr;
       tele_mem_open[0].args.putPtr.what = (MCPptr_t)MEDUSA_COMM_GREETING;
     local_tele_item->size = sizeof(MCPptr_t);
       tele_mem_open[1].opcode = tp_HALT;
     local_tele_item->tele = tele_mem_open;
-    local_tele_item->post = kfree;
+    local_tele_item->post = med_cache_free;
     down(&queue_lock);
     printk("user_open: adding %p\n", tele_mem_open);
     list_add_tail(&(local_tele_item->list), &tele_queue);
@@ -1038,6 +1232,10 @@ static int user_open(struct inode *inode, struct file *file)
 	MED_REGISTER_AUTHSERVER(chardev_medusa);
 	return 0; /* success */
 out:
+    if (tele_mem_open)
+        med_cache_free(tele_mem_open);
+    med_cache_destroy();
+
 	MED_UNLOCK_W(constable_openclose);
 	return retval;
 }
@@ -1096,7 +1294,7 @@ static int user_release(struct inode *inode, struct file *file)
     atomic_set(&fetch_requests, 0);
     atomic_set(&update_requests, 0);
     // answ_kclassid = 0;
-    answ_seq = 0;
+    // answ_seq = 0;
 
 	MED_PRINTF("Security daemon unregistered.\n");
 #if defined(CONFIG_MEDUSA_HALT)
@@ -1152,6 +1350,9 @@ static int user_release(struct inode *inode, struct file *file)
     teleport_put();
   }
   up(&queue_lock);
+
+  kmem_cache_destroy(queue_cache);
+  kmem_cache_destroy(teleport_cache);
 
 	MED_UNLOCK_W(constable_openclose);
 	if (am_i_constable())
