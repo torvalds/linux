@@ -1632,6 +1632,10 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 	snd_soc_component_update_bits(component, RT5651_PWR_ANLG2,
 		RT5651_PWR_JD_M, RT5651_PWR_JD_M);
 
+	/* Set OVCD threshold current and scale-factor */
+	snd_soc_component_write(component, RT5651_PR_BASE + RT5651_BIAS_CUR4,
+				0xa800 | rt5651->ovcd_sf);
+
 	snd_soc_component_update_bits(component, RT5651_MICBIAS,
 				      RT5651_MIC1_OVCD_MASK |
 				      RT5651_MIC1_OVTH_MASK |
@@ -1685,7 +1689,13 @@ static void rt5651_apply_properties(struct snd_soc_component *component)
 				     "realtek,jack-detect-source", &val) == 0)
 		rt5651->jd_src = val;
 
+	/*
+	 * Testing on various boards has shown that good defaults for the OVCD
+	 * threshold and scale-factor are 2000µA and 0.75. For an effective
+	 * limit of 1500µA, this seems to be more reliable then 1500µA and 1.0.
+	 */
 	rt5651->ovcd_th = RT5651_MIC1_OVTH_2000UA;
+	rt5651->ovcd_sf = RT5651_MIC_OVCD_SF_0P75;
 
 	if (device_property_read_u32(component->dev,
 			"realtek,over-current-threshold-microamp", &val) == 0) {
@@ -1703,6 +1713,15 @@ static void rt5651_apply_properties(struct snd_soc_component *component)
 			dev_warn(component->dev, "Warning: Invalid over-current-threshold-microamp value: %d, defaulting to 2000uA\n",
 				 val);
 		}
+	}
+
+	if (device_property_read_u32(component->dev,
+			"realtek,over-current-scale-factor", &val) == 0) {
+		if (val <= RT5651_OVCD_SF_1P5)
+			rt5651->ovcd_sf = val << RT5651_MIC_OVCD_SF_SFT;
+		else
+			dev_warn(component->dev, "Warning: Invalid over-current-scale-factor value: %d, defaulting to 0.75\n",
+				 val);
 	}
 }
 

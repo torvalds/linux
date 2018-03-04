@@ -22,4 +22,15 @@ enum rt5651_jd_src {
 	RT5651_JD2,
 };
 
+/*
+ * Note these MUST match the values from the DT binding:
+ * Documentation/devicetree/bindings/sound/rt5651.txt
+ */
+enum rt5651_ovcd_sf {
+	RT5651_OVCD_SF_0P5,
+	RT5651_OVCD_SF_0P75,
+	RT5651_OVCD_SF_1P0,
+	RT5651_OVCD_SF_1P5,
+};
+
 #endif
