@@ -241,8 +241,6 @@ static inline void addr_limit_user_check(void)
 #endif
 }
 
-asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
-			       qid_t id, void __user *addr);
 asmlinkage long sys_time(time_t __user *tloc);
 asmlinkage long sys_stime(time_t __user *tptr);
 asmlinkage long sys_gettimeofday(struct timeval __user *tv,

@@ -18,7 +18,7 @@ asmlinkage long sys_ni_syscall(void)
 }
 
 cond_syscall(sys_quotactl);
-cond_syscall(sys32_quotactl);
+cond_syscall(compat_sys_quotactl32);
 cond_syscall(sys_acct);
 cond_syscall(sys_lookup_dcookie);
 cond_syscall(compat_sys_lookup_dcookie);

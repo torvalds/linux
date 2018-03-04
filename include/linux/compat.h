@@ -461,6 +461,9 @@ asmlinkage ssize_t compat_sys_pwritev2(compat_ulong_t fd,
 		const struct compat_iovec __user *vec,
 		compat_ulong_t vlen, u32 pos_low, u32 pos_high, rwf_t flags);
 
+asmlinkage long compat_sys_quotactl32(unsigned int cmd,
+		const char __user *special, qid_t id, void __user *addr);
+
 #ifdef __ARCH_WANT_COMPAT_SYS_PREADV64
 asmlinkage long compat_sys_preadv64(unsigned long fd,
 		const struct compat_iovec __user *vec,

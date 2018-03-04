@@ -41,8 +41,9 @@ struct compat_fs_quota_stat {
 	__u16		qs_iwarnlimit;
 };
 
-asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
-						qid_t id, void __user *addr)
+COMPAT_SYSCALL_DEFINE4(quotactl32, unsigned int, cmd,
+		       const char __user *, special, qid_t, id,
+		       void __user *, addr)
 {
 	unsigned int cmds;
 	struct if_dqblk __user *dqblk;
