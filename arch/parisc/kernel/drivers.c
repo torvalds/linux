@@ -135,7 +135,7 @@ static int parisc_driver_probe(struct device *dev)
 	return rc;
 }
 
-static int parisc_driver_remove(struct device *dev)
+static int __exit parisc_driver_remove(struct device *dev)
 {
 	struct parisc_device *pa_dev = to_parisc_device(dev);
 	struct parisc_driver *pa_drv = to_parisc_driver(dev->driver);
@@ -205,7 +205,7 @@ static int match_and_count(struct device * dev, void * data)
  * Use by IOMMU support to "guess" the right size IOPdir.
  * Formula is something like memsize/(num_iommu * entry_size).
  */
-int count_parisc_driver(struct parisc_driver *driver)
+int __init count_parisc_driver(struct parisc_driver *driver)
 {
 	struct match_count m = {
 		.driver	= driver,
@@ -268,7 +268,7 @@ static struct parisc_device *find_device_by_addr(unsigned long hpa)
  * Walks up the device tree looking for a device of the specified type.
  * If it finds it, it returns it.  If not, it returns NULL.
  */
-const struct parisc_device *
+const struct parisc_device * __init
 find_pa_parent_type(const struct parisc_device *padev, int type)
 {
 	const struct device *dev = &padev->dev;
@@ -397,7 +397,7 @@ static void setup_bus_id(struct parisc_device *padev)
 	dev_set_name(&padev->dev, name);
 }
 
-struct parisc_device * create_tree_node(char id, struct device *parent)
+struct parisc_device * __init create_tree_node(char id, struct device *parent)
 {
 	struct parisc_device *dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -471,7 +471,7 @@ static struct parisc_device *create_parisc_device(struct hardware_path *modpath)
 	return alloc_tree_node(parent, modpath->mod);
 }
 
-struct parisc_device *
+struct parisc_device * __init
 alloc_pa_dev(unsigned long hpa, struct hardware_path *mod_path)
 {
 	int status;
@@ -609,7 +609,7 @@ struct bus_type parisc_bus_type = {
 	.uevent = parisc_uevent,
 	.dev_groups = parisc_device_groups,
 	.probe = parisc_driver_probe,
-	.remove = parisc_driver_remove,
+	.remove = __exit_p(parisc_driver_remove),
 };
 
 /**
@@ -619,7 +619,7 @@ struct bus_type parisc_bus_type = {
  * Search the driver list for a driver that is willing to manage
  * this device.
  */
-int register_parisc_device(struct parisc_device *dev)
+int __init register_parisc_device(struct parisc_device *dev)
 {
 	if (!dev)
 		return 0;
@@ -791,7 +791,7 @@ EXPORT_SYMBOL(device_to_hwpath);
 static void walk_native_bus(unsigned long io_io_low, unsigned long io_io_high,
                             struct device *parent);
 
-void walk_lower_bus(struct parisc_device *dev)
+static void walk_lower_bus(struct parisc_device *dev)
 {
 	unsigned long io_io_low, io_io_high;
 
@@ -857,7 +857,7 @@ static void walk_native_bus(unsigned long io_io_low, unsigned long io_io_high,
  * PDC doesn't tell us about all devices in the system.  This routine
  * finds devices connected to the central bus.
  */
-void walk_central_bus(void)
+void __init walk_central_bus(void)
 {
 	walk_native_bus(CENTRAL_BUS_ADDR,
 			CENTRAL_BUS_ADDR + (MAX_NATIVE_DEVICES * NATIVE_DEVICE_OFFSET),
@@ -886,7 +886,7 @@ static void print_parisc_device(struct parisc_device *dev)
 /**
  * init_parisc_bus - Some preparation to be done before inventory
  */
-void init_parisc_bus(void)
+void __init init_parisc_bus(void)
 {
 	if (bus_register(&parisc_bus_type))
 		panic("Could not register PA-RISC bus type\n");
@@ -908,7 +908,7 @@ static int print_one_device(struct device * dev, void * data)
 /**
  * print_parisc_devices - Print out a list of devices found in this system
  */
-void print_parisc_devices(void)
+void __init print_parisc_devices(void)
 {
 	for_each_padev(print_one_device, NULL);
 }
