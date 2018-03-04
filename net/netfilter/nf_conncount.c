@@ -158,7 +158,6 @@ static void tree_nodes_free(struct rb_root *root,
 static unsigned int
 count_tree(struct net *net, struct rb_root *root,
 	   const u32 *key, u8 keylen,
-	   u8 family,
 	   const struct nf_conntrack_tuple *tuple,
 	   const struct nf_conntrack_zone *zone)
 {
@@ -246,7 +245,6 @@ count_tree(struct net *net, struct rb_root *root,
 unsigned int nf_conncount_count(struct net *net,
 				struct nf_conncount_data *data,
 				const u32 *key,
-				unsigned int family,
 				const struct nf_conntrack_tuple *tuple,
 				const struct nf_conntrack_zone *zone)
 {
@@ -259,7 +257,7 @@ unsigned int nf_conncount_count(struct net *net,
 
 	spin_lock_bh(&nf_conncount_locks[hash % CONNCOUNT_LOCK_SLOTS]);
 
-	count = count_tree(net, root, key, data->keylen, family, tuple, zone);
+	count = count_tree(net, root, key, data->keylen, tuple, zone);
 
 	spin_unlock_bh(&nf_conncount_locks[hash % CONNCOUNT_LOCK_SLOTS]);
 
