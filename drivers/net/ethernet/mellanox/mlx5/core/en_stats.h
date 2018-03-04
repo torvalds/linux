@@ -94,6 +94,7 @@ struct mlx5e_sw_stats {
 	u64 rx_cache_empty;
 	u64 rx_cache_busy;
 	u64 rx_cache_waive;
+	u64 rx_congst_umr;
 	u64 ch_poll;
 	u64 ch_arm;
 	u64 ch_aff_change;
@@ -188,6 +189,7 @@ struct mlx5e_rq_stats {
 	u64 cache_empty;
 	u64 cache_busy;
 	u64 cache_waive;
+	u64 congst_umr;
 };
 
 struct mlx5e_sq_stats {

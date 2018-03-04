@@ -601,6 +601,8 @@ bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 
 	if (!rq->mpwqe.umr_in_progress)
 		mlx5e_alloc_rx_mpwqe(rq, wq->head);
+	else
+		rq->stats->congst_umr += mlx5_wq_ll_missing(wq) > 2;
 
 	return false;
 }

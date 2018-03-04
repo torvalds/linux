@@ -229,6 +229,11 @@ static inline int mlx5_wq_ll_is_empty(struct mlx5_wq_ll *wq)
 	return !wq->cur_sz;
 }
 
+static inline int mlx5_wq_ll_missing(struct mlx5_wq_ll *wq)
+{
+	return wq->fbc.sz_m1 - wq->cur_sz;
+}
+
 static inline void *mlx5_wq_ll_get_wqe(struct mlx5_wq_ll *wq, u16 ix)
 {
 	return mlx5_frag_buf_get_wqe(&wq->fbc, ix);
