@@ -614,25 +614,6 @@ static int venc_check_timings(struct omap_dss_device *dssdev,
 	}
 }
 
-static int venc_init_regulator(struct venc_device *venc)
-{
-	struct regulator *vdda_dac;
-
-	if (venc->vdda_dac_reg != NULL)
-		return 0;
-
-	vdda_dac = devm_regulator_get(&venc->pdev->dev, "vdda");
-	if (IS_ERR(vdda_dac)) {
-		if (PTR_ERR(vdda_dac) != -EPROBE_DEFER)
-			DSSERR("can't get VDDA_DAC regulator\n");
-		return PTR_ERR(vdda_dac);
-	}
-
-	venc->vdda_dac_reg = vdda_dac;
-
-	return 0;
-}
-
 static int venc_dump_regs(struct seq_file *s, void *p)
 {
 	struct venc_device *venc = s->private;
@@ -713,12 +694,7 @@ static int venc_get_clocks(struct venc_device *venc)
 static int venc_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct venc_device *venc = dssdev_to_venc(dssdev);
 	int r;
-
-	r = venc_init_regulator(venc);
-	if (r)
-		return r;
 
 	r = dss_mgr_connect(dssdev);
 	if (r)
@@ -905,6 +881,14 @@ static int venc_probe(struct platform_device *pdev)
 	venc->base = devm_ioremap_resource(&pdev->dev, venc_mem);
 	if (IS_ERR(venc->base)) {
 		r = PTR_ERR(venc->base);
+		goto err_free;
+	}
+
+	venc->vdda_dac_reg = devm_regulator_get(&pdev->dev, "vdda");
+	if (IS_ERR(venc->vdda_dac_reg)) {
+		r = PTR_ERR(venc->vdda_dac_reg);
+		if (r != -EPROBE_DEFER)
+			DSSERR("can't get VDDA_DAC regulator\n");
 		goto err_free;
 	}
 

@@ -252,34 +252,10 @@ static int sdi_check_timings(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static int sdi_init_regulator(struct sdi_device *sdi)
-{
-	struct regulator *vdds_sdi;
-
-	if (sdi->vdds_sdi_reg)
-		return 0;
-
-	vdds_sdi = devm_regulator_get(&sdi->pdev->dev, "vdds_sdi");
-	if (IS_ERR(vdds_sdi)) {
-		if (PTR_ERR(vdds_sdi) != -EPROBE_DEFER)
-			DSSERR("can't get VDDS_SDI regulator\n");
-		return PTR_ERR(vdds_sdi);
-	}
-
-	sdi->vdds_sdi_reg = vdds_sdi;
-
-	return 0;
-}
-
 static int sdi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct sdi_device *sdi = dssdev_to_sdi(dssdev);
 	int r;
-
-	r = sdi_init_regulator(sdi);
-	if (r)
-		return r;
 
 	r = dss_mgr_connect(dssdev);
 	if (r)
@@ -378,6 +354,14 @@ int sdi_init_port(struct dss_device *dss, struct platform_device *pdev,
 
 	sdi->pdev = pdev;
 	port->data = sdi;
+
+	sdi->vdds_sdi_reg = devm_regulator_get(&pdev->dev, "vdds_sdi");
+	if (IS_ERR(sdi->vdds_sdi_reg)) {
+		r = PTR_ERR(sdi->vdds_sdi_reg);
+		if (r != -EPROBE_DEFER)
+			DSSERR("can't get VDDS_SDI regulator\n");
+		goto err_free;
+	}
 
 	r = sdi_init_output(sdi);
 	if (r)

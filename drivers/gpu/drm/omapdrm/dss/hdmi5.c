@@ -117,24 +117,6 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int hdmi_init_regulator(struct omap_hdmi *hdmi)
-{
-	struct regulator *reg;
-
-	if (hdmi->vdda_reg != NULL)
-		return 0;
-
-	reg = devm_regulator_get(&hdmi->pdev->dev, "vdda");
-	if (IS_ERR(reg)) {
-		DSSERR("can't get VDDA regulator\n");
-		return PTR_ERR(reg);
-	}
-
-	hdmi->vdda_reg = reg;
-
-	return 0;
-}
-
 static int hdmi_power_on_core(struct omap_hdmi *hdmi)
 {
 	int r;
@@ -454,12 +436,7 @@ static void hdmi_core_disable(struct omap_hdmi *hdmi)
 static int hdmi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
 	int r;
-
-	r = hdmi_init_regulator(hdmi);
-	if (r)
-		return r;
 
 	r = dss_mgr_connect(dssdev);
 	if (r)
@@ -814,6 +791,14 @@ static int hdmi5_probe(struct platform_device *pdev)
 			IRQF_ONESHOT, "OMAP HDMI", hdmi);
 	if (r) {
 		DSSERR("HDMI IRQ request failed\n");
+		goto err_free;
+	}
+
+	hdmi->vdda_reg = devm_regulator_get(&pdev->dev, "vdda");
+	if (IS_ERR(hdmi->vdda_reg)) {
+		r = PTR_ERR(hdmi->vdda_reg);
+		if (r != -EPROBE_DEFER)
+			DSSERR("can't get VDDA regulator\n");
 		goto err_free;
 	}
 

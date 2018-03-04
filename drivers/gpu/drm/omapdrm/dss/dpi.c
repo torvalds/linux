@@ -551,38 +551,6 @@ static int dpi_verify_pll(struct dss_pll *pll)
 	return 0;
 }
 
-static const struct soc_device_attribute dpi_soc_devices[] = {
-	{ .machine = "OMAP3[456]*" },
-	{ .machine = "[AD]M37*" },
-	{ /* sentinel */ }
-};
-
-static int dpi_init_regulator(struct dpi_data *dpi)
-{
-	struct regulator *vdds_dsi;
-
-	/*
-	 * The DPI uses the DSI VDDS on OMAP34xx, OMAP35xx, OMAP36xx, AM37xx and
-	 * DM37xx only.
-	 */
-	if (!soc_device_match(dpi_soc_devices))
-		return 0;
-
-	if (dpi->vdds_dsi_reg)
-		return 0;
-
-	vdds_dsi = devm_regulator_get(&dpi->pdev->dev, "vdds_dsi");
-	if (IS_ERR(vdds_dsi)) {
-		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
-			DSSERR("can't get VDDS_DSI regulator\n");
-		return PTR_ERR(vdds_dsi);
-	}
-
-	dpi->vdds_dsi_reg = vdds_dsi;
-
-	return 0;
-}
-
 static void dpi_init_pll(struct dpi_data *dpi)
 {
 	struct dss_pll *pll;
@@ -645,10 +613,6 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	int r;
-
-	r = dpi_init_regulator(dpi);
-	if (r)
-		return r;
 
 	dpi_init_pll(dpi);
 
@@ -737,6 +701,35 @@ static void dpi_uninit_output_port(struct device_node *port)
 	omapdss_device_unregister(out);
 }
 
+static const struct soc_device_attribute dpi_soc_devices[] = {
+	{ .machine = "OMAP3[456]*" },
+	{ .machine = "[AD]M37*" },
+	{ /* sentinel */ }
+};
+
+static int dpi_init_regulator(struct dpi_data *dpi)
+{
+	struct regulator *vdds_dsi;
+
+	/*
+	 * The DPI uses the DSI VDDS on OMAP34xx, OMAP35xx, OMAP36xx, AM37xx and
+	 * DM37xx only.
+	 */
+	if (!soc_device_match(dpi_soc_devices))
+		return 0;
+
+	vdds_dsi = devm_regulator_get(&dpi->pdev->dev, "vdds_dsi");
+	if (IS_ERR(vdds_dsi)) {
+		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
+			DSSERR("can't get VDDS_DSI regulator\n");
+		return PTR_ERR(vdds_dsi);
+	}
+
+	dpi->vdds_dsi_reg = vdds_dsi;
+
+	return 0;
+}
+
 int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
 		  struct device_node *port, enum dss_model dss_model)
 {
@@ -768,6 +761,10 @@ int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
 	port->data = dpi;
 
 	mutex_init(&dpi->lock);
+
+	r = dpi_init_regulator(dpi);
+	if (r)
+		return r;
 
 	return dpi_init_output_port(dpi, port);
 }

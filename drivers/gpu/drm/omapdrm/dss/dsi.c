@@ -1137,26 +1137,6 @@ static void dsi_runtime_put(struct dsi_data *dsi)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
-static int dsi_regulator_init(struct dsi_data *dsi)
-{
-	struct regulator *vdds_dsi;
-
-	if (dsi->vdds_dsi_reg != NULL)
-		return 0;
-
-	vdds_dsi = devm_regulator_get(dsi->dev, "vdd");
-
-	if (IS_ERR(vdds_dsi)) {
-		if (PTR_ERR(vdds_dsi) != -EPROBE_DEFER)
-			DSSERR("can't get DSI VDD regulator\n");
-		return PTR_ERR(vdds_dsi);
-	}
-
-	dsi->vdds_dsi_reg = vdds_dsi;
-
-	return 0;
-}
-
 static void _dsi_print_reset_status(struct dsi_data *dsi)
 {
 	u32 l;
@@ -1352,10 +1332,6 @@ static int dsi_pll_enable(struct dss_pll *pll)
 	int r = 0;
 
 	DSSDBG("PLL init\n");
-
-	r = dsi_regulator_init(dsi);
-	if (r)
-		return r;
 
 	r = dsi_runtime_get(dsi);
 	if (r)
@@ -4908,12 +4884,7 @@ static int dsi_get_clocks(struct dsi_data *dsi)
 static int dsi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct dsi_data *dsi = to_dsi_data(dssdev);
 	int r;
-
-	r = dsi_regulator_init(dsi);
-	if (r)
-		return r;
 
 	r = dss_mgr_connect(dssdev);
 	if (r)
@@ -5382,6 +5353,13 @@ static int dsi_probe(struct platform_device *pdev)
 	if (r < 0) {
 		DSSERR("request_irq failed\n");
 		return r;
+	}
+
+	dsi->vdds_dsi_reg = devm_regulator_get(dev, "vdd");
+	if (IS_ERR(dsi->vdds_dsi_reg)) {
+		if (PTR_ERR(dsi->vdds_dsi_reg) != -EPROBE_DEFER)
+			DSSERR("can't get DSI VDD regulator\n");
+		return PTR_ERR(dsi->vdds_dsi_reg);
 	}
 
 	soc = soc_device_match(dsi_soc_devices);
