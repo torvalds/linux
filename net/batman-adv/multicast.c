@@ -543,8 +543,8 @@ update:
 		bat_priv->mcast.enabled = true;
 	}
 
-	return !(mcast_data.flags &
-		 (BATADV_MCAST_WANT_ALL_IPV4 | BATADV_MCAST_WANT_ALL_IPV6));
+	return !(mcast_data.flags & BATADV_MCAST_WANT_ALL_IPV4 &&
+		 mcast_data.flags & BATADV_MCAST_WANT_ALL_IPV6);
 }
 
 /**
