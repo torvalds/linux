@@ -376,7 +376,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 	spin_lock_irqsave(&ch->lock, flags);
 	ctl = ch->tail_blk_ctl;
 	do {
-		if (ctl->desc->ctrl & WCN36XX_DXE_CTRL_VALID_MASK)
+		if (ctl->desc->ctrl & WCN36xx_DXE_CTRL_VLD)
 			break;
 		if (ctl->skb) {
 			dma_unmap_single(wcn->dev, ctl->desc->src_addr_l,
@@ -397,7 +397,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 		}
 		ctl = ctl->next;
 	} while (ctl != ch->head_blk_ctl &&
-	       !(ctl->desc->ctrl & WCN36XX_DXE_CTRL_VALID_MASK));
+	       !(ctl->desc->ctrl & WCN36xx_DXE_CTRL_VLD));
 
 	ch->tail_blk_ctl = ctl;
 	spin_unlock_irqrestore(&ch->lock, flags);
@@ -503,7 +503,7 @@ static int wcn36xx_rx_handle_packets(struct wcn36xx *wcn,
 		int_mask = WCN36XX_DXE_INT_CH3_MASK;
 	}
 
-	while (!(dxe->ctrl & WCN36XX_DXE_CTRL_VALID_MASK)) {
+	while (!(dxe->ctrl & WCN36xx_DXE_CTRL_VLD)) {
 		skb = ctl->skb;
 		dma_addr = dxe->dst_addr_l;
 		ret = wcn36xx_dxe_fill_skb(wcn->dev, ctl);
