@@ -124,7 +124,7 @@ int devm_irq_sim_init(struct device *dev, struct irq_sim *sim,
 		return -ENOMEM;
 
 	rv = irq_sim_init(sim, num_irqs);
-	if (rv) {
+	if (rv < 0) {
 		devres_free(dr);
 		return rv;
 	}
