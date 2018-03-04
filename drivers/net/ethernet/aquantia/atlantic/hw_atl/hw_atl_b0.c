@@ -16,11 +16,23 @@
 #include "hw_atl_utils.h"
 #include "hw_atl_llh.h"
 #include "hw_atl_b0_internal.h"
+#include "hw_atl_llh_internal.h"
 
 static int hw_atl_b0_get_hw_caps(struct aq_hw_s *self,
-				 struct aq_hw_caps_s *aq_hw_caps)
+				 struct aq_hw_caps_s *aq_hw_caps,
+				 unsigned short device,
+				 unsigned short subsystem_device)
 {
 	memcpy(aq_hw_caps, &hw_atl_b0_hw_caps_, sizeof(*aq_hw_caps));
+
+	if (device == HW_ATL_DEVICE_ID_D108 && subsystem_device == 0x0001)
+		aq_hw_caps->link_speed_msk &= ~HW_ATL_B0_RATE_10G;
+
+	if (device == HW_ATL_DEVICE_ID_D109 && subsystem_device == 0x0001) {
+		aq_hw_caps->link_speed_msk &= ~HW_ATL_B0_RATE_10G;
+		aq_hw_caps->link_speed_msk &= ~HW_ATL_B0_RATE_5G;
+	}
+
 	return 0;
 }
 
@@ -357,6 +369,7 @@ static int hw_atl_b0_hw_init(struct aq_hw_s *self,
 	};
 
 	int err = 0;
+	u32 val;
 
 	self->aq_nic_cfg = aq_nic_cfg;
 
@@ -373,6 +386,16 @@ static int hw_atl_b0_hw_init(struct aq_hw_s *self,
 	hw_atl_b0_hw_qos_set(self);
 	hw_atl_b0_hw_rss_set(self, &aq_nic_cfg->aq_rss);
 	hw_atl_b0_hw_rss_hash_set(self, &aq_nic_cfg->aq_rss);
+
+	/* Force limit MRRS on RDM/TDM to 2K */
+	val = aq_hw_read_reg(self, pci_reg_control6_adr);
+	aq_hw_write_reg(self, pci_reg_control6_adr, (val & ~0x707) | 0x404);
+
+	/* TX DMA total request limit. B0 hardware is not capable to
+	 * handle more than (8K-MRRS) incoming DMA data.
+	 * Value 24 in 256byte units
+	 */
+	aq_hw_write_reg(self, tx_dma_total_req_limit_adr, 24);
 
 	err = aq_hw_err_from_flags(self);
 	if (err < 0)

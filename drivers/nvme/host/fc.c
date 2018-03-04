@@ -2876,7 +2876,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 		/* initiate nvme ctrl ref counting teardown */
 		nvme_uninit_ctrl(&ctrl->ctrl);
-		nvme_put_ctrl(&ctrl->ctrl);
 
 		/* Remove core ctrl ref. */
 		nvme_put_ctrl(&ctrl->ctrl);

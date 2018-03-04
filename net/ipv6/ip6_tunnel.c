@@ -1131,8 +1131,13 @@ route_lookup:
 		max_headroom += 8;
 		mtu -= 8;
 	}
-	if (mtu < IPV6_MIN_MTU)
-		mtu = IPV6_MIN_MTU;
+	if (skb->protocol == htons(ETH_P_IPV6)) {
+		if (mtu < IPV6_MIN_MTU)
+			mtu = IPV6_MIN_MTU;
+	} else if (mtu < 576) {
+		mtu = 576;
+	}
+
 	if (skb_dst(skb) && !t->parms.collect_md)
 		skb_dst(skb)->ops->update_pmtu(skb_dst(skb), NULL, skb, mtu);
 	if (skb->len - t->tun_hlen - eth_hlen > mtu && !skb_is_gso(skb)) {
@@ -1679,11 +1684,11 @@ int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct ip6_tnl *tnl = netdev_priv(dev);
 
-	if (tnl->parms.proto == IPPROTO_IPIP) {
-		if (new_mtu < ETH_MIN_MTU)
+	if (tnl->parms.proto == IPPROTO_IPV6) {
+		if (new_mtu < IPV6_MIN_MTU)
 			return -EINVAL;
 	} else {
-		if (new_mtu < IPV6_MIN_MTU)
+		if (new_mtu < ETH_MIN_MTU)
 			return -EINVAL;
 	}
 	if (new_mtu > 0xFFF8 - dev->hard_header_len)

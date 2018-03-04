@@ -1763,7 +1763,7 @@ try_dmaread:
 			err = brcmstb_nand_verify_erased_page(mtd, chip, buf,
 							      addr);
 			/* erased page bitflips corrected */
-			if (err > 0)
+			if (err >= 0)
 				return err;
 		}
 

@@ -2343,6 +2343,9 @@
 #define tx_dma_desc_base_addrmsw_adr(descriptor) \
 			(0x00007c04u + (descriptor) * 0x40)
 
+/* tx dma total request limit */
+#define tx_dma_total_req_limit_adr 0x00007b20u
+
 /* tx interrupt moderation control register definitions
  * Preprocessor definitions for TX Interrupt Moderation Control Register
  * Base Address: 0x00008980
@@ -2368,6 +2371,9 @@
 #define pci_reg_res_dsbl_width 1
 /* default value of bitfield reg_res_dsbl */
 #define pci_reg_res_dsbl_default 0x1
+
+/* PCI core control register */
+#define pci_reg_control6_adr 0x1014u
 
 /* global microprocessor scratch pad definitions */
 #define glb_cpu_scratch_scp_adr(scratch_scp) (0x00000300u + (scratch_scp) * 0x4)

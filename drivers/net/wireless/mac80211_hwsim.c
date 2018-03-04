@@ -3220,7 +3220,7 @@ static int hwsim_get_radio_nl(struct sk_buff *msg, struct genl_info *info)
 		if (!net_eq(wiphy_net(data->hw->wiphy), genl_info_net(info)))
 			continue;
 
-		skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+		skb = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_ATOMIC);
 		if (!skb) {
 			res = -ENOMEM;
 			goto out_err;

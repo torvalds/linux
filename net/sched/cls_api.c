@@ -197,21 +197,26 @@ static struct tcf_chain *tcf_chain_create(struct tcf_block *block,
 
 static void tcf_chain_flush(struct tcf_chain *chain)
 {
-	struct tcf_proto *tp;
+	struct tcf_proto *tp = rtnl_dereference(chain->filter_chain);
 
 	if (chain->p_filter_chain)
 		RCU_INIT_POINTER(*chain->p_filter_chain, NULL);
-	while ((tp = rtnl_dereference(chain->filter_chain)) != NULL) {
+	while (tp) {
 		RCU_INIT_POINTER(chain->filter_chain, tp->next);
-		tcf_chain_put(chain);
 		tcf_proto_destroy(tp);
+		tp = rtnl_dereference(chain->filter_chain);
+		tcf_chain_put(chain);
 	}
 }
 
 static void tcf_chain_destroy(struct tcf_chain *chain)
 {
+	struct tcf_block *block = chain->block;
+
 	list_del(&chain->list);
 	kfree(chain);
+	if (list_empty(&block->chain_list))
+		kfree(block);
 }
 
 static void tcf_chain_hold(struct tcf_chain *chain)
@@ -275,22 +280,8 @@ err_chain_create:
 }
 EXPORT_SYMBOL(tcf_block_get);
 
-static void tcf_block_put_final(struct work_struct *work)
-{
-	struct tcf_block *block = container_of(work, struct tcf_block, work);
-	struct tcf_chain *chain, *tmp;
-
-	rtnl_lock();
-	/* Only chain 0 should be still here. */
-	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
-		tcf_chain_put(chain);
-	rtnl_unlock();
-	kfree(block);
-}
-
 /* XXX: Standalone actions are not allowed to jump to any chain, and bound
- * actions should be all removed after flushing. However, filters are now
- * destroyed in tc filter workqueue with RTNL lock, they can not race here.
+ * actions should be all removed after flushing.
  */
 void tcf_block_put(struct tcf_block *block)
 {
@@ -299,15 +290,22 @@ void tcf_block_put(struct tcf_block *block)
 	if (!block)
 		return;
 
-	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
+	/* Hold a refcnt for all chains, so that they don't disappear
+	 * while we are iterating.
+	 */
+	list_for_each_entry(chain, &block->chain_list, list)
+		tcf_chain_hold(chain);
+
+	list_for_each_entry(chain, &block->chain_list, list)
 		tcf_chain_flush(chain);
 
-	INIT_WORK(&block->work, tcf_block_put_final);
-	/* Wait for RCU callbacks to release the reference count and make
-	 * sure their works have been queued before this.
-	 */
-	rcu_barrier();
-	tcf_queue_work(&block->work);
+	/* At this point, all the chains should have refcnt >= 1. */
+	list_for_each_entry_safe(chain, tmp, &block->chain_list, list)
+		tcf_chain_put(chain);
+
+	/* Finally, put chain 0 and allow block to be freed. */
+	chain = list_first_entry(&block->chain_list, struct tcf_chain, list);
+	tcf_chain_put(chain);
 }
 EXPORT_SYMBOL(tcf_block_put);
 
