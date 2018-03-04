@@ -540,10 +540,6 @@ static void __relink_lru(struct dm_buffer *b, int dirty)
  *
  *	the memory must be direct-mapped, not vmalloced;
  *
- *	the I/O driver can reject requests spuriously if it thinks that
- *	the requests are too big for the device or if they cross a
- *	controller-defined memory boundary.
- *
  * If the buffer is small enough (up to DM_BUFIO_INLINE_VECS pages) and
  * it is not vmalloced, try using the bio interface.
  *
