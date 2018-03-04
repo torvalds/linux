@@ -1622,12 +1622,76 @@ static bool rt5651_jack_inserted(struct snd_soc_component *component)
 	return val == 0;
 }
 
+/* Jack detect timings */
+#define JACK_SETTLE_TIME	100 /* milli seconds */
+#define JACK_DETECT_COUNT	5
+#define JACK_DETECT_MAXCOUNT	20  /* Aprox. 2 seconds worth of tries */
+
+static int rt5651_detect_headset(struct snd_soc_component *component)
+{
+	int i, headset_count = 0, headphone_count = 0;
+
+	/*
+	 * We get the insertion event before the jack is fully inserted at which
+	 * point the second ring on a TRRS connector may short the 2nd ring and
+	 * sleeve contacts, also the overcurrent detection is not entirely
+	 * reliable. So we try several times with a wait in between until we
+	 * detect the same type JACK_DETECT_COUNT times in a row.
+	 */
+	for (i = 0; i < JACK_DETECT_MAXCOUNT; i++) {
+		/* Clear any previous over-current status flag */
+		rt5651_clear_micbias1_ovcd(component);
+
+		msleep(JACK_SETTLE_TIME);
+
+		/* Check the jack is still connected before checking ovcd */
+		if (!rt5651_jack_inserted(component))
+			return 0;
+
+		if (rt5651_micbias1_ovcd(component)) {
+			/*
+			 * Over current detected, there is a short between the
+			 * 2nd ring contact and the ground, so a TRS connector
+			 * without a mic contact and thus plain headphones.
+			 */
+			dev_dbg(component->dev, "mic-gnd shorted\n");
+			headset_count = 0;
+			headphone_count++;
+			if (headphone_count == JACK_DETECT_COUNT)
+				return SND_JACK_HEADPHONE;
+		} else {
+			dev_dbg(component->dev, "mic-gnd open\n");
+			headphone_count = 0;
+			headset_count++;
+			if (headset_count == JACK_DETECT_COUNT)
+				return SND_JACK_HEADSET;
+		}
+	}
+
+	dev_err(component->dev, "Error detecting headset vs headphones, bad contact?, assuming headphones\n");
+	return SND_JACK_HEADPHONE;
+}
+
+static void rt5651_jack_detect_work(struct work_struct *work)
+{
+	struct rt5651_priv *rt5651 =
+		container_of(work, struct rt5651_priv, jack_detect_work);
+	int report = 0;
+
+	if (rt5651_jack_inserted(rt5651->component)) {
+		rt5651_enable_micbias1_for_ovcd(rt5651->component);
+		report = rt5651_detect_headset(rt5651->component);
+		rt5651_disable_micbias1_for_ovcd(rt5651->component);
+	}
+
+	snd_soc_jack_report(rt5651->hp_jack, report, SND_JACK_HEADSET);
+}
+
 static irqreturn_t rt5651_irq(int irq, void *data)
 {
 	struct rt5651_priv *rt5651 = data;
 
-	queue_delayed_work(system_power_efficient_wq,
-			   &rt5651->jack_detect_work, msecs_to_jiffies(250));
+	queue_work(system_power_efficient_wq, &rt5651->jack_detect_work);
 
 	return IRQ_HANDLED;
 }
@@ -1715,8 +1779,7 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 	}
 
 	/* sync initial jack state */
-	queue_delayed_work(system_power_efficient_wq,
-			   &rt5651->jack_detect_work, 0);
+	queue_work(system_power_efficient_wq, &rt5651->jack_detect_work);
 
 	return 0;
 }
@@ -1928,41 +1991,6 @@ static const struct i2c_device_id rt5651_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5651_i2c_id);
 
-static int rt5651_jack_detect(struct snd_soc_component *component, int jack_insert)
-{
-	int jack_type;
-
-	if (jack_insert) {
-		rt5651_enable_micbias1_for_ovcd(component);
-		rt5651_clear_micbias1_ovcd(component);
-		msleep(100);
-		if (rt5651_micbias1_ovcd(component))
-			jack_type = SND_JACK_HEADPHONE;
-		else
-			jack_type = SND_JACK_HEADSET;
-		rt5651_disable_micbias1_for_ovcd(component);
-	} else { /* jack out */
-		jack_type = 0;
-	}
-
-	return jack_type;
-}
-
-static void rt5651_jack_detect_work(struct work_struct *work)
-{
-	struct rt5651_priv *rt5651 =
-		container_of(work, struct rt5651_priv, jack_detect_work.work);
-	int report, jack_inserted;
-
-	if (!rt5651->component)
-		return;
-
-	jack_inserted = rt5651_jack_inserted(rt5651->component);
-	report = rt5651_jack_detect(rt5651->component, jack_inserted);
-
-	snd_soc_jack_report(rt5651->hp_jack, report, SND_JACK_HEADSET);
-}
-
 /*
  * Note this function MUST not look at device-properties, see the comment
  * above rt5651_apply_properties().
@@ -2005,7 +2033,7 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 	rt5651->irq = i2c->irq;
 	rt5651->hp_mute = 1;
 
-	INIT_DELAYED_WORK(&rt5651->jack_detect_work, rt5651_jack_detect_work);
+	INIT_WORK(&rt5651->jack_detect_work, rt5651_jack_detect_work);
 
 	ret = devm_snd_soc_register_component(&i2c->dev,
 				&soc_component_dev_rt5651,
@@ -2018,7 +2046,7 @@ static int rt5651_i2c_remove(struct i2c_client *i2c)
 {
 	struct rt5651_priv *rt5651 = i2c_get_clientdata(i2c);
 
-	cancel_delayed_work_sync(&rt5651->jack_detect_work);
+	cancel_work_sync(&rt5651->jack_detect_work);
 
 	return 0;
 }

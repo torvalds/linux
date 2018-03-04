@@ -2072,7 +2072,7 @@ struct rt5651_priv {
 	struct snd_soc_component *component;
 	struct regmap *regmap;
 	struct snd_soc_jack *hp_jack;
-	struct delayed_work jack_detect_work;
+	struct work_struct jack_detect_work;
 	enum rt5651_jd_src jd_src;
 	unsigned int ovcd_th;
 	unsigned int ovcd_sf;
