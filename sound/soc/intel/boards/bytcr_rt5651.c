@@ -111,6 +111,38 @@ static void log_quirks(struct device *dev)
 
 #define BYT_CODEC_DAI1	"rt5651-aif1"
 
+static int byt_rt5651_prepare_and_enable_pll1(struct snd_soc_dai *codec_dai,
+					      int rate, int bclk_ratio)
+{
+	int clk_id, clk_freq, ret;
+
+	/* Configure the PLL before selecting it */
+	if (!(byt_rt5651_quirk & BYT_RT5651_MCLK_EN)) {
+		clk_id = RT5651_PLL1_S_BCLK1,
+		clk_freq = rate * bclk_ratio;
+	} else {
+		clk_id = RT5651_PLL1_S_MCLK;
+		if (byt_rt5651_quirk & BYT_RT5651_MCLK_25MHZ)
+			clk_freq = 25000000;
+		else
+			clk_freq = 19200000;
+	}
+	ret = snd_soc_dai_set_pll(codec_dai, 0, clk_id, clk_freq, rate * 512);
+	if (ret < 0) {
+		dev_err(codec_dai->codec->dev, "can't set pll: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dai_set_sysclk(codec_dai, RT5651_SCLK_S_PLL1,
+				     rate * 512, SND_SOC_CLOCK_IN);
+	if (ret < 0) {
+		dev_err(codec_dai->codec->dev, "can't set clock %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int platform_clock_control(struct snd_soc_dapm_widget *w,
 				  struct snd_kcontrol *k, int  event)
 {
@@ -136,9 +168,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 				return ret;
 			}
 		}
-		ret = snd_soc_dai_set_sysclk(codec_dai, RT5651_SCLK_S_PLL1,
-					     48000 * 512,
-					     SND_SOC_CLOCK_IN);
+		ret = byt_rt5651_prepare_and_enable_pll1(codec_dai, 48000, 50);
 	} else {
 		/*
 		 * Set codec clock source to internal clock before
@@ -252,44 +282,11 @@ static int byt_rt5651_aif1_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	int ret;
+	int rate = params_rate(params);
 
 	snd_soc_dai_set_bclk_ratio(codec_dai, 50);
 
-	ret = snd_soc_dai_set_sysclk(codec_dai, RT5651_SCLK_S_PLL1,
-				     params_rate(params) * 512,
-				     SND_SOC_CLOCK_IN);
-	if (ret < 0) {
-		dev_err(rtd->dev, "can't set codec clock %d\n", ret);
-		return ret;
-	}
-
-	if (!(byt_rt5651_quirk & BYT_RT5651_MCLK_EN)) {
-		/* 2x25 bit slots on SSP2 */
-		ret = snd_soc_dai_set_pll(codec_dai, 0,
-					RT5651_PLL1_S_BCLK1,
-					params_rate(params) * 50,
-					params_rate(params) * 512);
-	} else {
-		if (byt_rt5651_quirk & BYT_RT5651_MCLK_25MHZ) {
-			ret = snd_soc_dai_set_pll(codec_dai, 0,
-						RT5651_PLL1_S_MCLK,
-						25000000,
-						params_rate(params) * 512);
-		} else {
-			ret = snd_soc_dai_set_pll(codec_dai, 0,
-						RT5651_PLL1_S_MCLK,
-						19200000,
-						params_rate(params) * 512);
-		}
-	}
-
-	if (ret < 0) {
-		dev_err(rtd->dev, "can't set codec pll: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return byt_rt5651_prepare_and_enable_pll1(codec_dai, rate, 50);
 }
 
 static int byt_rt5651_quirk_cb(const struct dmi_system_id *id)
