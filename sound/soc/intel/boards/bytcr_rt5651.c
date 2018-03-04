@@ -540,12 +540,13 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 
 	/* fixup codec name based on HID */
 	i2c_name = acpi_dev_get_first_match_name(mach->id, NULL, -1);
-	if (i2c_name) {
-		snprintf(byt_rt5651_codec_name, sizeof(byt_rt5651_codec_name),
-			"%s%s", "i2c-", i2c_name);
-
-		byt_rt5651_dais[dai_index].codec_name = byt_rt5651_codec_name;
+	if (!i2c_name) {
+		dev_err(&pdev->dev, "Error cannot find '%s' dev\n", mach->id);
+		return -ENODEV;
 	}
+	snprintf(byt_rt5651_codec_name, sizeof(byt_rt5651_codec_name),
+		"%s%s", "i2c-", i2c_name);
+	byt_rt5651_dais[dai_index].codec_name = byt_rt5651_codec_name;
 
 	/* check quirks before creating card */
 	dmi_check_system(byt_rt5651_quirk_table);
