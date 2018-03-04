@@ -350,8 +350,7 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 	u32 ch0lux = 0;
 	u32 ch1lux = 0;
 
-	if (mutex_trylock(&chip->als_mutex) == 0)
-		return chip->als_cur_info.lux; /* busy, so return LAST VALUE */
+	mutex_lock(&chip->als_mutex);
 
 	if (chip->tsl2x7x_chip_status != TSL2X7X_CHIP_WORKING) {
 		/* device is not enabled */
@@ -478,11 +477,7 @@ static int tsl2x7x_get_prox(struct iio_dev *indio_dev)
 	u8 chdata[2];
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 
-	if (mutex_trylock(&chip->prox_mutex) == 0) {
-		dev_err(&chip->client->dev,
-			"%s: Can't get prox mutex\n", __func__);
-		return -EBUSY;
-	}
+	mutex_lock(&chip->prox_mutex);
 
 	ret = tsl2x7x_read_status(chip);
 	if (ret < 0)
