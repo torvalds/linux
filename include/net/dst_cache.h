@@ -71,7 +71,7 @@ struct dst_entry *dst_cache_get_ip6(struct dst_cache *dst_cache,
  *	dst_cache_reset - invalidate the cache contents
  *	@dst_cache: the cache
  *
- *	This do not free the cached dst to avoid races and contentions.
+ *	This does not free the cached dst to avoid races and contentions.
  *	the dst will be freed on later cache lookup.
  */
 static inline void dst_cache_reset(struct dst_cache *dst_cache)
