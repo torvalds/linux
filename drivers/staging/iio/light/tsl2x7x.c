@@ -293,6 +293,20 @@ static int tsl2x7x_clear_interrupts(struct tsl2X7X_chip *chip, int reg)
 	return ret;
 }
 
+static int tsl2x7x_read_status(struct tsl2X7X_chip *chip)
+{
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(chip->client,
+				       TSL2X7X_CMD_REG | TSL2X7X_STATUS);
+	if (ret < 0)
+		dev_err(&chip->client->dev,
+			"%s: failed to read STATUS register: %d\n", __func__,
+			ret);
+
+	return ret;
+}
+
 /**
  * tsl2x7x_get_lux() - Reads and calculates current lux value.
  * @indio_dev:	pointer to IIO device
@@ -332,13 +346,10 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 		goto out_unlock;
 	}
 
-	ret = i2c_smbus_read_byte_data(chip->client,
-				       TSL2X7X_CMD_REG | TSL2X7X_STATUS);
-	if (ret < 0) {
-		dev_err(&chip->client->dev,
-			"%s: Failed to read STATUS Reg\n", __func__);
+	ret = tsl2x7x_read_status(chip);
+	if (ret < 0)
 		goto out_unlock;
-	}
+
 	/* is data new & valid */
 	if (!(ret & TSL2X7X_STA_ADC_VALID)) {
 		dev_err(&chip->client->dev,
@@ -458,12 +469,9 @@ static int tsl2x7x_get_prox(struct iio_dev *indio_dev)
 		return -EBUSY;
 	}
 
-	ret = i2c_smbus_read_byte_data(chip->client,
-				       TSL2X7X_CMD_REG | TSL2X7X_STATUS);
-	if (ret < 0) {
-		dev_err(&chip->client->dev, "i2c err=%d\n", ret);
+	ret = tsl2x7x_read_status(chip);
+	if (ret < 0)
 		goto prox_poll_err;
-	}
 
 	switch (chip->id) {
 	case tsl2571:
@@ -1396,13 +1404,13 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	s64 timestamp = iio_get_time_ns(indio_dev);
 	int ret;
-	u8 value;
 
-	value = i2c_smbus_read_byte_data(chip->client,
-					 TSL2X7X_CMD_REG | TSL2X7X_STATUS);
+	ret = tsl2x7x_read_status(chip);
+	if (ret < 0)
+		return ret;
 
 	/* What type of interrupt do we need to process */
-	if (value & TSL2X7X_STA_PRX_INTR) {
+	if (ret & TSL2X7X_STA_PRX_INTR) {
 		tsl2x7x_get_prox(indio_dev); /* freshen data for ABI */
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY,
@@ -1412,7 +1420,7 @@ static irqreturn_t tsl2x7x_event_handler(int irq, void *private)
 						    timestamp);
 	}
 
-	if (value & TSL2X7X_STA_ALS_INTR) {
+	if (ret & TSL2X7X_STA_ALS_INTR) {
 		tsl2x7x_get_lux(indio_dev); /* freshen data for ABI */
 		iio_push_event(indio_dev,
 			       IIO_UNMOD_EVENT_CODE(IIO_LIGHT,
