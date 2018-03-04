@@ -41,7 +41,7 @@ enum {
 	BYT_RT5651_IN1_MAP,
 	BYT_RT5651_IN2_MAP,
 	BYT_RT5651_IN1_IN2_MAP,
-	BYT_RT5651_IN3_MAP,
+	BYT_RT5651_IN1_HS_IN3_MAP,
 };
 
 enum {
@@ -91,8 +91,8 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk IN1_MAP enabled");
 	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN2_MAP)
 		dev_info(dev, "quirk IN2_MAP enabled");
-	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN3_MAP)
-		dev_info(dev, "quirk IN3_MAP enabled");
+	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN1_HS_IN3_MAP)
+		dev_info(dev, "quirk IN1_HS_IN3_MAP enabled");
 	if (BYT_RT5651_JDSRC(byt_rt5651_quirk)) {
 		dev_info(dev, "quirk realtek,jack-detect-source %ld\n",
 			 BYT_RT5651_JDSRC(byt_rt5651_quirk));
@@ -235,8 +235,8 @@ static const struct snd_soc_dapm_route byt_rt5651_intmic_dmic_map[] = {
 
 static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_map[] = {
 	{"Internal Mic", NULL, "micbias1"},
-	{"IN2P", NULL, "Headset Mic"},
 	{"IN1P", NULL, "Internal Mic"},
+	{"IN2P", NULL, "Headset Mic"},
 };
 
 static const struct snd_soc_dapm_route byt_rt5651_intmic_in2_map[] = {
@@ -252,10 +252,10 @@ static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_in2_map[] = {
 	{"IN3P", NULL, "Headset Mic"},
 };
 
-static const struct snd_soc_dapm_route byt_rt5651_intmic_in3_map[] = {
+static const struct snd_soc_dapm_route byt_rt5651_intmic_in1_hs_in3_map[] = {
 	{"Internal Mic", NULL, "micbias1"},
-	{"IN3P", NULL, "Headset Mic"},
 	{"IN1P", NULL, "Internal Mic"},
+	{"IN3P", NULL, "Headset Mic"},
 };
 
 static const struct snd_kcontrol_new byt_rt5651_controls[] = {
@@ -300,7 +300,7 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Circuitco"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Max B3 PLATFORM"),
 		},
-		.driver_data = (void *)(BYT_RT5651_IN3_MAP),
+		.driver_data = (void *)(BYT_RT5651_IN1_HS_IN3_MAP),
 	},
 	{
 		.callback = byt_rt5651_quirk_cb,
@@ -309,7 +309,7 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Minnowboard Turbot"),
 		},
 		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
-					BYT_RT5651_IN3_MAP),
+					BYT_RT5651_IN1_HS_IN3_MAP),
 	},
 	{
 		.callback = byt_rt5651_quirk_cb,
@@ -382,9 +382,9 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 		custom_map = byt_rt5651_intmic_in1_in2_map;
 		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in1_in2_map);
 		break;
-	case BYT_RT5651_IN3_MAP:
-		custom_map = byt_rt5651_intmic_in3_map;
-		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in3_map);
+	case BYT_RT5651_IN1_HS_IN3_MAP:
+		custom_map = byt_rt5651_intmic_in1_hs_in3_map;
+		num_routes = ARRAY_SIZE(byt_rt5651_intmic_in1_hs_in3_map);
 		break;
 	default:
 		custom_map = byt_rt5651_intmic_dmic_map;
