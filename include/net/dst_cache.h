@@ -54,7 +54,7 @@ void dst_cache_set_ip4(struct dst_cache *dst_cache, struct dst_entry *dst,
  *	local BH must be disabled.
  */
 void dst_cache_set_ip6(struct dst_cache *dst_cache, struct dst_entry *dst,
-		       const struct in6_addr *addr);
+		       const struct in6_addr *saddr);
 
 /**
  *	dst_cache_get_ip6 - perform cache lookup and fetch ipv6 source address
