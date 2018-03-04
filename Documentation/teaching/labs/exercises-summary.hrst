@@ -1,9 +1,9 @@
 
-To solve exercises need to perform these steps:
+To solve exercises, you need to perform these steps:
 
    * prepare skeletons from templates
    * build modules
-   * copy modules to VM
+   * copy modules to the VM
    * start the VM and test the module in the VM.
 
 The current lab name is |LAB_NAME|. See the exercises for the task name.
@@ -15,22 +15,22 @@ The current lab name is |LAB_NAME|. See the exercises for the task name.
       **See details**
 
    The skeleton code is generated from full source examples located in
-   ``tools/labs/templates``. To solve the tasks start by generating
+   :file:`tools/labs/templates`. To solve the tasks, start by generating
    the skeleton code:
 
-   .. parsed-literal:: shell
+   .. code-block:: shell
 
       tools/labs $ make clean
       tools/labs $ LABS=<lab name>/<task name> make skels
 
-   Where task name is defined for each task. Once the skelton drivers are
-   generated build the source:
+   where task name is defined for each task. Once the skeleton drivers are
+   generated, build the source:
 
    .. code-block:: shell
 
       tools/labs $ make build
 
-   Then copy the modules and start the VM:
+   Then, copy the modules and start the VM:
 
    .. code-block:: shell
 
@@ -38,5 +38,8 @@ The current lab name is |LAB_NAME|. See the exercises for the task name.
       tools/labs $ make boot
 
    The modules are placed in /home/root/skels/|LAB_NAME|/<task_name>.
+
+   Alternatively, we can copy files via :command:`scp`, in order to avoid restarting the VM.
+   For additional details about connecting to the VM via the network, please check :ref:`vm_interaction_link`.
 
    Review the `Exercises`_ section for more detailed information.
