@@ -1597,6 +1597,31 @@ static bool rt5651_micbias1_ovcd(struct snd_soc_component *component)
 	return (val & RT5651_MB1_OC_CLR);
 }
 
+static bool rt5651_jack_inserted(struct snd_soc_component *component)
+{
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+	int val;
+
+	val = snd_soc_component_read32(component, RT5651_INT_IRQ_ST);
+	dev_dbg(component->dev, "irq status %#04x\n", val);
+
+	switch (rt5651->jd_src) {
+	case RT5651_JD1_1:
+		val &= 0x1000;
+		break;
+	case RT5651_JD1_2:
+		val &= 0x2000;
+		break;
+	case RT5651_JD2:
+		val &= 0x4000;
+		break;
+	default:
+		break;
+	}
+
+	return val == 0;
+}
+
 static irqreturn_t rt5651_irq(int irq, void *data)
 {
 	struct rt5651_priv *rt5651 = data;
@@ -1927,27 +1952,13 @@ static void rt5651_jack_detect_work(struct work_struct *work)
 {
 	struct rt5651_priv *rt5651 =
 		container_of(work, struct rt5651_priv, jack_detect_work.work);
-
-	int report, val = 0;
+	int report, jack_inserted;
 
 	if (!rt5651->component)
 		return;
 
-	switch (rt5651->jd_src) {
-	case RT5651_JD1_1:
-		val = snd_soc_component_read32(rt5651->component, RT5651_INT_IRQ_ST) & 0x1000;
-		break;
-	case RT5651_JD1_2:
-		val = snd_soc_component_read32(rt5651->component, RT5651_INT_IRQ_ST) & 0x2000;
-		break;
-	case RT5651_JD2:
-		val = snd_soc_component_read32(rt5651->component, RT5651_INT_IRQ_ST) & 0x4000;
-		break;
-	default:
-		break;
-	}
-
-	report = rt5651_jack_detect(rt5651->component, !val);
+	jack_inserted = rt5651_jack_inserted(rt5651->component);
+	report = rt5651_jack_detect(rt5651->component, jack_inserted);
 
 	snd_soc_jack_report(rt5651->hp_jack, report, SND_JACK_HEADSET);
 }
