@@ -1666,7 +1666,14 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 	return 0;
 }
 
-void rt5651_apply_properties(struct snd_soc_component *component)
+/*
+ * Note on some platforms the platform code may need to add device-properties,
+ * rather then relying only on properties set by the firmware. Therefor the
+ * property parsing MUST be done from the component driver's probe function,
+ * rather then from the i2c driver's probe function, so that the platform-code
+ * can attach extra properties before calling snd_soc_register_card().
+ */
+static void rt5651_apply_properties(struct snd_soc_component *component)
 {
 	if (device_property_read_bool(component->dev, "realtek,in2-differential"))
 		snd_soc_component_update_bits(component, RT5651_IN1_IN2,
@@ -1676,7 +1683,6 @@ void rt5651_apply_properties(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, RT5651_GPIO_CTRL1,
 				RT5651_GP2_PIN_MASK, RT5651_GP2_PIN_DMIC1_SCL);
 }
-EXPORT_SYMBOL_GPL(rt5651_apply_properties);
 
 static int rt5651_probe(struct snd_soc_component *component)
 {
@@ -1893,6 +1899,10 @@ static void rt5651_jack_detect_work(struct work_struct *work)
 	snd_soc_jack_report(rt5651->hp_jack, report, SND_JACK_HEADSET);
 }
 
+/*
+ * Note this function MUST not look at device-properties, see the comment
+ * above rt5651_apply_properties().
+ */
 static int rt5651_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {

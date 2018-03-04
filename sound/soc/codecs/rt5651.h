@@ -2080,6 +2080,4 @@ struct rt5651_priv {
 	bool hp_mute;
 };
 
-void rt5651_apply_properties(struct snd_soc_component *component);
-
 #endif /* __RT5651_H__ */
