@@ -28,6 +28,9 @@ union pkthdr {
 		u8 type;
 		u8 code;
 	} icmphdr;
+	struct {
+		u8 type;
+	} igmphdr;
 };
 
 static bool
@@ -57,12 +60,12 @@ ebt_ip_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		if (NF_INVF(info, EBT_IP_PROTO, info->protocol != ih->protocol))
 			return false;
 		if (!(info->bitmask & (EBT_IP_DPORT | EBT_IP_SPORT |
-				       EBT_IP_ICMP)))
+				       EBT_IP_ICMP | EBT_IP_IGMP)))
 			return true;
 		if (ntohs(ih->frag_off) & IP_OFFSET)
 			return false;
 
-		/* min icmp headersize is 4, so sizeof(_pkthdr) is ok. */
+		/* min icmp/igmp headersize is 4, so sizeof(_pkthdr) is ok. */
 		pptr = skb_header_pointer(skb, ih->ihl*4,
 					  sizeof(_pkthdr), &_pkthdr);
 		if (pptr == NULL)
@@ -87,6 +90,11 @@ ebt_ip_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			    pptr->icmphdr.type > info->icmp_type[1] ||
 			    pptr->icmphdr.code < info->icmp_code[0] ||
 			    pptr->icmphdr.code > info->icmp_code[1]))
+			return false;
+		if ((info->bitmask & EBT_IP_IGMP) &&
+		    NF_INVF(info, EBT_IP_IGMP,
+			    pptr->igmphdr.type < info->igmp_type[0] ||
+			    pptr->igmphdr.type > info->igmp_type[1]))
 			return false;
 	}
 	return true;
@@ -122,6 +130,13 @@ static int ebt_ip_mt_check(const struct xt_mtchk_param *par)
 			return -EINVAL;
 		if (info->icmp_type[0] > info->icmp_type[1] ||
 		    info->icmp_code[0] > info->icmp_code[1])
+			return -EINVAL;
+	}
+	if (info->bitmask & EBT_IP_IGMP) {
+		if ((info->invflags & EBT_IP_PROTO) ||
+		    info->protocol != IPPROTO_IGMP)
+			return -EINVAL;
+		if (info->igmp_type[0] > info->igmp_type[1])
 			return -EINVAL;
 	}
 	return 0;
