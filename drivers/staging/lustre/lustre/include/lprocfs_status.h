@@ -114,7 +114,7 @@ struct rename_stats {
  * LPROCFS_CNTR_AVGMINMAX indicates a multi-valued counter samples,
  * (i.e. counter can be incremented by more than "1"). When specified,
  * the counter maintains min, max and sum in addition to a simple
- * invocation count. This allows averages to be be computed.
+ * invocation count. This allows averages to be computed.
  * If not specified, the counter is an increment-by-1 counter.
  * min, max, sum, etc. are not maintained.
  *
