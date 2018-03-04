@@ -1578,6 +1578,22 @@ static void rt5651_disable_micbias1_for_ovcd(struct snd_soc_component *component
 	snd_soc_dapm_mutex_unlock(dapm);
 }
 
+static void rt5651_clear_micbias1_ovcd(struct snd_soc_component *component)
+{
+	snd_soc_component_update_bits(component, RT5651_IRQ_CTRL2,
+		RT5651_MB1_OC_CLR, 0);
+}
+
+static bool rt5651_micbias1_ovcd(struct snd_soc_component *component)
+{
+	int val;
+
+	val = snd_soc_component_read32(component, RT5651_IRQ_CTRL2);
+	dev_dbg(component->dev, "irq ctrl2 %#04x\n", val);
+
+	return (val & RT5651_MB1_OC_CLR);
+}
+
 static irqreturn_t rt5651_irq(int irq, void *data)
 {
 	struct rt5651_priv *rt5651 = data;
@@ -1645,6 +1661,18 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 				      rt5651->ovcd_th |
 				      RT5651_PWR_MB_PU |
 				      RT5651_PWR_CLK12M_PU);
+
+	/*
+	 * The over-current-detect is only reliable in detecting the absence
+	 * of over-current, when the mic-contact in the jack is short-circuited,
+	 * the hardware periodically retries if it can apply the bias-current
+	 * leading to the ovcd status flip-flopping 1-0-1 with it being 0 about
+	 * 10% of the time, as we poll the ovcd status bit we might hit that
+	 * 10%, so we enable sticky mode and when checking OVCD we clear the
+	 * status, msleep() a bit and then check to get a reliable reading.
+	 */
+	snd_soc_component_update_bits(component, RT5651_IRQ_CTRL2,
+		RT5651_MB1_OC_STKY_MASK, RT5651_MB1_OC_STKY_EN);
 
 	rt5651->hp_jack = hp_jack;
 
@@ -1878,13 +1906,12 @@ static int rt5651_jack_detect(struct snd_soc_component *component, int jack_inse
 
 	if (jack_insert) {
 		rt5651_enable_micbias1_for_ovcd(component);
+		rt5651_clear_micbias1_ovcd(component);
 		msleep(100);
-		if (snd_soc_component_read32(component, RT5651_IRQ_CTRL2) & RT5651_MB1_OC_CLR)
+		if (rt5651_micbias1_ovcd(component))
 			jack_type = SND_JACK_HEADPHONE;
 		else
 			jack_type = SND_JACK_HEADSET;
-		snd_soc_component_update_bits(component, RT5651_IRQ_CTRL2,
-				    RT5651_MB1_OC_CLR, 0);
 		rt5651_disable_micbias1_for_ovcd(component);
 	} else { /* jack out */
 		jack_type = 0;
