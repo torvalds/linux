@@ -101,8 +101,25 @@ enum {
 #define POWER9_MMCRA_IFM2		0x0000000080000000UL
 #define POWER9_MMCRA_IFM3		0x00000000C0000000UL
 
+/* Nasty Power9 specific hack */
+#define PVR_POWER9_CUMULUS		0x00002000
+
 /* PowerISA v2.07 format attribute structure*/
 extern struct attribute_group isa207_pmu_format_group;
+
+int p9_dd21_bl_ev[] = {
+	PM_MRK_ST_DONE_L2,
+	PM_RADIX_PWC_L1_HIT,
+	PM_FLOP_CMPL,
+	PM_MRK_NTF_FIN,
+	PM_RADIX_PWC_L2_HIT,
+	PM_IFETCH_THROTTLE,
+	PM_MRK_L2_TM_ST_ABORT_SISTER,
+	PM_RADIX_PWC_L3_HIT,
+	PM_RUN_CYC_SMT2_MODE,
+	PM_TM_TX_PASS_RUN_INST,
+	PM_DISP_HELD_SYNC_HOLD,
+};
 
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int power9_event_alternatives[][MAX_ALT] = {
@@ -446,11 +463,20 @@ static struct power_pmu power9_pmu = {
 static int __init init_power9_pmu(void)
 {
 	int rc = 0;
+	unsigned int pvr = mfspr(SPRN_PVR);
 
 	/* Comes from cpu_specs[] */
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power9"))
 		return -ENODEV;
+
+	/* Blacklist events */
+	if (!(pvr & PVR_POWER9_CUMULUS)) {
+		if ((PVR_CFG(pvr) == 2) && (PVR_MIN(pvr) == 1)) {
+			power9_pmu.blacklist_ev = p9_dd21_bl_ev;
+			power9_pmu.n_blacklist_ev = ARRAY_SIZE(p9_dd21_bl_ev);
+		}
+	}
 
 	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
 		/*
