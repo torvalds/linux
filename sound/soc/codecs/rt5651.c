@@ -1638,7 +1638,7 @@ static int rt5651_set_jack(struct snd_soc_component *component,
 				      RT5651_PWR_CLK12M_MASK |
 				      RT5651_PWR_MB_MASK,
 				      RT5651_MIC1_OVCD_EN |
-				      RT5651_MIC1_OVTH_600UA |
+				      rt5651->ovcd_th |
 				      RT5651_PWR_MB_PU |
 				      RT5651_PWR_CLK12M_PU);
 
@@ -1684,6 +1684,26 @@ static void rt5651_apply_properties(struct snd_soc_component *component)
 	if (device_property_read_u32(component->dev,
 				     "realtek,jack-detect-source", &val) == 0)
 		rt5651->jd_src = val;
+
+	rt5651->ovcd_th = RT5651_MIC1_OVTH_2000UA;
+
+	if (device_property_read_u32(component->dev,
+			"realtek,over-current-threshold-microamp", &val) == 0) {
+		switch (val) {
+		case 600:
+			rt5651->ovcd_th = RT5651_MIC1_OVTH_600UA;
+			break;
+		case 1500:
+			rt5651->ovcd_th = RT5651_MIC1_OVTH_1500UA;
+			break;
+		case 2000:
+			rt5651->ovcd_th = RT5651_MIC1_OVTH_2000UA;
+			break;
+		default:
+			dev_warn(component->dev, "Warning: Invalid over-current-threshold-microamp value: %d, defaulting to 2000uA\n",
+				 val);
+		}
+	}
 }
 
 static int rt5651_probe(struct snd_soc_component *component)

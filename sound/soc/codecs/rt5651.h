@@ -2064,6 +2064,7 @@ struct rt5651_priv {
 	struct snd_soc_jack *hp_jack;
 	struct delayed_work jack_detect_work;
 	enum rt5651_jd_src jd_src;
+	unsigned int ovcd_th;
 
 	int irq;
 	int sysclk;
