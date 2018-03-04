@@ -767,6 +767,7 @@ static void venc_init_output(struct venc_device *venc)
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 	out->ops = &venc_ops;
 	out->owner = THIS_MODULE;
+	out->of_ports = BIT(0);
 
 	omapdss_device_register(out);
 }

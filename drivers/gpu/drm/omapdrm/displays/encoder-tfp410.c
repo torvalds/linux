@@ -190,7 +190,7 @@ static int tfp410_probe(struct platform_device *pdev)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->output_type = OMAP_DISPLAY_TYPE_DVI;
 	dssdev->owner = THIS_MODULE;
-	dssdev->port_num = 1;
+	dssdev->of_ports = BIT(1) | BIT(0);
 
 	omapdss_device_register(dssdev);
 

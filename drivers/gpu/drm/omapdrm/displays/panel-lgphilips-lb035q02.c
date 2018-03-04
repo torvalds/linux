@@ -269,6 +269,7 @@ static int lb035q02_panel_spi_probe(struct spi_device *spi)
 	dssdev->driver = &lb035q02_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
+	dssdev->of_ports = BIT(0);
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

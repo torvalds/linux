@@ -169,6 +169,7 @@ static int tvc_probe(struct platform_device *pdev)
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_VENC;
 	dssdev->owner = THIS_MODULE;
+	dssdev->of_ports = BIT(0);
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

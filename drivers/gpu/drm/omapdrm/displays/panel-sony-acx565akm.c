@@ -797,6 +797,7 @@ static int acx565akm_probe(struct spi_device *spi)
 	dssdev->driver = &acx565akm_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_SDI;
 	dssdev->owner = THIS_MODULE;
+	dssdev->of_ports = BIT(0);
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

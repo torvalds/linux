@@ -39,6 +39,7 @@ struct dpi_data {
 	struct platform_device *pdev;
 	enum dss_model dss_model;
 	struct dss_device *dss;
+	unsigned int id;
 
 	struct regulator *vdds_dsi_reg;
 	enum dss_clk_source clk_src;
@@ -413,7 +414,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	r = dss_dpi_select_source(dpi->dss, out->port_num, out->dispc_channel);
+	r = dss_dpi_select_source(dpi->dss, dpi->id, out->dispc_channel);
 	if (r)
 		goto err_src_sel;
 
@@ -609,7 +610,7 @@ static void dpi_init_pll(struct dpi_data *dpi)
  * the channel in some more dynamic manner, or get the channel as a user
  * parameter.
  */
-static enum omap_channel dpi_get_channel(struct dpi_data *dpi, int port_num)
+static enum omap_channel dpi_get_channel(struct dpi_data *dpi)
 {
 	switch (dpi->dss_model) {
 	case DSS_MODEL_OMAP2:
@@ -617,7 +618,7 @@ static enum omap_channel dpi_get_channel(struct dpi_data *dpi, int port_num)
 		return OMAP_DSS_CHANNEL_LCD;
 
 	case DSS_MODEL_DRA7:
-		switch (port_num) {
+		switch (dpi->id) {
 		case 2:
 			return OMAP_DSS_CHANNEL_LCD3;
 		case 1:
@@ -690,12 +691,10 @@ static const struct omap_dss_device_ops dpi_ops = {
 static void dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 {
 	struct omap_dss_device *out = &dpi->output;
-	int r;
-	u32 port_num;
+	u32 port_num = 0;
 
-	r = of_property_read_u32(port, "reg", &port_num);
-	if (r)
-		port_num = 0;
+	of_property_read_u32(port, "reg", &port_num);
+	dpi->id = port_num <= 2 ? port_num : 0;
 
 	switch (port_num) {
 	case 2:
@@ -713,8 +712,8 @@ static void dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 	out->dev = &dpi->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_DPI;
 	out->output_type = OMAP_DISPLAY_TYPE_DPI;
-	out->dispc_channel = dpi_get_channel(dpi, port_num);
-	out->port_num = port_num;
+	out->dispc_channel = dpi_get_channel(dpi);
+	out->of_ports = BIT(port_num);
 	out->ops = &dpi_ops;
 	out->owner = THIS_MODULE;
 

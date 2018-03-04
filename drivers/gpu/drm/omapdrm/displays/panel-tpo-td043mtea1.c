@@ -535,6 +535,7 @@ static int tpo_td043_probe(struct spi_device *spi)
 	dssdev->driver = &tpo_td043_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
+	dssdev->of_ports = BIT(0);
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

@@ -4994,6 +4994,7 @@ static void dsi_init_output(struct dsi_data *dsi)
 	out->dispc_channel = dsi_get_channel(dsi);
 	out->ops = &dsi_ops;
 	out->owner = THIS_MODULE;
+	out->of_ports = BIT(0);
 
 	omapdss_device_register(out);
 }

@@ -423,8 +423,8 @@ struct omap_dss_device {
 	/* output instance */
 	enum omap_dss_output_id id;
 
-	/* the port number in the DT node */
-	int port_num;
+	/* bitmask of port numbers in DT */
+	unsigned int of_ports;
 };
 
 struct omap_dss_driver {

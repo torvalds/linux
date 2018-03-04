@@ -1324,6 +1324,7 @@ static int dsicm_probe(struct platform_device *pdev)
 	dssdev->driver = &dsicm_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DSI;
 	dssdev->owner = THIS_MODULE;
+	dssdev->of_ports = BIT(0);
 
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE |
 		OMAP_DSS_DISPLAY_CAP_TEAR_ELIM;

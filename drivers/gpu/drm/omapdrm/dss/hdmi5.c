@@ -555,6 +555,7 @@ static void hdmi_init_output(struct omap_hdmi *hdmi)
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 	out->ops = &hdmi_ops;
 	out->owner = THIS_MODULE;
+	out->of_ports = BIT(0);
 
 	omapdss_device_register(out);
 }
