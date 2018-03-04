@@ -587,10 +587,8 @@ int dss_install_mgr_ops(struct dss_device *dss,
 			struct omap_drm_private *priv);
 void dss_uninstall_mgr_ops(struct dss_device *dss);
 
-int dss_mgr_connect(struct omap_dss_device *dssdev,
-		    struct omap_dss_device *dst);
-void dss_mgr_disconnect(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst);
+int dss_mgr_connect(struct omap_dss_device *dssdev);
+void dss_mgr_disconnect(struct omap_dss_device *dssdev);
 void dss_mgr_set_timings(struct omap_dss_device *dssdev,
 		const struct videomode *vm);
 void dss_mgr_set_lcd_config(struct omap_dss_device *dssdev,

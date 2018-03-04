@@ -461,7 +461,7 @@ static int hdmi_connect(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	r = dss_mgr_connect(&hdmi->output, dssdev);
+	r = dss_mgr_connect(dssdev);
 	if (r)
 		return r;
 
@@ -469,7 +469,7 @@ static int hdmi_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(&hdmi->output, dssdev);
+		dss_mgr_disconnect(dssdev);
 		return r;
 	}
 
@@ -479,11 +479,9 @@ static int hdmi_connect(struct omap_dss_device *dssdev,
 static void hdmi_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct omap_hdmi *hdmi = dssdev_to_hdmi(dssdev);
-
 	omapdss_output_unset_device(dssdev);
 
-	dss_mgr_disconnect(&hdmi->output, dssdev);
+	dss_mgr_disconnect(dssdev);
 }
 
 static int hdmi_read_edid(struct omap_dss_device *dssdev,

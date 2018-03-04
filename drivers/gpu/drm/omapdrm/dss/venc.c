@@ -720,7 +720,7 @@ static int venc_connect(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	r = dss_mgr_connect(&venc->output, dssdev);
+	r = dss_mgr_connect(dssdev);
 	if (r)
 		return r;
 
@@ -728,7 +728,7 @@ static int venc_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(&venc->output, dssdev);
+		dss_mgr_disconnect(dssdev);
 		return r;
 	}
 
@@ -738,11 +738,9 @@ static int venc_connect(struct omap_dss_device *dssdev,
 static void venc_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct venc_device *venc = dssdev_to_venc(dssdev);
-
 	omapdss_output_unset_device(dssdev);
 
-	dss_mgr_disconnect(&venc->output, dssdev);
+	dss_mgr_disconnect(dssdev);
 }
 
 static const struct omap_dss_device_ops venc_ops = {

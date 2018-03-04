@@ -652,7 +652,7 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 
 	dpi_init_pll(dpi);
 
-	r = dss_mgr_connect(&dpi->output, dssdev);
+	r = dss_mgr_connect(dssdev);
 	if (r)
 		return r;
 
@@ -660,7 +660,7 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dst->name);
-		dss_mgr_disconnect(&dpi->output, dssdev);
+		dss_mgr_disconnect(dssdev);
 		return r;
 	}
 
@@ -670,11 +670,9 @@ static int dpi_connect(struct omap_dss_device *dssdev,
 static void dpi_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-
 	omapdss_output_unset_device(dssdev);
 
-	dss_mgr_disconnect(&dpi->output, dssdev);
+	dss_mgr_disconnect(dssdev);
 }
 
 static const struct omap_dss_device_ops dpi_ops = {

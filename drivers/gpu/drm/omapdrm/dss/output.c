@@ -109,18 +109,17 @@ void dss_uninstall_mgr_ops(struct dss_device *dss)
 }
 EXPORT_SYMBOL(dss_uninstall_mgr_ops);
 
-int dss_mgr_connect(struct omap_dss_device *dssdev, struct omap_dss_device *dst)
+int dss_mgr_connect(struct omap_dss_device *dssdev)
 {
 	return dssdev->dss->mgr_ops->connect(dssdev->dss->mgr_ops_priv,
-					     dssdev->dispc_channel, dst);
+					     dssdev->dispc_channel, dssdev);
 }
 EXPORT_SYMBOL(dss_mgr_connect);
 
-void dss_mgr_disconnect(struct omap_dss_device *dssdev,
-			struct omap_dss_device *dst)
+void dss_mgr_disconnect(struct omap_dss_device *dssdev)
 {
 	dssdev->dss->mgr_ops->disconnect(dssdev->dss->mgr_ops_priv,
-					 dssdev->dispc_channel, dst);
+					 dssdev->dispc_channel, dssdev);
 }
 EXPORT_SYMBOL(dss_mgr_disconnect);
 

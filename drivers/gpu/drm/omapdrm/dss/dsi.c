@@ -4915,7 +4915,7 @@ static int dsi_connect(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	r = dss_mgr_connect(&dsi->output, dssdev);
+	r = dss_mgr_connect(dssdev);
 	if (r)
 		return r;
 
@@ -4923,7 +4923,7 @@ static int dsi_connect(struct omap_dss_device *dssdev,
 	if (r) {
 		DSSERR("failed to connect output to new device: %s\n",
 				dssdev->name);
-		dss_mgr_disconnect(&dsi->output, dssdev);
+		dss_mgr_disconnect(dssdev);
 		return r;
 	}
 
@@ -4933,11 +4933,9 @@ static int dsi_connect(struct omap_dss_device *dssdev,
 static void dsi_disconnect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
 {
-	struct dsi_data *dsi = to_dsi_data(dssdev);
-
 	omapdss_output_unset_device(dssdev);
 
-	dss_mgr_disconnect(&dsi->output, dssdev);
+	dss_mgr_disconnect(dssdev);
 }
 
 static const struct omap_dss_device_ops dsi_ops = {
