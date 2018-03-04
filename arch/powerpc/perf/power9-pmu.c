@@ -121,6 +121,25 @@ int p9_dd21_bl_ev[] = {
 	PM_DISP_HELD_SYNC_HOLD,
 };
 
+int p9_dd22_bl_ev[] = {
+	PM_DTLB_MISS_16G,
+	PM_DERAT_MISS_2M,
+	PM_DTLB_MISS_2M,
+	PM_MRK_DTLB_MISS_1G,
+	PM_DTLB_MISS_4K,
+	PM_DERAT_MISS_1G,
+	PM_MRK_DERAT_MISS_2M,
+	PM_MRK_DTLB_MISS_4K,
+	PM_MRK_DTLB_MISS_16G,
+	PM_DTLB_MISS_64K,
+	PM_MRK_DERAT_MISS_1G,
+	PM_MRK_DTLB_MISS_64K,
+	PM_DISP_HELD_SYNC_HOLD,
+	PM_DTLB_MISS_16M,
+	PM_DTLB_MISS_1G,
+	PM_MRK_DTLB_MISS_16M,
+};
+
 /* Table of alternatives, sorted by column 0 */
 static const unsigned int power9_event_alternatives[][MAX_ALT] = {
 	{ PM_INST_DISP,			PM_INST_DISP_ALT },
@@ -475,6 +494,9 @@ static int __init init_power9_pmu(void)
 		if ((PVR_CFG(pvr) == 2) && (PVR_MIN(pvr) == 1)) {
 			power9_pmu.blacklist_ev = p9_dd21_bl_ev;
 			power9_pmu.n_blacklist_ev = ARRAY_SIZE(p9_dd21_bl_ev);
+		} else if ((PVR_CFG(pvr) == 2) && (PVR_MIN(pvr) == 2)) {
+			power9_pmu.blacklist_ev = p9_dd22_bl_ev;
+			power9_pmu.n_blacklist_ev = ARRAY_SIZE(p9_dd22_bl_ev);
 		}
 	}
 
