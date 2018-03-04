@@ -1797,10 +1797,10 @@ int lu_env_refill(struct lu_env *env)
 EXPORT_SYMBOL(lu_env_refill);
 
 struct lu_site_stats {
-	unsigned	lss_populated;
-	unsigned	lss_max_search;
-	unsigned	lss_total;
-	unsigned	lss_busy;
+	unsigned int	lss_populated;
+	unsigned int	lss_max_search;
+	unsigned int	lss_total;
+	unsigned int	lss_busy;
 };
 
 static void lu_site_stats_get(struct cfs_hash *hs,

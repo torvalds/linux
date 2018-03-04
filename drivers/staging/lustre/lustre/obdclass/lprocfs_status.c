@@ -1467,7 +1467,7 @@ int lprocfs_write_frac_u64_helper(const char __user *buffer,
 {
 	char kernbuf[22], *end, *pbuf;
 	__u64 whole, frac = 0, units;
-	unsigned frac_d = 1;
+	unsigned int frac_d = 1;
 	int sign = 1;
 
 	if (count > (sizeof(kernbuf) - 1))
