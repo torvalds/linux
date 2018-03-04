@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2011-2017  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2011-2018  B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
  *
@@ -495,7 +495,7 @@ static bool batadv_is_orig_node_eligible(struct batadv_dat_candidate *res,
 	 * the one with the lowest address
 	 */
 	if (tmp_max == max && max_orig_node &&
-	    batadv_compare_eth(candidate->orig, max_orig_node->orig) > 0)
+	    batadv_compare_eth(candidate->orig, max_orig_node->orig))
 		goto out;
 
 	ret = true;

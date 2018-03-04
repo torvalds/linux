@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) */
-/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2018  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -196,8 +196,6 @@ struct batadv_bla_claim_dst {
 	__be16 group;		/* group id */
 };
 
-#pragma pack()
-
 /**
  * struct batadv_ogm_packet - ogm (routing protocol) packet
  * @packet_type: batman-adv packet type, part of the general header
@@ -222,9 +220,6 @@ struct batadv_ogm_packet {
 	__u8   reserved;
 	__u8   tq;
 	__be16 tvlv_len;
-	/* __packed is not needed as the struct size is divisible by 4,
-	 * and the largest data type in this struct has a size of 4.
-	 */
 };
 
 #define BATADV_OGM_HLEN sizeof(struct batadv_ogm_packet)
@@ -249,9 +244,6 @@ struct batadv_ogm2_packet {
 	__u8   orig[ETH_ALEN];
 	__be16 tvlv_len;
 	__be32 throughput;
-	/* __packed is not needed as the struct size is divisible by 4,
-	 * and the largest data type in this struct has a size of 4.
-	 */
 };
 
 #define BATADV_OGM2_HLEN sizeof(struct batadv_ogm2_packet)
@@ -405,7 +397,6 @@ struct batadv_icmp_packet_rr {
  * misalignment of the payload after the ethernet header. It may also lead to
  * leakage of information when the padding it not initialized before sending.
  */
-#pragma pack(2)
 
 /**
  * struct batadv_unicast_packet - unicast packet for network payload
@@ -533,8 +524,6 @@ struct batadv_coded_packet {
 	__be16 coded_len;
 };
 
-#pragma pack()
-
 /**
  * struct batadv_unicast_tvlv_packet - generic unicast packet with tvlv payload
  * @packet_type: batman-adv packet type, part of the general header
@@ -640,5 +629,7 @@ struct batadv_tvlv_mcast_data {
 	__u8 flags;
 	__u8 reserved[3];
 };
+
+#pragma pack()
 
 #endif /* _UAPI_LINUX_BATADV_PACKET_H_ */
