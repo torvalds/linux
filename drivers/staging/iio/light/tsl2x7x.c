@@ -588,9 +588,6 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	u8 reg_val = 0;
 
-	if (chip->pdata && chip->pdata->power_on)
-		chip->pdata->power_on(indio_dev);
-
 	/* Non calculated parameters */
 	chip->tsl2x7x_config[TSL2X7X_PRX_TIME] = chip->settings.prx_time;
 	chip->tsl2x7x_config[TSL2X7X_WAIT_TIME] = chip->settings.wait_time;
@@ -735,9 +732,6 @@ static int tsl2x7x_chip_off(struct iio_dev *indio_dev)
 
 	ret = i2c_smbus_write_byte_data(chip->client,
 					TSL2X7X_CMD_REG | TSL2X7X_CNTRL, 0x00);
-
-	if (chip->pdata && chip->pdata->power_off)
-		chip->pdata->power_off(chip->client);
 
 	return ret;
 }
@@ -1792,12 +1786,6 @@ static int tsl2x7x_suspend(struct device *dev)
 		chip->tsl2x7x_chip_status = TSL2X7X_CHIP_SUSPENDED;
 	}
 
-	if (chip->pdata && chip->pdata->platform_power) {
-		pm_message_t pmm = {PM_EVENT_SUSPEND};
-
-		chip->pdata->platform_power(dev, pmm);
-	}
-
 	return ret;
 }
 
@@ -1806,12 +1794,6 @@ static int tsl2x7x_resume(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	int ret = 0;
-
-	if (chip->pdata && chip->pdata->platform_power) {
-		pm_message_t pmm = {PM_EVENT_RESUME};
-
-		chip->pdata->platform_power(dev, pmm);
-	}
 
 	if (chip->tsl2x7x_chip_status == TSL2X7X_CHIP_SUSPENDED)
 		ret = tsl2x7x_chip_on(indio_dev);
