@@ -404,17 +404,21 @@ static int byt_rt5651_init(struct snd_soc_pcm_runtime *runtime)
 			dev_err(card->dev, "unable to set MCLK rate\n");
 	}
 
-	ret = snd_soc_card_jack_new(runtime->card, "Headset",
+	if (BYT_RT5651_JDSRC(byt_rt5651_quirk)) {
+		ret = snd_soc_card_jack_new(runtime->card, "Headset",
 				    SND_JACK_HEADSET, &priv->jack,
 				    bytcr_jack_pins, ARRAY_SIZE(bytcr_jack_pins));
-	if (ret) {
-		dev_err(runtime->dev, "Headset jack creation failed %d\n", ret);
-		return ret;
+		if (ret) {
+			dev_err(runtime->dev, "jack creation failed %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_component_set_jack(codec, &priv->jack, NULL);
+		if (ret)
+			return ret;
 	}
 
-	snd_soc_component_set_jack(codec, &priv->jack, NULL);
-
-	return ret;
+	return 0;
 }
 
 static const struct snd_soc_pcm_stream byt_rt5651_dai_params = {
