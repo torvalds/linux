@@ -507,6 +507,7 @@ struct kvm_vcpu_arch {
 	u64 smi_count;
 	bool tpr_access_reporting;
 	u64 ia32_xss;
+	u64 microcode_version;
 
 	/*
 	 * Paging state of the vcpu
@@ -1095,6 +1096,8 @@ struct kvm_x86_ops {
 	int (*mem_enc_op)(struct kvm *kvm, void __user *argp);
 	int (*mem_enc_reg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
 	int (*mem_enc_unreg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
+
+	int (*get_msr_feature)(struct kvm_msr_entry *entry);
 };
 
 struct kvm_arch_async_pf {
