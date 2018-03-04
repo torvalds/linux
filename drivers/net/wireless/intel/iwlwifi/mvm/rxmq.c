@@ -1042,6 +1042,20 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 						   he_phy_data),
 					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_PUNC_FROM_SIG_A_BW);
 	}
+
+	if (he_phy_data != HE_PHY_DATA_INVAL &&
+	    (he_type == RATE_MCS_HE_TYPE_SU ||
+	     he_type == RATE_MCS_HE_TYPE_MU)) {
+		u8 bss_color = FIELD_GET(IWL_RX_HE_PHY_BSS_COLOR_MASK,
+					 he_phy_data);
+
+		if (bss_color) {
+			he->data1 |=
+				cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA1_BSS_COLOR_KNOWN);
+			he->data3 |= cpu_to_le16(bss_color);
+		}
+	}
+
 	rx_status->device_timestamp = gp2_on_air_rise;
 	rx_status->band = channel > 14 ? NL80211_BAND_5GHZ :
 		NL80211_BAND_2GHZ;
