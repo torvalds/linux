@@ -1,4 +1,4 @@
-SUBDIRS = wmt
+SUBDIRS = wmt mmc
 
 all :
 	for d in $(SUBDIRS); do \

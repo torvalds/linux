@@ -1,6 +1,6 @@
 CC ?= gcc
 
-CROSS_COMPILE=arm-gnueabihf-
+CROSS_COMPILE=arm-linux-gnueabihf-
 
 ifdef CROSS_COMPILE
   CC = $(CROSS_COMPILE)gcc
