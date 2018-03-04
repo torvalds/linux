@@ -45,8 +45,10 @@ switch_destroy()
 	simple_if_fini $swp1 192.0.2.2/24
 }
 
-mirred_egress_redirect_test()
+mirred_egress_test()
 {
+	local action=$1
+
 	RET=0
 
 	tc filter add dev $h2 ingress protocol ip pref 1 handle 101 flower \
@@ -59,19 +61,19 @@ mirred_egress_redirect_test()
 	check_fail $? "Matched without redirect rule inserted"
 
 	tc filter add dev $swp1 ingress protocol ip pref 1 handle 101 flower \
-		$tcflags dst_ip 192.0.2.2 action mirred egress redirect \
+		$tcflags dst_ip 192.0.2.2 action mirred egress $action \
 		dev $swp2
 
 	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.0.2.1 -B 192.0.2.2 \
 		-t ip -q
 
 	tc_check_packets "dev $h2 ingress" 101 1
-	check_err $? "Did not match incoming redirected packet"
+	check_err $? "Did not match incoming $action packet"
 
 	tc filter del dev $swp1 ingress protocol ip pref 1 handle 101 flower
 	tc filter del dev $h2 ingress protocol ip pref 1 handle 101 flower
 
-	log_test "mirred egress redirect ($tcflags)"
+	log_test "mirred egress $action ($tcflags)"
 }
 
 gact_drop_and_ok_test()
@@ -180,7 +182,8 @@ setup_prepare
 setup_wait
 
 gact_drop_and_ok_test
-mirred_egress_redirect_test
+mirred_egress_test "redirect"
+mirred_egress_test "mirror"
 
 tc_offload_check
 if [[ $? -ne 0 ]]; then
@@ -188,7 +191,8 @@ if [[ $? -ne 0 ]]; then
 else
 	tcflags="skip_sw"
 	gact_drop_and_ok_test
-	mirred_egress_redirect_test
+	mirred_egress_test "redirect"
+	mirred_egress_test "mirror"
 	gact_trap_test
 fi
 
