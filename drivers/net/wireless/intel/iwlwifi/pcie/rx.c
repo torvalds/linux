@@ -1332,6 +1332,45 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		iwl_pcie_rx_reuse_rbd(trans, rxb, rxq, emergency);
 }
 
+static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
+						  struct iwl_rxq *rxq, int i)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_rx_mem_buffer *rxb;
+	u16 vid;
+
+	if (!trans->cfg->mq_rx_supported) {
+		rxb = rxq->queue[i];
+		rxq->queue[i] = NULL;
+		return rxb;
+	}
+
+	/* used_bd is a 32/16 bit but only 12 are used to retrieve the vid */
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+		vid = le16_to_cpu(rxq->cd[i].rbid) & 0x0FFF;
+	else
+		vid = le32_to_cpu(rxq->bd_32[i]) & 0x0FFF;
+
+	if (!vid || vid > ARRAY_SIZE(trans_pcie->global_table))
+		goto out_err;
+
+	rxb = trans_pcie->global_table[vid - 1];
+	if (rxb->invalid)
+		goto out_err;
+
+	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+		rxb->size = le32_to_cpu(rxq->cd[i].size) & IWL_RX_CD_SIZE;
+
+	rxb->invalid = true;
+
+	return rxb;
+
+out_err:
+	WARN(1, "Invalid rxb from HW %u\n", (u32)vid);
+	iwl_force_nmi(trans);
+	return NULL;
+}
+
 /*
  * iwl_pcie_rx_handle - Main entry function for receiving responses from fw
  */
@@ -1362,39 +1401,9 @@ restart:
 		if (unlikely(rxq->used_count == rxq->queue_size / 2))
 			emergency = true;
 
-		if (trans->cfg->mq_rx_supported) {
-			u16 vid;
-			/*
-			 * used_bd is a 32/16 bit but only 12 are used
-			 * to retrieve the vid
-			 */
-			if (trans->cfg->device_family >=
-			    IWL_DEVICE_FAMILY_22560)
-				vid = le16_to_cpu(rxq->cd[i].rbid) & 0x0FFF;
-			else
-				vid = le32_to_cpu(rxq->bd_32[i]) & 0x0FFF;
-
-			if (WARN(!vid ||
-				 vid > ARRAY_SIZE(trans_pcie->global_table),
-				 "Invalid rxb index from HW %u\n", (u32)vid)) {
-				iwl_force_nmi(trans);
-				goto out;
-			}
-			rxb = trans_pcie->global_table[vid - 1];
-			if (WARN(rxb->invalid,
-				 "Invalid rxb from HW %u\n", (u32)vid)) {
-				iwl_force_nmi(trans);
-				goto out;
-			}
-			if (trans->cfg->device_family >=
-			    IWL_DEVICE_FAMILY_22560)
-				rxb->size = le32_to_cpu(rxq->cd[i].size) &
-					IWL_RX_CD_SIZE;
-			rxb->invalid = true;
-		} else {
-			rxb = rxq->queue[i];
-			rxq->queue[i] = NULL;
-		}
+		rxb = iwl_pcie_get_rxb(trans, rxq, i);
+		if (!rxb)
+			goto out;
 
 		IWL_DEBUG_RX(trans, "Q %d: HW = %d, SW = %d\n", rxq->id, r, i);
 		iwl_pcie_rx_handle_rb(trans, rxq, rxb, emergency);
