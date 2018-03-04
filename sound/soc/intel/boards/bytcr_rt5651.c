@@ -85,7 +85,12 @@ struct byt_rt5651_private {
 	struct snd_soc_jack jack;
 };
 
-static unsigned long byt_rt5651_quirk = BYT_RT5651_MCLK_EN;
+/* Default: jack-detect on JD1_1, internal mic on in2, headsetmic on in3 */
+static unsigned long byt_rt5651_quirk = BYT_RT5651_MCLK_EN |
+					BYT_RT5651_JD1_1 |
+					BYT_RT5651_OVCD_TH_2000UA |
+					BYT_RT5651_OVCD_SF_0P75 |
+					BYT_RT5651_IN2_HS_IN3_MAP;
 
 static void log_quirks(struct device *dev)
 {
@@ -809,14 +814,6 @@ static int snd_byt_rt5651_mc_probe(struct platform_device *pdev)
 			/* no BIOS indications, assume SSP0-AIF2 connection */
 			byt_rt5651_quirk |= BYT_RT5651_SSP0_AIF2;
 		}
-
-		/* change defaults for Baytrail-CR capture */
-		byt_rt5651_quirk |= BYT_RT5651_JD1_1 |
-				    BYT_RT5651_OVCD_TH_2000UA |
-				    BYT_RT5651_OVCD_SF_0P75 |
-				    BYT_RT5651_IN2_HS_IN3_MAP;
-	} else {
-		byt_rt5651_quirk |= BYT_RT5651_DMIC_MAP;
 	}
 
 	/* check quirks before creating card */
