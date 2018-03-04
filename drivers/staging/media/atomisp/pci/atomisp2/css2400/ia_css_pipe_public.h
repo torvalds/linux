@@ -402,7 +402,7 @@ ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
  exception holds for IA_CSS_EVENT_TYPE_PORT_EOF, for this event an IRQ is always
  raised.
  Note that events are still queued and the Host can poll for them. The
- or_mask and and_mask may be be active at the same time\n
+ or_mask and and_mask may be active at the same time\n
  \n
  Default values, for all pipe id's, after ia_css_init:\n
  or_mask = IA_CSS_EVENT_TYPE_ALL\n
