@@ -224,7 +224,7 @@ EXPORT_SYMBOL(cl_lock_release);
 
 const char *cl_lock_mode_name(const enum cl_lock_mode mode)
 {
-	static const char *names[] = {
+	static const char * const names[] = {
 		[CLM_READ]    = "R",
 		[CLM_WRITE]   = "W",
 		[CLM_GROUP]   = "G"
