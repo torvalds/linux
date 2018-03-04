@@ -51,14 +51,29 @@ enum {
 	BYT_RT5651_JD2		= (RT5651_JD2 << 4),
 };
 
+enum {
+	BYT_RT5651_OVCD_TH_600UA  = (6 << 8),
+	BYT_RT5651_OVCD_TH_1500UA = (15 << 8),
+	BYT_RT5651_OVCD_TH_2000UA = (20 << 8),
+};
+
+enum {
+	BYT_RT5651_OVCD_SF_0P5	= (RT5651_OVCD_SF_0P5 << 13),
+	BYT_RT5651_OVCD_SF_0P75	= (RT5651_OVCD_SF_0P75 << 13),
+	BYT_RT5651_OVCD_SF_1P0	= (RT5651_OVCD_SF_1P0 << 13),
+	BYT_RT5651_OVCD_SF_1P5	= (RT5651_OVCD_SF_1P5 << 13),
+};
+
 #define BYT_RT5651_MAP(quirk)		((quirk) & GENMASK(3, 0))
 #define BYT_RT5651_JDSRC(quirk)		(((quirk) & GENMASK(7, 4)) >> 4)
+#define BYT_RT5651_OVCD_TH(quirk)	(((quirk) & GENMASK(12, 8)) >> 8)
+#define BYT_RT5651_OVCD_SF(quirk)	(((quirk) & GENMASK(14, 13)) >> 13)
 #define BYT_RT5651_DMIC_EN		BIT(16)
 #define BYT_RT5651_MCLK_EN		BIT(17)
 #define BYT_RT5651_MCLK_25MHZ		BIT(18)
 
-/* jack-detect-source + dmic-en + terminating empty entry */
-#define MAX_NO_PROPS 3
+/* jack-detect-source + dmic-en + ovcd-th + -sf + terminating empty entry */
+#define MAX_NO_PROPS 5
 
 struct byt_rt5651_private {
 	struct clk *mclk;
@@ -78,9 +93,14 @@ static void log_quirks(struct device *dev)
 		dev_info(dev, "quirk IN2_MAP enabled");
 	if (BYT_RT5651_MAP(byt_rt5651_quirk) == BYT_RT5651_IN3_MAP)
 		dev_info(dev, "quirk IN3_MAP enabled");
-	if (BYT_RT5651_JDSRC(byt_rt5651_quirk))
+	if (BYT_RT5651_JDSRC(byt_rt5651_quirk)) {
 		dev_info(dev, "quirk realtek,jack-detect-source %ld\n",
 			 BYT_RT5651_JDSRC(byt_rt5651_quirk));
+		dev_info(dev, "quirk realtek,over-current-threshold-microamp %ld\n",
+			 BYT_RT5651_OVCD_TH(byt_rt5651_quirk) * 100);
+		dev_info(dev, "quirk realtek,over-current-scale-factor %ld\n",
+			 BYT_RT5651_OVCD_SF(byt_rt5651_quirk));
+	}
 	if (byt_rt5651_quirk & BYT_RT5651_DMIC_EN)
 		dev_info(dev, "quirk DMIC enabled");
 	if (byt_rt5651_quirk & BYT_RT5651_MCLK_EN)
@@ -304,6 +324,8 @@ static const struct dmi_system_id byt_rt5651_quirk_table[] = {
 		},
 		.driver_data = (void *)(BYT_RT5651_MCLK_EN |
 					BYT_RT5651_JD1_1 |
+					BYT_RT5651_OVCD_TH_2000UA |
+					BYT_RT5651_OVCD_SF_0P75 |
 					BYT_RT5651_IN1_IN2_MAP),
 	},
 	{}
@@ -325,6 +347,12 @@ static int byt_rt5651_add_codec_device_props(const char *i2c_dev_name)
 
 	props[cnt++] = PROPERTY_ENTRY_U32("realtek,jack-detect-source",
 				BYT_RT5651_JDSRC(byt_rt5651_quirk));
+
+	props[cnt++] = PROPERTY_ENTRY_U32("realtek,over-current-threshold-microamp",
+				BYT_RT5651_OVCD_TH(byt_rt5651_quirk) * 100);
+
+	props[cnt++] = PROPERTY_ENTRY_U32("realtek,over-current-scale-factor",
+				BYT_RT5651_OVCD_SF(byt_rt5651_quirk));
 
 	if (byt_rt5651_quirk & BYT_RT5651_DMIC_EN)
 		props[cnt++] = PROPERTY_ENTRY_BOOL("realtek,dmic-en");
