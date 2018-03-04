@@ -126,12 +126,13 @@ struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 }
 
 /*
- * Search for the next device starting at @from. If display_only is true, skip
- * non-display devices. Release the reference to the @from device, and acquire
- * a reference to the returned device if found.
+ * Search for the next device starting at @from. The type argument specfies
+ * which device types to consider when searching. Searching for multiple types
+ * is supported by and'ing their type flags. Release the reference to the @from
+ * device, and acquire a reference to the returned device if found.
  */
 struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
-						bool display_only)
+						enum omap_dss_device_type type)
 {
 	struct omap_dss_device *dssdev;
 	struct list_head *list;
@@ -159,8 +160,14 @@ struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
 			goto done;
 		}
 
-		/* Filter out non-display entries if display_only is set. */
-		if (!display_only || dssdev->driver)
+		/*
+		 * Accept display entities if the display type is requested,
+		 * and output entities if the output type is requested.
+		 */
+		if ((type & OMAP_DSS_DEVICE_TYPE_DISPLAY) && dssdev->driver)
+			goto done;
+		if ((type & OMAP_DSS_DEVICE_TYPE_OUTPUT) && dssdev->id &&
+		    dssdev->next)
 			goto done;
 	}
 

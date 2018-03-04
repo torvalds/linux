@@ -385,6 +385,11 @@ struct omap_dss_device_ops {
 	};
 };
 
+enum omap_dss_device_type {
+	OMAP_DSS_DEVICE_TYPE_OUTPUT = (1 << 0),
+	OMAP_DSS_DEVICE_TYPE_DISPLAY = (1 << 1),
+};
+
 struct omap_dss_device {
 	struct kobject kobj;
 	struct device *dev;
@@ -488,9 +493,9 @@ static inline bool omapdss_is_initialized(void)
 	return !!omapdss_get_dss();
 }
 
-void omapdss_display_init(struct omap_dss_device *dssdev);
 #define for_each_dss_display(d) \
-	while ((d = omapdss_device_get_next(d, true)) != NULL)
+	while ((d = omapdss_device_get_next(d, OMAP_DSS_DEVICE_TYPE_DISPLAY)) != NULL)
+void omapdss_display_init(struct omap_dss_device *dssdev);
 
 void omapdss_device_register(struct omap_dss_device *dssdev);
 void omapdss_device_unregister(struct omap_dss_device *dssdev);
@@ -499,7 +504,7 @@ void omapdss_device_put(struct omap_dss_device *dssdev);
 struct omap_dss_device *omapdss_find_device_by_port(struct device_node *src,
 						    unsigned int port);
 struct omap_dss_device *omapdss_device_get_next(struct omap_dss_device *from,
-						bool display_only);
+						enum omap_dss_device_type type);
 int omapdss_device_connect(struct dss_device *dss,
 			   struct omap_dss_device *src,
 			   struct omap_dss_device *dst);
@@ -511,6 +516,8 @@ int omap_dss_get_num_overlay_managers(void);
 
 int omap_dss_get_num_overlays(void);
 
+#define for_each_dss_output(d) \
+	while ((d = omapdss_device_get_next(d, OMAP_DSS_DEVICE_TYPE_OUTPUT)) != NULL)
 int omapdss_output_set_device(struct omap_dss_device *out,
 		struct omap_dss_device *dssdev);
 int omapdss_output_unset_device(struct omap_dss_device *out);
