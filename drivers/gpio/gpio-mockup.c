@@ -314,7 +314,7 @@ static int gpio_mockup_probe(struct platform_device *pdev)
 	if (rv)
 		return rv;
 
-	if (gpio_mockup_dbg_dir)
+	if (!IS_ERR_OR_NULL(gpio_mockup_dbg_dir))
 		gpio_mockup_debugfs_setup(dev, chip);
 
 	return 0;
