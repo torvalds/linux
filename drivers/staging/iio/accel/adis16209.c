@@ -21,135 +21,70 @@
 #include <linux/iio/imu/adis.h>
 
 #define ADIS16209_STARTUP_DELAY_MS	220
-
-/* Flash memory write count */
 #define ADIS16209_FLASH_CNT_REG		0x00
 
-/* Output, power supply */
+/* Data Output Register Definitions */
 #define ADIS16209_SUPPLY_OUT_REG	0x02
-
-/* Output, x-axis accelerometer */
 #define ADIS16209_XACCL_OUT_REG		0x04
-
-/* Output, y-axis accelerometer */
 #define ADIS16209_YACCL_OUT_REG		0x06
-
 /* Output, auxiliary ADC input */
 #define ADIS16209_AUX_ADC_REG		0x08
-
 /* Output, temperature */
 #define ADIS16209_TEMP_OUT_REG		0x0A
-
-/* Output, x-axis inclination */
+/* Output, +/- 90 degrees X-axis inclination */
 #define ADIS16209_XINCL_OUT_REG		0x0C
-
-/* Output, y-axis inclination */
 #define ADIS16209_YINCL_OUT_REG		0x0E
-
 /* Output, +/-180 vertical rotational position */
 #define ADIS16209_ROT_OUT_REG		0x10
 
-/* Calibration, x-axis acceleration offset null */
+/*
+ * Calibration Register Definitions.
+ * Acceleration, inclination or rotation offset null.
+ */
 #define ADIS16209_XACCL_NULL_REG	0x12
-
-/* Calibration, y-axis acceleration offset null */
 #define ADIS16209_YACCL_NULL_REG	0x14
-
-/* Calibration, x-axis inclination offset null */
 #define ADIS16209_XINCL_NULL_REG	0x16
-
-/* Calibration, y-axis inclination offset null */
 #define ADIS16209_YINCL_NULL_REG	0x18
-
-/* Calibration, vertical rotation offset null */
 #define ADIS16209_ROT_NULL_REG		0x1A
 
-/* Alarm 1 amplitude threshold */
+/* Alarm Register Definitions */
 #define ADIS16209_ALM_MAG1_REG		0x20
-
-/* Alarm 2 amplitude threshold */
 #define ADIS16209_ALM_MAG2_REG		0x22
-
-/* Alarm 1, sample period */
 #define ADIS16209_ALM_SMPL1_REG		0x24
-
-/* Alarm 2, sample period */
 #define ADIS16209_ALM_SMPL2_REG		0x26
-
-/* Alarm control */
 #define ADIS16209_ALM_CTRL_REG		0x28
 
-/* Auxiliary DAC data */
 #define ADIS16209_AUX_DAC_REG		0x30
-
-/* General-purpose digital input/output control */
 #define ADIS16209_GPIO_CTRL_REG		0x32
-
-/* Miscellaneous control */
-#define ADIS16209_MSC_CTRL_REG		0x34
-
-/* Internal sample period (rate) control */
 #define ADIS16209_SMPL_PRD_REG		0x36
-
-/* Operation, filter configuration */
 #define ADIS16209_AVG_CNT_REG		0x38
-
-/* Operation, sleep mode control */
 #define ADIS16209_SLP_CNT_REG		0x3A
 
-/* Diagnostics, system status register */
-#define ADIS16209_DIAG_STAT_REG		0x3C
-
-/* Operation, system command register */
-#define ADIS16209_GLOB_CMD_REG		0x3E
-
-/* MSC_CTRL */
-
-/* Self-test at power-on: 1 = disabled, 0 = enabled */
-#define ADIS16209_MSC_CTRL_PWRUP_SELF_TEST	BIT(10)
-
-/* Self-test enable */
-#define ADIS16209_MSC_CTRL_SELF_TEST_EN	        BIT(8)
-
-/* Data-ready enable: 1 = enabled, 0 = disabled */
-#define ADIS16209_MSC_CTRL_DATA_RDY_EN	        BIT(2)
-
+#define ADIS16209_MSC_CTRL_REG			0x34
+#define  ADIS16209_MSC_CTRL_PWRUP_SELF_TEST	BIT(10)
+#define  ADIS16209_MSC_CTRL_SELF_TEST_EN	BIT(8)
+#define  ADIS16209_MSC_CTRL_DATA_RDY_EN		BIT(2)
 /* Data-ready polarity: 1 = active high, 0 = active low */
-#define ADIS16209_MSC_CTRL_ACTIVE_HIGH	        BIT(1)
+#define  ADIS16209_MSC_CTRL_ACTIVE_HIGH		BIT(1)
+#define  ADIS16209_MSC_CTRL_DATA_RDY_DIO2	BIT(0)
 
-/* Data-ready line selection: 1 = DIO2, 0 = DIO1 */
-#define ADIS16209_MSC_CTRL_DATA_RDY_DIO2	BIT(0)
-
-/* DIAG_STAT */
-
-/* Alarm 2 status: 1 = alarm active, 0 = alarm inactive */
-#define ADIS16209_DIAG_STAT_ALARM2        BIT(9)
-
-/* Alarm 1 status: 1 = alarm active, 0 = alarm inactive */
-#define ADIS16209_DIAG_STAT_ALARM1        BIT(8)
-
-/* Self-test diagnostic error flag: 1 = error condition, 0 = normal operation */
+#define ADIS16209_DIAG_STAT_REG			0x3C
+#define  ADIS16209_DIAG_STAT_ALARM2		BIT(9)
+#define  ADIS16209_DIAG_STAT_ALARM1		BIT(8)
 #define ADIS16209_DIAG_STAT_SELFTEST_FAIL_BIT	5
-
-/* SPI communications failure */
 #define ADIS16209_DIAG_STAT_SPI_FAIL_BIT	3
-
-/* Flash update failure */
 #define ADIS16209_DIAG_STAT_FLASH_UPT_BIT	2
-
 /* Power supply above 3.625 V */
 #define ADIS16209_DIAG_STAT_POWER_HIGH_BIT	1
-
 /* Power supply below 3.15 V */
 #define ADIS16209_DIAG_STAT_POWER_LOW_BIT	0
 
-/* GLOB_CMD */
+#define ADIS16209_GLOB_CMD_REG			0x3E
+#define  ADIS16209_GLOB_CMD_SW_RESET		BIT(7)
+#define  ADIS16209_GLOB_CMD_CLEAR_STAT		BIT(4)
+#define  ADIS16209_GLOB_CMD_FACTORY_CAL		BIT(1)
 
-#define ADIS16209_GLOB_CMD_SW_RESET	BIT(7)
-#define ADIS16209_GLOB_CMD_CLEAR_STAT	BIT(4)
-#define ADIS16209_GLOB_CMD_FACTORY_CAL	BIT(1)
-
-#define ADIS16209_ERROR_ACTIVE          BIT(14)
+#define ADIS16209_ERROR_ACTIVE			BIT(14)
 
 enum adis16209_scan {
 	ADIS16209_SCAN_SUPPLY,
@@ -226,24 +161,38 @@ static int adis16209_read_raw(struct iio_dev *indio_dev,
 				*val2 = 610500; /* 0.6105 mV */
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_TEMP:
-			*val = -470; /* -0.47 C */
+			*val = -470;
 			*val2 = 0;
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_ACCEL:
+			/*
+			 * IIO base unit for sensitivity of accelerometer
+			 * is milli g.
+			 * 1 LSB represents 0.244 mg.
+			 */
 			*val = 0;
-			*val2 = IIO_G_TO_M_S_2(244140); /* 0.244140 mg */
+			*val2 = IIO_G_TO_M_S_2(244140);
 			return IIO_VAL_INT_PLUS_NANO;
 		case IIO_INCLI:
 		case IIO_ROT:
+			/*
+			 * IIO base units for rotation are degrees.
+			 * 1 LSB represents 0.025 milli degrees.
+			 */
 			*val = 0;
-			*val2 = 25000; /* 0.025 degree */
+			*val2 = 25000;
 			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
 		}
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = 25000 / -470 - 0x4FE; /* 25 C = 0x4FE */
+		/*
+		 * The raw ADC value is 0x4FE when the temperature
+		 * is 25 degrees and the scale factor per milli
+		 * degree celcius is -470.
+		 */
+		*val = 25000 / -470 - 0x4FE;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
@@ -320,12 +269,10 @@ static int adis16209_probe(struct spi_device *spi)
 	struct adis *st;
 	struct iio_dev *indio_dev;
 
-	/* setup the industrialio driver allocated elements */
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
 		return -ENOMEM;
 	st = iio_priv(indio_dev);
-	/* this is only used for removal purposes */
 	spi_set_drvdata(spi, indio_dev);
 
 	indio_dev->name = spi->dev.driver->name;
@@ -342,7 +289,6 @@ static int adis16209_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	/* Get the device into a sane initial state */
 	ret = adis_initial_startup(st);
 	if (ret)
 		goto error_cleanup_buffer_trigger;
