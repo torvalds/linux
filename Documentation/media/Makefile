@@ -59,6 +59,7 @@ epub: all
 xml: all
 latex: $(IMGPDF) all
 linkcheck:
+slides: all
 
 clean:
 	-rm -f $(DOTTGT) $(IMGTGT) ${TARGETS} 2>/dev/null

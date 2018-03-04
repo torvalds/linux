@@ -1,0 +1,80 @@
+version: 2
+general:
+  artifacts:
+
+jobs:
+  build:
+   docker:
+     - image: lktp/publish:0.2
+   environment:
+     GITHUB_IO=git@github.com:linux-kernel-labs/linux-kernel-labs.github.io.git
+   steps:
+     - restore_cache:
+         key: code-tree-shallow
+     - run:
+         name: checkout
+         command: |
+           set -x
+           mkdir -p ~/.ssh/
+           ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+           git config --global user.email "circle.ci@kltp.org"
+           git config --global user.name "Circle CI"
+           if ! [ -d linux ]; then
+             git clone --depth=1 $CIRCLE_REPOSITORY_URL;
+           fi
+           if cd linux; then
+               if [[ $CIRCLE_BRANCH == pull/* ]]; then
+                  git fetch --depth=1 origin $CIRCLE_BRANCH/head;
+               else
+                  git fetch --depth=1 origin $CIRCLE_BRANCH;
+               fi
+               git reset --hard $CIRCLE_SHA1
+               cd ..
+           fi
+           if ! [ -d linux-kernel-labs.github.io ]; then
+              git clone --depth=1 $GITHUB_IO
+           fi
+           if cd linux-kernel-labs.github.io; then
+               git fetch --depth=1 origin master
+               git reset --hard origin/master
+               cd ..
+           fi
+     - save_cache:
+         key: code-tree-shallow-{{ epoch }}
+         paths:
+           - /home/ubuntu/project/linux/.git
+           - /home/ubuntu/project/linux-kernel-labs.github.io/.git
+     - run:
+         name: build
+         command: |
+           rm -rf linux/Documentation/output
+           cd linux/tools/labs && make docs
+     - add_ssh_keys:
+         fingerprints:
+           "8e:db:3c:ef:d0:4e:84:9f:78:46:e9:2f:1a:1e:32:81"
+     - run:
+         name: publish
+         command: |
+            set -x
+            if cd linux-kernel-labs.github.io; then
+                rm -rf $CIRCLE_BRANCH
+                mkdir -p $CIRCLE_BRANCH
+                cp -r ../linux/Documentation/output/teaching/* $CIRCLE_BRANCH/
+                git add $CIRCLE_BRANCH/
+                git commit --allow-empty -m "Publish $CIRCLE_BRANCH (built from ${CIRCLE_PULL_REQUEST:-$CIRCLE_BRANCH})"
+                git push
+                export GITHUB_SHA=$CIRCLE_SHA1
+                export GITHUB_USER=linux-kernel-labs
+                export GITHUB_REPO=$CIRCLE_PROJECT_REPONAME
+                export GITHUB_CONTEXT="ci/circleci: publish"
+                export GITHUB_TARGET_URL="http://linux-kernel-labs.github.io/$CIRCLE_BRANCH"
+                export GITHUB_DESCRIPTION="published at $GITHUB_TARGET_URL"
+                github-status-reporter --state success --debug
+                cd ..
+            fi
+
+workflows:
+  version: 2
+  build:
+    jobs:
+     - build

@@ -1,0 +1,4 @@
+# TODO: add flags to generate debug information
+ccflags-y = -Wno-unused-function -Wno-unused-label -Wno-unused-variable
+
+obj-m = oops_mod.o

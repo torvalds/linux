@@ -15,6 +15,9 @@
 import sys
 import os
 import sphinx
+import subprocess
+
+from distutils.version import LooseVersion
 
 # Get Sphinx version
 major, minor, patch = sphinx.version_info[:3]
@@ -41,6 +44,16 @@ if major == 1 and minor > 3:
     extensions.append("sphinx.ext.imgmath")
 else:
     extensions.append("sphinx.ext.pngmath")
+
+try:
+    hglyph_ver = subprocess.check_output(["hieroglyph", "--version"])
+    if LooseVersion(hglyph_ver) > LooseVersion("1.0.0"):
+	    extensions.append('hieroglyph')
+except:
+    None
+
+extensions.append("ditaa")
+extensions.append("asciicast")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -183,11 +196,9 @@ except ImportError:
 
 html_static_path = ['sphinx-static']
 
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',
-    ],
-}
+def setup(app):
+    app.add_stylesheet('theme_overrides.css')
+
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied

@@ -1,0 +1,42 @@
+
+To solve exercises need to perform these steps:
+
+   * prepare skeletons from templates
+   * build modules
+   * copy modules to VM
+   * start the VM and test the module in the VM.
+
+The current lab name is |LAB_NAME|. See the exercises for the task name.
+
+.. container:: toggle
+
+   .. container:: header
+
+      **See details**
+
+   The skeleton code is generated from full source examples located in
+   ``tools/labs/templates``. To solve the tasks start by generating
+   the skeleton code:
+
+   .. parsed-literal:: shell
+
+      tools/labs $ make clean
+      tools/labs $ LABS=<lab name>/<task name> make skels
+
+   Where task name is defined for each task. Once the skelton drivers are
+   generated build the source:
+
+   .. code-block:: shell
+
+      tools/labs $ make build
+
+   Then copy the modules and start the VM:
+
+   .. code-block:: shell
+
+      tools/labs $ make copy
+      tools/labs $ make boot
+
+   The modules are placed in /home/root/skels/|LAB_NAME|/<task_name>.
+
+   Review the `Exercises`_ section for more detailed information.
