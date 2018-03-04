@@ -47,6 +47,7 @@ struct fib_rule {
 
 struct fib_lookup_arg {
 	void			*lookup_ptr;
+	const void		*lookup_data;
 	void			*result;
 	struct fib_rule		*rule;
 	u32			table;

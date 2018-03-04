@@ -1748,44 +1748,45 @@ static void ip_multipath_l3_keys(const struct sk_buff *skb,
 				 struct flow_keys *hash_keys)
 {
 	const struct iphdr *outer_iph = ip_hdr(skb);
+	const struct iphdr *key_iph = outer_iph;
 	const struct iphdr *inner_iph;
 	const struct icmphdr *icmph;
 	struct iphdr _inner_iph;
 	struct icmphdr _icmph;
 
-	hash_keys->addrs.v4addrs.src = outer_iph->saddr;
-	hash_keys->addrs.v4addrs.dst = outer_iph->daddr;
 	if (likely(outer_iph->protocol != IPPROTO_ICMP))
-		return;
+		goto out;
 
 	if (unlikely((outer_iph->frag_off & htons(IP_OFFSET)) != 0))
-		return;
+		goto out;
 
 	icmph = skb_header_pointer(skb, outer_iph->ihl * 4, sizeof(_icmph),
 				   &_icmph);
 	if (!icmph)
-		return;
+		goto out;
 
 	if (icmph->type != ICMP_DEST_UNREACH &&
 	    icmph->type != ICMP_REDIRECT &&
 	    icmph->type != ICMP_TIME_EXCEEDED &&
 	    icmph->type != ICMP_PARAMETERPROB)
-		return;
+		goto out;
 
 	inner_iph = skb_header_pointer(skb,
 				       outer_iph->ihl * 4 + sizeof(_icmph),
 				       sizeof(_inner_iph), &_inner_iph);
 	if (!inner_iph)
-		return;
-	hash_keys->addrs.v4addrs.src = inner_iph->saddr;
-	hash_keys->addrs.v4addrs.dst = inner_iph->daddr;
+		goto out;
+
+	key_iph = inner_iph;
+out:
+	hash_keys->addrs.v4addrs.src = key_iph->saddr;
+	hash_keys->addrs.v4addrs.dst = key_iph->daddr;
 }
 
 /* if skb is set it will be used and fl4 can be NULL */
-int fib_multipath_hash(const struct fib_info *fi, const struct flowi4 *fl4,
+int fib_multipath_hash(const struct net *net, const struct flowi4 *fl4,
 		       const struct sk_buff *skb, struct flow_keys *flkeys)
 {
-	struct net *net = fi->fib_net;
 	struct flow_keys hash_keys;
 	u32 mhash;
 
@@ -1809,24 +1810,20 @@ int fib_multipath_hash(const struct fib_info *fi, const struct flowi4 *fl4,
 			/* short-circuit if we already have L4 hash present */
 			if (skb->l4_hash)
 				return skb_get_hash_raw(skb) >> 1;
+
 			memset(&hash_keys, 0, sizeof(hash_keys));
 
-			if (flkeys) {
-				hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
-				hash_keys.addrs.v4addrs.src = flkeys->addrs.v4addrs.src;
-				hash_keys.addrs.v4addrs.dst = flkeys->addrs.v4addrs.dst;
-				hash_keys.ports.src = flkeys->ports.src;
-				hash_keys.ports.dst = flkeys->ports.dst;
-				hash_keys.basic.ip_proto = flkeys->basic.ip_proto;
-			} else {
+			if (!flkeys) {
 				skb_flow_dissect_flow_keys(skb, &keys, flag);
-				hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
-				hash_keys.addrs.v4addrs.src = keys.addrs.v4addrs.src;
-				hash_keys.addrs.v4addrs.dst = keys.addrs.v4addrs.dst;
-				hash_keys.ports.src = keys.ports.src;
-				hash_keys.ports.dst = keys.ports.dst;
-				hash_keys.basic.ip_proto = keys.basic.ip_proto;
+				flkeys = &keys;
 			}
+
+			hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+			hash_keys.addrs.v4addrs.src = flkeys->addrs.v4addrs.src;
+			hash_keys.addrs.v4addrs.dst = flkeys->addrs.v4addrs.dst;
+			hash_keys.ports.src = flkeys->ports.src;
+			hash_keys.ports.dst = flkeys->ports.dst;
+			hash_keys.basic.ip_proto = flkeys->basic.ip_proto;
 		} else {
 			memset(&hash_keys, 0, sizeof(hash_keys));
 			hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
@@ -1852,7 +1849,7 @@ static int ip_mkroute_input(struct sk_buff *skb,
 {
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
 	if (res->fi && res->fi->fib_nhs > 1) {
-		int h = fib_multipath_hash(res->fi, NULL, skb, hkeys);
+		int h = fib_multipath_hash(res->fi->fib_net, NULL, skb, hkeys);
 
 		fib_select_multipath(res, h);
 	}

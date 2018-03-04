@@ -817,7 +817,8 @@ struct sk_buff *ipvlan_l3_rcv(struct net_device *dev, struct sk_buff *skb,
 		};
 
 		skb_dst_drop(skb);
-		dst = ip6_route_input_lookup(dev_net(sdev), sdev, &fl6, flags);
+		dst = ip6_route_input_lookup(dev_net(sdev), sdev, &fl6,
+					     skb, flags);
 		skb_dst_set(skb, dst);
 		break;
 	}

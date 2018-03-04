@@ -450,8 +450,10 @@ static bool rt6_check_expired(const struct rt6_info *rt)
 	return false;
 }
 
-static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
+static struct rt6_info *rt6_multipath_select(const struct net *net,
+					     struct rt6_info *match,
 					     struct flowi6 *fl6, int oif,
+					     const struct sk_buff *skb,
 					     int strict)
 {
 	struct rt6_info *sibling, *next_sibling;
@@ -460,7 +462,7 @@ static struct rt6_info *rt6_multipath_select(struct rt6_info *match,
 	 * case it will always be non-zero. Otherwise now is the time to do it.
 	 */
 	if (!fl6->mp_hash)
-		fl6->mp_hash = rt6_multipath_hash(fl6, NULL, NULL);
+		fl6->mp_hash = rt6_multipath_hash(net, fl6, skb, NULL);
 
 	if (fl6->mp_hash <= atomic_read(&match->rt6i_nh_upper_bound))
 		return match;
@@ -914,7 +916,9 @@ static bool ip6_hold_safe(struct net *net, struct rt6_info **prt,
 
 static struct rt6_info *ip6_pol_route_lookup(struct net *net,
 					     struct fib6_table *table,
-					     struct flowi6 *fl6, int flags)
+					     struct flowi6 *fl6,
+					     const struct sk_buff *skb,
+					     int flags)
 {
 	struct rt6_info *rt, *rt_cache;
 	struct fib6_node *fn;
@@ -929,8 +933,8 @@ restart:
 		rt = rt6_device_match(net, rt, &fl6->saddr,
 				      fl6->flowi6_oif, flags);
 		if (rt->rt6i_nsiblings && fl6->flowi6_oif == 0)
-			rt = rt6_multipath_select(rt, fl6,
-						  fl6->flowi6_oif, flags);
+			rt = rt6_multipath_select(net, rt, fl6, fl6->flowi6_oif,
+						  skb, flags);
 	}
 	if (rt == net->ipv6.ip6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
@@ -954,14 +958,15 @@ restart:
 }
 
 struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
-				    int flags)
+				   const struct sk_buff *skb, int flags)
 {
-	return fib6_rule_lookup(net, fl6, flags, ip6_pol_route_lookup);
+	return fib6_rule_lookup(net, fl6, skb, flags, ip6_pol_route_lookup);
 }
 EXPORT_SYMBOL_GPL(ip6_route_lookup);
 
 struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
-			    const struct in6_addr *saddr, int oif, int strict)
+			    const struct in6_addr *saddr, int oif,
+			    const struct sk_buff *skb, int strict)
 {
 	struct flowi6 fl6 = {
 		.flowi6_oif = oif,
@@ -975,7 +980,7 @@ struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 	}
 
-	dst = fib6_rule_lookup(net, &fl6, flags, ip6_pol_route_lookup);
+	dst = fib6_rule_lookup(net, &fl6, skb, flags, ip6_pol_route_lookup);
 	if (dst->error == 0)
 		return (struct rt6_info *) dst;
 
@@ -1647,7 +1652,8 @@ void rt6_age_exceptions(struct rt6_info *rt,
 }
 
 struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
-			       int oif, struct flowi6 *fl6, int flags)
+			       int oif, struct flowi6 *fl6,
+			       const struct sk_buff *skb, int flags)
 {
 	struct fib6_node *fn, *saved_fn;
 	struct rt6_info *rt, *rt_cache;
@@ -1669,7 +1675,7 @@ struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
 redo_rt6_select:
 	rt = rt6_select(net, fn, oif, strict);
 	if (rt->rt6i_nsiblings)
-		rt = rt6_multipath_select(rt, fl6, oif, strict);
+		rt = rt6_multipath_select(net, rt, fl6, oif, skb, strict);
 	if (rt == net->ipv6.ip6_null_entry) {
 		fn = fib6_backtrack(fn, &fl6->saddr);
 		if (fn)
@@ -1768,20 +1774,25 @@ uncached_rt_out:
 }
 EXPORT_SYMBOL_GPL(ip6_pol_route);
 
-static struct rt6_info *ip6_pol_route_input(struct net *net, struct fib6_table *table,
-					    struct flowi6 *fl6, int flags)
+static struct rt6_info *ip6_pol_route_input(struct net *net,
+					    struct fib6_table *table,
+					    struct flowi6 *fl6,
+					    const struct sk_buff *skb,
+					    int flags)
 {
-	return ip6_pol_route(net, table, fl6->flowi6_iif, fl6, flags);
+	return ip6_pol_route(net, table, fl6->flowi6_iif, fl6, skb, flags);
 }
 
 struct dst_entry *ip6_route_input_lookup(struct net *net,
 					 struct net_device *dev,
-					 struct flowi6 *fl6, int flags)
+					 struct flowi6 *fl6,
+					 const struct sk_buff *skb,
+					 int flags)
 {
 	if (rt6_need_strict(&fl6->daddr) && dev->type != ARPHRD_PIMREG)
 		flags |= RT6_LOOKUP_F_IFACE;
 
-	return fib6_rule_lookup(net, fl6, flags, ip6_pol_route_input);
+	return fib6_rule_lookup(net, fl6, skb, flags, ip6_pol_route_input);
 }
 EXPORT_SYMBOL_GPL(ip6_route_input_lookup);
 
@@ -1815,8 +1826,6 @@ static void ip6_multipath_l3_keys(const struct sk_buff *skb,
 	key_iph = inner_iph;
 	_flkeys = NULL;
 out:
-	memset(keys, 0, sizeof(*keys));
-	keys->control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 	if (_flkeys) {
 		keys->addrs.v6addrs.src = _flkeys->addrs.v6addrs.src;
 		keys->addrs.v6addrs.dst = _flkeys->addrs.v6addrs.dst;
@@ -1831,17 +1840,60 @@ out:
 }
 
 /* if skb is set it will be used and fl6 can be NULL */
-u32 rt6_multipath_hash(const struct flowi6 *fl6, const struct sk_buff *skb,
-		       struct flow_keys *flkeys)
+u32 rt6_multipath_hash(const struct net *net, const struct flowi6 *fl6,
+		       const struct sk_buff *skb, struct flow_keys *flkeys)
 {
 	struct flow_keys hash_keys;
+	u32 mhash;
 
-	if (skb) {
-		ip6_multipath_l3_keys(skb, &hash_keys, flkeys);
-		return flow_hash_from_keys(&hash_keys) >> 1;
+	switch (net->ipv6.sysctl.multipath_hash_policy) {
+	case 0:
+		memset(&hash_keys, 0, sizeof(hash_keys));
+		hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+		if (skb) {
+			ip6_multipath_l3_keys(skb, &hash_keys, flkeys);
+		} else {
+			hash_keys.addrs.v6addrs.src = fl6->saddr;
+			hash_keys.addrs.v6addrs.dst = fl6->daddr;
+			hash_keys.tags.flow_label = (__force u32)fl6->flowlabel;
+			hash_keys.basic.ip_proto = fl6->flowi6_proto;
+		}
+		break;
+	case 1:
+		if (skb) {
+			unsigned int flag = FLOW_DISSECTOR_F_STOP_AT_ENCAP;
+			struct flow_keys keys;
+
+			/* short-circuit if we already have L4 hash present */
+			if (skb->l4_hash)
+				return skb_get_hash_raw(skb) >> 1;
+
+			memset(&hash_keys, 0, sizeof(hash_keys));
+
+                        if (!flkeys) {
+				skb_flow_dissect_flow_keys(skb, &keys, flag);
+				flkeys = &keys;
+			}
+			hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+			hash_keys.addrs.v6addrs.src = flkeys->addrs.v6addrs.src;
+			hash_keys.addrs.v6addrs.dst = flkeys->addrs.v6addrs.dst;
+			hash_keys.ports.src = flkeys->ports.src;
+			hash_keys.ports.dst = flkeys->ports.dst;
+			hash_keys.basic.ip_proto = flkeys->basic.ip_proto;
+		} else {
+			memset(&hash_keys, 0, sizeof(hash_keys));
+			hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+			hash_keys.addrs.v6addrs.src = fl6->saddr;
+			hash_keys.addrs.v6addrs.dst = fl6->daddr;
+			hash_keys.ports.src = fl6->fl6_sport;
+			hash_keys.ports.dst = fl6->fl6_dport;
+			hash_keys.basic.ip_proto = fl6->flowi6_proto;
+		}
+		break;
 	}
+	mhash = flow_hash_from_keys(&hash_keys);
 
-	return get_hash_from_flowi6(fl6) >> 1;
+	return mhash >> 1;
 }
 
 void ip6_route_input(struct sk_buff *skb)
@@ -1868,15 +1920,19 @@ void ip6_route_input(struct sk_buff *skb)
 		flkeys = &_flkeys;
 
 	if (unlikely(fl6.flowi6_proto == IPPROTO_ICMPV6))
-		fl6.mp_hash = rt6_multipath_hash(&fl6, skb, flkeys);
+		fl6.mp_hash = rt6_multipath_hash(net, &fl6, skb, flkeys);
 	skb_dst_drop(skb);
-	skb_dst_set(skb, ip6_route_input_lookup(net, skb->dev, &fl6, flags));
+	skb_dst_set(skb,
+		    ip6_route_input_lookup(net, skb->dev, &fl6, skb, flags));
 }
 
-static struct rt6_info *ip6_pol_route_output(struct net *net, struct fib6_table *table,
-					     struct flowi6 *fl6, int flags)
+static struct rt6_info *ip6_pol_route_output(struct net *net,
+					     struct fib6_table *table,
+					     struct flowi6 *fl6,
+					     const struct sk_buff *skb,
+					     int flags)
 {
-	return ip6_pol_route(net, table, fl6->flowi6_oif, fl6, flags);
+	return ip6_pol_route(net, table, fl6->flowi6_oif, fl6, skb, flags);
 }
 
 struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
@@ -1904,7 +1960,7 @@ struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
 	else if (sk)
 		flags |= rt6_srcprefs2flags(inet6_sk(sk)->srcprefs);
 
-	return fib6_rule_lookup(net, fl6, flags, ip6_pol_route_output);
+	return fib6_rule_lookup(net, fl6, NULL, flags, ip6_pol_route_output);
 }
 EXPORT_SYMBOL_GPL(ip6_route_output_flags);
 
@@ -2153,6 +2209,7 @@ struct ip6rd_flowi {
 static struct rt6_info *__ip6_route_redirect(struct net *net,
 					     struct fib6_table *table,
 					     struct flowi6 *fl6,
+					     const struct sk_buff *skb,
 					     int flags)
 {
 	struct ip6rd_flowi *rdfl = (struct ip6rd_flowi *)fl6;
@@ -2226,8 +2283,9 @@ out:
 };
 
 static struct dst_entry *ip6_route_redirect(struct net *net,
-					const struct flowi6 *fl6,
-					const struct in6_addr *gateway)
+					    const struct flowi6 *fl6,
+					    const struct sk_buff *skb,
+					    const struct in6_addr *gateway)
 {
 	int flags = RT6_LOOKUP_F_HAS_SADDR;
 	struct ip6rd_flowi rdfl;
@@ -2235,7 +2293,7 @@ static struct dst_entry *ip6_route_redirect(struct net *net,
 	rdfl.fl6 = *fl6;
 	rdfl.gateway = *gateway;
 
-	return fib6_rule_lookup(net, &rdfl.fl6,
+	return fib6_rule_lookup(net, &rdfl.fl6, skb,
 				flags, __ip6_route_redirect);
 }
 
@@ -2255,7 +2313,7 @@ void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
 	fl6.flowlabel = ip6_flowinfo(iph);
 	fl6.flowi6_uid = uid;
 
-	dst = ip6_route_redirect(net, &fl6, &ipv6_hdr(skb)->saddr);
+	dst = ip6_route_redirect(net, &fl6, skb, &ipv6_hdr(skb)->saddr);
 	rt6_do_redirect(dst, NULL, skb);
 	dst_release(dst);
 }
@@ -2277,7 +2335,7 @@ void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
 	fl6.saddr = iph->daddr;
 	fl6.flowi6_uid = sock_net_uid(net, NULL);
 
-	dst = ip6_route_redirect(net, &fl6, &iph->saddr);
+	dst = ip6_route_redirect(net, &fl6, skb, &iph->saddr);
 	rt6_do_redirect(dst, NULL, skb);
 	dst_release(dst);
 }
@@ -2479,7 +2537,7 @@ static struct rt6_info *ip6_nh_lookup_table(struct net *net,
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
 
 	flags |= RT6_LOOKUP_F_IGNORE_LINKSTATE;
-	rt = ip6_pol_route(net, table, cfg->fc_ifindex, &fl6, flags);
+	rt = ip6_pol_route(net, table, cfg->fc_ifindex, &fl6, NULL, flags);
 
 	/* if table lookup failed, fall back to full lookup */
 	if (rt == net->ipv6.ip6_null_entry) {
@@ -2542,7 +2600,7 @@ static int ip6_route_check_nh(struct net *net,
 	}
 
 	if (!grt)
-		grt = rt6_lookup(net, gw_addr, NULL, cfg->fc_ifindex, 1);
+		grt = rt6_lookup(net, gw_addr, NULL, cfg->fc_ifindex, NULL, 1);
 
 	if (!grt)
 		goto out;
@@ -4607,7 +4665,7 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		if (!ipv6_addr_any(&fl6.saddr))
 			flags |= RT6_LOOKUP_F_HAS_SADDR;
 
-		dst = ip6_route_input_lookup(net, dev, &fl6, flags);
+		dst = ip6_route_input_lookup(net, dev, &fl6, NULL, flags);
 
 		rcu_read_unlock();
 	} else {

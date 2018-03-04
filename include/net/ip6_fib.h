@@ -350,7 +350,8 @@ struct fib6_table {
 
 typedef struct rt6_info *(*pol_lookup_t)(struct net *,
 					 struct fib6_table *,
-					 struct flowi6 *, int);
+					 struct flowi6 *,
+					 const struct sk_buff *, int);
 
 struct fib6_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
@@ -364,6 +365,7 @@ struct fib6_entry_notifier_info {
 struct fib6_table *fib6_get_table(struct net *net, u32 id);
 struct fib6_table *fib6_new_table(struct net *net, u32 id);
 struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
+				   const struct sk_buff *skb,
 				   int flags, pol_lookup_t lookup);
 
 struct fib6_node *fib6_lookup(struct fib6_node *root,

@@ -222,20 +222,4 @@ static inline unsigned int flow_key_size(u16 family)
 
 __u32 __get_hash_from_flowi6(const struct flowi6 *fl6, struct flow_keys *keys);
 
-static inline __u32 get_hash_from_flowi6(const struct flowi6 *fl6)
-{
-	struct flow_keys keys;
-
-	return __get_hash_from_flowi6(fl6, &keys);
-}
-
-__u32 __get_hash_from_flowi4(const struct flowi4 *fl4, struct flow_keys *keys);
-
-static inline __u32 get_hash_from_flowi4(const struct flowi4 *fl4)
-{
-	struct flow_keys keys;
-
-	return __get_hash_from_flowi4(fl4, &keys);
-}
-
 #endif

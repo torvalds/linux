@@ -1363,6 +1363,13 @@ flowlabel_reflect - BOOLEAN
 	FALSE: disabled
 	Default: FALSE
 
+fib_multipath_hash_policy - INTEGER
+	Controls which hash policy to use for multipath routes.
+	Default: 0 (Layer 3)
+	Possible values:
+	0 - Layer 3 (source and destination addresses plus flow label)
+	1 - Layer 4 (standard 5-tuple)
+
 anycast_src_echo_reply - BOOLEAN
 	Controls the use of anycast addresses as source addresses for ICMPv6
 	echo reply

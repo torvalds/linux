@@ -53,7 +53,7 @@ static bool rpfilter_lookup_reverse6(struct net *net, const struct sk_buff *skb,
 		lookup_flags |= RT6_LOOKUP_F_IFACE;
 	}
 
-	rt = (void *) ip6_route_lookup(net, &fl6, lookup_flags);
+	rt = (void *)ip6_route_lookup(net, &fl6, skb, lookup_flags);
 	if (rt->dst.error)
 		goto out;
 
