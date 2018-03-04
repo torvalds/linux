@@ -19,7 +19,6 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/acpi.h>
-#include <linux/dmi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -32,16 +31,12 @@
 #include "rl6231.h"
 #include "rt5651.h"
 
-#define RT5651_JD_MAP(quirk)	((quirk) & GENMASK(7, 0))
-
 #define RT5651_DEVICE_ID_VALUE 0x6281
 
 #define RT5651_PR_RANGE_BASE (0xff + 1)
 #define RT5651_PR_SPACING 0x100
 
 #define RT5651_PR_BASE (RT5651_PR_RANGE_BASE + (0 * RT5651_PR_SPACING))
-
-static unsigned long rt5651_quirk;
 
 static const struct regmap_range_cfg rt5651_ranges[] = {
 	{ .name = "PR", .range_min = RT5651_PR_BASE,
@@ -1675,6 +1670,9 @@ static int rt5651_set_jack(struct snd_soc_component *component,
  */
 static void rt5651_apply_properties(struct snd_soc_component *component)
 {
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+	u32 val;
+
 	if (device_property_read_bool(component->dev, "realtek,in2-differential"))
 		snd_soc_component_update_bits(component, RT5651_IN1_IN2,
 				RT5651_IN_DF2, RT5651_IN_DF2);
@@ -1682,6 +1680,10 @@ static void rt5651_apply_properties(struct snd_soc_component *component)
 	if (device_property_read_bool(component->dev, "realtek,dmic-en"))
 		snd_soc_component_update_bits(component, RT5651_GPIO_CTRL1,
 				RT5651_GP2_PIN_MASK, RT5651_GP2_PIN_DMIC1_SCL);
+
+	if (device_property_read_u32(component->dev,
+				     "realtek,jack-detect-source", &val) == 0)
+		rt5651->jd_src = val;
 }
 
 static int rt5651_probe(struct snd_soc_component *component)
@@ -1831,24 +1833,6 @@ static const struct i2c_device_id rt5651_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt5651_i2c_id);
 
-static int rt5651_quirk_cb(const struct dmi_system_id *id)
-{
-	rt5651_quirk = (unsigned long) id->driver_data;
-	return 1;
-}
-
-static const struct dmi_system_id rt5651_quirk_table[] = {
-	{
-		.callback = rt5651_quirk_cb,
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "KIANO"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "KIANO SlimNote 14.2"),
-		},
-		.driver_data = (unsigned long *) RT5651_JD1_1,
-	},
-	{}
-};
-
 static int rt5651_jack_detect(struct snd_soc_component *component, int jack_insert)
 {
 	int jack_type;
@@ -1915,9 +1899,6 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5651);
-
-	dmi_check_system(rt5651_quirk_table);
-	rt5651->jd_src = RT5651_JD_MAP(rt5651_quirk);
 
 	rt5651->regmap = devm_regmap_init_i2c(i2c, &rt5651_regmap);
 	if (IS_ERR(rt5651->regmap)) {

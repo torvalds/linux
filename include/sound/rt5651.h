@@ -11,6 +11,10 @@
 #ifndef __LINUX_SND_RT5651_H
 #define __LINUX_SND_RT5651_H
 
+/*
+ * Note these MUST match the values from the DT binding:
+ * Documentation/devicetree/bindings/sound/rt5651.txt
+ */
 enum rt5651_jd_src {
 	RT5651_JD_NULL,
 	RT5651_JD1_1,
