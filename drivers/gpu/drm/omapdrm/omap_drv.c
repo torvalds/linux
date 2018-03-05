@@ -239,10 +239,9 @@ static int omap_modeset_init_properties(struct drm_device *dev)
 static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	struct omap_dss_device *dssdev = NULL;
 	int num_ovls = priv->dispc_ops->get_num_ovls(priv->dispc);
 	int num_mgrs = priv->dispc_ops->get_num_mgrs(priv->dispc);
-	int num_crtcs, crtc_idx, plane_idx;
+	int num_crtcs;
 	unsigned int i;
 	int ret;
 	u32 plane_crtc_mask;
@@ -275,10 +274,6 @@ static int omap_modeset_init(struct drm_device *dev)
 	/* All planes can be put to any CRTC */
 	plane_crtc_mask = (1 << num_crtcs) - 1;
 
-	dssdev = NULL;
-
-	crtc_idx = 0;
-	plane_idx = 0;
 	for (i = 0; i < priv->num_dssdevs; i++) {
 		struct omap_dss_device *dssdev = priv->dssdevs[i];
 		struct drm_connector *connector;
@@ -295,7 +290,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		if (!connector)
 			return -ENOMEM;
 
-		plane = omap_plane_init(dev, plane_idx, DRM_PLANE_TYPE_PRIMARY,
+		plane = omap_plane_init(dev, i, DRM_PLANE_TYPE_PRIMARY,
 					plane_crtc_mask);
 		if (IS_ERR(plane))
 			return PTR_ERR(plane);
@@ -305,27 +300,24 @@ static int omap_modeset_init(struct drm_device *dev)
 			return PTR_ERR(crtc);
 
 		drm_connector_attach_encoder(connector, encoder);
-		encoder->possible_crtcs = (1 << crtc_idx);
+		encoder->possible_crtcs = 1 << i;
 
 		priv->crtcs[priv->num_crtcs++] = crtc;
 		priv->planes[priv->num_planes++] = plane;
 		priv->encoders[priv->num_encoders++] = encoder;
 		priv->connectors[priv->num_connectors++] = connector;
-
-		plane_idx++;
-		crtc_idx++;
 	}
 
 	/*
 	 * Create normal planes for the remaining overlays:
 	 */
-	for (; plane_idx < num_ovls; plane_idx++) {
+	for (; i < num_ovls; i++) {
 		struct drm_plane *plane;
 
 		if (WARN_ON(priv->num_planes >= ARRAY_SIZE(priv->planes)))
 			return -EINVAL;
 
-		plane = omap_plane_init(dev, plane_idx, DRM_PLANE_TYPE_OVERLAY,
+		plane = omap_plane_init(dev, i, DRM_PLANE_TYPE_OVERLAY,
 			plane_crtc_mask);
 		if (IS_ERR(plane))
 			return PTR_ERR(plane);
