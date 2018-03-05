@@ -244,7 +244,7 @@ static int recvframe_chkmic(struct adapter *adapter,
 			  prxattrib->ra[3], prxattrib->ra[4], prxattrib->ra[5]));
 
 		/* calculate mic code */
-		if (stainfo != NULL) {
+		if (stainfo) {
 			if (IS_MCAST(prxattrib->ra)) {
 				if (!psecuritypriv) {
 					res = _FAIL;
@@ -1012,7 +1012,7 @@ static int validate_recv_mgnt_frame(struct adapter *padapter,
 	RT_TRACE(_module_rtl871x_recv_c_, _drv_info_, ("+validate_recv_mgnt_frame\n"));
 
 	precv_frame = recvframe_chk_defrag(padapter, precv_frame);
-	if (precv_frame == NULL) {
+	if (!precv_frame) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_notice_,
 			 ("%s: fragment packet\n", __func__));
 		return _SUCCESS;
@@ -1060,7 +1060,7 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	psa = get_sa(ptr);
 	pbssid = get_hdr_bssid(ptr);
 
-	if (pbssid == NULL) {
+	if (!pbssid) {
 		ret = _FAIL;
 		goto exit;
 	}
@@ -1102,7 +1102,7 @@ static int validate_recv_data_frame(struct adapter *adapter,
 	else if (ret == RTW_RX_HANDLED)
 		goto exit;
 
-	if (psta == NULL) {
+	if (!psta) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, (" after to_fr_ds_chk; psta==NULL\n"));
 		ret = _FAIL;
 		goto exit;
@@ -1436,7 +1436,7 @@ struct recv_frame *recvframe_chk_defrag(struct adapter *padapter,
 
 	psta_addr = pfhdr->attrib.ta;
 	psta = rtw_get_stainfo(pstapriv, psta_addr);
-	if (psta == NULL) {
+	if (!psta) {
 		u8 type = GetFrameType(pfhdr->pkt->data);
 
 		if (type != WIFI_DATA_TYPE) {
@@ -1455,7 +1455,7 @@ struct recv_frame *recvframe_chk_defrag(struct adapter *padapter,
 	if (ismfrag == 1) {
 		/* 0~(n-1) fragment frame */
 		/* enqueue to defraf_g */
-		if (pdefrag_q != NULL) {
+		if (pdefrag_q) {
 			if (fragnum == 0) {
 				/* the first fragment */
 				if (!list_empty(&pdefrag_q->queue))
@@ -1482,7 +1482,7 @@ struct recv_frame *recvframe_chk_defrag(struct adapter *padapter,
 	if ((ismfrag == 0) && (fragnum != 0)) {
 		/* the last fragment frame */
 		/* enqueue the last fragment */
-		if (pdefrag_q != NULL) {
+		if (pdefrag_q) {
 			phead = get_list_head(pdefrag_q);
 			list_add_tail(&pfhdr->list, phead);
 
@@ -1928,20 +1928,20 @@ static int recv_func_posthandle(struct adapter *padapter,
 	LedControl8188eu(padapter, LED_CTL_RX);
 
 	prframe = decryptor(padapter, prframe);
-	if (prframe == NULL) {
+	if (!prframe) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("decryptor: drop pkt\n"));
 		ret = _FAIL;
 		goto _recv_data_drop;
 	}
 
 	prframe = recvframe_chk_defrag(padapter, prframe);
-	if (prframe == NULL) {
+	if (!prframe) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("recvframe_chk_defrag: drop pkt\n"));
 		goto _recv_data_drop;
 	}
 
 	prframe = portctrl(padapter, prframe);
-	if (prframe == NULL) {
+	if (!prframe) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, ("portctrl: drop pkt\n"));
 		ret = _FAIL;
 		goto _recv_data_drop;
