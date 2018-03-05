@@ -1060,6 +1060,7 @@ static void xs_udp_data_read_skb(struct rpc_xprt *xprt,
 	if (!rovr)
 		goto out_unlock;
 	xprt_pin_rqst(rovr);
+	xprt_update_rtt(rovr->rq_task);
 	spin_unlock(&xprt->recv_lock);
 	task = rovr->rq_task;
 
