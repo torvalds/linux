@@ -243,6 +243,12 @@ void mmc_add_host_debugfs(struct mmc_host *host)
 	if (!debugfs_create_file("ios", S_IRUSR, root, host, &mmc_ios_fops))
 		goto err_node;
 
+	if (!debugfs_create_x32("caps", S_IRUSR, root, &host->caps))
+		goto err_node;
+
+	if (!debugfs_create_x32("caps2", S_IRUSR, root, &host->caps2))
+		goto err_node;
+
 	if (!debugfs_create_file("clock", S_IRUSR | S_IWUSR, root, host,
 			&mmc_clock_fops))
 		goto err_node;
