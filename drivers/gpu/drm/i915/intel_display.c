@@ -13570,10 +13570,17 @@ static int intel_crtc_init(struct drm_i915_private *dev_priv, enum pipe pipe)
 	/* initialize shared scalers */
 	intel_crtc_init_scalers(intel_crtc, crtc_state);
 
-	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
-	       dev_priv->plane_to_crtc_mapping[primary->i9xx_plane] != NULL);
-	dev_priv->plane_to_crtc_mapping[primary->i9xx_plane] = intel_crtc;
-	dev_priv->pipe_to_crtc_mapping[intel_crtc->pipe] = intel_crtc;
+	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->pipe_to_crtc_mapping) ||
+	       dev_priv->pipe_to_crtc_mapping[pipe] != NULL);
+	dev_priv->pipe_to_crtc_mapping[pipe] = intel_crtc;
+
+	if (INTEL_GEN(dev_priv) < 9) {
+		enum i9xx_plane_id i9xx_plane = primary->i9xx_plane;
+
+		BUG_ON(i9xx_plane >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
+		       dev_priv->plane_to_crtc_mapping[i9xx_plane] != NULL);
+		dev_priv->plane_to_crtc_mapping[i9xx_plane] = intel_crtc;
+	}
 
 	drm_crtc_helper_add(&intel_crtc->base, &intel_helper_funcs);
 
