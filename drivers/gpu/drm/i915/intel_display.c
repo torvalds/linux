@@ -2152,6 +2152,7 @@ intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 		 */
 		ret = i915_vma_pin_fence(vma);
 		if (ret != 0 && INTEL_GEN(dev_priv) < 4) {
+			i915_gem_object_unpin_from_display_plane(vma);
 			vma = ERR_PTR(ret);
 			goto err;
 		}
