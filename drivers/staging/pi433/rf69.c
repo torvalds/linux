@@ -661,12 +661,12 @@ int rf69_set_sync_values(struct spi_device *spi, u8 sync_values[8])
 	return retval;
 }
 
-int rf69_set_packet_format(struct spi_device *spi, enum packetFormat packetFormat)
+int rf69_set_packet_format(struct spi_device *spi, enum packet_format packet_format)
 {
-	switch (packetFormat) {
-	case packetLengthVar:
+	switch (packet_format) {
+	case packet_length_var:
 		return rf69_set_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_PAKET_FORMAT_VARIABLE);
-	case packetLengthFix:
+	case packet_length_fix:
 		return rf69_clear_bit(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_PAKET_FORMAT_VARIABLE);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");

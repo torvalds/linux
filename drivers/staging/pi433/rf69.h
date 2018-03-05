@@ -50,7 +50,7 @@ int rf69_disable_sync(struct spi_device *spi);
 int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifo_fill_condition fifo_fill_condition);
 int rf69_set_sync_size(struct spi_device *spi, u8 sync_size);
 int rf69_set_sync_values(struct spi_device *spi, u8 sync_values[8]);
-int rf69_set_packet_format(struct spi_device *spi, enum packetFormat packetFormat);
+int rf69_set_packet_format(struct spi_device *spi, enum packet_format packet_format);
 int rf69_enable_crc(struct spi_device *spi);
 int rf69_disable_crc(struct spi_device *spi);
 int rf69_set_address_filtering(struct spi_device *spi, enum address_filtering address_filtering);

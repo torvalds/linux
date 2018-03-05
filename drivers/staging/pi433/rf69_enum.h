@@ -118,9 +118,9 @@ enum fifo_fill_condition {
 	always
 };
 
-enum packetFormat {
-	packetLengthFix,
-	packetLengthVar
+enum packet_format {
+	packet_length_fix,
+	packet_length_var
 };
 
 enum tx_start_condition {
