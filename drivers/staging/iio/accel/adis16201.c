@@ -232,6 +232,7 @@ static int adis16201_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		return IIO_VAL_INT;
 	}
+
 	return -EINVAL;
 }
 
@@ -262,6 +263,7 @@ static int adis16201_write_raw(struct iio_dev *indio_dev,
 		addr = adis16201_addresses[chan->scan_index];
 		return adis_write_reg_16(st, addr, val16);
 	}
+
 	return -EINVAL;
 }
 
@@ -336,6 +338,7 @@ static int adis16201_probe(struct spi_device *spi)
 	ret = adis_init(st, indio_dev, spi, &adis16201_data);
 	if (ret)
 		return ret;
+
 	ret = adis_setup_buffer_and_trigger(st, indio_dev, NULL);
 	if (ret)
 		return ret;
@@ -348,6 +351,7 @@ static int adis16201_probe(struct spi_device *spi)
 	ret = iio_device_register(indio_dev);
 	if (ret < 0)
 		goto error_cleanup_buffer_trigger;
+
 	return 0;
 
 error_cleanup_buffer_trigger:
