@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
+#include <dt-bindings/clock/rk3308-cru.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -140,6 +141,14 @@
 		rockchip,audio-chnl-num = <8>;
 		rockchip,audio-chnl = <0>;
 		rockchip,mode = <0>;
+	};
+
+	cru: clock-controller@ff500000 {
+		compatible = "rockchip,rk3308-cru";
+		reg = <0x0 0xff500000 0x0 0x1000>;
+		rockchip,grf = <&grf>;
+		#clock-cells = <1>;
+		#reset-cells = <1>;
 	};
 
 	gic: interrupt-controller@ff580000 {
