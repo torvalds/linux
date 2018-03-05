@@ -44,6 +44,7 @@
 #define MVPP2_RX_ATTR_FIFO_SIZE_REG(port)	(0x20 + 4 * (port))
 #define MVPP2_RX_MIN_PKT_SIZE_REG		0x60
 #define MVPP2_RX_FIFO_INIT_REG			0x64
+#define MVPP22_TX_FIFO_THRESH_REG(port)		(0x8840 + 4 * (port))
 #define MVPP22_TX_FIFO_SIZE_REG(port)		(0x8860 + 4 * (port))
 
 /* RX DMA Top Registers */
@@ -542,6 +543,11 @@
 /* TX FIFO constants */
 #define MVPP22_TX_FIFO_DATA_SIZE_10KB		0xa
 #define MVPP22_TX_FIFO_DATA_SIZE_3KB		0x3
+#define MVPP2_TX_FIFO_THRESHOLD_MIN		256
+#define MVPP2_TX_FIFO_THRESHOLD_10KB	\
+	(MVPP22_TX_FIFO_DATA_SIZE_10KB * 1024 - MVPP2_TX_FIFO_THRESHOLD_MIN)
+#define MVPP2_TX_FIFO_THRESHOLD_3KB	\
+	(MVPP22_TX_FIFO_DATA_SIZE_3KB * 1024 - MVPP2_TX_FIFO_THRESHOLD_MIN)
 
 /* RX buffer constants */
 #define MVPP2_SKB_SHINFO_SIZE \
@@ -8456,14 +8462,25 @@ static void mvpp22_rx_fifo_init(struct mvpp2 *priv)
 	mvpp2_write(priv, MVPP2_RX_FIFO_INIT_REG, 0x1);
 }
 
-/* Initialize Tx FIFO's */
+/* Initialize Tx FIFO's: the total FIFO size is 19kB on PPv2.2 and 10G
+ * interfaces must have a Tx FIFO size of 10kB. As only port 0 can do 10G,
+ * configure its Tx FIFO size to 10kB and the others ports Tx FIFO size to 3kB.
+ */
 static void mvpp22_tx_fifo_init(struct mvpp2 *priv)
 {
-	int port;
+	int port, size, thrs;
 
-	for (port = 0; port < MVPP2_MAX_PORTS; port++)
-		mvpp2_write(priv, MVPP22_TX_FIFO_SIZE_REG(port),
-			    MVPP22_TX_FIFO_DATA_SIZE_3KB);
+	for (port = 0; port < MVPP2_MAX_PORTS; port++) {
+		if (port == 0) {
+			size = MVPP22_TX_FIFO_DATA_SIZE_10KB;
+			thrs = MVPP2_TX_FIFO_THRESHOLD_10KB;
+		} else {
+			size = MVPP22_TX_FIFO_DATA_SIZE_3KB;
+			thrs = MVPP2_TX_FIFO_THRESHOLD_3KB;
+		}
+		mvpp2_write(priv, MVPP22_TX_FIFO_SIZE_REG(port), size);
+		mvpp2_write(priv, MVPP22_TX_FIFO_THRESH_REG(port), thrs);
+	}
 }
 
 static void mvpp2_axi_init(struct mvpp2 *priv)
