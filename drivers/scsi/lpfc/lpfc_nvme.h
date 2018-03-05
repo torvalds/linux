@@ -27,6 +27,8 @@
 
 #define LPFC_NVME_WAIT_TMO              10
 #define LPFC_NVME_EXPEDITE_XRICNT	8
+#define LPFC_NVME_FB_SHIFT		9
+#define LPFC_NVME_MAX_FB		(1 << 20)	/* 1M */
 
 struct lpfc_nvme_qhandle {
 	uint32_t index;		/* WQ index to use */

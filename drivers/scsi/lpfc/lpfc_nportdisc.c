@@ -1998,8 +1998,14 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			ndlp->nlp_type |= NLP_NVME_TARGET;
 			if (bf_get_be32(prli_disc, nvpr))
 				ndlp->nlp_type |= NLP_NVME_DISCOVERY;
+
+			/*
+			 * If prli_fba is set, the Target supports FirstBurst.
+			 * If prli_fb_sz is 0, the FirstBurst size is unlimited,
+			 * otherwise it defines the actual size supported by
+			 * the NVME Target.
+			 */
 			if ((bf_get_be32(prli_fba, nvpr) == 1) &&
-			    (bf_get_be32(prli_fb_sz, nvpr) > 0) &&
 			    (phba->cfg_nvme_enable_fb) &&
 			    (!phba->nvmet_support)) {
 				/* Both sides support FB. The target's first
@@ -2008,6 +2014,13 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				ndlp->nlp_flag |= NLP_FIRSTBURST;
 				ndlp->nvme_fb_size = bf_get_be32(prli_fb_sz,
 								 nvpr);
+
+				/* Expressed in units of 512 bytes */
+				if (ndlp->nvme_fb_size)
+					ndlp->nvme_fb_size <<=
+						LPFC_NVME_FB_SHIFT;
+				else
+					ndlp->nvme_fb_size = LPFC_NVME_MAX_FB;
 			}
 		}
 
