@@ -49,7 +49,7 @@
 
 static int kvmapf = 1;
 
-static int parse_no_kvmapf(char *arg)
+static int __init parse_no_kvmapf(char *arg)
 {
         kvmapf = 0;
         return 0;
@@ -58,7 +58,7 @@ static int parse_no_kvmapf(char *arg)
 early_param("no-kvmapf", parse_no_kvmapf);
 
 static int steal_acc = 1;
-static int parse_no_stealacc(char *arg)
+static int __init parse_no_stealacc(char *arg)
 {
         steal_acc = 0;
         return 0;
@@ -67,7 +67,7 @@ static int parse_no_stealacc(char *arg)
 early_param("no-steal-acc", parse_no_stealacc);
 
 static int kvmclock_vsyscall = 1;
-static int parse_no_kvmclock_vsyscall(char *arg)
+static int __init parse_no_kvmclock_vsyscall(char *arg)
 {
         kvmclock_vsyscall = 0;
         return 0;
@@ -341,10 +341,10 @@ static void kvm_guest_cpu_init(void)
 #endif
 		pa |= KVM_ASYNC_PF_ENABLED;
 
-		/* Async page fault support for L1 hypervisor is optional */
-		if (wrmsr_safe(MSR_KVM_ASYNC_PF_EN,
-			(pa | KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT) & 0xffffffff, pa >> 32) < 0)
-			wrmsrl(MSR_KVM_ASYNC_PF_EN, pa);
+		if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF_VMEXIT))
+			pa |= KVM_ASYNC_PF_DELIVERY_AS_PF_VMEXIT;
+
+		wrmsrl(MSR_KVM_ASYNC_PF_EN, pa);
 		__this_cpu_write(apf_reason.enabled, 1);
 		printk(KERN_INFO"KVM setup async PF for cpu %d\n",
 		       smp_processor_id());
@@ -545,7 +545,8 @@ static void __init kvm_guest_init(void)
 		pv_time_ops.steal_clock = kvm_steal_clock;
 	}
 
-	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH))
+	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    !kvm_para_has_feature(KVM_FEATURE_STEAL_TIME))
 		pv_mmu_ops.flush_tlb_others = kvm_flush_tlb_others;
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
@@ -633,7 +634,8 @@ static __init int kvm_setup_pv_tlb_flush(void)
 {
 	int cpu;
 
-	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH)) {
+	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+	    !kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
 		for_each_possible_cpu(cpu) {
 			zalloc_cpumask_var_node(per_cpu_ptr(&__pv_tlb_mask, cpu),
 				GFP_KERNEL, cpu_to_node(cpu));

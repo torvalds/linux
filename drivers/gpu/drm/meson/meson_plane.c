@@ -164,10 +164,9 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	/* Update Canvas with buffer address */
 	gem = drm_fb_cma_get_gem_obj(fb, 0);
 
-	meson_canvas_setup(priv, MESON_CANVAS_ID_OSD1,
-			   gem->paddr, fb->pitches[0],
-			   fb->height, MESON_CANVAS_WRAP_NONE,
-			   MESON_CANVAS_BLKMODE_LINEAR);
+	priv->viu.osd1_addr = gem->paddr;
+	priv->viu.osd1_stride = fb->pitches[0];
+	priv->viu.osd1_height = fb->height;
 
 	spin_unlock_irqrestore(&priv->drm->event_lock, flags);
 }

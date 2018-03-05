@@ -1076,14 +1076,16 @@ long seccomp_get_metadata(struct task_struct *task,
 
 	size = min_t(unsigned long, size, sizeof(kmd));
 
-	if (copy_from_user(&kmd, data, size))
+	if (size < sizeof(kmd.filter_off))
+		return -EINVAL;
+
+	if (copy_from_user(&kmd.filter_off, data, sizeof(kmd.filter_off)))
 		return -EFAULT;
 
 	filter = get_nth_filter(task, kmd.filter_off);
 	if (IS_ERR(filter))
 		return PTR_ERR(filter);
 
-	memset(&kmd, 0, sizeof(kmd));
 	if (filter->log)
 		kmd.flags |= SECCOMP_FILTER_FLAG_LOG;
 

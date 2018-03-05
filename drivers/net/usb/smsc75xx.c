@@ -954,10 +954,11 @@ static int smsc75xx_set_features(struct net_device *netdev,
 	/* it's racing here! */
 
 	ret = smsc75xx_write_reg(dev, RFE_CTL, pdata->rfe_ctl);
-	if (ret < 0)
+	if (ret < 0) {
 		netdev_warn(dev->net, "Error writing RFE_CTL\n");
-
-	return ret;
+		return ret;
+	}
+	return 0;
 }
 
 static int smsc75xx_wait_ready(struct usbnet *dev, int in_pm)
