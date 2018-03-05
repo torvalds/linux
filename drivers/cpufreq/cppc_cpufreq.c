@@ -176,8 +176,13 @@ static int __init cppc_cpufreq_init(void)
 	return ret;
 
 out:
-	for_each_possible_cpu(i)
-		kfree(all_cpu_data[i]);
+	for_each_possible_cpu(i) {
+		cpu = all_cpu_data[i];
+		if (!cpu)
+			break;
+		free_cpumask_var(cpu->shared_cpu_map);
+		kfree(cpu);
+	}
 
 	kfree(all_cpu_data);
 	return -ENODEV;
