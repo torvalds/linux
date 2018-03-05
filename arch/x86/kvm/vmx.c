@@ -4490,7 +4490,8 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	if (enable_ept) {
 		eptp = construct_eptp(vcpu, cr3);
 		vmcs_write64(EPT_POINTER, eptp);
-		if (is_paging(vcpu) || is_guest_mode(vcpu))
+		if (enable_unrestricted_guest || is_paging(vcpu) ||
+		    is_guest_mode(vcpu))
 			guest_cr3 = kvm_read_cr3(vcpu);
 		else
 			guest_cr3 = vcpu->kvm->arch.ept_identity_map_addr;
@@ -9801,7 +9802,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 			goto free_vmcs;
 	}
 
-	if (enable_ept) {
+	if (enable_ept && !enable_unrestricted_guest) {
 		err = init_rmode_identity_map(kvm);
 		if (err)
 			goto free_vmcs;
