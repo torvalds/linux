@@ -41,8 +41,6 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 			      struct extent_buffer *src_buf);
 static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
 		    int level, int slot);
-static int tree_mod_log_free_eb(struct btrfs_fs_info *fs_info,
-				 struct extent_buffer *eb);
 
 struct btrfs_path *btrfs_alloc_path(void)
 {
@@ -882,8 +880,7 @@ static noinline void tree_mod_log_set_node_key(struct extent_buffer *eb,
 	BUG_ON(ret < 0);
 }
 
-static noinline int
-tree_mod_log_free_eb(struct btrfs_fs_info *fs_info, struct extent_buffer *eb)
+static noinline int tree_mod_log_free_eb(struct extent_buffer *eb)
 {
 	struct tree_mod_elem **tm_list = NULL;
 	int nritems = 0;
@@ -893,7 +890,7 @@ tree_mod_log_free_eb(struct btrfs_fs_info *fs_info, struct extent_buffer *eb)
 	if (btrfs_header_level(eb) == 0)
 		return 0;
 
-	if (!tree_mod_need_log(fs_info, NULL))
+	if (!tree_mod_need_log(eb->fs_info, NULL))
 		return 0;
 
 	nritems = btrfs_header_nritems(eb);
@@ -910,11 +907,11 @@ tree_mod_log_free_eb(struct btrfs_fs_info *fs_info, struct extent_buffer *eb)
 		}
 	}
 
-	if (tree_mod_dont_log(fs_info, eb))
+	if (tree_mod_dont_log(eb->fs_info, eb))
 		goto free_tms;
 
-	ret = __tree_mod_log_free_eb(fs_info, tm_list, nritems);
-	tree_mod_log_write_unlock(fs_info);
+	ret = __tree_mod_log_free_eb(eb->fs_info, tm_list, nritems);
+	tree_mod_log_write_unlock(eb->fs_info);
 	if (ret)
 		goto free_tms;
 	kfree(tm_list);
@@ -1183,7 +1180,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 					      trans->transid);
 		btrfs_mark_buffer_dirty(parent);
 		if (last_ref) {
-			ret = tree_mod_log_free_eb(fs_info, buf);
+			ret = tree_mod_log_free_eb(buf);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
 				return ret;
