@@ -4890,24 +4890,13 @@ static int dsi_connect(struct omap_dss_device *src,
 	if (r)
 		return r;
 
-	r = omapdss_output_set_device(dst, dst->next);
+	r = omapdss_device_connect(dst->dss, dst, dst->next);
 	if (r) {
-		DSSERR("failed to connect output to new device: %s\n",
-				dst->name);
-		goto err_mgr_disconnect;
+		dss_mgr_disconnect(dst);
+		return r;
 	}
 
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r)
-		goto err_output_unset;
-
 	return 0;
-
-err_output_unset:
-	omapdss_output_unset_device(dst);
-err_mgr_disconnect:
-	dss_mgr_disconnect(dst);
-	return r;
 }
 
 static void dsi_disconnect(struct omap_dss_device *src,
@@ -5147,6 +5136,7 @@ static const struct component_ops dsi_component_ops = {
 static int dsi_init_output(struct dsi_data *dsi)
 {
 	struct omap_dss_device *out = &dsi->output;
+	int r;
 
 	out->dev = dsi->dev;
 	out->id = dsi->module_id == 0 ?
@@ -5164,6 +5154,13 @@ static int dsi_init_output(struct dsi_data *dsi)
 		if (PTR_ERR(out->next) != -EPROBE_DEFER)
 			dev_err(out->dev, "failed to find video sink\n");
 		return PTR_ERR(out->next);
+	}
+
+	r = omapdss_output_validate(out);
+	if (r) {
+		omapdss_device_put(out->next);
+		out->next = NULL;
+		return r;
 	}
 
 	omapdss_device_register(out);

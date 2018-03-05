@@ -26,23 +26,16 @@
 
 static DEFINE_MUTEX(output_lock);
 
-int omapdss_output_set_device(struct omap_dss_device *out,
-		struct omap_dss_device *dssdev)
+int omapdss_output_validate(struct omap_dss_device *out)
 {
-	int r = 0;
-
-	mutex_lock(&output_lock);
-
-	if (out->output_type != dssdev->type) {
+	if (out->next && out->output_type != out->next->type) {
 		dev_err(out->dev, "output type and display type don't match\n");
-		r = -EINVAL;
+		return -EINVAL;
 	}
 
-	mutex_unlock(&output_lock);
-
-	return r;
+	return 0;
 }
-EXPORT_SYMBOL(omapdss_output_set_device);
+EXPORT_SYMBOL(omapdss_output_validate);
 
 int omapdss_output_unset_device(struct omap_dss_device *out)
 {
