@@ -47,7 +47,9 @@ tools/labs:
 .. note:: To show the qemu console use "QEMU_DISPLAY=sdl make
           boot". This will show the VGA output and will also give
           access to the standard keyboard.
-   
+
+.. _vm_interaction_link:
+
 Connecting to the VM
 --------------------
 

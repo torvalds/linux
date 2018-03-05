@@ -23,14 +23,14 @@ modules.
 
 For the development of Linux device drivers, it is recommended to download the
 kernel sources, configure and compile them and then install the compiled version
-on the test / development tool machine.
+on the test /development tool machine.
 
-An example of kernel module
-===========================
+An example of a kernel module
+=============================
 
-Below is a very simple example of kernel module. When loading into the kernel,
-it will generate the message "Hi". When unloading the kernel module, the "Bye"
-message will be generated.
+Below is a very simple example of a kernel module. When loading into the kernel,
+it will generate the message :code:`"Hi"`. When unloading the kernel module, the
+:code:`"Bye"` message will be generated.
 
 .. code-block:: c
 
@@ -59,7 +59,7 @@ message will be generated.
 
 The generated messages will not be displayed on the console but will be saved
 in a specially reserved memory area for this, from where they will be extracted
-by the logging daemon (syslog). To display kernel messages, you can use the dmesg
+by the logging daemon (syslog). To display kernel messages, you can use the :command:`dmesg`
 command or inspect the logs:
 
 .. code-block:: bash
@@ -79,10 +79,10 @@ Compiling a kernel module differs from compiling an user program. First, other
 headers should be used. Also, the module should not be linked to libraries.
 And, last but not least, the module must be compiled with the same options as
 the kernel in which we load the module. For these reasons, there is a standard
-compilation method (kbuild). This method requires the use of two files:
-a Makefile and a Kbuild file.
+compilation method (:code:`kbuild`). This method requires the use of two files:
+a :file:`Makefile` and a :file:`Kbuild` file.
 
-Below is an example of a Makefile:
+Below is an example of a :file:`Makefile`:
 
 .. code-block:: bash
    
@@ -94,7 +94,7 @@ Below is an example of a Makefile:
    clean:
            make -C $(KDIR) M=`pwd` clean
 
-And the example of a Kbuild file used to compile a module:
+And the example of a :file:`Kbuild` file used to compile a module:
 
 .. code-block:: bash
    
@@ -103,71 +103,76 @@ And the example of a Kbuild file used to compile a module:
    obj-m        = modul.o
    
 
-As you can see, making the Makefile file in the example shown will result in 
-the make invocation in the kernel source directory (``/lib/modules/`uname -r`/build``)
-and referring to the current directory (``M = `pwd```). This process ultimately
-leads to reading the Kbuild file from the current directory  and compiling
-the module as instructed in this file.
+As you can see, calling :command:`make` on the :file:`Makefile` file in the
+example shown will result in the :command:`make` invocation in the kernel
+source directory (``/lib/modules/`uname -r`/build``) and referring to the
+current directory (``M = `pwd```). This process ultimately leads to reading
+the :file:`Kbuild` file from the current directory and compiling the module
+as instructed in this file.
 
-For labs we will configure different KDIR, according to the virtual machine
-specifications:
+.. note:: For labs we will configure different :command:`KDIR`, according to the virtual
+          machine specifications:
 
-.. code-block:: bash
+          .. code-block:: bash
    
-   KDIR = /usr/src/linux-so2
-   [...]
+              KDIR = /home/student/so2/linux
+              [...]
 
-A Kbuild file contains one or more directives for compiling a kernel module.
-The easiest example of such a directive is ``obj-m = modul.o``. Following this
-directive, a kernel module (ko - kernel object) will be created,
-starting from the ``module.o`` file. ``module.o`` will be created starting from
-``module.c`` or ``module.S``. All of these files can be found in the Kbuild's
-directory.
+A :file:`Kbuild` file contains one or more directives for compiling a kernel module.
+The easiest example of such a directive is ``obj-m = module.o``. Following this
+directive, a kernel module (:code:`ko` - kernel object) will be created, starting from the
+``module.o`` file. ``module.o`` will be created starting from ``module.c`` or
+``module.S``. All of these files can be found in the :file:`Kbuild`'s directory.
 
-An example of a Kbuild file that uses several sub-modules is shown below:
+An example of a :file:`Kbuild` file that uses several sub-modules is shown below:
 
 .. code-block:: bash
    
    EXTRA_CFLAGS = -Wall -g
     
-   obj-m        = supermodul.o
-   supermodul-y = module-a.o module-b.o
+   obj-m        = supermodule.o
+   supermodule-y = module-a.o module-b.o
 
 For the example above, the steps to compile are:
    
-   * compile the module-a.c and module-b.c source, resulting in module-a.o and
-     module-b.o objects
-   * module-a.o and module-b.o will then be linked in supermodule.o
-   * from supermodul.o will create supermodul.ko module
+   * compile the :file:`module-a.c` and :file:`module-b.c` sources,
+     resulting in module-a.o and module-b.o objects
+   * :file:`module-a.o` and :file:`module-b.o` will then be linked
+     in :file:`supermodule.o`
+   * from :file:`supermodule.o` will be created :file:`supermodule.ko`
+     module
 
 
-The suffix of targets in Kbuild determines how they are used, as follows:
+The suffix of targets in :file:`Kbuild` determines how they are used, as follows:
 
    * M (modules) is a target for loadable kernel modules
    * Y (yes) represents a target for object files to be compiled and then linked
      to a module (``$(mode_name)-y``) or within the kernel (``obj-y``)
-   * any other target suffix will be ignored by Kbuild and will not be compiled
+   * any other target suffix will be ignored by :file:`Kbuild` and will not be compiled
 
 
-These suffixes are used to easily configure the kernel by running the ``make
-menuconfig`` command or directly editing the .config file. This file sets a
-series of variables that are used to determine which features are added to the
-kernel at build time. For example, when adding BTRFS support with
-``make menuconfig``, add the line CONFIG_BTRFS_FS = y to the .config file.
-The BTRFS kbuild contains the line ``obj-$(CONFIG_BTRFS_FS):= btrfs.o``, which
-becomes ``obj-y:= btrfs.o``. This will compile the btrfs.o object and will be
-linked to the kernel. Before the variable was set, the line became ``obj:=btrfs.o``
-and so it was ignored, and the kernel was build-at without BTRFS support.
+.. note:: These suffixes are used to easily configure the kernel by running the :command:`make
+          menuconfig` command or directly editing the :file:`.config` file. This file sets a
+          series of variables that are used to determine which features are added to the
+          kernel at build time. For example, when adding BTRFS support with :command: `make menuconfig`,
+          add the line :code:`CONFIG_BTRFS_FS = y` to the :file:`.config` file.
+          The BTRFS kbuild contains the line ``obj-$(CONFIG_BTRFS_FS):= btrfs.o``, which
+          becomes ``obj-y:= btrfs.o``. This will compile the :file:`btrfs.o` object and will be
+          linked to the kernel. Before the variable was set, the line became ``obj:=btrfs.o``
+          and so it was ignored, and the kernel was build-at without BTRFS support.
 
-For more details, see the ``makefiles.txt`` file and the ``modules.txt`` file within
-the kernel sources.
+For more details, see the
+`makefiles.txt <https://elixir.bootlin.com/linux/latest/source/Documentation/kbuild/makefiles.txt>`_
+file and the
+`modules.txt <https://elixir.bootlin.com/linux/latest/source/Documentation/kbuild/modules.txt>`_
+file within the kernel sources.
 
 Loading/unloading a kernel module
 =================================
 
-To load a kernel module, use the insmod utility. This utility receives as a
-parameter the path to the .ko file in which the module was compiled and linked.
-Unloading the module from the kernel is done using the rmmod command, which receives
+To load a kernel module, use the :command:`insmod` utility. This utility receives as a
+parameter the path to the :file:`*.ko` file in which the module was compiled and linked.
+Unloading the module from the kernel is done using the :command:`rmmod` command, which receives
 the module name as a parameter.
 
 .. code-block:: bash
@@ -213,8 +218,8 @@ A complete example of compiling and loading/unloading mode is presented below:
    Hi
    Bye
 
-Information about modules loaded into the kernel can be found using the lsmod
-command or by inspecting the ``/proc/modules``, ``/sys/module`` directories.
+Information about modules loaded into the kernel can be found using the :command:`lsmod`
+command or by inspecting the :file:`/proc/modules`, :file:`/sys/module` directories.
 
 Debugging
 =========
@@ -233,15 +238,15 @@ continue to work.
 
 Very important to the appearance of a kernel oops is saving the generated
 message. As noted above, messages generated by the kernel are saved in logs and
-can be displayed with the dmesg command. To make sure that no kernel message
+can be displayed with the :command:dmesg command. To make sure that no kernel message
 is lost, it is recommended to insert/test the kernel directly from the console,
 or periodically check the kernel messages. Noteworthy is that an oops can occur
-because of a programming error, but also a hardware error.
+because of a programming error, but also a because of hardware error.
 
 If a fatal error occurs, after which the system can not return to a stable
-state, a panic kernel is generated.
+state, a `kernel panic <https://en.wikipedia.org/wiki/Linux_kernel_panic>`_ is generated.
 
-Look at the kernel module below that contains a bug to generate an oops:
+Look at the kernel module below that contains a bug that generates an oops:
 
 .. code-block:: c
     
@@ -344,22 +349,23 @@ Next line
 
 Tells us that it's the first oops (#1). This is important in the context that
 an oops can lead to other oopses. Usually only the first oops is relevant.
-Furthermore, the oops code (0002) provides information about the error type
-(in memory manager -> fault.c ):
+Furthermore, the oops code (``0002``) provides information about the error type
+(in memory manager ->
+`traps.h <https://elixir.bootlin.com/linux/latest/source/arch/x86/include/asm/traps.h#L149>`_):
 
    * Bit 0 == 0 means no page found, 1 means protection fault
    * Bit 1 == 0 means read, 1 means write
-   * Bit 2 == 0 means kernel, 1 means user - mode 
+   * Bit 2 == 0 means kernel, 1 means user mode
 
 In this case, we have a write access that generated the oops (bit 1 is 1).
 
-Below is a dump of the registers. It decodes the instruction pointer (EIP)
-value and notes that the bug appeared in the my_oops_init function with a
+Below is a dump of the registers. It decodes the instruction pointer (``EIP``)
+value and notes that the bug appeared in the :code:`my_oops_init` function with a
 5-byte offset (``EIP: [<c89d4005>] my_oops_init+0x5``). The message also shows
 the stack content and a backtrace of calls until then.
 
-If an invalid read call is generated ( ``#define OP_OOPS OP_READ``), the message
-will be the same, but the oops code will differ, which would now be 0000 :
+If an invalid read call is generated (``#define OP_OOPS OP_READ``), the message
+will be the same, but the oops code will differ, which would now be ``0000``:
 
 .. code-block:: bash
    
@@ -402,12 +408,13 @@ objdump
 -------
 
 Detailed information about the instruction that generated the oops can be found
-using the objdump utility. Useful options to use are ``-d`` to disassemble the
-code and ``-S`` for interleaving code C in assembly language code.
+using the :command:`objdump` utility. Useful options to use are :command:`-d` to
+disassemble the code and :command:`-S`` for interleaving C code in assembly language
+code.
 For efficient decoding, however, we need the address where the kernel module was
-loaded. This can be found in /proc/modules.
+loaded. This can be found in :file:`/proc/modules`.
 
-Here's an example of using objdump on the above module to identify the instruction
+Here's an example of using :command:`objdump` on the above module to identify the instruction
 that generated the oops:
 
 .. code-block:: bash
@@ -499,16 +506,16 @@ earlier) is:
 
 That is exactly what was expected - storing value 3 at 0x0001234.
 
-The /proc/modules is used to find the address where a kernel module is loaded.
-The --adjust-vma option allows you to display instructions relative to
-``0xc89d4000``. The ``-l`` option displays the number of each line in the source code
-interleaved with the assembly language code.
+The :file:`/proc/modules` is used to find the address where a kernel module is loaded.
+The :command:`--adjust-vma` option allows you to display instructions relative to
+``0xc89d4000``. The :command:`-l` option displays the number of each line in the source
+code interleaved with the assembly language code.
 
 addr2line
 ---------
 
 A more simplistic way to find the code that generated an oops is to use the
-addr2line utility:
+:command:`addr2line` utility:
 
 .. code-block:: bash
 
@@ -516,23 +523,25 @@ addr2line utility:
    /root/lab-01/modul-oops/oops.c:23
 
 Where ``0x5`` is the value of the program counter (``EIP = c89d4005``) that generated the
-oops, minus the base address of the module (``0xc89c4000``) according to ``/proc/modules``
+oops, minus the base address of the module (``0xc89c4000``) according to :file:`/proc/modules`
 
 minicom
 -------
 
-Minicom (or other equivalent utilities, eg ``picocom``, ``screen``) is a utility that
-can be used to connect and interact with a serial port. The serial port is the
-basic method for analyzing kernel messages or interacting with an embedded
+:command:`Minicom` (or other equivalent utilities, eg :command:`picocom`, :command:`screen`)
+is a utility that can be used to connect and interact with a serial port. The serial port
+is the basic method for analyzing kernel messages or interacting with an embedded
 system in the development phase. There are two more common ways to connect:
 
-* a serial serial port where the device we are going to use is ``/dev/ttyS0``
-* a serial USB port (FDTI) in which case the device we are going to use is ``/dev/ttyUSB``.
+* a serial port where the device we are going to use is :file:`/dev/ttyS0`
+* a serial USB port (FTDI) in which case the device we are going to use is :file:`/dev/ttyUSB`.
 
 For the virtual machine used in the lab, the device that we need to use is 
 displayed after the virtual machine starts:
 
-``char device redirected to /dev/pts/20 (label virtiocon0)``
+.. code-block:: bash
+
+    char device redirected to /dev/pts/20 (label virtiocon0)
 
 Minicom use:
 
@@ -550,47 +559,47 @@ Minicom use:
 netconsole
 ----------
 
-Netconsole is a utility that allows logging of kernel debugging messages over
-the network. This is useful when the disk logging system does not work when
+:command:`Netconsole` is a utility that allows logging of kernel debugging messages over
+the network. This is useful when the disk logging system does not work or when
 serial ports are not available or when the terminal does not respond to
-commands. Netconsole comes in the form of a kernel module.
+commands. :command:`Netconsole` comes in the form of a kernel module.
 
 To work, it needs the following parameters:
 
    * port, IP address, and the source interface name of the debug station
    * port, MAC address, and IP address of the machine to which the debug
-     messages will be sent 
+     messages will be sent
 
 These parameters can be configured when the module is inserted into the kernel,
 or even while the module is inserted if it has been compiled with the
-CONFIG_NETCONSOLE_DYNAMIC option.
+``CONFIG_NETCONSOLE_DYNAMIC`` option.
 
-An example configuration when inserting is as follows:
+An example configuration when inserting :command:`netconsole` kernel module is as follows:
 
 .. code-block:: bash
    
    alice:~# modprobe netconsole netconsole=6666@192.168.191.130/eth0,6000@192.168.191.1/00:50:56:c0:00:08
 
-Thus, the debug messages on the station that has the address 192.168.191.130
-will be sent to the eth0 interface, having source port 6666. The messages will
-be sent to 192.168.191.1 with the MAC address 00: 50: 56: c0: 00: 08, on port
-6000.
+Thus, the debug messages on the station that has the address ``192.168.191.130``
+will be sent to the ``eth0`` interface, having source port ``6666``. The messages will
+be sent to ``192.168.191.1`` with the MAC address ``00:50:56:c0:00:08``, on port
+``6000``.
 
-Messages can be played on the destination station using netcat :
+Messages can be played on the destination station using :command:`netcat`:
 
 .. code-block:: bash
 
    bob:~ # nc -l -p 6000 -u
 
-Alternatively, the destination station can configure syslogd to intercept these
-messages. More information can be found here .
+Alternatively, the destination station can configure :command:`syslogd` to intercept these
+messages. More information can be found `here <https://www.kernel.org/doc/Documentation/networking/netconsole.txt>`_.
 
 Printk debugging
 ----------------
 
-``The two oldest and most useful debugging aids are Your brain and Printf``
+``The two oldest and most useful debugging aids are Your Brain and Printf``.
 
-For debugging, a primitive way is often used, but it is quite effective: printk
+For debugging, a primitive way is often used, but it is quite effective: :code:`printk`
 debugging. Although a debugger can also be used, it is generally not very
 useful: simple bugs (uninitialized variables, memory management problems, etc.)
 can be easily localized by control messages and the kernel-decoded oop message.
@@ -601,12 +610,11 @@ module, there are a lot of unknowns in the equation: multiple contexts (we have
 multiple processes and threads running at a time), interruptions, virtual
 memory, etc.
 
-You can use printk to display kernel messages to user space. It is similar to
-printf's functionality; The only difference is that the transmitted message
-can be prefixed with a string of "<n>", where n indicates the error level
-(loglevel) and has values between 0 and 7. Instead of "<n>", the levels
-
-Can also be coded by symbolic constants:
+You can use :code:`printk` to display kernel messages to user space. It is similar to
+:code:`printf`'s functionality; the only difference is that the transmitted message
+can be prefixed with a string of :code:`"<n>"`, where :code:`n` indicates the error level
+(loglevel) and has values between ``0`` and ``7``. Instead of :code:`"<n>"`, the levels
+can also be coded by symbolic constants:
 
 .. code-block:: c
 
@@ -620,36 +628,49 @@ Can also be coded by symbolic constants:
     KERN_DEBUG - n = 7 
 
 
-The definitions of all log levels are found in linux/kern_levels.h.
+The definitions of all log levels are found in
+`linux/kern_levels.h <https://elixir.bootlin.com/linux/latest/source/include/linux/kern_levels.h>`_.
 Basically, these log levels are used by the system to route messages sent to
-various outputs: console, log files in /var/log etc.
+various outputs: console, log files in :file:`/var/log` etc.
 
-To display printk messages in user space, the printk log level must be of
-higher priority then ``console_loglevel`` variable. That is, the logging level is
-less strict than the console_loglevel variable. For example, if the 
-``console_loglevel`` has a value of 5 (specific to KERN_NOTICE), only messages
-with loglevel stricter than 5 (i.e KERN_EMERG, KERN_ALERT, KERN_CRIT,
-KERN_ERR, KERN_WARNING) will be shown.
+.. note:: To display :code:`printk` messages in user space, the :code:`printk` log level must be of
+          higher priority than
+          `console_loglevel <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/printk.h#L65>`_
+          variable. The default console log level can be configured from
+          `/proc/sys/kernel/printk <https://elixir.bootlin.com/linux/v4.15.7/source/Documentation/sysctl/kernel.txt#L724>`_.
+          For instance, the command:
+
+          .. code-block:: bash
+
+              echo 8 > /proc/sys/kernel/printk
+
+          will enable all the kernel log messages to be displayed in the console. That is, the logging level
+          has to be strictly less than the :code:`console_loglevel` variable. For example, if the
+          :code:`console_loglevel` has a value of ``5`` (specific to :code:`KERN_NOTICE`), only messages
+          with loglevel stricter than ``5`` (i.e :code:`KERN_EMERG`, :code:`KERN_ALERT`,
+          :code:`KERN_CRIT`, :code:`KERN_ERR`, :code:`KERN_WARNING`) will be shown.
 
 Console-redirected messages can be useful for quickly viewing the effect of
 executing the kernel code, but they are no longer so useful if the kernel
 encounters an irreparable error and the system freezes. In this case, the logs
 of the system must be consulted, as they keep the information between system
-restarts. These are found in ``/var/log``  and are text files, populated with
-syslogd and klogd during the kernel run. syslogd and klogd take the information
-from the virtual file system mounted in /proc. In principle, with syslogd and
-klogd turned on, all messages coming from the kernel will go to /var/log/kern.log.
+restarts. These are found in :file:`/var/log` and are text files, populated by
+:code:`syslogd` and :code:`klogd` during the kernel run. :code:`syslogd` and
+:code:`klogd` take the information from the virtual file system mounted in
+:file:`/proc`. In principle, with :code:`syslogd` and :code:`klogd` turned on,
+all messages coming from the kernel will go to :file:`/var/log/kern.log`.
 
-A simpler version for debugging is using the /var/log/debug file. It is populated
-only with the printk messages from the kernel with the KERN_DEBUG log level.
+A simpler version for debugging is using the :file:`/var/log/debug` file.
+It is populated only with the :code:`printk` messages from the kernel with
+the :code:`KERN_DEBUG` log level.
 
 Given that a production kernel (similar to the one we're probably running with)
 contains only release code, our module is among the few that send messages
 prefixed with KERN_DEBUG . In this way, we can easily navigate through the
-/var/log/debug information by finding the messages corresponding to a debugging
-session for our module.
+:file:`/var/log/debug` information by finding the messages corresponding to
+a debugging session for our module.
 
-An example of use would be the following:
+Such an example would be the following:
 
 .. code-block:: bash
 
@@ -661,27 +682,29 @@ An example of use would be the following:
       restart the system and check /var/log/debug.
 
 The format of the messages must obviously contain all the information of 
-interest in order to detect the error, but inserting in the code "printk" to 
-provide detailed information can be as time-consuming as writing the code to 
+interest in order to detect the error, but inserting in the code :code:`printk`
+to  provide detailed information can be as time-consuming as writing the code to 
 solve the problem. This is usually a trade-off between the completeness of the 
-debugging messages displayed using printk and the time it takes to insert these 
-messages into the text.
+debugging messages displayed using :code:`printk` and the time it takes to
+insert these  messages into the text.
 
-A very simple way, less time-consuming for inserting printk and providing
+A very simple way, less time-consuming for inserting :code:`printk` and providing
 the possibility to analyze the flow of instructions for tests is 
-the use of the predefined constants __LINE__ , __LINE__ and __func__ :
+the use of the predefined constants :code:`__FILE__`, :code:`__LINE__`
+and :code:`__func__`:
 
     * ``__FILE__`` is replaced by the compiler with the name of the source file it is
-      currently in the compilation.
+      currently being compiled.
     * ``__LINE__`` is replaced by the compiler with the line number on which the
       current instruction is found in the current source file.
     * ``__func__`` /``__FUNCTION__`` is replaced by the compiler with the name of the
       function in which the current instruction is found.
 
-Note : ``__LINE__`` and ``__LINE__`` are part of ANSI C specification specifications:
-``__func__`` is part of specification C99; ``__FUNCTION__`` is a GNU C
-extension and is not portable; However, since we write code for the Linux kernel,
-we can use it without any problems.
+.. note::
+    :code:`__FILE__` and :code:`__LINE__` are part of the ANSI C specifications:
+    :code`__func__` is part of specification C99; :code:`__FUNCTION__` is a GNU C
+    extension and is not portable; However, since we write code for the Linux kernel,
+    we can use it without any problems.
 
 The following macrodefinition can be used in this case:
 
@@ -695,53 +718,65 @@ Then, at each point where we want to see if it is "reached" in execution,
 insert PRINT_DEBUG; This is a simple and quick way, and can yield by carefully 
 analyzing the output.
 
-The dmesg command is used to view the messages printed with printk but not
-appearing on the console.
+The :command:`dmesg` command is used to view the messages printed with
+:code:`printk` but not appearing on the console.
 
-To delete all previous messages from a log file, run cat /dev/null > 
-/var/log/debug. To delete messages displayed by the dmesg command, dmesg -c.
+To delete all previous messages from a log file, run:
+
+.. code-block:: bash
+
+    cat /dev/null > /var/log/debug
+
+To delete messages displayed by the :command:`dmesg` command, run:
+
+.. code-block:: bash
+
+    dmesg -c
 
 
 Dynamic debugging
 -----------------
 
-Dynamic ``dyndbg`` debugging enables dynamic debugging activation/deactivation.
-Unlike printk, it offers more advanced printk options for the messages we want
-to display - very useful for complex modules or troubleshooting subsystems.
+Dynamic `dyndbg <https://www.kernel.org/doc/html/v4.15/admin-guide/dynamic-debug-howto.html>`_
+debugging enables dynamic debugging activation/deactivation.
+Unlike :code:`printk`, it offers more advanced :code:`printk` options for the
+messages we want to display; it is very useful for complex modules or
+troubleshooting subsystems.
 This significantly reduces the amount of messages displayed, leaving only
-those relevant for the debug context. To enable dyndbg, the kernel must be
-compiled with the CONFIG_DYNAMIC_DEBUG option. Once configured, pr_debug(),
-dev_dbg() and print_hex_dump_debug(), print_hex_dump_bytes() can be dynamically
-enabled per call.
+those relevant for the debug context. To enable ``dyndbg``, the kernel must be
+compiled with the ``CONFIG_DYNAMIC_DEBUG`` option. Once configured,
+:code:`pr_debug()`, :code:`dev_dbg()` and :code:`print_hex_dump_debug()`,
+:code:`print_hex_dump_bytes()` can be dynamically enabled per call.
 
-The ``/sys/kernel/debug/dynamic_debug/control`` file from the debugfs file debugfs
-(where /sys/kernel/debug is the path to which debugfs were mounted) is used to
-filter messages or view existing filters.
+The :file:`/sys/kernel/debug/dynamic_debug/control` file from the debugfs
+(where :file:`/sys/kernel/debug` is the path to which debugfs was mounted) is used to
+filter messages or to view existing filters.
 
 .. code-block:: c
 
    mount -t debugfs none /debug
 
-Debugfs is a simple file system, used as a kernel-space interface and
+`Debugfs <http://opensourceforu.com/2010/10/debugging-linux-kernel-with-debugfs/>`_
+is a simple file system, used as a kernel-space interface and
 user-space interface to configure different debug options. Any debug utility 
-can create and use its own files / folders in debugfs.
+can create and use its own files /folders in debugfs.
 
-For example, to display existing filters in dyndbg, you will use:
+For example, to display existing filters in ``dyndbg``, you will use:
 
 .. code-block:: bash
    
    cat /debug/dynamic_debug/control
 
-And to enable the debug message from line 1603 in the svcsock.c file:
+And to enable the debug message from line ``1603`` in the :file:`svcsock.c` file:
 
 .. code-block:: bash
 
    echo 'file svcsock.c line 1603 +p' > /debug/dynamic_debug/control
 
-The /debug/dynamic_debug/control file is not a regular file. Its display shows
-the dyndbg settings on the filters. Writing in it with an echo will change
+The :file:`/debug/dynamic_debug/control` file is not a regular file. It shows
+the ``dyndbg`` settings on the filters. Writing in it with an echo will change
 these settings (it will not actually make a write). Be aware that the file
-contains settings for dyndbg debugging messages. Do not log in this file.
+contains settings for ``dyndbg`` debugging messages. Do not log in this file.
 
 Dyndbg Options
 ~~~~~~~~~~~~~~
@@ -784,8 +819,8 @@ Dyndbg Options
      # Enables debug messages from the beginning of the file to line 1605
      $ echo 'file svcsock.c line -1605 +p' > /sys/kernel/debug/dynamic_debug/control
 
-In addition to the above options, a series of flags can be specified that can
-be added, removed, or set with operators +, - or = :
+In addition to the above options, a series of flags can be added, removed, or set
+with operators ``+`, ``-`` or ``=``:
 
    * ``p`` activates the pr_debug() .
    * ``f`` includes the name of the function in the printed message.
@@ -829,7 +864,7 @@ copy the module to the VM. Perform the following tasks:
 * unload the kernel module
     
 * view the messages displayed at loading/unloading the kernel module using
-  ``dmesg`` command
+  :command:`dmesg` command
 
 .. note:: Read `Loading/unloading a kernel module`_ section. When unloading
           a kernel module, only the module name (without extension) can
@@ -948,14 +983,14 @@ module.
 	    :c:macro:`current` variable (of the type ``struct task_struct
 	    *``).
 
-.. hint:: To use c:macro:`current` you'll need to include the header
+.. hint:: To use :c:macro:`current` you'll need to include the header
           in which the ``struct task_struct`` is defined, i.e
           ``linux/sched.h``.
 
-Compile copy and load the module. Unload the kernel module.
+Compile, copy and load the module. Unload the kernel module.
 
 Repeat the loading/unloading operation. Note that the PIDs of the
 displayed processes differ. This is because a module is being loaded
-from the executable ``/sbin/insmod`` when the module is loaded and
+from the executable :file:`/sbin/insmod` when the module is loaded and
 when the module is unloaded a process is created from the executable
-``/sbin/rmmod``.
+:file:`/sbin/rmmod`.
