@@ -872,10 +872,11 @@
 		reg-io-width = <4>;
 		interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru SCLK_HDMI_HDCP>, <&cru PCLK_HDMI_CTRL>;
-		clock-names = "isfr", "iahb";
+		clocks = <&cru SCLK_HDMI_HDCP>, <&cru PCLK_HDMI_CTRL>,
+			 <&cru SCLK_HDMI_CEC>;
+		clock-names = "isfr", "iahb", "cec";
 		pinctrl-names = "default";
-		pinctrl-0 = <&hdmii2c_xfer &hdmi_hpd>;
+		pinctrl-0 = <&hdmii2c_xfer &hdmi_hpd &hdmi_cec>;
 		resets = <&cru SRST_HDMI_P>;
 		reset-names = "hdmi";
 		phys = <&hdmi_phy>;
@@ -1281,6 +1282,10 @@
 			hdmii2c_xfer: hdmii2c-xfer {
 				rockchip,pins = <0 6 RK_FUNC_2 &pcfg_pull_none>,
 						<0 7 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			hdmi_cec: hdmi-cec {
+				rockchip,pins = <0 RK_PC4 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
