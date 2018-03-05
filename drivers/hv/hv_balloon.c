@@ -691,7 +691,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 				(HA_CHUNK << PAGE_SHIFT));
 
 		if (ret) {
-			pr_warn("hot_add memory failed error is %d\n", ret);
+			pr_err("hot_add memory failed error is %d\n", ret);
 			if (ret == -EEXIST) {
 				/*
 				 * This error indicates that the error
@@ -1014,7 +1014,7 @@ static void hot_add_req(struct work_struct *dummy)
 		resp.result = 0;
 
 	if (!do_hot_add || (resp.page_count == 0))
-		pr_info("Memory hot add failed\n");
+		pr_err("Memory hot add failed\n");
 
 	dm->state = DM_INITIALIZED;
 	resp.hdr.trans_id = atomic_inc_return(&trans_id);
@@ -1041,7 +1041,7 @@ static void process_info(struct hv_dynmem_device *dm, struct dm_info_msg *msg)
 
 		break;
 	default:
-		pr_info("Received Unknown type: %d\n", info_hdr->type);
+		pr_warn("Received Unknown type: %d\n", info_hdr->type);
 	}
 }
 
@@ -1290,7 +1290,7 @@ static void balloon_up(struct work_struct *dummy)
 			/*
 			 * Free up the memory we allocatted.
 			 */
-			pr_info("Balloon response failed\n");
+			pr_err("Balloon response failed\n");
 
 			for (i = 0; i < bl_resp->range_count; i++)
 				free_balloon_pages(&dm_device,
@@ -1421,7 +1421,7 @@ static void cap_resp(struct hv_dynmem_device *dm,
 			struct dm_capabilities_resp_msg *cap_resp)
 {
 	if (!cap_resp->is_accepted) {
-		pr_info("Capabilities not accepted by host\n");
+		pr_err("Capabilities not accepted by host\n");
 		dm->state = DM_INIT_ERROR;
 	}
 	complete(&dm->host_event);
@@ -1508,7 +1508,7 @@ static void balloon_onchannelcallback(void *context)
 			break;
 
 		default:
-			pr_err("Unhandled message: type: %d\n", dm_hdr->type);
+			pr_warn("Unhandled message: type: %d\n", dm_hdr->type);
 
 		}
 	}
