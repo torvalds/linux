@@ -56,24 +56,7 @@ SECTIONS
 
 	.text : {			/* Real text segment		*/
 		_stext = .;		/* Text and read-only data	*/
-			IDMAP_TEXT
-			__entry_text_start = .;
-			*(.entry.text)
-			__entry_text_end = .;
-			IRQENTRY_TEXT
-			SOFTIRQENTRY_TEXT
-			TEXT_TEXT
-			SCHED_TEXT
-			CPUIDLE_TEXT
-			LOCK_TEXT
-			HYPERVISOR_TEXT
-			KPROBES_TEXT
-			*(.gnu.warning)
-			*(.glue_7)
-			*(.glue_7t)
-		. = ALIGN(4);
-		*(.got)			/* Global offset table		*/
-			ARM_CPU_KEEP(PROC_INFO)
+		ARM_TEXT
 	}
 
 #ifdef CONFIG_DEBUG_ALIGN_RODATA
