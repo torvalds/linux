@@ -496,6 +496,7 @@ static inline bool omapdss_is_initialized(void)
 #define for_each_dss_display(d) \
 	while ((d = omapdss_device_get_next(d, OMAP_DSS_DEVICE_TYPE_DISPLAY)) != NULL)
 void omapdss_display_init(struct omap_dss_device *dssdev);
+struct omap_dss_device *omapdss_display_get(struct omap_dss_device *output);
 
 void omapdss_device_register(struct omap_dss_device *dssdev);
 void omapdss_device_unregister(struct omap_dss_device *dssdev);

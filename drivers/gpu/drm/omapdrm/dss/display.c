@@ -49,3 +49,12 @@ void omapdss_display_init(struct omap_dss_device *dssdev)
 					      "display%u", id);
 }
 EXPORT_SYMBOL_GPL(omapdss_display_init);
+
+struct omap_dss_device *omapdss_display_get(struct omap_dss_device *output)
+{
+	while (output->next)
+		output = output->next;
+
+	return omapdss_device_get(output);
+}
+EXPORT_SYMBOL_GPL(omapdss_display_get);
