@@ -625,7 +625,7 @@ int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifo_fill_conditio
 	switch (fifo_fill_condition) {
 	case always:
 		return rf69_set_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_FIFO_FILL_CONDITION);
-	case afterSyncInterrupt:
+	case after_sync_interrupt:
 		return rf69_clear_bit(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_FIFO_FILL_CONDITION);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");

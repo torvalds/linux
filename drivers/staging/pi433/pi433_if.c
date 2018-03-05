@@ -209,7 +209,7 @@ rf69_set_rx_cfg(struct pi433_device *dev, struct pi433_rx_cfg *rx_cfg)
 			return ret;
 
 		ret = rf69_set_fifo_fill_condition(dev->spi,
-						   afterSyncInterrupt);
+						   after_sync_interrupt);
 		if (ret < 0)
 			return ret;
 	} else {

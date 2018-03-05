@@ -114,7 +114,7 @@ enum flag {
 };
 
 enum fifo_fill_condition {
-	afterSyncInterrupt,
+	after_sync_interrupt,
 	always
 };
 
