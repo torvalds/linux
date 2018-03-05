@@ -960,6 +960,30 @@ unlock:
 	mutex_unlock(&fbc->lock);
 }
 
+/**
+ * __intel_fbc_disable - disable FBC
+ * @dev_priv: i915 device instance
+ *
+ * This is the low level function that actually disables FBC. Callers should
+ * grab the FBC lock.
+ */
+static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
+{
+	struct intel_fbc *fbc = &dev_priv->fbc;
+	struct intel_crtc *crtc = fbc->crtc;
+
+	WARN_ON(!mutex_is_locked(&fbc->lock));
+	WARN_ON(!fbc->enabled);
+	WARN_ON(fbc->active);
+
+	DRM_DEBUG_KMS("Disabling FBC on pipe %c\n", pipe_name(crtc->pipe));
+
+	__intel_fbc_cleanup_cfb(dev_priv);
+
+	fbc->enabled = false;
+	fbc->crtc = NULL;
+}
+
 static void __intel_fbc_post_update(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -970,6 +994,13 @@ static void __intel_fbc_post_update(struct intel_crtc *crtc)
 
 	if (!fbc->enabled || fbc->crtc != crtc)
 		return;
+
+	if (!i915_modparams.enable_fbc) {
+		intel_fbc_deactivate(dev_priv, "disabled at runtime per module param");
+		__intel_fbc_disable(dev_priv);
+
+		return;
+	}
 
 	if (!intel_fbc_can_activate(crtc)) {
 		WARN_ON(fbc->active);
@@ -1175,31 +1206,6 @@ out:
 }
 
 /**
- * __intel_fbc_disable - disable FBC
- * @dev_priv: i915 device instance
- *
- * This is the low level function that actually disables FBC. Callers should
- * grab the FBC lock.
- */
-static void __intel_fbc_disable(struct drm_i915_private *dev_priv)
-{
-	struct intel_fbc *fbc = &dev_priv->fbc;
-	struct intel_crtc *crtc = fbc->crtc;
-
-	WARN_ON(!mutex_is_locked(&fbc->lock));
-	WARN_ON(!fbc->enabled);
-	WARN_ON(fbc->active);
-	WARN_ON(crtc->active);
-
-	DRM_DEBUG_KMS("Disabling FBC on pipe %c\n", pipe_name(crtc->pipe));
-
-	__intel_fbc_cleanup_cfb(dev_priv);
-
-	fbc->enabled = false;
-	fbc->crtc = NULL;
-}
-
-/**
  * intel_fbc_disable - disable FBC if it's associated with crtc
  * @crtc: the CRTC
  *
@@ -1212,6 +1218,8 @@ void intel_fbc_disable(struct intel_crtc *crtc)
 
 	if (!fbc_supported(dev_priv))
 		return;
+
+	WARN_ON(crtc->active);
 
 	mutex_lock(&fbc->lock);
 	if (fbc->crtc == crtc)
@@ -1235,8 +1243,10 @@ void intel_fbc_global_disable(struct drm_i915_private *dev_priv)
 		return;
 
 	mutex_lock(&fbc->lock);
-	if (fbc->enabled)
+	if (fbc->enabled) {
+		WARN_ON(fbc->crtc->active);
 		__intel_fbc_disable(dev_priv);
+	}
 	mutex_unlock(&fbc->lock);
 
 	cancel_work_sync(&fbc->work.work);
