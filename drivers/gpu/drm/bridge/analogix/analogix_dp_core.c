@@ -1376,8 +1376,6 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		return ERR_PTR(-ENODEV);
 	}
 
-	pm_runtime_enable(dev);
-
 	ret = devm_request_threaded_irq(&pdev->dev, dp->irq,
 					analogix_dp_hardirq,
 					analogix_dp_irq_thread,
@@ -1397,7 +1395,9 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	ret = drm_dp_aux_register(&dp->aux);
 	if (ret)
-		goto err_disable_pm_runtime;
+		return ERR_PTR(ret);
+
+	pm_runtime_enable(dev);
 
 	ret = analogix_dp_create_bridge(drm_dev, dp);
 	if (ret) {
