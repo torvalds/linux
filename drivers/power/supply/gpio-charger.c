@@ -137,10 +137,8 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	}
 
 	gpio_charger = devm_kzalloc(dev, sizeof(*gpio_charger), GFP_KERNEL);
-	if (!gpio_charger) {
-		dev_err(dev, "Failed to alloc driver structure\n");
+	if (!gpio_charger)
 		return -ENOMEM;
-	}
 
 	/*
 	 * This will fetch a GPIO descriptor from device tree, ACPI or
