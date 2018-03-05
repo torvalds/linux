@@ -406,6 +406,7 @@ static struct pernet_operations proto_gre_net_ops = {
 	.exit = proto_gre_net_exit,
 	.id   = &proto_gre_net_id,
 	.size = sizeof(struct netns_proto_gre),
+	.async = true,
 };
 
 static int __init nf_ct_proto_gre_init(void)

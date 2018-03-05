@@ -105,6 +105,7 @@ static void __net_exit frame_filter_net_exit(struct net *net)
 static struct pernet_operations frame_filter_net_ops = {
 	.init = frame_filter_net_init,
 	.exit = frame_filter_net_exit,
+	.async = true,
 };
 
 static int __init ebtable_filter_init(void)
