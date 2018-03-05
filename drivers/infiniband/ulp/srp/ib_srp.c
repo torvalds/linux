@@ -431,6 +431,7 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 	struct srp_fr_desc *d;
 	struct ib_mr *mr;
 	int i, ret = -EINVAL;
+	enum ib_mr_type mr_type;
 
 	if (pool_size <= 0)
 		goto err;
@@ -444,9 +445,13 @@ static struct srp_fr_pool *srp_create_fr_pool(struct ib_device *device,
 	spin_lock_init(&pool->lock);
 	INIT_LIST_HEAD(&pool->free_list);
 
+	if (device->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+		mr_type = IB_MR_TYPE_SG_GAPS;
+	else
+		mr_type = IB_MR_TYPE_MEM_REG;
+
 	for (i = 0, d = &pool->desc[0]; i < pool->size; i++, d++) {
-		mr = ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG,
-				 max_page_list_len);
+		mr = ib_alloc_mr(pd, mr_type, max_page_list_len);
 		if (IS_ERR(mr)) {
 			ret = PTR_ERR(mr);
 			if (ret == -ENOMEM)
@@ -2996,8 +3001,9 @@ static int srp_slave_alloc(struct scsi_device *sdev)
 	struct Scsi_Host *shost = sdev->host;
 	struct srp_target_port *target = host_to_target(shost);
 	struct srp_device *srp_dev = target->srp_host->srp_dev;
+	struct ib_device *ibdev = srp_dev->dev;
 
-	if (true)
+	if (!(ibdev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG))
 		blk_queue_virt_boundary(sdev->request_queue,
 					~srp_dev->mr_page_mask);
 
@@ -3775,26 +3781,36 @@ static ssize_t srp_create_target(struct device *dev,
 	}
 
 	if (srp_dev->use_fast_reg || srp_dev->use_fmr) {
-		/*
-		 * FR and FMR can only map one HCA page per entry. If the
-		 * start address is not aligned on a HCA page boundary two
-		 * entries will be used for the head and the tail although
-		 * these two entries combined contain at most one HCA page of
-		 * data. Hence the "+ 1" in the calculation below.
-		 *
-		 * The indirect data buffer descriptor is contiguous so the
-		 * memory for that buffer will only be registered if
-		 * register_always is true. Hence add one to mr_per_cmd if
-		 * register_always has been set.
-		 */
+		bool gaps_reg = (ibdev->attrs.device_cap_flags &
+				 IB_DEVICE_SG_GAPS_REG);
+
 		max_sectors_per_mr = srp_dev->max_pages_per_mr <<
 				  (ilog2(srp_dev->mr_page_size) - 9);
-		mr_per_cmd = register_always +
-			(target->scsi_host->max_sectors + 1 +
-			 max_sectors_per_mr - 1) / max_sectors_per_mr;
+		if (!gaps_reg) {
+			/*
+			 * FR and FMR can only map one HCA page per entry. If
+			 * the start address is not aligned on a HCA page
+			 * boundary two entries will be used for the head and
+			 * the tail although these two entries combined
+			 * contain at most one HCA page of data. Hence the "+
+			 * 1" in the calculation below.
+			 *
+			 * The indirect data buffer descriptor is contiguous
+			 * so the memory for that buffer will only be
+			 * registered if register_always is true. Hence add
+			 * one to mr_per_cmd if register_always has been set.
+			 */
+			mr_per_cmd = register_always +
+				(target->scsi_host->max_sectors + 1 +
+				 max_sectors_per_mr - 1) / max_sectors_per_mr;
+		} else {
+			mr_per_cmd = register_always +
+				(target->sg_tablesize +
+				 srp_dev->max_pages_per_mr - 1) /
+				srp_dev->max_pages_per_mr;
+		}
 		pr_debug("max_sectors = %u; max_pages_per_mr = %u; mr_page_size = %u; max_sectors_per_mr = %u; mr_per_cmd = %u\n",
-			 target->scsi_host->max_sectors,
-			 srp_dev->max_pages_per_mr, srp_dev->mr_page_size,
+			 target->scsi_host->max_sectors, srp_dev->max_pages_per_mr, srp_dev->mr_page_size,
 			 max_sectors_per_mr, mr_per_cmd);
 	}
 
