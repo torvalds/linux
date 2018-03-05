@@ -57,6 +57,24 @@ out:
 	return psr;
 }
 
+static struct psr_drv *find_psr_by_encoder(struct drm_encoder *encoder)
+{
+	struct rockchip_drm_private *drm_drv = encoder->dev->dev_private;
+	struct psr_drv *psr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&drm_drv->psr_list_lock, flags);
+	list_for_each_entry(psr, &drm_drv->psr_list, list) {
+		if (psr->encoder == encoder)
+			goto out;
+	}
+	psr = ERR_PTR(-ENODEV);
+
+out:
+	spin_unlock_irqrestore(&drm_drv->psr_list_lock, flags);
+	return psr;
+}
+
 static void psr_set_state_locked(struct psr_drv *psr, enum psr_state state)
 {
 	/*
@@ -115,14 +133,14 @@ static void psr_flush_handler(struct timer_list *t)
 
 /**
  * rockchip_drm_psr_activate - activate PSR on the given pipe
- * @crtc: CRTC to obtain the PSR encoder
+ * @encoder: encoder to obtain the PSR encoder
  *
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int rockchip_drm_psr_activate(struct drm_crtc *crtc)
+int rockchip_drm_psr_activate(struct drm_encoder *encoder)
 {
-	struct psr_drv *psr = find_psr_by_crtc(crtc);
+	struct psr_drv *psr = find_psr_by_encoder(encoder);
 	unsigned long flags;
 
 	if (IS_ERR(psr))
@@ -138,14 +156,14 @@ EXPORT_SYMBOL(rockchip_drm_psr_activate);
 
 /**
  * rockchip_drm_psr_deactivate - deactivate PSR on the given pipe
- * @crtc: CRTC to obtain the PSR encoder
+ * @encoder: encoder to obtain the PSR encoder
  *
  * Returns:
  * Zero on success, negative errno on failure.
  */
-int rockchip_drm_psr_deactivate(struct drm_crtc *crtc)
+int rockchip_drm_psr_deactivate(struct drm_encoder *encoder)
 {
-	struct psr_drv *psr = find_psr_by_crtc(crtc);
+	struct psr_drv *psr = find_psr_by_encoder(encoder);
 	unsigned long flags;
 
 	if (IS_ERR(psr))

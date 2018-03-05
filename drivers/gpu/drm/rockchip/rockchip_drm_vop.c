@@ -569,8 +569,6 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	WARN_ON(vop->event);
 
-	rockchip_drm_psr_deactivate(&vop->crtc);
-
 	drm_crtc_vblank_off(crtc);
 
 	/*
@@ -937,8 +935,6 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
 
 	VOP_REG_SET(vop, common, standby, 0);
-
-	rockchip_drm_psr_activate(&vop->crtc);
 }
 
 static bool vop_fs_irq_is_pending(struct vop *vop)
