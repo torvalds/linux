@@ -2436,28 +2436,12 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/*
 	 * Note the possible cases:
-	 *  1. In DQA mode with an enabled TXQ - TXQ needs to become agg'ed
-	 *  2. Non-DQA mode: the TXQ hasn't yet been enabled, so find a free
-	 *	one and mark it as reserved
-	 *  3. In DQA mode, but no traffic yet on this TID: same treatment as in
-	 *	non-DQA mode, since the TXQ hasn't yet been allocated
-	 * Don't support case 3 for new TX path as it is not expected to happen
-	 * and aggregation will be offloaded soon anyway
+	 *  1. An enabled TXQ - TXQ needs to become agg'ed
+	 *  2. The TXQ hasn't yet been enabled, so find a free one and mark
+	 *	it as reserved
 	 */
 	txq_id = mvmsta->tid_data[tid].txq_id;
-	if (iwl_mvm_has_new_tx_api(mvm)) {
-		if (txq_id == IWL_MVM_INVALID_QUEUE) {
-			ret = -ENXIO;
-			goto release_locks;
-		}
-	} else if (unlikely(mvm->queue_info[txq_id].status ==
-			    IWL_MVM_QUEUE_SHARED)) {
-		ret = -ENXIO;
-		IWL_DEBUG_TX_QUEUES(mvm,
-				    "Can't start tid %d agg on shared queue!\n",
-				    tid);
-		goto release_locks;
-	} else if (mvm->queue_info[txq_id].status != IWL_MVM_QUEUE_READY) {
+	if (txq_id == IWL_MVM_INVALID_QUEUE) {
 		txq_id = iwl_mvm_find_free_queue(mvm, mvmsta->sta_id,
 						 IWL_MVM_DQA_MIN_DATA_QUEUE,
 						 IWL_MVM_DQA_MAX_DATA_QUEUE);
@@ -2466,16 +2450,16 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			IWL_ERR(mvm, "Failed to allocate agg queue\n");
 			goto release_locks;
 		}
-		/*
-		 * TXQ shouldn't be in inactive mode for non-DQA, so getting
-		 * an inactive queue from iwl_mvm_find_free_queue() is
-		 * certainly a bug
-		 */
-		WARN_ON(mvm->queue_info[txq_id].status ==
-			IWL_MVM_QUEUE_INACTIVE);
 
 		/* TXQ hasn't yet been enabled, so mark it only as reserved */
 		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_RESERVED;
+	} else if (unlikely(mvm->queue_info[txq_id].status ==
+			    IWL_MVM_QUEUE_SHARED)) {
+		ret = -ENXIO;
+		IWL_DEBUG_TX_QUEUES(mvm,
+				    "Can't start tid %d agg on shared queue!\n",
+				    tid);
+		goto release_locks;
 	}
 
 	spin_unlock(&mvm->queue_info_lock);
