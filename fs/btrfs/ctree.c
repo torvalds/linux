@@ -859,8 +859,7 @@ free_tms:
 	return ret;
 }
 
-static inline void
-tree_mod_log_eb_move(struct btrfs_fs_info *fs_info, struct extent_buffer *dst,
+static inline void tree_mod_log_eb_move(struct extent_buffer *dst,
 		     int dst_offset, int src_offset, int nr_items)
 {
 	int ret;
@@ -3305,7 +3304,7 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 	if (max_push < push_items)
 		push_items = max_push;
 
-	tree_mod_log_eb_move(fs_info, dst, push_items, 0, dst_nritems);
+	tree_mod_log_eb_move(dst, push_items, 0, dst_nritems);
 	memmove_extent_buffer(dst, btrfs_node_key_ptr_offset(push_items),
 				      btrfs_node_key_ptr_offset(0),
 				      (dst_nritems) *
@@ -3424,8 +3423,8 @@ static void insert_ptr(struct btrfs_trans_handle *trans,
 	BUG_ON(nritems == BTRFS_NODEPTRS_PER_BLOCK(fs_info));
 	if (slot != nritems) {
 		if (level)
-			tree_mod_log_eb_move(fs_info, lower, slot + 1,
-					     slot, nritems - slot);
+			tree_mod_log_eb_move(lower, slot + 1, slot,
+					nritems - slot);
 		memmove_extent_buffer(lower,
 			      btrfs_node_key_ptr_offset(slot + 1),
 			      btrfs_node_key_ptr_offset(slot),
@@ -4897,8 +4896,8 @@ static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
 	nritems = btrfs_header_nritems(parent);
 	if (slot != nritems - 1) {
 		if (level)
-			tree_mod_log_eb_move(fs_info, parent, slot,
-					     slot + 1, nritems - slot - 1);
+			tree_mod_log_eb_move(parent, slot, slot + 1,
+					nritems - slot - 1);
 		memmove_extent_buffer(parent,
 			      btrfs_node_key_ptr_offset(slot),
 			      btrfs_node_key_ptr_offset(slot + 1),
