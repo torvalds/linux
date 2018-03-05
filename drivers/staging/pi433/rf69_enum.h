@@ -41,7 +41,7 @@ enum mod_shaping {
 	SHAPING_2BR
 };
 
-enum paRamp {
+enum pa_ramp {
 	ramp3400,
 	ramp2000,
 	ramp1000,

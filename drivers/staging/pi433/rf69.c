@@ -345,9 +345,9 @@ int rf69_set_output_power_level(struct spi_device *spi, u8 power_level)
 	return rf69_read_mod_write(spi, REG_PALEVEL, MASK_PALEVEL_OUTPUT_POWER, power_level);
 }
 
-int rf69_set_pa_ramp(struct spi_device *spi, enum paRamp paRamp)
+int rf69_set_pa_ramp(struct spi_device *spi, enum pa_ramp pa_ramp)
 {
-	switch (paRamp) {
+	switch (pa_ramp) {
 	case ramp3400:
 		return rf69_write_reg(spi, REG_PARAMP, PARAMP_3400);
 	case ramp2000:

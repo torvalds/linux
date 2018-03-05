@@ -92,7 +92,7 @@ rf params:
 		shaping0_3	- gauss filter with BT 0.3 (FSK only)
 		shapingBR	- filter cut off at BR (OOK only)
 		shaping2BR	- filter cut off at 2*BR (OOK only)
-	paRamp (FSK only)
+	pa_ramp (FSK only)
 		ramp3400	- amp ramps up in 3.4ms
 		ramp2000	- amp ramps up in 2.0ms
 		ramp1000	- amp ramps up in 1ms

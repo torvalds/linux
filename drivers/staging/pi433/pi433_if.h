@@ -67,7 +67,7 @@ struct pi433_tx_cfg {
 	enum modulation		modulation;
 	enum mod_shaping	mod_shaping;
 
-	enum paRamp		pa_ramp;
+	enum pa_ramp		pa_ramp;
 
 	enum tx_start_condition	tx_start_condition;
 
