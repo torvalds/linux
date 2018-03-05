@@ -299,11 +299,6 @@ enum mod_log_op {
 	MOD_LOG_ROOT_REPLACE,
 };
 
-struct tree_mod_move {
-	int dst_slot;
-	int nr_items;
-};
-
 struct tree_mod_root {
 	u64 logical;
 	u8 level;
@@ -326,7 +321,10 @@ struct tree_mod_elem {
 	u64 blockptr;
 
 	/* this is used for op == MOD_LOG_MOVE_KEYS */
-	struct tree_mod_move move;
+	struct {
+		int dst_slot;
+		int nr_items;
+	} move;
 
 	/* this is used for op == MOD_LOG_ROOT_REPLACE */
 	struct tree_mod_root old_root;
