@@ -55,13 +55,10 @@ static int gpio_charger_get_property(struct power_supply *psy,
 		enum power_supply_property psp, union power_supply_propval *val)
 {
 	struct gpio_charger *gpio_charger = psy_to_gpio_charger(psy);
-	const struct gpio_charger_platform_data *pdata = gpio_charger->pdata;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = gpiod_get_value_cansleep(gpio_charger->gpiod);
-		/* This xor is only ever used with legacy pdata GPIO */
-		val->intval ^= pdata->gpio_active_low;
 		break;
 	default:
 		return -EINVAL;
@@ -123,8 +120,8 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {};
 	struct gpio_charger *gpio_charger;
 	struct power_supply_desc *charger_desc;
-	int ret;
-	int irq;
+	unsigned long flags;
+	int irq, ret;
 
 	if (!pdata) {
 		pdata = gpio_charger_parse_dt(dev);
@@ -156,11 +153,13 @@ static int gpio_charger_probe(struct platform_device *pdev)
 			dev_err(dev, "Invalid gpio pin in pdata\n");
 			return -EINVAL;
 		}
-		ret = devm_gpio_request_one(dev, pdata->gpio, GPIOF_IN,
-						dev_name(dev));
+		flags = GPIOF_IN;
+		if (pdata->gpio_active_low)
+			flags |= GPIOF_ACTIVE_LOW;
+		ret = devm_gpio_request_one(dev, pdata->gpio, flags,
+					    dev_name(dev));
 		if (ret) {
-			dev_err(&pdev->dev, "Failed to request gpio pin: %d\n",
-				ret);
+			dev_err(dev, "Failed to request gpio pin: %d\n", ret);
 			return ret;
 		}
 		/* Then convert this to gpiod for now */
