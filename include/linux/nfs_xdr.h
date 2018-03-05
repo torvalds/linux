@@ -608,6 +608,7 @@ struct nfs_pgio_args {
 	__u32			count;
 	unsigned int		pgbase;
 	struct page **		pages;
+	unsigned int		replen;		/* used by read */
 	const u32 *		bitmask;	/* used by write */
 	enum nfs3_stable_how	stable;		/* used by write */
 };
@@ -618,9 +619,9 @@ struct nfs_pgio_res {
 	__u32			count;
 	__u32			op_status;
 	int			eof;		/* used by read */
+	unsigned int		replen;		/* used by read */
 	struct nfs_writeverf *	verf;		/* used by write */
 	const struct nfs_server *server;	/* used by write */
-
 };
 
 /*
