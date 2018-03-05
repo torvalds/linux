@@ -1378,11 +1378,6 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	pm_runtime_enable(dev);
 
-	pm_runtime_get_sync(dev);
-	phy_power_on(dp->phy);
-
-	analogix_dp_init_dp(dp);
-
 	ret = devm_request_threaded_irq(&pdev->dev, dp->irq,
 					analogix_dp_hardirq,
 					analogix_dp_irq_thread,
@@ -1410,15 +1405,10 @@ analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		goto err_disable_pm_runtime;
 	}
 
-	phy_power_off(dp->phy);
-	pm_runtime_put(dev);
-
 	return dp;
 
 err_disable_pm_runtime:
 
-	phy_power_off(dp->phy);
-	pm_runtime_put(dev);
 	pm_runtime_disable(dev);
 
 	return ERR_PTR(ret);
