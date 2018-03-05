@@ -1195,9 +1195,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
  * returns the logical address of the oldest predecessor of the given root.
  * entries older than time_seq are ignored.
  */
-static struct tree_mod_elem *
-__tree_mod_log_oldest_root(struct btrfs_fs_info *fs_info,
-			   struct extent_buffer *eb_root, u64 time_seq)
+static struct tree_mod_elem *__tree_mod_log_oldest_root(
+		struct extent_buffer *eb_root, u64 time_seq)
 {
 	struct tree_mod_elem *tm;
 	struct tree_mod_elem *found = NULL;
@@ -1214,7 +1213,7 @@ __tree_mod_log_oldest_root(struct btrfs_fs_info *fs_info,
 	 * first operation that's logged for this root.
 	 */
 	while (1) {
-		tm = tree_mod_log_search_oldest(fs_info, root_logical,
+		tm = tree_mod_log_search_oldest(eb_root->fs_info, root_logical,
 						time_seq);
 		if (!looped && !tm)
 			return NULL;
@@ -1404,7 +1403,7 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 	u64 logical;
 
 	eb_root = btrfs_read_lock_root_node(root);
-	tm = __tree_mod_log_oldest_root(fs_info, eb_root, time_seq);
+	tm = __tree_mod_log_oldest_root(eb_root, time_seq);
 	if (!tm)
 		return eb_root;
 
@@ -1468,7 +1467,7 @@ int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq)
 	int level;
 	struct extent_buffer *eb_root = btrfs_root_node(root);
 
-	tm = __tree_mod_log_oldest_root(root->fs_info, eb_root, time_seq);
+	tm = __tree_mod_log_oldest_root(eb_root, time_seq);
 	if (tm && tm->op == MOD_LOG_ROOT_REPLACE) {
 		level = tm->old_root.level;
 	} else {
