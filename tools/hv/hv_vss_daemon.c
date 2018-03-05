@@ -22,6 +22,7 @@
 #include <sys/poll.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <mntent.h>
