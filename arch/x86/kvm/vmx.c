@@ -4314,7 +4314,7 @@ static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu)
 
 static void vmx_decache_cr3(struct kvm_vcpu *vcpu)
 {
-	if (enable_ept && is_paging(vcpu))
+	if (enable_unrestricted_guest || (enable_ept && is_paging(vcpu)))
 		vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
 	__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
 }
@@ -4451,7 +4451,7 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	}
 #endif
 
-	if (enable_ept)
+	if (enable_ept && !enable_unrestricted_guest)
 		ept_update_paging_mode_cr0(&hw_cr0, cr0, vcpu);
 
 	vmcs_writel(CR0_READ_SHADOW, cr0);
