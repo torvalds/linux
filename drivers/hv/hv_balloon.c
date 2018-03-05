@@ -612,28 +612,17 @@ static struct notifier_block hv_memory_nb = {
 /* Check if the particular page is backed and can be onlined and online it. */
 static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
 {
-	unsigned long cur_start_pgp;
-	unsigned long cur_end_pgp;
 	struct hv_hotadd_gap *gap;
-
-	cur_start_pgp = (unsigned long)pfn_to_page(has->covered_start_pfn);
-	cur_end_pgp = (unsigned long)pfn_to_page(has->covered_end_pfn);
+	unsigned long pfn = page_to_pfn(pg);
 
 	/* The page is not backed. */
-	if (((unsigned long)pg < cur_start_pgp) ||
-	    ((unsigned long)pg >= cur_end_pgp))
+	if ((pfn < has->covered_start_pfn) || (pfn >= has->covered_end_pfn))
 		return;
 
 	/* Check for gaps. */
 	list_for_each_entry(gap, &has->gap_list, list) {
-		cur_start_pgp = (unsigned long)
-			pfn_to_page(gap->start_pfn);
-		cur_end_pgp = (unsigned long)
-			pfn_to_page(gap->end_pfn);
-		if (((unsigned long)pg >= cur_start_pgp) &&
-		    ((unsigned long)pg < cur_end_pgp)) {
+		if ((pfn >= gap->start_pfn) && (pfn < gap->end_pfn))
 			return;
-		}
 	}
 
 	/* This frame is currently backed; online the page. */
@@ -726,19 +715,13 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 static void hv_online_page(struct page *pg)
 {
 	struct hv_hotadd_state *has;
-	unsigned long cur_start_pgp;
-	unsigned long cur_end_pgp;
 	unsigned long flags;
+	unsigned long pfn = page_to_pfn(pg);
 
 	spin_lock_irqsave(&dm_device.ha_lock, flags);
 	list_for_each_entry(has, &dm_device.ha_region_list, list) {
-		cur_start_pgp = (unsigned long)
-			pfn_to_page(has->start_pfn);
-		cur_end_pgp = (unsigned long)pfn_to_page(has->end_pfn);
-
 		/* The page belongs to a different HAS. */
-		if (((unsigned long)pg < cur_start_pgp) ||
-		    ((unsigned long)pg >= cur_end_pgp))
+		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
 			continue;
 
 		hv_page_online_one(has, pg);
