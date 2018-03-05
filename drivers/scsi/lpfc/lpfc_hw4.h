@@ -4601,11 +4601,18 @@ union lpfc_wqe128 {
 	struct fcp_icmnd64_wqe fcp_icmd;
 	struct fcp_iread64_wqe fcp_iread;
 	struct fcp_iwrite64_wqe fcp_iwrite;
+	struct abort_cmd_wqe abort_cmd;
+	struct create_xri_wqe create_xri;
+	struct xmit_bcast64_wqe xmit_bcast64;
+	struct xmit_seq64_wqe xmit_sequence;
+	struct xmit_bls_rsp64_wqe xmit_bls_rsp;
+	struct xmit_els_rsp64_wqe xmit_els_rsp;
+	struct els_request64_wqe els_req;
+	struct gen_req64_wqe gen_req;
 	struct fcp_trsp64_wqe fcp_trsp;
 	struct fcp_tsend64_wqe fcp_tsend;
 	struct fcp_treceive64_wqe fcp_treceive;
-	struct xmit_seq64_wqe xmit_sequence;
-	struct gen_req64_wqe gen_req;
+	struct send_frame_wqe send_frame;
 };
 
 struct lpfc_grp_hdr {

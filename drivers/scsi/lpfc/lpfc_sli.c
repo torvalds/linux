@@ -109,7 +109,7 @@ lpfc_get_iocb_from_iocbq(struct lpfc_iocbq *iocbq)
  * The caller is expected to hold the hbalock when calling this routine.
  **/
 static int
-lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
+lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe128 *wqe)
 {
 	union lpfc_wqe *temp_wqe;
 	struct lpfc_register doorbell;
@@ -8881,7 +8881,7 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
  **/
 static int
 lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
-		union lpfc_wqe *wqe)
+		union lpfc_wqe128 *wqe)
 {
 	uint32_t xmit_len = 0, total_len = 0;
 	uint8_t ct = 0;
@@ -9096,29 +9096,27 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		if (phba->fcp_embed_io) {
 			struct lpfc_scsi_buf *lpfc_cmd;
 			struct sli4_sge *sgl;
-			union lpfc_wqe128 *wqe128;
 			struct fcp_cmnd *fcp_cmnd;
 			uint32_t *ptr;
 
 			/* 128 byte wqe support here */
-			wqe128 = (union lpfc_wqe128 *)wqe;
 
 			lpfc_cmd = iocbq->context1;
 			sgl = (struct sli4_sge *)lpfc_cmd->fcp_bpl;
 			fcp_cmnd = lpfc_cmd->fcp_cmnd;
 
 			/* Word 0-2 - FCP_CMND */
-			wqe128->generic.bde.tus.f.bdeFlags =
+			wqe->generic.bde.tus.f.bdeFlags =
 				BUFF_TYPE_BDE_IMMED;
-			wqe128->generic.bde.tus.f.bdeSize = sgl->sge_len;
-			wqe128->generic.bde.addrHigh = 0;
-			wqe128->generic.bde.addrLow =  88;  /* Word 22 */
+			wqe->generic.bde.tus.f.bdeSize = sgl->sge_len;
+			wqe->generic.bde.addrHigh = 0;
+			wqe->generic.bde.addrLow =  88;  /* Word 22 */
 
-			bf_set(wqe_wqes, &wqe128->fcp_iwrite.wqe_com, 1);
-			bf_set(wqe_dbde, &wqe128->fcp_iwrite.wqe_com, 0);
+			bf_set(wqe_wqes, &wqe->fcp_iwrite.wqe_com, 1);
+			bf_set(wqe_dbde, &wqe->fcp_iwrite.wqe_com, 0);
 
 			/* Word 22-29  FCP CMND Payload */
-			ptr = &wqe128->words[22];
+			ptr = &wqe->words[22];
 			memcpy(ptr, fcp_cmnd, sizeof(struct fcp_cmnd));
 		}
 		break;
@@ -9162,29 +9160,27 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		if (phba->fcp_embed_io) {
 			struct lpfc_scsi_buf *lpfc_cmd;
 			struct sli4_sge *sgl;
-			union lpfc_wqe128 *wqe128;
 			struct fcp_cmnd *fcp_cmnd;
 			uint32_t *ptr;
 
 			/* 128 byte wqe support here */
-			wqe128 = (union lpfc_wqe128 *)wqe;
 
 			lpfc_cmd = iocbq->context1;
 			sgl = (struct sli4_sge *)lpfc_cmd->fcp_bpl;
 			fcp_cmnd = lpfc_cmd->fcp_cmnd;
 
 			/* Word 0-2 - FCP_CMND */
-			wqe128->generic.bde.tus.f.bdeFlags =
+			wqe->generic.bde.tus.f.bdeFlags =
 				BUFF_TYPE_BDE_IMMED;
-			wqe128->generic.bde.tus.f.bdeSize = sgl->sge_len;
-			wqe128->generic.bde.addrHigh = 0;
-			wqe128->generic.bde.addrLow =  88;  /* Word 22 */
+			wqe->generic.bde.tus.f.bdeSize = sgl->sge_len;
+			wqe->generic.bde.addrHigh = 0;
+			wqe->generic.bde.addrLow =  88;  /* Word 22 */
 
-			bf_set(wqe_wqes, &wqe128->fcp_iread.wqe_com, 1);
-			bf_set(wqe_dbde, &wqe128->fcp_iread.wqe_com, 0);
+			bf_set(wqe_wqes, &wqe->fcp_iread.wqe_com, 1);
+			bf_set(wqe_dbde, &wqe->fcp_iread.wqe_com, 0);
 
 			/* Word 22-29  FCP CMND Payload */
-			ptr = &wqe128->words[22];
+			ptr = &wqe->words[22];
 			memcpy(ptr, fcp_cmnd, sizeof(struct fcp_cmnd));
 		}
 		break;
@@ -9221,29 +9217,27 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		if (phba->fcp_embed_io) {
 			struct lpfc_scsi_buf *lpfc_cmd;
 			struct sli4_sge *sgl;
-			union lpfc_wqe128 *wqe128;
 			struct fcp_cmnd *fcp_cmnd;
 			uint32_t *ptr;
 
 			/* 128 byte wqe support here */
-			wqe128 = (union lpfc_wqe128 *)wqe;
 
 			lpfc_cmd = iocbq->context1;
 			sgl = (struct sli4_sge *)lpfc_cmd->fcp_bpl;
 			fcp_cmnd = lpfc_cmd->fcp_cmnd;
 
 			/* Word 0-2 - FCP_CMND */
-			wqe128->generic.bde.tus.f.bdeFlags =
+			wqe->generic.bde.tus.f.bdeFlags =
 				BUFF_TYPE_BDE_IMMED;
-			wqe128->generic.bde.tus.f.bdeSize = sgl->sge_len;
-			wqe128->generic.bde.addrHigh = 0;
-			wqe128->generic.bde.addrLow =  88;  /* Word 22 */
+			wqe->generic.bde.tus.f.bdeSize = sgl->sge_len;
+			wqe->generic.bde.addrHigh = 0;
+			wqe->generic.bde.addrLow =  88;  /* Word 22 */
 
-			bf_set(wqe_wqes, &wqe128->fcp_icmd.wqe_com, 1);
-			bf_set(wqe_dbde, &wqe128->fcp_icmd.wqe_com, 0);
+			bf_set(wqe_wqes, &wqe->fcp_icmd.wqe_com, 1);
+			bf_set(wqe_dbde, &wqe->fcp_icmd.wqe_com, 0);
 
 			/* Word 22-29  FCP CMND Payload */
-			ptr = &wqe128->words[22];
+			ptr = &wqe->words[22];
 			memcpy(ptr, fcp_cmnd, sizeof(struct fcp_cmnd));
 		}
 		break;
@@ -9481,8 +9475,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 			 struct lpfc_iocbq *piocb, uint32_t flag)
 {
 	struct lpfc_sglq *sglq;
-	union lpfc_wqe *wqe;
-	union lpfc_wqe128 wqe128;
+	union lpfc_wqe128 wqe;
 	struct lpfc_queue *wq;
 	struct lpfc_sli_ring *pring;
 
@@ -9502,9 +9495,7 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 
 	/*
 	 * The WQE can be either 64 or 128 bytes,
-	 * so allocate space on the stack assuming the largest.
 	 */
-	wqe = (union lpfc_wqe *)&wqe128;
 
 	lockdep_assert_held(&phba->hbalock);
 
@@ -9554,10 +9545,10 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 			return IOCB_ERROR;
 	}
 
-	if (lpfc_sli4_iocb2wqe(phba, piocb, wqe))
+	if (lpfc_sli4_iocb2wqe(phba, piocb, &wqe))
 		return IOCB_ERROR;
 
-	if (lpfc_sli4_wq_put(wq, wqe))
+	if (lpfc_sli4_wq_put(wq, &wqe))
 		return IOCB_ERROR;
 	lpfc_sli_ringtxcmpl_put(phba, pring, piocb);
 
@@ -10927,7 +10918,7 @@ lpfc_sli4_abort_nvme_io(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct lpfc_iocbq *abtsiocbp;
-	union lpfc_wqe *abts_wqe;
+	union lpfc_wqe128 *abts_wqe;
 	int retval;
 
 	/*
@@ -19048,8 +19039,7 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 	unsigned long iflags = 0;
 	char *fail_msg = NULL;
 	struct lpfc_sglq *sglq;
-	union lpfc_wqe128 wqe128;
-	union lpfc_wqe *wqe = (union lpfc_wqe *) &wqe128;
+	union lpfc_wqe128 wqe;
 	uint32_t txq_cnt = 0;
 
 	pring = lpfc_phba_elsring(phba);
@@ -19092,9 +19082,9 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		piocbq->sli4_xritag = sglq->sli4_xritag;
 		if (NO_XRI == lpfc_sli4_bpl2sgl(phba, piocbq, sglq))
 			fail_msg = "to convert bpl to sgl";
-		else if (lpfc_sli4_iocb2wqe(phba, piocbq, wqe))
+		else if (lpfc_sli4_iocb2wqe(phba, piocbq, &wqe))
 			fail_msg = "to convert iocb to wqe";
-		else if (lpfc_sli4_wq_put(phba->sli4_hba.els_wq, wqe))
+		else if (lpfc_sli4_wq_put(phba->sli4_hba.els_wq, &wqe))
 			fail_msg = " - Wq is full";
 		else
 			lpfc_sli_ringtxcmpl_put(phba, pring, piocbq);
@@ -19144,7 +19134,7 @@ lpfc_wqe_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeq,
 	struct ulp_bde64 bde;
 	struct sli4_sge *sgl  = NULL;
 	struct lpfc_dmabuf *dmabuf;
-	union lpfc_wqe *wqe;
+	union lpfc_wqe128 *wqe;
 	int numBdes = 0;
 	int i = 0;
 	uint32_t offset = 0; /* accumulated offset in the sg request list */
@@ -19253,7 +19243,7 @@ int
 lpfc_sli4_issue_wqe(struct lpfc_hba *phba, uint32_t ring_number,
 		    struct lpfc_iocbq *pwqe)
 {
-	union lpfc_wqe *wqe = &pwqe->wqe;
+	union lpfc_wqe128 *wqe = &pwqe->wqe;
 	struct lpfc_nvmet_rcv_ctx *ctxp;
 	struct lpfc_queue *wq;
 	struct lpfc_sglq *sglq;
