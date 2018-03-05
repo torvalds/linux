@@ -41,7 +41,6 @@
 #define TRANS_RAW "raw"
 #define TRANS_RAW_LEN strlen(TRANS_RAW)
 
-#define QDISC_FAIL "user_init_raw: could not disable qdisc on interface"
 #define VNET_HDR_FAIL "could not enable vnet headers on fd %d"
 #define TUN_GET_F_FAIL "tapraw: TUNGETFEATURES failed: %s"
 #define L2TPV3_BIND_FAIL "l2tpv3_open : could not bind socket err=%i"
@@ -212,8 +211,6 @@ static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 	int err = -ENOMEM;
 	char *iface;
 	struct vector_fds *result = NULL;
-	int optval = 1;
-
 
 	iface = uml_vector_fetch_arg(ifspec, TOKEN_IFNAME);
 	if (iface == NULL)
@@ -256,12 +253,6 @@ static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 		goto cleanup;
 	}
 
-	if (setsockopt(txfd,
-		SOL_PACKET, PACKET_QDISC_BYPASS,
-		&optval, sizeof(optval)) != 0) {
-		printk(UM_KERN_INFO QDISC_FAIL);
-	}
-
 	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
 	if (result != NULL) {
 		result->rx_fd = rxfd;
@@ -279,6 +270,19 @@ cleanup:
 	if (result != NULL)
 		kfree(result);
 	return NULL;
+}
+
+
+bool uml_raw_enable_qdisc_bypass(int fd)
+{
+	int optval = 1;
+
+	if (setsockopt(fd,
+		SOL_PACKET, PACKET_QDISC_BYPASS,
+		&optval, sizeof(optval)) != 0) {
+		return false;
+	}
+	return true;
 }
 
 bool uml_raw_enable_vnet_headers(int fd)

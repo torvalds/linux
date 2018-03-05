@@ -28,6 +28,7 @@
 #define VECTOR_RX 1
 #define VECTOR_TX (1 << 1)
 #define VECTOR_BPF (1 << 2)
+#define VECTOR_QDISC_BYPASS (1 << 3)
 
 #define ETH_MAX_PACKET 1500
 #define ETH_HEADER_OTHER 32 /* just in case someone decides to go mad on QnQ */
