@@ -1740,7 +1740,7 @@ static void xfrm_pcpu_work_fn(struct work_struct *work)
 void xfrm_policy_cache_flush(void)
 {
 	struct xfrm_dst *old;
-	bool found = 0;
+	bool found = false;
 	int cpu;
 
 	might_sleep();
