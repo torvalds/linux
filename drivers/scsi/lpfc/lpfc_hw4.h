@@ -4183,6 +4183,7 @@ struct wqe_common {
 #define wqe_iod_SHIFT         13
 #define wqe_iod_MASK          0x00000001
 #define wqe_iod_WORD          word10
+#define LPFC_WQE_IOD_NONE	0
 #define LPFC_WQE_IOD_WRITE	0
 #define LPFC_WQE_IOD_READ	1
 #define wqe_dbde_SHIFT        14

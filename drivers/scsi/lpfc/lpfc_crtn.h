@@ -565,6 +565,7 @@ void lpfc_nvme_mod_param_dep(struct lpfc_hba *phba);
 void lpfc_nvme_abort_fcreq_cmpl(struct lpfc_hba *phba,
 				struct lpfc_iocbq *cmdiocb,
 				struct lpfc_wcqe_complete *abts_cmpl);
+void lpfc_nvme_cmd_template(void);
 extern int lpfc_enable_nvmet_cnt;
 extern unsigned long long lpfc_enable_nvmet[];
 extern int lpfc_no_hba_reset_cnt;

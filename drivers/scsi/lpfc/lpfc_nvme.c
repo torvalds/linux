@@ -65,6 +65,136 @@ lpfc_release_nvme_buf(struct lpfc_hba *, struct lpfc_nvme_buf *);
 
 static struct nvme_fc_port_template lpfc_nvme_template;
 
+union lpfc_wqe128 lpfc_iread_cmd_template;
+union lpfc_wqe128 lpfc_iwrite_cmd_template;
+union lpfc_wqe128 lpfc_icmnd_cmd_template;
+
+/* Setup WQE templates for NVME IOs */
+void
+lpfc_nvme_cmd_template()
+{
+	union lpfc_wqe128 *wqe;
+
+	/* IREAD template */
+	wqe = &lpfc_iread_cmd_template;
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/* Word 0, 1, 2 - BDE is variable */
+
+	/* Word 3 - cmd_buff_len, payload_offset_len is zero */
+
+	/* Word 4 - total_xfer_len is variable */
+
+	/* Word 5 - is zero */
+
+	/* Word 6 - ctxt_tag, xri_tag is variable */
+
+	/* Word 7 */
+	bf_set(wqe_cmnd, &wqe->fcp_iread.wqe_com, CMD_FCP_IREAD64_WQE);
+	bf_set(wqe_pu, &wqe->fcp_iread.wqe_com, PARM_READ_CHECK);
+	bf_set(wqe_class, &wqe->fcp_iread.wqe_com, CLASS3);
+	bf_set(wqe_ct, &wqe->fcp_iread.wqe_com, SLI4_CT_RPI);
+
+	/* Word 8 - abort_tag is variable */
+
+	/* Word 9  - reqtag is variable */
+
+	/* Word 10 - dbde, wqes is variable */
+	bf_set(wqe_qosd, &wqe->fcp_iread.wqe_com, 0);
+	bf_set(wqe_nvme, &wqe->fcp_iread.wqe_com, 1);
+	bf_set(wqe_iod, &wqe->fcp_iread.wqe_com, LPFC_WQE_IOD_READ);
+	bf_set(wqe_lenloc, &wqe->fcp_iread.wqe_com, LPFC_WQE_LENLOC_WORD4);
+	bf_set(wqe_dbde, &wqe->fcp_iread.wqe_com, 0);
+	bf_set(wqe_wqes, &wqe->fcp_iread.wqe_com, 1);
+
+	/* Word 11 - pbde is variable */
+	bf_set(wqe_cmd_type, &wqe->fcp_iread.wqe_com, NVME_READ_CMD);
+	bf_set(wqe_cqid, &wqe->fcp_iread.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_pbde, &wqe->fcp_iread.wqe_com, 1);
+
+	/* Word 12 - is zero */
+
+	/* Word 13, 14, 15 - PBDE is variable */
+
+	/* IWRITE template */
+	wqe = &lpfc_iwrite_cmd_template;
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/* Word 0, 1, 2 - BDE is variable */
+
+	/* Word 3 - cmd_buff_len, payload_offset_len is zero */
+
+	/* Word 4 - total_xfer_len is variable */
+
+	/* Word 5 - initial_xfer_len is variable */
+
+	/* Word 6 - ctxt_tag, xri_tag is variable */
+
+	/* Word 7 */
+	bf_set(wqe_cmnd, &wqe->fcp_iwrite.wqe_com, CMD_FCP_IWRITE64_WQE);
+	bf_set(wqe_pu, &wqe->fcp_iwrite.wqe_com, PARM_READ_CHECK);
+	bf_set(wqe_class, &wqe->fcp_iwrite.wqe_com, CLASS3);
+	bf_set(wqe_ct, &wqe->fcp_iwrite.wqe_com, SLI4_CT_RPI);
+
+	/* Word 8 - abort_tag is variable */
+
+	/* Word 9  - reqtag is variable */
+
+	/* Word 10 - dbde, wqes is variable */
+	bf_set(wqe_qosd, &wqe->fcp_iwrite.wqe_com, 0);
+	bf_set(wqe_nvme, &wqe->fcp_iwrite.wqe_com, 1);
+	bf_set(wqe_iod, &wqe->fcp_iwrite.wqe_com, LPFC_WQE_IOD_WRITE);
+	bf_set(wqe_lenloc, &wqe->fcp_iwrite.wqe_com, LPFC_WQE_LENLOC_WORD4);
+	bf_set(wqe_dbde, &wqe->fcp_iwrite.wqe_com, 0);
+	bf_set(wqe_wqes, &wqe->fcp_iwrite.wqe_com, 1);
+
+	/* Word 11 - pbde is variable */
+	bf_set(wqe_cmd_type, &wqe->fcp_iwrite.wqe_com, NVME_WRITE_CMD);
+	bf_set(wqe_cqid, &wqe->fcp_iwrite.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_pbde, &wqe->fcp_iwrite.wqe_com, 1);
+
+	/* Word 12 - is zero */
+
+	/* Word 13, 14, 15 - PBDE is variable */
+
+	/* ICMND template */
+	wqe = &lpfc_icmnd_cmd_template;
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/* Word 0, 1, 2 - BDE is variable */
+
+	/* Word 3 - payload_offset_len is variable */
+
+	/* Word 4, 5 - is zero */
+
+	/* Word 6 - ctxt_tag, xri_tag is variable */
+
+	/* Word 7 */
+	bf_set(wqe_cmnd, &wqe->fcp_icmd.wqe_com, CMD_FCP_ICMND64_WQE);
+	bf_set(wqe_pu, &wqe->fcp_icmd.wqe_com, 0);
+	bf_set(wqe_class, &wqe->fcp_icmd.wqe_com, CLASS3);
+	bf_set(wqe_ct, &wqe->fcp_icmd.wqe_com, SLI4_CT_RPI);
+
+	/* Word 8 - abort_tag is variable */
+
+	/* Word 9  - reqtag is variable */
+
+	/* Word 10 - dbde, wqes is variable */
+	bf_set(wqe_qosd, &wqe->fcp_icmd.wqe_com, 1);
+	bf_set(wqe_nvme, &wqe->fcp_icmd.wqe_com, 1);
+	bf_set(wqe_iod, &wqe->fcp_icmd.wqe_com, LPFC_WQE_IOD_NONE);
+	bf_set(wqe_lenloc, &wqe->fcp_icmd.wqe_com, LPFC_WQE_LENLOC_NONE);
+	bf_set(wqe_dbde, &wqe->fcp_icmd.wqe_com, 0);
+	bf_set(wqe_wqes, &wqe->fcp_icmd.wqe_com, 1);
+
+	/* Word 11 */
+	bf_set(wqe_cmd_type, &wqe->fcp_icmd.wqe_com, FCP_COMMAND);
+	bf_set(wqe_cqid, &wqe->fcp_icmd.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_pbde, &wqe->fcp_icmd.wqe_com, 0);
+
+	/* Word 12, 13, 14, 15 - is zero */
+}
+
 /**
  * lpfc_nvme_create_queue -
  * @lpfc_pnvme: Pointer to the driver's nvme instance data
@@ -612,7 +742,7 @@ lpfc_nvme_ls_abort(struct nvme_fc_local_port *pnvme_lport,
 }
 
 /* Fix up the existing sgls for NVME IO. */
-static void
+static inline void
 lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 		       struct lpfc_nvme_buf *lpfc_ncmd,
 		       struct nvmefc_fcp_req *nCmd)
@@ -648,6 +778,37 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 		wqe->generic.bde.tus.f.bdeSize = 56;
 		wqe->generic.bde.addrHigh = 0;
 		wqe->generic.bde.addrLow =  64;  /* Word 16 */
+
+		/* Word 10  - dbde is 0, wqes is 1 in template */
+
+		/*
+		 * Embed the payload in the last half of the WQE
+		 * WQE words 16-30 get the NVME CMD IU payload
+		 *
+		 * WQE words 16-19 get payload Words 1-4
+		 * WQE words 20-21 get payload Words 6-7
+		 * WQE words 22-29 get payload Words 16-23
+		 */
+		wptr = &wqe->words[16];  /* WQE ptr */
+		dptr = (uint32_t *)nCmd->cmdaddr;  /* payload ptr */
+		dptr++;			/* Skip Word 0 in payload */
+
+		*wptr++ = *dptr++;	/* Word 1 */
+		*wptr++ = *dptr++;	/* Word 2 */
+		*wptr++ = *dptr++;	/* Word 3 */
+		*wptr++ = *dptr++;	/* Word 4 */
+		dptr++;			/* Skip Word 5 in payload */
+		*wptr++ = *dptr++;	/* Word 6 */
+		*wptr++ = *dptr++;	/* Word 7 */
+		dptr += 8;		/* Skip Words 8-15 in payload */
+		*wptr++ = *dptr++;	/* Word 16 */
+		*wptr++ = *dptr++;	/* Word 17 */
+		*wptr++ = *dptr++;	/* Word 18 */
+		*wptr++ = *dptr++;	/* Word 19 */
+		*wptr++ = *dptr++;	/* Word 20 */
+		*wptr++ = *dptr++;	/* Word 21 */
+		*wptr++ = *dptr++;	/* Word 22 */
+		*wptr   = *dptr;	/* Word 23 */
 	} else {
 		sgl->addr_hi = cpu_to_le32(putPaddrHigh(nCmd->cmddma));
 		sgl->addr_lo = cpu_to_le32(putPaddrLow(nCmd->cmddma));
@@ -657,6 +818,10 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 		wqe->generic.bde.tus.f.bdeSize = nCmd->cmdlen;
 		wqe->generic.bde.addrHigh = sgl->addr_hi;
 		wqe->generic.bde.addrLow =  sgl->addr_lo;
+
+		/* Word 10 */
+		bf_set(wqe_dbde, &wqe->generic.wqe_com, 1);
+		bf_set(wqe_wqes, &wqe->generic.wqe_com, 0);
 	}
 
 	sgl++;
@@ -671,50 +836,6 @@ lpfc_nvme_adj_fcp_sgls(struct lpfc_vport *vport,
 		bf_set(lpfc_sli4_sge_last, sgl, 1);
 	sgl->word2 = cpu_to_le32(sgl->word2);
 	sgl->sge_len = cpu_to_le32(nCmd->rsplen);
-
-	/* Word 3 */
-	bf_set(payload_offset_len, &wqe->fcp_icmd,
-	       (nCmd->rsplen + nCmd->cmdlen));
-
-	/* Word 10 */
-	bf_set(wqe_nvme, &wqe->fcp_icmd.wqe_com, 1);
-
-	if (!phba->cfg_nvme_embed_cmd) {
-		bf_set(wqe_dbde, &wqe->generic.wqe_com, 1);
-		bf_set(wqe_wqes, &wqe->fcp_icmd.wqe_com, 0);
-		return;
-	}
-	bf_set(wqe_dbde, &wqe->generic.wqe_com, 0);
-	bf_set(wqe_wqes, &wqe->fcp_icmd.wqe_com, 1);
-
-	/*
-	 * Embed the payload in the last half of the WQE
-	 * WQE words 16-30 get the NVME CMD IU payload
-	 *
-	 * WQE words 16-19 get payload Words 1-4
-	 * WQE words 20-21 get payload Words 6-7
-	 * WQE words 22-29 get payload Words 16-23
-	 */
-	wptr = &wqe->words[16];  /* WQE ptr */
-	dptr = (uint32_t *)nCmd->cmdaddr;  /* payload ptr */
-	dptr++;			/* Skip Word 0 in payload */
-
-	*wptr++ = *dptr++;	/* Word 1 */
-	*wptr++ = *dptr++;	/* Word 2 */
-	*wptr++ = *dptr++;	/* Word 3 */
-	*wptr++ = *dptr++;	/* Word 4 */
-	dptr++;			/* Skip Word 5 in payload */
-	*wptr++ = *dptr++;	/* Word 6 */
-	*wptr++ = *dptr++;	/* Word 7 */
-	dptr += 8;		/* Skip Words 8-15 in payload */
-	*wptr++ = *dptr++;	/* Word 16 */
-	*wptr++ = *dptr++;	/* Word 17 */
-	*wptr++ = *dptr++;	/* Word 18 */
-	*wptr++ = *dptr++;	/* Word 19 */
-	*wptr++ = *dptr++;	/* Word 20 */
-	*wptr++ = *dptr++;	/* Word 21 */
-	*wptr++ = *dptr++;	/* Word 22 */
-	*wptr   = *dptr;	/* Word 23 */
 }
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -1057,9 +1178,16 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 	 * There are three possibilities here - use scatter-gather segment, use
 	 * the single mapping, or neither.
 	 */
-	wqe->fcp_iwrite.initial_xfer_len = 0;
 	if (nCmd->sg_cnt) {
 		if (nCmd->io_dir == NVMEFC_FCP_WRITE) {
+			/* From the iwrite template, initialize words 7 - 11 */
+			memcpy(&wqe->words[7],
+			       &lpfc_iwrite_cmd_template.words[7],
+			       sizeof(uint32_t) * 5);
+
+			/* Word 4 */
+			wqe->fcp_iwrite.total_xfer_len = nCmd->payload_length;
+
 			/* Word 5 */
 			if ((phba->cfg_nvme_enable_fb) &&
 			    (pnode->nlp_flag & NLP_FIRSTBURST)) {
@@ -1070,69 +1198,28 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 				else
 					wqe->fcp_iwrite.initial_xfer_len =
 						pnode->nvme_fb_size;
+			} else {
+				wqe->fcp_iwrite.initial_xfer_len = 0;
 			}
-
-			/* Word 7 */
-			bf_set(wqe_cmnd, &wqe->generic.wqe_com,
-			       CMD_FCP_IWRITE64_WQE);
-			bf_set(wqe_pu, &wqe->generic.wqe_com,
-			       PARM_READ_CHECK);
-
-			/* Word 10 */
-			bf_set(wqe_qosd, &wqe->fcp_iwrite.wqe_com, 0);
-			bf_set(wqe_iod, &wqe->fcp_iwrite.wqe_com,
-			       LPFC_WQE_IOD_WRITE);
-			bf_set(wqe_lenloc, &wqe->fcp_iwrite.wqe_com,
-			       LPFC_WQE_LENLOC_WORD4);
-			if (phba->cfg_nvme_oas)
-				bf_set(wqe_oas, &wqe->fcp_iwrite.wqe_com, 1);
-
-			/* Word 11 */
-			bf_set(wqe_cmd_type, &wqe->generic.wqe_com,
-			       NVME_WRITE_CMD);
-
 			atomic_inc(&phba->fc4NvmeOutputRequests);
 		} else {
-			/* Word 7 */
-			bf_set(wqe_cmnd, &wqe->generic.wqe_com,
-			       CMD_FCP_IREAD64_WQE);
-			bf_set(wqe_pu, &wqe->generic.wqe_com,
-			       PARM_READ_CHECK);
+			/* From the iread template, initialize words 7 - 11 */
+			memcpy(&wqe->words[7],
+			       &lpfc_iread_cmd_template.words[7],
+			       sizeof(uint32_t) * 5);
 
-			/* Word 10 */
-			bf_set(wqe_qosd, &wqe->fcp_iread.wqe_com, 0);
-			bf_set(wqe_iod, &wqe->fcp_iread.wqe_com,
-			       LPFC_WQE_IOD_READ);
-			bf_set(wqe_lenloc, &wqe->fcp_iread.wqe_com,
-			       LPFC_WQE_LENLOC_WORD4);
-			if (phba->cfg_nvme_oas)
-				bf_set(wqe_oas, &wqe->fcp_iread.wqe_com, 1);
+			/* Word 4 */
+			wqe->fcp_iread.total_xfer_len = nCmd->payload_length;
 
-			/* Word 11 */
-			bf_set(wqe_cmd_type, &wqe->generic.wqe_com,
-			       NVME_READ_CMD);
+			/* Word 5 */
+			wqe->fcp_iread.rsrvd5 = 0;
 
 			atomic_inc(&phba->fc4NvmeInputRequests);
 		}
 	} else {
-		/* Word 4 */
-		wqe->fcp_icmd.rsrvd4 = 0;
-
-		/* Word 7 */
-		bf_set(wqe_cmnd, &wqe->generic.wqe_com, CMD_FCP_ICMND64_WQE);
-		bf_set(wqe_pu, &wqe->generic.wqe_com, 0);
-
-		/* Word 10 */
-		bf_set(wqe_qosd, &wqe->fcp_icmd.wqe_com, 1);
-		bf_set(wqe_iod, &wqe->fcp_icmd.wqe_com, LPFC_WQE_IOD_WRITE);
-		bf_set(wqe_lenloc, &wqe->fcp_icmd.wqe_com,
-		       LPFC_WQE_LENLOC_NONE);
-		if (phba->cfg_nvme_oas)
-			bf_set(wqe_oas, &wqe->fcp_icmd.wqe_com, 1);
-
-		/* Word 11 */
-		bf_set(wqe_cmd_type, &wqe->generic.wqe_com, NVME_READ_CMD);
-
+		/* From the icmnd template, initialize words 4 - 11 */
+		memcpy(&wqe->words[4], &lpfc_icmnd_cmd_template.words[4],
+		       sizeof(uint32_t) * 8);
 		atomic_inc(&phba->fc4NvmeControlRequests);
 	}
 	/*
@@ -1140,24 +1227,20 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 	 * of the nvme_cmnd request_buffer
 	 */
 
+	/* Word 3 */
+	bf_set(payload_offset_len, &wqe->fcp_icmd,
+	       (nCmd->rsplen + nCmd->cmdlen));
+
 	/* Word 6 */
 	bf_set(wqe_ctxt_tag, &wqe->generic.wqe_com,
 	       phba->sli4_hba.rpi_ids[pnode->nlp_rpi]);
 	bf_set(wqe_xri_tag, &wqe->generic.wqe_com, pwqeq->sli4_xritag);
-
-	/* Word 7 */
-	/* Preserve Class data in the ndlp. */
-	bf_set(wqe_class, &wqe->generic.wqe_com,
-	       (pnode->nlp_fcp_info & 0x0f));
 
 	/* Word 8 */
 	wqe->generic.wqe_com.abort_tag = pwqeq->iotag;
 
 	/* Word 9 */
 	bf_set(wqe_reqtag, &wqe->generic.wqe_com, pwqeq->iotag);
-
-	/* Word 11 */
-	bf_set(wqe_cqid, &wqe->generic.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
 
 	pwqeq->vport = vport;
 	return 0;
@@ -1269,12 +1352,14 @@ lpfc_nvme_prep_io_dma(struct lpfc_vport *vport,
 				le32_to_cpu(first_data_sgl->sge_len);
 			bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
 			bde->tus.w = cpu_to_le32(bde->tus.w);
-			bf_set(wqe_pbde, &wqe->generic.wqe_com, 1);
-		} else
+			/* wqe_pbde is 1 in template */
+		} else {
+			memset(&wqe->words[13], 0, (sizeof(uint32_t) * 3));
 			bf_set(wqe_pbde, &wqe->generic.wqe_com, 0);
-
+		}
 	} else {
 		bf_set(wqe_pbde, &wqe->generic.wqe_com, 0);
+		memset(&wqe->words[13], 0, (sizeof(uint32_t) * 3));
 
 		/* For this clause to be valid, the payload_length
 		 * and sg_cnt must zero.
@@ -1287,12 +1372,6 @@ lpfc_nvme_prep_io_dma(struct lpfc_vport *vport,
 			return 1;
 		}
 	}
-
-	/*
-	 * Due to difference in data length between DIF/non-DIF paths,
-	 * we need to set word 4 of WQE here
-	 */
-	wqe->fcp_iread.total_xfer_len = nCmd->payload_length;
 	return 0;
 }
 
@@ -2175,14 +2254,8 @@ lpfc_new_nvme_buf(struct lpfc_vport *vport, int num_to_alloc)
 
 		lpfc_ncmd->cur_iocbq.context1 = lpfc_ncmd;
 
-		/* Word 7 */
-		bf_set(wqe_erp, &wqe->generic.wqe_com, 0);
-		/* NVME upper layers will time things out, if needed */
-		bf_set(wqe_tmo, &wqe->generic.wqe_com, 0);
-
-		/* Word 10 */
-		bf_set(wqe_ebde_cnt, &wqe->generic.wqe_com, 0);
-		bf_set(wqe_dbde, &wqe->generic.wqe_com, 1);
+		/* Initialize WQE */
+		memset(wqe, 0, sizeof(union lpfc_wqe));
 
 		/* add the nvme buffer to a post list */
 		list_add_tail(&lpfc_ncmd->list, &post_nblist);

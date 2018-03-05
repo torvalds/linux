@@ -12583,6 +12583,7 @@ lpfc_init(void)
 		fc_release_transport(lpfc_transport_template);
 		return -ENOMEM;
 	}
+	lpfc_nvme_cmd_template();
 
 	/* Initialize in case vector mapping is needed */
 	lpfc_used_cpu = NULL;
