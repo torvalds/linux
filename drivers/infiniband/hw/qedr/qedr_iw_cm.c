@@ -458,8 +458,7 @@ qedr_addr6_resolve(struct qedr_dev *dev,
 		}
 		return -EINVAL;
 	}
-	neigh = dst_neigh_lookup(dst, &dst_in);
-
+	neigh = dst_neigh_lookup(dst, &fl6.daddr);
 	if (neigh) {
 		rcu_read_lock();
 		if (neigh->nud_state & NUD_VALID) {
