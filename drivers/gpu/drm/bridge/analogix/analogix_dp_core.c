@@ -1012,27 +1012,30 @@ static int analogix_dp_bridge_attach(struct drm_bridge *bridge)
 {
 	struct analogix_dp_device *dp = bridge->driver_private;
 	struct drm_encoder *encoder = dp->encoder;
-	struct drm_connector *connector = &dp->connector;
-	int ret;
+	struct drm_connector *connector = NULL;
+	int ret = 0;
 
 	if (!bridge->encoder) {
 		DRM_ERROR("Parent encoder object not found");
 		return -ENODEV;
 	}
 
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
+	if (!dp->plat_data->skip_connector) {
+		connector = &dp->connector;
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	ret = drm_connector_init(dp->drm_dev, connector,
-				 &analogix_dp_connector_funcs,
-				 DRM_MODE_CONNECTOR_eDP);
-	if (ret) {
-		DRM_ERROR("Failed to initialize connector with drm\n");
-		return ret;
+		ret = drm_connector_init(dp->drm_dev, connector,
+					 &analogix_dp_connector_funcs,
+					 DRM_MODE_CONNECTOR_eDP);
+		if (ret) {
+			DRM_ERROR("Failed to initialize connector with drm\n");
+			return ret;
+		}
+
+		drm_connector_helper_add(connector,
+					 &analogix_dp_connector_helper_funcs);
+		drm_mode_connector_attach_encoder(connector, encoder);
 	}
-
-	drm_connector_helper_add(connector,
-				 &analogix_dp_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(connector, encoder);
 
 	/*
 	 * NOTE: the connector registration is implemented in analogix

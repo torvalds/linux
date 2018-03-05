@@ -244,6 +244,7 @@ static int exynos_dp_probe(struct platform_device *pdev)
 
 	/* The remote port can be either a panel or a bridge */
 	dp->plat_data.panel = panel;
+	dp->plat_data.skip_connector = !!bridge;
 	dp->ptn_bridge = bridge;
 
 out:
