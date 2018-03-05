@@ -687,11 +687,11 @@ int rf69_disable_crc(struct spi_device *spi)
 int rf69_set_address_filtering(struct spi_device *spi, enum address_filtering address_filtering)
 {
 	switch (address_filtering) {
-	case filteringOff:
+	case filtering_off:
 		return rf69_read_mod_write(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_ADDRESSFILTERING, PACKETCONFIG1_ADDRESSFILTERING_OFF);
-	case nodeAddress:
+	case node_address:
 		return rf69_read_mod_write(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_ADDRESSFILTERING, PACKETCONFIG1_ADDRESSFILTERING_NODE);
-	case nodeOrBroadcastAddress:
+	case node_or_broadcast_address:
 		return rf69_read_mod_write(spi, REG_PACKETCONFIG1, MASK_PACKETCONFIG1_ADDRESSFILTERING, PACKETCONFIG1_ADDRESSFILTERING_NODEBROADCAST);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");

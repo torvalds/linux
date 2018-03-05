@@ -129,9 +129,9 @@ enum tx_start_condition {
 };
 
 enum address_filtering {
-	filteringOff,
-	nodeAddress,
-	nodeOrBroadcastAddress
+	filtering_off,
+	node_address,
+	node_or_broadcast_address
 };
 
 enum dagc {

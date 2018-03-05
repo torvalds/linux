@@ -232,12 +232,12 @@ rf params:
 			     amount of bytes that were requested by the read request.
 		Attention: should be used in combination with sync, only
 	enable_address_filtering;
-		filteringOff		- no address filtering will take place
-		nodeAddress		- all telegrams, not matching the node
-					  address will be internally discarded
-		nodeOrBroadcastAddress	- all telegrams, neither matching the
-					  node, nor the broadcast address will
-					  be internally discarded
+		filtering_off		  - no address filtering will take place
+		node_address		  - all telegrams, not matching the node
+					    address will be internally discarded
+		node_or_broadcast_address - all telegrams, neither matching the
+					    node, nor the broadcast address will
+					    be internally discarded
 		Attention: Sync option must be enabled in order to use this feature
 	enable_crc
 		optionOn	- a crc will be calculated over the payload of
