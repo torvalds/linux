@@ -2388,18 +2388,18 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 void
 lpfc_sli_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 {
-	wait_queue_head_t *pdone_q;
 	unsigned long drvr_flag;
+	struct completion *pmbox_done;
 
 	/*
-	 * If pdone_q is empty, the driver thread gave up waiting and
+	 * If pmbox_done is empty, the driver thread gave up waiting and
 	 * continued running.
 	 */
 	pmboxq->mbox_flag |= LPFC_MBX_WAKE;
 	spin_lock_irqsave(&phba->hbalock, drvr_flag);
-	pdone_q = (wait_queue_head_t *) pmboxq->context1;
-	if (pdone_q)
-		wake_up_interruptible(pdone_q);
+	pmbox_done = (struct completion *)pmboxq->context3;
+	if (pmbox_done)
+		complete(pmbox_done);
 	spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 	return;
 }
@@ -11665,31 +11665,25 @@ int
 lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 			 uint32_t timeout)
 {
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(done_q);
-	MAILBOX_t *mb = NULL;
+	struct completion mbox_done;
 	int retval;
 	unsigned long flag;
-
-	/* The caller might set context1 for extended buffer */
-	if (pmboxq->context1)
-		mb = (MAILBOX_t *)pmboxq->context1;
 
 	pmboxq->mbox_flag &= ~LPFC_MBX_WAKE;
 	/* setup wake call as IOCB callback */
 	pmboxq->mbox_cmpl = lpfc_sli_wake_mbox_wait;
-	/* setup context field to pass wait_queue pointer to wake function  */
-	pmboxq->context1 = &done_q;
 
+	/* setup context3 field to pass wait_queue pointer to wake function  */
+	init_completion(&mbox_done);
+	pmboxq->context3 = &mbox_done;
 	/* now issue the command */
 	retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
 	if (retval == MBX_BUSY || retval == MBX_SUCCESS) {
-		wait_event_interruptible_timeout(done_q,
-				pmboxq->mbox_flag & LPFC_MBX_WAKE,
-				msecs_to_jiffies(timeout * 1000));
+		wait_for_completion_timeout(&mbox_done,
+					    msecs_to_jiffies(timeout * 1000));
 
 		spin_lock_irqsave(&phba->hbalock, flag);
-		/* restore the possible extended buffer for free resource */
-		pmboxq->context1 = (uint8_t *)mb;
+		pmboxq->context3 = NULL;
 		/*
 		 * if LPFC_MBX_WAKE flag is set the mailbox is completed
 		 * else do not free the resources.
@@ -11701,11 +11695,7 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		}
 		spin_unlock_irqrestore(&phba->hbalock, flag);
-	} else {
-		/* restore the possible extended buffer for free resource */
-		pmboxq->context1 = (uint8_t *)mb;
 	}
-
 	return retval;
 }
 
