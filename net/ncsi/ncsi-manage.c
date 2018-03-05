@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/netlink.h>
 
 #include <net/ncsi.h>
 #include <net/net_namespace.h>
@@ -23,6 +22,7 @@
 
 #include "internal.h"
 #include "ncsi-pkt.h"
+#include "ncsi-netlink.h"
 
 LIST_HEAD(ncsi_dev_list);
 DEFINE_SPINLOCK(ncsi_dev_lock);
@@ -38,7 +38,7 @@ static inline int ncsi_filter_size(int table)
 	return sizes[table];
 }
 
-static u32 *ncsi_get_filter(struct ncsi_channel *nc, int table, int index)
+u32 *ncsi_get_filter(struct ncsi_channel *nc, int table, int index)
 {
 	struct ncsi_channel_filter *ncf;
 	int size;
@@ -965,20 +965,37 @@ error:
 
 static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 {
-	struct ncsi_package *np;
-	struct ncsi_channel *nc, *found, *hot_nc;
+	struct ncsi_package *np, *force_package;
+	struct ncsi_channel *nc, *found, *hot_nc, *force_channel;
 	struct ncsi_channel_mode *ncm;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ndp->lock, flags);
 	hot_nc = ndp->hot_channel;
+	force_channel = ndp->force_channel;
+	force_package = ndp->force_package;
 	spin_unlock_irqrestore(&ndp->lock, flags);
+
+	/* Force a specific channel whether or not it has link if we have been
+	 * configured to do so
+	 */
+	if (force_package && force_channel) {
+		found = force_channel;
+		ncm = &found->modes[NCSI_MODE_LINK];
+		if (!(ncm->data[2] & 0x1))
+			netdev_info(ndp->ndev.dev,
+				    "NCSI: Channel %u forced, but it is link down\n",
+				    found->id);
+		goto out;
+	}
 
 	/* The search is done once an inactive channel with up
 	 * link is found.
 	 */
 	found = NULL;
 	NCSI_FOR_EACH_PACKAGE(ndp, np) {
+		if (ndp->force_package && np != ndp->force_package)
+			continue;
 		NCSI_FOR_EACH_CHANNEL(np, nc) {
 			spin_lock_irqsave(&nc->lock, flags);
 
@@ -1594,6 +1611,9 @@ struct ncsi_dev *ncsi_register_dev(struct net_device *dev,
 	ndp->ptype.dev = dev;
 	dev_add_pack(&ndp->ptype);
 
+	/* Set up generic netlink interface */
+	ncsi_init_netlink(dev);
+
 	return nd;
 }
 EXPORT_SYMBOL_GPL(ncsi_register_dev);
@@ -1672,6 +1692,8 @@ void ncsi_unregister_dev(struct ncsi_dev *nd)
 		unregister_inet6addr_notifier(&ncsi_inet6addr_notifier);
 #endif
 	spin_unlock_irqrestore(&ncsi_dev_lock, flags);
+
+	ncsi_unregister_netlink(nd->dev);
 
 	kfree(ndp);
 }
