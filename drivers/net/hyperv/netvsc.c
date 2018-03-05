@@ -852,13 +852,6 @@ int netvsc_send(struct net_device *ndev,
 	if (unlikely(!net_device || net_device->destroy))
 		return -ENODEV;
 
-	/* We may race with netvsc_connect_vsp()/netvsc_init_buf() and get
-	 * here before the negotiation with the host is finished and
-	 * send_section_map may not be allocated yet.
-	 */
-	if (unlikely(!net_device->send_section_map))
-		return -EAGAIN;
-
 	nvchan = &net_device->chan_table[packet->q_idx];
 	packet->send_buf_index = NETVSC_INVALID_INDEX;
 	packet->cp_partial = false;
@@ -866,10 +859,8 @@ int netvsc_send(struct net_device *ndev,
 	/* Send control message directly without accessing msd (Multi-Send
 	 * Data) field which may be changed during data packet processing.
 	 */
-	if (!skb) {
-		cur_send = packet;
-		goto send_now;
-	}
+	if (!skb)
+		return netvsc_send_pkt(device, packet, net_device, pb, skb);
 
 	/* batch packets in send buffer if possible */
 	msdp = &nvchan->msd;
@@ -953,7 +944,6 @@ int netvsc_send(struct net_device *ndev,
 		}
 	}
 
-send_now:
 	if (cur_send)
 		ret = netvsc_send_pkt(device, cur_send, net_device, pb, skb);
 
@@ -1217,9 +1207,10 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 	if (send_recv_completions(ndev, net_device, nvchan) == 0 &&
 	    work_done < budget &&
 	    napi_complete_done(napi, work_done) &&
-	    hv_end_read(&channel->inbound)) {
+	    hv_end_read(&channel->inbound) &&
+	    napi_schedule_prep(napi)) {
 		hv_begin_read(&channel->inbound);
-		napi_reschedule(napi);
+		__napi_schedule(napi);
 	}
 
 	/* Driver may overshoot since multiple packets per descriptor */
@@ -1242,7 +1233,7 @@ void netvsc_channel_cb(void *context)
 		/* disable interupts from host */
 		hv_begin_read(rbi);
 
-		__napi_schedule(&nvchan->napi);
+		__napi_schedule_irqoff(&nvchan->napi);
 	}
 }
 
@@ -1296,7 +1287,6 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 			 netvsc_channel_cb, net_device->chan_table);
 
 	if (ret != 0) {
-		netif_napi_del(&net_device->chan_table[0].napi);
 		netdev_err(ndev, "unable to open channel: %d\n", ret);
 		goto cleanup;
 	}
@@ -1306,11 +1296,6 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 
 	napi_enable(&net_device->chan_table[0].napi);
 
-	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
-	 * populated.
-	 */
-	rcu_assign_pointer(net_device_ctx->nvdev, net_device);
-
 	/* Connect with the NetVsp */
 	ret = netvsc_connect_vsp(device, net_device, device_info);
 	if (ret != 0) {
@@ -1318,6 +1303,11 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 			"unable to connect to NetVSP - %d\n", ret);
 		goto close;
 	}
+
+	/* Writing nvdev pointer unlocks netvsc_send(), make sure chn_table is
+	 * populated.
+	 */
+	rcu_assign_pointer(net_device_ctx->nvdev, net_device);
 
 	return net_device;
 
@@ -1329,6 +1319,7 @@ close:
 	vmbus_close(device->channel);
 
 cleanup:
+	netif_napi_del(&net_device->chan_table[0].napi);
 	free_netvsc_device(&net_device->rcu);
 
 	return ERR_PTR(ret);
