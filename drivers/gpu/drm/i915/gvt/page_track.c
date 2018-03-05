@@ -164,8 +164,10 @@ int intel_vgpu_page_track_handler(struct intel_vgpu *vgpu, u64 gpa,
 	mutex_lock(&gvt->lock);
 
 	page_track = intel_vgpu_find_page_track(vgpu, gpa >> PAGE_SHIFT);
-	if (!page_track)
+	if (!page_track) {
+		ret = -ENXIO;
 		goto out;
+	}
 
 	if (unlikely(vgpu->failsafe)) {
 		/* Remove write protection to prevent furture traps. */
