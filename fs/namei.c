@@ -2015,6 +2015,9 @@ static const char *path_init(struct nameidata *nd, unsigned flags)
 	int retval = 0;
 	const char *s = nd->name->name;
 
+	if (!*s)
+		flags &= ~LOOKUP_RCU;
+
 	nd->last_type = LAST_ROOT; /* if there are only slashes... */
 	nd->flags = flags | LOOKUP_JUMPED | LOOKUP_PARENT;
 	nd->depth = 0;

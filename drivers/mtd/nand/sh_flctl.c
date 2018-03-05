@@ -160,7 +160,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.direction = DMA_MEM_TO_DEV;
-	cfg.dst_addr = (dma_addr_t)FLDTFIFO(flctl);
+	cfg.dst_addr = flctl->fifo;
 	cfg.src_addr = 0;
 	ret = dmaengine_slave_config(flctl->chan_fifo0_tx, &cfg);
 	if (ret < 0)
@@ -176,7 +176,7 @@ static void flctl_setup_dma(struct sh_flctl *flctl)
 
 	cfg.direction = DMA_DEV_TO_MEM;
 	cfg.dst_addr = 0;
-	cfg.src_addr = (dma_addr_t)FLDTFIFO(flctl);
+	cfg.src_addr = flctl->fifo;
 	ret = dmaengine_slave_config(flctl->chan_fifo0_rx, &cfg);
 	if (ret < 0)
 		goto err;
@@ -1096,6 +1096,7 @@ static int flctl_probe(struct platform_device *pdev)
 	flctl->reg = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(flctl->reg))
 		return PTR_ERR(flctl->reg);
+	flctl->fifo = res->start + 0x24; /* FLDTFIFO */
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {

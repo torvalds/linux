@@ -390,6 +390,8 @@ struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
 		if (rv)
 			goto use_default_name;
 	} else {
+		int rv;
+
 use_default_name:
 		/* NOTE:  This is *probably* safe w/out holding rtnl because of
 		 * the restrictions on phy names.  Probably this call could
@@ -397,7 +399,11 @@ use_default_name:
 		 * phyX.  But, might should add some locking and check return
 		 * value, and use a different name if this one exists?
 		 */
-		dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
+		rv = dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
+		if (rv < 0) {
+			kfree(rdev);
+			return NULL;
+		}
 	}
 
 	INIT_LIST_HEAD(&rdev->wdev_list);

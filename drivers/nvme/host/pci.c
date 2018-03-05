@@ -2976,10 +2976,16 @@ static void nvme_dev_shutdown(struct nvme_dev *dev)
 	mutex_unlock(&dev->shutdown_lock);
 }
 
-static void nvme_dev_remove(struct nvme_dev *dev)
+static void nvme_remove_namespaces(struct nvme_dev *dev)
 {
 	struct nvme_ns *ns, *next;
 
+	list_for_each_entry_safe(ns, next, &dev->namespaces, list)
+		nvme_ns_remove(ns);
+}
+
+static void nvme_dev_remove(struct nvme_dev *dev)
+{
 	if (nvme_io_incapable(dev)) {
 		/*
 		 * If the device is not capable of IO (surprise hot-removal,
@@ -2989,8 +2995,7 @@ static void nvme_dev_remove(struct nvme_dev *dev)
 		 */
 		nvme_dev_shutdown(dev);
 	}
-	list_for_each_entry_safe(ns, next, &dev->namespaces, list)
-		nvme_ns_remove(ns);
+	nvme_remove_namespaces(dev);
 }
 
 static int nvme_setup_prp_pools(struct nvme_dev *dev)
@@ -3174,7 +3179,7 @@ static void nvme_probe_work(struct work_struct *work)
 	 */
 	if (dev->online_queues < 2) {
 		dev_warn(dev->dev, "IO queues not created\n");
-		nvme_dev_remove(dev);
+		nvme_remove_namespaces(dev);
 	} else {
 		nvme_unfreeze_queues(dev);
 		nvme_dev_add(dev);

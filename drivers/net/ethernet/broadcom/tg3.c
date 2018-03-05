@@ -10051,6 +10051,16 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 
 	tw32(GRC_MODE, tp->grc_mode | val);
 
+	/* On one of the AMD platform, MRRS is restricted to 4000 because of
+	 * south bridge limitation. As a workaround, Driver is setting MRRS
+	 * to 2048 instead of default 4096.
+	 */
+	if (tp->pdev->subsystem_vendor == PCI_VENDOR_ID_DELL &&
+	    tp->pdev->subsystem_device == TG3PCI_SUBDEVICE_ID_DELL_5762) {
+		val = tr32(TG3PCI_DEV_STATUS_CTRL) & ~MAX_READ_REQ_MASK;
+		tw32(TG3PCI_DEV_STATUS_CTRL, val | MAX_READ_REQ_SIZE_2048);
+	}
+
 	/* Setup the timer prescalar register.  Clock is always 66Mhz. */
 	val = tr32(GRC_MISC_CFG);
 	val &= ~0xff;
@@ -14230,7 +14240,8 @@ static int tg3_change_mtu(struct net_device *dev, int new_mtu)
 	 */
 	if (tg3_asic_rev(tp) == ASIC_REV_57766 ||
 	    tg3_asic_rev(tp) == ASIC_REV_5717 ||
-	    tg3_asic_rev(tp) == ASIC_REV_5719)
+	    tg3_asic_rev(tp) == ASIC_REV_5719 ||
+	    tg3_asic_rev(tp) == ASIC_REV_5720)
 		reset_phy = true;
 
 	err = tg3_restart_hw(tp, reset_phy);

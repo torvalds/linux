@@ -825,6 +825,9 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 		goto error2;
 	}
 
+	/* Device-specific flags */
+	ctx->drvflags = drvflags;
+
 	/*
 	 * Some Huawei devices have been observed to come out of reset in NDP32 mode.
 	 * Let's check if this is the case, and set the device to NDP16 mode again if
@@ -872,9 +875,6 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 
 	/* finish setting up the device specific data */
 	cdc_ncm_setup(dev);
-
-	/* Device-specific flags */
-	ctx->drvflags = drvflags;
 
 	/* Allocate the delayed NDP if needed. */
 	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END) {

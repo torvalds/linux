@@ -188,8 +188,8 @@ static void release_pmc_hardware(void) {}
 
 static bool check_hw_exists(void)
 {
-	u64 val, val_fail, val_new= ~0;
-	int i, reg, reg_fail, ret = 0;
+	u64 val, val_fail = -1, val_new= ~0;
+	int i, reg, reg_fail = -1, ret = 0;
 	int bios_fail = 0;
 	int reg_safe = -1;
 
