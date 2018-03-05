@@ -883,16 +883,6 @@ free_tms:
 	return ret;
 }
 
-static noinline void
-tree_mod_log_set_root_pointer(struct btrfs_root *root,
-			      struct extent_buffer *new_root_node,
-			      int log_removal)
-{
-	int ret;
-	ret = tree_mod_log_insert_root(root->node, new_root_node, log_removal);
-	BUG_ON(ret < 0);
-}
-
 /*
  * check if the tree block can be shared by multiple trees
  */
@@ -1119,7 +1109,8 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			parent_start = buf->start;
 
 		extent_buffer_get(cow);
-		tree_mod_log_set_root_pointer(root, cow, 1);
+		ret = tree_mod_log_insert_root(root->node, cow, 1);
+		BUG_ON(ret < 0);
 		rcu_assign_pointer(root->node, cow);
 
 		btrfs_free_tree_block(trans, root, buf, parent_start,
@@ -1873,7 +1864,8 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto enospc;
 		}
 
-		tree_mod_log_set_root_pointer(root, child, 1);
+		ret = tree_mod_log_insert_root(root->node, child, 1);
+		BUG_ON(ret < 0);
 		rcu_assign_pointer(root->node, child);
 
 		add_root_to_dirty_list(root);
@@ -3319,6 +3311,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	struct extent_buffer *c;
 	struct extent_buffer *old;
 	struct btrfs_disk_key lower_key;
+	int ret;
 
 	BUG_ON(path->nodes[level]);
 	BUG_ON(path->nodes[level-1] != root->node);
@@ -3357,7 +3350,8 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(c);
 
 	old = root->node;
-	tree_mod_log_set_root_pointer(root, c, 0);
+	ret = tree_mod_log_insert_root(root->node, c, 0);
+	BUG_ON(ret < 0);
 	rcu_assign_pointer(root->node, c);
 
 	/* the super has an extra ref to root->node */
