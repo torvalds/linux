@@ -884,8 +884,7 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 
 	pt->_key = epi->event.events;
 	if (!is_file_epoll(epi->ffd.file))
-		return epi->ffd.file->f_op->poll(epi->ffd.file, pt) &
-		       epi->event.events;
+		return vfs_poll(epi->ffd.file, pt) & epi->event.events;
 
 	ep = epi->ffd.file->private_data;
 	poll_wait(epi->ffd.file, &ep->poll_wait, pt);
@@ -2025,7 +2024,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 
 	/* The target file descriptor must support poll */
 	error = -EPERM;
-	if (!tf.file->f_op->poll)
+	if (!file_can_poll(tf.file))
 		goto error_tgt_fput;
 
 	/* Check if EPOLLWAKEUP is allowed */

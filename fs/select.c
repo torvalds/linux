@@ -502,14 +502,10 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 					continue;
 				f = fdget(i);
 				if (f.file) {
-					const struct file_operations *f_op;
-					f_op = f.file->f_op;
-					mask = DEFAULT_POLLMASK;
-					if (f_op->poll) {
-						wait_key_set(wait, in, out,
-							     bit, busy_flag);
-						mask = (*f_op->poll)(f.file, wait);
-					}
+					wait_key_set(wait, in, out, bit,
+						     busy_flag);
+					mask = vfs_poll(f.file, wait);
+
 					fdput(f);
 					if ((mask & POLLIN_SET) && (in & bit)) {
 						res_in |= bit;
@@ -825,13 +821,10 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 
 	/* userland u16 ->events contains POLL... bitmap */
 	filter = demangle_poll(pollfd->events) | EPOLLERR | EPOLLHUP;
-	mask = DEFAULT_POLLMASK;
-	if (f.file->f_op->poll) {
-		pwait->_key = filter | busy_flag;
-		mask = f.file->f_op->poll(f.file, pwait);
-		if (mask & busy_flag)
-			*can_busy_poll = true;
-	}
+	pwait->_key = filter | busy_flag;
+	mask = vfs_poll(f.file, pwait);
+	if (mask & busy_flag)
+		*can_busy_poll = true;
 	mask &= filter;		/* Mask out unneeded events. */
 	fdput(f);
 
