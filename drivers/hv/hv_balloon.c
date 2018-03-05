@@ -34,6 +34,9 @@
 
 #include <linux/hyperv.h>
 
+#define CREATE_TRACE_POINTS
+#include "hv_trace_balloon.h"
+
 /*
  * We begin with definitions supporting the Dynamic Memory protocol
  * with the host.
@@ -1159,6 +1162,9 @@ static void post_status(struct hv_dynmem_device *dm)
 		 dm->num_pages_added - dm->num_pages_onlined : 0) +
 		compute_balloon_floor();
 
+	trace_balloon_status(status.num_avail, status.num_committed,
+			     vm_memory_committed(), dm->num_pages_ballooned,
+			     dm->num_pages_added, dm->num_pages_onlined);
 	/*
 	 * If our transaction ID is no longer current, just don't
 	 * send the status. This can happen if we were interrupted
