@@ -400,6 +400,14 @@ config GPIO_PL061
 	help
 	  Say yes here to support the PrimeCell PL061 GPIO device
 
+config GPIO_PMIC_EIC_SPRD
+	tristate "Spreadtrum PMIC EIC support"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	depends on OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  Say yes here to support Spreadtrum PMIC EIC device.
+
 config GPIO_PXA
 	bool "PXA GPIO support"
 	depends on ARCH_PXA || ARCH_MMP
