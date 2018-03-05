@@ -160,6 +160,7 @@ struct sci_port {
 #define SCI_NPORTS CONFIG_SERIAL_SH_SCI_NR_UARTS
 
 static struct sci_port sci_ports[SCI_NPORTS];
+static unsigned long sci_ports_in_use;
 static struct uart_driver sci_uart_driver;
 
 static inline struct sci_port *
@@ -3026,6 +3027,7 @@ static int sci_remove(struct platform_device *dev)
 {
 	struct sci_port *port = platform_get_drvdata(dev);
 
+	sci_ports_in_use &= ~BIT(port->port.line);
 	uart_remove_one_port(&sci_uart_driver, &port->port);
 
 	sci_cleanup_single(port);
@@ -3107,6 +3109,8 @@ static struct plat_sci_port *sci_parse_dt(struct platform_device *pdev,
 
 	/* Get the line number from the aliases node. */
 	id = of_alias_get_id(np, "serial");
+	if (id < 0 && ~sci_ports_in_use)
+		id = ffz(sci_ports_in_use);
 	if (id < 0) {
 		dev_err(&pdev->dev, "failed to get alias id (%d)\n", id);
 		return NULL;
@@ -3141,6 +3145,9 @@ static int sci_probe_single(struct platform_device *dev,
 		dev_notice(&dev->dev, "Consider bumping CONFIG_SERIAL_SH_SCI_NR_UARTS!\n");
 		return -EINVAL;
 	}
+	BUILD_BUG_ON(SCI_NPORTS > sizeof(sci_ports_in_use) * 8);
+	if (sci_ports_in_use & BIT(index))
+		return -EBUSY;
 
 	mutex_lock(&sci_uart_registration_lock);
 	if (!sci_uart_driver.state) {
@@ -3239,6 +3246,7 @@ static int sci_probe(struct platform_device *dev)
 	sh_bios_gdb_detach();
 #endif
 
+	sci_ports_in_use |= BIT(dev_id);
 	return 0;
 }
 
