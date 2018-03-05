@@ -1820,6 +1820,10 @@ static int sctp_sendmsg_check_sflags(struct sctp_association *asoc,
 	if (sctp_state(asoc, CLOSED) && sctp_style(sk, TCP))
 		return -EPIPE;
 
+	if ((sflags & SCTP_SENDALL) && sctp_style(sk, UDP) &&
+	    !sctp_state(asoc, ESTABLISHED))
+		return 0;
+
 	if (sflags & SCTP_EOF) {
 		pr_debug("%s: shutting down association:%p\n", __func__, asoc);
 		sctp_primitive_SHUTDOWN(net, asoc, NULL);
@@ -2006,6 +2010,29 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	}
 
 	lock_sock(sk);
+
+	/* SCTP_SENDALL process */
+	if ((sflags & SCTP_SENDALL) && sctp_style(sk, UDP)) {
+		list_for_each_entry(asoc, &ep->asocs, asocs) {
+			err = sctp_sendmsg_check_sflags(asoc, sflags, msg,
+							msg_len);
+			if (err == 0)
+				continue;
+			if (err < 0)
+				goto out_unlock;
+
+			sctp_sendmsg_update_sinfo(asoc, sinfo, &cmsgs);
+
+			err = sctp_sendmsg_to_asoc(asoc, msg, msg_len,
+						   NULL, sinfo);
+			if (err < 0)
+				goto out_unlock;
+
+			iov_iter_revert(&msg->msg_iter, err);
+		}
+
+		goto out_unlock;
+	}
 
 	/* Get and check or create asoc */
 	if (daddr) {
@@ -7792,8 +7819,8 @@ static int sctp_msghdr_parse(const struct msghdr *msg, struct sctp_cmsgs *cmsgs)
 
 			if (cmsgs->srinfo->sinfo_flags &
 			    ~(SCTP_UNORDERED | SCTP_ADDR_OVER |
-			      SCTP_SACK_IMMEDIATELY | SCTP_PR_SCTP_MASK |
-			      SCTP_ABORT | SCTP_EOF))
+			      SCTP_SACK_IMMEDIATELY | SCTP_SENDALL |
+			      SCTP_PR_SCTP_MASK | SCTP_ABORT | SCTP_EOF))
 				return -EINVAL;
 			break;
 
@@ -7816,8 +7843,8 @@ static int sctp_msghdr_parse(const struct msghdr *msg, struct sctp_cmsgs *cmsgs)
 
 			if (cmsgs->sinfo->snd_flags &
 			    ~(SCTP_UNORDERED | SCTP_ADDR_OVER |
-			      SCTP_SACK_IMMEDIATELY | SCTP_PR_SCTP_MASK |
-			      SCTP_ABORT | SCTP_EOF))
+			      SCTP_SACK_IMMEDIATELY | SCTP_SENDALL |
+			      SCTP_PR_SCTP_MASK | SCTP_ABORT | SCTP_EOF))
 				return -EINVAL;
 			break;
 		case SCTP_PRINFO:
