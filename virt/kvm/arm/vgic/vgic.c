@@ -495,6 +495,32 @@ int kvm_vgic_map_phys_irq(struct kvm_vcpu *vcpu, unsigned int host_irq,
 	return ret;
 }
 
+/**
+ * kvm_vgic_reset_mapped_irq - Reset a mapped IRQ
+ * @vcpu: The VCPU pointer
+ * @vintid: The INTID of the interrupt
+ *
+ * Reset the active and pending states of a mapped interrupt.  Kernel
+ * subsystems injecting mapped interrupts should reset their interrupt lines
+ * when we are doing a reset of the VM.
+ */
+void kvm_vgic_reset_mapped_irq(struct kvm_vcpu *vcpu, u32 vintid)
+{
+	struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, vintid);
+	unsigned long flags;
+
+	if (!irq->hw)
+		goto out;
+
+	spin_lock_irqsave(&irq->irq_lock, flags);
+	irq->active = false;
+	irq->pending_latch = false;
+	irq->line_level = false;
+	spin_unlock_irqrestore(&irq->irq_lock, flags);
+out:
+	vgic_put_irq(vcpu->kvm, irq);
+}
+
 int kvm_vgic_unmap_phys_irq(struct kvm_vcpu *vcpu, unsigned int vintid)
 {
 	struct vgic_irq *irq;
