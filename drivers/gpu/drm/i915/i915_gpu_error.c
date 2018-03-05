@@ -1102,27 +1102,6 @@ static void i915_gem_record_fences(struct drm_i915_private *dev_priv,
 	error->nfence = i;
 }
 
-static inline u32
-gen8_engine_sync_index(struct intel_engine_cs *engine,
-		       struct intel_engine_cs *other)
-{
-	int idx;
-
-	/*
-	 * rcs -> 0 = vcs, 1 = bcs, 2 = vecs, 3 = vcs2;
-	 * vcs -> 0 = bcs, 1 = vecs, 2 = vcs2, 3 = rcs;
-	 * bcs -> 0 = vecs, 1 = vcs2. 2 = rcs, 3 = vcs;
-	 * vecs -> 0 = vcs2, 1 = rcs, 2 = vcs, 3 = bcs;
-	 * vcs2 -> 0 = rcs, 1 = vcs, 2 = bcs, 3 = vecs;
-	 */
-
-	idx = (other - engine) - 1;
-	if (idx < 0)
-		idx += I915_NUM_ENGINES;
-
-	return idx;
-}
-
 static void gen6_record_semaphore_state(struct intel_engine_cs *engine,
 					struct drm_i915_error_engine *ee)
 {
