@@ -1741,8 +1741,8 @@ int ath10k_wmi_cmd_send_nowait(struct ath10k *ar, struct sk_buff *skb,
 	cmd_hdr->cmd_id = __cpu_to_le32(cmd);
 
 	memset(skb_cb, 0, sizeof(*skb_cb));
+	trace_ath10k_wmi_cmd(ar, cmd_id, skb->data, skb->len);
 	ret = ath10k_htc_send(&ar->htc, ar->wmi.eid, skb);
-	trace_ath10k_wmi_cmd(ar, cmd_id, skb->data, skb->len, ret);
 
 	if (ret)
 		goto err_pull;
