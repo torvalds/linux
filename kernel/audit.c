@@ -1615,19 +1615,26 @@ static int __init audit_init(void)
 }
 postcore_initcall(audit_init);
 
-/* Process kernel command-line parameter at boot time.  audit=0 or audit=1. */
+/*
+ * Process kernel command-line parameter at boot time.
+ * audit={0|off} or audit={1|on}.
+ */
 static int __init audit_enable(char *str)
 {
-	long val;
-
-	if (kstrtol(str, 0, &val))
-		panic("audit: invalid 'audit' parameter value (%s)\n", str);
-	audit_default = (val ? AUDIT_ON : AUDIT_OFF);
+	if (!strcasecmp(str, "off") || !strcmp(str, "0"))
+		audit_default = AUDIT_OFF;
+	else if (!strcasecmp(str, "on") || !strcmp(str, "1"))
+		audit_default = AUDIT_ON;
+	else {
+		pr_err("audit: invalid 'audit' parameter value (%s)\n", str);
+		audit_default = AUDIT_ON;
+	}
 
 	if (audit_default == AUDIT_OFF)
 		audit_initialized = AUDIT_DISABLED;
 	if (audit_set_enabled(audit_default))
-		panic("audit: error setting audit state (%d)\n", audit_default);
+		pr_err("audit: error setting audit state (%d)\n",
+		       audit_default);
 
 	pr_info("%s\n", audit_default ?
 		"enabled (after initialization)" : "disabled (until reboot)");
