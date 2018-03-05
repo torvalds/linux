@@ -28,7 +28,6 @@
 #include <linux/power/gpio-charger.h>
 
 struct gpio_charger {
-	const struct gpio_charger_platform_data *pdata;
 	unsigned int irq;
 	bool wakeup_enabled;
 
@@ -67,51 +66,36 @@ static int gpio_charger_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static enum power_supply_type gpio_charger_get_type(struct device *dev)
+{
+	const char *chargetype;
+
+	if (!device_property_read_string(dev, "charger-type", &chargetype)) {
+		if (!strcmp("unknown", chargetype))
+			return POWER_SUPPLY_TYPE_UNKNOWN;
+		if (!strcmp("battery", chargetype))
+			return POWER_SUPPLY_TYPE_BATTERY;
+		if (!strcmp("ups", chargetype))
+			return POWER_SUPPLY_TYPE_UPS;
+		if (!strcmp("mains", chargetype))
+			return POWER_SUPPLY_TYPE_MAINS;
+		if (!strcmp("usb-sdp", chargetype))
+			return POWER_SUPPLY_TYPE_USB;
+		if (!strcmp("usb-dcp", chargetype))
+			return POWER_SUPPLY_TYPE_USB_DCP;
+		if (!strcmp("usb-cdp", chargetype))
+			return POWER_SUPPLY_TYPE_USB_CDP;
+		if (!strcmp("usb-aca", chargetype))
+			return POWER_SUPPLY_TYPE_USB_ACA;
+	}
+	dev_warn(dev, "unknown charger type %s\n", chargetype);
+
+	return POWER_SUPPLY_TYPE_UNKNOWN;
+}
+
 static enum power_supply_property gpio_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
-
-static
-struct gpio_charger_platform_data *gpio_charger_parse_dt(struct device *dev)
-{
-	struct device_node *np = dev->of_node;
-	struct gpio_charger_platform_data *pdata;
-	const char *chargetype;
-	int ret;
-
-	if (!np)
-		return ERR_PTR(-ENOENT);
-
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
-
-	pdata->name = np->name;
-	pdata->type = POWER_SUPPLY_TYPE_UNKNOWN;
-	ret = of_property_read_string(np, "charger-type", &chargetype);
-	if (ret >= 0) {
-		if (!strncmp("unknown", chargetype, 7))
-			pdata->type = POWER_SUPPLY_TYPE_UNKNOWN;
-		else if (!strncmp("battery", chargetype, 7))
-			pdata->type = POWER_SUPPLY_TYPE_BATTERY;
-		else if (!strncmp("ups", chargetype, 3))
-			pdata->type = POWER_SUPPLY_TYPE_UPS;
-		else if (!strncmp("mains", chargetype, 5))
-			pdata->type = POWER_SUPPLY_TYPE_MAINS;
-		else if (!strncmp("usb-sdp", chargetype, 7))
-			pdata->type = POWER_SUPPLY_TYPE_USB;
-		else if (!strncmp("usb-dcp", chargetype, 7))
-			pdata->type = POWER_SUPPLY_TYPE_USB_DCP;
-		else if (!strncmp("usb-cdp", chargetype, 7))
-			pdata->type = POWER_SUPPLY_TYPE_USB_CDP;
-		else if (!strncmp("usb-aca", chargetype, 7))
-			pdata->type = POWER_SUPPLY_TYPE_USB_ACA;
-		else
-			dev_warn(dev, "unknown charger type %s\n", chargetype);
-	}
-
-	return pdata;
-}
 
 static int gpio_charger_probe(struct platform_device *pdev)
 {
@@ -123,14 +107,9 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	unsigned long flags;
 	int irq, ret;
 
-	if (!pdata) {
-		pdata = gpio_charger_parse_dt(dev);
-		if (IS_ERR(pdata)) {
-			ret = PTR_ERR(pdata);
-			if (ret != -EPROBE_DEFER)
-				dev_err(dev, "No platform data\n");
-			return ret;
-		}
+	if (!pdata && !dev->of_node) {
+		dev_err(dev, "No platform data\n");
+		return -ENOENT;
 	}
 
 	gpio_charger = devm_kzalloc(dev, sizeof(*gpio_charger), GFP_KERNEL);
@@ -173,17 +152,25 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	}
 
 	charger_desc = &gpio_charger->charger_desc;
-
-	charger_desc->name = pdata->name ? pdata->name : "gpio-charger";
-	charger_desc->type = pdata->type;
 	charger_desc->properties = gpio_charger_properties;
 	charger_desc->num_properties = ARRAY_SIZE(gpio_charger_properties);
 	charger_desc->get_property = gpio_charger_get_property;
 
-	psy_cfg.supplied_to = pdata->supplied_to;
-	psy_cfg.num_supplicants = pdata->num_supplicants;
 	psy_cfg.of_node = dev->of_node;
 	psy_cfg.drv_data = gpio_charger;
+
+	if (pdata) {
+		charger_desc->name = pdata->name;
+		charger_desc->type = pdata->type;
+		psy_cfg.supplied_to = pdata->supplied_to;
+		psy_cfg.num_supplicants = pdata->num_supplicants;
+	} else {
+		charger_desc->name = dev->of_node->name;
+		charger_desc->type = gpio_charger_get_type(dev);
+	}
+
+	if (!charger_desc->name)
+		charger_desc->name = pdev->name;
 
 	gpio_charger->charger = devm_power_supply_register(dev, charger_desc,
 							   &psy_cfg);
