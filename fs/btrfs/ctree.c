@@ -654,12 +654,10 @@ __tree_mod_log_free_eb(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-static noinline int
-tree_mod_log_insert_root(struct btrfs_fs_info *fs_info,
-			 struct extent_buffer *old_root,
-			 struct extent_buffer *new_root,
-			 int log_removal)
+static noinline int tree_mod_log_insert_root(struct extent_buffer *old_root,
+			 struct extent_buffer *new_root, int log_removal)
 {
+	struct btrfs_fs_info *fs_info = old_root->fs_info;
 	struct tree_mod_elem *tm = NULL;
 	struct tree_mod_elem **tm_list = NULL;
 	int nritems = 0;
@@ -932,8 +930,7 @@ tree_mod_log_set_root_pointer(struct btrfs_root *root,
 			      int log_removal)
 {
 	int ret;
-	ret = tree_mod_log_insert_root(root->fs_info, root->node,
-				       new_root_node, log_removal);
+	ret = tree_mod_log_insert_root(root->node, new_root_node, log_removal);
 	BUG_ON(ret < 0);
 }
 
