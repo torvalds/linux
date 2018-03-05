@@ -16,6 +16,8 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/smp.h>
+#include <linux/sys_soc.h>
 #include <linux/watchdog.h>
 
 #define RWTCNT		0
@@ -121,6 +123,44 @@ static const struct watchdog_ops rwdt_ops = {
 	.get_timeleft = rwdt_get_timeleft,
 };
 
+#if defined(CONFIG_ARCH_RCAR_GEN2) && defined(CONFIG_SMP)
+/*
+ * Watchdog-reset integration is broken on early revisions of R-Car Gen2 SoCs
+ */
+static const struct soc_device_attribute rwdt_quirks_match[] = {
+	{
+		.soc_id = "r8a7790",
+		.revision = "ES1.*",
+		.data = (void *)1,	/* needs single CPU */
+	}, {
+		.soc_id = "r8a7791",
+		.revision = "ES[12].*",
+		.data = (void *)1,	/* needs single CPU */
+	}, {
+		.soc_id = "r8a7792",
+		.revision = "*",
+		.data = (void *)0,	/* needs SMP disabled */
+	},
+	{ /* sentinel */ }
+};
+
+static bool rwdt_blacklisted(struct device *dev)
+{
+	const struct soc_device_attribute *attr;
+
+	attr = soc_device_match(rwdt_quirks_match);
+	if (attr && setup_max_cpus > (uintptr_t)attr->data) {
+		dev_info(dev, "Watchdog blacklisted on %s %s\n", attr->soc_id,
+			 attr->revision);
+		return true;
+	}
+
+	return false;
+}
+#else /* !CONFIG_ARCH_RCAR_GEN2 || !CONFIG_SMP */
+static inline bool rwdt_blacklisted(struct device *dev) { return false; }
+#endif /* !CONFIG_ARCH_RCAR_GEN2 || !CONFIG_SMP */
+
 static int rwdt_probe(struct platform_device *pdev)
 {
 	struct rwdt_priv *priv;
@@ -128,6 +168,9 @@ static int rwdt_probe(struct platform_device *pdev)
 	struct clk *clk;
 	unsigned long clks_per_sec;
 	int ret, i;
+
+	if (rwdt_blacklisted(&pdev->dev))
+		return -ENODEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -228,12 +271,8 @@ static int __maybe_unused rwdt_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(rwdt_pm_ops, rwdt_suspend, rwdt_resume);
 
-/*
- * This driver does also fit for R-Car Gen2 (r8a779[0-4]) WDT. However, for SMP
- * to work there, one also needs a RESET (RST) driver which does not exist yet
- * due to HW issues. This needs to be solved before adding compatibles here.
- */
 static const struct of_device_id rwdt_ids[] = {
+	{ .compatible = "renesas,rcar-gen2-wdt", },
 	{ .compatible = "renesas,rcar-gen3-wdt", },
 	{ /* sentinel */ }
 };
