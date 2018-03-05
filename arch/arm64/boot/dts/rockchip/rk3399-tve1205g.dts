@@ -41,7 +41,7 @@
  */
 
 /dts-v1/;
-#include <dt-bindings/pinctrl/rk.h>
+#include <dt-bindings/pinctrl/rockchip.h>
 #include "rk3399.dtsi"
 #include "rk3399-android.dtsi"
 #include "rk3399-opp.dtsi"
@@ -55,7 +55,7 @@
 		compatible = "auo,b125han03";
 		backlight = <&backlight>;
 		power-supply = <&vcc3v3_s0>;
-		enable-gpios = <&gpio3 GPIO_A0 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
 		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
 		prepare-delay-ms = <50>;
 		ports {
@@ -69,8 +69,8 @@
 		compatible = "usb-cam-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_cam_on_gpio>;
-		hd-cam-gpios = <&gpio3 GPIO_A1 GPIO_ACTIVE_HIGH>;
-		ir-cam-gpios = <&gpio3 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		hd-cam-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+		ir-cam-gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
 
@@ -151,7 +151,7 @@
 			246 247 248 248 249 250 251 251
 			252 253 254 254 255 255 255 255>;
 		default-brightness-level = <200>;
-		enable-gpios = <&gpio3 GPIO_A4 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
 	};
 
 	vcc_phy: vcc-phy-regulator {
@@ -232,39 +232,39 @@
 		pinctrl-0 =<&leds_gpio>;
 
 		led@1 {
-			gpios = <&gpio1 GPIO_C6 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
 			label = "battery_led_amber";
 			retain-state-suspended;
 		};
 
 		led@2 {
-			gpios = <&gpio1 GPIO_D0 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
 			label = "battery_led_white";
 			retain-state-suspended;
 		};
 
 		led@3 {
-			gpios = <&gpio3 GPIO_A5 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
 			label = "call_answer_led";
 		};
 
 		led@4 {
-			gpios = <&gpio3 GPIO_B1 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_HIGH>;
 			label = "call_decline_led";
 		};
 
 		led@5 {
-			gpios = <&gpio2 GPIO_D3 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 RK_PD3 GPIO_ACTIVE_HIGH>;
 			label = "rec_mute_led";
 		};
 
 		led@6 {
-			gpios = <&gpio2 GPIO_D4 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio2 RK_PD4 GPIO_ACTIVE_HIGH>;
 			label = "play_mute_led";
 		};
 
 		led@7 {
-			gpios = <&gpio4 GPIO_D2 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio4 RK_PD2 GPIO_ACTIVE_HIGH>;
 			label = "wl_led";
 		};
 	};
@@ -323,7 +323,7 @@
 		compatible = "hall-mh248";
 		pinctrl-names = "default";
 		pinctrl-0 = <&mh248_irq_gpio>;
-		irq-gpio = <&gpio0 GPIO_A1 IRQ_TYPE_EDGE_BOTH>;
+		irq-gpio = <&gpio0 RK_PA1 IRQ_TYPE_EDGE_BOTH>;
 		hall-active = <1>;
 		status = "okay";
 	};
@@ -719,7 +719,7 @@
 		clock-frequency = <100000>;
 		compatible = "hid-over-i2c";
 		interrupt-parent = <&gpio0>;
-		interrupts = <GPIO_B0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PB0 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hidkey_irq_gpio>;
 		reg = <0x68>;
@@ -732,7 +732,7 @@
 		reg = <0x76>;
 		virtual_power = <0>;
 		monitor_sec = <5>;
-		ec-notify-gpios = <&gpio1 GPIO_C4 GPIO_ACTIVE_HIGH>;
+		ec-notify-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -745,7 +745,7 @@
 	touchpad: touchpad@2c {
 		compatible = "hid-over-i2c";
 		interrupt-parent = <&gpio1>;
-		interrupts = <GPIO_C2 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PC2 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touchpad_irq_gpio>;
 		reg = <0x2c>;
@@ -777,8 +777,8 @@
 		ti,otg-voltage = <5000000>;
 		ti,otg-current = <500000>;
 		pd-charge-only = <1>;
-		typec0-enable-gpios = <&gpio1 GPIO_A3 GPIO_ACTIVE_HIGH>;
-		typec1-enable-gpios = <&gpio1 GPIO_A4 GPIO_ACTIVE_HIGH>;
+		typec0-enable-gpios = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
+		typec1-enable-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -793,9 +793,9 @@
 		reg = <0x22>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb1_int>;
-		vbus-5v-gpios = <&gpio4 GPIO_D6 GPIO_ACTIVE_HIGH>;
-		int-n-gpios = <&gpio1 GPIO_B5 GPIO_ACTIVE_HIGH>;
-		discharge-gpios = <&gpio0 GPIO_B5 GPIO_ACTIVE_HIGH>;
+		vbus-5v-gpios = <&gpio4 RK_PD6 GPIO_ACTIVE_HIGH>;
+		int-n-gpios = <&gpio1 RK_PB5 GPIO_ACTIVE_HIGH>;
+		discharge-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
 		charge-dev = <&bq25700>;
 		support-uboot-charge = <1>;
 		port-num = <1>;
@@ -814,9 +814,9 @@
 		reg = <0x22>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb0_int>;
-		vbus-5v-gpios = <&gpio4 GPIO_D5 GPIO_ACTIVE_HIGH>;
-		int-n-gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_HIGH>;
-		discharge-gpios = <&gpio0 GPIO_B4 GPIO_ACTIVE_HIGH>;
+		vbus-5v-gpios = <&gpio4 RK_PD5 GPIO_ACTIVE_HIGH>;
+		int-n-gpios = <&gpio1 RK_PA2 GPIO_ACTIVE_HIGH>;
+		discharge-gpios = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 		charge-dev = <&bq25700>;
 		support-uboot-charge = <1>;
 		port-num = <0>;
@@ -1076,19 +1076,19 @@
 
 	hallsensor {
 		mh248_irq_gpio: mh248-irq-gpio {
-			rockchip,pins = <0 GPIO_A1 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	hidkey {
 		hidkey_irq_gpio: hidkey-irq-gpio {
-			rockchip,pins = <0 GPIO_B0 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	touchpad {
 		touchpad_irq_gpio: touchpad-irq-gpio {
-			rockchip,pins = <1 GPIO_C2 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <1 RK_PC2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -1102,13 +1102,13 @@
 	gpio-leds {
 		leds_gpio: leds-gpio {
 			rockchip,pins =
-				<1 GPIO_C6 RK_FUNC_GPIO &pcfg_pull_up>,
-				<1 GPIO_D0 RK_FUNC_GPIO &pcfg_pull_up>,
-				<3 GPIO_A5 RK_FUNC_GPIO &pcfg_pull_up>,
-				<3 GPIO_B1 RK_FUNC_GPIO &pcfg_pull_up>,
-				<2 GPIO_D3 RK_FUNC_GPIO &pcfg_pull_up>,
-				<2 GPIO_D4 RK_FUNC_GPIO &pcfg_pull_up>,
-				<4 GPIO_D2 RK_FUNC_GPIO &pcfg_pull_up>;
+				<1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>,
+				<1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>,
+				<2 RK_PD3 RK_FUNC_GPIO &pcfg_pull_up>,
+				<2 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>,
+				<4 RK_PD2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
@@ -1122,21 +1122,21 @@
 	usb_camera {
 		usb_cam_on_gpio: usb-cam-on-gpio {
 			rockchip,pins =
-				<3 GPIO_A1 RK_FUNC_GPIO &pcfg_pull_up>,
-				<3 GPIO_A2 RK_FUNC_GPIO &pcfg_pull_up>;
+				<3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	fusb30x {
 		fusb0_int: fusb0-int {
 			rockchip,pins =
-				<1 GPIO_A2 RK_FUNC_GPIO &pcfg_pull_up>,
-				<0 GPIO_B4 RK_FUNC_GPIO &pcfg_pull_up>;
+				<1 RK_PA2 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 		fusb1_int: fusb1-int {
 			rockchip,pins =
-				<1 GPIO_B5 RK_FUNC_GPIO &pcfg_pull_up>,
-				<0 GPIO_B5 RK_FUNC_GPIO &pcfg_pull_up>;
+				<1 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
