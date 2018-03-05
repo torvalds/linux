@@ -271,14 +271,30 @@ static int omap_modeset_init(struct drm_device *dev)
 		return -EINVAL;
 	}
 
-	/* All planes can be put to any CRTC */
+	/* Create all planes first. They can all be put to any CRTC. */
 	plane_crtc_mask = (1 << num_crtcs) - 1;
 
+	for (i = 0; i < num_ovls; i++) {
+		enum drm_plane_type type = i < priv->num_dssdevs
+					 ? DRM_PLANE_TYPE_PRIMARY
+					 : DRM_PLANE_TYPE_OVERLAY;
+		struct drm_plane *plane;
+
+		if (WARN_ON(priv->num_planes >= ARRAY_SIZE(priv->planes)))
+			return -EINVAL;
+
+		plane = omap_plane_init(dev, i, type, plane_crtc_mask);
+		if (IS_ERR(plane))
+			return PTR_ERR(plane);
+
+		priv->planes[priv->num_planes++] = plane;
+	}
+
+	/* Create the CRTCs, encoders and connectors. */
 	for (i = 0; i < priv->num_dssdevs; i++) {
 		struct omap_dss_device *dssdev = priv->dssdevs[i];
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
-		struct drm_plane *plane;
 		struct drm_crtc *crtc;
 
 		encoder = omap_encoder_init(dev, dssdev);
@@ -290,12 +306,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		if (!connector)
 			return -ENOMEM;
 
-		plane = omap_plane_init(dev, i, DRM_PLANE_TYPE_PRIMARY,
-					plane_crtc_mask);
-		if (IS_ERR(plane))
-			return PTR_ERR(plane);
-
-		crtc = omap_crtc_init(dev, plane, dssdev);
+		crtc = omap_crtc_init(dev, priv->planes[i], dssdev);
 		if (IS_ERR(crtc))
 			return PTR_ERR(crtc);
 
@@ -303,26 +314,8 @@ static int omap_modeset_init(struct drm_device *dev)
 		encoder->possible_crtcs = 1 << i;
 
 		priv->crtcs[priv->num_crtcs++] = crtc;
-		priv->planes[priv->num_planes++] = plane;
 		priv->encoders[priv->num_encoders++] = encoder;
 		priv->connectors[priv->num_connectors++] = connector;
-	}
-
-	/*
-	 * Create normal planes for the remaining overlays:
-	 */
-	for (; i < num_ovls; i++) {
-		struct drm_plane *plane;
-
-		if (WARN_ON(priv->num_planes >= ARRAY_SIZE(priv->planes)))
-			return -EINVAL;
-
-		plane = omap_plane_init(dev, i, DRM_PLANE_TYPE_OVERLAY,
-			plane_crtc_mask);
-		if (IS_ERR(plane))
-			return PTR_ERR(plane);
-
-		priv->planes[priv->num_planes++] = plane;
 	}
 
 	DBG("registered %d planes, %d crtcs, %d encoders and %d connectors\n",
