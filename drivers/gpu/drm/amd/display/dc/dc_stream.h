@@ -78,6 +78,7 @@ struct dc_stream_state {
 
 	/* DMCU info */
 	unsigned int abm_level;
+	unsigned int bl_pwm_level;
 
 	/* from core_stream struct */
 	struct dc_context *ctx;
