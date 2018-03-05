@@ -245,11 +245,15 @@ struct mlx5_core_dev *mlx5_ib_get_native_port_mdev(struct mlx5_ib_dev *ibdev,
 	struct mlx5_ib_multiport_info *mpi;
 	struct mlx5_ib_port *port;
 
+	if (!mlx5_core_mp_enabled(ibdev->mdev) ||
+	    ll != IB_LINK_LAYER_ETHERNET) {
+		if (native_port_num)
+			*native_port_num = ib_port_num;
+		return ibdev->mdev;
+	}
+
 	if (native_port_num)
 		*native_port_num = 1;
-
-	if (!mlx5_core_mp_enabled(ibdev->mdev) || ll != IB_LINK_LAYER_ETHERNET)
-		return ibdev->mdev;
 
 	port = &ibdev->port[ib_port_num - 1];
 	if (!port)
