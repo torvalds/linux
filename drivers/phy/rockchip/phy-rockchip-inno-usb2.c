@@ -1839,6 +1839,11 @@ static int rk3328_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	if (ret)
 		return ret;
 
+	/* Turn off differential receiver in suspend mode */
+	ret = regmap_write(rphy->grf, 0x18, 0x00040000);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
