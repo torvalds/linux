@@ -474,8 +474,8 @@ static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	 * has been changed to the DRM model.
 	 */
 
-	for (i = 0; i < priv->num_encoders; ++i) {
-		struct drm_encoder *encoder = priv->encoders[i];
+	for (i = 0; i < priv->num_pipes; ++i) {
+		struct drm_encoder *encoder = priv->pipes[i].encoder;
 
 		if (encoder->crtc == crtc) {
 			struct omap_dss_device *dssdev;
