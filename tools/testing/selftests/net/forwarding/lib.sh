@@ -76,6 +76,41 @@ done
 ##############################################################################
 # Network interfaces configuration
 
+create_netif_veth()
+{
+	local i
+
+	for i in $(eval echo {1..$NUM_NETIFS}); do
+		local j=$((i+1))
+
+		ip link show dev ${NETIFS[p$i]} &> /dev/null
+		if [[ $? -ne 0 ]]; then
+			ip link add ${NETIFS[p$i]} type veth \
+				peer name ${NETIFS[p$j]}
+			if [[ $? -ne 0 ]]; then
+				echo "Failed to create netif"
+				exit 1
+			fi
+		fi
+		i=$j
+	done
+}
+
+create_netif()
+{
+	case "$NETIF_TYPE" in
+	veth) create_netif_veth
+	      ;;
+	*) echo "Can not create interfaces of type \'$NETIF_TYPE\'"
+	   exit 1
+	   ;;
+	esac
+}
+
+if [[ "$NETIF_CREATE" = "yes" ]]; then
+	create_netif
+fi
+
 for i in $(eval echo {1..$NUM_NETIFS}); do
 	ip link show dev ${NETIFS[p$i]} &> /dev/null
 	if [[ $? -ne 0 ]]; then

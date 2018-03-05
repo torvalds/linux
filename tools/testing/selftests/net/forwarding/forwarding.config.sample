@@ -14,6 +14,11 @@ NETIFS[p6]=veth5
 NETIFS[p7]=veth6
 NETIFS[p8]=veth7
 
+NETIF_TYPE=veth
+
+# only virtual interfaces (veth) can be created by test infra
+#NETIF_CREATE=yes
+
 ##############################################################################
 # Defines
 
