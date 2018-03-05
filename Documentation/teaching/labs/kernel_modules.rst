@@ -973,7 +973,7 @@ module.
 .. note::
           * In the Linux kernel, a process is described by the
 	    :c:type:`struct task_struct`.  Use |LXR|_ to find the
-	    definition of ``struct task_struct``.
+            definition of :code:`struct task_struct`.
 	  
           * To find the structure field that contains the name of the
 	    executable, look for the "executable" comment.
@@ -994,3 +994,112 @@ displayed processes differ. This is because a module is being loaded
 from the executable :file:`/sbin/insmod` when the module is loaded and
 when the module is unloaded a process is created from the executable
 :file:`/sbin/rmmod`.
+
+Extra Exercises
+===============
+
+1. KDB
+------
+
+Go to the **9-kdb** directory. Activate KDB the over serial port and enter KDB mode using
+:command:`SysRq`. Connect to the pseudo-terminal linked to virtiocon0 using :command:`minicom`,
+configure KDB to use the hvc0 serial port:
+
+.. code-block:: bash
+
+    echo hvc0 > /sys/module/kgdboc/parameters/kgdboc
+
+and enable it using SysRq (:command:`Ctrl + O g`).
+Review the current system status (:command:`help` to see the available KDB commands).
+Continue the kernel execution using the :command:`go` command.
+
+Load the :file:`hello_kdb` module.
+The module will simulate a bug when writing to the :file:`/proc/hello_kdb_bug` file.
+To simulate a bug, use the below command:
+
+.. code-block:: bash
+
+    echo 1 > /proc/hello_kdb_bug
+
+After running the above command, at every oops/panic the kernel stops the execution and enters debug mode.
+
+Analyze the stacktrace and determine the code that generated the bug.
+How can we find out from KDB the address where the module was loaded?
+
+In parallel, use GDB in a new window to view the code based on KDB information.
+
+.. hint::
+    Load the symbol file. Use :command:`info line`.
+
+When writing to :file:`/proc/hello_kdb_break`, the module will increment the :code:`kdb_write_address` variable. Enter KDB and set a breakpoint for each write access of the :code:`kdb_write_address` variable. Return to kernel to trigger a write using:
+
+.. code-block:: bash
+
+    echo 1 > /proc/hello_kdb_break
+
+2. PS Module
+------------
+
+Update the created kernel module at :ref:`proc-info` in order to display information about all the processes from the system, when inserting the kernel module, not just about the current process. Afterwards, compare the obtained result with the output of the :command:`ps` command.
+
+.. hint::
+    * Processes in the system are structured in a circular list.
+
+    * :code:`for_each _...` macros (such as :code:`for_each_process`) are useful when you want to navigate the items in a list.
+
+    * To understand how to use a feature or a macro, use |LXR|_ or Vim and :command:`cscope` and search for usage scenarios.
+
+3. Memory Info
+--------------
+
+Create a kernel module that displays the virtual memory areas of the current process; for each memory area it will display the start address and the end address.
+
+.. hint::
+    * Start from an existing kernel module.
+
+    * Investigate the structures `struct task_struct <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/sched.h#L520>`_, `struct mm_struct <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/mm_types.h#L356>`_ and `struct vm_area_struct <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/mm_types.h#L274>`_. A memory area is indicated by a structure of type :code:`struct vm_area_struct`.
+
+    * Don't forget to include the headers where the necessary structures are defined.
+
+4. Dynamic Debugging
+--------------------
+
+Go to the **10-dyndbg** directory and compile the :code:`dyndbg.ko` module.
+
+Familiarize yourself with the :code:`debugfs` file system mounted in :file:`/debug` and analyze the contents of the file :file:`/debug/dynamic_debug/control`. Insert the :code:`dyndbg.ko` module and notice the new content of the :file:`dynamic_debug/control` file.
+
+What appears extra in the respective file? Run the following command:
+
+.. code-block:: bash
+
+    grep dyndbg /debug/dynamic_debug/control
+
+Configure :command:`dyndbg` so that only messages marked as "Important" in :code:`my_debug_func` function are displayed when the module is unloaded. The exercise will only filter out the :code:`pr_debug` calls; :code:`printk` calls being always displayed.
+
+Specify two ways to filter.
+
+.. hint::
+    Read the `Dynamic debugging`_ section and look at the :command:`dyndbg` options (for example, :command:`line`, :command:`format`).
+
+Perform the filtering and revise the :file:`dynamic_debug/control` file. What has changed? How do you know which calls are activated?
+
+.. hint::
+    Check the :command:`dyndbg` flags. Unload the kernel module and observe the log messages.
+
+5. Dynamic Debugging During Initialization
+------------------------------------------
+
+As you have noticed, :code:`pr_debug` calls can only be activated /filtered after module insertion. In some situations, it might be helpful to view the messages from the initialization of the module. This can be done by using a default (fake) parameter called :command:`dyndbg` that can be passed as an argument to initialize the module. With this parameter you can add /delete :command:`dyndbg` flags.
+
+.. hint::
+    Read the last part of the `Dynamic debugging`_ section and see the available flags (e.g.: :command:`+/- p`).
+
+Read the `Debug Messages section at Module Initialization Time <https://01.org/linuxgraphics/gfx-docs/drm/admin-guide/dynamic-debug-howto.html#debug-messages-at-module-initialization-time>`_ and insert the module so that the messages in :code:`my_debug_func` (called :code:`dyndbg_init`) are also displayed during initialization.
+
+.. warning::
+    In the VM from the lab, you will need to use :command:`insmod` instead of :command:`modprobe`.
+
+Without unloading the module, deactivate :code:`pr_debug` calls.
+
+.. hint::
+    You can delete the set flags. Unload the kernel module.
