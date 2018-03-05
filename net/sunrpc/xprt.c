@@ -1033,7 +1033,6 @@ void xprt_transmit(struct rpc_task *task)
 		return;
 
 	connect_cookie = xprt->connect_cookie;
-	req->rq_xtime = ktime_get();
 	status = xprt->ops->send_request(task);
 	trace_xprt_transmit(xprt, req->rq_xid, status);
 	if (status != 0) {
