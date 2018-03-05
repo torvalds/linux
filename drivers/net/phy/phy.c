@@ -662,19 +662,10 @@ static int phy_disable_interrupts(struct phy_device *phydev)
 	/* Disable PHY interrupts */
 	err = phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
 	if (err)
-		goto phy_err;
+		return err;
 
 	/* Clear the interrupt */
-	err = phy_clear_interrupt(phydev);
-	if (err)
-		goto phy_err;
-
-	return 0;
-
-phy_err:
-	phy_error(phydev);
-
-	return err;
+	return phy_clear_interrupt(phydev);
 }
 
 /**
