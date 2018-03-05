@@ -6344,6 +6344,10 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 		phba->cfg_poll = 0;
 	else
 		phba->cfg_poll = lpfc_poll;
+
+	if (phba->cfg_enable_bg)
+		phba->sli3_options |= LPFC_SLI3_BG_ENABLED;
+
 	lpfc_suppress_rsp_init(phba, lpfc_suppress_rsp);
 
 	lpfc_enable_fc4_type_init(phba, lpfc_enable_fc4_type);

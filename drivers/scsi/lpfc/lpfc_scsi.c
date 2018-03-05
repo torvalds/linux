@@ -837,8 +837,13 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		 * 4K Page alignment is CRITICAL to BlockGuard, double check
 		 * to be sure.
 		 */
-		if (phba->cfg_enable_bg  && (((unsigned long)(psb->data) &
+		if ((phba->sli3_options & LPFC_SLI3_BG_ENABLED) &&
+		    (((unsigned long)(psb->data) &
 		    (unsigned long)(SLI4_PAGE_SIZE - 1)) != 0)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+					"3369 Memory alignment error "
+					"addr=%lx\n",
+					(unsigned long)psb->data);
 			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
 				      psb->data, psb->dma_handle);
 			kfree(psb);

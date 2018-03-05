@@ -5912,7 +5912,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * Since lpfc_sg_seg_cnt is module param, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be calculated.
 	 */
-	if (phba->cfg_enable_bg) {
+	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED) {
 		/*
 		 * The scsi_buf for a T10-DIF I/O holds the FCP cmnd,
 		 * the FCP rsp, and a SGE. Sice we have no control

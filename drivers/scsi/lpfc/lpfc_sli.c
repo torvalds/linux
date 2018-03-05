@@ -4993,13 +4993,14 @@ lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 		phba->hbq_get = phba->mbox->us.s3_pgp.hbq_get;
 		phba->port_gp = phba->mbox->us.s3_pgp.port;
 
-		if (phba->cfg_enable_bg) {
-			if (pmb->u.mb.un.varCfgPort.gbg)
-				phba->sli3_options |= LPFC_SLI3_BG_ENABLED;
-			else
+		if (phba->sli3_options & LPFC_SLI3_BG_ENABLED) {
+			if (pmb->u.mb.un.varCfgPort.gbg == 0) {
+				phba->cfg_enable_bg = 0;
+				phba->sli3_options &= ~LPFC_SLI3_BG_ENABLED;
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"0443 Adapter did not grant "
 						"BlockGuard\n");
+			}
 		}
 	} else {
 		phba->hbq_get = NULL;
@@ -6991,12 +6992,12 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	 * then turn off the global config parameters to disable the
 	 * feature in the driver.  This is not a fatal error.
 	 */
-	phba->sli3_options &= ~LPFC_SLI3_BG_ENABLED;
-	if (phba->cfg_enable_bg) {
-		if (bf_get(lpfc_mbx_rq_ftr_rsp_dif, &mqe->un.req_ftrs))
-			phba->sli3_options |= LPFC_SLI3_BG_ENABLED;
-		else
+	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED) {
+		if (!(bf_get(lpfc_mbx_rq_ftr_rsp_dif, &mqe->un.req_ftrs))) {
+			phba->cfg_enable_bg = 0;
+			phba->sli3_options &= ~LPFC_SLI3_BG_ENABLED;
 			ftr_rsp++;
+		}
 	}
 
 	if (phba->max_vpi && phba->cfg_enable_npiv &&
