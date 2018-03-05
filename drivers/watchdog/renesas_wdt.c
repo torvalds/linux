@@ -49,6 +49,7 @@ struct rwdt_priv {
 	void __iomem *base;
 	struct watchdog_device wdev;
 	unsigned long clk_rate;
+	u16 time_left;
 	u8 cks;
 };
 
@@ -203,6 +204,30 @@ static int rwdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused rwdt_suspend(struct device *dev)
+{
+	struct rwdt_priv *priv = dev_get_drvdata(dev);
+
+	if (watchdog_active(&priv->wdev)) {
+		priv->time_left = readw(priv->base + RWTCNT);
+		rwdt_stop(&priv->wdev);
+	}
+	return 0;
+}
+
+static int __maybe_unused rwdt_resume(struct device *dev)
+{
+	struct rwdt_priv *priv = dev_get_drvdata(dev);
+
+	if (watchdog_active(&priv->wdev)) {
+		rwdt_start(&priv->wdev);
+		rwdt_write(priv, priv->time_left, RWTCNT);
+	}
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rwdt_pm_ops, rwdt_suspend, rwdt_resume);
+
 /*
  * This driver does also fit for R-Car Gen2 (r8a779[0-4]) WDT. However, for SMP
  * to work there, one also needs a RESET (RST) driver which does not exist yet
@@ -218,6 +243,7 @@ static struct platform_driver rwdt_driver = {
 	.driver = {
 		.name = "renesas_wdt",
 		.of_match_table = rwdt_ids,
+		.pm = &rwdt_pm_ops,
 	},
 	.probe = rwdt_probe,
 	.remove = rwdt_remove,
