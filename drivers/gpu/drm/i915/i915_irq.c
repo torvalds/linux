@@ -1123,6 +1123,7 @@ static void notify_ring(struct intel_engine_cs *engine)
 
 	if (rq) {
 		dma_fence_signal(&rq->fence);
+		GEM_BUG_ON(!i915_request_completed(rq));
 		i915_request_put(rq);
 	}
 
