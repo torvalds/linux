@@ -1233,9 +1233,6 @@ static int vector_net_open(struct net_device *dev)
 	if ((vp->options & VECTOR_BPF) != 0)
 		vp->bpf = uml_vector_default_bpf(vp->fds->rx_fd, dev->dev_addr);
 
-	/* Write Timeout Timer */
-
-	vp->tl.data = (unsigned long) vp;
 	netif_start_queue(dev);
 
 	/* clear buffer - it can happen that the host side of the interface
@@ -1409,9 +1406,9 @@ static const struct net_device_ops vector_netdev_ops = {
 };
 
 
-static void vector_timer_expire(unsigned long _conn)
+static void vector_timer_expire(struct timer_list *t)
 {
-	struct vector_private *vp = (struct vector_private *)_conn;
+	struct vector_private *vp = from_timer(vp, t, tl);
 
 	vp->estats.tx_kicks++;
 	vector_send(vp->tx_queue);
@@ -1500,9 +1497,8 @@ static void vector_eth_configure(
 	tasklet_init(&vp->tx_poll, vector_tx_poll, (unsigned long)vp);
 	INIT_WORK(&vp->reset_tx, vector_reset_tx);
 
-	init_timer(&vp->tl);
+	timer_setup(&vp->tl, vector_timer_expire, 0);
 	spin_lock_init(&vp->lock);
-	vp->tl.function = vector_timer_expire;
 
 	/* FIXME */
 	dev->netdev_ops = &vector_netdev_ops;
