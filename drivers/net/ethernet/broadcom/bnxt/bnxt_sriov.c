@@ -29,7 +29,7 @@ static int bnxt_vf_ndo_prep(struct bnxt *bp, int vf_id)
 		netdev_err(bp->dev, "vf ndo called though sriov is disabled\n");
 		return -EINVAL;
 	}
-	if (vf_id >= bp->pf.max_vfs) {
+	if (vf_id >= bp->pf.active_vfs) {
 		netdev_err(bp->dev, "Invalid VF id %d\n", vf_id);
 		return -EINVAL;
 	}
