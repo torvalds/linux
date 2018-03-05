@@ -41,6 +41,7 @@
 #include <linux/kvm_host.h>
 #include <linux/vfio.h>
 #include <linux/mdev.h>
+#include <linux/debugfs.h>
 
 #include "i915_drv.h"
 #include "gvt.h"
@@ -84,6 +85,7 @@ struct kvmgt_guest_info {
 #define NR_BKT (1 << 18)
 	struct hlist_head ptable[NR_BKT];
 #undef NR_BKT
+	struct dentry *debugfs_cache_entries;
 };
 
 struct gvt_dma {
@@ -225,6 +227,8 @@ static void __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 	}
 	rb_link_node(&new->dma_addr_node, parent, link);
 	rb_insert_color(&new->dma_addr_node, &vgpu->vdev.dma_addr_cache);
+
+	vgpu->vdev.nr_cache_entries++;
 }
 
 static void __gvt_cache_remove_entry(struct intel_vgpu *vgpu,
@@ -233,6 +237,7 @@ static void __gvt_cache_remove_entry(struct intel_vgpu *vgpu,
 	rb_erase(&entry->gfn_node, &vgpu->vdev.gfn_cache);
 	rb_erase(&entry->dma_addr_node, &vgpu->vdev.dma_addr_cache);
 	kfree(entry);
+	vgpu->vdev.nr_cache_entries--;
 }
 
 static void gvt_cache_destroy(struct intel_vgpu *vgpu)
@@ -258,6 +263,7 @@ static void gvt_cache_init(struct intel_vgpu *vgpu)
 {
 	vgpu->vdev.gfn_cache = RB_ROOT;
 	vgpu->vdev.dma_addr_cache = RB_ROOT;
+	vgpu->vdev.nr_cache_entries = 0;
 	mutex_init(&vgpu->vdev.cache_lock);
 }
 
@@ -1493,11 +1499,20 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 	info->track_node.track_flush_slot = kvmgt_page_track_flush_slot;
 	kvm_page_track_register_notifier(kvm, &info->track_node);
 
+	info->debugfs_cache_entries = debugfs_create_ulong(
+						"kvmgt_nr_cache_entries",
+						0444, vgpu->debugfs,
+						&vgpu->vdev.nr_cache_entries);
+	if (!info->debugfs_cache_entries)
+		gvt_vgpu_err("Cannot create kvmgt debugfs entry\n");
+
 	return 0;
 }
 
 static bool kvmgt_guest_exit(struct kvmgt_guest_info *info)
 {
+	debugfs_remove(info->debugfs_cache_entries);
+
 	kvm_page_track_unregister_notifier(info->kvm, &info->track_node);
 	kvm_put_kvm(info->kvm);
 	kvmgt_protect_table_destroy(info);
