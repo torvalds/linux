@@ -812,15 +812,22 @@ do_alloc:
 }
 
 /**
- * gfs2_block_map - Map a block from an inode to a disk block
+ * gfs2_block_map - Map one or more blocks of an inode to a disk block
  * @inode: The inode
  * @lblock: The logical block number
  * @bh_map: The bh to be mapped
  * @create: True if its ok to alloc blocks to satify the request
  *
- * Sets buffer_mapped() if successful, sets buffer_boundary() if a
- * read of metadata will be required before the next block can be
- * mapped. Sets buffer_new() if new blocks were allocated.
+ * The size of the requested mapping is defined in bh_map->b_size.
+ *
+ * Clears buffer_mapped(bh_map) and leaves bh_map->b_size unchanged
+ * when @lblock is not mapped.  Sets buffer_mapped(bh_map) and
+ * bh_map->b_size to indicate the size of the mapping when @lblock and
+ * successive blocks are mapped, up to the requested size.
+ *
+ * Sets buffer_boundary() if a read of metadata will be required
+ * before the next block can be mapped. Sets buffer_new() if new
+ * blocks were allocated.
  *
  * Returns: errno
  */
