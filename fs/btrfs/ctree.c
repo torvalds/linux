@@ -837,14 +837,6 @@ free_tms:
 	return ret;
 }
 
-static inline void tree_mod_log_eb_move(struct extent_buffer *dst,
-		     int dst_offset, int src_offset, int nr_items)
-{
-	int ret;
-	ret = tree_mod_log_insert_move(dst, dst_offset, src_offset, nr_items);
-	BUG_ON(ret < 0);
-}
-
 static noinline void tree_mod_log_set_node_key(struct extent_buffer *eb,
 		int slot, int atomic)
 {
@@ -3225,8 +3217,8 @@ static int push_node_left(struct btrfs_trans_handle *trans,
 
 	if (push_items < src_nritems) {
 		/*
-		 * don't call tree_mod_log_eb_move here, key removal was already
-		 * fully logged by tree_mod_log_eb_copy above.
+		 * Don't call tree_mod_log_insert_move here, key removal was
+		 * already fully logged by tree_mod_log_eb_copy above.
 		 */
 		memmove_extent_buffer(src, btrfs_node_key_ptr_offset(0),
 				      btrfs_node_key_ptr_offset(push_items),
@@ -3281,7 +3273,8 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
 	if (max_push < push_items)
 		push_items = max_push;
 
-	tree_mod_log_eb_move(dst, push_items, 0, dst_nritems);
+	ret = tree_mod_log_insert_move(dst, push_items, 0, dst_nritems);
+	BUG_ON(ret < 0);
 	memmove_extent_buffer(dst, btrfs_node_key_ptr_offset(push_items),
 				      btrfs_node_key_ptr_offset(0),
 				      (dst_nritems) *
@@ -3399,9 +3392,11 @@ static void insert_ptr(struct btrfs_trans_handle *trans,
 	BUG_ON(slot > nritems);
 	BUG_ON(nritems == BTRFS_NODEPTRS_PER_BLOCK(fs_info));
 	if (slot != nritems) {
-		if (level)
-			tree_mod_log_eb_move(lower, slot + 1, slot,
+		if (level) {
+			ret = tree_mod_log_insert_move(lower, slot + 1, slot,
 					nritems - slot);
+			BUG_ON(ret < 0);
+		}
 		memmove_extent_buffer(lower,
 			      btrfs_node_key_ptr_offset(slot + 1),
 			      btrfs_node_key_ptr_offset(slot),
@@ -4872,9 +4867,11 @@ static void del_ptr(struct btrfs_root *root, struct btrfs_path *path,
 
 	nritems = btrfs_header_nritems(parent);
 	if (slot != nritems - 1) {
-		if (level)
-			tree_mod_log_eb_move(parent, slot, slot + 1,
+		if (level) {
+			ret = tree_mod_log_insert_move(parent, slot, slot + 1,
 					nritems - slot - 1);
+			BUG_ON(ret < 0);
+		}
 		memmove_extent_buffer(parent,
 			      btrfs_node_key_ptr_offset(slot),
 			      btrfs_node_key_ptr_offset(slot + 1),
