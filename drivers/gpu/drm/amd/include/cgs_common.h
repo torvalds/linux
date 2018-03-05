@@ -29,18 +29,6 @@
 struct cgs_device;
 
 /**
- * enum cgs_gpu_mem_type - GPU memory types
- */
-enum cgs_gpu_mem_type {
-	CGS_GPU_MEM_TYPE__VISIBLE_FB,
-	CGS_GPU_MEM_TYPE__INVISIBLE_FB,
-	CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
-	CGS_GPU_MEM_TYPE__INVISIBLE_CONTIG_FB,
-	CGS_GPU_MEM_TYPE__GART_CACHEABLE,
-	CGS_GPU_MEM_TYPE__GART_WRITECOMBINE
-};
-
-/**
  * enum cgs_ind_reg - Indirect register spaces
  */
 enum cgs_ind_reg {
@@ -129,89 +117,6 @@ struct cgs_display_info {
 };
 
 typedef unsigned long cgs_handle_t;
-
-/**
- * cgs_alloc_gpu_mem() - Allocate GPU memory
- * @cgs_device:	opaque device handle
- * @type:	memory type
- * @size:	size in bytes
- * @align:	alignment in bytes
- * @handle:	memory handle (output)
- *
- * The memory types CGS_GPU_MEM_TYPE_*_CONTIG_FB force contiguous
- * memory allocation. This guarantees that the MC address returned by
- * cgs_gmap_gpu_mem is not mapped through the GART. The non-contiguous
- * FB memory types may be GART mapped depending on memory
- * fragmentation and memory allocator policies.
- *
- * If min/max_offset are non-0, the allocation will be forced to
- * reside between these offsets in its respective memory heap. The
- * base address that the offset relates to, depends on the memory
- * type.
- *
- * - CGS_GPU_MEM_TYPE__*_CONTIG_FB: FB MC base address
- * - CGS_GPU_MEM_TYPE__GART_*:	    GART aperture base address
- * - others:			    undefined, don't use with max_offset
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_alloc_gpu_mem_t)(struct cgs_device *cgs_device, enum cgs_gpu_mem_type type,
-				   uint64_t size, uint64_t align,
-				   cgs_handle_t *handle);
-
-/**
- * cgs_free_gpu_mem() - Free GPU memory
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_free_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle);
-
-/**
- * cgs_gmap_gpu_mem() - GPU-map GPU memory
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- * @mcaddr:	MC address (output)
- *
- * Ensures that a buffer is GPU accessible and returns its MC address.
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_gmap_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle,
-				  uint64_t *mcaddr);
-
-/**
- * cgs_gunmap_gpu_mem() - GPU-unmap GPU memory
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- *
- * Allows the buffer to be migrated while it's not used by the GPU.
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_gunmap_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle);
-
-/**
- * cgs_kmap_gpu_mem() - Kernel-map GPU memory
- *
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- * @map:	Kernel virtual address the memory was mapped to (output)
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_kmap_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle,
-				  void **map);
-
-/**
- * cgs_kunmap_gpu_mem() - Kernel-unmap GPU memory
- * @cgs_device:	opaque device handle
- * @handle:	memory handle returned by alloc or import
- *
- * Return:  0 on success, -errno otherwise
- */
-typedef int (*cgs_kunmap_gpu_mem_t)(struct cgs_device *cgs_device, cgs_handle_t handle);
 
 /**
  * cgs_read_register() - Read an MMIO register
@@ -355,13 +260,6 @@ typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
 typedef void (*cgs_lock_grbm_idx)(struct cgs_device *cgs_device, bool lock);
 
 struct cgs_ops {
-	/* memory management calls (similar to KFD interface) */
-	cgs_alloc_gpu_mem_t alloc_gpu_mem;
-	cgs_free_gpu_mem_t free_gpu_mem;
-	cgs_gmap_gpu_mem_t gmap_gpu_mem;
-	cgs_gunmap_gpu_mem_t gunmap_gpu_mem;
-	cgs_kmap_gpu_mem_t kmap_gpu_mem;
-	cgs_kunmap_gpu_mem_t kunmap_gpu_mem;
 	/* MMIO access */
 	cgs_read_register_t read_register;
 	cgs_write_register_t write_register;
@@ -403,19 +301,6 @@ struct cgs_device
 	(((struct cgs_device *)dev)->ops->func(dev, ##__VA_ARGS__))
 #define CGS_OS_CALL(func,dev,...) \
 	(((struct cgs_device *)dev)->os_ops->func(dev, ##__VA_ARGS__))
-
-#define cgs_alloc_gpu_mem(dev,type,size,align,handle)	\
-	CGS_CALL(alloc_gpu_mem,dev,type,size,align,handle)
-#define cgs_free_gpu_mem(dev,handle)		\
-	CGS_CALL(free_gpu_mem,dev,handle)
-#define cgs_gmap_gpu_mem(dev,handle,mcaddr)	\
-	CGS_CALL(gmap_gpu_mem,dev,handle,mcaddr)
-#define cgs_gunmap_gpu_mem(dev,handle)		\
-	CGS_CALL(gunmap_gpu_mem,dev,handle)
-#define cgs_kmap_gpu_mem(dev,handle,map)	\
-	CGS_CALL(kmap_gpu_mem,dev,handle,map)
-#define cgs_kunmap_gpu_mem(dev,handle)		\
-	CGS_CALL(kunmap_gpu_mem,dev,handle)
 
 #define cgs_read_register(dev,offset)		\
 	CGS_CALL(read_register,dev,offset)
