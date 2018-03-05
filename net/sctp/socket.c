@@ -1676,6 +1676,7 @@ static int sctp_sendmsg_new_asoc(struct sock *sk, __u16 sflags,
 	struct net *net = sock_net(sk);
 	struct sctp_association *asoc;
 	enum sctp_scope scope;
+	struct cmsghdr *cmsg;
 	int err = -EINVAL;
 
 	*tp = NULL;
@@ -1739,6 +1740,67 @@ static int sctp_sendmsg_new_asoc(struct sock *sk, __u16 sflags,
 	if (!*tp) {
 		err = -ENOMEM;
 		goto free;
+	}
+
+	if (!cmsgs->addrs_msg)
+		return 0;
+
+	/* sendv addr list parse */
+	for_each_cmsghdr(cmsg, cmsgs->addrs_msg) {
+		struct sctp_transport *transport;
+		struct sctp_association *old;
+		union sctp_addr _daddr;
+		int dlen;
+
+		if (cmsg->cmsg_level != IPPROTO_SCTP ||
+		    (cmsg->cmsg_type != SCTP_DSTADDRV4 &&
+		     cmsg->cmsg_type != SCTP_DSTADDRV6))
+			continue;
+
+		daddr = &_daddr;
+		memset(daddr, 0, sizeof(*daddr));
+		dlen = cmsg->cmsg_len - sizeof(struct cmsghdr);
+		if (cmsg->cmsg_type == SCTP_DSTADDRV4) {
+			if (dlen < sizeof(struct in_addr))
+				goto free;
+
+			dlen = sizeof(struct in_addr);
+			daddr->v4.sin_family = AF_INET;
+			daddr->v4.sin_port = htons(asoc->peer.port);
+			memcpy(&daddr->v4.sin_addr, CMSG_DATA(cmsg), dlen);
+		} else {
+			if (dlen < sizeof(struct in6_addr))
+				goto free;
+
+			dlen = sizeof(struct in6_addr);
+			daddr->v6.sin6_family = AF_INET6;
+			daddr->v6.sin6_port = htons(asoc->peer.port);
+			memcpy(&daddr->v6.sin6_addr, CMSG_DATA(cmsg), dlen);
+		}
+		err = sctp_verify_addr(sk, daddr, sizeof(*daddr));
+		if (err)
+			goto free;
+
+		old = sctp_endpoint_lookup_assoc(ep, daddr, &transport);
+		if (old && old != asoc) {
+			if (old->state >= SCTP_STATE_ESTABLISHED)
+				err = -EISCONN;
+			else
+				err = -EALREADY;
+			goto free;
+		}
+
+		if (sctp_endpoint_is_peeled_off(ep, daddr)) {
+			err = -EADDRNOTAVAIL;
+			goto free;
+		}
+
+		transport = sctp_assoc_add_peer(asoc, daddr, GFP_KERNEL,
+						SCTP_UNKNOWN);
+		if (!transport) {
+			err = -ENOMEM;
+			goto free;
+		}
 	}
 
 	return 0;
@@ -7777,6 +7839,21 @@ static int sctp_msghdr_parse(const struct msghdr *msg, struct sctp_cmsgs *cmsgs)
 
 			if (cmsgs->prinfo->pr_policy == SCTP_PR_SCTP_NONE)
 				cmsgs->prinfo->pr_value = 0;
+			break;
+		case SCTP_DSTADDRV4:
+		case SCTP_DSTADDRV6:
+			/* SCTP Socket API Extension
+			 * 5.3.9/10 SCTP Destination IPv4/6 Address Structure (SCTP_DSTADDRV4/6)
+			 *
+			 * This cmsghdr structure specifies SCTP options for sendmsg().
+			 *
+			 * cmsg_level    cmsg_type         cmsg_data[]
+			 * ------------  ------------   ---------------------
+			 * IPPROTO_SCTP  SCTP_DSTADDRV4 struct in_addr
+			 * ------------  ------------   ---------------------
+			 * IPPROTO_SCTP  SCTP_DSTADDRV6 struct in6_addr
+			 */
+			cmsgs->addrs_msg = my_msg;
 			break;
 		default:
 			return -EINVAL;
