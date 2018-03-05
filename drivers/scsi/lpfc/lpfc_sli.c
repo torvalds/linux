@@ -140,9 +140,16 @@ lpfc_sli4_wq_put(struct lpfc_queue *q, union lpfc_wqe *wqe)
 	lpfc_sli_pcimem_bcopy(wqe, temp_wqe, q->entry_size);
 	if (q->dpp_enable && q->phba->cfg_enable_dpp) {
 		/* write to DPP aperture taking advatage of Combined Writes */
-		tmp = (uint8_t *)wqe;
+		tmp = (uint8_t *)temp_wqe;
+#ifdef __raw_writeq
 		for (i = 0; i < q->entry_size; i += sizeof(uint64_t))
-			writeq(*((uint64_t *)(tmp + i)), q->dpp_regaddr + i);
+			__raw_writeq(*((uint64_t *)(tmp + i)),
+					q->dpp_regaddr + i);
+#else
+		for (i = 0; i < q->entry_size; i += sizeof(uint32_t))
+			__raw_writel(*((uint32_t *)(tmp + i)),
+					q->dpp_regaddr + i);
+#endif
 	}
 	/* ensure WQE bcopy and DPP flushed before doorbell write */
 	wmb();
