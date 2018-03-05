@@ -197,7 +197,7 @@ struct rpc_xprt {
 	struct list_head	free;		/* free slots */
 	unsigned int		max_reqs;	/* max number of slots */
 	unsigned int		min_reqs;	/* min number of slots */
-	atomic_t		num_reqs;	/* total slots */
+	unsigned int		num_reqs;	/* total slots */
 	unsigned long		state;		/* transport state */
 	unsigned char		resvport   : 1; /* use a reserved port */
 	atomic_t		swapper;	/* we're swapping over this
