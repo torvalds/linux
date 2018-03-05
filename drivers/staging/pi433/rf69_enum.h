@@ -94,23 +94,23 @@ enum threshold_decrement {
 };
 
 enum flag {
-	modeSwitchCompleted,
-	readyToReceive,
-	readyToSend,
-	pllLocked,
-	rssiExceededThreshold,
+	mode_switch_completed,
+	ready_to_receive,
+	ready_to_send,
+	pll_locked,
+	rssi_exceeded_threshold,
 	timeout,
 	automode,
-	syncAddressMatch,
+	sync_address_match,
 	fifo_full,
 //	fifo_not_empty, collision with next enum; replaced by following enum...
 	fifo_empty,
 	fifo_level_below_threshold,
 	fifo_overrun,
-	packetSent,
+	packet_sent,
 	payload_ready,
-	crcOk,
-	batteryLow
+	crc_ok,
+	battery_low
 };
 
 enum fifo_fill_condition {
