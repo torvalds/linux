@@ -223,7 +223,7 @@ static int __init apu_led_probe(struct platform_device *pdev)
 
 	apu_led->pdev = pdev;
 
-	if (dmi_match(DMI_BOARD_NAME, "APU")) {
+	if (dmi_match(DMI_PRODUCT_NAME, "APU")) {
 		apu_led->profile = apu1_led_profile;
 		apu_led->platform = APU1_LED_PLATFORM;
 		apu_led->num_led_instances = ARRAY_SIZE(apu1_led_profile);
