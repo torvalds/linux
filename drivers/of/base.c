@@ -91,9 +91,71 @@ int __weak of_node_to_nid(struct device_node *np)
 }
 #endif
 
+static struct device_node **phandle_cache;
+static u32 phandle_cache_mask;
+
+/*
+ * Assumptions behind phandle_cache implementation:
+ *   - phandle property values are in a contiguous range of 1..n
+ *
+ * If the assumptions do not hold, then
+ *   - the phandle lookup overhead reduction provided by the cache
+ *     will likely be less
+ */
+static void of_populate_phandle_cache(void)
+{
+	unsigned long flags;
+	u32 cache_entries;
+	struct device_node *np;
+	u32 phandles = 0;
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+
+	kfree(phandle_cache);
+	phandle_cache = NULL;
+
+	for_each_of_allnodes(np)
+		if (np->phandle && np->phandle != OF_PHANDLE_ILLEGAL)
+			phandles++;
+
+	cache_entries = roundup_pow_of_two(phandles);
+	phandle_cache_mask = cache_entries - 1;
+
+	phandle_cache = kcalloc(cache_entries, sizeof(*phandle_cache),
+				GFP_ATOMIC);
+	if (!phandle_cache)
+		goto out;
+
+	for_each_of_allnodes(np)
+		if (np->phandle && np->phandle != OF_PHANDLE_ILLEGAL)
+			phandle_cache[np->phandle & phandle_cache_mask] = np;
+
+out:
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+}
+
+#ifndef CONFIG_MODULES
+static int __init of_free_phandle_cache(void)
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+
+	kfree(phandle_cache);
+	phandle_cache = NULL;
+
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+
+	return 0;
+}
+late_initcall_sync(of_free_phandle_cache);
+#endif
+
 void __init of_core_init(void)
 {
 	struct device_node *np;
+
+	of_populate_phandle_cache();
 
 	/* Create the kset, and register existing nodes */
 	mutex_lock(&of_mutex);
@@ -1021,16 +1083,32 @@ EXPORT_SYMBOL_GPL(of_modalias_node);
  */
 struct device_node *of_find_node_by_phandle(phandle handle)
 {
-	struct device_node *np;
+	struct device_node *np = NULL;
 	unsigned long flags;
+	phandle masked_handle;
 
 	if (!handle)
 		return NULL;
 
 	raw_spin_lock_irqsave(&devtree_lock, flags);
-	for_each_of_allnodes(np)
-		if (np->phandle == handle)
-			break;
+
+	masked_handle = handle & phandle_cache_mask;
+
+	if (phandle_cache) {
+		if (phandle_cache[masked_handle] &&
+		    handle == phandle_cache[masked_handle]->phandle)
+			np = phandle_cache[masked_handle];
+	}
+
+	if (!np) {
+		for_each_of_allnodes(np)
+			if (np->phandle == handle) {
+				if (phandle_cache)
+					phandle_cache[masked_handle] = np;
+				break;
+			}
+	}
+
 	of_node_get(np);
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return np;
