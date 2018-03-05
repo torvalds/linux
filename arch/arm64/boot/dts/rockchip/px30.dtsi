@@ -941,7 +941,7 @@
 		reg = <0x0 0xff340000 0x0 0x10000>;
 		interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST>, <&u2phy>;
-		clock-names = "usbhost", "arbiter", "utmi";
+		clock-names = "usbhost", "utmi";
 		power-domains = <&power PX30_PD_USB>;
 		phys = <&u2phy_host>;
 		phy-names = "usb";
@@ -953,10 +953,11 @@
 		reg = <0x0 0xff350000 0x0 0x10000>;
 		interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru HCLK_HOST>, <&u2phy>;
-		clock-names = "usbhost", "arbiter", "utmi";
+		clock-names = "usbhost", "utmi";
 		power-domains = <&power PX30_PD_USB>;
 		phys = <&u2phy_host>;
 		phy-names = "usb";
+		status = "disabled";
 	};
 
 	gmac: ethernet@ff360000 {
