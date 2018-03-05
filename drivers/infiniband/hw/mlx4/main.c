@@ -219,8 +219,6 @@ static int mlx4_ib_update_gids_v1_v2(struct gid_entry *gids,
 			gid_tbl[i].version = 2;
 			if (!ipv6_addr_v4mapped((struct in6_addr *)&gids[i].gid))
 				gid_tbl[i].type = 1;
-			else
-				memset(&gid_tbl[i].gid, 0, 12);
 		}
 	}
 
