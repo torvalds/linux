@@ -501,7 +501,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 	int num_pins, num_funcs, maps_per_pin;
 	unsigned long *configs;
 	unsigned int num_configs;
-	bool has_config = 0;
+	bool has_config = false;
 	int i, err;
 	unsigned reserve = 0;
 	struct mtk_pinctrl_group *grp;
@@ -520,7 +520,7 @@ static int mtk_pctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		return err;
 
 	if (num_configs)
-		has_config = 1;
+		has_config = true;
 
 	num_pins = pins->length / sizeof(u32);
 	num_funcs = num_pins;
