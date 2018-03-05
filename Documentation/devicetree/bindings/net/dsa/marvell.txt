@@ -13,9 +13,18 @@ placed as a child node of an mdio device.
 The properties described here are those specific to Marvell devices.
 Additional required and optional properties can be found in dsa.txt.
 
+The compatibility string is used only to find an identification register,
+which is at a different MDIO base address in different switch families.
+- "marvell,mv88e6085"	: Switch has base address 0x10. Use with models:
+			  6085, 6095, 6097, 6123, 6131, 6141, 6161, 6165,
+			  6171, 6172, 6175, 6176, 6185, 6240, 6320, 6321,
+			  6341, 6350, 6351, 6352
+- "marvell,mv88e6190"	: Switch has base address 0x00. Use with models:
+			  6190, 6190X, 6191, 6290, 6390, 6390X
+
 Required properties:
 - compatible		: Should be one of "marvell,mv88e6085" or
-			  "marvell,mv88e6190"
+			  "marvell,mv88e6190" as indicated above
 - reg			: Address on the MII bus for the switch.
 
 Optional properties:
