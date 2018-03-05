@@ -1743,8 +1743,8 @@ static int capture(void *data)
 				  error->i915->gt.last_init_time);
 
 	capture_params(error);
-	capture_uc_state(error);
 	capture_gen_state(error);
+	capture_uc_state(error);
 	capture_reg_state(error);
 	gem_record_fences(error);
 	gem_record_rings(error);
