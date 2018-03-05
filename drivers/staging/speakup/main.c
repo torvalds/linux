@@ -417,7 +417,7 @@ static void announce_edge(struct vc_data *vc, int msg_id)
 		bleep(spk_y);
 	if ((spk_bleeps & 2) && (msg_id < edge_quiet))
 		synth_printf("%s\n",
-			spk_msg_get(MSG_EDGE_MSGS_START + msg_id - 1));
+			     spk_msg_get(MSG_EDGE_MSGS_START + msg_id - 1));
 }
 
 static void speak_char(u16 ch)
