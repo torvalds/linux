@@ -1259,8 +1259,6 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 		return -ENODEV;
 	}
 
-	pm_runtime_enable(dev);
-
 	phy_power_on(dp->phy);
 
 	if (dp->plat_data->panel) {
@@ -1276,7 +1274,7 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 					irq_flags, "analogix-dp", dp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
-		goto err_disable_pm_runtime;
+		return ret;
 	}
 	disable_irq(dp->irq);
 
@@ -1289,7 +1287,9 @@ int analogix_dp_bind(struct device *dev, struct drm_device *drm_dev,
 
 	ret = drm_dp_aux_register(&dp->aux);
 	if (ret)
-		goto err_disable_pm_runtime;
+		return ret;
+
+	pm_runtime_enable(dev);
 
 	ret = analogix_dp_create_bridge(drm_dev, dp);
 	if (ret) {
