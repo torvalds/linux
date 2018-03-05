@@ -2112,6 +2112,7 @@ struct sctp_cmsgs {
 	struct sctp_initmsg *init;
 	struct sctp_sndrcvinfo *srinfo;
 	struct sctp_sndinfo *sinfo;
+	struct sctp_prinfo *prinfo;
 };
 
 /* Structure for tracking memory objects */

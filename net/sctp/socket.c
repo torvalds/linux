@@ -1644,6 +1644,12 @@ static int sctp_sendmsg_parse(struct sock *sk, struct sctp_cmsgs *cmsgs,
 		srinfo->sinfo_assoc_id = cmsgs->sinfo->snd_assoc_id;
 	}
 
+	if (cmsgs->prinfo) {
+		srinfo->sinfo_timetolive = cmsgs->prinfo->pr_value;
+		SCTP_PR_SET_POLICY(srinfo->sinfo_flags,
+				   cmsgs->prinfo->pr_policy);
+	}
+
 	sflags = srinfo->sinfo_flags;
 	if (!sflags && msg_len)
 		return 0;
@@ -1901,9 +1907,12 @@ static void sctp_sendmsg_update_sinfo(struct sctp_association *asoc,
 		sinfo->sinfo_ppid = asoc->default_ppid;
 		sinfo->sinfo_context = asoc->default_context;
 		sinfo->sinfo_assoc_id = sctp_assoc2id(asoc);
+
+		if (!cmsgs->prinfo)
+			sinfo->sinfo_flags = asoc->default_flags;
 	}
 
-	if (!cmsgs->srinfo)
+	if (!cmsgs->srinfo && !cmsgs->prinfo)
 		sinfo->sinfo_timetolive = asoc->default_timetolive;
 }
 
@@ -7748,6 +7757,26 @@ static int sctp_msghdr_parse(const struct msghdr *msg, struct sctp_cmsgs *cmsgs)
 			      SCTP_SACK_IMMEDIATELY | SCTP_PR_SCTP_MASK |
 			      SCTP_ABORT | SCTP_EOF))
 				return -EINVAL;
+			break;
+		case SCTP_PRINFO:
+			/* SCTP Socket API Extension
+			 * 5.3.7 SCTP PR-SCTP Information Structure (SCTP_PRINFO)
+			 *
+			 * This cmsghdr structure specifies SCTP options for sendmsg().
+			 *
+			 * cmsg_level    cmsg_type      cmsg_data[]
+			 * ------------  ------------   ---------------------
+			 * IPPROTO_SCTP  SCTP_PRINFO    struct sctp_prinfo
+			 */
+			if (cmsg->cmsg_len != CMSG_LEN(sizeof(struct sctp_prinfo)))
+				return -EINVAL;
+
+			cmsgs->prinfo = CMSG_DATA(cmsg);
+			if (cmsgs->prinfo->pr_policy & ~SCTP_PR_SCTP_MASK)
+				return -EINVAL;
+
+			if (cmsgs->prinfo->pr_policy == SCTP_PR_SCTP_NONE)
+				cmsgs->prinfo->pr_value = 0;
 			break;
 		default:
 			return -EINVAL;

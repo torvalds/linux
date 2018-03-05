@@ -260,6 +260,19 @@ struct sctp_nxtinfo {
 	sctp_assoc_t nxt_assoc_id;
 };
 
+/* 5.3.7 SCTP PR-SCTP Information Structure (SCTP_PRINFO)
+ *
+ *   This cmsghdr structure specifies SCTP options for sendmsg().
+ *
+ *   cmsg_level    cmsg_type      cmsg_data[]
+ *   ------------  ------------   -------------------
+ *   IPPROTO_SCTP  SCTP_PRINFO    struct sctp_prinfo
+ */
+struct sctp_prinfo {
+	__u16 pr_policy;
+	__u32 pr_value;
+};
+
 /*
  *  sinfo_flags: 16 bits (unsigned integer)
  *
@@ -293,6 +306,8 @@ typedef enum sctp_cmsg_type {
 #define SCTP_RCVINFO	SCTP_RCVINFO
 	SCTP_NXTINFO,		/* 5.3.6 SCTP Next Receive Information Structure */
 #define SCTP_NXTINFO	SCTP_NXTINFO
+	SCTP_PRINFO,		/* 5.3.7 SCTP PR-SCTP Information Structure */
+#define SCTP_PRINFO	SCTP_PRINFO
 } sctp_cmsg_t;
 
 /*
