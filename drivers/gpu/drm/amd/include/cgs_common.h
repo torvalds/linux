@@ -354,9 +354,6 @@ typedef int (*cgs_enter_safe_mode)(struct cgs_device *cgs_device, bool en);
 
 typedef void (*cgs_lock_grbm_idx)(struct cgs_device *cgs_device, bool lock);
 
-typedef int (*cgs_set_temperature_range)(struct cgs_device *cgs_device,
-					int min_temperature,
-					int max_temperature);
 struct cgs_ops {
 	/* memory management calls (similar to KFD interface) */
 	cgs_alloc_gpu_mem_t alloc_gpu_mem;
@@ -389,7 +386,6 @@ struct cgs_ops {
 	cgs_is_virtualization_enabled_t is_virtualization_enabled;
 	cgs_enter_safe_mode enter_safe_mode;
 	cgs_lock_grbm_idx lock_grbm_idx;
-	cgs_set_temperature_range set_temperature_range;
 };
 
 struct cgs_os_ops; /* To be define in OS-specific CGS header */
@@ -465,7 +461,5 @@ struct cgs_device
 #define cgs_lock_grbm_idx(cgs_device, lock) \
 		CGS_CALL(lock_grbm_idx, cgs_device, lock)
 
-#define cgs_set_temperature_range(dev, min_temp, max_temp)	\
-	CGS_CALL(set_temperature_range, dev, min_temp, max_temp)
 
 #endif /* _CGS_COMMON_H */

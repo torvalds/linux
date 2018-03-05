@@ -222,6 +222,7 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 	struct PP_TemperatureRange range = {TEMP_RANGE_MIN, TEMP_RANGE_MAX};
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	if (hwmgr->hwmgr_func->get_thermal_temperature_range)
 		hwmgr->hwmgr_func->get_thermal_temperature_range(
@@ -232,7 +233,8 @@ int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 			&& hwmgr->hwmgr_func->start_thermal_controller != NULL)
 		ret = hwmgr->hwmgr_func->start_thermal_controller(hwmgr, &range);
 
-	cgs_set_temperature_range(hwmgr->device, range.min, range.max);
+	adev->pm.dpm.thermal.min_temp = range.min;
+	adev->pm.dpm.thermal.max_temp = range.max;
 
 	return ret;
 }
