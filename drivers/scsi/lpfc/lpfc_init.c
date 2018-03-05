@@ -12584,6 +12584,7 @@ lpfc_init(void)
 		return -ENOMEM;
 	}
 	lpfc_nvme_cmd_template();
+	lpfc_nvmet_cmd_template();
 
 	/* Initialize in case vector mapping is needed */
 	lpfc_used_cpu = NULL;
