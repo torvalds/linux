@@ -2151,7 +2151,7 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len)
 		state->initialized = 1;
 		seqno = ++state->ss->latest_granting;
 		selinux_complete_init();
-		avc_ss_reset(seqno);
+		avc_ss_reset(state->avc, seqno);
 		selnl_notify_policyload(seqno);
 		selinux_status_update_policyload(state, seqno);
 		selinux_netlbl_cache_invalidate();
@@ -2233,7 +2233,7 @@ int security_load_policy(struct selinux_state *state, void *data, size_t len)
 	sidtab_destroy(&oldsidtab);
 	kfree(oldmapping);
 
-	avc_ss_reset(seqno);
+	avc_ss_reset(state->avc, seqno);
 	selnl_notify_policyload(seqno);
 	selinux_status_update_policyload(state, seqno);
 	selinux_netlbl_cache_invalidate();
@@ -2649,7 +2649,8 @@ out_unlock:
 	}
 	for (i = 0, j = 0; i < mynel; i++) {
 		struct av_decision dummy_avd;
-		rc = avc_has_perm_noaudit(fromsid, mysids[i],
+		rc = avc_has_perm_noaudit(state,
+					  fromsid, mysids[i],
 					  SECCLASS_PROCESS, /* kernel value */
 					  PROCESS__TRANSITION, AVC_STRICT,
 					  &dummy_avd);
@@ -2907,7 +2908,7 @@ int security_set_bools(struct selinux_state *state, int len, int *values)
 out:
 	write_unlock_irq(&state->ss->policy_rwlock);
 	if (!rc) {
-		avc_ss_reset(seqno);
+		avc_ss_reset(state->avc, seqno);
 		selnl_notify_policyload(seqno);
 		selinux_status_update_policyload(state, seqno);
 		selinux_xfrm_notify_policyload();
