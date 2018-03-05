@@ -269,17 +269,11 @@ int of_resolve_phandles(struct device_node *overlay)
 		goto out;
 	}
 
-#if 0
-	Temporarily disable check so that old style overlay unittests
-	do not fail when of_resolve_phandles() is moved into
-	of_overlay_apply().
-
 	if (!of_node_check_flag(overlay, OF_DETACHED)) {
 		pr_err("overlay not detached\n");
 		err = -EINVAL;
 		goto out;
 	}
-#endif
 
 	phandle_delta = live_tree_max_phandle() + 1;
 	adjust_overlay_phandles(overlay, phandle_delta);
