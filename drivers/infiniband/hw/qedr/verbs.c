@@ -2832,6 +2832,11 @@ static int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 	switch (wr->opcode) {
 	case IB_WR_SEND_WITH_IMM:
+		if (unlikely(rdma_protocol_iwarp(&dev->ibdev, 1))) {
+			rc = -EINVAL;
+			*bad_wr = wr;
+			break;
+		}
 		wqe->req_type = RDMA_SQ_REQ_TYPE_SEND_WITH_IMM;
 		swqe = (struct rdma_sq_send_wqe_1st *)wqe;
 		swqe->wqe_size = 2;
@@ -2873,6 +2878,11 @@ static int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		break;
 
 	case IB_WR_RDMA_WRITE_WITH_IMM:
+		if (unlikely(rdma_protocol_iwarp(&dev->ibdev, 1))) {
+			rc = -EINVAL;
+			*bad_wr = wr;
+			break;
+		}
 		wqe->req_type = RDMA_SQ_REQ_TYPE_RDMA_WR_WITH_IMM;
 		rwqe = (struct rdma_sq_rdma_wqe_1st *)wqe;
 
