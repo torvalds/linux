@@ -97,6 +97,18 @@ static struct hisi_mux_clock hi3798cv200_mux_clks[] = {
 		0x9c, 8, 2, 0, sdio_mux_table, },
 };
 
+static u32 mmc_phase_regvals[] = {0, 1, 2, 3, 4, 5, 6, 7};
+static u32 mmc_phase_degrees[] = {0, 45, 90, 135, 180, 225, 270, 315};
+
+static struct hisi_phase_clock hi3798cv200_phase_clks[] = {
+	{ HISTB_MMC_SAMPLE_CLK, "mmc_sample", "clk_mmc_ciu",
+		CLK_SET_RATE_PARENT, 0xa0, 12, 3, mmc_phase_degrees,
+		mmc_phase_regvals, ARRAY_SIZE(mmc_phase_regvals) },
+	{ HISTB_MMC_DRV_CLK, "mmc_drive", "clk_mmc_ciu",
+		CLK_SET_RATE_PARENT, 0xa0, 16, 3, mmc_phase_degrees,
+		mmc_phase_regvals, ARRAY_SIZE(mmc_phase_regvals) },
+};
+
 static const struct hisi_gate_clock hi3798cv200_gate_clks[] = {
 	/* UART */
 	{ HISTB_UART2_CLK, "clk_uart2", "75m",
@@ -185,6 +197,14 @@ static struct hisi_clock_data *hi3798cv200_clk_register(
 	clk_data = hisi_clk_alloc(pdev, HI3798CV200_CRG_NR_CLKS);
 	if (!clk_data)
 		return ERR_PTR(-ENOMEM);
+
+	/* hisi_phase_clock is resource managed */
+	ret = hisi_clk_register_phase(&pdev->dev,
+				hi3798cv200_phase_clks,
+				ARRAY_SIZE(hi3798cv200_phase_clks),
+				clk_data);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = hisi_clk_register_fixed_rate(hi3798cv200_fixed_rate_clks,
 				     ARRAY_SIZE(hi3798cv200_fixed_rate_clks),
