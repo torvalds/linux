@@ -704,14 +704,14 @@ int rf69_set_payload_length(struct spi_device *spi, u8 payload_length)
 	return rf69_write_reg(spi, REG_PAYLOAD_LENGTH, payload_length);
 }
 
-int rf69_set_node_address(struct spi_device *spi, u8 nodeAddress)
+int rf69_set_node_address(struct spi_device *spi, u8 node_address)
 {
-	return rf69_write_reg(spi, REG_NODEADRS, nodeAddress);
+	return rf69_write_reg(spi, REG_NODEADRS, node_address);
 }
 
-int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcastAddress)
+int rf69_set_broadcast_address(struct spi_device *spi, u8 broadcast_address)
 {
-	return rf69_write_reg(spi, REG_BROADCASTADRS, broadcastAddress);
+	return rf69_write_reg(spi, REG_BROADCASTADRS, broadcast_address);
 }
 
 int rf69_set_tx_start_condition(struct spi_device *spi, enum tx_start_condition tx_start_condition)
