@@ -204,6 +204,7 @@ struct rc_map *rc_map_get(const char *name);
 #define RC_MAP_HAUPPAUGE_NEW             "rc-hauppauge"
 #define RC_MAP_IMON_MCE                  "rc-imon-mce"
 #define RC_MAP_IMON_PAD                  "rc-imon-pad"
+#define RC_MAP_IMON_RSC                  "rc-imon-rsc"
 #define RC_MAP_IODATA_BCTV7E             "rc-iodata-bctv7e"
 #define RC_MAP_IT913X_V1                 "rc-it913x-v1"
 #define RC_MAP_IT913X_V2                 "rc-it913x-v2"

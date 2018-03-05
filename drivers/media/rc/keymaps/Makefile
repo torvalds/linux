@@ -44,6 +44,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-gotview7135.o \
 			rc-imon-mce.o \
 			rc-imon-pad.o \
+			rc-imon-rsc.o \
 			rc-iodata-bctv7e.o \
 			rc-it913x-v1.o \
 			rc-it913x-v2.o \
