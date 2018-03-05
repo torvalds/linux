@@ -139,6 +139,7 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
 	(X86_CR4_PVI | X86_CR4_DE | X86_CR4_PCE | X86_CR4_OSFXSR      \
 	 | X86_CR4_OSXMMEXCPT | X86_CR4_LA57 | X86_CR4_TSD)
 
+#define KVM_VM_CR4_ALWAYS_ON_UNRESTRICTED_GUEST X86_CR4_VMXE
 #define KVM_PMODE_VM_CR4_ALWAYS_ON (X86_CR4_PAE | X86_CR4_VMXE)
 #define KVM_RMODE_VM_CR4_ALWAYS_ON (X86_CR4_VME | X86_CR4_PAE | X86_CR4_VMXE)
 
@@ -4510,11 +4511,15 @@ static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	 * is in force while we are in guest mode.  Do not let guests control
 	 * this bit, even if host CR4.MCE == 0.
 	 */
-	unsigned long hw_cr4 =
-		(cr4_read_shadow() & X86_CR4_MCE) |
-		(cr4 & ~X86_CR4_MCE) |
-		(to_vmx(vcpu)->rmode.vm86_active ?
-		 KVM_RMODE_VM_CR4_ALWAYS_ON : KVM_PMODE_VM_CR4_ALWAYS_ON);
+	unsigned long hw_cr4;
+
+	hw_cr4 = (cr4_read_shadow() & X86_CR4_MCE) | (cr4 & ~X86_CR4_MCE);
+	if (enable_unrestricted_guest)
+		hw_cr4 |= KVM_VM_CR4_ALWAYS_ON_UNRESTRICTED_GUEST;
+	else if (to_vmx(vcpu)->rmode.vm86_active)
+		hw_cr4 |= KVM_RMODE_VM_CR4_ALWAYS_ON;
+	else
+		hw_cr4 |= KVM_PMODE_VM_CR4_ALWAYS_ON;
 
 	if ((cr4 & X86_CR4_UMIP) && !boot_cpu_has(X86_FEATURE_UMIP)) {
 		vmcs_set_bits(SECONDARY_VM_EXEC_CONTROL,
@@ -4540,16 +4545,17 @@ static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		return 1;
 
 	vcpu->arch.cr4 = cr4;
-	if (enable_ept) {
-		if (!is_paging(vcpu)) {
-			hw_cr4 &= ~X86_CR4_PAE;
-			hw_cr4 |= X86_CR4_PSE;
-		} else if (!(cr4 & X86_CR4_PAE)) {
-			hw_cr4 &= ~X86_CR4_PAE;
-		}
-	}
 
-	if (!enable_unrestricted_guest && !is_paging(vcpu))
+	if (!enable_unrestricted_guest) {
+		if (enable_ept) {
+			if (!is_paging(vcpu)) {
+				hw_cr4 &= ~X86_CR4_PAE;
+				hw_cr4 |= X86_CR4_PSE;
+			} else if (!(cr4 & X86_CR4_PAE)) {
+				hw_cr4 &= ~X86_CR4_PAE;
+			}
+		}
+
 		/*
 		 * SMEP/SMAP/PKU is disabled if CPU is in non-paging mode in
 		 * hardware.  To emulate this behavior, SMEP/SMAP/PKU needs
@@ -4561,7 +4567,9 @@ static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		 * If enable_unrestricted_guest, the CPU automatically
 		 * disables SMEP/SMAP/PKU when the guest sets CR0.PG=0.
 		 */
-		hw_cr4 &= ~(X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_PKE);
+		if (!is_paging(vcpu))
+			hw_cr4 &= ~(X86_CR4_SMEP | X86_CR4_SMAP | X86_CR4_PKE);
+	}
 
 	vmcs_writel(CR4_READ_SHADOW, cr4);
 	vmcs_writel(GUEST_CR4, hw_cr4);
