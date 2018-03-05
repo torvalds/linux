@@ -564,10 +564,8 @@ tree_mod_log_insert_key(struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-static noinline int
-tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
-			 struct extent_buffer *eb, int dst_slot, int src_slot,
-			 int nr_items)
+static noinline int tree_mod_log_insert_move(struct extent_buffer *eb,
+		int dst_slot, int src_slot, int nr_items)
 {
 	struct tree_mod_elem *tm = NULL;
 	struct tree_mod_elem **tm_list = NULL;
@@ -575,7 +573,7 @@ tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 	int i;
 	int locked = 0;
 
-	if (!tree_mod_need_log(fs_info, eb))
+	if (!tree_mod_need_log(eb->fs_info, eb))
 		return 0;
 
 	tm_list = kcalloc(nr_items, sizeof(struct tree_mod_elem *), GFP_NOFS);
@@ -603,7 +601,7 @@ tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	if (tree_mod_dont_log(fs_info, eb))
+	if (tree_mod_dont_log(eb->fs_info, eb))
 		goto free_tms;
 	locked = 1;
 
@@ -613,26 +611,26 @@ tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 	 * buffer, i.e. dst_slot < src_slot.
 	 */
 	for (i = 0; i + dst_slot < src_slot && i < nr_items; i++) {
-		ret = __tree_mod_log_insert(fs_info, tm_list[i]);
+		ret = __tree_mod_log_insert(eb->fs_info, tm_list[i]);
 		if (ret)
 			goto free_tms;
 	}
 
-	ret = __tree_mod_log_insert(fs_info, tm);
+	ret = __tree_mod_log_insert(eb->fs_info, tm);
 	if (ret)
 		goto free_tms;
-	tree_mod_log_write_unlock(fs_info);
+	tree_mod_log_write_unlock(eb->fs_info);
 	kfree(tm_list);
 
 	return 0;
 free_tms:
 	for (i = 0; i < nr_items; i++) {
 		if (tm_list[i] && !RB_EMPTY_NODE(&tm_list[i]->node))
-			rb_erase(&tm_list[i]->node, &fs_info->tree_mod_log);
+			rb_erase(&tm_list[i]->node, &eb->fs_info->tree_mod_log);
 		kfree(tm_list[i]);
 	}
 	if (locked)
-		tree_mod_log_write_unlock(fs_info);
+		tree_mod_log_write_unlock(eb->fs_info);
 	kfree(tm_list);
 	kfree(tm);
 
@@ -872,8 +870,7 @@ tree_mod_log_eb_move(struct btrfs_fs_info *fs_info, struct extent_buffer *dst,
 		     int dst_offset, int src_offset, int nr_items)
 {
 	int ret;
-	ret = tree_mod_log_insert_move(fs_info, dst, dst_offset, src_offset,
-				       nr_items);
+	ret = tree_mod_log_insert_move(dst, dst_offset, src_offset, nr_items);
 	BUG_ON(ret < 0);
 }
 
