@@ -527,7 +527,7 @@ void ndisc_send_na(struct net_device *dev, const struct in6_addr *daddr,
 	}
 
 	if (!dev->addr_len)
-		inc_opt = 0;
+		inc_opt = false;
 	if (inc_opt)
 		optlen += ndisc_opt_addr_space(dev,
 					       NDISC_NEIGHBOUR_ADVERTISEMENT);
