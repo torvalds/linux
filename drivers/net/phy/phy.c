@@ -765,13 +765,8 @@ void phy_stop(struct phy_device *phydev)
 	if (PHY_HALTED == phydev->state)
 		goto out_unlock;
 
-	if (phy_interrupt_is_valid(phydev)) {
-		/* Disable PHY Interrupts */
-		phy_config_interrupt(phydev, PHY_INTERRUPT_DISABLED);
-
-		/* Clear any pending interrupts */
-		phy_clear_interrupt(phydev);
-	}
+	if (phy_interrupt_is_valid(phydev))
+		phy_disable_interrupts(phydev);
 
 	phydev->state = PHY_HALTED;
 
