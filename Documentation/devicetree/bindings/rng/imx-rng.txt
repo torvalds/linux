@@ -1,15 +1,14 @@
-Freescale RNGC (Random Number Generator Version C)
-
-The driver also supports version B, which is mostly compatible
-to version C.
+Freescale RNGA/RNGB/RNGC (Random Number Generator Versions A, B and C)
 
 Required properties:
 - compatible : should be one of
+               "fsl,imx21-rnga"
+               "fsl,imx31-rnga" (backward compatible with "fsl,imx21-rnga")
                "fsl,imx25-rngb"
                "fsl,imx35-rngc"
 - reg : offset and length of the register set of this block
-- interrupts : the interrupt number for the RNGC block
-- clocks : the RNGC clk source
+- interrupts : the interrupt number for the RNG block
+- clocks : the RNG clk source
 
 Example:
 
