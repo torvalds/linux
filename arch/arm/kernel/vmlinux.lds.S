@@ -38,22 +38,10 @@ SECTIONS
 	 * unwind sections get included.
 	 */
 	/DISCARD/ : {
-		*(.ARM.exidx.exit.text)
-		*(.ARM.extab.exit.text)
-		ARM_CPU_DISCARD(*(.ARM.exidx.cpuexit.text))
-		ARM_CPU_DISCARD(*(.ARM.extab.cpuexit.text))
-		ARM_EXIT_DISCARD(EXIT_TEXT)
-		ARM_EXIT_DISCARD(EXIT_DATA)
-		EXIT_CALL
-#ifndef CONFIG_MMU
-		*(.text.fixup)
-		*(__ex_table)
-#endif
+		ARM_DISCARD
 #ifndef CONFIG_SMP_ON_UP
 		*(.alt.smp.init)
 #endif
-		*(.discard)
-		*(.discard.*)
 	}
 
 	. = PAGE_OFFSET + TEXT_OFFSET;
@@ -98,9 +86,7 @@ SECTIONS
 	. = ALIGN(4);
 	__ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {
 		__start___ex_table = .;
-#ifdef CONFIG_MMU
-		*(__ex_table)
-#endif
+		ARM_MMU_KEEP(*(__ex_table))
 		__stop___ex_table = .;
 	}
 

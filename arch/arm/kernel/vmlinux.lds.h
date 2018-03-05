@@ -17,6 +17,14 @@
 #define ARM_EXIT_DISCARD(x)	x
 #endif
 
+#ifdef CONFIG_MMU
+#define ARM_MMU_KEEP(x)		x
+#define ARM_MMU_DISCARD(x)
+#else
+#define ARM_MMU_KEEP(x)
+#define ARM_MMU_DISCARD(x)	x
+#endif
+
 #define PROC_INFO							\
 		. = ALIGN(4);						\
 		VMLINUX_SYMBOL(__proc_info_begin) = .;			\
@@ -38,3 +46,15 @@
 		*(.hyp.idmap.text)					\
 		VMLINUX_SYMBOL(__hyp_idmap_text_end) = .;
 
+#define ARM_DISCARD							\
+		*(.ARM.exidx.exit.text)					\
+		*(.ARM.extab.exit.text)					\
+		ARM_CPU_DISCARD(*(.ARM.exidx.cpuexit.text))		\
+		ARM_CPU_DISCARD(*(.ARM.extab.cpuexit.text))		\
+		ARM_EXIT_DISCARD(EXIT_TEXT)				\
+		ARM_EXIT_DISCARD(EXIT_DATA)				\
+		EXIT_CALL						\
+		ARM_MMU_DISCARD(*(.text.fixup))				\
+		ARM_MMU_DISCARD(*(__ex_table))				\
+		*(.discard)						\
+		*(.discard.*)

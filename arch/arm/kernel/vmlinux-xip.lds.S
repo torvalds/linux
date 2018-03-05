@@ -38,20 +38,9 @@ SECTIONS
 	 * unwind sections get included.
 	 */
 	/DISCARD/ : {
-		*(.ARM.exidx.exit.text)
-		*(.ARM.extab.exit.text)
-		ARM_CPU_DISCARD(*(.ARM.exidx.cpuexit.text))
-		ARM_CPU_DISCARD(*(.ARM.extab.cpuexit.text))
-		ARM_EXIT_DISCARD(EXIT_TEXT)
-		ARM_EXIT_DISCARD(EXIT_DATA)
-		EXIT_CALL
-#ifndef CONFIG_MMU
-		*(.text.fixup)
-		*(__ex_table)
-#endif
+		ARM_DISCARD
 		*(.alt.smp.init)
-		*(.discard)
-		*(.discard.*)
+		*(.pv_table)
 	}
 
 	. = XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR);
@@ -89,9 +78,7 @@ SECTIONS
 	. = ALIGN(4);
 	__ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {
 		__start___ex_table = .;
-#ifdef CONFIG_MMU
-		*(__ex_table)
-#endif
+		ARM_MMU_KEEP(*(__ex_table))
 		__stop___ex_table = .;
 	}
 
