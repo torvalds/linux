@@ -713,7 +713,6 @@ static void venc_disconnect(struct omap_dss_device *src,
 			    struct omap_dss_device *dst)
 {
 	omapdss_device_disconnect(dst, dst->next);
-	omapdss_output_unset_device(dst);
 
 	dss_mgr_disconnect(dst);
 }

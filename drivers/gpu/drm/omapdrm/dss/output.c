@@ -24,8 +24,6 @@
 #include "dss.h"
 #include "omapdss.h"
 
-static DEFINE_MUTEX(output_lock);
-
 int omapdss_output_validate(struct omap_dss_device *out)
 {
 	if (out->next && out->output_type != out->next->type) {
@@ -36,25 +34,6 @@ int omapdss_output_validate(struct omap_dss_device *out)
 	return 0;
 }
 EXPORT_SYMBOL(omapdss_output_validate);
-
-int omapdss_output_unset_device(struct omap_dss_device *out)
-{
-	int r = 0;
-
-	mutex_lock(&output_lock);
-
-	if (out->dst->state != OMAP_DSS_DISPLAY_DISABLED) {
-		dev_err(out->dev,
-			"device %s is not disabled, cannot unset device\n",
-			out->dst->name);
-		r = -EINVAL;
-	}
-
-	mutex_unlock(&output_lock);
-
-	return r;
-}
-EXPORT_SYMBOL(omapdss_output_unset_device);
 
 int dss_install_mgr_ops(struct dss_device *dss,
 			const struct dss_mgr_ops *mgr_ops,

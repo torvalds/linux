@@ -235,6 +235,8 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 		src->dst = NULL;
 	}
 
+	WARN_ON(dst->state != OMAP_DSS_DISPLAY_DISABLED);
+
 	if (dst->driver)
 		dst->driver->disconnect(src, dst);
 	else
