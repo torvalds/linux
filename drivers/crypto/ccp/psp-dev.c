@@ -367,8 +367,6 @@ e_free:
 
 void *psp_copy_user_blob(u64 __user uaddr, u32 len)
 {
-	void *data;
-
 	if (!uaddr || !len)
 		return ERR_PTR(-EINVAL);
 
@@ -376,18 +374,7 @@ void *psp_copy_user_blob(u64 __user uaddr, u32 len)
 	if (len > SEV_FW_BLOB_MAX_SIZE)
 		return ERR_PTR(-EINVAL);
 
-	data = kmalloc(len, GFP_KERNEL);
-	if (!data)
-		return ERR_PTR(-ENOMEM);
-
-	if (copy_from_user(data, (void __user *)(uintptr_t)uaddr, len))
-		goto e_free;
-
-	return data;
-
-e_free:
-	kfree(data);
-	return ERR_PTR(-EFAULT);
+	return memdup_user((void __user *)(uintptr_t)uaddr, len);
 }
 EXPORT_SYMBOL_GPL(psp_copy_user_blob);
 
