@@ -97,8 +97,20 @@
 		};
 
 		devctrl: device-state-control@2620000 {
-			compatible = "ti,keystone-devctrl", "syscon";
+			compatible = "ti,keystone-devctrl", "syscon", "simple-mfd";
 			reg = <0x02620000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x02620000 0x1000>;
+
+			kirq0: keystone_irq@2a0 {
+				compatible = "ti,keystone-irq";
+				reg = <0x2a0 0x10>;
+				interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				ti,syscon-dev = <&devctrl 0x2a0>;
+			};
 		};
 
 		uart0: serial@2530c00 {
@@ -186,14 +198,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-		};
-
-		kirq0: keystone_irq@26202a0 {
-			compatible = "ti,keystone-irq";
-			interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			ti,syscon-dev = <&devctrl 0x2a0>;
 		};
 
 		dspgpio0: keystone_dsp_gpio@2620240 {
