@@ -151,7 +151,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@02531000 {
+		uart1: serial@2531000 {
 			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
@@ -163,7 +163,7 @@
 			status = "disabled";
 		};
 
-		uart2: serial@02531400 {
+		uart2: serial@2531400 {
 			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
