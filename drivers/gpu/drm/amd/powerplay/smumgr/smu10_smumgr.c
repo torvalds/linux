@@ -22,9 +22,9 @@
  */
 
 #include "smumgr.h"
-#include "rv_inc.h"
+#include "smu10_inc.h"
 #include "pp_soc15.h"
-#include "rv_smumgr.h"
+#include "smu10_smumgr.h"
 #include "ppatomctrl.h"
 #include "rv_ppsmc.h"
 #include "smu10_driver_if.h"
@@ -47,7 +47,7 @@
 #define smnMP1_FIRMWARE_FLAGS       0x3010028
 
 
-static uint32_t rv_wait_for_response(struct pp_hwmgr *hwmgr)
+static uint32_t smu10_wait_for_response(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg;
 
@@ -60,7 +60,7 @@ static uint32_t rv_wait_for_response(struct pp_hwmgr *hwmgr)
 	return cgs_read_register(hwmgr->device, reg);
 }
 
-static int rv_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
+static int smu10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 		uint16_t msg)
 {
 	uint32_t reg;
@@ -72,7 +72,7 @@ static int rv_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int rv_read_arg_from_smc(struct pp_hwmgr *hwmgr)
+static int smu10_read_arg_from_smc(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg;
 
@@ -82,31 +82,31 @@ static int rv_read_arg_from_smc(struct pp_hwmgr *hwmgr)
 	return cgs_read_register(hwmgr->device, reg);
 }
 
-static int rv_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
+static int smu10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	uint32_t reg;
 
-	rv_wait_for_response(hwmgr);
+	smu10_wait_for_response(hwmgr);
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
 	cgs_write_register(hwmgr->device, reg, 0);
 
-	rv_send_msg_to_smc_without_waiting(hwmgr, msg);
+	smu10_send_msg_to_smc_without_waiting(hwmgr, msg);
 
-	if (rv_wait_for_response(hwmgr) == 0)
+	if (smu10_wait_for_response(hwmgr) == 0)
 		printk("Failed to send Message %x.\n", msg);
 
 	return 0;
 }
 
 
-static int rv_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
+static int smu10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 		uint16_t msg, uint32_t parameter)
 {
 	uint32_t reg;
 
-	rv_wait_for_response(hwmgr);
+	smu10_wait_for_response(hwmgr);
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
@@ -116,20 +116,20 @@ static int rv_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 			mmMP1_SMN_C2PMSG_82_BASE_IDX, mmMP1_SMN_C2PMSG_82);
 	cgs_write_register(hwmgr->device, reg, parameter);
 
-	rv_send_msg_to_smc_without_waiting(hwmgr, msg);
+	smu10_send_msg_to_smc_without_waiting(hwmgr, msg);
 
 
-	if (rv_wait_for_response(hwmgr) == 0)
+	if (smu10_wait_for_response(hwmgr) == 0)
 		printk("Failed to send Message %x.\n", msg);
 
 	return 0;
 }
 
-static int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
+static int smu10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
-	struct rv_smumgr *priv =
-			(struct rv_smumgr *)(hwmgr->smu_backend);
+	struct smu10_smumgr *priv =
+			(struct smu10_smumgr *)(hwmgr->smu_backend);
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL;);
@@ -137,13 +137,13 @@ static int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table version!", return -EINVAL;);
 	PP_ASSERT_WITH_CODE(priv->smu_tables.entry[table_id].size != 0,
 			"Invalid SMU Table Length!", return -EINVAL;);
-	rv_send_msg_to_smc_with_parameter(hwmgr,
+	smu10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
 			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	rv_send_msg_to_smc_with_parameter(hwmgr,
+	smu10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
 			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	rv_send_msg_to_smc_with_parameter(hwmgr,
+	smu10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
 			priv->smu_tables.entry[table_id].table_id);
 
@@ -153,11 +153,11 @@ static int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
+static int smu10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
-	struct rv_smumgr *priv =
-			(struct rv_smumgr *)(hwmgr->smu_backend);
+	struct smu10_smumgr *priv =
+			(struct smu10_smumgr *)(hwmgr->smu_backend);
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL;);
@@ -169,26 +169,26 @@ static int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
 
-	rv_send_msg_to_smc_with_parameter(hwmgr,
+	smu10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
 			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	rv_send_msg_to_smc_with_parameter(hwmgr,
+	smu10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
 			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
-	rv_send_msg_to_smc_with_parameter(hwmgr,
+	smu10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
 			priv->smu_tables.entry[table_id].table_id);
 
 	return 0;
 }
 
-static int rv_verify_smc_interface(struct pp_hwmgr *hwmgr)
+static int smu10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 {
 	uint32_t smc_driver_if_version;
 
-	rv_send_msg_to_smc(hwmgr,
+	smu10_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_GetDriverIfVersion);
-	smc_driver_if_version = rv_read_arg_from_smc(hwmgr);
+	smc_driver_if_version = smu10_read_arg_from_smc(hwmgr);
 
 	if (smc_driver_if_version != SMU10_DRIVER_IF_VERSION) {
 		pr_err("Attempt to read SMC IF Version Number Failed!\n");
@@ -199,39 +199,39 @@ static int rv_verify_smc_interface(struct pp_hwmgr *hwmgr)
 }
 
 /* sdma is disabled by default in vbios, need to re-enable in driver */
-static void rv_smc_enable_sdma(struct pp_hwmgr *hwmgr)
+static void smu10_smc_enable_sdma(struct pp_hwmgr *hwmgr)
 {
-	rv_send_msg_to_smc(hwmgr,
+	smu10_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_PowerUpSdma);
 }
 
-static void rv_smc_disable_sdma(struct pp_hwmgr *hwmgr)
+static void smu10_smc_disable_sdma(struct pp_hwmgr *hwmgr)
 {
-	rv_send_msg_to_smc(hwmgr,
+	smu10_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_PowerDownSdma);
 }
 
 /* vcn is disabled by default in vbios, need to re-enable in driver */
-static void rv_smc_enable_vcn(struct pp_hwmgr *hwmgr)
+static void smu10_smc_enable_vcn(struct pp_hwmgr *hwmgr)
 {
-	rv_send_msg_to_smc_with_parameter(hwmgr,
+	smu10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_PowerUpVcn, 0);
 }
 
-static void rv_smc_disable_vcn(struct pp_hwmgr *hwmgr)
+static void smu10_smc_disable_vcn(struct pp_hwmgr *hwmgr)
 {
-	rv_send_msg_to_smc_with_parameter(hwmgr,
+	smu10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_PowerDownVcn, 0);
 }
 
-static int rv_smu_fini(struct pp_hwmgr *hwmgr)
+static int smu10_smu_fini(struct pp_hwmgr *hwmgr)
 {
-	struct rv_smumgr *priv =
-			(struct rv_smumgr *)(hwmgr->smu_backend);
+	struct smu10_smumgr *priv =
+			(struct smu10_smumgr *)(hwmgr->smu_backend);
 
 	if (priv) {
-		rv_smc_disable_sdma(hwmgr);
-		rv_smc_disable_vcn(hwmgr);
+		smu10_smc_disable_sdma(hwmgr);
+		smu10_smc_disable_vcn(hwmgr);
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[SMU10_WMTABLE].handle,
 					&priv->smu_tables.entry[SMU10_WMTABLE].mc_addr,
 					&priv->smu_tables.entry[SMU10_WMTABLE].table);
@@ -245,29 +245,29 @@ static int rv_smu_fini(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int rv_start_smu(struct pp_hwmgr *hwmgr)
+static int smu10_start_smu(struct pp_hwmgr *hwmgr)
 {
 	struct cgs_firmware_info info = {0};
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
-	hwmgr->smu_version = rv_read_arg_from_smc(hwmgr);
+	hwmgr->smu_version = smu10_read_arg_from_smc(hwmgr);
 	info.version = hwmgr->smu_version >> 8;
 
 	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
 
-	if (rv_verify_smc_interface(hwmgr))
+	if (smu10_verify_smc_interface(hwmgr))
 		return -EINVAL;
-	rv_smc_enable_sdma(hwmgr);
-	rv_smc_enable_vcn(hwmgr);
+	smu10_smc_enable_sdma(hwmgr);
+	smu10_smc_enable_vcn(hwmgr);
 	return 0;
 }
 
-static int rv_smu_init(struct pp_hwmgr *hwmgr)
+static int smu10_smu_init(struct pp_hwmgr *hwmgr)
 {
-	struct rv_smumgr *priv;
+	struct smu10_smumgr *priv;
 	int r;
 
-	priv = kzalloc(sizeof(struct rv_smumgr), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct smu10_smumgr), GFP_KERNEL);
 
 	if (!priv)
 		return -ENOMEM;
@@ -317,30 +317,30 @@ err0:
 	return -EINVAL;
 }
 
-static int rv_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw)
+static int smu10_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw)
 {
 	int ret;
 
 	if (rw)
-		ret = rv_copy_table_from_smc(hwmgr, table, table_id);
+		ret = smu10_copy_table_from_smc(hwmgr, table, table_id);
 	else
-		ret = rv_copy_table_to_smc(hwmgr, table, table_id);
+		ret = smu10_copy_table_to_smc(hwmgr, table, table_id);
 
 	return ret;
 }
 
 
-const struct pp_smumgr_func rv_smu_funcs = {
-	.smu_init = &rv_smu_init,
-	.smu_fini = &rv_smu_fini,
-	.start_smu = &rv_start_smu,
+const struct pp_smumgr_func smu10_smu_funcs = {
+	.smu_init = &smu10_smu_init,
+	.smu_fini = &smu10_smu_fini,
+	.start_smu = &smu10_start_smu,
 	.request_smu_load_specific_fw = NULL,
-	.send_msg_to_smc = &rv_send_msg_to_smc,
-	.send_msg_to_smc_with_parameter = &rv_send_msg_to_smc_with_parameter,
+	.send_msg_to_smc = &smu10_send_msg_to_smc,
+	.send_msg_to_smc_with_parameter = &smu10_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
-	.get_argument = rv_read_arg_from_smc,
-	.smc_table_manager = rv_smc_table_manager,
+	.get_argument = smu10_read_arg_from_smc,
+	.smc_table_manager = smu10_smc_table_manager,
 };
 
 

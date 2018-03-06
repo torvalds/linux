@@ -43,7 +43,7 @@ extern const struct pp_smumgr_func tonga_smu_funcs;
 extern const struct pp_smumgr_func fiji_smu_funcs;
 extern const struct pp_smumgr_func polaris10_smu_funcs;
 extern const struct pp_smumgr_func vega10_smu_funcs;
-extern const struct pp_smumgr_func rv_smu_funcs;
+extern const struct pp_smumgr_func smu10_smu_funcs;
 
 extern int cz_init_function_pointers(struct pp_hwmgr *hwmgr);
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
@@ -230,8 +230,8 @@ int hwmgr_early_init(struct pp_instance *handle)
 		switch (hwmgr->chip_id) {
 		case CHIP_RAVEN:
 			hwmgr->od_enabled = false;
-			hwmgr->smumgr_funcs = &rv_smu_funcs;
-			rv_init_function_pointers(hwmgr);
+			hwmgr->smumgr_funcs = &smu10_smu_funcs;
+			smu10_init_function_pointers(hwmgr);
 			break;
 		default:
 			return -EINVAL;

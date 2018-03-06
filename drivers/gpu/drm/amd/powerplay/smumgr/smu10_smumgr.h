@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef PP_RAVEN_SMUMANAGER_H
-#define PP_RAVEN_SMUMANAGER_H
+#ifndef PP_SMU10_SMUMANAGER_H
+#define PP_SMU10_SMUMANAGER_H
 
 #include "rv_ppsmc.h"
 #include "smu10_driver_if.h"
@@ -42,7 +42,7 @@ struct smu_table_array {
 	struct smu_table_entry entry[MAX_SMU_TABLE];
 };
 
-struct rv_smumgr {
+struct smu10_smumgr {
 	struct smu_table_array            smu_tables;
 };
 

@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef RAVEN_INC_H
-#define RAVEN_INC_H
+#ifndef SMU10_INC_H
+#define SMU10_INC_H
 
 
 #include "asic_reg/mp/mp_10_0_default.h"
