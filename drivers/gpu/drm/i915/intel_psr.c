@@ -451,8 +451,9 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+	int crtc_hdisplay = crtc_state->base.adjusted_mode.crtc_hdisplay;
+	int crtc_vdisplay = crtc_state->base.adjusted_mode.crtc_vdisplay;
+	int psr_max_h = 0, psr_max_v = 0;
 
 	/*
 	 * FIXME psr2_support is messed up. It's both computed
@@ -462,10 +463,18 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (!dev_priv->psr.psr2_support)
 		return false;
 
-	/* PSR2 is restricted to work with panel resolutions up to 3640x2304 */
-	if (adjusted_mode->crtc_hdisplay > 3640 ||
-	    adjusted_mode->crtc_vdisplay > 2304) {
-		DRM_DEBUG_KMS("PSR2 not enabled, panel resolution too big\n");
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+		psr_max_h = 4096;
+		psr_max_v = 2304;
+	} else if (IS_GEN9(dev_priv)) {
+		psr_max_h = 3640;
+		psr_max_v = 2304;
+	}
+
+	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
+		DRM_DEBUG_KMS("PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
+			      crtc_hdisplay, crtc_vdisplay,
+			      psr_max_h, psr_max_v);
 		return false;
 	}
 
