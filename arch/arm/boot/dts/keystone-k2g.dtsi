@@ -111,6 +111,14 @@
 				#interrupt-cells = <1>;
 				ti,syscon-dev = <&devctrl 0x2a0>;
 			};
+
+			dspgpio0: keystone_dsp_gpio@240 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x240 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x240>;
+			};
 		};
 
 		uart0: serial@2530c00 {
@@ -198,13 +206,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-		};
-
-		dspgpio0: keystone_dsp_gpio@2620240 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x240>;
 		};
 
 		dsp0: dsp@10800000 {
