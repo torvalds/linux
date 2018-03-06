@@ -287,6 +287,10 @@
 	status = "okay";
 };
 
+&nandc {
+	status = "okay";
+};
+
 &pinctrl {
 	keys {
 		pwr_key: pwr-key {
