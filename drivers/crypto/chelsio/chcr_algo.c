@@ -854,6 +854,13 @@ static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 		    transhdr_len, temp,
 			ablkctx->ciph_mode == CHCR_SCMD_CIPHER_MODE_AES_CBC);
 	reqctx->skb = skb;
+
+	if (reqctx->op && (ablkctx->ciph_mode ==
+			   CHCR_SCMD_CIPHER_MODE_AES_CBC))
+		sg_pcopy_to_buffer(wrparam->req->src,
+			sg_nents(wrparam->req->src), wrparam->req->info, 16,
+			reqctx->processed + wrparam->bytes - AES_BLOCK_SIZE);
+
 	return skb;
 err:
 	return ERR_PTR(error);
@@ -1077,9 +1084,8 @@ static int chcr_update_cipher_iv(struct ablkcipher_request *req,
 		ret = chcr_update_tweak(req, iv, 0);
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_CBC) {
 		if (reqctx->op)
-			sg_pcopy_to_buffer(req->src, sg_nents(req->src), iv,
-					   16,
-					   reqctx->processed - AES_BLOCK_SIZE);
+			/*Updated before sending last WR*/
+			memcpy(iv, req->info, AES_BLOCK_SIZE);
 		else
 			memcpy(iv, &fw6_pld->data[2], AES_BLOCK_SIZE);
 	}
@@ -1107,11 +1113,8 @@ static int chcr_final_cipher_iv(struct ablkcipher_request *req,
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_XTS)
 		ret = chcr_update_tweak(req, iv, 1);
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_CBC) {
-		if (reqctx->op)
-			sg_pcopy_to_buffer(req->src, sg_nents(req->src), iv,
-					   16,
-					   reqctx->processed - AES_BLOCK_SIZE);
-		else
+		/*Already updated for Decrypt*/
+		if (!reqctx->op)
 			memcpy(iv, &fw6_pld->data[2], AES_BLOCK_SIZE);
 
 	}
