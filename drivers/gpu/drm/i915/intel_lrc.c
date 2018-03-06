@@ -727,7 +727,12 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 
 		GEM_BUG_ON(!execlists->active);
 		intel_engine_context_out(rq->engine);
-		execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_PREEMPTED);
+
+		execlists_context_status_change(rq,
+						i915_request_completed(rq) ?
+						INTEL_CONTEXT_SCHEDULE_OUT :
+						INTEL_CONTEXT_SCHEDULE_PREEMPTED);
+
 		i915_request_put(rq);
 
 		memset(port, 0, sizeof(*port));
