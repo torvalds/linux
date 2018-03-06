@@ -135,9 +135,8 @@ static int add_cgroup(struct perf_evlist *evlist, char *str)
 			goto found;
 		n++;
 	}
-	if (refcount_dec_and_test(&cgrp->refcnt))
-		free(cgrp);
 
+	cgroup__put(cgrp);
 	return -1;
 found:
 	counter->cgrp = cgrp;
@@ -151,7 +150,7 @@ static void cgroup__delete(struct cgroup *cgroup)
 	free(cgroup);
 }
 
-void close_cgroup(struct cgroup *cgrp)
+void cgroup__put(struct cgroup *cgrp)
 {
 	if (cgrp && refcount_dec_and_test(&cgrp->refcnt)) {
 		cgroup__delete(cgrp);
