@@ -19,5 +19,5 @@ cleanup() {
 trap cleanup EXIT
 setup
 
-"$@"
+ip netns exec "${NETNS}" "$@"
 exit "$?"
