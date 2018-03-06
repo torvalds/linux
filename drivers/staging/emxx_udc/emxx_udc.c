@@ -1672,9 +1672,6 @@ static int std_req_set_configuration(struct nbu2ss_udc *udc)
 /*-------------------------------------------------------------------------*/
 static inline void _nbu2ss_read_request_data(struct nbu2ss_udc *udc, u32 *pdata)
 {
-	if ((!udc) && (!pdata))
-		return;
-
 	*pdata = _nbu2ss_readl(&udc->p_regs->SETUP_DATA0);
 	pdata++;
 	*pdata = _nbu2ss_readl(&udc->p_regs->SETUP_DATA1);
@@ -2941,11 +2938,6 @@ static int nbu2ss_gad_get_frame(struct usb_gadget *pgadget)
 	}
 
 	udc = container_of(pgadget, struct nbu2ss_udc, gadget);
-	if (!udc) {
-		dev_err(&pgadget->dev, "%s, udc == NULL\n", __func__);
-		return -EINVAL;
-	}
-
 	data = gpio_get_value(VBUS_VALUE);
 	if (data == 0)
 		return -EINVAL;
