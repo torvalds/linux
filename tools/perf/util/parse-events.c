@@ -1247,7 +1247,12 @@ static int __parse_events_add_pmu(struct parse_events_state *parse_state,
 	if (!head_config) {
 		attr.type = pmu->type;
 		evsel = __add_event(list, &parse_state->idx, &attr, NULL, pmu, NULL, auto_merge_stats);
-		return evsel ? 0 : -ENOMEM;
+		if (evsel) {
+			evsel->pmu_name = name;
+			return 0;
+		} else {
+			return -ENOMEM;
+		}
 	}
 
 	if (perf_pmu__check_alias(pmu, head_config, &info))
@@ -1276,6 +1281,7 @@ static int __parse_events_add_pmu(struct parse_events_state *parse_state,
 		evsel->snapshot = info.snapshot;
 		evsel->metric_expr = info.metric_expr;
 		evsel->metric_name = info.metric_name;
+		evsel->pmu_name = name;
 	}
 
 	return evsel ? 0 : -ENOMEM;
