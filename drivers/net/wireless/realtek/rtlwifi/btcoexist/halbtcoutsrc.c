@@ -656,6 +656,9 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 	case BTC_GET_BL_IS_ASUS_8723B:
 		*bool_tmp = false;
 		break;
+	case BTC_GET_BL_RF4CE_CONNECTED:
+		*bool_tmp = false;
+		break;
 	case BTC_GET_S4_WIFI_RSSI:
 		*s32_tmp = halbtc_get_wifi_rssi(rtlpriv);
 		break;
@@ -1141,6 +1144,11 @@ static void halbtc_display_dbg_msg(void *bt_context, u8 disp_type,
 	}
 }
 
+static u32 halbtc_get_bt_reg(void *btc_context, u8 reg_type, u32 offset)
+{
+	return 0;
+}
+
 static bool halbtc_under_ips(struct btc_coexist *btcoexist)
 {
 	struct rtl_priv *rtlpriv = btcoexist->adapter;
@@ -1291,6 +1299,7 @@ bool exhalbtc_initlize_variables(struct rtl_priv *rtlpriv)
 	btcoexist->btc_get = halbtc_get;
 	btcoexist->btc_set = halbtc_set;
 	btcoexist->btc_set_bt_reg = halbtc_set_bt_reg;
+	btcoexist->btc_get_bt_reg = halbtc_get_bt_reg;
 
 	btcoexist->bt_info.bt_ctrl_buf_size = false;
 	btcoexist->bt_info.agg_buf_size = 5;

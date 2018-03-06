@@ -338,6 +338,7 @@ enum btc_set_type {
 	BTC_SET_ACT_GET_BT_RSSI,
 	BTC_SET_ACT_AGGREGATE_CTRL,
 	BTC_SET_ACT_ANTPOSREGRISTRY_CTRL,
+	BTC_SET_MIMO_PS_MODE,
 
 	/********* for 1Ant **********/
 	/* type bool */
@@ -356,6 +357,7 @@ enum btc_set_type {
 	BTC_SET_ACT_POST_NORMAL_LPS,
 	BTC_SET_ACT_INC_FORCE_EXEC_PWR_CMD_CNT,
 	BTC_SET_ACT_DISABLE_LOW_POWER,
+	BTC_SET_BL_BT_LNA_CONSTRAIN_LEVEL,
 	BTC_SET_ACT_UPDATE_RAMASK,
 	BTC_SET_ACT_SEND_MIMO_PS,
 	/* BT Coex related */
@@ -738,6 +740,7 @@ struct btc_coexist {
 
 	void (*btc_set_bt_reg)(void *btc_context, u8 reg_type, u32 offset,
 			       u32 value);
+	u32 (*btc_get_bt_reg)(void *btc_context, u8 reg_type, u32 offset);
 	u32 (*btc_get_bt_coex_supported_feature)(void *btcoexist);
 	u32 (*btc_get_bt_coex_supported_version)(void *btcoexist);
 	u32 (*btc_get_bt_phydm_version)(void *btcoexist);
