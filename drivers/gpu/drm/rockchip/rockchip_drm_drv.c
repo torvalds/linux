@@ -1404,6 +1404,7 @@ static int rockchip_drm_bind(struct device *dev)
 	drm_for_each_crtc(crtc, drm_dev) {
 		struct drm_fb_helper *helper = private->fbdev_helper;
 		crtc->primary->fb = helper->fb;
+		drm_framebuffer_reference(helper->fb);
 	}
 	drm_dev->mode_config.allow_fb_modifiers = true;
 
