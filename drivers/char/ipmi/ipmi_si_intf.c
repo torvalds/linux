@@ -2071,6 +2071,7 @@ static int try_smi_init(struct smi_info *new_smi)
 						      new_smi->intf_num);
 		if (!new_smi->pdev) {
 			pr_err(PFX "Unable to allocate platform device\n");
+			rv = -ENOMEM;
 			goto out_err;
 		}
 		new_smi->io.dev = &new_smi->pdev->dev;
