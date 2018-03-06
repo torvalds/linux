@@ -1715,7 +1715,8 @@ int wacom_equivalent_usage(int usage)
 		    usage == WACOM_HID_WD_TOUCHSTRIP ||
 		    usage == WACOM_HID_WD_TOUCHSTRIP2 ||
 		    usage == WACOM_HID_WD_TOUCHRING ||
-		    usage == WACOM_HID_WD_TOUCHRINGSTATUS) {
+		    usage == WACOM_HID_WD_TOUCHRINGSTATUS ||
+		    usage == WACOM_HID_WD_REPORT_VALID) {
 			return usage;
 		}
 
@@ -2199,6 +2200,9 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 	struct input_dev *input = wacom_wac->pen_input;
 	unsigned equivalent_usage = wacom_equivalent_usage(usage->hid);
 
+	if (wacom_wac->is_invalid_bt_frame)
+		return;
+
 	switch (equivalent_usage) {
 	case HID_GD_Z:
 		/*
@@ -2295,6 +2299,9 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 				 features->offset_bottom);
 		features->offset_bottom = value;
 		return;
+	case WACOM_HID_WD_REPORT_VALID:
+		wacom_wac->is_invalid_bt_frame = !value;
+		return;
 	}
 
 	/* send pen events only when touch is up or forced out
@@ -2313,6 +2320,10 @@ static void wacom_wac_pen_event(struct hid_device *hdev, struct hid_field *field
 static void wacom_wac_pen_pre_report(struct hid_device *hdev,
 		struct hid_report *report)
 {
+	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+
+	wacom_wac->is_invalid_bt_frame = false;
 	return;
 }
 
@@ -2324,6 +2335,9 @@ static void wacom_wac_pen_report(struct hid_device *hdev,
 	struct input_dev *input = wacom_wac->pen_input;
 	bool range = wacom_wac->hid_data.inrange_state;
 	bool sense = wacom_wac->hid_data.sense_state;
+
+	if (wacom_wac->is_invalid_bt_frame)
+		return;
 
 	if (!wacom_wac->tool[0] && range) { /* first in range */
 		/* Going into range select tool */
