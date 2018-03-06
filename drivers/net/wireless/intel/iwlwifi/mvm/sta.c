@@ -1679,7 +1679,8 @@ int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
 			     u32 qmask, enum nl80211_iftype iftype,
 			     enum iwl_sta_type type)
 {
-	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) ||
+	    sta->sta_id == IWL_MVM_INVALID_STA) {
 		sta->sta_id = iwl_mvm_find_free_sta_id(mvm, iftype);
 		if (WARN_ON_ONCE(sta->sta_id == IWL_MVM_INVALID_STA))
 			return -ENOSPC;
