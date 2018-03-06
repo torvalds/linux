@@ -583,6 +583,7 @@ static ssize_t components_show(struct device_driver *drv, char *buf)
 	}
 	return offs;
 }
+
 /**
  * split_string - parses buf and extracts ':' separated substrings.
  *
