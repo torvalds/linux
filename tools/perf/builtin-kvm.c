@@ -746,14 +746,13 @@ static s64 perf_kvm__mmap_read_idx(struct perf_kvm_stat *kvm, int idx,
 	struct perf_evlist *evlist = kvm->evlist;
 	union perf_event *event;
 	struct perf_mmap *md;
-	u64 end, start;
 	u64 timestamp;
 	s64 n = 0;
 	int err;
 
 	*mmap_time = ULLONG_MAX;
 	md = &evlist->mmap[idx];
-	err = perf_mmap__read_init(md, false, &start, &end);
+	err = perf_mmap__read_init(md);
 	if (err < 0)
 		return (err == -EAGAIN) ? 0 : -1;
 

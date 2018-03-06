@@ -235,16 +235,13 @@ static int overwrite_rb_find_range(void *buf, int mask, u64 head, u64 *start, u6
 /*
  * Report the start and end of the available data in ringbuffer
  */
-int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
-			 u64 *startp, u64 *endp)
+int perf_mmap__read_init(struct perf_mmap *md)
 {
 	u64 head = perf_mmap__read_head(md);
 	u64 old = md->prev;
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
 
-	*startp = overwrite ? head : old;
-	*endp = overwrite ? old : head;
 	md->start = md->overwrite ? head : old;
 	md->end = md->overwrite ? old : head;
 
@@ -267,8 +264,6 @@ int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
 		 */
 		if (overwrite_rb_find_range(data, md->mask, head, &md->start, &md->end))
 			return -EINVAL;
-		*startp = md->start;
-		*endp = md->end;
 	}
 
 	return 0;
@@ -278,13 +273,12 @@ int perf_mmap__push(struct perf_mmap *md, void *to,
 		    int push(void *to, void *buf, size_t size))
 {
 	u64 head = perf_mmap__read_head(md);
-	u64 end, start;
 	unsigned char *data = md->base + page_size;
 	unsigned long size;
 	void *buf;
 	int rc = 0;
 
-	rc = perf_mmap__read_init(md, md->overwrite, &start, &end);
+	rc = perf_mmap__read_init(md);
 	if (rc < 0)
 		return (rc == -EAGAIN) ? 0 : -1;
 

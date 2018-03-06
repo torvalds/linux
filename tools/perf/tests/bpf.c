@@ -177,10 +177,9 @@ static int do_test(struct bpf_object *obj, int (*func)(void),
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		union perf_event *event;
 		struct perf_mmap *md;
-		u64 end, start;
 
 		md = &evlist->mmap[i];
-		if (perf_mmap__read_init(md, false, &start, &end) < 0)
+		if (perf_mmap__read_init(md) < 0)
 			continue;
 
 		while ((event = perf_mmap__read_event(md)) != NULL) {

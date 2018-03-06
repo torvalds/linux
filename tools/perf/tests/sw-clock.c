@@ -40,7 +40,6 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	struct cpu_map *cpus;
 	struct thread_map *threads;
 	struct perf_mmap *md;
-	u64 end, start;
 
 	attr.sample_freq = 500;
 
@@ -96,7 +95,7 @@ static int __test__sw_clock_freq(enum perf_sw_ids clock_id)
 	perf_evlist__disable(evlist);
 
 	md = &evlist->mmap[0];
-	if (perf_mmap__read_init(md, false, &start, &end) < 0)
+	if (perf_mmap__read_init(md) < 0)
 		goto out_init;
 
 	while ((event = perf_mmap__read_event(md)) != NULL) {
