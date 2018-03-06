@@ -984,8 +984,8 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 
 	if (cmd == ND_CMD_CALL) {
 		func = pkg.nd_command;
-		dev_dbg(dev, "%s:%s, idx: %llu, in: %u, out: %u, len %llu\n",
-				__func__, dimm_name, pkg.nd_command,
+		dev_dbg(dev, "%s, idx: %llu, in: %u, out: %u, len %llu\n",
+				dimm_name, pkg.nd_command,
 				in_len, out_len, buf_len);
 	}
 
@@ -996,8 +996,8 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 		u32 copy;
 
 		if (out_size == UINT_MAX) {
-			dev_dbg(dev, "%s:%s unknown output size cmd: %s field: %d\n",
-					__func__, dimm_name, cmd_name, i);
+			dev_dbg(dev, "%s unknown output size cmd: %s field: %d\n",
+					dimm_name, cmd_name, i);
 			return -EFAULT;
 		}
 		if (out_len < sizeof(out_env))
@@ -1012,9 +1012,8 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 
 	buf_len = (u64) out_len + (u64) in_len;
 	if (buf_len > ND_IOCTL_MAX_BUFLEN) {
-		dev_dbg(dev, "%s:%s cmd: %s buf_len: %llu > %d\n", __func__,
-				dimm_name, cmd_name, buf_len,
-				ND_IOCTL_MAX_BUFLEN);
+		dev_dbg(dev, "%s cmd: %s buf_len: %llu > %d\n", dimm_name,
+				cmd_name, buf_len, ND_IOCTL_MAX_BUFLEN);
 		return -EINVAL;
 	}
 
