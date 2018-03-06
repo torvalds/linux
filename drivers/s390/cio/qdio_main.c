@@ -98,22 +98,6 @@ static inline int do_siga_output(unsigned long schid, unsigned long mask,
 	return cc;
 }
 
-static inline int qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
-{
-	/* all done or next buffer state different */
-	if (ccq == 0 || ccq == 32)
-		return 0;
-	/* no buffer processed */
-	if (ccq == 97)
-		return 1;
-	/* not all buffers processed */
-	if (ccq == 96)
-		return 2;
-	/* notify devices immediately */
-	DBF_ERROR("%4x ccq:%3d", SCH_NO(q), ccq);
-	return -EIO;
-}
-
 /**
  * qdio_do_eqbs - extract buffer states for QEBSM
  * @q: queue to manipulate
@@ -128,7 +112,7 @@ static inline int qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
 static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 			int start, int count, int auto_ack)
 {
-	int rc, tmp_count = count, tmp_start = start, nr = q->nr;
+	int tmp_count = count, tmp_start = start, nr = q->nr;
 	unsigned int ccq = 0;
 
 	qperf_inc(q, eqbs);
@@ -138,27 +122,30 @@ static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 again:
 	ccq = do_eqbs(q->irq_ptr->sch_token, state, nr, &tmp_start, &tmp_count,
 		      auto_ack);
-	rc = qdio_check_ccq(q, ccq);
-	if (!rc)
+
+	switch (ccq) {
+	case 0:
+	case 32:
+		/* all done, or next buffer state different */
 		return count - tmp_count;
-
-	if (rc == 1) {
-		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS again:%2d", ccq);
-		goto again;
-	}
-
-	if (rc == 2) {
+	case 96:
+		/* not all buffers processed */
 		qperf_inc(q, eqbs_partial);
 		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS part:%02x",
 			tmp_count);
 		return count - tmp_count;
+	case 97:
+		/* no buffer processed */
+		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS again:%2d", ccq);
+		goto again;
+	default:
+		DBF_ERROR("%4x ccq:%3d", SCH_NO(q), ccq);
+		DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
+		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
+		q->handler(q->irq_ptr->cdev, QDIO_ERROR_GET_BUF_STATE, q->nr,
+			   q->first_to_kick, count, q->irq_ptr->int_parm);
+		return 0;
 	}
-
-	DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
-	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
-	q->handler(q->irq_ptr->cdev, QDIO_ERROR_GET_BUF_STATE,
-		   q->nr, q->first_to_kick, count, q->irq_ptr->int_parm);
-	return 0;
 }
 
 /**
@@ -178,7 +165,6 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 	unsigned int ccq = 0;
 	int tmp_count = count, tmp_start = start;
 	int nr = q->nr;
-	int rc;
 
 	if (!count)
 		return 0;
@@ -188,23 +174,26 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 		nr += q->irq_ptr->nr_input_qs;
 again:
 	ccq = do_sqbs(q->irq_ptr->sch_token, state, nr, &tmp_start, &tmp_count);
-	rc = qdio_check_ccq(q, ccq);
-	if (!rc) {
+
+	switch (ccq) {
+	case 0:
+	case 32:
+		/* all done, or active buffer adapter-owned */
 		WARN_ON_ONCE(tmp_count);
 		return count - tmp_count;
-	}
-
-	if (rc == 1 || rc == 2) {
+	case 96:
+		/* not all buffers processed */
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "SQBS again:%2d", ccq);
 		qperf_inc(q, sqbs_partial);
 		goto again;
+	default:
+		DBF_ERROR("%4x ccq:%3d", SCH_NO(q), ccq);
+		DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
+		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
+		q->handler(q->irq_ptr->cdev, QDIO_ERROR_SET_BUF_STATE, q->nr,
+			   q->first_to_kick, count, q->irq_ptr->int_parm);
+		return 0;
 	}
-
-	DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
-	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
-	q->handler(q->irq_ptr->cdev, QDIO_ERROR_SET_BUF_STATE,
-		   q->nr, q->first_to_kick, count, q->irq_ptr->int_parm);
-	return 0;
 }
 
 /*
