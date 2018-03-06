@@ -8149,7 +8149,7 @@ F:	drivers/*/*/*pasemi*
 LINUX KERNEL DUMP TEST MODULE (LKDTM)
 M:	Kees Cook <keescook@chromium.org>
 S:	Maintained
-F:	drivers/misc/lkdtm*
+F:	drivers/misc/lkdtm/*
 
 LINUX SECURITY MODULE (LSM) FRAMEWORK
 M:	Chris Wright <chrisw@sous-sol.org>
