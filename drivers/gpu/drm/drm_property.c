@@ -390,14 +390,9 @@ int drm_property_add_enum(struct drm_property *property, int index,
 			(value > 63))
 		return -EINVAL;
 
-	if (!list_empty(&property->enum_list)) {
-		list_for_each_entry(prop_enum, &property->enum_list, head) {
-			if (prop_enum->value == value) {
-				strncpy(prop_enum->name, name, DRM_PROP_NAME_LEN);
-				prop_enum->name[DRM_PROP_NAME_LEN-1] = '\0';
-				return 0;
-			}
-		}
+	list_for_each_entry(prop_enum, &property->enum_list, head) {
+		if (WARN_ON(prop_enum->value == value))
+			return -EINVAL;
 	}
 
 	prop_enum = kzalloc(sizeof(struct drm_property_enum), GFP_KERNEL);
