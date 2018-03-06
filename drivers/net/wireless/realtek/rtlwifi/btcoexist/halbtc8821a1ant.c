@@ -426,39 +426,6 @@ static void btc8821a1ant_query_bt_info(struct btc_coexist *btcoexist)
 	btcoexist->btc_fill_h2c(btcoexist, 0x61, 1, h2c_parameter);
 }
 
-bool btc8821a1ant_is_wifi_status_changed(struct btc_coexist *btcoexist)
-{
-	static bool pre_wifi_busy = true;
-	static bool pre_under_4way = true;
-	static bool pre_bt_hs_on = true;
-	bool wifi_busy = false, under_4way = false, bt_hs_on = false;
-	bool wifi_connected = false;
-
-	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_CONNECTED,
-			   &wifi_connected);
-	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_BUSY, &wifi_busy);
-	btcoexist->btc_get(btcoexist, BTC_GET_BL_HS_OPERATION, &bt_hs_on);
-	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_4_WAY_PROGRESS,
-			   &under_4way);
-
-	if (wifi_connected) {
-		if (wifi_busy != pre_wifi_busy) {
-			pre_wifi_busy = wifi_busy;
-			return true;
-		}
-		if (under_4way != pre_under_4way) {
-			pre_under_4way = under_4way;
-			return true;
-		}
-		if (bt_hs_on != pre_bt_hs_on) {
-			pre_bt_hs_on = bt_hs_on;
-			return true;
-		}
-	}
-
-	return false;
-}
-
 static void btc8821a1ant_update_bt_link_info(struct btc_coexist *btcoexist)
 {
 	struct btc_bt_link_info	*bt_link_info = &btcoexist->bt_link_info;

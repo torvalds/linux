@@ -1436,6 +1436,7 @@ static void halbtc8723b1ant_ps_tdma(struct btc_coexist *btcoexist,
 	coex_dm->pre_ps_tdma = coex_dm->cur_ps_tdma;
 }
 
+static
 void btc8723b1ant_tdma_dur_adj_for_acl(struct btc_coexist *btcoexist,
 				       u8 wifi_status)
 {
