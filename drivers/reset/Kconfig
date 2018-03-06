@@ -49,6 +49,7 @@ config RESET_HSDK
 
 config RESET_IMX7
 	bool "i.MX7 Reset Driver" if COMPILE_TEST
+	depends on HAS_IOMEM
 	default SOC_IMX7D
 	select MFD_SYSCON
 	help
