@@ -922,7 +922,7 @@ int qbman_swp_alt_fq_state(struct qbman_swp *s, u32 fqid,
 	if (!p)
 		return -EBUSY;
 
-	p->fqid = cpu_to_le32(fqid) & ALT_FQ_FQID_MASK;
+	p->fqid = cpu_to_le32(fqid & ALT_FQ_FQID_MASK);
 
 	/* Complete the management command */
 	r = qbman_swp_mc_complete(s, p, alt_fq_verb);
