@@ -308,7 +308,7 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 				/* skip disabled subslice */
 				continue;
 
-			eu_disabled_mask = (eu_disable >> (ss*8)) & eu_mask;
+			eu_disabled_mask = (eu_disable >> (ss * 8)) & eu_mask;
 
 			sseu_set_eus(sseu, s, ss, ~eu_disabled_mask);
 
