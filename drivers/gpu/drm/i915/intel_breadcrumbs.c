@@ -889,11 +889,6 @@ bool intel_breadcrumbs_busy(struct intel_engine_cs *engine)
 		spin_unlock_irq(&b->irq_lock);
 	}
 
-	if (!busy && !list_empty(&b->signals)) {
-		wake_up_process(b->signaler);
-		busy = true;
-	}
-
 	return busy;
 }
 

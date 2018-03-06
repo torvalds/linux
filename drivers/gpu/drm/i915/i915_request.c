@@ -220,6 +220,8 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 			/* spin until threads are complete */
 			while (intel_breadcrumbs_busy(engine))
 				cond_resched();
+
+			GEM_BUG_ON(!list_empty(&engine->breadcrumbs.signals));
 		}
 
 		/* Check we are idle before we fiddle with hw state! */
