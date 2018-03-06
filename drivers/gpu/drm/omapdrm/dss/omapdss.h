@@ -640,8 +640,6 @@ struct dispc_ops {
 				const struct videomode *vm);
 	void (*mgr_setup)(struct dispc_device *dispc, enum omap_channel channel,
 			  const struct omap_overlay_manager_info *info);
-	enum omap_dss_output_id (*mgr_get_supported_outputs)(
-			struct dispc_device *dispc, enum omap_channel channel);
 	u32 (*mgr_gamma_size)(struct dispc_device *dispc,
 			      enum omap_channel channel);
 	void (*mgr_set_gamma)(struct dispc_device *dispc,

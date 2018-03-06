@@ -114,12 +114,6 @@ static int omap_crtc_dss_connect(struct omap_drm_private *priv,
 		enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	const struct dispc_ops *dispc_ops = priv->dispc_ops;
-	struct dispc_device *dispc = priv->dispc;
-
-	if (!(dispc_ops->mgr_get_supported_outputs(dispc, channel) & dst->id))
-		return -EINVAL;
-
 	dst->dispc_channel_connected = true;
 
 	return 0;

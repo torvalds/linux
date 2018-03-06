@@ -2904,13 +2904,6 @@ static int dispc_ovl_enable(struct dispc_device *dispc,
 	return 0;
 }
 
-static enum omap_dss_output_id
-dispc_mgr_get_supported_outputs(struct dispc_device *dispc,
-				enum omap_channel channel)
-{
-	return dss_get_supported_outputs(dispc->dss, channel);
-}
-
 static void dispc_lcd_enable_signal_polarity(struct dispc_device *dispc,
 					     bool act_high)
 {
@@ -4742,7 +4735,6 @@ static const struct dispc_ops dispc_ops = {
 	.mgr_set_lcd_config = dispc_mgr_set_lcd_config,
 	.mgr_set_timings = dispc_mgr_set_timings,
 	.mgr_setup = dispc_mgr_setup,
-	.mgr_get_supported_outputs = dispc_mgr_get_supported_outputs,
 	.mgr_gamma_size = dispc_mgr_gamma_size,
 	.mgr_set_gamma = dispc_mgr_set_gamma,
 

@@ -678,12 +678,6 @@ unsigned long dss_get_max_fck_rate(struct dss_device *dss)
 	return dss->feat->fck_freq_max;
 }
 
-enum omap_dss_output_id dss_get_supported_outputs(struct dss_device *dss,
-						  enum omap_channel channel)
-{
-	return dss->feat->outputs[channel];
-}
-
 static int dss_setup_default_clock(struct dss_device *dss)
 {
 	unsigned long max_dss_fck, prate;
