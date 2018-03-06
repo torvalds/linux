@@ -452,27 +452,37 @@ static const struct pstore_zbackend backend_lz4hc = {
 static int compress_842(const void *in, void *out, size_t inlen, size_t outlen)
 {
 	int ret;
+	unsigned int size;
 
-	ret = sw842_compress(in, inlen, out, (unsigned int *)&outlen, workspace);
+	if (outlen > UINT_MAX)
+		return -EIO;
+	size = outlen;
+
+	ret = sw842_compress(in, inlen, out, &size, workspace);
 	if (ret) {
 		pr_err("sw842_compress error; compression failed!\n");
 		return ret;
 	}
 
-	return outlen;
+	return size;
 }
 
 static int decompress_842(void *in, void *out, size_t inlen, size_t outlen)
 {
 	int ret;
+	unsigned int size;
 
-	ret = sw842_decompress(in, inlen, out, (unsigned int *)&outlen);
+	if (outlen > UINT_MAX)
+		return -EIO;
+	size = outlen;
+
+	ret = sw842_decompress(in, inlen, out, &size);
 	if (ret) {
 		pr_err("sw842_decompress error, ret = %d!\n", ret);
 		return ret;
 	}
 
-	return outlen;
+	return size;
 }
 
 static void allocate_842(void)
