@@ -50,11 +50,27 @@
  * IOCTL and in the get/set property IOCTL.
  */
 
-static bool drm_property_type_valid(struct drm_property *property)
+static bool drm_property_flags_valid(u32 flags)
 {
-	if (property->flags & DRM_MODE_PROP_EXTENDED_TYPE)
-		return !(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
-	return !!(property->flags & DRM_MODE_PROP_LEGACY_TYPE);
+	u32 legacy_type = flags & DRM_MODE_PROP_LEGACY_TYPE;
+	u32 ext_type = flags & DRM_MODE_PROP_EXTENDED_TYPE;
+
+	/* Reject undefined/deprecated flags */
+	if (flags & ~(DRM_MODE_PROP_LEGACY_TYPE |
+		      DRM_MODE_PROP_EXTENDED_TYPE |
+		      DRM_MODE_PROP_IMMUTABLE |
+		      DRM_MODE_PROP_ATOMIC))
+		return false;
+
+	/* We want either a legacy type or an extended type, but not both */
+	if (!legacy_type == !ext_type)
+		return false;
+
+	/* Only one legacy type at a time please */
+	if (legacy_type && !is_power_of_2(legacy_type))
+		return false;
+
+	return true;
 }
 
 /**
@@ -78,6 +94,9 @@ struct drm_property *drm_property_create(struct drm_device *dev,
 {
 	struct drm_property *property = NULL;
 	int ret;
+
+	if (WARN_ON(!drm_property_flags_valid(flags)))
+		return NULL;
 
 	if (WARN_ON(strlen(name) >= DRM_PROP_NAME_LEN))
 		return NULL;
@@ -107,8 +126,6 @@ struct drm_property *drm_property_create(struct drm_device *dev,
 	property->name[DRM_PROP_NAME_LEN-1] = '\0';
 
 	list_add_tail(&property->head, &dev->mode_config.property_list);
-
-	WARN_ON(!drm_property_type_valid(property));
 
 	return property;
 fail:
