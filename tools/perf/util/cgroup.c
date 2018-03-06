@@ -182,6 +182,20 @@ struct cgroup *cgroup__get(struct cgroup *cgroup)
        return cgroup;
 }
 
+static void evsel__set_default_cgroup(struct perf_evsel *evsel, struct cgroup *cgroup)
+{
+	if (evsel->cgrp == NULL)
+		evsel->cgrp = cgroup__get(cgroup);
+}
+
+void evlist__set_default_cgroup(struct perf_evlist *evlist, struct cgroup *cgroup)
+{
+	struct perf_evsel *evsel;
+
+	evlist__for_each_entry(evlist, evsel)
+		evsel__set_default_cgroup(evsel, cgroup);
+}
+
 int parse_cgroups(const struct option *opt, const char *str,
 		  int unset __maybe_unused)
 {

@@ -22,6 +22,8 @@ struct perf_evlist;
 
 struct cgroup *evlist__findnew_cgroup(struct perf_evlist *evlist, char *name);
 
+void evlist__set_default_cgroup(struct perf_evlist *evlist, struct cgroup *cgroup);
+
 int parse_cgroups(const struct option *opt, const char *str, int unset);
 
 #endif /* __CGROUP_H__ */
