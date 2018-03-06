@@ -53,9 +53,10 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 #define CX231XX_DVB_NUM_BUFS 5
 #define CX231XX_DVB_MAX_PACKETSIZE 564
 #define CX231XX_DVB_MAX_PACKETS 64
+#define CX231XX_DVB_MAX_FRONTENDS 2
 
 struct cx231xx_dvb {
-	struct dvb_frontend *frontend[2];
+	struct dvb_frontend *frontend[CX231XX_DVB_MAX_FRONTENDS];
 
 	/* feed count management */
 	struct mutex lock;
