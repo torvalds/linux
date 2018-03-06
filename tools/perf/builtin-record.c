@@ -274,6 +274,24 @@ static void record__read_auxtrace_snapshot(struct record *rec)
 	}
 }
 
+static int record__auxtrace_init(struct record *rec)
+{
+	int err;
+
+	if (!rec->itr) {
+		rec->itr = auxtrace_record__init(rec->evlist, &err);
+		if (err)
+			return err;
+	}
+
+	err = auxtrace_parse_snapshot_options(rec->itr, &rec->opts,
+					      rec->opts.auxtrace_snapshot_opts);
+	if (err)
+		return err;
+
+	return auxtrace_parse_filters(rec->evlist);
+}
+
 #else
 
 static inline
@@ -290,6 +308,11 @@ void record__read_auxtrace_snapshot(struct record *rec __maybe_unused)
 
 static inline
 int auxtrace_record__snapshot_start(struct auxtrace_record *itr __maybe_unused)
+{
+	return 0;
+}
+
+static int record__auxtrace_init(struct record *rec __maybe_unused)
 {
 	return 0;
 }
@@ -1727,17 +1750,6 @@ int cmd_record(int argc, const char **argv)
 		alarm(rec->switch_output.time);
 	}
 
-	if (!rec->itr) {
-		rec->itr = auxtrace_record__init(rec->evlist, &err);
-		if (err)
-			goto out;
-	}
-
-	err = auxtrace_parse_snapshot_options(rec->itr, &rec->opts,
-					      rec->opts.auxtrace_snapshot_opts);
-	if (err)
-		goto out;
-
 	/*
 	 * Allow aliases to facilitate the lookup of symbols for address
 	 * filters. Refer to auxtrace_parse_filters().
@@ -1746,7 +1758,7 @@ int cmd_record(int argc, const char **argv)
 
 	symbol__init(NULL);
 
-	err = auxtrace_parse_filters(rec->evlist);
+	err = record__auxtrace_init(rec);
 	if (err)
 		goto out;
 
