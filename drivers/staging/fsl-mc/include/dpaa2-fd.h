@@ -287,7 +287,7 @@ enum dpaa2_sg_format {
  */
 static inline dma_addr_t dpaa2_sg_get_addr(const struct dpaa2_sg_entry *sg)
 {
-	return le64_to_cpu((dma_addr_t)sg->addr);
+	return (dma_addr_t)le64_to_cpu(sg->addr);
 }
 
 /**
