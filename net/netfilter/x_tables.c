@@ -577,6 +577,37 @@ error:
 }
 EXPORT_SYMBOL(xt_check_table_hooks);
 
+static bool verdict_ok(int verdict)
+{
+	if (verdict > 0)
+		return true;
+
+	if (verdict < 0) {
+		int v = -verdict - 1;
+
+		if (verdict == XT_RETURN)
+			return true;
+
+		switch (v) {
+		case NF_ACCEPT: return true;
+		case NF_DROP: return true;
+		case NF_QUEUE: return true;
+		default:
+			break;
+		}
+
+		return false;
+	}
+
+	return false;
+}
+
+static bool error_tg_ok(unsigned int usersize, unsigned int kernsize,
+			const char *msg, unsigned int msglen)
+{
+	return usersize == kernsize && strnlen(msg, msglen) < msglen;
+}
+
 #ifdef CONFIG_COMPAT
 int xt_compat_add_offset(u_int8_t af, unsigned int offset, int delta)
 {
@@ -735,37 +766,6 @@ struct compat_xt_error_target {
 	struct compat_xt_entry_target t;
 	char errorname[XT_FUNCTION_MAXNAMELEN];
 };
-
-static bool verdict_ok(int verdict)
-{
-	if (verdict > 0)
-		return true;
-
-	if (verdict < 0) {
-		int v = -verdict - 1;
-
-		if (verdict == XT_RETURN)
-			return true;
-
-		switch (v) {
-		case NF_ACCEPT: return true;
-		case NF_DROP: return true;
-		case NF_QUEUE: return true;
-		default:
-			break;
-		}
-
-		return false;
-	}
-
-	return false;
-}
-
-static bool error_tg_ok(unsigned int usersize, unsigned int kernsize,
-			const char *msg, unsigned int msglen)
-{
-	return usersize == kernsize && strnlen(msg, msglen) < msglen;
-}
 
 int xt_compat_check_entry_offsets(const void *base, const char *elems,
 				  unsigned int target_offset,
