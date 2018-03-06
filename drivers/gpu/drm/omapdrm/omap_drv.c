@@ -167,6 +167,8 @@ static void omap_disconnect_pipelines(struct drm_device *ddev)
 		pipe->display = NULL;
 	}
 
+	memset(&priv->channels, 0, sizeof(priv->channels));
+
 	priv->num_pipes = 0;
 }
 
@@ -186,6 +188,7 @@ static int omap_connect_pipelines(struct drm_device *ddev)
 {
 	struct omap_drm_private *priv = ddev->dev_private;
 	struct omap_dss_device *output = NULL;
+	unsigned int i;
 	int r;
 
 	if (!omapdss_stack_is_ready())
@@ -217,6 +220,22 @@ static int omap_connect_pipelines(struct drm_device *ddev)
 	/* Sort the list by DT aliases */
 	sort(priv->pipes, priv->num_pipes, sizeof(priv->pipes[0]),
 	     omap_compare_pipes, NULL);
+
+	/*
+	 * Populate the pipeline lookup table by DISPC channel. Only one display
+	 * is allowed per channel.
+	 */
+	for (i = 0; i < priv->num_pipes; ++i) {
+		struct omap_drm_pipeline *pipe = &priv->pipes[i];
+		enum omap_channel channel = pipe->output->dispc_channel;
+
+		if (WARN_ON(priv->channels[channel] != NULL)) {
+			r = -EINVAL;
+			goto cleanup;
+		}
+
+		priv->channels[channel] = pipe;
+	}
 
 	return 0;
 

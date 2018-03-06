@@ -109,7 +109,6 @@ int omap_crtc_wait_pending(struct drm_crtc *crtc)
  */
 
 /* ovl-mgr-id -> crtc */
-static struct omap_crtc *omap_crtcs[8];
 static struct omap_dss_device *omap_crtc_output[8];
 
 /* we can probably ignore these until we support command-mode panels: */
@@ -215,7 +214,8 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 static int omap_crtc_dss_enable(struct omap_drm_private *priv,
 				enum omap_channel channel)
 {
-	struct omap_crtc *omap_crtc = omap_crtcs[channel];
+	struct drm_crtc *crtc = priv->channels[channel]->crtc;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
 	priv->dispc_ops->mgr_set_timings(priv->dispc, omap_crtc->channel,
 					 &omap_crtc->vm);
@@ -227,7 +227,8 @@ static int omap_crtc_dss_enable(struct omap_drm_private *priv,
 static void omap_crtc_dss_disable(struct omap_drm_private *priv,
 				  enum omap_channel channel)
 {
-	struct omap_crtc *omap_crtc = omap_crtcs[channel];
+	struct drm_crtc *crtc = priv->channels[channel]->crtc;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
 	omap_crtc_set_enabled(&omap_crtc->base, false);
 }
@@ -236,7 +237,9 @@ static void omap_crtc_dss_set_timings(struct omap_drm_private *priv,
 		enum omap_channel channel,
 		const struct videomode *vm)
 {
-	struct omap_crtc *omap_crtc = omap_crtcs[channel];
+	struct drm_crtc *crtc = priv->channels[channel]->crtc;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+
 	DBG("%s", omap_crtc->name);
 	omap_crtc->vm = *vm;
 }
@@ -245,7 +248,8 @@ static void omap_crtc_dss_set_lcd_config(struct omap_drm_private *priv,
 		enum omap_channel channel,
 		const struct dss_lcd_mgr_config *config)
 {
-	struct omap_crtc *omap_crtc = omap_crtcs[channel];
+	struct drm_crtc *crtc = priv->channels[channel]->crtc;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
 	DBG("%s", omap_crtc->name);
 	priv->dispc_ops->mgr_set_lcd_config(priv->dispc, omap_crtc->channel,
@@ -681,8 +685,6 @@ static const char *channel_names[] = {
 
 void omap_crtc_pre_init(struct omap_drm_private *priv)
 {
-	memset(omap_crtcs, 0, sizeof(omap_crtcs));
-
 	dss_install_mgr_ops(priv->dss, &mgr_ops, priv);
 }
 
@@ -705,10 +707,6 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	channel = pipe->output->dispc_channel;
 
 	DBG("%s", channel_names[channel]);
-
-	/* Multiple displays on same channel is not allowed */
-	if (WARN_ON(omap_crtcs[channel] != NULL))
-		return ERR_PTR(-EINVAL);
 
 	omap_crtc = kzalloc(sizeof(*omap_crtc), GFP_KERNEL);
 	if (!omap_crtc)
@@ -747,8 +745,6 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	}
 
 	omap_plane_install_properties(crtc->primary, &crtc->base);
-
-	omap_crtcs[channel] = omap_crtc;
 
 	return crtc;
 }

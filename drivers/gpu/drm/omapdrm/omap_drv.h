@@ -64,6 +64,7 @@ struct omap_drm_private {
 
 	unsigned int num_pipes;
 	struct omap_drm_pipeline pipes[8];
+	struct omap_drm_pipeline *channels[8];
 
 	unsigned int num_planes;
 	struct drm_plane *planes[8];
