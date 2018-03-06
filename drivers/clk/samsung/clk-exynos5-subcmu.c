@@ -165,6 +165,8 @@ static int __init exynos5_clk_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id exynos5_clk_of_match[] = {
+	{ .compatible = "samsung,exynos5420-clock", },
+	{ .compatible = "samsung,exynos5800-clock", },
 	{ },
 };
 
