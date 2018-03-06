@@ -584,6 +584,9 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 	map->debugfs = debugfs_create_dir(name, regmap_debugfs_root);
 	if (!map->debugfs) {
 		dev_warn(map->dev, "Failed to create debugfs directory\n");
+
+		kfree(map->debugfs_name);
+		map->debugfs_name = NULL;
 		return;
 	}
 
