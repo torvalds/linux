@@ -67,7 +67,7 @@ and kernel specific) that do the following:
 In Linux, system calls are identified by numbers and the parameters
 for system calls are machine word sized (32 or 64 bit). There can be a
 maximum of 6 system call parameters. Both the system call number and
-the parameters are they are stored in certain registers.
+the parameters are stored in certain registers.
 
 For example, on 32bit x86 architecture, the system call identifier is
 stored in the EAX register, while parameters in registers EBX, ECX,
@@ -89,7 +89,7 @@ System libraries (e.g. libc) offers functions that implement the
 actual system calls in order to make it easier for applications to use
 them.
 
-When a user to kernel mode transitions occurs the execution flow is
+When a user to kernel mode transition occurs, the execution flow is
 interrupted and it is transfered to a kernel entry point. This is
 similar with how interrupts and exception are handled (in fact on some
 architectures this transition happens as a result of an exception).
