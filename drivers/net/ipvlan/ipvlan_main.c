@@ -129,7 +129,6 @@ static int ipvlan_port_create(struct net_device *dev)
 	if (err)
 		goto err;
 
-	dev->priv_flags |= IFF_IPVLAN_MASTER;
 	return 0;
 
 err:
@@ -142,7 +141,6 @@ static void ipvlan_port_destroy(struct net_device *dev)
 	struct ipvl_port *port = ipvlan_port_get_rtnl(dev);
 	struct sk_buff *skb;
 
-	dev->priv_flags &= ~IFF_IPVLAN_MASTER;
 	if (port->mode == IPVLAN_MODE_L3S) {
 		dev->priv_flags &= ~IFF_L3MDEV_MASTER;
 		ipvlan_unregister_nf_hook(dev_net(dev));
@@ -423,6 +421,12 @@ static const struct header_ops ipvlan_header_ops = {
 	.cache_update	= eth_header_cache_update,
 };
 
+static bool netif_is_ipvlan(const struct net_device *dev)
+{
+	/* both ipvlan and ipvtap devices use the same netdev_ops */
+	return dev->netdev_ops == &ipvlan_netdev_ops;
+}
+
 static int ipvlan_ethtool_get_link_ksettings(struct net_device *dev,
 					     struct ethtool_link_ksettings *cmd)
 {
@@ -599,8 +603,6 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	 * packets.
 	 */
 	memcpy(dev->dev_addr, phy_dev->dev_addr, ETH_ALEN);
-
-	dev->priv_flags |= IFF_IPVLAN_SLAVE;
 
 	err = register_netdevice(dev);
 	if (err < 0)

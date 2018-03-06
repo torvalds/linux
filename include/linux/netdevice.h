@@ -1381,8 +1381,6 @@ struct net_device_ops {
  * @IFF_MACVLAN: Macvlan device
  * @IFF_XMIT_DST_RELEASE_PERM: IFF_XMIT_DST_RELEASE not taking into account
  *	underlying stacked devices
- * @IFF_IPVLAN_MASTER: IPvlan master device
- * @IFF_IPVLAN_SLAVE: IPvlan slave device
  * @IFF_L3MDEV_MASTER: device is an L3 master device
  * @IFF_NO_QUEUE: device can run without qdisc attached
  * @IFF_OPENVSWITCH: device is a Open vSwitch master
@@ -1412,16 +1410,14 @@ enum netdev_priv_flags {
 	IFF_LIVE_ADDR_CHANGE		= 1<<15,
 	IFF_MACVLAN			= 1<<16,
 	IFF_XMIT_DST_RELEASE_PERM	= 1<<17,
-	IFF_IPVLAN_MASTER		= 1<<18,
-	IFF_IPVLAN_SLAVE		= 1<<19,
-	IFF_L3MDEV_MASTER		= 1<<20,
-	IFF_NO_QUEUE			= 1<<21,
-	IFF_OPENVSWITCH			= 1<<22,
-	IFF_L3MDEV_SLAVE		= 1<<23,
-	IFF_TEAM			= 1<<24,
-	IFF_RXFH_CONFIGURED		= 1<<25,
-	IFF_PHONY_HEADROOM		= 1<<26,
-	IFF_MACSEC			= 1<<27,
+	IFF_L3MDEV_MASTER		= 1<<18,
+	IFF_NO_QUEUE			= 1<<19,
+	IFF_OPENVSWITCH			= 1<<20,
+	IFF_L3MDEV_SLAVE		= 1<<21,
+	IFF_TEAM			= 1<<22,
+	IFF_RXFH_CONFIGURED		= 1<<23,
+	IFF_PHONY_HEADROOM		= 1<<24,
+	IFF_MACSEC			= 1<<25,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -1442,8 +1438,6 @@ enum netdev_priv_flags {
 #define IFF_LIVE_ADDR_CHANGE		IFF_LIVE_ADDR_CHANGE
 #define IFF_MACVLAN			IFF_MACVLAN
 #define IFF_XMIT_DST_RELEASE_PERM	IFF_XMIT_DST_RELEASE_PERM
-#define IFF_IPVLAN_MASTER		IFF_IPVLAN_MASTER
-#define IFF_IPVLAN_SLAVE		IFF_IPVLAN_SLAVE
 #define IFF_L3MDEV_MASTER		IFF_L3MDEV_MASTER
 #define IFF_NO_QUEUE			IFF_NO_QUEUE
 #define IFF_OPENVSWITCH			IFF_OPENVSWITCH
@@ -4221,16 +4215,6 @@ static inline bool netif_is_macvlan(const struct net_device *dev)
 static inline bool netif_is_macvlan_port(const struct net_device *dev)
 {
 	return dev->priv_flags & IFF_MACVLAN_PORT;
-}
-
-static inline bool netif_is_ipvlan(const struct net_device *dev)
-{
-	return dev->priv_flags & IFF_IPVLAN_SLAVE;
-}
-
-static inline bool netif_is_ipvlan_port(const struct net_device *dev)
-{
-	return dev->priv_flags & IFF_IPVLAN_MASTER;
 }
 
 static inline bool netif_is_bond_master(const struct net_device *dev)
