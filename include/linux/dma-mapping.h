@@ -578,7 +578,7 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 
 /*
  * This is a hack for the legacy x86 forbid_dac and iommu_sac_force. Please
- * don't use this is new code.
+ * don't use this in new code.
  */
 #ifndef arch_dma_supported
 #define arch_dma_supported(dev, mask)	(1)

@@ -767,7 +767,7 @@ int
 xfs_scrub_agfl(
 	struct xfs_scrub_context	*sc)
 {
-	struct xfs_scrub_agfl_info	sai = { 0 };
+	struct xfs_scrub_agfl_info	sai;
 	struct xfs_agf			*agf;
 	xfs_agnumber_t			agno;
 	unsigned int			agflcount;
@@ -795,6 +795,7 @@ xfs_scrub_agfl(
 		xfs_scrub_block_set_corrupt(sc, sc->sa.agf_bp);
 		goto out;
 	}
+	memset(&sai, 0, sizeof(sai));
 	sai.sz_entries = agflcount;
 	sai.entries = kmem_zalloc(sizeof(xfs_agblock_t) * agflcount, KM_NOFS);
 	if (!sai.entries) {

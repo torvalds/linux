@@ -416,7 +416,7 @@ static int pvcalls_back_connect(struct xenbus_device *dev,
 					sock);
 	if (!map) {
 		ret = -EFAULT;
-		sock_release(map->sock);
+		sock_release(sock);
 	}
 
 out:

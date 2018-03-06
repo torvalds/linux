@@ -27,6 +27,8 @@
 enum {
 	__I915_SAMPLE_FREQ_ACT = 0,
 	__I915_SAMPLE_FREQ_REQ,
+	__I915_SAMPLE_RC6,
+	__I915_SAMPLE_RC6_ESTIMATED,
 	__I915_NUM_PMU_SAMPLERS
 };
 
@@ -94,6 +96,10 @@ struct i915_pmu {
 	 * struct intel_engine_cs.
 	 */
 	struct i915_pmu_sample sample[__I915_NUM_PMU_SAMPLERS];
+	/**
+	 * @suspended_jiffies_last: Cached suspend time from PM core.
+	 */
+	unsigned long suspended_jiffies_last;
 };
 
 #ifdef CONFIG_PERF_EVENTS

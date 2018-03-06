@@ -1003,26 +1003,6 @@ static int ceph_link(struct dentry *old_dentry, struct inode *dir,
 }
 
 /*
- * For a soon-to-be unlinked file, drop the AUTH_RDCACHE caps.  If it
- * looks like the link count will hit 0, drop any other caps (other
- * than PIN) we don't specifically want (due to the file still being
- * open).
- */
-static int drop_caps_for_unlink(struct inode *inode)
-{
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	int drop = CEPH_CAP_LINK_SHARED | CEPH_CAP_LINK_EXCL;
-
-	spin_lock(&ci->i_ceph_lock);
-	if (inode->i_nlink == 1) {
-		drop |= ~(__ceph_caps_wanted(ci) | CEPH_CAP_PIN);
-		ci->i_ceph_flags |= CEPH_I_NODELAY;
-	}
-	spin_unlock(&ci->i_ceph_lock);
-	return drop;
-}
-
-/*
  * rmdir and unlink are differ only by the metadata op code
  */
 static int ceph_unlink(struct inode *dir, struct dentry *dentry)
@@ -1056,7 +1036,7 @@ static int ceph_unlink(struct inode *dir, struct dentry *dentry)
 	set_bit(CEPH_MDS_R_PARENT_LOCKED, &req->r_req_flags);
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
-	req->r_inode_drop = drop_caps_for_unlink(inode);
+	req->r_inode_drop = ceph_drop_caps_for_unlink(inode);
 	err = ceph_mdsc_do_request(mdsc, dir, req);
 	if (!err && !req->r_reply_info.head->is_dentry)
 		d_delete(dentry);
@@ -1104,8 +1084,10 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 	/* release LINK_RDCACHE on source inode (mds will lock it) */
 	req->r_old_inode_drop = CEPH_CAP_LINK_SHARED | CEPH_CAP_LINK_EXCL;
-	if (d_really_is_positive(new_dentry))
-		req->r_inode_drop = drop_caps_for_unlink(d_inode(new_dentry));
+	if (d_really_is_positive(new_dentry)) {
+		req->r_inode_drop =
+			ceph_drop_caps_for_unlink(d_inode(new_dentry));
+	}
 	err = ceph_mdsc_do_request(mdsc, old_dir, req);
 	if (!err && !req->r_reply_info.head->is_dentry) {
 		/*

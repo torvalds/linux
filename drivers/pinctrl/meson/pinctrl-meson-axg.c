@@ -716,7 +716,7 @@ static const char * const uart_b_groups[] = {
 	"uart_tx_b_x", "uart_rx_b_x", "uart_cts_b_x", "uart_rts_b_x",
 };
 
-static const char * const uart_ao_b_gpioz_groups[] = {
+static const char * const uart_ao_b_z_groups[] = {
 	"uart_ao_tx_b_z", "uart_ao_rx_b_z",
 	"uart_ao_cts_b_z", "uart_ao_rts_b_z",
 };
@@ -855,7 +855,7 @@ static struct meson_pmx_func meson_axg_periphs_functions[] = {
 	FUNCTION(nand),
 	FUNCTION(uart_a),
 	FUNCTION(uart_b),
-	FUNCTION(uart_ao_b_gpioz),
+	FUNCTION(uart_ao_b_z),
 	FUNCTION(i2c0),
 	FUNCTION(i2c1),
 	FUNCTION(i2c2),
