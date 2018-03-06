@@ -444,6 +444,12 @@ static void vop_disable_allwin(struct vop *vop)
 	for (i = 0; i < vop->num_wins; i++) {
 		struct vop_win *win = &vop->win[i];
 
+		if (win->phy->scl && win->phy->scl->ext) {
+			VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, SCALE_NONE);
+			VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, SCALE_NONE);
+			VOP_SCL_SET_EXT(vop, win, cbcr_hor_scl_mode, SCALE_NONE);
+			VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, SCALE_NONE);
+		}
 		VOP_WIN_SET(vop, win, enable, 0);
 		VOP_WIN_SET(vop, win, gate, 0);
 	}
@@ -1068,6 +1074,18 @@ static int vop_csc_atomic_check(struct drm_crtc *crtc,
 	return 0;
 }
 
+static void vop_enable_debug_irq(struct drm_crtc *crtc)
+{
+	struct vop *vop = to_vop(crtc);
+	uint32_t irqs;
+
+	irqs = BUS_ERROR_INTR | WIN0_EMPTY_INTR | WIN1_EMPTY_INTR |
+		WIN2_EMPTY_INTR | WIN3_EMPTY_INTR | HWC_EMPTY_INTR |
+		POST_BUF_EMPTY_INTR;
+	VOP_INTR_SET_TYPE(vop, clear, irqs, 1);
+	VOP_INTR_SET_TYPE(vop, enable, irqs, 1);
+}
+
 static void vop_dsp_hold_valid_irq_enable(struct vop *vop)
 {
 	unsigned long flags;
@@ -1293,7 +1311,6 @@ err_disable_hclk:
 static void vop_initial(struct drm_crtc *crtc)
 {
 	struct vop *vop = to_vop(crtc);
-	uint32_t irqs;
 	int i;
 
 	vop_power_enable(crtc);
@@ -1305,12 +1322,6 @@ static void vop_initial(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, reg_done_frm, 1);
 
 	/*
-	 * restore the lut table.
-	 */
-	if (vop->lut_active)
-		vop_crtc_load_lut(crtc);
-
-	/*
 	 * We need to make sure that all windows are disabled before resume
 	 * the crtc. Otherwise we might try to scan from a destroyed
 	 * buffer later.
@@ -1320,22 +1331,9 @@ static void vop_initial(struct drm_crtc *crtc)
 		int channel = i * 2 + 1;
 
 		VOP_WIN_SET(vop, win, channel, (channel + 1) << 4 | channel);
-		if (win->phy->scl && win->phy->scl->ext) {
-			VOP_SCL_SET_EXT(vop, win, yrgb_hor_scl_mode, SCALE_NONE);
-			VOP_SCL_SET_EXT(vop, win, yrgb_ver_scl_mode, SCALE_NONE);
-			VOP_SCL_SET_EXT(vop, win, cbcr_hor_scl_mode, SCALE_NONE);
-			VOP_SCL_SET_EXT(vop, win, cbcr_ver_scl_mode, SCALE_NONE);
-		}
-		VOP_WIN_SET(vop, win, enable, 0);
-		VOP_WIN_SET(vop, win, gate, 0);
 	}
 	VOP_CTRL_SET(vop, afbdc_en, 0);
-
-	irqs = BUS_ERROR_INTR | WIN0_EMPTY_INTR | WIN1_EMPTY_INTR |
-		WIN2_EMPTY_INTR | WIN3_EMPTY_INTR | HWC_EMPTY_INTR |
-		POST_BUF_EMPTY_INTR;
-	VOP_INTR_SET_TYPE(vop, clear, irqs, 1);
-	VOP_INTR_SET_TYPE(vop, enable, irqs, 1);
+	vop_enable_debug_irq(crtc);
 }
 
 static void vop_crtc_disable(struct drm_crtc *crtc)
@@ -1932,7 +1930,7 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 		}
 
 		rockchip_set_system_status(sys_status);
-		vop_power_enable(crtc);
+		vop_initial(crtc);
 		enable_irq(vop->irq);
 		drm_crtc_vblank_on(crtc);
 		vop->loader_protect = true;
@@ -2449,12 +2447,14 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	vop_initial(crtc);
 
 	VOP_CTRL_SET(vop, standby, 0);
-	if (vop_crtc_mode_update(crtc)) {
-		vop_disable_all_planes(vop);
-		vop->mode_update = true;
-		DRM_DEV_INFO(vop->dev, "Update mode to %d*%d, close all win\n",
-			     hdisplay, vdisplay);
-	}
+	vop_disable_all_planes(vop);
+	/*
+	 * restore the lut table.
+	 */
+	if (vop->lut_active)
+		vop_crtc_load_lut(crtc);
+	vop->mode_update = vop_crtc_mode_update(crtc);
+	DRM_DEV_INFO(vop->dev, "Update mode to %d*%d\n", hdisplay, vdisplay);
 	VOP_CTRL_SET(vop, dclk_pol, 1);
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
 		   0 : BIT(HSYNC_POSITIVE);
