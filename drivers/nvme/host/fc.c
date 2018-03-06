@@ -588,6 +588,8 @@ nvme_fc_attach_to_suspended_rport(struct nvme_fc_lport *lport,
 			return ERR_PTR(-ESTALE);
 		}
 
+		rport->remoteport.port_role = pinfo->port_role;
+		rport->remoteport.port_id = pinfo->port_id;
 		rport->remoteport.port_state = FC_OBJSTATE_ONLINE;
 		rport->dev_loss_end = 0;
 
