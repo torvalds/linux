@@ -77,6 +77,12 @@ static DEFINE_SPINLOCK(pstore_lock);
 struct pstore_info *psinfo;
 
 static char *backend;
+static char *compress =
+#ifdef CONFIG_PSTORE_COMPRESS_DEFAULT
+		CONFIG_PSTORE_COMPRESS_DEFAULT;
+#else
+		NULL;
+#endif
 
 /* Compression parameters */
 #ifdef CONFIG_PSTORE_ZLIB_COMPRESS
@@ -84,7 +90,11 @@ static char *backend;
 #define WINDOW_BITS 12
 #define MEM_LEVEL 4
 static struct z_stream_s stream;
-#else
+#endif
+#if defined(CONFIG_PSTORE_LZO_COMPRESS)   || \
+    defined(CONFIG_PSTORE_LZ4_COMPRESS)   || \
+    defined(CONFIG_PSTORE_LZ4HC_COMPRESS) || \
+    defined(CONFIG_PSTORE_842_COMPRESS)
 static unsigned char *workspace;
 #endif
 
@@ -268,14 +278,6 @@ static void free_zlib(void)
 	big_oops_buf = NULL;
 	big_oops_buf_sz = 0;
 }
-
-static const struct pstore_zbackend backend_zlib = {
-	.compress	= compress_zlib,
-	.decompress	= decompress_zlib,
-	.allocate	= allocate_zlib,
-	.free		= free_zlib,
-	.name		= "zlib",
-};
 #endif
 
 #ifdef CONFIG_PSTORE_LZO_COMPRESS
@@ -329,14 +331,6 @@ static void free_lzo(void)
 	big_oops_buf = NULL;
 	big_oops_buf_sz = 0;
 }
-
-static const struct pstore_zbackend backend_lzo = {
-	.compress	= compress_lzo,
-	.decompress	= decompress_lzo,
-	.allocate	= allocate_lzo,
-	.free		= free_lzo,
-	.name		= "lzo",
-};
 #endif
 
 #if defined(CONFIG_PSTORE_LZ4_COMPRESS) || defined(CONFIG_PSTORE_LZ4HC_COMPRESS)
@@ -396,14 +390,6 @@ static void allocate_lz4(void)
 		workspace = NULL;
 	}
 }
-
-static const struct pstore_zbackend backend_lz4 = {
-	.compress	= compress_lz4,
-	.decompress	= decompress_lz4,
-	.allocate	= allocate_lz4,
-	.free		= free_lz4,
-	.name		= "lz4",
-};
 #endif
 
 #ifdef CONFIG_PSTORE_LZ4HC_COMPRESS
@@ -438,14 +424,6 @@ static void allocate_lz4hc(void)
 		workspace = NULL;
 	}
 }
-
-static const struct pstore_zbackend backend_lz4hc = {
-	.compress	= compress_lz4hc,
-	.decompress	= decompress_lz4,
-	.allocate	= allocate_lz4hc,
-	.free		= free_lz4,
-	.name		= "lz4hc",
-};
 #endif
 
 #ifdef CONFIG_PSTORE_842_COMPRESS
@@ -508,30 +486,58 @@ static void free_842(void)
 	big_oops_buf = NULL;
 	big_oops_buf_sz = 0;
 }
+#endif
 
-static const struct pstore_zbackend backend_842 = {
-	.compress	= compress_842,
-	.decompress	= decompress_842,
-	.allocate	= allocate_842,
-	.free		= free_842,
-	.name		= "842",
+static const struct pstore_zbackend *zbackend __ro_after_init;
+
+static const struct pstore_zbackend zbackends[] = {
+#ifdef CONFIG_PSTORE_ZLIB_COMPRESS
+	{
+		.compress	= compress_zlib,
+		.decompress	= decompress_zlib,
+		.allocate	= allocate_zlib,
+		.free		= free_zlib,
+		.name		= "zlib",
+	},
+#endif
+#ifdef CONFIG_PSTORE_LZO_COMPRESS
+	{
+		.compress	= compress_lzo,
+		.decompress	= decompress_lzo,
+		.allocate	= allocate_lzo,
+		.free		= free_lzo,
+		.name		= "lzo",
+	},
+#endif
+#ifdef CONFIG_PSTORE_LZ4_COMPRESS
+	{
+		.compress	= compress_lz4,
+		.decompress	= decompress_lz4,
+		.allocate	= allocate_lz4,
+		.free		= free_lz4,
+		.name		= "lz4",
+	},
+#endif
+#ifdef CONFIG_PSTORE_LZ4HC_COMPRESS
+	{
+		.compress	= compress_lz4hc,
+		.decompress	= decompress_lz4,
+		.allocate	= allocate_lz4hc,
+		.free		= free_lz4,
+		.name		= "lz4hc",
+	},
+#endif
+#ifdef CONFIG_PSTORE_842_COMPRESS
+	{
+		.compress	= compress_842,
+		.decompress	= decompress_842,
+		.allocate	= allocate_842,
+		.free		= free_842,
+		.name		= "842",
+	},
+#endif
+	{ }
 };
-#endif
-
-static const struct pstore_zbackend *zbackend =
-#if defined(CONFIG_PSTORE_ZLIB_COMPRESS)
-	&backend_zlib;
-#elif defined(CONFIG_PSTORE_LZO_COMPRESS)
-	&backend_lzo;
-#elif defined(CONFIG_PSTORE_LZ4_COMPRESS)
-	&backend_lz4;
-#elif defined(CONFIG_PSTORE_LZ4HC_COMPRESS)
-	&backend_lz4hc;
-#elif defined(CONFIG_PSTORE_842_COMPRESS)
-	&backend_842;
-#else
-	NULL;
-#endif
 
 static int pstore_compress(const void *in, void *out,
 			   size_t inlen, size_t outlen)
@@ -553,7 +559,6 @@ static int pstore_decompress(void *in, void *out, size_t inlen, size_t outlen)
 static void allocate_buf_for_compression(void)
 {
 	if (zbackend) {
-		pr_info("using %s compression\n", zbackend->name);
 		zbackend->allocate();
 	} else {
 		pr_err("allocate compression buffer error!\n");
@@ -1021,6 +1026,25 @@ static void pstore_timefunc(struct timer_list *unused)
 		mod_timer(&pstore_timer,
 			  jiffies + msecs_to_jiffies(pstore_update_ms));
 }
+
+void __init pstore_choose_compression(void)
+{
+	const struct pstore_zbackend *step;
+
+	if (!compress)
+		return;
+
+	for (step = zbackends; step->name; step++) {
+		if (!strcmp(compress, step->name)) {
+			zbackend = step;
+			pr_info("using %s compression\n", zbackend->name);
+			return;
+		}
+	}
+}
+
+module_param(compress, charp, 0444);
+MODULE_PARM_DESC(compress, "Pstore compression to use");
 
 module_param(backend, charp, 0444);
 MODULE_PARM_DESC(backend, "Pstore backend to use");
