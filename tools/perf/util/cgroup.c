@@ -144,12 +144,17 @@ found:
 	return 0;
 }
 
+static void cgroup__delete(struct cgroup *cgroup)
+{
+	close(cgroup->fd);
+	zfree(&cgroup->name);
+	free(cgroup);
+}
+
 void close_cgroup(struct cgroup *cgrp)
 {
 	if (cgrp && refcount_dec_and_test(&cgrp->refcnt)) {
-		close(cgrp->fd);
-		zfree(&cgrp->name);
-		free(cgrp);
+		cgroup__delete(cgrp);
 	}
 }
 
