@@ -6,7 +6,7 @@
 
 struct option;
 
-struct cgroup_sel {
+struct cgroup {
 	char *name;
 	int fd;
 	refcount_t refcnt;
@@ -14,7 +14,8 @@ struct cgroup_sel {
 
 
 extern int nr_cgroups; /* number of explicit cgroups defined */
-void close_cgroup(struct cgroup_sel *cgrp);
+void close_cgroup(struct cgroup *cgrp);
+
 int parse_cgroups(const struct option *opt, const char *str, int unset);
 
 #endif /* __CGROUP_H__ */

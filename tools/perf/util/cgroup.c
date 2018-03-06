@@ -93,7 +93,7 @@ static int open_cgroup(char *name)
 static int add_cgroup(struct perf_evlist *evlist, char *str)
 {
 	struct perf_evsel *counter;
-	struct cgroup_sel *cgrp = NULL;
+	struct cgroup *cgrp = NULL;
 	int n;
 	/*
 	 * check if cgrp is already defined, if so we reuse it
@@ -144,7 +144,7 @@ found:
 	return 0;
 }
 
-void close_cgroup(struct cgroup_sel *cgrp)
+void close_cgroup(struct cgroup *cgrp)
 {
 	if (cgrp && refcount_dec_and_test(&cgrp->refcnt)) {
 		close(cgrp->fd);
@@ -158,7 +158,7 @@ int parse_cgroups(const struct option *opt, const char *str,
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
 	struct perf_evsel *counter;
-	struct cgroup_sel *cgrp = NULL;
+	struct cgroup *cgrp = NULL;
 	const char *p, *e, *eos = str + strlen(str);
 	char *s;
 	int ret, i;
