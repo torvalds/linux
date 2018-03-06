@@ -158,7 +158,7 @@ static unsigned int ad5380_info_to_reg(struct iio_chan_spec const *chan,
 	long info)
 {
 	switch (info) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		return AD5380_REG_DATA(chan->address);
 	case IIO_CHAN_INFO_CALIBBIAS:
 		return AD5380_REG_OFFSET(chan->address);

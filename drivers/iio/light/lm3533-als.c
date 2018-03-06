@@ -199,7 +199,7 @@ static int lm3533_als_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		switch (chan->type) {
 		case IIO_LIGHT:
 			ret = lm3533_als_get_adc(indio_dev, false, val);
