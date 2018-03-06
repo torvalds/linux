@@ -662,7 +662,7 @@ static int chcr_sg_ent_in_wr(struct scatterlist *src,
 {
 	int srclen = 0, dstlen = 0;
 	int srcsg = minsg, dstsg = minsg;
-	int offset = 0, less;
+	int offset = 0, soffset = 0, less, sless = 0;
 
 	if (sg_dma_len(src) == srcskip) {
 		src = sg_next(src);
@@ -676,7 +676,9 @@ static int chcr_sg_ent_in_wr(struct scatterlist *src,
 
 	while (src && dst &&
 	       space > (sgl_ent_len[srcsg + 1] + dsgl_ent_len[dstsg])) {
-		srclen += (sg_dma_len(src) - srcskip);
+		sless = min_t(unsigned int, sg_dma_len(src) - srcskip - soffset,
+				CHCR_SRC_SG_SIZE);
+		srclen += sless;
 		srcsg++;
 		offset = 0;
 		while (dst && ((dstsg + 1) <= MAX_DSGL_ENT) &&
@@ -687,15 +689,20 @@ static int chcr_sg_ent_in_wr(struct scatterlist *src,
 				     dstskip, CHCR_DST_SG_SIZE);
 			dstlen += less;
 			offset += less;
-			if (offset == sg_dma_len(dst)) {
+			if ((offset + dstskip) == sg_dma_len(dst)) {
 				dst = sg_next(dst);
 				offset = 0;
 			}
 			dstsg++;
 			dstskip = 0;
 		}
-		src = sg_next(src);
-		srcskip = 0;
+		soffset += sless;
+		if ((soffset + srcskip) == sg_dma_len(src)) {
+			src = sg_next(src);
+			srcskip = 0;
+			soffset = 0;
+		}
+
 	}
 	return min(srclen, dstlen);
 }
