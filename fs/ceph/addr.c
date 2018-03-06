@@ -857,7 +857,7 @@ retry:
 		 * in that range can be associated with newer snapc.
 		 * They are not writeable until we write all dirty pages
 		 * associated with 'snapc' get written */
-		if (index > 0 || wbc->sync_mode != WB_SYNC_NONE)
+		if (index > 0)
 			should_loop = true;
 		dout(" non-head snapc, range whole\n");
 	}
@@ -903,6 +903,10 @@ get_more_pages:
 			if (pgsnapc != snapc) {
 				dout("page snapc %p %lld != oldest %p %lld\n",
 				     pgsnapc, pgsnapc->seq, snapc, snapc->seq);
+				if (!should_loop &&
+				    !ceph_wbc.head_snapc &&
+				    wbc->sync_mode != WB_SYNC_NONE)
+					should_loop = true;
 				unlock_page(page);
 				continue;
 			}
