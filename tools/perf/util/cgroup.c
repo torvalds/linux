@@ -99,15 +99,12 @@ static int add_cgroup(struct perf_evlist *evlist, char *str)
 	 * check if cgrp is already defined, if so we reuse it
 	 */
 	evlist__for_each_entry(evlist, counter) {
-		cgrp = counter->cgrp;
-		if (!cgrp)
+		if (!counter->cgrp)
 			continue;
-		if (!strcmp(cgrp->name, str)) {
-			refcount_inc(&cgrp->refcnt);
+		if (!strcmp(counter->cgrp->name, str)) {
+			cgrp = cgroup__get(counter->cgrp);
 			break;
 		}
-
-		cgrp = NULL;
 	}
 
 	if (!cgrp) {
@@ -155,6 +152,13 @@ void cgroup__put(struct cgroup *cgrp)
 	if (cgrp && refcount_dec_and_test(&cgrp->refcnt)) {
 		cgroup__delete(cgrp);
 	}
+}
+
+struct cgroup *cgroup__get(struct cgroup *cgroup)
+{
+       if (cgroup)
+		refcount_inc(&cgroup->refcnt);
+       return cgroup;
 }
 
 int parse_cgroups(const struct option *opt, const char *str,
