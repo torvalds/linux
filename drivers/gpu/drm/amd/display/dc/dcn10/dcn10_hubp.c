@@ -535,11 +535,13 @@ void hubp1_program_deadline(
 	REG_SET(VBLANK_PARAMETERS_3, 0,
 		REFCYC_PER_META_CHUNK_VBLANK_L, dlg_attr->refcyc_per_meta_chunk_vblank_l);
 
-	REG_SET(NOM_PARAMETERS_0, 0,
-		DST_Y_PER_PTE_ROW_NOM_L, dlg_attr->dst_y_per_pte_row_nom_l);
+	if (REG(NOM_PARAMETERS_0))
+		REG_SET(NOM_PARAMETERS_0, 0,
+			DST_Y_PER_PTE_ROW_NOM_L, dlg_attr->dst_y_per_pte_row_nom_l);
 
-	REG_SET(NOM_PARAMETERS_1, 0,
-		REFCYC_PER_PTE_GROUP_NOM_L, dlg_attr->refcyc_per_pte_group_nom_l);
+	if (REG(NOM_PARAMETERS_1))
+		REG_SET(NOM_PARAMETERS_1, 0,
+			REFCYC_PER_PTE_GROUP_NOM_L, dlg_attr->refcyc_per_pte_group_nom_l);
 
 	REG_SET(NOM_PARAMETERS_4, 0,
 		DST_Y_PER_META_ROW_NOM_L, dlg_attr->dst_y_per_meta_row_nom_l);
@@ -568,11 +570,13 @@ void hubp1_program_deadline(
 	REG_SET(VBLANK_PARAMETERS_4, 0,
 		REFCYC_PER_META_CHUNK_VBLANK_C, dlg_attr->refcyc_per_meta_chunk_vblank_c);
 
-	REG_SET(NOM_PARAMETERS_2, 0,
-		DST_Y_PER_PTE_ROW_NOM_C, dlg_attr->dst_y_per_pte_row_nom_c);
+	if (REG(NOM_PARAMETERS_2))
+		REG_SET(NOM_PARAMETERS_2, 0,
+			DST_Y_PER_PTE_ROW_NOM_C, dlg_attr->dst_y_per_pte_row_nom_c);
 
-	REG_SET(NOM_PARAMETERS_3, 0,
-		REFCYC_PER_PTE_GROUP_NOM_C, dlg_attr->refcyc_per_pte_group_nom_c);
+	if (REG(NOM_PARAMETERS_3))
+		REG_SET(NOM_PARAMETERS_3, 0,
+			REFCYC_PER_PTE_GROUP_NOM_C, dlg_attr->refcyc_per_pte_group_nom_c);
 
 	REG_SET(NOM_PARAMETERS_6, 0,
 		DST_Y_PER_META_ROW_NOM_C, dlg_attr->dst_y_per_meta_row_nom_c);
