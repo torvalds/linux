@@ -118,7 +118,7 @@ void perf_mmap__put(struct perf_mmap *map)
 		perf_mmap__munmap(map);
 }
 
-void perf_mmap__consume(struct perf_mmap *map, bool overwrite __maybe_unused)
+void perf_mmap__consume(struct perf_mmap *map)
 {
 	if (!map->overwrite) {
 		u64 old = map->prev;
@@ -260,7 +260,7 @@ int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
 			WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
 			md->prev = head;
-			perf_mmap__consume(md, overwrite);
+			perf_mmap__consume(md);
 			return -EAGAIN;
 		}
 
@@ -314,7 +314,7 @@ int perf_mmap__push(struct perf_mmap *md, void *to,
 	}
 
 	md->prev = head;
-	perf_mmap__consume(md, md->overwrite);
+	perf_mmap__consume(md);
 out:
 	return rc;
 }

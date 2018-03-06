@@ -120,7 +120,7 @@ retry:
 		if (event->header.type == PERF_RECORD_EXIT)
 			nr_exit++;
 
-		perf_mmap__consume(md, false);
+		perf_mmap__consume(md);
 	}
 	perf_mmap__read_done(md);
 

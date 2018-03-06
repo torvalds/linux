@@ -879,7 +879,7 @@ static void perf_top__mmap_read_idx(struct perf_top *top, int idx)
 		} else
 			++session->evlist->stats.nr_unknown_events;
 next_event:
-		perf_mmap__consume(md, opts->overwrite);
+		perf_mmap__consume(md);
 	}
 
 	perf_mmap__read_done(md);

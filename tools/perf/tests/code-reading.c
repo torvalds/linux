@@ -420,7 +420,7 @@ static int process_events(struct machine *machine, struct perf_evlist *evlist,
 
 		while ((event = perf_mmap__read_event(md, false, &start, end)) != NULL) {
 			ret = process_event(machine, evlist, event, state);
-			perf_mmap__consume(md, false);
+			perf_mmap__consume(md);
 			if (ret < 0)
 				return ret;
 		}
