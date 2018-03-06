@@ -118,7 +118,11 @@ can be provided. Each cgroup is applied to the corresponding event, i.e., first 
 to first event, second cgroup to second event and so on. It is possible to provide
 an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
 corresponding events, i.e., they always refer to events defined earlier on the command
-line.
+line. If the user wants to track multiple events for a specific cgroup, the user can
+use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
+
+If wanting to monitor, say, 'cycles' for a cgroup and also for system wide, this
+command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 
 -o file::
 --output file::

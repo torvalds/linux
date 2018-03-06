@@ -187,6 +187,9 @@ bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2)
 static int call__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
 {
 	char *endptr, *tok, *name;
+	struct addr_map_symbol target = {
+		.map = map,
+	};
 
 	ops->target.addr = strtoull(ops->raw, &endptr, 16);
 
@@ -208,28 +211,29 @@ static int call__parse(struct arch *arch, struct ins_operands *ops, struct map *
 	ops->target.name = strdup(name);
 	*tok = '>';
 
-	return ops->target.name == NULL ? -1 : 0;
+	if (ops->target.name == NULL)
+		return -1;
+find_target:
+	target.addr = map__objdump_2mem(map, ops->target.addr);
+
+	if (map_groups__find_ams(&target) == 0 &&
+	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
+		ops->target.sym = target.sym;
+
+	return 0;
 
 indirect_call:
 	tok = strchr(endptr, '*');
-	if (tok == NULL) {
-		struct symbol *sym = map__find_symbol(map, map->map_ip(map, ops->target.addr));
-		if (sym != NULL)
-			ops->target.name = strdup(sym->name);
-		else
-			ops->target.addr = 0;
-		return 0;
-	}
-
-	ops->target.addr = strtoull(tok + 1, NULL, 16);
-	return 0;
+	if (tok != NULL)
+		ops->target.addr = strtoull(tok + 1, NULL, 16);
+	goto find_target;
 }
 
 static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 			   struct ins_operands *ops)
 {
-	if (ops->target.name)
-		return scnprintf(bf, size, "%-6s %s", ins->name, ops->target.name);
+	if (ops->target.sym)
+		return scnprintf(bf, size, "%-6s %s", ins->name, ops->target.sym->name);
 
 	if (ops->target.addr == 0)
 		return ins__raw_scnprintf(ins, bf, size, ops);
@@ -1283,8 +1287,8 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 		dl->ops.target.offset_avail = true;
 	}
 
-	/* kcore has no symbols, so add the call target name */
-	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.name) {
+	/* kcore has no symbols, so add the call target symbol */
+	if (dl->ins.ops && ins__is_call(&dl->ins) && !dl->ops.target.sym) {
 		struct addr_map_symbol target = {
 			.map = map,
 			.addr = dl->ops.target.addr,
@@ -1292,7 +1296,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 
 		if (!map_groups__find_ams(&target) &&
 		    target.sym->start == target.al_addr)
-			dl->ops.target.name = strdup(target.sym->name);
+			dl->ops.target.sym = target.sym;
 	}
 
 	annotation_line__add(&dl->al, &notes->src->source);

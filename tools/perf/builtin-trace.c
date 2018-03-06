@@ -2472,8 +2472,14 @@ again:
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		union perf_event *event;
+		struct perf_mmap *md;
+		u64 end, start;
 
-		while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
+		md = &evlist->mmap[i];
+		if (perf_mmap__read_init(md, false, &start, &end) < 0)
+			continue;
+
+		while ((event = perf_mmap__read_event(md, false, &start, end)) != NULL) {
 			struct perf_sample sample;
 
 			++trace->nr_events;
@@ -2486,7 +2492,7 @@ again:
 
 			trace__handle_event(trace, event, &sample);
 next_event:
-			perf_evlist__mmap_consume(evlist, i);
+			perf_mmap__consume(md, false);
 
 			if (interrupted)
 				goto out_disable;
@@ -2496,6 +2502,7 @@ next_event:
 				draining = true;
 			}
 		}
+		perf_mmap__read_done(md);
 	}
 
 	if (trace->nr_events == before) {

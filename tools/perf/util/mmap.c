@@ -64,25 +64,6 @@ static union perf_event *perf_mmap__read(struct perf_mmap *map,
 }
 
 /*
- * legacy interface for mmap read.
- * Don't use it. Use perf_mmap__read_event().
- */
-union perf_event *perf_mmap__read_forward(struct perf_mmap *map)
-{
-	u64 head;
-
-	/*
-	 * Check if event was unmapped due to a POLLHUP/POLLERR.
-	 */
-	if (!refcount_read(&map->refcnt))
-		return NULL;
-
-	head = perf_mmap__read_head(map);
-
-	return perf_mmap__read(map, &map->prev, head);
-}
-
-/*
  * Read event from ring buffer one by one.
  * Return one event for each call.
  *
@@ -191,7 +172,7 @@ void perf_mmap__munmap(struct perf_mmap *map)
 int perf_mmap__mmap(struct perf_mmap *map, struct mmap_params *mp, int fd)
 {
 	/*
-	 * The last one will be done at perf_evlist__mmap_consume(), so that we
+	 * The last one will be done at perf_mmap__consume(), so that we
 	 * make sure we don't prevent tools from consuming every last event in
 	 * the ring buffer.
 	 *

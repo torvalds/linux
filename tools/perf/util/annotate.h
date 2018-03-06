@@ -24,6 +24,7 @@ struct ins_operands {
 	struct {
 		char	*raw;
 		char	*name;
+		struct symbol *sym;
 		u64	addr;
 		s64	offset;
 		bool	offset_avail;
