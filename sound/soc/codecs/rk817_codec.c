@@ -451,6 +451,11 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol,
 	DBG("%s : set playback_path %ld, pre_path %ld\n",
 	    __func__, rk817->playback_path, pre_path);
 
+	if (rk817->playback_path != OFF)
+		clk_prepare_enable(rk817->mclk);
+	else
+		clk_disable_unprepare(rk817->mclk);
+
 	switch (rk817->playback_path) {
 	case OFF:
 		if (pre_path != OFF && (pre_path != HP_PATH &&
@@ -564,6 +569,11 @@ static int rk817_capture_path_put(struct snd_kcontrol *kcontrol,
 
 	DBG("%s : set capture_path %ld, pre_path %ld\n", __func__,
 	    rk817->capture_path, pre_path);
+
+	if (rk817->capture_path != MIC_OFF)
+		clk_prepare_enable(rk817->mclk);
+	else
+		clk_disable_unprepare(rk817->mclk);
 
 	switch (rk817->capture_path) {
 	case MIC_OFF:
@@ -919,7 +929,6 @@ static int rk817_platform_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_;
 	}
-	clk_prepare_enable(rk817_codec_data->mclk);
 
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_rk817,
 				     rk817_dai, ARRAY_SIZE(rk817_dai));
@@ -937,11 +946,6 @@ err_:
 
 static int rk817_platform_remove(struct platform_device *pdev)
 {
-	struct rk817_codec_priv *rk817 = dev_get_drvdata(&pdev->dev);
-
-	if (!IS_ERR(rk817->mclk))
-		clk_disable_unprepare(rk817->mclk);
-
 	snd_soc_unregister_codec(&pdev->dev);
 
 	return 0;
