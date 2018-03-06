@@ -3114,7 +3114,6 @@ static void vop_cfg_update(struct drm_crtc *crtc,
 
 	VOP_CTRL_SET(vop, afbdc_en, s->afbdc_en);
 	VOP_CTRL_SET(vop, dsp_layer_sel, s->dsp_layer_sel);
-	VOP_CTRL_SET(vop, win2_zpos, 2);
 	vop_post_config(crtc);
 
 	spin_unlock(&vop->reg_lock);

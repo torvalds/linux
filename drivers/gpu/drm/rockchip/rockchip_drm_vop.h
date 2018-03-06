@@ -228,7 +228,6 @@ struct vop_ctrl {
 	struct vop_reg st2084oetf_post_conv_en;
 	struct vop_reg win_csc_mode_sel;
 
-	struct vop_reg win2_zpos;
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
 };

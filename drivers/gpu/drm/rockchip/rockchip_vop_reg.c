@@ -1416,7 +1416,7 @@ static const struct vop_ctrl px30_ctrl_data = {
 	.dsp_interlace = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 0),
 	.global_regdone_en = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 13),
 	.auto_gate_en = VOP_REG(RK3366_LIT_SYS_CTRL2, 0x1, 0),
-	.dsp_layer_sel = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xf, 22),
+	.dsp_layer_sel = VOP_REG(RK3366_LIT_DSP_CTRL2, 0xff, 22),
 	.overlay_mode = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x1, 4),
 	.core_dclk_div = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 13),
 	.dclk_ddr = VOP_REG(RK3366_LIT_DSP_CTRL0, 0x1, 14),
@@ -1476,7 +1476,6 @@ static const struct vop_ctrl px30_ctrl_data = {
 	.cabc_stage_down = VOP_REG(PX30_CABC_CTRL2, 0xff, 0),
 	.cabc_global_dn = VOP_REG(PX30_CABC_CTRL3, 0xff, 0),
 	.cabc_global_dn_limit_en = VOP_REG(PX30_CABC_CTRL3, 0x1, 8),
-	.win2_zpos = VOP_REG(RK3366_LIT_DSP_CTRL2, 0x3, 26),
 };
 
 static const struct vop_win_phy px30_win23_data = {
