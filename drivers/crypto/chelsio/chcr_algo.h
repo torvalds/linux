@@ -216,7 +216,6 @@
 #define FILL_CMD_MORE(immdatalen) htonl(ULPTX_CMD_V(ULP_TX_SC_IMM) |\
 					ULP_TX_SC_MORE_V((immdatalen)))
 #define MAX_NK 8
-#define ROUND_16(bytes)		((bytes) & 0xFFFFFFF0)
 #define MAX_DSGL_ENT			32
 #define MIN_CIPHER_SG			1 /* IV */
 #define MIN_AUTH_SG			1 /* IV */

@@ -784,14 +784,14 @@ static struct sk_buff *create_cipher_wr(struct cipher_wr_param *wrparam)
 	nents = sg_nents_xlen(reqctx->dstsg,  wrparam->bytes, CHCR_DST_SG_SIZE,
 			      reqctx->dst_ofst);
 	dst_size = get_space_for_phys_dsgl(nents + 1);
-	kctx_len = (DIV_ROUND_UP(ablkctx->enckey_len, 16) * 16);
+	kctx_len = roundup(ablkctx->enckey_len, 16);
 	transhdr_len = CIPHER_TRANSHDR_SIZE(kctx_len, dst_size);
 	nents = sg_nents_xlen(reqctx->srcsg, wrparam->bytes,
 				  CHCR_SRC_SG_SIZE, reqctx->src_ofst);
-	temp = reqctx->imm ? (DIV_ROUND_UP((IV + wrparam->req->nbytes), 16)
-			      * 16) : (sgl_len(nents + MIN_CIPHER_SG) * 8);
+	temp = reqctx->imm ? roundup(IV + wrparam->req->nbytes, 16) :
+				     (sgl_len(nents + MIN_CIPHER_SG) * 8);
 	transhdr_len += temp;
-	transhdr_len = DIV_ROUND_UP(transhdr_len, 16) * 16;
+	transhdr_len = roundup(transhdr_len, 16);
 	skb = alloc_skb(SGE_MAX_WR_LEN, flags);
 	if (!skb) {
 		error = -ENOMEM;
@@ -1148,7 +1148,7 @@ static int chcr_handle_cipher_resp(struct ablkcipher_request *req,
 		if ((bytes + reqctx->processed) >= req->nbytes)
 			bytes  = req->nbytes - reqctx->processed;
 		else
-			bytes = ROUND_16(bytes);
+			bytes = rounddown(bytes, 16);
 	} else {
 		/*CTR mode counter overfloa*/
 		bytes  = req->nbytes - reqctx->processed;
@@ -1234,7 +1234,7 @@ static int process_cipher(struct ablkcipher_request *req,
 				       CHCR_DST_SG_SIZE, 0);
 		dnents += 1; // IV
 		phys_dsgl = get_space_for_phys_dsgl(dnents);
-		kctx_len = (DIV_ROUND_UP(ablkctx->enckey_len, 16) * 16);
+		kctx_len = roundup(ablkctx->enckey_len, 16);
 		transhdr_len = CIPHER_TRANSHDR_SIZE(kctx_len, phys_dsgl);
 		reqctx->imm = (transhdr_len + IV + req->nbytes) <=
 			SGE_MAX_WR_LEN;
@@ -1252,7 +1252,7 @@ static int process_cipher(struct ablkcipher_request *req,
 		if ((bytes + reqctx->processed) >= req->nbytes)
 			bytes  = req->nbytes - reqctx->processed;
 		else
-			bytes = ROUND_16(bytes);
+			bytes = rounddown(bytes, 16);
 	} else {
 		bytes = req->nbytes;
 	}
@@ -1526,10 +1526,10 @@ static struct sk_buff *create_hash_wr(struct ahash_request *req,
 		SGE_MAX_WR_LEN;
 	nents = sg_nents_xlen(req->src, param->sg_len, CHCR_SRC_SG_SIZE, 0);
 	nents += param->bfr_len ? 1 : 0;
-	transhdr_len += req_ctx->imm ? (DIV_ROUND_UP((param->bfr_len +
-			param->sg_len), 16) * 16) :
+	transhdr_len += req_ctx->imm ? roundup((param->bfr_len +
+			param->sg_len), 16) :
 			(sgl_len(nents) * 8);
-	transhdr_len = DIV_ROUND_UP(transhdr_len, 16) * 16;
+	transhdr_len = roundup(transhdr_len, 16);
 
 	skb = alloc_skb(SGE_MAX_WR_LEN, flags);
 	if (!skb)
@@ -2124,11 +2124,11 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 	transhdr_len = CIPHER_TRANSHDR_SIZE(kctx_len, dst_size);
 	reqctx->imm = (transhdr_len + assoclen + IV + req->cryptlen) <
 			SGE_MAX_WR_LEN;
-	temp = reqctx->imm ? (DIV_ROUND_UP((assoclen + IV + req->cryptlen), 16)
-			* 16) : (sgl_len(reqctx->src_nents + reqctx->aad_nents
+	temp = reqctx->imm ? roundup(assoclen + IV + req->cryptlen, 16)
+			: (sgl_len(reqctx->src_nents + reqctx->aad_nents
 			+ MIN_GCM_SG) * 8);
 	transhdr_len += temp;
-	transhdr_len = DIV_ROUND_UP(transhdr_len, 16) * 16;
+	transhdr_len = roundup(transhdr_len, 16);
 
 	if (chcr_aead_need_fallback(req, dnents, T6_MAX_AAD_SIZE,
 				    transhdr_len, op_type)) {
@@ -2187,9 +2187,8 @@ static struct sk_buff *create_authenc_wr(struct aead_request *req,
 		memcpy(chcr_req->key_ctx.key, actx->dec_rrkey,
 		       aeadctx->enckey_len);
 
-	memcpy(chcr_req->key_ctx.key + (DIV_ROUND_UP(aeadctx->enckey_len, 16) <<
-					4), actx->h_iopad, kctx_len -
-				(DIV_ROUND_UP(aeadctx->enckey_len, 16) << 4));
+	memcpy(chcr_req->key_ctx.key + roundup(aeadctx->enckey_len, 16),
+	       actx->h_iopad, kctx_len - roundup(aeadctx->enckey_len, 16));
 	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR_SHA ||
 	    subtype == CRYPTO_ALG_SUB_TYPE_CTR_NULL) {
 		memcpy(reqctx->iv, aeadctx->nonce, CTR_RFC3686_NONCE_SIZE);
@@ -2696,16 +2695,16 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 			CHCR_DST_SG_SIZE, req->assoclen);
 	dnents += MIN_CCM_SG; // For IV and B0
 	dst_size = get_space_for_phys_dsgl(dnents);
-	kctx_len = ((DIV_ROUND_UP(aeadctx->enckey_len, 16)) << 4) * 2;
+	kctx_len = roundup(aeadctx->enckey_len, 16) * 2;
 	transhdr_len = CIPHER_TRANSHDR_SIZE(kctx_len, dst_size);
 	reqctx->imm = (transhdr_len + assoclen + IV + req->cryptlen +
 		       reqctx->b0_len) <= SGE_MAX_WR_LEN;
-	temp = reqctx->imm ? (DIV_ROUND_UP((assoclen + IV + req->cryptlen +
-				reqctx->b0_len), 16) * 16) :
+	temp = reqctx->imm ? roundup(assoclen + IV + req->cryptlen +
+				     reqctx->b0_len, 16) :
 		(sgl_len(reqctx->src_nents + reqctx->aad_nents +
 				    MIN_CCM_SG) *  8);
 	transhdr_len += temp;
-	transhdr_len = DIV_ROUND_UP(transhdr_len, 16) * 16;
+	transhdr_len = roundup(transhdr_len, 16);
 
 	if (chcr_aead_need_fallback(req, dnents, T6_MAX_AAD_SIZE -
 				    reqctx->b0_len, transhdr_len, op_type)) {
@@ -2727,8 +2726,8 @@ static struct sk_buff *create_aead_ccm_wr(struct aead_request *req,
 
 	chcr_req->key_ctx.ctx_hdr = aeadctx->key_ctx_hdr;
 	memcpy(chcr_req->key_ctx.key, aeadctx->key, aeadctx->enckey_len);
-	memcpy(chcr_req->key_ctx.key + (DIV_ROUND_UP(aeadctx->enckey_len, 16) *
-					16), aeadctx->key, aeadctx->enckey_len);
+	memcpy(chcr_req->key_ctx.key + roundup(aeadctx->enckey_len, 16),
+			aeadctx->key, aeadctx->enckey_len);
 
 	phys_cpl = (struct cpl_rx_phys_dsgl *)((u8 *)(chcr_req + 1) + kctx_len);
 	ulptx = (struct ulptx_sgl *)((u8 *)(phys_cpl + 1) + dst_size);
@@ -2798,16 +2797,15 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 				CHCR_DST_SG_SIZE, req->assoclen);
 	dnents += MIN_GCM_SG; // For IV
 	dst_size = get_space_for_phys_dsgl(dnents);
-	kctx_len = ((DIV_ROUND_UP(aeadctx->enckey_len, 16)) << 4) +
-		AEAD_H_SIZE;
+	kctx_len = roundup(aeadctx->enckey_len, 16) + AEAD_H_SIZE;
 	transhdr_len = CIPHER_TRANSHDR_SIZE(kctx_len, dst_size);
 	reqctx->imm = (transhdr_len + assoclen + IV + req->cryptlen) <=
 			SGE_MAX_WR_LEN;
-	temp = reqctx->imm ? (DIV_ROUND_UP((assoclen + IV +
-	req->cryptlen), 16) * 16) : (sgl_len(reqctx->src_nents +
-				reqctx->aad_nents + MIN_GCM_SG) * 8);
+	temp = reqctx->imm ? roundup(assoclen + IV + req->cryptlen, 16) :
+		(sgl_len(reqctx->src_nents +
+		reqctx->aad_nents + MIN_GCM_SG) * 8);
 	transhdr_len += temp;
-	transhdr_len = DIV_ROUND_UP(transhdr_len, 16) * 16;
+	transhdr_len = roundup(transhdr_len, 16);
 	if (chcr_aead_need_fallback(req, dnents, T6_MAX_AAD_SIZE,
 			    transhdr_len, op_type)) {
 		atomic_inc(&adap->chcr_stats.fallback);
@@ -2846,8 +2844,8 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 					0, 0, dst_size);
 	chcr_req->key_ctx.ctx_hdr = aeadctx->key_ctx_hdr;
 	memcpy(chcr_req->key_ctx.key, aeadctx->key, aeadctx->enckey_len);
-	memcpy(chcr_req->key_ctx.key + (DIV_ROUND_UP(aeadctx->enckey_len, 16) *
-				16), GCM_CTX(aeadctx)->ghash_h, AEAD_H_SIZE);
+	memcpy(chcr_req->key_ctx.key + roundup(aeadctx->enckey_len, 16),
+	       GCM_CTX(aeadctx)->ghash_h, AEAD_H_SIZE);
 
 	/* prepare a 16 byte iv */
 	/* S   A   L  T |  IV | 0x00000001 */
@@ -3067,11 +3065,10 @@ static int chcr_ccm_common_setkey(struct crypto_aead *aead,
 	unsigned char ck_size, mk_size;
 	int key_ctx_size = 0;
 
-	key_ctx_size = sizeof(struct _key_ctx) +
-		((DIV_ROUND_UP(keylen, 16)) << 4)  * 2;
+	key_ctx_size = sizeof(struct _key_ctx) + roundup(keylen, 16) * 2;
 	if (keylen == AES_KEYSIZE_128) {
-		mk_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_128;
+		mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_128;
 	} else if (keylen == AES_KEYSIZE_192) {
 		ck_size = CHCR_KEYCTX_CIPHER_KEY_SIZE_192;
 		mk_size = CHCR_KEYCTX_MAC_KEY_SIZE_192;
@@ -3178,10 +3175,9 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 
 	memcpy(aeadctx->key, key, keylen);
 	aeadctx->enckey_len = keylen;
-	key_ctx_size = sizeof(struct _key_ctx) +
-		((DIV_ROUND_UP(keylen, 16)) << 4) +
+	key_ctx_size = sizeof(struct _key_ctx) + roundup(keylen, 16) +
 		AEAD_H_SIZE;
-		aeadctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size,
+	aeadctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size,
 						CHCR_KEYCTX_MAC_KEY_SIZE_128,
 						0, 0,
 						key_ctx_size >> 4);
@@ -3325,7 +3321,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 		chcr_change_order(actx->h_iopad, param.result_size);
 		chcr_change_order(o_ptr, param.result_size);
 		key_ctx_len = sizeof(struct _key_ctx) +
-			((DIV_ROUND_UP(keys.enckeylen, 16)) << 4) +
+			roundup(keys.enckeylen, 16) +
 			(param.result_size + align) * 2;
 		aeadctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, param.mk_size,
 						0, 1, key_ctx_len >> 4);
@@ -3393,8 +3389,7 @@ static int chcr_aead_digest_null_setkey(struct crypto_aead *authenc,
 		get_aes_decrypt_key(actx->dec_rrkey, aeadctx->key,
 				aeadctx->enckey_len << 3);
 	}
-	key_ctx_len =  sizeof(struct _key_ctx)
-		+ ((DIV_ROUND_UP(keys.enckeylen, 16)) << 4);
+	key_ctx_len =  sizeof(struct _key_ctx) + roundup(keys.enckeylen, 16);
 
 	aeadctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_NO_KEY, 0,
 						0, key_ctx_len >> 4);
