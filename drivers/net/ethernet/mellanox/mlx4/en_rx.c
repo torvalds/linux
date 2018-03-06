@@ -291,13 +291,10 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 
 	tmp = size * roundup_pow_of_two(MLX4_EN_MAX_RX_FRAGS *
 					sizeof(struct mlx4_en_rx_alloc));
-	ring->rx_info = vzalloc_node(tmp, node);
+	ring->rx_info = kvzalloc_node(tmp, GFP_KERNEL, node);
 	if (!ring->rx_info) {
-		ring->rx_info = vzalloc(tmp);
-		if (!ring->rx_info) {
-			err = -ENOMEM;
-			goto err_xdp_info;
-		}
+		err = -ENOMEM;
+		goto err_xdp_info;
 	}
 
 	en_dbg(DRV, priv, "Allocated rx_info ring at addr:%p size:%d\n",
@@ -318,7 +315,7 @@ int mlx4_en_create_rx_ring(struct mlx4_en_priv *priv,
 	return 0;
 
 err_info:
-	vfree(ring->rx_info);
+	kvfree(ring->rx_info);
 	ring->rx_info = NULL;
 err_xdp_info:
 	xdp_rxq_info_unreg(&ring->xdp_rxq);
@@ -447,7 +444,7 @@ void mlx4_en_destroy_rx_ring(struct mlx4_en_priv *priv,
 		bpf_prog_put(old_prog);
 	xdp_rxq_info_unreg(&ring->xdp_rxq);
 	mlx4_free_hwq_res(mdev->dev, &ring->wqres, size * stride + TXBB_SIZE);
-	vfree(ring->rx_info);
+	kvfree(ring->rx_info);
 	ring->rx_info = NULL;
 	kfree(ring);
 	*pring = NULL;
