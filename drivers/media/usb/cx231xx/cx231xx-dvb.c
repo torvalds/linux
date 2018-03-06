@@ -504,6 +504,9 @@ static int register_dvb(struct cx231xx_dvb *dvb,
 				dev->name, result);
 			goto fail_frontend1;
 		}
+
+		/* MFE lock */
+		dvb->adapter.mfe_shared = 1;
 	}
 
 	/* register demux stuff */
