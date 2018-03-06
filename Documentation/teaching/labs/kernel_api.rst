@@ -584,21 +584,22 @@ Using |LXR|_ find the definitions of the following symbols in the Linux kernel:
    * :c:type:`struct list_head`
    * :c:type:`INIT_LIST_HEAD`
    * :c:func:`list_add`
-   * :c:func:`list_for_each`
-   * :c:func:`list_entry`
-   * :c:func:`container_of`
-   * :c:func:`offsetof`
+   * :c:macro:`list_for_each`
+   * :c:macro:`list_entry`
+   * :c:macro:`container_of`
+   * :c:macro:`offsetof`
 
 1. Memory allocation in Linux kernel
 ------------------------------------
 
 Generate the skeleton for the task named **1-mem** and browse the
-contents of the ``mem.c`` file.  Observe the use of kmalloc call for
-memory allocation.
+contents of the :file:`mem.c` file.  Observe the use of :c:func:`kmalloc`
+call for memory allocation.
 
-   1. Compile the source code and load the ``mem.ko`` module using ``insmod``.
-   2. View the kernel messages using the ``dmesg`` command.
-   3. Unload the kernel module using the ``rmmod mem`` command.
+   1. Compile the source code and load the :file:`mem.ko` module using
+      :command:`insmod`.
+   2. View the kernel messages using the :command:`dmesg` command.
+   3. Unload the kernel module using the :command:`rmmod mem` command.
 
 .. note:: Review the `Memory Allocation`_ section in the lab.
 
@@ -606,77 +607,109 @@ memory allocation.
 -----------------------------
 
 Generate the skeleton for the task named **2-sched-spin** and browse
-the contents of ``sched-spin.c`` file.
+the contents of the :file:`sched-spin.c` file.
 
-   1. Compile the source code and load the module.
+   1. Compile the source code and load the module, according the above info:
+      (:command:`make info` and :command:`make copy`)
    2. Notice that it is waiting for 5 seconds until the insertion
       order is complete.
-   3. Unload the kernel mode.
-   4. Look for the lines marked with TODO0 to create an atomic
+   3. Unload the kernel module.
+   4. Look for the lines marked with: ``TODO 0`` to create an atomic
       section. Re-compile the source code and reload the module into
       the kernel.
 
 You should now get an error. Look at the stack trace. What is the
 cause of the error?
 
-.. hint:: In the error message, follow the line containing the BUG for
-	  a description of the error. You are not allowed to sleep in
+.. hint:: In the error message, follow the line containing the :c:macro:`BUG`
+          for a description of the error. You are not allowed to sleep in
 	  atomic context.  The atomic context is given by a section
 	  between a lock operation and an unlock on a spinlock.
 
-.. note:: The schedule_timeout function, corroborated with the
-	  set_current_state macro, forces the current process to wait
-	  S seconds.
+.. note:: The
+          `schedule_timeout <https://elixir.bootlin.com/linux/v4.15.7/source/kernel/time/timer.c#L1725>`_
+          function, corroborated with the
+	  `set_current_state <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/sched.h#L129>`_
+	  macro, forces the current process to wait 5 seconds.
 
-.. note:: Review the `Contexts of execution`_, `Locking` and `Spinlock`_ sections.
+.. note:: Review the `Contexts of execution`_, `Locking` and `Spinlock`_
+          sections.
 
 3. Working with kernel memory
 -----------------------------
 
 Generate the skeleton for the task named **3-memory** directory and
-browse the contents of the ``memory.c`` file. Notice the comments
-marked with TODO. You must allocate 4 structures of type ``struct
-task_info`` and initialize them (in ``memory_init``), then print and
-free them (in ``memory_exit``).
+browse the contents of the :file:`memory.c` file. Notice the comments
+marked with ``TODO``. You must allocate 4 structures of type :c:type:`struct
+task_info` and initialize them (in :c:func:`memory_init`), then print and
+free them (in :c:func:`memory_exit`).
 
-   1. (TODO 1) Allocate memory for task_info structure and initialize
-      its fields:
+   1. (TODO 1) Allocate memory for :c:type:`struct task_info` structure and
+      initialize its fields:
 
-      * The pid field to the PID transmitted as a parameter;
-      * The timestamp field to the value of the jiffies variable,
-	which hold the number of ticks that have occurred since the
+      * The :c:member:`pid` field to the PID transmitted as a parameter;
+      * The :c:member:`timestamp` field to the value of the :c:data:`jiffies`
+        variable, which holds the number of ticks that have occurred since the
 	system booted.
 
-   2. (TODO 2) Allocate task_info for current process, parent process,
-      next process, the next process of the next process.
+   2. (TODO 2) Allocate :c:struct:`struct task_info` for the current process,
+      the parent process, the next process, the next process of the next
+      process, with the following information:
 
-   3. (TODO 3) Display the four structures.
-
-      * Use pr_info to display their two fields: pid and timestamp.
-
-   4. (TODO 4) Release the space occupied by structures (use kfree).
+      * PID of the current process, which can be retrieved from
+        :c:type:`struct task struct` structure, returned by :c:macro:`current`
+        macro.
 
 .. hint::
-	  * You can access the current process using ``current``
+          Search for :c:type:`pid` in :c:type:`task_struct`.
+
+* PID of the parent process of the current process.
+
+.. hint::
+          Search for the relevant field from :c:type:`struct task_struct`
+          structure. Look after "parent".
+
+* PID of the next process from the list of processes, relative to the
+  current process.
+
+.. hint::
+          Use :c:macro:`next_task` macro, which returns a pointer to the next
+          process (i.e a :c:type`struct task_struct` structure).
+
+* PID of the next process of the next process, relative to the current
+  process.
+
+.. hint::
+          Call 2 times the :c:macro:`next_task`.
+
+   3. (TODO 3) Display the four structures.
+      * Use :c:code:`printk` to display their two fields:
+        :c:member:`pid` and :c:member:`timestamp`.
+
+   4. (TODO 4) Release the memory occupied by the structures
+      (use :c:func:`kfree`).
+
+.. hint::
+	  * You can access the current process using :c:macro:`current`
 	    macro.
-	  * Look for the relevant fields in the task_struct structure
-	    (pid, parent).
-	  * Use the next_task macro. The macro returns the pointer to
-	    the next process of ``struct task_struct *`` type.
+	  * Look for the relevant fields in the :c:type:`struct task_struct`
+            structure (:c:member:`pid`, :c:member:`parent`).
+	  * Use the :c:macro:`next_task` macro. The macro returns the pointer to
+	    the next process (ie. a :c:struct:`struct task_struct*` structure).
 
-.. note:: The task_struct struct contains two fields to designate the
-	   parent of a task:
+.. note:: The :c:type:`struct task_struct` structure contains two fields to
+          designate the parent of a task:
 
-	   * ``real_parent`` points to the process that created the
+	   * :c:member:`real_parent` points to the process that created the
 	      task or to process with pid 1 (init) if the parent
 	      completed its execution.
-	   * ``parent`` indicates to the current task parent (the
+	   * :c:member:`parent` indicates to the current task parent (the
 	      process that will be reported if the task completes
 	      execution).
 
 	   In general, the values of the two fields are the same, but
 	   there are situations where they differ, for example when
-	   using the ptrace system call.
+	   using the :c:func:`ptrace` system call.
 
 .. hint:: Review the `Memory allocation`_ section in the lab.
 
@@ -685,17 +718,17 @@ free them (in ``memory_exit``).
 ----------------------------
 
 Generate the skeleton for the task named **4-list**. Browse the
-contents of the ``list.c`` file and notice the comments marked with
-TODO. The current process will add the four structures from the
+contents of the :file:`list.c` file and notice the comments marked with
+``TODO``. The current process will add the four structures from the
 previous exercise into a list. The list will be built in the
-``task_info_add_for_current`` function which is called when module is
-loaded. The list will printed and deleted in the ``list_exit``
-function and the ``task_info_purge_list`` function.
+:c:func:`task_info_add_for_current` function which is called when module is
+loaded. The list will be printed and deleted in the :c:func:`list_exit`
+function and the :c:func:`task_info_purge_list` function.
 
-   1. (TODO 1) Complete the task_info_add_to_list function to allocate
-      a ``task_info`` struct and add it to the list.
+   1. (TODO 1) Complete the :c:func:`task_info_add_to_list` function to allocate
+      a :c:type:`struct task_info` structure and add it to the list.
 
-   2. (TODO 2) Complete the task_info_purge_list function to delete
+   2. (TODO 2) Complete the :c:func:`task_info_purge_list` function to delete
       all the elements in the list.
 
    3. Compile the kernel module. Load and unload the module by
@@ -703,44 +736,51 @@ function and the ``task_info_purge_list`` function.
 
 .. hint:: Review the labs `Lists`_ section.  When deleting items from
 	  the list, you will need to use the
-	  :c:func:`list_for_each_safe` or
-	  :c:func:`list_for_each_entry_safe` calls.
+	  `list_for_each_safe <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/list.h#L436>`_
+	  or
+	  `list_for_each_entry_safe <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/list.h#L543>_`
+	  calls.
 
 5. Working with kernel lists for process handling
 -------------------------------------------------
 
 Generate the skeleton for the task named **5-list-full**. Browse the
-contents of the ``list-full.c`` and notice comments marked with
-TODO. In addition to the ``4-list`` functionality we add the
+contents of the :file:`list-full.c` and notice comments marked with
+``TODO``. In addition to the :file:`4-list` functionality we add the
 following:
 
-   * A count field showing how many times a process has been "added"
+   * A :c:member:`count` field showing how many times a process has been "added"
      to the list.
    * If a process is "added" several times, no new entry is created in
      the list, but:
 
-      * Update the timestamp field.
-      * Increment count.
+      * Update the :c:member:`timestamp` field.
+      * Increment :c:member:`count`.
 
-   * To implement the counter facility, add a ``task_info_find_pid``
+   * To implement the counter facility, add a :c:func:`task_info_find_pid`
      function that searches for a pid in the existing list.
 
-      * If found, return the reference to the task_info struct. If
-	not, return NULL
+   * If found, return the reference to the :c:type:`task_info` struct. If
+	not, return :c:macro:`NULL`.
 
    * An expiration facility. If a process was added more than 3
-     seconds ago and if it does not have a count greater than 5 then
+     seconds ago and if it does not have a :c:member:`count` greater than 5 then
      it is considered expired and is removed from the list.
    * The expiration facility is already implemented in the
-     ``task_info_remove_expired`` function.
+     :c:func:`task_info_remove_expired` function.
 
-   1. (TODO 1) Implement the task_info_find_pid function.
-   3. (TODO 2) Change a field of an item in the list so it does not
-      expire.
+   1. (TODO 1) Implement the :c:func:`task_info_find_pid` function.
+   2. (TODO 2) Change a field of an item in the list so it does not
+      expire. It must not satisfy a part of the expiration condition
+	  from :c:func:`task_info_remove_expired`.
 
-.. hint:: For TODO 2, extract the first element from the list (the one
-	  referred by head.next) and set the count field to a large
-	  enough value. Use ``atomic_set``.
+.. hint:: For ``TODO 2``, extract the first element from the list (the one
+	  referred by :c:member:`head.next`) and set the :c:member:`count`
+          field to a large enough value. Use :c:func:`atomic_set` function.
+   3. Compile, copy, load and unload the kernel module following the displayed
+      messages.
+      Kernel module loading will take some time, because :c:func:`sleep` is
+      being called by :c:func:`schedule_timeout` function.
 
 6. Synchronizing list work
 --------------------------
@@ -760,29 +800,28 @@ Generate the skeleton for the task named **6-list-sync**.
 -----------------------------------------
 
 Generate the skeleton for the task named **7-list-test** and browse
-the contents of the ``list-test.c`` file. We'll use it as a test
+the contents of the :file:`list-test.c` file. We'll use it as a test
 module. It will call functions exported by the **6-list-sync**
 task. The exported functions are the ones marked with **extern** in
-``list-test.c`` file.
+:file:`list-test.c` file.
 
-To export the above functions from the 6-list-sync/ module, the
-following steps are required:
+To export the above functions from the module located at :file:`6-list-sync/`
+directory, the following steps are required:
 
     1. Functions must not be static.
-    2. Use the EXPORT_SYMBOL macro to export the kernel symbols. For
-       example: ``EXPORT_SYMBOL(task_info_remove_expired)``; . The
-       macro must be used for each function after the function is
-       defined.
-    3. Remove from the 6-list-sync/ that avoid the expiration of a
-       list item.
-    4. Compile and load the module from 6-list-sync/ . Once loaded, it
+    2. Use the :c:macro:`EXPORT_SYMBOL` macro to export the kernel symbols. For
+       example: :c:macro:`EXPORT_SYMBOL(task_info_remove_expired);`. The
+       macro must be used for each function after the function is defined.
+    3. Remove from the module from **6-list-sync** the code that avoids the
+       expiration of a list item (it is in contradiction to our exercise).
+    4. Compile and load the module from :file:`6-list-sync/`. Once loaded, it
        exposes exported functions and can be used by the test
        module. You can check this by searching for the function names
-       in /proc/kallsyms before and after loading the module.
+       in :file:`/proc/kallsyms` before and after loading the module.
     5. Compile the test module and then load it.
-    6. Use lsmod to check that the two modules have loaded. What do
-       you notice?
+    6. Use :command:`lsmod` to check that the two modules have been loaded.
+       What do you notice?
     7. Unload the kernel test module.
 
-What should be the unload order of the two modules (6-list-sync and
-test)? What if you use another order?
+What should be the unload order of the two modules (the module from
+**6-list-sync** and test module)? What happens if you use another order?
