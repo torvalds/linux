@@ -540,7 +540,7 @@ static int mlx5i_detach_mcast(struct net_device *netdev, struct ib_device *hca,
 
 	err = mlx5_core_detach_mcg(mdev, gid, ipriv->qp.qpn);
 	if (err)
-		mlx5_core_dbg(mdev, "failed dettaching QPN 0x%x, MGID %pI6\n",
+		mlx5_core_dbg(mdev, "failed detaching QPN 0x%x, MGID %pI6\n",
 			      ipriv->qp.qpn, gid->raw);
 
 	return err;
