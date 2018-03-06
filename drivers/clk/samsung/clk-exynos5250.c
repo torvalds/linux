@@ -18,6 +18,7 @@
 
 #include "clk.h"
 #include "clk-cpu.h"
+#include "clk-exynos5-subcmu.h"
 
 #define APLL_LOCK		0x0
 #define APLL_CON0		0x100
@@ -571,17 +572,6 @@ static const struct samsung_gate_clock exynos5250_gate_clks[] __initconst = {
 	GATE(CLK_SMMU_GSCL3, "smmu_gscl3", "mout_aclk266_gscl_sub",
 			GATE_IP_GSCL, 10, 0, 0),
 
-	GATE(CLK_FIMD1, "fimd1", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 0, 0,
-		0),
-	GATE(CLK_MIE1, "mie1", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 1, 0,
-		0),
-	GATE(CLK_DSIM0, "dsim0", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 3, 0,
-		0),
-	GATE(CLK_DP, "dp", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 4, 0, 0),
-	GATE(CLK_MIXER, "mixer", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 5, 0,
-		0),
-	GATE(CLK_HDMI, "hdmi", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 6, 0,
-		0),
 
 	GATE(CLK_MFC, "mfc", "mout_aclk333_sub", GATE_IP_MFC, 0, 0, 0),
 	GATE(CLK_SMMU_MFCR, "smmu_mfcr", "mout_aclk333_sub", GATE_IP_MFC, 1, 0,
@@ -671,10 +661,6 @@ static const struct samsung_gate_clock exynos5250_gate_clks[] __initconst = {
 	GATE(CLK_WDT, "wdt", "div_aclk66", GATE_IP_PERIS, 19, 0, 0),
 	GATE(CLK_RTC, "rtc", "div_aclk66", GATE_IP_PERIS, 20, 0, 0),
 	GATE(CLK_TMU, "tmu", "div_aclk66", GATE_IP_PERIS, 21, 0, 0),
-	GATE(CLK_SMMU_TV, "smmu_tv", "mout_aclk200_disp1_sub",
-			GATE_IP_DISP1, 9, 0, 0),
-	GATE(CLK_SMMU_FIMD1, "smmu_fimd1", "mout_aclk200_disp1_sub",
-			GATE_IP_DISP1, 8, 0, 0),
 	GATE(CLK_SMMU_2D, "smmu_2d", "div_aclk200", GATE_IP_ACP, 7, 0, 0),
 	GATE(CLK_SMMU_FIMC_ISP, "smmu_fimc_isp", "mout_aclk_266_isp_sub",
 			GATE_IP_ISP0, 8, 0, 0),
@@ -696,6 +682,38 @@ static const struct samsung_gate_clock exynos5250_gate_clks[] __initconst = {
 			GATE_IP_ISP1, 6, 0, 0),
 	GATE(CLK_SMMU_FIMC_3DNR, "smmu_fimc_3dnr", "mout_aclk_266_isp_sub",
 			GATE_IP_ISP1, 7, 0, 0),
+};
+
+static const struct samsung_gate_clock exynos5250_disp_gate_clks[] __initconst = {
+	GATE(CLK_FIMD1, "fimd1", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 0, 0,
+		0),
+	GATE(CLK_MIE1, "mie1", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 1, 0,
+		0),
+	GATE(CLK_DSIM0, "dsim0", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 3, 0,
+		0),
+	GATE(CLK_DP, "dp", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 4, 0, 0),
+	GATE(CLK_MIXER, "mixer", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 5, 0,
+		0),
+	GATE(CLK_HDMI, "hdmi", "mout_aclk200_disp1_sub", GATE_IP_DISP1, 6, 0,
+		0),
+	GATE(CLK_SMMU_TV, "smmu_tv", "mout_aclk200_disp1_sub",
+			GATE_IP_DISP1, 9, 0, 0),
+	GATE(CLK_SMMU_FIMD1, "smmu_fimd1", "mout_aclk200_disp1_sub",
+			GATE_IP_DISP1, 8, 0, 0),
+};
+
+static struct exynos5_subcmu_reg_dump exynos5250_disp_suspend_regs[] = {
+	{ GATE_IP_DISP1, 0xffffffff, 0xffffffff }, /* DISP1 gates */
+	{ SRC_TOP3, 0, BIT(4) },	/* MUX mout_aclk200_disp1_sub */
+	{ SRC_TOP3, 0, BIT(6) },	/* MUX mout_aclk300_disp1_sub */
+};
+
+static const struct exynos5_subcmu_info exynos5250_disp_subcmu = {
+	.gate_clks	= exynos5250_disp_gate_clks,
+	.nr_gate_clks	= ARRAY_SIZE(exynos5250_disp_gate_clks),
+	.suspend_regs	= exynos5250_disp_suspend_regs,
+	.nr_suspend_regs = ARRAY_SIZE(exynos5250_disp_suspend_regs),
+	.pd_name	= "DISP1",
 };
 
 static const struct samsung_pll_rate_table vpll_24mhz_tbl[] __initconst = {
@@ -859,10 +877,11 @@ static void __init exynos5250_clk_init(struct device_node *np)
 	__raw_writel(tmp, reg_base + PWR_CTRL2);
 
 	exynos5250_clk_sleep_init();
+	exynos5_subcmus_init(ctx, 1, &exynos5250_disp_subcmu);
 
 	samsung_clk_of_add_provider(np, ctx);
 
 	pr_info("Exynos5250: clock setup completed, armclk=%ld\n",
 			_get_rate("div_arm2"));
 }
-CLK_OF_DECLARE(exynos5250_clk, "samsung,exynos5250-clock", exynos5250_clk_init);
+CLK_OF_DECLARE_DRIVER(exynos5250_clk, "samsung,exynos5250-clock", exynos5250_clk_init);

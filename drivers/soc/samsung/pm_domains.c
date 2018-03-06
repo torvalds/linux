@@ -148,6 +148,7 @@ static __init const char *exynos_get_domain_name(struct device_node *node)
 }
 
 static const char *soc_force_no_clk[] = {
+	"samsung,exynos5250-clock",
 	"samsung,exynos5420-clock",
 	"samsung,exynos5800-clock",
 };
