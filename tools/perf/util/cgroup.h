@@ -20,7 +20,7 @@ void cgroup__put(struct cgroup *cgroup);
 
 struct perf_evlist;
 
-struct cgroup *evlist__findnew_cgroup(struct perf_evlist *evlist, char *name);
+struct cgroup *evlist__findnew_cgroup(struct perf_evlist *evlist, const char *name);
 
 void evlist__set_default_cgroup(struct perf_evlist *evlist, struct cgroup *cgroup);
 
