@@ -730,6 +730,13 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 					 struct bnxt_re_qp *qp)
 {
 	struct ib_event event;
+	unsigned int flags;
+
+	if (qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR) {
+		flags = bnxt_re_lock_cqs(qp);
+		bnxt_qplib_add_flush_qp(&qp->qplib_qp);
+		bnxt_re_unlock_cqs(qp, flags);
+	}
 
 	memset(&event, 0, sizeof(event));
 	if (qp->qplib_qp.srq) {
