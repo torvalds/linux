@@ -302,6 +302,13 @@ static int auxtrace_queues__split_buffer(struct auxtrace_queues *queues,
 	return 0;
 }
 
+static bool filter_cpu(struct perf_session *session, int cpu)
+{
+	unsigned long *cpu_bitmap = session->itrace_synth_opts->cpu_bitmap;
+
+	return cpu_bitmap && cpu != -1 && !test_bit(cpu, cpu_bitmap);
+}
+
 static int auxtrace_queues__add_buffer(struct auxtrace_queues *queues,
 				       struct perf_session *session,
 				       unsigned int idx,
@@ -309,6 +316,9 @@ static int auxtrace_queues__add_buffer(struct auxtrace_queues *queues,
 				       struct auxtrace_buffer **buffer_ptr)
 {
 	int err = -ENOMEM;
+
+	if (filter_cpu(session, buffer->cpu))
+		return 0;
 
 	buffer = memdup(buffer, sizeof(*buffer));
 	if (!buffer)
@@ -344,13 +354,6 @@ out_free:
 	return err;
 }
 
-static bool filter_cpu(struct perf_session *session, int cpu)
-{
-	unsigned long *cpu_bitmap = session->itrace_synth_opts->cpu_bitmap;
-
-	return cpu_bitmap && cpu != -1 && !test_bit(cpu, cpu_bitmap);
-}
-
 int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 			       struct perf_session *session,
 			       union perf_event *event, off_t data_offset,
@@ -366,9 +369,6 @@ int auxtrace_queues__add_event(struct auxtrace_queues *queues,
 		.size = event->auxtrace.size,
 	};
 	unsigned int idx = event->auxtrace.idx;
-
-	if (filter_cpu(session, event->auxtrace.cpu))
-		return 0;
 
 	return auxtrace_queues__add_buffer(queues, session, idx, &buffer,
 					   buffer_ptr);
