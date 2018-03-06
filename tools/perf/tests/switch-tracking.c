@@ -267,7 +267,7 @@ static int process_events(struct perf_evlist *evlist,
 		if (perf_mmap__read_init(md, false, &start, &end) < 0)
 			continue;
 
-		while ((event = perf_mmap__read_event(md, false, &start, end)) != NULL) {
+		while ((event = perf_mmap__read_event(md)) != NULL) {
 			cnt += 1;
 			ret = add_event(evlist, &events, event);
 			 perf_mmap__consume(md);

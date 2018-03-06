@@ -36,7 +36,7 @@ static int count_samples(struct perf_evlist *evlist, int *sample_count,
 		u64 start, end;
 
 		perf_mmap__read_init(map, true, &start, &end);
-		while ((event = perf_mmap__read_event(map, true, &start, end)) != NULL) {
+		while ((event = perf_mmap__read_event(map)) != NULL) {
 			const u32 type = event->header.type;
 
 			switch (type) {

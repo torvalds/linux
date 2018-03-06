@@ -75,10 +75,7 @@ static union perf_event *perf_mmap__read(struct perf_mmap *map,
  * }
  * perf_mmap__read_done()
  */
-union perf_event *perf_mmap__read_event(struct perf_mmap *map,
-					bool overwrite __maybe_unused,
-					u64 *startp __maybe_unused,
-					u64 end __maybe_unused)
+union perf_event *perf_mmap__read_event(struct perf_mmap *map)
 {
 	union perf_event *event;
 
