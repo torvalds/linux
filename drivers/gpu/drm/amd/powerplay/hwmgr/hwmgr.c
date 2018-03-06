@@ -902,8 +902,10 @@ void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UVDDPM);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VCEDPM);
 
+#if defined(CONFIG_ACPI)
 	if (amdgpu_acpi_is_pcie_performance_request_supported(hwmgr->adev))
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PCIEPerformanceRequest);
+#endif
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_DynamicPatchPowerState);

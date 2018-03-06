@@ -3596,6 +3596,7 @@ static int smu7_request_link_speed_change_before_state_change(
 
 	if (target_link_speed > current_link_speed) {
 		switch (target_link_speed) {
+#ifdef CONFIG_ACPI
 		case PP_PCIEGen3:
 			if (0 == amdgpu_acpi_pcie_performance_request(hwmgr->adev, PCIE_PERF_REQ_GEN3, false))
 				break;
@@ -3605,6 +3606,7 @@ static int smu7_request_link_speed_change_before_state_change(
 		case PP_PCIEGen2:
 			if (0 == amdgpu_acpi_pcie_performance_request(hwmgr->adev, PCIE_PERF_REQ_GEN2, false))
 				break;
+#endif
 		default:
 			data->force_pcie_gen = smu7_get_current_pcie_speed(hwmgr);
 			break;
