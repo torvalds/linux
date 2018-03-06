@@ -233,3 +233,14 @@ COMPAT_SYSCALL_DEFINE6(x86_fallocate, int, fd, int, mode,
 	return sys_fallocate(fd, mode, ((u64)offset_hi << 32) | offset_lo,
 			     ((u64)len_hi << 32) | len_lo);
 }
+
+/*
+ * The 32-bit clone ABI is CONFIG_CLONE_BACKWARDS
+ */
+COMPAT_SYSCALL_DEFINE5(x86_clone, unsigned long, clone_flags,
+		       unsigned long, newsp, int __user *, parent_tidptr,
+		       unsigned long, tls_val, int __user *, child_tidptr)
+{
+	return sys_clone(clone_flags, newsp, parent_tidptr, child_tidptr,
+			tls_val);
+}

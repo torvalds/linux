@@ -126,7 +126,7 @@
 117	i386	ipc			sys_ipc				compat_sys_ipc
 118	i386	fsync			sys_fsync
 119	i386	sigreturn		sys_sigreturn			sys32_sigreturn
-120	i386	clone			sys_clone			stub32_clone
+120	i386	clone			sys_clone			compat_sys_x86_clone
 121	i386	setdomainname		sys_setdomainname
 122	i386	uname			sys_newuname
 123	i386	modify_ldt		sys_modify_ldt
