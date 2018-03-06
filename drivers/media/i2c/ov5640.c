@@ -1874,7 +1874,13 @@ static int ov5640_try_fmt_internal(struct v4l2_subdev *sd,
 		if (ov5640_formats[i].code == fmt->code)
 			break;
 	if (i >= ARRAY_SIZE(ov5640_formats))
-		fmt->code = ov5640_formats[0].code;
+		i = 0;
+
+	fmt->code = ov5640_formats[i].code;
+	fmt->colorspace = ov5640_formats[i].colorspace;
+	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt->colorspace);
+	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt->colorspace);
 
 	return 0;
 }
@@ -1885,6 +1891,7 @@ static int ov5640_set_fmt(struct v4l2_subdev *sd,
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
 	const struct ov5640_mode_info *new_mode;
+	struct v4l2_mbus_framefmt *mbus_fmt = &format->format;
 	int ret;
 
 	if (format->pad != 0)
@@ -1897,7 +1904,7 @@ static int ov5640_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 	}
 
-	ret = ov5640_try_fmt_internal(sd, &format->format,
+	ret = ov5640_try_fmt_internal(sd, mbus_fmt,
 				      sensor->current_fr, &new_mode);
 	if (ret)
 		goto out;
@@ -1906,12 +1913,12 @@ static int ov5640_set_fmt(struct v4l2_subdev *sd,
 		struct v4l2_mbus_framefmt *fmt =
 			v4l2_subdev_get_try_format(sd, cfg, 0);
 
-		*fmt = format->format;
+		*fmt = *mbus_fmt;
 		goto out;
 	}
 
 	sensor->current_mode = new_mode;
-	sensor->fmt = format->format;
+	sensor->fmt = *mbus_fmt;
 	sensor->pending_mode_change = true;
 out:
 	mutex_unlock(&sensor->lock);
@@ -2496,6 +2503,7 @@ static int ov5640_probe(struct i2c_client *client,
 	struct device *dev = &client->dev;
 	struct fwnode_handle *endpoint;
 	struct ov5640_dev *sensor;
+	struct v4l2_mbus_framefmt *fmt;
 	int ret;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
@@ -2503,10 +2511,15 @@ static int ov5640_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	sensor->i2c_client = client;
-	sensor->fmt.code = MEDIA_BUS_FMT_UYVY8_2X8;
-	sensor->fmt.width = 640;
-	sensor->fmt.height = 480;
-	sensor->fmt.field = V4L2_FIELD_NONE;
+	fmt = &sensor->fmt;
+	fmt->code = ov5640_formats[0].code;
+	fmt->colorspace = ov5640_formats[0].colorspace;
+	fmt->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(fmt->colorspace);
+	fmt->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+	fmt->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(fmt->colorspace);
+	fmt->width = 640;
+	fmt->height = 480;
+	fmt->field = V4L2_FIELD_NONE;
 	sensor->frame_interval.numerator = 1;
 	sensor->frame_interval.denominator = ov5640_framerates[OV5640_30_FPS];
 	sensor->current_fr = OV5640_30_FPS;
