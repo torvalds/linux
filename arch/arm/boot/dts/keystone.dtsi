@@ -101,13 +101,14 @@
 				#interrupt-cells = <1>;
 				ti,syscon-dev = <&devctrl 0x2a0>;
 			};
-		};
 
-		rstctrl: reset-controller {
-			compatible = "ti,keystone-reset";
-			ti,syscon-pll = <&pllctrl 0xe4>;
-			ti,syscon-dev = <&devctrl 0x328>;
-			ti,wdt-list = <0>;
+			rstctrl: reset-controller@328 {
+				compatible = "ti,keystone-reset";
+				reg = <0x328 0x10>;
+				ti,syscon-pll = <&pllctrl 0xe4>;
+				ti,syscon-dev = <&devctrl 0x328>;
+				ti,wdt-list = <0>;
+			};
 		};
 
 		/include/ "keystone-clocks.dtsi"
