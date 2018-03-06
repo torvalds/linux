@@ -531,7 +531,7 @@ static const struct ov772x_win_size ov772x_win_sizes[] = {
 /*
  * frame rate settings lists
  */
-static unsigned int ov772x_frame_intervals[] = { 5, 10, 15, 20, 30, 60 };
+static const unsigned int ov772x_frame_intervals[] = { 5, 10, 15, 20, 30, 60 };
 
 /*
  * general function
