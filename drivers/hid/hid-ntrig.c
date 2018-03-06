@@ -591,8 +591,8 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 	switch (usage->hid) {
 	case 0xff000001:
 		/* Tag indicating the start of a multitouch group */
-		nd->reading_mt = 1;
-		nd->first_contact_touch = 0;
+		nd->reading_mt = true;
+		nd->first_contact_touch = false;
 		break;
 	case HID_DG_TIPSWITCH:
 		nd->tipswitch = value;
@@ -663,7 +663,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			 * even if deactivation slack is turned off.
 			 */
 			nd->act_state = deactivate_slack - 1;
-			nd->confidence = 0;
+			nd->confidence = false;
 			break;
 		}
 
@@ -679,7 +679,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			 */
 			if (nd->w < nd->min_width ||
 			    nd->h < nd->min_height)
-				nd->confidence = 0;
+				nd->confidence = false;
 		} else
 			break;
 
@@ -758,7 +758,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 		if (!nd->reading_mt) /* Just to be sure */
 			break;
 
-		nd->reading_mt = 0;
+		nd->reading_mt = false;
 
 
 		/*
@@ -910,7 +910,7 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENOMEM;
 	}
 
-	nd->reading_mt = 0;
+	nd->reading_mt = false;
 	nd->min_width = 0;
 	nd->min_height = 0;
 	nd->activate_slack = activate_slack;
