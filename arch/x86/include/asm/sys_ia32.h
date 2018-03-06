@@ -37,7 +37,6 @@ asmlinkage long sys32_pread(unsigned int, char __user *, u32, u32, u32);
 asmlinkage long sys32_pwrite(unsigned int, const char __user *, u32, u32, u32);
 
 long sys32_fadvise64_64(int, __u32, __u32, __u32, __u32, int);
-long sys32_vm86_warning(void);
 
 asmlinkage ssize_t sys32_readahead(int, unsigned, unsigned, size_t);
 asmlinkage long sys32_sync_file_range(int, unsigned, unsigned,
