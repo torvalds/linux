@@ -69,6 +69,24 @@
 		interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
 	};
 
+	usbphy {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-bus";
+
+		usb0_phy: usb-phy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			status = "disabled";
+		};
+
+		usb1_phy: usb-phy@1 {
+			compatible = "usb-nop-xceiv";
+			reg = <1>;
+			status = "disabled";
+		};
+	};
+
 	soc0: soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -465,11 +483,6 @@
 			status = "disabled";
 		};
 
-		usb0_phy: usb-phy@0 {
-			compatible = "usb-nop-xceiv";
-			status = "disabled";
-		};
-
 		keystone_usb0: keystone-dwc3@2680000 {
 			compatible = "ti,keystone-dwc3";
 			#address-cells = <1>;
@@ -491,11 +504,6 @@
 				usb-phy = <&usb0_phy>;
 				status = "disabled";
 			};
-		};
-
-		usb1_phy: usb-phy@1 {
-			compatible = "usb-nop-xceiv";
-			status = "disabled";
 		};
 
 		keystone_usb1: keystone-dwc3@2580000 {
