@@ -3080,9 +3080,12 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
 	intel_encoder->cloneable = 0;
 
-	intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
-					  (DDI_BUF_PORT_REVERSAL |
-					   DDI_A_4_LANES);
+	if (INTEL_GEN(dev_priv) >= 11)
+		intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
+			DDI_BUF_PORT_REVERSAL;
+	else
+		intel_dig_port->saved_port_bits = I915_READ(DDI_BUF_CTL(port)) &
+			(DDI_BUF_PORT_REVERSAL | DDI_A_4_LANES);
 	intel_dig_port->dp.output_reg = INVALID_MMIO_REG;
 	intel_dig_port->max_lanes = intel_ddi_max_lanes(intel_dig_port);
 
