@@ -556,6 +556,7 @@ enum rt_oem_id {
 	RT_CID_NETGEAR = 36,
 	RT_CID_PLANEX = 37,
 	RT_CID_CC_C = 38,
+	RT_CID_LENOVO_CHINA = 40,
 };
 
 enum hw_descs {

@@ -154,6 +154,7 @@ struct btc_board_info {
 
 	u8 rfe_type;
 	u8 ant_div_cfg;
+	u8 customer_id;
 };
 
 enum btc_dbg_opcode {
