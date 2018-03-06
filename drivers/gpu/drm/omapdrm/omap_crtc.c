@@ -693,7 +693,8 @@ void omap_crtc_pre_uninit(struct omap_drm_private *priv)
 
 /* initialize crtc */
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
-		struct drm_plane *plane, struct omap_dss_device *dssdev)
+				struct omap_drm_pipeline *pipe,
+				struct drm_plane *plane)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc = NULL;
@@ -701,7 +702,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	enum omap_channel channel;
 	int ret;
 
-	channel = omapdss_device_get_dispc_channel(dssdev);
+	channel = pipe->output->dispc_channel;
 
 	DBG("%s", channel_names[channel]);
 
@@ -724,7 +725,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 					&omap_crtc_funcs, NULL);
 	if (ret < 0) {
 		dev_err(dev->dev, "%s(): could not init crtc for: %s\n",
-			__func__, dssdev->name);
+			__func__, pipe->display->name);
 		kfree(omap_crtc);
 		return ERR_PTR(ret);
 	}

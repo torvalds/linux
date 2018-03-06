@@ -246,15 +246,6 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 }
 EXPORT_SYMBOL_GPL(omapdss_device_disconnect);
 
-enum omap_channel omapdss_device_get_dispc_channel(struct omap_dss_device *dssdev)
-{
-	while (dssdev->src)
-		dssdev = dssdev->src;
-
-	return dssdev->dispc_channel;
-}
-EXPORT_SYMBOL(omapdss_device_get_dispc_channel);
-
 /* -----------------------------------------------------------------------------
  * Components Handling
  */

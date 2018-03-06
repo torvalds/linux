@@ -308,7 +308,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		if (!connector)
 			return -ENOMEM;
 
-		crtc = omap_crtc_init(dev, priv->planes[i], display);
+		crtc = omap_crtc_init(dev, pipe, priv->planes[i]);
 		if (IS_ERR(crtc))
 			return PTR_ERR(crtc);
 
