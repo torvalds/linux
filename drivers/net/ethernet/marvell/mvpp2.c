@@ -4295,7 +4295,7 @@ static void mvpp2_bm_bufs_free(struct device *dev, struct mvpp2 *priv,
 }
 
 /* Check number of buffers in BM pool */
-int mvpp2_check_hw_buf_num(struct mvpp2 *priv, struct mvpp2_bm_pool *bm_pool)
+static int mvpp2_check_hw_buf_num(struct mvpp2 *priv, struct mvpp2_bm_pool *bm_pool)
 {
 	int buf_num = 0;
 
