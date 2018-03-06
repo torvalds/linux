@@ -18,6 +18,10 @@ extern int nr_cgroups; /* number of explicit cgroups defined */
 struct cgroup *cgroup__get(struct cgroup *cgroup);
 void cgroup__put(struct cgroup *cgroup);
 
+struct perf_evlist;
+
+struct cgroup *evlist__findnew_cgroup(struct perf_evlist *evlist, char *name);
+
 int parse_cgroups(const struct option *opt, const char *str, int unset);
 
 #endif /* __CGROUP_H__ */

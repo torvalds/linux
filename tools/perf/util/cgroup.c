@@ -128,18 +128,21 @@ out_err:
 	return NULL;
 }
 
+struct cgroup *evlist__findnew_cgroup(struct perf_evlist *evlist, char *name)
+{
+	struct cgroup *cgroup = evlist__find_cgroup(evlist, name);
+
+	return cgroup ?: cgroup__new(name);
+}
+
 static int add_cgroup(struct perf_evlist *evlist, char *str)
 {
 	struct perf_evsel *counter;
-	struct cgroup *cgrp = evlist__find_cgroup(evlist, str);
+	struct cgroup *cgrp = evlist__findnew_cgroup(evlist, str);
 	int n;
 
-	if (!cgrp) {
-		cgrp = cgroup__new(str);
-		if (!cgrp)
-			return -1;
-	}
-
+	if (!cgrp)
+		return -1;
 	/*
 	 * find corresponding event
 	 * if add cgroup N, then need to find event N
