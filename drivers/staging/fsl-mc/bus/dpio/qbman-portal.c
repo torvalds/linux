@@ -522,11 +522,6 @@ void qbman_pull_desc_set_numframes(struct qbman_pull_desc *d, u8 numframes)
 	d->numf = numframes - 1;
 }
 
-static void qbman_pull_desc_set_token(struct qbman_pull_desc *d, u8 token)
-{
-	d->tok = token;
-}
-
 /*
  * Exactly one of the following descriptor "actions" should be set. (Calling any
  * one of these will replace the effect of any prior call to one of these.)
