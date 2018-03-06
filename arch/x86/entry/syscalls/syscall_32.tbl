@@ -8,7 +8,7 @@
 #
 0	i386	restart_syscall		sys_restart_syscall
 1	i386	exit			sys_exit
-2	i386	fork			sys_fork			sys_fork
+2	i386	fork			sys_fork
 3	i386	read			sys_read
 4	i386	write			sys_write
 5	i386	open			sys_open			compat_sys_open
@@ -78,7 +78,7 @@
 69	i386	ssetmask		sys_ssetmask
 70	i386	setreuid		sys_setreuid16
 71	i386	setregid		sys_setregid16
-72	i386	sigsuspend		sys_sigsuspend			sys_sigsuspend
+72	i386	sigsuspend		sys_sigsuspend
 73	i386	sigpending		sys_sigpending			compat_sys_sigpending
 74	i386	sethostname		sys_sethostname
 75	i386	setrlimit		sys_setrlimit			compat_sys_setrlimit
@@ -196,7 +196,7 @@
 187	i386	sendfile		sys_sendfile			compat_sys_sendfile
 188	i386	getpmsg
 189	i386	putpmsg
-190	i386	vfork			sys_vfork			sys_vfork
+190	i386	vfork			sys_vfork
 191	i386	ugetrlimit		sys_getrlimit			compat_sys_getrlimit
 192	i386	mmap2			sys_mmap_pgoff
 193	i386	truncate64		sys_truncate64			sys32_truncate64
