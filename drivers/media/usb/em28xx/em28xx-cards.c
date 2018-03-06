@@ -3435,7 +3435,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	return 0;
 }
 
-int em28xx_duplicate_dev(struct em28xx *dev)
+static int em28xx_duplicate_dev(struct em28xx *dev)
 {
 	int nr;
 	struct em28xx *sec_dev = kzalloc(sizeof(*sec_dev), GFP_KERNEL);
