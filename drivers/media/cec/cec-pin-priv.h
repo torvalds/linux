@@ -153,7 +153,9 @@ enum cec_pin_state {
 /* The default for the low/high time of the custom pulse */
 #define CEC_TIM_CUSTOM_DEFAULT				1000
 
-#define CEC_NUM_PIN_EVENTS 128
+#define CEC_NUM_PIN_EVENTS				128
+#define CEC_PIN_EVENT_FL_IS_HIGH			(1 << 0)
+#define CEC_PIN_EVENT_FL_DROPPED			(1 << 1)
 
 #define CEC_PIN_IRQ_UNCHANGED	0
 #define CEC_PIN_IRQ_DISABLE	1
@@ -198,11 +200,13 @@ struct cec_pin {
 	u8				work_tx_status;
 	ktime_t				work_tx_ts;
 	atomic_t			work_irq_change;
-	atomic_t			work_pin_events;
+	atomic_t			work_pin_num_events;
 	unsigned int			work_pin_events_wr;
 	unsigned int			work_pin_events_rd;
 	ktime_t				work_pin_ts[CEC_NUM_PIN_EVENTS];
-	bool				work_pin_is_high[CEC_NUM_PIN_EVENTS];
+	u8				work_pin_events[CEC_NUM_PIN_EVENTS];
+	bool				work_pin_events_dropped;
+	u32				work_pin_events_dropped_cnt;
 	ktime_t				timer_ts;
 	u32				timer_cnt;
 	u32				timer_100ms_overruns;

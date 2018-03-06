@@ -79,9 +79,9 @@ static void vivid_cec_pin_adap_events(struct cec_adapter *adap, ktime_t ts,
 	 */
 	ts = ktime_sub_us(ts, CEC_TIM_START_BIT_TOTAL +
 			       10ULL * len * CEC_TIM_DATA_BIT_TOTAL);
-	cec_queue_pin_cec_event(adap, false, ts);
+	cec_queue_pin_cec_event(adap, false, false, ts);
 	ts = ktime_add_us(ts, CEC_TIM_START_BIT_LOW);
-	cec_queue_pin_cec_event(adap, true, ts);
+	cec_queue_pin_cec_event(adap, true, false, ts);
 	ts = ktime_add_us(ts, CEC_TIM_START_BIT_HIGH);
 
 	for (i = 0; i < 10 * len; i++) {
@@ -96,12 +96,12 @@ static void vivid_cec_pin_adap_events(struct cec_adapter *adap, ktime_t ts,
 			bit = cec_msg_is_broadcast(msg) ^ nacked;
 			break;
 		}
-		cec_queue_pin_cec_event(adap, false, ts);
+		cec_queue_pin_cec_event(adap, false, false, ts);
 		if (bit)
 			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_1_LOW);
 		else
 			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_0_LOW);
-		cec_queue_pin_cec_event(adap, true, ts);
+		cec_queue_pin_cec_event(adap, true, false, ts);
 		if (bit)
 			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_1_HIGH);
 		else

@@ -92,7 +92,7 @@ struct cec_fh {
 	wait_queue_head_t	wait;
 	struct mutex		lock;
 	struct list_head	events[CEC_NUM_EVENTS]; /* queued events */
-	u8			queued_events[CEC_NUM_EVENTS];
+	u16			queued_events[CEC_NUM_EVENTS];
 	unsigned int		total_queued_events;
 	struct cec_event_entry	core_events[CEC_NUM_CORE_EVENTS];
 	struct list_head	msgs; /* queued messages */
@@ -291,11 +291,12 @@ static inline void cec_received_msg(struct cec_adapter *adap,
  *
  * @adap:	pointer to the cec adapter
  * @is_high:	when true the CEC pin is high, otherwise it is low
+ * @dropped_events: when true some events were dropped
  * @ts:		the timestamp for this event
  *
  */
-void cec_queue_pin_cec_event(struct cec_adapter *adap,
-			     bool is_high, ktime_t ts);
+void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high,
+			     bool dropped_events, ktime_t ts);
 
 /**
  * cec_queue_pin_hpd_event() - queue a pin event with a given timestamp.

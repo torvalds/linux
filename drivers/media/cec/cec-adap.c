@@ -73,8 +73,8 @@ static unsigned int cec_log_addr2dev(const struct cec_adapter *adap, u8 log_addr
 void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts)
 {
-	static const u8 max_events[CEC_NUM_EVENTS] = {
-		1, 1, 64, 64, 8, 8,
+	static const u16 max_events[CEC_NUM_EVENTS] = {
+		1, 1, 800, 800, 8, 8,
 	};
 	struct cec_event_entry *entry;
 	unsigned int ev_idx = new_ev->event - 1;
@@ -142,11 +142,13 @@ static void cec_queue_event(struct cec_adapter *adap,
 }
 
 /* Notify userspace that the CEC pin changed state at the given time. */
-void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
+void cec_queue_pin_cec_event(struct cec_adapter *adap, bool is_high,
+			     bool dropped_events, ktime_t ts)
 {
 	struct cec_event ev = {
 		.event = is_high ? CEC_EVENT_PIN_CEC_HIGH :
 				   CEC_EVENT_PIN_CEC_LOW,
+		.flags = dropped_events ? CEC_EVENT_FL_DROPPED_EVENTS : 0,
 	};
 	struct cec_fh *fh;
 

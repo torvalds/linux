@@ -114,12 +114,21 @@ static void cec_pin_update(struct cec_pin *pin, bool v, bool force)
 		return;
 
 	pin->adap->cec_pin_is_high = v;
-	if (atomic_read(&pin->work_pin_events) < CEC_NUM_PIN_EVENTS) {
-		pin->work_pin_is_high[pin->work_pin_events_wr] = v;
+	if (atomic_read(&pin->work_pin_num_events) < CEC_NUM_PIN_EVENTS) {
+		u8 ev = v;
+
+		if (pin->work_pin_events_dropped) {
+			pin->work_pin_events_dropped = false;
+			v |= CEC_PIN_EVENT_FL_DROPPED;
+		}
+		pin->work_pin_events[pin->work_pin_events_wr] = ev;
 		pin->work_pin_ts[pin->work_pin_events_wr] = ktime_get();
 		pin->work_pin_events_wr =
 			(pin->work_pin_events_wr + 1) % CEC_NUM_PIN_EVENTS;
-		atomic_inc(&pin->work_pin_events);
+		atomic_inc(&pin->work_pin_num_events);
+	} else {
+		pin->work_pin_events_dropped = true;
+		pin->work_pin_events_dropped_cnt++;
 	}
 	wake_up_interruptible(&pin->kthread_waitq);
 }
@@ -1019,7 +1028,7 @@ static int cec_pin_thread_func(void *_adap)
 			pin->work_rx_msg.len ||
 			pin->work_tx_status ||
 			atomic_read(&pin->work_irq_change) ||
-			atomic_read(&pin->work_pin_events));
+			atomic_read(&pin->work_pin_num_events));
 
 		if (pin->work_rx_msg.len) {
 			struct cec_msg *msg = &pin->work_rx_msg;
@@ -1047,14 +1056,16 @@ static int cec_pin_thread_func(void *_adap)
 						     pin->work_tx_ts);
 		}
 
-		while (atomic_read(&pin->work_pin_events)) {
+		while (atomic_read(&pin->work_pin_num_events)) {
 			unsigned int idx = pin->work_pin_events_rd;
+			u8 v = pin->work_pin_events[idx];
 
 			cec_queue_pin_cec_event(adap,
-						pin->work_pin_is_high[idx],
+						v & CEC_PIN_EVENT_FL_IS_HIGH,
+						v & CEC_PIN_EVENT_FL_DROPPED,
 						pin->work_pin_ts[idx]);
 			pin->work_pin_events_rd = (idx + 1) % CEC_NUM_PIN_EVENTS;
-			atomic_dec(&pin->work_pin_events);
+			atomic_dec(&pin->work_pin_num_events);
 		}
 
 		switch (atomic_xchg(&pin->work_irq_change,
@@ -1090,8 +1101,9 @@ static int cec_pin_adap_enable(struct cec_adapter *adap, bool enable)
 
 	pin->enabled = enable;
 	if (enable) {
-		atomic_set(&pin->work_pin_events, 0);
+		atomic_set(&pin->work_pin_num_events, 0);
 		pin->work_pin_events_rd = pin->work_pin_events_wr = 0;
+		pin->work_pin_events_dropped = false;
 		cec_pin_read(pin);
 		cec_pin_to_idle(pin);
 		pin->tx_msg.len = 0;
@@ -1171,6 +1183,8 @@ static void cec_pin_adap_status(struct cec_adapter *adap,
 	seq_printf(file, "tx_bit: %d\n", pin->tx_bit);
 	seq_printf(file, "rx_bit: %d\n", pin->rx_bit);
 	seq_printf(file, "cec pin: %d\n", pin->ops->read(adap));
+	seq_printf(file, "cec pin events dropped: %u\n",
+		   pin->work_pin_events_dropped_cnt);
 	seq_printf(file, "irq failed: %d\n", pin->enable_irq_failed);
 	if (pin->timer_100ms_overruns) {
 		seq_printf(file, "timer overruns > 100ms: %u of %u\n",
@@ -1208,6 +1222,7 @@ static void cec_pin_adap_status(struct cec_adapter *adap,
 			   pin->rx_data_bit_too_long_cnt);
 	seq_printf(file, "rx initiated low drive: %u\n", pin->rx_low_drive_cnt);
 	seq_printf(file, "tx detected low drive: %u\n", pin->tx_low_drive_cnt);
+	pin->work_pin_events_dropped_cnt = 0;
 	pin->timer_cnt = 0;
 	pin->timer_100ms_overruns = 0;
 	pin->timer_300ms_overruns = 0;
