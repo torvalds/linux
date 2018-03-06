@@ -8523,6 +8523,7 @@ static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 	I915_WRITE(SLICE_UNIT_LEVEL_CLKGATE, val);
 
 	/* WaDisableVFclkgate:cnl */
+	/* WaVFUnitClockGatingDisable:cnl */
 	val = I915_READ(UNSLICE_UNIT_LEVEL_CLKGATE);
 	val |= VFUNIT_CLKGATE_DIS;
 	I915_WRITE(UNSLICE_UNIT_LEVEL_CLKGATE, val);
