@@ -327,10 +327,10 @@ static int rv_start_smu(struct pp_hwmgr *hwmgr)
 
 static int rv_smu_init(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_bo *handle = NULL;
 	struct rv_smumgr *priv;
 	uint64_t mc_addr;
 	void *kaddr = NULL;
-	struct amdgpu_bo *handle;
 	int r;
 
 	priv = kzalloc(sizeof(struct rv_smumgr), GFP_KERNEL);

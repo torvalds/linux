@@ -377,11 +377,11 @@ static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 
 static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_bo *handle = NULL;
 	struct vega10_smumgr *priv;
 	uint64_t mc_addr;
 	void *kaddr = NULL;
 	unsigned long tools_size;
-	struct amdgpu_bo *handle;
 	int ret;
 	struct cgs_firmware_info info = {0};
 
