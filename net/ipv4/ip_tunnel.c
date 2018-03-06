@@ -694,16 +694,9 @@ void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		}
 	}
 
-	if (tunnel->fwmark) {
-		ip_tunnel_init_flow(&fl4, protocol, dst, tnl_params->saddr,
-				    tunnel->parms.o_key, RT_TOS(tos),
-				    tunnel->parms.link, tunnel->fwmark);
-	}
-	else {
-		ip_tunnel_init_flow(&fl4, protocol, dst, tnl_params->saddr,
-				    tunnel->parms.o_key, RT_TOS(tos),
-				    tunnel->parms.link, skb->mark);
-	}
+	ip_tunnel_init_flow(&fl4, protocol, dst, tnl_params->saddr,
+			    tunnel->parms.o_key, RT_TOS(tos), tunnel->parms.link,
+			    tunnel->fwmark);
 
 	if (ip_tunnel_encap(skb, tunnel, &protocol, &fl4) < 0)
 		goto tx_error;

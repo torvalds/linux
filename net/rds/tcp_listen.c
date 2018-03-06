@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -142,11 +142,19 @@ int rds_tcp_accept_one(struct socket *sock)
 	if (ret)
 		goto out;
 
-	new_sock->type = sock->type;
-	new_sock->ops = sock->ops;
 	ret = sock->ops->accept(sock, new_sock, O_NONBLOCK, true);
 	if (ret < 0)
 		goto out;
+
+	/* sock_create_lite() does not get a hold on the owner module so we
+	 * need to do it here.  Note that sock_release() uses sock->ops to
+	 * determine if it needs to decrement the reference count.  So set
+	 * sock->ops after calling accept() in case that fails.  And there's
+	 * no need to do try_module_get() as the listener should have a hold
+	 * already.
+	 */
+	new_sock->ops = sock->ops;
+	__module_get(new_sock->ops->owner);
 
 	ret = rds_tcp_keepalive(new_sock);
 	if (ret < 0)

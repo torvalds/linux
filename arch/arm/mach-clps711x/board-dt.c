@@ -69,7 +69,7 @@ static void clps711x_restart(enum reboot_mode mode, const char *cmd)
 	soft_restart(0);
 }
 
-static const char *clps711x_compat[] __initconst = {
+static const char *const clps711x_compat[] __initconst = {
 	"cirrus,ep7209",
 	NULL
 };

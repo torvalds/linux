@@ -1274,7 +1274,7 @@ static int flash_devs_run(struct cache_set *c)
 	struct uuid_entry *u;
 
 	for (u = c->uuids;
-	     u < c->uuids + c->devices_max_used && !ret;
+	     u < c->uuids + c->nr_uuids && !ret;
 	     u++)
 		if (UUID_FLASH_ONLY(u))
 			ret = flash_dev_run(c, u);

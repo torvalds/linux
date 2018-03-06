@@ -85,6 +85,12 @@ struct dvb_buffer {
  * @nonblocking:
  *		If different than zero, device is operating on non-blocking
  *		mode.
+ * @flags:	buffer flags as defined by &enum dmx_buffer_flags.
+ *		Filled only at &DMX_DQBUF. &DMX_QBUF should zero this field.
+ * @count:	monotonic counter for filled buffers. Helps to identify
+ *		data stream loses. Filled only at &DMX_DQBUF. &DMX_QBUF should
+ *		zero this field.
+ *
  * @name:	name of the device type. Currently, it can either be
  *		"dvr" or "demux_filter".
  */
@@ -100,10 +106,14 @@ struct dvb_vb2_ctx {
 	int	buf_siz;
 	int	buf_cnt;
 	int	nonblocking;
+
+	enum dmx_buffer_flags flags;
+	u32	count;
+
 	char	name[DVB_VB2_NAME_MAX + 1];
 };
 
-#ifndef DVB_MMAP
+#ifndef CONFIG_DVB_MMAP
 static inline int dvb_vb2_init(struct dvb_vb2_ctx *ctx,
 			       const char *name, int non_blocking)
 {
@@ -114,7 +124,7 @@ static inline int dvb_vb2_release(struct dvb_vb2_ctx *ctx)
 	return 0;
 };
 #define dvb_vb2_is_streaming(ctx) (0)
-#define dvb_vb2_fill_buffer(ctx, file, wait) (0)
+#define dvb_vb2_fill_buffer(ctx, file, wait, flags) (0)
 
 static inline __poll_t dvb_vb2_poll(struct dvb_vb2_ctx *ctx,
 				    struct file *file,
@@ -153,9 +163,13 @@ int dvb_vb2_is_streaming(struct dvb_vb2_ctx *ctx);
  * @ctx:	control struct for VB2 handler
  * @src:	place where the data is stored
  * @len:	number of bytes to be copied from @src
+ * @buffer_flags:
+ *		pointer to buffer flags as defined by &enum dmx_buffer_flags.
+ *		can be NULL.
  */
 int dvb_vb2_fill_buffer(struct dvb_vb2_ctx *ctx,
-			const unsigned char *src, int len);
+			const unsigned char *src, int len,
+			enum dmx_buffer_flags *buffer_flags);
 
 /**
  * dvb_vb2_poll - Wrapper to vb2_core_streamon() for Digital TV

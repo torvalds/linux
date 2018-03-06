@@ -206,7 +206,7 @@ int smc_llc_send_confirm_link(struct smc_link *link, u8 mac[],
 	memcpy(confllc->sender_mac, mac, ETH_ALEN);
 	memcpy(confllc->sender_gid, gid, SMC_GID_SIZE);
 	hton24(confllc->sender_qp_num, link->roce_qp->qp_num);
-	/* confllc->link_num = SMC_SINGLE_LINK; already done by memset above */
+	confllc->link_num = link->link_id;
 	memcpy(confllc->link_uid, lgr->id, SMC_LGR_ID_SIZE);
 	confllc->max_links = SMC_LLC_ADD_LNK_MAX_LINKS; /* enforce peer resp. */
 	/* send llc message */
