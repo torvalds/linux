@@ -55,6 +55,10 @@
 
 #include "main.h"
 
+#ifndef BPF_FS_MAGIC
+#define BPF_FS_MAGIC		0xcafe4a11
+#endif
+
 void p_err(const char *fmt, ...)
 {
 	va_list ap;
