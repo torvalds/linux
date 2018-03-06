@@ -2232,19 +2232,22 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	u16 htotal = adjusted_mode->crtc_htotal;
 	u16 vdisplay = adjusted_mode->crtc_vdisplay;
 	int clock = adjusted_mode->crtc_clock;
-	struct vop *vop = to_vop(crtc);
-	const struct vop_data *vop_data = vop->data;
 	struct vop_plane_state *vop_plane_state;
 	struct drm_plane_state *pstate;
 	struct vop_bandwidth *pbandwidth;
 	struct drm_plane *plane;
 	u64 bandwidth;
-	int i, cnt = 0;
+	int i, cnt = 0, plane_num = 0;
 
 	if (!htotal || !vdisplay)
 		return 0;
 
-	pbandwidth = kmalloc_array(vop_data->win_size, sizeof(*pbandwidth),
+	for_each_plane_in_state(state, plane, pstate, i) {
+		if (pstate->crtc != crtc || !pstate->fb)
+			continue;
+		plane_num++;
+	}
+	pbandwidth = kmalloc_array(plane_num, sizeof(*pbandwidth),
 				   GFP_KERNEL);
 	if (!pbandwidth)
 		return -ENOMEM;
