@@ -363,9 +363,7 @@ ENTRY(entry_INT80_compat)
 	pushq	2*8(%rdi)		/* regs->ip */
 	pushq	1*8(%rdi)		/* regs->orig_ax */
 
-	movq	(%rdi), %rdi		/* restore %rdi */
-
-	pushq	%rdi			/* pt_regs->di */
+	pushq	(%rdi)			/* pt_regs->di */
 	pushq	%rsi			/* pt_regs->si */
 	pushq	%rdx			/* pt_regs->dx */
 	pushq	%rcx			/* pt_regs->cx */
