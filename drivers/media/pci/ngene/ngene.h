@@ -732,6 +732,9 @@ struct ngene_channel {
 #endif
 
 	int running;
+
+	int tsin_offset;
+	u8  tsin_buffer[188];
 };
 
 

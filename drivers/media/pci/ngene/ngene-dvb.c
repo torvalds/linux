@@ -38,6 +38,9 @@
 
 #include "ngene.h"
 
+static int ci_tsfix = 1;
+module_param(ci_tsfix, int, 0444);
+MODULE_PARM_DESC(ci_tsfix, "Detect and fix TS buffer offset shifs in conjunction with CI expansions (default: 1/enabled)");
 
 /****************************************************************************/
 /* COMMAND API interface ****************************************************/
@@ -139,6 +142,24 @@ static void swap_buffer(u32 *p, u32 len)
 /* start of filler packet */
 static u8 fill_ts[] = { 0x47, 0x1f, 0xff, 0x10, TS_FILLER };
 
+static int tsin_find_offset(void *buf, u32 len)
+{
+	int i, l;
+
+	l = len - sizeof(fill_ts);
+	if (l <= 0)
+		return -1;
+
+	for (i = 0; i < l; i++) {
+		if (((char *)buf)[i] == 0x47) {
+			if (!memcmp(buf + i, fill_ts, sizeof(fill_ts)))
+				return i % 188;
+		}
+	}
+
+	return -1;
+}
+
 static inline void tsin_copy_stripped(struct ngene *dev, void *buf)
 {
 	if (memcmp(buf, fill_ts, sizeof(fill_ts)) != 0) {
@@ -153,18 +174,86 @@ void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 {
 	struct ngene_channel *chan = priv;
 	struct ngene *dev = chan->dev;
-
+	int tsoff;
 
 	if (flags & DF_SWAP32)
 		swap_buffer(buf, len);
 
 	if (dev->ci.en && chan->number == 2) {
+		/* blindly copy buffers if ci_tsfix is disabled */
+		if (!ci_tsfix) {
+			while (len >= 188) {
+				tsin_copy_stripped(dev, buf);
+
+				buf += 188;
+				len -= 188;
+			}
+			return NULL;
+		}
+
+		/* ci_tsfix = 1 */
+
+		/*
+		 * since the remainder of the TS packet which got cut off
+		 * in the previous tsin_exchange() run is at the beginning
+		 * of the new TS buffer, append this to the temp buffer and
+		 * send it to the DVB ringbuffer afterwards.
+		 */
+		if (chan->tsin_offset) {
+			memcpy(&chan->tsin_buffer[(188 - chan->tsin_offset)],
+			       buf, chan->tsin_offset);
+			tsin_copy_stripped(dev, &chan->tsin_buffer);
+
+			buf += chan->tsin_offset;
+			len -= chan->tsin_offset;
+		}
+
+		/*
+		 * copy TS packets to the DVB ringbuffer and detect new offset
+		 * shifts by checking for a valid TS SYNC byte
+		 */
 		while (len >= 188) {
+			if (*((char *)buf) != 0x47) {
+				/*
+				 * no SYNC header, find new offset shift
+				 * (max. 188 bytes, tsoff will be mod 188)
+				 */
+				tsoff = tsin_find_offset(buf, len);
+				if (tsoff > 0) {
+					chan->tsin_offset += tsoff;
+					chan->tsin_offset %= 188;
+
+					buf += tsoff;
+					len -= tsoff;
+
+					dev_info(&dev->pci_dev->dev,
+						 "%s(): tsin_offset shift by %d on channel %d\n",
+						 __func__, tsoff,
+						 chan->number);
+
+					/*
+					 * offset corrected. re-check remaining
+					 * len for a full TS frame, break and
+					 * skip to fragment handling if < 188.
+					 */
+					if (len < 188)
+						break;
+				}
+			}
+
 			tsin_copy_stripped(dev, buf);
 
 			buf += 188;
 			len -= 188;
 		}
+
+		/*
+		 * if a fragment is left, copy to temp buffer. The remainder
+		 * will be appended in the next tsin_exchange() iteration.
+		 */
+		if (len > 0 && len < 188)
+			memcpy(&chan->tsin_buffer, buf, len);
+
 		return NULL;
 	}
 
