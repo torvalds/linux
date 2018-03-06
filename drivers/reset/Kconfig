@@ -83,14 +83,18 @@ config RESET_PISTACHIO
 
 config RESET_SIMPLE
 	bool "Simple Reset Controller Driver" if COMPILE_TEST
-	default ARCH_SOCFPGA || ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX
+	default ARCH_SOCFPGA || ARCH_STM32 || ARCH_STRATIX10 || ARCH_SUNXI || ARCH_ZX || ARCH_ASPEED
 	help
 	  This enables a simple reset controller driver for reset lines that
 	  that can be asserted and deasserted by toggling bits in a contiguous,
 	  exclusive register space.
 
-	  Currently this driver supports Altera SoCFPGAs, the RCC reset
-	  controller in STM32 MCUs, Allwinner SoCs, and ZTE's zx2967 family.
+	  Currently this driver supports:
+	   - Altera SoCFPGAs
+	   - ASPEED BMC SoCs
+	   - RCC reset controller in STM32 MCUs
+	   - Allwinner SoCs
+	   - ZTE's zx2967 family
 
 config RESET_SUNXI
 	bool "Allwinner SoCs Reset Driver" if COMPILE_TEST && !ARCH_SUNXI
