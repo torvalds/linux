@@ -680,6 +680,21 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 	case BTC_GET_U4_BT_FORBIDDEN_SLOT_VAL:
 		*u32_tmp = halbtc_get_bt_forbidden_slot_val(btcoexist);
 		break;
+	case BTC_GET_U4_WIFI_IQK_TOTAL:
+		*u32_tmp =
+			btcoexist->btc_phydm_query_phy_counter(btcoexist,
+							       DM_INFO_IQK_ALL);
+		break;
+	case BTC_GET_U4_WIFI_IQK_OK:
+		*u32_tmp =
+			btcoexist->btc_phydm_query_phy_counter(btcoexist,
+							       DM_INFO_IQK_OK);
+		break;
+	case BTC_GET_U4_WIFI_IQK_FAIL:
+		*u32_tmp =
+			btcoexist->btc_phydm_query_phy_counter(btcoexist,
+							       DM_INFO_IQK_NG);
+		break;
 	case BTC_GET_U1_WIFI_DOT11_CHNL:
 		*u8_tmp = rtlphy->current_channel;
 		break;
@@ -1122,6 +1137,25 @@ static bool halbtc_under_ips(struct btc_coexist *btcoexist)
 	return false;
 }
 
+static
+u32 halbtc_get_phydm_version(void *btc_context)
+{
+	return 0;
+}
+
+static
+void halbtc_phydm_modify_ra_pcr_threshold(void *btc_context,
+					  u8 ra_offset_direction,
+					  u8 ra_threshold_offset)
+{
+}
+
+static
+u32 halbtc_phydm_query_phy_counter(void *btc_context, enum dm_info_query dm_id)
+{
+	return 0;
+}
+
 static u8 halbtc_get_ant_det_val_from_bt(void *btc_context)
 {
 	struct btc_coexist *btcoexist = (struct btc_coexist *)btc_context;
@@ -1245,6 +1279,10 @@ bool exhalbtc_initlize_variables(struct rtl_priv *rtlpriv)
 					halbtc_get_bt_coex_supported_feature;
 	btcoexist->btc_get_bt_coex_supported_version =
 					halbtc_get_bt_coex_supported_version;
+	btcoexist->btc_get_bt_phydm_version = halbtc_get_phydm_version;
+	btcoexist->btc_phydm_modify_ra_pcr_threshold =
+					halbtc_phydm_modify_ra_pcr_threshold;
+	btcoexist->btc_phydm_query_phy_counter = halbtc_phydm_query_phy_counter;
 	btcoexist->btc_get_ant_det_val_from_bt = halbtc_get_ant_det_val_from_bt;
 	btcoexist->btc_get_ble_scan_type_from_bt =
 					halbtc_get_ble_scan_type_from_bt;

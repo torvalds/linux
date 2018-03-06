@@ -730,6 +730,12 @@ struct btc_coexist {
 			       u32 value);
 	u32 (*btc_get_bt_coex_supported_feature)(void *btcoexist);
 	u32 (*btc_get_bt_coex_supported_version)(void *btcoexist);
+	u32 (*btc_get_bt_phydm_version)(void *btcoexist);
+	void (*btc_phydm_modify_ra_pcr_threshold)(void *btcoexist,
+						  u8 ra_offset_direction,
+						  u8 ra_threshold_offset);
+	u32 (*btc_phydm_query_phy_counter)(void *btcoexist,
+					   enum dm_info_query dm_id);
 	u8 (*btc_get_ant_det_val_from_bt)(void *btcoexist);
 	u8 (*btc_get_ble_scan_type_from_bt)(void *btcoexist);
 	u32 (*btc_get_ble_scan_para_from_bt)(void *btcoexist, u8 scan_type);
