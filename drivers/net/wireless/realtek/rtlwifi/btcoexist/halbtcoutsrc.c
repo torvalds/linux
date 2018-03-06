@@ -577,6 +577,9 @@ static bool halbtc_get(void *void_btcoexist, u8 get_type, void *out_buf)
 			tmp = true;
 		*bool_tmp = tmp;
 		break;
+	case BTC_GET_BL_WIFI_DUAL_BAND_CONNECTED:
+		*u8_tmp = BTC_MULTIPORT_SCC;
+		break;
 	case BTC_GET_BL_WIFI_BUSY:
 		if (halbtc_is_wifi_busy(rtlpriv))
 			*bool_tmp = true;
