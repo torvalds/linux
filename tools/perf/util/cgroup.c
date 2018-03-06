@@ -153,7 +153,7 @@ void close_cgroup(struct cgroup_sel *cgrp)
 	}
 }
 
-int parse_cgroups(const struct option *opt __maybe_unused, const char *str,
+int parse_cgroups(const struct option *opt, const char *str,
 		  int unset __maybe_unused)
 {
 	struct perf_evlist *evlist = *(struct perf_evlist **)opt->value;
