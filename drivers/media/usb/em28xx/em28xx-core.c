@@ -643,7 +643,7 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 			em28xx_write_reg(dev, (dev->ts == PRIMARY_TS) ?
 					 EM2874_R5D_TS1_PKT_SIZE :
 					 EM2874_R5E_TS2_PKT_SIZE,
-					 0xFF);
+					 0xff);
 		} else {
 			/* ISOC Maximum Transfer Size = 188 * 5 */
 			em28xx_write_reg(dev, (dev->ts == PRIMARY_TS) ?
