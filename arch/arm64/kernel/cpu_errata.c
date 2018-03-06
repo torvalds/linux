@@ -24,10 +24,22 @@
 static bool __maybe_unused
 is_affected_midr_range(const struct arm64_cpu_capabilities *entry, int scope)
 {
+	const struct arm64_midr_revidr *fix;
+	u32 midr = read_cpuid_id(), revidr;
+
 	WARN_ON(scope != SCOPE_LOCAL_CPU || preemptible());
-	return MIDR_IS_CPU_MODEL_RANGE(read_cpuid_id(), entry->midr_model,
-				       entry->midr_range_min,
-				       entry->midr_range_max);
+	if (!MIDR_IS_CPU_MODEL_RANGE(midr, entry->midr_model,
+				     entry->midr_range_min,
+				     entry->midr_range_max))
+		return false;
+
+	midr &= MIDR_REVISION_MASK | MIDR_VARIANT_MASK;
+	revidr = read_cpuid(REVIDR_EL1);
+	for (fix = entry->fixed_revs; fix && fix->revidr_mask; fix++)
+		if (midr == fix->midr_rv && (revidr & fix->revidr_mask))
+			return false;
+
+	return true;
 }
 
 static bool __maybe_unused
@@ -241,6 +253,9 @@ static int qcom_enable_link_stack_sanitization(void *data)
 	.midr_model = model, \
 	.midr_range_min = 0, \
 	.midr_range_max = (MIDR_VARIANT_MASK | MIDR_REVISION_MASK)
+
+#define MIDR_FIXED(rev, revidr_mask) \
+	.fixed_revs = (struct arm64_midr_revidr[]){{ (rev), (revidr_mask) }, {}}
 
 const struct arm64_cpu_capabilities arm64_errata[] = {
 #if	defined(CONFIG_ARM64_ERRATUM_826319) || \

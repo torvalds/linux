@@ -105,6 +105,10 @@ struct arm64_cpu_capabilities {
 		struct {	/* To be used for erratum handling only */
 			u32 midr_model;
 			u32 midr_range_min, midr_range_max;
+			const struct arm64_midr_revidr {
+				u32 midr_rv;		/* revision/variant */
+				u32 revidr_mask;
+			} * const fixed_revs;
 		};
 
 		struct {	/* Feature register checking */
