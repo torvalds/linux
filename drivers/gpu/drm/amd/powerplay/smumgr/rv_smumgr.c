@@ -169,11 +169,11 @@ int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table Length!", return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			smu_upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
 			"[CopyTableFromSMC] Attempt to Set Dram Addr High Failed!", return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			smu_lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
 			"[CopyTableFromSMC] Attempt to Set Dram Addr Low Failed!",
 			return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
@@ -206,12 +206,12 @@ int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			smu_upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
 			"[CopyTableToSMC] Attempt to Set Dram Addr High Failed!",
 			return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			smu_lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
 			"[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!",
 			return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,

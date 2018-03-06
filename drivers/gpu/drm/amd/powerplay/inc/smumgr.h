@@ -26,11 +26,6 @@
 #include "amd_powerplay.h"
 #include "hwmgr.h"
 
-#define smu_lower_32_bits(n) ((uint32_t)(n))
-#define smu_upper_32_bits(n) ((uint32_t)(((n)>>16)>>16))
-
-
-
 enum AVFS_BTC_STATUS {
 	AVFS_BTC_BOOT = 0,
 	AVFS_BTC_BOOT_STARTEDSMU,

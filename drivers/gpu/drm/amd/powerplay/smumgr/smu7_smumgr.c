@@ -369,8 +369,8 @@ static int smu7_populate_single_firmware_entry(struct pp_hwmgr *hwmgr,
 	if (!result) {
 		entry->version = info.fw_version;
 		entry->id = (uint16_t)fw_type;
-		entry->image_addr_high = smu_upper_32_bits(info.mc_addr);
-		entry->image_addr_low = smu_lower_32_bits(info.mc_addr);
+		entry->image_addr_high = upper_32_bits(info.mc_addr);
+		entry->image_addr_low = lower_32_bits(info.mc_addr);
 		entry->meta_data_addr_high = 0;
 		entry->meta_data_addr_low = 0;
 
@@ -412,10 +412,10 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 		if (!cgs_is_virtualization_enabled(hwmgr->device)) {
 			smu7_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_HI,
-						smu_upper_32_bits(smu_data->smu_buffer.mc_addr));
+						upper_32_bits(smu_data->smu_buffer.mc_addr));
 			smu7_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_LO,
-						smu_lower_32_bits(smu_data->smu_buffer.mc_addr));
+						lower_32_bits(smu_data->smu_buffer.mc_addr));
 		}
 		fw_to_load = UCODE_ID_RLC_G_MASK
 			   + UCODE_ID_SDMA0_MASK
@@ -472,8 +472,8 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 				UCODE_ID_MEC_STORAGE, &toc->entry[toc->num_entries++]),
 				"Failed to Get Firmware Entry.", return -EINVAL);
 
-	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, smu_upper_32_bits(smu_data->header_buffer.mc_addr));
-	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, smu_lower_32_bits(smu_data->header_buffer.mc_addr));
+	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, upper_32_bits(smu_data->header_buffer.mc_addr));
+	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, lower_32_bits(smu_data->header_buffer.mc_addr));
 
 	if (smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load))
 		pr_err("Fail to Request SMU Load uCode");

@@ -230,10 +230,10 @@ int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table Length!", return -EINVAL);
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			smu_upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			smu_lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
 			priv->smu_tables.entry[table_id].table_id);
@@ -267,10 +267,10 @@ int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			smu_upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			smu_lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
 			priv->smu_tables.entry[table_id].table_id);
@@ -337,10 +337,10 @@ int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 	if (priv->smu_tables.entry[TOOLSTABLE].mc_addr) {
 		vega10_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrHigh,
-				smu_upper_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
+				upper_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
 		vega10_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrLow,
-				smu_lower_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
+				lower_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
 	}
 	return 0;
 }
