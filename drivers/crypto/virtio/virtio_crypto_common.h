@@ -24,7 +24,6 @@
 #include <linux/spinlock.h>
 #include <crypto/aead.h>
 #include <crypto/aes.h>
-#include <crypto/authenc.h>
 #include <crypto/engine.h>
 
 
