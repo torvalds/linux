@@ -2072,7 +2072,7 @@ static void wacom_wac_pad_pre_report(struct hid_device *hdev,
 }
 
 static void wacom_wac_pad_report(struct hid_device *hdev,
-		struct hid_report *report)
+		struct hid_report *report, struct hid_field *field)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
@@ -2080,7 +2080,7 @@ static void wacom_wac_pad_report(struct hid_device *hdev,
 	bool active = wacom_wac->hid_data.inrange_state != 0;
 
 	/* report prox for expresskey events */
-	if ((wacom_equivalent_usage(report->field[0]->physical) == HID_DG_TABLETFUNCTIONKEY) &&
+	if ((wacom_equivalent_usage(field->physical) == HID_DG_TABLETFUNCTIONKEY) &&
 	    wacom_wac->hid_data.pad_input_event_flag) {
 		input_event(input, EV_ABS, ABS_MISC, active ? PAD_DEVICE_ID : 0);
 		input_sync(input);
@@ -2627,11 +2627,13 @@ void wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 		wacom_wac_finger_event(hdev, field, usage, value);
 }
 
-static void wacom_report_events(struct hid_device *hdev, struct hid_report *report)
+static void wacom_report_events(struct hid_device *hdev,
+				struct hid_report *report, int collection_index,
+				int field_index)
 {
 	int r;
 
-	for (r = 0; r < report->maxfield; r++) {
+	for (r = field_index; r < report->maxfield; r++) {
 		struct hid_field *field;
 		unsigned count, n;
 
@@ -2641,30 +2643,23 @@ static void wacom_report_events(struct hid_device *hdev, struct hid_report *repo
 		if (!(HID_MAIN_ITEM_VARIABLE & field->flags))
 			continue;
 
-		for (n = 0; n < count; n++)
-			wacom_wac_event(hdev, field, &field->usage[n], field->value[n]);
+		for (n = 0 ; n < count; n++) {
+			if (field->usage[n].collection_index == collection_index)
+				wacom_wac_event(hdev, field, &field->usage[n],
+						field->value[n]);
+			else
+				return;
+		}
 	}
 }
 
-void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
+int wacom_wac_collection(struct hid_device *hdev, struct hid_report *report,
+			 int collection_index, struct hid_field *field,
+			 int field_index)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
-	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
-	struct hid_field *field = report->field[0];
 
-	if (wacom_wac->features.type != HID_GENERIC)
-		return;
-
-	wacom_wac_battery_pre_report(hdev, report);
-
-	if (WACOM_PAD_FIELD(field) && wacom->wacom_wac.pad_input)
-		wacom_wac_pad_pre_report(hdev, report);
-	else if (WACOM_PEN_FIELD(field) && wacom->wacom_wac.pen_input)
-		wacom_wac_pen_pre_report(hdev, report);
-	else if (WACOM_FINGER_FIELD(field) && wacom->wacom_wac.touch_input)
-		wacom_wac_finger_pre_report(hdev, report);
-
-	wacom_report_events(hdev, report);
+	wacom_report_events(hdev, report, collection_index, field_index);
 
 	/*
 	 * Non-input reports may be sent prior to the device being
@@ -2674,16 +2669,63 @@ void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
 	 * processing functions.
 	 */
 	if (report->type != HID_INPUT_REPORT)
-		return;
-
-	wacom_wac_battery_report(hdev, report);
+		return -1;
 
 	if (WACOM_PAD_FIELD(field) && wacom->wacom_wac.pad_input)
-		wacom_wac_pad_report(hdev, report);
+		wacom_wac_pad_report(hdev, report, field);
 	else if (WACOM_PEN_FIELD(field) && wacom->wacom_wac.pen_input)
 		wacom_wac_pen_report(hdev, report);
 	else if (WACOM_FINGER_FIELD(field) && wacom->wacom_wac.touch_input)
 		wacom_wac_finger_report(hdev, report);
+
+	return 0;
+}
+
+void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
+{
+	struct wacom *wacom = hid_get_drvdata(hdev);
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+	struct hid_field *field;
+	bool pad_in_hid_field = false, pen_in_hid_field = false,
+		finger_in_hid_field = false;
+	int r;
+	int prev_collection = -1;
+
+	if (wacom_wac->features.type != HID_GENERIC)
+		return;
+
+	for (r = 0; r < report->maxfield; r++) {
+		field = report->field[r];
+
+		if (WACOM_PAD_FIELD(field))
+			pad_in_hid_field = true;
+		if (WACOM_PEN_FIELD(field))
+			pen_in_hid_field = true;
+		if (WACOM_FINGER_FIELD(field))
+			finger_in_hid_field = true;
+	}
+
+	wacom_wac_battery_pre_report(hdev, report);
+
+	if (pad_in_hid_field && wacom->wacom_wac.pad_input)
+		wacom_wac_pad_pre_report(hdev, report);
+	if (pen_in_hid_field && wacom->wacom_wac.pen_input)
+		wacom_wac_pen_pre_report(hdev, report);
+	if (finger_in_hid_field && wacom->wacom_wac.touch_input)
+		wacom_wac_finger_pre_report(hdev, report);
+
+	for (r = 0; r < report->maxfield; r++) {
+		field = report->field[r];
+
+		if (field->usage[0].collection_index != prev_collection) {
+			if (wacom_wac_collection(hdev, report,
+				field->usage[0].collection_index, field, r) < 0)
+				return;
+			prev_collection = field->usage[0].collection_index;
+		}
+	}
+
+	wacom_wac_battery_report(hdev, report);
 }
 
 static int wacom_bpt_touch(struct wacom_wac *wacom)
