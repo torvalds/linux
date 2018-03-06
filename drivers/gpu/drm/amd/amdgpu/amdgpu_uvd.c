@@ -303,7 +303,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 		if (atomic_read(&adev->uvd.handles[i]))
 			break;
 
-	if (i == AMDGPU_MAX_UVD_HANDLES)
+	if (i == adev->uvd.max_handles)
 		return 0;
 
 	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
