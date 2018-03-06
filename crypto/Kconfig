@@ -1483,6 +1483,31 @@ config CRYPTO_SERPENT_AVX2_X86_64
 	  See also:
 	  <http://www.cl.cam.ac.uk/~rja14/serpent.html>
 
+config CRYPTO_SM4
+	tristate "SM4 cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  SM4 cipher algorithms (OSCCA GB/T 32907-2016).
+
+	  SM4 (GBT.32907-2016) is a cryptographic standard issued by the
+	  Organization of State Commercial Administration of China (OSCCA)
+	  as an authorized cryptographic algorithms for the use within China.
+
+	  SMS4 was originally created for use in protecting wireless
+	  networks, and is mandated in the Chinese National Standard for
+	  Wireless LAN WAPI (Wired Authentication and Privacy Infrastructure)
+	  (GB.15629.11-2003).
+
+	  The latest SM4 standard (GBT.32907-2016) was proposed by OSCCA and
+	  standardized through TC 260 of the Standardization Administration
+	  of the People's Republic of China (SAC).
+
+	  The input, output, and key of SMS4 are each 128 bits.
+
+	  See also: <https://eprint.iacr.org/2008/329.pdf>
+
+	  If unsure, say N.
+
 config CRYPTO_SPECK
 	tristate "Speck cipher algorithm"
 	select CRYPTO_ALGAPI
