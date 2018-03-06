@@ -124,6 +124,30 @@ void intel_device_info_dump(const struct intel_device_info *info,
 	intel_device_info_dump_flags(info, p);
 }
 
+void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
+				     struct drm_printer *p)
+{
+	int s, ss;
+
+	if (sseu->max_slices == 0) {
+		drm_printf(p, "Unavailable\n");
+		return;
+	}
+
+	for (s = 0; s < sseu->max_slices; s++) {
+		drm_printf(p, "slice%d: %u subslice(s) (0x%hhx):\n",
+			   s, hweight8(sseu->subslice_mask[s]),
+			   sseu->subslice_mask[s]);
+
+		for (ss = 0; ss < sseu->max_subslices; ss++) {
+			u16 enabled_eus = sseu_get_eus(sseu, s, ss);
+
+			drm_printf(p, "\tsubslice%d: %u EUs (0x%hx)\n",
+				   ss, hweight16(enabled_eus), enabled_eus);
+		}
+	}
+}
+
 static u16 compute_eu_total(const struct sseu_dev_info *sseu)
 {
 	u16 i, total = 0;

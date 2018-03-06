@@ -244,6 +244,8 @@ void intel_device_info_dump_flags(const struct intel_device_info *info,
 				  struct drm_printer *p);
 void intel_device_info_dump_runtime(const struct intel_device_info *info,
 				    struct drm_printer *p);
+void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
+				     struct drm_printer *p);
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p);
