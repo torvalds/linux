@@ -139,12 +139,15 @@ static void swap_buffer(u32 *p, u32 len)
 /* start of filler packet */
 static u8 fill_ts[] = { 0x47, 0x1f, 0xff, 0x10, TS_FILLER };
 
-/* #define DEBUG_CI_XFER */
-#ifdef DEBUG_CI_XFER
-static u32 ok;
-static u32 overflow;
-static u32 stripped;
-#endif
+static inline void tsin_copy_stripped(struct ngene *dev, void *buf)
+{
+	if (memcmp(buf, fill_ts, sizeof(fill_ts)) != 0) {
+		if (dvb_ringbuffer_free(&dev->tsin_rbuf) >= 188) {
+			dvb_ringbuffer_write(&dev->tsin_rbuf, buf, 188);
+			wake_up(&dev->tsin_rbuf.queue);
+		}
+	}
+}
 
 void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 {
@@ -157,28 +160,8 @@ void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 
 	if (dev->ci.en && chan->number == 2) {
 		while (len >= 188) {
-			if (memcmp(buf, fill_ts, sizeof fill_ts) != 0) {
-				if (dvb_ringbuffer_free(&dev->tsin_rbuf) >= 188) {
-					dvb_ringbuffer_write(&dev->tsin_rbuf, buf, 188);
-					wake_up(&dev->tsin_rbuf.queue);
-#ifdef DEBUG_CI_XFER
-					ok++;
-#endif
-				}
-#ifdef DEBUG_CI_XFER
-				else
-					overflow++;
-#endif
-			}
-#ifdef DEBUG_CI_XFER
-			else
-				stripped++;
+			tsin_copy_stripped(dev, buf);
 
-			if (ok % 100 == 0 && overflow)
-				dev_warn(&dev->pci_dev->dev,
-					 "%s: ok %u overflow %u dropped %u\n",
-					 __func__, ok, overflow, stripped);
-#endif
 			buf += 188;
 			len -= 188;
 		}
