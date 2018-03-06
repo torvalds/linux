@@ -110,19 +110,6 @@ int omap_crtc_wait_pending(struct drm_crtc *crtc)
  */
 
 /* we can probably ignore these until we support command-mode panels: */
-static int omap_crtc_dss_connect(struct omap_drm_private *priv,
-		enum omap_channel channel,
-		struct omap_dss_device *dst)
-{
-	return 0;
-}
-
-static void omap_crtc_dss_disconnect(struct omap_drm_private *priv,
-		enum omap_channel channel,
-		struct omap_dss_device *dst)
-{
-}
-
 static void omap_crtc_dss_start_update(struct omap_drm_private *priv,
 				       enum omap_channel channel)
 {
@@ -254,8 +241,6 @@ static void omap_crtc_dss_unregister_framedone(
 }
 
 static const struct dss_mgr_ops mgr_ops = {
-	.connect = omap_crtc_dss_connect,
-	.disconnect = omap_crtc_dss_disconnect,
 	.start_update = omap_crtc_dss_start_update,
 	.enable = omap_crtc_dss_enable,
 	.disable = omap_crtc_dss_disable,

@@ -616,15 +616,9 @@ static int dpi_connect(struct omap_dss_device *src,
 
 	dpi_init_pll(dpi);
 
-	r = dss_mgr_connect(dst);
+	r = omapdss_device_connect(dst->dss, dst, dst->next);
 	if (r)
 		return r;
-
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r) {
-		dss_mgr_disconnect(dst);
-		return r;
-	}
 
 	dst->dispc_channel_connected = true;
 	return 0;
@@ -636,8 +630,6 @@ static void dpi_disconnect(struct omap_dss_device *src,
 	dst->dispc_channel_connected = false;
 
 	omapdss_device_disconnect(dst, dst->next);
-
-	dss_mgr_disconnect(dst);
 }
 
 static const struct omap_dss_device_ops dpi_ops = {

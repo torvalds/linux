@@ -438,15 +438,9 @@ static int hdmi_connect(struct omap_dss_device *src,
 {
 	int r;
 
-	r = dss_mgr_connect(dst);
+	r = omapdss_device_connect(dst->dss, dst, dst->next);
 	if (r)
 		return r;
-
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r) {
-		dss_mgr_disconnect(dst);
-		return r;
-	}
 
 	dst->dispc_channel_connected = true;
 	return 0;
@@ -458,8 +452,6 @@ static void hdmi_disconnect(struct omap_dss_device *src,
 	dst->dispc_channel_connected = false;
 
 	omapdss_device_disconnect(dst, dst->next);
-
-	dss_mgr_disconnect(dst);
 }
 
 static int hdmi_read_edid(struct omap_dss_device *dssdev,
