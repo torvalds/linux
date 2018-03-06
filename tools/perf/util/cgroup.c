@@ -90,11 +90,10 @@ static int open_cgroup(char *name)
 	return fd;
 }
 
-static int add_cgroup(struct perf_evlist *evlist, char *str)
+static struct cgroup *evlist__find_cgroup(struct perf_evlist *evlist, char *str)
 {
 	struct perf_evsel *counter;
 	struct cgroup *cgrp = NULL;
-	int n;
 	/*
 	 * check if cgrp is already defined, if so we reuse it
 	 */
@@ -106,6 +105,15 @@ static int add_cgroup(struct perf_evlist *evlist, char *str)
 			break;
 		}
 	}
+
+	return cgrp;
+}
+
+static int add_cgroup(struct perf_evlist *evlist, char *str)
+{
+	struct perf_evsel *counter;
+	struct cgroup *cgrp = evlist__find_cgroup(evlist, str);
+	int n;
 
 	if (!cgrp) {
 		cgrp = zalloc(sizeof(*cgrp));
