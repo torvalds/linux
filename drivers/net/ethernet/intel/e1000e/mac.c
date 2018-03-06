@@ -424,19 +424,15 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	 */
 	if (!mac->get_link_status)
 		return 0;
+	mac->get_link_status = false;
 
 	/* First we want to see if the MII Status Register reports
 	 * link.  If so, then we want to get the current speed/duplex
 	 * of the PHY.
 	 */
 	ret_val = e1000e_phy_has_link_generic(hw, 1, 0, &link);
-	if (ret_val)
-		return ret_val;
-
-	if (!link)
-		return 0;	/* No link detected */
-
-	mac->get_link_status = false;
+	if (ret_val || !link)
+		goto out;
 
 	/* Check if there was DownShift, must be checked
 	 * immediately after link-up
@@ -464,6 +460,10 @@ s32 e1000e_check_for_copper_link(struct e1000_hw *hw)
 	if (ret_val)
 		e_dbg("Error configuring flow control\n");
 
+	return ret_val;
+
+out:
+	mac->get_link_status = true;
 	return ret_val;
 }
 
