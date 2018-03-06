@@ -951,7 +951,6 @@ void intel_engine_disarm_breadcrumbs(struct intel_engine_cs *engine);
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
-bool intel_breadcrumbs_busy(struct intel_engine_cs *engine);
 
 static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 {

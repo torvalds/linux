@@ -873,25 +873,6 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 	cancel_fake_irq(engine);
 }
 
-bool intel_breadcrumbs_busy(struct intel_engine_cs *engine)
-{
-	struct intel_breadcrumbs *b = &engine->breadcrumbs;
-	bool busy = false;
-
-	if (b->irq_wait) {
-		spin_lock_irq(&b->irq_lock);
-
-		if (b->irq_wait) {
-			wake_up_process(b->irq_wait->tsk);
-			busy = true;
-		}
-
-		spin_unlock_irq(&b->irq_lock);
-	}
-
-	return busy;
-}
-
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/intel_breadcrumbs.c"
 #endif
