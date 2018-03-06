@@ -1202,15 +1202,24 @@ static int wacom_wac_finger_count_touches(struct wacom_wac *wacom)
 
 static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 {
-	const int pen_frame_len = 14;
-	const int pen_frames = 7;
+	int pen_frame_len, pen_frames;
 
 	struct input_dev *pen_input = wacom->pen_input;
 	unsigned char *data = wacom->data;
 	int i;
 
-	wacom->serial[0] = get_unaligned_le64(&data[99]);
-	wacom->id[0]     = get_unaligned_le16(&data[107]);
+	if (wacom->features.type == INTUOSP2_BT) {
+		wacom->serial[0] = get_unaligned_le64(&data[99]);
+		wacom->id[0]     = get_unaligned_le16(&data[107]);
+		pen_frame_len = 14;
+		pen_frames = 7;
+	} else {
+		wacom->serial[0] = get_unaligned_le64(&data[33]);
+		wacom->id[0]     = get_unaligned_le16(&data[41]);
+		pen_frame_len = 8;
+		pen_frames = 4;
+	}
+
 	if (wacom->serial[0] >> 52 == 1) {
 		/* Add back in missing bits of ID for non-USI pens */
 		wacom->id[0] |= (wacom->serial[0] >> 32) & 0xFFFFF;
@@ -1227,21 +1236,35 @@ static void wacom_intuos_pro2_bt_pen(struct wacom_wac *wacom)
 			continue;
 
 		if (range) {
-			/* Fix rotation alignment: userspace expects zero at left */
-			int16_t rotation = (int16_t)get_unaligned_le16(&frame[9]);
-			rotation += 1800/4;
-			if (rotation > 899)
-				rotation -= 1800;
-
 			input_report_abs(pen_input, ABS_X, get_unaligned_le16(&frame[1]));
 			input_report_abs(pen_input, ABS_Y, get_unaligned_le16(&frame[3]));
-			input_report_abs(pen_input, ABS_TILT_X, (char)frame[7]);
-			input_report_abs(pen_input, ABS_TILT_Y, (char)frame[8]);
-			input_report_abs(pen_input, ABS_Z, rotation);
-			input_report_abs(pen_input, ABS_WHEEL, get_unaligned_le16(&frame[11]));
+
+			if (wacom->features.type == INTUOSP2_BT) {
+				/* Fix rotation alignment: userspace expects zero at left */
+				int16_t rotation =
+					(int16_t)get_unaligned_le16(&frame[9]);
+				rotation += 1800/4;
+
+				if (rotation > 899)
+					rotation -= 1800;
+
+				input_report_abs(pen_input, ABS_TILT_X,
+						 (char)frame[7]);
+				input_report_abs(pen_input, ABS_TILT_Y,
+						 (char)frame[8]);
+				input_report_abs(pen_input, ABS_Z, rotation);
+				input_report_abs(pen_input, ABS_WHEEL,
+						 get_unaligned_le16(&frame[11]));
+			}
 		}
 		input_report_abs(pen_input, ABS_PRESSURE, get_unaligned_le16(&frame[5]));
-		input_report_abs(pen_input, ABS_DISTANCE, range ? frame[13] : wacom->features.distance_max);
+		if (wacom->features.type == INTUOSP2_BT) {
+			input_report_abs(pen_input, ABS_DISTANCE,
+					 range ? frame[13] : wacom->features.distance_max);
+		} else {
+			input_report_abs(pen_input, ABS_DISTANCE,
+					 range ? frame[7] : wacom->features.distance_max);
+		}
 
 		input_report_key(pen_input, BTN_TOUCH, frame[0] & 0x01);
 		input_report_key(pen_input, BTN_STYLUS, frame[0] & 0x02);
@@ -1357,20 +1380,52 @@ static void wacom_intuos_pro2_bt_battery(struct wacom_wac *wacom)
 			     battery_status, chg, 1, chg);
 }
 
+static void wacom_intuos_gen3_bt_pad(struct wacom_wac *wacom)
+{
+	struct input_dev *pad_input = wacom->pad_input;
+	unsigned char *data = wacom->data;
+
+	int buttons = data[44];
+
+	wacom_report_numbered_buttons(pad_input, 4, buttons);
+
+	input_report_key(pad_input, wacom->tool[1], buttons ? 1 : 0);
+	input_report_abs(pad_input, ABS_MISC, buttons ? PAD_DEVICE_ID : 0);
+	input_event(pad_input, EV_MSC, MSC_SERIAL, 0xffffffff);
+
+	input_sync(pad_input);
+}
+
+static void wacom_intuos_gen3_bt_battery(struct wacom_wac *wacom)
+{
+	unsigned char *data = wacom->data;
+
+	bool chg = data[45] & 0x80;
+	int battery_status = data[45] & 0x7F;
+
+	wacom_notify_battery(wacom, WACOM_POWER_SUPPLY_STATUS_AUTO,
+			     battery_status, chg, 1, chg);
+}
+
 static int wacom_intuos_pro2_bt_irq(struct wacom_wac *wacom, size_t len)
 {
 	unsigned char *data = wacom->data;
 
-	if (data[0] != 0x80) {
+	if (data[0] != 0x80 && data[0] != 0x81) {
 		dev_dbg(wacom->pen_input->dev.parent,
 			"%s: received unknown report #%d\n", __func__, data[0]);
 		return 0;
 	}
 
 	wacom_intuos_pro2_bt_pen(wacom);
-	wacom_intuos_pro2_bt_touch(wacom);
-	wacom_intuos_pro2_bt_pad(wacom);
-	wacom_intuos_pro2_bt_battery(wacom);
+	if (wacom->features.type == INTUOSP2_BT) {
+		wacom_intuos_pro2_bt_touch(wacom);
+		wacom_intuos_pro2_bt_pad(wacom);
+		wacom_intuos_pro2_bt_battery(wacom);
+	} else {
+		wacom_intuos_gen3_bt_pad(wacom);
+		wacom_intuos_gen3_bt_battery(wacom);
+	}
 	return 0;
 }
 
@@ -3093,6 +3148,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 		break;
 
 	case INTUOSP2_BT:
+	case INTUOSHT3_BT:
 		sync = wacom_intuos_pro2_bt_irq(wacom_wac, len);
 		break;
 
@@ -3269,6 +3325,12 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 		features->device_type |= WACOM_DEVICETYPE_PEN |
 					 WACOM_DEVICETYPE_PAD |
 					 WACOM_DEVICETYPE_TOUCH;
+		features->quirks |= WACOM_QUIRK_BATTERY;
+	}
+
+	if (features->type == INTUOSHT3_BT) {
+		features->device_type |= WACOM_DEVICETYPE_PEN |
+					 WACOM_DEVICETYPE_PAD;
 		features->quirks |= WACOM_QUIRK_BATTERY;
 	}
 
@@ -3466,7 +3528,9 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 	case BAMBOO_PT:
 	case BAMBOO_PEN:
 	case INTUOSHT2:
-		if (features->type == INTUOSHT2) {
+	case INTUOSHT3_BT:
+		if (features->type == INTUOSHT2 ||
+		    features->type == INTUOSHT3_BT) {
 			wacom_setup_basic_pro_pen(wacom_wac);
 		} else {
 			__clear_bit(ABS_MISC, input_dev->absbit);
@@ -3887,6 +3951,7 @@ int wacom_setup_pad_input_capabilities(struct input_dev *input_dev,
 		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
 		break;
 
+	case INTUOSHT3_BT:
 	case HID_GENERIC:
 		break;
 
@@ -4415,6 +4480,12 @@ static const struct wacom_features wacom_features_0x360 =
 static const struct wacom_features wacom_features_0x361 =
 	{ "Wacom Intuos Pro L", 62200, 43200, 8191, 63,
 	  INTUOSP2_BT, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES, 9, .touch_max = 10 };
+static const struct wacom_features wacom_features_0x377 =
+	{ "Wacom Intuos BT S", 15200, 9500, 4095, 63,
+	  INTUOSHT3_BT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
+static const struct wacom_features wacom_features_0x379 =
+	{ "Wacom Intuos BT M", 21600, 13500, 4095, 63,
+	  INTUOSHT3_BT, WACOM_INTUOS_RES, WACOM_INTUOS_RES, 4 };
 static const struct wacom_features wacom_features_0x37A =
 	{ "Wacom One by Wacom S", 15200, 9500, 2047, 63,
 	  BAMBOO_PEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
@@ -4589,6 +4660,8 @@ const struct hid_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x343) },
 	{ BT_DEVICE_WACOM(0x360) },
 	{ BT_DEVICE_WACOM(0x361) },
+	{ BT_DEVICE_WACOM(0x377) },
+	{ BT_DEVICE_WACOM(0x379) },
 	{ USB_DEVICE_WACOM(0x37A) },
 	{ USB_DEVICE_WACOM(0x37B) },
 	{ USB_DEVICE_WACOM(0x4001) },
