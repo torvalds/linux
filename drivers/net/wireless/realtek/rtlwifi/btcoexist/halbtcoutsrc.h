@@ -401,6 +401,8 @@ enum btc_notify_type_switchband {
 enum btc_notify_type_associate {
 	BTC_ASSOCIATE_FINISH = 0x0,
 	BTC_ASSOCIATE_START = 0x1,
+	BTC_ASSOCIATE_5G_FINISH = 0x2,
+	BTC_ASSOCIATE_5G_START = 0x3,
 	BTC_ASSOCIATE_MAX
 };
 
