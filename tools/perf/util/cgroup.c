@@ -109,6 +109,25 @@ static struct cgroup *evlist__find_cgroup(struct perf_evlist *evlist, char *str)
 	return cgrp;
 }
 
+static struct cgroup *cgroup__new(char *name)
+{
+	struct cgroup *cgroup = zalloc(sizeof(*cgroup));
+
+	if (cgroup != NULL) {
+		cgroup->name = name;
+		refcount_set(&cgroup->refcnt, 1);
+
+		cgroup->fd = open_cgroup(name);
+		if (cgroup->fd == -1)
+			goto out_err;
+	}
+
+	return cgroup;
+out_err:
+	free(cgroup);
+	return NULL;
+}
+
 static int add_cgroup(struct perf_evlist *evlist, char *str)
 {
 	struct perf_evsel *counter;
@@ -116,18 +135,9 @@ static int add_cgroup(struct perf_evlist *evlist, char *str)
 	int n;
 
 	if (!cgrp) {
-		cgrp = zalloc(sizeof(*cgrp));
+		cgrp = cgroup__new(str);
 		if (!cgrp)
 			return -1;
-
-		cgrp->name = str;
-		refcount_set(&cgrp->refcnt, 1);
-
-		cgrp->fd = open_cgroup(str);
-		if (cgrp->fd == -1) {
-			free(cgrp);
-			return -1;
-		}
 	}
 
 	/*
