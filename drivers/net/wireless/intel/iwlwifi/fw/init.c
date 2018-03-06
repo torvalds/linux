@@ -76,3 +76,15 @@ void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 	iwl_fwrt_dbgfs_register(fwrt, dbgfs_dir);
 }
 IWL_EXPORT_SYMBOL(iwl_fw_runtime_init);
+
+void iwl_fw_runtime_suspend(struct iwl_fw_runtime *fwrt)
+{
+	iwl_fw_suspend_timestamp(fwrt);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_runtime_suspend);
+
+void iwl_fw_runtime_resume(struct iwl_fw_runtime *fwrt)
+{
+	iwl_fw_resume_timestamp(fwrt);
+}
+IWL_EXPORT_SYMBOL(iwl_fw_runtime_resume);

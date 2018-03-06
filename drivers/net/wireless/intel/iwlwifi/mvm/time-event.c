@@ -616,7 +616,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 	time_cmd.repeat = 1;
 	time_cmd.policy = cpu_to_le16(TE_V2_NOTIF_HOST_EVENT_START |
 				      TE_V2_NOTIF_HOST_EVENT_END |
-				      T2_V2_START_IMMEDIATELY);
+				      TE_V2_START_IMMEDIATELY);
 
 	if (!wait_for_notif) {
 		iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
@@ -803,7 +803,7 @@ int iwl_mvm_start_p2p_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	time_cmd.repeat = 1;
 	time_cmd.policy = cpu_to_le16(TE_V2_NOTIF_HOST_EVENT_START |
 				      TE_V2_NOTIF_HOST_EVENT_END |
-				      T2_V2_START_IMMEDIATELY);
+				      TE_V2_START_IMMEDIATELY);
 
 	return iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 }
@@ -913,6 +913,8 @@ int iwl_mvm_schedule_csa_period(struct iwl_mvm *mvm,
 	time_cmd.interval = cpu_to_le32(1);
 	time_cmd.policy = cpu_to_le16(TE_V2_NOTIF_HOST_EVENT_START |
 				      TE_V2_ABSENCE);
+	if (!apply_time)
+		time_cmd.policy |= cpu_to_le16(TE_V2_START_IMMEDIATELY);
 
 	return iwl_mvm_time_event_send_add(mvm, vif, te_data, &time_cmd);
 }
