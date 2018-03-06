@@ -626,12 +626,15 @@ static int dpi_connect(struct omap_dss_device *src,
 		return r;
 	}
 
+	dst->dispc_channel_connected = true;
 	return 0;
 }
 
 static void dpi_disconnect(struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
+	dst->dispc_channel_connected = false;
+
 	omapdss_device_disconnect(dst, dst->next);
 
 	dss_mgr_disconnect(dst);

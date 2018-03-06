@@ -114,8 +114,6 @@ static int omap_crtc_dss_connect(struct omap_drm_private *priv,
 		enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = true;
-
 	return 0;
 }
 
@@ -123,7 +121,6 @@ static void omap_crtc_dss_disconnect(struct omap_drm_private *priv,
 		enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = false;
 }
 
 static void omap_crtc_dss_start_update(struct omap_drm_private *priv,
