@@ -386,8 +386,8 @@ int drm_property_add_enum(struct drm_property *property, int index,
 	 * Bitmask enum properties have the additional constraint of values
 	 * from 0 to 63
 	 */
-	if (drm_property_type_is(property, DRM_MODE_PROP_BITMASK) &&
-			(value > 63))
+	if (WARN_ON(drm_property_type_is(property, DRM_MODE_PROP_BITMASK) &&
+		    value > 63))
 		return -EINVAL;
 
 	list_for_each_entry(prop_enum, &property->enum_list, head) {
