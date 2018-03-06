@@ -416,7 +416,7 @@ void dpp1_set_cursor_position(
 	if (src_x_offset >= (int)param->viewport_width)
 		cur_en = 0;  /* not visible beyond right edge*/
 
-	if (src_x_offset + (int)width < 0)
+	if (src_x_offset + (int)width <= 0)
 		cur_en = 0;  /* not visible beyond left edge*/
 
 	REG_UPDATE(CURSOR0_CONTROL,
