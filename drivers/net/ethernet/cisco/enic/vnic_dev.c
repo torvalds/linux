@@ -1291,7 +1291,7 @@ bool vnic_dev_capable_udp_rss(struct vnic_dev *vdev)
 
 	err = vnic_dev_cmd(vdev, CMD_CAPABILITY, &a0, &a1, wait);
 	if (err || !a0)
-		return 0;
+		return false;
 
 	rss_hash_type = (a1 >> NIC_CFG_RSS_HASH_TYPE_SHIFT) &
 			NIC_CFG_RSS_HASH_TYPE_MASK_FIELD;
