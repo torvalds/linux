@@ -222,8 +222,10 @@
 #define MIN_GCM_SG			1 /* IV */
 #define MIN_DIGEST_SG			1 /*Partial Buffer*/
 #define MIN_CCM_SG			2 /*IV+B0*/
-#define SPACE_LEFT(len) \
-	((SGE_MAX_WR_LEN - WR_MIN_LEN - (len)))
+#define CIP_SPACE_LEFT(len) \
+	((SGE_MAX_WR_LEN - CIP_WR_MIN_LEN - (len)))
+#define HASH_SPACE_LEFT(len) \
+	((SGE_MAX_WR_LEN - HASH_WR_MIN_LEN - (len)))
 
 struct algo_param {
 	unsigned int auth_mode;
@@ -232,12 +234,14 @@ struct algo_param {
 };
 
 struct hash_wr_param {
+	struct algo_param alg_prm;
 	unsigned int opad_needed;
 	unsigned int more;
 	unsigned int last;
-	struct algo_param alg_prm;
+	unsigned int kctx_len;
 	unsigned int sg_len;
 	unsigned int bfr_len;
+	unsigned int hash_size;
 	u64 scmd1;
 };
 
