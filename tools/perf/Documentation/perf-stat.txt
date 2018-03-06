@@ -49,6 +49,13 @@ report::
 	  parameters are defined by corresponding entries in
 	  /sys/bus/event_source/devices/<pmu>/format/*
 
+	Note that the last two syntaxes support prefix and glob matching in
+	the PMU name to simplify creation of events accross multiple instances
+	of the same type of PMU in large systems (e.g. memory controller PMUs).
+	Multiple PMU instances are typical for uncore PMUs, so the prefix
+	'uncore_' is also ignored when performing this match.
+
+
 -i::
 --no-inherit::
         child tasks do not inherit counters
@@ -259,6 +266,12 @@ taskset.
 
 --no-merge::
 Do not merge results from same PMUs.
+
+When multiple events are created from a single event alias, stat will,
+by default, aggregate the event counts and show the result in a single
+row. This option disables that behavior and shows the individual events
+and counts. Aliases are listed immediately after the Kernel PMU events
+by perf list.
 
 --smi-cost::
 Measure SMI cost if msr/aperf/ and msr/smi/ events are supported.
