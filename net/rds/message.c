@@ -48,7 +48,6 @@ static unsigned int	rds_exthdr_size[__RDS_EXTHDR_MAX] = {
 [RDS_EXTHDR_GEN_NUM]	= sizeof(u32),
 };
 
-
 void rds_message_addref(struct rds_message *rm)
 {
 	rdsdebug("addref rm %p ref %d\n", rm, refcount_read(&rm->m_refcount));
@@ -56,9 +55,9 @@ void rds_message_addref(struct rds_message *rm)
 }
 EXPORT_SYMBOL_GPL(rds_message_addref);
 
-static inline bool skb_zcookie_add(struct sk_buff *skb, u32 cookie)
+static inline bool rds_zcookie_add(struct rds_msg_zcopy_info *info, u32 cookie)
 {
-	struct rds_zcopy_cookies *ck = (struct rds_zcopy_cookies *)skb->cb;
+	struct rds_zcopy_cookies *ck = &info->zcookies;
 	int ncookies = ck->num;
 
 	if (ncookies == RDS_MAX_ZCOOKIES)
@@ -68,38 +67,61 @@ static inline bool skb_zcookie_add(struct sk_buff *skb, u32 cookie)
 	return true;
 }
 
+struct rds_msg_zcopy_info *rds_info_from_znotifier(struct rds_znotifier *znotif)
+{
+	return container_of(znotif, struct rds_msg_zcopy_info, znotif);
+}
+
+void rds_notify_msg_zcopy_purge(struct rds_msg_zcopy_queue *q)
+{
+	unsigned long flags;
+	LIST_HEAD(copy);
+	struct rds_msg_zcopy_info *info, *tmp;
+
+	spin_lock_irqsave(&q->lock, flags);
+	list_splice(&q->zcookie_head, &copy);
+	INIT_LIST_HEAD(&q->zcookie_head);
+	spin_unlock_irqrestore(&q->lock, flags);
+
+	list_for_each_entry_safe(info, tmp, &copy, rs_zcookie_next) {
+		list_del(&info->rs_zcookie_next);
+		kfree(info);
+	}
+}
+
 static void rds_rm_zerocopy_callback(struct rds_sock *rs,
 				     struct rds_znotifier *znotif)
 {
-	struct sk_buff *skb, *tail;
-	unsigned long flags;
-	struct sk_buff_head *q;
+	struct rds_msg_zcopy_info *info;
+	struct rds_msg_zcopy_queue *q;
 	u32 cookie = znotif->z_cookie;
 	struct rds_zcopy_cookies *ck;
+	struct list_head *head;
+	unsigned long flags;
 
+	mm_unaccount_pinned_pages(&znotif->z_mmp);
 	q = &rs->rs_zcookie_queue;
 	spin_lock_irqsave(&q->lock, flags);
-	tail = skb_peek_tail(q);
-
-	if (tail && skb_zcookie_add(tail, cookie)) {
-		spin_unlock_irqrestore(&q->lock, flags);
-		mm_unaccount_pinned_pages(&znotif->z_mmp);
-		consume_skb(rds_skb_from_znotifier(znotif));
-		/* caller invokes rds_wake_sk_sleep() */
-		return;
+	head = &q->zcookie_head;
+	if (!list_empty(head)) {
+		info = list_entry(head, struct rds_msg_zcopy_info,
+				  rs_zcookie_next);
+		if (info && rds_zcookie_add(info, cookie)) {
+			spin_unlock_irqrestore(&q->lock, flags);
+			kfree(rds_info_from_znotifier(znotif));
+			/* caller invokes rds_wake_sk_sleep() */
+			return;
+		}
 	}
 
-	skb = rds_skb_from_znotifier(znotif);
-	ck = (struct rds_zcopy_cookies *)skb->cb;
+	info = rds_info_from_znotifier(znotif);
+	ck = &info->zcookies;
 	memset(ck, 0, sizeof(*ck));
-	WARN_ON(!skb_zcookie_add(skb, cookie));
-
-	__skb_queue_tail(q, skb);
+	WARN_ON(!rds_zcookie_add(info, cookie));
+	list_add_tail(&q->zcookie_head, &info->rs_zcookie_next);
 
 	spin_unlock_irqrestore(&q->lock, flags);
 	/* caller invokes rds_wake_sk_sleep() */
-
-	mm_unaccount_pinned_pages(&znotif->z_mmp);
 }
 
 /*
@@ -340,7 +362,7 @@ int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *from)
 	int ret = 0;
 	int length = iov_iter_count(from);
 	int total_copied = 0;
-	struct sk_buff *skb;
+	struct rds_msg_zcopy_info *info;
 
 	rm->m_inc.i_hdr.h_len = cpu_to_be32(iov_iter_count(from));
 
@@ -350,12 +372,11 @@ int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *from)
 	sg = rm->data.op_sg;
 	sg_off = 0; /* Dear gcc, sg->page will be null from kzalloc. */
 
-	skb = alloc_skb(0, GFP_KERNEL);
-	if (!skb)
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
 		return -ENOMEM;
-	BUILD_BUG_ON(sizeof(skb->cb) < max_t(int, sizeof(struct rds_znotifier),
-					     sizeof(struct rds_zcopy_cookies)));
-	rm->data.op_mmp_znotifier = RDS_ZCOPY_SKB(skb);
+	INIT_LIST_HEAD(&info->rs_zcookie_next);
+	rm->data.op_mmp_znotifier = &info->znotif;
 	if (mm_account_pinned_pages(&rm->data.op_mmp_znotifier->z_mmp,
 				    length)) {
 		ret = -ENOMEM;
@@ -389,7 +410,7 @@ int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *from)
 	WARN_ON_ONCE(length != 0);
 	return ret;
 err:
-	consume_skb(skb);
+	kfree(info);
 	rm->data.op_mmp_znotifier = NULL;
 	return ret;
 }
