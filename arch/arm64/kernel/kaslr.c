@@ -117,13 +117,15 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	/*
 	 * OK, so we are proceeding with KASLR enabled. Calculate a suitable
 	 * kernel image offset from the seed. Let's place the kernel in the
-	 * lower half of the VMALLOC area (VA_BITS - 2).
+	 * middle half of the VMALLOC area (VA_BITS - 2), and stay clear of
+	 * the lower and upper quarters to avoid colliding with other
+	 * allocations.
 	 * Even if we could randomize at page granularity for 16k and 64k pages,
 	 * let's always round to 2 MB so we don't interfere with the ability to
 	 * map using contiguous PTEs
 	 */
 	mask = ((1UL << (VA_BITS - 2)) - 1) & ~(SZ_2M - 1);
-	offset = seed & mask;
+	offset = BIT(VA_BITS - 3) + (seed & mask);
 
 	/* use the top 16 bits to randomize the linear region */
 	memstart_offset_seed = seed >> 48;
@@ -134,21 +136,23 @@ u64 __init kaslr_early_init(u64 dt_phys)
 		 * vmalloc region, since shadow memory is allocated for each
 		 * module at load time, whereas the vmalloc region is shadowed
 		 * by KASAN zero pages. So keep modules out of the vmalloc
-		 * region if KASAN is enabled.
+		 * region if KASAN is enabled, and put the kernel well within
+		 * 4 GB of the module region.
 		 */
-		return offset;
+		return offset % SZ_2G;
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_MODULE_REGION_FULL)) {
 		/*
-		 * Randomize the module region independently from the core
-		 * kernel. This prevents modules from leaking any information
+		 * Randomize the module region over a 4 GB window covering the
+		 * kernel. This reduces the risk of modules leaking information
 		 * about the address of the kernel itself, but results in
 		 * branches between modules and the core kernel that are
 		 * resolved via PLTs. (Branches between modules will be
 		 * resolved normally.)
 		 */
-		module_range = VMALLOC_END - VMALLOC_START - MODULES_VSIZE;
-		module_alloc_base = VMALLOC_START;
+		module_range = SZ_4G - (u64)(_end - _stext);
+		module_alloc_base = max((u64)_end + offset - SZ_4G,
+					(u64)MODULES_VADDR);
 	} else {
 		/*
 		 * Randomize the module region by setting module_alloc_base to

@@ -55,9 +55,10 @@ void *module_alloc(unsigned long size)
 		 * less likely that the module region gets exhausted, so we
 		 * can simply omit this fallback in that case.
 		 */
-		p = __vmalloc_node_range(size, MODULE_ALIGN, VMALLOC_START,
-				VMALLOC_END, GFP_KERNEL, PAGE_KERNEL_EXEC, 0,
-				NUMA_NO_NODE, __builtin_return_address(0));
+		p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
+				module_alloc_base + SZ_4G, GFP_KERNEL,
+				PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+				__builtin_return_address(0));
 
 	if (p && (kasan_module_alloc(p, size) < 0)) {
 		vfree(p);
