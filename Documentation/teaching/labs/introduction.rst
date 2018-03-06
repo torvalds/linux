@@ -64,7 +64,7 @@ cscope
 `Cscope <http://cscope.sourceforge.net/>`__ is a tool for
 efficient navigation of C sources. To use it, a cscope database must 
 be generated from the existing sources. In a Linux tree, the command
-:command:`make ARCH = x86 cscope` is sufficient. Specification of the 
+:command:`make ARCH=x86 cscope` is sufficient. Specification of the 
 architecture through the ARCH variable is optional but recommended; 
 otherwise, some architecture dependent functions will appear multiple 
 times in the database.
