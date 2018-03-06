@@ -6,7 +6,7 @@
 
 /dts-v1/;
 
-#include "meson-gxbb-p20x.dtsi"
+#include "meson-gxbb-wetek.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
@@ -14,15 +14,6 @@
 	model = "WeTek Play 2";
 
 	leds {
-		compatible = "gpio-leds";
-
-		system {
-			label = "wetek-play:system-status";
-			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_HIGH>;
-			default-state = "on";
-			panic-indicator;
-		};
-
 		wifi {
 			label = "wetek-play:wifi-status";
 			gpios = <&gpio GPIODV_26 GPIO_ACTIVE_HIGH>;
@@ -48,82 +39,18 @@
 			gpios = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_LOW>;
 		};
 	};
-
-	cvbs-connector {
-		compatible = "composite-video-connector";
-
-		port {
-			cvbs_connector_in: endpoint {
-				remote-endpoint = <&cvbs_vdac_out>;
-			};
-		};
-	};
-
-	hdmi-connector {
-		compatible = "hdmi-connector";
-		type = "a";
-
-		port {
-			hdmi_connector_in: endpoint {
-				remote-endpoint = <&hdmi_tx_tmds_out>;
-			};
-		};
-	};
-};
-
-&cec_AO {
-	status = "okay";
-	pinctrl-0 = <&ao_cec_pins>;
-	pinctrl-names = "default";
-	hdmi-phandle = <&hdmi_tx>;
-};
-
-&cvbs_vdac_port {
-	cvbs_vdac_out: endpoint {
-		remote-endpoint = <&cvbs_connector_in>;
-	};
-};
-
-&ethmac {
-	status = "okay";
-	pinctrl-0 = <&eth_rgmii_pins>;
-	pinctrl-names = "default";
-
-	phy-handle = <&eth_phy0>;
-	phy-mode = "rgmii";
-
-	amlogic,tx-delay-ns = <2>;
-
-	snps,reset-gpio = <&gpio GPIOZ_14 0>;
-	snps,reset-delays-us = <0 10000 1000000>;
-	snps,reset-active-low;
-
-	mdio {
-		compatible = "snps,dwmac-mdio";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		eth_phy0: ethernet-phy@0 {
-			/* Realtek RTL8211F (0x001cc916) */
-			reg = <0>;
-		};
-	};
-};
-
-&hdmi_tx {
-	status = "okay";
-	pinctrl-0 = <&hdmi_hpd_pins>, <&hdmi_i2c_pins>;
-	pinctrl-names = "default";
-};
-
-&hdmi_tx_tmds_port {
-	hdmi_tx_tmds_out: endpoint {
-		remote-endpoint = <&hdmi_connector_in>;
-	};
 };
 
 &i2c_A {
 	status = "okay";
 	pinctrl-0 = <&i2c_a_pins>;
 	pinctrl-names = "default";
+};
+
+&usb1_phy {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
 };
