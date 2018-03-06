@@ -113,10 +113,13 @@ enum intel_platform {
 	func(supports_tv); \
 	func(has_ipc);
 
+#define GEN_MAX_SLICES		(6) /* CNL upper bound */
+#define GEN_MAX_SUBSLICES	(7)
+
 struct sseu_dev_info {
 	u8 slice_mask;
-	u8 subslice_mask;
-	u8 eu_total;
+	u8 subslice_mask[GEN_MAX_SUBSLICES];
+	u16 eu_total;
 	u8 eu_per_subslice;
 	u8 min_eu_in_pool;
 	/* For each slice, which subslice(s) has(have) 7 EUs (bitfield)? */
@@ -124,6 +127,17 @@ struct sseu_dev_info {
 	u8 has_slice_pg:1;
 	u8 has_subslice_pg:1;
 	u8 has_eu_pg:1;
+
+	/* Topology fields */
+	u8 max_slices;
+	u8 max_subslices;
+	u8 max_eus_per_subslice;
+
+	/* We don't have more than 8 eus per subslice at the moment and as we
+	 * store eus enabled using bits, no need to multiply by eus per
+	 * subslice.
+	 */
+	u8 eu_mask[GEN_MAX_SLICES * GEN_MAX_SUBSLICES];
 };
 
 typedef u8 intel_ring_mask_t;
@@ -176,7 +190,49 @@ struct intel_driver_caps {
 
 static inline unsigned int sseu_subslice_total(const struct sseu_dev_info *sseu)
 {
-	return hweight8(sseu->slice_mask) * hweight8(sseu->subslice_mask);
+	unsigned int i, total = 0;
+
+	for (i = 0; i < ARRAY_SIZE(sseu->subslice_mask); i++)
+		total += hweight8(sseu->subslice_mask[i]);
+
+	return total;
+}
+
+static inline int sseu_eu_idx(const struct sseu_dev_info *sseu,
+			      int slice, int subslice)
+{
+	int subslice_stride = DIV_ROUND_UP(sseu->max_eus_per_subslice,
+					   BITS_PER_BYTE);
+	int slice_stride = sseu->max_subslices * subslice_stride;
+
+	return slice * slice_stride + subslice * subslice_stride;
+}
+
+static inline u16 sseu_get_eus(const struct sseu_dev_info *sseu,
+			       int slice, int subslice)
+{
+	int i, offset = sseu_eu_idx(sseu, slice, subslice);
+	u16 eu_mask = 0;
+
+	for (i = 0;
+	     i < DIV_ROUND_UP(sseu->max_eus_per_subslice, BITS_PER_BYTE); i++) {
+		eu_mask |= ((u16) sseu->eu_mask[offset + i]) <<
+			(i * BITS_PER_BYTE);
+	}
+
+	return eu_mask;
+}
+
+static inline void sseu_set_eus(struct sseu_dev_info *sseu,
+				int slice, int subslice, u16 eu_mask)
+{
+	int i, offset = sseu_eu_idx(sseu, slice, subslice);
+
+	for (i = 0;
+	     i < DIV_ROUND_UP(sseu->max_eus_per_subslice, BITS_PER_BYTE); i++) {
+		sseu->eu_mask[offset + i] =
+			(eu_mask >> (BITS_PER_BYTE * i)) & 0xff;
+	}
 }
 
 const char *intel_platform_name(enum intel_platform platform);
