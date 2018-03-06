@@ -158,7 +158,8 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 			break;
 		case R_AARCH64_ADR_PREL_PG_HI21_NC:
 		case R_AARCH64_ADR_PREL_PG_HI21:
-			if (!IS_ENABLED(CONFIG_ARM64_ERRATUM_843419))
+			if (!IS_ENABLED(CONFIG_ARM64_ERRATUM_843419) ||
+			    !cpus_have_const_cap(ARM64_WORKAROUND_843419))
 				break;
 
 			/*
