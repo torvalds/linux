@@ -62,6 +62,8 @@
 #define		BTC_ANT_PATH_WIFI			0
 #define		BTC_ANT_PATH_BT				1
 #define		BTC_ANT_PATH_PTA			2
+#define		BTC_ANT_PATH_WIFI5G			3
+#define		BTC_ANT_PATH_AUTO			4
 /* dual Antenna definition */
 #define		BTC_ANT_WIFI_AT_MAIN			0
 #define		BTC_ANT_WIFI_AT_AUX			1
@@ -205,6 +207,7 @@ enum btc_wifi_traffic_dir {
 enum btc_wifi_pnp {
 	BTC_WIFI_PNP_WAKE_UP = 0x0,
 	BTC_WIFI_PNP_SLEEP = 0x1,
+	BTC_WIFI_PNP_SLEEP_KEEP_ANT = 0x2,
 	BTC_WIFI_PNP_MAX
 };
 
@@ -387,6 +390,7 @@ enum btc_notify_type_lps {
 enum btc_notify_type_scan {
 	BTC_SCAN_FINISH = 0x0,
 	BTC_SCAN_START = 0x1,
+	BTC_SCAN_START_2G = 0x2,
 	BTC_SCAN_MAX
 };
 
@@ -561,6 +565,7 @@ struct btc_bt_info {
 	u16 bt_hci_ver;
 	u16 bt_real_fw_ver;
 	u8 bt_fw_ver;
+	u32 bt_get_fw_ver;
 
 	bool bt_disable_low_pwr;
 
@@ -632,6 +637,7 @@ struct btc_bt_link_info {
 	bool pan_exist;
 	bool pan_only;
 	bool slave_role;
+	bool acl_busy;
 };
 
 enum btc_antenna_pos {
