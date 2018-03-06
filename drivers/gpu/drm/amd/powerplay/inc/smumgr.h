@@ -106,13 +106,6 @@ extern int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg);
 extern int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 					uint16_t msg, uint32_t parameter);
 
-extern int smu_allocate_memory(void *device, uint32_t size,
-			 enum cgs_gpu_mem_type type,
-			 uint32_t byte_align, uint64_t *mc_addr,
-			 void **kptr, void *handle);
-
-extern int smu_free_memory(void *device, void *handle);
-
 extern int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr);
 
 extern int smum_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type);

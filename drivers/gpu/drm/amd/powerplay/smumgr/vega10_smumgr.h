@@ -38,10 +38,9 @@ struct smu_table_entry {
 	uint32_t version;
 	uint32_t size;
 	uint32_t table_id;
-	uint32_t table_addr_high;
-	uint32_t table_addr_low;
-	uint8_t *table;
-	unsigned long handle;
+	uint64_t mc_addr;
+	void *table;
+	struct amdgpu_bo *handle;
 };
 
 struct smu_table_array {

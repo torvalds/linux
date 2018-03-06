@@ -60,11 +60,10 @@ enum cz_scratch_entry {
 
 struct cz_buffer_entry {
 	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
+	uint64_t mc_addr;
 	void *kaddr;
 	enum cz_scratch_entry firmware_ID;
-	unsigned long handle; /* as bo handle used when release bo */
+	struct amdgpu_bo *handle; /* as bo handle used when release bo */
 };
 
 struct cz_register_index_data_pair {

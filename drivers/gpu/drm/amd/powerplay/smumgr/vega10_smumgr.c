@@ -230,10 +230,10 @@ int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table Length!", return -EINVAL);
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			priv->smu_tables.entry[table_id].table_addr_high);
+			smu_upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			priv->smu_tables.entry[table_id].table_addr_low);
+			smu_lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
 			priv->smu_tables.entry[table_id].table_id);
@@ -267,10 +267,10 @@ int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			priv->smu_tables.entry[table_id].table_addr_high);
+			smu_upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			priv->smu_tables.entry[table_id].table_addr_low);
+			smu_lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
 	vega10_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
 			priv->smu_tables.entry[table_id].table_id);
@@ -334,14 +334,13 @@ int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 	struct vega10_smumgr *priv =
 			(struct vega10_smumgr *)(hwmgr->smu_backend);
 
-	if (priv->smu_tables.entry[TOOLSTABLE].table_addr_high ||
-			priv->smu_tables.entry[TOOLSTABLE].table_addr_low) {
+	if (priv->smu_tables.entry[TOOLSTABLE].mc_addr) {
 		vega10_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrHigh,
-				priv->smu_tables.entry[TOOLSTABLE].table_addr_high);
+				smu_upper_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
 		vega10_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetToolsDramAddrLow,
-				priv->smu_tables.entry[TOOLSTABLE].table_addr_low);
+				smu_lower_32_bits(priv->smu_tables.entry[TOOLSTABLE].mc_addr));
 	}
 	return 0;
 }
@@ -381,7 +380,8 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	struct vega10_smumgr *priv;
 	uint64_t mc_addr;
 	void *kaddr = NULL;
-	unsigned long handle, tools_size;
+	unsigned long tools_size;
+	struct amdgpu_bo *handle;
 	int ret;
 	struct cgs_firmware_info info = {0};
 
@@ -399,147 +399,119 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	hwmgr->smu_backend = priv;
 
 	/* allocate space for pptable */
-	smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(PPTable_t),
-			CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 			PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&handle,
 			&mc_addr,
-			&kaddr,
-			&handle);
+			&kaddr);
 
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[vega10_smu_init] Out of memory for pptable.",
-			kfree(hwmgr->smu_backend);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)handle);
-			return -EINVAL);
+	if (ret)
+		return -EINVAL;
 
 	priv->smu_tables.entry[PPTABLE].version = 0x01;
 	priv->smu_tables.entry[PPTABLE].size = sizeof(PPTable_t);
 	priv->smu_tables.entry[PPTABLE].table_id = TABLE_PPTABLE;
-	priv->smu_tables.entry[PPTABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[PPTABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
+	priv->smu_tables.entry[PPTABLE].mc_addr = mc_addr;
 	priv->smu_tables.entry[PPTABLE].table = kaddr;
 	priv->smu_tables.entry[PPTABLE].handle = handle;
 
 	/* allocate space for watermarks table */
-	smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(Watermarks_t),
-			CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 			PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&handle,
 			&mc_addr,
-			&kaddr,
-			&handle);
+			&kaddr);
 
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[vega10_smu_init] Out of memory for wmtable.",
-			kfree(hwmgr->smu_backend);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)handle);
-			return -EINVAL);
+	if (ret)
+		goto err0;
 
 	priv->smu_tables.entry[WMTABLE].version = 0x01;
 	priv->smu_tables.entry[WMTABLE].size = sizeof(Watermarks_t);
 	priv->smu_tables.entry[WMTABLE].table_id = TABLE_WATERMARKS;
-	priv->smu_tables.entry[WMTABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[WMTABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
+	priv->smu_tables.entry[WMTABLE].mc_addr = mc_addr;
 	priv->smu_tables.entry[WMTABLE].table = kaddr;
 	priv->smu_tables.entry[WMTABLE].handle = handle;
 
 	/* allocate space for AVFS table */
-	smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(AvfsTable_t),
-			CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 			PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&handle,
 			&mc_addr,
-			&kaddr,
-			&handle);
+			&kaddr);
 
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[vega10_smu_init] Out of memory for avfs table.",
-			kfree(hwmgr->smu_backend);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[WMTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)handle);
-			return -EINVAL);
+	if (ret)
+		goto err1;
 
 	priv->smu_tables.entry[AVFSTABLE].version = 0x01;
 	priv->smu_tables.entry[AVFSTABLE].size = sizeof(AvfsTable_t);
 	priv->smu_tables.entry[AVFSTABLE].table_id = TABLE_AVFS;
-	priv->smu_tables.entry[AVFSTABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[AVFSTABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
+	priv->smu_tables.entry[AVFSTABLE].mc_addr = mc_addr;
 	priv->smu_tables.entry[AVFSTABLE].table = kaddr;
 	priv->smu_tables.entry[AVFSTABLE].handle = handle;
 
 	tools_size = 0x19000;
 	if (tools_size) {
-		smu_allocate_memory(hwmgr->device,
+		ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 				tools_size,
-				CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 				PAGE_SIZE,
+				AMDGPU_GEM_DOMAIN_VRAM,
+				&handle,
 				&mc_addr,
-				&kaddr,
-				&handle);
-
-		if (kaddr) {
-			priv->smu_tables.entry[TOOLSTABLE].version = 0x01;
-			priv->smu_tables.entry[TOOLSTABLE].size = tools_size;
-			priv->smu_tables.entry[TOOLSTABLE].table_id = TABLE_PMSTATUSLOG;
-			priv->smu_tables.entry[TOOLSTABLE].table_addr_high =
-					smu_upper_32_bits(mc_addr);
-			priv->smu_tables.entry[TOOLSTABLE].table_addr_low =
-					smu_lower_32_bits(mc_addr);
-			priv->smu_tables.entry[TOOLSTABLE].table = kaddr;
-			priv->smu_tables.entry[TOOLSTABLE].handle = handle;
-		}
+				&kaddr);
+		if (ret)
+			goto err2;
+		priv->smu_tables.entry[TOOLSTABLE].version = 0x01;
+		priv->smu_tables.entry[TOOLSTABLE].size = tools_size;
+		priv->smu_tables.entry[TOOLSTABLE].table_id = TABLE_PMSTATUSLOG;
+		priv->smu_tables.entry[TOOLSTABLE].mc_addr = mc_addr;
+		priv->smu_tables.entry[TOOLSTABLE].table = kaddr;
+		priv->smu_tables.entry[TOOLSTABLE].handle = handle;
 	}
 
 	/* allocate space for AVFS Fuse table */
-	smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(AvfsFuseOverride_t),
-			CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 			PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&handle,
 			&mc_addr,
-			&kaddr,
-			&handle);
-
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[vega10_smu_init] Out of memory for avfs fuse table.",
-			kfree(hwmgr->smu_backend);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[WMTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[AVFSTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[TOOLSTABLE].handle);
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)handle);
-			return -EINVAL);
+			&kaddr);
+	if (ret)
+		goto err3;
 
 	priv->smu_tables.entry[AVFSFUSETABLE].version = 0x01;
 	priv->smu_tables.entry[AVFSFUSETABLE].size = sizeof(AvfsFuseOverride_t);
 	priv->smu_tables.entry[AVFSFUSETABLE].table_id = TABLE_AVFS_FUSE_OVERRIDE;
-	priv->smu_tables.entry[AVFSFUSETABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[AVFSFUSETABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
+	priv->smu_tables.entry[AVFSFUSETABLE].mc_addr = mc_addr;
 	priv->smu_tables.entry[AVFSFUSETABLE].table = kaddr;
 	priv->smu_tables.entry[AVFSFUSETABLE].handle = handle;
 
 	return 0;
+
+err3:
+	if (priv->smu_tables.entry[TOOLSTABLE].table)
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[TOOLSTABLE].handle,
+				&priv->smu_tables.entry[TOOLSTABLE].mc_addr,
+				&priv->smu_tables.entry[TOOLSTABLE].table);
+err2:
+	amdgpu_bo_free_kernel(&priv->smu_tables.entry[AVFSTABLE].handle,
+				&priv->smu_tables.entry[AVFSTABLE].mc_addr,
+				&priv->smu_tables.entry[AVFSTABLE].table);
+err1:
+	amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
+				&priv->smu_tables.entry[WMTABLE].mc_addr,
+				&priv->smu_tables.entry[WMTABLE].table);
+err0:
+	amdgpu_bo_free_kernel(&priv->smu_tables.entry[PPTABLE].handle,
+			&priv->smu_tables.entry[PPTABLE].mc_addr,
+			&priv->smu_tables.entry[PPTABLE].table);
+	return -EINVAL;
 }
 
 static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
@@ -548,17 +520,22 @@ static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
 			(struct vega10_smumgr *)(hwmgr->smu_backend);
 
 	if (priv) {
-		cgs_free_gpu_mem(hwmgr->device,
-				(cgs_handle_t)priv->smu_tables.entry[PPTABLE].handle);
-		cgs_free_gpu_mem(hwmgr->device,
-				(cgs_handle_t)priv->smu_tables.entry[WMTABLE].handle);
-		cgs_free_gpu_mem(hwmgr->device,
-				(cgs_handle_t)priv->smu_tables.entry[AVFSTABLE].handle);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[PPTABLE].handle,
+				&priv->smu_tables.entry[PPTABLE].mc_addr,
+				&priv->smu_tables.entry[PPTABLE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
+					&priv->smu_tables.entry[WMTABLE].mc_addr,
+					&priv->smu_tables.entry[WMTABLE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[AVFSTABLE].handle,
+					&priv->smu_tables.entry[AVFSTABLE].mc_addr,
+					&priv->smu_tables.entry[AVFSTABLE].table);
 		if (priv->smu_tables.entry[TOOLSTABLE].table)
-			cgs_free_gpu_mem(hwmgr->device,
-					(cgs_handle_t)priv->smu_tables.entry[TOOLSTABLE].handle);
-		cgs_free_gpu_mem(hwmgr->device,
-				(cgs_handle_t)priv->smu_tables.entry[AVFSFUSETABLE].handle);
+			amdgpu_bo_free_kernel(&priv->smu_tables.entry[TOOLSTABLE].handle,
+					&priv->smu_tables.entry[TOOLSTABLE].mc_addr,
+					&priv->smu_tables.entry[TOOLSTABLE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[AVFSFUSETABLE].handle,
+					&priv->smu_tables.entry[AVFSFUSETABLE].mc_addr,
+					&priv->smu_tables.entry[AVFSFUSETABLE].table);
 		kfree(hwmgr->smu_backend);
 		hwmgr->smu_backend = NULL;
 	}
