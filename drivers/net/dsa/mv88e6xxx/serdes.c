@@ -63,15 +63,15 @@ static bool mv88e6352_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
 	err = mv88e6xxx_port_get_cmode(chip, port, &cmode);
 	if (err) {
 		dev_err(chip->dev, "failed to read cmode\n");
-		return 0;
+		return false;
 	}
 
 	if ((cmode == MV88E6XXX_PORT_STS_CMODE_100BASE_X) ||
 	    (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X) ||
 	    (cmode == MV88E6XXX_PORT_STS_CMODE_SGMII))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
