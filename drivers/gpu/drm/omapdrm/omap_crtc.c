@@ -41,6 +41,7 @@ struct omap_crtc {
 	struct drm_crtc base;
 
 	const char *name;
+	struct omap_drm_pipeline *pipe;
 	enum omap_channel channel;
 
 	struct videomode vm;
@@ -108,9 +109,6 @@ int omap_crtc_wait_pending(struct drm_crtc *crtc)
  * job of sequencing the setup of the video pipe in the proper order
  */
 
-/* ovl-mgr-id -> crtc */
-static struct omap_dss_device *omap_crtc_output[8];
-
 /* we can probably ignore these until we support command-mode panels: */
 static int omap_crtc_dss_connect(struct omap_drm_private *priv,
 		enum omap_channel channel,
@@ -119,13 +117,9 @@ static int omap_crtc_dss_connect(struct omap_drm_private *priv,
 	const struct dispc_ops *dispc_ops = priv->dispc_ops;
 	struct dispc_device *dispc = priv->dispc;
 
-	if (omap_crtc_output[channel])
-		return -EINVAL;
-
 	if (!(dispc_ops->mgr_get_supported_outputs(dispc, channel) & dst->id))
 		return -EINVAL;
 
-	omap_crtc_output[channel] = dst;
 	dst->dispc_channel_connected = true;
 
 	return 0;
@@ -135,7 +129,6 @@ static void omap_crtc_dss_disconnect(struct omap_drm_private *priv,
 		enum omap_channel channel,
 		struct omap_dss_device *dst)
 {
-	omap_crtc_output[channel] = NULL;
 	dst->dispc_channel_connected = false;
 }
 
@@ -158,7 +151,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	if (WARN_ON(omap_crtc->enabled == enable))
 		return;
 
-	if (omap_crtc_output[channel]->output_type == OMAP_DISPLAY_TYPE_HDMI) {
+	if (omap_crtc->pipe->output->output_type == OMAP_DISPLAY_TYPE_HDMI) {
 		priv->dispc_ops->mgr_enable(priv->dispc, channel, enable);
 		omap_crtc->enabled = enable;
 		return;
@@ -716,6 +709,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	init_waitqueue_head(&omap_crtc->pending_wait);
 
+	omap_crtc->pipe = pipe;
 	omap_crtc->channel = channel;
 	omap_crtc->name = channel_names[channel];
 
