@@ -250,13 +250,15 @@ int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
 
 	*startp = overwrite ? head : old;
 	*endp = overwrite ? old : head;
+	md->start = md->overwrite ? head : old;
+	md->end = md->overwrite ? old : head;
 
-	if (*startp == *endp)
+	if (md->start == md->end)
 		return -EAGAIN;
 
-	size = *endp - *startp;
+	size = md->end - md->start;
 	if (size > (unsigned long)(md->mask) + 1) {
-		if (!overwrite) {
+		if (!md->overwrite) {
 			WARN_ONCE(1, "failed to keep up with mmap data. (warn only once)\n");
 
 			md->prev = head;
@@ -268,8 +270,10 @@ int perf_mmap__read_init(struct perf_mmap *md, bool overwrite,
 		 * Backward ring buffer is full. We still have a chance to read
 		 * most of data from it.
 		 */
-		if (overwrite_rb_find_range(data, md->mask, head, startp, endp))
+		if (overwrite_rb_find_range(data, md->mask, head, &md->start, &md->end))
 			return -EINVAL;
+		*startp = md->start;
+		*endp = md->end;
 	}
 
 	return 0;
