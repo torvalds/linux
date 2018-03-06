@@ -23,6 +23,7 @@
 
 	/delete-node/ mmu@febe0000;
 	/delete-node/ mmu@fe980000;
+	/delete-node/ mmu@fd950000;
 	/delete-node/ mmu@fd960000;
 	/delete-node/ mmu@fd970000;
 
