@@ -709,10 +709,13 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	}
 
 	/* the hardware splits the A-MSDU */
-	if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560)
+	if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
 		trans_cfg.rx_buf_size = IWL_AMSDU_2K;
-	else if (mvm->cfg->mq_rx_supported)
+		/* TODO: remove when balanced power mode is fw supported */
+		iwlmvm_mod_params.power_scheme = IWL_POWER_SCHEME_CAM;
+	} else if (mvm->cfg->mq_rx_supported) {
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+	}
 
 	trans->wide_cmd_header = true;
 	trans_cfg.bc_table_dword =
