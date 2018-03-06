@@ -36,7 +36,8 @@ u64 module_emit_plt_entry(struct module *mod, void *loc, const Elf64_Rela *rela,
 		return (u64)&plt[i - 1];
 
 	pltsec->plt_num_entries++;
-	BUG_ON(pltsec->plt_num_entries > pltsec->plt_max_entries);
+	if (WARN_ON(pltsec->plt_num_entries > pltsec->plt_max_entries))
+		return 0;
 
 	return (u64)&plt[i];
 }
