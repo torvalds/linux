@@ -398,6 +398,7 @@ struct vop_win_data {
 
 #define VOP_FEATURE_OUTPUT_10BIT	BIT(0)
 #define VOP_FEATURE_AFBDC		BIT(1)
+#define VOP_FEATURE_ALPHA_SCALE		BIT(2)
 
 #define WIN_FEATURE_HDR2SDR		BIT(0)
 #define WIN_FEATURE_SDR2HDR		BIT(1)

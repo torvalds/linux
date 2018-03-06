@@ -319,7 +319,7 @@ static const struct vop_intr rk3288_vop_intr = {
 
 static const struct vop_data rk3288_vop_big = {
 	.version = VOP_VERSION(3, 0),
-	.feature = VOP_FEATURE_OUTPUT_10BIT,
+	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
 	.max_output = {3840, 2160},
 	.intr = &rk3288_vop_intr,
@@ -330,7 +330,7 @@ static const struct vop_data rk3288_vop_big = {
 
 static const struct vop_data rk3288_vop_lit = {
 	.version = VOP_VERSION(3, 0),
-	.feature = VOP_FEATURE_OUTPUT_10BIT,
+	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
 	.max_output = {2560, 1600},
 	.intr = &rk3288_vop_intr,
@@ -436,6 +436,7 @@ static const struct vop_win_data rk3368_vop_win_data[] = {
 
 static const struct vop_data rk3368_vop = {
 	.version = VOP_VERSION(3, 2),
+	.feature = VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},
 	.intr = &rk3368_vop_intr,
@@ -456,6 +457,7 @@ static const struct vop_intr rk3366_vop_intr = {
 
 static const struct vop_data rk3366_vop = {
 	.version = VOP_VERSION(3, 4),
+	.feature = VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},
 	.intr = &rk3366_vop_intr,
@@ -582,7 +584,8 @@ static const struct vop_win_data rk3399_vop_win_data[] = {
 static const struct vop_data rk3399_vop_big = {
 	.version = VOP_VERSION(3, 5),
 	.csc_table = &rk3399_csc_table,
-	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_AFBDC,
+	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_AFBDC |
+			VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},
 	.intr = &rk3366_vop_intr,
@@ -607,6 +610,7 @@ static const struct vop_win_data rk3399_vop_lit_win_data[] = {
 
 static const struct vop_data rk3399_vop_lit = {
 	.version = VOP_VERSION(3, 6),
+	.feature = VOP_FEATURE_ALPHA_SCALE,
 	.csc_table = &rk3399_csc_table,
 	.max_input = {4096, 8192},
 	.max_output = {2560, 1600},
@@ -625,7 +629,7 @@ static const struct vop_win_data rk322x_vop_win_data[] = {
 
 static const struct vop_data rk322x_vop = {
 	.version = VOP_VERSION(3, 7),
-	.feature = VOP_FEATURE_OUTPUT_10BIT,
+	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},
 	.intr = &rk3366_vop_intr,
@@ -1012,7 +1016,7 @@ static const struct vop_win_data rk3328_vop_win_data[] = {
 
 static const struct vop_data rk3328_vop = {
 	.version = VOP_VERSION(3, 8),
-	.feature = VOP_FEATURE_OUTPUT_10BIT,
+	.feature = VOP_FEATURE_OUTPUT_10BIT | VOP_FEATURE_ALPHA_SCALE,
 	.hdr_table = &rk3328_hdr_table,
 	.max_input = {4096, 8192},
 	.max_output = {4096, 2160},

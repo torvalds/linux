@@ -634,10 +634,16 @@ static void scl_vop_cal_scl_fac(struct vop *vop, struct vop_win *win,
 	uint16_t lb_mode;
 	uint32_t val;
 	int vskiplines = 0;
+	const struct vop_data *vop_data = vop->data;
 
 	if (!win->phy->scl)
 		return;
 
+	if (!(vop_data->feature & VOP_FEATURE_ALPHA_SCALE)) {
+		if (is_alpha_support(pixel_format) &&
+		    ((src_w != dst_w) || (src_h != dst_h)))
+			DRM_ERROR("ERROR : unsupport ppixel alpha add scale\n");
+	}
 	if (!win->phy->scl->ext) {
 		VOP_SCL_SET(vop, win, scale_yrgb_x,
 			    scl_cal_scale2(src_w, dst_w));
@@ -3323,6 +3329,7 @@ static int vop_crtc_atomic_get_property(struct drm_crtc *crtc,
 	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct drm_mode_config *mode_config = &drm_dev->mode_config;
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(state);
+	struct vop *vop = to_vop(crtc);
 
 	if (property == mode_config->tv_left_margin_property) {
 		*val = s->left_margin;
@@ -3371,6 +3378,11 @@ static int vop_crtc_atomic_get_property(struct drm_crtc *crtc,
 
 	if (property == private->cabc_lut_property) {
 		*val = s->cabc_lut ? s->cabc_lut->base.id : 0;
+		return 0;
+	}
+
+	if (property == private->alpha_scale_prop) {
+		*val = (vop->data->feature & VOP_FEATURE_ALPHA_SCALE) ? 1 : 0;
 		return 0;
 	}
 
@@ -3822,6 +3834,8 @@ static int vop_create_crtc(struct vop *vop)
 	drm_object_attach_property(&crtc->base, private->cabc_stage_down_property, 0);
 	drm_object_attach_property(&crtc->base, private->cabc_global_dn_property, 0);
 	drm_object_attach_property(&crtc->base, private->cabc_calc_pixel_num_property, 0);
+	drm_object_attach_property(&crtc->base, private->cabc_mode_property, 0);
+	drm_object_attach_property(&crtc->base, private->alpha_scale_prop, 0);
 
 	if (vop_data->feature & VOP_FEATURE_AFBDC)
 		feature |= BIT(ROCKCHIP_DRM_CRTC_FEATURE_AFBDC);
