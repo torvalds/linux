@@ -24,6 +24,8 @@ config OVERLAY_FS_REDIRECT_DIR
 	  an overlay which has redirects on a kernel that doesn't support this
 	  feature will have unexpected results.
 
+	  If unsure, say N.
+
 config OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW
 	bool "Overlayfs: follow redirects even if redirects are turned off"
 	default y
@@ -32,7 +34,12 @@ config OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW
 	  Disable this to get a possibly more secure configuration, but that
 	  might not be backward compatible with previous kernels.
 
+	  If backward compatibility is not an issue, then it is safe and
+	  recommended to say N here.
+
 	  For more information, see Documentation/filesystems/overlayfs.txt
+
+	  If unsure, say Y.
 
 config OVERLAY_FS_INDEX
 	bool "Overlayfs: turn on inodes index feature by default"
@@ -50,6 +57,8 @@ config OVERLAY_FS_INDEX
 	  Note, that the inodes index feature is not backward compatible.
 	  That is, mounting an overlay which has an inodes index on a kernel
 	  that doesn't support this feature will have unexpected results.
+
+	  If unsure, say N.
 
 config OVERLAY_FS_NFS_EXPORT
 	bool "Overlayfs: turn on NFS export feature by default"
@@ -72,3 +81,8 @@ config OVERLAY_FS_NFS_EXPORT
 	  Note, that the NFS export feature is not backward compatible.
 	  That is, mounting an overlay which has a full index on a kernel
 	  that doesn't support this feature will have unexpected results.
+
+	  Most users should say N here and enable this feature on a case-by-
+	  case basis with the "nfs_export=on" mount option.
+
+	  Say N unless you fully understand the consequences.
