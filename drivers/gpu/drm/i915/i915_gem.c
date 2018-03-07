@@ -4094,9 +4094,10 @@ out:
 }
 
 /*
- * Prepare buffer for display plane (scanout, cursors, etc).
- * Can be called from an uninterruptible phase (modesetting) and allows
- * any flushes to be pipelined (for pageflips).
+ * Prepare buffer for display plane (scanout, cursors, etc). Can be called from
+ * an uninterruptible phase (modesetting) and allows any flushes to be pipelined
+ * (for pageflips). We only flush the caches while preparing the buffer for
+ * display, the callers are responsible for frontbuffer flush.
  */
 struct i915_vma *
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
@@ -4152,9 +4153,7 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 
 	vma->display_alignment = max_t(u64, vma->display_alignment, alignment);
 
-	/* Treat this as an end-of-frame, like intel_user_framebuffer_dirty() */
 	__i915_gem_object_flush_for_display(obj);
-	intel_fb_obj_flush(obj, ORIGIN_DIRTYFB);
 
 	/* It should now be out of any other write domains, and we can update
 	 * the domain values for our changes.
