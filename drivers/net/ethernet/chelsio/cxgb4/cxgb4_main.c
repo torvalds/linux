@@ -4970,7 +4970,6 @@ static void cxgb4_mgmt_setup(struct net_device *dev)
 	/* Initialize the device structure. */
 	dev->netdev_ops = &cxgb4_mgmt_netdev_ops;
 	dev->ethtool_ops = &cxgb4_mgmt_ethtool_ops;
-	dev->needs_free_netdev = true;
 }
 
 static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
