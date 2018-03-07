@@ -622,22 +622,34 @@ const char *perf_evsel__group_name(struct perf_evsel *evsel)
 	return evsel->group_name ?: "anon group";
 }
 
+/*
+ * Returns the group details for the specified leader,
+ * with following rules.
+ *
+ *  For record -e '{cycles,instructions}'
+ *    'anon group { cycles:u, instructions:u }'
+ *
+ *  For record -e 'cycles,instructions' and report --group
+ *    'cycles:u, instructions:u'
+ */
 int perf_evsel__group_desc(struct perf_evsel *evsel, char *buf, size_t size)
 {
-	int ret;
+	int ret = 0;
 	struct perf_evsel *pos;
 	const char *group_name = perf_evsel__group_name(evsel);
 
-	ret = scnprintf(buf, size, "%s", group_name);
+	if (!evsel->forced_leader)
+		ret = scnprintf(buf, size, "%s { ", group_name);
 
-	ret += scnprintf(buf + ret, size - ret, " { %s",
+	ret += scnprintf(buf + ret, size - ret, "%s",
 			 perf_evsel__name(evsel));
 
 	for_each_group_member(pos, evsel)
 		ret += scnprintf(buf + ret, size - ret, ", %s",
 				 perf_evsel__name(pos));
 
-	ret += scnprintf(buf + ret, size - ret, " }");
+	if (!evsel->forced_leader)
+		ret += scnprintf(buf + ret, size - ret, " }");
 
 	return ret;
 }

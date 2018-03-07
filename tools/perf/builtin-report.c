@@ -400,8 +400,10 @@ static size_t hists__fprintf_nr_sample_events(struct hists *hists, struct report
 
 	nr_samples = convert_unit(nr_samples, &unit);
 	ret = fprintf(fp, "# Samples: %lu%c", nr_samples, unit);
-	if (evname != NULL)
-		ret += fprintf(fp, " of event '%s'", evname);
+	if (evname != NULL) {
+		ret += fprintf(fp, " of event%s '%s'",
+			       evsel->nr_members > 1 ? "s" : "", evname);
+	}
 
 	if (rep->time_str)
 		ret += fprintf(fp, " (time slices: %s)", rep->time_str);
@@ -1175,8 +1177,17 @@ repeat:
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
 
-	if (group_set && !session->evlist->nr_groups)
+	/*
+	 * Events in data file are not collect in groups, but we still want
+	 * the group display. Set the artificial group and set the leader's
+	 * forced_leader flag to notify the display code.
+	 */
+	if (group_set && !session->evlist->nr_groups) {
+		struct perf_evsel *leader = perf_evlist__first(session->evlist);
+
 		perf_evlist__set_leader(session->evlist);
+		leader->forced_leader = true;
+	}
 
 	if (itrace_synth_opts.last_branch)
 		has_br_stack = true;
