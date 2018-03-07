@@ -2645,8 +2645,10 @@ out:
 
 static void iwl_mvm_unreserve_agg_queue(struct iwl_mvm *mvm,
 					struct iwl_mvm_sta *mvmsta,
-					u16 txq_id)
+					struct iwl_mvm_tid_data *tid_data)
 {
+	u16 txq_id = tid_data->txq_id;
+
 	if (iwl_mvm_has_new_tx_api(mvm))
 		return;
 
@@ -2658,8 +2660,10 @@ static void iwl_mvm_unreserve_agg_queue(struct iwl_mvm *mvm,
 	 * allocated through iwl_mvm_enable_txq, so we can just mark it back as
 	 * free.
 	 */
-	if (mvm->queue_info[txq_id].status == IWL_MVM_QUEUE_RESERVED)
+	if (mvm->queue_info[txq_id].status == IWL_MVM_QUEUE_RESERVED) {
 		mvm->queue_info[txq_id].status = IWL_MVM_QUEUE_FREE;
+		tid_data->txq_id = IWL_MVM_INVALID_QUEUE;
+	}
 
 	spin_unlock_bh(&mvm->queue_info_lock);
 }
@@ -2690,7 +2694,7 @@ int iwl_mvm_sta_tx_agg_stop(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	mvmsta->agg_tids &= ~BIT(tid);
 
-	iwl_mvm_unreserve_agg_queue(mvm, mvmsta, txq_id);
+	iwl_mvm_unreserve_agg_queue(mvm, mvmsta, tid_data);
 
 	switch (tid_data->state) {
 	case IWL_AGG_ON:
@@ -2757,7 +2761,7 @@ int iwl_mvm_sta_tx_agg_flush(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	mvmsta->agg_tids &= ~BIT(tid);
 	spin_unlock_bh(&mvmsta->lock);
 
-	iwl_mvm_unreserve_agg_queue(mvm, mvmsta, txq_id);
+	iwl_mvm_unreserve_agg_queue(mvm, mvmsta, tid_data);
 
 	if (old_state >= IWL_AGG_ON) {
 		iwl_mvm_drain_sta(mvm, mvmsta, true);
