@@ -7,7 +7,7 @@
  * Copyright (C) 2016, 2017, 2018 Sony Semiconductor Solutions Corporation
  */
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "cxd2880_tnrdmd_dvbt2.h"
 #include "cxd2880_tnrdmd_dvbt2_mon.h"

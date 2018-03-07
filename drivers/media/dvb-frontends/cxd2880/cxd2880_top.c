@@ -10,8 +10,8 @@
 
 #include <linux/spi/spi.h>
 
-#include "dvb_frontend.h"
-#include "dvb_math.h"
+#include <media/dvb_frontend.h>
+#include <media/dvb_math.h>
 
 #include "cxd2880.h"
 #include "cxd2880_tnrdmd_mon.h"

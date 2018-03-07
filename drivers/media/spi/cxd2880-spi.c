@@ -12,9 +12,9 @@
 #include <linux/spi/spi.h>
 #include <linux/ktime.h>
 
-#include "dvb_demux.h"
-#include "dmxdev.h"
-#include "dvb_frontend.h"
+#include <media/dvb_demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_frontend.h>
 #include "cxd2880.h"
 
 #define CXD2880_MAX_FILTER_SIZE 32
