@@ -11,7 +11,11 @@ Required properties:
   interrupts.
 
 Optional properties:
-- clocks: Optional reference to the clock used by the XOR engine.
+- clocks: Optional reference to the clocks used by the XOR engine.
+- clock-names: mandatory if there is a second clock, in this case the
+   name must be "core" for the first clock and "reg" for the second
+   one
+
 
 Example:
 
