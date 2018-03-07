@@ -42,7 +42,7 @@ To disable all events, echo an empty line to the set_event file::
 
 	# echo > /sys/kernel/debug/tracing/set_event
 
-To enable all events, echo '*:*' or '*:' to the set_event file::
+To enable all events, echo ``*:*`` or ``*:`` to the set_event file::
 
 	# echo *:* > /sys/kernel/debug/tracing/set_event
 
@@ -50,7 +50,7 @@ The events are organized into subsystems, such as ext4, irq, sched,
 etc., and a full event name looks like this: <subsystem>:<event>.  The
 subsystem name is optional, but it is displayed in the available_events
 file.  All of the events in a subsystem can be specified via the syntax
-"<subsystem>:*"; for example, to enable all irq events, you can use the
+``<subsystem>:*``; for example, to enable all irq events, you can use the
 command::
 
 	# echo 'irq:*' > /sys/kernel/debug/tracing/set_event
@@ -111,8 +111,8 @@ It also displays the format string that will be used to print the
 event in text mode, along with the event name and ID used for
 profiling.
 
-Every event has a set of 'common' fields associated with it; these are
-the fields prefixed with 'common_'.  The other fields vary between
+Every event has a set of ``common`` fields associated with it; these are
+the fields prefixed with ``common_``.  The other fields vary between
 events and correspond to the fields defined in the TRACE_EVENT
 definition for that event.
 
@@ -190,7 +190,7 @@ And for string fields they are:
 
 ==, !=, ~
 
-The glob (~) accepts a wild card character (*,?) and character classes
+The glob (~) accepts a wild card character (\*,?) and character classes
 ([). For example::
 
   prev_comm ~ "*sh"

@@ -2615,13 +2615,13 @@ To see which functions are being traced, you can cat the file:
 
 Perhaps this is not enough. The filters also allow glob(7) matching.
 
-  <match>*
+  ``<match>*``
 	will match functions that begin with <match>
-  *<match>
+  ``*<match>``
 	will match functions that end with <match>
-  *<match>*
+  ``*<match>*``
 	will match functions that have <match> in it
-  <match1>*<match2>
+  ``<match1>*<match2>``
 	will match functions that begin with <match1> and end with <match2>
 
 .. note::
