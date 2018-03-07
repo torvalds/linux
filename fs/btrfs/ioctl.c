@@ -2600,7 +2600,7 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 			range->len = (u64)-1;
 		}
 		ret = btrfs_defrag_file(file_inode(file), file,
-					range, 0, 0);
+					range, BTRFS_OLDEST_GENERATION, 0);
 		if (ret > 0)
 			ret = 0;
 		kfree(range);

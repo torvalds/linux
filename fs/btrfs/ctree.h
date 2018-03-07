@@ -66,6 +66,8 @@ struct btrfs_ordered_sum;
 
 #define BTRFS_MAX_LEVEL 8
 
+#define BTRFS_OLDEST_GENERATION	0ULL
+
 #define BTRFS_COMPAT_EXTENT_TREE_V0
 
 /*

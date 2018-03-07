@@ -4208,7 +4208,8 @@ static int btrfs_uuid_scan_kthread(void *data)
 	key.offset = 0;
 
 	while (1) {
-		ret = btrfs_search_forward(root, &key, path, 0);
+		ret = btrfs_search_forward(root, &key, path,
+				BTRFS_OLDEST_GENERATION);
 		if (ret) {
 			if (ret > 0)
 				ret = 0;
