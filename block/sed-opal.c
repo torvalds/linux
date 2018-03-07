@@ -554,15 +554,14 @@ static void add_token_u64(int *err, struct opal_dev *cmd, u64 number)
 
 	size_t len;
 	int msb;
-	u8 n;
 
 	if (!(number & ~TINY_ATOM_DATA_MASK)) {
 		add_token_u8(err, cmd, number);
 		return;
 	}
 
-	msb = fls(number);
-	len = DIV_ROUND_UP(msb, 4);
+	msb = fls64(number);
+	len = DIV_ROUND_UP(msb, 8);
 
 	if (cmd->pos >= IO_BUFFER_LENGTH - len - 1) {
 		pr_debug("Error adding u64: end of buffer.\n");
@@ -570,10 +569,8 @@ static void add_token_u64(int *err, struct opal_dev *cmd, u64 number)
 		return;
 	}
 	add_short_atom_header(cmd, false, false, len);
-	while (len--) {
-		n = number >> (len * 8);
-		add_token_u8(err, cmd, n);
-	}
+	while (len--)
+		add_token_u8(err, cmd, number >> (len * 8));
 }
 
 static void add_token_bytestring(int *err, struct opal_dev *cmd,
