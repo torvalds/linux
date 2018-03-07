@@ -19,7 +19,6 @@
     |        ia64: | TODO |
     |        m32r: | TODO |
     |        m68k: |  ..  |
-    |       metag: | TODO |
     |  microblaze: |  ..  |
     |        mips: | TODO |
     |     mn10300: | TODO |

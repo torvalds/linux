@@ -1605,7 +1605,7 @@ config BCM7038_WDT
 config IMGPDC_WDT
 	tristate "Imagination Technologies PDC Watchdog Timer"
 	depends on HAS_IOMEM
-	depends on METAG || MIPS || COMPILE_TEST
+	depends on MIPS || COMPILE_TEST
 	select WATCHDOG_CORE
 	help
 	  Driver for Imagination Technologies PowerDown Controller
