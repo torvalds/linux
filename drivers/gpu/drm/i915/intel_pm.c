@@ -8522,6 +8522,11 @@ static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 		val |= SARBUNIT_CLKGATE_DIS;
 	I915_WRITE(SLICE_UNIT_LEVEL_CLKGATE, val);
 
+	/* Wa_2201832410:cnl */
+	val = I915_READ(SUBSLICE_UNIT_LEVEL_CLKGATE);
+	val |= GWUNIT_CLKGATE_DIS;
+	I915_WRITE(SUBSLICE_UNIT_LEVEL_CLKGATE, val);
+
 	/* WaDisableVFclkgate:cnl */
 	/* WaVFUnitClockGatingDisable:cnl */
 	val = I915_READ(UNSLICE_UNIT_LEVEL_CLKGATE);
