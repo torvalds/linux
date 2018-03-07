@@ -440,17 +440,6 @@ static void d_lru_shrink_move(struct list_lru_one *lru, struct dentry *dentry,
 	list_lru_isolate_move(lru, &dentry->d_lru, list);
 }
 
-/*
- * dentry_lru_(add|del)_list) must be called with d_lock held.
- */
-static void dentry_lru_add(struct dentry *dentry)
-{
-	if (unlikely(!(dentry->d_flags & DCACHE_LRU_LIST)))
-		d_lru_add(dentry);
-	else if (unlikely(!(dentry->d_flags & DCACHE_REFERENCED)))
-		dentry->d_flags |= DCACHE_REFERENCED;
-}
-
 /**
  * d_drop - drop a dentry
  * @dentry: dentry to drop
@@ -641,6 +630,12 @@ static inline bool retain_dentry(struct dentry *dentry)
 		if (dentry->d_op->d_delete(dentry))
 			return false;
 	}
+	/* retain; LRU fodder */
+	dentry->d_lockref.count--;
+	if (unlikely(!(dentry->d_flags & DCACHE_LRU_LIST)))
+		d_lru_add(dentry);
+	else if (unlikely(!(dentry->d_flags & DCACHE_REFERENCED)))
+		dentry->d_flags |= DCACHE_REFERENCED;
 	return true;
 }
 
@@ -823,8 +818,6 @@ repeat:
 	rcu_read_unlock();
 
 	if (likely(retain_dentry(dentry))) {
-		dentry_lru_add(dentry);
-		dentry->d_lockref.count--;
 		spin_unlock(&dentry->d_lock);
 		return;
 	}
