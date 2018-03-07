@@ -1629,7 +1629,6 @@ static ssize_t s3_debug_store(struct device *device,
 	if (ret == 0) {
 		if (s3_state) {
 			dm_resume(adev);
-			amdgpu_dm_display_resume(adev);
 			drm_kms_helper_hotplug_event(adev->ddev);
 		} else
 			dm_suspend(adev);
