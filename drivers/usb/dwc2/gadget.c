@@ -23,6 +23,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -4287,6 +4288,24 @@ static int dwc2_hsotg_udc_start(struct usb_gadget *gadget,
 			goto err;
 	}
 
+	if (hsotg->dr_mode == USB_DR_MODE_OTG) {
+		struct platform_device *pdev = to_platform_device(hsotg->dev);
+
+		if (hsotg->uphy) {
+			ret = usb_phy_init(hsotg->uphy);
+		} else if (hsotg->plat && hsotg->plat->phy_init) {
+			ret = hsotg->plat->phy_init(pdev,
+						    hsotg->plat->phy_type);
+		} else {
+			ret = phy_power_on(hsotg->phy);
+			if (ret == 0)
+				ret = phy_init(hsotg->phy);
+		}
+
+		if (ret)
+			goto err;
+	}
+
 	if (!IS_ERR_OR_NULL(hsotg->uphy))
 		otg_set_peripheral(hsotg->uphy->otg, &hsotg->gadget);
 
@@ -4344,6 +4363,19 @@ static int dwc2_hsotg_udc_stop(struct usb_gadget *gadget)
 
 	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
 		dwc2_lowlevel_hw_disable(hsotg);
+
+	if (hsotg->dr_mode == USB_DR_MODE_OTG) {
+		struct platform_device *pdev = to_platform_device(hsotg->dev);
+
+		if (hsotg->uphy) {
+			usb_phy_shutdown(hsotg->uphy);
+		} else if (hsotg->plat && hsotg->plat->phy_exit) {
+			hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
+		} else {
+			phy_exit(hsotg->phy);
+			phy_power_off(hsotg->phy);
+		}
+	}
 
 	return 0;
 }
