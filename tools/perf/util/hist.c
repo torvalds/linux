@@ -536,7 +536,7 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 			 * This mem info was allocated from sample__resolve_mem
 			 * and will not be used anymore.
 			 */
-			zfree(&entry->mem_info);
+			mem_info__zput(entry->mem_info);
 
 			/* If the map of an existing hist_entry has
 			 * become out-of-date due to an exec() or
@@ -1139,7 +1139,7 @@ void hist_entry__delete(struct hist_entry *he)
 	if (he->mem_info) {
 		map__zput(he->mem_info->iaddr.map);
 		map__zput(he->mem_info->daddr.map);
-		zfree(&he->mem_info);
+		mem_info__zput(he->mem_info);
 	}
 
 	zfree(&he->stat_acc);
