@@ -53,6 +53,23 @@ STATIC int xfs_alloc_ag_vextent_size(xfs_alloc_arg_t *);
 STATIC int xfs_alloc_ag_vextent_small(xfs_alloc_arg_t *,
 		xfs_btree_cur_t *, xfs_agblock_t *, xfs_extlen_t *, int *);
 
+/*
+ * Size of the AGFL.  For CRC-enabled filesystes we steal a couple of slots in
+ * the beginning of the block for a proper header with the location information
+ * and CRC.
+ */
+unsigned int
+xfs_agfl_size(
+	struct xfs_mount	*mp)
+{
+	unsigned int		size = mp->m_sb.sb_sectsize;
+
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		size -= sizeof(struct xfs_agfl);
+
+	return size / sizeof(xfs_agblock_t);
+}
+
 unsigned int
 xfs_refc_block(
 	struct xfs_mount	*mp)
@@ -550,7 +567,7 @@ xfs_agfl_verify(
 	if (bp->b_pag && be32_to_cpu(agfl->agfl_seqno) != bp->b_pag->pag_agno)
 		return __this_address;
 
-	for (i = 0; i < XFS_AGFL_SIZE(mp); i++) {
+	for (i = 0; i < xfs_agfl_size(mp); i++) {
 		if (be32_to_cpu(agfl->agfl_bno[i]) != NULLAGBLOCK &&
 		    be32_to_cpu(agfl->agfl_bno[i]) >= mp->m_sb.sb_agblocks)
 			return __this_address;
@@ -2266,7 +2283,7 @@ xfs_alloc_get_freelist(
 	bno = be32_to_cpu(agfl_bno[be32_to_cpu(agf->agf_flfirst)]);
 	be32_add_cpu(&agf->agf_flfirst, 1);
 	xfs_trans_brelse(tp, agflbp);
-	if (be32_to_cpu(agf->agf_flfirst) == XFS_AGFL_SIZE(mp))
+	if (be32_to_cpu(agf->agf_flfirst) == xfs_agfl_size(mp))
 		agf->agf_flfirst = 0;
 
 	pag = xfs_perag_get(mp, be32_to_cpu(agf->agf_seqno));
@@ -2377,7 +2394,7 @@ xfs_alloc_put_freelist(
 			be32_to_cpu(agf->agf_seqno), &agflbp)))
 		return error;
 	be32_add_cpu(&agf->agf_fllast, 1);
-	if (be32_to_cpu(agf->agf_fllast) == XFS_AGFL_SIZE(mp))
+	if (be32_to_cpu(agf->agf_fllast) == xfs_agfl_size(mp))
 		agf->agf_fllast = 0;
 
 	pag = xfs_perag_get(mp, be32_to_cpu(agf->agf_seqno));
@@ -2395,7 +2412,7 @@ xfs_alloc_put_freelist(
 
 	xfs_alloc_log_agf(tp, agbp, logflags);
 
-	ASSERT(be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp));
+	ASSERT(be32_to_cpu(agf->agf_flcount) <= xfs_agfl_size(mp));
 
 	agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, agflbp);
 	blockp = &agfl_bno[be32_to_cpu(agf->agf_fllast)];
@@ -2428,9 +2445,9 @@ xfs_agf_verify(
 	if (!(agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
 	      XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
 	      be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
-	      be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
-	      be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
-	      be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp)))
+	      be32_to_cpu(agf->agf_flfirst) < xfs_agfl_size(mp) &&
+	      be32_to_cpu(agf->agf_fllast) < xfs_agfl_size(mp) &&
+	      be32_to_cpu(agf->agf_flcount) <= xfs_agfl_size(mp)))
 		return __this_address;
 
 	if (be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]) < 1 ||
