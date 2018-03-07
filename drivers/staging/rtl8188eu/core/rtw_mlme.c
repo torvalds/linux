@@ -897,7 +897,7 @@ static struct sta_info *rtw_joinbss_update_stainfo(struct adapter *padapter, str
 		 * Commented by Albert 2012/07/21
 		 * When doing the WPS, the wps_ie_len won't equal to 0
 		 * And the Wi-Fi driver shouldn't allow the data
-		 * packet to be tramsmitted.
+		 * packet to be transmitted.
 		 */
 		if (padapter->securitypriv.wps_ie_len != 0) {
 			psta->ieee8021x_blocked = true;
@@ -1371,7 +1371,7 @@ void _rtw_join_timeout_handler (struct timer_list *t)
 }
 
 /*
- * rtw_scan_timeout_handler - Timeout/Faliure handler for CMD SiteSurvey
+ * rtw_scan_timeout_handler - Timeout/Failure handler for CMD SiteSurvey
  * @adapter: pointer to struct adapter structure
  */
 void rtw_scan_timeout_handler (struct timer_list *t)
