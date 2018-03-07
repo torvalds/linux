@@ -2482,7 +2482,8 @@ static int btrfs_punch_hole_lock_range(struct inode *inode,
 		if ((!ordered ||
 		    (ordered->file_offset + ordered->len <= lockstart ||
 		     ordered->file_offset > lockend)) &&
-		     !btrfs_page_exists_in_range(inode, lockstart, lockend)) {
+		     !filemap_range_has_page(inode->i_mapping,
+					     lockstart, lockend)) {
 			if (ordered)
 				btrfs_put_ordered_extent(ordered);
 			break;

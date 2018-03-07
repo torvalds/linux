@@ -364,10 +364,4 @@ static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
 			logical_start, csum, csum_expected, mirror_num);
 }
 
-static inline bool btrfs_page_exists_in_range(struct inode *inode,
-						loff_t start, loff_t end)
-{
-	return filemap_range_has_page(inode->i_mapping, start, end);
-}
-
 #endif

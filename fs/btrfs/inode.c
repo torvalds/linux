@@ -7489,8 +7489,8 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 		 * get stale data.
 		 */
 		if (!ordered &&
-		    (!writing ||
-		     !btrfs_page_exists_in_range(inode, lockstart, lockend)))
+		    (!writing || !filemap_range_has_page(inode->i_mapping,
+							 lockstart, lockend)))
 			break;
 
 		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart, lockend,
