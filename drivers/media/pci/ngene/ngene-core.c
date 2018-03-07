@@ -1408,7 +1408,6 @@ static void release_channel(struct ngene_channel *chan)
 {
 	struct dvb_demux *dvbdemux = &chan->demux;
 	struct ngene *dev = chan->dev;
-	struct i2c_client *client;
 
 	if (chan->running)
 		set_transfer(chan, 0);
@@ -1427,12 +1426,9 @@ static void release_channel(struct ngene_channel *chan)
 		dvb_unregister_frontend(chan->fe);
 
 		/* release I2C client (tuner) if needed */
-		client = chan->i2c_client[0];
-		if (chan->i2c_client_fe && client) {
-			module_put(client->dev.driver->owner);
-			i2c_unregister_device(client);
+		if (chan->i2c_client_fe) {
+			dvb_module_release(chan->i2c_client[0]);
 			chan->i2c_client[0] = NULL;
-			client = NULL;
 		}
 
 		dvb_frontend_detach(chan->fe);
@@ -1584,11 +1580,6 @@ static void cxd_attach(struct ngene *dev)
 	struct ngene_ci *ci = &dev->ci;
 	struct cxd2099_cfg cxd_cfg = cxd_cfgtmpl;
 	struct i2c_client *client;
-	struct i2c_board_info board_info = {
-		.type = "cxd2099",
-		.addr = 0x40,
-		.platform_data = &cxd_cfg,
-	};
 	int ret;
 	u8 type;
 
@@ -1605,26 +1596,17 @@ static void cxd_attach(struct ngene *dev)
 	}
 
 	cxd_cfg.en = &ci->en;
-
-	request_module(board_info.type);
-
-	client = i2c_new_device(&dev->channel[0].i2c_adapter, &board_info);
-	if (!client || !client->dev.driver)
-		goto err_ret;
-
-	if (!try_module_get(client->dev.driver->owner))
-		goto err_i2c;
-
-	if (!ci->en)
-		goto err_i2c;
+	client = dvb_module_probe("cxd2099", NULL,
+				  &dev->channel[0].i2c_adapter,
+				  0x40, &cxd_cfg);
+	if (!client)
+		goto err;
 
 	ci->dev = dev;
 	dev->channel[0].i2c_client[0] = client;
 	return;
 
-err_i2c:
-	i2c_unregister_device(client);
-err_ret:
+err:
 	dev_err(pdev, "CXD2099AR attach failed\n");
 	return;
 }
@@ -1632,16 +1614,11 @@ err_ret:
 static void cxd_detach(struct ngene *dev)
 {
 	struct ngene_ci *ci = &dev->ci;
-	struct i2c_client *client;
 
 	dvb_ca_en50221_release(ci->en);
 
-	client = dev->channel[0].i2c_client[0];
-	if (client) {
-		module_put(client->dev.driver->owner);
-		i2c_unregister_device(client);
-	}
-
+	dvb_module_release(dev->channel[0].i2c_client[0]);
+	dev->channel[0].i2c_client[0] = NULL;
 	ci->en = NULL;
 }
 

@@ -253,15 +253,7 @@ static int tuner_attach_tda18212(struct ngene_channel *chan, u32 dmdtype)
 		.if_dvbt2_8 = 4000,
 		.if_dvbc = 5000,
 	};
-	struct i2c_board_info board_info = {
-		.type = "tda18212",
-		.platform_data = &config,
-	};
-
-	if (chan->number & 1)
-		board_info.addr = 0x63;
-	else
-		board_info.addr = 0x60;
+	u8 addr = (chan->number & 1) ? 0x63 : 0x60;
 
 	/*
 	 * due to a hardware quirk with the I2C gate on the stv0367+tda18212
@@ -269,19 +261,12 @@ static int tuner_attach_tda18212(struct ngene_channel *chan, u32 dmdtype)
 	 * cold started, or it very likely will fail.
 	 */
 	if (dmdtype == DEMOD_TYPE_STV0367)
-		tuner_tda18212_ping(chan, i2c, board_info.addr);
+		tuner_tda18212_ping(chan, i2c, addr);
 
-	request_module(board_info.type);
-
-	/* perform tuner init/attach */
-	client = i2c_new_device(i2c, &board_info);
-	if (!client || !client->dev.driver)
+	/* perform tuner probe/init/attach */
+	client = dvb_module_probe("tda18212", NULL, i2c, addr, &config);
+	if (!client)
 		goto err;
-
-	if (!try_module_get(client->dev.driver->owner)) {
-		i2c_unregister_device(client);
-		goto err;
-	}
 
 	chan->i2c_client[0] = client;
 	chan->i2c_client_fe = 1;
