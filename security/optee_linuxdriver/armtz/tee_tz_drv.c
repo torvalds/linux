@@ -33,6 +33,7 @@
 #include <arm_common/teesmc_st.h>
 
 #include <linux/cpumask.h>
+#include <linux/of.h>
 
 #include "tee_mem.h"
 #include "tee_tz_op.h"
@@ -1182,6 +1183,38 @@ out:
 	return ret;
 }
 
+static int rk_set_uart_port(struct tee_tz *ptee)
+{
+	struct smc_param param = {0};
+	struct device_node *np;
+	int serial_id;
+	int ret = 0;
+
+	np = of_find_node_by_name(NULL, "fiq-debugger");
+	if (!np)
+		return -ENODEV;
+
+	if (of_device_is_available(np)) {
+		if (of_property_read_u32(np, "rockchip,serial-id", &serial_id))
+			return -EINVAL;
+	} else {
+		serial_id = 0xffffffff;
+	}
+
+	dev_dbg(DEV, "optee set uart port id: %d\n", serial_id);
+	param.a0 = TEESMC32_ROCKCHIP_FASTCALL_SET_UART_PORT;
+	param.a1 = serial_id;
+
+	mutex_lock(&ptee->mutex);
+#ifdef SWITCH_CPU0_DEBUG
+	ret = tee_smc_call_switchcpu0(&param);
+#else
+	tee_smc_call(&param);
+#endif
+	mutex_unlock(&ptee->mutex);
+
+	return ret;
+}
 
 /******************************************************************************/
 
@@ -1200,6 +1233,8 @@ static int tz_start(struct tee *tee)
 	ptee = tee->priv;
 	BUG_ON(ptee->started);
 	ptee->started = true;
+
+	rk_set_uart_port(ptee);
 
 	ret = configure_shm(ptee);
 	if (ret)

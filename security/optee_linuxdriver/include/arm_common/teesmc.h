@@ -346,6 +346,9 @@ struct teesmc_meta_open_session {
 #define TEESMC_OWNER_TRUSTED_APP	48
 #define TEESMC_OWNER_TRUSTED_OS		50
 
+/* Rockchip define trusted os call */
+#define TEESMC_OWNER_TRUSTED_OS_ROCKCHIP	55
+
 #define TEESMC_OWNER_TRUSTED_OS_API	63
 
 /*
@@ -698,5 +701,10 @@ struct teesmc_meta_open_session {
  * Returned in r1 by Trusted OS functions if r0 = TEESMC_RETURN_RPC
  */
 #define TEESMC_RPC_REQUEST_IRQ		0x0
+
+#define TEESMC_ROCKCHIP_FUNCID_SET_UART_PORT		0x0000
+#define TEESMC32_ROCKCHIP_FASTCALL_SET_UART_PORT \
+	TEESMC_CALL_VAL(TEESMC_32, TEESMC_FAST_CALL, TEESMC_OWNER_TRUSTED_OS_ROCKCHIP, \
+	TEESMC_ROCKCHIP_FUNCID_SET_UART_PORT)
 
 #endif /* TEESMC_H */
