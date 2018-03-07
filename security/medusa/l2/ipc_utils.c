@@ -1,4 +1,9 @@
 #include <linux/nsproxy.h>
+#include <linux/security.h>
+#include <linux/mm.h>
+#include <linux/shm.h>
+#include <linux/sem.h>
+#include <linux/msg.h>
 #include <linux/ipc_namespace.h>
 #include <linux/medusa/l1/ipc.h>
 #include "../../../ipc/util.h" //TODO
@@ -39,4 +44,39 @@ struct ipc_ids * medusa_get_ipc_ids(unsigned int ipc_class)
 		}
 	}
 	return ids;
+}
+
+void ipc_rcu_free(struct rcu_head *head)
+{
+	struct kern_ipc_perm *p = container_of(head, struct kern_ipc_perm, rcu);
+	struct medusa_l1_ipc_s* security_s;
+	unsigned int ipc_class;
+
+	security_s = ipc_security(p);
+	ipc_class = security_s->ipc_class;
+	
+	switch(ipc_class){
+		case MED_IPC_SEM: {
+			struct sem_array *sem = container_of(p, struct sem_array, sem_perm);
+			security_sem_free(sem);
+			kvfree(sem);
+			break;
+		}
+		case MED_IPC_MSG: {
+			struct msg_queue *msq = container_of(p, struct msg_queue, q_perm);
+			security_msg_queue_free(msq);
+			kvfree(msq);
+			break;
+		}
+		case MED_IPC_SHM: {
+			struct shmid_kernel *shm = container_of(p, struct shmid_kernel, shm_perm);
+			security_shm_free(shm);
+			kvfree(shm);
+			break;
+		}
+		default: {
+			printk("Unkown ipc_class\n");
+		}
+	}
+	return;
 }

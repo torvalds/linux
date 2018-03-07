@@ -97,7 +97,6 @@ medusa_answer_t ipc_update(unsigned int id, unsigned int ipc_class, struct medus
 	struct kern_ipc_perm *ipcp;
 	struct ipc_ids *ids;
 	int retval = MED_ERR;
-	int is_locked_by_kernel = 0;
 	
 	ids = medusa_get_ipc_ids(ipc_class);
 	if(!ids)
@@ -110,24 +109,24 @@ medusa_answer_t ipc_update(unsigned int id, unsigned int ipc_class, struct medus
 	//Object is not locked on exit
 	ipcp = ipc_obtain_object_check(ids, id);
 	if(IS_ERR(ipcp) || !ipcp)
-		goto out_err_unlock;
-	
+		goto out_unlock0;
+
+	if (!ipc_rcu_getref(ipcp)) {
+		goto out_unlock0;
+	}
+	//get_ref
+	//rcu_read_unlock	
+
 	security_s = ipc_security(ipcp);
 
-	mutex_lock(&security_s->rwmutex);
-	is_locked_by_kernel = down_write_trylock(&ids->rwsem) == 0;
-		
-	
 	ipc_lock_object(ipcp);
-	
+
+	//this update kernel structure	
 	retval = ipc_kobj2kern(kobj, ipcp);
-	
+
+	ipc_rcu_putref(ipcp, ipc_rcu_free);	
 	ipc_unlock_object(ipcp);
-	
-	if(!is_locked_by_kernel)
-		up_write(&ids->rwsem);
-	mutex_unlock(&(security_s->rwmutex));	
-out_err_unlock:
+out_unlock0:
 	rcu_read_unlock();
 out_err:
 	return retval;
