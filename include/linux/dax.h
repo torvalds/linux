@@ -38,6 +38,7 @@ static inline void put_dax(struct dax_device *dax_dev)
 }
 #endif
 
+struct writeback_control;
 int bdev_dax_pgoff(struct block_device *, sector_t, size_t, pgoff_t *pgoff);
 #if IS_ENABLED(CONFIG_FS_DAX)
 int __bdev_dax_supported(struct super_block *sb, int blocksize);
@@ -57,6 +58,8 @@ static inline void fs_put_dax(struct dax_device *dax_dev)
 }
 
 struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev);
+int dax_writeback_mapping_range(struct address_space *mapping,
+		struct block_device *bdev, struct writeback_control *wbc);
 #else
 static inline int bdev_dax_supported(struct super_block *sb, int blocksize)
 {
@@ -75,6 +78,12 @@ static inline void fs_put_dax(struct dax_device *dax_dev)
 static inline struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
 {
 	return NULL;
+}
+
+static inline int dax_writeback_mapping_range(struct address_space *mapping,
+		struct block_device *bdev, struct writeback_control *wbc)
+{
+	return -EOPNOTSUPP;
 }
 #endif
 
@@ -121,7 +130,4 @@ static inline bool dax_mapping(struct address_space *mapping)
 	return mapping->host && IS_DAX(mapping->host);
 }
 
-struct writeback_control;
-int dax_writeback_mapping_range(struct address_space *mapping,
-		struct block_device *bdev, struct writeback_control *wbc);
 #endif
