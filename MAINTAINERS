@@ -5799,10 +5799,6 @@ F:	fs/crypto/
 F:	include/linux/fscrypt*.h
 F:	Documentation/filesystems/fscrypt.rst
 
-FUJITSU FR-V (FRV) PORT
-S:	Orphan
-F:	arch/frv/
-
 FUJITSU LAPTOP EXTRAS
 M:	Jonathan Woithe <jwoithe@just42.net>
 L:	platform-driver-x86@vger.kernel.org

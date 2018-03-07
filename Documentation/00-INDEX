@@ -172,8 +172,6 @@ fmc/
 	- information about the FMC bus abstraction
 fpga/
 	- FPGA Manager Core.
-frv/
-	- Fujitsu FR-V Linux documentation.
 futex-requeue-pi.txt
 	- info on requeueing of tasks from a non-PI futex to a PI futex
 gcc-plugins.txt
