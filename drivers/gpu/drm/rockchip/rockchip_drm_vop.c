@@ -1561,6 +1561,15 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 	if (win->area_id == 0)
 		VOP_WIN_SET(vop, win, gate, 0);
 
+	/*
+	 * IC design bug: in the bandwidth tension environment when close win2,
+	 * vop will access the freed memory lead to iommu pagefault.
+	 * so we add this reset to workaround.
+	 */
+	if (VOP_MAJOR(vop->version) == 2 && VOP_MINOR(vop->version) == 5 &&
+	     win->win_id == 2)
+		VOP_WIN_SET(vop, win, yrgb_mst, 0);
+
 	spin_unlock(&vop->reg_lock);
 
 	vop_plane_state->enable = false;
