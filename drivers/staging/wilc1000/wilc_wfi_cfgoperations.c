@@ -1705,9 +1705,13 @@ static int mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	wfi_drv->p2p_timeout = jiffies;
 
 	if (!priv->p2p_listen_state) {
+		struct wilc_wfi_p2p_listen_params *params;
+
+		params = &priv->remain_on_ch_params;
+
 		cfg80211_remain_on_channel_expired(priv->wdev,
-						   priv->remain_on_ch_params.listen_cookie,
-						   priv->remain_on_ch_params.listen_ch,
+						   params->listen_cookie,
+						   params->listen_ch,
 						   GFP_KERNEL);
 	}
 
