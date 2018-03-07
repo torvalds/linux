@@ -1978,7 +1978,7 @@ static int option_probe(struct usb_serial *serial,
 	unsigned long device_flags = id->driver_info;
 
 	/* Never bind to the CD-Rom emulation interface	*/
-	if (iface_desc->bInterfaceClass == 0x08)
+	if (iface_desc->bInterfaceClass == USB_CLASS_MASS_STORAGE)
 		return -ENODEV;
 
 	/*
