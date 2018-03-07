@@ -346,6 +346,18 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 		},
 	},
 	{
+		/*
+		 * If the box is running custom coreboot firmware then the
+		 * DMI BIOS version string will not be matched by "Google_",
+		 * but the system vendor string will still be matched by
+		 * "GOOGLE".
+		 */
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "coreboot"),
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+		},
+	},
+	{
 		/* x86-link, the Chromebook Pixel. */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
