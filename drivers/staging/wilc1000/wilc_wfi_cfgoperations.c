@@ -1118,8 +1118,8 @@ static int del_key(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-		   bool pairwise,
-		   const u8 *mac_addr, void *cookie, void (*callback)(void *cookie, struct key_params *))
+		   bool pairwise, const u8 *mac_addr, void *cookie,
+		   void (*callback)(void *cookie, struct key_params *))
 {
 	struct wilc_priv *priv;
 	struct  key_params key_params;
@@ -1145,8 +1145,8 @@ static int get_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
 	return 0;
 }
 
-static int set_default_key(struct wiphy *wiphy, struct net_device *netdev, u8 key_index,
-			   bool unicast, bool multicast)
+static int set_default_key(struct wiphy *wiphy, struct net_device *netdev,
+			   u8 key_index, bool unicast, bool multicast)
 {
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
