@@ -674,7 +674,6 @@ static int cxd2880_read_ber(struct dvb_frontend *fe, u32 *ber)
 static int cxd2880_set_ber_per_period_t(struct dvb_frontend *fe)
 {
 	int ret;
-	struct dtv_frontend_properties *c;
 	struct cxd2880_priv *priv;
 	struct cxd2880_dvbt_tpsinfo info;
 	enum cxd2880_dtv_bandwidth bw = CXD2880_DTV_BW_1_7_MHZ;
@@ -691,7 +690,6 @@ static int cxd2880_set_ber_per_period_t(struct dvb_frontend *fe)
 	}
 
 	priv = fe->demodulator_priv;
-	c = &fe->dtv_property_cache;
 	bw = priv->dvbt_tune_param.bandwidth;
 
 	ret = cxd2880_tnrdmd_dvbt_mon_tps_info(&priv->tnrdmd,
@@ -787,7 +785,6 @@ static int cxd2880_set_ber_per_period_t(struct dvb_frontend *fe)
 static int cxd2880_set_ber_per_period_t2(struct dvb_frontend *fe)
 {
 	int ret;
-	struct dtv_frontend_properties *c;
 	struct cxd2880_priv *priv;
 	struct cxd2880_dvbt2_l1pre l1pre;
 	struct cxd2880_dvbt2_l1post l1post;
@@ -815,7 +812,6 @@ static int cxd2880_set_ber_per_period_t2(struct dvb_frontend *fe)
 	}
 
 	priv = fe->demodulator_priv;
-	c = &fe->dtv_property_cache;
 	bw = priv->dvbt2_tune_param.bandwidth;
 
 	ret = cxd2880_tnrdmd_dvbt2_mon_l1_pre(&priv->tnrdmd, &l1pre);
@@ -1796,15 +1792,12 @@ static int cxd2880_get_frontend_t2(struct dvb_frontend *fe,
 static int cxd2880_get_frontend(struct dvb_frontend *fe,
 				struct dtv_frontend_properties *props)
 {
-	struct cxd2880_priv *priv = NULL;
 	int ret;
 
 	if (!fe || !props) {
 		pr_err("invalid arg.");
 		return -EINVAL;
 	}
-
-	priv = fe->demodulator_priv;
 
 	pr_debug("system=%d\n", fe->dtv_property_cache.delivery_system);
 	switch (fe->dtv_property_cache.delivery_system) {
