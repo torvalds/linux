@@ -686,16 +686,8 @@ unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
 	unsigned char *psizes;
 	int index, mask_index;
 
-	/*
-	 * Radix doesn't use slice, but can get enabled along with MMU_SLICE
-	 */
-	if (radix_enabled()) {
-#ifdef CONFIG_PPC_64K_PAGES
-		return MMU_PAGE_64K;
-#else
-		return MMU_PAGE_4K;
-#endif
-	}
+	VM_BUG_ON(radix_enabled());
+
 	if (addr < SLICE_LOW_TOP) {
 		psizes = mm->context.low_slices_psize;
 		index = GET_LOW_SLICE_INDEX(addr);
@@ -778,14 +770,13 @@ void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
  * for now as we only use slices with hugetlbfs enabled. This should
  * be fixed as the generic code gets fixed.
  */
-int is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
+int slice_is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 			   unsigned long len)
 {
 	const struct slice_mask *maskp;
 	unsigned int psize = mm->context.user_psize;
 
-	if (radix_enabled())
-		return 0;
+	VM_BUG_ON(radix_enabled());
 
 	maskp = slice_mask_for_size(mm, psize);
 #ifdef CONFIG_PPC_64K_PAGES
