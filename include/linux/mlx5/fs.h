@@ -69,6 +69,7 @@ enum mlx5_flow_namespace_type {
 	MLX5_FLOW_NAMESPACE_ESW_INGRESS,
 	MLX5_FLOW_NAMESPACE_SNIFFER_RX,
 	MLX5_FLOW_NAMESPACE_SNIFFER_TX,
+	MLX5_FLOW_NAMESPACE_EGRESS,
 };
 
 struct mlx5_flow_table;
@@ -141,6 +142,7 @@ void mlx5_destroy_flow_group(struct mlx5_flow_group *fg);
 
 struct mlx5_flow_act {
 	u32 action;
+	bool has_flow_tag;
 	u32 flow_tag;
 	u32 encap_id;
 	u32 modify_id;
