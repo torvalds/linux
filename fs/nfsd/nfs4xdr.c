@@ -1759,7 +1759,7 @@ nfsd4_decode_copy(struct nfsd4_compoundargs *argp, struct nfsd4_copy *copy)
 	p = xdr_decode_hyper(p, &copy->cp_src_pos);
 	p = xdr_decode_hyper(p, &copy->cp_dst_pos);
 	p = xdr_decode_hyper(p, &copy->cp_count);
-	copy->cp_consecutive = be32_to_cpup(p++);
+	p++; /* ca_consecutive: we always do consecutive copies */
 	copy->cp_synchronous = be32_to_cpup(p++);
 	tmp = be32_to_cpup(p); /* Source server list not supported */
 
@@ -4214,7 +4214,7 @@ nfsd4_encode_copy(struct nfsd4_compoundres *resp, __be32 nfserr,
 		return nfserr;
 
 	p = xdr_reserve_space(&resp->xdr, 4 + 4);
-	*p++ = cpu_to_be32(copy->cp_consecutive);
+	*p++ = xdr_one; /* cr_consecutive */
 	*p++ = cpu_to_be32(copy->cp_synchronous);
 	return 0;
 }

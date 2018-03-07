@@ -1106,7 +1106,6 @@ nfsd4_copy(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	else {
 		copy->cp_res.wr_bytes_written = bytes;
 		copy->cp_res.wr_stable_how = NFS_UNSTABLE;
-		copy->cp_consecutive = 1;
 		copy->cp_synchronous = 1;
 		gen_boot_verifier(&copy->cp_res.wr_verifier, SVC_NET(rqstp));
 		status = nfs_ok;

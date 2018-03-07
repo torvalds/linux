@@ -518,7 +518,6 @@ struct nfsd4_copy {
 	u64		cp_count;
 
 	/* both */
-	bool		cp_consecutive;
 	bool		cp_synchronous;
 
 	/* response */
