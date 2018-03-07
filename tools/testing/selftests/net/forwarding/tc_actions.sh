@@ -96,7 +96,10 @@ gact_drop_and_ok_test()
 		-t ip -q
 
 	tc_check_packets "dev $swp1 ingress" 101 1
-	check_err $? "Did not see trapped packet"
+	check_err $? "Did not see passed packet"
+
+	tc_check_packets "dev $swp1 ingress" 102 2
+	check_fail $? "Packet was dropped and it should not reach here"
 
 	tc filter del dev $swp1 ingress protocol ip pref 2 handle 102 flower
 	tc filter del dev $swp1 ingress protocol ip pref 1 handle 101 flower
