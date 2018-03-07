@@ -173,6 +173,7 @@ struct rndis_device {
 	struct list_head req_list;
 
 	struct work_struct mcast_work;
+	u32 filter;
 
 	bool link_state;        /* 0 - link up, 1 - link down */
 
