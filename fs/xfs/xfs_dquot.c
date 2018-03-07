@@ -918,7 +918,7 @@ xfs_qm_dqflush_done(
 	     (lip->li_flags & XFS_LI_FAILED))) {
 
 		/* xfs_trans_ail_delete() drops the AIL lock. */
-		spin_lock(&ailp->xa_lock);
+		spin_lock(&ailp->ail_lock);
 		if (lip->li_lsn == qip->qli_flush_lsn) {
 			xfs_trans_ail_delete(ailp, lip, SHUTDOWN_CORRUPT_INCORE);
 		} else {
@@ -928,7 +928,7 @@ xfs_qm_dqflush_done(
 			 */
 			if (lip->li_flags & XFS_LI_FAILED)
 				xfs_clear_li_failed(lip);
-			spin_unlock(&ailp->xa_lock);
+			spin_unlock(&ailp->ail_lock);
 		}
 	}
 
