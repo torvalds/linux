@@ -109,11 +109,14 @@
 			};
 		};
 
-		dspgpio0: keystone_dsp_gpio@2620240 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x240>;
+		devctrl: device-state-control@2620000 {
+			dspgpio0: keystone_dsp_gpio@240 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x240 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x240>;
+			};
 		};
 
 		dsp0: dsp@10800000 {

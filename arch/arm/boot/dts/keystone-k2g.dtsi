@@ -69,6 +69,24 @@
 		interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
 	};
 
+	usbphy {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "simple-bus";
+
+		usb0_phy: usb-phy@0 {
+			compatible = "usb-nop-xceiv";
+			reg = <0>;
+			status = "disabled";
+		};
+
+		usb1_phy: usb-phy@1 {
+			compatible = "usb-nop-xceiv";
+			reg = <1>;
+			status = "disabled";
+		};
+	};
+
 	soc0: soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -97,8 +115,28 @@
 		};
 
 		devctrl: device-state-control@2620000 {
-			compatible = "ti,keystone-devctrl", "syscon";
+			compatible = "ti,keystone-devctrl", "syscon", "simple-mfd";
 			reg = <0x02620000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x02620000 0x1000>;
+
+			kirq0: keystone_irq@2a0 {
+				compatible = "ti,keystone-irq";
+				reg = <0x2a0 0x10>;
+				interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				ti,syscon-dev = <&devctrl 0x2a0>;
+			};
+
+			dspgpio0: keystone_dsp_gpio@240 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x240 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x240>;
+			};
 		};
 
 		uart0: serial@2530c00 {
@@ -113,7 +151,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@02531000 {
+		uart1: serial@2531000 {
 			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
@@ -125,7 +163,7 @@
 			status = "disabled";
 		};
 
-		uart2: serial@02531400 {
+		uart2: serial@2531400 {
 			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
@@ -186,21 +224,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-		};
-
-		kirq0: keystone_irq@26202a0 {
-			compatible = "ti,keystone-irq";
-			interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			ti,syscon-dev = <&devctrl 0x2a0>;
-		};
-
-		dspgpio0: keystone_dsp_gpio@2620240 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x240>;
 		};
 
 		dsp0: dsp@10800000 {
@@ -460,11 +483,6 @@
 			status = "disabled";
 		};
 
-		usb0_phy: usb-phy@0 {
-			compatible = "usb-nop-xceiv";
-			status = "disabled";
-		};
-
 		keystone_usb0: keystone-dwc3@2680000 {
 			compatible = "ti,keystone-dwc3";
 			#address-cells = <1>;
@@ -486,11 +504,6 @@
 				usb-phy = <&usb0_phy>;
 				status = "disabled";
 			};
-		};
-
-		usb1_phy: usb-phy@1 {
-			compatible = "usb-nop-xceiv";
-			status = "disabled";
 		};
 
 		keystone_usb1: keystone-dwc3@2580000 {

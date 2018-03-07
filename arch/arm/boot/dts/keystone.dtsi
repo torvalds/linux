@@ -87,15 +87,28 @@
 		};
 
 		devctrl: device-state-control@2620000 {
-			compatible = "ti,keystone-devctrl", "syscon";
+			compatible = "ti,keystone-devctrl", "syscon", "simple-mfd";
 			reg = <0x02620000 0x1000>;
-		};
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x02620000 0x1000>;
 
-		rstctrl: reset-controller {
-			compatible = "ti,keystone-reset";
-			ti,syscon-pll = <&pllctrl 0xe4>;
-			ti,syscon-dev = <&devctrl 0x328>;
-			ti,wdt-list = <0>;
+			kirq0: keystone_irq@2a0 {
+				compatible = "ti,keystone-irq";
+				reg = <0x2a0 0x4>;
+				interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				ti,syscon-dev = <&devctrl 0x2a0>;
+			};
+
+			rstctrl: reset-controller@328 {
+				compatible = "ti,keystone-reset";
+				reg = <0x328 0x10>;
+				ti,syscon-pll = <&pllctrl 0xe4>;
+				ti,syscon-dev = <&devctrl 0x328>;
+				ti,wdt-list = <0>;
+			};
 		};
 
 		/include/ "keystone-clocks.dtsi"
@@ -280,14 +293,6 @@
 			reg = <0x21000A00 0x00000100>;
 			ranges = <0 0 0x30000000 0x10000000
 				  1 0 0x21000A00 0x00000100>;
-		};
-
-		kirq0: keystone_irq@26202a0 {
-			compatible = "ti,keystone-irq";
-			interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
-			interrupt-controller;
-			#interrupt-cells = <1>;
-			ti,syscon-dev = <&devctrl 0x2a0>;
 		};
 
 		pcie0: pcie@21800000 {
