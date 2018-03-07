@@ -1653,11 +1653,14 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 		rc = ibmvnic_reenable_crq_queue(adapter);
 		if (rc)
 			return 0;
+		ibmvnic_cleanup(netdev);
+	} else if (rwi->reset_reason == VNIC_RESET_FAILOVER) {
+		ibmvnic_cleanup(netdev);
+	} else {
+		rc = __ibmvnic_close(netdev);
+		if (rc)
+			return rc;
 	}
-
-	rc = __ibmvnic_close(netdev);
-	if (rc)
-		return rc;
 
 	if (adapter->reset_reason == VNIC_RESET_CHANGE_PARAM ||
 	    adapter->wait_for_reset) {
