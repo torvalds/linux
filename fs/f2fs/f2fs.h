@@ -1116,6 +1116,11 @@ enum {
 	ALLOC_MODE_REUSE,	/* reuse segments as much as possible */
 };
 
+enum fsync_mode {
+	FSYNC_MODE_POSIX,	/* fsync follows posix semantics */
+	FSYNC_MODE_STRICT,	/* fsync behaves in line with ext4 */
+};
+
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
 	struct proc_dir_entry *s_proc;		/* proc entry */
@@ -1305,6 +1310,9 @@ struct f2fs_sb_info {
 
 	/* segment allocation policy */
 	int alloc_mode;
+
+	/* fsync policy */
+	int fsync_mode;
 };
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION

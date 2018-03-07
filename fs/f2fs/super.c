@@ -131,6 +131,7 @@ enum {
 	Opt_jqfmt_vfsv1,
 	Opt_whint,
 	Opt_alloc,
+	Opt_fsync,
 	Opt_err,
 };
 
@@ -186,6 +187,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_jqfmt_vfsv1, "jqfmt=vfsv1"},
 	{Opt_whint, "whint_mode=%s"},
 	{Opt_alloc, "alloc_mode=%s"},
+	{Opt_fsync, "fsync_mode=%s"},
 	{Opt_err, NULL},
 };
 
@@ -713,6 +715,22 @@ static int parse_options(struct super_block *sb, char *options)
 			} else if (strlen(name) == 5 &&
 					!strncmp(name, "reuse", 5)) {
 				sbi->alloc_mode = ALLOC_MODE_REUSE;
+			} else {
+				kfree(name);
+				return -EINVAL;
+			}
+			kfree(name);
+			break;
+		case Opt_fsync:
+			name = match_strdup(&args[0]);
+			if (!name)
+				return -ENOMEM;
+			if (strlen(name) == 5 &&
+					!strncmp(name, "posix", 5)) {
+				sbi->fsync_mode = FSYNC_MODE_POSIX;
+			} else if (strlen(name) == 6 &&
+					!strncmp(name, "strict", 6)) {
+				sbi->fsync_mode = FSYNC_MODE_STRICT;
 			} else {
 				kfree(name);
 				return -EINVAL;
@@ -1288,6 +1306,11 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_printf(seq, ",alloc_mode=%s", "default");
 	else if (sbi->alloc_mode == ALLOC_MODE_REUSE)
 		seq_printf(seq, ",alloc_mode=%s", "reuse");
+
+	if (sbi->fsync_mode == FSYNC_MODE_POSIX)
+		seq_printf(seq, ",fsync_mode=%s", "posix");
+	else if (sbi->fsync_mode == FSYNC_MODE_STRICT)
+		seq_printf(seq, ",fsync_mode=%s", "strict");
 	return 0;
 }
 
@@ -1298,6 +1321,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 	sbi->inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
 	sbi->whint_mode = WHINT_MODE_OFF;
 	sbi->alloc_mode = ALLOC_MODE_DEFAULT;
+	sbi->fsync_mode = FSYNC_MODE_POSIX;
 	sbi->readdir_ra = 1;
 
 	set_opt(sbi, BG_GC);
@@ -1341,6 +1365,7 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	bool no_extent_cache = !test_opt(sbi, EXTENT_CACHE);
 	int old_whint_mode = sbi->whint_mode;
 	int old_alloc_mode = sbi->alloc_mode;
+	int old_fsync_mode = sbi->fsync_mode;
 	int old_inline_xattr_size = sbi->inline_xattr_size;
 	block_t old_root_reserved_blocks = sbi->root_reserved_blocks;
 	kuid_t old_resuid = sbi->s_resuid;
@@ -1501,6 +1526,7 @@ restore_opts:
 	sbi->root_reserved_blocks = old_root_reserved_blocks;
 	sbi->inline_xattr_size = old_inline_xattr_size;
 	sbi->alloc_mode = old_alloc_mode;
+	sbi->fsync_mode = old_fsync_mode;
 	sbi->whint_mode = old_whint_mode;
 	sbi->mount_opt = org_mount_opt;
 	sbi->active_logs = active_logs;

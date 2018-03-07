@@ -180,6 +180,13 @@ whint_mode=%s          Control which write hints are passed down to block
                        passes down hints with its policy.
 alloc_mode=%s          Adjust block allocation policy, which supports "reuse"
                        and "default".
+fsync_mode=%s          Control the policy of fsync. Currently supports "posix"
+                       and "strict". In "posix" mode, which is default, fsync
+                       will follow POSIX semantics and does a light operation
+                       to improve the filesystem performance. In "strict" mode,
+                       fsync will be heavy and behaves in line with xfs, ext4
+                       and btrfs, where xfstest generic/342 will pass, but the
+                       performance will regress.
 
 ================================================================================
 DEBUGFS ENTRIES
