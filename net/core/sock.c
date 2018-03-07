@@ -1062,8 +1062,9 @@ set_rcvbuf:
 				ret = -EINVAL;
 			else
 				sock_valbool_flag(sk, SOCK_ZEROCOPY, valbool);
-			break;
 		}
+		break;
+
 	default:
 		ret = -ENOPROTOOPT;
 		break;
