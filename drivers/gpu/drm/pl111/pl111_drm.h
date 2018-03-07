@@ -65,6 +65,7 @@ struct pl111_drm_dev_private {
 	struct drm_simple_display_pipe pipe;
 
 	void *regs;
+	u32 memory_bw;
 	u32 ienb;
 	u32 ctrl;
 	/* The pixel clock (a reference to our clock divider off of CLCDCLK). */
