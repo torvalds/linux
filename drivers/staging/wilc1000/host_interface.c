@@ -1801,7 +1801,9 @@ static void handle_disconnect(struct wilc_vif *vif)
 {
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-
+	struct disconnect_info disconn_info;
+	struct user_scan_req *scan_req;
+	struct user_conn_req *conn_req;
 	s32 result = 0;
 	u16 dummy_reason_code = 0;
 
@@ -1820,62 +1822,60 @@ static void handle_disconnect(struct wilc_vif *vif)
 
 	if (result) {
 		netdev_err(vif->ndev, "Failed to send dissconect\n");
-	} else {
-		struct disconnect_info disconn_info;
-
-		memset(&disconn_info, 0, sizeof(struct disconnect_info));
-
-		disconn_info.reason = 0;
-		disconn_info.ie = NULL;
-		disconn_info.ie_len = 0;
-
-		if (hif_drv->usr_scan_req.scan_result) {
-			del_timer(&hif_drv->scan_timer);
-			hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED,
-							  NULL,
-							  hif_drv->usr_scan_req.arg,
-							  NULL);
-			hif_drv->usr_scan_req.scan_result = NULL;
-		}
-
-		if (hif_drv->usr_conn_req.conn_result) {
-			if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP)
-				del_timer(&hif_drv->connect_timer);
-
-			hif_drv->usr_conn_req.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
-							  NULL,
-							  0,
-							  &disconn_info,
-							  hif_drv->usr_conn_req.arg);
-		} else {
-			netdev_err(vif->ndev, "conn_result = NULL\n");
-		}
-
-		scan_while_connected = false;
-
-		hif_drv->hif_state = HOST_IF_IDLE;
-
-		eth_zero_addr(hif_drv->assoc_bssid);
-
-		hif_drv->usr_conn_req.ssid_len = 0;
-		kfree(hif_drv->usr_conn_req.ssid);
-		hif_drv->usr_conn_req.ssid = NULL;
-		kfree(hif_drv->usr_conn_req.bssid);
-		hif_drv->usr_conn_req.bssid = NULL;
-		hif_drv->usr_conn_req.ies_len = 0;
-		kfree(hif_drv->usr_conn_req.ies);
-		hif_drv->usr_conn_req.ies = NULL;
-
-		if (join_req && join_req_vif == vif) {
-			kfree(join_req);
-			join_req = NULL;
-		}
-
-		if (info_element && join_req_vif == vif) {
-			kfree(info_element);
-			info_element = NULL;
-		}
+		goto out;
 	}
+
+	memset(&disconn_info, 0, sizeof(struct disconnect_info));
+
+	disconn_info.reason = 0;
+	disconn_info.ie = NULL;
+	disconn_info.ie_len = 0;
+	scan_req = &hif_drv->usr_scan_req;
+	conn_req = &hif_drv->usr_conn_req;
+
+	if (scan_req->scan_result) {
+		del_timer(&hif_drv->scan_timer);
+		scan_req->scan_result(SCAN_EVENT_ABORTED, NULL, scan_req->arg,
+				      NULL);
+		scan_req->scan_result = NULL;
+	}
+
+	if (conn_req->conn_result) {
+		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP)
+			del_timer(&hif_drv->connect_timer);
+
+		conn_req->conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF, NULL,
+				      0, &disconn_info, conn_req->arg);
+	} else {
+		netdev_err(vif->ndev, "conn_result = NULL\n");
+	}
+
+	scan_while_connected = false;
+
+	hif_drv->hif_state = HOST_IF_IDLE;
+
+	eth_zero_addr(hif_drv->assoc_bssid);
+
+	conn_req->ssid_len = 0;
+	kfree(conn_req->ssid);
+	conn_req->ssid = NULL;
+	kfree(conn_req->bssid);
+	conn_req->bssid = NULL;
+	conn_req->ies_len = 0;
+	kfree(conn_req->ies);
+	conn_req->ies = NULL;
+
+	if (join_req && join_req_vif == vif) {
+		kfree(join_req);
+		join_req = NULL;
+	}
+
+	if (info_element && join_req_vif == vif) {
+		kfree(info_element);
+		info_element = NULL;
+	}
+
+out:
 
 	complete(&hif_drv->comp_test_disconn_block);
 }
