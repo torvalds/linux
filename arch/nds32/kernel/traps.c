@@ -156,18 +156,6 @@ static void __dump(struct task_struct *tsk, unsigned long *base_reg)
 	pr_emerg("\n");
 }
 
-void dump_stack(void)
-{
-	unsigned long *base_reg;
-	if (!IS_ENABLED(CONFIG_FRAME_POINTER))
-		__asm__ __volatile__("\tori\t%0, $sp, #0\n":"=r"(base_reg));
-	else
-		__asm__ __volatile__("\tori\t%0, $fp, #0\n":"=r"(base_reg));
-	__dump(NULL, base_reg);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
 void show_stack(struct task_struct *tsk, unsigned long *sp)
 {
 	unsigned long *base_reg;
