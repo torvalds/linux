@@ -957,6 +957,7 @@ void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
  * intel_psr_invalidate - Invalidade PSR
  * @dev_priv: i915 device
  * @frontbuffer_bits: frontbuffer plane tracking bits
+ * @origin: which operation caused the invalidate
  *
  * Since the hardware frontbuffer tracking has gaps we need to integrate
  * with the software frontbuffer tracking. This function gets called every
@@ -966,12 +967,15 @@ void intel_psr_single_frame_update(struct drm_i915_private *dev_priv,
  * Dirty frontbuffers relevant to PSR are tracked in busy_frontbuffer_bits."
  */
 void intel_psr_invalidate(struct drm_i915_private *dev_priv,
-			  unsigned frontbuffer_bits)
+			  unsigned frontbuffer_bits, enum fb_op_origin origin)
 {
 	struct drm_crtc *crtc;
 	enum pipe pipe;
 
 	if (!CAN_PSR(dev_priv))
+		return;
+
+	if (dev_priv->psr.has_hw_tracking && origin == ORIGIN_FLIP)
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);
@@ -1012,6 +1016,9 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 	enum pipe pipe;
 
 	if (!CAN_PSR(dev_priv))
+		return;
+
+	if (dev_priv->psr.has_hw_tracking && origin == ORIGIN_FLIP)
 		return;
 
 	mutex_lock(&dev_priv->psr.lock);
@@ -1105,6 +1112,7 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 		dev_priv->psr.activate = vlv_psr_activate;
 		dev_priv->psr.setup_vsc = vlv_psr_setup_vsc;
 	} else {
+		dev_priv->psr.has_hw_tracking = true;
 		dev_priv->psr.enable_source = hsw_psr_enable_source;
 		dev_priv->psr.disable_source = hsw_psr_disable;
 		dev_priv->psr.enable_sink = hsw_psr_enable_sink;
