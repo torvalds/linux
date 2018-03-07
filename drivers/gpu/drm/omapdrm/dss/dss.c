@@ -1183,7 +1183,8 @@ static int dss_init_ports(struct dss_device *dss)
 	struct platform_device *pdev = dss->pdev;
 	struct device_node *parent = pdev->dev.of_node;
 	struct device_node *port;
-	int i;
+	unsigned int i;
+	int r;
 
 	for (i = 0; i < dss->feat->num_ports; i++) {
 		port = of_graph_get_port_by_id(parent, i);
@@ -1192,11 +1193,17 @@ static int dss_init_ports(struct dss_device *dss)
 
 		switch (dss->feat->ports[i]) {
 		case OMAP_DISPLAY_TYPE_DPI:
-			dpi_init_port(dss, pdev, port, dss->feat->model);
+			r = dpi_init_port(dss, pdev, port, dss->feat->model);
+			if (r)
+				return r;
 			break;
+
 		case OMAP_DISPLAY_TYPE_SDI:
-			sdi_init_port(dss, pdev, port);
+			r = sdi_init_port(dss, pdev, port);
+			if (r)
+				return r;
 			break;
+
 		default:
 			break;
 		}
