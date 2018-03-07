@@ -3281,7 +3281,8 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	if (!test_bit(I915_WEDGED, &i915->gpu_error.flags))
 		return true;
 
-	/* Before unwedging, make sure that all pending operations
+	/*
+	 * Before unwedging, make sure that all pending operations
 	 * are flushed and errored out - we may have requests waiting upon
 	 * third party fences. We marked all inflight requests as EIO, and
 	 * every execbuf since returned EIO, for consistency we want all
@@ -3299,7 +3300,8 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 			if (!rq)
 				continue;
 
-			/* We can't use our normal waiter as we want to
+			/*
+			 * We can't use our normal waiter as we want to
 			 * avoid recursively trying to handle the current
 			 * reset. The basic dma_fence_default_wait() installs
 			 * a callback for dma_fence_signal(), which is
@@ -3314,8 +3316,11 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 				return false;
 		}
 	}
+	i915_retire_requests(i915);
+	GEM_BUG_ON(i915->gt.active_requests);
 
-	/* Undo nop_submit_request. We prevent all new i915 requests from
+	/*
+	 * Undo nop_submit_request. We prevent all new i915 requests from
 	 * being queued (by disallowing execbuf whilst wedged) so having
 	 * waited for all active requests above, we know the system is idle
 	 * and do not have to worry about a thread being inside
