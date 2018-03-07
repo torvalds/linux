@@ -3817,16 +3817,17 @@ mvpp2_prs_mac_da_range_find(struct mvpp2 *priv, int pmap, const u8 *da,
 }
 
 /* Update parser's mac da entry */
-static int mvpp2_prs_mac_da_accept(struct mvpp2 *priv, int port,
-				   const u8 *da, bool add)
+static int mvpp2_prs_mac_da_accept(struct mvpp2_port *port, const u8 *da,
+				   bool add)
 {
-	struct mvpp2_prs_entry *pe;
-	unsigned int pmap, len, ri;
 	unsigned char mask[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	struct mvpp2 *priv = port->priv;
+	unsigned int pmap, len, ri;
+	struct mvpp2_prs_entry *pe;
 	int tid;
 
 	/* Scan TCAM and see if entry with this <MAC DA, port> already exist */
-	pe = mvpp2_prs_mac_da_range_find(priv, (1 << port), da, mask,
+	pe = mvpp2_prs_mac_da_range_find(priv, BIT(port->id), da, mask,
 					 MVPP2_PRS_UDF_MAC_DEF);
 
 	/* No such entry */
@@ -3861,7 +3862,7 @@ static int mvpp2_prs_mac_da_accept(struct mvpp2 *priv, int port,
 	}
 
 	/* Update port mask */
-	mvpp2_prs_tcam_port_set(pe, port, add);
+	mvpp2_prs_tcam_port_set(pe, port->id, add);
 
 	/* Invalidate the entry if no ports are left enabled */
 	pmap = mvpp2_prs_tcam_port_map_get(pe);
@@ -3917,13 +3918,12 @@ static int mvpp2_prs_update_mac_da(struct net_device *dev, const u8 *da)
 	int err;
 
 	/* Remove old parser entry */
-	err = mvpp2_prs_mac_da_accept(port->priv, port->id, dev->dev_addr,
-				      false);
+	err = mvpp2_prs_mac_da_accept(port, dev->dev_addr, false);
 	if (err)
 		return err;
 
 	/* Add new parser entry */
-	err = mvpp2_prs_mac_da_accept(port->priv, port->id, da, true);
+	err = mvpp2_prs_mac_da_accept(port, da, true);
 	if (err)
 		return err;
 
@@ -3959,7 +3959,8 @@ static void mvpp2_prs_mcast_del_all(struct mvpp2 *priv, int port)
 
 		if (is_multicast_ether_addr(da) && !is_broadcast_ether_addr(da))
 			/* Delete this entry */
-			mvpp2_prs_mac_da_accept(priv, port, da, false);
+			mvpp2_prs_mac_da_accept(priv->port_list[port], da,
+						false);
 	}
 }
 
@@ -7380,15 +7381,14 @@ static int mvpp2_open(struct net_device *dev)
 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	int err;
 
-	err = mvpp2_prs_mac_da_accept(port->priv, port->id, mac_bcast, true);
+	err = mvpp2_prs_mac_da_accept(port, mac_bcast, true);
 	if (err) {
 		netdev_err(dev, "mvpp2_prs_mac_da_accept BC failed\n");
 		return err;
 	}
-	err = mvpp2_prs_mac_da_accept(port->priv, port->id,
-				      dev->dev_addr, true);
+	err = mvpp2_prs_mac_da_accept(port, dev->dev_addr, true);
 	if (err) {
-		netdev_err(dev, "mvpp2_prs_mac_da_accept MC failed\n");
+		netdev_err(dev, "mvpp2_prs_mac_da_accept own addr failed\n");
 		return err;
 	}
 	err = mvpp2_prs_tag_mode_set(port->priv, port->id, MVPP2_TAG_TYPE_MH);
@@ -7520,7 +7520,7 @@ retry:
 
 	if (!allmulti) {
 		netdev_for_each_mc_addr(ha, dev) {
-			if (mvpp2_prs_mac_da_accept(priv, id, ha->addr, true)) {
+			if (mvpp2_prs_mac_da_accept(port, ha->addr, true)) {
 				allmulti = true;
 				goto retry;
 			}
