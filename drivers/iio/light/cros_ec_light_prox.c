@@ -175,7 +175,6 @@ static int cros_ec_light_prox_write(struct iio_dev *indio_dev,
 static const struct iio_info cros_ec_light_prox_info = {
 	.read_raw = &cros_ec_light_prox_read,
 	.write_raw = &cros_ec_light_prox_write,
-	.driver_module = THIS_MODULE,
 };
 
 static int cros_ec_light_prox_probe(struct platform_device *pdev)

@@ -98,6 +98,34 @@ static struct ctl_table ipv6_table_template[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+	{
+		.procname	= "max_dst_opts_number",
+		.data		= &init_net.ipv6.sysctl.max_dst_opts_cnt,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "max_hbh_opts_number",
+		.data		= &init_net.ipv6.sysctl.max_hbh_opts_cnt,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "max_dst_opts_length",
+		.data		= &init_net.ipv6.sysctl.max_dst_opts_len,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
+		.procname	= "max_hbh_length",
+		.data		= &init_net.ipv6.sysctl.max_hbh_opts_len,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
 	{ }
 };
 
@@ -158,6 +186,10 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 	ipv6_table[7].data = &net->ipv6.sysctl.flowlabel_state_ranges;
 	ipv6_table[8].data = &net->ipv6.sysctl.ip_nonlocal_bind;
 	ipv6_table[9].data = &net->ipv6.sysctl.flowlabel_reflect;
+	ipv6_table[10].data = &net->ipv6.sysctl.max_dst_opts_cnt;
+	ipv6_table[11].data = &net->ipv6.sysctl.max_hbh_opts_cnt;
+	ipv6_table[12].data = &net->ipv6.sysctl.max_dst_opts_len;
+	ipv6_table[13].data = &net->ipv6.sysctl.max_hbh_opts_len;
 
 	ipv6_route_table = ipv6_route_sysctl_init(net);
 	if (!ipv6_route_table)

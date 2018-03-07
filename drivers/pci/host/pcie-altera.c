@@ -105,7 +105,7 @@ static inline u32 cra_readl(struct altera_pcie *pcie, const u32 reg)
 	return readl_relaxed(pcie->cra_base + reg);
 }
 
-static bool altera_pcie_link_is_up(struct altera_pcie *pcie)
+static bool altera_pcie_link_up(struct altera_pcie *pcie)
 {
 	return !!((cra_readl(pcie, RP_LTSSM) & RP_LTSSM_MASK) == LTSSM_L0);
 }
@@ -142,7 +142,7 @@ static bool altera_pcie_valid_device(struct altera_pcie *pcie,
 {
 	/* If there is no link, then there is no device */
 	if (bus->number != pcie->root_bus_nr) {
-		if (!altera_pcie_link_is_up(pcie))
+		if (!altera_pcie_link_up(pcie))
 			return false;
 	}
 
@@ -412,7 +412,7 @@ static void altera_wait_link_retrain(struct altera_pcie *pcie)
 	/* Wait for link is up */
 	start_jiffies = jiffies;
 	for (;;) {
-		if (altera_pcie_link_is_up(pcie))
+		if (altera_pcie_link_up(pcie))
 			break;
 
 		if (time_after(jiffies, start_jiffies + LINK_UP_TIMEOUT)) {
@@ -427,7 +427,7 @@ static void altera_pcie_retrain(struct altera_pcie *pcie)
 {
 	u16 linkcap, linkstat, linkctl;
 
-	if (!altera_pcie_link_is_up(pcie))
+	if (!altera_pcie_link_up(pcie))
 		return;
 
 	/*

@@ -19,17 +19,6 @@
 
 #include "match.h"
 
-/* Provide our own test for whether a write lock is held for asserts
- * this is because on none SMP systems write_can_lock will always
- * resolve to true, which is what you want for code making decisions
- * based on it, but wrong for asserts checking that the lock is held
- */
-#ifdef CONFIG_SMP
-#define write_is_locked(X) !write_can_lock(X)
-#else
-#define write_is_locked(X) (1)
-#endif /* CONFIG_SMP */
-
 /*
  * DEBUG remains global (no per profile flag) since it is mostly used in sysctl
  * which is not related to profile accesses.
@@ -97,7 +86,7 @@ static inline unsigned int aa_dfa_null_transition(struct aa_dfa *dfa,
 
 static inline bool path_mediated_fs(struct dentry *dentry)
 {
-	return !(dentry->d_sb->s_flags & MS_NOUSER);
+	return !(dentry->d_sb->s_flags & SB_NOUSER);
 }
 
 

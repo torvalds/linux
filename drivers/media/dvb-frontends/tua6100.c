@@ -1,4 +1,4 @@
-/**
+/*
  * Driver for Infineon tua6100 pll.
  *
  * (c) 2006 Andrew de Quincey

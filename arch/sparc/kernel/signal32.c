@@ -249,7 +249,6 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	compat_uptr_t fpu_save;
 	compat_uptr_t rwin_save;
 	sigset_t set;
-	compat_sigset_t seta;
 	int err, i;
 	
 	/* Always make any pending restarted system calls return -EINTR */
@@ -312,7 +311,7 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 	err |= __get_user(fpu_save, &sf->fpu_save);
 	if (!err && fpu_save)
 		err |= restore_fpu_state(regs, compat_ptr(fpu_save));
-	err |= copy_from_user(&seta, &sf->mask, sizeof(compat_sigset_t));
+	err |= get_compat_sigset(&set, &sf->mask);
 	err |= compat_restore_altstack(&sf->stack);
 	if (err)
 		goto segv;
@@ -323,7 +322,6 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 			goto segv;
 	}
 
-	set.sig[0] = seta.sig[0] + (((long)seta.sig[1]) << 32);
 	set_current_blocked(&set);
 	return;
 segv:
@@ -555,7 +553,6 @@ static int setup_rt_frame32(struct ksignal *ksig, struct pt_regs *regs,
 	void __user *tail;
 	int sigframe_size;
 	u32 psr;
-	compat_sigset_t seta;
 
 	/* 1. Make sure everything is clean */
 	synchronize_user_stack();
@@ -625,9 +622,7 @@ static int setup_rt_frame32(struct ksignal *ksig, struct pt_regs *regs,
 	/* Setup sigaltstack */
 	err |= __compat_save_altstack(&sf->stack, regs->u_regs[UREG_FP]);
 
-	seta.sig[1] = (oldset->sig[0] >> 32);
-	seta.sig[0] = oldset->sig[0];
-	err |= __copy_to_user(&sf->mask, &seta, sizeof(compat_sigset_t));
+	err |= put_compat_sigset(&sf->mask, oldset, sizeof(compat_sigset_t));
 
 	if (!wsaved) {
 		err |= copy_in_user((u32 __user *)sf,

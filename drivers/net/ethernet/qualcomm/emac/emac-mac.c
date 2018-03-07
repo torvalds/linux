@@ -309,22 +309,12 @@ void emac_mac_mode_config(struct emac_adapter *adpt)
 /* Config descriptor rings */
 static void emac_mac_dma_rings_config(struct emac_adapter *adpt)
 {
-	static const unsigned short tpd_q_offset[] = {
-		EMAC_DESC_CTRL_8,        EMAC_H1TPD_BASE_ADDR_LO,
-		EMAC_H2TPD_BASE_ADDR_LO, EMAC_H3TPD_BASE_ADDR_LO};
-	static const unsigned short rfd_q_offset[] = {
-		EMAC_DESC_CTRL_2,        EMAC_DESC_CTRL_10,
-		EMAC_DESC_CTRL_12,       EMAC_DESC_CTRL_13};
-	static const unsigned short rrd_q_offset[] = {
-		EMAC_DESC_CTRL_5,        EMAC_DESC_CTRL_14,
-		EMAC_DESC_CTRL_15,       EMAC_DESC_CTRL_16};
-
 	/* TPD (Transmit Packet Descriptor) */
 	writel(upper_32_bits(adpt->tx_q.tpd.dma_addr),
 	       adpt->base + EMAC_DESC_CTRL_1);
 
 	writel(lower_32_bits(adpt->tx_q.tpd.dma_addr),
-	       adpt->base + tpd_q_offset[0]);
+	       adpt->base + EMAC_DESC_CTRL_8);
 
 	writel(adpt->tx_q.tpd.count & TPD_RING_SIZE_BMSK,
 	       adpt->base + EMAC_DESC_CTRL_9);
@@ -334,9 +324,9 @@ static void emac_mac_dma_rings_config(struct emac_adapter *adpt)
 	       adpt->base + EMAC_DESC_CTRL_0);
 
 	writel(lower_32_bits(adpt->rx_q.rfd.dma_addr),
-	       adpt->base + rfd_q_offset[0]);
+	       adpt->base + EMAC_DESC_CTRL_2);
 	writel(lower_32_bits(adpt->rx_q.rrd.dma_addr),
-	       adpt->base + rrd_q_offset[0]);
+	       adpt->base + EMAC_DESC_CTRL_5);
 
 	writel(adpt->rx_q.rfd.count & RFD_RING_SIZE_BMSK,
 	       adpt->base + EMAC_DESC_CTRL_3);

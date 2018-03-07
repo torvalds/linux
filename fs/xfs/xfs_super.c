@@ -212,9 +212,9 @@ xfs_parseargs(
 	 */
 	if (sb_rdonly(sb))
 		mp->m_flags |= XFS_MOUNT_RDONLY;
-	if (sb->s_flags & MS_DIRSYNC)
+	if (sb->s_flags & SB_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
-	if (sb->s_flags & MS_SYNCHRONOUS)
+	if (sb->s_flags & SB_SYNCHRONOUS)
 		mp->m_flags |= XFS_MOUNT_WSYNC;
 
 	/*
@@ -1312,7 +1312,7 @@ xfs_fs_remount(
 	}
 
 	/* ro -> rw */
-	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !(*flags & MS_RDONLY)) {
+	if ((mp->m_flags & XFS_MOUNT_RDONLY) && !(*flags & SB_RDONLY)) {
 		if (mp->m_flags & XFS_MOUNT_NORECOVERY) {
 			xfs_warn(mp,
 		"ro->rw transition prohibited on norecovery mount");
@@ -1360,6 +1360,7 @@ xfs_fs_remount(
 			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 			return error;
 		}
+		xfs_queue_cowblocks(mp);
 
 		/* Create the per-AG metadata reservation pool .*/
 		error = xfs_fs_reserve_ag_blocks(mp);
@@ -1368,7 +1369,15 @@ xfs_fs_remount(
 	}
 
 	/* rw -> ro */
-	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & MS_RDONLY)) {
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & SB_RDONLY)) {
+		/* Get rid of any leftover CoW reservations... */
+		cancel_delayed_work_sync(&mp->m_cowblocks_work);
+		error = xfs_icache_free_cowblocks(mp, NULL);
+		if (error) {
+			xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+			return error;
+		}
+
 		/* Free the per-AG metadata reservation pool. */
 		error = xfs_fs_unreserve_ag_blocks(mp);
 		if (error) {

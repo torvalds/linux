@@ -20,7 +20,7 @@ Required properties:
 
 Example:
 
-sc-nmi-intc@01c00030 {
+sc-nmi-intc@1c00030 {
 	compatible = "allwinner,sun7i-a20-sc-nmi";
 	interrupt-controller;
 	#interrupt-cells = <2>;

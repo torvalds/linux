@@ -817,9 +817,9 @@ struct device_node *of_graph_get_remote_node(const struct device_node *node,
 }
 EXPORT_SYMBOL(of_graph_get_remote_node);
 
-static void of_fwnode_get(struct fwnode_handle *fwnode)
+static struct fwnode_handle *of_fwnode_get(struct fwnode_handle *fwnode)
 {
-	of_node_get(to_of_node(fwnode));
+	return of_fwnode_handle(of_node_get(to_of_node(fwnode)));
 }
 
 static void of_fwnode_put(struct fwnode_handle *fwnode)

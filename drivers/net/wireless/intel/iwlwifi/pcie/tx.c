@@ -147,9 +147,9 @@ void iwl_pcie_free_dma_ptr(struct iwl_trans *trans, struct iwl_dma_ptr *ptr)
 	memset(ptr, 0, sizeof(*ptr));
 }
 
-static void iwl_pcie_txq_stuck_timer(unsigned long data)
+static void iwl_pcie_txq_stuck_timer(struct timer_list *t)
 {
-	struct iwl_txq *txq = (void *)data;
+	struct iwl_txq *txq = from_timer(txq, t, stuck_timer);
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
 
@@ -373,7 +373,7 @@ static void iwl_pcie_tfd_unmap(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int i, num_tbs;
-	void *tfd = iwl_pcie_get_tfd(trans_pcie, txq, index);
+	void *tfd = iwl_pcie_get_tfd(trans, txq, index);
 
 	/* Sanity check on number of chunks */
 	num_tbs = iwl_pcie_tfd_get_num_tbs(trans, tfd);
@@ -495,8 +495,7 @@ int iwl_pcie_txq_alloc(struct iwl_trans *trans, struct iwl_txq *txq,
 	if (WARN_ON(txq->entries || txq->tfds))
 		return -EINVAL;
 
-	setup_timer(&txq->stuck_timer, iwl_pcie_txq_stuck_timer,
-		    (unsigned long)txq);
+	timer_setup(&txq->stuck_timer, iwl_pcie_txq_stuck_timer, 0);
 	txq->trans_pcie = trans_pcie;
 
 	txq->n_window = slots_num;
@@ -951,7 +950,8 @@ static int iwl_pcie_tx_alloc(struct iwl_trans *trans)
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
 
-		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
+		slots_num = cmd_queue ? trans_pcie->tx_cmd_queue_size :
+			TFD_TX_CMD_SLOTS;
 		trans_pcie->txq[txq_id] = &trans_pcie->txq_memory[txq_id];
 		ret = iwl_pcie_txq_alloc(trans, trans_pcie->txq[txq_id],
 					 slots_num, cmd_queue);
@@ -970,12 +970,29 @@ error:
 	return ret;
 }
 
+void iwl_pcie_set_tx_cmd_queue_size(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int queue_size = TFD_CMD_SLOTS;
+
+	if (trans->cfg->tx_cmd_queue_size)
+		queue_size = trans->cfg->tx_cmd_queue_size;
+
+	if (WARN_ON(!(is_power_of_2(queue_size) &&
+		      TFD_QUEUE_CB_SIZE(queue_size) > 0)))
+		trans_pcie->tx_cmd_queue_size = TFD_CMD_SLOTS;
+	else
+		trans_pcie->tx_cmd_queue_size = queue_size;
+}
+
 int iwl_pcie_tx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 	int txq_id, slots_num;
 	bool alloc = false;
+
+	iwl_pcie_set_tx_cmd_queue_size(trans);
 
 	if (!trans_pcie->txq_memory) {
 		ret = iwl_pcie_tx_alloc(trans);
@@ -1000,7 +1017,8 @@ int iwl_pcie_tx_init(struct iwl_trans *trans)
 	     txq_id++) {
 		bool cmd_queue = (txq_id == trans_pcie->cmd_queue);
 
-		slots_num = cmd_queue ? TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
+		slots_num = cmd_queue ? trans_pcie->tx_cmd_queue_size :
+			TFD_TX_CMD_SLOTS;
 		ret = iwl_pcie_txq_init(trans, trans_pcie->txq[txq_id],
 					slots_num, cmd_queue);
 		if (ret) {
@@ -1890,6 +1908,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	}
 
 	if (test_bit(STATUS_FW_ERROR, &trans->status)) {
+		iwl_trans_dump_regs(trans);
 		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
 			iwl_get_cmd_string(trans, cmd->id));
 		dump_stack();
@@ -1999,7 +2018,7 @@ static int iwl_fill_data_tbs(struct iwl_trans *trans, struct sk_buff *skb,
 	}
 
 	trace_iwlwifi_dev_tx(trans->dev, skb,
-			     iwl_pcie_get_tfd(trans_pcie, txq, txq->write_ptr),
+			     iwl_pcie_get_tfd(trans, txq, txq->write_ptr),
 			     trans_pcie->tfd_size,
 			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len,
 			     hdr_len);
@@ -2073,7 +2092,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 		IEEE80211_CCMP_HDR_LEN : 0;
 
 	trace_iwlwifi_dev_tx(trans->dev, skb,
-			     iwl_pcie_get_tfd(trans_pcie, txq, txq->write_ptr),
+			     iwl_pcie_get_tfd(trans, txq, txq->write_ptr),
 			     trans_pcie->tfd_size,
 			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len, 0);
 
@@ -2406,7 +2425,7 @@ int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	memcpy(&txq->first_tb_bufs[txq->write_ptr], &dev_cmd->hdr,
 	       IWL_FIRST_TB_SIZE);
 
-	tfd = iwl_pcie_get_tfd(trans_pcie, txq, txq->write_ptr);
+	tfd = iwl_pcie_get_tfd(trans, txq, txq->write_ptr);
 	/* Set up entry for this TFD in Tx byte-count array */
 	iwl_pcie_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len),
 					 iwl_pcie_tfd_get_num_tbs(trans, tfd));

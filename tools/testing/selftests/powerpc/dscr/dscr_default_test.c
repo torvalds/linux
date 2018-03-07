@@ -27,7 +27,7 @@ static void *do_test(void *in)
 		unsigned long d, cur_dscr, cur_dscr_usr;
 		unsigned long s1, s2;
 
-		s1 = ACCESS_ONCE(sequence);
+		s1 = READ_ONCE(sequence);
 		if (s1 & 1)
 			continue;
 		rmb();

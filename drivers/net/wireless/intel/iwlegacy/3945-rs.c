@@ -181,9 +181,9 @@ il3945_rate_scale_flush_wins(struct il3945_rs_sta *rs_sta)
 #define IL_AVERAGE_PACKETS             1500
 
 static void
-il3945_bg_rate_scale_flush(unsigned long data)
+il3945_bg_rate_scale_flush(struct timer_list *t)
 {
-	struct il3945_rs_sta *rs_sta = (void *)data;
+	struct il3945_rs_sta *rs_sta = from_timer(rs_sta, t, rate_scale_flush);
 	struct il_priv *il __maybe_unused = rs_sta->il;
 	int unflushed = 0;
 	unsigned long flags;
@@ -360,9 +360,6 @@ il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 	rs_sta->flush_time = RATE_FLUSH;
 	rs_sta->last_tx_packets = 0;
 
-	rs_sta->rate_scale_flush.data = (unsigned long)rs_sta;
-	rs_sta->rate_scale_flush.function = il3945_bg_rate_scale_flush;
-
 	for (i = 0; i < RATE_COUNT_3945; i++)
 		il3945_clear_win(&rs_sta->win[i]);
 
@@ -415,8 +412,7 @@ il3945_rs_alloc_sta(void *il_priv, struct ieee80211_sta *sta, gfp_t gfp)
 	rs_sta = &psta->rs_sta;
 
 	spin_lock_init(&rs_sta->lock);
-	init_timer(&rs_sta->rate_scale_flush);
-
+	timer_setup(&rs_sta->rate_scale_flush, il3945_bg_rate_scale_flush, 0);
 	D_RATE("leave\n");
 
 	return rs_sta;

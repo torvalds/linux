@@ -1755,14 +1755,17 @@ static int cci_pmu_probe(struct platform_device *pdev)
 	raw_spin_lock_init(&cci_pmu->hw_events.pmu_lock);
 	mutex_init(&cci_pmu->reserve_mutex);
 	atomic_set(&cci_pmu->active_events, 0);
-	cpumask_set_cpu(smp_processor_id(), &cci_pmu->cpus);
+	cpumask_set_cpu(get_cpu(), &cci_pmu->cpus);
 
 	ret = cci_pmu_init(cci_pmu, pdev);
-	if (ret)
+	if (ret) {
+		put_cpu();
 		return ret;
+	}
 
 	cpuhp_state_add_instance_nocalls(CPUHP_AP_PERF_ARM_CCI_ONLINE,
 					 &cci_pmu->node);
+	put_cpu();
 	pr_info("ARM %s PMU driver probed", cci_pmu->model->name);
 	return 0;
 }

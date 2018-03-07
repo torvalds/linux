@@ -79,6 +79,7 @@
 #define A3700_SPI_BYTE_LEN		BIT(5)
 #define A3700_SPI_CLK_PRESCALE		BIT(0)
 #define A3700_SPI_CLK_PRESCALE_MASK	(0x1f)
+#define A3700_SPI_CLK_EVEN_OFFS		(0x10)
 
 #define A3700_SPI_WFIFO_THRS_BIT	28
 #define A3700_SPI_RFIFO_THRS_BIT	24
@@ -213,12 +214,19 @@ static void a3700_spi_mode_set(struct a3700_spi *a3700_spi,
 }
 
 static void a3700_spi_clock_set(struct a3700_spi *a3700_spi,
-				unsigned int speed_hz, u16 mode)
+				unsigned int speed_hz)
 {
 	u32 val;
 	u32 prescale;
 
 	prescale = DIV_ROUND_UP(clk_get_rate(a3700_spi->clk), speed_hz);
+
+	/* For prescaler values over 15, we can only set it by steps of 2.
+	 * Starting from A3700_SPI_CLK_EVEN_OFFS, we set values from 0 up to
+	 * 30. We only use this range from 16 to 30.
+	 */
+	if (prescale > 15)
+		prescale = A3700_SPI_CLK_EVEN_OFFS + DIV_ROUND_UP(prescale, 2);
 
 	val = spireg_read(a3700_spi, A3700_SPI_IF_CFG_REG);
 	val = val & ~A3700_SPI_CLK_PRESCALE_MASK;
@@ -231,17 +239,6 @@ static void a3700_spi_clock_set(struct a3700_spi *a3700_spi,
 		val |= A3700_SPI_CLK_CAPT_EDGE;
 		spireg_write(a3700_spi, A3700_SPI_IF_TIME_REG, val);
 	}
-
-	val = spireg_read(a3700_spi, A3700_SPI_IF_CFG_REG);
-	val &= ~(A3700_SPI_CLK_POL | A3700_SPI_CLK_PHA);
-
-	if (mode & SPI_CPOL)
-		val |= A3700_SPI_CLK_POL;
-
-	if (mode & SPI_CPHA)
-		val |= A3700_SPI_CLK_PHA;
-
-	spireg_write(a3700_spi, A3700_SPI_IF_CFG_REG, val);
 }
 
 static void a3700_spi_bytelen_set(struct a3700_spi *a3700_spi, unsigned int len)
@@ -423,7 +420,7 @@ static void a3700_spi_transfer_setup(struct spi_device *spi,
 
 	a3700_spi = spi_master_get_devdata(spi->master);
 
-	a3700_spi_clock_set(a3700_spi, xfer->speed_hz, spi->mode);
+	a3700_spi_clock_set(a3700_spi, xfer->speed_hz);
 
 	byte_len = xfer->bits_per_word >> 3;
 
@@ -583,6 +580,8 @@ static int a3700_spi_prepare_message(struct spi_master *master,
 		return ret;
 
 	a3700_spi_bytelen_set(a3700_spi, 4);
+
+	a3700_spi_mode_set(a3700_spi, spi->mode);
 
 	return 0;
 }

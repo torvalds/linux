@@ -213,8 +213,8 @@ out_err:
 	return retval;
 }
 
-long do_handle_open(int mountdirfd,
-		    struct file_handle __user *ufh, int open_flag)
+static long do_handle_open(int mountdirfd, struct file_handle __user *ufh,
+			   int open_flag)
 {
 	long retval = 0;
 	struct path path;

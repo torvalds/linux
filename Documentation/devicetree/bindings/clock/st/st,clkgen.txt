@@ -42,7 +42,7 @@ Required properties:
 
 Example:
 
-	clockgen-a@090ff000 {
+	clockgen-a@90ff000 {
 		compatible = "st,clkgen-c32";
 		reg = <0x90ff000 0x1000>;
 

@@ -864,21 +864,16 @@ static inline void arch_reserve_mem_area(acpi_physical_address addr,
 #endif
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PM)
-int acpi_dev_runtime_suspend(struct device *dev);
-int acpi_dev_runtime_resume(struct device *dev);
+int acpi_dev_suspend(struct device *dev, bool wakeup);
+int acpi_dev_resume(struct device *dev);
 int acpi_subsys_runtime_suspend(struct device *dev);
 int acpi_subsys_runtime_resume(struct device *dev);
-struct acpi_device *acpi_dev_pm_get_node(struct device *dev);
 int acpi_dev_pm_attach(struct device *dev, bool power_on);
 #else
 static inline int acpi_dev_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_dev_runtime_resume(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
-static inline struct acpi_device *acpi_dev_pm_get_node(struct device *dev)
-{
-	return NULL;
-}
 static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
 {
 	return -ENODEV;
@@ -887,22 +882,30 @@ static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PM_SLEEP)
 int acpi_dev_suspend_late(struct device *dev);
-int acpi_dev_resume_early(struct device *dev);
 int acpi_subsys_prepare(struct device *dev);
 void acpi_subsys_complete(struct device *dev);
 int acpi_subsys_suspend_late(struct device *dev);
+int acpi_subsys_suspend_noirq(struct device *dev);
+int acpi_subsys_resume_noirq(struct device *dev);
 int acpi_subsys_resume_early(struct device *dev);
 int acpi_subsys_suspend(struct device *dev);
 int acpi_subsys_freeze(struct device *dev);
+int acpi_subsys_freeze_late(struct device *dev);
+int acpi_subsys_freeze_noirq(struct device *dev);
+int acpi_subsys_thaw_noirq(struct device *dev);
 #else
-static inline int acpi_dev_suspend_late(struct device *dev) { return 0; }
 static inline int acpi_dev_resume_early(struct device *dev) { return 0; }
 static inline int acpi_subsys_prepare(struct device *dev) { return 0; }
 static inline void acpi_subsys_complete(struct device *dev) {}
 static inline int acpi_subsys_suspend_late(struct device *dev) { return 0; }
+static inline int acpi_subsys_suspend_noirq(struct device *dev) { return 0; }
+static inline int acpi_subsys_resume_noirq(struct device *dev) { return 0; }
 static inline int acpi_subsys_resume_early(struct device *dev) { return 0; }
 static inline int acpi_subsys_suspend(struct device *dev) { return 0; }
 static inline int acpi_subsys_freeze(struct device *dev) { return 0; }
+static inline int acpi_subsys_freeze_late(struct device *dev) { return 0; }
+static inline int acpi_subsys_freeze_noirq(struct device *dev) { return 0; }
+static inline int acpi_subsys_thaw_noirq(struct device *dev) { return 0; }
 #endif
 
 #ifdef CONFIG_ACPI
@@ -1249,6 +1252,15 @@ int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res);
 #else
 static inline
 int acpi_irq_get(acpi_handle handle, unsigned int index, struct resource *res)
+{
+	return -EINVAL;
+}
+#endif
+
+#ifdef CONFIG_ACPI_LPIT
+int lpit_read_residency_count_address(u64 *address);
+#else
+static inline int lpit_read_residency_count_address(u64 *address)
 {
 	return -EINVAL;
 }

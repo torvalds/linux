@@ -80,19 +80,19 @@ static struct lockdep_map cpuhp_state_down_map =
 	STATIC_LOCKDEP_MAP_INIT("cpuhp_state-down", &cpuhp_state_down_map);
 
 
-static void inline cpuhp_lock_acquire(bool bringup)
+static inline void cpuhp_lock_acquire(bool bringup)
 {
 	lock_map_acquire(bringup ? &cpuhp_state_up_map : &cpuhp_state_down_map);
 }
 
-static void inline cpuhp_lock_release(bool bringup)
+static inline void cpuhp_lock_release(bool bringup)
 {
 	lock_map_release(bringup ? &cpuhp_state_up_map : &cpuhp_state_down_map);
 }
 #else
 
-static void inline cpuhp_lock_acquire(bool bringup) { }
-static void inline cpuhp_lock_release(bool bringup) { }
+static inline void cpuhp_lock_acquire(bool bringup) { }
+static inline void cpuhp_lock_release(bool bringup) { }
 
 #endif
 
@@ -780,8 +780,8 @@ static int takedown_cpu(unsigned int cpu)
 	BUG_ON(cpu_online(cpu));
 
 	/*
-	 * The CPUHP_AP_SCHED_MIGRATE_DYING callback will have removed all
-	 * runnable tasks from the cpu, there's only the idle task left now
+	 * The teardown callback for CPUHP_AP_SCHED_STARTING will have removed
+	 * all runnable tasks from the CPU, there's only the idle task left now
 	 * that the migration thread is done doing the stop_machine thing.
 	 *
 	 * Wait for the stop thread to go away.
@@ -1277,9 +1277,9 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 	 * before blk_mq_queue_reinit_notify() from notify_dead(),
 	 * otherwise a RCU stall occurs.
 	 */
-	[CPUHP_TIMERS_DEAD] = {
+	[CPUHP_TIMERS_PREPARE] = {
 		.name			= "timers:dead",
-		.startup.single		= NULL,
+		.startup.single		= timers_prepare_cpu,
 		.teardown.single	= timers_dead_cpu,
 	},
 	/* Kicks the plugged cpu into life */
@@ -1288,11 +1288,6 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.startup.single		= bringup_cpu,
 		.teardown.single	= NULL,
 		.cant_stop		= true,
-	},
-	[CPUHP_AP_SMPCFD_DYING] = {
-		.name			= "smpcfd:dying",
-		.startup.single		= NULL,
-		.teardown.single	= smpcfd_dying_cpu,
 	},
 	/*
 	 * Handled on controll processor until the plugged processor manages
@@ -1334,6 +1329,11 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.name			= "RCU/tree:dying",
 		.startup.single		= NULL,
 		.teardown.single	= rcutree_dying_cpu,
+	},
+	[CPUHP_AP_SMPCFD_DYING] = {
+		.name			= "smpcfd:dying",
+		.startup.single		= NULL,
+		.teardown.single	= smpcfd_dying_cpu,
 	},
 	/* Entry state on starting. Interrupts enabled from here on. Transient
 	 * state for synchronsization */

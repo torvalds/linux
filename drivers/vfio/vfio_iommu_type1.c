@@ -767,6 +767,9 @@ static int vfio_dma_do_unmap(struct vfio_iommu *iommu,
 		return -EINVAL;
 	if (!unmap->size || unmap->size & mask)
 		return -EINVAL;
+	if (unmap->iova + unmap->size < unmap->iova ||
+	    unmap->size > SIZE_MAX)
+		return -EINVAL;
 
 	WARN_ON(mask & PAGE_MASK);
 again:

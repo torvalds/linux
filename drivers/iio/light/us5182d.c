@@ -714,7 +714,6 @@ err:
 }
 
 static const struct iio_info us5182d_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw = us5182d_read_raw,
 	.write_raw = us5182d_write_raw,
 	.attrs = &us5182d_attr_group,

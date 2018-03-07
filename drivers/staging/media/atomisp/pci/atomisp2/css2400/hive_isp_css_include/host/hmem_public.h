@@ -15,10 +15,10 @@
 #ifndef __HMEM_PUBLIC_H_INCLUDED__
 #define __HMEM_PUBLIC_H_INCLUDED__
 
-#include <stddef.h>		/* size_t */
+#include <linux/types.h>		/* size_t */
 
 /*! Return the size of HMEM[ID]
- 
+
  \param	ID[in]				HMEM identifier
 
  \Note: The size is the byte size of the area it occupies

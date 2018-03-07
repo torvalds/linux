@@ -356,11 +356,11 @@ _next:
 				if ((wr_sz % 64) == 0)
 					blnPending = 1;
 			}
-			if (blnPending) /* 32 bytes for TX Desc - 8 offset */
+			if (blnPending) { /* 32 bytes for TX Desc - 8 offset */
 				pdesc->txdw0 |= cpu_to_le32(((TXDESC_SIZE +
 						OFFSET_SZ + 8) << OFFSET_SHT) &
 						0x00ff0000);
-			else {
+			} else {
 				pdesc->txdw0 |= cpu_to_le32(((TXDESC_SIZE +
 							      OFFSET_SZ) <<
 							      OFFSET_SHT) &

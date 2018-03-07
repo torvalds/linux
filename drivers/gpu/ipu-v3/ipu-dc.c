@@ -249,10 +249,7 @@ EXPORT_SYMBOL_GPL(ipu_dc_enable);
 
 void ipu_dc_enable_channel(struct ipu_dc *dc)
 {
-	int di;
 	u32 reg;
-
-	di = dc->di;
 
 	reg = readl(dc->base + DC_WR_CH_CONF);
 	reg |= DC_WR_CH_CONF_PROG_TYPE_NORMAL;

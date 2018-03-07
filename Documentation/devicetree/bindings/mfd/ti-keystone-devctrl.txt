@@ -13,7 +13,7 @@ Required properties:
 
 Example:
 
-devctrl: device-state-control@0x02620000 {
+devctrl: device-state-control@02620000 {
 	compatible = "ti,keystone-devctrl", "syscon";
 	reg = <0x02620000 0x1000>;
 };

@@ -1009,6 +1009,9 @@ static int rds_rdma_bytes(struct msghdr *msg, size_t *rdma_bytes)
 			continue;
 
 		if (cmsg->cmsg_type == RDS_CMSG_RDMA_ARGS) {
+			if (cmsg->cmsg_len <
+			    CMSG_LEN(sizeof(struct rds_rdma_args)))
+				return -EINVAL;
 			args = CMSG_DATA(cmsg);
 			*rdma_bytes += args->remote_vec.bytes;
 		}

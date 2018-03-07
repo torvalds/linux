@@ -40,8 +40,8 @@
  */
 LEAF(_save_fp)
 EXPORT_SYMBOL(_save_fp)
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2) || \
-		defined(CONFIG_CPU_MIPS32_R6)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
+		defined(CONFIG_CPU_MIPSR6)
 	mfc0	t0, CP0_STATUS
 #endif
 	fpu_save_double a0 t0 t1		# clobbers t1
@@ -52,8 +52,8 @@ EXPORT_SYMBOL(_save_fp)
  * Restore a thread's fp context.
  */
 LEAF(_restore_fp)
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2) || \
-		defined(CONFIG_CPU_MIPS32_R6)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
+		defined(CONFIG_CPU_MIPSR6)
 	mfc0	t0, CP0_STATUS
 #endif
 	fpu_restore_double a0 t0 t1		# clobbers t1
@@ -246,11 +246,11 @@ LEAF(_save_fp_context)
 	cfc1	t1, fcr31
 	.set	pop
 
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2) || \
-		defined(CONFIG_CPU_MIPS32_R6)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2) || \
+		defined(CONFIG_CPU_MIPSR6)
 	.set	push
 	SET_HARDFLOAT
-#ifdef CONFIG_CPU_MIPS32_R2
+#ifdef CONFIG_CPU_MIPSR2
 	.set	mips32r2
 	.set	fp=64
 	mfc0	t0, CP0_STATUS
@@ -314,11 +314,11 @@ LEAF(_save_fp_context)
 LEAF(_restore_fp_context)
 	EX	lw t1, 0(a1)
 
-#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPS32_R2)  || \
-		defined(CONFIG_CPU_MIPS32_R6)
+#if defined(CONFIG_64BIT) || defined(CONFIG_CPU_MIPSR2)  || \
+		defined(CONFIG_CPU_MIPSR6)
 	.set	push
 	SET_HARDFLOAT
-#ifdef CONFIG_CPU_MIPS32_R2
+#ifdef CONFIG_CPU_MIPSR2
 	.set	mips32r2
 	.set	fp=64
 	mfc0	t0, CP0_STATUS

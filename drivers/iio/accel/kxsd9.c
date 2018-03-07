@@ -390,7 +390,6 @@ static const struct iio_info kxsd9_info = {
 	.read_raw = &kxsd9_read_raw,
 	.write_raw = &kxsd9_write_raw,
 	.attrs = &kxsd9_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 /* Four channels apart from timestamp, scan mask = 0x0f */

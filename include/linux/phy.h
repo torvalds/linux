@@ -451,6 +451,8 @@ struct phy_device {
 	struct phy_led_trigger *phy_led_triggers;
 	unsigned int phy_num_led_triggers;
 	struct phy_led_trigger *last_triggered;
+
+	struct phy_led_trigger *led_link_trigger;
 #endif
 
 	/*

@@ -178,8 +178,11 @@ static int __init ptp_kvm_init(void)
 {
 	long ret;
 
+	if (!kvm_para_available())
+		return -ENODEV;
+
 	clock_pair_gpa = slow_virt_to_phys(&clock_pair);
-	hv_clock = pvclock_pvti_cpu0_va();
+	hv_clock = pvclock_get_pvti_cpu0_va();
 
 	if (!hv_clock)
 		return -ENODEV;

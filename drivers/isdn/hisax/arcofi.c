@@ -23,7 +23,6 @@ add_arcofi_timer(struct IsdnCardState *cs) {
 	if (test_and_set_bit(FLG_ARCOFI_TIMER, &cs->HW_Flags)) {
 		del_timer(&cs->dc.isac.arcofitimer);
 	}
-	init_timer(&cs->dc.isac.arcofitimer);
 	cs->dc.isac.arcofitimer.expires = jiffies + ((ARCOFI_TIMER_VALUE * HZ) / 1000);
 	add_timer(&cs->dc.isac.arcofitimer);
 }
@@ -112,7 +111,8 @@ arcofi_fsm(struct IsdnCardState *cs, int event, void *data) {
 }
 
 static void
-arcofi_timer(struct IsdnCardState *cs) {
+arcofi_timer(struct timer_list *t) {
+	struct IsdnCardState *cs = from_timer(cs, t, dc.isac.arcofitimer);
 	arcofi_fsm(cs, ARCOFI_TIMEOUT, NULL);
 }
 
@@ -125,7 +125,7 @@ clear_arcofi(struct IsdnCardState *cs) {
 
 void
 init_arcofi(struct IsdnCardState *cs) {
-	setup_timer(&cs->dc.isac.arcofitimer, (void *)arcofi_timer, (long)cs);
+	timer_setup(&cs->dc.isac.arcofitimer, arcofi_timer, 0);
 	init_waitqueue_head(&cs->dc.isac.arcofi_wait);
 	test_and_set_bit(HW_ARCOFI, &cs->HW_Flags);
 }

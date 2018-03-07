@@ -330,7 +330,7 @@ void rtl8822be_set_fw_pwrmode_cmd(struct ieee80211_hw *hw, u8 mode)
 			byte5 = btc_ops->btc_get_lps_val(rtlpriv);
 			power_state = btc_ops->btc_get_rpwm_val(rtlpriv);
 
-			if ((rlbm == 2) && (byte5 & BIT(4))) {
+			if (rlbm == 2 && (byte5 & BIT(4))) {
 				/* Keep awake interval to 1 to prevent from
 				 * decreasing coex performance
 				 */
@@ -419,7 +419,7 @@ static bool _rtl8822be_send_bcn_or_cmd_packet(struct ieee80211_hw *hw,
 		dma_addr = rtlpriv->cfg->ops->get_desc(
 				hw, (u8 *)pbd_desc, true, HW_DESC_TXBUFF_ADDR);
 
-		pci_unmap_single(rtlpci->pdev, dma_addr, skb->len,
+		pci_unmap_single(rtlpci->pdev, dma_addr, pskb->len,
 				 PCI_DMA_TODEVICE);
 		kfree_skb(pskb);
 
@@ -766,9 +766,10 @@ void rtl8822be_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 		rtl8822be_fill_h2c_cmd(hw, H2C_8822B_RSVDPAGE,
 				       sizeof(u1_rsvd_page_loc),
 				       u1_rsvd_page_loc);
-	} else
+	} else {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 "Set RSVD page location to Fw FAIL!!!!!!.\n");
+	}
 }
 
 /* Should check FW support p2p or not. */
@@ -834,7 +835,7 @@ void rtl8822be_set_p2p_ps_offload_cmd(struct ieee80211_hw *hw, u8 p2p_ps_state)
 			rtl_write_dword(rtlpriv, 0x5EC,
 					p2pinfo->noa_count_type[i]);
 		}
-		if ((p2pinfo->opp_ps == 1) || (p2pinfo->noa_num > 0)) {
+		if (p2pinfo->opp_ps == 1 || p2pinfo->noa_num > 0) {
 			/* rst p2p circuit */
 			rtl_write_byte(rtlpriv, REG_DUAL_TSF_RST_8822B, BIT(4));
 			p2p_ps_offload->offload_en = 1;

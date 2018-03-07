@@ -450,12 +450,9 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 		ret = wbt_init(q);
 		if (ret)
 			return ret;
-
-		rwb = q->rq_wb;
-		if (!rwb)
-			return -EINVAL;
 	}
 
+	rwb = q->rq_wb;
 	if (val == -1)
 		rwb->min_lat_nsec = wbt_default_latency_nsec(q);
 	else if (val >= 0)

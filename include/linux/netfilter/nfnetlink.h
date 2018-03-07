@@ -67,7 +67,7 @@ static inline bool lockdep_nfnl_is_held(__u8 subsys_id)
  * @ss: The nfnetlink subsystem ID
  *
  * Return the value of the specified RCU-protected pointer, but omit
- * both the smp_read_barrier_depends() and the ACCESS_ONCE(), because
+ * both the smp_read_barrier_depends() and the READ_ONCE(), because
  * caller holds the NFNL subsystem mutex.
  */
 #define nfnl_dereference(p, ss)					\

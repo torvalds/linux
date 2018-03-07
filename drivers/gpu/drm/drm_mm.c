@@ -575,21 +575,23 @@ EXPORT_SYMBOL(drm_mm_remove_node);
  */
 void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 {
+	struct drm_mm *mm = old->mm;
+
 	DRM_MM_BUG_ON(!old->allocated);
 
 	*new = *old;
 
 	list_replace(&old->node_list, &new->node_list);
-	rb_replace_node(&old->rb, &new->rb, &old->mm->interval_tree.rb_root);
+	rb_replace_node_cached(&old->rb, &new->rb, &mm->interval_tree);
 
 	if (drm_mm_hole_follows(old)) {
 		list_replace(&old->hole_stack, &new->hole_stack);
 		rb_replace_node(&old->rb_hole_size,
 				&new->rb_hole_size,
-				&old->mm->holes_size);
+				&mm->holes_size);
 		rb_replace_node(&old->rb_hole_addr,
 				&new->rb_hole_addr,
-				&old->mm->holes_addr);
+				&mm->holes_addr);
 	}
 
 	old->allocated = false;

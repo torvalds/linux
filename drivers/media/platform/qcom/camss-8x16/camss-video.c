@@ -21,7 +21,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mc.h>
-#include <media/videobuf-core.h>
 #include <media/videobuf2-dma-sg.h>
 
 #include "camss-video.h"

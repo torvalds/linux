@@ -96,14 +96,6 @@ do { \
 			    d_data); \
 } while(0)
 
-#define DBF_DEV_EXC(d_level, d_device, d_str, d_data...) \
-do { \
-	debug_sprintf_exception(d_device->debug_area, \
-				d_level, \
-				d_str "\n", \
-				d_data); \
-} while(0)
-
 #define DBF_EVENT(d_level, d_str, d_data...)\
 do { \
 	debug_sprintf_event(dasd_debug_area, \
@@ -121,14 +113,6 @@ do { \
 			    "0.%x.%04x " d_str "\n",			\
 			    __dev_id.ssid, __dev_id.devno, d_data);	\
 } while (0)
-
-#define DBF_EXC(d_level, d_str, d_data...)\
-do { \
-	debug_sprintf_exception(dasd_debug_area, \
-				d_level,\
-				d_str "\n", \
-				d_data); \
-} while(0)
 
 /* limit size for an errorstring */
 #define ERRORLENGTH 30
@@ -457,7 +441,7 @@ struct dasd_profile_info {
 	unsigned int dasd_io_nr_req[32]; /* hist. of # of requests in chanq */
 
 	/* new data */
-	struct timespec starttod;	   /* time of start or last reset */
+	struct timespec64 starttod;	   /* time of start or last reset */
 	unsigned int dasd_io_alias;	   /* requests using an alias */
 	unsigned int dasd_io_tpm;	   /* requests using transport mode */
 	unsigned int dasd_read_reqs;	   /* total number of read  requests */

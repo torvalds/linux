@@ -348,7 +348,6 @@ struct rbd_client_id {
 struct rbd_mapping {
 	u64                     size;
 	u64                     features;
-	bool			read_only;
 };
 
 /*
@@ -450,12 +449,11 @@ static DEFINE_IDA(rbd_dev_id_ida);
 static struct workqueue_struct *rbd_wq;
 
 /*
- * Default to false for now, as single-major requires >= 0.75 version of
- * userspace rbd utility.
+ * single-major requires >= 0.75 version of userspace rbd utility.
  */
-static bool single_major = false;
+static bool single_major = true;
 module_param(single_major, bool, S_IRUGO);
-MODULE_PARM_DESC(single_major, "Use a single major number for all rbd devices (default: false)");
+MODULE_PARM_DESC(single_major, "Use a single major number for all rbd devices (default: true)");
 
 static int rbd_img_request_submit(struct rbd_img_request *img_request);
 
@@ -608,9 +606,6 @@ static int rbd_open(struct block_device *bdev, fmode_t mode)
 	struct rbd_device *rbd_dev = bdev->bd_disk->private_data;
 	bool removing = false;
 
-	if ((mode & FMODE_WRITE) && rbd_dev->mapping.read_only)
-		return -EROFS;
-
 	spin_lock_irq(&rbd_dev->lock);
 	if (test_bit(RBD_DEV_FLAG_REMOVING, &rbd_dev->flags))
 		removing = true;
@@ -640,46 +635,24 @@ static void rbd_release(struct gendisk *disk, fmode_t mode)
 
 static int rbd_ioctl_set_ro(struct rbd_device *rbd_dev, unsigned long arg)
 {
-	int ret = 0;
-	int val;
-	bool ro;
-	bool ro_changed = false;
+	int ro;
 
-	/* get_user() may sleep, so call it before taking rbd_dev->lock */
-	if (get_user(val, (int __user *)(arg)))
+	if (get_user(ro, (int __user *)arg))
 		return -EFAULT;
 
-	ro = val ? true : false;
-	/* Snapshot doesn't allow to write*/
+	/* Snapshots can't be marked read-write */
 	if (rbd_dev->spec->snap_id != CEPH_NOSNAP && !ro)
 		return -EROFS;
 
-	spin_lock_irq(&rbd_dev->lock);
-	/* prevent others open this device */
-	if (rbd_dev->open_count > 1) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (rbd_dev->mapping.read_only != ro) {
-		rbd_dev->mapping.read_only = ro;
-		ro_changed = true;
-	}
-
-out:
-	spin_unlock_irq(&rbd_dev->lock);
-	/* set_disk_ro() may sleep, so call it after releasing rbd_dev->lock */
-	if (ret == 0 && ro_changed)
-		set_disk_ro(rbd_dev->disk, ro ? 1 : 0);
-
-	return ret;
+	/* Let blkdev_roset() handle it */
+	return -ENOTTY;
 }
 
 static int rbd_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
 	struct rbd_device *rbd_dev = bdev->bd_disk->private_data;
-	int ret = 0;
+	int ret;
 
 	switch (cmd) {
 	case BLKROSET:
@@ -3074,13 +3047,21 @@ static void format_lock_cookie(struct rbd_device *rbd_dev, char *buf)
 	mutex_unlock(&rbd_dev->watch_mutex);
 }
 
+static void __rbd_lock(struct rbd_device *rbd_dev, const char *cookie)
+{
+	struct rbd_client_id cid = rbd_get_cid(rbd_dev);
+
+	strcpy(rbd_dev->lock_cookie, cookie);
+	rbd_set_owner_cid(rbd_dev, &cid);
+	queue_work(rbd_dev->task_wq, &rbd_dev->acquired_lock_work);
+}
+
 /*
  * lock_rwsem must be held for write
  */
 static int rbd_lock(struct rbd_device *rbd_dev)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
-	struct rbd_client_id cid = rbd_get_cid(rbd_dev);
 	char cookie[32];
 	int ret;
 
@@ -3095,9 +3076,7 @@ static int rbd_lock(struct rbd_device *rbd_dev)
 		return ret;
 
 	rbd_dev->lock_state = RBD_LOCK_STATE_LOCKED;
-	strcpy(rbd_dev->lock_cookie, cookie);
-	rbd_set_owner_cid(rbd_dev, &cid);
-	queue_work(rbd_dev->task_wq, &rbd_dev->acquired_lock_work);
+	__rbd_lock(rbd_dev, cookie);
 	return 0;
 }
 
@@ -3883,7 +3862,7 @@ static void rbd_reacquire_lock(struct rbd_device *rbd_dev)
 			queue_delayed_work(rbd_dev->task_wq,
 					   &rbd_dev->lock_dwork, 0);
 	} else {
-		strcpy(rbd_dev->lock_cookie, cookie);
+		__rbd_lock(rbd_dev, cookie);
 	}
 }
 
@@ -4050,15 +4029,8 @@ static void rbd_queue_workfn(struct work_struct *work)
 		goto err_rq;
 	}
 
-	/* Only reads are allowed to a read-only device */
-
-	if (op_type != OBJ_OP_READ) {
-		if (rbd_dev->mapping.read_only) {
-			result = -EROFS;
-			goto err_rq;
-		}
-		rbd_assert(rbd_dev->spec->snap_id == CEPH_NOSNAP);
-	}
+	rbd_assert(op_type == OBJ_OP_READ ||
+		   rbd_dev->spec->snap_id == CEPH_NOSNAP);
 
 	/*
 	 * Quit early if the mapped snapshot no longer exists.  It's
@@ -4415,7 +4387,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	segment_size = rbd_obj_bytes(&rbd_dev->header);
 	blk_queue_max_hw_sectors(q, segment_size / SECTOR_SIZE);
 	q->limits.max_sectors = queue_max_hw_sectors(q);
-	blk_queue_max_segments(q, segment_size / SECTOR_SIZE);
+	blk_queue_max_segments(q, USHRT_MAX);
 	blk_queue_max_segment_size(q, segment_size);
 	blk_queue_io_min(q, segment_size);
 	blk_queue_io_opt(q, segment_size);
@@ -4423,7 +4395,6 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	/* enable the discard support */
 	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
 	q->limits.discard_granularity = segment_size;
-	q->limits.discard_alignment = segment_size;
 	blk_queue_max_discard_sectors(q, segment_size / SECTOR_SIZE);
 	blk_queue_max_write_zeroes_sectors(q, segment_size / SECTOR_SIZE);
 
@@ -5994,7 +5965,7 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 		goto err_out_disk;
 
 	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
-	set_disk_ro(rbd_dev->disk, rbd_dev->mapping.read_only);
+	set_disk_ro(rbd_dev->disk, rbd_dev->opts->read_only);
 
 	ret = dev_set_name(&rbd_dev->dev, "%d", rbd_dev->dev_id);
 	if (ret)
@@ -6145,7 +6116,6 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	struct rbd_options *rbd_opts = NULL;
 	struct rbd_spec *spec = NULL;
 	struct rbd_client *rbdc;
-	bool read_only;
 	int rc;
 
 	if (!try_module_get(THIS_MODULE))
@@ -6194,11 +6164,8 @@ static ssize_t do_rbd_add(struct bus_type *bus,
 	}
 
 	/* If we are mapping a snapshot it must be marked read-only */
-
-	read_only = rbd_dev->opts->read_only;
 	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
-		read_only = true;
-	rbd_dev->mapping.read_only = read_only;
+		rbd_dev->opts->read_only = true;
 
 	rc = rbd_dev_device_setup(rbd_dev);
 	if (rc)

@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/mmc/host.h>
@@ -667,3 +668,5 @@ int renesas_sdhi_remove(struct platform_device *pdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(renesas_sdhi_remove);
+
+MODULE_LICENSE("GPL v2");

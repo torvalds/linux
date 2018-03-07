@@ -314,7 +314,7 @@ int		bfad_setup_intr(struct bfad_s *bfad);
 void		bfad_remove_intr(struct bfad_s *bfad);
 void		bfad_update_hal_cfg(struct bfa_iocfc_cfg_s *bfa_cfg);
 bfa_status_t	bfad_hal_mem_alloc(struct bfad_s *bfad);
-void		bfad_bfa_tmo(unsigned long data);
+void		bfad_bfa_tmo(struct timer_list *t);
 void		bfad_init_timer(struct bfad_s *bfad);
 int		bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad);
 void		bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad);

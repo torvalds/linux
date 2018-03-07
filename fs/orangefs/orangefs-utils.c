@@ -4,6 +4,7 @@
  *
  * See COPYING in top-level directory.
  */
+#include <linux/kernel.h>
 #include "protocol.h"
 #include "orangefs-kernel.h"
 #include "orangefs-dev-proto.h"
@@ -437,89 +438,8 @@ int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr)
 
 	op_release(new_op);
 
-	/*
-	 * successful setattr should clear the atime, mtime and
-	 * ctime flags.
-	 */
-	if (ret == 0) {
-		ClearAtimeFlag(orangefs_inode);
-		ClearMtimeFlag(orangefs_inode);
-		ClearCtimeFlag(orangefs_inode);
-		ClearModeFlag(orangefs_inode);
+	if (ret == 0)
 		orangefs_inode->getattr_time = jiffies - 1;
-	}
-
-	return ret;
-}
-
-int orangefs_flush_inode(struct inode *inode)
-{
-	/*
-	 * If it is a dirty inode, this function gets called.
-	 * Gather all the information that needs to be setattr'ed
-	 * Right now, this will only be used for mode, atime, mtime
-	 * and/or ctime.
-	 */
-	struct iattr wbattr;
-	int ret;
-	int mtime_flag;
-	int ctime_flag;
-	int atime_flag;
-	int mode_flag;
-	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
-
-	memset(&wbattr, 0, sizeof(wbattr));
-
-	/*
-	 * check inode flags up front, and clear them if they are set.  This
-	 * will prevent multiple processes from all trying to flush the same
-	 * inode if they call close() simultaneously
-	 */
-	mtime_flag = MtimeFlag(orangefs_inode);
-	ClearMtimeFlag(orangefs_inode);
-	ctime_flag = CtimeFlag(orangefs_inode);
-	ClearCtimeFlag(orangefs_inode);
-	atime_flag = AtimeFlag(orangefs_inode);
-	ClearAtimeFlag(orangefs_inode);
-	mode_flag = ModeFlag(orangefs_inode);
-	ClearModeFlag(orangefs_inode);
-
-	/*  -- Lazy atime,mtime and ctime update --
-	 * Note: all times are dictated by server in the new scheme
-	 * and not by the clients
-	 *
-	 * Also mode updates are being handled now..
-	 */
-
-	if (mtime_flag)
-		wbattr.ia_valid |= ATTR_MTIME;
-	if (ctime_flag)
-		wbattr.ia_valid |= ATTR_CTIME;
-	if (atime_flag)
-		wbattr.ia_valid |= ATTR_ATIME;
-
-	if (mode_flag) {
-		wbattr.ia_mode = inode->i_mode;
-		wbattr.ia_valid |= ATTR_MODE;
-	}
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "*********** orangefs_flush_inode: %pU "
-		     "(ia_valid %d)\n",
-		     get_khandle_from_ino(inode),
-		     wbattr.ia_valid);
-	if (wbattr.ia_valid == 0) {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "orangefs_flush_inode skipping setattr()\n");
-		return 0;
-	}
-
-	gossip_debug(GOSSIP_UTILS_DEBUG,
-		     "orangefs_flush_inode (%pU) writing mode %o\n",
-		     get_khandle_from_ino(inode),
-		     inode->i_mode);
-
-	ret = orangefs_inode_setattr(inode, &wbattr);
 
 	return ret;
 }
@@ -606,7 +526,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	/* Convert ORANGEFS encoded errno values into regular errno values. */
 	} else if ((-error_code) & ORANGEFS_ERROR_BIT) {
 		i = (-error_code) & ~(ORANGEFS_ERROR_BIT|ORANGEFS_ERROR_CLASS_BITS);
-		if (i < sizeof(PINT_errno_mapping)/sizeof(*PINT_errno_mapping))
+		if (i < ARRAY_SIZE(PINT_errno_mapping))
 			error_code = -PINT_errno_mapping[i];
 		else
 			error_code = -EINVAL;

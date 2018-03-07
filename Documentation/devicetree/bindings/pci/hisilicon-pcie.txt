@@ -21,7 +21,7 @@ Optional properties:
 - dma-coherent: Present if DMA operations are coherent.
 
 Hip05 Example (note that Hip06 is the same except compatible):
-	pcie@0xb0080000 {
+	pcie@b0080000 {
 		compatible = "hisilicon,hip05-pcie", "snps,dw-pcie";
 		reg = <0 0xb0080000 0 0x10000>, <0x220 0x00000000 0 0x2000>;
 		reg-names = "rc_dbi", "config";

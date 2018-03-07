@@ -277,7 +277,7 @@ in a mount namespace.
 ----------------------------------------------------------
 
 Documentation for the files in /proc/sys/fs/binfmt_misc is
-in Documentation/binfmt_misc.txt.
+in Documentation/admin-guide/binfmt-misc.rst.
 
 
 3. /proc/sys/fs/mqueue - POSIX message queues filesystem

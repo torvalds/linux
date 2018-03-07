@@ -377,7 +377,7 @@ static struct drm_encoder *vbox_best_single_encoder(struct drm_connector
 
 	/* pick the encoder ids */
 	if (enc_id)
-		return drm_encoder_find(connector->dev, enc_id);
+		return drm_encoder_find(connector->dev, NULL, enc_id);
 
 	return NULL;
 }
@@ -553,12 +553,22 @@ static int vbox_get_modes(struct drm_connector *connector)
 		++num_modes;
 	}
 	vbox_set_edid(connector, preferred_width, preferred_height);
-	drm_object_property_set_value(
-		&connector->base, vbox->dev->mode_config.suggested_x_property,
-		vbox_connector->vbox_crtc->x_hint);
-	drm_object_property_set_value(
-		&connector->base, vbox->dev->mode_config.suggested_y_property,
-		vbox_connector->vbox_crtc->y_hint);
+
+	if (vbox_connector->vbox_crtc->x_hint != -1)
+		drm_object_property_set_value(&connector->base,
+			vbox->dev->mode_config.suggested_x_property,
+			vbox_connector->vbox_crtc->x_hint);
+	else
+		drm_object_property_set_value(&connector->base,
+			vbox->dev->mode_config.suggested_x_property, 0);
+
+	if (vbox_connector->vbox_crtc->y_hint != -1)
+		drm_object_property_set_value(&connector->base,
+			vbox->dev->mode_config.suggested_y_property,
+			vbox_connector->vbox_crtc->y_hint);
+	else
+		drm_object_property_set_value(&connector->base,
+			vbox->dev->mode_config.suggested_y_property, 0);
 
 	return num_modes;
 }
@@ -640,9 +650,9 @@ static int vbox_connector_init(struct drm_device *dev,
 
 	drm_mode_create_suggested_offset_properties(dev);
 	drm_object_attach_property(&connector->base,
-				   dev->mode_config.suggested_x_property, -1);
+				   dev->mode_config.suggested_x_property, 0);
 	drm_object_attach_property(&connector->base,
-				   dev->mode_config.suggested_y_property, -1);
+				   dev->mode_config.suggested_y_property, 0);
 	drm_connector_register(connector);
 
 	drm_mode_connector_attach_encoder(connector, encoder);

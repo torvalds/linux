@@ -942,7 +942,8 @@ static int hdac_hdmi_create_pin_port_muxs(struct hdac_ext_device *edev,
 	if (!se)
 		return -ENOMEM;
 
-	sprintf(kc_name, "Pin %d port %d Input", pin->nid, port->id);
+	snprintf(kc_name, NAME_SIZE, "Pin %d port %d Input",
+						pin->nid, port->id);
 	kc->name = devm_kstrdup(&edev->hdac.dev, kc_name, GFP_KERNEL);
 	if (!kc->name)
 		return -ENOMEM;
@@ -1452,6 +1453,8 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev,
 	int i, num_nodes;
 	struct hdac_device *hdac = &edev->hdac;
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
+	struct hdac_hdmi_cvt *temp_cvt, *cvt_next;
+	struct hdac_hdmi_pin *temp_pin, *pin_next;
 	int ret;
 
 	hdac_hdmi_skl_enable_all_pins(hdac);
@@ -1481,32 +1484,54 @@ static int hdac_hdmi_parse_and_map_nid(struct hdac_ext_device *edev,
 		case AC_WID_AUD_OUT:
 			ret = hdac_hdmi_add_cvt(edev, nid);
 			if (ret < 0)
-				return ret;
+				goto free_widgets;
 			break;
 
 		case AC_WID_PIN:
 			ret = hdac_hdmi_add_pin(edev, nid);
 			if (ret < 0)
-				return ret;
+				goto free_widgets;
 			break;
 		}
 	}
 
 	hdac->end_nid = nid;
 
-	if (!hdmi->num_pin || !hdmi->num_cvt)
-		return -EIO;
+	if (!hdmi->num_pin || !hdmi->num_cvt) {
+		ret = -EIO;
+		goto free_widgets;
+	}
 
 	ret = hdac_hdmi_create_dais(hdac, dais, hdmi, hdmi->num_cvt);
 	if (ret) {
 		dev_err(&hdac->dev, "Failed to create dais with err: %d\n",
 							ret);
-		return ret;
+		goto free_widgets;
 	}
 
 	*num_dais = hdmi->num_cvt;
+	ret = hdac_hdmi_init_dai_map(edev);
+	if (ret < 0)
+		goto free_widgets;
 
-	return hdac_hdmi_init_dai_map(edev);
+	return ret;
+
+free_widgets:
+	list_for_each_entry_safe(temp_cvt, cvt_next, &hdmi->cvt_list, head) {
+		list_del(&temp_cvt->head);
+		kfree(temp_cvt->name);
+		kfree(temp_cvt);
+	}
+
+	list_for_each_entry_safe(temp_pin, pin_next, &hdmi->pin_list, head) {
+		for (i = 0; i < temp_pin->num_ports; i++)
+			temp_pin->ports[i].pin = NULL;
+		kfree(temp_pin->ports);
+		list_del(&temp_pin->head);
+		kfree(temp_pin);
+	}
+
+	return ret;
 }
 
 static void hdac_hdmi_eld_notify_cb(void *aptr, int port, int pipe)
@@ -1894,6 +1919,9 @@ static void hdac_hdmi_set_chmap(struct hdac_device *hdac, int pcm_idx,
 	struct hdac_hdmi_pcm *pcm = get_hdmi_pcm_from_id(hdmi, pcm_idx);
 	struct hdac_hdmi_port *port;
 
+	if (!pcm)
+		return;
+
 	if (list_empty(&pcm->port_list))
 		return;
 
@@ -1912,6 +1940,9 @@ static bool is_hdac_hdmi_pcm_attached(struct hdac_device *hdac, int pcm_idx)
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	struct hdac_hdmi_pcm *pcm = get_hdmi_pcm_from_id(hdmi, pcm_idx);
 
+	if (!pcm)
+		return false;
+
 	if (list_empty(&pcm->port_list))
 		return false;
 
@@ -1924,6 +1955,9 @@ static int hdac_hdmi_get_spk_alloc(struct hdac_device *hdac, int pcm_idx)
 	struct hdac_hdmi_priv *hdmi = edev->private_data;
 	struct hdac_hdmi_pcm *pcm = get_hdmi_pcm_from_id(hdmi, pcm_idx);
 	struct hdac_hdmi_port *port;
+
+	if (!pcm)
+		return 0;
 
 	if (list_empty(&pcm->port_list))
 		return 0;
@@ -1977,6 +2011,9 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 	hdmi_priv->chmap.ops.set_chmap = hdac_hdmi_set_chmap;
 	hdmi_priv->chmap.ops.is_pcm_attached = is_hdac_hdmi_pcm_attached;
 	hdmi_priv->chmap.ops.get_spk_alloc = hdac_hdmi_get_spk_alloc;
+
+	if (!hdac_id)
+		return -ENODEV;
 
 	if (hdac_id->driver_data)
 		hdmi_priv->drv_data =

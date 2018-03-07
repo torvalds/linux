@@ -17,5 +17,6 @@ sample_type=327
 read_format=4
 mmap=0
 comm=0
+task=0
 enable_on_exec=0
 disabled=0

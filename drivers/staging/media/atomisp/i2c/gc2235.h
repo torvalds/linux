@@ -33,8 +33,6 @@
 
 #include "../include/linux/atomisp_platform.h"
 
-#define GC2235_NAME		"gc2235"
-
 /* Defines for register writes and register array processing */
 #define I2C_MSG_LENGTH		0x2
 #define I2C_RETRY_COUNT		5
@@ -198,11 +196,6 @@ struct gc2235_write_buffer {
 struct gc2235_write_ctrl {
 	int index;
 	struct gc2235_write_buffer buffer;
-};
-
-static const struct i2c_device_id gc2235_id[] = {
-	{GC2235_NAME, 0},
-	{}
 };
 
 static struct gc2235_reg const gc2235_stream_on[] = {

@@ -74,7 +74,8 @@ struct dw_mci_dma_slave {
  * @stop_abort: The command currently prepared for stoping transfer.
  * @prev_blksz: The former transfer blksz record.
  * @timing: Record of current ios timing.
- * @use_dma: Whether DMA channel is initialized or not.
+ * @use_dma: Which DMA channel is in use for the current transfer, zero
+ *	denotes PIO mode.
  * @using_dma: Whether DMA is in use for the current transfer.
  * @dma_64bit_address: Whether DMA supports 64-bit address mode or not.
  * @sg_dma: Bus address of DMA buffer.

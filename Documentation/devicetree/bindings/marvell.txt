@@ -446,7 +446,7 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
        that services interrupts for this device.
 
    Example Discovery CPU Error node:
-     cpu-error@0070 {
+     cpu-error@70 {
 	     compatible = "marvell,mv64360-cpu-error";
 	     reg = <0x70 0x10 0x128 0x28>;
 	     interrupts = <3>;
@@ -466,7 +466,7 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
        that services interrupts for this device.
 
    Example Discovery SRAM Controller node:
-     sram-ctrl@0380 {
+     sram-ctrl@380 {
 	     compatible = "marvell,mv64360-sram-ctrl";
 	     reg = <0x380 0x80>;
 	     interrupts = <13>;

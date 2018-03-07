@@ -24,6 +24,7 @@ extern void reloc_got2(unsigned long);
 
 void check_for_initrd(void);
 void initmem_init(void);
+void setup_panic(void);
 #define ARCH_PANIC_TIMEOUT 180
 
 #ifdef CONFIG_PPC_PSERIES
@@ -37,6 +38,19 @@ static inline void pseries_disable_reloc_on_exc(void) {}
 static inline void pseries_big_endian_exceptions(void) {}
 static inline void pseries_little_endian_exceptions(void) {}
 #endif /* CONFIG_PPC_PSERIES */
+
+void rfi_flush_enable(bool enable);
+
+/* These are bit flags */
+enum l1d_flush_type {
+	L1D_FLUSH_NONE		= 0x1,
+	L1D_FLUSH_FALLBACK	= 0x2,
+	L1D_FLUSH_ORI		= 0x4,
+	L1D_FLUSH_MTTRIG	= 0x8,
+};
+
+void __init setup_rfi_flush(enum l1d_flush_type, bool enable);
+void do_rfi_flush_fixups(enum l1d_flush_type types);
 
 #endif /* !__ASSEMBLY__ */
 

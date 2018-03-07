@@ -814,6 +814,7 @@ static int unix_create(struct net *net, struct socket *sock, int protocol,
 		 */
 	case SOCK_RAW:
 		sock->type = SOCK_DGRAM;
+		/* fall through */
 	case SOCK_DGRAM:
 		sock->ops = &unix_dgram_ops;
 		break;

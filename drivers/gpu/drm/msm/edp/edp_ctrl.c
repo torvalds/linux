@@ -150,46 +150,46 @@ static const struct edp_pixel_clk_div clk_divs[2][EDP_PIXEL_CLK_NUM] = {
 
 static int edp_clk_init(struct edp_ctrl *ctrl)
 {
-	struct device *dev = &ctrl->pdev->dev;
+	struct platform_device *pdev = ctrl->pdev;
 	int ret;
 
-	ctrl->aux_clk = devm_clk_get(dev, "core_clk");
+	ctrl->aux_clk = msm_clk_get(pdev, "core");
 	if (IS_ERR(ctrl->aux_clk)) {
 		ret = PTR_ERR(ctrl->aux_clk);
-		pr_err("%s: Can't find aux_clk, %d\n", __func__, ret);
+		pr_err("%s: Can't find core clock, %d\n", __func__, ret);
 		ctrl->aux_clk = NULL;
 		return ret;
 	}
 
-	ctrl->pixel_clk = devm_clk_get(dev, "pixel_clk");
+	ctrl->pixel_clk = msm_clk_get(pdev, "pixel");
 	if (IS_ERR(ctrl->pixel_clk)) {
 		ret = PTR_ERR(ctrl->pixel_clk);
-		pr_err("%s: Can't find pixel_clk, %d\n", __func__, ret);
+		pr_err("%s: Can't find pixel clock, %d\n", __func__, ret);
 		ctrl->pixel_clk = NULL;
 		return ret;
 	}
 
-	ctrl->ahb_clk = devm_clk_get(dev, "iface_clk");
+	ctrl->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(ctrl->ahb_clk)) {
 		ret = PTR_ERR(ctrl->ahb_clk);
-		pr_err("%s: Can't find ahb_clk, %d\n", __func__, ret);
+		pr_err("%s: Can't find iface clock, %d\n", __func__, ret);
 		ctrl->ahb_clk = NULL;
 		return ret;
 	}
 
-	ctrl->link_clk = devm_clk_get(dev, "link_clk");
+	ctrl->link_clk = msm_clk_get(pdev, "link");
 	if (IS_ERR(ctrl->link_clk)) {
 		ret = PTR_ERR(ctrl->link_clk);
-		pr_err("%s: Can't find link_clk, %d\n", __func__, ret);
+		pr_err("%s: Can't find link clock, %d\n", __func__, ret);
 		ctrl->link_clk = NULL;
 		return ret;
 	}
 
 	/* need mdp core clock to receive irq */
-	ctrl->mdp_core_clk = devm_clk_get(dev, "mdp_core_clk");
+	ctrl->mdp_core_clk = msm_clk_get(pdev, "mdp_core");
 	if (IS_ERR(ctrl->mdp_core_clk)) {
 		ret = PTR_ERR(ctrl->mdp_core_clk);
-		pr_err("%s: Can't find mdp_core_clk, %d\n", __func__, ret);
+		pr_err("%s: Can't find mdp_core clock, %d\n", __func__, ret);
 		ctrl->mdp_core_clk = NULL;
 		return ret;
 	}

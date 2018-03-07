@@ -181,6 +181,7 @@ struct share_obj {
  * @extmem:		VPU extended memory information
  * @reg:		VPU TCM and configuration registers
  * @run:		VPU initialization status
+ * @wdt:		VPU watchdog workqueue
  * @ipi_desc:		VPU IPI descriptor
  * @recv_buf:		VPU DTCM share buffer for receiving. The
  *			receive buffer is only accessed in interrupt context.
@@ -194,7 +195,7 @@ struct share_obj {
  *			suppose a client is using VPU to decode VP8.
  *			If the other client wants to encode VP8,
  *			it has to wait until VP8 decode completes.
- * @wdt_refcnt		WDT reference count to make sure the watchdog can be
+ * @wdt_refcnt:		WDT reference count to make sure the watchdog can be
  *			disabled if no other client is using VPU service
  * @ack_wq:		The wait queue for each codec and mdp. When sleeping
  *			processes wake up, they will check the condition

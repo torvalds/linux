@@ -224,7 +224,7 @@ int mdp5_cmd_encoder_set_split_display(struct drm_encoder *encoder,
 	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER,
 		   MDP5_SPLIT_DPL_LOWER_SMART_PANEL);
 	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
-	pm_runtime_put_autosuspend(dev);
+	pm_runtime_put_sync(dev);
 
 	return 0;
 }

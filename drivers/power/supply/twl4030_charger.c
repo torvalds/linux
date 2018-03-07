@@ -743,7 +743,7 @@ static int twl4030bci_state(struct twl4030_bci *bci)
 
 	ret = twl4030_bci_read(TWL4030_BCIMSTATEC, &state);
 	if (ret) {
-		pr_err("twl4030_bci: error reading BCIMSTATEC\n");
+		dev_err(bci->dev, "error reading BCIMSTATEC\n");
 		return ret;
 	}
 

@@ -188,8 +188,8 @@ typedef compat_elf_greg_t		compat_elf_gregset_t[COMPAT_ELF_NGREG];
 
 #define compat_start_thread		compat_start_thread
 /*
- * Unlike the native SET_PERSONALITY macro, the compat version inherits
- * READ_IMPLIES_EXEC across a fork() since this is the behaviour on
+ * Unlike the native SET_PERSONALITY macro, the compat version maintains
+ * READ_IMPLIES_EXEC across an execve() since this is the behaviour on
  * arch/arm/.
  */
 #define COMPAT_SET_PERSONALITY(ex)					\

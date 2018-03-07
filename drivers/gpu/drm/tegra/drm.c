@@ -155,8 +155,7 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 
 		order = __ffs(tegra->domain->pgsize_bitmap);
 		init_iova_domain(&tegra->carveout.domain, 1UL << order,
-				 carveout_start >> order,
-				 carveout_end >> order);
+				 carveout_start >> order);
 
 		tegra->carveout.shift = iova_shift(&tegra->carveout.domain);
 		tegra->carveout.limit = carveout_end >> tegra->carveout.shift;
@@ -386,12 +385,10 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	unsigned int num_cmdbufs = args->num_cmdbufs;
 	unsigned int num_relocs = args->num_relocs;
 	unsigned int num_waitchks = args->num_waitchks;
-	struct drm_tegra_cmdbuf __user *cmdbufs =
-		(void __user *)(uintptr_t)args->cmdbufs;
-	struct drm_tegra_reloc __user *relocs =
-		(void __user *)(uintptr_t)args->relocs;
-	struct drm_tegra_waitchk __user *waitchks =
-		(void __user *)(uintptr_t)args->waitchks;
+	struct drm_tegra_cmdbuf __user *user_cmdbufs;
+	struct drm_tegra_reloc __user *user_relocs;
+	struct drm_tegra_waitchk __user *user_waitchks;
+	struct drm_tegra_syncpt __user *user_syncpt;
 	struct drm_tegra_syncpt syncpt;
 	struct host1x *host1x = dev_get_drvdata(drm->dev->parent);
 	struct drm_gem_object **refs;
@@ -399,6 +396,11 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 	struct host1x_job *job;
 	unsigned int num_refs;
 	int err;
+
+	user_cmdbufs = u64_to_user_ptr(args->cmdbufs);
+	user_relocs = u64_to_user_ptr(args->relocs);
+	user_waitchks = u64_to_user_ptr(args->waitchks);
+	user_syncpt = u64_to_user_ptr(args->syncpts);
 
 	/* We don't yet support other than one syncpt_incr struct per submit */
 	if (args->num_syncpts != 1)
@@ -440,7 +442,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		struct tegra_bo *obj;
 		u64 offset;
 
-		if (copy_from_user(&cmdbuf, cmdbufs, sizeof(cmdbuf))) {
+		if (copy_from_user(&cmdbuf, user_cmdbufs, sizeof(cmdbuf))) {
 			err = -EFAULT;
 			goto fail;
 		}
@@ -476,7 +478,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 
 		host1x_job_add_gather(job, bo, cmdbuf.words, cmdbuf.offset);
 		num_cmdbufs--;
-		cmdbufs++;
+		user_cmdbufs++;
 	}
 
 	/* copy and resolve relocations from submit */
@@ -485,7 +487,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		struct tegra_bo *obj;
 
 		err = host1x_reloc_copy_from_user(&job->relocarray[num_relocs],
-						  &relocs[num_relocs], drm,
+						  &user_relocs[num_relocs], drm,
 						  file);
 		if (err < 0)
 			goto fail;
@@ -519,9 +521,8 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		struct host1x_waitchk *wait = &job->waitchk[num_waitchks];
 		struct tegra_bo *obj;
 
-		err = host1x_waitchk_copy_from_user(wait,
-						    &waitchks[num_waitchks],
-						    file);
+		err = host1x_waitchk_copy_from_user(
+			wait, &user_waitchks[num_waitchks], file);
 		if (err < 0)
 			goto fail;
 
@@ -539,8 +540,7 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 		}
 	}
 
-	if (copy_from_user(&syncpt, (void __user *)(uintptr_t)args->syncpts,
-			   sizeof(syncpt))) {
+	if (copy_from_user(&syncpt, user_syncpt, sizeof(syncpt))) {
 		err = -EFAULT;
 		goto fail;
 	}
@@ -1317,6 +1317,7 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra210-sor", },
 	{ .compatible = "nvidia,tegra210-sor1", },
 	{ .compatible = "nvidia,tegra210-vic", },
+	{ .compatible = "nvidia,tegra186-vic", },
 	{ /* sentinel */ }
 };
 

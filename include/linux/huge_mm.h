@@ -222,7 +222,7 @@ extern struct page *huge_zero_page;
 
 static inline bool is_huge_zero_page(struct page *page)
 {
-	return ACCESS_ONCE(huge_zero_page) == page;
+	return READ_ONCE(huge_zero_page) == page;
 }
 
 static inline bool is_huge_zero_pmd(pmd_t pmd)

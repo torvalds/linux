@@ -477,12 +477,13 @@ config	MAX9611
 	  called max9611.
 
 config MCP320X
-	tristate "Microchip Technology MCP3x01/02/04/08"
+	tristate "Microchip Technology MCP3x01/02/04/08 and MCP3550/1/3"
 	depends on SPI
 	help
 	  Say yes here to build support for Microchip Technology's
 	  MCP3001, MCP3002, MCP3004, MCP3008, MCP3201, MCP3202, MCP3204,
-	  MCP3208 or MCP3301 analog to digital converter.
+	  MCP3208, MCP3301, MCP3550, MCP3551 and MCP3553 analog to digital
+	  converters.
 
 	  This driver can also be built as a module. If so, the module will be
 	  called mcp320x.
@@ -595,7 +596,7 @@ config QCOM_SPMI_VADC
 
 config RCAR_GYRO_ADC
 	tristate "Renesas R-Car GyroADC driver"
-	depends on ARCH_RCAR_GEN2 || (ARM && COMPILE_TEST)
+	depends on ARCH_RCAR_GEN2 || COMPILE_TEST
 	help
 	  Say yes here to build support for the GyroADC found in Renesas
 	  R-Car Gen2 SoCs. This block is a simple SPI offload engine for

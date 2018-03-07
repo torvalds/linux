@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 
 /*
  * xHCI host controller driver
@@ -6,19 +7,6 @@
  *
  * Author: Sarah Sharp
  * Some code borrowed from the Linux EHCI driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __LINUX_XHCI_HCD_H
@@ -130,6 +118,8 @@ struct xhci_cap_regs {
 #define HCC_MAX_PSA(p)		(1 << ((((p) >> 12) & 0xf) + 1))
 /* Extended Capabilities pointer from PCI base - section 5.3.6 */
 #define HCC_EXT_CAPS(p)		XHCI_HCC_EXT_CAPS(p)
+
+#define CTX_SIZE(_hcc)		(HCC_64BYTE_CONTEXT(_hcc) ? 64 : 32)
 
 /* db_off bitmask - bits 0:1 reserved */
 #define	DBOFF_MASK	(~0x3)
@@ -1007,6 +997,8 @@ struct xhci_virt_device {
 	struct xhci_tt_bw_info		*tt_info;
 	/* The current max exit latency for the enabled USB3 link states. */
 	u16				current_mel;
+	/* Used for the debugfs interfaces. */
+	void				*debugfs_private;
 };
 
 /*
@@ -1830,6 +1822,7 @@ struct xhci_hcd {
 #define XHCI_LIMIT_ENDPOINT_INTERVAL_7	(1 << 26)
 /* Reserved. It was XHCI_U2_DISABLE_WAKE */
 #define XHCI_ASMEDIA_MODIFY_FLOWCONTROL	(1 << 28)
+#define XHCI_HW_LPM_DISABLE	(1 << 29)
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
@@ -1858,6 +1851,10 @@ struct xhci_hcd {
 	u16			test_mode;
 /* Compliance Mode Timer Triggered every 2 seconds */
 #define COMP_MODE_RCVRY_MSECS 2000
+
+	struct dentry		*debugfs_root;
+	struct dentry		*debugfs_slots;
+	struct list_head	regset_list;
 
 	/* platform-specific data -- must come last */
 	unsigned long		priv[0] __aligned(sizeof(s64));
@@ -2012,8 +2009,7 @@ int xhci_run(struct usb_hcd *hcd);
 int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks);
 void xhci_init_driver(struct hc_driver *drv,
 		      const struct xhci_driver_overrides *over);
-int xhci_disable_slot(struct xhci_hcd *xhci,
-			struct xhci_command *command, u32 slot_id);
+int xhci_disable_slot(struct xhci_hcd *xhci, u32 slot_id);
 
 int xhci_suspend(struct xhci_hcd *xhci, bool do_wakeup);
 int xhci_resume(struct xhci_hcd *xhci, bool hibernated);
@@ -2068,7 +2064,7 @@ void xhci_queue_new_dequeue_state(struct xhci_hcd *xhci,
 		struct xhci_dequeue_state *deq_state);
 void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci, unsigned int ep_index,
 		unsigned int stream_id, struct xhci_td *td);
-void xhci_stop_endpoint_command_watchdog(unsigned long arg);
+void xhci_stop_endpoint_command_watchdog(struct timer_list *t);
 void xhci_handle_command_timeout(struct work_struct *work);
 
 void xhci_ring_ep_doorbell(struct xhci_hcd *xhci, unsigned int slot_id,
@@ -2107,6 +2103,7 @@ struct xhci_ep_ctx *xhci_get_ep_ctx(struct xhci_hcd *xhci, struct xhci_container
 struct xhci_ring *xhci_triad_to_transfer_ring(struct xhci_hcd *xhci,
 		unsigned int slot_id, unsigned int ep_index,
 		unsigned int stream_id);
+
 static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
 								struct urb *urb)
 {
@@ -2442,11 +2439,12 @@ static inline const char *xhci_decode_portsc(u32 portsc)
 	static char str[256];
 	int ret;
 
-	ret = sprintf(str, "%s %s %s Link:%s ",
+	ret = sprintf(str, "%s %s %s Link:%s PortSpeed:%d ",
 		      portsc & PORT_POWER	? "Powered" : "Powered-off",
 		      portsc & PORT_CONNECT	? "Connected" : "Not-connected",
 		      portsc & PORT_PE		? "Enabled" : "Disabled",
-		      xhci_portsc_link_state_string(portsc));
+		      xhci_portsc_link_state_string(portsc),
+		      DEV_PORT_SPEED(portsc));
 
 	if (portsc & PORT_OC)
 		ret += sprintf(str + ret, "OverCurrent ");

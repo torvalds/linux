@@ -43,7 +43,7 @@ STORAGE_CLASS_STREAM2MMIO_H void stream2mmio_get_sid_state(
 		const stream2mmio_ID_t ID,
 		const stream2mmio_sid_ID_t sid_id,
 		stream2mmio_sid_state_t *state);
-/** end of NCI */
+/* end of NCI */
 
 /*****************************************************
  *
@@ -96,6 +96,6 @@ STORAGE_CLASS_STREAM2MMIO_H void stream2mmio_reg_store(
 		const stream2mmio_ID_t ID,
 		const hrt_address reg,
 		const hrt_data value);
-/** end of DLI */
+/* end of DLI */
 
 #endif /* __ISYS_STREAM2MMIO_PUBLIC_H_INCLUDED__ */

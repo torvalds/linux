@@ -1879,6 +1879,7 @@ retry:
 	switch (class) {
 	case ATA_DEV_SEMB:
 		class = ATA_DEV_ATA;	/* some hard drives report SEMB sig */
+		/* fall through */
 	case ATA_DEV_ATA:
 	case ATA_DEV_ZAC:
 		tf.command = ATA_CMD_ID_ATA;
@@ -2975,6 +2976,7 @@ int ata_bus_probe(struct ata_port *ap)
 	case -ENODEV:
 		/* give it just one more chance */
 		tries[dev->devno] = min(tries[dev->devno], 1);
+		/* fall through */
 	case -EIO:
 		if (tries[dev->devno] == 1) {
 			/* This is the last chance, better to slow
@@ -3080,13 +3082,19 @@ int sata_down_spd_limit(struct ata_link *link, u32 spd_limit)
 	bit = fls(mask) - 1;
 	mask &= ~(1 << bit);
 
-	/* Mask off all speeds higher than or equal to the current
-	 * one.  Force 1.5Gbps if current SPD is not available.
+	/*
+	 * Mask off all speeds higher than or equal to the current one.  At
+	 * this point, if current SPD is not available and we previously
+	 * recorded the link speed from SStatus, the driver has already
+	 * masked off the highest bit so mask should already be 1 or 0.
+	 * Otherwise, we should not force 1.5Gbps on a link where we have
+	 * not previously recorded speed from SStatus.  Just return in this
+	 * case.
 	 */
 	if (spd > 1)
 		mask &= (1 << (spd - 1)) - 1;
 	else
-		mask &= 1;
+		return -EINVAL;
 
 	/* were we already at the bottom? */
 	if (!mask)
@@ -3462,6 +3470,7 @@ int ata_down_xfermask_limit(struct ata_device *dev, unsigned int sel)
 
 	case ATA_DNXFER_FORCE_PIO0:
 		pio_mask &= 1;
+		/* fall through */
 	case ATA_DNXFER_FORCE_PIO:
 		mwdma_mask = 0;
 		udma_mask = 0;
@@ -3964,6 +3973,7 @@ int sata_link_scr_lpm(struct ata_link *link, enum ata_lpm_policy policy,
 		scontrol &= ~(0x1 << 8);
 		scontrol |= (0x6 << 8);
 		break;
+	case ATA_LPM_MED_POWER_WITH_DIPM:
 	case ATA_LPM_MIN_POWER:
 		if (ata_link_nr_enabled(link) > 0)
 			/* no restrictions on LPM transitions */
@@ -4439,6 +4449,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=121671
 	 */
 	{ "LITEON CX1-JB*-HP",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
+	{ "LITEON EP1-*",	NULL,		ATA_HORKAGE_MAX_SEC_1024 },
 
 	/* Devices we expect to fail diagnostics */
 
@@ -5823,7 +5834,7 @@ void ata_host_resume(struct ata_host *host)
 }
 #endif
 
-struct device_type ata_port_type = {
+const struct device_type ata_port_type = {
 	.name = "ata_port",
 #ifdef CONFIG_PM
 	.pm = &ata_port_pm_ops,
@@ -5979,9 +5990,8 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	INIT_LIST_HEAD(&ap->eh_done_q);
 	init_waitqueue_head(&ap->eh_wait_q);
 	init_completion(&ap->park_req_pending);
-	setup_deferrable_timer(&ap->fastdrain_timer,
-			       ata_eh_fastdrain_timerfn,
-			       (unsigned long)ap);
+	timer_setup(&ap->fastdrain_timer, ata_eh_fastdrain_timerfn,
+		    TIMER_DEFERRABLE);
 
 	ap->cbl = ATA_CBL_NONE;
 
@@ -6904,7 +6914,7 @@ static int __init ata_parse_force_one(char **cur,
 		return -EINVAL;
 	}
 	if (nr_matches > 1) {
-		*reason = "ambigious value";
+		*reason = "ambiguous value";
 		return -EINVAL;
 	}
 

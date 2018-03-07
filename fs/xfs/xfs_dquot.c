@@ -53,13 +53,6 @@
  * otherwise by the lowest id first, see xfs_dqlock2.
  */
 
-#ifdef DEBUG
-xfs_buftarg_t *xfs_dqerror_target;
-int xfs_do_dqerror;
-int xfs_dqreq_num;
-int xfs_dqerror_mod = 33;
-#endif
-
 struct kmem_zone		*xfs_qm_dqtrxzone;
 static struct kmem_zone		*xfs_qm_dqzone;
 
@@ -703,7 +696,7 @@ xfs_dq_get_next_id(
 	xfs_dqid_t		next_id = *id + 1; /* simple advance */
 	uint			lock_flags;
 	struct xfs_bmbt_irec	got;
-	xfs_extnum_t		idx;
+	struct xfs_iext_cursor	cur;
 	xfs_fsblock_t		start;
 	int			error = 0;
 
@@ -727,7 +720,7 @@ xfs_dq_get_next_id(
 			return error;
 	}
 
-	if (xfs_iext_lookup_extent(quotip, &quotip->i_df, start, &idx, &got)) {
+	if (xfs_iext_lookup_extent(quotip, &quotip->i_df, start, &cur, &got)) {
 		/* contiguous chunk, bump startoff for the id calculation */
 		if (got.br_startoff < start)
 			got.br_startoff = start;
@@ -770,15 +763,6 @@ xfs_qm_dqget(
 		return -ESRCH;
 	}
 
-#ifdef DEBUG
-	if (xfs_do_dqerror) {
-		if ((xfs_dqerror_target == mp->m_ddev_targp) &&
-		    (xfs_dqreq_num++ % xfs_dqerror_mod) == 0) {
-			xfs_debug(mp, "Returning error in dqget");
-			return -EIO;
-		}
-	}
-
 	ASSERT(type == XFS_DQ_USER ||
 	       type == XFS_DQ_PROJ ||
 	       type == XFS_DQ_GROUP);
@@ -786,7 +770,6 @@ xfs_qm_dqget(
 		ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 		ASSERT(xfs_inode_dquot(ip, type) == NULL);
 	}
-#endif
 
 restart:
 	mutex_lock(&qi->qi_tree_lock);
@@ -987,14 +970,22 @@ xfs_qm_dqflush_done(
 	 * holding the lock before removing the dquot from the AIL.
 	 */
 	if ((lip->li_flags & XFS_LI_IN_AIL) &&
-	    lip->li_lsn == qip->qli_flush_lsn) {
+	    ((lip->li_lsn == qip->qli_flush_lsn) ||
+	     (lip->li_flags & XFS_LI_FAILED))) {
 
 		/* xfs_trans_ail_delete() drops the AIL lock. */
 		spin_lock(&ailp->xa_lock);
-		if (lip->li_lsn == qip->qli_flush_lsn)
+		if (lip->li_lsn == qip->qli_flush_lsn) {
 			xfs_trans_ail_delete(ailp, lip, SHUTDOWN_CORRUPT_INCORE);
-		else
+		} else {
+			/*
+			 * Clear the failed state since we are about to drop the
+			 * flush lock
+			 */
+			if (lip->li_flags & XFS_LI_FAILED)
+				xfs_clear_li_failed(lip);
 			spin_unlock(&ailp->xa_lock);
+		}
 	}
 
 	/*

@@ -95,6 +95,24 @@ static bool nft_rhash_lookup(const struct net *net, const struct nft_set *set,
 	return !!he;
 }
 
+static void *nft_rhash_get(const struct net *net, const struct nft_set *set,
+			   const struct nft_set_elem *elem, unsigned int flags)
+{
+	struct nft_rhash *priv = nft_set_priv(set);
+	struct nft_rhash_elem *he;
+	struct nft_rhash_cmp_arg arg = {
+		.genmask = nft_genmask_cur(net),
+		.set	 = set,
+		.key	 = elem->key.val.data,
+	};
+
+	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_rhash_params);
+	if (he != NULL)
+		return he;
+
+	return ERR_PTR(-ENOENT);
+}
+
 static bool nft_rhash_update(struct nft_set *set, const u32 *key,
 			     void *(*new)(struct nft_set *,
 					  const struct nft_expr *,
@@ -409,6 +427,24 @@ static bool nft_hash_lookup(const struct net *net, const struct nft_set *set,
 	return false;
 }
 
+static void *nft_hash_get(const struct net *net, const struct nft_set *set,
+			  const struct nft_set_elem *elem, unsigned int flags)
+{
+	struct nft_hash *priv = nft_set_priv(set);
+	u8 genmask = nft_genmask_cur(net);
+	struct nft_hash_elem *he;
+	u32 hash;
+
+	hash = jhash(elem->key.val.data, set->klen, priv->seed);
+	hash = reciprocal_scale(hash, priv->buckets);
+	hlist_for_each_entry_rcu(he, &priv->table[hash], node) {
+		if (!memcmp(nft_set_ext_key(&he->ext), elem->key.val.data, set->klen) &&
+		    nft_set_elem_active(&he->ext, genmask))
+			return he;
+	}
+	return ERR_PTR(-ENOENT);
+}
+
 /* nft_hash_select_ops() makes sure key size can be either 2 or 4 bytes . */
 static inline u32 nft_hash_key(const u32 *key, u32 klen)
 {
@@ -494,7 +530,7 @@ static void *nft_hash_deactivate(const struct net *net,
 	hash = reciprocal_scale(hash, priv->buckets);
 	hlist_for_each_entry(he, &priv->table[hash], node) {
 		if (!memcmp(nft_set_ext_key(&this->ext), &elem->key.val,
-			    set->klen) ||
+			    set->klen) &&
 		    nft_set_elem_active(&he->ext, genmask)) {
 			nft_set_elem_change_active(net, set, &he->ext);
 			return he;
@@ -600,6 +636,7 @@ static struct nft_set_ops nft_rhash_ops __read_mostly = {
 	.lookup		= nft_rhash_lookup,
 	.update		= nft_rhash_update,
 	.walk		= nft_rhash_walk,
+	.get		= nft_rhash_get,
 	.features	= NFT_SET_MAP | NFT_SET_OBJECT | NFT_SET_TIMEOUT,
 };
 
@@ -617,6 +654,7 @@ static struct nft_set_ops nft_hash_ops __read_mostly = {
 	.remove		= nft_hash_remove,
 	.lookup		= nft_hash_lookup,
 	.walk		= nft_hash_walk,
+	.get		= nft_hash_get,
 	.features	= NFT_SET_MAP | NFT_SET_OBJECT,
 };
 
@@ -634,6 +672,7 @@ static struct nft_set_ops nft_hash_fast_ops __read_mostly = {
 	.remove		= nft_hash_remove,
 	.lookup		= nft_hash_lookup_fast,
 	.walk		= nft_hash_walk,
+	.get		= nft_hash_get,
 	.features	= NFT_SET_MAP | NFT_SET_OBJECT,
 };
 

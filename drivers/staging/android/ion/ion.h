@@ -86,6 +86,7 @@ struct ion_buffer {
 	struct sg_table *sg_table;
 	struct list_head attachments;
 };
+
 void ion_buffer_destroy(struct ion_buffer *buffer);
 
 /**
@@ -298,7 +299,6 @@ size_t ion_heap_freelist_shrink(struct ion_heap *heap,
  * @heap:		the heap
  */
 size_t ion_heap_freelist_size(struct ion_heap *heap);
-
 
 /**
  * functions for creating and destroying a heap pool -- allows you

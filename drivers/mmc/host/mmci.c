@@ -1658,7 +1658,7 @@ static int mmci_probe(struct amba_device *dev,
 
 	/* Get regulators and the supported OCR mask */
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		goto clk_disable;
 
 	if (!mmc->ocr_avail)

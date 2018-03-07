@@ -256,7 +256,8 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 	ns = alloc_ns(parent->base.hname, name);
 	if (!ns)
 		return NULL;
-	mutex_lock(&ns->lock);
+	ns->level = parent->level + 1;
+	mutex_lock_nested(&ns->lock, ns->level);
 	error = __aafs_ns_mkdir(ns, ns_subns_dir(parent), name, dir);
 	if (error) {
 		AA_ERROR("Failed to create interface for ns %s\n",
@@ -266,7 +267,6 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 		return ERR_PTR(error);
 	}
 	ns->parent = aa_get_ns(parent);
-	ns->level = parent->level + 1;
 	list_add_rcu(&ns->base.list, &parent->sub_ns);
 	/* add list ref */
 	aa_get_ns(ns);
@@ -313,7 +313,7 @@ struct aa_ns *aa_prepare_ns(struct aa_ns *parent, const char *name)
 {
 	struct aa_ns *ns;
 
-	mutex_lock(&parent->lock);
+	mutex_lock_nested(&parent->lock, parent->level);
 	/* try and find the specified ns and if it doesn't exist create it */
 	/* released by caller */
 	ns = aa_get_ns(__aa_find_ns(&parent->sub_ns, name));
@@ -336,7 +336,7 @@ static void destroy_ns(struct aa_ns *ns)
 	if (!ns)
 		return;
 
-	mutex_lock(&ns->lock);
+	mutex_lock_nested(&ns->lock, ns->level);
 	/* release all profiles in this namespace */
 	__aa_profile_list_release(&ns->base.profiles);
 

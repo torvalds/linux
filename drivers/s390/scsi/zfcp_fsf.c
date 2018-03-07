@@ -21,9 +21,11 @@
 
 struct kmem_cache *zfcp_fsf_qtcb_cache;
 
-static void zfcp_fsf_request_timeout_handler(unsigned long data)
+static void zfcp_fsf_request_timeout_handler(struct timer_list *t)
 {
-	struct zfcp_adapter *adapter = (struct zfcp_adapter *) data;
+	struct zfcp_fsf_req *fsf_req = from_timer(fsf_req, t, timer);
+	struct zfcp_adapter *adapter = fsf_req->adapter;
+
 	zfcp_qdio_siosl(adapter);
 	zfcp_erp_adapter_reopen(adapter, ZFCP_STATUS_COMMON_ERP_FAILED,
 				"fsrth_1");
@@ -33,7 +35,6 @@ static void zfcp_fsf_start_timer(struct zfcp_fsf_req *fsf_req,
 				 unsigned long timeout)
 {
 	fsf_req->timer.function = zfcp_fsf_request_timeout_handler;
-	fsf_req->timer.data = (unsigned long) fsf_req->adapter;
 	fsf_req->timer.expires = jiffies + timeout;
 	add_timer(&fsf_req->timer);
 }
@@ -42,7 +43,6 @@ static void zfcp_fsf_start_erp_timer(struct zfcp_fsf_req *fsf_req)
 {
 	BUG_ON(!fsf_req->erp_action);
 	fsf_req->timer.function = zfcp_erp_timeout_handler;
-	fsf_req->timer.data = (unsigned long) fsf_req->erp_action;
 	fsf_req->timer.expires = jiffies + 30 * HZ;
 	add_timer(&fsf_req->timer);
 }
@@ -692,7 +692,7 @@ static struct zfcp_fsf_req *zfcp_fsf_req_create(struct zfcp_qdio *qdio,
 		adapter->req_no++;
 
 	INIT_LIST_HEAD(&req->list);
-	init_timer(&req->timer);
+	timer_setup(&req->timer, NULL, 0);
 	init_completion(&req->completion);
 
 	req->adapter = adapter;

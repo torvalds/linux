@@ -317,9 +317,8 @@ static struct drm_plane *hdlcd_plane_init(struct drm_device *drm)
 				       formats, ARRAY_SIZE(formats),
 				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
-	if (ret) {
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	drm_plane_helper_add(plane, &hdlcd_plane_helper_funcs);
 	hdlcd->plane = plane;

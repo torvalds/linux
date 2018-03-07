@@ -584,7 +584,7 @@ static void mxs_lradc_ts_hw_init(struct mxs_lradc_ts *ts)
 
 static int mxs_lradc_ts_register(struct mxs_lradc_ts *ts)
 {
-	struct input_dev *input = ts->ts_input;
+	struct input_dev *input;
 	struct device *dev = ts->dev;
 
 	input = devm_input_allocate_device(dev);

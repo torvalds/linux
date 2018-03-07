@@ -206,6 +206,7 @@
 #include "i915_oa_kblgt2.h"
 #include "i915_oa_kblgt3.h"
 #include "i915_oa_glk.h"
+#include "i915_oa_cflgt2.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -1213,7 +1214,7 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	if (i915.enable_execlists)
+	if (i915_modparams.enable_execlists)
 		dev_priv->perf.oa.specific_ctx_id = stream->ctx->hw_id;
 	else {
 		struct intel_engine_cs *engine = dev_priv->engine[RCS];
@@ -1259,7 +1260,7 @@ static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
 
-	if (i915.enable_execlists) {
+	if (i915_modparams.enable_execlists) {
 		dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
 	} else {
 		struct intel_engine_cs *engine = dev_priv->engine[RCS];
@@ -1850,8 +1851,7 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
 	 * be read back from automatically triggered reports, as part of the
 	 * RPT_ID field.
 	 */
-	if (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv) ||
-	    IS_KABYLAKE(dev_priv) || IS_GEMINILAKE(dev_priv)) {
+	if (IS_GEN9(dev_priv)) {
 		I915_WRITE(GEN8_OA_DEBUG,
 			   _MASKED_BIT_ENABLE(GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
 					      GEN9_OA_DEBUG_INCLUDE_CLK_RATIO));
@@ -2931,6 +2931,9 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 			i915_perf_load_test_config_kblgt3(dev_priv);
 	} else if (IS_GEMINILAKE(dev_priv)) {
 		i915_perf_load_test_config_glk(dev_priv);
+	} else if (IS_COFFEELAKE(dev_priv)) {
+		if (IS_CFL_GT2(dev_priv))
+			i915_perf_load_test_config_cflgt2(dev_priv);
 	}
 
 	if (dev_priv->perf.oa.test_config.id == 0)
@@ -3409,7 +3412,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		dev_priv->perf.oa.timestamp_frequency = 12500000;
 
 		dev_priv->perf.oa.oa_formats = hsw_oa_formats;
-	} else if (i915.enable_execlists) {
+	} else if (i915_modparams.enable_execlists) {
 		/* Note: that although we could theoretically also support the
 		 * legacy ringbuffer mode on BDW (and earlier iterations of
 		 * this driver, before upstreaming did this) it didn't seem
@@ -3457,6 +3460,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 				break;
 			case INTEL_SKYLAKE:
 			case INTEL_KABYLAKE:
+			case INTEL_COFFEELAKE:
 				dev_priv->perf.oa.timestamp_frequency = 12000000;
 				break;
 			default:

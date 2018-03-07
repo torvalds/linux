@@ -384,7 +384,6 @@ static const struct iio_info ms5611_info = {
 	.read_raw = &ms5611_read_raw,
 	.write_raw = &ms5611_write_raw,
 	.attrs = &ms5611_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int ms5611_init(struct iio_dev *indio_dev)

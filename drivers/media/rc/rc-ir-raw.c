@@ -128,7 +128,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
 /**
  * ir_raw_event_store_with_filter() - pass next pulse/space to decoders with some processing
  * @dev:	the struct rc_dev device descriptor
- * @type:	the type of the event that has occurred
+ * @ev:		the event that has occurred
  *
  * This routine (which may be called from an interrupt context) works
  * in similar manner to ir_raw_event_store_edge.
@@ -471,9 +471,10 @@ int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 }
 EXPORT_SYMBOL(ir_raw_encode_scancode);
 
-static void edge_handle(unsigned long arg)
+static void edge_handle(struct timer_list *t)
 {
-	struct rc_dev *dev = (struct rc_dev *)arg;
+	struct ir_raw_event_ctrl *raw = from_timer(raw, t, edge_handle);
+	struct rc_dev *dev = raw->dev;
 	ktime_t interval = ktime_sub(ktime_get(), dev->raw->last_event);
 
 	if (ktime_to_ns(interval) >= dev->timeout) {
@@ -513,8 +514,7 @@ int ir_raw_event_prepare(struct rc_dev *dev)
 
 	dev->raw->dev = dev;
 	dev->change_protocol = change_protocol;
-	setup_timer(&dev->raw->edge_handle, edge_handle,
-		    (unsigned long)dev);
+	timer_setup(&dev->raw->edge_handle, edge_handle, 0);
 	INIT_KFIFO(dev->raw->kfifo);
 
 	return 0;

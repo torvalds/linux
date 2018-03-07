@@ -169,6 +169,16 @@ void radix__mark_rodata_ro(void)
 {
 	unsigned long start, end;
 
+	/*
+	 * mark_rodata_ro() will mark itself as !writable at some point.
+	 * Due to DD1 workaround in radix__pte_update(), we'll end up with
+	 * an invalid pte and the system will crash quite severly.
+	 */
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		pr_warn("Warning: Unable to mark rodata read only on P9 DD1\n");
+		return;
+	}
+
 	start = (unsigned long)_stext;
 	end = (unsigned long)__init_begin;
 

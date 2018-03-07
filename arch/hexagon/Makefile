@@ -12,9 +12,9 @@ KBUILD_CFLAGS += -fno-short-enums
 
 # Modules must use either long-calls, or use pic/plt.
 # Use long-calls for now, it's easier.  And faster.
-# CFLAGS_MODULE += -fPIC
-# LDFLAGS_MODULE += -shared
-CFLAGS_MODULE += -mlong-calls
+# KBUILD_CFLAGS_MODULE += -fPIC
+# KBUILD_LDFLAGS_MODULE += -shared
+KBUILD_CFLAGS_MODULE += -mlong-calls
 
 cflags-y += $(call cc-option,-mv${CONFIG_HEXAGON_ARCH_VERSION})
 aflags-y += $(call cc-option,-mv${CONFIG_HEXAGON_ARCH_VERSION})

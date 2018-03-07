@@ -94,6 +94,10 @@ static const struct of_device_id st_accel_of_match[] = {
 		.compatible = "st,lng2dm-accel",
 		.data = LNG2DM_ACCEL_DEV_NAME,
 	},
+	{
+		.compatible = "st,lis2dw12",
+		.data = LIS2DW12_ACCEL_DEV_NAME,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_accel_of_match);
@@ -129,6 +133,7 @@ static const struct i2c_device_id st_accel_id_table[] = {
 	{ H3LIS331DL_ACCEL_DEV_NAME, H3LIS331DL },
 	{ LIS331DL_ACCEL_DEV_NAME, LIS331DL },
 	{ LIS3LV02DL_ACCEL_DEV_NAME, LIS3LV02DL },
+	{ LIS2DW12_ACCEL_DEV_NAME, LIS2DW12 },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_accel_id_table);

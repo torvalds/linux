@@ -336,7 +336,7 @@ static void tsi57x_remove(struct rio_dev *rdev)
 	spin_unlock(&rdev->rswitch->lock);
 }
 
-static struct rio_device_id tsi57x_id_table[] = {
+static const struct rio_device_id tsi57x_id_table[] = {
 	{RIO_DEVICE(RIO_DID_TSI572, RIO_VID_TUNDRA)},
 	{RIO_DEVICE(RIO_DID_TSI574, RIO_VID_TUNDRA)},
 	{RIO_DEVICE(RIO_DID_TSI577, RIO_VID_TUNDRA)},

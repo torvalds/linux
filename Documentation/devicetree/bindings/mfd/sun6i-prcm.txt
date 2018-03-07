@@ -15,7 +15,7 @@ The prcm node may contain several subdevices definitions:
 
 Example:
 
-	prcm: prcm@01f01400 {
+	prcm: prcm@1f01400 {
 		compatible = "allwinner,sun6i-a31-prcm";
 		reg = <0x01f01400 0x200>;
 

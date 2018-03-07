@@ -4,6 +4,7 @@
 #include <linux/personality.h>
 #include <linux/binfmts.h>
 #include <linux/elf.h>
+#include <linux/elf-fdpic.h>
 #include <asm/system_info.h>
 
 int elf_check_arch(const struct elf32_hdr *x)
@@ -81,7 +82,7 @@ EXPORT_SYMBOL(elf_set_personality);
  *  - the binary requires an executable stack
  *  - we're running on a CPU which doesn't support NX.
  */
-int arm_elf_read_implies_exec(const struct elf32_hdr *x, int executable_stack)
+int arm_elf_read_implies_exec(int executable_stack)
 {
 	if (executable_stack != EXSTACK_DISABLE_X)
 		return 1;
@@ -90,3 +91,24 @@ int arm_elf_read_implies_exec(const struct elf32_hdr *x, int executable_stack)
 	return 0;
 }
 EXPORT_SYMBOL(arm_elf_read_implies_exec);
+
+#if defined(CONFIG_MMU) && defined(CONFIG_BINFMT_ELF_FDPIC)
+
+void elf_fdpic_arch_lay_out_mm(struct elf_fdpic_params *exec_params,
+			       struct elf_fdpic_params *interp_params,
+			       unsigned long *start_stack,
+			       unsigned long *start_brk)
+{
+	elf_set_personality(&exec_params->hdr);
+
+	exec_params->load_addr = 0x8000;
+	interp_params->load_addr = ELF_ET_DYN_BASE;
+	*start_stack = TASK_SIZE - SZ_16M;
+
+	if ((exec_params->flags & ELF_FDPIC_FLAG_ARRANGEMENT) == ELF_FDPIC_FLAG_INDEPENDENT) {
+		exec_params->flags &= ~ELF_FDPIC_FLAG_ARRANGEMENT;
+		exec_params->flags |= ELF_FDPIC_FLAG_CONSTDISP;
+	}
+}
+
+#endif

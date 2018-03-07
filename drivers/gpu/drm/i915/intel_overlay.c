@@ -1134,7 +1134,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 	if (!params)
 		return -ENOMEM;
 
-	drmmode_crtc = drm_crtc_find(dev, put_image_rec->crtc_id);
+	drmmode_crtc = drm_crtc_find(dev, file_priv, put_image_rec->crtc_id);
 	if (!drmmode_crtc) {
 		ret = -ENOENT;
 		goto out_free;

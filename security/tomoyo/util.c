@@ -87,38 +87,17 @@ const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX] = {
  * @stamp: Pointer to "struct tomoyo_time".
  *
  * Returns nothing.
- *
- * This function does not handle Y2038 problem.
  */
-void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp)
+void tomoyo_convert_time(time64_t time64, struct tomoyo_time *stamp)
 {
-	static const u16 tomoyo_eom[2][12] = {
-		{ 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 },
-		{ 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 }
-	};
-	u16 y;
-	u8 m;
-	bool r;
-	stamp->sec = time % 60;
-	time /= 60;
-	stamp->min = time % 60;
-	time /= 60;
-	stamp->hour = time % 24;
-	time /= 24;
-	for (y = 1970; ; y++) {
-		const unsigned short days = (y & 3) ? 365 : 366;
-		if (time < days)
-			break;
-		time -= days;
-	}
-	r = (y & 3) == 0;
-	for (m = 0; m < 11 && time >= tomoyo_eom[r][m]; m++)
-		;
-	if (m)
-		time -= tomoyo_eom[r][m - 1];
-	stamp->year = y;
-	stamp->month = ++m;
-	stamp->day = ++time;
+	struct tm tm;
+	time64_to_tm(time64, 0, &tm);
+	stamp->sec = tm.tm_sec;
+	stamp->min = tm.tm_min;
+	stamp->hour = tm.tm_hour;
+	stamp->day = tm.tm_mday;
+	stamp->month = tm.tm_mon + 1;
+	stamp->year = tm.tm_year + 1900;
 }
 
 /**

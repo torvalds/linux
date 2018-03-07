@@ -522,6 +522,7 @@ static struct of_device_id const bcm_kona_gpio_of_match[] = {
  * category than their parents, so it won't report false recursion.
  */
 static struct lock_class_key gpio_lock_class;
+static struct lock_class_key gpio_request_class;
 
 static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 				 irq_hw_number_t hwirq)
@@ -531,7 +532,7 @@ static int bcm_kona_gpio_irq_map(struct irq_domain *d, unsigned int irq,
 	ret = irq_set_chip_data(irq, d->host_data);
 	if (ret < 0)
 		return ret;
-	irq_set_lockdep_class(irq, &gpio_lock_class);
+	irq_set_lockdep_class(irq, &gpio_lock_class, &gpio_request_class);
 	irq_set_chip_and_handler(irq, &bcm_gpio_irq_chip, handle_simple_irq);
 	irq_set_noprobe(irq);
 

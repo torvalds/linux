@@ -1227,6 +1227,16 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 }
 EXPORT_SYMBOL(v4l2_ctrl_fill);
 
+static u32 user_flags(const struct v4l2_ctrl *ctrl)
+{
+	u32 flags = ctrl->flags;
+
+	if (ctrl->is_ptr)
+		flags |= V4L2_CTRL_FLAG_HAS_PAYLOAD;
+
+	return flags;
+}
+
 static void fill_event(struct v4l2_event *ev, struct v4l2_ctrl *ctrl, u32 changes)
 {
 	memset(ev->reserved, 0, sizeof(ev->reserved));
@@ -1234,7 +1244,7 @@ static void fill_event(struct v4l2_event *ev, struct v4l2_ctrl *ctrl, u32 change
 	ev->id = ctrl->id;
 	ev->u.ctrl.changes = changes;
 	ev->u.ctrl.type = ctrl->type;
-	ev->u.ctrl.flags = ctrl->flags;
+	ev->u.ctrl.flags = user_flags(ctrl);
 	if (ctrl->is_ptr)
 		ev->u.ctrl.value64 = 0;
 	else
@@ -2003,10 +2013,6 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		handler_set_err(hdl, err);
 		return NULL;
 	}
-	if (type == V4L2_CTRL_TYPE_BITMASK && ((def & ~max) || min || step)) {
-		handler_set_err(hdl, -ERANGE);
-		return NULL;
-	}
 	if (is_array &&
 	    (type == V4L2_CTRL_TYPE_BUTTON ||
 	     type == V4L2_CTRL_TYPE_CTRL_CLASS)) {
@@ -2577,10 +2583,8 @@ int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctr
 	else
 		qc->id = ctrl->id;
 	strlcpy(qc->name, ctrl->name, sizeof(qc->name));
-	qc->flags = ctrl->flags;
+	qc->flags = user_flags(ctrl);
 	qc->type = ctrl->type;
-	if (ctrl->is_ptr)
-		qc->flags |= V4L2_CTRL_FLAG_HAS_PAYLOAD;
 	qc->elem_size = ctrl->elem_size;
 	qc->elems = ctrl->elems;
 	qc->nr_of_dims = ctrl->nr_of_dims;
@@ -2818,7 +2822,7 @@ static int prepare_ext_ctrls(struct v4l2_ctrl_handler *hdl,
 static int class_check(struct v4l2_ctrl_handler *hdl, u32 which)
 {
 	if (which == 0 || which == V4L2_CTRL_WHICH_DEF_VAL)
-		return list_empty(&hdl->ctrl_refs) ? -EINVAL : 0;
+		return 0;
 	return find_ref_lock(hdl, which | 1) ? 0 : -EINVAL;
 }
 

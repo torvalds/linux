@@ -102,7 +102,7 @@ struct dst_entry {
 	union {
 		struct dst_entry	*next;
 		struct rtable __rcu	*rt_next;
-		struct rt6_info		*rt6_next;
+		struct rt6_info __rcu	*rt6_next;
 		struct dn_route __rcu	*dn_next;
 	};
 };
@@ -256,17 +256,18 @@ static inline void dst_hold(struct dst_entry *dst)
 	WARN_ON(atomic_inc_not_zero(&dst->__refcnt) == 0);
 }
 
-static inline void dst_use(struct dst_entry *dst, unsigned long time)
-{
-	dst_hold(dst);
-	dst->__use++;
-	dst->lastuse = time;
-}
-
 static inline void dst_use_noref(struct dst_entry *dst, unsigned long time)
 {
-	dst->__use++;
-	dst->lastuse = time;
+	if (unlikely(time != dst->lastuse)) {
+		dst->__use++;
+		dst->lastuse = time;
+	}
+}
+
+static inline void dst_hold_and_use(struct dst_entry *dst, unsigned long time)
+{
+	dst_hold(dst);
+	dst_use_noref(dst, time);
 }
 
 static inline struct dst_entry *dst_clone(struct dst_entry *dst)
@@ -519,5 +520,13 @@ static inline struct xfrm_state *dst_xfrm(const struct dst_entry *dst)
 	return dst->xfrm;
 }
 #endif
+
+static inline void skb_dst_update_pmtu(struct sk_buff *skb, u32 mtu)
+{
+	struct dst_entry *dst = skb_dst(skb);
+
+	if (dst && dst->ops->update_pmtu)
+		dst->ops->update_pmtu(dst, NULL, skb, mtu);
+}
 
 #endif /* _NET_DST_H */

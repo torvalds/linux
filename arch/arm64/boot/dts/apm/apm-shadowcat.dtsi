@@ -19,7 +19,7 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		cpu@000 {
+		cpu@0 {
 			device_type = "cpu";
 			compatible = "apm,strega", "arm,armv8";
 			reg = <0x0 0x000>;
@@ -29,7 +29,7 @@
 			#clock-cells = <1>;
 			clocks = <&pmd0clk 0>;
 		};
-		cpu@001 {
+		cpu@1 {
 			device_type = "cpu";
 			compatible = "apm,strega", "arm,armv8";
 			reg = <0x0 0x001>;
@@ -125,7 +125,7 @@
 		      <0x0 0x780a0000 0x0 0x20000>,	/* GIC CPU */
 		      <0x0 0x780c0000 0x0 0x10000>,	/* GIC VCPU Control */
 		      <0x0 0x780e0000 0x0 0x20000>;	/* GIC VCPU */
-		v2m0: v2m@00000 {
+		v2m0: v2m@0 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x0 0x0 0x1000>;

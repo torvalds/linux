@@ -7,7 +7,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 
-static int found(u64 start, u64 end, void *data)
+static int found(struct resource *res, void *data)
 {
 	return 1;
 }

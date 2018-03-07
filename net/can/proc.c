@@ -115,9 +115,9 @@ static unsigned long calc_rate(unsigned long oldjif, unsigned long newjif,
 	return rate;
 }
 
-void can_stat_update(unsigned long data)
+void can_stat_update(struct timer_list *t)
 {
-	struct net *net = (struct net *)data;
+	struct net *net = from_timer(net, t, can.can_stattimer);
 	struct s_stats *can_stats = net->can.can_stats;
 	unsigned long j = jiffies; /* snapshot */
 

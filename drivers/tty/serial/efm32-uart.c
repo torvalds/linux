@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #if defined(CONFIG_SERIAL_EFM32_UART_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
 #endif

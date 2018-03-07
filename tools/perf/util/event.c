@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -678,21 +679,21 @@ out:
 	return err;
 }
 
-int perf_event__synthesize_threads(struct perf_tool *tool,
-				   perf_event__handler_t process,
-				   struct machine *machine,
-				   bool mmap_data,
-				   unsigned int proc_map_timeout)
+static int __perf_event__synthesize_threads(struct perf_tool *tool,
+					    perf_event__handler_t process,
+					    struct machine *machine,
+					    bool mmap_data,
+					    unsigned int proc_map_timeout,
+					    struct dirent **dirent,
+					    int start,
+					    int num)
 {
-	DIR *proc;
-	char proc_path[PATH_MAX];
-	struct dirent *dirent;
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	union perf_event *namespaces_event;
 	int err = -1;
-
-	if (machine__is_default_guest(machine))
-		return 0;
+	char *end;
+	pid_t pid;
+	int i;
 
 	comm_event = malloc(sizeof(comm_event->comm) + machine->id_hdr_size);
 	if (comm_event == NULL)
@@ -712,31 +713,25 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (namespaces_event == NULL)
 		goto out_free_fork;
 
-	snprintf(proc_path, sizeof(proc_path), "%s/proc", machine->root_dir);
-	proc = opendir(proc_path);
+	for (i = start; i < start + num; i++) {
+		if (!isdigit(dirent[i]->d_name[0]))
+			continue;
 
-	if (proc == NULL)
-		goto out_free_namespaces;
-
-	while ((dirent = readdir(proc)) != NULL) {
-		char *end;
-		pid_t pid = strtol(dirent->d_name, &end, 10);
-
-		if (*end) /* only interested in proper numerical dirents */
+		pid = (pid_t)strtol(dirent[i]->d_name, &end, 10);
+		/* only interested in proper numerical dirents */
+		if (*end)
 			continue;
 		/*
- 		 * We may race with exiting thread, so don't stop just because
- 		 * one thread couldn't be synthesized.
- 		 */
+		 * We may race with exiting thread, so don't stop just because
+		 * one thread couldn't be synthesized.
+		 */
 		__event__synthesize_thread(comm_event, mmap_event, fork_event,
 					   namespaces_event, pid, 1, process,
 					   tool, machine, mmap_data,
 					   proc_map_timeout);
 	}
-
 	err = 0;
-	closedir(proc);
-out_free_namespaces:
+
 	free(namespaces_event);
 out_free_fork:
 	free(fork_event);
@@ -745,6 +740,118 @@ out_free_mmap:
 out_free_comm:
 	free(comm_event);
 out:
+	return err;
+}
+
+struct synthesize_threads_arg {
+	struct perf_tool *tool;
+	perf_event__handler_t process;
+	struct machine *machine;
+	bool mmap_data;
+	unsigned int proc_map_timeout;
+	struct dirent **dirent;
+	int num;
+	int start;
+};
+
+static void *synthesize_threads_worker(void *arg)
+{
+	struct synthesize_threads_arg *args = arg;
+
+	__perf_event__synthesize_threads(args->tool, args->process,
+					 args->machine, args->mmap_data,
+					 args->proc_map_timeout, args->dirent,
+					 args->start, args->num);
+	return NULL;
+}
+
+int perf_event__synthesize_threads(struct perf_tool *tool,
+				   perf_event__handler_t process,
+				   struct machine *machine,
+				   bool mmap_data,
+				   unsigned int proc_map_timeout,
+				   unsigned int nr_threads_synthesize)
+{
+	struct synthesize_threads_arg *args = NULL;
+	pthread_t *synthesize_threads = NULL;
+	char proc_path[PATH_MAX];
+	struct dirent **dirent;
+	int num_per_thread;
+	int m, n, i, j;
+	int thread_nr;
+	int base = 0;
+	int err = -1;
+
+
+	if (machine__is_default_guest(machine))
+		return 0;
+
+	snprintf(proc_path, sizeof(proc_path), "%s/proc", machine->root_dir);
+	n = scandir(proc_path, &dirent, 0, alphasort);
+	if (n < 0)
+		return err;
+
+	if (nr_threads_synthesize == UINT_MAX)
+		thread_nr = sysconf(_SC_NPROCESSORS_ONLN);
+	else
+		thread_nr = nr_threads_synthesize;
+
+	if (thread_nr <= 1) {
+		err = __perf_event__synthesize_threads(tool, process,
+						       machine, mmap_data,
+						       proc_map_timeout,
+						       dirent, base, n);
+		goto free_dirent;
+	}
+	if (thread_nr > n)
+		thread_nr = n;
+
+	synthesize_threads = calloc(sizeof(pthread_t), thread_nr);
+	if (synthesize_threads == NULL)
+		goto free_dirent;
+
+	args = calloc(sizeof(*args), thread_nr);
+	if (args == NULL)
+		goto free_threads;
+
+	num_per_thread = n / thread_nr;
+	m = n % thread_nr;
+	for (i = 0; i < thread_nr; i++) {
+		args[i].tool = tool;
+		args[i].process = process;
+		args[i].machine = machine;
+		args[i].mmap_data = mmap_data;
+		args[i].proc_map_timeout = proc_map_timeout;
+		args[i].dirent = dirent;
+	}
+	for (i = 0; i < m; i++) {
+		args[i].num = num_per_thread + 1;
+		args[i].start = i * args[i].num;
+	}
+	if (i != 0)
+		base = args[i-1].start + args[i-1].num;
+	for (j = i; j < thread_nr; j++) {
+		args[j].num = num_per_thread;
+		args[j].start = base + (j - i) * args[i].num;
+	}
+
+	for (i = 0; i < thread_nr; i++) {
+		if (pthread_create(&synthesize_threads[i], NULL,
+				   synthesize_threads_worker, &args[i]))
+			goto out_join;
+	}
+	err = 0;
+out_join:
+	for (i = 0; i < thread_nr; i++)
+		pthread_join(synthesize_threads[i], NULL);
+	free(args);
+free_threads:
+	free(synthesize_threads);
+free_dirent:
+	for (i = 0; i < n; i++)
+		free(dirent[i]);
+	free(dirent);
+
 	return err;
 }
 
@@ -1498,6 +1605,7 @@ int machine__resolve(struct machine *machine, struct addr_location *al,
 	al->sym = NULL;
 	al->cpu = sample->cpu;
 	al->socket = -1;
+	al->srcline = NULL;
 
 	if (al->cpu >= 0) {
 		struct perf_env *env = machine->env;

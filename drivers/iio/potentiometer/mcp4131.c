@@ -237,7 +237,6 @@ static int mcp4131_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info mcp4131_info = {
 	.read_raw = mcp4131_read_raw,
 	.write_raw = mcp4131_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int mcp4131_probe(struct spi_device *spi)

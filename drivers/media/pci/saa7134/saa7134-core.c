@@ -338,9 +338,9 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 	}
 }
 
-void saa7134_buffer_timeout(unsigned long data)
+void saa7134_buffer_timeout(struct timer_list *t)
 {
-	struct saa7134_dmaqueue *q = (struct saa7134_dmaqueue *)data;
+	struct saa7134_dmaqueue *q = from_timer(q, t, timeout);
 	struct saa7134_dev *dev = q->dev;
 	unsigned long flags;
 
@@ -378,7 +378,7 @@ void saa7134_stop_streaming(struct saa7134_dev *dev, struct saa7134_dmaqueue *q)
 		}
 	}
 	spin_unlock_irqrestore(&dev->slock, flags);
-	saa7134_buffer_timeout((unsigned long)q); /* also calls del_timer(&q->timeout) */
+	saa7134_buffer_timeout(&q->timeout); /* also calls del_timer(&q->timeout) */
 }
 EXPORT_SYMBOL_GPL(saa7134_stop_streaming);
 

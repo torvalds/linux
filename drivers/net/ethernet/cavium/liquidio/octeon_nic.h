@@ -279,7 +279,8 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
  * queue should be stopped, and IQ_SEND_OK if it sent okay.
  */
 int octnet_send_nic_data_pkt(struct octeon_device *oct,
-			     struct octnic_data_pkt *ndata);
+			     struct octnic_data_pkt *ndata,
+			     int xmit_more);
 
 /** Send a NIC control packet to the device
  * @param oct - octeon device pointer

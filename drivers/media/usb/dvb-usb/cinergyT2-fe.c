@@ -26,7 +26,7 @@
 #include "cinergyT2.h"
 
 
-/**
+/*
  *  convert linux-dvb frontend parameter set into TPS.
  *  See ETSI ETS-300744, section 4.6.2, table 9 for details.
  *

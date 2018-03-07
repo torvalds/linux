@@ -908,22 +908,32 @@ int mlx5_nic_vport_update_local_lb(struct mlx5_core_dev *mdev, bool enable)
 	void *in;
 	int err;
 
-	mlx5_core_dbg(mdev, "%s local_lb\n", enable ? "enable" : "disable");
+	if (!MLX5_CAP_GEN(mdev, disable_local_lb_mc) &&
+	    !MLX5_CAP_GEN(mdev, disable_local_lb_uc))
+		return 0;
+
 	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
 	MLX5_SET(modify_nic_vport_context_in, in,
-		 field_select.disable_mc_local_lb, 1);
-	MLX5_SET(modify_nic_vport_context_in, in,
 		 nic_vport_context.disable_mc_local_lb, !enable);
-
-	MLX5_SET(modify_nic_vport_context_in, in,
-		 field_select.disable_uc_local_lb, 1);
 	MLX5_SET(modify_nic_vport_context_in, in,
 		 nic_vport_context.disable_uc_local_lb, !enable);
 
+	if (MLX5_CAP_GEN(mdev, disable_local_lb_mc))
+		MLX5_SET(modify_nic_vport_context_in, in,
+			 field_select.disable_mc_local_lb, 1);
+
+	if (MLX5_CAP_GEN(mdev, disable_local_lb_uc))
+		MLX5_SET(modify_nic_vport_context_in, in,
+			 field_select.disable_uc_local_lb, 1);
+
 	err = mlx5_modify_nic_vport_context(mdev, in, inlen);
+
+	if (!err)
+		mlx5_core_dbg(mdev, "%s local_lb\n",
+			      enable ? "enable" : "disable");
 
 	kvfree(in);
 	return err;

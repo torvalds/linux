@@ -429,7 +429,8 @@ static unsigned long stub_for_addr(const Elf64_Shdr *sechdrs,
 	/* Find this stub, or if that fails, the next avail. entry */
 	stubs = (void *)sechdrs[me->arch.stubs_section].sh_addr;
 	for (i = 0; stub_func_addr(stubs[i].funcdata); i++) {
-		BUG_ON(i >= num_stubs);
+		if (WARN_ON(i >= num_stubs))
+			return 0;
 
 		if (stub_func_addr(stubs[i].funcdata) == func_addr(addr))
 			return (unsigned long)&stubs[i];

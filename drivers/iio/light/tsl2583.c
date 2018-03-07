@@ -804,7 +804,6 @@ static int tsl2583_write_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info tsl2583_info = {
 	.attrs = &tsl2583_attribute_group,
-	.driver_module = THIS_MODULE,
 	.read_raw = tsl2583_read_raw,
 	.write_raw = tsl2583_write_raw,
 };

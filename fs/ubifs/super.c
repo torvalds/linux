@@ -968,7 +968,7 @@ static int parse_standard_option(const char *option)
 
 	pr_notice("UBIFS: parse %s\n", option);
 	if (!strcmp(option, "sync"))
-		return MS_SYNCHRONOUS;
+		return SB_SYNCHRONOUS;
 	return 0;
 }
 
@@ -1160,8 +1160,8 @@ static int mount_ubifs(struct ubifs_info *c)
 	size_t sz;
 
 	c->ro_mount = !!sb_rdonly(c->vfs_sb);
-	/* Suppress error messages while probing if MS_SILENT is set */
-	c->probing = !!(c->vfs_sb->s_flags & MS_SILENT);
+	/* Suppress error messages while probing if SB_SILENT is set */
+	c->probing = !!(c->vfs_sb->s_flags & SB_SILENT);
 
 	err = init_constants_early(c);
 	if (err)
@@ -1852,7 +1852,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		return err;
 	}
 
-	if (c->ro_mount && !(*flags & MS_RDONLY)) {
+	if (c->ro_mount && !(*flags & SB_RDONLY)) {
 		if (c->ro_error) {
 			ubifs_msg(c, "cannot re-mount R/W due to prior errors");
 			return -EROFS;
@@ -1864,7 +1864,7 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 		err = ubifs_remount_rw(c);
 		if (err)
 			return err;
-	} else if (!c->ro_mount && (*flags & MS_RDONLY)) {
+	} else if (!c->ro_mount && (*flags & SB_RDONLY)) {
 		if (c->ro_error) {
 			ubifs_msg(c, "cannot re-mount R/O due to prior errors");
 			return -EROFS;
@@ -2007,12 +2007,6 @@ static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
 	return c;
 }
 
-#ifndef CONFIG_UBIFS_FS_ENCRYPTION
-const struct fscrypt_operations ubifs_crypt_operations = {
-	.is_encrypted		= __ubifs_crypt_is_encrypted,
-};
-#endif
-
 static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct ubifs_info *c = sb->s_fs_info;
@@ -2055,7 +2049,9 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 		sb->s_maxbytes = c->max_inode_sz = MAX_LFS_FILESIZE;
 	sb->s_op = &ubifs_super_operations;
 	sb->s_xattr = ubifs_xattr_handlers;
+#ifdef CONFIG_UBIFS_FS_ENCRYPTION
 	sb->s_cop = &ubifs_crypt_operations;
+#endif
 
 	mutex_lock(&c->umount_mutex);
 	err = mount_ubifs(c);
@@ -2121,7 +2117,7 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 	 */
 	ubi = open_ubi(name, UBI_READONLY);
 	if (IS_ERR(ubi)) {
-		if (!(flags & MS_SILENT))
+		if (!(flags & SB_SILENT))
 			pr_err("UBIFS error (pid: %d): cannot open \"%s\", error %d",
 			       current->pid, name, (int)PTR_ERR(ubi));
 		return ERR_CAST(ubi);
@@ -2147,18 +2143,18 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 		kfree(c);
 		/* A new mount point for already mounted UBIFS */
 		dbg_gen("this ubi volume is already mounted");
-		if (!!(flags & MS_RDONLY) != c1->ro_mount) {
+		if (!!(flags & SB_RDONLY) != c1->ro_mount) {
 			err = -EBUSY;
 			goto out_deact;
 		}
 	} else {
-		err = ubifs_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
+		err = ubifs_fill_super(sb, data, flags & SB_SILENT ? 1 : 0);
 		if (err)
 			goto out_deact;
 		/* We do not support atime */
-		sb->s_flags |= MS_ACTIVE;
+		sb->s_flags |= SB_ACTIVE;
 #ifndef CONFIG_UBIFS_ATIME_SUPPORT
-		sb->s_flags |= MS_NOATIME;
+		sb->s_flags |= SB_NOATIME;
 #else
 		ubifs_msg(c, "full atime support is enabled.");
 #endif

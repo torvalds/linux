@@ -185,6 +185,7 @@
 #include <linux/mutex.h>
 #include <linux/rbtree.h>
 #include <linux/rwsem.h>
+#include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
@@ -266,9 +267,6 @@ struct bcache_device {
 	atomic_t		*stripe_sectors_dirty;
 	unsigned long		*full_dirty_stripes;
 
-	unsigned long		sectors_dirty_last;
-	long			sectors_dirty_derivative;
-
 	struct bio_set		*bio_split;
 
 	unsigned		data_csum:1;
@@ -300,7 +298,7 @@ struct cached_dev {
 	struct semaphore	sb_write_mutex;
 
 	/* Refcount on the cache set. Always nonzero when we're caching. */
-	atomic_t		count;
+	refcount_t		count;
 	struct work_struct	detach;
 
 	/*
@@ -363,12 +361,14 @@ struct cached_dev {
 
 	uint64_t		writeback_rate_target;
 	int64_t			writeback_rate_proportional;
-	int64_t			writeback_rate_derivative;
-	int64_t			writeback_rate_change;
+	int64_t			writeback_rate_integral;
+	int64_t			writeback_rate_integral_scaled;
+	int32_t			writeback_rate_change;
 
 	unsigned		writeback_rate_update_seconds;
-	unsigned		writeback_rate_d_term;
+	unsigned		writeback_rate_i_term_inverse;
 	unsigned		writeback_rate_p_term_inverse;
+	unsigned		writeback_rate_minimum;
 };
 
 enum alloc_reserve {
@@ -582,6 +582,7 @@ struct cache_set {
 	uint8_t			need_gc;
 	struct gc_stat		gc_stats;
 	size_t			nbuckets;
+	size_t			avail_nbuckets;
 
 	struct task_struct	*gc_thread;
 	/* Where in the btree gc currently is */
@@ -807,13 +808,13 @@ do {									\
 
 static inline void cached_dev_put(struct cached_dev *dc)
 {
-	if (atomic_dec_and_test(&dc->count))
+	if (refcount_dec_and_test(&dc->count))
 		schedule_work(&dc->detach);
 }
 
 static inline bool cached_dev_get(struct cached_dev *dc)
 {
-	if (!atomic_inc_not_zero(&dc->count))
+	if (!refcount_inc_not_zero(&dc->count))
 		return false;
 
 	/* Paired with the mb in cached_dev_attach */

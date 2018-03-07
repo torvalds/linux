@@ -145,6 +145,11 @@ static noinline int bad_area(struct pt_regs *regs, unsigned long address)
 	return __bad_area(regs, address, SEGV_MAPERR);
 }
 
+static noinline int bad_access(struct pt_regs *regs, unsigned long address)
+{
+	return __bad_area(regs, address, SEGV_ACCERR);
+}
+
 static int do_sigbus(struct pt_regs *regs, unsigned long address,
 		     unsigned int fault)
 {
@@ -490,7 +495,7 @@ retry:
 
 good_area:
 	if (unlikely(access_error(is_write, is_exec, vma)))
-		return bad_area(regs, address);
+		return bad_access(regs, address);
 
 	/*
 	 * If for any reason at all we couldn't handle the fault,

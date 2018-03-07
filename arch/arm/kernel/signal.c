@@ -19,11 +19,12 @@
 #include <asm/elf.h>
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
-#include <asm/ucontext.h>
 #include <asm/unistd.h>
 #include <asm/vfp.h>
 
-extern const unsigned long sigreturn_codes[7];
+#include "signal.h"
+
+extern const unsigned long sigreturn_codes[17];
 
 static unsigned long signal_return_offset;
 
@@ -172,15 +173,6 @@ static int restore_vfp_context(char __user **auxp)
 /*
  * Do a signal return; undo the signal stack.  These are aligned to 64-bit.
  */
-struct sigframe {
-	struct ucontext uc;
-	unsigned long retcode[2];
-};
-
-struct rt_sigframe {
-	struct siginfo info;
-	struct sigframe sig;
-};
 
 static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 {
@@ -366,9 +358,20 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 	     unsigned long __user *rc, void __user *frame)
 {
 	unsigned long handler = (unsigned long)ksig->ka.sa.sa_handler;
+	unsigned long handler_fdpic_GOT = 0;
 	unsigned long retcode;
-	int thumb = 0;
+	unsigned int idx, thumb = 0;
 	unsigned long cpsr = regs->ARM_cpsr & ~(PSR_f | PSR_E_BIT);
+	bool fdpic = IS_ENABLED(CONFIG_BINFMT_ELF_FDPIC) &&
+		     (current->personality & FDPIC_FUNCPTRS);
+
+	if (fdpic) {
+		unsigned long __user *fdpic_func_desc =
+					(unsigned long __user *)handler;
+		if (__get_user(handler, &fdpic_func_desc[0]) ||
+		    __get_user(handler_fdpic_GOT, &fdpic_func_desc[1]))
+			return 1;
+	}
 
 	cpsr |= PSR_ENDSTATE;
 
@@ -408,9 +411,26 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 
 	if (ksig->ka.sa.sa_flags & SA_RESTORER) {
 		retcode = (unsigned long)ksig->ka.sa.sa_restorer;
+		if (fdpic) {
+			/*
+			 * We need code to load the function descriptor.
+			 * That code follows the standard sigreturn code
+			 * (6 words), and is made of 3 + 2 words for each
+			 * variant. The 4th copied word is the actual FD
+			 * address that the assembly code expects.
+			 */
+			idx = 6 + thumb * 3;
+			if (ksig->ka.sa.sa_flags & SA_SIGINFO)
+				idx += 5;
+			if (__put_user(sigreturn_codes[idx],   rc  ) ||
+			    __put_user(sigreturn_codes[idx+1], rc+1) ||
+			    __put_user(sigreturn_codes[idx+2], rc+2) ||
+			    __put_user(retcode,                rc+3))
+				return 1;
+			goto rc_finish;
+		}
 	} else {
-		unsigned int idx = thumb << 1;
-
+		idx = thumb << 1;
 		if (ksig->ka.sa.sa_flags & SA_SIGINFO)
 			idx += 3;
 
@@ -422,6 +442,7 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 		    __put_user(sigreturn_codes[idx+1], rc+1))
 			return 1;
 
+rc_finish:
 #ifdef CONFIG_MMU
 		if (cpsr & MODE32_BIT) {
 			struct mm_struct *mm = current->mm;
@@ -441,7 +462,7 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 			 * the return code written onto the stack.
 			 */
 			flush_icache_range((unsigned long)rc,
-					   (unsigned long)(rc + 2));
+					   (unsigned long)(rc + 3));
 
 			retcode = ((unsigned long)rc) + thumb;
 		}
@@ -451,6 +472,8 @@ setup_return(struct pt_regs *regs, struct ksignal *ksig,
 	regs->ARM_sp = (unsigned long)frame;
 	regs->ARM_lr = retcode;
 	regs->ARM_pc = handler;
+	if (fdpic)
+		regs->ARM_r9 = handler_fdpic_GOT;
 	regs->ARM_cpsr = cpsr;
 
 	return 0;

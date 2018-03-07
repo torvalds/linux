@@ -3,6 +3,7 @@
 #define _ASMARM_UCONTEXT_H
 
 #include <asm/fpstate.h>
+#include <asm/user.h>
 
 /*
  * struct sigcontext only has room for the basic registers, but struct

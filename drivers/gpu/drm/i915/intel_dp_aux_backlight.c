@@ -264,7 +264,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 {
 	struct intel_panel *panel = &intel_connector->panel;
 
-	if (!i915.enable_dpcd_backlight)
+	if (!i915_modparams.enable_dpcd_backlight)
 		return -ENODEV;
 
 	if (!intel_dp_aux_display_control_capable(intel_connector))

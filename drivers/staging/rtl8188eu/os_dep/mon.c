@@ -66,34 +66,6 @@ static void mon_recv_decrypted(struct net_device *dev, const u8 *data,
 	netif_rx(skb);
 }
 
-static void mon_recv_decrypted_recv(struct net_device *dev, const u8 *data,
-				    int data_len)
-{
-	struct sk_buff *skb;
-	struct ieee80211_hdr *hdr;
-	int hdr_len;
-
-	skb = netdev_alloc_skb(dev, data_len);
-	if (!skb)
-		return;
-	memcpy(skb_put(skb, data_len), data, data_len);
-
-	/*
-	 * Frame data is not encrypted. Strip off protection so
-	 * userspace doesn't think that it is.
-	 */
-
-	hdr = (struct ieee80211_hdr *)skb->data;
-	hdr_len = ieee80211_hdrlen(hdr->frame_control);
-
-	if (ieee80211_has_protected(hdr->frame_control))
-		hdr->frame_control &= ~cpu_to_le16(IEEE80211_FCTL_PROTECTED);
-
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	skb->protocol = eth_type_trans(skb, dev);
-	netif_rx(skb);
-}
-
 static void mon_recv_encrypted(struct net_device *dev, const u8 *data,
 			       int data_len)
 {
@@ -110,6 +82,7 @@ static void mon_recv_encrypted(struct net_device *dev, const u8 *data,
 void rtl88eu_mon_recv_hook(struct net_device *dev, struct recv_frame *frame)
 {
 	struct rx_pkt_attrib *attr;
+	int iv_len, icv_len;
 	int data_len;
 	u8 *data;
 
@@ -122,8 +95,11 @@ void rtl88eu_mon_recv_hook(struct net_device *dev, struct recv_frame *frame)
 	data = frame->pkt->data;
 	data_len = frame->pkt->len;
 
+	/* Broadcast and multicast frames don't have attr->{iv,icv}_len set */
+	SET_ICE_IV_LEN(iv_len, icv_len, attr->encrypt);
+
 	if (attr->bdecrypted)
-		mon_recv_decrypted_recv(dev, data, data_len);
+		mon_recv_decrypted(dev, data, data_len, iv_len, icv_len);
 	else
 		mon_recv_encrypted(dev, data, data_len);
 }

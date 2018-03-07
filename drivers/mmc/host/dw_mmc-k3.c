@@ -75,7 +75,7 @@ struct hs_timing {
 	u32 smpl_phase_min;
 };
 
-struct hs_timing hs_timing_cfg[TIMING_MODE][TIMING_CFG_NUM] = {
+static struct hs_timing hs_timing_cfg[TIMING_MODE][TIMING_CFG_NUM] = {
 	{ /* reserved */ },
 	{ /* SD */
 		{7, 0, 15, 15,},  /* 0: LEGACY 400k */

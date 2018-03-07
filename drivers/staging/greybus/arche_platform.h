@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Arche Platform driver to enable Unipro link.
  *
  * Copyright 2015-2016 Google Inc.
  * Copyright 2015-2016 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #ifndef __ARCHE_PLATFORM_H

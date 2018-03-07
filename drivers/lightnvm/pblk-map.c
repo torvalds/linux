@@ -25,16 +25,28 @@ static void pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 			       unsigned int valid_secs)
 {
 	struct pblk_line *line = pblk_line_get_data(pblk);
-	struct pblk_emeta *emeta = line->emeta;
+	struct pblk_emeta *emeta;
 	struct pblk_w_ctx *w_ctx;
-	__le64 *lba_list = emeta_to_lbas(pblk, emeta->buf);
+	__le64 *lba_list;
 	u64 paddr;
 	int nr_secs = pblk->min_write_pgs;
 	int i;
 
+	if (pblk_line_is_full(line)) {
+		struct pblk_line *prev_line = line;
+
+		line = pblk_line_replace_data(pblk);
+		pblk_line_close_meta(pblk, prev_line);
+	}
+
+	emeta = line->emeta;
+	lba_list = emeta_to_lbas(pblk, emeta->buf);
+
 	paddr = pblk_alloc_page(pblk, line, nr_secs);
 
 	for (i = 0; i < nr_secs; i++, paddr++) {
+		__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
+
 		/* ppa to be sent to the device */
 		ppa_list[i] = addr_to_gen_ppa(pblk, paddr, line->id);
 
@@ -51,20 +63,12 @@ static void pblk_map_page_data(struct pblk *pblk, unsigned int sentry,
 			w_ctx->ppa = ppa_list[i];
 			meta_list[i].lba = cpu_to_le64(w_ctx->lba);
 			lba_list[paddr] = cpu_to_le64(w_ctx->lba);
-			line->nr_valid_lbas++;
+			if (lba_list[paddr] != addr_empty)
+				line->nr_valid_lbas++;
 		} else {
-			__le64 addr_empty = cpu_to_le64(ADDR_EMPTY);
-
 			lba_list[paddr] = meta_list[i].lba = addr_empty;
 			__pblk_map_invalidate(pblk, line, paddr);
 		}
-	}
-
-	if (pblk_line_is_full(line)) {
-		struct pblk_line *prev_line = line;
-
-		pblk_line_replace_data(pblk);
-		pblk_line_close_meta(pblk, prev_line);
 	}
 
 	pblk_down_rq(pblk, ppa_list, nr_secs, lun_bitmap);

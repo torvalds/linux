@@ -29,6 +29,7 @@ controller.
 - interrupts : The interrupt to the parent controller raised when GPIOs
   generate the interrupts.
 - snps,nr-gpios : The number of pins in the port, a single cell.
+- resets : Reset line for the controller.
 
 Example:
 

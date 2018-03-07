@@ -406,10 +406,9 @@ enum dma_status
 ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 		struct dma_tx_state *txstate);
 void ioat_cleanup_event(unsigned long data);
-void ioat_timer_event(unsigned long data);
+void ioat_timer_event(struct timer_list *t);
 int ioat_check_space_lock(struct ioatdma_chan *ioat_chan, int num_descs);
 void ioat_issue_pending(struct dma_chan *chan);
-void ioat_timer_event(unsigned long data);
 
 /* IOAT Init functions */
 bool is_bwd_ioat(struct pci_dev *pdev);

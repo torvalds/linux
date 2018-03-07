@@ -50,7 +50,7 @@ config SPI_ATMEL_QUADSPI
 
 config SPI_CADENCE_QUADSPI
 	tristate "Cadence Quad SPI controller"
-	depends on OF && (ARM || COMPILE_TEST)
+	depends on OF && (ARM || ARM64 || COMPILE_TEST)
 	help
 	  Enable support for the Cadence Quad SPI Flash controller.
 
@@ -90,7 +90,7 @@ config SPI_INTEL_SPI
 	tristate
 
 config SPI_INTEL_SPI_PCI
-	tristate "Intel PCH/PCU SPI flash PCI driver" if EXPERT
+	tristate "Intel PCH/PCU SPI flash PCI driver"
 	depends on X86 && PCI
 	select SPI_INTEL_SPI
 	help
@@ -106,7 +106,7 @@ config SPI_INTEL_SPI_PCI
 	  will be called intel-spi-pci.
 
 config SPI_INTEL_SPI_PLATFORM
-	tristate "Intel PCH/PCU SPI flash platform driver" if EXPERT
+	tristate "Intel PCH/PCU SPI flash platform driver"
 	depends on X86
 	select SPI_INTEL_SPI
 	help

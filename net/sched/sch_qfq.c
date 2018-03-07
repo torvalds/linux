@@ -709,6 +709,7 @@ static struct qfq_class *qfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 		case TC_ACT_STOLEN:
 		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
+			/* fall through */
 		case TC_ACT_SHOT:
 			return NULL;
 		}
@@ -1419,7 +1420,7 @@ static int qfq_init_qdisc(struct Qdisc *sch, struct nlattr *opt)
 	int i, j, err;
 	u32 max_cl_shift, maxbudg_shift, max_classes;
 
-	err = tcf_block_get(&q->block, &q->filter_list);
+	err = tcf_block_get(&q->block, &q->filter_list, sch);
 	if (err)
 		return err;
 

@@ -23,10 +23,11 @@ void set_bit(unsigned long nr, volatile unsigned long *addr);
 void clear_bit(unsigned long nr, volatile unsigned long *addr);
 void change_bit(unsigned long nr, volatile unsigned long *addr);
 
+int fls(unsigned int word);
+int __fls(unsigned long word);
+
 #include <asm-generic/bitops/non-atomic.h>
 
-#include <asm-generic/bitops/fls.h>
-#include <asm-generic/bitops/__fls.h>
 #include <asm-generic/bitops/fls64.h>
 
 #ifdef __KERNEL__

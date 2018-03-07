@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPL HEADER START
  *
@@ -160,9 +161,9 @@ struct lnet_libmd {
 	} md_iov;
 };
 
-#define LNET_MD_FLAG_ZOMBIE		(1 << 0)
-#define LNET_MD_FLAG_AUTO_UNLINK	(1 << 1)
-#define LNET_MD_FLAG_ABORTED		(1 << 2)
+#define LNET_MD_FLAG_ZOMBIE		BIT(0)
+#define LNET_MD_FLAG_AUTO_UNLINK	BIT(1)
+#define LNET_MD_FLAG_ABORTED		BIT(2)
 
 struct lnet_test_peer {
 	/* info about peers we are trying to fail */
@@ -287,9 +288,9 @@ struct lnet_ni {
  * of old LNet, so there shouldn't be any compatibility issue
  */
 #define LNET_PING_FEAT_INVAL		(0)		/* no feature */
-#define LNET_PING_FEAT_BASE		(1 << 0)	/* just a ping */
-#define LNET_PING_FEAT_NI_STATUS	(1 << 1)	/* return NI status */
-#define LNET_PING_FEAT_RTE_DISABLED	(1 << 2)	/* Routing enabled */
+#define LNET_PING_FEAT_BASE		BIT(0)	/* just a ping */
+#define LNET_PING_FEAT_NI_STATUS	BIT(1)	/* return NI status */
+#define LNET_PING_FEAT_RTE_DISABLED	BIT(2)	/* Routing enabled */
 
 #define LNET_PING_FEAT_MASK		(LNET_PING_FEAT_BASE | \
 					 LNET_PING_FEAT_NI_STATUS)
@@ -440,23 +441,21 @@ struct lnet_rtrbuf {
 
 enum lnet_match_flags {
 	/* Didn't match anything */
-	LNET_MATCHMD_NONE	= (1 << 0),
+	LNET_MATCHMD_NONE	= BIT(0),
 	/* Matched OK */
-	LNET_MATCHMD_OK		= (1 << 1),
+	LNET_MATCHMD_OK		= BIT(1),
 	/* Must be discarded */
-	LNET_MATCHMD_DROP	= (1 << 2),
+	LNET_MATCHMD_DROP	= BIT(2),
 	/* match and buffer is exhausted */
-	LNET_MATCHMD_EXHAUSTED	= (1 << 3),
+	LNET_MATCHMD_EXHAUSTED	= BIT(3),
 	/* match or drop */
 	LNET_MATCHMD_FINISH	= (LNET_MATCHMD_OK | LNET_MATCHMD_DROP),
 };
 
 /* Options for lnet_portal::ptl_options */
-#define LNET_PTL_LAZY		(1 << 0)
-#define LNET_PTL_MATCH_UNIQUE	(1 << 1)	/* unique match, for RDMA */
-#define LNET_PTL_MATCH_WILDCARD	(1 << 2)	/* wildcard match,
-						 * request portal
-						 */
+#define LNET_PTL_LAZY		BIT(0)
+#define LNET_PTL_MATCH_UNIQUE	BIT(1)	/* unique match, for RDMA */
+#define LNET_PTL_MATCH_WILDCARD	BIT(2)	/* wildcard match, request portal */
 
 /* parameter for matching operations (GET, PUT) */
 struct lnet_match_info {

@@ -87,9 +87,6 @@ void iwl_free_fw_paging(struct iwl_fw_runtime *fwrt)
 			     get_order(paging->fw_paging_size));
 		paging->fw_paging_block = NULL;
 	}
-	kfree(fwrt->trans->paging_download_buf);
-	fwrt->trans->paging_download_buf = NULL;
-	fwrt->trans->paging_db = NULL;
 
 	memset(fwrt->fw_paging_db, 0, sizeof(fwrt->fw_paging_db));
 }
@@ -100,12 +97,10 @@ static int iwl_alloc_fw_paging_mem(struct iwl_fw_runtime *fwrt,
 {
 	struct page *block;
 	dma_addr_t phys = 0;
-	int blk_idx, order, num_of_pages, size, dma_enabled;
+	int blk_idx, order, num_of_pages, size;
 
 	if (fwrt->fw_paging_db[0].fw_paging_block)
 		return 0;
-
-	dma_enabled = is_device_dma_capable(fwrt->trans->dev);
 
 	/* ensure BLOCK_2_EXP_SIZE is power of 2 of PAGING_BLOCK_SIZE */
 	BUILD_BUG_ON(BIT(BLOCK_2_EXP_SIZE) != PAGING_BLOCK_SIZE);
@@ -139,24 +134,18 @@ static int iwl_alloc_fw_paging_mem(struct iwl_fw_runtime *fwrt,
 		fwrt->fw_paging_db[blk_idx].fw_paging_block = block;
 		fwrt->fw_paging_db[blk_idx].fw_paging_size = size;
 
-		if (dma_enabled) {
-			phys = dma_map_page(fwrt->trans->dev, block, 0,
-					    PAGE_SIZE << order,
-					    DMA_BIDIRECTIONAL);
-			if (dma_mapping_error(fwrt->trans->dev, phys)) {
-				/*
-				 * free the previous pages and the current one
-				 * since we failed to map_page.
-				 */
-				iwl_free_fw_paging(fwrt);
-				return -ENOMEM;
-			}
-			fwrt->fw_paging_db[blk_idx].fw_paging_phys = phys;
-		} else {
-			fwrt->fw_paging_db[blk_idx].fw_paging_phys =
-				PAGING_ADDR_SIG |
-				blk_idx << BLOCK_2_EXP_SIZE;
+		phys = dma_map_page(fwrt->trans->dev, block, 0,
+				    PAGE_SIZE << order,
+				    DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(fwrt->trans->dev, phys)) {
+			/*
+			 * free the previous pages and the current one
+			 * since we failed to map_page.
+			 */
+			iwl_free_fw_paging(fwrt);
+			return -ENOMEM;
 		}
+		fwrt->fw_paging_db[blk_idx].fw_paging_phys = phys;
 
 		if (!blk_idx)
 			IWL_DEBUG_FW(fwrt,
@@ -312,60 +301,6 @@ static int iwl_send_paging_cmd(struct iwl_fw_runtime *fwrt,
 	return iwl_trans_send_cmd(fwrt->trans, &hcmd);
 }
 
-/*
- * Send paging item cmd to FW in case CPU2 has paging image
- */
-static int iwl_trans_get_paging_item(struct iwl_fw_runtime *fwrt)
-{
-	int ret;
-	struct iwl_fw_get_item_cmd fw_get_item_cmd = {
-		.item_id = cpu_to_le32(IWL_FW_ITEM_ID_PAGING),
-	};
-	struct iwl_fw_get_item_resp *item_resp;
-	struct iwl_host_cmd cmd = {
-		.id = iwl_cmd_id(FW_GET_ITEM_CMD, IWL_ALWAYS_LONG_GROUP, 0),
-		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
-		.data = { &fw_get_item_cmd, },
-		.len = { sizeof(fw_get_item_cmd), },
-	};
-
-	ret = iwl_trans_send_cmd(fwrt->trans, &cmd);
-	if (ret) {
-		IWL_ERR(fwrt,
-			"Paging: Failed to send FW_GET_ITEM_CMD cmd (err = %d)\n",
-			ret);
-		return ret;
-	}
-
-	item_resp = (void *)((struct iwl_rx_packet *)cmd.resp_pkt)->data;
-	if (item_resp->item_id != cpu_to_le32(IWL_FW_ITEM_ID_PAGING)) {
-		IWL_ERR(fwrt,
-			"Paging: got wrong item in FW_GET_ITEM_CMD resp (item_id = %u)\n",
-			le32_to_cpu(item_resp->item_id));
-		ret = -EIO;
-		goto exit;
-	}
-
-	/* Add an extra page for headers */
-	fwrt->trans->paging_download_buf = kzalloc(PAGING_BLOCK_SIZE +
-						  FW_PAGING_SIZE,
-						  GFP_KERNEL);
-	if (!fwrt->trans->paging_download_buf) {
-		ret = -ENOMEM;
-		goto exit;
-	}
-	fwrt->trans->paging_req_addr = le32_to_cpu(item_resp->item_val);
-	fwrt->trans->paging_db = fwrt->fw_paging_db;
-	IWL_DEBUG_FW(fwrt,
-		     "Paging: got paging request address (paging_req_addr 0x%08x)\n",
-		     fwrt->trans->paging_req_addr);
-
-exit:
-	iwl_free_resp(&cmd);
-
-	return ret;
-}
-
 int iwl_init_paging(struct iwl_fw_runtime *fwrt, enum iwl_ucode_type type)
 {
 	const struct fw_img *fw = &fwrt->fw->img[type];
@@ -381,20 +316,6 @@ int iwl_init_paging(struct iwl_fw_runtime *fwrt, enum iwl_ucode_type type)
 	 */
 	if (!fw->paging_mem_size)
 		return 0;
-
-	/*
-	 * When dma is not enabled, the driver needs to copy / write
-	 * the downloaded / uploaded page to / from the smem.
-	 * This gets the location of the place were the pages are
-	 * stored.
-	 */
-	if (!is_device_dma_capable(fwrt->trans->dev)) {
-		ret = iwl_trans_get_paging_item(fwrt);
-		if (ret) {
-			IWL_ERR(fwrt, "failed to get FW paging item\n");
-			return ret;
-		}
-	}
 
 	ret = iwl_save_fw_paging(fwrt, fw);
 	if (ret) {

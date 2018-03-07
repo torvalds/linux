@@ -367,7 +367,7 @@ unsigned int speedstep_detect_processor(void)
 			} else
 				return SPEEDSTEP_CPU_PIII_C;
 		}
-
+		/* fall through */
 	default:
 		return 0;
 	}

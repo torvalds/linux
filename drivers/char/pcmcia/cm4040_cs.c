@@ -104,9 +104,9 @@ static inline unsigned char xinb(unsigned short port)
 
 /* poll the device fifo status register.  not to be confused with
  * the poll syscall. */
-static void cm4040_do_poll(unsigned long dummy)
+static void cm4040_do_poll(struct timer_list *t)
 {
-	struct reader_dev *dev = (struct reader_dev *) dummy;
+	struct reader_dev *dev = from_timer(dev, t, poll_timer);
 	unsigned int obs = xinb(dev->p_dev->resource[0]->start
 				+ REG_OFFSET_BUFFER_STATUS);
 
@@ -465,7 +465,6 @@ static int cm4040_open(struct inode *inode, struct file *filp)
 
 	link->open = 1;
 
-	dev->poll_timer.data = (unsigned long) dev;
 	mod_timer(&dev->poll_timer, jiffies + POLL_PERIOD);
 
 	DEBUGP(2, dev, "<- cm4040_open (successfully)\n");
@@ -585,7 +584,7 @@ static int reader_probe(struct pcmcia_device *link)
 	init_waitqueue_head(&dev->poll_wait);
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
-	setup_timer(&dev->poll_timer, cm4040_do_poll, 0);
+	timer_setup(&dev->poll_timer, cm4040_do_poll, 0);
 
 	ret = reader_config(link, i);
 	if (ret) {

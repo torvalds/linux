@@ -16,27 +16,33 @@ struct vm_fault;
  */
 #define IOMAP_HOLE	0x01	/* no blocks allocated, need allocation */
 #define IOMAP_DELALLOC	0x02	/* delayed allocation blocks */
-#define IOMAP_MAPPED	0x03	/* blocks allocated @blkno */
-#define IOMAP_UNWRITTEN	0x04	/* blocks allocated @blkno in unwritten state */
+#define IOMAP_MAPPED	0x03	/* blocks allocated at @addr */
+#define IOMAP_UNWRITTEN	0x04	/* blocks allocated at @addr in unwritten state */
 
 /*
  * Flags for all iomap mappings:
+ *
+ * IOMAP_F_DIRTY indicates the inode has uncommitted metadata needed to access
+ * written data and requires fdatasync to commit them to persistent storage.
  */
-#define IOMAP_F_NEW	0x01	/* blocks have been newly allocated */
+#define IOMAP_F_NEW		0x01	/* blocks have been newly allocated */
+#define IOMAP_F_BOUNDARY	0x02	/* mapping ends at metadata boundary */
+#define IOMAP_F_DIRTY		0x04	/* uncommitted metadata */
 
 /*
  * Flags that only need to be reported for IOMAP_REPORT requests:
  */
-#define IOMAP_F_MERGED	0x10	/* contains multiple blocks/extents */
-#define IOMAP_F_SHARED	0x20	/* block shared with another file */
+#define IOMAP_F_MERGED		0x10	/* contains multiple blocks/extents */
+#define IOMAP_F_SHARED		0x20	/* block shared with another file */
+#define IOMAP_F_DATA_INLINE	0x40	/* data inline in the inode */
 
 /*
- * Magic value for blkno:
+ * Magic value for addr:
  */
-#define IOMAP_NULL_BLOCK -1LL	/* blkno is not valid */
+#define IOMAP_NULL_ADDR -1ULL	/* addr is not valid */
 
 struct iomap {
-	sector_t		blkno;	/* 1st sector of mapping, 512b units */
+	u64			addr; /* disk offset of mapping, bytes */
 	loff_t			offset;	/* file offset of mapping, bytes */
 	u64			length;	/* length of mapping, bytes */
 	u16			type;	/* type of mapping */

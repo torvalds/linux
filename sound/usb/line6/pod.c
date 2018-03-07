@@ -174,7 +174,7 @@ static const char pod_version_header[] = {
 };
 
 /* forward declarations: */
-static void pod_startup2(unsigned long data);
+static void pod_startup2(struct timer_list *t);
 static void pod_startup3(struct usb_line6_pod *pod);
 
 static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
@@ -286,13 +286,12 @@ static void pod_startup1(struct usb_line6_pod *pod)
 	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_INIT);
 
 	/* delay startup procedure: */
-	line6_start_timer(&pod->startup_timer, POD_STARTUP_DELAY, pod_startup2,
-			  (unsigned long)pod);
+	line6_start_timer(&pod->startup_timer, POD_STARTUP_DELAY, pod_startup2);
 }
 
-static void pod_startup2(unsigned long data)
+static void pod_startup2(struct timer_list *t)
 {
-	struct usb_line6_pod *pod = (struct usb_line6_pod *)data;
+	struct usb_line6_pod *pod = from_timer(pod, t, startup_timer);
 	struct usb_line6 *line6 = &pod->line6;
 
 	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_VERSIONREQ);
@@ -413,7 +412,7 @@ static int pod_init(struct usb_line6 *line6,
 	line6->process_message = line6_pod_process_message;
 	line6->disconnect = line6_pod_disconnect;
 
-	init_timer(&pod->startup_timer);
+	timer_setup(&pod->startup_timer, NULL, 0);
 	INIT_WORK(&pod->startup_work, pod_startup4);
 
 	/* create sysfs entries: */

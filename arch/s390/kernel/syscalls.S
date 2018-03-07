@@ -370,10 +370,10 @@ SYSCALL(sys_recvmmsg,compat_sys_recvmmsg)
 SYSCALL(sys_sendmmsg,compat_sys_sendmmsg)
 SYSCALL(sys_socket,sys_socket)
 SYSCALL(sys_socketpair,compat_sys_socketpair)		/* 360 */
-SYSCALL(sys_bind,sys_bind)
-SYSCALL(sys_connect,sys_connect)
+SYSCALL(sys_bind,compat_sys_bind)
+SYSCALL(sys_connect,compat_sys_connect)
 SYSCALL(sys_listen,sys_listen)
-SYSCALL(sys_accept4,sys_accept4)
+SYSCALL(sys_accept4,compat_sys_accept4)
 SYSCALL(sys_getsockopt,compat_sys_getsockopt)		/* 365 */
 SYSCALL(sys_setsockopt,compat_sys_setsockopt)
 SYSCALL(sys_getsockname,compat_sys_getsockname)
@@ -389,3 +389,4 @@ SYSCALL(sys_preadv2,compat_sys_preadv2)
 SYSCALL(sys_pwritev2,compat_sys_pwritev2)
 SYSCALL(sys_s390_guarded_storage,compat_sys_s390_guarded_storage) /* 378 */
 SYSCALL(sys_statx,compat_sys_statx)
+SYSCALL(sys_s390_sthyi,compat_sys_s390_sthyi)

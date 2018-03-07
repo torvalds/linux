@@ -141,7 +141,7 @@
 
 static inline bool is_remote_lock(struct file *filp)
 {
-	return likely(!(filp->f_path.dentry->d_sb->s_flags & MS_NOREMOTELOCK));
+	return likely(!(filp->f_path.dentry->d_sb->s_flags & SB_NOREMOTELOCK));
 }
 
 static bool lease_breaking(struct file_lock *fl)

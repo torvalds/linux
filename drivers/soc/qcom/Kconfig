@@ -35,6 +35,17 @@ config QCOM_PM
 	  modes. It interface with various system drivers to put the cores in
 	  low power modes.
 
+config QCOM_RMTFS_MEM
+	tristate "Qualcomm Remote Filesystem memory driver"
+	depends on ARCH_QCOM
+	help
+	  The Qualcomm remote filesystem memory driver is used for allocating
+	  and exposing regions of shared memory with remote processors for the
+	  purpose of exchanging sector-data between the remote filesystem
+	  service and its clients.
+
+	  Say y here if you intend to boot the modem remoteproc.
+
 config QCOM_SMEM
 	tristate "Qualcomm Shared Memory Manager (SMEM)"
 	depends on ARCH_QCOM

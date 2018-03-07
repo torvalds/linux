@@ -73,6 +73,7 @@ struct ipv6_devconf {
 	__u32		enhanced_dad;
 	__u32		addr_gen_mode;
 	__s32		disable_policy;
+	__s32           ndisc_tclass;
 
 	struct ctl_table_header *sysctl_header;
 };
@@ -272,7 +273,8 @@ struct ipv6_pinfo {
 						 * 100: prefer care-of address
 						 */
 				dontfrag:1,
-				autoflowlabel:1;
+				autoflowlabel:1,
+				autoflowlabel_set:1;
 	__u8			min_hopcount;
 	__u8			tclass;
 	__be32			rcv_flowinfo;

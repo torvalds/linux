@@ -4,10 +4,10 @@
 #include <linux/efi.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <media/v4l2-subdev.h>
 #include <linux/mfd/intel_soc_pmic.h>
-#include "../../include/linux/vlv2_plat_clock.h"
 #include <linux/regulator/consumer.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio.h>
@@ -17,11 +17,7 @@
 
 #define MAX_SUBDEVS 8
 
-/* Should be defined in vlv2_plat_clock API, isn't: */
-#define VLV2_CLK_PLL_19P2MHZ 1
-#define VLV2_CLK_XTAL_19P2MHZ 0
-#define VLV2_CLK_ON      1
-#define VLV2_CLK_OFF     2
+#define VLV2_CLK_PLL_19P2MHZ 1 /* XTAL on CHT */
 #define ELDO1_SEL_REG	0x19
 #define ELDO1_1P8V	0x16
 #define ELDO1_CTRL_SHIFT 0x00
@@ -33,6 +29,8 @@ struct gmin_subdev {
 	struct v4l2_subdev *subdev;
 	int clock_num;
 	int clock_src;
+	bool clock_on;
+	struct clk *pmc_clk;
 	struct gpio_desc *gpio0;
 	struct gpio_desc *gpio1;
 	struct regulator *v1p8_reg;
@@ -107,49 +105,6 @@ const struct atomisp_platform_data *atomisp_get_platform_data(void)
 	return &pdata;
 }
 EXPORT_SYMBOL_GPL(atomisp_get_platform_data);
-
-static int af_power_ctrl(struct v4l2_subdev *subdev, int flag)
-{
-	struct gmin_subdev *gs = find_gmin_subdev(subdev);
-
-	if (gs && gs->v2p8_vcm_on == flag)
-		return 0;
-	gs->v2p8_vcm_on = flag;
-
-	/*
-	 * The power here is used for dw9817,
-	 * regulator is from rear sensor
-	 */
-	if (gs->v2p8_vcm_reg) {
-		if (flag)
-			return regulator_enable(gs->v2p8_vcm_reg);
-		else
-			return regulator_disable(gs->v2p8_vcm_reg);
-	}
-	return 0;
-}
-
-/*
- * Used in a handful of modules.  Focus motor control, I think.  Note
- * that there is no configurability in the API, so this needs to be
- * fixed where it is used.
- *
- * struct camera_af_platform_data {
- *     int (*power_ctrl)(struct v4l2_subdev *subdev, int flag);
- * };
- *
- * Note that the implementation in MCG platform_camera.c is stubbed
- * out anyway (i.e. returns zero from the callback) on BYT.  So
- * neither needed on gmin platforms or supported upstream.
- */
-const struct camera_af_platform_data *camera_get_af_platform_data(void)
-{
-	static struct camera_af_platform_data afpd = {
-		.power_ctrl = af_power_ctrl,
-	};
-	return &afpd;
-}
-EXPORT_SYMBOL_GPL(camera_get_af_platform_data);
 
 int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 				struct camera_sensor_platform_data *plat_data,
@@ -334,15 +289,8 @@ static const struct {
 
 #define CFG_VAR_NAME_MAX 64
 
-static int gmin_platform_init(struct i2c_client *client)
-{
-	return 0;
-}
-
-static int gmin_platform_deinit(void)
-{
-	return 0;
-}
+#define GMIN_PMC_CLK_NAME 14 /* "pmc_plt_clk_[0..5]" */
+static char gmin_pmc_clk_name[GMIN_PMC_CLK_NAME];
 
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
@@ -377,21 +325,42 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	gmin_subdevs[i].gpio0 = gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
 	gmin_subdevs[i].gpio1 = gpiod_get_index(dev, NULL, 1, GPIOD_OUT_LOW);
 
-	if (!IS_ERR(gmin_subdevs[i].gpio0)) {
-		ret = gpiod_direction_output(gmin_subdevs[i].gpio0, 0);
-		if (ret)
-			dev_err(dev, "gpio0 set output failed: %d\n", ret);
-	} else {
-		gmin_subdevs[i].gpio0 = NULL;
+	/* get PMC clock with clock framework */
+	snprintf(gmin_pmc_clk_name,
+		 sizeof(gmin_pmc_clk_name),
+		 "%s_%d", "pmc_plt_clk", gmin_subdevs[i].clock_num);
+
+	gmin_subdevs[i].pmc_clk = devm_clk_get(dev, gmin_pmc_clk_name);
+	if (IS_ERR(gmin_subdevs[i].pmc_clk)) {
+		ret = PTR_ERR(gmin_subdevs[i].pmc_clk);
+
+		dev_err(dev,
+			"Failed to get clk from %s : %d\n",
+			gmin_pmc_clk_name,
+			ret);
+
+		return NULL;
 	}
 
-	if (!IS_ERR(gmin_subdevs[i].gpio1)) {
-		ret = gpiod_direction_output(gmin_subdevs[i].gpio1, 0);
-		if (ret)
-			dev_err(dev, "gpio1 set output failed: %d\n", ret);
-	} else {
+	/*
+	 * The firmware might enable the clock at
+	 * boot (this information may or may not
+	 * be reflected in the enable clock register).
+	 * To change the rate we must disable the clock
+	 * first to cover these cases. Due to common
+	 * clock framework restrictions that do not allow
+	 * to disable a clock that has not been enabled,
+	 * we need to enable the clock first.
+	 */
+	ret = clk_prepare_enable(gmin_subdevs[i].pmc_clk);
+	if (!ret)
+		clk_disable_unprepare(gmin_subdevs[i].pmc_clk);
+
+	if (IS_ERR(gmin_subdevs[i].gpio0))
+		gmin_subdevs[i].gpio0 = NULL;
+
+	if (IS_ERR(gmin_subdevs[i].gpio1))
 		gmin_subdevs[i].gpio1 = NULL;
-	}
 
 	if (pmic_id == PMIC_REGULATOR) {
 		gmin_subdevs[i].v1p8_reg = regulator_get(dev, "V1P8SX");
@@ -539,13 +508,27 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	int ret = 0;
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
+	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 
-	if (on)
-		ret = vlv2_plat_set_clock_freq(gs->clock_num, gs->clock_src);
-	if (ret)
-		return ret;
-	return vlv2_plat_configure_clock(gs->clock_num,
-					 on ? VLV2_CLK_ON : VLV2_CLK_OFF);
+	if (gs->clock_on == !!on)
+		return 0;
+
+	if (on) {
+		ret = clk_set_rate(gs->pmc_clk, gs->clock_src);
+
+		if (ret)
+			dev_err(&client->dev, "unable to set PMC rate %d\n",
+				gs->clock_src);
+
+		ret = clk_prepare_enable(gs->pmc_clk);
+		if (ret == 0)
+			gs->clock_on = true;
+	} else {
+		clk_disable_unprepare(gs->pmc_clk);
+		gs->clock_on = false;
+	}
+
+	return ret;
 }
 
 static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
@@ -592,8 +575,6 @@ static struct camera_sensor_platform_data gmin_plat = {
 	.v2p8_ctrl = gmin_v2p8_ctrl,
 	.v1p2_ctrl = gmin_v1p2_ctrl,
 	.flisclk_ctrl = gmin_flisclk_ctrl,
-	.platform_init = gmin_platform_init,
-	.platform_deinit = gmin_platform_deinit,
 	.csi_cfg = gmin_csi_cfg,
 	.get_vcm_ctrl = gmin_get_vcm_ctrl,
 };
@@ -739,10 +720,8 @@ int camera_sensor_csi(struct v4l2_subdev *sd, u32 port,
 
 	if (flag) {
 		csi = kzalloc(sizeof(*csi), GFP_KERNEL);
-		if (!csi) {
-			dev_err(&client->dev, "out of memory\n");
+		if (!csi)
 			return -ENOMEM;
-		}
 		csi->port = port;
 		csi->num_lanes = lanes;
 		csi->input_format = format;

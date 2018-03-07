@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -91,12 +91,17 @@ u8 hfi1_trace_opa_hdr_len(struct hfi1_opa_header *opa_hdr)
 		return __get_16b_hdr_len(&opa_hdr->opah);
 }
 
-const char *hfi1_trace_get_packet_str(struct hfi1_packet *packet)
+const char *hfi1_trace_get_packet_l4_str(u8 l4)
 {
-	if (packet->etype != RHF_RCV_TYPE_BYPASS)
-		return "IB";
+	if (l4)
+		return "16B";
+	else
+		return "9B";
+}
 
-	switch (hfi1_16B_get_l2(packet->hdr)) {
+const char *hfi1_trace_get_packet_l2_str(u8 l2)
+{
+	switch (l2) {
 	case 0:
 		return "0";
 	case 1:
@@ -107,14 +112,6 @@ const char *hfi1_trace_get_packet_str(struct hfi1_packet *packet)
 		return "9B";
 	}
 	return "";
-}
-
-const char *hfi1_trace_get_packet_type_str(u8 l4)
-{
-	if (l4)
-		return "16B";
-	else
-		return "9B";
 }
 
 #define IMM_PRN  "imm:%d"
@@ -154,7 +151,7 @@ void hfi1_trace_parse_9b_bth(struct ib_other_headers *ohdr,
 	*opcode = ib_bth_get_opcode(ohdr);
 	*tver = ib_bth_get_tver(ohdr);
 	*pkey = ib_bth_get_pkey(ohdr);
-	*psn = ib_bth_get_psn(ohdr);
+	*psn = mask_psn(ib_bth_get_psn(ohdr));
 	*qpn = ib_bth_get_qpn(ohdr);
 }
 
@@ -169,7 +166,7 @@ void hfi1_trace_parse_16b_bth(struct ib_other_headers *ohdr,
 	*pad = ib_bth_get_pad(ohdr);
 	*se = ib_bth_get_se(ohdr);
 	*tver = ib_bth_get_tver(ohdr);
-	*psn = ib_bth_get_psn(ohdr);
+	*psn = mask_psn(ib_bth_get_psn(ohdr));
 	*qpn = ib_bth_get_qpn(ohdr);
 }
 

@@ -143,6 +143,7 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 	vlan->vlan_proto = proto;
 	vlan->vlan_id	 = nla_get_u16(data[IFLA_VLAN_ID]);
 	vlan->real_dev	 = real_dev;
+	dev->priv_flags |= (real_dev->priv_flags & IFF_XMIT_DST_RELEASE);
 	vlan->flags	 = VLAN_FLAG_REORDER_HDR;
 
 	err = vlan_check_real_dev(real_dev, vlan->vlan_proto, vlan->vlan_id);
@@ -160,7 +161,7 @@ static int vlan_newlink(struct net *src_net, struct net_device *dev,
 	if (err < 0)
 		return err;
 
-	return register_vlan_dev(dev);
+	return register_vlan_dev(dev, extack);
 }
 
 static inline size_t vlan_qos_map_size(unsigned int n)

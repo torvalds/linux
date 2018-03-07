@@ -2731,6 +2731,8 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 	}
 
 	view_type = vmw_view_cmd_to_type(header->id);
+	if (view_type == vmw_view_max)
+		return -EINVAL;
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
 				user_surface_converter,

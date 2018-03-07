@@ -59,7 +59,7 @@ static inline void cc_lli_set_addr(u32 *lli_p, dma_addr_t addr)
 	lli_p[LLI_WORD0_OFFSET] = (addr & U32_MAX);
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	lli_p[LLI_WORD1_OFFSET] &= ~LLI_HADDR_MASK;
-	lli_p[LLI_WORD1_OFFSET] |= FIELD_PREP(LLI_HADDR_MASK, (addr >> 16));
+	lli_p[LLI_WORD1_OFFSET] |= FIELD_PREP(LLI_HADDR_MASK, (addr >> 32));
 #endif /* CONFIG_ARCH_DMA_ADDR_T_64BIT */
 }
 

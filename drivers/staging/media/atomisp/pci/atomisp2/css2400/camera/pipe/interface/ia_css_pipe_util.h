@@ -18,7 +18,7 @@
 #include <ia_css_types.h>
 #include <ia_css_frame_public.h>
 
-/** @brief Get Input format bits per pixel based on stream configuration of this
+/* @brief Get Input format bits per pixel based on stream configuration of this
  * pipe.
  *
  * @param[in] pipe

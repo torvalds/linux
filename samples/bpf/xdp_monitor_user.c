@@ -20,6 +20,7 @@ static const char *__doc_err_only__=
 #include <unistd.h>
 #include <locale.h>
 
+#include <sys/resource.h>
 #include <getopt.h>
 #include <net/if.h>
 #include <time.h>
@@ -61,7 +62,7 @@ static void usage(char *argv[])
 }
 
 #define NANOSEC_PER_SEC 1000000000 /* 10^9 */
-__u64 gettime(void)
+static __u64 gettime(void)
 {
 	struct timespec t;
 	int res;
@@ -89,6 +90,23 @@ static const char *err2str(int err)
 		return redir_names[err];
 	return NULL;
 }
+/* enum xdp_action */
+#define XDP_UNKNOWN	XDP_REDIRECT + 1
+#define XDP_ACTION_MAX (XDP_UNKNOWN + 1)
+static const char *xdp_action_names[XDP_ACTION_MAX] = {
+	[XDP_ABORTED]	= "XDP_ABORTED",
+	[XDP_DROP]	= "XDP_DROP",
+	[XDP_PASS]	= "XDP_PASS",
+	[XDP_TX]	= "XDP_TX",
+	[XDP_REDIRECT]	= "XDP_REDIRECT",
+	[XDP_UNKNOWN]	= "XDP_UNKNOWN",
+};
+static const char *action2str(int action)
+{
+	if (action < XDP_ACTION_MAX)
+		return xdp_action_names[action];
+	return NULL;
+}
 
 struct record {
 	__u64 counter;
@@ -97,6 +115,7 @@ struct record {
 
 struct stats_record {
 	struct record xdp_redir[REDIR_RES_MAX];
+	struct record xdp_exception[XDP_ACTION_MAX];
 };
 
 static void stats_print_headers(bool err_only)
@@ -104,39 +123,72 @@ static void stats_print_headers(bool err_only)
 	if (err_only)
 		printf("\n%s\n", __doc_err_only__);
 
-	printf("%-14s %-10s %-18s %-9s\n",
-	       "XDP_REDIRECT", "pps ", "pps-human-readable", "measure-period");
+	printf("%-14s %-11s %-10s %-18s %-9s\n",
+	       "ACTION", "result", "pps ", "pps-human-readable", "measure-period");
+}
+
+static double calc_period(struct record *r, struct record *p)
+{
+	double period_ = 0;
+	__u64 period = 0;
+
+	period = r->timestamp - p->timestamp;
+	if (period > 0)
+		period_ = ((double) period / NANOSEC_PER_SEC);
+
+	return period_;
+}
+
+static double calc_pps(struct record *r, struct record *p, double period)
+{
+	__u64 packets = 0;
+	double pps = 0;
+
+	if (period > 0) {
+		packets = r->counter - p->counter;
+		pps = packets / period;
+	}
+	return pps;
 }
 
 static void stats_print(struct stats_record *rec,
 			struct stats_record *prev,
 			bool err_only)
 {
+	double period = 0, pps = 0;
+	struct record *r, *p;
 	int i = 0;
 
+	char *fmt = "%-14s %-11s %-10.0f %'-18.0f %f\n";
+
+	/* tracepoint: xdp:xdp_redirect_* */
 	if (err_only)
 		i = REDIR_ERROR;
 
 	for (; i < REDIR_RES_MAX; i++) {
-		struct record *r = &rec->xdp_redir[i];
-		struct record *p = &prev->xdp_redir[i];
-		__u64 period  = 0;
-		__u64 packets = 0;
-		double pps = 0;
-		double period_ = 0;
+		r = &rec->xdp_redir[i];
+		p = &prev->xdp_redir[i];
 
 		if (p->timestamp) {
-			packets = r->counter - p->counter;
-			period  = r->timestamp - p->timestamp;
-			if (period > 0) {
-				period_ = ((double) period / NANOSEC_PER_SEC);
-				pps = packets / period_;
-			}
+			period = calc_period(r, p);
+			pps = calc_pps(r, p, period);
 		}
-
-		printf("%-14s %-10.0f %'-18.0f %f\n",
-		       err2str(i), pps, pps, period_);
+		printf(fmt, "XDP_REDIRECT", err2str(i), pps, pps, period);
 	}
+
+	/* tracepoint: xdp:xdp_exception */
+	for (i = 0; i < XDP_ACTION_MAX; i++) {
+		r = &rec->xdp_exception[i];
+		p = &prev->xdp_exception[i];
+		if (p->timestamp) {
+			period = calc_period(r, p);
+			pps = calc_pps(r, p, period);
+		}
+		if (pps > 0)
+			printf(fmt, action2str(i), "Exception",
+			       pps, pps, period);
+	}
+	printf("\n");
 }
 
 static __u64 get_key32_value64_percpu(int fd, __u32 key)
@@ -160,25 +212,33 @@ static __u64 get_key32_value64_percpu(int fd, __u32 key)
 	return sum;
 }
 
-static bool stats_collect(int fd, struct stats_record *rec)
+static bool stats_collect(struct stats_record *rec)
 {
+	int fd;
 	int i;
 
 	/* TODO: Detect if someone unloaded the perf event_fd's, as
 	 * this can happen by someone running perf-record -e
 	 */
 
+	fd = map_data[0].fd; /* map0: redirect_err_cnt */
 	for (i = 0; i < REDIR_RES_MAX; i++) {
 		rec->xdp_redir[i].timestamp = gettime();
 		rec->xdp_redir[i].counter = get_key32_value64_percpu(fd, i);
 	}
+
+	fd = map_data[1].fd; /* map1: exception_cnt */
+	for (i = 0; i < XDP_ACTION_MAX; i++) {
+		rec->xdp_exception[i].timestamp = gettime();
+		rec->xdp_exception[i].counter = get_key32_value64_percpu(fd, i);
+	}
+
 	return true;
 }
 
 static void stats_poll(int interval, bool err_only)
 {
 	struct stats_record rec, prev;
-	int map_fd;
 
 	memset(&rec, 0, sizeof(rec));
 
@@ -190,23 +250,24 @@ static void stats_poll(int interval, bool err_only)
 		printf("\n%s", __doc__);
 
 	/* TODO Need more advanced stats on error types */
-	if (verbose)
-		printf(" - Stats map: %s\n", map_data[0].name);
-	map_fd = map_data[0].fd;
-
-	stats_print_headers(err_only);
+	if (verbose) {
+		printf(" - Stats map0: %s\n", map_data[0].name);
+		printf(" - Stats map1: %s\n", map_data[1].name);
+		printf("\n");
+	}
 	fflush(stdout);
 
 	while (1) {
 		memcpy(&prev, &rec, sizeof(rec));
-		stats_collect(map_fd, &rec);
+		stats_collect(&rec);
+		stats_print_headers(err_only);
 		stats_print(&rec, &prev, err_only);
 		fflush(stdout);
 		sleep(interval);
 	}
 }
 
-void print_bpf_prog_info(void)
+static void print_bpf_prog_info(void)
 {
 	int i;
 
@@ -235,6 +296,7 @@ void print_bpf_prog_info(void)
 
 int main(int argc, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	int longindex = 0, opt;
 	int ret = EXIT_SUCCESS;
 	char bpf_obj_file[256];
@@ -265,13 +327,18 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return EXIT_FAILURE;
+	}
+
 	if (load_bpf_file(bpf_obj_file)) {
 		printf("ERROR - bpf_log_buf: %s", bpf_log_buf);
-		return 1;
+		return EXIT_FAILURE;
 	}
 	if (!prog_fd[0]) {
 		printf("ERROR - load_bpf_file: %s\n", strerror(errno));
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	if (debug) {

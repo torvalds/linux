@@ -36,7 +36,7 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x67d00000 0x00800000>;
 
-		sata0: ahci@00210000 {
+		sata0: ahci@210000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x00210000 0x1000>;
 			reg-names = "ahci";
@@ -52,7 +52,7 @@
 			};
 		};
 
-		sata_phy0: sata_phy@00212100 {
+		sata_phy0: sata_phy@212100 {
 			compatible = "brcm,iproc-sr-sata-phy";
 			reg = <0x00212100 0x1000>;
 			reg-names = "phy";
@@ -66,7 +66,7 @@
 			};
 		};
 
-		sata1: ahci@00310000 {
+		sata1: ahci@310000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x00310000 0x1000>;
 			reg-names = "ahci";
@@ -82,7 +82,7 @@
 			};
 		};
 
-		sata_phy1: sata_phy@00312100 {
+		sata_phy1: sata_phy@312100 {
 			compatible = "brcm,iproc-sr-sata-phy";
 			reg = <0x00312100 0x1000>;
 			reg-names = "phy";
@@ -96,7 +96,7 @@
 			};
 		};
 
-		sata2: ahci@00120000 {
+		sata2: ahci@120000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x00120000 0x1000>;
 			reg-names = "ahci";
@@ -112,7 +112,7 @@
 			};
 		};
 
-		sata_phy2: sata_phy@00122100 {
+		sata_phy2: sata_phy@122100 {
 			compatible = "brcm,iproc-sr-sata-phy";
 			reg = <0x00122100 0x1000>;
 			reg-names = "phy";
@@ -126,7 +126,7 @@
 			};
 		};
 
-		sata3: ahci@00130000 {
+		sata3: ahci@130000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x00130000 0x1000>;
 			reg-names = "ahci";
@@ -142,7 +142,7 @@
 			};
 		};
 
-		sata_phy3: sata_phy@00132100 {
+		sata_phy3: sata_phy@132100 {
 			compatible = "brcm,iproc-sr-sata-phy";
 			reg = <0x00132100 0x1000>;
 			reg-names = "phy";
@@ -156,7 +156,7 @@
 			};
 		};
 
-		sata4: ahci@00330000 {
+		sata4: ahci@330000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x00330000 0x1000>;
 			reg-names = "ahci";
@@ -172,7 +172,7 @@
 			};
 		};
 
-		sata_phy4: sata_phy@00332100 {
+		sata_phy4: sata_phy@332100 {
 			compatible = "brcm,iproc-sr-sata-phy";
 			reg = <0x00332100 0x1000>;
 			reg-names = "phy";
@@ -186,7 +186,7 @@
 			};
 		};
 
-		sata5: ahci@00400000 {
+		sata5: ahci@400000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x00400000 0x1000>;
 			reg-names = "ahci";
@@ -202,7 +202,7 @@
 			};
 		};
 
-		sata_phy5: sata_phy@00402100 {
+		sata_phy5: sata_phy@402100 {
 			compatible = "brcm,iproc-sr-sata-phy";
 			reg = <0x00402100 0x1000>;
 			reg-names = "phy";
@@ -216,7 +216,7 @@
 			};
 		};
 
-		sata6: ahci@00410000 {
+		sata6: ahci@410000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x00410000 0x1000>;
 			reg-names = "ahci";
@@ -232,7 +232,7 @@
 			};
 		};
 
-		sata_phy6: sata_phy@00412100 {
+		sata_phy6: sata_phy@412100 {
 			compatible = "brcm,iproc-sr-sata-phy";
 			reg = <0x00412100 0x1000>;
 			reg-names = "phy";
@@ -246,7 +246,7 @@
 			};
 		};
 
-		sata7: ahci@00420000 {
+		sata7: ahci@420000 {
 			compatible = "brcm,iproc-ahci", "generic-ahci";
 			reg = <0x00420000 0x1000>;
 			reg-names = "ahci";
@@ -262,7 +262,7 @@
 			};
 		};
 
-		sata_phy7: sata_phy@00422100 {
+		sata_phy7: sata_phy@422100 {
 			compatible = "brcm,iproc-sr-sata-phy";
 			reg = <0x00422100 0x1000>;
 			reg-names = "phy";

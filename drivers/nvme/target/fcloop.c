@@ -1085,7 +1085,7 @@ fcloop_delete_target_port(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct fcloop_nport *nport = NULL, *tmpport;
-	struct fcloop_tport *tport;
+	struct fcloop_tport *tport = NULL;
 	u64 nodename, portname;
 	unsigned long flags;
 	int ret;

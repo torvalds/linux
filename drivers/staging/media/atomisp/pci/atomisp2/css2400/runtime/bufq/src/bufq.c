@@ -152,7 +152,7 @@ void ia_css_queue_map(
 		unmap_buffer_type_to_queue_id(thread_id, buf_type);
 }
 
-/**
+/*
  * @brief Query the internal queue ID.
  */
 bool ia_css_query_internal_queue_id(
@@ -280,7 +280,7 @@ static ia_css_queue_t *bufq_get_qhandle(
 /* Local function to initialize a buffer queue. This reduces
  * the chances of copy-paste errors or typos.
  */
-STORAGE_CLASS_INLINE void
+static inline void
 init_bufq(unsigned int desc_offset,
 	  unsigned int elems_offset,
 	  ia_css_queue_t *handle)

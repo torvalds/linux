@@ -57,6 +57,9 @@ static struct task_struct	*nlmsvc_task;
 static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
 
+atomic_t nlm_ntf_refcnt = ATOMIC_INIT(0);
+DECLARE_WAIT_QUEUE_HEAD(nlm_ntf_wq);
+
 unsigned int lockd_net_id;
 
 /*
@@ -259,7 +262,7 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 	if (error < 0)
 		goto err_bind;
 	set_grace_period(net);
-	dprintk("lockd_up_net: per-net data created; net=%p\n", net);
+	dprintk("%s: per-net data created; net=%x\n", __func__, net->ns.inum);
 	return 0;
 
 err_bind:
@@ -274,12 +277,15 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 	if (ln->nlmsvc_users) {
 		if (--ln->nlmsvc_users == 0) {
 			nlm_shutdown_hosts_net(net);
+			cancel_delayed_work_sync(&ln->grace_period_end);
+			locks_end_grace(&ln->lockd_manager);
 			svc_shutdown_net(serv, net);
-			dprintk("lockd_down_net: per-net data destroyed; net=%p\n", net);
+			dprintk("%s: per-net data destroyed; net=%x\n",
+				__func__, net->ns.inum);
 		}
 	} else {
-		printk(KERN_ERR "lockd_down_net: no users! task=%p, net=%p\n",
-				nlmsvc_task, net);
+		pr_err("%s: no users! task=%p, net=%x\n",
+			__func__, nlmsvc_task, net->ns.inum);
 		BUG();
 	}
 }
@@ -290,7 +296,8 @@ static int lockd_inetaddr_event(struct notifier_block *this,
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
 	struct sockaddr_in sin;
 
-	if (event != NETDEV_DOWN)
+	if ((event != NETDEV_DOWN) ||
+	    !atomic_inc_not_zero(&nlm_ntf_refcnt))
 		goto out;
 
 	if (nlmsvc_rqst) {
@@ -301,6 +308,8 @@ static int lockd_inetaddr_event(struct notifier_block *this,
 		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
 			(struct sockaddr *)&sin);
 	}
+	atomic_dec(&nlm_ntf_refcnt);
+	wake_up(&nlm_ntf_wq);
 
 out:
 	return NOTIFY_DONE;
@@ -317,7 +326,8 @@ static int lockd_inet6addr_event(struct notifier_block *this,
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
 	struct sockaddr_in6 sin6;
 
-	if (event != NETDEV_DOWN)
+	if ((event != NETDEV_DOWN) ||
+	    !atomic_inc_not_zero(&nlm_ntf_refcnt))
 		goto out;
 
 	if (nlmsvc_rqst) {
@@ -329,6 +339,8 @@ static int lockd_inet6addr_event(struct notifier_block *this,
 		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
 			(struct sockaddr *)&sin6);
 	}
+	atomic_dec(&nlm_ntf_refcnt);
+	wake_up(&nlm_ntf_wq);
 
 out:
 	return NOTIFY_DONE;
@@ -345,10 +357,12 @@ static void lockd_unregister_notifiers(void)
 #if IS_ENABLED(CONFIG_IPV6)
 	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
 #endif
+	wait_event(nlm_ntf_wq, atomic_read(&nlm_ntf_refcnt) == 0);
 }
 
 static void lockd_svc_exit_thread(void)
 {
+	atomic_dec(&nlm_ntf_refcnt);
 	lockd_unregister_notifiers();
 	svc_exit_thread(nlmsvc_rqst);
 }
@@ -369,9 +383,11 @@ static int lockd_start_svc(struct svc_serv *serv)
 		printk(KERN_WARNING
 			"lockd_up: svc_rqst allocation failed, error=%d\n",
 			error);
+		lockd_unregister_notifiers();
 		goto out_rqst;
 	}
 
+	atomic_inc(&nlm_ntf_refcnt);
 	svc_sock_update_bufs(serv);
 	serv->sv_maxconn = nlm_max_connections;
 
@@ -459,13 +475,16 @@ int lockd_up(struct net *net)
 	}
 
 	error = lockd_up_net(serv, net);
-	if (error < 0)
-		goto err_net;
+	if (error < 0) {
+		lockd_unregister_notifiers();
+		goto err_put;
+	}
 
 	error = lockd_start_svc(serv);
-	if (error < 0)
-		goto err_start;
-
+	if (error < 0) {
+		lockd_down_net(serv, net);
+		goto err_put;
+	}
 	nlmsvc_users++;
 	/*
 	 * Note: svc_serv structures have an initial use count of 1,
@@ -476,12 +495,6 @@ err_put:
 err_create:
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
-
-err_start:
-	lockd_down_net(serv, net);
-err_net:
-	lockd_unregister_notifiers();
-	goto err_put;
 }
 EXPORT_SYMBOL_GPL(lockd_up);
 
@@ -602,7 +615,7 @@ static struct ctl_table nlm_sysctl_root[] = {
  */
 
 #define param_set_min_max(name, type, which_strtol, min, max)		\
-static int param_set_##name(const char *val, struct kernel_param *kp)	\
+static int param_set_##name(const char *val, const struct kernel_param *kp) \
 {									\
 	char *endp;							\
 	__typeof__(type) num = which_strtol(val, &endp, 0);		\
@@ -678,6 +691,17 @@ static int lockd_init_net(struct net *net)
 
 static void lockd_exit_net(struct net *net)
 {
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
+
+	WARN_ONCE(!list_empty(&ln->lockd_manager.list),
+		  "net %x %s: lockd_manager.list is not empty\n",
+		  net->ns.inum, __func__);
+	WARN_ONCE(!list_empty(&ln->nsm_handles),
+		  "net %x %s: nsm_handles list is not empty\n",
+		  net->ns.inum, __func__);
+	WARN_ONCE(delayed_work_pending(&ln->grace_period_end),
+		  "net %x %s: grace_period_end was not cancelled\n",
+		  net->ns.inum, __func__);
 }
 
 static struct pernet_operations lockd_net_ops = {

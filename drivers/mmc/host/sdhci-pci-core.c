@@ -32,7 +32,6 @@
 
 #include "sdhci.h"
 #include "sdhci-pci.h"
-#include "sdhci-pci-o2micro.h"
 
 static int sdhci_pci_enable_dma(struct sdhci_host *host);
 static void sdhci_pci_hw_reset(struct sdhci_host *host);
@@ -798,15 +797,6 @@ static const struct sdhci_pci_fixes sdhci_intel_mrfld_mmc = {
 	.probe_slot	= intel_mrfld_mmc_probe_slot,
 };
 
-/* O2Micro extra registers */
-#define O2_SD_LOCK_WP		0xD3
-#define O2_SD_MULTI_VCC3V	0xEE
-#define O2_SD_CLKREQ		0xEC
-#define O2_SD_CAPS		0xE0
-#define O2_SD_ADMA1		0xE2
-#define O2_SD_ADMA2		0xE7
-#define O2_SD_INF_MOD		0xF1
-
 static int jmicron_pmos(struct sdhci_pci_chip *chip, int on)
 {
 	u8 scratch;
@@ -1290,6 +1280,7 @@ static const struct pci_device_id pci_ids[] = {
 	SDHCI_PCI_DEVICE(INTEL, SPT_SDIO,  intel_byt_sdio),
 	SDHCI_PCI_DEVICE(INTEL, SPT_SD,    intel_byt_sd),
 	SDHCI_PCI_DEVICE(INTEL, DNV_EMMC,  intel_byt_emmc),
+	SDHCI_PCI_DEVICE(INTEL, CDF_EMMC,  intel_glk_emmc),
 	SDHCI_PCI_DEVICE(INTEL, BXT_EMMC,  intel_byt_emmc),
 	SDHCI_PCI_DEVICE(INTEL, BXT_SDIO,  intel_byt_sdio),
 	SDHCI_PCI_DEVICE(INTEL, BXT_SD,    intel_byt_sd),

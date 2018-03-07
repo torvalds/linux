@@ -44,9 +44,9 @@ struct dm_delay_info {
 
 static DEFINE_MUTEX(delayed_bios_lock);
 
-static void handle_delayed_timer(unsigned long data)
+static void handle_delayed_timer(struct timer_list *t)
 {
-	struct delay_c *dc = (struct delay_c *)data;
+	struct delay_c *dc = from_timer(dc, t, delay_timer);
 
 	queue_work(dc->kdelayd_wq, &dc->flush_expired_bios);
 }
@@ -195,7 +195,7 @@ out:
 		goto bad_queue;
 	}
 
-	setup_timer(&dc->delay_timer, handle_delayed_timer, (unsigned long)dc);
+	timer_setup(&dc->delay_timer, handle_delayed_timer, 0);
 
 	INIT_WORK(&dc->flush_expired_bios, flush_expired_bios);
 	INIT_LIST_HEAD(&dc->delayed_bios);

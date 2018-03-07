@@ -495,7 +495,9 @@ EXPORT_SYMBOL_GPL(snd_ctl_sync_vmaster);
  * Returns 0 if successful, or a negative error code.
  */
 int snd_ctl_apply_vmaster_slaves(struct snd_kcontrol *kctl,
-				 int (*func)(struct snd_kcontrol *, void *),
+				 int (*func)(struct snd_kcontrol *vslave,
+					     struct snd_kcontrol *slave,
+					     void *arg),
 				 void *arg)
 {
 	struct link_master *master;
@@ -507,7 +509,7 @@ int snd_ctl_apply_vmaster_slaves(struct snd_kcontrol *kctl,
 	if (err < 0)
 		return err;
 	list_for_each_entry(slave, &master->slaves, list) {
-		err = func(&slave->slave, arg);
+		err = func(slave->kctl, &slave->slave, arg);
 		if (err < 0)
 			return err;
 	}

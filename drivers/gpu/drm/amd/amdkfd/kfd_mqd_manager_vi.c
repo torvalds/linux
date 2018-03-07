@@ -163,12 +163,9 @@ static int __update_mqd(struct mqd_manager *mm, void *mqd,
 				2 << CP_HQD_PQ_CONTROL__SLOT_BASED_WPTR__SHIFT;
 	}
 
-	q->is_active = false;
-	if (q->queue_size > 0 &&
+	q->is_active = (q->queue_size > 0 &&
 			q->queue_address != 0 &&
-			q->queue_percent > 0) {
-		q->is_active = true;
-	}
+			q->queue_percent > 0);
 
 	return 0;
 }

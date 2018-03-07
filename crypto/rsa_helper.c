@@ -30,7 +30,7 @@ int rsa_get_n(void *context, size_t hdrlen, unsigned char tag,
 		return -EINVAL;
 
 	if (fips_enabled) {
-		while (!*ptr && n_sz) {
+		while (n_sz && !*ptr) {
 			ptr++;
 			n_sz--;
 		}

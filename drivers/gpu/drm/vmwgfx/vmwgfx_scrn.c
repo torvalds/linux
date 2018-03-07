@@ -360,8 +360,8 @@ static int vmw_sou_crtc_page_flip(struct drm_crtc *crtc,
 
 		ret = vmw_event_fence_action_queue(file_priv, fence,
 						   &event->base,
-						   &event->event.tv_sec,
-						   &event->event.tv_usec,
+						   &event->event.vbl.tv_sec,
+						   &event->event.vbl.tv_usec,
 						   true);
 	}
 
@@ -420,8 +420,8 @@ static const struct drm_connector_funcs vmw_sou_connector_funcs = {
 	.set_property = vmw_du_connector_set_property,
 	.destroy = vmw_sou_connector_destroy,
 	.reset = vmw_du_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
+	.atomic_destroy_state = vmw_du_connector_destroy_state,
 	.atomic_set_property = vmw_du_connector_atomic_set_property,
 	.atomic_get_property = vmw_du_connector_atomic_get_property,
 };

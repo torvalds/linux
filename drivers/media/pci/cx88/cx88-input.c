@@ -593,11 +593,11 @@ static int get_key_pvr2000(struct IR_i2c *ir, enum rc_proto *protocol,
 void cx88_i2c_init_ir(struct cx88_core *core)
 {
 	struct i2c_board_info info;
-	const unsigned short default_addr_list[] = {
+	static const unsigned short default_addr_list[] = {
 		0x18, 0x6b, 0x71,
 		I2C_CLIENT_END
 	};
-	const unsigned short pvr2000_addr_list[] = {
+	static const unsigned short pvr2000_addr_list[] = {
 		0x18, 0x1a,
 		I2C_CLIENT_END
 	};

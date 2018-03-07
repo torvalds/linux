@@ -1250,29 +1250,32 @@ static int alps_decode_ss4_v2(struct alps_fields *f,
 	case SS4_PACKET_ID_MULTI:
 		if (priv->flags & ALPS_BUTTONPAD) {
 			if (IS_SS4PLUS_DEV(priv->dev_id)) {
-				f->mt[0].x = SS4_PLUS_BTL_MF_X_V2(p, 0);
-				f->mt[1].x = SS4_PLUS_BTL_MF_X_V2(p, 1);
+				f->mt[2].x = SS4_PLUS_BTL_MF_X_V2(p, 0);
+				f->mt[3].x = SS4_PLUS_BTL_MF_X_V2(p, 1);
+				no_data_x = SS4_PLUS_MFPACKET_NO_AX_BL;
 			} else {
 				f->mt[2].x = SS4_BTL_MF_X_V2(p, 0);
 				f->mt[3].x = SS4_BTL_MF_X_V2(p, 1);
+				no_data_x = SS4_MFPACKET_NO_AX_BL;
 			}
+			no_data_y = SS4_MFPACKET_NO_AY_BL;
 
 			f->mt[2].y = SS4_BTL_MF_Y_V2(p, 0);
 			f->mt[3].y = SS4_BTL_MF_Y_V2(p, 1);
-			no_data_x = SS4_MFPACKET_NO_AX_BL;
-			no_data_y = SS4_MFPACKET_NO_AY_BL;
 		} else {
 			if (IS_SS4PLUS_DEV(priv->dev_id)) {
-				f->mt[0].x = SS4_PLUS_STD_MF_X_V2(p, 0);
-				f->mt[1].x = SS4_PLUS_STD_MF_X_V2(p, 1);
+				f->mt[2].x = SS4_PLUS_STD_MF_X_V2(p, 0);
+				f->mt[3].x = SS4_PLUS_STD_MF_X_V2(p, 1);
+				no_data_x = SS4_PLUS_MFPACKET_NO_AX;
 			} else {
-				f->mt[0].x = SS4_STD_MF_X_V2(p, 0);
-				f->mt[1].x = SS4_STD_MF_X_V2(p, 1);
+				f->mt[2].x = SS4_STD_MF_X_V2(p, 0);
+				f->mt[3].x = SS4_STD_MF_X_V2(p, 1);
+				no_data_x = SS4_MFPACKET_NO_AX;
 			}
+			no_data_y = SS4_MFPACKET_NO_AY;
+
 			f->mt[2].y = SS4_STD_MF_Y_V2(p, 0);
 			f->mt[3].y = SS4_STD_MF_Y_V2(p, 1);
-			no_data_x = SS4_MFPACKET_NO_AX;
-			no_data_y = SS4_MFPACKET_NO_AY;
 		}
 
 		f->first_mp = 0;
@@ -1587,10 +1590,10 @@ static psmouse_ret_t alps_handle_interleaved_ps2(struct psmouse *psmouse)
 	return PSMOUSE_GOOD_DATA;
 }
 
-static void alps_flush_packet(unsigned long data)
+static void alps_flush_packet(struct timer_list *t)
 {
-	struct psmouse *psmouse = (struct psmouse *)data;
-	struct alps_data *priv = psmouse->private;
+	struct alps_data *priv = from_timer(priv, t, timer);
+	struct psmouse *psmouse = priv->psmouse;
 
 	serio_pause_rx(psmouse->ps2dev.serio);
 
@@ -2702,7 +2705,7 @@ static int alps_set_protocol(struct psmouse *psmouse,
 {
 	psmouse->private = priv;
 
-	setup_timer(&priv->timer, alps_flush_packet, (unsigned long)psmouse);
+	timer_setup(&priv->timer, alps_flush_packet, 0);
 
 	priv->proto_version = protocol->version;
 	priv->byte0 = protocol->byte0;

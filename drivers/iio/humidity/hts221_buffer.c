@@ -47,7 +47,6 @@ static int hts221_trig_set_state(struct iio_trigger *trig, bool state)
 }
 
 static const struct iio_trigger_ops hts221_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = hts221_trig_set_state,
 };
 

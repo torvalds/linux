@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  pkey device driver
  *
  *  Copyright IBM Corp. 2017
  *  Author(s): Harald Freudenberger
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
  */
 
 #define KMSG_COMPONENT "pkey"
@@ -125,10 +121,9 @@ static int alloc_and_prep_cprbmem(size_t paramblen,
 	 * allocate consecutive memory for request CPRB, request param
 	 * block, reply CPRB and reply param block
 	 */
-	cprbmem = kmalloc(2 * cprbplusparamblen, GFP_KERNEL);
+	cprbmem = kzalloc(2 * cprbplusparamblen, GFP_KERNEL);
 	if (!cprbmem)
 		return -ENOMEM;
-	memset(cprbmem, 0, 2 * cprbplusparamblen);
 
 	preqcblk = (struct CPRBX *) cprbmem;
 	prepcblk = (struct CPRBX *) (cprbmem + cprbplusparamblen);

@@ -610,7 +610,8 @@ void rtl92se_set_desc(struct ieee80211_hw *hw, u8 *pdesc, bool istx,
 	}
 }
 
-u32 rtl92se_get_desc(u8 *desc, bool istx, u8 desc_name)
+u64 rtl92se_get_desc(struct ieee80211_hw *hw,
+		     u8 *desc, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
 

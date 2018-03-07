@@ -133,6 +133,9 @@ extern struct aa_perms allperms;
 #define xcheck_labels_profiles(L1, L2, FN, args...)		\
 	xcheck_ns_labels((L1), (L2), xcheck_ns_profile_label, (FN), args)
 
+#define xcheck_labels(L1, L2, P, FN1, FN2)			\
+	xcheck(fn_for_each((L1), (P), (FN1)), fn_for_each((L2), (P), (FN2)))
+
 
 void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask);
 void aa_audit_perm_names(struct audit_buffer *ab, const char **names, u32 mask);

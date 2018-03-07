@@ -10,7 +10,7 @@ Required properties:
 
 Example:
 
-hp03@0x77 {
+hp03@77 {
 	compatible = "hoperf,hp03";
 	reg = <0x77>;
 	xclr-gpio = <&portc 0 0x0>;

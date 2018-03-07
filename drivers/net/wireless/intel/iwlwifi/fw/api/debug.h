@@ -278,6 +278,15 @@ struct iwl_mvm_marker {
 	__le32 metadata[0];
 } __packed; /* MARKER_API_S_VER_1 */
 
+/**
+ * struct iwl_mvm_marker_rsp - Response to marker cmd
+ *
+ * @gp2: The gp2 clock value in the FW
+ */
+struct iwl_mvm_marker_rsp {
+	__le32 gp2;
+} __packed;
+
 /* Operation types for the debug mem access */
 enum {
 	DEBUG_MEM_OP_READ = 0,

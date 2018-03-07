@@ -778,9 +778,9 @@ struct omap_hwmod am33xx_mcasp1_hwmod = {
 
 /* 'mmc' class */
 static struct omap_hwmod_class_sysconfig am33xx_mmc_sysc = {
-	.rev_offs	= 0x1fc,
-	.sysc_offs	= 0x10,
-	.syss_offs	= 0x14,
+	.rev_offs	= 0x2fc,
+	.sysc_offs	= 0x110,
+	.syss_offs	= 0x114,
 	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_SIDLEMODE |
 			  SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
 			  SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),

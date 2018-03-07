@@ -283,7 +283,6 @@ struct brcmf_cfg80211_wowl {
  * @scan_status: scan activity on the dongle.
  * @pub: common driver information.
  * @channel: current channel.
- * @active_scan: current scan mode.
  * @int_escan_map: bucket map for which internal e-scan is done.
  * @ibss_starter: indicates this sta is ibss starter.
  * @pwr_save: indicate whether dongle to support power save mode.
@@ -316,7 +315,6 @@ struct brcmf_cfg80211_info {
 	unsigned long scan_status;
 	struct brcmf_pub *pub;
 	u32 channel;
-	bool active_scan;
 	u32 int_escan_map;
 	bool ibss_starter;
 	bool pwr_save;

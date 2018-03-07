@@ -90,10 +90,10 @@ int iscsit_load_discovery_tpg(void)
 	 */
 	param = iscsi_find_param_from_key(AUTHMETHOD, tpg->param_list);
 	if (!param)
-		goto out;
+		goto free_pl_out;
 
 	if (iscsi_update_param_value(param, "CHAP,None") < 0)
-		goto out;
+		goto free_pl_out;
 
 	tpg->tpg_attrib.authentication = 0;
 
@@ -105,6 +105,8 @@ int iscsit_load_discovery_tpg(void)
 	pr_debug("CORE[0] - Allocated Discovery TPG\n");
 
 	return 0;
+free_pl_out:
+	iscsi_release_param_list(tpg->param_list);
 out:
 	if (tpg->sid == 1)
 		core_tpg_deregister(&tpg->tpg_se_tpg);
@@ -119,6 +121,7 @@ void iscsit_release_discovery_tpg(void)
 	if (!tpg)
 		return;
 
+	iscsi_release_param_list(tpg->param_list);
 	core_tpg_deregister(&tpg->tpg_se_tpg);
 
 	kfree(tpg);

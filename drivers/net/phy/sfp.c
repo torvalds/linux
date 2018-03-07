@@ -1,5 +1,5 @@
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
@@ -88,15 +88,12 @@ static const enum gpiod_flags gpio_flags[] = {
 #define T_PROBE_INIT	msecs_to_jiffies(300)
 #define T_PROBE_RETRY	msecs_to_jiffies(100)
 
-/*
- * SFP modules appear to always have their PHY configured for bus address
+/* SFP modules appear to always have their PHY configured for bus address
  * 0x56 (which with mdio-i2c, translates to a PHY address of 22).
  */
 #define SFP_PHY_ADDR	22
 
-/*
- * Give this long for the PHY to reset.
- */
+/* Give this long for the PHY to reset. */
 #define T_PHY_RESET_MS	50
 
 static DEFINE_MUTEX(sfp_mutex);
@@ -150,10 +147,10 @@ static void sfp_gpio_set_state(struct sfp *sfp, unsigned int state)
 		/* If the module is present, drive the signals */
 		if (sfp->gpio[GPIO_TX_DISABLE])
 			gpiod_direction_output(sfp->gpio[GPIO_TX_DISABLE],
-						state & SFP_F_TX_DISABLE);
+					       state & SFP_F_TX_DISABLE);
 		if (state & SFP_F_RATE_SELECT)
 			gpiod_direction_output(sfp->gpio[GPIO_RATE_SELECT],
-						state & SFP_F_RATE_SELECT);
+					       state & SFP_F_RATE_SELECT);
 	} else {
 		/* Otherwise, let them float to the pull-ups */
 		if (sfp->gpio[GPIO_TX_DISABLE])
@@ -164,7 +161,7 @@ static void sfp_gpio_set_state(struct sfp *sfp, unsigned int state)
 }
 
 static int sfp__i2c_read(struct i2c_adapter *i2c, u8 bus_addr, u8 dev_addr,
-	void *buf, size_t len)
+			 void *buf, size_t len)
 {
 	struct i2c_msg msgs[2];
 	int ret;
@@ -186,7 +183,7 @@ static int sfp__i2c_read(struct i2c_adapter *i2c, u8 bus_addr, u8 dev_addr,
 }
 
 static int sfp_i2c_read(struct sfp *sfp, bool a2, u8 addr, void *buf,
-	size_t len)
+			size_t len)
 {
 	return sfp__i2c_read(sfp->i2c, a2 ? 0x51 : 0x50, addr, buf, len);
 }
@@ -219,7 +216,6 @@ static int sfp_i2c_configure(struct sfp *sfp, struct i2c_adapter *i2c)
 
 	return 0;
 }
-
 
 /* Interface */
 static unsigned int sfp_get_state(struct sfp *sfp)
@@ -295,7 +291,8 @@ static void sfp_sm_next(struct sfp *sfp, unsigned int state,
 	sfp_sm_set_timer(sfp, timeout);
 }
 
-static void sfp_sm_ins_next(struct sfp *sfp, unsigned int state, unsigned int timeout)
+static void sfp_sm_ins_next(struct sfp *sfp, unsigned int state,
+			    unsigned int timeout)
 {
 	sfp->sm_mod_state = state;
 	sfp_sm_set_timer(sfp, timeout);
@@ -354,12 +351,13 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 {
 	unsigned int los = sfp->state & SFP_F_LOS;
 
-	/* FIXME: what if neither SFP_OPTIONS_LOS_INVERTED nor
-	 * SFP_OPTIONS_LOS_NORMAL are set?  For now, we assume
-	 * the same as SFP_OPTIONS_LOS_NORMAL set.
+	/* If neither SFP_OPTIONS_LOS_INVERTED nor SFP_OPTIONS_LOS_NORMAL
+	 * are set, we assume that no LOS signal is available.
 	 */
-	if (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED)
+	if (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED))
 		los ^= SFP_F_LOS;
+	else if (!(sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL)))
+		los = 0;
 
 	if (los)
 		sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
@@ -367,10 +365,27 @@ static void sfp_sm_link_check_los(struct sfp *sfp)
 		sfp_sm_link_up(sfp);
 }
 
+static bool sfp_los_event_active(struct sfp *sfp, unsigned int event)
+{
+	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
+		event == SFP_E_LOS_LOW) ||
+	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
+		event == SFP_E_LOS_HIGH);
+}
+
+static bool sfp_los_event_inactive(struct sfp *sfp, unsigned int event)
+{
+	return (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_INVERTED) &&
+		event == SFP_E_LOS_HIGH) ||
+	       (sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_LOS_NORMAL) &&
+		event == SFP_E_LOS_LOW);
+}
+
 static void sfp_sm_fault(struct sfp *sfp, bool warn)
 {
 	if (sfp->sm_retries && !--sfp->sm_retries) {
-		dev_err(sfp->dev, "module persistently indicates fault, disabling\n");
+		dev_err(sfp->dev,
+			"module persistently indicates fault, disabling\n");
 		sfp_sm_next(sfp, SFP_S_TX_DISABLE, 0);
 	} else {
 		if (warn)
@@ -461,7 +476,8 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 	memcpy(date, sfp->id.ext.datecode, 8);
 	date[8] = '\0';
 
-	dev_info(sfp->dev, "module %s %s rev %s sn %s dc %s\n", vendor, part, rev, sn, date);
+	dev_info(sfp->dev, "module %s %s rev %s sn %s dc %s\n",
+		 vendor, part, rev, sn, date);
 
 	/* We only support SFP modules, not the legacy GBIC modules. */
 	if (sfp->id.base.phys_id != SFP_PHYS_ID_SFP ||
@@ -470,6 +486,11 @@ static int sfp_sm_mod_probe(struct sfp *sfp)
 			sfp->id.base.phys_id, sfp->id.base.phys_ext_id);
 		return -EINVAL;
 	}
+
+	/* If the module requires address swap mode, warn about it */
+	if (sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)
+		dev_warn(sfp->dev,
+			 "module address swap to access page 0xA2 is not supported.\n");
 
 	return sfp_module_insert(sfp->sfp_bus, &sfp->id);
 }
@@ -582,9 +603,7 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 	case SFP_S_WAIT_LOS:
 		if (event == SFP_E_TX_FAULT)
 			sfp_sm_fault(sfp, true);
-		else if (event ==
-			 (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED ?
-			  SFP_E_LOS_HIGH : SFP_E_LOS_LOW))
+		else if (sfp_los_event_inactive(sfp, event))
 			sfp_sm_link_up(sfp);
 		break;
 
@@ -592,9 +611,7 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		if (event == SFP_E_TX_FAULT) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_fault(sfp, true);
-		} else if (event ==
-			   (sfp->id.ext.options & SFP_OPTIONS_LOS_INVERTED ?
-			    SFP_E_LOS_LOW : SFP_E_LOS_HIGH)) {
+		} else if (sfp_los_event_active(sfp, event)) {
 			sfp_sm_link_down(sfp);
 			sfp_sm_next(sfp, SFP_S_WAIT_LOS, 0);
 		}
@@ -640,7 +657,8 @@ static int sfp_module_info(struct sfp *sfp, struct ethtool_modinfo *modinfo)
 {
 	/* locking... and check module is present */
 
-	if (sfp->id.ext.sff8472_compliance) {
+	if (sfp->id.ext.sff8472_compliance &&
+	    !(sfp->id.ext.diagmon & SFP_DIAGMON_ADDRMODE)) {
 		modinfo->type = ETH_MODULE_SFF_8472;
 		modinfo->eeprom_len = ETH_MODULE_SFF_8472_LEN;
 	} else {
@@ -651,7 +669,7 @@ static int sfp_module_info(struct sfp *sfp, struct ethtool_modinfo *modinfo)
 }
 
 static int sfp_module_eeprom(struct sfp *sfp, struct ethtool_eeprom *ee,
-	u8 *data)
+			     u8 *data)
 {
 	unsigned int first, last, len;
 	int ret;

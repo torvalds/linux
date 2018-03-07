@@ -612,6 +612,9 @@ enum ath10k_fw_features {
 	 */
 	ATH10K_FW_FEATURE_ALLOWS_MESH_BCAST = 16,
 
+	/* Firmware does not support power save in station mode. */
+	ATH10K_FW_FEATURE_NO_PS = 17,
+
 	/* keep last */
 	ATH10K_FW_FEATURE_COUNT,
 };

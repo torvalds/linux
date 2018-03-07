@@ -74,7 +74,7 @@ enum _LED_STATE_871x {
  *	Prototype of protected function.
  *===========================================================================
  */
-static void BlinkTimerCallback(unsigned long data);
+static void BlinkTimerCallback(struct timer_list *t);
 
 static void BlinkWorkItemCallback(struct work_struct *work);
 /*===========================================================================
@@ -99,8 +99,7 @@ static void InitLed871x(struct _adapter *padapter, struct LED_871x *pLed,
 	pLed->bLedBlinkInProgress = false;
 	pLed->BlinkTimes = 0;
 	pLed->BlinkingLedState = LED_UNKNOWN;
-	setup_timer(&pLed->BlinkTimer, BlinkTimerCallback,
-		    (unsigned long)pLed);
+	timer_setup(&pLed->BlinkTimer, BlinkTimerCallback, 0);
 	INIT_WORK(&pLed->BlinkWorkItem, BlinkWorkItemCallback);
 }
 
@@ -825,9 +824,9 @@ static void SwLedBlink6(struct LED_871x *pLed)
  *		Callback function of LED BlinkTimer,
  *		it just schedules to corresponding BlinkWorkItem.
  */
-static void BlinkTimerCallback(unsigned long data)
+static void BlinkTimerCallback(struct timer_list *t)
 {
-	struct LED_871x  *pLed = (struct LED_871x *)data;
+	struct LED_871x  *pLed = from_timer(pLed, t, BlinkTimer);
 
 	/* This fixed the crash problem on Fedora 12 when trying to do the
 	 * insmod;ifconfig up;rmmod commands.

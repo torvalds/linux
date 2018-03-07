@@ -1,0 +1,15 @@
+#!/bin/sh
+# Treewide grep for references to files under Documentation, and report
+# non-existing files in stderr.
+
+for f in $(git ls-files); do
+	for ref in $(grep -ho "Documentation/[A-Za-z0-9_.,~/*+-]*" "$f"); do
+		# presume trailing . and , are not part of the name
+		ref=${ref%%[.,]}
+
+		# use ls to handle wildcards
+		if ! ls $ref >/dev/null 2>&1; then
+			echo "$f: $ref" >&2
+		fi
+	done
+done

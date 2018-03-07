@@ -47,6 +47,13 @@ extern void cpu_remove_dev_attr(struct device_attribute *attr);
 extern int cpu_add_dev_attr_group(struct attribute_group *attrs);
 extern void cpu_remove_dev_attr_group(struct attribute_group *attrs);
 
+extern ssize_t cpu_show_meltdown(struct device *dev,
+				 struct device_attribute *attr, char *buf);
+extern ssize_t cpu_show_spectre_v1(struct device *dev,
+				   struct device_attribute *attr, char *buf);
+extern ssize_t cpu_show_spectre_v2(struct device *dev,
+				   struct device_attribute *attr, char *buf);
+
 extern __printf(4, 5)
 struct device *cpu_device_create(struct device *parent, void *drvdata,
 				 const struct attribute_group **groups,
@@ -56,27 +63,17 @@ extern void unregister_cpu(struct cpu *cpu);
 extern ssize_t arch_cpu_probe(const char *, size_t);
 extern ssize_t arch_cpu_release(const char *, size_t);
 #endif
-struct notifier_block;
 
-#define CPU_ONLINE		0x0002 /* CPU (unsigned)v is up */
-#define CPU_UP_PREPARE		0x0003 /* CPU (unsigned)v coming up */
-#define CPU_DEAD		0x0007 /* CPU (unsigned)v dead */
-#define CPU_POST_DEAD		0x0009 /* CPU (unsigned)v dead, cpu_hotplug
-					* lock is dropped */
-#define CPU_BROKEN		0x000B /* CPU (unsigned)v did not die properly,
-					* perhaps due to preemption. */
-
-/* Used for CPU hotplug events occurring while tasks are frozen due to a suspend
- * operation in progress
+/*
+ * These states are not related to the core CPU hotplug mechanism. They are
+ * used by various (sub)architectures to track internal state
  */
-#define CPU_TASKS_FROZEN	0x0010
-
-#define CPU_ONLINE_FROZEN	(CPU_ONLINE | CPU_TASKS_FROZEN)
-#define CPU_UP_PREPARE_FROZEN	(CPU_UP_PREPARE | CPU_TASKS_FROZEN)
-#define CPU_UP_CANCELED_FROZEN	(CPU_UP_CANCELED | CPU_TASKS_FROZEN)
-#define CPU_DOWN_PREPARE_FROZEN	(CPU_DOWN_PREPARE | CPU_TASKS_FROZEN)
-#define CPU_DOWN_FAILED_FROZEN	(CPU_DOWN_FAILED | CPU_TASKS_FROZEN)
-#define CPU_DEAD_FROZEN		(CPU_DEAD | CPU_TASKS_FROZEN)
+#define CPU_ONLINE		0x0002 /* CPU is up */
+#define CPU_UP_PREPARE		0x0003 /* CPU coming up */
+#define CPU_DEAD		0x0007 /* CPU dead */
+#define CPU_DEAD_FROZEN		0x0008 /* CPU timed out on unplug */
+#define CPU_POST_DEAD		0x0009 /* CPU successfully unplugged */
+#define CPU_BROKEN		0x000B /* CPU did not die properly */
 
 #ifdef CONFIG_SMP
 extern bool cpuhp_tasks_frozen;

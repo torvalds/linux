@@ -63,7 +63,7 @@ static int sysv_remount(struct super_block *sb, int *flags, char *data)
 
 	sync_filesystem(sb);
 	if (sbi->s_forced_ro)
-		*flags |= MS_RDONLY;
+		*flags |= SB_RDONLY;
 	return 0;
 }
 

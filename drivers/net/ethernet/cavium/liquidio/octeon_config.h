@@ -37,6 +37,8 @@
 #define   MAX_OCTEON_LINKS	       MAX_OCTEON_NICIF
 #define   MAX_OCTEON_MULTICAST_ADDR    32
 
+#define   MAX_OCTEON_FILL_COUNT        8
+
 /* CN6xxx IQ configuration macros */
 #define   CN6XXX_MAX_INPUT_QUEUES      32
 #define   CN6XXX_MAX_IQ_DESCRIPTORS    2048

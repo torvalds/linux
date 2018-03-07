@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * USB Peripheral Controller driver for Aeroflex Gaisler GRUSBDC.
  *
@@ -8,11 +9,6 @@
  *
  * Full documentation of the GRUSBDC core can be found here:
  * http://www.gaisler.com/products/grlib/grip.pdf
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * Contributors:
  * - Andreas Larsson <andreas@gaisler.com>
@@ -1261,7 +1257,7 @@ static int gr_handle_in_ep(struct gr_ep *ep)
 	if (!req->last_desc)
 		return 0;
 
-	if (ACCESS_ONCE(req->last_desc->ctrl) & GR_DESC_IN_CTRL_EN)
+	if (READ_ONCE(req->last_desc->ctrl) & GR_DESC_IN_CTRL_EN)
 		return 0; /* Not put in hardware buffers yet */
 
 	if (gr_read32(&ep->regs->epstat) & (GR_EPSTAT_B1 | GR_EPSTAT_B0))
@@ -1290,7 +1286,7 @@ static int gr_handle_out_ep(struct gr_ep *ep)
 	if (!req->curr_desc)
 		return 0;
 
-	ctrl = ACCESS_ONCE(req->curr_desc->ctrl);
+	ctrl = READ_ONCE(req->curr_desc->ctrl);
 	if (ctrl & GR_DESC_OUT_CTRL_EN)
 		return 0; /* Not received yet */
 
@@ -1538,7 +1534,7 @@ static int gr_ep_enable(struct usb_ep *_ep,
 	 * Bits 10-0 set the max payload. 12-11 set the number of
 	 * additional transactions.
 	 */
-	max = 0x7ff & usb_endpoint_maxp(desc);
+	max = usb_endpoint_maxp(desc);
 	nt = usb_endpoint_maxp_mult(desc) - 1;
 	buffer_size = GR_BUFFER_SIZE(epctrl);
 	if (nt && (mode == 0 || mode == 2)) {

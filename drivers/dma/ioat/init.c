@@ -390,7 +390,7 @@ static int ioat_dma_self_test(struct ioatdma_device *ioat_dma)
 	if (memcmp(src, dest, IOAT_TEST_SIZE)) {
 		dev_err(dev, "Self-test copy failed compare, disabling\n");
 		err = -ENODEV;
-		goto free_resources;
+		goto unmap_dma;
 	}
 
 unmap_dma:
@@ -760,7 +760,7 @@ ioat_init_channel(struct ioatdma_device *ioat_dma,
 	dma_cookie_init(&ioat_chan->dma_chan);
 	list_add_tail(&ioat_chan->dma_chan.device_node, &dma->channels);
 	ioat_dma->idx[idx] = ioat_chan;
-	setup_timer(&ioat_chan->timer, ioat_timer_event, data);
+	timer_setup(&ioat_chan->timer, ioat_timer_event, 0);
 	tasklet_init(&ioat_chan->cleanup_task, ioat_cleanup_event, data);
 }
 

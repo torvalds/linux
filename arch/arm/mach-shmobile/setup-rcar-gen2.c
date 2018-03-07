@@ -70,28 +70,12 @@ void __init rcar_gen2_timer_init(void)
 	void __iomem *base;
 	u32 freq;
 
+	shmobile_init_cntvoff();
+
 	if (of_machine_is_compatible("renesas,r8a7745") ||
 	    of_machine_is_compatible("renesas,r8a7792") ||
 	    of_machine_is_compatible("renesas,r8a7794")) {
 		freq = 260000000 / 8;	/* ZS / 8 */
-		/* CNTVOFF has to be initialized either from non-secure
-		 * Hypervisor mode or secure Monitor mode with SCR.NS==1.
-		 * If TrustZone is enabled then it should be handled by the
-		 * secure code.
-		 */
-		asm volatile(
-		"	cps	0x16\n"
-		"	mrc	p15, 0, r1, c1, c1, 0\n"
-		"	orr	r0, r1, #1\n"
-		"	mcr	p15, 0, r0, c1, c1, 0\n"
-		"	isb\n"
-		"	mov	r0, #0\n"
-		"	mcrr	p15, 4, r0, r0, c14\n"
-		"	isb\n"
-		"	mcr	p15, 0, r1, c1, c1, 0\n"
-		"	isb\n"
-		"	cps	0x13\n"
-			: : : "r0", "r1");
 	} else {
 		/* At Linux boot time the r8a7790 arch timer comes up
 		 * with the counter disabled. Moreover, it may also report

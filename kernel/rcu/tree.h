@@ -103,6 +103,7 @@ struct rcu_node {
 				/* Online CPUs for next expedited GP. */
 				/*  Any CPU that has ever been online will */
 				/*  have its bit set. */
+	unsigned long ffmask;	/* Fully functional CPUs. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
 				/*  Only one bit will be set in this mask. */
 	int	grplo;		/* lowest-numbered CPU or group here. */
@@ -285,6 +286,10 @@ struct rcu_data {
 
 	/* 8) RCU CPU stall data. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
+	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
+	struct irq_work rcu_iw;		/* Check for non-irq activity. */
+	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
+	unsigned long rcu_iw_gpnum;	/* ->gpnum associated with ->rcu_iw. */
 
 	int cpu;
 	struct rcu_state *rsp;

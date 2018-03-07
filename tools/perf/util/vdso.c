@@ -320,7 +320,7 @@ struct dso *machine__findnew_vdso(struct machine *machine,
 	struct vdso_info *vdso_info;
 	struct dso *dso = NULL;
 
-	pthread_rwlock_wrlock(&machine->dsos.lock);
+	down_write(&machine->dsos.lock);
 	if (!machine->vdso_info)
 		machine->vdso_info = vdso_info__new();
 
@@ -348,7 +348,7 @@ struct dso *machine__findnew_vdso(struct machine *machine,
 
 out_unlock:
 	dso__get(dso);
-	pthread_rwlock_unlock(&machine->dsos.lock);
+	up_write(&machine->dsos.lock);
 	return dso;
 }
 

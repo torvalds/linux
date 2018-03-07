@@ -65,9 +65,9 @@ srmcons_do_receive_chars(struct tty_port *port)
 }
 
 static void
-srmcons_receive_chars(unsigned long data)
+srmcons_receive_chars(struct timer_list *t)
 {
-	struct srmcons_private *srmconsp = (struct srmcons_private *)data;
+	struct srmcons_private *srmconsp = from_timer(srmconsp, t, timer);
 	struct tty_port *port = &srmconsp->port;
 	unsigned long flags;
 	int incr = 10;
@@ -206,8 +206,7 @@ static const struct tty_operations srmcons_ops = {
 static int __init
 srmcons_init(void)
 {
-	setup_timer(&srmcons_singleton.timer, srmcons_receive_chars,
-			(unsigned long)&srmcons_singleton);
+	timer_setup(&srmcons_singleton.timer, srmcons_receive_chars, 0);
 	if (srm_is_registered_console) {
 		struct tty_driver *driver;
 		int err;

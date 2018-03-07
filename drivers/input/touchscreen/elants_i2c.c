@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/async.h>
 #include <linux/i2c.h>
@@ -1070,13 +1071,6 @@ static const struct attribute_group elants_attribute_group = {
 	.attrs = elants_attributes,
 };
 
-static void elants_i2c_remove_sysfs_group(void *_data)
-{
-	struct elants_data *ts = _data;
-
-	sysfs_remove_group(&ts->client->dev.kobj, &elants_attribute_group);
-}
-
 static int elants_i2c_power_on(struct elants_data *ts)
 {
 	int error;
@@ -1268,10 +1262,13 @@ static int elants_i2c_probe(struct i2c_client *client,
 	}
 
 	/*
-	 * Systems using device tree should set up interrupt via DTS,
-	 * the rest will use the default falling edge interrupts.
+	 * Platform code (ACPI, DTS) should normally set up interrupt
+	 * for us, but in case it did not let's fall back to using falling
+	 * edge to be compatible with older Chromebooks.
 	 */
-	irqflags = client->dev.of_node ? 0 : IRQF_TRIGGER_FALLING;
+	irqflags = irq_get_trigger_type(client->irq);
+	if (!irqflags)
+		irqflags = IRQF_TRIGGER_FALLING;
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, elants_i2c_irq,
@@ -1289,19 +1286,9 @@ static int elants_i2c_probe(struct i2c_client *client,
 	if (!client->dev.of_node)
 		device_init_wakeup(&client->dev, true);
 
-	error = sysfs_create_group(&client->dev.kobj, &elants_attribute_group);
+	error = devm_device_add_group(&client->dev, &elants_attribute_group);
 	if (error) {
 		dev_err(&client->dev, "failed to create sysfs attributes: %d\n",
-			error);
-		return error;
-	}
-
-	error = devm_add_action(&client->dev,
-				elants_i2c_remove_sysfs_group, ts);
-	if (error) {
-		elants_i2c_remove_sysfs_group(ts);
-		dev_err(&client->dev,
-			"Failed to add sysfs cleanup action: %d\n",
 			error);
 		return error;
 	}

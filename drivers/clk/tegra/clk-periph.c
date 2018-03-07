@@ -203,3 +203,11 @@ struct clk *tegra_clk_register_periph_nodiv(const char *name,
 	return _tegra_clk_register_periph(name, parent_names, num_parents,
 			periph, clk_base, offset, CLK_SET_RATE_PARENT);
 }
+
+struct clk *tegra_clk_register_periph_data(void __iomem *clk_base,
+					   struct tegra_periph_init_data *init)
+{
+	return _tegra_clk_register_periph(init->name, init->p.parent_names,
+					  init->num_parents, &init->periph,
+					  clk_base, init->offset, init->flags);
+}

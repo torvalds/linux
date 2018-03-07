@@ -208,6 +208,7 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
 			return -EBUSY;
 		}
 		target_state = &drv->states[index];
+		broadcast = false;
 	}
 
 	/* Take note of the planned idle state. */
@@ -387,9 +388,12 @@ int cpuidle_enable_device(struct cpuidle_device *dev)
 	if (dev->enabled)
 		return 0;
 
+	if (!cpuidle_curr_governor)
+		return -EIO;
+
 	drv = cpuidle_get_cpu_driver(dev);
 
-	if (!drv || !cpuidle_curr_governor)
+	if (!drv)
 		return -EIO;
 
 	if (!dev->registered)
@@ -399,9 +403,11 @@ int cpuidle_enable_device(struct cpuidle_device *dev)
 	if (ret)
 		return ret;
 
-	if (cpuidle_curr_governor->enable &&
-	    (ret = cpuidle_curr_governor->enable(drv, dev)))
-		goto fail_sysfs;
+	if (cpuidle_curr_governor->enable) {
+		ret = cpuidle_curr_governor->enable(drv, dev);
+		if (ret)
+			goto fail_sysfs;
+	}
 
 	smp_wmb();
 

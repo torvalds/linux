@@ -18,7 +18,7 @@ Required properties:
 
 Example:
 
-	max77802: pmic@09 {
+	max77802: pmic@9 {
 		compatible = "maxim,max77802";
 		interrupt-parent = <&intc>;
 		interrupts = <26 IRQ_TYPE_NONE>;

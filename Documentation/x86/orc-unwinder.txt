@@ -4,7 +4,7 @@ ORC unwinder
 Overview
 --------
 
-The kernel CONFIG_ORC_UNWINDER option enables the ORC unwinder, which is
+The kernel CONFIG_UNWINDER_ORC option enables the ORC unwinder, which is
 similar in concept to a DWARF unwinder.  The difference is that the
 format of the ORC data is much simpler than DWARF, which in turn allows
 the ORC unwinder to be much simpler and faster.

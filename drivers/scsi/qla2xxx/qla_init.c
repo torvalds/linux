@@ -45,9 +45,9 @@ static void qla24xx_handle_prli_done_event(struct scsi_qla_host *,
 /* SRB Extensions ---------------------------------------------------------- */
 
 void
-qla2x00_sp_timeout(unsigned long __data)
+qla2x00_sp_timeout(struct timer_list *t)
 {
-	srb_t *sp = (srb_t *)__data;
+	srb_t *sp = from_timer(sp, t, u.iocb_cmd.timer);
 	struct srb_iocb *iocb;
 	scsi_qla_host_t *vha = sp->vha;
 	struct req_que *req;
@@ -812,13 +812,12 @@ int qla24xx_async_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 	sp->gen2 = fcport->login_gen;
 	qla2x00_init_timer(sp, qla2x00_get_async_timeout(vha) + 2);
 
-	pd = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
+	pd = dma_pool_zalloc(ha->s_dma_pool, GFP_KERNEL, &pd_dma);
 	if (pd == NULL) {
 		ql_log(ql_log_warn, vha, 0xd043,
 		    "Failed to allocate port database structure.\n");
 		goto done_free_sp;
 	}
-	memset(pd, 0, max(PORT_DATABASE_SIZE, PORT_DATABASE_24XX_SIZE));
 
 	mb = sp->u.iocb_cmd.u.mbx.out_mb;
 	mb[0] = MBC_GET_PORT_DATABASE;
@@ -1434,6 +1433,14 @@ qla24xx_handle_prli_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 		qla24xx_post_gpdb_work(vha, ea->fcport, 0);
 		break;
 	default:
+		if (ea->fcport->n2n_flag) {
+			ql_dbg(ql_dbg_disc, vha, 0x2118,
+				"%s %d %8phC post fc4 prli\n",
+				__func__, __LINE__, ea->fcport->port_name);
+			ea->fcport->fc4f_nvme = 0;
+			ea->fcport->n2n_flag = 0;
+			qla24xx_post_prli_work(vha, ea->fcport);
+		}
 		ql_dbg(ql_dbg_disc, vha, 0x2119,
 		    "%s %d %8phC unhandle event of %x\n",
 		    __func__, __LINE__, ea->fcport->port_name, ea->data[0]);
@@ -4367,7 +4374,109 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	return (rval);
 }
 
+/*
+ * N2N Login
+ *	Updates Fibre Channel Device Database with local loop devices.
+ *
+ * Input:
+ *	ha = adapter block pointer.
+ *
+ * Returns:
+ */
+static int qla24xx_n2n_handle_login(struct scsi_qla_host *vha,
+				    fc_port_t *fcport)
+{
+	struct qla_hw_data *ha = vha->hw;
+	int	res = QLA_SUCCESS, rval;
+	int	greater_wwpn = 0;
+	int	logged_in = 0;
 
+	if (ha->current_topology != ISP_CFG_N)
+		return res;
+
+	if (wwn_to_u64(vha->port_name) >
+	    wwn_to_u64(vha->n2n_port_name)) {
+		ql_dbg(ql_dbg_disc, vha, 0x2002,
+		    "HBA WWPN is greater %llx > target %llx\n",
+		    wwn_to_u64(vha->port_name),
+		    wwn_to_u64(vha->n2n_port_name));
+		greater_wwpn = 1;
+		fcport->d_id.b24 = vha->n2n_id;
+	}
+
+	fcport->loop_id = vha->loop_id;
+	fcport->fc4f_nvme = 0;
+	fcport->query = 1;
+
+	ql_dbg(ql_dbg_disc, vha, 0x4001,
+	    "Initiate N2N login handler: HBA port_id=%06x loopid=%d\n",
+	    fcport->d_id.b24, vha->loop_id);
+
+	/* Fill in member data. */
+	if (!greater_wwpn) {
+		rval = qla2x00_get_port_database(vha, fcport, 0);
+		ql_dbg(ql_dbg_disc, vha, 0x1051,
+		    "Remote login-state (%x/%x) port_id=%06x loop_id=%x, rval=%d\n",
+		    fcport->current_login_state, fcport->last_login_state,
+		    fcport->d_id.b24, fcport->loop_id, rval);
+
+		if (((fcport->current_login_state & 0xf) == 0x4) ||
+		    ((fcport->current_login_state & 0xf) == 0x6))
+			logged_in = 1;
+	}
+
+	if (logged_in || greater_wwpn) {
+		if (!vha->nvme_local_port && vha->flags.nvme_enabled)
+			qla_nvme_register_hba(vha);
+
+		/* Set connected N_Port d_id */
+		if (vha->flags.nvme_enabled)
+			fcport->fc4f_nvme = 1;
+
+		fcport->scan_state = QLA_FCPORT_FOUND;
+		fcport->fw_login_state = DSC_LS_PORT_UNAVAIL;
+		fcport->disc_state = DSC_GNL;
+		fcport->n2n_flag = 1;
+		fcport->flags = 3;
+		vha->hw->flags.gpsc_supported = 0;
+
+		if (greater_wwpn) {
+			ql_dbg(ql_dbg_disc, vha, 0x20e5,
+			    "%s %d PLOGI ELS %8phC\n",
+			    __func__, __LINE__, fcport->port_name);
+
+			res = qla24xx_els_dcmd2_iocb(vha, ELS_DCMD_PLOGI,
+			    fcport, fcport->d_id);
+		}
+
+		if (res != QLA_SUCCESS) {
+			ql_log(ql_log_info, vha, 0xd04d,
+			    "PLOGI Failed: portid=%06x - retrying\n",
+			    fcport->d_id.b24);
+			res = QLA_SUCCESS;
+		} else {
+			/* State 0x6 means FCP PRLI complete */
+			if ((fcport->current_login_state & 0xf) == 0x6) {
+				ql_dbg(ql_dbg_disc, vha, 0x2118,
+				    "%s %d %8phC post GPDB work\n",
+				    __func__, __LINE__, fcport->port_name);
+				fcport->chip_reset =
+				    vha->hw->base_qpair->chip_reset;
+				qla24xx_post_gpdb_work(vha, fcport, 0);
+			} else {
+				ql_dbg(ql_dbg_disc, vha, 0x2118,
+				    "%s %d %8phC post NVMe PRLI\n",
+				    __func__, __LINE__, fcport->port_name);
+				qla24xx_post_prli_work(vha, fcport);
+			}
+		}
+	} else {
+		/* Wait for next database change */
+		set_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags);
+	}
+
+	return res;
+}
 
 /*
  * qla2x00_configure_local_loop
@@ -4438,6 +4547,14 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 		}
 	}
 
+	/* Inititae N2N login. */
+	if (test_and_clear_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags)) {
+		rval = qla24xx_n2n_handle_login(vha, new_fcport);
+		if (rval != QLA_SUCCESS)
+			goto cleanup_allocation;
+		return QLA_SUCCESS;
+	}
+
 	/* Add devices to port list. */
 	id_iter = (char *)ha->gid_list;
 	for (index = 0; index < entries; index++) {
@@ -4479,10 +4596,13 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 			    "Failed to retrieve fcport information "
 			    "-- get_port_database=%x, loop_id=0x%04x.\n",
 			    rval2, new_fcport->loop_id);
-			ql_dbg(ql_dbg_disc, vha, 0x2105,
-			    "Scheduling resync.\n");
-			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-			continue;
+			/* Skip retry if N2N */
+			if (ha->current_topology != ISP_CFG_N) {
+				ql_dbg(ql_dbg_disc, vha, 0x2105,
+				    "Scheduling resync.\n");
+				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+				continue;
+			}
 		}
 
 		spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
@@ -7555,6 +7675,12 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	if (qla_tgt_mode_enabled(vha) || qla_dual_mode_enabled(vha))
 		icb->firmware_options_3 |= BIT_0;
 
+	if (IS_QLA27XX(ha)) {
+		icb->firmware_options_3 |= BIT_8;
+		ql_dbg(ql_log_info, vha, 0x0075,
+		    "Enabling direct connection.\n");
+	}
+
 	if (rval) {
 		ql_log(ql_log_warn, vha, 0x0076,
 		    "NVRAM configuration failed.\n");
@@ -7910,7 +8036,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos,
 		return NULL;
 	}
 
-	if (ql2xmqsupport) {
+	if (ql2xmqsupport || ql2xnvmeenable) {
 		qpair = kzalloc(sizeof(struct qla_qpair), GFP_KERNEL);
 		if (qpair == NULL) {
 			ql_log(ql_log_warn, vha, 0x0182,

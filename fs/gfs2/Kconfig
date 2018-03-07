@@ -4,6 +4,7 @@ config GFS2_FS
 	select FS_POSIX_ACL
 	select CRC32
 	select QUOTACTL
+	select FS_IOMAP
 	help
 	  A cluster filesystem.
 

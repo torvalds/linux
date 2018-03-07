@@ -13,6 +13,7 @@
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
 
+#define MAX_PCC_SUBSPACES	256
 #ifdef CONFIG_PCC
 extern struct mbox_chan *pcc_mbox_request_channel(struct mbox_client *cl,
 						  int subspace_id);

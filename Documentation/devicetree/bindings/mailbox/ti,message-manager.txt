@@ -29,7 +29,7 @@ Required properties:
 Example(K2G):
 ------------
 
-	msgmgr: msgmgr@02a00000 {
+	msgmgr: msgmgr@2a00000 {
 		compatible = "ti,k2g-message-manager";
 		#mbox-cells = <2>;
 		reg-names = "queue_proxy_region", "queue_state_debug_region";

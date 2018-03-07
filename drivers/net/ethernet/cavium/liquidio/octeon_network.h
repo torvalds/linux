@@ -136,6 +136,9 @@ struct lio {
 	/* work queue for  link status */
 	struct cavium_wq	link_status_wq;
 
+	/* work queue to regularly send local time to octeon firmware */
+	struct cavium_wq	sync_octeon_time_wq;
+
 	int netdev_uc_count;
 };
 
@@ -195,7 +198,7 @@ static inline void
 	struct sk_buff *skb;
 	struct octeon_skb_page_info *skb_pg_info;
 
-	page = alloc_page(GFP_ATOMIC | __GFP_COLD);
+	page = alloc_page(GFP_ATOMIC);
 	if (unlikely(!page))
 		return NULL;
 

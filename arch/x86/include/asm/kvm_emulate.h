@@ -214,8 +214,6 @@ struct x86_emulate_ops {
 	void (*halt)(struct x86_emulate_ctxt *ctxt);
 	void (*wbinvd)(struct x86_emulate_ctxt *ctxt);
 	int (*fix_hypercall)(struct x86_emulate_ctxt *ctxt);
-	void (*get_fpu)(struct x86_emulate_ctxt *ctxt); /* disables preempt */
-	void (*put_fpu)(struct x86_emulate_ctxt *ctxt); /* reenables preempt */
 	int (*intercept)(struct x86_emulate_ctxt *ctxt,
 			 struct x86_instruction_info *info,
 			 enum x86_intercept_stage stage);
@@ -226,6 +224,8 @@ struct x86_emulate_ops {
 
 	unsigned (*get_hflags)(struct x86_emulate_ctxt *ctxt);
 	void (*set_hflags)(struct x86_emulate_ctxt *ctxt, unsigned hflags);
+	int (*pre_leave_smm)(struct x86_emulate_ctxt *ctxt, u64 smbase);
+
 };
 
 typedef u32 __attribute__((vector_size(16))) sse128_t;

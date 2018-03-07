@@ -94,7 +94,7 @@ step-by-step instructions for how a user can trigger the bug.
 
 If the failure includes an "OOPS:", take a picture of the screen, capture
 a netconsole trace, or type the message from your screen into the bug
-report.  Please read "Documentation/admin-guide/oops-tracing.rst" before posting your
+report.  Please read "Documentation/admin-guide/bug-hunting.rst" before posting your
 bug report. This explains what you should do with the "Oops" information
 to make it useful to the recipient.
 
@@ -120,7 +120,7 @@ summary from [1.]>" for easy identification by the developers::
   [4.2.] Kernel .config file:
   [5.] Most recent kernel version which did not have the bug:
   [6.] Output of Oops.. message (if applicable) with symbolic information
-       resolved (see Documentation/admin-guide/oops-tracing.rst)
+       resolved (see Documentation/admin-guide/bug-hunting.rst)
   [7.] A small shell script or example program which triggers the
        problem (if possible)
   [8.] Environment

@@ -178,7 +178,7 @@
 	 */
 	battery {
 		pinctrl-names = "default";
-		pintctrl-0 = <&battery_pins>;
+		pinctrl-0 = <&battery_pins>;
 		compatible = "lego,ev3-battery";
 		io-channels = <&adc 4>, <&adc 3>;
 		io-channel-names = "voltage", "current";
@@ -392,7 +392,7 @@
 	batt_volt_en {
 		gpio-hog;
 		gpios = <6 GPIO_ACTIVE_HIGH>;
-		output-low;
+		output-high;
 	};
 };
 

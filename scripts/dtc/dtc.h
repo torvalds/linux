@@ -31,6 +31,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include <libfdt_env.h>
 #include <fdt.h>
@@ -202,6 +203,7 @@ struct node *build_node_delete(void);
 struct node *name_node(struct node *node, char *name);
 struct node *chain_node(struct node *first, struct node *list);
 struct node *merge_nodes(struct node *old_node, struct node *new_node);
+void add_orphan_node(struct node *old_node, struct node *new_node, char *ref);
 
 void add_property(struct node *node, struct property *prop);
 void delete_property_by_name(struct node *node, char *name);
@@ -215,6 +217,7 @@ void append_to_property(struct node *node,
 const char *get_unitname(struct node *node);
 struct property *get_property(struct node *node, const char *propname);
 cell_t propval_cell(struct property *prop);
+cell_t propval_cell_n(struct property *prop, int n);
 struct property *get_property_by_label(struct node *tree, const char *label,
 				       struct node **node);
 struct marker *get_marker_label(struct node *tree, const char *label,

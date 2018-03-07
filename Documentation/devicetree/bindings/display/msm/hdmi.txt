@@ -64,9 +64,9 @@ Example:
 		interrupts = <GIC_SPI 79 0>;
 		power-domains = <&mmcc MDSS_GDSC>;
 		clock-names =
-		    "core_clk",
-		    "master_iface_clk",
-		    "slave_iface_clk";
+		    "core",
+		    "master_iface",
+		    "slave_iface";
 		clocks =
 		    <&mmcc HDMI_APP_CLK>,
 		    <&mmcc HDMI_M_AHB_CLK>,
@@ -92,7 +92,7 @@ Example:
 		      <0x4a00500 0x100>;
 		#phy-cells = <0>;
 		power-domains = <&mmcc MDSS_GDSC>;
-		clock-names = "slave_iface_clk";
+		clock-names = "slave_iface";
 		clocks = <&mmcc HDMI_S_AHB_CLK>;
 		core-vdda-supply = <&pm8921_hdmi_mvs>;
 	};

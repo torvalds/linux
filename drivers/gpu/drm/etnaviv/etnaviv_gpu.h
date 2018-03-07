@@ -88,12 +88,16 @@ struct etnaviv_chip_identity {
 };
 
 struct etnaviv_event {
-	bool used;
 	struct dma_fence *fence;
+	struct etnaviv_cmdbuf *cmdbuf;
+
+	void (*sync_point)(struct etnaviv_gpu *gpu, struct etnaviv_event *event);
 };
 
 struct etnaviv_cmdbuf_suballoc;
 struct etnaviv_cmdbuf;
+
+#define ETNA_NR_EVENTS 30
 
 struct etnaviv_gpu {
 	struct drm_device *drm;
@@ -112,7 +116,8 @@ struct etnaviv_gpu {
 	u32 memory_base;
 
 	/* event management: */
-	struct etnaviv_event event[30];
+	DECLARE_BITMAP(event_bitmap, ETNA_NR_EVENTS);
+	struct etnaviv_event event[ETNA_NR_EVENTS];
 	struct completion event_free;
 	spinlock_t event_spinlock;
 
@@ -132,6 +137,10 @@ struct etnaviv_gpu {
 
 	/* worker for handling active-list retiring: */
 	struct work_struct retire_work;
+
+	/* worker for handling 'sync' points: */
+	struct work_struct sync_point_work;
+	int sync_point_event;
 
 	void __iomem *mmio;
 	int irq;

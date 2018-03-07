@@ -209,7 +209,7 @@ void native_machine_crash_shutdown(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_KEXEC_FILE
-static int get_nr_ram_ranges_callback(u64 start, u64 end, void *arg)
+static int get_nr_ram_ranges_callback(struct resource *res, void *arg)
 {
 	unsigned int *nr_ranges = arg;
 
@@ -342,7 +342,7 @@ static int elf_header_exclude_ranges(struct crash_elf_data *ced,
 	return ret;
 }
 
-static int prepare_elf64_ram_headers_callback(u64 start, u64 end, void *arg)
+static int prepare_elf64_ram_headers_callback(struct resource *res, void *arg)
 {
 	struct crash_elf_data *ced = arg;
 	Elf64_Ehdr *ehdr;
@@ -355,7 +355,7 @@ static int prepare_elf64_ram_headers_callback(u64 start, u64 end, void *arg)
 	ehdr = ced->ehdr;
 
 	/* Exclude unwanted mem ranges */
-	ret = elf_header_exclude_ranges(ced, start, end);
+	ret = elf_header_exclude_ranges(ced, res->start, res->end);
 	if (ret)
 		return ret;
 
@@ -518,14 +518,14 @@ static int add_e820_entry(struct boot_params *params, struct e820_entry *entry)
 	return 0;
 }
 
-static int memmap_entry_callback(u64 start, u64 end, void *arg)
+static int memmap_entry_callback(struct resource *res, void *arg)
 {
 	struct crash_memmap_data *cmd = arg;
 	struct boot_params *params = cmd->params;
 	struct e820_entry ei;
 
-	ei.addr = start;
-	ei.size = end - start + 1;
+	ei.addr = res->start;
+	ei.size = resource_size(res);
 	ei.type = cmd->type;
 	add_e820_entry(params, &ei);
 
@@ -619,12 +619,12 @@ out:
 	return ret;
 }
 
-static int determine_backup_region(u64 start, u64 end, void *arg)
+static int determine_backup_region(struct resource *res, void *arg)
 {
 	struct kimage *image = arg;
 
-	image->arch.backup_src_start = start;
-	image->arch.backup_src_sz = end - start + 1;
+	image->arch.backup_src_start = res->start;
+	image->arch.backup_src_sz = resource_size(res);
 
 	/* Expecting only one range for backup region */
 	return 1;

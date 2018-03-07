@@ -106,10 +106,6 @@ EXPORT_SYMBOL(mach_heartbeat);
 #ifdef CONFIG_M68K_L2_CACHE
 void (*mach_l2_flush) (int);
 #endif
-#if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
-void (*mach_beep)(unsigned int, unsigned int);
-EXPORT_SYMBOL(mach_beep);
-#endif
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)
 int isa_type;
 int isa_sex;
@@ -344,6 +340,8 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_COLDFIRE
 	case MACH_M54XX:
 	case MACH_M5441X:
+		cf_bootmem_alloc();
+		cf_mmu_context_init();
 		config_BSP(NULL, 0);
 		break;
 #endif

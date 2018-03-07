@@ -229,7 +229,7 @@ int i915_gem_render_state_emit(struct drm_i915_gem_request *req)
 		return 0;
 
 	/* Recreate the page after shrinking */
-	if (!so->vma->obj->mm.pages)
+	if (!i915_gem_object_has_pages(so->vma->obj))
 		so->batch_offset = -1;
 
 	ret = i915_vma_pin(so->vma, 0, 0, PIN_GLOBAL | PIN_HIGH);

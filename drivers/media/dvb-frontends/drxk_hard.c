@@ -207,9 +207,9 @@ static inline u32 log10times100(u32 value)
 	return (100L * intlog10(value)) >> 24;
 }
 
-/****************************************************************************/
+/***************************************************************************/
 /* I2C **********************************************************************/
-/****************************************************************************/
+/***************************************************************************/
 
 static int drxk_i2c_lock(struct drxk_state *state)
 {
@@ -3444,7 +3444,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief Activate DVBT specific presets
 * \param demod instance of demodulator.
 * \return DRXStatus_t.
@@ -3484,7 +3484,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief Initialize channelswitch-independent settings for DVBT.
 * \param demod instance of demodulator.
 * \return DRXStatus_t.
@@ -3696,7 +3696,7 @@ error:
 }
 
 /*============================================================================*/
-/**
+/*
 * \brief start dvbt demodulating for channel.
 * \param demod instance of demodulator.
 * \return DRXStatus_t.
@@ -3732,7 +3732,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief Set up dvbt demodulator for channel.
 * \param demod instance of demodulator.
 * \return DRXStatus_t.
@@ -4086,7 +4086,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief Retrieve lock status .
 * \param demod    Pointer to demodulator instance.
 * \param lockStat Pointer to lock status structure.
@@ -4148,7 +4148,7 @@ static int power_up_qam(struct drxk_state *state)
 }
 
 
-/** Power Down QAM */
+/* Power Down QAM */
 static int power_down_qam(struct drxk_state *state)
 {
 	u16 data = 0;
@@ -4186,7 +4186,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief Setup of the QAM Measurement intervals for signal quality
 * \param demod instance of demod.
 * \param modulation current modulation.
@@ -4461,7 +4461,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief QAM32 specific setup
 * \param demod instance of demod.
 * \return DRXStatus_t.
@@ -4657,7 +4657,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief QAM64 specific setup
 * \param demod instance of demod.
 * \return DRXStatus_t.
@@ -4852,7 +4852,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief QAM128 specific setup
 * \param demod: instance of demod.
 * \return DRXStatus_t.
@@ -5049,7 +5049,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief QAM256 specific setup
 * \param demod: instance of demod.
 * \return DRXStatus_t.
@@ -5244,7 +5244,7 @@ error:
 
 
 /*============================================================================*/
-/**
+/*
 * \brief Reset QAM block.
 * \param demod:   instance of demod.
 * \param channel: pointer to channel data.
@@ -5272,7 +5272,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief Set QAM symbolrate.
 * \param demod:   instance of demod.
 * \param channel: pointer to channel data.
@@ -5341,7 +5341,7 @@ error:
 
 /*============================================================================*/
 
-/**
+/*
 * \brief Get QAM lock status.
 * \param demod:   instance of demod.
 * \param channel: pointer to channel data.

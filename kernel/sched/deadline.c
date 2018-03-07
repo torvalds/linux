@@ -243,7 +243,7 @@ static void task_non_contending(struct task_struct *p)
 			if (p->state == TASK_DEAD)
 				sub_rq_bw(p->dl.dl_bw, &rq->dl);
 			raw_spin_lock(&dl_b->lock);
-			__dl_clear(dl_b, p->dl.dl_bw, dl_bw_cpus(task_cpu(p)));
+			__dl_sub(dl_b, p->dl.dl_bw, dl_bw_cpus(task_cpu(p)));
 			__dl_clear_params(p);
 			raw_spin_unlock(&dl_b->lock);
 		}
@@ -1144,7 +1144,7 @@ static void update_curr_dl(struct rq *rq)
 	account_group_exec_runtime(curr, delta_exec);
 
 	curr->se.exec_start = rq_clock_task(rq);
-	cpuacct_charge(curr, delta_exec);
+	cgroup_account_cputime(curr, delta_exec);
 
 	sched_rt_avg_update(rq, delta_exec);
 
@@ -1210,7 +1210,7 @@ static enum hrtimer_restart inactive_task_timer(struct hrtimer *timer)
 		}
 
 		raw_spin_lock(&dl_b->lock);
-		__dl_clear(dl_b, p->dl.dl_bw, dl_bw_cpus(task_cpu(p)));
+		__dl_sub(dl_b, p->dl.dl_bw, dl_bw_cpus(task_cpu(p)));
 		raw_spin_unlock(&dl_b->lock);
 		__dl_clear_params(p);
 
@@ -1365,6 +1365,10 @@ enqueue_dl_entity(struct sched_dl_entity *dl_se,
 		update_dl_entity(dl_se, pi_se);
 	} else if (flags & ENQUEUE_REPLENISH) {
 		replenish_dl_entity(dl_se, pi_se);
+	} else if ((flags & ENQUEUE_RESTORE) &&
+		  dl_time_before(dl_se->deadline,
+				 rq_clock(rq_of_dl_rq(dl_rq_of_se(dl_se))))) {
+		setup_new_dl_entity(dl_se);
 	}
 
 	__enqueue_dl_entity(dl_se);
@@ -2167,7 +2171,7 @@ static void set_cpus_allowed_dl(struct task_struct *p,
 		 * until we complete the update.
 		 */
 		raw_spin_lock(&src_dl_b->lock);
-		__dl_clear(src_dl_b, p->dl.dl_bw, dl_bw_cpus(task_cpu(p)));
+		__dl_sub(src_dl_b, p->dl.dl_bw, dl_bw_cpus(task_cpu(p)));
 		raw_spin_unlock(&src_dl_b->lock);
 	}
 
@@ -2256,13 +2260,6 @@ static void switched_to_dl(struct rq *rq, struct task_struct *p)
 
 		return;
 	}
-	/*
-	 * If p is boosted we already updated its params in
-	 * rt_mutex_setprio()->enqueue_task(..., ENQUEUE_REPLENISH),
-	 * p's deadline being now already after rq_clock(rq).
-	 */
-	if (dl_time_before(p->dl.deadline, rq_clock(rq)))
-		setup_new_dl_entity(&p->dl);
 
 	if (rq->curr != p) {
 #ifdef CONFIG_SMP
@@ -2452,7 +2449,7 @@ int sched_dl_overflow(struct task_struct *p, int policy,
 	if (dl_policy(policy) && !task_has_dl_policy(p) &&
 	    !__dl_overflow(dl_b, cpus, 0, new_bw)) {
 		if (hrtimer_active(&p->dl.inactive_timer))
-			__dl_clear(dl_b, p->dl.dl_bw, cpus);
+			__dl_sub(dl_b, p->dl.dl_bw, cpus);
 		__dl_add(dl_b, new_bw, cpus);
 		err = 0;
 	} else if (dl_policy(policy) && task_has_dl_policy(p) &&
@@ -2464,7 +2461,7 @@ int sched_dl_overflow(struct task_struct *p, int policy,
 		 * But this would require to set the task's "inactive
 		 * timer" when the task is not inactive.
 		 */
-		__dl_clear(dl_b, p->dl.dl_bw, cpus);
+		__dl_sub(dl_b, p->dl.dl_bw, cpus);
 		__dl_add(dl_b, new_bw, cpus);
 		dl_change_utilization(p, new_bw);
 		err = 0;

@@ -137,6 +137,7 @@ static void do_test_lru(enum test_type test, int cpu)
 
 			inner_lru_map_fds[cpu] =
 				bpf_create_map_node(BPF_MAP_TYPE_LRU_HASH,
+						    test_map_names[INNER_LRU_HASH_PREALLOC],
 						    sizeof(uint32_t),
 						    sizeof(long),
 						    inner_lru_hash_size, 0,
@@ -282,7 +283,7 @@ static void test_array_lookup(int cpu)
 
 	start_time = time_get_ns();
 	for (i = 0; i < max_cnt; i++)
-		syscall(__NR_getpgrp, 0);
+		syscall(__NR_getppid, 0);
 	printf("%d:array_lookup %lld lookups per sec\n",
 	       cpu, max_cnt * 1000000000ll * 64 / (time_get_ns() - start_time));
 }

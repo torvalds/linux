@@ -1069,15 +1069,17 @@ EXPORT_SYMBOL(snd_timer_global_register);
 
 struct snd_timer_system_private {
 	struct timer_list tlist;
+	struct snd_timer *snd_timer;
 	unsigned long last_expires;
 	unsigned long last_jiffies;
 	unsigned long correction;
 };
 
-static void snd_timer_s_function(unsigned long data)
+static void snd_timer_s_function(struct timer_list *t)
 {
-	struct snd_timer *timer = (struct snd_timer *)data;
-	struct snd_timer_system_private *priv = timer->private_data;
+	struct snd_timer_system_private *priv = from_timer(priv, t,
+								tlist);
+	struct snd_timer *timer = priv->snd_timer;
 	unsigned long jiff = jiffies;
 	if (time_after(jiff, priv->last_expires))
 		priv->correction += (long)jiff - (long)priv->last_expires;
@@ -1159,7 +1161,8 @@ static int snd_timer_register_system(void)
 		snd_timer_free(timer);
 		return -ENOMEM;
 	}
-	setup_timer(&priv->tlist, snd_timer_s_function, (unsigned long) timer);
+	priv->snd_timer = timer;
+	timer_setup(&priv->tlist, snd_timer_s_function, 0);
 	timer->private_data = priv;
 	timer->private_free = snd_timer_free_system;
 	return snd_timer_global_register(timer);

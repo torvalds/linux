@@ -31,8 +31,8 @@ void foo(void)
 	DEFINE(SIGFRAME_SIZE, sizeof (struct sigframe));
 	DEFINE(UNW_FRAME_INFO_SIZE, sizeof (struct unw_frame_info));
 
-	BUILD_BUG_ON(sizeof(struct upid) != 32);
-	DEFINE(IA64_UPID_SHIFT, 5);
+	BUILD_BUG_ON(sizeof(struct upid) != 16);
+	DEFINE(IA64_UPID_SHIFT, 4);
 
 	BLANK();
 
@@ -212,6 +212,8 @@ void foo(void)
 	BLANK();
 	DEFINE(IA64_TIMESPEC_TV_NSEC_OFFSET,
 	       offsetof (struct timespec, tv_nsec));
+	DEFINE(IA64_TIME_SN_SPEC_SNSEC_OFFSET,
+	       offsetof (struct time_sn_spec, snsec));
 
 	DEFINE(CLONE_SETTLS_BIT, 19);
 #if CLONE_SETTLS != (1<<19)

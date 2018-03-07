@@ -666,6 +666,19 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 		return (-EOPNOTSUPP);
 	}
 
+	if (ucmd->rx_hash_fields_mask & ~(MLX4_IB_RX_HASH_SRC_IPV4	|
+					  MLX4_IB_RX_HASH_DST_IPV4	|
+					  MLX4_IB_RX_HASH_SRC_IPV6	|
+					  MLX4_IB_RX_HASH_DST_IPV6	|
+					  MLX4_IB_RX_HASH_SRC_PORT_TCP	|
+					  MLX4_IB_RX_HASH_DST_PORT_TCP	|
+					  MLX4_IB_RX_HASH_SRC_PORT_UDP	|
+					  MLX4_IB_RX_HASH_DST_PORT_UDP)) {
+		pr_debug("RX Hash fields_mask has unsupported mask (0x%llx)\n",
+			 ucmd->rx_hash_fields_mask);
+		return (-EOPNOTSUPP);
+	}
+
 	if ((ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_SRC_IPV4) &&
 	    (ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_DST_IPV4)) {
 		rss_ctx->flags = MLX4_RSS_IPV4;
@@ -691,11 +704,11 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 			return (-EOPNOTSUPP);
 		}
 
-		if (rss_ctx->flags & MLX4_RSS_IPV4) {
+		if (rss_ctx->flags & MLX4_RSS_IPV4)
 			rss_ctx->flags |= MLX4_RSS_UDP_IPV4;
-		} else if (rss_ctx->flags & MLX4_RSS_IPV6) {
+		if (rss_ctx->flags & MLX4_RSS_IPV6)
 			rss_ctx->flags |= MLX4_RSS_UDP_IPV6;
-		} else {
+		if (!(rss_ctx->flags & (MLX4_RSS_IPV6 | MLX4_RSS_IPV4))) {
 			pr_debug("RX Hash fields_mask is not supported - UDP must be set with IPv4 or IPv6\n");
 			return (-EOPNOTSUPP);
 		}
@@ -707,15 +720,14 @@ static int set_qp_rss(struct mlx4_ib_dev *dev, struct mlx4_ib_rss *rss_ctx,
 
 	if ((ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_SRC_PORT_TCP) &&
 	    (ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_DST_PORT_TCP)) {
-		if (rss_ctx->flags & MLX4_RSS_IPV4) {
+		if (rss_ctx->flags & MLX4_RSS_IPV4)
 			rss_ctx->flags |= MLX4_RSS_TCP_IPV4;
-		} else if (rss_ctx->flags & MLX4_RSS_IPV6) {
+		if (rss_ctx->flags & MLX4_RSS_IPV6)
 			rss_ctx->flags |= MLX4_RSS_TCP_IPV6;
-		} else {
+		if (!(rss_ctx->flags & (MLX4_RSS_IPV6 | MLX4_RSS_IPV4))) {
 			pr_debug("RX Hash fields_mask is not supported - TCP must be set with IPv4 or IPv6\n");
 			return (-EOPNOTSUPP);
 		}
-
 	} else if ((ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_SRC_PORT_TCP) ||
 		   (ucmd->rx_hash_fields_mask & MLX4_IB_RX_HASH_DST_PORT_TCP)) {
 		pr_debug("RX Hash fields_mask is not supported - both TCP SRC and DST must be set\n");
@@ -1038,6 +1050,8 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			struct mlx4_ib_create_wq wq;
 		} ucmd;
 		size_t copy_len;
+		int shift;
+		int n;
 
 		copy_len = (src == MLX4_IB_QP_SRC) ?
 			   sizeof(struct mlx4_ib_create_qp) :
@@ -1100,8 +1114,10 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			goto err;
 		}
 
-		err = mlx4_mtt_init(dev->dev, ib_umem_page_count(qp->umem),
-				    qp->umem->page_shift, &qp->mtt);
+		n = ib_umem_page_count(qp->umem);
+		shift = mlx4_ib_umem_calc_optimal_mtt_size(qp->umem, 0, &n);
+		err = mlx4_mtt_init(dev->dev, n, shift, &qp->mtt);
+
 		if (err)
 			goto err_buf;
 
@@ -2182,11 +2198,6 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 	context->flags = cpu_to_be32((to_mlx4_state(new_state) << 28) |
 				     (to_mlx4_st(dev, qp->mlx4_ib_qp_type) << 16));
 
-	if (rwq_ind_tbl) {
-		fill_qp_rss_context(context, qp);
-		context->flags |= cpu_to_be32(1 << MLX4_RSS_QPC_FLAG_OFFSET);
-	}
-
 	if (!(attr_mask & IB_QP_PATH_MIG_STATE))
 		context->flags |= cpu_to_be32(MLX4_QP_PM_MIGRATED << 11);
 	else {
@@ -2216,7 +2227,7 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 			context->mtu_msgmax = (IB_MTU_4096 << 5) |
 					      ilog2(dev->dev->caps.max_gso_sz);
 		else
-			context->mtu_msgmax = (IB_MTU_4096 << 5) | 12;
+			context->mtu_msgmax = (IB_MTU_4096 << 5) | 13;
 	} else if (attr_mask & IB_QP_PATH_MTU) {
 		if (attr->path_mtu < IB_MTU_256 || attr->path_mtu > IB_MTU_4096) {
 			pr_err("path MTU (%u) is invalid\n",
@@ -2387,6 +2398,7 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 	context->pd = cpu_to_be32(pd->pdn);
 
 	if (!rwq_ind_tbl) {
+		context->params1 = cpu_to_be32(MLX4_IB_ACK_REQ_FREQ << 28);
 		get_cqs(qp, src_type, &send_cq, &recv_cq);
 	} else { /* Set dummy CQs to be compatible with HV and PRM */
 		send_cq = to_mcq(rwq_ind_tbl->ind_tbl[0]->cq);
@@ -2394,7 +2406,6 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 	}
 	context->cqn_send = cpu_to_be32(send_cq->mcq.cqn);
 	context->cqn_recv = cpu_to_be32(recv_cq->mcq.cqn);
-	context->params1  = cpu_to_be32(MLX4_IB_ACK_REQ_FREQ << 28);
 
 	/* Set "fast registration enabled" for all kernel QPs */
 	if (!ibuobject)
@@ -2513,7 +2524,7 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 					MLX4_IB_LINK_TYPE_ETH;
 		if (dev->dev->caps.tunnel_offload_mode ==  MLX4_TUNNEL_OFFLOAD_MODE_VXLAN) {
 			/* set QP to receive both tunneled & non-tunneled packets */
-			if (!(context->flags & cpu_to_be32(1 << MLX4_RSS_QPC_FLAG_OFFSET)))
+			if (!rwq_ind_tbl)
 				context->srqn = cpu_to_be32(7 << 28);
 		}
 	}
@@ -2560,6 +2571,13 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 
 			stamp_send_wqe(qp, i, 1 << qp->sq.wqe_shift);
 		}
+	}
+
+	if (rwq_ind_tbl	&&
+	    cur_state == IB_QPS_RESET &&
+	    new_state == IB_QPS_INIT) {
+		fill_qp_rss_context(context, qp);
+		context->flags |= cpu_to_be32(1 << MLX4_RSS_QPC_FLAG_OFFSET);
 	}
 
 	err = mlx4_qp_modify(dev->dev, &qp->mtt, to_mlx4_state(cur_state),

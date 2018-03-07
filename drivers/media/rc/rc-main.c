@@ -15,6 +15,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <media/rc-core.h>
+#include <linux/bsearch.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -38,41 +39,41 @@ static const struct {
 	[RC_PROTO_UNKNOWN] = { .name = "unknown", .repeat_period = 250 },
 	[RC_PROTO_OTHER] = { .name = "other", .repeat_period = 250 },
 	[RC_PROTO_RC5] = { .name = "rc-5",
-		.scancode_bits = 0x1f7f, .repeat_period = 164 },
+		.scancode_bits = 0x1f7f, .repeat_period = 250 },
 	[RC_PROTO_RC5X_20] = { .name = "rc-5x-20",
-		.scancode_bits = 0x1f7f3f, .repeat_period = 164 },
+		.scancode_bits = 0x1f7f3f, .repeat_period = 250 },
 	[RC_PROTO_RC5_SZ] = { .name = "rc-5-sz",
-		.scancode_bits = 0x2fff, .repeat_period = 164 },
+		.scancode_bits = 0x2fff, .repeat_period = 250 },
 	[RC_PROTO_JVC] = { .name = "jvc",
 		.scancode_bits = 0xffff, .repeat_period = 250 },
 	[RC_PROTO_SONY12] = { .name = "sony-12",
-		.scancode_bits = 0x1f007f, .repeat_period = 100 },
+		.scancode_bits = 0x1f007f, .repeat_period = 250 },
 	[RC_PROTO_SONY15] = { .name = "sony-15",
-		.scancode_bits = 0xff007f, .repeat_period = 100 },
+		.scancode_bits = 0xff007f, .repeat_period = 250 },
 	[RC_PROTO_SONY20] = { .name = "sony-20",
-		.scancode_bits = 0x1fff7f, .repeat_period = 100 },
+		.scancode_bits = 0x1fff7f, .repeat_period = 250 },
 	[RC_PROTO_NEC] = { .name = "nec",
-		.scancode_bits = 0xffff, .repeat_period = 160 },
+		.scancode_bits = 0xffff, .repeat_period = 250 },
 	[RC_PROTO_NECX] = { .name = "nec-x",
-		.scancode_bits = 0xffffff, .repeat_period = 160 },
+		.scancode_bits = 0xffffff, .repeat_period = 250 },
 	[RC_PROTO_NEC32] = { .name = "nec-32",
-		.scancode_bits = 0xffffffff, .repeat_period = 160 },
+		.scancode_bits = 0xffffffff, .repeat_period = 250 },
 	[RC_PROTO_SANYO] = { .name = "sanyo",
 		.scancode_bits = 0x1fffff, .repeat_period = 250 },
 	[RC_PROTO_MCIR2_KBD] = { .name = "mcir2-kbd",
-		.scancode_bits = 0xffff, .repeat_period = 150 },
+		.scancode_bits = 0xffff, .repeat_period = 250 },
 	[RC_PROTO_MCIR2_MSE] = { .name = "mcir2-mse",
-		.scancode_bits = 0x1fffff, .repeat_period = 150 },
+		.scancode_bits = 0x1fffff, .repeat_period = 250 },
 	[RC_PROTO_RC6_0] = { .name = "rc-6-0",
-		.scancode_bits = 0xffff, .repeat_period = 164 },
+		.scancode_bits = 0xffff, .repeat_period = 250 },
 	[RC_PROTO_RC6_6A_20] = { .name = "rc-6-6a-20",
-		.scancode_bits = 0xfffff, .repeat_period = 164 },
+		.scancode_bits = 0xfffff, .repeat_period = 250 },
 	[RC_PROTO_RC6_6A_24] = { .name = "rc-6-6a-24",
-		.scancode_bits = 0xffffff, .repeat_period = 164 },
+		.scancode_bits = 0xffffff, .repeat_period = 250 },
 	[RC_PROTO_RC6_6A_32] = { .name = "rc-6-6a-32",
-		.scancode_bits = 0xffffffff, .repeat_period = 164 },
+		.scancode_bits = 0xffffffff, .repeat_period = 250 },
 	[RC_PROTO_RC6_MCE] = { .name = "rc-6-mce",
-		.scancode_bits = 0xffff7fff, .repeat_period = 164 },
+		.scancode_bits = 0xffff7fff, .repeat_period = 250 },
 	[RC_PROTO_SHARP] = { .name = "sharp",
 		.scancode_bits = 0x1fff, .repeat_period = 250 },
 	[RC_PROTO_XMP] = { .name = "xmp", .repeat_period = 250 },
@@ -169,10 +170,11 @@ static struct rc_map_list empty_map = {
  * @name:	name to assign to the table
  * @rc_proto:	ir type to assign to the new table
  * @size:	initial size of the table
- * @return:	zero on success or a negative error code
  *
  * This routine will initialize the rc_map and will allocate
  * memory to hold at least the specified number of elements.
+ *
+ * return:	zero on success or a negative error code
  */
 static int ir_create_table(struct rc_map *rc_map,
 			   const char *name, u64 rc_proto, size_t size)
@@ -215,10 +217,11 @@ static void ir_free_table(struct rc_map *rc_map)
  * ir_resize_table() - resizes a scancode table if necessary
  * @rc_map:	the rc_map to resize
  * @gfp_flags:	gfp flags to use when allocating memory
- * @return:	zero on success or a negative error code
  *
  * This routine will shrink the rc_map if it has lots of
  * unused entries and grow it if it is full.
+ *
+ * return:	zero on success or a negative error code
  */
 static int ir_resize_table(struct rc_map *rc_map, gfp_t gfp_flags)
 {
@@ -264,11 +267,13 @@ static int ir_resize_table(struct rc_map *rc_map, gfp_t gfp_flags)
  * @dev:	the struct rc_dev device descriptor
  * @rc_map:	scancode table to be adjusted
  * @index:	index of the mapping that needs to be updated
- * @keycode:	the desired keycode
- * @return:	previous keycode assigned to the mapping
+ * @new_keycode: the desired keycode
  *
  * This routine is used to update scancode->keycode mapping at given
  * position.
+ *
+ * return:	previous keycode assigned to the mapping
+ *
  */
 static unsigned int ir_update_mapping(struct rc_dev *dev,
 				      struct rc_map *rc_map,
@@ -319,12 +324,13 @@ static unsigned int ir_update_mapping(struct rc_dev *dev,
  * @scancode:	the desired scancode
  * @resize:	controls whether we allowed to resize the table to
  *		accommodate not yet present scancodes
- * @return:	index of the mapping containing scancode in question
- *		or -1U in case of failure.
  *
  * This routine is used to locate given scancode in rc_map.
  * If scancode is not yet present the routine will allocate a new slot
  * for it.
+ *
+ * return:	index of the mapping containing scancode in question
+ *		or -1U in case of failure.
  */
 static unsigned int ir_establish_scancode(struct rc_dev *dev,
 					  struct rc_map *rc_map,
@@ -374,11 +380,12 @@ static unsigned int ir_establish_scancode(struct rc_dev *dev,
 /**
  * ir_setkeycode() - set a keycode in the scancode->keycode table
  * @idev:	the struct input_dev device descriptor
- * @scancode:	the desired scancode
- * @keycode:	result
- * @return:	-EINVAL if the keycode could not be inserted, otherwise zero.
+ * @ke:		Input keymap entry
+ * @old_keycode: result
  *
  * This routine is used to handle evdev EVIOCSKEY ioctl.
+ *
+ * return:	-EINVAL if the keycode could not be inserted, otherwise zero.
  */
 static int ir_setkeycode(struct input_dev *idev,
 			 const struct input_keymap_entry *ke,
@@ -421,11 +428,11 @@ out:
 /**
  * ir_setkeytable() - sets several entries in the scancode->keycode table
  * @dev:	the struct rc_dev device descriptor
- * @to:		the struct rc_map to copy entries to
  * @from:	the struct rc_map to copy entries from
- * @return:	-ENOMEM if all keycodes could not be inserted, otherwise zero.
  *
  * This routine is used to handle table initialization.
+ *
+ * return:	-ENOMEM if all keycodes could not be inserted, otherwise zero.
  */
 static int ir_setkeytable(struct rc_dev *dev,
 			  const struct rc_map *from)
@@ -438,9 +445,6 @@ static int ir_setkeytable(struct rc_dev *dev,
 			     from->rc_proto, from->size);
 	if (rc)
 		return rc;
-
-	IR_dprintk(1, "Allocated space for %u keycode entries (%u bytes)\n",
-		   rc_map->size, rc_map->alloc);
 
 	for (i = 0; i < from->size; i++) {
 		index = ir_establish_scancode(dev, rc_map,
@@ -460,43 +464,49 @@ static int ir_setkeytable(struct rc_dev *dev,
 	return rc;
 }
 
+static int rc_map_cmp(const void *key, const void *elt)
+{
+	const unsigned int *scancode = key;
+	const struct rc_map_table *e = elt;
+
+	if (*scancode < e->scancode)
+		return -1;
+	else if (*scancode > e->scancode)
+		return 1;
+	return 0;
+}
+
 /**
  * ir_lookup_by_scancode() - locate mapping by scancode
  * @rc_map:	the struct rc_map to search
  * @scancode:	scancode to look for in the table
- * @return:	index in the table, -1U if not found
  *
  * This routine performs binary search in RC keykeymap table for
  * given scancode.
+ *
+ * return:	index in the table, -1U if not found
  */
 static unsigned int ir_lookup_by_scancode(const struct rc_map *rc_map,
 					  unsigned int scancode)
 {
-	int start = 0;
-	int end = rc_map->len - 1;
-	int mid;
+	struct rc_map_table *res;
 
-	while (start <= end) {
-		mid = (start + end) / 2;
-		if (rc_map->scan[mid].scancode < scancode)
-			start = mid + 1;
-		else if (rc_map->scan[mid].scancode > scancode)
-			end = mid - 1;
-		else
-			return mid;
-	}
-
-	return -1U;
+	res = bsearch(&scancode, rc_map->scan, rc_map->len,
+		      sizeof(struct rc_map_table), rc_map_cmp);
+	if (!res)
+		return -1U;
+	else
+		return res - rc_map->scan;
 }
 
 /**
  * ir_getkeycode() - get a keycode from the scancode->keycode table
  * @idev:	the struct input_dev device descriptor
- * @scancode:	the desired scancode
- * @keycode:	used to return the keycode, if found, or KEY_RESERVED
- * @return:	always returns zero.
+ * @ke:		Input keymap entry
  *
  * This routine is used to handle evdev EVIOCGKEY ioctl.
+ *
+ * return:	always returns zero.
  */
 static int ir_getkeycode(struct input_dev *idev,
 			 struct input_keymap_entry *ke)
@@ -553,11 +563,12 @@ out:
  * rc_g_keycode_from_table() - gets the keycode that corresponds to a scancode
  * @dev:	the struct rc_dev descriptor of the device
  * @scancode:	the scancode to look for
- * @return:	the corresponding keycode, or KEY_RESERVED
  *
  * This routine is used by drivers which need to convert a scancode to a
  * keycode. Normally it should not be used since drivers should have no
  * interest in keycodes.
+ *
+ * return:	the corresponding keycode, or KEY_RESERVED
  */
 u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode)
 {
@@ -622,14 +633,15 @@ EXPORT_SYMBOL_GPL(rc_keyup);
 
 /**
  * ir_timer_keyup() - generates a keyup event after a timeout
- * @cookie:	a pointer to the struct rc_dev for the device
+ *
+ * @t:		a pointer to the struct timer_list
  *
  * This routine will generate a keyup event some time after a keydown event
  * is generated when no further activity has been detected.
  */
-static void ir_timer_keyup(unsigned long cookie)
+static void ir_timer_keyup(struct timer_list *t)
 {
-	struct rc_dev *dev = (struct rc_dev *)cookie;
+	struct rc_dev *dev = from_timer(dev, t, timer_keyup);
 	unsigned long flags;
 
 	/*
@@ -777,7 +789,8 @@ EXPORT_SYMBOL_GPL(rc_keydown_notimeout);
  *			  provides sensible defaults
  * @dev:	the struct rc_dev descriptor of the device
  * @filter:	the scancode and mask
- * @return:	0 or -EINVAL if the filter is not valid
+ *
+ * return:	0 or -EINVAL if the filter is not valid
  */
 static int rc_validate_filter(struct rc_dev *dev,
 			      struct rc_scancode_filter *filter)
@@ -1480,6 +1493,8 @@ static int rc_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 		ADD_HOTPLUG_VAR("NAME=%s", dev->rc_map.name);
 	if (dev->driver_name)
 		ADD_HOTPLUG_VAR("DRV_NAME=%s", dev->driver_name);
+	if (dev->device_name)
+		ADD_HOTPLUG_VAR("DEV_NAME=%s", dev->device_name);
 
 	return 0;
 }
@@ -1487,7 +1502,10 @@ static int rc_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 /*
  * Static device attribute struct with the sysfs attributes for IR's
  */
-static DEVICE_ATTR(protocols, 0644, show_protocols, store_protocols);
+static struct device_attribute dev_attr_ro_protocols =
+__ATTR(protocols, 0444, show_protocols, NULL);
+static struct device_attribute dev_attr_rw_protocols =
+__ATTR(protocols, 0644, show_protocols, store_protocols);
 static DEVICE_ATTR(wakeup_protocols, 0644, show_wakeup_protocols,
 		   store_wakeup_protocols);
 static RC_FILTER_ATTR(filter, S_IRUGO|S_IWUSR,
@@ -1499,13 +1517,22 @@ static RC_FILTER_ATTR(wakeup_filter, S_IRUGO|S_IWUSR,
 static RC_FILTER_ATTR(wakeup_filter_mask, S_IRUGO|S_IWUSR,
 		      show_filter, store_filter, RC_FILTER_WAKEUP, true);
 
-static struct attribute *rc_dev_protocol_attrs[] = {
-	&dev_attr_protocols.attr,
+static struct attribute *rc_dev_rw_protocol_attrs[] = {
+	&dev_attr_rw_protocols.attr,
 	NULL,
 };
 
-static const struct attribute_group rc_dev_protocol_attr_grp = {
-	.attrs	= rc_dev_protocol_attrs,
+static const struct attribute_group rc_dev_rw_protocol_attr_grp = {
+	.attrs	= rc_dev_rw_protocol_attrs,
+};
+
+static struct attribute *rc_dev_ro_protocol_attrs[] = {
+	&dev_attr_ro_protocols.attr,
+	NULL,
+};
+
+static const struct attribute_group rc_dev_ro_protocol_attr_grp = {
+	.attrs	= rc_dev_ro_protocol_attrs,
 };
 
 static struct attribute *rc_dev_filter_attrs[] = {
@@ -1529,7 +1556,7 @@ static const struct attribute_group rc_dev_wakeup_filter_attr_grp = {
 	.attrs	= rc_dev_wakeup_filter_attrs,
 };
 
-static struct device_type rc_dev_type = {
+static const struct device_type rc_dev_type = {
 	.release	= rc_dev_release,
 	.uevent		= rc_dev_uevent,
 };
@@ -1553,8 +1580,7 @@ struct rc_dev *rc_allocate_device(enum rc_driver_type type)
 		dev->input_dev->setkeycode = ir_setkeycode;
 		input_set_drvdata(dev->input_dev, dev);
 
-		setup_timer(&dev->timer_keyup, ir_timer_keyup,
-			    (unsigned long)dev);
+		timer_setup(&dev->timer_keyup, ir_timer_keyup, 0);
 
 		spin_lock_init(&dev->rc_map.lock);
 		spin_lock_init(&dev->keylock);
@@ -1637,6 +1663,9 @@ static int rc_prepare_rx_device(struct rc_dev *dev)
 		return rc;
 
 	rc_proto = BIT_ULL(rc_map->rc_proto);
+
+	if (dev->driver_type == RC_DRIVER_SCANCODE && !dev->change_protocol)
+		dev->enabled_protocols = dev->allowed_protocols;
 
 	if (dev->change_protocol) {
 		rc = dev->change_protocol(dev, &rc_proto);
@@ -1729,8 +1758,10 @@ int rc_register_device(struct rc_dev *dev)
 	dev_set_drvdata(&dev->dev, dev);
 
 	dev->dev.groups = dev->sysfs_groups;
-	if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
-		dev->sysfs_groups[attr++] = &rc_dev_protocol_attr_grp;
+	if (dev->driver_type == RC_DRIVER_SCANCODE && !dev->change_protocol)
+		dev->sysfs_groups[attr++] = &rc_dev_ro_protocol_attr_grp;
+	else if (dev->driver_type != RC_DRIVER_IR_RAW_TX)
+		dev->sysfs_groups[attr++] = &rc_dev_rw_protocol_attr_grp;
 	if (dev->s_filter)
 		dev->sysfs_groups[attr++] = &rc_dev_filter_attr_grp;
 	if (dev->s_wakeup_filter)

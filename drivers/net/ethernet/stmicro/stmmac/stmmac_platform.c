@@ -318,10 +318,6 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 	bool mdio = true;
 	static const struct of_device_id need_mdio_ids[] = {
 		{ .compatible = "snps,dwc-qos-ethernet-4.10" },
-		{ .compatible = "allwinner,sun8i-a83t-emac" },
-		{ .compatible = "allwinner,sun8i-h3-emac" },
-		{ .compatible = "allwinner,sun8i-v3s-emac" },
-		{ .compatible = "allwinner,sun50i-a64-emac" },
 		{},
 	};
 

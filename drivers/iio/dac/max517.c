@@ -137,7 +137,6 @@ static SIMPLE_DEV_PM_OPS(max517_pm_ops, max517_suspend, max517_resume);
 static const struct iio_info max517_info = {
 	.read_raw = max517_read_raw,
 	.write_raw = max517_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define MAX517_CHANNEL(chan) {				\

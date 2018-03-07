@@ -27,7 +27,7 @@
 #define BAYER_QUAD_HEIGHT 2
 #define NOF_BAYER_VECTORS 4
 
-/** bayer load/store */
+/* bayer load/store */
 struct sh_css_isp_bayer_ls_isp_config {
 	uint32_t base_address[NUM_BAYER_LS];
 	uint32_t width[NUM_BAYER_LS];

@@ -926,7 +926,7 @@ static struct vpe_ctx *file2ctx(struct file *file)
  * mem2mem callbacks
  */
 
-/**
+/*
  * job_ready() - check whether an instance is ready to be scheduled to run
  */
 static int job_ready(void *priv)

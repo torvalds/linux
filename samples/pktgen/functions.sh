@@ -119,3 +119,46 @@ function root_check_run_with_sudo() {
 	err 4 "cannot perform sudo run of $0"
     fi
 }
+
+# Exact input device's NUMA node info
+function get_iface_node()
+{
+    local node=$(</sys/class/net/$1/device/numa_node)
+    if [[ $node == -1 ]]; then
+        echo 0
+    else
+        echo $node
+    fi
+}
+
+# Given an Dev/iface, get its queues' irq numbers
+function get_iface_irqs()
+{
+	local IFACE=$1
+	local queues="${IFACE}-.*TxRx"
+
+	irqs=$(grep "$queues" /proc/interrupts | cut -f1 -d:)
+	[ -z "$irqs" ] && irqs=$(grep $IFACE /proc/interrupts | cut -f1 -d:)
+	[ -z "$irqs" ] && irqs=$(for i in `ls -Ux /sys/class/net/$IFACE/device/msi_irqs` ;\
+	    do grep "$i:.*TxRx" /proc/interrupts | grep -v fdir | cut -f 1 -d : ;\
+	    done)
+	[ -z "$irqs" ] && err 3 "Could not find interrupts for $IFACE"
+
+	echo $irqs
+}
+
+# Given a NUMA node, return cpu ids belonging to it.
+function get_node_cpus()
+{
+	local node=$1
+	local node_cpu_list
+	local node_cpu_range_list=`cut -f1- -d, --output-delimiter=" " \
+	                  /sys/devices/system/node/node$node/cpulist`
+
+	for cpu_range in $node_cpu_range_list
+	do
+	    node_cpu_list="$node_cpu_list "`seq -s " " ${cpu_range//-/ }`
+	done
+
+	echo $node_cpu_list
+}

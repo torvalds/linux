@@ -485,11 +485,8 @@ EXPORT_SYMBOL(bioset_integrity_create);
 
 void bioset_integrity_free(struct bio_set *bs)
 {
-	if (bs->bio_integrity_pool)
-		mempool_destroy(bs->bio_integrity_pool);
-
-	if (bs->bvec_integrity_pool)
-		mempool_destroy(bs->bvec_integrity_pool);
+	mempool_destroy(bs->bio_integrity_pool);
+	mempool_destroy(bs->bvec_integrity_pool);
 }
 EXPORT_SYMBOL(bioset_integrity_free);
 

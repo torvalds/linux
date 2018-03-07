@@ -224,9 +224,9 @@ void tipc_disc_remove_dest(struct tipc_link_req *req)
  *
  * Called whenever a link setup request timer associated with a bearer expires.
  */
-static void disc_timeout(unsigned long data)
+static void disc_timeout(struct timer_list *t)
 {
-	struct tipc_link_req *req = (struct tipc_link_req *)data;
+	struct tipc_link_req *req = from_timer(req, t, timer);
 	struct sk_buff *skb;
 	int max_delay;
 
@@ -292,7 +292,7 @@ int tipc_disc_create(struct net *net, struct tipc_bearer *b,
 	req->num_nodes = 0;
 	req->timer_intv = TIPC_LINK_REQ_INIT;
 	spin_lock_init(&req->lock);
-	setup_timer(&req->timer, disc_timeout, (unsigned long)req);
+	timer_setup(&req->timer, disc_timeout, 0);
 	mod_timer(&req->timer, jiffies + req->timer_intv);
 	b->link_req = req;
 	*skb = skb_clone(req->buf, GFP_ATOMIC);

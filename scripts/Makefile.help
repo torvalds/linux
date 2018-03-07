@@ -1,3 +1,0 @@
-
-checker-help:
-	@echo  '  coccicheck      - Check with Coccinelle.'

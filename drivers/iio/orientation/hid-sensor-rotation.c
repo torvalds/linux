@@ -138,7 +138,6 @@ static int dev_rot_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info dev_rot_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw_multi = &dev_rot_read_raw,
 	.write_raw = &dev_rot_write_raw,
 };

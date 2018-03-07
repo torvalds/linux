@@ -1,20 +1,20 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __INC_RA_H
 #define __INC_RA_H
-/*++
-Copyright (c) Realtek Semiconductor Corp. All rights reserved.
-
-Module Name:
-	RateAdaptive.h
-
-Abstract:
-	Prototype of RA and related data structure.
-
-Major Change History:
-	When       Who               What
-	---------- ---------------   -------------------------------
-	2011-08-12 Page            Create.
---*/
+/*
+ * Copyright (c) Realtek Semiconductor Corp. All rights reserved.
+ *
+ * Module Name:
+ *	RateAdaptive.h
+ *
+ * Abstract:
+ *	Prototype of RA and related data structure.
+ *
+ * Major Change History:
+ *	When       Who               What
+ *	---------- ---------------   -------------------------------
+ *	2011-08-12 Page            Create.
+ */
 
 /*  Rate adaptive define */
 #define	PERENTRY	23

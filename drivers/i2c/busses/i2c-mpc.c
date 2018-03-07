@@ -322,7 +322,7 @@ static const struct mpc_i2c_divider mpc_i2c_dividers_8xxx[] = {
 
 static u32 mpc_i2c_get_sec_cfg_8xxx(void)
 {
-	struct device_node *node = NULL;
+	struct device_node *node;
 	u32 __iomem *reg;
 	u32 val = 0;
 
@@ -700,7 +700,7 @@ static int fsl_i2c_probe(struct platform_device *op)
 		}
 	}
 
-	if (of_get_property(op->dev.of_node, "fsl,preserve-clocking", NULL)) {
+	if (of_property_read_bool(op->dev.of_node, "fsl,preserve-clocking")) {
 		clock = MPC_I2C_CLOCK_PRESERVE;
 	} else {
 		prop = of_get_property(op->dev.of_node, "clock-frequency",

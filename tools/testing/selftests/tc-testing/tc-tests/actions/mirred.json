@@ -1,0 +1,223 @@
+[
+    {
+        "id": "5124",
+        "name": "Add mirred mirror to egress action",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred egress mirror index 1 dev lo",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(Egress Mirror to device lo\\).*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "6fb4",
+        "name": "Add mirred redirect to egress action",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred egress redirect index 2 dev lo action pipe",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(Egress Redirect to device lo\\).*index 2 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "ba38",
+        "name": "Get mirred actions",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action mirred egress mirror index 1 dev lo",
+            "$TC actions add action mirred egress redirect index 2 dev lo"
+        ],
+        "cmdUnderTest": "$TC actions show action mirred",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "[Mirror|Redirect] to device lo",
+        "matchCount": "2",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "d7c0",
+        "name": "Add invalid mirred direction",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred inbound mirror index 20 dev lo",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(.*to device lo\\).*index 20 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "e213",
+        "name": "Add invalid mirred action",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred egress remirror index 20 dev lo",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(Egress.*to device lo\\).*index 20 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "2d89",
+        "name": "Add mirred action with invalid device",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred egress mirror index 20 dev eltoh",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(.*to device eltoh\\).*index 20 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "300b",
+        "name": "Add mirred action with duplicate index",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action mirred egress redirect index 15 dev lo"
+        ],
+        "cmdUnderTest": "$TC actions add action mirred egress mirror index 15 dev lo",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(.*to device lo\\).*index 15 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "a70e",
+        "name": "Delete mirred mirror action",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action mirred egress mirror index 5 dev lo"
+        ],
+        "cmdUnderTest": "$TC actions del action mirred index 5",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(Egress Mirror to device lo\\).*index 5 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "3fb3",
+        "name": "Delete mirred redirect action",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action mirred egress redirect index 5 dev lo"
+        ],
+        "cmdUnderTest": "$TC actions del action mirred index 5",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action mirred",
+        "matchPattern": "action order [0-9]*: mirred \\(Egress Redirect to device lo\\).*index 5 ref",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    }
+]

@@ -193,7 +193,7 @@ static bool lpe_audio_detect(struct drm_i915_private *dev_priv)
 		};
 
 		if (!pci_dev_present(atom_hdaudio_ids)) {
-			DRM_INFO("%s\n", "HDaudio controller not detected, using LPE audio instead\n");
+			DRM_INFO("HDaudio controller not detected, using LPE audio instead\n");
 			lpe_present = true;
 		}
 	}

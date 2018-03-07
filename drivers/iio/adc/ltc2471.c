@@ -98,7 +98,6 @@ static const struct iio_chan_spec ltc2473_channel[] = {
 
 static const struct iio_info ltc2471_info = {
 	.read_raw = ltc2471_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int ltc2471_i2c_probe(struct i2c_client *client,

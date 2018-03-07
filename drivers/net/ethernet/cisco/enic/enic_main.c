@@ -1676,9 +1676,9 @@ static int enic_poll_msix_rq(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static void enic_notify_timer(unsigned long data)
+static void enic_notify_timer(struct timer_list *t)
 {
-	struct enic *enic = (struct enic *)data;
+	struct enic *enic = from_timer(enic, t, notify_timer);
 
 	enic_notify_check(enic);
 
@@ -2846,9 +2846,7 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Setup notification timer, HW reset task, and wq locks
 	 */
 
-	init_timer(&enic->notify_timer);
-	enic->notify_timer.function = enic_notify_timer;
-	enic->notify_timer.data = (unsigned long)enic;
+	timer_setup(&enic->notify_timer, enic_notify_timer, 0);
 
 	enic_set_rx_coal_setting(enic);
 	INIT_WORK(&enic->reset, enic_reset);

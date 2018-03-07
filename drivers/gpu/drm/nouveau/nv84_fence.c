@@ -25,6 +25,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
+#include "nouveau_vmm.h"
 
 #include "nv50_display.h"
 
@@ -68,12 +69,7 @@ nv84_fence_emit(struct nouveau_fence *fence)
 {
 	struct nouveau_channel *chan = fence->channel;
 	struct nv84_fence_chan *fctx = chan->fence;
-	u64 addr = chan->chid * 16;
-
-	if (fence->sysmem)
-		addr += fctx->vma_gart.offset;
-	else
-		addr += fctx->vma.offset;
+	u64 addr = fctx->vma->addr + chan->chid * 16;
 
 	return fctx->base.emit32(chan, addr, fence->base.seqno);
 }
@@ -83,12 +79,7 @@ nv84_fence_sync(struct nouveau_fence *fence,
 		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	struct nv84_fence_chan *fctx = chan->fence;
-	u64 addr = prev->chid * 16;
-
-	if (fence->sysmem)
-		addr += fctx->vma_gart.offset;
-	else
-		addr += fctx->vma.offset;
+	u64 addr = fctx->vma->addr + prev->chid * 16;
 
 	return fctx->base.sync32(chan, addr, fence->base.seqno);
 }
@@ -108,8 +99,7 @@ nv84_fence_context_del(struct nouveau_channel *chan)
 
 	nouveau_bo_wr32(priv->bo, chan->chid * 16 / 4, fctx->base.sequence);
 	mutex_lock(&priv->mutex);
-	nouveau_bo_vma_del(priv->bo, &fctx->vma_gart);
-	nouveau_bo_vma_del(priv->bo, &fctx->vma);
+	nouveau_vma_del(&fctx->vma);
 	mutex_unlock(&priv->mutex);
 	nouveau_fence_context_del(&fctx->base);
 	chan->fence = NULL;
@@ -137,11 +127,7 @@ nv84_fence_context_new(struct nouveau_channel *chan)
 	fctx->base.sequence = nv84_fence_read(chan);
 
 	mutex_lock(&priv->mutex);
-	ret = nouveau_bo_vma_add(priv->bo, cli->vm, &fctx->vma);
-	if (ret == 0) {
-		ret = nouveau_bo_vma_add(priv->bo_gart, cli->vm,
-					&fctx->vma_gart);
-	}
+	ret = nouveau_vma_new(priv->bo, &cli->vmm, &fctx->vma);
 	mutex_unlock(&priv->mutex);
 
 	if (ret)
@@ -182,10 +168,6 @@ static void
 nv84_fence_destroy(struct nouveau_drm *drm)
 {
 	struct nv84_fence_priv *priv = drm->fence;
-	nouveau_bo_unmap(priv->bo_gart);
-	if (priv->bo_gart)
-		nouveau_bo_unpin(priv->bo_gart);
-	nouveau_bo_ref(NULL, &priv->bo_gart);
 	nouveau_bo_unmap(priv->bo);
 	if (priv->bo)
 		nouveau_bo_unpin(priv->bo);
@@ -236,21 +218,6 @@ nv84_fence_create(struct nouveau_drm *drm)
 		}
 		if (ret)
 			nouveau_bo_ref(NULL, &priv->bo);
-	}
-
-	if (ret == 0)
-		ret = nouveau_bo_new(&drm->client, 16 * priv->base.contexts, 0,
-				     TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED, 0,
-				     0, NULL, NULL, &priv->bo_gart);
-	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo_gart, TTM_PL_FLAG_TT, false);
-		if (ret == 0) {
-			ret = nouveau_bo_map(priv->bo_gart);
-			if (ret)
-				nouveau_bo_unpin(priv->bo_gart);
-		}
-		if (ret)
-			nouveau_bo_ref(NULL, &priv->bo_gart);
 	}
 
 	if (ret)

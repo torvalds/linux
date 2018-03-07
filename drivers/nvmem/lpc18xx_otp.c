@@ -64,7 +64,6 @@ static struct nvmem_config lpc18xx_otp_nvmem_config = {
 	.read_only = true,
 	.word_size = LPC18XX_OTP_WORD_SIZE,
 	.stride = LPC18XX_OTP_WORD_SIZE,
-	.owner = THIS_MODULE,
 	.reg_read = lpc18xx_otp_read,
 };
 

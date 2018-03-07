@@ -29,6 +29,7 @@ struct _snd_wavefront_midi {
 	struct snd_rawmidi_substream	 *substream_output[2];
 	struct snd_rawmidi_substream	 *substream_input[2];
 	struct timer_list	 timer;
+	snd_wavefront_card_t	 *timer_card;
         spinlock_t               open;
         spinlock_t               virtual;     /* protects isvirtual */
 };

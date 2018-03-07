@@ -28,7 +28,7 @@ Required properties for the following compatibles:
 
 Example:
 
-i2s0: i2s@01c22400 {
+i2s0: i2s@1c22400 {
 	#sound-dai-cells = <0>;
 	compatible = "allwinner,sun4i-a10-i2s";
 	reg = <0x01c22400 0x400>;

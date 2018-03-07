@@ -19,6 +19,7 @@
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_gpu.h"
 #include "etnaviv_mmu.h"
+#include "etnaviv_perfmon.h"
 
 #define SUBALLOC_SIZE		SZ_256K
 #define SUBALLOC_GRANULE	SZ_4K
@@ -87,9 +88,10 @@ void etnaviv_cmdbuf_suballoc_destroy(struct etnaviv_cmdbuf_suballoc *suballoc)
 
 struct etnaviv_cmdbuf *
 etnaviv_cmdbuf_new(struct etnaviv_cmdbuf_suballoc *suballoc, u32 size,
-		   size_t nr_bos)
+		   size_t nr_bos, size_t nr_pmrs)
 {
 	struct etnaviv_cmdbuf *cmdbuf;
+	struct etnaviv_perfmon_request *pmrs;
 	size_t sz = size_vstruct(nr_bos, sizeof(cmdbuf->bo_map[0]),
 				 sizeof(*cmdbuf));
 	int granule_offs, order, ret;
@@ -98,6 +100,12 @@ etnaviv_cmdbuf_new(struct etnaviv_cmdbuf_suballoc *suballoc, u32 size,
 	if (!cmdbuf)
 		return NULL;
 
+	sz = sizeof(*pmrs) * nr_pmrs;
+	pmrs = kzalloc(sz, GFP_KERNEL);
+	if (!pmrs)
+		goto out_free_cmdbuf;
+
+	cmdbuf->pmrs = pmrs;
 	cmdbuf->suballoc = suballoc;
 	cmdbuf->size = size;
 
@@ -124,6 +132,10 @@ retry:
 	cmdbuf->vaddr = suballoc->vaddr + cmdbuf->suballoc_offset;
 
 	return cmdbuf;
+
+out_free_cmdbuf:
+	kfree(cmdbuf);
+	return NULL;
 }
 
 void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
@@ -139,6 +151,7 @@ void etnaviv_cmdbuf_free(struct etnaviv_cmdbuf *cmdbuf)
 	suballoc->free_space = 1;
 	mutex_unlock(&suballoc->lock);
 	wake_up_all(&suballoc->free_event);
+	kfree(cmdbuf->pmrs);
 	kfree(cmdbuf);
 }
 

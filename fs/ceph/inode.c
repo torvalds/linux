@@ -493,6 +493,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_wb_ref = 0;
 	ci->i_wrbuffer_ref = 0;
 	ci->i_wrbuffer_ref_head = 0;
+	atomic_set(&ci->i_filelock_ref, 0);
 	ci->i_shared_gen = 0;
 	ci->i_rdcache_gen = 0;
 	ci->i_rdcache_revoking = 0;
@@ -786,7 +787,6 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 
 	/* update inode */
 	ci->i_version = le64_to_cpu(info->version);
-	inode->i_version++;
 	inode->i_rdev = le32_to_cpu(info->rdev);
 	inode->i_blkbits = fls(le32_to_cpu(info->layout.fl_stripe_unit)) - 1;
 
@@ -1185,6 +1185,7 @@ retry_lookup:
 				    ceph_snap(d_inode(dn)) != tvino.snap)) {
 				dout(" dn %p points to wrong inode %p\n",
 				     dn, d_inode(dn));
+				ceph_dir_clear_ordered(dir);
 				d_delete(dn);
 				dput(dn);
 				goto retry_lookup;
@@ -1322,6 +1323,7 @@ retry_lookup:
 			dout(" %p links to %p %llx.%llx, not %llx.%llx\n",
 			     dn, d_inode(dn), ceph_vinop(d_inode(dn)),
 			     ceph_vinop(in));
+			ceph_dir_clear_ordered(dir);
 			d_invalidate(dn);
 			have_lease = false;
 		}
@@ -1573,6 +1575,7 @@ retry_lookup:
 			    ceph_snap(d_inode(dn)) != tvino.snap)) {
 			dout(" dn %p points to wrong inode %p\n",
 			     dn, d_inode(dn));
+			__ceph_dir_clear_ordered(ci);
 			d_delete(dn);
 			dput(dn);
 			goto retry_lookup;
@@ -1597,7 +1600,9 @@ retry_lookup:
 				 &req->r_caps_reservation);
 		if (ret < 0) {
 			pr_err("fill_inode badness on %p\n", in);
-			if (d_really_is_negative(dn))
+			if (d_really_is_positive(dn))
+				__ceph_dir_clear_ordered(ci);
+			else
 				iput(in);
 			d_drop(dn);
 			err = ret;

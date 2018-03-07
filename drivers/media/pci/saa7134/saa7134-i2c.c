@@ -345,7 +345,7 @@ static const struct i2c_adapter saa7134_adap_template = {
 	.algo          = &saa7134_algo,
 };
 
-static struct i2c_client saa7134_client_template = {
+static const struct i2c_client saa7134_client_template = {
 	.name	= "saa7134 internal",
 };
 

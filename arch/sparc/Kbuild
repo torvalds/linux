@@ -7,3 +7,4 @@ obj-y += mm/
 obj-y += math-emu/
 obj-y += net/
 obj-y += crypto/
+obj-$(CONFIG_SPARC64) += vdso/

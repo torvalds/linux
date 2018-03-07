@@ -1,7 +1,7 @@
 /*
  * Driver for the PCM512x CODECs
  *
- * Author:	Mark Brown <broonie@linaro.org>
+ * Author:	Mark Brown <broonie@kernel.org>
  *		Copyright 2014 Linaro Ltd
  *
  * This program is free software; you can redistribute it and/or

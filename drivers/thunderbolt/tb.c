@@ -225,6 +225,7 @@ static void tb_activate_pcie_devices(struct tb *tb)
 			tb_port_info(up_port,
 				     "PCIe tunnel activation failed, aborting\n");
 			tb_pci_free(tunnel);
+			continue;
 		}
 
 		list_add(&tunnel->list, &tcm->tunnel_list);

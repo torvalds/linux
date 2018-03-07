@@ -135,7 +135,7 @@ typedef __u32 __bitwise req_flags_t;
 struct request {
 	struct list_head queuelist;
 	union {
-		call_single_data_t csd;
+		struct __call_single_data csd;
 		u64 fifo_time;
 	};
 
@@ -241,19 +241,36 @@ struct request {
 	struct request *next_rq;
 };
 
+static inline bool blk_op_is_scsi(unsigned int op)
+{
+	return op == REQ_OP_SCSI_IN || op == REQ_OP_SCSI_OUT;
+}
+
+static inline bool blk_op_is_private(unsigned int op)
+{
+	return op == REQ_OP_DRV_IN || op == REQ_OP_DRV_OUT;
+}
+
 static inline bool blk_rq_is_scsi(struct request *rq)
 {
-	return req_op(rq) == REQ_OP_SCSI_IN || req_op(rq) == REQ_OP_SCSI_OUT;
+	return blk_op_is_scsi(req_op(rq));
 }
 
 static inline bool blk_rq_is_private(struct request *rq)
 {
-	return req_op(rq) == REQ_OP_DRV_IN || req_op(rq) == REQ_OP_DRV_OUT;
+	return blk_op_is_private(req_op(rq));
 }
 
 static inline bool blk_rq_is_passthrough(struct request *rq)
 {
 	return blk_rq_is_scsi(rq) || blk_rq_is_private(rq);
+}
+
+static inline bool bio_is_passthrough(struct bio *bio)
+{
+	unsigned op = bio_op(bio);
+
+	return blk_op_is_scsi(op) || blk_op_is_private(op);
 }
 
 static inline unsigned short req_get_ioprio(struct request *req)
@@ -267,6 +284,7 @@ struct blk_queue_ctx;
 
 typedef void (request_fn_proc) (struct request_queue *q);
 typedef blk_qc_t (make_request_fn) (struct request_queue *q, struct bio *bio);
+typedef bool (poll_q_fn) (struct request_queue *q, blk_qc_t);
 typedef int (prep_rq_fn) (struct request_queue *, struct request *);
 typedef void (unprep_rq_fn) (struct request_queue *, struct request *);
 
@@ -409,6 +427,7 @@ struct request_queue {
 
 	request_fn_proc		*request_fn;
 	make_request_fn		*make_request_fn;
+	poll_q_fn		*poll_fn;
 	prep_rq_fn		*prep_rq_fn;
 	unprep_rq_fn		*unprep_rq_fn;
 	softirq_done_fn		*softirq_done_fn;
@@ -610,7 +629,6 @@ struct request_queue {
 #define QUEUE_FLAG_NOMERGES     5	/* disable merge attempts */
 #define QUEUE_FLAG_SAME_COMP	6	/* complete on same CPU-group */
 #define QUEUE_FLAG_FAIL_IO	7	/* fake timeout */
-#define QUEUE_FLAG_STACKABLE	8	/* supports request stacking */
 #define QUEUE_FLAG_NONROT	9	/* non-rotational device (SSD) */
 #define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
 #define QUEUE_FLAG_IO_STAT     10	/* do IO stats */
@@ -632,14 +650,13 @@ struct request_queue {
 #define QUEUE_FLAG_REGISTERED  26	/* queue has been registered to a disk */
 #define QUEUE_FLAG_SCSI_PASSTHROUGH 27	/* queue supports SCSI commands */
 #define QUEUE_FLAG_QUIESCED    28	/* queue has been quiesced */
+#define QUEUE_FLAG_PREEMPT_ONLY	29	/* only process REQ_PREEMPT requests */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
-				 (1 << QUEUE_FLAG_STACKABLE)	|	\
 				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
 				 (1 << QUEUE_FLAG_ADD_RANDOM))
 
 #define QUEUE_FLAG_MQ_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
-				 (1 << QUEUE_FLAG_STACKABLE)	|	\
 				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
 				 (1 << QUEUE_FLAG_POLL))
 
@@ -723,8 +740,6 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 #define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
 #define blk_queue_io_stat(q)	test_bit(QUEUE_FLAG_IO_STAT, &(q)->queue_flags)
 #define blk_queue_add_random(q)	test_bit(QUEUE_FLAG_ADD_RANDOM, &(q)->queue_flags)
-#define blk_queue_stackable(q)	\
-	test_bit(QUEUE_FLAG_STACKABLE, &(q)->queue_flags)
 #define blk_queue_discard(q)	test_bit(QUEUE_FLAG_DISCARD, &(q)->queue_flags)
 #define blk_queue_secure_erase(q) \
 	(test_bit(QUEUE_FLAG_SECERASE, &(q)->queue_flags))
@@ -736,6 +751,11 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 	((rq)->cmd_flags & (REQ_FAILFAST_DEV|REQ_FAILFAST_TRANSPORT| \
 			     REQ_FAILFAST_DRIVER))
 #define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
+#define blk_queue_preempt_only(q)				\
+	test_bit(QUEUE_FLAG_PREEMPT_ONLY, &(q)->queue_flags)
+
+extern int blk_set_preempt_only(struct request_queue *q);
+extern void blk_clear_preempt_only(struct request_queue *q);
 
 static inline bool blk_account_rq(struct request *rq)
 {
@@ -923,24 +943,17 @@ static inline void rq_flush_dcache_pages(struct request *rq)
 }
 #endif
 
-#ifdef CONFIG_PRINTK
-#define vfs_msg(sb, level, fmt, ...)				\
-	__vfs_msg(sb, level, fmt, ##__VA_ARGS__)
-#else
-#define vfs_msg(sb, level, fmt, ...)				\
-do {								\
-	no_printk(fmt, ##__VA_ARGS__);				\
-	__vfs_msg(sb, "", " ");					\
-} while (0)
-#endif
-
 extern int blk_register_queue(struct gendisk *disk);
 extern void blk_unregister_queue(struct gendisk *disk);
 extern blk_qc_t generic_make_request(struct bio *bio);
+extern blk_qc_t direct_make_request(struct bio *bio);
 extern void blk_rq_init(struct request_queue *q, struct request *rq);
 extern void blk_init_request_from_bio(struct request *req, struct bio *bio);
 extern void blk_put_request(struct request *);
 extern void __blk_put_request(struct request_queue *, struct request *);
+extern struct request *blk_get_request_flags(struct request_queue *,
+					     unsigned int op,
+					     blk_mq_req_flags_t flags);
 extern struct request *blk_get_request(struct request_queue *, unsigned int op,
 				       gfp_t gfp_mask);
 extern void blk_requeue_request(struct request_queue *, struct request *);
@@ -952,7 +965,7 @@ extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 extern void blk_rq_unprep_clone(struct request *rq);
 extern blk_status_t blk_insert_cloned_request(struct request_queue *q,
 				     struct request *rq);
-extern int blk_rq_append_bio(struct request *rq, struct bio *bio);
+extern int blk_rq_append_bio(struct request *rq, struct bio **bio);
 extern void blk_delay_queue(struct request_queue *, unsigned long);
 extern void blk_queue_split(struct request_queue *, struct bio **);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
@@ -964,7 +977,7 @@ extern int scsi_cmd_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
 			 struct scsi_ioctl_command __user *);
 
-extern int blk_queue_enter(struct request_queue *q, bool nowait);
+extern int blk_queue_enter(struct request_queue *q, blk_mq_req_flags_t flags);
 extern void blk_queue_exit(struct request_queue *q);
 extern void blk_start_queue(struct request_queue *q);
 extern void blk_start_queue_async(struct request_queue *q);
@@ -991,7 +1004,7 @@ extern void blk_execute_rq_nowait(struct request_queue *, struct gendisk *,
 int blk_status_to_errno(blk_status_t status);
 blk_status_t errno_to_blk_status(int errno);
 
-bool blk_mq_poll(struct request_queue *q, blk_qc_t cookie);
+bool blk_poll(struct request_queue *q, blk_qc_t cookie);
 
 static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
 {
@@ -1109,6 +1122,8 @@ static inline unsigned int blk_rq_count_bios(struct request *rq)
 extern struct request *blk_peek_request(struct request_queue *q);
 extern void blk_start_request(struct request *rq);
 extern struct request *blk_fetch_request(struct request_queue *q);
+
+void blk_steal_bios(struct bio_list *list, struct request *rq);
 
 /*
  * Request completion related functions.
@@ -1372,7 +1387,7 @@ static inline int sb_issue_zeroout(struct super_block *sb, sector_t block,
 				    gfp_mask, 0);
 }
 
-extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);
+extern int blk_verify_command(unsigned char *cmd, fmode_t mode);
 
 enum blk_default_limits {
 	BLK_MAX_SEGMENTS	= 128,

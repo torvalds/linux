@@ -41,6 +41,10 @@ Boards with the Amlogic Meson GXM S912 SoC shall have the following properties:
   Required root node property:
     compatible: "amlogic,s912", "amlogic,meson-gxm";
 
+Boards with the Amlogic Meson AXG A113D SoC shall have the following properties:
+  Required root node property:
+    compatible: "amlogic,a113d", "amlogic,meson-axg";
+
 Board compatible values (alphabetically, grouped by SoC):
 
   - "geniatech,atv1200" (Meson6)
@@ -71,8 +75,12 @@ Board compatible values (alphabetically, grouped by SoC):
 
   - "amlogic,q200" (Meson gxm s912)
   - "amlogic,q201" (Meson gxm s912)
+  - "khadas,vim2" (Meson gxm s912)
   - "kingnovel,r-box-pro" (Meson gxm S912)
   - "nexbox,a1" (Meson gxm s912)
+  - "tronsmart,vega-s96" (Meson gxm s912)
+
+  - "amlogic,s400" (Meson axg a113d)
 
 Amlogic Meson Firmware registers Interface
 ------------------------------------------

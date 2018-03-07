@@ -137,7 +137,7 @@ the address block, which is related to the overall mmc block.
 
 For example:
 
-osc24M: clk@01c20050 {
+osc24M: clk@1c20050 {
 	#clock-cells = <0>;
 	compatible = "allwinner,sun4i-a10-osc-clk";
 	reg = <0x01c20050 0x4>;
@@ -145,7 +145,7 @@ osc24M: clk@01c20050 {
 	clock-output-names = "osc24M";
 };
 
-pll1: clk@01c20000 {
+pll1: clk@1c20000 {
 	#clock-cells = <0>;
 	compatible = "allwinner,sun4i-a10-pll1-clk";
 	reg = <0x01c20000 0x4>;
@@ -153,7 +153,7 @@ pll1: clk@01c20000 {
 	clock-output-names = "pll1";
 };
 
-pll5: clk@01c20020 {
+pll5: clk@1c20020 {
 	#clock-cells = <1>;
 	compatible = "allwinner,sun4i-pll5-clk";
 	reg = <0x01c20020 0x4>;
@@ -161,7 +161,7 @@ pll5: clk@01c20020 {
 	clock-output-names = "pll5_ddr", "pll5_other";
 };
 
-pll6: clk@01c20028 {
+pll6: clk@1c20028 {
 	#clock-cells = <1>;
 	compatible = "allwinner,sun6i-a31-pll6-clk";
 	reg = <0x01c20028 0x4>;
@@ -169,7 +169,7 @@ pll6: clk@01c20028 {
 	clock-output-names = "pll6", "pll6x2";
 };
 
-cpu: cpu@01c20054 {
+cpu: cpu@1c20054 {
 	#clock-cells = <0>;
 	compatible = "allwinner,sun4i-a10-cpu-clk";
 	reg = <0x01c20054 0x4>;
@@ -177,7 +177,7 @@ cpu: cpu@01c20054 {
 	clock-output-names = "cpu";
 };
 
-mmc0_clk: clk@01c20088 {
+mmc0_clk: clk@1c20088 {
 	#clock-cells = <1>;
 	compatible = "allwinner,sun4i-a10-mmc-clk";
 	reg = <0x01c20088 0x4>;
@@ -199,7 +199,7 @@ gmac_int_tx_clk: clk@3 {
 	clock-output-names = "gmac_int_tx";
 };
 
-gmac_clk: clk@01c20164 {
+gmac_clk: clk@1c20164 {
 	#clock-cells = <0>;
 	compatible = "allwinner,sun7i-a20-gmac-clk";
 	reg = <0x01c20164 0x4>;
@@ -211,7 +211,7 @@ gmac_clk: clk@01c20164 {
 	clock-output-names = "gmac";
 };
 
-mmc_config_clk: clk@01c13000 {
+mmc_config_clk: clk@1c13000 {
 	compatible = "allwinner,sun9i-a80-mmc-config-clk";
 	reg = <0x01c13000 0x10>;
 	clocks = <&ahb0_gates 8>;

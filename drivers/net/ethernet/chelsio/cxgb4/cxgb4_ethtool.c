@@ -21,6 +21,7 @@
 #include "cxgb4.h"
 #include "t4_regs.h"
 #include "t4fw_api.h"
+#include "cxgb4_cudbg.h"
 
 #define EEPROM_MAGIC 0x38E2F10C
 
@@ -335,10 +336,10 @@ static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)
 	memset(s, 0, sizeof(*s));
 
 	spin_lock(&adap->stats_lock);
-	t4_tp_get_tcp_stats(adap, &v4, &v6);
-	t4_tp_get_rdma_stats(adap, &rdma_stats);
-	t4_get_usm_stats(adap, &usm_stats);
-	t4_tp_get_err_stats(adap, &err_stats);
+	t4_tp_get_tcp_stats(adap, &v4, &v6, false);
+	t4_tp_get_rdma_stats(adap, &rdma_stats, false);
+	t4_get_usm_stats(adap, &usm_stats, false);
+	t4_tp_get_err_stats(adap, &err_stats, false);
 	spin_unlock(&adap->stats_lock);
 
 	s->db_drop = adap->db_stats.db_drop;
@@ -388,9 +389,9 @@ static void collect_channel_stats(struct adapter *adap, struct channel_stats *s,
 	memset(s, 0, sizeof(*s));
 
 	spin_lock(&adap->stats_lock);
-	t4_tp_get_cpl_stats(adap, &cpl_stats);
-	t4_tp_get_err_stats(adap, &err_stats);
-	t4_get_fcoe_stats(adap, i, &fcoe_stats);
+	t4_tp_get_cpl_stats(adap, &cpl_stats, false);
+	t4_tp_get_err_stats(adap, &err_stats, false);
+	t4_get_fcoe_stats(adap, i, &fcoe_stats, false);
 	spin_unlock(&adap->stats_lock);
 
 	s->cpl_req = cpl_stats.req[i];
@@ -1063,40 +1064,11 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 	return 0;
 }
 
-/**
- *	eeprom_ptov - translate a physical EEPROM address to virtual
- *	@phys_addr: the physical EEPROM address
- *	@fn: the PCI function number
- *	@sz: size of function-specific area
- *
- *	Translate a physical EEPROM address to virtual.  The first 1K is
- *	accessed through virtual addresses starting at 31K, the rest is
- *	accessed through virtual addresses starting at 0.
- *
- *	The mapping is as follows:
- *	[0..1K) -> [31K..32K)
- *	[1K..1K+A) -> [31K-A..31K)
- *	[1K+A..ES) -> [0..ES-A-1K)
- *
- *	where A = @fn * @sz, and ES = EEPROM size.
- */
-static int eeprom_ptov(unsigned int phys_addr, unsigned int fn, unsigned int sz)
-{
-	fn *= sz;
-	if (phys_addr < 1024)
-		return phys_addr + (31 << 10);
-	if (phys_addr < 1024 + fn)
-		return 31744 - fn + phys_addr - 1024;
-	if (phys_addr < EEPROMSIZE)
-		return phys_addr - 1024 - fn;
-	return -EINVAL;
-}
-
 /* The next two routines implement eeprom read/write from physical addresses.
  */
 static int eeprom_rd_phys(struct adapter *adap, unsigned int phys_addr, u32 *v)
 {
-	int vaddr = eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
+	int vaddr = t4_eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
 
 	if (vaddr >= 0)
 		vaddr = pci_read_vpd(adap->pdev, vaddr, sizeof(u32), v);
@@ -1105,7 +1077,7 @@ static int eeprom_rd_phys(struct adapter *adap, unsigned int phys_addr, u32 *v)
 
 static int eeprom_wr_phys(struct adapter *adap, unsigned int phys_addr, u32 v)
 {
-	int vaddr = eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
+	int vaddr = t4_eeprom_ptov(phys_addr, adap->pf, EEPROMPFSIZE);
 
 	if (vaddr >= 0)
 		vaddr = pci_write_vpd(adap->pdev, vaddr, sizeof(u32), &v);
@@ -1374,6 +1346,56 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	return -EOPNOTSUPP;
 }
 
+static int set_dump(struct net_device *dev, struct ethtool_dump *eth_dump)
+{
+	struct adapter *adapter = netdev2adap(dev);
+	u32 len = 0;
+
+	len = sizeof(struct cudbg_hdr) +
+	      sizeof(struct cudbg_entity_hdr) * CUDBG_MAX_ENTITY;
+	len += cxgb4_get_dump_length(adapter, eth_dump->flag);
+
+	adapter->eth_dump.flag = eth_dump->flag;
+	adapter->eth_dump.len = len;
+	return 0;
+}
+
+static int get_dump_flag(struct net_device *dev, struct ethtool_dump *eth_dump)
+{
+	struct adapter *adapter = netdev2adap(dev);
+
+	eth_dump->flag = adapter->eth_dump.flag;
+	eth_dump->len = adapter->eth_dump.len;
+	eth_dump->version = adapter->eth_dump.version;
+	return 0;
+}
+
+static int get_dump_data(struct net_device *dev, struct ethtool_dump *eth_dump,
+			 void *buf)
+{
+	struct adapter *adapter = netdev2adap(dev);
+	u32 len = 0;
+	int ret = 0;
+
+	if (adapter->eth_dump.flag == CXGB4_ETH_DUMP_NONE)
+		return -ENOENT;
+
+	len = sizeof(struct cudbg_hdr) +
+	      sizeof(struct cudbg_entity_hdr) * CUDBG_MAX_ENTITY;
+	len += cxgb4_get_dump_length(adapter, adapter->eth_dump.flag);
+	if (eth_dump->len < len)
+		return -ENOMEM;
+
+	ret = cxgb4_cudbg_collect(adapter, buf, &len, adapter->eth_dump.flag);
+	if (ret)
+		return ret;
+
+	eth_dump->flag = adapter->eth_dump.flag;
+	eth_dump->len = len;
+	eth_dump->version = adapter->eth_dump.version;
+	return 0;
+}
+
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_link_ksettings = get_link_ksettings,
 	.set_link_ksettings = set_link_ksettings,
@@ -1404,7 +1426,10 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
 	.flash_device      = set_flash,
-	.get_ts_info       = get_ts_info
+	.get_ts_info       = get_ts_info,
+	.set_dump          = set_dump,
+	.get_dump_flag     = get_dump_flag,
+	.get_dump_data     = get_dump_data,
 };
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)

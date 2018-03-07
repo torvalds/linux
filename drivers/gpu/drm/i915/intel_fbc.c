@@ -69,9 +69,9 @@ static inline bool no_fbc_on_multiple_pipes(struct drm_i915_private *dev_priv)
  * address we program because it starts at the real start of the buffer, so we
  * have to take this into consideration here.
  */
-static unsigned int get_crtc_fence_y_offset(struct intel_crtc *crtc)
+static unsigned int get_crtc_fence_y_offset(struct intel_fbc *fbc)
 {
-	return crtc->base.y - crtc->adjusted_y;
+	return fbc->state_cache.plane.y - fbc->state_cache.plane.adjusted_y;
 }
 
 /*
@@ -290,6 +290,19 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	struct intel_fbc_reg_params *params = &dev_priv->fbc.params;
 	u32 dpfc_ctl;
 	int threshold = dev_priv->fbc.threshold;
+
+	/* Display WA #0529: skl, kbl, bxt. */
+	if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv)) {
+		u32 val = I915_READ(CHICKEN_MISC_4);
+
+		val &= ~(FBC_STRIDE_OVERRIDE | FBC_STRIDE_MASK);
+
+		if (i915_gem_object_get_tiling(params->vma->obj) !=
+		    I915_TILING_X)
+			val |= FBC_STRIDE_OVERRIDE | params->gen9_wa_cfb_stride;
+
+		I915_WRITE(CHICKEN_MISC_4, val);
+	}
 
 	dpfc_ctl = 0;
 	if (IS_IVYBRIDGE(dev_priv))
@@ -714,8 +727,8 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 
 	intel_fbc_get_plane_source_size(&fbc->state_cache, &effective_w,
 					&effective_h);
-	effective_w += crtc->adjusted_x;
-	effective_h += crtc->adjusted_y;
+	effective_w += fbc->state_cache.plane.adjusted_x;
+	effective_h += fbc->state_cache.plane.adjusted_y;
 
 	return effective_w <= max_w && effective_h <= max_h;
 }
@@ -744,6 +757,9 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->plane.src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	cache->plane.src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	cache->plane.visible = plane_state->base.visible;
+	cache->plane.adjusted_x = plane_state->main.x;
+	cache->plane.adjusted_y = plane_state->main.y;
+	cache->plane.y = plane_state->base.src.y1 >> 16;
 
 	if (!cache->plane.visible)
 		return;
@@ -846,7 +862,7 @@ static bool intel_fbc_can_enable(struct drm_i915_private *dev_priv)
 		return false;
 	}
 
-	if (!i915.enable_fbc) {
+	if (!i915_modparams.enable_fbc) {
 		fbc->no_fbc_reason = "disabled per module param or by default";
 		return false;
 	}
@@ -875,12 +891,16 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 
 	params->crtc.pipe = crtc->pipe;
 	params->crtc.plane = crtc->plane;
-	params->crtc.fence_y_offset = get_crtc_fence_y_offset(crtc);
+	params->crtc.fence_y_offset = get_crtc_fence_y_offset(fbc);
 
 	params->fb.format = cache->fb.format;
 	params->fb.stride = cache->fb.stride;
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
+
+	if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv))
+		params->gen9_wa_cfb_stride = DIV_ROUND_UP(cache->plane.src_w,
+						32 * fbc->threshold) * 8;
 }
 
 static bool intel_fbc_reg_params_equal(struct intel_fbc_reg_params *params1,
@@ -1293,8 +1313,8 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
  */
 static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 {
-	if (i915.enable_fbc >= 0)
-		return !!i915.enable_fbc;
+	if (i915_modparams.enable_fbc >= 0)
+		return !!i915_modparams.enable_fbc;
 
 	if (!HAS_FBC(dev_priv))
 		return 0;
@@ -1338,8 +1358,9 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	if (need_fbc_vtd_wa(dev_priv))
 		mkwrite_device_info(dev_priv)->has_fbc = false;
 
-	i915.enable_fbc = intel_sanitize_fbc_option(dev_priv);
-	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n", i915.enable_fbc);
+	i915_modparams.enable_fbc = intel_sanitize_fbc_option(dev_priv);
+	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n",
+		      i915_modparams.enable_fbc);
 
 	if (!HAS_FBC(dev_priv)) {
 		fbc->no_fbc_reason = "unsupported by this chipset";

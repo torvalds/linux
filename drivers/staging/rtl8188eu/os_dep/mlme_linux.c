@@ -24,12 +24,10 @@ void rtw_init_mlme_timer(struct adapter *padapter)
 {
 	struct	mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
-	setup_timer(&pmlmepriv->assoc_timer, _rtw_join_timeout_handler,
-		    (unsigned long)padapter);
-	setup_timer(&pmlmepriv->scan_to_timer, rtw_scan_timeout_handler,
-		    (unsigned long)padapter);
-	setup_timer(&pmlmepriv->dynamic_chk_timer,
-		    rtw_dynamic_check_timer_handlder, (unsigned long)padapter);
+	timer_setup(&pmlmepriv->assoc_timer, _rtw_join_timeout_handler, 0);
+	timer_setup(&pmlmepriv->scan_to_timer, rtw_scan_timeout_handler, 0);
+	timer_setup(&pmlmepriv->dynamic_chk_timer,
+		    rtw_dynamic_check_timer_handlder, 0);
 }
 
 void rtw_os_indicate_connect(struct adapter *adapter)
@@ -125,18 +123,15 @@ void rtw_report_sec_ie(struct adapter *adapter, u8 authmode, u8 *sec_ie)
 
 void init_addba_retry_timer(struct adapter *padapter, struct sta_info *psta)
 {
-	setup_timer(&psta->addba_retry_timer, addba_timer_hdl,
-		    (unsigned long)psta);
+	timer_setup(&psta->addba_retry_timer, addba_timer_hdl, 0);
 }
 
 void init_mlme_ext_timer(struct adapter *padapter)
 {
 	struct	mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 
-	setup_timer(&pmlmeext->survey_timer, survey_timer_hdl,
-		    (unsigned long)padapter);
-	setup_timer(&pmlmeext->link_timer, link_timer_hdl,
-		    (unsigned long)padapter);
+	timer_setup(&pmlmeext->survey_timer, survey_timer_hdl, 0);
+	timer_setup(&pmlmeext->link_timer, link_timer_hdl, 0);
 }
 
 #ifdef CONFIG_88EU_AP_MODE

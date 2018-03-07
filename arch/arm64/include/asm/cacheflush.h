@@ -38,7 +38,7 @@
  *
  *	See Documentation/cachetlb.txt for more information. Please note that
  *	the implementation assumes non-aliasing VIPT D-cache and (aliasing)
- *	VIPT or ASID-tagged VIVT I-cache.
+ *	VIPT I-cache.
  *
  *	flush_cache_mm(mm)
  *

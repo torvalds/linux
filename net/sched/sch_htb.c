@@ -142,6 +142,7 @@ struct htb_class {
 	struct rb_node		node[TC_HTB_NUMPRIO];	/* node for self or feed tree */
 
 	unsigned int drops ____cacheline_aligned_in_smp;
+	unsigned int		overlimits;
 };
 
 struct htb_level {
@@ -243,6 +244,7 @@ static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch,
 		case TC_ACT_STOLEN:
 		case TC_ACT_TRAP:
 			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
+			/* fall through */
 		case TC_ACT_SHOT:
 			return NULL;
 		}
@@ -532,6 +534,9 @@ htb_change_class_mode(struct htb_sched *q, struct htb_class *cl, s64 *diff)
 
 	if (new_mode == cl->cmode)
 		return;
+
+	if (new_mode == HTB_CANT_SEND)
+		cl->overlimits++;
 
 	if (cl->prio_activity) {	/* not necessary: speed optimization */
 		if (cl->cmode != HTB_CANT_SEND)
@@ -1026,7 +1031,7 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		return -EINVAL;
 
-	err = tcf_block_get(&q->block, &q->filter_list);
+	err = tcf_block_get(&q->block, &q->filter_list, sch);
 	if (err)
 		return err;
 
@@ -1143,6 +1148,7 @@ htb_dump_class_stats(struct Qdisc *sch, unsigned long arg, struct gnet_dump *d)
 	struct htb_class *cl = (struct htb_class *)arg;
 	struct gnet_stats_queue qs = {
 		.drops = cl->drops,
+		.overlimits = cl->overlimits,
 	};
 	__u32 qlen = 0;
 
@@ -1388,7 +1394,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 		if (!cl)
 			goto failure;
 
-		err = tcf_block_get(&cl->block, &cl->filter_list);
+		err = tcf_block_get(&cl->block, &cl->filter_list, sch);
 		if (err) {
 			kfree(cl);
 			goto failure;

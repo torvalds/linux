@@ -8,6 +8,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/input-polldev.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -64,8 +65,23 @@ static void peaq_wmi_poll(struct input_polled_dev *dev)
 	}
 }
 
+/* Some other devices (Shuttle XS35) use the same WMI GUID for other purposes */
+static const struct dmi_system_id peaq_dmi_table[] __initconst = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "PEAQ"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PEAQ PMM C1010 MD99187"),
+		},
+	},
+	{}
+};
+
 static int __init peaq_wmi_init(void)
 {
+	/* WMI GUID is not unique, also check for a DMI match */
+	if (!dmi_check_system(peaq_dmi_table))
+		return -ENODEV;
+
 	if (!wmi_has_guid(PEAQ_DOLBY_BUTTON_GUID))
 		return -ENODEV;
 
@@ -86,9 +102,6 @@ static int __init peaq_wmi_init(void)
 
 static void __exit peaq_wmi_exit(void)
 {
-	if (!wmi_has_guid(PEAQ_DOLBY_BUTTON_GUID))
-		return;
-
 	input_unregister_polled_device(peaq_poll_dev);
 }
 

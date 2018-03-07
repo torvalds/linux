@@ -34,7 +34,7 @@ void cnd_isp_irq_enable(
 		isp_ctrl_clearbit(ID, ISP_IRQ_READY_REG,
 			ISP_IRQ_READY_BIT);
 	}
-return;
+	return;
 }
 
 void isp_get_state(
@@ -94,7 +94,7 @@ void isp_get_state(
 		!isp_ctrl_getbit(ID, ISP_ICACHE_MT_SINK_REG,
 			ISP_ICACHE_MT_SINK_BIT);
  */
-return;
+	return;
 }
 
 /* ISP functions to control the ISP state from the host, even in crun. */

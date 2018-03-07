@@ -94,6 +94,7 @@ bool bnxt_rx_xdp(struct bnxt *bp, struct bnxt_rx_ring_info *rxr, u16 cons,
 
 	xdp.data_hard_start = *data_ptr - offset;
 	xdp.data = *data_ptr;
+	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = *data_ptr + *len;
 	orig_data = xdp.data;
 	mapping = rx_buf->mapping - bp->rx_dma_offset;
@@ -207,7 +208,7 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	return 0;
 }
 
-int bnxt_xdp(struct net_device *dev, struct netdev_xdp *xdp)
+int bnxt_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	int rc;

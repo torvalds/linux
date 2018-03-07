@@ -230,4 +230,5 @@ Historic Edits
 2005-03-19 - Dominic Cerquetti <binary1230@yahoo.com>
  - added stuff for dance pads, new d-pad->axes mappings
 
-Later changes may be viewed with 'git log Documentation/input/xpad.txt'
+Later changes may be viewed with
+'git log --follow Documentation/input/devices/xpad.rst'

@@ -507,6 +507,8 @@ static int tce_iommu_clear(struct tce_container *container,
 	enum dma_data_direction direction;
 
 	for ( ; pages; --pages, ++entry) {
+		cond_resched();
+
 		direction = DMA_NONE;
 		oldhpa = 0;
 		ret = iommu_tce_xchg(tbl, entry, &oldhpa, &direction);

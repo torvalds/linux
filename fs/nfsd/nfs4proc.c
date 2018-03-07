@@ -485,9 +485,6 @@ static __be32
 nfsd4_getfh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	    union nfsd4_op_u *u)
 {
-	if (!cstate->current_fh.fh_dentry)
-		return nfserr_nofilehandle;
-
 	u->getfh = &cstate->current_fh;
 	return nfs_ok;
 }
@@ -535,9 +532,6 @@ static __be32
 nfsd4_savefh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	     union nfsd4_op_u *u)
 {
-	if (!cstate->current_fh.fh_dentry)
-		return nfserr_nofilehandle;
-
 	fh_dup2(&cstate->save_fh, &cstate->current_fh);
 	if (HAS_STATE_ID(cstate, CURRENT_STATE_ID_FLAG)) {
 		memcpy(&cstate->save_stateid, &cstate->current_stateid, sizeof(stateid_t));
@@ -570,10 +564,11 @@ static void gen_boot_verifier(nfs4_verifier *verifier, struct net *net)
 
 	/*
 	 * This is opaque to client, so no need to byte-swap. Use
-	 * __force to keep sparse happy
+	 * __force to keep sparse happy. y2038 time_t overflow is
+	 * irrelevant in this usage.
 	 */
 	verf[0] = (__force __be32)nn->nfssvc_boot.tv_sec;
-	verf[1] = (__force __be32)nn->nfssvc_boot.tv_usec;
+	verf[1] = (__force __be32)nn->nfssvc_boot.tv_nsec;
 	memcpy(verifier->data, verf, sizeof(verifier->data));
 }
 
@@ -703,10 +698,8 @@ nfsd4_link(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	   union nfsd4_op_u *u)
 {
 	struct nfsd4_link *link = &u->link;
-	__be32 status = nfserr_nofilehandle;
+	__be32 status;
 
-	if (!cstate->save_fh.fh_dentry)
-		return status;
 	status = nfsd_link(rqstp, &cstate->current_fh,
 			   link->li_name, link->li_namelen, &cstate->save_fh);
 	if (!status)
@@ -850,10 +843,8 @@ nfsd4_rename(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	     union nfsd4_op_u *u)
 {
 	struct nfsd4_rename *rename = &u->rename;
-	__be32 status = nfserr_nofilehandle;
+	__be32 status;
 
-	if (!cstate->save_fh.fh_dentry)
-		return status;
 	if (opens_in_grace(SVC_NET(rqstp)) &&
 		!(cstate->save_fh.fh_export->ex_flags & NFSEXP_NOSUBTREECHECK))
 		return nfserr_grace;

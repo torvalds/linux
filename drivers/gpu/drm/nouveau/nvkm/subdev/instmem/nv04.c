@@ -24,7 +24,6 @@
 #define nv04_instmem(p) container_of((p), struct nv04_instmem, base)
 #include "priv.h"
 
-#include <core/memory.h>
 #include <core/ramht.h>
 
 struct nv04_instmem {
@@ -35,43 +34,20 @@ struct nv04_instmem {
 /******************************************************************************
  * instmem object implementation
  *****************************************************************************/
-#define nv04_instobj(p) container_of((p), struct nv04_instobj, memory)
+#define nv04_instobj(p) container_of((p), struct nv04_instobj, base.memory)
 
 struct nv04_instobj {
-	struct nvkm_memory memory;
+	struct nvkm_instobj base;
 	struct nv04_instmem *imem;
 	struct nvkm_mm_node *node;
 };
 
-static enum nvkm_memory_target
-nv04_instobj_target(struct nvkm_memory *memory)
-{
-	return NVKM_MEM_TARGET_INST;
-}
-
-static u64
-nv04_instobj_addr(struct nvkm_memory *memory)
-{
-	return nv04_instobj(memory)->node->offset;
-}
-
-static u64
-nv04_instobj_size(struct nvkm_memory *memory)
-{
-	return nv04_instobj(memory)->node->length;
-}
-
-static void __iomem *
-nv04_instobj_acquire(struct nvkm_memory *memory)
+static void
+nv04_instobj_wr32(struct nvkm_memory *memory, u64 offset, u32 data)
 {
 	struct nv04_instobj *iobj = nv04_instobj(memory);
 	struct nvkm_device *device = iobj->imem->base.subdev.device;
-	return device->pri + 0x700000 + iobj->node->offset;
-}
-
-static void
-nv04_instobj_release(struct nvkm_memory *memory)
-{
+	nvkm_wr32(device, 0x700000 + iobj->node->offset + offset, data);
 }
 
 static u32
@@ -82,12 +58,41 @@ nv04_instobj_rd32(struct nvkm_memory *memory, u64 offset)
 	return nvkm_rd32(device, 0x700000 + iobj->node->offset + offset);
 }
 
+static const struct nvkm_memory_ptrs
+nv04_instobj_ptrs = {
+	.rd32 = nv04_instobj_rd32,
+	.wr32 = nv04_instobj_wr32,
+};
+
 static void
-nv04_instobj_wr32(struct nvkm_memory *memory, u64 offset, u32 data)
+nv04_instobj_release(struct nvkm_memory *memory)
+{
+}
+
+static void __iomem *
+nv04_instobj_acquire(struct nvkm_memory *memory)
 {
 	struct nv04_instobj *iobj = nv04_instobj(memory);
 	struct nvkm_device *device = iobj->imem->base.subdev.device;
-	nvkm_wr32(device, 0x700000 + iobj->node->offset + offset, data);
+	return device->pri + 0x700000 + iobj->node->offset;
+}
+
+static u64
+nv04_instobj_size(struct nvkm_memory *memory)
+{
+	return nv04_instobj(memory)->node->length;
+}
+
+static u64
+nv04_instobj_addr(struct nvkm_memory *memory)
+{
+	return nv04_instobj(memory)->node->offset;
+}
+
+static enum nvkm_memory_target
+nv04_instobj_target(struct nvkm_memory *memory)
+{
+	return NVKM_MEM_TARGET_INST;
 }
 
 static void *
@@ -97,6 +102,7 @@ nv04_instobj_dtor(struct nvkm_memory *memory)
 	mutex_lock(&iobj->imem->base.subdev.mutex);
 	nvkm_mm_free(&iobj->imem->heap, &iobj->node);
 	mutex_unlock(&iobj->imem->base.subdev.mutex);
+	nvkm_instobj_dtor(&iobj->imem->base, &iobj->base);
 	return iobj;
 }
 
@@ -108,8 +114,6 @@ nv04_instobj_func = {
 	.addr = nv04_instobj_addr,
 	.acquire = nv04_instobj_acquire,
 	.release = nv04_instobj_release,
-	.rd32 = nv04_instobj_rd32,
-	.wr32 = nv04_instobj_wr32,
 };
 
 static int
@@ -122,9 +126,10 @@ nv04_instobj_new(struct nvkm_instmem *base, u32 size, u32 align, bool zero,
 
 	if (!(iobj = kzalloc(sizeof(*iobj), GFP_KERNEL)))
 		return -ENOMEM;
-	*pmemory = &iobj->memory;
+	*pmemory = &iobj->base.memory;
 
-	nvkm_memory_ctor(&nv04_instobj_func, &iobj->memory);
+	nvkm_instobj_ctor(&nv04_instobj_func, &imem->base, &iobj->base);
+	iobj->base.memory.ptrs = &nv04_instobj_ptrs;
 	iobj->imem = imem;
 
 	mutex_lock(&imem->base.subdev.mutex);
@@ -160,7 +165,7 @@ nv04_instmem_oneinit(struct nvkm_instmem *base)
 	/* PRAMIN aperture maps over the end of VRAM, reserve it */
 	imem->base.reserved = 512 * 1024;
 
-	ret = nvkm_mm_init(&imem->heap, 0, imem->base.reserved, 1);
+	ret = nvkm_mm_init(&imem->heap, 0, 0, imem->base.reserved, 1);
 	if (ret)
 		return ret;
 
@@ -194,10 +199,10 @@ static void *
 nv04_instmem_dtor(struct nvkm_instmem *base)
 {
 	struct nv04_instmem *imem = nv04_instmem(base);
-	nvkm_memory_del(&imem->base.ramfc);
-	nvkm_memory_del(&imem->base.ramro);
+	nvkm_memory_unref(&imem->base.ramfc);
+	nvkm_memory_unref(&imem->base.ramro);
 	nvkm_ramht_del(&imem->base.ramht);
-	nvkm_memory_del(&imem->base.vbios);
+	nvkm_memory_unref(&imem->base.vbios);
 	nvkm_mm_fini(&imem->heap);
 	return imem;
 }
@@ -209,7 +214,6 @@ nv04_instmem = {
 	.rd32 = nv04_instmem_rd32,
 	.wr32 = nv04_instmem_wr32,
 	.memory_new = nv04_instobj_new,
-	.persistent = false,
 	.zero = false,
 };
 

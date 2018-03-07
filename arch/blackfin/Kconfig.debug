@@ -18,6 +18,7 @@ config DEBUG_VERBOSE
 
 config DEBUG_MMRS
 	tristate "Generate Blackfin MMR tree"
+	depends on !PINCTRL
 	select DEBUG_FS
 	help
 	  Create a tree of Blackfin MMRs via the debugfs tree.  If

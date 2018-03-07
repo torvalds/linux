@@ -259,7 +259,10 @@ __FORTIFY_INLINE __kernel_size_t strlen(const char *p)
 {
 	__kernel_size_t ret;
 	size_t p_size = __builtin_object_size(p, 0);
-	if (p_size == (size_t)-1)
+
+	/* Work around gcc excess stack consumption issue */
+	if (p_size == (size_t)-1 ||
+	    (__builtin_constant_p(p[p_size - 1]) && p[p_size - 1] == '\0'))
 		return __builtin_strlen(p);
 	ret = strnlen(p, p_size);
 	if (p_size <= ret)

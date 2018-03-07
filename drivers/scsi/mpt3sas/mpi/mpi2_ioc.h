@@ -7,7 +7,7 @@
  *         Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  * Creation Date:  October 11, 2006
  *
- * mpi2_ioc.h Version:  02.00.27
+ * mpi2_ioc.h Version:  02.00.32
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -141,7 +141,32 @@
  *                     Added MPI26_FW_HEADER_PID_FAMILY_3324_SAS and
  *                     MPI26_FW_HEADER_PID_FAMILY_3516_SAS.
  *                     Added MPI26_CTRL_OP_SHUTDOWN.
- * 08-25-15  02.00.27  Added IC ARCH Class based signature defines
+ * 08-25-15  02.00.27  Added IC ARCH Class based signature defines.
+ *                     Added MPI26_EVENT_PCIE_ENUM_ES_RESOURCES_EXHAUSTED event.
+ *                     Added ConigurationFlags field to IOCInit message to
+ *                     support NVMe SGL format control.
+ *                     Added PCIe SRIOV support.
+ * 02-17-16   02.00.28 Added SAS 4 22.5 gbs speed support.
+ *                     Added PCIe 4 16.0 GT/sec speec support.
+ *                     Removed AHCI support.
+ *                     Removed SOP support.
+ * 07-01-16   02.00.29 Added Archclass for 4008 product.
+ *                     Added IOCException MPI2_IOCFACTS_EXCEPT_PCIE_DISABLED
+ * 08-23-16   02.00.30 Added new defines for the ImageType field of FWDownload
+ *                     Request Message.
+ *                     Added new defines for the ImageType field of FWUpload
+ *                     Request Message.
+ *                     Added new values for the RegionType field in the Layout
+ *                     Data sections of the FLASH Layout Extended Image Data.
+ *                     Added new defines for the ReasonCode field of
+ *                     Active Cable Exception Event.
+ *                     Added MPI2_EVENT_ENCL_DEVICE_STATUS_CHANGE and
+ *                     MPI26_EVENT_DATA_ENCL_DEV_STATUS_CHANGE.
+ * 11-23-16   02.00.31 Added MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR and
+ *                     MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR.
+ * 02-02-17   02.00.32 Added MPI2_FW_DOWNLOAD_ITYPE_CBB_BACKUP.
+ *                     Added MPI25_EVENT_DATA_ACTIVE_CABLE_EXCEPT and related
+ *                     defines for the ReasonCode field.
  * --------------------------------------------------------------------------
  */
 
@@ -212,6 +237,9 @@ typedef struct _MPI2_IOC_INIT_REQUEST {
 #define MPI2_IOCINIT_HDRVERSION_UNIT_SHIFT      (8)
 #define MPI2_IOCINIT_HDRVERSION_DEV_MASK        (0x00FF)
 #define MPI2_IOCINIT_HDRVERSION_DEV_SHIFT       (0)
+
+/*ConfigurationFlags */
+#define MPI26_IOCINIT_CFGFLAGS_NVME_SGL_FORMAT  (0x0001)
 
 /*minimum depth for a Reply Descriptor Post Queue */
 #define MPI2_RDPQ_DEPTH_MIN                     (16)
@@ -300,6 +328,10 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 	U16 MinDevHandle;	/*0x3C */
 	U8 CurrentHostPageSize;	/* 0x3E */
 	U8 Reserved4;		/* 0x3F */
+	U8 SGEModifierMask;	/*0x40 */
+	U8 SGEModifierValue;	/*0x41 */
+	U8 SGEModifierShift;	/*0x42 */
+	U8 Reserved5;		/*0x43 */
 } MPI2_IOC_FACTS_REPLY, *PTR_MPI2_IOC_FACTS_REPLY,
 	Mpi2IOCFactsReply_t, *pMpi2IOCFactsReply_t;
 
@@ -316,6 +348,7 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 #define MPI2_IOCFACTS_HDRVERSION_DEV_SHIFT              (0)
 
 /*IOCExceptions */
+#define MPI2_IOCFACTS_EXCEPT_PCIE_DISABLED              (0x0400)
 #define MPI2_IOCFACTS_EXCEPT_PARTIAL_MEMORY_FAILURE     (0x0200)
 #define MPI2_IOCFACTS_EXCEPT_IR_FOREIGN_CONFIG_MAX      (0x0100)
 
@@ -336,6 +369,7 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 /*ProductID field uses MPI2_FW_HEADER_PID_ */
 
 /*IOCCapabilities */
+#define MPI26_IOCFACTS_CAPABILITY_PCIE_SRIOV            (0x00100000)
 #define MPI26_IOCFACTS_CAPABILITY_ATOMIC_REQ            (0x00080000)
 #define MPI2_IOCFACTS_CAPABILITY_RDPQ_ARRAY_CAPABLE     (0x00040000)
 #define MPI25_IOCFACTS_CAPABILITY_FAST_PATH_CAPABLE     (0x00020000)
@@ -354,6 +388,7 @@ typedef struct _MPI2_IOC_FACTS_REPLY {
 #define MPI2_IOCFACTS_CAPABILITY_TASK_SET_FULL_HANDLING (0x00000004)
 
 /*ProtocolFlags */
+#define MPI2_IOCFACTS_PROTOCOL_NVME_DEVICES             (0x0008)
 #define MPI2_IOCFACTS_PROTOCOL_SCSI_INITIATOR           (0x0002)
 #define MPI2_IOCFACTS_PROTOCOL_SCSI_TARGET              (0x0001)
 
@@ -403,6 +438,8 @@ typedef struct _MPI2_PORT_FACTS_REPLY {
 #define MPI2_PORTFACTS_PORTTYPE_ISCSI               (0x20)
 #define MPI2_PORTFACTS_PORTTYPE_SAS_PHYSICAL        (0x30)
 #define MPI2_PORTFACTS_PORTTYPE_SAS_VIRTUAL         (0x31)
+#define MPI2_PORTFACTS_PORTTYPE_TRI_MODE            (0x40)
+
 
 /****************************************************************************
 * PortEnable message
@@ -509,6 +546,7 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY {
 #define MPI2_EVENT_SAS_INIT_TABLE_OVERFLOW          (0x0019)
 #define MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST         (0x001C)
 #define MPI2_EVENT_SAS_ENCL_DEVICE_STATUS_CHANGE    (0x001D)
+#define MPI2_EVENT_ENCL_DEVICE_STATUS_CHANGE        (0x001D)
 #define MPI2_EVENT_IR_VOLUME                        (0x001E)
 #define MPI2_EVENT_IR_PHYSICAL_DISK                 (0x001F)
 #define MPI2_EVENT_IR_CONFIGURATION_CHANGE_LIST     (0x0020)
@@ -521,7 +559,12 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY {
 #define MPI2_EVENT_TEMP_THRESHOLD                   (0x0027)
 #define MPI2_EVENT_HOST_MESSAGE                     (0x0028)
 #define MPI2_EVENT_POWER_PERFORMANCE_CHANGE         (0x0029)
+#define MPI2_EVENT_PCIE_DEVICE_STATUS_CHANGE        (0x0030)
+#define MPI2_EVENT_PCIE_ENUMERATION                 (0x0031)
+#define MPI2_EVENT_PCIE_TOPOLOGY_CHANGE_LIST        (0x0032)
+#define MPI2_EVENT_PCIE_LINK_COUNTER                (0x0033)
 #define MPI2_EVENT_ACTIVE_CABLE_EXCEPTION           (0x0034)
+#define MPI2_EVENT_SAS_DEVICE_DISCOVERY_ERROR       (0x0035)
 #define MPI2_EVENT_MIN_PRODUCT_SPECIFIC             (0x006E)
 #define MPI2_EVENT_MAX_PRODUCT_SPECIFIC             (0x007F)
 
@@ -618,10 +661,19 @@ typedef struct _MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT {
 	U8          ReasonCode;                         /* 0x04 */
 	U8          ReceptacleID;                       /* 0x05 */
 	U16         Reserved1;                          /* 0x06 */
-} MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
+} MPI25_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
+	*PTR_MPI25_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
+	Mpi25EventDataActiveCableExcept_t,
+	*pMpi25EventDataActiveCableExcept_t,
+	MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
 	*PTR_MPI26_EVENT_DATA_ACTIVE_CABLE_EXCEPT,
 	Mpi26EventDataActiveCableExcept_t,
 	*pMpi26EventDataActiveCableExcept_t;
+
+/*MPI2.5 defines for the ReasonCode field */
+#define MPI25_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER     (0x00)
+#define MPI25_EVENT_ACTIVE_CABLE_PRESENT                (0x01)
+#define MPI25_EVENT_ACTIVE_CABLE_DEGRADED               (0x02)
 
 /* defines for ReasonCode field */
 #define MPI26_EVENT_ACTIVE_CABLE_INSUFFICIENT_POWER     (0x00)
@@ -958,6 +1010,7 @@ typedef struct _MPI2_EVENT_DATA_SAS_TOPOLOGY_CHANGE_LIST {
 #define MPI2_EVENT_SAS_TOPO_LR_RATE_3_0                     (0x09)
 #define MPI2_EVENT_SAS_TOPO_LR_RATE_6_0                     (0x0A)
 #define MPI25_EVENT_SAS_TOPO_LR_RATE_12_0                   (0x0B)
+#define MPI26_EVENT_SAS_TOPO_LR_RATE_22_5                   (0x0C)
 
 /*values for the PhyStatus field */
 #define MPI2_EVENT_SAS_TOPO_PHYSTATUS_VACANT                (0x80)
@@ -983,11 +1036,36 @@ typedef struct _MPI2_EVENT_DATA_SAS_ENCL_DEV_STATUS_CHANGE {
 } MPI2_EVENT_DATA_SAS_ENCL_DEV_STATUS_CHANGE,
 	*PTR_MPI2_EVENT_DATA_SAS_ENCL_DEV_STATUS_CHANGE,
 	Mpi2EventDataSasEnclDevStatusChange_t,
-	*pMpi2EventDataSasEnclDevStatusChange_t;
+	*pMpi2EventDataSasEnclDevStatusChange_t,
+	MPI26_EVENT_DATA_ENCL_DEV_STATUS_CHANGE,
+	*PTR_MPI26_EVENT_DATA_ENCL_DEV_STATUS_CHANGE,
+	Mpi26EventDataEnclDevStatusChange_t,
+	*pMpi26EventDataEnclDevStatusChange_t;
 
 /*SAS Enclosure Device Status Change event ReasonCode values */
 #define MPI2_EVENT_SAS_ENCL_RC_ADDED                (0x01)
 #define MPI2_EVENT_SAS_ENCL_RC_NOT_RESPONDING       (0x02)
+
+/*Enclosure Device Status Change event ReasonCode values */
+#define MPI26_EVENT_ENCL_RC_ADDED                   (0x01)
+#define MPI26_EVENT_ENCL_RC_NOT_RESPONDING          (0x02)
+
+
+typedef struct _MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR {
+	U16	DevHandle;                  /*0x00 */
+	U8	ReasonCode;                 /*0x02 */
+	U8	PhysicalPort;               /*0x03 */
+	U32	Reserved1[2];               /*0x04 */
+	U64	SASAddress;                 /*0x0C */
+	U32	Reserved2[2];               /*0x14 */
+} MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR,
+	*PTR_MPI25_EVENT_DATA_SAS_DEVICE_DISCOVERY_ERROR,
+	Mpi25EventDataSasDeviceDiscoveryError_t,
+	*pMpi25EventDataSasDeviceDiscoveryError_t;
+
+/*SAS Device Discovery Error Event data ReasonCode values */
+#define MPI25_EVENT_SAS_DISC_ERR_SMP_FAILED         (0x01)
+#define MPI25_EVENT_SAS_DISC_ERR_SMP_TIMEOUT        (0x02)
 
 /*SAS PHY Counter Event data */
 
@@ -1073,6 +1151,174 @@ typedef struct _MPI2_EVENT_DATA_HBD_PHY {
 
 /*values for the DescriptorType field */
 #define MPI2_EVENT_HBD_DT_SAS               (0x01)
+
+
+/*PCIe Device Status Change Event data (MPI v2.6 and later) */
+
+typedef struct _MPI26_EVENT_DATA_PCIE_DEVICE_STATUS_CHANGE {
+	U16	TaskTag;                        /*0x00 */
+	U8	ReasonCode;                     /*0x02 */
+	U8	PhysicalPort;                   /*0x03 */
+	U8	ASC;                            /*0x04 */
+	U8	ASCQ;                           /*0x05 */
+	U16	DevHandle;                      /*0x06 */
+	U32	Reserved2;                      /*0x08 */
+	U64	WWID;                           /*0x0C */
+	U8	LUN[8];                         /*0x14 */
+} MPI26_EVENT_DATA_PCIE_DEVICE_STATUS_CHANGE,
+	*PTR_MPI26_EVENT_DATA_PCIE_DEVICE_STATUS_CHANGE,
+	Mpi26EventDataPCIeDeviceStatusChange_t,
+	*pMpi26EventDataPCIeDeviceStatusChange_t;
+
+/*PCIe Device Status Change Event data ReasonCode values */
+#define MPI26_EVENT_PCIDEV_STAT_RC_SMART_DATA                           (0x05)
+#define MPI26_EVENT_PCIDEV_STAT_RC_UNSUPPORTED                          (0x07)
+#define MPI26_EVENT_PCIDEV_STAT_RC_INTERNAL_DEVICE_RESET                (0x08)
+#define MPI26_EVENT_PCIDEV_STAT_RC_TASK_ABORT_INTERNAL                  (0x09)
+#define MPI26_EVENT_PCIDEV_STAT_RC_ABORT_TASK_SET_INTERNAL              (0x0A)
+#define MPI26_EVENT_PCIDEV_STAT_RC_CLEAR_TASK_SET_INTERNAL              (0x0B)
+#define MPI26_EVENT_PCIDEV_STAT_RC_QUERY_TASK_INTERNAL                  (0x0C)
+#define MPI26_EVENT_PCIDEV_STAT_RC_ASYNC_NOTIFICATION                   (0x0D)
+#define MPI26_EVENT_PCIDEV_STAT_RC_CMP_INTERNAL_DEV_RESET               (0x0E)
+#define MPI26_EVENT_PCIDEV_STAT_RC_CMP_TASK_ABORT_INTERNAL              (0x0F)
+#define MPI26_EVENT_PCIDEV_STAT_RC_DEV_INIT_FAILURE                     (0x10)
+
+
+/*PCIe Enumeration Event data (MPI v2.6 and later) */
+
+typedef struct _MPI26_EVENT_DATA_PCIE_ENUMERATION {
+	U8	Flags;                      /*0x00 */
+	U8	ReasonCode;                 /*0x01 */
+	U8	PhysicalPort;               /*0x02 */
+	U8	Reserved1;                  /*0x03 */
+	U32	EnumerationStatus;          /*0x04 */
+} MPI26_EVENT_DATA_PCIE_ENUMERATION,
+	*PTR_MPI26_EVENT_DATA_PCIE_ENUMERATION,
+	Mpi26EventDataPCIeEnumeration_t,
+	*pMpi26EventDataPCIeEnumeration_t;
+
+/*PCIe Enumeration Event data Flags values */
+#define MPI26_EVENT_PCIE_ENUM_DEVICE_CHANGE                 (0x02)
+#define MPI26_EVENT_PCIE_ENUM_IN_PROGRESS                   (0x01)
+
+/*PCIe Enumeration Event data ReasonCode values */
+#define MPI26_EVENT_PCIE_ENUM_RC_STARTED                    (0x01)
+#define MPI26_EVENT_PCIE_ENUM_RC_COMPLETED                  (0x02)
+
+/*PCIe Enumeration Event data EnumerationStatus values */
+#define MPI26_EVENT_PCIE_ENUM_ES_MAX_SWITCHES_EXCEED            (0x40000000)
+#define MPI26_EVENT_PCIE_ENUM_ES_MAX_DEVICES_EXCEED             (0x20000000)
+#define MPI26_EVENT_PCIE_ENUM_ES_RESOURCES_EXHAUSTED            (0x10000000)
+
+
+/*PCIe Topology Change List Event data (MPI v2.6 and later) */
+
+/*
+ *Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ *one and check NumEntries at runtime.
+ */
+#ifndef MPI26_EVENT_PCIE_TOPO_PORT_COUNT
+#define MPI26_EVENT_PCIE_TOPO_PORT_COUNT        (1)
+#endif
+
+typedef struct _MPI26_EVENT_PCIE_TOPO_PORT_ENTRY {
+	U16	AttachedDevHandle;      /*0x00 */
+	U8	PortStatus;             /*0x02 */
+	U8	Reserved1;              /*0x03 */
+	U8	CurrentPortInfo;        /*0x04 */
+	U8	Reserved2;              /*0x05 */
+	U8	PreviousPortInfo;       /*0x06 */
+	U8	Reserved3;              /*0x07 */
+} MPI26_EVENT_PCIE_TOPO_PORT_ENTRY,
+	*PTR_MPI26_EVENT_PCIE_TOPO_PORT_ENTRY,
+	Mpi26EventPCIeTopoPortEntry_t,
+	*pMpi26EventPCIeTopoPortEntry_t;
+
+/*PCIe Topology Change List Event data PortStatus values */
+#define MPI26_EVENT_PCIE_TOPO_PS_DEV_ADDED                  (0x01)
+#define MPI26_EVENT_PCIE_TOPO_PS_NOT_RESPONDING             (0x02)
+#define MPI26_EVENT_PCIE_TOPO_PS_PORT_CHANGED               (0x03)
+#define MPI26_EVENT_PCIE_TOPO_PS_NO_CHANGE                  (0x04)
+#define MPI26_EVENT_PCIE_TOPO_PS_DELAY_NOT_RESPONDING       (0x05)
+
+/*PCIe Topology Change List Event data defines for CurrentPortInfo and
+ *PreviousPortInfo
+ */
+#define MPI26_EVENT_PCIE_TOPO_PI_LANE_MASK                  (0xF0)
+#define MPI26_EVENT_PCIE_TOPO_PI_LANES_UNKNOWN              (0x00)
+#define MPI26_EVENT_PCIE_TOPO_PI_1_LANE                     (0x10)
+#define MPI26_EVENT_PCIE_TOPO_PI_2_LANES                    (0x20)
+#define MPI26_EVENT_PCIE_TOPO_PI_4_LANES                    (0x30)
+#define MPI26_EVENT_PCIE_TOPO_PI_8_LANES                    (0x40)
+
+#define MPI26_EVENT_PCIE_TOPO_PI_RATE_MASK                  (0x0F)
+#define MPI26_EVENT_PCIE_TOPO_PI_RATE_UNKNOWN               (0x00)
+#define MPI26_EVENT_PCIE_TOPO_PI_RATE_DISABLED              (0x01)
+#define MPI26_EVENT_PCIE_TOPO_PI_RATE_2_5                   (0x02)
+#define MPI26_EVENT_PCIE_TOPO_PI_RATE_5_0                   (0x03)
+#define MPI26_EVENT_PCIE_TOPO_PI_RATE_8_0                   (0x04)
+#define MPI26_EVENT_PCIE_TOPO_PI_RATE_16_0                  (0x05)
+
+typedef struct _MPI26_EVENT_DATA_PCIE_TOPOLOGY_CHANGE_LIST {
+	U16	EnclosureHandle;        /*0x00 */
+	U16	SwitchDevHandle;        /*0x02 */
+	U8	NumPorts;               /*0x04 */
+	U8	Reserved1;              /*0x05 */
+	U16	Reserved2;              /*0x06 */
+	U8	NumEntries;             /*0x08 */
+	U8	StartPortNum;           /*0x09 */
+	U8	SwitchStatus;           /*0x0A */
+	U8	PhysicalPort;           /*0x0B */
+	MPI26_EVENT_PCIE_TOPO_PORT_ENTRY
+		PortEntry[MPI26_EVENT_PCIE_TOPO_PORT_COUNT]; /*0x0C */
+} MPI26_EVENT_DATA_PCIE_TOPOLOGY_CHANGE_LIST,
+	*PTR_MPI26_EVENT_DATA_PCIE_TOPOLOGY_CHANGE_LIST,
+	Mpi26EventDataPCIeTopologyChangeList_t,
+	*pMpi26EventDataPCIeTopologyChangeList_t;
+
+/*PCIe Topology Change List Event data SwitchStatus values */
+#define MPI26_EVENT_PCIE_TOPO_SS_NO_PCIE_SWITCH             (0x00)
+#define MPI26_EVENT_PCIE_TOPO_SS_ADDED                      (0x01)
+#define MPI26_EVENT_PCIE_TOPO_SS_NOT_RESPONDING             (0x02)
+#define MPI26_EVENT_PCIE_TOPO_SS_RESPONDING                 (0x03)
+#define MPI26_EVENT_PCIE_TOPO_SS_DELAY_NOT_RESPONDING       (0x04)
+
+/*PCIe Link Counter Event data (MPI v2.6 and later) */
+
+typedef struct _MPI26_EVENT_DATA_PCIE_LINK_COUNTER {
+	U64	TimeStamp;          /*0x00 */
+	U32	Reserved1;          /*0x08 */
+	U8	LinkEventCode;      /*0x0C */
+	U8	LinkNum;            /*0x0D */
+	U16	Reserved2;          /*0x0E */
+	U32	LinkEventInfo;      /*0x10 */
+	U8	CounterType;        /*0x14 */
+	U8	ThresholdWindow;    /*0x15 */
+	U8	TimeUnits;          /*0x16 */
+	U8	Reserved3;          /*0x17 */
+	U32	EventThreshold;     /*0x18 */
+	U16	ThresholdFlags;     /*0x1C */
+	U16	Reserved4;          /*0x1E */
+} MPI26_EVENT_DATA_PCIE_LINK_COUNTER,
+	*PTR_MPI26_EVENT_DATA_PCIE_LINK_COUNTER,
+	Mpi26EventDataPcieLinkCounter_t, *pMpi26EventDataPcieLinkCounter_t;
+
+
+/*use MPI26_PCIELINK3_EVTCODE_ values from mpi2_cnfg.h for the LinkEventCode
+ *field
+ */
+
+/*use MPI26_PCIELINK3_COUNTER_TYPE_ values from mpi2_cnfg.h for the CounterType
+ *field
+ */
+
+/*use MPI26_PCIELINK3_TIME_UNITS_ values from mpi2_cnfg.h for the TimeUnits
+ *field
+ */
+
+/*use MPI26_PCIELINK3_TFLAGS_ values from mpi2_cnfg.h for the ThresholdFlags
+ *field
+ */
 
 /****************************************************************************
 * EventAck message
@@ -1191,6 +1437,14 @@ typedef struct _MPI2_FW_DOWNLOAD_REQUEST {
 #define MPI2_FW_DOWNLOAD_ITYPE_COMPLETE             (0x0A)
 #define MPI2_FW_DOWNLOAD_ITYPE_COMMON_BOOT_BLOCK    (0x0B)
 #define MPI2_FW_DOWNLOAD_ITYPE_PUBLIC_KEY           (0x0C)
+#define MPI2_FW_DOWNLOAD_ITYPE_CBB_BACKUP           (0x0D)
+#define MPI2_FW_DOWNLOAD_ITYPE_SBR                  (0x0E)
+#define MPI2_FW_DOWNLOAD_ITYPE_SBR_BACKUP           (0x0F)
+#define MPI2_FW_DOWNLOAD_ITYPE_HIIM                 (0x10)
+#define MPI2_FW_DOWNLOAD_ITYPE_HIIA                 (0x11)
+#define MPI2_FW_DOWNLOAD_ITYPE_CTLR                 (0x12)
+#define MPI2_FW_DOWNLOAD_ITYPE_IMR_FIRMWARE         (0x13)
+#define MPI2_FW_DOWNLOAD_ITYPE_MR_NVDATA            (0x14)
 #define MPI2_FW_DOWNLOAD_ITYPE_MIN_PRODUCT_SPECIFIC (0xF0)
 
 /*MPI v2.0 FWDownload TransactionContext Element */
@@ -1277,6 +1531,14 @@ typedef struct _MPI2_FW_UPLOAD_REQUEST {
 #define MPI2_FW_UPLOAD_ITYPE_COMPLETE           (0x0A)
 #define MPI2_FW_UPLOAD_ITYPE_COMMON_BOOT_BLOCK  (0x0B)
 #define MPI2_FW_UPLOAD_ITYPE_CBB_BACKUP         (0x0D)
+#define MPI2_FW_UPLOAD_ITYPE_SBR                (0x0E)
+#define MPI2_FW_UPLOAD_ITYPE_SBR_BACKUP         (0x0F)
+#define MPI2_FW_UPLOAD_ITYPE_HIIM               (0x10)
+#define MPI2_FW_UPLOAD_ITYPE_HIIA               (0x11)
+#define MPI2_FW_UPLOAD_ITYPE_CTLR               (0x12)
+#define MPI2_FW_UPLOAD_ITYPE_IMR_FIRMWARE       (0x13)
+#define MPI2_FW_UPLOAD_ITYPE_MR_NVDATA          (0x14)
+
 
 /*MPI v2.0 FWUpload TransactionContext Element */
 typedef struct _MPI2_FW_UPLOAD_TCSGE {
@@ -1395,10 +1657,13 @@ typedef struct _MPI2_FW_IMAGE_HEADER {
 #define MPI26_FW_HEADER_SIGNATURE0_ARC_1        (0x00)
 #define MPI26_FW_HEADER_SIGNATURE0_ARC_2        (0x01)
 /* legacy (0x5AEAA55A) */
+#define MPI26_FW_HEADER_SIGNATURE0_ARC_3        (0x02)
 #define MPI26_FW_HEADER_SIGNATURE0 \
 	(MPI26_FW_HEADER_SIGNATURE0_BASE+MPI26_FW_HEADER_SIGNATURE0_ARC_0)
 #define MPI26_FW_HEADER_SIGNATURE0_3516 \
 	(MPI26_FW_HEADER_SIGNATURE0_BASE+MPI26_FW_HEADER_SIGNATURE0_ARC_1)
+#define MPI26_FW_HEADER_SIGNATURE0_4008 \
+	(MPI26_FW_HEADER_SIGNATURE0_BASE+MPI26_FW_HEADER_SIGNATURE0_ARC_3)
 
 /*Signature1 field */
 #define MPI2_FW_HEADER_SIGNATURE1_OFFSET        (0x08)
@@ -1542,6 +1807,13 @@ typedef struct _MPI2_FLASH_LAYOUT_DATA {
 #define MPI2_FLASH_REGION_COMMON_BOOT_BLOCK     (0x0A)
 #define MPI2_FLASH_REGION_INIT (MPI2_FLASH_REGION_COMMON_BOOT_BLOCK)
 #define MPI2_FLASH_REGION_CBB_BACKUP            (0x0D)
+#define MPI2_FLASH_REGION_SBR                   (0x0E)
+#define MPI2_FLASH_REGION_SBR_BACKUP            (0x0F)
+#define MPI2_FLASH_REGION_HIIM                  (0x10)
+#define MPI2_FLASH_REGION_HIIA                  (0x11)
+#define MPI2_FLASH_REGION_CTLR                  (0x12)
+#define MPI2_FLASH_REGION_IMR_FIRMWARE          (0x13)
+#define MPI2_FLASH_REGION_MR_NVDATA             (0x14)
 
 /*ImageRevision */
 #define MPI2_FLASH_LAYOUT_IMAGE_REVISION        (0x00)
@@ -1826,6 +2098,8 @@ typedef struct _MPI26_IOUNIT_CONTROL_REQUEST {
 #define MPI26_CTRL_OP_DEV_ENABLE_PERSIST_CONNECTION     (0x17)
 #define MPI26_CTRL_OP_DEV_DISABLE_PERSIST_CONNECTION    (0x18)
 #define MPI26_CTRL_OP_DEV_CLOSE_PERSIST_CONNECTION      (0x19)
+#define MPI26_CTRL_OP_ENABLE_NVME_SGL_FORMAT            (0x1A)
+#define MPI26_CTRL_OP_DISABLE_NVME_SGL_FORMAT           (0x1B)
 #define MPI26_CTRL_OP_PRODUCT_SPECIFIC_MIN              (0x80)
 
 /* values for the PrimFlags field */

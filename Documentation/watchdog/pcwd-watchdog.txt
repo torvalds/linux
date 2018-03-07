@@ -25,7 +25,7 @@ Last reviewed: 10/05/2007
 
  If you want to write a program to be compatible with the PC Watchdog
  driver, simply use of modify the watchdog test program:
- Documentation/watchdog/src/watchdog-test.c
+ tools/testing/selftests/watchdog/watchdog-test.c
 
 
  Other IOCTL functions include:

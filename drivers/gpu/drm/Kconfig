@@ -110,7 +110,7 @@ config DRM_FBDEV_OVERALLOC
 
 config DRM_LOAD_EDID_FIRMWARE
 	bool "Allow to specify an EDID data set instead of probing for it"
-	depends on DRM_KMS_HELPER
+	depends on DRM
 	help
 	  Say Y here, if you want to use EDID data to be loaded from the
 	  /lib/firmware directory or one of the provided built-in
@@ -184,12 +184,15 @@ config DRM_AMDGPU
 	select BACKLIGHT_CLASS_DEVICE
 	select BACKLIGHT_LCD_SUPPORT
 	select INTERVAL_TREE
+	select CHASH
 	help
 	  Choose this option if you have a recent AMD Radeon graphics card.
 
 	  If M is selected, the module will be called amdgpu.
 
 source "drivers/gpu/drm/amd/amdgpu/Kconfig"
+
+source "drivers/gpu/drm/amd/lib/Kconfig"
 
 source "drivers/gpu/drm/nouveau/Kconfig"
 
@@ -277,6 +280,8 @@ source "drivers/gpu/drm/meson/Kconfig"
 source "drivers/gpu/drm/tinydrm/Kconfig"
 
 source "drivers/gpu/drm/pl111/Kconfig"
+
+source "drivers/gpu/drm/tve200/Kconfig"
 
 # Keep legacy drivers last
 

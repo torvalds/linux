@@ -4,7 +4,8 @@ This file provides information on what the device node for the SH EtherMAC
 interface contains.
 
 Required properties:
-- compatible: "renesas,gether-r8a7740" if the device is a part of R8A7740 SoC.
+- compatible: Must contain one or more of the following:
+	      "renesas,gether-r8a7740" if the device is a part of R8A7740 SoC.
 	      "renesas,ether-r8a7743"  if the device is a part of R8A7743 SoC.
 	      "renesas,ether-r8a7745"  if the device is a part of R8A7745 SoC.
 	      "renesas,ether-r8a7778"  if the device is a part of R8A7778 SoC.
@@ -14,6 +15,14 @@ Required properties:
 	      "renesas,ether-r8a7793"  if the device is a part of R8A7793 SoC.
 	      "renesas,ether-r8a7794"  if the device is a part of R8A7794 SoC.
 	      "renesas,ether-r7s72100" if the device is a part of R7S72100 SoC.
+	      "renesas,rcar-gen1-ether" for a generic R-Car Gen1 device.
+	      "renesas,rcar-gen2-ether" for a generic R-Car Gen2 or RZ/G1
+	                                device.
+
+	      When compatible with the generic version, nodes must list
+	      the SoC-specific version corresponding to the platform
+	      first followed by the generic version.
+
 - reg: offset and length of (1) the E-DMAC/feLic register block (required),
        (2) the TSU register block (optional).
 - interrupts: interrupt specifier for the sole interrupt.
@@ -36,7 +45,8 @@ Optional properties:
 Example (Lager board):
 
 	ethernet@ee700000 {
-		compatible = "renesas,ether-r8a7790";
+		compatible = "renesas,ether-r8a7790",
+		             "renesas,rcar-gen2-ether";
 		reg = <0 0xee700000 0 0x400>;
 		interrupt-parent = <&gic>;
 		interrupts = <0 162 IRQ_TYPE_LEVEL_HIGH>;

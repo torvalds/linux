@@ -1841,6 +1841,10 @@
 #define mmUNIPHYG_CHANNEL_XBAR_CNTL_BASE_IDX                                                           2
 #define mmDCIO_WRCMD_DELAY                                                                             0x2094
 #define mmDCIO_WRCMD_DELAY_BASE_IDX                                                                    2
+#define mmDC_PINSTRAPS                                                                                 0x2096
+#define mmDC_PINSTRAPS_BASE_IDX                                                                        2
+#define mmCC_DC_MISC_STRAPS                                                                            0x2097
+#define mmCC_DC_MISC_STRAPS_BASE_IDX                                                                   2
 #define mmDC_DVODATA_CONFIG                                                                            0x2098
 #define mmDC_DVODATA_CONFIG_BASE_IDX                                                                   2
 #define mmLVTMA_PWRSEQ_CNTL                                                                            0x2099

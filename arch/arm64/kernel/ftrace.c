@@ -76,7 +76,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	if (offset < -SZ_128M || offset >= SZ_128M) {
 #ifdef CONFIG_ARM64_MODULE_PLTS
-		unsigned long *trampoline;
+		struct plt_entry trampoline;
 		struct module *mod;
 
 		/*
@@ -104,22 +104,24 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		 * is added in the future, but for now, the pr_err() below
 		 * deals with a theoretical issue only.
 		 */
-		trampoline = (unsigned long *)mod->arch.ftrace_trampoline;
-		if (trampoline[0] != addr) {
-			if (trampoline[0] != 0) {
+		trampoline = get_plt_entry(addr);
+		if (!plt_entries_equal(mod->arch.ftrace_trampoline,
+				       &trampoline)) {
+			if (!plt_entries_equal(mod->arch.ftrace_trampoline,
+					       &(struct plt_entry){})) {
 				pr_err("ftrace: far branches to multiple entry points unsupported inside a single module\n");
 				return -EINVAL;
 			}
 
 			/* point the trampoline to our ftrace entry point */
 			module_disable_ro(mod);
-			trampoline[0] = addr;
+			*mod->arch.ftrace_trampoline = trampoline;
 			module_enable_ro(mod, true);
 
 			/* update trampoline before patching in the branch */
 			smp_wmb();
 		}
-		addr = (unsigned long)&trampoline[1];
+		addr = (unsigned long)(void *)mod->arch.ftrace_trampoline;
 #else /* CONFIG_ARM64_MODULE_PLTS */
 		return -EINVAL;
 #endif /* CONFIG_ARM64_MODULE_PLTS */

@@ -32,7 +32,7 @@ void atomic_set(atomic_t *, int);
 
 #define atomic_set_release(v, i)	atomic_set((v), (i))
 
-#define atomic_read(v)          ACCESS_ONCE((v)->counter)
+#define atomic_read(v)          READ_ONCE((v)->counter)
 
 #define atomic_add(i, v)	((void)atomic_add_return( (int)(i), (v)))
 #define atomic_sub(i, v)	((void)atomic_add_return(-(int)(i), (v)))

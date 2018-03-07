@@ -411,15 +411,12 @@ int restore_pci_variables(struct hfi1_devdata *dd)
 	if (ret)
 		goto error;
 
-	ret = pci_write_config_dword(dd->pcidev, PCIE_CFG_SPCIE1,
-				     dd->pci_lnkctl3);
-	if (ret)
-		goto error;
-
-	ret = pci_write_config_dword(dd->pcidev, PCIE_CFG_TPH2, dd->pci_tph2);
-	if (ret)
-		goto error;
-
+	if (pci_find_ext_capability(dd->pcidev, PCI_EXT_CAP_ID_TPH)) {
+		ret = pci_write_config_dword(dd->pcidev, PCIE_CFG_TPH2,
+					     dd->pci_tph2);
+		if (ret)
+			goto error;
+	}
 	return 0;
 
 error:
@@ -469,15 +466,12 @@ int save_pci_variables(struct hfi1_devdata *dd)
 	if (ret)
 		goto error;
 
-	ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_SPCIE1,
-				    &dd->pci_lnkctl3);
-	if (ret)
-		goto error;
-
-	ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_TPH2, &dd->pci_tph2);
-	if (ret)
-		goto error;
-
+	if (pci_find_ext_capability(dd->pcidev, PCI_EXT_CAP_ID_TPH)) {
+		ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_TPH2,
+					    &dd->pci_tph2);
+		if (ret)
+			goto error;
+	}
 	return 0;
 
 error:

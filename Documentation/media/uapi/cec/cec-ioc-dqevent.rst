@@ -161,6 +161,24 @@ it is guaranteed that the state did change in between the two events.
       - Generated if the CEC pin goes from a low voltage to a high voltage.
         Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
 	capability set.
+    * .. _`CEC-EVENT-PIN-HPD-LOW`:
+
+      - ``CEC_EVENT_PIN_HPD_LOW``
+      - 5
+      - Generated if the HPD pin goes from a high voltage to a low voltage.
+	Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
+	capability set. When open() is called, the HPD pin can be read and
+	if the HPD is low, then an initial event will be generated for that
+	filehandle.
+    * .. _`CEC-EVENT-PIN-HPD-HIGH`:
+
+      - ``CEC_EVENT_PIN_HPD_HIGH``
+      - 6
+      - Generated if the HPD pin goes from a low voltage to a high voltage.
+	Only applies to adapters that have the ``CEC_CAP_MONITOR_PIN``
+	capability set. When open() is called, the HPD pin can be read and
+	if the HPD is high, then an initial event will be generated for that
+	filehandle.
 
 
 .. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.9cm}|
@@ -172,9 +190,9 @@ it is guaranteed that the state did change in between the two events.
     :stub-columns: 0
     :widths:       3 1 8
 
-    * .. _`CEC-EVENT-FL-INITIAL-VALUE`:
+    * .. _`CEC-EVENT-FL-INITIAL-STATE`:
 
-      - ``CEC_EVENT_FL_INITIAL_VALUE``
+      - ``CEC_EVENT_FL_INITIAL_STATE``
       - 1
       - Set for the initial events that are generated when the device is
 	opened. See the table above for which events do this. This allows

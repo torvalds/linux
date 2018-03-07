@@ -5,9 +5,13 @@ Required properties:
  - compatible:		Should be set to one of the following:
 			marvell,pxa3xx-nand
 			marvell,armada370-nand
+			marvell,armada-8k-nand
  - reg: 		The register base for the controller
  - interrupts:		The interrupt to map
  - #address-cells:	Set to <1> if the node includes partitions
+ - marvell,system-controller: Set to retrieve the syscon node that handles
+			NAND controller related registers (only required
+			with marvell,armada-8k-nand compatible).
 
 Optional properties:
 

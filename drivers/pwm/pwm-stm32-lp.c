@@ -219,8 +219,7 @@ static int stm32_pwm_lp_remove(struct platform_device *pdev)
 	unsigned int i;
 
 	for (i = 0; i < priv->chip.npwm; i++)
-		if (pwm_is_enabled(&priv->chip.pwms[i]))
-			pwm_disable(&priv->chip.pwms[i]);
+		pwm_disable(&priv->chip.pwms[i]);
 
 	return pwmchip_remove(&priv->chip);
 }

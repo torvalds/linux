@@ -458,7 +458,7 @@ static irqreturn_t atmel_hlcdc_dc_irq_handler(int irq, void *data)
 static struct drm_framebuffer *atmel_hlcdc_fb_create(struct drm_device *dev,
 		struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
 {
-	return drm_fb_cma_create(dev, file_priv, mode_cmd);
+	return drm_gem_fb_create(dev, file_priv, mode_cmd);
 }
 
 static void atmel_hlcdc_fb_output_poll_changed(struct drm_device *dev)

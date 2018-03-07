@@ -22,6 +22,7 @@
 #include <linux/types.h>
 #include <linux/sem.h>
 #include <linux/bitmap.h>
+#include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/miscdevice.h>
 #include <linux/lightnvm.h>
@@ -138,7 +139,6 @@ static struct nvm_tgt_dev *nvm_create_tgt_dev(struct nvm_dev *dev,
 	int prev_nr_luns;
 	int i, j;
 
-	nr_chnls = nr_luns / dev->geo.luns_per_chnl;
 	nr_chnls = (nr_chnls_mod == 0) ? nr_chnls : nr_chnls + 1;
 
 	dev_map = kmalloc(sizeof(struct nvm_dev_map), GFP_KERNEL);
@@ -225,6 +225,24 @@ err_dev:
 static const struct block_device_operations nvm_fops = {
 	.owner		= THIS_MODULE,
 };
+
+static struct nvm_tgt_type *nvm_find_target_type(const char *name, int lock)
+{
+	struct nvm_tgt_type *tmp, *tt = NULL;
+
+	if (lock)
+		down_write(&nvm_tgtt_lock);
+
+	list_for_each_entry(tmp, &nvm_tgt_types, list)
+		if (!strcmp(name, tmp->name)) {
+			tt = tmp;
+			break;
+		}
+
+	if (lock)
+		up_write(&nvm_tgtt_lock);
+	return tt;
+}
 
 static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 {
@@ -316,6 +334,8 @@ static int nvm_create_tgt(struct nvm_dev *dev, struct nvm_ioctl_create *create)
 	list_add_tail(&t->list, &dev->targets);
 	mutex_unlock(&dev->mlock);
 
+	__module_get(tt->owner);
+
 	return 0;
 err_sysfs:
 	if (tt->exit)
@@ -351,6 +371,7 @@ static void __nvm_remove_target(struct nvm_target *t)
 
 	nvm_remove_tgt_dev(t->dev, 1);
 	put_disk(tdisk);
+	module_put(t->type->owner);
 
 	list_del(&t->list);
 	kfree(t);
@@ -532,25 +553,6 @@ void nvm_part_to_tgt(struct nvm_dev *dev, sector_t *entries,
 }
 EXPORT_SYMBOL(nvm_part_to_tgt);
 
-struct nvm_tgt_type *nvm_find_target_type(const char *name, int lock)
-{
-	struct nvm_tgt_type *tmp, *tt = NULL;
-
-	if (lock)
-		down_write(&nvm_tgtt_lock);
-
-	list_for_each_entry(tmp, &nvm_tgt_types, list)
-		if (!strcmp(name, tmp->name)) {
-			tt = tmp;
-			break;
-		}
-
-	if (lock)
-		up_write(&nvm_tgtt_lock);
-	return tt;
-}
-EXPORT_SYMBOL(nvm_find_target_type);
-
 int nvm_register_tgt_type(struct nvm_tgt_type *tt)
 {
 	int ret = 0;
@@ -571,9 +573,9 @@ void nvm_unregister_tgt_type(struct nvm_tgt_type *tt)
 	if (!tt)
 		return;
 
-	down_write(&nvm_lock);
+	down_write(&nvm_tgtt_lock);
 	list_del(&tt->list);
-	up_write(&nvm_lock);
+	up_write(&nvm_tgtt_lock);
 }
 EXPORT_SYMBOL(nvm_unregister_tgt_type);
 
@@ -602,6 +604,52 @@ static struct nvm_dev *nvm_find_nvm_dev(const char *name)
 	return NULL;
 }
 
+static int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
+			const struct ppa_addr *ppas, int nr_ppas)
+{
+	struct nvm_dev *dev = tgt_dev->parent;
+	struct nvm_geo *geo = &tgt_dev->geo;
+	int i, plane_cnt, pl_idx;
+	struct ppa_addr ppa;
+
+	if (geo->plane_mode == NVM_PLANE_SINGLE && nr_ppas == 1) {
+		rqd->nr_ppas = nr_ppas;
+		rqd->ppa_addr = ppas[0];
+
+		return 0;
+	}
+
+	rqd->nr_ppas = nr_ppas;
+	rqd->ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL, &rqd->dma_ppa_list);
+	if (!rqd->ppa_list) {
+		pr_err("nvm: failed to allocate dma memory\n");
+		return -ENOMEM;
+	}
+
+	plane_cnt = geo->plane_mode;
+	rqd->nr_ppas *= plane_cnt;
+
+	for (i = 0; i < nr_ppas; i++) {
+		for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
+			ppa = ppas[i];
+			ppa.g.pl = pl_idx;
+			rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppa;
+		}
+	}
+
+	return 0;
+}
+
+static void nvm_free_rqd_ppalist(struct nvm_tgt_dev *tgt_dev,
+			struct nvm_rq *rqd)
+{
+	if (!rqd->ppa_list)
+		return;
+
+	nvm_dev_dma_free(tgt_dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
+}
+
+
 int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 		       int nr_ppas, int type)
 {
@@ -616,7 +664,7 @@ int nvm_set_tgt_bb_tbl(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
-	nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas, 1);
+	nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas);
 	nvm_rq_tgt_to_dev(tgt_dev, &rqd);
 
 	ret = dev->ops->set_bb_tbl(dev, &rqd.ppa_addr, rqd.nr_ppas, type);
@@ -658,12 +706,25 @@ int nvm_submit_io(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 }
 EXPORT_SYMBOL(nvm_submit_io);
 
-static void nvm_end_io_sync(struct nvm_rq *rqd)
+int nvm_submit_io_sync(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
 {
-	struct completion *waiting = rqd->private;
+	struct nvm_dev *dev = tgt_dev->parent;
+	int ret;
 
-	complete(waiting);
+	if (!dev->ops->submit_io_sync)
+		return -ENODEV;
+
+	nvm_rq_tgt_to_dev(tgt_dev, rqd);
+
+	rqd->dev = tgt_dev;
+
+	/* In case of error, fail with right address format */
+	ret = dev->ops->submit_io_sync(dev, rqd);
+	nvm_rq_dev_to_tgt(tgt_dev, rqd);
+
+	return ret;
 }
+EXPORT_SYMBOL(nvm_submit_io_sync);
 
 int nvm_erase_sync(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 								int nr_ppas)
@@ -671,25 +732,21 @@ int nvm_erase_sync(struct nvm_tgt_dev *tgt_dev, struct ppa_addr *ppas,
 	struct nvm_geo *geo = &tgt_dev->geo;
 	struct nvm_rq rqd;
 	int ret;
-	DECLARE_COMPLETION_ONSTACK(wait);
 
 	memset(&rqd, 0, sizeof(struct nvm_rq));
 
 	rqd.opcode = NVM_OP_ERASE;
-	rqd.end_io = nvm_end_io_sync;
-	rqd.private = &wait;
 	rqd.flags = geo->plane_mode >> 1;
 
-	ret = nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas, 1);
+	ret = nvm_set_rqd_ppalist(tgt_dev, &rqd, ppas, nr_ppas);
 	if (ret)
 		return ret;
 
-	ret = nvm_submit_io(tgt_dev, &rqd);
+	ret = nvm_submit_io_sync(tgt_dev, &rqd);
 	if (ret) {
 		pr_err("rrpr: erase I/O submission failed: %d\n", ret);
 		goto free_ppa_list;
 	}
-	wait_for_completion_io(&wait);
 
 free_ppa_list:
 	nvm_free_rqd_ppalist(tgt_dev, &rqd);
@@ -774,57 +831,6 @@ void nvm_put_area(struct nvm_tgt_dev *tgt_dev, sector_t begin)
 	spin_unlock(&dev->lock);
 }
 EXPORT_SYMBOL(nvm_put_area);
-
-int nvm_set_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd,
-			const struct ppa_addr *ppas, int nr_ppas, int vblk)
-{
-	struct nvm_dev *dev = tgt_dev->parent;
-	struct nvm_geo *geo = &tgt_dev->geo;
-	int i, plane_cnt, pl_idx;
-	struct ppa_addr ppa;
-
-	if ((!vblk || geo->plane_mode == NVM_PLANE_SINGLE) && nr_ppas == 1) {
-		rqd->nr_ppas = nr_ppas;
-		rqd->ppa_addr = ppas[0];
-
-		return 0;
-	}
-
-	rqd->nr_ppas = nr_ppas;
-	rqd->ppa_list = nvm_dev_dma_alloc(dev, GFP_KERNEL, &rqd->dma_ppa_list);
-	if (!rqd->ppa_list) {
-		pr_err("nvm: failed to allocate dma memory\n");
-		return -ENOMEM;
-	}
-
-	if (!vblk) {
-		for (i = 0; i < nr_ppas; i++)
-			rqd->ppa_list[i] = ppas[i];
-	} else {
-		plane_cnt = geo->plane_mode;
-		rqd->nr_ppas *= plane_cnt;
-
-		for (i = 0; i < nr_ppas; i++) {
-			for (pl_idx = 0; pl_idx < plane_cnt; pl_idx++) {
-				ppa = ppas[i];
-				ppa.g.pl = pl_idx;
-				rqd->ppa_list[(pl_idx * nr_ppas) + i] = ppa;
-			}
-		}
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(nvm_set_rqd_ppalist);
-
-void nvm_free_rqd_ppalist(struct nvm_tgt_dev *tgt_dev, struct nvm_rq *rqd)
-{
-	if (!rqd->ppa_list)
-		return;
-
-	nvm_dev_dma_free(tgt_dev->parent, rqd->ppa_list, rqd->dma_ppa_list);
-}
-EXPORT_SYMBOL(nvm_free_rqd_ppalist);
 
 void nvm_end_io(struct nvm_rq *rqd)
 {
@@ -1177,7 +1183,7 @@ static long nvm_ioctl_info(struct file *file, void __user *arg)
 	info->version[1] = NVM_VERSION_MINOR;
 	info->version[2] = NVM_VERSION_PATCH;
 
-	down_write(&nvm_lock);
+	down_write(&nvm_tgtt_lock);
 	list_for_each_entry(tt, &nvm_tgt_types, list) {
 		struct nvm_ioctl_info_tgt *tgt = &info->tgts[tgt_iter];
 
@@ -1190,7 +1196,7 @@ static long nvm_ioctl_info(struct file *file, void __user *arg)
 	}
 
 	info->tgtsize = tgt_iter;
-	up_write(&nvm_lock);
+	up_write(&nvm_tgtt_lock);
 
 	if (copy_to_user(arg, info, sizeof(struct nvm_ioctl_info))) {
 		kfree(info);

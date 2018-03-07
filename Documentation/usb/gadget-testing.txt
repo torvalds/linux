@@ -693,7 +693,7 @@ such specification consists of a number of lines with an inverval value
 in each line. The rules stated above are best illustrated with an example:
 
 # mkdir functions/uvc.usb0/control/header/h
-# cd functions/uvc.usb0/control/header/h
+# cd functions/uvc.usb0/control/
 # ln -s header/h class/fs
 # ln -s header/h class/ss
 # mkdir -p functions/uvc.usb0/streaming/uncompressed/u/360p
@@ -773,7 +773,7 @@ host:
 # cat /dev/usb/lp0
 
 More advanced testing can be done with the prn_example
-described in Documentation/usb/gadget-printer.txt.
+described in Documentation/usb/gadget_printer.txt.
 
 
 20. UAC1 function (virtual ALSA card, using u_audio API)

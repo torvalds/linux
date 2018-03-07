@@ -612,7 +612,6 @@ static const struct attribute_group cm36651_attribute_group = {
 };
 
 static const struct iio_info cm36651_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= &cm36651_read_raw,
 	.write_raw		= &cm36651_write_raw,
 	.read_event_value	= &cm36651_read_prox_thresh,

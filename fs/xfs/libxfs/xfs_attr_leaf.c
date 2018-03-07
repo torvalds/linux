@@ -397,12 +397,8 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 	/* rounded down */
 	offset = (XFS_LITINO(mp, dp->i_d.di_version) - bytes) >> 3;
 
-	switch (dp->i_d.di_format) {
-	case XFS_DINODE_FMT_DEV:
+	if (dp->i_d.di_format == XFS_DINODE_FMT_DEV) {
 		minforkoff = roundup(sizeof(xfs_dev_t), 8) >> 3;
-		return (offset >= minforkoff) ? minforkoff : 0;
-	case XFS_DINODE_FMT_UUID:
-		minforkoff = roundup(sizeof(uuid_t), 8) >> 3;
 		return (offset >= minforkoff) ? minforkoff : 0;
 	}
 
@@ -739,10 +735,13 @@ xfs_attr_shortform_getvalue(xfs_da_args_t *args)
 }
 
 /*
- * Convert from using the shortform to the leaf.
+ * Convert from using the shortform to the leaf.  On success, return the
+ * buffer so that we can keep it locked until we're totally done with it.
  */
 int
-xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
+xfs_attr_shortform_to_leaf(
+	struct xfs_da_args	*args,
+	struct xfs_buf		**leaf_bp)
 {
 	xfs_inode_t *dp;
 	xfs_attr_shortform_t *sf;
@@ -822,7 +821,7 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 		sfe = XFS_ATTR_SF_NEXTENTRY(sfe);
 	}
 	error = 0;
-
+	*leaf_bp = bp;
 out:
 	kmem_free(tmpbuffer);
 	return error;

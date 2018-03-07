@@ -46,10 +46,14 @@ config OF_EARLY_FLATTREE
 config OF_PROMTREE
 	bool
 
+config OF_KOBJ
+	def_bool SYSFS
+
 # Hardly any platforms need this.  It is safe to select, but only do so if you
 # need it.
 config OF_DYNAMIC
 	bool "Support for dynamic device trees" if OF_UNITTEST
+	select OF_KOBJ
 	help
 	  On some platforms, the device tree can be manipulated at runtime.
 	  While this option is selected automatically on such platforms, you

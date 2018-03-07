@@ -218,8 +218,9 @@
 
 
 /*
- *
+ * I2C EEPROM Address
  */
+#define ICE_I2C_EEPROM_ADDR		0xA0
 
 struct snd_ice1712;
 

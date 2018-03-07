@@ -382,7 +382,7 @@ static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 	struct net_device *netdev = to_net_dev(dev);
 	struct net *net = dev_net(netdev);
 	size_t count = len;
-	ssize_t ret;
+	ssize_t ret = 0;
 
 	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
@@ -393,23 +393,30 @@ static ssize_t ifalias_store(struct device *dev, struct device_attribute *attr,
 
 	if (!rtnl_trylock())
 		return restart_syscall();
-	ret = dev_set_alias(netdev, buf, count);
+
+	if (dev_isalive(netdev)) {
+		ret = dev_set_alias(netdev, buf, count);
+		if (ret < 0)
+			goto err;
+		ret = len;
+		netdev_state_change(netdev);
+	}
+err:
 	rtnl_unlock();
 
-	return ret < 0 ? ret : len;
+	return ret;
 }
 
 static ssize_t ifalias_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	const struct net_device *netdev = to_net_dev(dev);
+	char tmp[IFALIASZ];
 	ssize_t ret = 0;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
-	if (netdev->ifalias)
-		ret = sprintf(buf, "%s\n", netdev->ifalias);
-	rtnl_unlock();
+	ret = dev_get_alias(netdev, tmp, sizeof(tmp));
+	if (ret > 0)
+		ret = sprintf(buf, "%s\n", tmp);
 	return ret;
 }
 static DEVICE_ATTR_RW(ifalias);
@@ -1488,7 +1495,10 @@ static void netdev_release(struct device *d)
 
 	BUG_ON(dev->reg_state != NETREG_RELEASED);
 
-	kfree(dev->ifalias);
+	/* no need to wait for rcu grace period:
+	 * device is dead and about to be freed.
+	 */
+	kfree(rcu_access_pointer(dev->ifalias));
 	netdev_freemem(dev);
 }
 

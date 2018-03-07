@@ -290,20 +290,6 @@ static void tb_cfg_print_error(struct tb_ctl *ctl,
 	}
 }
 
-static void cpu_to_be32_array(__be32 *dst, const u32 *src, size_t len)
-{
-	int i;
-	for (i = 0; i < len; i++)
-		dst[i] = cpu_to_be32(src[i]);
-}
-
-static void be32_to_cpu_array(u32 *dst, __be32 *src, size_t len)
-{
-	int i;
-	for (i = 0; i < len; i++)
-		dst[i] = be32_to_cpu(src[i]);
-}
-
 static __be32 tb_crc(const void *data, size_t len)
 {
 	return cpu_to_be32(~__crc32c_le(~0, data, len));
@@ -374,7 +360,7 @@ static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 	cpu_to_be32_array(pkg->buffer, data, len / 4);
 	*(__be32 *) (pkg->buffer + len) = tb_crc(pkg->buffer, len);
 
-	res = ring_tx(ctl->tx, &pkg->frame);
+	res = tb_ring_tx(ctl->tx, &pkg->frame);
 	if (res) /* ring is stopped */
 		tb_ctl_pkg_free(pkg);
 	return res;
@@ -383,15 +369,15 @@ static int tb_ctl_tx(struct tb_ctl *ctl, const void *data, size_t len,
 /**
  * tb_ctl_handle_event() - acknowledge a plug event, invoke ctl->callback
  */
-static void tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
+static bool tb_ctl_handle_event(struct tb_ctl *ctl, enum tb_cfg_pkg_type type,
 				struct ctl_pkg *pkg, size_t size)
 {
-	ctl->callback(ctl->callback_data, type, pkg->buffer, size);
+	return ctl->callback(ctl->callback_data, type, pkg->buffer, size);
 }
 
 static void tb_ctl_rx_submit(struct ctl_pkg *pkg)
 {
-	ring_rx(pkg->ctl->rx, &pkg->frame); /*
+	tb_ring_rx(pkg->ctl->rx, &pkg->frame); /*
 					     * We ignore failures during stop.
 					     * All rx packets are referenced
 					     * from ctl->rx_packets, so we do
@@ -459,6 +445,8 @@ static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 		break;
 
 	case TB_CFG_PKG_EVENT:
+	case TB_CFG_PKG_XDOMAIN_RESP:
+	case TB_CFG_PKG_XDOMAIN_REQ:
 		if (*(__be32 *)(pkg->buffer + frame->size) != crc32) {
 			tb_ctl_err(pkg->ctl,
 				   "RX: checksum mismatch, dropping packet\n");
@@ -466,8 +454,9 @@ static void tb_ctl_rx_callback(struct tb_ring *ring, struct ring_frame *frame,
 		}
 		/* Fall through */
 	case TB_CFG_PKG_ICM_EVENT:
-		tb_ctl_handle_event(pkg->ctl, frame->eof, pkg, frame->size);
-		goto rx;
+		if (tb_ctl_handle_event(pkg->ctl, frame->eof, pkg, frame->size))
+			goto rx;
+		break;
 
 	default:
 		break;
@@ -626,11 +615,12 @@ struct tb_ctl *tb_ctl_alloc(struct tb_nhi *nhi, event_cb cb, void *cb_data)
 	if (!ctl->frame_pool)
 		goto err;
 
-	ctl->tx = ring_alloc_tx(nhi, 0, 10, RING_FLAG_NO_SUSPEND);
+	ctl->tx = tb_ring_alloc_tx(nhi, 0, 10, RING_FLAG_NO_SUSPEND);
 	if (!ctl->tx)
 		goto err;
 
-	ctl->rx = ring_alloc_rx(nhi, 0, 10, RING_FLAG_NO_SUSPEND);
+	ctl->rx = tb_ring_alloc_rx(nhi, 0, 10, RING_FLAG_NO_SUSPEND, 0xffff,
+				0xffff, NULL, NULL);
 	if (!ctl->rx)
 		goto err;
 
@@ -663,9 +653,9 @@ void tb_ctl_free(struct tb_ctl *ctl)
 		return;
 
 	if (ctl->rx)
-		ring_free(ctl->rx);
+		tb_ring_free(ctl->rx);
 	if (ctl->tx)
-		ring_free(ctl->tx);
+		tb_ring_free(ctl->tx);
 
 	/* free RX packets */
 	for (i = 0; i < TB_CTL_RX_PKG_COUNT; i++)
@@ -684,8 +674,8 @@ void tb_ctl_start(struct tb_ctl *ctl)
 {
 	int i;
 	tb_ctl_info(ctl, "control channel starting...\n");
-	ring_start(ctl->tx); /* is used to ack hotplug packets, start first */
-	ring_start(ctl->rx);
+	tb_ring_start(ctl->tx); /* is used to ack hotplug packets, start first */
+	tb_ring_start(ctl->rx);
 	for (i = 0; i < TB_CTL_RX_PKG_COUNT; i++)
 		tb_ctl_rx_submit(ctl->rx_packets[i]);
 
@@ -706,8 +696,8 @@ void tb_ctl_stop(struct tb_ctl *ctl)
 	ctl->running = false;
 	mutex_unlock(&ctl->request_queue_lock);
 
-	ring_stop(ctl->rx);
-	ring_stop(ctl->tx);
+	tb_ring_stop(ctl->rx);
+	tb_ring_stop(ctl->tx);
 
 	if (!list_empty(&ctl->request_queue))
 		tb_ctl_WARN(ctl, "dangling request in request_queue\n");

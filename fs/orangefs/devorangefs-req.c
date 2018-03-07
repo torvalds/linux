@@ -162,7 +162,7 @@ static ssize_t orangefs_devreq_read(struct file *file,
 	struct orangefs_kernel_op_s *op, *temp;
 	__s32 proto_ver = ORANGEFS_KERNEL_PROTO_VERSION;
 	static __s32 magic = ORANGEFS_DEVREQ_MAGIC;
-	struct orangefs_kernel_op_s *cur_op = NULL;
+	struct orangefs_kernel_op_s *cur_op;
 	unsigned long ret;
 
 	/* We do not support blocking IO. */
@@ -186,6 +186,7 @@ static ssize_t orangefs_devreq_read(struct file *file,
 		return -EAGAIN;
 
 restart:
+	cur_op = NULL;
 	/* Get next op (if any) from top of list. */
 	spin_lock(&orangefs_request_list_lock);
 	list_for_each_entry_safe(op, temp, &orangefs_request_list, list) {

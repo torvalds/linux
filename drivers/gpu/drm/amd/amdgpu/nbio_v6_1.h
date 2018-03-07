@@ -26,8 +26,8 @@
 
 #include "soc15_common.h"
 
-extern struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg;
-extern struct nbio_pcie_index_data nbio_v6_1_pcie_index_data;
+extern const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg;
+extern const struct nbio_pcie_index_data nbio_v6_1_pcie_index_data;
 int nbio_v6_1_init(struct amdgpu_device *adev);
 u32 nbio_v6_1_get_atombios_scratch_regs(struct amdgpu_device *adev,
                                         uint32_t idx);

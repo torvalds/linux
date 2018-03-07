@@ -403,6 +403,22 @@ static int __ethtool_set_flags(struct net_device *dev, u32 data)
 	return 0;
 }
 
+/* Given two link masks, AND them together and save the result in dst. */
+void ethtool_intersect_link_masks(struct ethtool_link_ksettings *dst,
+				  struct ethtool_link_ksettings *src)
+{
+	unsigned int size = BITS_TO_LONGS(__ETHTOOL_LINK_MODE_MASK_NBITS);
+	unsigned int idx = 0;
+
+	for (; idx < size; idx++) {
+		dst->link_modes.supported[idx] &=
+			src->link_modes.supported[idx];
+		dst->link_modes.advertising[idx] &=
+			src->link_modes.advertising[idx];
+	}
+}
+EXPORT_SYMBOL(ethtool_intersect_link_masks);
+
 void ethtool_convert_legacy_u32_to_link_mode(unsigned long *dst,
 					     u32 legacy_u32)
 {
@@ -754,15 +770,6 @@ static int ethtool_set_link_ksettings(struct net_device *dev,
 	return dev->ethtool_ops->set_link_ksettings(dev, &link_ksettings);
 }
 
-static void
-warn_incomplete_ethtool_legacy_settings_conversion(const char *details)
-{
-	char name[sizeof(current->comm)];
-
-	pr_info_once("warning: `%s' uses legacy ethtool link settings API, %s\n",
-		     get_task_comm(name, current), details);
-}
-
 /* Query device for its ethtool_cmd settings.
  *
  * Backward compatibility note: for compatibility with legacy ethtool,
@@ -789,10 +796,8 @@ static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
 							   &link_ksettings);
 		if (err < 0)
 			return err;
-		if (!convert_link_ksettings_to_legacy_settings(&cmd,
-							       &link_ksettings))
-			warn_incomplete_ethtool_legacy_settings_conversion(
-				"link modes are only partially reported");
+		convert_link_ksettings_to_legacy_settings(&cmd,
+							  &link_ksettings);
 
 		/* send a sensible cmd tag back to user */
 		cmd.cmd = ETHTOOL_GSET;

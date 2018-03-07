@@ -173,7 +173,7 @@ AWK     = awk
 # non-config cases
 config := 1
 
-NON_CONFIG_TARGETS := clean TAGS tags cscope help install-doc install-man install-html install-info install-pdf doc man html info pdf
+NON_CONFIG_TARGETS := clean python-clean TAGS tags cscope help install-doc install-man install-html install-info install-pdf doc man html info pdf
 
 ifdef MAKECMDGOALS
 ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
@@ -420,6 +420,13 @@ sndrv_pcm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/sndrv_pcm_ioctl.sh
 $(sndrv_pcm_ioctl_array): $(sndrv_pcm_hdr_dir)/asound.h $(sndrv_pcm_ioctl_tbl)
 	$(Q)$(SHELL) '$(sndrv_pcm_ioctl_tbl)' $(sndrv_pcm_hdr_dir) > $@
 
+kcmp_type_array := $(beauty_outdir)/kcmp_type_array.c
+kcmp_hdr_dir := $(srctree)/tools/include/uapi/linux/
+kcmp_type_tbl := $(srctree)/tools/perf/trace/beauty/kcmp_type.sh
+
+$(kcmp_type_array): $(kcmp_hdr_dir)/kcmp.h $(kcmp_type_tbl)
+	$(Q)$(SHELL) '$(kcmp_type_tbl)' $(kcmp_hdr_dir) > $@
+
 kvm_ioctl_array := $(beauty_ioctl_outdir)/kvm_ioctl_array.c
 kvm_hdr_dir := $(srctree)/tools/include/uapi/linux
 kvm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/kvm_ioctl.sh
@@ -440,6 +447,20 @@ perf_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/perf_ioctl.sh
 
 $(perf_ioctl_array): $(perf_hdr_dir)/perf_event.h $(perf_ioctl_tbl)
 	$(Q)$(SHELL) '$(perf_ioctl_tbl)' $(perf_hdr_dir) > $@
+
+madvise_behavior_array := $(beauty_outdir)/madvise_behavior_array.c
+madvise_hdr_dir := $(srctree)/tools/include/uapi/asm-generic/
+madvise_behavior_tbl := $(srctree)/tools/perf/trace/beauty/madvise_behavior.sh
+
+$(madvise_behavior_array): $(madvise_hdr_dir)/mman-common.h $(madvise_behavior_tbl)
+	$(Q)$(SHELL) '$(madvise_behavior_tbl)' $(madvise_hdr_dir) > $@
+
+prctl_option_array := $(beauty_outdir)/prctl_option_array.c
+prctl_hdr_dir := $(srctree)/tools/include/uapi/linux/
+prctl_option_tbl := $(srctree)/tools/perf/trace/beauty/prctl_option.sh
+
+$(prctl_option_array): $(prctl_hdr_dir)/prctl.h $(prctl_option_tbl)
+	$(Q)$(SHELL) '$(prctl_option_tbl)' $(prctl_hdr_dir) > $@
 
 all: shell_compatibility_test $(ALL_PROGRAMS) $(LANG_BINDINGS) $(OTHER_PROGRAMS)
 
@@ -539,9 +560,12 @@ prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioc
 	$(pkey_alloc_access_rights_array) \
 	$(sndrv_pcm_ioctl_array) \
 	$(sndrv_ctl_ioctl_array) \
+	$(kcmp_type_array) \
 	$(kvm_ioctl_array) \
 	$(vhost_virtio_ioctl_array) \
-	$(perf_ioctl_array)
+	$(madvise_behavior_array) \
+	$(perf_ioctl_array) \
+	$(prctl_option_array)
 
 $(OUTPUT)%.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
@@ -802,7 +826,10 @@ config-clean:
 	$(call QUIET_CLEAN, config)
 	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ $(if $(OUTPUT),OUTPUT=$(OUTPUT)feature/,) clean >/dev/null
 
-clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean config-clean fixdep-clean
+python-clean:
+	$(python-clean)
+
+clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean config-clean fixdep-clean python-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	$(Q)find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected
@@ -811,15 +838,17 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 		$(OUTPUT)util/intel-pt-decoder/inat-tables.c \
 		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue,relocation}.c \
 		$(OUTPUT)pmu-events/pmu-events.c \
+		$(OUTPUT)$(madvise_behavior_array) \
 		$(OUTPUT)$(drm_ioctl_array) \
 		$(OUTPUT)$(pkey_alloc_access_rights_array) \
 		$(OUTPUT)$(sndrv_ctl_ioctl_array) \
 		$(OUTPUT)$(sndrv_pcm_ioctl_array) \
 		$(OUTPUT)$(kvm_ioctl_array) \
+		$(OUTPUT)$(kcmp_type_array) \
 		$(OUTPUT)$(vhost_virtio_ioctl_array) \
-		$(OUTPUT)$(perf_ioctl_array)
+		$(OUTPUT)$(perf_ioctl_array) \
+		$(OUTPUT)$(prctl_option_array)
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
-	$(python-clean)
 
 #
 # To provide FEATURE-DUMP into $(FEATURE_DUMP_COPY)

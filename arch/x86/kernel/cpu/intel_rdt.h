@@ -127,12 +127,15 @@ struct rdtgroup {
 #define RFTYPE_BASE			BIT(1)
 #define RF_CTRLSHIFT			4
 #define RF_MONSHIFT			5
+#define RF_TOPSHIFT			6
 #define RFTYPE_CTRL			BIT(RF_CTRLSHIFT)
 #define RFTYPE_MON			BIT(RF_MONSHIFT)
+#define RFTYPE_TOP			BIT(RF_TOPSHIFT)
 #define RFTYPE_RES_CACHE		BIT(8)
 #define RFTYPE_RES_MB			BIT(9)
 #define RF_CTRL_INFO			(RFTYPE_INFO | RFTYPE_CTRL)
 #define RF_MON_INFO			(RFTYPE_INFO | RFTYPE_MON)
+#define RF_TOP_INFO			(RFTYPE_INFO | RFTYPE_TOP)
 #define RF_CTRL_BASE			(RFTYPE_BASE | RFTYPE_CTRL)
 
 /* List of all resource groups */
@@ -408,6 +411,10 @@ union cpuid_0x10_x_edx {
 	} split;
 	unsigned int full;
 };
+
+void rdt_last_cmd_clear(void);
+void rdt_last_cmd_puts(const char *s);
+void rdt_last_cmd_printf(const char *fmt, ...);
 
 void rdt_ctrl_update(void *arg);
 struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);

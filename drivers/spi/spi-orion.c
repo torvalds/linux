@@ -671,7 +671,6 @@ static int orion_spi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"%pOF has no valid 'reg' property (%d)\n",
 				np, status);
-			status = 0;
 			continue;
 		}
 

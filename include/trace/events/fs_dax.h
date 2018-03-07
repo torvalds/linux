@@ -149,7 +149,6 @@ DEFINE_EVENT(dax_pmd_insert_mapping_class, name, \
 	TP_ARGS(inode, vmf, length, pfn, radix_entry))
 
 DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping);
-DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping_fallback);
 
 DECLARE_EVENT_CLASS(dax_pte_fault_class,
 	TP_PROTO(struct inode *inode, struct vm_fault *vmf, int result),
@@ -192,6 +191,8 @@ DEFINE_EVENT(dax_pte_fault_class, name, \
 DEFINE_PTE_FAULT_EVENT(dax_pte_fault);
 DEFINE_PTE_FAULT_EVENT(dax_pte_fault_done);
 DEFINE_PTE_FAULT_EVENT(dax_load_hole);
+DEFINE_PTE_FAULT_EVENT(dax_insert_pfn_mkwrite_no_entry);
+DEFINE_PTE_FAULT_EVENT(dax_insert_pfn_mkwrite);
 
 TRACE_EVENT(dax_insert_mapping,
 	TP_PROTO(struct inode *inode, struct vm_fault *vmf, void *radix_entry),

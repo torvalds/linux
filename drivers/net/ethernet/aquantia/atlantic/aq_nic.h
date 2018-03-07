@@ -71,7 +71,7 @@ struct aq_nic_cfg_s {
 
 struct aq_nic_s *aq_nic_alloc_cold(const struct net_device_ops *ndev_ops,
 				   const struct ethtool_ops *et_ops,
-				   struct device *dev,
+				   struct pci_dev *pdev,
 				   struct aq_pci_func_s *aq_pci_func,
 				   unsigned int port,
 				   const struct aq_hw_ops *aq_hw_ops);

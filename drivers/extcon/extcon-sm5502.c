@@ -19,7 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 
 #include "extcon-sm5502.h"
 

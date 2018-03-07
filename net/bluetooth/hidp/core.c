@@ -398,9 +398,9 @@ static int hidp_raw_request(struct hid_device *hid, unsigned char reportnum,
 	}
 }
 
-static void hidp_idle_timeout(unsigned long arg)
+static void hidp_idle_timeout(struct timer_list *t)
 {
-	struct hidp_session *session = (struct hidp_session *) arg;
+	struct hidp_session *session = from_timer(session, t, timer);
 
 	/* The HIDP user-space API only contains calls to add and remove
 	 * devices. There is no way to forward events of any kind. Therefore,
@@ -944,8 +944,7 @@ static int hidp_session_new(struct hidp_session **out, const bdaddr_t *bdaddr,
 
 	/* device management */
 	INIT_WORK(&session->dev_init, hidp_session_dev_work);
-	setup_timer(&session->timer, hidp_idle_timeout,
-		    (unsigned long)session);
+	timer_setup(&session->timer, hidp_idle_timeout, 0);
 
 	/* session data */
 	mutex_init(&session->report_mutex);

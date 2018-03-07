@@ -82,15 +82,15 @@ gpmc: gpmc@6e000000 {
 			label = "bootloader-nor";
 			reg = <0 0x40000>;
 		};
-		partition@0x40000 {
+		partition@40000 {
 			label = "params-nor";
 			reg = <0x40000 0x40000>;
 		};
-		partition@0x80000 {
+		partition@80000 {
 			label = "kernel-nor";
 			reg = <0x80000 0x200000>;
 		};
-		partition@0x280000 {
+		partition@280000 {
 			label = "filesystem-nor";
 			reg = <0x240000 0x7d80000>;
 		};

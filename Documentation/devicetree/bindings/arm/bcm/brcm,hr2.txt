@@ -1,0 +1,14 @@
+Broadcom Hurricane 2 device tree bindings
+---------------------------------------
+
+Broadcom Hurricane 2 family of SoCs are used for switching control. These SoCs
+are based on Broadcom's iProc SoC architecture and feature a single core Cortex
+A9 ARM CPUs, DDR2/DDR3 memory, PCIe GEN-2, USB 2.0 and USB 3.0, serial and NAND
+flash and a PCIe attached integrated switching engine.
+
+Boards with Hurricane SoCs shall have the following properties:
+
+Required root node property:
+
+BCM53342
+compatible = "brcm,bcm53342", "brcm,hr2";

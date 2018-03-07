@@ -294,7 +294,7 @@ extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m);
 extern void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m);
-extern void request_timer_fn(unsigned long data);
+extern void request_timer_fn(struct timer_list *t);
 extern void tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
 extern void _tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
 extern void tl_abort_disk_io(struct drbd_device *device);

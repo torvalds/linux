@@ -40,19 +40,24 @@ __ATOMIC_OPS(__atomic64_xor, long, "laxg")
 #undef __ATOMIC_OPS
 #undef __ATOMIC_OP
 
-static inline void __atomic_add_const(int val, int *ptr)
-{
-	asm volatile(
-		"	asi	%[ptr],%[val]\n"
-		: [ptr] "+Q" (*ptr) : [val] "i" (val) : "cc");
+#define __ATOMIC_CONST_OP(op_name, op_type, op_string, op_barrier)	\
+static inline void op_name(op_type val, op_type *ptr)			\
+{									\
+	asm volatile(							\
+		op_string "	%[ptr],%[val]\n"			\
+		op_barrier						\
+		: [ptr] "+Q" (*ptr) : [val] "i" (val) : "cc", "memory");\
 }
 
-static inline void __atomic64_add_const(long val, long *ptr)
-{
-	asm volatile(
-		"	agsi	%[ptr],%[val]\n"
-		: [ptr] "+Q" (*ptr) : [val] "i" (val) : "cc");
-}
+#define __ATOMIC_CONST_OPS(op_name, op_type, op_string)			\
+	__ATOMIC_CONST_OP(op_name, op_type, op_string, "\n")		\
+	__ATOMIC_CONST_OP(op_name##_barrier, op_type, op_string, "bcr 14,0\n")
+
+__ATOMIC_CONST_OPS(__atomic_add_const, int, "asi")
+__ATOMIC_CONST_OPS(__atomic64_add_const, long, "agsi")
+
+#undef __ATOMIC_CONST_OPS
+#undef __ATOMIC_CONST_OP
 
 #else /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 
@@ -107,6 +112,11 @@ __ATOMIC64_OPS(__atomic64_or,  "ogr")
 __ATOMIC64_OPS(__atomic64_xor, "xgr")
 
 #undef __ATOMIC64_OPS
+
+#define __atomic_add_const(val, ptr)		__atomic_add(val, ptr)
+#define __atomic_add_const_barrier(val, ptr)	__atomic_add(val, ptr)
+#define __atomic64_add_const(val, ptr)		__atomic64_add(val, ptr)
+#define __atomic64_add_const_barrier(val, ptr)	__atomic64_add(val, ptr)
 
 #endif /* CONFIG_HAVE_MARCH_Z196_FEATURES */
 

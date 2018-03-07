@@ -138,11 +138,6 @@ struct fw_img {
 	u32 paging_mem_size;
 };
 
-struct iwl_sf_region {
-	u32 addr;
-	u32 size;
-};
-
 /*
  * Block paging calculations
  */
@@ -257,7 +252,6 @@ enum iwl_fw_type {
  * @type: firmware type (&enum iwl_fw_type)
  * @cipher_scheme: optional external cipher scheme.
  * @human_readable: human readable version
- * @sdio_adma_addr: the default address to set for the ADMA in SDIO mode until
  *	we get the ALIVE from the uCode
  * @dbg_dest_tlv: points to the destination TLV for debug
  * @dbg_conf_tlv: array of pointers to configuration TLVs for debug
@@ -289,8 +283,6 @@ struct iwl_fw {
 
 	struct iwl_fw_cipher_scheme cs[IWL_UCODE_MAX_CS];
 	u8 human_readable[FW_VER_HUMAN_READABLE_SZ];
-
-	u32 sdio_adma_addr;
 
 	struct iwl_fw_dbg_dest_tlv *dbg_dest_tlv;
 	struct iwl_fw_dbg_conf_tlv *dbg_conf_tlv[FW_DBG_CONF_MAX];

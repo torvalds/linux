@@ -381,6 +381,7 @@ unsigned int acpi_dev_get_irq_type(int triggering, int polarity)
 	case ACPI_ACTIVE_BOTH:
 		if (triggering == ACPI_EDGE_SENSITIVE)
 			return IRQ_TYPE_EDGE_BOTH;
+		/* fall through */
 	default:
 		return IRQ_TYPE_NONE;
 	}

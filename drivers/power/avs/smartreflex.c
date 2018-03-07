@@ -355,7 +355,7 @@ int sr_configure_errgen(struct omap_sr *sr)
 	u8 senp_shift, senn_shift;
 
 	if (!sr) {
-		pr_warn("%s: NULL omap_sr from %pF\n",
+		pr_warn("%s: NULL omap_sr from %pS\n",
 			__func__, (void *)_RET_IP_);
 		return -EINVAL;
 	}
@@ -422,7 +422,7 @@ int sr_disable_errgen(struct omap_sr *sr)
 	u32 vpboundint_en, vpboundint_st;
 
 	if (!sr) {
-		pr_warn("%s: NULL omap_sr from %pF\n",
+		pr_warn("%s: NULL omap_sr from %pS\n",
 			__func__, (void *)_RET_IP_);
 		return -EINVAL;
 	}
@@ -477,7 +477,7 @@ int sr_configure_minmax(struct omap_sr *sr)
 	u8 senp_shift, senn_shift;
 
 	if (!sr) {
-		pr_warn("%s: NULL omap_sr from %pF\n",
+		pr_warn("%s: NULL omap_sr from %pS\n",
 			__func__, (void *)_RET_IP_);
 		return -EINVAL;
 	}
@@ -562,7 +562,7 @@ int sr_enable(struct omap_sr *sr, unsigned long volt)
 	int ret;
 
 	if (!sr) {
-		pr_warn("%s: NULL omap_sr from %pF\n",
+		pr_warn("%s: NULL omap_sr from %pS\n",
 			__func__, (void *)_RET_IP_);
 		return -EINVAL;
 	}
@@ -614,7 +614,7 @@ int sr_enable(struct omap_sr *sr, unsigned long volt)
 void sr_disable(struct omap_sr *sr)
 {
 	if (!sr) {
-		pr_warn("%s: NULL omap_sr from %pF\n",
+		pr_warn("%s: NULL omap_sr from %pS\n",
 			__func__, (void *)_RET_IP_);
 		return;
 	}

@@ -98,6 +98,16 @@ static inline void clear_opa_smp_data(struct opa_smp *smp)
 	memset(data, 0, size);
 }
 
+static u16 hfi1_lookup_pkey_value(struct hfi1_ibport *ibp, int pkey_idx)
+{
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+
+	if (pkey_idx < ARRAY_SIZE(ppd->pkeys))
+		return ppd->pkeys[pkey_idx];
+
+	return 0;
+}
+
 void hfi1_event_pkey_change(struct hfi1_devdata *dd, u8 port)
 {
 	struct ib_event event;
@@ -399,9 +409,9 @@ static void send_trap(struct hfi1_ibport *ibp, struct trap_node *trap)
 		ib_free_send_mad(send_buf);
 }
 
-void hfi1_handle_trap_timer(unsigned long data)
+void hfi1_handle_trap_timer(struct timer_list *t)
 {
-	struct hfi1_ibport *ibp = (struct hfi1_ibport *)data;
+	struct hfi1_ibport *ibp = from_timer(ibp, t, rvp.trap_timer);
 	struct trap_node *trap = NULL;
 	unsigned long flags;
 	int i;
@@ -711,6 +721,7 @@ static int check_mkey(struct hfi1_ibport *ibp, struct ib_mad_hdr *mad,
 			/* Bad mkey not a violation below level 2 */
 			if (ibp->rvp.mkeyprot < 2)
 				break;
+			/* fall through */
 		case IB_MGMT_METHOD_SET:
 		case IB_MGMT_METHOD_TRAP_REPRESS:
 			if (ibp->rvp.mkey_violations != 0xFFFF)
@@ -1227,8 +1238,7 @@ static int port_states_transition_allowed(struct hfi1_pportdata *ppd,
 }
 
 static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
-			   u32 logical_state, u32 phys_state,
-			   int suppress_idle_sma)
+			   u32 logical_state, u32 phys_state)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	u32 link_state;
@@ -1309,7 +1319,7 @@ static int set_port_states(struct hfi1_pportdata *ppd, struct opa_smp *smp,
 		break;
 	case IB_PORT_ARMED:
 		ret = set_link_state(ppd, HLS_UP_ARMED);
-		if ((ret == 0) && (suppress_idle_sma == 0))
+		if (!ret)
 			send_idle_sma(dd, SMA_IDLE_ARM);
 		break;
 	case IB_PORT_ACTIVE:
@@ -1603,8 +1613,10 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 			if (ls_new == ls_old || (ls_new == IB_PORT_ARMED))
 				ppd->is_sm_config_started = 1;
 		} else if (ls_new == IB_PORT_ARMED) {
-			if (ppd->is_sm_config_started == 0)
+			if (ppd->is_sm_config_started == 0) {
 				invalid = 1;
+				smp->status |= IB_SMP_INVALID_FIELD;
+			}
 		}
 	}
 
@@ -1621,9 +1633,11 @@ static int __subn_set_opa_portinfo(struct opa_smp *smp, u32 am, u8 *data,
 	 * is down or is being set to down.
 	 */
 
-	ret = set_port_states(ppd, smp, ls_new, ps_new, invalid);
-	if (ret)
-		return ret;
+	if (!invalid) {
+		ret = set_port_states(ppd, smp, ls_new, ps_new);
+		if (ret)
+			return ret;
+	}
 
 	ret = __subn_get_opa_portinfo(smp, am, data, ibdev, port, resp_len,
 				      max_len);
@@ -2100,17 +2114,18 @@ static int __subn_set_opa_psi(struct opa_smp *smp, u32 am, u8 *data,
 			if (ls_new == ls_old || (ls_new == IB_PORT_ARMED))
 				ppd->is_sm_config_started = 1;
 		} else if (ls_new == IB_PORT_ARMED) {
-			if (ppd->is_sm_config_started == 0)
+			if (ppd->is_sm_config_started == 0) {
 				invalid = 1;
+				smp->status |= IB_SMP_INVALID_FIELD;
+			}
 		}
 	}
 
-	ret = set_port_states(ppd, smp, ls_new, ps_new, invalid);
-	if (ret)
-		return ret;
-
-	if (invalid)
-		smp->status |= IB_SMP_INVALID_FIELD;
+	if (!invalid) {
+		ret = set_port_states(ppd, smp, ls_new, ps_new);
+		if (ret)
+			return ret;
+	}
 
 	return __subn_get_opa_psi(smp, am, data, ibdev, port, resp_len,
 				  max_len);
@@ -2888,7 +2903,6 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	struct _vls_dctrs *vlinfo;
 	size_t response_data_size;
 	u32 num_ports;
-	u8 num_pslm;
 	u8 lq, num_vls;
 	u8 res_lli, res_ler;
 	u64 port_mask;
@@ -2898,7 +2912,6 @@ static int pma_get_opa_datacounters(struct opa_pma_mad *pmp,
 	int vfi;
 
 	num_ports = be32_to_cpu(pmp->mad_hdr.attr_mod) >> 24;
-	num_pslm = hweight64(be64_to_cpu(req->port_select_mask[3]));
 	num_vls = hweight32(be32_to_cpu(req->vl_select_mask));
 	vl_select_mask = be32_to_cpu(req->vl_select_mask);
 	res_lli = (u8)(be32_to_cpu(req->resolution) & MSK_LLI) >> MSK_LLI_SFT;
@@ -3688,7 +3701,11 @@ static void apply_cc_state(struct hfi1_pportdata *ppd)
 
 	*new_cc_state = *old_cc_state;
 
-	new_cc_state->cct.ccti_limit = ppd->total_cct_entry - 1;
+	if (ppd->total_cct_entry)
+		new_cc_state->cct.ccti_limit = ppd->total_cct_entry - 1;
+	else
+		new_cc_state->cct.ccti_limit = 0;
+
 	memcpy(new_cc_state->cct.entries, ppd->ccti_entries,
 	       ppd->total_cct_entry * sizeof(struct ib_cc_table_entry));
 
@@ -3751,7 +3768,7 @@ static int __subn_get_opa_hfi1_cong_log(struct opa_smp *smp, u32 am,
 	struct hfi1_ibport *ibp = to_iport(ibdev, port);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct opa_hfi1_cong_log *cong_log = (struct opa_hfi1_cong_log *)data;
-	s64 ts;
+	u64 ts;
 	int i;
 
 	if (am || smp_length_check(sizeof(*cong_log), max_len)) {
@@ -3769,7 +3786,7 @@ static int __subn_get_opa_hfi1_cong_log(struct opa_smp *smp, u32 am,
 	       ppd->threshold_cong_event_map,
 	       sizeof(cong_log->threshold_cong_event_map));
 	/* keep timestamp in units of 1.024 usec */
-	ts = ktime_to_ns(ktime_get()) / 1024;
+	ts = ktime_get_ns() / 1024;
 	cong_log->current_time_stamp = cpu_to_be32(ts);
 	for (i = 0; i < OPA_CONG_LOG_ELEMS; i++) {
 		struct opa_hfi1_cong_log_event_internal *cce =
@@ -3781,7 +3798,7 @@ static int __subn_get_opa_hfi1_cong_log(struct opa_smp *smp, u32 am,
 		 * required to wrap the counter are supposed to
 		 * be zeroed (CA10-49 IBTA, release 1.2.1, V1).
 		 */
-		if ((u64)(ts - cce->timestamp) > (2 * UINT_MAX))
+		if ((ts - cce->timestamp) / 2 > U32_MAX)
 			continue;
 		memcpy(cong_log->events[i].local_qp_cn_entry, &cce->lqpn, 3);
 		memcpy(cong_log->events[i].remote_qp_number_cn_entry,
@@ -4260,6 +4277,18 @@ void clear_linkup_counters(struct hfi1_devdata *dd)
 	dd->err_info_xmit_constraint.status &= ~OPA_EI_STATUS_SMASK;
 }
 
+static int is_full_mgmt_pkey_in_table(struct hfi1_ibport *ibp)
+{
+	unsigned int i;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+
+	for (i = 0; i < ARRAY_SIZE(ppd->pkeys); ++i)
+		if (ppd->pkeys[i] == FULL_MGMT_P_KEY)
+			return 1;
+
+	return 0;
+}
+
 /*
  * is_local_mad() returns 1 if 'mad' is sent from, and destined to the
  * local node, 0 otherwise.
@@ -4293,7 +4322,6 @@ static int opa_local_smp_check(struct hfi1_ibport *ibp,
 			       const struct ib_wc *in_wc)
 {
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
-	u16 slid = ib_lid_cpu16(in_wc->slid);
 	u16 pkey;
 
 	if (in_wc->pkey_index >= ARRAY_SIZE(ppd->pkeys))
@@ -4320,8 +4348,69 @@ static int opa_local_smp_check(struct hfi1_ibport *ibp,
 	 */
 	if (pkey == LIM_MGMT_P_KEY || pkey == FULL_MGMT_P_KEY)
 		return 0;
-	ingress_pkey_table_fail(ppd, pkey, slid);
+	/*
+	 * On OPA devices it is okay to lose the upper 16 bits of LID as this
+	 * information is obtained elsewhere. Mask off the upper 16 bits.
+	 */
+	ingress_pkey_table_fail(ppd, pkey, ib_lid_cpu16(0xFFFF & in_wc->slid));
 	return 1;
+}
+
+/**
+ * hfi1_pkey_validation_pma - It validates PKEYs for incoming PMA MAD packets.
+ * @ibp: IB port data
+ * @in_mad: MAD packet with header and data
+ * @in_wc: Work completion data such as source LID, port number, etc.
+ *
+ * These are all the possible logic rules for validating a pkey:
+ *
+ * a) If pkey neither FULL_MGMT_P_KEY nor LIM_MGMT_P_KEY,
+ *    and NOT self-originated packet:
+ *     Drop MAD packet as it should always be part of the
+ *     management partition unless it's a self-originated packet.
+ *
+ * b) If pkey_index -> FULL_MGMT_P_KEY, and LIM_MGMT_P_KEY in pkey table:
+ *     The packet is coming from a management node and the receiving node
+ *     is also a management node, so it is safe for the packet to go through.
+ *
+ * c) If pkey_index -> FULL_MGMT_P_KEY, and LIM_MGMT_P_KEY is NOT in pkey table:
+ *     Drop the packet as LIM_MGMT_P_KEY should always be in the pkey table.
+ *     It could be an FM misconfiguration.
+ *
+ * d) If pkey_index -> LIM_MGMT_P_KEY and FULL_MGMT_P_KEY is NOT in pkey table:
+ *     It is safe for the packet to go through since a non-management node is
+ *     talking to another non-management node.
+ *
+ * e) If pkey_index -> LIM_MGMT_P_KEY and FULL_MGMT_P_KEY in pkey table:
+ *     Drop the packet because a non-management node is talking to a
+ *     management node, and it could be an attack.
+ *
+ * For the implementation, these rules can be simplied to only checking
+ * for (a) and (e). There's no need to check for rule (b) as
+ * the packet doesn't need to be dropped. Rule (c) is not possible in
+ * the driver as LIM_MGMT_P_KEY is always in the pkey table.
+ *
+ * Return:
+ * 0 - pkey is okay, -EINVAL it's a bad pkey
+ */
+static int hfi1_pkey_validation_pma(struct hfi1_ibport *ibp,
+				    const struct opa_mad *in_mad,
+				    const struct ib_wc *in_wc)
+{
+	u16 pkey_value = hfi1_lookup_pkey_value(ibp, in_wc->pkey_index);
+
+	/* Rule (a) from above */
+	if (!is_local_mad(ibp, in_mad, in_wc) &&
+	    pkey_value != LIM_MGMT_P_KEY &&
+	    pkey_value != FULL_MGMT_P_KEY)
+		return -EINVAL;
+
+	/* Rule (e) from above */
+	if (pkey_value == LIM_MGMT_P_KEY &&
+	    is_full_mgmt_pkey_in_table(ibp))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int process_subn_opa(struct ib_device *ibdev, int mad_flags,
@@ -4663,8 +4752,11 @@ static int hfi1_process_opa_mad(struct ib_device *ibdev, int mad_flags,
 				       out_mad, &resp_len);
 		goto bail;
 	case IB_MGMT_CLASS_PERF_MGMT:
-		ret = process_perf_opa(ibdev, port, in_mad, out_mad,
-				       &resp_len);
+		ret = hfi1_pkey_validation_pma(ibp, in_mad, in_wc);
+		if (ret)
+			return IB_MAD_RESULT_FAILURE;
+
+		ret = process_perf_opa(ibdev, port, in_mad, out_mad, &resp_len);
 		goto bail;
 
 	default:

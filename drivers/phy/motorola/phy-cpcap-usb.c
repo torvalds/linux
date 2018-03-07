@@ -310,7 +310,7 @@ static int cpcap_usb_init_irq(struct platform_device *pdev,
 	int irq, error;
 
 	irq = platform_get_irq_byname(pdev, name);
-	if (!irq)
+	if (irq < 0)
 		return -ENODEV;
 
 	error = devm_request_threaded_irq(ddata->dev, irq, NULL,

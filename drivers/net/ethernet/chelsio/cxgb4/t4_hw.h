@@ -47,6 +47,7 @@ enum {
 	TCB_SIZE       = 128,   /* TCB size */
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
+	NTX_SCHED      = 8,     /* # of HW Tx scheduling queues */
 	PM_NSTATS      = 5,     /* # of PM stats */
 	T6_PM_NSTATS   = 7,     /* # of PM stats in T6 */
 	MBOX_LEN       = 64,    /* mailbox size in bytes */
@@ -67,6 +68,12 @@ enum {
 	ULPRX_LA_SIZE  = 512,   /* # of 256-bit words in ULP_RX LA */
 };
 
+/* SGE context types */
+enum ctxt_type {
+	CTXT_FLM = 2,
+	CTXT_CNM,
+};
+
 enum {
 	SF_PAGE_SIZE = 256,           /* serial flash page size */
 	SF_SEC_SIZE = 64 * 1024,      /* serial flash sector size */
@@ -78,6 +85,7 @@ enum { MBOX_OWNER_NONE, MBOX_OWNER_FW, MBOX_OWNER_DRV };    /* mailbox owners */
 
 enum {
 	SGE_MAX_WR_LEN = 512,     /* max WR size in bytes */
+	SGE_CTXT_SIZE = 24,       /* size of SGE context */
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
 	SGE_MAX_IQ_SIZE = 65520,

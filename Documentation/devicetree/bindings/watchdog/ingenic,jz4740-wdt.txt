@@ -6,7 +6,7 @@ reg: Register address and length for watchdog registers
 
 Example:
 
-watchdog: jz4740-watchdog@0x10002000 {
+watchdog: jz4740-watchdog@10002000 {
 	compatible = "ingenic,jz4740-watchdog";
 	reg = <0x10002000 0x100>;
 };

@@ -16,13 +16,11 @@ struct enic_rfs_fltr_node *htbl_fltr_search(struct enic *enic, u16 fltr_id);
 #ifdef CONFIG_RFS_ACCEL
 int enic_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		       u16 rxq_index, u32 flow_id);
-void enic_flow_may_expire(unsigned long data);
+void enic_flow_may_expire(struct timer_list *t);
 
 static inline void enic_rfs_timer_start(struct enic *enic)
 {
-	init_timer(&enic->rfs_h.rfs_may_expire);
-	enic->rfs_h.rfs_may_expire.function = enic_flow_may_expire;
-	enic->rfs_h.rfs_may_expire.data = (unsigned long)enic;
+	timer_setup(&enic->rfs_h.rfs_may_expire, enic_flow_may_expire, 0);
 	mod_timer(&enic->rfs_h.rfs_may_expire, jiffies + HZ/4);
 }
 

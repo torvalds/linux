@@ -1729,6 +1729,8 @@ static inline int usb_urb_dir_out(struct urb *urb)
 	return (urb->transfer_flags & URB_DIR_MASK) == URB_DIR_OUT;
 }
 
+int usb_urb_ep_type_check(const struct urb *urb);
+
 void *usb_alloc_coherent(struct usb_device *dev, size_t size,
 	gfp_t mem_flags, dma_addr_t *dma);
 void usb_free_coherent(struct usb_device *dev, size_t size,
@@ -1767,7 +1769,21 @@ extern int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe,
 extern int usb_get_descriptor(struct usb_device *dev, unsigned char desctype,
 	unsigned char descindex, void *buf, int size);
 extern int usb_get_status(struct usb_device *dev,
-	int type, int target, void *data);
+	int recip, int type, int target, void *data);
+
+static inline int usb_get_std_status(struct usb_device *dev,
+	int recip, int target, void *data)
+{
+	return usb_get_status(dev, recip, USB_STATUS_TYPE_STANDARD, target,
+		data);
+}
+
+static inline int usb_get_ptm_status(struct usb_device *dev, void *data)
+{
+	return usb_get_status(dev, USB_RECIP_DEVICE, USB_STATUS_TYPE_PTM,
+		0, data);
+}
+
 extern int usb_string(struct usb_device *dev, int index,
 	char *buf, size_t size);
 

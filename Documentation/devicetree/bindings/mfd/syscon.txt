@@ -18,7 +18,7 @@ Optional property:
   performed on the device.
 
 Examples:
-gpr: iomuxc-gpr@020e0000 {
+gpr: iomuxc-gpr@20e0000 {
 	compatible = "fsl,imx6q-iomuxc-gpr", "syscon";
 	reg = <0x020e0000 0x38>;
 };

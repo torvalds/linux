@@ -4,6 +4,8 @@
 
 #include <linux/compiler.h>
 
+#define CUT_HERE		"------------[ cut here ]------------\n"
+
 #ifdef CONFIG_GENERIC_BUG
 #define BUGFLAG_WARNING		(1 << 0)
 #define BUGFLAG_ONCE		(1 << 1)
@@ -90,10 +92,11 @@ extern void warn_slowpath_null(const char *file, const int line);
 #define __WARN_printf_taint(taint, arg...)				\
 	warn_slowpath_fmt_taint(__FILE__, __LINE__, taint, arg)
 #else
+extern __printf(1, 2) void __warn_printk(const char *fmt, ...);
 #define __WARN()		__WARN_TAINT(TAINT_WARN)
-#define __WARN_printf(arg...)	do { printk(arg); __WARN(); } while (0)
+#define __WARN_printf(arg...)	do { __warn_printk(arg); __WARN(); } while (0)
 #define __WARN_printf_taint(taint, arg...)				\
-	do { printk(arg); __WARN_TAINT(taint); } while (0)
+	do { __warn_printk(arg); __WARN_TAINT(taint); } while (0)
 #endif
 
 /* used internally by panic.c */
@@ -130,7 +133,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 
 #ifndef WARN_ON_ONCE
 #define WARN_ON_ONCE(condition)	({				\
-	static bool __section(.data.unlikely) __warned;		\
+	static bool __section(.data.once) __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
 	if (unlikely(__ret_warn_once && !__warned)) {		\
@@ -142,7 +145,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 #endif
 
 #define WARN_ONCE(condition, format...)	({			\
-	static bool __section(.data.unlikely) __warned;		\
+	static bool __section(.data.once) __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
 	if (unlikely(__ret_warn_once && !__warned)) {		\
@@ -153,7 +156,7 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 })
 
 #define WARN_TAINT_ONCE(condition, taint, format...)	({	\
-	static bool __section(.data.unlikely) __warned;		\
+	static bool __section(.data.once) __warned;		\
 	int __ret_warn_once = !!(condition);			\
 								\
 	if (unlikely(__ret_warn_once && !__warned)) {		\

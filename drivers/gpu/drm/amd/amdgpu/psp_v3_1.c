@@ -319,7 +319,7 @@ int psp_v3_1_ring_create(struct psp_context *psp, enum psp_ring_type ring_type)
 	return ret;
 }
 
-int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
+int psp_v3_1_ring_stop(struct psp_context *psp, enum psp_ring_type ring_type)
 {
 	int ret = 0;
 	struct psp_ring *ring;
@@ -339,6 +339,19 @@ int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64),
 			   0x80000000, 0x80000000, false);
 
+	return ret;
+}
+
+int psp_v3_1_ring_destroy(struct psp_context *psp, enum psp_ring_type ring_type)
+{
+	int ret = 0;
+	struct psp_ring *ring = &psp->km_ring;
+	struct amdgpu_device *adev = psp->adev;
+
+	ret = psp_v3_1_ring_stop(psp, ring_type);
+	if (ret)
+		DRM_ERROR("Fail to stop psp ring\n");
+
 	amdgpu_bo_free_kernel(&adev->firmware.rbuf,
 			      &ring->ring_mem_mc_addr,
 			      (void **)&ring->ring_mem);
@@ -354,6 +367,9 @@ int psp_v3_1_cmd_submit(struct psp_context *psp,
 	unsigned int psp_write_ptr_reg = 0;
 	struct psp_gfx_rb_frame * write_frame = psp->km_ring.ring_mem;
 	struct psp_ring *ring = &psp->km_ring;
+	struct psp_gfx_rb_frame *ring_buffer_start = ring->ring_mem;
+	struct psp_gfx_rb_frame *ring_buffer_end = ring_buffer_start +
+		ring->ring_size / sizeof(struct psp_gfx_rb_frame) - 1;
 	struct amdgpu_device *adev = psp->adev;
 	uint32_t ring_size_dw = ring->ring_size / 4;
 	uint32_t rb_frame_size_dw = sizeof(struct psp_gfx_rb_frame) / 4;
@@ -365,9 +381,16 @@ int psp_v3_1_cmd_submit(struct psp_context *psp,
 	/* write_frame ptr increments by size of rb_frame in bytes */
 	/* psp_write_ptr_reg increments by size of rb_frame in DWORDs */
 	if ((psp_write_ptr_reg % ring_size_dw) == 0)
-		write_frame = ring->ring_mem;
+		write_frame = ring_buffer_start;
 	else
-		write_frame = ring->ring_mem + (psp_write_ptr_reg / rb_frame_size_dw);
+		write_frame = ring_buffer_start + (psp_write_ptr_reg / rb_frame_size_dw);
+	/* Check invalid write_frame ptr address */
+	if ((write_frame < ring_buffer_start) || (ring_buffer_end < write_frame)) {
+		DRM_ERROR("ring_buffer_start = %p; ring_buffer_end = %p; write_frame = %p\n",
+			  ring_buffer_start, ring_buffer_end, write_frame);
+		DRM_ERROR("write_frame is pointing to address out of bounds\n");
+		return -EINVAL;
+	}
 
 	/* Initialize KM RB frame */
 	memset(write_frame, 0, sizeof(struct psp_gfx_rb_frame));
@@ -516,4 +539,38 @@ bool psp_v3_1_smu_reload_quirk(struct psp_context *psp)
 	WREG32_SOC15(NBIO, 0, mmPCIE_INDEX2, reg);
 	reg = RREG32_SOC15(NBIO, 0, mmPCIE_DATA2);
 	return (reg & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) ? true : false;
+}
+
+int psp_v3_1_mode1_reset(struct psp_context *psp)
+{
+	int ret;
+	uint32_t offset;
+	struct amdgpu_device *adev = psp->adev;
+
+	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_64);
+
+	ret = psp_wait_for(psp, offset, 0x80000000, 0x8000FFFF, false);
+
+	if (ret) {
+		DRM_INFO("psp is not working correctly before mode1 reset!\n");
+		return -EINVAL;
+	}
+
+	/*send the mode 1 reset command*/
+	WREG32(offset, 0x70000);
+
+	mdelay(1000);
+
+	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_33);
+
+	ret = psp_wait_for(psp, offset, 0x80000000, 0x80000000, false);
+
+	if (ret) {
+		DRM_INFO("psp mode 1 reset failed!\n");
+		return -EINVAL;
+	}
+
+	DRM_INFO("psp mode1 reset succeed \n");
+
+	return 0;
 }

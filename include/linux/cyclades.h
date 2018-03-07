@@ -157,6 +157,9 @@ struct cyclades_port {
 	struct cyclades_icount	icount;
 	struct completion       shutdown_wait;
 	int throttle;
+#ifdef CONFIG_CYZ_INTR
+	struct timer_list	rx_full_timer;
+#endif
 };
 
 #define	CLOSING_WAIT_DELAY	30*HZ

@@ -218,6 +218,7 @@ struct pci_dn {
 #endif
 	struct list_head child_list;
 	struct list_head list;
+	struct resource holes[PCI_SRIOV_NUM_BARS];
 };
 
 /* Get the pointer to a device_node's pci_dn */

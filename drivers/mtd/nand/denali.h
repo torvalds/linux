@@ -10,18 +10,16 @@
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #ifndef __DENALI_H__
 #define __DENALI_H__
 
 #include <linux/bitops.h>
+#include <linux/completion.h>
 #include <linux/mtd/rawnand.h>
+#include <linux/spinlock_types.h>
+#include <linux/types.h>
 
 #define DEVICE_RESET				0x0
 #define     DEVICE_RESET__BANK(bank)			BIT(bank)
@@ -111,9 +109,6 @@
 #define ECC_CORRECTION				0x1b0
 #define     ECC_CORRECTION__VALUE			GENMASK(4, 0)
 #define     ECC_CORRECTION__ERASE_THRESHOLD		GENMASK(31, 16)
-#define     MAKE_ECC_CORRECTION(val, thresh)		\
-			(((val) & (ECC_CORRECTION__VALUE)) | \
-			(((thresh) << 16) & (ECC_CORRECTION__ERASE_THRESHOLD)))
 
 #define READ_MODE				0x1c0
 #define     READ_MODE__VALUE				GENMASK(3, 0)
@@ -255,13 +250,13 @@
 
 #define ECC_ERROR_ADDRESS			0x630
 #define     ECC_ERROR_ADDRESS__OFFSET			GENMASK(11, 0)
-#define     ECC_ERROR_ADDRESS__SECTOR_NR		GENMASK(15, 12)
+#define     ECC_ERROR_ADDRESS__SECTOR			GENMASK(15, 12)
 
 #define ERR_CORRECTION_INFO			0x640
-#define     ERR_CORRECTION_INFO__BYTEMASK		GENMASK(7, 0)
-#define     ERR_CORRECTION_INFO__DEVICE_NR		GENMASK(11, 8)
-#define     ERR_CORRECTION_INFO__ERROR_TYPE		BIT(14)
-#define     ERR_CORRECTION_INFO__LAST_ERR_INFO		BIT(15)
+#define     ERR_CORRECTION_INFO__BYTE			GENMASK(7, 0)
+#define     ERR_CORRECTION_INFO__DEVICE			GENMASK(11, 8)
+#define     ERR_CORRECTION_INFO__UNCOR			BIT(14)
+#define     ERR_CORRECTION_INFO__LAST_ERR		BIT(15)
 
 #define ECC_COR_INFO(bank)			(0x650 + (bank) / 2 * 0x10)
 #define     ECC_COR_INFO__SHIFT(bank)			((bank) % 2 * 8)
@@ -310,23 +305,24 @@ struct denali_nand_info {
 	struct device *dev;
 	void __iomem *reg;		/* Register Interface */
 	void __iomem *host;		/* Host Data/Command Interface */
-
-	/* elements used by ISR */
 	struct completion complete;
-	spinlock_t irq_lock;
-	uint32_t irq_mask;
-	uint32_t irq_status;
+	spinlock_t irq_lock;		/* protect irq_mask and irq_status */
+	u32 irq_mask;			/* interrupts we are waiting for */
+	u32 irq_status;			/* interrupts that have happened */
 	int irq;
-
-	void *buf;
+	void *buf;			/* for syndrome layout conversion */
 	dma_addr_t dma_addr;
-	int dma_avail;
+	int dma_avail;			/* can support DMA? */
 	int devs_per_cs;		/* devices connected in parallel */
-	int oob_skip_bytes;
+	int oob_skip_bytes;		/* number of bytes reserved for BBM */
 	int max_banks;
-	unsigned int revision;
-	unsigned int caps;
+	unsigned int revision;		/* IP revision */
+	unsigned int caps;		/* IP capability (or quirk) */
 	const struct nand_ecc_caps *ecc_caps;
+	u32 (*host_read)(struct denali_nand_info *denali, u32 addr);
+	void (*host_write)(struct denali_nand_info *denali, u32 addr, u32 data);
+	void (*setup_dma)(struct denali_nand_info *denali, dma_addr_t dma_addr,
+			  int page, int write);
 };
 
 #define DENALI_CAP_HW_ECC_FIXUP			BIT(0)

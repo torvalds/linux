@@ -12,6 +12,8 @@
 #ifndef _VMUR_H_
 #define _VMUR_H_
 
+#include <linux/refcount.h>
+
 #define DEV_CLASS_UR_I 0x20 /* diag210 unit record input device class */
 #define DEV_CLASS_UR_O 0x10 /* diag210 unit record output device class */
 /*
@@ -70,7 +72,7 @@ struct urdev {
 	size_t reclen;			/* Record length for *write* CCWs */
 	int class;			/* VM device class */
 	int io_request_rc;		/* return code from I/O request */
-	atomic_t ref_count;		/* reference counter */
+	refcount_t ref_count;		/* reference counter */
 	wait_queue_head_t wait;		/* wait queue to serialize open */
 	int open_flag;			/* "urdev is open" flag */
 	spinlock_t open_lock;		/* serialize critical sections */

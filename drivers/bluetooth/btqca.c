@@ -287,7 +287,7 @@ static int rome_download_firmware(struct hci_dev *hdev,
 	const struct firmware *fw;
 	int ret;
 
-	BT_INFO("%s: ROME Downloading %s", hdev->name, config->fwname);
+	bt_dev_info(hdev, "ROME Downloading %s", config->fwname);
 
 	ret = request_firmware(&fw, config->fwname, &hdev->dev);
 	if (ret) {
@@ -351,7 +351,7 @@ int qca_uart_setup_rome(struct hci_dev *hdev, uint8_t baudrate)
 		return err;
 	}
 
-	BT_INFO("%s: ROME controller version 0x%08x", hdev->name, rome_ver);
+	bt_dev_info(hdev, "ROME controller version 0x%08x", rome_ver);
 
 	/* Download rampatch file */
 	config.type = TLV_TYPE_PATCH;
@@ -380,7 +380,7 @@ int qca_uart_setup_rome(struct hci_dev *hdev, uint8_t baudrate)
 		return err;
 	}
 
-	BT_INFO("%s: ROME setup on UART is completed", hdev->name);
+	bt_dev_info(hdev, "ROME setup on UART is completed");
 
 	return 0;
 }

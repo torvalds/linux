@@ -34,11 +34,6 @@ void complete(struct completion *x)
 
 	spin_lock_irqsave(&x->wait.lock, flags);
 
-	/*
-	 * Perform commit of crossrelease here.
-	 */
-	complete_release_commit(x);
-
 	if (x->done != UINT_MAX)
 		x->done++;
 	__wake_up_locked(&x->wait, TASK_NORMAL, 1);

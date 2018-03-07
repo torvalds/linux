@@ -101,18 +101,6 @@ static int part_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 	return part->parent->_unpoint(part->parent, from + part->offset, len);
 }
 
-static unsigned long part_get_unmapped_area(struct mtd_info *mtd,
-					    unsigned long len,
-					    unsigned long offset,
-					    unsigned long flags)
-{
-	struct mtd_part *part = mtd_to_part(mtd);
-
-	offset += part->offset;
-	return part->parent->_get_unmapped_area(part->parent, len, offset,
-						flags);
-}
-
 static int part_read_oob(struct mtd_info *mtd, loff_t from,
 		struct mtd_oob_ops *ops)
 {
@@ -458,8 +446,6 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 		slave->mtd._unpoint = part_unpoint;
 	}
 
-	if (parent->_get_unmapped_area)
-		slave->mtd._get_unmapped_area = part_get_unmapped_area;
 	if (parent->_read_oob)
 		slave->mtd._read_oob = part_read_oob;
 	if (parent->_write_oob)

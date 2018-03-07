@@ -114,6 +114,14 @@
 			reg = <0x00 0x10>, <0x14B8 0x4>;
 			#clock-cells = <0>;
 			clocks = <&input_clk>;
+
+			/*
+			 * Set initial core pll output frequency to 1GHz.
+			 * It will be applied at the core pll driver probing
+			 * on early boot.
+			 */
+			assigned-clocks = <&core_clk>;
+			assigned-clock-rates = <1000000000>;
 		};
 
 		serial: serial@5000 {

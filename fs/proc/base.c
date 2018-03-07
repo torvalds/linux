@@ -443,8 +443,7 @@ static int proc_pid_stack(struct seq_file *m, struct pid_namespace *ns,
 		save_stack_trace_tsk(task, &trace);
 
 		for (i = 0; i < trace.nr_entries; i++) {
-			seq_printf(m, "[<%pK>] %pB\n",
-				   (void *)entries[i], (void *)entries[i]);
+			seq_printf(m, "[<0>] %pB\n", (void *)entries[i]);
 		}
 		unlock_trace(task);
 	}
@@ -1682,7 +1681,7 @@ const struct inode_operations proc_pid_link_inode_operations = {
 
 /* building an inode */
 
-void task_dump_owner(struct task_struct *task, mode_t mode,
+void task_dump_owner(struct task_struct *task, umode_t mode,
 		     kuid_t *ruid, kgid_t *rgid)
 {
 	/* Depending on the state of dumpable compute who should own a
@@ -2269,7 +2268,7 @@ static int show_timer(struct seq_file *m, void *v)
 	notify = timer->it_sigev_notify;
 
 	seq_printf(m, "ID: %d\n", timer->it_id);
-	seq_printf(m, "signal: %d/%p\n",
+	seq_printf(m, "signal: %d/%px\n",
 		   timer->sigq->info.si_signo,
 		   timer->sigq->info.si_value.sival_ptr);
 	seq_printf(m, "notify: %s/%s.%d\n",

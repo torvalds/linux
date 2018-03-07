@@ -81,6 +81,10 @@ install:
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
+PHONY += vdso_install
+vdso_install:
+	$(Q)$(MAKE) $(build)=arch/sparc/vdso $@
+
 # This is the image used for packaging
 KBUILD_IMAGE := $(boot)/zImage
 

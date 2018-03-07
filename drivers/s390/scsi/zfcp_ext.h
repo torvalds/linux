@@ -69,7 +69,7 @@ extern int  zfcp_erp_thread_setup(struct zfcp_adapter *);
 extern void zfcp_erp_thread_kill(struct zfcp_adapter *);
 extern void zfcp_erp_wait(struct zfcp_adapter *);
 extern void zfcp_erp_notify(struct zfcp_erp_action *, unsigned long);
-extern void zfcp_erp_timeout_handler(unsigned long);
+extern void zfcp_erp_timeout_handler(struct timer_list *t);
 
 /* zfcp_fc.c */
 extern struct kmem_cache *zfcp_fc_req_cache;

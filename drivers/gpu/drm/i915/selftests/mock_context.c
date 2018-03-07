@@ -73,11 +73,7 @@ err_put:
 
 void mock_context_close(struct i915_gem_context *ctx)
 {
-	i915_gem_context_set_closed(ctx);
-
-	i915_ppgtt_close(&ctx->ppgtt->base);
-
-	i915_gem_context_put(ctx);
+	context_close(ctx);
 }
 
 void mock_init_contexts(struct drm_i915_private *i915)
