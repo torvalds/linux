@@ -3173,13 +3173,6 @@ xlog_recover_inode_pass2(
 	/* recover the log dinode inode into the on disk inode */
 	xfs_log_dinode_to_disk(ldip, dip);
 
-	/* the rest is in on-disk format */
-	if (item->ri_buf[1].i_len > isize) {
-		memcpy((char *)dip + isize,
-			item->ri_buf[1].i_addr + isize,
-			item->ri_buf[1].i_len - isize);
-	}
-
 	fields = in_f->ilf_fields;
 	if (fields & XFS_ILOG_DEV)
 		xfs_dinode_put_rdev(dip, in_f->ilf_u.ilfu_rdev);
