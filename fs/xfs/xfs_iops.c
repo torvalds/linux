@@ -46,6 +46,7 @@
 #include <linux/security.h>
 #include <linux/iomap.h>
 #include <linux/slab.h>
+#include <linux/iversion.h>
 
 /*
  * Directories have different lock order w.r.t. mmap_sem compared to regular
@@ -1052,10 +1053,20 @@ xfs_vn_update_time(
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
+	int			log_flags = XFS_ILOG_TIMESTAMP;
 	struct xfs_trans	*tp;
 	int			error;
 
 	trace_xfs_update_time(ip);
+
+	if (inode->i_sb->s_flags & SB_LAZYTIME) {
+		if (!((flags & S_VERSION) &&
+		      inode_maybe_inc_iversion(inode, false)))
+			return generic_update_time(inode, now, flags);
+
+		/* Capture the iversion update that just occurred */
+		log_flags |= XFS_ILOG_CORE;
+	}
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_fsyncts, 0, 0, 0, &tp);
 	if (error)
@@ -1070,7 +1081,7 @@ xfs_vn_update_time(
 		inode->i_atime = *now;
 
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_TIMESTAMP);
+	xfs_trans_log_inode(tp, ip, log_flags);
 	return xfs_trans_commit(tp);
 }
 
