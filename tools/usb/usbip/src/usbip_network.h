@@ -27,9 +27,7 @@ struct op_common {
 #define OP_REPLY	(0x00 << 8)
 	uint16_t code;
 
-	/* add more error code */
-#define ST_OK	0x00
-#define ST_NA	0x01
+	/* status codes defined in usbip_common.h */
 	uint32_t status; /* op_code status (for reply) */
 
 } __attribute__((packed));
