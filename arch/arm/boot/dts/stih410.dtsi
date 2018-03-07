@@ -16,8 +16,9 @@
 	};
 
 	soc {
-		usb2_picophy1: phy2 {
+		usb2_picophy1: phy2@0 {
 			compatible = "st,stih407-usb2-phy";
+			reg = <0 0>;
 			#phy-cells = <0>;
 			st,syscfg = <&syscfg_core 0xf8 0xf4>;
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
@@ -27,8 +28,9 @@
 			status = "disabled";
 		};
 
-		usb2_picophy2: phy3 {
+		usb2_picophy2: phy3@0 {
 			compatible = "st,stih407-usb2-phy";
+			reg = <0 0>;
 			#phy-cells = <0>;
 			st,syscfg = <&syscfg_core 0xfc 0xf4>;
 			resets = <&softreset STIH407_PICOPHY_SOFTRESET>,
@@ -102,11 +104,12 @@
 			status = "disabled";
 		};
 
-		sti-display-subsystem {
+		sti-display-subsystem@0 {
 			compatible = "st,sti-display-subsystem";
 			#address-cells = <1>;
 			#size-cells = <1>;
 
+			reg = <0 0>;
 			assigned-clocks	= <&clk_s_d2_quadfs 0>,
 					  <&clk_s_d2_quadfs 1>,
 					  <&clk_s_c0_pll1 0>,
@@ -235,7 +238,7 @@
 					 <&clk_s_d2_quadfs 1>;
 			};
 
-			sti-hqvdp@9c000000 {
+			sti-hqvdp@9c00000 {
 				compatible = "st,stih407-hqvdp";
 				reg = <0x9C00000 0x100000>;
 				clock-names = "hqvdp", "pix_main";
@@ -273,7 +276,7 @@
 			interrupts = <GIC_SPI 205 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		delta0 {
+		delta0@0 {
 			compatible = "st,st-delta";
 			clock-names = "delta",
 				      "delta-st231",
