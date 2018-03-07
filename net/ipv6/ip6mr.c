@@ -1443,6 +1443,7 @@ static int ip6mr_sk_init(struct mr_table *mrt, struct sock *sk)
 		err = -EADDRINUSE;
 	} else {
 		rcu_assign_pointer(mrt->mroute_sk, sk);
+		sock_set_flag(sk, SOCK_RCU_FREE);
 		net->ipv6.devconf_all->mc_forwarding++;
 	}
 	write_unlock_bh(&mrt_lock);
@@ -1472,6 +1473,10 @@ int ip6mr_sk_done(struct sock *sk)
 		if (sk == rtnl_dereference(mrt->mroute_sk)) {
 			write_lock_bh(&mrt_lock);
 			RCU_INIT_POINTER(mrt->mroute_sk, NULL);
+			/* Note that mroute_sk had SOCK_RCU_FREE set,
+			 * so the RCU grace period before sk freeing
+			 * is guaranteed by sk_destruct()
+			 */
 			net->ipv6.devconf_all->mc_forwarding--;
 			write_unlock_bh(&mrt_lock);
 			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
@@ -1485,7 +1490,6 @@ int ip6mr_sk_done(struct sock *sk)
 		}
 	}
 	rtnl_unlock();
-	synchronize_rcu();
 
 	return err;
 }
