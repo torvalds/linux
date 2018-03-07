@@ -143,6 +143,49 @@
 		rockchip,mode = <0>;
 	};
 
+	sdmmc: dwmmc@ff480000 {
+		compatible = "rockchip,rk3308-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xff480000 0x0 0x4000>;
+		max-frequency = <150000000>;
+		bus-width = <4>;
+		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
+			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+		fifo-depth = <0x100>;
+		interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_det &sdmmc_bus4>;
+		status = "disabled";
+	};
+
+	emmc: dwmmc@ff490000 {
+		compatible = "rockchip,rk3308-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xff490000 0x0 0x4000>;
+		max-frequency = <150000000>;
+		bus-width = <8>;
+		clocks = <&cru HCLK_EMMC>, <&cru SCLK_EMMC>,
+			 <&cru SCLK_EMMC_DRV>, <&cru SCLK_EMMC_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+		fifo-depth = <0x100>;
+		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
+	sdio: dwmmc@ff4a0000 {
+		compatible = "rockchip,rk3308-dw-mshc", "rockchip,rk3288-dw-mshc";
+		reg = <0x0 0xff4a0000 0x0 0x4000>;
+		max-frequency = <150000000>;
+		bus-width = <4>;
+		clocks = <&cru HCLK_SDIO>, <&cru SCLK_SDIO>,
+			 <&cru SCLK_SDIO_DRV>, <&cru SCLK_SDIO_SAMPLE>;
+		clock-names = "biu", "ciu", "ciu-drv", "ciu-sample";
+		fifo-depth = <0x100>;
+		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdio_bus4 &sdio_cmd &sdio_clk>;
+		status = "disabled";
+	};
+
 	cru: clock-controller@ff500000 {
 		compatible = "rockchip,rk3308-cru";
 		reg = <0x0 0xff500000 0x0 0x1000>;
@@ -522,6 +565,11 @@
 			sdmmc_cmd: sdmmc-cmd {
 				rockchip,pins =
 					<4 RK_PD4 1 &pcfg_pull_up_4ma>;
+			};
+
+			sdmmc_det: sdmmc-det {
+				rockchip,pins =
+					<0 RK_PA3 1 &pcfg_pull_up_4ma>;
 			};
 
 			sdmmc_pwren: sdmmc-pwren {
