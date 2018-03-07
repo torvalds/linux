@@ -63,7 +63,7 @@ cscope
 
 `Cscope <http://cscope.sourceforge.net/>`__ is a tool for
 efficient navigation of C sources. To use it, a cscope database must 
-be geberated from the existing sources. In a Linux tree, the command
+be generated from the existing sources. In a Linux tree, the command
 :command:`make ARCH=x86 cscope` is sufficient. Specification of the 
 architecture through the ARCH variable is optional but recommended; 
 otherwise, some architecture dependent functions will appear multiple 
@@ -211,8 +211,8 @@ for C and C++. It uses the
 provided by the Clang compiler to index the code.
 
 The main difference between cscope and SourceWeb is the fact that SourceWeb
-is, in a way, a compiper pass. SourceWeb doesn't index all the code, but
-only the coe that was efectively compiled by the compiler. This way, some
+is, in a way, a compiler pass. SourceWeb doesn't index all the code, but
+only the code that was efectively compiled by the compiler. This way, some
 problems are eliminated, such as ambiguities about which variant of a function
 defined in multiple places is used. This also means that the indexing takes
 more time, because the compiled files must pass one more time through
