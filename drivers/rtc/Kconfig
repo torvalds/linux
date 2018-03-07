@@ -868,7 +868,7 @@ comment "Platform RTC drivers"
 
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
-	depends on X86 || ARM || M32R || PPC || MIPS || SPARC64
+	depends on X86 || ARM || PPC || MIPS || SPARC64
 	default y if X86
 	select RTC_MC146818_LIB
 	help

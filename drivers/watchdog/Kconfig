@@ -828,10 +828,6 @@ config BFIN_WDT
 	  To compile this driver as a module, choose M here: the
 	  module will be called bfin_wdt.
 
-# CRIS Architecture
-
-# FRV Architecture
-
 # X86 (i386 + ia64 + x86_64) Architecture
 
 config ACQUIRE_WDT
@@ -1430,8 +1426,6 @@ config NIC7018_WDT
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called nic7018_wdt.
-
-# M32R Architecture
 
 # M68K Architecture
 

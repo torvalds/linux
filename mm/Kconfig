@@ -278,13 +278,6 @@ config BOUNCE
 	  by default when ZONE_DMA or HIGHMEM is selected, but you
 	  may say n to override this.
 
-# On the 'tile' arch, USB OHCI needs the bounce pool since tilegx will often
-# have more than 4GB of memory, but we don't currently use the IOTLB to present
-# a 32-bit address to OHCI.  So we need to use a bounce pool instead.
-config NEED_BOUNCE_POOL
-	bool
-	default y if TILE && USB_OHCI_HCD
-
 config NR_QUICK
 	int
 	depends on QUICKLIST
