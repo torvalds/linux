@@ -134,9 +134,9 @@ static void set_truncation(
 	REG_UPDATE_3(FMT_BIT_DEPTH_CONTROL,
 				FMT_TRUNCATE_EN, 1,
 				FMT_TRUNCATE_DEPTH,
-				params->flags.TRUNCATE_MODE,
+				params->flags.TRUNCATE_DEPTH,
 				FMT_TRUNCATE_MODE,
-				params->flags.TRUNCATE_DEPTH);
+				params->flags.TRUNCATE_MODE);
 }
 
 
