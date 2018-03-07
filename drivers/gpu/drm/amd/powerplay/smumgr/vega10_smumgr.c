@@ -27,11 +27,9 @@
 #include "vega10_smumgr.h"
 #include "vega10_ppsmc.h"
 #include "smu9_driver_if.h"
-
 #include "ppatomctrl.h"
 #include "pp_debug.h"
-#include "smu_ucode_xfer_vi.h"
-#include "smu7_smumgr.h"
+
 
 #define AVFS_EN_MSB		1568
 #define AVFS_EN_LSB		1568
@@ -383,7 +381,7 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	struct cgs_firmware_info info = {0};
 
 	ret = cgs_get_firmware_info(hwmgr->device,
-				    smu7_convert_fw_type_to_cgs(UCODE_ID_SMU),
+				    CGS_UCODE_ID_SMU,
 				    &info);
 	if (ret || !info.kptr)
 		return -EINVAL;

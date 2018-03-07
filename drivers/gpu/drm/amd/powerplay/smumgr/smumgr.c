@@ -28,7 +28,6 @@
 #include <linux/types.h>
 #include <drm/amdgpu_drm.h>
 #include "smumgr.h"
-#include "cgs_common.h"
 
 MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
 MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");
