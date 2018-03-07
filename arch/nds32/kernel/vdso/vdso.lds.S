@@ -8,7 +8,6 @@
 #include <asm/page.h>
 #include <asm/vdso.h>
 
-OUTPUT_FORMAT("elf32-nds32le-linux", "elf32-nds32be-linux", "elf32-nds32le-linux")
 OUTPUT_ARCH(nds32)
 
 SECTIONS
