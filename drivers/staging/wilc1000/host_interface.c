@@ -886,6 +886,7 @@ static s32 handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 	u8 abort_running_scan;
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
+	struct user_scan_req *scan_req;
 
 	if (evt == SCAN_EVENT_ABORTED) {
 		abort_running_scan = 1;
@@ -908,10 +909,10 @@ static s32 handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 		return result;
 	}
 
-	if (hif_drv->usr_scan_req.scan_result) {
-		hif_drv->usr_scan_req.scan_result(evt, NULL,
-						  hif_drv->usr_scan_req.arg, NULL);
-		hif_drv->usr_scan_req.scan_result = NULL;
+	scan_req = &hif_drv->usr_scan_req;
+	if (scan_req->scan_result) {
+		scan_req->scan_result(evt, NULL, scan_req->arg, NULL);
+		scan_req->scan_result = NULL;
 	}
 
 	return result;
