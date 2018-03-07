@@ -651,8 +651,10 @@ static int reset_hw_v1_hw(struct hisi_hba *hisi_hba)
 			dev_err(dev, "De-reset failed\n");
 			return -EIO;
 		}
-	} else
+	} else {
 		dev_warn(dev, "no reset method\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }

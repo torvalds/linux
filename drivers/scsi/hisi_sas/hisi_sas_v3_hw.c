@@ -670,8 +670,10 @@ static int reset_hw_v3_hw(struct hisi_hba *hisi_hba)
 			dev_err(dev, "Reset failed\n");
 			return -EIO;
 		}
-	} else
+	} else {
 		dev_err(dev, "no reset method!\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -731,7 +733,7 @@ static void phy_hard_reset_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	start_phy_v3_hw(hisi_hba, phy_no);
 }
 
-enum sas_linkrate phy_get_max_linkrate_v3_hw(void)
+static enum sas_linkrate phy_get_max_linkrate_v3_hw(void)
 {
 	return SAS_LINK_RATE_12_0_GBPS;
 }
@@ -1096,7 +1098,7 @@ static int prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 	/* dw0 */
 	hdr->dw0 = cpu_to_le32((5 << CMD_HDR_CMD_OFF) | /*abort*/
 			       (port->id << CMD_HDR_PORT_OFF) |
-				   ((dev_is_sata(dev) ? 1:0)
+				   (dev_is_sata(dev)
 					<< CMD_HDR_ABORT_DEVICE_TYPE_OFF) |
 					(abort_flag
 					 << CMD_HDR_ABORT_FLAG_OFF));
@@ -1112,9 +1114,9 @@ static int prep_abort_v3_hw(struct hisi_hba *hisi_hba,
 	return 0;
 }
 
-static int phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+static irqreturn_t phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
-	int i, res = 0;
+	int i, res;
 	u32 context, port_id, link_rate;
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -1186,7 +1188,7 @@ static int phy_up_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	phy->port_id = port_id;
 	phy->phy_attached = 1;
 	hisi_sas_notify_phy_event(phy, HISI_PHYE_PHY_UP);
-
+	res = IRQ_HANDLED;
 end:
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
 			     CHL_INT0_SL_PHY_ENABLE_MSK);
@@ -1195,7 +1197,7 @@ end:
 	return res;
 }
 
-static int phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+static irqreturn_t phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	u32 phy_state, sl_ctrl, txid_auto;
 	struct device *dev = hisi_hba->dev;
@@ -1217,10 +1219,10 @@ static int phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, CHL_INT0_NOT_RDY_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 0);
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
-static void phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
+static irqreturn_t phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	struct asd_sas_phy *sas_phy = &phy->sas_phy;
@@ -1231,6 +1233,8 @@ static void phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0,
 			     CHL_INT0_SL_RX_BCST_ACK_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, SL_RX_BCAST_CHK_MSK, 0);
+
+	return IRQ_HANDLED;
 }
 
 static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_no, void *p)
@@ -1257,7 +1261,9 @@ static irqreturn_t int_phy_up_down_bcast_v3_hw(int irq_no, void *p)
 						res = IRQ_HANDLED;
 				if (irq_value & CHL_INT0_SL_RX_BCST_ACK_MSK)
 					/* phy bcast */
-					phy_bcast_v3_hw(phy_no, hisi_hba);
+					if (phy_bcast_v3_hw(phy_no, hisi_hba)
+							== IRQ_HANDLED)
+						res = IRQ_HANDLED;
 			} else {
 				if (irq_value & CHL_INT0_NOT_RDY_MSK)
 					/* phy down */
@@ -1573,7 +1579,7 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 		spin_lock_irqsave(&hisi_hba->lock, flags);
 		hisi_sas_slot_task_free(hisi_hba, task, slot);
 		spin_unlock_irqrestore(&hisi_hba->lock, flags);
-		return -1;
+		return ts->stat;
 	}
 
 	if (unlikely(!sas_dev)) {

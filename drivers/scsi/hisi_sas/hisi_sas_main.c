@@ -33,7 +33,7 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_FPDMA_RECV:
 	case ATA_CMD_FPDMA_SEND:
 	case ATA_CMD_NCQ_NON_DATA:
-	return HISI_SAS_SATA_PROTOCOL_FPDMA;
+		return HISI_SAS_SATA_PROTOCOL_FPDMA;
 
 	case ATA_CMD_DOWNLOAD_MICRO:
 	case ATA_CMD_ID_ATA:
@@ -45,7 +45,7 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_WRITE_LOG_EXT:
 	case ATA_CMD_PIO_WRITE:
 	case ATA_CMD_PIO_WRITE_EXT:
-	return HISI_SAS_SATA_PROTOCOL_PIO;
+		return HISI_SAS_SATA_PROTOCOL_PIO;
 
 	case ATA_CMD_DSM:
 	case ATA_CMD_DOWNLOAD_MICRO_DMA:
@@ -64,7 +64,7 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_WRITE_LOG_DMA_EXT:
 	case ATA_CMD_WRITE_STREAM_DMA_EXT:
 	case ATA_CMD_ZAC_MGMT_IN:
-	return HISI_SAS_SATA_PROTOCOL_DMA;
+		return HISI_SAS_SATA_PROTOCOL_DMA;
 
 	case ATA_CMD_CHK_POWER:
 	case ATA_CMD_DEV_RESET:
@@ -77,21 +77,21 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_STANDBY:
 	case ATA_CMD_STANDBYNOW1:
 	case ATA_CMD_ZAC_MGMT_OUT:
-	return HISI_SAS_SATA_PROTOCOL_NONDATA;
+		return HISI_SAS_SATA_PROTOCOL_NONDATA;
 	default:
 	{
 		if (fis->command == ATA_CMD_SET_MAX) {
 			switch (fis->features) {
 			case ATA_SET_MAX_PASSWD:
 			case ATA_SET_MAX_LOCK:
-			return HISI_SAS_SATA_PROTOCOL_PIO;
+				return HISI_SAS_SATA_PROTOCOL_PIO;
 
 			case ATA_SET_MAX_PASSWD_DMA:
 			case ATA_SET_MAX_UNLOCK_DMA:
-			return HISI_SAS_SATA_PROTOCOL_DMA;
+				return HISI_SAS_SATA_PROTOCOL_DMA;
 
 			default:
-			return HISI_SAS_SATA_PROTOCOL_NONDATA;
+				return HISI_SAS_SATA_PROTOCOL_NONDATA;
 			}
 		}
 		if (direction == DMA_NONE)
