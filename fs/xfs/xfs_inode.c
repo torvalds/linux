@@ -1872,6 +1872,7 @@ xfs_inactive(
 	xfs_inode_t	*ip)
 {
 	struct xfs_mount	*mp;
+	struct xfs_ifork	*cow_ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 	int			error;
 	int			truncate = 0;
 
@@ -1891,6 +1892,10 @@ xfs_inactive(
 	/* If this is a read-only mount, don't do this (would generate I/O) */
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return;
+
+	/* Try to clean out the cow blocks if there are any. */
+	if (xfs_is_reflink_inode(ip) && cow_ifp->if_bytes > 0)
+		xfs_reflink_cancel_cow_range(ip, 0, NULLFILEOFF, true);
 
 	if (VFS_I(ip)->i_nlink != 0) {
 		/*

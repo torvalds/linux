@@ -972,21 +972,12 @@ xfs_fs_destroy_inode(
 	struct inode		*inode)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
-	int			error;
 
 	trace_xfs_destroy_inode(ip);
 
 	ASSERT(!rwsem_is_locked(&inode->i_rwsem));
 	XFS_STATS_INC(ip->i_mount, vn_rele);
 	XFS_STATS_INC(ip->i_mount, vn_remove);
-
-	if (xfs_is_reflink_inode(ip)) {
-		error = xfs_reflink_cancel_cow_range(ip, 0, NULLFILEOFF, true);
-		if (error && !XFS_FORCED_SHUTDOWN(ip->i_mount))
-			xfs_warn(ip->i_mount,
-"Error %d while evicting CoW blocks for inode %llu.",
-					error, ip->i_ino);
-	}
 
 	xfs_inactive(ip);
 
