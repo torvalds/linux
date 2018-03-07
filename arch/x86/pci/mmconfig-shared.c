@@ -94,8 +94,8 @@ static struct pci_mmcfg_region *pci_mmconfig_alloc(int segment, int start,
 	return new;
 }
 
-static struct pci_mmcfg_region *__init pci_mmconfig_add(int segment, int start,
-							int end, u64 addr)
+struct pci_mmcfg_region *__init pci_mmconfig_add(int segment, int start,
+						 int end, u64 addr)
 {
 	struct pci_mmcfg_region *new;
 
