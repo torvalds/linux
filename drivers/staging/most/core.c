@@ -916,7 +916,6 @@ static void arm_mbo(struct mbo *mbo)
 	unsigned long flags;
 	struct most_channel *c;
 
-	BUG_ON((!mbo) || (!mbo->context));
 	c = mbo->context;
 
 	if (c->is_poisoned) {
@@ -1018,8 +1017,6 @@ EXPORT_SYMBOL_GPL(most_submit_mbo);
 static void most_write_completion(struct mbo *mbo)
 {
 	struct most_channel *c;
-
-	BUG_ON((!mbo) || (!mbo->context));
 
 	c = mbo->context;
 	if (mbo->status == MBO_E_INVAL)
