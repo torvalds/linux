@@ -8,7 +8,6 @@
  * Author: Xiaowei Song <songxiaowei@huawei.com>
  */
 
-#include <asm/compiler.h>
 #include <linux/compiler.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
