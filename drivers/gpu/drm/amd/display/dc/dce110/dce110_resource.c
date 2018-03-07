@@ -879,6 +879,13 @@ static bool dce110_validate_surface_sets(
 					plane->src_rect.height > 1080))
 					return false;
 
+				/* we don't have the logic to support underlay
+				 * only yet so block the use case where we get
+				 * NV12 plane as top layer
+				 */
+				if (j == 0)
+					return false;
+
 				/* irrespective of plane format,
 				 * stream should be RGB encoded
 				 */
