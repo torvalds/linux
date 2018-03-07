@@ -912,7 +912,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	struct dev_pm_opp *opp;
 	struct cpufreq_policy *policy;
 	unsigned long old_clk_rate = dmcfreq->rate;
-	unsigned long opp_rate, target_volt, target_rate;
+	unsigned long target_volt, target_rate;
 	unsigned int cpu_cur, cpufreq_cur;
 	int err = 0;
 
@@ -923,14 +923,13 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		rcu_read_unlock();
 		return PTR_ERR(opp);
 	}
-	opp_rate = dev_pm_opp_get_freq(opp);
 	target_volt = dev_pm_opp_get_voltage(opp);
 
 	rcu_read_unlock();
 
-	target_rate = clk_round_rate(dmcfreq->dmc_clk, opp_rate);
+	target_rate = clk_round_rate(dmcfreq->dmc_clk, *freq);
 	if ((long)target_rate <= 0)
-		target_rate = opp_rate;
+		target_rate = *freq;
 
 	if (dmcfreq->rate == target_rate) {
 		if (dmcfreq->volt == target_volt)
@@ -1028,7 +1027,8 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		}
 	}
 
-	dmcfreq->devfreq->last_status.current_frequency = opp_rate;
+	if (dmcfreq->devfreq)
+		dmcfreq->devfreq->last_status.current_frequency = *freq;
 
 	dmcfreq->volt = target_volt;
 out:
@@ -2694,6 +2694,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int (*init)(struct platform_device *pdev,
 		    struct rockchip_dmcfreq *data);
+	unsigned long opp_rate;
 #define MAX_PROP_NAME_LEN	3
 	char name[MAX_PROP_NAME_LEN];
 	bool is_events_available = false;
@@ -2804,11 +2805,16 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 
 	devm_devfreq_register_opp_notifier(dev, data->devfreq);
 
+	opp_rate = data->rate;
+	rcu_read_lock();
+	devfreq_recommended_opp(dev, &opp_rate, 0);
+	rcu_read_unlock();
+
 	data->min = devp->freq_table[0];
 	data->max = devp->freq_table[devp->max_state ? devp->max_state - 1 : 0];
 	data->devfreq->min_freq = data->min;
 	data->devfreq->max_freq = data->max;
-	data->devfreq->last_status.current_frequency = data->rate;
+	data->devfreq->last_status.current_frequency = opp_rate;
 	reset_last_status(data->devfreq);
 
 	if (rockchip_drm_register_notifier_to_dmc(data->devfreq))

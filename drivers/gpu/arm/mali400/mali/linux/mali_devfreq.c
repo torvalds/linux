@@ -50,12 +50,13 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 
 	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &freq, flags);
-	voltage = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
-	if (IS_ERR_OR_NULL(opp)) {
+	if (IS_ERR(opp)) {
+		rcu_read_unlock();
 		MALI_PRINT_ERROR(("Failed to get opp (%ld)\n", PTR_ERR(opp)));
 		return PTR_ERR(opp);
 	}
+	voltage = dev_pm_opp_get_voltage(opp);
+	rcu_read_unlock();
 
 	MALI_DEBUG_PRINT(2, ("mali_devfreq_target:set_freq = %lld flags = 0x%x\n", freq, flags));
 	/*
@@ -95,6 +96,8 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	}
 	*target_freq = freq;
 	mdev->current_freq = freq;
+	if (mdev->devfreq)
+		mdev->devfreq->last_status.current_frequency = freq;
 
 #ifdef CONFIG_REGULATOR
 	if (mdev->regulator && mdev->current_voltage != voltage &&
@@ -225,6 +228,7 @@ int mali_devfreq_init(struct mali_device *mdev)
 	_mali_osk_device_data data;
 #endif
 	struct devfreq_dev_profile *dp;
+	unsigned long opp_rate;
 	int err;
 
 	MALI_DEBUG_PRINT(2, ("Init Mali devfreq\n"));
@@ -261,6 +265,11 @@ int mali_devfreq_init(struct mali_device *mdev)
 		goto opp_notifier_failed;
 	}
 
+	opp_rate = mdev->current_freq;
+	rcu_read_lock();
+	devfreq_recommended_opp(mdev->dev, &opp_rate, 0);
+	rcu_read_unlock();
+	mdev->devfreq->last_status.current_frequency = opp_rate;
 #ifdef CONFIG_DEVFREQ_THERMAL
 	if (of_machine_is_compatible("rockchip,rk3036"))
 		return 0;

@@ -89,15 +89,15 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 
 	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &freq, flags);
-	voltage = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
-	if (IS_ERR_OR_NULL(opp)) {
+	if (IS_ERR(opp)) {
+		rcu_read_unlock();
 		dev_err(dev, "Failed to get opp (%ld)\n", PTR_ERR(opp));
 		return PTR_ERR(opp);
 	}
+	voltage = dev_pm_opp_get_voltage(opp);
+	rcu_read_unlock();
 
 	nominal_freq = freq;
-
 	/*
 	 * Only update if there is a change of frequency
 	 */
@@ -155,6 +155,8 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	kbdev->current_nominal_freq = nominal_freq;
 	kbdev->current_freq = freq;
 	kbdev->current_core_mask = core_mask;
+	if (kbdev->devfreq)
+		kbdev->devfreq->last_status.current_frequency = nominal_freq;
 
 	KBASE_TLSTREAM_AUX_DEVFREQ_TARGET((u64)nominal_freq);
 
@@ -177,8 +179,6 @@ static int
 kbase_devfreq_status(struct device *dev, struct devfreq_dev_status *stat)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
-
-	stat->current_frequency = kbdev->current_nominal_freq;
 
 	kbase_pm_get_dvfs_utilisation(kbdev,
 			&stat->total_time, &stat->busy_time);
@@ -319,6 +319,7 @@ static int kbase_devfreq_init_core_mask_table(struct kbase_device *kbdev)
 int kbase_devfreq_init(struct kbase_device *kbdev)
 {
 	struct devfreq_dev_profile *dp;
+	unsigned long opp_rate;
 	int err;
 
 	if (!kbdev->clock) {
@@ -368,6 +369,11 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 		goto opp_notifier_failed;
 	}
 
+	opp_rate = kbdev->current_freq;
+	rcu_read_lock();
+	devfreq_recommended_opp(kbdev->dev, &opp_rate, 0);
+	rcu_read_unlock();
+	kbdev->devfreq->last_status.current_frequency = opp_rate;
 #ifdef CONFIG_DEVFREQ_THERMAL
 	err = kbase_ipa_init(kbdev);
 	if (err) {
