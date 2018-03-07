@@ -80,6 +80,16 @@ struct spinlock;
 /* Maximum possible number of NPUs in a system. */
 #define NV_MAX_NPUS 8
 
+/*
+ * One bit per slice. We have lower slices which cover 256MB segments
+ * upto 4G range. That gets us 16 low slices. For the rest we track slices
+ * in 1TB size.
+ */
+struct slice_mask {
+	u64 low_slices;
+	DECLARE_BITMAP(high_slices, SLICE_NUM_HIGH);
+};
+
 typedef struct {
 	mm_context_id_t id;
 	u16 user_psize;		/* page size index */
@@ -95,6 +105,14 @@ typedef struct {
 	unsigned char low_slices_psize[BITS_PER_LONG / BITS_PER_BYTE];
 	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
 	unsigned long slb_addr_limit;
+# ifdef CONFIG_PPC_64K_PAGES
+	struct slice_mask mask_64k;
+# endif
+	struct slice_mask mask_4k;
+# ifdef CONFIG_HUGETLB_PAGE
+	struct slice_mask mask_16m;
+	struct slice_mask mask_16g;
+# endif
 #else
 	u16 sllp;		/* SLB page size encoding */
 #endif
