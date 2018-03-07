@@ -2061,9 +2061,6 @@ static int intel_pt_process_auxtrace_event(struct perf_session *session,
 	struct intel_pt *pt = container_of(session->auxtrace, struct intel_pt,
 					   auxtrace);
 
-	if (pt->sampling_mode)
-		return 0;
-
 	if (!pt->data_queued) {
 		struct auxtrace_buffer *buffer;
 		off_t data_offset;
