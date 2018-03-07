@@ -2394,6 +2394,7 @@ static const struct pci_device_id sas_v3_pci_table[] = {
 	{ PCI_VDEVICE(HUAWEI, 0xa230), hip08 },
 	{}
 };
+MODULE_DEVICE_TABLE(pci, sas_v3_pci_table);
 
 static const struct pci_error_handlers hisi_sas_err_handler = {
 	.error_detected	= hisi_sas_error_detected_v3_hw,
@@ -2416,4 +2417,4 @@ module_pci_driver(sas_v3_pci_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Garry <john.garry@huawei.com>");
 MODULE_DESCRIPTION("HISILICON SAS controller v3 hw driver based on pci device");
-MODULE_ALIAS("platform:" DRV_NAME);
+MODULE_ALIAS("pci:" DRV_NAME);
