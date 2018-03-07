@@ -1922,8 +1922,8 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 
 static void describe_ctx_ring(struct seq_file *m, struct intel_ring *ring)
 {
-	seq_printf(m, " (ringbuffer, space: %d, head: %u, tail: %u)",
-		   ring->space, ring->head, ring->tail);
+	seq_printf(m, " (ringbuffer, space: %d, head: %u, tail: %u, emit: %u)",
+		   ring->space, ring->head, ring->tail, ring->emit);
 }
 
 static int i915_context_status(struct seq_file *m, void *unused)

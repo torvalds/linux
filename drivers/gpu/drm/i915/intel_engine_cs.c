@@ -1929,12 +1929,16 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 			   rq->head, rq->postfix, rq->tail,
 			   rq->batch ? upper_32_bits(rq->batch->node.start) : ~0u,
 			   rq->batch ? lower_32_bits(rq->batch->node.start) : ~0u);
-		drm_printf(m, "\t\tring->start: 0x%08x\n",
+		drm_printf(m, "\t\tring->start:  0x%08x\n",
 			   i915_ggtt_offset(rq->ring->vma));
-		drm_printf(m, "\t\tring->head:  0x%08x\n",
+		drm_printf(m, "\t\tring->head:   0x%08x\n",
 			   rq->ring->head);
-		drm_printf(m, "\t\tring->tail:  0x%08x\n",
+		drm_printf(m, "\t\tring->tail:   0x%08x\n",
 			   rq->ring->tail);
+		drm_printf(m, "\t\tring->emit:   0x%08x\n",
+			   rq->ring->emit);
+		drm_printf(m, "\t\tring->space:  0x%08x\n",
+			   rq->ring->space);
 	}
 
 	rcu_read_unlock();
