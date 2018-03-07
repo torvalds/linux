@@ -1162,7 +1162,7 @@ static int __ibmvnic_close(struct net_device *netdev)
 	if (adapter->tx_scrq) {
 		for (i = 0; i < adapter->req_tx_queues; i++)
 			if (adapter->tx_scrq[i]->irq) {
-				netdev_dbg(adapter->netdev,
+				netdev_dbg(netdev,
 					   "Disabling tx_scrq[%d] irq\n", i);
 				disable_irq(adapter->tx_scrq[i]->irq);
 			}
@@ -1174,18 +1174,8 @@ static int __ibmvnic_close(struct net_device *netdev)
 
 	if (adapter->rx_scrq) {
 		for (i = 0; i < adapter->req_rx_queues; i++) {
-			int retries = 10;
-
-			while (pending_scrq(adapter, adapter->rx_scrq[i])) {
-				retries--;
-				mdelay(100);
-
-				if (retries == 0)
-					break;
-			}
-
 			if (adapter->rx_scrq[i]->irq) {
-				netdev_dbg(adapter->netdev,
+				netdev_dbg(netdev,
 					   "Disabling rx_scrq[%d] irq\n", i);
 				disable_irq(adapter->rx_scrq[i]->irq);
 			}
