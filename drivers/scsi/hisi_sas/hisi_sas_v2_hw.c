@@ -1611,10 +1611,11 @@ static void phy_set_linkrate_v2_hw(struct hisi_hba *hisi_hba, int phy_no,
 	prog_phy_link_rate &= ~0xff;
 	prog_phy_link_rate |= rate_mask;
 
+	disable_phy_v2_hw(hisi_hba, phy_no);
+	msleep(100);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PROG_PHY_LINK_RATE,
 			prog_phy_link_rate);
-
-	phy_hard_reset_v2_hw(hisi_hba, phy_no);
+	start_phy_v2_hw(hisi_hba, phy_no);
 }
 
 static int get_wideport_bitmap_v2_hw(struct hisi_hba *hisi_hba, int port_id)
