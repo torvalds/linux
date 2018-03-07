@@ -43,6 +43,12 @@ following properties:
 - interrupt-parent: a phandle indicating which interrupt controller
   this PMU signals interrupts to.
 
+
+Optional nodes:
+
+- nodes defining the restart and poweroff syscon children
+
+
 Example :
 pmu_system_controller: system-controller@10040000 {
 	compatible = "samsung,exynos5250-pmu", "syscon";
