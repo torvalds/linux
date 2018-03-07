@@ -39,6 +39,8 @@
 
 MODULE_FIRMWARE("amdgpu/vega10_sos.bin");
 MODULE_FIRMWARE("amdgpu/vega10_asd.bin");
+MODULE_FIRMWARE("amdgpu/vega12_sos.bin");
+MODULE_FIRMWARE("amdgpu/vega12_asd.bin");
 
 #define smnMP1_FIRMWARE_FLAGS 0x3010028
 
