@@ -2667,7 +2667,7 @@ static void wacom_report_events(struct hid_device *hdev,
 	}
 }
 
-int wacom_wac_collection(struct hid_device *hdev, struct hid_report *report,
+static int wacom_wac_collection(struct hid_device *hdev, struct hid_report *report,
 			 int collection_index, struct hid_field *field,
 			 int field_index)
 {
