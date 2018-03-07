@@ -357,16 +357,27 @@ static inline u32 rds_rdma_cookie_offset(rds_rdma_cookie_t cookie)
 #define RDS_MSG_FLUSH		8
 
 struct rds_znotifier {
-	struct list_head	z_list;
 	struct mmpin		z_mmp;
 	u32			z_cookie;
 };
 
-#define	RDS_ZCOPY_SKB(__skb)	((struct rds_znotifier *)&((__skb)->cb[0]))
+struct rds_msg_zcopy_info {
+	struct list_head rs_zcookie_next;
+	union {
+		struct rds_znotifier znotif;
+		struct rds_zcopy_cookies zcookies;
+	};
+};
 
-static inline struct sk_buff *rds_skb_from_znotifier(struct rds_znotifier *z)
+struct rds_msg_zcopy_queue {
+	struct list_head zcookie_head;
+	spinlock_t lock; /* protects zcookie_head queue */
+};
+
+static inline void rds_message_zcopy_queue_init(struct rds_msg_zcopy_queue *q)
 {
-	return container_of((void *)z, struct sk_buff, cb);
+	spin_lock_init(&q->lock);
+	INIT_LIST_HEAD(&q->zcookie_head);
 }
 
 struct rds_message {
@@ -603,8 +614,7 @@ struct rds_sock {
 	/* Socket receive path trace points*/
 	u8			rs_rx_traces;
 	u8			rs_rx_trace[RDS_MSG_RX_DGRAM_TRACE_MAX];
-
-	struct sk_buff_head	rs_zcookie_queue;
+	struct rds_msg_zcopy_queue rs_zcookie_queue;
 };
 
 static inline struct rds_sock *rds_sk_to_rs(const struct sock *sk)
@@ -803,6 +813,7 @@ void rds_message_addref(struct rds_message *rm);
 void rds_message_put(struct rds_message *rm);
 void rds_message_wait(struct rds_message *rm);
 void rds_message_unmapped(struct rds_message *rm);
+void rds_notify_msg_zcopy_purge(struct rds_msg_zcopy_queue *info);
 
 static inline void rds_message_make_checksum(struct rds_header *hdr)
 {

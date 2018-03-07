@@ -77,7 +77,7 @@ static int rds_release(struct socket *sock)
 	rds_send_drop_to(rs, NULL);
 	rds_rdma_drop_keys(rs);
 	rds_notify_queue_get(rs, NULL);
-	__skb_queue_purge(&rs->rs_zcookie_queue);
+	rds_notify_msg_zcopy_purge(&rs->rs_zcookie_queue);
 
 	spin_lock_bh(&rds_sock_lock);
 	list_del_init(&rs->rs_item);
@@ -180,7 +180,7 @@ static __poll_t rds_poll(struct file *file, struct socket *sock,
 	}
 	if (!list_empty(&rs->rs_recv_queue) ||
 	    !list_empty(&rs->rs_notify_queue) ||
-	    !skb_queue_empty(&rs->rs_zcookie_queue))
+	    !list_empty(&rs->rs_zcookie_queue.zcookie_head))
 		mask |= (EPOLLIN | EPOLLRDNORM);
 	if (rs->rs_snd_bytes < rds_sk_sndbuf(rs))
 		mask |= (EPOLLOUT | EPOLLWRNORM);
@@ -515,7 +515,7 @@ static int __rds_create(struct socket *sock, struct sock *sk, int protocol)
 	INIT_LIST_HEAD(&rs->rs_recv_queue);
 	INIT_LIST_HEAD(&rs->rs_notify_queue);
 	INIT_LIST_HEAD(&rs->rs_cong_list);
-	skb_queue_head_init(&rs->rs_zcookie_queue);
+	rds_message_zcopy_queue_init(&rs->rs_zcookie_queue);
 	spin_lock_init(&rs->rs_rdma_lock);
 	rs->rs_rdma_keys = RB_ROOT;
 	rs->rs_rx_traces = 0;
