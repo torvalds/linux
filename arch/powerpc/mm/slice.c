@@ -803,12 +803,6 @@ int is_hugepage_only_range(struct mm_struct *mm, unsigned long addr,
 	}
 #endif
 
-#if 0 /* too verbose */
-	slice_dbg("is_hugepage_only_range(mm=%p, addr=%lx, len=%lx)\n",
-		 mm, addr, len);
-	slice_print_mask(" mask", &mask);
-	slice_print_mask(" available", &available);
-#endif
 	return !slice_check_range_fits(mm, &available, addr, len);
 }
 #endif
