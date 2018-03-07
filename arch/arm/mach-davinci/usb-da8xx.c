@@ -8,6 +8,7 @@
 #include <linux/init.h>
 #include <linux/mfd/da8xx-cfgchip.h>
 #include <linux/phy/phy.h>
+#include <linux/platform_data/phy-da8xx-usb.h>
 #include <linux/platform_data/usb-davinci.h>
 #include <linux/platform_device.h>
 #include <linux/usb/musb.h>
@@ -40,6 +41,11 @@ static struct platform_device da8xx_usb_phy = {
 
 int __init da8xx_register_usb_phy(void)
 {
+	struct da8xx_usb_phy_platform_data pdata;
+
+	pdata.cfgchip = da8xx_get_cfgchip();
+	da8xx_usb_phy.dev.platform_data = &pdata;
+
 	return platform_device_register(&da8xx_usb_phy);
 }
 
@@ -256,14 +262,14 @@ static int usb20_phy_clk_set_parent(struct clk *clk, struct clk *parent)
 }
 
 static struct clk usb20_phy_clk = {
-	.name		= "usb20_phy",
+	.name		= "usb0_clk48",
 	.clk_enable	= usb20_phy_clk_enable,
 	.clk_disable	= usb20_phy_clk_disable,
 	.set_parent	= usb20_phy_clk_set_parent,
 };
 
 static struct clk_lookup usb20_phy_clk_lookup =
-	CLK("da8xx-usb-phy", "usb20_phy", &usb20_phy_clk);
+	CLK("da8xx-usb-phy", "usb0_clk48", &usb20_phy_clk);
 
 /**
  * da8xx_register_usb20_phy_clk - register USB0PHYCLKMUX clock
@@ -320,18 +326,18 @@ static int usb11_phy_clk_set_parent(struct clk *clk, struct clk *parent)
 }
 
 static struct clk usb11_phy_clk = {
-	.name		= "usb11_phy",
+	.name		= "usb1_clk48",
 	.set_parent	= usb11_phy_clk_set_parent,
 };
 
 static struct clk_lookup usb11_phy_clk_lookup =
-	CLK("da8xx-usb-phy", "usb11_phy", &usb11_phy_clk);
+	CLK("da8xx-usb-phy", "usb1_clk48", &usb11_phy_clk);
 
 /**
  * da8xx_register_usb11_phy_clk - register USB1PHYCLKMUX clock
  *
  * @use_usb_refclkin: Selects the parent clock - either "usb_refclkin" if true
- *	or "usb20_phy" if false.
+ *	or "usb0_clk48" if false.
  */
 int __init da8xx_register_usb11_phy_clk(bool use_usb_refclkin)
 {
@@ -341,7 +347,7 @@ int __init da8xx_register_usb11_phy_clk(bool use_usb_refclkin)
 	if (use_usb_refclkin)
 		parent = clk_get(NULL, "usb_refclkin");
 	else
-		parent = clk_get(&da8xx_usb_phy.dev, "usb20_phy");
+		parent = clk_get(&da8xx_usb_phy.dev, "usb0_clk48");
 	if (IS_ERR(parent))
 		return PTR_ERR(parent);
 
