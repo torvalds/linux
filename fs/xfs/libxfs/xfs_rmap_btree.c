@@ -104,20 +104,15 @@ xfs_rmapbt_alloc_block(
 	int			error;
 	xfs_agblock_t		bno;
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-
 	/* Allocate the new block from the freelist. If we can't, give up.  */
 	error = xfs_alloc_get_freelist(cur->bc_tp, cur->bc_private.a.agbp,
 				       &bno, 1);
-	if (error) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	if (error)
 		return error;
-	}
 
 	trace_xfs_rmapbt_alloc_block(cur->bc_mp, cur->bc_private.a.agno,
 			bno, 1);
 	if (bno == NULLAGBLOCK) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
@@ -130,7 +125,6 @@ xfs_rmapbt_alloc_block(
 	be32_add_cpu(&agf->agf_rmap_blocks, 1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 }

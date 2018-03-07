@@ -79,8 +79,6 @@ xfs_refcountbt_alloc_block(
 	struct xfs_alloc_arg	args;		/* block allocation args */
 	int			error;		/* error return value */
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-
 	memset(&args, 0, sizeof(args));
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
@@ -98,7 +96,6 @@ xfs_refcountbt_alloc_block(
 	trace_xfs_refcountbt_alloc_block(cur->bc_mp, cur->bc_private.a.agno,
 			args.agbno, 1);
 	if (args.fsbno == NULLFSBLOCK) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
@@ -109,12 +106,10 @@ xfs_refcountbt_alloc_block(
 	be32_add_cpu(&agf->agf_refcount_blocks, 1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_REFCOUNT_BLOCKS);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 
 out_error:
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
 	return error;
 }
 

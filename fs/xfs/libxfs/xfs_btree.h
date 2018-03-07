@@ -473,25 +473,6 @@ static inline int xfs_btree_get_level(struct xfs_btree_block *block)
 #define	XFS_FILBLKS_MIN(a,b)	min_t(xfs_filblks_t, (a), (b))
 #define	XFS_FILBLKS_MAX(a,b)	max_t(xfs_filblks_t, (a), (b))
 
-/*
- * Trace hooks.  Currently not implemented as they need to be ported
- * over to the generic tracing functionality, which is some effort.
- *
- * i,j = integer (32 bit)
- * b = btree block buffer (xfs_buf_t)
- * p = btree ptr
- * r = btree record
- * k = btree key
- */
-#define	XFS_BTREE_TRACE_ARGBI(c, b, i)
-#define	XFS_BTREE_TRACE_ARGBII(c, b, i, j)
-#define	XFS_BTREE_TRACE_ARGI(c, i)
-#define	XFS_BTREE_TRACE_ARGIPK(c, i, p, s)
-#define	XFS_BTREE_TRACE_ARGIPR(c, i, p, r)
-#define	XFS_BTREE_TRACE_ARGIK(c, i, k)
-#define XFS_BTREE_TRACE_ARGR(c, r)
-#define	XFS_BTREE_TRACE_CURSOR(c, t)
-
 xfs_failaddr_t xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
 xfs_failaddr_t xfs_btree_sblock_verify(struct xfs_buf *bp,
 		unsigned int max_recs);

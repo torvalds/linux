@@ -74,18 +74,13 @@ xfs_allocbt_alloc_block(
 	int			error;
 	xfs_agblock_t		bno;
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_ENTRY);
-
 	/* Allocate the new block from the freelist. If we can't, give up.  */
 	error = xfs_alloc_get_freelist(cur->bc_tp, cur->bc_private.a.agbp,
 				       &bno, 1);
-	if (error) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_ERROR);
+	if (error)
 		return error;
-	}
 
 	if (bno == NULLAGBLOCK) {
-		XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 		*stat = 0;
 		return 0;
 	}
@@ -95,7 +90,6 @@ xfs_allocbt_alloc_block(
 	xfs_trans_agbtree_delta(cur->bc_tp, 1);
 	new->s = cpu_to_be32(bno);
 
-	XFS_BTREE_TRACE_CURSOR(cur, XBT_EXIT);
 	*stat = 1;
 	return 0;
 }
