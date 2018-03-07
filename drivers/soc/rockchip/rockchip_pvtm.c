@@ -300,11 +300,12 @@ static u32 rockchip_pvtm_get_value(struct rockchip_pvtm *pvtm,
 
 	rockchip_pvtm_delay(time_us);
 
-	while (check_cnt--) {
+	while (check_cnt) {
 		regmap_read(pvtm->grf, pvtm->sta, &sta);
-		if (sta & channel->bit_freq_done)
+		if (sta & BIT(channel->bit_freq_done))
 			break;
 		udelay(4);
+		check_cnt--;
 	}
 
 	if (check_cnt) {
