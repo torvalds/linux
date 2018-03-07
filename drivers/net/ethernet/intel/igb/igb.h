@@ -109,6 +109,7 @@ struct vf_data_storage {
 	u16 pf_qos;
 	u16 tx_rate;
 	bool spoofchk_enabled;
+	bool trusted;
 };
 
 /* Number of unicast MAC filters reserved for the PF in the RAR registers */
