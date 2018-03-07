@@ -69,6 +69,11 @@ enum SMU_MAC_DEFINITION {
 	SMU_UVD_MCLK_HANDSHAKE_DISABLE,
 };
 
+enum SMU10_TABLE_ID {
+	SMU10_WMTABLE = 0,
+	SMU10_CLOCKTABLE,
+};
+
 extern int smum_get_argument(struct pp_hwmgr *hwmgr);
 
 extern int smum_download_powerplay_table(struct pp_hwmgr *hwmgr, void **table);

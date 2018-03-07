@@ -125,7 +125,7 @@ static int rv_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
+static int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
 	struct rv_smumgr *priv =
@@ -153,7 +153,7 @@ int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
+static int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
 	struct rv_smumgr *priv =
@@ -232,12 +232,12 @@ static int rv_smu_fini(struct pp_hwmgr *hwmgr)
 	if (priv) {
 		rv_smc_disable_sdma(hwmgr);
 		rv_smc_disable_vcn(hwmgr);
-		amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
-					&priv->smu_tables.entry[WMTABLE].mc_addr,
-					priv->smu_tables.entry[WMTABLE].table);
-		amdgpu_bo_free_kernel(&priv->smu_tables.entry[CLOCKTABLE].handle,
-					&priv->smu_tables.entry[CLOCKTABLE].mc_addr,
-					priv->smu_tables.entry[CLOCKTABLE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[SMU10_WMTABLE].handle,
+					&priv->smu_tables.entry[SMU10_WMTABLE].mc_addr,
+					priv->smu_tables.entry[SMU10_WMTABLE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[SMU10_CLOCKTABLE].handle,
+					&priv->smu_tables.entry[SMU10_CLOCKTABLE].mc_addr,
+					priv->smu_tables.entry[SMU10_CLOCKTABLE].table);
 		kfree(hwmgr->smu_backend);
 		hwmgr->smu_backend = NULL;
 	}
@@ -279,44 +279,56 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 			sizeof(Watermarks_t),
 			PAGE_SIZE,
 			AMDGPU_GEM_DOMAIN_VRAM,
-			&priv->smu_tables.entry[WMTABLE].handle,
-			&priv->smu_tables.entry[WMTABLE].mc_addr,
-			&priv->smu_tables.entry[WMTABLE].table);
+			&priv->smu_tables.entry[SMU10_WMTABLE].handle,
+			&priv->smu_tables.entry[SMU10_WMTABLE].mc_addr,
+			&priv->smu_tables.entry[SMU10_WMTABLE].table);
 
 	if (r)
 		goto err0;
 
-	priv->smu_tables.entry[WMTABLE].version = 0x01;
-	priv->smu_tables.entry[WMTABLE].size = sizeof(Watermarks_t);
-	priv->smu_tables.entry[WMTABLE].table_id = TABLE_WATERMARKS;
-
+	priv->smu_tables.entry[SMU10_WMTABLE].version = 0x01;
+	priv->smu_tables.entry[SMU10_WMTABLE].size = sizeof(Watermarks_t);
+	priv->smu_tables.entry[SMU10_WMTABLE].table_id = TABLE_WATERMARKS;
 
 	/* allocate space for watermarks table */
 	r = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(DpmClocks_t),
 			PAGE_SIZE,
 			AMDGPU_GEM_DOMAIN_VRAM,
-			&priv->smu_tables.entry[CLOCKTABLE].handle,
-			&priv->smu_tables.entry[CLOCKTABLE].mc_addr,
-			&priv->smu_tables.entry[CLOCKTABLE].table);
+			&priv->smu_tables.entry[SMU10_CLOCKTABLE].handle,
+			&priv->smu_tables.entry[SMU10_CLOCKTABLE].mc_addr,
+			&priv->smu_tables.entry[SMU10_CLOCKTABLE].table);
 
 	if (r)
 		goto err1;
 
-	priv->smu_tables.entry[CLOCKTABLE].version = 0x01;
-	priv->smu_tables.entry[CLOCKTABLE].size = sizeof(DpmClocks_t);
-	priv->smu_tables.entry[CLOCKTABLE].table_id = TABLE_DPMCLOCKS;
+	priv->smu_tables.entry[SMU10_CLOCKTABLE].version = 0x01;
+	priv->smu_tables.entry[SMU10_CLOCKTABLE].size = sizeof(DpmClocks_t);
+	priv->smu_tables.entry[SMU10_CLOCKTABLE].table_id = TABLE_DPMCLOCKS;
 
 	return 0;
 
 err1:
-	amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
-				&priv->smu_tables.entry[WMTABLE].mc_addr,
-				&priv->smu_tables.entry[WMTABLE].table);
+	amdgpu_bo_free_kernel(&priv->smu_tables.entry[SMU10_WMTABLE].handle,
+				&priv->smu_tables.entry[SMU10_WMTABLE].mc_addr,
+				&priv->smu_tables.entry[SMU10_WMTABLE].table);
 err0:
 	kfree(priv);
 	return -EINVAL;
 }
+
+static int rv_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw)
+{
+	int ret;
+
+	if (rw)
+		ret = rv_copy_table_from_smc(hwmgr, table, table_id);
+	else
+		ret = rv_copy_table_to_smc(hwmgr, table, table_id);
+
+	return ret;
+}
+
 
 const struct pp_smumgr_func rv_smu_funcs = {
 	.smu_init = &rv_smu_init,
@@ -328,6 +340,7 @@ const struct pp_smumgr_func rv_smu_funcs = {
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.get_argument = rv_read_arg_from_smc,
+	.smc_table_manager = rv_smc_table_manager,
 };
 
 

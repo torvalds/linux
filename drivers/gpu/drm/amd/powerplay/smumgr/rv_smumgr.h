@@ -27,11 +27,7 @@
 #include "rv_ppsmc.h"
 #include "smu10_driver_if.h"
 
-enum SMU_TABLE_ID {
-	WMTABLE = 0,
-	CLOCKTABLE,
-	MAX_SMU_TABLE,
-};
+#define MAX_SMU_TABLE 2
 
 struct smu_table_entry {
 	uint32_t version;
@@ -49,11 +45,6 @@ struct smu_table_array {
 struct rv_smumgr {
 	struct smu_table_array            smu_tables;
 };
-
-int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id);
-int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
-		uint8_t *table, int16_t table_id);
 
 
 #endif

@@ -34,7 +34,6 @@
 #include "rv_ppsmc.h"
 #include "rv_hwmgr.h"
 #include "power_state.h"
-#include "rv_smumgr.h"
 #include "pp_soc15.h"
 
 #define RAVEN_MAX_DEEPSLEEP_DIVIDER_ID     5
@@ -347,7 +346,7 @@ static int rv_populate_clock_table(struct pp_hwmgr *hwmgr)
 	DpmClocks_t  *table = &(rv_data->clock_table);
 	struct rv_clock_voltage_information *pinfo = &(rv_data->clock_vol_info);
 
-	result = rv_copy_table_from_smc(hwmgr, (uint8_t *)table, CLOCKTABLE);
+	result = smum_smc_table_manager(hwmgr, (uint8_t *)table, SMU10_CLOCKTABLE, true);
 
 	PP_ASSERT_WITH_CODE((0 == result),
 			"Attempt to copy clock table from smc failed",
