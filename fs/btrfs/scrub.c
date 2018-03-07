@@ -1727,6 +1727,45 @@ static int scrub_submit_raid56_bio_wait(struct btrfs_fs_info *fs_info,
 	return blk_status_to_errno(bio->bi_status);
 }
 
+static void scrub_recheck_block_on_raid56(struct btrfs_fs_info *fs_info,
+					  struct scrub_block *sblock)
+{
+	struct scrub_page *first_page = sblock->pagev[0];
+	struct bio *bio;
+	int page_num;
+
+	/* All pages in sblock belong to the same stripe on the same device. */
+	ASSERT(first_page->dev);
+	if (!first_page->dev->bdev)
+		goto out;
+
+	bio = btrfs_io_bio_alloc(BIO_MAX_PAGES);
+	bio_set_dev(bio, first_page->dev->bdev);
+
+	for (page_num = 0; page_num < sblock->page_count; page_num++) {
+		struct scrub_page *page = sblock->pagev[page_num];
+
+		WARN_ON(!page->page);
+		bio_add_page(bio, page->page, PAGE_SIZE, 0);
+	}
+
+	if (scrub_submit_raid56_bio_wait(fs_info, bio, first_page)) {
+		bio_put(bio);
+		goto out;
+	}
+
+	bio_put(bio);
+
+	scrub_recheck_block_checksum(sblock);
+
+	return;
+out:
+	for (page_num = 0; page_num < sblock->page_count; page_num++)
+		sblock->pagev[page_num]->io_error = 1;
+
+	sblock->no_io_error_seen = 0;
+}
+
 /*
  * this function will check the on disk data for checksum errors, header
  * errors and read I/O errors. If any I/O errors happen, the exact pages
@@ -1741,6 +1780,10 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 	int page_num;
 
 	sblock->no_io_error_seen = 1;
+
+	/* short cut for raid56 */
+	if (!retry_failed_mirror && scrub_is_page_on_raid56(sblock->pagev[0]))
+		return scrub_recheck_block_on_raid56(fs_info, sblock);
 
 	for (page_num = 0; page_num < sblock->page_count; page_num++) {
 		struct bio *bio;
@@ -1757,19 +1800,12 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 		bio_set_dev(bio, page->dev->bdev);
 
 		bio_add_page(bio, page->page, PAGE_SIZE, 0);
-		if (!retry_failed_mirror && scrub_is_page_on_raid56(page)) {
-			if (scrub_submit_raid56_bio_wait(fs_info, bio, page)) {
-				page->io_error = 1;
-				sblock->no_io_error_seen = 0;
-			}
-		} else {
-			bio->bi_iter.bi_sector = page->physical >> 9;
-			bio_set_op_attrs(bio, REQ_OP_READ, 0);
+		bio->bi_iter.bi_sector = page->physical >> 9;
+		bio->bi_opf = REQ_OP_READ;
 
-			if (btrfsic_submit_bio_wait(bio)) {
-				page->io_error = 1;
-				sblock->no_io_error_seen = 0;
-			}
+		if (btrfsic_submit_bio_wait(bio)) {
+			page->io_error = 1;
+			sblock->no_io_error_seen = 0;
 		}
 
 		bio_put(bio);
@@ -2737,7 +2773,8 @@ static int scrub_find_csum(struct scrub_ctx *sctx, u64 logical, u8 *csum)
 }
 
 /* scrub extent tries to collect up to 64 kB for each bio */
-static int scrub_extent(struct scrub_ctx *sctx, u64 logical, u64 len,
+static int scrub_extent(struct scrub_ctx *sctx, struct map_lookup *map,
+			u64 logical, u64 len,
 			u64 physical, struct btrfs_device *dev, u64 flags,
 			u64 gen, int mirror_num, u64 physical_for_dev_replace)
 {
@@ -2746,13 +2783,19 @@ static int scrub_extent(struct scrub_ctx *sctx, u64 logical, u64 len,
 	u32 blocksize;
 
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
-		blocksize = sctx->fs_info->sectorsize;
+		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
+			blocksize = map->stripe_len;
+		else
+			blocksize = sctx->fs_info->sectorsize;
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.data_extents_scrubbed++;
 		sctx->stat.data_bytes_scrubbed += len;
 		spin_unlock(&sctx->stat_lock);
 	} else if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-		blocksize = sctx->fs_info->nodesize;
+		if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK)
+			blocksize = map->stripe_len;
+		else
+			blocksize = sctx->fs_info->nodesize;
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.tree_extents_scrubbed++;
 		sctx->stat.tree_bytes_scrubbed += len;
@@ -2892,9 +2935,9 @@ static int scrub_extent_for_parity(struct scrub_parity *sparity,
 	}
 
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
-		blocksize = sctx->fs_info->sectorsize;
+		blocksize = sparity->stripe_len;
 	} else if (flags & BTRFS_EXTENT_FLAG_TREE_BLOCK) {
-		blocksize = sctx->fs_info->nodesize;
+		blocksize = sparity->stripe_len;
 	} else {
 		blocksize = sctx->fs_info->sectorsize;
 		WARN_ON(1);
@@ -3604,7 +3647,7 @@ again:
 			if (ret)
 				goto out;
 
-			ret = scrub_extent(sctx, extent_logical, extent_len,
+			ret = scrub_extent(sctx, map, extent_logical, extent_len,
 					   extent_physical, extent_dev, flags,
 					   generation, extent_mirror_num,
 					   extent_logical - logical + physical);
