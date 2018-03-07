@@ -581,7 +581,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	struct wilc_priv *priv;
 	u32 i;
 	s32 ret = 0;
-	u8 au8ScanChanList[MAX_NUM_SCANNED_NETWORKS];
+	u8 scan_ch_list[MAX_NUM_SCANNED_NETWORKS];
 	struct hidden_network hidden_ntwk;
 	struct wilc_vif *vif;
 
@@ -597,7 +597,7 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 	priv->cfg_scanning = true;
 	if (request->n_channels <= MAX_NUM_SCANNED_NETWORKS) {
 		for (i = 0; i < request->n_channels; i++)
-			au8ScanChanList[i] = (u8)ieee80211_frequency_to_channel(request->channels[i]->center_freq);
+			scan_ch_list[i] = (u8)ieee80211_frequency_to_channel(request->channels[i]->center_freq);
 
 		if (request->n_ssids >= 1) {
 			hidden_ntwk.net_info =
@@ -618,14 +618,14 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 				}
 			}
 			ret = wilc_scan(vif, USER_SCAN, ACTIVE_SCAN,
-					au8ScanChanList,
+					scan_ch_list,
 					request->n_channels,
 					(const u8 *)request->ie,
 					request->ie_len, cfg_scan_result,
 					(void *)priv, &hidden_ntwk);
 		} else {
 			ret = wilc_scan(vif, USER_SCAN, ACTIVE_SCAN,
-					au8ScanChanList,
+					scan_ch_list,
 					request->n_channels,
 					(const u8 *)request->ie,
 					request->ie_len, cfg_scan_result,
