@@ -213,8 +213,10 @@ static int odroid_audio_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id odroid_audio_of_match[] = {
+	{ .compatible	= "hardkernel,odroid-xu3-audio" },
+	{ .compatible	= "hardkernel,odroid-xu4-audio" },
 	{ .compatible	= "samsung,odroid-xu3-audio" },
-	{ .compatible	= "samsung,odroid-xu4-audio"},
+	{ .compatible	= "samsung,odroid-xu4-audio" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, odroid_audio_of_match);
