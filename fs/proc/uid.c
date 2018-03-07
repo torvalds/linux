@@ -7,6 +7,7 @@
 #include <linux/hashtable.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
+#include <linux/rtmutex.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
