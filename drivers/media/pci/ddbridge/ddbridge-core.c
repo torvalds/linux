@@ -999,37 +999,21 @@ static int tuner_attach_tda18212(struct ddb_input *input, u32 porttype)
 		.if_dvbt2_8 = 4000,
 		.if_dvbc = 5000,
 	};
-	struct i2c_board_info board_info = {
-		.type = "tda18212",
-		.platform_data = &config,
-	};
-
-	if (input->nr & 1)
-		board_info.addr = 0x63;
-	else
-		board_info.addr = 0x60;
+	u8 addr = (input->nr & 1) ? 0x63 : 0x60;
 
 	/* due to a hardware quirk with the I2C gate on the stv0367+tda18212
 	 * combo, the tda18212 must be probed by reading it's id _twice_ when
 	 * cold started, or it very likely will fail.
 	 */
 	if (porttype == DDB_TUNER_DVBCT_ST)
-		tuner_tda18212_ping(input, board_info.addr);
+		tuner_tda18212_ping(input, addr);
 
-	request_module(board_info.type);
-
-	/* perform tuner init/attach */
-	client = i2c_new_device(adapter, &board_info);
-	if (!client || !client->dev.driver)
+	/* perform tuner probe/init/attach */
+	client = dvb_module_probe("tda18212", NULL, adapter, addr, &config);
+	if (!client)
 		goto err;
-
-	if (!try_module_get(client->dev.driver->owner)) {
-		i2c_unregister_device(client);
-		goto err;
-	}
 
 	dvb->i2c_client[0] = client;
-
 	return 0;
 err:
 	dev_err(dev, "TDA18212 tuner not found. Device is not fully operational.\n");
@@ -1253,7 +1237,6 @@ static void dvb_input_detach(struct ddb_input *input)
 {
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct dvb_demux *dvbdemux = &dvb->demux;
-	struct i2c_client *client;
 
 	switch (dvb->attached) {
 	case 0x31:
@@ -1263,13 +1246,8 @@ static void dvb_input_detach(struct ddb_input *input)
 			dvb_unregister_frontend(dvb->fe);
 		/* fallthrough */
 	case 0x30:
-		client = dvb->i2c_client[0];
-		if (client) {
-			module_put(client->dev.driver->owner);
-			i2c_unregister_device(client);
-			dvb->i2c_client[0] = NULL;
-			client = NULL;
-		}
+		dvb_module_release(dvb->i2c_client[0]);
+		dvb->i2c_client[0] = NULL;
 
 		if (dvb->fe2)
 			dvb_frontend_detach(dvb->fe2);

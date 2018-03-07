@@ -324,34 +324,20 @@ static int ci_cxd2099_attach(struct ddb_port *port, u32 bitrate)
 {
 	struct cxd2099_cfg cxd_cfg = cxd_cfgtmpl;
 	struct i2c_client *client;
-	struct i2c_board_info board_info = {
-		.type = "cxd2099",
-		.addr = 0x40,
-		.platform_data = &cxd_cfg,
-	};
 
 	cxd_cfg.bitrate = bitrate;
 	cxd_cfg.en = &port->en;
 
-	request_module(board_info.type);
-
-	client = i2c_new_device(&port->i2c->adap, &board_info);
-	if (!client || !client->dev.driver)
-		goto err_ret;
-
-	if (!try_module_get(client->dev.driver->owner))
-		goto err_i2c;
-
-	if (!port->en)
-		goto err_i2c;
+	client = dvb_module_probe("cxd2099", NULL, &port->i2c->adap,
+				  0x40, &cxd_cfg);
+	if (!client)
+		goto err;
 
 	port->dvb[0].i2c_client[0] = client;
 	port->en_freedata = 0;
 	return 0;
 
-err_i2c:
-	i2c_unregister_device(client);
-err_ret:
+err:
 	dev_err(port->dev->dev, "CXD2099AR attach failed\n");
 	return -ENODEV;
 }
@@ -385,18 +371,13 @@ int ddb_ci_attach(struct ddb_port *port, u32 bitrate)
 
 void ddb_ci_detach(struct ddb_port *port)
 {
-	struct i2c_client *client;
-
 	if (port->dvb[0].dev)
 		dvb_unregister_device(port->dvb[0].dev);
 	if (port->en) {
 		dvb_ca_en50221_release(port->en);
 
-		client = port->dvb[0].i2c_client[0];
-		if (client) {
-			module_put(client->dev.driver->owner);
-			i2c_unregister_device(client);
-		}
+		dvb_module_release(port->dvb[0].i2c_client[0]);
+		port->dvb[0].i2c_client[0] = NULL;
 
 		/* free alloc'ed memory if needed */
 		if (port->en_freedata)
