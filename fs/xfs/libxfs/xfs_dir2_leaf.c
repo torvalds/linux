@@ -1415,7 +1415,8 @@ xfs_dir2_leaf_removename(
 	oldbest = be16_to_cpu(bf[0].length);
 	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
-	ASSERT(be16_to_cpu(bestsp[db]) == oldbest);
+	if (be16_to_cpu(bestsp[db]) != oldbest)
+		return -EFSCORRUPTED;
 	/*
 	 * Mark the former data entry unused.
 	 */

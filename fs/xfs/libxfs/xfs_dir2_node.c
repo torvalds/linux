@@ -387,8 +387,9 @@ xfs_dir2_leaf_to_node(
 	dp->d_ops->free_hdr_from_disk(&freehdr, free);
 	leaf = lbp->b_addr;
 	ltp = xfs_dir2_leaf_tail_p(args->geo, leaf);
-	ASSERT(be32_to_cpu(ltp->bestcount) <=
-				(uint)dp->i_d.di_size / args->geo->blksize);
+	if (be32_to_cpu(ltp->bestcount) >
+				(uint)dp->i_d.di_size / args->geo->blksize)
+		return -EFSCORRUPTED;
 
 	/*
 	 * Copy freespace entries from the leaf block to the new block.
