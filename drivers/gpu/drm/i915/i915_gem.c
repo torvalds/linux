@@ -2940,8 +2940,16 @@ i915_gem_reset_prepare_engine(struct intel_engine_cs *engine)
 	 * calling engine->init_hw() and also writing the ELSP.
 	 * Turning off the execlists->tasklet until the reset is over
 	 * prevents the race.
+	 *
+	 * Note that this needs to be a single atomic operation on the
+	 * tasklet (flush existing tasks, prevent new tasks) to prevent
+	 * a race between reset and set-wedged. It is not, so we do the best
+	 * we can atm and make sure we don't lock the machine up in the more
+	 * common case of recursively being called from set-wedged from inside
+	 * i915_reset.
 	 */
-	tasklet_kill(&engine->execlists.tasklet);
+	if (!atomic_read(&engine->execlists.tasklet.count))
+		tasklet_kill(&engine->execlists.tasklet);
 	tasklet_disable(&engine->execlists.tasklet);
 
 	/*
