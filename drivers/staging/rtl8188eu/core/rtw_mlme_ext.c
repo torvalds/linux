@@ -623,7 +623,7 @@ static int issue_probereq(struct adapter *padapter,
 	int	bssrate_len = 0;
 	u8	bc_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+issue_probereq\n"));
+	RT_TRACE(_module_rtl871x_mlme_c_, _drv_notice_, ("+%s\n", __func__));
 
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
 	if (!pmgntframe)
@@ -2253,7 +2253,7 @@ static void start_create_ibss(struct adapter *padapter)
 			pmlmeinfo->state |= WIFI_FW_ASSOC_SUCCESS;
 		}
 	} else {
-		DBG_88E("start_create_ibss, invalid cap:%x\n", caps);
+		DBG_88E("%s, invalid cap:%x\n", __func__, caps);
 		return;
 	}
 }
@@ -2705,7 +2705,7 @@ static unsigned int OnAuth(struct adapter *padapter,
 	if ((pmlmeinfo->state&0x03) != WIFI_FW_AP_STATE)
 		return _FAIL;
 
-	DBG_88E("+OnAuth\n");
+	DBG_88E("+%s\n", __func__);
 
 	sa = GetAddr2Ptr(pframe);
 
@@ -4144,13 +4144,13 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(pframe));
 
 	RT_TRACE(_module_rtl871x_mlme_c_, _drv_info_,
-		 ("+mgt_dispatcher: type(0x%x) subtype(0x%x)\n",
+		 ("+%s: type(0x%x) subtype(0x%x)\n", __func__,
 		  (unsigned int)GetFrameType(pframe),
 		  (unsigned int)GetFrameSubType(pframe)));
 
 	if (GetFrameType(pframe) != WIFI_MGT_TYPE) {
 		RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
-			 ("mgt_dispatcher: type(0x%x) error!\n",
+			 ("%s: type(0x%x) error!\n", __func__,
 			  (unsigned int)GetFrameType(pframe)));
 		return;
 	}
@@ -4355,7 +4355,7 @@ void report_join_res(struct adapter *padapter, int res)
 	pjoinbss_evt->network.join_res	= res;
 	pjoinbss_evt->network.aid = res;
 
-	DBG_88E("report_join_res(%d)\n", res);
+	DBG_88E("%s(%d)\n", __func__, res);
 
 
 	rtw_joinbss_event_prehandle(padapter, (u8 *)&pjoinbss_evt->network);
@@ -4415,7 +4415,7 @@ void report_del_sta_event(struct adapter *padapter, unsigned char *MacAddr,
 
 	pdel_sta_evt->mac_id = mac_id;
 
-	DBG_88E("report_del_sta_event: delete STA, mac_id =%d\n", mac_id);
+	DBG_88E("%s: delete STA, mac_id =%d\n", __func__, mac_id);
 
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
 }
@@ -4460,7 +4460,7 @@ void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr,
 	ether_addr_copy((unsigned char *)(&(padd_sta_evt->macaddr)), MacAddr);
 	padd_sta_evt->cam_id = cam_idx;
 
-	DBG_88E("report_add_sta_event: add STA\n");
+	DBG_88E("%s: add STA\n", __func__);
 
 	rtw_enqueue_cmd(pcmdpriv, pcmd_obj);
 }
@@ -4852,7 +4852,7 @@ void link_timer_hdl(struct timer_list *t)
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	if (pmlmeinfo->state & WIFI_FW_AUTH_NULL) {
-		DBG_88E("link_timer_hdl:no beacon while connecting\n");
+		DBG_88E("%s:no beacon while connecting\n", __func__);
 		pmlmeinfo->state = WIFI_FW_NULL_STATE;
 		report_join_res(padapter, -3);
 	} else if (pmlmeinfo->state & WIFI_FW_AUTH_STATE) {
@@ -4863,7 +4863,7 @@ void link_timer_hdl(struct timer_list *t)
 			return;
 		}
 
-		DBG_88E("link_timer_hdl: auth timeout and try again\n");
+		DBG_88E("%s: auth timeout and try again\n", __func__);
 		pmlmeinfo->auth_seq = 1;
 		issue_auth(padapter, NULL, 0);
 		set_link_timer(pmlmeext, REAUTH_TO);
@@ -4875,7 +4875,7 @@ void link_timer_hdl(struct timer_list *t)
 			return;
 		}
 
-		DBG_88E("link_timer_hdl: assoc timeout and try again\n");
+		DBG_88E("%s: assoc timeout and try again\n", __func__);
 		issue_assocreq(padapter);
 		set_link_timer(pmlmeext, REASSOC_TO);
 	}
