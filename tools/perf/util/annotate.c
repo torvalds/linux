@@ -248,7 +248,7 @@ static struct ins_ops call_ops = {
 
 bool ins__is_call(const struct ins *ins)
 {
-	return ins->ops == &call_ops;
+	return ins->ops == &call_ops || ins->ops == &s390_call_ops;
 }
 
 static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map *map __maybe_unused)
