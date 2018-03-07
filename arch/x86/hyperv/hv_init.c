@@ -18,6 +18,8 @@
  */
 
 #include <linux/types.h>
+#include <asm/apic.h>
+#include <asm/desc.h>
 #include <asm/hypervisor.h>
 #include <asm/hyperv.h>
 #include <asm/mshyperv.h>
@@ -37,6 +39,7 @@ struct ms_hyperv_tsc_page *hv_get_tsc_page(void)
 {
 	return tsc_pg;
 }
+EXPORT_SYMBOL_GPL(hv_get_tsc_page);
 
 static u64 read_hv_clock_tsc(struct clocksource *arg)
 {
@@ -101,6 +104,115 @@ static int hv_cpu_init(unsigned int cpu)
 	return 0;
 }
 
+static void (*hv_reenlightenment_cb)(void);
+
+static void hv_reenlightenment_notify(struct work_struct *dummy)
+{
+	struct hv_tsc_emulation_status emu_status;
+
+	rdmsrl(HV_X64_MSR_TSC_EMULATION_STATUS, *(u64 *)&emu_status);
+
+	/* Don't issue the callback if TSC accesses are not emulated */
+	if (hv_reenlightenment_cb && emu_status.inprogress)
+		hv_reenlightenment_cb();
+}
+static DECLARE_DELAYED_WORK(hv_reenlightenment_work, hv_reenlightenment_notify);
+
+void hyperv_stop_tsc_emulation(void)
+{
+	u64 freq;
+	struct hv_tsc_emulation_status emu_status;
+
+	rdmsrl(HV_X64_MSR_TSC_EMULATION_STATUS, *(u64 *)&emu_status);
+	emu_status.inprogress = 0;
+	wrmsrl(HV_X64_MSR_TSC_EMULATION_STATUS, *(u64 *)&emu_status);
+
+	rdmsrl(HV_X64_MSR_TSC_FREQUENCY, freq);
+	tsc_khz = div64_u64(freq, 1000);
+}
+EXPORT_SYMBOL_GPL(hyperv_stop_tsc_emulation);
+
+static inline bool hv_reenlightenment_available(void)
+{
+	/*
+	 * Check for required features and priviliges to make TSC frequency
+	 * change notifications work.
+	 */
+	return ms_hyperv.features & HV_X64_ACCESS_FREQUENCY_MSRS &&
+		ms_hyperv.misc_features & HV_FEATURE_FREQUENCY_MSRS_AVAILABLE &&
+		ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT;
+}
+
+__visible void __irq_entry hyperv_reenlightenment_intr(struct pt_regs *regs)
+{
+	entering_ack_irq();
+
+	inc_irq_stat(irq_hv_reenlightenment_count);
+
+	schedule_delayed_work(&hv_reenlightenment_work, HZ/10);
+
+	exiting_irq();
+}
+
+void set_hv_tscchange_cb(void (*cb)(void))
+{
+	struct hv_reenlightenment_control re_ctrl = {
+		.vector = HYPERV_REENLIGHTENMENT_VECTOR,
+		.enabled = 1,
+		.target_vp = hv_vp_index[smp_processor_id()]
+	};
+	struct hv_tsc_emulation_control emu_ctrl = {.enabled = 1};
+
+	if (!hv_reenlightenment_available()) {
+		pr_warn("Hyper-V: reenlightenment support is unavailable\n");
+		return;
+	}
+
+	hv_reenlightenment_cb = cb;
+
+	/* Make sure callback is registered before we write to MSRs */
+	wmb();
+
+	wrmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *((u64 *)&re_ctrl));
+	wrmsrl(HV_X64_MSR_TSC_EMULATION_CONTROL, *((u64 *)&emu_ctrl));
+}
+EXPORT_SYMBOL_GPL(set_hv_tscchange_cb);
+
+void clear_hv_tscchange_cb(void)
+{
+	struct hv_reenlightenment_control re_ctrl;
+
+	if (!hv_reenlightenment_available())
+		return;
+
+	rdmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *(u64 *)&re_ctrl);
+	re_ctrl.enabled = 0;
+	wrmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *(u64 *)&re_ctrl);
+
+	hv_reenlightenment_cb = NULL;
+}
+EXPORT_SYMBOL_GPL(clear_hv_tscchange_cb);
+
+static int hv_cpu_die(unsigned int cpu)
+{
+	struct hv_reenlightenment_control re_ctrl;
+	unsigned int new_cpu;
+
+	if (hv_reenlightenment_cb == NULL)
+		return 0;
+
+	rdmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *((u64 *)&re_ctrl));
+	if (re_ctrl.target_vp == hv_vp_index[cpu]) {
+		/* Reassign to some other online CPU */
+		new_cpu = cpumask_any_but(cpu_online_mask, cpu);
+
+		re_ctrl.target_vp = hv_vp_index[new_cpu];
+		wrmsrl(HV_X64_MSR_REENLIGHTENMENT_CONTROL, *((u64 *)&re_ctrl));
+	}
+
+	return 0;
+}
+
 /*
  * This function is to be invoked early in the boot sequence after the
  * hypervisor has been detected.
@@ -110,10 +222,17 @@ static int hv_cpu_init(unsigned int cpu)
  */
 void hyperv_init(void)
 {
-	u64 guest_id;
+	u64 guest_id, required_msrs;
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 
 	if (x86_hyper_type != X86_HYPER_MS_HYPERV)
+		return;
+
+	/* Absolutely required MSRs */
+	required_msrs = HV_X64_MSR_HYPERCALL_AVAILABLE |
+		HV_X64_MSR_VP_INDEX_AVAILABLE;
+
+	if ((ms_hyperv.features & required_msrs) != required_msrs)
 		return;
 
 	/* Allocate percpu VP index */
@@ -123,7 +242,7 @@ void hyperv_init(void)
 		return;
 
 	if (cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/hyperv_init:online",
-			      hv_cpu_init, NULL) < 0)
+			      hv_cpu_init, hv_cpu_die) < 0)
 		goto free_vp_index;
 
 	/*
@@ -239,17 +358,24 @@ void hyperv_report_panic(struct pt_regs *regs, long err)
 }
 EXPORT_SYMBOL_GPL(hyperv_report_panic);
 
-bool hv_is_hypercall_page_setup(void)
+bool hv_is_hyperv_initialized(void)
 {
 	union hv_x64_msr_hypercall_contents hypercall_msr;
 
-	/* Check if the hypercall page is setup */
+	/*
+	 * Ensure that we're really on Hyper-V, and not a KVM or Xen
+	 * emulation of Hyper-V
+	 */
+	if (x86_hyper_type != X86_HYPER_MS_HYPERV)
+		return false;
+
+	/*
+	 * Verify that earlier initialization succeeded by checking
+	 * that the hypercall page is setup
+	 */
 	hypercall_msr.as_uint64 = 0;
 	rdmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 
-	if (!hypercall_msr.enable)
-		return false;
-
-	return true;
+	return hypercall_msr.enable;
 }
-EXPORT_SYMBOL_GPL(hv_is_hypercall_page_setup);
+EXPORT_SYMBOL_GPL(hv_is_hyperv_initialized);

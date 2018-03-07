@@ -54,6 +54,7 @@ static int tee_open(struct inode *inode, struct file *filp)
 		goto err;
 	}
 
+	kref_init(&ctx->refcount);
 	ctx->teedev = teedev;
 	INIT_LIST_HEAD(&ctx->list_shm);
 	filp->private_data = ctx;
@@ -68,19 +69,40 @@ err:
 	return rc;
 }
 
+void teedev_ctx_get(struct tee_context *ctx)
+{
+	if (ctx->releasing)
+		return;
+
+	kref_get(&ctx->refcount);
+}
+
+static void teedev_ctx_release(struct kref *ref)
+{
+	struct tee_context *ctx = container_of(ref, struct tee_context,
+					       refcount);
+	ctx->releasing = true;
+	ctx->teedev->desc->ops->release(ctx);
+	kfree(ctx);
+}
+
+void teedev_ctx_put(struct tee_context *ctx)
+{
+	if (ctx->releasing)
+		return;
+
+	kref_put(&ctx->refcount, teedev_ctx_release);
+}
+
+static void teedev_close_context(struct tee_context *ctx)
+{
+	tee_device_put(ctx->teedev);
+	teedev_ctx_put(ctx);
+}
+
 static int tee_release(struct inode *inode, struct file *filp)
 {
-	struct tee_context *ctx = filp->private_data;
-	struct tee_device *teedev = ctx->teedev;
-	struct tee_shm *shm;
-
-	ctx->teedev->desc->ops->release(ctx);
-	mutex_lock(&ctx->teedev->mutex);
-	list_for_each_entry(shm, &ctx->list_shm, link)
-		shm->ctx = NULL;
-	mutex_unlock(&ctx->teedev->mutex);
-	kfree(ctx);
-	tee_device_put(teedev);
+	teedev_close_context(filp->private_data);
 	return 0;
 }
 
@@ -114,8 +136,6 @@ static int tee_ioctl_shm_alloc(struct tee_context *ctx,
 	if (data.flags)
 		return -EINVAL;
 
-	data.id = -1;
-
 	shm = tee_shm_alloc(ctx, data.size, TEE_SHM_MAPPED | TEE_SHM_DMA_BUF);
 	if (IS_ERR(shm))
 		return PTR_ERR(shm);
@@ -129,6 +149,43 @@ static int tee_ioctl_shm_alloc(struct tee_context *ctx,
 	else
 		ret = tee_shm_get_fd(shm);
 
+	/*
+	 * When user space closes the file descriptor the shared memory
+	 * should be freed or if tee_shm_get_fd() failed then it will
+	 * be freed immediately.
+	 */
+	tee_shm_put(shm);
+	return ret;
+}
+
+static int
+tee_ioctl_shm_register(struct tee_context *ctx,
+		       struct tee_ioctl_shm_register_data __user *udata)
+{
+	long ret;
+	struct tee_ioctl_shm_register_data data;
+	struct tee_shm *shm;
+
+	if (copy_from_user(&data, udata, sizeof(data)))
+		return -EFAULT;
+
+	/* Currently no input flags are supported */
+	if (data.flags)
+		return -EINVAL;
+
+	shm = tee_shm_register(ctx, data.addr, data.length,
+			       TEE_SHM_DMA_BUF | TEE_SHM_USER_MAPPED);
+	if (IS_ERR(shm))
+		return PTR_ERR(shm);
+
+	data.id = shm->id;
+	data.flags = shm->flags;
+	data.length = shm->size;
+
+	if (copy_to_user(udata, &data, sizeof(data)))
+		ret = -EFAULT;
+	else
+		ret = tee_shm_get_fd(shm);
 	/*
 	 * When user space closes the file descriptor the shared memory
 	 * should be freed or if tee_shm_get_fd() failed then it will
@@ -152,11 +209,11 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 			return -EFAULT;
 
 		/* All unused attribute bits has to be zero */
-		if (ip.attr & ~TEE_IOCTL_PARAM_ATTR_TYPE_MASK)
+		if (ip.attr & ~TEE_IOCTL_PARAM_ATTR_MASK)
 			return -EINVAL;
 
 		params[n].attr = ip.attr;
-		switch (ip.attr) {
+		switch (ip.attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_NONE:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
 			break;
@@ -219,18 +276,6 @@ static int params_to_user(struct tee_ioctl_param __user *uparams,
 		}
 	}
 	return 0;
-}
-
-static bool param_is_memref(struct tee_param *param)
-{
-	switch (param->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
-	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT:
-	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
-	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
-		return true;
-	default:
-		return false;
-	}
 }
 
 static int tee_ioctl_open_session(struct tee_context *ctx,
@@ -296,7 +341,7 @@ out:
 	if (params) {
 		/* Decrease ref count for all valid shared memory pointers */
 		for (n = 0; n < arg.num_params; n++)
-			if (param_is_memref(params + n) &&
+			if (tee_param_is_memref(params + n) &&
 			    params[n].u.memref.shm)
 				tee_shm_put(params[n].u.memref.shm);
 		kfree(params);
@@ -358,7 +403,7 @@ out:
 	if (params) {
 		/* Decrease ref count for all valid shared memory pointers */
 		for (n = 0; n < arg.num_params; n++)
-			if (param_is_memref(params + n) &&
+			if (tee_param_is_memref(params + n) &&
 			    params[n].u.memref.shm)
 				tee_shm_put(params[n].u.memref.shm);
 		kfree(params);
@@ -406,8 +451,8 @@ static int params_to_supp(struct tee_context *ctx,
 		struct tee_ioctl_param ip;
 		struct tee_param *p = params + n;
 
-		ip.attr = p->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK;
-		switch (p->attr) {
+		ip.attr = p->attr;
+		switch (p->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
 			ip.a = p->u.value.a;
@@ -471,6 +516,10 @@ static int tee_ioctl_supp_recv(struct tee_context *ctx,
 	if (!params)
 		return -ENOMEM;
 
+	rc = params_from_user(ctx, params, num_params, uarg->params);
+	if (rc)
+		goto out;
+
 	rc = ctx->teedev->desc->ops->supp_recv(ctx, &func, &num_params, params);
 	if (rc)
 		goto out;
@@ -500,11 +549,11 @@ static int params_from_supp(struct tee_param *params, size_t num_params,
 			return -EFAULT;
 
 		/* All unused attribute bits has to be zero */
-		if (ip.attr & ~TEE_IOCTL_PARAM_ATTR_TYPE_MASK)
+		if (ip.attr & ~TEE_IOCTL_PARAM_ATTR_MASK)
 			return -EINVAL;
 
 		p->attr = ip.attr;
-		switch (ip.attr) {
+		switch (ip.attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
 			/* Only out and in/out values can be updated */
@@ -586,6 +635,8 @@ static long tee_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		return tee_ioctl_version(ctx, uarg);
 	case TEE_IOC_SHM_ALLOC:
 		return tee_ioctl_shm_alloc(ctx, uarg);
+	case TEE_IOC_SHM_REGISTER:
+		return tee_ioctl_shm_register(ctx, uarg);
 	case TEE_IOC_OPEN_SESSION:
 		return tee_ioctl_open_session(ctx, uarg);
 	case TEE_IOC_INVOKE:

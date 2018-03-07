@@ -27,6 +27,8 @@
 #define SDMA1_REGISTER_OFFSET                             0x200 /* not a register */
 #define SDMA_MAX_INSTANCE 2
 
+#define KFD_VI_SDMA_QUEUE_OFFSET                      0x80 /* not a register */
+
 /* crtc instance offsets */
 #define CRTC0_REGISTER_OFFSET                 (0x1b9c - 0x1b9c)
 #define CRTC1_REGISTER_OFFSET                 (0x1d9c - 0x1b9c)

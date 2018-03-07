@@ -17,7 +17,7 @@
 #ifndef _M88RS6000T_H_
 #define _M88RS6000T_H_
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct m88rs6000t_config {
 	/*

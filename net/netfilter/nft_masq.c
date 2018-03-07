@@ -73,7 +73,7 @@ int nft_masq_init(const struct nft_ctx *ctx,
 		}
 	}
 
-	return nf_ct_netns_get(ctx->net, ctx->afi->family);
+	return nf_ct_netns_get(ctx->net, ctx->family);
 }
 EXPORT_SYMBOL_GPL(nft_masq_init);
 

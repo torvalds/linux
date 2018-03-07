@@ -34,7 +34,7 @@
 #include "tda827x.h"
 #include "lnbp21.h"
 /* CA */
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 /* debug */
 static int dvb_usb_ttusb2_debug;

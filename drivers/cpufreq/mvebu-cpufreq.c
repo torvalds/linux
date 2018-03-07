@@ -76,12 +76,6 @@ static int __init armada_xp_pmsu_cpufreq_init(void)
 			return PTR_ERR(clk);
 		}
 
-		/*
-		 * In case of a failure of dev_pm_opp_add(), we don't
-		 * bother with cleaning up the registered OPP (there's
-		 * no function to do so), and simply cancel the
-		 * registration of the cpufreq device.
-		 */
 		ret = dev_pm_opp_add(cpu_dev, clk_get_rate(clk), 0);
 		if (ret) {
 			clk_put(clk);
@@ -91,7 +85,8 @@ static int __init armada_xp_pmsu_cpufreq_init(void)
 		ret = dev_pm_opp_add(cpu_dev, clk_get_rate(clk) / 2, 0);
 		if (ret) {
 			clk_put(clk);
-			return ret;
+			dev_err(cpu_dev, "Failed to register OPPs\n");
+			goto opp_register_failed;
 		}
 
 		ret = dev_pm_opp_set_sharing_cpus(cpu_dev,
@@ -99,9 +94,16 @@ static int __init armada_xp_pmsu_cpufreq_init(void)
 		if (ret)
 			dev_err(cpu_dev, "%s: failed to mark OPPs as shared: %d\n",
 				__func__, ret);
+		clk_put(clk);
 	}
 
 	platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
 	return 0;
+
+opp_register_failed:
+	/* As registering has failed remove all the opp for all cpus */
+	dev_pm_opp_cpumask_remove_table(cpu_possible_mask);
+
+	return ret;
 }
 device_initcall(armada_xp_pmsu_cpufreq_init);

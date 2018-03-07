@@ -156,10 +156,8 @@ static struct pci_dn *add_one_dev_pci_data(struct pci_dn *parent,
 	pdn->parent = parent;
 	pdn->busno = busno;
 	pdn->devfn = devfn;
-#ifdef CONFIG_PPC_POWERNV
 	pdn->vf_index = vf_index;
 	pdn->pe_number = IODA_INVALID_PE;
-#endif
 	INIT_LIST_HEAD(&pdn->child_list);
 	INIT_LIST_HEAD(&pdn->list);
 	list_add_tail(&pdn->list, &parent->child_list);
@@ -226,9 +224,7 @@ void remove_dev_pci_data(struct pci_dev *pdev)
 	 */
 	if (pdev->is_virtfn) {
 		pdn = pci_get_pdn(pdev);
-#ifdef CONFIG_PPC_POWERNV
 		pdn->pe_number = IODA_INVALID_PE;
-#endif
 		return;
 	}
 
@@ -294,9 +290,7 @@ struct pci_dn *pci_add_device_node_info(struct pci_controller *hose,
 		return NULL;
 	dn->data = pdn;
 	pdn->phb = hose;
-#ifdef CONFIG_PPC_POWERNV
 	pdn->pe_number = IODA_INVALID_PE;
-#endif
 	regs = of_get_property(dn, "reg", NULL);
 	if (regs) {
 		u32 addr = of_read_number(regs, 1);

@@ -1059,12 +1059,6 @@ static int iterate_dir_item(struct btrfs_root *root, struct btrfs_path *path,
 			}
 		}
 
-		ret = btrfs_is_name_len_valid(eb, path->slots[0],
-			  (unsigned long)(di + 1), name_len + data_len);
-		if (!ret) {
-			ret = -EIO;
-			goto out;
-		}
 		if (name_len + data_len > buf_len) {
 			buf_len = name_len + data_len;
 			if (is_vmalloc_addr(buf)) {
@@ -5010,6 +5004,9 @@ static int send_hole(struct send_ctx *sctx, u64 end)
 	u64 offset = sctx->cur_inode_last_extent;
 	u64 len;
 	int ret = 0;
+
+	if (sctx->flags & BTRFS_SEND_FLAG_NO_FILE_DATA)
+		return send_update_extent(sctx, offset, end - offset);
 
 	p = fs_path_alloc();
 	if (!p)

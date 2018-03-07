@@ -72,6 +72,7 @@ static inline int do_siga_input(unsigned long schid, unsigned int mask,
  * @mask: which output queues to process
  * @bb: busy bit indicator, set only if SIGA-w/wt could not access a buffer
  * @fc: function code to perform
+ * @aob: asynchronous operation block
  *
  * Returns condition code.
  * Note: For IQDC unicast queues only the highest priority queue is processed.
@@ -1761,9 +1762,6 @@ EXPORT_SYMBOL(qdio_stop_irq);
  * @response:		Response code will be stored at this address
  * @cb: 		Callback function will be executed for each element
  *			of the address list
- * @priv:		Pointer passed from the caller to qdio_pnso_brinfo()
- * @type:		Type of the address entry passed to the callback
- * @entry:		Entry containg the address of the specified type
  * @priv:		Pointer to pass to the callback function.
  *
  * Performs "Store-network-bridging-information list" operation and calls

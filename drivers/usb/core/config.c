@@ -1007,7 +1007,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 		case USB_SSP_CAP_TYPE:
 			ssp_cap = (struct usb_ssp_cap_descriptor *)buffer;
 			ssac = (le32_to_cpu(ssp_cap->bmAttributes) &
-				USB_SSP_SUBLINK_SPEED_ATTRIBS) + 1;
+				USB_SSP_SUBLINK_SPEED_ATTRIBS);
 			if (length >= USB_DT_USB_SSP_CAP_SIZE(ssac))
 				dev->bos->ssp_cap = ssp_cap;
 			break;

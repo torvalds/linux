@@ -1147,9 +1147,7 @@ static int ov2640_probe(struct i2c_client *client,
 	return 0;
 
 err_videoprobe:
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&priv->subdev.entity);
-#endif
 err_hdl:
 	v4l2_ctrl_handler_free(&priv->hdl);
 err_clk:
@@ -1163,9 +1161,7 @@ static int ov2640_remove(struct i2c_client *client)
 
 	v4l2_async_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&priv->subdev.entity);
-#endif
 	v4l2_device_unregister_subdev(&priv->subdev);
 	clk_disable_unprepare(priv->clk);
 	return 0;

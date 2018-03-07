@@ -344,14 +344,14 @@ int in_gate_area_no_mm(unsigned long addr)
  * vsyscalls but leave the page not present.  If so, we skip calling
  * this.
  */
-static void __init set_vsyscall_pgtable_user_bits(void)
+void __init set_vsyscall_pgtable_user_bits(pgd_t *root)
 {
 	pgd_t *pgd;
 	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 
-	pgd = pgd_offset_k(VSYSCALL_ADDR);
+	pgd = pgd_offset_pgd(root, VSYSCALL_ADDR);
 	set_pgd(pgd, __pgd(pgd_val(*pgd) | _PAGE_USER));
 	p4d = p4d_offset(pgd, VSYSCALL_ADDR);
 #if CONFIG_PGTABLE_LEVELS >= 5
@@ -373,7 +373,7 @@ void __init map_vsyscall(void)
 			     vsyscall_mode == NATIVE
 			     ? PAGE_KERNEL_VSYSCALL
 			     : PAGE_KERNEL_VVAR);
-		set_vsyscall_pgtable_user_bits();
+		set_vsyscall_pgtable_user_bits(swapper_pg_dir);
 	}
 
 	BUILD_BUG_ON((unsigned long)__fix_to_virt(VSYSCALL_PAGE) !=

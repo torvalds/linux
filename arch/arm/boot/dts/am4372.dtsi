@@ -10,6 +10,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/am4.h>
 
 / {
 	compatible = "ti,am4372", "ti,am43";
@@ -163,9 +164,12 @@
 			};
 
 			prcm: prcm@1f0000 {
-				compatible = "ti,am4-prcm";
+				compatible = "ti,am4-prcm", "simple-bus";
 				reg = <0x1f0000 0x11000>;
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1f0000 0x11000>;
 
 				prcm_clocks: clocks {
 					#address-cells = <1>;
@@ -325,7 +329,7 @@
 			status = "disabled";
 		};
 
-		mailbox: mailbox@480C8000 {
+		mailbox: mailbox@480c8000 {
 			compatible = "ti,omap4-mailbox";
 			reg = <0x480C8000 0x200>;
 			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
@@ -346,6 +350,8 @@
 			interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
 			ti,timer-alwon;
 			ti,hwmods = "timer1";
+			clocks = <&timer1_fck>;
+			clock-names = "fck";
 		};
 
 		timer2: timer@48040000  {
@@ -353,6 +359,8 @@
 			reg = <0x48040000  0x400>;
 			interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 			ti,hwmods = "timer2";
+			clocks = <&timer2_fck>;
+			clock-names = "fck";
 		};
 
 		timer3: timer@48042000 {
@@ -936,7 +944,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		mcasp1: mcasp@4803C000 {
+		mcasp1: mcasp@4803c000 {
 			compatible = "ti,am33xx-mcasp-audio";
 			ti,hwmods = "mcasp1";
 			reg = <0x4803C000 0x2000>,
@@ -993,7 +1001,7 @@
 				reg = <0x483a8000 0x8000>;
 				syscon-phy-power = <&scm_conf 0x620>;
 				clocks = <&usb_phy0_always_on_clk32k>,
-					 <&usb_otg_ss0_refclk960m>;
+					 <&l4_per_clkctrl AM4_USB_OTG_SS0_CLKCTRL 8>;
 				clock-names = "wkupclk", "refclk";
 				#phy-cells = <0>;
 				status = "disabled";
@@ -1012,7 +1020,7 @@
 				reg = <0x483e8000 0x8000>;
 				syscon-phy-power = <&scm_conf 0x628>;
 				clocks = <&usb_phy1_always_on_clk32k>,
-					 <&usb_otg_ss1_refclk960m>;
+					 <&l4_per_clkctrl AM4_USB_OTG_SS1_CLKCTRL 8>;
 				clock-names = "wkupclk", "refclk";
 				#phy-cells = <0>;
 				status = "disabled";
@@ -1175,4 +1183,4 @@
 	};
 };
 
-/include/ "am43xx-clocks.dtsi"
+#include "am43xx-clocks.dtsi"

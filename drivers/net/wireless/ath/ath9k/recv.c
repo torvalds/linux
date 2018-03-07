@@ -826,9 +826,9 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	sc->rx.discard_next = false;
 
 	/*
-	 * Discard zero-length packets.
+	 * Discard zero-length packets and packets smaller than an ACK
 	 */
-	if (!rx_stats->rs_datalen) {
+	if (rx_stats->rs_datalen < 10) {
 		RX_STAT_INC(rx_len_err);
 		goto corrupt;
 	}

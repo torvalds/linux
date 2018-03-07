@@ -788,6 +788,7 @@ static const struct acpi_device_id ak_acpi_match[] = {
 	{"AK8975", AK8975},
 	{"AK8963", AK8963},
 	{"INVN6500", AK8963},
+	{"AK009911", AK09911},
 	{"AK09911", AK09911},
 	{"AK09912", AK09912},
 	{ },

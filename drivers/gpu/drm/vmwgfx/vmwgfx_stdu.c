@@ -114,7 +114,7 @@ struct vmw_screen_target_display_unit {
 	bool defined;
 
 	/* For CPU Blit */
-	struct ttm_bo_kmap_obj host_map, guest_map;
+	struct ttm_bo_kmap_obj host_map;
 	unsigned int cpp;
 };
 
@@ -695,7 +695,8 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 	s32 src_pitch, dst_pitch;
 	u8 *src, *dst;
 	bool not_used;
-
+	struct ttm_bo_kmap_obj guest_map;
+	int ret;
 
 	if (!dirty->num_hits)
 		return;
@@ -706,6 +707,13 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 	if (width == 0 || height == 0)
 		return;
 
+	ret = ttm_bo_kmap(&ddirty->buf->base, 0, ddirty->buf->base.num_pages,
+			  &guest_map);
+	if (ret) {
+		DRM_ERROR("Failed mapping framebuffer for blit: %d\n",
+			  ret);
+		goto out_cleanup;
+	}
 
 	/* Assume we are blitting from Host (display_srf) to Guest (dmabuf) */
 	src_pitch = stdu->display_srf->base_size.width * stdu->cpp;
@@ -713,7 +721,7 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 	src += ddirty->top * src_pitch + ddirty->left * stdu->cpp;
 
 	dst_pitch = ddirty->pitch;
-	dst = ttm_kmap_obj_virtual(&stdu->guest_map, &not_used);
+	dst = ttm_kmap_obj_virtual(&guest_map, &not_used);
 	dst += ddirty->fb_top * dst_pitch + ddirty->fb_left * stdu->cpp;
 
 
@@ -772,6 +780,7 @@ static void vmw_stdu_dmabuf_cpu_commit(struct vmw_kms_dirty *dirty)
 		vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	}
 
+	ttm_bo_kunmap(&guest_map);
 out_cleanup:
 	ddirty->left = ddirty->top = ddirty->fb_left = ddirty->fb_top = S32_MAX;
 	ddirty->right = ddirty->bottom = S32_MIN;
@@ -1109,9 +1118,6 @@ vmw_stdu_primary_plane_cleanup_fb(struct drm_plane *plane,
 {
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
 
-	if (vps->guest_map.virtual)
-		ttm_bo_kunmap(&vps->guest_map);
-
 	if (vps->host_map.virtual)
 		ttm_bo_kunmap(&vps->host_map);
 
@@ -1277,33 +1283,11 @@ vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
 	 */
 	if (vps->content_fb_type == SEPARATE_DMA &&
 	    !(dev_priv->capabilities & SVGA_CAP_3D)) {
-
-		struct vmw_framebuffer_dmabuf *new_vfbd;
-
-		new_vfbd = vmw_framebuffer_to_vfbd(new_fb);
-
-		ret = ttm_bo_reserve(&new_vfbd->buffer->base, false, false,
-				     NULL);
-		if (ret)
-			goto out_srf_unpin;
-
-		ret = ttm_bo_kmap(&new_vfbd->buffer->base, 0,
-				  new_vfbd->buffer->base.num_pages,
-				  &vps->guest_map);
-
-		ttm_bo_unreserve(&new_vfbd->buffer->base);
-
-		if (ret) {
-			DRM_ERROR("Failed to map content buffer to CPU\n");
-			goto out_srf_unpin;
-		}
-
 		ret = ttm_bo_kmap(&vps->surf->res.backup->base, 0,
 				  vps->surf->res.backup->base.num_pages,
 				  &vps->host_map);
 		if (ret) {
 			DRM_ERROR("Failed to map display buffer to CPU\n");
-			ttm_bo_kunmap(&vps->guest_map);
 			goto out_srf_unpin;
 		}
 
@@ -1350,7 +1334,6 @@ vmw_stdu_primary_plane_atomic_update(struct drm_plane *plane,
 	stdu->display_srf = vps->surf;
 	stdu->content_fb_type = vps->content_fb_type;
 	stdu->cpp = vps->cpp;
-	memcpy(&stdu->guest_map, &vps->guest_map, sizeof(vps->guest_map));
 	memcpy(&stdu->host_map, &vps->host_map, sizeof(vps->host_map));
 
 	if (!stdu->defined)

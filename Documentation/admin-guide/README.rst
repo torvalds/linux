@@ -170,11 +170,6 @@ Configuring the kernel
                         your existing ./.config file and asking about
                         new config symbols.
 
-     "make silentoldconfig"
-                        Like above, but avoids cluttering the screen
-                        with questions already answered.
-                        Additionally updates the dependencies.
-
      "make olddefconfig"
                         Like above, but sets new symbols to their default
                         values without prompting.

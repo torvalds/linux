@@ -42,9 +42,9 @@ as well as what protections the callback will perform and not require
 ftrace to handle.
 
 There is only one field that is needed to be set when registering
-an ftrace_ops with ftrace::
+an ftrace_ops with ftrace:
 
-.. code-block: c
+.. code-block:: c
 
  struct ftrace_ops ops = {
        .func			= my_callback_func,
@@ -81,12 +81,12 @@ may take some time to finish.
 The callback function
 =====================
 
-The prototype of the callback function is as follows (as of v4.14)::
+The prototype of the callback function is as follows (as of v4.14):
 
-.. code-block: c
+.. code-block:: c
 
- void callback_func(unsigned long ip, unsigned long parent_ip,
-		    struct ftrace_ops *op, struct pt_regs *regs);
+   void callback_func(unsigned long ip, unsigned long parent_ip,
+                      struct ftrace_ops *op, struct pt_regs *regs);
 
 @ip
 	 This is the instruction pointer of the function that is being traced.
@@ -176,10 +176,10 @@ Filtering which functions to trace
 If a callback is only to be called from specific functions, a filter must be
 set up. The filters are added by name, or ip if it is known.
 
-.. code-block: c
+.. code-block:: c
 
- int ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
-		       int len, int reset);
+   int ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
+                         int len, int reset);
 
 @ops
 	The ops to set the filter with
@@ -202,9 +202,9 @@ See Filter Commands in :file:`Documentation/trace/ftrace.txt`.
 
 To just trace the schedule function::
 
-.. code-block: c
+.. code-block:: c
 
- ret = ftrace_set_filter(&ops, "schedule", strlen("schedule"), 0);
+   ret = ftrace_set_filter(&ops, "schedule", strlen("schedule"), 0);
 
 To add more functions, call the ftrace_set_filter() more than once with the
 @reset parameter set to zero. To remove the current filter set and replace it
@@ -212,17 +212,17 @@ with new functions defined by @buf, have @reset be non-zero.
 
 To remove all the filtered functions and trace all functions::
 
-.. code-block: c
+.. code-block:: c
 
-  ret = ftrace_set_filter(&ops, NULL, 0, 1);
+   ret = ftrace_set_filter(&ops, NULL, 0, 1);
 
 
 Sometimes more than one function has the same name. To trace just a specific
 function in this case, ftrace_set_filter_ip() can be used.
 
-.. code-block: c
+.. code-block:: c
 
- ret = ftrace_set_filter_ip(&ops, ip, 0, 0);
+   ret = ftrace_set_filter_ip(&ops, ip, 0, 0);
 
 Although the ip must be the address where the call to fentry or mcount is
 located in the function. This function is used by perf and kprobes that
@@ -237,10 +237,10 @@ be called by any function.
 An empty "notrace" list means to allow all functions defined by the filter
 to be traced.
 
-.. code-block: c
+.. code-block:: c
 
-  int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
-			 int len, int reset);
+   int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
+                          int len, int reset);
 
 This takes the same parameters as ftrace_set_filter() but will add the
 functions it finds to not be traced. This is a separate list from the
@@ -251,7 +251,7 @@ that match @buf to it.
 
 Clearing the "notrace" list is the same as clearing the filter list
 
-.. code-block: c
+.. code-block:: c
 
   ret = ftrace_set_notrace(&ops, NULL, 0, 1);
 
@@ -264,29 +264,29 @@ If a filter is in place, and the @reset is non-zero, and @buf contains a
 matching glob to functions, the switch will happen during the time of
 the ftrace_set_filter() call. At no time will all functions call the callback.
 
-.. code-block: c
+.. code-block:: c
 
-	ftrace_set_filter(&ops, "schedule", strlen("schedule"), 1);
+   ftrace_set_filter(&ops, "schedule", strlen("schedule"), 1);
 
-	register_ftrace_function(&ops);
+   register_ftrace_function(&ops);
 
-	msleep(10);
+   msleep(10);
 
-	ftrace_set_filter(&ops, "try_to_wake_up", strlen("try_to_wake_up"), 1);
+   ftrace_set_filter(&ops, "try_to_wake_up", strlen("try_to_wake_up"), 1);
 
 is not the same as:
 
-.. code-block: c
+.. code-block:: c
 
-	ftrace_set_filter(&ops, "schedule", strlen("schedule"), 1);
+   ftrace_set_filter(&ops, "schedule", strlen("schedule"), 1);
 
-	register_ftrace_function(&ops);
+   register_ftrace_function(&ops);
 
-	msleep(10);
+   msleep(10);
 
-	ftrace_set_filter(&ops, NULL, 0, 1);
+   ftrace_set_filter(&ops, NULL, 0, 1);
 
-	ftrace_set_filter(&ops, "try_to_wake_up", strlen("try_to_wake_up"), 0);
+   ftrace_set_filter(&ops, "try_to_wake_up", strlen("try_to_wake_up"), 0);
 
 As the latter will have a short time where all functions will call
 the callback, between the time of the reset, and the time of the

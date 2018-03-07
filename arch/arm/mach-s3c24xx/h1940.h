@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2006 Ben Dooks <ben-linux@fluff.org>
  *
@@ -6,11 +7,7 @@
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * iPAQ H1940 series definitions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #ifndef __MACH_S3C24XX_H1940_H
 #define __MACH_S3C24XX_H1940_H __FILE__

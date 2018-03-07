@@ -48,6 +48,7 @@ u16 nfp_nsp_get_abi_ver_minor(struct nfp_nsp *state);
 int nfp_nsp_wait(struct nfp_nsp *state);
 int nfp_nsp_device_soft_reset(struct nfp_nsp *state);
 int nfp_nsp_load_fw(struct nfp_nsp *state, const struct firmware *fw);
+int nfp_nsp_write_flash(struct nfp_nsp *state, const struct firmware *fw);
 int nfp_nsp_mac_reinit(struct nfp_nsp *state);
 
 static inline bool nfp_nsp_has_mac_reinit(struct nfp_nsp *state)
@@ -97,28 +98,29 @@ enum nfp_eth_fec {
  * @max_index:	max of @index fields of all @ports
  * @ports:	table of ports
  *
- * @eth_index:	port index according to legacy ethX numbering
- * @index:	chip-wide first channel index
- * @nbi:	NBI index
- * @base:	first channel index (within NBI)
- * @lanes:	number of channels
- * @speed:	interface speed (in Mbps)
- * @interface:	interface (module) plugged in
- * @media:	media type of the @interface
- * @fec:	forward error correction mode
- * @aneg:	auto negotiation mode
- * @mac_addr:	interface MAC address
- * @label_port:	port id
- * @label_subport:  id of interface within port (for split ports)
- * @enabled:	is enabled?
- * @tx_enabled:	is TX enabled?
- * @rx_enabled:	is RX enabled?
- * @override_changed: is media reconfig pending?
+ * @ports.eth_index:	port index according to legacy ethX numbering
+ * @ports.index:	chip-wide first channel index
+ * @ports.nbi:		NBI index
+ * @ports.base:		first channel index (within NBI)
+ * @ports.lanes:	number of channels
+ * @ports.speed:	interface speed (in Mbps)
+ * @ports.interface:	interface (module) plugged in
+ * @ports.media:	media type of the @interface
+ * @ports.fec:		forward error correction mode
+ * @ports.aneg:		auto negotiation mode
+ * @ports.mac_addr:	interface MAC address
+ * @ports.label_port:	port id
+ * @ports.label_subport:  id of interface within port (for split ports)
+ * @ports.enabled:	is enabled?
+ * @ports.tx_enabled:	is TX enabled?
+ * @ports.rx_enabled:	is RX enabled?
+ * @ports.override_changed: is media reconfig pending?
  *
- * @port_type:	one of %PORT_* defines for ethtool
- * @port_lanes:	total number of lanes on the port (sum of lanes of all subports)
- * @is_split:	is interface part of a split port
- * @fec_modes_supported:	bitmap of FEC modes supported
+ * @ports.port_type:	one of %PORT_* defines for ethtool
+ * @ports.port_lanes:	total number of lanes on the port (sum of lanes of all
+ *			subports)
+ * @ports.is_split:	is interface part of a split port
+ * @ports.fec_modes_supported:	bitmap of FEC modes supported
  */
 struct nfp_eth_table {
 	unsigned int count;

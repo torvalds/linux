@@ -55,7 +55,7 @@ then
 	exit
 fi
 
-grep --binary-files=text 'torture:.*ver:' $file | grep --binary-files=text -v '(null)' | sed -e 's/^(initramfs)[^]]*] //' -e 's/^\[[^]]*] //' |
+grep --binary-files=text 'torture:.*ver:' $file | egrep --binary-files=text -v '\(null\)|rtc: 000000000* ' | sed -e 's/^(initramfs)[^]]*] //' -e 's/^\[[^]]*] //' |
 awk '
 BEGIN	{
 	ver = 0;

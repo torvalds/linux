@@ -24,7 +24,6 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
-#include <linux/vgaarb.h>
 #include <acpi/video.h>
 #include <asm/io.h>
 
@@ -54,7 +53,6 @@ struct apple_gmux_data {
 	bool indexed;
 	struct mutex index_lock;
 
-	struct pci_dev *pdev;
 	struct backlight_device *bdev;
 
 	/* switcheroo data */
@@ -599,23 +597,6 @@ static int gmux_resume(struct device *dev)
 	return 0;
 }
 
-static struct pci_dev *gmux_get_io_pdev(void)
-{
-	struct pci_dev *pdev = NULL;
-
-	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev))) {
-		u16 cmd;
-
-		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
-		if (!(cmd & PCI_COMMAND_IO))
-			continue;
-
-		return pdev;
-	}
-
-	return NULL;
-}
-
 static int is_thunderbolt(struct device *dev, void *data)
 {
 	return to_pci_dev(dev)->is_thunderbolt;
@@ -631,7 +612,6 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	int ret = -ENXIO;
 	acpi_status status;
 	unsigned long long gpe;
-	struct pci_dev *pdev = NULL;
 
 	if (apple_gmux_data)
 		return -EBUSY;
@@ -682,30 +662,13 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 			ver_minor = (version >> 16) & 0xff;
 			ver_release = (version >> 8) & 0xff;
 		} else {
-			pr_info("gmux device not present or IO disabled\n");
+			pr_info("gmux device not present\n");
 			ret = -ENODEV;
 			goto err_release;
 		}
 	}
 	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_minor,
 		ver_release, (gmux_data->indexed ? "indexed" : "classic"));
-
-	/*
-	 * Apple systems with gmux are EFI based and normally don't use
-	 * VGA. In addition changing IO+MEM ownership between IGP and dGPU
-	 * disables IO/MEM used for backlight control on some systems.
-	 * Lock IO+MEM to GPU with active IO to prevent switch.
-	 */
-	pdev = gmux_get_io_pdev();
-	if (pdev && vga_tryget(pdev,
-			       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM)) {
-		pr_err("IO+MEM vgaarb-locking for PCI:%s failed\n",
-			pci_name(pdev));
-		ret = -EBUSY;
-		goto err_release;
-	} else if (pdev)
-		pr_info("locked IO for PCI:%s\n", pci_name(pdev));
-	gmux_data->pdev = pdev;
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
@@ -822,10 +785,6 @@ err_enable_gpe:
 err_notify:
 	backlight_device_unregister(bdev);
 err_release:
-	if (gmux_data->pdev)
-		vga_put(gmux_data->pdev,
-			VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM);
-	pci_dev_put(pdev);
 	release_region(gmux_data->iostart, gmux_data->iolen);
 err_free:
 	kfree(gmux_data);
@@ -845,11 +804,6 @@ static void gmux_remove(struct pnp_dev *pnp)
 					   &gmux_notify_handler);
 	}
 
-	if (gmux_data->pdev) {
-		vga_put(gmux_data->pdev,
-			VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM);
-		pci_dev_put(gmux_data->pdev);
-	}
 	backlight_device_unregister(gmux_data->bdev);
 
 	release_region(gmux_data->iostart, gmux_data->iolen);

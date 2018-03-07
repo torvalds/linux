@@ -25,6 +25,7 @@
 
 static int zero = 0;
 static int one = 1;
+static int two __maybe_unused = 2;
 static int min_sndbuf = SOCK_MIN_SNDBUF;
 static int min_rcvbuf = SOCK_MIN_RCVBUF;
 static int max_skb_frags = MAX_SKB_FRAGS;
@@ -250,6 +251,46 @@ static int proc_do_rss_key(struct ctl_table *table, int write,
 	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
 }
 
+#ifdef CONFIG_BPF_JIT
+static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
+					   void __user *buffer, size_t *lenp,
+					   loff_t *ppos)
+{
+	int ret, jit_enable = *(int *)table->data;
+	struct ctl_table tmp = *table;
+
+	if (write && !capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	tmp.data = &jit_enable;
+	ret = proc_dointvec_minmax(&tmp, write, buffer, lenp, ppos);
+	if (write && !ret) {
+		if (jit_enable < 2 ||
+		    (jit_enable == 2 && bpf_dump_raw_ok())) {
+			*(int *)table->data = jit_enable;
+			if (jit_enable == 2)
+				pr_warn("bpf_jit_enable = 2 was set! NEVER use this in production, only for JIT debugging!\n");
+		} else {
+			ret = -EPERM;
+		}
+	}
+	return ret;
+}
+
+# ifdef CONFIG_HAVE_EBPF_JIT
+static int
+proc_dointvec_minmax_bpf_restricted(struct ctl_table *table, int write,
+				    void __user *buffer, size_t *lenp,
+				    loff_t *ppos)
+{
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	return proc_dointvec_minmax(table, write, buffer, lenp, ppos);
+}
+# endif
+#endif
+
 static struct ctl_table net_core_table[] = {
 #ifdef CONFIG_NET
 	{
@@ -325,7 +366,14 @@ static struct ctl_table net_core_table[] = {
 		.data		= &bpf_jit_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax_bpf_enable,
+# ifdef CONFIG_BPF_JIT_ALWAYS_ON
+		.extra1		= &one,
+		.extra2		= &one,
+# else
+		.extra1		= &zero,
+		.extra2		= &two,
+# endif
 	},
 # ifdef CONFIG_HAVE_EBPF_JIT
 	{
@@ -333,14 +381,18 @@ static struct ctl_table net_core_table[] = {
 		.data		= &bpf_jit_harden,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax_bpf_restricted,
+		.extra1		= &zero,
+		.extra2		= &two,
 	},
 	{
 		.procname	= "bpf_jit_kallsyms",
 		.data		= &bpf_jit_kallsyms,
 		.maxlen		= sizeof(int),
 		.mode		= 0600,
-		.proc_handler	= proc_dointvec,
+		.proc_handler	= proc_dointvec_minmax_bpf_restricted,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 # endif
 #endif

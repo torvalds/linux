@@ -21,7 +21,7 @@ Documentation/devicetree/bindings/gpio/gpio.txt
 
 Example:
 
-	gpioa: gpio@FF140000 {
+	gpioa: gpio@ff140000 {
 		compatible = "abilis,tb10x-gpio";
 		interrupt-controller;
 		#interrupt-cells = <1>;

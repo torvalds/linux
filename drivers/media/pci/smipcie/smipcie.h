@@ -29,12 +29,12 @@
 #include <linux/slab.h>
 #include <media/rc-core.h>
 
-#include "demux.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
-#include "dvbdev.h"
+#include <media/demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
+#include <media/dvbdev.h>
 
 /* -------- Register Base -------- */
 #define    MSI_CONTROL_REG_BASE                 0x0800

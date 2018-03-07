@@ -78,6 +78,36 @@
  */
 
 /* Check for operational errors. */
+static bool
+__xfs_scrub_process_error(
+	struct xfs_scrub_context	*sc,
+	xfs_agnumber_t			agno,
+	xfs_agblock_t			bno,
+	int				*error,
+	__u32				errflag,
+	void				*ret_ip)
+{
+	switch (*error) {
+	case 0:
+		return true;
+	case -EDEADLOCK:
+		/* Used to restart an op with deadlock avoidance. */
+		trace_xfs_scrub_deadlock_retry(sc->ip, sc->sm, *error);
+		break;
+	case -EFSBADCRC:
+	case -EFSCORRUPTED:
+		/* Note the badness but don't abort. */
+		sc->sm->sm_flags |= errflag;
+		*error = 0;
+		/* fall through */
+	default:
+		trace_xfs_scrub_op_error(sc, agno, bno, *error,
+				ret_ip);
+		break;
+	}
+	return false;
+}
+
 bool
 xfs_scrub_process_error(
 	struct xfs_scrub_context	*sc,
@@ -85,34 +115,30 @@ xfs_scrub_process_error(
 	xfs_agblock_t			bno,
 	int				*error)
 {
-	switch (*error) {
-	case 0:
-		return true;
-	case -EDEADLOCK:
-		/* Used to restart an op with deadlock avoidance. */
-		trace_xfs_scrub_deadlock_retry(sc->ip, sc->sm, *error);
-		break;
-	case -EFSBADCRC:
-	case -EFSCORRUPTED:
-		/* Note the badness but don't abort. */
-		sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
-		*error = 0;
-		/* fall through */
-	default:
-		trace_xfs_scrub_op_error(sc, agno, bno, *error,
-				__return_address);
-		break;
-	}
-	return false;
+	return __xfs_scrub_process_error(sc, agno, bno, error,
+			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
+}
+
+bool
+xfs_scrub_xref_process_error(
+	struct xfs_scrub_context	*sc,
+	xfs_agnumber_t			agno,
+	xfs_agblock_t			bno,
+	int				*error)
+{
+	return __xfs_scrub_process_error(sc, agno, bno, error,
+			XFS_SCRUB_OFLAG_XFAIL, __return_address);
 }
 
 /* Check for operational errors for a file offset. */
-bool
-xfs_scrub_fblock_process_error(
+static bool
+__xfs_scrub_fblock_process_error(
 	struct xfs_scrub_context	*sc,
 	int				whichfork,
 	xfs_fileoff_t			offset,
-	int				*error)
+	int				*error,
+	__u32				errflag,
+	void				*ret_ip)
 {
 	switch (*error) {
 	case 0:
@@ -124,15 +150,37 @@ xfs_scrub_fblock_process_error(
 	case -EFSBADCRC:
 	case -EFSCORRUPTED:
 		/* Note the badness but don't abort. */
-		sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+		sc->sm->sm_flags |= errflag;
 		*error = 0;
 		/* fall through */
 	default:
 		trace_xfs_scrub_file_op_error(sc, whichfork, offset, *error,
-				__return_address);
+				ret_ip);
 		break;
 	}
 	return false;
+}
+
+bool
+xfs_scrub_fblock_process_error(
+	struct xfs_scrub_context	*sc,
+	int				whichfork,
+	xfs_fileoff_t			offset,
+	int				*error)
+{
+	return __xfs_scrub_fblock_process_error(sc, whichfork, offset, error,
+			XFS_SCRUB_OFLAG_CORRUPT, __return_address);
+}
+
+bool
+xfs_scrub_fblock_xref_process_error(
+	struct xfs_scrub_context	*sc,
+	int				whichfork,
+	xfs_fileoff_t			offset,
+	int				*error)
+{
+	return __xfs_scrub_fblock_process_error(sc, whichfork, offset, error,
+			XFS_SCRUB_OFLAG_XFAIL, __return_address);
 }
 
 /*
@@ -183,6 +231,16 @@ xfs_scrub_block_set_corrupt(
 	trace_xfs_scrub_block_error(sc, bp->b_bn, __return_address);
 }
 
+/* Record a corruption while cross-referencing. */
+void
+xfs_scrub_block_xref_set_corrupt(
+	struct xfs_scrub_context	*sc,
+	struct xfs_buf			*bp)
+{
+	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
+	trace_xfs_scrub_block_error(sc, bp->b_bn, __return_address);
+}
+
 /*
  * Record a corrupt inode.  The trace data will include the block given
  * by bp if bp is given; otherwise it will use the block location of the
@@ -198,6 +256,17 @@ xfs_scrub_ino_set_corrupt(
 	trace_xfs_scrub_ino_error(sc, ino, bp ? bp->b_bn : 0, __return_address);
 }
 
+/* Record a corruption while cross-referencing with an inode. */
+void
+xfs_scrub_ino_xref_set_corrupt(
+	struct xfs_scrub_context	*sc,
+	xfs_ino_t			ino,
+	struct xfs_buf			*bp)
+{
+	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
+	trace_xfs_scrub_ino_error(sc, ino, bp ? bp->b_bn : 0, __return_address);
+}
+
 /* Record corruption in a block indexed by a file fork. */
 void
 xfs_scrub_fblock_set_corrupt(
@@ -206,6 +275,17 @@ xfs_scrub_fblock_set_corrupt(
 	xfs_fileoff_t			offset)
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+	trace_xfs_scrub_fblock_error(sc, whichfork, offset, __return_address);
+}
+
+/* Record a corruption while cross-referencing a fork block. */
+void
+xfs_scrub_fblock_xref_set_corrupt(
+	struct xfs_scrub_context	*sc,
+	int				whichfork,
+	xfs_fileoff_t			offset)
+{
+	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XCORRUPT;
 	trace_xfs_scrub_fblock_error(sc, whichfork, offset, __return_address);
 }
 
@@ -242,6 +322,59 @@ xfs_scrub_set_incomplete(
 {
 	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_INCOMPLETE;
 	trace_xfs_scrub_incomplete(sc, __return_address);
+}
+
+/*
+ * rmap scrubbing -- compute the number of blocks with a given owner,
+ * at least according to the reverse mapping data.
+ */
+
+struct xfs_scrub_rmap_ownedby_info {
+	struct xfs_owner_info	*oinfo;
+	xfs_filblks_t		*blocks;
+};
+
+STATIC int
+xfs_scrub_count_rmap_ownedby_irec(
+	struct xfs_btree_cur			*cur,
+	struct xfs_rmap_irec			*rec,
+	void					*priv)
+{
+	struct xfs_scrub_rmap_ownedby_info	*sroi = priv;
+	bool					irec_attr;
+	bool					oinfo_attr;
+
+	irec_attr = rec->rm_flags & XFS_RMAP_ATTR_FORK;
+	oinfo_attr = sroi->oinfo->oi_flags & XFS_OWNER_INFO_ATTR_FORK;
+
+	if (rec->rm_owner != sroi->oinfo->oi_owner)
+		return 0;
+
+	if (XFS_RMAP_NON_INODE_OWNER(rec->rm_owner) || irec_attr == oinfo_attr)
+		(*sroi->blocks) += rec->rm_blockcount;
+
+	return 0;
+}
+
+/*
+ * Calculate the number of blocks the rmap thinks are owned by something.
+ * The caller should pass us an rmapbt cursor.
+ */
+int
+xfs_scrub_count_rmap_ownedby_ag(
+	struct xfs_scrub_context		*sc,
+	struct xfs_btree_cur			*cur,
+	struct xfs_owner_info			*oinfo,
+	xfs_filblks_t				*blocks)
+{
+	struct xfs_scrub_rmap_ownedby_info	sroi;
+
+	sroi.oinfo = oinfo;
+	*blocks = 0;
+	sroi.blocks = blocks;
+
+	return xfs_rmap_query_all(cur, xfs_scrub_count_rmap_ownedby_irec,
+			&sroi);
 }
 
 /*
@@ -302,7 +435,7 @@ xfs_scrub_ag_read_headers(
 	error = xfs_alloc_read_agfl(mp, sc->tp, agno, agfl);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
 		goto out;
-
+	error = 0;
 out:
 	return error;
 }
@@ -472,7 +605,7 @@ xfs_scrub_setup_ag_btree(
 			return error;
 	}
 
-	error = xfs_scrub_setup_ag_header(sc, ip);
+	error = xfs_scrub_setup_fs(sc, ip);
 	if (error)
 		return error;
 
@@ -503,17 +636,10 @@ xfs_scrub_get_inode(
 	struct xfs_scrub_context	*sc,
 	struct xfs_inode		*ip_in)
 {
+	struct xfs_imap			imap;
 	struct xfs_mount		*mp = sc->mp;
 	struct xfs_inode		*ip = NULL;
 	int				error;
-
-	/*
-	 * If userspace passed us an AG number or a generation number
-	 * without an inode number, they haven't got a clue so bail out
-	 * immediately.
-	 */
-	if (sc->sm->sm_agno || (sc->sm->sm_gen && !sc->sm->sm_ino))
-		return -EINVAL;
 
 	/* We want to scan the inode we already had opened. */
 	if (sc->sm->sm_ino == 0 || sc->sm->sm_ino == ip_in->i_ino) {
@@ -526,10 +652,33 @@ xfs_scrub_get_inode(
 		return -ENOENT;
 	error = xfs_iget(mp, NULL, sc->sm->sm_ino,
 			XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE, 0, &ip);
-	if (error == -ENOENT || error == -EINVAL) {
-		/* inode doesn't exist... */
-		return -ENOENT;
-	} else if (error) {
+	switch (error) {
+	case -ENOENT:
+		/* Inode doesn't exist, just bail out. */
+		return error;
+	case 0:
+		/* Got an inode, continue. */
+		break;
+	case -EINVAL:
+		/*
+		 * -EINVAL with IGET_UNTRUSTED could mean one of several
+		 * things: userspace gave us an inode number that doesn't
+		 * correspond to fs space, or doesn't have an inobt entry;
+		 * or it could simply mean that the inode buffer failed the
+		 * read verifiers.
+		 *
+		 * Try just the inode mapping lookup -- if it succeeds, then
+		 * the inode buffer verifier failed and something needs fixing.
+		 * Otherwise, we really couldn't find it so tell userspace
+		 * that it no longer exists.
+		 */
+		error = xfs_imap(sc->mp, sc->tp, sc->sm->sm_ino, &imap,
+				XFS_IGET_UNTRUSTED | XFS_IGET_DONTCACHE);
+		if (error)
+			return -ENOENT;
+		error = -EFSCORRUPTED;
+		/* fall through */
+	default:
 		trace_xfs_scrub_op_error(sc,
 				XFS_INO_TO_AGNO(mp, sc->sm->sm_ino),
 				XFS_INO_TO_AGBNO(mp, sc->sm->sm_ino),
@@ -571,4 +720,62 @@ xfs_scrub_setup_inode_contents(
 out:
 	/* scrub teardown will unlock and release the inode for us */
 	return error;
+}
+
+/*
+ * Predicate that decides if we need to evaluate the cross-reference check.
+ * If there was an error accessing the cross-reference btree, just delete
+ * the cursor and skip the check.
+ */
+bool
+xfs_scrub_should_check_xref(
+	struct xfs_scrub_context	*sc,
+	int				*error,
+	struct xfs_btree_cur		**curpp)
+{
+	if (*error == 0)
+		return true;
+
+	if (curpp) {
+		/* If we've already given up on xref, just bail out. */
+		if (!*curpp)
+			return false;
+
+		/* xref error, delete cursor and bail out. */
+		xfs_btree_del_cursor(*curpp, XFS_BTREE_ERROR);
+		*curpp = NULL;
+	}
+
+	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XFAIL;
+	trace_xfs_scrub_xref_error(sc, *error, __return_address);
+
+	/*
+	 * Errors encountered during cross-referencing with another
+	 * data structure should not cause this scrubber to abort.
+	 */
+	*error = 0;
+	return false;
+}
+
+/* Run the structure verifiers on in-memory buffers to detect bad memory. */
+void
+xfs_scrub_buffer_recheck(
+	struct xfs_scrub_context	*sc,
+	struct xfs_buf			*bp)
+{
+	xfs_failaddr_t			fa;
+
+	if (bp->b_ops == NULL) {
+		xfs_scrub_block_set_corrupt(sc, bp);
+		return;
+	}
+	if (bp->b_ops->verify_struct == NULL) {
+		xfs_scrub_set_incomplete(sc);
+		return;
+	}
+	fa = bp->b_ops->verify_struct(bp);
+	if (!fa)
+		return;
+	sc->sm->sm_flags |= XFS_SCRUB_OFLAG_CORRUPT;
+	trace_xfs_scrub_block_error(sc, bp->b_bn, fa);
 }

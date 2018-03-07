@@ -35,6 +35,7 @@
 #include <rdma/ib_verbs.h>
 #include <linux/bug.h>
 #include <linux/file.h>
+#include <rdma/restrack.h>
 #include "rdma_core.h"
 #include "uverbs.h"
 
@@ -233,15 +234,18 @@ static void create_udata(struct uverbs_attr_bundle *ctx,
 		uverbs_attr_get(ctx, UVERBS_UHW_OUT);
 
 	if (!IS_ERR(uhw_in)) {
-		udata->inbuf = uhw_in->ptr_attr.ptr;
 		udata->inlen = uhw_in->ptr_attr.len;
+		if (uverbs_attr_ptr_is_inline(uhw_in))
+			udata->inbuf = &uhw_in->uattr->data;
+		else
+			udata->inbuf = u64_to_user_ptr(uhw_in->ptr_attr.data);
 	} else {
 		udata->inbuf = NULL;
 		udata->inlen = 0;
 	}
 
 	if (!IS_ERR(uhw_out)) {
-		udata->outbuf = uhw_out->ptr_attr.ptr;
+		udata->outbuf = u64_to_user_ptr(uhw_out->ptr_attr.data);
 		udata->outlen = uhw_out->ptr_attr.len;
 	} else {
 		udata->outbuf = NULL;
@@ -315,12 +319,15 @@ static int uverbs_create_cq_handler(struct ib_device *ib_dev,
 	cq->uobject       = &obj->uobject;
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
-	cq->cq_context    = &ev_file->ev_queue;
+	cq->cq_context    = ev_file ? &ev_file->ev_queue : NULL;
 	obj->uobject.object = cq;
 	obj->uobject.user_handle = user_handle;
 	atomic_set(&cq->usecnt, 0);
+	cq->res.type = RDMA_RESTRACK_CQ;
+	rdma_restrack_add(&cq->res);
 
-	ret = uverbs_copy_to(attrs, CREATE_CQ_RESP_CQE, &cq->cqe);
+	ret = uverbs_copy_to(attrs, CREATE_CQ_RESP_CQE, &cq->cqe,
+			     sizeof(cq->cqe));
 	if (ret)
 		goto err_cq;
 
@@ -372,7 +379,7 @@ static int uverbs_destroy_cq_handler(struct ib_device *ib_dev,
 	resp.comp_events_reported  = obj->comp_events_reported;
 	resp.async_events_reported = obj->async_events_reported;
 
-	return uverbs_copy_to(attrs, DESTROY_CQ_RESP, &resp);
+	return uverbs_copy_to(attrs, DESTROY_CQ_RESP, &resp, sizeof(resp));
 }
 
 static DECLARE_UVERBS_METHOD(

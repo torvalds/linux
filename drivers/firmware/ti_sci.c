@@ -287,13 +287,13 @@ static void ti_sci_rx_callback(struct mbox_client *cl, void *m)
 
 	/* Is the message of valid length? */
 	if (mbox_msg->len > info->desc->max_msg_size) {
-		dev_err(dev, "Unable to handle %d xfer(max %d)\n",
+		dev_err(dev, "Unable to handle %zu xfer(max %d)\n",
 			mbox_msg->len, info->desc->max_msg_size);
 		ti_sci_dump_header_dbg(dev, hdr);
 		return;
 	}
 	if (mbox_msg->len < xfer->rx_len) {
-		dev_err(dev, "Recv xfer %d < expected %d length\n",
+		dev_err(dev, "Recv xfer %zu < expected %d length\n",
 			mbox_msg->len, xfer->rx_len);
 		ti_sci_dump_header_dbg(dev, hdr);
 		return;

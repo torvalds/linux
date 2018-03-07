@@ -1131,9 +1131,7 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 done:
 	if (ret < 0) {
 		v4l2_ctrl_handler_free(&decoder->hdl);
-#if defined(CONFIG_MEDIA_CONTROLLER)
 		media_entity_cleanup(&decoder->sd.entity);
-#endif
 	}
 	return ret;
 }
@@ -1151,9 +1149,7 @@ static int tvp514x_remove(struct i2c_client *client)
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 
 	v4l2_async_unregister_subdev(&decoder->sd);
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	media_entity_cleanup(&decoder->sd.entity);
-#endif
 	v4l2_ctrl_handler_free(&decoder->hdl);
 	return 0;
 }

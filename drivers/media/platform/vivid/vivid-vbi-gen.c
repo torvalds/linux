@@ -190,7 +190,7 @@ static void vivid_vbi_gen_set_time_of_day(u8 *packet)
 	struct tm tm;
 	u8 checksum, i;
 
-	time_to_tm(get_seconds(), 0, &tm);
+	time64_to_tm(ktime_get_real_seconds(), 0, &tm);
 	packet[0] = calc_parity(0x07);
 	packet[1] = calc_parity(0x01);
 	packet[2] = calc_parity(0x40 | tm.tm_min);

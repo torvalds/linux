@@ -138,7 +138,6 @@
  * @erase_64k: 64k erase supported
  * @opcodes: Opcodes which are supported. This are programmed by BIOS
  *           before it locks down the controller.
- * @preopcodes: Preopcodes which are supported.
  */
 struct intel_spi {
 	struct device *dev;
@@ -155,7 +154,6 @@ struct intel_spi {
 	bool swseq_erase;
 	bool erase_64k;
 	u8 opcodes[8];
-	u8 preopcodes[2];
 };
 
 static bool writeable;
@@ -400,10 +398,6 @@ static int intel_spi_init(struct intel_spi *ispi)
 				ispi->opcodes[i] = opmenu0 >> i * 8;
 				ispi->opcodes[i + 4] = opmenu1 >> i * 8;
 			}
-
-			val = readl(ispi->sregs + PREOP_OPTYPE);
-			ispi->preopcodes[0] = val;
-			ispi->preopcodes[1] = val >> 8;
 		}
 	}
 

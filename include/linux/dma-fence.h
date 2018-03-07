@@ -242,7 +242,7 @@ static inline struct dma_fence *dma_fence_get_rcu(struct dma_fence *fence)
  * The caller is required to hold the RCU read lock.
  */
 static inline struct dma_fence *
-dma_fence_get_rcu_safe(struct dma_fence * __rcu *fencep)
+dma_fence_get_rcu_safe(struct dma_fence __rcu **fencep)
 {
 	do {
 		struct dma_fence *fence;

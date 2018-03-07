@@ -18,7 +18,7 @@
 #define SP2_PRIV_H
 
 #include "sp2.h"
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 /* state struct */
 struct sp2 {

@@ -230,12 +230,12 @@ int qxl_release_list_add(struct qxl_release *release, struct qxl_bo *bo)
 
 static int qxl_release_validate_bo(struct qxl_bo *bo)
 {
+	struct ttm_operation_ctx ctx = { true, false };
 	int ret;
 
 	if (!bo->pin_count) {
 		qxl_ttm_placement_from_domain(bo, bo->type, false);
-		ret = ttm_bo_validate(&bo->tbo, &bo->placement,
-				      true, false);
+		ret = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 		if (ret)
 			return ret;
 	}
@@ -468,7 +468,7 @@ void qxl_release_fence_buffer_objects(struct qxl_release *release)
 
 		reservation_object_add_shared_fence(bo->resv, &release->base);
 		ttm_bo_add_to_lru(bo);
-		__ttm_bo_unreserve(bo);
+		reservation_object_unlock(bo->resv);
 	}
 	spin_unlock(&glob->lru_lock);
 	ww_acquire_fini(&release->ticket);

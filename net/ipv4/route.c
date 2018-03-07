@@ -240,7 +240,6 @@ static int rt_cache_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations rt_cache_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = rt_cache_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -331,7 +330,6 @@ static int rt_cpu_seq_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations rt_cpu_seq_fops = {
-	.owner	 = THIS_MODULE,
 	.open	 = rt_cpu_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
@@ -369,7 +367,6 @@ static int rt_acct_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations rt_acct_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= rt_acct_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -1106,7 +1103,7 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 		new = true;
 	}
 
-	__ip_rt_update_pmtu((struct rtable *) rt->dst.path, &fl4, mtu);
+	__ip_rt_update_pmtu((struct rtable *) xfrm_dst_path(&rt->dst), &fl4, mtu);
 
 	if (!dst_check(&rt->dst, 0)) {
 		if (new)
@@ -1829,6 +1826,8 @@ int fib_multipath_hash(const struct fib_info *fi, const struct flowi4 *fl4,
 				return skb_get_hash_raw(skb) >> 1;
 			memset(&hash_keys, 0, sizeof(hash_keys));
 			skb_flow_dissect_flow_keys(skb, &keys, flag);
+
+			hash_keys.control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 			hash_keys.addrs.v4addrs.src = keys.addrs.v4addrs.src;
 			hash_keys.addrs.v4addrs.dst = keys.addrs.v4addrs.dst;
 			hash_keys.ports.src = keys.ports.src;
@@ -2762,6 +2761,7 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
 		if (err == 0 && rt->dst.error)
 			err = -rt->dst.error;
 	} else {
+		fl4.flowi4_iif = LOOPBACK_IFINDEX;
 		rt = ip_route_output_key_hash_rcu(net, &fl4, &res, skb);
 		err = 0;
 		if (IS_ERR(rt))

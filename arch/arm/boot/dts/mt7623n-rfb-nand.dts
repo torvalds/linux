@@ -51,7 +51,7 @@
 				reg = <0x40000 0x80000>;
 			};
 
-			partition@C0000 {
+			partition@c0000 {
 				label = "uboot-env";
 				reg = <0xC0000 0x40000>;
 			};

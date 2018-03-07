@@ -818,17 +818,16 @@ static void efx_farch_magic_event(struct efx_channel *channel, u32 magic)
  * The NIC batches TX completion events; the message we receive is of
  * the form "complete all TX events up to this index".
  */
-static int
+static void
 efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
 	struct efx_tx_queue *tx_queue;
 	struct efx_nic *efx = channel->efx;
-	int tx_packets = 0;
 
 	if (unlikely(READ_ONCE(efx->reset_pending)))
-		return 0;
+		return;
 
 	if (likely(EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_COMP))) {
 		/* Transmit completion */
@@ -836,8 +835,6 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
 		tx_queue = efx_channel_get_tx_queue(
 			channel, tx_ev_q_label % EFX_TXQ_TYPES);
-		tx_packets = ((tx_ev_desc_ptr - tx_queue->read_count) &
-			      tx_queue->ptr_mask);
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
@@ -856,8 +853,6 @@ efx_farch_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 			  EFX_QWORD_FMT"\n", channel->channel,
 			  EFX_QWORD_VAL(*event));
 	}
-
-	return tx_packets;
 }
 
 /* Detect errors included in the rx_evt_pkt_ok bit. */
@@ -1090,7 +1085,7 @@ efx_farch_handle_tx_flush_done(struct efx_nic *efx, efx_qword_t *event)
 	int qid;
 
 	qid = EFX_QWORD_FIELD(*event, FSF_AZ_DRIVER_EV_SUBDATA);
-	if (qid < EFX_TXQ_TYPES * efx->n_tx_channels) {
+	if (qid < EFX_TXQ_TYPES * (efx->n_tx_channels + efx->n_extra_tx_channels)) {
 		tx_queue = efx_get_tx_queue(efx, qid / EFX_TXQ_TYPES,
 					    qid % EFX_TXQ_TYPES);
 		if (atomic_cmpxchg(&tx_queue->flush_outstanding, 1, 0)) {
@@ -1270,7 +1265,6 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 	unsigned int read_ptr;
 	efx_qword_t event, *p_event;
 	int ev_code;
-	int tx_packets = 0;
 	int spent = 0;
 
 	if (budget <= 0)
@@ -1304,12 +1298,7 @@ int efx_farch_ev_process(struct efx_channel *channel, int budget)
 				goto out;
 			break;
 		case FSE_AZ_EV_CODE_TX_EV:
-			tx_packets += efx_farch_handle_tx_event(channel,
-								&event);
-			if (tx_packets > efx->txq_entries) {
-				spent = budget;
-				goto out;
-			}
+			efx_farch_handle_tx_event(channel, &event);
 			break;
 		case FSE_AZ_EV_CODE_DRV_GEN_EV:
 			efx_farch_handle_generated_event(channel, &event);
@@ -1680,20 +1669,21 @@ void efx_farch_rx_pull_indir_table(struct efx_nic *efx)
  */
 void efx_farch_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw)
 {
-	unsigned vi_count, buftbl_min;
+	unsigned vi_count, buftbl_min, total_tx_channels;
 
 #ifdef CONFIG_SFC_SRIOV
 	struct siena_nic_data *nic_data = efx->nic_data;
 #endif
 
+	total_tx_channels = efx->n_tx_channels + efx->n_extra_tx_channels;
 	/* Account for the buffer table entries backing the datapath channels
 	 * and the descriptor caches for those channels.
 	 */
 	buftbl_min = ((efx->n_rx_channels * EFX_MAX_DMAQ_SIZE +
-		       efx->n_tx_channels * EFX_TXQ_TYPES * EFX_MAX_DMAQ_SIZE +
+		       total_tx_channels * EFX_TXQ_TYPES * EFX_MAX_DMAQ_SIZE +
 		       efx->n_channels * EFX_MAX_EVQ_SIZE)
 		      * sizeof(efx_qword_t) / EFX_BUF_SIZE);
-	vi_count = max(efx->n_channels, efx->n_tx_channels * EFX_TXQ_TYPES);
+	vi_count = max(efx->n_channels, total_tx_channels * EFX_TXQ_TYPES);
 
 #ifdef CONFIG_SFC_SRIOV
 	if (efx->type->sriov_wanted) {

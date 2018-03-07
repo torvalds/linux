@@ -1,8 +1,6 @@
-# arch/arm/plat-samsung/Kconfig
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright 2009 Simtec Electronics
-#
-# Licensed under GPLv2
 
 config PLAT_SAMSUNG
 	bool

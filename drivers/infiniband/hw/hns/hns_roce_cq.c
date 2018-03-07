@@ -196,15 +196,14 @@ void hns_roce_free_cq(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq)
 	if (ret)
 		dev_err(dev, "HW2SW_CQ failed (%d) for CQN %06lx\n", ret,
 			hr_cq->cqn);
-	if (hr_dev->eq_table.eq) {
-		/* Waiting interrupt process procedure carried out */
-		synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
 
-		/* wait for all interrupt processed */
-		if (atomic_dec_and_test(&hr_cq->refcount))
-			complete(&hr_cq->free);
-		wait_for_completion(&hr_cq->free);
-	}
+	/* Waiting interrupt process procedure carried out */
+	synchronize_irq(hr_dev->eq_table.eq[hr_cq->vector].irq);
+
+	/* wait for all interrupt processed */
+	if (atomic_dec_and_test(&hr_cq->refcount))
+		complete(&hr_cq->free);
+	wait_for_completion(&hr_cq->free);
 
 	spin_lock_irq(&cq_table->lock);
 	radix_tree_delete(&cq_table->tree, hr_cq->cqn);
@@ -460,6 +459,7 @@ void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn)
 	++cq->arm_sn;
 	cq->comp(cq);
 }
+EXPORT_SYMBOL_GPL(hns_roce_cq_completion);
 
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 {
@@ -482,6 +482,7 @@ void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type)
 	if (atomic_dec_and_test(&cq->refcount))
 		complete(&cq->free);
 }
+EXPORT_SYMBOL_GPL(hns_roce_cq_event);
 
 int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev)
 {

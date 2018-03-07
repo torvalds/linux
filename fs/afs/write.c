@@ -198,7 +198,7 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 			ret = afs_fill_page(vnode, key, pos + copied,
 					    len - copied, page);
 			if (ret < 0)
-				return ret;
+				goto out;
 		}
 		SetPageUptodate(page);
 	}
@@ -206,10 +206,12 @@ int afs_write_end(struct file *file, struct address_space *mapping,
 	set_page_dirty(page);
 	if (PageDirty(page))
 		_debug("dirtied");
+	ret = copied;
+
+out:
 	unlock_page(page);
 	put_page(page);
-
-	return copied;
+	return ret;
 }
 
 /*

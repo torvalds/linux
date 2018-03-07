@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* $Id: sungem.c,v 1.44.2.22 2002/03/13 01:18:12 davem Exp $
  * sungem.c: Sun GEM ethernet driver.
  *

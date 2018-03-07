@@ -22,9 +22,9 @@
  * may be supported using the same module.
  *
  * TODO: Test Raw bayer parameter settings and bayer capture
- * 	 Split module parameter structure to module specific ioctl structs
- * 	 investigate if enum used for user space type definition
- * 	 to be replaced by #defines or integer
+ *	 Split module parameter structure to module specific ioctl structs
+ *	 investigate if enum used for user space type definition
+ *	 to be replaced by #defines or integer
  */
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>

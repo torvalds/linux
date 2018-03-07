@@ -1383,15 +1383,6 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 		return -EINVAL;
 	}
 
-	/* Do not allow reads past end of device */
-	if (unlikely(from >= mtd->size ||
-		     column + len > ((mtd->size >> this->page_shift) -
-				     (from >> this->page_shift)) * oobsize)) {
-		printk(KERN_ERR "%s: Attempted to read beyond end of device\n",
-			__func__);
-		return -EINVAL;
-	}
-
 	stats = mtd->ecc_stats;
 
 	readcmd = ONENAND_IS_4KB_PAGE(this) ? ONENAND_CMD_READ : ONENAND_CMD_READOOB;
@@ -1445,38 +1436,6 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 		return -EBADMSG;
 
 	return 0;
-}
-
-/**
- * onenand_read - [MTD Interface] Read data from flash
- * @param mtd		MTD device structure
- * @param from		offset to read from
- * @param len		number of bytes to read
- * @param retlen	pointer to variable to store the number of read bytes
- * @param buf		the databuffer to put data
- *
- * Read with ecc
-*/
-static int onenand_read(struct mtd_info *mtd, loff_t from, size_t len,
-	size_t *retlen, u_char *buf)
-{
-	struct onenand_chip *this = mtd->priv;
-	struct mtd_oob_ops ops = {
-		.len	= len,
-		.ooblen	= 0,
-		.datbuf	= buf,
-		.oobbuf	= NULL,
-	};
-	int ret;
-
-	onenand_get_device(mtd, FL_READING);
-	ret = ONENAND_IS_4KB_PAGE(this) ?
-		onenand_mlc_read_ops_nolock(mtd, from, &ops) :
-		onenand_read_ops_nolock(mtd, from, &ops);
-	onenand_release_device(mtd);
-
-	*retlen = ops.retlen;
-	return ret;
 }
 
 /**
@@ -2056,15 +2015,6 @@ static int onenand_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 		return -EINVAL;
 	}
 
-	/* Do not allow reads past end of device */
-	if (unlikely(to >= mtd->size ||
-		     column + len > ((mtd->size >> this->page_shift) -
-				     (to >> this->page_shift)) * oobsize)) {
-		printk(KERN_ERR "%s: Attempted to write past end of device\n",
-		       __func__);
-		return -EINVAL;
-	}
-
 	oobbuf = this->oob_buf;
 
 	oobcmd = ONENAND_IS_4KB_PAGE(this) ? ONENAND_CMD_PROG : ONENAND_CMD_PROGOOB;
@@ -2125,35 +2075,6 @@ static int onenand_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 
 	ops->oobretlen = written;
 
-	return ret;
-}
-
-/**
- * onenand_write - [MTD Interface] write buffer to FLASH
- * @param mtd		MTD device structure
- * @param to		offset to write to
- * @param len		number of bytes to write
- * @param retlen	pointer to variable to store the number of written bytes
- * @param buf		the data to write
- *
- * Write with ECC
- */
-static int onenand_write(struct mtd_info *mtd, loff_t to, size_t len,
-	size_t *retlen, const u_char *buf)
-{
-	struct mtd_oob_ops ops = {
-		.len	= len,
-		.ooblen	= 0,
-		.datbuf	= (u_char *) buf,
-		.oobbuf	= NULL,
-	};
-	int ret;
-
-	onenand_get_device(mtd, FL_WRITING);
-	ret = onenand_write_ops_nolock(mtd, to, &ops);
-	onenand_release_device(mtd);
-
-	*retlen = ops.retlen;
 	return ret;
 }
 
@@ -4038,8 +3959,6 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->_erase = onenand_erase;
 	mtd->_point = NULL;
 	mtd->_unpoint = NULL;
-	mtd->_read = onenand_read;
-	mtd->_write = onenand_write;
 	mtd->_read_oob = onenand_read_oob;
 	mtd->_write_oob = onenand_write_oob;
 	mtd->_panic_write = onenand_panic_write;

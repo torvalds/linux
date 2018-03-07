@@ -501,7 +501,9 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.mbus_code = MEDIA_BUS_FMT_JPEG_1X8,
 		.sh_fmt = CSS_FRAME_FORMAT_BINARY_8,
 		.description = "JPEG"
-	}, {
+	},
+#if 0
+	{
 	/* This is a custom format being used by M10MO to send the RAW data */
 		.pixelformat = V4L2_PIX_FMT_CUSTOM_M10MO_RAW,
 		.depth = 8,
@@ -509,6 +511,7 @@ const struct atomisp_format_bridge atomisp_output_fmts[] = {
 		.sh_fmt = CSS_FRAME_FORMAT_BINARY_8,
 		.description = "Custom RAW for M10MO"
 	},
+#endif
 };
 
 const struct atomisp_format_bridge *atomisp_get_format_bridge(

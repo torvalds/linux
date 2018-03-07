@@ -389,7 +389,9 @@
 			};
 
 			tcb0: timer@fff7c000 {
-				compatible = "atmel,at91rm9200-tcb";
+				compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xfff7c000 0x100>;
 				interrupts = <19 IRQ_TYPE_LEVEL_HIGH 0>;
 				clocks = <&tcb_clk>, <&slow_xtal>;
@@ -999,7 +1001,7 @@
 			};
 		};
 
-		fb0: fb@0x00700000 {
+		fb0: fb@700000 {
 			compatible = "atmel,at91sam9263-lcdc";
 			reg = <0x00700000 0x1000>;
 			interrupts = <26 IRQ_TYPE_LEVEL_HIGH 3>;

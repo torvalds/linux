@@ -88,14 +88,10 @@ static struct bpf_map *stack_map_alloc(union bpf_attr *attr)
 	if (cost >= U32_MAX - PAGE_SIZE)
 		goto free_smap;
 
-	smap->map.map_type = attr->map_type;
-	smap->map.key_size = attr->key_size;
+	bpf_map_init_from_attr(&smap->map, attr);
 	smap->map.value_size = value_size;
-	smap->map.max_entries = attr->max_entries;
-	smap->map.map_flags = attr->map_flags;
 	smap->n_buckets = n_buckets;
 	smap->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
-	smap->map.numa_node = bpf_map_attr_numa_node(attr);
 
 	err = bpf_map_precharge_memlock(smap->map.pages);
 	if (err)
@@ -226,9 +222,33 @@ int bpf_stackmap_copy(struct bpf_map *map, void *key, void *value)
 	return 0;
 }
 
-static int stack_map_get_next_key(struct bpf_map *map, void *key, void *next_key)
+static int stack_map_get_next_key(struct bpf_map *map, void *key,
+				  void *next_key)
 {
-	return -EINVAL;
+	struct bpf_stack_map *smap = container_of(map,
+						  struct bpf_stack_map, map);
+	u32 id;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	if (!key) {
+		id = 0;
+	} else {
+		id = *(u32 *)key;
+		if (id >= smap->n_buckets || !smap->buckets[id])
+			id = 0;
+		else
+			id++;
+	}
+
+	while (id < smap->n_buckets && !smap->buckets[id])
+		id++;
+
+	if (id >= smap->n_buckets)
+		return -ENOENT;
+
+	*(u32 *)next_key = id;
+	return 0;
 }
 
 static int stack_map_update_elem(struct bpf_map *map, void *key, void *value,

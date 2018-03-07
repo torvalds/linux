@@ -72,6 +72,7 @@
 #include <net/tcp_states.h>
 #include <linux/net_tstamp.h>
 #include <net/smc.h>
+#include <net/l3mdev.h>
 
 /*
  * This structure really needs to be cleaned up.
@@ -1108,6 +1109,8 @@ struct proto {
 	struct kmem_cache	*slab;
 	unsigned int		obj_size;
 	slab_flags_t		slab_flags;
+	size_t			useroffset;	/* Usercopy region offset */
+	size_t			usersize;	/* Usercopy region size */
 
 	struct percpu_counter	*orphan_count;
 
@@ -1262,6 +1265,7 @@ proto_memory_pressure(struct proto *prot)
 /* Called with local bh disabled */
 void sock_prot_inuse_add(struct net *net, struct proto *prot, int inc);
 int sock_prot_inuse_get(struct net *net, struct proto *proto);
+int sock_inuse_get(struct net *net);
 #else
 static inline void sock_prot_inuse_add(struct net *net, struct proto *prot,
 		int inc)
@@ -1445,10 +1449,8 @@ do {									\
 } while (0)
 
 #ifdef CONFIG_LOCKDEP
-static inline bool lockdep_sock_is_held(const struct sock *csk)
+static inline bool lockdep_sock_is_held(const struct sock *sk)
 {
-	struct sock *sk = (struct sock *)csk;
-
 	return lockdep_is_held(&sk->sk_lock) ||
 	       lockdep_is_held(&sk->sk_lock.slock);
 }
@@ -1511,6 +1513,11 @@ static inline void sock_owned_by_me(const struct sock *sk)
 static inline bool sock_owned_by_user(const struct sock *sk)
 {
 	sock_owned_by_me(sk);
+	return sk->sk_lock.owned;
+}
+
+static inline bool sock_owned_by_user_nocheck(const struct sock *sk)
+{
 	return sk->sk_lock.owned;
 }
 
@@ -1578,7 +1585,7 @@ int sock_no_connect(struct socket *, struct sockaddr *, int, int);
 int sock_no_socketpair(struct socket *, struct socket *);
 int sock_no_accept(struct socket *, struct socket *, int, bool);
 int sock_no_getname(struct socket *, struct sockaddr *, int *, int);
-unsigned int sock_no_poll(struct file *, struct socket *,
+__poll_t sock_no_poll(struct file *, struct socket *,
 			  struct poll_table_struct *);
 int sock_no_ioctl(struct socket *, unsigned int, unsigned long);
 int sock_no_listen(struct socket *, int);
@@ -2332,31 +2339,6 @@ static inline bool sk_listener(const struct sock *sk)
 	return (1 << sk->sk_state) & (TCPF_LISTEN | TCPF_NEW_SYN_RECV);
 }
 
-/**
- * sk_state_load - read sk->sk_state for lockless contexts
- * @sk: socket pointer
- *
- * Paired with sk_state_store(). Used in places we do not hold socket lock :
- * tcp_diag_get_info(), tcp_get_info(), tcp_poll(), get_tcp4_sock() ...
- */
-static inline int sk_state_load(const struct sock *sk)
-{
-	return smp_load_acquire(&sk->sk_state);
-}
-
-/**
- * sk_state_store - update sk->sk_state
- * @sk: socket pointer
- * @newstate: new state
- *
- * Paired with sk_state_load(). Should be used in contexts where
- * state change might impact lockless readers.
- */
-static inline void sk_state_store(struct sock *sk, int newstate)
-{
-	smp_store_release(&sk->sk_state, newstate);
-}
-
 void sock_enable_timestamp(struct sock *sk, int flag);
 int sock_get_timestamp(struct sock *, struct timeval __user *);
 int sock_get_timestampns(struct sock *, struct timespec __user *);
@@ -2405,6 +2387,36 @@ static inline int sk_get_rmem0(const struct sock *sk, const struct proto *proto)
 		return *(int *)((void *)sock_net(sk) + proto->sysctl_rmem_offset);
 
 	return *proto->sysctl_rmem;
+}
+
+/* Default TCP Small queue budget is ~1 ms of data (1sec >> 10)
+ * Some wifi drivers need to tweak it to get more chunks.
+ * They can use this helper from their ndo_start_xmit()
+ */
+static inline void sk_pacing_shift_update(struct sock *sk, int val)
+{
+	if (!sk || !sk_fullsock(sk) || sk->sk_pacing_shift == val)
+		return;
+	sk->sk_pacing_shift = val;
+}
+
+/* if a socket is bound to a device, check that the given device
+ * index is either the same or that the socket is bound to an L3
+ * master device and the given device index is also enslaved to
+ * that L3 master
+ */
+static inline bool sk_dev_equal_l3scope(struct sock *sk, int dif)
+{
+	int mdif;
+
+	if (!sk->sk_bound_dev_if || sk->sk_bound_dev_if == dif)
+		return true;
+
+	mdif = l3mdev_master_ifindex_by_index(sock_net(sk), dif);
+	if (mdif && mdif == sk->sk_bound_dev_if)
+		return true;
+
+	return false;
 }
 
 #endif	/* _SOCK_H */

@@ -1397,7 +1397,7 @@ static char *cgroup_file_name(struct cgroup *cgrp, const struct cftype *cft,
 			 cgroup_on_dfl(cgrp) ? ss->name : ss->legacy_name,
 			 cft->name);
 	else
-		strncpy(buf, cft->name, CGROUP_FILE_NAME_MAX);
+		strscpy(buf, cft->name, CGROUP_FILE_NAME_MAX);
 	return buf;
 }
 
@@ -1864,9 +1864,9 @@ void init_cgroup_root(struct cgroup_root *root, struct cgroup_sb_opts *opts)
 
 	root->flags = opts->flags;
 	if (opts->release_agent)
-		strcpy(root->release_agent_path, opts->release_agent);
+		strscpy(root->release_agent_path, opts->release_agent, PATH_MAX);
 	if (opts->name)
-		strcpy(root->name, opts->name);
+		strscpy(root->name, opts->name, MAX_CGROUP_ROOT_NAMELEN);
 	if (opts->cpuset_clone_children)
 		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &root->cgrp.flags);
 }
@@ -4125,26 +4125,24 @@ static void css_task_iter_advance_css_set(struct css_task_iter *it)
 
 static void css_task_iter_advance(struct css_task_iter *it)
 {
-	struct list_head *l = it->task_pos;
+	struct list_head *next;
 
 	lockdep_assert_held(&css_set_lock);
-	WARN_ON_ONCE(!l);
-
 repeat:
 	/*
 	 * Advance iterator to find next entry.  cset->tasks is consumed
 	 * first and then ->mg_tasks.  After ->mg_tasks, we move onto the
 	 * next cset.
 	 */
-	l = l->next;
+	next = it->task_pos->next;
 
-	if (l == it->tasks_head)
-		l = it->mg_tasks_head->next;
+	if (next == it->tasks_head)
+		next = it->mg_tasks_head->next;
 
-	if (l == it->mg_tasks_head)
+	if (next == it->mg_tasks_head)
 		css_task_iter_advance_css_set(it);
 	else
-		it->task_pos = l;
+		it->task_pos = next;
 
 	/* if PROCS, skip over tasks which aren't group leaders */
 	if ((it->flags & CSS_TASK_ITER_PROCS) && it->task_pos &&
@@ -4449,6 +4447,7 @@ static struct cftype cgroup_base_files[] = {
 	},
 	{
 		.name = "cgroup.threads",
+		.flags = CFTYPE_NS_DELEGATABLE,
 		.release = cgroup_procs_release,
 		.seq_start = cgroup_threads_start,
 		.seq_next = cgroup_procs_next,

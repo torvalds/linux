@@ -22,6 +22,48 @@ static inline sector_t blk_zone_start(struct request_queue *q,
 }
 
 /*
+ * Return true if a request is a write requests that needs zone write locking.
+ */
+bool blk_req_needs_zone_write_lock(struct request *rq)
+{
+	if (!rq->q->seq_zones_wlock)
+		return false;
+
+	if (blk_rq_is_passthrough(rq))
+		return false;
+
+	switch (req_op(rq)) {
+	case REQ_OP_WRITE_ZEROES:
+	case REQ_OP_WRITE_SAME:
+	case REQ_OP_WRITE:
+		return blk_rq_zone_is_seq(rq);
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(blk_req_needs_zone_write_lock);
+
+void __blk_req_zone_write_lock(struct request *rq)
+{
+	if (WARN_ON_ONCE(test_and_set_bit(blk_rq_zone_no(rq),
+					  rq->q->seq_zones_wlock)))
+		return;
+
+	WARN_ON_ONCE(rq->rq_flags & RQF_ZONE_WRITE_LOCKED);
+	rq->rq_flags |= RQF_ZONE_WRITE_LOCKED;
+}
+EXPORT_SYMBOL_GPL(__blk_req_zone_write_lock);
+
+void __blk_req_zone_write_unlock(struct request *rq)
+{
+	rq->rq_flags &= ~RQF_ZONE_WRITE_LOCKED;
+	if (rq->q->seq_zones_wlock)
+		WARN_ON_ONCE(!test_and_clear_bit(blk_rq_zone_no(rq),
+						 rq->q->seq_zones_wlock));
+}
+EXPORT_SYMBOL_GPL(__blk_req_zone_write_unlock);
+
+/*
  * Check that a zone report belongs to the partition.
  * If yes, fix its start sector and write pointer, copy it in the
  * zone information array and return true. Return false otherwise.

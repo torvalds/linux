@@ -21,6 +21,7 @@
 #include <linux/sched.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
+#include <linux/iversion.h>
 #include "internal.h"
 
 static const struct inode_operations afs_symlink_inode_operations = {
@@ -89,7 +90,7 @@ static int afs_inode_map_status(struct afs_vnode *vnode, struct key *key)
 	inode->i_atime		= inode->i_mtime = inode->i_ctime;
 	inode->i_blocks		= 0;
 	inode->i_generation	= vnode->fid.unique;
-	inode->i_version	= vnode->status.data_version;
+	inode_set_iversion_raw(inode, vnode->status.data_version);
 	inode->i_mapping->a_ops	= &afs_fs_aops;
 
 	read_sequnlock_excl(&vnode->cb_lock);
@@ -146,7 +147,7 @@ int afs_iget5_test(struct inode *inode, void *opaque)
  *
  * These pseudo inodes don't match anything.
  */
-static int afs_iget5_autocell_test(struct inode *inode, void *opaque)
+static int afs_iget5_pseudo_dir_test(struct inode *inode, void *opaque)
 {
 	return 0;
 }
@@ -168,31 +169,34 @@ static int afs_iget5_set(struct inode *inode, void *opaque)
 }
 
 /*
- * inode retrieval for autocell
+ * Create an inode for a dynamic root directory or an autocell dynamic
+ * automount dir.
  */
-struct inode *afs_iget_autocell(struct inode *dir, const char *dev_name,
-				int namesz, struct key *key)
+struct inode *afs_iget_pseudo_dir(struct super_block *sb, bool root)
 {
 	struct afs_iget_data data;
 	struct afs_super_info *as;
 	struct afs_vnode *vnode;
-	struct super_block *sb;
 	struct inode *inode;
 	static atomic_t afs_autocell_ino;
 
-	_enter("{%x:%u},%*.*s,",
-	       AFS_FS_I(dir)->fid.vid, AFS_FS_I(dir)->fid.vnode,
-	       namesz, namesz, dev_name ?: "");
+	_enter("");
 
-	sb = dir->i_sb;
 	as = sb->s_fs_info;
-	data.volume = as->volume;
-	data.fid.vid = as->volume->vid;
-	data.fid.unique = 0;
-	data.fid.vnode = 0;
+	if (as->volume) {
+		data.volume = as->volume;
+		data.fid.vid = as->volume->vid;
+	}
+	if (root) {
+		data.fid.vnode = 1;
+		data.fid.unique = 1;
+	} else {
+		data.fid.vnode = atomic_inc_return(&afs_autocell_ino);
+		data.fid.unique = 0;
+	}
 
-	inode = iget5_locked(sb, atomic_inc_return(&afs_autocell_ino),
-			     afs_iget5_autocell_test, afs_iget5_set,
+	inode = iget5_locked(sb, data.fid.vnode,
+			     afs_iget5_pseudo_dir_test, afs_iget5_set,
 			     &data);
 	if (!inode) {
 		_leave(" = -ENOMEM");
@@ -210,7 +214,12 @@ struct inode *afs_iget_autocell(struct inode *dir, const char *dev_name,
 
 	inode->i_size		= 0;
 	inode->i_mode		= S_IFDIR | S_IRUGO | S_IXUGO;
-	inode->i_op		= &afs_autocell_inode_operations;
+	if (root) {
+		inode->i_op	= &afs_dynroot_inode_operations;
+		inode->i_fop	= &afs_dynroot_file_operations;
+	} else {
+		inode->i_op	= &afs_autocell_inode_operations;
+	}
 	set_nlink(inode, 2);
 	inode->i_uid		= GLOBAL_ROOT_UID;
 	inode->i_gid		= GLOBAL_ROOT_GID;
@@ -218,12 +227,16 @@ struct inode *afs_iget_autocell(struct inode *dir, const char *dev_name,
 	inode->i_ctime.tv_nsec	= 0;
 	inode->i_atime		= inode->i_mtime = inode->i_ctime;
 	inode->i_blocks		= 0;
-	inode->i_version	= 0;
+	inode_set_iversion_raw(inode, 0);
 	inode->i_generation	= 0;
 
 	set_bit(AFS_VNODE_PSEUDODIR, &vnode->flags);
-	set_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags);
-	inode->i_flags |= S_AUTOMOUNT | S_NOATIME;
+	if (!root) {
+		set_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags);
+		inode->i_flags |= S_AUTOMOUNT;
+	}
+
+	inode->i_flags |= S_NOATIME;
 	unlock_new_inode(inode);
 	_leave(" = %p", inode);
 	return inode;
@@ -377,6 +390,10 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	}
 
 	read_sequnlock_excl(&vnode->cb_lock);
+
+	if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
+		clear_nlink(&vnode->vfs_inode);
+
 	if (valid)
 		goto valid;
 

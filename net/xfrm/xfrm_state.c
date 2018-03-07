@@ -313,13 +313,14 @@ retry:
 	if ((type && !try_module_get(type->owner)))
 		type = NULL;
 
+	rcu_read_unlock();
+
 	if (!type && try_load) {
 		request_module("xfrm-offload-%d-%d", family, proto);
-		try_load = 0;
+		try_load = false;
 		goto retry;
 	}
 
-	rcu_read_unlock();
 	return type;
 }
 
@@ -1343,6 +1344,7 @@ static struct xfrm_state *xfrm_state_clone(struct xfrm_state *orig,
 
 	if (orig->aead) {
 		x->aead = xfrm_algo_aead_clone(orig->aead);
+		x->geniv = orig->geniv;
 		if (!x->aead)
 			goto error;
 	}
@@ -1533,8 +1535,12 @@ out:
 	err = -EINVAL;
 	spin_lock_bh(&x1->lock);
 	if (likely(x1->km.state == XFRM_STATE_VALID)) {
-		if (x->encap && x1->encap)
+		if (x->encap && x1->encap &&
+		    x->encap->encap_type == x1->encap->encap_type)
 			memcpy(x1->encap, x->encap, sizeof(*x1->encap));
+		else if (x->encap || x1->encap)
+			goto fail;
+
 		if (x->coaddr && x1->coaddr) {
 			memcpy(x1->coaddr, x->coaddr, sizeof(*x1->coaddr));
 		}
@@ -1551,6 +1557,8 @@ out:
 		x->km.state = XFRM_STATE_DEAD;
 		__xfrm_state_put(x);
 	}
+
+fail:
 	spin_unlock_bh(&x1->lock);
 
 	xfrm_state_put(x1);
@@ -2048,6 +2056,13 @@ int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen
 	struct xfrm_mgr *km;
 	struct xfrm_policy *pol = NULL;
 
+	if (!optval && !optlen) {
+		xfrm_sk_policy_insert(sk, XFRM_POLICY_IN, NULL);
+		xfrm_sk_policy_insert(sk, XFRM_POLICY_OUT, NULL);
+		__sk_dst_reset(sk);
+		return 0;
+	}
+
 	if (optlen <= 0 || optlen > PAGE_SIZE)
 		return -EMSGSIZE;
 
@@ -2264,8 +2279,6 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay, bool offload)
 			goto error;
 	}
 
-	x->km.state = XFRM_STATE_VALID;
-
 error:
 	return err;
 }
@@ -2274,7 +2287,13 @@ EXPORT_SYMBOL(__xfrm_init_state);
 
 int xfrm_init_state(struct xfrm_state *x)
 {
-	return __xfrm_init_state(x, true, false);
+	int err;
+
+	err = __xfrm_init_state(x, true, false);
+	if (!err)
+		x->km.state = XFRM_STATE_VALID;
+
+	return err;
 }
 
 EXPORT_SYMBOL(xfrm_init_state);

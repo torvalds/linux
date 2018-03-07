@@ -909,8 +909,10 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 			int cmd, struct shmid64_ds *tbuf)
 {
 	struct shmid_kernel *shp;
-	int result;
+	int id = 0;
 	int err;
+
+	memset(tbuf, 0, sizeof(*tbuf));
 
 	rcu_read_lock();
 	if (cmd == SHM_STAT) {
@@ -919,14 +921,13 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 			err = PTR_ERR(shp);
 			goto out_unlock;
 		}
-		result = shp->shm_perm.id;
+		id = shp->shm_perm.id;
 	} else {
 		shp = shm_obtain_object_check(ns, shmid);
 		if (IS_ERR(shp)) {
 			err = PTR_ERR(shp);
 			goto out_unlock;
 		}
-		result = 0;
 	}
 
 	err = -EACCES;
@@ -937,7 +938,14 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 	if (err)
 		goto out_unlock;
 
-	memset(tbuf, 0, sizeof(*tbuf));
+	ipc_lock_object(&shp->shm_perm);
+
+	if (!ipc_valid_object(&shp->shm_perm)) {
+		ipc_unlock_object(&shp->shm_perm);
+		err = -EIDRM;
+		goto out_unlock;
+	}
+
 	kernel_to_ipc64_perm(&shp->shm_perm, &tbuf->shm_perm);
 	tbuf->shm_segsz	= shp->shm_segsz;
 	tbuf->shm_atime	= shp->shm_atim;
@@ -946,8 +954,10 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 	tbuf->shm_cpid	= shp->shm_cprid;
 	tbuf->shm_lpid	= shp->shm_lprid;
 	tbuf->shm_nattch = shp->shm_nattch;
+
+	ipc_unlock_object(&shp->shm_perm);
 	rcu_read_unlock();
-	return result;
+	return id;
 
 out_unlock:
 	rcu_read_unlock();

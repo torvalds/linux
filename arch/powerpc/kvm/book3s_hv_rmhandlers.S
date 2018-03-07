@@ -79,7 +79,7 @@ _GLOBAL_TOC(kvmppc_hv_entry_trampoline)
 	mtmsrd	r0,1		/* clear RI in MSR */
 	mtsrr0	r5
 	mtsrr1	r6
-	RFI
+	RFI_TO_KERNEL
 
 kvmppc_call_hv_entry:
 BEGIN_FTR_SECTION
@@ -199,7 +199,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	mtmsrd	r6, 1			/* Clear RI in MSR */
 	mtsrr0	r8
 	mtsrr1	r7
-	RFI
+	RFI_TO_KERNEL
 
 	/* Virtual-mode return */
 .Lvirt_return:
@@ -413,10 +413,11 @@ FTR_SECTION_ELSE
 	/* On P9 we use the split_info for coordinating LPCR changes */
 	lwz	r4, KVM_SPLIT_DO_SET(r6)
 	cmpwi	r4, 0
-	beq	63f
+	beq	1f
 	mr	r3, r6
 	bl	kvmhv_p9_set_lpcr
 	nop
+1:
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 63:
 	/* Order load of vcpu after load of vcore */
@@ -617,13 +618,6 @@ kvmppc_hv_entry:
 	lbz	r0, KVM_RADIX(r9)
 	cmpwi	cr7, r0, 0
 
-	/* Clear out SLB if hash */
-	bne	cr7, 2f
-	li	r6,0
-	slbmte	r6,r6
-	slbia
-	ptesync
-2:
 	/*
 	 * POWER7/POWER8 host -> guest partition switch code.
 	 * We don't have to lock against concurrent tlbies,
@@ -738,19 +732,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 10:	cmpdi	r4, 0
 	beq	kvmppc_primary_no_guest
 kvmppc_got_guest:
-
-	/* Load up guest SLB entries (N.B. slb_max will be 0 for radix) */
-	lwz	r5,VCPU_SLB_MAX(r4)
-	cmpwi	r5,0
-	beq	9f
-	mtctr	r5
-	addi	r6,r4,VCPU_SLB
-1:	ld	r8,VCPU_SLB_E(r6)
-	ld	r9,VCPU_SLB_V(r6)
-	slbmte	r9,r8
-	addi	r6,r6,VCPU_SLB_SIZE
-	bdnz	1b
-9:
 	/* Increment yield count if they have a VPA */
 	ld	r3, VCPU_VPA(r4)
 	cmpdi	r3, 0
@@ -957,7 +938,6 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	mftb	r7
 	subf	r3,r7,r8
 	mtspr	SPRN_DEC,r3
-	std	r3,VCPU_DEC(r4)
 
 	ld	r5, VCPU_SPRG0(r4)
 	ld	r6, VCPU_SPRG1(r4)
@@ -1018,6 +998,29 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	cmpdi	r3, 512		/* 1 microsecond */
 	blt	hdec_soon
 
+	/* For hash guest, clear out and reload the SLB */
+	ld	r6, VCPU_KVM(r4)
+	lbz	r0, KVM_RADIX(r6)
+	cmpwi	r0, 0
+	bne	9f
+	li	r6, 0
+	slbmte	r6, r6
+	slbia
+	ptesync
+
+	/* Load up guest SLB entries (N.B. slb_max will be 0 for radix) */
+	lwz	r5,VCPU_SLB_MAX(r4)
+	cmpwi	r5,0
+	beq	9f
+	mtctr	r5
+	addi	r6,r4,VCPU_SLB
+1:	ld	r8,VCPU_SLB_E(r6)
+	ld	r9,VCPU_SLB_V(r6)
+	slbmte	r9,r8
+	addi	r6,r6,VCPU_SLB_SIZE
+	bdnz	1b
+9:
+
 #ifdef CONFIG_KVM_XICS
 	/* We are entering the guest on that thread, push VCPU to XIVE */
 	ld	r10, HSTATE_XIVE_TIMA_PHYS(r13)
@@ -1031,8 +1034,53 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	li	r9, TM_QW1_OS + TM_WORD2
 	stwcix	r11,r9,r10
 	li	r9, 1
-	stw	r9, VCPU_XIVE_PUSHED(r4)
+	stb	r9, VCPU_XIVE_PUSHED(r4)
 	eieio
+
+	/*
+	 * We clear the irq_pending flag. There is a small chance of a
+	 * race vs. the escalation interrupt happening on another
+	 * processor setting it again, but the only consequence is to
+	 * cause a spurrious wakeup on the next H_CEDE which is not an
+	 * issue.
+	 */
+	li	r0,0
+	stb	r0, VCPU_IRQ_PENDING(r4)
+
+	/*
+	 * In single escalation mode, if the escalation interrupt is
+	 * on, we mask it.
+	 */
+	lbz	r0, VCPU_XIVE_ESC_ON(r4)
+	cmpwi	r0,0
+	beq	1f
+	ld	r10, VCPU_XIVE_ESC_RADDR(r4)
+	li	r9, XIVE_ESB_SET_PQ_01
+	ldcix	r0, r10, r9
+	sync
+
+	/* We have a possible subtle race here: The escalation interrupt might
+	 * have fired and be on its way to the host queue while we mask it,
+	 * and if we unmask it early enough (re-cede right away), there is
+	 * a theorical possibility that it fires again, thus landing in the
+	 * target queue more than once which is a big no-no.
+	 *
+	 * Fortunately, solving this is rather easy. If the above load setting
+	 * PQ to 01 returns a previous value where P is set, then we know the
+	 * escalation interrupt is somewhere on its way to the host. In that
+	 * case we simply don't clear the xive_esc_on flag below. It will be
+	 * eventually cleared by the handler for the escalation interrupt.
+	 *
+	 * Then, when doing a cede, we check that flag again before re-enabling
+	 * the escalation interrupt, and if set, we abort the cede.
+	 */
+	andi.	r0, r0, XIVE_ESB_VAL_P
+	bne-	1f
+
+	/* Now P is 0, we can clear the flag */
+	li	r0, 0
+	stb	r0, VCPU_XIVE_ESC_ON(r4)
+1:
 no_xive:
 #endif /* CONFIG_KVM_XICS */
 
@@ -1167,8 +1215,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 	ld	r0, VCPU_GPR(R0)(r4)
 	ld	r4, VCPU_GPR(R4)(r4)
-
-	hrfid
+	HRFI_TO_GUEST
 	b	.
 
 secondary_too_late:
@@ -1194,7 +1241,7 @@ hdec_soon:
 	addi	r3, r4, VCPU_TB_RMEXIT
 	bl	kvmhv_accumulate_time
 #endif
-	b	guest_exit_cont
+	b	guest_bypass
 
 /******************************************************************************
  *                                                                            *
@@ -1424,15 +1471,35 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	blt	deliver_guest_interrupt
 
 guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
+	/* Save more register state  */
+	mfdar	r6
+	mfdsisr	r7
+	std	r6, VCPU_DAR(r9)
+	stw	r7, VCPU_DSISR(r9)
+	/* don't overwrite fault_dar/fault_dsisr if HDSI */
+	cmpwi	r12,BOOK3S_INTERRUPT_H_DATA_STORAGE
+	beq	mc_cont
+	std	r6, VCPU_FAULT_DAR(r9)
+	stw	r7, VCPU_FAULT_DSISR(r9)
+
+	/* See if it is a machine check */
+	cmpwi	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
+	beq	machine_check_realmode
+mc_cont:
+#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+	addi	r3, r9, VCPU_TB_RMEXIT
+	mr	r4, r9
+	bl	kvmhv_accumulate_time
+#endif
 #ifdef CONFIG_KVM_XICS
 	/* We are exiting, pull the VP from the XIVE */
-	lwz	r0, VCPU_XIVE_PUSHED(r9)
+	lbz	r0, VCPU_XIVE_PUSHED(r9)
 	cmpwi	cr0, r0, 0
 	beq	1f
 	li	r7, TM_SPC_PULL_OS_CTX
 	li	r6, TM_QW1_OS
 	mfmsr	r0
-	andi.	r0, r0, MSR_IR		/* in real mode? */
+	andi.	r0, r0, MSR_DR		/* in real mode? */
 	beq	2f
 	ld	r10, HSTATE_XIVE_TIMA_VIRT(r13)
 	cmpldi	cr0, r10, 0
@@ -1455,33 +1522,42 @@ guest_exit_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	/* Fixup some of the state for the next load */
 	li	r10, 0
 	li	r0, 0xff
-	stw	r10, VCPU_XIVE_PUSHED(r9)
+	stb	r10, VCPU_XIVE_PUSHED(r9)
 	stb	r10, (VCPU_XIVE_SAVED_STATE+3)(r9)
 	stb	r0, (VCPU_XIVE_SAVED_STATE+4)(r9)
 	eieio
 1:
 #endif /* CONFIG_KVM_XICS */
-	/* Save more register state  */
-	mfdar	r6
-	mfdsisr	r7
-	std	r6, VCPU_DAR(r9)
-	stw	r7, VCPU_DSISR(r9)
-	/* don't overwrite fault_dar/fault_dsisr if HDSI */
-	cmpwi	r12,BOOK3S_INTERRUPT_H_DATA_STORAGE
-	beq	mc_cont
-	std	r6, VCPU_FAULT_DAR(r9)
-	stw	r7, VCPU_FAULT_DSISR(r9)
 
-	/* See if it is a machine check */
-	cmpwi	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
-	beq	machine_check_realmode
-mc_cont:
-#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
-	addi	r3, r9, VCPU_TB_RMEXIT
-	mr	r4, r9
-	bl	kvmhv_accumulate_time
-#endif
+	/* For hash guest, read the guest SLB and save it away */
+	ld	r5, VCPU_KVM(r9)
+	lbz	r0, KVM_RADIX(r5)
+	li	r5, 0
+	cmpwi	r0, 0
+	bne	3f			/* for radix, save 0 entries */
+	lwz	r0,VCPU_SLB_NR(r9)	/* number of entries in SLB */
+	mtctr	r0
+	li	r6,0
+	addi	r7,r9,VCPU_SLB
+1:	slbmfee	r8,r6
+	andis.	r0,r8,SLB_ESID_V@h
+	beq	2f
+	add	r8,r8,r6		/* put index in */
+	slbmfev	r3,r6
+	std	r8,VCPU_SLB_E(r7)
+	std	r3,VCPU_SLB_V(r7)
+	addi	r7,r7,VCPU_SLB_SIZE
+	addi	r5,r5,1
+2:	addi	r6,r6,1
+	bdnz	1b
+	/* Finally clear out the SLB */
+	li	r0,0
+	slbmte	r0,r0
+	slbia
+	ptesync
+3:	stw	r5,VCPU_SLB_MAX(r9)
 
+guest_bypass:
 	mr 	r3, r12
 	/* Increment exit count, poke other threads to exit */
 	bl	kvmhv_commence_exit
@@ -1502,31 +1578,6 @@ mc_cont:
 	ori	r6,r6,1
 	mtspr	SPRN_CTRLT,r6
 4:
-	/* Check if we are running hash or radix and store it in cr2 */
-	ld	r5, VCPU_KVM(r9)
-	lbz	r0, KVM_RADIX(r5)
-	cmpwi	cr2,r0,0
-
-	/* Read the guest SLB and save it away */
-	li	r5, 0
-	bne	cr2, 3f			/* for radix, save 0 entries */
-	lwz	r0,VCPU_SLB_NR(r9)	/* number of entries in SLB */
-	mtctr	r0
-	li	r6,0
-	addi	r7,r9,VCPU_SLB
-1:	slbmfee	r8,r6
-	andis.	r0,r8,SLB_ESID_V@h
-	beq	2f
-	add	r8,r8,r6		/* put index in */
-	slbmfev	r3,r6
-	std	r8,VCPU_SLB_E(r7)
-	std	r3,VCPU_SLB_V(r7)
-	addi	r7,r7,VCPU_SLB_SIZE
-	addi	r5,r5,1
-2:	addi	r6,r6,1
-	bdnz	1b
-3:	stw	r5,VCPU_SLB_MAX(r9)
-
 	/*
 	 * Save the guest PURR/SPURR
 	 */
@@ -1804,7 +1855,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	ld	r5, VCPU_KVM(r9)
 	lbz	r0, KVM_RADIX(r5)
 	cmpwi	cr2, r0, 0
-	beq	cr2, 3f
+	beq	cr2, 4f
 
 	/* Radix: Handle the case where the guest used an illegal PID */
 	LOAD_REG_ADDR(r4, mmu_base_pid)
@@ -1840,15 +1891,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 BEGIN_FTR_SECTION
 	PPC_INVALIDATE_ERAT
 END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
-	b	4f
+4:
 #endif /* CONFIG_PPC_RADIX_MMU */
 
-	/* Hash: clear out SLB */
-3:	li	r5,0
-	slbmte	r5,r5
-	slbia
-	ptesync
-4:
 	/*
 	 * POWER7/POWER8 guest -> host partition switch code.
 	 * We don't have to lock against tlbies but we do
@@ -1909,16 +1954,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	bne	27f
 	bl	kvmppc_realmode_hmi_handler
 	nop
+	cmpdi	r3, 0
 	li	r12, BOOK3S_INTERRUPT_HMI
 	/*
-	 * At this point kvmppc_realmode_hmi_handler would have resync-ed
-	 * the TB. Hence it is not required to subtract guest timebase
-	 * offset from timebase. So, skip it.
+	 * At this point kvmppc_realmode_hmi_handler may have resync-ed
+	 * the TB, and if it has, we must not subtract the guest timebase
+	 * offset from the timebase. So, skip it.
 	 *
 	 * Also, do not call kvmppc_subcore_exit_guest() because it has
 	 * been invoked as part of kvmppc_realmode_hmi_handler().
 	 */
-	b	30f
+	beq	30f
 
 27:
 	/* Subtract timebase offset from timebase */
@@ -2745,7 +2791,32 @@ kvm_cede_prodded:
 	/* we've ceded but we want to give control to the host */
 kvm_cede_exit:
 	ld	r9, HSTATE_KVM_VCPU(r13)
-	b	guest_exit_cont
+#ifdef CONFIG_KVM_XICS
+	/* Abort if we still have a pending escalation */
+	lbz	r5, VCPU_XIVE_ESC_ON(r9)
+	cmpwi	r5, 0
+	beq	1f
+	li	r0, 0
+	stb	r0, VCPU_CEDED(r9)
+1:	/* Enable XIVE escalation */
+	li	r5, XIVE_ESB_SET_PQ_00
+	mfmsr	r0
+	andi.	r0, r0, MSR_DR		/* in real mode? */
+	beq	1f
+	ld	r10, VCPU_XIVE_ESC_VADDR(r9)
+	cmpdi	r10, 0
+	beq	3f
+	ldx	r0, r10, r5
+	b	2f
+1:	ld	r10, VCPU_XIVE_ESC_RADDR(r9)
+	cmpdi	r10, 0
+	beq	3f
+	ldcix	r0, r10, r5
+2:	sync
+	li	r0, 1
+	stb	r0, VCPU_XIVE_ESC_ON(r9)
+#endif /* CONFIG_KVM_XICS */
+3:	b	guest_exit_cont
 
 	/* Try to handle a machine check in real mode */
 machine_check_realmode:
@@ -3249,7 +3320,7 @@ kvmppc_bad_host_intr:
 	mfctr	r4
 #endif
 	mfxer	r5
-	lbz	r6, PACASOFTIRQEN(r13)
+	lbz	r6, PACAIRQSOFTMASK(r13)
 	std	r3, _LINK(r1)
 	std	r4, _CTR(r1)
 	std	r5, _XER(r1)
@@ -3320,7 +3391,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 	ld	r4, PACAKMSR(r13)
 	mtspr	SPRN_SRR0, r3
 	mtspr	SPRN_SRR1, r4
-	rfid
+	RFI_TO_KERNEL
 9:	addi	r3, r1, STACK_FRAME_OVERHEAD
 	bl	kvmppc_bad_interrupt
 	b	9b

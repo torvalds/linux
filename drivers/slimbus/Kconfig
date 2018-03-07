@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# SLIMbus driver configuration
+#
+menuconfig SLIMBUS
+	tristate "SLIMbus support"
+	help
+	  SLIMbus is standard interface between System-on-Chip and audio codec,
+	  and other peripheral components in typical embedded systems.
+
+	  If unsure, choose N.
+
+if SLIMBUS
+
+# SLIMbus controllers
+config SLIM_QCOM_CTRL
+	tristate "Qualcomm SLIMbus Manager Component"
+	depends on SLIMBUS
+	depends on HAS_IOMEM
+	help
+	  Select driver if Qualcomm's SLIMbus Manager Component is
+	  programmed using Linux kernel.
+
+endif

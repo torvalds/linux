@@ -51,6 +51,7 @@ struct blk_mq_hw_ctx {
 	unsigned int		queue_num;
 
 	atomic_t		nr_active;
+	unsigned int		nr_expired;
 
 	struct hlist_node	cpuhp_dead;
 	struct kobject		kobj;
@@ -65,7 +66,7 @@ struct blk_mq_hw_ctx {
 #endif
 
 	/* Must be the last member - see also blk_mq_hw_ctx_size(). */
-	struct srcu_struct	queue_rq_srcu[0];
+	struct srcu_struct	srcu[0];
 };
 
 struct blk_mq_tag_set {

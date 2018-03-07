@@ -1216,18 +1216,6 @@ static netdev_tx_t bcm_sysport_xmit(struct sk_buff *skb,
 		goto out;
 	}
 
-	/* The Ethernet switch we are interfaced with needs packets to be at
-	 * least 64 bytes (including FCS) otherwise they will be discarded when
-	 * they enter the switch port logic. When Broadcom tags are enabled, we
-	 * need to make sure that packets are at least 68 bytes
-	 * (including FCS and tag) because the length verification is done after
-	 * the Broadcom tag is stripped off the ingress packet.
-	 */
-	if (skb_put_padto(skb, ETH_ZLEN + ENET_BRCM_TAG_LEN)) {
-		ret = NETDEV_TX_OK;
-		goto out;
-	}
-
 	/* Insert TSB and checksum infos */
 	if (priv->tsb_en) {
 		skb = bcm_sysport_insert_tsb(skb, dev);

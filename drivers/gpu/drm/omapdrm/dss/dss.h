@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/dss.h
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
@@ -264,9 +262,6 @@ static inline int dss_debugfs_create_file(const char *name,
 }
 #endif /* CONFIG_OMAP2_DSS_DEBUGFS */
 
-int dss_init_platform_driver(void) __init;
-void dss_uninit_platform_driver(void);
-
 int dss_runtime_get(void);
 void dss_runtime_put(void);
 
@@ -277,7 +272,6 @@ int dss_dpi_select_source(int port, enum omap_channel channel);
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
 enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void);
 const char *dss_get_clk_source_name(enum dss_clk_source clk_src);
-void dss_dump_clocks(struct seq_file *s);
 
 /* DSS VIDEO PLL */
 struct dss_pll *dss_video_pll_init(struct platform_device *pdev, int id,
@@ -329,9 +323,6 @@ static inline void sdi_uninit_port(struct device_node *port)
 struct dentry;
 struct file_operations;
 
-int dsi_init_platform_driver(void) __init;
-void dsi_uninit_platform_driver(void);
-
 void dsi_dump_clocks(struct seq_file *s);
 
 void dsi_irq_handler(void);
@@ -355,8 +346,6 @@ static inline void dpi_uninit_port(struct device_node *port)
 #endif
 
 /* DISPC */
-int dispc_init_platform_driver(void) __init;
-void dispc_uninit_platform_driver(void);
 void dispc_dump_clocks(struct seq_file *s);
 
 int dispc_runtime_get(void);
@@ -400,18 +389,6 @@ void dispc_wb_set_channel_in(enum dss_writeback_channel channel);
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		bool mem_to_mem, const struct videomode *vm);
 
-/* VENC */
-int venc_init_platform_driver(void) __init;
-void venc_uninit_platform_driver(void);
-
-/* HDMI */
-int hdmi4_init_platform_driver(void) __init;
-void hdmi4_uninit_platform_driver(void);
-
-int hdmi5_init_platform_driver(void) __init;
-void hdmi5_uninit_platform_driver(void);
-
-
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
 static inline void dss_collect_irq_stats(u32 irqstatus, unsigned *irq_arr)
 {
@@ -454,5 +431,20 @@ int dss_pll_write_config_type_a(struct dss_pll *pll,
 int dss_pll_write_config_type_b(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo);
 int dss_pll_wait_reset_done(struct dss_pll *pll);
+
+extern struct platform_driver omap_dsshw_driver;
+extern struct platform_driver omap_dispchw_driver;
+#ifdef CONFIG_OMAP2_DSS_DSI
+extern struct platform_driver omap_dsihw_driver;
+#endif
+#ifdef CONFIG_OMAP2_DSS_VENC
+extern struct platform_driver omap_venchw_driver;
+#endif
+#ifdef CONFIG_OMAP4_DSS_HDMI
+extern struct platform_driver omapdss_hdmi4hw_driver;
+#endif
+#ifdef CONFIG_OMAP5_DSS_HDMI
+extern struct platform_driver omapdss_hdmi5hw_driver;
+#endif
 
 #endif

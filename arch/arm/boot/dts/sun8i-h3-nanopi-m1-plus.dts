@@ -48,6 +48,7 @@
 
 	aliases {
 		serial1 = &uart3;
+		ethernet0 = &emac;
 		ethernet1 = &sdio_wifi;
 	};
 
@@ -82,8 +83,6 @@
 	phy-supply = <&reg_gmac_3v3>;
 	phy-handle = <&ext_rgmii_phy>;
 	phy-mode = "rgmii";
-
-	allwinner,leds-active-low;
 
 	status = "okay";
 };

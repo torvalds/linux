@@ -39,23 +39,6 @@ config IP_DCCP_DEBUG
 
 	  Just say N.
 
-config NET_DCCPPROBE
-	tristate "DCCP connection probing"
-	depends on PROC_FS && KPROBES
-	---help---
-	This module allows for capturing the changes to DCCP connection
-	state in response to incoming packets. It is used for debugging
-	DCCP congestion avoidance modules. If you don't understand
-	what was just said, you don't need it: say N.
-
-	Documentation on how to use DCCP connection probing can be found
-	at:
-	
-	  http://www.linuxfoundation.org/collaborate/workgroups/networking/dccpprobe
-
-	To compile this code as a module, choose M here: the
-	module will be called dccp_probe.
-
 
 endmenu
 

@@ -28,6 +28,17 @@
 
 #include "dml_inline_defs.h"
 
+/*
+ * NOTE:
+ *   This file is gcc-parseable HW gospel, coming straight from HW engineers.
+ *
+ * It doesn't adhere to Linux kernel style and sometimes will do things in odd
+ * ways. Unless there is something clearly wrong with it the code should
+ * remain as-is as it provides us with a guarantee from HW that it is correct.
+ */
+
+#define BPP_INVALID 0
+#define BPP_BLENDED_PIPE 0xffffffff
 static const unsigned int NumberOfStates = DC__VOLTAGE_STATES;
 
 static void fetch_socbb_params(struct display_mode_lib *mode_lib);
@@ -587,7 +598,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] =
 				dout->dsc_slices;
 		mode_lib->vba.DSCInputBitPerComponent[mode_lib->vba.NumberOfActivePlanes] =
-				dout->output_bpc == 0 ? 12 : dout->output_bpc;
+				dout->opp_input_bpc == 0 ? 12 : dout->opp_input_bpc;
 		mode_lib->vba.WritebackEnable[mode_lib->vba.NumberOfActivePlanes] = dout->wb_enable;
 		mode_lib->vba.WritebackSourceHeight[mode_lib->vba.NumberOfActivePlanes] =
 				dout->wb.wb_src_height;
@@ -3928,7 +3939,7 @@ static unsigned int TruncToValidBPP(
 			else if (DecimalBPP >= 12)
 				return 12;
 			else
-				return 0;
+				return BPP_INVALID;
 		} else if (Format == dm_444) {
 			if (DecimalBPP >= 36)
 				return 36;
@@ -3937,7 +3948,7 @@ static unsigned int TruncToValidBPP(
 			else if (DecimalBPP >= 24)
 				return 24;
 			else
-				return 0;
+				return BPP_INVALID;
 		} else {
 			if (DecimalBPP / 1.5 >= 24)
 				return 24;
@@ -3946,27 +3957,27 @@ static unsigned int TruncToValidBPP(
 			else if (DecimalBPP / 1.5 >= 16)
 				return 16;
 			else
-				return 0;
+				return BPP_INVALID;
 		}
 	} else {
 		if (DSCEnabled) {
 			if (Format == dm_420) {
 				if (DecimalBPP < 6)
-					return 0;
+					return BPP_INVALID;
 				else if (DecimalBPP >= 1.5 * DSCInputBitPerComponent - 1 / 16)
 					return 1.5 * DSCInputBitPerComponent - 1 / 16;
 				else
 					return dml_floor(16 * DecimalBPP, 1) / 16;
 			} else if (Format == dm_n422) {
 				if (DecimalBPP < 7)
-					return 0;
+					return BPP_INVALID;
 				else if (DecimalBPP >= 2 * DSCInputBitPerComponent - 1 / 16)
 					return 2 * DSCInputBitPerComponent - 1 / 16;
 				else
 					return dml_floor(16 * DecimalBPP, 1) / 16;
 			} else {
 				if (DecimalBPP < 8)
-					return 0;
+					return BPP_INVALID;
 				else if (DecimalBPP >= 3 * DSCInputBitPerComponent - 1 / 16)
 					return 3 * DSCInputBitPerComponent - 1 / 16;
 				else
@@ -3980,7 +3991,7 @@ static unsigned int TruncToValidBPP(
 			else if (DecimalBPP >= 12)
 				return 12;
 			else
-				return 0;
+				return BPP_INVALID;
 		} else if (Format == dm_s422 || Format == dm_n422) {
 			if (DecimalBPP >= 24)
 				return 24;
@@ -3989,7 +4000,7 @@ static unsigned int TruncToValidBPP(
 			else if (DecimalBPP >= 16)
 				return 16;
 			else
-				return 0;
+				return BPP_INVALID;
 		} else {
 			if (DecimalBPP >= 36)
 				return 36;
@@ -3998,7 +4009,7 @@ static unsigned int TruncToValidBPP(
 			else if (DecimalBPP >= 24)
 				return 24;
 			else
-				return 0;
+				return BPP_INVALID;
 		}
 	}
 }
@@ -4922,11 +4933,7 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 		mode_lib->vba.ViewportSizeSupport[i] = true;
 		for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
 			if (mode_lib->vba.ODMCombineEnablePerState[i][k] == true) {
-				if (dml_min(
-						mode_lib->vba.SwathWidthYSingleDPP[k],
-						dml_round(
-								mode_lib->vba.HActive[k] / 2.0
-										* mode_lib->vba.HRatio[k]))
+				if (dml_min(mode_lib->vba.SwathWidthYSingleDPP[k], dml_round(mode_lib->vba.HActive[k] / 2.0 * mode_lib->vba.HRatio[k]))
 						> mode_lib->vba.MaximumSwathWidth[k]) {
 					mode_lib->vba.ViewportSizeSupport[i] = false;
 				}
@@ -4980,12 +4987,8 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 					mode_lib->vba.RequiresDSC[i][k] = 0;
 					mode_lib->vba.RequiresFEC[i][k] = 0;
 					mode_lib->vba.OutputBppPerState[i][k] =
-							TruncToValidBPP(
-									dml_min(
-											600.0,
-											mode_lib->vba.PHYCLKPerState[i])
-											/ mode_lib->vba.PixelClockBackEnd[k]
-											* 24,
+							TruncToValidBPP(dml_min(600.0, mode_lib->vba.PHYCLKPerState[i])
+										/ mode_lib->vba.PixelClockBackEnd[k] * 24,
 									false,
 									mode_lib->vba.Output[k],
 									mode_lib->vba.OutputFormat[k],
@@ -5000,30 +5003,16 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 					}
 					if (mode_lib->vba.PHYCLKPerState[i] >= 270.0) {
 						mode_lib->vba.Outbpp =
-								TruncToValidBPP(
-										(1.0
-												- mode_lib->vba.Downspreading
-														/ 100.0)
-												* 270.0
-												* mode_lib->vba.OutputLinkDPLanes[k]
-												/ mode_lib->vba.PixelClockBackEnd[k]
-												* 8.0,
+								TruncToValidBPP((1.0 - mode_lib->vba.Downspreading / 100.0) * 270.0
+											* mode_lib->vba.OutputLinkDPLanes[k] / mode_lib->vba.PixelClockBackEnd[k] * 8.0,
 										false,
 										mode_lib->vba.Output[k],
 										mode_lib->vba.OutputFormat[k],
 										mode_lib->vba.DSCInputBitPerComponent[k]);
 						mode_lib->vba.OutbppDSC =
-								TruncToValidBPP(
-										(1.0
-												- mode_lib->vba.Downspreading
-														/ 100.0)
-												* (1.0
-														- mode_lib->vba.EffectiveFECOverhead
-																/ 100.0)
-												* 270.0
-												* mode_lib->vba.OutputLinkDPLanes[k]
-												/ mode_lib->vba.PixelClockBackEnd[k]
-												* 8.0,
+								TruncToValidBPP((1.0 - mode_lib->vba.Downspreading / 100.0)
+											* (1.0 - mode_lib->vba.EffectiveFECOverhead / 100.0) * 270.0
+											* mode_lib->vba.OutputLinkDPLanes[k] / mode_lib->vba.PixelClockBackEnd[k] * 8.0,
 										true,
 										mode_lib->vba.Output[k],
 										mode_lib->vba.OutputFormat[k],
@@ -5046,32 +5035,18 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 						mode_lib->vba.OutputBppPerState[i][k] =
 								mode_lib->vba.Outbpp;
 					}
-					if (mode_lib->vba.Outbpp == 0) {
+					if (mode_lib->vba.Outbpp == BPP_INVALID) {
 						mode_lib->vba.Outbpp =
-								TruncToValidBPP(
-										(1.0
-												- mode_lib->vba.Downspreading
-														/ 100.0)
-												* 540.0
-												* mode_lib->vba.OutputLinkDPLanes[k]
-												/ mode_lib->vba.PixelClockBackEnd[k]
-												* 8.0,
+								TruncToValidBPP((1.0 - mode_lib->vba.Downspreading / 100.0) * 540.0
+											* mode_lib->vba.OutputLinkDPLanes[k] / mode_lib->vba.PixelClockBackEnd[k] * 8.0,
 										false,
 										mode_lib->vba.Output[k],
 										mode_lib->vba.OutputFormat[k],
 										mode_lib->vba.DSCInputBitPerComponent[k]);
 						mode_lib->vba.OutbppDSC =
-								TruncToValidBPP(
-										(1.0
-												- mode_lib->vba.Downspreading
-														/ 100.0)
-												* (1.0
-														- mode_lib->vba.EffectiveFECOverhead
-																/ 100.0)
-												* 540.0
-												* mode_lib->vba.OutputLinkDPLanes[k]
-												/ mode_lib->vba.PixelClockBackEnd[k]
-												* 8.0,
+								TruncToValidBPP((1.0 - mode_lib->vba.Downspreading / 100.0)
+											* (1.0 - mode_lib->vba.EffectiveFECOverhead / 100.0) * 540.0
+											* mode_lib->vba.OutputLinkDPLanes[k] / mode_lib->vba.PixelClockBackEnd[k] * 8.0,
 										true,
 										mode_lib->vba.Output[k],
 										mode_lib->vba.OutputFormat[k],
@@ -5094,40 +5069,26 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 						mode_lib->vba.OutputBppPerState[i][k] =
 								mode_lib->vba.Outbpp;
 					}
-					if (mode_lib->vba.Outbpp == 0
+					if (mode_lib->vba.Outbpp == BPP_INVALID
 							&& mode_lib->vba.PHYCLKPerState[i]
 									>= 810.0) {
 						mode_lib->vba.Outbpp =
-								TruncToValidBPP(
-										(1.0
-												- mode_lib->vba.Downspreading
-														/ 100.0)
-												* 810.0
-												* mode_lib->vba.OutputLinkDPLanes[k]
-												/ mode_lib->vba.PixelClockBackEnd[k]
-												* 8.0,
+								TruncToValidBPP((1.0 - mode_lib->vba.Downspreading / 100.0) * 810.0
+											* mode_lib->vba.OutputLinkDPLanes[k] / mode_lib->vba.PixelClockBackEnd[k] * 8.0,
 										false,
 										mode_lib->vba.Output[k],
 										mode_lib->vba.OutputFormat[k],
 										mode_lib->vba.DSCInputBitPerComponent[k]);
 						mode_lib->vba.OutbppDSC =
-								TruncToValidBPP(
-										(1.0
-												- mode_lib->vba.Downspreading
-														/ 100.0)
-												* (1.0
-														- mode_lib->vba.EffectiveFECOverhead
-																/ 100.0)
-												* 810.0
-												* mode_lib->vba.OutputLinkDPLanes[k]
-												/ mode_lib->vba.PixelClockBackEnd[k]
-												* 8.0,
+								TruncToValidBPP((1.0 - mode_lib->vba.Downspreading / 100.0)
+											* (1.0 - mode_lib->vba.EffectiveFECOverhead / 100.0) * 810.0
+											* mode_lib->vba.OutputLinkDPLanes[k] / mode_lib->vba.PixelClockBackEnd[k] * 8.0,
 										true,
 										mode_lib->vba.Output[k],
 										mode_lib->vba.OutputFormat[k],
 										mode_lib->vba.DSCInputBitPerComponent[k]);
 						if (mode_lib->vba.DSCEnabled[k] == true
-								|| mode_lib->vba.Outbpp == 0) {
+								|| mode_lib->vba.Outbpp == BPP_INVALID) {
 							mode_lib->vba.RequiresDSC[i][k] = true;
 							if (mode_lib->vba.Output[k] == dm_dp) {
 								mode_lib->vba.RequiresFEC[i][k] =
@@ -5147,14 +5108,14 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 					}
 				}
 			} else {
-				mode_lib->vba.OutputBppPerState[i][k] = 0;
+				mode_lib->vba.OutputBppPerState[i][k] = BPP_BLENDED_PIPE;
 			}
 		}
 	}
 	for (i = 0; i <= DC__VOLTAGE_STATES; i++) {
 		mode_lib->vba.DIOSupport[i] = true;
 		for (k = 0; k <= mode_lib->vba.NumberOfActivePlanes - 1; k++) {
-			if (mode_lib->vba.OutputBppPerState[i][k] == 0
+			if (mode_lib->vba.OutputBppPerState[i][k] == BPP_INVALID
 					|| (mode_lib->vba.OutputFormat[k] == dm_420
 							&& mode_lib->vba.ProgressiveToInterlaceUnitInOPP
 									== true)) {
@@ -5243,8 +5204,8 @@ static void ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_
 			} else {
 				mode_lib->vba.slices = 1.0;
 			}
-			if (mode_lib->vba.OutputBppPerState[i][k] == 0
-					|| mode_lib->vba.OutputBppPerState[i][k] == 0) {
+			if (mode_lib->vba.OutputBppPerState[i][k] == BPP_BLENDED_PIPE
+					|| mode_lib->vba.OutputBppPerState[i][k] == BPP_INVALID) {
 				mode_lib->vba.bpp = 0.0;
 			} else {
 				mode_lib->vba.bpp = mode_lib->vba.OutputBppPerState[i][k];

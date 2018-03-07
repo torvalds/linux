@@ -2351,7 +2351,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 
 	if (hdw_desc == NULL) {
 		pvr2_trace(PVR2_TRACE_INIT, "pvr2_hdw_create: No device description pointer, unable to continue.");
-		pvr2_trace(PVR2_TRACE_INIT, "If you have a new device type, please contact Mike Isely <isely@pobox.com> to get it included in the driver\n");
+		pvr2_trace(PVR2_TRACE_INIT,
+			   "If you have a new device type, please contact Mike Isely <isely@pobox.com> to get it included in the driver");
 		goto fail;
 	}
 
@@ -3648,6 +3649,12 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 				  hdw);
 		hdw->ctl_write_urb->actual_length = 0;
 		hdw->ctl_write_pend_flag = !0;
+		if (usb_urb_ep_type_check(hdw->ctl_write_urb)) {
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"Invalid write control endpoint");
+			return -EINVAL;
+		}
 		status = usb_submit_urb(hdw->ctl_write_urb,GFP_KERNEL);
 		if (status < 0) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -3672,6 +3679,12 @@ status);
 				  hdw);
 		hdw->ctl_read_urb->actual_length = 0;
 		hdw->ctl_read_pend_flag = !0;
+		if (usb_urb_ep_type_check(hdw->ctl_read_urb)) {
+			pvr2_trace(
+				PVR2_TRACE_ERROR_LEGS,
+				"Invalid read control endpoint");
+			return -EINVAL;
+		}
 		status = usb_submit_urb(hdw->ctl_read_urb,GFP_KERNEL);
 		if (status < 0) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,

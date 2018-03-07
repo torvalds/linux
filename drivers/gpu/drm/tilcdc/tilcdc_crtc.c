@@ -51,11 +51,7 @@ struct tilcdc_crtc {
 	ktime_t last_vblank;
 	unsigned int hvtotal_us;
 
-	struct drm_framebuffer *curr_fb;
 	struct drm_framebuffer *next_fb;
-
-	/* for deferred fb unref's: */
-	struct drm_flip_work unref_work;
 
 	/* Only set if an external encoder is connected */
 	bool simulate_vesa_sync;
@@ -70,20 +66,8 @@ struct tilcdc_crtc {
 };
 #define to_tilcdc_crtc(x) container_of(x, struct tilcdc_crtc, base)
 
-static void unref_worker(struct drm_flip_work *work, void *val)
-{
-	struct tilcdc_crtc *tilcdc_crtc =
-		container_of(work, struct tilcdc_crtc, unref_work);
-	struct drm_device *dev = tilcdc_crtc->base.dev;
-
-	mutex_lock(&dev->mode_config.mutex);
-	drm_framebuffer_put(val);
-	mutex_unlock(&dev->mode_config.mutex);
-}
-
 static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 {
-	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct tilcdc_drm_private *priv = dev->dev_private;
 	struct drm_gem_cma_object *gem;
@@ -108,12 +92,6 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 
 	dma_base_and_ceiling = (u64)end << 32 | start;
 	tilcdc_write64(dev, LCDC_DMA_FB_BASE_ADDR_0_REG, dma_base_and_ceiling);
-
-	if (tilcdc_crtc->curr_fb)
-		drm_flip_work_queue(&tilcdc_crtc->unref_work,
-			tilcdc_crtc->curr_fb);
-
-	tilcdc_crtc->curr_fb = fb;
 }
 
 /*
@@ -294,7 +272,7 @@ static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
 				LCDC_V2_CORE_CLK_EN);
 }
 
-uint tilcdc_mode_hvtotal(const struct drm_display_mode *mode)
+static uint tilcdc_mode_hvtotal(const struct drm_display_mode *mode)
 {
 	return (uint) div_u64(1000llu * mode->htotal * mode->vtotal,
 			      mode->clock);
@@ -464,8 +442,6 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 
 	set_scanout(crtc, fb);
 
-	drm_framebuffer_get(fb);
-
 	crtc->hwmode = crtc->state->adjusted_mode;
 
 	tilcdc_crtc->hvtotal_us =
@@ -524,7 +500,6 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 {
 	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
-	struct tilcdc_drm_private *priv = dev->dev_private;
 	int ret;
 
 	mutex_lock(&tilcdc_crtc->enable_lock);
@@ -553,20 +528,6 @@ static void tilcdc_crtc_off(struct drm_crtc *crtc, bool shutdown)
 	tilcdc_crtc_disable_irqs(dev);
 
 	pm_runtime_put_sync(dev->dev);
-
-	if (tilcdc_crtc->next_fb) {
-		drm_flip_work_queue(&tilcdc_crtc->unref_work,
-				    tilcdc_crtc->next_fb);
-		tilcdc_crtc->next_fb = NULL;
-	}
-
-	if (tilcdc_crtc->curr_fb) {
-		drm_flip_work_queue(&tilcdc_crtc->unref_work,
-				    tilcdc_crtc->curr_fb);
-		tilcdc_crtc->curr_fb = NULL;
-	}
-
-	drm_flip_work_commit(&tilcdc_crtc->unref_work, priv->wq);
 
 	tilcdc_crtc->enabled = false;
 	mutex_unlock(&tilcdc_crtc->enable_lock);
@@ -614,7 +575,6 @@ out:
 
 static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 {
-	struct tilcdc_crtc *tilcdc_crtc = to_tilcdc_crtc(crtc);
 	struct tilcdc_drm_private *priv = crtc->dev->dev_private;
 
 	tilcdc_crtc_shutdown(crtc);
@@ -623,7 +583,6 @@ static void tilcdc_crtc_destroy(struct drm_crtc *crtc)
 
 	of_node_put(crtc->port);
 	drm_crtc_cleanup(crtc);
-	drm_flip_work_cleanup(&tilcdc_crtc->unref_work);
 }
 
 int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
@@ -638,9 +597,6 @@ int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
 		return -EBUSY;
 	}
 
-	drm_framebuffer_get(fb);
-
-	crtc->primary->fb = fb;
 	tilcdc_crtc->event = event;
 
 	mutex_lock(&tilcdc_crtc->enable_lock);
@@ -936,8 +892,6 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 
 		now = ktime_get();
 
-		drm_flip_work_commit(&tilcdc_crtc->unref_work, priv->wq);
-
 		spin_lock_irqsave(&tilcdc_crtc->irq_lock, flags);
 
 		tilcdc_crtc->last_vblank = now;
@@ -1063,9 +1017,6 @@ int tilcdc_crtc_create(struct drm_device *dev)
 	mutex_init(&tilcdc_crtc->enable_lock);
 
 	init_waitqueue_head(&tilcdc_crtc->frame_done_wq);
-
-	drm_flip_work_init(&tilcdc_crtc->unref_work,
-			"unref", unref_worker);
 
 	spin_lock_init(&tilcdc_crtc->irq_lock);
 	INIT_WORK(&tilcdc_crtc->recover_work, tilcdc_crtc_recover_work);

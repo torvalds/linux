@@ -274,7 +274,6 @@ USBIP_CMD_SUBMIT: Submit an URB
   URB_SHORT_NOT_OK        | 0x00000001 | only in | only in   | only in  | no
   URB_ISO_ASAP            | 0x00000002 | no      | no        | no       | yes
   URB_NO_TRANSFER_DMA_MAP | 0x00000004 | yes     | yes       | yes      | yes
-  URB_NO_FSBR             | 0x00000020 | yes     | no        | no       | no
   URB_ZERO_PACKET         | 0x00000040 | no      | no        | only out | no
   URB_NO_INTERRUPT        | 0x00000080 | yes     | yes       | yes      | yes
   URB_FREE_BUFFER         | 0x00000100 | yes     | yes       | yes      | yes

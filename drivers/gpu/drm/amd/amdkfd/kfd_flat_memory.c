@@ -300,8 +300,13 @@ int kfd_init_apertures(struct kfd_process *process)
 	struct kfd_process_device *pdd;
 
 	/*Iterating over all devices*/
-	while ((dev = kfd_topology_enum_kfd_devices(id)) != NULL &&
+	while (kfd_topology_enum_kfd_devices(id, &dev) == 0 &&
 		id < NUM_OF_SUPPORTED_GPUS) {
+
+		if (!dev) {
+			id++; /* Skip non GPU devices */
+			continue;
+		}
 
 		pdd = kfd_create_process_device_data(dev, process);
 		if (!pdd) {

@@ -158,3 +158,7 @@ HWCAP_SHA512
 HWCAP_SVE
 
     Functionality implied by ID_AA64PFR0_EL1.SVE == 0b0001.
+
+HWCAP_ASIMDFHM
+
+   Functionality implied by ID_AA64ISAR0_EL1.FHM == 0b0001.

@@ -133,9 +133,10 @@ static const struct clk_ops apll_ck_ops = {
 	.get_parent	= &dra7_init_apll_parent,
 };
 
-static void __init omap_clk_register_apll(struct clk_hw *hw,
+static void __init omap_clk_register_apll(void *user,
 					  struct device_node *node)
 {
+	struct clk_hw *hw = user;
 	struct clk_hw_omap *clk_hw = to_clk_hw_omap(hw);
 	struct dpll_data *ad = clk_hw->dpll_data;
 	struct clk *clk;

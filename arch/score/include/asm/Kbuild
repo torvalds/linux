@@ -1,5 +1,4 @@
 generic-y += barrier.h
-generic-y += clkdev.h
 generic-y += current.h
 generic-y += extable.h
 generic-y += irq_work.h

@@ -23,7 +23,7 @@
 #define STV0900_H
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 struct stv0900_reg {
 	u16 addr;

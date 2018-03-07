@@ -1049,7 +1049,7 @@ iget_no_retry:
 	tcon->resource_id = CIFS_I(inode)->uniqueid;
 #endif
 
-	if (rc && tcon->ipc) {
+	if (rc && tcon->pipe) {
 		cifs_dbg(FYI, "ipc connection - fake read inode\n");
 		spin_lock(&inode->i_lock);
 		inode->i_mode |= S_IFDIR;

@@ -86,10 +86,9 @@ config FW_LOADER
 	  require userspace firmware loading support, but a module built
 	  out-of-tree does.
 
-config FIRMWARE_IN_KERNEL
-	bool "Include in-kernel firmware blobs in kernel binary"
+config EXTRA_FIRMWARE
+	string "External firmware blobs to build into the kernel binary"
 	depends on FW_LOADER
-	default y
 	help
 	  Various drivers in the kernel source tree may require firmware,
 	  which is generally available in your distribution's linux-firmware
@@ -99,23 +98,6 @@ config FIRMWARE_IN_KERNEL
 	  /lib/firmware/ on your system, so they can be loaded by userspace
 	  helpers on request.
 
-	  Enabling this option will build each required firmware blob
-	  specified by EXTRA_FIRMWARE into the kernel directly, where
-	  request_firmware() will find them without having to call out to
-	  userspace. This may be useful if your root file system requires a
-	  device that uses such firmware and you do not wish to use an
-	  initrd.
-
-	  This single option controls the inclusion of firmware for
-	  every driver that uses request_firmware(), which avoids a
-	  proliferation of 'Include firmware for xxx device' options.
-
-	  Say 'N' and let firmware be loaded from userspace.
-
-config EXTRA_FIRMWARE
-	string "External firmware blobs to build into the kernel binary"
-	depends on FW_LOADER
-	help
 	  This option allows firmware to be built into the kernel for the case
 	  where the user either cannot or doesn't want to provide it from
 	  userspace at runtime (for example, when the firmware in question is
@@ -126,11 +108,11 @@ config EXTRA_FIRMWARE
 	  firmware files -- the same names that appear in MODULE_FIRMWARE()
 	  and request_firmware() in the source. These files should exist under
 	  the directory specified by the EXTRA_FIRMWARE_DIR option, which is
-	  by default the firmware subdirectory of the kernel source tree.
+	  /lib/firmware by default.
 
 	  For example, you might set CONFIG_EXTRA_FIRMWARE="usb8388.bin", copy
-	  the usb8388.bin file into the firmware directory, and build the kernel.
-	  Then any request_firmware("usb8388.bin") will be satisfied internally
+	  the usb8388.bin file into /lib/firmware, and build the kernel. Then
+	  any request_firmware("usb8388.bin") will be satisfied internally
 	  without needing to call out to userspace.
 
 	  WARNING: If you include additional firmware files into your binary
@@ -236,6 +218,9 @@ config GENERIC_CPU_DEVICES
 config GENERIC_CPU_AUTOPROBE
 	bool
 
+config GENERIC_CPU_VULNERABILITIES
+	bool
+
 config SOC_BUS
 	bool
 	select GLOB
@@ -246,6 +231,7 @@ config DMA_SHARED_BUFFER
 	bool
 	default n
 	select ANON_INODES
+	select IRQ_WORK
 	help
 	  This option enables the framework for buffer-sharing between
 	  multiple drivers. A buffer is associated with a file using driver

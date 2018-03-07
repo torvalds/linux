@@ -23,6 +23,7 @@
 
 #include <linux/tracepoint.h>
 #include "xhci.h"
+#include "xhci-dbgcap.h"
 
 #define XHCI_MSG_MAX	500
 
@@ -151,6 +152,21 @@ DEFINE_EVENT(xhci_log_trb, xhci_handle_transfer,
 );
 
 DEFINE_EVENT(xhci_log_trb, xhci_queue_trb,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
+);
+
+DEFINE_EVENT(xhci_log_trb, xhci_dbc_handle_event,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
+);
+
+DEFINE_EVENT(xhci_log_trb, xhci_dbc_handle_transfer,
+	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
+	TP_ARGS(ring, trb)
+);
+
+DEFINE_EVENT(xhci_log_trb, xhci_dbc_gadget_ep_queue,
 	TP_PROTO(struct xhci_ring *ring, struct xhci_generic_trb *trb),
 	TP_ARGS(ring, trb)
 );
@@ -478,6 +494,59 @@ DEFINE_EVENT(xhci_log_portsc, xhci_handle_port_status,
 	     TP_ARGS(portnum, portsc)
 );
 
+DEFINE_EVENT(xhci_log_portsc, xhci_get_port_status,
+	     TP_PROTO(u32 portnum, u32 portsc),
+	     TP_ARGS(portnum, portsc)
+);
+
+DEFINE_EVENT(xhci_log_portsc, xhci_hub_status_data,
+	     TP_PROTO(u32 portnum, u32 portsc),
+	     TP_ARGS(portnum, portsc)
+);
+
+DECLARE_EVENT_CLASS(xhci_dbc_log_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req),
+	TP_STRUCT__entry(
+		__field(struct dbc_request *, req)
+		__field(bool, dir)
+		__field(unsigned int, actual)
+		__field(unsigned int, length)
+		__field(int, status)
+	),
+	TP_fast_assign(
+		__entry->req = req;
+		__entry->dir = req->direction;
+		__entry->actual = req->actual;
+		__entry->length = req->length;
+		__entry->status = req->status;
+	),
+	TP_printk("%s: req %p length %u/%u ==> %d",
+		__entry->dir ? "bulk-in" : "bulk-out",
+		__entry->req, __entry->actual,
+		__entry->length, __entry->status
+	)
+);
+
+DEFINE_EVENT(xhci_dbc_log_request, xhci_dbc_alloc_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(xhci_dbc_log_request, xhci_dbc_free_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(xhci_dbc_log_request, xhci_dbc_queue_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req)
+);
+
+DEFINE_EVENT(xhci_dbc_log_request, xhci_dbc_giveback_request,
+	TP_PROTO(struct dbc_request *req),
+	TP_ARGS(req)
+);
 #endif /* __XHCI_TRACE_H */
 
 /* this part must be outside header guard */

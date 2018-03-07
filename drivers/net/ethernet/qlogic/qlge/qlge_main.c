@@ -1747,8 +1747,7 @@ static void ql_realign_skb(struct sk_buff *skb, int len)
 	 */
 	skb->data -= QLGE_SB_PAD - NET_IP_ALIGN;
 	skb->tail -= QLGE_SB_PAD - NET_IP_ALIGN;
-	skb_copy_to_linear_data(skb, temp_addr,
-		(unsigned int)len);
+	memmove(skb->data, temp_addr, len);
 }
 
 /*

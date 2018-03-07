@@ -1323,9 +1323,8 @@ put_anon:
 		put_anon_vma(anon_vma);
 
 	if (rc == MIGRATEPAGE_SUCCESS) {
-		hugetlb_cgroup_migrate(hpage, new_hpage);
+		move_hugetlb_state(hpage, new_hpage, reason);
 		put_new_page = NULL;
-		set_page_owner_migrate_reason(new_hpage, reason);
 	}
 
 	unlock_page(hpage);

@@ -1,6 +1,6 @@
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
- * Copyright 2012-2015 Solarflare Communications Inc.
+ * Copyright 2012-2017 Solarflare Communications Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -79,6 +79,8 @@
 #define	ER_DZ_EVQ_TMR 0x00000420
 #define	ER_DZ_EVQ_TMR_STEP 8192
 #define	ER_DZ_EVQ_TMR_ROWS 2048
+#define	ERF_FZ_TC_TMR_REL_VAL_LBN 16
+#define	ERF_FZ_TC_TMR_REL_VAL_WIDTH 14
 #define	ERF_DZ_TC_TIMER_MODE_LBN 14
 #define	ERF_DZ_TC_TIMER_MODE_WIDTH 2
 #define	ERF_DZ_TC_TIMER_VAL_LBN 0
@@ -159,16 +161,24 @@
 #define	ESF_DZ_RX_EV_SOFT2_WIDTH 2
 #define	ESF_DZ_RX_DSC_PTR_LBITS_LBN 48
 #define	ESF_DZ_RX_DSC_PTR_LBITS_WIDTH 4
-#define	ESF_DZ_RX_L4_CLASS_LBN 45
-#define	ESF_DZ_RX_L4_CLASS_WIDTH 3
-#define	ESE_DZ_L4_CLASS_RSVD7 7
-#define	ESE_DZ_L4_CLASS_RSVD6 6
-#define	ESE_DZ_L4_CLASS_RSVD5 5
-#define	ESE_DZ_L4_CLASS_RSVD4 4
-#define	ESE_DZ_L4_CLASS_RSVD3 3
-#define	ESE_DZ_L4_CLASS_UDP 2
-#define	ESE_DZ_L4_CLASS_TCP 1
-#define	ESE_DZ_L4_CLASS_UNKNOWN 0
+#define	ESF_DE_RX_L4_CLASS_LBN 45
+#define	ESF_DE_RX_L4_CLASS_WIDTH 3
+#define	ESE_DE_L4_CLASS_RSVD7 7
+#define	ESE_DE_L4_CLASS_RSVD6 6
+#define	ESE_DE_L4_CLASS_RSVD5 5
+#define	ESE_DE_L4_CLASS_RSVD4 4
+#define	ESE_DE_L4_CLASS_RSVD3 3
+#define	ESE_DE_L4_CLASS_UDP 2
+#define	ESE_DE_L4_CLASS_TCP 1
+#define	ESE_DE_L4_CLASS_UNKNOWN 0
+#define	ESF_FZ_RX_FASTPD_INDCTR_LBN 47
+#define	ESF_FZ_RX_FASTPD_INDCTR_WIDTH 1
+#define	ESF_FZ_RX_L4_CLASS_LBN 45
+#define	ESF_FZ_RX_L4_CLASS_WIDTH 2
+#define	ESE_FZ_L4_CLASS_RSVD3 3
+#define	ESE_FZ_L4_CLASS_UDP 2
+#define	ESE_FZ_L4_CLASS_TCP 1
+#define	ESE_FZ_L4_CLASS_UNKNOWN 0
 #define	ESF_DZ_RX_L3_CLASS_LBN 42
 #define	ESF_DZ_RX_L3_CLASS_WIDTH 3
 #define	ESE_DZ_L3_CLASS_RSVD7 7
@@ -215,6 +225,8 @@
 #define	ESF_EZ_RX_ABORT_WIDTH 1
 #define	ESF_DZ_RX_ECC_ERR_LBN 29
 #define	ESF_DZ_RX_ECC_ERR_WIDTH 1
+#define	ESF_DZ_RX_TRUNC_ERR_LBN 29
+#define	ESF_DZ_RX_TRUNC_ERR_WIDTH 1
 #define	ESF_DZ_RX_CRC1_ERR_LBN 28
 #define	ESF_DZ_RX_CRC1_ERR_WIDTH 1
 #define	ESF_DZ_RX_CRC0_ERR_LBN 27
@@ -332,6 +344,8 @@
 #define	ESE_DZ_TX_OPTION_DESC_CRC_CSUM 0
 #define	ESF_DZ_TX_TSO_OPTION_TYPE_LBN 56
 #define	ESF_DZ_TX_TSO_OPTION_TYPE_WIDTH 4
+#define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2B 3
+#define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A 2
 #define	ESE_DZ_TX_TSO_OPTION_DESC_ENCAP 1
 #define	ESE_DZ_TX_TSO_OPTION_DESC_NORMAL 0
 #define	ESF_DZ_TX_TSO_TCP_FLAGS_LBN 48
@@ -341,7 +355,7 @@
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_LBN 0
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_WIDTH 32
 
-/* TX_TSO_FATSO2A_DESC */
+/* TX_TSO_V2_DESC_A */
 #define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
 #define	ESF_DZ_TX_DESC_IS_OPT_WIDTH 1
 #define	ESF_DZ_TX_OPTION_TYPE_LBN 60
@@ -360,8 +374,7 @@
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_LBN 0
 #define	ESF_DZ_TX_TSO_TCP_SEQNO_WIDTH 32
 
-
-/* TX_TSO_FATSO2B_DESC */
+/* TX_TSO_V2_DESC_B */
 #define	ESF_DZ_TX_DESC_IS_OPT_LBN 63
 #define	ESF_DZ_TX_DESC_IS_OPT_WIDTH 1
 #define	ESF_DZ_TX_OPTION_TYPE_LBN 60
@@ -375,11 +388,10 @@
 #define	ESE_DZ_TX_TSO_OPTION_DESC_FATSO2A 2
 #define	ESE_DZ_TX_TSO_OPTION_DESC_ENCAP 1
 #define	ESE_DZ_TX_TSO_OPTION_DESC_NORMAL 0
-#define	ESF_DZ_TX_TSO_OUTER_IP_ID_LBN 0
-#define	ESF_DZ_TX_TSO_OUTER_IP_ID_WIDTH 16
 #define	ESF_DZ_TX_TSO_TCP_MSS_LBN 32
 #define	ESF_DZ_TX_TSO_TCP_MSS_WIDTH 16
-
+#define	ESF_DZ_TX_TSO_OUTER_IPID_LBN 0
+#define	ESF_DZ_TX_TSO_OUTER_IPID_WIDTH 16
 
 /*************************************************************************/
 

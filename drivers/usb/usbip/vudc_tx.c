@@ -85,6 +85,13 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 	memset(&pdu_header, 0, sizeof(pdu_header));
 	memset(&msg, 0, sizeof(msg));
 
+	if (urb->actual_length > 0 && !urb->transfer_buffer) {
+		dev_err(&udc->gadget.dev,
+			"urb: actual_length %d transfer_buffer null\n",
+			urb->actual_length);
+		return -1;
+	}
+
 	if (urb_p->type == USB_ENDPOINT_XFER_ISOC)
 		iovnum = 2 + urb->number_of_packets;
 	else
@@ -100,8 +107,8 @@ static int v_send_ret_submit(struct vudc *udc, struct urbp *urb_p)
 
 	/* 1. setup usbip_header */
 	setup_ret_submit_pdu(&pdu_header, urb_p);
-	usbip_dbg_stub_tx("setup txdata seqnum: %d urb: %p\n",
-			  pdu_header.base.seqnum, urb);
+	usbip_dbg_stub_tx("setup txdata seqnum: %d\n",
+			  pdu_header.base.seqnum);
 	usbip_header_correct_endian(&pdu_header, 1);
 
 	iov[iovnum].iov_base = &pdu_header;

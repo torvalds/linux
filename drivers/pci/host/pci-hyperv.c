@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) Microsoft Corporation.
  *
@@ -34,17 +35,6 @@
  * read and write handlers for config space must be aware of this mechanism.
  * Similarly, device setup and teardown involves messages sent to and from
  * the PCI back-end driver in Hyper-V.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
  */
 
 #include <linux/kernel.h>
@@ -985,9 +975,7 @@ static u32 hv_compose_msi_req_v1(
 	int_pkt->wslot.slot = slot;
 	int_pkt->int_desc.vector = vector;
 	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode =
-		(apic->irq_delivery_mode == dest_LowestPrio) ?
-			dest_LowestPrio : dest_Fixed;
+	int_pkt->int_desc.delivery_mode = dest_Fixed;
 
 	/*
 	 * Create MSI w/ dummy vCPU set, overwritten by subsequent retarget in
@@ -1008,9 +996,7 @@ static u32 hv_compose_msi_req_v2(
 	int_pkt->wslot.slot = slot;
 	int_pkt->int_desc.vector = vector;
 	int_pkt->int_desc.vector_count = 1;
-	int_pkt->int_desc.delivery_mode =
-		(apic->irq_delivery_mode == dest_LowestPrio) ?
-			dest_LowestPrio : dest_Fixed;
+	int_pkt->int_desc.delivery_mode = dest_Fixed;
 
 	/*
 	 * Create MSI w/ dummy vCPU set targeting just one vCPU, overwritten

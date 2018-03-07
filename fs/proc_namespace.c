@@ -18,12 +18,12 @@
 #include "pnode.h"
 #include "internal.h"
 
-static unsigned mounts_poll(struct file *file, poll_table *wait)
+static __poll_t mounts_poll(struct file *file, poll_table *wait)
 {
 	struct seq_file *m = file->private_data;
 	struct proc_mounts *p = m->private;
 	struct mnt_namespace *ns = p->ns;
-	unsigned res = POLLIN | POLLRDNORM;
+	__poll_t res = EPOLLIN | EPOLLRDNORM;
 	int event;
 
 	poll_wait(file, &p->ns->poll, wait);
@@ -31,7 +31,7 @@ static unsigned mounts_poll(struct file *file, poll_table *wait)
 	event = READ_ONCE(ns->event);
 	if (m->poll_event != event) {
 		m->poll_event = event;
-		res |= POLLERR | POLLPRI;
+		res |= EPOLLERR | EPOLLPRI;
 	}
 
 	return res;

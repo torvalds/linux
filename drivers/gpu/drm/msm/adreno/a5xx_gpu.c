@@ -17,6 +17,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/of_address.h>
 #include <linux/soc/qcom/mdt_loader.h>
+#include <linux/pm_opp.h>
+#include <linux/nvmem-consumer.h>
 #include "msm_gem.h"
 #include "msm_mmu.h"
 #include "a5xx_gpu.h"
@@ -595,6 +597,12 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 	/* Turn on performance counters */
 	gpu_write(gpu, REG_A5XX_RBBM_PERFCTR_CNTL, 0x01);
 
+	/* Select CP0 to always count cycles */
+	gpu_write(gpu, REG_A5XX_CP_PERFCTR_CP_SEL_0, PERF_CP_ALWAYS_COUNT);
+
+	/* Select RBBM0 to countable 6 to get the busy status for devfreq */
+	gpu_write(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_SEL_0, 6);
+
 	/* Increase VFD cache access so LRZ and other data gets evicted less */
 	gpu_write(gpu, REG_A5XX_UCHE_CACHE_WAYS, 0x02);
 
@@ -1165,6 +1173,14 @@ static struct msm_ringbuffer *a5xx_active_ring(struct msm_gpu *gpu)
 	return a5xx_gpu->cur_ring;
 }
 
+static int a5xx_gpu_busy(struct msm_gpu *gpu, uint64_t *value)
+{
+	*value = gpu_read64(gpu, REG_A5XX_RBBM_PERFCTR_RBBM_0_LO,
+		REG_A5XX_RBBM_PERFCTR_RBBM_0_HI);
+
+	return 0;
+}
+
 static const struct adreno_gpu_funcs funcs = {
 	.base = {
 		.get_param = adreno_get_param,
@@ -1180,9 +1196,29 @@ static const struct adreno_gpu_funcs funcs = {
 #ifdef CONFIG_DEBUG_FS
 		.show = a5xx_show,
 #endif
+		.gpu_busy = a5xx_gpu_busy,
 	},
 	.get_timestamp = a5xx_get_timestamp,
 };
+
+static void check_speed_bin(struct device *dev)
+{
+	struct nvmem_cell *cell;
+	u32 bin, val;
+
+	cell = nvmem_cell_get(dev, "speed_bin");
+
+	/* If a nvmem cell isn't defined, nothing to do */
+	if (IS_ERR(cell))
+		return;
+
+	bin = *((u32 *) nvmem_cell_read(cell, NULL));
+	nvmem_cell_put(cell);
+
+	val = (1 << bin);
+
+	dev_pm_opp_set_supported_hw(dev, &val, 1);
+}
 
 struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 {
@@ -1209,6 +1245,8 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	adreno_gpu->reg_offsets = a5xx_register_offsets;
 
 	a5xx_gpu->lm_leakage = 0x4E001A;
+
+	check_speed_bin(&pdev->dev);
 
 	ret = adreno_gpu_init(dev, pdev, adreno_gpu, &funcs, 4);
 	if (ret) {

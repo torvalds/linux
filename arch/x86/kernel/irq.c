@@ -142,6 +142,15 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_puts(p, "  Hypervisor callback interrupts\n");
 	}
 #endif
+#if IS_ENABLED(CONFIG_HYPERV)
+	if (test_bit(HYPERV_REENLIGHTENMENT_VECTOR, system_vectors)) {
+		seq_printf(p, "%*s: ", prec, "HRE");
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ",
+				   irq_stats(j)->irq_hv_reenlightenment_count);
+		seq_puts(p, "  Hyper-V reenlightenment interrupts\n");
+	}
+#endif
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)
 	seq_printf(p, "%*s: %10u\n", prec, "MIS", atomic_read(&irq_mis_count));

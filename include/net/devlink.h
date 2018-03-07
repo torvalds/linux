@@ -26,10 +26,12 @@ struct devlink {
 	struct list_head port_list;
 	struct list_head sb_list;
 	struct list_head dpipe_table_list;
+	struct list_head resource_list;
 	struct devlink_dpipe_headers *dpipe_headers;
 	const struct devlink_ops *ops;
 	struct device *dev;
 	possible_net_t _net;
+	struct mutex lock;
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
 
@@ -181,6 +183,9 @@ struct devlink_dpipe_table_ops;
  * @counters_enabled: indicates if counters are active
  * @counter_control_extern: indicates if counter control is in dpipe or
  *			    external tool
+ * @resource_valid: Indicate that the resource id is valid
+ * @resource_id: relative resource this table is related to
+ * @resource_units: number of resource's unit consumed per table's entry
  * @table_ops: table operations
  * @rcu: rcu
  */
@@ -190,6 +195,9 @@ struct devlink_dpipe_table {
 	const char *name;
 	bool counters_enabled;
 	bool counter_control_extern;
+	bool resource_valid;
+	u64 resource_id;
+	u64 resource_units;
 	struct devlink_dpipe_table_ops *table_ops;
 	struct rcu_head rcu;
 };
@@ -223,7 +231,63 @@ struct devlink_dpipe_headers {
 	unsigned int headers_count;
 };
 
+/**
+ * struct devlink_resource_ops - resource ops
+ * @occ_get: get the occupied size
+ * @size_validate: validate the size of the resource before update, reload
+ *                 is needed for changes to take place
+ */
+struct devlink_resource_ops {
+	u64 (*occ_get)(struct devlink *devlink);
+	int (*size_validate)(struct devlink *devlink, u64 size,
+			     struct netlink_ext_ack *extack);
+};
+
+/**
+ * struct devlink_resource_size_params - resource's size parameters
+ * @size_min: minimum size which can be set
+ * @size_max: maximum size which can be set
+ * @size_granularity: size granularity
+ * @size_unit: resource's basic unit
+ */
+struct devlink_resource_size_params {
+	u64 size_min;
+	u64 size_max;
+	u64 size_granularity;
+	enum devlink_resource_unit unit;
+};
+
+/**
+ * struct devlink_resource - devlink resource
+ * @name: name of the resource
+ * @id: id, per devlink instance
+ * @size: size of the resource
+ * @size_new: updated size of the resource, reload is needed
+ * @size_valid: valid in case the total size of the resource is valid
+ *              including its children
+ * @parent: parent resource
+ * @size_params: size parameters
+ * @list: parent list
+ * @resource_list: list of child resources
+ * @resource_ops: resource ops
+ */
+struct devlink_resource {
+	const char *name;
+	u64 id;
+	u64 size;
+	u64 size_new;
+	bool size_valid;
+	struct devlink_resource *parent;
+	struct devlink_resource_size_params *size_params;
+	struct list_head list;
+	struct list_head resource_list;
+	const struct devlink_resource_ops *resource_ops;
+};
+
+#define DEVLINK_RESOURCE_ID_PARENT_TOP 0
+
 struct devlink_ops {
+	int (*reload)(struct devlink *devlink);
 	int (*port_type_set)(struct devlink_port *devlink_port,
 			     enum devlink_port_type port_type);
 	int (*port_split)(struct devlink *devlink, unsigned int port_index,
@@ -331,6 +395,23 @@ int devlink_dpipe_match_put(struct sk_buff *skb,
 extern struct devlink_dpipe_header devlink_dpipe_header_ethernet;
 extern struct devlink_dpipe_header devlink_dpipe_header_ipv4;
 extern struct devlink_dpipe_header devlink_dpipe_header_ipv6;
+
+int devlink_resource_register(struct devlink *devlink,
+			      const char *resource_name,
+			      bool top_hierarchy,
+			      u64 resource_size,
+			      u64 resource_id,
+			      u64 parent_resource_id,
+			      struct devlink_resource_size_params *size_params,
+			      const struct devlink_resource_ops *resource_ops);
+void devlink_resources_unregister(struct devlink *devlink,
+				  struct devlink_resource *resource);
+int devlink_resource_size_get(struct devlink *devlink,
+			      u64 resource_id,
+			      u64 *p_resource_size);
+int devlink_dpipe_table_resource_set(struct devlink *devlink,
+				     const char *table_name, u64 resource_id,
+				     u64 resource_units);
 
 #else
 
@@ -466,6 +547,40 @@ devlink_dpipe_match_put(struct sk_buff *skb,
 			struct devlink_dpipe_match *match)
 {
 	return 0;
+}
+
+static inline int
+devlink_resource_register(struct devlink *devlink,
+			  const char *resource_name,
+			  bool top_hierarchy,
+			  u64 resource_size,
+			  u64 resource_id,
+			  u64 parent_resource_id,
+			  struct devlink_resource_size_params *size_params,
+			  const struct devlink_resource_ops *resource_ops)
+{
+	return 0;
+}
+
+static inline void
+devlink_resources_unregister(struct devlink *devlink,
+			     struct devlink_resource *resource)
+{
+}
+
+static inline int
+devlink_resource_size_get(struct devlink *devlink, u64 resource_id,
+			  u64 *p_resource_size)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_dpipe_table_resource_set(struct devlink *devlink,
+				 const char *table_name, u64 resource_id,
+				 u64 resource_units)
+{
+	return -EOPNOTSUPP;
 }
 
 #endif

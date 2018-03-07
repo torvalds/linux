@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Functions for working with the Flattened Device Tree data format
  *
  * Copyright 2009 Benjamin Herrenschmidt, IBM Corp
  * benh@kernel.crashing.org
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	"OF: fdt: " fmt
@@ -14,6 +11,7 @@
 #include <linux/crc32.h>
 #include <linux/kernel.h>
 #include <linux/initrd.h>
+#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -1183,14 +1181,6 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 	return memblock_reserve(base, size);
 }
 
-/*
- * called from unflatten_device_tree() to bootstrap devicetree itself
- * Architectures can override this definition if memblock isn't used
- */
-void * __init __weak early_init_dt_alloc_memory_arch(u64 size, u64 align)
-{
-	return __va(memblock_alloc(size, align));
-}
 #else
 void __init __weak early_init_dt_add_memory_arch(u64 base, u64 size)
 {
@@ -1209,13 +1199,12 @@ int __init __weak early_init_dt_reserve_memory_arch(phys_addr_t base,
 		  &base, &size, nomap ? " (nomap)" : "");
 	return -ENOSYS;
 }
-
-void * __init __weak early_init_dt_alloc_memory_arch(u64 size, u64 align)
-{
-	WARN_ON(1);
-	return NULL;
-}
 #endif
+
+static void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
+{
+	return memblock_virt_alloc(size, align);
+}
 
 bool __init early_init_dt_verify(void *params)
 {

@@ -18,7 +18,7 @@
 #define __TDA8290_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda18271.h"
 
 enum tda8290_lna {

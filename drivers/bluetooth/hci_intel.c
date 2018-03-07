@@ -540,18 +540,15 @@ static int intel_set_baudrate(struct hci_uart *hu, unsigned int speed)
 
 static int intel_setup(struct hci_uart *hu)
 {
-	static const u8 reset_param[] = { 0x00, 0x01, 0x00, 0x01,
-					  0x00, 0x08, 0x04, 0x00 };
 	struct intel_data *intel = hu->priv;
 	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
 	struct intel_version ver;
-	struct intel_boot_params *params;
+	struct intel_boot_params params;
 	struct list_head *p;
 	const struct firmware *fw;
-	const u8 *fw_ptr;
 	char fwname[64];
-	u32 frag_len;
+	u32 boot_param;
 	ktime_t calltime, delta, rettime;
 	unsigned long long duration;
 	unsigned int init_speed, oper_speed;
@@ -562,6 +559,12 @@ static int intel_setup(struct hci_uart *hu)
 
 	hu->hdev->set_diag = btintel_set_diag;
 	hu->hdev->set_bdaddr = btintel_set_bdaddr;
+
+	/* Set the default boot parameter to 0x0 and it is updated to
+	 * SKU specific boot parameter after reading Intel_Write_Boot_Params
+	 * command while downloading the firmware.
+	 */
+	boot_param = 0x00000000;
 
 	calltime = ktime_get();
 
@@ -656,85 +659,95 @@ static int intel_setup(struct hci_uart *hu)
 	/* Read the secure boot parameters to identify the operating
 	 * details of the bootloader.
 	 */
-	skb = __hci_cmd_sync(hdev, 0xfc0d, 0, NULL, HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb)) {
-		bt_dev_err(hdev, "Reading Intel boot parameters failed (%ld)",
-			   PTR_ERR(skb));
-		return PTR_ERR(skb);
-	}
-
-	if (skb->len != sizeof(*params)) {
-		bt_dev_err(hdev, "Intel boot parameters size mismatch");
-		kfree_skb(skb);
-		return -EILSEQ;
-	}
-
-	params = (struct intel_boot_params *)skb->data;
-	if (params->status) {
-		bt_dev_err(hdev, "Intel boot parameters command failure (%02x)",
-			   params->status);
-		err = -bt_to_errno(params->status);
-		kfree_skb(skb);
+	err = btintel_read_boot_params(hdev, &params);
+	if (err)
 		return err;
-	}
-
-	bt_dev_info(hdev, "Device revision is %u",
-		    le16_to_cpu(params->dev_revid));
-
-	bt_dev_info(hdev, "Secure boot is %s",
-		    params->secure_boot ? "enabled" : "disabled");
-
-	bt_dev_info(hdev, "Minimum firmware build %u week %u %u",
-		params->min_fw_build_nn, params->min_fw_build_cw,
-		2000 + params->min_fw_build_yy);
 
 	/* It is required that every single firmware fragment is acknowledged
 	 * with a command complete event. If the boot parameters indicate
 	 * that this bootloader does not send them, then abort the setup.
 	 */
-	if (params->limited_cce != 0x00) {
+	if (params.limited_cce != 0x00) {
 		bt_dev_err(hdev, "Unsupported Intel firmware loading method (%u)",
-			   params->limited_cce);
-		kfree_skb(skb);
+			   params.limited_cce);
 		return -EINVAL;
 	}
 
 	/* If the OTP has no valid Bluetooth device address, then there will
 	 * also be no valid address for the operational firmware.
 	 */
-	if (!bacmp(&params->otp_bdaddr, BDADDR_ANY)) {
+	if (!bacmp(&params.otp_bdaddr, BDADDR_ANY)) {
 		bt_dev_info(hdev, "No device address configured");
 		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
 	}
 
 	/* With this Intel bootloader only the hardware variant and device
-	 * revision information are used to select the right firmware.
+	 * revision information are used to select the right firmware for SfP
+	 * and WsP.
 	 *
 	 * The firmware filename is ibt-<hw_variant>-<dev_revid>.sfi.
 	 *
 	 * Currently the supported hardware variants are:
 	 *   11 (0x0b) for iBT 3.0 (LnP/SfP)
+	 *   12 (0x0c) for iBT 3.5 (WsP)
+	 *
+	 * For ThP/JfP and for future SKU's, the FW name varies based on HW
+	 * variant, HW revision and FW revision, as these are dependent on CNVi
+	 * and RF Combination.
+	 *
+	 *   18 (0x12) for iBT3.5 (ThP/JfP)
+	 *
+	 * The firmware file name for these will be
+	 * ibt-<hw_variant>-<hw_revision>-<fw_revision>.sfi.
+	 *
 	 */
-	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.sfi",
-		le16_to_cpu(ver.hw_variant),
-		le16_to_cpu(params->dev_revid));
+	switch (ver.hw_variant) {
+	case 0x0b:      /* SfP */
+	case 0x0c:      /* WsP */
+		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.sfi",
+			 le16_to_cpu(ver.hw_variant),
+			 le16_to_cpu(params.dev_revid));
+		break;
+	case 0x12:      /* ThP */
+		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u-%u.sfi",
+			 le16_to_cpu(ver.hw_variant),
+			 le16_to_cpu(ver.hw_revision),
+			 le16_to_cpu(ver.fw_revision));
+		break;
+	default:
+		bt_dev_err(hdev, "Unsupported Intel hardware variant (%u)",
+			   ver.hw_variant);
+		return -EINVAL;
+	}
 
 	err = request_firmware(&fw, fwname, &hdev->dev);
 	if (err < 0) {
 		bt_dev_err(hdev, "Failed to load Intel firmware file (%d)",
 			   err);
-		kfree_skb(skb);
 		return err;
 	}
 
 	bt_dev_info(hdev, "Found device firmware: %s", fwname);
 
 	/* Save the DDC file name for later */
-	snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.ddc",
-		le16_to_cpu(ver.hw_variant),
-		le16_to_cpu(params->dev_revid));
-
-	kfree_skb(skb);
+	switch (ver.hw_variant) {
+	case 0x0b:      /* SfP */
+	case 0x0c:      /* WsP */
+		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u.ddc",
+			 le16_to_cpu(ver.hw_variant),
+			 le16_to_cpu(params.dev_revid));
+		break;
+	case 0x12:      /* ThP */
+		snprintf(fwname, sizeof(fwname), "intel/ibt-%u-%u-%u.ddc",
+			 le16_to_cpu(ver.hw_variant),
+			 le16_to_cpu(ver.hw_revision),
+			 le16_to_cpu(ver.fw_revision));
+		break;
+	default:
+		bt_dev_err(hdev, "Unsupported Intel hardware variant (%u)",
+			   ver.hw_variant);
+		return -EINVAL;
+	}
 
 	if (fw->size < 644) {
 		bt_dev_err(hdev, "Invalid size of firmware file (%zu)",
@@ -745,70 +758,10 @@ static int intel_setup(struct hci_uart *hu)
 
 	set_bit(STATE_DOWNLOADING, &intel->flags);
 
-	/* Start the firmware download transaction with the Init fragment
-	 * represented by the 128 bytes of CSS header.
-	 */
-	err = btintel_secure_send(hdev, 0x00, 128, fw->data);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to send firmware header (%d)", err);
+	/* Start firmware downloading and get boot parameter */
+	err = btintel_download_firmware(hdev, fw, &boot_param);
+	if (err < 0)
 		goto done;
-	}
-
-	/* Send the 256 bytes of public key information from the firmware
-	 * as the PKey fragment.
-	 */
-	err = btintel_secure_send(hdev, 0x03, 256, fw->data + 128);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to send firmware public key (%d)",
-			   err);
-		goto done;
-	}
-
-	/* Send the 256 bytes of signature information from the firmware
-	 * as the Sign fragment.
-	 */
-	err = btintel_secure_send(hdev, 0x02, 256, fw->data + 388);
-	if (err < 0) {
-		bt_dev_err(hdev, "Failed to send firmware signature (%d)",
-			   err);
-		goto done;
-	}
-
-	fw_ptr = fw->data + 644;
-	frag_len = 0;
-
-	while (fw_ptr - fw->data < fw->size) {
-		struct hci_command_hdr *cmd = (void *)(fw_ptr + frag_len);
-
-		frag_len += sizeof(*cmd) + cmd->plen;
-
-		bt_dev_dbg(hdev, "Patching %td/%zu", (fw_ptr - fw->data),
-			   fw->size);
-
-		/* The parameter length of the secure send command requires
-		 * a 4 byte alignment. It happens so that the firmware file
-		 * contains proper Intel_NOP commands to align the fragments
-		 * as needed.
-		 *
-		 * Send set of commands with 4 byte alignment from the
-		 * firmware data buffer as a single Data fragement.
-		 */
-		if (frag_len % 4)
-			continue;
-
-		/* Send each command from the firmware data buffer as
-		 * a single Data fragment.
-		 */
-		err = btintel_secure_send(hdev, 0x01, frag_len, fw_ptr);
-		if (err < 0) {
-			bt_dev_err(hdev, "Failed to send firmware data (%d)",
-				   err);
-			goto done;
-		}
-
-		fw_ptr += frag_len;
-		frag_len = 0;
-	}
 
 	set_bit(STATE_FIRMWARE_LOADED, &intel->flags);
 
@@ -869,12 +822,9 @@ done:
 
 	set_bit(STATE_BOOTING, &intel->flags);
 
-	skb = __hci_cmd_sync(hdev, 0xfc01, sizeof(reset_param), reset_param,
-			     HCI_CMD_TIMEOUT);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	kfree_skb(skb);
+	err = btintel_send_intel_reset(hdev, boot_param);
+	if (err)
+		return err;
 
 	/* The bootloader will not indicate when the device is ready. This
 	 * is done by the operational firmware sending bootup notification.

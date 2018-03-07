@@ -267,11 +267,10 @@ static struct drm_encoder_funcs rockchip_dp_encoder_funcs = {
 	.destroy = rockchip_dp_drm_encoder_destroy,
 };
 
-static int rockchip_dp_init(struct rockchip_dp_device *dp)
+static int rockchip_dp_of_probe(struct rockchip_dp_device *dp)
 {
 	struct device *dev = dp->dev;
 	struct device_node *np = dev->of_node;
-	int ret;
 
 	dp->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(dp->grf)) {
@@ -299,19 +298,6 @@ static int rockchip_dp_init(struct rockchip_dp_device *dp)
 	if (IS_ERR(dp->rst)) {
 		DRM_DEV_ERROR(dev, "failed to get dp reset control\n");
 		return PTR_ERR(dp->rst);
-	}
-
-	ret = clk_prepare_enable(dp->pclk);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dp->dev, "failed to enable pclk %d\n", ret);
-		return ret;
-	}
-
-	ret = rockchip_dp_pre_init(dp);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dp->dev, "failed to pre init %d\n", ret);
-		clk_disable_unprepare(dp->pclk);
-		return ret;
 	}
 
 	return 0;
@@ -359,10 +345,6 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	if (!dp_data)
 		return -ENODEV;
 
-	ret = rockchip_dp_init(dp);
-	if (ret < 0)
-		return ret;
-
 	dp->data = dp_data;
 	dp->drm_dev = drm_dev;
 
@@ -396,7 +378,6 @@ static void rockchip_dp_unbind(struct device *dev, struct device *master,
 	rockchip_drm_psr_unregister(&dp->encoder);
 
 	analogix_dp_unbind(dev, master, data);
-	clk_disable_unprepare(dp->pclk);
 }
 
 static const struct component_ops rockchip_dp_component_ops = {
@@ -412,7 +393,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 	int ret;
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, NULL);
-	if (ret)
+	if (ret < 0)
 		return ret;
 
 	dp = devm_kzalloc(dev, sizeof(*dp), GFP_KERNEL);
@@ -420,8 +401,11 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dp->dev = dev;
-
 	dp->plat_data.panel = panel;
+
+	ret = rockchip_dp_of_probe(dp);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * We just use the drvdata until driver run into component

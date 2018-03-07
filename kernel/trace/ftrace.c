@@ -1119,15 +1119,11 @@ static struct ftrace_ops global_ops = {
 };
 
 /*
- * This is used by __kernel_text_address() to return true if the
- * address is on a dynamically allocated trampoline that would
- * not return true for either core_kernel_text() or
- * is_module_text_address().
+ * Used by the stack undwinder to know about dynamic ftrace trampolines.
  */
-bool is_ftrace_trampoline(unsigned long addr)
+struct ftrace_ops *ftrace_ops_trampoline(unsigned long addr)
 {
-	struct ftrace_ops *op;
-	bool ret = false;
+	struct ftrace_ops *op = NULL;
 
 	/*
 	 * Some of the ops may be dynamically allocated,
@@ -1144,15 +1140,24 @@ bool is_ftrace_trampoline(unsigned long addr)
 		if (op->trampoline && op->trampoline_size)
 			if (addr >= op->trampoline &&
 			    addr < op->trampoline + op->trampoline_size) {
-				ret = true;
-				goto out;
+				preempt_enable_notrace();
+				return op;
 			}
 	} while_for_each_ftrace_op(op);
-
- out:
 	preempt_enable_notrace();
 
-	return ret;
+	return NULL;
+}
+
+/*
+ * This is used by __kernel_text_address() to return true if the
+ * address is on a dynamically allocated trampoline that would
+ * not return true for either core_kernel_text() or
+ * is_module_text_address().
+ */
+bool is_ftrace_trampoline(unsigned long addr)
+{
+	return ftrace_ops_trampoline(addr) != NULL;
 }
 
 struct ftrace_page {
@@ -4451,7 +4456,6 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 		func_g.type = filter_parse_regex(glob, strlen(glob),
 						 &func_g.search, &not);
 		func_g.len = strlen(func_g.search);
-		func_g.search = glob;
 
 		/* we do not support '!' for function probes */
 		if (WARN_ON(not))
@@ -5010,7 +5014,6 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 
 	parser = &iter->parser;
 	if (trace_parser_loaded(parser)) {
-		parser->buffer[parser->idx] = 0;
 		ftrace_match_records(iter->hash, parser->buffer, parser->idx);
 	}
 
@@ -5324,7 +5327,6 @@ ftrace_graph_release(struct inode *inode, struct file *file)
 		parser = &fgd->parser;
 
 		if (trace_parser_loaded((parser))) {
-			parser->buffer[parser->idx] = 0;
 			ret = ftrace_graph_set_hash(fgd->new_hash,
 						    parser->buffer);
 		}

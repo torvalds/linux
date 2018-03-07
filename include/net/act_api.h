@@ -86,7 +86,7 @@ struct tc_action_ops {
 	int     (*act)(struct sk_buff *, const struct tc_action *,
 		       struct tcf_result *);
 	int     (*dump)(struct sk_buff *, struct tc_action *, int, int);
-	void	(*cleanup)(struct tc_action *, int bind);
+	void	(*cleanup)(struct tc_action *);
 	int     (*lookup)(struct net *, struct tc_action **, u32);
 	int     (*init)(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **act, int ovr,
@@ -120,12 +120,19 @@ int tc_action_net_init(struct tc_action_net *tn,
 void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
 			 struct tcf_idrinfo *idrinfo);
 
-static inline void tc_action_net_exit(struct tc_action_net *tn)
+static inline void tc_action_net_exit(struct list_head *net_list,
+				      unsigned int id)
 {
+	struct net *net;
+
 	rtnl_lock();
-	tcf_idrinfo_destroy(tn->ops, tn->idrinfo);
+	list_for_each_entry(net, net_list, exit_list) {
+		struct tc_action_net *tn = net_generic(net, id);
+
+		tcf_idrinfo_destroy(tn->ops, tn->idrinfo);
+		kfree(tn->idrinfo);
+	}
 	rtnl_unlock();
-	kfree(tn->idrinfo);
 }
 
 int tcf_generic_walker(struct tc_action_net *tn, struct sk_buff *skb,

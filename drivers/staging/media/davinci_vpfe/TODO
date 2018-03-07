@@ -2,11 +2,11 @@ TODO (general):
 ==================================
 
 - User space interface refinement
-        - Controls should be used when possible rather than private ioctl
-        - No enums should be used
-        - Use of MC and V4L2 subdev APIs when applicable
-        - Single interface header might suffice
-        - Current interface forces to configure everything at once
+	- Controls should be used when possible rather than private ioctl
+	- No enums should be used
+	- Use of MC and V4L2 subdev APIs when applicable
+	- Single interface header might suffice
+	- Current interface forces to configure everything at once
 - Get rid of the dm365_ipipe_hw.[ch] layer
 - Active external sub-devices defined by link configuration; no strcmp
   needed

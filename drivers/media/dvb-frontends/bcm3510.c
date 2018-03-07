@@ -40,7 +40,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "bcm3510.h"
 #include "bcm3510_priv.h"
 

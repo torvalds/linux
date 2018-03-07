@@ -413,7 +413,7 @@ static int ohci_da8xx_probe(struct platform_device *pdev)
 	da8xx_ohci = to_da8xx_ohci(hcd);
 	da8xx_ohci->hcd = hcd;
 
-	da8xx_ohci->usb11_clk = devm_clk_get(&pdev->dev, "usb11");
+	da8xx_ohci->usb11_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(da8xx_ohci->usb11_clk)) {
 		error = PTR_ERR(da8xx_ohci->usb11_clk);
 		if (error != -EPROBE_DEFER)

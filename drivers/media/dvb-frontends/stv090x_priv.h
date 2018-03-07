@@ -22,7 +22,7 @@
 #ifndef __STV090x_PRIV_H
 #define __STV090x_PRIV_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define FE_ERROR				0
 #define FE_NOTICE				1
@@ -231,7 +231,7 @@ struct stv090x_tab {
 };
 
 struct stv090x_internal {
-	struct i2c_adapter 	*i2c_adap;
+	struct i2c_adapter	*i2c_adap;
 	u8			i2c_addr;
 
 	struct mutex		demod_lock; /* Lock access to shared register */

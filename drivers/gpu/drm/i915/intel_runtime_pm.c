@@ -130,6 +130,8 @@ intel_display_power_domain_str(enum intel_display_power_domain domain)
 		return "INIT";
 	case POWER_DOMAIN_MODESET:
 		return "MODESET";
+	case POWER_DOMAIN_GT_IRQ:
+		return "GT_IRQ";
 	default:
 		MISSING_CASE(domain);
 		return "?";
@@ -598,6 +600,11 @@ void gen9_enable_dc5(struct drm_i915_private *dev_priv)
 
 	DRM_DEBUG_KMS("Enabling DC5\n");
 
+	/* Wa Display #1183: skl,kbl,cfl */
+	if (IS_GEN9_BC(dev_priv))
+		I915_WRITE(GEN8_CHICKEN_DCPR_1, I915_READ(GEN8_CHICKEN_DCPR_1) |
+			   SKL_SELECT_ALTERNATE_DC_EXIT);
+
 	gen9_set_dc_state(dev_priv, DC_STATE_EN_UPTO_DC5);
 }
 
@@ -624,6 +631,11 @@ void skl_enable_dc6(struct drm_i915_private *dev_priv)
 void skl_disable_dc6(struct drm_i915_private *dev_priv)
 {
 	DRM_DEBUG_KMS("Disabling DC6\n");
+
+	/* Wa Display #1183: skl,kbl,cfl */
+	if (IS_GEN9_BC(dev_priv))
+		I915_WRITE(GEN8_CHICKEN_DCPR_1, I915_READ(GEN8_CHICKEN_DCPR_1) |
+			   SKL_SELECT_ALTERNATE_DC_EXIT);
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 }
@@ -705,7 +717,8 @@ static void gen9_dc_off_power_well_enable(struct drm_i915_private *dev_priv,
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
 	dev_priv->display.get_cdclk(dev_priv, &cdclk_state);
-	WARN_ON(!intel_cdclk_state_compare(&dev_priv->cdclk.hw, &cdclk_state));
+	/* Can't read out voltage_level so can't use intel_cdclk_changed() */
+	WARN_ON(intel_cdclk_needs_modeset(&dev_priv->cdclk.hw, &cdclk_state));
 
 	gen9_assert_dbuf_enabled(dev_priv);
 
@@ -1704,6 +1717,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define SKL_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	SKL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT_ULL(POWER_DOMAIN_GT_IRQ) |			\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))
@@ -1722,12 +1736,13 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_AUX_C) |			\
 	BIT_ULL(POWER_DOMAIN_AUDIO) |			\
 	BIT_ULL(POWER_DOMAIN_VGA) |				\
-	BIT_ULL(POWER_DOMAIN_GMBUS) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define BXT_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	BXT_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT_ULL(POWER_DOMAIN_GT_IRQ) |			\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
+	BIT_ULL(POWER_DOMAIN_GMBUS) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define BXT_DPIO_CMN_A_POWER_DOMAINS (			\
 	BIT_ULL(POWER_DOMAIN_PORT_DDI_A_LANES) |		\
@@ -1784,8 +1799,10 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	BIT_ULL(POWER_DOMAIN_INIT))
 #define GLK_DISPLAY_DC_OFF_POWER_DOMAINS (		\
 	GLK_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
+	BIT_ULL(POWER_DOMAIN_GT_IRQ) |			\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
+	BIT_ULL(POWER_DOMAIN_GMBUS) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))
 
 #define CNL_DISPLAY_POWERWELL_2_POWER_DOMAINS (		\

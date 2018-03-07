@@ -28,7 +28,7 @@ Required properties:
 - mediatek,sgmiisys: phandle to the syscon node that handles the SGMII setup
 	which is required for those SoCs equipped with SGMII such as MT7622 SoC.
 - mediatek,pctl: phandle to the syscon node that handles the ports slew rate
-	and driver current
+	and driver current: only for MT2701 and MT7623 SoC
 
 Optional properties:
 - interrupt-parent: Should be the phandle for the interrupt controller

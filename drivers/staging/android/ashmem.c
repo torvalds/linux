@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* mm/ashmem.c
  *
  * Anonymous Shared Memory Subsystem, ashmem
@@ -5,15 +6,6 @@
  * Copyright (C) 2008 Google, Inc.
  *
  * Robert Love <rlove@google.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) "ashmem: " fmt
@@ -710,29 +702,31 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
 	size_t pgstart, pgend;
 	int ret = -EINVAL;
 
-	if (unlikely(!asma->file))
-		return -EINVAL;
+	mutex_lock(&ashmem_mutex);
 
-	if (unlikely(copy_from_user(&pin, p, sizeof(pin))))
-		return -EFAULT;
+	if (unlikely(!asma->file))
+		goto out_unlock;
+
+	if (unlikely(copy_from_user(&pin, p, sizeof(pin)))) {
+		ret = -EFAULT;
+		goto out_unlock;
+	}
 
 	/* per custom, you can pass zero for len to mean "everything onward" */
 	if (!pin.len)
 		pin.len = PAGE_ALIGN(asma->size) - pin.offset;
 
 	if (unlikely((pin.offset | pin.len) & ~PAGE_MASK))
-		return -EINVAL;
+		goto out_unlock;
 
 	if (unlikely(((__u32)-1) - pin.offset < pin.len))
-		return -EINVAL;
+		goto out_unlock;
 
 	if (unlikely(PAGE_ALIGN(asma->size) < pin.offset + pin.len))
-		return -EINVAL;
+		goto out_unlock;
 
 	pgstart = pin.offset / PAGE_SIZE;
 	pgend = pgstart + (pin.len / PAGE_SIZE) - 1;
-
-	mutex_lock(&ashmem_mutex);
 
 	switch (cmd) {
 	case ASHMEM_PIN:
@@ -746,6 +740,7 @@ static int ashmem_pin_unpin(struct ashmem_area *asma, unsigned long cmd,
 		break;
 	}
 
+out_unlock:
 	mutex_unlock(&ashmem_mutex);
 
 	return ret;
@@ -765,10 +760,12 @@ static long ashmem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case ASHMEM_SET_SIZE:
 		ret = -EINVAL;
+		mutex_lock(&ashmem_mutex);
 		if (!asma->file) {
 			ret = 0;
 			asma->size = (size_t)arg;
 		}
+		mutex_unlock(&ashmem_mutex);
 		break;
 	case ASHMEM_GET_SIZE:
 		ret = asma->size;
@@ -816,7 +813,23 @@ static long compat_ashmem_ioctl(struct file *file, unsigned int cmd,
 	return ashmem_ioctl(file, cmd, arg);
 }
 #endif
+#ifdef CONFIG_PROC_FS
+static void ashmem_show_fdinfo(struct seq_file *m, struct file *file)
+{
+	struct ashmem_area *asma = file->private_data;
 
+	mutex_lock(&ashmem_mutex);
+
+	if (asma->file)
+		seq_printf(m, "inode:\t%ld\n", file_inode(asma->file)->i_ino);
+
+	if (asma->name[ASHMEM_NAME_PREFIX_LEN] != '\0')
+		seq_printf(m, "name:\t%s\n",
+			   asma->name + ASHMEM_NAME_PREFIX_LEN);
+
+	mutex_unlock(&ashmem_mutex);
+}
+#endif
 static const struct file_operations ashmem_fops = {
 	.owner = THIS_MODULE,
 	.open = ashmem_open,
@@ -827,6 +840,9 @@ static const struct file_operations ashmem_fops = {
 	.unlocked_ioctl = ashmem_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = compat_ashmem_ioctl,
+#endif
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo = ashmem_show_fdinfo,
 #endif
 };
 
@@ -862,12 +878,18 @@ static int __init ashmem_init(void)
 		goto out_free2;
 	}
 
-	register_shrinker(&ashmem_shrinker);
+	ret = register_shrinker(&ashmem_shrinker);
+	if (ret) {
+		pr_err("failed to register shrinker!\n");
+		goto out_demisc;
+	}
 
 	pr_info("initialized\n");
 
 	return 0;
 
+out_demisc:
+	misc_deregister(&ashmem_misc);
 out_free2:
 	kmem_cache_destroy(ashmem_range_cachep);
 out_free1:

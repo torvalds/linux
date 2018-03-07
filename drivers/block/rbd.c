@@ -124,11 +124,13 @@ static int atomic_dec_return_safe(atomic_t *v)
 #define RBD_FEATURE_STRIPINGV2		(1ULL<<1)
 #define RBD_FEATURE_EXCLUSIVE_LOCK	(1ULL<<2)
 #define RBD_FEATURE_DATA_POOL		(1ULL<<7)
+#define RBD_FEATURE_OPERATIONS		(1ULL<<8)
 
 #define RBD_FEATURES_ALL	(RBD_FEATURE_LAYERING |		\
 				 RBD_FEATURE_STRIPINGV2 |	\
 				 RBD_FEATURE_EXCLUSIVE_LOCK |	\
-				 RBD_FEATURE_DATA_POOL)
+				 RBD_FEATURE_DATA_POOL |	\
+				 RBD_FEATURE_OPERATIONS)
 
 /* Features supported by this (client software) implementation. */
 
@@ -281,7 +283,6 @@ struct rbd_obj_request {
 	int			result;
 
 	rbd_obj_callback_t	callback;
-	struct completion	completion;
 
 	struct kref		kref;
 };
@@ -1734,10 +1735,7 @@ static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p cb %p\n", __func__, obj_request,
 		obj_request->callback);
-	if (obj_request->callback)
-		obj_request->callback(obj_request);
-	else
-		complete_all(&obj_request->completion);
+	obj_request->callback(obj_request);
 }
 
 static void rbd_obj_request_error(struct rbd_obj_request *obj_request, int err)
@@ -2013,7 +2011,6 @@ rbd_obj_request_create(enum obj_request_type type)
 	obj_request->which = BAD_WHICH;
 	obj_request->type = type;
 	INIT_LIST_HEAD(&obj_request->links);
-	init_completion(&obj_request->completion);
 	kref_init(&obj_request->kref);
 
 	dout("%s %p\n", __func__, obj_request);
@@ -2129,15 +2126,13 @@ static struct rbd_img_request *rbd_img_request_create(
 {
 	struct rbd_img_request *img_request;
 
-	img_request = kmem_cache_alloc(rbd_img_request_cache, GFP_NOIO);
+	img_request = kmem_cache_zalloc(rbd_img_request_cache, GFP_NOIO);
 	if (!img_request)
 		return NULL;
 
-	img_request->rq = NULL;
 	img_request->rbd_dev = rbd_dev;
 	img_request->offset = offset;
 	img_request->length = length;
-	img_request->flags = 0;
 	if (op_type == OBJ_OP_DISCARD) {
 		img_request_discard_set(img_request);
 		img_request->snapc = snapc;
@@ -2149,11 +2144,8 @@ static struct rbd_img_request *rbd_img_request_create(
 	}
 	if (rbd_dev_parent_get(rbd_dev))
 		img_request_layered_set(img_request);
+
 	spin_lock_init(&img_request->completion_lock);
-	img_request->next_completion = 0;
-	img_request->callback = NULL;
-	img_request->result = 0;
-	img_request->obj_request_count = 0;
 	INIT_LIST_HEAD(&img_request->obj_requests);
 	kref_init(&img_request->kref);
 
@@ -2692,8 +2684,6 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 
 	parent_request->copyup_pages = NULL;
 	parent_request->copyup_page_count = 0;
-	parent_request->obj_request = NULL;
-	rbd_obj_request_put(obj_request);
 out_err:
 	if (pages)
 		ceph_release_page_vector(pages, page_count);
@@ -3047,13 +3037,21 @@ static void format_lock_cookie(struct rbd_device *rbd_dev, char *buf)
 	mutex_unlock(&rbd_dev->watch_mutex);
 }
 
+static void __rbd_lock(struct rbd_device *rbd_dev, const char *cookie)
+{
+	struct rbd_client_id cid = rbd_get_cid(rbd_dev);
+
+	strcpy(rbd_dev->lock_cookie, cookie);
+	rbd_set_owner_cid(rbd_dev, &cid);
+	queue_work(rbd_dev->task_wq, &rbd_dev->acquired_lock_work);
+}
+
 /*
  * lock_rwsem must be held for write
  */
 static int rbd_lock(struct rbd_device *rbd_dev)
 {
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
-	struct rbd_client_id cid = rbd_get_cid(rbd_dev);
 	char cookie[32];
 	int ret;
 
@@ -3068,9 +3066,7 @@ static int rbd_lock(struct rbd_device *rbd_dev)
 		return ret;
 
 	rbd_dev->lock_state = RBD_LOCK_STATE_LOCKED;
-	strcpy(rbd_dev->lock_cookie, cookie);
-	rbd_set_owner_cid(rbd_dev, &cid);
-	queue_work(rbd_dev->task_wq, &rbd_dev->acquired_lock_work);
+	__rbd_lock(rbd_dev, cookie);
 	return 0;
 }
 
@@ -3856,7 +3852,7 @@ static void rbd_reacquire_lock(struct rbd_device *rbd_dev)
 			queue_delayed_work(rbd_dev->task_wq,
 					   &rbd_dev->lock_dwork, 0);
 	} else {
-		strcpy(rbd_dev->lock_cookie, cookie);
+		__rbd_lock(rbd_dev, cookie);
 	}
 }
 
@@ -4381,7 +4377,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	segment_size = rbd_obj_bytes(&rbd_dev->header);
 	blk_queue_max_hw_sectors(q, segment_size / SECTOR_SIZE);
 	q->limits.max_sectors = queue_max_hw_sectors(q);
-	blk_queue_max_segments(q, segment_size / SECTOR_SIZE);
+	blk_queue_max_segments(q, USHRT_MAX);
 	blk_queue_max_segment_size(q, segment_size);
 	blk_queue_io_min(q, segment_size);
 	blk_queue_io_opt(q, segment_size);

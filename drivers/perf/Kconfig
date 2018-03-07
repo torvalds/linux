@@ -17,6 +17,15 @@ config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI
 	def_bool y
 
+config ARM_DSU_PMU
+	tristate "ARM DynamIQ Shared Unit (DSU) PMU"
+	depends on ARM64
+	  help
+	  Provides support for performance monitor unit in ARM DynamIQ Shared
+	  Unit (DSU). The DSU integrates one or more cores with an L3 memory
+	  system, control logic. The PMU allows counting various events related
+	  to DSU.
+
 config HISI_PMU
        bool "HiSilicon SoC PMU"
        depends on ARM64 && ACPI

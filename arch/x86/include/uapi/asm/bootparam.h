@@ -9,6 +9,7 @@
 #define SETUP_PCI			3
 #define SETUP_EFI			4
 #define SETUP_APPLE_PROPERTIES		5
+#define SETUP_JAILHOUSE			6
 
 /* ram_size flags */
 #define RAMDISK_IMAGE_START_MASK	0x07FF
@@ -124,6 +125,27 @@ struct boot_e820_entry {
 	__u64 addr;
 	__u64 size;
 	__u32 type;
+} __attribute__((packed));
+
+/*
+ * Smallest compatible version of jailhouse_setup_data required by this kernel.
+ */
+#define JAILHOUSE_SETUP_REQUIRED_VERSION	1
+
+/*
+ * The boot loader is passing platform information via this Jailhouse-specific
+ * setup data structure.
+ */
+struct jailhouse_setup_data {
+	u16	version;
+	u16	compatible_version;
+	u16	pm_timer_address;
+	u16	num_cpus;
+	u64	pci_mmconfig_base;
+	u32	tsc_khz;
+	u32	apic_khz;
+	u8	standard_ioapic;
+	u8	cpu_ids[255];
 } __attribute__((packed));
 
 /* The so-called "zeropage" */

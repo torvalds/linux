@@ -148,6 +148,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvme_fc_local_port *localport;
+	struct lpfc_nvme_lport *lport;
 	struct lpfc_nodelist *ndlp;
 	struct nvme_fc_remote_port *nrport;
 	uint64_t data1, data2, data3, tot;
@@ -198,10 +199,15 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		}
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
-				"LS: Xmt %08x Drop %08x Cmpl %08x Err %08x\n",
+				"LS: Xmt %08x Drop %08x Cmpl %08x\n",
 				atomic_read(&tgtp->xmt_ls_rsp),
 				atomic_read(&tgtp->xmt_ls_drop),
-				atomic_read(&tgtp->xmt_ls_rsp_cmpl),
+				atomic_read(&tgtp->xmt_ls_rsp_cmpl));
+
+		len += snprintf(buf + len, PAGE_SIZE - len,
+				"LS: RSP Abort %08x xb %08x Err %08x\n",
+				atomic_read(&tgtp->xmt_ls_rsp_aborted),
+				atomic_read(&tgtp->xmt_ls_rsp_xb_set),
 				atomic_read(&tgtp->xmt_ls_rsp_error));
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
@@ -236,6 +242,12 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				atomic_read(&tgtp->xmt_fcp_rsp_drop));
 
 		len += snprintf(buf+len, PAGE_SIZE-len,
+				"FCP Rsp Abort: %08x xb %08x xricqe  %08x\n",
+				atomic_read(&tgtp->xmt_fcp_rsp_aborted),
+				atomic_read(&tgtp->xmt_fcp_rsp_xb_set),
+				atomic_read(&tgtp->xmt_fcp_xri_abort_cqe));
+
+		len += snprintf(buf + len, PAGE_SIZE - len,
 				"ABORT: Xmt %08x Cmpl %08x\n",
 				atomic_read(&tgtp->xmt_fcp_abort),
 				atomic_read(&tgtp->xmt_fcp_abort_cmpl));
@@ -271,6 +283,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 				wwn_to_u64(vport->fc_portname.u.wwn));
 		return len;
 	}
+	lport = (struct lpfc_nvme_lport *)localport->private;
 	len = snprintf(buf, PAGE_SIZE, "NVME Initiator Enabled\n");
 
 	spin_lock_irq(shost->host_lock);
@@ -347,9 +360,16 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 
 	len += snprintf(buf + len, PAGE_SIZE - len, "\nNVME Statistics\n");
 	len += snprintf(buf+len, PAGE_SIZE-len,
-			"LS: Xmt %016x Cmpl %016x\n",
+			"LS: Xmt %010x Cmpl %010x Abort %08x\n",
 			atomic_read(&phba->fc4NvmeLsRequests),
-			atomic_read(&phba->fc4NvmeLsCmpls));
+			atomic_read(&phba->fc4NvmeLsCmpls),
+			atomic_read(&lport->xmt_ls_abort));
+
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"LS XMIT: Err %08x  CMPL: xb %08x Err %08x\n",
+			atomic_read(&lport->xmt_ls_err),
+			atomic_read(&lport->cmpl_ls_xb),
+			atomic_read(&lport->cmpl_ls_err));
 
 	tot = atomic_read(&phba->fc4NvmeIoCmpls);
 	data1 = atomic_read(&phba->fc4NvmeInputRequests);
@@ -360,8 +380,22 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 			data1, data2, data3);
 
 	len += snprintf(buf+len, PAGE_SIZE-len,
-			"    Cmpl %016llx Outstanding %016llx\n",
-			tot, (data1 + data2 + data3) - tot);
+			"    noxri %08x nondlp %08x qdepth %08x "
+			"wqerr %08x\n",
+			atomic_read(&lport->xmt_fcp_noxri),
+			atomic_read(&lport->xmt_fcp_bad_ndlp),
+			atomic_read(&lport->xmt_fcp_qdepth),
+			atomic_read(&lport->xmt_fcp_wqerr));
+
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"    Cmpl %016llx Outstanding %016llx Abort %08x\n",
+			tot, ((data1 + data2 + data3) - tot),
+			atomic_read(&lport->xmt_fcp_abort));
+
+	len += snprintf(buf + len, PAGE_SIZE - len,
+			"FCP CMPL: xb %08x Err %08x\n",
+			atomic_read(&lport->cmpl_fcp_xb),
+			atomic_read(&lport->cmpl_fcp_err));
 	return len;
 }
 
@@ -2260,8 +2294,8 @@ static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 		   lpfc_num_discovered_ports_show, NULL);
 static DEVICE_ATTR(menlo_mgmt_mode, S_IRUGO, lpfc_mlomgmt_show, NULL);
 static DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
-static DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show, NULL);
-static DEVICE_ATTR(lpfc_enable_fip, S_IRUGO, lpfc_enable_fip_show, NULL);
+static DEVICE_ATTR_RO(lpfc_drvr_version);
+static DEVICE_ATTR_RO(lpfc_enable_fip);
 static DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
 		   lpfc_board_mode_show, lpfc_board_mode_store);
 static DEVICE_ATTR(issue_reset, S_IWUSR, NULL, lpfc_issue_reset);
@@ -2272,12 +2306,11 @@ static DEVICE_ATTR(used_rpi, S_IRUGO, lpfc_used_rpi_show, NULL);
 static DEVICE_ATTR(max_xri, S_IRUGO, lpfc_max_xri_show, NULL);
 static DEVICE_ATTR(used_xri, S_IRUGO, lpfc_used_xri_show, NULL);
 static DEVICE_ATTR(npiv_info, S_IRUGO, lpfc_npiv_info_show, NULL);
-static DEVICE_ATTR(lpfc_temp_sensor, S_IRUGO, lpfc_temp_sensor_show, NULL);
-static DEVICE_ATTR(lpfc_fips_level, S_IRUGO, lpfc_fips_level_show, NULL);
-static DEVICE_ATTR(lpfc_fips_rev, S_IRUGO, lpfc_fips_rev_show, NULL);
-static DEVICE_ATTR(lpfc_dss, S_IRUGO, lpfc_dss_show, NULL);
-static DEVICE_ATTR(lpfc_sriov_hw_max_virtfn, S_IRUGO,
-		   lpfc_sriov_hw_max_virtfn_show, NULL);
+static DEVICE_ATTR_RO(lpfc_temp_sensor);
+static DEVICE_ATTR_RO(lpfc_fips_level);
+static DEVICE_ATTR_RO(lpfc_fips_rev);
+static DEVICE_ATTR_RO(lpfc_dss);
+static DEVICE_ATTR_RO(lpfc_sriov_hw_max_virtfn);
 static DEVICE_ATTR(protocol, S_IRUGO, lpfc_sli4_protocol_show, NULL);
 static DEVICE_ATTR(lpfc_xlane_supported, S_IRUGO, lpfc_oas_supported_show,
 		   NULL);
@@ -2385,8 +2418,7 @@ lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR(lpfc_soft_wwn_enable, S_IWUSR, NULL,
-		   lpfc_soft_wwn_enable_store);
+static DEVICE_ATTR_WO(lpfc_soft_wwn_enable);
 
 /**
  * lpfc_soft_wwpn_show - Return the cfg soft ww port name of the adapter
@@ -2485,8 +2517,7 @@ lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
 				"reinit adapter - %d\n", stat2);
 	return (stat1 || stat2) ? -EIO : count;
 }
-static DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,
-		   lpfc_soft_wwpn_show, lpfc_soft_wwpn_store);
+static DEVICE_ATTR_RW(lpfc_soft_wwpn);
 
 /**
  * lpfc_soft_wwnn_show - Return the cfg soft ww node name for the adapter
@@ -2549,8 +2580,7 @@ lpfc_soft_wwnn_store(struct device *dev, struct device_attribute *attr,
 
 	return count;
 }
-static DEVICE_ATTR(lpfc_soft_wwnn, S_IRUGO | S_IWUSR,
-		   lpfc_soft_wwnn_show, lpfc_soft_wwnn_store);
+static DEVICE_ATTR_RW(lpfc_soft_wwnn);
 
 /**
  * lpfc_oas_tgt_show - Return wwpn of target whose luns maybe enabled for
@@ -3068,8 +3098,7 @@ MODULE_PARM_DESC(lpfc_poll, "FCP ring polling mode control:"
 		 " 1 - poll with interrupts enabled"
 		 " 3 - poll and disable FCP ring interrupts");
 
-static DEVICE_ATTR(lpfc_poll, S_IRUGO | S_IWUSR,
-		   lpfc_poll_show, lpfc_poll_store);
+static DEVICE_ATTR_RW(lpfc_poll);
 
 int lpfc_no_hba_reset_cnt;
 unsigned long lpfc_no_hba_reset[MAX_HBAS_NO_RESET] = {
@@ -3302,8 +3331,7 @@ lpfc_nodev_tmo_set(struct lpfc_vport *vport, int val)
 
 lpfc_vport_param_store(nodev_tmo)
 
-static DEVICE_ATTR(lpfc_nodev_tmo, S_IRUGO | S_IWUSR,
-		   lpfc_nodev_tmo_show, lpfc_nodev_tmo_store);
+static DEVICE_ATTR_RW(lpfc_nodev_tmo);
 
 /*
 # lpfc_devloss_tmo: If set, it will hold all I/O errors on devices that
@@ -3352,8 +3380,7 @@ lpfc_devloss_tmo_set(struct lpfc_vport *vport, int val)
 }
 
 lpfc_vport_param_store(devloss_tmo)
-static DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
-		   lpfc_devloss_tmo_show, lpfc_devloss_tmo_store);
+static DEVICE_ATTR_RW(lpfc_devloss_tmo);
 
 /*
  * lpfc_suppress_rsp: Enable suppress rsp feature is firmware supports it
@@ -3366,12 +3393,13 @@ LPFC_ATTR_R(suppress_rsp, 1, 0, 1,
 
 /*
  * lpfc_nvmet_mrq: Specify number of RQ pairs for processing NVMET cmds
+ * lpfc_nvmet_mrq = 0  driver will calcualte optimal number of RQ pairs
  * lpfc_nvmet_mrq = 1  use a single RQ pair
  * lpfc_nvmet_mrq >= 2  use specified RQ pairs for MRQ
  *
  */
 LPFC_ATTR_R(nvmet_mrq,
-	    1, 1, 16,
+	    LPFC_NVMET_MRQ_AUTO, LPFC_NVMET_MRQ_AUTO, LPFC_NVMET_MRQ_MAX,
 	    "Specify number of RQ pairs for processing NVMET cmds");
 
 /*
@@ -3545,8 +3573,7 @@ lpfc_restrict_login_set(struct lpfc_vport *vport, int val)
 	return 0;
 }
 lpfc_vport_param_store(restrict_login);
-static DEVICE_ATTR(lpfc_restrict_login, S_IRUGO | S_IWUSR,
-		   lpfc_restrict_login_show, lpfc_restrict_login_store);
+static DEVICE_ATTR_RW(lpfc_restrict_login);
 
 /*
 # Some disk devices have a "select ID" or "select Target" capability.
@@ -3660,8 +3687,7 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 }
 
 lpfc_param_show(topology)
-static DEVICE_ATTR(lpfc_topology, S_IRUGO | S_IWUSR,
-		lpfc_topology_show, lpfc_topology_store);
+static DEVICE_ATTR_RW(lpfc_topology);
 
 /**
  * lpfc_static_vport_show: Read callback function for
@@ -3691,8 +3717,7 @@ lpfc_static_vport_show(struct device *dev, struct device_attribute *attr,
 /*
  * Sysfs attribute to control the statistical data collection.
  */
-static DEVICE_ATTR(lpfc_static_vport, S_IRUGO,
-		   lpfc_static_vport_show, NULL);
+static DEVICE_ATTR_RO(lpfc_static_vport);
 
 /**
  * lpfc_stat_data_ctrl_store - write call back for lpfc_stat_data_ctrl sysfs file
@@ -3919,8 +3944,7 @@ lpfc_stat_data_ctrl_show(struct device *dev, struct device_attribute *attr,
 /*
  * Sysfs attribute to control the statistical data collection.
  */
-static DEVICE_ATTR(lpfc_stat_data_ctrl, S_IRUGO | S_IWUSR,
-		   lpfc_stat_data_ctrl_show, lpfc_stat_data_ctrl_store);
+static DEVICE_ATTR_RW(lpfc_stat_data_ctrl);
 
 /*
  * lpfc_drvr_stat_data: sysfs attr to get driver statistical data.
@@ -4159,8 +4183,7 @@ lpfc_link_speed_init(struct lpfc_hba *phba, int val)
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(lpfc_link_speed, S_IRUGO | S_IWUSR,
-		   lpfc_link_speed_show, lpfc_link_speed_store);
+static DEVICE_ATTR_RW(lpfc_link_speed);
 
 /*
 # lpfc_aer_support: Support PCIe device Advanced Error Reporting (AER)
@@ -4253,8 +4276,7 @@ lpfc_aer_support_store(struct device *dev, struct device_attribute *attr,
 	return rc;
 }
 
-static DEVICE_ATTR(lpfc_aer_support, S_IRUGO | S_IWUSR,
-		   lpfc_aer_support_show, lpfc_aer_support_store);
+static DEVICE_ATTR_RW(lpfc_aer_support);
 
 /**
  * lpfc_aer_cleanup_state - Clean up aer state to the aer enabled device
@@ -4401,8 +4423,7 @@ LPFC_ATTR(sriov_nr_virtfn, LPFC_DEF_VFN_PER_PFN, 0, LPFC_MAX_VFN_PER_PFN,
 	"Enable PCIe device SR-IOV virtual fn");
 
 lpfc_param_show(sriov_nr_virtfn)
-static DEVICE_ATTR(lpfc_sriov_nr_virtfn, S_IRUGO | S_IWUSR,
-		   lpfc_sriov_nr_virtfn_show, lpfc_sriov_nr_virtfn_store);
+static DEVICE_ATTR_RW(lpfc_sriov_nr_virtfn);
 
 /**
  * lpfc_request_firmware_store - Request for Linux generic firmware upgrade
@@ -4576,8 +4597,7 @@ lpfc_fcp_imax_init(struct lpfc_hba *phba, int val)
 	return 0;
 }
 
-static DEVICE_ATTR(lpfc_fcp_imax, S_IRUGO | S_IWUSR,
-		   lpfc_fcp_imax_show, lpfc_fcp_imax_store);
+static DEVICE_ATTR_RW(lpfc_fcp_imax);
 
 /*
  * lpfc_auto_imax: Controls Auto-interrupt coalescing values support.
@@ -4737,8 +4757,7 @@ lpfc_fcp_cpu_map_init(struct lpfc_hba *phba, int val)
 	return 0;
 }
 
-static DEVICE_ATTR(lpfc_fcp_cpu_map, S_IRUGO | S_IWUSR,
-		   lpfc_fcp_cpu_map_show, lpfc_fcp_cpu_map_store);
+static DEVICE_ATTR_RW(lpfc_fcp_cpu_map);
 
 /*
 # lpfc_fcp_class:  Determines FC class to use for the FCP protocol.
@@ -4824,9 +4843,7 @@ lpfc_max_scsicmpl_time_set(struct lpfc_vport *vport, int val)
 	return 0;
 }
 lpfc_vport_param_store(max_scsicmpl_time);
-static DEVICE_ATTR(lpfc_max_scsicmpl_time, S_IRUGO | S_IWUSR,
-		   lpfc_max_scsicmpl_time_show,
-		   lpfc_max_scsicmpl_time_store);
+static DEVICE_ATTR_RW(lpfc_max_scsicmpl_time);
 
 /*
 # lpfc_ack0: Use ACK0, instead of ACK1 for class 2 acknowledgement. Value
@@ -5139,7 +5156,7 @@ LPFC_ATTR(delay_discovery, 0, 0, 1,
  * this parameter will be limited to 128 if BlockGuard is enabled under SLI4
  * and will be limited to 512 if BlockGuard is enabled under SLI3.
  */
-LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_DEFAULT_SG_SEG_CNT,
+LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_MIN_SG_SEG_CNT,
 	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
 
 /*
@@ -6362,6 +6379,9 @@ lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 				phba->cfg_nvmet_fb_size = LPFC_NVMET_FB_SZ_MAX;
 		}
 
+		if (!phba->cfg_nvmet_mrq)
+			phba->cfg_nvmet_mrq = phba->cfg_nvme_io_channel;
+
 		/* Adjust lpfc_nvmet_mrq to avoid running out of WQE slots */
 		if (phba->cfg_nvmet_mrq > phba->cfg_nvme_io_channel) {
 			phba->cfg_nvmet_mrq = phba->cfg_nvme_io_channel;
@@ -6369,10 +6389,13 @@ lpfc_nvme_mod_param_dep(struct lpfc_hba *phba)
 					"6018 Adjust lpfc_nvmet_mrq to %d\n",
 					phba->cfg_nvmet_mrq);
 		}
+		if (phba->cfg_nvmet_mrq > LPFC_NVMET_MRQ_MAX)
+			phba->cfg_nvmet_mrq = LPFC_NVMET_MRQ_MAX;
+
 	} else {
 		/* Not NVME Target mode.  Turn off Target parameters. */
 		phba->nvmet_support = 0;
-		phba->cfg_nvmet_mrq = 0;
+		phba->cfg_nvmet_mrq = LPFC_NVMET_MRQ_OFF;
 		phba->cfg_nvmet_fb_size = 0;
 	}
 

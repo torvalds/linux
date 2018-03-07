@@ -36,16 +36,13 @@
 #define TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST 297000
 static void update_stream_signal(struct dc_stream_state *stream)
 {
-	if (stream->output_signal == SIGNAL_TYPE_NONE) {
-		struct dc_sink *dc_sink = stream->sink;
 
-		if (dc_sink->sink_signal == SIGNAL_TYPE_NONE)
-			stream->signal = stream->sink->link->connector_signal;
-		else
-			stream->signal = dc_sink->sink_signal;
-	} else {
-		stream->signal = stream->output_signal;
-	}
+	struct dc_sink *dc_sink = stream->sink;
+
+	if (dc_sink->sink_signal == SIGNAL_TYPE_NONE)
+		stream->signal = stream->sink->link->connector_signal;
+	else
+		stream->signal = dc_sink->sink_signal;
 
 	if (dc_is_dvi_signal(stream->signal)) {
 		if (stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST &&
@@ -200,7 +197,8 @@ bool dc_stream_set_cursor_attributes(
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->stream != stream || (!pipe_ctx->plane_res.xfm && !pipe_ctx->plane_res.dpp))
+		if (pipe_ctx->stream != stream || (!pipe_ctx->plane_res.xfm &&
+		    !pipe_ctx->plane_res.dpp) || !pipe_ctx->plane_res.ipp)
 			continue;
 		if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
 			continue;
@@ -229,7 +227,7 @@ bool dc_stream_set_cursor_attributes(
 		if (pipe_ctx->plane_res.dpp != NULL &&
 				pipe_ctx->plane_res.dpp->funcs->set_cursor_attributes != NULL)
 			pipe_ctx->plane_res.dpp->funcs->set_cursor_attributes(
-				pipe_ctx->plane_res.dpp, attributes);
+				pipe_ctx->plane_res.dpp, attributes->color_format);
 	}
 
 	stream->cursor_attributes = *attributes;
@@ -276,7 +274,8 @@ bool dc_stream_set_cursor_position(
 		if (pipe_ctx->stream != stream ||
 				(!pipe_ctx->plane_res.mi  && !pipe_ctx->plane_res.hubp) ||
 				!pipe_ctx->plane_state ||
-				(!pipe_ctx->plane_res.xfm && !pipe_ctx->plane_res.dpp))
+				(!pipe_ctx->plane_res.xfm && !pipe_ctx->plane_res.dpp) ||
+				!pipe_ctx->plane_res.ipp)
 			continue;
 
 		if (pipe_ctx->plane_state->address.type
@@ -303,6 +302,8 @@ bool dc_stream_set_cursor_position(
 			dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width);
 
 	}
+
+	stream->cursor_position = *position;
 
 	return true;
 }

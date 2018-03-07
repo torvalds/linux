@@ -147,11 +147,11 @@ int ext4_setup_system_zone(struct super_block *sb)
 	int ret;
 
 	if (!test_opt(sb, BLOCK_VALIDITY)) {
-		if (EXT4_SB(sb)->system_blks.rb_node)
+		if (sbi->system_blks.rb_node)
 			ext4_release_system_zone(sb);
 		return 0;
 	}
-	if (EXT4_SB(sb)->system_blks.rb_node)
+	if (sbi->system_blks.rb_node)
 		return 0;
 
 	for (i=0; i < ngroups; i++) {
@@ -173,7 +173,7 @@ int ext4_setup_system_zone(struct super_block *sb)
 	}
 
 	if (test_opt(sb, DEBUG))
-		debug_print_tree(EXT4_SB(sb));
+		debug_print_tree(sbi);
 	return 0;
 }
 

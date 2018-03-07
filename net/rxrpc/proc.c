@@ -125,7 +125,6 @@ static int rxrpc_call_seq_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations rxrpc_call_seq_fops = {
-	.owner		= THIS_MODULE,
 	.open		= rxrpc_call_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -217,7 +216,6 @@ static int rxrpc_connection_seq_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations rxrpc_connection_seq_fops = {
-	.owner		= THIS_MODULE,
 	.open		= rxrpc_connection_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

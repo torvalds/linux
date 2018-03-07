@@ -757,17 +757,17 @@ static ssize_t mousedev_read(struct file *file, char __user *buffer,
 }
 
 /* No kernel lock - fine */
-static unsigned int mousedev_poll(struct file *file, poll_table *wait)
+static __poll_t mousedev_poll(struct file *file, poll_table *wait)
 {
 	struct mousedev_client *client = file->private_data;
 	struct mousedev *mousedev = client->mousedev;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &mousedev->wait, wait);
 
-	mask = mousedev->exist ? POLLOUT | POLLWRNORM : POLLHUP | POLLERR;
+	mask = mousedev->exist ? EPOLLOUT | EPOLLWRNORM : EPOLLHUP | EPOLLERR;
 	if (client->ready || client->buffer)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

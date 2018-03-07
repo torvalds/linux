@@ -310,10 +310,8 @@ static int wl1251_hw_init_data_path_config(struct wl1251 *wl)
 	/* asking for the data path parameters */
 	wl->data_path = kzalloc(sizeof(struct acx_data_path_params_resp),
 				GFP_KERNEL);
-	if (!wl->data_path) {
-		wl1251_error("Couldnt allocate data path parameters");
+	if (!wl->data_path)
 		return -ENOMEM;
-	}
 
 	ret = wl1251_acx_data_path_params(wl, wl->data_path);
 	if (ret < 0) {

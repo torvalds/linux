@@ -250,12 +250,13 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 	up.dl_read = uniphier_serial_dl_read;
 	up.dl_write = uniphier_serial_dl_write;
 
-	priv->line = serial8250_register_8250_port(&up);
-	if (priv->line < 0) {
+	ret = serial8250_register_8250_port(&up);
+	if (ret < 0) {
 		dev_err(dev, "failed to register 8250 port\n");
 		clk_disable_unprepare(priv->clk);
 		return ret;
 	}
+	priv->line = ret;
 
 	platform_set_drvdata(pdev, priv);
 

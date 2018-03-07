@@ -1300,12 +1300,12 @@ static void xen_flush_tlb(void)
 	preempt_enable();
 }
 
-static void xen_flush_tlb_single(unsigned long addr)
+static void xen_flush_tlb_one_user(unsigned long addr)
 {
 	struct mmuext_op *op;
 	struct multicall_space mcs;
 
-	trace_xen_mmu_flush_tlb_single(addr);
+	trace_xen_mmu_flush_tlb_one_user(addr);
 
 	preempt_disable();
 
@@ -1325,20 +1325,18 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 {
 	struct {
 		struct mmuext_op op;
-#ifdef CONFIG_SMP
-		DECLARE_BITMAP(mask, num_processors);
-#else
 		DECLARE_BITMAP(mask, NR_CPUS);
-#endif
 	} *args;
 	struct multicall_space mcs;
+	const size_t mc_entry_size = sizeof(args->op) +
+		sizeof(args->mask[0]) * BITS_TO_LONGS(num_possible_cpus());
 
 	trace_xen_mmu_flush_tlb_others(cpus, info->mm, info->start, info->end);
 
 	if (cpumask_empty(cpus))
 		return;		/* nothing to do */
 
-	mcs = xen_mc_entry(sizeof(*args));
+	mcs = xen_mc_entry(mc_entry_size);
 	args = mcs.args;
 	args->op.arg2.vcpumask = to_cpumask(args->mask);
 
@@ -2372,7 +2370,7 @@ static const struct pv_mmu_ops xen_mmu_ops __initconst = {
 
 	.flush_tlb_user = xen_flush_tlb,
 	.flush_tlb_kernel = xen_flush_tlb,
-	.flush_tlb_single = xen_flush_tlb_single,
+	.flush_tlb_one_user = xen_flush_tlb_one_user,
 	.flush_tlb_others = xen_flush_tlb_others,
 
 	.pgd_alloc = xen_pgd_alloc,

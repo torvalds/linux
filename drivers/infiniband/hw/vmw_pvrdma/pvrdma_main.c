@@ -243,13 +243,13 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	mutex_init(&dev->port_mutex);
 	spin_lock_init(&dev->desc_lock);
 
-	dev->cq_tbl = kcalloc(dev->dsr->caps.max_cq, sizeof(void *),
+	dev->cq_tbl = kcalloc(dev->dsr->caps.max_cq, sizeof(struct pvrdma_cq *),
 			      GFP_KERNEL);
 	if (!dev->cq_tbl)
 		return ret;
 	spin_lock_init(&dev->cq_tbl_lock);
 
-	dev->qp_tbl = kcalloc(dev->dsr->caps.max_qp, sizeof(void *),
+	dev->qp_tbl = kcalloc(dev->dsr->caps.max_qp, sizeof(struct pvrdma_qp *),
 			      GFP_KERNEL);
 	if (!dev->qp_tbl)
 		goto err_cq_free;
@@ -333,7 +333,7 @@ static void pvrdma_qp_event(struct pvrdma_dev *dev, u32 qpn, int type)
 	spin_lock_irqsave(&dev->qp_tbl_lock, flags);
 	qp = dev->qp_tbl[qpn % dev->dsr->caps.max_qp];
 	if (qp)
-		atomic_inc(&qp->refcnt);
+		refcount_inc(&qp->refcnt);
 	spin_unlock_irqrestore(&dev->qp_tbl_lock, flags);
 
 	if (qp && qp->ibqp.event_handler) {
@@ -346,9 +346,8 @@ static void pvrdma_qp_event(struct pvrdma_dev *dev, u32 qpn, int type)
 		ibqp->event_handler(&e, ibqp->qp_context);
 	}
 	if (qp) {
-		atomic_dec(&qp->refcnt);
-		if (atomic_read(&qp->refcnt) == 0)
-			wake_up(&qp->wait);
+		if (refcount_dec_and_test(&qp->refcnt))
+			complete(&qp->free);
 	}
 }
 
@@ -360,7 +359,7 @@ static void pvrdma_cq_event(struct pvrdma_dev *dev, u32 cqn, int type)
 	spin_lock_irqsave(&dev->cq_tbl_lock, flags);
 	cq = dev->cq_tbl[cqn % dev->dsr->caps.max_cq];
 	if (cq)
-		atomic_inc(&cq->refcnt);
+		refcount_inc(&cq->refcnt);
 	spin_unlock_irqrestore(&dev->cq_tbl_lock, flags);
 
 	if (cq && cq->ibcq.event_handler) {
@@ -373,9 +372,8 @@ static void pvrdma_cq_event(struct pvrdma_dev *dev, u32 cqn, int type)
 		ibcq->event_handler(&e, ibcq->cq_context);
 	}
 	if (cq) {
-		atomic_dec(&cq->refcnt);
-		if (atomic_read(&cq->refcnt) == 0)
-			wake_up(&cq->wait);
+		if (refcount_dec_and_test(&cq->refcnt))
+			complete(&cq->free);
 	}
 }
 
@@ -404,7 +402,7 @@ static void pvrdma_srq_event(struct pvrdma_dev *dev, u32 srqn, int type)
 	}
 	if (srq) {
 		if (refcount_dec_and_test(&srq->refcnt))
-			wake_up(&srq->wait);
+			complete(&srq->free);
 	}
 }
 
@@ -533,15 +531,14 @@ static irqreturn_t pvrdma_intrx_handler(int irq, void *dev_id)
 		spin_lock_irqsave(&dev->cq_tbl_lock, flags);
 		cq = dev->cq_tbl[cqne->info % dev->dsr->caps.max_cq];
 		if (cq)
-			atomic_inc(&cq->refcnt);
+			refcount_inc(&cq->refcnt);
 		spin_unlock_irqrestore(&dev->cq_tbl_lock, flags);
 
 		if (cq && cq->ibcq.comp_handler)
 			cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 		if (cq) {
-			atomic_dec(&cq->refcnt);
-			if (atomic_read(&cq->refcnt))
-				wake_up(&cq->wait);
+			if (refcount_dec_and_test(&cq->refcnt))
+				complete(&cq->free);
 		}
 		pvrdma_idx_ring_inc(&ring->cons_head, ring_slots);
 	}
@@ -885,8 +882,8 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev, "device version %d, driver version %d\n",
 		 dev->dsr_version, PVRDMA_VERSION);
 
-	dev->dsr = dma_alloc_coherent(&pdev->dev, sizeof(*dev->dsr),
-				      &dev->dsrbase, GFP_KERNEL);
+	dev->dsr = dma_zalloc_coherent(&pdev->dev, sizeof(*dev->dsr),
+				       &dev->dsrbase, GFP_KERNEL);
 	if (!dev->dsr) {
 		dev_err(&pdev->dev, "failed to allocate shared region\n");
 		ret = -ENOMEM;
@@ -894,7 +891,6 @@ static int pvrdma_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* Setup the shared region */
-	memset(dev->dsr, 0, sizeof(*dev->dsr));
 	dev->dsr->driver_version = PVRDMA_VERSION;
 	dev->dsr->gos_info.gos_bits = sizeof(void *) == 4 ?
 		PVRDMA_GOS_BITS_32 :

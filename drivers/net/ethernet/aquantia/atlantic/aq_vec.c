@@ -19,8 +19,7 @@
 #include <linux/netdevice.h>
 
 struct aq_vec_s {
-	struct aq_obj_s header;
-	struct aq_hw_ops *aq_hw_ops;
+	const struct aq_hw_ops *aq_hw_ops;
 	struct aq_hw_s *aq_hw;
 	struct aq_nic_s *aq_nic;
 	unsigned int tx_rings;
@@ -166,7 +165,7 @@ err_exit:
 	return self;
 }
 
-int aq_vec_init(struct aq_vec_s *self, struct aq_hw_ops *aq_hw_ops,
+int aq_vec_init(struct aq_vec_s *self, const struct aq_hw_ops *aq_hw_ops,
 		struct aq_hw_s *aq_hw)
 {
 	struct aq_ring_s *ring = NULL;

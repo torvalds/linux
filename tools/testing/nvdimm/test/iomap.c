@@ -104,15 +104,14 @@ void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
 }
 EXPORT_SYMBOL(__wrap_devm_memremap);
 
-void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
-		struct percpu_ref *ref, struct vmem_altmap *altmap)
+void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
 {
-	resource_size_t offset = res->start;
+	resource_size_t offset = pgmap->res.start;
 	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
 
 	if (nfit_res)
 		return nfit_res->buf + offset - nfit_res->res.start;
-	return devm_memremap_pages(dev, res, ref, altmap);
+	return devm_memremap_pages(dev, pgmap);
 }
 EXPORT_SYMBOL(__wrap_devm_memremap_pages);
 

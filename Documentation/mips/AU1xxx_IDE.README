@@ -56,8 +56,6 @@ Following extra configs variables are introduced:
 
   CONFIG_BLK_DEV_IDE_AU1XXX_PIO_DBDMA    - enable the PIO+DBDMA mode
   CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA  - enable the MWDMA mode
-  CONFIG_BLK_DEV_IDE_AU1XXX_BURSTABLE_ON - set Burstable FIFO in DBDMA
-                                           controller
 
 
 SUPPORTED IDE MODES
@@ -82,11 +80,9 @@ CONFIG_IDE_GENERIC=y
 CONFIG_BLK_DEV_IDEPCI=y
 CONFIG_BLK_DEV_GENERIC=y
 CONFIG_BLK_DEV_IDEDMA_PCI=y
-CONFIG_IDEDMA_PCI_AUTO=y
 CONFIG_BLK_DEV_IDE_AU1XXX=y
 CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
 CONFIG_BLK_DEV_IDEDMA=y
-CONFIG_IDEDMA_AUTO=y
 
 Also define 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to enable
 the burst support on DBDMA controller.
@@ -94,16 +90,13 @@ the burst support on DBDMA controller.
 If the used system need the USB support enable the following kernel configs for
 high IDE to USB throughput.
 
-CONFIG_BLK_DEV_IDEDISK=y
 CONFIG_IDE_GENERIC=y
 CONFIG_BLK_DEV_IDEPCI=y
 CONFIG_BLK_DEV_GENERIC=y
 CONFIG_BLK_DEV_IDEDMA_PCI=y
-CONFIG_IDEDMA_PCI_AUTO=y
 CONFIG_BLK_DEV_IDE_AU1XXX=y
 CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA=y
 CONFIG_BLK_DEV_IDEDMA=y
-CONFIG_IDEDMA_AUTO=y
 
 Also undefine 'IDE_AU1XXX_BURSTMODE' in 'drivers/ide/mips/au1xxx-ide.c' to
 disable the burst support on DBDMA controller.

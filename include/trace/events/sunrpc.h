@@ -32,7 +32,7 @@ DECLARE_EVENT_CLASS(rpc_task_status,
 		__entry->status = task->tk_status;
 	),
 
-	TP_printk("task:%u@%u, status %d",
+	TP_printk("task:%u@%u status=%d",
 		__entry->task_id, __entry->client_id,
 		__entry->status)
 );
@@ -66,7 +66,7 @@ TRACE_EVENT(rpc_connect_status,
 		__entry->status = status;
 	),
 
-	TP_printk("task:%u@%u, status %d",
+	TP_printk("task:%u@%u status=%d",
 		__entry->task_id, __entry->client_id,
 		__entry->status)
 );
@@ -175,7 +175,7 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 		),
 
 	TP_fast_assign(
-		__entry->client_id = clnt->cl_clid;
+		__entry->client_id = clnt ? clnt->cl_clid : -1;
 		__entry->task_id = task->tk_pid;
 		__entry->timeout = task->tk_timeout;
 		__entry->runstate = task->tk_runstate;
@@ -184,7 +184,7 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 		__assign_str(q_name, rpc_qname(q));
 		),
 
-	TP_printk("task:%u@%u flags=%4.4x state=%4.4lx status=%d timeout=%lu queue=%s",
+	TP_printk("task:%u@%d flags=%4.4x state=%4.4lx status=%d timeout=%lu queue=%s",
 		__entry->task_id, __entry->client_id,
 		__entry->flags,
 		__entry->runstate,
@@ -389,6 +389,10 @@ DECLARE_EVENT_CLASS(rpc_xprt_event,
 			__get_str(port), __entry->xid,
 			__entry->status)
 );
+
+DEFINE_EVENT(rpc_xprt_event, xprt_timer,
+	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+	TP_ARGS(xprt, xid, status));
 
 DEFINE_EVENT(rpc_xprt_event, xprt_lookup_rqst,
 	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),

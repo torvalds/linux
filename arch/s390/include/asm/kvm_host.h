@@ -2,7 +2,7 @@
 /*
  * definition for kernel virtual machines on s390
  *
- * Copyright IBM Corp. 2008, 2009
+ * Copyright IBM Corp. 2008, 2018
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  */
@@ -183,6 +183,7 @@ struct kvm_s390_sie_block {
 #define ECA_IB		0x40000000
 #define ECA_SIGPI	0x10000000
 #define ECA_MVPGI	0x01000000
+#define ECA_AIV		0x00200000
 #define ECA_VX		0x00020000
 #define ECA_PROTEXCI	0x00002000
 #define ECA_SII		0x00000001
@@ -207,7 +208,8 @@ struct kvm_s390_sie_block {
 	__u16	ipa;			/* 0x0056 */
 	__u32	ipb;			/* 0x0058 */
 	__u32	scaoh;			/* 0x005c */
-	__u8	reserved60;		/* 0x0060 */
+#define FPF_BPBC 	0x20
+	__u8	fpf;			/* 0x0060 */
 #define ECB_GS		0x40
 #define ECB_TE		0x10
 #define ECB_SRSI	0x04
@@ -227,7 +229,9 @@ struct kvm_s390_sie_block {
 	__u8    epdx;			/* 0x0069 */
 	__u8    reserved6a[2];		/* 0x006a */
 	__u32	todpr;			/* 0x006c */
-	__u8	reserved70[16];		/* 0x0070 */
+#define GISA_FORMAT1 0x00000001
+	__u32	gd;			/* 0x0070 */
+	__u8	reserved74[12];		/* 0x0074 */
 	__u64	mso;			/* 0x0080 */
 	__u64	msl;			/* 0x0088 */
 	psw_t	gpsw;			/* 0x0090 */
@@ -316,18 +320,30 @@ struct kvm_vcpu_stat {
 	u64 deliver_program_int;
 	u64 deliver_io_int;
 	u64 exit_wait_state;
+	u64 instruction_epsw;
+	u64 instruction_gs;
+	u64 instruction_io_other;
+	u64 instruction_lpsw;
+	u64 instruction_lpswe;
 	u64 instruction_pfmf;
+	u64 instruction_ptff;
+	u64 instruction_sck;
+	u64 instruction_sckpf;
 	u64 instruction_stidp;
 	u64 instruction_spx;
 	u64 instruction_stpx;
 	u64 instruction_stap;
-	u64 instruction_storage_key;
+	u64 instruction_iske;
+	u64 instruction_ri;
+	u64 instruction_rrbe;
+	u64 instruction_sske;
 	u64 instruction_ipte_interlock;
-	u64 instruction_stsch;
-	u64 instruction_chsc;
 	u64 instruction_stsi;
 	u64 instruction_stfl;
+	u64 instruction_tb;
+	u64 instruction_tpi;
 	u64 instruction_tprot;
+	u64 instruction_tsch;
 	u64 instruction_sie;
 	u64 instruction_essa;
 	u64 instruction_sthyi;
@@ -353,6 +369,7 @@ struct kvm_vcpu_stat {
 	u64 diagnose_258;
 	u64 diagnose_308;
 	u64 diagnose_500;
+	u64 diagnose_other;
 };
 
 #define PGM_OPERATION			0x01
@@ -409,35 +426,35 @@ struct kvm_vcpu_stat {
 #define PGM_PER				0x80
 #define PGM_CRYPTO_OPERATION		0x119
 
-/* irq types in order of priority */
+/* irq types in ascend order of priorities */
 enum irq_types {
-	IRQ_PEND_MCHK_EX = 0,
-	IRQ_PEND_SVC,
-	IRQ_PEND_PROG,
-	IRQ_PEND_MCHK_REP,
-	IRQ_PEND_EXT_IRQ_KEY,
-	IRQ_PEND_EXT_MALFUNC,
-	IRQ_PEND_EXT_EMERGENCY,
-	IRQ_PEND_EXT_EXTERNAL,
-	IRQ_PEND_EXT_CLOCK_COMP,
-	IRQ_PEND_EXT_CPU_TIMER,
-	IRQ_PEND_EXT_TIMING,
-	IRQ_PEND_EXT_SERVICE,
-	IRQ_PEND_EXT_HOST,
-	IRQ_PEND_PFAULT_INIT,
-	IRQ_PEND_PFAULT_DONE,
-	IRQ_PEND_VIRTIO,
-	IRQ_PEND_IO_ISC_0,
-	IRQ_PEND_IO_ISC_1,
-	IRQ_PEND_IO_ISC_2,
-	IRQ_PEND_IO_ISC_3,
-	IRQ_PEND_IO_ISC_4,
-	IRQ_PEND_IO_ISC_5,
-	IRQ_PEND_IO_ISC_6,
-	IRQ_PEND_IO_ISC_7,
-	IRQ_PEND_SIGP_STOP,
+	IRQ_PEND_SET_PREFIX = 0,
 	IRQ_PEND_RESTART,
-	IRQ_PEND_SET_PREFIX,
+	IRQ_PEND_SIGP_STOP,
+	IRQ_PEND_IO_ISC_7,
+	IRQ_PEND_IO_ISC_6,
+	IRQ_PEND_IO_ISC_5,
+	IRQ_PEND_IO_ISC_4,
+	IRQ_PEND_IO_ISC_3,
+	IRQ_PEND_IO_ISC_2,
+	IRQ_PEND_IO_ISC_1,
+	IRQ_PEND_IO_ISC_0,
+	IRQ_PEND_VIRTIO,
+	IRQ_PEND_PFAULT_DONE,
+	IRQ_PEND_PFAULT_INIT,
+	IRQ_PEND_EXT_HOST,
+	IRQ_PEND_EXT_SERVICE,
+	IRQ_PEND_EXT_TIMING,
+	IRQ_PEND_EXT_CPU_TIMER,
+	IRQ_PEND_EXT_CLOCK_COMP,
+	IRQ_PEND_EXT_EXTERNAL,
+	IRQ_PEND_EXT_EMERGENCY,
+	IRQ_PEND_EXT_MALFUNC,
+	IRQ_PEND_EXT_IRQ_KEY,
+	IRQ_PEND_MCHK_REP,
+	IRQ_PEND_PROG,
+	IRQ_PEND_SVC,
+	IRQ_PEND_MCHK_EX,
 	IRQ_PEND_COUNT
 };
 
@@ -515,9 +532,6 @@ struct kvm_s390_irq_payload {
 
 struct kvm_s390_local_interrupt {
 	spinlock_t lock;
-	struct kvm_s390_float_interrupt *float_int;
-	struct swait_queue_head *wq;
-	atomic_t *cpuflags;
 	DECLARE_BITMAP(sigp_emerg_pending, KVM_MAX_VCPUS);
 	struct kvm_s390_irq_payload irq;
 	unsigned long pending_irqs;
@@ -706,14 +720,50 @@ struct kvm_s390_crypto_cb {
 	struct kvm_s390_apcb1 apcb1;		/* 0x0080 */
 };
 
+struct kvm_s390_gisa {
+	union {
+		struct { /* common to all formats */
+			u32 next_alert;
+			u8  ipm;
+			u8  reserved01[2];
+			u8  iam;
+		};
+		struct { /* format 0 */
+			u32 next_alert;
+			u8  ipm;
+			u8  reserved01;
+			u8  : 6;
+			u8  g : 1;
+			u8  c : 1;
+			u8  iam;
+			u8  reserved02[4];
+			u32 airq_count;
+		} g0;
+		struct { /* format 1 */
+			u32 next_alert;
+			u8  ipm;
+			u8  simm;
+			u8  nimm;
+			u8  iam;
+			u8  aism[8];
+			u8  : 6;
+			u8  g : 1;
+			u8  c : 1;
+			u8  reserved03[11];
+			u32 airq_count;
+		} g1;
+	};
+};
+
 /*
- * sie_page2 has to be allocated as DMA because fac_list and crycb need
- * 31bit addresses in the sie control block.
+ * sie_page2 has to be allocated as DMA because fac_list, crycb and
+ * gisa need 31bit addresses in the sie control block.
  */
 struct sie_page2 {
 	__u64 fac_list[S390_ARCH_FAC_LIST_SIZE_U64];	/* 0x0000 */
 	struct kvm_s390_crypto_cb crycb;		/* 0x0800 */
-	u8 reserved900[0x1000 - 0x900];			/* 0x0900 */
+	struct kvm_s390_gisa gisa;			/* 0x0900 */
+	u8 reserved920[0x1000 - 0x920];			/* 0x0920 */
 };
 
 struct kvm_s390_vsie {
@@ -760,6 +810,7 @@ struct kvm_arch{
 	struct kvm_s390_migration_state *migration_state;
 	/* subset of available cpu features enabled by user space */
 	DECLARE_BITMAP(cpu_feat, KVM_S390_VM_CPU_FEAT_NR_BITS);
+	struct kvm_s390_gisa *gisa;
 };
 
 #define KVM_HVA_ERR_BAD		(-1UL)

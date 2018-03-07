@@ -409,7 +409,11 @@ config HAS_DMA
 	depends on !NO_DMA
 	default y
 
-config DMA_NOOP_OPS
+config SGL_ALLOC
+	bool
+	default n
+
+config DMA_DIRECT_OPS
 	bool
 	depends on HAS_DMA && (!64BIT || ARCH_DMA_ADDR_T_64BIT)
 	default n

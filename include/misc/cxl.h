@@ -267,7 +267,7 @@ int cxl_fd_open(struct inode *inode, struct file *file);
 int cxl_fd_release(struct inode *inode, struct file *file);
 long cxl_fd_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 int cxl_fd_mmap(struct file *file, struct vm_area_struct *vm);
-unsigned int cxl_fd_poll(struct file *file, struct poll_table_struct *poll);
+__poll_t cxl_fd_poll(struct file *file, struct poll_table_struct *poll);
 ssize_t cxl_fd_read(struct file *file, char __user *buf, size_t count,
 			   loff_t *off);
 

@@ -162,11 +162,7 @@ static void test_bucket_stats(struct rhashtable *ht, unsigned int entries)
 		return;
 	}
 
-	err = rhashtable_walk_start(&hti);
-	if (err && err != -EAGAIN) {
-		pr_warn("Test failed: iterator failed: %d\n", err);
-		return;
-	}
+	rhashtable_walk_start(&hti);
 
 	while ((pos = rhashtable_walk_next(&hti))) {
 		if (PTR_ERR(pos) == -EAGAIN) {

@@ -273,7 +273,56 @@ int dsa_port_vlan_del(struct dsa_port *dp,
 	return 0;
 }
 
-int dsa_port_fixed_link_register_of(struct dsa_port *dp)
+static int dsa_port_setup_phy_of(struct dsa_port *dp, bool enable)
+{
+	struct device_node *port_dn = dp->dn;
+	struct device_node *phy_dn;
+	struct dsa_switch *ds = dp->ds;
+	struct phy_device *phydev;
+	int port = dp->index;
+	int err = 0;
+
+	phy_dn = of_parse_phandle(port_dn, "phy-handle", 0);
+	if (!phy_dn)
+		return 0;
+
+	phydev = of_phy_find_device(phy_dn);
+	if (!phydev) {
+		err = -EPROBE_DEFER;
+		goto err_put_of;
+	}
+
+	if (enable) {
+		err = genphy_config_init(phydev);
+		if (err < 0)
+			goto err_put_dev;
+
+		err = genphy_resume(phydev);
+		if (err < 0)
+			goto err_put_dev;
+
+		err = genphy_read_status(phydev);
+		if (err < 0)
+			goto err_put_dev;
+	} else {
+		err = genphy_suspend(phydev);
+		if (err < 0)
+			goto err_put_dev;
+	}
+
+	if (ds->ops->adjust_link)
+		ds->ops->adjust_link(ds, port, phydev);
+
+	dev_dbg(ds->dev, "enabled port's phy: %s", phydev_name(phydev));
+
+err_put_dev:
+	put_device(&phydev->mdio.dev);
+err_put_of:
+	of_node_put(phy_dn);
+	return err;
+}
+
+static int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 {
 	struct device_node *dn = dp->dn;
 	struct dsa_switch *ds = dp->ds;
@@ -282,38 +331,44 @@ int dsa_port_fixed_link_register_of(struct dsa_port *dp)
 	int mode;
 	int err;
 
-	if (of_phy_is_fixed_link(dn)) {
-		err = of_phy_register_fixed_link(dn);
-		if (err) {
-			dev_err(ds->dev,
-				"failed to register the fixed PHY of port %d\n",
-				port);
-			return err;
-		}
-
-		phydev = of_phy_find_device(dn);
-
-		mode = of_get_phy_mode(dn);
-		if (mode < 0)
-			mode = PHY_INTERFACE_MODE_NA;
-		phydev->interface = mode;
-
-		genphy_config_init(phydev);
-		genphy_read_status(phydev);
-
-		if (ds->ops->adjust_link)
-			ds->ops->adjust_link(ds, port, phydev);
-
-		put_device(&phydev->mdio.dev);
+	err = of_phy_register_fixed_link(dn);
+	if (err) {
+		dev_err(ds->dev,
+			"failed to register the fixed PHY of port %d\n",
+			port);
+		return err;
 	}
+
+	phydev = of_phy_find_device(dn);
+
+	mode = of_get_phy_mode(dn);
+	if (mode < 0)
+		mode = PHY_INTERFACE_MODE_NA;
+	phydev->interface = mode;
+
+	genphy_config_init(phydev);
+	genphy_read_status(phydev);
+
+	if (ds->ops->adjust_link)
+		ds->ops->adjust_link(ds, port, phydev);
+
+	put_device(&phydev->mdio.dev);
 
 	return 0;
 }
 
-void dsa_port_fixed_link_unregister_of(struct dsa_port *dp)
+int dsa_port_link_register_of(struct dsa_port *dp)
 {
-	struct device_node *dn = dp->dn;
+	if (of_phy_is_fixed_link(dp->dn))
+		return dsa_port_fixed_link_register_of(dp);
+	else
+		return dsa_port_setup_phy_of(dp, true);
+}
 
-	if (of_phy_is_fixed_link(dn))
-		of_phy_deregister_fixed_link(dn);
+void dsa_port_link_unregister_of(struct dsa_port *dp)
+{
+	if (of_phy_is_fixed_link(dp->dn))
+		of_phy_deregister_fixed_link(dp->dn);
+	else
+		dsa_port_setup_phy_of(dp, false);
 }

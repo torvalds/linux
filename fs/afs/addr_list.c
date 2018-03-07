@@ -332,11 +332,18 @@ bool afs_iterate_addresses(struct afs_addr_cursor *ac)
  */
 int afs_end_cursor(struct afs_addr_cursor *ac)
 {
-	if (ac->responded && ac->index != ac->start)
-		WRITE_ONCE(ac->alist->index, ac->index);
+	struct afs_addr_list *alist;
 
-	afs_put_addrlist(ac->alist);
+	alist = ac->alist;
+	if (alist) {
+		if (ac->responded && ac->index != ac->start)
+			WRITE_ONCE(alist->index, ac->index);
+		afs_put_addrlist(alist);
+	}
+
+	ac->addr = NULL;
 	ac->alist = NULL;
+	ac->begun = false;
 	return ac->error;
 }
 

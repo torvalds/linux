@@ -17,6 +17,7 @@
 #include <linux/acpi.h>
 #include <linux/of.h>
 #include <linux/property.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/module.h>
@@ -356,59 +357,29 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 {
 	struct platform_device *pdev_parent = of_find_device_by_node(np);
 	struct platform_device_info pdevinfo;
-	struct of_phandle_args out_irq;
 	struct device_node *child;
-	struct resource *res = NULL;
-	const __be32 *cell;
-	int ret = 0, size, i, num;
-	u64 addr, addr_size;
+	struct resource *res;
+	int ret = 0;
+
+	/* allocate a resource array */
+	res = kcalloc(3, sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return -ENOMEM;
 
 	for_each_available_child_of_node(np, child) {
-		struct resource *res_iter;
 		struct platform_device *new_pdev;
 
-		cell = of_get_property(child, "reg", &size);
-		if (!cell) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		size /= sizeof(*cell);
-		num = size /
-			(of_n_addr_cells(child) + of_n_size_cells(child)) + 1;
-
-		/* allocate a resource array */
-		res = kcalloc(num, sizeof(*res), GFP_KERNEL);
-		if (!res) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		/* read each reg value */
-		i = 0;
-		res_iter = res;
-		while (i < size) {
-			addr = of_read_number(&cell[i],
-					      of_n_addr_cells(child));
-			i += of_n_addr_cells(child);
-
-			addr_size = of_read_number(&cell[i],
-						   of_n_size_cells(child));
-			i += of_n_size_cells(child);
-
-			res_iter->start = addr;
-			res_iter->end = res_iter->start + addr_size - 1;
-			res_iter->flags = IORESOURCE_MEM;
-			res_iter++;
-		}
-
-		ret = of_irq_parse_one(child, 0, &out_irq);
-		if (ret)
+		ret = of_address_to_resource(child, 0, &res[0]);
+		if (!ret)
 			goto out;
 
-		res_iter->start = irq_create_of_mapping(&out_irq);
-		res_iter->name = "hidma event irq";
-		res_iter->flags = IORESOURCE_IRQ;
+		ret = of_address_to_resource(child, 1, &res[1]);
+		if (!ret)
+			goto out;
+
+		ret = of_irq_to_resource(child, 0, &res[2]);
+		if (ret <= 0)
+			goto out;
 
 		memset(&pdevinfo, 0, sizeof(pdevinfo));
 		pdevinfo.fwnode = &child->fwnode;
@@ -416,7 +387,7 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 		pdevinfo.name = child->name;
 		pdevinfo.id = object_counter++;
 		pdevinfo.res = res;
-		pdevinfo.num_res = num;
+		pdevinfo.num_res = 3;
 		pdevinfo.data = NULL;
 		pdevinfo.size_data = 0;
 		pdevinfo.dma_mask = DMA_BIT_MASK(64);
@@ -434,8 +405,6 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 		 */
 		of_msi_configure(&new_pdev->dev, child);
 		of_node_put(child);
-		kfree(res);
-		res = NULL;
 	}
 out:
 	kfree(res);

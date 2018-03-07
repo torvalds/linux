@@ -2303,7 +2303,7 @@ static int its_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 }
 
 static int its_irq_domain_activate(struct irq_domain *domain,
-				   struct irq_data *d, bool early)
+				   struct irq_data *d, bool reserve)
 {
 	struct its_device *its_dev = irq_data_get_irq_chip_data(d);
 	u32 event = its_get_event_id(d);
@@ -2818,7 +2818,7 @@ static int its_vpe_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 }
 
 static int its_vpe_irq_domain_activate(struct irq_domain *domain,
-				       struct irq_data *d, bool early)
+				       struct irq_data *d, bool reserve)
 {
 	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
 	struct its_node *its;
@@ -3314,6 +3314,8 @@ static int __init its_of_probe(struct device_node *node)
 
 	for (np = of_find_matching_node(node, its_device_id); np;
 	     np = of_find_matching_node(np, its_device_id)) {
+		if (!of_device_is_available(np))
+			continue;
 		if (!of_property_read_bool(np, "msi-controller")) {
 			pr_warn("%pOF: no msi-controller property, ITS ignored\n",
 				np);

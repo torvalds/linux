@@ -48,6 +48,8 @@
 		compatible = "osddisplays,osd057T0559-34ts", "panel-dpi";
 		label = "lcd";
 
+		backlight = <&lcd_bl>;
+
 		panel-timing {
 			clock-frequency = <33000000>;
 			hactive = <800>;
@@ -107,7 +109,7 @@
 			0x03030069>;	/* LEFT */
 	};
 
-	backlight {
+	lcd_bl: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&ecap0 0 50000 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 51 53 56 62 75 101 152 255>;
@@ -985,7 +987,11 @@
 	rx-num-evt = <32>;
 };
 
-&synctimer_32kclk {
+&mux_synctimer32k_ck {
 	assigned-clocks = <&mux_synctimer32k_ck>;
 	assigned-clock-parents = <&clkdiv32k_ick>;
+};
+
+&cpu {
+	cpu0-supply = <&dcdc2>;
 };

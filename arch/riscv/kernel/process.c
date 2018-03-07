@@ -25,9 +25,9 @@
 #include <linux/sched/task_stack.h>
 #include <linux/tick.h>
 #include <linux/ptrace.h>
+#include <linux/uaccess.h>
 
 #include <asm/unistd.h>
-#include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <asm/csr.h>
 #include <asm/string.h>
@@ -76,7 +76,7 @@ void show_regs(struct pt_regs *regs)
 void start_thread(struct pt_regs *regs, unsigned long pc,
 	unsigned long sp)
 {
-	regs->sstatus = SR_PIE /* User mode, irqs on */ | SR_FS_INITIAL;
+	regs->sstatus = SR_SPIE /* User mode, irqs on */ | SR_FS_INITIAL;
 	regs->sepc = pc;
 	regs->sp = sp;
 	set_fs(USER_DS);
@@ -110,7 +110,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		const register unsigned long gp __asm__ ("gp");
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gp = gp;
-		childregs->sstatus = SR_PS | SR_PIE; /* Supervisor, irqs on */
+		childregs->sstatus = SR_SPP | SR_SPIE; /* Supervisor, irqs on */
 
 		p->thread.ra = (unsigned long)ret_from_kernel_thread;
 		p->thread.s[0] = usp; /* fn */

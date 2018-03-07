@@ -441,3 +441,7 @@ static struct platform_driver img_ascii_lcd_driver = {
 	.remove	= img_ascii_lcd_remove,
 };
 module_platform_driver(img_ascii_lcd_driver);
+
+MODULE_DESCRIPTION("Imagination Technologies ASCII LCD Display");
+MODULE_AUTHOR("Paul Burton <paul.burton@mips.com>");
+MODULE_LICENSE("GPL");

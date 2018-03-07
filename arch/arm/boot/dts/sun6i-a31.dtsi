@@ -429,8 +429,8 @@
 			interrupts = <GIC_SPI 88 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_AHB1_HDMI>, <&ccu CLK_HDMI>,
 				 <&ccu CLK_HDMI_DDC>,
-				 <&ccu 7>,
-				 <&ccu 13>;
+				 <&ccu CLK_PLL_VIDEO0_2X>,
+				 <&ccu CLK_PLL_VIDEO1_2X>;
 			clock-names = "ahb", "mod", "ddc", "pll-0", "pll-1";
 			resets = <&ccu RST_AHB1_HDMI>;
 			reset-names = "ahb";

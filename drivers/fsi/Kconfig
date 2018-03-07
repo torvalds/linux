@@ -2,9 +2,7 @@
 # FSI subsystem
 #
 
-menu "FSI support"
-
-config FSI
+menuconfig FSI
 	tristate "FSI support"
 	select CRC4
 	---help---
@@ -34,5 +32,3 @@ config FSI_SCOM
 	This option enables an FSI based SCOM device driver.
 
 endif
-
-endmenu

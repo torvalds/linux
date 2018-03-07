@@ -893,6 +893,9 @@ cxgbit_offload_init(struct cxgbit_sock *csk, int iptype, __u8 *peer_ip,
 		return -ENODEV;
 
 	rcu_read_lock();
+	if (!(n->nud_state & NUD_VALID))
+		neigh_event_send(n, NULL);
+
 	ret = -ENOMEM;
 	if (n->dev->flags & IFF_LOOPBACK) {
 		if (iptype == 4)

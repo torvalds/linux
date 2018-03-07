@@ -13,6 +13,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/hwspinlock.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/list.h>
@@ -86,6 +87,24 @@ static struct syscon *of_syscon_register(struct device_node *np)
 	ret = of_property_read_u32(np, "reg-io-width", &reg_io_width);
 	if (ret)
 		reg_io_width = 4;
+
+	ret = of_hwspin_lock_get_id(np, 0);
+	if (ret > 0 || (IS_ENABLED(CONFIG_HWSPINLOCK) && ret == 0)) {
+		syscon_config.use_hwlock = true;
+		syscon_config.hwlock_id = ret;
+		syscon_config.hwlock_mode = HWLOCK_IRQSTATE;
+	} else if (ret < 0) {
+		switch (ret) {
+		case -ENOENT:
+			/* Ignore missing hwlock, it's optional. */
+			break;
+		default:
+			pr_err("Failed to retrieve valid hwlock: %d\n", ret);
+			/* fall-through */
+		case -EPROBE_DEFER:
+			goto err_regmap;
+		}
+	}
 
 	syscon_config.reg_stride = reg_io_width;
 	syscon_config.val_bits = reg_io_width * 8;

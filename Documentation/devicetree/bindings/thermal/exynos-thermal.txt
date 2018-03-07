@@ -70,7 +70,7 @@ Following properties are mandatory (depending on SoC):
 
 Example 1):
 
-	tmu@100C0000 {
+	tmu@100c0000 {
 		compatible = "samsung,exynos4412-tmu";
 		interrupt-parent = <&combiner>;
 		reg = <0x100C0000 0x100>;

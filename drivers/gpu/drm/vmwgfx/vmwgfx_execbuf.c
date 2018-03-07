@@ -2731,6 +2731,8 @@ static int vmw_cmd_dx_view_define(struct vmw_private *dev_priv,
 	}
 
 	view_type = vmw_view_cmd_to_type(header->id);
+	if (view_type == vmw_view_max)
+		return -EINVAL;
 	cmd = container_of(header, typeof(*cmd), header);
 	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
 				user_surface_converter,
@@ -3701,14 +3703,14 @@ int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 {
 	struct vmw_dma_buffer *vbo = container_of(bo, struct vmw_dma_buffer,
 						  base);
+	struct ttm_operation_ctx ctx = { interruptible, true };
 	int ret;
 
 	if (vbo->pin_count > 0)
 		return 0;
 
 	if (validate_as_mob)
-		return ttm_bo_validate(bo, &vmw_mob_placement, interruptible,
-				       false);
+		return ttm_bo_validate(bo, &vmw_mob_placement, &ctx);
 
 	/**
 	 * Put BO in VRAM if there is space, otherwise as a GMR.
@@ -3717,8 +3719,7 @@ int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * used as a GMR, this will return -ENOMEM.
 	 */
 
-	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, interruptible,
-			      false);
+	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, &ctx);
 	if (likely(ret == 0 || ret == -ERESTARTSYS))
 		return ret;
 
@@ -3727,7 +3728,7 @@ int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * previous contents.
 	 */
 
-	ret = ttm_bo_validate(bo, &vmw_vram_placement, interruptible, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_placement, &ctx);
 	return ret;
 }
 

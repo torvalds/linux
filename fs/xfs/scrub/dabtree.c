@@ -233,11 +233,28 @@ xfs_scrub_da_btree_write_verify(
 		return;
 	}
 }
+static void *
+xfs_scrub_da_btree_verify(
+	struct xfs_buf		*bp)
+{
+	struct xfs_da_blkinfo	*info = bp->b_addr;
+
+	switch (be16_to_cpu(info->magic)) {
+	case XFS_DIR2_LEAF1_MAGIC:
+	case XFS_DIR3_LEAF1_MAGIC:
+		bp->b_ops = &xfs_dir3_leaf1_buf_ops;
+		return bp->b_ops->verify_struct(bp);
+	default:
+		bp->b_ops = &xfs_da3_node_buf_ops;
+		return bp->b_ops->verify_struct(bp);
+	}
+}
 
 static const struct xfs_buf_ops xfs_scrub_da_btree_buf_ops = {
 	.name = "xfs_scrub_da_btree",
 	.verify_read = xfs_scrub_da_btree_read_verify,
 	.verify_write = xfs_scrub_da_btree_write_verify,
+	.verify_struct = xfs_scrub_da_btree_verify,
 };
 
 /* Check a block's sibling. */
@@ -276,6 +293,9 @@ xfs_scrub_da_btree_block_check_sibling(
 		xfs_scrub_da_set_corrupt(ds, level);
 		return error;
 	}
+	if (ds->state->altpath.blk[level].bp)
+		xfs_scrub_buffer_recheck(ds->sc,
+				ds->state->altpath.blk[level].bp);
 
 	/* Compare upper level pointer to sibling pointer. */
 	if (ds->state->altpath.blk[level].blkno != sibling)
@@ -358,6 +378,8 @@ xfs_scrub_da_btree_block(
 			&xfs_scrub_da_btree_buf_ops);
 	if (!xfs_scrub_da_process_error(ds, level, &error))
 		goto out_nobuf;
+	if (blk->bp)
+		xfs_scrub_buffer_recheck(ds->sc, blk->bp);
 
 	/*
 	 * We didn't find a dir btree root block, which means that

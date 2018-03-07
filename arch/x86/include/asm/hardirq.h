@@ -38,6 +38,9 @@ typedef struct {
 #if IS_ENABLED(CONFIG_HYPERV) || defined(CONFIG_XEN)
 	unsigned int irq_hv_callback_count;
 #endif
+#if IS_ENABLED(CONFIG_HYPERV)
+	unsigned int irq_hv_reenlightenment_count;
+#endif
 } ____cacheline_aligned irq_cpustat_t;
 
 DECLARE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);

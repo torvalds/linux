@@ -179,6 +179,7 @@ struct sht15_data {
  * sht15_crc8() - compute crc8
  * @data:	sht15 specific data.
  * @value:	sht15 retrieved data.
+ * @len:	Length of retrieved data
  *
  * This implements section 2 of the CRC datasheet.
  */

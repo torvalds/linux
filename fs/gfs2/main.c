@@ -93,7 +93,7 @@ static int __init init_gfs2_fs(void)
 
 	error = gfs2_glock_init();
 	if (error)
-		goto fail;
+		goto fail_glock;
 
 	error = -ENOMEM;
 	gfs2_glock_cachep = kmem_cache_create("gfs2_glock",
@@ -101,7 +101,7 @@ static int __init init_gfs2_fs(void)
 					      0, 0,
 					      gfs2_init_glock_once);
 	if (!gfs2_glock_cachep)
-		goto fail;
+		goto fail_cachep1;
 
 	gfs2_glock_aspace_cachep = kmem_cache_create("gfs2_glock(aspace)",
 					sizeof(struct gfs2_glock) +
@@ -109,7 +109,7 @@ static int __init init_gfs2_fs(void)
 					0, 0, gfs2_init_gl_aspace_once);
 
 	if (!gfs2_glock_aspace_cachep)
-		goto fail;
+		goto fail_cachep2;
 
 	gfs2_inode_cachep = kmem_cache_create("gfs2_inode",
 					      sizeof(struct gfs2_inode),
@@ -118,107 +118,105 @@ static int __init init_gfs2_fs(void)
 						  SLAB_ACCOUNT,
 					      gfs2_init_inode_once);
 	if (!gfs2_inode_cachep)
-		goto fail;
+		goto fail_cachep3;
 
 	gfs2_bufdata_cachep = kmem_cache_create("gfs2_bufdata",
 						sizeof(struct gfs2_bufdata),
 					        0, 0, NULL);
 	if (!gfs2_bufdata_cachep)
-		goto fail;
+		goto fail_cachep4;
 
 	gfs2_rgrpd_cachep = kmem_cache_create("gfs2_rgrpd",
 					      sizeof(struct gfs2_rgrpd),
 					      0, 0, NULL);
 	if (!gfs2_rgrpd_cachep)
-		goto fail;
+		goto fail_cachep5;
 
 	gfs2_quotad_cachep = kmem_cache_create("gfs2_quotad",
 					       sizeof(struct gfs2_quota_data),
 					       0, 0, NULL);
 	if (!gfs2_quotad_cachep)
-		goto fail;
+		goto fail_cachep6;
 
 	gfs2_qadata_cachep = kmem_cache_create("gfs2_qadata",
 					       sizeof(struct gfs2_qadata),
 					       0, 0, NULL);
 	if (!gfs2_qadata_cachep)
-		goto fail;
+		goto fail_cachep7;
 
 	error = register_shrinker(&gfs2_qd_shrinker);
 	if (error)
-		goto fail;
+		goto fail_shrinker;
 
 	error = register_filesystem(&gfs2_fs_type);
 	if (error)
-		goto fail;
+		goto fail_fs1;
 
 	error = register_filesystem(&gfs2meta_fs_type);
 	if (error)
-		goto fail_unregister;
+		goto fail_fs2;
 
 	error = -ENOMEM;
 	gfs_recovery_wq = alloc_workqueue("gfs_recovery",
 					  WQ_MEM_RECLAIM | WQ_FREEZABLE, 0);
 	if (!gfs_recovery_wq)
-		goto fail_wq;
+		goto fail_wq1;
 
 	gfs2_control_wq = alloc_workqueue("gfs2_control",
 					  WQ_UNBOUND | WQ_FREEZABLE, 0);
 	if (!gfs2_control_wq)
-		goto fail_recovery;
+		goto fail_wq2;
 
 	gfs2_freeze_wq = alloc_workqueue("freeze_workqueue", 0, 0);
 
 	if (!gfs2_freeze_wq)
-		goto fail_control;
+		goto fail_wq3;
 
 	gfs2_page_pool = mempool_create_page_pool(64, 0);
 	if (!gfs2_page_pool)
-		goto fail_freeze;
+		goto fail_mempool;
 
-	gfs2_register_debugfs();
+	error = gfs2_register_debugfs();
+	if (error)
+		goto fail_debugfs;
 
 	pr_info("GFS2 installed\n");
 
 	return 0;
 
-fail_freeze:
+fail_debugfs:
+	mempool_destroy(gfs2_page_pool);
+fail_mempool:
 	destroy_workqueue(gfs2_freeze_wq);
-fail_control:
+fail_wq3:
 	destroy_workqueue(gfs2_control_wq);
-fail_recovery:
+fail_wq2:
 	destroy_workqueue(gfs_recovery_wq);
-fail_wq:
+fail_wq1:
 	unregister_filesystem(&gfs2meta_fs_type);
-fail_unregister:
+fail_fs2:
 	unregister_filesystem(&gfs2_fs_type);
-fail:
+fail_fs1:
+	unregister_shrinker(&gfs2_qd_shrinker);
+fail_shrinker:
+	kmem_cache_destroy(gfs2_qadata_cachep);
+fail_cachep7:
+	kmem_cache_destroy(gfs2_quotad_cachep);
+fail_cachep6:
+	kmem_cache_destroy(gfs2_rgrpd_cachep);
+fail_cachep5:
+	kmem_cache_destroy(gfs2_bufdata_cachep);
+fail_cachep4:
+	kmem_cache_destroy(gfs2_inode_cachep);
+fail_cachep3:
+	kmem_cache_destroy(gfs2_glock_aspace_cachep);
+fail_cachep2:
+	kmem_cache_destroy(gfs2_glock_cachep);
+fail_cachep1:
+	gfs2_glock_exit();
+fail_glock:
 	list_lru_destroy(&gfs2_qd_lru);
 fail_lru:
-	unregister_shrinker(&gfs2_qd_shrinker);
-	gfs2_glock_exit();
-
-	if (gfs2_qadata_cachep)
-		kmem_cache_destroy(gfs2_qadata_cachep);
-
-	if (gfs2_quotad_cachep)
-		kmem_cache_destroy(gfs2_quotad_cachep);
-
-	if (gfs2_rgrpd_cachep)
-		kmem_cache_destroy(gfs2_rgrpd_cachep);
-
-	if (gfs2_bufdata_cachep)
-		kmem_cache_destroy(gfs2_bufdata_cachep);
-
-	if (gfs2_inode_cachep)
-		kmem_cache_destroy(gfs2_inode_cachep);
-
-	if (gfs2_glock_aspace_cachep)
-		kmem_cache_destroy(gfs2_glock_aspace_cachep);
-
-	if (gfs2_glock_cachep)
-		kmem_cache_destroy(gfs2_glock_cachep);
-
 	gfs2_sys_uninit();
 	return error;
 }

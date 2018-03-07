@@ -212,6 +212,7 @@ enum x86_legacy_i8042_state {
 struct x86_legacy_features {
 	enum x86_legacy_i8042_state i8042;
 	int rtc;
+	int warm_reset;
 	int no_vga;
 	int reserve_bios_regions;
 	struct x86_legacy_devices devices;

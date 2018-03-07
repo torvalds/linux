@@ -120,12 +120,12 @@ char **traceevent_plugin_list_options(void)
 		for (op = reg->options; op->name; op++) {
 			char *alias = op->plugin_alias ? op->plugin_alias : op->file;
 			char **temp = list;
+			int ret;
 
-			name = malloc(strlen(op->name) + strlen(alias) + 2);
-			if (!name)
+			ret = asprintf(&name, "%s:%s", alias, op->name);
+			if (ret < 0)
 				goto err;
 
-			sprintf(name, "%s:%s", alias, op->name);
 			list = realloc(list, count + 2);
 			if (!list) {
 				list = temp;
@@ -290,16 +290,13 @@ load_plugin(struct pevent *pevent, const char *path,
 	const char *alias;
 	char *plugin;
 	void *handle;
+	int ret;
 
-	plugin = malloc(strlen(path) + strlen(file) + 2);
-	if (!plugin) {
+	ret = asprintf(&plugin, "%s/%s", path, file);
+	if (ret < 0) {
 		warning("could not allocate plugin memory\n");
 		return;
 	}
-
-	strcpy(plugin, path);
-	strcat(plugin, "/");
-	strcat(plugin, file);
 
 	handle = dlopen(plugin, RTLD_NOW | RTLD_GLOBAL);
 	if (!handle) {
@@ -391,6 +388,7 @@ load_plugins(struct pevent *pevent, const char *suffix,
 	char *home;
 	char *path;
 	char *envdir;
+	int ret;
 
 	if (pevent->flags & PEVENT_DISABLE_PLUGINS)
 		return;
@@ -421,15 +419,11 @@ load_plugins(struct pevent *pevent, const char *suffix,
 	if (!home)
 		return;
 
-	path = malloc(strlen(home) + strlen(LOCAL_PLUGIN_DIR) + 2);
-	if (!path) {
+	ret = asprintf(&path, "%s/%s", home, LOCAL_PLUGIN_DIR);
+	if (ret < 0) {
 		warning("could not allocate plugin memory\n");
 		return;
 	}
-
-	strcpy(path, home);
-	strcat(path, "/");
-	strcat(path, LOCAL_PLUGIN_DIR);
 
 	load_plugins_dir(pevent, suffix, path, load_plugin, data);
 

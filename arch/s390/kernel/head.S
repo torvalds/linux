@@ -66,7 +66,7 @@ __HEAD
 # subroutine to wait for end I/O
 #
 .Lirqwait:
-	mvc	0x1f0(16),.Lnewpsw	# set up IO interrupt psw
+	mvc	__LC_IO_NEW_PSW(16),.Lnewpsw	# set up IO interrupt psw
 	lpsw	.Lwaitpsw
 .Lioint:
 	br	%r14
@@ -98,7 +98,7 @@ __HEAD
 	bnz	.Llderr
 .Lwait4irq:
 	bas	%r14,.Lirqwait
-	c	%r1,0xb8		# compare subchannel number
+	c	%r1,__LC_SUBCHANNEL_ID	# compare subchannel number
 	bne	.Lwait4irq
 	tsch	0(%r5)
 
@@ -156,9 +156,9 @@ iplstart:
 	.fill	16,4,0x0
 0:	lmh	%r0,%r15,0(%r13)	# clear high-order half of gprs
 	sam31				# switch to 31 bit addressing mode
-	lh	%r1,0xb8		# test if subchannel number
+	lh	%r1,__LC_SUBCHANNEL_ID	# test if subchannel number
 	bct	%r1,.Lnoload		#  is valid
-	l	%r1,0xb8		# load ipl subchannel number
+	l	%r1,__LC_SUBCHANNEL_ID	# load ipl subchannel number
 	la	%r2,IPL_BS		# load start address
 	bas	%r14,.Lloader		# load rest of ipl image
 	l	%r12,.Lparm		# pointer to parameter area
@@ -239,7 +239,7 @@ iplstart:
 	bz	.Lnoreset
 .Lwaitforirq:
 	bas	%r14,.Lirqwait		# wait for IO interrupt
-	c	%r1,0xb8		# compare subchannel number
+	c	%r1,__LC_SUBCHANNEL_ID	# compare subchannel number
 	bne	.Lwaitforirq
 	la	%r5,.Lirb
 	tsch	0(%r5)

@@ -75,7 +75,6 @@
 #include <asm/uv/uv.h>
 #include <linux/mc146818rtc.h>
 #include <asm/i8259.h>
-#include <asm/realmode.h>
 #include <asm/misc.h>
 #include <asm/qspinlock.h>
 
@@ -126,24 +125,15 @@ static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
 	spin_lock_irqsave(&rtc_lock, flags);
 	CMOS_WRITE(0xa, 0xf);
 	spin_unlock_irqrestore(&rtc_lock, flags);
-	local_flush_tlb();
-	pr_debug("1.\n");
 	*((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_HIGH)) =
 							start_eip >> 4;
-	pr_debug("2.\n");
 	*((volatile unsigned short *)phys_to_virt(TRAMPOLINE_PHYS_LOW)) =
 							start_eip & 0xf;
-	pr_debug("3.\n");
 }
 
 static inline void smpboot_restore_warm_reset_vector(void)
 {
 	unsigned long flags;
-
-	/*
-	 * Install writable page 0 entry to set BIOS data area.
-	 */
-	local_flush_tlb();
 
 	/*
 	 * Paranoid:  Set warm reset code and vector here back
@@ -943,7 +933,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 	 * the targeted processor.
 	 */
 
-	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
+	if (x86_platform.legacy.warm_reset) {
 
 		pr_debug("Setting warm reset code and vector.\n");
 
@@ -1015,7 +1005,7 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 	/* mark "stuck" area as not stuck */
 	*trampoline_status = 0;
 
-	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
+	if (x86_platform.legacy.warm_reset) {
 		/*
 		 * Cleanup possible dangling ends...
 		 */
@@ -1291,11 +1281,10 @@ void __init native_smp_prepare_boot_cpu(void)
 	cpu_set_state_online(me);
 }
 
-void __init native_smp_cpus_done(unsigned int max_cpus)
+void __init calculate_max_logical_packages(void)
 {
 	int ncpus;
 
-	pr_debug("Boot done\n");
 	/*
 	 * Today neither Intel nor AMD support heterogenous systems so
 	 * extrapolate the boot cpu's data to all packages.
@@ -1303,6 +1292,13 @@ void __init native_smp_cpus_done(unsigned int max_cpus)
 	ncpus = cpu_data(0).booted_cores * topology_max_smt_threads();
 	__max_logical_packages = DIV_ROUND_UP(nr_cpu_ids, ncpus);
 	pr_info("Max logical packages: %u\n", __max_logical_packages);
+}
+
+void __init native_smp_cpus_done(unsigned int max_cpus)
+{
+	pr_debug("Boot done\n");
+
+	calculate_max_logical_packages();
 
 	if (x86_has_numa_in_package)
 		set_sched_topology(x86_numa_in_package_topology);
@@ -1440,8 +1436,8 @@ static void remove_siblinginfo(int cpu)
 	cpumask_clear(cpu_llc_shared_mask(cpu));
 	cpumask_clear(topology_sibling_cpumask(cpu));
 	cpumask_clear(topology_core_cpumask(cpu));
-	c->phys_proc_id = 0;
 	c->cpu_core_id = 0;
+	c->booted_cores = 0;
 	cpumask_clear_cpu(cpu, cpu_sibling_setup_mask);
 	recompute_smt_state();
 }

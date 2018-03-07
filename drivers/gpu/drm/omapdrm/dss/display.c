@@ -1,6 +1,4 @@
 /*
- * linux/drivers/video/omap2/dss/display.c
- *
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
@@ -175,17 +173,3 @@ out:
 	return dssdev;
 }
 EXPORT_SYMBOL(omap_dss_get_next_device);
-
-struct omap_dss_device *omap_dss_find_device(void *data,
-		int (*match)(struct omap_dss_device *dssdev, void *data))
-{
-	struct omap_dss_device *dssdev = NULL;
-
-	while ((dssdev = omap_dss_get_next_device(dssdev)) != NULL) {
-		if (match(dssdev, data))
-			return dssdev;
-	}
-
-	return NULL;
-}
-EXPORT_SYMBOL(omap_dss_find_device);

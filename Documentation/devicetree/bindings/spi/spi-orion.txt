@@ -18,8 +18,17 @@ Required properties:
 	The eight register sets following the control registers refer to
 	chip-select lines 0 through 7 respectively.
 - cell-index : Which of multiple SPI controllers is this.
+- clocks : pointers to the reference clocks for this device, the first
+	   one is the one used for the clock on the spi bus, the
+	   second one is optional and is the clock used for the
+	   functional part of the controller
+
 Optional properties:
 - interrupts : Is currently not used.
+- clock-names : names of used clocks, mandatory if the second clock is
+		used, the name must be "core", and "axi" (the latter
+		is only for Armada 7K/8K).
+
 
 Example:
        spi@10600 {

@@ -140,6 +140,7 @@ sound {
 	simple-audio-card,name = "Cubox Audio";
 
 	simple-audio-card,dai-link@0 {		/* I2S - HDMI */
+		reg = <0>;
 		format = "i2s";
 		cpu {
 			sound-dai = <&audio1 0>;
@@ -150,6 +151,7 @@ sound {
 	};
 
 	simple-audio-card,dai-link@1 {		/* S/PDIF - HDMI */
+		reg = <1>;
 		cpu {
 			sound-dai = <&audio1 1>;
 		};
@@ -159,6 +161,7 @@ sound {
 	};
 
 	simple-audio-card,dai-link@2 {		/* S/PDIF - S/PDIF */
+		reg = <2>;
 		cpu {
 			sound-dai = <&audio1 1>;
 		};

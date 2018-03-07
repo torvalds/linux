@@ -964,7 +964,7 @@ int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
 	 * DRBG with a security strength of 256.
 	 */
 	if (crypto_get_default_rng())
-		err = -EFAULT;
+		return -EFAULT;
 
 	err = crypto_rng_get_bytes(crypto_default_rng, (u8 *)priv, nbytes);
 	crypto_put_default_rng();

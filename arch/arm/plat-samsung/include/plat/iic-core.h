@@ -1,15 +1,11 @@
-/* arch/arm/mach-s3c2410/include/mach/iic-core.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C - I2C Controller core functions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 #ifndef __ASM_ARCH_IIC_CORE_H
 #define __ASM_ARCH_IIC_CORE_H __FILE__

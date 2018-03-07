@@ -1038,7 +1038,7 @@
 			};
 
 			can0: can@80032000 {
-				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx28-flexcan";
 				reg = <0x80032000 0x2000>;
 				interrupts = <8>;
 				clocks = <&clks 58>, <&clks 58>;
@@ -1047,7 +1047,7 @@
 			};
 
 			can1: can@80034000 {
-				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx28-flexcan";
 				reg = <0x80034000 0x2000>;
 				interrupts = <9>;
 				clocks = <&clks 59>, <&clks 59>;

@@ -103,6 +103,7 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 	context->out_param = out_param;
 	complete(&context->done);
 }
+EXPORT_SYMBOL_GPL(hns_roce_cmd_event);
 
 /* this should be called with "use_events" */
 static int __hns_roce_cmd_mbox_wait(struct hns_roce_dev *hr_dev, u64 in_param,

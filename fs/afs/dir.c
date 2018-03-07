@@ -17,10 +17,13 @@
 #include <linux/pagemap.h>
 #include <linux/ctype.h>
 #include <linux/sched.h>
+#include <linux/dns_resolver.h>
 #include "internal.h"
 
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 				 unsigned int flags);
+static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentry,
+					 unsigned int flags);
 static int afs_dir_open(struct inode *inode, struct file *file);
 static int afs_readdir(struct file *file, struct dir_context *ctx);
 static int afs_d_revalidate(struct dentry *dentry, unsigned int flags);
@@ -62,6 +65,17 @@ const struct inode_operations afs_dir_inode_operations = {
 	.getattr	= afs_getattr,
 	.setattr	= afs_setattr,
 	.listxattr	= afs_listxattr,
+};
+
+const struct file_operations afs_dynroot_file_operations = {
+	.open		= dcache_dir_open,
+	.release	= dcache_dir_close,
+	.iterate_shared	= dcache_readdir,
+	.llseek		= dcache_dir_lseek,
+};
+
+const struct inode_operations afs_dynroot_inode_operations = {
+	.lookup		= afs_dynroot_lookup,
 };
 
 const struct dentry_operations afs_fs_dentry_operations = {
@@ -468,25 +482,58 @@ static int afs_do_lookup(struct inode *dir, struct dentry *dentry,
 }
 
 /*
+ * Probe to see if a cell may exist.  This prevents positive dentries from
+ * being created unnecessarily.
+ */
+static int afs_probe_cell_name(struct dentry *dentry)
+{
+	struct afs_cell *cell;
+	const char *name = dentry->d_name.name;
+	size_t len = dentry->d_name.len;
+	int ret;
+
+	/* Names prefixed with a dot are R/W mounts. */
+	if (name[0] == '.') {
+		if (len == 1)
+			return -EINVAL;
+		name++;
+		len--;
+	}
+
+	cell = afs_lookup_cell_rcu(afs_d2net(dentry), name, len);
+	if (!IS_ERR(cell)) {
+		afs_put_cell(afs_d2net(dentry), cell);
+		return 0;
+	}
+
+	ret = dns_query("afsdb", name, len, "ipv4", NULL, NULL);
+	if (ret == -ENODATA)
+		ret = -EDESTADDRREQ;
+	return ret;
+}
+
+/*
  * Try to auto mount the mountpoint with pseudo directory, if the autocell
  * operation is setted.
  */
-static struct inode *afs_try_auto_mntpt(
-	int ret, struct dentry *dentry, struct inode *dir, struct key *key,
-	struct afs_fid *fid)
+static struct inode *afs_try_auto_mntpt(struct dentry *dentry,
+					struct inode *dir, struct afs_fid *fid)
 {
-	const char *devname = dentry->d_name.name;
 	struct afs_vnode *vnode = AFS_FS_I(dir);
 	struct inode *inode;
+	int ret = -ENOENT;
 
-	_enter("%d, %p{%pd}, {%x:%u}, %p",
-	       ret, dentry, dentry, vnode->fid.vid, vnode->fid.vnode, key);
+	_enter("%p{%pd}, {%x:%u}",
+	       dentry, dentry, vnode->fid.vid, vnode->fid.vnode);
 
-	if (ret != -ENOENT ||
-	    !test_bit(AFS_VNODE_AUTOCELL, &vnode->flags))
+	if (!test_bit(AFS_VNODE_AUTOCELL, &vnode->flags))
 		goto out;
 
-	inode = afs_iget_autocell(dir, devname, strlen(devname), key);
+	ret = afs_probe_cell_name(dentry);
+	if (ret < 0)
+		goto out;
+
+	inode = afs_iget_pseudo_dir(dir->i_sb, false);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		goto out;
@@ -545,13 +592,16 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 
 	ret = afs_do_lookup(dir, dentry, &fid, key);
 	if (ret < 0) {
-		inode = afs_try_auto_mntpt(ret, dentry, dir, key, &fid);
-		if (!IS_ERR(inode)) {
-			key_put(key);
-			goto success;
+		if (ret == -ENOENT) {
+			inode = afs_try_auto_mntpt(dentry, dir, &fid);
+			if (!IS_ERR(inode)) {
+				key_put(key);
+				goto success;
+			}
+
+			ret = PTR_ERR(inode);
 		}
 
-		ret = PTR_ERR(inode);
 		key_put(key);
 		if (ret == -ENOENT) {
 			d_add(dentry, NULL);
@@ -583,12 +633,53 @@ success:
 }
 
 /*
+ * Look up an entry in a dynroot directory.
+ */
+static struct dentry *afs_dynroot_lookup(struct inode *dir, struct dentry *dentry,
+					 unsigned int flags)
+{
+	struct afs_vnode *vnode;
+	struct afs_fid fid;
+	struct inode *inode;
+	int ret;
+
+	vnode = AFS_FS_I(dir);
+
+	_enter("%pd", dentry);
+
+	ASSERTCMP(d_inode(dentry), ==, NULL);
+
+	if (dentry->d_name.len >= AFSNAMEMAX) {
+		_leave(" = -ENAMETOOLONG");
+		return ERR_PTR(-ENAMETOOLONG);
+	}
+
+	inode = afs_try_auto_mntpt(dentry, dir, &fid);
+	if (IS_ERR(inode)) {
+		ret = PTR_ERR(inode);
+		if (ret == -ENOENT) {
+			d_add(dentry, NULL);
+			_leave(" = NULL [negative]");
+			return NULL;
+		}
+		_leave(" = %d [do]", ret);
+		return ERR_PTR(ret);
+	}
+
+	d_add(dentry, inode);
+	_leave(" = 0 { ino=%lu v=%u }",
+	       d_inode(dentry)->i_ino, d_inode(dentry)->i_generation);
+	return NULL;
+}
+
+/*
  * check that a dentry lookup hit has found a valid entry
  * - NOTE! the hit can be a negative hit too, so we can't assume we have an
  *   inode
  */
 static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 {
+	struct afs_super_info *as = dentry->d_sb->s_fs_info;
 	struct afs_vnode *vnode, *dir;
 	struct afs_fid uninitialized_var(fid);
 	struct dentry *parent;
@@ -599,6 +690,9 @@ static int afs_d_revalidate(struct dentry *dentry, unsigned int flags)
 
 	if (flags & LOOKUP_RCU)
 		return -ECHILD;
+
+	if (as->dyn_root)
+		return 1;
 
 	if (d_really_is_positive(dentry)) {
 		vnode = AFS_FS_I(d_inode(dentry));
@@ -895,20 +989,38 @@ error:
  * However, if we didn't have a callback promise outstanding, or it was
  * outstanding on a different server, then it won't break it either...
  */
-static int afs_dir_remove_link(struct dentry *dentry, struct key *key)
+static int afs_dir_remove_link(struct dentry *dentry, struct key *key,
+			       unsigned long d_version_before,
+			       unsigned long d_version_after)
 {
+	bool dir_valid;
 	int ret = 0;
+
+	/* There were no intervening changes on the server if the version
+	 * number we got back was incremented by exactly 1.
+	 */
+	dir_valid = (d_version_after == d_version_before + 1);
 
 	if (d_really_is_positive(dentry)) {
 		struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
 
-		if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
-			kdebug("AFS_VNODE_DELETED");
-		clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
-
-		ret = afs_validate(vnode, key);
-		if (ret == -ESTALE)
+		if (dir_valid) {
+			drop_nlink(&vnode->vfs_inode);
+			if (vnode->vfs_inode.i_nlink == 0) {
+				set_bit(AFS_VNODE_DELETED, &vnode->flags);
+				clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+			}
 			ret = 0;
+		} else {
+			clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+
+			if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
+				kdebug("AFS_VNODE_DELETED");
+
+			ret = afs_validate(vnode, key);
+			if (ret == -ESTALE)
+				ret = 0;
+		}
 		_debug("nlink %d [val %d]", vnode->vfs_inode.i_nlink, ret);
 	}
 
@@ -923,6 +1035,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	struct afs_fs_cursor fc;
 	struct afs_vnode *dvnode = AFS_FS_I(dir), *vnode;
 	struct key *key;
+	unsigned long d_version = (unsigned long)dentry->d_fsdata;
 	int ret;
 
 	_enter("{%x:%u},{%pd}",
@@ -955,7 +1068,9 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 		afs_vnode_commit_status(&fc, dvnode, fc.cb_break);
 		ret = afs_end_vnode_operation(&fc);
 		if (ret == 0)
-			ret = afs_dir_remove_link(dentry, key);
+			ret = afs_dir_remove_link(
+				dentry, key, d_version,
+				(unsigned long)dvnode->status.data_version);
 	}
 
 error_key:

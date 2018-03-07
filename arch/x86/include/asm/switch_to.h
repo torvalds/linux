@@ -16,8 +16,7 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 		      struct tss_struct *tss);
 
 /* This runs runs on the previous thread's stack. */
-static inline void prepare_switch_to(struct task_struct *prev,
-				     struct task_struct *next)
+static inline void prepare_switch_to(struct task_struct *next)
 {
 #ifdef CONFIG_VMAP_STACK
 	/*
@@ -70,7 +69,7 @@ struct fork_frame {
 
 #define switch_to(prev, next, last)					\
 do {									\
-	prepare_switch_to(prev, next);					\
+	prepare_switch_to(next);					\
 									\
 	((last) = __switch_to_asm((prev), (next)));			\
 } while (0)

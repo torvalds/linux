@@ -21,7 +21,22 @@
 #ifndef _TVAUDIO_H
 #define _TVAUDIO_H
 
-#include <media/i2c-addr.h>
+/*
+ * i2c bus addresses for the chips supported by tvaudio.c
+ */
+
+#define I2C_ADDR_TDA8425	0x82
+#define I2C_ADDR_TDA9840	0x84
+#define I2C_ADDR_TDA9874	0xb0 /* also used by 9875 */
+#define I2C_ADDR_TDA9875	0xb0
+#define I2C_ADDR_TDA8425	0x82
+#define I2C_ADDR_TDA9840	0x84 /* also used by TA8874Z */
+#define I2C_ADDR_TDA985x_L	0xb4 /* also used by 9873 */
+#define I2C_ADDR_TDA985x_H	0xb6
+#define I2C_ADDR_TDA9874	0xb0 /* also used by 9875 */
+#define I2C_ADDR_TEA6300	0x80 /* also used by 6320 */
+#define I2C_ADDR_TEA6420	0x98
+#define I2C_ADDR_PIC16C54	0x96 /* PV951 */
 
 /* The tvaudio module accepts the following inputs: */
 #define TVAUDIO_INPUT_TUNER  0

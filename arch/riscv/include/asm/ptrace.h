@@ -66,7 +66,7 @@ struct pt_regs {
 #define REG_FMT "%08lx"
 #endif
 
-#define user_mode(regs) (((regs)->sstatus & SR_PS) == 0)
+#define user_mode(regs) (((regs)->sstatus & SR_SPP) == 0)
 
 
 /* Helpers for working with the instruction pointer */

@@ -28,6 +28,7 @@ static inline u16 bnxt_vf_rep_get_fid(struct net_device *dev)
 	return bp->pf.vf[vf_rep->vf_idx].fw_fid;
 }
 
+bool bnxt_dev_is_vf_rep(struct net_device *dev);
 int bnxt_dl_eswitch_mode_get(struct devlink *devlink, u16 *mode);
 int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode);
 
@@ -53,6 +54,11 @@ static inline struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code)
 static inline u16 bnxt_vf_rep_get_fid(struct net_device *dev)
 {
 	return 0;
+}
+
+static inline bool bnxt_dev_is_vf_rep(struct net_device *dev)
+{
+	return false;
 }
 #endif /* CONFIG_BNXT_SRIOV */
 #endif /* BNXT_VFR_H */

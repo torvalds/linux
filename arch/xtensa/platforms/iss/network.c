@@ -16,6 +16,8 @@
  *
  */
 
+#define pr_fmt(fmt) "%s: " fmt, __func__
+
 #include <linux/list.h>
 #include <linux/irq.h>
 #include <linux/spinlock.h>
@@ -606,8 +608,6 @@ struct iss_net_init {
  * those fields. They will be later initialized in iss_net_init.
  */
 
-#define ERR KERN_ERR "iss_net_setup: "
-
 static int __init iss_net_setup(char *str)
 {
 	struct iss_net_private *device = NULL;
@@ -619,14 +619,14 @@ static int __init iss_net_setup(char *str)
 
 	end = strchr(str, '=');
 	if (!end) {
-		printk(ERR "Expected '=' after device number\n");
+		pr_err("Expected '=' after device number\n");
 		return 1;
 	}
 	*end = 0;
 	rc = kstrtouint(str, 0, &n);
 	*end = '=';
 	if (rc < 0) {
-		printk(ERR "Failed to parse '%s'\n", str);
+		pr_err("Failed to parse '%s'\n", str);
 		return 1;
 	}
 	str = end;
@@ -642,13 +642,13 @@ static int __init iss_net_setup(char *str)
 	spin_unlock(&devices_lock);
 
 	if (device && device->index == n) {
-		printk(ERR "Device %u already configured\n", n);
+		pr_err("Device %u already configured\n", n);
 		return 1;
 	}
 
 	new = alloc_bootmem(sizeof(*new));
 	if (new == NULL) {
-		printk(ERR "Alloc_bootmem failed\n");
+		pr_err("Alloc_bootmem failed\n");
 		return 1;
 	}
 
@@ -659,8 +659,6 @@ static int __init iss_net_setup(char *str)
 	list_add_tail(&new->list, &eth_cmd_line);
 	return 1;
 }
-
-#undef ERR
 
 __setup("eth", iss_net_setup);
 

@@ -1242,6 +1242,20 @@ static int davinci_mcasp_hw_rule_format(struct snd_pcm_hw_params *params,
 	return snd_mask_refine(fmt, &nfmt);
 }
 
+static int davinci_mcasp_hw_rule_min_periodsize(
+		struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *period_size = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_PERIOD_SIZE);
+	struct snd_interval frames;
+
+	snd_interval_any(&frames);
+	frames.min = 64;
+	frames.integer = 1;
+
+	return snd_interval_refine(period_size, &frames);
+}
+
 static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *cpu_dai)
 {
@@ -1332,6 +1346,11 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 		if (ret)
 			return ret;
 	}
+
+	snd_pcm_hw_rule_add(substream->runtime, 0,
+			    SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+			    davinci_mcasp_hw_rule_min_periodsize, NULL,
+			    SNDRV_PCM_HW_PARAM_PERIOD_SIZE, -1);
 
 	return 0;
 }

@@ -1607,23 +1607,16 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 
 	/*
 	 * Change STA power saving mode only at the end of a frame
-	 * exchange sequence.
+	 * exchange sequence, and only for a data or management
+	 * frame as specified in IEEE 802.11-2016 11.2.3.2
 	 */
 	if (!ieee80211_hw_check(&sta->local->hw, AP_LINK_PS) &&
 	    !ieee80211_has_morefrags(hdr->frame_control) &&
-	    !ieee80211_is_back_req(hdr->frame_control) &&
+	    (ieee80211_is_mgmt(hdr->frame_control) ||
+	     ieee80211_is_data(hdr->frame_control)) &&
 	    !(status->rx_flags & IEEE80211_RX_DEFERRED_RELEASE) &&
 	    (rx->sdata->vif.type == NL80211_IFTYPE_AP ||
-	     rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
-	    /*
-	     * PM bit is only checked in frames where it isn't reserved,
-	     * in AP mode it's reserved in non-bufferable management frames
-	     * (cf. IEEE 802.11-2012 8.2.4.1.7 Power Management field)
-	     * BAR frames should be ignored as specified in
-	     * IEEE 802.11-2012 10.2.1.2.
-	     */
-	    (!ieee80211_is_mgmt(hdr->frame_control) ||
-	     ieee80211_is_bufferable_mmpdu(hdr->frame_control))) {
+	     rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)) {
 		if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
 			if (!ieee80211_has_pm(hdr->frame_control))
 				sta_ps_end(sta);
@@ -3632,6 +3625,8 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 		}
 		return true;
 	case NL80211_IFTYPE_MESH_POINT:
+		if (ether_addr_equal(sdata->vif.addr, hdr->addr2))
+			return false;
 		if (multicast)
 			return true;
 		return ether_addr_equal(sdata->vif.addr, hdr->addr1);

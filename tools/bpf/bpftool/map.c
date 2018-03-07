@@ -66,6 +66,7 @@ static const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_HASH_OF_MAPS]	= "hash_of_maps",
 	[BPF_MAP_TYPE_DEVMAP]		= "devmap",
 	[BPF_MAP_TYPE_SOCKMAP]		= "sockmap",
+	[BPF_MAP_TYPE_CPUMAP]		= "cpumap",
 };
 
 static unsigned int get_possible_cpus(void)
@@ -428,6 +429,9 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 
 	jsonw_name(json_wtr, "flags");
 	jsonw_printf(json_wtr, "%#x", info->map_flags);
+
+	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
+
 	jsonw_uint_field(json_wtr, "bytes_key", info->key_size);
 	jsonw_uint_field(json_wtr, "bytes_value", info->value_size);
 	jsonw_uint_field(json_wtr, "max_entries", info->max_entries);
@@ -469,7 +473,9 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	if (*info->name)
 		printf("name %s  ", info->name);
 
-	printf("flags 0x%x\n", info->map_flags);
+	printf("flags 0x%x", info->map_flags);
+	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
+	printf("\n");
 	printf("\tkey %uB  value %uB  max_entries %u",
 	       info->key_size, info->value_size, info->max_entries);
 
@@ -523,21 +529,23 @@ static int do_show(int argc, char **argv)
 				break;
 			p_err("can't get next map: %s%s", strerror(errno),
 			      errno == EINVAL ? " -- kernel too old?" : "");
-			return -1;
+			break;
 		}
 
 		fd = bpf_map_get_fd_by_id(id);
 		if (fd < 0) {
+			if (errno == ENOENT)
+				continue;
 			p_err("can't get map by id (%u): %s",
 			      id, strerror(errno));
-			return -1;
+			break;
 		}
 
 		err = bpf_obj_get_info_by_fd(fd, &info, &len);
 		if (err) {
 			p_err("can't get map info: %s", strerror(errno));
 			close(fd);
-			return -1;
+			break;
 		}
 
 		if (json_output)
@@ -859,7 +867,7 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s show   [MAP]\n"
+		"Usage: %s %s { show | list }   [MAP]\n"
 		"       %s %s dump    MAP\n"
 		"       %s %s update  MAP  key BYTES value VALUE [UPDATE_FLAGS]\n"
 		"       %s %s lookup  MAP  key BYTES\n"
@@ -883,6 +891,7 @@ static int do_help(int argc, char **argv)
 
 static const struct cmd cmds[] = {
 	{ "show",	do_show },
+	{ "list",	do_show },
 	{ "help",	do_help },
 	{ "dump",	do_dump },
 	{ "update",	do_update },

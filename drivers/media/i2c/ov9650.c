@@ -886,10 +886,12 @@ static int __g_volatile_ctrl(struct ov965x *ov965x, struct v4l2_ctrl *ctrl)
 		if (ctrl->val == V4L2_EXPOSURE_MANUAL)
 			return 0;
 		ret = ov965x_read(client, REG_COM1, &reg0);
-		if (!ret)
-			ret = ov965x_read(client, REG_AECH, &reg1);
-		if (!ret)
-			ret = ov965x_read(client, REG_AECHM, &reg2);
+		if (ret < 0)
+			return ret;
+		ret = ov965x_read(client, REG_AECH, &reg1);
+		if (ret < 0)
+			return ret;
+		ret = ov965x_read(client, REG_AECHM, &reg2);
 		if (ret < 0)
 			return ret;
 		exposure = ((reg2 & 0x3f) << 10) | (reg1 << 2) |

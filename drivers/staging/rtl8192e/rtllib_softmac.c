@@ -1968,7 +1968,7 @@ void rtllib_sta_ps_send_pspoll_frame(struct rtllib_device *ieee)
 
 static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 {
-	int timeout = ieee->ps_timeout;
+	int timeout;
 	u8 dtim;
 	struct rt_pwr_save_ctrl *pPSC = &(ieee->PowerSaveControl);
 

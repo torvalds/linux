@@ -20,8 +20,6 @@
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_MMU
-
 /* Page Upper Directory not used in RISC-V */
 #include <asm-generic/pgtable-nopud.h>
 #include <asm/page.h>
@@ -412,8 +410,6 @@ static inline void pgtable_cache_init(void)
 {
 	/* No page table caches to initialize */
 }
-
-#endif /* CONFIG_MMU */
 
 #define VMALLOC_SIZE     (KERN_VIRT_SIZE >> 1)
 #define VMALLOC_END      (PAGE_OFFSET - 1)

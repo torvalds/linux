@@ -581,10 +581,7 @@ static int __init pnpbios_thread_init(void)
 
 	init_completion(&unload_sem);
 	task = kthread_run(pnp_dock_thread, NULL, "kpnpbiosd");
-	if (IS_ERR(task))
-		return PTR_ERR(task);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(task);
 }
 
 /* Start the kernel thread later: */

@@ -1,7 +1,7 @@
 /*
  * LG.Philips LB035Q02 LCD Panel driver
  *
- * Copyright (C) 2013 Texas Instruments
+ * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  * Based on a driver by: Steve Sakoman <steve@sakoman.com>
  *

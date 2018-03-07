@@ -103,18 +103,6 @@ CRC Functions
 .. kernel-doc:: lib/crc-itu-t.c
    :export:
 
-idr/ida Functions
------------------
-
-.. kernel-doc:: include/linux/idr.h
-   :doc: idr sync
-
-.. kernel-doc:: lib/idr.c
-   :doc: IDA description
-
-.. kernel-doc:: lib/idr.c
-   :export:
-
 Math Functions in Linux
 =======================
 
@@ -137,6 +125,21 @@ Division Functions
    :functions: div_s64_rem div64_u64_rem div64_u64 div64_s64
 
 .. kernel-doc:: lib/gcd.c
+   :export:
+
+Sorting
+-------
+
+.. kernel-doc:: lib/sort.c
+   :export:
+
+.. kernel-doc:: lib/list_sort.c
+   :export:
+
+UUID/GUID
+---------
+
+.. kernel-doc:: lib/uuid.c
    :export:
 
 Memory Management in Linux

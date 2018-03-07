@@ -187,7 +187,7 @@ bool enable_kick()
 
 bool avail_empty()
 {
-	return !__ptr_ring_peek(&array);
+	return __ptr_ring_empty(&array);
 }
 
 bool use_buf(unsigned *lenp, void **bufp)

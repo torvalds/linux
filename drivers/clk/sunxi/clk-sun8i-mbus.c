@@ -15,7 +15,6 @@
  */
 
 #include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -82,11 +81,12 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 	mux->mask = SUN8I_MBUS_MUX_MASK;
 	mux->lock = &sun8i_a23_mbus_lock;
 
+	/* The MBUS clocks needs to be always enabled */
 	clk = clk_register_composite(NULL, clk_name, parents, num_parents,
 				     &mux->hw, &clk_mux_ops,
 				     &div->hw, &clk_divider_ops,
 				     &gate->hw, &clk_gate_ops,
-				     0);
+				     CLK_IS_CRITICAL);
 	if (IS_ERR(clk))
 		goto err_free_gate;
 
@@ -95,9 +95,6 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 		goto err_unregister_clk;
 
 	kfree(parents); /* parents is deep copied */
-	/* The MBUS clocks needs to be always enabled */
-	__clk_get(clk);
-	clk_prepare_enable(clk);
 
 	return;
 

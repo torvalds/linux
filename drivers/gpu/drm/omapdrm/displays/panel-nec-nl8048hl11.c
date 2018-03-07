@@ -1,7 +1,7 @@
 /*
  * NEC NL8048HL11 Panel driver
  *
- * Copyright (C) 2010 Texas Instruments Inc.
+ * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Erik Gilling <konkers@android.com>
  * Converted to new DSS device model: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *

@@ -364,10 +364,11 @@ irq_get_domain_generic_chip(struct irq_domain *d, unsigned int hw_irq)
 EXPORT_SYMBOL_GPL(irq_get_domain_generic_chip);
 
 /*
- * Separate lockdep class for interrupt chip which can nest irq_desc
- * lock.
+ * Separate lockdep classes for interrupt chip which can nest irq_desc
+ * lock and request mutex.
  */
 static struct lock_class_key irq_nested_lock_class;
+static struct lock_class_key irq_nested_request_class;
 
 /*
  * irq_map_generic_chip - Map a generic chip for an irq domain
@@ -409,7 +410,8 @@ int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 	set_bit(idx, &gc->installed);
 
 	if (dgc->gc_flags & IRQ_GC_INIT_NESTED_LOCK)
-		irq_set_lockdep_class(virq, &irq_nested_lock_class);
+		irq_set_lockdep_class(virq, &irq_nested_lock_class,
+				      &irq_nested_request_class);
 
 	if (chip->irq_calc_mask)
 		chip->irq_calc_mask(data);
@@ -479,7 +481,8 @@ void irq_setup_generic_chip(struct irq_chip_generic *gc, u32 msk,
 			continue;
 
 		if (flags & IRQ_GC_INIT_NESTED_LOCK)
-			irq_set_lockdep_class(i, &irq_nested_lock_class);
+			irq_set_lockdep_class(i, &irq_nested_lock_class,
+					      &irq_nested_request_class);
 
 		if (!(flags & IRQ_GC_NO_MASK)) {
 			struct irq_data *d = irq_get_irq_data(i);

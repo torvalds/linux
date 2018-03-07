@@ -17,6 +17,7 @@
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 #include <asm/epapr_hcalls.h>
+#include <asm/hw_irq.h>
 
 /* 64-bit version only for now */
 #ifdef CONFIG_PPC64
@@ -46,8 +47,8 @@ _GLOBAL(\name)
 	bl	trace_hardirqs_on
 	addi    r1,r1,128
 #endif
-	li	r0,1
-	stb	r0,PACASOFTIRQEN(r13)
+	li	r0,IRQS_ENABLED
+	stb	r0,PACAIRQSOFTMASK(r13)
 	
 	/* Interrupts will make use return to LR, so get something we want
 	 * in there

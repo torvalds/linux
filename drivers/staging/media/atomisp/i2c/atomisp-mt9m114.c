@@ -1844,11 +1844,9 @@ static int mt9m114_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	v4l2_i2c_subdev_init(&dev->sd, client, &mt9m114_ops);
-	pdata = client->dev.platform_data;
-	if (ACPI_COMPANION(&client->dev))
-		pdata = gmin_camera_platform_data(&dev->sd,
-						  ATOMISP_INPUT_FORMAT_RAW_10,
-						  atomisp_bayer_order_grbg);
+	pdata = gmin_camera_platform_data(&dev->sd,
+					  ATOMISP_INPUT_FORMAT_RAW_10,
+					  atomisp_bayer_order_grbg);
 	if (pdata)
 		ret = mt9m114_s_config(&dev->sd, client->irq, pdata);
 	if (!pdata || ret) {

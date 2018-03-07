@@ -336,7 +336,6 @@ static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 {
 	union ib_gid dgid;
 	union ib_gid *pdgid;
-	u16 index;
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		ipv6_addr_set_v4mapped(ip_hdr(skb)->daddr,
@@ -348,7 +347,7 @@ static int rxe_match_dgid(struct rxe_dev *rxe, struct sk_buff *skb)
 
 	return ib_find_cached_gid_by_port(&rxe->ib_dev, pdgid,
 					  IB_GID_TYPE_ROCE_UDP_ENCAP,
-					  1, rxe->ndev, &index);
+					  1, rxe->ndev, NULL);
 }
 
 /* rxe_rcv is called from the interface driver */

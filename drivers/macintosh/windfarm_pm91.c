@@ -75,7 +75,8 @@ static struct wf_control *fan_slots;
 static struct wf_control *cpufreq_clamp;
 
 /* Set to kick the control loop into life */
-static int wf_smu_all_controls_ok, wf_smu_all_sensors_ok, wf_smu_started;
+static int wf_smu_all_controls_ok, wf_smu_all_sensors_ok;
+static bool wf_smu_started;
 static bool wf_smu_overtemp;
 
 /* Failure handling.. could be nicer */
@@ -467,7 +468,7 @@ static void wf_smu_tick(void)
 		wf_smu_create_drive_fans();
 		wf_smu_create_slots_fans();
 		wf_smu_create_cpu_fans();
-		wf_smu_started = 1;
+		wf_smu_started = true;
 	}
 
 	/* Skipping ticks */

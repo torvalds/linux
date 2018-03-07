@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for V3 Semiconductor PCI Local Bus to PCI Bridge
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>

@@ -127,11 +127,8 @@ static int __init iwl_mvm_init(void)
 	}
 
 	ret = iwl_opmode_register("iwlmvm", &iwl_mvm_ops);
-
-	if (ret) {
+	if (ret)
 		pr_err("Unable to register MVM op_mode: %d\n", ret);
-		iwl_mvm_rate_control_unregister();
-	}
 
 	return ret;
 }
@@ -605,7 +602,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->fw = fw;
 	mvm->hw = hw;
 
-	iwl_fw_runtime_init(&mvm->fwrt, trans, fw, &iwl_mvm_fwrt_ops, mvm);
+	iwl_fw_runtime_init(&mvm->fwrt, trans, fw, &iwl_mvm_fwrt_ops, mvm,
+			    dbgfs_dir);
 
 	mvm->init_status = 0;
 
@@ -750,7 +748,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mutex_lock(&mvm->mutex);
 	iwl_mvm_ref(mvm, IWL_MVM_REF_INIT_UCODE);
 	err = iwl_run_init_mvm_ucode(mvm, true);
-	if (!iwlmvm_mod_params.init_dbg)
+	if (!iwlmvm_mod_params.init_dbg || !err)
 		iwl_mvm_stop_device(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_INIT_UCODE);
 	mutex_unlock(&mvm->mutex);
@@ -804,6 +802,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_mvm_leds_exit(mvm);
 	iwl_mvm_thermal_exit(mvm);
  out_free:
+	iwl_fw_runtime_exit(&mvm->fwrt);
 	iwl_fw_flush_dump(&mvm->fwrt);
 
 	if (iwlmvm_mod_params.init_dbg)
@@ -844,7 +843,7 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
 	kfree(mvm->d3_resume_sram);
 #endif
-
+	iwl_fw_runtime_exit(&mvm->fwrt);
 	iwl_trans_op_mode_leave(mvm->trans);
 
 	iwl_phy_db_free(mvm->phy_db);
@@ -1021,6 +1020,8 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_queue_notif(mvm, rxb, 0);
 	else if (cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
+	else if (cmd == WIDE_ID(DATA_PATH_GROUP, TLC_MNG_UPDATE_NOTIF))
+		iwl_mvm_tlc_update_notif(mvm, pkt);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }

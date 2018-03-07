@@ -56,8 +56,6 @@
 #include "yealink.h"
 
 #define DRIVER_VERSION "yld-20051230"
-#define DRIVER_AUTHOR "Henk Vergonet"
-#define DRIVER_DESC "Yealink phone driver"
 
 #define YEALINK_POLLING_FREQUENCY	10	/* in [Hz] */
 
@@ -1006,6 +1004,6 @@ module_usb_driver(yealink_driver);
 
 MODULE_DEVICE_TABLE (usb, usb_table);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Henk Vergonet");
+MODULE_DESCRIPTION("Yealink phone driver");
 MODULE_LICENSE("GPL");

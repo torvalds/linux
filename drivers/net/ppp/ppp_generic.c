@@ -531,19 +531,19 @@ static ssize_t ppp_write(struct file *file, const char __user *buf,
 }
 
 /* No kernel lock - fine */
-static unsigned int ppp_poll(struct file *file, poll_table *wait)
+static __poll_t ppp_poll(struct file *file, poll_table *wait)
 {
 	struct ppp_file *pf = file->private_data;
-	unsigned int mask;
+	__poll_t mask;
 
 	if (!pf)
 		return 0;
 	poll_wait(file, &pf->rwait, wait);
-	mask = POLLOUT | POLLWRNORM;
+	mask = EPOLLOUT | EPOLLWRNORM;
 	if (skb_peek(&pf->rq))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (pf->dead)
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 	else if (pf->kind == INTERFACE) {
 		/* see comment in ppp_read */
 		struct ppp *ppp = PF_TO_PPP(pf);
@@ -551,7 +551,7 @@ static unsigned int ppp_poll(struct file *file, poll_table *wait)
 		ppp_recv_lock(ppp);
 		if (ppp->n_channels == 0 &&
 		    (ppp->flags & SC_LOOP_TRAFFIC) == 0)
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 		ppp_recv_unlock(ppp);
 	}
 
@@ -1006,17 +1006,18 @@ static int ppp_unit_register(struct ppp *ppp, int unit, bool ifname_is_set)
 	if (!ifname_is_set)
 		snprintf(ppp->dev->name, IFNAMSIZ, "ppp%i", ppp->file.index);
 
+	mutex_unlock(&pn->all_ppp_mutex);
+
 	ret = register_netdevice(ppp->dev);
 	if (ret < 0)
 		goto err_unit;
 
 	atomic_inc(&ppp_unit_count);
 
-	mutex_unlock(&pn->all_ppp_mutex);
-
 	return 0;
 
 err_unit:
+	mutex_lock(&pn->all_ppp_mutex);
 	unit_put(&pn->units_idr, ppp->file.index);
 err:
 	mutex_unlock(&pn->all_ppp_mutex);

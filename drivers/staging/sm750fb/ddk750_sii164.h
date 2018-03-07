@@ -12,7 +12,6 @@ enum sii164_hot_plug_mode {
 	SII164_HOTPLUG_USE_HTPLG            /* Use Hot Plug detect bit. */
 };
 
-
 /* Silicon Image SiI164 chip prototype */
 long sii164InitChip(unsigned char edgeSelect,
 		    unsigned char busSelect,
@@ -27,7 +26,6 @@ long sii164InitChip(unsigned char edgeSelect,
 
 unsigned short sii164GetVendorID(void);
 unsigned short sii164GetDeviceID(void);
-
 
 #ifdef SII164_FULL_FUNCTIONS
 void sii164ResetChip(void);

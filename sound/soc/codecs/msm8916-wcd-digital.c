@@ -194,7 +194,7 @@
 				   SNDRV_PCM_RATE_32000 | \
 				   SNDRV_PCM_RATE_48000)
 #define MSM8916_WCD_DIGITAL_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
-				     SNDRV_PCM_FMTBIT_S24_LE)
+				     SNDRV_PCM_FMTBIT_S32_LE)
 
 struct msm8916_wcd_digital_priv {
 	struct clk *ahbclk, *mclk;
@@ -645,7 +645,7 @@ static int msm8916_wcd_digital_hw_params(struct snd_pcm_substream *substream,
 				    RX_I2S_CTL_RX_I2S_MODE_MASK,
 				    RX_I2S_CTL_RX_I2S_MODE_16);
 		break;
-	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S32_LE:
 		snd_soc_update_bits(dai->codec, LPASS_CDC_CLK_TX_I2S_CTL,
 				    TX_I2S_CTL_TX_I2S_MODE_MASK,
 				    TX_I2S_CTL_TX_I2S_MODE_32);

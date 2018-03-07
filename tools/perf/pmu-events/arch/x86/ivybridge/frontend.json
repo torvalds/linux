@@ -20,57 +20,6 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
-        "PublicDescription": "Increment each cycle. # of uops delivered to IDQ from DSB path. Set Cmask = 1 to count cycles.",
-        "EventCode": "0x79",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
-        "EventName": "IDQ.DSB_UOPS",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by DSB. Set Cmask = 1 to count cycles. Add Edge=1 to count # of delivery.",
-        "EventCode": "0x79",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "IDQ.MS_DSB_UOPS",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Uops initiated by Decode Stream Buffer (DSB) that are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by MITE. Set Cmask = 1 to count cycles.",
-        "EventCode": "0x79",
-        "Counter": "0,1,2,3",
-        "UMask": "0x20",
-        "EventName": "IDQ.MS_MITE_UOPS",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Uops initiated by MITE and delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Increment each cycle # of uops delivered to IDQ from MS by either DSB or MITE. Set Cmask = 1 to count cycles.",
-        "EventCode": "0x79",
-        "Counter": "0,1,2,3",
-        "UMask": "0x30",
-        "EventName": "IDQ.MS_UOPS",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy.",
-        "EventCode": "0x79",
-        "Counter": "0,1,2,3",
-        "UMask": "0x30",
-        "EventName": "IDQ.MS_CYCLES",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
-        "CounterMask": "1",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
         "PublicDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) from MITE path.",
         "EventCode": "0x79",
         "Counter": "0,1,2,3",
@@ -82,6 +31,16 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PublicDescription": "Increment each cycle. # of uops delivered to IDQ from DSB path. Set Cmask = 1 to count cycles.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x8",
+        "EventName": "IDQ.DSB_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) from Decode Stream Buffer (DSB) path.",
         "EventCode": "0x79",
         "Counter": "0,1,2,3",
@@ -90,6 +49,16 @@
         "SampleAfterValue": "2000003",
         "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) from Decode Stream Buffer (DSB) path",
         "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by DSB. Set Cmask = 1 to count cycles. Add Edge=1 to count # of delivery.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "IDQ.MS_DSB_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops initiated by Decode Stream Buffer (DSB) that are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
@@ -138,6 +107,16 @@
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
     {
+        "PublicDescription": "Increment each cycle # of uops delivered to IDQ when MS_busy by MITE. Set Cmask = 1 to count cycles.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x20",
+        "EventName": "IDQ.MS_MITE_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops initiated by MITE and delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
         "PublicDescription": "Counts cycles MITE is delivered four uops. Set Cmask = 4.",
         "EventCode": "0x79",
         "Counter": "0,1,2,3",
@@ -156,6 +135,39 @@
         "EventName": "IDQ.ALL_MITE_CYCLES_ANY_UOPS",
         "SampleAfterValue": "2000003",
         "BriefDescription": "Cycles MITE is delivering any Uop",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Increment each cycle # of uops delivered to IDQ from MS by either DSB or MITE. Set Cmask = 1 to count cycles.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x30",
+        "EventName": "IDQ.MS_UOPS",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Uops delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x30",
+        "EventName": "IDQ.MS_CYCLES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when uops are being delivered to Instruction Decode Queue (IDQ) while Microcode Sequenser (MS) is busy",
+        "CounterMask": "1",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer.",
+        "EventCode": "0x79",
+        "Counter": "0,1,2,3",
+        "UMask": "0x30",
+        "EdgeDetect": "1",
+        "EventName": "IDQ.MS_SWITCHES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer",
         "CounterMask": "1",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     },
@@ -206,7 +218,7 @@
         "UMask": "0x1",
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CORE",
         "SampleAfterValue": "2000003",
-        "BriefDescription": "Uops not delivered to Resource Allocation Table (RAT) per thread when backend of the machine is not stalled ",
+        "BriefDescription": "Uops not delivered to Resource Allocation Table (RAT) per thread when backend of the machine is not stalled",
         "CounterHTOff": "0,1,2,3"
     },
     {
@@ -288,18 +300,6 @@
         "EventName": "DSB_FILL.EXCEED_DSB_LINES",
         "SampleAfterValue": "2000003",
         "BriefDescription": "Cycles when Decode Stream Buffer (DSB) fill encounter more than 3 Decode Stream Buffer (DSB) lines",
-        "CounterHTOff": "0,1,2,3,4,5,6,7"
-    },
-    {
-        "PublicDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer.",
-        "EventCode": "0x79",
-        "Counter": "0,1,2,3",
-        "UMask": "0x30",
-        "EdgeDetect": "1",
-        "EventName": "IDQ.MS_SWITCHES",
-        "SampleAfterValue": "2000003",
-        "BriefDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer",
-        "CounterMask": "1",
         "CounterHTOff": "0,1,2,3,4,5,6,7"
     }
 ]

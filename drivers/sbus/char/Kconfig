@@ -70,5 +70,13 @@ config DISPLAY7SEG
 	  another UltraSPARC-IIi-cEngine boardset with a 7-segment display,
 	  you should say N to this option.
 
+config ORACLE_DAX
+	tristate "Oracle Data Analytics Accelerator"
+	default m if SPARC64
+	help
+	 Driver for Oracle Data Analytics Accelerator, which is
+	 a coprocessor that performs database operations in hardware.
+	 It is available on M7 and M8 based systems only.
+
 endmenu
 

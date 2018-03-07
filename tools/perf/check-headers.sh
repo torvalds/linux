@@ -21,6 +21,7 @@ arch/x86/include/asm/cpufeatures.h
 arch/arm/include/uapi/asm/perf_regs.h
 arch/arm64/include/uapi/asm/perf_regs.h
 arch/powerpc/include/uapi/asm/perf_regs.h
+arch/s390/include/uapi/asm/perf_regs.h
 arch/x86/include/uapi/asm/perf_regs.h
 arch/x86/include/uapi/asm/kvm.h
 arch/x86/include/uapi/asm/kvm_perf.h
@@ -34,19 +35,27 @@ arch/s390/include/uapi/asm/ptrace.h
 arch/s390/include/uapi/asm/sie.h
 arch/arm/include/uapi/asm/kvm.h
 arch/arm64/include/uapi/asm/kvm.h
+arch/alpha/include/uapi/asm/errno.h
+arch/mips/include/asm/errno.h
+arch/mips/include/uapi/asm/errno.h
+arch/parisc/include/uapi/asm/errno.h
+arch/powerpc/include/uapi/asm/errno.h
+arch/sparc/include/uapi/asm/errno.h
+arch/x86/include/uapi/asm/errno.h
 include/asm-generic/bitops/arch_hweight.h
 include/asm-generic/bitops/const_hweight.h
 include/asm-generic/bitops/__fls.h
 include/asm-generic/bitops/fls.h
 include/asm-generic/bitops/fls64.h
 include/linux/coresight-pmu.h
+include/uapi/asm-generic/errno.h
+include/uapi/asm-generic/errno-base.h
 include/uapi/asm-generic/ioctls.h
 include/uapi/asm-generic/mman-common.h
 '
 
 check () {
   file=$1
-  opts="--ignore-blank-lines --ignore-space-change"
 
   shift
   while [ -n "$*" ]; do

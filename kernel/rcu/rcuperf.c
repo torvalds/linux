@@ -106,10 +106,6 @@ static int rcu_perf_writer_state;
 #define MAX_MEAS 10000
 #define MIN_MEAS 100
 
-static int perf_runnable = IS_ENABLED(MODULE);
-module_param(perf_runnable, int, 0444);
-MODULE_PARM_DESC(perf_runnable, "Start rcuperf at boot");
-
 /*
  * Operations vector for selecting different types of tests.
  */
@@ -646,7 +642,7 @@ rcu_perf_init(void)
 		&tasks_ops,
 	};
 
-	if (!torture_init_begin(perf_type, verbose, &perf_runnable))
+	if (!torture_init_begin(perf_type, verbose))
 		return -EBUSY;
 
 	/* Process args and tell the world that the perf'er is on the job. */

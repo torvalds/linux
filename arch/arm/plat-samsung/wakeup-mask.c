@@ -1,13 +1,8 @@
-/* arch/arm/plat-samsung/wakeup-mask.c
- *
- * Copyright 2010 Ben Dooks <ben-linux@fluff.org>
- *
- * Support for wakeup mask interrupts on newer SoCs
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2010 Ben Dooks <ben-linux@fluff.org>
+//
+// Support for wakeup mask interrupts on newer SoCs
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>

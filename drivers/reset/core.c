@@ -566,17 +566,18 @@ EXPORT_SYMBOL_GPL(__devm_reset_control_get);
  * device_reset - find reset controller associated with the device
  *                and perform reset
  * @dev: device to be reset by the controller
+ * @optional: whether it is optional to reset the device
  *
- * Convenience wrapper for reset_control_get() and reset_control_reset().
+ * Convenience wrapper for __reset_control_get() and reset_control_reset().
  * This is useful for the common case of devices with single, dedicated reset
  * lines.
  */
-int device_reset(struct device *dev)
+int __device_reset(struct device *dev, bool optional)
 {
 	struct reset_control *rstc;
 	int ret;
 
-	rstc = reset_control_get(dev, NULL);
+	rstc = __reset_control_get(dev, NULL, 0, 0, optional);
 	if (IS_ERR(rstc))
 		return PTR_ERR(rstc);
 
@@ -586,7 +587,7 @@ int device_reset(struct device *dev)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(device_reset);
+EXPORT_SYMBOL_GPL(__device_reset);
 
 /**
  * APIs to manage an array of reset controls.

@@ -108,6 +108,7 @@ struct nvmf_ctrl_options {
  *			       fabric implementation of NVMe fabrics.
  * @entry:		Used by the fabrics library to add the new
  *			registration entry to its linked-list internal tree.
+ * @module:             Transport module reference
  * @name:		Name of the NVMe fabric driver implementation.
  * @required_opts:	sysfs command-line options that must be specified
  *			when adding a new NVMe controller.
@@ -126,6 +127,7 @@ struct nvmf_ctrl_options {
  */
 struct nvmf_transport_ops {
 	struct list_head	entry;
+	struct module		*module;
 	const char		*name;
 	int			required_opts;
 	int			allowed_opts;
@@ -169,13 +171,14 @@ static inline blk_status_t nvmf_check_init_req(struct nvme_ctrl *ctrl,
 	    cmd->common.opcode != nvme_fabrics_command ||
 	    cmd->fabrics.fctype != nvme_fabrics_type_connect) {
 		/*
-		 * Reconnecting state means transport disruption, which can take
-		 * a long time and even might fail permanently, fail fast to
-		 * give upper layers a chance to failover.
+		 * Connecting state means transport disruption or initial
+		 * establishment, which can take a long time and even might
+		 * fail permanently, fail fast to give upper layers a chance
+		 * to failover.
 		 * Deleting state means that the ctrl will never accept commands
 		 * again, fail it permanently.
 		 */
-		if (ctrl->state == NVME_CTRL_RECONNECTING ||
+		if (ctrl->state == NVME_CTRL_CONNECTING ||
 		    ctrl->state == NVME_CTRL_DELETING) {
 			nvme_req(rq)->status = NVME_SC_ABORT_REQ;
 			return BLK_STS_IOERR;

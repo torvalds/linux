@@ -594,7 +594,7 @@ static int log_mark(struct log_writes_c *lc, char *data)
 		return -ENOMEM;
 	}
 
-	block->data = kstrndup(data, maxsize, GFP_KERNEL);
+	block->data = kstrndup(data, maxsize - 1, GFP_KERNEL);
 	if (!block->data) {
 		DMERR("Error copying mark data");
 		kfree(block);

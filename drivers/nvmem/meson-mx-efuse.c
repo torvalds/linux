@@ -156,8 +156,8 @@ static int meson_mx_efuse_read(void *context, unsigned int offset,
 				 MESON_MX_EFUSE_CNTL1_AUTO_RD_ENABLE,
 				 MESON_MX_EFUSE_CNTL1_AUTO_RD_ENABLE);
 
-	for (i = offset; i < offset + bytes; i += efuse->config.word_size) {
-		addr = i / efuse->config.word_size;
+	for (i = 0; i < bytes; i += efuse->config.word_size) {
+		addr = (offset + i) / efuse->config.word_size;
 
 		err = meson_mx_efuse_read_addr(efuse, addr, &tmp);
 		if (err)

@@ -28,22 +28,32 @@
 #include "halbt_precomp.h"
 
 void rtl_btc_init_variables(struct rtl_priv *rtlpriv);
+void rtl_btc_init_variables_wifi_only(struct rtl_priv *rtlpriv);
+void rtl_btc_deinit_variables(struct rtl_priv *rtlpriv);
 void rtl_btc_init_hal_vars(struct rtl_priv *rtlpriv);
+void rtl_btc_power_on_setting(struct rtl_priv *rtlpriv);
 void rtl_btc_init_hw_config(struct rtl_priv *rtlpriv);
+void rtl_btc_init_hw_config_wifi_only(struct rtl_priv *rtlpriv);
 void rtl_btc_ips_notify(struct rtl_priv *rtlpriv, u8 type);
 void rtl_btc_lps_notify(struct rtl_priv *rtlpriv, u8 type);
 void rtl_btc_scan_notify(struct rtl_priv *rtlpriv, u8 scantype);
+void rtl_btc_scan_notify_wifi_only(struct rtl_priv *rtlpriv, u8 scantype);
 void rtl_btc_connect_notify(struct rtl_priv *rtlpriv, u8 action);
 void rtl_btc_mediastatus_notify(struct rtl_priv *rtlpriv,
 				enum rt_media_status mstatus);
 void rtl_btc_periodical(struct rtl_priv *rtlpriv);
-void rtl_btc_halt_notify(void);
+void rtl_btc_halt_notify(struct rtl_priv *rtlpriv);
 void rtl_btc_btinfo_notify(struct rtl_priv *rtlpriv, u8 *tmpbuf, u8 length);
 void rtl_btc_btmpinfo_notify(struct rtl_priv *rtlpriv, u8 *tmp_buf, u8 length);
 bool rtl_btc_is_limited_dig(struct rtl_priv *rtlpriv);
 bool rtl_btc_is_disable_edca_turbo(struct rtl_priv *rtlpriv);
 bool rtl_btc_is_bt_disabled(struct rtl_priv *rtlpriv);
 void rtl_btc_special_packet_notify(struct rtl_priv *rtlpriv, u8 pkt_type);
+void rtl_btc_switch_band_notify(struct rtl_priv *rtlpriv, u8 band_type,
+				bool scanning);
+void rtl_btc_switch_band_notify_wifionly(struct rtl_priv *rtlpriv, u8 band_type,
+					 bool scanning);
+void rtl_btc_display_bt_coex_info(struct rtl_priv *rtlpriv, struct seq_file *m);
 void rtl_btc_record_pwr_mode(struct rtl_priv *rtlpriv, u8 *buf, u8 len);
 u8   rtl_btc_get_lps_val(struct rtl_priv *rtlpriv);
 u8   rtl_btc_get_rpwm_val(struct rtl_priv *rtlpriv);

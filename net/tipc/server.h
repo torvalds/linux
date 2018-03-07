@@ -41,6 +41,9 @@
 #include <net/net_namespace.h>
 
 #define TIPC_SERVER_NAME_LEN	32
+#define TIPC_SUB_CLUSTER_SCOPE  0x20
+#define TIPC_SUB_NODE_SCOPE     0x40
+#define TIPC_SUB_NO_STATUS      0x80
 
 /**
  * struct tipc_server - TIPC server structure
@@ -71,9 +74,9 @@ struct tipc_server {
 	int max_rcvbuf_size;
 	void *(*tipc_conn_new)(int conid);
 	void (*tipc_conn_release)(int conid, void *usr_data);
-	void (*tipc_conn_recvmsg)(struct net *net, int conid,
-				  struct sockaddr_tipc *addr, void *usr_data,
-				  void *buf, size_t len);
+	int (*tipc_conn_recvmsg)(struct net *net, int conid,
+				 struct sockaddr_tipc *addr, void *usr_data,
+				 void *buf, size_t len);
 	struct sockaddr_tipc *saddr;
 	char name[TIPC_SERVER_NAME_LEN];
 	int imp;
@@ -83,8 +86,8 @@ struct tipc_server {
 int tipc_conn_sendmsg(struct tipc_server *s, int conid,
 		      struct sockaddr_tipc *addr, void *data, size_t len);
 
-bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type,
-			     u32 lower, u32 upper, int *conid);
+bool tipc_topsrv_kern_subscr(struct net *net, u32 port, u32 type, u32 lower,
+			     u32 upper, u32 filter, int *conid);
 void tipc_topsrv_kern_unsubscr(struct net *net, int conid);
 
 /**

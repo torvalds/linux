@@ -223,37 +223,37 @@ lac-portals {
 		reg = <0x9000 0x1000>;
 	};
 
-	lportal10: lac-portal@A000 {
+	lportal10: lac-portal@a000 {
 		compatible = "fsl,interlaken-lac-portal-v1.0";
 		fsl,liodn = <0x20E>;
 		reg = <0xA000 0x1000>;
 	};
 
-	lportal11: lac-portal@B000 {
+	lportal11: lac-portal@b000 {
 		compatible = "fsl,interlaken-lac-portal-v1.0";
 		fsl,liodn = <0x20F>;
 		reg = <0xB000 0x1000>;
 	};
 
-	lportal12: lac-portal@C000 {
+	lportal12: lac-portal@c000 {
 		compatible = "fsl,interlaken-lac-portal-v1.0";
 		fsl,liodn = <0x210>;
 		reg = <0xC000 0x1000>;
 	};
 
-	lportal13: lac-portal@D000 {
+	lportal13: lac-portal@d000 {
 		compatible = "fsl,interlaken-lac-portal-v1.0";
 		fsl,liodn = <0x211>;
 		reg = <0xD000 0x1000>;
 	};
 
-	lportal14: lac-portal@E000 {
+	lportal14: lac-portal@e000 {
 		compatible = "fsl,interlaken-lac-portal-v1.0";
 		fsl,liodn = <0x212>;
 		reg = <0xE000 0x1000>;
 	};
 
-	lportal15: lac-portal@F000 {
+	lportal15: lac-portal@f000 {
 		compatible = "fsl,interlaken-lac-portal-v1.0";
 		fsl,liodn = <0x213>;
 		reg = <0xF000 0x1000>;

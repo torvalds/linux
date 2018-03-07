@@ -230,25 +230,42 @@ static int orangefs_inode_type(enum orangefs_ds_type objtype)
 		return -1;
 }
 
-static int orangefs_inode_is_stale(struct inode *inode, int new,
+static void orangefs_make_bad_inode(struct inode *inode)
+{
+	if (is_root_handle(inode)) {
+		/*
+		 * if this occurs, the pvfs2-client-core was killed but we
+		 * can't afford to lose the inode operations and such
+		 * associated with the root handle in any case.
+		 */
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "*** NOT making bad root inode %pU\n",
+			     get_khandle_from_ino(inode));
+	} else {
+		gossip_debug(GOSSIP_UTILS_DEBUG,
+			     "*** making bad inode %pU\n",
+			     get_khandle_from_ino(inode));
+		make_bad_inode(inode);
+	}
+}
+
+static int orangefs_inode_is_stale(struct inode *inode,
     struct ORANGEFS_sys_attr_s *attrs, char *link_target)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	int type = orangefs_inode_type(attrs->objtype);
-	if (!new) {
-		/*
-		 * If the inode type or symlink target have changed then this
-		 * inode is stale.
-		 */
-		if (type == -1 || !(inode->i_mode & type)) {
-			orangefs_make_bad_inode(inode);
-			return 1;
-		}
-		if (type == S_IFLNK && strncmp(orangefs_inode->link_target,
-		    link_target, ORANGEFS_NAME_MAX)) {
-			orangefs_make_bad_inode(inode);
-			return 1;
-		}
+	/*
+	 * If the inode type or symlink target have changed then this
+	 * inode is stale.
+	 */
+	if (type == -1 || !(inode->i_mode & type)) {
+		orangefs_make_bad_inode(inode);
+		return 1;
+	}
+	if (type == S_IFLNK && strncmp(orangefs_inode->link_target,
+	    link_target, ORANGEFS_NAME_MAX)) {
+		orangefs_make_bad_inode(inode);
+		return 1;
 	}
 	return 0;
 }
@@ -294,16 +311,18 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 	if (ret != 0)
 		goto out;
 
-	type = orangefs_inode_type(new_op->
-	    downcall.resp.getattr.attributes.objtype);
-	ret = orangefs_inode_is_stale(inode, new,
-	    &new_op->downcall.resp.getattr.attributes,
-	    new_op->downcall.resp.getattr.link_target);
-	if (ret) {
-		ret = -ESTALE;
-		goto out;
+	if (!new) {
+		ret = orangefs_inode_is_stale(inode,
+		    &new_op->downcall.resp.getattr.attributes,
+		    new_op->downcall.resp.getattr.link_target);
+		if (ret) {
+			ret = -ESTALE;
+			goto out;
+		}
 	}
 
+	type = orangefs_inode_type(new_op->
+	    downcall.resp.getattr.attributes.objtype);
 	switch (type) {
 	case S_IFREG:
 		inode->i_flags = orangefs_inode_flags(&new_op->
@@ -348,6 +367,12 @@ int orangefs_inode_getattr(struct inode *inode, int new, int bypass,
 			inode->i_link = orangefs_inode->link_target;
 		}
 		break;
+	/* i.e. -1 */
+	default:
+		/* XXX: ESTALE?  This is what is done if it is not new. */
+		orangefs_make_bad_inode(inode);
+		ret = -ESTALE;
+		goto out;
 	}
 
 	inode->i_uid = make_kuid(&init_user_ns, new_op->
@@ -401,7 +426,7 @@ int orangefs_inode_check_changed(struct inode *inode)
 	if (ret != 0)
 		goto out;
 
-	ret = orangefs_inode_is_stale(inode, 0,
+	ret = orangefs_inode_is_stale(inode,
 	    &new_op->downcall.resp.getattr.attributes,
 	    new_op->downcall.resp.getattr.link_target);
 out:
@@ -442,25 +467,6 @@ int orangefs_inode_setattr(struct inode *inode, struct iattr *iattr)
 		orangefs_inode->getattr_time = jiffies - 1;
 
 	return ret;
-}
-
-void orangefs_make_bad_inode(struct inode *inode)
-{
-	if (is_root_handle(inode)) {
-		/*
-		 * if this occurs, the pvfs2-client-core was killed but we
-		 * can't afford to lose the inode operations and such
-		 * associated with the root handle in any case.
-		 */
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** NOT making bad root inode %pU\n",
-			     get_khandle_from_ino(inode));
-	} else {
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "*** making bad inode %pU\n",
-			     get_khandle_from_ino(inode));
-		make_bad_inode(inode);
-	}
 }
 
 /*
@@ -537,6 +543,7 @@ int orangefs_normalize_to_errno(__s32 error_code)
 	 */
 	} else {
 		gossip_err("orangefs: orangefs_normalize_to_errno: got error code which is not from ORANGEFS.\n");
+		error_code = -EINVAL;
 	}
 	return error_code;
 }

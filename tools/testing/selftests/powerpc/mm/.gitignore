@@ -2,3 +2,4 @@ hugetlb_vs_thp_test
 subpage_prot
 tempfile
 prot_sao
+segv_errors

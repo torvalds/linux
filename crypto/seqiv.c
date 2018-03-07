@@ -144,17 +144,12 @@ static int seqiv_aead_decrypt(struct aead_request *req)
 static int seqiv_aead_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
 	struct aead_instance *inst;
-	struct crypto_aead_spawn *spawn;
-	struct aead_alg *alg;
 	int err;
 
 	inst = aead_geniv_alloc(tmpl, tb, 0, 0);
 
 	if (IS_ERR(inst))
 		return PTR_ERR(inst);
-
-	spawn = aead_instance_ctx(inst);
-	alg = crypto_spawn_aead_alg(spawn);
 
 	err = -EINVAL;
 	if (inst->alg.ivsize != sizeof(u64))

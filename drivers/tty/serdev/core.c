@@ -19,6 +19,38 @@
 static bool is_registered;
 static DEFINE_IDA(ctrl_ida);
 
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	int len;
+
+	len = acpi_device_modalias(dev, buf, PAGE_SIZE - 1);
+	if (len != -ENODEV)
+		return len;
+
+	return of_device_modalias(dev, buf, PAGE_SIZE);
+}
+static DEVICE_ATTR_RO(modalias);
+
+static struct attribute *serdev_device_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(serdev_device);
+
+static int serdev_device_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	int rc;
+
+	/* TODO: platform modalias */
+
+	rc = acpi_device_uevent_modalias(dev, env);
+	if (rc != -ENODEV)
+		return rc;
+
+	return of_device_uevent_modalias(dev, env);
+}
+
 static void serdev_device_release(struct device *dev)
 {
 	struct serdev_device *serdev = to_serdev_device(dev);
@@ -26,8 +58,15 @@ static void serdev_device_release(struct device *dev)
 }
 
 static const struct device_type serdev_device_type = {
+	.groups		= serdev_device_groups,
+	.uevent		= serdev_device_uevent,
 	.release	= serdev_device_release,
 };
+
+static bool is_serdev_device(const struct device *dev)
+{
+	return dev->type == &serdev_device_type;
+}
 
 static void serdev_ctrl_release(struct device *dev)
 {
@@ -42,23 +81,14 @@ static const struct device_type serdev_ctrl_type = {
 
 static int serdev_device_match(struct device *dev, struct device_driver *drv)
 {
+	if (!is_serdev_device(dev))
+		return 0;
+
 	/* TODO: platform matching */
 	if (acpi_driver_match_device(dev, drv))
 		return 1;
 
 	return of_driver_match_device(dev, drv);
-}
-
-static int serdev_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	int rc;
-
-	/* TODO: platform modalias */
-	rc = acpi_device_uevent_modalias(dev, env);
-	if (rc != -ENODEV)
-		return rc;
-
-	return of_device_uevent_modalias(dev, env);
 }
 
 /**
@@ -131,6 +161,33 @@ void serdev_device_close(struct serdev_device *serdev)
 	ctrl->ops->close(ctrl);
 }
 EXPORT_SYMBOL_GPL(serdev_device_close);
+
+static void devm_serdev_device_release(struct device *dev, void *dr)
+{
+	serdev_device_close(*(struct serdev_device **)dr);
+}
+
+int devm_serdev_device_open(struct device *dev, struct serdev_device *serdev)
+{
+	struct serdev_device **dr;
+	int ret;
+
+	dr = devres_alloc(devm_serdev_device_release, sizeof(*dr), GFP_KERNEL);
+	if (!dr)
+		return -ENOMEM;
+
+	ret = serdev_device_open(serdev);
+	if (ret) {
+		devres_free(dr);
+		return ret;
+	}
+
+	*dr = serdev;
+	devres_add(dev, dr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_serdev_device_open);
 
 void serdev_device_write_wakeup(struct serdev_device *serdev)
 {
@@ -225,6 +282,18 @@ void serdev_device_set_flow_control(struct serdev_device *serdev, bool enable)
 }
 EXPORT_SYMBOL_GPL(serdev_device_set_flow_control);
 
+int serdev_device_set_parity(struct serdev_device *serdev,
+			     enum serdev_parity parity)
+{
+	struct serdev_controller *ctrl = serdev->ctrl;
+
+	if (!ctrl || !ctrl->ops->set_parity)
+		return -ENOTSUPP;
+
+	return ctrl->ops->set_parity(ctrl, parity);
+}
+EXPORT_SYMBOL_GPL(serdev_device_set_parity);
+
 void serdev_device_wait_until_sent(struct serdev_device *serdev, long timeout)
 {
 	struct serdev_controller *ctrl = serdev->ctrl;
@@ -268,37 +337,16 @@ static int serdev_drv_probe(struct device *dev)
 static int serdev_drv_remove(struct device *dev)
 {
 	const struct serdev_device_driver *sdrv = to_serdev_device_driver(dev->driver);
-
-	sdrv->remove(to_serdev_device(dev));
+	if (sdrv->remove)
+		sdrv->remove(to_serdev_device(dev));
 	return 0;
 }
-
-static ssize_t modalias_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	int len;
-
-	len = acpi_device_modalias(dev, buf, PAGE_SIZE - 1);
-	if (len != -ENODEV)
-		return len;
-
-	return of_device_modalias(dev, buf, PAGE_SIZE);
-}
-DEVICE_ATTR_RO(modalias);
-
-static struct attribute *serdev_device_attrs[] = {
-	&dev_attr_modalias.attr,
-	NULL,
-};
-ATTRIBUTE_GROUPS(serdev_device);
 
 static struct bus_type serdev_bus_type = {
 	.name		= "serial",
 	.match		= serdev_device_match,
 	.probe		= serdev_drv_probe,
 	.remove		= serdev_drv_remove,
-	.uevent		= serdev_uevent,
-	.dev_groups	= serdev_device_groups,
 };
 
 /**

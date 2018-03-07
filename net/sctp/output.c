@@ -313,6 +313,7 @@ static enum sctp_xmit __sctp_packet_append_chunk(struct sctp_packet *packet,
 	/* We believe that this chunk is OK to add to the packet */
 	switch (chunk->chunk_hdr->type) {
 	case SCTP_CID_DATA:
+	case SCTP_CID_I_DATA:
 		/* Account for the data being in the packet */
 		sctp_packet_append_data(packet, chunk);
 		/* Disallow SACK bundling after DATA. */
@@ -724,7 +725,7 @@ static enum sctp_xmit sctp_packet_can_append_data(struct sctp_packet *packet,
 	 * or delay in hopes of bundling a full sized packet.
 	 */
 	if (chunk->skb->len + q->out_qlen > transport->pathmtu -
-		packet->overhead - sizeof(struct sctp_data_chunk) - 4)
+	    packet->overhead - sctp_datachk_len(&chunk->asoc->stream) - 4)
 		/* Enough data queued to fill a packet */
 		return SCTP_XMIT_OK;
 
@@ -759,7 +760,7 @@ static void sctp_packet_append_data(struct sctp_packet *packet,
 
 	asoc->peer.rwnd = rwnd;
 	sctp_chunk_assign_tsn(chunk);
-	sctp_chunk_assign_ssn(chunk);
+	asoc->stream.si->assign_number(chunk);
 }
 
 static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,

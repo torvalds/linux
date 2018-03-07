@@ -26,11 +26,12 @@
 extern int gspca_debug;
 
 
-#define PDEBUG(level, fmt, ...) \
-	v4l2_dbg(level, gspca_debug, &gspca_dev->v4l2_dev, fmt, ##__VA_ARGS__)
+#define gspca_dbg(gspca_dev, level, fmt, ...)			\
+	v4l2_dbg(level, gspca_debug, &(gspca_dev)->v4l2_dev,	\
+		 fmt, ##__VA_ARGS__)
 
-#define PERR(fmt, ...) \
-	v4l2_err(&gspca_dev->v4l2_dev, fmt, ##__VA_ARGS__)
+#define gspca_err(gspca_dev, fmt, ...)				\
+	v4l2_err(&(gspca_dev)->v4l2_dev, fmt, ##__VA_ARGS__)
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
 /* image transfers */

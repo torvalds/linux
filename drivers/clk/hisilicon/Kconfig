@@ -49,3 +49,9 @@ config STUB_CLK_HI6220
 	default ARCH_HISI
 	help
 	  Build the Hisilicon Hi6220 stub clock driver.
+
+config STUB_CLK_HI3660
+	bool "Hi3660 Stub Clock Driver"
+	depends on COMMON_CLK_HI3660 && MAILBOX
+	help
+	  Build the Hisilicon Hi3660 stub clock driver.

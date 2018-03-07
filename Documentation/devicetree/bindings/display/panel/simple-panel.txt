@@ -1,7 +1,7 @@
 Simple display panel
 
 Required properties:
-- power-supply: regulator to provide the supply voltage
+- power-supply: See panel-common.txt
 
 Optional properties:
 - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing

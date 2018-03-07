@@ -479,9 +479,6 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		if (is_out)
 			allowed |= URB_ZERO_PACKET;
 		/* FALLTHROUGH */
-	case USB_ENDPOINT_XFER_CONTROL:
-		allowed |= URB_NO_FSBR;	/* only affects UHCI */
-		/* FALLTHROUGH */
 	default:			/* all non-iso endpoints */
 		if (!is_out)
 			allowed |= URB_SHORT_NOT_OK;

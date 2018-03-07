@@ -148,6 +148,8 @@ enum pd_pdo_type {
 	(PDO_TYPE(PDO_TYPE_FIXED) | (flags) |		\
 	 PDO_FIXED_VOLT(mv) | PDO_FIXED_CURR(ma))
 
+#define VSAFE5V 5000 /* mv units */
+
 #define PDO_BATT_MAX_VOLT_SHIFT	20	/* 50mV units */
 #define PDO_BATT_MIN_VOLT_SHIFT	10	/* 50mV units */
 #define PDO_BATT_MAX_PWR_SHIFT	0	/* 250mW units */

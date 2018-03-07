@@ -15,8 +15,10 @@
 #define PFN_SG_LAST (1ULL << (BITS_PER_LONG_LONG - 2))
 #define PFN_DEV (1ULL << (BITS_PER_LONG_LONG - 3))
 #define PFN_MAP (1ULL << (BITS_PER_LONG_LONG - 4))
+#define PFN_SPECIAL (1ULL << (BITS_PER_LONG_LONG - 5))
 
 #define PFN_FLAGS_TRACE \
+	{ PFN_SPECIAL,	"SPECIAL" }, \
 	{ PFN_SG_CHAIN,	"SG_CHAIN" }, \
 	{ PFN_SG_LAST,	"SG_LAST" }, \
 	{ PFN_DEV,	"DEV" }, \
@@ -120,4 +122,15 @@ pud_t pud_mkdevmap(pud_t pud);
 #endif
 #endif /* __HAVE_ARCH_PTE_DEVMAP */
 
+#ifdef __HAVE_ARCH_PTE_SPECIAL
+static inline bool pfn_t_special(pfn_t pfn)
+{
+	return (pfn.val & PFN_SPECIAL) == PFN_SPECIAL;
+}
+#else
+static inline bool pfn_t_special(pfn_t pfn)
+{
+	return false;
+}
+#endif /* __HAVE_ARCH_PTE_SPECIAL */
 #endif /* _LINUX_PFN_T_H_ */

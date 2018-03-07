@@ -381,10 +381,8 @@ static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 		(rev_id == 0xc1) ||
 		(rev_id == 0xc3)))) {
 		if (smc_driver_if_version != SMU9_DRIVER_IF_VERSION) {
-			pr_err("Your firmware(0x%x) doesn't match \
-				SMU9_DRIVER_IF_VERSION(0x%x). \
-				Please update your firmware!\n",
-				smc_driver_if_version, SMU9_DRIVER_IF_VERSION);
+			pr_err("Your firmware(0x%x) doesn't match SMU9_DRIVER_IF_VERSION(0x%x). Please update your firmware!\n",
+			       smc_driver_if_version, SMU9_DRIVER_IF_VERSION);
 			return -EINVAL;
 		}
 	}

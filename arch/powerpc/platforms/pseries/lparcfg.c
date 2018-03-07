@@ -370,10 +370,10 @@ static void parse_system_parameter_string(struct seq_file *m)
  */
 static int lparcfg_count_active_processors(void)
 {
-	struct device_node *cpus_dn = NULL;
+	struct device_node *cpus_dn;
 	int count = 0;
 
-	while ((cpus_dn = of_find_node_by_type(cpus_dn, "cpu"))) {
+	for_each_node_by_type(cpus_dn, "cpu") {
 #ifdef LPARCFG_DEBUG
 		printk(KERN_ERR "cpus_dn %p\n", cpus_dn);
 #endif
@@ -697,11 +697,11 @@ static const struct file_operations lparcfg_fops = {
 
 static int __init lparcfg_init(void)
 {
-	umode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
+	umode_t mode = 0444;
 
 	/* Allow writing if we have FW_FEATURE_SPLPAR */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
-		mode |= S_IWUSR;
+		mode |= 0200;
 
 	if (!proc_create("powerpc/lparcfg", mode, NULL, &lparcfg_fops)) {
 		printk(KERN_ERR "Failed to create powerpc/lparcfg\n");

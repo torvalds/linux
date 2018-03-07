@@ -45,7 +45,7 @@ void signalfd_cleanup(struct sighand_struct *sighand)
 		return;
 
 	/* wait_queue_entry_t->func(POLLFREE) should do remove_wait_queue() */
-	wake_up_poll(wqh, POLLHUP | POLLFREE);
+	wake_up_poll(wqh, EPOLLHUP | POLLFREE);
 }
 
 struct signalfd_ctx {
@@ -58,10 +58,10 @@ static int signalfd_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int signalfd_poll(struct file *file, poll_table *wait)
+static __poll_t signalfd_poll(struct file *file, poll_table *wait)
 {
 	struct signalfd_ctx *ctx = file->private_data;
-	unsigned int events = 0;
+	__poll_t events = 0;
 
 	poll_wait(file, &current->sighand->signalfd_wqh, wait);
 
@@ -69,7 +69,7 @@ static unsigned int signalfd_poll(struct file *file, poll_table *wait)
 	if (next_signal(&current->pending, &ctx->sigmask) ||
 	    next_signal(&current->signal->shared_pending,
 			&ctx->sigmask))
-		events |= POLLIN;
+		events |= EPOLLIN;
 	spin_unlock_irq(&current->sighand->siglock);
 
 	return events;
@@ -118,13 +118,22 @@ static int signalfd_copyinfo(struct signalfd_siginfo __user *uinfo,
 		err |= __put_user(kinfo->si_trapno, &uinfo->ssi_trapno);
 #endif
 #ifdef BUS_MCEERR_AO
-		/* 
+		/*
 		 * Other callers might not initialize the si_lsb field,
 		 * so check explicitly for the right codes here.
 		 */
 		if (kinfo->si_signo == SIGBUS &&
-		    (kinfo->si_code == BUS_MCEERR_AR ||
-		     kinfo->si_code == BUS_MCEERR_AO))
+		     kinfo->si_code == BUS_MCEERR_AO)
+			err |= __put_user((short) kinfo->si_addr_lsb,
+					  &uinfo->ssi_addr_lsb);
+#endif
+#ifdef BUS_MCEERR_AR
+		/*
+		 * Other callers might not initialize the si_lsb field,
+		 * so check explicitly for the right codes here.
+		 */
+		if (kinfo->si_signo == SIGBUS &&
+		    kinfo->si_code == BUS_MCEERR_AR)
 			err |= __put_user((short) kinfo->si_addr_lsb,
 					  &uinfo->ssi_addr_lsb);
 #endif

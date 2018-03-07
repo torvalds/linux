@@ -166,6 +166,6 @@ static inline int cpm_command(u32 command, u8 opcode)
 }
 #endif /* CONFIG_CPM */
 
-int cpm2_gpiochip_add32(struct device_node *np);
+int cpm2_gpiochip_add32(struct device *dev);
 
 #endif

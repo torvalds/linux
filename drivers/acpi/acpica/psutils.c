@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,9 +94,11 @@ void acpi_ps_init_op(union acpi_parse_object *op, u16 opcode)
 	op->common.descriptor_type = ACPI_DESC_TYPE_PARSER;
 	op->common.aml_opcode = opcode;
 
-	ACPI_DISASM_ONLY_MEMBERS(strncpy(op->common.aml_op_name,
-					 (acpi_ps_get_opcode_info(opcode))->
-					 name, sizeof(op->common.aml_op_name)));
+	ACPI_DISASM_ONLY_MEMBERS(acpi_ut_safe_strncpy(op->common.aml_op_name,
+						      (acpi_ps_get_opcode_info
+						       (opcode))->name,
+						      sizeof(op->common.
+							     aml_op_name)));
 }
 
 /*******************************************************************************
@@ -158,10 +160,10 @@ union acpi_parse_object *acpi_ps_alloc_op(u16 opcode, u8 *aml)
 		if (opcode == AML_SCOPE_OP) {
 			acpi_gbl_current_scope = op;
 		}
-	}
 
-	if (gbl_capture_comments) {
-		ASL_CV_TRANSFER_COMMENTS(op);
+		if (acpi_gbl_capture_comments) {
+			ASL_CV_TRANSFER_COMMENTS(op);
+		}
 	}
 
 	return (op);
