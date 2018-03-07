@@ -16,8 +16,8 @@
 #include "ade7854.h"
 
 static int ade7854_spi_write_reg_8(struct device *dev,
-		u16 reg_address,
-		u8 val)
+				   u16 reg_address,
+				   u8 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -41,8 +41,8 @@ static int ade7854_spi_write_reg_8(struct device *dev,
 }
 
 static int ade7854_spi_write_reg_16(struct device *dev,
-		u16 reg_address,
-		u16 val)
+				    u16 reg_address,
+				    u16 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -67,8 +67,8 @@ static int ade7854_spi_write_reg_16(struct device *dev,
 }
 
 static int ade7854_spi_write_reg_24(struct device *dev,
-		u16 reg_address,
-		u32 val)
+				    u16 reg_address,
+				    u32 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -94,8 +94,8 @@ static int ade7854_spi_write_reg_24(struct device *dev,
 }
 
 static int ade7854_spi_write_reg_32(struct device *dev,
-		u16 reg_address,
-		u32 val)
+				    u16 reg_address,
+				    u32 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -122,8 +122,8 @@ static int ade7854_spi_write_reg_32(struct device *dev,
 }
 
 static int ade7854_spi_read_reg_8(struct device *dev,
-		u16 reg_address,
-		u8 *val)
+				  u16 reg_address,
+				  u8 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
@@ -149,7 +149,7 @@ static int ade7854_spi_read_reg_8(struct device *dev,
 	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->spi->dev, "problem when reading 8 bit register 0x%02X",
-				reg_address);
+			reg_address);
 		goto error_ret;
 	}
 	*val = st->rx[0];
@@ -160,8 +160,8 @@ error_ret:
 }
 
 static int ade7854_spi_read_reg_16(struct device *dev,
-		u16 reg_address,
-		u16 *val)
+				   u16 reg_address,
+				   u16 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
@@ -186,7 +186,7 @@ static int ade7854_spi_read_reg_16(struct device *dev,
 	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->spi->dev, "problem when reading 16 bit register 0x%02X",
-				reg_address);
+			reg_address);
 		goto error_ret;
 	}
 	*val = be16_to_cpup((const __be16 *)st->rx);
@@ -197,8 +197,8 @@ error_ret:
 }
 
 static int ade7854_spi_read_reg_24(struct device *dev,
-		u16 reg_address,
-		u32 *val)
+				   u16 reg_address,
+				   u32 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
@@ -224,7 +224,7 @@ static int ade7854_spi_read_reg_24(struct device *dev,
 	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->spi->dev, "problem when reading 24 bit register 0x%02X",
-				reg_address);
+			reg_address);
 		goto error_ret;
 	}
 	*val = (st->rx[0] << 16) | (st->rx[1] << 8) | st->rx[2];
@@ -235,8 +235,8 @@ error_ret:
 }
 
 static int ade7854_spi_read_reg_32(struct device *dev,
-		u16 reg_address,
-		u32 *val)
+				   u16 reg_address,
+				   u32 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
@@ -262,7 +262,7 @@ static int ade7854_spi_read_reg_32(struct device *dev,
 	ret = spi_sync_transfer(st->spi, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->spi->dev, "problem when reading 32 bit register 0x%02X",
-				reg_address);
+			reg_address);
 		goto error_ret;
 	}
 	*val = be32_to_cpup((const __be32 *)st->rx);

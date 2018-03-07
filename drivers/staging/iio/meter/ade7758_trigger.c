@@ -30,7 +30,7 @@ static irqreturn_t ade7758_data_rdy_trig_poll(int irq, void *private)
  * ade7758_data_rdy_trigger_set_state() set datardy interrupt state
  **/
 static int ade7758_data_rdy_trigger_set_state(struct iio_trigger *trig,
-						bool state)
+					      bool state)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 
@@ -63,8 +63,8 @@ int ade7758_probe_trigger(struct iio_dev *indio_dev)
 	int ret;
 
 	st->trig = iio_trigger_alloc("%s-dev%d",
-					spi_get_device_id(st->us)->name,
-					indio_dev->id);
+				     spi_get_device_id(st->us)->name,
+				     indio_dev->id);
 	if (!st->trig) {
 		ret = -ENOMEM;
 		goto error_ret;
