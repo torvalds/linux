@@ -969,6 +969,7 @@
 			ddc = <&hsi2c_11>;
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			samsung,sysreg-phandle = <&syscon_disp>;
+			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 
@@ -1311,6 +1312,25 @@
 			status = "disabled";
 		};
 
+		i2s1: i2s@14d60000 {
+			compatible = "samsung,exynos7-i2s";
+			reg = <0x14d60000 0x100>;
+			dmas = <&pdma0 31 &pdma0 30>;
+			dma-names = "tx", "rx";
+			interrupts = <GIC_SPI 435 IRQ_TYPE_NONE>;
+			clocks = <&cmu_peric CLK_PCLK_I2S1>,
+				 <&cmu_peric CLK_PCLK_I2S1>,
+				 <&cmu_peric CLK_SCLK_I2S1>;
+			clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+			#clock-cells = <1>;
+			samsung,supports-6ch;
+			samsung,supports-rstclr;
+			samsung,supports-tdm;
+			samsung,supports-low-rfs;
+			#sound-dai-cells = <1>;
+			status = "disabled";
+		};
+
 		pwm: pwm@14dd0000 {
 			compatible = "samsung,exynos4210-pwm";
 			reg = <0x14dd0000 0x100>;
@@ -1639,7 +1659,7 @@
 				power-domains = <&pd_aud>;
 			};
 
-			i2s0: i2s0@11440000 {
+			i2s0: i2s@11440000 {
 				compatible = "samsung,exynos7-i2s";
 				reg = <0x11440000 0x100>;
 				dmas = <&adma 0 &adma 2>;
@@ -1651,9 +1671,11 @@
 					<&cmu_aud CLK_SCLK_AUD_I2S>,
 					<&cmu_aud CLK_SCLK_I2S_BCLK>;
 				clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+				#clock-cells = <1>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2s0_bus>;
 				power-domains = <&pd_aud>;
+				#sound-dai-cells = <1>;
 				status = "disabled";
 			};
 
