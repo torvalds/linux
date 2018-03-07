@@ -857,9 +857,9 @@ static void rndis_set_multicast(struct work_struct *w)
 		filter = NDIS_PACKET_TYPE_PROMISCUOUS;
 	} else {
 		if (flags & IFF_ALLMULTI)
-			flags |= NDIS_PACKET_TYPE_ALL_MULTICAST;
+			filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
 		if (flags & IFF_BROADCAST)
-			flags |= NDIS_PACKET_TYPE_BROADCAST;
+			filter |= NDIS_PACKET_TYPE_BROADCAST;
 	}
 
 	rndis_filter_set_packet_filter(rdev, filter);
