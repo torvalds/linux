@@ -910,9 +910,6 @@ static void cpia2_usb_disconnect(struct usb_interface *intf)
 		wake_up_interruptible(&cam->wq_stream);
 	}
 
-	DBG("Releasing interface\n");
-	usb_driver_release_interface(&cpia2_driver, intf);
-
 	LOG("CPiA2 camera disconnected.\n");
 }
 
