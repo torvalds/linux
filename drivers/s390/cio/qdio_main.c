@@ -761,7 +761,8 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 	if (!count)
 		goto out;
 
-	count = get_buf_states(q, q->first_to_check, &state, count, 0, 1);
+	count = get_buf_states(q, q->first_to_check, &state, count, 0,
+			       q->u.out.use_cq);
 	if (!count)
 		goto out;
 
