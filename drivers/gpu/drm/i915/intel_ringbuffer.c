@@ -1593,6 +1593,7 @@ static noinline int wait_for_space(struct intel_ring *ring, unsigned int bytes)
 	if (intel_ring_update_space(ring) >= bytes)
 		return 0;
 
+	GEM_BUG_ON(list_empty(&ring->request_list));
 	list_for_each_entry(target, &ring->request_list, ring_link) {
 		/* Would completion of this request free enough space? */
 		if (bytes <= __intel_ring_space(target->postfix,

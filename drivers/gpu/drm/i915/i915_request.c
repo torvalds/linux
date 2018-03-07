@@ -358,7 +358,7 @@ static void advance_ring(struct i915_request *request)
 		 * is just about to be. Either works, if we miss the last two
 		 * noops - they are safe to be replayed on a reset.
 		 */
-		tail = READ_ONCE(request->ring->tail);
+		tail = READ_ONCE(request->tail);
 	} else {
 		tail = request->postfix;
 	}
