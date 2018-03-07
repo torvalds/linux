@@ -45,6 +45,8 @@
 #define RK3399_PVTM_GPU		3
 #define RK3399_PVTM_PMU		4
 
+#define PVTM_START_EN		0x1
+
 #define wr_mask_bit(v, off, mask)	((v) << (off) | (mask) << (16 + off))
 
 #define PVTM(_ch, _name, _num_sub, _start, _en, _cal, _done, _freq)	\
@@ -284,6 +286,12 @@ static u32 rockchip_pvtm_get_value(struct rockchip_pvtm *pvtm,
 			return 0;
 		}
 	}
+
+	/* if last status is enabled, stop calculating cycles first*/
+	regmap_read(pvtm->grf, pvtm->con, &sta);
+	if (sta & PVTM_START_EN)
+		regmap_write(pvtm->grf, pvtm->con,
+			     wr_mask_bit(0, channel->bit_start, 0x1));
 
 	regmap_write(pvtm->grf, pvtm->con,
 		     wr_mask_bit(0x1, channel->bit_en, 0x1));
