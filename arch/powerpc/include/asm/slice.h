@@ -28,15 +28,13 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 
 unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr);
 
-void slice_set_user_psize(struct mm_struct *mm, unsigned int psize);
 void slice_set_range_psize(struct mm_struct *mm, unsigned long start,
 			   unsigned long len, unsigned int psize);
+
+void slice_init_new_context_exec(struct mm_struct *mm);
+
 #endif /* __ASSEMBLY__ */
 
-#else /* CONFIG_PPC_MM_SLICES */
-
-#define slice_set_range_psize(mm, start, len, psize)	\
-	slice_set_user_psize((mm), (psize))
 #endif /* CONFIG_PPC_MM_SLICES */
 
 #endif /* _ASM_POWERPC_SLICE_H */

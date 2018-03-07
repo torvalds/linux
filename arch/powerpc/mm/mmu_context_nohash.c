@@ -332,9 +332,6 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
 	pr_hard("initing context for mm @%p\n", mm);
 
 #ifdef	CONFIG_PPC_MM_SLICES
-	if (!mm->context.slb_addr_limit)
-		mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW;
-
 	/*
 	 * We have MMU_NO_CONTEXT set to be ~0. Hence check
 	 * explicitly against context.id == 0. This ensures that we properly
@@ -343,7 +340,7 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
 	 * will have id != 0).
 	 */
 	if (mm->context.id == 0)
-		slice_set_user_psize(mm, mmu_virtual_psize);
+		slice_init_new_context_exec(mm);
 #endif
 	mm->context.id = MMU_NO_CONTEXT;
 	mm->context.active = 0;

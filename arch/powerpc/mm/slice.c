@@ -671,70 +671,34 @@ unsigned int get_slice_psize(struct mm_struct *mm, unsigned long addr)
 }
 EXPORT_SYMBOL_GPL(get_slice_psize);
 
-/*
- * This is called by hash_page when it needs to do a lazy conversion of
- * an address space from real 64K pages to combo 4K pages (typically
- * when hitting a non cacheable mapping on a processor or hypervisor
- * that won't allow them for 64K pages).
- *
- * This is also called in init_new_context() to change back the user
- * psize from whatever the parent context had it set to
- * N.B. This may be called before mm->context.id has been set.
- *
- * This function will only change the content of the {low,high)_slice_psize
- * masks, it will not flush SLBs as this shall be handled lazily by the
- * caller.
- */
-void slice_set_user_psize(struct mm_struct *mm, unsigned int psize)
+void slice_init_new_context_exec(struct mm_struct *mm)
 {
-	int index, mask_index;
 	unsigned char *hpsizes, *lpsizes;
-	unsigned long flags;
-	unsigned int old_psize;
-	int i;
+	unsigned int psize = mmu_virtual_psize;
 
-	slice_dbg("slice_set_user_psize(mm=%p, psize=%d)\n", mm, psize);
+	slice_dbg("slice_init_new_context_exec(mm=%p)\n", mm);
 
-	VM_BUG_ON(radix_enabled());
-	spin_lock_irqsave(&slice_convert_lock, flags);
-
-	old_psize = mm->context.user_psize;
-	slice_dbg(" old_psize=%d\n", old_psize);
-	if (old_psize == psize)
-		goto bail;
+	/*
+	 * In the case of exec, use the default limit. In the
+	 * case of fork it is just inherited from the mm being
+	 * duplicated.
+	 */
+#ifdef CONFIG_PPC64
+	mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
+#else
+	mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW;
+#endif
 
 	mm->context.user_psize = psize;
-	wmb();
 
+	/*
+	 * Set all slice psizes to the default.
+	 */
 	lpsizes = mm->context.low_slices_psize;
-	for (i = 0; i < SLICE_NUM_LOW; i++) {
-		mask_index = i & 0x1;
-		index = i >> 1;
-		if (((lpsizes[index] >> (mask_index * 4)) & 0xf) == old_psize)
-			lpsizes[index] = (lpsizes[index] &
-					  ~(0xf << (mask_index * 4))) |
-				(((unsigned long)psize) << (mask_index * 4));
-	}
+	memset(lpsizes, (psize << 4) | psize, SLICE_NUM_LOW >> 1);
 
 	hpsizes = mm->context.high_slices_psize;
-	for (i = 0; i < SLICE_NUM_HIGH; i++) {
-		mask_index = i & 0x1;
-		index = i >> 1;
-		if (((hpsizes[index] >> (mask_index * 4)) & 0xf) == old_psize)
-			hpsizes[index] = (hpsizes[index] &
-					  ~(0xf << (mask_index * 4))) |
-				(((unsigned long)psize) << (mask_index * 4));
-	}
-
-
-
-
-	slice_dbg(" lsps=%lx, hsps=%lx\n",
-		  (unsigned long)mm->context.low_slices_psize,
-		  (unsigned long)mm->context.high_slices_psize);
-
- bail:
-	spin_unlock_irqrestore(&slice_convert_lock, flags);
+	memset(hpsizes, (psize << 4) | psize, SLICE_NUM_HIGH >> 1);
 }
 
 void slice_set_range_psize(struct mm_struct *mm, unsigned long start,

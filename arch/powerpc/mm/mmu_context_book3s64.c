@@ -94,13 +94,6 @@ static int hash__init_new_context(struct mm_struct *mm)
 		return index;
 
 	/*
-	 * In the case of exec, use the default limit,
-	 * otherwise inherit it from the mm we are duplicating.
-	 */
-	if (!mm->context.slb_addr_limit)
-		mm->context.slb_addr_limit = DEFAULT_MAP_WINDOW_USER64;
-
-	/*
 	 * The old code would re-promote on fork, we don't do that when using
 	 * slices as it could cause problem promoting slices that have been
 	 * forced down to 4K.
@@ -115,7 +108,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 	 * check against 0 is OK.
 	 */
 	if (mm->context.id == 0)
-		slice_set_user_psize(mm, mmu_virtual_psize);
+		slice_init_new_context_exec(mm);
 
 	subpage_prot_init_new_context(mm);
 
