@@ -771,6 +771,7 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 	u8 valuesize = 0;
 	u8 *hdn_ntwk_wid_val = NULL;
 	struct host_if_drv *hif_drv = vif->hif_drv;
+	struct hidden_network *hidden_net = &scan_info->hidden_network;
 
 	hif_drv->usr_scan_req.scan_result = scan_info->result;
 	hif_drv->usr_scan_req.arg = scan_info->arg;
@@ -793,19 +794,20 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 	wid_list[index].id = (u16)WID_SSID_PROBE_REQ;
 	wid_list[index].type = WID_STR;
 
-	for (i = 0; i < scan_info->hidden_network.n_ssids; i++)
-		valuesize += ((scan_info->hidden_network.net_info[i].ssid_len) + 1);
+	for (i = 0; i < hidden_net->n_ssids; i++)
+		valuesize += ((hidden_net->net_info[i].ssid_len) + 1);
 	hdn_ntwk_wid_val = kmalloc(valuesize + 1, GFP_KERNEL);
 	wid_list[index].val = hdn_ntwk_wid_val;
 	if (wid_list[index].val) {
 		buffer = wid_list[index].val;
 
-		*buffer++ = scan_info->hidden_network.n_ssids;
+		*buffer++ = hidden_net->n_ssids;
 
-		for (i = 0; i < scan_info->hidden_network.n_ssids; i++) {
-			*buffer++ = scan_info->hidden_network.net_info[i].ssid_len;
-			memcpy(buffer, scan_info->hidden_network.net_info[i].ssid, scan_info->hidden_network.net_info[i].ssid_len);
-			buffer += scan_info->hidden_network.net_info[i].ssid_len;
+		for (i = 0; i < hidden_net->n_ssids; i++) {
+			*buffer++ = hidden_net->net_info[i].ssid_len;
+			memcpy(buffer, hidden_net->net_info[i].ssid,
+			       hidden_net->net_info[i].ssid_len);
+			buffer += hidden_net->net_info[i].ssid_len;
 		}
 
 		wid_list[index].size = (s32)(valuesize + 1);
@@ -833,7 +835,7 @@ static s32 handle_scan(struct wilc_vif *vif, struct scan_attr *scan_info)
 
 		for (i = 0; i < scan_info->ch_list_len; i++)	{
 			if (scan_info->ch_freq_list[i] > 0)
-				scan_info->ch_freq_list[i] = scan_info->ch_freq_list[i] - 1;
+				scan_info->ch_freq_list[i] -= 1;
 		}
 	}
 
