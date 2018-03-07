@@ -107,7 +107,7 @@ static int recv_request_import(int sockfd)
 	struct usbip_usb_device pdu_udev;
 	struct list_head *i;
 	int found = 0;
-	int error = 0;
+	int status = ST_OK;
 	int rc;
 
 	memset(&req, 0, sizeof(req));
@@ -133,22 +133,21 @@ static int recv_request_import(int sockfd)
 		usbip_net_set_nodelay(sockfd);
 
 		/* export device needs a TCP/IP socket descriptor */
-		rc = usbip_export_device(edev, sockfd);
-		if (rc < 0)
-			error = 1;
+		status = usbip_export_device(edev, sockfd);
+		if (status < 0)
+			status = ST_NA;
 	} else {
 		info("requested device not found: %s", req.busid);
-		error = 1;
+		status = ST_NODEV;
 	}
 
-	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,
-				      (!error ? ST_OK : ST_NA));
+	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT, status);
 	if (rc < 0) {
 		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
 		return -1;
 	}
 
-	if (error) {
+	if (status) {
 		dbg("import request busid %s: failed", req.busid);
 		return -1;
 	}
@@ -251,8 +250,9 @@ static int recv_pdu(int connfd)
 {
 	uint16_t code = OP_UNSPEC;
 	int ret;
+	int status;
 
-	ret = usbip_net_recv_op_common(connfd, &code);
+	ret = usbip_net_recv_op_common(connfd, &code, &status);
 	if (ret < 0) {
 		dbg("could not receive opcode: %#0x", code);
 		return -1;
