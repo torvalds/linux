@@ -12235,13 +12235,6 @@ F:	include/linux/sched.h
 F:	include/uapi/linux/sched.h
 F:	include/linux/wait.h
 
-SCORE ARCHITECTURE
-M:	Chen Liqin <liqin.linux@gmail.com>
-M:	Lennox Wu <lennox.wu@gmail.com>
-W:	http://www.sunplus.com
-S:	Supported
-F:	arch/score/
-
 SCR24X CHIP CARD INTERFACE DRIVER
 M:	Lubomir Rintel <lkundrak@v3.sk>
 S:	Supported
