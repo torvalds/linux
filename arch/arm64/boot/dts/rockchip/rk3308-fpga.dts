@@ -44,3 +44,12 @@
 &cpu3 {
 	/delete-property/enable-method;
 };
+
+&emmc {
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	supports-emmc;
+	non-removable;
+	num-slots = <1>;
+	status = "okay";
+};
