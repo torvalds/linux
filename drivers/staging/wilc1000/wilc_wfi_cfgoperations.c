@@ -1804,7 +1804,8 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
-			       enum nl80211_iftype type, struct vif_params *params)
+			       enum nl80211_iftype type,
+			       struct vif_params *params)
 {
 	struct wilc_priv *priv;
 	struct wilc_vif *vif;
@@ -1828,7 +1829,8 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		vif->iftype = STATION_MODE;
 		wilc_set_operation_mode(vif, STATION_MODE);
 
-		memset(priv->assoc_stainfo.sta_associated_bss, 0, MAX_NUM_STA * ETH_ALEN);
+		memset(priv->assoc_stainfo.sta_associated_bss, 0,
+		       MAX_NUM_STA * ETH_ALEN);
 
 		wilc_enable_ps = true;
 		wilc_set_power_mgmt(vif, 1, 0);
