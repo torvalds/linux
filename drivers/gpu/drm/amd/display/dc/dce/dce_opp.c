@@ -128,8 +128,7 @@ static void set_truncation(
 		return;
 	}
 	/* on other format-to do */
-	if (params->flags.TRUNCATE_ENABLED == 0 ||
-			params->flags.TRUNCATE_DEPTH == 2)
+	if (params->flags.TRUNCATE_ENABLED == 0)
 		return;
 	/*Set truncation depth and Enable truncation*/
 	REG_UPDATE_3(FMT_BIT_DEPTH_CONTROL,
@@ -144,7 +143,7 @@ static void set_truncation(
 /**
  *	set_spatial_dither
  *	1) set spatial dithering mode: pattern of seed
- *	2) set spatical dithering depth: 0 for 18bpp or 1 for 24bpp
+ *	2) set spatial dithering depth: 0 for 18bpp or 1 for 24bpp
  *	3) set random seed
  *	4) set random mode
  *		lfsr is reset every frame or not reset
