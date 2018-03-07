@@ -13190,7 +13190,7 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	if (ret)
 		goto out_unlock;
 
-	intel_fb_obj_flush(intel_fb_obj(fb), ORIGIN_DIRTYFB);
+	intel_fb_obj_flush(intel_fb_obj(fb), ORIGIN_FLIP);
 
 	old_fb = old_plane_state->fb;
 	i915_gem_track_fb(intel_fb_obj(old_fb), intel_fb_obj(fb),
