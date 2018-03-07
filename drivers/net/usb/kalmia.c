@@ -150,12 +150,8 @@ kalmia_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->rx_urb_size = dev->hard_mtu * 10; // Found as optimal after testing
 
 	status = kalmia_init_and_get_ethernet_addr(dev, ethernet_addr);
-
-	if (status) {
-		usb_set_intfdata(intf, NULL);
-		usb_driver_release_interface(driver_of(intf), intf);
+	if (status)
 		return status;
-	}
 
 	memcpy(dev->net->dev_addr, ethernet_addr, ETH_ALEN);
 
