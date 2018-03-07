@@ -1848,8 +1848,12 @@ static void __netvsc_vf_setup(struct net_device *ndev,
 
 	/* set multicast etc flags on VF */
 	dev_change_flags(vf_netdev, ndev->flags | IFF_SLAVE);
+
+	/* sync address list from ndev to VF */
+	netif_addr_lock_bh(ndev);
 	dev_uc_sync(vf_netdev, ndev);
 	dev_mc_sync(vf_netdev, ndev);
+	netif_addr_unlock_bh(ndev);
 
 	if (netif_running(ndev)) {
 		ret = dev_open(vf_netdev);
