@@ -29,18 +29,20 @@ made public.
 Disclosure
 ----------
 
-The goal of the Linux kernel security team is to work with the
-bug submitter to bug resolution as well as disclosure.  We prefer
-to fully disclose the bug as soon as possible.  It is reasonable to
-delay disclosure when the bug or the fix is not yet fully understood,
-the solution is not well-tested or for vendor coordination.  However, we
-expect these delays to be short, measurable in days, not weeks or months.
-A disclosure date is negotiated by the security team working with the
-bug submitter as well as vendors.  However, the kernel security team
-holds the final say when setting a disclosure date.  The timeframe for
-disclosure is from immediate (esp. if it's already publicly known)
+The goal of the Linux kernel security team is to work with the bug
+submitter to understand and fix the bug.  We prefer to publish the fix as
+soon as possible, but try to avoid public discussion of the bug itself
+and leave that to others.
+
+Publishing the fix may be delayed when the bug or the fix is not yet
+fully understood, the solution is not well-tested or for vendor
+coordination.  However, we expect these delays to be short, measurable in
+days, not weeks or months.  A release date is negotiated by the security
+team working with the bug submitter as well as vendors.  However, the
+kernel security team holds the final say when setting a timeframe.  The
+timeframe varies from immediate (esp. if it's already publicly known bug)
 to a few weeks.  As a basic default policy, we expect report date to
-disclosure date to be on the order of 7 days.
+release date to be on the order of 7 days.
 
 Coordination
 ------------
