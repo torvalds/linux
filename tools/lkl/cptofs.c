@@ -560,7 +560,7 @@ int copy_one(const char *src, const char *mpoint, const char *dst)
 int main(int argc, char **argv)
 {
 	struct lkl_disk disk;
-	long ret;
+	long ret, umount_ret;
 	int i;
 	char mpoint[32];
 	unsigned int disk_id;
@@ -613,7 +613,9 @@ int main(int argc, char **argv)
 			break;
 	}
 
-	ret = lkl_umount_dev(disk_id, cla.part, 0, 1000);
+	umount_ret = lkl_umount_dev(disk_id, cla.part, 0, 1000);
+	if (ret == 0)
+		ret = umount_ret;
 
 out_close:
 	close(disk.fd);
