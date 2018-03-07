@@ -172,6 +172,19 @@
 		regulator-boot-on;
 	};
 
+	wireless-bluetooth {
+		compatible = "bluetooth-platdata";
+		clocks = <&hym8563>;
+		clock-names = "ext_clock";
+		uart_rts_gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default", "rts_gpio";
+		pinctrl-0 = <&uart11_rts>;
+		pinctrl-1 = <&uart11_rts_gpio>;
+		BT,power_gpio = <&gpio2 29 GPIO_ACTIVE_HIGH>;
+		BT,wake_host_irq = <&gpio3 26 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
@@ -466,6 +479,12 @@
 };
 
 &tve {
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart11_xfer &uart11_cts>;
 	status = "okay";
 };
 
