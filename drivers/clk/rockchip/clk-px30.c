@@ -924,6 +924,7 @@ static const char *const px30_pmucru_critical_clocks[] __initconst = {
 	"aclk_gpu_niu",
 	"pclk_top_pre",
 	"pclk_pmu_pre",
+	"hclk_usb_niu",
 };
 
 static void __iomem *px30_cru_base;
