@@ -232,22 +232,24 @@ static void slice_convert(struct mm_struct *mm, struct slice_mask mask, int psiz
 	spin_lock_irqsave(&slice_convert_lock, flags);
 
 	lpsizes = mm->context.low_slices_psize;
-	for (i = 0; i < SLICE_NUM_LOW; i++)
-		if (mask.low_slices & (1u << i)) {
-			mask_index = i & 0x1;
-			index = i >> 1;
-			lpsizes[index] = (lpsizes[index] &
-					  ~(0xf << (mask_index * 4))) |
+	for (i = 0; i < SLICE_NUM_LOW; i++) {
+		if (!(mask.low_slices & (1u << i)))
+			continue;
+
+		mask_index = i & 0x1;
+		index = i >> 1;
+		lpsizes[index] = (lpsizes[index] & ~(0xf << (mask_index * 4))) |
 				(((unsigned long)psize) << (mask_index * 4));
-		}
+	}
 
 	hpsizes = mm->context.high_slices_psize;
 	for (i = 0; i < GET_HIGH_SLICE_INDEX(mm->context.slb_addr_limit); i++) {
+		if (!test_bit(i, mask.high_slices))
+			continue;
+
 		mask_index = i & 0x1;
 		index = i >> 1;
-		if (test_bit(i, mask.high_slices))
-			hpsizes[index] = (hpsizes[index] &
-					  ~(0xf << (mask_index * 4))) |
+		hpsizes[index] = (hpsizes[index] & ~(0xf << (mask_index * 4))) |
 				(((unsigned long)psize) << (mask_index * 4));
 	}
 
