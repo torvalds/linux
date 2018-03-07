@@ -89,15 +89,20 @@ static void netvsc_change_rx_flags(struct net_device *net, int change)
 static void netvsc_set_rx_mode(struct net_device *net)
 {
 	struct net_device_context *ndev_ctx = netdev_priv(net);
-	struct net_device *vf_netdev = rtnl_dereference(ndev_ctx->vf_netdev);
-	struct netvsc_device *nvdev = rtnl_dereference(ndev_ctx->nvdev);
+	struct net_device *vf_netdev;
+	struct netvsc_device *nvdev;
 
+	rcu_read_lock();
+	vf_netdev = rcu_dereference(ndev_ctx->vf_netdev);
 	if (vf_netdev) {
 		dev_uc_sync(vf_netdev, net);
 		dev_mc_sync(vf_netdev, net);
 	}
 
-	rndis_filter_update(nvdev);
+	nvdev = rcu_dereference(ndev_ctx->nvdev);
+	if (nvdev)
+		rndis_filter_update(nvdev);
+	rcu_read_unlock();
 }
 
 static int netvsc_open(struct net_device *net)
