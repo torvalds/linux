@@ -1407,9 +1407,6 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	}
 
 out:
-	if (sas_dev)
-		atomic64_dec(&sas_dev->running_req);
-
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
 	sts = ts->stat;
 
