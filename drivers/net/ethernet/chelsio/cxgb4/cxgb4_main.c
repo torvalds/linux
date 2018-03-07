@@ -4679,7 +4679,6 @@ static void dummy_setup(struct net_device *dev)
 	/* Initialize the device structure. */
 	dev->netdev_ops = &cxgb4_mgmt_netdev_ops;
 	dev->ethtool_ops = &cxgb4_mgmt_ethtool_ops;
-	dev->needs_free_netdev = true;
 }
 
 static int config_mgmt_dev(struct pci_dev *pdev)
