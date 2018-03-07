@@ -3851,6 +3851,7 @@ static struct pernet_operations pg_net_ops = {
 	.exit = pg_net_exit,
 	.id   = &pg_net_id,
 	.size = sizeof(struct pktgen_net),
+	.async = true,
 };
 
 static int __init pg_init(void)
