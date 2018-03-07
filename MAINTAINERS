@@ -8308,11 +8308,6 @@ W:	http://linux-test-project.github.io/
 T:	git git://github.com/linux-test-project/ltp.git
 S:	Maintained
 
-M32R ARCHITECTURE
-W:	http://www.linux-m32r.org/
-S:	Orphan
-F:	arch/m32r/
-
 M68K ARCHITECTURE
 M:	Geert Uytterhoeven <geert@linux-m68k.org>
 L:	linux-m68k@lists.linux-m68k.org
