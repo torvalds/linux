@@ -139,20 +139,15 @@ int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table version!", return -EINVAL;);
 	PP_ASSERT_WITH_CODE(priv->smu_tables.entry[table_id].size != 0,
 			"Invalid SMU Table Length!", return -EINVAL;);
-	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
+	rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
-			"[CopyTableFromSMC] Attempt to Set Dram Addr High Failed!", return -EINVAL;);
-	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+	rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
-			"[CopyTableFromSMC] Attempt to Set Dram Addr Low Failed!",
-			return -EINVAL;);
-	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+	rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram,
-			priv->smu_tables.entry[table_id].table_id) == 0,
-			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
-			return -EINVAL;);
+			priv->smu_tables.entry[table_id].table_id);
 
 	memcpy(table, (uint8_t *)priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -176,21 +171,15 @@ int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	memcpy(priv->smu_tables.entry[table_id].table, table,
 			priv->smu_tables.entry[table_id].size);
 
-	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
+	rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
-			"[CopyTableToSMC] Attempt to Set Dram Addr High Failed!",
-			return -EINVAL;);
-	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+	rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
-			"[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!",
-			return -EINVAL;);
-	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr));
+	rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_TransferTableDram2Smu,
-			priv->smu_tables.entry[table_id].table_id) == 0,
-			"[CopyTableToSMC] Attempt to Transfer Table To SMU Failed!",
-			return -EINVAL;);
+			priv->smu_tables.entry[table_id].table_id);
 
 	return 0;
 }
@@ -199,61 +188,43 @@ static int rv_verify_smc_interface(struct pp_hwmgr *hwmgr)
 {
 	uint32_t smc_driver_if_version;
 
-	PP_ASSERT_WITH_CODE(!rv_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_GetDriverIfVersion),
-			"Attempt to get SMC IF Version Number Failed!",
-			return -EINVAL);
-	PP_ASSERT_WITH_CODE(!rv_read_arg_from_smc(hwmgr,
-			&smc_driver_if_version),
-			"Attempt to read SMC IF Version Number Failed!",
-			return -EINVAL);
+	rv_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_GetDriverIfVersion);
+	rv_read_arg_from_smc(hwmgr,
+			&smc_driver_if_version);
 
-	if (smc_driver_if_version != SMU10_DRIVER_IF_VERSION)
+	if (smc_driver_if_version != SMU10_DRIVER_IF_VERSION) {
+		pr_err("Attempt to read SMC IF Version Number Failed!\n");
 		return -EINVAL;
+	}
 
 	return 0;
 }
 
 /* sdma is disabled by default in vbios, need to re-enable in driver */
-static int rv_smc_enable_sdma(struct pp_hwmgr *hwmgr)
+static void rv_smc_enable_sdma(struct pp_hwmgr *hwmgr)
 {
-	PP_ASSERT_WITH_CODE(!rv_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PowerUpSdma),
-			"Attempt to power up sdma Failed!",
-			return -EINVAL);
-
-	return 0;
+	rv_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_PowerUpSdma);
 }
 
-static int rv_smc_disable_sdma(struct pp_hwmgr *hwmgr)
+static void rv_smc_disable_sdma(struct pp_hwmgr *hwmgr)
 {
-	PP_ASSERT_WITH_CODE(!rv_send_msg_to_smc(hwmgr,
-			PPSMC_MSG_PowerDownSdma),
-			"Attempt to power down sdma Failed!",
-			return -EINVAL);
-
-	return 0;
+	rv_send_msg_to_smc(hwmgr,
+			PPSMC_MSG_PowerDownSdma);
 }
 
 /* vcn is disabled by default in vbios, need to re-enable in driver */
-static int rv_smc_enable_vcn(struct pp_hwmgr *hwmgr)
+static void rv_smc_enable_vcn(struct pp_hwmgr *hwmgr)
 {
-	PP_ASSERT_WITH_CODE(!rv_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_PowerUpVcn, 0),
-			"Attempt to power up vcn Failed!",
-			return -EINVAL);
-
-	return 0;
+	rv_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_PowerUpVcn, 0);
 }
 
-static int rv_smc_disable_vcn(struct pp_hwmgr *hwmgr)
+static void rv_smc_disable_vcn(struct pp_hwmgr *hwmgr)
 {
-	PP_ASSERT_WITH_CODE(!rv_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_PowerDownVcn, 0),
-			"Attempt to power down vcn Failed!",
-			return -EINVAL);
-
-	return 0;
+	rv_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_PowerDownVcn, 0);
 }
 
 static int rv_smu_fini(struct pp_hwmgr *hwmgr)
@@ -289,11 +260,8 @@ static int rv_start_smu(struct pp_hwmgr *hwmgr)
 
 	if (rv_verify_smc_interface(hwmgr))
 		return -EINVAL;
-	if (rv_smc_enable_sdma(hwmgr))
-		return -EINVAL;
-	if (rv_smc_enable_vcn(hwmgr))
-		return -EINVAL;
-
+	rv_smc_enable_sdma(hwmgr);
+	rv_smc_enable_vcn(hwmgr);
 	return 0;
 }
 
