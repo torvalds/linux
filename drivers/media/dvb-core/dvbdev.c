@@ -942,7 +942,7 @@ out:
 	return err;
 }
 
-#ifdef CONFIG_I2C
+#if IS_ENABLED(CONFIG_I2C)
 struct i2c_client *dvb_module_probe(const char *module_name,
 				    const char *name,
 				    struct i2c_adapter *adap,

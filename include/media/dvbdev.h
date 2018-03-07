@@ -358,7 +358,7 @@ long dvb_generic_ioctl(struct file *file,
 int dvb_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 		 int (*func)(struct file *file, unsigned int cmd, void *arg));
 
-#ifdef CONFIG_I2C
+#if IS_ENABLED(CONFIG_I2C)
 
 struct i2c_adapter;
 struct i2c_client;
