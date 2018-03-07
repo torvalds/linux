@@ -47,33 +47,9 @@
 #define smnMP1_FIRMWARE_FLAGS       0x3010028
 
 
-bool rv_is_smc_ram_running(struct pp_hwmgr *hwmgr)
-{
-	uint32_t mp1_fw_flags, reg;
-
-	reg = soc15_get_register_offset(NBIF_HWID, 0,
-			mmPCIE_INDEX2_BASE_IDX, mmPCIE_INDEX2);
-
-	cgs_write_register(hwmgr->device, reg,
-			(MP1_Public | (smnMP1_FIRMWARE_FLAGS & 0xffffffff)));
-
-	reg = soc15_get_register_offset(NBIF_HWID, 0,
-			mmPCIE_DATA2_BASE_IDX, mmPCIE_DATA2);
-
-	mp1_fw_flags = cgs_read_register(hwmgr->device, reg);
-
-	if (mp1_fw_flags & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK)
-		return true;
-
-	return false;
-}
-
 static uint32_t rv_wait_for_response(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg;
-
-	if (!rv_is_smc_ram_running(hwmgr))
-		return -EINVAL;
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_90_BASE_IDX, mmMP1_SMN_C2PMSG_90);
@@ -88,9 +64,6 @@ int rv_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 		uint16_t msg)
 {
 	uint32_t reg;
-
-	if (!rv_is_smc_ram_running(hwmgr))
-		return -EINVAL;
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_66_BASE_IDX, mmMP1_SMN_C2PMSG_66);

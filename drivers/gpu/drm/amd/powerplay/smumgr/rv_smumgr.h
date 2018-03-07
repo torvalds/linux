@@ -51,7 +51,6 @@ struct rv_smumgr {
 };
 
 int rv_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg);
-bool rv_is_smc_ram_running(struct pp_hwmgr *hwmgr);
 int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id);
 int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
