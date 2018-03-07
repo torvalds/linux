@@ -673,7 +673,7 @@ static int v3_get_dma_range_config(struct v3_pci *v3,
 		dev_err(v3->dev, "illegal dma memory chunk size\n");
 		return -EINVAL;
 		break;
-	};
+	}
 	val |= V3_PCI_MAP_M_REG_EN | V3_PCI_MAP_M_ENABLE;
 	*pci_map = val;
 
