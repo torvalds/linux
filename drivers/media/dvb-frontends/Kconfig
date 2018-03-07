@@ -912,7 +912,9 @@ comment "Common Interface (EN50221) controller drivers"
 config DVB_CXD2099
 	tristate "CXD2099AR Common Interface driver"
 	depends on DVB_CORE && I2C
-	---help---
+	select REGMAP_I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
 	  A driver for the CI controller currently found mostly on
 	  Digital Devices DuoFlex CI (single) addon modules.
 
