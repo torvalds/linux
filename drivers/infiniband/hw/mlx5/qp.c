@@ -2153,7 +2153,6 @@ static struct ib_qp *mlx5_ib_create_dct(struct ib_pd *pd,
 					struct ib_qp_init_attr *attr,
 					struct mlx5_ib_create_qp *ucmd)
 {
-	struct mlx5_ib_dev *dev;
 	struct mlx5_ib_qp *qp;
 	int err = 0;
 	u32 uidx = MLX5_IB_DEFAULT_UIDX;
@@ -2161,8 +2160,6 @@ static struct ib_qp *mlx5_ib_create_dct(struct ib_pd *pd,
 
 	if (!attr->srq || !attr->recv_cq)
 		return ERR_PTR(-EINVAL);
-
-	dev = to_mdev(pd->device);
 
 	err = get_qp_user_index(to_mucontext(pd->uobject->context),
 				ucmd, sizeof(*ucmd), &uidx);

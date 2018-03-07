@@ -163,9 +163,9 @@ TRACE_EVENT(mlx5_fs_set_fte,
 			   fs_get_obj(__entry->fg, fte->node.parent);
 			   __entry->group_index = __entry->fg->id;
 			   __entry->index = fte->index;
-			   __entry->action = fte->action;
+			   __entry->action = fte->action.action;
 			   __entry->mask_enable = __entry->fg->mask.match_criteria_enable;
-			   __entry->flow_tag = fte->flow_tag;
+			   __entry->flow_tag = fte->action.flow_tag;
 			   memcpy(__entry->mask_outer,
 				  MLX5_ADDR_OF(fte_match_param,
 					       &__entry->fg->mask.match_criteria,

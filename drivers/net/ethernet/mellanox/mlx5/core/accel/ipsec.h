@@ -34,9 +34,9 @@
 #ifndef __MLX5_ACCEL_IPSEC_H__
 #define __MLX5_ACCEL_IPSEC_H__
 
-#ifdef CONFIG_MLX5_ACCEL
-
 #include <linux/mlx5/driver.h>
+
+#ifdef CONFIG_MLX5_ACCEL
 
 enum {
 	MLX5_ACCEL_IPSEC_DEVICE = BIT(1),

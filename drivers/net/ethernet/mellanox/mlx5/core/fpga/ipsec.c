@@ -39,6 +39,7 @@
 #include "fpga/core.h"
 
 #define SBU_QP_QUEUE_SIZE 8
+#define MLX5_FPGA_IPSEC_CMD_TIMEOUT_MSEC	(60 * 1000)
 
 enum mlx5_ipsec_response_syndrome {
 	MLX5_IPSEC_RESPONSE_SUCCESS = 0,
@@ -217,12 +218,14 @@ void *mlx5_fpga_ipsec_sa_cmd_exec(struct mlx5_core_dev *mdev,
 int mlx5_fpga_ipsec_sa_cmd_wait(void *ctx)
 {
 	struct mlx5_ipsec_command_context *context = ctx;
+	unsigned long timeout =
+		msecs_to_jiffies(MLX5_FPGA_IPSEC_CMD_TIMEOUT_MSEC);
 	int res;
 
-	res = wait_for_completion_killable(&context->complete);
-	if (res) {
+	res = wait_for_completion_timeout(&context->complete, timeout);
+	if (!res) {
 		mlx5_fpga_warn(context->dev, "Failure waiting for IPSec command response\n");
-		return -EINTR;
+		return -ETIMEDOUT;
 	}
 
 	if (context->status == MLX5_FPGA_IPSEC_SACMD_COMPLETE)
