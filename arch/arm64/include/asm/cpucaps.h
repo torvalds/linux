@@ -46,7 +46,9 @@
 #define ARM64_HARDEN_BP_POST_GUEST_EXIT		25
 #define ARM64_HAS_RAS_EXTN			26
 #define ARM64_WORKAROUND_843419			27
+#define ARM64_HAS_CACHE_IDC			28
+#define ARM64_HAS_CACHE_DIC			29
 
-#define ARM64_NCAPS				28
+#define ARM64_NCAPS				30
 
 #endif /* __ASM_CPUCAPS_H */
