@@ -199,3 +199,11 @@ int smum_update_dpm_settings(struct pp_hwmgr *hwmgr, void *profile_setting)
 
 	return -EINVAL;
 }
+
+int smum_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw)
+{
+	if (hwmgr->smumgr_funcs->smc_table_manager)
+		return hwmgr->smumgr_funcs->smc_table_manager(hwmgr, table, table_id, rw);
+
+	return -EINVAL;
+}

@@ -237,6 +237,7 @@ struct pp_smumgr_func {
 	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
 	bool (*is_hw_avfs_present)(struct pp_hwmgr  *hwmgr);
 	int (*update_dpm_settings)(struct pp_hwmgr *hwmgr, void *profile_setting);
+	int (*smc_table_manager)(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw); /*rw: true for read, false for write */
 };
 
 struct pp_hwmgr_func {

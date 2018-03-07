@@ -100,4 +100,6 @@ extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 
 extern int smum_update_dpm_settings(struct pp_hwmgr *hwmgr, void *profile_setting);
 
+extern int smum_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw);
+
 #endif
