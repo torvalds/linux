@@ -299,7 +299,7 @@
 			compatible = "rockchip,px30-pmu-pvtm";
 			clocks = <&pmucru SCLK_PVTM_PMU>;
 			clock-names = "pmu";
-			status = "disabled";
+			status = "okay";
 		};
 	};
 
@@ -426,7 +426,7 @@
 			compatible = "rockchip,px30-pvtm";
 			clocks = <&cru SCLK_PVTM>;
 			clock-names = "core";
-			status = "disabled";
+			status = "okay";
 		};
 	};
 
