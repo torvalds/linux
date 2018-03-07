@@ -2503,7 +2503,7 @@ int cxd2880_tnrdmd_set_cfg(struct cxd2880_tnrdmd *tnr_dmd,
 			   enum cxd2880_tnrdmd_cfg_id id,
 			   int value)
 {
-	int ret;
+	int ret = 0;
 	u8 data[2] = { 0 };
 	u8 need_sub_setting = 0;
 

@@ -16,7 +16,7 @@ static int cxd2880_io_spi_read_reg(struct cxd2880_io *io,
 				   u8 sub_address, u8 *data,
 				   u32 size)
 {
-	int ret;
+	int ret = 0;
 	struct cxd2880_spi *spi = NULL;
 	u8 send_data[6];
 	u8 *read_data_top = data;
@@ -64,7 +64,7 @@ static int cxd2880_io_spi_write_reg(struct cxd2880_io *io,
 				    u8 sub_address,
 				    const u8 *data, u32 size)
 {
-	int ret;
+	int ret = 0;
 	struct cxd2880_spi *spi = NULL;
 	u8 send_data[BURST_WRITE_MAX + 4];
 	const u8 *write_data_top = data;
