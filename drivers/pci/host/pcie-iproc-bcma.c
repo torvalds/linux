@@ -25,8 +25,7 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_BROADCOM, 0x8012, bcma_pcie2_fixup_class);
 
 static int iproc_pcie_bcma_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	struct pci_sys_data *sys = dev->sysdata;
-	struct iproc_pcie *pcie = sys->private_data;
+	struct iproc_pcie *pcie = dev->sysdata;
 	struct bcma_device *bdev = container_of(pcie->dev, struct bcma_device, dev);
 
 	return bcma_core_irq(bdev, 5);
