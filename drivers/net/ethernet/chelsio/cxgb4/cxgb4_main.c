@@ -5181,6 +5181,8 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->name = pci_name(pdev);
 	adapter->mbox = func;
 	adapter->pf = func;
+	adapter->params.chip = chip;
+	adapter->adap_idx = adap_idx;
 	adapter->msg_enable = DFLT_MSG_ENABLE;
 	adapter->mbox_log = kzalloc(sizeof(*adapter->mbox_log) +
 				    (sizeof(struct mbox_cmd) *
