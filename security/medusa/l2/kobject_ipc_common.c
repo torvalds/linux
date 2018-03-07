@@ -114,8 +114,6 @@ medusa_answer_t ipc_update(unsigned int id, unsigned int ipc_class, struct medus
 	if (!ipc_rcu_getref(ipcp)) {
 		goto out_unlock0;
 	}
-	//get_ref
-	//rcu_read_unlock	
 
 	security_s = ipc_security(ipcp);
 
