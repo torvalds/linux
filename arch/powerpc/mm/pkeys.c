@@ -119,18 +119,15 @@ int pkey_initialize(void)
 #else
 	os_reserved = 0;
 #endif
+	initial_allocation_mask = ~0x0;
+	pkey_amr_uamor_mask = ~0x0ul;
+	pkey_iamr_mask = ~0x0ul;
 	/*
-	 * Bits are in LE format. NOTE: 1, 0 are reserved.
+	 * key 0, 1 are reserved.
 	 * key 0 is the default key, which allows read/write/execute.
 	 * key 1 is recommended not to be used. PowerISA(3.0) page 1015,
 	 * programming note.
 	 */
-	initial_allocation_mask = ~0x0;
-
-	/* register mask is in BE format */
-	pkey_amr_uamor_mask = ~0x0ul;
-	pkey_iamr_mask = ~0x0ul;
-
 	for (i = 2; i < (pkeys_total - os_reserved); i++) {
 		initial_allocation_mask &= ~(0x1 << i);
 		pkey_amr_uamor_mask &= ~(0x3ul << pkeyshift(i));
