@@ -60,3 +60,26 @@
    fun:blk_mq_dispatch_rq_list
    fun:blk_mq_sched_dispatch_requests
 }
+
+{
+   <virtio_net_pipe xmits>
+   Memcheck:Param
+   writev(vector[...])
+   ...
+   fun:fd_net_tx
+   fun:net_enqueue
+   fun:virtio_process_one
+   fun:virtio_process_queue
+   fun:virtio_write
+   fun:__raw_writel
+   fun:writel
+   fun:vm_notify
+   fun:virtqueue_notify
+   fun:virtqueue_kick
+   fun:start_xmit
+   fun:__netdev_start_xmit
+   fun:netdev_start_xmit
+   fun:xmit_one
+   fun:dev_hard_start_xmit
+   fun:sch_direct_xmit
+}
