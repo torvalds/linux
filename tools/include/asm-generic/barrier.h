@@ -1,7 +1,7 @@
 /*
  * Copied from the kernel sources to tools/perf/:
  *
- * Generic barrier definitions, originally based on MN10300 definitions.
+ * Generic barrier definitions.
  *
  * It should be possible to use these on really simple architectures,
  * but it serves more as a starting point for new ports.

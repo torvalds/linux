@@ -35,7 +35,6 @@
 			    !defined(CONFIG_M32R) &&		\
 			    !defined(CONFIG_M68K) &&		\
 			    !defined(CONFIG_MICROBLAZE) &&	\
-			    !defined(CONFIG_MN10300) &&		\
 			    !defined(CONFIG_NIOS2) &&		\
 			    !defined(CONFIG_PPC32) &&		\
 			    !defined(CONFIG_SUPERH))

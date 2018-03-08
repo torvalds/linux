@@ -162,14 +162,6 @@ static inline void _SMC_outw_align4(u16 val, void __iomem *ioaddr, int reg,
 #define RPC_LSA_DEFAULT		RPC_LED_TX_RX
 #define RPC_LSB_DEFAULT		RPC_LED_100_10
 
-#elif defined(CONFIG_MN10300)
-
-/*
- * MN10300/AM33 configuration
- */
-
-#include <unit/smc91111.h>
-
 #elif defined(CONFIG_ATARI)
 
 #define SMC_CAN_USE_8BIT        1

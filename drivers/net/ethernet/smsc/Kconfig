@@ -6,7 +6,7 @@ config NET_VENDOR_SMSC
 	bool "SMC (SMSC)/Western Digital devices"
 	default y
 	depends on ARM || ARM64 || ATARI_ETHERNAT || BLACKFIN || COLDFIRE || \
-		   ISA || M32R || MAC || MIPS || MN10300 || NIOS2 || PCI || \
+		   ISA || M32R || MAC || MIPS || NIOS2 || PCI || \
 		   PCMCIA || SUPERH || XTENSA || H8300
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
@@ -38,7 +38,7 @@ config SMC91X
 	select MII
 	depends on !OF || GPIOLIB
 	depends on ARM || ARM64 || ATARI_ETHERNAT || BLACKFIN || COLDFIRE || \
-		   M32R || MIPS || MN10300 || NIOS2 || SUPERH || XTENSA || H8300
+		   M32R || MIPS || NIOS2 || SUPERH || XTENSA || H8300
 	---help---
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
@@ -77,7 +77,7 @@ config SMC911X
 	tristate "SMSC LAN911[5678] support"
 	select CRC32
 	select MII
-	depends on (ARM || SUPERH || MN10300)
+	depends on (ARM || SUPERH)
 	---help---
 	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
 	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.

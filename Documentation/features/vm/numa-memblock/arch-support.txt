@@ -21,7 +21,6 @@
     |        m68k: |  ..  |
     |  microblaze: |  ok  |
     |        mips: |  ok  |
-    |     mn10300: | TODO |
     |       nios2: |  ..  |
     |    openrisc: |  ..  |
     |      parisc: |  ..  |

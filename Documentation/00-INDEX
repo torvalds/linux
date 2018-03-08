@@ -284,8 +284,6 @@ misc-devices/
 	- directory with info about devices using the misc dev subsystem
 mmc/
 	- directory with info about the MMC subsystem
-mn10300/
-	- directory with info about the mn10300 architecture port
 mtd/
 	- directory with info about memory technology devices (flash)
 namespaces/
