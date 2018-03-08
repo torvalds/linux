@@ -37,8 +37,7 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 	int devid, rev, venid_l, venid_h;
 	int ret;
 
-	smsc = devm_kzalloc(&i2c->dev, sizeof(struct smsc),
-				GFP_KERNEL);
+	smsc = devm_kzalloc(&i2c->dev, sizeof(*smsc), GFP_KERNEL);
 	if (!smsc)
 		return -ENOMEM;
 
