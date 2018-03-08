@@ -22,7 +22,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
