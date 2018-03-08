@@ -366,6 +366,7 @@ int
 lio_process_iq_request_list(struct octeon_device *oct,
 			    struct octeon_instr_queue *iq, u32 napi_budget)
 {
+	struct cavium_wq *cwq = &oct->dma_comp_wq;
 	int reqtype;
 	void *buf;
 	u32 old = iq->flush_index;
@@ -449,6 +450,10 @@ lio_process_iq_request_list(struct octeon_device *oct,
 		octeon_report_tx_completion_to_bql(iq->app_ctx, pkts_compl,
 						   bytes_compl);
 	iq->flush_index = old;
+
+	if (atomic_read(&oct->response_list
+			[OCTEON_ORDERED_SC_LIST].pending_req_count))
+		queue_delayed_work(cwq->wq, &cwq->wk.work, msecs_to_jiffies(1));
 
 	return inst_count;
 }
