@@ -1846,7 +1846,6 @@ static int snd_seq_ioctl_set_client_pool(struct snd_seq_client *client,
 				return -EBUSY;
 			/* remove all existing cells */
 			snd_seq_pool_mark_closing(client->pool);
-			snd_seq_queue_client_leave_cells(client->number);
 			snd_seq_pool_done(client->pool);
 		}
 		client->pool->size = info->output_pool;
