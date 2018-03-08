@@ -441,6 +441,11 @@ static void intel_engine_init_timeline(struct intel_engine_cs *engine)
 	engine->timeline = &engine->i915->gt.global_timeline.engine[engine->id];
 }
 
+static void intel_engine_init_batch_pool(struct intel_engine_cs *engine)
+{
+	i915_gem_batch_pool_init(&engine->batch_pool, engine);
+}
+
 static bool csb_force_mmio(struct drm_i915_private *i915)
 {
 	/*
@@ -485,11 +490,9 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 void intel_engine_setup_common(struct intel_engine_cs *engine)
 {
 	intel_engine_init_execlist(engine);
-
 	intel_engine_init_timeline(engine);
 	intel_engine_init_hangcheck(engine);
-	i915_gem_batch_pool_init(engine, &engine->batch_pool);
-
+	intel_engine_init_batch_pool(engine);
 	intel_engine_init_cmd_parser(engine);
 }
 
