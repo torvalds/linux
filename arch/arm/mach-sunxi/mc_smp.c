@@ -659,7 +659,7 @@ static int __init nocache_trampoline(unsigned long __unused)
 	BUG();
 }
 
-static int __init sunxi_mc_smp_lookback(void)
+static int __init sunxi_mc_smp_loopback(void)
 {
 	int ret;
 
@@ -749,7 +749,7 @@ static int __init sunxi_mc_smp_init(void)
 	}
 
 	/* Configure CCI-400 for boot cluster */
-	ret = sunxi_mc_smp_lookback();
+	ret = sunxi_mc_smp_loopback();
 	if (ret) {
 		pr_err("%s: failed to configure boot cluster: %d\n",
 		       __func__, ret);
