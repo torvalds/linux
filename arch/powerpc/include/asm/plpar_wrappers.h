@@ -334,6 +334,12 @@ static inline long plpar_get_cpu_characteristics(struct h_cpu_char_result *p)
 	return rc;
 }
 
+#else /* !CONFIG_PPC_PSERIES */
+
+static inline long plpar_set_ciabr(unsigned long ciabr)
+{
+	return 0;
+}
 #endif /* CONFIG_PPC_PSERIES */
 
 #endif /* _ASM_POWERPC_PLPAR_WRAPPERS_H */
