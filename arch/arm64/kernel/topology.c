@@ -37,18 +37,14 @@ static int __init get_cpu_for_node(struct device_node *node)
 	if (!cpu_node)
 		return -1;
 
-	for_each_possible_cpu(cpu) {
-		if (of_get_cpu_node(cpu, NULL) == cpu_node) {
-			topology_parse_cpu_capacity(cpu_node, cpu);
-			of_node_put(cpu_node);
-			return cpu;
-		}
-	}
-
-	pr_crit("Unable to find CPU node for %pOF\n", cpu_node);
+	cpu = of_cpu_node_to_id(cpu_node);
+	if (cpu >= 0)
+		topology_parse_cpu_capacity(cpu_node, cpu);
+	else
+		pr_crit("Unable to find CPU node for %pOF\n", cpu_node);
 
 	of_node_put(cpu_node);
-	return -1;
+	return cpu;
 }
 
 static int __init parse_core(struct device_node *core, int cluster_id,

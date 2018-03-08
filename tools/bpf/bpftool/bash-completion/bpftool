@@ -52,16 +52,24 @@ _bpftool_once_attr()
     done
 }
 
-# Takes a list of words in argument; adds them all to COMPREPLY if none of them
-# is already present on the command line. Returns no value.
-_bpftool_one_of_list()
+# Takes a list of words as argument; if any of those words is present on the
+# command line, return 0. Otherwise, return 1.
+_bpftool_search_list()
 {
     local w idx
     for w in $*; do
         for (( idx=3; idx < ${#words[@]}-1; idx++ )); do
-            [[ $w == ${words[idx]} ]] && return 1
+            [[ $w == ${words[idx]} ]] && return 0
         done
     done
+    return 1
+}
+
+# Takes a list of words in argument; adds them all to COMPREPLY if none of them
+# is already present on the command line. Returns no value.
+_bpftool_one_of_list()
+{
+    _bpftool_search_list $* && return 1
     COMPREPLY+=( $( compgen -W "$*" -- "$cur" ) )
 }
 
@@ -197,7 +205,7 @@ _bpftool()
 
             local PROG_TYPE='id pinned tag'
             case $command in
-                show)
+                show|list)
                     [[ $prev != "$command" ]] && return 0
                     COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
                     return 0
@@ -230,17 +238,21 @@ _bpftool()
                     fi
                     return 0
                     ;;
+                load)
+                    _filedir
+                    return 0
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'dump help pin show' -- \
-                            "$cur" ) )
+                        COMPREPLY=( $( compgen -W 'dump help pin load \
+                            show list' -- "$cur" ) )
                     ;;
             esac
             ;;
         map)
             local MAP_TYPE='id pinned'
             case $command in
-                show|dump)
+                show|list|dump)
                     case $prev in
                         $command)
                             COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
@@ -343,7 +355,55 @@ _bpftool()
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'delete dump getnext help \
-                            lookup pin show update' -- "$cur" ) )
+                            lookup pin show list update' -- "$cur" ) )
+                    ;;
+            esac
+            ;;
+        cgroup)
+            case $command in
+                show|list)
+                    _filedir
+                    return 0
+                    ;;
+                attach|detach)
+                    local ATTACH_TYPES='ingress egress sock_create sock_ops \
+                        device'
+                    local ATTACH_FLAGS='multi override'
+                    local PROG_TYPE='id pinned tag'
+                    case $prev in
+                        $command)
+                            _filedir
+                            return 0
+                            ;;
+                        ingress|egress|sock_create|sock_ops|device)
+                            COMPREPLY=( $( compgen -W "$PROG_TYPE" -- \
+                                "$cur" ) )
+                            return 0
+                            ;;
+                        id)
+                            _bpftool_get_prog_ids
+                            return 0
+                            ;;
+                        *)
+                            if ! _bpftool_search_list "$ATTACH_TYPES"; then
+                                COMPREPLY=( $( compgen -W "$ATTACH_TYPES" -- \
+                                    "$cur" ) )
+                            elif [[ "$command" == "attach" ]]; then
+                                # We have an attach type on the command line,
+                                # but it is not the previous word, or
+                                # "id|pinned|tag" (we already checked for
+                                # that). This should only leave the case when
+                                # we need attach flags for "attach" commamnd.
+                                _bpftool_one_of_list "$ATTACH_FLAGS"
+                            fi
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                *)
+                    [[ $prev == $object ]] && \
+                        COMPREPLY=( $( compgen -W 'help attach detach \
+                            show list' -- "$cur" ) )
                     ;;
             esac
             ;;

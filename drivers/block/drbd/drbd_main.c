@@ -1847,19 +1847,13 @@ int drbd_send(struct drbd_connection *connection, struct socket *sock,
 	      void *buf, size_t size, unsigned msg_flags)
 {
 	struct kvec iov = {.iov_base = buf, .iov_len = size};
-	struct msghdr msg;
+	struct msghdr msg = {.msg_flags = msg_flags | MSG_NOSIGNAL};
 	int rv, sent = 0;
 
 	if (!sock)
 		return -EBADR;
 
 	/* THINK  if (signal_pending) return ... ? */
-
-	msg.msg_name       = NULL;
-	msg.msg_namelen    = 0;
-	msg.msg_control    = NULL;
-	msg.msg_controllen = 0;
-	msg.msg_flags      = msg_flags | MSG_NOSIGNAL;
 
 	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &iov, 1, size);
 

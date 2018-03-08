@@ -140,6 +140,29 @@ static u32 hv_copyto_ringbuffer(
 	return start_write_offset;
 }
 
+/*
+ *
+ * hv_get_ringbuffer_availbytes()
+ *
+ * Get number of bytes available to read and to write to
+ * for the specified ring buffer
+ */
+static void
+hv_get_ringbuffer_availbytes(const struct hv_ring_buffer_info *rbi,
+			     u32 *read, u32 *write)
+{
+	u32 read_loc, write_loc, dsize;
+
+	/* Capture the read/write indices before they changed */
+	read_loc = READ_ONCE(rbi->ring_buffer->read_index);
+	write_loc = READ_ONCE(rbi->ring_buffer->write_index);
+	dsize = rbi->ring_datasize;
+
+	*write = write_loc >= read_loc ? dsize - (write_loc - read_loc) :
+		read_loc - write_loc;
+	*read = dsize - *write;
+}
+
 /* Get various debug metrics for the specified ring buffer. */
 void hv_ringbuffer_get_debuginfo(const struct hv_ring_buffer_info *ring_info,
 				 struct hv_ring_buffer_debug_info *debug_info)

@@ -861,14 +861,17 @@ static int nfs4_set_client(struct nfs_server *server,
 		set_bit(NFS_CS_MIGRATION, &cl_init.init_flags);
 	if (test_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status))
 		set_bit(NFS_CS_TSM_POSSIBLE, &cl_init.init_flags);
+	server->port = rpc_get_port(addr);
 
 	/* Allocate or find a client reference we can use */
 	clp = nfs_get_client(&cl_init);
 	if (IS_ERR(clp))
 		return PTR_ERR(clp);
 
-	if (server->nfs_client == clp)
+	if (server->nfs_client == clp) {
+		nfs_put_client(clp);
 		return -ELOOP;
+	}
 
 	/*
 	 * Query for the lease time on clientid setup or renewal
@@ -1123,19 +1126,36 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	/* Initialise the client representation from the parent server */
 	nfs_server_copy_userdata(server, parent_server);
 
-	/* Get a client representation.
-	 * Note: NFSv4 always uses TCP, */
+	/* Get a client representation */
+#ifdef CONFIG_SUNRPC_XPRT_RDMA
+	rpc_set_port(data->addr, NFS_RDMA_PORT);
 	error = nfs4_set_client(server, data->hostname,
 				data->addr,
 				data->addrlen,
 				parent_client->cl_ipaddr,
-				rpc_protocol(parent_server->client),
+				XPRT_TRANSPORT_RDMA,
+				parent_server->client->cl_timeout,
+				parent_client->cl_mvops->minor_version,
+				parent_client->cl_net);
+	if (!error)
+		goto init_server;
+#endif	/* CONFIG_SUNRPC_XPRT_RDMA */
+
+	rpc_set_port(data->addr, NFS_PORT);
+	error = nfs4_set_client(server, data->hostname,
+				data->addr,
+				data->addrlen,
+				parent_client->cl_ipaddr,
+				XPRT_TRANSPORT_TCP,
 				parent_server->client->cl_timeout,
 				parent_client->cl_mvops->minor_version,
 				parent_client->cl_net);
 	if (error < 0)
 		goto error;
 
+#ifdef CONFIG_SUNRPC_XPRT_RDMA
+init_server:
+#endif
 	error = nfs_init_server_rpcclient(server, parent_server->client->cl_timeout, data->authflavor);
 	if (error < 0)
 		goto error;
@@ -1226,11 +1246,11 @@ int nfs4_update_server(struct nfs_server *server, const char *hostname,
 				clp->cl_proto, clnt->cl_timeout,
 				clp->cl_minorversion, net);
 	clear_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status);
-	nfs_put_client(clp);
 	if (error != 0) {
 		nfs_server_insert_lists(server);
 		return error;
 	}
+	nfs_put_client(clp);
 
 	if (server->nfs_client->cl_hostname == NULL)
 		server->nfs_client->cl_hostname = kstrdup(hostname, GFP_KERNEL);

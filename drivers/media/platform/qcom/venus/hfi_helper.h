@@ -585,8 +585,8 @@ struct hfi_enable {
 
 struct hfi_h264_db_control {
 	u32 mode;
-	u32 slice_alpha_offset;
-	u32 slice_beta_offset;
+	s32 slice_alpha_offset;
+	s32 slice_beta_offset;
 };
 
 #define HFI_H264_ENTROPY_CAVLC			0x1

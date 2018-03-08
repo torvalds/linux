@@ -320,6 +320,8 @@ int xt_find_revision(u8 af, const char *name, u8 revision, int target,
 
 struct xt_table *xt_find_table_lock(struct net *net, u_int8_t af,
 				    const char *name);
+struct xt_table *xt_request_find_table_lock(struct net *net, u_int8_t af,
+					    const char *name);
 void xt_table_unlock(struct xt_table *t);
 
 int xt_proto_init(struct net *net, u_int8_t af);

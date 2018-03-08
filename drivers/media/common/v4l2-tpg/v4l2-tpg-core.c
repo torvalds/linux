@@ -21,7 +21,7 @@
  */
 
 #include <linux/module.h>
-#include <media/v4l2-tpg.h>
+#include <media/tpg/v4l2-tpg.h>
 
 /* Must remain in sync with enum tpg_pattern */
 const char * const tpg_pattern_strings[] = {

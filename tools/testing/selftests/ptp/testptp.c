@@ -60,9 +60,7 @@ static int clock_adjtime(clockid_t id, struct timex *tx)
 static clockid_t get_clockid(int fd)
 {
 #define CLOCKFD 3
-#define FD_TO_CLOCKID(fd)	((~(clockid_t) (fd) << 3) | CLOCKFD)
-
-	return FD_TO_CLOCKID(fd);
+	return (((unsigned int) ~fd) << 3) | CLOCKFD;
 }
 
 static void handle_alarm(int s)

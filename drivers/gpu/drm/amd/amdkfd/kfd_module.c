@@ -50,6 +50,15 @@ module_param(sched_policy, int, 0444);
 MODULE_PARM_DESC(sched_policy,
 	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for debugging only)");
 
+int hws_max_conc_proc = 8;
+module_param(hws_max_conc_proc, int, 0444);
+MODULE_PARM_DESC(hws_max_conc_proc,
+	"Max # processes HWS can execute concurrently when sched_policy=0 (0 = no concurrency, #VMIDs for KFD = Maximum(default))");
+
+int cwsr_enable = 1;
+module_param(cwsr_enable, int, 0444);
+MODULE_PARM_DESC(cwsr_enable, "CWSR enable (0 = Off, 1 = On (Default))");
+
 int max_num_of_queues_per_device = KFD_MAX_NUM_OF_QUEUES_PER_DEVICE_DEFAULT;
 module_param(max_num_of_queues_per_device, int, 0444);
 MODULE_PARM_DESC(max_num_of_queues_per_device,
@@ -59,6 +68,11 @@ int send_sigterm;
 module_param(send_sigterm, int, 0444);
 MODULE_PARM_DESC(send_sigterm,
 	"Send sigterm to HSA process on unhandled exception (0 = disable, 1 = enable)");
+
+int ignore_crat;
+module_param(ignore_crat, int, 0444);
+MODULE_PARM_DESC(ignore_crat,
+	"Ignore CRAT table during KFD initialization (0 = use CRAT (default), 1 = ignore CRAT)");
 
 static int amdkfd_init_completed;
 
@@ -114,6 +128,8 @@ static int __init kfd_module_init(void)
 
 	kfd_process_create_wq();
 
+	kfd_debugfs_init();
+
 	amdkfd_init_completed = 1;
 
 	dev_info(kfd_device, "Initialized module\n");
@@ -130,6 +146,7 @@ static void __exit kfd_module_exit(void)
 {
 	amdkfd_init_completed = 0;
 
+	kfd_debugfs_fini();
 	kfd_process_destroy_wq();
 	kfd_topology_shutdown();
 	kfd_chardev_exit();

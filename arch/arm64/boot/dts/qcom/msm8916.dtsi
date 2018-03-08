@@ -355,7 +355,7 @@
 
 		blsp_spi1: spi@78b5000 {
 			compatible = "qcom,spi-qup-v2.2.1";
-			reg = <0x078b5000 0x600>;
+			reg = <0x078b5000 0x500>;
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
@@ -372,7 +372,7 @@
 
 		blsp_spi2: spi@78b6000 {
 			compatible = "qcom,spi-qup-v2.2.1";
-			reg = <0x078b6000 0x600>;
+			reg = <0x078b6000 0x500>;
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP2_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
@@ -389,7 +389,7 @@
 
 		blsp_spi3: spi@78b7000 {
 			compatible = "qcom,spi-qup-v2.2.1";
-			reg = <0x078b7000 0x600>;
+			reg = <0x078b7000 0x500>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP3_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
@@ -406,7 +406,7 @@
 
 		blsp_spi4: spi@78b8000 {
 			compatible = "qcom,spi-qup-v2.2.1";
-			reg = <0x078b8000 0x600>;
+			reg = <0x078b8000 0x500>;
 			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP4_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
@@ -423,7 +423,7 @@
 
 		blsp_spi5: spi@78b9000 {
 			compatible = "qcom,spi-qup-v2.2.1";
-			reg = <0x078b9000 0x600>;
+			reg = <0x078b9000 0x500>;
 			interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP5_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
@@ -440,7 +440,7 @@
 
 		blsp_spi6: spi@78ba000 {
 			compatible = "qcom,spi-qup-v2.2.1";
-			reg = <0x078ba000 0x600>;
+			reg = <0x078ba000 0x500>;
 			interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP6_SPI_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
@@ -457,10 +457,10 @@
 
 		blsp_i2c2: i2c@78b6000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
-			reg = <0x78b6000 0x1000>;
+			reg = <0x078b6000 0x500>;
 			interrupts = <GIC_SPI 96 0>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
-				<&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>;
+				 <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c2_default>;
@@ -472,10 +472,10 @@
 
 		blsp_i2c4: i2c@78b8000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
-			reg = <0x78b8000 0x1000>;
+			reg = <0x078b8000 0x500>;
 			interrupts = <GIC_SPI 98 0>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
-				<&gcc GCC_BLSP1_QUP4_I2C_APPS_CLK>;
+				 <&gcc GCC_BLSP1_QUP4_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c4_default>;
@@ -487,10 +487,10 @@
 
 		blsp_i2c6: i2c@78ba000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
-			reg = <0x78ba000 0x1000>;
+			reg = <0x078ba000 0x500>;
 			interrupts = <GIC_SPI 100 0>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
-				<&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>;
+				 <&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
 			pinctrl-names = "default", "sleep";
 			pinctrl-0 = <&i2c6_default>;
@@ -906,6 +906,7 @@
 					    "dsi_phy_regulator";
 
 				#clock-cells = <1>;
+				#phy-cells = <0>;
 
 				clocks = <&gcc GCC_MDSS_AHB_CLK>;
 				clock-names = "iface_clk";
@@ -1435,8 +1436,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		qcom,ipc-1 = <&apcs 0 13>;
-		qcom,ipc-6 = <&apcs 0 19>;
+		qcom,ipc-1 = <&apcs 8 13>;
+		qcom,ipc-3 = <&apcs 8 19>;
 
 		apps_smsm: apps@0 {
 			reg = <0>;

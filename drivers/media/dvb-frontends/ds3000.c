@@ -26,7 +26,7 @@
 #include <linux/init.h>
 #include <linux/firmware.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "ts2020.h"
 #include "ds3000.h"
 

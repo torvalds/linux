@@ -67,6 +67,7 @@
 #include <asm/smp.h>
 #include <asm/livepatch.h>
 #include <asm/asm-prototypes.h>
+#include <asm/hw_irq.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -104,12 +105,6 @@ static inline notrace unsigned long get_irq_happened(void)
 	: "=r" (happened) : "i" (offsetof(struct paca_struct, irq_happened)));
 
 	return happened;
-}
-
-static inline notrace void set_soft_enabled(unsigned long enable)
-{
-	__asm__ __volatile__("stb %0,%1(13)"
-	: : "r" (enable), "i" (offsetof(struct paca_struct, soft_enabled)));
 }
 
 static inline notrace int decrementer_check_overflow(void)
@@ -191,6 +186,11 @@ notrace unsigned int __check_irq_replay(void)
 		return 0x900;
 	}
 
+	if (happened & PACA_IRQ_PMI) {
+		local_paca->irq_happened &= ~PACA_IRQ_PMI;
+		return 0xf00;
+	}
+
 	if (happened & PACA_IRQ_EE) {
 		local_paca->irq_happened &= ~PACA_IRQ_EE;
 		return 0x500;
@@ -224,15 +224,16 @@ notrace unsigned int __check_irq_replay(void)
 	return 0;
 }
 
-notrace void arch_local_irq_restore(unsigned long en)
+notrace void arch_local_irq_restore(unsigned long mask)
 {
 	unsigned char irq_happened;
 	unsigned int replay;
 
 	/* Write the new soft-enabled value */
-	set_soft_enabled(en);
-	if (!en)
+	irq_soft_mask_set(mask);
+	if (mask)
 		return;
+
 	/*
 	 * From this point onward, we can take interrupts, preempt,
 	 * etc... unless we got hard-disabled. We check if an event
@@ -263,7 +264,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 */
 	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
 		__hard_irq_disable();
-#ifdef CONFIG_TRACE_IRQFLAGS
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
 	else {
 		/*
 		 * We should already be hard disabled here. We had bugs
@@ -274,9 +275,9 @@ notrace void arch_local_irq_restore(unsigned long en)
 		if (WARN_ON(mfmsr() & MSR_EE))
 			__hard_irq_disable();
 	}
-#endif /* CONFIG_TRACE_IRQFLAGS */
+#endif
 
-	set_soft_enabled(0);
+	irq_soft_mask_set(IRQS_ALL_DISABLED);
 	trace_hardirqs_off();
 
 	/*
@@ -288,7 +289,7 @@ notrace void arch_local_irq_restore(unsigned long en)
 
 	/* We can soft-enable now */
 	trace_hardirqs_on();
-	set_soft_enabled(1);
+	irq_soft_mask_set(IRQS_ENABLED);
 
 	/*
 	 * And replay if we have to. This will return with interrupts
@@ -363,7 +364,7 @@ bool prep_irq_for_idle(void)
 	 * of entering the low power state.
 	 */
 	local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
-	local_paca->soft_enabled = 1;
+	irq_soft_mask_set(IRQS_ENABLED);
 
 	/* Tell the caller to enter the low power state */
 	return true;

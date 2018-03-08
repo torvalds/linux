@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +66,8 @@ static void ACPI_SYSTEM_XFACE acpi_db_method_thread(void *context);
 static acpi_status
 acpi_db_execution_walk(acpi_handle obj_handle,
 		       u32 nesting_level, void *context, void **return_value);
+
+static void ACPI_SYSTEM_XFACE acpi_db_single_execution_thread(void *context);
 
 /*******************************************************************************
  *
@@ -229,7 +231,7 @@ static acpi_status acpi_db_execute_setup(struct acpi_db_method_info *info)
 
 	ACPI_FUNCTION_NAME(db_execute_setup);
 
-	/* Catenate the current scope to the supplied name */
+	/* Concatenate the current scope to the supplied name */
 
 	info->pathname[0] = 0;
 	if ((info->name[0] != '\\') && (info->name[0] != '/')) {
@@ -607,6 +609,112 @@ static void ACPI_SYSTEM_XFACE acpi_db_method_thread(void *context)
 			     acpi_format_exception(status));
 		}
 	}
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_single_execution_thread
+ *
+ * PARAMETERS:  context                 - Method info struct
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Create one thread and execute a method
+ *
+ ******************************************************************************/
+
+static void ACPI_SYSTEM_XFACE acpi_db_single_execution_thread(void *context)
+{
+	struct acpi_db_method_info *info = context;
+	acpi_status status;
+	struct acpi_buffer return_obj;
+
+	acpi_os_printf("\n");
+
+	status = acpi_db_execute_method(info, &return_obj);
+	if (ACPI_FAILURE(status)) {
+		acpi_os_printf("%s During evaluation of %s\n",
+			       acpi_format_exception(status), info->pathname);
+		return;
+	}
+
+	/* Display a return object, if any */
+
+	if (return_obj.length) {
+		acpi_os_printf("Evaluation of %s returned object %p, "
+			       "external buffer length %X\n",
+			       acpi_gbl_db_method_info.pathname,
+			       return_obj.pointer, (u32)return_obj.length);
+
+		acpi_db_dump_external_object(return_obj.pointer, 1);
+	}
+
+	acpi_os_printf("\nBackground thread completed\n%c ",
+		       ACPI_DEBUGGER_COMMAND_PROMPT);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_db_create_execution_thread
+ *
+ * PARAMETERS:  method_name_arg         - Control method to execute
+ *              arguments               - Array of arguments to the method
+ *              types                   - Corresponding array of object types
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Create a single thread to evaluate a namespace object. Handles
+ *              arguments passed on command line for control methods.
+ *
+ ******************************************************************************/
+
+void
+acpi_db_create_execution_thread(char *method_name_arg,
+				char **arguments, acpi_object_type *types)
+{
+	acpi_status status;
+	u32 i;
+
+	memset(&acpi_gbl_db_method_info, 0, sizeof(struct acpi_db_method_info));
+	acpi_gbl_db_method_info.name = method_name_arg;
+	acpi_gbl_db_method_info.init_args = 1;
+	acpi_gbl_db_method_info.args = acpi_gbl_db_method_info.arguments;
+	acpi_gbl_db_method_info.types = acpi_gbl_db_method_info.arg_types;
+
+	/* Setup method arguments, up to 7 (0-6) */
+
+	for (i = 0; (i < ACPI_METHOD_NUM_ARGS) && *arguments; i++) {
+		acpi_gbl_db_method_info.arguments[i] = *arguments;
+		arguments++;
+
+		acpi_gbl_db_method_info.arg_types[i] = *types;
+		types++;
+	}
+
+	status = acpi_db_execute_setup(&acpi_gbl_db_method_info);
+	if (ACPI_FAILURE(status)) {
+		return;
+	}
+
+	/* Get the NS node, determines existence also */
+
+	status = acpi_get_handle(NULL, acpi_gbl_db_method_info.pathname,
+				 &acpi_gbl_db_method_info.method);
+	if (ACPI_FAILURE(status)) {
+		acpi_os_printf("%s Could not get handle for %s\n",
+			       acpi_format_exception(status),
+			       acpi_gbl_db_method_info.pathname);
+		return;
+	}
+
+	status = acpi_os_execute(OSL_DEBUGGER_EXEC_THREAD,
+				 acpi_db_single_execution_thread,
+				 &acpi_gbl_db_method_info);
+	if (ACPI_FAILURE(status)) {
+		return;
+	}
+
+	acpi_os_printf("\nBackground thread started\n");
 }
 
 /*******************************************************************************

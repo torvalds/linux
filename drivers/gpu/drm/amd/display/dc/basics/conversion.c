@@ -46,7 +46,7 @@ uint16_t fixed_point_to_int_frac(
 			arg));
 
 	if (d <= (uint16_t)(1 << integer_bits) - (1 / (uint16_t)divisor))
-		numerator = (uint16_t)dal_fixed31_32_floor(
+		numerator = (uint16_t)dal_fixed31_32_round(
 			dal_fixed31_32_mul_int(
 				arg,
 				divisor));

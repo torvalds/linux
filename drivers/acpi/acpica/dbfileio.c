@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,8 +99,8 @@ void acpi_db_open_debug_file(char *name)
 	}
 
 	acpi_os_printf("Debug output file %s opened\n", name);
-	strncpy(acpi_gbl_db_debug_filename, name,
-		sizeof(acpi_gbl_db_debug_filename));
+	acpi_ut_safe_strncpy(acpi_gbl_db_debug_filename, name,
+			     sizeof(acpi_gbl_db_debug_filename));
 	acpi_gbl_db_output_to_file = TRUE;
 }
 #endif

@@ -1602,7 +1602,6 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 				   struct device_node *np)
 {
 	struct serial_rs485 *rs485conf = &up->port.rs485;
-	enum of_gpio_flags flags;
 	int ret;
 
 	rs485conf->flags = 0;
@@ -1611,19 +1610,24 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 	if (!np)
 		return 0;
 
-	if (of_property_read_bool(np, "rs485-rts-active-high"))
+	uart_get_rs485_mode(up->dev, rs485conf);
+
+	if (of_property_read_bool(np, "rs485-rts-active-high")) {
 		rs485conf->flags |= SER_RS485_RTS_ON_SEND;
-	else
+		rs485conf->flags &= ~SER_RS485_RTS_AFTER_SEND;
+	} else {
+		rs485conf->flags &= ~SER_RS485_RTS_ON_SEND;
 		rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
+	}
 
 	/* check for tx enable gpio */
-	up->rts_gpio = of_get_named_gpio_flags(np, "rts-gpio", 0, &flags);
+	up->rts_gpio = of_get_named_gpio(np, "rts-gpio", 0);
 	if (gpio_is_valid(up->rts_gpio)) {
 		ret = devm_gpio_request(up->dev, up->rts_gpio, "omap-serial");
 		if (ret < 0)
 			return ret;
-		ret = gpio_direction_output(up->rts_gpio,
-					    flags & SER_RS485_RTS_AFTER_SEND);
+		ret = rs485conf->flags & SER_RS485_RTS_AFTER_SEND ? 1 : 0;
+		ret = gpio_direction_output(up->rts_gpio, ret);
 		if (ret < 0)
 			return ret;
 	} else if (up->rts_gpio == -EPROBE_DEFER) {
@@ -1631,8 +1635,6 @@ static int serial_omap_probe_rs485(struct uart_omap_port *up,
 	} else {
 		up->rts_gpio = -EINVAL;
 	}
-
-	of_get_rs485_mode(np, rs485conf);
 
 	return 0;
 }

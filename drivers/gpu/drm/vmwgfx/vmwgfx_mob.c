@@ -240,6 +240,10 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 	unsigned long offset;
 	unsigned long bo_size;
 	struct vmw_otable *otables = batch->otables;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
 	SVGAOTableType i;
 	int ret;
 
@@ -264,7 +268,7 @@ static int vmw_otable_batch_setup(struct vmw_private *dev_priv,
 
 	ret = ttm_bo_reserve(batch->otable_bo, false, true, NULL);
 	BUG_ON(ret != 0);
-	ret = vmw_bo_driver.ttm_tt_populate(batch->otable_bo->ttm);
+	ret = vmw_bo_driver.ttm_tt_populate(batch->otable_bo->ttm, &ctx);
 	if (unlikely(ret != 0))
 		goto out_unreserve;
 	ret = vmw_bo_map_dma(batch->otable_bo);
@@ -430,6 +434,11 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 			       struct vmw_mob *mob)
 {
 	int ret;
+	struct ttm_operation_ctx ctx = {
+		.interruptible = false,
+		.no_wait_gpu = false
+	};
+
 	BUG_ON(mob->pt_bo != NULL);
 
 	ret = ttm_bo_create(&dev_priv->bdev, mob->num_pages * PAGE_SIZE,
@@ -442,7 +451,7 @@ static int vmw_mob_pt_populate(struct vmw_private *dev_priv,
 	ret = ttm_bo_reserve(mob->pt_bo, false, true, NULL);
 
 	BUG_ON(ret != 0);
-	ret = vmw_bo_driver.ttm_tt_populate(mob->pt_bo->ttm);
+	ret = vmw_bo_driver.ttm_tt_populate(mob->pt_bo->ttm, &ctx);
 	if (unlikely(ret != 0))
 		goto out_unreserve;
 	ret = vmw_bo_map_dma(mob->pt_bo);

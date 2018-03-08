@@ -150,10 +150,7 @@ xfs_dquot_item_error(
 	struct xfs_log_item	*lip,
 	struct xfs_buf		*bp)
 {
-	struct xfs_dquot	*dqp;
-
-	dqp = DQUOT_ITEM(lip)->qli_dquot;
-	ASSERT(!completion_done(&dqp->q_flush));
+	ASSERT(!completion_done(&DQUOT_ITEM(lip)->qli_dquot->q_flush));
 	xfs_set_li_failed(lip, bp);
 }
 
@@ -179,7 +176,7 @@ xfs_qm_dquot_logitem_push(
 		if (!xfs_buf_trylock(bp))
 			return XFS_ITEM_LOCKED;
 
-		if (!xfs_buf_resubmit_failed_buffers(bp, lip, buffer_list))
+		if (!xfs_buf_resubmit_failed_buffers(bp, buffer_list))
 			rval = XFS_ITEM_FLUSHING;
 
 		xfs_buf_unlock(bp);
@@ -212,7 +209,7 @@ xfs_qm_dquot_logitem_push(
 
 	error = xfs_qm_dqflush(dqp, &bp);
 	if (error) {
-		xfs_warn(dqp->q_mount, "%s: push error %d on dqp %p",
+		xfs_warn(dqp->q_mount, "%s: push error %d on dqp "PTR_FMT,
 			__func__, error, dqp);
 	} else {
 		if (!xfs_buf_delwri_queue(bp, buffer_list))

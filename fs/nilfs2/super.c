@@ -283,10 +283,10 @@ int nilfs_commit_super(struct super_block *sb, int flag)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
-	time_t t;
+	time64_t t;
 
 	/* nilfs->ns_sem must be locked by the caller. */
-	t = get_seconds();
+	t = ktime_get_real_seconds();
 	nilfs->ns_sbwtime = t;
 	sbp[0]->s_wtime = cpu_to_le64(t);
 	sbp[0]->s_sum = 0;

@@ -2664,7 +2664,6 @@ static int dce_v8_0_early_init(void *handle)
 	adev->audio_endpt_wreg = &dce_v8_0_audio_endpt_wreg;
 
 	dce_v8_0_set_display_funcs(adev);
-	dce_v8_0_set_irq_funcs(adev);
 
 	adev->mode_info.num_crtc = dce_v8_0_get_num_crtc(adev);
 
@@ -2687,6 +2686,8 @@ static int dce_v8_0_early_init(void *handle)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	dce_v8_0_set_irq_funcs(adev);
 
 	return 0;
 }
@@ -3525,13 +3526,16 @@ static const struct amdgpu_irq_src_funcs dce_v8_0_hpd_irq_funcs = {
 
 static void dce_v8_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_LAST;
+	if (adev->mode_info.num_crtc > 0)
+		adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_VLINE1 + adev->mode_info.num_crtc;
+	else
+		adev->crtc_irq.num_types = 0;
 	adev->crtc_irq.funcs = &dce_v8_0_crtc_irq_funcs;
 
-	adev->pageflip_irq.num_types = AMDGPU_PAGEFLIP_IRQ_LAST;
+	adev->pageflip_irq.num_types = adev->mode_info.num_crtc;
 	adev->pageflip_irq.funcs = &dce_v8_0_pageflip_irq_funcs;
 
-	adev->hpd_irq.num_types = AMDGPU_HPD_LAST;
+	adev->hpd_irq.num_types = adev->mode_info.num_hpd;
 	adev->hpd_irq.funcs = &dce_v8_0_hpd_irq_funcs;
 }
 

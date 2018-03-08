@@ -269,6 +269,13 @@ config DM_BIO_PRISON
 
 source "drivers/md/persistent-data/Kconfig"
 
+config DM_UNSTRIPED
+       tristate "Unstriped target"
+       depends on BLK_DEV_DM
+       ---help---
+	  Unstripes I/O so it is issued solely on a single drive in a HW
+	  RAID0 or dm-striped target.
+
 config DM_CRYPT
 	tristate "Crypt target support"
 	depends on BLK_DEV_DM

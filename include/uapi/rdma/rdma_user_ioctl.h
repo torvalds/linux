@@ -65,7 +65,7 @@ struct ib_uverbs_attr {
 	__u16 len;		/* only for pointers */
 	__u16 flags;		/* combination of UVERBS_ATTR_F_XXXX */
 	__u16 reserved;
-	__u64 data;		/* ptr to command, inline data or idr/fd */
+	__aligned_u64 data;	/* ptr to command, inline data or idr/fd */
 };
 
 struct ib_uverbs_ioctl_hdr {
@@ -73,7 +73,7 @@ struct ib_uverbs_ioctl_hdr {
 	__u16 object_id;
 	__u16 method_id;
 	__u16 num_attrs;
-	__u64 reserved;
+	__aligned_u64 reserved;
 	struct ib_uverbs_attr  attrs[0];
 };
 

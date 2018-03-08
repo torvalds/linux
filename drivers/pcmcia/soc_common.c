@@ -191,12 +191,16 @@ static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int ret = 0, i;
 
-	clk_prepare_enable(skt->clk);
+	ret = clk_prepare_enable(skt->clk);
+	if (ret)
+		return ret;
 
 	if (skt->ops->hw_init) {
 		ret = skt->ops->hw_init(skt);
-		if (ret)
+		if (ret) {
+			clk_disable_unprepare(skt->clk);
 			return ret;
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(skt->stat); i++) {

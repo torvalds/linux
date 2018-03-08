@@ -309,17 +309,7 @@ static int pmc_dev_state_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int pmc_dev_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmc_dev_state_show, inode->i_private);
-}
-
-static const struct file_operations pmc_dev_state_ops = {
-	.open		= pmc_dev_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pmc_dev_state);
 
 static int pmc_pss_state_show(struct seq_file *s, void *unused)
 {
@@ -336,17 +326,7 @@ static int pmc_pss_state_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int pmc_pss_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmc_pss_state_show, inode->i_private);
-}
-
-static const struct file_operations pmc_pss_state_ops = {
-	.open		= pmc_pss_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pmc_pss_state);
 
 static int pmc_sleep_tmr_show(struct seq_file *s, void *unused)
 {
@@ -367,17 +347,7 @@ static int pmc_sleep_tmr_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int pmc_sleep_tmr_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pmc_sleep_tmr_show, inode->i_private);
-}
-
-static const struct file_operations pmc_sleep_tmr_ops = {
-	.open		= pmc_sleep_tmr_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pmc_sleep_tmr);
 
 static void pmc_dbgfs_unregister(struct pmc_dev *pmc)
 {
@@ -395,17 +365,17 @@ static int pmc_dbgfs_register(struct pmc_dev *pmc)
 	pmc->dbgfs_dir = dir;
 
 	f = debugfs_create_file("dev_state", S_IFREG | S_IRUGO,
-				dir, pmc, &pmc_dev_state_ops);
+				dir, pmc, &pmc_dev_state_fops);
 	if (!f)
 		goto err;
 
 	f = debugfs_create_file("pss_state", S_IFREG | S_IRUGO,
-				dir, pmc, &pmc_pss_state_ops);
+				dir, pmc, &pmc_pss_state_fops);
 	if (!f)
 		goto err;
 
 	f = debugfs_create_file("sleep_state", S_IFREG | S_IRUGO,
-				dir, pmc, &pmc_sleep_tmr_ops);
+				dir, pmc, &pmc_sleep_tmr_fops);
 	if (!f)
 		goto err;
 

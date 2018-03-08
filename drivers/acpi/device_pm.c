@@ -990,7 +990,7 @@ void acpi_subsys_complete(struct device *dev)
 	 * the sleep state it is going out of and it has never been resumed till
 	 * now, resume it in case the firmware powered it up.
 	 */
-	if (dev->power.direct_complete && pm_resume_via_firmware())
+	if (pm_runtime_suspended(dev) && pm_resume_via_firmware())
 		pm_request_resume(dev);
 }
 EXPORT_SYMBOL_GPL(acpi_subsys_complete);
@@ -1039,10 +1039,28 @@ EXPORT_SYMBOL_GPL(acpi_subsys_suspend_late);
  */
 int acpi_subsys_suspend_noirq(struct device *dev)
 {
-	if (dev_pm_smart_suspend_and_suspended(dev))
-		return 0;
+	int ret;
 
-	return pm_generic_suspend_noirq(dev);
+	if (dev_pm_smart_suspend_and_suspended(dev)) {
+		dev->power.may_skip_resume = true;
+		return 0;
+	}
+
+	ret = pm_generic_suspend_noirq(dev);
+	if (ret)
+		return ret;
+
+	/*
+	 * If the target system sleep state is suspend-to-idle, it is sufficient
+	 * to check whether or not the device's wakeup settings are good for
+	 * runtime PM.  Otherwise, the pm_resume_via_firmware() check will cause
+	 * acpi_subsys_complete() to take care of fixing up the device's state
+	 * anyway, if need be.
+	 */
+	dev->power.may_skip_resume = device_may_wakeup(dev) ||
+					!device_can_wakeup(dev);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(acpi_subsys_suspend_noirq);
 
@@ -1052,6 +1070,9 @@ EXPORT_SYMBOL_GPL(acpi_subsys_suspend_noirq);
  */
 int acpi_subsys_resume_noirq(struct device *dev)
 {
+	if (dev_pm_may_skip_resume(dev))
+		return 0;
+
 	/*
 	 * Devices with DPM_FLAG_SMART_SUSPEND may be left in runtime suspend
 	 * during system suspend, so update their runtime PM status to "active"

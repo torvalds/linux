@@ -43,6 +43,7 @@
 struct bpf_prog;
 struct net_device;
 struct netdev_bpf;
+struct netlink_ext_ack;
 struct pci_dev;
 struct sk_buff;
 struct sk_buff;
@@ -66,6 +67,9 @@ extern const struct nfp_app_type app_flower;
  * struct nfp_app_type - application definition
  * @id:		application ID
  * @name:	application name
+ * @ctrl_cap_mask:  ctrl vNIC capability mask, allows disabling features like
+ *		    IRQMOD which are on by default but counter-productive for
+ *		    control messages which are often latency-sensitive
  * @ctrl_has_meta:  control messages have prepend of type:5/port:CTRL
  *
  * Callbacks
@@ -77,18 +81,19 @@ extern const struct nfp_app_type app_flower;
  * @vnic_init:	vNIC netdev was registered
  * @vnic_clean:	vNIC netdev about to be unregistered
  * @repr_init:	representor about to be registered
+ * @repr_preclean:	representor about to unregistered, executed before app
+ *			reference to the it is removed
  * @repr_clean:	representor about to be unregistered
  * @repr_open:	representor netdev open callback
  * @repr_stop:	representor netdev stop callback
+ * @change_mtu:	MTU change on a netdev has been requested (veto-only, change
+ *		is not guaranteed to be committed)
  * @start:	start application logic
  * @stop:	stop application logic
  * @ctrl_msg_rx:    control message handler
  * @setup_tc:	setup TC ndo
- * @tc_busy:	TC HW offload busy (rules loaded)
+ * @bpf:	BPF ndo offload-related calls
  * @xdp_offload:    offload an XDP program
- * @bpf_verifier_prep:	verifier prep for dev-specific BPF programs
- * @bpf_translate:	translate call for dev-specific BPF programs
- * @bpf_destroy:	destroy for dev-specific BPF programs
  * @eswitch_mode_get:    get SR-IOV eswitch mode
  * @sriov_enable: app-specific sriov initialisation
  * @sriov_disable: app-specific sriov clean-up
@@ -98,6 +103,7 @@ struct nfp_app_type {
 	enum nfp_app_id id;
 	const char *name;
 
+	u32 ctrl_cap_mask;
 	bool ctrl_has_meta;
 
 	int (*init)(struct nfp_app *app);
@@ -112,10 +118,14 @@ struct nfp_app_type {
 	void (*vnic_clean)(struct nfp_app *app, struct nfp_net *nn);
 
 	int (*repr_init)(struct nfp_app *app, struct net_device *netdev);
+	void (*repr_preclean)(struct nfp_app *app, struct net_device *netdev);
 	void (*repr_clean)(struct nfp_app *app, struct net_device *netdev);
 
 	int (*repr_open)(struct nfp_app *app, struct nfp_repr *repr);
 	int (*repr_stop)(struct nfp_app *app, struct nfp_repr *repr);
+
+	int (*change_mtu)(struct nfp_app *app, struct net_device *netdev,
+			  int new_mtu);
 
 	int (*start)(struct nfp_app *app);
 	void (*stop)(struct nfp_app *app);
@@ -124,15 +134,11 @@ struct nfp_app_type {
 
 	int (*setup_tc)(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data);
-	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
+	int (*bpf)(struct nfp_app *app, struct nfp_net *nn,
+		   struct netdev_bpf *xdp);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
-			   struct bpf_prog *prog);
-	int (*bpf_verifier_prep)(struct nfp_app *app, struct nfp_net *nn,
-				 struct netdev_bpf *bpf);
-	int (*bpf_translate)(struct nfp_app *app, struct nfp_net *nn,
-			     struct bpf_prog *prog);
-	int (*bpf_destroy)(struct nfp_app *app, struct nfp_net *nn,
-			   struct bpf_prog *prog);
+			   struct bpf_prog *prog,
+			   struct netlink_ext_ack *extack);
 
 	int (*sriov_enable)(struct nfp_app *app, int num_vfs);
 	void (*sriov_disable)(struct nfp_app *app);
@@ -163,6 +169,7 @@ struct nfp_app {
 	void *priv;
 };
 
+bool __nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 bool nfp_ctrl_tx(struct nfp_net *nn, struct sk_buff *skb);
 
 static inline int nfp_app_init(struct nfp_app *app)
@@ -226,10 +233,25 @@ nfp_app_repr_init(struct nfp_app *app, struct net_device *netdev)
 }
 
 static inline void
+nfp_app_repr_preclean(struct nfp_app *app, struct net_device *netdev)
+{
+	if (app->type->repr_preclean)
+		app->type->repr_preclean(app, netdev);
+}
+
+static inline void
 nfp_app_repr_clean(struct nfp_app *app, struct net_device *netdev)
 {
 	if (app->type->repr_clean)
 		app->type->repr_clean(app, netdev);
+}
+
+static inline int
+nfp_app_change_mtu(struct nfp_app *app, struct net_device *netdev, int new_mtu)
+{
+	if (!app || !app->type->change_mtu)
+		return 0;
+	return app->type->change_mtu(app, netdev, new_mtu);
 }
 
 static inline int nfp_app_start(struct nfp_app *app, struct nfp_net *ctrl)
@@ -277,13 +299,6 @@ static inline bool nfp_app_has_tc(struct nfp_app *app)
 	return app && app->type->setup_tc;
 }
 
-static inline bool nfp_app_tc_busy(struct nfp_app *app, struct nfp_net *nn)
-{
-	if (!app || !app->type->tc_busy)
-		return false;
-	return app->type->tc_busy(app, nn);
-}
-
 static inline int nfp_app_setup_tc(struct nfp_app *app,
 				   struct net_device *netdev,
 				   enum tc_setup_type type, void *type_data)
@@ -293,39 +308,29 @@ static inline int nfp_app_setup_tc(struct nfp_app *app,
 	return app->type->setup_tc(app, netdev, type, type_data);
 }
 
+static inline int nfp_app_bpf(struct nfp_app *app, struct nfp_net *nn,
+			      struct netdev_bpf *bpf)
+{
+	if (!app || !app->type->bpf)
+		return -EINVAL;
+	return app->type->bpf(app, nn, bpf);
+}
+
 static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
-				      struct bpf_prog *prog)
+				      struct bpf_prog *prog,
+				      struct netlink_ext_ack *extack)
 {
 	if (!app || !app->type->xdp_offload)
 		return -EOPNOTSUPP;
-	return app->type->xdp_offload(app, nn, prog);
+	return app->type->xdp_offload(app, nn, prog, extack);
 }
 
-static inline int
-nfp_app_bpf_verifier_prep(struct nfp_app *app, struct nfp_net *nn,
-			  struct netdev_bpf *bpf)
+static inline bool __nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)
 {
-	if (!app || !app->type->bpf_verifier_prep)
-		return -EOPNOTSUPP;
-	return app->type->bpf_verifier_prep(app, nn, bpf);
-}
+	trace_devlink_hwmsg(priv_to_devlink(app->pf), false, 0,
+			    skb->data, skb->len);
 
-static inline int
-nfp_app_bpf_translate(struct nfp_app *app, struct nfp_net *nn,
-		      struct bpf_prog *prog)
-{
-	if (!app || !app->type->bpf_translate)
-		return -EOPNOTSUPP;
-	return app->type->bpf_translate(app, nn, prog);
-}
-
-static inline int
-nfp_app_bpf_destroy(struct nfp_app *app, struct nfp_net *nn,
-		    struct bpf_prog *prog)
-{
-	if (!app || !app->type->bpf_destroy)
-		return -EOPNOTSUPP;
-	return app->type->bpf_destroy(app, nn, prog);
+	return __nfp_ctrl_tx(app->ctrl, skb);
 }
 
 static inline bool nfp_app_ctrl_tx(struct nfp_app *app, struct sk_buff *skb)
@@ -377,6 +382,8 @@ static inline struct net_device *nfp_app_repr_get(struct nfp_app *app, u32 id)
 
 struct nfp_app *nfp_app_from_netdev(struct net_device *netdev);
 
+struct nfp_reprs *
+nfp_reprs_get_locked(struct nfp_app *app, enum nfp_repr_type type);
 struct nfp_reprs *
 nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
 		  struct nfp_reprs *reprs);

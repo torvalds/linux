@@ -42,14 +42,30 @@ static inline struct drm_i915_private *kdev_minor_to_i915(struct device *kdev)
 static u32 calc_residency(struct drm_i915_private *dev_priv,
 			  i915_reg_t reg)
 {
-	return DIV_ROUND_CLOSEST_ULL(intel_rc6_residency_us(dev_priv, reg),
-				     1000);
+	u64 res;
+
+	intel_runtime_pm_get(dev_priv);
+	res = intel_rc6_residency_us(dev_priv, reg);
+	intel_runtime_pm_put(dev_priv);
+
+	return DIV_ROUND_CLOSEST_ULL(res, 1000);
 }
 
 static ssize_t
 show_rc6_mask(struct device *kdev, struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%x\n", intel_rc6_enabled());
+	struct drm_i915_private *dev_priv = kdev_minor_to_i915(kdev);
+	unsigned int mask;
+
+	mask = 0;
+	if (HAS_RC6(dev_priv))
+		mask |= BIT(0);
+	if (HAS_RC6p(dev_priv))
+		mask |= BIT(1);
+	if (HAS_RC6pp(dev_priv))
+		mask |= BIT(2);
+
+	return snprintf(buf, PAGE_SIZE, "%x\n", mask);
 }
 
 static ssize_t
@@ -252,14 +268,9 @@ static ssize_t gt_act_freq_mhz_show(struct device *kdev,
 		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		ret = intel_gpu_freq(dev_priv, (freq >> 8) & 0xff);
 	} else {
-		u32 rpstat = I915_READ(GEN6_RPSTAT1);
-		if (INTEL_GEN(dev_priv) >= 9)
-			ret = (rpstat & GEN9_CAGF_MASK) >> GEN9_CAGF_SHIFT;
-		else if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-			ret = (rpstat & HSW_CAGF_MASK) >> HSW_CAGF_SHIFT;
-		else
-			ret = (rpstat & GEN6_CAGF_MASK) >> GEN6_CAGF_SHIFT;
-		ret = intel_gpu_freq(dev_priv, ret);
+		ret = intel_gpu_freq(dev_priv,
+				     intel_get_cagf(dev_priv,
+						    I915_READ(GEN6_RPSTAT1)));
 	}
 	mutex_unlock(&dev_priv->pcu_lock);
 
@@ -434,13 +445,13 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 	return ret ?: count;
 }
 
-static DEVICE_ATTR(gt_act_freq_mhz, S_IRUGO, gt_act_freq_mhz_show, NULL);
-static DEVICE_ATTR(gt_cur_freq_mhz, S_IRUGO, gt_cur_freq_mhz_show, NULL);
-static DEVICE_ATTR(gt_boost_freq_mhz, S_IRUGO | S_IWUSR, gt_boost_freq_mhz_show, gt_boost_freq_mhz_store);
-static DEVICE_ATTR(gt_max_freq_mhz, S_IRUGO | S_IWUSR, gt_max_freq_mhz_show, gt_max_freq_mhz_store);
-static DEVICE_ATTR(gt_min_freq_mhz, S_IRUGO | S_IWUSR, gt_min_freq_mhz_show, gt_min_freq_mhz_store);
+static DEVICE_ATTR_RO(gt_act_freq_mhz);
+static DEVICE_ATTR_RO(gt_cur_freq_mhz);
+static DEVICE_ATTR_RW(gt_boost_freq_mhz);
+static DEVICE_ATTR_RW(gt_max_freq_mhz);
+static DEVICE_ATTR_RW(gt_min_freq_mhz);
 
-static DEVICE_ATTR(vlv_rpe_freq_mhz, S_IRUGO, vlv_rpe_freq_mhz_show, NULL);
+static DEVICE_ATTR_RO(vlv_rpe_freq_mhz);
 
 static ssize_t gt_rp_mhz_show(struct device *kdev, struct device_attribute *attr, char *buf);
 static DEVICE_ATTR(gt_RP0_freq_mhz, S_IRUGO, gt_rp_mhz_show, NULL);

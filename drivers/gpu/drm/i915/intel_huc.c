@@ -54,10 +54,6 @@
 #define KBL_HUC_FW_MINOR 00
 #define KBL_BLD_NUM 1810
 
-#define GLK_HUC_FW_MAJOR 02
-#define GLK_HUC_FW_MINOR 00
-#define GLK_BLD_NUM 1748
-
 #define HUC_FW_PATH(platform, major, minor, bld_num) \
 	"i915/" __stringify(platform) "_huc_ver" __stringify(major) "_" \
 	__stringify(minor) "_" __stringify(bld_num) ".bin"
@@ -74,43 +70,50 @@ MODULE_FIRMWARE(I915_BXT_HUC_UCODE);
 	KBL_HUC_FW_MINOR, KBL_BLD_NUM)
 MODULE_FIRMWARE(I915_KBL_HUC_UCODE);
 
-#define I915_GLK_HUC_UCODE HUC_FW_PATH(glk, GLK_HUC_FW_MAJOR, \
-	GLK_HUC_FW_MINOR, GLK_BLD_NUM)
-
-/**
- * intel_huc_select_fw() - selects HuC firmware for loading
- * @huc:	intel_huc struct
- */
-void intel_huc_select_fw(struct intel_huc *huc)
+static void huc_fw_select(struct intel_uc_fw *huc_fw)
 {
+	struct intel_huc *huc = container_of(huc_fw, struct intel_huc, fw);
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
 
-	intel_uc_fw_init(&huc->fw, INTEL_UC_FW_TYPE_HUC);
+	GEM_BUG_ON(huc_fw->type != INTEL_UC_FW_TYPE_HUC);
+
+	if (!HAS_HUC(dev_priv))
+		return;
 
 	if (i915_modparams.huc_firmware_path) {
-		huc->fw.path = i915_modparams.huc_firmware_path;
-		huc->fw.major_ver_wanted = 0;
-		huc->fw.minor_ver_wanted = 0;
+		huc_fw->path = i915_modparams.huc_firmware_path;
+		huc_fw->major_ver_wanted = 0;
+		huc_fw->minor_ver_wanted = 0;
 	} else if (IS_SKYLAKE(dev_priv)) {
-		huc->fw.path = I915_SKL_HUC_UCODE;
-		huc->fw.major_ver_wanted = SKL_HUC_FW_MAJOR;
-		huc->fw.minor_ver_wanted = SKL_HUC_FW_MINOR;
+		huc_fw->path = I915_SKL_HUC_UCODE;
+		huc_fw->major_ver_wanted = SKL_HUC_FW_MAJOR;
+		huc_fw->minor_ver_wanted = SKL_HUC_FW_MINOR;
 	} else if (IS_BROXTON(dev_priv)) {
-		huc->fw.path = I915_BXT_HUC_UCODE;
-		huc->fw.major_ver_wanted = BXT_HUC_FW_MAJOR;
-		huc->fw.minor_ver_wanted = BXT_HUC_FW_MINOR;
+		huc_fw->path = I915_BXT_HUC_UCODE;
+		huc_fw->major_ver_wanted = BXT_HUC_FW_MAJOR;
+		huc_fw->minor_ver_wanted = BXT_HUC_FW_MINOR;
 	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
-		huc->fw.path = I915_KBL_HUC_UCODE;
-		huc->fw.major_ver_wanted = KBL_HUC_FW_MAJOR;
-		huc->fw.minor_ver_wanted = KBL_HUC_FW_MINOR;
-	} else if (IS_GEMINILAKE(dev_priv)) {
-		huc->fw.path = I915_GLK_HUC_UCODE;
-		huc->fw.major_ver_wanted = GLK_HUC_FW_MAJOR;
-		huc->fw.minor_ver_wanted = GLK_HUC_FW_MINOR;
+		huc_fw->path = I915_KBL_HUC_UCODE;
+		huc_fw->major_ver_wanted = KBL_HUC_FW_MAJOR;
+		huc_fw->minor_ver_wanted = KBL_HUC_FW_MINOR;
 	} else {
-		DRM_ERROR("No HuC firmware known for platform with HuC!\n");
-		return;
+		DRM_WARN("%s: No firmware known for this platform!\n",
+			 intel_uc_fw_type_repr(huc_fw->type));
 	}
+}
+
+/**
+ * intel_huc_init_early() - initializes HuC struct
+ * @huc: intel_huc struct
+ *
+ * On platforms with HuC selects firmware for uploading
+ */
+void intel_huc_init_early(struct intel_huc *huc)
+{
+	struct intel_uc_fw *huc_fw = &huc->fw;
+
+	intel_uc_fw_init(huc_fw, INTEL_UC_FW_TYPE_HUC);
+	huc_fw_select(huc_fw);
 }
 
 /**
@@ -151,7 +154,7 @@ static int huc_ucode_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(HUC_UKERNEL | START_DMA));
 
 	/* Wait for DMA to finish */
-	ret = wait_for((I915_READ(DMA_CTRL) & START_DMA) == 0, 100);
+	ret = intel_wait_for_register_fw(dev_priv, DMA_CTRL, START_DMA, 0, 100);
 
 	DRM_DEBUG_DRIVER("HuC DMA transfer wait over with ret %d\n", ret);
 
@@ -167,17 +170,17 @@ static int huc_ucode_xfer(struct intel_uc_fw *huc_fw, struct i915_vma *vma)
  * intel_huc_init_hw() - load HuC uCode to device
  * @huc: intel_huc structure
  *
- * Called from guc_setup() during driver loading and also after a GPU reset.
- * Be note that HuC loading must be done before GuC loading.
+ * Called from intel_uc_init_hw() during driver loading and also after a GPU
+ * reset. Be note that HuC loading must be done before GuC loading.
  *
  * The firmware image should have already been fetched into memory by the
- * earlier call to intel_huc_init(), so here we need only check that
+ * earlier call to intel_uc_init_fw(), so here we need only check that
  * is succeeded, and then transfer the image to the h/w.
  *
  */
-void intel_huc_init_hw(struct intel_huc *huc)
+int intel_huc_init_hw(struct intel_huc *huc)
 {
-	intel_uc_fw_upload(&huc->fw, huc_ucode_xfer);
+	return intel_uc_fw_upload(&huc->fw, huc_ucode_xfer);
 }
 
 /**
@@ -191,7 +194,7 @@ void intel_huc_init_hw(struct intel_huc *huc)
  * signature through intel_guc_auth_huc(). It then waits for 50ms for
  * firmware verification ACK and unpins the object.
  */
-void intel_huc_auth(struct intel_huc *huc)
+int intel_huc_auth(struct intel_huc *huc)
 {
 	struct drm_i915_private *i915 = huc_to_i915(huc);
 	struct intel_guc *guc = &i915->guc;
@@ -199,14 +202,14 @@ void intel_huc_auth(struct intel_huc *huc)
 	int ret;
 
 	if (huc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return;
+		return -ENOEXEC;
 
 	vma = i915_gem_object_ggtt_pin(huc->fw.obj, NULL, 0, 0,
 				PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
 	if (IS_ERR(vma)) {
-		DRM_ERROR("failed to pin huc fw object %d\n",
-				(int)PTR_ERR(vma));
-		return;
+		ret = PTR_ERR(vma);
+		DRM_ERROR("HuC: Failed to pin huc fw object %d\n", ret);
+		return ret;
 	}
 
 	ret = intel_guc_auth_huc(guc,
@@ -229,4 +232,5 @@ void intel_huc_auth(struct intel_huc *huc)
 
 out:
 	i915_vma_unpin(vma);
+	return ret;
 }

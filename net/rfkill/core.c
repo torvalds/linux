@@ -1139,16 +1139,16 @@ static int rfkill_fop_open(struct inode *inode, struct file *file)
 	return -ENOMEM;
 }
 
-static unsigned int rfkill_fop_poll(struct file *file, poll_table *wait)
+static __poll_t rfkill_fop_poll(struct file *file, poll_table *wait)
 {
 	struct rfkill_data *data = file->private_data;
-	unsigned int res = POLLOUT | POLLWRNORM;
+	__poll_t res = EPOLLOUT | EPOLLWRNORM;
 
 	poll_wait(file, &data->read_wait, wait);
 
 	mutex_lock(&data->mtx);
 	if (!list_empty(&data->events))
-		res = POLLIN | POLLRDNORM;
+		res = EPOLLIN | EPOLLRDNORM;
 	mutex_unlock(&data->mtx);
 
 	return res;

@@ -1591,7 +1591,7 @@ again:
 			if (new_index < 0) {
 				mutex_unlock(&nbd_index_mutex);
 				printk(KERN_ERR "nbd: failed to add new device\n");
-				return ret;
+				return new_index;
 			}
 			nbd = idr_find(&nbd_index_idr, new_index);
 		}

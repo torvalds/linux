@@ -464,6 +464,13 @@ retry:
 	error = xfs_trans_commit(tp);
 	if (error)
 		return error;
+
+	/*
+	 * Allocation succeeded but the requested range was not even partially
+	 * satisfied?  Bail out!
+	 */
+	if (nimaps == 0)
+		return -ENOSPC;
 convert:
 	return xfs_reflink_convert_cow_extent(ip, imap, offset_fsb, count_fsb,
 			&dfops);
@@ -599,10 +606,6 @@ xfs_reflink_cancel_cow_blocks(
 					del.br_startblock, del.br_blockcount,
 					NULL);
 
-			/* Update quota accounting */
-			xfs_trans_mod_dquot_byino(*tpp, ip, XFS_TRANS_DQ_BCOUNT,
-					-(long)del.br_blockcount);
-
 			/* Roll the transaction */
 			xfs_defer_ijoin(&dfops, ip);
 			error = xfs_defer_finish(tpp, &dfops);
@@ -613,6 +616,13 @@ xfs_reflink_cancel_cow_blocks(
 
 			/* Remove the mapping from the CoW fork. */
 			xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
+
+			/* Remove the quota reservation */
+			error = xfs_trans_reserve_quota_nblks(NULL, ip,
+					-(long)del.br_blockcount, 0,
+					XFS_QMOPT_RES_REGBLKS);
+			if (error)
+				break;
 		} else {
 			/* Didn't do anything, push cursor back. */
 			xfs_iext_prev(ifp, &icur);
@@ -795,6 +805,10 @@ xfs_reflink_end_cow(
 		if (error)
 			goto out_defer;
 
+		/* Charge this new data fork mapping to the on-disk quota. */
+		xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_DELBCOUNT,
+				(long)del.br_blockcount);
+
 		/* Remove the mapping from the CoW fork. */
 		xfs_bmap_del_extent_cow(ip, &icur, &got, &del);
 
@@ -944,7 +958,7 @@ xfs_reflink_set_inode_flag(
 	if (src->i_ino == dest->i_ino)
 		xfs_ilock(src, XFS_ILOCK_EXCL);
 	else
-		xfs_lock_two_inodes(src, dest, XFS_ILOCK_EXCL);
+		xfs_lock_two_inodes(src, XFS_ILOCK_EXCL, dest, XFS_ILOCK_EXCL);
 
 	if (!xfs_is_reflink_inode(src)) {
 		trace_xfs_reflink_set_inode_flag(src);
@@ -1202,13 +1216,16 @@ xfs_reflink_remap_blocks(
 
 	/* drange = (destoff, destoff + len); srange = (srcoff, srcoff + len) */
 	while (len) {
+		uint		lock_mode;
+
 		trace_xfs_reflink_remap_blocks_loop(src, srcoff, len,
 				dest, destoff);
+
 		/* Read extent from the source file */
 		nimaps = 1;
-		xfs_ilock(src, XFS_ILOCK_EXCL);
+		lock_mode = xfs_ilock_data_map_shared(src);
 		error = xfs_bmapi_read(src, srcoff, len, &imap, &nimaps, 0);
-		xfs_iunlock(src, XFS_ILOCK_EXCL);
+		xfs_iunlock(src, lock_mode);
 		if (error)
 			goto err;
 		ASSERT(nimaps == 1);
@@ -1245,6 +1262,50 @@ err:
 }
 
 /*
+ * Grab the exclusive iolock for a data copy from src to dest, making
+ * sure to abide vfs locking order (lowest pointer value goes first) and
+ * breaking the pnfs layout leases on dest before proceeding.  The loop
+ * is needed because we cannot call the blocking break_layout() with the
+ * src iolock held, and therefore have to back out both locks.
+ */
+static int
+xfs_iolock_two_inodes_and_break_layout(
+	struct inode		*src,
+	struct inode		*dest)
+{
+	int			error;
+
+retry:
+	if (src < dest) {
+		inode_lock_shared(src);
+		inode_lock_nested(dest, I_MUTEX_NONDIR2);
+	} else {
+		/* src >= dest */
+		inode_lock(dest);
+	}
+
+	error = break_layout(dest, false);
+	if (error == -EWOULDBLOCK) {
+		inode_unlock(dest);
+		if (src < dest)
+			inode_unlock_shared(src);
+		error = break_layout(dest, true);
+		if (error)
+			return error;
+		goto retry;
+	}
+	if (error) {
+		inode_unlock(dest);
+		if (src < dest)
+			inode_unlock_shared(src);
+		return error;
+	}
+	if (src > dest)
+		inode_lock_shared_nested(src, I_MUTEX_NONDIR2);
+	return 0;
+}
+
+/*
  * Link a range of blocks from one file to another.
  */
 int
@@ -1274,11 +1335,14 @@ xfs_reflink_remap_range(
 		return -EIO;
 
 	/* Lock both files against IO */
-	lock_two_nondirectories(inode_in, inode_out);
+	ret = xfs_iolock_two_inodes_and_break_layout(inode_in, inode_out);
+	if (ret)
+		return ret;
 	if (same_inode)
 		xfs_ilock(src, XFS_MMAPLOCK_EXCL);
 	else
-		xfs_lock_two_inodes(src, dest, XFS_MMAPLOCK_EXCL);
+		xfs_lock_two_inodes(src, XFS_MMAPLOCK_SHARED, dest,
+				XFS_MMAPLOCK_EXCL);
 
 	/* Check file eligibility and prepare for block sharing. */
 	ret = -EINVAL;
@@ -1293,6 +1357,11 @@ xfs_reflink_remap_range(
 	ret = vfs_clone_file_prep_inodes(inode_in, pos_in, inode_out, pos_out,
 			&len, is_dedupe);
 	if (ret <= 0)
+		goto out_unlock;
+
+	/* Attach dquots to dest inode before changing block map */
+	ret = xfs_qm_dqattach(dest, 0);
+	if (ret)
 		goto out_unlock;
 
 	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
@@ -1341,10 +1410,12 @@ xfs_reflink_remap_range(
 			is_dedupe);
 
 out_unlock:
-	xfs_iunlock(src, XFS_MMAPLOCK_EXCL);
+	xfs_iunlock(dest, XFS_MMAPLOCK_EXCL);
 	if (!same_inode)
-		xfs_iunlock(dest, XFS_MMAPLOCK_EXCL);
-	unlock_two_nondirectories(inode_in, inode_out);
+		xfs_iunlock(src, XFS_MMAPLOCK_SHARED);
+	inode_unlock(inode_out);
+	if (!same_inode)
+		inode_unlock_shared(inode_in);
 	if (ret)
 		trace_xfs_reflink_remap_range_error(dest, ret, _RET_IP_);
 	return ret;

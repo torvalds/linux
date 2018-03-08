@@ -361,10 +361,8 @@ int spear_pinctrl_probe(struct platform_device *pdev,
 		return -ENODEV;
 
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
-	if (!pmx) {
-		dev_err(&pdev->dev, "Can't alloc spear_pmx\n");
+	if (!pmx)
 		return -ENOMEM;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pmx->vbase = devm_ioremap_resource(&pdev->dev, res);

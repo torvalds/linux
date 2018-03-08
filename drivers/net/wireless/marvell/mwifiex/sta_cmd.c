@@ -2206,6 +2206,10 @@ int mwifiex_sta_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 	case HostCmd_CMD_CHAN_REGION_CFG:
 		ret = mwifiex_cmd_chan_region_cfg(priv, cmd_ptr, cmd_action);
 		break;
+	case HostCmd_CMD_FW_DUMP_EVENT:
+		cmd_ptr->command = cpu_to_le16(cmd_no);
+		cmd_ptr->size = cpu_to_le16(S_DS_GEN);
+		break;
 	default:
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "PREP_CMD: unknown cmd- %#x\n", cmd_no);

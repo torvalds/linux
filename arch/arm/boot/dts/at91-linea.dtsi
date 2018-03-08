@@ -27,6 +27,18 @@
 	clock-frequency = <12000000>;
 };
 
+&tcb0 {
+	timer@0 {
+		compatible = "atmel,tcb-timer";
+		reg = <0>;
+	};
+
+	timer@1 {
+		compatible = "atmel,tcb-timer";
+		reg = <1>;
+	};
+};
+
 &i2c0 {
 	status = "okay";
 

@@ -107,6 +107,7 @@ struct caam_hash_ctx {
 	dma_addr_t sh_desc_update_first_dma;
 	dma_addr_t sh_desc_fin_dma;
 	dma_addr_t sh_desc_digest_dma;
+	enum dma_data_direction dir;
 	struct device *jrdev;
 	u8 key[CAAM_MAX_HASH_KEY_SIZE];
 	int ctx_len;
@@ -241,7 +242,8 @@ static inline int ctx_map_to_sec4_sg(struct device *jrdev,
  *     read and write to seqout
  */
 static inline void ahash_gen_sh_desc(u32 *desc, u32 state, int digestsize,
-				     struct caam_hash_ctx *ctx, bool import_ctx)
+				     struct caam_hash_ctx *ctx, bool import_ctx,
+				     int era)
 {
 	u32 op = ctx->adata.algtype;
 	u32 *skip_key_load;
@@ -254,9 +256,12 @@ static inline void ahash_gen_sh_desc(u32 *desc, u32 state, int digestsize,
 		skip_key_load = append_jump(desc, JUMP_JSL | JUMP_TEST_ALL |
 					    JUMP_COND_SHRD);
 
-		append_key_as_imm(desc, ctx->key, ctx->adata.keylen_pad,
-				  ctx->adata.keylen, CLASS_2 |
-				  KEY_DEST_MDHA_SPLIT | KEY_ENC);
+		if (era < 6)
+			append_key_as_imm(desc, ctx->key, ctx->adata.keylen_pad,
+					  ctx->adata.keylen, CLASS_2 |
+					  KEY_DEST_MDHA_SPLIT | KEY_ENC);
+		else
+			append_proto_dkp(desc, &ctx->adata);
 
 		set_jump_tgt_here(desc, skip_key_load);
 
@@ -289,13 +294,17 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	int digestsize = crypto_ahash_digestsize(ahash);
 	struct device *jrdev = ctx->jrdev;
+	struct caam_drv_private *ctrlpriv = dev_get_drvdata(jrdev->parent);
 	u32 *desc;
+
+	ctx->adata.key_virt = ctx->key;
 
 	/* ahash_update shared descriptor */
 	desc = ctx->sh_desc_update;
-	ahash_gen_sh_desc(desc, OP_ALG_AS_UPDATE, ctx->ctx_len, ctx, true);
+	ahash_gen_sh_desc(desc, OP_ALG_AS_UPDATE, ctx->ctx_len, ctx, true,
+			  ctrlpriv->era);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_update_dma,
-				   desc_bytes(desc), DMA_TO_DEVICE);
+				   desc_bytes(desc), ctx->dir);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
 		       "ahash update shdesc@"__stringify(__LINE__)": ",
@@ -304,9 +313,10 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 
 	/* ahash_update_first shared descriptor */
 	desc = ctx->sh_desc_update_first;
-	ahash_gen_sh_desc(desc, OP_ALG_AS_INIT, ctx->ctx_len, ctx, false);
+	ahash_gen_sh_desc(desc, OP_ALG_AS_INIT, ctx->ctx_len, ctx, false,
+			  ctrlpriv->era);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_update_first_dma,
-				   desc_bytes(desc), DMA_TO_DEVICE);
+				   desc_bytes(desc), ctx->dir);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
 		       "ahash update first shdesc@"__stringify(__LINE__)": ",
@@ -315,9 +325,10 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 
 	/* ahash_final shared descriptor */
 	desc = ctx->sh_desc_fin;
-	ahash_gen_sh_desc(desc, OP_ALG_AS_FINALIZE, digestsize, ctx, true);
+	ahash_gen_sh_desc(desc, OP_ALG_AS_FINALIZE, digestsize, ctx, true,
+			  ctrlpriv->era);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_fin_dma,
-				   desc_bytes(desc), DMA_TO_DEVICE);
+				   desc_bytes(desc), ctx->dir);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR, "ahash final shdesc@"__stringify(__LINE__)": ",
 		       DUMP_PREFIX_ADDRESS, 16, 4, desc,
@@ -326,9 +337,10 @@ static int ahash_set_sh_desc(struct crypto_ahash *ahash)
 
 	/* ahash_digest shared descriptor */
 	desc = ctx->sh_desc_digest;
-	ahash_gen_sh_desc(desc, OP_ALG_AS_INITFINAL, digestsize, ctx, false);
+	ahash_gen_sh_desc(desc, OP_ALG_AS_INITFINAL, digestsize, ctx, false,
+			  ctrlpriv->era);
 	dma_sync_single_for_device(jrdev, ctx->sh_desc_digest_dma,
-				   desc_bytes(desc), DMA_TO_DEVICE);
+				   desc_bytes(desc), ctx->dir);
 #ifdef DEBUG
 	print_hex_dump(KERN_ERR,
 		       "ahash digest shdesc@"__stringify(__LINE__)": ",
@@ -421,6 +433,7 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 	struct caam_hash_ctx *ctx = crypto_ahash_ctx(ahash);
 	int blocksize = crypto_tfm_alg_blocksize(&ahash->base);
 	int digestsize = crypto_ahash_digestsize(ahash);
+	struct caam_drv_private *ctrlpriv = dev_get_drvdata(ctx->jrdev->parent);
 	int ret;
 	u8 *hashed_key = NULL;
 
@@ -441,16 +454,26 @@ static int ahash_setkey(struct crypto_ahash *ahash,
 		key = hashed_key;
 	}
 
-	ret = gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key, keylen,
-			    CAAM_MAX_HASH_KEY_SIZE);
-	if (ret)
-		goto bad_free_key;
+	/*
+	 * If DKP is supported, use it in the shared descriptor to generate
+	 * the split key.
+	 */
+	if (ctrlpriv->era >= 6) {
+		ctx->adata.key_inline = true;
+		ctx->adata.keylen = keylen;
+		ctx->adata.keylen_pad = split_key_len(ctx->adata.algtype &
+						      OP_ALG_ALGSEL_MASK);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, ctx->key,
-		       ctx->adata.keylen_pad, 1);
-#endif
+		if (ctx->adata.keylen_pad > CAAM_MAX_HASH_KEY_SIZE)
+			goto bad_free_key;
+
+		memcpy(ctx->key, key, keylen);
+	} else {
+		ret = gen_split_key(ctx->jrdev, ctx->key, &ctx->adata, key,
+				    keylen, CAAM_MAX_HASH_KEY_SIZE);
+		if (ret)
+			goto bad_free_key;
+	}
 
 	kfree(hashed_key);
 	return ahash_set_sh_desc(ahash);
@@ -1715,6 +1738,7 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 					 HASH_MSG_LEN + 64,
 					 HASH_MSG_LEN + SHA512_DIGEST_SIZE };
 	dma_addr_t dma_addr;
+	struct caam_drv_private *priv;
 
 	/*
 	 * Get a Job ring from Job Ring driver to ensure in-order
@@ -1726,10 +1750,13 @@ static int caam_hash_cra_init(struct crypto_tfm *tfm)
 		return PTR_ERR(ctx->jrdev);
 	}
 
+	priv = dev_get_drvdata(ctx->jrdev->parent);
+	ctx->dir = priv->era >= 6 ? DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
+
 	dma_addr = dma_map_single_attrs(ctx->jrdev, ctx->sh_desc_update,
 					offsetof(struct caam_hash_ctx,
 						 sh_desc_update_dma),
-					DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+					ctx->dir, DMA_ATTR_SKIP_CPU_SYNC);
 	if (dma_mapping_error(ctx->jrdev, dma_addr)) {
 		dev_err(ctx->jrdev, "unable to map shared descriptors\n");
 		caam_jr_free(ctx->jrdev);
@@ -1764,7 +1791,7 @@ static void caam_hash_cra_exit(struct crypto_tfm *tfm)
 	dma_unmap_single_attrs(ctx->jrdev, ctx->sh_desc_update_dma,
 			       offsetof(struct caam_hash_ctx,
 					sh_desc_update_dma),
-			       DMA_TO_DEVICE, DMA_ATTR_SKIP_CPU_SYNC);
+			       ctx->dir, DMA_ATTR_SKIP_CPU_SYNC);
 	caam_jr_free(ctx->jrdev);
 }
 

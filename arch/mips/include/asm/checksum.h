@@ -110,7 +110,7 @@ __wsum csum_partial_copy_nocheck(const void *src, void *dst,
  */
 static inline __sum16 csum_fold(__wsum csum)
 {
-	u32 sum = (__force u32)csum;;
+	u32 sum = (__force u32)csum;
 
 	sum += (sum << 16);
 	csum = (sum < csum);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ACPI PCI HotPlug glue functions to ACPI CA subsystem
  *
@@ -10,21 +11,6 @@
  * Copyright (C) 2005 Intel Corporation
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <kristen.c.accardi@intel.com>
  *
@@ -811,10 +797,8 @@ void acpiphp_enumerate_slots(struct pci_bus *bus)
 
 	handle = adev->handle;
 	bridge = kzalloc(sizeof(struct acpiphp_bridge), GFP_KERNEL);
-	if (!bridge) {
-		acpi_handle_err(handle, "No memory for bridge object\n");
+	if (!bridge)
 		return;
-	}
 
 	INIT_LIST_HEAD(&bridge->slots);
 	kref_init(&bridge->ref);

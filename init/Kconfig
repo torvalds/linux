@@ -1412,6 +1412,12 @@ config USERFAULTFD
 	  Enable the userfaultfd() system call that allows to intercept and
 	  handle page faults in userland.
 
+config ARCH_HAS_MEMBARRIER_CALLBACKS
+	bool
+
+config ARCH_HAS_MEMBARRIER_SYNC_CORE
+	bool
+
 config EMBEDDED
 	bool "Embedded system"
 	option allnoconfig_y
@@ -1915,3 +1921,6 @@ config ASN1
 	  functions to call on what tags.
 
 source "kernel/Kconfig.locks"
+
+config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
+	bool

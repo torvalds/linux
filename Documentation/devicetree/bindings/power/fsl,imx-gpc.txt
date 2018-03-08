@@ -9,6 +9,7 @@ Required properties:
   - fsl,imx6q-gpc
   - fsl,imx6qp-gpc
   - fsl,imx6sl-gpc
+  - fsl,imx6sx-gpc
 - reg: should be register base and length as documented in the
   datasheet
 - interrupts: Should contain one interrupt specifier for the GPC interrupt
@@ -29,6 +30,8 @@ Required properties:
   PU_DOMAIN      1
   The following additional DOMAIN_INDEX value is valid for i.MX6SL:
   DISPLAY_DOMAIN 2
+  The following additional DOMAIN_INDEX value is valid for i.MX6SX:
+  PCI_DOMAIN     3
 
 - #power-domain-cells: Should be 0
 

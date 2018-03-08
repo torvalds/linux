@@ -947,6 +947,86 @@ static int goto_next_sequence_v3(const u8 *data, int index, int total)
 	return 0;
 }
 
+/*
+ * Get len of pre-fixed deassert fragment from a v1 init OTP sequence,
+ * skip all delay + gpio operands and stop at the first DSI packet op.
+ */
+static int get_init_otp_deassert_fragment_len(struct drm_i915_private *dev_priv)
+{
+	const u8 *data = dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
+	int index, len;
+
+	if (WARN_ON(!data || dev_priv->vbt.dsi.seq_version != 1))
+		return 0;
+
+	/* index = 1 to skip sequence byte */
+	for (index = 1; data[index] != MIPI_SEQ_ELEM_END; index += len) {
+		switch (data[index]) {
+		case MIPI_SEQ_ELEM_SEND_PKT:
+			return index == 1 ? 0 : index;
+		case MIPI_SEQ_ELEM_DELAY:
+			len = 5; /* 1 byte for operand + uint32 */
+			break;
+		case MIPI_SEQ_ELEM_GPIO:
+			len = 3; /* 1 byte for op, 1 for gpio_nr, 1 for value */
+			break;
+		default:
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Some v1 VBT MIPI sequences do the deassert in the init OTP sequence.
+ * The deassert must be done before calling intel_dsi_device_ready, so for
+ * these devices we split the init OTP sequence into a deassert sequence and
+ * the actual init OTP part.
+ */
+static void fixup_mipi_sequences(struct drm_i915_private *dev_priv)
+{
+	u8 *init_otp;
+	int len;
+
+	/* Limit this to VLV for now. */
+	if (!IS_VALLEYVIEW(dev_priv))
+		return;
+
+	/* Limit this to v1 vid-mode sequences */
+	if (dev_priv->vbt.dsi.config->is_cmd_mode ||
+	    dev_priv->vbt.dsi.seq_version != 1)
+		return;
+
+	/* Only do this if there are otp and assert seqs and no deassert seq */
+	if (!dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP] ||
+	    !dev_priv->vbt.dsi.sequence[MIPI_SEQ_ASSERT_RESET] ||
+	    dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET])
+		return;
+
+	/* The deassert-sequence ends at the first DSI packet */
+	len = get_init_otp_deassert_fragment_len(dev_priv);
+	if (!len)
+		return;
+
+	DRM_DEBUG_KMS("Using init OTP fragment to deassert reset\n");
+
+	/* Copy the fragment, update seq byte and terminate it */
+	init_otp = (u8 *)dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
+	dev_priv->vbt.dsi.deassert_seq = kmemdup(init_otp, len + 1, GFP_KERNEL);
+	if (!dev_priv->vbt.dsi.deassert_seq)
+		return;
+	dev_priv->vbt.dsi.deassert_seq[0] = MIPI_SEQ_DEASSERT_RESET;
+	dev_priv->vbt.dsi.deassert_seq[len] = MIPI_SEQ_ELEM_END;
+	/* Use the copy for deassert */
+	dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET] =
+		dev_priv->vbt.dsi.deassert_seq;
+	/* Replace the last byte of the fragment with init OTP seq byte */
+	init_otp[len - 1] = MIPI_SEQ_INIT_OTP;
+	/* And make MIPI_MIPI_SEQ_INIT_OTP point to it */
+	dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP] = init_otp + len - 1;
+}
+
 static void
 parse_mipi_sequence(struct drm_i915_private *dev_priv,
 		    const struct bdb_header *bdb)
@@ -1015,6 +1095,8 @@ parse_mipi_sequence(struct drm_i915_private *dev_priv,
 	dev_priv->vbt.dsi.data = data;
 	dev_priv->vbt.dsi.size = seq_size;
 	dev_priv->vbt.dsi.seq_version = sequence->version;
+
+	fixup_mipi_sequences(dev_priv);
 
 	DRM_DEBUG_DRIVER("MIPI related VBT parsing complete\n");
 	return;
@@ -1107,6 +1189,7 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 }
 
 static const u8 cnp_ddc_pin_map[] = {
+	[0] = 0, /* N/A */
 	[DDC_BUS_DDI_B] = GMBUS_PIN_1_BXT,
 	[DDC_BUS_DDI_C] = GMBUS_PIN_2_BXT,
 	[DDC_BUS_DDI_D] = GMBUS_PIN_4_CNP, /* sic */
@@ -1115,9 +1198,14 @@ static const u8 cnp_ddc_pin_map[] = {
 
 static u8 map_ddc_pin(struct drm_i915_private *dev_priv, u8 vbt_pin)
 {
-	if (HAS_PCH_CNP(dev_priv) &&
-	    vbt_pin > 0 && vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map))
-		return cnp_ddc_pin_map[vbt_pin];
+	if (HAS_PCH_CNP(dev_priv)) {
+		if (vbt_pin < ARRAY_SIZE(cnp_ddc_pin_map)) {
+			return cnp_ddc_pin_map[vbt_pin];
+		} else {
+			DRM_DEBUG_KMS("Ignoring alternate pin: VBT claims DDC pin %d, which is not valid for this platform\n", vbt_pin);
+			return 0;
+		}
+	}
 
 	return vbt_pin;
 }
@@ -1234,6 +1322,30 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 		info->hdmi_level_shift = hdmi_level_shift;
 	}
 
+	if (bdb_version >= 204) {
+		int max_tmds_clock;
+
+		switch (child->hdmi_max_data_rate) {
+		default:
+			MISSING_CASE(child->hdmi_max_data_rate);
+			/* fall through */
+		case HDMI_MAX_DATA_RATE_PLATFORM:
+			max_tmds_clock = 0;
+			break;
+		case HDMI_MAX_DATA_RATE_297:
+			max_tmds_clock = 297000;
+			break;
+		case HDMI_MAX_DATA_RATE_165:
+			max_tmds_clock = 165000;
+			break;
+		}
+
+		if (max_tmds_clock)
+			DRM_DEBUG_KMS("VBT HDMI max TMDS clock for port %c: %d kHz\n",
+				      port_name(port), max_tmds_clock);
+		info->max_tmds_clock = max_tmds_clock;
+	}
+
 	/* Parse the I_boost config for SKL and above */
 	if (bdb_version >= 196 && child->iboost) {
 		info->dp_boost_level = translate_iboost(child->dp_iboost_level);
@@ -1299,11 +1411,13 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		expected_size = LEGACY_CHILD_DEVICE_CONFIG_SIZE;
 	} else if (bdb->version == 195) {
 		expected_size = 37;
-	} else if (bdb->version <= 197) {
+	} else if (bdb->version <= 215) {
 		expected_size = 38;
+	} else if (bdb->version <= 216) {
+		expected_size = 39;
 	} else {
-		expected_size = 38;
-		BUILD_BUG_ON(sizeof(*child) < 38);
+		expected_size = sizeof(*child);
+		BUILD_BUG_ON(sizeof(*child) < 39);
 		DRM_DEBUG_DRIVER("Expected child device config size for VBT version %u not known; assuming %u\n",
 				 bdb->version, expected_size);
 	}
@@ -1554,6 +1668,29 @@ out:
 
 	if (bios)
 		pci_unmap_rom(pdev, bios);
+}
+
+/**
+ * intel_bios_cleanup - Free any resources allocated by intel_bios_init()
+ * @dev_priv: i915 device instance
+ */
+void intel_bios_cleanup(struct drm_i915_private *dev_priv)
+{
+	kfree(dev_priv->vbt.child_dev);
+	dev_priv->vbt.child_dev = NULL;
+	dev_priv->vbt.child_dev_num = 0;
+	kfree(dev_priv->vbt.sdvo_lvds_vbt_mode);
+	dev_priv->vbt.sdvo_lvds_vbt_mode = NULL;
+	kfree(dev_priv->vbt.lfp_lvds_vbt_mode);
+	dev_priv->vbt.lfp_lvds_vbt_mode = NULL;
+	kfree(dev_priv->vbt.dsi.data);
+	dev_priv->vbt.dsi.data = NULL;
+	kfree(dev_priv->vbt.dsi.pps);
+	dev_priv->vbt.dsi.pps = NULL;
+	kfree(dev_priv->vbt.dsi.config);
+	dev_priv->vbt.dsi.config = NULL;
+	kfree(dev_priv->vbt.dsi.deassert_seq);
+	dev_priv->vbt.dsi.deassert_seq = NULL;
 }
 
 /**

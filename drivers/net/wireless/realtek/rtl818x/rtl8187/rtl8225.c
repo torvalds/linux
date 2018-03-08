@@ -688,10 +688,7 @@ static void rtl8225z2_b_rf_set_tx_power(struct ieee80211_hw *dev, int channel)
 	cck_power = priv->channels[channel - 1].hw_value & 0xF;
 	ofdm_power = priv->channels[channel - 1].hw_value >> 4;
 
-	if (cck_power > 15)
-		cck_power = (priv->hw_rev == RTL8187BvB) ? 15 : 22;
-	else
-		cck_power += (priv->hw_rev == RTL8187BvB) ? 0 : 7;
+	cck_power += (priv->hw_rev == RTL8187BvB) ? 0 : 7;
 	cck_power += priv->txpwr_base & 0xF;
 	cck_power = min(cck_power, (u8)35);
 

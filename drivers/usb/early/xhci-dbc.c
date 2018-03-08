@@ -328,7 +328,7 @@ static void xdbc_mem_init(void)
 	ep_in = (struct xdbc_ep_context *)&ctx->in;
 
 	ep_in->ep_info1		= 0;
-	ep_in->ep_info2		= cpu_to_le32(EP_TYPE(BULK_OUT_EP) | MAX_PACKET(1024) | MAX_BURST(max_burst));
+	ep_in->ep_info2		= cpu_to_le32(EP_TYPE(BULK_IN_EP) | MAX_PACKET(1024) | MAX_BURST(max_burst));
 	ep_in->deq		= cpu_to_le64(xdbc.in_seg.dma | xdbc.in_ring.cycle_state);
 
 	/* Set DbC context and info registers: */

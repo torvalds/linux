@@ -1,7 +1,5 @@
 /*
- * drivers/gpu/drm/omapdrm/omap_crtc.c
- *
- * Copyright (C) 2011 Texas Instruments
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -23,6 +21,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_plane_helper.h>
+#include <linux/math64.h>
 
 #include "omap_drv.h"
 
@@ -400,6 +399,41 @@ static void omap_crtc_atomic_disable(struct drm_crtc *crtc,
 	drm_crtc_vblank_off(crtc);
 }
 
+static enum drm_mode_status omap_crtc_mode_valid(struct drm_crtc *crtc,
+					const struct drm_display_mode *mode)
+{
+	struct omap_drm_private *priv = crtc->dev->dev_private;
+
+	/* Check for bandwidth limit */
+	if (priv->max_bandwidth) {
+		/*
+		 * Estimation for the bandwidth need of a given mode with one
+		 * full screen plane:
+		 * bandwidth = resolution * 32bpp * (pclk / (vtotal * htotal))
+		 *					^^ Refresh rate ^^
+		 *
+		 * The interlaced mode is taken into account by using the
+		 * pixelclock in the calculation.
+		 *
+		 * The equation is rearranged for 64bit arithmetic.
+		 */
+		uint64_t bandwidth = mode->clock * 1000;
+		unsigned int bpp = 4;
+
+		bandwidth = bandwidth * mode->hdisplay * mode->vdisplay * bpp;
+		bandwidth = div_u64(bandwidth, mode->htotal * mode->vtotal);
+
+		/*
+		 * Reject modes which would need more bandwidth if used with one
+		 * full resolution plane (most common use case).
+		 */
+		if (priv->max_bandwidth < bandwidth)
+			return MODE_BAD;
+	}
+
+	return MODE_OK;
+}
+
 static void omap_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -621,6 +655,7 @@ static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.atomic_flush = omap_crtc_atomic_flush,
 	.atomic_enable = omap_crtc_atomic_enable,
 	.atomic_disable = omap_crtc_atomic_disable,
+	.mode_valid = omap_crtc_mode_valid,
 };
 
 /* -----------------------------------------------------------------------------

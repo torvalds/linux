@@ -103,8 +103,8 @@
 #define ZR36057_ICR_IntPinEn            (1<<24)
 
 #define ZR36057_I2CBR           0x044	/* I2C Bus Register */
-#define ZR36057_I2CBR_SDA       	(1<<1)
-#define ZR36057_I2CBR_SCL       	(1<<0)
+#define ZR36057_I2CBR_SDA		(1<<1)
+#define ZR36057_I2CBR_SCL		(1<<0)
 
 #define ZR36057_JMC             0x100	/* JPEG Mode and Control */
 #define ZR36057_JMC_JPG                 (1 << 31)

@@ -645,11 +645,6 @@ struct axp20x_dev {
 	const struct regmap_irq_chip	*regmap_irq_chip;
 };
 
-struct axp288_extcon_pdata {
-	/* GPIO pin control to switch D+/D- lines b/w PMIC and SOC */
-	struct gpio_desc *gpio_mux_cntl;
-};
-
 /* generic helper function for reading 9-16 bit wide regs */
 static inline int axp20x_read_variable_width(struct regmap *regmap,
 	unsigned int reg, unsigned int width)

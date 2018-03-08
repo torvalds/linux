@@ -169,6 +169,7 @@ described below.
 			    "arm,cortex-r5"
 			    "arm,cortex-r7"
 			    "brcm,brahma-b15"
+			    "brcm,brahma-b53"
 			    "brcm,vulcan"
 			    "cavium,thunder"
 			    "cavium,thunder2"

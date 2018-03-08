@@ -15,13 +15,13 @@ SYNOPSIS
 	*OPTIONS* := { { **-j** | **--json** } [{ **-p** | **--pretty** }] | { **-f** | **--bpffs** } }
 
 	*COMMANDS* :=
-	{ **show** | **dump** | **update** | **lookup** | **getnext** | **delete**
+	{ **show** | **list** | **dump** | **update** | **lookup** | **getnext** | **delete**
 	| **pin** | **help** }
 
 MAP COMMANDS
 =============
 
-|	**bpftool** **map show**   [*MAP*]
+|	**bpftool** **map { show | list }**   [*MAP*]
 |	**bpftool** **map dump**    *MAP*
 |	**bpftool** **map update**  *MAP*  **key** *BYTES*   **value** *VALUE* [*UPDATE_FLAGS*]
 |	**bpftool** **map lookup**  *MAP*  **key** *BYTES*
@@ -31,12 +31,13 @@ MAP COMMANDS
 |	**bpftool** **map help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
-|	*VALUE* := { *BYTES* | *MAP* | *PROGRAM* }
+|	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+|	*VALUE* := { *BYTES* | *MAP* | *PROG* }
 |	*UPDATE_FLAGS* := { **any** | **exist** | **noexist** }
 
 DESCRIPTION
 ===========
-	**bpftool map show**   [*MAP*]
+	**bpftool map { show | list }**   [*MAP*]
 		  Show information about loaded maps.  If *MAP* is specified
 		  show information only about given map, otherwise list all
 		  maps currently loaded on the system.
@@ -128,4 +129,4 @@ EXAMPLES
 
 SEE ALSO
 ========
-	**bpftool**\ (8), **bpftool-prog**\ (8)
+	**bpftool**\ (8), **bpftool-prog**\ (8), **bpftool-cgroup**\ (8)

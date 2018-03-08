@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/interrupt.h>
-#include <linux/kallsyms.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/elfcore.h>
@@ -139,8 +138,8 @@ void __show_regs(struct pt_regs *regs)
 	char buf[64];
 
 	show_regs_print_info(KERN_DEFAULT);
-	print_symbol("PC is at %s\n", instruction_pointer(regs));
-	print_symbol("LR is at %s\n", regs->UCreg_lr);
+	printk("PC is at %pS\n", (void *)instruction_pointer(regs));
+	printk("LR is at %pS\n", (void *)regs->UCreg_lr);
 	printk(KERN_DEFAULT "pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
 	       "sp : %08lx  ip : %08lx  fp : %08lx\n",
 		regs->UCreg_pc, regs->UCreg_lr, regs->UCreg_asr,

@@ -33,22 +33,25 @@
 #define BO_PINNED   0x2000
 
 static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
-		struct etnaviv_gpu *gpu, size_t nr)
+		struct etnaviv_gpu *gpu, size_t nr_bos, size_t nr_pmrs)
 {
 	struct etnaviv_gem_submit *submit;
-	size_t sz = size_vstruct(nr, sizeof(submit->bos[0]), sizeof(*submit));
+	size_t sz = size_vstruct(nr_bos, sizeof(submit->bos[0]), sizeof(*submit));
 
-	submit = kmalloc(sz, GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
-	if (submit) {
-		submit->dev = dev;
-		submit->gpu = gpu;
+	submit = kzalloc(sz, GFP_KERNEL);
+	if (!submit)
+		return NULL;
 
-		/* initially, until copy_from_user() and bo lookup succeeds: */
-		submit->nr_bos = 0;
-		submit->fence = NULL;
-
-		ww_acquire_init(&submit->ticket, &reservation_ww_class);
+	submit->pmrs = kcalloc(nr_pmrs, sizeof(struct etnaviv_perfmon_request),
+			       GFP_KERNEL);
+	if (!submit->pmrs) {
+		kfree(submit);
+		return NULL;
 	}
+	submit->nr_pmrs = nr_pmrs;
+
+	submit->gpu = gpu;
+	kref_init(&submit->refcount);
 
 	return submit;
 }
@@ -111,7 +114,8 @@ static void submit_unlock_object(struct etnaviv_gem_submit *submit, int i)
 	}
 }
 
-static int submit_lock_objects(struct etnaviv_gem_submit *submit)
+static int submit_lock_objects(struct etnaviv_gem_submit *submit,
+		struct ww_acquire_ctx *ticket)
 {
 	int contended, slow_locked = -1, i, ret = 0;
 
@@ -126,7 +130,7 @@ retry:
 
 		if (!(submit->bos[i].flags & BO_LOCKED)) {
 			ret = ww_mutex_lock_interruptible(&etnaviv_obj->resv->lock,
-					&submit->ticket);
+							  ticket);
 			if (ret == -EALREADY)
 				DRM_ERROR("BO at index %u already on submit list\n",
 					  i);
@@ -136,7 +140,7 @@ retry:
 		}
 	}
 
-	ww_acquire_done(&submit->ticket);
+	ww_acquire_done(ticket);
 
 	return 0;
 
@@ -154,7 +158,7 @@ fail:
 
 		/* we lost out in a seqno race, lock and retry.. */
 		ret = ww_mutex_lock_slow_interruptible(&etnaviv_obj->resv->lock,
-				&submit->ticket);
+						       ticket);
 		if (!ret) {
 			submit->bos[contended].flags |= BO_LOCKED;
 			slow_locked = contended;
@@ -181,19 +185,33 @@ static int submit_fence_sync(const struct etnaviv_gem_submit *submit)
 			break;
 	}
 
+	if (submit->flags & ETNA_SUBMIT_FENCE_FD_IN) {
+		/*
+		 * Wait if the fence is from a foreign context, or if the fence
+		 * array contains any fence from a foreign context.
+		 */
+		if (!dma_fence_match_context(submit->in_fence, context))
+			ret = dma_fence_wait(submit->in_fence, true);
+	}
+
 	return ret;
 }
 
-static void submit_unpin_objects(struct etnaviv_gem_submit *submit)
+static void submit_attach_object_fences(struct etnaviv_gem_submit *submit)
 {
 	int i;
 
 	for (i = 0; i < submit->nr_bos; i++) {
-		if (submit->bos[i].flags & BO_PINNED)
-			etnaviv_gem_mapping_unreference(submit->bos[i].mapping);
+		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 
-		submit->bos[i].mapping = NULL;
-		submit->bos[i].flags &= ~BO_PINNED;
+		if (submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE)
+			reservation_object_add_excl_fence(etnaviv_obj->resv,
+							  submit->out_fence);
+		else
+			reservation_object_add_shared_fence(etnaviv_obj->resv,
+							    submit->out_fence);
+
+		submit_unlock_object(submit, i);
 	}
 }
 
@@ -211,6 +229,7 @@ static int submit_pin_objects(struct etnaviv_gem_submit *submit)
 			ret = PTR_ERR(mapping);
 			break;
 		}
+		atomic_inc(&etnaviv_obj->gpu_active);
 
 		submit->bos[i].flags |= BO_PINNED;
 		submit->bos[i].mapping = mapping;
@@ -285,13 +304,11 @@ static int submit_reloc(struct etnaviv_gem_submit *submit, void *stream,
 }
 
 static int submit_perfmon_validate(struct etnaviv_gem_submit *submit,
-		struct etnaviv_cmdbuf *cmdbuf,
-		const struct drm_etnaviv_gem_submit_pmr *pmrs,
-		u32 nr_pms)
+		u32 exec_state, const struct drm_etnaviv_gem_submit_pmr *pmrs)
 {
 	u32 i;
 
-	for (i = 0; i < nr_pms; i++) {
+	for (i = 0; i < submit->nr_pmrs; i++) {
 		const struct drm_etnaviv_gem_submit_pmr *r = pmrs + i;
 		struct etnaviv_gem_submit_bo *bo;
 		int ret;
@@ -316,37 +333,63 @@ static int submit_perfmon_validate(struct etnaviv_gem_submit *submit,
 			return -EINVAL;
 		}
 
-		if (etnaviv_pm_req_validate(r, cmdbuf->exec_state)) {
+		if (etnaviv_pm_req_validate(r, exec_state)) {
 			DRM_ERROR("perfmon request: domain or signal not valid");
 			return -EINVAL;
 		}
 
-		cmdbuf->pmrs[i].flags = r->flags;
-		cmdbuf->pmrs[i].domain = r->domain;
-		cmdbuf->pmrs[i].signal = r->signal;
-		cmdbuf->pmrs[i].sequence = r->sequence;
-		cmdbuf->pmrs[i].offset = r->read_offset;
-		cmdbuf->pmrs[i].bo_vma = etnaviv_gem_vmap(&bo->obj->base);
+		submit->pmrs[i].flags = r->flags;
+		submit->pmrs[i].domain = r->domain;
+		submit->pmrs[i].signal = r->signal;
+		submit->pmrs[i].sequence = r->sequence;
+		submit->pmrs[i].offset = r->read_offset;
+		submit->pmrs[i].bo_vma = etnaviv_gem_vmap(&bo->obj->base);
 	}
 
 	return 0;
 }
 
-static void submit_cleanup(struct etnaviv_gem_submit *submit)
+static void submit_cleanup(struct kref *kref)
 {
+	struct etnaviv_gem_submit *submit =
+			container_of(kref, struct etnaviv_gem_submit, refcount);
 	unsigned i;
+
+	if (submit->runtime_resumed)
+		pm_runtime_put_autosuspend(submit->gpu->dev);
+
+	if (submit->cmdbuf.suballoc)
+		etnaviv_cmdbuf_free(&submit->cmdbuf);
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 
+		/* unpin all objects */
+		if (submit->bos[i].flags & BO_PINNED) {
+			etnaviv_gem_mapping_unreference(submit->bos[i].mapping);
+			atomic_dec(&etnaviv_obj->gpu_active);
+			submit->bos[i].mapping = NULL;
+			submit->bos[i].flags &= ~BO_PINNED;
+		}
+
+		/* if the GPU submit failed, objects might still be locked */
 		submit_unlock_object(submit, i);
 		drm_gem_object_put_unlocked(&etnaviv_obj->base);
 	}
 
-	ww_acquire_fini(&submit->ticket);
-	if (submit->fence)
-		dma_fence_put(submit->fence);
+	wake_up_all(&submit->gpu->fence_event);
+
+	if (submit->in_fence)
+		dma_fence_put(submit->in_fence);
+	if (submit->out_fence)
+		dma_fence_put(submit->out_fence);
+	kfree(submit->pmrs);
 	kfree(submit);
+}
+
+void etnaviv_submit_put(struct etnaviv_gem_submit *submit)
+{
+	kref_put(&submit->refcount, submit_cleanup);
 }
 
 int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
@@ -358,10 +401,9 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct drm_etnaviv_gem_submit_pmr *pmrs;
 	struct drm_etnaviv_gem_submit_bo *bos;
 	struct etnaviv_gem_submit *submit;
-	struct etnaviv_cmdbuf *cmdbuf;
 	struct etnaviv_gpu *gpu;
-	struct dma_fence *in_fence = NULL;
 	struct sync_file *sync_file = NULL;
+	struct ww_acquire_ctx ticket;
 	int out_fence_fd = -1;
 	void *stream;
 	int ret;
@@ -399,16 +441,10 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	relocs = kvmalloc_array(args->nr_relocs, sizeof(*relocs), GFP_KERNEL);
 	pmrs = kvmalloc_array(args->nr_pmrs, sizeof(*pmrs), GFP_KERNEL);
 	stream = kvmalloc_array(1, args->stream_size, GFP_KERNEL);
-	cmdbuf = etnaviv_cmdbuf_new(gpu->cmdbuf_suballoc,
-				    ALIGN(args->stream_size, 8) + 8,
-				    args->nr_bos, args->nr_pmrs);
-	if (!bos || !relocs || !pmrs || !stream || !cmdbuf) {
+	if (!bos || !relocs || !pmrs || !stream) {
 		ret = -ENOMEM;
 		goto err_submit_cmds;
 	}
-
-	cmdbuf->exec_state = args->exec_state;
-	cmdbuf->ctx = file->driver_priv;
 
 	ret = copy_from_user(bos, u64_to_user_ptr(args->bos),
 			     args->nr_bos * sizeof(*bos));
@@ -430,7 +466,6 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		ret = -EFAULT;
 		goto err_submit_cmds;
 	}
-	cmdbuf->nr_pmrs = args->nr_pmrs;
 
 	ret = copy_from_user(stream, u64_to_user_ptr(args->stream),
 			     args->stream_size);
@@ -447,19 +482,28 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		}
 	}
 
-	submit = submit_create(dev, gpu, args->nr_bos);
+	ww_acquire_init(&ticket, &reservation_ww_class);
+
+	submit = submit_create(dev, gpu, args->nr_bos, args->nr_pmrs);
 	if (!submit) {
 		ret = -ENOMEM;
-		goto err_submit_cmds;
+		goto err_submit_ww_acquire;
 	}
 
+	ret = etnaviv_cmdbuf_init(gpu->cmdbuf_suballoc, &submit->cmdbuf,
+				  ALIGN(args->stream_size, 8) + 8);
+	if (ret)
+		goto err_submit_objects;
+
+	submit->cmdbuf.ctx = file->driver_priv;
+	submit->exec_state = args->exec_state;
 	submit->flags = args->flags;
 
 	ret = submit_lookup_objects(submit, file, bos, args->nr_bos);
 	if (ret)
 		goto err_submit_objects;
 
-	ret = submit_lock_objects(submit);
+	ret = submit_lock_objects(submit, &ticket);
 	if (ret)
 		goto err_submit_objects;
 
@@ -470,20 +514,10 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	}
 
 	if (args->flags & ETNA_SUBMIT_FENCE_FD_IN) {
-		in_fence = sync_file_get_fence(args->fence_fd);
-		if (!in_fence) {
+		submit->in_fence = sync_file_get_fence(args->fence_fd);
+		if (!submit->in_fence) {
 			ret = -EINVAL;
 			goto err_submit_objects;
-		}
-
-		/*
-		 * Wait if the fence is from a foreign context, or if the fence
-		 * array contains any fence from a foreign context.
-		 */
-		if (!dma_fence_match_context(in_fence, gpu->fence_context)) {
-			ret = dma_fence_wait(in_fence, true);
-			if (ret)
-				goto err_submit_objects;
 		}
 	}
 
@@ -493,25 +527,25 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	ret = submit_pin_objects(submit);
 	if (ret)
-		goto out;
+		goto err_submit_objects;
 
 	ret = submit_reloc(submit, stream, args->stream_size / 4,
 			   relocs, args->nr_relocs);
 	if (ret)
-		goto out;
+		goto err_submit_objects;
 
-	ret = submit_perfmon_validate(submit, cmdbuf, pmrs, args->nr_pmrs);
+	ret = submit_perfmon_validate(submit, args->exec_state, pmrs);
 	if (ret)
-		goto out;
+		goto err_submit_objects;
 
-	memcpy(cmdbuf->vaddr, stream, args->stream_size);
-	cmdbuf->user_size = ALIGN(args->stream_size, 8);
+	memcpy(submit->cmdbuf.vaddr, stream, args->stream_size);
+	submit->cmdbuf.user_size = ALIGN(args->stream_size, 8);
 
-	ret = etnaviv_gpu_submit(gpu, submit, cmdbuf);
+	ret = etnaviv_gpu_submit(gpu, submit);
 	if (ret)
-		goto out;
+		goto err_submit_objects;
 
-	cmdbuf = NULL;
+	submit_attach_object_fences(submit);
 
 	if (args->flags & ETNA_SUBMIT_FENCE_FD_OUT) {
 		/*
@@ -520,39 +554,26 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 		 * fence to the sync file here, eliminating the ENOMEM
 		 * possibility at this stage.
 		 */
-		sync_file = sync_file_create(submit->fence);
+		sync_file = sync_file_create(submit->out_fence);
 		if (!sync_file) {
 			ret = -ENOMEM;
-			goto out;
+			goto err_submit_objects;
 		}
 		fd_install(out_fence_fd, sync_file->file);
 	}
 
 	args->fence_fd = out_fence_fd;
-	args->fence = submit->fence->seqno;
-
-out:
-	submit_unpin_objects(submit);
-
-	/*
-	 * If we're returning -EAGAIN, it may be due to the userptr code
-	 * wanting to run its workqueue outside of any locks. Flush our
-	 * workqueue to ensure that it is run in a timely manner.
-	 */
-	if (ret == -EAGAIN)
-		flush_workqueue(priv->wq);
+	args->fence = submit->out_fence->seqno;
 
 err_submit_objects:
-	if (in_fence)
-		dma_fence_put(in_fence);
-	submit_cleanup(submit);
+	etnaviv_submit_put(submit);
+
+err_submit_ww_acquire:
+	ww_acquire_fini(&ticket);
 
 err_submit_cmds:
 	if (ret && (out_fence_fd >= 0))
 		put_unused_fd(out_fence_fd);
-	/* if we still own the cmdbuf */
-	if (cmdbuf)
-		etnaviv_cmdbuf_free(cmdbuf);
 	if (stream)
 		kvfree(stream);
 	if (bos)

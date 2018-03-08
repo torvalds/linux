@@ -20,9 +20,9 @@ Required properties:
 		        order referring to the transfer path.
 - interrupt-names:	Contains interrupt names matching the rx transfer path
 			for a given SoC. Receive interrupts shall be of the
-			format: "rx_<QID>_<PID>".
+			format: "rx_<QID>".
 			For ti,k2g-message-manager, this shall contain:
-				"rx_005_002", "rx_057_002"
+				"rx_005", "rx_057"
 - interrupts:		Contains the interrupt information corresponding to
 			interrupt-names property.
 

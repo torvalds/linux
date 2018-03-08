@@ -29,17 +29,25 @@
 #define MI_Kp		0x40000000	/* Should always be set */
 
 /*
- * All pages' PP exec bits are set to 000, which means Execute for Supervisor
- * and no Execute for User.
- * Then we use the APG to say whether accesses are according to Page rules,
- * "all Supervisor" rules (Exec for all) and "all User" rules (Exec for noone)
- * Therefore, we define 4 APG groups. msb is _PAGE_EXEC, lsb is _PAGE_USER
- * 0 (00) => Not User, no exec => 11 (all accesses performed as user)
- * 1 (01) => User but no exec => 11 (all accesses performed as user)
- * 2 (10) => Not User, exec => 01 (rights according to page definition)
- * 3 (11) => User, exec => 00 (all accesses performed as supervisor)
+ * All pages' PP data bits are set to either 001 or 011 by copying _PAGE_EXEC
+ * into bit 21 in the ITLBmiss handler (bit 21 is the middle bit), which means
+ * respectively NA for All or X for Supervisor and no access for User.
+ * Then we use the APG to say whether accesses are according to Page rules or
+ * "all Supervisor" rules (Access to all)
+ * We also use the 2nd APG bit for _PAGE_ACCESSED when having SWAP:
+ * When that bit is not set access is done iaw "all user"
+ * which means no access iaw page rules.
+ * Therefore, we define 4 APG groups. lsb is _PMD_USER, 2nd is _PAGE_ACCESSED
+ * 0x => No access => 11 (all accesses performed as user iaw page definition)
+ * 10 => No user => 01 (all accesses performed according to page definition)
+ * 11 => User => 00 (all accesses performed as supervisor iaw page definition)
+ * We define all 16 groups so that all other bits of APG can take any value
  */
-#define MI_APG_INIT	0xf4ffffff
+#ifdef CONFIG_SWAP
+#define MI_APG_INIT	0xf4f4f4f4
+#else
+#define MI_APG_INIT	0x44444444
+#endif
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MI_RPN is written, bits in
@@ -102,17 +110,25 @@
 #define MD_Kp		0x40000000	/* Should always be set */
 
 /*
- * All pages' PP data bits are set to either 000 or 011, which means
+ * All pages' PP data bits are set to either 000 or 011 or 001, which means
  * respectively RW for Supervisor and no access for User, or RO for
- * Supervisor and no access for user.
+ * Supervisor and no access for user and NA for ALL.
  * Then we use the APG to say whether accesses are according to Page rules or
  * "all Supervisor" rules (Access to all)
- * Therefore, we define 2 APG groups. lsb is _PAGE_USER
- * 0 => No user => 01 (all accesses performed according to page definition)
- * 1 => User => 00 (all accesses performed as supervisor
- *                                 according to page definition)
+ * We also use the 2nd APG bit for _PAGE_ACCESSED when having SWAP:
+ * When that bit is not set access is done iaw "all user"
+ * which means no access iaw page rules.
+ * Therefore, we define 4 APG groups. lsb is _PMD_USER, 2nd is _PAGE_ACCESSED
+ * 0x => No access => 11 (all accesses performed as user iaw page definition)
+ * 10 => No user => 01 (all accesses performed according to page definition)
+ * 11 => User => 00 (all accesses performed as supervisor iaw page definition)
+ * We define all 16 groups so that all other bits of APG can take any value
  */
-#define MD_APG_INIT	0x4fffffff
+#ifdef CONFIG_SWAP
+#define MD_APG_INIT	0xf4f4f4f4
+#else
+#define MD_APG_INIT	0x44444444
+#endif
 
 /* The effective page number register.  When read, contains the information
  * about the last instruction TLB miss.  When MD_RPN is written, bits in
@@ -163,6 +179,12 @@
  * a processor working register during a tablewalk.
  */
 #define SPRN_M_TW	799
+
+/* APGs */
+#define M_APG0		0x00000000
+#define M_APG1		0x00000020
+#define M_APG2		0x00000040
+#define M_APG3		0x00000060
 
 #ifndef __ASSEMBLY__
 typedef struct {

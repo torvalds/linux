@@ -36,6 +36,7 @@
 #include <linux/tcp.h>
 #include <linux/bpf_trace.h>
 #include <net/busy_poll.h>
+#include <net/ip6_checksum.h>
 #include "en.h"
 #include "en_tc.h"
 #include "eswitch.h"
@@ -495,8 +496,8 @@ static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
 	mlx5_cqwq_pop(&cq->wq);
 
 	if (unlikely((cqe->op_own >> 4) != MLX5_CQE_REQ)) {
-		WARN_ONCE(true, "mlx5e: Bad OP in ICOSQ CQE: 0x%x\n",
-			  cqe->op_own);
+		netdev_WARN_ONCE(cq->channel->netdev,
+				 "Bad OP in ICOSQ CQE: 0x%x\n", cqe->op_own);
 		return;
 	}
 
@@ -506,9 +507,8 @@ static inline void mlx5e_poll_ico_single_cqe(struct mlx5e_cq *cq,
 	}
 
 	if (unlikely(icowi->opcode != MLX5_OPCODE_NOP))
-		WARN_ONCE(true,
-			  "mlx5e: Bad OPCODE in ICOSQ WQE info: 0x%x\n",
-			  icowi->opcode);
+		netdev_WARN_ONCE(cq->channel->netdev,
+				 "Bad OPCODE in ICOSQ WQE info: 0x%x\n", icowi->opcode);
 }
 
 static void mlx5e_poll_ico_cq(struct mlx5e_cq *cq, struct mlx5e_rq *rq)
@@ -547,19 +547,32 @@ bool mlx5e_post_rx_mpwqes(struct mlx5e_rq *rq)
 	return true;
 }
 
+static void mlx5e_lro_update_tcp_hdr(struct mlx5_cqe64 *cqe, struct tcphdr *tcp)
+{
+	u8 l4_hdr_type = get_cqe_l4_hdr_type(cqe);
+	u8 tcp_ack     = (l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA) ||
+			 (l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA);
+
+	tcp->check                      = 0;
+	tcp->psh                        = get_cqe_lro_tcppsh(cqe);
+
+	if (tcp_ack) {
+		tcp->ack                = 1;
+		tcp->ack_seq            = cqe->lro_ack_seq_num;
+		tcp->window             = cqe->lro_tcp_win;
+	}
+}
+
 static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe,
 				 u32 cqe_bcnt)
 {
 	struct ethhdr	*eth = (struct ethhdr *)(skb->data);
 	struct tcphdr	*tcp;
 	int network_depth = 0;
+	__wsum check;
 	__be16 proto;
 	u16 tot_len;
 	void *ip_p;
-
-	u8 l4_hdr_type = get_cqe_l4_hdr_type(cqe);
-	u8 tcp_ack = (l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_NO_DATA) ||
-		(l4_hdr_type == CQE_L4_HDR_TYPE_TCP_ACK_AND_DATA);
 
 	proto = __vlan_get_protocol(skb, eth->h_proto, &network_depth);
 
@@ -577,23 +590,30 @@ static void mlx5e_lro_update_hdr(struct sk_buff *skb, struct mlx5_cqe64 *cqe,
 		ipv4->check             = 0;
 		ipv4->check             = ip_fast_csum((unsigned char *)ipv4,
 						       ipv4->ihl);
+
+		mlx5e_lro_update_tcp_hdr(cqe, tcp);
+		check = csum_partial(tcp, tcp->doff * 4,
+				     csum_unfold((__force __sum16)cqe->check_sum));
+		/* Almost done, don't forget the pseudo header */
+		tcp->check = csum_tcpudp_magic(ipv4->saddr, ipv4->daddr,
+					       tot_len - sizeof(struct iphdr),
+					       IPPROTO_TCP, check);
 	} else {
+		u16 payload_len = tot_len - sizeof(struct ipv6hdr);
 		struct ipv6hdr *ipv6 = ip_p;
 
 		tcp = ip_p + sizeof(struct ipv6hdr);
 		skb_shinfo(skb)->gso_type = SKB_GSO_TCPV6;
 
 		ipv6->hop_limit         = cqe->lro_min_ttl;
-		ipv6->payload_len       = cpu_to_be16(tot_len -
-						      sizeof(struct ipv6hdr));
-	}
+		ipv6->payload_len       = cpu_to_be16(payload_len);
 
-	tcp->psh = get_cqe_lro_tcppsh(cqe);
-
-	if (tcp_ack) {
-		tcp->ack                = 1;
-		tcp->ack_seq            = cqe->lro_ack_seq_num;
-		tcp->window             = cqe->lro_tcp_win;
+		mlx5e_lro_update_tcp_hdr(cqe, tcp);
+		check = csum_partial(tcp, tcp->doff * 4,
+				     csum_unfold((__force __sum16)cqe->check_sum));
+		/* Almost done, don't forget the pseudo header */
+		tcp->check = csum_ipv6_magic(&ipv6->saddr, &ipv6->daddr, payload_len,
+					     IPPROTO_TCP, check);
 	}
 }
 
@@ -632,7 +652,7 @@ static inline void mlx5e_handle_csum(struct net_device *netdev,
 		return;
 	}
 
-	if (is_last_ethertype_ip(skb, &network_depth)) {
+	if (likely(is_last_ethertype_ip(skb, &network_depth))) {
 		skb->ip_summed = CHECKSUM_COMPLETE;
 		skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 		if (network_depth > ETH_HLEN)
@@ -812,6 +832,7 @@ static inline int mlx5e_xdp_handle(struct mlx5e_rq *rq,
 	xdp_set_data_meta_invalid(&xdp);
 	xdp.data_end = xdp.data + *len;
 	xdp.data_hard_start = va;
+	xdp.rxq = &rq->xdp_rxq;
 
 	act = bpf_prog_run_xdp(prog, &xdp);
 	switch (act) {
@@ -1175,7 +1196,9 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 					 u32 cqe_bcnt,
 					 struct sk_buff *skb)
 {
+	struct hwtstamp_config *tstamp;
 	struct net_device *netdev;
+	struct mlx5e_priv *priv;
 	char *pseudo_header;
 	u32 qpn;
 	u8 *dgid;
@@ -1193,6 +1216,9 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 		pr_warn_once("Unable to map QPN %u to dev - dropping skb\n", qpn);
 		return;
 	}
+
+	priv = mlx5i_epriv(netdev);
+	tstamp = &priv->tstamp;
 
 	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
 	dgid = skb->data + MLX5_IB_GRH_DGID_OFFSET;
@@ -1214,7 +1240,7 @@ static inline void mlx5i_complete_rx_cqe(struct mlx5e_rq *rq,
 	skb->ip_summed = CHECKSUM_COMPLETE;
 	skb->csum = csum_unfold((__force __sum16)cqe->check_sum);
 
-	if (unlikely(mlx5e_rx_hw_stamp(rq->tstamp)))
+	if (unlikely(mlx5e_rx_hw_stamp(tstamp)))
 		skb_hwtstamps(skb)->hwtstamp =
 				mlx5_timecounter_cyc2time(rq->clock, get_cqe_ts(cqe));
 

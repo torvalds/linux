@@ -488,7 +488,7 @@ bool ovs_meter_execute(struct datapath *dp, struct sk_buff *skb,
 		long long int max_bucket_size;
 
 		band = &meter->bands[i];
-		max_bucket_size = (band->burst_size + band->rate) * 1000;
+		max_bucket_size = (band->burst_size + band->rate) * 1000LL;
 
 		band->bucket += delta_ms * band->rate;
 		if (band->bucket > max_bucket_size)

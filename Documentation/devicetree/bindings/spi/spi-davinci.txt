@@ -68,7 +68,7 @@ SPI_SOMI/SIMO+-----------------+                           +-----------
 Example of a NOR flash slave device (n25q032) connected to DaVinci
 SPI controller device over the SPI bus.
 
-spi0:spi@20BF0000 {
+spi0:spi@20bf0000 {
 	#address-cells			= <1>;
 	#size-cells			= <0>;
 	compatible			= "ti,dm6446-spi";

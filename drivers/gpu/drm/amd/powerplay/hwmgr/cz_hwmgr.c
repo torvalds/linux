@@ -728,9 +728,6 @@ static int cz_update_sclk_limit(struct pp_hwmgr *hwmgr)
 
 		if (clock < stable_pstate_sclk)
 			clock = stable_pstate_sclk;
-	} else {
-		if (clock < hwmgr->gfx_arbiter.sclk)
-			clock = hwmgr->gfx_arbiter.sclk;
 	}
 
 	if (cz_hwmgr->sclk_dpm.soft_min_clk != clock) {
@@ -1085,13 +1082,7 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	uint32_t  num_of_active_displays = 0;
 	struct cgs_display_info info = {0};
 
-	cz_ps->evclk = hwmgr->vce_arbiter.evclk;
-	cz_ps->ecclk = hwmgr->vce_arbiter.ecclk;
-
 	cz_ps->need_dfs_bypass = true;
-
-	cz_hwmgr->video_start = (hwmgr->uvd_arbiter.vclk != 0 || hwmgr->uvd_arbiter.dclk != 0 ||
-				hwmgr->vce_arbiter.evclk != 0 || hwmgr->vce_arbiter.ecclk != 0);
 
 	cz_hwmgr->battery_state = (PP_StateUILabel_Battery == prequest_ps->classification.ui_label);
 
@@ -1104,9 +1095,6 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState))
 		clocks.memoryClock = hwmgr->dyn_state.max_clock_voltage_on_ac.mclk;
-
-	if (clocks.memoryClock < hwmgr->gfx_arbiter.mclk)
-		clocks.memoryClock = hwmgr->gfx_arbiter.mclk;
 
 	force_high = (clocks.memoryClock > cz_hwmgr->sys_info.nbp_memory_clock[CZ_NUM_NBPMEMORYCLOCK - 1])
 			|| (num_of_active_displays >= 3);
@@ -1339,22 +1327,13 @@ int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 				cz_hwmgr->vce_dpm.hard_min_clk,
 				PPSMC_MSG_SetEclkHardMin));
 	} else {
-		/*Program HardMin based on the vce_arbiter.ecclk */
-		if (hwmgr->vce_arbiter.ecclk == 0) {
-			smum_send_msg_to_smc_with_parameter(hwmgr,
-					    PPSMC_MSG_SetEclkHardMin, 0);
+
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetEclkHardMin, 0);
 		/* disable ECLK DPM 0. Otherwise VCE could hang if
 		 * switching SCLK from DPM 0 to 6/7 */
-			smum_send_msg_to_smc_with_parameter(hwmgr,
+		smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetEclkSoftMin, 1);
-		} else {
-			cz_hwmgr->vce_dpm.hard_min_clk = hwmgr->vce_arbiter.ecclk;
-			smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SetEclkHardMin,
-				cz_get_eclk_level(hwmgr,
-					cz_hwmgr->vce_dpm.hard_min_clk,
-					PPSMC_MSG_SetEclkHardMin));
-		}
 	}
 	return 0;
 }

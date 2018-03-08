@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/dt9812.c
  *   COMEDI driver for DataTranslation DT9812 USB module
@@ -5,16 +6,6 @@
  * Copyright (C) 2005 Anders Blomdell <anders.blomdell@control.lth.se>
  *
  * COMEDI - Linux Control and Measurement Device Interface
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
-
- *  This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*

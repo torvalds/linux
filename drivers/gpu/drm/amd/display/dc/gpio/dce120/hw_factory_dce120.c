@@ -34,9 +34,9 @@
 
 #include "hw_factory_dce120.h"
 
-#include "vega10/DC/dce_12_0_offset.h"
-#include "vega10/DC/dce_12_0_sh_mask.h"
-#include "vega10/soc15ip.h"
+#include "dce/dce_12_0_offset.h"
+#include "dce/dce_12_0_sh_mask.h"
+#include "soc15ip.h"
 
 #define block HPD
 #define reg_num 0

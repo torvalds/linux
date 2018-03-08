@@ -24,6 +24,7 @@
 #include <linux/tcp.h>
 #include <net/flow_dissector.h>
 #include <scsi/fc/fc_fcoe.h>
+#include <uapi/linux/batadv_packet.h>
 
 static void dissector_set_key(struct flow_dissector *flow_dissector,
 			      enum flow_dissector_key_id key_id)
@@ -133,10 +134,10 @@ skb_flow_dissect_set_enc_addr_type(enum flow_dissector_key_id type,
 	ctrl->addr_type = type;
 }
 
-static void
-__skb_flow_dissect_tunnel_info(const struct sk_buff *skb,
-			       struct flow_dissector *flow_dissector,
-			       void *target_container)
+void
+skb_flow_dissect_tunnel_info(const struct sk_buff *skb,
+			     struct flow_dissector *flow_dissector,
+			     void *target_container)
 {
 	struct ip_tunnel_info *info;
 	struct ip_tunnel_key *key;
@@ -212,6 +213,7 @@ __skb_flow_dissect_tunnel_info(const struct sk_buff *skb,
 		tp->dst = key->tp_dst;
 	}
 }
+EXPORT_SYMBOL(skb_flow_dissect_tunnel_info);
 
 static enum flow_dissect_ret
 __skb_flow_dissect_mpls(const struct sk_buff *skb,
@@ -436,6 +438,57 @@ __skb_flow_dissect_gre(const struct sk_buff *skb,
 	return FLOW_DISSECT_RET_PROTO_AGAIN;
 }
 
+/**
+ * __skb_flow_dissect_batadv() - dissect batman-adv header
+ * @skb: sk_buff to with the batman-adv header
+ * @key_control: flow dissectors control key
+ * @data: raw buffer pointer to the packet, if NULL use skb->data
+ * @p_proto: pointer used to update the protocol to process next
+ * @p_nhoff: pointer used to update inner network header offset
+ * @hlen: packet header length
+ * @flags: any combination of FLOW_DISSECTOR_F_*
+ *
+ * ETH_P_BATMAN packets are tried to be dissected. Only
+ * &struct batadv_unicast packets are actually processed because they contain an
+ * inner ethernet header and are usually followed by actual network header. This
+ * allows the flow dissector to continue processing the packet.
+ *
+ * Return: FLOW_DISSECT_RET_PROTO_AGAIN when &struct batadv_unicast was found,
+ *  FLOW_DISSECT_RET_OUT_GOOD when dissector should stop after encapsulation,
+ *  otherwise FLOW_DISSECT_RET_OUT_BAD
+ */
+static enum flow_dissect_ret
+__skb_flow_dissect_batadv(const struct sk_buff *skb,
+			  struct flow_dissector_key_control *key_control,
+			  void *data, __be16 *p_proto, int *p_nhoff, int hlen,
+			  unsigned int flags)
+{
+	struct {
+		struct batadv_unicast_packet batadv_unicast;
+		struct ethhdr eth;
+	} *hdr, _hdr;
+
+	hdr = __skb_header_pointer(skb, *p_nhoff, sizeof(_hdr), data, hlen,
+				   &_hdr);
+	if (!hdr)
+		return FLOW_DISSECT_RET_OUT_BAD;
+
+	if (hdr->batadv_unicast.version != BATADV_COMPAT_VERSION)
+		return FLOW_DISSECT_RET_OUT_BAD;
+
+	if (hdr->batadv_unicast.packet_type != BATADV_UNICAST)
+		return FLOW_DISSECT_RET_OUT_BAD;
+
+	*p_proto = hdr->eth.h_proto;
+	*p_nhoff += sizeof(*hdr);
+
+	key_control->flags |= FLOW_DIS_ENCAPSULATION;
+	if (flags & FLOW_DISSECTOR_F_STOP_AT_ENCAP)
+		return FLOW_DISSECT_RET_OUT_GOOD;
+
+	return FLOW_DISSECT_RET_PROTO_AGAIN;
+}
+
 static void
 __skb_flow_dissect_tcp(const struct sk_buff *skb,
 		       struct flow_dissector *flow_dissector,
@@ -575,9 +628,6 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	key_basic = skb_flow_dissector_target(flow_dissector,
 					      FLOW_DISSECTOR_KEY_BASIC,
 					      target_container);
-
-	__skb_flow_dissect_tunnel_info(skb, flow_dissector,
-				       target_container);
 
 	if (dissector_uses_key(flow_dissector,
 			       FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
@@ -815,6 +865,11 @@ proto_again:
 		fdret = __skb_flow_dissect_arp(skb, flow_dissector,
 					       target_container, data,
 					       nhoff, hlen);
+		break;
+
+	case htons(ETH_P_BATMAN):
+		fdret = __skb_flow_dissect_batadv(skb, key_control, data,
+						  &proto, &nhoff, hlen, flags);
 		break;
 
 	default:

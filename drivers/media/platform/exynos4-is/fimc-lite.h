@@ -56,9 +56,9 @@ enum {
  * @max_height: maximum camera interface input height in pixels
  * @out_width_align: minimum output width alignment in pixels
  * @win_hor_offs_align: minimum camera interface crop window horizontal
- * 			offset alignment in pixels
+ *			offset alignment in pixels
  * @out_hor_offs_align: minimum output DMA compose rectangle horizontal
- * 			offset alignment in pixels
+ *			offset alignment in pixels
  * @max_dma_bufs: number of output DMA buffer start address registers
  * @num_instances: total number of FIMC-LITE IP instances available
  */

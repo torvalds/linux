@@ -1,22 +1,15 @@
-/*
- * LED Kernel Transient Trigger
- *
- * Copyright (C) 2012 Shuah Khan <shuahkhan@gmail.com>
- *
- * Based on Richard Purdie's ledtrig-timer.c and Atsushi Nemoto's
- * ledtrig-heartbeat.c
- * Design and use-case input from Jonas Bonn <jonas@southpole.se> and
- * Neil Brown <neilb@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
-/*
- * Transient trigger allows one shot timer activation. Please refer to
- * Documentation/leds/ledtrig-transient.txt for details
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// LED Kernel Transient Trigger
+//
+// Transient trigger allows one shot timer activation. Please refer to
+// Documentation/leds/ledtrig-transient.txt for details
+// Copyright (C) 2012 Shuah Khan <shuahkhan@gmail.com>
+//
+// Based on Richard Purdie's ledtrig-timer.c and Atsushi Nemoto's
+// ledtrig-heartbeat.c
+// Design and use-case input from Jonas Bonn <jonas@southpole.se> and
+// Neil Brown <neilb@suse.de>
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -238,4 +231,4 @@ module_exit(transient_trig_exit);
 
 MODULE_AUTHOR("Shuah Khan <shuahkhan@gmail.com>");
 MODULE_DESCRIPTION("Transient LED trigger");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

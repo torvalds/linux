@@ -762,10 +762,10 @@ out:
 	return count;
 }
 
-static unsigned int spufs_ibox_poll(struct file *file, poll_table *wait)
+static __poll_t spufs_ibox_poll(struct file *file, poll_table *wait)
 {
 	struct spu_context *ctx = file->private_data;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &ctx->ibox_wq, wait);
 
@@ -774,7 +774,7 @@ static unsigned int spufs_ibox_poll(struct file *file, poll_table *wait)
 	 * that poll should not sleep.  Will be fixed later.
 	 */
 	mutex_lock(&ctx->state_mutex);
-	mask = ctx->ops->mbox_stat_poll(ctx, POLLIN | POLLRDNORM);
+	mask = ctx->ops->mbox_stat_poll(ctx, EPOLLIN | EPOLLRDNORM);
 	spu_release(ctx);
 
 	return mask;
@@ -898,10 +898,10 @@ out:
 	return count;
 }
 
-static unsigned int spufs_wbox_poll(struct file *file, poll_table *wait)
+static __poll_t spufs_wbox_poll(struct file *file, poll_table *wait)
 {
 	struct spu_context *ctx = file->private_data;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &ctx->wbox_wq, wait);
 
@@ -910,7 +910,7 @@ static unsigned int spufs_wbox_poll(struct file *file, poll_table *wait)
 	 * that poll should not sleep.  Will be fixed later.
 	 */
 	mutex_lock(&ctx->state_mutex);
-	mask = ctx->ops->mbox_stat_poll(ctx, POLLOUT | POLLWRNORM);
+	mask = ctx->ops->mbox_stat_poll(ctx, EPOLLOUT | EPOLLWRNORM);
 	spu_release(ctx);
 
 	return mask;
@@ -1690,11 +1690,11 @@ out:
 	return ret;
 }
 
-static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
+static __poll_t spufs_mfc_poll(struct file *file,poll_table *wait)
 {
 	struct spu_context *ctx = file->private_data;
 	u32 free_elements, tagstatus;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &ctx->mfc_wq, wait);
 
@@ -1710,9 +1710,9 @@ static unsigned int spufs_mfc_poll(struct file *file,poll_table *wait)
 
 	mask = 0;
 	if (free_elements & 0xffff)
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	if (tagstatus & ctx->tagwait)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	pr_debug("%s: free %d tagstatus %d tagwait %d\n", __func__,
 		free_elements, tagstatus, ctx->tagwait);
@@ -2375,8 +2375,8 @@ static int switch_log_sprint(struct spu_context *ctx, char *tbuf, int n)
 
 	p = ctx->switch_log->log + ctx->switch_log->tail % SWITCH_LOG_BUFSIZE;
 
-	return snprintf(tbuf, n, "%u.%09u %d %u %u %llu\n",
-			(unsigned int) p->tstamp.tv_sec,
+	return snprintf(tbuf, n, "%llu.%09u %d %u %u %llu\n",
+			(unsigned long long) p->tstamp.tv_sec,
 			(unsigned int) p->tstamp.tv_nsec,
 			p->spu_id,
 			(unsigned int) p->type,
@@ -2455,11 +2455,11 @@ static ssize_t spufs_switch_log_read(struct file *file, char __user *buf,
 	return cnt == 0 ? error : cnt;
 }
 
-static unsigned int spufs_switch_log_poll(struct file *file, poll_table *wait)
+static __poll_t spufs_switch_log_poll(struct file *file, poll_table *wait)
 {
 	struct inode *inode = file_inode(file);
 	struct spu_context *ctx = SPUFS_I(inode)->i_ctx;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	int rc;
 
 	poll_wait(file, &ctx->switch_log->wait, wait);
@@ -2469,7 +2469,7 @@ static unsigned int spufs_switch_log_poll(struct file *file, poll_table *wait)
 		return rc;
 
 	if (spufs_switch_log_used(ctx) > 0)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	spu_release(ctx);
 
@@ -2499,7 +2499,7 @@ void spu_switch_log_notify(struct spu *spu, struct spu_context *ctx,
 		struct switch_log_entry *p;
 
 		p = ctx->switch_log->log + ctx->switch_log->head;
-		ktime_get_ts(&p->tstamp);
+		ktime_get_ts64(&p->tstamp);
 		p->timebase = get_tb();
 		p->spu_id = spu ? spu->number : -1;
 		p->type = type;

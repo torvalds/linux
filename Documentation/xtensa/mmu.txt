@@ -69,8 +69,19 @@ Default MMUv2-compatible layout.
 | Userspace        |                           0x00000000  TASK_SIZE
 +------------------+                           0x40000000
 +------------------+
-| Page table       |                           0x80000000
-+------------------+                           0x80400000
+| Page table       |  XCHAL_PAGE_TABLE_VADDR   0x80000000  XCHAL_PAGE_TABLE_SIZE
++------------------+
+| KASAN shadow map |  KASAN_SHADOW_START       0x80400000  KASAN_SHADOW_SIZE
++------------------+                           0x8e400000
++------------------+
+| VMALLOC area     |  VMALLOC_START            0xc0000000  128MB - 64KB
++------------------+  VMALLOC_END
+| Cache aliasing   |  TLBTEMP_BASE_1           0xc7ff0000  DCACHE_WAY_SIZE
+| remap area 1     |
++------------------+
+| Cache aliasing   |  TLBTEMP_BASE_2                       DCACHE_WAY_SIZE
+| remap area 2     |
++------------------+
 +------------------+
 | KMAP area        |  PKMAP_BASE                           PTRS_PER_PTE *
 |                  |                                       DCACHE_N_COLORS *
@@ -81,16 +92,7 @@ Default MMUv2-compatible layout.
 |                  |                                       NR_CPUS *
 |                  |                                       DCACHE_N_COLORS *
 |                  |                                       PAGE_SIZE
-+------------------+  FIXADDR_TOP              0xbffff000
-+------------------+
-| VMALLOC area     |  VMALLOC_START            0xc0000000  128MB - 64KB
-+------------------+  VMALLOC_END
-| Cache aliasing   |  TLBTEMP_BASE_1           0xc7ff0000  DCACHE_WAY_SIZE
-| remap area 1     |
-+------------------+
-| Cache aliasing   |  TLBTEMP_BASE_2                       DCACHE_WAY_SIZE
-| remap area 2     |
-+------------------+
++------------------+  FIXADDR_TOP              0xcffff000
 +------------------+
 | Cached KSEG      |  XCHAL_KSEG_CACHED_VADDR  0xd0000000  128MB
 +------------------+
@@ -109,8 +111,19 @@ Default MMUv2-compatible layout.
 | Userspace        |                           0x00000000  TASK_SIZE
 +------------------+                           0x40000000
 +------------------+
-| Page table       |                           0x80000000
-+------------------+                           0x80400000
+| Page table       |  XCHAL_PAGE_TABLE_VADDR   0x80000000  XCHAL_PAGE_TABLE_SIZE
++------------------+
+| KASAN shadow map |  KASAN_SHADOW_START       0x80400000  KASAN_SHADOW_SIZE
++------------------+                           0x8e400000
++------------------+
+| VMALLOC area     |  VMALLOC_START            0xa0000000  128MB - 64KB
++------------------+  VMALLOC_END
+| Cache aliasing   |  TLBTEMP_BASE_1           0xa7ff0000  DCACHE_WAY_SIZE
+| remap area 1     |
++------------------+
+| Cache aliasing   |  TLBTEMP_BASE_2                       DCACHE_WAY_SIZE
+| remap area 2     |
++------------------+
 +------------------+
 | KMAP area        |  PKMAP_BASE                           PTRS_PER_PTE *
 |                  |                                       DCACHE_N_COLORS *
@@ -121,16 +134,7 @@ Default MMUv2-compatible layout.
 |                  |                                       NR_CPUS *
 |                  |                                       DCACHE_N_COLORS *
 |                  |                                       PAGE_SIZE
-+------------------+  FIXADDR_TOP              0x9ffff000
-+------------------+
-| VMALLOC area     |  VMALLOC_START            0xa0000000  128MB - 64KB
-+------------------+  VMALLOC_END
-| Cache aliasing   |  TLBTEMP_BASE_1           0xa7ff0000  DCACHE_WAY_SIZE
-| remap area 1     |
-+------------------+
-| Cache aliasing   |  TLBTEMP_BASE_2                       DCACHE_WAY_SIZE
-| remap area 2     |
-+------------------+
++------------------+  FIXADDR_TOP              0xaffff000
 +------------------+
 | Cached KSEG      |  XCHAL_KSEG_CACHED_VADDR  0xb0000000  256MB
 +------------------+
@@ -150,8 +154,19 @@ Default MMUv2-compatible layout.
 | Userspace        |                           0x00000000  TASK_SIZE
 +------------------+                           0x40000000
 +------------------+
-| Page table       |                           0x80000000
-+------------------+                           0x80400000
+| Page table       |  XCHAL_PAGE_TABLE_VADDR   0x80000000  XCHAL_PAGE_TABLE_SIZE
++------------------+
+| KASAN shadow map |  KASAN_SHADOW_START       0x80400000  KASAN_SHADOW_SIZE
++------------------+                           0x8e400000
++------------------+
+| VMALLOC area     |  VMALLOC_START            0x90000000  128MB - 64KB
++------------------+  VMALLOC_END
+| Cache aliasing   |  TLBTEMP_BASE_1           0x97ff0000  DCACHE_WAY_SIZE
+| remap area 1     |
++------------------+
+| Cache aliasing   |  TLBTEMP_BASE_2                       DCACHE_WAY_SIZE
+| remap area 2     |
++------------------+
 +------------------+
 | KMAP area        |  PKMAP_BASE                           PTRS_PER_PTE *
 |                  |                                       DCACHE_N_COLORS *
@@ -162,16 +177,7 @@ Default MMUv2-compatible layout.
 |                  |                                       NR_CPUS *
 |                  |                                       DCACHE_N_COLORS *
 |                  |                                       PAGE_SIZE
-+------------------+  FIXADDR_TOP              0x8ffff000
-+------------------+
-| VMALLOC area     |  VMALLOC_START            0x90000000  128MB - 64KB
-+------------------+  VMALLOC_END
-| Cache aliasing   |  TLBTEMP_BASE_1           0x97ff0000  DCACHE_WAY_SIZE
-| remap area 1     |
-+------------------+
-| Cache aliasing   |  TLBTEMP_BASE_2                       DCACHE_WAY_SIZE
-| remap area 2     |
-+------------------+
++------------------+  FIXADDR_TOP              0x9ffff000
 +------------------+
 | Cached KSEG      |  XCHAL_KSEG_CACHED_VADDR  0xa0000000  512MB
 +------------------+

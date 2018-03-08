@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2017, Intel Corp.
+ * Copyright (C) 2000 - 2018, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -96,8 +96,8 @@ ACPI_EXPORT_SYMBOL(acpi_error)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Print "ACPI Exception" message with module/line/version info
- *              and decoded acpi_status.
+ * DESCRIPTION: Print an "ACPI Error" message with module/line/version
+ *              info as well as decoded acpi_status.
  *
  ******************************************************************************/
 void ACPI_INTERNAL_VAR_XFACE
@@ -111,10 +111,10 @@ acpi_exception(const char *module_name,
 	/* For AE_OK, just print the message */
 
 	if (ACPI_SUCCESS(status)) {
-		acpi_os_printf(ACPI_MSG_EXCEPTION);
+		acpi_os_printf(ACPI_MSG_ERROR);
 
 	} else {
-		acpi_os_printf(ACPI_MSG_EXCEPTION "%s, ",
+		acpi_os_printf(ACPI_MSG_ERROR "%s, ",
 			       acpi_format_exception(status));
 	}
 

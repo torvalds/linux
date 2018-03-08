@@ -71,25 +71,7 @@ static struct rsnd_mod mem = {
 static void __rsnd_dmaen_complete(struct rsnd_mod *mod,
 				  struct rsnd_dai_stream *io)
 {
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	bool elapsed = false;
-	unsigned long flags;
-
-	/*
-	 * Renesas sound Gen1 needs 1 DMAC,
-	 * Gen2 needs 2 DMAC.
-	 * In Gen2 case, it are Audio-DMAC, and Audio-DMAC-peri-peri.
-	 * But, Audio-DMAC-peri-peri doesn't have interrupt,
-	 * and this driver is assuming that here.
-	 */
-	spin_lock_irqsave(&priv->lock, flags);
-
 	if (rsnd_io_is_working(io))
-		elapsed = true;
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (elapsed)
 		rsnd_dai_period_elapsed(io);
 }
 

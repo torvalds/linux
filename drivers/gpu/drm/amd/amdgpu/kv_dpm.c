@@ -1682,8 +1682,8 @@ static void kv_dpm_powergate_uvd(void *handle, bool gate)
 
 	if (gate) {
 		/* stop the UVD block */
-		ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							AMD_PG_STATE_GATE);
+		ret = amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							     AMD_PG_STATE_GATE);
 		kv_update_uvd_dpm(adev, gate);
 		if (pi->caps_uvd_pg)
 			/* power off the UVD block */
@@ -1695,8 +1695,8 @@ static void kv_dpm_powergate_uvd(void *handle, bool gate)
 			/* re-init the UVD block */
 		kv_update_uvd_dpm(adev, gate);
 
-		ret = amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							AMD_PG_STATE_UNGATE);
+		ret = amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							     AMD_PG_STATE_UNGATE);
 	}
 }
 

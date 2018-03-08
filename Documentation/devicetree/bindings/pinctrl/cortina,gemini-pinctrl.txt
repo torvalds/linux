@@ -17,6 +17,9 @@ and generic pin config nodes.
 
 Supported configurations:
 - skew-delay is supported on the Ethernet pins
+- drive-strength with 4, 8, 12 or 16 mA as argument is supported for
+  entire groups on the groups "idegrp", "gmii_gmac0_grp", "gmii_gmac1_grp"
+  and "pcigrp".
 
 Example:
 

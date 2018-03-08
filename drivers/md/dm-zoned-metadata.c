@@ -2333,6 +2333,9 @@ static void dmz_cleanup_metadata(struct dmz_metadata *zmd)
 
 	/* Free the zone descriptors */
 	dmz_drop_zones(zmd);
+
+	mutex_destroy(&zmd->mblk_flush_lock);
+	mutex_destroy(&zmd->map_lock);
 }
 
 /*

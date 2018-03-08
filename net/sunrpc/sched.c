@@ -461,6 +461,18 @@ static void rpc_wake_up_task_queue_locked(struct rpc_wait_queue *queue, struct r
 /*
  * Wake up a task on a specific queue
  */
+void rpc_wake_up_queued_task_on_wq(struct workqueue_struct *wq,
+		struct rpc_wait_queue *queue,
+		struct rpc_task *task)
+{
+	spin_lock_bh(&queue->lock);
+	rpc_wake_up_task_on_wq_queue_locked(wq, queue, task);
+	spin_unlock_bh(&queue->lock);
+}
+
+/*
+ * Wake up a task on a specific queue
+ */
 void rpc_wake_up_queued_task(struct rpc_wait_queue *queue, struct rpc_task *task)
 {
 	spin_lock_bh(&queue->lock);
@@ -755,22 +767,20 @@ static void __rpc_execute(struct rpc_task *task)
 		void (*do_action)(struct rpc_task *);
 
 		/*
-		 * Execute any pending callback first.
+		 * Perform the next FSM step or a pending callback.
+		 *
+		 * tk_action may be NULL if the task has been killed.
+		 * In particular, note that rpc_killall_tasks may
+		 * do this at any time, so beware when dereferencing.
 		 */
-		do_action = task->tk_callback;
-		task->tk_callback = NULL;
-		if (do_action == NULL) {
-			/*
-			 * Perform the next FSM step.
-			 * tk_action may be NULL if the task has been killed.
-			 * In particular, note that rpc_killall_tasks may
-			 * do this at any time, so beware when dereferencing.
-			 */
-			do_action = task->tk_action;
-			if (do_action == NULL)
-				break;
+		do_action = task->tk_action;
+		if (task->tk_callback) {
+			do_action = task->tk_callback;
+			task->tk_callback = NULL;
 		}
-		trace_rpc_task_run_action(task->tk_client, task, task->tk_action);
+		if (!do_action)
+			break;
+		trace_rpc_task_run_action(task->tk_client, task, do_action);
 		do_action(task);
 
 		/*
@@ -1094,12 +1104,12 @@ static int rpciod_start(void)
 	 * Create the rpciod thread and wait for it to start.
 	 */
 	dprintk("RPC:       creating workqueue rpciod\n");
-	wq = alloc_workqueue("rpciod", WQ_MEM_RECLAIM, 0);
+	wq = alloc_workqueue("rpciod", WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
 	if (!wq)
 		goto out_failed;
 	rpciod_workqueue = wq;
 	/* Note: highpri because network receive is latency sensitive */
-	wq = alloc_workqueue("xprtiod", WQ_MEM_RECLAIM | WQ_HIGHPRI, 0);
+	wq = alloc_workqueue("xprtiod", WQ_UNBOUND|WQ_MEM_RECLAIM|WQ_HIGHPRI, 0);
 	if (!wq)
 		goto free_rpciod;
 	xprtiod_workqueue = wq;

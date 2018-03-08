@@ -2006,7 +2006,7 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 {
 	int ret;
 	u32 mii_adv;
-	struct phy_device *phydev = dev->net->phydev;
+	struct phy_device *phydev;
 
 	phydev = phy_find_first(dev->mdiobus);
 	if (!phydev) {

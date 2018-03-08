@@ -200,7 +200,7 @@ out:
 	return skb->len;
 }
 
-int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
+int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 {
 	struct net *net = sock_net(skb->sk);
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
@@ -241,10 +241,19 @@ int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 		if (!tipc_addr_node_valid(addr))
 			return -EINVAL;
 
-		rtnl_lock();
 		tipc_net_start(net, addr);
-		rtnl_unlock();
 	}
 
 	return 0;
+}
+
+int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
+{
+	int err;
+
+	rtnl_lock();
+	err = __tipc_nl_net_set(skb, info);
+	rtnl_unlock();
+
+	return err;
 }

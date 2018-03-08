@@ -381,6 +381,7 @@ int rt5514_spi_burst_read(unsigned int addr, u8 *rxbuf, size_t len)
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(rt5514_spi_burst_read);
 
 /**
  * rt5514_spi_burst_write - Write data to SPI by rt5514 address.

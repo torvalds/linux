@@ -38,7 +38,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/usb/gpio_vbus.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>

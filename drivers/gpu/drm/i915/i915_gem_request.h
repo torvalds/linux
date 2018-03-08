@@ -204,6 +204,8 @@ struct drm_i915_gem_request {
 	struct list_head client_link;
 };
 
+#define I915_FENCE_GFP (GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN)
+
 extern const struct dma_fence_ops i915_fence_ops;
 
 static inline bool dma_fence_is_i915(const struct dma_fence *fence)

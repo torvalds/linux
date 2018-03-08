@@ -441,31 +441,23 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 				      struct drm_plane_state *state)
 {
+	struct drm_crtc_state *crtc_state = NULL;
 	struct drm_framebuffer *new_fb = state->fb;
-	bool visible;
-
-	struct drm_rect src = {
-		.x1 = state->src_x,
-		.y1 = state->src_y,
-		.x2 = state->src_x + state->src_w,
-		.y2 = state->src_y + state->src_h,
-	};
-	struct drm_rect dest = {
-		.x1 = state->crtc_x,
-		.y1 = state->crtc_y,
-		.x2 = state->crtc_x + state->crtc_w,
-		.y2 = state->crtc_y + state->crtc_h,
-	};
-	struct drm_rect clip = dest;
+	struct drm_rect clip = {};
 	int ret;
 
-	ret = drm_plane_helper_check_update(plane, state->crtc, new_fb,
-					    &src, &dest, &clip,
-					    DRM_MODE_ROTATE_0,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    DRM_PLANE_HELPER_NO_SCALING,
-					    false, true, &visible);
+	if (state->crtc)
+		crtc_state = drm_atomic_get_new_crtc_state(state->state, state->crtc);
 
+	if (crtc_state && crtc_state->enable) {
+		clip.x2 = crtc_state->adjusted_mode.hdisplay;
+		clip.y2 = crtc_state->adjusted_mode.vdisplay;
+	}
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  false, true);
 
 	if (!ret && new_fb) {
 		struct drm_crtc *crtc = state->crtc;
@@ -475,12 +467,6 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 		struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(new_fb);
 
 		vcs = vmw_connector_state_to_vcs(du->connector.state);
-
-		if ((dest.x2 > new_fb->width ||
-		     dest.y2 > new_fb->height)) {
-			DRM_ERROR("CRTC area outside of framebuffer\n");
-			return -EINVAL;
-		}
 
 		/* Only one active implicit framebuffer at a time. */
 		mutex_lock(&dev_priv->global_kms_state_mutex);

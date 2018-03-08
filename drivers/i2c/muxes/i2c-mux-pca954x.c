@@ -4,11 +4,11 @@
  * Copyright (c) 2008-2009 Rodolfo Giometti <giometti@linux.it>
  * Copyright (c) 2008-2009 Eurotech S.p.A. <info@eurotech.it>
  *
- * This module supports the PCA954x series of I2C multiplexer/switch chips
- * made by Philips Semiconductors.
+ * This module supports the PCA954x and PCA954x series of I2C multiplexer/switch
+ * chips made by NXP Semiconductors.
  * This includes the:
- *	 PCA9540, PCA9542, PCA9543, PCA9544, PCA9545, PCA9546, PCA9547
- *	 and PCA9548.
+ *	 PCA9540, PCA9542, PCA9543, PCA9544, PCA9545, PCA9546, PCA9547,
+ *	 PCA9548, PCA9846, PCA9847, PCA9848 and PCA9849.
  *
  * These chips are all controlled via the I2C bus itself, and all have a
  * single 8-bit register. The upstream "parent" bus fans out to two,
@@ -63,6 +63,10 @@ enum pca_type {
 	pca_9546,
 	pca_9547,
 	pca_9548,
+	pca_9846,
+	pca_9847,
+	pca_9848,
+	pca_9849,
 };
 
 struct chip_desc {
@@ -129,6 +133,24 @@ static const struct chip_desc chips[] = {
 		.nchans = 8,
 		.muxtype = pca954x_isswi,
 	},
+	[pca_9846] = {
+		.nchans = 4,
+		.muxtype = pca954x_isswi,
+	},
+	[pca_9847] = {
+		.nchans = 8,
+		.enable = 0x8,
+		.muxtype = pca954x_ismux,
+	},
+	[pca_9848] = {
+		.nchans = 8,
+		.muxtype = pca954x_isswi,
+	},
+	[pca_9849] = {
+		.nchans = 4,
+		.enable = 0x4,
+		.muxtype = pca954x_ismux,
+	},
 };
 
 static const struct i2c_device_id pca954x_id[] = {
@@ -140,6 +162,10 @@ static const struct i2c_device_id pca954x_id[] = {
 	{ "pca9546", pca_9546 },
 	{ "pca9547", pca_9547 },
 	{ "pca9548", pca_9548 },
+	{ "pca9846", pca_9846 },
+	{ "pca9847", pca_9847 },
+	{ "pca9848", pca_9848 },
+	{ "pca9849", pca_9849 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca954x_id);
@@ -154,6 +180,10 @@ static const struct of_device_id pca954x_of_match[] = {
 	{ .compatible = "nxp,pca9546", .data = &chips[pca_9546] },
 	{ .compatible = "nxp,pca9547", .data = &chips[pca_9547] },
 	{ .compatible = "nxp,pca9548", .data = &chips[pca_9548] },
+	{ .compatible = "nxp,pca9846", .data = &chips[pca_9846] },
+	{ .compatible = "nxp,pca9847", .data = &chips[pca_9847] },
+	{ .compatible = "nxp,pca9848", .data = &chips[pca_9848] },
+	{ .compatible = "nxp,pca9849", .data = &chips[pca_9849] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, pca954x_of_match);

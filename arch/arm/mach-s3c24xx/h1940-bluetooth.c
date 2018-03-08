@@ -1,14 +1,8 @@
-/*
- * arch/arm/mach-s3c2410/h1940-bluetooth.c
- * Copyright (c) Arnaud Patard <arnaud.patard@rtp-net.org>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file COPYING in the main directory of this archive for
- * more details.
- *
- *	    S3C2410 bluetooth "driver"
- *
- */
+// SPDX-License-Identifier: GPL-1.0
+//
+// Copyright (c) Arnaud Patard <arnaud.patard@rtp-net.org>
+//
+//	    S3C2410 bluetooth "driver"
 
 #include <linux/module.h>
 #include <linux/platform_device.h>

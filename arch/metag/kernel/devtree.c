@@ -14,25 +14,11 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/types.h>
-#include <linux/bootmem.h>
-#include <linux/memblock.h>
-#include <linux/of.h>
 #include <linux/of_fdt.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/mach/arch.h>
-
-void __init early_init_dt_add_memory_arch(u64 base, u64 size)
-{
-	pr_err("%s(%llx, %llx)\n",
-	       __func__, base, size);
-}
-
-void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
-{
-	return alloc_bootmem_align(size, align);
-}
 
 static const void * __init arch_get_next_mach(const char *const **match)
 {

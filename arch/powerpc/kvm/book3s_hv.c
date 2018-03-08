@@ -93,10 +93,10 @@
 static DECLARE_BITMAP(default_enabled_hcalls, MAX_HCALL_OPCODE/4 + 1);
 
 static int dynamic_mt_modes = 6;
-module_param(dynamic_mt_modes, int, S_IRUGO | S_IWUSR);
+module_param(dynamic_mt_modes, int, 0644);
 MODULE_PARM_DESC(dynamic_mt_modes, "Set of allowed dynamic micro-threading modes: 0 (= none), 2, 4, or 6 (= 2 or 4)");
 static int target_smt_mode;
-module_param(target_smt_mode, int, S_IRUGO | S_IWUSR);
+module_param(target_smt_mode, int, 0644);
 MODULE_PARM_DESC(target_smt_mode, "Target threads per core (0 = max)");
 
 static bool indep_threads_mode = true;
@@ -109,14 +109,15 @@ static struct kernel_param_ops module_param_ops = {
 	.get = param_get_int,
 };
 
-module_param_cb(kvm_irq_bypass, &module_param_ops, &kvm_irq_bypass,
-							S_IRUGO | S_IWUSR);
+module_param_cb(kvm_irq_bypass, &module_param_ops, &kvm_irq_bypass, 0644);
 MODULE_PARM_DESC(kvm_irq_bypass, "Bypass passthrough interrupt optimization");
 
-module_param_cb(h_ipi_redirect, &module_param_ops, &h_ipi_redirect,
-							S_IRUGO | S_IWUSR);
+module_param_cb(h_ipi_redirect, &module_param_ops, &h_ipi_redirect, 0644);
 MODULE_PARM_DESC(h_ipi_redirect, "Redirect H_IPI wakeup to a free host core");
 #endif
+
+/* If set, the threads on each CPU core have to be in the same MMU mode */
+static bool no_mixing_hpt_and_radix;
 
 static void kvmppc_end_cede(struct kvm_vcpu *vcpu);
 static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu);
@@ -1005,8 +1006,6 @@ static int kvmppc_emulate_doorbell_instr(struct kvm_vcpu *vcpu)
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_vcpu *tvcpu;
 
-	if (!cpu_has_feature(CPU_FTR_ARCH_300))
-		return EMULATE_FAIL;
 	if (kvmppc_get_last_inst(vcpu, INST_GENERIC, &inst) != EMULATE_DONE)
 		return RESUME_GUEST;
 	if (get_op(inst) != 31)
@@ -1056,6 +1055,7 @@ static int kvmppc_emulate_doorbell_instr(struct kvm_vcpu *vcpu)
 	return RESUME_GUEST;
 }
 
+/* Called with vcpu->arch.vcore->lock held */
 static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				 struct task_struct *tsk)
 {
@@ -1176,7 +1176,10 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				swab32(vcpu->arch.emul_inst) :
 				vcpu->arch.emul_inst;
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP) {
+			/* Need vcore unlocked to call kvmppc_get_last_inst */
+			spin_unlock(&vcpu->arch.vcore->lock);
 			r = kvmppc_emulate_debug_inst(run, vcpu);
+			spin_lock(&vcpu->arch.vcore->lock);
 		} else {
 			kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
 			r = RESUME_GUEST;
@@ -1191,8 +1194,13 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 	case BOOK3S_INTERRUPT_H_FAC_UNAVAIL:
 		r = EMULATE_FAIL;
-		if ((vcpu->arch.hfscr >> 56) == FSCR_MSGP_LG)
+		if (((vcpu->arch.hfscr >> 56) == FSCR_MSGP_LG) &&
+		    cpu_has_feature(CPU_FTR_ARCH_300)) {
+			/* Need vcore unlocked to call kvmppc_get_last_inst */
+			spin_unlock(&vcpu->arch.vcore->lock);
 			r = kvmppc_emulate_doorbell_instr(vcpu);
+			spin_lock(&vcpu->arch.vcore->lock);
+		}
 		if (r == EMULATE_FAIL) {
 			kvmppc_core_queue_program(vcpu, SRR1_PROGILL);
 			r = RESUME_GUEST;
@@ -1497,6 +1505,10 @@ static int kvmppc_get_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 	case KVM_REG_PPC_ARCH_COMPAT:
 		*val = get_reg_val(id, vcpu->arch.vcore->arch_compat);
 		break;
+	case KVM_REG_PPC_DEC_EXPIRY:
+		*val = get_reg_val(id, vcpu->arch.dec_expires +
+				   vcpu->arch.vcore->tb_offset);
+		break;
 	default:
 		r = -EINVAL;
 		break;
@@ -1723,6 +1735,10 @@ static int kvmppc_set_one_reg_hv(struct kvm_vcpu *vcpu, u64 id,
 #endif
 	case KVM_REG_PPC_ARCH_COMPAT:
 		r = kvmppc_set_arch_compat(vcpu, set_reg_val(id, *val));
+		break;
+	case KVM_REG_PPC_DEC_EXPIRY:
+		vcpu->arch.dec_expires = set_reg_val(id, *val) -
+			vcpu->arch.vcore->tb_offset;
 		break;
 	default:
 		r = -EINVAL;
@@ -2378,8 +2394,8 @@ static void init_core_info(struct core_info *cip, struct kvmppc_vcore *vc)
 static bool subcore_config_ok(int n_subcores, int n_threads)
 {
 	/*
-	 * POWER9 "SMT4" cores are permanently in what is effectively a 4-way split-core
-	 * mode, with one thread per subcore.
+	 * POWER9 "SMT4" cores are permanently in what is effectively a 4-way
+	 * split-core mode, with one thread per subcore.
 	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		return n_subcores <= 4 && n_threads == 1;
@@ -2415,8 +2431,8 @@ static bool can_dynamic_split(struct kvmppc_vcore *vc, struct core_info *cip)
 	if (!cpu_has_feature(CPU_FTR_ARCH_207S))
 		return false;
 
-	/* POWER9 currently requires all threads to be in the same MMU mode */
-	if (cpu_has_feature(CPU_FTR_ARCH_300) &&
+	/* Some POWER9 chips require all threads to be in the same MMU mode */
+	if (no_mixing_hpt_and_radix &&
 	    kvm_is_radix(vc->kvm) != kvm_is_radix(cip->vc[0]->kvm))
 		return false;
 
@@ -2679,9 +2695,11 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	 * threads are offline.  Also check if the number of threads in this
 	 * guest are greater than the current system threads per guest.
 	 * On POWER9, we need to be not in independent-threads mode if
-	 * this is a HPT guest on a radix host.
+	 * this is a HPT guest on a radix host machine where the
+	 * CPU threads may not be in different MMU modes.
 	 */
-	hpt_on_radix = radix_enabled() && !kvm_is_radix(vc->kvm);
+	hpt_on_radix = no_mixing_hpt_and_radix && radix_enabled() &&
+		!kvm_is_radix(vc->kvm);
 	if (((controlled_threads > 1) &&
 	     ((vc->num_threads > threads_per_subcore) || !on_primary_thread())) ||
 	    (hpt_on_radix && vc->kvm->arch.threads_indep)) {
@@ -2831,7 +2849,6 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		 */
 		if (!thr0_done)
 			kvmppc_start_thread(NULL, pvc);
-		thr += pvc->num_threads;
 	}
 
 	/*
@@ -2934,13 +2951,14 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 	/* make sure updates to secondary vcpu structs are visible now */
 	smp_mb();
 
+	preempt_enable();
+
 	for (sub = 0; sub < core_info.n_subcores; ++sub) {
 		pvc = core_info.vc[sub];
 		post_guest_process(pvc, pvc == vc);
 	}
 
 	spin_lock(&vc->lock);
-	preempt_enable();
 
  out:
 	vc->vcore_state = VCORE_INACTIVE;
@@ -2987,7 +3005,7 @@ static inline bool xive_interrupt_pending(struct kvm_vcpu *vcpu)
 {
 	if (!xive_enabled())
 		return false;
-	return vcpu->arch.xive_saved_state.pipr <
+	return vcpu->arch.irq_pending || vcpu->arch.xive_saved_state.pipr <
 		vcpu->arch.xive_saved_state.cppr;
 }
 #else
@@ -3176,17 +3194,8 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	 * this thread straight away and have it join in.
 	 */
 	if (!signal_pending(current)) {
-		if (vc->vcore_state == VCORE_PIGGYBACK) {
-			if (spin_trylock(&vc->lock)) {
-				if (vc->vcore_state == VCORE_RUNNING &&
-				    !VCORE_IS_EXITING(vc)) {
-					kvmppc_create_dtl_entry(vcpu, vc);
-					kvmppc_start_thread(vcpu, vc);
-					trace_kvm_guest_enter(vcpu);
-				}
-				spin_unlock(&vc->lock);
-			}
-		} else if (vc->vcore_state == VCORE_RUNNING &&
+		if ((vc->vcore_state == VCORE_PIGGYBACK ||
+		     vc->vcore_state == VCORE_RUNNING) &&
 			   !VCORE_IS_EXITING(vc)) {
 			kvmppc_create_dtl_entry(vcpu, vc);
 			kvmppc_start_thread(vcpu, vc);
@@ -4448,6 +4457,19 @@ static int kvmppc_book3s_init_hv(void)
 
 	if (kvmppc_radix_possible())
 		r = kvmppc_radix_init();
+
+	/*
+	 * POWER9 chips before version 2.02 can't have some threads in
+	 * HPT mode and some in radix mode on the same core.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		unsigned int pvr = mfspr(SPRN_PVR);
+		if ((pvr >> 16) == PVR_POWER9 &&
+		    (((pvr & 0xe000) == 0 && (pvr & 0xfff) < 0x202) ||
+		     ((pvr & 0xe000) == 0x2000 && (pvr & 0xfff) < 0x101)))
+			no_mixing_hpt_and_radix = true;
+	}
+
 	return r;
 }
 

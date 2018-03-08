@@ -92,15 +92,15 @@ int amdgpu_ih_ring_init(struct amdgpu_device *adev, unsigned ring_size,
 		}
 		return 0;
 	} else {
-		r = amdgpu_wb_get(adev, &adev->irq.ih.wptr_offs);
+		r = amdgpu_device_wb_get(adev, &adev->irq.ih.wptr_offs);
 		if (r) {
 			dev_err(adev->dev, "(%d) ih wptr_offs wb alloc failed\n", r);
 			return r;
 		}
 
-		r = amdgpu_wb_get(adev, &adev->irq.ih.rptr_offs);
+		r = amdgpu_device_wb_get(adev, &adev->irq.ih.rptr_offs);
 		if (r) {
-			amdgpu_wb_free(adev, adev->irq.ih.wptr_offs);
+			amdgpu_device_wb_free(adev, adev->irq.ih.wptr_offs);
 			dev_err(adev->dev, "(%d) ih rptr_offs wb alloc failed\n", r);
 			return r;
 		}
@@ -133,8 +133,8 @@ void amdgpu_ih_ring_fini(struct amdgpu_device *adev)
 		amdgpu_bo_free_kernel(&adev->irq.ih.ring_obj,
 				      &adev->irq.ih.gpu_addr,
 				      (void **)&adev->irq.ih.ring);
-		amdgpu_wb_free(adev, adev->irq.ih.wptr_offs);
-		amdgpu_wb_free(adev, adev->irq.ih.rptr_offs);
+		amdgpu_device_wb_free(adev, adev->irq.ih.wptr_offs);
+		amdgpu_device_wb_free(adev, adev->irq.ih.rptr_offs);
 	}
 }
 

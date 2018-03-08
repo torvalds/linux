@@ -252,7 +252,7 @@ int __init da830_register_edma(struct edma_rsv_info *rsv)
 	da8xx_edma0_pdata.slavecnt = ARRAY_SIZE(da830_edma_map);
 
 	edma_pdev = platform_device_register_full(&da8xx_edma0_device);
-	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
+	return PTR_ERR_OR_ZERO(edma_pdev);
 }
 
 static const struct dma_slave_map da850_edma0_map[] = {
@@ -297,7 +297,7 @@ int __init da850_register_edma(struct edma_rsv_info *rsv[2])
 	da850_edma1_pdata.slavecnt = ARRAY_SIZE(da850_edma1_map);
 
 	edma_pdev = platform_device_register_full(&da850_edma1_device);
-	return IS_ERR(edma_pdev) ? PTR_ERR(edma_pdev) : 0;
+	return PTR_ERR_OR_ZERO(edma_pdev);
 }
 
 static struct resource da8xx_i2c_resources0[] = {

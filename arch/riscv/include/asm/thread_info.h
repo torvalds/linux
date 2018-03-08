@@ -64,8 +64,6 @@ struct thread_info {
 	.addr_limit	= KERNEL_DS,		\
 }
 
-#define init_stack		(init_thread_union.stack)
-
 #endif /* !__ASSEMBLY__ */
 
 /*

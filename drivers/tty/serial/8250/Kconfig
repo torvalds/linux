@@ -5,6 +5,7 @@
 
 config SERIAL_8250
 	tristate "8250/16550 and compatible serial support"
+	depends on !S390
 	select SERIAL_CORE
 	---help---
 	  This selects whether you want to include the driver for the standard

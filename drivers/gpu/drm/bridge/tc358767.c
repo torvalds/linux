@@ -6,6 +6,8 @@
  *
  * Copyright (C) 2016 Pengutronix, Philipp Zabel <p.zabel@pengutronix.de>
  *
+ * Copyright (C) 2016 Zodiac Inflight Innovations
+ *
  * Initially based on: drivers/gpu/drm/i2c/tda998x_drv.c
  *
  * Copyright (C) 2012 Texas Instruments

@@ -97,9 +97,7 @@ static int __qed_spq_block(struct qed_hwfn *p_hwfn,
 
 	while (iter_cnt--) {
 		/* Validate we receive completion update */
-		if (READ_ONCE(comp_done->done) == 1) {
-			/* Read updated FW return value */
-			smp_read_barrier_depends();
+		if (smp_load_acquire(&comp_done->done) == 1) { /* ^^^ */
 			if (p_fw_ret)
 				*p_fw_ret = comp_done->fw_return_code;
 			return 0;
@@ -215,7 +213,7 @@ static int qed_spq_fill_entry(struct qed_hwfn *p_hwfn,
 static void qed_spq_hw_initialize(struct qed_hwfn *p_hwfn,
 				  struct qed_spq *p_spq)
 {
-	struct core_conn_context *p_cxt;
+	struct e4_core_conn_context *p_cxt;
 	struct qed_cxt_info cxt_info;
 	u16 physical_q;
 	int rc;
@@ -233,11 +231,11 @@ static void qed_spq_hw_initialize(struct qed_hwfn *p_hwfn,
 	p_cxt = cxt_info.p_cxt;
 
 	SET_FIELD(p_cxt->xstorm_ag_context.flags10,
-		  XSTORM_CORE_CONN_AG_CTX_DQ_CF_EN, 1);
+		  E4_XSTORM_CORE_CONN_AG_CTX_DQ_CF_EN, 1);
 	SET_FIELD(p_cxt->xstorm_ag_context.flags1,
-		  XSTORM_CORE_CONN_AG_CTX_DQ_CF_ACTIVE, 1);
+		  E4_XSTORM_CORE_CONN_AG_CTX_DQ_CF_ACTIVE, 1);
 	SET_FIELD(p_cxt->xstorm_ag_context.flags9,
-		  XSTORM_CORE_CONN_AG_CTX_CONSOLID_PROD_CF_EN, 1);
+		  E4_XSTORM_CORE_CONN_AG_CTX_CONSOLID_PROD_CF_EN, 1);
 
 	/* QM physical queue */
 	physical_q = qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_LB);

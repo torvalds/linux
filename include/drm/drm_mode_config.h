@@ -269,6 +269,9 @@ struct drm_mode_config_funcs {
 	 * state easily. If this hook is implemented, drivers must also
 	 * implement @atomic_state_clear and @atomic_state_free.
 	 *
+	 * Subclassing of &drm_atomic_state is deprecated in favour of using
+	 * &drm_private_state and &drm_private_obj.
+	 *
 	 * RETURNS:
 	 *
 	 * A new &drm_atomic_state on success or NULL on failure.
@@ -290,6 +293,9 @@ struct drm_mode_config_funcs {
 	 *
 	 * Drivers that implement this must call drm_atomic_state_default_clear()
 	 * to clear common state.
+	 *
+	 * Subclassing of &drm_atomic_state is deprecated in favour of using
+	 * &drm_private_state and &drm_private_obj.
 	 */
 	void (*atomic_state_clear)(struct drm_atomic_state *state);
 
@@ -302,6 +308,9 @@ struct drm_mode_config_funcs {
 	 *
 	 * Drivers that implement this must call
 	 * drm_atomic_state_default_release() to release common resources.
+	 *
+	 * Subclassing of &drm_atomic_state is deprecated in favour of using
+	 * &drm_private_state and &drm_private_obj.
 	 */
 	void (*atomic_state_free)(struct drm_atomic_state *state);
 };
@@ -751,6 +760,13 @@ struct drm_mode_config {
 	 */
 	struct drm_property *non_desktop_property;
 
+	/**
+	 * @panel_orientation_property: Optional connector property indicating
+	 * how the lcd-panel is mounted inside the casing (e.g. normal or
+	 * upside-down).
+	 */
+	struct drm_property *panel_orientation_property;
+
 	/* dumb ioctl parameters */
 	uint32_t preferred_depth, prefer_shadow;
 
@@ -768,13 +784,22 @@ struct drm_mode_config {
 	bool allow_fb_modifiers;
 
 	/**
-	 * @modifiers: Plane property to list support modifier/format
+	 * @modifiers_property: Plane property to list support modifier/format
 	 * combination.
 	 */
 	struct drm_property *modifiers_property;
 
 	/* cursor size */
 	uint32_t cursor_width, cursor_height;
+
+	/**
+	 * @suspend_state:
+	 *
+	 * Atomic state when suspended.
+	 * Set by drm_mode_config_helper_suspend() and cleared by
+	 * drm_mode_config_helper_resume().
+	 */
+	struct drm_atomic_state *suspend_state;
 
 	const struct drm_mode_config_helper_funcs *helper_private;
 };

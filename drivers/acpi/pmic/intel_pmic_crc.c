@@ -201,9 +201,4 @@ static struct platform_driver intel_crc_pmic_opregion_driver = {
 		.name = "crystal_cove_pmic",
 	},
 };
-
-static int __init intel_crc_pmic_opregion_driver_init(void)
-{
-	return platform_driver_register(&intel_crc_pmic_opregion_driver);
-}
-device_initcall(intel_crc_pmic_opregion_driver_init);
+builtin_platform_driver(intel_crc_pmic_opregion_driver);

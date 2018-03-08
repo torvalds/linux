@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config DTC
 	bool
 
@@ -13,7 +14,8 @@ if OF
 
 config OF_UNITTEST
 	bool "Device Tree runtime unit tests"
-	depends on OF_IRQ
+	depends on !SPARC
+	select IRQ_DOMAIN
 	select OF_EARLY_FLATTREE
 	select OF_RESOLVE
 	help
@@ -61,11 +63,7 @@ config OF_DYNAMIC
 
 config OF_ADDRESS
 	def_bool y
-	depends on !SPARC && HAS_IOMEM
-	select OF_ADDRESS_PCI if PCI
-
-config OF_ADDRESS_PCI
-	bool
+	depends on !SPARC && (HAS_IOMEM || UML)
 
 config OF_IRQ
 	def_bool y
@@ -81,18 +79,6 @@ config OF_MDIO
 	select FIXED_PHY
 	help
 	  OpenFirmware MDIO bus (Ethernet PHY) accessors
-
-config OF_PCI
-	def_tristate PCI
-	depends on PCI
-	help
-	  OpenFirmware PCI bus accessors
-
-config OF_PCI_IRQ
-	def_tristate PCI
-	depends on OF_PCI && OF_IRQ
-	help
-	  OpenFirmware PCI IRQ routing helpers
 
 config OF_RESERVED_MEM
 	depends on OF_EARLY_FLATTREE

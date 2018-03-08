@@ -79,7 +79,7 @@ static int igt_sync(void *arg)
 	}, *p;
 	struct intel_timeline *tl;
 	int order, offset;
-	int ret;
+	int ret = -ENODEV;
 
 	tl = mock_timeline(0);
 	if (!tl)

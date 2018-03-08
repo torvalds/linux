@@ -19,6 +19,7 @@ Required standard properties:
 
 - compatible	shall be one of the following generic types:
 
+		"ti,sysc"
 		"ti,sysc-omap2"
 		"ti,sysc-omap4"
 		"ti,sysc-omap4-simple"
@@ -26,6 +27,8 @@ Required standard properties:
 		or one of the following derivative types for hardware
 		needing special workarounds:
 
+		"ti,sysc-omap2-timer"
+		"ti,sysc-omap4-timer"
 		"ti,sysc-omap3430-sr"
 		"ti,sysc-omap3630-sr"
 		"ti,sysc-omap4-sr"
@@ -49,6 +52,26 @@ Required standard properties:
 
 Optional properties:
 
+- ti,sysc-mask	shall contain mask of supported register bits for the
+		SYSCONFIG register as documented in the Technical Reference
+		Manual (TRM) for the interconnect target module
+
+- ti,sysc-midle	list of master idle modes supported by the interconnect
+		target module as documented in the TRM for SYSCONFIG
+		register MIDLEMODE bits
+
+- ti,sysc-sidle	list of slave idle modes supported by the interconnect
+		target module as documented in the TRM for SYSCONFIG
+		register SIDLEMODE bits
+
+- ti,sysc-delay-us	delay needed after OCP softreset before accssing
+			SYSCONFIG register again
+
+- ti,syss-mask	optional mask of reset done status bits as described in the
+		TRM for SYSSTATUS registers, typically 1 with some devices
+		having separate reset done bits for children like OHCI and
+		EHCI
+
 - clocks	clock specifier for each name in the clock-names as
 		specified in the binding documentation for ti-clkctrl,
 		typically available for all interconnect targets on TI SoCs
@@ -61,6 +84,9 @@ Optional properties:
 - ti,hwmods	optional TI interconnect module name to use legacy
 		hwmod platform data
 
+- ti,no-reset-on-init	interconnect target module should not be reset at init
+
+- ti,no-idle-on-init	interconnect target module should not be idled at init
 
 Example: Single instance of MUSB controller on omap4 using interconnect ranges
 using offsets from l4_cfg second segment (0x4a000000 + 0x80000 = 0x4a0ab000):
@@ -74,6 +100,17 @@ using offsets from l4_cfg second segment (0x4a000000 + 0x80000 = 0x4a0ab000):
 		reg-names = "rev", "sysc", "syss";
 		clocks = <&l3_init_clkctrl OMAP4_USB_OTG_HS_CLKCTRL 0>;
 		clock-names = "fck";
+		ti,sysc-mask = <(SYSC_OMAP2_ENAWAKEUP |
+				 SYSC_OMAP2_SOFTRESET |
+				 SYSC_OMAP2_AUTOIDLE)>;
+		ti,sysc-midle = <SYSC_IDLE_FORCE>,
+				<SYSC_IDLE_NO>,
+				<SYSC_IDLE_SMART>;
+		ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+				<SYSC_IDLE_NO>,
+				<SYSC_IDLE_SMART>,
+				<SYSC_IDLE_SMART_WKUP>;
+		ti,syss-mask = <1>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0 0x2b000 0x1000>;

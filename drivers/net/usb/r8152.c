@@ -1848,11 +1848,9 @@ static u8 r8152_rx_csum(struct r8152 *tp, struct rx_desc *rx_desc)
 	if (opts2 & RD_IPV4_CS) {
 		if (opts3 & IPF)
 			checksum = CHECKSUM_NONE;
-		else if ((opts2 & RD_UDP_CS) && (opts3 & UDPF))
-			checksum = CHECKSUM_NONE;
-		else if ((opts2 & RD_TCP_CS) && (opts3 & TCPF))
-			checksum = CHECKSUM_NONE;
-		else
+		else if ((opts2 & RD_UDP_CS) && !(opts3 & UDPF))
+			checksum = CHECKSUM_UNNECESSARY;
+		else if ((opts2 & RD_TCP_CS) && !(opts3 & TCPF))
 			checksum = CHECKSUM_UNNECESSARY;
 	} else if (opts2 & RD_IPV6_CS) {
 		if ((opts2 & RD_UDP_CS) && !(opts3 & UDPF))
@@ -3797,11 +3795,12 @@ static void set_carrier(struct r8152 *tp)
 	if (speed & LINK_STATUS) {
 		if (!netif_carrier_ok(netdev)) {
 			tp->rtl_ops.enable(tp);
-			set_bit(RTL8152_SET_RX_MODE, &tp->flags);
 			netif_stop_queue(netdev);
 			napi_disable(napi);
 			netif_carrier_on(netdev);
 			rtl_start_rx(tp);
+			clear_bit(RTL8152_SET_RX_MODE, &tp->flags);
+			_rtl8152_set_rx_mode(netdev);
 			napi_enable(&tp->napi);
 			netif_wake_queue(netdev);
 			netif_info(tp, link, netdev, "carrier on\n");
@@ -4261,7 +4260,7 @@ static int rtl8152_post_reset(struct usb_interface *intf)
 		mutex_lock(&tp->control);
 		tp->rtl_ops.enable(tp);
 		rtl_start_rx(tp);
-		rtl8152_set_rx_mode(netdev);
+		_rtl8152_set_rx_mode(netdev);
 		mutex_unlock(&tp->control);
 	}
 

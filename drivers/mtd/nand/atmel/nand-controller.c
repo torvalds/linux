@@ -841,6 +841,8 @@ static int atmel_nand_pmecc_write_pg(struct nand_chip *chip, const u8 *buf,
 	struct atmel_nand *nand = to_atmel_nand(chip);
 	int ret;
 
+	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
+
 	ret = atmel_nand_pmecc_enable(chip, NAND_ECC_WRITE, raw);
 	if (ret)
 		return ret;
@@ -857,7 +859,7 @@ static int atmel_nand_pmecc_write_pg(struct nand_chip *chip, const u8 *buf,
 
 	atmel_nand_write_buf(mtd, chip->oob_poi, mtd->oobsize);
 
-	return 0;
+	return nand_prog_page_end_op(chip);
 }
 
 static int atmel_nand_pmecc_write_page(struct mtd_info *mtd,
@@ -880,6 +882,8 @@ static int atmel_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int ret;
+
+	nand_read_page_op(chip, page, 0, NULL, 0);
 
 	ret = atmel_nand_pmecc_enable(chip, NAND_ECC_READ, raw);
 	if (ret)
@@ -1000,7 +1004,7 @@ static int atmel_hsmc_nand_pmecc_read_pg(struct nand_chip *chip, u8 *buf,
 	 * to the non-optimized one.
 	 */
 	if (nand->activecs->rb.type != ATMEL_NAND_NATIVE_RB) {
-		chip->cmdfunc(mtd, NAND_CMD_READ0, 0x00, page);
+		nand_read_page_op(chip, page, 0, NULL, 0);
 
 		return atmel_nand_pmecc_read_pg(chip, buf, oob_required, page,
 						raw);
@@ -1178,7 +1182,6 @@ static int atmel_hsmc_nand_ecc_init(struct atmel_nand *nand)
 	chip->ecc.write_page = atmel_hsmc_nand_pmecc_write_page;
 	chip->ecc.read_page_raw = atmel_hsmc_nand_pmecc_read_page_raw;
 	chip->ecc.write_page_raw = atmel_hsmc_nand_pmecc_write_page_raw;
-	chip->ecc.options |= NAND_ECC_CUSTOM_PAGE_ACCESS;
 
 	return 0;
 }

@@ -4124,11 +4124,11 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static unsigned int sonypi_misc_poll(struct file *file, poll_table *wait)
+static __poll_t sonypi_misc_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &sonypi_compat.fifo_proc_list, wait);
 	if (kfifo_len(&sonypi_compat.fifo))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

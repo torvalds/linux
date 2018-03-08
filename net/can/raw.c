@@ -401,6 +401,8 @@ static int raw_bind(struct socket *sock, struct sockaddr *uaddr, int len)
 
 	if (len < sizeof(*addr))
 		return -EINVAL;
+	if (addr->can_family != AF_CAN)
+		return -EINVAL;
 
 	lock_sock(sk);
 

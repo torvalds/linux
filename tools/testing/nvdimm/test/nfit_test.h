@@ -84,6 +84,140 @@ struct nd_cmd_ars_err_inj_stat {
 	} __packed record[0];
 } __packed;
 
+#define ND_INTEL_SMART			 1
+#define ND_INTEL_SMART_THRESHOLD	 2
+#define ND_INTEL_ENABLE_LSS_STATUS	10
+#define ND_INTEL_FW_GET_INFO		12
+#define ND_INTEL_FW_START_UPDATE	13
+#define ND_INTEL_FW_SEND_DATA		14
+#define ND_INTEL_FW_FINISH_UPDATE	15
+#define ND_INTEL_FW_FINISH_QUERY	16
+#define ND_INTEL_SMART_SET_THRESHOLD	17
+
+#define ND_INTEL_SMART_HEALTH_VALID             (1 << 0)
+#define ND_INTEL_SMART_SPARES_VALID             (1 << 1)
+#define ND_INTEL_SMART_USED_VALID               (1 << 2)
+#define ND_INTEL_SMART_MTEMP_VALID              (1 << 3)
+#define ND_INTEL_SMART_CTEMP_VALID              (1 << 4)
+#define ND_INTEL_SMART_SHUTDOWN_COUNT_VALID     (1 << 5)
+#define ND_INTEL_SMART_AIT_STATUS_VALID         (1 << 6)
+#define ND_INTEL_SMART_PTEMP_VALID              (1 << 7)
+#define ND_INTEL_SMART_ALARM_VALID              (1 << 9)
+#define ND_INTEL_SMART_SHUTDOWN_VALID           (1 << 10)
+#define ND_INTEL_SMART_VENDOR_VALID             (1 << 11)
+#define ND_INTEL_SMART_SPARE_TRIP               (1 << 0)
+#define ND_INTEL_SMART_TEMP_TRIP                (1 << 1)
+#define ND_INTEL_SMART_CTEMP_TRIP               (1 << 2)
+#define ND_INTEL_SMART_NON_CRITICAL_HEALTH      (1 << 0)
+#define ND_INTEL_SMART_CRITICAL_HEALTH          (1 << 1)
+#define ND_INTEL_SMART_FATAL_HEALTH             (1 << 2)
+
+struct nd_intel_smart {
+	__u32 status;
+	union {
+		struct {
+			__u32 flags;
+			__u8 reserved0[4];
+			__u8 health;
+			__u8 spares;
+			__u8 life_used;
+			__u8 alarm_flags;
+			__u16 media_temperature;
+			__u16 ctrl_temperature;
+			__u32 shutdown_count;
+			__u8 ait_status;
+			__u16 pmic_temperature;
+			__u8 reserved1[8];
+			__u8 shutdown_state;
+			__u32 vendor_size;
+			__u8 vendor_data[92];
+		} __packed;
+		__u8 data[128];
+	};
+} __packed;
+
+struct nd_intel_smart_threshold {
+	__u32 status;
+	union {
+		struct {
+			__u16 alarm_control;
+			__u8 spares;
+			__u16 media_temperature;
+			__u16 ctrl_temperature;
+			__u8 reserved[1];
+		} __packed;
+		__u8 data[8];
+	};
+} __packed;
+
+struct nd_intel_smart_set_threshold {
+	__u16 alarm_control;
+	__u8 spares;
+	__u16 media_temperature;
+	__u16 ctrl_temperature;
+	__u32 status;
+} __packed;
+
+#define INTEL_FW_STORAGE_SIZE		0x100000
+#define INTEL_FW_MAX_SEND_LEN		0xFFEC
+#define INTEL_FW_QUERY_INTERVAL		250000
+#define INTEL_FW_QUERY_MAX_TIME		3000000
+#define INTEL_FW_FIS_VERSION		0x0105
+#define INTEL_FW_FAKE_VERSION		0xffffffffabcd
+
+enum intel_fw_update_state {
+	FW_STATE_NEW = 0,
+	FW_STATE_IN_PROGRESS,
+	FW_STATE_VERIFY,
+	FW_STATE_UPDATED,
+};
+
+struct nd_intel_fw_info {
+	__u32 status;
+	__u32 storage_size;
+	__u32 max_send_len;
+	__u32 query_interval;
+	__u32 max_query_time;
+	__u8 update_cap;
+	__u8 reserved[3];
+	__u32 fis_version;
+	__u64 run_version;
+	__u64 updated_version;
+} __packed;
+
+struct nd_intel_fw_start {
+	__u32 status;
+	__u32 context;
+} __packed;
+
+/* this one has the output first because the variable input data size */
+struct nd_intel_fw_send_data {
+	__u32 context;
+	__u32 offset;
+	__u32 length;
+	__u8 data[0];
+/* this field is not declared due ot variable data from input */
+/*	__u32 status; */
+} __packed;
+
+struct nd_intel_fw_finish_update {
+	__u8 ctrl_flags;
+	__u8 reserved[3];
+	__u32 context;
+	__u32 status;
+} __packed;
+
+struct nd_intel_fw_finish_query {
+	__u32 context;
+	__u32 status;
+	__u64 updated_fw_rev;
+} __packed;
+
+struct nd_intel_lss {
+	__u8 enable;
+	__u32 status;
+} __packed;
+
 union acpi_object;
 typedef void *acpi_handle;
 

@@ -496,7 +496,8 @@ out:
 #define A2L_FAIL_LIMIT 123
 
 char *__get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool show_addr, bool unwind_inlines)
+		  bool show_sym, bool show_addr, bool unwind_inlines,
+		  u64 ip)
 {
 	char *file = NULL;
 	unsigned line = 0;
@@ -536,7 +537,7 @@ out:
 
 	if (sym) {
 		if (asprintf(&srcline, "%s+%" PRIu64, show_sym ? sym->name : "",
-					addr - sym->start) < 0)
+					ip - sym->start) < 0)
 			return SRCLINE_UNKNOWN;
 	} else if (asprintf(&srcline, "%s[%" PRIx64 "]", dso->short_name, addr) < 0)
 		return SRCLINE_UNKNOWN;
@@ -550,9 +551,9 @@ void free_srcline(char *srcline)
 }
 
 char *get_srcline(struct dso *dso, u64 addr, struct symbol *sym,
-		  bool show_sym, bool show_addr)
+		  bool show_sym, bool show_addr, u64 ip)
 {
-	return __get_srcline(dso, addr, sym, show_sym, show_addr, false);
+	return __get_srcline(dso, addr, sym, show_sym, show_addr, false, ip);
 }
 
 struct srcline_node {

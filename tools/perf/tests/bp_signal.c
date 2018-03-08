@@ -296,7 +296,7 @@ bool test__bp_signal_is_supported(void)
  * instruction breakpoint using the perf event interface.
  * Once it's there we can release this.
  */
-#ifdef __powerpc__
+#if defined(__powerpc__) || defined(__s390x__)
 	return false;
 #else
 	return true;

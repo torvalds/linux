@@ -1,24 +1,19 @@
-/*
- * pin-controller/pin-mux/pin-config/gpio-driver for Samsung's SoC's.
- *
- * Copyright (c) 2012 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- * Copyright (c) 2012 Linaro Ltd
- *		http://www.linaro.org
- *
- * Author: Thomas Abraham <thomas.ab@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This driver implements the Samsung pinctrl driver. It supports setting up of
- * pinmux and pinconf configurations. The gpiolib interface is also included.
- * External interrupt (gpio and wakeup) support are not included in this driver
- * but provides extensions to which platform specific implementation of the gpio
- * and wakeup interrupts can be hooked to.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// pin-controller/pin-mux/pin-config/gpio-driver for Samsung's SoC's.
+//
+// Copyright (c) 2012 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com
+// Copyright (c) 2012 Linaro Ltd
+//		http://www.linaro.org
+//
+// Author: Thomas Abraham <thomas.ab@samsung.com>
+//
+// This driver implements the Samsung pinctrl driver. It supports setting up of
+// pinmux and pinconf configurations. The gpiolib interface is also included.
+// External interrupt (gpio and wakeup) support are not included in this driver
+// but provides extensions to which platform specific implementation of the gpio
+// and wakeup interrupts can be hooked to.
 
 #include <linux/init.h>
 #include <linux/platform_device.h>

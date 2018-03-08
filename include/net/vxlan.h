@@ -301,7 +301,7 @@ static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 		l4_hdr = ipv6_hdr(skb)->nexthdr;
 		break;
 	default:
-		return features;;
+		return features;
 	}
 
 	if ((l4_hdr == IPPROTO_UDP) &&

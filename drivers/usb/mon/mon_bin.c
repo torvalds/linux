@@ -1191,11 +1191,11 @@ static long mon_bin_compat_ioctl(struct file *file,
 }
 #endif /* CONFIG_COMPAT */
 
-static unsigned int
+static __poll_t
 mon_bin_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct mon_reader_bin *rp = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	unsigned long flags;
 
 	if (file->f_mode & FMODE_READ)
@@ -1203,7 +1203,7 @@ mon_bin_poll(struct file *file, struct poll_table_struct *wait)
 
 	spin_lock_irqsave(&rp->b_lock, flags);
 	if (!MON_RING_EMPTY(rp))
-		mask |= POLLIN | POLLRDNORM;    /* readable */
+		mask |= EPOLLIN | EPOLLRDNORM;    /* readable */
 	spin_unlock_irqrestore(&rp->b_lock, flags);
 	return mask;
 }

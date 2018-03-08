@@ -28,8 +28,6 @@
 #include "crypto4xx_reg_def.h"
 #include "crypto4xx_sa.h"
 
-#define MODULE_NAME "crypto4xx"
-
 #define PPC460SX_SDR0_SRST                      0x201
 #define PPC405EX_SDR0_SRST                      0x200
 #define PPC460EX_SDR0_SRST                      0x201
@@ -82,7 +80,6 @@ struct pd_uinfo {
 
 struct crypto4xx_device {
 	struct crypto4xx_core_device *core_dev;
-	char *name;
 	void __iomem *ce_base;
 	void __iomem *trng_base;
 
@@ -109,6 +106,7 @@ struct crypto4xx_device {
 	struct list_head alg_list;	/* List of algorithm supported
 					by this device */
 	struct ratelimit_state aead_ratelimit;
+	bool is_revb;
 };
 
 struct crypto4xx_core_device {

@@ -18,7 +18,7 @@
 #define __TEA5767_H__
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 enum tea5767_xtal {
 	TEA5767_LOW_LO_32768    = 0,

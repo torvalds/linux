@@ -110,6 +110,7 @@ read_pll(struct gt215_clk *clk, int idx, u32 pll)
 	struct nvkm_device *device = clk->base.subdev.device;
 	u32 ctrl = nvkm_rd32(device, pll + 0);
 	u32 sclk = 0, P = 1, N = 1, M = 1;
+	u32 MP;
 
 	if (!(ctrl & 0x00000008)) {
 		if (ctrl & 0x00000001) {
@@ -130,10 +131,12 @@ read_pll(struct gt215_clk *clk, int idx, u32 pll)
 		sclk = read_clk(clk, 0x10 + idx, false);
 	}
 
-	if (M * P)
-		return sclk * N / (M * P);
+	MP = M * P;
 
-	return 0;
+	if (!MP)
+		return 0;
+
+	return sclk * N / MP;
 }
 
 static int

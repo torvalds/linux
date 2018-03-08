@@ -12,6 +12,8 @@ Required properies:
    "st,stm32f469-pinctrl"
    "st,stm32f746-pinctrl"
    "st,stm32h743-pinctrl"
+   "st,stm32mp157-pinctrl"
+   "st,stm32mp157-z-pinctrl"
  - #address-cells: The value of this property must be 1
  - #size-cells	: The value of this property must be 1
  - ranges	: defines mapping between pin controller node (parent) to

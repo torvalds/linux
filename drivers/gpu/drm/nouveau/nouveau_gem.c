@@ -354,7 +354,7 @@ validate_fini_no_ticket(struct validate_op *op, struct nouveau_fence *fence,
 
 		list_del(&nvbo->entry);
 		nvbo->reserved_by = NULL;
-		ttm_bo_unreserve_ticket(&nvbo->bo, &op->ticket);
+		ttm_bo_unreserve(&nvbo->bo);
 		drm_gem_object_unreference_unlocked(&nvbo->gem);
 	}
 }

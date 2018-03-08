@@ -119,13 +119,6 @@ struct sound_unit
 	char name[32];
 };
 
-#ifdef CONFIG_SOUND_MSNDCLAS
-extern int msnd_classic_init(void);
-#endif
-#ifdef CONFIG_SOUND_MSNDPIN
-extern int msnd_pinnacle_init(void);
-#endif
-
 /*
  * By default, OSS sound_core claims full legacy minor range (0-255)
  * of SOUND_MAJOR to trap open attempts to any sound minor and
@@ -452,26 +445,6 @@ int register_sound_mixer(const struct file_operations *fops, int dev)
 
 EXPORT_SYMBOL(register_sound_mixer);
 
-/**
- *	register_sound_midi - register a midi device
- *	@fops: File operations for the driver
- *	@dev: Unit number to allocate
- *
- *	Allocate a midi device. Unit is the number of the midi device requested.
- *	Pass -1 to request the next free midi unit.
- *
- *	Return: On success, the allocated number is returned. On failure,
- *	a negative error code is returned.
- */
-
-int register_sound_midi(const struct file_operations *fops, int dev)
-{
-	return sound_insert_unit(&chains[2], fops, dev, 2, 130,
-				 "midi", S_IRUSR | S_IWUSR, NULL);
-}
-
-EXPORT_SYMBOL(register_sound_midi);
-
 /*
  *	DSP's are registered as a triple. Register only one and cheat
  *	in open - see below.
@@ -531,21 +504,6 @@ void unregister_sound_mixer(int unit)
 }
 
 EXPORT_SYMBOL(unregister_sound_mixer);
-
-/**
- *	unregister_sound_midi - unregister a midi device
- *	@unit: unit number to allocate
- *
- *	Release a sound device that was allocated with register_sound_midi().
- *	The unit passed is the return value from the register function.
- */
-
-void unregister_sound_midi(int unit)
-{
-	sound_remove_unit(&chains[2], unit);
-}
-
-EXPORT_SYMBOL(unregister_sound_midi);
 
 /**
  *	unregister_sound_dsp - unregister a DSP device

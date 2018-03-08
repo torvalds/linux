@@ -253,9 +253,6 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -ENODEV;
-
 	iomem = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(iomem))
 		return PTR_ERR(iomem);

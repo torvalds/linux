@@ -16,7 +16,9 @@ config IIO_ST_LSM6DSX
 config IIO_ST_LSM6DSX_I2C
 	tristate
 	depends on IIO_ST_LSM6DSX
+	select REGMAP_I2C
 
 config IIO_ST_LSM6DSX_SPI
 	tristate
 	depends on IIO_ST_LSM6DSX
+	select REGMAP_SPI

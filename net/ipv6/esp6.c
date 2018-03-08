@@ -141,14 +141,32 @@ static void esp_ssg_unref(struct xfrm_state *x, void *tmp)
 static void esp_output_done(struct crypto_async_request *base, int err)
 {
 	struct sk_buff *skb = base->data;
+	struct xfrm_offload *xo = xfrm_offload(skb);
 	void *tmp;
-	struct dst_entry *dst = skb_dst(skb);
-	struct xfrm_state *x = dst->xfrm;
+	struct xfrm_state *x;
+
+	if (xo && (xo->flags & XFRM_DEV_RESUME))
+		x = skb->sp->xvec[skb->sp->len - 1];
+	else
+		x = skb_dst(skb)->xfrm;
 
 	tmp = ESP_SKB_CB(skb)->tmp;
 	esp_ssg_unref(x, tmp);
 	kfree(tmp);
-	xfrm_output_resume(skb, err);
+
+	if (xo && (xo->flags & XFRM_DEV_RESUME)) {
+		if (err) {
+			XFRM_INC_STATS(xs_net(x), LINUX_MIB_XFRMOUTSTATEPROTOERROR);
+			kfree_skb(skb);
+			return;
+		}
+
+		skb_push(skb, skb->data - skb_mac_header(skb));
+		secpath_reset(skb);
+		xfrm_dev_resume(skb);
+	} else {
+		xfrm_output_resume(skb, err);
+	}
 }
 
 /* Move ESP header back into place. */
@@ -734,17 +752,13 @@ static int esp_init_aead(struct xfrm_state *x)
 	char aead_name[CRYPTO_MAX_ALG_NAME];
 	struct crypto_aead *aead;
 	int err;
-	u32 mask = 0;
 
 	err = -ENAMETOOLONG;
 	if (snprintf(aead_name, CRYPTO_MAX_ALG_NAME, "%s(%s)",
 		     x->geniv, x->aead->alg_name) >= CRYPTO_MAX_ALG_NAME)
 		goto error;
 
-	if (x->xso.offload_handle)
-		mask |= CRYPTO_ALG_ASYNC;
-
-	aead = crypto_alloc_aead(aead_name, 0, mask);
+	aead = crypto_alloc_aead(aead_name, 0, 0);
 	err = PTR_ERR(aead);
 	if (IS_ERR(aead))
 		goto error;
@@ -774,7 +788,6 @@ static int esp_init_authenc(struct xfrm_state *x)
 	char authenc_name[CRYPTO_MAX_ALG_NAME];
 	unsigned int keylen;
 	int err;
-	u32 mask = 0;
 
 	err = -EINVAL;
 	if (!x->ealg)
@@ -800,10 +813,7 @@ static int esp_init_authenc(struct xfrm_state *x)
 			goto error;
 	}
 
-	if (x->xso.offload_handle)
-		mask |= CRYPTO_ALG_ASYNC;
-
-	aead = crypto_alloc_aead(authenc_name, 0, mask);
+	aead = crypto_alloc_aead(authenc_name, 0, 0);
 	err = PTR_ERR(aead);
 	if (IS_ERR(aead))
 		goto error;

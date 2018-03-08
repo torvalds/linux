@@ -150,13 +150,17 @@ EXPORT_SYMBOL_GPL(af_alg_release_parent);
 
 static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 {
-	const u32 forbidden = CRYPTO_ALG_INTERNAL;
+	const u32 allowed = CRYPTO_ALG_KERN_DRIVER_ONLY;
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
 	struct sockaddr_alg *sa = (void *)uaddr;
 	const struct af_alg_type *type;
 	void *private;
 	int err;
+
+	/* If caller uses non-allowed flag, return error. */
+	if ((sa->salg_feat & ~allowed) || (sa->salg_mask & ~allowed))
+		return -EINVAL;
 
 	if (sock->state == SS_CONNECTED)
 		return -EINVAL;
@@ -176,9 +180,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (IS_ERR(type))
 		return PTR_ERR(type);
 
-	private = type->bind(sa->salg_name,
-			     sa->salg_feat & ~forbidden,
-			     sa->salg_mask & ~forbidden);
+	private = type->bind(sa->salg_name, sa->salg_feat, sa->salg_mask);
 	if (IS_ERR(private)) {
 		module_put(type->owner);
 		return PTR_ERR(private);
@@ -733,9 +735,9 @@ void af_alg_wmem_wakeup(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
-							   POLLRDNORM |
-							   POLLRDBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN |
+							   EPOLLRDNORM |
+							   EPOLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	rcu_read_unlock();
 }
@@ -798,9 +800,9 @@ void af_alg_data_wakeup(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLOUT |
-							   POLLRDNORM |
-							   POLLRDBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLOUT |
+							   EPOLLRDNORM |
+							   EPOLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	rcu_read_unlock();
 }
@@ -1062,22 +1064,22 @@ EXPORT_SYMBOL_GPL(af_alg_async_cb);
 /**
  * af_alg_poll - poll system call handler
  */
-unsigned int af_alg_poll(struct file *file, struct socket *sock,
+__poll_t af_alg_poll(struct file *file, struct socket *sock,
 			 poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct alg_sock *ask = alg_sk(sk);
 	struct af_alg_ctx *ctx = ask->private;
-	unsigned int mask;
+	__poll_t mask;
 
 	sock_poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;
 
 	if (!ctx->more || ctx->used)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	if (af_alg_writable(sk))
-		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 
 	return mask;
 }

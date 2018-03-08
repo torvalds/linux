@@ -95,7 +95,7 @@ union ia_css_all_memory_offsets {
 };
 
 #define IA_CSS_DEFAULT_ISP_MEM_PARAMS \
-		{ { { { 0, 0 } } } }
+		{ { { { NULL, 0 } } } }
 
 #define IA_CSS_DEFAULT_ISP_CSS_PARAMS \
 		{ { { { 0, 0 } } } }

@@ -167,7 +167,8 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 				continue;
 
 			ret = PTR_ERR(phy);
-			dev_err(dev, "Can't get PHY device for port %d: %d\n",
+			if (ret != -EPROBE_DEFER)
+				dev_err(dev, "Can't get PHY for port %d: %d\n",
 					i, ret);
 			goto err_phy;
 		}

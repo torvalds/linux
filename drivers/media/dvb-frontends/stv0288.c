@@ -33,7 +33,7 @@
 #include <linux/jiffies.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "stv0288.h"
 
 struct stv0288_state {

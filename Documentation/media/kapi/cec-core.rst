@@ -103,6 +103,7 @@ your driver:
 		/* Low-level callbacks */
 		int (*adap_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
+		int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
 		int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg);
@@ -142,6 +143,19 @@ called if the CEC_CAP_MONITOR_ALL capability is set. This callback is optional
 (some hardware may always be in 'monitor all' mode).
 
 Note that adap_monitor_all_enable must return 0 if enable is false.
+
+
+To enable/disable the 'monitor pin' mode:
+
+.. c:function::
+	int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
+
+If enabled, then the adapter should be put in a mode to also monitor CEC pin
+changes. Not all hardware supports this and this function is only called if
+the CEC_CAP_MONITOR_PIN capability is set. This callback is optional
+(some hardware may always be in 'monitor pin' mode).
+
+Note that adap_monitor_pin_enable must return 0 if enable is false.
 
 
 To program a new logical address:

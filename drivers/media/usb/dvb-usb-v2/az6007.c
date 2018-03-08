@@ -23,7 +23,7 @@
 
 #include "drxk.h"
 #include "mt2063.h"
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 #include "dvb_usb.h"
 #include "cypress_firmware.h"
 

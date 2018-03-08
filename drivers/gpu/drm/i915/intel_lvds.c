@@ -125,6 +125,8 @@ static void intel_lvds_get_config(struct intel_encoder *encoder,
 	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
 	u32 tmp, flags = 0;
 
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_LVDS);
+
 	tmp = I915_READ(lvds_encoder->reg);
 	if (tmp & LVDS_HSYNC_POLARITY)
 		flags |= DRM_MODE_FLAG_NHSYNC;

@@ -183,7 +183,8 @@ static __meminit void vmemmap_list_populate(unsigned long phys,
 	vmemmap_list = vmem_back;
 }
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+		struct vmem_altmap *altmap)
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 
@@ -193,17 +194,16 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
 
 	for (; start < end; start += page_size) {
-		struct vmem_altmap *altmap;
 		void *p;
 		int rc;
 
 		if (vmemmap_populated(start, page_size))
 			continue;
 
-		/* altmap lookups only work at section boundaries */
-		altmap = to_vmem_altmap(SECTION_ALIGN_DOWN(start));
-
-		p =  __vmemmap_alloc_block_buf(page_size, node, altmap);
+		if (altmap)
+			p = altmap_alloc_block_buf(page_size, altmap);
+		else
+			p = vmemmap_alloc_block_buf(page_size, node);
 		if (!p)
 			return -ENOMEM;
 
@@ -214,9 +214,8 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 		rc = vmemmap_create_mapping(start, page_size, __pa(p));
 		if (rc < 0) {
-			pr_warning(
-				"vmemmap_populate: Unable to create vmemmap mapping: %d\n",
-				rc);
+			pr_warn("%s: Unable to create vmemmap mapping: %d\n",
+				__func__, rc);
 			return -EFAULT;
 		}
 	}
@@ -257,7 +256,8 @@ static unsigned long vmemmap_list_free(unsigned long start)
 	return vmem_back->phys;
 }
 
-void __ref vmemmap_free(unsigned long start, unsigned long end)
+void __ref vmemmap_free(unsigned long start, unsigned long end,
+		struct vmem_altmap *altmap)
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 	unsigned long page_order = get_order(page_size);
@@ -268,7 +268,6 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
 
 	for (; start < end; start += page_size) {
 		unsigned long nr_pages, addr;
-		struct vmem_altmap *altmap;
 		struct page *section_base;
 		struct page *page;
 
@@ -288,7 +287,6 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
 		section_base = pfn_to_page(vmemmap_section_start(start));
 		nr_pages = 1 << page_order;
 
-		altmap = to_vmem_altmap((unsigned long) section_base);
 		if (altmap) {
 			vmem_altmap_free(altmap, nr_pages);
 		} else if (PageReserved(page)) {

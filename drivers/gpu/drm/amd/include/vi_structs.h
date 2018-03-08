@@ -153,6 +153,8 @@ struct vi_sdma_mqd {
 	uint32_t reserved_125;
 	uint32_t reserved_126;
 	uint32_t reserved_127;
+	uint32_t sdma_engine_id;
+	uint32_t sdma_queue_id;
 };
 
 struct vi_mqd {

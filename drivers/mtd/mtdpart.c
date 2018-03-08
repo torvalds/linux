@@ -105,34 +105,17 @@ static int part_read_oob(struct mtd_info *mtd, loff_t from,
 		struct mtd_oob_ops *ops)
 {
 	struct mtd_part *part = mtd_to_part(mtd);
+	struct mtd_ecc_stats stats;
 	int res;
 
-	if (from >= mtd->size)
-		return -EINVAL;
-	if (ops->datbuf && from + ops->len > mtd->size)
-		return -EINVAL;
-
-	/*
-	 * If OOB is also requested, make sure that we do not read past the end
-	 * of this partition.
-	 */
-	if (ops->oobbuf) {
-		size_t len, pages;
-
-		len = mtd_oobavail(mtd, ops);
-		pages = mtd_div_by_ws(mtd->size, mtd);
-		pages -= mtd_div_by_ws(from, mtd);
-		if (ops->ooboffs + ops->ooblen > pages * len)
-			return -EINVAL;
-	}
-
+	stats = part->parent->ecc_stats;
 	res = part->parent->_read_oob(part->parent, from + part->offset, ops);
-	if (unlikely(res)) {
-		if (mtd_is_bitflip(res))
-			mtd->ecc_stats.corrected++;
-		if (mtd_is_eccerr(res))
-			mtd->ecc_stats.failed++;
-	}
+	if (unlikely(mtd_is_eccerr(res)))
+		mtd->ecc_stats.failed +=
+			part->parent->ecc_stats.failed - stats.failed;
+	else
+		mtd->ecc_stats.corrected +=
+			part->parent->ecc_stats.corrected - stats.corrected;
 	return res;
 }
 
@@ -189,10 +172,6 @@ static int part_write_oob(struct mtd_info *mtd, loff_t to,
 {
 	struct mtd_part *part = mtd_to_part(mtd);
 
-	if (to >= mtd->size)
-		return -EINVAL;
-	if (ops->datbuf && to + ops->len > mtd->size)
-		return -EINVAL;
 	return part->parent->_write_oob(part->parent, to + part->offset, ops);
 }
 
@@ -435,8 +414,10 @@ static struct mtd_part *allocate_partition(struct mtd_info *parent,
 				parent->dev.parent;
 	slave->mtd.dev.of_node = part->of_node;
 
-	slave->mtd._read = part_read;
-	slave->mtd._write = part_write;
+	if (parent->_read)
+		slave->mtd._read = part_read;
+	if (parent->_write)
+		slave->mtd._write = part_write;
 
 	if (parent->_panic_write)
 		slave->mtd._panic_write = part_panic_write;

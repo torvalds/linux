@@ -95,8 +95,8 @@ enum {
 #define IWL_ALIVE_FLG_RFKILL	BIT(0)
 
 struct iwl_lmac_alive {
-	__le32 ucode_minor;
 	__le32 ucode_major;
+	__le32 ucode_minor;
 	u8 ver_subtype;
 	u8 ver_type;
 	u8 mac;
@@ -113,8 +113,8 @@ struct iwl_lmac_alive {
 } __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
 
 struct iwl_umac_alive {
-	__le32 umac_minor;		/* UMAC version: minor */
 	__le32 umac_major;		/* UMAC version: major */
+	__le32 umac_minor;		/* UMAC version: minor */
 	__le32 error_info_addr;		/* SRAM address for UMAC error log */
 	__le32 dbg_print_buff_addr;
 } __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */

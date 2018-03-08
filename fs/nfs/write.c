@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <linux/freezer.h>
 #include <linux/wait.h>
+#include <linux/iversion.h>
 
 #include <linux/uaccess.h>
 
@@ -753,11 +754,8 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	 */
 	spin_lock(&mapping->private_lock);
 	if (!nfs_have_writebacks(inode) &&
-	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE)) {
-		spin_lock(&inode->i_lock);
-		inode->i_version++;
-		spin_unlock(&inode->i_lock);
-	}
+	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
+		inode_inc_iversion_raw(inode);
 	if (likely(!PageSwapCache(req->wb_page))) {
 		set_bit(PG_MAPPED, &req->wb_flags);
 		SetPagePrivate(req->wb_page);
@@ -1837,6 +1835,8 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 		set_bit(NFS_CONTEXT_RESEND_WRITES, &req->wb_context->flags);
 	next:
 		nfs_unlock_and_release_request(req);
+		/* Latency breaker */
+		cond_resched();
 	}
 	nfss = NFS_SERVER(data->inode);
 	if (atomic_long_read(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)

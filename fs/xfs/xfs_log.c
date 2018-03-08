@@ -1047,6 +1047,7 @@ xfs_log_item_init(
 
 	INIT_LIST_HEAD(&item->li_ail);
 	INIT_LIST_HEAD(&item->li_cil);
+	INIT_LIST_HEAD(&item->li_bio_list);
 }
 
 /*
@@ -1242,7 +1243,7 @@ xlog_space_left(
 static void
 xlog_iodone(xfs_buf_t *bp)
 {
-	struct xlog_in_core	*iclog = bp->b_fspriv;
+	struct xlog_in_core	*iclog = bp->b_log_item;
 	struct xlog		*l = iclog->ic_log;
 	int			aborted = 0;
 
@@ -1773,7 +1774,7 @@ STATIC int
 xlog_bdstrat(
 	struct xfs_buf		*bp)
 {
-	struct xlog_in_core	*iclog = bp->b_fspriv;
+	struct xlog_in_core	*iclog = bp->b_log_item;
 
 	xfs_buf_lock(bp);
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
@@ -1919,7 +1920,7 @@ xlog_sync(
 	}
 
 	bp->b_io_length = BTOBB(count);
-	bp->b_fspriv = iclog;
+	bp->b_log_item = iclog;
 	bp->b_flags &= ~XBF_FLUSH;
 	bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE | XBF_FUA);
 
@@ -1958,7 +1959,7 @@ xlog_sync(
 		XFS_BUF_SET_ADDR(bp, 0);	     /* logical 0 */
 		xfs_buf_associate_memory(bp,
 				(char *)&iclog->ic_header + count, split);
-		bp->b_fspriv = iclog;
+		bp->b_log_item = iclog;
 		bp->b_flags &= ~XBF_FLUSH;
 		bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE | XBF_FUA);
 
@@ -2117,7 +2118,9 @@ xlog_print_trans(
 
 	/* dump core transaction and ticket info */
 	xfs_warn(mp, "transaction summary:");
-	xfs_warn(mp, "  flags	= 0x%x", tp->t_flags);
+	xfs_warn(mp, "  log res   = %d", tp->t_log_res);
+	xfs_warn(mp, "  log count = %d", tp->t_log_count);
+	xfs_warn(mp, "  flags     = 0x%x", tp->t_flags);
 
 	xlog_print_tic_res(mp, tp->t_ticket);
 
@@ -2242,7 +2245,7 @@ xlog_write_setup_ophdr(
 		break;
 	default:
 		xfs_warn(log->l_mp,
-			"Bad XFS transaction clientid 0x%x in ticket 0x%p",
+			"Bad XFS transaction clientid 0x%x in ticket "PTR_FMT,
 			ophdr->oh_clientid, ticket);
 		return NULL;
 	}
@@ -3924,7 +3927,7 @@ xlog_verify_iclog(
 		}
 		if (clientid != XFS_TRANSACTION && clientid != XFS_LOG)
 			xfs_warn(log->l_mp,
-				"%s: invalid clientid %d op 0x%p offset 0x%lx",
+				"%s: invalid clientid %d op "PTR_FMT" offset 0x%lx",
 				__func__, clientid, ophead,
 				(unsigned long)field_offset);
 

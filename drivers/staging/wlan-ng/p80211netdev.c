@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
 /* src/p80211/p80211knetdev.c
  *
  * Linux Kernel net device interface
@@ -640,7 +641,8 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 	dot11req.msgcode = DIDmsg_dot11req_mibset;
 	dot11req.msglen = sizeof(dot11req);
 	memcpy(dot11req.devname,
-	       ((struct wlandevice *)dev->ml_priv)->name, WLAN_DEVNAMELEN_MAX - 1);
+	       ((struct wlandevice *)dev->ml_priv)->name,
+	       WLAN_DEVNAMELEN_MAX - 1);
 
 	/* Set up the mibattribute argument */
 	mibattr->did = DIDmsg_dot11req_mibset_mibattribute;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Standard Hot Plug Controller Driver
  *
@@ -7,21 +8,6 @@
  * Copyright (C) 2003-2004 Intel Corporation
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <greg@kroah.com>,<kristen.c.accardi@intel.com>
  *
@@ -62,15 +48,15 @@ do {									\
 #define ctrl_dbg(ctrl, format, arg...)					\
 	do {								\
 		if (shpchp_debug)					\
-			dev_printk(KERN_DEBUG, &ctrl->pci_dev->dev,	\
+			pci_printk(KERN_DEBUG, ctrl->pci_dev,		\
 					format, ## arg);		\
 	} while (0)
 #define ctrl_err(ctrl, format, arg...)					\
-	dev_err(&ctrl->pci_dev->dev, format, ## arg)
+	pci_err(ctrl->pci_dev, format, ## arg)
 #define ctrl_info(ctrl, format, arg...)					\
-	dev_info(&ctrl->pci_dev->dev, format, ## arg)
+	pci_info(ctrl->pci_dev, format, ## arg)
 #define ctrl_warn(ctrl, format, arg...)					\
-	dev_warn(&ctrl->pci_dev->dev, format, ## arg)
+	pci_warn(ctrl->pci_dev, format, ## arg)
 
 
 #define SLOT_NAME_SIZE 10

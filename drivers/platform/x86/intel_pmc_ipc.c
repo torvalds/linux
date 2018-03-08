@@ -215,11 +215,11 @@ static inline int is_gcr_valid(u32 offset)
 }
 
 /**
- * intel_pmc_gcr_read() - Read PMC GCR register
+ * intel_pmc_gcr_read() - Read a 32-bit PMC GCR register
  * @offset:	offset of GCR register from GCR address base
  * @data:	data pointer for storing the register output
  *
- * Reads the PMC GCR register of given offset.
+ * Reads the 32-bit PMC GCR register at given offset.
  *
  * Return:	negative value on error or 0 on success.
  */
@@ -242,6 +242,35 @@ int intel_pmc_gcr_read(u32 offset, u32 *data)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_pmc_gcr_read);
+
+/**
+ * intel_pmc_gcr_read64() - Read a 64-bit PMC GCR register
+ * @offset:	offset of GCR register from GCR address base
+ * @data:	data pointer for storing the register output
+ *
+ * Reads the 64-bit PMC GCR register at given offset.
+ *
+ * Return:	negative value on error or 0 on success.
+ */
+int intel_pmc_gcr_read64(u32 offset, u64 *data)
+{
+	int ret;
+
+	spin_lock(&ipcdev.gcr_lock);
+
+	ret = is_gcr_valid(offset);
+	if (ret < 0) {
+		spin_unlock(&ipcdev.gcr_lock);
+		return ret;
+	}
+
+	*data = readq(ipcdev.gcr_mem_base + offset);
+
+	spin_unlock(&ipcdev.gcr_lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_pmc_gcr_read64);
 
 /**
  * intel_pmc_gcr_write() - Write PMC GCR register

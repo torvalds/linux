@@ -1365,7 +1365,7 @@ static int mini_cm_del_listen(struct nes_cm_core *cm_core,
 static inline int mini_cm_accelerated(struct nes_cm_core *cm_core,
 				      struct nes_cm_node *cm_node)
 {
-	cm_node->accelerated = 1;
+	cm_node->accelerated = true;
 
 	if (cm_node->accept_pend) {
 		BUG_ON(!cm_node->listener);

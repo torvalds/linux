@@ -92,6 +92,18 @@ out_unlock:
 	return ret;
 }
 
+static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
+				       unsigned long page_offset)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+
+	if (bdev->driver->io_mem_pfn)
+		return bdev->driver->io_mem_pfn(bo, page_offset);
+
+	return ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT)
+		+ page_offset;
+}
+
 static int ttm_bo_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
@@ -215,12 +227,17 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 		cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
 						cvma.vm_page_prot);
 	} else {
+		struct ttm_operation_ctx ctx = {
+			.interruptible = false,
+			.no_wait_gpu = false
+		};
+
 		ttm = bo->ttm;
 		cvma.vm_page_prot = ttm_io_prot(bo->mem.placement,
 						cvma.vm_page_prot);
 
 		/* Allocate all page at once, most common usage */
-		if (ttm->bdev->driver->ttm_tt_populate(ttm)) {
+		if (ttm->bdev->driver->ttm_tt_populate(ttm, &ctx)) {
 			retval = VM_FAULT_OOM;
 			goto out_io_unlock;
 		}
@@ -234,7 +251,7 @@ static int ttm_bo_vm_fault(struct vm_fault *vmf)
 		if (bo->mem.bus.is_iomem) {
 			/* Iomem should not be marked encrypted */
 			cvma.vm_page_prot = pgprot_decrypted(cvma.vm_page_prot);
-			pfn = bdev->driver->io_mem_pfn(bo, page_offset);
+			pfn = ttm_bo_io_mem_pfn(bo, page_offset);
 		} else {
 			page = ttm->pages[page_offset];
 			if (unlikely(!page && i == 0)) {
@@ -299,7 +316,7 @@ static void ttm_bo_vm_close(struct vm_area_struct *vma)
 
 static int ttm_bo_vm_access_kmap(struct ttm_buffer_object *bo,
 				 unsigned long offset,
-				 void *buf, int len, int write)
+				 uint8_t *buf, int len, int write)
 {
 	unsigned long page = offset >> PAGE_SHIFT;
 	unsigned long bytes_left = len;
@@ -328,6 +345,7 @@ static int ttm_bo_vm_access_kmap(struct ttm_buffer_object *bo,
 		ttm_bo_kunmap(&map);
 
 		page++;
+		buf += bytes;
 		bytes_left -= bytes;
 		offset = 0;
 	} while (bytes_left);
@@ -403,14 +421,6 @@ static struct ttm_buffer_object *ttm_bo_vm_lookup(struct ttm_bo_device *bdev,
 
 	return bo;
 }
-
-unsigned long ttm_bo_default_io_mem_pfn(struct ttm_buffer_object *bo,
-					unsigned long page_offset)
-{
-	return ((bo->mem.bus.base + bo->mem.bus.offset) >> PAGE_SHIFT)
-		+ page_offset;
-}
-EXPORT_SYMBOL(ttm_bo_default_io_mem_pfn);
 
 int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 		struct ttm_bo_device *bdev)

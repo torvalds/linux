@@ -360,13 +360,13 @@ static void qed_rdma_resc_free(struct qed_hwfn *p_hwfn)
 
 static void qed_rdma_free_tid(void *rdma_cxt, u32 itid)
 {
-        struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
+	struct qed_hwfn *p_hwfn = (struct qed_hwfn *)rdma_cxt;
 
-        DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", itid);
+	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "itid = %08x\n", itid);
 
-        spin_lock_bh(&p_hwfn->p_rdma_info->lock);
-        qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->tid_map, itid);
-        spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
+	spin_lock_bh(&p_hwfn->p_rdma_info->lock);
+	qed_bmap_release_id(p_hwfn, &p_hwfn->p_rdma_info->tid_map, itid);
+	spin_unlock_bh(&p_hwfn->p_rdma_info->lock);
 }
 
 static void qed_rdma_free_reserved_lkey(struct qed_hwfn *p_hwfn)
@@ -570,7 +570,7 @@ static int qed_rdma_start_fw(struct qed_hwfn *p_hwfn,
 
 	if (QED_IS_IWARP_PERSONALITY(p_hwfn)) {
 		qed_iwarp_init_fw_ramrod(p_hwfn,
-					 &p_ent->ramrod.iwarp_init_func.iwarp);
+					 &p_ent->ramrod.iwarp_init_func);
 		p_ramrod = &p_ent->ramrod.iwarp_init_func.rdma;
 	} else {
 		p_ramrod = &p_ent->ramrod.roce_init_func.rdma;

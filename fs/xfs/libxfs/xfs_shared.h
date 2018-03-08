@@ -76,6 +76,9 @@ struct xfs_log_item_desc {
 int	xfs_log_calc_unit_res(struct xfs_mount *mp, int unit_bytes);
 int	xfs_log_calc_minimum_size(struct xfs_mount *);
 
+struct xfs_trans_res;
+void	xfs_log_get_max_trans_res(struct xfs_mount *mp,
+				  struct xfs_trans_res *max_resp);
 
 /*
  * Values for t_flags.
@@ -143,5 +146,6 @@ bool xfs_symlink_hdr_ok(xfs_ino_t ino, uint32_t offset,
 			uint32_t size, struct xfs_buf *bp);
 void xfs_symlink_local_to_remote(struct xfs_trans *tp, struct xfs_buf *bp,
 				 struct xfs_inode *ip, struct xfs_ifork *ifp);
+xfs_failaddr_t xfs_symlink_shortform_verify(struct xfs_inode *ip);
 
 #endif /* __XFS_SHARED_H__ */

@@ -2071,8 +2071,7 @@ static int ssif_platform_remove(struct platform_device *dev)
 		return 0;
 
 	mutex_lock(&ssif_infos_mutex);
-	if (addr_info->client)
-		i2c_unregister_device(addr_info->client);
+	i2c_unregister_device(addr_info->client);
 
 	list_del(&addr_info->link);
 	kfree(addr_info);

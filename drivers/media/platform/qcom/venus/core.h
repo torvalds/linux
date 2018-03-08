@@ -144,8 +144,8 @@ struct venc_controls {
 	u32 h264_min_qp;
 	u32 h264_max_qp;
 	u32 h264_loop_filter_mode;
-	u32 h264_loop_filter_alpha;
-	u32 h264_loop_filter_beta;
+	s32 h264_loop_filter_alpha;
+	s32 h264_loop_filter_beta;
 
 	u32 vp8_min_qp;
 	u32 vp8_max_qp;

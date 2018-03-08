@@ -4456,7 +4456,6 @@ unregister_ftrace_function_probe_func(char *glob, struct trace_array *tr,
 		func_g.type = filter_parse_regex(glob, strlen(glob),
 						 &func_g.search, &not);
 		func_g.len = strlen(func_g.search);
-		func_g.search = glob;
 
 		/* we do not support '!' for function probes */
 		if (WARN_ON(not))
@@ -5015,7 +5014,6 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 
 	parser = &iter->parser;
 	if (trace_parser_loaded(parser)) {
-		parser->buffer[parser->idx] = 0;
 		ftrace_match_records(iter->hash, parser->buffer, parser->idx);
 	}
 
@@ -5329,7 +5327,6 @@ ftrace_graph_release(struct inode *inode, struct file *file)
 		parser = &fgd->parser;
 
 		if (trace_parser_loaded((parser))) {
-			parser->buffer[parser->idx] = 0;
 			ret = ftrace_graph_set_hash(fgd->new_hash,
 						    parser->buffer);
 		}

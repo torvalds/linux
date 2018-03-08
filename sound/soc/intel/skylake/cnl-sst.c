@@ -458,7 +458,7 @@ int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	cnl->boot_complete = false;
 	init_waitqueue_head(&cnl->boot_wait);
 
-	return 0;
+	return skl_dsp_acquire_irq(sst);
 }
 EXPORT_SYMBOL_GPL(cnl_sst_dsp_init);
 

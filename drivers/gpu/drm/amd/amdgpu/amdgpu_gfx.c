@@ -179,8 +179,12 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 
 		amdgpu_gfx_bit_to_queue(adev, queue_bit, &mec, &pipe, &queue);
 
-		/* Using pipes 2/3 from MEC 2 seems cause problems */
-		if (mec == 1 && pipe > 1)
+		/*
+		 * 1. Using pipes 2/3 from MEC 2 seems cause problems.
+		 * 2. It must use queue id 0, because CGPG_IDLE/SAVE/LOAD/RUN
+		 * only can be issued on queue 0.
+		 */
+		if ((mec == 1 && pipe > 1) || queue != 0)
 			continue;
 
 		ring->me = mec + 1;
@@ -203,7 +207,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 
 	spin_lock_init(&kiq->ring_lock);
 
-	r = amdgpu_wb_get(adev, &adev->virt.reg_val_offs);
+	r = amdgpu_device_wb_get(adev, &adev->virt.reg_val_offs);
 	if (r)
 		return r;
 
@@ -229,7 +233,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring,
 			      struct amdgpu_irq_src *irq)
 {
-	amdgpu_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
+	amdgpu_device_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
 	amdgpu_ring_fini(ring);
 }
 

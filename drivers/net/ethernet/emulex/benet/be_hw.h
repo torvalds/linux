@@ -261,6 +261,7 @@ struct be_eth_hdr_wrb {
 #define LANCER_TX_COMP_HSW_DROP_MAC_ERR		0x3
 #define LANCER_TX_COMP_HSW_DROP_VLAN_ERR	0x5
 #define LANCER_TX_COMP_QINQ_ERR			0x7
+#define LANCER_TX_COMP_SGE_ERR			0x9
 #define LANCER_TX_COMP_PARITY_ERR		0xb
 #define LANCER_TX_COMP_DMA_ERR			0xd
 

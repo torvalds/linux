@@ -56,13 +56,25 @@ a/ A dentry flag DCACHE_DISCONNECTED which is set on
    any dentry that might not be part of the proper prefix.
    This is set when anonymous dentries are created, and cleared when a
    dentry is noticed to be a child of a dentry which is in the proper
-   prefix. 
+   prefix.  If the refcount on a dentry with this flag set
+   becomes zero, the dentry is immediately discarded, rather than being
+   kept in the dcache.  If a dentry that is not already in the dcache
+   is repeatedly accessed by filehandle (as NFSD might do), an new dentry
+   will be a allocated for each access, and discarded at the end of
+   the access.
 
-b/ A per-superblock list "s_anon" of dentries which are the roots of
-   subtrees that are not in the proper prefix.  These dentries, as
-   well as the proper prefix, need to be released at unmount time.  As
-   these dentries will not be hashed, they are linked together on the
-   d_hash list_head.
+   Note that such a dentry can acquire children, name, ancestors, etc.
+   without losing DCACHE_DISCONNECTED - that flag is only cleared when
+   subtree is successfully reconnected to root.  Until then dentries
+   in such subtree are retained only as long as there are references;
+   refcount reaching zero means immediate eviction, same as for unhashed
+   dentries.  That guarantees that we won't need to hunt them down upon
+   umount.
+
+b/ A primitive for creation of secondary roots - d_obtain_root(inode).
+   Those do _not_ bear DCACHE_DISCONNECTED.  They are placed on the
+   per-superblock list (->s_roots), so they can be located at umount
+   time for eviction purposes.
 
 c/ Helper routines to allocate anonymous dentries, and to help attach
    loose directory dentries at lookup time. They are:
@@ -77,7 +89,6 @@ c/ Helper routines to allocate anonymous dentries, and to help attach
       (such as an anonymous one created by d_obtain_alias), if appropriate.
       It returns NULL when the passed-in dentry is used, following the calling
       convention of ->lookup.
-
  
 Filesystem Issues
 -----------------

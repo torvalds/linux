@@ -41,6 +41,8 @@ static SUNXI_CCU_GATE(wb_clk,		"wb",		"wb-div",
 
 static SUNXI_CCU_M(mixer0_div_clk, "mixer0-div", "de", 0x0c, 0, 4,
 		   CLK_SET_RATE_PARENT);
+static SUNXI_CCU_M(mixer1_div_clk, "mixer1-div", "de", 0x0c, 4, 4,
+		   CLK_SET_RATE_PARENT);
 static SUNXI_CCU_M(wb_div_clk, "wb-div", "de", 0x0c, 8, 4,
 		   CLK_SET_RATE_PARENT);
 
@@ -63,6 +65,20 @@ static struct ccu_common *sun8i_a83t_de2_clks[] = {
 	&mixer0_div_a83_clk.common,
 	&mixer1_div_a83_clk.common,
 	&wb_div_a83_clk.common,
+};
+
+static struct ccu_common *sun8i_h3_de2_clks[] = {
+	&mixer0_clk.common,
+	&mixer1_clk.common,
+	&wb_clk.common,
+
+	&bus_mixer0_clk.common,
+	&bus_mixer1_clk.common,
+	&bus_wb_clk.common,
+
+	&mixer0_div_clk.common,
+	&mixer1_div_clk.common,
+	&wb_div_clk.common,
 };
 
 static struct ccu_common *sun8i_v3s_de2_clks[] = {
@@ -89,6 +105,23 @@ static struct clk_hw_onecell_data sun8i_a83t_de2_hw_clks = {
 		[CLK_MIXER0_DIV]	= &mixer0_div_a83_clk.common.hw,
 		[CLK_MIXER1_DIV]	= &mixer1_div_a83_clk.common.hw,
 		[CLK_WB_DIV]		= &wb_div_a83_clk.common.hw,
+	},
+	.num	= CLK_NUMBER,
+};
+
+static struct clk_hw_onecell_data sun8i_h3_de2_hw_clks = {
+	.hws	= {
+		[CLK_MIXER0]		= &mixer0_clk.common.hw,
+		[CLK_MIXER1]		= &mixer1_clk.common.hw,
+		[CLK_WB]		= &wb_clk.common.hw,
+
+		[CLK_BUS_MIXER0]	= &bus_mixer0_clk.common.hw,
+		[CLK_BUS_MIXER1]	= &bus_mixer1_clk.common.hw,
+		[CLK_BUS_WB]		= &bus_wb_clk.common.hw,
+
+		[CLK_MIXER0_DIV]	= &mixer0_div_clk.common.hw,
+		[CLK_MIXER1_DIV]	= &mixer1_div_clk.common.hw,
+		[CLK_WB_DIV]		= &wb_div_clk.common.hw,
 	},
 	.num	= CLK_NUMBER,
 };
@@ -133,11 +166,21 @@ static const struct sunxi_ccu_desc sun8i_a83t_de2_clk_desc = {
 	.num_resets	= ARRAY_SIZE(sun8i_a83t_de2_resets),
 };
 
-static const struct sunxi_ccu_desc sun50i_a64_de2_clk_desc = {
-	.ccu_clks	= sun8i_a83t_de2_clks,
-	.num_ccu_clks	= ARRAY_SIZE(sun8i_a83t_de2_clks),
+static const struct sunxi_ccu_desc sun8i_h3_de2_clk_desc = {
+	.ccu_clks	= sun8i_h3_de2_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_h3_de2_clks),
 
-	.hw_clks	= &sun8i_a83t_de2_hw_clks,
+	.hw_clks	= &sun8i_h3_de2_hw_clks,
+
+	.resets		= sun8i_a83t_de2_resets,
+	.num_resets	= ARRAY_SIZE(sun8i_a83t_de2_resets),
+};
+
+static const struct sunxi_ccu_desc sun50i_a64_de2_clk_desc = {
+	.ccu_clks	= sun8i_h3_de2_clks,
+	.num_ccu_clks	= ARRAY_SIZE(sun8i_h3_de2_clks),
+
+	.hw_clks	= &sun8i_h3_de2_hw_clks,
 
 	.resets		= sun50i_a64_de2_resets,
 	.num_resets	= ARRAY_SIZE(sun50i_a64_de2_resets),
@@ -236,6 +279,10 @@ static const struct of_device_id sunxi_de2_clk_ids[] = {
 	{
 		.compatible = "allwinner,sun8i-a83t-de2-clk",
 		.data = &sun8i_a83t_de2_clk_desc,
+	},
+	{
+		.compatible = "allwinner,sun8i-h3-de2-clk",
+		.data = &sun8i_h3_de2_clk_desc,
 	},
 	{
 		.compatible = "allwinner,sun8i-v3s-de2-clk",

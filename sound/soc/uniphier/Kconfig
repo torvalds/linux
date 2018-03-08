@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0
+config SND_SOC_UNIPHIER
+	tristate "ASoC support for UniPhier"
+	depends on (ARCH_UNIPHIER || COMPILE_TEST)
+	help
+	  Say Y or M if you want to add support for the Socionext
+	  UniPhier SoC audio interfaces. You will also need to select the
+	  audio interfaces to support below.
+	  If unsure select "N".
+
+config SND_SOC_UNIPHIER_EVEA_CODEC
+	tristate "UniPhier SoC internal audio codec"
+	depends on SND_SOC_UNIPHIER
+	select REGMAP_MMIO
+	help
+	  This adds Codec driver for Socionext UniPhier LD11/20 SoC
+	  internal DAC. This driver supports Line In / Out and HeadPhone.
+	  Select Y if you use such device.
+	  If unsure select "N".

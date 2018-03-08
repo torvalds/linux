@@ -539,7 +539,6 @@ static int qedi_iscsi_offload_conn(struct qedi_endpoint *qedi_ep)
 	conn_info->ka_max_probe_cnt = DEF_KA_MAX_PROBE_COUNT;
 	conn_info->dup_ack_theshold = 3;
 	conn_info->rcv_wnd = 65535;
-	conn_info->cwnd = DEF_MAX_CWND;
 
 	conn_info->ss_thresh = 65535;
 	conn_info->srtt = 300;
@@ -557,8 +556,8 @@ static int qedi_iscsi_offload_conn(struct qedi_endpoint *qedi_ep)
 				       (qedi_ep->ip_type == TCP_IPV6),
 				       1, (qedi_ep->vlan_id != 0));
 
+	conn_info->cwnd = DEF_MAX_CWND * conn_info->mss;
 	conn_info->rcv_wnd_scale = 4;
-	conn_info->ts_ticks_per_second = 1000;
 	conn_info->da_timeout_value = 200;
 	conn_info->ack_frequency = 2;
 
@@ -1557,7 +1556,8 @@ char *qedi_get_iscsi_error(enum iscsi_error_types err_code)
 	return msg;
 }
 
-void qedi_process_iscsi_error(struct qedi_endpoint *ep, struct async_data *data)
+void qedi_process_iscsi_error(struct qedi_endpoint *ep,
+			      struct iscsi_eqe_data *data)
 {
 	struct qedi_conn *qedi_conn;
 	struct qedi_ctx *qedi;
@@ -1603,7 +1603,8 @@ void qedi_process_iscsi_error(struct qedi_endpoint *ep, struct async_data *data)
 		qedi_start_conn_recovery(qedi_conn->qedi, qedi_conn);
 }
 
-void qedi_process_tcp_error(struct qedi_endpoint *ep, struct async_data *data)
+void qedi_process_tcp_error(struct qedi_endpoint *ep,
+			    struct iscsi_eqe_data *data)
 {
 	struct qedi_conn *qedi_conn;
 

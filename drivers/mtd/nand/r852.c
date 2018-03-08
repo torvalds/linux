@@ -364,7 +364,7 @@ static int r852_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	struct r852_device *dev = nand_get_controller_data(chip);
 
 	unsigned long timeout;
-	int status;
+	u8 status;
 
 	timeout = jiffies + (chip->state == FL_ERASING ?
 		msecs_to_jiffies(400) : msecs_to_jiffies(20));
@@ -373,8 +373,7 @@ static int r852_wait(struct mtd_info *mtd, struct nand_chip *chip)
 		if (chip->dev_ready(mtd))
 			break;
 
-	chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
-	status = (int)chip->read_byte(mtd);
+	nand_status_op(chip, &status);
 
 	/* Unfortunelly, no way to send detailed error status... */
 	if (dev->dma_error) {
@@ -522,9 +521,7 @@ exit:
 static int r852_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 			     int page)
 {
-	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
-	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return 0;
+	return nand_read_oob_op(chip, page, 0, chip->oob_poi, mtd->oobsize);
 }
 
 /*
@@ -1046,7 +1043,7 @@ static int r852_resume(struct device *device)
 	if (dev->card_registred) {
 		r852_engine_enable(dev);
 		dev->chip->select_chip(mtd, 0);
-		dev->chip->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
+		nand_reset_op(dev->chip);
 		dev->chip->select_chip(mtd, -1);
 	}
 

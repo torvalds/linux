@@ -167,6 +167,29 @@ reservation_object_lock(struct reservation_object *obj,
 }
 
 /**
+ * reservation_object_lock_interruptible - lock the reservation object
+ * @obj: the reservation object
+ * @ctx: the locking context
+ *
+ * Locks the reservation object interruptible for exclusive access and
+ * modification. Note, that the lock is only against other writers, readers
+ * will run concurrently with a writer under RCU. The seqlock is used to
+ * notify readers if they overlap with a writer.
+ *
+ * As the reservation object may be locked by multiple parties in an
+ * undefined order, a #ww_acquire_ctx is passed to unwind if a cycle
+ * is detected. See ww_mutex_lock() and ww_acquire_init(). A reservation
+ * object may be locked by itself by passing NULL as @ctx.
+ */
+static inline int
+reservation_object_lock_interruptible(struct reservation_object *obj,
+				      struct ww_acquire_ctx *ctx)
+{
+	return ww_mutex_lock_interruptible(&obj->lock, ctx);
+}
+
+
+/**
  * reservation_object_trylock - trylock the reservation object
  * @obj: the reservation object
  *

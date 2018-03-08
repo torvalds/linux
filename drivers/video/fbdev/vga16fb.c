@@ -1055,7 +1055,6 @@ static void vga16fb_copyarea(struct fb_info *info, const struct fb_copyarea *are
 	case FB_TYPE_VGA_PLANES:
 		if (info->fix.type_aux == FB_AUX_VGA_PLANES_VGA4) {
 			width = width/8;
-			height = height;
 			line_ofs = info->fix.line_length - width;
 
 			setmode(1);

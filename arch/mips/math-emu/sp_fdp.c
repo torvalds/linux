@@ -46,7 +46,8 @@ union ieee754sp ieee754sp_fdp(union ieee754dp x)
 	case IEEE754_CLASS_SNAN:
 		x = ieee754dp_nanxcpt(x);
 		EXPLODEXDP;
-		/* Fall through.  */
+		/* fall through */
+
 	case IEEE754_CLASS_QNAN:
 		y = ieee754sp_nan_fdp(xs, xm);
 		if (!ieee754_csr.nan2008) {

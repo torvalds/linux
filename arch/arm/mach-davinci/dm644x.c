@@ -899,7 +899,7 @@ struct platform_device dm644x_serial_device[] = {
 	}
 };
 
-static struct davinci_soc_info davinci_soc_info_dm644x = {
+static const struct davinci_soc_info davinci_soc_info_dm644x = {
 	.io_desc		= dm644x_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm644x_io_desc),
 	.jtag_id_reg		= 0x01c40028,

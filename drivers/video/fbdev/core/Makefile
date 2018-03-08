@@ -15,9 +15,6 @@ ifeq ($(CONFIG_FRAMEBUFFER_CONSOLE_ROTATION),y)
 fb-y				  += fbcon_rotate.o fbcon_cw.o fbcon_ud.o \
 				     fbcon_ccw.o
 endif
-ifeq ($(CONFIG_DMI),y)
-fb-y				  += fbcon_dmi_quirks.o
-endif
 endif
 fb-objs                           := $(fb-y)
 

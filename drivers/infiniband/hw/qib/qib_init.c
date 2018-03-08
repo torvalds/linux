@@ -1119,6 +1119,8 @@ struct qib_devdata *qib_alloc_devdata(struct pci_dev *pdev, size_t extra)
 			      "Could not allocate unit ID: error %d\n", -ret);
 		goto bail;
 	}
+	rvt_set_ibdev_name(&dd->verbs_dev.rdi, "%s%d", "qib", dd->unit);
+
 	dd->int_counter = alloc_percpu(u64);
 	if (!dd->int_counter) {
 		ret = -ENOMEM;

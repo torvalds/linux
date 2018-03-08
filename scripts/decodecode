@@ -21,12 +21,24 @@ trap cleanup EXIT
 
 T=`mktemp` || die "cannot create temp file"
 code=
+cont=
 
 while read i ; do
 
 case "$i" in
 *Code:*)
 	code=$i
+	cont=yes
+	;;
+*)
+	[ -n "$cont" ] && {
+		xdump="$(echo $i | grep '^[[:xdigit:]<>[:space:]]\+$')"
+		if [ -n "$xdump" ]; then
+			code="$code $xdump"
+		else
+			cont=
+		fi
+	}
 	;;
 esac
 

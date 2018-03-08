@@ -69,8 +69,8 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 		void *kaddr = kmap(page);
 		u64 dsize = i_size_read(inode);
  
-		if (dsize > (dibh->b_size - sizeof(struct gfs2_dinode)))
-			dsize = dibh->b_size - sizeof(struct gfs2_dinode);
+		if (dsize > gfs2_max_stuffed_size(ip))
+			dsize = gfs2_max_stuffed_size(ip);
 
 		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
 		memset(kaddr + dsize, 0, PAGE_SIZE - dsize);
@@ -279,14 +279,13 @@ static inline __be64 *metapointer(unsigned int height, const struct metapath *mp
 	return p + mp->mp_list[height];
 }
 
-static void gfs2_metapath_ra(struct gfs2_glock *gl,
-			     const struct buffer_head *bh, const __be64 *pos)
+static void gfs2_metapath_ra(struct gfs2_glock *gl, __be64 *start, __be64 *end)
 {
-	struct buffer_head *rabh;
-	const __be64 *endp = (const __be64 *)(bh->b_data + bh->b_size);
 	const __be64 *t;
 
-	for (t = pos; t < endp; t++) {
+	for (t = start; t < end; t++) {
+		struct buffer_head *rabh;
+
 		if (!*t)
 			continue;
 
@@ -305,21 +304,22 @@ static void gfs2_metapath_ra(struct gfs2_glock *gl,
 	}
 }
 
-/**
- * lookup_mp_height - helper function for lookup_metapath
- * @ip: the inode
- * @mp: the metapath
- * @h: the height which needs looking up
- */
-static int lookup_mp_height(struct gfs2_inode *ip, struct metapath *mp, int h)
+static int __fillup_metapath(struct gfs2_inode *ip, struct metapath *mp,
+			     unsigned int x, unsigned int h)
 {
-	__be64 *ptr = metapointer(h, mp);
-	u64 dblock = be64_to_cpu(*ptr);
+	for (; x < h; x++) {
+		__be64 *ptr = metapointer(x, mp);
+		u64 dblock = be64_to_cpu(*ptr);
+		int ret;
 
-	if (!dblock)
-		return h + 1;
-
-	return gfs2_meta_indirect_buffer(ip, h + 1, dblock, &mp->mp_bh[h + 1]);
+		if (!dblock)
+			break;
+		ret = gfs2_meta_indirect_buffer(ip, x + 1, dblock, &mp->mp_bh[x + 1]);
+		if (ret)
+			return ret;
+	}
+	mp->mp_aheight = x + 1;
+	return 0;
 }
 
 /**
@@ -336,25 +336,12 @@ static int lookup_mp_height(struct gfs2_inode *ip, struct metapath *mp, int h)
  * at which it found the unallocated block. Blocks which are found are
  * added to the mp->mp_bh[] list.
  *
- * Returns: error or height of metadata tree
+ * Returns: error
  */
 
 static int lookup_metapath(struct gfs2_inode *ip, struct metapath *mp)
 {
-	unsigned int end_of_metadata = ip->i_height - 1;
-	unsigned int x;
-	int ret;
-
-	for (x = 0; x < end_of_metadata; x++) {
-		ret = lookup_mp_height(ip, mp, x);
-		if (ret)
-			goto out;
-	}
-
-	ret = ip->i_height;
-out:
-	mp->mp_aheight = ret;
-	return ret;
+	return __fillup_metapath(ip, mp, 0, ip->i_height - 1);
 }
 
 /**
@@ -365,25 +352,25 @@ out:
  *
  * Similar to lookup_metapath, but does lookups for a range of heights
  *
- * Returns: error or height of metadata tree
+ * Returns: error or the number of buffers filled
  */
 
 static int fillup_metapath(struct gfs2_inode *ip, struct metapath *mp, int h)
 {
-	unsigned int start_h = h - 1;
+	unsigned int x = 0;
 	int ret;
 
 	if (h) {
 		/* find the first buffer we need to look up. */
-		while (start_h > 0 && mp->mp_bh[start_h] == NULL)
-			start_h--;
-		for (; start_h < h; start_h++) {
-			ret = lookup_mp_height(ip, mp, start_h);
-			if (ret)
-				return ret;
+		for (x = h - 1; x > 0; x--) {
+			if (mp->mp_bh[x])
+				break;
 		}
 	}
-	return ip->i_height;
+	ret = __fillup_metapath(ip, mp, x, h);
+	if (ret)
+		return ret;
+	return mp->mp_aheight - x - 1;
 }
 
 static inline void release_metapath(struct metapath *mp)
@@ -473,13 +460,6 @@ enum alloc_state {
 	ALLOC_GROW_HEIGHT = 2,
 	/* ALLOC_UNSTUFF = 3,   TBD and rather complicated */
 };
-
-static inline unsigned int hptrs(struct gfs2_sbd *sdp, const unsigned int hgt)
-{
-	if (hgt)
-		return sdp->sd_inptrs;
-	return sdp->sd_diptrs;
-}
 
 /**
  * gfs2_bmap_alloc - Build a metadata tree of the requested height
@@ -736,7 +716,7 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	__be64 *ptr;
 	sector_t lblock;
 	sector_t lend;
-	int ret;
+	int ret = 0;
 	int eob;
 	unsigned int len;
 	struct buffer_head *bh;
@@ -748,12 +728,14 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 		goto out;
 	}
 
-	if ((flags & IOMAP_REPORT) && gfs2_is_stuffed(ip)) {
-		gfs2_stuffed_iomap(inode, iomap);
-		if (pos >= iomap->length)
-			return -ENOENT;
-		ret = 0;
-		goto out;
+	if (gfs2_is_stuffed(ip)) {
+		if (flags & IOMAP_REPORT) {
+			gfs2_stuffed_iomap(inode, iomap);
+			if (pos >= iomap->length)
+				ret = -ENOENT;
+			goto out;
+		}
+		BUG_ON(!(flags & IOMAP_WRITE));
 	}
 
 	lblock = pos >> inode->i_blkbits;
@@ -764,7 +746,7 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 	iomap->type = IOMAP_HOLE;
 	iomap->length = (u64)(lend - lblock) << inode->i_blkbits;
 	iomap->flags = IOMAP_F_MERGED;
-	bmap_lock(ip, 0);
+	bmap_lock(ip, flags & IOMAP_WRITE);
 
 	/*
 	 * Directory data blocks have a struct gfs2_meta_header header, so the
@@ -788,7 +770,7 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 		goto do_alloc;
 
 	ret = lookup_metapath(ip, &mp);
-	if (ret < 0)
+	if (ret)
 		goto out_release;
 
 	if (mp.mp_aheight != ip->i_height)
@@ -807,27 +789,28 @@ int gfs2_iomap_begin(struct inode *inode, loff_t pos, loff_t length,
 		iomap->flags |= IOMAP_F_BOUNDARY;
 	iomap->length = (u64)len << inode->i_blkbits;
 
-	ret = 0;
-
 out_release:
 	release_metapath(&mp);
-	bmap_unlock(ip, 0);
+	bmap_unlock(ip, flags & IOMAP_WRITE);
 out:
 	trace_gfs2_iomap_end(ip, iomap, ret);
 	return ret;
 
 do_alloc:
-	if (!(flags & IOMAP_WRITE)) {
-		if (pos >= i_size_read(inode)) {
+	if (flags & IOMAP_WRITE) {
+		ret = gfs2_iomap_alloc(inode, iomap, flags, &mp);
+	} else if (flags & IOMAP_REPORT) {
+		loff_t size = i_size_read(inode);
+		if (pos >= size)
 			ret = -ENOENT;
-			goto out_release;
-		}
-		ret = 0;
-		iomap->length = hole_size(inode, lblock, &mp);
-		goto out_release;
+		else if (height <= ip->i_height)
+			iomap->length = hole_size(inode, lblock, &mp);
+		else
+			iomap->length = size - pos;
+	} else {
+		if (height <= ip->i_height)
+			iomap->length = hole_size(inode, lblock, &mp);
 	}
-
-	ret = gfs2_iomap_alloc(inode, iomap, flags, &mp);
 	goto out_release;
 }
 
@@ -913,17 +896,18 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 }
 
 /**
- * gfs2_block_truncate_page - Deal with zeroing out data for truncate
+ * gfs2_block_zero_range - Deal with zeroing out data
  *
  * This is partly borrowed from ext3.
  */
-static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
+static int gfs2_block_zero_range(struct inode *inode, loff_t from,
+				 unsigned int length)
 {
-	struct inode *inode = mapping->host;
+	struct address_space *mapping = inode->i_mapping;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	unsigned long index = from >> PAGE_SHIFT;
 	unsigned offset = from & (PAGE_SIZE-1);
-	unsigned blocksize, iblock, length, pos;
+	unsigned blocksize, iblock, pos;
 	struct buffer_head *bh;
 	struct page *page;
 	int err;
@@ -933,7 +917,6 @@ static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
 		return 0;
 
 	blocksize = inode->i_sb->s_blocksize;
-	length = blocksize - (offset & (blocksize - 1));
 	iblock = index << (PAGE_SHIFT - inode->i_sb->s_blocksize_bits);
 
 	if (!page_has_buffers(page))
@@ -1003,11 +986,24 @@ static int gfs2_journaled_truncate(struct inode *inode, u64 oldsize, u64 newsize
 	int error;
 
 	while (oldsize != newsize) {
+		struct gfs2_trans *tr;
+		unsigned int offs;
+
 		chunk = oldsize - newsize;
 		if (chunk > max_chunk)
 			chunk = max_chunk;
+
+		offs = oldsize & ~PAGE_MASK;
+		if (offs && chunk > PAGE_SIZE)
+			chunk = offs + ((chunk - offs) & PAGE_MASK);
+
 		truncate_pagecache(inode, oldsize - chunk);
 		oldsize -= chunk;
+
+		tr = current->journal_info;
+		if (!test_bit(TR_TOUCHED, &tr->tr_flags))
+			continue;
+
 		gfs2_trans_end(sdp);
 		error = gfs2_trans_begin(sdp, RES_DINODE, GFS2_JTRUNC_REVOKES);
 		if (error)
@@ -1017,13 +1013,13 @@ static int gfs2_journaled_truncate(struct inode *inode, u64 oldsize, u64 newsize
 	return 0;
 }
 
-static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
+static int trunc_start(struct inode *inode, u64 newsize)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct address_space *mapping = inode->i_mapping;
-	struct buffer_head *dibh;
+	struct buffer_head *dibh = NULL;
 	int journaled = gfs2_is_jdata(ip);
+	u64 oldsize = inode->i_size;
 	int error;
 
 	if (journaled)
@@ -1042,10 +1038,13 @@ static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
 	if (gfs2_is_stuffed(ip)) {
 		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + newsize);
 	} else {
-		if (newsize & (u64)(sdp->sd_sb.sb_bsize - 1)) {
-			error = gfs2_block_truncate_page(mapping, newsize);
+		unsigned int blocksize = i_blocksize(inode);
+		unsigned int offs = newsize & (blocksize - 1);
+		if (offs) {
+			error = gfs2_block_zero_range(inode, newsize,
+						      blocksize - offs);
 			if (error)
-				goto out_brelse;
+				goto out;
 		}
 		ip->i_diskflags |= GFS2_DIF_TRUNC_IN_PROG;
 	}
@@ -1059,15 +1058,10 @@ static int trunc_start(struct inode *inode, u64 oldsize, u64 newsize)
 	else
 		truncate_pagecache(inode, newsize);
 
-	if (error) {
-		brelse(dibh);
-		return error;
-	}
-
-out_brelse:
-	brelse(dibh);
 out:
-	gfs2_trans_end(sdp);
+	brelse(dibh);
+	if (current->journal_info)
+		gfs2_trans_end(sdp);
 	return error;
 }
 
@@ -1075,10 +1069,11 @@ out:
  * sweep_bh_for_rgrps - find an rgrp in a meta buffer and free blocks therein
  * @ip: inode
  * @rg_gh: holder of resource group glock
- * @mp: current metapath fully populated with buffers
+ * @bh: buffer head to sweep
+ * @start: starting point in bh
+ * @end: end point in bh
+ * @meta: true if bh points to metadata (rather than data)
  * @btotal: place to keep count of total blocks freed
- * @hgt: height we're processing
- * @first: true if this is the first call to this function for this height
  *
  * We sweep a metadata buffer (provided by the metapath) for blocks we need to
  * free, and free them all. However, we do it one rgrp at a time. If this
@@ -1093,47 +1088,46 @@ out:
  *          *btotal has the total number of blocks freed
  */
 static int sweep_bh_for_rgrps(struct gfs2_inode *ip, struct gfs2_holder *rd_gh,
-			      const struct metapath *mp, u32 *btotal, int hgt,
-			      bool preserve1)
+			      struct buffer_head *bh, __be64 *start, __be64 *end,
+			      bool meta, u32 *btotal)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_trans *tr;
-	struct buffer_head *bh = mp->mp_bh[hgt];
-	__be64 *top, *bottom, *p;
+	__be64 *p;
 	int blks_outside_rgrp;
 	u64 bn, bstart, isize_blks;
 	s64 blen; /* needs to be s64 or gfs2_add_inode_blocks breaks */
-	int meta = ((hgt != ip->i_height - 1) ? 1 : 0);
 	int ret = 0;
 	bool buf_in_tr = false; /* buffer was added to transaction */
 
-	if (gfs2_metatype_check(sdp, bh,
-				(hgt ? GFS2_METATYPE_IN : GFS2_METATYPE_DI)))
-		return -EIO;
-
 more_rgrps:
+	rgd = NULL;
+	if (gfs2_holder_initialized(rd_gh)) {
+		rgd = gfs2_glock2rgrp(rd_gh->gh_gl);
+		gfs2_assert_withdraw(sdp,
+			     gfs2_glock_is_locked_by_me(rd_gh->gh_gl));
+	}
 	blks_outside_rgrp = 0;
 	bstart = 0;
 	blen = 0;
-	top = metapointer(hgt, mp); /* first ptr from metapath */
-	/* If we're keeping some data at the truncation point, we've got to
-	   preserve the metadata tree by adding 1 to the starting metapath. */
-	if (preserve1)
-		top++;
 
-	bottom = (__be64 *)(bh->b_data + bh->b_size);
-
-	for (p = top; p < bottom; p++) {
+	for (p = start; p < end; p++) {
 		if (!*p)
 			continue;
 		bn = be64_to_cpu(*p);
-		if (gfs2_holder_initialized(rd_gh)) {
-			rgd = gfs2_glock2rgrp(rd_gh->gh_gl);
-			gfs2_assert_withdraw(sdp,
-				     gfs2_glock_is_locked_by_me(rd_gh->gh_gl));
+
+		if (rgd) {
+			if (!rgrp_contains_block(rgd, bn)) {
+				blks_outside_rgrp++;
+				continue;
+			}
 		} else {
-			rgd = gfs2_blk2rgrpd(sdp, bn, false);
+			rgd = gfs2_blk2rgrpd(sdp, bn, true);
+			if (unlikely(!rgd)) {
+				ret = -EIO;
+				goto out;
+			}
 			ret = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
 						 0, rd_gh);
 			if (ret)
@@ -1143,11 +1137,6 @@ more_rgrps:
 			if (gfs2_rs_active(&ip->i_res) &&
 			    rgd == ip->i_res.rs_rbm.rgd)
 				gfs2_rs_deltree(&ip->i_res);
-		}
-
-		if (!rgrp_contains_block(rgd, bn)) {
-			blks_outside_rgrp++;
-			continue;
 		}
 
 		/* The size of our transactions will be unknown until we
@@ -1168,7 +1157,7 @@ more_rgrps:
 				jblocks_rqsted += isize_blks;
 			revokes = jblocks_rqsted;
 			if (meta)
-				revokes += hptrs(sdp, hgt);
+				revokes += end - start;
 			else if (ip->i_depth)
 				revokes += sdp->sd_inptrs;
 			ret = gfs2_trans_begin(sdp, jblocks_rqsted, revokes);
@@ -1226,7 +1215,11 @@ out_unlock:
 					    outside the rgrp we just processed,
 					    do it all over again. */
 		if (current->journal_info) {
-			struct buffer_head *dibh = mp->mp_bh[0];
+			struct buffer_head *dibh;
+
+			ret = gfs2_meta_inode_buffer(ip, &dibh);
+			if (ret)
+				goto out;
 
 			/* Every transaction boundary, we rewrite the dinode
 			   to keep its di_blocks current in case of failure. */
@@ -1234,6 +1227,7 @@ out_unlock:
 				current_time(&ip->i_inode);
 			gfs2_trans_add_meta(ip->i_gl, dibh);
 			gfs2_dinode_out(ip, dibh->b_data);
+			brelse(dibh);
 			up_write(&ip->i_rw_mutex);
 			gfs2_trans_end(sdp);
 		}
@@ -1245,38 +1239,48 @@ out:
 	return ret;
 }
 
+static bool mp_eq_to_hgt(struct metapath *mp, __u16 *list, unsigned int h)
+{
+	if (memcmp(mp->mp_list, list, h * sizeof(mp->mp_list[0])))
+		return false;
+	return true;
+}
+
 /**
  * find_nonnull_ptr - find a non-null pointer given a metapath and height
- * assumes the metapath is valid (with buffers) out to height h
  * @mp: starting metapath
  * @h: desired height to search
  *
+ * Assumes the metapath is valid (with buffers) out to height h.
  * Returns: true if a non-null pointer was found in the metapath buffer
  *          false if all remaining pointers are NULL in the buffer
  */
 static bool find_nonnull_ptr(struct gfs2_sbd *sdp, struct metapath *mp,
-			     unsigned int h)
+			     unsigned int h,
+			     __u16 *end_list, unsigned int end_aligned)
 {
-	__be64 *ptr;
-	unsigned int ptrs = hptrs(sdp, h) - 1;
+	struct buffer_head *bh = mp->mp_bh[h];
+	__be64 *first, *ptr, *end;
 
-	while (true) {
-		ptr = metapointer(h, mp);
+	first = metaptr1(h, mp);
+	ptr = first + mp->mp_list[h];
+	end = (__be64 *)(bh->b_data + bh->b_size);
+	if (end_list && mp_eq_to_hgt(mp, end_list, h)) {
+		bool keep_end = h < end_aligned;
+		end = first + end_list[h] + keep_end;
+	}
+
+	while (ptr < end) {
 		if (*ptr) { /* if we have a non-null pointer */
-			/* Now zero the metapath after the current height. */
+			mp->mp_list[h] = ptr - first;
 			h++;
 			if (h < GFS2_MAX_META_HEIGHT)
-				memset(&mp->mp_list[h], 0,
-				       (GFS2_MAX_META_HEIGHT - h) *
-				       sizeof(mp->mp_list[0]));
+				mp->mp_list[h] = 0;
 			return true;
 		}
-
-		if (mp->mp_list[h] < ptrs)
-			mp->mp_list[h]++;
-		else
-			return false; /* no more pointers in this buffer */
+		ptr++;
 	}
+	return false;
 }
 
 enum dealloc_states {
@@ -1286,49 +1290,126 @@ enum dealloc_states {
 	DEALLOC_DONE = 3,       /* process complete */
 };
 
-static bool mp_eq_to_hgt(struct metapath *mp, __u16 *nbof, unsigned int h)
+static inline void
+metapointer_range(struct metapath *mp, int height,
+		  __u16 *start_list, unsigned int start_aligned,
+		  __u16 *end_list, unsigned int end_aligned,
+		  __be64 **start, __be64 **end)
 {
-	if (memcmp(mp->mp_list, nbof, h * sizeof(mp->mp_list[0])))
-		return false;
-	return true;
+	struct buffer_head *bh = mp->mp_bh[height];
+	__be64 *first;
+
+	first = metaptr1(height, mp);
+	*start = first;
+	if (mp_eq_to_hgt(mp, start_list, height)) {
+		bool keep_start = height < start_aligned;
+		*start = first + start_list[height] + keep_start;
+	}
+	*end = (__be64 *)(bh->b_data + bh->b_size);
+	if (end_list && mp_eq_to_hgt(mp, end_list, height)) {
+		bool keep_end = height < end_aligned;
+		*end = first + end_list[height] + keep_end;
+	}
+}
+
+static inline bool walk_done(struct gfs2_sbd *sdp,
+			     struct metapath *mp, int height,
+			     __u16 *end_list, unsigned int end_aligned)
+{
+	__u16 end;
+
+	if (end_list) {
+		bool keep_end = height < end_aligned;
+		if (!mp_eq_to_hgt(mp, end_list, height))
+			return false;
+		end = end_list[height] + keep_end;
+	} else
+		end = (height > 0) ? sdp->sd_inptrs : sdp->sd_diptrs;
+	return mp->mp_list[height] >= end;
 }
 
 /**
- * trunc_dealloc - truncate a file down to a desired size
+ * punch_hole - deallocate blocks in a file
  * @ip: inode to truncate
- * @newsize: The desired size of the file
+ * @offset: the start of the hole
+ * @length: the size of the hole (or 0 for truncate)
  *
- * This function truncates a file to newsize. It works from the
- * bottom up, and from the right to the left. In other words, it strips off
- * the highest layer (data) before stripping any of the metadata. Doing it
- * this way is best in case the operation is interrupted by power failure, etc.
- * The dinode is rewritten in every transaction to guarantee integrity.
+ * Punch a hole into a file or truncate a file at a given position.  This
+ * function operates in whole blocks (@offset and @length are rounded
+ * accordingly); partially filled blocks must be cleared otherwise.
+ *
+ * This function works from the bottom up, and from the right to the left. In
+ * other words, it strips off the highest layer (data) before stripping any of
+ * the metadata. Doing it this way is best in case the operation is interrupted
+ * by power failure, etc.  The dinode is rewritten in every transaction to
+ * guarantee integrity.
  */
-static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
+static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct metapath mp;
+	struct metapath mp = {};
 	struct buffer_head *dibh, *bh;
 	struct gfs2_holder rd_gh;
-	u64 lblock;
-	__u16 nbof[GFS2_MAX_META_HEIGHT]; /* new beginning of truncation */
+	unsigned int bsize_shift = sdp->sd_sb.sb_bsize_shift;
+	u64 lblock = (offset + (1 << bsize_shift) - 1) >> bsize_shift;
+	__u16 start_list[GFS2_MAX_META_HEIGHT];
+	__u16 __end_list[GFS2_MAX_META_HEIGHT], *end_list = NULL;
+	unsigned int start_aligned, uninitialized_var(end_aligned);
 	unsigned int strip_h = ip->i_height - 1;
 	u32 btotal = 0;
 	int ret, state;
 	int mp_h; /* metapath buffers are read in to this height */
-	sector_t last_ra = 0;
 	u64 prev_bnr = 0;
-	bool preserve1; /* need to preserve the first meta pointer? */
+	__be64 *start, *end;
 
-	if (!newsize)
-		lblock = 0;
-	else
-		lblock = (newsize - 1) >> sdp->sd_sb.sb_bsize_shift;
+	/*
+	 * The start position of the hole is defined by lblock, start_list, and
+	 * start_aligned.  The end position of the hole is defined by lend,
+	 * end_list, and end_aligned.
+	 *
+	 * start_aligned and end_aligned define down to which height the start
+	 * and end positions are aligned to the metadata tree (i.e., the
+	 * position is a multiple of the metadata granularity at the height
+	 * above).  This determines at which heights additional meta pointers
+	 * needs to be preserved for the remaining data.
+	 */
 
-	memset(&mp, 0, sizeof(mp));
+	if (length) {
+		u64 maxsize = sdp->sd_heightsize[ip->i_height];
+		u64 end_offset = offset + length;
+		u64 lend;
+
+		/*
+		 * Clip the end at the maximum file size for the given height:
+		 * that's how far the metadata goes; files bigger than that
+		 * will have additional layers of indirection.
+		 */
+		if (end_offset > maxsize)
+			end_offset = maxsize;
+		lend = end_offset >> bsize_shift;
+
+		if (lblock >= lend)
+			return 0;
+
+		find_metapath(sdp, lend, &mp, ip->i_height);
+		end_list = __end_list;
+		memcpy(end_list, mp.mp_list, sizeof(mp.mp_list));
+
+		for (mp_h = ip->i_height - 1; mp_h > 0; mp_h--) {
+			if (end_list[mp_h])
+				break;
+		}
+		end_aligned = mp_h;
+	}
+
 	find_metapath(sdp, lblock, &mp, ip->i_height);
+	memcpy(start_list, mp.mp_list, sizeof(start_list));
 
-	memcpy(&nbof, &mp.mp_list, sizeof(nbof));
+	for (mp_h = ip->i_height - 1; mp_h > 0; mp_h--) {
+		if (start_list[mp_h])
+			break;
+	}
+	start_aligned = mp_h;
 
 	ret = gfs2_meta_inode_buffer(ip, &dibh);
 	if (ret)
@@ -1336,7 +1417,17 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 
 	mp.mp_bh[0] = dibh;
 	ret = lookup_metapath(ip, &mp);
-	if (ret == ip->i_height)
+	if (ret)
+		goto out_metapath;
+
+	/* issue read-ahead on metadata */
+	for (mp_h = 0; mp_h < mp.mp_aheight - 1; mp_h++) {
+		metapointer_range(&mp, mp_h, start_list, start_aligned,
+				  end_list, end_aligned, &start, &end);
+		gfs2_metapath_ra(ip->i_gl, start, end);
+	}
+
+	if (mp.mp_aheight == ip->i_height)
 		state = DEALLOC_MP_FULL; /* We have a complete metapath */
 	else
 		state = DEALLOC_FILL_MP; /* deal with partial metapath */
@@ -1357,20 +1448,6 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 		/* Truncate a full metapath at the given strip height.
 		 * Note that strip_h == mp_h in order to be in this state. */
 		case DEALLOC_MP_FULL:
-			if (mp_h > 0) { /* issue read-ahead on metadata */
-				__be64 *top;
-
-				bh = mp.mp_bh[mp_h - 1];
-				if (bh->b_blocknr != last_ra) {
-					last_ra = bh->b_blocknr;
-					top = metaptr1(mp_h - 1, &mp);
-					gfs2_metapath_ra(ip->i_gl, bh, top);
-				}
-			}
-			/* If we're truncating to a non-zero size and the mp is
-			   at the beginning of file for the strip height, we
-			   need to preserve the first metadata pointer. */
-			preserve1 = (newsize && mp_eq_to_hgt(&mp, nbof, mp_h));
 			bh = mp.mp_bh[mp_h];
 			gfs2_assert_withdraw(sdp, bh);
 			if (gfs2_assert_withdraw(sdp,
@@ -1382,8 +1459,28 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 				       prev_bnr, ip->i_height, strip_h, mp_h);
 			}
 			prev_bnr = bh->b_blocknr;
-			ret = sweep_bh_for_rgrps(ip, &rd_gh, &mp, &btotal,
-						 mp_h, preserve1);
+
+			if (gfs2_metatype_check(sdp, bh,
+						(mp_h ? GFS2_METATYPE_IN :
+							GFS2_METATYPE_DI))) {
+				ret = -EIO;
+				goto out;
+			}
+
+			/*
+			 * Below, passing end_aligned as 0 gives us the
+			 * metapointer range excluding the end point: the end
+			 * point is the first metapath we must not deallocate!
+			 */
+
+			metapointer_range(&mp, mp_h, start_list, start_aligned,
+					  end_list, 0 /* end_aligned */,
+					  &start, &end);
+			ret = sweep_bh_for_rgrps(ip, &rd_gh, mp.mp_bh[mp_h],
+						 start, end,
+						 mp_h != ip->i_height - 1,
+						 &btotal);
+
 			/* If we hit an error or just swept dinode buffer,
 			   just exit. */
 			if (ret || !mp_h) {
@@ -1407,20 +1504,20 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 			   stripping the previous level of metadata. */
 			if (mp_h == 0) {
 				strip_h--;
-				memcpy(&mp.mp_list, &nbof, sizeof(nbof));
+				memcpy(mp.mp_list, start_list, sizeof(start_list));
 				mp_h = strip_h;
 				state = DEALLOC_FILL_MP;
 				break;
 			}
 			mp.mp_list[mp_h] = 0;
 			mp_h--; /* search one metadata height down */
-			if (mp.mp_list[mp_h] >= hptrs(sdp, mp_h) - 1)
-				break; /* loop around in the same state */
 			mp.mp_list[mp_h]++;
+			if (walk_done(sdp, &mp, mp_h, end_list, end_aligned))
+				break;
 			/* Here we've found a part of the metapath that is not
 			 * allocated. We need to search at that height for the
 			 * next non-null pointer. */
-			if (find_nonnull_ptr(sdp, &mp, mp_h)) {
+			if (find_nonnull_ptr(sdp, &mp, mp_h, end_list, end_aligned)) {
 				state = DEALLOC_FILL_MP;
 				mp_h++;
 			}
@@ -1435,18 +1532,29 @@ static int trunc_dealloc(struct gfs2_inode *ip, u64 newsize)
 			if (ret < 0)
 				goto out;
 
+			/* issue read-ahead on metadata */
+			if (mp.mp_aheight > 1) {
+				for (; ret > 1; ret--) {
+					metapointer_range(&mp, mp.mp_aheight - ret,
+							  start_list, start_aligned,
+							  end_list, end_aligned,
+							  &start, &end);
+					gfs2_metapath_ra(ip->i_gl, start, end);
+				}
+			}
+
 			/* If buffers found for the entire strip height */
-			if ((ret == ip->i_height) && (mp_h == strip_h)) {
+			if (mp.mp_aheight - 1 == strip_h) {
 				state = DEALLOC_MP_FULL;
 				break;
 			}
-			if (ret < ip->i_height) /* We have a partial height */
-				mp_h = ret - 1;
+			if (mp.mp_aheight < ip->i_height) /* We have a partial height */
+				mp_h = mp.mp_aheight - 1;
 
 			/* If we find a non-null block pointer, crawl a bit
 			   higher up in the metapath and try again, otherwise
 			   we need to look lower for a new starting point. */
-			if (find_nonnull_ptr(sdp, &mp, mp_h))
+			if (find_nonnull_ptr(sdp, &mp, mp_h, end_list, end_aligned))
 				mp_h++;
 			else
 				state = DEALLOC_MP_LOWER;
@@ -1524,7 +1632,6 @@ out:
 /**
  * do_shrink - make a file smaller
  * @inode: the inode
- * @oldsize: the current inode size
  * @newsize: the size to make the file
  *
  * Called with an exclusive lock on @inode. The @size must
@@ -1533,18 +1640,18 @@ out:
  * Returns: errno
  */
 
-static int do_shrink(struct inode *inode, u64 oldsize, u64 newsize)
+static int do_shrink(struct inode *inode, u64 newsize)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	int error;
 
-	error = trunc_start(inode, oldsize, newsize);
+	error = trunc_start(inode, newsize);
 	if (error < 0)
 		return error;
 	if (gfs2_is_stuffed(ip))
 		return 0;
 
-	error = trunc_dealloc(ip, newsize);
+	error = punch_hole(ip, newsize, 0);
 	if (error == 0)
 		error = trunc_end(ip);
 
@@ -1553,10 +1660,9 @@ static int do_shrink(struct inode *inode, u64 oldsize, u64 newsize)
 
 void gfs2_trim_blocks(struct inode *inode)
 {
-	u64 size = inode->i_size;
 	int ret;
 
-	ret = do_shrink(inode, size, size);
+	ret = do_shrink(inode, inode->i_size);
 	WARN_ON(ret != 0);
 }
 
@@ -1589,8 +1695,7 @@ static int do_grow(struct inode *inode, u64 size)
 	int error;
 	int unstuff = 0;
 
-	if (gfs2_is_stuffed(ip) &&
-	    (size > (sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode)))) {
+	if (gfs2_is_stuffed(ip) && size > gfs2_max_stuffed_size(ip)) {
 		error = gfs2_quota_lock_check(ip, &ap);
 		if (error)
 			return error;
@@ -1650,7 +1755,6 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	int ret;
-	u64 oldsize;
 
 	BUG_ON(!S_ISREG(inode->i_mode));
 
@@ -1664,13 +1768,12 @@ int gfs2_setattr_size(struct inode *inode, u64 newsize)
 	if (ret)
 		goto out;
 
-	oldsize = inode->i_size;
-	if (newsize >= oldsize) {
+	if (newsize >= inode->i_size) {
 		ret = do_grow(inode, newsize);
 		goto out;
 	}
 
-	ret = do_shrink(inode, oldsize, newsize);
+	ret = do_shrink(inode, newsize);
 out:
 	gfs2_rsqa_delete(ip, NULL);
 	return ret;
@@ -1679,7 +1782,7 @@ out:
 int gfs2_truncatei_resume(struct gfs2_inode *ip)
 {
 	int error;
-	error = trunc_dealloc(ip, i_size_read(&ip->i_inode));
+	error = punch_hole(ip, i_size_read(&ip->i_inode), 0);
 	if (!error)
 		error = trunc_end(ip);
 	return error;
@@ -1687,7 +1790,7 @@ int gfs2_truncatei_resume(struct gfs2_inode *ip)
 
 int gfs2_file_dealloc(struct gfs2_inode *ip)
 {
-	return trunc_dealloc(ip, 0);
+	return punch_hole(ip, 0, 0);
 }
 
 /**
@@ -1827,8 +1930,7 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 		return 0;
 
 	if (gfs2_is_stuffed(ip)) {
-		if (offset + len >
-		    sdp->sd_sb.sb_bsize - sizeof(struct gfs2_dinode))
+		if (offset + len > gfs2_max_stuffed_size(ip))
 			return 1;
 		return 0;
 	}
@@ -1855,3 +1957,123 @@ int gfs2_write_alloc_required(struct gfs2_inode *ip, u64 offset,
 	return 0;
 }
 
+static int stuffed_zero_range(struct inode *inode, loff_t offset, loff_t length)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct buffer_head *dibh;
+	int error;
+
+	if (offset >= inode->i_size)
+		return 0;
+	if (offset + length > inode->i_size)
+		length = inode->i_size - offset;
+
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error)
+		return error;
+	gfs2_trans_add_meta(ip->i_gl, dibh);
+	memset(dibh->b_data + sizeof(struct gfs2_dinode) + offset, 0,
+	       length);
+	brelse(dibh);
+	return 0;
+}
+
+static int gfs2_journaled_truncate_range(struct inode *inode, loff_t offset,
+					 loff_t length)
+{
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	loff_t max_chunk = GFS2_JTRUNC_REVOKES * sdp->sd_vfs->s_blocksize;
+	int error;
+
+	while (length) {
+		struct gfs2_trans *tr;
+		loff_t chunk;
+		unsigned int offs;
+
+		chunk = length;
+		if (chunk > max_chunk)
+			chunk = max_chunk;
+
+		offs = offset & ~PAGE_MASK;
+		if (offs && chunk > PAGE_SIZE)
+			chunk = offs + ((chunk - offs) & PAGE_MASK);
+
+		truncate_pagecache_range(inode, offset, chunk);
+		offset += chunk;
+		length -= chunk;
+
+		tr = current->journal_info;
+		if (!test_bit(TR_TOUCHED, &tr->tr_flags))
+			continue;
+
+		gfs2_trans_end(sdp);
+		error = gfs2_trans_begin(sdp, RES_DINODE, GFS2_JTRUNC_REVOKES);
+		if (error)
+			return error;
+	}
+	return 0;
+}
+
+int __gfs2_punch_hole(struct file *file, loff_t offset, loff_t length)
+{
+	struct inode *inode = file_inode(file);
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	int error;
+
+	if (gfs2_is_jdata(ip))
+		error = gfs2_trans_begin(sdp, RES_DINODE + 2 * RES_JDATA,
+					 GFS2_JTRUNC_REVOKES);
+	else
+		error = gfs2_trans_begin(sdp, RES_DINODE, 0);
+	if (error)
+		return error;
+
+	if (gfs2_is_stuffed(ip)) {
+		error = stuffed_zero_range(inode, offset, length);
+		if (error)
+			goto out;
+	} else {
+		unsigned int start_off, end_off, blocksize;
+
+		blocksize = i_blocksize(inode);
+		start_off = offset & (blocksize - 1);
+		end_off = (offset + length) & (blocksize - 1);
+		if (start_off) {
+			unsigned int len = length;
+			if (length > blocksize - start_off)
+				len = blocksize - start_off;
+			error = gfs2_block_zero_range(inode, offset, len);
+			if (error)
+				goto out;
+			if (start_off + length < blocksize)
+				end_off = 0;
+		}
+		if (end_off) {
+			error = gfs2_block_zero_range(inode,
+				offset + length - end_off, end_off);
+			if (error)
+				goto out;
+		}
+	}
+
+	if (gfs2_is_jdata(ip)) {
+		BUG_ON(!current->journal_info);
+		gfs2_journaled_truncate_range(inode, offset, length);
+	} else
+		truncate_pagecache_range(inode, offset, offset + length - 1);
+
+	file_update_time(file);
+	mark_inode_dirty(inode);
+
+	if (current->journal_info)
+		gfs2_trans_end(sdp);
+
+	if (!gfs2_is_stuffed(ip))
+		error = punch_hole(ip, offset, length);
+
+out:
+	if (current->journal_info)
+		gfs2_trans_end(sdp);
+	return error;
+}

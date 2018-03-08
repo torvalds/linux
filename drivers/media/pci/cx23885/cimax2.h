@@ -21,7 +21,7 @@
 
 #ifndef CIMAX2_H
 #define CIMAX2_H
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 extern int netup_ci_read_attribute_mem(struct dvb_ca_en50221 *en50221,
 						int slot, int addr);

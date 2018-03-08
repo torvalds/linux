@@ -57,7 +57,7 @@
 #define REG_ASRDOC			0x74
 #define REG_ASRDI(i)			(REG_ASRDIA + (i << 3))
 #define REG_ASRDO(i)			(REG_ASRDOA + (i << 3))
-#define REG_ASRDx(x, i)			(x == IN ? REG_ASRDI(i) : REG_ASRDO(i))
+#define REG_ASRDx(x, i)			((x) == IN ? REG_ASRDI(i) : REG_ASRDO(i))
 
 #define REG_ASRIDRHA			0x80
 #define REG_ASRIDRLA			0x84

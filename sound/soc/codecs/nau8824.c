@@ -43,7 +43,7 @@ static bool nau8824_is_jack_inserted(struct nau8824 *nau8824);
 
 /* the parameter threshold of FLL */
 #define NAU_FREF_MAX 13500000
-#define NAU_FVCO_MAX 124000000
+#define NAU_FVCO_MAX 100000000
 #define NAU_FVCO_MIN 90000000
 
 /* scaling for mclk from sysclk_src output */
@@ -811,7 +811,8 @@ static void nau8824_eject_jack(struct nau8824 *nau8824)
 		NAU8824_JD_SLEEP_MODE, NAU8824_JD_SLEEP_MODE);
 
 	/* Close clock for jack type detection at manual mode */
-	nau8824_config_sysclk(nau8824, NAU8824_CLK_DIS, 0);
+	if (dapm->bias_level < SND_SOC_BIAS_PREPARE)
+		nau8824_config_sysclk(nau8824, NAU8824_CLK_DIS, 0);
 }
 
 static void nau8824_jdet_work(struct work_struct *work)
@@ -843,6 +844,11 @@ static void nau8824_jdet_work(struct work_struct *work)
 	event_mask |= SND_JACK_HEADSET;
 	snd_soc_jack_report(nau8824->jack, event, event_mask);
 
+	/* Enable short key press and release interruption. */
+	regmap_update_bits(regmap, NAU8824_REG_INTERRUPT_SETTING,
+		NAU8824_IRQ_KEY_RELEASE_DIS |
+		NAU8824_IRQ_KEY_SHORT_PRESS_DIS, 0);
+
 	nau8824_sema_release(nau8824);
 }
 
@@ -850,15 +856,15 @@ static void nau8824_setup_auto_irq(struct nau8824 *nau8824)
 {
 	struct regmap *regmap = nau8824->regmap;
 
-	/* Enable jack ejection, short key press and release interruption. */
+	/* Enable jack ejection interruption. */
 	regmap_update_bits(regmap, NAU8824_REG_INTERRUPT_SETTING_1,
 		NAU8824_IRQ_INSERT_EN | NAU8824_IRQ_EJECT_EN,
 		NAU8824_IRQ_EJECT_EN);
 	regmap_update_bits(regmap, NAU8824_REG_INTERRUPT_SETTING,
-		NAU8824_IRQ_EJECT_DIS | NAU8824_IRQ_KEY_RELEASE_DIS |
-		NAU8824_IRQ_KEY_SHORT_PRESS_DIS, 0);
+		NAU8824_IRQ_EJECT_DIS, 0);
 	/* Enable internal VCO needed for interruptions */
-	nau8824_config_sysclk(nau8824, NAU8824_CLK_INTERNAL, 0);
+	if (nau8824->dapm->bias_level < SND_SOC_BIAS_PREPARE)
+		nau8824_config_sysclk(nau8824, NAU8824_CLK_INTERNAL, 0);
 	regmap_update_bits(regmap, NAU8824_REG_ENA_CTRL,
 		NAU8824_JD_SLEEP_MODE, 0);
 }

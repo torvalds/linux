@@ -70,9 +70,8 @@ static bool construct(struct dc_context *ctx, struct dal_logger *logger,
 {
 	/* malloc buffer and init offsets */
 	logger->log_buffer_size = DAL_LOGGER_BUFFER_MAX_SIZE;
-	logger->log_buffer = (char *)kzalloc(logger->log_buffer_size * sizeof(char),
-					     GFP_KERNEL);
-
+	logger->log_buffer = kcalloc(logger->log_buffer_size, sizeof(char),
+				     GFP_KERNEL);
 	if (!logger->log_buffer)
 		return false;
 
@@ -313,6 +312,18 @@ void dm_logger_append(
 	const char *msg,
 	...)
 {
+	va_list args;
+
+	va_start(args, msg);
+	dm_logger_append_va(entry, msg, args);
+	va_end(args);
+}
+
+void dm_logger_append_va(
+	struct log_entry *entry,
+	const char *msg,
+	va_list args)
+{
 	struct dal_logger *logger;
 
 	if (!entry) {
@@ -326,10 +337,7 @@ void dm_logger_append(
 		dal_logger_should_log(logger, entry->type)) {
 
 		uint32_t size;
-		va_list args;
 		char buffer[LOG_MAX_LINE_SIZE];
-
-		va_start(args, msg);
 
 		size = dm_log_to_buffer(
 			buffer, LOG_MAX_LINE_SIZE, msg, args);
@@ -339,8 +347,6 @@ void dm_logger_append(
 		} else {
 			append_entry(entry, "LOG_ERROR, line too long\n", 27);
 		}
-
-		va_end(args);
 	}
 }
 

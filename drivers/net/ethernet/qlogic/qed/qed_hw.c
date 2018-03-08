@@ -807,3 +807,71 @@ int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt, const char *phase)
+{
+	u32 size = PAGE_SIZE / 2, val;
+	struct qed_dmae_params params;
+	int rc = 0;
+	dma_addr_t p_phys;
+	void *p_virt;
+	u32 *p_tmp;
+
+	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+				    2 * size, &p_phys, GFP_KERNEL);
+	if (!p_virt) {
+		DP_NOTICE(p_hwfn,
+			  "DMAE sanity [%s]: failed to allocate memory\n",
+			  phase);
+		return -ENOMEM;
+	}
+
+	/* Fill the bottom half of the allocated memory with a known pattern */
+	for (p_tmp = (u32 *)p_virt;
+	     p_tmp < (u32 *)((u8 *)p_virt + size); p_tmp++) {
+		/* Save the address itself as the value */
+		val = (u32)(uintptr_t)p_tmp;
+		*p_tmp = val;
+	}
+
+	/* Zero the top half of the allocated memory */
+	memset((u8 *)p_virt + size, 0, size);
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "DMAE sanity [%s]: src_addr={phys 0x%llx, virt %p}, dst_addr={phys 0x%llx, virt %p}, size 0x%x\n",
+		   phase,
+		   (u64)p_phys,
+		   p_virt, (u64)(p_phys + size), (u8 *)p_virt + size, size);
+
+	memset(&params, 0, sizeof(params));
+	rc = qed_dmae_host2host(p_hwfn, p_ptt, p_phys, p_phys + size,
+				size / 4 /* size_in_dwords */, &params);
+	if (rc) {
+		DP_NOTICE(p_hwfn,
+			  "DMAE sanity [%s]: qed_dmae_host2host() failed. rc = %d.\n",
+			  phase, rc);
+		goto out;
+	}
+
+	/* Verify that the top half of the allocated memory has the pattern */
+	for (p_tmp = (u32 *)((u8 *)p_virt + size);
+	     p_tmp < (u32 *)((u8 *)p_virt + (2 * size)); p_tmp++) {
+		/* The corresponding address in the bottom half */
+		val = (u32)(uintptr_t)p_tmp - size;
+
+		if (*p_tmp != val) {
+			DP_NOTICE(p_hwfn,
+				  "DMAE sanity [%s]: addr={phys 0x%llx, virt %p}, read_val 0x%08x, expected_val 0x%08x\n",
+				  phase,
+				  (u64)p_phys + ((u8 *)p_tmp - (u8 *)p_virt),
+				  p_tmp, *p_tmp, val);
+			rc = -EINVAL;
+			goto out;
+		}
+	}
+
+out:
+	dma_free_coherent(&p_hwfn->cdev->pdev->dev, 2 * size, p_virt, p_phys);
+	return rc;
+}
