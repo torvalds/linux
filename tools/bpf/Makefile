@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0
 include ../scripts/Makefile.include
 
-prefix = /usr
+prefix ?= /usr/local
 
 CC = gcc
 LEX = flex
 YACC = bison
 MAKE = make
+INSTALL ?= install
 
 CFLAGS += -Wall -O2
 CFLAGS += -D__EXPORTED_HEADERS__ -I$(srctree)/include/uapi -I$(srctree)/include
@@ -67,9 +68,10 @@ clean: bpftool_clean
 	       $(OUTPUT)bpf_asm $(OUTPUT)bpf_exp.yacc.* $(OUTPUT)bpf_exp.lex.*
 
 install: bpftool_install
-	install $(OUTPUT)bpf_jit_disasm $(prefix)/bin/bpf_jit_disasm
-	install $(OUTPUT)bpf_dbg $(prefix)/bin/bpf_dbg
-	install $(OUTPUT)bpf_asm $(prefix)/bin/bpf_asm
+	$(INSTALL) -m 0755 -d $(DESTDIR)$(prefix)/bin
+	$(INSTALL) $(OUTPUT)bpf_jit_disasm $(DESTDIR)$(prefix)/bin/bpf_jit_disasm
+	$(INSTALL) $(OUTPUT)bpf_dbg $(DESTDIR)$(prefix)/bin/bpf_dbg
+	$(INSTALL) $(OUTPUT)bpf_asm $(DESTDIR)$(prefix)/bin/bpf_asm
 
 bpftool:
 	$(MAKE) -C bpftool
