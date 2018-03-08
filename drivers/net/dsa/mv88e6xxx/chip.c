@@ -360,7 +360,7 @@ static void mv88e6xxx_g1_irq_free_common(struct mv88e6xxx_chip *chip)
 
 static void mv88e6xxx_g1_irq_free(struct mv88e6xxx_chip *chip)
 {
-	mv88e6xxx_g1_irq_free(chip);
+	mv88e6xxx_g1_irq_free_common(chip);
 
 	free_irq(chip->irq, chip);
 }
