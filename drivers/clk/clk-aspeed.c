@@ -259,11 +259,12 @@ static int aspeed_clk_is_enabled(struct clk_hw *hw)
 {
 	struct aspeed_clk_gate *gate = to_aspeed_clk_gate(hw);
 	u32 clk = BIT(gate->clock_idx);
+	u32 enval = (gate->flags & CLK_GATE_SET_TO_DISABLE) ? 0 : clk;
 	u32 reg;
 
 	regmap_read(gate->map, ASPEED_CLK_STOP_CTRL, &reg);
 
-	return (reg & clk) ? 0 : 1;
+	return ((reg & clk) == enval) ? 1 : 0;
 }
 
 static const struct clk_ops aspeed_clk_gate_ops = {
