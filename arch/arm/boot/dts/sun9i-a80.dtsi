@@ -65,6 +65,7 @@
 			device_type = "cpu";
 			cci-control-port = <&cci_control0>;
 			clock-frequency = <12000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x0>;
 		};
 
@@ -73,6 +74,7 @@
 			device_type = "cpu";
 			cci-control-port = <&cci_control0>;
 			clock-frequency = <12000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x1>;
 		};
 
@@ -81,6 +83,7 @@
 			device_type = "cpu";
 			cci-control-port = <&cci_control0>;
 			clock-frequency = <12000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x2>;
 		};
 
@@ -89,6 +92,7 @@
 			device_type = "cpu";
 			cci-control-port = <&cci_control0>;
 			clock-frequency = <12000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x3>;
 		};
 
@@ -97,6 +101,7 @@
 			device_type = "cpu";
 			cci-control-port = <&cci_control1>;
 			clock-frequency = <18000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x100>;
 		};
 
@@ -105,6 +110,7 @@
 			device_type = "cpu";
 			cci-control-port = <&cci_control1>;
 			clock-frequency = <18000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x101>;
 		};
 
@@ -113,6 +119,7 @@
 			device_type = "cpu";
 			cci-control-port = <&cci_control1>;
 			clock-frequency = <18000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x102>;
 		};
 
@@ -121,6 +128,7 @@
 			device_type = "cpu";
 			cci-control-port = <&cci_control1>;
 			clock-frequency = <18000000>;
+			enable-method = "allwinner,sun9i-a80-smp";
 			reg = <0x103>;
 		};
 	};
