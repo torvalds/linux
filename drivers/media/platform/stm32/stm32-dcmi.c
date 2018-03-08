@@ -160,6 +160,7 @@ struct stm32_dcmi {
 	dma_cookie_t			dma_cookie;
 	u32				misr;
 	int				errors_count;
+	int				overrun_count;
 	int				buffers_count;
 };
 
@@ -373,23 +374,9 @@ static irqreturn_t dcmi_irq_thread(int irq, void *arg)
 	}
 
 	if ((dcmi->misr & IT_OVR) || (dcmi->misr & IT_ERR)) {
-		/*
-		 * An overflow or an error has been detected,
-		 * stop current DMA transfert & restart it
-		 */
-		dev_warn(dcmi->dev, "%s: Overflow or error detected\n",
-			 __func__);
-
 		dcmi->errors_count++;
-		dev_dbg(dcmi->dev, "Restarting capture after DCMI error\n");
-
-		spin_unlock_irq(&dcmi->irqlock);
-		dmaengine_terminate_all(dcmi->dma_chan);
-
-		if (dcmi_start_capture(dcmi))
-			dev_err(dcmi->dev, "%s: Cannot restart capture on overflow or error\n",
-				__func__);
-		return IRQ_HANDLED;
+		if (dcmi->misr & IT_OVR)
+			dcmi->overrun_count++;
 	}
 
 	spin_unlock_irq(&dcmi->irqlock);
@@ -572,6 +559,7 @@ static int dcmi_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	dcmi->sequence = 0;
 	dcmi->errors_count = 0;
+	dcmi->overrun_count = 0;
 	dcmi->buffers_count = 0;
 	dcmi->active = NULL;
 
@@ -682,8 +670,13 @@ static void dcmi_stop_streaming(struct vb2_queue *vq)
 
 	clk_disable(dcmi->mclk);
 
-	dev_dbg(dcmi->dev, "Stop streaming, errors=%d buffers=%d\n",
-		dcmi->errors_count, dcmi->buffers_count);
+	if (dcmi->errors_count)
+		dev_warn(dcmi->dev, "Some errors found while streaming: errors=%d (overrun=%d), buffers=%d\n",
+			 dcmi->errors_count, dcmi->overrun_count,
+			 dcmi->buffers_count);
+	dev_dbg(dcmi->dev, "Stop streaming, errors=%d (overrun=%d), buffers=%d\n",
+		dcmi->errors_count, dcmi->overrun_count,
+		dcmi->buffers_count);
 }
 
 static const struct vb2_ops dcmi_video_qops = {
