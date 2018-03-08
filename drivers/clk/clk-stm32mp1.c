@@ -103,6 +103,18 @@ static DEFINE_SPINLOCK(rlock);
 
 #define RCC_CLR	0x4
 
+static const char * const ref12_parents[] = {
+	"ck_hsi", "ck_hse"
+};
+
+static const char * const ref3_parents[] = {
+	"ck_hsi", "ck_hse", "ck_csi"
+};
+
+static const char * const ref4_parents[] = {
+	"ck_hsi", "ck_hse", "ck_csi"
+};
+
 struct clock_config {
 	u32 id;
 	const char *name;
@@ -138,6 +150,14 @@ struct div_cfg {
 	u8 width;
 	u8 div_flags;
 	const struct clk_div_table *table;
+};
+
+struct mux_cfg {
+	u32 reg_off;
+	u8 shift;
+	u8 width;
+	u8 mux_flags;
+	u32 *table;
 };
 
 struct stm32_gate_cfg {
@@ -194,6 +214,20 @@ _clk_hw_register_divider_table(struct device *dev,
 					     div_cfg->div_flags,
 					     div_cfg->table,
 					     lock);
+}
+
+static struct clk_hw *
+_clk_hw_register_mux(struct device *dev,
+		     struct clk_hw_onecell_data *clk_data,
+		     void __iomem *base, spinlock_t *lock,
+		     const struct clock_config *cfg)
+{
+	struct mux_cfg *mux_cfg = cfg->cfg;
+
+	return clk_hw_register_mux(dev, cfg->name, cfg->parent_names,
+				   cfg->num_parents, cfg->flags,
+				   mux_cfg->reg_off + base, mux_cfg->shift,
+				   mux_cfg->width, mux_cfg->mux_flags, lock);
 }
 
 /* MP1 Gate clock with set & clear registers */
@@ -350,6 +384,22 @@ _clk_stm32_register_gate(struct device *dev,
 	DIV_TABLE(_id, _name, _parent, _flags, _offset, _shift, _width,\
 		  _div_flags, NULL)
 
+#define MUX(_id, _name, _parents, _flags, _offset, _shift, _width, _mux_flags)\
+{\
+	.id		= _id,\
+	.name		= _name,\
+	.parent_names	= _parents,\
+	.num_parents	= ARRAY_SIZE(_parents),\
+	.flags		= _flags,\
+	.cfg		=  &(struct mux_cfg) {\
+		.reg_off	= _offset,\
+		.shift		= _shift,\
+		.width		= _width,\
+		.mux_flags	= _mux_flags,\
+	},\
+	.func		= _clk_hw_register_mux,\
+}
+
 /* STM32 GATE */
 #define STM32_GATE(_id, _name, _parent, _flags, _gate)\
 {\
@@ -392,6 +442,16 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	GATE(CK_LSE, "ck_lse", "clk-lse", 0, RCC_BDCR, 0, 0),
 
 	FIXED_FACTOR(CK_HSE_DIV2, "clk-hse-div2", "ck_hse", 0, 1, 2),
+
+	/* ref clock pll */
+	MUX(NO_ID, "ref1", ref12_parents, CLK_OPS_PARENT_ENABLE, RCC_RCK12SELR,
+	    0, 2, CLK_MUX_READ_ONLY),
+
+	MUX(NO_ID, "ref3", ref3_parents, CLK_OPS_PARENT_ENABLE, RCC_RCK3SELR,
+	    0, 2, CLK_MUX_READ_ONLY),
+
+	MUX(NO_ID, "ref4", ref4_parents, CLK_OPS_PARENT_ENABLE, RCC_RCK4SELR,
+	    0, 2, CLK_MUX_READ_ONLY),
 };
 
 struct stm32_clock_match_data {
