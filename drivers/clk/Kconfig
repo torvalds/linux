@@ -238,6 +238,12 @@ config COMMON_CLK_VC5
 	  This driver supports the IDT VersaClock 5 and VersaClock 6
 	  programmable clock generators.
 
+config COMMON_CLK_STM32MP157
+	def_bool COMMON_CLK && MACH_STM32MP157
+	help
+	---help---
+	  Support for stm32mp157 SoC family clocks
+
 source "drivers/clk/bcm/Kconfig"
 source "drivers/clk/hisilicon/Kconfig"
 source "drivers/clk/imgtec/Kconfig"
