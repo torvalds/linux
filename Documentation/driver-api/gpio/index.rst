@@ -10,6 +10,7 @@ Contents:
    intro
    driver
    consumer
+   board
    legacy
 
 Core
