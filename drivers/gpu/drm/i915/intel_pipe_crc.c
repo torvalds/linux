@@ -569,7 +569,8 @@ unlock:
 static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 				enum pipe pipe,
 				enum intel_pipe_crc_source *source,
-				uint32_t *val)
+				uint32_t *val,
+				bool set_wa)
 {
 	if (*source == INTEL_PIPE_CRC_SOURCE_AUTO)
 		*source = INTEL_PIPE_CRC_SOURCE_PF;
@@ -582,7 +583,7 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		*val = PIPE_CRC_ENABLE | PIPE_CRC_SOURCE_SPRITE_IVB;
 		break;
 	case INTEL_PIPE_CRC_SOURCE_PF:
-		if ((IS_HASWELL(dev_priv) ||
+		if (set_wa && (IS_HASWELL(dev_priv) ||
 		     IS_BROADWELL(dev_priv)) && pipe == PIPE_A)
 			hsw_pipe_A_crc_wa(dev_priv, true);
 
@@ -600,7 +601,8 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 
 static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 			       enum pipe pipe,
-			       enum intel_pipe_crc_source *source, u32 *val)
+			       enum intel_pipe_crc_source *source, u32 *val,
+			       bool set_wa)
 {
 	if (IS_GEN2(dev_priv))
 		return i8xx_pipe_crc_ctl_reg(source, val);
@@ -611,7 +613,7 @@ static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	else if (IS_GEN5(dev_priv) || IS_GEN6(dev_priv))
 		return ilk_pipe_crc_ctl_reg(source, val);
 	else
-		return ivb_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
+		return ivb_pipe_crc_ctl_reg(dev_priv, pipe, source, val, set_wa);
 }
 
 static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
@@ -636,7 +638,7 @@ static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 		return -EIO;
 	}
 
-	ret = get_new_crc_ctl_reg(dev_priv, pipe, &source, &val);
+	ret = get_new_crc_ctl_reg(dev_priv, pipe, &source, &val, true);
 	if (ret != 0)
 		goto out;
 
@@ -916,7 +918,7 @@ int intel_pipe_crc_create(struct drm_minor *minor)
 int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
 			      size_t *values_cnt)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
 	enum intel_display_power_domain power_domain;
 	enum intel_pipe_crc_source source;
@@ -934,10 +936,11 @@ int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
 		return -EIO;
 	}
 
-	ret = get_new_crc_ctl_reg(dev_priv, crtc->index, &source, &val);
+	ret = get_new_crc_ctl_reg(dev_priv, crtc->index, &source, &val, true);
 	if (ret != 0)
 		goto out;
 
+	pipe_crc->source = source;
 	I915_WRITE(PIPE_CRC_CTL(crtc->index), val);
 	POSTING_READ(PIPE_CRC_CTL(crtc->index));
 
@@ -958,4 +961,40 @@ out:
 	intel_display_power_put(dev_priv, power_domain);
 
 	return ret;
+}
+
+void intel_crtc_enable_pipe_crc(struct intel_crtc *intel_crtc)
+{
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
+	u32 val = 0;
+
+	if (!crtc->crc.opened)
+		return;
+
+	if (get_new_crc_ctl_reg(dev_priv, crtc->index, &pipe_crc->source, &val, false) < 0)
+		return;
+
+	/* Don't need pipe_crc->lock here, IRQs are not generated. */
+	pipe_crc->skipped = 0;
+
+	I915_WRITE(PIPE_CRC_CTL(crtc->index), val);
+	POSTING_READ(PIPE_CRC_CTL(crtc->index));
+}
+
+void intel_crtc_disable_pipe_crc(struct intel_crtc *intel_crtc)
+{
+	struct drm_crtc *crtc = &intel_crtc->base;
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
+
+	/* Swallow crc's until we stop generating them. */
+	spin_lock_irq(&pipe_crc->lock);
+	pipe_crc->skipped = INT_MIN;
+	spin_unlock_irq(&pipe_crc->lock);
+
+	I915_WRITE(PIPE_CRC_CTL(crtc->index), 0);
+	POSTING_READ(PIPE_CRC_CTL(crtc->index));
+	synchronize_irq(dev_priv->drm.irq);
 }

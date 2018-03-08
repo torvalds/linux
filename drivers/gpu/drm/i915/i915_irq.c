@@ -1627,7 +1627,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 	int head, tail;
 
 	spin_lock(&pipe_crc->lock);
-	if (pipe_crc->source) {
+	if (pipe_crc->source && !crtc->base.crc.opened) {
 		if (!pipe_crc->entries) {
 			spin_unlock(&pipe_crc->lock);
 			DRM_DEBUG_KMS("spurious interrupt\n");
@@ -1667,7 +1667,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 		 * On GEN8+ sometimes the second CRC is bonkers as well, so
 		 * don't trust that one either.
 		 */
-		if (pipe_crc->skipped == 0 ||
+		if (pipe_crc->skipped <= 0 ||
 		    (INTEL_GEN(dev_priv) >= 8 && pipe_crc->skipped == 1)) {
 			pipe_crc->skipped++;
 			spin_unlock(&pipe_crc->lock);
