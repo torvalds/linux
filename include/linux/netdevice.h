@@ -585,6 +585,13 @@ struct netdev_queue {
 #endif
 } ____cacheline_aligned_in_smp;
 
+extern int sysctl_fb_tunnels_only_for_init_net;
+
+static inline bool net_has_fallback_tunnels(const struct net *net)
+{
+	return net == &init_net || !sysctl_fb_tunnels_only_for_init_net;
+}
+
 static inline int netdev_queue_numa_node_read(const struct netdev_queue *q)
 {
 #if defined(CONFIG_XPS) && defined(CONFIG_NUMA)

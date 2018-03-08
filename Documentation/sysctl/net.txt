@@ -270,6 +270,18 @@ optmem_max
 Maximum ancillary buffer size allowed per socket. Ancillary data is a sequence
 of struct cmsghdr structures with appended data.
 
+fb_tunnels_only_for_init_net
+----------------------------
+
+Controls if fallback tunnels (like tunl0, gre0, gretap0, erspan0,
+sit0, ip6tnl0, ip6gre0) are automatically created when a new
+network namespace is created, if corresponding tunnel is present
+in initial network namespace.
+If set to 1, these devices are not automatically created, and
+user space is responsible for creating them if needed.
+
+Default : 0  (for compatibility reasons)
+
 2. /proc/sys/net/unix - Parameters for Unix domain sockets
 -------------------------------------------------------
 

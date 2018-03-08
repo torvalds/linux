@@ -236,7 +236,7 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		return t;
 
 	dev = ign->fb_tunnel_dev;
-	if (dev->flags & IFF_UP)
+	if (dev && dev->flags & IFF_UP)
 		return netdev_priv(dev);
 
 	return NULL;
@@ -1472,6 +1472,8 @@ static int __net_init ip6gre_init_net(struct net *net)
 	struct ip6gre_net *ign = net_generic(net, ip6gre_net_id);
 	int err;
 
+	if (!net_has_fallback_tunnels(net))
+		return 0;
 	ign->fb_tunnel_dev = alloc_netdev(sizeof(struct ip6_tnl), "ip6gre0",
 					  NET_NAME_UNKNOWN,
 					  ip6gre_tunnel_setup);
