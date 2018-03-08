@@ -836,9 +836,9 @@ static int gmc_v9_0_sw_init(void *handle)
 
 	spin_lock_init(&adev->gmc.invalidate_lock);
 
+	adev->gmc.vram_type = amdgpu_atomfirmware_get_vram_type(adev);
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
 		if (adev->rev_id == 0x0 || adev->rev_id == 0x1) {
 			amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);
 		} else {
@@ -849,8 +849,6 @@ static int gmc_v9_0_sw_init(void *handle)
 		}
 		break;
 	case CHIP_VEGA10:
-		/* XXX Don't know how to get VRAM type yet. */
-		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
 		/*
 		 * To fulfill 4-level page support,
 		 * vm size is 256TB (48bit), maximum size of Vega10,
