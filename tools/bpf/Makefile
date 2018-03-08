@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
+include ../scripts/Makefile.include
+
 prefix = /usr
 
 CC = gcc
@@ -7,7 +9,7 @@ YACC = bison
 MAKE = make
 
 CFLAGS += -Wall -O2
-CFLAGS += -D__EXPORTED_HEADERS__ -I../../include/uapi -I../../include
+CFLAGS += -D__EXPORTED_HEADERS__ -I$(srctree)/include/uapi -I$(srctree)/include
 
 ifeq ($(srctree),)
 srctree := $(patsubst %/,%,$(dir $(CURDIR)))
@@ -38,32 +40,36 @@ ifeq ($(feature-disassembler-four-args), 1)
 CFLAGS += -DDISASM_FOUR_ARGS_SIGNATURE
 endif
 
-%.yacc.c: %.y
+$(OUTPUT)%.yacc.c: $(srctree)/tools/bpf/%.y
 	$(YACC) -o $@ -d $<
 
-%.lex.c: %.l
+$(OUTPUT)%.lex.c: $(srctree)/tools/bpf/%.l
 	$(LEX) -o $@ $<
 
-all: bpf_jit_disasm bpf_dbg bpf_asm bpftool
+$(OUTPUT)%.o: $(srctree)/tools/bpf/%.c
+	$(COMPILE.c) -o $@ $<
 
-bpf_jit_disasm : CFLAGS += -DPACKAGE='bpf_jit_disasm'
-bpf_jit_disasm : LDLIBS = -lopcodes -lbfd -ldl
-bpf_jit_disasm : bpf_jit_disasm.o
+all: $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg $(OUTPUT)bpf_asm bpftool
 
-bpf_dbg : LDLIBS = -lreadline
-bpf_dbg : bpf_dbg.o
+$(OUTPUT)bpf_jit_disasm: CFLAGS += -DPACKAGE='bpf_jit_disasm'
+$(OUTPUT)bpf_jit_disasm: LDLIBS = -lopcodes -lbfd -ldl
+$(OUTPUT)bpf_jit_disasm: $(OUTPUT)bpf_jit_disasm.o
 
-bpf_asm : LDLIBS =
-bpf_asm : bpf_asm.o bpf_exp.yacc.o bpf_exp.lex.o
-bpf_exp.lex.o : bpf_exp.yacc.c
+$(OUTPUT)bpf_dbg: LDLIBS = -lreadline
+$(OUTPUT)bpf_dbg: $(OUTPUT)bpf_dbg.o
+
+$(OUTPUT)bpf_asm: LDLIBS =
+$(OUTPUT)bpf_asm: $(OUTPUT)bpf_asm.o $(OUTPUT)bpf_exp.yacc.o $(OUTPUT)bpf_exp.lex.o
+$(OUTPUT)bpf_exp.lex.o: $(OUTPUT)bpf_exp.yacc.c
 
 clean: bpftool_clean
-	rm -rf *.o bpf_jit_disasm bpf_dbg bpf_asm bpf_exp.yacc.* bpf_exp.lex.*
+	rm -rf $(OUTPUT)*.o $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg \
+	       $(OUTPUT)bpf_asm $(OUTPUT)bpf_exp.yacc.* $(OUTPUT)bpf_exp.lex.*
 
 install: bpftool_install
-	install bpf_jit_disasm $(prefix)/bin/bpf_jit_disasm
-	install bpf_dbg $(prefix)/bin/bpf_dbg
-	install bpf_asm $(prefix)/bin/bpf_asm
+	install $(OUTPUT)bpf_jit_disasm $(prefix)/bin/bpf_jit_disasm
+	install $(OUTPUT)bpf_dbg $(prefix)/bin/bpf_dbg
+	install $(OUTPUT)bpf_asm $(prefix)/bin/bpf_asm
 
 bpftool:
 	$(MAKE) -C bpftool
