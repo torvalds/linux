@@ -106,6 +106,9 @@ static int irq_build_affinity_masks(const struct irq_affinity *affd,
 	int curvec = startvec;
 	nodemask_t nodemsk = NODE_MASK_NONE;
 
+	if (!cpumask_weight(cpu_mask))
+		return 0;
+
 	nodes = get_nodes_in_cpumask(node_to_cpumask, cpu_mask, &nodemsk);
 
 	/*
@@ -173,8 +176,9 @@ out:
 struct cpumask *
 irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 {
-	int curvec, affvecs = nvecs - affd->pre_vectors - affd->post_vectors;
-	cpumask_var_t nmsk, *node_to_cpumask;
+	int affvecs = nvecs - affd->pre_vectors - affd->post_vectors;
+	int curvec, usedvecs;
+	cpumask_var_t nmsk, npresmsk, *node_to_cpumask;
 	struct cpumask *masks = NULL;
 
 	/*
@@ -187,9 +191,12 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	if (!zalloc_cpumask_var(&nmsk, GFP_KERNEL))
 		return NULL;
 
+	if (!zalloc_cpumask_var(&npresmsk, GFP_KERNEL))
+		goto outcpumsk;
+
 	node_to_cpumask = alloc_node_to_cpumask();
 	if (!node_to_cpumask)
-		goto outcpumsk;
+		goto outnpresmsk;
 
 	masks = kcalloc(nvecs, sizeof(*masks), GFP_KERNEL);
 	if (!masks)
@@ -202,16 +209,40 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	/* Stabilize the cpumasks */
 	get_online_cpus();
 	build_node_to_cpumask(node_to_cpumask);
-	curvec += irq_build_affinity_masks(affd, curvec, affvecs,
-					   node_to_cpumask, cpu_possible_mask,
-					   nmsk, masks);
+
+	/* Spread on present CPUs starting from affd->pre_vectors */
+	usedvecs = irq_build_affinity_masks(affd, curvec, affvecs,
+					    node_to_cpumask, cpu_present_mask,
+					    nmsk, masks);
+
+	/*
+	 * Spread on non present CPUs starting from the next vector to be
+	 * handled. If the spreading of present CPUs already exhausted the
+	 * vector space, assign the non present CPUs to the already spread
+	 * out vectors.
+	 */
+	if (usedvecs >= affvecs)
+		curvec = affd->pre_vectors;
+	else
+		curvec = affd->pre_vectors + usedvecs;
+	cpumask_andnot(npresmsk, cpu_possible_mask, cpu_present_mask);
+	usedvecs += irq_build_affinity_masks(affd, curvec, affvecs,
+					     node_to_cpumask, npresmsk,
+					     nmsk, masks);
 	put_online_cpus();
 
 	/* Fill out vectors at the end that don't need affinity */
+	if (usedvecs >= affvecs)
+		curvec = affd->pre_vectors + affvecs;
+	else
+		curvec = affd->pre_vectors + usedvecs;
 	for (; curvec < nvecs; curvec++)
 		cpumask_copy(masks + curvec, irq_default_affinity);
+
 outnodemsk:
 	free_node_to_cpumask(node_to_cpumask);
+outnpresmsk:
+	free_cpumask_var(npresmsk);
 outcpumsk:
 	free_cpumask_var(nmsk);
 	return masks;
