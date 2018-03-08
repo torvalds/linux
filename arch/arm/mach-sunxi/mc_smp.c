@@ -690,7 +690,26 @@ static int __init sunxi_mc_smp_init(void)
 	struct resource res;
 	int ret;
 
-	if (!of_machine_is_compatible("allwinner,sun9i-a80"))
+	/*
+	 * Don't bother checking the "cpus" node, as an enable-method
+	 * property in that node is undocumented.
+	 */
+	node = of_cpu_device_node_get(0);
+	if (!node)
+		return -ENODEV;
+
+	/*
+	 * We can't actually use the enable-method magic in the kernel.
+	 * Our loopback / trampoline code uses the CPU suspend framework,
+	 * which requires the identity mapping be available. It would not
+	 * yet be available if we used the .init_cpus or .prepare_cpus
+	 * callbacks in smp_operations, which we would use if we were to
+	 * use CPU_METHOD_OF_DECLARE
+	 */
+	ret = of_property_match_string(node, "enable-method",
+				       "allwinner,sun9i-a80-smp");
+	of_node_put(node);
+	if (ret)
 		return -ENODEV;
 
 	if (!sunxi_mc_smp_cpu_table_init())
