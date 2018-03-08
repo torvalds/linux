@@ -324,6 +324,12 @@ def test_runner(pm, args, filtered_tests):
                 count += 1
 
         tap += 'done flushing skipped test tap output\n'
+
+    if args.pause:
+        print('Want to pause\nPress enter to continue ...')
+        if input(sys.stdin):
+            print('got something on stdin')
+
     pm.call_post_suite(index)
 
     return tap
@@ -406,6 +412,9 @@ def set_args(parser):
         help='Suppress tap results for command under test')
     parser.add_argument('-d', '--device',
                         help='Execute the test case in flower category')
+    parser.add_argument(
+        '-P', '--pause', action='store_true',
+        help='Pause execution just before post-suite stage')
     return parser
 
 
