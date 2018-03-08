@@ -659,51 +659,63 @@ void intel_guc_log_destroy(struct intel_guc *guc)
 	i915_vma_unpin_and_release(&guc->log.vma);
 }
 
-int intel_guc_log_control(struct intel_guc *guc, u64 control_val)
+int intel_guc_log_control_get(struct intel_guc *guc)
+{
+	GEM_BUG_ON(!guc->log.vma);
+	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
+
+	return i915_modparams.guc_log_level;
+}
+
+#define GUC_LOG_LEVEL_DISABLED		0
+#define LOG_LEVEL_TO_ENABLED(x)		((x) > 0)
+#define LOG_LEVEL_TO_VERBOSITY(x) ({		\
+	typeof(x) _x = (x);			\
+	LOG_LEVEL_TO_ENABLED(_x) ? _x - 1 : 0;	\
+})
+#define VERBOSITY_TO_LOG_LEVEL(x)  ((x) + 1)
+int intel_guc_log_control_set(struct intel_guc *guc, u64 val)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	bool enable_logging = control_val > 0;
-	u32 verbosity;
+	bool enabled = LOG_LEVEL_TO_ENABLED(val);
 	int ret;
 
-	if (!guc->log.vma)
-		return -ENODEV;
+	BUILD_BUG_ON(GUC_LOG_VERBOSITY_MIN != 0);
+	GEM_BUG_ON(!guc->log.vma);
+	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
 
-	BUILD_BUG_ON(GUC_LOG_VERBOSITY_MIN);
-	if (control_val > 1 + GUC_LOG_VERBOSITY_MAX)
+	/*
+	 * GuC is recognizing log levels starting from 0 to max, we're using 0
+	 * as indication that logging should be disabled.
+	 */
+	if (val < GUC_LOG_LEVEL_DISABLED ||
+	    val > VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX))
 		return -EINVAL;
 
-	/* This combination doesn't make sense & won't have any effect */
-	if (!enable_logging && !i915_modparams.guc_log_level)
-		return 0;
+	mutex_lock(&dev_priv->drm.struct_mutex);
 
-	verbosity = enable_logging ? control_val - 1 : 0;
-
-	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
-	if (ret)
-		return ret;
-	intel_runtime_pm_get(dev_priv);
-	ret = guc_log_control(guc, enable_logging, verbosity);
-	intel_runtime_pm_put(dev_priv);
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
-	if (ret < 0) {
-		DRM_DEBUG_DRIVER("guc_logging_control action failed %d\n", ret);
-		return ret;
+	if (i915_modparams.guc_log_level == val) {
+		ret = 0;
+		goto out_unlock;
 	}
 
-	if (enable_logging) {
-		i915_modparams.guc_log_level = 1 + verbosity;
+	intel_runtime_pm_get(dev_priv);
+	ret = guc_log_control(guc, enabled, LOG_LEVEL_TO_VERBOSITY(val));
+	intel_runtime_pm_put(dev_priv);
+	if (ret) {
+		DRM_DEBUG_DRIVER("guc_log_control action failed %d\n", ret);
+		goto out_unlock;
+	}
 
-		/*
-		 * If log was disabled at boot time, then the relay channel file
-		 * wouldn't have been created by now and interrupts also would
-		 * not have been enabled. Try again now, just in case.
-		 */
+	i915_modparams.guc_log_level = val;
+
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+	if (enabled && !guc_log_has_runtime(guc)) {
 		ret = guc_log_late_setup(guc);
-		if (ret < 0) {
+		if (ret) {
 			DRM_DEBUG_DRIVER("GuC log late setup failed %d\n", ret);
-			return ret;
+			goto out;
 		}
 
 		/* GuC logging is currently the only user of Guc2Host interrupts */
@@ -712,7 +724,7 @@ int intel_guc_log_control(struct intel_guc *guc, u64 control_val)
 		gen9_enable_guc_interrupts(dev_priv);
 		intel_runtime_pm_put(dev_priv);
 		mutex_unlock(&dev_priv->drm.struct_mutex);
-	} else {
+	} else if (!enabled && guc_log_has_runtime(guc)) {
 		/*
 		 * Once logging is disabled, GuC won't generate logs & send an
 		 * interrupt. But there could be some data in the log buffer
@@ -720,11 +732,13 @@ int intel_guc_log_control(struct intel_guc *guc, u64 control_val)
 		 * buffer state and then collect the left over logs.
 		 */
 		guc_flush_logs(guc);
-
-		/* As logging is disabled, update log level to reflect that */
-		i915_modparams.guc_log_level = 0;
 	}
 
+	return 0;
+
+out_unlock:
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+out:
 	return ret;
 }
 

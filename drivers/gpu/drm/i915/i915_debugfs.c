@@ -2499,13 +2499,10 @@ static int i915_guc_log_control_get(void *data, u64 *val)
 {
 	struct drm_i915_private *dev_priv = data;
 
-	if (!HAS_GUC(dev_priv))
+	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	if (!dev_priv->guc.log.vma)
-		return -EINVAL;
-
-	*val = i915_modparams.guc_log_level;
+	*val = intel_guc_log_control_get(&dev_priv->guc);
 
 	return 0;
 }
@@ -2514,10 +2511,10 @@ static int i915_guc_log_control_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
 
-	if (!HAS_GUC(dev_priv))
+	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	return intel_guc_log_control(&dev_priv->guc, val);
+	return intel_guc_log_control_set(&dev_priv->guc, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_control_fops,
