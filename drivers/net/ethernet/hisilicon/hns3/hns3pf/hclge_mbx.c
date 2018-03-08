@@ -410,6 +410,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 				req->msg[0]);
 			break;
 		}
+		crq->desc[crq->next_to_use].flag = 0;
 		hclge_mbx_ring_ptr_move_crq(crq);
 	}
 

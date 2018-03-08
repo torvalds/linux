@@ -171,6 +171,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 				req->msg[0]);
 			break;
 		}
+		crq->desc[crq->next_to_use].flag = 0;
 		hclge_mbx_ring_ptr_move_crq(crq);
 		flag = le16_to_cpu(crq->desc[crq->next_to_use].flag);
 	}
