@@ -291,7 +291,7 @@ static int hclge_get_vf_queue_info(struct hclge_vport *vport,
 
 	/* get the queue related info */
 	memcpy(&resp_data[0], &vport->alloc_tqps, sizeof(u16));
-	memcpy(&resp_data[2], &hdev->rss_size_max, sizeof(u16));
+	memcpy(&resp_data[2], &vport->nic.kinfo.rss_size, sizeof(u16));
 	memcpy(&resp_data[4], &hdev->num_desc, sizeof(u16));
 	memcpy(&resp_data[6], &hdev->rx_buf_len, sizeof(u16));
 
