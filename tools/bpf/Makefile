@@ -17,6 +17,12 @@ srctree := $(patsubst %/,%,$(dir $(CURDIR)))
 srctree := $(patsubst %/,%,$(dir $(srctree)))
 endif
 
+ifeq ($(V),1)
+  Q =
+else
+  Q = @
+endif
+
 FEATURE_USER = .bpf
 FEATURE_TESTS = libbfd disassembler-four-args
 FEATURE_DISPLAY = libbfd disassembler-four-args
@@ -42,38 +48,48 @@ CFLAGS += -DDISASM_FOUR_ARGS_SIGNATURE
 endif
 
 $(OUTPUT)%.yacc.c: $(srctree)/tools/bpf/%.y
-	$(YACC) -o $@ -d $<
+	$(QUIET_BISON)$(YACC) -o $@ -d $<
 
 $(OUTPUT)%.lex.c: $(srctree)/tools/bpf/%.l
-	$(LEX) -o $@ $<
+	$(QUIET_FLEX)$(LEX) -o $@ $<
 
 $(OUTPUT)%.o: $(srctree)/tools/bpf/%.c
-	$(COMPILE.c) -o $@ $<
+	$(QUIET_CC)$(COMPILE.c) -o $@ $<
+
+$(OUTPUT)%.yacc.o: $(OUTPUT)%.yacc.c
+	$(QUIET_CC)$(COMPILE.c) -o $@ $<
+$(OUTPUT)%.lex.o: $(OUTPUT)%.lex.c
+	$(QUIET_CC)$(COMPILE.c) -o $@ $<
 
 PROGS = $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg $(OUTPUT)bpf_asm
 
 all: $(PROGS) bpftool
 
 $(OUTPUT)bpf_jit_disasm: CFLAGS += -DPACKAGE='bpf_jit_disasm'
-$(OUTPUT)bpf_jit_disasm: LDLIBS = -lopcodes -lbfd -ldl
 $(OUTPUT)bpf_jit_disasm: $(OUTPUT)bpf_jit_disasm.o
+	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^ -lopcodes -lbfd -ldl
 
-$(OUTPUT)bpf_dbg: LDLIBS = -lreadline
 $(OUTPUT)bpf_dbg: $(OUTPUT)bpf_dbg.o
+	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^ -lreadline
 
-$(OUTPUT)bpf_asm: LDLIBS =
 $(OUTPUT)bpf_asm: $(OUTPUT)bpf_asm.o $(OUTPUT)bpf_exp.yacc.o $(OUTPUT)bpf_exp.lex.o
+	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^
+
 $(OUTPUT)bpf_exp.lex.o: $(OUTPUT)bpf_exp.yacc.c
 
 clean: bpftool_clean
-	rm -rf $(OUTPUT)*.o $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg \
+	$(call QUIET_CLEAN, bpf-progs)
+	$(Q)rm -rf $(OUTPUT)*.o $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg \
 	       $(OUTPUT)bpf_asm $(OUTPUT)bpf_exp.yacc.* $(OUTPUT)bpf_exp.lex.*
 
 install: $(PROGS) bpftool_install
-	$(INSTALL) -m 0755 -d $(DESTDIR)$(prefix)/bin
-	$(INSTALL) $(OUTPUT)bpf_jit_disasm $(DESTDIR)$(prefix)/bin/bpf_jit_disasm
-	$(INSTALL) $(OUTPUT)bpf_dbg $(DESTDIR)$(prefix)/bin/bpf_dbg
-	$(INSTALL) $(OUTPUT)bpf_asm $(DESTDIR)$(prefix)/bin/bpf_asm
+	$(call QUIET_INSTALL, bpf_jit_disasm)
+	$(Q)$(INSTALL) -m 0755 -d $(DESTDIR)$(prefix)/bin
+	$(Q)$(INSTALL) $(OUTPUT)bpf_jit_disasm $(DESTDIR)$(prefix)/bin/bpf_jit_disasm
+	$(call QUIET_INSTALL, bpf_dbg)
+	$(Q)$(INSTALL) $(OUTPUT)bpf_dbg $(DESTDIR)$(prefix)/bin/bpf_dbg
+	$(call QUIET_INSTALL, bpf_asm)
+	$(Q)$(INSTALL) $(OUTPUT)bpf_asm $(DESTDIR)$(prefix)/bin/bpf_asm
 
 bpftool:
 	$(call descend,bpftool)
