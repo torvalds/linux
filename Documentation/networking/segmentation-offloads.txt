@@ -20,8 +20,8 @@ TCP Segmentation Offload
 
 TCP segmentation allows a device to segment a single frame into multiple
 frames with a data payload size specified in skb_shinfo()->gso_size.
-When TCP segmentation requested the bit for either SKB_GSO_TCP or
-SKB_GSO_TCP6 should be set in skb_shinfo()->gso_type and
+When TCP segmentation requested the bit for either SKB_GSO_TCPV4 or
+SKB_GSO_TCPV6 should be set in skb_shinfo()->gso_type and
 skb_shinfo()->gso_size should be set to a non-zero value.
 
 TCP segmentation is dependent on support for the use of partial checksum
