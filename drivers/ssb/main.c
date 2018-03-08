@@ -522,7 +522,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 			/* Set dev to NULL to not unregister
 			 * dev on error unwinding. */
 			sdev->dev = NULL;
-			kfree(devwrap);
+			put_device(dev);
 			goto error;
 		}
 		dev_idx++;
