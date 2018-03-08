@@ -59,11 +59,7 @@ static bool i915_fence_signaled(struct dma_fence *fence)
 
 static bool i915_fence_enable_signaling(struct dma_fence *fence)
 {
-	if (i915_fence_signaled(fence))
-		return false;
-
-	intel_engine_enable_signaling(to_request(fence), true);
-	return !i915_fence_signaled(fence);
+	return intel_engine_enable_signaling(to_request(fence), true);
 }
 
 static signed long i915_fence_wait(struct dma_fence *fence,

@@ -730,10 +730,11 @@ static void insert_signal(struct intel_breadcrumbs *b,
 	list_add(&request->signaling.link, &iter->signaling.link);
 }
 
-void intel_engine_enable_signaling(struct i915_request *request, bool wakeup)
+bool intel_engine_enable_signaling(struct i915_request *request, bool wakeup)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_breadcrumbs *b = &engine->breadcrumbs;
+	struct intel_wait *wait = &request->signaling.wait;
 	u32 seqno;
 
 	/*
@@ -750,12 +751,12 @@ void intel_engine_enable_signaling(struct i915_request *request, bool wakeup)
 
 	seqno = i915_request_global_seqno(request);
 	if (!seqno) /* will be enabled later upon execution */
-		return;
+		return true;
 
-	GEM_BUG_ON(request->signaling.wait.seqno);
-	request->signaling.wait.tsk = b->signaler;
-	request->signaling.wait.request = request;
-	request->signaling.wait.seqno = seqno;
+	GEM_BUG_ON(wait->seqno);
+	wait->tsk = b->signaler;
+	wait->request = request;
+	wait->seqno = seqno;
 
 	/*
 	 * Add ourselves into the list of waiters, but registering our
@@ -768,11 +769,15 @@ void intel_engine_enable_signaling(struct i915_request *request, bool wakeup)
 	 */
 	spin_lock(&b->rb_lock);
 	insert_signal(b, request, seqno);
-	wakeup &= __intel_engine_add_wait(engine, &request->signaling.wait);
+	wakeup &= __intel_engine_add_wait(engine, wait);
 	spin_unlock(&b->rb_lock);
 
-	if (wakeup)
+	if (wakeup) {
 		wake_up_process(b->signaler);
+		return !intel_wait_complete(wait);
+	}
+
+	return true;
 }
 
 void intel_engine_cancel_signaling(struct i915_request *request)
