@@ -1630,12 +1630,12 @@ void efx_farch_rx_push_indir_table(struct efx_nic *efx)
 	size_t i = 0;
 	efx_dword_t dword;
 
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
 		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
 
 	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
 		EFX_POPULATE_DWORD_1(dword, FRF_BZ_IT_QUEUE,
-				     efx->rx_indir_table[i]);
+				     efx->rss_context.rx_indir_table[i]);
 		efx_writed(efx, &dword,
 			   FR_BZ_RX_INDIRECTION_TBL +
 			   FR_BZ_RX_INDIRECTION_TBL_STEP * i);
@@ -1647,14 +1647,14 @@ void efx_farch_rx_pull_indir_table(struct efx_nic *efx)
 	size_t i = 0;
 	efx_dword_t dword;
 
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
 		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
 
 	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
 		efx_readd(efx, &dword,
 			   FR_BZ_RX_INDIRECTION_TBL +
 			   FR_BZ_RX_INDIRECTION_TBL_STEP * i);
-		efx->rx_indir_table[i] = EFX_DWORD_FIELD(dword, FRF_BZ_IT_QUEUE);
+		efx->rss_context.rx_indir_table[i] = EFX_DWORD_FIELD(dword, FRF_BZ_IT_QUEUE);
 	}
 }
 
@@ -2032,8 +2032,7 @@ efx_farch_filter_from_gen_spec(struct efx_farch_filter_spec *spec,
 {
 	bool is_full = false;
 
-	if ((gen_spec->flags & EFX_FILTER_FLAG_RX_RSS) &&
-	    gen_spec->rss_context != EFX_FILTER_RSS_CONTEXT_DEFAULT)
+	if ((gen_spec->flags & EFX_FILTER_FLAG_RX_RSS) && gen_spec->rss_context)
 		return -EINVAL;
 
 	spec->priority = gen_spec->priority;

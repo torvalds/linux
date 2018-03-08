@@ -704,6 +704,28 @@ union efx_multicast_hash {
 
 struct vfdi_status;
 
+/* The reserved RSS context value */
+#define EFX_EF10_RSS_CONTEXT_INVALID	0xffffffff
+/**
+ * struct efx_rss_context - A user-defined RSS context for filtering
+ * @list: node of linked list on which this struct is stored
+ * @context_id: the RSS_CONTEXT_ID returned by MC firmware, or
+ *	%EFX_EF10_RSS_CONTEXT_INVALID if this context is not present on the NIC.
+ *	For Siena, 0 if RSS is active, else %EFX_EF10_RSS_CONTEXT_INVALID.
+ * @user_id: the rss_context ID exposed to userspace over ethtool.
+ * @rx_hash_udp_4tuple: UDP 4-tuple hashing enabled
+ * @rx_hash_key: Toeplitz hash key for this RSS context
+ * @indir_table: Indirection table for this RSS context
+ */
+struct efx_rss_context {
+	struct list_head list;
+	u32 context_id;
+	u32 user_id;
+	bool rx_hash_udp_4tuple;
+	u8 rx_hash_key[40];
+	u32 rx_indir_table[128];
+};
+
 /**
  * struct efx_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
@@ -764,11 +786,9 @@ struct vfdi_status;
  *	(valid only for NICs that set %EFX_RX_PKT_PREFIX_LEN; always negative)
  * @rx_packet_ts_offset: Offset of timestamp from start of packet data
  *	(valid only if channel->sync_timestamps_enabled; always negative)
- * @rx_hash_key: Toeplitz hash key for RSS
- * @rx_indir_table: Indirection table for RSS
  * @rx_scatter: Scatter mode enabled for receives
- * @rss_active: RSS enabled on hardware
- * @rx_hash_udp_4tuple: UDP 4-tuple hashing enabled
+ * @rss_context: Main RSS context.  Its @list member is the head of the list of
+ *	RSS contexts created by user requests
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
  * @irq_soft_enabled: Are IRQs soft-enabled? If not, IRQ handler will
@@ -909,11 +929,8 @@ struct efx_nic {
 	int rx_packet_hash_offset;
 	int rx_packet_len_offset;
 	int rx_packet_ts_offset;
-	u8 rx_hash_key[40];
-	u32 rx_indir_table[128];
 	bool rx_scatter;
-	bool rss_active;
-	bool rx_hash_udp_4tuple;
+	struct efx_rss_context rss_context;
 
 	unsigned int_error_count;
 	unsigned long int_error_expire;
@@ -1099,6 +1116,10 @@ struct efx_udp_tunnel {
  * @tx_write: Write TX descriptors and doorbell
  * @rx_push_rss_config: Write RSS hash key and indirection table to the NIC
  * @rx_pull_rss_config: Read RSS hash key and indirection table back from the NIC
+ * @rx_push_rss_context_config: Write RSS hash key and indirection table for
+ *	user RSS context to the NIC
+ * @rx_pull_rss_context_config: Read RSS hash key and indirection table for user
+ *	RSS context back from the NIC
  * @rx_probe: Allocate resources for RX queue
  * @rx_init: Initialise RX queue on the NIC
  * @rx_remove: Free resources for RX queue
@@ -1237,6 +1258,13 @@ struct efx_nic_type {
 	int (*rx_push_rss_config)(struct efx_nic *efx, bool user,
 				  const u32 *rx_indir_table, const u8 *key);
 	int (*rx_pull_rss_config)(struct efx_nic *efx);
+	int (*rx_push_rss_context_config)(struct efx_nic *efx,
+					  struct efx_rss_context *ctx,
+					  const u32 *rx_indir_table,
+					  const u8 *key);
+	int (*rx_pull_rss_context_config)(struct efx_nic *efx,
+					  struct efx_rss_context *ctx);
+	void (*rx_restore_rss_contexts)(struct efx_nic *efx);
 	int (*rx_probe)(struct efx_rx_queue *rx_queue);
 	void (*rx_init)(struct efx_rx_queue *rx_queue);
 	void (*rx_remove)(struct efx_rx_queue *rx_queue);

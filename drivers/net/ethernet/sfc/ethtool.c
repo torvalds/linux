@@ -808,7 +808,8 @@ static inline void ip6_fill_mask(__be32 *mask)
 }
 
 static int efx_ethtool_get_class_rule(struct efx_nic *efx,
-				      struct ethtool_rx_flow_spec *rule)
+				      struct ethtool_rx_flow_spec *rule,
+				      u32 *rss_context)
 {
 	struct ethtool_tcpip4_spec *ip_entry = &rule->h_u.tcp_ip4_spec;
 	struct ethtool_tcpip4_spec *ip_mask = &rule->m_u.tcp_ip4_spec;
@@ -964,6 +965,11 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 		rule->m_ext.vlan_tci = htons(0xfff);
 	}
 
+	if (spec.flags & EFX_FILTER_FLAG_RX_RSS) {
+		rule->flow_type |= FLOW_RSS;
+		*rss_context = spec.rss_context;
+	}
+
 	return rc;
 }
 
@@ -972,6 +978,8 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 		      struct ethtool_rxnfc *info, u32 *rule_locs)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
+	u32 rss_context = 0;
+	s32 rc;
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXRINGS:
@@ -979,12 +987,20 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 		return 0;
 
 	case ETHTOOL_GRXFH: {
+		struct efx_rss_context *ctx = &efx->rss_context;
+
+		if (info->flow_type & FLOW_RSS && info->rss_context) {
+			ctx = efx_find_rss_context_entry(info->rss_context,
+							 &efx->rss_context.list);
+			if (!ctx)
+				return -ENOENT;
+		}
 		info->data = 0;
-		if (!efx->rss_active) /* No RSS */
+		if (!efx_rss_active(ctx)) /* No RSS */
 			return 0;
-		switch (info->flow_type) {
+		switch (info->flow_type & ~FLOW_RSS) {
 		case UDP_V4_FLOW:
-			if (efx->rx_hash_udp_4tuple)
+			if (ctx->rx_hash_udp_4tuple)
 				/* fall through */
 		case TCP_V4_FLOW:
 				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
@@ -995,7 +1011,7 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 			info->data |= RXH_IP_SRC | RXH_IP_DST;
 			break;
 		case UDP_V6_FLOW:
-			if (efx->rx_hash_udp_4tuple)
+			if (ctx->rx_hash_udp_4tuple)
 				/* fall through */
 		case TCP_V6_FLOW:
 				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
@@ -1023,10 +1039,14 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 	case ETHTOOL_GRXCLSRULE:
 		if (efx_filter_get_rx_id_limit(efx) == 0)
 			return -EOPNOTSUPP;
-		return efx_ethtool_get_class_rule(efx, &info->fs);
+		rc = efx_ethtool_get_class_rule(efx, &info->fs, &rss_context);
+		if (rc < 0)
+			return rc;
+		if (info->fs.flow_type & FLOW_RSS)
+			info->rss_context = rss_context;
+		return 0;
 
-	case ETHTOOL_GRXCLSRLALL: {
-		s32 rc;
+	case ETHTOOL_GRXCLSRLALL:
 		info->data = efx_filter_get_rx_id_limit(efx);
 		if (info->data == 0)
 			return -EOPNOTSUPP;
@@ -1036,7 +1056,6 @@ efx_ethtool_get_rxnfc(struct net_device *net_dev,
 			return rc;
 		info->rule_cnt = rc;
 		return 0;
-	}
 
 	default:
 		return -EOPNOTSUPP;
@@ -1054,7 +1073,8 @@ static inline bool ip6_mask_is_empty(__be32 mask[4])
 }
 
 static int efx_ethtool_set_class_rule(struct efx_nic *efx,
-				      struct ethtool_rx_flow_spec *rule)
+				      struct ethtool_rx_flow_spec *rule,
+				      u32 rss_context)
 {
 	struct ethtool_tcpip4_spec *ip_entry = &rule->h_u.tcp_ip4_spec;
 	struct ethtool_tcpip4_spec *ip_mask = &rule->m_u.tcp_ip4_spec;
@@ -1066,6 +1086,7 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	struct ethtool_usrip6_spec *uip6_mask = &rule->m_u.usr_ip6_spec;
 	struct ethhdr *mac_entry = &rule->h_u.ether_spec;
 	struct ethhdr *mac_mask = &rule->m_u.ether_spec;
+	enum efx_filter_flags flags = 0;
 	struct efx_filter_spec spec;
 	int rc;
 
@@ -1084,12 +1105,19 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	     rule->m_ext.data[1]))
 		return -EINVAL;
 
-	efx_filter_init_rx(&spec, EFX_FILTER_PRI_MANUAL,
-			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
+	if (efx->rx_scatter)
+		flags |= EFX_FILTER_FLAG_RX_SCATTER;
+	if (rule->flow_type & FLOW_RSS)
+		flags |= EFX_FILTER_FLAG_RX_RSS;
+
+	efx_filter_init_rx(&spec, EFX_FILTER_PRI_MANUAL, flags,
 			   (rule->ring_cookie == RX_CLS_FLOW_DISC) ?
 			   EFX_FILTER_RX_DMAQ_ID_DROP : rule->ring_cookie);
 
-	switch (rule->flow_type & ~FLOW_EXT) {
+	if (rule->flow_type & FLOW_RSS)
+		spec.rss_context = rss_context;
+
+	switch (rule->flow_type & ~(FLOW_EXT | FLOW_RSS)) {
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW:
 		spec.match_flags = (EFX_FILTER_MATCH_ETHER_TYPE |
@@ -1265,7 +1293,8 @@ static int efx_ethtool_set_rxnfc(struct net_device *net_dev,
 
 	switch (info->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
-		return efx_ethtool_set_class_rule(efx, &info->fs);
+		return efx_ethtool_set_class_rule(efx, &info->fs,
+						  info->rss_context);
 
 	case ETHTOOL_SRXCLSRLDEL:
 		return efx_filter_remove_id_safe(efx, EFX_FILTER_PRI_MANUAL,
@@ -1280,7 +1309,9 @@ static u32 efx_ethtool_get_rxfh_indir_size(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	return (efx->n_rx_channels == 1) ? 0 : ARRAY_SIZE(efx->rx_indir_table);
+	if (efx->n_rx_channels == 1)
+		return 0;
+	return ARRAY_SIZE(efx->rss_context.rx_indir_table);
 }
 
 static u32 efx_ethtool_get_rxfh_key_size(struct net_device *net_dev)
@@ -1303,9 +1334,11 @@ static int efx_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key,
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_TOP;
 	if (indir)
-		memcpy(indir, efx->rx_indir_table, sizeof(efx->rx_indir_table));
+		memcpy(indir, efx->rss_context.rx_indir_table,
+		       sizeof(efx->rss_context.rx_indir_table));
 	if (key)
-		memcpy(key, efx->rx_hash_key, efx->type->rx_hash_key_size);
+		memcpy(key, efx->rss_context.rx_hash_key,
+		       efx->type->rx_hash_key_size);
 	return 0;
 }
 
@@ -1321,11 +1354,91 @@ static int efx_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
 		return 0;
 
 	if (!key)
-		key = efx->rx_hash_key;
+		key = efx->rss_context.rx_hash_key;
 	if (!indir)
-		indir = efx->rx_indir_table;
+		indir = efx->rss_context.rx_indir_table;
 
 	return efx->type->rx_push_rss_config(efx, true, indir, key);
+}
+
+static int efx_ethtool_get_rxfh_context(struct net_device *net_dev, u32 *indir,
+					u8 *key, u8 *hfunc, u32 rss_context)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_rss_context *ctx;
+	int rc;
+
+	if (!efx->type->rx_pull_rss_context_config)
+		return -EOPNOTSUPP;
+	ctx = efx_find_rss_context_entry(rss_context, &efx->rss_context.list);
+	if (!ctx)
+		return -ENOENT;
+	rc = efx->type->rx_pull_rss_context_config(efx, ctx);
+	if (rc)
+		return rc;
+
+	if (hfunc)
+		*hfunc = ETH_RSS_HASH_TOP;
+	if (indir)
+		memcpy(indir, ctx->rx_indir_table, sizeof(ctx->rx_indir_table));
+	if (key)
+		memcpy(key, ctx->rx_hash_key, efx->type->rx_hash_key_size);
+	return 0;
+}
+
+static int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
+					const u32 *indir, const u8 *key,
+					const u8 hfunc, u32 *rss_context,
+					bool delete)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_rss_context *ctx;
+	bool allocated = false;
+	int rc;
+
+	if (!efx->type->rx_push_rss_context_config)
+		return -EOPNOTSUPP;
+	/* Hash function is Toeplitz, cannot be changed */
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+		return -EOPNOTSUPP;
+	if (*rss_context == ETH_RXFH_CONTEXT_ALLOC) {
+		if (delete)
+			/* alloc + delete == Nothing to do */
+			return -EINVAL;
+		ctx = efx_alloc_rss_context_entry(&efx->rss_context.list);
+		if (!ctx)
+			return -ENOMEM;
+		ctx->context_id = EFX_EF10_RSS_CONTEXT_INVALID;
+		/* Initialise indir table and key to defaults */
+		efx_set_default_rx_indir_table(efx, ctx);
+		netdev_rss_key_fill(ctx->rx_hash_key, sizeof(ctx->rx_hash_key));
+		allocated = true;
+	} else {
+		ctx = efx_find_rss_context_entry(*rss_context,
+						 &efx->rss_context.list);
+		if (!ctx)
+			return -ENOENT;
+	}
+
+	if (delete) {
+		/* delete this context */
+		rc = efx->type->rx_push_rss_context_config(efx, ctx, NULL, NULL);
+		if (!rc)
+			efx_free_rss_context_entry(ctx);
+		return rc;
+	}
+
+	if (!key)
+		key = ctx->rx_hash_key;
+	if (!indir)
+		indir = ctx->rx_indir_table;
+
+	rc = efx->type->rx_push_rss_context_config(efx, ctx, indir, key);
+	if (rc && allocated)
+		efx_free_rss_context_entry(ctx);
+	else
+		*rss_context = ctx->user_id;
+	return rc;
 }
 
 static int efx_ethtool_get_ts_info(struct net_device *net_dev,
@@ -1403,6 +1516,8 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_rxfh_key_size	= efx_ethtool_get_rxfh_key_size,
 	.get_rxfh		= efx_ethtool_get_rxfh,
 	.set_rxfh		= efx_ethtool_set_rxfh,
+	.get_rxfh_context	= efx_ethtool_get_rxfh_context,
+	.set_rxfh_context	= efx_ethtool_set_rxfh_context,
 	.get_ts_info		= efx_ethtool_get_ts_info,
 	.get_module_info	= efx_ethtool_get_module_info,
 	.get_module_eeprom	= efx_ethtool_get_module_eeprom,

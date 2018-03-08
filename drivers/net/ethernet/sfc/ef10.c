@@ -28,9 +28,6 @@ enum {
 	EFX_EF10_TEST = 1,
 	EFX_EF10_REFILL,
 };
-
-/* The reserved RSS context value */
-#define EFX_EF10_RSS_CONTEXT_INVALID	0xffffffff
 /* The maximum size of a shared RSS context */
 /* TODO: this should really be from the mcdi protocol export */
 #define EFX_EF10_MAX_SHARED_RSS_CONTEXT_SIZE 64UL
@@ -697,7 +694,7 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	}
 	nic_data->warm_boot_count = rc;
 
-	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
+	efx->rss_context.context_id = EFX_EF10_RSS_CONTEXT_INVALID;
 
 	nic_data->vport_id = EVB_PORT_ID_ASSIGNED;
 
@@ -1489,8 +1486,8 @@ static int efx_ef10_init_nic(struct efx_nic *efx)
 	}
 
 	/* don't fail init if RSS setup doesn't work */
-	rc = efx->type->rx_push_rss_config(efx, false, efx->rx_indir_table, NULL);
-	efx->rss_active = (rc == 0);
+	rc = efx->type->rx_push_rss_config(efx, false,
+					   efx->rss_context.rx_indir_table, NULL);
 
 	return 0;
 }
@@ -1507,7 +1504,7 @@ static void efx_ef10_reset_mc_allocations(struct efx_nic *efx)
 	nic_data->must_restore_filters = true;
 	nic_data->must_restore_piobufs = true;
 	efx_ef10_forget_old_piobufs(efx);
-	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
+	efx->rss_context.context_id = EFX_EF10_RSS_CONTEXT_INVALID;
 
 	/* Driver-created vswitches and vports must be re-created */
 	nic_data->must_probe_vswitching = true;
@@ -2703,27 +2700,30 @@ static int efx_ef10_get_rss_flags(struct efx_nic *efx, u32 context, u32 *flags)
  * Defaults are 4-tuple for TCP and 2-tuple for UDP and other-IP, so we
  * just need to set the UDP ports flags (for both IP versions).
  */
-static void efx_ef10_set_rss_flags(struct efx_nic *efx, u32 context)
+static void efx_ef10_set_rss_flags(struct efx_nic *efx,
+				   struct efx_rss_context *ctx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_SET_FLAGS_IN_LEN);
 	u32 flags;
 
 	BUILD_BUG_ON(MC_CMD_RSS_CONTEXT_SET_FLAGS_OUT_LEN != 0);
 
-	if (efx_ef10_get_rss_flags(efx, context, &flags) != 0)
+	if (efx_ef10_get_rss_flags(efx, ctx->context_id, &flags) != 0)
 		return;
-	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_SET_FLAGS_IN_RSS_CONTEXT_ID, context);
+	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_SET_FLAGS_IN_RSS_CONTEXT_ID,
+		       ctx->context_id);
 	flags |= RSS_MODE_HASH_PORTS << MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_UDP_IPV4_RSS_MODE_LBN;
 	flags |= RSS_MODE_HASH_PORTS << MC_CMD_RSS_CONTEXT_GET_FLAGS_OUT_UDP_IPV6_RSS_MODE_LBN;
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_SET_FLAGS_IN_FLAGS, flags);
 	if (!efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_SET_FLAGS, inbuf, sizeof(inbuf),
 			  NULL, 0, NULL))
 		/* Succeeded, so UDP 4-tuple is now enabled */
-		efx->rx_hash_udp_4tuple = true;
+		ctx->rx_hash_udp_4tuple = true;
 }
 
-static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context,
-				      bool exclusive, unsigned *context_size)
+static int efx_ef10_alloc_rss_context(struct efx_nic *efx, bool exclusive,
+				      struct efx_rss_context *ctx,
+				      unsigned *context_size)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_ALLOC_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_RSS_CONTEXT_ALLOC_OUT_LEN);
@@ -2739,7 +2739,7 @@ static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context,
 				    EFX_EF10_MAX_SHARED_RSS_CONTEXT_SIZE);
 
 	if (!exclusive && rss_spread == 1) {
-		*context = EFX_EF10_RSS_CONTEXT_INVALID;
+		ctx->context_id = EFX_EF10_RSS_CONTEXT_INVALID;
 		if (context_size)
 			*context_size = 1;
 		return 0;
@@ -2762,29 +2762,26 @@ static int efx_ef10_alloc_rss_context(struct efx_nic *efx, u32 *context,
 	if (outlen < MC_CMD_RSS_CONTEXT_ALLOC_OUT_LEN)
 		return -EIO;
 
-	*context = MCDI_DWORD(outbuf, RSS_CONTEXT_ALLOC_OUT_RSS_CONTEXT_ID);
+	ctx->context_id = MCDI_DWORD(outbuf, RSS_CONTEXT_ALLOC_OUT_RSS_CONTEXT_ID);
 
 	if (context_size)
 		*context_size = rss_spread;
 
 	if (nic_data->datapath_caps &
 	    1 << MC_CMD_GET_CAPABILITIES_OUT_ADDITIONAL_RSS_MODES_LBN)
-		efx_ef10_set_rss_flags(efx, *context);
+		efx_ef10_set_rss_flags(efx, ctx);
 
 	return 0;
 }
 
-static void efx_ef10_free_rss_context(struct efx_nic *efx, u32 context)
+static int efx_ef10_free_rss_context(struct efx_nic *efx, u32 context)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_FREE_IN_LEN);
-	int rc;
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_FREE_IN_RSS_CONTEXT_ID,
 		       context);
-
-	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_FREE, inbuf, sizeof(inbuf),
+	return efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_FREE, inbuf, sizeof(inbuf),
 			    NULL, 0, NULL);
-	WARN_ON(rc != 0);
 }
 
 static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
@@ -2796,15 +2793,15 @@ static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
 
 	MCDI_SET_DWORD(tablebuf, RSS_CONTEXT_SET_TABLE_IN_RSS_CONTEXT_ID,
 		       context);
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_indir_table) !=
 		     MC_CMD_RSS_CONTEXT_SET_TABLE_IN_INDIRECTION_TABLE_LEN);
 
-	/* This iterates over the length of efx->rx_indir_table, but copies
-	 * bytes from rx_indir_table.  That's because the latter is a pointer
-	 * rather than an array, but should have the same length.
-	 * The efx->rx_hash_key loop below is similar.
+	/* This iterates over the length of efx->rss_context.rx_indir_table, but
+	 * copies bytes from rx_indir_table.  That's because the latter is a
+	 * pointer rather than an array, but should have the same length.
+	 * The efx->rss_context.rx_hash_key loop below is similar.
 	 */
-	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); ++i)
+	for (i = 0; i < ARRAY_SIZE(efx->rss_context.rx_indir_table); ++i)
 		MCDI_PTR(tablebuf,
 			 RSS_CONTEXT_SET_TABLE_IN_INDIRECTION_TABLE)[i] =
 				(u8) rx_indir_table[i];
@@ -2816,9 +2813,9 @@ static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
 
 	MCDI_SET_DWORD(keybuf, RSS_CONTEXT_SET_KEY_IN_RSS_CONTEXT_ID,
 		       context);
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_hash_key) !=
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rss_context.rx_hash_key) !=
 		     MC_CMD_RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY_LEN);
-	for (i = 0; i < ARRAY_SIZE(efx->rx_hash_key); ++i)
+	for (i = 0; i < ARRAY_SIZE(efx->rss_context.rx_hash_key); ++i)
 		MCDI_PTR(keybuf, RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY)[i] = key[i];
 
 	return efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_SET_KEY, keybuf,
@@ -2827,27 +2824,27 @@ static int efx_ef10_populate_rss_table(struct efx_nic *efx, u32 context,
 
 static void efx_ef10_rx_free_indir_table(struct efx_nic *efx)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	int rc;
 
-	if (nic_data->rx_rss_context != EFX_EF10_RSS_CONTEXT_INVALID)
-		efx_ef10_free_rss_context(efx, nic_data->rx_rss_context);
-	nic_data->rx_rss_context = EFX_EF10_RSS_CONTEXT_INVALID;
+	if (efx->rss_context.context_id != EFX_EF10_RSS_CONTEXT_INVALID) {
+		rc = efx_ef10_free_rss_context(efx, efx->rss_context.context_id);
+		WARN_ON(rc != 0);
+	}
+	efx->rss_context.context_id = EFX_EF10_RSS_CONTEXT_INVALID;
 }
 
 static int efx_ef10_rx_push_shared_rss_config(struct efx_nic *efx,
 					      unsigned *context_size)
 {
-	u32 new_rx_rss_context;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-	int rc = efx_ef10_alloc_rss_context(efx, &new_rx_rss_context,
-					    false, context_size);
+	int rc = efx_ef10_alloc_rss_context(efx, false, &efx->rss_context,
+					    context_size);
 
 	if (rc != 0)
 		return rc;
 
-	nic_data->rx_rss_context = new_rx_rss_context;
 	nic_data->rx_rss_context_exclusive = false;
-	efx_set_default_rx_indir_table(efx);
+	efx_set_default_rx_indir_table(efx, &efx->rss_context);
 	return 0;
 }
 
@@ -2855,50 +2852,79 @@ static int efx_ef10_rx_push_exclusive_rss_config(struct efx_nic *efx,
 						 const u32 *rx_indir_table,
 						 const u8 *key)
 {
+	u32 old_rx_rss_context = efx->rss_context.context_id;
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
-	u32 new_rx_rss_context;
 
-	if (nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID ||
+	if (efx->rss_context.context_id == EFX_EF10_RSS_CONTEXT_INVALID ||
 	    !nic_data->rx_rss_context_exclusive) {
-		rc = efx_ef10_alloc_rss_context(efx, &new_rx_rss_context,
-						true, NULL);
+		rc = efx_ef10_alloc_rss_context(efx, true, &efx->rss_context,
+						NULL);
 		if (rc == -EOPNOTSUPP)
 			return rc;
 		else if (rc != 0)
 			goto fail1;
-	} else {
-		new_rx_rss_context = nic_data->rx_rss_context;
 	}
 
-	rc = efx_ef10_populate_rss_table(efx, new_rx_rss_context,
+	rc = efx_ef10_populate_rss_table(efx, efx->rss_context.context_id,
 					 rx_indir_table, key);
 	if (rc != 0)
 		goto fail2;
 
-	if (nic_data->rx_rss_context != new_rx_rss_context)
-		efx_ef10_rx_free_indir_table(efx);
-	nic_data->rx_rss_context = new_rx_rss_context;
+	if (efx->rss_context.context_id != old_rx_rss_context &&
+	    old_rx_rss_context != EFX_EF10_RSS_CONTEXT_INVALID)
+		WARN_ON(efx_ef10_free_rss_context(efx, old_rx_rss_context) != 0);
 	nic_data->rx_rss_context_exclusive = true;
-	if (rx_indir_table != efx->rx_indir_table)
-		memcpy(efx->rx_indir_table, rx_indir_table,
-		       sizeof(efx->rx_indir_table));
-	if (key != efx->rx_hash_key)
-		memcpy(efx->rx_hash_key, key, efx->type->rx_hash_key_size);
+	if (rx_indir_table != efx->rss_context.rx_indir_table)
+		memcpy(efx->rss_context.rx_indir_table, rx_indir_table,
+		       sizeof(efx->rss_context.rx_indir_table));
+	if (key != efx->rss_context.rx_hash_key)
+		memcpy(efx->rss_context.rx_hash_key, key,
+		       efx->type->rx_hash_key_size);
 
 	return 0;
 
 fail2:
-	if (new_rx_rss_context != nic_data->rx_rss_context)
-		efx_ef10_free_rss_context(efx, new_rx_rss_context);
+	if (old_rx_rss_context != efx->rss_context.context_id) {
+		WARN_ON(efx_ef10_free_rss_context(efx, efx->rss_context.context_id) != 0);
+		efx->rss_context.context_id = old_rx_rss_context;
+	}
 fail1:
 	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
-static int efx_ef10_rx_pull_rss_config(struct efx_nic *efx)
+static int efx_ef10_rx_push_rss_context_config(struct efx_nic *efx,
+					       struct efx_rss_context *ctx,
+					       const u32 *rx_indir_table,
+					       const u8 *key)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	int rc;
+
+	if (ctx->context_id == EFX_EF10_RSS_CONTEXT_INVALID) {
+		rc = efx_ef10_alloc_rss_context(efx, true, ctx, NULL);
+		if (rc)
+			return rc;
+	}
+
+	if (!rx_indir_table) /* Delete this context */
+		return efx_ef10_free_rss_context(efx, ctx->context_id);
+
+	rc = efx_ef10_populate_rss_table(efx, ctx->context_id,
+					 rx_indir_table, key);
+	if (rc)
+		return rc;
+
+	memcpy(ctx->rx_indir_table, rx_indir_table,
+	       sizeof(efx->rss_context.rx_indir_table));
+	memcpy(ctx->rx_hash_key, key, efx->type->rx_hash_key_size);
+
+	return 0;
+}
+
+static int efx_ef10_rx_pull_rss_context_config(struct efx_nic *efx,
+					       struct efx_rss_context *ctx)
+{
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_GET_TABLE_IN_LEN);
 	MCDI_DECLARE_BUF(tablebuf, MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_LEN);
 	MCDI_DECLARE_BUF(keybuf, MC_CMD_RSS_CONTEXT_GET_KEY_OUT_LEN);
@@ -2908,12 +2934,12 @@ static int efx_ef10_rx_pull_rss_config(struct efx_nic *efx)
 	BUILD_BUG_ON(MC_CMD_RSS_CONTEXT_GET_TABLE_IN_LEN !=
 		     MC_CMD_RSS_CONTEXT_GET_KEY_IN_LEN);
 
-	if (nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID)
+	if (ctx->context_id == EFX_EF10_RSS_CONTEXT_INVALID)
 		return -ENOENT;
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_GET_TABLE_IN_RSS_CONTEXT_ID,
-		       nic_data->rx_rss_context);
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
+		       ctx->context_id);
+	BUILD_BUG_ON(ARRAY_SIZE(ctx->rx_indir_table) !=
 		     MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_INDIRECTION_TABLE_LEN);
 	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_GET_TABLE, inbuf, sizeof(inbuf),
 			  tablebuf, sizeof(tablebuf), &outlen);
@@ -2923,13 +2949,13 @@ static int efx_ef10_rx_pull_rss_config(struct efx_nic *efx)
 	if (WARN_ON(outlen != MC_CMD_RSS_CONTEXT_GET_TABLE_OUT_LEN))
 		return -EIO;
 
-	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
-		efx->rx_indir_table[i] = MCDI_PTR(tablebuf,
+	for (i = 0; i < ARRAY_SIZE(ctx->rx_indir_table); i++)
+		ctx->rx_indir_table[i] = MCDI_PTR(tablebuf,
 				RSS_CONTEXT_GET_TABLE_OUT_INDIRECTION_TABLE)[i];
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_GET_KEY_IN_RSS_CONTEXT_ID,
-		       nic_data->rx_rss_context);
-	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_hash_key) !=
+		       ctx->context_id);
+	BUILD_BUG_ON(ARRAY_SIZE(ctx->rx_hash_key) !=
 		     MC_CMD_RSS_CONTEXT_SET_KEY_IN_TOEPLITZ_KEY_LEN);
 	rc = efx_mcdi_rpc(efx, MC_CMD_RSS_CONTEXT_GET_KEY, inbuf, sizeof(inbuf),
 			  keybuf, sizeof(keybuf), &outlen);
@@ -2939,11 +2965,36 @@ static int efx_ef10_rx_pull_rss_config(struct efx_nic *efx)
 	if (WARN_ON(outlen != MC_CMD_RSS_CONTEXT_GET_KEY_OUT_LEN))
 		return -EIO;
 
-	for (i = 0; i < ARRAY_SIZE(efx->rx_hash_key); ++i)
-		efx->rx_hash_key[i] = MCDI_PTR(
+	for (i = 0; i < ARRAY_SIZE(ctx->rx_hash_key); ++i)
+		ctx->rx_hash_key[i] = MCDI_PTR(
 				keybuf, RSS_CONTEXT_GET_KEY_OUT_TOEPLITZ_KEY)[i];
 
 	return 0;
+}
+
+static int efx_ef10_rx_pull_rss_config(struct efx_nic *efx)
+{
+	return efx_ef10_rx_pull_rss_context_config(efx, &efx->rss_context);
+}
+
+static void efx_ef10_rx_restore_rss_contexts(struct efx_nic *efx)
+{
+	struct efx_rss_context *ctx;
+	int rc;
+
+	list_for_each_entry(ctx, &efx->rss_context.list, list) {
+		/* previous NIC RSS context is gone */
+		ctx->context_id = EFX_EF10_RSS_CONTEXT_INVALID;
+		/* so try to allocate a new one */
+		rc = efx_ef10_rx_push_rss_context_config(efx, ctx,
+							 ctx->rx_indir_table,
+							 ctx->rx_hash_key);
+		if (rc)
+			netif_warn(efx, probe, efx->net_dev,
+				   "failed to restore RSS context %u, rc=%d"
+				   "; RSS filters may fail to be applied\n",
+				   ctx->user_id, rc);
+	}
 }
 
 static int efx_ef10_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
@@ -2956,7 +3007,7 @@ static int efx_ef10_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
 		return 0;
 
 	if (!key)
-		key = efx->rx_hash_key;
+		key = efx->rss_context.rx_hash_key;
 
 	rc = efx_ef10_rx_push_exclusive_rss_config(efx, rx_indir_table, key);
 
@@ -2965,7 +3016,8 @@ static int efx_ef10_pf_rx_push_rss_config(struct efx_nic *efx, bool user,
 		bool mismatch = false;
 		size_t i;
 
-		for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table) && !mismatch;
+		for (i = 0;
+		     i < ARRAY_SIZE(efx->rss_context.rx_indir_table) && !mismatch;
 		     i++)
 			mismatch = rx_indir_table[i] !=
 				ethtool_rxfh_indir_default(i, efx->rss_spread);
@@ -3000,11 +3052,9 @@ static int efx_ef10_vf_rx_push_rss_config(struct efx_nic *efx, bool user,
 					  const u8 *key
 					  __attribute__ ((unused)))
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-
 	if (user)
 		return -EOPNOTSUPP;
-	if (nic_data->rx_rss_context != EFX_EF10_RSS_CONTEXT_INVALID)
+	if (efx->rss_context.context_id != EFX_EF10_RSS_CONTEXT_INVALID)
 		return 0;
 	return efx_ef10_rx_push_shared_rss_config(efx, NULL);
 }
@@ -4109,6 +4159,7 @@ efx_ef10_filter_push_prep_set_match_fields(struct efx_nic *efx,
 static void efx_ef10_filter_push_prep(struct efx_nic *efx,
 				      const struct efx_filter_spec *spec,
 				      efx_dword_t *inbuf, u64 handle,
+				      struct efx_rss_context *ctx,
 				      bool replacing)
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
@@ -4116,11 +4167,16 @@ static void efx_ef10_filter_push_prep(struct efx_nic *efx,
 
 	memset(inbuf, 0, MC_CMD_FILTER_OP_EXT_IN_LEN);
 
-	/* Remove RSS flag if we don't have an RSS context. */
-	if (flags & EFX_FILTER_FLAG_RX_RSS &&
-	    spec->rss_context == EFX_FILTER_RSS_CONTEXT_DEFAULT &&
-	    nic_data->rx_rss_context == EFX_EF10_RSS_CONTEXT_INVALID)
-		flags &= ~EFX_FILTER_FLAG_RX_RSS;
+	/* If RSS filter, caller better have given us an RSS context */
+	if (flags & EFX_FILTER_FLAG_RX_RSS) {
+		/* We don't have the ability to return an error, so we'll just
+		 * log a warning and disable RSS for the filter.
+		 */
+		if (WARN_ON_ONCE(!ctx))
+			flags &= ~EFX_FILTER_FLAG_RX_RSS;
+		else if (WARN_ON_ONCE(ctx->context_id == EFX_EF10_RSS_CONTEXT_INVALID))
+			flags &= ~EFX_FILTER_FLAG_RX_RSS;
+	}
 
 	if (replacing) {
 		MCDI_SET_DWORD(inbuf, FILTER_OP_IN_OP,
@@ -4146,21 +4202,18 @@ static void efx_ef10_filter_push_prep(struct efx_nic *efx,
 		       MC_CMD_FILTER_OP_IN_RX_MODE_RSS :
 		       MC_CMD_FILTER_OP_IN_RX_MODE_SIMPLE);
 	if (flags & EFX_FILTER_FLAG_RX_RSS)
-		MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_CONTEXT,
-			       spec->rss_context !=
-			       EFX_FILTER_RSS_CONTEXT_DEFAULT ?
-			       spec->rss_context : nic_data->rx_rss_context);
+		MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_CONTEXT, ctx->context_id);
 }
 
 static int efx_ef10_filter_push(struct efx_nic *efx,
-				const struct efx_filter_spec *spec,
-				u64 *handle, bool replacing)
+				const struct efx_filter_spec *spec, u64 *handle,
+				struct efx_rss_context *ctx, bool replacing)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_FILTER_OP_EXT_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_FILTER_OP_EXT_OUT_LEN);
 	int rc;
 
-	efx_ef10_filter_push_prep(efx, spec, inbuf, *handle, replacing);
+	efx_ef10_filter_push_prep(efx, spec, inbuf, *handle, ctx, replacing);
 	rc = efx_mcdi_rpc(efx, MC_CMD_FILTER_OP, inbuf, sizeof(inbuf),
 			  outbuf, sizeof(outbuf), NULL);
 	if (rc == 0)
@@ -4252,6 +4305,7 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 	struct efx_ef10_filter_table *table = efx->filter_state;
 	DECLARE_BITMAP(mc_rem_map, EFX_EF10_FILTER_SEARCH_LIMIT);
 	struct efx_filter_spec *saved_spec;
+	struct efx_rss_context *ctx = NULL;
 	unsigned int match_pri, hash;
 	unsigned int priv_flags;
 	bool replacing = false;
@@ -4274,6 +4328,18 @@ static s32 efx_ef10_filter_insert(struct efx_nic *efx,
 	is_mc_recip = efx_filter_is_mc_recipient(spec);
 	if (is_mc_recip)
 		bitmap_zero(mc_rem_map, EFX_EF10_FILTER_SEARCH_LIMIT);
+
+	if (spec->flags & EFX_FILTER_FLAG_RX_RSS) {
+		if (spec->rss_context)
+			ctx = efx_find_rss_context_entry(spec->rss_context,
+							 &efx->rss_context.list);
+		else
+			ctx = &efx->rss_context;
+		if (!ctx)
+			return -ENOENT;
+		if (ctx->context_id == EFX_EF10_RSS_CONTEXT_INVALID)
+			return -EOPNOTSUPP;
+	}
 
 	/* Find any existing filters with the same match tuple or
 	 * else a free slot to insert at.  If any of them are busy,
@@ -4390,7 +4456,7 @@ found:
 	spin_unlock_bh(&efx->filter_lock);
 
 	rc = efx_ef10_filter_push(efx, spec, &table->entry[ins_index].handle,
-				  replacing);
+				  ctx, replacing);
 
 	/* Finalise the software table entry */
 	spin_lock_bh(&efx->filter_lock);
@@ -4534,12 +4600,13 @@ static int efx_ef10_filter_remove_internal(struct efx_nic *efx,
 
 		new_spec.priority = EFX_FILTER_PRI_AUTO;
 		new_spec.flags = (EFX_FILTER_FLAG_RX |
-				  (efx_rss_enabled(efx) ?
+				  (efx_rss_active(&efx->rss_context) ?
 				   EFX_FILTER_FLAG_RX_RSS : 0));
 		new_spec.dmaq_id = 0;
-		new_spec.rss_context = EFX_FILTER_RSS_CONTEXT_DEFAULT;
+		new_spec.rss_context = 0;
 		rc = efx_ef10_filter_push(efx, &new_spec,
 					  &table->entry[filter_idx].handle,
+					  &efx->rss_context,
 					  true);
 
 		spin_lock_bh(&efx->filter_lock);
@@ -4783,7 +4850,8 @@ static s32 efx_ef10_filter_rfs_insert(struct efx_nic *efx,
 	cookie = replacing << 31 | ins_index << 16 | spec->dmaq_id;
 
 	efx_ef10_filter_push_prep(efx, spec, inbuf,
-				  table->entry[ins_index].handle, replacing);
+				  table->entry[ins_index].handle, NULL,
+				  replacing);
 	efx_mcdi_rpc_async(efx, MC_CMD_FILTER_OP, inbuf, sizeof(inbuf),
 			   MC_CMD_FILTER_OP_OUT_LEN,
 			   efx_ef10_filter_rfs_insert_complete, cookie);
@@ -5104,6 +5172,7 @@ static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 	unsigned int invalid_filters = 0, failed = 0;
 	struct efx_ef10_filter_vlan *vlan;
 	struct efx_filter_spec *spec;
+	struct efx_rss_context *ctx;
 	unsigned int filter_idx;
 	u32 mcdi_flags;
 	int match_pri;
@@ -5133,17 +5202,34 @@ static void efx_ef10_filter_table_restore(struct efx_nic *efx)
 			invalid_filters++;
 			goto not_restored;
 		}
-		if (spec->rss_context != EFX_FILTER_RSS_CONTEXT_DEFAULT &&
-		    spec->rss_context != nic_data->rx_rss_context)
-			netif_warn(efx, drv, efx->net_dev,
-				   "Warning: unable to restore a filter with specific RSS context.\n");
+		if (spec->rss_context)
+			ctx = efx_find_rss_context_entry(spec->rss_context,
+							 &efx->rss_context.list);
+		else
+			ctx = &efx->rss_context;
+		if (spec->flags & EFX_FILTER_FLAG_RX_RSS) {
+			if (!ctx) {
+				netif_warn(efx, drv, efx->net_dev,
+					   "Warning: unable to restore a filter with nonexistent RSS context %u.\n",
+					   spec->rss_context);
+				invalid_filters++;
+				goto not_restored;
+			}
+			if (ctx->context_id == EFX_EF10_RSS_CONTEXT_INVALID) {
+				netif_warn(efx, drv, efx->net_dev,
+					   "Warning: unable to restore a filter with RSS context %u as it was not created.\n",
+					   spec->rss_context);
+				invalid_filters++;
+				goto not_restored;
+			}
+		}
 
 		table->entry[filter_idx].spec |= EFX_EF10_FILTER_FLAG_BUSY;
 		spin_unlock_bh(&efx->filter_lock);
 
 		rc = efx_ef10_filter_push(efx, spec,
 					  &table->entry[filter_idx].handle,
-					  false);
+					  ctx, false);
 		if (rc)
 			failed++;
 		spin_lock_bh(&efx->filter_lock);
@@ -6784,6 +6870,9 @@ const struct efx_nic_type efx_hunt_a0_nic_type = {
 	.tx_limit_len = efx_ef10_tx_limit_len,
 	.rx_push_rss_config = efx_ef10_pf_rx_push_rss_config,
 	.rx_pull_rss_config = efx_ef10_rx_pull_rss_config,
+	.rx_push_rss_context_config = efx_ef10_rx_push_rss_context_config,
+	.rx_pull_rss_context_config = efx_ef10_rx_pull_rss_context_config,
+	.rx_restore_rss_contexts = efx_ef10_rx_restore_rss_contexts,
 	.rx_probe = efx_ef10_rx_probe,
 	.rx_init = efx_ef10_rx_init,
 	.rx_remove = efx_ef10_rx_remove,
