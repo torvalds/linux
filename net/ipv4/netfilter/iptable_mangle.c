@@ -113,6 +113,7 @@ static void __net_exit iptable_mangle_net_exit(struct net *net)
 
 static struct pernet_operations iptable_mangle_net_ops = {
 	.exit = iptable_mangle_net_exit,
+	.async = true,
 };
 
 static int __init iptable_mangle_init(void)

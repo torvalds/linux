@@ -1528,6 +1528,7 @@ static struct pernet_operations nfnl_queue_net_ops = {
 	.exit_batch	= nfnl_queue_net_exit_batch,
 	.id		= &nfnl_queue_net_id,
 	.size		= sizeof(struct nfnl_queue_net),
+	.async		= true,
 };
 
 static int __init nfnetlink_queue_init(void)
