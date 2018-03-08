@@ -60,7 +60,7 @@ char *fault_name[FAULT_MAX] = {
 static void f2fs_build_fault_attr(struct f2fs_sb_info *sbi,
 						unsigned int rate)
 {
-	struct f2fs_fault_info *ffi = &sbi->fault_info;
+	struct f2fs_fault_info *ffi = &F2FS_OPTION(sbi).fault_info;
 
 	if (rate) {
 		atomic_set(&ffi->inject_ops, 0);
@@ -208,21 +208,24 @@ static inline void limit_reserve_root(struct f2fs_sb_info *sbi)
 	block_t limit = (sbi->user_block_count << 1) / 1000;
 
 	/* limit is 0.2% */
-	if (test_opt(sbi, RESERVE_ROOT) && sbi->root_reserved_blocks > limit) {
-		sbi->root_reserved_blocks = limit;
+	if (test_opt(sbi, RESERVE_ROOT) &&
+			F2FS_OPTION(sbi).root_reserved_blocks > limit) {
+		F2FS_OPTION(sbi).root_reserved_blocks = limit;
 		f2fs_msg(sbi->sb, KERN_INFO,
 			"Reduce reserved blocks for root = %u",
-				sbi->root_reserved_blocks);
+			F2FS_OPTION(sbi).root_reserved_blocks);
 	}
 	if (!test_opt(sbi, RESERVE_ROOT) &&
-		(!uid_eq(sbi->s_resuid,
+		(!uid_eq(F2FS_OPTION(sbi).s_resuid,
 				make_kuid(&init_user_ns, F2FS_DEF_RESUID)) ||
-		!gid_eq(sbi->s_resgid,
+		!gid_eq(F2FS_OPTION(sbi).s_resgid,
 				make_kgid(&init_user_ns, F2FS_DEF_RESGID))))
 		f2fs_msg(sbi->sb, KERN_INFO,
 			"Ignore s_resuid=%u, s_resgid=%u w/o reserve_root",
-				from_kuid_munged(&init_user_ns, sbi->s_resuid),
-				from_kgid_munged(&init_user_ns, sbi->s_resgid));
+				from_kuid_munged(&init_user_ns,
+					F2FS_OPTION(sbi).s_resuid),
+				from_kgid_munged(&init_user_ns,
+					F2FS_OPTION(sbi).s_resgid));
 }
 
 static void init_once(void *foo)
@@ -242,7 +245,7 @@ static int f2fs_set_qf_name(struct super_block *sb, int qtype,
 	char *qname;
 	int ret = -EINVAL;
 
-	if (sb_any_quota_loaded(sb) && !sbi->s_qf_names[qtype]) {
+	if (sb_any_quota_loaded(sb) && !F2FS_OPTION(sbi).s_qf_names[qtype]) {
 		f2fs_msg(sb, KERN_ERR,
 			"Cannot change journaled "
 			"quota options when quota turned on");
@@ -260,8 +263,8 @@ static int f2fs_set_qf_name(struct super_block *sb, int qtype,
 			"Not enough memory for storing quotafile name");
 		return -EINVAL;
 	}
-	if (sbi->s_qf_names[qtype]) {
-		if (strcmp(sbi->s_qf_names[qtype], qname) == 0)
+	if (F2FS_OPTION(sbi).s_qf_names[qtype]) {
+		if (strcmp(F2FS_OPTION(sbi).s_qf_names[qtype], qname) == 0)
 			ret = 0;
 		else
 			f2fs_msg(sb, KERN_ERR,
@@ -274,7 +277,7 @@ static int f2fs_set_qf_name(struct super_block *sb, int qtype,
 			"quotafile must be on filesystem root");
 		goto errout;
 	}
-	sbi->s_qf_names[qtype] = qname;
+	F2FS_OPTION(sbi).s_qf_names[qtype] = qname;
 	set_opt(sbi, QUOTA);
 	return 0;
 errout:
@@ -286,13 +289,13 @@ static int f2fs_clear_qf_name(struct super_block *sb, int qtype)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 
-	if (sb_any_quota_loaded(sb) && sbi->s_qf_names[qtype]) {
+	if (sb_any_quota_loaded(sb) && F2FS_OPTION(sbi).s_qf_names[qtype]) {
 		f2fs_msg(sb, KERN_ERR, "Cannot change journaled quota options"
 			" when quota turned on");
 		return -EINVAL;
 	}
-	kfree(sbi->s_qf_names[qtype]);
-	sbi->s_qf_names[qtype] = NULL;
+	kfree(F2FS_OPTION(sbi).s_qf_names[qtype]);
+	F2FS_OPTION(sbi).s_qf_names[qtype] = NULL;
 	return 0;
 }
 
@@ -308,15 +311,19 @@ static int f2fs_check_quota_options(struct f2fs_sb_info *sbi)
 			 "Cannot enable project quota enforcement.");
 		return -1;
 	}
-	if (sbi->s_qf_names[USRQUOTA] || sbi->s_qf_names[GRPQUOTA] ||
-			sbi->s_qf_names[PRJQUOTA]) {
-		if (test_opt(sbi, USRQUOTA) && sbi->s_qf_names[USRQUOTA])
+	if (F2FS_OPTION(sbi).s_qf_names[USRQUOTA] ||
+			F2FS_OPTION(sbi).s_qf_names[GRPQUOTA] ||
+			F2FS_OPTION(sbi).s_qf_names[PRJQUOTA]) {
+		if (test_opt(sbi, USRQUOTA) &&
+				F2FS_OPTION(sbi).s_qf_names[USRQUOTA])
 			clear_opt(sbi, USRQUOTA);
 
-		if (test_opt(sbi, GRPQUOTA) && sbi->s_qf_names[GRPQUOTA])
+		if (test_opt(sbi, GRPQUOTA) &&
+				F2FS_OPTION(sbi).s_qf_names[GRPQUOTA])
 			clear_opt(sbi, GRPQUOTA);
 
-		if (test_opt(sbi, PRJQUOTA) && sbi->s_qf_names[PRJQUOTA])
+		if (test_opt(sbi, PRJQUOTA) &&
+				F2FS_OPTION(sbi).s_qf_names[PRJQUOTA])
 			clear_opt(sbi, PRJQUOTA);
 
 		if (test_opt(sbi, GRPQUOTA) || test_opt(sbi, USRQUOTA) ||
@@ -326,17 +333,17 @@ static int f2fs_check_quota_options(struct f2fs_sb_info *sbi)
 			return -1;
 		}
 
-		if (!sbi->s_jquota_fmt) {
+		if (!F2FS_OPTION(sbi).s_jquota_fmt) {
 			f2fs_msg(sbi->sb, KERN_ERR, "journaled quota format "
 					"not specified");
 			return -1;
 		}
 	}
 
-	if (f2fs_sb_has_quota_ino(sbi->sb) && sbi->s_jquota_fmt) {
+	if (f2fs_sb_has_quota_ino(sbi->sb) && F2FS_OPTION(sbi).s_jquota_fmt) {
 		f2fs_msg(sbi->sb, KERN_INFO,
 			"QUOTA feature is enabled, so ignore jquota_fmt");
-		sbi->s_jquota_fmt = 0;
+		F2FS_OPTION(sbi).s_jquota_fmt = 0;
 	}
 	if (f2fs_sb_has_quota_ino(sbi->sb) && f2fs_readonly(sbi->sb)) {
 		f2fs_msg(sbi->sb, KERN_INFO,
@@ -446,7 +453,7 @@ static int parse_options(struct super_block *sb, char *options)
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
 			set_opt(sbi, INLINE_XATTR_SIZE);
-			sbi->inline_xattr_size = arg;
+			F2FS_OPTION(sbi).inline_xattr_size = arg;
 			break;
 #else
 		case Opt_user_xattr:
@@ -486,7 +493,7 @@ static int parse_options(struct super_block *sb, char *options)
 				return -EINVAL;
 			if (arg != 2 && arg != 4 && arg != NR_CURSEG_TYPE)
 				return -EINVAL;
-			sbi->active_logs = arg;
+			F2FS_OPTION(sbi).active_logs = arg;
 			break;
 		case Opt_disable_ext_identify:
 			set_opt(sbi, DISABLE_EXT_IDENTIFY);
@@ -530,9 +537,9 @@ static int parse_options(struct super_block *sb, char *options)
 			if (test_opt(sbi, RESERVE_ROOT)) {
 				f2fs_msg(sb, KERN_INFO,
 					"Preserve previous reserve_root=%u",
-					sbi->root_reserved_blocks);
+					F2FS_OPTION(sbi).root_reserved_blocks);
 			} else {
-				sbi->root_reserved_blocks = arg;
+				F2FS_OPTION(sbi).root_reserved_blocks = arg;
 				set_opt(sbi, RESERVE_ROOT);
 			}
 			break;
@@ -545,7 +552,7 @@ static int parse_options(struct super_block *sb, char *options)
 					"Invalid uid value %d", arg);
 				return -EINVAL;
 			}
-			sbi->s_resuid = uid;
+			F2FS_OPTION(sbi).s_resuid = uid;
 			break;
 		case Opt_resgid:
 			if (args->from && match_int(args, &arg))
@@ -556,7 +563,7 @@ static int parse_options(struct super_block *sb, char *options)
 					"Invalid gid value %d", arg);
 				return -EINVAL;
 			}
-			sbi->s_resgid = gid;
+			F2FS_OPTION(sbi).s_resgid = gid;
 			break;
 		case Opt_mode:
 			name = match_strdup(&args[0]);
@@ -591,7 +598,7 @@ static int parse_options(struct super_block *sb, char *options)
 					1 << arg, BIO_MAX_PAGES);
 				return -EINVAL;
 			}
-			sbi->write_io_size_bits = arg;
+			F2FS_OPTION(sbi).write_io_size_bits = arg;
 			break;
 		case Opt_fault_injection:
 			if (args->from && match_int(args, &arg))
@@ -652,13 +659,13 @@ static int parse_options(struct super_block *sb, char *options)
 				return ret;
 			break;
 		case Opt_jqfmt_vfsold:
-			sbi->s_jquota_fmt = QFMT_VFS_OLD;
+			F2FS_OPTION(sbi).s_jquota_fmt = QFMT_VFS_OLD;
 			break;
 		case Opt_jqfmt_vfsv0:
-			sbi->s_jquota_fmt = QFMT_VFS_V0;
+			F2FS_OPTION(sbi).s_jquota_fmt = QFMT_VFS_V0;
 			break;
 		case Opt_jqfmt_vfsv1:
-			sbi->s_jquota_fmt = QFMT_VFS_V1;
+			F2FS_OPTION(sbi).s_jquota_fmt = QFMT_VFS_V1;
 			break;
 		case Opt_noquota:
 			clear_opt(sbi, QUOTA);
@@ -691,13 +698,13 @@ static int parse_options(struct super_block *sb, char *options)
 				return -ENOMEM;
 			if (strlen(name) == 10 &&
 					!strncmp(name, "user-based", 10)) {
-				sbi->whint_mode = WHINT_MODE_USER;
+				F2FS_OPTION(sbi).whint_mode = WHINT_MODE_USER;
 			} else if (strlen(name) == 3 &&
 					!strncmp(name, "off", 3)) {
-				sbi->whint_mode = WHINT_MODE_OFF;
+				F2FS_OPTION(sbi).whint_mode = WHINT_MODE_OFF;
 			} else if (strlen(name) == 8 &&
 					!strncmp(name, "fs-based", 8)) {
-				sbi->whint_mode = WHINT_MODE_FS;
+				F2FS_OPTION(sbi).whint_mode = WHINT_MODE_FS;
 			} else {
 				kfree(name);
 				return -EINVAL;
@@ -711,10 +718,10 @@ static int parse_options(struct super_block *sb, char *options)
 
 			if (strlen(name) == 7 &&
 					!strncmp(name, "default", 7)) {
-				sbi->alloc_mode = ALLOC_MODE_DEFAULT;
+				F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_DEFAULT;
 			} else if (strlen(name) == 5 &&
 					!strncmp(name, "reuse", 5)) {
-				sbi->alloc_mode = ALLOC_MODE_REUSE;
+				F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_REUSE;
 			} else {
 				kfree(name);
 				return -EINVAL;
@@ -727,10 +734,10 @@ static int parse_options(struct super_block *sb, char *options)
 				return -ENOMEM;
 			if (strlen(name) == 5 &&
 					!strncmp(name, "posix", 5)) {
-				sbi->fsync_mode = FSYNC_MODE_POSIX;
+				F2FS_OPTION(sbi).fsync_mode = FSYNC_MODE_POSIX;
 			} else if (strlen(name) == 6 &&
 					!strncmp(name, "strict", 6)) {
-				sbi->fsync_mode = FSYNC_MODE_STRICT;
+				F2FS_OPTION(sbi).fsync_mode = FSYNC_MODE_STRICT;
 			} else {
 				kfree(name);
 				return -EINVAL;
@@ -770,8 +777,9 @@ static int parse_options(struct super_block *sb, char *options)
 					"set with inline_xattr option");
 			return -EINVAL;
 		}
-		if (!sbi->inline_xattr_size ||
-			sbi->inline_xattr_size >= DEF_ADDRS_PER_INODE -
+		if (!F2FS_OPTION(sbi).inline_xattr_size ||
+			F2FS_OPTION(sbi).inline_xattr_size >=
+					DEF_ADDRS_PER_INODE -
 					F2FS_TOTAL_EXTRA_ATTR_SIZE -
 					DEF_INLINE_RESERVED_SIZE -
 					DEF_MIN_INLINE_SIZE) {
@@ -784,8 +792,8 @@ static int parse_options(struct super_block *sb, char *options)
 	/* Not pass down write hints if the number of active logs is lesser
 	 * than NR_CURSEG_TYPE.
 	 */
-	if (sbi->active_logs != NR_CURSEG_TYPE)
-		sbi->whint_mode = WHINT_MODE_OFF;
+	if (F2FS_OPTION(sbi).active_logs != NR_CURSEG_TYPE)
+		F2FS_OPTION(sbi).whint_mode = WHINT_MODE_OFF;
 	return 0;
 }
 
@@ -1028,7 +1036,7 @@ static void f2fs_put_super(struct super_block *sb)
 		mempool_destroy(sbi->write_io_dummy);
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < MAXQUOTAS; i++)
-		kfree(sbi->s_qf_names[i]);
+		kfree(F2FS_OPTION(sbi).s_qf_names[i]);
 #endif
 	destroy_percpu_info(sbi);
 	for (i = 0; i < NR_PAGE_TYPE; i++)
@@ -1142,8 +1150,9 @@ static int f2fs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks = total_count - start_count;
 	buf->f_bfree = user_block_count - valid_user_blocks(sbi) -
 						sbi->current_reserved_blocks;
-	if (buf->f_bfree > sbi->root_reserved_blocks)
-		buf->f_bavail = buf->f_bfree - sbi->root_reserved_blocks;
+	if (buf->f_bfree > F2FS_OPTION(sbi).root_reserved_blocks)
+		buf->f_bavail = buf->f_bfree -
+				F2FS_OPTION(sbi).root_reserved_blocks;
 	else
 		buf->f_bavail = 0;
 
@@ -1178,10 +1187,10 @@ static inline void f2fs_show_quota_options(struct seq_file *seq,
 #ifdef CONFIG_QUOTA
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 
-	if (sbi->s_jquota_fmt) {
+	if (F2FS_OPTION(sbi).s_jquota_fmt) {
 		char *fmtname = "";
 
-		switch (sbi->s_jquota_fmt) {
+		switch (F2FS_OPTION(sbi).s_jquota_fmt) {
 		case QFMT_VFS_OLD:
 			fmtname = "vfsold";
 			break;
@@ -1195,14 +1204,17 @@ static inline void f2fs_show_quota_options(struct seq_file *seq,
 		seq_printf(seq, ",jqfmt=%s", fmtname);
 	}
 
-	if (sbi->s_qf_names[USRQUOTA])
-		seq_show_option(seq, "usrjquota", sbi->s_qf_names[USRQUOTA]);
+	if (F2FS_OPTION(sbi).s_qf_names[USRQUOTA])
+		seq_show_option(seq, "usrjquota",
+			F2FS_OPTION(sbi).s_qf_names[USRQUOTA]);
 
-	if (sbi->s_qf_names[GRPQUOTA])
-		seq_show_option(seq, "grpjquota", sbi->s_qf_names[GRPQUOTA]);
+	if (F2FS_OPTION(sbi).s_qf_names[GRPQUOTA])
+		seq_show_option(seq, "grpjquota",
+			F2FS_OPTION(sbi).s_qf_names[GRPQUOTA]);
 
-	if (sbi->s_qf_names[PRJQUOTA])
-		seq_show_option(seq, "prjjquota", sbi->s_qf_names[PRJQUOTA]);
+	if (F2FS_OPTION(sbi).s_qf_names[PRJQUOTA])
+		seq_show_option(seq, "prjjquota",
+			F2FS_OPTION(sbi).s_qf_names[PRJQUOTA]);
 #endif
 }
 
@@ -1237,7 +1249,7 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",noinline_xattr");
 	if (test_opt(sbi, INLINE_XATTR_SIZE))
 		seq_printf(seq, ",inline_xattr_size=%u",
-					sbi->inline_xattr_size);
+					F2FS_OPTION(sbi).inline_xattr_size);
 #endif
 #ifdef CONFIG_F2FS_FS_POSIX_ACL
 	if (test_opt(sbi, POSIX_ACL))
@@ -1273,18 +1285,20 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, "adaptive");
 	else if (test_opt(sbi, LFS))
 		seq_puts(seq, "lfs");
-	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
+	seq_printf(seq, ",active_logs=%u", F2FS_OPTION(sbi).active_logs);
 	if (test_opt(sbi, RESERVE_ROOT))
 		seq_printf(seq, ",reserve_root=%u,resuid=%u,resgid=%u",
-				sbi->root_reserved_blocks,
-				from_kuid_munged(&init_user_ns, sbi->s_resuid),
-				from_kgid_munged(&init_user_ns, sbi->s_resgid));
+				F2FS_OPTION(sbi).root_reserved_blocks,
+				from_kuid_munged(&init_user_ns,
+					F2FS_OPTION(sbi).s_resuid),
+				from_kgid_munged(&init_user_ns,
+					F2FS_OPTION(sbi).s_resgid));
 	if (F2FS_IO_SIZE_BITS(sbi))
 		seq_printf(seq, ",io_size=%uKB", F2FS_IO_SIZE_KB(sbi));
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	if (test_opt(sbi, FAULT_INJECTION))
 		seq_printf(seq, ",fault_injection=%u",
-				sbi->fault_info.inject_rate);
+				F2FS_OPTION(sbi).fault_info.inject_rate);
 #endif
 #ifdef CONFIG_QUOTA
 	if (test_opt(sbi, QUOTA))
@@ -1297,19 +1311,19 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",prjquota");
 #endif
 	f2fs_show_quota_options(seq, sbi->sb);
-	if (sbi->whint_mode == WHINT_MODE_USER)
+	if (F2FS_OPTION(sbi).whint_mode == WHINT_MODE_USER)
 		seq_printf(seq, ",whint_mode=%s", "user-based");
-	else if (sbi->whint_mode == WHINT_MODE_FS)
+	else if (F2FS_OPTION(sbi).whint_mode == WHINT_MODE_FS)
 		seq_printf(seq, ",whint_mode=%s", "fs-based");
 
-	if (sbi->alloc_mode == ALLOC_MODE_DEFAULT)
+	if (F2FS_OPTION(sbi).alloc_mode == ALLOC_MODE_DEFAULT)
 		seq_printf(seq, ",alloc_mode=%s", "default");
-	else if (sbi->alloc_mode == ALLOC_MODE_REUSE)
+	else if (F2FS_OPTION(sbi).alloc_mode == ALLOC_MODE_REUSE)
 		seq_printf(seq, ",alloc_mode=%s", "reuse");
 
-	if (sbi->fsync_mode == FSYNC_MODE_POSIX)
+	if (F2FS_OPTION(sbi).fsync_mode == FSYNC_MODE_POSIX)
 		seq_printf(seq, ",fsync_mode=%s", "posix");
-	else if (sbi->fsync_mode == FSYNC_MODE_STRICT)
+	else if (F2FS_OPTION(sbi).fsync_mode == FSYNC_MODE_STRICT)
 		seq_printf(seq, ",fsync_mode=%s", "strict");
 	return 0;
 }
@@ -1317,11 +1331,11 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 static void default_options(struct f2fs_sb_info *sbi)
 {
 	/* init some FS parameters */
-	sbi->active_logs = NR_CURSEG_TYPE;
-	sbi->inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
-	sbi->whint_mode = WHINT_MODE_OFF;
-	sbi->alloc_mode = ALLOC_MODE_DEFAULT;
-	sbi->fsync_mode = FSYNC_MODE_POSIX;
+	F2FS_OPTION(sbi).active_logs = NR_CURSEG_TYPE;
+	F2FS_OPTION(sbi).inline_xattr_size = DEFAULT_INLINE_XATTR_ADDRS;
+	F2FS_OPTION(sbi).whint_mode = WHINT_MODE_OFF;
+	F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_DEFAULT;
+	F2FS_OPTION(sbi).fsync_mode = FSYNC_MODE_POSIX;
 	sbi->readdir_ra = 1;
 
 	set_opt(sbi, BG_GC);
@@ -1359,24 +1373,11 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct f2fs_mount_info org_mount_opt;
 	unsigned long old_sb_flags;
-	int err, active_logs;
+	int err;
 	bool need_restart_gc = false;
 	bool need_stop_gc = false;
 	bool no_extent_cache = !test_opt(sbi, EXTENT_CACHE);
-	int old_whint_mode = sbi->whint_mode;
-	int old_alloc_mode = sbi->alloc_mode;
-	int old_fsync_mode = sbi->fsync_mode;
-	int old_inline_xattr_size = sbi->inline_xattr_size;
-	block_t old_root_reserved_blocks = sbi->root_reserved_blocks;
-	kuid_t old_resuid = sbi->s_resuid;
-	kgid_t old_resgid = sbi->s_resgid;
-	int old_write_io_size_bits = sbi->write_io_size_bits;
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	struct f2fs_fault_info ffi = sbi->fault_info;
-#endif
 #ifdef CONFIG_QUOTA
-	int s_jquota_fmt;
-	char *s_qf_names[MAXQUOTAS];
 	int i, j;
 #endif
 
@@ -1386,21 +1387,21 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 	 */
 	org_mount_opt = sbi->mount_opt;
 	old_sb_flags = sb->s_flags;
-	active_logs = sbi->active_logs;
 
 #ifdef CONFIG_QUOTA
-	s_jquota_fmt = sbi->s_jquota_fmt;
+	org_mount_opt.s_jquota_fmt = F2FS_OPTION(sbi).s_jquota_fmt;
 	for (i = 0; i < MAXQUOTAS; i++) {
-		if (sbi->s_qf_names[i]) {
-			s_qf_names[i] = kstrdup(sbi->s_qf_names[i],
-							 GFP_KERNEL);
-			if (!s_qf_names[i]) {
+		if (F2FS_OPTION(sbi).s_qf_names[i]) {
+			org_mount_opt.s_qf_names[i] =
+				kstrdup(F2FS_OPTION(sbi).s_qf_names[i],
+				GFP_KERNEL);
+			if (!org_mount_opt.s_qf_names[i]) {
 				for (j = 0; j < i; j++)
-					kfree(s_qf_names[j]);
+					kfree(org_mount_opt.s_qf_names[j]);
 				return -ENOMEM;
 			}
 		} else {
-			s_qf_names[i] = NULL;
+			org_mount_opt.s_qf_names[i] = NULL;
 		}
 	}
 #endif
@@ -1470,7 +1471,8 @@ static int f2fs_remount(struct super_block *sb, int *flags, char *data)
 		need_stop_gc = true;
 	}
 
-	if (*flags & MS_RDONLY || sbi->whint_mode != old_whint_mode) {
+	if (*flags & MS_RDONLY ||
+		F2FS_OPTION(sbi).whint_mode != org_mount_opt.whint_mode) {
 		writeback_inodes_sb(sb, WB_REASON_SYNC);
 		sync_inodes_sb(sb);
 
@@ -1496,7 +1498,7 @@ skip:
 #ifdef CONFIG_QUOTA
 	/* Release old quota file names */
 	for (i = 0; i < MAXQUOTAS; i++)
-		kfree(s_qf_names[i]);
+		kfree(org_mount_opt.s_qf_names[i]);
 #endif
 	/* Update the POSIXACL Flag */
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
@@ -1514,26 +1516,14 @@ restore_gc:
 	}
 restore_opts:
 #ifdef CONFIG_QUOTA
-	sbi->s_jquota_fmt = s_jquota_fmt;
+	F2FS_OPTION(sbi).s_jquota_fmt = org_mount_opt.s_jquota_fmt;
 	for (i = 0; i < MAXQUOTAS; i++) {
-		kfree(sbi->s_qf_names[i]);
-		sbi->s_qf_names[i] = s_qf_names[i];
+		kfree(F2FS_OPTION(sbi).s_qf_names[i]);
+		F2FS_OPTION(sbi).s_qf_names[i] = org_mount_opt.s_qf_names[i];
 	}
 #endif
-	sbi->write_io_size_bits = old_write_io_size_bits;
-	sbi->s_resgid = old_resgid;
-	sbi->s_resuid = old_resuid;
-	sbi->root_reserved_blocks = old_root_reserved_blocks;
-	sbi->inline_xattr_size = old_inline_xattr_size;
-	sbi->alloc_mode = old_alloc_mode;
-	sbi->fsync_mode = old_fsync_mode;
-	sbi->whint_mode = old_whint_mode;
 	sbi->mount_opt = org_mount_opt;
-	sbi->active_logs = active_logs;
 	sb->s_flags = old_sb_flags;
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	sbi->fault_info = ffi;
-#endif
 	return err;
 }
 
@@ -1655,8 +1645,8 @@ static qsize_t *f2fs_get_reserved_space(struct inode *inode)
 
 static int f2fs_quota_on_mount(struct f2fs_sb_info *sbi, int type)
 {
-	return dquot_quota_on_mount(sbi->sb, sbi->s_qf_names[type],
-						sbi->s_jquota_fmt, type);
+	return dquot_quota_on_mount(sbi->sb, F2FS_OPTION(sbi).s_qf_names[type],
+					F2FS_OPTION(sbi).s_jquota_fmt, type);
 }
 
 int f2fs_enable_quota_files(struct f2fs_sb_info *sbi, bool rdonly)
@@ -1675,7 +1665,7 @@ int f2fs_enable_quota_files(struct f2fs_sb_info *sbi, bool rdonly)
 	}
 
 	for (i = 0; i < MAXQUOTAS; i++) {
-		if (sbi->s_qf_names[i]) {
+		if (F2FS_OPTION(sbi).s_qf_names[i]) {
 			err = f2fs_quota_on_mount(sbi, i);
 			if (!err) {
 				enabled = 1;
@@ -2566,7 +2556,7 @@ static void f2fs_tuning_parameters(struct f2fs_sb_info *sbi)
 
 	/* adjust parameters according to the volume size */
 	if (sm_i->main_segments <= SMALL_VOLUME_SEGMENTS) {
-		sbi->alloc_mode = ALLOC_MODE_REUSE;
+		F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_REUSE;
 		sm_i->dcc_info->discard_granularity = 1;
 		sm_i->ipu_policy = 1 << F2FS_IPU_FORCE;
 	}
@@ -2619,8 +2609,8 @@ try_onemore:
 	sb->s_fs_info = sbi;
 	sbi->raw_super = raw_super;
 
-	sbi->s_resuid = make_kuid(&init_user_ns, F2FS_DEF_RESUID);
-	sbi->s_resgid = make_kgid(&init_user_ns, F2FS_DEF_RESGID);
+	F2FS_OPTION(sbi).s_resuid = make_kuid(&init_user_ns, F2FS_DEF_RESUID);
+	F2FS_OPTION(sbi).s_resgid = make_kgid(&init_user_ns, F2FS_DEF_RESGID);
 
 	/* precompute checksum seed for metadata */
 	if (f2fs_sb_has_inode_chksum(sb))
@@ -2978,7 +2968,7 @@ free_bio_info:
 free_options:
 #ifdef CONFIG_QUOTA
 	for (i = 0; i < MAXQUOTAS; i++)
-		kfree(sbi->s_qf_names[i]);
+		kfree(F2FS_OPTION(sbi).s_qf_names[i]);
 #endif
 	kfree(options);
 free_sb_buf:

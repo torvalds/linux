@@ -99,9 +99,10 @@ extern char *fault_name[FAULT_MAX];
 #define F2FS_MOUNT_INLINE_XATTR_SIZE	0x00800000
 #define F2FS_MOUNT_RESERVE_ROOT		0x01000000
 
-#define clear_opt(sbi, option)	((sbi)->mount_opt.opt &= ~F2FS_MOUNT_##option)
-#define set_opt(sbi, option)	((sbi)->mount_opt.opt |= F2FS_MOUNT_##option)
-#define test_opt(sbi, option)	((sbi)->mount_opt.opt & F2FS_MOUNT_##option)
+#define F2FS_OPTION(sbi)	((sbi)->mount_opt)
+#define clear_opt(sbi, option)	(F2FS_OPTION(sbi).opt &= ~F2FS_MOUNT_##option)
+#define set_opt(sbi, option)	(F2FS_OPTION(sbi).opt |= F2FS_MOUNT_##option)
+#define test_opt(sbi, option)	(F2FS_OPTION(sbi).opt & F2FS_MOUNT_##option)
 
 #define ver_after(a, b)	(typecheck(unsigned long long, a) &&		\
 		typecheck(unsigned long long, b) &&			\
@@ -114,7 +115,25 @@ typedef u32 block_t;	/*
 typedef u32 nid_t;
 
 struct f2fs_mount_info {
-	unsigned int	opt;
+	unsigned int opt;
+	int write_io_size_bits;		/* Write IO size bits */
+	block_t root_reserved_blocks;	/* root reserved blocks */
+	kuid_t s_resuid;		/* reserved blocks for uid */
+	kgid_t s_resgid;		/* reserved blocks for gid */
+	int active_logs;		/* # of active logs */
+	int inline_xattr_size;		/* inline xattr size */
+#ifdef CONFIG_F2FS_FAULT_INJECTION
+	struct f2fs_fault_info fault_info;	/* For fault injection */
+#endif
+#ifdef CONFIG_QUOTA
+	/* Names of quota files with journalled quota */
+	char *s_qf_names[MAXQUOTAS];
+	int s_jquota_fmt;			/* Format of quota to use */
+#endif
+	/* For which write hints are passed down to block layer */
+	int whint_mode;
+	int alloc_mode;			/* segment allocation policy */
+	int fsync_mode;			/* fsync policy */
 };
 
 #define F2FS_FEATURE_ENCRYPT		0x0001
@@ -1145,7 +1164,6 @@ struct f2fs_sb_info {
 	struct f2fs_bio_info *write_io[NR_PAGE_TYPE];	/* for write bios */
 	struct mutex wio_mutex[NR_PAGE_TYPE - 1][NR_TEMP_TYPE];
 						/* bio ordering for NODE/DATA */
-	int write_io_size_bits;			/* Write IO size bits */
 	mempool_t *write_io_dummy;		/* Dummy pages */
 
 	/* for checkpoint */
@@ -1195,9 +1213,7 @@ struct f2fs_sb_info {
 	unsigned int total_node_count;		/* total node block count */
 	unsigned int total_valid_node_count;	/* valid node block count */
 	loff_t max_file_blocks;			/* max block index of file */
-	int active_logs;			/* # of active logs */
 	int dir_level;				/* directory level */
-	int inline_xattr_size;			/* inline xattr size */
 	unsigned int trigger_ssr_threshold;	/* threshold to trigger ssr */
 	int readdir_ra;				/* readahead inode in readdir */
 
@@ -1207,9 +1223,6 @@ struct f2fs_sb_info {
 	block_t last_valid_block_count;		/* for recovery */
 	block_t reserved_blocks;		/* configurable reserved blocks */
 	block_t current_reserved_blocks;	/* current reserved blocks */
-	block_t root_reserved_blocks;		/* root reserved blocks */
-	kuid_t s_resuid;			/* reserved blocks for uid */
-	kgid_t s_resgid;			/* reserved blocks for gid */
 
 	unsigned int nquota_files;		/* # of quota sysfile */
 
@@ -1294,25 +1307,6 @@ struct f2fs_sb_info {
 
 	/* Precomputed FS UUID checksum for seeding other checksums */
 	__u32 s_chksum_seed;
-
-	/* For fault injection */
-#ifdef CONFIG_F2FS_FAULT_INJECTION
-	struct f2fs_fault_info fault_info;
-#endif
-
-#ifdef CONFIG_QUOTA
-	/* Names of quota files with journalled quota */
-	char *s_qf_names[MAXQUOTAS];
-	int s_jquota_fmt;			/* Format of quota to use */
-#endif
-	/* For which write hints are passed down to block layer */
-	int whint_mode;
-
-	/* segment allocation policy */
-	int alloc_mode;
-
-	/* fsync policy */
-	int fsync_mode;
 };
 
 #ifdef CONFIG_F2FS_FAULT_INJECTION
@@ -1322,7 +1316,7 @@ struct f2fs_sb_info {
 		__func__, __builtin_return_address(0))
 static inline bool time_to_inject(struct f2fs_sb_info *sbi, int type)
 {
-	struct f2fs_fault_info *ffi = &sbi->fault_info;
+	struct f2fs_fault_info *ffi = &F2FS_OPTION(sbi).fault_info;
 
 	if (!ffi->inject_rate)
 		return false;
@@ -1679,10 +1673,10 @@ static inline bool __allow_reserved_blocks(struct f2fs_sb_info *sbi,
 		return false;
 	if (IS_NOQUOTA(inode))
 		return true;
-	if (uid_eq(sbi->s_resuid, current_fsuid()))
+	if (uid_eq(F2FS_OPTION(sbi).s_resuid, current_fsuid()))
 		return true;
-	if (!gid_eq(sbi->s_resgid, GLOBAL_ROOT_GID) &&
-					in_group_p(sbi->s_resgid))
+	if (!gid_eq(F2FS_OPTION(sbi).s_resgid, GLOBAL_ROOT_GID) &&
+					in_group_p(F2FS_OPTION(sbi).s_resgid))
 		return true;
 	if (capable(CAP_SYS_RESOURCE))
 		return true;
@@ -1720,7 +1714,7 @@ static inline int inc_valid_block_count(struct f2fs_sb_info *sbi,
 					sbi->current_reserved_blocks;
 
 	if (!__allow_reserved_blocks(sbi, inode))
-		avail_user_block_count -= sbi->root_reserved_blocks;
+		avail_user_block_count -= F2FS_OPTION(sbi).root_reserved_blocks;
 
 	if (unlikely(sbi->total_valid_block_count > avail_user_block_count)) {
 		diff = sbi->total_valid_block_count - avail_user_block_count;
@@ -1927,7 +1921,7 @@ static inline int inc_valid_node_count(struct f2fs_sb_info *sbi,
 					sbi->current_reserved_blocks + 1;
 
 	if (!__allow_reserved_blocks(sbi, inode))
-		valid_block_count += sbi->root_reserved_blocks;
+		valid_block_count += F2FS_OPTION(sbi).root_reserved_blocks;
 
 	if (unlikely(valid_block_count > sbi->user_block_count)) {
 		spin_unlock(&sbi->stat_lock);

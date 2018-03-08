@@ -704,7 +704,7 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
 
 	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
 
-	if (F2FS_I_SB(dir)->fsync_mode == FSYNC_MODE_STRICT)
+	if (F2FS_OPTION(F2FS_I_SB(dir)).fsync_mode == FSYNC_MODE_STRICT)
 		add_ino_entry(F2FS_I_SB(dir), dir->i_ino, TRANS_DIR_INO);
 
 	if (f2fs_has_inline_dentry(dir))

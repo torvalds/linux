@@ -2251,7 +2251,7 @@ static unsigned int __get_next_segno(struct f2fs_sb_info *sbi, int type)
 		return SIT_I(sbi)->last_victim[ALLOC_NEXT];
 
 	/* find segments from 0 to reuse freed segments */
-	if (sbi->alloc_mode == ALLOC_MODE_REUSE)
+	if (F2FS_OPTION(sbi).alloc_mode == ALLOC_MODE_REUSE)
 		return 0;
 
 	return CURSEG_I(sbi, type)->segno;
@@ -2604,7 +2604,7 @@ int rw_hint_to_seg_type(enum rw_hint hint)
 enum rw_hint io_type_to_rw_hint(struct f2fs_sb_info *sbi,
 				enum page_type type, enum temp_type temp)
 {
-	if (sbi->whint_mode == WHINT_MODE_USER) {
+	if (F2FS_OPTION(sbi).whint_mode == WHINT_MODE_USER) {
 		if (type == DATA) {
 			if (temp == WARM)
 				return WRITE_LIFE_NOT_SET;
@@ -2615,7 +2615,7 @@ enum rw_hint io_type_to_rw_hint(struct f2fs_sb_info *sbi,
 		} else {
 			return WRITE_LIFE_NOT_SET;
 		}
-	} else if (sbi->whint_mode == WHINT_MODE_FS) {
+	} else if (F2FS_OPTION(sbi).whint_mode == WHINT_MODE_FS) {
 		if (type == DATA) {
 			if (temp == WARM)
 				return WRITE_LIFE_LONG;
@@ -2684,7 +2684,7 @@ static int __get_segment_type(struct f2fs_io_info *fio)
 {
 	int type = 0;
 
-	switch (fio->sbi->active_logs) {
+	switch (F2FS_OPTION(fio->sbi).active_logs) {
 	case 2:
 		type = __get_segment_type_2(fio);
 		break;
