@@ -349,6 +349,7 @@ struct rockchip_cpuclk_reg_data {
 	u8		mux_core_main;
 	u8		mux_core_shift;
 	u32		mux_core_mask;
+	const char	*pll_name;
 };
 
 struct clk *rockchip_clk_register_cpuclk(const char *name,

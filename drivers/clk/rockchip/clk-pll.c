@@ -332,8 +332,12 @@ static int rockchip_pll_wait_lock(struct rockchip_clk_pll *pll)
 
 void rockchip_boost_enable_recovery_sw_low(struct clk_hw *hw)
 {
-	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
+	struct rockchip_clk_pll *pll;
 	int ret;
+
+	if (!hw)
+		return;
+	pll = to_rockchip_clk_pll(hw);
 
 	if (pll->type == pll_px30) {
 		writel_relaxed(HIWORD_UPDATE(1, PX30_BOOST_RECOVERY_MASK,
@@ -363,7 +367,11 @@ void rockchip_boost_disable_low(struct rockchip_clk_pll *pll)
 
 void rockchip_boost_disable_recovery_sw(struct clk_hw *hw)
 {
-	struct rockchip_clk_pll *pll = to_rockchip_clk_pll(hw);
+	struct rockchip_clk_pll *pll;
+
+	if (!hw)
+		return;
+	pll = to_rockchip_clk_pll(hw);
 
 	if (pll->type == pll_px30) {
 		writel_relaxed(HIWORD_UPDATE(0, PX30_BOOST_RECOVERY_MASK,
