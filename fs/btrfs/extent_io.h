@@ -97,8 +97,7 @@ typedef	blk_status_t (extent_submit_bio_hook_t)(void *private_data, struct bio *
 				       u64 bio_offset);
 
 typedef blk_status_t (extent_submit_bio_start_t)(void *private_data,
-		struct bio *bio, int mirror_num, unsigned long bio_flags,
-		u64 bio_offset);
+		struct bio *bio, u64 bio_offset);
 
 typedef blk_status_t (extent_submit_bio_done_t)(void *private_data,
 		struct bio *bio, int mirror_num, unsigned long bio_flags,

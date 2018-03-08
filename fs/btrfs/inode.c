@@ -1942,7 +1942,6 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
  * are inserted into the btree
  */
 static blk_status_t __btrfs_submit_bio_start(void *private_data, struct bio *bio,
-				    int mirror_num, unsigned long bio_flags,
 				    u64 bio_offset)
 {
 	struct inode *inode = private_data;
@@ -8222,8 +8221,7 @@ static void btrfs_endio_direct_write(struct bio *bio)
 }
 
 static blk_status_t __btrfs_submit_bio_start_direct_io(void *private_data,
-				    struct bio *bio, int mirror_num,
-				    unsigned long bio_flags, u64 offset)
+				    struct bio *bio, u64 offset)
 {
 	struct inode *inode = private_data;
 	blk_status_t ret;

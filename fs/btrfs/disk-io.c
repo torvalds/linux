@@ -717,7 +717,6 @@ static void run_one_async_start(struct btrfs_work *work)
 
 	async = container_of(work, struct  async_submit_bio, work);
 	ret = async->submit_bio_start(async->private_data, async->bio,
-				      async->mirror_num, async->bio_flags,
 				      async->bio_offset);
 	if (ret)
 		async->status = ret;
@@ -800,7 +799,6 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
 }
 
 static blk_status_t __btree_submit_bio_start(void *private_data, struct bio *bio,
-					     int mirror_num, unsigned long bio_flags,
 					     u64 bio_offset)
 {
 	/*
