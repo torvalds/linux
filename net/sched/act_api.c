@@ -741,7 +741,8 @@ static void cleanup_a(struct list_head *actions, int ovr)
 
 int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		    struct nlattr *est, char *name, int ovr, int bind,
-		    struct list_head *actions, struct netlink_ext_ack *extack)
+		    struct list_head *actions, size_t *attr_size,
+		    struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
@@ -994,12 +995,13 @@ err_out:
 
 static int
 tcf_del_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
-	       u32 portid, struct netlink_ext_ack *extack)
+	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
 {
 	int ret;
 	struct sk_buff *skb;
 
-	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = alloc_skb(attr_size <= NLMSG_GOODSIZE ? NLMSG_GOODSIZE : attr_size,
+			GFP_KERNEL);
 	if (!skb)
 		return -ENOBUFS;
 
@@ -1032,6 +1034,7 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	int i, ret;
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
+	size_t attr_size = 0;
 	LIST_HEAD(actions);
 
 	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL, extack);
@@ -1059,7 +1062,7 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	if (event == RTM_GETACTION)
 		ret = tcf_get_notify(net, portid, n, &actions, event, extack);
 	else { /* delete */
-		ret = tcf_del_notify(net, n, &actions, portid, extack);
+		ret = tcf_del_notify(net, n, &actions, portid, attr_size, extack);
 		if (ret)
 			goto err;
 		return ret;
@@ -1072,12 +1075,13 @@ err:
 
 static int
 tcf_add_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
-	       u32 portid, struct netlink_ext_ack *extack)
+	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb;
 	int err = 0;
 
-	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = alloc_skb(attr_size <= NLMSG_GOODSIZE ? NLMSG_GOODSIZE : attr_size,
+			GFP_KERNEL);
 	if (!skb)
 		return -ENOBUFS;
 
@@ -1099,15 +1103,16 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 			  struct nlmsghdr *n, u32 portid, int ovr,
 			  struct netlink_ext_ack *extack)
 {
+	size_t attr_size = 0;
 	int ret = 0;
 	LIST_HEAD(actions);
 
 	ret = tcf_action_init(net, NULL, nla, NULL, NULL, ovr, 0, &actions,
-			      extack);
+			      &attr_size, extack);
 	if (ret)
 		return ret;
 
-	return tcf_add_notify(net, n, &actions, portid, extack);
+	return tcf_add_notify(net, n, &actions, portid, attr_size, extack);
 }
 
 static u32 tcaa_root_flags_allowed = TCA_FLAG_LARGE_DUMP_ON;
