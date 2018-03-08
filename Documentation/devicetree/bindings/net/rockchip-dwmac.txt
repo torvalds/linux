@@ -8,6 +8,7 @@ Required properties:
    "rockchip,rk3128-gmac": found on RK312x SoCs
    "rockchip,rk3228-gmac": found on RK322x SoCs
    "rockchip,rk3288-gmac": found on RK3288 SoCs
+   "rockchip,rk3308-mac":  found on RK3308 SoCs
    "rockchip,rk3328-gmac": found on RK3328 SoCs
    "rockchip,rk3366-gmac": found on RK3366 SoCs
    "rockchip,rk3368-gmac": found on RK3368 SoCs
