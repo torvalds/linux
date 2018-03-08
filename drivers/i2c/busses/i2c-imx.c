@@ -1226,7 +1226,7 @@ static int i2c_imx_runtime_suspend(struct device *dev)
 {
 	struct imx_i2c_struct *i2c_imx = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(i2c_imx->clk);
+	clk_disable(i2c_imx->clk);
 
 	return 0;
 }
@@ -1236,7 +1236,7 @@ static int i2c_imx_runtime_resume(struct device *dev)
 	struct imx_i2c_struct *i2c_imx = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(i2c_imx->clk);
+	ret = clk_enable(i2c_imx->clk);
 	if (ret)
 		dev_err(dev, "can't enable I2C clock, ret=%d\n", ret);
 
