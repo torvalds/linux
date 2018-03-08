@@ -6918,13 +6918,12 @@ static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
 	/* convert DDR frequency from units of 266.6MHz to bandwidth */
 	min_ring_freq = mult_frac(min_ring_freq, 8, 3);
 
+	min_gpu_freq = rps->min_freq;
+	max_gpu_freq = rps->max_freq;
 	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		/* Convert GT frequency to 50 HZ units */
-		min_gpu_freq = rps->min_freq / GEN9_FREQ_SCALER;
-		max_gpu_freq = rps->max_freq / GEN9_FREQ_SCALER;
-	} else {
-		min_gpu_freq = rps->min_freq;
-		max_gpu_freq = rps->max_freq;
+		min_gpu_freq /= GEN9_FREQ_SCALER;
+		max_gpu_freq /= GEN9_FREQ_SCALER;
 	}
 
 	/*

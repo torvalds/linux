@@ -1796,9 +1796,9 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-	int ret = 0;
-	int gpu_freq, ia_freq;
 	unsigned int max_gpu_freq, min_gpu_freq;
+	int gpu_freq, ia_freq;
+	int ret;
 
 	if (!HAS_LLC(dev_priv))
 		return -ENODEV;
@@ -1809,13 +1809,12 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	if (ret)
 		goto out;
 
+	min_gpu_freq = rps->min_freq;
+	max_gpu_freq = rps->max_freq;
 	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
 		/* Convert GT frequency to 50 HZ units */
-		min_gpu_freq = rps->min_freq_softlimit / GEN9_FREQ_SCALER;
-		max_gpu_freq = rps->max_freq_softlimit / GEN9_FREQ_SCALER;
-	} else {
-		min_gpu_freq = rps->min_freq_softlimit;
-		max_gpu_freq = rps->max_freq_softlimit;
+		min_gpu_freq /= GEN9_FREQ_SCALER;
+		max_gpu_freq /= GEN9_FREQ_SCALER;
 	}
 
 	seq_puts(m, "GPU freq (MHz)\tEffective CPU freq (MHz)\tEffective Ring freq (MHz)\n");
