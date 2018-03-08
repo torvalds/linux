@@ -583,9 +583,9 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 			nmi_exit();
 	}
 
-	info.si_signo = SIGBUS;
+	info.si_signo = inf->sig;
 	info.si_errno = 0;
-	info.si_code  = BUS_FIXME;
+	info.si_code  = inf->code;
 	if (esr & ESR_ELx_FnV)
 		info.si_addr = NULL;
 	else
@@ -596,70 +596,70 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 }
 
 static const struct fault_info fault_info[] = {
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"ttbr address size fault"	},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"level 1 address size fault"	},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"level 2 address size fault"	},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"level 3 address size fault"	},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"ttbr address size fault"	},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"level 1 address size fault"	},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"level 2 address size fault"	},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"level 3 address size fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 0 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 1 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 2 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 3 translation fault"	},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 8"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 8"			},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 access flag fault"	},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 12"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 12"			},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 permission fault"	},
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"synchronous external abort"	},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 17"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 18"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 19"			},
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 0 (translation table walk)"	},
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 1 (translation table walk)"	},
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 2 (translation table walk)"	},
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 3 (translation table walk)"	},
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"synchronous parity or ECC error" },	// Reserved when RAS is implemented
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 25"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 26"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 27"			},
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 0 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 1 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 2 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
-	{ do_sea,		SIGBUS,  BUS_FIXME,	"level 3 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 32"			},
+	{ do_sea,		SIGBUS,  BUS_OBJERR,	"synchronous external abort"	},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 17"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 18"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 19"			},
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 0 (translation table walk)"	},
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 1 (translation table walk)"	},
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 2 (translation table walk)"	},
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 3 (translation table walk)"	},
+	{ do_sea,		SIGBUS,  BUS_OBJERR,	"synchronous parity or ECC error" },	// Reserved when RAS is implemented
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 25"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 26"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 27"			},
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 0 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 1 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 2 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level 3 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 32"			},
 	{ do_alignment_fault,	SIGBUS,  BUS_ADRALN,	"alignment fault"		},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 34"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 35"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 36"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 37"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 38"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 39"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 40"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 41"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 42"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 43"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 44"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 45"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 46"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 47"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"TLB conflict abort"		},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"Unsupported atomic hardware update fault"	},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 50"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 51"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"implementation fault (lockdown abort)" },
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"implementation fault (unsupported exclusive)" },
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 54"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 55"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 56"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 57"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 58" 			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 59"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 60"			},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"section domain fault"		},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"page domain fault"		},
-	{ do_bad,		SIGBUS,  BUS_FIXME,	"unknown 63"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 34"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 35"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 36"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 37"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 38"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 39"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 40"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 41"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 42"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 43"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 44"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 45"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 46"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 47"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"TLB conflict abort"		},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"Unsupported atomic hardware update fault"	},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 50"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 51"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"implementation fault (lockdown abort)" },
+	{ do_bad,		SIGBUS,  BUS_OBJERR,	"implementation fault (unsupported exclusive)" },
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 54"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 55"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 56"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 57"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 58" 			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 59"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 60"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"section domain fault"		},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"page domain fault"		},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 63"			},
 };
 
 int handle_guest_sea(phys_addr_t addr, unsigned int esr)
@@ -748,11 +748,11 @@ static struct fault_info __refdata debug_fault_info[] = {
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware breakpoint"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware single-step"	},
 	{ do_bad,	SIGTRAP,	TRAP_HWBKPT,	"hardware watchpoint"	},
-	{ do_bad,	SIGBUS,		BUS_FIXME,	"unknown 3"		},
+	{ do_bad,	SIGKILL,	SI_KERNEL,	"unknown 3"		},
 	{ do_bad,	SIGTRAP,	TRAP_BRKPT,	"aarch32 BKPT"		},
-	{ do_bad,	SIGTRAP,	TRAP_FIXME,	"aarch32 vector catch"	},
+	{ do_bad,	SIGKILL,	SI_KERNEL,	"aarch32 vector catch"	},
 	{ early_brk64,	SIGTRAP,	TRAP_BRKPT,	"aarch64 BRK"		},
-	{ do_bad,	SIGBUS,		BUS_FIXME,	"unknown 7"		},
+	{ do_bad,	SIGKILL,	SI_KERNEL,	"unknown 7"		},
 };
 
 void __init hook_debug_fault_code(int nr,

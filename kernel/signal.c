@@ -2844,10 +2844,6 @@ enum siginfo_layout siginfo_layout(int sig, int si_code)
 		if ((sig == SIGFPE) && (si_code == FPE_FIXME))
 			layout = SIL_FAULT;
 #endif
-#ifdef BUS_FIXME
-		if ((sig == SIGBUS) && (si_code == BUS_FIXME))
-			layout = SIL_FAULT;
-#endif
 	}
 	return layout;
 }

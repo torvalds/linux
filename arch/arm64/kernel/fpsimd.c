@@ -285,7 +285,7 @@ static void task_fpsimd_save(void)
 				 * re-enter user with corrupt state.
 				 * There's no way to recover, so kill it:
 				 */
-				force_signal_inject(SIGKILL, 0, 0);
+				force_signal_inject(SIGKILL, SI_KERNEL, 0);
 				return;
 			}
 
