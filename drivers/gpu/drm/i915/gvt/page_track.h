@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2011-2016 Intel Corporation. All rights reserved.
+ * Copyright(c) 2011-2017 Intel Corporation. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,38 +20,37 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * Authors:
- *    Eddie Dong <eddie.dong@intel.com>
- *    Kevin Tian <kevin.tian@intel.com>
- *
- * Contributors:
- *    Zhi Wang <zhi.a.wang@intel.com>
- *    Changbin Du <changbin.du@intel.com>
- *    Zhenyu Wang <zhenyuw@linux.intel.com>
- *    Tina Zhang <tina.zhang@intel.com>
- *    Bing Niu <bing.niu@intel.com>
- *
  */
 
-#ifndef __GVT_RENDER_H__
-#define __GVT_RENDER_H__
+#ifndef _GVT_PAGE_TRACK_H_
+#define _GVT_PAGE_TRACK_H_
 
-struct engine_mmio {
-	int ring_id;
-	i915_reg_t reg;
-	u32 mask;
-	bool in_context;
-	u32 value;
+struct intel_vgpu_page_track;
+
+typedef int (*gvt_page_track_handler_t)(
+			struct intel_vgpu_page_track *page_track,
+			u64 gpa, void *data, int bytes);
+
+/* Track record for a write-protected guest page. */
+struct intel_vgpu_page_track {
+	gvt_page_track_handler_t handler;
+	bool tracked;
+	void *priv_data;
 };
 
-void intel_gvt_switch_mmio(struct intel_vgpu *pre,
-			   struct intel_vgpu *next, int ring_id);
+struct intel_vgpu_page_track *intel_vgpu_find_page_track(
+		struct intel_vgpu *vgpu, unsigned long gfn);
 
-void intel_gvt_init_engine_mmio_context(struct intel_gvt *gvt);
+int intel_vgpu_register_page_track(struct intel_vgpu *vgpu,
+		unsigned long gfn, gvt_page_track_handler_t handler,
+		void *priv);
+void intel_vgpu_unregister_page_track(struct intel_vgpu *vgpu,
+		unsigned long gfn);
 
-bool is_inhibit_context(struct i915_gem_context *ctx, int ring_id);
+int intel_vgpu_enable_page_track(struct intel_vgpu *vgpu, unsigned long gfn);
+int intel_vgpu_disable_page_track(struct intel_vgpu *vgpu, unsigned long gfn);
 
-int intel_vgpu_restore_inhibit_context(struct intel_vgpu *vgpu,
-				       struct i915_request *req);
+int intel_vgpu_page_track_handler(struct intel_vgpu *vgpu, u64 gpa,
+		void *data, unsigned int bytes);
 
 #endif

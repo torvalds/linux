@@ -76,10 +76,9 @@ static void failsafe_emulate_mmio_rw(struct intel_vgpu *vgpu, uint64_t pa,
 		else
 			intel_vgpu_default_mmio_write(vgpu, offset, p_data,
 					bytes);
-	} else if (reg_is_gtt(gvt, offset) &&
-			vgpu->gtt.ggtt_mm->virtual_page_table) {
+	} else if (reg_is_gtt(gvt, offset)) {
 		offset -= gvt->device_info.gtt_start_offset;
-		pt = vgpu->gtt.ggtt_mm->virtual_page_table + offset;
+		pt = vgpu->gtt.ggtt_mm->ggtt_mm.virtual_ggtt + offset;
 		if (read)
 			memcpy(p_data, pt, bytes);
 		else
@@ -125,7 +124,7 @@ int intel_vgpu_emulate_mmio_read(struct intel_vgpu *vgpu, uint64_t pa,
 		if (WARN_ON(!reg_is_gtt(gvt, offset + bytes - 1)))
 			goto err;
 
-		ret = intel_vgpu_emulate_gtt_mmio_read(vgpu, offset,
+		ret = intel_vgpu_emulate_ggtt_mmio_read(vgpu, offset,
 				p_data, bytes);
 		if (ret)
 			goto err;
@@ -198,7 +197,7 @@ int intel_vgpu_emulate_mmio_write(struct intel_vgpu *vgpu, uint64_t pa,
 		if (WARN_ON(!reg_is_gtt(gvt, offset + bytes - 1)))
 			goto err;
 
-		ret = intel_vgpu_emulate_gtt_mmio_write(vgpu, offset,
+		ret = intel_vgpu_emulate_ggtt_mmio_write(vgpu, offset,
 				p_data, bytes);
 		if (ret)
 			goto err;

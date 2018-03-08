@@ -459,7 +459,7 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 
 	obj = vgpu_create_gem(dev, dmabuf_obj->info);
 	if (obj == NULL) {
-		gvt_vgpu_err("create gvt gem obj failed:%d\n", vgpu->id);
+		gvt_vgpu_err("create gvt gem obj failed\n");
 		ret = -ENOMEM;
 		goto out;
 	}

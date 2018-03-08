@@ -113,7 +113,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 #undef COPY_REG
 
 	set_context_pdp_root_pointer(shadow_ring_context,
-				     workload->shadow_mm->shadow_page_table);
+				     (void *)workload->shadow_mm->ppgtt_mm.shadow_pdps);
 
 	intel_gvt_hypervisor_read_gpa(vgpu,
 			workload->ring_context_gpa +
@@ -225,6 +225,11 @@ static int copy_workload_to_ring_buffer(struct intel_vgpu_workload *workload)
 	struct intel_vgpu *vgpu = workload->vgpu;
 	void *shadow_ring_buffer_va;
 	u32 *cs;
+	struct i915_request *req = workload->req;
+
+	if (IS_KABYLAKE(req->i915) &&
+	    is_inhibit_context(req->ctx, req->engine->id))
+		intel_vgpu_restore_inhibit_context(vgpu, req);
 
 	/* allocate shadow ring buffer */
 	cs = intel_ring_begin(workload->req, workload->rb_len / sizeof(u32));
@@ -1132,7 +1137,7 @@ void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload)
 	struct intel_vgpu_submission *s = &workload->vgpu->submission;
 
 	if (workload->shadow_mm)
-		intel_gvt_mm_unreference(workload->shadow_mm);
+		intel_vgpu_mm_put(workload->shadow_mm);
 
 	kmem_cache_free(s->workloads, workload);
 }
@@ -1181,32 +1186,27 @@ static int prepare_mm(struct intel_vgpu_workload *workload)
 	struct execlist_ctx_descriptor_format *desc = &workload->ctx_desc;
 	struct intel_vgpu_mm *mm;
 	struct intel_vgpu *vgpu = workload->vgpu;
-	int page_table_level;
-	u32 pdp[8];
+	intel_gvt_gtt_type_t root_entry_type;
+	u64 pdps[GVT_RING_CTX_NR_PDPS];
 
-	if (desc->addressing_mode == 1) { /* legacy 32-bit */
-		page_table_level = 3;
-	} else if (desc->addressing_mode == 3) { /* legacy 64 bit */
-		page_table_level = 4;
-	} else {
+	switch (desc->addressing_mode) {
+	case 1: /* legacy 32-bit */
+		root_entry_type = GTT_TYPE_PPGTT_ROOT_L3_ENTRY;
+		break;
+	case 3: /* legacy 64-bit */
+		root_entry_type = GTT_TYPE_PPGTT_ROOT_L4_ENTRY;
+		break;
+	default:
 		gvt_vgpu_err("Advanced Context mode(SVM) is not supported!\n");
 		return -EINVAL;
 	}
 
-	read_guest_pdps(workload->vgpu, workload->ring_context_gpa, pdp);
+	read_guest_pdps(workload->vgpu, workload->ring_context_gpa, (void *)pdps);
 
-	mm = intel_vgpu_find_ppgtt_mm(workload->vgpu, page_table_level, pdp);
-	if (mm) {
-		intel_gvt_mm_reference(mm);
-	} else {
+	mm = intel_vgpu_get_ppgtt_mm(workload->vgpu, root_entry_type, pdps);
+	if (IS_ERR(mm))
+		return PTR_ERR(mm);
 
-		mm = intel_vgpu_create_mm(workload->vgpu, INTEL_GVT_MM_PPGTT,
-				pdp, page_table_level, 0);
-		if (IS_ERR(mm)) {
-			gvt_vgpu_err("fail to create mm object.\n");
-			return PTR_ERR(mm);
-		}
-	}
 	workload->shadow_mm = mm;
 	return 0;
 }
