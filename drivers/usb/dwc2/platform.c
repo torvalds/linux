@@ -558,6 +558,12 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 			return ret;
 	}
 
+	/* Stop hcd if dr_mode is host and PD is power off when suspend */
+	if (dwc2->op_state == OTG_STATE_A_HOST && dwc2_is_device_mode(dwc2)) {
+		dwc2_hcd_disconnect(dwc2, true);
+		dwc2->lx_state = DWC2_L3;
+	}
+
 	if (dwc2_is_device_mode(dwc2))
 		ret = dwc2_hsotg_resume(dwc2);
 
