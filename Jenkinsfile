@@ -4,4 +4,9 @@ node {
 			checkout scm
 		}
 	}
+	stage('cleanup') {
+		timestamps {
+			sh "rm -rf *"
+		}
+	}
 }
