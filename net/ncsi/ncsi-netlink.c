@@ -183,7 +183,7 @@ static int ncsi_pkg_info_nl(struct sk_buff *msg, struct genl_info *info)
 	hdr = genlmsg_put(skb, info->snd_portid, info->snd_seq,
 			  &ncsi_genl_family, 0, NCSI_CMD_PKG_INFO);
 	if (!hdr) {
-		kfree(skb);
+		kfree_skb(skb);
 		return -EMSGSIZE;
 	}
 
@@ -204,7 +204,7 @@ static int ncsi_pkg_info_nl(struct sk_buff *msg, struct genl_info *info)
 
 err:
 	genlmsg_cancel(skb, hdr);
-	kfree(skb);
+	kfree_skb(skb);
 	return rc;
 }
 
