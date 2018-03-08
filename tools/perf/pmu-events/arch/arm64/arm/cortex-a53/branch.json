@@ -1,25 +1,23 @@
 [
-  {,
-    "EventCode": "0x7A",
-    "EventName": "BR_INDIRECT_SPEC",
-    "BriefDescription": "Branch speculatively executed - Indirect branch"
+  {
+    "ArchStdEvent":  "BR_INDIRECT_SPEC",
   },
-  {,
+  {
     "EventCode": "0xC9",
     "EventName": "BR_COND",
     "BriefDescription": "Conditional branch executed"
   },
-  {,
+  {
     "EventCode": "0xCA",
     "EventName": "BR_INDIRECT_MISPRED",
     "BriefDescription": "Indirect branch mispredicted"
   },
-  {,
+  {
     "EventCode": "0xCB",
     "EventName": "BR_INDIRECT_MISPRED_ADDR",
     "BriefDescription": "Indirect branch mispredicted because of address miscompare"
   },
-  {,
+  {
     "EventCode": "0xCC",
     "EventName": "BR_COND_MISPRED",
     "BriefDescription": "Conditional branch mispredicted"
