@@ -52,6 +52,61 @@ static struct ins_ops s390_call_ops = {
 	.scnprintf = call__scnprintf,
 };
 
+static int s390_mov__parse(struct arch *arch __maybe_unused,
+			   struct ins_operands *ops,
+			   struct map *map __maybe_unused)
+{
+	char *s = strchr(ops->raw, ','), *target, *endptr;
+
+	if (s == NULL)
+		return -1;
+
+	*s = '\0';
+	ops->source.raw = strdup(ops->raw);
+	*s = ',';
+
+	if (ops->source.raw == NULL)
+		return -1;
+
+	target = ++s;
+	ops->target.raw = strdup(target);
+	if (ops->target.raw == NULL)
+		goto out_free_source;
+
+	ops->target.addr = strtoull(target, &endptr, 16);
+	if (endptr == target)
+		goto out_free_target;
+
+	s = strchr(endptr, '<');
+	if (s == NULL)
+		goto out_free_target;
+	endptr = strchr(s + 1, '>');
+	if (endptr == NULL)
+		goto out_free_target;
+
+	*endptr = '\0';
+	ops->target.name = strdup(s + 1);
+	*endptr = '>';
+	if (ops->target.name == NULL)
+		goto out_free_target;
+
+	return 0;
+
+out_free_target:
+	zfree(&ops->target.raw);
+out_free_source:
+	zfree(&ops->source.raw);
+	return -1;
+}
+
+static int mov__scnprintf(struct ins *ins, char *bf, size_t size,
+			  struct ins_operands *ops);
+
+static struct ins_ops s390_mov_ops = {
+	.parse	   = s390_mov__parse,
+	.scnprintf = mov__scnprintf,
+};
+
 static struct ins_ops *s390__associate_ins_ops(struct arch *arch, const char *name)
 {
 	struct ins_ops *ops = NULL;
@@ -68,6 +123,14 @@ static struct ins_ops *s390__associate_ins_ops(struct arch *arch, const char *na
 		ops = &s390_call_ops;
 	if (!strcmp(name, "br"))
 		ops = &ret_ops;
+	/* override load/store relative to PC */
+	if (!strcmp(name, "lrl") ||
+	    !strcmp(name, "lgrl") ||
+	    !strcmp(name, "lgfrl") ||
+	    !strcmp(name, "llgfrl") ||
+	    !strcmp(name, "strl") ||
+	    !strcmp(name, "stgrl"))
+		ops = &s390_mov_ops;
 
 	if (ops)
 		arch__associate_ins_ops(arch, name, ops);
