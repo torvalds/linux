@@ -496,7 +496,7 @@ static void qla2x00_free_rsp_que(struct qla_hw_data *ha, struct rsp_que *rsp)
 		return;
 
 	if (IS_QLAFX00(ha)) {
-		if (rsp && rsp->ring)
+		if (rsp && rsp->ring_fx00)
 			dma_free_coherent(&ha->pdev->dev,
 			    (rsp->length_fx00 + 1) * sizeof(request_t),
 			    rsp->ring_fx00, rsp->dma_fx00);
