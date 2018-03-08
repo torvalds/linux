@@ -97,6 +97,7 @@ struct tc_action_ops {
 			const struct tc_action_ops *,
 			struct netlink_ext_ack *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64);
+	size_t  (*get_fill_size)(const struct tc_action *act);
 	struct net_device *(*get_dev)(const struct tc_action *a);
 };
 
