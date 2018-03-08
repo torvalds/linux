@@ -726,6 +726,12 @@ static inline void queue_flag_set_unlocked(unsigned int flag,
 	__set_bit(flag, &q->queue_flags);
 }
 
+static inline void queue_flag_clear_unlocked(unsigned int flag,
+					     struct request_queue *q)
+{
+	__clear_bit(flag, &q->queue_flags);
+}
+
 static inline int queue_flag_test_and_clear(unsigned int flag,
 					    struct request_queue *q)
 {
@@ -756,17 +762,6 @@ static inline void queue_flag_set(unsigned int flag, struct request_queue *q)
 {
 	queue_lockdep_assert_held(q);
 	__set_bit(flag, &q->queue_flags);
-}
-
-static inline void queue_flag_clear_unlocked(unsigned int flag,
-					     struct request_queue *q)
-{
-	__clear_bit(flag, &q->queue_flags);
-}
-
-static inline int queue_in_flight(struct request_queue *q)
-{
-	return q->in_flight[0] + q->in_flight[1];
 }
 
 static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
@@ -803,6 +798,11 @@ static inline void queue_flag_clear(unsigned int flag, struct request_queue *q)
 
 extern int blk_set_preempt_only(struct request_queue *q);
 extern void blk_clear_preempt_only(struct request_queue *q);
+
+static inline int queue_in_flight(struct request_queue *q)
+{
+	return q->in_flight[0] + q->in_flight[1];
+}
 
 static inline bool blk_account_rq(struct request *rq)
 {
