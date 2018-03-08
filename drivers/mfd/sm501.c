@@ -1383,7 +1383,7 @@ static int sm501_plat_probe(struct platform_device *dev)
 	struct sm501_devdata *sm;
 	int ret;
 
-	sm = kzalloc(sizeof(struct sm501_devdata), GFP_KERNEL);
+	sm = kzalloc(sizeof(*sm), GFP_KERNEL);
 	if (sm == NULL) {
 		ret = -ENOMEM;
 		goto err1;
@@ -1572,7 +1572,7 @@ static int sm501_pci_probe(struct pci_dev *dev,
 	struct sm501_devdata *sm;
 	int err;
 
-	sm = kzalloc(sizeof(struct sm501_devdata), GFP_KERNEL);
+	sm = kzalloc(sizeof(*sm), GFP_KERNEL);
 	if (sm == NULL) {
 		err = -ENOMEM;
 		goto err1;
