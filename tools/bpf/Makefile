@@ -50,7 +50,9 @@ $(OUTPUT)%.lex.c: $(srctree)/tools/bpf/%.l
 $(OUTPUT)%.o: $(srctree)/tools/bpf/%.c
 	$(COMPILE.c) -o $@ $<
 
-all: $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg $(OUTPUT)bpf_asm bpftool
+PROGS = $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg $(OUTPUT)bpf_asm
+
+all: $(PROGS) bpftool
 
 $(OUTPUT)bpf_jit_disasm: CFLAGS += -DPACKAGE='bpf_jit_disasm'
 $(OUTPUT)bpf_jit_disasm: LDLIBS = -lopcodes -lbfd -ldl
@@ -67,7 +69,7 @@ clean: bpftool_clean
 	rm -rf $(OUTPUT)*.o $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg \
 	       $(OUTPUT)bpf_asm $(OUTPUT)bpf_exp.yacc.* $(OUTPUT)bpf_exp.lex.*
 
-install: bpftool_install
+install: $(PROGS) bpftool_install
 	$(INSTALL) -m 0755 -d $(DESTDIR)$(prefix)/bin
 	$(INSTALL) $(OUTPUT)bpf_jit_disasm $(DESTDIR)$(prefix)/bin/bpf_jit_disasm
 	$(INSTALL) $(OUTPUT)bpf_dbg $(DESTDIR)$(prefix)/bin/bpf_dbg
