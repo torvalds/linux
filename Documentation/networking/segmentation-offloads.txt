@@ -153,8 +153,15 @@ To signal this, gso_size is set to the special value GSO_BY_FRAGS.
 
 Therefore, any code in the core networking stack must be aware of the
 possibility that gso_size will be GSO_BY_FRAGS and handle that case
-appropriately. (For size checks, the skb_gso_validate_*_len family of
-helpers do this automatically.)
+appropriately.
+
+There are a couple of helpers to make this easier:
+
+ - For size checks, the skb_gso_validate_*_len family of helpers correctly
+   considers GSO_BY_FRAGS.
+
+ - For manipulating packets, skb_increase_gso_size and skb_decrease_gso_size
+   will check for GSO_BY_FRAGS and WARN if asked to manipulate these skbs.
 
 This also affects drivers with the NETIF_F_FRAGLIST & NETIF_F_GSO_SCTP bits
 set. Note also that NETIF_F_GSO_SCTP is included in NETIF_F_GSO_SOFTWARE.
