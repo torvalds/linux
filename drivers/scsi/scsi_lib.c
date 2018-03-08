@@ -2140,7 +2140,7 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 {
 	struct device *dev = shost->dma_dev;
 
-	queue_flag_set_unlocked(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
+	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 
 	/*
 	 * this limit is imposed by hardware restrictions

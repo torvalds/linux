@@ -2858,8 +2858,8 @@ static int skd_cons_disk(struct skd_device *skdev)
 	/* set optimal I/O size to 8KB */
 	blk_queue_io_opt(q, 8192);
 
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, q);
-	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, q);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
 
 	blk_queue_rq_timeout(q, 8 * HZ);
 

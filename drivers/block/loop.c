@@ -214,10 +214,10 @@ static void __loop_update_dio(struct loop_device *lo, bool dio)
 	blk_mq_freeze_queue(lo->lo_queue);
 	lo->use_dio = use_dio;
 	if (use_dio) {
-		queue_flag_clear_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
+		blk_queue_flag_clear(QUEUE_FLAG_NOMERGES, lo->lo_queue);
 		lo->lo_flags |= LO_FLAGS_DIRECT_IO;
 	} else {
-		queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
+		blk_queue_flag_set(QUEUE_FLAG_NOMERGES, lo->lo_queue);
 		lo->lo_flags &= ~LO_FLAGS_DIRECT_IO;
 	}
 	blk_mq_unfreeze_queue(lo->lo_queue);
@@ -817,7 +817,7 @@ static void loop_config_discard(struct loop_device *lo)
 		q->limits.discard_alignment = 0;
 		blk_queue_max_discard_sectors(q, 0);
 		blk_queue_max_write_zeroes_sectors(q, 0);
-		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, q);
+		blk_queue_flag_clear(QUEUE_FLAG_DISCARD, q);
 		return;
 	}
 
@@ -826,7 +826,7 @@ static void loop_config_discard(struct loop_device *lo)
 
 	blk_queue_max_discard_sectors(q, UINT_MAX >> 9);
 	blk_queue_max_write_zeroes_sectors(q, UINT_MAX >> 9);
-	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, q);
+	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
 }
 
 static void loop_unprepare_queue(struct loop_device *lo)
@@ -1808,7 +1808,7 @@ static int loop_add(struct loop_device **l, int i)
 	 * page. For directio mode, merge does help to dispatch bigger request
 	 * to underlayer disk. We will enable merge once directio is enabled.
 	 */
-	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, lo->lo_queue);
+	blk_queue_flag_set(QUEUE_FLAG_NOMERGES, lo->lo_queue);
 
 	err = -ENOMEM;
 	disk = lo->lo_disk = alloc_disk(1 << part_shift);

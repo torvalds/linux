@@ -2352,7 +2352,7 @@ scsih_slave_configure(struct scsi_device *sdev)
 		 ** merged and can eliminate holes created during merging
 		 ** operation.
 		 **/
-		queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES,
+		blk_queue_flag_set(QUEUE_FLAG_NOMERGES,
 				sdev->request_queue);
 		blk_queue_virt_boundary(sdev->request_queue,
 				ioc->page_size - 1);

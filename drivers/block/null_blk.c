@@ -1525,7 +1525,7 @@ static void null_config_discard(struct nullb *nullb)
 	nullb->q->limits.discard_granularity = nullb->dev->blocksize;
 	nullb->q->limits.discard_alignment = nullb->dev->blocksize;
 	blk_queue_max_discard_sectors(nullb->q, UINT_MAX >> 9);
-	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, nullb->q);
+	blk_queue_flag_set(QUEUE_FLAG_DISCARD, nullb->q);
 }
 
 static int null_open(struct block_device *bdev, fmode_t mode)
@@ -1810,8 +1810,8 @@ static int null_add_dev(struct nullb_device *dev)
 	}
 
 	nullb->q->queuedata = nullb;
-	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, nullb->q);
-	queue_flag_clear_unlocked(QUEUE_FLAG_ADD_RANDOM, nullb->q);
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, nullb->q);
+	blk_queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, nullb->q);
 
 	mutex_lock(&lock);
 	nullb->index = ida_simple_get(&nullb_indexes, 0, 0, GFP_KERNEL);

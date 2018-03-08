@@ -275,8 +275,8 @@ struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
 
 	q->queuedata = dev;
 	q->bsg_job_fn = job_fn;
-	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
-	queue_flag_set_unlocked(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
+	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
+	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 	blk_queue_softirq_done(q, bsg_softirq_done);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 
