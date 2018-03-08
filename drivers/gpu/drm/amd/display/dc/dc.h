@@ -202,6 +202,7 @@ struct dc_debug {
 	bool timing_trace;
 	bool clock_trace;
 	bool validation_trace;
+	bool bandwidth_calcs_trace;
 
 	/* stutter efficiency related */
 	bool disable_stutter;

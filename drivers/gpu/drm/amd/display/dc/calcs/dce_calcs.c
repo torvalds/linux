@@ -28,6 +28,7 @@
 #include "dc.h"
 #include "core_types.h"
 #include "dal_asic_id.h"
+#include "calcs_logger.h"
 
 /*
  * NOTE:
@@ -2990,6 +2991,11 @@ bool bw_calcs(struct dc_context *ctx,
 		struct bw_fixed mid_yclk = vbios->mid_yclk;
 		struct bw_fixed low_yclk = vbios->low_yclk;
 
+		if (ctx->dc->debug.bandwidth_calcs_trace) {
+			print_bw_calcs_dceip(ctx->logger, dceip);
+			print_bw_calcs_vbios(ctx->logger, vbios);
+			print_bw_calcs_data(ctx->logger, data);
+		}
 		calculate_bandwidth(dceip, vbios, data);
 
 		yclk_lvl = data->y_clk_level;
