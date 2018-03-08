@@ -546,8 +546,6 @@ static int rave_sp_receive_buf(struct serdev_device *serdev,
 			/* FALLTHROUGH */
 
 		case RAVE_SP_EXPECT_ESCAPED_DATA:
-			deframer->data[deframer->length++] = byte;
-
 			if (deframer->length == sizeof(deframer->data)) {
 				dev_warn(dev, "Bad frame: Too long\n");
 				/*
@@ -561,6 +559,8 @@ static int rave_sp_receive_buf(struct serdev_device *serdev,
 				 */
 				goto reset_framer;
 			}
+
+			deframer->data[deframer->length++] = byte;
 
 			/*
 			 * We've extracted out special byte, now we
