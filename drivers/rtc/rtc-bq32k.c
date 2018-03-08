@@ -36,6 +36,10 @@
 #define BQ32K_CFG2		0x09	/* Trickle charger control */
 #define BQ32K_TCFE		BIT(6)	/* Trickle charge FET bypass */
 
+#define MAX_LEN			10	/* Maximum number of consecutive
+					 * register for this particular RTC.
+					 */
+
 struct bq32k_regs {
 	uint8_t		seconds;
 	uint8_t		minutes;
@@ -74,7 +78,7 @@ static int bq32k_read(struct device *dev, void *data, uint8_t off, uint8_t len)
 static int bq32k_write(struct device *dev, void *data, uint8_t off, uint8_t len)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	uint8_t buffer[len + 1];
+	uint8_t buffer[MAX_LEN + 1];
 
 	buffer[0] = off;
 	memcpy(&buffer[1], data, len);
