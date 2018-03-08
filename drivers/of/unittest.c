@@ -1529,11 +1529,8 @@ static int __init of_unittest_apply_revert_overlay_check(int overlay_nr,
 /* test activation of device */
 static void __init of_unittest_overlay_0(void)
 {
-	int ret;
-
 	/* device should enable */
-	ret = of_unittest_apply_overlay_check(0, 0, 0, 1, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(0, 0, 0, 1, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 0);
@@ -1542,11 +1539,8 @@ static void __init of_unittest_overlay_0(void)
 /* test deactivation of device */
 static void __init of_unittest_overlay_1(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_overlay_check(1, 1, 1, 0, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(1, 1, 1, 0, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 1);
@@ -1555,11 +1549,8 @@ static void __init of_unittest_overlay_1(void)
 /* test activation of device */
 static void __init of_unittest_overlay_2(void)
 {
-	int ret;
-
 	/* device should enable */
-	ret = of_unittest_apply_overlay_check(2, 2, 0, 1, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(2, 2, 0, 1, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 2);
@@ -1568,11 +1559,8 @@ static void __init of_unittest_overlay_2(void)
 /* test deactivation of device */
 static void __init of_unittest_overlay_3(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_overlay_check(3, 3, 1, 0, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(3, 3, 1, 0, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 3);
@@ -1581,11 +1569,8 @@ static void __init of_unittest_overlay_3(void)
 /* test activation of a full device node */
 static void __init of_unittest_overlay_4(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_overlay_check(4, 4, 0, 1, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(4, 4, 0, 1, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 4);
@@ -1594,11 +1579,8 @@ static void __init of_unittest_overlay_4(void)
 /* test overlay apply/revert sequence */
 static void __init of_unittest_overlay_5(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_revert_overlay_check(5, 5, 0, 1, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_revert_overlay_check(5, 5, 0, 1, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 5);
@@ -1607,7 +1589,7 @@ static void __init of_unittest_overlay_5(void)
 /* test overlay application in sequence */
 static void __init of_unittest_overlay_6(void)
 {
-	int ret, i, ov_id[2], ovcs_id;
+	int i, ov_id[2], ovcs_id;
 	int overlay_nr = 6, unittest_nr = 6;
 	int before = 0, after = 1;
 	const char *overlay_name;
@@ -1630,8 +1612,7 @@ static void __init of_unittest_overlay_6(void)
 
 		overlay_name = overlay_name_from_nr(overlay_nr + i);
 
-		ret = overlay_data_apply(overlay_name, &ovcs_id);
-		if (!ret)  {
+		if (!overlay_data_apply(overlay_name, &ovcs_id)) {
 			unittest(0, "could not apply overlay \"%s\"\n",
 					overlay_name);
 			return;
@@ -1655,8 +1636,7 @@ static void __init of_unittest_overlay_6(void)
 
 	for (i = 1; i >= 0; i--) {
 		ovcs_id = ov_id[i];
-		ret = of_overlay_remove(&ovcs_id);
-		if (ret != 0) {
+		if (of_overlay_remove(&ovcs_id)) {
 			unittest(0, "%s failed destroy @\"%s\"\n",
 					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr + i,
@@ -1685,7 +1665,7 @@ static void __init of_unittest_overlay_6(void)
 /* test overlay application in sequence */
 static void __init of_unittest_overlay_8(void)
 {
-	int ret, i, ov_id[2], ovcs_id;
+	int i, ov_id[2], ovcs_id;
 	int overlay_nr = 8, unittest_nr = 8;
 	const char *overlay_name;
 
@@ -1707,8 +1687,7 @@ static void __init of_unittest_overlay_8(void)
 
 	/* now try to remove first overlay (it should fail) */
 	ovcs_id = ov_id[0];
-	ret = of_overlay_remove(&ovcs_id);
-	if (ret == 0) {
+	if (!of_overlay_remove(&ovcs_id)) {
 		unittest(0, "%s was destroyed @\"%s\"\n",
 				overlay_name_from_nr(overlay_nr + 0),
 				unittest_path(unittest_nr,
@@ -1719,8 +1698,7 @@ static void __init of_unittest_overlay_8(void)
 	/* removing them in order should work */
 	for (i = 1; i >= 0; i--) {
 		ovcs_id = ov_id[i];
-		ret = of_overlay_remove(&ovcs_id);
-		if (ret != 0) {
+		if (of_overlay_remove(&ovcs_id)) {
 			unittest(0, "%s not destroyed @\"%s\"\n",
 					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr,
@@ -1917,7 +1895,7 @@ static int unittest_i2c_mux_select_chan(struct i2c_mux_core *muxc, u32 chan)
 static int unittest_i2c_mux_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-	int ret, i, nchans;
+	int i, nchans;
 	struct device *dev = &client->dev;
 	struct i2c_adapter *adap = to_i2c_adapter(dev->parent);
 	struct device_node *np = client->dev.of_node, *child;
@@ -1933,8 +1911,7 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 
 	max_reg = (u32)-1;
 	for_each_child_of_node(np, child) {
-		ret = of_property_read_u32(child, "reg", &reg);
-		if (ret)
+		if (of_property_read_u32(child, "reg", &reg))
 			continue;
 		if (max_reg == (u32)-1 || reg > max_reg)
 			max_reg = reg;
@@ -1950,8 +1927,7 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 	if (!muxc)
 		return -ENOMEM;
 	for (i = 0; i < nchans; i++) {
-		ret = i2c_mux_add_adapter(muxc, 0, i, 0);
-		if (ret) {
+		if (i2c_mux_add_adapter(muxc, 0, i, 0)) {
 			dev_err(dev, "Failed to register mux #%d\n", i);
 			i2c_mux_del_adapters(muxc);
 			return -ENODEV;
@@ -2025,11 +2001,8 @@ static void of_unittest_overlay_i2c_cleanup(void)
 
 static void __init of_unittest_overlay_i2c_12(void)
 {
-	int ret;
-
 	/* device should enable */
-	ret = of_unittest_apply_overlay_check(12, 12, 0, 1, I2C_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(12, 12, 0, 1, I2C_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 12);
@@ -2038,11 +2011,8 @@ static void __init of_unittest_overlay_i2c_12(void)
 /* test deactivation of device */
 static void __init of_unittest_overlay_i2c_13(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_overlay_check(13, 13, 1, 0, I2C_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(13, 13, 1, 0, I2C_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 13);
@@ -2055,11 +2025,8 @@ static void of_unittest_overlay_i2c_14(void)
 
 static void __init of_unittest_overlay_i2c_15(void)
 {
-	int ret;
-
 	/* device should enable */
-	ret = of_unittest_apply_overlay_check(15, 15, 0, 1, I2C_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(15, 15, 0, 1, I2C_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 15);
@@ -2075,10 +2042,8 @@ static inline void of_unittest_overlay_i2c_15(void) { }
 static void __init of_unittest_overlay(void)
 {
 	struct device_node *bus_np = NULL;
-	int ret;
 
-	ret = platform_driver_register(&unittest_driver);
-	if (ret != 0) {
+	if (platform_driver_register(&unittest_driver)) {
 		unittest(0, "could not register unittest driver\n");
 		goto out;
 	}
@@ -2089,8 +2054,7 @@ static void __init of_unittest_overlay(void)
 		goto out;
 	}
 
-	ret = of_platform_default_populate(bus_np, NULL, NULL);
-	if (ret != 0) {
+	if (of_platform_default_populate(bus_np, NULL, NULL)) {
 		unittest(0, "could not populate bus @ \"%s\"\n", bus_path);
 		goto out;
 	}
@@ -2341,7 +2305,6 @@ static __init void of_unittest_overlay_high_level(void)
 	struct device_node *overlay_base_symbols;
 	struct device_node **pprev;
 	struct property *prop;
-	int ret;
 
 	if (!overlay_base_root) {
 		unittest(0, "overlay_base_root not initialized\n");
@@ -2432,19 +2395,15 @@ static __init void of_unittest_overlay_high_level(void)
 					 prop->name);
 				goto err_unlock;
 			}
-			ret = __of_add_property(of_symbols, new_prop);
-			if (ret) {
-				if (!strcmp(new_prop->name, "name")) {
-					/* auto-generated by unflatten */
-					ret = 0;
+			if (__of_add_property(of_symbols, new_prop)) {
+				/* "name" auto-generated by unflatten */
+				if (!strcmp(new_prop->name, "name"))
 					continue;
-				}
 				unittest(0, "duplicate property '%s' in overlay_base node __symbols__",
 					 prop->name);
 				goto err_unlock;
 			}
-			ret = __of_add_property_sysfs(of_symbols, new_prop);
-			if (ret) {
+			if (__of_add_property_sysfs(of_symbols, new_prop)) {
 				unittest(0, "unable to add property '%s' in overlay_base node __symbols__ to sysfs",
 					 prop->name);
 				goto err_unlock;
