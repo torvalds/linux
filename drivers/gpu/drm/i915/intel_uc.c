@@ -219,6 +219,28 @@ static void guc_free_load_err_log(struct intel_guc *guc)
 		i915_gem_object_put(guc->load_err_log);
 }
 
+int intel_uc_register(struct drm_i915_private *i915)
+{
+	int ret = 0;
+
+	if (!USES_GUC(i915))
+		return 0;
+
+	if (i915_modparams.guc_log_level)
+		ret = intel_guc_log_register(&i915->guc);
+
+	return ret;
+}
+
+void intel_uc_unregister(struct drm_i915_private *i915)
+{
+	if (!USES_GUC(i915))
+		return;
+
+	if (i915_modparams.guc_log_level)
+		intel_guc_log_unregister(&i915->guc);
+}
+
 static int guc_enable_communication(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
@@ -249,23 +271,10 @@ int intel_uc_init_misc(struct drm_i915_private *dev_priv)
 		return 0;
 
 	ret = intel_guc_init_wq(guc);
-	if (ret) {
-		DRM_ERROR("Couldn't allocate workqueues for GuC\n");
-		goto err;
-	}
-
-	ret = intel_guc_log_relay_create(guc);
-	if (ret) {
-		DRM_ERROR("Couldn't allocate relay for GuC log\n");
-		goto err_relay;
-	}
+	if (ret)
+		return ret;
 
 	return 0;
-
-err_relay:
-	intel_guc_fini_wq(guc);
-err:
-	return ret;
 }
 
 void intel_uc_fini_misc(struct drm_i915_private *dev_priv)
@@ -276,8 +285,6 @@ void intel_uc_fini_misc(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_guc_fini_wq(guc);
-
-	intel_guc_log_relay_destroy(guc);
 }
 
 int intel_uc_init(struct drm_i915_private *dev_priv)
