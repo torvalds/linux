@@ -3516,7 +3516,7 @@ static int __init init_mac80211_hwsim(void)
 
 	spin_lock_init(&hwsim_radio_lock);
 
-	hwsim_wq = alloc_workqueue("hwsim_wq",WQ_MEM_RECLAIM,0);
+	hwsim_wq = alloc_workqueue("hwsim_wq", 0, 0);
 	if (!hwsim_wq)
 		return -ENOMEM;
 	rhashtable_init(&hwsim_radios_rht, &hwsim_rht_params);

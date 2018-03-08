@@ -348,7 +348,7 @@ static int imx_gpc_old_dt_init(struct device *dev, struct regmap *regmap,
 		if (i == 1) {
 			domain->supply = devm_regulator_get(dev, "pu");
 			if (IS_ERR(domain->supply))
-				return PTR_ERR(domain->supply);;
+				return PTR_ERR(domain->supply);
 
 			ret = imx_pgc_get_clocks(dev, domain);
 			if (ret)

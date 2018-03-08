@@ -722,8 +722,6 @@ static int stm32h7_adc_enable(struct stm32_adc *adc)
 	int ret;
 	u32 val;
 
-	/* Clear ADRDY by writing one, then enable ADC */
-	stm32_adc_set_bits(adc, STM32H7_ADC_ISR, STM32H7_ADRDY);
 	stm32_adc_set_bits(adc, STM32H7_ADC_CR, STM32H7_ADEN);
 
 	/* Poll for ADRDY to be set (after adc startup time) */
@@ -731,8 +729,11 @@ static int stm32h7_adc_enable(struct stm32_adc *adc)
 					   val & STM32H7_ADRDY,
 					   100, STM32_ADC_TIMEOUT_US);
 	if (ret) {
-		stm32_adc_clr_bits(adc, STM32H7_ADC_CR, STM32H7_ADEN);
+		stm32_adc_set_bits(adc, STM32H7_ADC_CR, STM32H7_ADDIS);
 		dev_err(&indio_dev->dev, "Failed to enable ADC\n");
+	} else {
+		/* Clear ADRDY by writing one */
+		stm32_adc_set_bits(adc, STM32H7_ADC_ISR, STM32H7_ADRDY);
 	}
 
 	return ret;

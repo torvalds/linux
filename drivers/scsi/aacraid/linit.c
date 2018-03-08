@@ -1693,8 +1693,10 @@ static int aac_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	 *	Map in the registers from the adapter.
 	 */
 	aac->base_size = AAC_MIN_FOOTPRINT_SIZE;
-	if ((*aac_drivers[index].init)(aac))
+	if ((*aac_drivers[index].init)(aac)) {
+		error = -ENODEV;
 		goto out_unmap;
+	}
 
 	if (aac->sync_mode) {
 		if (aac_sync_mode)

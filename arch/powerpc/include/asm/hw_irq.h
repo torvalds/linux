@@ -30,6 +30,16 @@
 #define PACA_IRQ_PMI		0x40
 
 /*
+ * Some soft-masked interrupts must be hard masked until they are replayed
+ * (e.g., because the soft-masked handler does not clear the exception).
+ */
+#ifdef CONFIG_PPC_BOOK3S
+#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE|PACA_IRQ_PMI)
+#else
+#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE)
+#endif
+
+/*
  * flags for paca->irq_soft_mask
  */
 #define IRQS_ENABLED		0
@@ -244,7 +254,7 @@ static inline bool lazy_irq_pending(void)
 static inline void may_hard_irq_enable(void)
 {
 	get_paca()->irq_happened &= ~PACA_IRQ_HARD_DIS;
-	if (!(get_paca()->irq_happened & PACA_IRQ_EE))
+	if (!(get_paca()->irq_happened & PACA_IRQ_MUST_HARD_MASK))
 		__hard_irq_enable();
 }
 

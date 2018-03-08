@@ -20,7 +20,7 @@ if NET_VENDOR_SMSC
 
 config SMC9194
 	tristate "SMC 9194 support"
-	depends on (ISA || MAC && BROKEN)
+	depends on ISA
 	select CRC32
 	---help---
 	  This is support for the SMC9xxx based Ethernet cards. Choose this
