@@ -797,7 +797,7 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
 	return errno_to_blk_status(ret);
 }
 
-static blk_status_t __btree_submit_bio_start(void *private_data, struct bio *bio,
+static blk_status_t btree_submit_bio_start(void *private_data, struct bio *bio,
 					     u64 bio_offset)
 {
 	/*
@@ -807,7 +807,7 @@ static blk_status_t __btree_submit_bio_start(void *private_data, struct bio *bio
 	return btree_csum_one_bio(bio);
 }
 
-static blk_status_t __btree_submit_bio_done(void *private_data, struct bio *bio,
+static blk_status_t btree_submit_bio_done(void *private_data, struct bio *bio,
 					    int mirror_num)
 {
 	struct inode *inode = private_data;
@@ -867,8 +867,8 @@ static blk_status_t btree_submit_bio_hook(void *private_data, struct bio *bio,
 		 */
 		ret = btrfs_wq_submit_bio(fs_info, bio, mirror_num, 0,
 					  bio_offset, private_data,
-					  __btree_submit_bio_start,
-					  __btree_submit_bio_done);
+					  btree_submit_bio_start,
+					  btree_submit_bio_done);
 	}
 
 	if (ret)

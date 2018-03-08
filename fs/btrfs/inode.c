@@ -1941,7 +1941,7 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-static blk_status_t __btrfs_submit_bio_start(void *private_data, struct bio *bio,
+static blk_status_t btrfs_submit_bio_start(void *private_data, struct bio *bio,
 				    u64 bio_offset)
 {
 	struct inode *inode = private_data;
@@ -1960,7 +1960,7 @@ static blk_status_t __btrfs_submit_bio_start(void *private_data, struct bio *bio
  * At IO completion time the cums attached on the ordered extent record
  * are inserted into the btree
  */
-static blk_status_t __btrfs_submit_bio_done(void *private_data, struct bio *bio,
+static blk_status_t btrfs_submit_bio_done(void *private_data, struct bio *bio,
 			  int mirror_num)
 {
 	struct inode *inode = private_data;
@@ -2033,8 +2033,8 @@ static blk_status_t btrfs_submit_bio_hook(void *private_data, struct bio *bio,
 		/* we're doing a write, do the async checksumming */
 		ret = btrfs_wq_submit_bio(fs_info, bio, mirror_num, bio_flags,
 					  bio_offset, inode,
-					  __btrfs_submit_bio_start,
-					  __btrfs_submit_bio_done);
+					  btrfs_submit_bio_start,
+					  btrfs_submit_bio_done);
 		goto out;
 	} else if (!skip_sum) {
 		ret = btrfs_csum_one_bio(inode, bio, 0, 0);
@@ -8219,7 +8219,7 @@ static void btrfs_endio_direct_write(struct bio *bio)
 	bio_put(bio);
 }
 
-static blk_status_t __btrfs_submit_bio_start_direct_io(void *private_data,
+static blk_status_t btrfs_submit_bio_start_direct_io(void *private_data,
 				    struct bio *bio, u64 offset)
 {
 	struct inode *inode = private_data;
@@ -8300,9 +8300,8 @@ static inline blk_status_t btrfs_lookup_and_bind_dio_csum(struct inode *inode,
 	return 0;
 }
 
-static inline blk_status_t
-__btrfs_submit_dio_bio(struct bio *bio, struct inode *inode, u64 file_offset,
-		       int async_submit)
+static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
+		struct inode *inode, u64 file_offset, int async_submit)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_dio_private *dip = bio->bi_private;
@@ -8325,8 +8324,8 @@ __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode, u64 file_offset,
 	if (write && async_submit) {
 		ret = btrfs_wq_submit_bio(fs_info, bio, 0, 0,
 					  file_offset, inode,
-					  __btrfs_submit_bio_start_direct_io,
-					  __btrfs_submit_bio_done);
+					  btrfs_submit_bio_start_direct_io,
+					  btrfs_submit_bio_done);
 		goto err;
 	} else if (write) {
 		/*
@@ -8412,7 +8411,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip)
 		 */
 		atomic_inc(&dip->pending_bios);
 
-		status = __btrfs_submit_dio_bio(bio, inode, file_offset,
+		status = btrfs_submit_dio_bio(bio, inode, file_offset,
 						async_submit);
 		if (status) {
 			bio_put(bio);
@@ -8432,7 +8431,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip)
 	} while (submit_len > 0);
 
 submit:
-	status = __btrfs_submit_dio_bio(bio, inode, file_offset, async_submit);
+	status = btrfs_submit_dio_bio(bio, inode, file_offset, async_submit);
 	if (!status)
 		return 0;
 
