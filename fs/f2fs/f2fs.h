@@ -2961,6 +2961,7 @@ int f2fs_release_page(struct page *page, gfp_t wait);
 int f2fs_migrate_page(struct address_space *mapping, struct page *newpage,
 			struct page *page, enum migrate_mode mode);
 #endif
+bool f2fs_overwrite_io(struct inode *inode, loff_t pos, size_t len);
 
 /*
  * gc.c
@@ -3343,6 +3344,13 @@ static inline bool f2fs_may_encrypt(struct inode *inode)
 #else
 	return 0;
 #endif
+}
+
+static inline bool f2fs_force_buffered_io(struct inode *inode, int rw)
+{
+	return (f2fs_encrypted_file(inode) ||
+			(rw == WRITE && test_opt(F2FS_I_SB(inode), LFS)) ||
+			F2FS_I_SB(inode)->s_ndevs);
 }
 
 #endif
