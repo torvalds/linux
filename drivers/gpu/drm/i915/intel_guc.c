@@ -364,6 +364,43 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 	return ret;
 }
 
+void intel_guc_to_host_event_handler(struct intel_guc *guc)
+{
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	u32 msg, flush;
+
+	/*
+	 * Sample the log buffer flush related bits & clear them out now
+	 * itself from the message identity register to minimize the
+	 * probability of losing a flush interrupt, when there are back
+	 * to back flush interrupts.
+	 * There can be a new flush interrupt, for different log buffer
+	 * type (like for ISR), whilst Host is handling one (for DPC).
+	 * Since same bit is used in message register for ISR & DPC, it
+	 * could happen that GuC sets the bit for 2nd interrupt but Host
+	 * clears out the bit on handling the 1st interrupt.
+	 */
+
+	msg = I915_READ(SOFT_SCRATCH(15));
+	flush = msg & (INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED |
+		       INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER);
+	if (flush) {
+		/* Clear the message bits that are handled */
+		I915_WRITE(SOFT_SCRATCH(15), msg & ~flush);
+
+		/* Handle flush interrupt in bottom half */
+		queue_work(guc->log.runtime.flush_wq,
+			   &guc->log.runtime.flush_work);
+
+		guc->log.flush_interrupt_count++;
+	} else {
+		/*
+		 * Not clearing of unhandled event bits won't result in
+		 * re-triggering of the interrupt.
+		 */
+	}
+}
+
 int intel_guc_sample_forcewake(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
