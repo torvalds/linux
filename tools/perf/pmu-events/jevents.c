@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <libgen.h>
+#include <limits.h>
 #include <dirent.h>
 #include <sys/time.h>			/* getrlimit */
 #include <sys/resource.h>		/* getrlimit */
@@ -572,7 +573,7 @@ static char *file_name_to_table_name(char *fname)
 	 * Derive rest of table name from basename of the JSON file,
 	 * replacing hyphens and stripping out .json suffix.
 	 */
-	n = asprintf(&tblname, "pme_%s", basename(fname));
+	n = asprintf(&tblname, "pme_%s", fname);
 	if (n < 0) {
 		pr_info("%s: asprintf() error %s for file %s\n", prog,
 				strerror(errno), fname);
@@ -582,7 +583,7 @@ static char *file_name_to_table_name(char *fname)
 	for (i = 0; i < strlen(tblname); i++) {
 		c = tblname[i];
 
-		if (c == '-')
+		if (c == '-' || c == '/')
 			tblname[i] = '_';
 		else if (c == '.') {
 			tblname[i] = '\0';
@@ -739,25 +740,80 @@ static int get_maxfds(void)
 static FILE *eventsfp;
 static char *mapfile;
 
+static int is_leaf_dir(const char *fpath)
+{
+	DIR *d;
+	struct dirent *dir;
+	int res = 1;
+
+	d = opendir(fpath);
+	if (!d)
+		return 0;
+
+	while ((dir = readdir(d)) != NULL) {
+		if (!strcmp(dir->d_name, ".") || !strcmp(dir->d_name, ".."))
+			continue;
+
+		if (dir->d_type == DT_DIR) {
+			res = 0;
+			break;
+		} else if (dir->d_type == DT_UNKNOWN) {
+			char path[PATH_MAX];
+			struct stat st;
+
+			sprintf(path, "%s/%s", fpath, dir->d_name);
+			if (stat(path, &st))
+				break;
+
+			if (S_ISDIR(st.st_mode)) {
+				res = 0;
+				break;
+			}
+		}
+	}
+
+	closedir(d);
+
+	return res;
+}
+
 static int process_one_file(const char *fpath, const struct stat *sb,
 			    int typeflag, struct FTW *ftwbuf)
 {
-	char *tblname, *bname  = (char *) fpath + ftwbuf->base;
+	char *tblname, *bname;
 	int is_dir  = typeflag == FTW_D;
 	int is_file = typeflag == FTW_F;
 	int level   = ftwbuf->level;
 	int err = 0;
 
+	if (level == 2 && is_dir) {
+		/*
+		 * For level 2 directory, bname will include parent name,
+		 * like vendor/platform. So search back from platform dir
+		 * to find this.
+		 */
+		bname = (char *) fpath + ftwbuf->base - 2;
+		for (;;) {
+			if (*bname == '/')
+				break;
+			bname--;
+		}
+		bname++;
+	} else
+		bname = (char *) fpath + ftwbuf->base;
+
 	pr_debug("%s %d %7jd %-20s %s\n",
 		 is_file ? "f" : is_dir ? "d" : "x",
 		 level, sb->st_size, bname, fpath);
 
-	/* base dir */
-	if (level == 0)
+	/* base dir or too deep */
+	if (level == 0 || level > 3)
 		return 0;
 
+
 	/* model directory, reset topic */
-	if (level == 1 && is_dir) {
+	if ((level == 1 && is_dir && is_leaf_dir(fpath)) ||
+	    (level == 2 && is_dir)) {
 		if (close_table)
 			print_events_table_suffix(eventsfp);
 
