@@ -40,10 +40,9 @@ int abx500_register_ops(struct device *dev, struct abx500_ops *ops)
 	dev_entry = devm_kzalloc(dev,
 				 sizeof(struct abx500_device_entry),
 				 GFP_KERNEL);
-	if (!dev_entry) {
-		dev_err(dev, "register_ops kzalloc failed");
+	if (!dev_entry)
 		return -ENOMEM;
-	}
+
 	dev_entry->dev = dev;
 	memcpy(&dev_entry->ops, ops, sizeof(struct abx500_ops));
 
