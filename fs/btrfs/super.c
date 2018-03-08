@@ -310,10 +310,10 @@ static void btrfs_put_super(struct super_block *sb)
 enum {
 	Opt_degraded, Opt_subvol, Opt_subvolid, Opt_device, Opt_nodatasum,
 	Opt_nodatacow, Opt_max_inline, Opt_alloc_start, Opt_nobarrier, Opt_ssd,
-	Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl, Opt_compress,
-	Opt_compress_type, Opt_compress_force, Opt_compress_force_type,
-	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_discard,
-	Opt_space_cache, Opt_space_cache_version, Opt_clear_cache,
+	Opt_nossd, Opt_ssd_spread, Opt_nossd_spread, Opt_thread_pool, Opt_noacl,
+	Opt_compress, Opt_compress_type, Opt_compress_force,
+	Opt_compress_force_type, Opt_notreelog, Opt_ratio, Opt_flushoncommit,
+	Opt_discard, Opt_space_cache, Opt_space_cache_version, Opt_clear_cache,
 	Opt_user_subvol_rm_allowed, Opt_enospc_debug, Opt_subvolrootid,
 	Opt_defrag, Opt_inode_cache, Opt_no_space_cache, Opt_recovery,
 	Opt_skip_balance, Opt_check_integrity,
@@ -353,6 +353,7 @@ static const match_table_t tokens = {
 	{Opt_ssd, "ssd"},
 	{Opt_ssd_spread, "ssd_spread"},
 	{Opt_nossd, "nossd"},
+	{Opt_nossd_spread, "nossd_spread"},
 	{Opt_acl, "acl"},
 	{Opt_noacl, "noacl"},
 	{Opt_notreelog, "notreelog"},
@@ -579,6 +580,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			btrfs_set_opt(info->mount_opt, NOSSD);
 			btrfs_clear_and_info(info, SSD,
 					     "not using ssd optimizations");
+			/* Fallthrough */
+		case Opt_nossd_spread:
 			btrfs_clear_and_info(info, SSD_SPREAD,
 					     "not using spread ssd allocation scheme");
 			break;
