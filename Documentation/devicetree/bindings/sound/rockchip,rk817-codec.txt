@@ -5,6 +5,10 @@ Required properties:
 - compatible: "rockchip,rk817-codec"
 - clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
 - clock-names: should be "mclk".
+- spk-ctl-gpios: spk mute enable/disable
+- hp-ctl-gpios: hp mute enable/disable
+- spk-mute-delay-ms: spk mute delay time
+- hp-mute-delay-ms: hp mute delay time
 - spk-volume: DAC L/R volume digital setting for Speaker
 - hp-volume: DAC L/R volume digital setting for Headphone
   *
@@ -28,6 +32,10 @@ Required properties:
   Boolean. Indicate MIC input are differential, rather than single-ended.
 - pdmdata-out-enable:
   Boolean. Indicate pdmdata output is enable or disable.
+- use-ext-amplifier:
+  Boolean. Indicate use external amplifier or not.
+- adc-for-loopback:
+  Boolean. Indicate adc use for loopback or not.
 
 Example for rk817 codec:
 
