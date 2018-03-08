@@ -1447,6 +1447,15 @@ static void hclgevf_get_channels(struct hnae3_handle *handle,
 	ch->combined_count = hdev->num_tqps;
 }
 
+static void hclgevf_get_tqps_and_rss_info(struct hnae3_handle *handle,
+					  u16 *free_tqps, u16 *max_rss_size)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	*free_tqps = 0;
+	*max_rss_size = hdev->rss_size_max;
+}
+
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
@@ -1477,6 +1486,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_fw_version = hclgevf_get_fw_version,
 	.set_vlan_filter = hclgevf_set_vlan_filter,
 	.get_channels = hclgevf_get_channels,
+	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
 };
 
 static struct hnae3_ae_algo ae_algovf = {
