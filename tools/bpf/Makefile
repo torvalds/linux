@@ -76,12 +76,12 @@ install: $(PROGS) bpftool_install
 	$(INSTALL) $(OUTPUT)bpf_asm $(DESTDIR)$(prefix)/bin/bpf_asm
 
 bpftool:
-	$(MAKE) -C bpftool
+	$(call descend,bpftool)
 
 bpftool_install:
-	$(MAKE) -C bpftool install
+	$(call descend,bpftool,install)
 
 bpftool_clean:
-	$(MAKE) -C bpftool clean
+	$(call descend,bpftool,clean)
 
 .PHONY: bpftool FORCE
