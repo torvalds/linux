@@ -16,6 +16,12 @@ tree tools/perf/pmu-events/arch/foo.
 
 	- Directories are traversed, but all other files are ignored.
 
+	- To reduce JSON event duplication per architecture, platform JSONs may
+	  use "ArchStdEvent" keyword to dereference an "Architecture standard
+	  events", defined in architecture standard JSONs.
+	  Architecture standard JSONs must be located in the architecture root
+	  folder. Matching is based on the "EventName" field.
+
 The PMU events supported by a CPU model are expected to grouped into topics
 such as Pipelining, Cache, Memory, Floating-point etc. All events for a topic
 should be placed in a separate JSON file - where the file name identifies
