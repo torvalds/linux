@@ -699,6 +699,7 @@ static int __maybe_unused dwc2_suspend(struct device *dev)
 static int __maybe_unused dwc2_resume(struct device *dev)
 {
 	struct dwc2_hsotg *dwc2 = dev_get_drvdata(dev);
+	unsigned long flags;
 	int ret = 0;
 
 	if (dwc2->phy_off_for_suspend && dwc2->ll_hw_enabled) {
@@ -737,6 +738,16 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 	dwc2_force_dr_mode(dwc2);
 
 	dwc2_drd_resume(dwc2);
+
+	/* Stop hcd if dr_mode is host and PD is power off when suspend */
+	if (dwc2->op_state == OTG_STATE_A_HOST && dwc2_is_device_mode(dwc2)) {
+		spin_lock_irqsave(&dwc2->lock, flags);
+		dwc2_hcd_disconnect(dwc2, true);
+		dwc2->lx_state = DWC2_L3;
+		if (!dwc2->driver)
+			dwc2_hsotg_core_init_disconnected(dwc2, false);
+		spin_unlock_irqrestore(&dwc2->lock, flags);
+	}
 
 	if (dwc2_is_device_mode(dwc2))
 		ret = dwc2_hsotg_resume(dwc2);
