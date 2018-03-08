@@ -2,8 +2,6 @@
 	- This file
 consumer.txt
 	- How to obtain and use GPIOs in a driver
-driver.txt
-	- How to write a GPIO driver
 drivers-on-gpio.txt:
 	- Drivers in other subsystems that can use GPIO to provide more
 	  complex functionality.
