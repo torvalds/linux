@@ -2851,3 +2851,14 @@ int vmw_kms_set_config(struct drm_mode_set *set,
 
 	return drm_atomic_helper_set_config(set, ctx);
 }
+
+
+/**
+ * vmw_kms_lost_device - Notify kms that modesetting capabilities will be lost
+ *
+ * @dev: Pointer to the drm device
+ */
+void vmw_kms_lost_device(struct drm_device *dev)
+{
+	drm_atomic_helper_shutdown(dev);
+}
