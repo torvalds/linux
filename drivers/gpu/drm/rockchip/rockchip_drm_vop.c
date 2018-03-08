@@ -1344,6 +1344,7 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 
 	mutex_lock(&vop->vop_lock);
 	drm_crtc_vblank_off(crtc);
+	vop_disable_all_planes(vop);
 
 	/*
 	 * Vop standby will take effect at end of current frame,
@@ -1373,6 +1374,7 @@ static void vop_crtc_disable(struct drm_crtc *crtc)
 		/*
 		 * vop standby complete, so iommu detach is safe.
 		 */
+		VOP_CTRL_SET(vop, dma_stop, 1);
 		rockchip_drm_dma_detach_device(vop->drm_dev, vop->dev);
 		vop->is_iommu_enabled = false;
 	}
@@ -2290,6 +2292,16 @@ static size_t vop_crtc_bandwidth(struct drm_crtc *crtc,
 	return bandwidth;
 }
 
+static void vop_crtc_close(struct drm_crtc *crtc)
+{
+	struct vop *vop = NULL;
+
+	if (!crtc)
+		return;
+	vop = to_vop(crtc);
+	vop_disable_all_planes(vop);
+}
+
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.loader_protect = vop_crtc_loader_protect,
 	.enable_vblank = vop_crtc_enable_vblank,
@@ -2300,6 +2312,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.regs_dump = vop_crtc_regs_dump,
 	.mode_valid = vop_crtc_mode_valid,
 	.bandwidth = vop_crtc_bandwidth,
+	.crtc_close = vop_crtc_close,
 };
 
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
@@ -2450,20 +2463,24 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 				SYS_STATUS_LCDC1 : SYS_STATUS_LCDC0;
 	uint32_t val;
 	int act_end;
+	bool interlaced = !!(adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE);
 
 	rockchip_set_system_status(sys_status);
 	mutex_lock(&vop->vop_lock);
+	DRM_DEV_INFO(vop->dev, "Update mode to %dx%d%s%d, type: %d\n",
+		     hdisplay, vdisplay, interlaced ? "i" : "p",
+		     adjusted_mode->vrefresh, s->output_type);
 	vop_initial(crtc);
-
+	vop_disable_allwin(vop);
 	VOP_CTRL_SET(vop, standby, 0);
-	vop_disable_all_planes(vop);
+	vop->mode_update = vop_crtc_mode_update(crtc);
+	if (vop->mode_update)
+		vop_disable_all_planes(vop);
 	/*
 	 * restore the lut table.
 	 */
 	if (vop->lut_active)
 		vop_crtc_load_lut(crtc);
-	vop->mode_update = vop_crtc_mode_update(crtc);
-	DRM_DEV_INFO(vop->dev, "Update mode to %d*%d\n", hdisplay, vdisplay);
 	VOP_CTRL_SET(vop, dclk_pol, 1);
 	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
 		   0 : BIT(HSYNC_POSITIVE);
@@ -3219,6 +3236,7 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 				ret);
 		} else {
 			vop->is_iommu_enabled = true;
+			VOP_CTRL_SET(vop, dma_stop, 0);
 		}
 
 		if (need_wait_vblank) {

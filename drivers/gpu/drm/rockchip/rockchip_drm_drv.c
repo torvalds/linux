@@ -679,8 +679,9 @@ static void show_loader_logo(struct drm_device *drm_dev)
 	struct device_node *np = drm_dev->dev->of_node;
 	struct drm_mode_config *mode_config = &drm_dev->mode_config;
 	struct device_node *root, *route;
-	struct rockchip_drm_mode_set *set, *tmp;
+	struct rockchip_drm_mode_set *set, *tmp, *unset;
 	struct list_head mode_set_list;
+	struct list_head mode_unset_list;
 	unsigned plane_mask = 0;
 	int ret;
 
@@ -696,6 +697,7 @@ static void show_loader_logo(struct drm_device *drm_dev)
 	}
 
 	INIT_LIST_HEAD(&mode_set_list);
+	INIT_LIST_HEAD(&mode_unset_list);
 	drm_modeset_lock_all(drm_dev);
 	state = drm_atomic_state_alloc(drm_dev);
 	if (!state) {
@@ -716,11 +718,39 @@ static void show_loader_logo(struct drm_device *drm_dev)
 
 		if (setup_initial_state(drm_dev, state, set)) {
 			drm_framebuffer_unreference(set->fb);
-			kfree(set);
+			INIT_LIST_HEAD(&set->head);
+			list_add_tail(&set->head, &mode_unset_list);
 			continue;
 		}
 		INIT_LIST_HEAD(&set->head);
 		list_add_tail(&set->head, &mode_set_list);
+	}
+
+	/*
+	 * the mode_unset_list store the unconnected route, if route's crtc
+	 * isn't used, we should close it.
+	 */
+	list_for_each_entry_safe(unset, tmp, &mode_unset_list, head) {
+		struct rockchip_drm_mode_set *tmp_set;
+		int found_used_crtc = 0;
+
+		list_for_each_entry_safe(set, tmp_set, &mode_set_list, head) {
+			if (set->crtc == unset->crtc) {
+				found_used_crtc = 1;
+				continue;
+			}
+		}
+		if (!found_used_crtc) {
+			struct drm_crtc *crtc = unset->crtc;
+			int pipe = drm_crtc_index(crtc);
+			struct rockchip_drm_private *priv =
+							drm_dev->dev_private;
+
+			if (unset->hdisplay && unset->vdisplay)
+				priv->crtc_funcs[pipe]->crtc_close(crtc);
+		}
+		list_del(&unset->head);
+		kfree(unset);
 	}
 
 	if (list_empty(&mode_set_list)) {

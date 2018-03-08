@@ -52,6 +52,7 @@ struct rockchip_crtc_funcs {
 	enum drm_mode_status (*mode_valid)(struct drm_crtc *crtc,
 					   const struct drm_display_mode *mode,
 					   int output_type);
+	void (*crtc_close)(struct drm_crtc *crtc);
 };
 
 struct drm_rockchip_subdrv {

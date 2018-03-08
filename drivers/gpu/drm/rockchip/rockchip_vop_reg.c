@@ -174,6 +174,7 @@ static const struct vop_win_phy *rk3288_area_data[] = {
 static const struct vop_ctrl rk3288_ctrl_data = {
 	.version = VOP_REG(RK3288_VERSION_INFO, 0xffff, 16),
 	.standby = VOP_REG(RK3288_SYS_CTRL, 0x1, 22),
+	.dma_stop = VOP_REG(RK3288_SYS_CTRL, 0x1, 21),
 	.axi_outstanding_max_num = VOP_REG(RK3288_SYS_CTRL1, 0x1f, 13),
 	.axi_max_outstanding_en = VOP_REG(RK3288_SYS_CTRL1, 0x1, 12),
 	.reg_done_frm = VOP_REG_VER(RK3288_SYS_CTRL1, 0x1, 24, 3, 7, -1),
@@ -880,6 +881,7 @@ static const struct vop_hdr_table rk3328_hdr_table = {
 
 static const struct vop_ctrl rk3328_ctrl_data = {
 	.standby = VOP_REG(RK3328_SYS_CTRL, 0x1, 22),
+	.dma_stop = VOP_REG(RK3328_SYS_CTRL, 0x1, 21),
 	.axi_outstanding_max_num = VOP_REG(RK3328_SYS_CTRL1, 0x1f, 13),
 	.axi_max_outstanding_en = VOP_REG(RK3328_SYS_CTRL1, 0x1, 12),
 	.reg_done_frm = VOP_REG(RK3328_SYS_CTRL1, 0x1, 24),
