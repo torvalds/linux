@@ -736,6 +736,8 @@ static int medusa_l1_msg_queue_associate(struct msg_queue *msq, int msqflg)
 
 static int medusa_l1_msg_queue_msgctl(struct msg_queue *msq, int cmd)
 {
+	if(medusa_ipc_ctl(&msq->q_perm, cmd) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
@@ -769,6 +771,8 @@ static int medusa_l1_shm_associate(struct shmid_kernel *shp, int shmflg)
 
 static int medusa_l1_shm_shmctl(struct shmid_kernel *shp, int cmd)
 {
+	if(medusa_ipc_ctl(&shp->shm_perm, cmd) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
@@ -798,8 +802,9 @@ static int medusa_l1_sem_associate(struct sem_array *sma, int semflg)
 
 static int medusa_l1_sem_semctl(struct sem_array *sma, int cmd)
 {
-/*	if(medusa_ipc_perm(&sma->sem_perm, cmd) == MED_NO)
-		return -EPERM;	*/
+	printk("semctl");
+	if(medusa_ipc_ctl(&sma->sem_perm, cmd) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 

@@ -59,7 +59,7 @@ void * ipc_fetch(unsigned int id, unsigned int ipc_class, void * (*ipc_concrete_
 {
 	struct kern_ipc_perm *ipcp;
 	struct ipc_ids *ids;
-	void *new_kobj;
+	void *new_kobj = NULL;
 
 	ids = medusa_get_ipc_ids(ipc_class);
 	if(!ids)
@@ -69,17 +69,13 @@ void * ipc_fetch(unsigned int id, unsigned int ipc_class, void * (*ipc_concrete_
 
 	ipcp = ipc_obtain_object_check(ids, id);
 	if(IS_ERR(ipcp) || !ipcp)
-		goto out_err_unlock;
+		goto out_unlock0;
 
 	new_kobj = ipc_concrete_kern2kobj(ipcp);
-	if(new_kobj != NULL){
-		rcu_read_unlock();
-		return new_kobj;
-	}
-out_err_unlock:
+out_unlock0:
 	rcu_read_unlock();
 out_err:
-	return NULL;
+	return new_kobj;
 }
 
 /**

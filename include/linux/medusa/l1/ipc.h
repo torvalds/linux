@@ -18,6 +18,7 @@
 
 extern medusa_answer_t medusa_ipc_validate(struct kern_ipc_perm *ipcp);
 extern medusa_answer_t medusa_ipc_permission(struct kern_ipc_perm *ipcp, u32 perms);
+extern medusa_answer_t medusa_ipc_ctl(struct kern_ipc_perm *ipcp, int cmd);
 
 #define MED_IPC_SEM 0
 #define MED_IPC_MSG 1

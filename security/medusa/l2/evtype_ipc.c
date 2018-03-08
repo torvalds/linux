@@ -15,7 +15,7 @@ MED_ATTRS(ipc_event) {
 	MED_ATTR_END
 };
 
-MED_EVTYPE(ipc_event, "ipc", ipc_kobject, "sender", ipc_kobject, "sender");
+MED_EVTYPE(ipc_event, "getipc", ipc_kobject, "sender", ipc_kobject, "sender");
 
 int __init ipc_evtype_init(void) {
 	MED_REGISTER_EVTYPE(ipc_event, MEDUSA_EVTYPE_NOTTRIGGERED);
