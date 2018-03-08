@@ -333,7 +333,6 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 
 	/* this STATUS is the CNF of the RX_BARRIER: Tx path can be setup */
 	if (pucan_status_is_rx_barrier(msg)) {
-		unsigned long flags;
 
 		if (priv->enable_tx_path) {
 			int err = priv->enable_tx_path(priv);
@@ -342,16 +341,8 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 				return err;
 		}
 
-		/* restart network queue only if echo skb array is free */
-		spin_lock_irqsave(&priv->echo_lock, flags);
-
-		if (!priv->can.echo_skb[priv->echo_idx]) {
-			spin_unlock_irqrestore(&priv->echo_lock, flags);
-
-			netif_wake_queue(ndev);
-		} else {
-			spin_unlock_irqrestore(&priv->echo_lock, flags);
-		}
+		/* start network queue (echo_skb array is empty) */
+		netif_start_queue(ndev);
 
 		return 0;
 	}
