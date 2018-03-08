@@ -1416,7 +1416,6 @@ static void of_unittest_destroy_tracked_overlays(void)
 static int __init of_unittest_apply_overlay(int overlay_nr, int unittest_nr,
 		int *overlay_id)
 {
-	struct device_node *np = NULL;
 	const char *overlay_name;
 	int ret;
 
@@ -1426,16 +1425,11 @@ static int __init of_unittest_apply_overlay(int overlay_nr, int unittest_nr,
 	if (!ret) {
 		unittest(0, "could not apply overlay \"%s\"\n",
 				overlay_name);
-		goto out;
+		return ret;
 	}
 	of_unittest_track_overlay(*overlay_id);
 
-	ret = 0;
-
-out:
-	of_node_put(np);
-
-	return ret;
+	return 0;
 }
 
 /* apply an overlay while checking before and after states */
@@ -1730,8 +1724,8 @@ static void __init of_unittest_overlay_10(void)
 
 	ret = of_path_device_type_exists(child_path, PDEV_OVERLAY);
 	kfree(child_path);
-	if (unittest(ret, "overlay test %d failed; no child device\n", 10))
-		return;
+
+	unittest(ret, "overlay test %d failed; no child device\n", 10);
 }
 
 /* test insertion of a bus with parent devices (and revert) */
@@ -1742,9 +1736,7 @@ static void __init of_unittest_overlay_11(void)
 	/* device should disable */
 	ret = of_unittest_apply_revert_overlay_check(11, 11, 0, 1,
 			PDEV_OVERLAY);
-	if (unittest(ret == 0,
-			"overlay test %d failed; overlay application\n", 11))
-		return;
+	unittest(ret == 0, "overlay test %d failed; overlay apply\n", 11);
 }
 
 #if IS_BUILTIN(CONFIG_I2C) && IS_ENABLED(CONFIG_OF_OVERLAY)
@@ -2268,10 +2260,8 @@ static int __init overlay_data_apply(const char *overlay_name, int *overlay_id)
 	}
 
 	size = info->dtb_end - info->dtb_begin;
-	if (!size) {
+	if (!size)
 		pr_err("no overlay data for %s\n", overlay_name);
-		ret = 0;
-	}
 
 	ret = of_overlay_fdt_apply(info->dtb_begin, size, &info->overlay_id);
 	if (overlay_id)
