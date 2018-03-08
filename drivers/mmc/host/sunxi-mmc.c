@@ -1318,6 +1318,7 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "mmc alloc host failed\n");
 		return -ENOMEM;
 	}
+	platform_set_drvdata(pdev, mmc);
 
 	host = mmc_priv(mmc);
 	host->dev = &pdev->dev;
@@ -1384,7 +1385,6 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 		goto error_free_dma;
 
 	dev_info(&pdev->dev, "base:0x%p irq:%u\n", host->reg_base, host->irq);
-	platform_set_drvdata(pdev, mmc);
 	return 0;
 
 error_free_dma:
