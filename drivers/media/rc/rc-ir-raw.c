@@ -92,7 +92,6 @@ int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 {
 	ktime_t			now;
 	DEFINE_IR_RAW_EVENT(ev);
-	int			rc = 0;
 
 	if (!dev->raw)
 		return -EINVAL;
@@ -101,8 +100,33 @@ int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 	ev.duration = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
 	ev.pulse = !pulse;
 
+	return ir_raw_event_store_with_timeout(dev, &ev);
+}
+EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
+
+/*
+ * ir_raw_event_store_with_timeout() - pass a pulse/space duration to the raw
+ *				       ir decoders, schedule decoding and
+ *				       timeout
+ * @dev:	the struct rc_dev device descriptor
+ * @ev:		the struct ir_raw_event descriptor of the pulse/space
+ *
+ * This routine (which may be called from an interrupt context) stores a
+ * pulse/space duration for the raw ir decoding state machines, schedules
+ * decoding and generates a timeout.
+ */
+int ir_raw_event_store_with_timeout(struct rc_dev *dev, struct ir_raw_event *ev)
+{
+	ktime_t		now;
+	int		rc = 0;
+
+	if (!dev->raw)
+		return -EINVAL;
+
+	now = ktime_get();
+
 	spin_lock(&dev->raw->edge_spinlock);
-	rc = ir_raw_event_store(dev, &ev);
+	rc = ir_raw_event_store(dev, ev);
 
 	dev->raw->last_event = now;
 
@@ -117,7 +141,7 @@ int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
+EXPORT_SYMBOL_GPL(ir_raw_event_store_with_timeout);
 
 /**
  * ir_raw_event_store_with_filter() - pass next pulse/space to decoders with some processing
