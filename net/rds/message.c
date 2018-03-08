@@ -67,7 +67,7 @@ static inline bool rds_zcookie_add(struct rds_msg_zcopy_info *info, u32 cookie)
 	return true;
 }
 
-struct rds_msg_zcopy_info *rds_info_from_znotifier(struct rds_znotifier *znotif)
+static struct rds_msg_zcopy_info *rds_info_from_znotifier(struct rds_znotifier *znotif)
 {
 	return container_of(znotif, struct rds_msg_zcopy_info, znotif);
 }
