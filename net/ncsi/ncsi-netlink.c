@@ -299,6 +299,7 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 			package = np;
 	if (!package) {
 		/* The user has set a package that does not exist */
+		spin_unlock_irqrestore(&ndp->lock, flags);
 		return -ERANGE;
 	}
 
@@ -317,6 +318,7 @@ static int ncsi_set_interface_nl(struct sk_buff *msg, struct genl_info *info)
 		/* The user has set a channel that does not exist on this
 		 * package
 		 */
+		spin_unlock_irqrestore(&ndp->lock, flags);
 		netdev_info(ndp->ndev.dev, "NCSI: Channel %u does not exist!\n",
 			    channel_id);
 		return -ERANGE;
