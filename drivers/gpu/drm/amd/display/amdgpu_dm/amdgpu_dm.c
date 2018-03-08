@@ -629,11 +629,13 @@ static int dm_resume(void *handle)
 {
 	struct amdgpu_device *adev = handle;
 	struct amdgpu_display_manager *dm = &adev->dm;
+	int ret = 0;
 
 	/* power on hardware */
 	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
 
-	return 0;
+	ret = amdgpu_dm_display_resume(adev);
+	return ret;
 }
 
 int amdgpu_dm_display_resume(struct amdgpu_device *adev)

@@ -35,13 +35,13 @@ INTERACTIVE COMMANDS
 
 *f*::	filter by regular expression
 
-*g*::	filter by guest name
+*g*::	filter by guest name/PID
 
 *h*::	display interactive commands reference
 
 *o*::   toggle sorting order (Total vs CurAvg/s)
 
-*p*::	filter by PID
+*p*::	filter by guest name/PID
 
 *q*::	quit
 

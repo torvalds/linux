@@ -34,6 +34,7 @@
 #include <linux/highmem.h>
 #include <rdma/mlx5-abi.h>
 #include "en.h"
+#include "clock.h"
 
 enum {
 	MLX5_CYCLES_SHIFT	= 23

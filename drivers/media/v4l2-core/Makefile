@@ -13,7 +13,7 @@ ifeq ($(CONFIG_COMPAT),y)
 endif
 obj-$(CONFIG_V4L2_FWNODE) += v4l2-fwnode.o
 ifeq ($(CONFIG_TRACEPOINTS),y)
-  videodev-objs += vb2-trace.o v4l2-trace.o
+  videodev-objs += v4l2-trace.o
 endif
 videodev-$(CONFIG_MEDIA_CONTROLLER) += v4l2-mc.o
 
@@ -35,4 +35,3 @@ obj-$(CONFIG_VIDEOBUF_DVB) += videobuf-dvb.o
 
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends
 ccflags-y += -I$(srctree)/drivers/media/tuners
-

@@ -305,9 +305,13 @@ void nldev_exit(void);
 static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 					  struct ib_pd *pd,
 					  struct ib_qp_init_attr *attr,
-					  struct ib_udata *udata)
+					  struct ib_udata *udata,
+					  struct ib_uobject *uobj)
 {
 	struct ib_qp *qp;
+
+	if (!dev->create_qp)
+		return ERR_PTR(-EOPNOTSUPP);
 
 	qp = dev->create_qp(pd, attr, udata);
 	if (IS_ERR(qp))
@@ -315,6 +319,7 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 
 	qp->device = dev;
 	qp->pd = pd;
+	qp->uobject = uobj;
 	/*
 	 * We don't track XRC QPs for now, because they don't have PD
 	 * and more importantly they are created internaly by driver,

@@ -269,7 +269,7 @@ static void smc_cdc_rx_handler(struct ib_wc *wc, void *buf)
 
 	if (wc->byte_len < offsetof(struct smc_cdc_msg, reserved))
 		return; /* short message */
-	if (cdc->len != sizeof(*cdc))
+	if (cdc->len != SMC_WR_TX_SIZE)
 		return; /* invalid message */
 	smc_cdc_msg_recv(cdc, link, wc->wr_id);
 }

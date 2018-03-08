@@ -2974,7 +2974,7 @@ static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 	kfree(fs_info->super_copy);
 	kfree(fs_info->super_for_commit);
 	security_free_mnt_opts(&fs_info->security_opts);
-	kfree(fs_info);
+	kvfree(fs_info);
 }
 
 /* tree mod log functions from ctree.c */
@@ -3095,7 +3095,10 @@ btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
 			  u64 inode_objectid, u64 ref_objectid, int ins_len,
 			  int cow);
 
-int btrfs_find_name_in_ext_backref(struct btrfs_path *path,
+int btrfs_find_name_in_backref(struct extent_buffer *leaf, int slot,
+			       const char *name,
+			       int name_len, struct btrfs_inode_ref **ref_ret);
+int btrfs_find_name_in_ext_backref(struct extent_buffer *leaf, int slot,
 				   u64 ref_objectid, const char *name,
 				   int name_len,
 				   struct btrfs_inode_extref **extref_ret);

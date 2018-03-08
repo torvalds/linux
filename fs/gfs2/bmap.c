@@ -807,9 +807,6 @@ do_alloc:
 			iomap->length = hole_size(inode, lblock, &mp);
 		else
 			iomap->length = size - pos;
-	} else {
-		if (height <= ip->i_height)
-			iomap->length = hole_size(inode, lblock, &mp);
 	}
 	goto out_release;
 }

@@ -63,6 +63,7 @@ static inline int init_new_context(struct task_struct *tsk,
 				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
 		/* pgd_alloc() did not account this pmd */
 		mm_inc_nr_pmds(mm);
+		mm_inc_nr_puds(mm);
 	}
 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
 	return 0;
