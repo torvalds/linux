@@ -1,7 +1,4 @@
 00-INDEX
 	- This file
-drivers-on-gpio.txt:
-	- Drivers in other subsystems that can use GPIO to provide more
-	  complex functionality.
 sysfs.txt
 	- Information about the GPIO sysfs interface

@@ -11,6 +11,7 @@ Contents:
    driver
    consumer
    board
+   drivers-on-gpio
    legacy
 
 Core
