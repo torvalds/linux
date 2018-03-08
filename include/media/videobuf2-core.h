@@ -296,6 +296,9 @@ struct vb2_buffer {
 /**
  * struct vb2_ops - driver-specific callbacks.
  *
+ * These operations are not called from interrupt context except where
+ * mentioned specifically.
+ *
  * @queue_setup:	called from VIDIOC_REQBUFS() and VIDIOC_CREATE_BUFS()
  *			handlers before memory allocation. It can be called
  *			twice: if the original number of requested buffers
