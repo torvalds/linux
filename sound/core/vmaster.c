@@ -63,7 +63,7 @@ static int slave_update(struct link_slave *slave)
 	struct snd_ctl_elem_value *uctl;
 	int err, ch;
 
-	uctl = kmalloc(sizeof(*uctl), GFP_KERNEL);
+	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (!uctl)
 		return -ENOMEM;
 	uctl->id = slave->slave.id;
