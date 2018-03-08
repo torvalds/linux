@@ -735,8 +735,7 @@ static void run_one_async_done(struct btrfs_work *work)
 		return;
 	}
 
-	async->submit_bio_done(async->private_data, async->bio, async->mirror_num,
-			       async->bio_flags, async->bio_offset);
+	async->submit_bio_done(async->private_data, async->bio, async->mirror_num);
 }
 
 static void run_one_async_free(struct btrfs_work *work)
@@ -809,8 +808,7 @@ static blk_status_t __btree_submit_bio_start(void *private_data, struct bio *bio
 }
 
 static blk_status_t __btree_submit_bio_done(void *private_data, struct bio *bio,
-					    int mirror_num, unsigned long bio_flags,
-					    u64 bio_offset)
+					    int mirror_num)
 {
 	struct inode *inode = private_data;
 	blk_status_t ret;

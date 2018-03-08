@@ -1961,8 +1961,7 @@ static blk_status_t __btrfs_submit_bio_start(void *private_data, struct bio *bio
  * are inserted into the btree
  */
 static blk_status_t __btrfs_submit_bio_done(void *private_data, struct bio *bio,
-			  int mirror_num, unsigned long bio_flags,
-			  u64 bio_offset)
+			  int mirror_num)
 {
 	struct inode *inode = private_data;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
