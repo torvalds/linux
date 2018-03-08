@@ -248,6 +248,10 @@ static const char * const dsi_src[] = {
 	"ck_dsi_phy", "pll4_p"
 };
 
+static const char * const rtc_src[] = {
+	"off", "ck_lse", "ck_lsi", "ck_hse_rtc"
+};
+
 static const struct clk_div_table axi_div_table[] = {
 	{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 },
 	{ 4, 4 }, { 5, 4 }, { 6, 4 }, { 7, 4 },
@@ -1945,6 +1949,17 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 		  _NO_GATE,
 		  _MMUX(M_ETHCK),
 		  _DIV(RCC_ETHCKSELR, 4, 4, CLK_DIVIDER_ALLOW_ZERO, NULL)),
+
+	/* RTC clock */
+	DIV(NO_ID, "ck_hse_rtc", "ck_hse", 0, RCC_RTCDIVR, 0, 7,
+	    CLK_DIVIDER_ALLOW_ZERO),
+
+	COMPOSITE(RTC, "ck_rtc", rtc_src, CLK_OPS_PARENT_ENABLE |
+		   CLK_SET_RATE_PARENT,
+		  _GATE(RCC_BDCR, 20, 0),
+		  _MUX(RCC_BDCR, 16, 2, 0),
+		  _NO_DIV),
+
 };
 
 struct stm32_clock_match_data {
