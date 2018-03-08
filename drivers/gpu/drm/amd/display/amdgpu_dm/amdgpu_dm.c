@@ -1131,7 +1131,7 @@ static int dce110_register_irq_handlers(struct amdgpu_device *adev)
 
 	if (adev->asic_type == CHIP_VEGA10 ||
 	    adev->asic_type == CHIP_RAVEN)
-		client_id = AMDGPU_IH_CLIENTID_DCE;
+		client_id = SOC15_IH_CLIENTID_DCE;
 
 	int_params.requested_polarity = INTERRUPT_POLARITY_DEFAULT;
 	int_params.current_polarity = INTERRUPT_POLARITY_DEFAULT;
@@ -1231,7 +1231,7 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 	for (i = DCN_1_0__SRCID__DC_D1_OTG_VSTARTUP;
 			i <= DCN_1_0__SRCID__DC_D1_OTG_VSTARTUP + adev->mode_info.num_crtc - 1;
 			i++) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_DCE, i, &adev->crtc_irq);
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, i, &adev->crtc_irq);
 
 		if (r) {
 			DRM_ERROR("Failed to add crtc irq id!\n");
@@ -1255,7 +1255,7 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 	for (i = DCN_1_0__SRCID__HUBP0_FLIP_INTERRUPT;
 			i <= DCN_1_0__SRCID__HUBP0_FLIP_INTERRUPT + adev->mode_info.num_crtc - 1;
 			i++) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_DCE, i, &adev->pageflip_irq);
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, i, &adev->pageflip_irq);
 		if (r) {
 			DRM_ERROR("Failed to add page flip irq id!\n");
 			return r;
@@ -1276,7 +1276,7 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 	}
 
 	/* HPD */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_DCE, DCN_1_0__SRCID__DC_HPD1_INT,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, DCN_1_0__SRCID__DC_HPD1_INT,
 			&adev->hpd_irq);
 	if (r) {
 		DRM_ERROR("Failed to add hpd irq id!\n");

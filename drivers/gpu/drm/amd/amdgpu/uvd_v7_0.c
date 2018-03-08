@@ -390,13 +390,13 @@ static int uvd_v7_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* UVD TRAP */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_UVD, 124, &adev->uvd.irq);
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UVD, 124, &adev->uvd.irq);
 	if (r)
 		return r;
 
 	/* UVD ENC TRAP */
 	for (i = 0; i < adev->uvd.num_enc_rings; ++i) {
-		r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_UVD, i + 119, &adev->uvd.irq);
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_UVD, i + 119, &adev->uvd.irq);
 		if (r)
 			return r;
 	}

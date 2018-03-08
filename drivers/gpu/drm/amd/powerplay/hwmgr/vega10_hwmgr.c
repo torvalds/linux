@@ -4874,12 +4874,12 @@ static int vega10_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
 		hwmgr->thermal_controller.ucType ==
 			ATOM_VEGA10_PP_THERMALCONTROLLER_EMC2103_WITH_INTERNAL) {
 		PP_ASSERT_WITH_CODE(!cgs_add_irq_source(hwmgr->device,
-				0xf, /* AMDGPU_IH_CLIENTID_THM */
+				SOC15_IH_CLIENTID_THM,
 				0, 0, irq_src[0].set, irq_src[0].handler, hwmgr),
 				"Failed to register high thermal interrupt!",
 				return -EINVAL);
 		PP_ASSERT_WITH_CODE(!cgs_add_irq_source(hwmgr->device,
-				0xf, /* AMDGPU_IH_CLIENTID_THM */
+				SOC15_IH_CLIENTID_THM,
 				1, 0, irq_src[1].set, irq_src[1].handler, hwmgr),
 				"Failed to register low thermal interrupt!",
 				return -EINVAL);
@@ -4887,7 +4887,7 @@ static int vega10_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
 
 	/* Register CTF(GPIO_19) interrupt */
 	PP_ASSERT_WITH_CODE(!cgs_add_irq_source(hwmgr->device,
-			0x16, /* AMDGPU_IH_CLIENTID_ROM_SMUIO, */
+			SOC15_IH_CLIENTID_ROM_SMUIO,
 			83, 0, irq_src[2].set, irq_src[2].handler, hwmgr),
 			"Failed to register CTF thermal interrupt!",
 			return -EINVAL);

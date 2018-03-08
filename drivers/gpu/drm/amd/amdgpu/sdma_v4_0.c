@@ -1172,13 +1172,13 @@ static int sdma_v4_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_SDMA0, 224,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA0, 224,
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_SDMA1, 224,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA1, 224,
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
@@ -1333,7 +1333,7 @@ static int sdma_v4_0_process_trap_irq(struct amdgpu_device *adev,
 {
 	DRM_DEBUG("IH: SDMA trap\n");
 	switch (entry->client_id) {
-	case AMDGPU_IH_CLIENTID_SDMA0:
+	case SOC15_IH_CLIENTID_SDMA0:
 		switch (entry->ring_id) {
 		case 0:
 			amdgpu_fence_process(&adev->sdma.instance[0].ring);
@@ -1349,7 +1349,7 @@ static int sdma_v4_0_process_trap_irq(struct amdgpu_device *adev,
 			break;
 		}
 		break;
-	case AMDGPU_IH_CLIENTID_SDMA1:
+	case SOC15_IH_CLIENTID_SDMA1:
 		switch (entry->ring_id) {
 		case 0:
 			amdgpu_fence_process(&adev->sdma.instance[1].ring);
