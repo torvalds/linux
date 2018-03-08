@@ -499,6 +499,13 @@ config SOC_IMX6SL
 	help
 	  This enables support for Freescale i.MX6 SoloLite processor.
 
+config SOC_IMX6SLL
+	bool "i.MX6 SoloLiteLite support"
+	select SOC_IMX6
+
+	help
+	  This enables support for Freescale i.MX6 SoloLiteLite processor.
+
 config SOC_IMX6SX
 	bool "i.MX6 SoloX support"
 	select PINCTRL_IMX6SX
