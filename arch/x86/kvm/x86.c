@@ -6061,7 +6061,8 @@ restart:
 }
 EXPORT_SYMBOL_GPL(x86_emulate_instruction);
 
-int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port)
+static int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size,
+			    unsigned short port)
 {
 	unsigned long val = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	int ret = emulator_pio_out_emulated(&vcpu->arch.emulate_ctxt,
@@ -6070,7 +6071,6 @@ int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port)
 	vcpu->arch.pio.count = 0;
 	return ret;
 }
-EXPORT_SYMBOL_GPL(kvm_fast_pio_out);
 
 static int complete_fast_pio_in(struct kvm_vcpu *vcpu)
 {
@@ -6094,7 +6094,8 @@ static int complete_fast_pio_in(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
-int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size, unsigned short port)
+static int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size,
+			   unsigned short port)
 {
 	unsigned long val;
 	int ret;
@@ -6113,7 +6114,21 @@ int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size, unsigned short port)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(kvm_fast_pio_in);
+
+int kvm_fast_pio(struct kvm_vcpu *vcpu, int size, unsigned short port, int in)
+{
+	int ret = kvm_skip_emulated_instruction(vcpu);
+
+	/*
+	 * TODO: we might be squashing a KVM_GUESTDBG_SINGLESTEP-triggered
+	 * KVM_EXIT_DEBUG here.
+	 */
+	if (in)
+		return kvm_fast_pio_in(vcpu, size, port) && ret;
+	else
+		return kvm_fast_pio_out(vcpu, size, port) && ret;
+}
+EXPORT_SYMBOL_GPL(kvm_fast_pio);
 
 static int kvmclock_cpu_down_prep(unsigned int cpu)
 {

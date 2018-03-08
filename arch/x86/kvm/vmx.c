@@ -6265,7 +6265,7 @@ static int handle_triple_fault(struct kvm_vcpu *vcpu)
 static int handle_io(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification;
-	int size, in, string, ret;
+	int size, in, string;
 	unsigned port;
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
@@ -6280,16 +6280,7 @@ static int handle_io(struct kvm_vcpu *vcpu)
 	size = (exit_qualification & 7) + 1;
 	in = (exit_qualification & 8) != 0;
 
-	ret = kvm_skip_emulated_instruction(vcpu);
-
-	/*
-	 * TODO: we might be squashing a KVM_GUESTDBG_SINGLESTEP-triggered
-	 * KVM_EXIT_DEBUG here.
-	 */
-	if (in)
-		return kvm_fast_pio_in(vcpu, size, port) && ret;
-	else
-		return kvm_fast_pio_out(vcpu, size, port) && ret;
+	return kvm_fast_pio(vcpu, size, port, in);
 }
 
 static void
