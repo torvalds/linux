@@ -976,7 +976,7 @@
 			      "pclk_mac", "clk_mac_speed";
 		phy-mode = "rmii";
 		pinctrl-names = "default";
-		pinctrl-0 = <&rmii_pins>;
+		pinctrl-0 = <&rmii_pins &mac_refclk_12ma>;
 		resets = <&cru SRST_GMAC_A>;
 		reset-names = "stmmaceth";
 		power-domains = <&power PX30_PD_GMAC>;
@@ -2504,8 +2504,16 @@
 					/* mac_mdio */
 					<2 RK_PA7 RK_FUNC_2 &pcfg_pull_none>,
 					/* mac_mdc */
-					<2 RK_PB1 RK_FUNC_2 &pcfg_pull_none>,
-					/* mac_clk */
+					<2 RK_PB1 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			mac_refclk_12ma: mac-refclk-12ma {
+				rockchip,pins =
+					<2 RK_PB2 RK_FUNC_2 &pcfg_pull_none_12ma>;
+			};
+
+			mac_refclk: mac-refclk {
+				rockchip,pins =
 					<2 RK_PB2 RK_FUNC_2 &pcfg_pull_none>;
 			};
 		};
