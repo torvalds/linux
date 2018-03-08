@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/clock/rk3308-cru.h>
+#include <dt-bindings/display/media-bus-format.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -68,9 +69,40 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
+	display_subsystem: display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+		status = "disabled";
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+	};
+
+	rgb: rgb {
+		compatible = "rockchip,rk3308-rgb";
+		status = "disabled";
+		pinctrl-names = "lcdc";
+		pinctrl-0 = <&lcdc_ctl>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				rgb_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_rgb>;
+				};
+			};
+
+		};
 	};
 
 	timer {
@@ -227,6 +259,27 @@
 		resets = <&cru SRST_SARADC_P>;
 		reset-names = "saradc-apb";
 		status = "disabled";
+	};
+
+	vop: vop@ff2e0000 {
+		compatible = "rockchip,rk3308-vop";
+		reg = <0x0 0xff2e0000 0x0 0x1fc>, <0x0 0xff2e0a00 0x0 0x400>;
+		reg-names = "regs", "gamma_lut";
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>,
+			 <&cru HCLK_VOP>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vop_out_rgb: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&rgb_in_vop>;
+			};
+		};
 	};
 
 	i2s0: i2s@ff300000 {
@@ -507,6 +560,56 @@
 				rockchip,pins =
 					<3 RK_PB4 2 &pcfg_pull_none_smt>,
 					<3 RK_PB5 2 &pcfg_pull_none_smt>;
+			};
+		};
+
+		lcdc {
+			lcdc_ctl: lcdc-ctl {
+				rockchip,pins =
+					/* dclk */
+					<1 RK_PA0 RK_FUNC_2 &pcfg_pull_none>,
+					/* hsync */
+					<1 RK_PA1 RK_FUNC_2 &pcfg_pull_none>,
+					/* vsync */
+					<1 RK_PA2 RK_FUNC_2 &pcfg_pull_none>,
+					/* den */
+					<1 RK_PA3 RK_FUNC_2 &pcfg_pull_none>,
+					/* d0 */
+					<1 RK_PA4 RK_FUNC_2 &pcfg_pull_none>,
+					/* d1 */
+					<1 RK_PA5 RK_FUNC_2 &pcfg_pull_none>,
+					/* d2 */
+					<1 RK_PA6 RK_FUNC_2 &pcfg_pull_none>,
+					/* d3 */
+					<1 RK_PA7 RK_FUNC_2 &pcfg_pull_none>,
+					/* d4 */
+					<1 RK_PB0 RK_FUNC_2 &pcfg_pull_none>,
+					/* d5 */
+					<1 RK_PB1 RK_FUNC_2 &pcfg_pull_none>,
+					/* d6 */
+					<1 RK_PB2 RK_FUNC_2 &pcfg_pull_none>,
+					/* d7 */
+					<1 RK_PB3 RK_FUNC_2 &pcfg_pull_none>,
+					/* d8 */
+					<1 RK_PB4 RK_FUNC_2 &pcfg_pull_none>,
+					/* d9 */
+					<1 RK_PB5 RK_FUNC_2 &pcfg_pull_none>,
+					/* d10 */
+					<1 RK_PB6 RK_FUNC_2 &pcfg_pull_none>,
+					/* d11 */
+					<1 RK_PB7 RK_FUNC_2 &pcfg_pull_none>,
+					/* d12 */
+					<1 RK_PC0 RK_FUNC_2 &pcfg_pull_none>,
+					/* d13 */
+					<1 RK_PC1 RK_FUNC_2 &pcfg_pull_none>,
+					/* d14 */
+					<1 RK_PC2 RK_FUNC_2 &pcfg_pull_none>,
+					/* d15 */
+					<1 RK_PC3 RK_FUNC_2 &pcfg_pull_none>,
+					/* d16 */
+					<1 RK_PC4 RK_FUNC_2 &pcfg_pull_none>,
+					/* d17 */
+					<1 RK_PC5 RK_FUNC_2 &pcfg_pull_none>;
 			};
 		};
 
