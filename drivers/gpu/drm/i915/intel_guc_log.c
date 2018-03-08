@@ -61,8 +61,10 @@ static int guc_log_flush(struct intel_guc *guc)
 static int guc_log_control(struct intel_guc *guc, bool enable, u32 verbosity)
 {
 	union guc_log_control control_val = {
-		.logging_enabled = enable,
-		.verbosity = verbosity,
+		{
+			.logging_enabled = enable,
+			.verbosity = verbosity,
+		},
 	};
 	u32 action[] = {
 		INTEL_GUC_ACTION_UK_LOG_ENABLE_LOGGING,
