@@ -9,5 +9,3 @@ board.txt
 	- How to assign GPIOs to a consumer device and a function
 sysfs.txt
 	- Information about the GPIO sysfs interface
-gpio-legacy.txt
-	- Historical documentation of the deprecated GPIO integer interface
