@@ -83,10 +83,7 @@ static bool __init efi_virtmap_init(void)
 			return false;
 
 		ret = efi_create_mapping(&efi_mm, md);
-		if  (!ret) {
-			pr_info("  EFI remap %pa => %p\n",
-				&phys, (void *)(unsigned long)md->virt_addr);
-		} else {
+		if (ret) {
 			pr_warn("  EFI remap %pa: failed to create mapping (%d)\n",
 				&phys, ret);
 			return false;
