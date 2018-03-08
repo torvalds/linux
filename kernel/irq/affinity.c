@@ -94,17 +94,17 @@ static int get_nodes_in_cpumask(cpumask_var_t *node_to_cpumask,
 	return nodes;
 }
 
-static int irq_build_affinity_masks(int nvecs, const struct irq_affinity *affd,
+static int irq_build_affinity_masks(const struct irq_affinity *affd,
+				    int startvec, int numvecs,
 				    cpumask_var_t *node_to_cpumask,
 				    const struct cpumask *cpu_mask,
 				    struct cpumask *nmsk,
 				    struct cpumask *masks)
 {
-	int affv = nvecs - affd->pre_vectors - affd->post_vectors;
-	int last_affv = affv + affd->pre_vectors;
-	int curvec = affd->pre_vectors;
+	int n, nodes, cpus_per_vec, extra_vecs, done = 0;
+	int last_affv = affd->pre_vectors + numvecs;
+	int curvec = startvec;
 	nodemask_t nodemsk = NODE_MASK_NONE;
-	int n, nodes, cpus_per_vec, extra_vecs;
 
 	nodes = get_nodes_in_cpumask(node_to_cpumask, cpu_mask, &nodemsk);
 
@@ -112,12 +112,13 @@ static int irq_build_affinity_masks(int nvecs, const struct irq_affinity *affd,
 	 * If the number of nodes in the mask is greater than or equal the
 	 * number of vectors we just spread the vectors across the nodes.
 	 */
-	if (affv <= nodes) {
+	if (numvecs <= nodes) {
 		for_each_node_mask(n, nodemsk) {
-			cpumask_copy(masks + curvec,
-				     node_to_cpumask[n]);
-			if (++curvec == last_affv)
+			cpumask_copy(masks + curvec, node_to_cpumask[n]);
+			if (++done == numvecs)
 				break;
+			if (++curvec == last_affv)
+				curvec = affd->pre_vectors;
 		}
 		goto out;
 	}
@@ -126,7 +127,7 @@ static int irq_build_affinity_masks(int nvecs, const struct irq_affinity *affd,
 		int ncpus, v, vecs_to_assign, vecs_per_node;
 
 		/* Spread the vectors per node */
-		vecs_per_node = (affv - (curvec - affd->pre_vectors)) / nodes;
+		vecs_per_node = (numvecs - (curvec - affd->pre_vectors)) / nodes;
 
 		/* Get the cpus on this node which are in the mask */
 		cpumask_and(nmsk, cpu_mask, node_to_cpumask[n]);
@@ -150,13 +151,16 @@ static int irq_build_affinity_masks(int nvecs, const struct irq_affinity *affd,
 			irq_spread_init_one(masks + curvec, nmsk, cpus_per_vec);
 		}
 
-		if (curvec >= last_affv)
+		done += v;
+		if (done >= numvecs)
 			break;
+		if (curvec >= last_affv)
+			curvec = affd->pre_vectors;
 		--nodes;
 	}
 
 out:
-	return curvec - affd->pre_vectors;
+	return done;
 }
 
 /**
@@ -169,9 +173,9 @@ out:
 struct cpumask *
 irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 {
+	int curvec, affvecs = nvecs - affd->pre_vectors - affd->post_vectors;
 	cpumask_var_t nmsk, *node_to_cpumask;
 	struct cpumask *masks = NULL;
-	int curvec;
 
 	/*
 	 * If there aren't any vectors left after applying the pre/post
@@ -198,8 +202,9 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	/* Stabilize the cpumasks */
 	get_online_cpus();
 	build_node_to_cpumask(node_to_cpumask);
-	curvec += irq_build_affinity_masks(nvecs, affd, node_to_cpumask,
-					   cpu_possible_mask, nmsk, masks);
+	curvec += irq_build_affinity_masks(affd, curvec, affvecs,
+					   node_to_cpumask, cpu_possible_mask,
+					   nmsk, masks);
 	put_online_cpus();
 
 	/* Fill out vectors at the end that don't need affinity */
