@@ -149,6 +149,8 @@ static const struct of_device_id rockchip_rgb_dt_ids[] = {
 		.compatible = "rockchip,rv1108-rgb",
 	}, {
 		.compatible = "rockchip,rk3066-rgb",
+	}, {
+		.compatible = "rockchip,rk3308-rgb",
 	},
 	{}
 };

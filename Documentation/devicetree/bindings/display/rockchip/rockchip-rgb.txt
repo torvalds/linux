@@ -5,6 +5,7 @@ Required properties:
 - compatible: matching the soc type:
 	- "rockchip,rv1108-rgb";
 	- "rockchip,rk3066-rgb";
+	- "rockchip,rk3308-rgb";
 
 Optional properties:
 - pinctrl-names: must contain a "lcdc" entry.
