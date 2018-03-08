@@ -1,3 +1,8 @@
+============
+Introduction
+============
+
+
 GPIO Interfaces
 ===============
 
@@ -9,9 +14,9 @@ Due to the history of GPIO interfaces in the kernel, there are two different
 ways to obtain and use GPIOs:
 
   - The descriptor-based interface is the preferred way to manipulate GPIOs,
-and is described by all the files in this directory excepted gpio-legacy.txt.
+    and is described by all the files in this directory excepted gpio-legacy.txt.
   - The legacy integer-based interface which is considered deprecated (but still
-usable for compatibility reasons) is documented in gpio-legacy.txt.
+    usable for compatibility reasons) is documented in gpio-legacy.txt.
 
 The remainder of this document applies to the new descriptor-based interface.
 gpio-legacy.txt contains the same information applied to the legacy

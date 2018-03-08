@@ -2,6 +2,13 @@
 General Purpose Input/Output (GPIO)
 ===================================
 
+Contents:
+
+.. toctree::
+   :maxdepth: 2
+
+   intro
+
 Core
 ====
 

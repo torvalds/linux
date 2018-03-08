@@ -1,7 +1,5 @@
 00-INDEX
 	- This file
-gpio.txt
-	- Introduction to GPIOs and their kernel interfaces
 consumer.txt
 	- How to obtain and use GPIOs in a driver
 driver.txt
