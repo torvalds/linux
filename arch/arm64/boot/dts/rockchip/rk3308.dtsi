@@ -5,6 +5,7 @@
  */
 
 #include <dt-bindings/clock/rk3308-cru.h>
+#include <dt-bindings/display/media-bus-format.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -136,6 +137,24 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
 	};
 
+	display_subsystem: display-subsystem {
+		compatible = "rockchip,display-subsystem";
+		ports = <&vop_out>;
+		logo-memory-region = <&drm_logo>;
+		status = "disabled";
+
+		route {
+			route_rgb: route-rgb {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				/* logo,kernel = "logo_kernel.bmp"; */
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vop_out_rgb>;
+			};
+		};
+	};
+
 	mac_clkin: external-mac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <50000000>;
@@ -161,6 +180,42 @@
 			| RKPM_GPIO0_WAKEUP_EN
 			)
 		>;
+	};
+
+	rgb: rgb {
+		compatible = "rockchip,rk3308-rgb";
+		status = "disabled";
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcdc_ctl>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				rgb_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_rgb>;
+				};
+			};
+
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
 	};
 
 	timer {
@@ -532,6 +587,27 @@
 		resets = <&cru SRST_SARADC_P>;
 		reset-names = "saradc-apb";
 		status = "disabled";
+	};
+
+	vop: vop@ff2e0000 {
+		compatible = "rockchip,rk3308-vop";
+		reg = <0x0 0xff2e0000 0x0 0x1fc>, <0x0 0xff2e0a00 0x0 0x400>;
+		reg-names = "regs", "gamma_lut";
+		interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP>, <&cru DCLK_VOP>,
+			 <&cru HCLK_VOP>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		status = "disabled";
+
+		vop_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vop_out_rgb: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&rgb_in_vop>;
+			};
+		};
 	};
 
 	amba: bus {
@@ -1234,6 +1310,88 @@
 			i2s_8ch_1_m1_sdi0: i2s-8ch-1-m1-sdi0 {
 				rockchip,pins =
 					<1 RK_PC5 2 &pcfg_pull_none>;
+			};
+		};
+
+		lcdc {
+			lcdc_ctl: lcdc-ctl {
+				rockchip,pins =
+					/* dclk */
+					<1 RK_PA0 1 &pcfg_pull_none_4ma>,
+					/* hsync */
+					<1 RK_PA1 1 &pcfg_pull_none_4ma>,
+					/* vsync */
+					<1 RK_PA2 1 &pcfg_pull_none_4ma>,
+					/* den */
+					<1 RK_PA3 1 &pcfg_pull_none_4ma>,
+					/* d0 */
+					<1 RK_PA4 1 &pcfg_pull_none_4ma>,
+					/* d1 */
+					<1 RK_PA5 1 &pcfg_pull_none_4ma>,
+					/* d2 */
+					<1 RK_PA6 1 &pcfg_pull_none_4ma>,
+					/* d3 */
+					<1 RK_PA7 1 &pcfg_pull_none_4ma>,
+					/* d4 */
+					<1 RK_PB0 1 &pcfg_pull_none_4ma>,
+					/* d5 */
+					<1 RK_PB1 1 &pcfg_pull_none_4ma>,
+					/* d6 */
+					<1 RK_PB2 1 &pcfg_pull_none_4ma>,
+					/* d7 */
+					<1 RK_PB3 1 &pcfg_pull_none_4ma>,
+					/* d8 */
+					<1 RK_PB4 1 &pcfg_pull_none_4ma>,
+					/* d9 */
+					<1 RK_PB5 1 &pcfg_pull_none_4ma>,
+					/* d10 */
+					<1 RK_PB6 1 &pcfg_pull_none_4ma>,
+					/* d11 */
+					<1 RK_PB7 1 &pcfg_pull_none_4ma>,
+					/* d12 */
+					<1 RK_PC0 1 &pcfg_pull_none_4ma>,
+					/* d13 */
+					<1 RK_PC1 1 &pcfg_pull_none_4ma>,
+					/* d14 */
+					<1 RK_PC2 1 &pcfg_pull_none_4ma>,
+					/* d15 */
+					<1 RK_PC3 1 &pcfg_pull_none_4ma>,
+					/* d16 */
+					<1 RK_PC4 1 &pcfg_pull_none_4ma>,
+					/* d17 */
+					<1 RK_PC5 1 &pcfg_pull_none_4ma>;
+			};
+
+			lcdc_rgb888_m0: lcdc-rgb888-m0 {
+				rockchip,pins =
+					/* d18 */
+					<1 RK_PC6 6 &pcfg_pull_none_4ma>,
+					/* d19 */
+					<1 RK_PC7 6 &pcfg_pull_none_4ma>,
+					/* d20 */
+					<2 RK_PB1 3 &pcfg_pull_none_4ma>,
+					/* d21 */
+					<2 RK_PB2 3 &pcfg_pull_none_4ma>,
+					/* d22 */
+					<2 RK_PB7 3 &pcfg_pull_none_4ma>,
+					/* d23 */
+					<2 RK_PC0 3 &pcfg_pull_none_4ma>;
+			};
+
+			lcdc_rgb888_m1: lcdc-rgb888-m1 {
+				rockchip,pins =
+					/* d18 */
+					<3 RK_PA6 3 &pcfg_pull_none_4ma>,
+					/* d19 */
+					<3 RK_PA7 3 &pcfg_pull_none_4ma>,
+					/* d20 */
+					<3 RK_PB0 3 &pcfg_pull_none_4ma>,
+					/* d21 */
+					<3 RK_PB1 3 &pcfg_pull_none_4ma>,
+					/* d22 */
+					<3 RK_PB2 4 &pcfg_pull_none_4ma>,
+					/* d23 */
+					<3 RK_PB3 4 &pcfg_pull_none_4ma>;
 			};
 		};
 
