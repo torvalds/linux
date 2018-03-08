@@ -256,25 +256,18 @@ static const char *field_to_perf(struct map *table, char *map, jsmntok_t *val)
 	goto out_free;						\
 } } while (0)
 
-#define TOPIC_DEPTH 256
-static char *topic_array[TOPIC_DEPTH];
-static int   topic_level;
+static char *topic;
 
 static char *get_topic(void)
 {
-	char *tp_old, *tp = NULL;
+	char *tp;
 	int i;
 
-	for (i = 0; i < topic_level + 1; i++) {
-		int n;
-
-		tp_old = tp;
-		n = asprintf(&tp, "%s%s", tp ?: "", topic_array[i]);
-		if (n < 0) {
-			pr_info("%s: asprintf() error %s\n", prog);
-			return NULL;
-		}
-		free(tp_old);
+	/* tp is free'd in process_one_file() */
+	i = asprintf(&tp, "%s", topic);
+	if (i < 0) {
+		pr_info("%s: asprintf() error %s\n", prog);
+		return NULL;
 	}
 
 	for (i = 0; i < (int) strlen(tp); i++) {
@@ -291,25 +284,15 @@ static char *get_topic(void)
 	return tp;
 }
 
-static int add_topic(int level, char *bname)
+static int add_topic(char *bname)
 {
-	char *topic;
-
-	level -= 2;
-
-	if (level >= TOPIC_DEPTH)
-		return -EINVAL;
-
+	free(topic);
 	topic = strdup(bname);
 	if (!topic) {
 		pr_info("%s: strdup() error %s for file %s\n", prog,
 				strerror(errno), bname);
 		return -ENOMEM;
 	}
-
-	free(topic_array[topic_level]);
-	topic_array[topic_level] = topic;
-	topic_level              = level;
 	return 0;
 }
 
@@ -824,7 +807,7 @@ static int process_one_file(const char *fpath, const struct stat *sb,
 		}
 	}
 
-	if (level > 1 && add_topic(level, bname))
+	if (level > 1 && add_topic(bname))
 		return -ENOMEM;
 
 	/*
