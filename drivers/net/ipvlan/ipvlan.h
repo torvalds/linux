@@ -180,7 +180,7 @@ int ipvlan_link_register(struct rtnl_link_ops *ops);
 
 static inline bool netif_is_ipvlan_port(const struct net_device *dev)
 {
-	return dev->rx_handler == ipvlan_handle_frame;
+	return rcu_access_pointer(dev->rx_handler) == ipvlan_handle_frame;
 }
 
 #endif /* __IPVLAN_H */
