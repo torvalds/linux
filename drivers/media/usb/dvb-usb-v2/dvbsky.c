@@ -618,10 +618,13 @@ static int dvbsky_init(struct dvb_usb_device *d)
 static void dvbsky_exit(struct dvb_usb_device *d)
 {
 	struct dvbsky_state *state = d_to_priv(d);
+	struct dvb_usb_adapter *adap = &d->adapter[0];
 
 	dvb_module_release(state->i2c_client_tuner);
 	dvb_module_release(state->i2c_client_demod);
 	dvb_module_release(state->i2c_client_ci);
+
+	adap->fe[0] = NULL;
 }
 
 /* DVB USB Driver stuff */
