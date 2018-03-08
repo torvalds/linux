@@ -314,6 +314,7 @@ struct dw_mci_board {
 #define SDMMC_BUFADDR		0x098
 #define SDMMC_CDTHRCTL		0x100
 #define SDMMC_UHS_REG_EXT	0x108
+#define SDMMC_DDR_REG		0x10c
 #define SDMMC_ENABLE_SHIFT	0x110
 #define SDMMC_DATA(x)		(x)
 /*
@@ -439,7 +440,12 @@ struct dw_mci_board {
 #define SDMMC_CARD_WR_THR_EN		BIT(2)
 #define SDMMC_CARD_RD_THR_EN		BIT(0)
 /* UHS-1 register defines */
+#define SDMMC_UHS_DDR			BIT(16)
 #define SDMMC_UHS_18V			BIT(0)
+/* DDR register defines */
+#define SDMMC_DDR_HS400			BIT(31)
+/* Enable shift register defines */
+#define SDMMC_ENABLE_PHASE		BIT(0)
 /* All ctrl reset bits */
 #define SDMMC_CTRL_ALL_RESET_FLAGS \
 	(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET)
