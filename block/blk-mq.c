@@ -2997,7 +2997,7 @@ EXPORT_SYMBOL_GPL(blk_mq_update_nr_hw_queues);
 static bool blk_poll_stats_enable(struct request_queue *q)
 {
 	if (test_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags) ||
-	    test_and_set_bit(QUEUE_FLAG_POLL_STATS, &q->queue_flags))
+	    blk_queue_flag_test_and_set(QUEUE_FLAG_POLL_STATS, q))
 		return true;
 	blk_stat_add_callback(q, q->poll_cb);
 	return false;
