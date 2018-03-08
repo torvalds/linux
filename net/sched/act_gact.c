@@ -217,6 +217,19 @@ static int tcf_gact_search(struct net *net, struct tc_action **a, u32 index,
 	return tcf_idr_search(tn, a, index);
 }
 
+static size_t tcf_gact_get_fill_size(const struct tc_action *act)
+{
+	size_t sz = nla_total_size(sizeof(struct tc_gact)); /* TCA_GACT_PARMS */
+
+#ifdef CONFIG_GACT_PROB
+	if (to_gact(act)->tcfg_ptype)
+		/* TCA_GACT_PROB */
+		sz += nla_total_size(sizeof(struct tc_gact_p));
+#endif
+
+	return sz;
+}
+
 static struct tc_action_ops act_gact_ops = {
 	.kind		=	"gact",
 	.type		=	TCA_ACT_GACT,
@@ -227,6 +240,7 @@ static struct tc_action_ops act_gact_ops = {
 	.init		=	tcf_gact_init,
 	.walk		=	tcf_gact_walker,
 	.lookup		=	tcf_gact_search,
+	.get_fill_size	=	tcf_gact_get_fill_size,
 	.size		=	sizeof(struct tcf_gact),
 };
 
