@@ -1408,6 +1408,7 @@ struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 	ret = device_register(&edge->dev);
 	if (ret) {
 		pr_err("failed to register smd edge\n");
+		put_device(&edge->dev);
 		return ERR_PTR(ret);
 	}
 
@@ -1428,7 +1429,7 @@ struct qcom_smd_edge *qcom_smd_register_edge(struct device *parent,
 	return edge;
 
 unregister_dev:
-	put_device(&edge->dev);
+	device_unregister(&edge->dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL(qcom_smd_register_edge);
