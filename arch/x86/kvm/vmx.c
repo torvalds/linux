@@ -6270,15 +6270,15 @@ static int handle_io(struct kvm_vcpu *vcpu)
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	string = (exit_qualification & 16) != 0;
-	in = (exit_qualification & 8) != 0;
 
 	++vcpu->stat.io_exits;
 
-	if (string || in)
+	if (string)
 		return emulate_instruction(vcpu, 0) == EMULATE_DONE;
 
 	port = exit_qualification >> 16;
 	size = (exit_qualification & 7) + 1;
+	in = (exit_qualification & 8) != 0;
 
 	ret = kvm_skip_emulated_instruction(vcpu);
 
@@ -6286,7 +6286,10 @@ static int handle_io(struct kvm_vcpu *vcpu)
 	 * TODO: we might be squashing a KVM_GUESTDBG_SINGLESTEP-triggered
 	 * KVM_EXIT_DEBUG here.
 	 */
-	return kvm_fast_pio_out(vcpu, size, port) && ret;
+	if (in)
+		return kvm_fast_pio_in(vcpu, size, port) && ret;
+	else
+		return kvm_fast_pio_out(vcpu, size, port) && ret;
 }
 
 static void
