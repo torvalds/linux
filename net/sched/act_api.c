@@ -109,6 +109,42 @@ int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
 }
 EXPORT_SYMBOL(__tcf_idr_release);
 
+static size_t tcf_action_shared_attrs_size(const struct tc_action *act)
+{
+	u32 cookie_len = 0;
+
+	if (act->act_cookie)
+		cookie_len = nla_total_size(act->act_cookie->len);
+
+	return  nla_total_size(0) /* action number nested */
+		+ nla_total_size(IFNAMSIZ) /* TCA_ACT_KIND */
+		+ cookie_len /* TCA_ACT_COOKIE */
+		+ nla_total_size(0) /* TCA_ACT_STATS nested */
+		/* TCA_STATS_BASIC */
+		+ nla_total_size_64bit(sizeof(struct gnet_stats_basic))
+		/* TCA_STATS_QUEUE */
+		+ nla_total_size_64bit(sizeof(struct gnet_stats_queue))
+		+ nla_total_size(0) /* TCA_OPTIONS nested */
+		+ nla_total_size(sizeof(struct tcf_t)); /* TCA_GACT_TM */
+}
+
+static size_t tcf_action_full_attrs_size(size_t sz)
+{
+	return NLMSG_HDRLEN                     /* struct nlmsghdr */
+		+ sizeof(struct tcamsg)
+		+ nla_total_size(0)             /* TCA_ACT_TAB nested */
+		+ sz;
+}
+
+static size_t tcf_action_fill_size(const struct tc_action *act)
+{
+	size_t sz = tcf_action_shared_attrs_size(act);
+
+	if (act->ops->get_fill_size)
+		return act->ops->get_fill_size(act) + sz;
+	return sz;
+}
+
 static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 			   struct netlink_callback *cb)
 {
@@ -746,6 +782,7 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
+	size_t sz = 0;
 	int err;
 	int i;
 
@@ -761,10 +798,13 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 			goto err;
 		}
 		act->order = i;
+		sz += tcf_action_fill_size(act);
 		if (ovr)
 			act->tcfa_refcnt++;
 		list_add_tail(&act->list, actions);
 	}
+
+	*attr_size = tcf_action_full_attrs_size(sz);
 
 	/* Remove the temp refcnt which was necessary to protect against
 	 * destroying an existing action which was being replaced
@@ -1056,8 +1096,11 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 			goto err;
 		}
 		act->order = i;
+		attr_size += tcf_action_fill_size(act);
 		list_add_tail(&act->list, &actions);
 	}
+
+	attr_size = tcf_action_full_attrs_size(attr_size);
 
 	if (event == RTM_GETACTION)
 		ret = tcf_get_notify(net, portid, n, &actions, event, extack);
