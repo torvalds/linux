@@ -238,10 +238,24 @@ static void enable_power_gating_plane(
 static void disable_vga(
 	struct dce_hwseq *hws)
 {
+	unsigned int in_vga_mode = 0;
+
+	REG_GET(D1VGA_CONTROL, D1VGA_MODE_ENABLE, &in_vga_mode);
+
+	if (in_vga_mode == 0)
+		return;
+
 	REG_WRITE(D1VGA_CONTROL, 0);
-	REG_WRITE(D2VGA_CONTROL, 0);
-	REG_WRITE(D3VGA_CONTROL, 0);
-	REG_WRITE(D4VGA_CONTROL, 0);
+
+	/* HW Engineer's Notes:
+	 *  During switch from vga->extended, if we set the VGA_TEST_ENABLE and
+	 *  then hit the VGA_TEST_RENDER_START, then the DCHUBP timing gets updated correctly.
+	 *
+	 *  Then vBIOS will have it poll for the VGA_TEST_RENDER_DONE and unset
+	 *  VGA_TEST_ENABLE, to leave it in the same state as before.
+	 */
+	REG_UPDATE(VGA_TEST_CONTROL, VGA_TEST_ENABLE, 1);
+	REG_UPDATE(VGA_TEST_CONTROL, VGA_TEST_RENDER_START, 1);
 }
 
 static void dpp_pg_control(
@@ -1761,6 +1775,11 @@ static void update_dchubp_dpp(
 			&pipe_ctx->plane_res.scl_data.viewport_c);
 	}
 
+	if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
+		dc->hwss.set_cursor_position(pipe_ctx);
+		dc->hwss.set_cursor_attribute(pipe_ctx);
+	}
+
 	if (plane_state->update_flags.bits.full_update) {
 		/*gamut remap*/
 		program_gamut_remap(pipe_ctx);
@@ -2296,7 +2315,7 @@ static bool dcn10_dummy_display_power_gating(
 	return true;
 }
 
-void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
+static void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
@@ -2316,10 +2335,44 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
+static void dcn10_update_dchub(struct dce_hwseq *hws, struct dchub_init_data *dh_data)
 {
 	if (hws->ctx->dc->res_pool->hubbub != NULL)
 		hubbub1_update_dchub(hws->ctx->dc->res_pool->hubbub, dh_data);
+}
+
+static void dcn10_set_cursor_position(struct pipe_ctx *pipe_ctx)
+{
+	struct dc_cursor_position pos_cpy = pipe_ctx->stream->cursor_position;
+	struct hubp *hubp = pipe_ctx->plane_res.hubp;
+	struct dpp *dpp = pipe_ctx->plane_res.dpp;
+	struct dc_cursor_mi_param param = {
+		.pixel_clk_khz = pipe_ctx->stream->timing.pix_clk_khz,
+		.ref_clk_khz = pipe_ctx->stream->ctx->dc->res_pool->ref_clock_inKhz,
+		.viewport_x_start = pipe_ctx->plane_res.scl_data.viewport.x,
+		.viewport_width = pipe_ctx->plane_res.scl_data.viewport.width,
+		.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz
+	};
+
+	if (pipe_ctx->plane_state->address.type
+			== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
+		pos_cpy.enable = false;
+
+	if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
+		pos_cpy.enable = false;
+
+	hubp->funcs->set_cursor_position(hubp, &pos_cpy, &param);
+	dpp->funcs->set_cursor_position(dpp, &pos_cpy, &param, hubp->curs_attr.width);
+}
+
+static void dcn10_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
+{
+	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
+
+	pipe_ctx->plane_res.hubp->funcs->set_cursor_attributes(
+			pipe_ctx->plane_res.hubp, attributes);
+	pipe_ctx->plane_res.dpp->funcs->set_cursor_attributes(
+		pipe_ctx->plane_res.dpp, attributes->color_format);
 }
 
 static const struct hw_sequencer_funcs dcn10_funcs = {
@@ -2362,6 +2415,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.edp_backlight_control = hwss_edp_backlight_control,
 	.edp_power_control = hwss_edp_power_control,
 	.edp_wait_for_hpd_ready = hwss_edp_wait_for_hpd_ready,
+	.set_cursor_position = dcn10_set_cursor_position,
+	.set_cursor_attribute = dcn10_set_cursor_attribute
 };
 
 

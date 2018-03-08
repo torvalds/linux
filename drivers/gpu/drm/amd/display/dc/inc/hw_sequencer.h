@@ -198,6 +198,9 @@ struct hw_sequencer_funcs {
 			bool enable);
 	void (*edp_wait_for_hpd_ready)(struct dc_link *link, bool power_up);
 
+	void (*set_cursor_position)(struct pipe_ctx *pipe);
+	void (*set_cursor_attribute)(struct pipe_ctx *pipe);
+
 };
 
 void color_space_to_black_color(

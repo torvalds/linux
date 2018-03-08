@@ -1358,13 +1358,13 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 	return dal_irq_service_to_irq_source(dc->res_pool->irqs, src_id, ext_id);
 }
 
-void dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable)
+bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable)
 {
 
 	if (dc == NULL)
-		return;
+		return false;
 
-	dal_irq_service_set(dc->res_pool->irqs, src, enable);
+	return dal_irq_service_set(dc->res_pool->irqs, src, enable);
 }
 
 void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src)
