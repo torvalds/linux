@@ -47,6 +47,17 @@ config MAX5487
           To compile this driver as a module, choose M here: the
           module will be called max5487.
 
+config MCP4018
+	tristate "Microchip MCP4017/18/19 Digital Potentiometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Microchip
+	  MCP4017, MCP4018, MCP4019
+	  digital potentiometer chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcp4018.
+
 config MCP4131
 	tristate "Microchip MCP413X/414X/415X/416X/423X/424X/425X/426X Digital Potentiometer driver"
 	depends on SPI
