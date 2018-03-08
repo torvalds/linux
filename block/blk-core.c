@@ -994,7 +994,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
 	 * registered by blk_register_queue().
 	 */
 	q->bypass_depth = 1;
-	__set_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
+	queue_flag_set_unlocked(QUEUE_FLAG_BYPASS, q);
 
 	init_waitqueue_head(&q->mq_freeze_wq);
 

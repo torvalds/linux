@@ -861,9 +861,9 @@ void blk_queue_flush_queueable(struct request_queue *q, bool queueable)
 {
 	spin_lock_irq(q->queue_lock);
 	if (queueable)
-		clear_bit(QUEUE_FLAG_FLUSH_NQ, &q->queue_flags);
+		queue_flag_clear(QUEUE_FLAG_FLUSH_NQ, q);
 	else
-		set_bit(QUEUE_FLAG_FLUSH_NQ, &q->queue_flags);
+		queue_flag_set(QUEUE_FLAG_FLUSH_NQ, q);
 	spin_unlock_irq(q->queue_lock);
 }
 EXPORT_SYMBOL_GPL(blk_queue_flush_queueable);
