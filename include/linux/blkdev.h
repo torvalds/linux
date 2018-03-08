@@ -707,6 +707,11 @@ struct request_queue {
 				 (1 << QUEUE_FLAG_SAME_COMP)	|	\
 				 (1 << QUEUE_FLAG_POLL))
 
+void blk_queue_flag_set(unsigned int flag, struct request_queue *q);
+void blk_queue_flag_clear(unsigned int flag, struct request_queue *q);
+bool blk_queue_flag_test_and_set(unsigned int flag, struct request_queue *q);
+bool blk_queue_flag_test_and_clear(unsigned int flag, struct request_queue *q);
+
 /*
  * @q->queue_lock is set while a queue is being initialized. Since we know
  * that no other threads access the queue object before @q->queue_lock has
