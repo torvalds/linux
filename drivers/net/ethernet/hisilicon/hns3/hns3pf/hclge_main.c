@@ -3717,20 +3717,11 @@ static int hclge_ae_start(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int i, queue_id, ret;
+	int i, ret;
 
-	for (i = 0; i < vport->alloc_tqps; i++) {
-		/* todo clear interrupt */
-		/* ring enable */
-		queue_id = hclge_get_queue_id(handle->kinfo.tqp[i]);
-		if (queue_id < 0) {
-			dev_warn(&hdev->pdev->dev,
-				 "Get invalid queue id, ignore it\n");
-			continue;
-		}
+	for (i = 0; i < vport->alloc_tqps; i++)
+		hclge_tqp_enable(hdev, i, 0, true);
 
-		hclge_tqp_enable(hdev, queue_id, 0, true);
-	}
 	/* mac enable */
 	hclge_cfg_mac_mode(hdev, true);
 	clear_bit(HCLGE_STATE_DOWN, &hdev->state);
@@ -3750,19 +3741,11 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
-	int i, queue_id;
+	int i;
 
-	for (i = 0; i < vport->alloc_tqps; i++) {
-		/* Ring disable */
-		queue_id = hclge_get_queue_id(handle->kinfo.tqp[i]);
-		if (queue_id < 0) {
-			dev_warn(&hdev->pdev->dev,
-				 "Get invalid queue id, ignore it\n");
-			continue;
-		}
+	for (i = 0; i < vport->alloc_tqps; i++)
+		hclge_tqp_enable(hdev, i, 0, false);
 
-		hclge_tqp_enable(hdev, queue_id, 0, false);
-	}
 	/* Mac disable */
 	hclge_cfg_mac_mode(hdev, false);
 
@@ -4848,13 +4831,28 @@ static int hclge_get_reset_status(struct hclge_dev *hdev, u16 queue_id)
 	return hnae_get_bit(req->ready_to_reset, HCLGE_TQP_RESET_B);
 }
 
+static u16 hclge_covert_handle_qid_global(struct hnae3_handle *handle,
+					  u16 queue_id)
+{
+	struct hnae3_queue *queue;
+	struct hclge_tqp *tqp;
+
+	queue = handle->kinfo.tqp[queue_id];
+	tqp = container_of(queue, struct hclge_tqp, q);
+
+	return tqp->index;
+}
+
 void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	int reset_try_times = 0;
 	int reset_status;
+	u16 queue_gid;
 	int ret;
+
+	queue_gid = hclge_covert_handle_qid_global(handle, queue_id);
 
 	ret = hclge_tqp_enable(hdev, queue_id, 0, false);
 	if (ret) {
@@ -4862,7 +4860,7 @@ void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 		return;
 	}
 
-	ret = hclge_send_reset_tqp_cmd(hdev, queue_id, true);
+	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, true);
 	if (ret) {
 		dev_warn(&hdev->pdev->dev,
 			 "Send reset tqp cmd fail, ret = %d\n", ret);
@@ -4873,7 +4871,7 @@ void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
 		/* Wait for tqp hw reset */
 		msleep(20);
-		reset_status = hclge_get_reset_status(hdev, queue_id);
+		reset_status = hclge_get_reset_status(hdev, queue_gid);
 		if (reset_status)
 			break;
 	}
@@ -4883,7 +4881,7 @@ void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 		return;
 	}
 
-	ret = hclge_send_reset_tqp_cmd(hdev, queue_id, false);
+	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, false);
 	if (ret) {
 		dev_warn(&hdev->pdev->dev,
 			 "Deassert the soft reset fail, ret = %d\n", ret);
