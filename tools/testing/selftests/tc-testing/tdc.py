@@ -177,12 +177,16 @@ def prepare_env(args, pm, stage, prefix, cmdlist, output = None):
                 '"{}" did not complete successfully'.format(prefix))
 
 def run_one_test(pm, args, index, tidx):
+    global NAMES
     result = True
     tresult = ""
     tap = ""
     if args.verbose > 0:
         print("\t====================\n=====> ", end="")
     print("Test " + tidx["id"] + ": " + tidx["name"])
+
+    # populate NAMES with TESTID for this test
+    NAMES['TESTID'] = tidx['id']
 
     pm.call_pre_case(index, tidx['id'])
     prepare_env(args, pm, 'setup', "-----> prepare stage", tidx["setup"])
@@ -227,6 +231,8 @@ def run_one_test(pm, args, index, tidx):
 
     index += 1
 
+    # remove TESTID from NAMES
+    del(NAMES['TESTID'])
     return tap
 
 def test_runner(pm, args, filtered_tests):
