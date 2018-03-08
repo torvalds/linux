@@ -836,16 +836,25 @@ static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif)
 {
 	const struct iwl_ucode_capabilities *capa = &mvm->fw->ucode_capa;
+	bool low_latency;
+
+	if (iwl_mvm_is_cdb_supported(mvm))
+		low_latency = iwl_mvm_low_latency_band(mvm, NL80211_BAND_5GHZ);
+	else
+		low_latency = iwl_mvm_low_latency(mvm);
 
 	/* We can only use EBS if:
 	 *	1. the feature is supported;
 	 *	2. the last EBS was successful;
 	 *	3. if only single scan, the single scan EBS API is supported;
 	 *	4. it's not a p2p find operation.
+	 *	5. we are not in low latency mode,
+	 *	   or if fragmented ebs is supported by the FW
 	 */
 	return ((capa->flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT) &&
 		mvm->last_ebs_successful && IWL_MVM_ENABLE_EBS &&
-		vif->type != NL80211_IFTYPE_P2P_DEVICE);
+		vif->type != NL80211_IFTYPE_P2P_DEVICE &&
+		(!low_latency || iwl_mvm_is_frag_ebs_supported(mvm)));
 }
 
 static inline bool iwl_mvm_is_regular_scan(struct iwl_mvm_scan_params *params)
