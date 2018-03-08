@@ -739,7 +739,7 @@ static int pseries_set_dawr(unsigned long dawr, unsigned long dawrx)
 	/* PAPR says we can't set HYP */
 	dawrx &= ~DAWRX_HYP;
 
-	return  plapr_set_watchpoint0(dawr, dawrx);
+	return  plpar_set_watchpoint0(dawr, dawrx);
 }
 
 #define CMO_CHARACTERISTICS_TOKEN 44

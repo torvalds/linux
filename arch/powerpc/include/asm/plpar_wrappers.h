@@ -305,17 +305,17 @@ static inline long enable_little_endian_exceptions(void)
 	return plpar_set_mode(1, H_SET_MODE_RESOURCE_LE, 0, 0);
 }
 
-static inline long plapr_set_ciabr(unsigned long ciabr)
+static inline long plpar_set_ciabr(unsigned long ciabr)
 {
 	return plpar_set_mode(0, H_SET_MODE_RESOURCE_SET_CIABR, ciabr, 0);
 }
 
-static inline long plapr_set_watchpoint0(unsigned long dawr0, unsigned long dawrx0)
+static inline long plpar_set_watchpoint0(unsigned long dawr0, unsigned long dawrx0)
 {
 	return plpar_set_mode(0, H_SET_MODE_RESOURCE_SET_DAWR, dawr0, dawrx0);
 }
 
-static inline long plapr_signal_sys_reset(long cpu)
+static inline long plpar_signal_sys_reset(long cpu)
 {
 	return plpar_hcall_norets(H_SIGNAL_SYS_RESET, cpu);
 }

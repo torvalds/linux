@@ -215,7 +215,7 @@ static int pseries_cause_nmi_ipi(int cpu)
 		hwcpu = get_hard_smp_processor_id(cpu);
 	}
 
-	if (plapr_signal_sys_reset(hwcpu) == H_SUCCESS)
+	if (plpar_signal_sys_reset(hwcpu) == H_SUCCESS)
 		return 1;
 
 	return 0;

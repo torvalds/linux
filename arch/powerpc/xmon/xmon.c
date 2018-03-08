@@ -64,7 +64,7 @@
 #if defined(CONFIG_PPC_SPLPAR)
 #include <asm/plpar_wrappers.h>
 #else
-static inline long plapr_set_ciabr(unsigned long ciabr) {return 0; };
+static inline long plpar_set_ciabr(unsigned long ciabr) {return 0; };
 #endif
 
 #include "nonstdio.h"
@@ -328,7 +328,7 @@ static void write_ciabr(unsigned long ciabr)
 		mtspr(SPRN_CIABR, ciabr);
 		return;
 	}
-	plapr_set_ciabr(ciabr);
+	plpar_set_ciabr(ciabr);
 }
 
 /**
