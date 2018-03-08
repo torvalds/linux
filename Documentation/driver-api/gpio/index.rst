@@ -9,6 +9,7 @@ Contents:
 
    intro
    driver
+   consumer
    legacy
 
 Core
