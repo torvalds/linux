@@ -1434,16 +1434,6 @@ config RTC_DRV_AU1XXX
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-au1xxx.
 
-config RTC_DRV_BFIN
-	tristate "Blackfin On-Chip RTC"
-	depends on BLACKFIN && !BF561
-	help
-	  If you say yes here you will get support for the
-	  Blackfin On-Chip Real Time Clock.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-bfin.
-
 config RTC_DRV_RS5C313
 	tristate "Ricoh RS5C313"
 	depends on SH_LANDISK
