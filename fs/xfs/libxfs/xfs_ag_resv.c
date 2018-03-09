@@ -326,6 +326,8 @@ xfs_ag_resv_alloc_extent(
 	trace_xfs_ag_resv_alloc_extent(pag, type, args->len);
 
 	switch (type) {
+	case XFS_AG_RESV_AGFL:
+		return;
 	case XFS_AG_RESV_METADATA:
 	case XFS_AG_RESV_RMAPBT:
 		resv = xfs_perag_resv(pag, type);
@@ -366,6 +368,8 @@ xfs_ag_resv_free_extent(
 	trace_xfs_ag_resv_free_extent(pag, type, len);
 
 	switch (type) {
+	case XFS_AG_RESV_AGFL:
+		return;
 	case XFS_AG_RESV_METADATA:
 	case XFS_AG_RESV_RMAPBT:
 		resv = xfs_perag_resv(pag, type);
