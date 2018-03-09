@@ -42,6 +42,16 @@ struct qeth_ipaddr {
 	} u;
 };
 
+static inline void qeth_l3_init_ipaddr(struct qeth_ipaddr *addr,
+				       enum qeth_ip_types type,
+				       enum qeth_prot_versions proto)
+{
+	memset(addr, 0, sizeof(*addr));
+	addr->type = type;
+	addr->proto = proto;
+	addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
+}
+
 static inline bool qeth_l3_addr_match_ip(struct qeth_ipaddr *a1,
 					 struct qeth_ipaddr *a2)
 {
