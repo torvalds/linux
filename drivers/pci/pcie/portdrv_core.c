@@ -17,7 +17,6 @@
 #include <linux/slab.h>
 #include <linux/aer.h>
 
-#include "pcieport_if.h"
 #include "../pci.h"
 #include "portdrv.h"
 

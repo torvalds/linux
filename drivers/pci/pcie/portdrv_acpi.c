@@ -11,7 +11,6 @@
 #include <linux/acpi.h>
 #include <linux/pci-acpi.h>
 
-#include "pcieport_if.h"
 #include "aer/aerdrv.h"
 #include "../pci.h"
 #include "portdrv.h"

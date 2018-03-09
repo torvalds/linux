@@ -16,7 +16,6 @@
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
 
-#include "pcieport_if.h"
 #include "../pci.h"
 #include "portdrv.h"
 

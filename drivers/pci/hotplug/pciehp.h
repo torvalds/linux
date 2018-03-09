@@ -23,7 +23,7 @@
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 
-#include "../pcie/pcieport_if.h"
+#include "../pcie/portdrv.h"
 
 #define MY_NAME	"pciehp"
 
