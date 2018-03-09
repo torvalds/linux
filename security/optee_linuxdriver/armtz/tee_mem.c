@@ -370,7 +370,7 @@ unsigned long tee_shm_pool_v2p(struct device *dev, struct shm_pool *pool,
  * Allocate a memory chunk inside the memory region managed by the pool.
  *
  */
-unsigned long tee_shm_pool_alloc(struct device *dev,
+unsigned long rk_tee_shm_pool_alloc(struct device *dev,
 				 struct shm_pool *pool,
 				 size_t size, size_t alignment)
 {
@@ -508,7 +508,7 @@ failed_out:
 		_KFREE(next_chunk);
 
 	dev_err(dev,
-		"tee_shm_pool_alloc() FAILED, size=0x%zx, align=0x%zx free=%zu\n",
+		"rk_tee_shm_pool_alloc() FAILED, size=0x%zx, align=0x%zx free=%zu\n",
 		size, alignment, pool->size - pool->used);
 
 #if defined(_DUMP_INFO_ALLOCATOR) && (_DUMP_INFO_ALLOCATOR > 1)

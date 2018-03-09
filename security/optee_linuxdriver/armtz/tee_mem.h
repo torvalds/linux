@@ -29,7 +29,7 @@ void *tee_shm_pool_p2v(struct device *dev, struct shm_pool *pool,
 unsigned long tee_shm_pool_v2p(struct device *dev, struct shm_pool *pool,
 			       void *vaddr);
 
-unsigned long tee_shm_pool_alloc(struct device *dev,
+unsigned long rk_tee_shm_pool_alloc(struct device *dev,
 				 struct shm_pool *pool,
 				 size_t size, size_t alignment);
 

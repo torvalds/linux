@@ -384,7 +384,7 @@ static u32 handle_rpc(struct tee_tz *ptee, struct smc_param *param)
 
 	switch (TEESMC_RETURN_GET_RPC_FUNC(param->a0)) {
 	case TEESMC_RPC_FUNC_ALLOC_ARG:
-		param->a1 = tee_shm_pool_alloc(DEV, ptee->shm_pool,
+		param->a1 = rk_tee_shm_pool_alloc(DEV, ptee->shm_pool,
 					param->a1, 4);
 		break;
 	case TEESMC_RPC_FUNC_ALLOC_PAYLOAD:
@@ -518,7 +518,7 @@ static void *alloc_tee_arg(struct tee_tz *ptee, unsigned long *p, size_t l)
 		return NULL;
 
 	/* assume a 4 bytes aligned is sufficient */
-	*p = tee_shm_pool_alloc(DEV, ptee->shm_pool, l, ALLOC_ALIGN);
+	*p = rk_tee_shm_pool_alloc(DEV, ptee->shm_pool, l, ALLOC_ALIGN);
 	if (*p == 0)
 		return NULL;
 
@@ -904,7 +904,7 @@ static struct tee_shm *tz_alloc(struct tee *tee, size_t size, uint32_t flags)
 
 	shm->size_alloc = ((size / SZ_4K) + 1) * SZ_4K;
 	shm->size_req = size;
-	shm->paddr = tee_shm_pool_alloc(tee->dev, ptee->shm_pool,
+	shm->paddr = rk_tee_shm_pool_alloc(tee->dev, ptee->shm_pool,
 					shm->size_alloc, ALLOC_ALIGN);
 	if (!shm->paddr) {
 		dev_err(tee->dev, "%s: cannot alloc memory, size 0x%lx\n",
