@@ -2967,13 +2967,8 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 			h->ae_algo->ops->reset_queue(h, i);
 
 		hns3_fini_ring(priv->ring_data[i].ring);
-		devm_kfree(priv->dev, priv->ring_data[i].ring);
 		hns3_fini_ring(priv->ring_data[i + h->kinfo.num_tqps].ring);
-		devm_kfree(priv->dev,
-			   priv->ring_data[i + h->kinfo.num_tqps].ring);
 	}
-	devm_kfree(priv->dev, priv->ring_data);
-
 	return 0;
 }
 
@@ -3110,6 +3105,8 @@ static void hns3_client_uninit(struct hnae3_handle *handle, bool reset)
 	ret = hns3_uninit_all_ring(priv);
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
+
+	hns3_put_ring_config(priv);
 
 	priv->ring_data = NULL;
 
@@ -3316,6 +3313,8 @@ static int hns3_reset_notify_uninit_enet(struct hnae3_handle *handle)
 	if (ret)
 		netdev_err(netdev, "uninit ring error\n");
 
+	hns3_put_ring_config(priv);
+
 	priv->ring_data = NULL;
 
 	return ret;
@@ -3422,6 +3421,7 @@ int hns3_set_channels(struct net_device *netdev,
 	}
 
 	hns3_uninit_all_ring(priv);
+	hns3_put_ring_config(priv);
 
 	org_tqp_num = h->kinfo.num_tqps;
 	ret = hns3_modify_tqp_num(netdev, new_tqp_num);
