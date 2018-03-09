@@ -20,17 +20,6 @@
 #include "../pci.h"
 #include "portdrv.h"
 
-bool pciehp_msi_disabled;
-
-static int __init pciehp_setup(char *str)
-{
-	if (!strncmp(str, "nomsi", 5))
-		pciehp_msi_disabled = true;
-
-	return 1;
-}
-__setup("pcie_hp=", pciehp_setup);
-
 /**
  * release_pcie_device - free PCI Express port service device structure
  * @dev: Port service device to release
@@ -168,14 +157,11 @@ static int pcie_init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 		irqs[i] = -1;
 
 	/*
-	 * If we support PME or hotplug, but we can't use MSI/MSI-X for
-	 * them, we have to fall back to INTx or other interrupts, e.g., a
-	 * system shared interrupt.
+	 * If we support PME but can't use MSI/MSI-X for it, we have to
+	 * fall back to INTx or other interrupts, e.g., a system shared
+	 * interrupt.
 	 */
 	if ((mask & PCIE_PORT_SERVICE_PME) && pcie_pme_no_msi())
-		goto legacy_irq;
-
-	if ((mask & PCIE_PORT_SERVICE_HP) && pciehp_no_msi())
 		goto legacy_irq;
 
 	/* Try to use MSI-X or MSI if supported */
