@@ -856,6 +856,8 @@ static void amdgpu_device_check_arguments(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "lockup_timeout msut be > 0, adjusting to 10000\n");
 		amdgpu_lockup_timeout = 10000;
 	}
+
+	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
 }
 
 /**

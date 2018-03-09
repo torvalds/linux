@@ -692,8 +692,6 @@ static int soc15_common_early_init(void *handle)
 		xgpu_ai_mailbox_set_irq_funcs(adev);
 	}
 
-	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
-
 	amdgpu_device_get_pcie_info(adev);
 
 	return 0;
