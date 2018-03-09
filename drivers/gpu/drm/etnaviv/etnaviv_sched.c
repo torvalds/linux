@@ -24,7 +24,7 @@
 
 static int etnaviv_job_hang_limit = 0;
 module_param_named(job_hang_limit, etnaviv_job_hang_limit, int , 0444);
-static int etnaviv_hw_jobs_limit = 2;
+static int etnaviv_hw_jobs_limit = 4;
 module_param_named(hw_job_limit, etnaviv_hw_jobs_limit, int , 0444);
 
 static struct dma_fence *
