@@ -161,6 +161,11 @@ dm_dp_mst_connector_destroy(struct drm_connector *connector)
 	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
 	struct amdgpu_encoder *amdgpu_encoder = amdgpu_dm_connector->mst_encoder;
 
+	if (amdgpu_dm_connector->edid) {
+		kfree(amdgpu_dm_connector->edid);
+		amdgpu_dm_connector->edid = NULL;
+	}
+
 	drm_encoder_cleanup(&amdgpu_encoder->base);
 	kfree(amdgpu_encoder);
 	drm_connector_cleanup(connector);
@@ -181,11 +186,14 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-	struct edid *edid;
 	struct dc_sink *dc_sink;
 	struct dc_sink_init_data init_params = {
 			.link = aconnector->dc_link,
 			.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
+
+	/* FIXME none of this is safe. we shouldn't touch aconnector here in
+	 * atomic_check
+	 */
 
 	/*
 	 * TODO: Need to further figure out why ddc.algo is NULL while MST port exists
@@ -193,16 +201,7 @@ void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 	if (!aconnector->port || !aconnector->port->aux.ddc.algo)
 		return;
 
-	edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
-
-	if (!edid) {
-		drm_mode_connector_update_edid_property(
-			&aconnector->base,
-			NULL);
-		return;
-	}
-
-	aconnector->edid = edid;
+	ASSERT(aconnector->edid);
 
 	dc_sink = dc_link_add_remote_sink(
 		aconnector->dc_link,
@@ -215,9 +214,6 @@ void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 
 	amdgpu_dm_add_sink_to_freesync_module(
 			connector, aconnector->edid);
-
-	drm_mode_connector_update_edid_property(
-					&aconnector->base, aconnector->edid);
 }
 
 static int dm_dp_mst_get_modes(struct drm_connector *connector)
@@ -424,14 +420,6 @@ static void dm_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
 	}
-	if (aconnector->edid) {
-		kfree(aconnector->edid);
-		aconnector->edid = NULL;
-	}
-
-	drm_mode_connector_update_edid_property(
-			&aconnector->base,
-			NULL);
 
 	aconnector->mst_connected = false;
 }
