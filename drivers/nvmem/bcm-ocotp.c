@@ -302,27 +302,17 @@ static int bcm_otpc_probe(struct platform_device *pdev)
 
 	priv->config = &bcm_otpc_nvmem_config;
 
-	nvmem = nvmem_register(&bcm_otpc_nvmem_config);
+	nvmem = devm_nvmem_register(dev, &bcm_otpc_nvmem_config);
 	if (IS_ERR(nvmem)) {
 		dev_err(dev, "error registering nvmem config\n");
 		return PTR_ERR(nvmem);
 	}
 
-	platform_set_drvdata(pdev, nvmem);
-
 	return 0;
-}
-
-static int bcm_otpc_remove(struct platform_device *pdev)
-{
-	struct nvmem_device *nvmem = platform_get_drvdata(pdev);
-
-	return nvmem_unregister(nvmem);
 }
 
 static struct platform_driver bcm_otpc_driver = {
 	.probe	= bcm_otpc_probe,
-	.remove	= bcm_otpc_remove,
 	.driver = {
 		.name	= "brcm-otpc",
 		.of_match_table = bcm_otpc_dt_ids,
