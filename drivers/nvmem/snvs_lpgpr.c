@@ -14,15 +14,21 @@
 #include <linux/regmap.h>
 
 #define IMX6Q_SNVS_HPLR		0x00
-#define IMX6Q_GPR_SL		BIT(5)
 #define IMX6Q_SNVS_LPLR		0x34
-#define IMX6Q_GPR_HL		BIT(5)
 #define IMX6Q_SNVS_LPGPR	0x68
+
+#define IMX7D_SNVS_HPLR		0x00
+#define IMX7D_SNVS_LPLR		0x34
+#define IMX7D_SNVS_LPGPR	0x90
+
+#define IMX_GPR_SL		BIT(5)
+#define IMX_GPR_HL		BIT(5)
 
 struct snvs_lpgpr_cfg {
 	int offset;
 	int offset_hplr;
 	int offset_lplr;
+	int size;
 };
 
 struct snvs_lpgpr_priv {
@@ -36,6 +42,14 @@ static const struct snvs_lpgpr_cfg snvs_lpgpr_cfg_imx6q = {
 	.offset		= IMX6Q_SNVS_LPGPR,
 	.offset_hplr	= IMX6Q_SNVS_HPLR,
 	.offset_lplr	= IMX6Q_SNVS_LPLR,
+	.size		= 4,
+};
+
+static const struct snvs_lpgpr_cfg snvs_lpgpr_cfg_imx7d = {
+	.offset		= IMX7D_SNVS_LPGPR,
+	.offset_hplr	= IMX7D_SNVS_HPLR,
+	.offset_lplr	= IMX7D_SNVS_LPLR,
+	.size		= 16,
 };
 
 static int snvs_lpgpr_write(void *context, unsigned int offset, void *val,
@@ -50,14 +64,14 @@ static int snvs_lpgpr_write(void *context, unsigned int offset, void *val,
 	if (ret < 0)
 		return ret;
 
-	if (lock_reg & IMX6Q_GPR_SL)
+	if (lock_reg & IMX_GPR_SL)
 		return -EPERM;
 
 	ret = regmap_read(priv->regmap, dcfg->offset_lplr, &lock_reg);
 	if (ret < 0)
 		return ret;
 
-	if (lock_reg & IMX6Q_GPR_HL)
+	if (lock_reg & IMX_GPR_HL)
 		return -EPERM;
 
 	return regmap_bulk_write(priv->regmap, dcfg->offset + offset, val,
@@ -112,7 +126,7 @@ static int snvs_lpgpr_probe(struct platform_device *pdev)
 	cfg->dev = dev;
 	cfg->stride = 4;
 	cfg->word_size = 4;
-	cfg->size = 4;
+	cfg->size = dcfg->size,
 	cfg->owner = THIS_MODULE;
 	cfg->reg_read  = snvs_lpgpr_read;
 	cfg->reg_write = snvs_lpgpr_write;
@@ -126,6 +140,7 @@ static const struct of_device_id snvs_lpgpr_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-snvs-lpgpr", .data = &snvs_lpgpr_cfg_imx6q },
 	{ .compatible = "fsl,imx6ul-snvs-lpgpr",
 	  .data = &snvs_lpgpr_cfg_imx6q },
+	{ .compatible = "fsl,imx7d-snvs-lpgpr",	.data = &snvs_lpgpr_cfg_imx7d },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, snvs_lpgpr_dt_ids);
@@ -140,5 +155,5 @@ static struct platform_driver snvs_lpgpr_driver = {
 module_platform_driver(snvs_lpgpr_driver);
 
 MODULE_AUTHOR("Oleksij Rempel <o.rempel@pengutronix.de>");
-MODULE_DESCRIPTION("Low Power General Purpose Register in i.MX6 Secure Non-Volatile Storage");
+MODULE_DESCRIPTION("Low Power General Purpose Register in i.MX6 and i.MX7 Secure Non-Volatile Storage");
 MODULE_LICENSE("GPL v2");
