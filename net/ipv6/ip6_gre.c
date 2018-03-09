@@ -126,7 +126,8 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 	struct ip6_tnl *t, *cand = NULL;
 	struct ip6gre_net *ign = net_generic(net, ip6gre_net_id);
 	int dev_type = (gre_proto == htons(ETH_P_TEB) ||
-			gre_proto == htons(ETH_P_ERSPAN)) ?
+			gre_proto == htons(ETH_P_ERSPAN) ||
+			gre_proto == htons(ETH_P_ERSPAN2)) ?
 		       ARPHRD_ETHER : ARPHRD_IP6GRE;
 	int score, cand_score = 4;
 
