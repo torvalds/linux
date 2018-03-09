@@ -871,6 +871,13 @@ struct event_constraint *intel_pebs_constraints(struct perf_event *event)
 		}
 	}
 
+	/*
+	 * Extended PEBS support
+	 * Makes the PEBS code search the normal constraints.
+	 */
+	if (x86_pmu.flags & PMU_FL_PEBS_ALL)
+		return NULL;
+
 	return &emptyconstraint;
 }
 
