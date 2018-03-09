@@ -866,7 +866,6 @@ F:	drivers/iio/*/ad*
 F:	drivers/iio/adc/ltc2497*
 X:	drivers/iio/*/adjd*
 F:	drivers/staging/iio/*/ad*
-F:	drivers/staging/iio/trigger/iio-trig-bfin-timer.c
 
 ANDROID CONFIG FRAGMENTS
 M:	Rob Herring <robh@kernel.org>
