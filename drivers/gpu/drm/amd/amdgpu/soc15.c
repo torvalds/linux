@@ -691,8 +691,6 @@ static int soc15_common_early_init(void *handle)
 		xgpu_ai_mailbox_set_irq_funcs(adev);
 	}
 
-	amdgpu_device_get_pcie_info(adev);
-
 	return 0;
 }
 

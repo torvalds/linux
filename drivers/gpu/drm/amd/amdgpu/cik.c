@@ -1887,8 +1887,6 @@ static int cik_common_early_init(void *handle)
 		return -EINVAL;
 	}
 
-	amdgpu_device_get_pcie_info(adev);
-
 	return 0;
 }
 

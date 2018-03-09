@@ -1097,8 +1097,6 @@ static int vi_common_early_init(void *handle)
 		xgpu_vi_mailbox_set_irq_funcs(adev);
 	}
 
-	amdgpu_device_get_pcie_info(adev);
-
 	return 0;
 }
 
