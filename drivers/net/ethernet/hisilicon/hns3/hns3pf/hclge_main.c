@@ -2969,6 +2969,24 @@ static int hclge_get_vector_index(struct hclge_dev *hdev, int vector)
 	return -EINVAL;
 }
 
+static int hclge_put_vector(struct hnae3_handle *handle, int vector)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	int vector_id;
+
+	vector_id = hclge_get_vector_index(hdev, vector);
+	if (vector_id < 0) {
+		dev_err(&hdev->pdev->dev,
+			"Get vector index fail. vector_id =%d\n", vector_id);
+		return vector_id;
+	}
+
+	hclge_free_vector(hdev, vector_id);
+
+	return 0;
+}
+
 static u32 hclge_get_rss_key_size(struct hnae3_handle *handle)
 {
 	return HCLGE_RSS_KEY_SIZE;
@@ -3523,18 +3541,13 @@ static int hclge_unmap_ring_frm_vector(struct hnae3_handle *handle,
 	}
 
 	ret = hclge_bind_ring_with_vector(vport, vector_id, false, ring_chain);
-	if (ret) {
+	if (ret)
 		dev_err(&handle->pdev->dev,
 			"Unmap ring from vector fail. vectorid=%d, ret =%d\n",
 			vector_id,
 			ret);
-		return ret;
-	}
 
-	/* Free this MSIX or MSI vector */
-	hclge_free_vector(hdev, vector_id);
-
-	return 0;
+	return ret;
 }
 
 int hclge_cmd_set_promisc_mode(struct hclge_dev *hdev,
@@ -5994,6 +6007,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.map_ring_to_vector = hclge_map_ring_to_vector,
 	.unmap_ring_from_vector = hclge_unmap_ring_frm_vector,
 	.get_vector = hclge_get_vector,
+	.put_vector = hclge_put_vector,
 	.set_promisc_mode = hclge_set_promisc_mode,
 	.set_loopback = hclge_set_loopback,
 	.start = hclge_ae_start,

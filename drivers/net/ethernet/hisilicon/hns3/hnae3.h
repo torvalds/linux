@@ -265,6 +265,8 @@ struct hnae3_ae_dev {
  *   Get tc size of handle
  * get_vector()
  *   Get vector number and vector information
+ * put_vector()
+ *   Put the vector in hdev
  * map_ring_to_vector()
  *   Map rings to vector
  * unmap_ring_from_vector()
@@ -375,6 +377,7 @@ struct hnae3_ae_ops {
 
 	int (*get_vector)(struct hnae3_handle *handle, u16 vector_num,
 			  struct hnae3_vector_info *vector_info);
+	int (*put_vector)(struct hnae3_handle *handle, int vector_num);
 	int (*map_ring_to_vector)(struct hnae3_handle *handle,
 				  int vector_num,
 				  struct hnae3_ring_chain_node *vr_chain);

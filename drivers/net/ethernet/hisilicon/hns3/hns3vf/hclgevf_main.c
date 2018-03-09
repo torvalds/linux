@@ -627,13 +627,18 @@ static int hclgevf_unmap_ring_from_vector(
 	}
 
 	ret = hclgevf_bind_ring_to_vector(handle, false, vector, ring_chain);
-	if (ret) {
+	if (ret)
 		dev_err(&handle->pdev->dev,
 			"Unmap ring from vector fail. vector=%d, ret =%d\n",
 			vector_id,
 			ret);
-		return ret;
-	}
+
+	return ret;
+}
+
+static int hclgevf_put_vector(struct hnae3_handle *handle, int vector)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 
 	hclgevf_free_vector(hdev, vector);
 
@@ -1466,6 +1471,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.map_ring_to_vector = hclgevf_map_ring_to_vector,
 	.unmap_ring_from_vector = hclgevf_unmap_ring_from_vector,
 	.get_vector = hclgevf_get_vector,
+	.put_vector = hclgevf_put_vector,
 	.reset_queue = hclgevf_reset_tqp,
 	.set_promisc_mode = hclgevf_set_promisc_mode,
 	.get_mac_addr = hclgevf_get_mac_addr,
