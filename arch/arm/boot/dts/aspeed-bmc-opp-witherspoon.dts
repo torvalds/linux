@@ -575,6 +575,10 @@
 	pinctrl-0 = <&pinctrl_wdtrst1_default>;
 };
 
+&wdt2 {
+	aspeed,alt-boot;
+};
+
 &ibt {
 	status = "okay";
 };
