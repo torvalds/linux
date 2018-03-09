@@ -35,6 +35,8 @@ struct dpp {
 	int inst;
 	struct dpp_caps *caps;
 	struct pwl_params regamma_params;
+	struct pwl_params degamma_params;
+
 };
 
 struct dpp_grph_csc_adjustment {

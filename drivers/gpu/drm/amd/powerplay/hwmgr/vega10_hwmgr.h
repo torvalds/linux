@@ -66,6 +66,7 @@ enum {
 	GNLD_FEATURE_FAST_PPT_BIT,
 	GNLD_DIDT,
 	GNLD_ACG,
+	GNLD_PCC_LIMIT,
 	GNLD_FEATURES_MAX
 };
 
@@ -372,9 +373,6 @@ struct vega10_hwmgr {
 
 	/* ---- Overdrive next setting ---- */
 	uint32_t                       apply_overdrive_next_settings_mask;
-
-	/* ---- Workload Mask ---- */
-	uint32_t                       workload_mask;
 
 	/* ---- SMU9 ---- */
 	struct smu_features            smu_features[GNLD_FEATURES_MAX];

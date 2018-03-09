@@ -100,7 +100,6 @@ enum ttm_caching_state {
  * @bdev: Pointer to a struct ttm_bo_device.
  * @func: Pointer to a struct ttm_backend_func that describes
  * the backend methods.
- * @dummy_read_page: Page to map where the ttm_tt page array contains a NULL
  * pointer.
  * @pages: Array of pages backing the data.
  * @num_pages: Number of pages in the page array.
@@ -118,12 +117,10 @@ enum ttm_caching_state {
 struct ttm_tt {
 	struct ttm_bo_device *bdev;
 	struct ttm_backend_func *func;
-	struct page *dummy_read_page;
 	struct page **pages;
 	uint32_t page_flags;
 	unsigned long num_pages;
 	struct sg_table *sg; /* for SG objects via dma-buf */
-	struct ttm_bo_global *glob;
 	struct file *swap_storage;
 	enum ttm_caching_state caching_state;
 	enum {
@@ -332,7 +329,6 @@ struct ttm_bo_driver {
 	 * @bdev: pointer to a struct ttm_bo_device:
 	 * @size: Size of the data needed backing.
 	 * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
-	 * @dummy_read_page: See struct ttm_bo_device.
 	 *
 	 * Create a struct ttm_tt to back data with system memory pages.
 	 * No pages are actually allocated.
@@ -341,8 +337,7 @@ struct ttm_bo_driver {
 	 */
 	struct ttm_tt *(*ttm_tt_create)(struct ttm_bo_device *bdev,
 					unsigned long size,
-					uint32_t page_flags,
-					struct page *dummy_read_page);
+					uint32_t page_flags);
 
 	/**
 	 * ttm_tt_populate
@@ -616,13 +611,23 @@ ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
 }
 
 /**
+ * ttm_tt_create
+ *
+ * @bo: pointer to a struct ttm_buffer_object
+ * @zero_alloc: true if allocated pages needs to be zeroed
+ *
+ * Make sure we have a TTM structure allocated for the given BO.
+ * No pages are actually allocated.
+ */
+int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc);
+
+/**
  * ttm_tt_init
  *
  * @ttm: The struct ttm_tt.
  * @bdev: pointer to a struct ttm_bo_device:
  * @size: Size of the data needed backing.
  * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
- * @dummy_read_page: See struct ttm_bo_device.
  *
  * Create a struct ttm_tt to back data with system memory pages.
  * No pages are actually allocated.
@@ -630,11 +635,9 @@ ttm_flag_masked(uint32_t *old, uint32_t new, uint32_t mask)
  * NULL: Out of memory.
  */
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
-		unsigned long size, uint32_t page_flags,
-		struct page *dummy_read_page);
+		unsigned long size, uint32_t page_flags);
 int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
-		    unsigned long size, uint32_t page_flags,
-		    struct page *dummy_read_page);
+		    unsigned long size, uint32_t page_flags);
 
 /**
  * ttm_tt_fini
@@ -956,9 +959,9 @@ static inline int ttm_bo_reserve_slowpath(struct ttm_buffer_object *bo,
 static inline void ttm_bo_unreserve(struct ttm_buffer_object *bo)
 {
 	if (!(bo->mem.placement & TTM_PL_FLAG_NO_EVICT)) {
-		spin_lock(&bo->glob->lru_lock);
+		spin_lock(&bo->bdev->glob->lru_lock);
 		ttm_bo_add_to_lru(bo);
-		spin_unlock(&bo->glob->lru_lock);
+		spin_unlock(&bo->bdev->glob->lru_lock);
 	}
 	reservation_object_unlock(bo->resv);
 }
@@ -1081,7 +1084,6 @@ extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
  * @bridge: The agp bridge this device is sitting on.
  * @size: Size of the data needed backing.
  * @page_flags: Page flags as identified by TTM_PAGE_FLAG_XX flags.
- * @dummy_read_page: See struct ttm_bo_device.
  *
  *
  * Create a TTM backend that uses the indicated AGP bridge as an aperture
@@ -1090,8 +1092,7 @@ extern const struct ttm_mem_type_manager_func ttm_bo_manager_func;
  */
 struct ttm_tt *ttm_agp_tt_create(struct ttm_bo_device *bdev,
 				 struct agp_bridge_data *bridge,
-				 unsigned long size, uint32_t page_flags,
-				 struct page *dummy_read_page);
+				 unsigned long size, uint32_t page_flags);
 int ttm_agp_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx);
 void ttm_agp_tt_unpopulate(struct ttm_tt *ttm);
 #endif

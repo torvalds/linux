@@ -281,13 +281,10 @@ static int iceland_smu_init(struct pp_hwmgr *hwmgr)
 static void iceland_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(hwmgr->smu_backend);
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t dev_id;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
+	dev_id = adev->pdev->device;
 
 	switch (dev_id) {
 	case DEVICE_ID_VI_ICELAND_M_6900:

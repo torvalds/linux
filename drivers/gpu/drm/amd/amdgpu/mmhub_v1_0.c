@@ -103,9 +103,9 @@ static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 
 	/* Program "protection fault". */
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_LO32,
-		     (u32)(adev->dummy_page.addr >> 12));
+		     (u32)(adev->dummy_page_addr >> 12));
 	WREG32_SOC15(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_DEFAULT_ADDR_HI32,
-		     (u32)((u64)adev->dummy_page.addr >> 44));
+		     (u32)((u64)adev->dummy_page_addr >> 44));
 
 	tmp = RREG32_SOC15(MMHUB, 0, mmVM_L2_PROTECTION_FAULT_CNTL2);
 	tmp = REG_SET_FIELD(tmp, VM_L2_PROTECTION_FAULT_CNTL2,

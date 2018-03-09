@@ -33,7 +33,6 @@
 #include "pppcielanes.h"
 #include "ppatomctrl.h"
 #include "ppsmc.h"
-#include "pp_acpi.h"
 #include "amd_acpi.h"
 #include "pp_psm.h"
 
@@ -65,30 +64,32 @@ uint16_t convert_to_vddc(uint8_t vid)
 	return (uint16_t) ((6200 - (vid * 25)) / VOLTAGE_SCALE);
 }
 
-static int phm_get_pci_bus_devfn(struct pp_hwmgr *hwmgr,
-		struct cgs_system_info *sys_info)
+uint32_t phm_set_field_to_u32(u32 offset, u32 original_data, u32 field, u32 size)
 {
-	sys_info->size = sizeof(struct cgs_system_info);
-	sys_info->info_id = CGS_SYSTEM_INFO_PCIE_BUS_DEVFN;
+	u32 mask = 0;
+	u32 shift = 0;
 
-	return cgs_query_system_info(hwmgr->device, sys_info);
+	shift = (offset % 4) << 3;
+	if (size == sizeof(uint8_t))
+		mask = 0xFF << shift;
+	else if (size == sizeof(uint16_t))
+		mask = 0xFFFF << shift;
+
+	original_data &= ~mask;
+	original_data |= (field << shift);
+	return original_data;
 }
 
 static int phm_thermal_l2h_irq(void *private_data,
 		 unsigned src_id, const uint32_t *iv_entry)
 {
 	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	result = phm_get_pci_bus_devfn(hwmgr, &sys_info);
-	if (result)
-		return -EINVAL;
-
-	pr_warn("GPU over temperature range detected on PCIe %lld:%lld.%lld!\n",
-			PCI_BUS_NUM(sys_info.value),
-			PCI_SLOT(sys_info.value),
-			PCI_FUNC(sys_info.value));
+	pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
+			PCI_BUS_NUM(adev->pdev->devfn),
+			PCI_SLOT(adev->pdev->devfn),
+			PCI_FUNC(adev->pdev->devfn));
 	return 0;
 }
 
@@ -96,17 +97,12 @@ static int phm_thermal_h2l_irq(void *private_data,
 		 unsigned src_id, const uint32_t *iv_entry)
 {
 	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	result = phm_get_pci_bus_devfn(hwmgr, &sys_info);
-	if (result)
-		return -EINVAL;
-
-	pr_warn("GPU under temperature range detected on PCIe %lld:%lld.%lld!\n",
-			PCI_BUS_NUM(sys_info.value),
-			PCI_SLOT(sys_info.value),
-			PCI_FUNC(sys_info.value));
+	pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
+			PCI_BUS_NUM(adev->pdev->devfn),
+			PCI_SLOT(adev->pdev->devfn),
+			PCI_FUNC(adev->pdev->devfn));
 	return 0;
 }
 
@@ -114,17 +110,12 @@ static int phm_ctf_irq(void *private_data,
 		 unsigned src_id, const uint32_t *iv_entry)
 {
 	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	result = phm_get_pci_bus_devfn(hwmgr, &sys_info);
-	if (result)
-		return -EINVAL;
-
-	pr_warn("GPU Critical Temperature Fault detected on PCIe %lld:%lld.%lld!\n",
-			PCI_BUS_NUM(sys_info.value),
-			PCI_SLOT(sys_info.value),
-			PCI_FUNC(sys_info.value));
+	pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
+			PCI_BUS_NUM(adev->pdev->devfn),
+			PCI_SLOT(adev->pdev->devfn),
+			PCI_FUNC(adev->pdev->devfn));
 	return 0;
 }
 
@@ -133,6 +124,21 @@ static const struct cgs_irq_src_funcs thermal_irq_src[3] = {
 	{ .handler = phm_thermal_h2l_irq },
 	{ .handler = phm_ctf_irq }
 };
+
+static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
+{
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D] = 2;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_POWERSAVING] = 0;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VIDEO] = 1;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_VR] = 3;
+	hwmgr->workload_prority[PP_SMC_POWER_PROFILE_COMPUTE] = 4;
+
+	hwmgr->workload_setting[0] = PP_SMC_POWER_PROFILE_POWERSAVING;
+	hwmgr->workload_setting[1] = PP_SMC_POWER_PROFILE_VIDEO;
+	hwmgr->workload_setting[2] = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+	hwmgr->workload_setting[3] = PP_SMC_POWER_PROFILE_VR;
+	hwmgr->workload_setting[4] = PP_SMC_POWER_PROFILE_COMPUTE;
+}
 
 int hwmgr_early_init(struct pp_instance *handle)
 {
@@ -146,10 +152,11 @@ int hwmgr_early_init(struct pp_instance *handle)
 		return -ENOMEM;
 
 	handle->hwmgr = hwmgr;
+	hwmgr->adev = handle->parent;
 	hwmgr->device = handle->device;
-	hwmgr->chip_family = handle->chip_family;
-	hwmgr->chip_id = handle->chip_id;
-	hwmgr->feature_mask = handle->feature_mask;
+	hwmgr->chip_family = ((struct amdgpu_device *)handle->parent)->family;
+	hwmgr->chip_id = ((struct amdgpu_device *)handle->parent)->asic_type;
+	hwmgr->feature_mask = amdgpu_pp_feature_mask;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
 	hwmgr->pp_table_version = PP_TABLE_V1;
@@ -159,6 +166,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 	hwmgr_set_user_specify_caps(hwmgr);
 	hwmgr->fan_ctrl_is_in_default_mode = true;
 	hwmgr->reload_fw = 1;
+	hwmgr_init_workload_prority(hwmgr);
 
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CI:
@@ -894,9 +902,10 @@ void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_UVDDPM);
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_VCEDPM);
 
-	if (acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_PERFORMANCE_REQUEST) &&
-		acpi_atcs_functions_supported(hwmgr->device, ATCS_FUNCTION_PCIE_DEVICE_READY_NOTIFICATION))
+#if defined(CONFIG_ACPI)
+	if (amdgpu_acpi_is_pcie_performance_request_supported(hwmgr->adev))
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_PCIEPerformanceRequest);
+#endif
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 		PHM_PlatformCaps_DynamicPatchPowerState);

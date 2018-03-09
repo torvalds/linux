@@ -1112,7 +1112,7 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	cgs_get_active_displays_info(hwmgr->device, &info);
 
 	if (hwmgr->od_enabled)
-		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_mclk;
 	else
 		vdd_dep_table = table_info->vdd_dep_on_mclk;
 
@@ -1840,42 +1840,6 @@ static void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 }
 
-static void polaris10_save_default_power_profile(struct pp_hwmgr *hwmgr)
-{
-	struct polaris10_smumgr *data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
-	struct SMU74_Discrete_GraphicsLevel *levels =
-				data->smc_state_table.GraphicsLevel;
-	unsigned min_level = 1;
-
-	hwmgr->default_gfx_power_profile.activity_threshold =
-			be16_to_cpu(levels[0].ActivityLevel);
-	hwmgr->default_gfx_power_profile.up_hyst = levels[0].UpHyst;
-	hwmgr->default_gfx_power_profile.down_hyst = levels[0].DownHyst;
-	hwmgr->default_gfx_power_profile.type = AMD_PP_GFX_PROFILE;
-
-	hwmgr->default_compute_power_profile = hwmgr->default_gfx_power_profile;
-	hwmgr->default_compute_power_profile.type = AMD_PP_COMPUTE_PROFILE;
-
-	/* Workaround compute SDMA instability: disable lowest SCLK
-	 * DPM level. Optimize compute power profile: Use only highest
-	 * 2 power levels (if more than 2 are available), Hysteresis:
-	 * 0ms up, 5ms down
-	 */
-	if (data->smc_state_table.GraphicsDpmLevelCount > 2)
-		min_level = data->smc_state_table.GraphicsDpmLevelCount - 2;
-	else if (data->smc_state_table.GraphicsDpmLevelCount == 2)
-		min_level = 1;
-	else
-		min_level = 0;
-	hwmgr->default_compute_power_profile.min_sclk =
-		be32_to_cpu(levels[min_level].SclkSetting.SclkFrequency);
-	hwmgr->default_compute_power_profile.up_hyst = 0;
-	hwmgr->default_compute_power_profile.down_hyst = 5;
-
-	hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
-	hwmgr->compute_power_profile = hwmgr->default_compute_power_profile;
-}
-
 static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
@@ -2089,8 +2053,6 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = polaris10_populate_pm_fuses(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to  populate PM fuses to SMC memory!", return result);
-
-	polaris10_save_default_power_profile(hwmgr);
 
 	return 0;
 }
@@ -2550,29 +2512,100 @@ static bool polaris10_is_dpm_running(struct pp_hwmgr *hwmgr)
 			? true : false;
 }
 
-static int polaris10_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request)
+static int polaris10_update_dpm_settings(struct pp_hwmgr *hwmgr,
+				void *profile_setting)
 {
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)
 			(hwmgr->smu_backend);
+	struct profile_mode_setting *setting;
 	struct SMU74_Discrete_GraphicsLevel *levels =
 			smu_data->smc_state_table.GraphicsLevel;
 	uint32_t array = smu_data->smu7_data.dpm_table_start +
 			offsetof(SMU74_Discrete_DpmTable, GraphicsLevel);
-	uint32_t array_size = sizeof(struct SMU74_Discrete_GraphicsLevel) *
-			SMU74_MAX_LEVELS_GRAPHICS;
-	uint32_t i;
 
-	for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
-		levels[i].ActivityLevel =
-				cpu_to_be16(request->activity_threshold);
-		levels[i].EnabledForActivity = 1;
-		levels[i].UpHyst = request->up_hyst;
-		levels[i].DownHyst = request->down_hyst;
+	uint32_t mclk_array = smu_data->smu7_data.dpm_table_start +
+			offsetof(SMU74_Discrete_DpmTable, MemoryLevel);
+	struct SMU74_Discrete_MemoryLevel *mclk_levels =
+			smu_data->smc_state_table.MemoryLevel;
+	uint32_t i;
+	uint32_t offset, up_hyst_offset, down_hyst_offset, clk_activity_offset, tmp;
+
+	if (profile_setting == NULL)
+		return -EINVAL;
+
+	setting = (struct profile_mode_setting *)profile_setting;
+
+	if (setting->bupdate_sclk) {
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_FreezeLevel);
+		for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
+			if (levels[i].ActivityLevel !=
+				cpu_to_be16(setting->sclk_activity)) {
+				levels[i].ActivityLevel = cpu_to_be16(setting->sclk_activity);
+
+				clk_activity_offset = array + (sizeof(SMU74_Discrete_GraphicsLevel) * i)
+						+ offsetof(SMU74_Discrete_GraphicsLevel, ActivityLevel);
+				offset = clk_activity_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(clk_activity_offset, tmp, levels[i].ActivityLevel, sizeof(uint16_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+
+			}
+			if (levels[i].UpHyst != setting->sclk_up_hyst ||
+				levels[i].DownHyst != setting->sclk_down_hyst) {
+				levels[i].UpHyst = setting->sclk_up_hyst;
+				levels[i].DownHyst = setting->sclk_down_hyst;
+				up_hyst_offset = array + (sizeof(SMU74_Discrete_GraphicsLevel) * i)
+						+ offsetof(SMU74_Discrete_GraphicsLevel, UpHyst);
+				down_hyst_offset = array + (sizeof(SMU74_Discrete_GraphicsLevel) * i)
+						+ offsetof(SMU74_Discrete_GraphicsLevel, DownHyst);
+				offset = up_hyst_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(up_hyst_offset, tmp, levels[i].UpHyst, sizeof(uint8_t));
+				tmp = phm_set_field_to_u32(down_hyst_offset, tmp, levels[i].DownHyst, sizeof(uint8_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+			}
+		}
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_UnfreezeLevel);
 	}
 
-	return smu7_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
-				array_size, SMC_RAM_END);
+	if (setting->bupdate_mclk) {
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_FreezeLevel);
+		for (i = 0; i < smu_data->smc_state_table.MemoryDpmLevelCount; i++) {
+			if (mclk_levels[i].ActivityLevel !=
+				cpu_to_be16(setting->mclk_activity)) {
+				mclk_levels[i].ActivityLevel = cpu_to_be16(setting->mclk_activity);
+
+				clk_activity_offset = mclk_array + (sizeof(SMU74_Discrete_MemoryLevel) * i)
+						+ offsetof(SMU74_Discrete_MemoryLevel, ActivityLevel);
+				offset = clk_activity_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(clk_activity_offset, tmp, mclk_levels[i].ActivityLevel, sizeof(uint16_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+
+			}
+			if (mclk_levels[i].UpHyst != setting->mclk_up_hyst ||
+				mclk_levels[i].DownHyst != setting->mclk_down_hyst) {
+				mclk_levels[i].UpHyst = setting->mclk_up_hyst;
+				mclk_levels[i].DownHyst = setting->mclk_down_hyst;
+				up_hyst_offset = mclk_array + (sizeof(SMU74_Discrete_MemoryLevel) * i)
+						+ offsetof(SMU74_Discrete_MemoryLevel, UpHyst);
+				down_hyst_offset = mclk_array + (sizeof(SMU74_Discrete_MemoryLevel) * i)
+						+ offsetof(SMU74_Discrete_MemoryLevel, DownHyst);
+				offset = up_hyst_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(up_hyst_offset, tmp, mclk_levels[i].UpHyst, sizeof(uint8_t));
+				tmp = phm_set_field_to_u32(down_hyst_offset, tmp, mclk_levels[i].DownHyst, sizeof(uint8_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+			}
+		}
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_UnfreezeLevel);
+	}
+	return 0;
 }
 
 const struct pp_smumgr_func polaris10_smu_funcs = {
@@ -2597,6 +2630,6 @@ const struct pp_smumgr_func polaris10_smu_funcs = {
 	.populate_all_memory_levels = polaris10_populate_all_memory_levels,
 	.get_mac_definition = polaris10_get_mac_definition,
 	.is_dpm_running = polaris10_is_dpm_running,
-	.populate_requested_graphic_levels = polaris10_populate_requested_graphic_levels,
 	.is_hw_avfs_present = polaris10_is_hw_avfs_present,
+	.update_dpm_settings = polaris10_update_dpm_settings,
 };

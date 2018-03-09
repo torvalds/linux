@@ -324,24 +324,9 @@ static struct ttm_backend_func virtio_gpu_backend_func = {
 	.destroy = &virtio_gpu_ttm_backend_destroy,
 };
 
-static int virtio_gpu_ttm_tt_populate(struct ttm_tt *ttm,
-		struct ttm_operation_ctx *ctx)
-{
-	if (ttm->state != tt_unpopulated)
-		return 0;
-
-	return ttm_pool_populate(ttm, ctx);
-}
-
-static void virtio_gpu_ttm_tt_unpopulate(struct ttm_tt *ttm)
-{
-	ttm_pool_unpopulate(ttm);
-}
-
 static struct ttm_tt *virtio_gpu_ttm_tt_create(struct ttm_bo_device *bdev,
 					       unsigned long size,
-					       uint32_t page_flags,
-					       struct page *dummy_read_page)
+					       uint32_t page_flags)
 {
 	struct virtio_gpu_device *vgdev;
 	struct virtio_gpu_ttm_tt *gtt;
@@ -352,8 +337,7 @@ static struct ttm_tt *virtio_gpu_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 	gtt->ttm.ttm.func = &virtio_gpu_backend_func;
 	gtt->vgdev = vgdev;
-	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags,
-			    dummy_read_page)) {
+	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags)) {
 		kfree(gtt);
 		return NULL;
 	}
@@ -421,8 +405,6 @@ static void virtio_gpu_bo_swap_notify(struct ttm_buffer_object *tbo)
 
 static struct ttm_bo_driver virtio_gpu_bo_driver = {
 	.ttm_tt_create = &virtio_gpu_ttm_tt_create,
-	.ttm_tt_populate = &virtio_gpu_ttm_tt_populate,
-	.ttm_tt_unpopulate = &virtio_gpu_ttm_tt_unpopulate,
 	.invalidate_caches = &virtio_gpu_invalidate_caches,
 	.init_mem_type = &virtio_gpu_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,

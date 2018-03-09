@@ -27,7 +27,6 @@
 #include <linux/slab.h>
 #include <asm/div64.h>
 #include <drm/amdgpu_drm.h>
-#include "pp_acpi.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
 #include "pptable_v1_0.h"
@@ -81,6 +80,13 @@
 #define PCIE_BUS_CLK                10000
 #define TCLK                        (PCIE_BUS_CLK / 10)
 
+static const struct profile_mode_setting smu7_profiling[5] =
+					{{1, 0, 100, 30, 1, 0, 100, 10},
+					 {1, 10, 0, 30, 0, 0, 0, 0},
+					 {0, 0, 0, 0, 1, 10, 16, 31},
+					 {1, 0, 11, 50, 1, 0, 100, 10},
+					 {1, 0, 5, 30, 0, 0, 0, 0},
+					};
 
 /** Values for the CG_THERMAL_CTRL::DPM_EVENT_SRC field. */
 enum DPM_EVENT_SRC {
@@ -1239,11 +1245,6 @@ static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	int tmp_result = 0;
 	int result = 0;
 
-	tmp_result = (!smum_is_dpm_running(hwmgr)) ? 0 : -1;
-	PP_ASSERT_WITH_CODE(tmp_result == 0,
-			"DPM is already running",
-			);
-
 	if (smu7_voltage_control(hwmgr)) {
 		tmp_result = smu7_enable_voltage_control(hwmgr);
 		PP_ASSERT_WITH_CODE(tmp_result == 0,
@@ -1406,11 +1407,6 @@ int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
 	int tmp_result, result = 0;
 
-	tmp_result = (smum_is_dpm_running(hwmgr)) ? 0 : -1;
-	PP_ASSERT_WITH_CODE(tmp_result == 0,
-			"DPM is not running right now, no need to disable DPM!",
-			return 0);
-
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_ThermalController))
 		PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
@@ -1479,8 +1475,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
-	struct cgs_system_info sys_info = {0};
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	data->dll_default_on = false;
 	data->mclk_dpm0_activity_target = 0xa;
@@ -1515,6 +1510,9 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->current_profile_setting.mclk_up_hyst = 0;
 	data->current_profile_setting.mclk_down_hyst = 100;
 	data->current_profile_setting.mclk_activity = SMU7_MCLK_TARGETACTIVITY_DFLT;
+	hwmgr->workload_mask = 1 << hwmgr->workload_prority[PP_SMC_POWER_PROFILE_FULLSCREEN3D];
+	hwmgr->power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
+	hwmgr->default_power_profile_mode = PP_SMC_POWER_PROFILE_FULLSCREEN3D;
 
 	if (hwmgr->chip_id == CHIP_POLARIS12 || hwmgr->is_kicker) {
 		uint8_t tmp1, tmp2;
@@ -1601,17 +1599,13 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->pcie_lane_power_saving.max = 0;
 	data->pcie_lane_power_saving.min = 16;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_PG_FLAGS;
-	result = cgs_query_system_info(hwmgr->device, &sys_info);
-	if (!result) {
-		if (sys_info.value & AMD_PG_SUPPORT_UVD)
-			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				      PHM_PlatformCaps_UVDPowerGating);
-		if (sys_info.value & AMD_PG_SUPPORT_VCE)
-			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-				      PHM_PlatformCaps_VCEPowerGating);
-	}
+
+	if (adev->pg_flags & AMD_PG_SUPPORT_UVD)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			      PHM_PlatformCaps_UVDPowerGating);
+	if (adev->pg_flags & AMD_PG_SUPPORT_VCE)
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			      PHM_PlatformCaps_VCEPowerGating);
 }
 
 /**
@@ -2046,7 +2040,7 @@ static int smu7_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_voltage_lookup_table *lookup_table;
 	uint32_t i;
 	uint32_t hw_revision, sub_vendor_id, sub_sys_id;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	if (table_info != NULL) {
 		dep_mclk_table = table_info->vdd_dep_on_mclk;
@@ -2054,19 +2048,9 @@ static int smu7_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 	} else
 		return 0;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_REV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	hw_revision = (uint32_t)sys_info.value;
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_SUB_SYS_ID;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	sub_sys_id = (uint32_t)sys_info.value;
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_SUB_SYS_VENDOR_ID;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	sub_vendor_id = (uint32_t)sys_info.value;
+	hw_revision = adev->pdev->revision;
+	sub_sys_id = adev->pdev->subsystem_device;
+	sub_vendor_id = adev->pdev->subsystem_vendor;
 
 	if (hwmgr->chip_id == CHIP_POLARIS10 && hw_revision == 0xC7 &&
 			((sub_sys_id == 0xb37 && sub_vendor_id == 0x1002) ||
@@ -2509,7 +2493,7 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	result = phm_initializa_dynamic_state_adjustment_rule_settings(hwmgr);
 
 	if (0 == result) {
-		struct cgs_system_info sys_info = {0};
+		struct amdgpu_device *adev = hwmgr->adev;
 
 		data->is_tlu_enabled = false;
 
@@ -2518,22 +2502,10 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		hwmgr->platform_descriptor.hardwarePerformanceLevels = 2;
 		hwmgr->platform_descriptor.minimumClocksReductionPercentage = 50;
 
-		sys_info.size = sizeof(struct cgs_system_info);
-		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_GEN_INFO;
-		result = cgs_query_system_info(hwmgr->device, &sys_info);
-		if (result)
-			data->pcie_gen_cap = AMDGPU_DEFAULT_PCIE_GEN_MASK;
-		else
-			data->pcie_gen_cap = (uint32_t)sys_info.value;
+		data->pcie_gen_cap = adev->pm.pcie_gen_mask;
 		if (data->pcie_gen_cap & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3)
 			data->pcie_spc_cap = 20;
-		sys_info.size = sizeof(struct cgs_system_info);
-		sys_info.info_id = CGS_SYSTEM_INFO_PCIE_MLW;
-		result = cgs_query_system_info(hwmgr->device, &sys_info);
-		if (result)
-			data->pcie_lane_cap = AMDGPU_DEFAULT_PCIE_MLW_MASK;
-		else
-			data->pcie_lane_cap = (uint32_t)sys_info.value;
+		data->pcie_lane_cap = adev->pm.pcie_mlw_mask;
 
 		hwmgr->platform_descriptor.vbiosInterruptId = 0x20000400; /* IRQ_SOURCE1_SW_INT */
 /* The true clock step depends on the frequency, typically 4.5 or 9 MHz. Here we use 5. */
@@ -3624,15 +3596,17 @@ static int smu7_request_link_speed_change_before_state_change(
 
 	if (target_link_speed > current_link_speed) {
 		switch (target_link_speed) {
+#ifdef CONFIG_ACPI
 		case PP_PCIEGen3:
-			if (0 == acpi_pcie_perf_request(hwmgr->device, PCIE_PERF_REQ_GEN3, false))
+			if (0 == amdgpu_acpi_pcie_performance_request(hwmgr->adev, PCIE_PERF_REQ_GEN3, false))
 				break;
 			data->force_pcie_gen = PP_PCIEGen2;
 			if (current_link_speed == PP_PCIEGen2)
 				break;
 		case PP_PCIEGen2:
-			if (0 == acpi_pcie_perf_request(hwmgr->device, PCIE_PERF_REQ_GEN2, false))
+			if (0 == amdgpu_acpi_pcie_performance_request(hwmgr->adev, PCIE_PERF_REQ_GEN2, false))
 				break;
+#endif
 		default:
 			data->force_pcie_gen = smu7_get_current_pcie_speed(hwmgr);
 			break;
@@ -3853,7 +3827,7 @@ static int smu7_notify_link_speed_change_after_state_change(
 				smu7_get_current_pcie_speed(hwmgr) > 0)
 			return 0;
 
-		if (acpi_pcie_perf_request(hwmgr->device, request, false)) {
+		if (amdgpu_acpi_pcie_performance_request(hwmgr->adev, request, false)) {
 			if (PP_PCIEGen2 == target_link_speed)
 				pr_info("PSPP request to switch to Gen2 from Gen3 Failed!");
 			else
@@ -4612,83 +4586,6 @@ static int smu7_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type
 	return 0;
 }
 
-static void smu7_find_min_clock_masks(struct pp_hwmgr *hwmgr,
-		uint32_t *sclk_mask, uint32_t *mclk_mask,
-		uint32_t min_sclk, uint32_t min_mclk)
-{
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct smu7_dpm_table *dpm_table = &(data->dpm_table);
-	uint32_t i;
-
-	for (i = 0; i < dpm_table->sclk_table.count; i++) {
-		if (dpm_table->sclk_table.dpm_levels[i].enabled &&
-			dpm_table->sclk_table.dpm_levels[i].value >= min_sclk)
-			*sclk_mask |= 1 << i;
-	}
-
-	for (i = 0; i < dpm_table->mclk_table.count; i++) {
-		if (dpm_table->mclk_table.dpm_levels[i].enabled &&
-			dpm_table->mclk_table.dpm_levels[i].value >= min_mclk)
-			*mclk_mask |= 1 << i;
-	}
-}
-
-static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request)
-{
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	int tmp_result, result = 0;
-	uint32_t sclk_mask = 0, mclk_mask = 0;
-
-	if (hwmgr->chip_id == CHIP_FIJI) {
-		if (request->type == AMD_PP_GFX_PROFILE)
-			smu7_enable_power_containment(hwmgr);
-		else if (request->type == AMD_PP_COMPUTE_PROFILE)
-			smu7_disable_power_containment(hwmgr);
-	}
-
-	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
-		return -EINVAL;
-
-	tmp_result = smu7_freeze_sclk_mclk_dpm(hwmgr);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to freeze SCLK MCLK DPM!",
-			result = tmp_result);
-
-	tmp_result = smum_populate_requested_graphic_levels(hwmgr, request);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to populate requested graphic levels!",
-			result = tmp_result);
-
-	tmp_result = smu7_unfreeze_sclk_mclk_dpm(hwmgr);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to unfreeze SCLK MCLK DPM!",
-			result = tmp_result);
-
-	smu7_find_min_clock_masks(hwmgr, &sclk_mask, &mclk_mask,
-			request->min_sclk, request->min_mclk);
-
-	if (sclk_mask) {
-		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SCLKDPM_SetEnabledMask,
-				data->dpm_level_enable_mask.
-				sclk_dpm_enable_mask &
-				sclk_mask);
-	}
-
-	if (mclk_mask) {
-		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_MCLKDPM_SetEnabledMask,
-				data->dpm_level_enable_mask.
-				mclk_dpm_enable_mask &
-				mclk_mask);
-	}
-
-	return result;
-}
-
 static int smu7_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 					uint32_t virtual_addr_low,
 					uint32_t virtual_addr_hi,
@@ -4781,7 +4678,7 @@ static bool smu7_check_clk_voltage_valid(struct pp_hwmgr *hwmgr,
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
 
 	if (table_info == NULL)
-		return -EINVAL;
+		return false;
 
 	dep_sclk_table = table_info->vdd_dep_on_sclk;
 	min_vddc = dep_sclk_table->entries[0].vddc;
@@ -4934,6 +4831,158 @@ static int smu7_odn_edit_dpm_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int smu7_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	uint32_t i, size = 0;
+	uint32_t len;
+
+	static const char *profile_name[6] = {"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTE",
+					"CUSTOM"};
+
+	static const char *title[8] = {"NUM",
+			"MODE_NAME",
+			"SCLK_UP_HYST",
+			"SCLK_DOWN_HYST",
+			"SCLK_ACTIVE_LEVEL",
+			"MCLK_UP_HYST",
+			"MCLK_DOWN_HYST",
+			"MCLK_ACTIVE_LEVEL"};
+
+	if (!buf)
+		return -EINVAL;
+
+	size += sprintf(buf + size, "%s %16s %16s %16s %16s %16s %16s %16s\n",
+			title[0], title[1], title[2], title[3],
+			title[4], title[5], title[6], title[7]);
+
+	len = sizeof(smu7_profiling) / sizeof(struct profile_mode_setting);
+
+	for (i = 0; i < len; i++) {
+		if (smu7_profiling[i].bupdate_sclk)
+			size += sprintf(buf + size, "%3d %16s: %8d %16d %16d ",
+			i, profile_name[i], smu7_profiling[i].sclk_up_hyst,
+			smu7_profiling[i].sclk_down_hyst,
+			smu7_profiling[i].sclk_activity);
+		else
+			size += sprintf(buf + size, "%3d %16s: %8s %16s %16s ",
+			i, profile_name[i], "-", "-", "-");
+
+		if (smu7_profiling[i].bupdate_mclk)
+			size += sprintf(buf + size, "%16d %16d %16d\n",
+			smu7_profiling[i].mclk_up_hyst,
+			smu7_profiling[i].mclk_down_hyst,
+			smu7_profiling[i].mclk_activity);
+		else
+			size += sprintf(buf + size, "%16s %16s %16s\n",
+			"-", "-", "-");
+	}
+
+	size += sprintf(buf + size, "%3d %16s: %8d %16d %16d %16d %16d %16d\n",
+			i, profile_name[i],
+			data->custom_profile_setting.sclk_up_hyst,
+			data->custom_profile_setting.sclk_down_hyst,
+			data->custom_profile_setting.sclk_activity,
+			data->custom_profile_setting.mclk_up_hyst,
+			data->custom_profile_setting.mclk_down_hyst,
+			data->custom_profile_setting.mclk_activity);
+
+	size += sprintf(buf + size, "%3s %16s: %8d %16d %16d %16d %16d %16d\n",
+			"*", "CURRENT",
+			data->current_profile_setting.sclk_up_hyst,
+			data->current_profile_setting.sclk_down_hyst,
+			data->current_profile_setting.sclk_activity,
+			data->current_profile_setting.mclk_up_hyst,
+			data->current_profile_setting.mclk_down_hyst,
+			data->current_profile_setting.mclk_activity);
+
+	return size;
+}
+
+static void smu7_patch_compute_profile_mode(struct pp_hwmgr *hwmgr,
+					enum PP_SMC_POWER_PROFILE requst)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	uint32_t tmp, level;
+
+	if (requst == PP_SMC_POWER_PROFILE_COMPUTE) {
+		if (data->dpm_level_enable_mask.sclk_dpm_enable_mask) {
+			level = 0;
+			tmp = data->dpm_level_enable_mask.sclk_dpm_enable_mask;
+			while (tmp >>= 1)
+				level++;
+			if (level > 0)
+				smu7_force_clock_level(hwmgr, PP_SCLK, 3 << (level-1));
+		}
+	} else if (hwmgr->power_profile_mode == PP_SMC_POWER_PROFILE_COMPUTE) {
+		smu7_force_clock_level(hwmgr, PP_SCLK, data->dpm_level_enable_mask.sclk_dpm_enable_mask);
+	}
+}
+
+static int smu7_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint32_t size)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct profile_mode_setting tmp;
+	enum PP_SMC_POWER_PROFILE mode;
+
+	if (input == NULL)
+		return -EINVAL;
+
+	mode = input[size];
+	switch (mode) {
+	case PP_SMC_POWER_PROFILE_CUSTOM:
+		if (size < 8)
+			return -EINVAL;
+
+		data->custom_profile_setting.bupdate_sclk = input[0];
+		data->custom_profile_setting.sclk_up_hyst = input[1];
+		data->custom_profile_setting.sclk_down_hyst = input[2];
+		data->custom_profile_setting.sclk_activity = input[3];
+		data->custom_profile_setting.bupdate_mclk = input[4];
+		data->custom_profile_setting.mclk_up_hyst = input[5];
+		data->custom_profile_setting.mclk_down_hyst = input[6];
+		data->custom_profile_setting.mclk_activity = input[7];
+		if (!smum_update_dpm_settings(hwmgr, &data->custom_profile_setting)) {
+			memcpy(&data->current_profile_setting, &data->custom_profile_setting, sizeof(struct profile_mode_setting));
+			hwmgr->power_profile_mode = mode;
+		}
+		break;
+	case PP_SMC_POWER_PROFILE_FULLSCREEN3D:
+	case PP_SMC_POWER_PROFILE_POWERSAVING:
+	case PP_SMC_POWER_PROFILE_VIDEO:
+	case PP_SMC_POWER_PROFILE_VR:
+	case PP_SMC_POWER_PROFILE_COMPUTE:
+		if (mode == hwmgr->power_profile_mode)
+			return 0;
+
+		memcpy(&tmp, &smu7_profiling[mode], sizeof(struct profile_mode_setting));
+		if (!smum_update_dpm_settings(hwmgr, &tmp)) {
+			if (tmp.bupdate_sclk) {
+				data->current_profile_setting.bupdate_sclk = tmp.bupdate_sclk;
+				data->current_profile_setting.sclk_up_hyst = tmp.sclk_up_hyst;
+				data->current_profile_setting.sclk_down_hyst = tmp.sclk_down_hyst;
+				data->current_profile_setting.sclk_activity = tmp.sclk_activity;
+			}
+			if (tmp.bupdate_mclk) {
+				data->current_profile_setting.bupdate_mclk = tmp.bupdate_mclk;
+				data->current_profile_setting.mclk_up_hyst = tmp.mclk_up_hyst;
+				data->current_profile_setting.mclk_down_hyst = tmp.mclk_down_hyst;
+				data->current_profile_setting.mclk_activity = tmp.mclk_activity;
+			}
+			smu7_patch_compute_profile_mode(hwmgr, mode);
+			hwmgr->power_profile_mode = mode;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
@@ -4981,7 +5030,6 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_clock_by_type = smu7_get_clock_by_type,
 	.read_sensor = smu7_read_sensor,
 	.dynamic_state_management_disable = smu7_disable_dpm_tasks,
-	.set_power_profile_state = smu7_set_power_profile_state,
 	.avfs_control = smu7_avfs_control,
 	.disable_smc_firmware_ctf = smu7_thermal_disable_alert,
 	.start_thermal_controller = smu7_start_thermal_controller,
@@ -4990,6 +5038,8 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_thermal_temperature_range = smu7_get_thermal_temperature_range,
 	.odn_edit_dpm_table = smu7_odn_edit_dpm_table,
 	.set_power_limit = smu7_set_power_limit,
+	.get_power_profile_mode = smu7_get_power_profile_mode,
+	.set_power_profile_mode = smu7_set_power_profile_mode,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,

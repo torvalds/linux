@@ -70,6 +70,8 @@
 
 #define CTX \
 	hws->ctx
+#define DC_LOGGER \
+	ctx->logger
 #define REG(reg)\
 	hws->regs->reg
 
@@ -682,15 +684,22 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct dc_link *link = pipe_ctx->stream->sink->link;
 
-	/* 1. update AVI info frame (HDMI, DP)
-	 * we always need to update info frame
-	*/
+
 	uint32_t active_total_with_borders;
 	uint32_t early_control = 0;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
-	/* TODOFPGA may change to hwss.update_info_frame */
+	/* For MST, there are multiply stream go to only one link.
+	 * connect DIG back_end to front_end while enable_stream and
+	 * disconnect them during disable_stream
+	 * BY this, it is logic clean to separate stream and link */
+	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
+						    pipe_ctx->stream_res.stream_enc->id, true);
+
+	/* update AVI info frame (HDMI, DP)*/
+	/* TODO: FPGA may change to hwss.update_info_frame */
 	dce110_update_info_frame(pipe_ctx);
+
 	/* enable early control to avoid corruption on DP monitor*/
 	active_total_with_borders =
 			timing->h_addressable
@@ -711,12 +720,8 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
 	}
 
-	/* For MST, there are multiply stream go to only one link.
-	 * connect DIG back_end to front_end while enable_stream and
-	 * disconnect them during disable_stream
-	 * BY this, it is logic clean to separate stream and link */
-	link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
-						    pipe_ctx->stream_res.stream_enc->id, true);
+
+
 
 }
 
@@ -816,7 +821,7 @@ void hwss_edp_wait_for_hpd_ready(
 	dal_gpio_destroy_irq(&hpd);
 
 	if (false == edp_hpd_high) {
-		dm_logger_write(ctx->logger, LOG_ERROR,
+		DC_LOG_ERROR(
 				"%s: wait timed out!\n", __func__);
 	}
 }
@@ -840,7 +845,7 @@ void hwss_edp_power_control(
 	if (power_up != is_panel_powered_on(hwseq)) {
 		/* Send VBIOS command to prompt eDP panel power */
 
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+		DC_LOG_HW_RESUME_S3(
 				"%s: Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 
@@ -856,11 +861,11 @@ void hwss_edp_power_control(
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
 
 		if (bp_result != BP_RESULT_OK)
-			dm_logger_write(ctx->logger, LOG_ERROR,
+			DC_LOG_ERROR(
 					"%s: Panel Power bp_result: %d\n",
 					__func__, bp_result);
 	} else {
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+		DC_LOG_HW_RESUME_S3(
 				"%s: Skipping Panel Power action: %s\n",
 				__func__, (power_up ? "On":"Off"));
 	}
@@ -886,7 +891,7 @@ void hwss_edp_backlight_control(
 	}
 
 	if (enable && is_panel_backlight_on(hws)) {
-		dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+		DC_LOG_HW_RESUME_S3(
 				"%s: panel already powered up. Do nothing.\n",
 				__func__);
 		return;
@@ -894,7 +899,7 @@ void hwss_edp_backlight_control(
 
 	/* Send VBIOS command to control eDP panel backlight */
 
-	dm_logger_write(ctx->logger, LOG_HW_RESUME_S3,
+	DC_LOG_HW_RESUME_S3(
 			"%s: backlight action: %s\n",
 			__func__, (enable ? "On":"Off"));
 
@@ -1320,10 +1325,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	resource_build_info_frame(pipe_ctx);
 	dce110_update_info_frame(pipe_ctx);
-	if (!pipe_ctx_old->stream) {
-		if (!pipe_ctx->stream->dpms_off)
-			core_link_enable_stream(context, pipe_ctx);
-	}
+	if (!pipe_ctx_old->stream)
+		core_link_enable_stream(context, pipe_ctx);
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 
@@ -2689,7 +2692,7 @@ static void dce110_program_front_end_for_pipe(
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
 	unsigned int i;
-
+	struct dc_context *ctx = dc->ctx;
 	memset(&tbl_entry, 0, sizeof(tbl_entry));
 
 	if (dc->current_state)
@@ -2764,7 +2767,7 @@ static void dce110_program_front_end_for_pipe(
 	if (pipe_ctx->plane_state->update_flags.bits.full_update)
 		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 
-	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
+	DC_LOG_SURFACE(
 			"Pipe:%d 0x%x: addr hi:0x%x, "
 			"addr low:0x%x, "
 			"src: %d, %d, %d,"
@@ -2787,7 +2790,7 @@ static void dce110_program_front_end_for_pipe(
 			pipe_ctx->plane_state->clip_rect.width,
 			pipe_ctx->plane_state->clip_rect.height);
 
-	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
+	DC_LOG_SURFACE(
 			"Pipe %d: width, height, x, y\n"
 			"viewport:%d, %d, %d, %d\n"
 			"recout:  %d, %d, %d, %d\n",

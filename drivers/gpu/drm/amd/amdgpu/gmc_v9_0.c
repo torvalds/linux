@@ -673,7 +673,7 @@ static int gmc_v9_0_late_init(void *handle)
 	for(i = 0; i < AMDGPU_MAX_VMHUBS; ++i)
 		BUG_ON(vm_inv_eng[i] > 16);
 
-	if (adev->asic_type == CHIP_VEGA10) {
+	if (adev->asic_type == CHIP_VEGA10 && !amdgpu_sriov_vf(adev)) {
 		r = gmc_v9_0_ecc_available(adev);
 		if (r == 1) {
 			DRM_INFO("ECC is active.\n");
@@ -722,7 +722,10 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		adev->gmc.vram_width = amdgpu_atomfirmware_get_vram_width(adev);
 	if (!adev->gmc.vram_width) {
 		/* hbm memory channel size */
-		chansize = 128;
+		if (adev->flags & AMD_IS_APU)
+			chansize = 64;
+		else
+			chansize = 128;
 
 		tmp = RREG32_SOC15(DF, 0, mmDF_CS_AON0_DramBaseAddress0);
 		tmp &= DF_CS_AON0_DramBaseAddress0__IntLvNumChan_MASK;
@@ -789,7 +792,7 @@ static int gmc_v9_0_mc_init(struct amdgpu_device *adev)
 		switch (adev->asic_type) {
 		case CHIP_VEGA10:  /* all engines support GPUVM */
 		default:
-			adev->gmc.gart_size = 256ULL << 20;
+			adev->gmc.gart_size = 512ULL << 20;
 			break;
 		case CHIP_RAVEN:   /* DCE SG support */
 			adev->gmc.gart_size = 1024ULL << 20;

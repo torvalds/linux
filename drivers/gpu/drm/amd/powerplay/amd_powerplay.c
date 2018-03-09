@@ -29,6 +29,8 @@
 #include "amd_powerplay.h"
 #include "pp_instance.h"
 #include "power_state.h"
+#include "amdgpu.h"
+#include "hwmgr.h"
 
 #define PP_DPM_DISABLED 0xCCCC
 
@@ -52,27 +54,26 @@ static inline int pp_check(struct pp_instance *handle)
 	return 0;
 }
 
-static int amd_powerplay_create(struct amd_pp_init *pp_init,
-				void **handle)
+static int amd_powerplay_create(struct amdgpu_device *adev)
 {
 	struct pp_instance *instance;
 
-	if (pp_init == NULL || handle == NULL)
+	if (adev == NULL)
 		return -EINVAL;
 
 	instance = kzalloc(sizeof(struct pp_instance), GFP_KERNEL);
 	if (instance == NULL)
 		return -ENOMEM;
 
-	instance->chip_family = pp_init->chip_family;
-	instance->chip_id = pp_init->chip_id;
-	instance->pm_en = pp_init->pm_en;
-	instance->feature_mask = pp_init->feature_mask;
-	instance->device = pp_init->device;
+	instance->parent = adev;
+	instance->pm_en = (amdgpu_dpm != 0 && !amdgpu_sriov_vf(adev)) ? true : false;
+	instance->device = adev->powerplay.cgs_device;
 	mutex_init(&instance->pp_lock);
-	*handle = instance;
+	adev->powerplay.pp_handle = instance;
+
 	return 0;
 }
+
 
 static int amd_powerplay_destroy(void *handle)
 {
@@ -93,11 +94,14 @@ static int pp_early_init(void *handle)
 {
 	int ret;
 	struct pp_instance *pp_handle = NULL;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	pp_handle = cgs_register_pp_handle(handle, amd_powerplay_create);
+	ret = amd_powerplay_create(adev);
 
-	if (!pp_handle)
-		return -EINVAL;
+	if (ret != 0)
+		return ret;
+
+	pp_handle = adev->powerplay.pp_handle;
 
 	ret = hwmgr_early_init(pp_handle);
 	if (ret)
@@ -1014,58 +1018,6 @@ pp_dpm_get_vce_clock_state(void *handle, unsigned idx)
 	return NULL;
 }
 
-static int pp_dpm_reset_power_profile_state(void *handle,
-		struct amd_pp_profile *request)
-{
-	struct pp_hwmgr *hwmgr;
-	struct pp_instance *pp_handle = (struct pp_instance *)handle;
-
-	if (!request || pp_check(pp_handle))
-		return -EINVAL;
-
-	hwmgr = pp_handle->hwmgr;
-
-	if (hwmgr->hwmgr_func->set_power_profile_state == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
-		return 0;
-	}
-
-	if (request->type == AMD_PP_GFX_PROFILE) {
-		hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
-		return hwmgr->hwmgr_func->set_power_profile_state(hwmgr,
-				&hwmgr->gfx_power_profile);
-	} else if (request->type == AMD_PP_COMPUTE_PROFILE) {
-		hwmgr->compute_power_profile =
-				hwmgr->default_compute_power_profile;
-		return hwmgr->hwmgr_func->set_power_profile_state(hwmgr,
-				&hwmgr->compute_power_profile);
-	} else
-		return -EINVAL;
-}
-
-static int pp_dpm_get_power_profile_state(void *handle,
-		struct amd_pp_profile *query)
-{
-	struct pp_hwmgr *hwmgr;
-	struct pp_instance *pp_handle = (struct pp_instance *)handle;
-
-	if (!query || pp_check(pp_handle))
-		return -EINVAL;
-
-	hwmgr = pp_handle->hwmgr;
-
-	if (query->type == AMD_PP_GFX_PROFILE)
-		memcpy(query, &hwmgr->gfx_power_profile,
-				sizeof(struct amd_pp_profile));
-	else if (query->type == AMD_PP_COMPUTE_PROFILE)
-		memcpy(query, &hwmgr->compute_power_profile,
-				sizeof(struct amd_pp_profile));
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
 static int pp_get_power_profile_mode(void *handle, char *buf)
 {
 	struct pp_hwmgr *hwmgr;
@@ -1124,81 +1076,44 @@ static int pp_odn_edit_dpm_table(void *handle, uint32_t type, long *input, uint3
 	return hwmgr->hwmgr_func->odn_edit_dpm_table(hwmgr, type, input, size);
 }
 
-static int pp_dpm_set_power_profile_state(void *handle,
-		struct amd_pp_profile *request)
-{
-	struct pp_hwmgr *hwmgr;
-	struct pp_instance *pp_handle = (struct pp_instance *)handle;
-	int ret = -1;
-
-	if (!request || pp_check(pp_handle))
-		return -EINVAL;
-
-	hwmgr = pp_handle->hwmgr;
-
-	if (hwmgr->hwmgr_func->set_power_profile_state == NULL) {
-		pr_info("%s was not implemented.\n", __func__);
-		return 0;
-	}
-
-	if (request->min_sclk ||
-		request->min_mclk ||
-		request->activity_threshold ||
-		request->up_hyst ||
-		request->down_hyst) {
-		if (request->type == AMD_PP_GFX_PROFILE)
-			memcpy(&hwmgr->gfx_power_profile, request,
-					sizeof(struct amd_pp_profile));
-		else if (request->type == AMD_PP_COMPUTE_PROFILE)
-			memcpy(&hwmgr->compute_power_profile, request,
-					sizeof(struct amd_pp_profile));
-		else
-			return -EINVAL;
-
-		if (request->type == hwmgr->current_power_profile)
-			ret = hwmgr->hwmgr_func->set_power_profile_state(
-					hwmgr,
-					request);
-	} else {
-		/* set power profile if it exists */
-		switch (request->type) {
-		case AMD_PP_GFX_PROFILE:
-			ret = hwmgr->hwmgr_func->set_power_profile_state(
-					hwmgr,
-					&hwmgr->gfx_power_profile);
-			break;
-		case AMD_PP_COMPUTE_PROFILE:
-			ret = hwmgr->hwmgr_func->set_power_profile_state(
-					hwmgr,
-					&hwmgr->compute_power_profile);
-			break;
-		default:
-			return -EINVAL;
-		}
-	}
-
-	if (!ret)
-		hwmgr->current_power_profile = request->type;
-
-	return 0;
-}
-
 static int pp_dpm_switch_power_profile(void *handle,
-		enum amd_pp_profile_type type)
+		enum PP_SMC_POWER_PROFILE type, bool en)
 {
 	struct pp_hwmgr *hwmgr;
-	struct amd_pp_profile request = {0};
 	struct pp_instance *pp_handle = (struct pp_instance *)handle;
+	long workload;
+	uint32_t index;
 
 	if (pp_check(pp_handle))
 		return -EINVAL;
 
 	hwmgr = pp_handle->hwmgr;
 
-	if (hwmgr->current_power_profile != type) {
-		request.type = type;
-		pp_dpm_set_power_profile_state(handle, &request);
+	if (hwmgr->hwmgr_func->set_power_profile_mode == NULL) {
+		pr_info("%s was not implemented.\n", __func__);
+		return -EINVAL;
 	}
+
+	if (!(type < PP_SMC_POWER_PROFILE_CUSTOM))
+		return -EINVAL;
+
+	mutex_lock(&pp_handle->pp_lock);
+
+	if (!en) {
+		hwmgr->workload_mask &= ~(1 << hwmgr->workload_prority[type]);
+		index = fls(hwmgr->workload_mask);
+		index = index > 0 && index <= Workload_Policy_Max ? index - 1 : 0;
+		workload = hwmgr->workload_setting[index];
+	} else {
+		hwmgr->workload_mask |= (1 << hwmgr->workload_prority[type]);
+		index = fls(hwmgr->workload_mask);
+		index = index <= Workload_Policy_Max ? index - 1 : 0;
+		workload = hwmgr->workload_setting[index];
+	}
+
+	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL)
+		hwmgr->hwmgr_func->set_power_profile_mode(hwmgr, &workload, 0);
+	mutex_unlock(&pp_handle->pp_lock);
 
 	return 0;
 }
@@ -1580,9 +1495,6 @@ const struct amd_pm_funcs pp_dpm_funcs = {
 	.set_mclk_od = pp_dpm_set_mclk_od,
 	.read_sensor = pp_dpm_read_sensor,
 	.get_vce_clock_state = pp_dpm_get_vce_clock_state,
-	.reset_power_profile_state = pp_dpm_reset_power_profile_state,
-	.get_power_profile_state = pp_dpm_get_power_profile_state,
-	.set_power_profile_state = pp_dpm_set_power_profile_state,
 	.switch_power_profile = pp_dpm_switch_power_profile,
 	.set_clockgating_by_smu = pp_set_clockgating_by_smu,
 	.notify_smu_memory_info = pp_dpm_notify_smu_memory_info,

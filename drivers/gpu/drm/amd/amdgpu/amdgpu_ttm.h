@@ -44,6 +44,7 @@ struct amdgpu_mman {
 	struct ttm_bo_device		bdev;
 	bool				mem_global_referenced;
 	bool				initialized;
+	void __iomem			*aper_base_kaddr;
 
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_entries[8];
@@ -52,6 +53,7 @@ struct amdgpu_mman {
 	/* buffer handling */
 	const struct amdgpu_buffer_funcs	*buffer_funcs;
 	struct amdgpu_ring			*buffer_funcs_ring;
+	bool					buffer_funcs_enabled;
 
 	struct mutex				gtt_window_lock;
 	/* Scheduler entity for buffer moves */
@@ -73,6 +75,11 @@ int amdgpu_gtt_mgr_recover(struct ttm_mem_type_manager *man);
 
 uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man);
 uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_mem_type_manager *man);
+
+int amdgpu_ttm_init(struct amdgpu_device *adev);
+void amdgpu_ttm_fini(struct amdgpu_device *adev);
+void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev,
+					bool enable);
 
 int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       uint64_t dst_offset, uint32_t byte_count,

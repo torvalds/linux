@@ -687,8 +687,7 @@ static struct ttm_backend_func radeon_backend_func = {
 };
 
 static struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
-				    unsigned long size, uint32_t page_flags,
-				    struct page *dummy_read_page)
+				    unsigned long size, uint32_t page_flags)
 {
 	struct radeon_device *rdev;
 	struct radeon_ttm_tt *gtt;
@@ -697,7 +696,7 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
 #if IS_ENABLED(CONFIG_AGP)
 	if (rdev->flags & RADEON_IS_AGP) {
 		return ttm_agp_tt_create(bdev, rdev->ddev->agp->bridge,
-					 size, page_flags, dummy_read_page);
+					 size, page_flags);
 	}
 #endif
 
@@ -707,7 +706,7 @@ static struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
 	}
 	gtt->ttm.ttm.func = &radeon_backend_func;
 	gtt->rdev = rdev;
-	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags, dummy_read_page)) {
+	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags)) {
 		kfree(gtt);
 		return NULL;
 	}

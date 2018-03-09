@@ -374,7 +374,7 @@ static void amdgpu_dm_fbc_init(struct drm_connector *connector)
 
 	if (max_size) {
 		int r = amdgpu_bo_create_kernel(adev, max_size * 4, PAGE_SIZE,
-			    AMDGPU_GEM_DOMAIN_VRAM, &compressor->bo_ptr,
+			    AMDGPU_GEM_DOMAIN_GTT, &compressor->bo_ptr,
 			    &compressor->gpu_addr, &compressor->cpu_addr);
 
 		if (r)
@@ -1058,6 +1058,10 @@ static void handle_hpd_rx_irq(void *param)
 			!is_mst_root_connector) {
 		/* Downstream Port status changed. */
 		if (dc_link_detect(dc_link, DETECT_REASON_HPDRX)) {
+
+			if (aconnector->fake_enable)
+				aconnector->fake_enable = false;
+
 			amdgpu_dm_update_connector_after_detect(aconnector);
 
 
@@ -2486,6 +2490,27 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &state->base;
 }
 
+
+static inline int dm_set_vblank(struct drm_crtc *crtc, bool enable)
+{
+	enum dc_irq_source irq_source;
+	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_device *adev = crtc->dev->dev_private;
+
+	irq_source = IRQ_TYPE_VBLANK + acrtc->otg_inst;
+	return dc_interrupt_set(adev->dm.dc, irq_source, enable) ? 0 : -EBUSY;
+}
+
+static int dm_enable_vblank(struct drm_crtc *crtc)
+{
+	return dm_set_vblank(crtc, true);
+}
+
+static void dm_disable_vblank(struct drm_crtc *crtc)
+{
+	dm_set_vblank(crtc, false);
+}
+
 /* Implemented only the options currently availible for the driver */
 static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.reset = dm_crtc_reset_state,
@@ -2496,6 +2521,8 @@ static const struct drm_crtc_funcs amdgpu_dm_crtc_funcs = {
 	.atomic_duplicate_state = dm_crtc_duplicate_state,
 	.atomic_destroy_state = dm_crtc_destroy_state,
 	.set_crc_source = amdgpu_dm_crtc_set_crc_source,
+	.enable_vblank = dm_enable_vblank,
+	.disable_vblank = dm_disable_vblank,
 };
 
 static enum drm_connector_status
@@ -3059,6 +3086,9 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	if (!dm_plane_state->dc_state)
 		return 0;
 
+	if (!fill_rects_from_plane_state(state, dm_plane_state->dc_state))
+		return -EINVAL;
+
 	if (dc_validate_plane(dc, dm_plane_state->dc_state) == DC_OK)
 		return 0;
 
@@ -3193,7 +3223,7 @@ static int amdgpu_dm_crtc_init(struct amdgpu_display_manager *dm,
 	dm->adev->mode_info.crtcs[crtc_index] = acrtc;
 	drm_crtc_enable_color_mgmt(&acrtc->base, MAX_COLOR_LUT_ENTRIES,
 				   true, MAX_COLOR_LUT_ENTRIES);
-	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LUT_ENTRIES);
+	drm_mode_crtc_set_gamma_size(&acrtc->base, MAX_COLOR_LEGACY_LUT_ENTRIES);
 
 	return 0;
 
@@ -4660,8 +4690,6 @@ static int dm_update_planes_state(struct dc *dc,
 	bool pflip_needed  = !state->allow_modeset;
 	int ret = 0;
 
-	if (pflip_needed)
-		return ret;
 
 	/* Add new planes */
 	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
@@ -4676,6 +4704,8 @@ static int dm_update_planes_state(struct dc *dc,
 
 		/* Remove any changed/removed planes */
 		if (!enable) {
+			if (pflip_needed)
+				continue;
 
 			if (!old_plane_crtc)
 				continue;
@@ -4720,6 +4750,8 @@ static int dm_update_planes_state(struct dc *dc,
 			if (!dm_new_crtc_state->stream)
 				continue;
 
+			if (pflip_needed)
+				continue;
 
 			WARN_ON(dm_new_plane_state->dc_state);
 
@@ -4764,6 +4796,30 @@ static int dm_update_planes_state(struct dc *dc,
 	return ret;
 }
 
+static int dm_atomic_check_plane_state_fb(struct drm_atomic_state *state,
+					  struct drm_crtc *crtc)
+{
+	struct drm_plane *plane;
+	struct drm_crtc_state *crtc_state;
+
+	WARN_ON(!drm_atomic_get_new_crtc_state(state, crtc));
+
+	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
+		struct drm_plane_state *plane_state =
+			drm_atomic_get_plane_state(state, plane);
+
+		if (IS_ERR(plane_state))
+			return -EDEADLK;
+
+		crtc_state = drm_atomic_get_crtc_state(plane_state->state, crtc);
+		if (crtc->primary == plane && crtc_state->active) {
+			if (!plane_state->fb)
+				return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 static int amdgpu_dm_atomic_check(struct drm_device *dev,
 				  struct drm_atomic_state *state)
 {
@@ -4787,6 +4843,10 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 		goto fail;
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		ret = dm_atomic_check_plane_state_fb(state, crtc);
+		if (ret)
+			goto fail;
+
 		if (!drm_atomic_crtc_needs_modeset(new_crtc_state) &&
 		    !new_crtc_state->color_mgmt_changed)
 			continue;

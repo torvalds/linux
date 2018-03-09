@@ -204,11 +204,11 @@ static int cz_load_mec_firmware(struct pp_hwmgr *hwmgr)
 	tmp = PHM_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, MTYPE, 1);
 	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_CNTL, tmp);
 
-	reg_data = smu_lower_32_bits(info.mc_addr) &
+	reg_data = lower_32_bits(info.mc_addr) &
 			PHM_FIELD_MASK(CP_CPC_IC_BASE_LO, IC_BASE_LO);
 	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_LO, reg_data);
 
-	reg_data = smu_upper_32_bits(info.mc_addr) &
+	reg_data = upper_32_bits(info.mc_addr) &
 			PHM_FIELD_MASK(CP_CPC_IC_BASE_HI, IC_BASE_HI);
 	cgs_write_register(hwmgr->device, mmCP_CPC_IC_BASE_HI, reg_data);
 
@@ -347,8 +347,8 @@ static int cz_smu_populate_single_scratch_task(
 		return -EINVAL;
 	}
 
-	task->addr.low = cz_smu->scratch_buffer[i].mc_addr_low;
-	task->addr.high = cz_smu->scratch_buffer[i].mc_addr_high;
+	task->addr.low = lower_32_bits(cz_smu->scratch_buffer[i].mc_addr);
+	task->addr.high = upper_32_bits(cz_smu->scratch_buffer[i].mc_addr);
 	task->size_bytes = cz_smu->scratch_buffer[i].data_size;
 
 	if (CZ_SCRATCH_ENTRY_DATA_ID_IH_REGISTERS == fw_enum) {
@@ -384,8 +384,8 @@ static int cz_smu_populate_single_ucode_load_task(
 		return -EINVAL;
 	}
 
-	task->addr.low = cz_smu->driver_buffer[i].mc_addr_low;
-	task->addr.high = cz_smu->driver_buffer[i].mc_addr_high;
+	task->addr.low = lower_32_bits(cz_smu->driver_buffer[i].mc_addr);
+	task->addr.high = upper_32_bits(cz_smu->driver_buffer[i].mc_addr);
 	task->size_bytes = cz_smu->driver_buffer[i].data_size;
 
 	return 0;
@@ -566,11 +566,7 @@ static int cz_smu_populate_firmware_entries(struct pp_hwmgr *hwmgr)
 							ucode_id, &info);
 
 		if (ret == 0) {
-			cz_smu->driver_buffer[i].mc_addr_high =
-					smu_upper_32_bits(info.mc_addr);
-
-			cz_smu->driver_buffer[i].mc_addr_low =
-					smu_lower_32_bits(info.mc_addr);
+			cz_smu->driver_buffer[i].mc_addr = info.mc_addr;
 
 			cz_smu->driver_buffer[i].data_size = info.image_size;
 
@@ -589,19 +585,12 @@ static int cz_smu_populate_single_scratch_entry(
 				struct cz_buffer_entry *entry)
 {
 	struct cz_smumgr *cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
-	long long mc_addr =
-			((long long)(cz_smu->smu_buffer.mc_addr_high) << 32)
-			| cz_smu->smu_buffer.mc_addr_low;
-
 	uint32_t ulsize_aligned = SIZE_ALIGN_32(ulsize_byte);
-
-	mc_addr += cz_smu->smu_buffer_used_bytes;
 
 	entry->data_size = ulsize_byte;
 	entry->kaddr = (char *) cz_smu->smu_buffer.kaddr +
 				cz_smu->smu_buffer_used_bytes;
-	entry->mc_addr_low = smu_lower_32_bits(mc_addr);
-	entry->mc_addr_high = smu_upper_32_bits(mc_addr);
+	entry->mc_addr = cz_smu->smu_buffer.mc_addr + cz_smu->smu_buffer_used_bytes;
 	entry->firmware_ID = scratch_type;
 
 	cz_smu->smu_buffer_used_bytes += ulsize_aligned;
@@ -624,11 +613,11 @@ static int cz_download_pptable_settings(struct pp_hwmgr *hwmgr, void **table)
 
 	cz_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrHi,
-				cz_smu->scratch_buffer[i].mc_addr_high);
+				upper_32_bits(cz_smu->scratch_buffer[i].mc_addr));
 
 	cz_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrLo,
-				cz_smu->scratch_buffer[i].mc_addr_low);
+				lower_32_bits(cz_smu->scratch_buffer[i].mc_addr));
 
 	cz_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
 				cz_smu->toc_entry_clock_table);
@@ -651,11 +640,11 @@ static int cz_upload_pptable_settings(struct pp_hwmgr *hwmgr)
 
 	cz_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrHi,
-				cz_smu->scratch_buffer[i].mc_addr_high);
+				upper_32_bits(cz_smu->scratch_buffer[i].mc_addr));
 
 	cz_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetClkTableAddrLo,
-				cz_smu->scratch_buffer[i].mc_addr_low);
+				lower_32_bits(cz_smu->scratch_buffer[i].mc_addr));
 
 	cz_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_ExecuteJob,
 				cz_smu->toc_entry_clock_table);
@@ -686,11 +675,11 @@ static int cz_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 
 	cz_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DriverDramAddrHi,
-					cz_smu->toc_buffer.mc_addr_high);
+					upper_32_bits(cz_smu->toc_buffer.mc_addr));
 
 	cz_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_DriverDramAddrLo,
-					cz_smu->toc_buffer.mc_addr_low);
+					lower_32_bits(cz_smu->toc_buffer.mc_addr));
 
 	cz_send_msg_to_smc(hwmgr, PPSMC_MSG_InitJobs);
 
@@ -750,7 +739,6 @@ static int cz_start_smu(struct pp_hwmgr *hwmgr)
 
 static int cz_smu_init(struct pp_hwmgr *hwmgr)
 {
-	uint64_t mc_addr = 0;
 	int ret = 0;
 	struct cz_smumgr *cz_smu;
 
@@ -768,31 +756,29 @@ static int cz_smu_init(struct pp_hwmgr *hwmgr)
 		ALIGN(sizeof(struct SMU8_MultimediaPowerLogData), 32) +
 		ALIGN(sizeof(struct SMU8_Fusion_ClkTable), 32);
 
-	ret = smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 				cz_smu->toc_buffer.data_size,
-				CGS_GPU_MEM_TYPE__GART_CACHEABLE,
 				PAGE_SIZE,
-				&mc_addr,
-				&cz_smu->toc_buffer.kaddr,
-				&cz_smu->toc_buffer.handle);
-	if (ret != 0)
-		return -1;
+				AMDGPU_GEM_DOMAIN_VRAM,
+				&cz_smu->toc_buffer.handle,
+				&cz_smu->toc_buffer.mc_addr,
+				&cz_smu->toc_buffer.kaddr);
+	if (ret)
+		return -EINVAL;
 
-	cz_smu->toc_buffer.mc_addr_high = smu_upper_32_bits(mc_addr);
-	cz_smu->toc_buffer.mc_addr_low = smu_lower_32_bits(mc_addr);
-
-	ret = smu_allocate_memory(hwmgr->device,
+	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 				cz_smu->smu_buffer.data_size,
-				CGS_GPU_MEM_TYPE__GART_CACHEABLE,
 				PAGE_SIZE,
-				&mc_addr,
-				&cz_smu->smu_buffer.kaddr,
-				&cz_smu->smu_buffer.handle);
-	if (ret != 0)
-		return -1;
-
-	cz_smu->smu_buffer.mc_addr_high = smu_upper_32_bits(mc_addr);
-	cz_smu->smu_buffer.mc_addr_low = smu_lower_32_bits(mc_addr);
+				AMDGPU_GEM_DOMAIN_VRAM,
+				&cz_smu->smu_buffer.handle,
+				&cz_smu->smu_buffer.mc_addr,
+				&cz_smu->smu_buffer.kaddr);
+	if (ret) {
+		amdgpu_bo_free_kernel(&cz_smu->toc_buffer.handle,
+					&cz_smu->toc_buffer.mc_addr,
+					&cz_smu->toc_buffer.kaddr);
+		return -EINVAL;
+	}
 
 	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SCRATCH,
@@ -845,14 +831,39 @@ static int cz_smu_fini(struct pp_hwmgr *hwmgr)
 
 	cz_smu = (struct cz_smumgr *)hwmgr->smu_backend;
 	if (cz_smu) {
-		cgs_free_gpu_mem(hwmgr->device,
-				cz_smu->toc_buffer.handle);
-		cgs_free_gpu_mem(hwmgr->device,
-				cz_smu->smu_buffer.handle);
+		amdgpu_bo_free_kernel(&cz_smu->toc_buffer.handle,
+					&cz_smu->toc_buffer.mc_addr,
+					&cz_smu->toc_buffer.kaddr);
+		amdgpu_bo_free_kernel(&cz_smu->smu_buffer.handle,
+					&cz_smu->smu_buffer.mc_addr,
+					&cz_smu->smu_buffer.kaddr);
 		kfree(cz_smu);
 	}
 
 	return 0;
+}
+
+static bool cz_dpm_check_smu_features(struct pp_hwmgr *hwmgr,
+				unsigned long check_feature)
+{
+	int result;
+	unsigned long features;
+
+	result = cz_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetFeatureStatus, 0);
+	if (result == 0) {
+		features = smum_get_argument(hwmgr);
+		if (features & check_feature)
+			return true;
+	}
+
+	return false;
+}
+
+static bool cz_is_dpm_running(struct pp_hwmgr *hwmgr)
+{
+	if (cz_dpm_check_smu_features(hwmgr, SMU_EnabledFeatureScoreboard_SclkDpmOn))
+		return true;
+	return false;
 }
 
 const struct pp_smumgr_func cz_smu_funcs = {
@@ -867,5 +878,6 @@ const struct pp_smumgr_func cz_smu_funcs = {
 	.send_msg_to_smc_with_parameter = cz_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = cz_download_pptable_settings,
 	.upload_pptable_settings = cz_upload_pptable_settings,
+	.is_dpm_running = cz_is_dpm_running,
 };
 

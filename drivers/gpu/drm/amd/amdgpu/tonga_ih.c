@@ -107,7 +107,7 @@ static int tonga_ih_irq_init(struct amdgpu_device *adev)
 	tonga_ih_disable_interrupts(adev);
 
 	/* setup interrupt control */
-	WREG32(mmINTERRUPT_CNTL2, adev->dummy_page.addr >> 8);
+	WREG32(mmINTERRUPT_CNTL2, adev->dummy_page_addr >> 8);
 	interrupt_cntl = RREG32(mmINTERRUPT_CNTL);
 	/* INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=0 - dummy read disabled with msi, enabled without msi
 	 * INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=1 - dummy read controlled by IH_DUMMY_RD_EN

@@ -38,7 +38,7 @@
 #include "inc/compressor.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.1.34"
+#define DC_VER "3.1.37"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -182,6 +182,17 @@ enum pipe_split_policy {
 enum wm_report_mode {
 	WM_REPORT_DEFAULT = 0,
 	WM_REPORT_OVERRIDE = 1,
+};
+
+struct dc_clocks {
+	int dispclk_khz;
+	int max_dppclk_khz;
+	int dcfclk_khz;
+	int socclk_khz;
+	int dcfclk_deep_sleep_khz;
+	int fclk_khz;
+	int dram_ccm_us;
+	int min_active_dram_ccm_us;
 };
 
 struct dc_debug {
@@ -694,7 +705,7 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 		struct dc *dc,
 		uint32_t src_id,
 		uint32_t ext_id);
-void dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable);
+bool dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable);
 void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src);
 enum dc_irq_source dc_get_hpd_irq_source_at_index(
 		struct dc *dc, uint32_t link_index);

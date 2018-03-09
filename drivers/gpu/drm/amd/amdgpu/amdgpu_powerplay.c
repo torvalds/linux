@@ -94,9 +94,7 @@ static int amdgpu_pp_early_init(void *handle)
 	}
 
 	if (adev->powerplay.ip_funcs->early_init)
-		ret = adev->powerplay.ip_funcs->early_init(
-					amd_pp->cgs_device ? amd_pp->cgs_device :
-					amd_pp->pp_handle);
+		ret = adev->powerplay.ip_funcs->early_init(adev);
 
 	return ret;
 }

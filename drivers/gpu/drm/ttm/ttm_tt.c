@@ -48,6 +48,49 @@
 #endif
 
 /**
+ * Allocates a ttm structure for the given BO.
+ */
+int ttm_tt_create(struct ttm_buffer_object *bo, bool zero_alloc)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+	uint32_t page_flags = 0;
+
+	reservation_object_assert_held(bo->resv);
+
+	if (bdev->need_dma32)
+		page_flags |= TTM_PAGE_FLAG_DMA32;
+
+	if (bdev->no_retry)
+		page_flags |= TTM_PAGE_FLAG_NO_RETRY;
+
+	switch (bo->type) {
+	case ttm_bo_type_device:
+		if (zero_alloc)
+			page_flags |= TTM_PAGE_FLAG_ZERO_ALLOC;
+		break;
+	case ttm_bo_type_kernel:
+		break;
+	case ttm_bo_type_sg:
+		page_flags |= TTM_PAGE_FLAG_SG;
+		break;
+	default:
+		bo->ttm = NULL;
+		pr_err("Illegal buffer object type\n");
+		return -EINVAL;
+	}
+
+	bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
+					      page_flags);
+	if (unlikely(bo->ttm == NULL))
+		return -ENOMEM;
+
+	if (bo->type == ttm_bo_type_sg)
+		bo->ttm->sg = bo->sg;
+
+	return 0;
+}
+
+/**
  * Allocates storage for pointers to the pages that back the ttm.
  */
 static int ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
@@ -191,15 +234,12 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 }
 
 int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
-		unsigned long size, uint32_t page_flags,
-		struct page *dummy_read_page)
+		unsigned long size, uint32_t page_flags)
 {
 	ttm->bdev = bdev;
-	ttm->glob = bdev->glob;
 	ttm->num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
-	ttm->dummy_read_page = dummy_read_page;
 	ttm->state = tt_unpopulated;
 	ttm->swap_storage = NULL;
 
@@ -220,17 +260,14 @@ void ttm_tt_fini(struct ttm_tt *ttm)
 EXPORT_SYMBOL(ttm_tt_fini);
 
 int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
-		unsigned long size, uint32_t page_flags,
-		struct page *dummy_read_page)
+		    unsigned long size, uint32_t page_flags)
 {
 	struct ttm_tt *ttm = &ttm_dma->ttm;
 
 	ttm->bdev = bdev;
-	ttm->glob = bdev->glob;
 	ttm->num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	ttm->caching_state = tt_cached;
 	ttm->page_flags = page_flags;
-	ttm->dummy_read_page = dummy_read_page;
 	ttm->state = tt_unpopulated;
 	ttm->swap_storage = NULL;
 
@@ -392,12 +429,31 @@ out_err:
 	return ret;
 }
 
+static void ttm_tt_add_mapping(struct ttm_tt *ttm)
+{
+	pgoff_t i;
+
+	if (ttm->page_flags & TTM_PAGE_FLAG_SG)
+		return;
+
+	for (i = 0; i < ttm->num_pages; ++i)
+		ttm->pages[i]->mapping = ttm->bdev->dev_mapping;
+}
+
 int ttm_tt_populate(struct ttm_tt *ttm, struct ttm_operation_ctx *ctx)
 {
+	int ret;
+
 	if (ttm->state != tt_unpopulated)
 		return 0;
 
-	return ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
+	if (ttm->bdev->driver->ttm_tt_populate)
+		ret = ttm->bdev->driver->ttm_tt_populate(ttm, ctx);
+	else
+		ret = ttm_pool_populate(ttm, ctx);
+	if (!ret)
+		ttm_tt_add_mapping(ttm);
+	return ret;
 }
 
 static void ttm_tt_clear_mapping(struct ttm_tt *ttm)
@@ -420,5 +476,8 @@ void ttm_tt_unpopulate(struct ttm_tt *ttm)
 		return;
 
 	ttm_tt_clear_mapping(ttm);
-	ttm->bdev->driver->ttm_tt_unpopulate(ttm);
+	if (ttm->bdev->driver->ttm_tt_unpopulate)
+		ttm->bdev->driver->ttm_tt_unpopulate(ttm);
+	else
+		ttm_pool_unpopulate(ttm);
 }

@@ -169,11 +169,11 @@ int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"Invalid SMU Table Length!", return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			priv->smu_tables.entry[table_id].table_addr_high) == 0,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
 			"[CopyTableFromSMC] Attempt to Set Dram Addr High Failed!", return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			priv->smu_tables.entry[table_id].table_addr_low) == 0,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
 			"[CopyTableFromSMC] Attempt to Set Dram Addr Low Failed!",
 			return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
@@ -182,7 +182,7 @@ int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
 			return -EINVAL;);
 
-	memcpy(table, priv->smu_tables.entry[table_id].table,
+	memcpy(table, (uint8_t *)priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
 
 	return 0;
@@ -206,12 +206,12 @@ int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrHigh,
-			priv->smu_tables.entry[table_id].table_addr_high) == 0,
+			upper_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
 			"[CopyTableToSMC] Attempt to Set Dram Addr High Failed!",
 			return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetDriverDramAddrLow,
-			priv->smu_tables.entry[table_id].table_addr_low) == 0,
+			lower_32_bits(priv->smu_tables.entry[table_id].mc_addr)) == 0,
 			"[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!",
 			return -EINVAL;);
 	PP_ASSERT_WITH_CODE(rv_send_msg_to_smc_with_parameter(hwmgr,
@@ -292,10 +292,12 @@ static int rv_smu_fini(struct pp_hwmgr *hwmgr)
 	if (priv) {
 		rv_smc_disable_sdma(hwmgr);
 		rv_smc_disable_vcn(hwmgr);
-		cgs_free_gpu_mem(hwmgr->device,
-				priv->smu_tables.entry[WMTABLE].handle);
-		cgs_free_gpu_mem(hwmgr->device,
-				priv->smu_tables.entry[CLOCKTABLE].handle);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
+					&priv->smu_tables.entry[WMTABLE].mc_addr,
+					priv->smu_tables.entry[WMTABLE].table);
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[CLOCKTABLE].handle,
+					&priv->smu_tables.entry[CLOCKTABLE].mc_addr,
+					priv->smu_tables.entry[CLOCKTABLE].table);
 		kfree(hwmgr->smu_backend);
 		hwmgr->smu_backend = NULL;
 	}
@@ -325,10 +327,11 @@ static int rv_start_smu(struct pp_hwmgr *hwmgr)
 
 static int rv_smu_init(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_bo *handle = NULL;
 	struct rv_smumgr *priv;
 	uint64_t mc_addr;
 	void *kaddr = NULL;
-	unsigned long handle;
+	int r;
 
 	priv = kzalloc(sizeof(struct rv_smumgr), GFP_KERNEL);
 
@@ -338,54 +341,44 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 	hwmgr->smu_backend = priv;
 
 	/* allocate space for watermarks table */
-	smu_allocate_memory(hwmgr->device,
+	r = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(Watermarks_t),
-			CGS_GPU_MEM_TYPE__GART_CACHEABLE,
 			PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&handle,
 			&mc_addr,
-			&kaddr,
-			&handle);
+			&kaddr);
 
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[rv_smu_init] Out of memory for wmtable.",
-			kfree(hwmgr->smu_backend);
-			hwmgr->smu_backend = NULL;
-			return -EINVAL);
+	if (r)
+		return -EINVAL;
 
 	priv->smu_tables.entry[WMTABLE].version = 0x01;
 	priv->smu_tables.entry[WMTABLE].size = sizeof(Watermarks_t);
 	priv->smu_tables.entry[WMTABLE].table_id = TABLE_WATERMARKS;
-	priv->smu_tables.entry[WMTABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[WMTABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
+	priv->smu_tables.entry[WMTABLE].mc_addr = mc_addr;
 	priv->smu_tables.entry[WMTABLE].table = kaddr;
 	priv->smu_tables.entry[WMTABLE].handle = handle;
 
 	/* allocate space for watermarks table */
-	smu_allocate_memory(hwmgr->device,
+	r = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(DpmClocks_t),
-			CGS_GPU_MEM_TYPE__GART_CACHEABLE,
 			PAGE_SIZE,
+			AMDGPU_GEM_DOMAIN_VRAM,
+			&handle,
 			&mc_addr,
-			&kaddr,
-			&handle);
+			&kaddr);
 
-	PP_ASSERT_WITH_CODE(kaddr,
-			"[rv_smu_init] Out of memory for CLOCKTABLE.",
-			cgs_free_gpu_mem(hwmgr->device,
-			(cgs_handle_t)priv->smu_tables.entry[WMTABLE].handle);
-			kfree(hwmgr->smu_backend);
-			hwmgr->smu_backend = NULL;
-			return -EINVAL);
+	if (r) {
+		amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
+					&priv->smu_tables.entry[WMTABLE].mc_addr,
+					&priv->smu_tables.entry[WMTABLE].table);
+		return -EINVAL;
+	}
 
 	priv->smu_tables.entry[CLOCKTABLE].version = 0x01;
 	priv->smu_tables.entry[CLOCKTABLE].size = sizeof(DpmClocks_t);
 	priv->smu_tables.entry[CLOCKTABLE].table_id = TABLE_DPMCLOCKS;
-	priv->smu_tables.entry[CLOCKTABLE].table_addr_high =
-			smu_upper_32_bits(mc_addr);
-	priv->smu_tables.entry[CLOCKTABLE].table_addr_low =
-			smu_lower_32_bits(mc_addr);
+	priv->smu_tables.entry[CLOCKTABLE].mc_addr = mc_addr;
 	priv->smu_tables.entry[CLOCKTABLE].table = kaddr;
 	priv->smu_tables.entry[CLOCKTABLE].handle = handle;
 

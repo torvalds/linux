@@ -235,9 +235,8 @@ struct pp_smumgr_func {
 	uint32_t (*get_offsetof)(uint32_t type, uint32_t member);
 	uint32_t (*get_mac_definition)(uint32_t value);
 	bool (*is_dpm_running)(struct pp_hwmgr *hwmgr);
-	int (*populate_requested_graphic_levels)(struct pp_hwmgr *hwmgr,
-			struct amd_pp_profile *request);
 	bool (*is_hw_avfs_present)(struct pp_hwmgr  *hwmgr);
+	int (*update_dpm_settings)(struct pp_hwmgr *hwmgr, void *profile_setting);
 };
 
 struct pp_hwmgr_func {
@@ -327,8 +326,6 @@ struct pp_hwmgr_func {
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, void *value, int *size);
-	int (*set_power_profile_state)(struct pp_hwmgr *hwmgr,
-			struct amd_pp_profile *request);
 	int (*avfs_control)(struct pp_hwmgr *hwmgr, bool enable);
 	int (*disable_smc_firmware_ctf)(struct pp_hwmgr *hwmgr);
 	int (*set_active_display_count)(struct pp_hwmgr *hwmgr, uint32_t count);
@@ -698,7 +695,10 @@ enum PP_TABLE_VERSION {
 /**
  * The main hardware manager structure.
  */
+#define Workload_Policy_Max 5
+
 struct pp_hwmgr {
+	void *adev;
 	uint32_t chip_family;
 	uint32_t chip_id;
 	uint32_t smu_version;
@@ -750,11 +750,6 @@ struct pp_hwmgr {
 	uint32_t feature_mask;
 
 	/* UMD Pstate */
-	struct amd_pp_profile gfx_power_profile;
-	struct amd_pp_profile compute_power_profile;
-	struct amd_pp_profile default_gfx_power_profile;
-	struct amd_pp_profile default_compute_power_profile;
-	enum amd_pp_profile_type current_power_profile;
 	bool en_umd_pstate;
 	uint32_t power_profile_mode;
 	uint32_t default_power_profile_mode;
@@ -763,6 +758,9 @@ struct pp_hwmgr {
 	bool od_enabled;
 	uint32_t power_limit;
 	uint32_t default_power_limit;
+	uint32_t workload_mask;
+	uint32_t workload_prority[Workload_Policy_Max];
+	uint32_t workload_setting[Workload_Policy_Max];
 };
 
 struct cgs_irq_src_funcs {
@@ -825,6 +823,8 @@ extern int rv_init_function_pointers(struct pp_hwmgr *hwmgr);
 
 extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint32_t sclk, uint16_t id, uint16_t *voltage);
+
+extern uint32_t phm_set_field_to_u32(u32 offset, u32 original_data, u32 field, u32 size);
 
 #define PHM_ENTIRE_REGISTER_MASK 0xFFFFFFFFU
 

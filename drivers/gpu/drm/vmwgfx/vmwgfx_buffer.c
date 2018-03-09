@@ -694,8 +694,7 @@ static struct ttm_backend_func vmw_ttm_func = {
 };
 
 static struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
-				 unsigned long size, uint32_t page_flags,
-				 struct page *dummy_read_page)
+				 unsigned long size, uint32_t page_flags)
 {
 	struct vmw_ttm_tt *vmw_be;
 	int ret;
@@ -709,11 +708,9 @@ static struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
 	vmw_be->mob = NULL;
 
 	if (vmw_be->dev_priv->map_mode == vmw_dma_alloc_coherent)
-		ret = ttm_dma_tt_init(&vmw_be->dma_ttm, bdev, size, page_flags,
-				      dummy_read_page);
+		ret = ttm_dma_tt_init(&vmw_be->dma_ttm, bdev, size, page_flags);
 	else
-		ret = ttm_tt_init(&vmw_be->dma_ttm.ttm, bdev, size, page_flags,
-				  dummy_read_page);
+		ret = ttm_tt_init(&vmw_be->dma_ttm.ttm, bdev, size, page_flags);
 	if (unlikely(ret != 0))
 		goto out_no_init;
 

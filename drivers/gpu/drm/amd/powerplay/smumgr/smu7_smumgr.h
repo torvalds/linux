@@ -31,10 +31,9 @@
 
 struct smu7_buffer_entry {
 	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
+	uint64_t mc_addr;
 	void *kaddr;
-	unsigned long  handle;
+	struct amdgpu_bo *handle;
 };
 
 struct smu7_avfs {

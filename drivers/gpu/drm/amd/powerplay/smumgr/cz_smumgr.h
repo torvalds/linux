@@ -31,6 +31,8 @@
 #define CZ_SCRATCH_SIZE_SDMA_METADATA           1024
 #define CZ_SCRATCH_SIZE_IH                      ((2*256+1)*4)
 
+#define SMU_EnabledFeatureScoreboard_SclkDpmOn    0x00200000
+
 enum cz_scratch_entry {
 	CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0 = 0,
 	CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1,
@@ -58,11 +60,10 @@ enum cz_scratch_entry {
 
 struct cz_buffer_entry {
 	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
+	uint64_t mc_addr;
 	void *kaddr;
 	enum cz_scratch_entry firmware_ID;
-	unsigned long handle; /* as bo handle used when release bo */
+	struct amdgpu_bo *handle; /* as bo handle used when release bo */
 };
 
 struct cz_register_index_data_pair {

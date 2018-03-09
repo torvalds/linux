@@ -731,14 +731,9 @@ int smu7_enable_didt_config(struct pp_hwmgr *hwmgr)
 	int result;
 	uint32_t num_se = 0;
 	uint32_t count, value, value2;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-	sys_info.info_id = CGS_SYSTEM_INFO_GFX_SE_INFO;
-	result = cgs_query_system_info(hwmgr->device, &sys_info);
-
-	if (result == 0)
-		num_se = sys_info.value;
+	num_se = adev->gfx.config.max_shader_engines;
 
 	if (PP_CAP(PHM_PlatformCaps_SQRamping) ||
 	    PP_CAP(PHM_PlatformCaps_DBRamping) ||

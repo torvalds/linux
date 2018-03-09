@@ -238,31 +238,27 @@ static uint64_t sdma_v4_0_ring_get_rptr(struct amdgpu_ring *ring)
 static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	u64 *wptr = NULL;
-	uint64_t local_wptr = 0;
+	u64 wptr;
 
 	if (ring->use_doorbell) {
 		/* XXX check if swapping is necessary on BE */
-		wptr = ((u64 *)&adev->wb.wb[ring->wptr_offs]);
-		DRM_DEBUG("wptr/doorbell before shift == 0x%016llx\n", *wptr);
-		*wptr = (*wptr) >> 2;
-		DRM_DEBUG("wptr/doorbell after shift == 0x%016llx\n", *wptr);
+		wptr = READ_ONCE(*((u64 *)&adev->wb.wb[ring->wptr_offs]));
+		DRM_DEBUG("wptr/doorbell before shift == 0x%016llx\n", wptr);
 	} else {
 		u32 lowbit, highbit;
 		int me = (ring == &adev->sdma.instance[0].ring) ? 0 : 1;
 
-		wptr = &local_wptr;
 		lowbit = RREG32(sdma_v4_0_get_reg_offset(adev, me, mmSDMA0_GFX_RB_WPTR)) >> 2;
 		highbit = RREG32(sdma_v4_0_get_reg_offset(adev, me, mmSDMA0_GFX_RB_WPTR_HI)) >> 2;
 
 		DRM_DEBUG("wptr [%i]high== 0x%08x low==0x%08x\n",
 				me, highbit, lowbit);
-		*wptr = highbit;
-		*wptr = (*wptr) << 32;
-		*wptr |= lowbit;
+		wptr = highbit;
+		wptr = wptr << 32;
+		wptr |= lowbit;
 	}
 
-	return *wptr;
+	return wptr >> 2;
 }
 
 /**
@@ -430,7 +426,7 @@ static void sdma_v4_0_gfx_stop(struct amdgpu_device *adev)
 
 	if ((adev->mman.buffer_funcs_ring == sdma0) ||
 	    (adev->mman.buffer_funcs_ring == sdma1))
-		amdgpu_ttm_set_active_vram_size(adev, adev->gmc.visible_vram_size);
+			amdgpu_ttm_set_buffer_funcs_status(adev, false);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32(sdma_v4_0_get_reg_offset(adev, i, mmSDMA0_GFX_RB_CNTL));
@@ -672,7 +668,7 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_active_vram_size(adev, adev->gmc.real_vram_size);
+			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 
 	}
 

@@ -107,12 +107,18 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	ww_mutex_lock(&resv->lock, NULL);
 	ret = amdgpu_bo_create(adev, attach->dmabuf->size, PAGE_SIZE, false,
 			       AMDGPU_GEM_DOMAIN_GTT, 0, sg, resv, &bo);
-	ww_mutex_unlock(&resv->lock);
 	if (ret)
-		return ERR_PTR(ret);
+		goto error;
 
-	bo->prime_shared_count = 1;
+	if (attach->dmabuf->ops != &amdgpu_dmabuf_ops)
+		bo->prime_shared_count = 1;
+
+	ww_mutex_unlock(&resv->lock);
 	return &bo->gem_base;
+
+error:
+	ww_mutex_unlock(&resv->lock);
+	return ERR_PTR(ret);
 }
 
 static int amdgpu_gem_map_attach(struct dma_buf *dma_buf,

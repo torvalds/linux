@@ -181,10 +181,6 @@ extern int amdgpu_cik_support;
 #define CIK_CURSOR_WIDTH 128
 #define CIK_CURSOR_HEIGHT 128
 
-/* GPU RESET flags */
-#define AMDGPU_RESET_INFO_VRAM_LOST  (1 << 0)
-#define AMDGPU_RESET_INFO_FULLRESET  (1 << 1)
-
 struct amdgpu_device;
 struct amdgpu_ib;
 struct amdgpu_cs_parser;
@@ -342,14 +338,6 @@ struct amdgpu_ih_funcs {
  */
 bool amdgpu_get_bios(struct amdgpu_device *adev);
 bool amdgpu_read_bios(struct amdgpu_device *adev);
-
-/*
- * Dummy page
- */
-struct amdgpu_dummy_page {
-	struct page	*page;
-	dma_addr_t	addr;
-};
 
 /*
  * Clocks
@@ -1080,7 +1068,7 @@ static inline void amdgpu_set_ib_value(struct amdgpu_cs_parser *p,
 /*
  * Writeback
  */
-#define AMDGPU_MAX_WB 512	/* Reserve at most 512 WB slots for amdgpu-owned rings. */
+#define AMDGPU_MAX_WB 128	/* Reserve at most 128 WB slots for amdgpu-owned rings. */
 
 struct amdgpu_wb {
 	struct amdgpu_bo	*wb_obj;
@@ -1505,7 +1493,7 @@ struct amdgpu_device {
 	/* MC */
 	struct amdgpu_gmc		gmc;
 	struct amdgpu_gart		gart;
-	struct amdgpu_dummy_page	dummy_page;
+	dma_addr_t			dummy_page_addr;
 	struct amdgpu_vm_manager	vm_manager;
 	struct amdgpu_vmhub             vmhub[AMDGPU_MAX_VMHUBS];
 
@@ -1839,9 +1827,6 @@ void amdgpu_device_vram_location(struct amdgpu_device *adev,
 void amdgpu_device_gart_location(struct amdgpu_device *adev,
 				 struct amdgpu_gmc *mc);
 int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev);
-void amdgpu_ttm_set_active_vram_size(struct amdgpu_device *adev, u64 size);
-int amdgpu_ttm_init(struct amdgpu_device *adev);
-void amdgpu_ttm_fini(struct amdgpu_device *adev);
 void amdgpu_device_program_register_sequence(struct amdgpu_device *adev,
 					     const u32 *registers,
 					     const u32 array_size);

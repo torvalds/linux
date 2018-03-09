@@ -34,6 +34,8 @@
 
 #include "dce110_compressor.h"
 
+#define DC_LOGGER \
+		cp110->base.ctx->logger
 #define DCP_REG(reg)\
 	(reg + cp110->offsets.dcp_offset)
 #define DMIF_REG(reg)\
@@ -120,14 +122,10 @@ static void wait_for_fbc_state_changed(
 	}
 
 	if (counter == 10) {
-		dm_logger_write(
-			cp110->base.ctx->logger, LOG_WARNING,
-			"%s: wait counter exceeded, changes to HW not applied",
+		DC_LOG_WARNING("%s: wait counter exceeded, changes to HW not applied",
 			__func__);
 	} else {
-		dm_logger_write(
-			cp110->base.ctx->logger, LOG_SYNC,
-			"FBC status changed to %d", enabled);
+		DC_LOG_SYNC("FBC status changed to %d", enabled);
 	}
 
 
@@ -310,9 +308,7 @@ void dce110_compressor_program_compressed_surface_address_and_pitch(
 	if (compressor->min_compress_ratio == FBC_COMPRESS_RATIO_1TO1)
 		fbc_pitch = fbc_pitch / 8;
 	else
-		dm_logger_write(
-			compressor->ctx->logger, LOG_WARNING,
-			"%s: Unexpected DCE11 compression ratio",
+		DC_LOG_WARNING("%s: Unexpected DCE11 compression ratio",
 			__func__);
 
 	/* Clear content first. */
