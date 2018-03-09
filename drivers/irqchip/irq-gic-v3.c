@@ -532,6 +532,7 @@ static void gic_cpu_sys_reg_init(void)
 	int i, cpu = smp_processor_id();
 	u64 mpidr = cpu_logical_map(cpu);
 	u64 need_rss = MPIDR_RS(mpidr);
+	u32 val;
 
 	/*
 	 * Need to check that the SRE bit has actually been set. If
@@ -561,6 +562,28 @@ static void gic_cpu_sys_reg_init(void)
 		/* EOI deactivates interrupt too (mode 0) */
 		gic_write_ctlr(ICC_CTLR_EL1_EOImode_drop_dir);
 	}
+
+	val = gic_read_ctlr();
+	val &= ICC_CTLR_EL1_PRI_BITS_MASK;
+	val >>= ICC_CTLR_EL1_PRI_BITS_SHIFT;
+
+	switch(val + 1) {
+	case 8:
+	case 7:
+		write_gicreg(0, ICC_AP0R3_EL1);
+		write_gicreg(0, ICC_AP1R3_EL1);
+		write_gicreg(0, ICC_AP0R2_EL1);
+		write_gicreg(0, ICC_AP1R2_EL1);
+	case 6:
+		write_gicreg(0, ICC_AP0R1_EL1);
+		write_gicreg(0, ICC_AP1R1_EL1);
+	case 5:
+	case 4:
+		write_gicreg(0, ICC_AP0R0_EL1);
+		write_gicreg(0, ICC_AP1R0_EL1);
+	}
+
+	isb();
 
 	/* ... and let's hit the road... */
 	gic_write_grpen1(1);
