@@ -229,7 +229,7 @@ static int qeth_l3_add_ip(struct qeth_card *card, struct qeth_ipaddr *tmp_addr)
 
 		if (qeth_l3_is_addr_covered_by_ipato(card, addr)) {
 			QETH_CARD_TEXT(card, 2, "tkovaddr");
-			addr->set_flags |= QETH_IPA_SETIP_TAKEOVER_FLAG;
+			addr->ipato = 1;
 		}
 		hash_add(card->ip_htable, &addr->hnode,
 				qeth_l3_ipaddr_hash(addr));
@@ -382,21 +382,38 @@ static void qeth_l3_fill_netmask(u8 *netmask, unsigned int len)
 	}
 }
 
-static int qeth_l3_send_setdelip(struct qeth_card *card,
-		struct qeth_ipaddr *addr, int ipacmd, unsigned int flags)
+static u32 qeth_l3_get_setdelip_flags(struct qeth_ipaddr *addr, bool set)
 {
-	int rc;
+	switch (addr->type) {
+	case QETH_IP_TYPE_RXIP:
+		return (set) ? QETH_IPA_SETIP_TAKEOVER_FLAG : 0;
+	case QETH_IP_TYPE_VIPA:
+		return (set) ? QETH_IPA_SETIP_VIPA_FLAG :
+			       QETH_IPA_DELIP_VIPA_FLAG;
+	default:
+		return (set && addr->ipato) ? QETH_IPA_SETIP_TAKEOVER_FLAG : 0;
+	}
+}
+
+static int qeth_l3_send_setdelip(struct qeth_card *card,
+				 struct qeth_ipaddr *addr,
+				 enum qeth_ipa_cmds ipacmd)
+{
 	struct qeth_cmd_buffer *iob;
 	struct qeth_ipa_cmd *cmd;
 	__u8 netmask[16];
+	u32 flags;
 
 	QETH_CARD_TEXT(card, 4, "setdelip");
-	QETH_CARD_TEXT_(card, 4, "flags%02X", flags);
 
 	iob = qeth_get_ipacmd_buffer(card, ipacmd, addr->proto);
 	if (!iob)
 		return -ENOMEM;
 	cmd = __ipa_cmd(iob);
+
+	flags = qeth_l3_get_setdelip_flags(addr, ipacmd == IPA_CMD_SETIP);
+	QETH_CARD_TEXT_(card, 4, "flags%02X", flags);
+
 	if (addr->proto == QETH_PROT_IPV6) {
 		memcpy(cmd->data.setdelip6.ip_addr, &addr->u.a6.addr,
 		       sizeof(struct in6_addr));
@@ -410,9 +427,7 @@ static int qeth_l3_send_setdelip(struct qeth_card *card,
 		cmd->data.setdelip4.flags = flags;
 	}
 
-	rc = qeth_send_ipa_cmd(card, iob, NULL, NULL);
-
-	return rc;
+	return qeth_send_ipa_cmd(card, iob, NULL, NULL);
 }
 
 static int qeth_l3_send_setrouting(struct qeth_card *card,
@@ -528,10 +543,7 @@ void qeth_l3_update_ipato(struct qeth_card *card)
 	hash_for_each(card->ip_htable, i, addr, hnode) {
 		if (addr->type != QETH_IP_TYPE_NORMAL)
 			continue;
-		if (qeth_l3_is_addr_covered_by_ipato(card, addr))
-			addr->set_flags |= QETH_IPA_SETIP_TAKEOVER_FLAG;
-		else
-			addr->set_flags &= ~QETH_IPA_SETIP_TAKEOVER_FLAG;
+		addr->ipato = qeth_l3_is_addr_covered_by_ipato(card, addr);
 	}
 }
 
@@ -621,12 +633,6 @@ int qeth_l3_modify_rxip_vipa(struct qeth_card *card, bool add, const u8 *ip,
 		memcpy(&addr.u.a4.addr, ip, 4);
 	else
 		memcpy(&addr.u.a6.addr, ip, 16);
-	if (type == QETH_IP_TYPE_RXIP) {
-		addr.set_flags = QETH_IPA_SETIP_TAKEOVER_FLAG;
-	} else {
-		addr.set_flags = QETH_IPA_SETIP_VIPA_FLAG;
-		addr.del_flags = QETH_IPA_DELIP_VIPA_FLAG;
-	}
 
 	spin_lock_bh(&card->ip_lock);
 	rc = add ? qeth_l3_add_ip(card, &addr) : qeth_l3_delete_ip(card, &addr);
@@ -674,8 +680,7 @@ static int qeth_l3_register_addr_entry(struct qeth_card *card,
 		if (addr->is_multicast)
 			rc =  qeth_l3_send_setdelmc(card, addr, IPA_CMD_SETIPM);
 		else
-			rc = qeth_l3_send_setdelip(card, addr, IPA_CMD_SETIP,
-					addr->set_flags);
+			rc = qeth_l3_send_setdelip(card, addr, IPA_CMD_SETIP);
 		if (rc)
 			QETH_CARD_TEXT(card, 2, "failed");
 	} while ((--cnt > 0) && rc);
@@ -707,8 +712,7 @@ static int qeth_l3_deregister_addr_entry(struct qeth_card *card,
 	if (addr->is_multicast)
 		rc = qeth_l3_send_setdelmc(card, addr, IPA_CMD_DELIPM);
 	else
-		rc = qeth_l3_send_setdelip(card, addr, IPA_CMD_DELIP,
-					addr->del_flags);
+		rc = qeth_l3_send_setdelip(card, addr, IPA_CMD_DELIP);
 	if (rc)
 		QETH_CARD_TEXT(card, 2, "failed");
 
