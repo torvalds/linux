@@ -29,8 +29,6 @@
  *
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -51,17 +49,16 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off lgdt330x frontend debugging (default:off).");
 
-#define dprintk(fmt, arg...) do {					\
+#define dprintk(state, fmt, arg...) do {				\
 	if (debug)							\
-		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
-		       __func__, ##arg);				\
+		dev_printk(KERN_DEBUG, &state->client->dev, fmt, ##arg);\
 } while (0)
 
 struct lgdt330x_state {
-	struct i2c_adapter *i2c;
+	struct i2c_client *client;
 
 	/* Configuration settings */
-	const struct lgdt330x_config *config;
+	struct lgdt330x_config config;
 
 	struct dvb_frontend frontend;
 
@@ -74,29 +71,24 @@ struct lgdt330x_state {
 };
 
 static int i2c_write_demod_bytes(struct lgdt330x_state *state,
-				 u8 *buf, /* data bytes to send */
+				 const u8 *buf, /* data bytes to send */
 				 int len  /* number of bytes to send */)
 {
-	struct i2c_msg msg = {
-		.addr = state->config->demod_address,
-		.flags = 0,
-		.buf = buf,
-		.len = 2
-	};
 	int i;
 	int err;
 
 	for (i = 0; i < len - 1; i += 2) {
-		err = i2c_transfer(state->i2c, &msg, 1);
-		if (err != 1) {
-			pr_warn("%s: error (addr %02x <- %02x, err = %i)\n",
-				__func__, msg.buf[0], msg.buf[1], err);
+		err = i2c_master_send(state->client, buf, 2);
+		if (err != 2) {
+			dev_warn(&state->client->dev,
+				 "%s: error (addr %02x <- %02x, err = %i)\n",
+				__func__, buf[0], buf[1], err);
 			if (err < 0)
 				return err;
 			else
 				return -EREMOTEIO;
 		}
-		msg.buf += 2;
+		buf += 2;
 	}
 	return 0;
 }
@@ -111,12 +103,12 @@ static int i2c_read_demod_bytes(struct lgdt330x_state *state,
 	u8 wr[] = { reg };
 	struct i2c_msg msg[] = {
 		{
-			.addr = state->config->demod_address,
+			.addr = state->client->addr,
 			.flags = 0,
 			.buf = wr,
 			.len = 1
 		}, {
-			.addr = state->config->demod_address,
+			.addr = state->client->addr,
 			.flags = I2C_M_RD,
 			.buf = buf,
 			.len = len
@@ -124,10 +116,11 @@ static int i2c_read_demod_bytes(struct lgdt330x_state *state,
 	};
 	int ret;
 
-	ret = i2c_transfer(state->i2c, msg, 2);
+	ret = i2c_transfer(state->client->adapter, msg, 2);
 	if (ret != 2) {
-		pr_warn("%s: addr 0x%02x select 0x%02x error (ret == %i)\n",
-			__func__, state->config->demod_address, reg, ret);
+		dev_warn(&state->client->dev,
+			 "%s: addr 0x%02x select 0x%02x error (ret == %i)\n",
+			 __func__, state->client->addr, reg, ret);
 		if (ret >= 0)
 			ret = -EIO;
 	} else {
@@ -181,7 +174,7 @@ static int lgdt3303_sw_reset(struct lgdt330x_state *state)
 
 static int lgdt330x_sw_reset(struct lgdt330x_state *state)
 {
-	switch (state->config->demod_chip) {
+	switch (state->config.demod_chip) {
 	case LGDT3302:
 		return lgdt3302_sw_reset(state);
 	case LGDT3303:
@@ -269,7 +262,7 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 	char  *chip_name;
 	int    err;
 
-	switch (state->config->demod_chip) {
+	switch (state->config.demod_chip) {
 	case LGDT3302:
 		chip_name = "LGDT3302";
 		err = i2c_write_demod_bytes(state, lgdt3302_init_data,
@@ -277,7 +270,7 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 		break;
 	case LGDT3303:
 		chip_name = "LGDT3303";
-		switch (state->config->clock_polarity_flip) {
+		switch (state->config.clock_polarity_flip) {
 		case 2:
 			err = i2c_write_demod_bytes(state,
 						    flip_2_lgdt3303_init_data,
@@ -296,10 +289,11 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 		break;
 	default:
 		chip_name = "undefined";
-		printk(KERN_WARNING "Only LGDT3302 and LGDT3303 are supported chips.\n");
+		dev_warn(&state->client->dev,
+			 "Only LGDT3302 and LGDT3303 are supported chips.\n");
 		err = -ENODEV;
 	}
-	dprintk("Initialized the %s chip\n", chip_name);
+	dprintk(state, "Initialized the %s chip\n", chip_name);
 	if (err < 0)
 		return err;
 	return lgdt330x_sw_reset(state);
@@ -319,7 +313,7 @@ static int lgdt330x_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 
 	*ucblocks = 0;
 
-	switch (state->config->demod_chip) {
+	switch (state->config.demod_chip) {
 	case LGDT3302:
 		err = i2c_read_demod_bytes(state, LGDT3302_PACKET_ERR_COUNTER1,
 					   buf, sizeof(buf));
@@ -329,7 +323,8 @@ static int lgdt330x_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 					   buf, sizeof(buf));
 		break;
 	default:
-		printk(KERN_WARNING "Only LGDT3302 and LGDT3303 are supported chips.\n");
+		dev_warn(&state->client->dev,
+			 "Only LGDT3302 and LGDT3303 are supported chips.\n");
 		err = -ENODEV;
 	}
 	if (err < 0)
@@ -382,16 +377,16 @@ static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 	if (state->current_modulation != p->modulation) {
 		switch (p->modulation) {
 		case VSB_8:
-			dprintk("VSB_8 MODE\n");
+			dprintk(state, "VSB_8 MODE\n");
 
 			/* Select VSB mode */
 			top_ctrl_cfg[1] = 0x03;
 
 			/* Select ANT connector if supported by card */
-			if (state->config->pll_rf_set)
-				state->config->pll_rf_set(fe, 1);
+			if (state->config.pll_rf_set)
+				state->config.pll_rf_set(fe, 1);
 
-			if (state->config->demod_chip == LGDT3303) {
+			if (state->config.demod_chip == LGDT3303) {
 				err = i2c_write_demod_bytes(state,
 							    lgdt3303_8vsb_44_data,
 							    sizeof(lgdt3303_8vsb_44_data));
@@ -399,16 +394,16 @@ static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 			break;
 
 		case QAM_64:
-			dprintk("QAM_64 MODE\n");
+			dprintk(state, "QAM_64 MODE\n");
 
 			/* Select QAM_64 mode */
 			top_ctrl_cfg[1] = 0x00;
 
 			/* Select CABLE connector if supported by card */
-			if (state->config->pll_rf_set)
-				state->config->pll_rf_set(fe, 0);
+			if (state->config.pll_rf_set)
+				state->config.pll_rf_set(fe, 0);
 
-			if (state->config->demod_chip == LGDT3303) {
+			if (state->config.demod_chip == LGDT3303) {
 				err = i2c_write_demod_bytes(state,
 							    lgdt3303_qam_data,
 							    sizeof(lgdt3303_qam_data));
@@ -416,42 +411,44 @@ static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 			break;
 
 		case QAM_256:
-			dprintk("QAM_256 MODE\n");
+			dprintk(state, "QAM_256 MODE\n");
 
 			/* Select QAM_256 mode */
 			top_ctrl_cfg[1] = 0x01;
 
 			/* Select CABLE connector if supported by card */
-			if (state->config->pll_rf_set)
-				state->config->pll_rf_set(fe, 0);
+			if (state->config.pll_rf_set)
+				state->config.pll_rf_set(fe, 0);
 
-			if (state->config->demod_chip == LGDT3303) {
+			if (state->config.demod_chip == LGDT3303) {
 				err = i2c_write_demod_bytes(state,
 							    lgdt3303_qam_data,
 							    sizeof(lgdt3303_qam_data));
 			}
 			break;
 		default:
-			pr_warn("%s: Modulation type(%d) UNSUPPORTED\n",
-				__func__, p->modulation);
+			dev_warn(&state->client->dev,
+				 "%s: Modulation type(%d) UNSUPPORTED\n",
+				 __func__, p->modulation);
 			return -1;
 		}
 		if (err < 0)
-			pr_warn("%s: error blasting bytes to lgdt3303 for modulation type(%d)\n",
-				__func__, p->modulation);
+			dev_warn(&state->client->dev,
+				 "%s: error blasting bytes to lgdt3303 for modulation type(%d)\n",
+				 __func__, p->modulation);
 
 		/*
 		 * select serial or parallel MPEG hardware interface
 		 * Serial:   0x04 for LGDT3302 or 0x40 for LGDT3303
 		 * Parallel: 0x00
 		 */
-		top_ctrl_cfg[1] |= state->config->serial_mpeg;
+		top_ctrl_cfg[1] |= state->config.serial_mpeg;
 
 		/* Select the requested mode */
 		i2c_write_demod_bytes(state, top_ctrl_cfg,
 				      sizeof(top_ctrl_cfg));
-		if (state->config->set_ts_params)
-			state->config->set_ts_params(fe, 0);
+		if (state->config.set_ts_params)
+			state->config.set_ts_params(fe, 0);
 		state->current_modulation = p->modulation;
 	}
 
@@ -492,7 +489,7 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 
 	/* AGC status register */
 	i2c_read_demod_bytes(state, AGC_STATUS, buf, 1);
-	dprintk("AGC_STATUS = 0x%02x\n", buf[0]);
+	dprintk(state, "AGC_STATUS = 0x%02x\n", buf[0]);
 	if ((buf[0] & 0x0c) == 0x8) {
 		/*
 		 * Test signal does not exist flag
@@ -509,7 +506,8 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 
 	/* signal status */
 	i2c_read_demod_bytes(state, TOP_CONTROL, buf, sizeof(buf));
-	dprintk("TOP_CONTROL = 0x%02x, IRO_MASK = 0x%02x, IRQ_STATUS = 0x%02x\n",
+	dprintk(state,
+		"TOP_CONTROL = 0x%02x, IRO_MASK = 0x%02x, IRQ_STATUS = 0x%02x\n",
 		buf[0], buf[1], buf[2]);
 
 	/* sync status */
@@ -524,7 +522,7 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 
 	/* Carrier Recovery Lock Status Register */
 	i2c_read_demod_bytes(state, CARRIER_LOCK, buf, 1);
-	dprintk("CARRIER_LOCK = 0x%02x\n", buf[0]);
+	dprintk(state, "CARRIER_LOCK = 0x%02x\n", buf[0]);
 	switch (state->current_modulation) {
 	case QAM_256:
 	case QAM_64:
@@ -537,8 +535,9 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 			*status |= FE_HAS_CARRIER;
 		break;
 	default:
-		pr_warn("%s: Modulation set to unsupported value\n",
-			__func__);
+		dev_warn(&state->client->dev,
+			 "%s: Modulation set to unsupported value\n",
+			 __func__);
 	}
 
 	return 0;
@@ -558,7 +557,7 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 	if (err < 0)
 		return err;
 
-	dprintk("AGC_STATUS = 0x%02x\n", buf[0]);
+	dprintk(state, "AGC_STATUS = 0x%02x\n", buf[0]);
 	if ((buf[0] & 0x21) == 0x01) {
 		/*
 		 * Test input signal does not exist flag
@@ -569,7 +568,7 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 
 	/* Carrier Recovery Lock Status Register */
 	i2c_read_demod_bytes(state, CARRIER_LOCK, buf, 1);
-	dprintk("CARRIER_LOCK = 0x%02x\n", buf[0]);
+	dprintk(state, "CARRIER_LOCK = 0x%02x\n", buf[0]);
 	switch (state->current_modulation) {
 	case QAM_256:
 	case QAM_64:
@@ -600,8 +599,9 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 		}
 		break;
 	default:
-		pr_warn("%s: Modulation set to unsupported value\n",
-			__func__);
+		dev_warn(&state->client->dev,
+			 "%s: Modulation set to unsupported value\n",
+			 __func__);
 	}
 	return 0;
 }
@@ -677,15 +677,16 @@ static int lgdt3302_read_snr(struct dvb_frontend *fe, u16 *snr)
 		/* log10(688128)*2^24 and log10(696320)*2^24 */
 		break;
 	default:
-		pr_err("%s: Modulation set to unsupported value\n",
-		       __func__);
+		dev_err(&state->client->dev,
+			"%s: Modulation set to unsupported value\n",
+			__func__);
 		return -EREMOTEIO; /* return -EDRIVER_IS_GIBBERED; */
 	}
 
 	state->snr = calculate_snr(noise, c);
 	*snr = (state->snr) >> 16; /* Convert from 8.24 fixed-point to 8.8 */
 
-	dprintk("noise = 0x%08x, snr = %d.%02d dB\n", noise,
+	dprintk(state, "noise = 0x%08x, snr = %d.%02d dB\n", noise,
 		state->snr >> 24, (((state->snr >> 8) & 0xffff) * 100) >> 16);
 
 	return 0;
@@ -721,15 +722,16 @@ static int lgdt3303_read_snr(struct dvb_frontend *fe, u16 *snr)
 		/* log10(688128)*2^24 and log10(696320)*2^24 */
 		break;
 	default:
-		pr_err("%s: Modulation set to unsupported value\n",
-		       __func__);
+		dev_err(&state->client->dev,
+			"%s: Modulation set to unsupported value\n",
+			__func__);
 		return -EREMOTEIO; /* return -EDRIVER_IS_GIBBERED; */
 	}
 
 	state->snr = calculate_snr(noise, c);
 	*snr = (state->snr) >> 16; /* Convert from 8.24 fixed-point to 8.8 */
 
-	dprintk("noise = 0x%08x, snr = %d.%02d dB\n", noise,
+	dprintk(state, "noise = 0x%08x, snr = %d.%02d dB\n", noise,
 		state->snr >> 24, (((state->snr >> 8) & 0xffff) * 100) >> 16);
 
 	return 0;
@@ -773,15 +775,27 @@ lgdt330x_get_tune_settings(struct dvb_frontend *fe,
 static void lgdt330x_release(struct dvb_frontend *fe)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
+	struct i2c_client *client = state->client;
 
-	kfree(state);
+	dev_dbg(&client->dev, "\n");
+
+	i2c_unregister_device(client);
+}
+
+static struct dvb_frontend *lgdt330x_get_dvb_frontend(struct i2c_client *client)
+{
+	struct lgdt330x_state *state = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return &state->frontend;
 }
 
 static const struct dvb_frontend_ops lgdt3302_ops;
 static const struct dvb_frontend_ops lgdt3303_ops;
 
-struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *config,
-				     struct i2c_adapter *i2c)
+static int lgdt330x_probe(struct i2c_client *client,
+			  const struct i2c_device_id *id)
 {
 	struct lgdt330x_state *state = NULL;
 	u8 buf[1];
@@ -792,11 +806,13 @@ struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *config,
 		goto error;
 
 	/* Setup the state */
-	state->config = config;
-	state->i2c = i2c;
+	memcpy(&state->config, client->dev.platform_data,
+	       sizeof(state->config));
+	i2c_set_clientdata(client, state);
+	state->client = client;
 
 	/* Create dvb_frontend */
-	switch (config->demod_chip) {
+	switch (state->config.demod_chip) {
 	case LGDT3302:
 		memcpy(&state->frontend.ops, &lgdt3302_ops,
 		       sizeof(struct dvb_frontend_ops));
@@ -810,6 +826,9 @@ struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *config,
 	}
 	state->frontend.demodulator_priv = state;
 
+	/* Setup get frontend callback */
+	state->config.get_dvb_frontend = lgdt330x_get_dvb_frontend;
+
 	/* Verify communication with demod chip */
 	if (i2c_read_demod_bytes(state, 2, buf, 1))
 		goto error;
@@ -817,15 +836,33 @@ struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *config,
 	state->current_frequency = -1;
 	state->current_modulation = -1;
 
-	pr_info("Demod loaded for LGDT330%s chip\n",
-		config->demod_chip == LGDT3302 ? "2" : "3");
+	dev_info(&state->client->dev,
+		"Demod loaded for LGDT330%s chip\n",
+		state->config.demod_chip == LGDT3302 ? "2" : "3");
 
-	return &state->frontend;
+	return 0;
 
 error:
 	kfree(state);
-	dprintk("ERROR\n");
-	return NULL;
+	dprintk(state, "ERROR\n");
+	return -ENODEV;
+}
+struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *_config,
+				     u8 demod_address,
+				     struct i2c_adapter *i2c)
+{
+	struct i2c_client *client;
+	struct i2c_board_info board_info = {};
+	struct lgdt330x_config config = *_config;
+
+	strlcpy(board_info.type, "lgdt330x", sizeof(board_info.type));
+	board_info.addr = demod_address;
+	board_info.platform_data = &config;
+	client = i2c_new_device(i2c, &board_info);
+	if (!client || !client->dev.driver)
+		return NULL;
+
+	return lgdt330x_get_dvb_frontend(client);
 }
 EXPORT_SYMBOL(lgdt330x_attach);
 
@@ -874,6 +911,36 @@ static const struct dvb_frontend_ops lgdt3303_ops = {
 	.read_ucblocks        = lgdt330x_read_ucblocks,
 	.release              = lgdt330x_release,
 };
+
+static int lgdt330x_remove(struct i2c_client *client)
+{
+	struct lgdt330x_state *state = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	kfree(state);
+
+	return 0;
+}
+
+static const struct i2c_device_id lgdt330x_id_table[] = {
+	{"lgdt330x", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, lgdt330x_id_table);
+
+static struct i2c_driver lgdt330x_driver = {
+	.driver = {
+		.name	= "lgdt330x",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= lgdt330x_probe,
+	.remove		= lgdt330x_remove,
+	.id_table	= lgdt330x_id_table,
+};
+
+module_i2c_driver(lgdt330x_driver);
+
 
 MODULE_DESCRIPTION("LGDT330X (ATSC 8VSB & ITU-T J.83 AnnexB 64/256 QAM) Demodulator Driver");
 MODULE_AUTHOR("Wilson Michaels");

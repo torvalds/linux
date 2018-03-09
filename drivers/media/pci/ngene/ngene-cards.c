@@ -721,7 +721,6 @@ static int cineS2_probe(struct ngene_channel *chan)
 
 
 static struct lgdt330x_config aver_m780 = {
-	.demod_address = 0xb2 >> 1,
 	.demod_chip    = LGDT3303,
 	.serial_mpeg   = 0x00, /* PARALLEL */
 	.clock_polarity_flip = 1,
@@ -738,7 +737,8 @@ static int demod_attach_lg330x(struct ngene_channel *chan)
 {
 	struct device *pdev = &chan->dev->pci_dev->dev;
 
-	chan->fe = dvb_attach(lgdt330x_attach, &aver_m780, &chan->i2c_adapter);
+	chan->fe = dvb_attach(lgdt330x_attach, &aver_m780,
+			      0xb2 >> 1, &chan->i2c_adapter);
 	if (chan->fe == NULL) {
 		dev_err(pdev, "No LGDT330x found!\n");
 		return -ENODEV;
