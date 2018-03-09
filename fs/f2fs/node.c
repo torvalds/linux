@@ -1141,8 +1141,12 @@ static int read_node_page(struct page *page, int op_flags)
 		.encrypted_page = NULL,
 	};
 
-	if (PageUptodate(page))
+	if (PageUptodate(page)) {
+#ifdef CONFIG_F2FS_CHECK_FS
+		f2fs_bug_on(sbi, !f2fs_inode_chksum_verify(sbi, page));
+#endif
 		return LOCKED_PAGE;
+	}
 
 	f2fs_get_node_info(sbi, page->index, &ni);
 
@@ -1778,6 +1782,10 @@ static int f2fs_set_node_page_dirty(struct page *page)
 
 	if (!PageUptodate(page))
 		SetPageUptodate(page);
+#ifdef CONFIG_F2FS_CHECK_FS
+	if (IS_INODE(page))
+		f2fs_inode_chksum_set(F2FS_P_SB(page), page);
+#endif
 	if (!PageDirty(page)) {
 		__set_page_dirty_nobuffers(page);
 		inc_page_count(F2FS_P_SB(page), F2FS_DIRTY_NODES);

@@ -162,8 +162,12 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct page *page)
 	if (unlikely(is_sbi_flag_set(sbi, SBI_IS_SHUTDOWN)))
 		return true;
 
+#ifdef CONFIG_F2FS_CHECK_FS
+	if (!f2fs_enable_inode_chksum(sbi, page))
+#else
 	if (!f2fs_enable_inode_chksum(sbi, page) ||
 			PageDirty(page) || PageWriteback(page))
+#endif
 		return true;
 
 	ri = &F2FS_NODE(page)->i;
@@ -477,6 +481,10 @@ void f2fs_update_inode(struct inode *inode, struct page *node_page)
 	F2FS_I(inode)->i_disk_time[1] = inode->i_ctime;
 	F2FS_I(inode)->i_disk_time[2] = inode->i_mtime;
 	F2FS_I(inode)->i_disk_time[3] = F2FS_I(inode)->i_crtime;
+
+#ifdef CONFIG_F2FS_CHECK_FS
+	f2fs_inode_chksum_set(F2FS_I_SB(inode), node_page);
+#endif
 }
 
 void f2fs_update_inode_page(struct inode *inode)
