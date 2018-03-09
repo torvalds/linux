@@ -618,13 +618,14 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 					      SCALER_POS1_SCL_HEIGHT));
 	}
 
-	/* Position Word 2: Source Image Size, Alpha Mode */
+	/* Position Word 2: Source Image Size, Alpha */
 	vc4_state->pos2_offset = vc4_state->dlist_count;
 	vc4_dlist_write(vc4_state,
 			VC4_SET_FIELD(fb->format->has_alpha ?
 				      SCALER_POS2_ALPHA_MODE_PIPELINE :
 				      SCALER_POS2_ALPHA_MODE_FIXED,
 				      SCALER_POS2_ALPHA_MODE) |
+			(fb->format->has_alpha ? SCALER_POS2_ALPHA_PREMULT : 0) |
 			VC4_SET_FIELD(vc4_state->src_w[0], SCALER_POS2_WIDTH) |
 			VC4_SET_FIELD(vc4_state->src_h[0], SCALER_POS2_HEIGHT));
 
