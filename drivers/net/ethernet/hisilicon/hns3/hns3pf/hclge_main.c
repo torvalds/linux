@@ -3091,14 +3091,16 @@ static int hclge_set_rss_input_tuple(struct hclge_dev *hdev)
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_INPUT_TUPLE, false);
 
 	req = (struct hclge_rss_input_tuple_cmd *)desc.data;
-	req->ipv4_tcp_en = HCLGE_RSS_INPUT_TUPLE_OTHER;
-	req->ipv4_udp_en = HCLGE_RSS_INPUT_TUPLE_OTHER;
-	req->ipv4_sctp_en = HCLGE_RSS_INPUT_TUPLE_SCTP;
-	req->ipv4_fragment_en = HCLGE_RSS_INPUT_TUPLE_OTHER;
-	req->ipv6_tcp_en = HCLGE_RSS_INPUT_TUPLE_OTHER;
-	req->ipv6_udp_en = HCLGE_RSS_INPUT_TUPLE_OTHER;
-	req->ipv6_sctp_en = HCLGE_RSS_INPUT_TUPLE_SCTP;
-	req->ipv6_fragment_en = HCLGE_RSS_INPUT_TUPLE_OTHER;
+
+	/* Get the tuple cfg from pf */
+	req->ipv4_tcp_en = hdev->vport[0].rss_tuple_sets.ipv4_tcp_en;
+	req->ipv4_udp_en = hdev->vport[0].rss_tuple_sets.ipv4_udp_en;
+	req->ipv4_sctp_en = hdev->vport[0].rss_tuple_sets.ipv4_sctp_en;
+	req->ipv4_fragment_en = hdev->vport[0].rss_tuple_sets.ipv4_fragment_en;
+	req->ipv6_tcp_en = hdev->vport[0].rss_tuple_sets.ipv6_tcp_en;
+	req->ipv6_udp_en = hdev->vport[0].rss_tuple_sets.ipv6_udp_en;
+	req->ipv6_sctp_en = hdev->vport[0].rss_tuple_sets.ipv6_sctp_en;
+	req->ipv6_fragment_en = hdev->vport[0].rss_tuple_sets.ipv6_fragment_en;
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
@@ -3204,15 +3206,16 @@ static int hclge_set_rss_tuple(struct hnae3_handle *handle,
 		return -EINVAL;
 
 	req = (struct hclge_rss_input_tuple_cmd *)desc.data;
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_INPUT_TUPLE, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Read rss tuple fail, status = %d\n", ret);
-		return ret;
-	}
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_INPUT_TUPLE, false);
 
-	hclge_cmd_reuse_desc(&desc, false);
+	req->ipv4_tcp_en = vport->rss_tuple_sets.ipv4_tcp_en;
+	req->ipv4_udp_en = vport->rss_tuple_sets.ipv4_udp_en;
+	req->ipv4_sctp_en = vport->rss_tuple_sets.ipv4_sctp_en;
+	req->ipv4_fragment_en = vport->rss_tuple_sets.ipv4_fragment_en;
+	req->ipv6_tcp_en = vport->rss_tuple_sets.ipv6_tcp_en;
+	req->ipv6_udp_en = vport->rss_tuple_sets.ipv6_udp_en;
+	req->ipv6_sctp_en = vport->rss_tuple_sets.ipv6_sctp_en;
+	req->ipv6_fragment_en = vport->rss_tuple_sets.ipv6_fragment_en;
 
 	tuple_sets = hclge_get_rss_hash_bits(nfc);
 	switch (nfc->flow_type) {
@@ -3249,52 +3252,49 @@ static int hclge_set_rss_tuple(struct hnae3_handle *handle,
 	}
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret)
+	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Set rss tuple fail, status = %d\n", ret);
+		return ret;
+	}
 
-	return ret;
+	vport->rss_tuple_sets.ipv4_tcp_en = req->ipv4_tcp_en;
+	vport->rss_tuple_sets.ipv4_udp_en = req->ipv4_udp_en;
+	vport->rss_tuple_sets.ipv4_sctp_en = req->ipv4_sctp_en;
+	vport->rss_tuple_sets.ipv4_fragment_en = req->ipv4_fragment_en;
+	vport->rss_tuple_sets.ipv6_tcp_en = req->ipv6_tcp_en;
+	vport->rss_tuple_sets.ipv6_udp_en = req->ipv6_udp_en;
+	vport->rss_tuple_sets.ipv6_sctp_en = req->ipv6_sctp_en;
+	vport->rss_tuple_sets.ipv6_fragment_en = req->ipv6_fragment_en;
+	return 0;
 }
 
 static int hclge_get_rss_tuple(struct hnae3_handle *handle,
 			       struct ethtool_rxnfc *nfc)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
-	struct hclge_dev *hdev = vport->back;
-	struct hclge_rss_input_tuple_cmd *req;
-	struct hclge_desc desc;
 	u8 tuple_sets;
-	int ret;
 
 	nfc->data = 0;
 
-	req = (struct hclge_rss_input_tuple_cmd *)desc.data;
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_RSS_INPUT_TUPLE, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"Read rss tuple fail, status = %d\n", ret);
-		return ret;
-	}
-
 	switch (nfc->flow_type) {
 	case TCP_V4_FLOW:
-		tuple_sets = req->ipv4_tcp_en;
+		tuple_sets = vport->rss_tuple_sets.ipv4_tcp_en;
 		break;
 	case UDP_V4_FLOW:
-		tuple_sets = req->ipv4_udp_en;
+		tuple_sets = vport->rss_tuple_sets.ipv4_udp_en;
 		break;
 	case TCP_V6_FLOW:
-		tuple_sets = req->ipv6_tcp_en;
+		tuple_sets = vport->rss_tuple_sets.ipv6_tcp_en;
 		break;
 	case UDP_V6_FLOW:
-		tuple_sets = req->ipv6_udp_en;
+		tuple_sets = vport->rss_tuple_sets.ipv6_udp_en;
 		break;
 	case SCTP_V4_FLOW:
-		tuple_sets = req->ipv4_sctp_en;
+		tuple_sets = vport->rss_tuple_sets.ipv4_sctp_en;
 		break;
 	case SCTP_V6_FLOW:
-		tuple_sets = req->ipv6_sctp_en;
+		tuple_sets = vport->rss_tuple_sets.ipv6_sctp_en;
 		break;
 	case IPV4_FLOW:
 	case IPV6_FLOW:
@@ -3349,6 +3349,23 @@ int hclge_rss_init_hw(struct hclge_dev *hdev)
 
 	/* Initialize RSS indirect table for each vport */
 	for (j = 0; j < hdev->num_vmdq_vport + 1; j++) {
+		vport[j].rss_tuple_sets.ipv4_tcp_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[j].rss_tuple_sets.ipv4_udp_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[j].rss_tuple_sets.ipv4_sctp_en =
+			HCLGE_RSS_INPUT_TUPLE_SCTP;
+		vport[j].rss_tuple_sets.ipv4_fragment_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[j].rss_tuple_sets.ipv6_tcp_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[j].rss_tuple_sets.ipv6_udp_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[j].rss_tuple_sets.ipv6_sctp_en =
+			HCLGE_RSS_INPUT_TUPLE_SCTP;
+		vport[j].rss_tuple_sets.ipv6_fragment_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+
 		for (i = 0; i < HCLGE_RSS_IND_TBL_SIZE; i++) {
 			vport[j].rss_indirection_tbl[i] =
 				i % vport[j].alloc_rss_size;

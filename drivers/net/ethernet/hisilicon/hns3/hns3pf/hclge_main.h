@@ -573,6 +573,17 @@ struct hclge_rx_vtag_cfg {
 	bool vlan2_vlan_prionly;/* Outer VLAN Tag up to descriptor Enable */
 };
 
+struct hclge_rss_tuple_cfg {
+	u8 ipv4_tcp_en;
+	u8 ipv4_udp_en;
+	u8 ipv4_sctp_en;
+	u8 ipv4_fragment_en;
+	u8 ipv6_tcp_en;
+	u8 ipv6_udp_en;
+	u8 ipv6_sctp_en;
+	u8 ipv6_fragment_en;
+};
+
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
 
@@ -580,6 +591,8 @@ struct hclge_vport {
 	/* User configured lookup table entries */
 	u8  rss_indirection_tbl[HCLGE_RSS_IND_TBL_SIZE];
 	int rss_algo;		/* User configured hash algorithm */
+	/* User configured rss tuple sets */
+	struct hclge_rss_tuple_cfg rss_tuple_sets;
 
 	u16 alloc_rss_size;
 
