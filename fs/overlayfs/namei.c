@@ -258,7 +258,10 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 		goto out;
 	}
 	d->is_dir = true;
-	if (!d->last && ovl_is_opaquedir(this)) {
+	if (d->last)
+		goto out;
+
+	if (ovl_is_opaquedir(this)) {
 		d->stop = d->opaque = true;
 		goto out;
 	}
