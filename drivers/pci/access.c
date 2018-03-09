@@ -17,9 +17,9 @@
 DEFINE_RAW_SPINLOCK(pci_lock);
 
 /*
- *  Wrappers for all PCI configuration access functions.  They just check
- *  alignment, do locking and call the low-level functions pointed to
- *  by pci_dev->ops.
+ * Wrappers for all PCI configuration access functions.  They just check
+ * alignment, do locking and call the low-level functions pointed to
+ * by pci_dev->ops.
  */
 
 #define PCI_byte_BAD 0
@@ -686,8 +686,10 @@ void pci_cfg_access_unlock(struct pci_dev *dev)
 
 	raw_spin_lock_irqsave(&pci_lock, flags);
 
-	/* This indicates a problem in the caller, but we don't need
-	 * to kill them, unlike a double-block above. */
+	/*
+	 * This indicates a problem in the caller, but we don't need
+	 * to kill them, unlike a double-block above.
+	 */
 	WARN_ON(!dev->block_cfg_access);
 
 	dev->block_cfg_access = 0;

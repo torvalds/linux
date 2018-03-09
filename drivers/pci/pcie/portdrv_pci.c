@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * File:	portdrv_pci.c
  * Purpose:	PCI Express Port Bus Driver
  * Author:	Tom Nguyen <tom.l.nguyen@intel.com>
- * Version:	v1.0
  *
  * Copyright (C) 2004 Intel
  * Copyright (C) Tom Long Nguyen (tom.l.nguyen@intel.com)

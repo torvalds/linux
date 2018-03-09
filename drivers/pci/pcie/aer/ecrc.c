@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *    Enables/disables PCIe ECRC checking.
+ * Enable/disable PCIe ECRC checking
  *
- *    (C) Copyright 2009 Hewlett-Packard Development Company, L.P.
+ * (C) Copyright 2009 Hewlett-Packard Development Company, L.P.
  *    Andrew Patterson <andrew.patterson@hp.com>
  */
 

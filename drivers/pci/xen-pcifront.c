@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Xen PCI Frontend.
+ * Xen PCI Frontend
  *
- *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
+ * Author: Ryan Wilson <hap9@epoch.ncsc.mil>
  */
 #include <linux/module.h>
 #include <linux/init.h>
