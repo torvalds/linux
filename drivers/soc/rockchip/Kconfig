@@ -1,5 +1,7 @@
 if ARCH_ROCKCHIP || COMPILE_TEST
 
+source "drivers/soc/rockchip/Kconfig.cpu"
+
 #
 # Rockchip Soc drivers
 #
