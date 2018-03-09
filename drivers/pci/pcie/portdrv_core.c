@@ -211,9 +211,6 @@ static int get_port_device_capability(struct pci_dev *dev)
 	int services = 0;
 	int cap_mask = 0;
 
-	if (pcie_ports_disabled)
-		return 0;
-
 	cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
 			| PCIE_PORT_SERVICE_VC;
 	if (pci_aer_available())
