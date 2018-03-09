@@ -31,11 +31,6 @@
 #define IORT_IOMMU_TYPE		((1 << ACPI_IORT_NODE_SMMU) |	\
 				(1 << ACPI_IORT_NODE_SMMU_V3))
 
-/* Until ACPICA headers cover IORT rev. C */
-#ifndef ACPI_IORT_SMMU_V3_CAVIUM_CN99XX
-#define ACPI_IORT_SMMU_V3_CAVIUM_CN99XX		0x2
-#endif
-
 struct iort_its_msi_chip {
 	struct list_head	list;
 	struct fwnode_handle	*fw_node;
@@ -366,7 +361,6 @@ static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 	return NULL;
 }
 
-#if (ACPI_CA_VERSION > 0x20170929)
 static int iort_get_id_mapping_index(struct acpi_iort_node *node)
 {
 	struct acpi_iort_smmu_v3 *smmu;
@@ -400,12 +394,6 @@ static int iort_get_id_mapping_index(struct acpi_iort_node *node)
 		return -EINVAL;
 	}
 }
-#else
-static inline int iort_get_id_mapping_index(struct acpi_iort_node *node)
-{
-	return -EINVAL;
-}
-#endif
 
 static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
 					       u32 id_in, u32 *id_out,
