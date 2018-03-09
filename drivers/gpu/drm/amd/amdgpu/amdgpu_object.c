@@ -821,7 +821,8 @@ static const char *amdgpu_vram_names[] = {
 	"GDDR4",
 	"GDDR5",
 	"HBM",
-	"DDR3"
+	"DDR3",
+	"DDR4",
 };
 
 int amdgpu_bo_init(struct amdgpu_device *adev)
