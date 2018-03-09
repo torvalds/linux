@@ -25,6 +25,8 @@ struct rockchip_mmc_clock {
 	void __iomem	*reg;
 	int		id;
 	int		shift;
+	int		cached_phase;
+	struct notifier_block clk_rate_change_nb;
 };
 
 #define to_mmc_clock(_hw) container_of(_hw, struct rockchip_mmc_clock, hw)
@@ -162,6 +164,29 @@ static const struct clk_ops rockchip_mmc_clk_ops = {
 	.set_phase	= rockchip_mmc_set_phase,
 };
 
+#define to_rockchip_mmc_clock(x) \
+	container_of(x, struct rockchip_mmc_clock, clk_rate_change_nb)
+static int rockchip_mmc_clk_rate_notify(struct notifier_block *nb,
+					unsigned long event, void *data)
+{
+	struct rockchip_mmc_clock *mmc_clock = to_rockchip_mmc_clock(nb);
+
+	/*
+	 * rockchip_mmc_clk is mostly used by mmc controllers to sample
+	 * the intput data, which expects the fixed phase after the tuning
+	 * process. However if the clock rate is changed, the phase is stale
+	 * and may break the data sampling. So here we try to restore the phase
+	 * for that case.
+	 */
+	if (event == PRE_RATE_CHANGE)
+		mmc_clock->cached_phase =
+			rockchip_mmc_get_phase(&mmc_clock->hw);
+	else if (event == POST_RATE_CHANGE)
+		rockchip_mmc_set_phase(&mmc_clock->hw, mmc_clock->cached_phase);
+
+	return NOTIFY_DONE;
+}
+
 struct clk *rockchip_clk_register_mmc(const char *name,
 				const char *const *parent_names, u8 num_parents,
 				void __iomem *reg, int shift)
@@ -169,6 +194,7 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 	struct clk_init_data init;
 	struct rockchip_mmc_clock *mmc_clock;
 	struct clk *clk;
+	int ret;
 
 	mmc_clock = kmalloc(sizeof(*mmc_clock), GFP_KERNEL);
 	if (!mmc_clock)
@@ -186,7 +212,18 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 
 	clk = clk_register(NULL, &mmc_clock->hw);
 	if (IS_ERR(clk))
-		kfree(mmc_clock);
+		goto err_register;
 
+	mmc_clock->clk_rate_change_nb.notifier_call =
+				&rockchip_mmc_clk_rate_notify;
+	ret = clk_notifier_register(clk, &mmc_clock->clk_rate_change_nb);
+	if (ret)
+		goto err_notifier;
+
+	return clk;
+err_notifier:
+	clk_unregister(clk);
+err_register:
+	kfree(mmc_clock);
 	return clk;
 }
