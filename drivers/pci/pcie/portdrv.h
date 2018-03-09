@@ -93,8 +93,6 @@ void pcie_port_bus_unregister(void);
 
 struct pci_dev;
 
-void pcie_clear_root_pme_status(struct pci_dev *dev);
-
 #ifdef CONFIG_HOTPLUG_PCI_PCIE
 extern bool pciehp_msi_disabled;
 

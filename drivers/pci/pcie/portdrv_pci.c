@@ -49,15 +49,6 @@ __setup("pcie_ports=", pcie_port_setup);
 
 /* global data */
 
-/**
- * pcie_clear_root_pme_status - Clear root port PME interrupt status.
- * @dev: PCIe root port or event collector.
- */
-void pcie_clear_root_pme_status(struct pci_dev *dev)
-{
-	pcie_capability_set_dword(dev, PCI_EXP_RTSTA, PCI_EXP_RTSTA_PME);
-}
-
 static int pcie_portdrv_restore_config(struct pci_dev *dev)
 {
 	int retval;
