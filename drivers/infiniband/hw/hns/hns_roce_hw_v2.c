@@ -1168,7 +1168,8 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 
 	caps->flags		= HNS_ROCE_CAP_FLAG_REREG_MR |
 				  HNS_ROCE_CAP_FLAG_ROCE_V1_V2 |
-				  HNS_ROCE_CAP_FLAG_RQ_INLINE;
+				  HNS_ROCE_CAP_FLAG_RQ_INLINE |
+				  HNS_ROCE_CAP_FLAG_RECORD_DB;
 	caps->pkey_table_len[0] = 1;
 	caps->gid_table_len[0] = HNS_ROCE_V2_GID_INDEX_NUM;
 	caps->ceqe_depth	= HNS_ROCE_V2_COMP_EQE_NUM;
@@ -2274,6 +2275,23 @@ static void modify_qp_reset_to_init(struct ib_qp *ibqp,
 		hr_qp->qkey = attr->qkey;
 	}
 
+	if (hr_qp->rdb_en) {
+		roce_set_bit(context->byte_68_rq_db,
+			     V2_QPC_BYTE_68_RQ_RECORD_EN_S, 1);
+		roce_set_bit(qpc_mask->byte_68_rq_db,
+			     V2_QPC_BYTE_68_RQ_RECORD_EN_S, 0);
+	}
+
+	roce_set_field(context->byte_68_rq_db,
+		       V2_QPC_BYTE_68_RQ_DB_RECORD_ADDR_M,
+		       V2_QPC_BYTE_68_RQ_DB_RECORD_ADDR_S,
+		       ((u32)hr_qp->rdb.dma) >> 1);
+	roce_set_field(qpc_mask->byte_68_rq_db,
+		       V2_QPC_BYTE_68_RQ_DB_RECORD_ADDR_M,
+		       V2_QPC_BYTE_68_RQ_DB_RECORD_ADDR_S, 0);
+	context->rq_db_record_addr = hr_qp->rdb.dma >> 32;
+	qpc_mask->rq_db_record_addr = 0;
+
 	roce_set_bit(context->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 1);
 	roce_set_bit(qpc_mask->byte_76_srqn_op_en, V2_QPC_BYTE_76_RQIE_S, 0);
 
@@ -3211,6 +3229,8 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 		hr_qp->sq.tail = 0;
 		hr_qp->sq_next_wqe = 0;
 		hr_qp->next_sge = 0;
+		if (hr_qp->rq.wqe_cnt)
+			*hr_qp->rdb.db_record = 0;
 	}
 
 out:
@@ -3437,6 +3457,10 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
 
 	if (is_user) {
+		if (hr_qp->rq.wqe_cnt && (hr_qp->rdb_en == 1))
+			hns_roce_db_unmap_user(
+				to_hr_ucontext(hr_qp->ibqp.uobject->context),
+				&hr_qp->rdb);
 		ib_umem_release(hr_qp->umem);
 	} else {
 		kfree(hr_qp->sq.wrid);

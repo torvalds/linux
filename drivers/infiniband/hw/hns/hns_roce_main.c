@@ -351,6 +351,11 @@ static struct ib_ucontext *hns_roce_alloc_ucontext(struct ib_device *ib_dev,
 	if (ret)
 		goto error_fail_uar_alloc;
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
+		INIT_LIST_HEAD(&context->page_list);
+		mutex_init(&context->page_mutex);
+	}
+
 	ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
 	if (ret)
 		goto error_fail_copy_to_udata;

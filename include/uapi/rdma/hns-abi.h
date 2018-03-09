@@ -49,7 +49,12 @@ struct hns_roce_ib_create_qp {
 	__u8    reserved[5];
 };
 
+struct hns_roce_ib_create_qp_resp {
+	__u64	cap_flags;
+};
+
 struct hns_roce_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
+	__u32	reserved;
 };
 #endif /* HNS_ABI_USER_H */
