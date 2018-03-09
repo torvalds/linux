@@ -312,7 +312,7 @@ static int tps65910_ck32k_init(struct tps65910 *tps65910,
 static int tps65910_sleepinit(struct tps65910 *tps65910,
 		struct tps65910_board *pmic_pdata)
 {
-	struct device *dev = NULL;
+	struct device *dev;
 	int ret;
 
 	dev = tps65910->dev;
