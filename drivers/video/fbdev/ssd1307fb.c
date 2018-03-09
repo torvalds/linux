@@ -649,8 +649,6 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	ssd1307fb_defio->deferred_io = ssd1307fb_deferred_io;
 
 	info->fbops = &ssd1307fb_ops;
-	info->fix = ssd1307fb_fix;
-	info->fix.line_length = par->width / 8;
 	info->fbdefio = ssd1307fb_defio;
 
 	info->var = ssd1307fb_var;
@@ -667,8 +665,10 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	info->var.blue.offset = 0;
 
 	info->screen_base = (u8 __force __iomem *)vmem;
+	info->fix = ssd1307fb_fix;
 	info->fix.smem_start = __pa(vmem);
 	info->fix.smem_len = vmem_size;
+	info->fix.line_length = par->width / 8;
 
 	fb_deferred_io_init(info);
 
