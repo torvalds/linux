@@ -604,6 +604,8 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	 */
 	memcpy(dev->dev_addr, phy_dev->dev_addr, ETH_ALEN);
 
+	dev->priv_flags |= IFF_NO_RX_HANDLER;
+
 	err = register_netdevice(dev);
 	if (err < 0)
 		return err;
