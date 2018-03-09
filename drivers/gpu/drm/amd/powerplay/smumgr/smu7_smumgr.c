@@ -629,9 +629,7 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 	smu_data->smu_buffer.mc_addr = mc_addr;
 
 	if (smum_is_hw_avfs_present(hwmgr))
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_BOOT;
-	else
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_NOTSUPPORTED;
+		hwmgr->avfs_supported = true;
 
 	return 0;
 }

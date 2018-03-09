@@ -748,7 +748,7 @@ struct pp_hwmgr {
 	struct pp_power_state    *uvd_ps;
 	struct amd_pp_display_configuration display_config;
 	uint32_t feature_mask;
-
+	bool avfs_supported;
 	/* UMD Pstate */
 	bool en_umd_pstate;
 	uint32_t power_profile_mode;

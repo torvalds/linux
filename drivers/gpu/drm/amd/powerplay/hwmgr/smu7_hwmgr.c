@@ -40,7 +40,6 @@
 
 #include "hwmgr.h"
 #include "smu7_hwmgr.h"
-#include "smu7_smumgr.h"
 #include "smu_ucode_xfer_vi.h"
 #include "smu7_powertune.h"
 #include "smu7_dyn_defaults.h"
@@ -1353,12 +1352,7 @@ static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
-
-	if (smu_data == NULL)
-		return -EINVAL;
-
-	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
+	if (!hwmgr->avfs_supported)
 		return 0;
 
 	if (enable) {
@@ -1382,13 +1376,9 @@ static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
 
 static int smu7_update_avfs(struct pp_hwmgr *hwmgr)
 {
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
-	if (smu_data == NULL)
-		return -EINVAL;
-
-	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
+	if (!hwmgr->avfs_supported)
 		return 0;
 
 	if (data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_VDDC) {

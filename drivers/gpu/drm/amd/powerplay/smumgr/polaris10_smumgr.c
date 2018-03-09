@@ -99,13 +99,13 @@ static int polaris10_perform_btc(struct pp_hwmgr *hwmgr)
 	int result = 0;
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
-	if (0 != smu_data->avfs.avfs_btc_param) {
-		if (0 != smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_PerformBtc, smu_data->avfs.avfs_btc_param)) {
+	if (0 != smu_data->avfs_btc_param) {
+		if (0 != smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_PerformBtc, smu_data->avfs_btc_param)) {
 			pr_info("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
 			result = -1;
 		}
 	}
-	if (smu_data->avfs.avfs_btc_param > 1) {
+	if (smu_data->avfs_btc_param > 1) {
 		/* Soft-Reset to reset the engine before loading uCode */
 		/* halt */
 		cgs_write_register(hwmgr->device, mmCP_MEC_CNTL, 0x50000000);
@@ -173,45 +173,24 @@ static int polaris10_setup_graphics_level_structure(struct pp_hwmgr *hwmgr)
 
 
 static int
-polaris10_avfs_event_mgr(struct pp_hwmgr *hwmgr, bool SMU_VFT_INTACT)
+polaris10_avfs_event_mgr(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
-	switch (smu_data->avfs.avfs_btc_status) {
-	case AVFS_BTC_COMPLETED_PREVIOUSLY:
-		break;
+	PP_ASSERT_WITH_CODE(0 == polaris10_setup_graphics_level_structure(hwmgr),
+		"[AVFS][Polaris10_AVFSEventMgr] Could not Copy Graphics Level table over to SMU",
+		return -EINVAL);
 
-	case AVFS_BTC_BOOT: /* Cold Boot State - Post SMU Start */
-
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_DPMTABLESETUP_FAILED;
-		PP_ASSERT_WITH_CODE(0 == polaris10_setup_graphics_level_structure(hwmgr),
-			"[AVFS][Polaris10_AVFSEventMgr] Could not Copy Graphics Level table over to SMU",
-			return -EINVAL);
-
-		if (smu_data->avfs.avfs_btc_param > 1) {
-			pr_info("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
-			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
-			PP_ASSERT_WITH_CODE(0 == smu7_setup_pwr_virus(hwmgr),
-			"[AVFS][Polaris10_AVFSEventMgr] Could not setup Pwr Virus for AVFS ",
-			return -EINVAL);
-		}
-
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_FAILED;
-		PP_ASSERT_WITH_CODE(0 == polaris10_perform_btc(hwmgr),
-					"[AVFS][Polaris10_AVFSEventMgr] Failure at SmuPolaris10_PerformBTC. AVFS Disabled",
-				 return -EINVAL);
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_ENABLEAVFS;
-		break;
-
-	case AVFS_BTC_DISABLED:
-	case AVFS_BTC_ENABLEAVFS:
-	case AVFS_BTC_NOTSUPPORTED:
-		break;
-
-	default:
-		pr_err("AVFS failed status is %x!\n", smu_data->avfs.avfs_btc_status);
-		break;
+	if (smu_data->avfs_btc_param > 1) {
+		pr_info("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
+		PP_ASSERT_WITH_CODE(0 == smu7_setup_pwr_virus(hwmgr),
+		"[AVFS][Polaris10_AVFSEventMgr] Could not setup Pwr Virus for AVFS ",
+		return -EINVAL);
 	}
+
+	PP_ASSERT_WITH_CODE(0 == polaris10_perform_btc(hwmgr),
+				"[AVFS][Polaris10_AVFSEventMgr] Failure at SmuPolaris10_PerformBTC. AVFS Disabled",
+			 return -EINVAL);
 
 	return 0;
 }
@@ -312,11 +291,10 @@ static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
-	bool SMU_VFT_INTACT;
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!smu7_is_smc_ram_running(hwmgr)) {
-		SMU_VFT_INTACT = false;
+	if (!(smu7_is_smc_ram_running(hwmgr)
+		|| cgs_is_virtualization_enabled(hwmgr->device))) {
 		smu_data->protected_mode = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
 		smu_data->smu7_data.security_hard_key = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
 
@@ -337,11 +315,9 @@ static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 		if (result != 0)
 			PP_ASSERT_WITH_CODE(0, "Failed to load SMU ucode.", return result);
 
-		polaris10_avfs_event_mgr(hwmgr, true);
-	} else
-		SMU_VFT_INTACT = true; /*Driver went offline but SMU was still alive and contains the VFT table */
+		polaris10_avfs_event_mgr(hwmgr);
+	}
 
-	polaris10_avfs_event_mgr(hwmgr, SMU_VFT_INTACT);
 	/* Setup SoftRegsStart here for register lookup in case DummyBackEnd is used and ProcessFirmwareHeader is not executed */
 	smu7_read_smc_sram_dword(hwmgr, SMU7_FIRMWARE_HEADER_LOCATION + offsetof(SMU74_Firmware_Header, SoftRegisters),
 					&(smu_data->smu7_data.soft_regs_start), 0x40000);
@@ -1732,8 +1708,8 @@ static int polaris10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 			table_info->vdd_dep_on_sclk;
 
 
-	if (((struct smu7_smumgr *)smu_data)->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
-		return result;
+	if (!hwmgr->avfs_supported)
+		return 0;
 
 	result = atomctrl_get_avfs_information(hwmgr, &avfs_params);
 
@@ -2070,24 +2046,17 @@ static int polaris10_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
 
 int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
-	int ret;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
-	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
+	if (!hwmgr->avfs_supported)
 		return 0;
 
-	ret = smum_send_msg_to_smc_with_parameter(hwmgr,
+	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetGBDroopSettings, data->avfs_vdroop_override_setting);
 
-	ret = (smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs) == 0) ?
-			0 : -1;
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
 
-	if (!ret)
-		/* If this param is not changed, this function could fire unnecessarily */
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_COMPLETED_PREVIOUSLY;
-
-	return ret;
+	return 0;
 }
 
 static int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)

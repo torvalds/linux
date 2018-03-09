@@ -205,9 +205,9 @@ static int fiji_start_avfs_btc(struct pp_hwmgr *hwmgr)
 	int result = 0;
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
-	if (0 != smu_data->avfs.avfs_btc_param) {
+	if (0 != smu_data->avfs_btc_param) {
 		if (0 != smu7_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_PerformBtc, smu_data->avfs.avfs_btc_param)) {
+				PPSMC_MSG_PerformBtc, smu_data->avfs_btc_param)) {
 			pr_info("[AVFS][Fiji_PerformBtc] PerformBTC SMU msg failed");
 			result = -EINVAL;
 		}
@@ -261,43 +261,21 @@ static int fiji_setup_graphics_level_structure(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int fiji_avfs_event_mgr(struct pp_hwmgr *hwmgr, bool smu_started)
+static int fiji_avfs_event_mgr(struct pp_hwmgr *hwmgr)
 {
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
+	PP_ASSERT_WITH_CODE(0 == fiji_setup_graphics_level_structure(hwmgr),
+			"[AVFS][fiji_avfs_event_mgr] Could not Copy Graphics Level"
+			" table over to SMU",
+			return -EINVAL);
+	PP_ASSERT_WITH_CODE(0 == smu7_setup_pwr_virus(hwmgr),
+			"[AVFS][fiji_avfs_event_mgr] Could not setup "
+			"Pwr Virus for AVFS ",
+			return -EINVAL);
+	PP_ASSERT_WITH_CODE(0 == fiji_start_avfs_btc(hwmgr),
+			"[AVFS][fiji_avfs_event_mgr] Failure at "
+			"fiji_start_avfs_btc. AVFS Disabled",
+			return -EINVAL);
 
-	switch (smu_data->avfs.avfs_btc_status) {
-	case AVFS_BTC_COMPLETED_PREVIOUSLY:
-		break;
-
-	case AVFS_BTC_BOOT: /*Cold Boot State - Post SMU Start*/
-		if (!smu_started)
-			break;
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_FAILED;
-		PP_ASSERT_WITH_CODE(0 == fiji_setup_graphics_level_structure(hwmgr),
-				"[AVFS][fiji_avfs_event_mgr] Could not Copy Graphics Level"
-				" table over to SMU",
-				return -EINVAL;);
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
-		PP_ASSERT_WITH_CODE(0 == smu7_setup_pwr_virus(hwmgr),
-				"[AVFS][fiji_avfs_event_mgr] Could not setup "
-				"Pwr Virus for AVFS ",
-				return -EINVAL;);
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_FAILED;
-		PP_ASSERT_WITH_CODE(0 == fiji_start_avfs_btc(hwmgr),
-				"[AVFS][fiji_avfs_event_mgr] Failure at "
-				"fiji_start_avfs_btc. AVFS Disabled",
-				return -EINVAL;);
-
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_ENABLEAVFS;
-		break;
-	case AVFS_BTC_DISABLED: /* Do nothing */
-	case AVFS_BTC_NOTSUPPORTED: /* Do nothing */
-	case AVFS_BTC_ENABLEAVFS:
-		break;
-	default:
-		pr_err("AVFS failed status is %x !\n", smu_data->avfs.avfs_btc_status);
-		break;
-	}
 	return 0;
 }
 
@@ -309,8 +287,6 @@ static int fiji_start_smu(struct pp_hwmgr *hwmgr)
 	/* Only start SMC if SMC RAM is not running */
 	if (!(smu7_is_smc_ram_running(hwmgr)
 		|| cgs_is_virtualization_enabled(hwmgr->device))) {
-		fiji_avfs_event_mgr(hwmgr, false);
-
 		/* Check if SMU is running in protected mode */
 		if (0 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC,
@@ -323,7 +299,8 @@ static int fiji_start_smu(struct pp_hwmgr *hwmgr)
 			if (result)
 				return result;
 		}
-		fiji_avfs_event_mgr(hwmgr, true);
+		if (fiji_avfs_event_mgr(hwmgr))
+			hwmgr->avfs_supported = false;
 	}
 
 	/* To initialize all clock gating before RLC loaded and running.*/
@@ -2315,19 +2292,12 @@ static int fiji_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 static int fiji_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 {
-	int ret;
-	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
-
-	if (smu_data->avfs.avfs_btc_status != AVFS_BTC_ENABLEAVFS)
+	if (!hwmgr->avfs_supported)
 		return 0;
 
-	ret = smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
 
-	if (!ret)
-		/* If this param is not changed, this function could fire unnecessarily */
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_COMPLETED_PREVIOUSLY;
-
-	return ret;
+	return 0;
 }
 
 static int fiji_program_mem_timing_parameters(struct pp_hwmgr *hwmgr)
