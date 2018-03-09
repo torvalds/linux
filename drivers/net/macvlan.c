@@ -1037,7 +1037,7 @@ static netdev_features_t macvlan_fix_features(struct net_device *dev,
 	lowerdev_features &= (features | ~NETIF_F_LRO);
 	features = netdev_increment_features(lowerdev_features, features, mask);
 	features |= ALWAYS_ON_FEATURES;
-	features &= ~NETIF_F_NETNS_LOCAL;
+	features &= (ALWAYS_ON_FEATURES | MACVLAN_FEATURES);
 
 	return features;
 }
