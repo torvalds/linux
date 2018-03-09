@@ -515,10 +515,8 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 		*status |= FE_HAS_SYNC;
 
 	/* FEC error status */
-	if ((buf[2] & 0x0c) == 0x08) {
-		*status |= FE_HAS_LOCK;
-		*status |= FE_HAS_VITERBI;
-	}
+	if ((buf[2] & 0x0c) == 0x08)
+		*status |= FE_HAS_LOCK | FE_HAS_VITERBI;
 
 	/* Carrier Recovery Lock Status Register */
 	i2c_read_demod_bytes(state, CARRIER_LOCK, buf, 1);
@@ -578,6 +576,8 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 		else
 			break;
 		i2c_read_demod_bytes(state, 0x8a, buf, 1);
+		dprintk(state, "QAM LOCK = 0x%02x\n", buf[0]);
+
 		if ((buf[0] & 0x04) == 0x04)
 			*status |= FE_HAS_SYNC;
 		if ((buf[0] & 0x01) == 0x01)
@@ -591,12 +591,12 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 		else
 			break;
 		i2c_read_demod_bytes(state, 0x38, buf, 1);
+		dprintk(state, "8-VSB LOCK = 0x%02x\n", buf[0]);
+
 		if ((buf[0] & 0x02) == 0x00)
 			*status |= FE_HAS_SYNC;
-		if ((buf[0] & 0x01) == 0x01) {
-			*status |= FE_HAS_LOCK;
-			*status |= FE_HAS_VITERBI;
-		}
+		if ((buf[0] & 0xfd) == 0x01)
+			*status |= FE_HAS_VITERBI | FE_HAS_LOCK;
 		break;
 	default:
 		dev_warn(&state->client->dev,
