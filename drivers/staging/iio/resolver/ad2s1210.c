@@ -165,9 +165,10 @@ int ad2s1210_update_frequency_control_word(struct ad2s1210_state *st)
 
 static unsigned char ad2s1210_read_resolution_pin(struct ad2s1210_state *st)
 {
-	return ad2s1210_resolution_value[
-		(gpio_get_value(st->pdata->res[0]) << 1) |
-		gpio_get_value(st->pdata->res[1])];
+	int resolution = (gpio_get_value(st->pdata->res[0]) << 1) |
+			  gpio_get_value(st->pdata->res[1]);
+
+	return ad2s1210_resolution_value[resolution];
 }
 
 static const int ad2s1210_res_pins[4][2] = {
