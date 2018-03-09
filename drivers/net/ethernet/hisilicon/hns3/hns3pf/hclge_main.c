@@ -3329,67 +3329,28 @@ static int hclge_get_tc_size(struct hnae3_handle *handle)
 
 int hclge_rss_init_hw(struct hclge_dev *hdev)
 {
-	const  u8 hfunc = HCLGE_RSS_HASH_ALGO_TOEPLITZ;
 	struct hclge_vport *vport = hdev->vport;
+	u8 *rss_indir = vport[0].rss_indirection_tbl;
+	u16 rss_size = vport[0].alloc_rss_size;
+	u8 *key = vport[0].rss_hash_key;
+	u8 hfunc = vport[0].rss_algo;
 	u16 tc_offset[HCLGE_MAX_TC_NUM];
-	u8 rss_key[HCLGE_RSS_KEY_SIZE];
 	u16 tc_valid[HCLGE_MAX_TC_NUM];
 	u16 tc_size[HCLGE_MAX_TC_NUM];
-	u32 *rss_indir = NULL;
-	u16 rss_size = 0, roundup_size;
-	const u8 *key;
-	int i, ret, j;
+	u16 roundup_size;
+	int i, ret;
 
-	rss_indir = kcalloc(HCLGE_RSS_IND_TBL_SIZE, sizeof(u32), GFP_KERNEL);
-	if (!rss_indir)
-		return -ENOMEM;
-
-	/* Get default RSS key */
-	netdev_rss_key_fill(rss_key, HCLGE_RSS_KEY_SIZE);
-
-	/* Initialize RSS indirect table for each vport */
-	for (j = 0; j < hdev->num_vmdq_vport + 1; j++) {
-		vport[j].rss_tuple_sets.ipv4_tcp_en =
-			HCLGE_RSS_INPUT_TUPLE_OTHER;
-		vport[j].rss_tuple_sets.ipv4_udp_en =
-			HCLGE_RSS_INPUT_TUPLE_OTHER;
-		vport[j].rss_tuple_sets.ipv4_sctp_en =
-			HCLGE_RSS_INPUT_TUPLE_SCTP;
-		vport[j].rss_tuple_sets.ipv4_fragment_en =
-			HCLGE_RSS_INPUT_TUPLE_OTHER;
-		vport[j].rss_tuple_sets.ipv6_tcp_en =
-			HCLGE_RSS_INPUT_TUPLE_OTHER;
-		vport[j].rss_tuple_sets.ipv6_udp_en =
-			HCLGE_RSS_INPUT_TUPLE_OTHER;
-		vport[j].rss_tuple_sets.ipv6_sctp_en =
-			HCLGE_RSS_INPUT_TUPLE_SCTP;
-		vport[j].rss_tuple_sets.ipv6_fragment_en =
-			HCLGE_RSS_INPUT_TUPLE_OTHER;
-
-		for (i = 0; i < HCLGE_RSS_IND_TBL_SIZE; i++) {
-			vport[j].rss_indirection_tbl[i] =
-				i % vport[j].alloc_rss_size;
-
-			/* vport 0 is for PF */
-			if (j != 0)
-				continue;
-
-			rss_size = vport[j].alloc_rss_size;
-			rss_indir[i] = vport[j].rss_indirection_tbl[i];
-		}
-	}
 	ret = hclge_set_rss_indir_table(hdev, rss_indir);
 	if (ret)
-		goto err;
+		return ret;
 
-	key = rss_key;
 	ret = hclge_set_rss_algo_key(hdev, hfunc, key);
 	if (ret)
-		goto err;
+		return ret;
 
 	ret = hclge_set_rss_input_tuple(hdev);
 	if (ret)
-		goto err;
+		return ret;
 
 	/* Each TC have the same queue size, and tc_size set to hardware is
 	 * the log2 of roundup power of two of rss_size, the acutal queue
@@ -3399,8 +3360,7 @@ int hclge_rss_init_hw(struct hclge_dev *hdev)
 		dev_err(&hdev->pdev->dev,
 			"Configure rss tc size failed, invalid TC_SIZE = %d\n",
 			rss_size);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	roundup_size = roundup_pow_of_two(rss_size);
@@ -3417,12 +3377,50 @@ int hclge_rss_init_hw(struct hclge_dev *hdev)
 		tc_offset[i] = rss_size * i;
 	}
 
-	ret = hclge_set_rss_tc_mode(hdev, tc_valid, tc_size, tc_offset);
+	return hclge_set_rss_tc_mode(hdev, tc_valid, tc_size, tc_offset);
+}
 
-err:
-	kfree(rss_indir);
+void hclge_rss_indir_init_cfg(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	int i, j;
 
-	return ret;
+	for (j = 0; j < hdev->num_vmdq_vport + 1; j++) {
+		for (i = 0; i < HCLGE_RSS_IND_TBL_SIZE; i++)
+			vport[j].rss_indirection_tbl[i] =
+				i % vport[j].alloc_rss_size;
+	}
+}
+
+static void hclge_rss_init_cfg(struct hclge_dev *hdev)
+{
+	struct hclge_vport *vport = hdev->vport;
+	int i;
+
+	netdev_rss_key_fill(vport->rss_hash_key, HCLGE_RSS_KEY_SIZE);
+
+	for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
+		vport[i].rss_tuple_sets.ipv4_tcp_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[i].rss_tuple_sets.ipv4_udp_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[i].rss_tuple_sets.ipv4_sctp_en =
+			HCLGE_RSS_INPUT_TUPLE_SCTP;
+		vport[i].rss_tuple_sets.ipv4_fragment_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[i].rss_tuple_sets.ipv6_tcp_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[i].rss_tuple_sets.ipv6_udp_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+		vport[i].rss_tuple_sets.ipv6_sctp_en =
+			HCLGE_RSS_INPUT_TUPLE_SCTP;
+		vport[i].rss_tuple_sets.ipv6_fragment_en =
+			HCLGE_RSS_INPUT_TUPLE_OTHER;
+
+		vport[i].rss_algo = HCLGE_RSS_HASH_ALGO_TOEPLITZ;
+	}
+
+	hclge_rss_indir_init_cfg(hdev);
 }
 
 int hclge_bind_ring_with_vector(struct hclge_vport *vport,
@@ -5390,6 +5388,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
+	hclge_rss_init_cfg(hdev);
 	ret = hclge_rss_init_hw(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Rss init fail, ret =%d\n", ret);
