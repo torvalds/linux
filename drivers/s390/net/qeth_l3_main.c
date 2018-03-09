@@ -1502,23 +1502,17 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 				ipv6_eth_mc_map(&ipv6_hdr(skb)->daddr, tg_addr);
 
 			card->stats.multicast++;
-			skb->pkt_type = PACKET_MULTICAST;
 			break;
 		case QETH_CAST_BROADCAST:
 			ether_addr_copy(tg_addr, card->dev->broadcast);
 			card->stats.multicast++;
-			skb->pkt_type = PACKET_BROADCAST;
 			break;
-		case QETH_CAST_UNICAST:
-		case QETH_CAST_ANYCAST:
-		case QETH_CAST_NOCAST:
 		default:
 			if (card->options.sniffer)
 				skb->pkt_type = PACKET_OTHERHOST;
-			else
-				skb->pkt_type = PACKET_HOST;
 			ether_addr_copy(tg_addr, card->dev->dev_addr);
 		}
+
 		if (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_SRC_MAC_ADDR)
 			card->dev->header_ops->create(skb, card->dev, prot,
 				tg_addr, &hdr->hdr.l3.next_hop.rx.src_mac,
@@ -1578,7 +1572,6 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			if ((card->info.type == QETH_CARD_TYPE_IQD) &&
 			    (magic == ETH_P_AF_IUCV)) {
 				skb->protocol = cpu_to_be16(ETH_P_AF_IUCV);
-				skb->pkt_type = PACKET_HOST;
 				len = skb->len;
 				card->dev->header_ops->create(skb, card->dev, 0,
 					card->dev->dev_addr, "FAKELL", len);
@@ -1591,7 +1584,6 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			}
 			break;
 		case QETH_HEADER_TYPE_LAYER2: /* for HiperSockets sniffer */
-			skb->pkt_type = PACKET_HOST;
 			skb->protocol = eth_type_trans(skb, skb->dev);
 			len = skb->len;
 			netif_receive_skb(skb);
