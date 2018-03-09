@@ -652,6 +652,16 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		hr_qp->rq.db_reg_l = hr_dev->reg_base + hr_dev->odb_offset +
 				     DB_REG_OFFSET * hr_dev->priv_uar.index;
 
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+		    hns_roce_qp_has_rq(init_attr)) {
+			ret = hns_roce_alloc_db(hr_dev, &hr_qp->rdb, 0);
+			if (ret) {
+				dev_err(dev, "rq record doorbell alloc failed!\n");
+				goto err_rq_sge_list;
+			}
+			*hr_qp->rdb.db_record = 0;
+		}
+
 		/* Allocate QP buf */
 		page_shift = PAGE_SHIFT + hr_dev->caps.mtt_buf_pg_sz;
 		if (hns_roce_buf_alloc(hr_dev, hr_qp->buff_size,
@@ -659,7 +669,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				       &hr_qp->hr_buf, page_shift)) {
 			dev_err(dev, "hns_roce_buf_alloc error!\n");
 			ret = -ENOMEM;
-			goto err_rq_sge_list;
+			goto err_db;
 		}
 
 		hr_qp->mtt.mtt_type = MTT_TYPE_WQE;
@@ -767,6 +777,11 @@ err_buf:
 		ib_umem_release(hr_qp->umem);
 	else
 		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
+
+err_db:
+	if (!ib_pd->uobject && hns_roce_qp_has_rq(init_attr) &&
+	    (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB))
+		hns_roce_free_db(hr_dev, &hr_qp->rdb);
 
 err_rq_sge_list:
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE)

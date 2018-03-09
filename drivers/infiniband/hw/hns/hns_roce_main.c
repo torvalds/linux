@@ -665,6 +665,11 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 	spin_lock_init(&hr_dev->sm_lock);
 	spin_lock_init(&hr_dev->bt_cmd_lock);
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
+		INIT_LIST_HEAD(&hr_dev->pgdir_list);
+		mutex_init(&hr_dev->pgdir_mutex);
+	}
+
 	ret = hns_roce_init_uar_table(hr_dev);
 	if (ret) {
 		dev_err(dev, "Failed to initialize uar table. aborting\n");

@@ -771,6 +771,8 @@ struct hns_roce_dev {
 	spinlock_t		bt_cmd_lock;
 	struct hns_roce_ib_iboe iboe;
 
+	struct list_head        pgdir_list;
+	struct mutex            pgdir_mutex;
 	int			irq[HNS_ROCE_MAX_IRQ_NUM];
 	u8 __iomem		*reg_base;
 	struct hns_roce_caps	caps;
@@ -980,6 +982,10 @@ int hns_roce_db_map_user(struct hns_roce_ucontext *context, unsigned long virt,
 			 struct hns_roce_db *db);
 void hns_roce_db_unmap_user(struct hns_roce_ucontext *context,
 			    struct hns_roce_db *db);
+int hns_roce_alloc_db(struct hns_roce_dev *hr_dev, struct hns_roce_db *db,
+		      int order);
+void hns_roce_free_db(struct hns_roce_dev *hr_dev, struct hns_roce_db *db);
+
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type);

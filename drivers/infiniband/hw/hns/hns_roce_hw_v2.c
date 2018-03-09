@@ -498,7 +498,6 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	struct hns_roce_v2_wqe_data_seg *dseg;
 	struct hns_roce_rinl_sge *sge_list;
 	struct device *dev = hr_dev->dev;
-	struct hns_roce_v2_db rq_db;
 	unsigned long flags;
 	void *wqe = NULL;
 	int ret = 0;
@@ -564,17 +563,7 @@ out:
 		/* Memory barrier */
 		wmb();
 
-		rq_db.byte_4 = 0;
-		rq_db.parameter = 0;
-
-		roce_set_field(rq_db.byte_4, V2_DB_BYTE_4_TAG_M,
-			       V2_DB_BYTE_4_TAG_S, hr_qp->qpn);
-		roce_set_field(rq_db.byte_4, V2_DB_BYTE_4_CMD_M,
-			       V2_DB_BYTE_4_CMD_S, HNS_ROCE_V2_RQ_DB);
-		roce_set_field(rq_db.parameter, V2_DB_PARAMETER_CONS_IDX_M,
-			       V2_DB_PARAMETER_CONS_IDX_S, hr_qp->rq.head);
-
-		hns_roce_write64_k((__le32 *)&rq_db, hr_qp->rq.db_reg_l);
+		*hr_qp->rdb.db_record = hr_qp->rq.head & 0xffff;
 	}
 	spin_unlock_irqrestore(&hr_qp->rq.lock, flags);
 
@@ -3476,6 +3465,8 @@ static int hns_roce_v2_destroy_qp_common(struct hns_roce_dev *hr_dev,
 		kfree(hr_qp->sq.wrid);
 		kfree(hr_qp->rq.wrid);
 		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
+		if (hr_qp->rq.wqe_cnt)
+			hns_roce_free_db(hr_dev, &hr_qp->rdb);
 	}
 
 	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) {
