@@ -945,6 +945,8 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 					       md->u.md2.dir,
 					       get_hwid(&md->u.md2),
 					       truncate, false);
+		} else {
+			goto tx_err;
 		}
 	} else {
 		switch (skb->protocol) {
