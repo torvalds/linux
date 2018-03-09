@@ -61,9 +61,9 @@ static struct vhost_vsock *__vhost_vsock_get(u32 guest_cid)
 		if (other_cid == 0)
 			continue;
 
-		if (other_cid == guest_cid) {
+		if (other_cid == guest_cid)
 			return vsock;
-		}
+
 	}
 
 	return NULL;
