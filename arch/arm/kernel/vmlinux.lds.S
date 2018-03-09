@@ -127,6 +127,10 @@ SECTIONS
 	PERCPU_SECTION(L1_CACHE_BYTES)
 #endif
 
+#ifdef CONFIG_HAVE_TCM
+	ARM_TCM
+#endif
+
 #ifdef CONFIG_STRICT_KERNEL_RWX
 	. = ALIGN(1<<SECTION_SHIFT);
 #else
@@ -137,10 +141,6 @@ SECTIONS
 	_sdata = .;
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, THREAD_SIZE)
 	_edata = .;
-
-#ifdef CONFIG_HAVE_TCM
-	ARM_TCM
-#endif
 
 	BSS_SECTION(0, 0, 0)
 	_end = .;

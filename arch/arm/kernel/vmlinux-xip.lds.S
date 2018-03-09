@@ -132,6 +132,10 @@ SECTIONS
 	PERCPU_SECTION(L1_CACHE_BYTES)
 #endif
 
+#ifdef CONFIG_HAVE_TCM
+	ARM_TCM
+#endif
+
 	/*
 	 * End of copied data. We need a dummy section to get its LMA.
 	 * Also located before final ALIGN() as trailing padding is not stored
@@ -142,10 +146,6 @@ SECTIONS
 
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;
-
-#ifdef CONFIG_HAVE_TCM
-	ARM_TCM
-#endif
 
 	BSS_SECTION(0, 0, 8)
 	_end = .;
