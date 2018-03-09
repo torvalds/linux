@@ -76,7 +76,6 @@ struct ad2s1210_state {
 	unsigned int fclkin;
 	unsigned int fexcit;
 	bool hysteresis;
-	bool old_data;
 	u8 resolution;
 	enum ad2s1210_mode mode;
 	u8 rx[2] ____cacheline_aligned;
@@ -107,7 +106,6 @@ static int ad2s1210_config_write(struct ad2s1210_state *st, u8 data)
 	ret = spi_write(st->sdev, st->tx, 1);
 	if (ret < 0)
 		return ret;
-	st->old_data = true;
 
 	return 0;
 }
@@ -129,7 +127,6 @@ static int ad2s1210_config_read(struct ad2s1210_state *st,
 	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret < 0)
 		return ret;
-	st->old_data = true;
 
 	return st->rx[1];
 }
