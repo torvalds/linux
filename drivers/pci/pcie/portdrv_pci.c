@@ -25,19 +25,18 @@
 bool pcie_ports_disabled;
 
 /*
- * If this switch is set, ACPI _OSC will be used to determine whether or not to
- * enable PCIe port native services.
+ * If the user specified "pcie_ports=native", use the PCIe services regardless
+ * of whether the platform has given us permission.  On ACPI systems, this
+ * means we ignore _OSC.
  */
-bool pcie_ports_auto = true;
+bool pcie_ports_native;
 
 static int __init pcie_port_setup(char *str)
 {
-	if (!strncmp(str, "compat", 6)) {
+	if (!strncmp(str, "compat", 6))
 		pcie_ports_disabled = true;
-	} else if (!strncmp(str, "native", 6)) {
-		pcie_ports_disabled = false;
-		pcie_ports_auto = false;
-	}
+	else if (!strncmp(str, "native", 6))
+		pcie_ports_native = true;
 
 	return 1;
 }

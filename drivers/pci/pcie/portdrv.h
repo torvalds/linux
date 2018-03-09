@@ -12,7 +12,7 @@
 
 #include <linux/compiler.h>
 
-extern bool pcie_ports_auto;
+extern bool pcie_ports_native;
 
 /* Service Type */
 #define PCIE_PORT_SERVICE_PME_SHIFT	0	/* Power Management Event */
