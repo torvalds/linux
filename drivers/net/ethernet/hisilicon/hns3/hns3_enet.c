@@ -3413,7 +3413,24 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 	return ret;
 }
 
-static int hns3_modify_tqp_num(struct net_device *netdev, u16 new_tqp_num)
+static void hns3_restore_coal(struct hns3_nic_priv *priv,
+			      struct hns3_enet_coalesce *tx,
+			      struct hns3_enet_coalesce *rx)
+{
+	u16 vector_num = priv->vector_num;
+	int i;
+
+	for (i = 0; i < vector_num; i++) {
+		memcpy(&priv->tqp_vector[i].tx_group.coal, tx,
+		       sizeof(struct hns3_enet_coalesce));
+		memcpy(&priv->tqp_vector[i].rx_group.coal, rx,
+		       sizeof(struct hns3_enet_coalesce));
+	}
+}
+
+static int hns3_modify_tqp_num(struct net_device *netdev, u16 new_tqp_num,
+			       struct hns3_enet_coalesce *tx,
+			       struct hns3_enet_coalesce *rx)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -3430,6 +3447,8 @@ static int hns3_modify_tqp_num(struct net_device *netdev, u16 new_tqp_num)
 	ret = hns3_nic_alloc_vector_data(priv);
 	if (ret)
 		goto err_alloc_vector;
+
+	hns3_restore_coal(priv, tx, rx);
 
 	ret = hns3_nic_init_vector_data(priv);
 	if (ret)
@@ -3461,6 +3480,7 @@ int hns3_set_channels(struct net_device *netdev,
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	struct hnae3_knic_private_info *kinfo = &h->kinfo;
+	struct hns3_enet_coalesce tx_coal, rx_coal;
 	bool if_running = netif_running(netdev);
 	u32 new_tqp_num = ch->combined_count;
 	u16 org_tqp_num;
@@ -3494,15 +3514,26 @@ int hns3_set_channels(struct net_device *netdev,
 		goto open_netdev;
 	}
 
+	/* Changing the tqp num may also change the vector num,
+	 * ethtool only support setting and querying one coal
+	 * configuation for now, so save the vector 0' coal
+	 * configuation here in order to restore it.
+	 */
+	memcpy(&tx_coal, &priv->tqp_vector[0].tx_group.coal,
+	       sizeof(struct hns3_enet_coalesce));
+	memcpy(&rx_coal, &priv->tqp_vector[0].rx_group.coal,
+	       sizeof(struct hns3_enet_coalesce));
+
 	hns3_nic_dealloc_vector_data(priv);
 
 	hns3_uninit_all_ring(priv);
 	hns3_put_ring_config(priv);
 
 	org_tqp_num = h->kinfo.num_tqps;
-	ret = hns3_modify_tqp_num(netdev, new_tqp_num);
+	ret = hns3_modify_tqp_num(netdev, new_tqp_num, &tx_coal, &rx_coal);
 	if (ret) {
-		ret = hns3_modify_tqp_num(netdev, org_tqp_num);
+		ret = hns3_modify_tqp_num(netdev, org_tqp_num,
+					  &tx_coal, &rx_coal);
 		if (ret) {
 			/* If revert to old tqp failed, fatal error occurred */
 			dev_err(&netdev->dev,
