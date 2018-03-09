@@ -1216,12 +1216,11 @@ struct ftrace_event_field {
 	int			is_signed;
 };
 
+struct prog_entry;
+
 struct event_filter {
-	int			n_preds;	/* Number assigned */
-	int			a_preds;	/* allocated */
-	struct filter_pred __rcu	*preds;
-	struct filter_pred __rcu	*root;
-	char				*filter_string;
+	struct prog_entry __rcu	*prog;
+	char			*filter_string;
 };
 
 struct event_subsystem {
@@ -1413,12 +1412,8 @@ struct filter_pred {
 	unsigned short		*ops;
 	struct ftrace_event_field *field;
 	int 			offset;
-	int 			not;
+	int			not;
 	int 			op;
-	unsigned short		index;
-	unsigned short		parent;
-	unsigned short		left;
-	unsigned short		right;
 };
 
 static inline bool is_string_field(struct ftrace_event_field *field)
