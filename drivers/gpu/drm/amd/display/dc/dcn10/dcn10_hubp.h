@@ -95,8 +95,8 @@
 	SRI(DCN_SURF1_TTU_CNTL1, HUBPREQ, id),\
 	SRI(HUBP_CLK_CNTL, HUBP, id)
 
-/* Register address initialization macro for "generic" ASICs with full functionality */
-#define HUBP_REG_LIST_DCN_GEN(id)\
+/* Register address initialization macro for ASICs with VM */
+#define HUBP_REG_LIST_DCN_VM(id)\
 	SRI(NOM_PARAMETERS_0, HUBPREQ, id),\
 	SRI(NOM_PARAMETERS_1, HUBPREQ, id),\
 	SRI(NOM_PARAMETERS_2, HUBPREQ, id),\
@@ -105,7 +105,7 @@
 
 #define HUBP_REG_LIST_DCN10(id)\
 	HUBP_REG_LIST_DCN(id),\
-	HUBP_REG_LIST_DCN_GEN(id),\
+	HUBP_REG_LIST_DCN_VM(id),\
 	SRI(PREFETCH_SETTINS, HUBPREQ, id),\
 	SRI(PREFETCH_SETTINS_C, HUBPREQ, id),\
 	SRI(DCN_VM_CONTEXT0_PAGE_TABLE_BASE_ADDR_MSB, HUBPREQ, id),\
@@ -361,8 +361,8 @@
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL1, REFCYC_PER_REQ_DELIVERY_PRE, mask_sh),\
 	HUBP_SF(HUBP0_HUBP_CLK_CNTL, HUBP_CLOCK_ENABLE, mask_sh)
 
-/* Mask/shift struct generation macro for "generic" ASICs with full functionality */
-#define HUBP_MASK_SH_LIST_DCN_GEN(mask_sh)\
+/* Mask/shift struct generation macro for ASICs with VM */
+#define HUBP_MASK_SH_LIST_DCN_VM(mask_sh)\
 	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_0, DST_Y_PER_PTE_ROW_NOM_L, mask_sh),\
 	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_1, REFCYC_PER_PTE_GROUP_NOM_L, mask_sh),\
 	HUBP_SF(HUBPREQ0_NOM_PARAMETERS_2, DST_Y_PER_PTE_ROW_NOM_C, mask_sh),\
@@ -372,7 +372,7 @@
 
 #define HUBP_MASK_SH_LIST_DCN10(mask_sh)\
 	HUBP_MASK_SH_LIST_DCN(mask_sh),\
-	HUBP_MASK_SH_LIST_DCN_GEN(mask_sh),\
+	HUBP_MASK_SH_LIST_DCN_VM(mask_sh),\
 	HUBP_SF(HUBPREQ0_PREFETCH_SETTINS, DST_Y_PREFETCH, mask_sh),\
 	HUBP_SF(HUBPREQ0_PREFETCH_SETTINS, VRATIO_PREFETCH, mask_sh),\
 	HUBP_SF(HUBPREQ0_PREFETCH_SETTINS_C, VRATIO_PREFETCH_C, mask_sh),\
