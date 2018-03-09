@@ -23,8 +23,12 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
+#include <media/dvbdev.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_net.h>
+#include <media/dvb_frontend.h>
 #include <media/v4l2-common.h>
-#include <media/videobuf-vmalloc.h>
 #include <media/tuner.h>
 
 #include "xc5000.h"
