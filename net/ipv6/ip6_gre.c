@@ -126,7 +126,8 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 	struct ip6_tnl *t, *cand = NULL;
 	struct ip6gre_net *ign = net_generic(net, ip6gre_net_id);
 	int dev_type = (gre_proto == htons(ETH_P_TEB) ||
-			gre_proto == htons(ETH_P_ERSPAN)) ?
+			gre_proto == htons(ETH_P_ERSPAN) ||
+			gre_proto == htons(ETH_P_ERSPAN2)) ?
 		       ARPHRD_ETHER : ARPHRD_IP6GRE;
 	int score, cand_score = 4;
 
@@ -902,6 +903,9 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 		truncate = true;
 	}
 
+	if (skb_cow_head(skb, dev->needed_headroom))
+		goto tx_err;
+
 	t->parms.o_flags &= ~TUNNEL_KEY;
 	IPCB(skb)->flags = 0;
 
@@ -944,6 +948,8 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 					       md->u.md2.dir,
 					       get_hwid(&md->u.md2),
 					       truncate, false);
+		} else {
+			goto tx_err;
 		}
 	} else {
 		switch (skb->protocol) {
