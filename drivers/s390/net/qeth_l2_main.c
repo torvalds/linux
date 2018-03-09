@@ -975,6 +975,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		return -ENODEV;
 
 	card->dev->ml_priv = card;
+	card->dev->priv_flags |= IFF_UNICAST_FLT;
 	card->dev->watchdog_timeo = QETH_TX_TIMEOUT;
 	card->dev->mtu = card->info.initial_mtu;
 	card->dev->min_mtu = 64;
