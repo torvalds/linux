@@ -498,6 +498,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s0_bus>;
 			power-domains = <&pd_mau>;
+			#clock-cells = <1>;
 		};
 
 		i2s1: i2s@12d60000 {
