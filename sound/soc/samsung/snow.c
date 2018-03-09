@@ -50,11 +50,6 @@ static int snow_late_probe(struct snd_soc_card *card)
 	if (ret < 0)
 		return ret;
 
-	/* Select I2S Bus clock to set RCLK and BCLK */
-	ret = snd_soc_dai_set_sysclk(cpu_dai, SAMSUNG_I2S_RCLKSRC_0,
-					0, SND_SOC_CLOCK_IN);
-	if (ret < 0)
-		return ret;
 
 	return 0;
 }
