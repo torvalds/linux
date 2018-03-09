@@ -10,14 +10,10 @@
     |         arc: |  ok  |
     |         arm: |  ok  |
     |       arm64: |  ok  |
-    |    blackfin: |  ..  |
     |         c6x: |  ..  |
-    |        cris: |  ..  |
-    |         frv: |  ..  |
     |       h8300: |  ..  |
     |     hexagon: |  ..  |
     |        ia64: | TODO |
-    |        m32r: |  ..  |
     |        m68k: |  ..  |
     |  microblaze: |  ..  |
     |        mips: |  ok  |
@@ -26,10 +22,8 @@
     |      parisc: | TODO |
     |     powerpc: |  ok  |
     |        s390: |  ok  |
-    |       score: |  ..  |
     |          sh: |  ..  |
     |       sparc: |  ok  |
-    |        tile: | TODO |
     |          um: |  ..  |
     |   unicore32: |  ..  |
     |         x86: |  ok  |
