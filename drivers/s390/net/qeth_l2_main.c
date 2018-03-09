@@ -108,7 +108,7 @@ static int qeth_l2_send_setdelmac(struct qeth_card *card, __u8 *mac,
 	iob = qeth_get_ipacmd_buffer(card, ipacmd, QETH_PROT_IPV4);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.setdelmac.mac_length = ETH_ALEN;
 	ether_addr_copy(cmd->data.setdelmac.mac, mac);
 	return qeth_setdelmac_makerc(card, qeth_send_ipa_cmd(card, iob,
@@ -305,7 +305,7 @@ static int qeth_l2_send_setdelvlan(struct qeth_card *card, __u16 i,
 	iob = qeth_get_ipacmd_buffer(card, ipacmd, QETH_PROT_IPV4);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.setdelvlan.vlan_id = i;
 	return qeth_setdelvlan_makerc(card, qeth_send_ipa_cmd(card, iob,
 					    qeth_l2_send_setdelvlan_cb, NULL));
@@ -1374,7 +1374,6 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 {
 	struct qeth_cmd_buffer *iob;
 	struct qeth_card *card;
-	int rc;
 
 	if (!dev)
 		return -ENODEV;
@@ -1385,9 +1384,8 @@ int qeth_osn_assist(struct net_device *dev, void *data, int data_len)
 	if (!qeth_card_hw_is_reachable(card))
 		return -ENODEV;
 	iob = qeth_wait_for_buffer(&card->write);
-	memcpy(iob->data+IPA_PDU_HEADER_SIZE, data, data_len);
-	rc = qeth_osn_send_ipa_cmd(card, iob, data_len);
-	return rc;
+	memcpy(__ipa_cmd(iob), data, data_len);
+	return qeth_osn_send_ipa_cmd(card, iob, data_len);
 }
 EXPORT_SYMBOL(qeth_osn_assist);
 
@@ -1764,7 +1762,7 @@ static struct qeth_cmd_buffer *qeth_sbp_build_cmd(struct qeth_card *card,
 	iob = qeth_get_ipacmd_buffer(card, ipa_cmd, 0);
 	if (!iob)
 		return iob;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.sbp.hdr.cmdlength = sizeof(struct qeth_ipacmd_sbp_hdr) +
 				      cmd_length;
 	cmd->data.sbp.hdr.command_code = sbp_cmd;
@@ -2129,7 +2127,7 @@ static int qeth_l2_vnicc_request(struct qeth_card *card,
 		return -ENOMEM;
 
 	/* create header for request */
-	cmd = (struct qeth_ipa_cmd *)(iob->data + IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	req = &cmd->data.vnicc;
 
 	/* create sub command header for request */

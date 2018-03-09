@@ -352,7 +352,7 @@ static int qeth_l3_send_setdelmc(struct qeth_card *card,
 	iob = qeth_get_ipacmd_buffer(card, ipacmd, addr->proto);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	ether_addr_copy(cmd->data.setdelipm.mac, addr->mac);
 	if (addr->proto == QETH_PROT_IPV6)
 		memcpy(cmd->data.setdelipm.ip6, &addr->u.a6.addr,
@@ -393,7 +393,7 @@ static int qeth_l3_send_setdelip(struct qeth_card *card,
 	iob = qeth_get_ipacmd_buffer(card, ipacmd, addr->proto);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	if (addr->proto == QETH_PROT_IPV6) {
 		memcpy(cmd->data.setdelip6.ip_addr, &addr->u.a6.addr,
 		       sizeof(struct in6_addr));
@@ -423,7 +423,7 @@ static int qeth_l3_send_setrouting(struct qeth_card *card,
 	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SETRTG, prot);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.setrtg.type = (type);
 	rc = qeth_send_ipa_cmd(card, iob, NULL, NULL);
 
@@ -1072,7 +1072,7 @@ static int qeth_l3_iqd_read_initial_mac(struct qeth_card *card)
 				     QETH_PROT_IPV6);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	*((__u16 *) &cmd->data.create_destroy_addr.unique_id[6]) =
 			card->info.unique_id;
 
@@ -1117,7 +1117,7 @@ static int qeth_l3_get_unique_id(struct qeth_card *card)
 				     QETH_PROT_IPV6);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	*((__u16 *) &cmd->data.create_destroy_addr.unique_id[6]) =
 			card->info.unique_id;
 
@@ -1193,7 +1193,7 @@ qeth_diags_trace(struct qeth_card *card, enum qeth_diags_trace_cmds diags_cmd)
 	iob = qeth_get_ipacmd_buffer(card, IPA_CMD_SET_DIAG_ASS, 0);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.diagass.subcmd_len = 16;
 	cmd->data.diagass.subcmd = QETH_DIAGS_CMD_TRACE;
 	cmd->data.diagass.type = QETH_DIAGS_TYPE_HIPERSOCKET;
@@ -2004,7 +2004,7 @@ static int qeth_l3_query_arp_cache_info(struct qeth_card *card,
 				       prot);
 	if (!iob)
 		return -ENOMEM;
-	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	cmd = __ipa_cmd(iob);
 	cmd->data.setassparms.data.query_arp.request_bits = 0x000F;
 	cmd->data.setassparms.data.query_arp.reply_bits = 0;
 	cmd->data.setassparms.data.query_arp.no_entries = 0;
