@@ -196,6 +196,26 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 	case NFT_CT_PROTO_DST:
 		nft_reg_store16(dest, (__force u16)tuple->dst.u.all);
 		return;
+	case NFT_CT_SRC_IP:
+		if (nf_ct_l3num(ct) != NFPROTO_IPV4)
+			goto err;
+		*dest = tuple->src.u3.ip;
+		return;
+	case NFT_CT_DST_IP:
+		if (nf_ct_l3num(ct) != NFPROTO_IPV4)
+			goto err;
+		*dest = tuple->dst.u3.ip;
+		return;
+	case NFT_CT_SRC_IP6:
+		if (nf_ct_l3num(ct) != NFPROTO_IPV6)
+			goto err;
+		memcpy(dest, tuple->src.u3.ip6, sizeof(struct in6_addr));
+		return;
+	case NFT_CT_DST_IP6:
+		if (nf_ct_l3num(ct) != NFPROTO_IPV6)
+			goto err;
+		memcpy(dest, tuple->dst.u3.ip6, sizeof(struct in6_addr));
+		return;
 	default:
 		break;
 	}
@@ -419,6 +439,20 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 			return -EAFNOSUPPORT;
 		}
 		break;
+	case NFT_CT_SRC_IP:
+	case NFT_CT_DST_IP:
+		if (tb[NFTA_CT_DIRECTION] == NULL)
+			return -EINVAL;
+
+		len = FIELD_SIZEOF(struct nf_conntrack_tuple, src.u3.ip);
+		break;
+	case NFT_CT_SRC_IP6:
+	case NFT_CT_DST_IP6:
+		if (tb[NFTA_CT_DIRECTION] == NULL)
+			return -EINVAL;
+
+		len = FIELD_SIZEOF(struct nf_conntrack_tuple, src.u3.ip6);
+		break;
 	case NFT_CT_PROTO_SRC:
 	case NFT_CT_PROTO_DST:
 		if (tb[NFTA_CT_DIRECTION] == NULL)
@@ -588,6 +622,10 @@ static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
 	switch (priv->key) {
 	case NFT_CT_SRC:
 	case NFT_CT_DST:
+	case NFT_CT_SRC_IP:
+	case NFT_CT_DST_IP:
+	case NFT_CT_SRC_IP6:
+	case NFT_CT_DST_IP6:
 	case NFT_CT_PROTO_SRC:
 	case NFT_CT_PROTO_DST:
 		if (nla_put_u8(skb, NFTA_CT_DIRECTION, priv->dir))
