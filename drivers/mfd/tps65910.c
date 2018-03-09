@@ -315,10 +315,10 @@ static int tps65910_sleepinit(struct tps65910 *tps65910,
 	struct device *dev;
 	int ret;
 
-	dev = tps65910->dev;
-
 	if (!pmic_pdata->en_dev_slp)
 		return 0;
+
+	dev = tps65910->dev;
 
 	/* enabling SLEEP device state */
 	ret = tps65910_reg_set_bits(tps65910, TPS65910_DEVCTRL,
