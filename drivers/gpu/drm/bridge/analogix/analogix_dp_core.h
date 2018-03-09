@@ -20,6 +20,8 @@
 #define MAX_CR_LOOP 5
 #define MAX_EQ_LOOP 5
 
+/* Training takes 22ms if AUX channel comm fails. Use this as retry interval */
+#define DP_TIMEOUT_TRAINING_US			22000
 #define DP_TIMEOUT_PSR_LOOP_MS			300
 
 /* DP_MAX_LANE_COUNT */
@@ -171,6 +173,7 @@ struct analogix_dp_device {
 	int			hpd_gpio;
 	bool                    force_hpd;
 	bool			psr_enable;
+	bool			fast_train_support;
 
 	struct mutex		panel_lock;
 	bool			panel_is_modeset;
