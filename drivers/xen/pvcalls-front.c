@@ -73,20 +73,25 @@ struct sock_mapping {
 			wait_queue_head_t inflight_conn_req;
 		} active;
 		struct {
-		/* Socket status */
+		/*
+		 * Socket status, needs to be 64-bit aligned due to the
+		 * test_and_* functions which have this requirement on arm64.
+		 */
 #define PVCALLS_STATUS_UNINITALIZED  0
 #define PVCALLS_STATUS_BIND          1
 #define PVCALLS_STATUS_LISTEN        2
-			uint8_t status;
+			uint8_t status __attribute__((aligned(8)));
 		/*
 		 * Internal state-machine flags.
 		 * Only one accept operation can be inflight for a socket.
 		 * Only one poll operation can be inflight for a given socket.
+		 * flags needs to be 64-bit aligned due to the test_and_*
+		 * functions which have this requirement on arm64.
 		 */
 #define PVCALLS_FLAG_ACCEPT_INFLIGHT 0
 #define PVCALLS_FLAG_POLL_INFLIGHT   1
 #define PVCALLS_FLAG_POLL_RET        2
-			uint8_t flags;
+			uint8_t flags __attribute__((aligned(8)));
 			uint32_t inflight_req_id;
 			struct sock_mapping *accept_map;
 			wait_queue_head_t inflight_accept_req;

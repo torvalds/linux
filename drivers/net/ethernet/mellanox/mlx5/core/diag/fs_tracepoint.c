@@ -96,10 +96,10 @@ static void print_lyr_2_4_hdrs(struct trace_seq *p,
 					  "%pI4");
 		} else if (ethertype.v == ETH_P_IPV6) {
 			static const struct in6_addr full_ones = {
-				.in6_u.u6_addr32 = {htonl(0xffffffff),
-						    htonl(0xffffffff),
-						    htonl(0xffffffff),
-						    htonl(0xffffffff)},
+				.in6_u.u6_addr32 = {__constant_htonl(0xffffffff),
+						    __constant_htonl(0xffffffff),
+						    __constant_htonl(0xffffffff),
+						    __constant_htonl(0xffffffff)},
 			};
 			DECLARE_MASK_VAL(struct in6_addr, src_ipv6);
 			DECLARE_MASK_VAL(struct in6_addr, dst_ipv6);

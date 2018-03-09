@@ -36,8 +36,8 @@ int idr_alloc_u32(struct idr *idr, void *ptr, u32 *nextid,
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
-	int base = idr->idr_base;
-	int id = *nextid;
+	unsigned int base = idr->idr_base;
+	unsigned int id = *nextid;
 
 	if (WARN_ON_ONCE(radix_tree_is_internal_node(ptr)))
 		return -EINVAL;
@@ -204,10 +204,11 @@ int idr_for_each(const struct idr *idr,
 
 	radix_tree_for_each_slot(slot, &idr->idr_rt, &iter, 0) {
 		int ret;
+		unsigned long id = iter.index + base;
 
-		if (WARN_ON_ONCE(iter.index > INT_MAX))
+		if (WARN_ON_ONCE(id > INT_MAX))
 			break;
-		ret = fn(iter.index + base, rcu_dereference_raw(*slot), data);
+		ret = fn(id, rcu_dereference_raw(*slot), data);
 		if (ret)
 			return ret;
 	}
@@ -230,8 +231,8 @@ void *idr_get_next(struct idr *idr, int *nextid)
 {
 	struct radix_tree_iter iter;
 	void __rcu **slot;
-	int base = idr->idr_base;
-	int id = *nextid;
+	unsigned long base = idr->idr_base;
+	unsigned long id = *nextid;
 
 	id = (id < base) ? 0 : id - base;
 	slot = radix_tree_iter_find(&idr->idr_rt, &iter, id);
@@ -431,7 +432,6 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
 			bitmap = this_cpu_xchg(ida_bitmap, NULL);
 			if (!bitmap)
 				return -EAGAIN;
-			memset(bitmap, 0, sizeof(*bitmap));
 			bitmap->bitmap[0] = tmp >> RADIX_TREE_EXCEPTIONAL_SHIFT;
 			rcu_assign_pointer(*slot, bitmap);
 		}
@@ -464,7 +464,6 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
 			bitmap = this_cpu_xchg(ida_bitmap, NULL);
 			if (!bitmap)
 				return -EAGAIN;
-			memset(bitmap, 0, sizeof(*bitmap));
 			__set_bit(bit, bitmap->bitmap);
 			radix_tree_iter_replace(root, &iter, slot, bitmap);
 		}

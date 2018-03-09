@@ -44,18 +44,25 @@ struct bug_frame {
  * not be used like this with newer versions of gcc.
  */
 #define BUG()								\
+do {									\
 	__asm__ __volatile__ ("clear.d [" __stringify(BUG_MAGIC) "]\n\t"\
 			      "movu.w " __stringify(__LINE__) ",$r0\n\t"\
 			      "jump 0f\n\t"				\
 			      ".section .rodata\n"			\
 			      "0:\t.string \"" __FILE__ "\"\n\t"	\
-			      ".previous")
+			      ".previous");				\
+	unreachable();							\
+} while (0)
 #endif
 
 #else
 
 /* This just causes an oops. */
-#define BUG() (*(int *)0 = 0)
+#define BUG()								\
+do {									\
+	barrier_before_unreachable();					\
+	__builtin_trap();						\
+} while (0)
 
 #endif
 

@@ -178,6 +178,55 @@ void idr_get_next_test(int base)
 	idr_destroy(&idr);
 }
 
+int idr_u32_cb(int id, void *ptr, void *data)
+{
+	BUG_ON(id < 0);
+	BUG_ON(ptr != DUMMY_PTR);
+	return 0;
+}
+
+void idr_u32_test1(struct idr *idr, u32 handle)
+{
+	static bool warned = false;
+	u32 id = handle;
+	int sid = 0;
+	void *ptr;
+
+	BUG_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL));
+	BUG_ON(id != handle);
+	BUG_ON(idr_alloc_u32(idr, DUMMY_PTR, &id, id, GFP_KERNEL) != -ENOSPC);
+	BUG_ON(id != handle);
+	if (!warned && id > INT_MAX)
+		printk("vvv Ignore these warnings\n");
+	ptr = idr_get_next(idr, &sid);
+	if (id > INT_MAX) {
+		BUG_ON(ptr != NULL);
+		BUG_ON(sid != 0);
+	} else {
+		BUG_ON(ptr != DUMMY_PTR);
+		BUG_ON(sid != id);
+	}
+	idr_for_each(idr, idr_u32_cb, NULL);
+	if (!warned && id > INT_MAX) {
+		printk("^^^ Warnings over\n");
+		warned = true;
+	}
+	BUG_ON(idr_remove(idr, id) != DUMMY_PTR);
+	BUG_ON(!idr_is_empty(idr));
+}
+
+void idr_u32_test(int base)
+{
+	DEFINE_IDR(idr);
+	idr_init_base(&idr, base);
+	idr_u32_test1(&idr, 10);
+	idr_u32_test1(&idr, 0x7fffffff);
+	idr_u32_test1(&idr, 0x80000000);
+	idr_u32_test1(&idr, 0x80000001);
+	idr_u32_test1(&idr, 0xffe00000);
+	idr_u32_test1(&idr, 0xffffffff);
+}
+
 void idr_checks(void)
 {
 	unsigned long i;
@@ -248,6 +297,9 @@ void idr_checks(void)
 	idr_get_next_test(0);
 	idr_get_next_test(1);
 	idr_get_next_test(4);
+	idr_u32_test(4);
+	idr_u32_test(1);
+	idr_u32_test(0);
 }
 
 /*

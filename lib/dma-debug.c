@@ -1491,12 +1491,12 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
 	if (unlikely(virt == NULL))
 		return;
 
-	entry = dma_entry_alloc();
-	if (!entry)
+	/* handle vmalloc and linear addresses */
+	if (!is_vmalloc_addr(virt) && !virt_addr_valid(virt))
 		return;
 
-	/* handle vmalloc and linear addresses */
-	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
+	entry = dma_entry_alloc();
+	if (!entry)
 		return;
 
 	entry->type      = dma_debug_coherent;
@@ -1528,7 +1528,7 @@ void debug_dma_free_coherent(struct device *dev, size_t size,
 	};
 
 	/* handle vmalloc and linear addresses */
-	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
+	if (!is_vmalloc_addr(virt) && !virt_addr_valid(virt))
 		return;
 
 	if (is_vmalloc_addr(virt))
