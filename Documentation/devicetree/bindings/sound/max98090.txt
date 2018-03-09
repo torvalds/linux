@@ -16,6 +16,8 @@ Optional properties:
 
 - clock-names: Should be "mclk"
 
+- #sound-dai-cells : should be 0.
+
 - maxim,dmic-freq: Frequency at which to clock DMIC
 
 - maxim,micbias: Micbias voltage applies to the analog mic, valid voltages value are:
