@@ -1522,10 +1522,10 @@ static void qeth_l3_rebuild_skb(struct qeth_card *card, struct sk_buff *skb,
 		if (hdr->hdr.l3.ext_flags & QETH_HDR_EXT_SRC_MAC_ADDR)
 			card->dev->header_ops->create(skb, card->dev, prot,
 				tg_addr, &hdr->hdr.l3.next_hop.rx.src_mac,
-				card->dev->addr_len);
+				skb->len);
 		else
 			card->dev->header_ops->create(skb, card->dev, prot,
-				tg_addr, "FAKELL", card->dev->addr_len);
+				tg_addr, "FAKELL", skb->len);
 	}
 
 	skb->protocol = eth_type_trans(skb, card->dev);
@@ -1584,8 +1584,7 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 				skb->dev = card->dev;
 				len = skb->len;
 				card->dev->header_ops->create(skb, card->dev, 0,
-					card->dev->dev_addr, "FAKELL",
-					card->dev->addr_len);
+					card->dev->dev_addr, "FAKELL", len);
 				netif_receive_skb(skb);
 			} else {
 				qeth_l3_rebuild_skb(card, skb, hdr);
