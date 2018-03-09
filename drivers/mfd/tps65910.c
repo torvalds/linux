@@ -395,10 +395,8 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 
 	board_info = devm_kzalloc(&client->dev, sizeof(*board_info),
 			GFP_KERNEL);
-	if (!board_info) {
-		dev_err(&client->dev, "Failed to allocate pdata\n");
+	if (!board_info)
 		return NULL;
-	}
 
 	ret = of_property_read_u32(np, "ti,vmbch-threshold", &prop);
 	if (!ret)
