@@ -119,8 +119,11 @@ xfs_trans_dup(
 	/* We gave our writer reference to the new transaction */
 	tp->t_flags |= XFS_TRANS_NO_WRITECOUNT;
 	ntp->t_ticket = xfs_log_ticket_get(tp->t_ticket);
+
+	ASSERT(tp->t_blk_res >= tp->t_blk_res_used);
 	ntp->t_blk_res = tp->t_blk_res - tp->t_blk_res_used;
 	tp->t_blk_res = tp->t_blk_res_used;
+
 	ntp->t_rtx_res = tp->t_rtx_res - tp->t_rtx_res_used;
 	tp->t_rtx_res = tp->t_rtx_res_used;
 	ntp->t_pflags = tp->t_pflags;
@@ -344,13 +347,14 @@ xfs_trans_mod_sb(
 		break;
 	case XFS_TRANS_SB_FDBLOCKS:
 		/*
-		 * Track the number of blocks allocated in the
-		 * transaction.  Make sure it does not exceed the
-		 * number reserved.
+		 * Track the number of blocks allocated in the transaction.
+		 * Make sure it does not exceed the number reserved. If so,
+		 * shutdown as this can lead to accounting inconsistency.
 		 */
 		if (delta < 0) {
 			tp->t_blk_res_used += (uint)-delta;
-			ASSERT(tp->t_blk_res_used <= tp->t_blk_res);
+			if (tp->t_blk_res_used > tp->t_blk_res)
+				xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		}
 		tp->t_fdblocks_delta += delta;
 		if (xfs_sb_version_haslazysbcount(&mp->m_sb))
