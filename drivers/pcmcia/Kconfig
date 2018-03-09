@@ -247,13 +247,6 @@ config OMAP_CF
 	  Say Y here to support the CompactFlash controller on OMAP.
 	  Note that this doesn't support "True IDE" mode.
 
-config BFIN_CFPCMCIA
-	tristate "Blackfin CompactFlash PCMCIA Driver"
-	depends on PCMCIA && BLACKFIN
-	help
-	  Say Y here to support the CompactFlash PCMCIA driver for Blackfin.
-
-
 config AT91_CF
 	tristate "AT91 CompactFlash Controller"
 	depends on PCI
