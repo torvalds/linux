@@ -1452,6 +1452,9 @@ static int icm_firmware_reset(struct tb *tb, struct tb_nhi *nhi)
 	struct icm *icm = tb_priv(tb);
 	u32 val;
 
+	if (!icm->upstream_port)
+		return -ENODEV;
+
 	/* Put ARC to wait for CIO reset event to happen */
 	val = ioread32(nhi->iobase + REG_FW_STS);
 	val |= REG_FW_STS_CIO_RESET_REQ;
