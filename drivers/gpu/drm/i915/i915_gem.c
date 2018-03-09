@@ -3672,16 +3672,7 @@ static int wait_for_engines(struct drm_i915_private *i915)
 	if (wait_for(intel_engines_are_idle(i915), I915_IDLE_ENGINES_TIMEOUT)) {
 		dev_err(i915->drm.dev,
 			"Failed to idle engines, declaring wedged!\n");
-		if (drm_debug & DRM_UT_DRIVER) {
-			struct drm_printer p = drm_debug_printer(__func__);
-			struct intel_engine_cs *engine;
-			enum intel_engine_id id;
-
-			for_each_engine(engine, i915, id)
-				intel_engine_dump(engine, &p,
-						  "%s\n", engine->name);
-		}
-
+		GEM_TRACE_DUMP();
 		i915_gem_set_wedged(i915);
 		return -EIO;
 	}

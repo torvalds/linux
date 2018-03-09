@@ -53,8 +53,10 @@
 
 #if IS_ENABLED(CONFIG_DRM_I915_TRACE_GEM)
 #define GEM_TRACE(...) trace_printk(__VA_ARGS__)
+#define GEM_TRACE_DUMP() ftrace_dump(DUMP_ALL)
 #else
 #define GEM_TRACE(...) do { } while (0)
+#define GEM_TRACE_DUMP() do { } while (0)
 #endif
 
 #define I915_NUM_ENGINES 8
