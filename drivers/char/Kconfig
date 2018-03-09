@@ -346,15 +346,6 @@ config EFI_RTC
 	bool "EFI Real Time Clock Services"
 	depends on IA64
 
-config DS1302
-	tristate "DS1302 RTC support"
-	depends on M32R && (PLAT_M32700UT || PLAT_OPSPUT)
-	help
-	  If you say Y here and create a character special file /dev/rtc with
-	  major number 121 and minor number 0 using mknod ("man mknod"), you
-	  will get access to the real time clock (or hardware clock) built
-	  into your computer.
-
 endif # RTC_LIB
 
 config DTLK
