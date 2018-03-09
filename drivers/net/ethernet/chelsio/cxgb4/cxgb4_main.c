@@ -2870,11 +2870,11 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	/* Convert from Mbps to Kbps */
 	req_rate = rate << 10;
 
-	/* Max rate is 10 Gbps */
+	/* Max rate is 100 Gbps */
 	if (req_rate >= SCHED_MAX_RATE_KBPS) {
 		dev_err(adap->pdev_dev,
-			"Invalid rate %u Mbps, Max rate is %u Gbps\n",
-			rate, SCHED_MAX_RATE_KBPS);
+			"Invalid rate %u Mbps, Max rate is %u Mbps\n",
+			rate, SCHED_MAX_RATE_KBPS >> 10);
 		return -ERANGE;
 	}
 
