@@ -1749,8 +1749,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 			link->link_enc,
 			pipe_ctx->clock_source->id,
 			display_color_depth,
-			pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A,
-			pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK,
+			pipe_ctx->stream->signal,
 			stream->phy_pix_clk);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)

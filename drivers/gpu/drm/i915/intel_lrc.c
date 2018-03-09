@@ -719,6 +719,8 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	struct rb_node *rb;
 	unsigned long flags;
 
+	GEM_TRACE("%s\n", engine->name);
+
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 
 	/* Cancel the requests on the HW and clear the ELSP tracker. */
@@ -764,6 +766,9 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	 * is no work to do by clearing the irq_posted bit.
 	 */
 	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
+
+	/* Mark all CS interrupts as complete */
+	execlists->active = 0;
 
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }

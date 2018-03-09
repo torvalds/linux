@@ -3093,7 +3093,7 @@ static int dce_v6_0_hpd_irq(struct amdgpu_device *adev,
 		tmp |= DC_HPD1_INT_CONTROL__DC_HPD1_INT_ACK_MASK;
 		WREG32(mmDC_HPD1_INT_CONTROL + hpd_offsets[hpd], tmp);
 		schedule_work(&adev->hotplug_work);
-		DRM_INFO("IH: HPD%d\n", hpd + 1);
+		DRM_DEBUG("IH: HPD%d\n", hpd + 1);
 	}
 
 	return 0;
