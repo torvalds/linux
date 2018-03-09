@@ -430,7 +430,7 @@ static void update_perf_cpu_limits(void)
 	WRITE_ONCE(perf_sample_allowed_ns, tmp);
 }
 
-static int perf_rotate_context(struct perf_cpu_context *cpuctx);
+static bool perf_rotate_context(struct perf_cpu_context *cpuctx);
 
 int perf_proc_update_handler(struct ctl_table *table, int write,
 		void __user *buffer, size_t *lenp,
@@ -1041,7 +1041,7 @@ list_update_cgroup_event(struct perf_event *event,
 static enum hrtimer_restart perf_mux_hrtimer_handler(struct hrtimer *hr)
 {
 	struct perf_cpu_context *cpuctx;
-	int rotations = 0;
+	bool rotations;
 
 	lockdep_assert_irqs_disabled();
 
@@ -3600,52 +3600,66 @@ static void rotate_ctx(struct perf_event_context *ctx, struct perf_event *event)
 	perf_event_groups_insert(&ctx->flexible_groups, event);
 }
 
-static int perf_rotate_context(struct perf_cpu_context *cpuctx)
+static inline struct perf_event *
+ctx_first_active(struct perf_event_context *ctx)
 {
-	struct perf_event *ctx_event = NULL, *cpuctx_event = NULL;
+	return list_first_entry_or_null(&ctx->flexible_active,
+					struct perf_event, active_list);
+}
+
+static bool perf_rotate_context(struct perf_cpu_context *cpuctx)
+{
+	struct perf_event *cpu_event = NULL, *task_event = NULL;
+	bool cpu_rotate = false, task_rotate = false;
 	struct perf_event_context *ctx = NULL;
-	int rotate = 0;
+
+	/*
+	 * Since we run this from IRQ context, nobody can install new
+	 * events, thus the event count values are stable.
+	 */
 
 	if (cpuctx->ctx.nr_events) {
 		if (cpuctx->ctx.nr_events != cpuctx->ctx.nr_active)
-			rotate = 1;
+			cpu_rotate = true;
 	}
 
 	ctx = cpuctx->task_ctx;
 	if (ctx && ctx->nr_events) {
 		if (ctx->nr_events != ctx->nr_active)
-			rotate = 1;
+			task_rotate = true;
 	}
 
-	if (!rotate)
-		goto done;
+	if (!(cpu_rotate || task_rotate))
+		return false;
 
 	perf_ctx_lock(cpuctx, cpuctx->task_ctx);
 	perf_pmu_disable(cpuctx->ctx.pmu);
 
-	cpuctx_event = list_first_entry_or_null(&cpuctx->ctx.flexible_active,
-						struct perf_event, active_list);
-	if (ctx) {
-		ctx_event = list_first_entry_or_null(&ctx->flexible_active,
-						     struct perf_event, active_list);
-	}
+	if (task_rotate)
+		task_event = ctx_first_active(ctx);
+	if (cpu_rotate)
+		cpu_event = ctx_first_active(&cpuctx->ctx);
 
-	cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
-	if (ctx)
+	/*
+	 * As per the order given at ctx_resched() first 'pop' task flexible
+	 * and then, if needed CPU flexible.
+	 */
+	if (task_event || (ctx && cpu_event))
 		ctx_sched_out(ctx, cpuctx, EVENT_FLEXIBLE);
+	if (cpu_event)
+		cpu_ctx_sched_out(cpuctx, EVENT_FLEXIBLE);
 
-	if (cpuctx_event)
-		rotate_ctx(&cpuctx->ctx, cpuctx_event);
-	if (ctx_event)
-		rotate_ctx(ctx, ctx_event);
+	if (task_event)
+		rotate_ctx(ctx, task_event);
+	if (cpu_event)
+		rotate_ctx(&cpuctx->ctx, cpu_event);
 
 	perf_event_sched_in(cpuctx, ctx, current);
 
 	perf_pmu_enable(cpuctx->ctx.pmu);
 	perf_ctx_unlock(cpuctx, cpuctx->task_ctx);
-done:
 
-	return rotate;
+	return true;
 }
 
 void perf_event_task_tick(void)
