@@ -431,10 +431,8 @@ static int tps80031_probe(struct i2c_client *client,
 	}
 
 	tps80031 = devm_kzalloc(&client->dev, sizeof(*tps80031), GFP_KERNEL);
-	if (!tps80031) {
-		dev_err(&client->dev, "Malloc failed for tps80031\n");
+	if (!tps80031)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < TPS80031_NUM_SLAVES; i++) {
 		if (tps80031_slave_address[i] == client->addr)
