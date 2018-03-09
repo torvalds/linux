@@ -117,20 +117,9 @@ static int snvs_lpgpr_probe(struct platform_device *pdev)
 	cfg->reg_read  = snvs_lpgpr_read,
 	cfg->reg_write = snvs_lpgpr_write,
 
-	nvmem = nvmem_register(cfg);
-	if (IS_ERR(nvmem))
-		return PTR_ERR(nvmem);
+	nvmem = devm_nvmem_register(dev, cfg);
 
-	platform_set_drvdata(pdev, nvmem);
-
-	return 0;
-}
-
-static int snvs_lpgpr_remove(struct platform_device *pdev)
-{
-	struct nvmem_device *nvmem = platform_get_drvdata(pdev);
-
-	return nvmem_unregister(nvmem);
+	return PTR_ERR_OR_ZERO(nvmem);
 }
 
 static const struct of_device_id snvs_lpgpr_dt_ids[] = {
@@ -143,7 +132,6 @@ MODULE_DEVICE_TABLE(of, snvs_lpgpr_dt_ids);
 
 static struct platform_driver snvs_lpgpr_driver = {
 	.probe	= snvs_lpgpr_probe,
-	.remove	= snvs_lpgpr_remove,
 	.driver = {
 		.name	= "snvs_lpgpr",
 		.of_match_table = snvs_lpgpr_dt_ids,
