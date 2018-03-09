@@ -516,6 +516,7 @@ static void rk817_charge_otg_enable(struct rk817_charger *charge)
 	rk817_charge_field_write(charge, OTG_EN, OTG_ENABLE);
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int rk817_charge_get_otg_slp_state(struct rk817_charger *charge)
 {
 	return (rk817_charge_field_read(charge, OTG_SLP_EN) & OTG_SLP_ENABLE);
@@ -530,6 +531,7 @@ static void rk817_charge_otg_slp_enable(struct rk817_charger *charge)
 {
 	rk817_charge_field_write(charge, OTG_SLP_EN, OTG_SLP_ENABLE);
 }
+#endif
 
 static int rk817_charge_get_charge_state(struct rk817_charger *charge)
 {
