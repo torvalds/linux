@@ -299,7 +299,7 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 		printk(KERN_WARNING "Only LGDT3302 and LGDT3303 are supported chips.\n");
 		err = -ENODEV;
 	}
-	dprintk("entered as %s\n", chip_name);
+	dprintk("Initialized the %s chip\n", chip_name);
 	if (err < 0)
 		return err;
 	return lgdt330x_sw_reset(state);
@@ -816,6 +816,9 @@ struct dvb_frontend *lgdt330x_attach(const struct lgdt330x_config *config,
 
 	state->current_frequency = -1;
 	state->current_modulation = -1;
+
+	pr_info("Demod loaded for LGDT330%s chip\n",
+		config->demod_chip == LGDT3302 ? "2" : "3");
 
 	return &state->frontend;
 
