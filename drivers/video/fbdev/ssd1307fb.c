@@ -653,9 +653,9 @@ static int ssd1307fb_probe(struct i2c_client *client,
 
 	info->var = ssd1307fb_var;
 	info->var.xres = par->width;
-	info->var.xres_virtual = par->width;
+	info->var.xres_virtual = info->var.xres;
 	info->var.yres = par->height;
-	info->var.yres_virtual = par->height;
+	info->var.yres_virtual = info->var.yres;
 
 	info->var.red.length = 1;
 	info->var.red.offset = 0;
@@ -668,7 +668,7 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	info->fix = ssd1307fb_fix;
 	info->fix.smem_start = __pa(vmem);
 	info->fix.smem_len = vmem_size;
-	info->fix.line_length = par->width / 8;
+	info->fix.line_length = info->var.xres / 8;
 
 	fb_deferred_io_init(info);
 
