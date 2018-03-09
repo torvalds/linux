@@ -1671,12 +1671,12 @@ static inline bool __allow_reserved_blocks(struct f2fs_sb_info *sbi,
 		return false;
 	if (IS_NOQUOTA(inode))
 		return true;
-	if (capable(CAP_SYS_RESOURCE))
-		return true;
 	if (uid_eq(sbi->s_resuid, current_fsuid()))
 		return true;
 	if (!gid_eq(sbi->s_resgid, GLOBAL_ROOT_GID) &&
 					in_group_p(sbi->s_resgid))
+		return true;
+	if (capable(CAP_SYS_RESOURCE))
 		return true;
 	return false;
 }
