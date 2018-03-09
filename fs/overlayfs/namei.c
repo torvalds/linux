@@ -180,7 +180,8 @@ invalid:
 	goto out;
 }
 
-struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt)
+struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt,
+				  bool connected)
 {
 	struct dentry *real;
 	int bytes;
@@ -195,7 +196,7 @@ struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt)
 	bytes = (fh->len - offsetof(struct ovl_fh, fid));
 	real = exportfs_decode_fh(mnt, (struct fid *)fh->fid,
 				  bytes >> 2, (int)fh->type,
-				  ovl_acceptable, mnt);
+				  connected ? ovl_acceptable : NULL, mnt);
 	if (IS_ERR(real)) {
 		/*
 		 * Treat stale file handle to lower file as "origin unknown".
@@ -319,14 +320,15 @@ static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
 }
 
 
-int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh,
+int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
 			struct dentry *upperdentry, struct ovl_path **stackp)
 {
 	struct dentry *origin = NULL;
 	int i;
 
 	for (i = 0; i < ofs->numlower; i++) {
-		origin = ovl_decode_real_fh(fh, ofs->lower_layers[i].mnt);
+		origin = ovl_decode_real_fh(fh, ofs->lower_layers[i].mnt,
+					    connected);
 		if (origin)
 			break;
 	}
@@ -370,7 +372,7 @@ static int ovl_check_origin(struct ovl_fs *ofs, struct dentry *upperdentry,
 	if (IS_ERR_OR_NULL(fh))
 		return PTR_ERR(fh);
 
-	err = ovl_check_origin_fh(ofs, fh, upperdentry, stackp);
+	err = ovl_check_origin_fh(ofs, fh, false, upperdentry, stackp);
 	kfree(fh);
 
 	if (err) {
@@ -460,7 +462,7 @@ struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index)
 	if (IS_ERR_OR_NULL(fh))
 		return ERR_CAST(fh);
 
-	upper = ovl_decode_real_fh(fh, ofs->upper_mnt);
+	upper = ovl_decode_real_fh(fh, ofs->upper_mnt, true);
 	kfree(fh);
 
 	if (IS_ERR_OR_NULL(upper))
@@ -567,7 +569,7 @@ int ovl_verify_index(struct ovl_fs *ofs, struct dentry *index)
 
 	/* Check if non-dir index is orphan and don't warn before cleaning it */
 	if (!d_is_dir(index) && d_inode(index)->i_nlink == 1) {
-		err = ovl_check_origin_fh(ofs, fh, index, &stack);
+		err = ovl_check_origin_fh(ofs, fh, false, index, &stack);
 		if (err)
 			goto fail;
 

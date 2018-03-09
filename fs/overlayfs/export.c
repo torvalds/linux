@@ -685,7 +685,7 @@ static struct dentry *ovl_upper_fh_to_d(struct super_block *sb,
 	if (!ofs->upper_mnt)
 		return ERR_PTR(-EACCES);
 
-	upper = ovl_decode_real_fh(fh, ofs->upper_mnt);
+	upper = ovl_decode_real_fh(fh, ofs->upper_mnt, true);
 	if (IS_ERR_OR_NULL(upper))
 		return upper;
 
@@ -735,7 +735,7 @@ static struct dentry *ovl_lower_fh_to_d(struct super_block *sb,
 	}
 
 	/* Then lookup origin by fh */
-	err = ovl_check_origin_fh(ofs, fh, NULL, &stack);
+	err = ovl_check_origin_fh(ofs, fh, true, NULL, &stack);
 	if (err) {
 		goto out_err;
 	} else if (index) {
