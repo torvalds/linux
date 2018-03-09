@@ -3594,7 +3594,8 @@ static int vchiq_probe(struct platform_device *pdev)
 	struct rpi_firmware *fw;
 	int err;
 
-	fw_node = of_parse_phandle(pdev->dev.of_node, "firmware", 0);
+	fw_node = of_find_compatible_node(NULL, NULL,
+					  "raspberrypi,bcm2835-firmware");
 	if (!fw_node) {
 		dev_err(&pdev->dev, "Missing firmware node\n");
 		return -ENOENT;
