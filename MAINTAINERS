@@ -12874,10 +12874,9 @@ S:	Maintained
 F:	drivers/net/ethernet/smsc/smsc9420.*
 
 SOC-CAMERA V4L2 SUBSYSTEM
-M:	Guennadi Liakhovetski <g.liakhovetski@gmx.de>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Orphan
 F:	include/media/soc*
 F:	drivers/media/i2c/soc_camera/
 F:	drivers/media/platform/soc_camera/
