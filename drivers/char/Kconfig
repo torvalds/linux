@@ -566,17 +566,6 @@ config DEVPORT
 
 source "drivers/s390/char/Kconfig"
 
-config TILE_SROM
-	tristate "Character-device access via hypervisor to the Tilera SPI ROM"
-	depends on TILE
-	default y
-	---help---
-	  This device provides character-level read-write access
-	  to the SROM, typically via the "0", "1", and "2" devices
-	  in /dev/srom/.  The Tilera hypervisor makes the flash
-	  device appear much like a simple EEPROM, and knows
-	  how to partition a single ROM for multiple purposes.
-
 source "drivers/char/xillybus/Kconfig"
 
 endmenu
