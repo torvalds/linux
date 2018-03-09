@@ -64,7 +64,7 @@ struct lgdt330x_state {
 
 	/* Demodulator private data */
 	enum fe_modulation current_modulation;
-	u32 snr; /* Result of last SNR calculation */
+	u32 snr;	/* Result of last SNR calculation */
 
 	/* Tuner private data */
 	u32 current_frequency;
@@ -187,6 +187,7 @@ static int lgdt330x_sw_reset(struct lgdt330x_state *state)
 static int lgdt330x_init(struct dvb_frontend *fe)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	char  *chip_name;
 	int    err;
 	/*
@@ -292,6 +293,10 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 	dprintk(state, "Initialized the %s chip\n", chip_name);
 	if (err < 0)
 		return err;
+
+	p->cnr.len = 1;
+	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
 	return lgdt330x_sw_reset(state);
 }
 
@@ -513,7 +518,7 @@ static u32 calculate_snr(u32 mse, u32 c)
 	return 10 * (c - mse);
 }
 
-static int lgdt3302_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int lgdt3302_read_snr(struct dvb_frontend *fe)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
 	u8 buf[5];	/* read data buffer */
@@ -546,11 +551,13 @@ static int lgdt3302_read_snr(struct dvb_frontend *fe, u16 *snr)
 		dev_err(&state->client->dev,
 			"%s: Modulation set to unsupported value\n",
 			__func__);
+
+		state->snr = 0;
+
 		return -EREMOTEIO; /* return -EDRIVER_IS_GIBBERED; */
 	}
 
 	state->snr = calculate_snr(noise, c);
-	*snr = (state->snr) >> 16; /* Convert from 8.24 fixed-point to 8.8 */
 
 	dprintk(state, "noise = 0x%08x, snr = %d.%02d dB\n", noise,
 		state->snr >> 24, (((state->snr >> 8) & 0xffff) * 100) >> 16);
@@ -558,7 +565,7 @@ static int lgdt3302_read_snr(struct dvb_frontend *fe, u16 *snr)
 	return 0;
 }
 
-static int lgdt3303_read_snr(struct dvb_frontend *fe, u16 *snr)
+static int lgdt3303_read_snr(struct dvb_frontend *fe)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
 	u8 buf[5];	/* read data buffer */
@@ -591,14 +598,23 @@ static int lgdt3303_read_snr(struct dvb_frontend *fe, u16 *snr)
 		dev_err(&state->client->dev,
 			"%s: Modulation set to unsupported value\n",
 			__func__);
+		state->snr = 0;
 		return -EREMOTEIO; /* return -EDRIVER_IS_GIBBERED; */
 	}
 
 	state->snr = calculate_snr(noise, c);
-	*snr = (state->snr) >> 16; /* Convert from 8.24 fixed-point to 8.8 */
 
 	dprintk(state, "noise = 0x%08x, snr = %d.%02d dB\n", noise,
 		state->snr >> 24, (((state->snr >> 8) & 0xffff) * 100) >> 16);
+
+	return 0;
+}
+
+static int lgdt330x_read_snr(struct dvb_frontend *fe, u16 *snr)
+{
+	struct lgdt330x_state *state = fe->demodulator_priv;
+
+	*snr = (state->snr) >> 16; /* Convert from 8.24 fixed-point to 8.8 */
 
 	return 0;
 }
@@ -632,6 +648,7 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 				enum fe_status *status)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u8 buf[3];
 
 	*status = 0; /* Reset status result */
@@ -687,6 +704,13 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 			 __func__);
 	}
 
+	if (*status & FE_HAS_LOCK && lgdt3302_read_snr(fe) >= 0) {
+		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		p->cnr.stat[0].svalue = (((u64)state->snr) * 1000) >> 24;
+	} else {
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
 	return 0;
 }
 
@@ -694,6 +718,7 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 				enum fe_status *status)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	int err;
 	u8 buf[3];
 
@@ -752,6 +777,14 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 			 "%s: Modulation set to unsupported value\n",
 			 __func__);
 	}
+
+	if (*status & FE_HAS_LOCK && lgdt3303_read_snr(fe) >= 0) {
+		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+		p->cnr.stat[0].svalue = (((u64)state->snr) * 1000) >> 24;
+	} else {
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
 	return 0;
 }
 
@@ -878,7 +911,7 @@ static const struct dvb_frontend_ops lgdt3302_ops = {
 	.read_status          = lgdt3302_read_status,
 	.read_ber             = lgdt330x_read_ber,
 	.read_signal_strength = lgdt330x_read_signal_strength,
-	.read_snr             = lgdt3302_read_snr,
+	.read_snr             = lgdt330x_read_snr,
 	.read_ucblocks        = lgdt330x_read_ucblocks,
 	.release              = lgdt330x_release,
 };
@@ -901,7 +934,7 @@ static const struct dvb_frontend_ops lgdt3303_ops = {
 	.read_status          = lgdt3303_read_status,
 	.read_ber             = lgdt330x_read_ber,
 	.read_signal_strength = lgdt330x_read_signal_strength,
-	.read_snr             = lgdt3303_read_snr,
+	.read_snr             = lgdt330x_read_snr,
 	.read_ucblocks        = lgdt330x_read_ucblocks,
 	.release              = lgdt330x_release,
 };
