@@ -480,8 +480,16 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_DECRYPT)) {
 		status->flag |= RX_FLAG_DECRYPTED;
-		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
+		status->flag |= RX_FLAG_MMIC_STRIPPED;
+		status->flag |= RX_FLAG_MIC_STRIPPED;
+		status->flag |= RX_FLAG_ICV_STRIPPED;
+		status->flag |= RX_FLAG_IV_STRIPPED;
 	}
+	/* let mac80211 take care of PN validation since apparently
+	 * the hardware does not support it
+	 */
+	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_PN_LEN))
+		status->flag &= ~RX_FLAG_IV_STRIPPED;
 
 	status->chains = BIT(0);
 	rssi = mt7601u_phy_get_rssi(dev, rxwi, rate);
