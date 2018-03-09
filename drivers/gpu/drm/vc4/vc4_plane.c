@@ -73,6 +73,12 @@ struct vc4_plane_state {
 
 	/* Our allocation in LBM for temporary storage during scaling. */
 	struct drm_mm_node lbm;
+
+	/* Set when the plane has per-pixel alpha content or does not cover
+	 * the entire screen. This is a hint to the CRTC that it might need
+	 * to enable background color fill.
+	 */
+	bool needs_bg_fill;
 };
 
 static inline struct vc4_plane_state *
@@ -521,6 +527,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	u32 ctl0_offset = vc4_state->dlist_count;
 	const struct hvs_format *format = vc4_get_hvs_format(fb->format->format);
 	int num_planes = drm_format_num_planes(format->drm);
+	bool covers_screen;
 	u32 scl0, scl1, pitch0;
 	u32 lbm_size, tiling;
 	unsigned long irqflags;
@@ -700,6 +707,16 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 
 	vc4_state->dlist[ctl0_offset] |=
 		VC4_SET_FIELD(vc4_state->dlist_count, SCALER_CTL0_SIZE);
+
+	/* crtc_* are already clipped coordinates. */
+	covers_screen = vc4_state->crtc_x == 0 && vc4_state->crtc_y == 0 &&
+			vc4_state->crtc_w == state->crtc->mode.hdisplay &&
+			vc4_state->crtc_h == state->crtc->mode.vdisplay;
+	/* Background fill might be necessary when the plane has per-pixel
+	 * alpha content and blends from the background or does not cover
+	 * the entire screen.
+	 */
+	vc4_state->needs_bg_fill = fb->format->has_alpha || !covers_screen;
 
 	return 0;
 }
