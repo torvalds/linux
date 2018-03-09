@@ -177,6 +177,28 @@ static bool poolsize_invalid(const struct ebt_mac_wormhash *w)
 	return w && w->poolsize >= (INT_MAX / sizeof(struct ebt_mac_wormhash_tuple));
 }
 
+static bool wormhash_offset_invalid(int off, unsigned int len)
+{
+	if (off == 0) /* not present */
+		return false;
+
+	if (off < (int)sizeof(struct ebt_among_info) ||
+	    off % __alignof__(struct ebt_mac_wormhash))
+		return true;
+
+	off += sizeof(struct ebt_mac_wormhash);
+
+	return off > len;
+}
+
+static bool wormhash_sizes_valid(const struct ebt_mac_wormhash *wh, int a, int b)
+{
+	if (a == 0)
+		a = sizeof(struct ebt_among_info);
+
+	return ebt_mac_wormhash_size(wh) + a == b;
+}
+
 static int ebt_among_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_among_info *info = par->matchinfo;
@@ -187,6 +209,10 @@ static int ebt_among_mt_check(const struct xt_mtchk_param *par)
 	int err;
 
 	if (expected_length > em->match_size)
+		return -EINVAL;
+
+	if (wormhash_offset_invalid(info->wh_dst_ofs, em->match_size) ||
+	    wormhash_offset_invalid(info->wh_src_ofs, em->match_size))
 		return -EINVAL;
 
 	wh_dst = ebt_among_wh_dst(info);
@@ -200,6 +226,14 @@ static int ebt_among_mt_check(const struct xt_mtchk_param *par)
 	wh_src = ebt_among_wh_src(info);
 	if (poolsize_invalid(wh_src))
 		return -EINVAL;
+
+	if (info->wh_src_ofs < info->wh_dst_ofs) {
+		if (!wormhash_sizes_valid(wh_src, info->wh_src_ofs, info->wh_dst_ofs))
+			return -EINVAL;
+	} else {
+		if (!wormhash_sizes_valid(wh_dst, info->wh_dst_ofs, info->wh_src_ofs))
+			return -EINVAL;
+	}
 
 	expected_length += ebt_mac_wormhash_size(wh_src);
 
