@@ -905,35 +905,6 @@ config SERIAL_ICOM
 	  This driver can also be built as a module.  If so, the module
 	  will be called icom.
 
-config SERIAL_M32R_SIO
-	bool "M32R SIO I/F"
-	depends on M32R
-	default y
-	select SERIAL_CORE
-	help
-	  Say Y here if you want to use the M32R serial controller.
-
-config SERIAL_M32R_SIO_CONSOLE
-	bool "use SIO console"
-	depends on SERIAL_M32R_SIO=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  Say Y here if you want to support a serial console.
-
-	  If you use an M3T-M32700UT or an OPSPUT platform,
-	  please say also y for SERIAL_M32R_PLDSIO.
-
-config SERIAL_M32R_PLDSIO
-	bool "M32R SIO I/F on a PLD"
-	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PLAT_USRV || PLAT_M32700UT)
-	default n
-	help
-	  Say Y here if you want to use the M32R serial controller
-	  on a PLD (Programmable Logic Device).
-
-	  If you use an M3T-M32700UT or an OPSPUT platform,
-	  please say Y.
-
 config SERIAL_TXX9
 	bool "TMPTX39XX/49XX SIO support"
 	depends on HAS_TXX9_SERIAL
