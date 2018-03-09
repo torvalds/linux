@@ -45,6 +45,8 @@ static struct unittest_results {
 	failed; \
 })
 
+static int __init overlay_data_apply(const char *overlay_name, int *overlay_id);
+
 static void __init of_unittest_find_node_by_name(void)
 {
 	struct device_node *np;
@@ -997,8 +999,7 @@ static int __init unittest_data_add(void)
 	}
 
 	/*
-	 * This lock normally encloses of_overlay_apply() as well as
-	 * of_resolve_phandles().
+	 * This lock normally encloses of_resolve_phandles()
 	 */
 	of_overlay_mutex_lock();
 
@@ -1191,12 +1192,12 @@ static int of_unittest_device_exists(int unittest_nr, enum overlay_type ovtype)
 	return 0;
 }
 
-static const char *overlay_path(int nr)
+static const char *overlay_name_from_nr(int nr)
 {
 	static char buf[256];
 
 	snprintf(buf, sizeof(buf) - 1,
-		"/testcase-data/overlay%d", nr);
+		"overlay_%d", nr);
 	buf[sizeof(buf) - 1] = '\0';
 
 	return buf;
@@ -1263,25 +1264,19 @@ static void of_unittest_destroy_tracked_overlays(void)
 	} while (defers > 0);
 }
 
-static int of_unittest_apply_overlay(int overlay_nr, int unittest_nr,
+static int __init of_unittest_apply_overlay(int overlay_nr, int unittest_nr,
 		int *overlay_id)
 {
 	struct device_node *np = NULL;
+	const char *overlay_name;
 	int ret;
 
-	np = of_find_node_by_path(overlay_path(overlay_nr));
-	if (np == NULL) {
-		unittest(0, "could not find overlay node @\"%s\"\n",
-				overlay_path(overlay_nr));
-		ret = -EINVAL;
-		goto out;
-	}
+	overlay_name = overlay_name_from_nr(overlay_nr);
 
-	*overlay_id = 0;
-	ret = of_overlay_apply(np, overlay_id);
-	if (ret < 0) {
-		unittest(0, "could not create overlay from \"%s\"\n",
-				overlay_path(overlay_nr));
+	ret = overlay_data_apply(overlay_name, overlay_id);
+	if (!ret) {
+		unittest(0, "could not apply overlay \"%s\"\n",
+				overlay_name);
 		goto out;
 	}
 	of_unittest_track_overlay(*overlay_id);
@@ -1295,15 +1290,16 @@ out:
 }
 
 /* apply an overlay while checking before and after states */
-static int of_unittest_apply_overlay_check(int overlay_nr, int unittest_nr,
-		int before, int after, enum overlay_type ovtype)
+static int __init of_unittest_apply_overlay_check(int overlay_nr,
+		int unittest_nr, int before, int after,
+		enum overlay_type ovtype)
 {
 	int ret, ovcs_id;
 
 	/* unittest device must not be in before state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != before) {
-		unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s with device @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!before ? "enabled" : "disabled");
 		return -EINVAL;
@@ -1318,8 +1314,8 @@ static int of_unittest_apply_overlay_check(int overlay_nr, int unittest_nr,
 
 	/* unittest device must be to set to after state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != after) {
-		unittest(0, "overlay @\"%s\" failed to create @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s failed to create @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!after ? "enabled" : "disabled");
 		return -EINVAL;
@@ -1329,7 +1325,7 @@ static int of_unittest_apply_overlay_check(int overlay_nr, int unittest_nr,
 }
 
 /* apply an overlay and then revert it while checking before, after states */
-static int of_unittest_apply_revert_overlay_check(int overlay_nr,
+static int __init of_unittest_apply_revert_overlay_check(int overlay_nr,
 		int unittest_nr, int before, int after,
 		enum overlay_type ovtype)
 {
@@ -1337,8 +1333,8 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 
 	/* unittest device must be in before state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != before) {
-		unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s with device @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!before ? "enabled" : "disabled");
 		return -EINVAL;
@@ -1354,8 +1350,8 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 
 	/* unittest device must be in after state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != after) {
-		unittest(0, "overlay @\"%s\" failed to create @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s failed to create @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!after ? "enabled" : "disabled");
 		return -EINVAL;
@@ -1363,16 +1359,16 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 
 	ret = of_overlay_remove(&ovcs_id);
 	if (ret != 0) {
-		unittest(0, "overlay @\"%s\" failed to be destroyed @\"%s\"\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s failed to be destroyed @\"%s\"\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype));
 		return ret;
 	}
 
 	/* unittest device must be again in before state */
 	if (of_unittest_device_exists(unittest_nr, PDEV_OVERLAY) != before) {
-		unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s with device @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!before ? "enabled" : "disabled");
 		return -EINVAL;
@@ -1382,7 +1378,7 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 }
 
 /* test activation of device */
-static void of_unittest_overlay_0(void)
+static void __init of_unittest_overlay_0(void)
 {
 	int ret;
 
@@ -1395,7 +1391,7 @@ static void of_unittest_overlay_0(void)
 }
 
 /* test deactivation of device */
-static void of_unittest_overlay_1(void)
+static void __init of_unittest_overlay_1(void)
 {
 	int ret;
 
@@ -1408,7 +1404,7 @@ static void of_unittest_overlay_1(void)
 }
 
 /* test activation of device */
-static void of_unittest_overlay_2(void)
+static void __init of_unittest_overlay_2(void)
 {
 	int ret;
 
@@ -1421,7 +1417,7 @@ static void of_unittest_overlay_2(void)
 }
 
 /* test deactivation of device */
-static void of_unittest_overlay_3(void)
+static void __init of_unittest_overlay_3(void)
 {
 	int ret;
 
@@ -1434,7 +1430,7 @@ static void of_unittest_overlay_3(void)
 }
 
 /* test activation of a full device node */
-static void of_unittest_overlay_4(void)
+static void __init of_unittest_overlay_4(void)
 {
 	int ret;
 
@@ -1447,7 +1443,7 @@ static void of_unittest_overlay_4(void)
 }
 
 /* test overlay apply/revert sequence */
-static void of_unittest_overlay_5(void)
+static void __init of_unittest_overlay_5(void)
 {
 	int ret;
 
@@ -1460,19 +1456,19 @@ static void of_unittest_overlay_5(void)
 }
 
 /* test overlay application in sequence */
-static void of_unittest_overlay_6(void)
+static void __init of_unittest_overlay_6(void)
 {
-	struct device_node *np;
 	int ret, i, ov_id[2], ovcs_id;
 	int overlay_nr = 6, unittest_nr = 6;
 	int before = 0, after = 1;
+	const char *overlay_name;
 
 	/* unittest device must be in before state */
 	for (i = 0; i < 2; i++) {
 		if (of_unittest_device_exists(unittest_nr + i, PDEV_OVERLAY)
 				!= before) {
-			unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-					overlay_path(overlay_nr + i),
+			unittest(0, "%s with device @\"%s\" %s\n",
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr + i,
 						PDEV_OVERLAY),
 					!before ? "enabled" : "disabled");
@@ -1483,18 +1479,12 @@ static void of_unittest_overlay_6(void)
 	/* apply the overlays */
 	for (i = 0; i < 2; i++) {
 
-		np = of_find_node_by_path(overlay_path(overlay_nr + i));
-		if (np == NULL) {
-			unittest(0, "could not find overlay node @\"%s\"\n",
-					overlay_path(overlay_nr + i));
-			return;
-		}
+		overlay_name = overlay_name_from_nr(overlay_nr + i);
 
-		ovcs_id = 0;
-		ret = of_overlay_apply(np, &ovcs_id);
-		if (ret < 0)  {
-			unittest(0, "could not create overlay from \"%s\"\n",
-					overlay_path(overlay_nr + i));
+		ret = overlay_data_apply(overlay_name, &ovcs_id);
+		if (!ret)  {
+			unittest(0, "could not apply overlay \"%s\"\n",
+					overlay_name);
 			return;
 		}
 		ov_id[i] = ovcs_id;
@@ -1506,7 +1496,7 @@ static void of_unittest_overlay_6(void)
 		if (of_unittest_device_exists(unittest_nr + i, PDEV_OVERLAY)
 				!= after) {
 			unittest(0, "overlay @\"%s\" failed @\"%s\" %s\n",
-					overlay_path(overlay_nr + i),
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr + i,
 						PDEV_OVERLAY),
 					!after ? "enabled" : "disabled");
@@ -1518,8 +1508,8 @@ static void of_unittest_overlay_6(void)
 		ovcs_id = ov_id[i];
 		ret = of_overlay_remove(&ovcs_id);
 		if (ret != 0) {
-			unittest(0, "overlay @\"%s\" failed destroy @\"%s\"\n",
-					overlay_path(overlay_nr + i),
+			unittest(0, "%s failed destroy @\"%s\"\n",
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr + i,
 						PDEV_OVERLAY));
 			return;
@@ -1531,8 +1521,8 @@ static void of_unittest_overlay_6(void)
 		/* unittest device must be again in before state */
 		if (of_unittest_device_exists(unittest_nr + i, PDEV_OVERLAY)
 				!= before) {
-			unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-					overlay_path(overlay_nr + i),
+			unittest(0, "%s with device @\"%s\" %s\n",
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr + i,
 						PDEV_OVERLAY),
 					!before ? "enabled" : "disabled");
@@ -1544,29 +1534,23 @@ static void of_unittest_overlay_6(void)
 }
 
 /* test overlay application in sequence */
-static void of_unittest_overlay_8(void)
+static void __init of_unittest_overlay_8(void)
 {
-	struct device_node *np;
 	int ret, i, ov_id[2], ovcs_id;
 	int overlay_nr = 8, unittest_nr = 8;
+	const char *overlay_name;
 
 	/* we don't care about device state in this test */
 
 	/* apply the overlays */
 	for (i = 0; i < 2; i++) {
 
-		np = of_find_node_by_path(overlay_path(overlay_nr + i));
-		if (np == NULL) {
-			unittest(0, "could not find overlay node @\"%s\"\n",
-					overlay_path(overlay_nr + i));
-			return;
-		}
+		overlay_name = overlay_name_from_nr(overlay_nr + i);
 
-		ovcs_id = 0;
-		ret = of_overlay_apply(np, &ovcs_id);
+		ret = overlay_data_apply(overlay_name, &ovcs_id);
 		if (ret < 0)  {
-			unittest(0, "could not create overlay from \"%s\"\n",
-					overlay_path(overlay_nr + i));
+			unittest(0, "could not apply overlay \"%s\"\n",
+					overlay_name);
 			return;
 		}
 		ov_id[i] = ovcs_id;
@@ -1577,8 +1561,8 @@ static void of_unittest_overlay_8(void)
 	ovcs_id = ov_id[0];
 	ret = of_overlay_remove(&ovcs_id);
 	if (ret == 0) {
-		unittest(0, "overlay @\"%s\" was destroyed @\"%s\"\n",
-				overlay_path(overlay_nr + 0),
+		unittest(0, "%s was destroyed @\"%s\"\n",
+				overlay_name_from_nr(overlay_nr + 0),
 				unittest_path(unittest_nr,
 					PDEV_OVERLAY));
 		return;
@@ -1589,8 +1573,8 @@ static void of_unittest_overlay_8(void)
 		ovcs_id = ov_id[i];
 		ret = of_overlay_remove(&ovcs_id);
 		if (ret != 0) {
-			unittest(0, "overlay @\"%s\" not destroyed @\"%s\"\n",
-					overlay_path(overlay_nr + i),
+			unittest(0, "%s not destroyed @\"%s\"\n",
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr,
 						PDEV_OVERLAY));
 			return;
@@ -1602,7 +1586,7 @@ static void of_unittest_overlay_8(void)
 }
 
 /* test insertion of a bus with parent devices */
-static void of_unittest_overlay_10(void)
+static void __init of_unittest_overlay_10(void)
 {
 	int ret;
 	char *child_path;
@@ -1625,7 +1609,7 @@ static void of_unittest_overlay_10(void)
 }
 
 /* test insertion of a bus with parent devices (and revert) */
-static void of_unittest_overlay_11(void)
+static void __init of_unittest_overlay_11(void)
 {
 	int ret;
 
@@ -1891,7 +1875,7 @@ static void of_unittest_overlay_i2c_cleanup(void)
 	i2c_del_driver(&unittest_i2c_dev_driver);
 }
 
-static void of_unittest_overlay_i2c_12(void)
+static void __init of_unittest_overlay_i2c_12(void)
 {
 	int ret;
 
@@ -1904,7 +1888,7 @@ static void of_unittest_overlay_i2c_12(void)
 }
 
 /* test deactivation of device */
-static void of_unittest_overlay_i2c_13(void)
+static void __init of_unittest_overlay_i2c_13(void)
 {
 	int ret;
 
@@ -1921,7 +1905,7 @@ static void of_unittest_overlay_i2c_14(void)
 {
 }
 
-static void of_unittest_overlay_i2c_15(void)
+static void __init of_unittest_overlay_i2c_15(void)
 {
 	int ret;
 
@@ -2023,23 +2007,38 @@ static inline void __init of_unittest_overlay(void) { }
 	extern uint8_t __dtb_##name##_begin[]; \
 	extern uint8_t __dtb_##name##_end[]
 
-#define OVERLAY_INFO(name, expected) \
-{	.dtb_begin	 = __dtb_##name##_begin, \
-	.dtb_end	 = __dtb_##name##_end, \
-	.expected_result = expected, \
+#define OVERLAY_INFO(overlay_name, expected)             \
+{	.dtb_begin       = __dtb_##overlay_name##_begin, \
+	.dtb_end         = __dtb_##overlay_name##_end,   \
+	.expected_result = expected,                     \
+	.name            = #overlay_name,                \
 }
 
 struct overlay_info {
-	uint8_t		   *dtb_begin;
-	uint8_t		   *dtb_end;
-	void		   *data;
-	struct device_node *np_overlay;
-	int		   expected_result;
-	int		   overlay_id;
+	uint8_t		*dtb_begin;
+	uint8_t		*dtb_end;
+	int		expected_result;
+	int		overlay_id;
+	char		*name;
 };
 
 OVERLAY_INFO_EXTERN(overlay_base);
 OVERLAY_INFO_EXTERN(overlay);
+OVERLAY_INFO_EXTERN(overlay_0);
+OVERLAY_INFO_EXTERN(overlay_1);
+OVERLAY_INFO_EXTERN(overlay_2);
+OVERLAY_INFO_EXTERN(overlay_3);
+OVERLAY_INFO_EXTERN(overlay_4);
+OVERLAY_INFO_EXTERN(overlay_5);
+OVERLAY_INFO_EXTERN(overlay_6);
+OVERLAY_INFO_EXTERN(overlay_7);
+OVERLAY_INFO_EXTERN(overlay_8);
+OVERLAY_INFO_EXTERN(overlay_9);
+OVERLAY_INFO_EXTERN(overlay_10);
+OVERLAY_INFO_EXTERN(overlay_11);
+OVERLAY_INFO_EXTERN(overlay_12);
+OVERLAY_INFO_EXTERN(overlay_13);
+OVERLAY_INFO_EXTERN(overlay_15);
 OVERLAY_INFO_EXTERN(overlay_bad_phandle);
 OVERLAY_INFO_EXTERN(overlay_bad_symbol);
 
@@ -2047,6 +2046,21 @@ OVERLAY_INFO_EXTERN(overlay_bad_symbol);
 static struct overlay_info overlays[] = {
 	OVERLAY_INFO(overlay_base, -9999),
 	OVERLAY_INFO(overlay, 0),
+	OVERLAY_INFO(overlay_0, 0),
+	OVERLAY_INFO(overlay_1, 0),
+	OVERLAY_INFO(overlay_2, 0),
+	OVERLAY_INFO(overlay_3, 0),
+	OVERLAY_INFO(overlay_4, 0),
+	OVERLAY_INFO(overlay_5, 0),
+	OVERLAY_INFO(overlay_6, 0),
+	OVERLAY_INFO(overlay_7, 0),
+	OVERLAY_INFO(overlay_8, 0),
+	OVERLAY_INFO(overlay_9, 0),
+	OVERLAY_INFO(overlay_10, 0),
+	OVERLAY_INFO(overlay_11, 0),
+	OVERLAY_INFO(overlay_12, 0),
+	OVERLAY_INFO(overlay_13, 0),
+	OVERLAY_INFO(overlay_15, 0),
 	OVERLAY_INFO(overlay_bad_phandle, -EINVAL),
 	OVERLAY_INFO(overlay_bad_symbol, -EINVAL),
 	{}
@@ -2077,6 +2091,7 @@ void __init unittest_unflatten_overlay_base(void)
 {
 	struct overlay_info *info;
 	u32 data_size;
+	void *new_fdt;
 	u32 size;
 
 	info = &overlays[0];
@@ -2098,17 +2113,16 @@ void __init unittest_unflatten_overlay_base(void)
 		return;
 	}
 
-	info->data = dt_alloc_memory(size, roundup_pow_of_two(FDT_V17_SIZE));
-	if (!info->data) {
+	new_fdt = dt_alloc_memory(size, roundup_pow_of_two(FDT_V17_SIZE));
+	if (!new_fdt) {
 		pr_err("alloc for dtb 'overlay_base' failed");
 		return;
 	}
 
-	memcpy(info->data, info->dtb_begin, size);
+	memcpy(new_fdt, info->dtb_begin, size);
 
-	__unflatten_device_tree(info->data, NULL, &info->np_overlay,
+	__unflatten_device_tree(new_fdt, NULL, &overlay_base_root,
 				dt_alloc_memory, true);
-	overlay_base_root = info->np_overlay;
 }
 
 /*
@@ -2122,73 +2136,44 @@ void __init unittest_unflatten_overlay_base(void)
  *
  * Return 0 on unexpected error.
  */
-static int __init overlay_data_add(int onum)
+static int __init overlay_data_apply(const char *overlay_name, int *overlay_id)
 {
 	struct overlay_info *info;
+	int found = 0;
 	int k;
 	int ret;
 	u32 size;
-	u32 size_from_header;
 
-	for (k = 0, info = overlays; info; info++, k++) {
-		if (k == onum)
+	for (k = 0, info = overlays; info && info->name; info++, k++) {
+		if (!strcmp(overlay_name, info->name)) {
+			found = 1;
 			break;
+		}
 	}
-	if (onum > k)
+	if (!found) {
+		pr_err("no overlay data for %s\n", overlay_name);
 		return 0;
+	}
 
 	size = info->dtb_end - info->dtb_begin;
 	if (!size) {
-		pr_err("no overlay to attach, %d\n", onum);
+		pr_err("no overlay data for %s\n", overlay_name);
 		ret = 0;
 	}
 
-	size_from_header = fdt_totalsize(info->dtb_begin);
-	if (size_from_header != size) {
-		pr_err("overlay header totalsize != actual size, %d", onum);
-		return 0;
-	}
+	ret = of_overlay_fdt_apply(info->dtb_begin, size, &info->overlay_id);
+	if (overlay_id)
+		*overlay_id = info->overlay_id;
+	if (ret < 0)
+		goto out;
 
-	/*
-	 * Must create permanent copy of FDT because of_fdt_unflatten_tree()
-	 * will create pointers to the passed in FDT in the EDT.
-	 */
-	info->data = kmemdup(info->dtb_begin, size, GFP_KERNEL);
-	if (!info->data) {
-		pr_err("unable to allocate memory for data, %d\n", onum);
-		return 0;
-	}
-
-	of_fdt_unflatten_tree(info->data, NULL, &info->np_overlay);
-	if (!info->np_overlay) {
-		pr_err("unable to unflatten overlay, %d\n", onum);
-		ret = 0;
-		goto out_free_data;
-	}
-
-	info->overlay_id = 0;
-	ret = of_overlay_apply(info->np_overlay, &info->overlay_id);
-	if (ret < 0) {
-		pr_err("of_overlay_apply() (ret=%d), %d\n", ret, onum);
-		goto out_free_np_overlay;
-	}
-
-	pr_debug("__dtb_overlay_begin applied, overlay id %d\n", ret);
-
-	goto out;
-
-out_free_np_overlay:
-	/*
-	 * info->np_overlay is the unflattened device tree
-	 * It has not been spliced into the live tree.
-	 */
-
-	/* todo: function to free unflattened device tree */
-
-out_free_data:
-	kfree(info->data);
+	pr_debug("%s applied\n", overlay_name);
 
 out:
+	if (ret != info->expected_result)
+		pr_err("of_overlay_fdt_apply() expected %d, ret=%d, %s\n",
+		       info->expected_result, ret, overlay_name);
+
 	return (ret == info->expected_result);
 }
 
@@ -2290,18 +2275,29 @@ static __init void of_unittest_overlay_high_level(void)
 		__of_attach_node_sysfs(np);
 
 	if (of_symbols) {
+		struct property *new_prop;
 		for_each_property_of_node(overlay_base_symbols, prop) {
-			ret = __of_add_property(of_symbols, prop);
-			if (ret) {
-				unittest(0,
-					 "duplicate property '%s' in overlay_base node __symbols__",
+
+			new_prop = __of_prop_dup(prop, GFP_KERNEL);
+			if (!new_prop) {
+				unittest(0, "__of_prop_dup() of '%s' from overlay_base node __symbols__",
 					 prop->name);
 				goto err_unlock;
 			}
-			ret = __of_add_property_sysfs(of_symbols, prop);
+			ret = __of_add_property(of_symbols, new_prop);
 			if (ret) {
-				unittest(0,
-					 "unable to add property '%s' in overlay_base node __symbols__ to sysfs",
+				if (!strcmp(new_prop->name, "name")) {
+					/* auto-generated by unflatten */
+					ret = 0;
+					continue;
+				}
+				unittest(0, "duplicate property '%s' in overlay_base node __symbols__",
+					 prop->name);
+				goto err_unlock;
+			}
+			ret = __of_add_property_sysfs(of_symbols, new_prop);
+			if (ret) {
+				unittest(0, "unable to add property '%s' in overlay_base node __symbols__ to sysfs",
 					 prop->name);
 				goto err_unlock;
 			}
@@ -2313,13 +2309,13 @@ static __init void of_unittest_overlay_high_level(void)
 
 	/* now do the normal overlay usage test */
 
-	unittest(overlay_data_add(1),
+	unittest(overlay_data_apply("overlay", NULL),
 		 "Adding overlay 'overlay' failed\n");
 
-	unittest(overlay_data_add(2),
+	unittest(overlay_data_apply("overlay_bad_phandle", NULL),
 		 "Adding overlay 'overlay_bad_phandle' failed\n");
 
-	unittest(overlay_data_add(3),
+	unittest(overlay_data_apply("overlay_bad_symbol", NULL),
 		 "Adding overlay 'overlay_bad_symbol' failed\n");
 
 	return;
