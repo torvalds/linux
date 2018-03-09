@@ -244,13 +244,31 @@ static ssize_t store_rotate(struct device *device,
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct fb_var_screeninfo var;
+	unsigned long rotate;
 	int err;
 
 	var = fb_info->var;
 
-	err = kstrtoul(buf, 0, &var.rotate);
+	err = kstrtoul(buf, 0, &rotate);
 	if (err)
 		return err;
+
+	switch (rotate) {
+	case 3:
+		var.rotate = FB_ROTATE_CCW;
+		break;
+	case 2:
+		var.rotate = FB_ROTATE_UD;
+		break;
+	case 1:
+		var.rotate = FB_ROTATE_CW;
+		break;
+	case 0:
+		var.rotate = FB_ROTATE_UR;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if ((err = activate(fb_info, &var)))
 		return err;
