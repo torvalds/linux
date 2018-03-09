@@ -970,7 +970,7 @@ static int overlay_removal_is_ok(struct overlay_changeset *remove_ovcs)
  * @ovcs_id:	Pointer to overlay changeset id
  *
  * Removes an overlay if it is permissible.  @ovcs_id was previously returned
- * by of_overlay_apply().
+ * by of_overlay_fdt_apply().
  *
  * If an error occurred while attempting to revert the overlay changeset,
  * then an attempt is made to re-apply any changeset entry that was
