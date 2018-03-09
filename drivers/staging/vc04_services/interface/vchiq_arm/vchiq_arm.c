@@ -407,26 +407,6 @@ failed:
 EXPORT_SYMBOL(vchiq_open_service);
 
 VCHIQ_STATUS_T
-vchiq_queue_bulk_transmit(VCHIQ_SERVICE_HANDLE_T handle,
-	const void *data, unsigned int size, void *userdata)
-{
-	return vchiq_bulk_transfer(handle,
-		VCHI_MEM_HANDLE_INVALID, (void *)data, size, userdata,
-		VCHIQ_BULK_MODE_CALLBACK, VCHIQ_BULK_TRANSMIT);
-}
-EXPORT_SYMBOL(vchiq_queue_bulk_transmit);
-
-VCHIQ_STATUS_T
-vchiq_queue_bulk_receive(VCHIQ_SERVICE_HANDLE_T handle, void *data,
-	unsigned int size, void *userdata)
-{
-	return vchiq_bulk_transfer(handle,
-		VCHI_MEM_HANDLE_INVALID, data, size, userdata,
-		VCHIQ_BULK_MODE_CALLBACK, VCHIQ_BULK_RECEIVE);
-}
-EXPORT_SYMBOL(vchiq_queue_bulk_receive);
-
-VCHIQ_STATUS_T
 vchiq_bulk_transmit(VCHIQ_SERVICE_HANDLE_T handle, const void *data,
 	unsigned int size, void *userdata, VCHIQ_BULK_MODE_T mode)
 {
