@@ -188,10 +188,8 @@ legacy_irq:
 	if (ret < 0)
 		return -ENODEV;
 
-	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
-		if (i != PCIE_PORT_SERVICE_VC_SHIFT)
-			irqs[i] = pci_irq_vector(dev, 0);
-	}
+	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++)
+		irqs[i] = pci_irq_vector(dev, 0);
 
 	return 0;
 }
@@ -211,8 +209,7 @@ static int get_port_device_capability(struct pci_dev *dev)
 	int services = 0;
 	int cap_mask = 0;
 
-	cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
-			| PCIE_PORT_SERVICE_VC;
+	cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP;
 	if (pci_aer_available())
 		cap_mask |= PCIE_PORT_SERVICE_AER | PCIE_PORT_SERVICE_DPC;
 
@@ -239,9 +236,6 @@ static int get_port_device_capability(struct pci_dev *dev)
 		 */
 		pci_disable_pcie_error_reporting(dev);
 	}
-	/* VC support */
-	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_VC))
-		services |= PCIE_PORT_SERVICE_VC;
 	/* Root ports are capable of generating PME too */
 	if ((cap_mask & PCIE_PORT_SERVICE_PME)
 	    && pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT) {
@@ -331,7 +325,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 	 */
 	status = pcie_init_service_irqs(dev, irqs, capabilities);
 	if (status) {
-		capabilities &= PCIE_PORT_SERVICE_VC | PCIE_PORT_SERVICE_HP;
+		capabilities &= PCIE_PORT_SERVICE_HP;
 		if (!capabilities)
 			goto error_disable;
 	}
