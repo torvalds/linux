@@ -907,7 +907,7 @@ static ssize_t pktgen_if_write(struct file *file,
 
 	if (debug) {
 		size_t copy = min_t(size_t, count, 1023);
-		char tb[copy + 1];
+		char tb[1024];
 		if (copy_from_user(tb, user_buffer, copy))
 			return -EFAULT;
 		tb[copy] = 0;
