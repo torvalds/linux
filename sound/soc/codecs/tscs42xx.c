@@ -3,14 +3,19 @@
 // Copyright 2017 Tempo Semiconductor, Inc.
 // Author: Steven Eckhoff <steven.eckhoff.opensource@gmail.com>
 
-#include <linux/i2c.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
+#include <linux/kernel.h>
+#include <linux/device.h>
 #include <linux/regmap.h>
+#include <linux/i2c.h>
+#include <linux/err.h>
+#include <linux/string.h>
+#include <linux/module.h>
+#include <linux/delay.h>
+#include <linux/mutex.h>
+#include <sound/tlv.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
-#include <sound/tlv.h>
 
 #include "tscs42xx.h"
 
