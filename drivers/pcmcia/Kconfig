@@ -232,25 +232,6 @@ config PCMCIA_PROBE
 	bool
 	default y if ISA && !ARCH_SA1100 && !PARISC
 
-config M32R_PCC
-	bool "M32R PCMCIA I/F"
-	depends on M32R && CHIP_M32700 && PCMCIA
-	help
-	  Say Y here to use the M32R PCMCIA controller.
-
-config M32R_CFC
-	bool "M32R CF I/F Controller"
-	depends on M32R && (PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_MAPPI3 || PLAT_OPSPUT)
-	help
-	  Say Y here to use the M32R CompactFlash controller.
-
-config M32R_CFC_NUM
-	int "M32R CF I/F number"
-	depends on M32R_CFC
-	default "1" if PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_MAPPI3 || PLAT_OPSPUT
-	help
-	  Set the number of M32R CF slots.
-
 config PCMCIA_VRC4171
 	tristate "NEC VRC4171 Card Controllers support"
 	depends on CPU_VR41XX && ISA && PCMCIA
