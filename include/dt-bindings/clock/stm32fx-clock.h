@@ -35,8 +35,9 @@
 #define CLK_SAIQ_PDIV		13
 #define CLK_HSI			14
 #define CLK_SYSCLK		15
+#define CLK_F469_DSI		16
 
-#define END_PRIMARY_CLK		16
+#define END_PRIMARY_CLK		17
 
 #define CLK_HDMI_CEC		16
 #define CLK_SPDIF		17

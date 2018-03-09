@@ -521,7 +521,7 @@ static const struct stm32f4_pll_data stm32f429_pll[MAX_PLL_DIV] = {
 };
 
 static const struct stm32f4_pll_data stm32f469_pll[MAX_PLL_DIV] = {
-	{ PLL,	   50, { "pll",	     "pll-q",    NULL	    } },
+	{ PLL,	   50, { "pll",	     "pll-q",    "pll-r"    } },
 	{ PLL_I2S, 50, { "plli2s-p", "plli2s-q", "plli2s-r" } },
 	{ PLL_SAI, 50, { "pllsai-p", "pllsai-q", "pllsai-r" } },
 };
@@ -1047,6 +1047,8 @@ static const char *rtc_parents[4] = {
 	"no-clock", "lse", "lsi", "hse-rtc"
 };
 
+static const char *dsi_parent[2] = { NULL, "pll-r" };
+
 static const char *lcd_parent[1] = { "pllsai-r-div" };
 
 static const char *i2s_parents[2] = { "plli2s-r", NULL };
@@ -1155,6 +1157,12 @@ static const struct stm32_aux_clk stm32f469_aux_clk[] = {
 		STM32F4_RCC_DCKCFGR, 28, 1,
 		NO_GATE, 0,
 		0
+	},
+	{
+		CLK_F469_DSI, "dsi", dsi_parent, ARRAY_SIZE(dsi_parent),
+		STM32F4_RCC_DCKCFGR, 29, 1,
+		STM32F4_RCC_APB2ENR, 27,
+		CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT
 	},
 };
 
@@ -1450,6 +1458,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 	stm32f4_gate_map = data->gates_map;
 
 	hse_clk = of_clk_get_parent_name(np, 0);
+	dsi_parent[0] = hse_clk;
 
 	i2s_in_clk = of_clk_get_parent_name(np, 1);
 
