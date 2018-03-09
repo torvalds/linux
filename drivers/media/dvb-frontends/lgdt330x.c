@@ -186,19 +186,14 @@ static int lgdt330x_sw_reset(struct lgdt330x_state *state)
 
 static int lgdt330x_init(struct dvb_frontend *fe)
 {
-	/*
-	 * Hardware reset is done using gpio[0] of cx23880x chip.
-	 * I'd like to do it here, but don't know how to find chip address.
-	 * cx88-cards.c arranges for the reset bit to be inactive (high).
-	 * Maybe there needs to be a callable function in cx88-core or
-	 * the caller of this function needs to do it.
-	 */
-
+	struct lgdt330x_state *state = fe->demodulator_priv;
+	char  *chip_name;
+	int    err;
 	/*
 	 * Array of byte pairs <address, value>
 	 * to initialize each different chip
 	 */
-	static u8 lgdt3302_init_data[] = {
+	static const u8 lgdt3302_init_data[] = {
 		/* Use 50MHz param values from spec sheet since xtal is 50 */
 		/*
 		 * Change the value of NCOCTFV[25:0] of carrier
@@ -243,24 +238,25 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 		AGC_LOOP_BANDWIDTH0, 0x08,
 		AGC_LOOP_BANDWIDTH1, 0x9a
 	};
-
-	static u8 lgdt3303_init_data[] = {
+	static const u8 lgdt3303_init_data[] = {
 		0x4c, 0x14
 	};
-
-	static u8 flip_1_lgdt3303_init_data[] = {
+	static const u8 flip_1_lgdt3303_init_data[] = {
 		0x4c, 0x14,
 		0x87, 0xf3
 	};
-
-	static u8 flip_2_lgdt3303_init_data[] = {
+	static const u8 flip_2_lgdt3303_init_data[] = {
 		0x4c, 0x14,
 		0x87, 0xda
 	};
 
-	struct lgdt330x_state *state = fe->demodulator_priv;
-	char  *chip_name;
-	int    err;
+	/*
+	 * Hardware reset is done using gpio[0] of cx23880x chip.
+	 * I'd like to do it here, but don't know how to find chip address.
+	 * cx88-cards.c arranges for the reset bit to be inactive (high).
+	 * Maybe there needs to be a callable function in cx88-core or
+	 * the caller of this function needs to do it.
+	 */
 
 	switch (state->config.demod_chip) {
 	case LGDT3302:
@@ -337,11 +333,12 @@ static int lgdt330x_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	struct lgdt330x_state *state = fe->demodulator_priv;
 	/*
 	 * Array of byte pairs <address, value>
 	 * to initialize 8VSB for lgdt3303 chip 50 MHz IF
 	 */
-	static u8 lgdt3303_8vsb_44_data[] = {
+	static const u8 lgdt3303_8vsb_44_data[] = {
 		0x04, 0x00,
 		0x0d, 0x40,
 		0x0e, 0x87,
@@ -349,12 +346,11 @@ static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 		0x10, 0x01,
 		0x47, 0x8b
 	};
-
 	/*
 	 * Array of byte pairs <address, value>
 	 * to initialize QAM for lgdt3303 chip
 	 */
-	static u8 lgdt3303_qam_data[] = {
+	static const u8 lgdt3303_qam_data[] = {
 		0x04, 0x00,
 		0x0d, 0x00,
 		0x0e, 0x00,
@@ -367,10 +363,7 @@ static int lgdt330x_set_parameters(struct dvb_frontend *fe)
 		0x49, 0x08,
 		0x4a, 0x9b
 	};
-
-	struct lgdt330x_state *state = fe->demodulator_priv;
-
-	static u8 top_ctrl_cfg[]   = { TOP_CONTROL, 0x03 };
+	u8 top_ctrl_cfg[]   = { TOP_CONTROL, 0x03 };
 
 	int err = 0;
 	/* Change only if we are actually changing the modulation */
