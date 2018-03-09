@@ -109,6 +109,42 @@ int __tcf_idr_release(struct tc_action *p, bool bind, bool strict)
 }
 EXPORT_SYMBOL(__tcf_idr_release);
 
+static size_t tcf_action_shared_attrs_size(const struct tc_action *act)
+{
+	u32 cookie_len = 0;
+
+	if (act->act_cookie)
+		cookie_len = nla_total_size(act->act_cookie->len);
+
+	return  nla_total_size(0) /* action number nested */
+		+ nla_total_size(IFNAMSIZ) /* TCA_ACT_KIND */
+		+ cookie_len /* TCA_ACT_COOKIE */
+		+ nla_total_size(0) /* TCA_ACT_STATS nested */
+		/* TCA_STATS_BASIC */
+		+ nla_total_size_64bit(sizeof(struct gnet_stats_basic))
+		/* TCA_STATS_QUEUE */
+		+ nla_total_size_64bit(sizeof(struct gnet_stats_queue))
+		+ nla_total_size(0) /* TCA_OPTIONS nested */
+		+ nla_total_size(sizeof(struct tcf_t)); /* TCA_GACT_TM */
+}
+
+static size_t tcf_action_full_attrs_size(size_t sz)
+{
+	return NLMSG_HDRLEN                     /* struct nlmsghdr */
+		+ sizeof(struct tcamsg)
+		+ nla_total_size(0)             /* TCA_ACT_TAB nested */
+		+ sz;
+}
+
+static size_t tcf_action_fill_size(const struct tc_action *act)
+{
+	size_t sz = tcf_action_shared_attrs_size(act);
+
+	if (act->ops->get_fill_size)
+		return act->ops->get_fill_size(act) + sz;
+	return sz;
+}
+
 static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
 			   struct netlink_callback *cb)
 {
@@ -741,10 +777,12 @@ static void cleanup_a(struct list_head *actions, int ovr)
 
 int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 		    struct nlattr *est, char *name, int ovr, int bind,
-		    struct list_head *actions, struct netlink_ext_ack *extack)
+		    struct list_head *actions, size_t *attr_size,
+		    struct netlink_ext_ack *extack)
 {
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
+	size_t sz = 0;
 	int err;
 	int i;
 
@@ -760,10 +798,13 @@ int tcf_action_init(struct net *net, struct tcf_proto *tp, struct nlattr *nla,
 			goto err;
 		}
 		act->order = i;
+		sz += tcf_action_fill_size(act);
 		if (ovr)
 			act->tcfa_refcnt++;
 		list_add_tail(&act->list, actions);
 	}
+
+	*attr_size = tcf_action_full_attrs_size(sz);
 
 	/* Remove the temp refcnt which was necessary to protect against
 	 * destroying an existing action which was being replaced
@@ -994,12 +1035,13 @@ err_out:
 
 static int
 tcf_del_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
-	       u32 portid, struct netlink_ext_ack *extack)
+	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
 {
 	int ret;
 	struct sk_buff *skb;
 
-	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = alloc_skb(attr_size <= NLMSG_GOODSIZE ? NLMSG_GOODSIZE : attr_size,
+			GFP_KERNEL);
 	if (!skb)
 		return -ENOBUFS;
 
@@ -1032,6 +1074,7 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 	int i, ret;
 	struct nlattr *tb[TCA_ACT_MAX_PRIO + 1];
 	struct tc_action *act;
+	size_t attr_size = 0;
 	LIST_HEAD(actions);
 
 	ret = nla_parse_nested(tb, TCA_ACT_MAX_PRIO, nla, NULL, extack);
@@ -1053,13 +1096,16 @@ tca_action_gd(struct net *net, struct nlattr *nla, struct nlmsghdr *n,
 			goto err;
 		}
 		act->order = i;
+		attr_size += tcf_action_fill_size(act);
 		list_add_tail(&act->list, &actions);
 	}
+
+	attr_size = tcf_action_full_attrs_size(attr_size);
 
 	if (event == RTM_GETACTION)
 		ret = tcf_get_notify(net, portid, n, &actions, event, extack);
 	else { /* delete */
-		ret = tcf_del_notify(net, n, &actions, portid, extack);
+		ret = tcf_del_notify(net, n, &actions, portid, attr_size, extack);
 		if (ret)
 			goto err;
 		return ret;
@@ -1072,12 +1118,13 @@ err:
 
 static int
 tcf_add_notify(struct net *net, struct nlmsghdr *n, struct list_head *actions,
-	       u32 portid, struct netlink_ext_ack *extack)
+	       u32 portid, size_t attr_size, struct netlink_ext_ack *extack)
 {
 	struct sk_buff *skb;
 	int err = 0;
 
-	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	skb = alloc_skb(attr_size <= NLMSG_GOODSIZE ? NLMSG_GOODSIZE : attr_size,
+			GFP_KERNEL);
 	if (!skb)
 		return -ENOBUFS;
 
@@ -1099,15 +1146,16 @@ static int tcf_action_add(struct net *net, struct nlattr *nla,
 			  struct nlmsghdr *n, u32 portid, int ovr,
 			  struct netlink_ext_ack *extack)
 {
+	size_t attr_size = 0;
 	int ret = 0;
 	LIST_HEAD(actions);
 
 	ret = tcf_action_init(net, NULL, nla, NULL, NULL, ovr, 0, &actions,
-			      extack);
+			      &attr_size, extack);
 	if (ret)
 		return ret;
 
-	return tcf_add_notify(net, n, &actions, portid, extack);
+	return tcf_add_notify(net, n, &actions, portid, attr_size, extack);
 }
 
 static u32 tcaa_root_flags_allowed = TCA_FLAG_LARGE_DUMP_ON;
