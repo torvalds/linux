@@ -168,8 +168,8 @@ void hns3_set_vector_coalesce_rl(struct hns3_enet_tqp_vector *tqp_vector,
 	 * GL and RL(Rate Limiter) are 2 ways to acheive interrupt coalescing
 	 */
 
-	if (rl_reg > 0 && !tqp_vector->tx_group.gl_adapt_enable &&
-	    !tqp_vector->rx_group.gl_adapt_enable)
+	if (rl_reg > 0 && !tqp_vector->tx_group.coal.gl_adapt_enable &&
+	    !tqp_vector->rx_group.coal.gl_adapt_enable)
 		/* According to the hardware, the range of rl_reg is
 		 * 0-59 and the unit is 4.
 		 */
@@ -205,17 +205,17 @@ static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector,
 	 */
 
 	/* Default: enable interrupt coalescing self-adaptive and GL */
-	tqp_vector->tx_group.gl_adapt_enable = 1;
-	tqp_vector->rx_group.gl_adapt_enable = 1;
+	tqp_vector->tx_group.coal.gl_adapt_enable = 1;
+	tqp_vector->rx_group.coal.gl_adapt_enable = 1;
 
-	tqp_vector->tx_group.int_gl = HNS3_INT_GL_50K;
-	tqp_vector->rx_group.int_gl = HNS3_INT_GL_50K;
+	tqp_vector->tx_group.coal.int_gl = HNS3_INT_GL_50K;
+	tqp_vector->rx_group.coal.int_gl = HNS3_INT_GL_50K;
 
 	/* Default: disable RL */
 	h->kinfo.int_rl_setting = 0;
 
-	tqp_vector->rx_group.flow_level = HNS3_FLOW_LOW;
-	tqp_vector->tx_group.flow_level = HNS3_FLOW_LOW;
+	tqp_vector->rx_group.coal.flow_level = HNS3_FLOW_LOW;
+	tqp_vector->tx_group.coal.flow_level = HNS3_FLOW_LOW;
 }
 
 static void hns3_vector_gl_rl_init_hw(struct hns3_enet_tqp_vector *tqp_vector,
@@ -224,9 +224,9 @@ static void hns3_vector_gl_rl_init_hw(struct hns3_enet_tqp_vector *tqp_vector,
 	struct hnae3_handle *h = priv->ae_handle;
 
 	hns3_set_vector_coalesce_tx_gl(tqp_vector,
-				       tqp_vector->tx_group.int_gl);
+				       tqp_vector->tx_group.coal.int_gl);
 	hns3_set_vector_coalesce_rx_gl(tqp_vector,
-				       tqp_vector->rx_group.int_gl);
+				       tqp_vector->rx_group.coal.int_gl);
 	hns3_set_vector_coalesce_rl(tqp_vector, h->kinfo.int_rl_setting);
 }
 
@@ -2393,12 +2393,12 @@ static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 	u16 new_int_gl;
 	int usecs;
 
-	if (!ring_group->int_gl)
+	if (!ring_group->coal.int_gl)
 		return false;
 
 	if (ring_group->total_packets == 0) {
-		ring_group->int_gl = HNS3_INT_GL_50K;
-		ring_group->flow_level = HNS3_FLOW_LOW;
+		ring_group->coal.int_gl = HNS3_INT_GL_50K;
+		ring_group->coal.flow_level = HNS3_FLOW_LOW;
 		return true;
 	}
 
@@ -2408,10 +2408,10 @@ static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 	 * 20-1249MB/s high      (18000 ints/s)
 	 * > 40000pps  ultra     (8000 ints/s)
 	 */
-	new_flow_level = ring_group->flow_level;
-	new_int_gl = ring_group->int_gl;
+	new_flow_level = ring_group->coal.flow_level;
+	new_int_gl = ring_group->coal.int_gl;
 	tqp_vector = ring_group->ring->tqp_vector;
-	usecs = (ring_group->int_gl << 1);
+	usecs = (ring_group->coal.int_gl << 1);
 	bytes_per_usecs = ring_group->total_bytes / usecs;
 	/* 1000000 microseconds */
 	packets_per_secs = ring_group->total_packets * 1000000 / usecs;
@@ -2458,9 +2458,9 @@ static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 
 	ring_group->total_bytes = 0;
 	ring_group->total_packets = 0;
-	ring_group->flow_level = new_flow_level;
-	if (new_int_gl != ring_group->int_gl) {
-		ring_group->int_gl = new_int_gl;
+	ring_group->coal.flow_level = new_flow_level;
+	if (new_int_gl != ring_group->coal.int_gl) {
+		ring_group->coal.int_gl = new_int_gl;
 		return true;
 	}
 	return false;
@@ -2472,18 +2472,18 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 	struct hns3_enet_ring_group *tx_group = &tqp_vector->tx_group;
 	bool rx_update, tx_update;
 
-	if (rx_group->gl_adapt_enable) {
+	if (rx_group->coal.gl_adapt_enable) {
 		rx_update = hns3_get_new_int_gl(rx_group);
 		if (rx_update)
 			hns3_set_vector_coalesce_rx_gl(tqp_vector,
-						       rx_group->int_gl);
+						       rx_group->coal.int_gl);
 	}
 
-	if (tx_group->gl_adapt_enable) {
+	if (tx_group->coal.gl_adapt_enable) {
 		tx_update = hns3_get_new_int_gl(&tqp_vector->tx_group);
 		if (tx_update)
 			hns3_set_vector_coalesce_tx_gl(tqp_vector,
-						       tx_group->int_gl);
+						       tx_group->coal.int_gl);
 	}
 }
 

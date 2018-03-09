@@ -905,11 +905,13 @@ static int hns3_get_coalesce_per_queue(struct net_device *netdev, u32 queue,
 	tx_vector = priv->ring_data[queue].ring->tqp_vector;
 	rx_vector = priv->ring_data[queue_num + queue].ring->tqp_vector;
 
-	cmd->use_adaptive_tx_coalesce = tx_vector->tx_group.gl_adapt_enable;
-	cmd->use_adaptive_rx_coalesce = rx_vector->rx_group.gl_adapt_enable;
+	cmd->use_adaptive_tx_coalesce =
+			tx_vector->tx_group.coal.gl_adapt_enable;
+	cmd->use_adaptive_rx_coalesce =
+			rx_vector->rx_group.coal.gl_adapt_enable;
 
-	cmd->tx_coalesce_usecs = tx_vector->tx_group.int_gl;
-	cmd->rx_coalesce_usecs = rx_vector->rx_group.int_gl;
+	cmd->tx_coalesce_usecs = tx_vector->tx_group.coal.int_gl;
+	cmd->rx_coalesce_usecs = rx_vector->rx_group.coal.int_gl;
 
 	cmd->tx_coalesce_usecs_high = h->kinfo.int_rl_setting;
 	cmd->rx_coalesce_usecs_high = h->kinfo.int_rl_setting;
@@ -1029,14 +1031,18 @@ static void hns3_set_coalesce_per_queue(struct net_device *netdev,
 	tx_vector = priv->ring_data[queue].ring->tqp_vector;
 	rx_vector = priv->ring_data[queue_num + queue].ring->tqp_vector;
 
-	tx_vector->tx_group.gl_adapt_enable = cmd->use_adaptive_tx_coalesce;
-	rx_vector->rx_group.gl_adapt_enable = cmd->use_adaptive_rx_coalesce;
+	tx_vector->tx_group.coal.gl_adapt_enable =
+				cmd->use_adaptive_tx_coalesce;
+	rx_vector->rx_group.coal.gl_adapt_enable =
+				cmd->use_adaptive_rx_coalesce;
 
-	tx_vector->tx_group.int_gl = cmd->tx_coalesce_usecs;
-	rx_vector->rx_group.int_gl = cmd->rx_coalesce_usecs;
+	tx_vector->tx_group.coal.int_gl = cmd->tx_coalesce_usecs;
+	rx_vector->rx_group.coal.int_gl = cmd->rx_coalesce_usecs;
 
-	hns3_set_vector_coalesce_tx_gl(tx_vector, tx_vector->tx_group.int_gl);
-	hns3_set_vector_coalesce_rx_gl(rx_vector, rx_vector->rx_group.int_gl);
+	hns3_set_vector_coalesce_tx_gl(tx_vector,
+				       tx_vector->tx_group.coal.int_gl);
+	hns3_set_vector_coalesce_rx_gl(rx_vector,
+				       rx_vector->rx_group.coal.int_gl);
 
 	hns3_set_vector_coalesce_rl(tx_vector, h->kinfo.int_rl_setting);
 	hns3_set_vector_coalesce_rl(rx_vector, h->kinfo.int_rl_setting);
