@@ -437,7 +437,6 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 			*done = 1;
 			break;
 		}
-		skb->dev = card->dev;
 		switch (hdr->hdr.l2.id) {
 		case QETH_HEADER_TYPE_LAYER2:
 			skb->pkt_type = PACKET_HOST;

@@ -2835,7 +2835,8 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 	int i;
 
 	if ((card->options.cq == QETH_CQ_ENABLED) && (!buf->rx_skb)) {
-		buf->rx_skb = dev_alloc_skb(QETH_RX_PULL_LEN + ETH_HLEN);
+		buf->rx_skb = netdev_alloc_skb(card->dev,
+					       QETH_RX_PULL_LEN + ETH_HLEN);
 		if (!buf->rx_skb)
 			return 1;
 	}
@@ -5325,7 +5326,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 	} else {
 		unsigned int linear = (use_rx_sg) ? QETH_RX_PULL_LEN : skb_len;
 
-		skb = dev_alloc_skb(linear + headroom);
+		skb = napi_alloc_skb(&card->napi, linear + headroom);
 	}
 	if (!skb)
 		goto no_mem;

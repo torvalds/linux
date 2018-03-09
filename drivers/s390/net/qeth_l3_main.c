@@ -1572,7 +1572,6 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			*done = 1;
 			break;
 		}
-		skb->dev = card->dev;
 		switch (hdr->hdr.l3.id) {
 		case QETH_HEADER_TYPE_LAYER3:
 			magic = *(__u16 *)skb->data;
@@ -1580,11 +1579,10 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 			    (magic == ETH_P_AF_IUCV)) {
 				skb->protocol = cpu_to_be16(ETH_P_AF_IUCV);
 				skb->pkt_type = PACKET_HOST;
-				skb->mac_header = NET_SKB_PAD;
-				skb->dev = card->dev;
 				len = skb->len;
 				card->dev->header_ops->create(skb, card->dev, 0,
 					card->dev->dev_addr, "FAKELL", len);
+				skb_reset_mac_header(skb);
 				netif_receive_skb(skb);
 			} else {
 				qeth_l3_rebuild_skb(card, skb, hdr);
