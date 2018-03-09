@@ -10,6 +10,8 @@
 
 #include <linux/errno.h>
 #include <linux/percpu.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/spinlock.h>
 
 #include <asm/mips-cm.h>
@@ -20,6 +22,22 @@ void __iomem *mips_cpc_base;
 static DEFINE_PER_CPU_ALIGNED(spinlock_t, cpc_core_lock);
 
 static DEFINE_PER_CPU_ALIGNED(unsigned long, cpc_core_lock_flags);
+
+phys_addr_t __weak mips_cpc_default_phys_base(void)
+{
+	struct device_node *cpc_node;
+	struct resource res;
+	int err;
+
+	cpc_node = of_find_compatible_node(of_root, NULL, "mti,mips-cpc");
+	if (cpc_node) {
+		err = of_address_to_resource(cpc_node, 0, &res);
+		if (!err)
+			return res.start;
+	}
+
+	return 0;
+}
 
 /**
  * mips_cpc_phys_base - retrieve the physical base address of the CPC
@@ -43,8 +61,12 @@ static phys_addr_t mips_cpc_phys_base(void)
 	if (cpc_base & CM_GCR_CPC_BASE_CPCEN_MSK)
 		return cpc_base & CM_GCR_CPC_BASE_CPCBASE_MSK;
 
-	/* Otherwise, give it the default address & enable it */
+	/* Otherwise, use the default address */
 	cpc_base = mips_cpc_default_phys_base();
+	if (!cpc_base)
+		return cpc_base;
+
+	/* Enable the CPC, mapped at the default address */
 	write_gcr_cpc_base(cpc_base | CM_GCR_CPC_BASE_CPCEN_MSK);
 	return cpc_base;
 }

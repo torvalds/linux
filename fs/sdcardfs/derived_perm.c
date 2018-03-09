@@ -32,23 +32,20 @@ static void inherit_derived_state(struct inode *parent, struct inode *child)
 	ci->data->under_android = pi->data->under_android;
 	ci->data->under_cache = pi->data->under_cache;
 	ci->data->under_obb = pi->data->under_obb;
-	set_top(ci, pi->top_data);
 }
 
 /* helper function for derived state */
 void setup_derived_state(struct inode *inode, perm_t perm, userid_t userid,
-					uid_t uid, bool under_android,
-					struct sdcardfs_inode_data *top)
+					uid_t uid)
 {
 	struct sdcardfs_inode_info *info = SDCARDFS_I(inode);
 
 	info->data->perm = perm;
 	info->data->userid = userid;
 	info->data->d_uid = uid;
-	info->data->under_android = under_android;
+	info->data->under_android = false;
 	info->data->under_cache = false;
 	info->data->under_obb = false;
-	set_top(info, top);
 }
 
 /* While renaming, there is a point where we want the path from dentry,
@@ -58,8 +55,8 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 				const struct qstr *name)
 {
 	struct sdcardfs_inode_info *info = SDCARDFS_I(d_inode(dentry));
-	struct sdcardfs_inode_data *parent_data =
-			SDCARDFS_I(d_inode(parent))->data;
+	struct sdcardfs_inode_info *parent_info = SDCARDFS_I(d_inode(parent));
+	struct sdcardfs_inode_data *parent_data = parent_info->data;
 	appid_t appid;
 	unsigned long user_num;
 	int err;
@@ -80,13 +77,15 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 	inherit_derived_state(d_inode(parent), d_inode(dentry));
 
 	/* Files don't get special labels */
-	if (!S_ISDIR(d_inode(dentry)->i_mode))
+	if (!S_ISDIR(d_inode(dentry)->i_mode)) {
+		set_top(info, parent_info);
 		return;
+	}
 	/* Derive custom permissions based on parent and current node */
 	switch (parent_data->perm) {
 	case PERM_INHERIT:
 	case PERM_ANDROID_PACKAGE_CACHE:
-		/* Already inherited above */
+		set_top(info, parent_info);
 		break;
 	case PERM_PRE_ROOT:
 		/* Legacy internal layout places users at top level */
@@ -96,7 +95,6 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 			info->data->userid = 0;
 		else
 			info->data->userid = user_num;
-		set_top(info, info->data);
 		break;
 	case PERM_ROOT:
 		/* Assume masked off by default. */
@@ -104,24 +102,24 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 			/* App-specific directories inside; let anyone traverse */
 			info->data->perm = PERM_ANDROID;
 			info->data->under_android = true;
-			set_top(info, info->data);
+		} else {
+			set_top(info, parent_info);
 		}
 		break;
 	case PERM_ANDROID:
 		if (qstr_case_eq(name, &q_data)) {
 			/* App-specific directories inside; let anyone traverse */
 			info->data->perm = PERM_ANDROID_DATA;
-			set_top(info, info->data);
 		} else if (qstr_case_eq(name, &q_obb)) {
 			/* App-specific directories inside; let anyone traverse */
 			info->data->perm = PERM_ANDROID_OBB;
 			info->data->under_obb = true;
-			set_top(info, info->data);
 			/* Single OBB directory is always shared */
 		} else if (qstr_case_eq(name, &q_media)) {
 			/* App-specific directories inside; let anyone traverse */
 			info->data->perm = PERM_ANDROID_MEDIA;
-			set_top(info, info->data);
+		} else {
+			set_top(info, parent_info);
 		}
 		break;
 	case PERM_ANDROID_OBB:
@@ -132,13 +130,13 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry,
 		if (appid != 0 && !is_excluded(name->name, parent_data->userid))
 			info->data->d_uid =
 				multiuser_get_uid(parent_data->userid, appid);
-		set_top(info, info->data);
 		break;
 	case PERM_ANDROID_PACKAGE:
 		if (qstr_case_eq(name, &q_cache)) {
 			info->data->perm = PERM_ANDROID_PACKAGE_CACHE;
 			info->data->under_cache = true;
 		}
+		set_top(info, parent_info);
 		break;
 	}
 }

@@ -939,88 +939,114 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 		 * The remaining opcodes are the ones that are really of
 		 * interest.
 		 */
-#ifdef CONFIG_EVA
 	case spec3_op:
-		/*
-		 * we can land here only from kernel accessing user memory,
-		 * so we need to "switch" the address limit to user space, so
-		 * address check can work properly.
-		 */
-		seg = get_fs();
-		set_fs(USER_DS);
-		switch (insn.spec3_format.func) {
-		case lhe_op:
-			if (!access_ok(VERIFY_READ, addr, 2)) {
-				set_fs(seg);
-				goto sigbus;
+		if (insn.dsp_format.func == lx_op) {
+			switch (insn.dsp_format.op) {
+			case lwx_op:
+				if (!access_ok(VERIFY_READ, addr, 4))
+					goto sigbus;
+				LoadW(addr, value, res);
+				if (res)
+					goto fault;
+				compute_return_epc(regs);
+				regs->regs[insn.dsp_format.rd] = value;
+				break;
+			case lhx_op:
+				if (!access_ok(VERIFY_READ, addr, 2))
+					goto sigbus;
+				LoadHW(addr, value, res);
+				if (res)
+					goto fault;
+				compute_return_epc(regs);
+				regs->regs[insn.dsp_format.rd] = value;
+				break;
+			default:
+				goto sigill;
 			}
-			LoadHWE(addr, value, res);
-			if (res) {
-				set_fs(seg);
-				goto fault;
-			}
-			compute_return_epc(regs);
-			regs->regs[insn.spec3_format.rt] = value;
-			break;
-		case lwe_op:
-			if (!access_ok(VERIFY_READ, addr, 4)) {
-				set_fs(seg);
-				goto sigbus;
-			}
-				LoadWE(addr, value, res);
-			if (res) {
-				set_fs(seg);
-				goto fault;
-			}
-			compute_return_epc(regs);
-			regs->regs[insn.spec3_format.rt] = value;
-			break;
-		case lhue_op:
-			if (!access_ok(VERIFY_READ, addr, 2)) {
-				set_fs(seg);
-				goto sigbus;
-			}
-			LoadHWUE(addr, value, res);
-			if (res) {
-				set_fs(seg);
-				goto fault;
-			}
-			compute_return_epc(regs);
-			regs->regs[insn.spec3_format.rt] = value;
-			break;
-		case she_op:
-			if (!access_ok(VERIFY_WRITE, addr, 2)) {
-				set_fs(seg);
-				goto sigbus;
-			}
-			compute_return_epc(regs);
-			value = regs->regs[insn.spec3_format.rt];
-			StoreHWE(addr, value, res);
-			if (res) {
-				set_fs(seg);
-				goto fault;
-			}
-			break;
-		case swe_op:
-			if (!access_ok(VERIFY_WRITE, addr, 4)) {
-				set_fs(seg);
-				goto sigbus;
-			}
-			compute_return_epc(regs);
-			value = regs->regs[insn.spec3_format.rt];
-			StoreWE(addr, value, res);
-			if (res) {
-				set_fs(seg);
-				goto fault;
-			}
-			break;
-		default:
-			set_fs(seg);
-			goto sigill;
 		}
-		set_fs(seg);
-		break;
+#ifdef CONFIG_EVA
+		else {
+			/*
+			 * we can land here only from kernel accessing user
+			 * memory, so we need to "switch" the address limit to
+			 * user space, so that address check can work properly.
+			 */
+			seg = get_fs();
+			set_fs(USER_DS);
+			switch (insn.spec3_format.func) {
+			case lhe_op:
+				if (!access_ok(VERIFY_READ, addr, 2)) {
+					set_fs(seg);
+					goto sigbus;
+				}
+				LoadHWE(addr, value, res);
+				if (res) {
+					set_fs(seg);
+					goto fault;
+				}
+				compute_return_epc(regs);
+				regs->regs[insn.spec3_format.rt] = value;
+				break;
+			case lwe_op:
+				if (!access_ok(VERIFY_READ, addr, 4)) {
+					set_fs(seg);
+					goto sigbus;
+				}
+				LoadWE(addr, value, res);
+				if (res) {
+					set_fs(seg);
+					goto fault;
+				}
+				compute_return_epc(regs);
+				regs->regs[insn.spec3_format.rt] = value;
+				break;
+			case lhue_op:
+				if (!access_ok(VERIFY_READ, addr, 2)) {
+					set_fs(seg);
+					goto sigbus;
+				}
+				LoadHWUE(addr, value, res);
+				if (res) {
+					set_fs(seg);
+					goto fault;
+				}
+				compute_return_epc(regs);
+				regs->regs[insn.spec3_format.rt] = value;
+				break;
+			case she_op:
+				if (!access_ok(VERIFY_WRITE, addr, 2)) {
+					set_fs(seg);
+					goto sigbus;
+				}
+				compute_return_epc(regs);
+				value = regs->regs[insn.spec3_format.rt];
+				StoreHWE(addr, value, res);
+				if (res) {
+					set_fs(seg);
+					goto fault;
+				}
+				break;
+			case swe_op:
+				if (!access_ok(VERIFY_WRITE, addr, 4)) {
+					set_fs(seg);
+					goto sigbus;
+				}
+				compute_return_epc(regs);
+				value = regs->regs[insn.spec3_format.rt];
+				StoreWE(addr, value, res);
+				if (res) {
+					set_fs(seg);
+					goto fault;
+				}
+				break;
+			default:
+				set_fs(seg);
+				goto sigill;
+			}
+			set_fs(seg);
+		}
 #endif
+		break;
 	case lh_op:
 		if (!access_ok(VERIFY_READ, addr, 2))
 			goto sigbus;
@@ -1191,6 +1217,7 @@ static void emulate_load_store_insn(struct pt_regs *regs,
 	case ldc1_op:
 	case swc1_op:
 	case sdc1_op:
+	case cop1x_op:
 		die_if_kernel("Unaligned FP access in kernel code", regs);
 		BUG_ON(!used_math());
 

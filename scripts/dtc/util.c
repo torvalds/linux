@@ -46,6 +46,36 @@ char *xstrdup(const char *s)
 	return d;
 }
 
+/* based in part from (3) vsnprintf */
+int xasprintf(char **strp, const char *fmt, ...)
+{
+	int n, size = 128;	/* start with 128 bytes */
+	char *p;
+	va_list ap;
+
+	/* initial pointer is NULL making the fist realloc to be malloc */
+	p = NULL;
+	while (1) {
+		p = xrealloc(p, size);
+
+		/* Try to print in the allocated space. */
+		va_start(ap, fmt);
+		n = vsnprintf(p, size, fmt, ap);
+		va_end(ap);
+
+		/* If that worked, return the string. */
+		if (n > -1 && n < size)
+			break;
+		/* Else try again with more space. */
+		if (n > -1)	/* glibc 2.1 */
+			size = n + 1; /* precisely what is needed */
+		else		/* glibc 2.0 */
+			size *= 2; /* twice the old size */
+	}
+	*strp = p;
+	return strlen(p);
+}
+
 char *join_path(const char *path, const char *name)
 {
 	int lenp = strlen(path);
@@ -152,7 +182,6 @@ char get_escape_char(const char *s, int *i)
 	int	j = *i + 1;
 	char	val;
 
-	assert(c);
 	switch (c) {
 	case 'a':
 		val = '\a';
@@ -349,7 +378,6 @@ int utilfdt_decode_type(const char *fmt, int *type, int *size)
 void utilfdt_print_data(const char *data, int len)
 {
 	int i;
-	const char *p = data;
 	const char *s;
 
 	/* no data, don't print */
@@ -376,6 +404,7 @@ void utilfdt_print_data(const char *data, int len)
 			       i < (len - 1) ? " " : "");
 		printf(">");
 	} else {
+		const unsigned char *p = (const unsigned char *)data;
 		printf(" = [");
 		for (i = 0; i < len; i++)
 			printf("%02x%s", *p++, i < len - 1 ? " " : "");

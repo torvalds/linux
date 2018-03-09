@@ -780,25 +780,72 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 }
 #endif /* CONFIG_DMA_NONCOHERENT || CONFIG_DMA_MAYBE_COHERENT */
 
+struct flush_cache_sigtramp_args {
+	struct mm_struct *mm;
+	struct page *page;
+	unsigned long addr;
+};
+
 /*
  * While we're protected against bad userland addresses we don't care
  * very much about what happens in that case.  Usually a segmentation
  * fault will dump the process later on anyway ...
  */
-static void local_r4k_flush_cache_sigtramp(void * arg)
+static void local_r4k_flush_cache_sigtramp(void *args)
 {
+	struct flush_cache_sigtramp_args *fcs_args = args;
+	unsigned long addr = fcs_args->addr;
+	struct page *page = fcs_args->page;
+	struct mm_struct *mm = fcs_args->mm;
+	int map_coherent = 0;
+	void *vaddr;
+
 	unsigned long ic_lsize = cpu_icache_line_size();
 	unsigned long dc_lsize = cpu_dcache_line_size();
 	unsigned long sc_lsize = cpu_scache_line_size();
-	unsigned long addr = (unsigned long) arg;
+
+	/*
+	 * If owns no valid ASID yet, cannot possibly have gotten
+	 * this page into the cache.
+	 */
+	if (!has_valid_asid(mm))
+		return;
+
+	if (mm == current->active_mm) {
+		vaddr = NULL;
+	} else {
+		/*
+		 * Use kmap_coherent or kmap_atomic to do flushes for
+		 * another ASID than the current one.
+		 */
+		map_coherent = (cpu_has_dc_aliases &&
+				page_mapcount(page) &&
+				!Page_dcache_dirty(page));
+		if (map_coherent)
+			vaddr = kmap_coherent(page, addr);
+		else
+			vaddr = kmap_atomic(page);
+		addr = (unsigned long)vaddr + (addr & ~PAGE_MASK);
+	}
 
 	R4600_HIT_CACHEOP_WAR_IMPL;
 	if (dc_lsize)
-		protected_writeback_dcache_line(addr & ~(dc_lsize - 1));
+		vaddr ? flush_dcache_line(addr & ~(dc_lsize - 1))
+		      : protected_writeback_dcache_line(addr & ~(dc_lsize - 1));
 	if (!cpu_icache_snoops_remote_store && scache_size)
-		protected_writeback_scache_line(addr & ~(sc_lsize - 1));
+		vaddr ? flush_scache_line(addr & ~(sc_lsize - 1))
+		      : protected_writeback_scache_line(addr & ~(sc_lsize - 1));
 	if (ic_lsize)
-		protected_flush_icache_line(addr & ~(ic_lsize - 1));
+		vaddr ? flush_icache_line(addr & ~(ic_lsize - 1))
+		      : protected_flush_icache_line(addr & ~(ic_lsize - 1));
+
+	if (vaddr) {
+		if (map_coherent)
+			kunmap_coherent();
+		else
+			kunmap_atomic(vaddr);
+	}
+
 	if (MIPS4K_ICACHE_REFILL_WAR) {
 		__asm__ __volatile__ (
 			".set push\n\t"
@@ -823,7 +870,23 @@ static void local_r4k_flush_cache_sigtramp(void * arg)
 
 static void r4k_flush_cache_sigtramp(unsigned long addr)
 {
-	r4k_on_each_cpu(local_r4k_flush_cache_sigtramp, (void *) addr);
+	struct flush_cache_sigtramp_args args;
+	int npages;
+
+	down_read(&current->mm->mmap_sem);
+
+	npages = get_user_pages_fast(addr, 1, 0, &args.page);
+	if (npages < 1)
+		goto out;
+
+	args.mm = current->mm;
+	args.addr = addr;
+
+	r4k_on_each_cpu(local_r4k_flush_cache_sigtramp, &args);
+
+	put_page(args.page);
+out:
+	up_read(&current->mm->mmap_sem);
 }
 
 static void r4k_flush_icache_all(void)
@@ -1670,7 +1733,7 @@ void r4k_cache_init(void)
 	 * This code supports virtually indexed processors and will be
 	 * unnecessarily inefficient on physically indexed processors.
 	 */
-	if (c->dcache.linesz)
+	if (c->dcache.linesz && cpu_has_dc_aliases)
 		shm_align_mask = max_t( unsigned long,
 					c->dcache.sets * c->dcache.linesz - 1,
 					PAGE_SIZE - 1);
@@ -1696,7 +1759,12 @@ void r4k_cache_init(void)
 	local_flush_icache_range	= local_r4k_flush_icache_range;
 
 #if defined(CONFIG_DMA_NONCOHERENT) || defined(CONFIG_DMA_MAYBE_COHERENT)
-	if (coherentio) {
+# if defined(CONFIG_DMA_PERDEV_COHERENT)
+	if (0) {
+# else
+	if ((coherentio == IO_COHERENCE_ENABLED) ||
+	    ((coherentio == IO_COHERENCE_DEFAULT) && hw_coherentio)) {
+# endif
 		_dma_cache_wback_inv	= (void *)cache_noop;
 		_dma_cache_wback	= (void *)cache_noop;
 		_dma_cache_inv		= (void *)cache_noop;

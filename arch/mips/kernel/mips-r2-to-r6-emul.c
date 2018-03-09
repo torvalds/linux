@@ -15,7 +15,6 @@
 #include <linux/debugfs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
 
@@ -283,7 +282,7 @@ static int jr_func(struct pt_regs *regs, u32 ir)
 		err = mipsr6_emul(regs, nir);
 		if (err > 0) {
 			regs->cp0_epc = nepc;
-			err = mips_dsemul(regs, nir, cepc);
+			err = mips_dsemul(regs, nir, epc, cepc);
 			if (err == SIGILL)
 				err = SIGEMT;
 			MIPS_R2_STATS(dsemul);
@@ -900,7 +899,7 @@ static inline int mipsr2_find_op_func(struct pt_regs *regs, u32 inst,
  * mipsr2_decoder: Decode and emulate a MIPS R2 instruction
  * @regs: Process register set
  * @inst: Instruction to decode and emulate
- * @fcr31: Floating Point Control and Status Register returned
+ * @fcr31: Floating Point Control and Status Register Cause bits returned
  */
 int mipsr2_decoder(struct pt_regs *regs, u32 inst, unsigned long *fcr31)
 {
@@ -941,42 +940,42 @@ repeat:
 		switch (rt) {
 		case tgei_op:
 			if ((long)regs->regs[rs] >= MIPSInst_SIMM(inst))
-				do_trap_or_bp(regs, 0, "TGEI");
+				do_trap_or_bp(regs, 0, 0, "TGEI");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case tgeiu_op:
 			if (regs->regs[rs] >= MIPSInst_UIMM(inst))
-				do_trap_or_bp(regs, 0, "TGEIU");
+				do_trap_or_bp(regs, 0, 0, "TGEIU");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case tlti_op:
 			if ((long)regs->regs[rs] < MIPSInst_SIMM(inst))
-				do_trap_or_bp(regs, 0, "TLTI");
+				do_trap_or_bp(regs, 0, 0, "TLTI");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case tltiu_op:
 			if (regs->regs[rs] < MIPSInst_UIMM(inst))
-				do_trap_or_bp(regs, 0, "TLTIU");
+				do_trap_or_bp(regs, 0, 0, "TLTIU");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case teqi_op:
 			if (regs->regs[rs] == MIPSInst_SIMM(inst))
-				do_trap_or_bp(regs, 0, "TEQI");
+				do_trap_or_bp(regs, 0, 0, "TEQI");
 
 			MIPS_R2_STATS(traps);
 
 			break;
 		case tnei_op:
 			if (regs->regs[rs] != MIPSInst_SIMM(inst))
-				do_trap_or_bp(regs, 0, "TNEI");
+				do_trap_or_bp(regs, 0, 0, "TNEI");
 
 			MIPS_R2_STATS(traps);
 
@@ -1033,7 +1032,7 @@ repeat:
 			if (nir) {
 				err = mipsr6_emul(regs, nir);
 				if (err > 0) {
-					err = mips_dsemul(regs, nir, cpc);
+					err = mips_dsemul(regs, nir, epc, cpc);
 					if (err == SIGILL)
 						err = SIGEMT;
 					MIPS_R2_STATS(dsemul);
@@ -1082,7 +1081,7 @@ repeat:
 			if (nir) {
 				err = mipsr6_emul(regs, nir);
 				if (err > 0) {
-					err = mips_dsemul(regs, nir, cpc);
+					err = mips_dsemul(regs, nir, epc, cpc);
 					if (err == SIGILL)
 						err = SIGEMT;
 					MIPS_R2_STATS(dsemul);
@@ -1097,10 +1096,20 @@ repeat:
 		}
 		break;
 
-	case beql_op:
-	case bnel_op:
 	case blezl_op:
 	case bgtzl_op:
+		/*
+		 * For BLEZL and BGTZL, rt field must be set to 0. If this
+		 * is not the case, this may be an encoding of a MIPS R6
+		 * instruction, so return to CPU execution if this occurs
+		 */
+		if (MIPSInst_RT(inst)) {
+			err = SIGILL;
+			break;
+		}
+		/* fall through */
+	case beql_op:
+	case bnel_op:
 		if (delay_slot(regs)) {
 			err = SIGILL;
 			break;
@@ -1149,7 +1158,7 @@ repeat:
 		if (nir) {
 			err = mipsr6_emul(regs, nir);
 			if (err > 0) {
-				err = mips_dsemul(regs, nir, cpc);
+				err = mips_dsemul(regs, nir, epc, cpc);
 				if (err == SIGILL)
 					err = SIGEMT;
 				MIPS_R2_STATS(dsemul);
@@ -1173,13 +1182,13 @@ fpu_emul:
 
 		err = fpu_emulator_cop1Handler(regs, &current->thread.fpu, 0,
 					       &fault_addr);
-		*fcr31 = current->thread.fpu.fcr31;
 
 		/*
-		 * We can't allow the emulated instruction to leave any of
-		 * the cause bits set in $fcr31.
+		 * We can't allow the emulated instruction to leave any
+		 * enabled Cause bits set in $fcr31.
 		 */
-		current->thread.fpu.fcr31 &= ~FPU_CSR_ALL_X;
+		*fcr31 = res = mask_fcr31_x(current->thread.fpu.fcr31);
+		current->thread.fpu.fcr31 &= ~res;
 
 		/*
 		 * this is a tricky issue - lose_fpu() uses LL/SC atomics
@@ -2204,7 +2213,7 @@ fpu_emul:
 	}
 
 	/*
-	 * Lets not return to userland just yet. It's constly and
+	 * Let's not return to userland just yet. It's costly and
 	 * it's likely we have more R2 instructions to emulate
 	 */
 	if (!err && (pass++ < MIPS_R2_EMUL_TOTAL_PASS)) {
@@ -2330,6 +2339,8 @@ static int mipsr2_stats_clear_show(struct seq_file *s, void *unused)
 	__this_cpu_write((mipsr2bremustats).bgezl, 0);
 	__this_cpu_write((mipsr2bremustats).bltzll, 0);
 	__this_cpu_write((mipsr2bremustats).bgezll, 0);
+	__this_cpu_write((mipsr2bremustats).bltzall, 0);
+	__this_cpu_write((mipsr2bremustats).bgezall, 0);
 	__this_cpu_write((mipsr2bremustats).bltzal, 0);
 	__this_cpu_write((mipsr2bremustats).bgezal, 0);
 	__this_cpu_write((mipsr2bremustats).beql, 0);

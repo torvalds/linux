@@ -276,7 +276,7 @@ static ssize_t keychord_write(struct file *file, const char __user *buffer,
 	size_t resid = count;
 	size_t key_bytes;
 
-	if (count < sizeof(struct input_keychord))
+	if (count < sizeof(struct input_keychord) || count > PAGE_SIZE)
 		return -EINVAL;
 	keychords = kzalloc(count, GFP_KERNEL);
 	if (!keychords)

@@ -66,7 +66,7 @@ PPC64_CACHES:
  *   flush all bytes from start through stop-1 inclusive
  */
 
-_KPROBE(flush_icache_range)
+_KPROBE_TOC(flush_icache_range)
 BEGIN_FTR_SECTION
 	PURGE_PREFETCHED_INS
 	blr
@@ -117,7 +117,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
  *
  *    flush all bytes from start to stop-1 inclusive
  */
-_GLOBAL(flush_dcache_range)
+_GLOBAL_TOC(flush_dcache_range)
 
 /*
  * Flush the data cache to memory 
@@ -701,31 +701,3 @@ _GLOBAL(kexec_sequence)
 	li	r5,0
 	blr	/* image->start(physid, image->start, 0); */
 #endif /* CONFIG_KEXEC */
-
-#ifdef CONFIG_MODULES
-#if defined(_CALL_ELF) && _CALL_ELF == 2
-
-#ifdef CONFIG_MODVERSIONS
-.weak __crc_TOC.
-.section "___kcrctab+TOC.","a"
-.globl __kcrctab_TOC.
-__kcrctab_TOC.:
-	.llong	__crc_TOC.
-#endif
-
-/*
- * Export a fake .TOC. since both modpost and depmod will complain otherwise.
- * Both modpost and depmod strip the leading . so we do the same here.
- */
-.section "__ksymtab_strings","a"
-__kstrtab_TOC.:
-	.asciz "TOC."
-
-.section "___ksymtab+TOC.","a"
-/* This symbol name is important: it's used by modpost to find exported syms */
-.globl __ksymtab_TOC.
-__ksymtab_TOC.:
-	.llong 0 /* .value */
-	.llong __kstrtab_TOC.
-#endif /* ELFv2 */
-#endif /* MODULES */

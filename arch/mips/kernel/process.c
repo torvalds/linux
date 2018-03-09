@@ -30,6 +30,7 @@
 #include <asm/asm.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
+#include <asm/dsemul.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/irq.h>
@@ -64,22 +65,23 @@ void start_thread(struct pt_regs * regs, unsigned long pc, unsigned long sp)
 	status = regs->cp0_status & ~(ST0_CU0|ST0_CU1|ST0_FR|KU_MASK);
 	status |= KU_USER;
 	regs->cp0_status = status;
-	clear_used_math();
-	clear_fpu_owner();
-	init_dsp();
-	clear_thread_flag(TIF_USEDMSA);
+	lose_fpu(0);
 	clear_thread_flag(TIF_MSA_CTX_LIVE);
-	disable_msa();
+	clear_used_math();
+	atomic_set(&current->thread.bd_emu_frame, BD_EMUFRAME_NONE);
+	init_dsp();
 	regs->cp0_epc = pc;
 	regs->regs[29] = sp;
 }
 
-void exit_thread(void)
+void exit_thread(struct task_struct *tsk)
 {
-}
-
-void flush_thread(void)
-{
+	/*
+	 * User threads may have allocated a delay slot emulation frame.
+	 * If so, clean up that allocation.
+	 */
+	if (!(current->flags & PF_KTHREAD))
+		dsemul_thread_cleanup(tsk);
 }
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
@@ -167,6 +169,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_MIPS_MT_FPAFF
 	clear_tsk_thread_flag(p, TIF_FPUBOUND);
 #endif /* CONFIG_MIPS_MT_FPAFF */
+
+	atomic_set(&p->thread.bd_emu_frame, BD_EMUFRAME_NONE);
 
 	if (clone_flags & CLONE_SETTLS)
 		ti->tp_value = regs->regs[7];
@@ -708,7 +712,7 @@ int mips_set_process_fp_mode(struct task_struct *task, unsigned int value)
 	 * allows us to only worry about whether an FP mode switch is in
 	 * progress when FP is first used in a tasks time slice. Pretty much all
 	 * of the mode switch overhead can thus be confined to cases where mode
-	 * switches are actually occuring. That is, to here. However for the
+	 * switches are actually occurring. That is, to here. However for the
 	 * thread performing the mode switch it may take a while...
 	 */
 	if (num_online_cpus() > 1) {

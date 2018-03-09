@@ -379,6 +379,7 @@ config X86_DEBUG_FPU
 
 config PUNIT_ATOM_DEBUG
 	tristate "ATOM Punit debug driver"
+	depends on PCI
 	select DEBUG_FS
 	select IOSF_MBI
 	---help---

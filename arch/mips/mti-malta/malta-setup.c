@@ -154,12 +154,12 @@ static void __init plat_setup_iocoherency(void)
 	 * coherency instead.
 	 */
 	if (plat_enable_iocoherency()) {
-		if (coherentio == 0)
+		if (coherentio == IO_COHERENCE_DISABLED)
 			pr_info("Hardware DMA cache coherency disabled\n");
 		else
 			pr_info("Hardware DMA cache coherency enabled\n");
 	} else {
-		if (coherentio == 1)
+		if (coherentio == IO_COHERENCE_ENABLED)
 			pr_info("Hardware DMA cache coherency unsupported, but enabled from command line!\n");
 		else
 			pr_info("Software DMA cache coherency enabled\n");

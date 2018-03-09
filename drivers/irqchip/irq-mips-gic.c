@@ -181,7 +181,7 @@ void gic_write_cpu_compare(cycle_t cnt, int cpu)
 
 	local_irq_save(flags);
 
-	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), cpu);
+	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), mips_cm_vp_id(cpu));
 
 	if (mips_cm_is64) {
 		gic_write(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE), cnt);
@@ -229,6 +229,14 @@ void gic_stop_count(void)
 }
 
 #endif
+
+unsigned gic_read_local_vp_id(void)
+{
+	unsigned long ident;
+
+	ident = gic_read(GIC_REG(VPE_LOCAL, GIC_VP_IDENT));
+	return ident & GIC_VP_IDENT_VCNUM_MSK;
+}
 
 static bool gic_local_irq_is_routable(int intr)
 {
@@ -534,7 +542,8 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), i);
+		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+			  mips_cm_vp_id(i));
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_RMASK), 1 << intr);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -548,7 +557,8 @@ static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), i);
+		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+			  mips_cm_vp_id(i));
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_SMASK), 1 << intr);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -665,7 +675,8 @@ static void __init gic_basic_init(void)
 	for (i = 0; i < gic_vpes; i++) {
 		unsigned int j;
 
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), i);
+		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+			  mips_cm_vp_id(i));
 		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
 			if (!gic_local_irq_is_routable(j))
 				continue;
@@ -710,7 +721,8 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	for (i = 0; i < gic_vpes; i++) {
 		u32 val = GIC_MAP_TO_PIN_MSK | gic_cpu_pin;
 
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), i);
+		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+			  mips_cm_vp_id(i));
 
 		switch (intr) {
 		case GIC_LOCAL_INT_WD:

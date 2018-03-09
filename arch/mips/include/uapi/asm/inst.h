@@ -21,20 +21,20 @@
 enum major_op {
 	spec_op, bcond_op, j_op, jal_op,
 	beq_op, bne_op, blez_op, bgtz_op,
-	addi_op, cbcond0_op = addi_op, addiu_op, slti_op, sltiu_op,
+	addi_op, pop10_op = addi_op, addiu_op, slti_op, sltiu_op,
 	andi_op, ori_op, xori_op, lui_op,
 	cop0_op, cop1_op, cop2_op, cop1x_op,
 	beql_op, bnel_op, blezl_op, bgtzl_op,
-	daddi_op, cbcond1_op = daddi_op, daddiu_op, ldl_op, ldr_op,
+	daddi_op, pop30_op = daddi_op, daddiu_op, ldl_op, ldr_op,
 	spec2_op, jalx_op, mdmx_op, msa_op = mdmx_op, spec3_op,
 	lb_op, lh_op, lwl_op, lw_op,
 	lbu_op, lhu_op, lwr_op, lwu_op,
 	sb_op, sh_op, swl_op, sw_op,
 	sdl_op, sdr_op, swr_op, cache_op,
 	ll_op, lwc1_op, lwc2_op, bc6_op = lwc2_op, pref_op,
-	lld_op, ldc1_op, ldc2_op, beqzcjic_op = ldc2_op, ld_op,
+	lld_op, ldc1_op, ldc2_op, pop66_op = ldc2_op, ld_op,
 	sc_op, swc1_op, swc2_op, balc6_op = swc2_op, major_3b_op,
-	scd_op, sdc1_op, sdc2_op, bnezcjialc_op = sdc2_op, sd_op
+	scd_op, sdc1_op, sdc2_op, pop76_op = sdc2_op, sd_op
 };
 
 /*
@@ -166,6 +166,7 @@ enum cop1_sdw_func {
 	fceill_op    =	0x0a, ffloorl_op   =  0x0b,
 	fround_op    =	0x0c, ftrunc_op	   =  0x0d,
 	fceil_op     =	0x0e, ffloor_op	   =  0x0f,
+	fsel_op      =  0x10,
 	fmovc_op     =	0x11, fmovz_op	   =  0x12,
 	fmovn_op     =	0x13, fseleqz_op   =  0x14,
 	frecip_op    =  0x15, frsqrt_op    =  0x16,
@@ -644,6 +645,16 @@ struct msa_mi10_format {		/* MSA MI10 */
 	;))))))
 };
 
+struct dsp_format {		/* SPEC3 DSP format instructions */
+	__BITFIELD_FIELD(unsigned int opcode : 6,
+	__BITFIELD_FIELD(unsigned int base : 5,
+	__BITFIELD_FIELD(unsigned int index : 5,
+	__BITFIELD_FIELD(unsigned int rd : 5,
+	__BITFIELD_FIELD(unsigned int op : 5,
+	__BITFIELD_FIELD(unsigned int func : 6,
+	;))))))
+};
+
 struct spec3_format {   /* SPEC3 */
 	__BITFIELD_FIELD(unsigned int opcode:6,
 	__BITFIELD_FIELD(unsigned int rs:5,
@@ -799,6 +810,13 @@ struct mm_x_format {		/* Scaled indexed load format (microMIPS) */
 	;)))))
 };
 
+struct mm_a_format {		/* ADDIUPC format (microMIPS) */
+	__BITFIELD_FIELD(unsigned int opcode : 6,
+	__BITFIELD_FIELD(unsigned int rs : 3,
+	__BITFIELD_FIELD(signed int simmediate : 23,
+	;)))
+};
+
 /*
  * microMIPS instruction formats (16-bit length)
  */
@@ -925,6 +943,7 @@ union mips_instruction {
 	struct b_format b_format;
 	struct ps_format ps_format;
 	struct v_format v_format;
+	struct dsp_format dsp_format;
 	struct spec3_format spec3_format;
 	struct fb_format fb_format;
 	struct fp0_format fp0_format;
@@ -940,6 +959,7 @@ union mips_instruction {
 	struct mm_i_format mm_i_format;
 	struct mm_m_format mm_m_format;
 	struct mm_x_format mm_x_format;
+	struct mm_a_format mm_a_format;
 	struct mm_b0_format mm_b0_format;
 	struct mm_b1_format mm_b1_format;
 	struct mm16_m_format mm16_m_format ;

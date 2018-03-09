@@ -345,8 +345,8 @@ static int lookup_all_xattrs(struct inode *inode, struct page *ipage,
 	if (!size && !inline_size)
 		return -ENODATA;
 
-	txattr_addr = kzalloc(inline_size + size + XATTR_PADDING_SIZE,
-							GFP_F2FS_ZERO);
+	txattr_addr = f2fs_kzalloc(F2FS_I_SB(inode),
+			inline_size + size + XATTR_PADDING_SIZE, GFP_NOFS);
 	if (!txattr_addr)
 		return -ENOMEM;
 
@@ -398,8 +398,8 @@ static int read_all_xattrs(struct inode *inode, struct page *ipage,
 	void *txattr_addr;
 	int err;
 
-	txattr_addr = kzalloc(inline_size + size + XATTR_PADDING_SIZE,
-							GFP_F2FS_ZERO);
+	txattr_addr = f2fs_kzalloc(F2FS_I_SB(inode),
+			inline_size + size + XATTR_PADDING_SIZE, GFP_NOFS);
 	if (!txattr_addr)
 		return -ENOMEM;
 
@@ -480,6 +480,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 	if (F2FS_I(inode)->i_xattr_nid) {
 		xpage = get_node_page(sbi, F2FS_I(inode)->i_xattr_nid);
 		if (IS_ERR(xpage)) {
+			err = PTR_ERR(xpage);
 			alloc_nid_failed(sbi, new_nid);
 			goto in_page_out;
 		}
@@ -490,6 +491,7 @@ static inline int write_all_xattrs(struct inode *inode, __u32 hsize,
 		set_new_dnode(&dn, inode, NULL, NULL, new_nid);
 		xpage = new_node_page(&dn, XATTR_NODE_OFFSET);
 		if (IS_ERR(xpage)) {
+			err = PTR_ERR(xpage);
 			alloc_nid_failed(sbi, new_nid);
 			goto in_page_out;
 		}
@@ -638,7 +640,7 @@ static int __f2fs_setxattr(struct inode *inode, int index,
 			goto exit;
 		}
 
-		if (f2fs_xattr_value_same(here, value, size))
+		if (value && f2fs_xattr_value_same(here, value, size))
 			goto exit;
 	} else if ((flags & XATTR_REPLACE)) {
 		error = -ENODATA;

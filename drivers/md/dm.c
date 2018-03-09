@@ -974,7 +974,8 @@ static void dec_pending(struct dm_io *io, int error)
 		} else {
 			/* done with normal IO or empty flush */
 			trace_block_bio_complete(md->queue, bio, io_error);
-			bio->bi_error = io_error;
+			if (io_error)
+				bio->bi_error = io_error;
 			bio_endio(bio);
 		}
 	}

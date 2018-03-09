@@ -589,6 +589,7 @@
 #define MIPS_CONF5_MRP		(_ULCAST_(1) << 3)
 #define MIPS_CONF5_LLB		(_ULCAST_(1) << 4)
 #define MIPS_CONF5_MVH		(_ULCAST_(1) << 5)
+#define MIPS_CONF5_VP		(_ULCAST_(1) << 7)
 #define MIPS_CONF5_FRE		(_ULCAST_(1) << 8)
 #define MIPS_CONF5_UFE		(_ULCAST_(1) << 9)
 #define MIPS_CONF5_MSAEN	(_ULCAST_(1) << 27)

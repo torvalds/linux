@@ -147,7 +147,7 @@ static word plci_remove_check(PLCI *);
 static void listen_check(DIVA_CAPI_ADAPTER *);
 static byte AddInfo(byte **, byte **, byte *, byte *);
 static byte getChannel(API_PARSE *);
-static void IndParse(PLCI *, word *, byte **, byte);
+static void IndParse(PLCI *, const word *, byte **, byte);
 static byte ie_compare(byte *, byte *);
 static word find_cip(DIVA_CAPI_ADAPTER *, byte *, byte *);
 static word CPN_filter_ok(byte *cpn, DIVA_CAPI_ADAPTER *, word);
@@ -4860,7 +4860,7 @@ static void sig_ind(PLCI *plci)
 	/* included before the ESC_MSGTYPE and MAXPARMSIDS has to be incremented */
 	/* SMSG is situated at the end because its 0 (for compatibility reasons */
 	/* (see Info_Mask Bit 4, first IE. then the message type)           */
-	word parms_id[] =
+	static const word parms_id[] =
 		{MAXPARMSIDS, CPN, 0xff, DSA, OSA, BC, LLC, HLC, ESC_CAUSE, DSP, DT, CHA,
 		 UUI, CONG_RR, CONG_RNR, ESC_CHI, KEY, CHI, CAU, ESC_LAW,
 		 RDN, RDX, CONN_NR, RIN, NI, CAI, ESC_CR,
@@ -4868,12 +4868,12 @@ static void sig_ind(PLCI *plci)
 	/* 14 FTY repl by ESC_CHI */
 	/* 18 PI  repl by ESC_LAW */
 	/* removed OAD changed to 0xff for future use, OAD is multiIE now */
-	word multi_fac_id[] = {1, FTY};
-	word multi_pi_id[]  = {1, PI};
-	word multi_CiPN_id[]  = {1, OAD};
-	word multi_ssext_id[]  = {1, ESC_SSEXT};
+	static const word multi_fac_id[] = {1, FTY};
+	static const word multi_pi_id[]  = {1, PI};
+	static const word multi_CiPN_id[]  = {1, OAD};
+	static const word multi_ssext_id[]  = {1, ESC_SSEXT};
 
-	word multi_vswitch_id[]  = {1, ESC_VSWITCH};
+	static const word multi_vswitch_id[]  = {1, ESC_VSWITCH};
 
 	byte *cau;
 	word ncci;
@@ -8926,7 +8926,7 @@ static void listen_check(DIVA_CAPI_ADAPTER *a)
 /* functions for all parameters sent in INDs                        */
 /*------------------------------------------------------------------*/
 
-static void IndParse(PLCI *plci, word *parms_id, byte **parms, byte multiIEsize)
+static void IndParse(PLCI *plci, const word *parms_id, byte **parms, byte multiIEsize)
 {
 	word ploc;            /* points to current location within packet */
 	byte w;

@@ -429,7 +429,8 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 
 	/* Au1500 revisions older than AD have borked coherent PCI */
 	if ((alchemy_get_cputype() == ALCHEMY_CPU_AU1500) &&
-	    (read_c0_prid() < 0x01030202) && !coherentio) {
+	    (read_c0_prid() < 0x01030202) &&
+	    (coherentio == IO_COHERENCE_DISABLED)) {
 		val = __raw_readl(ctx->regs + PCI_REG_CONFIG);
 		val |= PCI_CONFIG_NC;
 		__raw_writel(val, ctx->regs + PCI_REG_CONFIG);

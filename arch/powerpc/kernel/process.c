@@ -209,7 +209,8 @@ void enable_kernel_vsx(void)
 	WARN_ON(preemptible());
 
 #ifdef CONFIG_SMP
-	if (current->thread.regs && (current->thread.regs->msr & MSR_VSX))
+	if (current->thread.regs &&
+	    (current->thread.regs->msr & (MSR_VSX|MSR_VEC|MSR_FP)))
 		giveup_vsx(current);
 	else
 		giveup_vsx(NULL);	/* just enable vsx for kernel - force */
@@ -231,7 +232,7 @@ void flush_vsx_to_thread(struct task_struct *tsk)
 {
 	if (tsk->thread.regs) {
 		preempt_disable();
-		if (tsk->thread.regs->msr & MSR_VSX) {
+		if (tsk->thread.regs->msr & (MSR_VSX|MSR_VEC|MSR_FP)) {
 #ifdef CONFIG_SMP
 			BUG_ON(tsk != current);
 #endif

@@ -362,7 +362,7 @@ static void ip6gre_tunnel_uninit(struct net_device *dev)
 	struct ip6gre_net *ign = net_generic(t->net, ip6gre_net_id);
 
 	ip6gre_tunnel_unlink(ign, t);
-	ip6_tnl_dst_reset(t);
+	dst_cache_reset(&t->dst_cache);
 	dev_put(dev);
 }
 
@@ -640,7 +640,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	}
 
 	if (!fl6->flowi6_mark)
-		dst = ip6_tnl_dst_get(tunnel);
+		dst = dst_cache_get(&tunnel->dst_cache);
 
 	if (!dst) {
 		dst = ip6_route_output(net, NULL, fl6);
@@ -709,7 +709,7 @@ static netdev_tx_t ip6gre_xmit2(struct sk_buff *skb,
 	}
 
 	if (!fl6->flowi6_mark && ndst)
-		ip6_tnl_dst_set(tunnel, ndst);
+		dst_cache_set_ip6(&tunnel->dst_cache, ndst, &fl6->saddr);
 	skb_dst_set(skb, dst);
 
 	proto = NEXTHDR_GRE;
@@ -1021,7 +1021,7 @@ static int ip6gre_tnl_change(struct ip6_tnl *t,
 	t->parms.o_key = p->o_key;
 	t->parms.i_flags = p->i_flags;
 	t->parms.o_flags = p->o_flags;
-	ip6_tnl_dst_reset(t);
+	dst_cache_reset(&t->dst_cache);
 	ip6gre_tnl_link_config(t, set_mtu);
 	return 0;
 }
@@ -1232,7 +1232,7 @@ static void ip6gre_dev_free(struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 
-	ip6_tnl_dst_destroy(t);
+	dst_cache_destroy(&t->dst_cache);
 	free_percpu(dev->tstats);
 	free_netdev(dev);
 }
@@ -1270,7 +1270,7 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 
-	ret = ip6_tnl_dst_init(tunnel);
+	ret = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
 	if (ret) {
 		free_percpu(dev->tstats);
 		dev->tstats = NULL;

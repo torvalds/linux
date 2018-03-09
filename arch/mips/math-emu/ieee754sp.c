@@ -37,8 +37,11 @@ static inline int ieee754sp_isnan(union ieee754sp x)
 
 static inline int ieee754sp_issnan(union ieee754sp x)
 {
+	int qbit;
+
 	assert(ieee754sp_isnan(x));
-	return SPMANT(x) & SP_MBIT(SP_FBITS - 1);
+	qbit = (SPMANT(x) & SP_MBIT(SP_FBITS - 1)) == SP_MBIT(SP_FBITS - 1);
+	return ieee754_csr.nan2008 ^ qbit;
 }
 
 
@@ -51,10 +54,18 @@ union ieee754sp __cold ieee754sp_nanxcpt(union ieee754sp r)
 	assert(ieee754sp_issnan(r));
 
 	ieee754_setcx(IEEE754_INVALID_OPERATION);
-	return ieee754sp_indef();
+	if (ieee754_csr.nan2008) {
+		SPMANT(r) |= SP_MBIT(SP_FBITS - 1);
+	} else {
+		SPMANT(r) &= ~SP_MBIT(SP_FBITS - 1);
+		if (!ieee754sp_isnan(r))
+			SPMANT(r) |= SP_MBIT(SP_FBITS - 2);
+	}
+
+	return r;
 }
 
-static unsigned ieee754sp_get_rounding(int sn, unsigned xm)
+static unsigned int ieee754sp_get_rounding(int sn, unsigned int xm)
 {
 	/* inexact must round of 3 bits
 	 */
@@ -85,11 +96,11 @@ static unsigned ieee754sp_get_rounding(int sn, unsigned xm)
  * xe is an unbiased exponent
  * xm is 3bit extended precision value.
  */
-union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
+union ieee754sp ieee754sp_format(int sn, int xe, unsigned int xm)
 {
 	assert(xm);		/* we don't gen exact zeros (probably should) */
 
-	assert((xm >> (SP_FBITS + 1 + 3)) == 0);	/* no execess */
+	assert((xm >> (SP_FBITS + 1 + 3)) == 0);	/* no excess */
 	assert(xm & (SP_HIDDEN_BIT << 3));
 
 	if (xe < SP_EMIN) {
@@ -130,7 +141,8 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 		} else {
 			/* sticky right shift es bits
 			 */
-			SPXSRSXn(es);
+			xm = XSPSRS(xm, es);
+			xe += es;
 			assert((xm & (SP_HIDDEN_BIT << 3)) == 0);
 			assert(xe == SP_EMIN);
 		}
@@ -155,7 +167,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 	/* strip grs bits */
 	xm >>= 3;
 
-	assert((xm >> (SP_FBITS + 1)) == 0);	/* no execess */
+	assert((xm >> (SP_FBITS + 1)) == 0);	/* no excess */
 	assert(xe >= SP_EMIN);
 
 	if (xe > SP_EMAX) {
@@ -188,7 +200,7 @@ union ieee754sp ieee754sp_format(int sn, int xe, unsigned xm)
 			ieee754_setcx(IEEE754_UNDERFLOW);
 		return buildsp(sn, SP_EMIN - 1 + SP_EBIAS, xm);
 	} else {
-		assert((xm >> (SP_FBITS + 1)) == 0);	/* no execess */
+		assert((xm >> (SP_FBITS + 1)) == 0);	/* no excess */
 		assert(xm & SP_HIDDEN_BIT);
 
 		return buildsp(sn, xe + SP_EBIAS, xm & ~SP_HIDDEN_BIT);
