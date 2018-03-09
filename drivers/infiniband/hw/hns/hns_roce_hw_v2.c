@@ -1497,24 +1497,7 @@ static struct hns_roce_v2_cqe *next_cqe_sw_v2(struct hns_roce_cq *hr_cq)
 
 static void hns_roce_v2_cq_set_ci(struct hns_roce_cq *hr_cq, u32 cons_index)
 {
-	struct hns_roce_v2_cq_db cq_db;
-
-	cq_db.byte_4 = 0;
-	cq_db.parameter = 0;
-
-	roce_set_field(cq_db.byte_4, V2_CQ_DB_BYTE_4_TAG_M,
-		       V2_CQ_DB_BYTE_4_TAG_S, hr_cq->cqn);
-	roce_set_field(cq_db.byte_4, V2_CQ_DB_BYTE_4_CMD_M,
-		       V2_CQ_DB_BYTE_4_CMD_S, HNS_ROCE_V2_CQ_DB_PTR);
-
-	roce_set_field(cq_db.parameter, V2_CQ_DB_PARAMETER_CONS_IDX_M,
-		       V2_CQ_DB_PARAMETER_CONS_IDX_S,
-		       cons_index & ((hr_cq->cq_depth << 1) - 1));
-	roce_set_field(cq_db.parameter, V2_CQ_DB_PARAMETER_CMD_SN_M,
-		       V2_CQ_DB_PARAMETER_CMD_SN_S, 1);
-
-	hns_roce_write64_k((__be32 *)&cq_db, hr_cq->cq_db_l);
-
+	*hr_cq->set_ci_db = cons_index & 0xffffff;
 }
 
 static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,

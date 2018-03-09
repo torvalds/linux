@@ -358,12 +358,21 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 		/* Get user space parameters */
 		uar = &to_hr_ucontext(context)->uar;
 	} else {
+		if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) {
+			ret = hns_roce_alloc_db(hr_dev, &hr_cq->db, 1);
+			if (ret)
+				goto err_cq;
+
+			hr_cq->set_ci_db = hr_cq->db.db_record;
+			*hr_cq->set_ci_db = 0;
+		}
+
 		/* Init mmt table and write buff address to mtt table */
 		ret = hns_roce_ib_alloc_cq_buf(hr_dev, &hr_cq->hr_buf,
 					       cq_entries);
 		if (ret) {
 			dev_err(dev, "Failed to alloc_cq_buf.\n");
-			goto err_cq;
+			goto err_db;
 		}
 
 		uar = &hr_dev->priv_uar;
@@ -436,6 +445,10 @@ err_mtt:
 		hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf,
 					hr_cq->ib_cq.cqe);
 
+err_db:
+	if (!context && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB))
+		hns_roce_free_db(hr_dev, &hr_cq->db);
+
 err_cq:
 	kfree(hr_cq);
 	return ERR_PTR(ret);
@@ -465,6 +478,8 @@ int hns_roce_ib_destroy_cq(struct ib_cq *ib_cq)
 			/* Free the buff of stored cq */
 			hns_roce_ib_free_cq_buf(hr_dev, &hr_cq->hr_buf,
 						ib_cq->cqe);
+			if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)
+				hns_roce_free_db(hr_dev, &hr_cq->db);
 		}
 
 		kfree(hr_cq);

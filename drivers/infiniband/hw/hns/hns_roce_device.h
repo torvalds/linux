@@ -395,6 +395,7 @@ struct hns_roce_cq {
 	struct hns_roce_uar		*uar;
 	u32				cq_depth;
 	u32				cons_index;
+	u32				*set_ci_db;
 	void __iomem			*cq_db_l;
 	u16				*tptr_addr;
 	int				arm_sn;
