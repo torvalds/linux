@@ -19,6 +19,142 @@
 #include <linux/ratelimit.h>
 #include "overlayfs.h"
 
+static int ovl_encode_maybe_copy_up(struct dentry *dentry)
+{
+	int err;
+
+	if (ovl_dentry_upper(dentry))
+		return 0;
+
+	err = ovl_want_write(dentry);
+	if (!err) {
+		err = ovl_copy_up(dentry);
+		ovl_drop_write(dentry);
+	}
+
+	if (err) {
+		pr_warn_ratelimited("overlayfs: failed to copy up on encode (%pd2, err=%i)\n",
+				    dentry, err);
+	}
+
+	return err;
+}
+
+/*
+ * Before encoding a non-upper directory file handle from real layer N, we need
+ * to check if it will be possible to reconnect an overlay dentry from the real
+ * lower decoded dentry. This is done by following the overlay ancestry up to a
+ * "layer N connected" ancestor and verifying that all parents along the way are
+ * "layer N connectable". If an ancestor that is NOT "layer N connectable" is
+ * found, we need to copy up an ancestor, which is "layer N connectable", thus
+ * making that ancestor "layer N connected". For example:
+ *
+ * layer 1: /a
+ * layer 2: /a/b/c
+ *
+ * The overlay dentry /a is NOT "layer 2 connectable", because if dir /a is
+ * copied up and renamed, upper dir /a will be indexed by lower dir /a from
+ * layer 1. The dir /a from layer 2 will never be indexed, so the algorithm (*)
+ * in ovl_lookup_real_ancestor() will not be able to lookup a connected overlay
+ * dentry from the connected lower dentry /a/b/c.
+ *
+ * To avoid this problem on decode time, we need to copy up an ancestor of
+ * /a/b/c, which is "layer 2 connectable", on encode time. That ancestor is
+ * /a/b. After copy up (and index) of /a/b, it will become "layer 2 connected"
+ * and when the time comes to decode the file handle from lower dentry /a/b/c,
+ * ovl_lookup_real_ancestor() will find the indexed ancestor /a/b and decoding
+ * a connected overlay dentry will be accomplished.
+ *
+ * (*) the algorithm in ovl_lookup_real_ancestor() can be improved to lookup an
+ * entry /a in the lower layers above layer N and find the indexed dir /a from
+ * layer 1. If that improvement is made, then the check for "layer N connected"
+ * will need to verify there are no redirects in lower layers above N. In the
+ * example above, /a will be "layer 2 connectable". However, if layer 2 dir /a
+ * is a target of a layer 1 redirect, then /a will NOT be "layer 2 connectable":
+ *
+ * layer 1: /A (redirect = /a)
+ * layer 2: /a/b/c
+ */
+
+/* Return the lowest layer for encoding a connectable file handle */
+static int ovl_connectable_layer(struct dentry *dentry)
+{
+	struct ovl_entry *oe = OVL_E(dentry);
+
+	/* We can get overlay root from root of any layer */
+	if (dentry == dentry->d_sb->s_root)
+		return oe->numlower;
+
+	/*
+	 * If it's an unindexed merge dir, then it's not connectable with any
+	 * lower layer
+	 */
+	if (ovl_dentry_upper(dentry) &&
+	    !ovl_test_flag(OVL_INDEX, d_inode(dentry)))
+		return 0;
+
+	/* We can get upper/overlay path from indexed/lower dentry */
+	return oe->lowerstack[0].layer->idx;
+}
+
+/*
+ * @dentry is "connected" if all ancestors up to root or a "connected" ancestor
+ * have the same uppermost lower layer as the origin's layer. We may need to
+ * copy up a "connectable" ancestor to make it "connected". A "connected" dentry
+ * cannot become non "connected", so cache positive result in dentry flags.
+ *
+ * Return the connected origin layer or < 0 on error.
+ */
+static int ovl_connect_layer(struct dentry *dentry)
+{
+	struct dentry *next, *parent = NULL;
+	int origin_layer;
+	int err = 0;
+
+	if (WARN_ON(dentry == dentry->d_sb->s_root) ||
+	    WARN_ON(!ovl_dentry_lower(dentry)))
+		return -EIO;
+
+	origin_layer = OVL_E(dentry)->lowerstack[0].layer->idx;
+	if (ovl_dentry_test_flag(OVL_E_CONNECTED, dentry))
+		return origin_layer;
+
+	/* Find the topmost origin layer connectable ancestor of @dentry */
+	next = dget(dentry);
+	for (;;) {
+		parent = dget_parent(next);
+		if (WARN_ON(parent == next)) {
+			err = -EIO;
+			break;
+		}
+
+		/*
+		 * If @parent is not origin layer connectable, then copy up
+		 * @next which is origin layer connectable and we are done.
+		 */
+		if (ovl_connectable_layer(parent) < origin_layer) {
+			err = ovl_encode_maybe_copy_up(next);
+			break;
+		}
+
+		/* If @parent is connected or indexed we are done */
+		if (ovl_dentry_test_flag(OVL_E_CONNECTED, parent) ||
+		    ovl_test_flag(OVL_INDEX, d_inode(parent)))
+			break;
+
+		dput(next);
+		next = parent;
+	}
+
+	dput(parent);
+	dput(next);
+
+	if (!err)
+		ovl_dentry_set_flag(OVL_E_CONNECTED, dentry);
+
+	return err ?: origin_layer;
+}
+
 /*
  * We only need to encode origin if there is a chance that the same object was
  * encoded pre copy up and then we need to stay consistent with the same
@@ -41,73 +177,59 @@
  * L = lower file handle
  *
  * (*) Connecting an overlay dir from real lower dentry is not always
- * possible when there are redirects in lower layers. To mitigate this case,
- * we copy up the lower dir first and then encode an upper dir file handle.
+ * possible when there are redirects in lower layers and non-indexed merge dirs.
+ * To mitigate those case, we may copy up the lower dir ancestor before encode
+ * a lower dir file handle.
+ *
+ * Return 0 for upper file handle, > 0 for lower file handle or < 0 on error.
  */
-static bool ovl_should_encode_origin(struct dentry *dentry)
+static int ovl_check_encode_origin(struct dentry *dentry)
 {
 	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
 
+	/* Upper file handle for pure upper */
 	if (!ovl_dentry_lower(dentry))
-		return false;
-
-	/*
-	 * Decoding a merge dir, whose origin's parent is under a redirected
-	 * lower dir is not always possible. As a simple aproximation, we do
-	 * not encode lower dir file handles when overlay has multiple lower
-	 * layers and origin is below the topmost lower layer.
-	 *
-	 * TODO: copy up only the parent that is under redirected lower.
-	 */
-	if (d_is_dir(dentry) && ofs->upper_mnt &&
-	    OVL_E(dentry)->lowerstack[0].layer->idx > 1)
-		return false;
-
-	/* Decoding a non-indexed upper from origin is not implemented */
-	if (ovl_dentry_upper(dentry) &&
-	    !ovl_test_flag(OVL_INDEX, d_inode(dentry)))
-		return false;
-
-	return true;
-}
-
-static int ovl_encode_maybe_copy_up(struct dentry *dentry)
-{
-	int err;
-
-	if (ovl_dentry_upper(dentry))
 		return 0;
 
-	err = ovl_want_write(dentry);
-	if (err)
-		return err;
+	/*
+	 * Upper file handle for non-indexed upper.
+	 *
+	 * Root is never indexed, so if there's an upper layer, encode upper for
+	 * root.
+	 */
+	if (ovl_dentry_upper(dentry) &&
+	    !ovl_test_flag(OVL_INDEX, d_inode(dentry)))
+		return 0;
 
-	err = ovl_copy_up(dentry);
+	/*
+	 * Decoding a merge dir, whose origin's ancestor is under a redirected
+	 * lower dir or under a non-indexed upper is not always possible.
+	 * ovl_connect_layer() will try to make origin's layer "connected" by
+	 * copying up a "connectable" ancestor.
+	 */
+	if (d_is_dir(dentry) && ofs->upper_mnt)
+		return ovl_connect_layer(dentry);
 
-	ovl_drop_write(dentry);
-	return err;
+	/* Lower file handle for indexed and non-upper dir/non-dir */
+	return 1;
 }
 
 static int ovl_d_to_fh(struct dentry *dentry, char *buf, int buflen)
 {
-	struct dentry *origin = ovl_dentry_lower(dentry);
 	struct ovl_fh *fh = NULL;
-	int err;
+	int err, enc_lower;
 
 	/*
-	 * If we should not encode a lower dir file handle, copy up and encode
-	 * an upper dir file handle.
+	 * Check if we should encode a lower or upper file handle and maybe
+	 * copy up an ancestor to make lower file handle connectable.
 	 */
-	if (!ovl_should_encode_origin(dentry)) {
-		err = ovl_encode_maybe_copy_up(dentry);
-		if (err)
-			goto fail;
+	err = enc_lower = ovl_check_encode_origin(dentry);
+	if (enc_lower < 0)
+		goto fail;
 
-		origin = NULL;
-	}
-
-	/* Encode an upper or origin file handle */
-	fh = ovl_encode_fh(origin ?: ovl_dentry_upper(dentry), !origin);
+	/* Encode an upper or lower file handle */
+	fh = ovl_encode_fh(enc_lower ? ovl_dentry_lower(dentry) :
+				       ovl_dentry_upper(dentry), !enc_lower);
 	err = PTR_ERR(fh);
 	if (IS_ERR(fh))
 		goto fail;
@@ -355,8 +477,8 @@ static struct dentry *ovl_lookup_real_inode(struct super_block *sb,
 		dput(upper);
 	}
 
-	if (!this)
-		return NULL;
+	if (IS_ERR_OR_NULL(this))
+		return this;
 
 	if (WARN_ON(ovl_dentry_real_at(this, layer->idx) != real)) {
 		dput(this);
@@ -498,7 +620,7 @@ static struct dentry *ovl_lookup_real(struct super_block *sb,
 			if (err == -ECHILD) {
 				this = ovl_lookup_real_ancestor(sb, real,
 								layer);
-				err = IS_ERR(this) ? PTR_ERR(this) : 0;
+				err = PTR_ERR_OR_ZERO(this);
 			}
 			if (!err) {
 				dput(connected);
