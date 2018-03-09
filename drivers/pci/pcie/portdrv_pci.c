@@ -37,9 +37,6 @@ static int __init pcie_port_setup(char *str)
 	} else if (!strncmp(str, "native", 6)) {
 		pcie_ports_disabled = false;
 		pcie_ports_auto = false;
-	} else if (!strncmp(str, "auto", 4)) {
-		pcie_ports_disabled = false;
-		pcie_ports_auto = true;
 	}
 
 	return 1;
