@@ -65,6 +65,8 @@ struct lgdt330x_state {
 	/* Demodulator private data */
 	enum fe_modulation current_modulation;
 	u32 snr;	/* Result of last SNR calculation */
+	u16 ucblocks;
+	unsigned long last_stats_time;
 
 	/* Tuner private data */
 	u32 current_frequency;
@@ -296,6 +298,11 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 
 	p->cnr.len = 1;
 	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_error.len = 1;
+	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_count.len = 1;
+	p->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	state->last_stats_time = 0;
 
 	return lgdt330x_sw_reset(state);
 }
@@ -303,29 +310,9 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 static int lgdt330x_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
-	int err;
-	u8 buf[2];
 
-	*ucblocks = 0;
+	*ucblocks = state->ucblocks;
 
-	switch (state->config.demod_chip) {
-	case LGDT3302:
-		err = i2c_read_demod_bytes(state, LGDT3302_PACKET_ERR_COUNTER1,
-					   buf, sizeof(buf));
-		break;
-	case LGDT3303:
-		err = i2c_read_demod_bytes(state, LGDT3303_PACKET_ERR_COUNTER1,
-					   buf, sizeof(buf));
-		break;
-	default:
-		dev_warn(&state->client->dev,
-			 "Only LGDT3302 and LGDT3303 are supported chips.\n");
-		err = -ENODEV;
-	}
-	if (err < 0)
-		return err;
-
-	*ucblocks = (buf[0] << 8) | buf[1];
 	return 0;
 }
 
@@ -644,6 +631,7 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 	struct lgdt330x_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u8 buf[3];
+	int err;
 
 	*status = 0; /* Reset status result */
 
@@ -698,11 +686,43 @@ static int lgdt3302_read_status(struct dvb_frontend *fe,
 			 __func__);
 	}
 
-	if (*status & FE_HAS_LOCK && lgdt3302_read_snr(fe) >= 0) {
+	if (!(*status & FE_HAS_LOCK)) {
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return 0;
+	}
+
+	if (state->last_stats_time &&
+	    time_is_after_jiffies(state->last_stats_time))
+		return 0;
+
+	state->last_stats_time = jiffies + msecs_to_jiffies(1000);
+
+	err = lgdt3302_read_snr(fe);
+	if (!err) {
 		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		p->cnr.stat[0].svalue = (((u64)state->snr) * 1000) >> 24;
 	} else {
 		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	err = i2c_read_demod_bytes(state, LGDT3302_PACKET_ERR_COUNTER1,
+					   buf, sizeof(buf));
+	if (!err) {
+		state->ucblocks = (buf[0] << 8) | buf[1];
+
+		dprintk(state, "UCB = 0x%02x\n", state->ucblocks);
+
+		p->block_error.stat[0].uvalue += state->ucblocks;
+		/* FIXME: what's the basis for block count */
+		p->block_count.stat[0].uvalue += 10000;
+
+		p->block_error.stat[0].scale = FE_SCALE_COUNTER;
+		p->block_count.stat[0].scale = FE_SCALE_COUNTER;
+	} else {
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
 	return 0;
@@ -713,8 +733,8 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
-	int err;
 	u8 buf[3];
+	int err;
 
 	*status = 0; /* Reset status result */
 
@@ -772,11 +792,43 @@ static int lgdt3303_read_status(struct dvb_frontend *fe,
 			 __func__);
 	}
 
-	if (*status & FE_HAS_LOCK && lgdt3303_read_snr(fe) >= 0) {
+	if (!(*status & FE_HAS_LOCK)) {
+		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return 0;
+	}
+
+	if (state->last_stats_time &&
+	    time_is_after_jiffies(state->last_stats_time))
+		return 0;
+
+	state->last_stats_time = jiffies + msecs_to_jiffies(1000);
+
+	err = lgdt3303_read_snr(fe);
+	if (!err) {
 		p->cnr.stat[0].scale = FE_SCALE_DECIBEL;
 		p->cnr.stat[0].svalue = (((u64)state->snr) * 1000) >> 24;
 	} else {
 		p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	err = i2c_read_demod_bytes(state, LGDT3303_PACKET_ERR_COUNTER1,
+					   buf, sizeof(buf));
+	if (!err) {
+		state->ucblocks = (buf[0] << 8) | buf[1];
+
+		dprintk(state, "UCB = 0x%02x\n", state->ucblocks);
+
+		p->block_error.stat[0].uvalue += state->ucblocks;
+		/* FIXME: what's the basis for block count */
+		p->block_count.stat[0].uvalue += 10000;
+
+		p->block_error.stat[0].scale = FE_SCALE_COUNTER;
+		p->block_count.stat[0].scale = FE_SCALE_COUNTER;
+	} else {
+		p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		p->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
 	return 0;
