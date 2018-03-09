@@ -6,6 +6,10 @@ fb-y					:= fbmem.o fbmon.o fbcmap.o fbsysfs.o \
 					   modedb.o fbcvt.o
 fb-$(CONFIG_FB_DEFERRED_IO)		+= fb_defio.o
 
+ifeq ($(CONFIG_OF),y)
+fb-y					+= fb_of.o
+endif
+
 ifeq ($(CONFIG_FRAMEBUFFER_CONSOLE),y)
 fb-y					+= fbcon.o bitblit.o softcursor.o
 ifeq ($(CONFIG_FB_TILEBLITTING),y)

@@ -1,0 +1,5 @@
+General framebuffer properties:
+
+Optional properties for framebuffers:
+ - rotate		: rotate a framebuffer over 0, 1, 2 and 3
+			  degree's (integer)
