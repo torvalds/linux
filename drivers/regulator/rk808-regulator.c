@@ -346,7 +346,11 @@ static int rk808_buck1_2_i2c_set_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
+#ifdef CONFIG_CPU_RK312X
 extern void rkclk_cpuclk_div_setting(int div);
+#else
+static inline void rkclk_cpuclk_div_setting(int div) {}
+#endif
 
 static int rk816_regulator_set_voltage_sel_regmap(struct regulator_dev *rdev,
 						  unsigned int sel)
