@@ -6032,6 +6032,9 @@ enum {
 #define IVB_CURSOR_B_OFFSET 0x71080
 #define IVB_CURSOR_C_OFFSET 0x72080
 
+#define _CUR_SURLIVE		0x700AC
+#define CUR_SURLIVE(pipe)	_CURSOR2(pipe, _CUR_SURLIVE)
+
 /* Display A control */
 #define _DSPACNTR				0x70180
 #define   DISPLAY_PLANE_ENABLE			(1<<31)
