@@ -72,16 +72,14 @@ int rv_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int rv_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg)
+static int rv_read_arg_from_smc(struct pp_hwmgr *hwmgr)
 {
 	uint32_t reg;
 
 	reg = soc15_get_register_offset(MP1_HWID, 0,
 			mmMP1_SMN_C2PMSG_82_BASE_IDX, mmMP1_SMN_C2PMSG_82);
 
-	*arg = cgs_read_register(hwmgr->device, reg);
-
-	return 0;
+	return cgs_read_register(hwmgr->device, reg);
 }
 
 int rv_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
@@ -190,8 +188,7 @@ static int rv_verify_smc_interface(struct pp_hwmgr *hwmgr)
 
 	rv_send_msg_to_smc(hwmgr,
 			PPSMC_MSG_GetDriverIfVersion);
-	rv_read_arg_from_smc(hwmgr,
-			&smc_driver_if_version);
+	smc_driver_if_version = rv_read_arg_from_smc(hwmgr);
 
 	if (smc_driver_if_version != SMU10_DRIVER_IF_VERSION) {
 		pr_err("Attempt to read SMC IF Version Number Failed!\n");
@@ -253,7 +250,7 @@ static int rv_start_smu(struct pp_hwmgr *hwmgr)
 	struct cgs_firmware_info info = {0};
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
-	rv_read_arg_from_smc(hwmgr, &hwmgr->smu_version);
+	hwmgr->smu_version = rv_read_arg_from_smc(hwmgr);
 	info.version = hwmgr->smu_version >> 8;
 
 	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
@@ -330,6 +327,7 @@ const struct pp_smumgr_func rv_smu_funcs = {
 	.send_msg_to_smc_with_parameter = &rv_send_msg_to_smc_with_parameter,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
+	.get_argument = rv_read_arg_from_smc,
 };
 
 

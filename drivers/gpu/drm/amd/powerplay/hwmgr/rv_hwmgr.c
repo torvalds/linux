@@ -386,11 +386,11 @@ static int rv_populate_clock_table(struct pp_hwmgr *hwmgr)
 					ARRAY_SIZE(VddPhyClk), &VddPhyClk[0]);
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMinGfxclkFrequency);
-	rv_read_arg_from_smc(hwmgr, &result);
+	result = smum_get_argument(hwmgr);
 	rv_data->gfx_min_freq_limit = result * 100;
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxGfxclkFrequency);
-	rv_read_arg_from_smc(hwmgr, &result);
+	result = smum_get_argument(hwmgr);
 	rv_data->gfx_max_freq_limit = result * 100;
 
 	return 0;
@@ -726,7 +726,7 @@ static int rv_print_clock_levels(struct pp_hwmgr *hwmgr,
 	switch (type) {
 	case PP_SCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetGfxclkFrequency);
-		rv_read_arg_from_smc(hwmgr, &now);
+		now = smum_get_argument(hwmgr);
 
 		size += sprintf(buf + size, "0: %uMhz %s\n",
 				data->gfx_min_freq_limit / 100,
@@ -739,7 +739,7 @@ static int rv_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 	case PP_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency);
-		rv_read_arg_from_smc(hwmgr, &now);
+		now = smum_get_argument(hwmgr);
 
 		for (i = 0; i < mclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
@@ -971,14 +971,14 @@ static int rv_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetGfxclkFrequency);
-		rv_read_arg_from_smc(hwmgr, &sclk);
+		sclk = smum_get_argument(hwmgr);
 			/* in units of 10KHZ */
 		*((uint32_t *)value) = sclk * 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetFclkFrequency);
-		rv_read_arg_from_smc(hwmgr, &mclk);
+		mclk = smum_get_argument(hwmgr);
 			/* in units of 10KHZ */
 		*((uint32_t *)value) = mclk * 100;
 		*size = 4;

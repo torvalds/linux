@@ -50,7 +50,6 @@ struct rv_smumgr {
 	struct smu_table_array            smu_tables;
 };
 
-int rv_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg);
 int rv_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id);
 int rv_copy_table_to_smc(struct pp_hwmgr *hwmgr,
