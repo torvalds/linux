@@ -531,8 +531,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
-		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)
-			amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+		amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
 		if (!amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
