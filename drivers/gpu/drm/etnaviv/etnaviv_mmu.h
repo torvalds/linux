@@ -59,7 +59,6 @@ struct etnaviv_iommu {
 	struct mutex lock;
 	struct list_head mappings;
 	struct drm_mm mm;
-	u32 last_iova;
 	bool need_flush;
 };
 
