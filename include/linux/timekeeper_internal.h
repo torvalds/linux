@@ -117,6 +117,8 @@ struct timekeeper {
 	s64			ntp_error;
 	u32			ntp_error_shift;
 	u32			ntp_err_mult;
+	/* Flag used to avoid updating NTP twice with same second */
+	u32			skip_second_overflow;
 #ifdef CONFIG_DEBUG_TIMEKEEPING
 	long			last_warning;
 	/*
