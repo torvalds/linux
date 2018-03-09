@@ -30,6 +30,17 @@ config SND_SOC_UNIPHIER_LD11
 	  Select Y if you use such device.
 	  If unsure select "N".
 
+config SND_SOC_UNIPHIER_PXS2
+	tristate "UniPhier PXs2 Device Driver"
+	depends on SND_SOC_UNIPHIER
+	select SND_SOC_UNIPHIER_AIO
+	select SND_SOC_UNIPHIER_AIO_DMA
+	help
+	  This adds ASoC driver for Socionext UniPhier PXs2
+	  input and output that can be used with other codecs.
+	  Select Y if you use such device.
+	  If unsure select "N".
+
 config SND_SOC_UNIPHIER_EVEA_CODEC
 	tristate "UniPhier SoC internal audio codec"
 	depends on SND_SOC_UNIPHIER

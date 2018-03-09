@@ -418,7 +418,7 @@ MODULE_DEVICE_TABLE(of, uniphier_aio_of_match);
 
 static struct platform_driver uniphier_aio_driver = {
 	.driver = {
-		.name = "snd-uniphier-aio",
+		.name = "snd-uniphier-aio-ld11",
 		.of_match_table = of_match_ptr(uniphier_aio_of_match),
 	},
 	.probe    = uniphier_aio_probe,

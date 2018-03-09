@@ -110,9 +110,11 @@ enum IEC61937_PC {
 #define AUD_NAME_IECOUT1         "aio-iecout1"
 #define AUD_NAME_CMASTER         "aio-cmaster"
 #define AUD_NAME_HIECCOMPOUT1    "aio-hieccompout1"
+#define AUD_NAME_IECCOMPOUT1     "aio-ieccompout1"
 
 #define AUD_GNAME_HDMI    "aio-hdmi"
 #define AUD_GNAME_LINE    "aio-line"
+#define AUD_GNAME_AUX     "aio-aux"
 #define AUD_GNAME_IEC     "aio-iec"
 
 #define AUD_CLK_IO        0

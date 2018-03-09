@@ -7,6 +7,7 @@ Required properties:
 - compatible      : should be one of the following:
 		    "socionext,uniphier-ld11-aio"
 		    "socionext,uniphier-ld20-aio"
+		    "socionext,uniphier-pxs2-aio"
 - reg             : offset and length of the register set for the device.
 - interrupts      : should contain I2S or S/PDIF interrupt.
 - pinctrl-names   : should be "default".
