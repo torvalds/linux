@@ -722,7 +722,8 @@ static void pcie_pme_root_status_cleanup(struct pci_dev *pci_dev)
 	 * Clear those bits now just in case (shouldn't hurt).
 	 */
 	if (pci_is_pcie(pci_dev) &&
-	    pci_pcie_type(pci_dev) == PCI_EXP_TYPE_ROOT_PORT)
+	    (pci_pcie_type(pci_dev) == PCI_EXP_TYPE_ROOT_PORT ||
+	     pci_pcie_type(pci_dev) == PCI_EXP_TYPE_RC_EC))
 		pcie_clear_root_pme_status(pci_dev);
 }
 
