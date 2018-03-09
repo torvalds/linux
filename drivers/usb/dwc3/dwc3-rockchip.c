@@ -914,7 +914,7 @@ static int dwc3_rockchip_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int dwc3_rockchip_suspend(struct device *dev)
+static int __maybe_unused dwc3_rockchip_suspend(struct device *dev)
 {
 	struct dwc3_rockchip *rockchip = dev_get_drvdata(dev);
 	struct dwc3 *dwc = rockchip->dwc;
@@ -940,7 +940,7 @@ static int dwc3_rockchip_suspend(struct device *dev)
 	return 0;
 }
 
-static int dwc3_rockchip_resume(struct device *dev)
+static int __maybe_unused dwc3_rockchip_resume(struct device *dev)
 {
 	struct dwc3_rockchip *rockchip = dev_get_drvdata(dev);
 	struct dwc3 *dwc = rockchip->dwc;
