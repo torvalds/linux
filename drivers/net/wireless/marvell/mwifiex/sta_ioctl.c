@@ -1481,3 +1481,15 @@ int mwifiex_get_wakeup_reason(struct mwifiex_private *priv, u16 action,
 
 	return status;
 }
+
+int mwifiex_get_chan_info(struct mwifiex_private *priv,
+			  struct mwifiex_channel_band *channel_band)
+{
+	int status = 0;
+
+	status = mwifiex_send_cmd(priv, HostCmd_CMD_STA_CONFIGURE,
+				  HostCmd_ACT_GEN_GET, 0, channel_band,
+				  MWIFIEX_SYNC_CMD);
+
+	return status;
+}
