@@ -1399,19 +1399,19 @@ static void snb_gt_irq_handler(struct drm_i915_private *dev_priv,
 }
 
 static void
-gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir, int test_shift)
+gen8_cs_irq_handler(struct intel_engine_cs *engine, u32 iir)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	bool tasklet = false;
 
-	if (iir & (GT_CONTEXT_SWITCH_INTERRUPT << test_shift)) {
+	if (iir & GT_CONTEXT_SWITCH_INTERRUPT) {
 		if (READ_ONCE(engine->execlists.active)) {
 			__set_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 			tasklet = true;
 		}
 	}
 
-	if (iir & (GT_RENDER_USER_INTERRUPT << test_shift)) {
+	if (iir & GT_RENDER_USER_INTERRUPT) {
 		notify_ring(engine);
 		tasklet |= USES_GUC_SUBMISSION(engine->i915);
 	}
@@ -1466,21 +1466,21 @@ static void gen8_gt_irq_handler(struct drm_i915_private *i915,
 {
 	if (master_ctl & (GEN8_GT_RCS_IRQ | GEN8_GT_BCS_IRQ)) {
 		gen8_cs_irq_handler(i915->engine[RCS],
-				    gt_iir[0], GEN8_RCS_IRQ_SHIFT);
+				    gt_iir[0] >> GEN8_RCS_IRQ_SHIFT);
 		gen8_cs_irq_handler(i915->engine[BCS],
-				    gt_iir[0], GEN8_BCS_IRQ_SHIFT);
+				    gt_iir[0] >> GEN8_BCS_IRQ_SHIFT);
 	}
 
 	if (master_ctl & (GEN8_GT_VCS1_IRQ | GEN8_GT_VCS2_IRQ)) {
 		gen8_cs_irq_handler(i915->engine[VCS],
-				    gt_iir[1], GEN8_VCS1_IRQ_SHIFT);
+				    gt_iir[1] >> GEN8_VCS1_IRQ_SHIFT);
 		gen8_cs_irq_handler(i915->engine[VCS2],
-				    gt_iir[1], GEN8_VCS2_IRQ_SHIFT);
+				    gt_iir[1] >> GEN8_VCS2_IRQ_SHIFT);
 	}
 
 	if (master_ctl & GEN8_GT_VECS_IRQ) {
 		gen8_cs_irq_handler(i915->engine[VECS],
-				    gt_iir[3], GEN8_VECS_IRQ_SHIFT);
+				    gt_iir[3] >> GEN8_VECS_IRQ_SHIFT);
 	}
 
 	if (master_ctl & (GEN8_GT_PM_IRQ | GEN8_GT_GUC_IRQ)) {
@@ -2762,12 +2762,6 @@ static void __fini_wedge(struct wedge_me *w)
 	     (W)->i915;							\
 	     __fini_wedge((W)))
 
-static __always_inline void
-gen11_cs_irq_handler(struct intel_engine_cs * const engine, const u32 iir)
-{
-	gen8_cs_irq_handler(engine, iir, 0);
-}
-
 static void
 gen11_gt_engine_irq_handler(struct drm_i915_private * const i915,
 			    const unsigned int bank,
@@ -2781,27 +2775,27 @@ gen11_gt_engine_irq_handler(struct drm_i915_private * const i915,
 		switch (engine_n) {
 
 		case GEN11_RCS0:
-			return gen11_cs_irq_handler(engine[RCS], iir);
+			return gen8_cs_irq_handler(engine[RCS], iir);
 
 		case GEN11_BCS:
-			return gen11_cs_irq_handler(engine[BCS], iir);
+			return gen8_cs_irq_handler(engine[BCS], iir);
 		}
 	case 1:
 		switch (engine_n) {
 
 		case GEN11_VCS(0):
-			return gen11_cs_irq_handler(engine[_VCS(0)], iir);
+			return gen8_cs_irq_handler(engine[_VCS(0)], iir);
 		case GEN11_VCS(1):
-			return gen11_cs_irq_handler(engine[_VCS(1)], iir);
+			return gen8_cs_irq_handler(engine[_VCS(1)], iir);
 		case GEN11_VCS(2):
-			return gen11_cs_irq_handler(engine[_VCS(2)], iir);
+			return gen8_cs_irq_handler(engine[_VCS(2)], iir);
 		case GEN11_VCS(3):
-			return gen11_cs_irq_handler(engine[_VCS(3)], iir);
+			return gen8_cs_irq_handler(engine[_VCS(3)], iir);
 
 		case GEN11_VECS(0):
-			return gen11_cs_irq_handler(engine[_VECS(0)], iir);
+			return gen8_cs_irq_handler(engine[_VECS(0)], iir);
 		case GEN11_VECS(1):
-			return gen11_cs_irq_handler(engine[_VECS(1)], iir);
+			return gen8_cs_irq_handler(engine[_VECS(1)], iir);
 		}
 	}
 }
