@@ -48,7 +48,6 @@ struct sub_backlight {
 #define to_rockchip_backlight_device(x) \
 		container_of((x), struct rockchip_drm_backlight, pwm_pdev)
 
-static DEFINE_MUTEX(backlight_lock);
 static LIST_HEAD(backlight_list);
 
 static int compute_duty_cycle(struct rockchip_drm_backlight *bl,
