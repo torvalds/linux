@@ -4904,7 +4904,7 @@ static unsigned int skb_gso_transport_seglen(const struct sk_buff *skb)
 			thlen += inner_tcp_hdrlen(skb);
 	} else if (likely(shinfo->gso_type & (SKB_GSO_TCPV4 | SKB_GSO_TCPV6))) {
 		thlen = tcp_hdrlen(skb);
-	} else if (unlikely(shinfo->gso_type & SKB_GSO_SCTP)) {
+	} else if (unlikely(skb_is_gso_sctp(skb))) {
 		thlen = sizeof(struct sctphdr);
 	}
 	/* UFO sets gso_size to the size of the fragmentation

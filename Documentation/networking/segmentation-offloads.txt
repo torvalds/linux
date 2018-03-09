@@ -155,7 +155,10 @@ Therefore, any code in the core networking stack must be aware of the
 possibility that gso_size will be GSO_BY_FRAGS and handle that case
 appropriately.
 
-There are a couple of helpers to make this easier:
+There are some helpers to make this easier:
+
+ - skb_is_gso(skb) && skb_is_gso_sctp(skb) is the best way to see if
+   an skb is an SCTP GSO skb.
 
  - For size checks, the skb_gso_validate_*_len family of helpers correctly
    considers GSO_BY_FRAGS.
