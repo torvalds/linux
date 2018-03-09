@@ -30,6 +30,8 @@ static __le32 ceph_flags_sys2wire(u32 flags)
 		break;
 	}
 
+	flags &= ~O_ACCMODE;
+
 #define ceph_sys2wire(a) if (flags & a) { wire_flags |= CEPH_##a; flags &= ~a; }
 
 	ceph_sys2wire(O_CREAT);
