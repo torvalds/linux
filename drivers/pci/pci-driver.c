@@ -714,6 +714,17 @@ static void pci_pm_complete(struct device *dev)
 #endif /* !CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_SUSPEND
+static void pcie_pme_root_status_cleanup(struct pci_dev *pci_dev)
+{
+	/*
+	 * Some BIOSes forget to clear Root PME Status bits after system
+	 * wakeup, which breaks ACPI-based runtime wakeup on PCI Express.
+	 * Clear those bits now just in case (shouldn't hurt).
+	 */
+	if (pci_is_pcie(pci_dev) &&
+	    pci_pcie_type(pci_dev) == PCI_EXP_TYPE_ROOT_PORT)
+		pcie_clear_root_pme_status(pci_dev);
+}
 
 static int pci_pm_suspend(struct device *dev)
 {
@@ -872,6 +883,8 @@ static int pci_pm_resume_noirq(struct device *dev)
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume_early(dev);
+
+	pcie_pme_root_status_cleanup(pci_dev);
 
 	if (drv && drv->pm && drv->pm->resume_noirq)
 		error = drv->pm->resume_noirq(dev);
