@@ -2898,7 +2898,6 @@ static int __qeth_l3_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 		card->info.hwtrap = 0;
 
 	card->state = CARD_STATE_HARDSETUP;
-	memset(&card->rx, 0, sizeof(struct qeth_rx));
 	qeth_print_status_message(card);
 
 	/* softsetup */

@@ -2873,8 +2873,8 @@ int qeth_init_qdio_queues(struct qeth_card *card)
 	QETH_DBF_TEXT(SETUP, 2, "initqdqs");
 
 	/* inbound queue */
-	qdio_reset_buffers(card->qdio.in_q->qdio_bufs,
-			   QDIO_MAX_BUFFERS_PER_Q);
+	qdio_reset_buffers(card->qdio.in_q->qdio_bufs, QDIO_MAX_BUFFERS_PER_Q);
+	memset(&card->rx, 0, sizeof(struct qeth_rx));
 	qeth_initialize_working_pool_list(card);
 	/*give only as many buffers to hardware as we have buffer pool entries*/
 	for (i = 0; i < card->qdio.in_buf_pool.buf_count - 1; ++i)

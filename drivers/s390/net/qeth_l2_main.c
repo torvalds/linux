@@ -1087,7 +1087,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	qeth_l2_setup_bridgeport_attrs(card);
 
 	card->state = CARD_STATE_HARDSETUP;
-	memset(&card->rx, 0, sizeof(struct qeth_rx));
 	qeth_print_status_message(card);
 
 	/* softsetup */
