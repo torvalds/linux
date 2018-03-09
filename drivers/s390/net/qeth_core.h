@@ -233,8 +233,6 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 #define QETH_IDX_FUNC_LEVEL_OSD		 0x0101
 #define QETH_IDX_FUNC_LEVEL_IQD		 0x4108
 
-#define QETH_REAL_CARD		1
-#define QETH_VLAN_CARD		2
 #define QETH_BUFSIZE		4096
 
 /**

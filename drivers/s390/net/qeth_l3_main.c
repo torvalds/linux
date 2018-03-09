@@ -1594,69 +1594,6 @@ static int qeth_l3_process_inbound_buffer(struct qeth_card *card,
 	return work_done;
 }
 
-static int qeth_l3_verify_vlan_dev(struct net_device *dev,
-			struct qeth_card *card)
-{
-	int rc = 0;
-	u16 vid;
-
-	for_each_set_bit(vid, card->active_vlans, VLAN_N_VID) {
-		struct net_device *netdev;
-
-		rcu_read_lock();
-		netdev = __vlan_find_dev_deep_rcu(card->dev, htons(ETH_P_8021Q),
-					      vid);
-		rcu_read_unlock();
-		if (netdev == dev) {
-			rc = QETH_VLAN_CARD;
-			break;
-		}
-	}
-
-	if (rc && !(vlan_dev_real_dev(dev)->ml_priv == (void *)card))
-		return 0;
-
-	return rc;
-}
-
-static int qeth_l3_verify_dev(struct net_device *dev)
-{
-	struct qeth_card *card;
-	int rc = 0;
-	unsigned long flags;
-
-	read_lock_irqsave(&qeth_core_card_list.rwlock, flags);
-	list_for_each_entry(card, &qeth_core_card_list.list, list) {
-		if (card->dev == dev) {
-			rc = QETH_REAL_CARD;
-			break;
-		}
-		rc = qeth_l3_verify_vlan_dev(dev, card);
-		if (rc)
-			break;
-	}
-	read_unlock_irqrestore(&qeth_core_card_list.rwlock, flags);
-
-	return rc;
-}
-
-static struct qeth_card *qeth_l3_get_card_from_dev(struct net_device *dev)
-{
-	struct qeth_card *card = NULL;
-	int rc;
-
-	rc = qeth_l3_verify_dev(dev);
-	if (rc == QETH_REAL_CARD)
-		card = dev->ml_priv;
-	else if (rc == QETH_VLAN_CARD)
-		card = vlan_dev_real_dev(dev)->ml_priv;
-	if (card && card->options.layer2)
-		card = NULL;
-	if (card)
-		QETH_CARD_TEXT_(card, 4, "%d", rc);
-	return card ;
-}
-
 static void qeth_l3_stop_card(struct qeth_card *card, int recovery_mode)
 {
 	QETH_DBF_TEXT(SETUP, 2, "stopcard");
@@ -3132,12 +3069,22 @@ static int qeth_l3_handle_ip_event(struct qeth_card *card,
 	}
 }
 
+static struct qeth_card *qeth_l3_get_card_from_dev(struct net_device *dev)
+{
+	if (is_vlan_dev(dev))
+		dev = vlan_dev_real_dev(dev);
+	if (dev->netdev_ops == &qeth_l3_osa_netdev_ops ||
+	    dev->netdev_ops == &qeth_l3_netdev_ops)
+		return (struct qeth_card *) dev->ml_priv;
+	return NULL;
+}
+
 static int qeth_l3_ip_event(struct notifier_block *this,
 			    unsigned long event, void *ptr)
 {
 
 	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
-	struct net_device *dev = (struct net_device *)ifa->ifa_dev->dev;
+	struct net_device *dev = ifa->ifa_dev->dev;
 	struct qeth_ipaddr addr;
 	struct qeth_card *card;
 
@@ -3165,7 +3112,7 @@ static int qeth_l3_ip6_event(struct notifier_block *this,
 			     unsigned long event, void *ptr)
 {
 	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
-	struct net_device *dev = (struct net_device *)ifa->idev->dev;
+	struct net_device *dev = ifa->idev->dev;
 	struct qeth_ipaddr addr;
 	struct qeth_card *card;
 
