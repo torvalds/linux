@@ -414,14 +414,6 @@ void __init *early_get_page(void)
 
 #endif /* CONFIG_MMU */
 
-void * __ref alloc_maybe_bootmem(size_t size, gfp_t mask)
-{
-	if (mem_init_done)
-		return kmalloc(size, mask);
-	else
-		return alloc_bootmem(size);
-}
-
 void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
 {
 	void *p;
