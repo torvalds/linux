@@ -13840,19 +13840,6 @@ S:	Orphan
 F:	drivers/net/wireless/ti/
 F:	include/linux/wl12xx.h
 
-TILE ARCHITECTURE
-W:	http://www.mellanox.com/repository/solutions/tile-scm/
-S:	Orphan
-F:	arch/tile/
-F:	drivers/char/tile-srom.c
-F:	drivers/edac/tile_edac.c
-F:	drivers/net/ethernet/tile/
-F:	drivers/rtc/rtc-tile.c
-F:	drivers/tty/hvc/hvc_tile.c
-F:	drivers/tty/serial/tilegx.c
-F:	drivers/usb/host/*-tilegx.c
-F:	include/linux/usb/tilegx.h
-
 TIMEKEEPING, CLOCKSOURCE CORE, NTP, ALARMTIMER
 M:	John Stultz <john.stultz@linaro.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
