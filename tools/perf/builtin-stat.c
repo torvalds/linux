@@ -1251,6 +1251,31 @@ static void aggr_update_shadow(void)
 	}
 }
 
+static void uniquify_event_name(struct perf_evsel *counter)
+{
+	char *new_name;
+	char *config;
+
+	if (!counter->pmu_name || !strncmp(counter->name, counter->pmu_name,
+					   strlen(counter->pmu_name)))
+		return;
+
+	config = strchr(counter->name, '/');
+	if (config) {
+		if (asprintf(&new_name,
+			     "%s%s", counter->pmu_name, config) > 0) {
+			free(counter->name);
+			counter->name = new_name;
+		}
+	} else {
+		if (asprintf(&new_name,
+			     "%s [%s]", counter->name, counter->pmu_name) > 0) {
+			free(counter->name);
+			counter->name = new_name;
+		}
+	}
+}
+
 static void collect_all_aliases(struct perf_evsel *counter,
 			    void (*cb)(struct perf_evsel *counter, void *data,
 				       bool first),
@@ -1279,7 +1304,9 @@ static bool collect_data(struct perf_evsel *counter,
 	if (counter->merged_stat)
 		return false;
 	cb(counter, data, true);
-	if (!no_merge && counter->auto_merge_stats)
+	if (no_merge)
+		uniquify_event_name(counter);
+	else if (counter->auto_merge_stats)
 		collect_all_aliases(counter, cb, data);
 	return true;
 }

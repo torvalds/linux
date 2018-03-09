@@ -984,7 +984,6 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 	int sample_id_all = 1, cpu;
 	static char *kwlist[] = { "cpu", "sample_id_all", NULL };
 	struct perf_mmap *md;
-	u64 end, start;
 	int err;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i|i", kwlist,
@@ -992,10 +991,10 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 		return NULL;
 
 	md = &evlist->mmap[cpu];
-	if (perf_mmap__read_init(md, false, &start, &end) < 0)
+	if (perf_mmap__read_init(md) < 0)
 		goto end;
 
-	event = perf_mmap__read_event(md, false, &start, end);
+	event = perf_mmap__read_event(md);
 	if (event != NULL) {
 		PyObject *pyevent = pyrf_event__new(event);
 		struct pyrf_event *pevent = (struct pyrf_event *)pyevent;
@@ -1013,7 +1012,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 		err = perf_evsel__parse_sample(evsel, event, &pevent->sample);
 
 		/* Consume the even only after we parsed it out. */
-		perf_mmap__consume(md, false);
+		perf_mmap__consume(md);
 
 		if (err)
 			return PyErr_Format(PyExc_OSError,

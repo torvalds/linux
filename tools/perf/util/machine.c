@@ -1697,7 +1697,7 @@ static void ip__resolve_data(struct thread *thread,
 struct mem_info *sample__resolve_mem(struct perf_sample *sample,
 				     struct addr_location *al)
 {
-	struct mem_info *mi = zalloc(sizeof(*mi));
+	struct mem_info *mi = mem_info__new();
 
 	if (!mi)
 		return NULL;

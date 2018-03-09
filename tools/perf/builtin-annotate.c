@@ -44,6 +44,7 @@ struct perf_annotate {
 	bool	   full_paths;
 	bool	   print_line;
 	bool	   skip_missing;
+	bool	   has_br_stack;
 	const char *sym_hist_filter;
 	const char *cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -146,16 +147,73 @@ static void process_branch_stack(struct branch_stack *bs, struct addr_location *
 	free(bi);
 }
 
+static int hist_iter__branch_callback(struct hist_entry_iter *iter,
+				      struct addr_location *al __maybe_unused,
+				      bool single __maybe_unused,
+				      void *arg __maybe_unused)
+{
+	struct hist_entry *he = iter->he;
+	struct branch_info *bi;
+	struct perf_sample *sample = iter->sample;
+	struct perf_evsel *evsel = iter->evsel;
+	int err;
+
+	hist__account_cycles(sample->branch_stack, al, sample, false);
+
+	bi = he->branch_info;
+	err = addr_map_symbol__inc_samples(&bi->from, sample, evsel->idx);
+
+	if (err)
+		goto out;
+
+	err = addr_map_symbol__inc_samples(&bi->to, sample, evsel->idx);
+
+out:
+	return err;
+}
+
+static int process_branch_callback(struct perf_evsel *evsel,
+				   struct perf_sample *sample,
+				   struct addr_location *al __maybe_unused,
+				   struct perf_annotate *ann,
+				   struct machine *machine)
+{
+	struct hist_entry_iter iter = {
+		.evsel		= evsel,
+		.sample		= sample,
+		.add_entry_cb	= hist_iter__branch_callback,
+		.hide_unresolved	= symbol_conf.hide_unresolved,
+		.ops		= &hist_iter_branch,
+	};
+
+	struct addr_location a;
+	int ret;
+
+	if (machine__resolve(machine, &a, sample) < 0)
+		return -1;
+
+	if (a.sym == NULL)
+		return 0;
+
+	if (a.map != NULL)
+		a.map->dso->hit = 1;
+
+	ret = hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
+	return ret;
+}
+
 static int perf_evsel__add_sample(struct perf_evsel *evsel,
 				  struct perf_sample *sample,
 				  struct addr_location *al,
-				  struct perf_annotate *ann)
+				  struct perf_annotate *ann,
+				  struct machine *machine)
 {
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	int ret;
 
-	if (ann->sym_hist_filter != NULL &&
+	if ((!ann->has_br_stack || !ui__has_annotation()) &&
+	    ann->sym_hist_filter != NULL &&
 	    (al->sym == NULL ||
 	     strcmp(ann->sym_hist_filter, al->sym->name) != 0)) {
 		/* We're only interested in a symbol named sym_hist_filter */
@@ -177,6 +235,9 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	 * symbol and are missed.
 	 */
 	process_branch_stack(sample->branch_stack, al, sample);
+
+	if (ann->has_br_stack && ui__has_annotation())
+		return process_branch_callback(evsel, sample, al, ann, machine);
 
 	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
 	if (he == NULL)
@@ -206,7 +267,8 @@ static int process_sample_event(struct perf_tool *tool,
 	if (ann->cpu_list && !test_bit(sample->cpu, ann->cpu_bitmap))
 		goto out_put;
 
-	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al, ann)) {
+	if (!al.filtered &&
+	    perf_evsel__add_sample(evsel, sample, &al, ann, machine)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		ret = -1;
@@ -236,6 +298,10 @@ static void hists__find_annotations(struct hists *hists,
 		struct annotation *notes;
 
 		if (he->ms.sym == NULL || he->ms.map->dso->annotate_warned)
+			goto find_next;
+
+		if (ann->sym_hist_filter &&
+		    (strcmp(he->ms.sym->name, ann->sym_hist_filter) != 0))
 			goto find_next;
 
 		notes = symbol__annotation(he->ms.sym);
@@ -269,6 +335,7 @@ find_next:
 			nd = rb_next(nd);
 		} else if (use_browser == 1) {
 			key = hist_entry__tui_annotate(he, evsel, NULL);
+
 			switch (key) {
 			case -1:
 				if (!ann->skip_missing)
@@ -489,6 +556,9 @@ int cmd_annotate(int argc, const char **argv)
 	if (annotate.session == NULL)
 		return -1;
 
+	annotate.has_br_stack = perf_header__has_feat(&annotate.session->header,
+						      HEADER_BRANCH_STACK);
+
 	ret = symbol__annotation_init();
 	if (ret < 0)
 		goto out_delete;
@@ -499,9 +569,6 @@ int cmd_annotate(int argc, const char **argv)
 	if (ret < 0)
 		goto out_delete;
 
-	if (setup_sorting(NULL) < 0)
-		usage_with_options(annotate_usage, options);
-
 	if (annotate.use_stdio)
 		use_browser = 0;
 	else if (annotate.use_tui)
@@ -510,6 +577,15 @@ int cmd_annotate(int argc, const char **argv)
 		use_browser = 2;
 
 	setup_browser(true);
+
+	if (use_browser == 1 && annotate.has_br_stack) {
+		sort__mode = SORT_MODE__BRANCH;
+		if (setup_sorting(annotate.session->evlist) < 0)
+			usage_with_options(annotate_usage, options);
+	} else {
+		if (setup_sorting(NULL) < 0)
+			usage_with_options(annotate_usage, options);
+	}
 
 	ret = __cmd_annotate(&annotate);
 

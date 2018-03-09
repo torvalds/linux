@@ -259,18 +259,17 @@ static int process_events(struct perf_evlist *evlist,
 	LIST_HEAD(events);
 	struct event_node *events_array, *node;
 	struct perf_mmap *md;
-	u64 end, start;
 	int i, ret;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
 		md = &evlist->mmap[i];
-		if (perf_mmap__read_init(md, false, &start, &end) < 0)
+		if (perf_mmap__read_init(md) < 0)
 			continue;
 
-		while ((event = perf_mmap__read_event(md, false, &start, end)) != NULL) {
+		while ((event = perf_mmap__read_event(md)) != NULL) {
 			cnt += 1;
 			ret = add_event(evlist, &events, event);
-			 perf_mmap__consume(md, false);
+			 perf_mmap__consume(md);
 			if (ret < 0)
 				goto out_free_nodes;
 		}

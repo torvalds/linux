@@ -48,7 +48,6 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 	struct cpu_map *cpus;
 	struct thread_map *threads;
 	struct perf_mmap *md;
-	u64 end, start;
 
 	signal(SIGCHLD, sig_handler);
 
@@ -113,14 +112,14 @@ int test__task_exit(struct test *test __maybe_unused, int subtest __maybe_unused
 
 retry:
 	md = &evlist->mmap[0];
-	if (perf_mmap__read_init(md, false, &start, &end) < 0)
+	if (perf_mmap__read_init(md) < 0)
 		goto out_init;
 
-	while ((event = perf_mmap__read_event(md, false, &start, end)) != NULL) {
+	while ((event = perf_mmap__read_event(md)) != NULL) {
 		if (event->header.type == PERF_RECORD_EXIT)
 			nr_exit++;
 
-		perf_mmap__consume(md, false);
+		perf_mmap__consume(md);
 	}
 	perf_mmap__read_done(md);
 
