@@ -991,9 +991,16 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		card->dev->features |= NETIF_F_VLAN_CHALLENGED;
 	else
 		card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
+
+	if (card->info.type != QETH_CARD_TYPE_OSN &&
+	    card->info.type != QETH_CARD_TYPE_IQD) {
+		card->dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+		card->dev->needed_headroom = sizeof(struct qeth_hdr);
+		card->dev->hw_features |= NETIF_F_SG;
+		card->dev->vlan_features |= NETIF_F_SG;
+	}
+
 	if (card->info.type == QETH_CARD_TYPE_OSD && !card->info.guestlan) {
-		card->dev->hw_features = NETIF_F_SG;
-		card->dev->vlan_features = NETIF_F_SG;
 		card->dev->features |= NETIF_F_SG;
 		/* OSA 3S and earlier has no RX/TX support */
 		if (qeth_is_supported(card, IPA_OUTBOUND_CHECKSUM)) {
@@ -1004,11 +1011,6 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 			card->dev->hw_features |= NETIF_F_RXCSUM;
 			card->dev->vlan_features |= NETIF_F_RXCSUM;
 		}
-	}
-	if (card->info.type != QETH_CARD_TYPE_OSN &&
-	    card->info.type != QETH_CARD_TYPE_IQD) {
-		card->dev->priv_flags &= ~IFF_TX_SKB_SHARING;
-		card->dev->needed_headroom = sizeof(struct qeth_hdr);
 	}
 
 	card->info.broadcast_capable = 1;

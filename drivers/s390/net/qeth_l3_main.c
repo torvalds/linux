@@ -2785,14 +2785,16 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 			if (!(card->info.unique_id & UNIQUE_ID_NOT_BY_CARD))
 				card->dev->dev_id = card->info.unique_id &
 							 0xffff;
+
+			card->dev->hw_features |= NETIF_F_SG;
+			card->dev->vlan_features |= NETIF_F_SG;
+
 			if (!card->info.guestlan) {
-				card->dev->hw_features = NETIF_F_SG |
-					NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
-					NETIF_F_TSO;
-				card->dev->vlan_features = NETIF_F_SG |
-					NETIF_F_RXCSUM | NETIF_F_IP_CSUM |
-					NETIF_F_TSO;
 				card->dev->features |= NETIF_F_SG;
+				card->dev->hw_features |= NETIF_F_TSO |
+					NETIF_F_RXCSUM | NETIF_F_IP_CSUM;
+				card->dev->vlan_features |= NETIF_F_TSO |
+					NETIF_F_RXCSUM | NETIF_F_IP_CSUM;
 			}
 		}
 	} else if (card->info.type == QETH_CARD_TYPE_IQD) {
