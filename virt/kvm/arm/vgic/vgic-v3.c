@@ -97,12 +97,9 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 
 		/*
 		 * Clear soft pending state when level irqs have been acked.
-		 * Always regenerate the pending state.
 		 */
-		if (irq->config == VGIC_CONFIG_LEVEL) {
-			if (!(val & ICH_LR_PENDING_BIT))
-				irq->pending_latch = false;
-		}
+		if (irq->config == VGIC_CONFIG_LEVEL && !(val & ICH_LR_STATE))
+			irq->pending_latch = false;
 
 		/*
 		 * Level-triggered mapped IRQs are special because we only
@@ -136,8 +133,35 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 {
 	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	u64 val = irq->intid;
+	bool allow_pending = true;
 
-	if (irq_is_pending(irq)) {
+	if (irq->active)
+		val |= ICH_LR_ACTIVE_BIT;
+
+	if (irq->hw) {
+		val |= ICH_LR_HW;
+		val |= ((u64)irq->hwintid) << ICH_LR_PHYS_ID_SHIFT;
+		/*
+		 * Never set pending+active on a HW interrupt, as the
+		 * pending state is kept at the physical distributor
+		 * level.
+		 */
+		if (irq->active)
+			allow_pending = false;
+	} else {
+		if (irq->config == VGIC_CONFIG_LEVEL) {
+			val |= ICH_LR_EOI;
+
+			/*
+			 * Software resampling doesn't work very well
+			 * if we allow P+A, so let's not do that.
+			 */
+			if (irq->active)
+				allow_pending = false;
+		}
+	}
+
+	if (allow_pending && irq_is_pending(irq)) {
 		val |= ICH_LR_PENDING_BIT;
 
 		if (irq->config == VGIC_CONFIG_EDGE)
@@ -153,24 +177,6 @@ void vgic_v3_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 			if (irq->source)
 				irq->pending_latch = true;
 		}
-	}
-
-	if (irq->active)
-		val |= ICH_LR_ACTIVE_BIT;
-
-	if (irq->hw) {
-		val |= ICH_LR_HW;
-		val |= ((u64)irq->hwintid) << ICH_LR_PHYS_ID_SHIFT;
-		/*
-		 * Never set pending+active on a HW interrupt, as the
-		 * pending state is kept at the physical distributor
-		 * level.
-		 */
-		if (irq->active && irq_is_pending(irq))
-			val &= ~ICH_LR_PENDING_BIT;
-	} else {
-		if (irq->config == VGIC_CONFIG_LEVEL)
-			val |= ICH_LR_EOI;
 	}
 
 	/*
