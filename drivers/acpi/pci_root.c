@@ -871,6 +871,7 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 	struct acpi_device *device = root->device;
 	int node = acpi_get_node(device->handle);
 	struct pci_bus *bus;
+	struct pci_host_bridge *host_bridge;
 
 	info->root = root;
 	info->bridge = device;
@@ -895,9 +896,17 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 	if (!bus)
 		goto out_release_info;
 
+	host_bridge = to_pci_host_bridge(bus->bridge);
+	if (!(root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL))
+		host_bridge->native_hotplug = 0;
+	if (!(root->osc_control_set & OSC_PCI_EXPRESS_AER_CONTROL))
+		host_bridge->native_aer = 0;
+	if (!(root->osc_control_set & OSC_PCI_EXPRESS_PME_CONTROL))
+		host_bridge->native_pme = 0;
+
 	pci_scan_child_bus(bus);
-	pci_set_host_bridge_release(to_pci_host_bridge(bus->bridge),
-				    acpi_pci_root_release_info, info);
+	pci_set_host_bridge_release(host_bridge, acpi_pci_root_release_info,
+				    info);
 	if (node != NUMA_NO_NODE)
 		dev_printk(KERN_DEBUG, &bus->dev, "on NUMA node %d\n", node);
 	return bus;

@@ -540,6 +540,16 @@ struct pci_host_bridge *pci_alloc_host_bridge(size_t priv)
 	INIT_LIST_HEAD(&bridge->windows);
 	bridge->dev.release = pci_release_host_bridge_dev;
 
+	/*
+	 * We assume we can manage these PCIe features.  Some systems may
+	 * reserve these for use by the platform itself, e.g., an ACPI BIOS
+	 * may implement its own AER handling and use _OSC to prevent the
+	 * OS from interfering.
+	 */
+	bridge->native_aer = 1;
+	bridge->native_hotplug = 1;
+	bridge->native_pme = 1;
+
 	return bridge;
 }
 EXPORT_SYMBOL(pci_alloc_host_bridge);
