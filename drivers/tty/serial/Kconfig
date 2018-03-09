@@ -1114,17 +1114,6 @@ config SERIAL_VT8500_CONSOLE
 	depends on SERIAL_VT8500=y
 	select SERIAL_CORE_CONSOLE
 
-config SERIAL_ETRAXFS
-	bool "ETRAX FS serial port support"
-	depends on ETRAX_ARCH_V32 && OF
-	select SERIAL_CORE
-	select SERIAL_MCTRL_GPIO if GPIOLIB
-
-config SERIAL_ETRAXFS_CONSOLE
-	bool "ETRAX FS serial console support"
-	depends on SERIAL_ETRAXFS
-	select SERIAL_CORE_CONSOLE
-
 config SERIAL_NETX
 	tristate "NetX serial port support"
 	depends on ARCH_NETX
