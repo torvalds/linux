@@ -460,15 +460,19 @@ enum hns3_link_mode_bits {
 #define HNS3_INT_RL_MAX			0x00EC
 #define HNS3_INT_RL_ENABLE_MASK		0x40
 
+struct hns3_enet_coalesce {
+	u16 int_gl;
+	u8 gl_adapt_enable;
+	enum hns3_flow_level_range flow_level;
+};
+
 struct hns3_enet_ring_group {
 	/* array of pointers to rings */
 	struct hns3_enet_ring *ring;
 	u64 total_bytes;	/* total bytes processed this group */
 	u64 total_packets;	/* total packets processed this group */
 	u16 count;
-	enum hns3_flow_level_range flow_level;
-	u16 int_gl;
-	u8 gl_adapt_enable;
+	struct hns3_enet_coalesce coal;
 };
 
 struct hns3_enet_tqp_vector {

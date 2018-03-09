@@ -144,6 +144,8 @@ static int hclge_map_update(struct hnae3_handle *h)
 	if (ret)
 		return ret;
 
+	hclge_rss_indir_init_cfg(hdev);
+
 	return hclge_rss_init_hw(hdev);
 }
 
