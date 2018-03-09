@@ -76,7 +76,3 @@ config VIDEOBUF_DMA_CONTIG
 	tristate
 	depends on HAS_DMA
 	select VIDEOBUF_GEN
-
-config VIDEOBUF_DVB
-	tristate
-	select VIDEOBUF_GEN
