@@ -300,12 +300,6 @@ static int lgdt330x_init(struct dvb_frontend *fe)
 	return lgdt330x_sw_reset(state);
 }
 
-static int lgdt330x_read_ber(struct dvb_frontend *fe, u32 *ber)
-{
-	*ber = 0; /* Not supplied by the demod chips */
-	return 0;
-}
-
 static int lgdt330x_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct lgdt330x_state *state = fe->demodulator_priv;
@@ -909,7 +903,6 @@ static const struct dvb_frontend_ops lgdt3302_ops = {
 	.get_frontend         = lgdt330x_get_frontend,
 	.get_tune_settings    = lgdt330x_get_tune_settings,
 	.read_status          = lgdt3302_read_status,
-	.read_ber             = lgdt330x_read_ber,
 	.read_signal_strength = lgdt330x_read_signal_strength,
 	.read_snr             = lgdt330x_read_snr,
 	.read_ucblocks        = lgdt330x_read_ucblocks,
@@ -932,7 +925,6 @@ static const struct dvb_frontend_ops lgdt3303_ops = {
 	.get_frontend         = lgdt330x_get_frontend,
 	.get_tune_settings    = lgdt330x_get_tune_settings,
 	.read_status          = lgdt3303_read_status,
-	.read_ber             = lgdt330x_read_ber,
 	.read_signal_strength = lgdt330x_read_signal_strength,
 	.read_snr             = lgdt330x_read_snr,
 	.read_ucblocks        = lgdt330x_read_ucblocks,
