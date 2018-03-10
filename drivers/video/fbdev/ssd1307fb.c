@@ -491,11 +491,6 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	/* Clear the screen */
 	ssd1307fb_update_display(par);
 
-	/* Turn on the display */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
-	if (ret < 0)
-		return ret;
-
 	return 0;
 }
 
@@ -718,6 +713,13 @@ static int ssd1307fb_probe(struct i2c_client *client,
 		udelay(4);
 	}
 
+	/* Ensure display is turned off while initializing */
+	ret = ssd1307fb_blank(FB_BLANK_NORMAL, info);
+	if (ret) {
+		dev_err(&client->dev, "unable to blank screen\n");
+		goto bl_init_error;
+	}
+
 	if (par->vbat_reg) {
 		ret = regulator_enable(par->vbat_reg);
 		if (ret) {
@@ -756,6 +758,13 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	bl->props.brightness = par->contrast;
 	bl->props.max_brightness = MAX_CONTRAST;
 	info->bl_dev = bl;
+
+	/* Turn on the display */
+	ret = ssd1307fb_blank(FB_BLANK_UNBLANK, info);
+	if (ret) {
+		dev_err(&client->dev, "unable to unblank screen\n");
+		goto bl_init_error;
+	}
 
 	dev_info(&client->dev, "fb%d: %s framebuffer device registered, using %d bytes of video memory\n", info->node, info->fix.id, vmem_size);
 
