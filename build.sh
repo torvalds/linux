@@ -14,7 +14,13 @@ then
   export ARCH=arm;export CROSS_COMPILE=arm-linux-gnueabihf-
   crosscompile=1
 fi;
+#Check Dependencies
 if [[ -z "$(which mkimage)" ]];then echo "please install u-boot-tools";exit 1;fi
+if [[ ! -x "/usr/bin/bc" ]]; then echo "please install bc"; exit 1;fi
+if [[ ! -x "/usr/bin/make" ]]; then echo "please install make"; exit 1; fi
+if [[ ! -x "/usr/bin/gcc" ]]; then echo "please install gcc"; exit 1; fi
+if [[ -z "$(dpkg -l |grep libc6-dev)" ]]; then echo "please install libc6-dev"; exit 1; fi
+if [[ -z "$(dpkg -l |grep libncurses5-dev)" ]]; then echo "please install libncurses5-dev"; exit 1; fi
 
 function prepare_SD
 {
