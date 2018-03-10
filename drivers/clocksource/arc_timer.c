@@ -251,9 +251,14 @@ static irqreturn_t timer_irq_handler(int irq, void *dev_id)
 	int irq_reenable = clockevent_state_periodic(evt);
 
 	/*
-	 * Any write to CTRL reg ACks the interrupt, we rewrite the
-	 * Count when [N]ot [H]alted bit.
-	 * And re-arm it if perioid by [I]nterrupt [E]nable bit
+	 * 1. ACK the interrupt
+	 *    - For ARC700, any write to CTRL reg ACKs it, so just rewrite
+	 *      Count when [N]ot [H]alted bit.
+	 *    - For HS3x, it is a bit subtle. On taken count-down interrupt,
+	 *      IP bit [3] is set, which needs to be cleared for ACK'ing.
+	 *      The write below can only update the other two bits, hence
+	 *      explicitly clears IP bit
+	 * 2. Re-arm interrupt if periodic by writing to IE bit [0]
 	 */
 	write_aux_reg(ARC_REG_TIMER0_CTRL, irq_reenable | TIMER_CTRL_NH);
 

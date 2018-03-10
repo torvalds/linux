@@ -4577,6 +4577,7 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 
 	spin_lock_init(&vha->work_lock);
 	spin_lock_init(&vha->cmd_list_lock);
+	spin_lock_init(&vha->gnl.fcports_lock);
 	init_waitqueue_head(&vha->fcport_waitQ);
 	init_waitqueue_head(&vha->vref_waitq);
 
@@ -4806,9 +4807,12 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 			fcport->d_id = e->u.new_sess.id;
 			fcport->flags |= FCF_FABRIC_DEVICE;
 			fcport->fw_login_state = DSC_LS_PLOGI_PEND;
-			if (e->u.new_sess.fc4_type == FC4_TYPE_FCP_SCSI)
+			if (e->u.new_sess.fc4_type == FC4_TYPE_FCP_SCSI) {
 				fcport->fc4_type = FC4_TYPE_FCP_SCSI;
-
+			} else if (e->u.new_sess.fc4_type == FC4_TYPE_NVME) {
+				fcport->fc4_type = FC4_TYPE_OTHER;
+				fcport->fc4f_nvme = FC4_TYPE_NVME;
+			}
 			memcpy(fcport->port_name, e->u.new_sess.port_name,
 			    WWN_SIZE);
 		} else {
@@ -4877,6 +4881,8 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 			}
 			qlt_plogi_ack_unref(vha, pla);
 		} else {
+			fc_port_t *dfcp = NULL;
+
 			spin_lock_irqsave(&vha->hw->tgt.sess_lock, flags);
 			tfcp = qla2x00_find_fcport_by_nportid(vha,
 			    &e->u.new_sess.id, 1);
@@ -4899,11 +4905,13 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 				default:
 					fcport->login_pause = 1;
 					tfcp->conflict = fcport;
-					qlt_schedule_sess_for_deletion(tfcp);
+					dfcp = tfcp;
 					break;
 				}
 			}
 			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
+			if (dfcp)
+				qlt_schedule_sess_for_deletion(tfcp);
 
 			wwn = wwn_to_u64(fcport->node_name);
 

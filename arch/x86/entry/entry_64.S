@@ -55,7 +55,7 @@ END(native_usergs_sysret64)
 
 .macro TRACE_IRQS_FLAGS flags:req
 #ifdef CONFIG_TRACE_IRQFLAGS
-	bt	$9, \flags		/* interrupts off? */
+	btl	$9, \flags		/* interrupts off? */
 	jnc	1f
 	TRACE_IRQS_ON
 1:

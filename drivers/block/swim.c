@@ -799,7 +799,7 @@ static struct kobject *floppy_find(dev_t dev, int *part, void *data)
 		return NULL;
 
 	*part = 0;
-	return get_disk(swd->unit[drive].disk);
+	return get_disk_and_module(swd->unit[drive].disk);
 }
 
 static int swim_add_floppy(struct swim_priv *swd, enum drive_location location)
