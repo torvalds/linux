@@ -5857,7 +5857,6 @@ static int bnxt_init_msix(struct bnxt *bp)
 		if (rc)
 			goto msix_setup_exit;
 
-		bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 		bp->cp_nr_rings = (min == 1) ?
 				  max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 				  bp->tx_nr_rings + bp->rx_nr_rings;
@@ -5889,7 +5888,6 @@ static int bnxt_init_inta(struct bnxt *bp)
 	bp->rx_nr_rings = 1;
 	bp->tx_nr_rings = 1;
 	bp->cp_nr_rings = 1;
-	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 	bp->flags |= BNXT_FLAG_SHARED_RINGS;
 	bp->irq_tbl[0].vector = bp->pdev->irq;
 	return 0;
@@ -8660,6 +8658,11 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_init_int_mode(bp);
 	if (rc)
 		goto init_err_pci_clean;
+
+	/* No TC has been set yet and rings may have been trimmed due to
+	 * limited MSIX, so we re-initialize the TX rings per TC.
+	 */
+	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 
 	bnxt_get_wol_settings(bp);
 	if (bp->flags & BNXT_FLAG_WOL_CAP)
