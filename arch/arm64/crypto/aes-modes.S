@@ -40,24 +40,24 @@
 #if INTERLEAVE == 2
 
 aes_encrypt_block2x:
-	encrypt_block2x	v0, v1, w3, x2, x6, w7
+	encrypt_block2x	v0, v1, w3, x2, x8, w7
 	ret
 ENDPROC(aes_encrypt_block2x)
 
 aes_decrypt_block2x:
-	decrypt_block2x	v0, v1, w3, x2, x6, w7
+	decrypt_block2x	v0, v1, w3, x2, x8, w7
 	ret
 ENDPROC(aes_decrypt_block2x)
 
 #elif INTERLEAVE == 4
 
 aes_encrypt_block4x:
-	encrypt_block4x	v0, v1, v2, v3, w3, x2, x6, w7
+	encrypt_block4x	v0, v1, v2, v3, w3, x2, x8, w7
 	ret
 ENDPROC(aes_encrypt_block4x)
 
 aes_decrypt_block4x:
-	decrypt_block4x	v0, v1, v2, v3, w3, x2, x6, w7
+	decrypt_block4x	v0, v1, v2, v3, w3, x2, x8, w7
 	ret
 ENDPROC(aes_decrypt_block4x)
 
@@ -86,33 +86,32 @@ ENDPROC(aes_decrypt_block4x)
 #define FRAME_POP
 
 	.macro		do_encrypt_block2x
-	encrypt_block2x	v0, v1, w3, x2, x6, w7
+	encrypt_block2x	v0, v1, w3, x2, x8, w7
 	.endm
 
 	.macro		do_decrypt_block2x
-	decrypt_block2x	v0, v1, w3, x2, x6, w7
+	decrypt_block2x	v0, v1, w3, x2, x8, w7
 	.endm
 
 	.macro		do_encrypt_block4x
-	encrypt_block4x	v0, v1, v2, v3, w3, x2, x6, w7
+	encrypt_block4x	v0, v1, v2, v3, w3, x2, x8, w7
 	.endm
 
 	.macro		do_decrypt_block4x
-	decrypt_block4x	v0, v1, v2, v3, w3, x2, x6, w7
+	decrypt_block4x	v0, v1, v2, v3, w3, x2, x8, w7
 	.endm
 
 #endif
 
 	/*
 	 * aes_ecb_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, int first)
+	 *		   int blocks)
 	 * aes_ecb_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, int first)
+	 *		   int blocks)
 	 */
 
 AES_ENTRY(aes_ecb_encrypt)
 	FRAME_PUSH
-	cbz		w5, .LecbencloopNx
 
 	enc_prepare	w3, x2, x5
 
@@ -148,7 +147,6 @@ AES_ENDPROC(aes_ecb_encrypt)
 
 AES_ENTRY(aes_ecb_decrypt)
 	FRAME_PUSH
-	cbz		w5, .LecbdecloopNx
 
 	dec_prepare	w3, x2, x5
 
@@ -184,14 +182,12 @@ AES_ENDPROC(aes_ecb_decrypt)
 
 	/*
 	 * aes_cbc_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 iv[], int first)
+	 *		   int blocks, u8 iv[])
 	 * aes_cbc_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 iv[], int first)
+	 *		   int blocks, u8 iv[])
 	 */
 
 AES_ENTRY(aes_cbc_encrypt)
-	cbz		w6, .Lcbcencloop
-
 	ld1		{v0.16b}, [x5]			/* get iv */
 	enc_prepare	w3, x2, x6
 
@@ -209,7 +205,6 @@ AES_ENDPROC(aes_cbc_encrypt)
 
 AES_ENTRY(aes_cbc_decrypt)
 	FRAME_PUSH
-	cbz		w6, .LcbcdecloopNx
 
 	ld1		{v7.16b}, [x5]			/* get iv */
 	dec_prepare	w3, x2, x6
@@ -264,20 +259,19 @@ AES_ENDPROC(aes_cbc_decrypt)
 
 	/*
 	 * aes_ctr_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		   int blocks, u8 ctr[], int first)
+	 *		   int blocks, u8 ctr[])
 	 */
 
 AES_ENTRY(aes_ctr_encrypt)
 	FRAME_PUSH
-	cbz		w6, .Lctrnotfirst	/* 1st time around? */
+
 	enc_prepare	w3, x2, x6
 	ld1		{v4.16b}, [x5]
 
-.Lctrnotfirst:
-	umov		x8, v4.d[1]		/* keep swabbed ctr in reg */
-	rev		x8, x8
+	umov		x6, v4.d[1]		/* keep swabbed ctr in reg */
+	rev		x6, x6
 #if INTERLEAVE >= 2
-	cmn		w8, w4			/* 32 bit overflow? */
+	cmn		w6, w4			/* 32 bit overflow? */
 	bcs		.Lctrloop
 .LctrloopNx:
 	subs		w4, w4, #INTERLEAVE
@@ -285,11 +279,11 @@ AES_ENTRY(aes_ctr_encrypt)
 #if INTERLEAVE == 2
 	mov		v0.8b, v4.8b
 	mov		v1.8b, v4.8b
-	rev		x7, x8
-	add		x8, x8, #1
+	rev		x7, x6
+	add		x6, x6, #1
 	ins		v0.d[1], x7
-	rev		x7, x8
-	add		x8, x8, #1
+	rev		x7, x6
+	add		x6, x6, #1
 	ins		v1.d[1], x7
 	ld1		{v2.16b-v3.16b}, [x1], #32	/* get 2 input blocks */
 	do_encrypt_block2x
@@ -298,7 +292,7 @@ AES_ENTRY(aes_ctr_encrypt)
 	st1		{v0.16b-v1.16b}, [x0], #32
 #else
 	ldr		q8, =0x30000000200000001	/* addends 1,2,3[,0] */
-	dup		v7.4s, w8
+	dup		v7.4s, w6
 	mov		v0.16b, v4.16b
 	add		v7.4s, v7.4s, v8.4s
 	mov		v1.16b, v4.16b
@@ -316,9 +310,9 @@ AES_ENTRY(aes_ctr_encrypt)
 	eor		v2.16b, v7.16b, v2.16b
 	eor		v3.16b, v5.16b, v3.16b
 	st1		{v0.16b-v3.16b}, [x0], #64
-	add		x8, x8, #INTERLEAVE
+	add		x6, x6, #INTERLEAVE
 #endif
-	rev		x7, x8
+	rev		x7, x6
 	ins		v4.d[1], x7
 	cbz		w4, .Lctrout
 	b		.LctrloopNx
@@ -328,10 +322,10 @@ AES_ENTRY(aes_ctr_encrypt)
 #endif
 .Lctrloop:
 	mov		v0.16b, v4.16b
-	encrypt_block	v0, w3, x2, x6, w7
+	encrypt_block	v0, w3, x2, x8, w7
 
-	adds		x8, x8, #1		/* increment BE ctr */
-	rev		x7, x8
+	adds		x6, x6, #1		/* increment BE ctr */
+	rev		x7, x6
 	ins		v4.d[1], x7
 	bcs		.Lctrcarry		/* overflow? */
 
@@ -385,15 +379,17 @@ CPU_BE(	.quad		0x87, 1		)
 
 AES_ENTRY(aes_xts_encrypt)
 	FRAME_PUSH
-	cbz		w7, .LxtsencloopNx
-
 	ld1		{v4.16b}, [x6]
-	enc_prepare	w3, x5, x6
-	encrypt_block	v4, w3, x5, x6, w7		/* first tweak */
-	enc_switch_key	w3, x2, x6
+	cbz		w7, .Lxtsencnotfirst
+
+	enc_prepare	w3, x5, x8
+	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
+	enc_switch_key	w3, x2, x8
 	ldr		q7, .Lxts_mul_x
 	b		.LxtsencNx
 
+.Lxtsencnotfirst:
+	enc_prepare	w3, x2, x8
 .LxtsencloopNx:
 	ldr		q7, .Lxts_mul_x
 	next_tweak	v4, v4, v7, v8
@@ -442,7 +438,7 @@ AES_ENTRY(aes_xts_encrypt)
 .Lxtsencloop:
 	ld1		{v1.16b}, [x1], #16
 	eor		v0.16b, v1.16b, v4.16b
-	encrypt_block	v0, w3, x2, x6, w7
+	encrypt_block	v0, w3, x2, x8, w7
 	eor		v0.16b, v0.16b, v4.16b
 	st1		{v0.16b}, [x0], #16
 	subs		w4, w4, #1
@@ -450,6 +446,7 @@ AES_ENTRY(aes_xts_encrypt)
 	next_tweak	v4, v4, v7, v8
 	b		.Lxtsencloop
 .Lxtsencout:
+	st1		{v4.16b}, [x6]
 	FRAME_POP
 	ret
 AES_ENDPROC(aes_xts_encrypt)
@@ -457,15 +454,17 @@ AES_ENDPROC(aes_xts_encrypt)
 
 AES_ENTRY(aes_xts_decrypt)
 	FRAME_PUSH
-	cbz		w7, .LxtsdecloopNx
-
 	ld1		{v4.16b}, [x6]
-	enc_prepare	w3, x5, x6
-	encrypt_block	v4, w3, x5, x6, w7		/* first tweak */
-	dec_prepare	w3, x2, x6
+	cbz		w7, .Lxtsdecnotfirst
+
+	enc_prepare	w3, x5, x8
+	encrypt_block	v4, w3, x5, x8, w7		/* first tweak */
+	dec_prepare	w3, x2, x8
 	ldr		q7, .Lxts_mul_x
 	b		.LxtsdecNx
 
+.Lxtsdecnotfirst:
+	dec_prepare	w3, x2, x8
 .LxtsdecloopNx:
 	ldr		q7, .Lxts_mul_x
 	next_tweak	v4, v4, v7, v8
@@ -514,7 +513,7 @@ AES_ENTRY(aes_xts_decrypt)
 .Lxtsdecloop:
 	ld1		{v1.16b}, [x1], #16
 	eor		v0.16b, v1.16b, v4.16b
-	decrypt_block	v0, w3, x2, x6, w7
+	decrypt_block	v0, w3, x2, x8, w7
 	eor		v0.16b, v0.16b, v4.16b
 	st1		{v0.16b}, [x0], #16
 	subs		w4, w4, #1
@@ -522,6 +521,7 @@ AES_ENTRY(aes_xts_decrypt)
 	next_tweak	v4, v4, v7, v8
 	b		.Lxtsdecloop
 .Lxtsdecout:
+	st1		{v4.16b}, [x6]
 	FRAME_POP
 	ret
 AES_ENDPROC(aes_xts_decrypt)
