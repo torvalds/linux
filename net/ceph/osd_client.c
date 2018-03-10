@@ -5106,7 +5106,7 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 }
 EXPORT_SYMBOL(ceph_osdc_writepages);
 
-int ceph_osdc_setup(void)
+int __init ceph_osdc_setup(void)
 {
 	size_t size = sizeof(struct ceph_osd_request) +
 	    CEPH_OSD_SLAB_OPS * sizeof(struct ceph_osd_req_op);
@@ -5117,7 +5117,6 @@ int ceph_osdc_setup(void)
 
 	return ceph_osd_request_cache ? 0 : -ENOMEM;
 }
-EXPORT_SYMBOL(ceph_osdc_setup);
 
 void ceph_osdc_cleanup(void)
 {
@@ -5125,7 +5124,6 @@ void ceph_osdc_cleanup(void)
 	kmem_cache_destroy(ceph_osd_request_cache);
 	ceph_osd_request_cache = NULL;
 }
-EXPORT_SYMBOL(ceph_osdc_cleanup);
 
 /*
  * handle incoming message

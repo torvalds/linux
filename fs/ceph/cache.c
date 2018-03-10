@@ -71,7 +71,7 @@ static const struct fscache_cookie_def ceph_fscache_fsid_object_def = {
 	.get_key	= ceph_fscache_session_get_key,
 };
 
-int ceph_fscache_register(void)
+int __init ceph_fscache_register(void)
 {
 	return fscache_register_netfs(&ceph_cache_netfs);
 }
