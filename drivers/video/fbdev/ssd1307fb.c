@@ -20,6 +20,7 @@
 #include <linux/pwm.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
+#include <uapi/linux/fb.h>
 
 #define SSD1307FB_DATA			0x40
 #define SSD1307FB_COMMAND		0x80
@@ -32,15 +33,22 @@
 #define SSD1307FB_SET_PAGE_RANGE	0x22
 #define SSD1307FB_CONTRAST		0x81
 #define	SSD1307FB_CHARGE_PUMP		0x8d
-#define SSD1307FB_SEG_REMAP_ON		0xa1
 #define _SSD1307FB_CHARGE_PUMP_SET	0x10
 #define SSD1307FB_CHARGE_PUMP_SET(pump)	\
 	((_SSD1307FB_CHARGE_PUMP_SET) | \
 	 ((pump) ? BIT(2) : 0))
+#define _SSD1307FB_SEG_REMAP		0xa0
+#define SSD1307FB_SEG_REMAP(seg_remap)	\
+	(_SSD1307FB_SEG_REMAP |	\
+	 ((seg_remap) ? BIT(0) : 0x0))
 #define SSD1307FB_DISPLAY_OFF		0xae
 #define SSD1307FB_SET_MULTIPLEX_RATIO	0xa8
 #define SSD1307FB_DISPLAY_ON		0xaf
 #define SSD1307FB_START_PAGE_ADDRESS	0xb0
+#define _SSD1307FB_COM_INVDIR		0xc0
+#define SSD1307FB_COM_INVDIR(com_invdir)\
+	(_SSD1307FB_COM_INVDIR | \
+	 ((com_invdir) ? BIT(3) : 0x0))
 #define SSD1307FB_SET_DISPLAY_OFFSET	0xd3
 #define	SSD1307FB_SET_CLOCK_FREQ	0xd5
 #define SSD1307FB_CLOCK_FREQ(freq, div)	\
@@ -74,6 +82,12 @@ struct ssd1307fb_deviceinfo {
 	int need_chargepump;
 };
 
+struct ssd1307fb_rot_lut {
+	u8	seg_remap;
+	u8	com_invdir;
+	u8	addr_mode;
+};
+
 struct ssd1307fb_par {
 	u32 com_invdir;
 	u32 com_lrremap;
@@ -92,6 +106,9 @@ struct ssd1307fb_par {
 	struct pwm_device *pwm;
 	u32 pwm_period;
 	struct gpio_desc *reset;
+	bool no_clear_on_probe;
+	u8 rotate;
+	struct ssd1307fb_rot_lut rot_lut[FB_ROTATE_CCW + 1];
 	struct regulator *vbat_reg;
 	u32 seg_remap;
 	u32 vcomh;
@@ -264,31 +281,53 @@ static int ssd1307fb_blank(int blank_mode, struct fb_info *info)
 		return ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
 }
 
+static int ssd1307fb_rotate(struct fb_info *info)
+{
+	struct ssd1307fb_par *par = info->par;
+	u32 rot = info->var.rotate;
+	int ret;
+
+	if (par->rotate == rot)
+		return 0;
+
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_ADDRESS_MODE);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, par->rot_lut[rot].addr_mode);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, par->rot_lut[rot].seg_remap);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, par->rot_lut[rot].com_invdir);
+	if (ret < 0)
+		return ret;
+
+	if ((rot == FB_ROTATE_CW) || (rot == FB_ROTATE_CCW)) {
+		info->var.xres = par->height;
+		info->var.yres = par->width;
+	} else {
+		info->var.xres = par->width;
+		info->var.yres = par->height;
+	}
+	info->var.xres_virtual = info->var.xres;
+	info->var.yres_virtual = info->var.yres;
+	info->fix.line_length = info->var.xres_virtual / 8;
+
+	par->rotate = rot;
+
+	return 0;
+}
+
 static int ssd1307fb_set_par(struct fb_info *info)
 {
 	struct ssd1307fb_par *par = info->par;
 	int ret;
 
-	/* Set segment re-map */
-	if (par->seg_remap) {
-		ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SEG_REMAP_ON);
-		if (ret < 0)
-			return ret;
-	};
-
-	/* Set COM direction */
-	com_invdir = 0xc0 | (par->com_invdir & 0x1) << 3;
-	ret = ssd1307fb_write_cmd(par->client,  com_invdir);
-	if (ret < 0)
-		return ret;
-
-	/* Switch to horizontal addressing mode */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_ADDRESS_MODE);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client,
-				  SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL);
+	ret = ssd1307fb_rotate(info);
 	if (ret < 0)
 		return ret;
 
@@ -336,6 +375,20 @@ static void ssd1307fb_copyarea(struct fb_info *info, const struct fb_copyarea *a
 	ssd1307fb_update_display(par);
 }
 
+static int ssd1307fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	struct ssd1307fb_par *par = info->par;
+
+	if (par->rotate != var->rotate) {
+		if (var->rotate > FB_ROTATE_CCW) {
+			var->rotate = par->rotate;
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static void ssd1307fb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct ssd1307fb_par *par = info->par;
@@ -351,6 +404,7 @@ static struct fb_ops ssd1307fb_ops = {
 	.fb_set_par	= ssd1307fb_set_par,
 	.fb_fillrect	= ssd1307fb_fillrect,
 	.fb_copyarea	= ssd1307fb_copyarea,
+	.fb_check_var	= ssd1307fb_check_var,
 	.fb_imageblit	= ssd1307fb_imageblit,
 };
 
@@ -405,19 +459,6 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 		return ret;
 
 	ret = ssd1307fb_write_cmd(par->client, par->contrast);
-	if (ret < 0)
-		return ret;
-
-	/* Set segment re-map */
-	if (par->seg_remap) {
-		ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SEG_REMAP_ON);
-		if (ret < 0)
-			return ret;
-	};
-
-	/* Set COM direction */
-	com_invdir = 0xc0 | (par->com_invdir & 0x1) << 3;
-	ret = ssd1307fb_write_cmd(par->client,  com_invdir);
 	if (ret < 0)
 		return ret;
 
@@ -588,6 +629,8 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	struct fb_deferred_io *ssd1307fb_defio;
 	u32 vmem_size;
 	struct ssd1307fb_par *par;
+	struct fb_of_properties prop;
+	bool seg_remap, com_invdir;
 	u8 *vmem;
 	int ret;
 
@@ -629,6 +672,10 @@ static int ssd1307fb_probe(struct i2c_client *client,
 		}
 	}
 
+	fb_parse_properties(&client->dev, &prop);
+	par->rotate = prop.rotate;
+	par->no_clear_on_probe = prop.no_clear_on_probe;
+
 	if (of_property_read_u32(node, "solomon,width", &par->width))
 		par->width = 96;
 
@@ -647,10 +694,10 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	if (of_property_read_u32(node, "solomon,prechargep2", &par->prechargep2))
 		par->prechargep2 = 2;
 
-	par->seg_remap = !of_property_read_bool(node, "solomon,segment-no-remap");
+	seg_remap = !of_property_read_bool(node, "solomon,segment-no-remap");
 	par->com_seq = of_property_read_bool(node, "solomon,com-seq");
 	par->com_lrremap = of_property_read_bool(node, "solomon,com-lrremap");
-	par->com_invdir = of_property_read_bool(node, "solomon,com-invdir");
+	com_invdir = of_property_read_bool(node, "solomon,com-invdir");
 
 	par->contrast = 127;
 	par->vcomh = par->device_info->default_vcomh;
@@ -680,13 +727,47 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	ssd1307fb_defio->deferred_io = ssd1307fb_deferred_io;
 
 	info->fbops = &ssd1307fb_ops;
+	info->flags = FBINFO_HWACCEL_ROTATE;
 	info->fbdefio = ssd1307fb_defio;
 
 	info->var = ssd1307fb_var;
+
+	/*
+	 * We really only support flipping of the display and so we use flip
+	 * an both x and y flip to rotate from 0 -> 180 degree's.
+	 */
+	par->rot_lut[FB_ROTATE_UR].addr_mode = SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL;
+	par->rot_lut[FB_ROTATE_UR].seg_remap = SSD1307FB_SEG_REMAP(seg_remap ? true : false);
+	par->rot_lut[FB_ROTATE_UR].com_invdir = SSD1307FB_COM_INVDIR(com_invdir ? true : false);
+	par->rot_lut[FB_ROTATE_UD].addr_mode = SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL;
+	par->rot_lut[FB_ROTATE_UD].seg_remap = SSD1307FB_SEG_REMAP(seg_remap ? false : true);
+	par->rot_lut[FB_ROTATE_UD].com_invdir = SSD1307FB_COM_INVDIR(com_invdir ? false : true);
+
+	/*
+	 * The same trick is used to flip from 90 -> 270 degree's.
+	 * To rotate 0 -> 90 degree's we tell the controller to use vertical
+	 * scan-out rather then horizontal.
+	 */
+	par->rot_lut[FB_ROTATE_CW].addr_mode = SSD1307FB_SET_ADDRESS_MODE_VERTICAL;
+	par->rot_lut[FB_ROTATE_CW].seg_remap = SSD1307FB_SEG_REMAP(seg_remap ? true : false);
+	par->rot_lut[FB_ROTATE_CW].com_invdir = SSD1307FB_COM_INVDIR(com_invdir ? true : false);
+	par->rot_lut[FB_ROTATE_CCW].addr_mode = SSD1307FB_SET_ADDRESS_MODE_VERTICAL;
+	par->rot_lut[FB_ROTATE_CCW].seg_remap = SSD1307FB_SEG_REMAP(seg_remap ? false : true);
+	par->rot_lut[FB_ROTATE_CCW].com_invdir = SSD1307FB_COM_INVDIR(com_invdir ? false : true);
+
+	if ((par->rotate == FB_ROTATE_CW) || (par->rotate == FB_ROTATE_CCW)) {
+		info->var.xres = par->height;
+		info->var.yres = par->width;
+	} else {
+		info->var.xres = par->width;
+		info->var.yres = par->height;
+	}
+
 	info->var.xres = par->width;
 	info->var.xres_virtual = info->var.xres;
 	info->var.yres = par->height;
 	info->var.yres_virtual = info->var.yres;
+	info->var.rotate = par->rotate;
 
 	info->var.red.length = 1;
 	info->var.red.offset = 0;
@@ -732,6 +813,12 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	ret = ssd1307fb_init(par);
 	if (ret)
 		goto regulator_enable_error;
+
+	ret = ssd1307fb_check_var(&info->var, info);
+	if (ret) {
+		dev_err(&client->dev, "unable to check parameters\n");
+		goto bl_init_error;
+	}
 
 	ret = ssd1307fb_set_par(info);
 	if (ret) {
