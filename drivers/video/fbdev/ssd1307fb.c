@@ -264,6 +264,64 @@ static int ssd1307fb_blank(int blank_mode, struct fb_info *info)
 		return ssd1307fb_write_cmd(par->client, SSD1307FB_DISPLAY_ON);
 }
 
+static int ssd1307fb_set_par(struct fb_info *info)
+{
+	struct ssd1307fb_par *par = info->par;
+	int ret;
+
+	/* Set segment re-map */
+	if (par->seg_remap) {
+		ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SEG_REMAP_ON);
+		if (ret < 0)
+			return ret;
+	};
+
+	/* Set COM direction */
+	com_invdir = 0xc0 | (par->com_invdir & 0x1) << 3;
+	ret = ssd1307fb_write_cmd(par->client,  com_invdir);
+	if (ret < 0)
+		return ret;
+
+	/* Switch to horizontal addressing mode */
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_ADDRESS_MODE);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client,
+				  SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL);
+	if (ret < 0)
+		return ret;
+
+	/* Set column range */
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_COL_RANGE);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, 0x0);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, par->width - 1);
+	if (ret < 0)
+		return ret;
+
+	/* Set page range */
+	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_PAGE_RANGE);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client, 0x0);
+	if (ret < 0)
+		return ret;
+
+	ret = ssd1307fb_write_cmd(par->client,
+				  par->page_offset + (par->height / 8) - 1);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static void ssd1307fb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct ssd1307fb_par *par = info->par;
@@ -290,6 +348,7 @@ static struct fb_ops ssd1307fb_ops = {
 	.fb_read	= fb_sys_read,
 	.fb_write	= ssd1307fb_write,
 	.fb_blank	= ssd1307fb_blank,
+	.fb_set_par	= ssd1307fb_set_par,
 	.fb_fillrect	= ssd1307fb_fillrect,
 	.fb_copyarea	= ssd1307fb_copyarea,
 	.fb_imageblit	= ssd1307fb_imageblit,
@@ -426,43 +485,6 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 
 	cmd = SSD1307FB_CHARGE_PUMP_SET(par->device_info->need_chargepump);
 	ret = ssd1307fb_write_cmd(par->client, cmd);
-	if (ret < 0)
-		return ret;
-
-	/* Switch to horizontal addressing mode */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_ADDRESS_MODE);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client,
-				  SSD1307FB_SET_ADDRESS_MODE_HORIZONTAL);
-	if (ret < 0)
-		return ret;
-
-	/* Set column range */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_COL_RANGE);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client, 0x0);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client, par->width - 1);
-	if (ret < 0)
-		return ret;
-
-	/* Set page range */
-	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_SET_PAGE_RANGE);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client, 0x0);
-	if (ret < 0)
-		return ret;
-
-	ret = ssd1307fb_write_cmd(par->client,
-				  par->page_offset + (par->height / 8) - 1);
 	if (ret < 0)
 		return ret;
 
@@ -708,6 +730,12 @@ static int ssd1307fb_probe(struct i2c_client *client,
 	ret = ssd1307fb_init(par);
 	if (ret)
 		goto regulator_enable_error;
+
+	ret = ssd1307fb_set_par(info);
+	if (ret) {
+		dev_err(&client->dev, "unable to setup parameters\n");
+		goto bl_init_error;
+	}
 
 	ret = register_framebuffer(info);
 	if (ret) {
