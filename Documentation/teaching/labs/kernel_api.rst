@@ -41,14 +41,14 @@ to the virtual memory mechanisms implemented by the operating system: pages may
 be swapped or simply may not be present in physical memory as a result of the
 demand paging mechanism. The memory in the kernel address space can be resident
 or not. Both the data and code segments of a module and the kernel stack of a
-process are resident. Dynamic memory may or may not be a resident, depending
-on how it is allocated.
+process are resident. Dynamic memory may or may not be resident, depending on
+how it is allocated.
 
 When working with resident memory, things are simple: memory can be accessed at
 any time. But if working with non-resident memory, then it can only be accessed
 from certain contexts. Non-resident memory can only be accessed from the
-process context. Accessing non-resident memory from the context of the
-interruption has unpredictable results and, therefore, when the operating
+process context. Accessing non-resident memory from the context of an
+interrupt has unpredictable results and, therefore, when the operating
 system detects such access, it will take drastic measures: blocking or
 resetting the system to prevent serious corruption.
 
@@ -60,9 +60,9 @@ this case, the device driver must use special features and not directly access
 the buffer. This is necessary to prevent access to invalid memory areas.
 
 Another difference from the userpace scheduling, relative to memory, is due to
-the stack, a stack whose size is fixed and limited. In the Linux 2.6.x kernel,
-a stack of 4K , and a stack of 12K is used in Windows. For this reason, the
-allocation of large-scale stack structures or the use of recursive calls should
+the stack, a stack whose size is fixed and limited. A stack of 4K it is used in
+Linux, and a stack of 12K is used in Windows. For this reason, the
+allocation of large structures on stack or the use of recursive calls should
 be avoided.
 
 Contexts of execution
@@ -70,51 +70,53 @@ Contexts of execution
 
 In relation to kernel execution, we distinguish two contexts: process context
 and interrupt context. We are in the process context when we run code as a
-result of a system call or when we run in the context of a thread kernel. When
+result of a system call or when we run in the context of a kernel thread. When
 we run in a routine to handle an interrupt or a deferrable action, we run in
 an interrupt context.
 
 Some of the kernel API calls can block the current process. Common examples are
 using a semaphore or waiting for a condition. In this case, the process is
-put into the WAITING state and another process is running. An interesting
-situation occurs when a function that can lead to suspension of the current
-process is called from an interrupt context. In this case, there is no current
-process, and therefore the results are unpredictable. Whenever the operating
-system detects this condition will generate an error condition that will cause
-the operating system to shut down.
+put into the ``WAITING`` state and another process is running. An interesting
+situation occurs when a function that can lead to the current process to be
+suspended, is called from an interrupt context. In this case, there is no
+current process, and therefore the results are unpredictable. Whenever the
+operating system detects this condition will generate an error condition that
+will cause the operating system to shut down.
 
 Locking
 =======
 
 One of the most important features of kernel programming is parallelism. Linux
-support SMP systems with multiple processors and kernel preemptivity. This makes
-kernel programming more difficult because access to global variables must be
-synchronized with either spinlock primitives or blocking primitives. Although
-it is recommended to use blocking primitives, they can not be used in an interrupt
-context, so the only locking solution in the context of the interrupt is spinlocks.
+supports SMP systems with multiple processors and kernel preemptivity. This
+makes kernel programming more difficult because access to global variables must
+be synchronized with either spinlock primitives or blocking primitives. Although
+it is recommended to use blocking primitives, they can not be used in an
+interrupt context, so the only locking solution in the context of an interrupt
+is spinlocks.
 
-Spinlocks are used to achieve mutual exclusion. When it can not get access to
-the critical region, it does not suspend the current process, but it use the
-busy-waiting mechanism (waiting in a loop while releasing the lock). The code
-that runs in the critical region protected by a spinlock is not allowed to
-suspend the current process (it must adhere to the execution conditions in the
-context of an interrupt). Moreover, the CPU will not be released except for
-interrupts. Due to the mechanism used, it is important that a spinlock be
-detained as little time as possible.
-
+Spinlocks are used in order to achieve mutual exclusion. When it can not get
+access to the critical region, it does not suspend the current process, but it
+uses the busy-waiting mechanism (waiting in a :c:func:`while` loop for the lock
+to be released).
+The code that runs in the critical region protected by a spinlock is not allowed
+to suspend the current process (it must adhere to the execution conditions in
+the interrupt context). Moreover, the CPU will not be released except for
+the case of an interrupt. Due to the mechanism used, it is important that a
+spinlock is being held as little time as possible.
 Preemptivity
 ============
 
-Linux uses a preemptive kernels. The notion of preemptive multitasking should not
-be confused with the notion of preemptive kernel. The notion of preemptive multitasking
-refers to the fact that the operating system interrupts a process by force when
-it expires its quantum of time and runs in user-space to run another process.
-A kernel is preemptive if a process running in kernel mode (as a result of a system call)
-can be interrupted to run another process.
+Linux uses preemptive kernels. The notion of preemptive multitasking should not
+be confused with the notion of a preemptive kernel. The notion of preemptive
+multitasking refers to the fact that the operating system forcefully interrupts
+a process running in user space when its quantum (time slice) expires, in order
+to run another process.
+A kernel is preemptive if a process running in kernel mode (as a result of a
+system call) can be interrupted so that another process is being run.
 
 Because of preemptivity, when we share resources between two portions of code
 that can run from different process contexts, we need to protect ourselves with
-synchronization primitives, even with the single processor.
+synchronization primitives, even in the case of a single processor.
 
 Linux Kernel API
 ================
@@ -122,9 +124,10 @@ Linux Kernel API
 Convention indicating errors
 ----------------------------
 
-For Linux kernel programming, the convention used to call functions to indicate
-success is the same as UNIX programming: 0 for success, or a value other than 0
-for failure. For failures negative values are returned as shown in the example below:
+For Linux kernel programming, the convention used for calling functions to
+indicate success is the same as in UNIX programming: 0 for success, or a value
+other than 0 for failure.
+For failures, negative values are returned as shown in the example below:
 
 .. code-block:: c
 
@@ -135,24 +138,29 @@ for failure. For failures negative values are returned as shown in the example b
        return -EINVAL;
 
 The exhaustive list of errors and a summary explanation can be found in
-``include/asm-generic/errno-base.h`` and ``includes/asm-generic/ernno.h``.
+:file:`include/asm-generic/errno-base.h` and in
+:file:`includes/asm-generic/ernno.h`.
 
 Strings of characters
 ---------------------
 
 In Linux, the kernel programmer is provided with the usual routine functions:
-``strcpy``, ``strncpy``, ``strlcpy``, ``strcat``, ``strncat``, ``strlcat``,
-``strcmp``, ``strncmp``, ``strnicmp``, ``strnchr``, ``strrchr``, ``strrchr``,
-``strstr``, ``strlen``, ``memset``, ``memmove``, ``memcmp``, etc. These functions
-are declared in the ``include/linux/string.h`` header and are implemented in the
-kernel in the ``lib/string.c`` file.
+:c:func:`strcpy`, :c:func:`strncpy`, :c;func:`strlcpy`, :c:func:`strcat`,
+:c:func:`strncat`, :c:func:`strlcat`, :c:func:`strcmp`, :c:func:`strncmp`,
+:c:func:`strnicmp`, :c:func:`strnchr`, :c:func:`strrchr`, :c:func:`strrchr`,
+:c:func:`strstr`, :c:func:`strlen`, :c:func:`memset`, :c:func:`memmove`,
+:c:func:`memcmp`, etc. These functions are declared in the
+:file:`include/linux/string.h` header and are implemented in the kernel in the
+:file:`lib/string.c` file.
 
 printk
 ------
 
-The printf equivalent in the kernel is printk , defined in
-``include/linux/printk.h``. The printk syntax is very similar to printf. The first
-parameter of printk decides the message category in which the current message falls:
+The printf equivalent in the kernel is printk, defined in
+:file:`include/linux/printk.h`. The :c:func:`printk` syntax is very similar
+to :c:func:`printf`. The first
+parameter of :c:func:`printk` decides the log category in which the current log
+falls into:
 
 .. code-block:: c
 
@@ -172,34 +180,35 @@ Thus, a warning message in the kernel would be sent with:
    printk(KERN_WARNING "my_module input string %s\n", buff);
 
 
-If the logging level is missing from the printk call, logging is done with the
-default level at the time of the call. One thing to keep in mind is that
-messages sent with printk are only visible on the console and only if their
-level exceeds the default level set on the console.
+If the logging level is missing from the :c:func:`printk` call, logging is done
+with the default level at the time of the call. One thing to keep in mind is
+that messages sent with :c:func:`printk` are only visible on the console if and
+only if their level exceeds the default level set on the console.
 
-To reduce the size of lines when using printk, it is recommended to use the
-following help functions instead of directly using the printk call:
+To reduce the size of lines when using :c:func:`printk`, it is recommended to
+use the following help functions instead of directly using the :c:func:`printk`
+call:
 
 .. code-block:: c
 
-   pr_emerg(fmt, ...); /* similar with printk(KERN_EMERG pr_fmt(fmt), ...); */
-   pr_alert(fmt, ...); /* similar with printk(KERN_ALERT pr_fmt(fmt), ...); */
-   pr_crit(fmt, ...); /* similar with printk(KERN_CRIT pr_fmt(fmt), ...); */
-   pr_err(fmt, ...); /* similar with printk(KERN_ERR pr_fmt(fmt), ...); */
-   pr_warning(fmt, ...); /* similar with printk(KERN_WARNING pr_fmt(fmt), ...); */
-   pr_warn(fmt, ...); /* similar with cu printk(KERN_WARNING pr_fmt(fmt), ...); */
-   pr_notice(fmt, ...); /* similar with printk(KERN_NOTICE pr_fmt(fmt), ...); */
-   pr_info(fmt, ...); /* similar with printk(KERN_INFO pr_fmt(fmt), ...); */
+   pr_emerg(fmt, ...); /* similar to printk(KERN_EMERG pr_fmt(fmt), ...); */
+   pr_alert(fmt, ...); /* similar to printk(KERN_ALERT pr_fmt(fmt), ...); */
+   pr_crit(fmt, ...); /* similar to printk(KERN_CRIT pr_fmt(fmt), ...); */
+   pr_err(fmt, ...); /* similar to printk(KERN_ERR pr_fmt(fmt), ...); */
+   pr_warning(fmt, ...); /* similar to printk(KERN_WARNING pr_fmt(fmt), ...); */
+   pr_warn(fmt, ...); /* similar to cu printk(KERN_WARNING pr_fmt(fmt), ...); */
+   pr_notice(fmt, ...); /* similar to printk(KERN_NOTICE pr_fmt(fmt), ...); */
+   pr_info(fmt, ...); /* similar to printk(KERN_INFO pr_fmt(fmt), ...); */
 
-A special case is pr_debug that calls the printk function only when the DEBUG
-macro is defined or if dynamic debugging is used.
+A special case is :c:func:`pr_debug` that calls the :c:func:`printk` function
+only when the :c:macro:`DEBUG` macro is defined or if dynamic debugging is used.
 
 
 Memory allocation
 -----------------
 
-In Linux only resident memory can be allocated, using kmalloc call. A typical kmalloc
-call is presented below:
+In Linux only resident memory can be allocated, using :c:func:`kmalloc` call.
+A typical :c:func:`kmalloc` call is presented below:
 
 .. code-block:: c
 
@@ -212,27 +221,31 @@ call is presented below:
 
 As you can see, the first parameter indicates the size in bytes of the allocated
 area. The function returns a pointer to a memory area that can be directly used
-in the kernel, or NULL if memory could not be allocated. The second parameter
-specifies how allocation should be done and the most commonly used values are:
+in the kernel, or :c:macro:`NULL` if memory could not be allocated. The second
+parameter specifies how allocation should be done and the most commonly used
+values for this are:
 
-   * ``GFP_KERNEL`` - using this value may cause the current process to be
-     suspended. Thus, can not be used in the interrupt context.
-   * ``GFP_ATOMIC`` - when using this value it ensures that the kmalloc function
-     does not suspend the current process. Can be used anytime.
+   * :c:data:`GFP_KERNEL` - using this value may cause the current process to
+     be suspended. Thus, it can not be used in the interrupt context.
+   * :c:data:`GFP_ATOMIC` - using this value it ensures that the
+     :c:func:`kmalloc` function does not suspend the current process. It can be
+     used anytime.
 
-Complement to the kmalloc function is ``kfree``, a function that receives as
-argument an area allocated by kmalloc. This feature does not suspend the current
-process and can therefore be called from any context.
+The counterpart to the :c:func:`kmalloc` function is :c:func:`kfree`, a function
+that receives as argument an area allocated by :c:func:`kmalloc`. This function
+does not suspend the current process and can therefore be called from any
+context.
 
 lists
 -----
 
 Because linked lists are often used, the Linux kernel API provides a unified
-way of defining and using lists. This involves using a list_head structure
-element in the structure we want to consider as a list node. The list_head
-list_head is defined in ``include/linux/list.h`` along with all the other
-functions that work on the lists. The following code shows the definition of
-the list_head list_head and the use of an element of this type in another
+way of defining and using lists. This involves using a
+:c:type:`struct list_head` element in the structure we want to consider as a
+list node. The :c:type:`struct list_head` is defined in
+:file:`include/linux/list.h` along with all the other functions that manipulate
+the lists. The following code shows the definition of
+the :c:type:`struct list_head` and the use of an element of this type in another
 well-known structure in the Linux kernel:
 
 .. code-block:: c
@@ -247,21 +260,24 @@ well-known structure in the Linux kernel:
        ...
    };
 
-The usual routines for working with lists are as follows:
+The usual routines for working with lists are the following:
 
-   * ``LIST_HEAD(name)`` is used to declare the sentinel of a list
-   * ``INIT_LIST_HEAD(struct list_head *list)`` is used to initialize the sentinel
-     of a list when dynamic allocation is made by setting the value of the next and
-     prev to list fields.
-   * ``list_add(struct list_head *new, struct list_head *head)`` adds the new
-     element after the head element.
-   * ``list_del(struct list_head *entry)`` deletes the item at the entry address of
-     the list it belongs to.
-   * ``list_entry(ptr, type, member)`` returns the type structure that contains the
-     element ptr the member with the member name within the structure.
-   * ``list_for_each(pos, head)`` iterates a list using pos as a cursor.
-   * ``list_for_each_safe(pos, n, head)`` iterates a list, using pos as a cursor and
-     and ``n`` as a temporary cursor. This macro is used to delete an item from the list.
+   * :c:macro:`LIST_HEAD(name)` is used to declare the sentinel of a list
+   * :c:func:`INIT_LIST_HEAD(struct list_head *list)` is used to initialize the
+     sentinel of a list when dynamic allocation is made, by setting the value of
+     the :c:data:`next` and :c:data:`prev` to list fields.
+   * :c:func:`list_add(struct list_head *new, struct list_head *head)` adds the
+     :c:data`new` element after the :c:data:`head` element.
+   * :c:func:`list_del(struct list_head *entry)` deletes the item at the
+     :c:data:`entry` address of the list it belongs to.
+   * :c:macro:`list_entry(ptr, type, member)` returns the structure with the
+     type :c:type:`type` that contains the element :c:data:`ptr` from the list,
+     having the name :c:member:`member` within the structure.
+   * :c:macro:`list_for_each(pos, head)` iterates over a list using
+     :c:data:`pos` as a cursor.
+   * :c:macro:`list_for_each_safe(pos, n, head)` iterates over a list using
+     :c:data:`pos` as a cursor and :c:data:`n` as a temporary cursor.
+     This macro is used to delete an item from the list.
 
 The following code shows how to use these routines:
 
@@ -321,27 +337,31 @@ The following code shows how to use these routines:
 
 The evolution of the list can be seen in the following figure:
 
-You see the stack type behavior introduced by the list_add macro, and the use
-of a sentinel.
+.. image:: list_evolution.png
+   :width: 85%
 
-From the above example, it is noted that the way to define and use a list
-(double-linked) is generic and, at the same time, does not introduce an
-additional overhead. The list_head list_head is used to maintain the links
-between the list elements. It is also noted that list iteration is also done
-with this structure, and the list item is list_entry using list_entry . This
-idea of implementing and using a list is not new, as The Art of Computer
-Programming in The Art of Computer Programming by Donald Knuth in the 1980s.
+You see the stack type behavior introduced by the :c:macro:`list_add` macro,
+and the use of a sentinel.
+
+From the above example, it can be noticed that the way to define and use a list
+(double-linked) is generic and, at the same time, it does not introduce an
+additional overhead. The :c:type:`struct list_head` is used to maintain the
+links between the list elements. It can be noticed that iterating over the list
+is also done with this structure, and that retrieving a list element can be done
+using :c:macro:`list_entry`. This idea of implementing and using a list is not
+new, as it has already been described in The Art of Computer Programming by
+Donald Knuth in the 1980s.
 
 Several kernel list functions and macrodefinitions are presented and explained
-in the include/linux/list.h header.
+in the :file:`include/linux/list.h` header.
 
 Spinlock
 --------
 
-spinlock_t (defined in ``linux/spinlock.h``) is the basic type that implements
-the spinlock concept in Linux. It describes a spinlock, and the operations
-associated with a spinlock are spin_lock_init, spin_lock, spin_unlock . An
-example of use is given below:
+:c:type:`spinlock_t` (defined in :file:`linux/spinlock.h`) is the basic type
+that implements the spinlock concept in Linux. It describes a spinlock, and the
+operations associated with a spinlock are :c:func:`spin_lock_init`,
+:c:func:`spin_lock`, :c:func:`spin_unlock`. An example of use is given below:
 
 .. code-block:: c
 
@@ -361,9 +381,13 @@ example of use is given below:
   spin_unlock(&lock2);
 
 
-In Linux, you can use read / write spinlocks useful for writer-reader issues.
-These types of locks are identified by ``rwlock_t``, and the functions that can
-work on a read / write spinlock are ``rwlock_init``, ``read_lock``, ``write_lock``.
+In Linux, you can use reader-writer spinlocks, useful for readers-writers
+problems.
+These types of locks are identified by :c:type:`rwlock_t`, and the functions
+that can work on a reader-writer spinlock are:
+* :c:func:`rwlock_init`
+* :c:func:`read_lock`
+* :c:func:`write_lock`
 An example of use:
 
 
@@ -406,8 +430,9 @@ An example of use:
 mutex
 -----
 
-A mutex is a variable of the ``struct mutex`` type (defined in linux/mutex.h ).
-Functions and macros for working with mutex are listed below:
+A mutex is a variable of the :c:type:`struct mutex` type (defined in
+:file:`linux/mutex.h`).
+Functions and macros for working with mutexes are listed below:
 
 .. code-block:: c
 
@@ -424,9 +449,9 @@ Functions and macros for working with mutex are listed below:
   void mutex_unlock(struct mutex *mutex);
 
 Operations are similar to classic mutex operations in userspace or spinlock
-operations: the mutex is acquired before entering the critical area and
-releases to the critical area. Unlike spin-locks, these operations can only be
-used in process context.
+operations: the mutex is acquired before entering the critical region and it is
+released after exiting the critical region. Unlike spinlocks, these operations
+can only be used in process context.
 
 .. _atomic-variables:
 
@@ -434,9 +459,9 @@ Atomic variables
 ----------------
 
 Often, you only need to synchronize access to a simple variable, such as a
-counter. For this, an ``atomic_t`` can be used (defined in include/linux/atomic.h
-) that holds an integer value. Below are some operations that can be  performed on
-an atomic_t variable.
+counter. For this, an :c:type`atomic_t` type can be used (defined in
+:file:`include/linux/atomic.h`), that holds an integer value. Below are some
+operations that can be performed on an :c:type:`atomic_t` variable.
 
 .. code-block:: c
 
@@ -455,11 +480,12 @@ an atomic_t variable.
 Use of atomic variables
 ***********************
 
-A common way of using atomic variables is to maintain the status of an action
-(eg a flag). So we can use an atomic variable to mark exclusive actions. For
+A common way of using atomic variables is to store the status of an action
+(e.g. a flag). So we can use an atomic variable to mark exclusive actions. For
 example, we consider that an atomic variable can have the LOCKED and UNLOCKED
-values, and if LOCKED then a specific function -EBUSY with an -EBUSY message.
-The mode of use is shown schematically in the code below:
+values, and if the respective variable equals LOCKED then a specific function
+should return -EBUSY.
+Such an usage is shown schematically in the code below:
 
 .. code-block:: c
 
@@ -507,10 +533,11 @@ The mode of use is shown schematically in the code below:
    }
 
 
-The above code is the equivalent of using a trylock (such as pthread_mutex_trylock).
+The above code is the equivalent of using a trylock (such as
+:c:func:`pthread_mutex_trylock`).
 
-We can also use a variable to remember the size of a buffer and for atomic
-updates. For example, the code below:
+We can also use a variable to store the size of a buffer and for atomic
+updates of the respective variable. The code below is such an example:
 
 .. code-block:: c
 
@@ -551,8 +578,8 @@ updates. For example, the code below:
 Atomic bitwise operations
 -------------------------
 
-The kernel provides a set of functions (in ``asm/bitops.h``) that modify or test
-bits in an atomic way.
+The kernel provides a set of functions (in :file:`asm/bitops.h`) that modify or
+test bits in an atomic way.
 
 .. code-block:: c
 
@@ -565,8 +592,9 @@ bits in an atomic way.
    int test_and_clear_bit(int nr, void *addr);
    int test_and_change_bit(int nr, void *addr);
 
-Addr represents the address of the memory area whose bits are being modified or
-tested and the nr is the bit on which the operation is performed.
+:c:data:`Addr` represents the address of the memory area whose bits are being
+modified or tested and :c:data:`nr` is the bit on which the operation is
+performed.
 
 Exercises
 =========
@@ -582,7 +610,7 @@ Exercises
 Using |LXR|_ find the definitions of the following symbols in the Linux kernel:
 
    * :c:type:`struct list_head`
-   * :c:type:`INIT_LIST_HEAD`
+   * :c:func:`INIT_LIST_HEAD`
    * :c:func:`list_add`
    * :c:macro:`list_for_each`
    * :c:macro:`list_entry`
@@ -627,10 +655,9 @@ cause of the error?
 	  between a lock operation and an unlock on a spinlock.
 
 .. note:: The
-          `schedule_timeout <https://elixir.bootlin.com/linux/v4.15.7/source/kernel/time/timer.c#L1725>`_
-          function, corroborated with the
-	  `set_current_state <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/sched.h#L129>`_
-	  macro, forces the current process to wait 5 seconds.
+          :c:func:`schedule_timeout` function, corroborated with the
+	  :c:macro:`set_current_state` macro, forces the current process to wait
+          for 5 seconds.
 
 .. note:: Review the `Contexts of execution`_, `Locking` and `Spinlock`_
           sections.
@@ -652,7 +679,7 @@ free them (in :c:func:`memory_exit`).
         variable, which holds the number of ticks that have occurred since the
 	system booted.
 
-   2. (TODO 2) Allocate :c:struct:`struct task_info` for the current process,
+   2. (TODO 2) Allocate :c:type:`struct task_info` for the current process,
       the parent process, the next process, the next process of the next
       process, with the following information:
 
@@ -683,8 +710,8 @@ free them (in :c:func:`memory_exit`).
           Call 2 times the :c:macro:`next_task`.
 
    3. (TODO 3) Display the four structures.
-      * Use :c:code:`printk` to display their two fields:
-        :c:member:`pid` and :c:member:`timestamp`.
+      * Use :c:func:`printk` to display their two fields:
+      :c:member:`pid` and :c:member:`timestamp`.
 
    4. (TODO 4) Release the memory occupied by the structures
       (use :c:func:`kfree`).
@@ -695,7 +722,7 @@ free them (in :c:func:`memory_exit`).
 	  * Look for the relevant fields in the :c:type:`struct task_struct`
             structure (:c:member:`pid`, :c:member:`parent`).
 	  * Use the :c:macro:`next_task` macro. The macro returns the pointer to
-	    the next process (ie. a :c:struct:`struct task_struct*` structure).
+	    the next process (ie. a :c:type:`struct task_struct*` structure).
 
 .. note:: The :c:type:`struct task_struct` structure contains two fields to
           designate the parent of a task:
@@ -735,11 +762,9 @@ function and the :c:func:`task_info_purge_list` function.
       following the messages displayed by the kernel.
 
 .. hint:: Review the labs `Lists`_ section.  When deleting items from
-	  the list, you will need to use the
-	  `list_for_each_safe <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/list.h#L436>`_
-	  or
-	  `list_for_each_entry_safe <https://elixir.bootlin.com/linux/v4.15.7/source/include/linux/list.h#L543>_`
-	  calls.
+	  the list, you will need to use either the
+	  :c:macro:`list_for_each_safe` or :c:macro:`list_for_each_entry_safe`
+          macros.
 
 5. Working with kernel lists for process handling
 -------------------------------------------------
@@ -772,12 +797,13 @@ following:
    1. (TODO 1) Implement the :c:func:`task_info_find_pid` function.
    2. (TODO 2) Change a field of an item in the list so it does not
       expire. It must not satisfy a part of the expiration condition
-	  from :c:func:`task_info_remove_expired`.
+      from :c:func:`task_info_remove_expired`.
 
 .. hint:: For ``TODO 2``, extract the first element from the list (the one
 	  referred by :c:member:`head.next`) and set the :c:member:`count`
           field to a large enough value. Use :c:func:`atomic_set` function.
-   3. Compile, copy, load and unload the kernel module following the displayed
+
+3. Compile, copy, load and unload the kernel module following the displayed
       messages.
       Kernel module loading will take some time, because :c:func:`sleep` is
       being called by :c:func:`schedule_timeout` function.
@@ -824,4 +850,4 @@ directory, the following steps are required:
     7. Unload the kernel test module.
 
 What should be the unload order of the two modules (the module from
-**6-list-sync** and test module)? What happens if you use another order?
+**6-list-sync** and the test module)? What happens if you use another order?
