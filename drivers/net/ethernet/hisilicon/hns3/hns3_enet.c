@@ -3503,7 +3503,7 @@ int hns3_set_channels(struct net_device *netdev,
 		return 0;
 
 	if (if_running)
-		dev_close(netdev);
+		hns3_nic_net_stop(netdev);
 
 	hns3_clear_all_ring(h);
 
@@ -3546,7 +3546,7 @@ int hns3_set_channels(struct net_device *netdev,
 
 open_netdev:
 	if (if_running)
-		dev_open(netdev);
+		hns3_nic_net_open(netdev);
 
 	return ret;
 }
