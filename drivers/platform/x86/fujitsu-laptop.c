@@ -85,7 +85,7 @@
 #define FUNC_BACKLIGHT			(BIT(12) | BIT(2))
 
 /* FUNC interface - responses */
-#define UNSUPPORTED_CMD			BIT(31)
+#define UNSUPPORTED_CMD			0x80000000
 
 /* FUNC interface - status flags */
 #define FLAG_RFKILL			BIT(5)
