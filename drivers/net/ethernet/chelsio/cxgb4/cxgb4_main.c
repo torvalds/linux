@@ -210,6 +210,9 @@ static void link_report(struct net_device *dev)
 		case 40000:
 			s = "40Gbps";
 			break;
+		case 50000:
+			s = "50Gbps";
+			break;
 		case 100000:
 			s = "100Gbps";
 			break;
