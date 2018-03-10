@@ -542,6 +542,7 @@ int arch_kexec_apply_relocations_add(const Elf64_Ehdr *ehdr,
 				goto overflow;
 			break;
 		case R_X86_64_PC32:
+		case R_X86_64_PLT32:
 			value -= (u64)address;
 			*(u32 *)location = value;
 			break;

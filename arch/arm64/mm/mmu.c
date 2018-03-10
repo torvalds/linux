@@ -108,7 +108,7 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	 * The following mapping attributes may be updated in live
 	 * kernel mappings without the need for break-before-make.
 	 */
-	static const pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE;
+	static const pteval_t mask = PTE_PXN | PTE_RDONLY | PTE_WRITE | PTE_NG;
 
 	/* creating or taking down mappings is always safe */
 	if (old == 0 || new == 0)
@@ -118,9 +118,9 @@ static bool pgattr_change_is_safe(u64 old, u64 new)
 	if ((old | new) & PTE_CONT)
 		return false;
 
-	/* Transitioning from Global to Non-Global is safe */
-	if (((old ^ new) == PTE_NG) && (new & PTE_NG))
-		return true;
+	/* Transitioning from Non-Global to Global is unsafe */
+	if (old & ~new & PTE_NG)
+		return false;
 
 	return ((old ^ new) & ~mask) == 0;
 }
@@ -933,6 +933,11 @@ int pud_set_huge(pud_t *pudp, phys_addr_t phys, pgprot_t prot)
 {
 	pgprot_t sect_prot = __pgprot(PUD_TYPE_SECT |
 					pgprot_val(mk_sect_prot(prot)));
+
+	/* ioremap_page_range doesn't honour BBM */
+	if (pud_present(READ_ONCE(*pudp)))
+		return 0;
+
 	BUG_ON(phys & ~PUD_MASK);
 	set_pud(pudp, pfn_pud(__phys_to_pfn(phys), sect_prot));
 	return 1;
@@ -942,6 +947,11 @@ int pmd_set_huge(pmd_t *pmdp, phys_addr_t phys, pgprot_t prot)
 {
 	pgprot_t sect_prot = __pgprot(PMD_TYPE_SECT |
 					pgprot_val(mk_sect_prot(prot)));
+
+	/* ioremap_page_range doesn't honour BBM */
+	if (pmd_present(READ_ONCE(*pmdp)))
+		return 0;
+
 	BUG_ON(phys & ~PMD_MASK);
 	set_pmd(pmdp, pfn_pmd(__phys_to_pfn(phys), sect_prot));
 	return 1;

@@ -4982,9 +4982,10 @@ static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
 
 	pcie_fw = readl(adap->regs + PCIE_FW_A);
 	/* Check if cxgb4 is the MASTER and fw is initialized */
-	if (!(pcie_fw & PCIE_FW_INIT_F) ||
+	if (num_vfs &&
+	    (!(pcie_fw & PCIE_FW_INIT_F) ||
 	    !(pcie_fw & PCIE_FW_MASTER_VLD_F) ||
-	    PCIE_FW_MASTER_G(pcie_fw) != CXGB4_UNIFIED_PF) {
+	    PCIE_FW_MASTER_G(pcie_fw) != CXGB4_UNIFIED_PF)) {
 		dev_warn(&pdev->dev,
 			 "cxgb4 driver needs to be MASTER to support SRIOV\n");
 		return -EOPNOTSUPP;
@@ -5599,24 +5600,24 @@ static void remove_one(struct pci_dev *pdev)
 #if IS_ENABLED(CONFIG_IPV6)
 		t4_cleanup_clip_tbl(adapter);
 #endif
-		iounmap(adapter->regs);
 		if (!is_t4(adapter->params.chip))
 			iounmap(adapter->bar2);
-		pci_disable_pcie_error_reporting(pdev);
-		if ((adapter->flags & DEV_ENABLED)) {
-			pci_disable_device(pdev);
-			adapter->flags &= ~DEV_ENABLED;
-		}
-		pci_release_regions(pdev);
-		kfree(adapter->mbox_log);
-		synchronize_rcu();
-		kfree(adapter);
 	}
 #ifdef CONFIG_PCI_IOV
 	else {
 		cxgb4_iov_configure(adapter->pdev, 0);
 	}
 #endif
+	iounmap(adapter->regs);
+	pci_disable_pcie_error_reporting(pdev);
+	if ((adapter->flags & DEV_ENABLED)) {
+		pci_disable_device(pdev);
+		adapter->flags &= ~DEV_ENABLED;
+	}
+	pci_release_regions(pdev);
+	kfree(adapter->mbox_log);
+	synchronize_rcu();
+	kfree(adapter);
 }
 
 /* "Shutdown" quiesces the device, stopping Ingress Packet and Interrupt
