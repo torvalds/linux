@@ -15,6 +15,7 @@ check_mods
 # These days no one enables CONFIG_FW_LOADER_USER_HELPER so check for that
 # as an indicator for CONFIG_FW_LOADER_USER_HELPER.
 HAS_FW_LOADER_USER_HELPER=$(if [ -d /sys/class/firmware/ ]; then echo yes; else echo no; fi)
+HAS_FW_LOADER_USER_HELPER_FALLBACK=$(kconfig_has CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y)
 
 if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
        OLD_TIMEOUT=$(cat /sys/class/firmware/timeout)
@@ -287,7 +288,10 @@ run_sysfs_custom_load_tests()
 	fi
 }
 
-run_sysfs_main_tests
+if [ "$HAS_FW_LOADER_USER_HELPER_FALLBACK" = "yes" ]; then
+	run_sysfs_main_tests
+fi
+
 run_sysfs_custom_load_tests
 
 exit 0
