@@ -4107,8 +4107,8 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 {
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_mac_vlan_tbl_entry_cmd req;
-	enum hclge_cmd_status status;
 	u16 egress_port = 0;
+	int ret;
 
 	/* mac addr check */
 	if (is_zero_ether_addr(addr) ||
@@ -4140,9 +4140,9 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 
 	hclge_prepare_mac_addr(&req, addr);
 
-	status = hclge_add_mac_vlan_tbl(vport, &req, NULL);
+	ret = hclge_add_mac_vlan_tbl(vport, &req, NULL);
 
-	return status;
+	return ret;
 }
 
 static int hclge_rm_uc_addr(struct hnae3_handle *handle,
@@ -4158,7 +4158,7 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 {
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_mac_vlan_tbl_entry_cmd req;
-	enum hclge_cmd_status status;
+	int ret;
 
 	/* mac addr check */
 	if (is_zero_ether_addr(addr) ||
@@ -4174,9 +4174,9 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 	hnae_set_bit(req.flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 	hnae_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 	hclge_prepare_mac_addr(&req, addr);
-	status = hclge_remove_mac_vlan_tbl(vport, &req);
+	ret = hclge_remove_mac_vlan_tbl(vport, &req);
 
-	return status;
+	return ret;
 }
 
 static int hclge_add_mc_addr(struct hnae3_handle *handle,
