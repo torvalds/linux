@@ -1066,6 +1066,9 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 
 	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);
+	del_timer_sync(&hdev->service_timer);
+	cancel_work_sync(&hdev->service_task);
+	hclgevf_update_link_status(hdev, 0);
 }
 
 static void hclgevf_state_init(struct hclgevf_dev *hdev)
