@@ -105,13 +105,16 @@ static int hclge_get_ring_chain_from_mbx(
 			struct hnae3_ring_chain_node *ring_chain,
 			struct hclge_vport *vport)
 {
-#define HCLGE_RING_NODE_VARIABLE_NUM		3
-#define HCLGE_RING_MAP_MBX_BASIC_MSG_NUM	3
 	struct hnae3_ring_chain_node *cur_chain, *new_chain;
 	int ring_num;
 	int i;
 
 	ring_num = req->msg[2];
+
+	if (ring_num > ((HCLGE_MBX_VF_MSG_DATA_NUM -
+		HCLGE_MBX_RING_MAP_BASIC_MSG_NUM) /
+		HCLGE_MBX_RING_NODE_VARIABLE_NUM))
+		return -ENOMEM;
 
 	hnae_set_bit(ring_chain->flag, HNAE3_RING_TYPE_B, req->msg[3]);
 	ring_chain->tqp_index =
@@ -128,18 +131,18 @@ static int hclge_get_ring_chain_from_mbx(
 			goto err;
 
 		hnae_set_bit(new_chain->flag, HNAE3_RING_TYPE_B,
-			     req->msg[HCLGE_RING_NODE_VARIABLE_NUM * i +
-			     HCLGE_RING_MAP_MBX_BASIC_MSG_NUM]);
+			     req->msg[HCLGE_MBX_RING_NODE_VARIABLE_NUM * i +
+			     HCLGE_MBX_RING_MAP_BASIC_MSG_NUM]);
 
 		new_chain->tqp_index =
 		hclge_get_queue_id(vport->nic.kinfo.tqp
-			[req->msg[HCLGE_RING_NODE_VARIABLE_NUM * i +
-			HCLGE_RING_MAP_MBX_BASIC_MSG_NUM + 1]]);
+			[req->msg[HCLGE_MBX_RING_NODE_VARIABLE_NUM * i +
+			HCLGE_MBX_RING_MAP_BASIC_MSG_NUM + 1]]);
 
 		hnae_set_field(new_chain->int_gl_idx, HCLGE_INT_GL_IDX_M,
 			       HCLGE_INT_GL_IDX_S,
-			       req->msg[HCLGE_RING_NODE_VARIABLE_NUM * i +
-			       HCLGE_RING_MAP_MBX_BASIC_MSG_NUM + 2]);
+			       req->msg[HCLGE_MBX_RING_NODE_VARIABLE_NUM * i +
+			       HCLGE_MBX_RING_MAP_BASIC_MSG_NUM + 2]);
 
 		cur_chain->next = new_chain;
 		cur_chain = new_chain;

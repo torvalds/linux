@@ -57,6 +57,8 @@ enum hclge_mbx_vlan_cfg_subcode {
 
 #define HCLGE_MBX_MAX_MSG_SIZE	16
 #define HCLGE_MBX_MAX_RESP_DATA_SIZE	8
+#define HCLGE_MBX_RING_MAP_BASIC_MSG_NUM	3
+#define HCLGE_MBX_RING_NODE_VARIABLE_NUM	3
 
 struct hclgevf_mbx_resp_status {
 	struct mutex mbx_mutex; /* protects against contending sync cmd resp */
