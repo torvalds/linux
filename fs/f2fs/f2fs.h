@@ -830,7 +830,7 @@ struct f2fs_nm_info {
 	unsigned int nid_cnt[MAX_NID_STATE];	/* the number of free node id */
 	spinlock_t nid_list_lock;	/* protect nid lists ops */
 	struct mutex build_lock;	/* lock for build free nids */
-	unsigned char (*free_nid_bitmap)[NAT_ENTRY_BITMAP_SIZE];
+	unsigned char **free_nid_bitmap;
 	unsigned char *nat_block_bitmap;
 	unsigned short *free_nid_count;	/* free nid count of NAT block */
 

@@ -305,6 +305,10 @@ struct f2fs_node {
  */
 #define NAT_ENTRY_PER_BLOCK (PAGE_SIZE / sizeof(struct f2fs_nat_entry))
 #define NAT_ENTRY_BITMAP_SIZE	((NAT_ENTRY_PER_BLOCK + 7) / 8)
+#define NAT_ENTRY_BITMAP_SIZE_ALIGNED				\
+	((NAT_ENTRY_BITMAP_SIZE + BITS_PER_LONG - 1) /		\
+	BITS_PER_LONG * BITS_PER_LONG)
+
 
 struct f2fs_nat_entry {
 	__u8 version;		/* latest version of cached nat entry */
