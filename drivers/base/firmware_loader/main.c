@@ -396,13 +396,23 @@ static struct fw_name_devm *fw_find_devm_name(struct device *dev,
 	return fwn;
 }
 
-/* add firmware name into devres list */
-static int fw_add_devm_name(struct device *dev, const char *name)
+static bool fw_cache_is_setup(struct device *dev, const char *name)
 {
 	struct fw_name_devm *fwn;
 
 	fwn = fw_find_devm_name(dev, name);
 	if (fwn)
+		return true;
+
+	return false;
+}
+
+/* add firmware name into devres list */
+static int fw_add_devm_name(struct device *dev, const char *name)
+{
+	struct fw_name_devm *fwn;
+
+	if (fw_cache_is_setup(dev, name))
 		return 0;
 
 	fwn = devres_alloc(fw_name_devm_release, sizeof(struct fw_name_devm),
