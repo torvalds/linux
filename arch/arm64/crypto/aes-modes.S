@@ -395,8 +395,28 @@ AES_ENDPROC(aes_xts_decrypt)
 AES_ENTRY(aes_mac_update)
 	ld1		{v0.16b}, [x4]			/* get dg */
 	enc_prepare	w2, x1, x7
-	cbnz		w5, .Lmacenc
+	cbz		w5, .Lmacloop4x
 
+	encrypt_block	v0, w2, x1, x7, w8
+
+.Lmacloop4x:
+	subs		w3, w3, #4
+	bmi		.Lmac1x
+	ld1		{v1.16b-v4.16b}, [x0], #64	/* get next pt block */
+	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with dg */
+	encrypt_block	v0, w2, x1, x7, w8
+	eor		v0.16b, v0.16b, v2.16b
+	encrypt_block	v0, w2, x1, x7, w8
+	eor		v0.16b, v0.16b, v3.16b
+	encrypt_block	v0, w2, x1, x7, w8
+	eor		v0.16b, v0.16b, v4.16b
+	cmp		w3, wzr
+	csinv		x5, x6, xzr, eq
+	cbz		w5, .Lmacout
+	encrypt_block	v0, w2, x1, x7, w8
+	b		.Lmacloop4x
+.Lmac1x:
+	add		w3, w3, #4
 .Lmacloop:
 	cbz		w3, .Lmacout
 	ld1		{v1.16b}, [x0], #16		/* get next pt block */
@@ -406,7 +426,6 @@ AES_ENTRY(aes_mac_update)
 	csinv		x5, x6, xzr, eq
 	cbz		w5, .Lmacout
 
-.Lmacenc:
 	encrypt_block	v0, w2, x1, x7, w8
 	b		.Lmacloop
 
