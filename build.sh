@@ -54,7 +54,8 @@ function prepare_SD
 }
 
 #Test if .config exists for building Kernel
-if [[ -e ".config" ]]; then
+#if [[ -e ".config" ]]; then
+if [[ -d drivers ]]; then
 	action=$1
 	LANG=C
 	#git pull
