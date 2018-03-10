@@ -2080,15 +2080,13 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	desc = &ring->desc[ring->next_to_clean];
 	size = le16_to_cpu(desc->rx.size);
 
-	if (twobufs) {
-		truesize = hnae_buf_size(ring);
-	} else {
-		truesize = ALIGN(size, L1_CACHE_BYTES);
+	truesize = hnae_buf_size(ring);
+
+	if (!twobufs)
 		last_offset = hnae_page_size(ring) - hnae_buf_size(ring);
-	}
 
 	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
-			size - pull_len, truesize - pull_len);
+			size - pull_len, truesize);
 
 	 /* Avoid re-using remote pages,flag default unreuse */
 	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()))
