@@ -12,12 +12,14 @@
  *
  * @force_sysfs_fallback: force the sysfs fallback mechanism to be used
  * 	as if one had enabled CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y.
+ * 	Useful to help debug a CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y
+ * 	functionality on a kernel where that config entry has been disabled.
  * @old_timeout: for internal use
  * @loading_timeout: the timeout to wait for the fallback mechanism before
  * 	giving up, in seconds.
  */
 struct firmware_fallback_config {
-	const bool force_sysfs_fallback;
+	unsigned int force_sysfs_fallback;
 	int old_timeout;
 	int loading_timeout;
 };
