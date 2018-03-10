@@ -597,22 +597,22 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	case FW_PORT_TYPE_KR:
 		SET_LMM(Backplane);
-		SET_LMM(10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		break;
 
 	case FW_PORT_TYPE_BP_AP:
 		SET_LMM(Backplane);
-		SET_LMM(10000baseR_FEC);
-		SET_LMM(10000baseKR_Full);
-		SET_LMM(1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseR_FEC);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		break;
 
 	case FW_PORT_TYPE_BP4_AP:
 		SET_LMM(Backplane);
-		SET_LMM(10000baseR_FEC);
-		SET_LMM(10000baseKR_Full);
-		SET_LMM(1000baseKX_Full);
-		SET_LMM(10000baseKX4_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseR_FEC);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKX4_Full);
 		break;
 
 	case FW_PORT_TYPE_FIBER_XFI:
@@ -628,7 +628,9 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 	case FW_PORT_TYPE_BP40_BA:
 	case FW_PORT_TYPE_QSFP:
 		SET_LMM(FIBRE);
-		SET_LMM(40000baseSR4_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
 		break;
 
 	case FW_PORT_TYPE_CR_QSFP:
@@ -655,12 +657,14 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	case FW_PORT_TYPE_CR2_QSFP:
 		SET_LMM(FIBRE);
-		SET_LMM(50000baseSR2_Full);
+		FW_CAPS_TO_LMM(SPEED_50G, 50000baseSR2_Full);
 		break;
 
 	case FW_PORT_TYPE_KR4_100G:
 	case FW_PORT_TYPE_CR4_QSFP:
 		SET_LMM(FIBRE);
+		FW_CAPS_TO_LMM(SPEED_1G,  1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseSR_Full);
 		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
 		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
 		FW_CAPS_TO_LMM(SPEED_50G, 50000baseCR2_Full);
