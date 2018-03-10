@@ -138,8 +138,8 @@ static int hclge_pfc_pause_en_cfg(struct hclge_dev *hdev, u8 tx_rx_bitmap,
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
-static int hclge_mac_pause_param_cfg(struct hclge_dev *hdev, const u8 *addr,
-				     u8 pause_trans_gap, u16 pause_trans_time)
+static int hclge_pause_param_cfg(struct hclge_dev *hdev, const u8 *addr,
+				 u8 pause_trans_gap, u16 pause_trans_time)
 {
 	struct hclge_cfg_pause_param_cmd *pause_param;
 	struct hclge_desc desc;
@@ -155,7 +155,7 @@ static int hclge_mac_pause_param_cfg(struct hclge_dev *hdev, const u8 *addr,
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
 
-int hclge_mac_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr)
+int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr)
 {
 	struct hclge_cfg_pause_param_cmd *pause_param;
 	struct hclge_desc desc;
@@ -174,7 +174,7 @@ int hclge_mac_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr)
 	trans_gap = pause_param->pause_trans_gap;
 	trans_time = le16_to_cpu(pause_param->pause_trans_time);
 
-	return hclge_mac_pause_param_cfg(hdev, mac_addr, trans_gap,
+	return hclge_pause_param_cfg(hdev, mac_addr, trans_gap,
 					 trans_time);
 }
 
@@ -1096,11 +1096,11 @@ static int hclge_tm_schd_setup_hw(struct hclge_dev *hdev)
 	return hclge_tm_schd_mode_hw(hdev);
 }
 
-static int hclge_mac_pause_param_setup_hw(struct hclge_dev *hdev)
+static int hclge_pause_param_setup_hw(struct hclge_dev *hdev)
 {
 	struct hclge_mac *mac = &hdev->hw.mac;
 
-	return hclge_mac_pause_param_cfg(hdev, mac->mac_addr,
+	return hclge_pause_param_cfg(hdev, mac->mac_addr,
 					 HCLGE_DEFAULT_PAUSE_TRANS_GAP,
 					 HCLGE_DEFAULT_PAUSE_TRANS_TIME);
 }
@@ -1151,13 +1151,12 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev)
 	int ret;
 	u8 i;
 
-	if (hdev->tm_info.fc_mode != HCLGE_FC_PFC) {
-		ret = hclge_mac_pause_setup_hw(hdev);
-		if (ret)
-			return ret;
+	ret = hclge_pause_param_setup_hw(hdev);
+	if (ret)
+		return ret;
 
-		return hclge_mac_pause_param_setup_hw(hdev);
-	}
+	if (hdev->tm_info.fc_mode != HCLGE_FC_PFC)
+		return hclge_mac_pause_setup_hw(hdev);
 
 	/* Only DCB-supported dev supports qset back pressure and pfc cmd */
 	if (!hnae3_dev_dcb_supported(hdev))

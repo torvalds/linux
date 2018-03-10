@@ -129,5 +129,5 @@ int hclge_tm_dwrr_cfg(struct hclge_dev *hdev);
 int hclge_tm_map_cfg(struct hclge_dev *hdev);
 int hclge_tm_init_hw(struct hclge_dev *hdev);
 int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx);
-int hclge_mac_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr);
+int hclge_pause_addr_cfg(struct hclge_dev *hdev, const u8 *mac_addr);
 #endif

@@ -4417,7 +4417,7 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p,
 		return -EIO;
 	}
 
-	ret = hclge_mac_pause_addr_cfg(hdev, new_addr);
+	ret = hclge_pause_addr_cfg(hdev, new_addr);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"configure mac pause address fail, ret =%d.\n",
