@@ -904,6 +904,7 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
 						 ctxp->oxid);
 		wq = phba->sli4_hba.nvme_wq[ctxp->wqeq->hba_wqidx];
+		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 		lpfc_nvmet_wqfull_flush(phba, wq, ctxp);
 		return;
 	}
