@@ -266,21 +266,38 @@ static inline bool fw_state_is_aborted(struct fw_priv *fw_priv)
  *
  * @force_sysfs_fallback: force the sysfs fallback mechanism to be used
  * 	as if one had enabled CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y.
+ * @old_timeout: for internal use
+ * @loading_timeout: the timeout to wait for the fallback mechanism before
+ * 	giving up, in seconds.
  */
 struct firmware_fallback_config {
-	bool force_sysfs_fallback;
+	const bool force_sysfs_fallback;
+	int old_timeout;
+	int loading_timeout;
 };
 
-static const struct firmware_fallback_config fw_fallback_config = {
+static struct firmware_fallback_config fw_fallback_config = {
 	.force_sysfs_fallback = IS_ENABLED(CONFIG_FW_LOADER_USER_HELPER_FALLBACK),
+	.loading_timeout = 60,
+	.old_timeout = 60,
 };
 
-static int old_timeout;
-static int loading_timeout = 60;	/* In seconds */
+/* These getters are vetted to use int properly */
+static inline int __firmware_loading_timeout(void)
+{
+	return fw_fallback_config.loading_timeout;
+}
+
+/* These setters are vetted to use int properly */
+static void __fw_fallback_set_timeout(int timeout)
+{
+	fw_fallback_config.loading_timeout = timeout;
+}
 
 static inline long firmware_loading_timeout(void)
 {
-	return loading_timeout > 0 ? loading_timeout * HZ : MAX_JIFFY_OFFSET;
+	return __firmware_loading_timeout() > 0 ?
+		__firmware_loading_timeout() * HZ : MAX_JIFFY_OFFSET;
 }
 
 /*
@@ -291,14 +308,14 @@ static inline long firmware_loading_timeout(void)
  */
 static void fw_fallback_set_cache_timeout(void)
 {
-	old_timeout = loading_timeout;
-	loading_timeout = 10;
+	fw_fallback_config.old_timeout = __firmware_loading_timeout();
+	__fw_fallback_set_timeout(10);
 }
 
 /* Restores the timeout to the value last configured during normal operation */
 static void fw_fallback_set_default_timeout(void)
 {
-	loading_timeout =  old_timeout;
+	__fw_fallback_set_timeout(fw_fallback_config.old_timeout);
 }
 
 static inline bool fw_sysfs_done(struct fw_priv *fw_priv)
@@ -677,7 +694,7 @@ static void kill_pending_fw_fallback_reqs(bool only_kill_custom)
 static ssize_t timeout_show(struct class *class, struct class_attribute *attr,
 			    char *buf)
 {
-	return sprintf(buf, "%d\n", loading_timeout);
+	return sprintf(buf, "%d\n", __firmware_loading_timeout());
 }
 
 /**
@@ -696,9 +713,12 @@ static ssize_t timeout_show(struct class *class, struct class_attribute *attr,
 static ssize_t timeout_store(struct class *class, struct class_attribute *attr,
 			     const char *buf, size_t count)
 {
-	loading_timeout = simple_strtol(buf, NULL, 10);
-	if (loading_timeout < 0)
-		loading_timeout = 0;
+	int tmp_loading_timeout = simple_strtol(buf, NULL, 10);
+
+	if (tmp_loading_timeout < 0)
+		tmp_loading_timeout = 0;
+
+	__fw_fallback_set_timeout(tmp_loading_timeout);
 
 	return count;
 }
@@ -721,7 +741,7 @@ static int do_firmware_uevent(struct fw_sysfs *fw_sysfs, struct kobj_uevent_env 
 {
 	if (add_uevent_var(env, "FIRMWARE=%s", fw_sysfs->fw_priv->fw_name))
 		return -ENOMEM;
-	if (add_uevent_var(env, "TIMEOUT=%i", loading_timeout))
+	if (add_uevent_var(env, "TIMEOUT=%i", __firmware_loading_timeout()))
 		return -ENOMEM;
 	if (add_uevent_var(env, "ASYNC=%d", fw_sysfs->nowait))
 		return -ENOMEM;
