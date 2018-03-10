@@ -57,6 +57,9 @@ struct dw_wdt {
 	unsigned long		rate;
 	struct watchdog_device	wdd;
 	struct reset_control	*rst;
+	/* Save/restore */
+	u32			control;
+	u32			timeout;
 };
 
 #define to_dw_wdt(wdd)	container_of(wdd, struct dw_wdt, wdd)
@@ -205,6 +208,9 @@ static int dw_wdt_suspend(struct device *dev)
 {
 	struct dw_wdt *dw_wdt = dev_get_drvdata(dev);
 
+	dw_wdt->control = readl(dw_wdt->regs + WDOG_CONTROL_REG_OFFSET);
+	dw_wdt->timeout = readl(dw_wdt->regs + WDOG_TIMEOUT_RANGE_REG_OFFSET);
+
 	clk_disable_unprepare(dw_wdt->clk);
 
 	return 0;
@@ -217,6 +223,9 @@ static int dw_wdt_resume(struct device *dev)
 
 	if (err)
 		return err;
+
+	writel(dw_wdt->timeout, dw_wdt->regs + WDOG_TIMEOUT_RANGE_REG_OFFSET);
+	writel(dw_wdt->control, dw_wdt->regs + WDOG_CONTROL_REG_OFFSET);
 
 	dw_wdt_ping(&dw_wdt->wdd);
 
