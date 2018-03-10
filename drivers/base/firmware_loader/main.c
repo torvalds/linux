@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * firmware_class.c - Multi purpose firmware loading support
+ * main.c - Multi purpose firmware loading support
  *
  * Copyright (c) 2003 Manuel Estrada Sainz
  *
@@ -36,9 +36,9 @@
 
 #include <generated/utsrelease.h>
 
-#include "base.h"
-#include "firmware_loader.h"
-#include "firmware_fallback.h"
+#include "../base.h"
+#include "firmware.h"
+#include "fallback.h"
 
 MODULE_AUTHOR("Manuel Estrada Sainz");
 MODULE_DESCRIPTION("Multi purpose firmware loading support");

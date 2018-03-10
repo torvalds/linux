@@ -8,8 +8,8 @@
 #include <linux/highmem.h>
 #include <linux/umh.h>
 
-#include "firmware_fallback.h"
-#include "firmware_loader.h"
+#include "fallback.h"
+#include "firmware.h"
 
 /*
  * firmware fallback mechanism
