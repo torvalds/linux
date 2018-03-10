@@ -4558,18 +4558,17 @@ int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings)
 	return rc;
 }
 
-static int
-bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
-			   int ring_grps, int cp_rings, int vnics)
+static void
+__bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, struct hwrm_func_cfg_input *req,
+			     int tx_rings, int rx_rings, int ring_grps,
+			     int cp_rings, int vnics)
 {
-	struct hwrm_func_cfg_input req = {0};
 	u32 enables = 0;
-	int rc;
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
-	req.fid = cpu_to_le16(0xffff);
+	bnxt_hwrm_cmd_hdr_init(bp, req, HWRM_FUNC_CFG, -1, -1);
+	req->fid = cpu_to_le16(0xffff);
 	enables |= tx_rings ? FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS : 0;
-	req.num_tx_rings = cpu_to_le16(tx_rings);
+	req->num_tx_rings = cpu_to_le16(tx_rings);
 	if (bp->flags & BNXT_FLAG_NEW_RM) {
 		enables |= rx_rings ? FUNC_CFG_REQ_ENABLES_NUM_RX_RINGS : 0;
 		enables |= cp_rings ? FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
@@ -4578,16 +4577,53 @@ bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 			   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
 		enables |= vnics ? FUNC_VF_CFG_REQ_ENABLES_NUM_VNICS : 0;
 
-		req.num_rx_rings = cpu_to_le16(rx_rings);
-		req.num_hw_ring_grps = cpu_to_le16(ring_grps);
-		req.num_cmpl_rings = cpu_to_le16(cp_rings);
-		req.num_stat_ctxs = req.num_cmpl_rings;
-		req.num_vnics = cpu_to_le16(vnics);
+		req->num_rx_rings = cpu_to_le16(rx_rings);
+		req->num_hw_ring_grps = cpu_to_le16(ring_grps);
+		req->num_cmpl_rings = cpu_to_le16(cp_rings);
+		req->num_stat_ctxs = req->num_cmpl_rings;
+		req->num_vnics = cpu_to_le16(vnics);
 	}
-	if (!enables)
+	req->enables = cpu_to_le32(enables);
+}
+
+static void
+__bnxt_hwrm_reserve_vf_rings(struct bnxt *bp,
+			     struct hwrm_func_vf_cfg_input *req, int tx_rings,
+			     int rx_rings, int ring_grps, int cp_rings,
+			     int vnics)
+{
+	u32 enables = 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, req, HWRM_FUNC_VF_CFG, -1, -1);
+	enables |= tx_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_TX_RINGS : 0;
+	enables |= rx_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_RX_RINGS : 0;
+	enables |= cp_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
+			      FUNC_VF_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
+	enables |= ring_grps ? FUNC_VF_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
+	enables |= vnics ? FUNC_VF_CFG_REQ_ENABLES_NUM_VNICS : 0;
+
+	req->num_tx_rings = cpu_to_le16(tx_rings);
+	req->num_rx_rings = cpu_to_le16(rx_rings);
+	req->num_hw_ring_grps = cpu_to_le16(ring_grps);
+	req->num_cmpl_rings = cpu_to_le16(cp_rings);
+	req->num_stat_ctxs = req->num_cmpl_rings;
+	req->num_vnics = cpu_to_le16(vnics);
+
+	req->enables = cpu_to_le32(enables);
+}
+
+static int
+bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
+			   int ring_grps, int cp_rings, int vnics)
+{
+	struct hwrm_func_cfg_input req = {0};
+	int rc;
+
+	__bnxt_hwrm_reserve_pf_rings(bp, &req, tx_rings, rx_rings, ring_grps,
+				     cp_rings, vnics);
+	if (!req.enables)
 		return 0;
 
-	req.enables = cpu_to_le32(enables);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		return -ENOMEM;
@@ -4604,7 +4640,6 @@ bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 			   int ring_grps, int cp_rings, int vnics)
 {
 	struct hwrm_func_vf_cfg_input req = {0};
-	u32 enables = 0;
 	int rc;
 
 	if (!(bp->flags & BNXT_FLAG_NEW_RM)) {
@@ -4612,22 +4647,8 @@ bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 		return 0;
 	}
 
-	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_VF_CFG, -1, -1);
-	enables |= tx_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_TX_RINGS : 0;
-	enables |= rx_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_RX_RINGS : 0;
-	enables |= cp_rings ? FUNC_VF_CFG_REQ_ENABLES_NUM_CMPL_RINGS |
-			      FUNC_VF_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
-	enables |= ring_grps ? FUNC_VF_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
-	enables |= vnics ? FUNC_VF_CFG_REQ_ENABLES_NUM_VNICS : 0;
-
-	req.num_tx_rings = cpu_to_le16(tx_rings);
-	req.num_rx_rings = cpu_to_le16(rx_rings);
-	req.num_hw_ring_grps = cpu_to_le16(ring_grps);
-	req.num_cmpl_rings = cpu_to_le16(cp_rings);
-	req.num_stat_ctxs = req.num_cmpl_rings;
-	req.num_vnics = cpu_to_le16(vnics);
-
-	req.enables = cpu_to_le32(enables);
+	__bnxt_hwrm_reserve_vf_rings(bp, &req, tx_rings, rx_rings, ring_grps,
+				     cp_rings, vnics);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
 		return -ENOMEM;
