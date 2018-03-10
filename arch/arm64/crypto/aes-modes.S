@@ -94,17 +94,36 @@ AES_ENDPROC(aes_ecb_decrypt)
 	 */
 
 AES_ENTRY(aes_cbc_encrypt)
-	ld1		{v0.16b}, [x5]			/* get iv */
+	ld1		{v4.16b}, [x5]			/* get iv */
 	enc_prepare	w3, x2, x6
 
-.Lcbcencloop:
-	ld1		{v1.16b}, [x1], #16		/* get next pt block */
-	eor		v0.16b, v0.16b, v1.16b		/* ..and xor with iv */
+.Lcbcencloop4x:
+	subs		w4, w4, #4
+	bmi		.Lcbcenc1x
+	ld1		{v0.16b-v3.16b}, [x1], #64	/* get 4 pt blocks */
+	eor		v0.16b, v0.16b, v4.16b		/* ..and xor with iv */
 	encrypt_block	v0, w3, x2, x6, w7
-	st1		{v0.16b}, [x0], #16
+	eor		v1.16b, v1.16b, v0.16b
+	encrypt_block	v1, w3, x2, x6, w7
+	eor		v2.16b, v2.16b, v1.16b
+	encrypt_block	v2, w3, x2, x6, w7
+	eor		v3.16b, v3.16b, v2.16b
+	encrypt_block	v3, w3, x2, x6, w7
+	st1		{v0.16b-v3.16b}, [x0], #64
+	mov		v4.16b, v3.16b
+	b		.Lcbcencloop4x
+.Lcbcenc1x:
+	adds		w4, w4, #4
+	beq		.Lcbcencout
+.Lcbcencloop:
+	ld1		{v0.16b}, [x1], #16		/* get next pt block */
+	eor		v4.16b, v4.16b, v0.16b		/* ..and xor with iv */
+	encrypt_block	v4, w3, x2, x6, w7
+	st1		{v4.16b}, [x0], #16
 	subs		w4, w4, #1
 	bne		.Lcbcencloop
-	st1		{v0.16b}, [x5]			/* return iv */
+.Lcbcencout:
+	st1		{v4.16b}, [x5]			/* return iv */
 	ret
 AES_ENDPROC(aes_cbc_encrypt)
 
