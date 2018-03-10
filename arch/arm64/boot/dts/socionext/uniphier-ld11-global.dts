@@ -1,12 +1,10 @@
-/*
- * Device Tree Source for UniPhier LD11 Global Board
- *
- * Copyright (C) 2016-2017 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *           Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- */
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier LD11 Global Board
+//
+// Copyright (C) 2016-2017 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
+//           Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
 
 /dts-v1/;
 #include <dt-bindings/gpio/uniphier-gpio.h>
