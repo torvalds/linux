@@ -38,6 +38,17 @@
  */
 #define UDR_READ_RETRY_CNT	5
 
+enum {
+	RTC_SEC = 0,
+	RTC_MIN,
+	RTC_HOUR,
+	RTC_WEEKDAY,
+	RTC_DATE,
+	RTC_MONTH,
+	RTC_YEAR1,
+	RTC_YEAR2,
+};
+
 /*
  * Registers used by the driver which are different between chipsets.
  *
