@@ -266,6 +266,22 @@ static inline bool fw_state_is_aborted(struct fw_priv *fw_priv)
 
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 
+/**
+ * struct firmware_fallback_config - firmware fallback configuratioon settings
+ *
+ * Helps describe and fine tune the fallback mechanism.
+ *
+ * @force_sysfs_fallback: force the sysfs fallback mechanism to be used
+ * 	as if one had enabled CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y.
+ */
+struct firmware_fallback_config {
+	bool force_sysfs_fallback;
+};
+
+static const struct firmware_fallback_config fw_fallback_config = {
+	.force_sysfs_fallback = IS_ENABLED(CONFIG_FW_LOADER_USER_HELPER_FALLBACK),
+};
+
 static inline bool fw_sysfs_done(struct fw_priv *fw_priv)
 {
 	return __fw_state_check(fw_priv, FW_STATUS_DONE);
@@ -1151,19 +1167,14 @@ out_unlock:
 	return ret;
 }
 
-#ifdef CONFIG_FW_LOADER_USER_HELPER_FALLBACK
 static bool fw_force_sysfs_fallback(unsigned int opt_flags)
 {
-	return true;
-}
-#else
-static bool fw_force_sysfs_fallback(unsigned int opt_flags)
-{
+	if (fw_fallback_config.force_sysfs_fallback)
+		return true;
 	if (!(opt_flags & FW_OPT_USERHELPER))
 		return false;
 	return true;
 }
-#endif
 
 static bool fw_run_sysfs_fallback(unsigned int opt_flags)
 {
