@@ -43,6 +43,58 @@ check_mods()
 	fi
 }
 
+check_setup()
+{
+	HAS_FW_LOADER_USER_HELPER="$(kconfig_has CONFIG_FW_LOADER_USER_HELPER=y)"
+	HAS_FW_LOADER_USER_HELPER_FALLBACK="$(kconfig_has CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y)"
+
+	if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+	       OLD_TIMEOUT="$(cat /sys/class/firmware/timeout)"
+	fi
+
+	OLD_FWPATH="$(cat /sys/module/firmware_class/parameters/path)"
+}
+
+verify_reqs()
+{
+	if [ "$TEST_REQS_FW_SYSFS_FALLBACK" = "yes" ]; then
+		if [ ! "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+			echo "usermode helper disabled so ignoring test"
+			exit 0
+		fi
+	fi
+}
+
+setup_tmp_file()
+{
+	FWPATH=$(mktemp -d)
+	FW="$FWPATH/test-firmware.bin"
+	echo "ABCD0123" >"$FW"
+	NAME=$(basename "$FW")
+	if [ "$TEST_REQS_FW_SET_CUSTOM_PATH" = "yes" ]; then
+		echo -n "$FWPATH" >/sys/module/firmware_class/parameters/path
+	fi
+}
+
+test_finish()
+{
+	if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
+		echo "$OLD_TIMEOUT" >/sys/class/firmware/timeout
+	fi
+	if [ "$OLD_FWPATH" = "" ]; then
+		OLD_FWPATH=" "
+	fi
+	if [ "$TEST_REQS_FW_SET_CUSTOM_PATH" = "yes" ]; then
+		echo -n "$OLD_FWPATH" >/sys/module/firmware_class/parameters/path
+	fi
+	if [ -f $FW ]; then
+		rm -f "$FW"
+	fi
+	if [ -d $FWPATH ]; then
+		rm -rf "$FWPATH"
+	fi
+}
+
 kconfig_has()
 {
 	if [ -f $PROC_CONFIG ]; then

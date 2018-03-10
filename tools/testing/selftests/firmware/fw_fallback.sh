@@ -6,30 +6,17 @@
 # won't find so that we can do the load ourself manually.
 set -e
 
+TEST_REQS_FW_SYSFS_FALLBACK="yes"
+TEST_REQS_FW_SET_CUSTOM_PATH="no"
 TEST_DIR=$(dirname $0)
 source $TEST_DIR/fw_lib.sh
 
 check_mods
+check_setup
+verify_reqs
+setup_tmp_file
 
-HAS_FW_LOADER_USER_HELPER=$(kconfig_has CONFIG_FW_LOADER_USER_HELPER=y)
-HAS_FW_LOADER_USER_HELPER_FALLBACK=$(kconfig_has CONFIG_FW_LOADER_USER_HELPER_FALLBACK=y)
-
-if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
-       OLD_TIMEOUT=$(cat /sys/class/firmware/timeout)
-else
-	echo "usermode helper disabled so ignoring test"
-	exit 0
-fi
-
-FWPATH=$(mktemp -d)
-FW="$FWPATH/test-firmware.bin"
-
-test_finish()
-{
-	echo "$OLD_TIMEOUT" >/sys/class/firmware/timeout
-	rm -f "$FW"
-	rmdir "$FWPATH"
-}
+trap "test_finish" EXIT
 
 load_fw()
 {
@@ -167,12 +154,6 @@ load_fw_fallback_with_child()
 	wait
 	return $RET
 }
-
-trap "test_finish" EXIT
-
-# This is an unlikely real-world firmware content. :)
-echo "ABCD0123" >"$FW"
-NAME=$(basename "$FW")
 
 test_syfs_timeout()
 {

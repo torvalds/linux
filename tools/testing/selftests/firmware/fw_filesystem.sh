@@ -6,38 +6,15 @@
 # know so we can be sure we're not accidentally testing the user helper.
 set -e
 
+TEST_REQS_FW_SYSFS_FALLBACK="no"
+TEST_REQS_FW_SET_CUSTOM_PATH="yes"
 TEST_DIR=$(dirname $0)
 source $TEST_DIR/fw_lib.sh
 
 check_mods
-
-# CONFIG_FW_LOADER_USER_HELPER has a sysfs class under /sys/class/firmware/
-# These days most distros enable CONFIG_FW_LOADER_USER_HELPER but disable
-# CONFIG_FW_LOADER_USER_HELPER_FALLBACK. We use /sys/class/firmware/ as an
-# indicator for CONFIG_FW_LOADER_USER_HELPER.
-HAS_FW_LOADER_USER_HELPER=$(if [ -d /sys/class/firmware/ ]; then echo yes; else echo no; fi)
-
-if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
-	OLD_TIMEOUT=$(cat /sys/class/firmware/timeout)
-fi
-
-OLD_FWPATH=$(cat /sys/module/firmware_class/parameters/path)
-
-FWPATH=$(mktemp -d)
-FW="$FWPATH/test-firmware.bin"
-
-test_finish()
-{
-	if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
-		echo "$OLD_TIMEOUT" >/sys/class/firmware/timeout
-	fi
-	if [ "$OLD_FWPATH" = "" ]; then
-		OLD_FWPATH=" "
-	fi
-	echo -n "$OLD_FWPATH" >/sys/module/firmware_class/parameters/path
-	rm -f "$FW"
-	rmdir "$FWPATH"
-}
+check_setup
+verify_reqs
+setup_tmp_file
 
 trap "test_finish" EXIT
 
@@ -45,14 +22,6 @@ if [ "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
 	# Turn down the timeout so failures don't take so long.
 	echo 1 >/sys/class/firmware/timeout
 fi
-
-# Set the kernel search path.
-echo -n "$FWPATH" >/sys/module/firmware_class/parameters/path
-
-# This is an unlikely real-world firmware content. :)
-echo "ABCD0123" >"$FW"
-
-NAME=$(basename "$FW")
 
 if printf '\000' >"$DIR"/trigger_request 2> /dev/null; then
 	echo "$0: empty filename should not succeed" >&2
