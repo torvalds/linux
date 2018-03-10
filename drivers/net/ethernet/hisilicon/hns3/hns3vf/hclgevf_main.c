@@ -744,7 +744,7 @@ static int hclgevf_set_mac_addr(struct hnae3_handle *handle, void *p,
 
 	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_UNICAST,
 				      subcode, msg_data, ETH_ALEN * 2,
-				      false, NULL, 0);
+				      true, NULL, 0);
 	if (!status)
 		ether_addr_copy(hdev->hw.mac.mac_addr, new_mac_addr);
 
