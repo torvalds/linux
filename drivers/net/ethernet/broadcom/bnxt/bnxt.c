@@ -8432,13 +8432,20 @@ int bnxt_restore_pf_fw_resources(struct bnxt *bp)
 		return 0;
 
 	bnxt_hwrm_func_qcaps(bp);
-	__bnxt_close_nic(bp, true, false);
+
+	if (netif_running(bp->dev))
+		__bnxt_close_nic(bp, true, false);
+
 	bnxt_clear_int_mode(bp);
 	rc = bnxt_init_int_mode(bp);
-	if (rc)
-		dev_close(bp->dev);
-	else
-		rc = bnxt_open_nic(bp, true, false);
+
+	if (netif_running(bp->dev)) {
+		if (rc)
+			dev_close(bp->dev);
+		else
+			rc = bnxt_open_nic(bp, true, false);
+	}
+
 	return rc;
 }
 
