@@ -3779,11 +3779,11 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 		if ((!resp_code) || (resp_code == 1)) {
 			return_status = 0;
 		} else if (resp_code == 2) {
-			return_status = -EIO;
+			return_status = -ENOSPC;
 			dev_err(&hdev->pdev->dev,
 				"add mac addr failed for uc_overflow.\n");
 		} else if (resp_code == 3) {
-			return_status = -EIO;
+			return_status = -ENOSPC;
 			dev_err(&hdev->pdev->dev,
 				"add mac addr failed for mc_overflow.\n");
 		} else {
@@ -3795,7 +3795,7 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 		if (!resp_code) {
 			return_status = 0;
 		} else if (resp_code == 1) {
-			return_status = -EIO;
+			return_status = -ENOENT;
 			dev_dbg(&hdev->pdev->dev,
 				"remove mac addr failed for miss.\n");
 		} else {
@@ -3807,7 +3807,7 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 		if (!resp_code) {
 			return_status = 0;
 		} else if (resp_code == 1) {
-			return_status = -EIO;
+			return_status = -ENOENT;
 			dev_dbg(&hdev->pdev->dev,
 				"lookup mac addr failed for miss.\n");
 		} else {
@@ -3816,7 +3816,7 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 				resp_code);
 		}
 	} else {
-		return_status = -EIO;
+		return_status = -EINVAL;
 		dev_err(&hdev->pdev->dev,
 			"unknown opcode for get_mac_vlan_cmd_status,opcode=%d.\n",
 			op);
