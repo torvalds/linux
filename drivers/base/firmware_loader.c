@@ -191,13 +191,6 @@ static inline bool fw_is_builtin_firmware(const struct firmware *fw)
 }
 #endif
 
-static int loading_timeout = 60;	/* In seconds */
-
-static inline long firmware_loading_timeout(void)
-{
-	return loading_timeout > 0 ? loading_timeout * HZ : MAX_JIFFY_OFFSET;
-}
-
 static void fw_state_init(struct fw_priv *fw_priv)
 {
 	struct fw_state *fw_st = &fw_priv->fw_st;
@@ -281,6 +274,32 @@ struct firmware_fallback_config {
 static const struct firmware_fallback_config fw_fallback_config = {
 	.force_sysfs_fallback = IS_ENABLED(CONFIG_FW_LOADER_USER_HELPER_FALLBACK),
 };
+
+static int old_timeout;
+static int loading_timeout = 60;	/* In seconds */
+
+static inline long firmware_loading_timeout(void)
+{
+	return loading_timeout > 0 ? loading_timeout * HZ : MAX_JIFFY_OFFSET;
+}
+
+/*
+ * use small loading timeout for caching devices' firmware because all these
+ * firmware images have been loaded successfully at lease once, also system is
+ * ready for completing firmware loading now. The maximum size of firmware in
+ * current distributions is about 2M bytes, so 10 secs should be enough.
+ */
+static void fw_fallback_set_cache_timeout(void)
+{
+	old_timeout = loading_timeout;
+	loading_timeout = 10;
+}
+
+/* Restores the timeout to the value last configured during normal operation */
+static void fw_fallback_set_default_timeout(void)
+{
+	loading_timeout =  old_timeout;
+}
 
 static inline bool fw_sysfs_done(struct fw_priv *fw_priv)
 {
@@ -1206,6 +1225,8 @@ static int fw_sysfs_fallback(struct firmware *fw, const char *name,
 }
 
 static inline void kill_pending_fw_fallback_reqs(bool only_kill_custom) { }
+static inline void fw_fallback_set_cache_timeout(void) { }
+static inline void fw_fallback_set_default_timeout(void) { }
 
 static inline int register_sysfs_loader(void)
 {
@@ -1752,7 +1773,6 @@ static void __device_uncache_fw_images(void)
 static void device_cache_fw_images(void)
 {
 	struct firmware_cache *fwc = &fw_cache;
-	int old_timeout;
 	DEFINE_WAIT(wait);
 
 	pr_debug("%s\n", __func__);
@@ -1760,16 +1780,7 @@ static void device_cache_fw_images(void)
 	/* cancel uncache work */
 	cancel_delayed_work_sync(&fwc->work);
 
-	/*
-	 * use small loading timeout for caching devices' firmware
-	 * because all these firmware images have been loaded
-	 * successfully at lease once, also system is ready for
-	 * completing firmware loading now. The maximum size of
-	 * firmware in current distributions is about 2M bytes,
-	 * so 10 secs should be enough.
-	 */
-	old_timeout = loading_timeout;
-	loading_timeout = 10;
+	fw_fallback_set_cache_timeout();
 
 	mutex_lock(&fw_lock);
 	fwc->state = FW_LOADER_START_CACHE;
@@ -1779,7 +1790,7 @@ static void device_cache_fw_images(void)
 	/* wait for completion of caching firmware for all devices */
 	async_synchronize_full_domain(&fw_cache_domain);
 
-	loading_timeout = old_timeout;
+	fw_fallback_set_default_timeout();
 }
 
 /**
