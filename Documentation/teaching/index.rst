@@ -37,6 +37,7 @@ then point your browser at **Documentation/output/labs/index.html**.
    lectures/so2.cs.pub.ro.rst
    lectures/intro.rst
    lectures/syscalls.rst
+   lectures/interrupts.rst
    labs/vm.rst
    labs/exercises.rst
    labs/introduction.rst
