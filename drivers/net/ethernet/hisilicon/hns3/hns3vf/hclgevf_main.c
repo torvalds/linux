@@ -734,20 +734,24 @@ static void hclgevf_get_mac_addr(struct hnae3_handle *handle, u8 *p)
 	ether_addr_copy(p, hdev->hw.mac.mac_addr);
 }
 
-static int hclgevf_set_mac_addr(struct hnae3_handle *handle, void *p)
+static int hclgevf_set_mac_addr(struct hnae3_handle *handle, void *p,
+				bool is_first)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	u8 *old_mac_addr = (u8 *)hdev->hw.mac.mac_addr;
 	u8 *new_mac_addr = (u8 *)p;
 	u8 msg_data[ETH_ALEN * 2];
+	u16 subcode;
 	int status;
 
 	ether_addr_copy(msg_data, new_mac_addr);
 	ether_addr_copy(&msg_data[ETH_ALEN], old_mac_addr);
 
+	subcode = is_first ? HCLGE_MBX_MAC_VLAN_UC_ADD :
+			HCLGE_MBX_MAC_VLAN_UC_MODIFY;
+
 	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_UNICAST,
-				      HCLGE_MBX_MAC_VLAN_UC_MODIFY,
-				      msg_data, ETH_ALEN * 2,
+				      subcode, msg_data, ETH_ALEN * 2,
 				      false, NULL, 0);
 	if (!status)
 		ether_addr_copy(hdev->hw.mac.mac_addr, new_mac_addr);

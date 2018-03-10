@@ -1120,7 +1120,7 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 	if (!mac_addr || !is_valid_ether_addr((const u8 *)mac_addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ret = h->ae_algo->ops->set_mac_addr(h, mac_addr->sa_data);
+	ret = h->ae_algo->ops->set_mac_addr(h, mac_addr->sa_data, false);
 	if (ret) {
 		netdev_err(netdev, "set_mac_address fail, ret=%d!\n", ret);
 		return ret;
@@ -3048,7 +3048,7 @@ static void hns3_init_mac_addr(struct net_device *netdev)
 	}
 
 	if (h->ae_algo->ops->set_mac_addr)
-		h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr);
+		h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr, true);
 
 }
 
