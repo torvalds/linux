@@ -535,8 +535,15 @@ exit:
 	return fw_sysfs;
 }
 
-/* load a firmware via user helper */
-static int _request_firmware_load(struct fw_sysfs *fw_sysfs,
+/**
+ * fw_load_sysfs_fallback - load a firmware via the syfs fallback mechanism
+ * @fw_sysfs: firmware syfs information for the firmware to load
+ * @opt_flags: flags of options, FW_OPT_*
+ * @timeout: timeout to wait for the load
+ *
+ * In charge of constructing a sysfs fallback interface for firmware loading.
+ **/
+static int fw_load_sysfs_fallback(struct fw_sysfs *fw_sysfs,
 				  unsigned int opt_flags, long timeout)
 {
 	int retval = 0;
@@ -621,7 +628,7 @@ static int fw_load_from_user_helper(struct firmware *firmware,
 	}
 
 	fw_sysfs->fw_priv = firmware->priv;
-	ret = _request_firmware_load(fw_sysfs, opt_flags, timeout);
+	ret = fw_load_sysfs_fallback(fw_sysfs, opt_flags, timeout);
 
 	if (!ret)
 		ret = assign_fw(firmware, device, opt_flags);
