@@ -192,7 +192,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 #define   OCTNET_MAX_FRM_SIZE        (16000 + OCTNET_FRM_HEADER_SIZE)
 
-#define   OCTNET_DEFAULT_FRM_SIZE    (1500 + OCTNET_FRM_HEADER_SIZE)
+#define   OCTNET_DEFAULT_MTU         (1500)
+#define   OCTNET_DEFAULT_FRM_SIZE  (OCTNET_DEFAULT_MTU + OCTNET_FRM_HEADER_SIZE)
 
 /** NIC Commands are sent using this Octeon Input Queue */
 #define   OCTNET_CMD_Q                0

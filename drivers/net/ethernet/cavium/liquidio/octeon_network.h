@@ -35,6 +35,18 @@
 #define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
 #define   LIO_IFSTATE_RESETTING		   0x10
 
+struct liquidio_if_cfg_context {
+	u32 octeon_id;
+	wait_queue_head_t wc;
+	int cond;
+};
+
+struct liquidio_if_cfg_resp {
+	u64 rh;
+	struct liquidio_if_cfg_info cfg_info;
+	u64 status;
+};
+
 struct oct_nic_stats_resp {
 	u64     rh;
 	struct oct_link_stats stats;
@@ -183,6 +195,14 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs);
  * @param netdev    pointer to network device
  */
 void liquidio_set_ethtool_ops(struct net_device *netdev);
+
+/**
+ * \brief Net device change_mtu
+ * @param netdev network device
+ */
+int liquidio_change_mtu(struct net_device *netdev, int new_mtu);
+#define LIO_CHANGE_MTU_SUCCESS 1
+#define LIO_CHANGE_MTU_FAIL    2
 
 #define SKB_ADJ_MASK  0x3F
 #define SKB_ADJ       (SKB_ADJ_MASK + 1)

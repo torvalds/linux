@@ -91,20 +91,6 @@ static int octeon_console_debug_enabled(u32 console)
  */
 #define LIO_SYNC_OCTEON_TIME_INTERVAL_MS 60000
 
-struct liquidio_if_cfg_context {
-	int octeon_id;
-
-	wait_queue_head_t wc;
-
-	int cond;
-};
-
-struct liquidio_if_cfg_resp {
-	u64 rh;
-	struct liquidio_if_cfg_info cfg_info;
-	u64 status;
-};
-
 struct liquidio_rx_ctl_context {
 	int octeon_id;
 
@@ -841,8 +827,12 @@ static void octnet_link_status_change(struct work_struct *work)
 	struct cavium_wk *wk = (struct cavium_wk *)work;
 	struct lio *lio = (struct lio *)wk->ctxptr;
 
+	/* lio->linfo.link.s.mtu always contains max MTU of the lio interface.
+	 * this API is invoked only when new max-MTU of the interface is
+	 * less than current MTU.
+	 */
 	rtnl_lock();
-	call_netdevice_notifiers(NETDEV_CHANGEMTU, lio->netdev);
+	dev_set_mtu(lio->netdev, lio->linfo.link.s.mtu);
 	rtnl_unlock();
 }
 
@@ -891,7 +881,11 @@ static inline void update_link_status(struct net_device *netdev,
 {
 	struct lio *lio = GET_LIO(netdev);
 	int changed = (lio->linfo.link.u64 != ls->u64);
+	int current_max_mtu = lio->linfo.link.s.mtu;
+	struct octeon_device *oct = lio->oct_dev;
 
+	dev_dbg(&oct->pci_dev->dev, "%s: lio->linfo.link.u64=%llx, ls->u64=%llx\n",
+		__func__, lio->linfo.link.u64, ls->u64);
 	lio->linfo.link.u64 = ls->u64;
 
 	if ((lio->intf_open) && (changed)) {
@@ -899,11 +893,25 @@ static inline void update_link_status(struct net_device *netdev,
 		lio->link_changes++;
 
 		if (lio->linfo.link.s.link_up) {
+			dev_dbg(&oct->pci_dev->dev, "%s: link_up", __func__);
 			netif_carrier_on(netdev);
 			txqs_wake(netdev);
 		} else {
+			dev_dbg(&oct->pci_dev->dev, "%s: link_off", __func__);
 			netif_carrier_off(netdev);
 			stop_txq(netdev);
+		}
+		if (lio->linfo.link.s.mtu != current_max_mtu) {
+			netif_info(lio, probe, lio->netdev, "Max MTU changed from %d to %d\n",
+				   current_max_mtu, lio->linfo.link.s.mtu);
+			netdev->max_mtu = lio->linfo.link.s.mtu;
+		}
+		if (lio->linfo.link.s.mtu < netdev->mtu) {
+			dev_warn(&oct->pci_dev->dev,
+				 "Current MTU is higher than new max MTU; Reducing the current mtu from %d to %d\n",
+				     netdev->mtu, lio->linfo.link.s.mtu);
+			queue_delayed_work(lio->link_status_wq.wq,
+					   &lio->link_status_wq.wk.work, 0);
 		}
 	}
 }
@@ -2446,38 +2454,6 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 	stats->rx_dropped = drop;
 
 	return stats;
-}
-
-/**
- * \brief Net device change_mtu
- * @param netdev network device
- */
-static int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
-{
-	struct lio *lio = GET_LIO(netdev);
-	struct octeon_device *oct = lio->oct_dev;
-	struct octnic_ctrl_pkt nctrl;
-	int ret = 0;
-
-	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
-
-	nctrl.ncmd.u64 = 0;
-	nctrl.ncmd.s.cmd = OCTNET_CMD_CHANGE_MTU;
-	nctrl.ncmd.s.param1 = new_mtu;
-	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
-	nctrl.netpndev = (u64)netdev;
-	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-
-	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
-		dev_err(&oct->pci_dev->dev, "Failed to set MTU\n");
-		return -1;
-	}
-
-	lio->mtu = new_mtu;
-
-	return 0;
 }
 
 /**
