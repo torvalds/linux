@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 # This validates that the kernel will load firmware out of its list of
 # firmware locations on disk. Since the user helper does similar work,
@@ -6,24 +6,10 @@
 # know so we can be sure we're not accidentally testing the user helper.
 set -e
 
-DIR=/sys/devices/virtual/misc/test_firmware
 TEST_DIR=$(dirname $0)
+source $TEST_DIR/fw_lib.sh
 
-test_modprobe()
-{
-	if [ ! -d $DIR ]; then
-		echo "$0: $DIR not present"
-		echo "You must have the following enabled in your kernel:"
-		cat $TEST_DIR/config
-		exit 1
-	fi
-}
-
-trap "test_modprobe" EXIT
-
-if [ ! -d $DIR ]; then
-	modprobe test_firmware
-fi
+check_mods
 
 # CONFIG_FW_LOADER_USER_HELPER has a sysfs class under /sys/class/firmware/
 # These days most distros enable CONFIG_FW_LOADER_USER_HELPER but disable

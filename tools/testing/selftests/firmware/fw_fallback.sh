@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 # This validates that the kernel will fall back to using the fallback mechanism
 # to load firmware it can't find on disk itself. We must request a firmware
@@ -6,9 +6,10 @@
 # won't find so that we can do the load ourself manually.
 set -e
 
-modprobe test_firmware
+TEST_DIR=$(dirname $0)
+source $TEST_DIR/fw_lib.sh
 
-DIR=/sys/devices/virtual/misc/test_firmware
+check_mods
 
 # CONFIG_FW_LOADER_USER_HELPER has a sysfs class under /sys/class/firmware/
 # These days no one enables CONFIG_FW_LOADER_USER_HELPER so check for that
