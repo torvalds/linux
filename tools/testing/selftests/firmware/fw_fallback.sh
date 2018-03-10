@@ -238,8 +238,10 @@ run_sysfs_main_tests()
 
 run_sysfs_custom_load_tests()
 {
-	if load_fw_custom "$NAME" "$FW" ; then
-		if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
+	RANDOM_FILE_PATH=$(setup_random_file)
+	RANDOM_FILE="$(basename $RANDOM_FILE_PATH)"
+	if load_fw_custom "$RANDOM_FILE" "$RANDOM_FILE_PATH" ; then
+		if ! diff -q "$RANDOM_FILE_PATH" /dev/test_firmware >/dev/null ; then
 			echo "$0: firmware was not loaded" >&2
 			exit 1
 		else
@@ -247,8 +249,10 @@ run_sysfs_custom_load_tests()
 		fi
 	fi
 
-	if load_fw_custom "$NAME" "$FW" ; then
-		if ! diff -q "$FW" /dev/test_firmware >/dev/null ; then
+	RANDOM_FILE_PATH=$(setup_random_file)
+	RANDOM_FILE="$(basename $RANDOM_FILE_PATH)"
+	if load_fw_custom "$RANDOM_FILE" "$RANDOM_FILE_PATH" ; then
+		if ! diff -q "$RANDOM_FILE_PATH" /dev/test_firmware >/dev/null ; then
 			echo "$0: firmware was not loaded" >&2
 			exit 1
 		else
@@ -256,8 +260,12 @@ run_sysfs_custom_load_tests()
 		fi
 	fi
 
-	if load_fw_custom_cancel "nope-$NAME" "$FW" ; then
-		if diff -q "$FW" /dev/test_firmware >/dev/null ; then
+	RANDOM_FILE_REAL="$RANDOM_FILE_PATH"
+	FAKE_RANDOM_FILE_PATH=$(setup_random_file_fake)
+	FAKE_RANDOM_FILE="$(basename $FAKE_RANDOM_FILE_PATH)"
+
+	if load_fw_custom_cancel "$FAKE_RANDOM_FILE" "$RANDOM_FILE_REAL" ; then
+		if diff -q "$RANDOM_FILE_PATH" /dev/test_firmware >/dev/null ; then
 			echo "$0: firmware was expected to be cancelled" >&2
 			exit 1
 		else

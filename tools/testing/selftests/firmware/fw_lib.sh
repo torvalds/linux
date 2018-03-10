@@ -104,6 +104,29 @@ setup_tmp_file()
 	fi
 }
 
+__setup_random_file()
+{
+	RANDOM_FILE_PATH="$(mktemp -p $FWPATH)"
+	# mktemp says dry-run -n is unsafe, so...
+	if [[ "$1" = "fake" ]]; then
+		rm -rf $RANDOM_FILE_PATH
+		sync
+	else
+		echo "ABCD0123" >"$RANDOM_FILE_PATH"
+	fi
+	echo $RANDOM_FILE_PATH
+}
+
+setup_random_file()
+{
+	echo $(__setup_random_file)
+}
+
+setup_random_file_fake()
+{
+	echo $(__setup_random_file fake)
+}
+
 proc_set_force_sysfs_fallback()
 {
 	if [ -f $FW_FORCE_SYSFS_FALLBACK ]; then

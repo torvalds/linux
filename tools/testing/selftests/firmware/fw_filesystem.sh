@@ -230,10 +230,13 @@ test_wait_and_cancel_custom_load()
 test_request_firmware_nowait_custom_nofile()
 {
 	echo -n "Batched request_firmware_nowait(uevent=false) nofile try #$1: "
+	config_reset
 	config_unset_uevent
-	config_set_name nope-test-firmware.bin
+	RANDOM_FILE_PATH=$(setup_random_file_fake)
+	RANDOM_FILE="$(basename $RANDOM_FILE_PATH)"
+	config_set_name $RANDOM_FILE
 	config_trigger_async &
-	test_wait_and_cancel_custom_load nope-test-firmware.bin
+	test_wait_and_cancel_custom_load $RANDOM_FILE
 	wait
 	release_all_firmware
 	echo "OK"
@@ -271,7 +274,11 @@ test_request_firmware_nowait_uevent()
 test_request_firmware_nowait_custom()
 {
 	echo -n "Batched request_firmware_nowait(uevent=false) try #$1: "
+	config_reset
 	config_unset_uevent
+	RANDOM_FILE_PATH=$(setup_random_file)
+	RANDOM_FILE="$(basename $RANDOM_FILE_PATH)"
+	config_set_name $RANDOM_FILE
 	config_trigger_async
 	release_all_firmware
 	echo "OK"
