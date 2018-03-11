@@ -8,7 +8,6 @@ fi
 #Check Crosscompile
 crosscompile=0
 if [[ -z $(cat /proc/cpuinfo | grep -i 'model name.*ArmV7') ]]; then
-	echo do crosscompile;
 	if [[ -z "$(which arm-linux-gnueabihf-gcc)" ]];then echo "please install gcc-arm-linux-gnueabihf";exit 1;fi
 
 	export ARCH=arm;export CROSS_COMPILE=arm-linux-gnueabihf-
@@ -21,6 +20,9 @@ for package in "u-boot-tools" "bc" "make" "gcc" "libc6-dev" "libncurses5-dev"; d
 	if [[ -z "$(dpkg -l |grep ${package})" ]];then echo "please install ${package}";PACKAGE_Error=1;fi
 done
 if [ ${PACKAGE_Error} == 1 ]; then exit 1; fi
+
+kernver=$(make kernelversion)
+gitbranch=$(git rev-parse --abbrev-ref HEAD)
 
 function pack {
 	prepare_SD
@@ -76,9 +78,6 @@ function build {
 		rm arch/arm/boot/zImage-dtb 2>/dev/null
 		rm ./uImage 2>/dev/null
 
-		kernver=$(make kernelversion)
-		gitbranch=$(git rev-parse --abbrev-ref HEAD)
-
 		exec 3> >(tee build.log)
 		export LOCALVERSION="-${gitbranch}"
 		make ${CFLAGS} 2>&3 #&& make modules_install 2>&3
@@ -90,7 +89,7 @@ function build {
 			mkimage -A arm -O linux -T kernel -C none -a 80008000 -e 80008000 -n "Linux Kernel $kernver-$gitbranch" -d arch/arm/boot/zImage-dtb ./uImage
 		fi
 	else
-                echo "No Configfile found, Please Configure Kernel"
+		echo "No Configfile found, Please Configure Kernel"
 	fi
 }
 
@@ -106,7 +105,7 @@ function prepare_SD {
 	for createDir in "$SD/BPI-BOOT/bananapi/bpi-r2/linux/" "$SD/BPI-ROOT/lib/modules" "$SD/BPI-ROOT/etc/firmware" "$SD/BPI-ROOT/usr/bin" "$SD/BPI-ROOT/system/etc/firmware" "$SD/BPI-ROOT/lib/firmware"; do
 		mkdir -p ${createDir} >/dev/null 2>/dev/null
 	done
-	
+
 	echo "copy..."
 	export INSTALL_MOD_PATH=$SD/BPI-ROOT/;
 	echo "INSTALL_MOD_PATH: $INSTALL_MOD_PATH"
@@ -133,7 +132,7 @@ if [ -n "$(make kernelversion)" ]; then
 		"reset")
 			echo "Reset Git"
 			##Reset Git
-	    		git reset --hard v4.14
+	    		git reset --hard HEAD
 			#call self and Import Config
     			$0 importconfig
 			;;
@@ -164,7 +163,7 @@ if [ -n "$(make kernelversion)" ]; then
 			;;
 
 		"pack")
-			echo "Packe Kernel to Archive"
+			echo "Pack Kernel to Archive"
 			pack
 			;;
 
