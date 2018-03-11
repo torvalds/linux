@@ -17,6 +17,7 @@
 
 /* Common in X86_32 and X86_64 */
 /* kernel/ioport.c */
+long ksys_ioperm(unsigned long from, unsigned long num, int turn_on);
 asmlinkage long sys_ioperm(unsigned long, unsigned long, int);
 asmlinkage long sys_iopl(unsigned int);
 
