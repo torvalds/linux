@@ -1641,6 +1641,9 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 	return 0;
 }
 
+static int ov5640_set_framefmt(struct ov5640_dev *sensor,
+			       struct v4l2_mbus_framefmt *format);
+
 /* restore the last set video mode after chip power-on */
 static int ov5640_restore_mode(struct ov5640_dev *sensor)
 {
@@ -1652,7 +1655,11 @@ static int ov5640_restore_mode(struct ov5640_dev *sensor)
 		return ret;
 
 	/* now restore the last capture mode */
-	return ov5640_set_mode(sensor, &ov5640_mode_init_data);
+	ret = ov5640_set_mode(sensor, &ov5640_mode_init_data);
+	if (ret < 0)
+		return ret;
+
+	return ov5640_set_framefmt(sensor, &sensor->fmt);
 }
 
 static void ov5640_power(struct ov5640_dev *sensor, bool enable)
