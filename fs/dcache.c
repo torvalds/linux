@@ -67,9 +67,7 @@
  *       dentry->d_lock
  *
  * If no ancestor relationship:
- * if (dentry1 < dentry2)
- *   dentry1->d_lock
- *     dentry2->d_lock
+ * arbitrary, since it's serialized on rename_lock
  */
 int sysctl_vfs_cache_pressure __read_mostly = 100;
 EXPORT_SYMBOL_GPL(sysctl_vfs_cache_pressure);
@@ -2777,9 +2775,6 @@ static void copy_name(struct dentry *dentry, struct dentry *target)
 
 static void dentry_lock_for_move(struct dentry *dentry, struct dentry *target)
 {
-	/*
-	 * XXXX: do we really need to take target->d_lock?
-	 */
 	if (IS_ROOT(dentry) || dentry->d_parent == target->d_parent)
 		spin_lock(&target->d_parent->d_lock);
 	else {
@@ -2793,39 +2788,10 @@ static void dentry_lock_for_move(struct dentry *dentry, struct dentry *target)
 						DENTRY_D_LOCK_NESTED);
 		}
 	}
-	if (target < dentry) {
-		spin_lock_nested(&target->d_lock, 2);
-		spin_lock_nested(&dentry->d_lock, 3);
-	} else {
-		spin_lock_nested(&dentry->d_lock, 2);
-		spin_lock_nested(&target->d_lock, 3);
-	}
+	spin_lock_nested(&dentry->d_lock, 2);
+	spin_lock_nested(&target->d_lock, 3);
 }
 
-static void dentry_unlock_for_move(struct dentry *dentry, struct dentry *target)
-{
-	if (target->d_parent != dentry->d_parent)
-		spin_unlock(&dentry->d_parent->d_lock);
-	if (target->d_parent != target)
-		spin_unlock(&target->d_parent->d_lock);
-	spin_unlock(&target->d_lock);
-	spin_unlock(&dentry->d_lock);
-}
-
-/*
- * When switching names, the actual string doesn't strictly have to
- * be preserved in the target - because we're dropping the target
- * anyway. As such, we can just do a simple memcpy() to copy over
- * the new name before we switch, unless we are going to rehash
- * it.  Note that if we *do* unhash the target, we are not allowed
- * to rehash it without giving it a new name/hash key - whether
- * we swap or overwrite the names here, resulting name won't match
- * the reality in filesystem; it's only there for d_path() purposes.
- * Note that all of this is happening under rename_lock, so the
- * any hash lookup seeing it in the middle of manipulations will
- * be discarded anyway.  So we do not care what happens to the hash
- * key in that case.
- */
 /*
  * __d_move - move a dentry
  * @dentry: entry to move
@@ -2840,6 +2806,7 @@ static void dentry_unlock_for_move(struct dentry *dentry, struct dentry *target)
 static void __d_move(struct dentry *dentry, struct dentry *target,
 		     bool exchange)
 {
+	struct dentry *old_parent;
 	struct inode *dir = NULL;
 	unsigned n;
 	if (!dentry->d_inode)
@@ -2858,49 +2825,47 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 	write_seqcount_begin(&dentry->d_seq);
 	write_seqcount_begin_nested(&target->d_seq, DENTRY_D_LOCK_NESTED);
 
+	old_parent = dentry->d_parent;
+
 	/* unhash both */
 	if (!d_unhashed(dentry))
 		___d_drop(dentry);
 	if (!d_unhashed(target))
 		___d_drop(target);
 
-	/* Switch the names.. */
-	if (exchange)
-		swap_names(dentry, target);
-	else
-		copy_name(dentry, target);
-
-	/* rehash in new place(s) */
-	__d_rehash(dentry);
-	if (exchange)
-		__d_rehash(target);
-	else
-		target->d_hash.pprev = NULL;
-
 	/* ... and switch them in the tree */
-	if (IS_ROOT(dentry)) {
-		/* splicing a tree */
-		dentry->d_flags |= DCACHE_RCUACCESS;
-		dentry->d_parent = target->d_parent;
-		target->d_parent = target;
-		list_del_init(&target->d_child);
-		list_move(&dentry->d_child, &dentry->d_parent->d_subdirs);
+	dentry->d_parent = target->d_parent;
+	if (!exchange) {
+		copy_name(dentry, target);
+		target->d_hash.pprev = NULL;
+		dentry->d_parent->d_lockref.count++;
+		if (dentry == old_parent)
+			dentry->d_flags |= DCACHE_RCUACCESS;
+		else
+			WARN_ON(!--old_parent->d_lockref.count);
 	} else {
-		/* swapping two dentries */
-		swap(dentry->d_parent, target->d_parent);
+		target->d_parent = old_parent;
+		swap_names(dentry, target);
 		list_move(&target->d_child, &target->d_parent->d_subdirs);
-		list_move(&dentry->d_child, &dentry->d_parent->d_subdirs);
-		if (exchange)
-			fsnotify_update_flags(target);
-		fsnotify_update_flags(dentry);
+		__d_rehash(target);
+		fsnotify_update_flags(target);
 	}
+	list_move(&dentry->d_child, &dentry->d_parent->d_subdirs);
+	__d_rehash(dentry);
+	fsnotify_update_flags(dentry);
 
 	write_seqcount_end(&target->d_seq);
 	write_seqcount_end(&dentry->d_seq);
 
 	if (dir)
 		end_dir_add(dir, n);
-	dentry_unlock_for_move(dentry, target);
+
+	if (dentry->d_parent != old_parent)
+		spin_unlock(&dentry->d_parent->d_lock);
+	if (dentry != old_parent)
+		spin_unlock(&old_parent->d_lock);
+	spin_unlock(&target->d_lock);
+	spin_unlock(&dentry->d_lock);
 }
 
 /*
@@ -3048,12 +3013,14 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 					inode->i_sb->s_type->name,
 					inode->i_sb->s_id);
 			} else if (!IS_ROOT(new)) {
+				struct dentry *old_parent = dget(new->d_parent);
 				int err = __d_unalias(inode, dentry, new);
 				write_sequnlock(&rename_lock);
 				if (err) {
 					dput(new);
 					new = ERR_PTR(err);
 				}
+				dput(old_parent);
 			} else {
 				__d_move(new, dentry, false);
 				write_sequnlock(&rename_lock);
