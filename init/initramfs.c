@@ -352,7 +352,7 @@ static int __init do_name(void)
 			}
 		}
 	} else if (S_ISDIR(mode)) {
-		sys_mkdir(collected, mode);
+		ksys_mkdir(collected, mode);
 		sys_chown(collected, uid, gid);
 		sys_chmod(collected, mode);
 		dir_add(collected, mtime);

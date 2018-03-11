@@ -972,4 +972,11 @@ static inline long ksys_rmdir(const char __user *pathname)
 	return do_rmdir(AT_FDCWD, pathname);
 }
 
+extern long do_mkdirat(int dfd, const char __user *pathname, umode_t mode);
+
+static inline long ksys_mkdir(const char __user *pathname, umode_t mode)
+{
+	return do_mkdirat(AT_FDCWD, pathname, mode);
+}
+
 #endif

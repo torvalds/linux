@@ -60,7 +60,7 @@ static void __init handle_initrd(void)
 	create_dev("/dev/root.old", Root_RAM0);
 	/* mount initrd on rootfs' /root */
 	mount_block_root("/dev/root.old", root_mountflags & ~MS_RDONLY);
-	sys_mkdir("/old", 0700);
+	ksys_mkdir("/old", 0700);
 	ksys_chdir("/old");
 
 	/* try loading default modules from initrd */
