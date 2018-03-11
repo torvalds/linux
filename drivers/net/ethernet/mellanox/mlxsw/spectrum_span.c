@@ -133,39 +133,6 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_phys = {
 	.deconfigure = mlxsw_sp_span_entry_phys_deconfigure,
 };
 
-static struct net_device *
-mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
-			    __be32 *saddrp, __be32 *daddrp)
-{
-	struct ip_tunnel *tun = netdev_priv(to_dev);
-	struct net_device *dev = NULL;
-	struct ip_tunnel_parm parms;
-	struct rtable *rt = NULL;
-	struct flowi4 fl4;
-
-	/* We assume "dev" stays valid after rt is put. */
-	ASSERT_RTNL();
-
-	parms = mlxsw_sp_ipip_netdev_parms4(to_dev);
-	ip_tunnel_init_flow(&fl4, parms.iph.protocol, *daddrp, *saddrp,
-			    0, 0, parms.link, tun->fwmark);
-
-	rt = ip_route_output_key(tun->net, &fl4);
-	if (IS_ERR(rt))
-		return NULL;
-
-	if (rt->rt_type != RTN_UNICAST)
-		goto out;
-
-	dev = rt->dst.dev;
-	*saddrp = fl4.saddr;
-	*daddrp = rt->rt_gateway;
-
-out:
-	ip_rt_put(rt);
-	return dev;
-}
-
 static int mlxsw_sp_span_dmac(struct neigh_table *tbl,
 			      const void *pkey,
 			      struct net_device *l3edev,
@@ -225,6 +192,39 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
 	sparmsp->saddr = saddr;
 	sparmsp->daddr = daddr;
 	return 0;
+}
+
+static struct net_device *
+mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
+			    __be32 *saddrp, __be32 *daddrp)
+{
+	struct ip_tunnel *tun = netdev_priv(to_dev);
+	struct net_device *dev = NULL;
+	struct ip_tunnel_parm parms;
+	struct rtable *rt = NULL;
+	struct flowi4 fl4;
+
+	/* We assume "dev" stays valid after rt is put. */
+	ASSERT_RTNL();
+
+	parms = mlxsw_sp_ipip_netdev_parms4(to_dev);
+	ip_tunnel_init_flow(&fl4, parms.iph.protocol, *daddrp, *saddrp,
+			    0, 0, parms.link, tun->fwmark);
+
+	rt = ip_route_output_key(tun->net, &fl4);
+	if (IS_ERR(rt))
+		return NULL;
+
+	if (rt->rt_type != RTN_UNICAST)
+		goto out;
+
+	dev = rt->dst.dev;
+	*saddrp = fl4.saddr;
+	*daddrp = rt->rt_gateway;
+
+out:
+	ip_rt_put(rt);
+	return dev;
 }
 
 static int
