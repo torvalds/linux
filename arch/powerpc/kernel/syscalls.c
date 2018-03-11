@@ -57,7 +57,7 @@ static inline long do_mmap2(unsigned long addr, size_t len,
 		off >>= shift;
 	}
 
-	ret = sys_mmap_pgoff(addr, len, prot, flags, fd, off);
+	ret = ksys_mmap_pgoff(addr, len, prot, flags, fd, off);
 out:
 	return ret;
 }

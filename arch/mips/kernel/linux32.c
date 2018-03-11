@@ -67,8 +67,8 @@ SYSCALL_DEFINE6(32_mmap2, unsigned long, addr, unsigned long, len,
 {
 	if (pgoff & (~PAGE_MASK >> 12))
 		return -EINVAL;
-	return sys_mmap_pgoff(addr, len, prot, flags, fd,
-			      pgoff >> (PAGE_SHIFT-12));
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
+			       pgoff >> (PAGE_SHIFT-12));
 }
 
 #define RLIM_INFINITY32 0x7fffffff
