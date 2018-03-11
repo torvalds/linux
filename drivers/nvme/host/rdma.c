@@ -899,7 +899,6 @@ static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
 		queue_delayed_work(nvme_wq, &ctrl->reconnect_work,
 				ctrl->ctrl.opts->reconnect_delay * HZ);
 	} else {
-		dev_info(ctrl->ctrl.device, "Removing controller...\n");
 		nvme_delete_ctrl(&ctrl->ctrl);
 	}
 }
@@ -2031,9 +2030,6 @@ static void nvme_rdma_remove_one(struct ib_device *ib_device, void *client_data)
 	list_for_each_entry(ctrl, &nvme_rdma_ctrl_list, list) {
 		if (ctrl->device->dev != ib_device)
 			continue;
-		dev_info(ctrl->ctrl.device,
-			"Removing ctrl: NQN \"%s\", addr %pISp\n",
-			ctrl->ctrl.opts->subsysnqn, &ctrl->addr);
 		nvme_delete_ctrl(&ctrl->ctrl);
 	}
 	mutex_unlock(&nvme_rdma_ctrl_mutex);

@@ -768,8 +768,7 @@ nvme_fc_ctrl_connectivity_loss(struct nvme_fc_ctrl *ctrl)
 		 */
 		if (nvme_reset_ctrl(&ctrl->ctrl)) {
 			dev_warn(ctrl->ctrl.device,
-				"NVME-FC{%d}: Couldn't schedule reset. "
-				"Deleting controller.\n",
+				"NVME-FC{%d}: Couldn't schedule reset.\n",
 				ctrl->cnum);
 			nvme_delete_ctrl(&ctrl->ctrl);
 		}
@@ -836,8 +835,7 @@ nvme_fc_unregister_remoteport(struct nvme_fc_remote_port *portptr)
 		/* if dev_loss_tmo==0, dev loss is immediate */
 		if (!portptr->dev_loss_tmo) {
 			dev_warn(ctrl->ctrl.device,
-				"NVME-FC{%d}: controller connectivity lost. "
-				"Deleting controller.\n",
+				"NVME-FC{%d}: controller connectivity lost.\n",
 				ctrl->cnum);
 			nvme_delete_ctrl(&ctrl->ctrl);
 		} else
@@ -2882,14 +2880,13 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 		if (portptr->port_state == FC_OBJSTATE_ONLINE)
 			dev_warn(ctrl->ctrl.device,
 				"NVME-FC{%d}: Max reconnect attempts (%d) "
-				"reached. Removing controller\n",
+				"reached.\n",
 				ctrl->cnum, ctrl->ctrl.nr_reconnects);
 		else
 			dev_warn(ctrl->ctrl.device,
 				"NVME-FC{%d}: dev_loss_tmo (%d) expired "
-				"while waiting for remoteport connectivity. "
-				"Removing controller\n", ctrl->cnum,
-				portptr->dev_loss_tmo);
+				"while waiting for remoteport connectivity.\n",
+				ctrl->cnum, portptr->dev_loss_tmo);
 		WARN_ON(nvme_delete_ctrl(&ctrl->ctrl));
 	}
 }
