@@ -492,7 +492,7 @@ void __init change_floppy(char *fmt, ...)
 	fd = sys_open("/dev/root", O_RDWR | O_NDELAY, 0);
 	if (fd >= 0) {
 		sys_ioctl(fd, FDEJECT, 0);
-		sys_close(fd);
+		ksys_close(fd);
 	}
 	printk(KERN_NOTICE "VFS: Insert %s and press ENTER\n", buf);
 	fd = sys_open("/dev/console", O_RDWR, 0);
@@ -503,7 +503,7 @@ void __init change_floppy(char *fmt, ...)
 		sys_read(fd, &c, 1);
 		termios.c_lflag |= ICANON;
 		sys_ioctl(fd, TCSETSF, (long)&termios);
-		sys_close(fd);
+		ksys_close(fd);
 	}
 }
 #endif

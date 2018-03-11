@@ -191,7 +191,7 @@ static void __init md_setup_drive(void)
 			printk(KERN_WARNING
 			       "md: Ignoring md=%d, already autodetected. (Use raid=noautodetect)\n",
 			       minor);
-			sys_close(fd);
+			ksys_close(fd);
 			continue;
 		}
 
@@ -243,11 +243,11 @@ static void __init md_setup_drive(void)
 			 * boot a kernel with devfs compiled in from partitioned md
 			 * array without it
 			 */
-			sys_close(fd);
+			ksys_close(fd);
 			fd = sys_open(name, 0, 0);
 			sys_ioctl(fd, BLKRRPART, 0);
 		}
-		sys_close(fd);
+		ksys_close(fd);
 	}
 }
 
@@ -297,7 +297,7 @@ static void __init autodetect_raid(void)
 	fd = sys_open("/dev/md0", 0, 0);
 	if (fd >= 0) {
 		sys_ioctl(fd, RAID_AUTORUN, raid_autopart);
-		sys_close(fd);
+		ksys_close(fd);
 	}
 }
 

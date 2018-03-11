@@ -638,6 +638,7 @@ out_unlock:
 	spin_unlock(&files->file_lock);
 	return -EBADF;
 }
+EXPORT_SYMBOL(__close_fd); /* for ksys_close() */
 
 void do_close_on_exec(struct files_struct *files)
 {
