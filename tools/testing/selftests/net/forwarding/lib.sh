@@ -50,7 +50,7 @@ fi
 
 if [[ ! -x "$(command -v $MZ)" ]]; then
 	echo "SKIP: $MZ not installed"
-	exit 0
+	exit 1
 fi
 
 if [[ ! -v NUM_NETIFS ]]; then
