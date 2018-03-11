@@ -1263,34 +1263,30 @@ static const struct {
 	}
 };
 
-int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
-		       enum ib_qp_type type, enum ib_qp_attr_mask mask,
-		       enum rdma_link_layer ll)
+bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
+			enum ib_qp_type type, enum ib_qp_attr_mask mask,
+			enum rdma_link_layer ll)
 {
 	enum ib_qp_attr_mask req_param, opt_param;
-
-	if (cur_state  < 0 || cur_state  > IB_QPS_ERR ||
-	    next_state < 0 || next_state > IB_QPS_ERR)
-		return 0;
 
 	if (mask & IB_QP_CUR_STATE  &&
 	    cur_state != IB_QPS_RTR && cur_state != IB_QPS_RTS &&
 	    cur_state != IB_QPS_SQD && cur_state != IB_QPS_SQE)
-		return 0;
+		return false;
 
 	if (!qp_state_table[cur_state][next_state].valid)
-		return 0;
+		return false;
 
 	req_param = qp_state_table[cur_state][next_state].req_param[type];
 	opt_param = qp_state_table[cur_state][next_state].opt_param[type];
 
 	if ((mask & req_param) != req_param)
-		return 0;
+		return false;
 
 	if (mask & ~(req_param | opt_param | IB_QP_STATE))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
