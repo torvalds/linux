@@ -357,7 +357,6 @@ struct rds_message *rds_message_map_pages(unsigned long *page_addrs, unsigned in
 
 static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *from)
 {
-	unsigned long sg_off;
 	struct scatterlist *sg;
 	int ret = 0;
 	int length = iov_iter_count(from);
@@ -370,7 +369,6 @@ static int rds_message_zcopy_from_user(struct rds_message *rm, struct iov_iter *
 	 * now allocate and copy in the data payload.
 	 */
 	sg = rm->data.op_sg;
-	sg_off = 0; /* Dear gcc, sg->page will be null from kzalloc. */
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
