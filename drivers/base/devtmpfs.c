@@ -387,7 +387,7 @@ static int devtmpfsd(void *p)
 	if (*err)
 		goto out;
 	sys_chdir("/.."); /* will traverse into overmounted root */
-	sys_chroot(".");
+	ksys_chroot(".");
 	complete(&setup_done);
 	while (1) {
 		spin_lock(&req_lock);

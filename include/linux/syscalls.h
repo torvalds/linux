@@ -950,5 +950,6 @@ int ksys_mount(char __user *dev_name, char __user *dir_name, char __user *type,
 	       unsigned long flags, void __user *data);
 int ksys_umount(char __user *name, int flags);
 int ksys_dup(unsigned int fildes);
+int ksys_chroot(const char __user *filename);
 
 #endif
