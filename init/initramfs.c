@@ -319,7 +319,7 @@ static void __init clean_path(char *path, umode_t fmode)
 		if (S_ISDIR(st.mode))
 			sys_rmdir(path);
 		else
-			sys_unlink(path);
+			ksys_unlink(path);
 	}
 }
 
@@ -591,7 +591,7 @@ static void __init clean_rootfs(void)
 				if (S_ISDIR(st.mode))
 					sys_rmdir(dirp->d_name);
 				else
-					sys_unlink(dirp->d_name);
+					ksys_unlink(dirp->d_name);
 			}
 
 			num -= dirp->d_reclen;

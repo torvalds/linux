@@ -128,11 +128,11 @@ bool __init initrd_load(void)
 		 * mounted in the normal path.
 		 */
 		if (rd_load_image("/initrd.image") && ROOT_DEV != Root_RAM0) {
-			sys_unlink("/initrd.image");
+			ksys_unlink("/initrd.image");
 			handle_initrd();
 			return true;
 		}
 	}
-	sys_unlink("/initrd.image");
+	ksys_unlink("/initrd.image");
 	return false;
 }
