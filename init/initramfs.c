@@ -343,7 +343,7 @@ static int __init do_name(void)
 			wfd = sys_open(collected, openflags, mode);
 
 			if (wfd >= 0) {
-				sys_fchown(wfd, uid, gid);
+				ksys_fchown(wfd, uid, gid);
 				ksys_fchmod(wfd, mode);
 				if (body_len)
 					sys_ftruncate(wfd, body_len);
@@ -353,14 +353,14 @@ static int __init do_name(void)
 		}
 	} else if (S_ISDIR(mode)) {
 		ksys_mkdir(collected, mode);
-		sys_chown(collected, uid, gid);
+		ksys_chown(collected, uid, gid);
 		ksys_chmod(collected, mode);
 		dir_add(collected, mtime);
 	} else if (S_ISBLK(mode) || S_ISCHR(mode) ||
 		   S_ISFIFO(mode) || S_ISSOCK(mode)) {
 		if (maybe_link() == 0) {
 			ksys_mknod(collected, mode, rdev);
-			sys_chown(collected, uid, gid);
+			ksys_chown(collected, uid, gid);
 			ksys_chmod(collected, mode);
 			do_utime(collected, mtime);
 		}
@@ -393,7 +393,7 @@ static int __init do_symlink(void)
 	collected[N_ALIGN(name_len) + body_len] = '\0';
 	clean_path(collected, 0);
 	ksys_symlink(collected + N_ALIGN(name_len), collected);
-	sys_lchown(collected, uid, gid);
+	ksys_lchown(collected, uid, gid);
 	do_utime(collected, mtime);
 	state = SkipIt;
 	next_state = Reset;

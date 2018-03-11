@@ -22,17 +22,17 @@
 
 SYSCALL_DEFINE3(chown16, const char __user *, filename, old_uid_t, user, old_gid_t, group)
 {
-	return sys_chown(filename, low2highuid(user), low2highgid(group));
+	return ksys_chown(filename, low2highuid(user), low2highgid(group));
 }
 
 SYSCALL_DEFINE3(lchown16, const char __user *, filename, old_uid_t, user, old_gid_t, group)
 {
-	return sys_lchown(filename, low2highuid(user), low2highgid(group));
+	return ksys_lchown(filename, low2highuid(user), low2highgid(group));
 }
 
 SYSCALL_DEFINE3(fchown16, unsigned int, fd, old_uid_t, user, old_gid_t, group)
 {
-	return sys_fchown(fd, low2highuid(user), low2highgid(group));
+	return ksys_fchown(fd, low2highuid(user), low2highgid(group));
 }
 
 SYSCALL_DEFINE2(setregid16, old_gid_t, rgid, old_gid_t, egid)
