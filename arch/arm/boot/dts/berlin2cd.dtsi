@@ -73,6 +73,12 @@
 		};
 	};
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	refclk: oscillator {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -86,11 +92,6 @@
 		interrupt-parent = <&gic>;
 
 		ranges = <0 0xf7000000 0x1000000>;
-
-		pmu {
-			compatible = "arm,cortex-a9-pmu";
-			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-		};
 
 		sdhci0: sdhci@ab0000 {
 			compatible = "mrvl,pxav3-mmc";
