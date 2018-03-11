@@ -113,8 +113,8 @@ asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long h
 long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
 		     size_t len, int advice)
 {
-	return sys_fadvise64(fd, (u64)offset_high << 32 | offset_low, len,
-			     advice);
+	return ksys_fadvise64_64(fd, (u64)offset_high << 32 | offset_low, len,
+				 advice);
 }
 
 asmlinkage long compat_sys_sync_file_range2(int fd, unsigned int flags,

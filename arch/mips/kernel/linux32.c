@@ -149,7 +149,7 @@ asmlinkage long sys32_fadvise64_64(int fd, int __pad,
 	unsigned long a4, unsigned long a5,
 	int flags)
 {
-	return sys_fadvise64_64(fd,
+	return ksys_fadvise64_64(fd,
 			merge_64(a2, a3), merge_64(a4, a5),
 			flags);
 }

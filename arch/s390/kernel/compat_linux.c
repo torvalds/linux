@@ -483,7 +483,8 @@ COMPAT_SYSCALL_DEFINE5(s390_fadvise64, int, fd, u32, high, u32, low, compat_size
 		advise = POSIX_FADV_DONTNEED;
 	else if (advise == 5)
 		advise = POSIX_FADV_NOREUSE;
-	return sys_fadvise64(fd, (unsigned long)high << 32 | low, len, advise);
+	return ksys_fadvise64_64(fd, (unsigned long)high << 32 | low, len,
+				 advise);
 }
 
 struct fadvise64_64_args {
@@ -503,7 +504,7 @@ COMPAT_SYSCALL_DEFINE1(s390_fadvise64_64, struct fadvise64_64_args __user *, arg
 		a.advice = POSIX_FADV_DONTNEED;
 	else if (a.advice == 5)
 		a.advice = POSIX_FADV_NOREUSE;
-	return sys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
+	return ksys_fadvise64_64(a.fd, a.offset, a.len, a.advice);
 }
 
 COMPAT_SYSCALL_DEFINE6(s390_sync_file_range, int, fd, u32, offhigh, u32, offlow,

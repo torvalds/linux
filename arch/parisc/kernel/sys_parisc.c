@@ -352,7 +352,7 @@ asmlinkage long parisc_fadvise64_64(int fd,
 			unsigned int high_off, unsigned int low_off,
 			unsigned int high_len, unsigned int low_len, int advice)
 {
-	return sys_fadvise64_64(fd, (loff_t)high_off << 32 | low_off,
+	return ksys_fadvise64_64(fd, (loff_t)high_off << 32 | low_off,
 			(loff_t)high_len << 32 | low_len, advice);
 }
 
