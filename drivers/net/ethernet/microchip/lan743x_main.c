@@ -945,15 +945,7 @@ static void lan743x_phy_update_flowcontrol(struct lan743x_adapter *adapter,
 
 static int lan743x_phy_init(struct lan743x_adapter *adapter)
 {
-	struct net_device *netdev;
-	int ret;
-
-	netdev = adapter->netdev;
-	ret = lan743x_phy_reset(adapter);
-	if (ret)
-		return ret;
-
-	return 0;
+	return lan743x_phy_reset(adapter);
 }
 
 static void lan743x_phy_link_status_change(struct net_device *netdev)
@@ -964,11 +956,9 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 	phy_print_status(phydev);
 	if (phydev->state == PHY_RUNNING) {
 		struct ethtool_link_ksettings ksettings;
-		struct lan743x_phy *phy = NULL;
 		int remote_advertisement = 0;
 		int local_advertisement = 0;
 
-		phy = &adapter->phy;
 		memset(&ksettings, 0, sizeof(ksettings));
 		phy_ethtool_get_link_ksettings(netdev, &ksettings);
 		local_advertisement = phy_read(phydev, MII_ADVERTISE);
@@ -1586,7 +1576,6 @@ static int lan743x_tx_napi_poll(struct napi_struct *napi, int weight)
 	u32 ioc_bit = 0;
 	u32 int_sts = 0;
 
-	adapter = tx->adapter;
 	ioc_bit = DMAC_INT_BIT_TX_IOC_(tx->channel_number);
 	int_sts = lan743x_csr_read(adapter, DMAC_INT_STS);
 	if (tx->vector_flags & LAN743X_VECTOR_FLAG_SOURCE_STATUS_W2C)
