@@ -963,6 +963,8 @@ ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count);
 void ksys_sync(void);
 int ksys_unshare(unsigned long unshare_flags);
 int ksys_setsid(void);
+int ksys_sync_file_range(int fd, loff_t offset, loff_t nbytes,
+			 unsigned int flags);
 
 /*
  * The following kernel syscall equivalents are just wrappers to fs-internal

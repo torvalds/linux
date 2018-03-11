@@ -124,5 +124,5 @@ asmlinkage long compat_sys_sync_file_range2(int fd, unsigned int flags,
 	loff_t offset = ((loff_t)offset_hi << 32) | offset_lo;
 	loff_t nbytes = ((loff_t)nbytes_hi << 32) | nbytes_lo;
 
-	return sys_sync_file_range(fd, offset, nbytes, flags);
+	return ksys_sync_file_range(fd, offset, nbytes, flags);
 }
