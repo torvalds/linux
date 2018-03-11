@@ -112,8 +112,6 @@ cputopology.txt
 	- documentation on how CPU topology info is exported via sysfs.
 crc32.txt
 	- brief tutorial on CRC computation
-cris/
-	- directory with info about Linux on CRIS architecture.
 crypto/
 	- directory with info on the Crypto API.
 dcdbas.txt

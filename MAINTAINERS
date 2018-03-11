@@ -3704,16 +3704,6 @@ S:	Maintained
 F:	Documentation/filesystems/cramfs.txt
 F:	fs/cramfs/
 
-CRIS PORT
-M:	Mikael Starvik <starvik@axis.com>
-M:	Jesper Nilsson <jesper.nilsson@axis.com>
-L:	linux-cris-kernel@axis.com
-W:	http://developer.axis.com
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jesper/cris.git
-S:	Maintained
-F:	arch/cris/
-F:	drivers/tty/serial/crisv10.*
-
 CRYPTO API
 M:	Herbert Xu <herbert@gondor.apana.org.au>
 M:	"David S. Miller" <davem@davemloft.net>
