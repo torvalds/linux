@@ -36,7 +36,7 @@ function pack {
 	cd $olddir
 }
 
-function installToSD {
+function install {
 	if [[ $crosscompile -eq 0 ]]; then
 		kernelfile=/boot/bananapi/bpi-r2/linux/uImage
 		if [[ -e $kernelfile ]];then
@@ -123,7 +123,7 @@ function prepare_SD {
 }
 
 #Test if the Kernel is there
-if [ -n "$(make kernelversion)" ]; then
+if [ -n "$kernver" ]; then
 	action=$1
 	LANG=C
 	CFLAGS=-j$(grep ^processor /proc/cpuinfo  | wc -l)
@@ -132,14 +132,14 @@ if [ -n "$(make kernelversion)" ]; then
 		"reset")
 			echo "Reset Git"
 			##Reset Git
-	    		git reset --hard HEAD
+			git reset --hard HEAD
 			#call self and Import Config
-    			$0 importconfig
+			$0 importconfig
 			;;
 
 		"update")
 			echo "Update Git Repo"
-    			git pull
+			git pull
 			;;
 
   		"umount")
@@ -154,7 +154,7 @@ if [ -n "$(make kernelversion)" ]; then
 			;;
 
 		"importconfig")
-			echo "Importiere config"
+			echo "Import config"
 			make mt7623n_evb_fwu_defconfig
 			;;
 
@@ -167,9 +167,9 @@ if [ -n "$(make kernelversion)" ]; then
 			pack
 			;;
 
-		"installToSD")
+		"install")
 			echo "Install Kernel to SD Card"
-			installToSD
+			install
 			;;
 
 		"build")
@@ -187,7 +187,7 @@ if [ -n "$(make kernelversion)" ]; then
 
 		*)
 			$0 build
-			if [ -e "arch/arm/boot/zImage-dtb" ] && [ -e "./uImage" ]; then
+			if [ -e "./uImage" ]; then
 				echo "==========================================="
 				echo "1) pack"
 				if [[ $crosscompile -eq 0 ]];then
@@ -200,7 +200,7 @@ if [ -n "$(make kernelversion)" ]; then
 				if [[ "$choice" == "1" ]]; then
 					$0 pack
 				elif [[ "$choice" == "2" ]];then
-					$0 installToSD
+					$0 install
 				else
 					echo "wrong option: $choice"
 				fi
