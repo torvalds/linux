@@ -317,7 +317,7 @@ static void __init clean_path(char *path, umode_t fmode)
 
 	if (!vfs_lstat(path, &st) && (st.mode ^ fmode) & S_IFMT) {
 		if (S_ISDIR(st.mode))
-			sys_rmdir(path);
+			ksys_rmdir(path);
 		else
 			ksys_unlink(path);
 	}
@@ -589,7 +589,7 @@ static void __init clean_rootfs(void)
 			WARN_ON_ONCE(ret);
 			if (!ret) {
 				if (S_ISDIR(st.mode))
-					sys_rmdir(dirp->d_name);
+					ksys_rmdir(dirp->d_name);
 				else
 					ksys_unlink(dirp->d_name);
 			}
