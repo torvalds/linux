@@ -1151,7 +1151,7 @@ COMPAT_SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, fla
  */
 SYSCALL_DEFINE2(creat, const char __user *, pathname, umode_t, mode)
 {
-	return sys_open(pathname, O_CREAT | O_WRONLY | O_TRUNC, mode);
+	return ksys_open(pathname, O_CREAT | O_WRONLY | O_TRUNC, mode);
 }
 
 #endif

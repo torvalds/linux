@@ -1057,4 +1057,15 @@ static inline int ksys_close(unsigned int fd)
 	return __close_fd(current->files, fd);
 }
 
+extern long do_sys_open(int dfd, const char __user *filename, int flags,
+			umode_t mode);
+
+static inline long ksys_open(const char __user *filename, int flags,
+			     umode_t mode)
+{
+	if (force_o_largefile())
+		flags |= O_LARGEFILE;
+	return do_sys_open(AT_FDCWD, filename, flags, mode);
+}
+
 #endif

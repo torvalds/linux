@@ -38,7 +38,7 @@ static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 {
 	sys_unshare(CLONE_FS | CLONE_FILES);
 	/* stdin/stdout/stderr for /linuxrc */
-	sys_open("/dev/console", O_RDWR, 0);
+	ksys_open("/dev/console", O_RDWR, 0);
 	ksys_dup(0);
 	ksys_dup(0);
 	/* move initrd over / and chdir/chroot in initrd root */
@@ -99,7 +99,7 @@ static void __init handle_initrd(void)
 	if (!error)
 		printk("okay\n");
 	else {
-		int fd = sys_open("/dev/root.old", O_RDWR, 0);
+		int fd = ksys_open("/dev/root.old", O_RDWR, 0);
 		if (error == -ENOENT)
 			printk("/initrd does not exist. Ignored.\n");
 		else
