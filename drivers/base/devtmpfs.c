@@ -386,7 +386,7 @@ static int devtmpfsd(void *p)
 	*err = ksys_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, options);
 	if (*err)
 		goto out;
-	sys_chdir("/.."); /* will traverse into overmounted root */
+	ksys_chdir("/.."); /* will traverse into overmounted root */
 	ksys_chroot(".");
 	complete(&setup_done);
 	while (1) {

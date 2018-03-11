@@ -367,7 +367,7 @@ static int __init do_mount_root(char *name, char *fs, int flags, void *data)
 	if (err)
 		return err;
 
-	sys_chdir("/root");
+	ksys_chdir("/root");
 	s = current->fs->pwd.dentry->d_sb;
 	ROOT_DEV = s->s_dev;
 	printk(KERN_INFO
