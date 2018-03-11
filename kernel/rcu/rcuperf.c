@@ -61,11 +61,30 @@ MODULE_AUTHOR("Paul E. McKenney <paulmck@linux.vnet.ibm.com>");
 #define VERBOSE_PERFOUT_ERRSTRING(s) \
 	do { if (verbose) pr_alert("%s" PERF_FLAG "!!! %s\n", perf_type, s); } while (0)
 
+/*
+ * The intended use cases for the nreaders and nwriters module parameters
+ * are as follows:
+ *
+ * 1.	Specify only the nr_cpus kernel boot parameter.  This will
+ *	set both nreaders and nwriters to the value specified by
+ *	nr_cpus for a mixed reader/writer test.
+ *
+ * 2.	Specify the nr_cpus kernel boot parameter, but set
+ *	rcuperf.nreaders to zero.  This will set nwriters to the
+ *	value specified by nr_cpus for an update-only test.
+ *
+ * 3.	Specify the nr_cpus kernel boot parameter, but set
+ *	rcuperf.nwriters to zero.  This will set nreaders to the
+ *	value specified by nr_cpus for a read-only test.
+ *
+ * Various other use cases may of course be specified.
+ */
+
 torture_param(bool, gp_async, false, "Use asynchronous GP wait primitives");
 torture_param(int, gp_async_max, 1000, "Max # outstanding waits per reader");
 torture_param(bool, gp_exp, false, "Use expedited GP wait primitives");
 torture_param(int, holdoff, 10, "Holdoff time before test start (s)");
-torture_param(int, nreaders, 0, "Number of RCU reader threads");
+torture_param(int, nreaders, -1, "Number of RCU reader threads");
 torture_param(int, nwriters, -1, "Number of RCU updater threads");
 torture_param(bool, shutdown, !IS_ENABLED(MODULE),
 	      "Shutdown at end of performance tests.");
