@@ -11,11 +11,9 @@
 
 #include <linux/types.h>
 #include <linux/string.h>
+#include <linux/bitops.h>
 #include "michael_mic.h"
 
-// Rotation functions on 32 bit values
-#define ROL32(A, n)	(((A) << (n)) | (((A) >> (32 - (n))) & ((1UL << (n)) - 1)))
-#define ROR32(A, n)	ROL32((A), 32 - (n))
 // Convert from Byte[] to UInt32 in a portable way
 #define getUInt32(A, B)	((uint32_t)(A[B + 0] << 0) \
 		+ (A[B + 1] << 8) + (A[B + 2] << 16) + (A[B + 3] << 24))
@@ -50,13 +48,13 @@ void MichaelInitializeFunction(struct michael_mic_t *Mic, uint8_t *key)
 
 #define MichaelBlockFunction(L, R)				\
 do {								\
-	R ^= ROL32(L, 17);					\
+	R ^= rol32(L, 17);					\
 	L += R;							\
 	R ^= ((L & 0xff00ff00) >> 8) | ((L & 0x00ff00ff) << 8);	\
 	L += R;							\
-	R ^= ROL32(L, 3);					\
+	R ^= rol32(L, 3);					\
 	L += R;							\
-	R ^= ROR32(L, 2);					\
+	R ^= ror32(L, 2);					\
 	L += R;							\
 } while (0)
 
