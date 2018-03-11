@@ -307,7 +307,7 @@ COMPAT_SYSCALL_DEFINE3(s390_truncate64, const char __user *, path, u32, high, u3
 
 COMPAT_SYSCALL_DEFINE3(s390_ftruncate64, unsigned int, fd, u32, high, u32, low)
 {
-	return sys_ftruncate(fd, (unsigned long)high << 32 | low);
+	return ksys_ftruncate(fd, (unsigned long)high << 32 | low);
 }
 
 COMPAT_SYSCALL_DEFINE5(s390_pread64, unsigned int, fd, char __user *, ubuf,

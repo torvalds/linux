@@ -107,7 +107,7 @@ asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
 asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4, unsigned long high,
 				 unsigned long low)
 {
-	return sys_ftruncate(fd, (high << 32) | low);
+	return ksys_ftruncate(fd, (high << 32) | low);
 }
 
 long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,

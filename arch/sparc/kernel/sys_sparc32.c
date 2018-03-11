@@ -65,7 +65,7 @@ asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned 
 	if ((int)high < 0)
 		return -EINVAL;
 	else
-		return sys_ftruncate(fd, (high << 32) | low);
+		return ksys_ftruncate(fd, (high << 32) | low);
 }
 
 static int cp_compat_stat64(struct kstat *stat,

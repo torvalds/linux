@@ -346,7 +346,7 @@ static int __init do_name(void)
 				ksys_fchown(wfd, uid, gid);
 				ksys_fchmod(wfd, mode);
 				if (body_len)
-					sys_ftruncate(wfd, body_len);
+					ksys_ftruncate(wfd, body_len);
 				vcollected = kstrdup(collected, GFP_KERNEL);
 				state = CopyFile;
 			}
