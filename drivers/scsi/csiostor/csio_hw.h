@@ -268,8 +268,62 @@ struct csio_vpd {
 	uint8_t id[ID_LEN + 1];
 };
 
+/* Firmware Port Capabilities types. */
+
+typedef u16 fw_port_cap16_t;    /* 16-bit Port Capabilities integral value */
+typedef u32 fw_port_cap32_t;    /* 32-bit Port Capabilities integral value */
+
+enum fw_caps {
+	FW_CAPS_UNKNOWN = 0,    /* 0'ed out initial state */
+	FW_CAPS16       = 1,    /* old Firmware: 16-bit Port Capabilities */
+	FW_CAPS32       = 2,    /* new Firmware: 32-bit Port Capabilities */
+};
+
+enum cc_pause {
+	PAUSE_RX      = 1 << 0,
+	PAUSE_TX      = 1 << 1,
+	PAUSE_AUTONEG = 1 << 2
+};
+
+enum cc_fec {
+	FEC_AUTO	= 1 << 0,  /* IEEE 802.3 "automatic" */
+	FEC_RS		= 1 << 1,  /* Reed-Solomon */
+	FEC_BASER_RS	= 1 << 2   /* BaseR/Reed-Solomon */
+};
+
+struct link_config {
+	fw_port_cap32_t pcaps;		/* link capabilities */
+	fw_port_cap32_t def_acaps;	/* default advertised capabilities */
+	fw_port_cap32_t acaps;		/* advertised capabilities */
+	fw_port_cap32_t lpacaps;	/* peer advertised capabilities */
+
+	fw_port_cap32_t speed_caps;	/* speed(s) user has requested */
+	unsigned int   speed;		/* actual link speed (Mb/s) */
+
+	enum cc_pause  requested_fc;	/* flow control user has requested */
+	enum cc_pause  fc;		/* actual link flow control */
+
+	enum cc_fec    requested_fec;	/* Forward Error Correction: */
+	enum cc_fec    fec;		/* requested and actual in use */
+
+	unsigned char  autoneg;		/* autonegotiating? */
+
+	unsigned char  link_ok;		/* link up? */
+	unsigned char  link_down_rc;	/* link down reason */
+};
+
+#define FW_LEN16(fw_struct) FW_CMD_LEN16_V(sizeof(fw_struct) / 16)
+
+#define ADVERT_MASK (FW_PORT_CAP32_SPEED_V(FW_PORT_CAP32_SPEED_M) | \
+		     FW_PORT_CAP32_ANEG)
+
+/* Enable or disable autonegotiation. */
+#define AUTONEG_DISABLE	0x00
+#define AUTONEG_ENABLE	0x01
+
 struct csio_pport {
 	uint16_t	pcap;
+	uint16_t	acap;
 	uint8_t		portid;
 	uint8_t		link_status;
 	uint16_t	link_speed;
@@ -278,6 +332,7 @@ struct csio_pport {
 	uint8_t		rsvd1;
 	uint8_t		rsvd2;
 	uint8_t		rsvd3;
+	struct link_config link_cfg;
 };
 
 /* fcoe resource information */
@@ -581,6 +636,10 @@ void csio_hw_intr_disable(struct csio_hw *);
 int csio_hw_slow_intr_handler(struct csio_hw *);
 int csio_handle_intr_status(struct csio_hw *, unsigned int,
 			    const struct intr_info *);
+
+fw_port_cap32_t fwcap_to_fwspeed(fw_port_cap32_t acaps);
+fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16);
+fw_port_cap32_t lstatus_to_fwcap(u32 lstatus);
 
 int csio_hw_start(struct csio_hw *);
 int csio_hw_stop(struct csio_hw *);
