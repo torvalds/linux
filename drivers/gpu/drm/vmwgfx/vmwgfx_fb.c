@@ -500,7 +500,7 @@ static int vmw_fb_kms_detach(struct vmw_fb_par *par,
 	}
 
 	if (cur_fb) {
-		drm_framebuffer_unreference(cur_fb);
+		drm_framebuffer_put(cur_fb);
 		par->set_fb = NULL;
 	}
 
