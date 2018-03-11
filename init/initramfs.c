@@ -344,7 +344,7 @@ static int __init do_name(void)
 
 			if (wfd >= 0) {
 				sys_fchown(wfd, uid, gid);
-				sys_fchmod(wfd, mode);
+				ksys_fchmod(wfd, mode);
 				if (body_len)
 					sys_ftruncate(wfd, body_len);
 				vcollected = kstrdup(collected, GFP_KERNEL);
@@ -354,14 +354,14 @@ static int __init do_name(void)
 	} else if (S_ISDIR(mode)) {
 		ksys_mkdir(collected, mode);
 		sys_chown(collected, uid, gid);
-		sys_chmod(collected, mode);
+		ksys_chmod(collected, mode);
 		dir_add(collected, mtime);
 	} else if (S_ISBLK(mode) || S_ISCHR(mode) ||
 		   S_ISFIFO(mode) || S_ISSOCK(mode)) {
 		if (maybe_link() == 0) {
 			ksys_mknod(collected, mode, rdev);
 			sys_chown(collected, uid, gid);
-			sys_chmod(collected, mode);
+			ksys_chmod(collected, mode);
 			do_utime(collected, mtime);
 		}
 	}

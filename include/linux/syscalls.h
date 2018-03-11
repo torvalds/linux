@@ -953,6 +953,7 @@ int ksys_dup(unsigned int fildes);
 int ksys_chroot(const char __user *filename);
 ssize_t ksys_write(unsigned int fd, const char __user *buf, size_t count);
 int ksys_chdir(const char __user *filename);
+int ksys_fchmod(unsigned int fd, umode_t mode);
 
 /*
  * The following kernel syscall equivalents are just wrappers to fs-internal
@@ -1004,6 +1005,13 @@ static inline long ksys_link(const char __user *oldname,
 			     const char __user *newname)
 {
 	return do_linkat(AT_FDCWD, oldname, AT_FDCWD, newname, 0);
+}
+
+extern int do_fchmodat(int dfd, const char __user *filename, umode_t mode);
+
+static inline int ksys_chmod(const char __user *filename, umode_t mode)
+{
+	return do_fchmodat(AT_FDCWD, filename, mode);
 }
 
 #endif
