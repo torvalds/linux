@@ -961,6 +961,7 @@ int ksys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
 off_t ksys_lseek(unsigned int fd, off_t offset, unsigned int whence);
 ssize_t ksys_read(unsigned int fd, char __user *buf, size_t count);
 void ksys_sync(void);
+int ksys_unshare(unsigned long unshare_flags);
 
 /*
  * The following kernel syscall equivalents are just wrappers to fs-internal

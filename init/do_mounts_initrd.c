@@ -36,7 +36,7 @@ __setup("noinitrd", no_initrd);
 
 static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 {
-	sys_unshare(CLONE_FS | CLONE_FILES);
+	ksys_unshare(CLONE_FS | CLONE_FILES);
 	/* stdin/stdout/stderr for /linuxrc */
 	ksys_open("/dev/console", O_RDWR, 0);
 	ksys_dup(0);

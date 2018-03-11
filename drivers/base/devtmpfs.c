@@ -380,7 +380,7 @@ static int devtmpfsd(void *p)
 {
 	char options[] = "mode=0755";
 	int *err = p;
-	*err = sys_unshare(CLONE_NEWNS);
+	*err = ksys_unshare(CLONE_NEWNS);
 	if (*err)
 		goto out;
 	*err = ksys_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, options);
