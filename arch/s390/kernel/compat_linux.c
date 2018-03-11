@@ -468,7 +468,7 @@ COMPAT_SYSCALL_DEFINE3(s390_write, unsigned int, fd, const char __user *, buf, c
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL; 
 
-	return sys_write(fd, buf, count);
+	return ksys_write(fd, buf, count);
 }
 
 /*

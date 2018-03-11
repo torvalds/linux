@@ -27,7 +27,7 @@ static ssize_t __init xwrite(int fd, const char *p, size_t count)
 
 	/* sys_write only can write MAX_RW_COUNT aka 2G-4K bytes at most */
 	while (count) {
-		ssize_t rv = sys_write(fd, p, count);
+		ssize_t rv = ksys_write(fd, p, count);
 
 		if (rv < 0) {
 			if (rv == -EINTR || rv == -EAGAIN)

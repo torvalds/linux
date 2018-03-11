@@ -578,8 +578,7 @@ SYSCALL_DEFINE3(read, unsigned int, fd, char __user *, buf, size_t, count)
 	return ret;
 }
 
-SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
-		size_t, count)
+ssize_t ksys_write(unsigned int fd, const char __user *buf, size_t count)
 {
 	struct fd f = fdget_pos(fd);
 	ssize_t ret = -EBADF;
@@ -593,6 +592,12 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 	}
 
 	return ret;
+}
+
+SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
+		size_t, count)
+{
+	return ksys_write(fd, buf, count);
 }
 
 SYSCALL_DEFINE4(pread64, unsigned int, fd, char __user *, buf,
