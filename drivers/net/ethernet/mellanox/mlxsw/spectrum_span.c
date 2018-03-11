@@ -167,7 +167,7 @@ mlxsw_sp_span_entry_unoffloadable(struct mlxsw_sp_span_parms *sparmsp)
 	return 0;
 }
 
-static int
+static __maybe_unused int
 mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
 					union mlxsw_sp_l3addr saddr,
 					union mlxsw_sp_l3addr daddr,
@@ -194,6 +194,7 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_NET_IPGRE)
 static struct net_device *
 mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
 			    __be32 *saddrp, __be32 *daddrp)
@@ -291,7 +292,9 @@ static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap4 = {
 	.configure = mlxsw_sp_span_entry_gretap4_configure,
 	.deconfigure = mlxsw_sp_span_entry_gretap4_deconfigure,
 };
+#endif
 
+#if IS_ENABLED(CONFIG_IPV6_GRE)
 static struct net_device *
 mlxsw_sp_span_gretap6_route(const struct net_device *to_dev,
 			    struct in6_addr *saddrp,
@@ -389,12 +392,17 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap6 = {
 	.configure = mlxsw_sp_span_entry_gretap6_configure,
 	.deconfigure = mlxsw_sp_span_entry_gretap6_deconfigure,
 };
+#endif
 
 static const
 struct mlxsw_sp_span_entry_ops *const mlxsw_sp_span_entry_types[] = {
 	&mlxsw_sp_span_entry_ops_phys,
+#if IS_ENABLED(CONFIG_NET_IPGRE)
 	&mlxsw_sp_span_entry_ops_gretap4,
+#endif
+#if IS_ENABLED(CONFIG_IPV6_GRE)
 	&mlxsw_sp_span_entry_ops_gretap6,
+#endif
 };
 
 static int
