@@ -2773,25 +2773,6 @@ static void copy_name(struct dentry *dentry, struct dentry *target)
 		kfree_rcu(old_name, u.head);
 }
 
-static void dentry_lock_for_move(struct dentry *dentry, struct dentry *target)
-{
-	if (IS_ROOT(dentry) || dentry->d_parent == target->d_parent)
-		spin_lock(&target->d_parent->d_lock);
-	else {
-		if (d_ancestor(dentry->d_parent, target->d_parent)) {
-			spin_lock(&dentry->d_parent->d_lock);
-			spin_lock_nested(&target->d_parent->d_lock,
-						DENTRY_D_LOCK_NESTED);
-		} else {
-			spin_lock(&target->d_parent->d_lock);
-			spin_lock_nested(&dentry->d_parent->d_lock,
-						DENTRY_D_LOCK_NESTED);
-		}
-	}
-	spin_lock_nested(&dentry->d_lock, 2);
-	spin_lock_nested(&target->d_lock, 3);
-}
-
 /*
  * __d_move - move a dentry
  * @dentry: entry to move
@@ -2806,16 +2787,34 @@ static void dentry_lock_for_move(struct dentry *dentry, struct dentry *target)
 static void __d_move(struct dentry *dentry, struct dentry *target,
 		     bool exchange)
 {
-	struct dentry *old_parent;
+	struct dentry *old_parent, *p;
 	struct inode *dir = NULL;
 	unsigned n;
-	if (!dentry->d_inode)
-		printk(KERN_WARNING "VFS: moving negative dcache entry\n");
 
-	BUG_ON(d_ancestor(dentry, target));
+	WARN_ON(!dentry->d_inode);
+	if (WARN_ON(dentry == target))
+		return;
+
 	BUG_ON(d_ancestor(target, dentry));
+	old_parent = dentry->d_parent;
+	p = d_ancestor(old_parent, target);
+	if (IS_ROOT(dentry)) {
+		BUG_ON(p);
+		spin_lock(&target->d_parent->d_lock);
+	} else if (!p) {
+		/* target is not a descendent of dentry->d_parent */
+		spin_lock(&target->d_parent->d_lock);
+		spin_lock_nested(&old_parent->d_lock, DENTRY_D_LOCK_NESTED);
+	} else {
+		BUG_ON(p == dentry);
+		spin_lock(&old_parent->d_lock);
+		if (p != target)
+			spin_lock_nested(&target->d_parent->d_lock,
+					DENTRY_D_LOCK_NESTED);
+	}
+	spin_lock_nested(&dentry->d_lock, 2);
+	spin_lock_nested(&target->d_lock, 3);
 
-	dentry_lock_for_move(dentry, target);
 	if (unlikely(d_in_lookup(target))) {
 		dir = target->d_parent->d_inode;
 		n = start_dir_add(dir);
@@ -2824,8 +2823,6 @@ static void __d_move(struct dentry *dentry, struct dentry *target,
 
 	write_seqcount_begin(&dentry->d_seq);
 	write_seqcount_begin_nested(&target->d_seq, DENTRY_D_LOCK_NESTED);
-
-	old_parent = dentry->d_parent;
 
 	/* unhash both */
 	if (!d_unhashed(dentry))
