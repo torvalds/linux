@@ -109,6 +109,11 @@
 			cache-level = <2>;
 		};
 
+		snoop-control-unit@ad0000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xad0000 0x100>;
+		};
+
 		gic: interrupt-controller@ad1000 {
 			compatible = "arm,cortex-a9-gic";
 			reg = <0xad1000 0x1000>, <0xad0100 0x0100>;
@@ -116,10 +121,24 @@
 			#interrupt-cells = <3>;
 		};
 
+		global-timer@ad0200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0xad0200 0x20>;
+			interrupts = <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_EDGE_RISING)>;
+			clocks = <&chip_clk CLKID_TWD>;
+		};
+
 		local-timer@ad0600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xad0600 0x20>;
 			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_EDGE_RISING)>;
+			clocks = <&chip_clk CLKID_TWD>;
+		};
+
+		local-wdt@ad0620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0xad0620 0x20>;
+			interrupts = <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_EDGE_RISING)>;
 			clocks = <&chip_clk CLKID_TWD>;
 		};
 
