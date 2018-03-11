@@ -310,7 +310,7 @@ void inet_csk_prepare_forced_close(struct sock *sk);
 static inline __poll_t inet_csk_listen_poll(const struct sock *sk)
 {
 	return !reqsk_queue_empty(&inet_csk(sk)->icsk_accept_queue) ?
-			(POLLIN | POLLRDNORM) : 0;
+			(EPOLLIN | EPOLLRDNORM) : 0;
 }
 
 int inet_csk_listen_start(struct sock *sk, int backlog);

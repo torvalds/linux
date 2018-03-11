@@ -4524,7 +4524,7 @@ static __poll_t perf_poll(struct file *file, poll_table *wait)
 {
 	struct perf_event *event = file->private_data;
 	struct ring_buffer *rb;
-	__poll_t events = POLLHUP;
+	__poll_t events = EPOLLHUP;
 
 	poll_wait(file, &event->waitq, wait);
 

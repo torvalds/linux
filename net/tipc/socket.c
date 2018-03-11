@@ -473,6 +473,7 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	sk->sk_write_space = tipc_write_space;
 	sk->sk_destruct = tipc_sock_destruct;
 	tsk->conn_timeout = CONN_TIMEOUT_DEFAULT;
+	tsk->group_is_open = true;
 	atomic_set(&tsk->dupl_rcvcnt, 0);
 
 	/* Start out with safe limits until we receive an advertised window */
@@ -721,31 +722,31 @@ static __poll_t tipc_poll(struct file *file, struct socket *sock,
 	sock_poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		revents |= POLLRDHUP | POLLIN | POLLRDNORM;
+		revents |= EPOLLRDHUP | EPOLLIN | EPOLLRDNORM;
 	if (sk->sk_shutdown == SHUTDOWN_MASK)
-		revents |= POLLHUP;
+		revents |= EPOLLHUP;
 
 	switch (sk->sk_state) {
 	case TIPC_ESTABLISHED:
 	case TIPC_CONNECTING:
 		if (!tsk->cong_link_cnt && !tsk_conn_cong(tsk))
-			revents |= POLLOUT;
+			revents |= EPOLLOUT;
 		/* fall thru' */
 	case TIPC_LISTEN:
 		if (!skb_queue_empty(&sk->sk_receive_queue))
-			revents |= POLLIN | POLLRDNORM;
+			revents |= EPOLLIN | EPOLLRDNORM;
 		break;
 	case TIPC_OPEN:
 		if (tsk->group_is_open && !tsk->cong_link_cnt)
-			revents |= POLLOUT;
+			revents |= EPOLLOUT;
 		if (!tipc_sk_type_connectionless(sk))
 			break;
 		if (skb_queue_empty(&sk->sk_receive_queue))
 			break;
-		revents |= POLLIN | POLLRDNORM;
+		revents |= EPOLLIN | EPOLLRDNORM;
 		break;
 	case TIPC_DISCONNECTING:
-		revents = POLLIN | POLLRDNORM | POLLHUP;
+		revents = EPOLLIN | EPOLLRDNORM | EPOLLHUP;
 		break;
 	}
 	return revents;
@@ -1897,8 +1898,8 @@ static void tipc_write_space(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLOUT |
-						POLLWRNORM | POLLWRBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLOUT |
+						EPOLLWRNORM | EPOLLWRBAND);
 	rcu_read_unlock();
 }
 
@@ -1914,8 +1915,8 @@ static void tipc_data_ready(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
-						POLLRDNORM | POLLRDBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN |
+						EPOLLRDNORM | EPOLLRDBAND);
 	rcu_read_unlock();
 }
 

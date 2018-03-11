@@ -27,7 +27,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	unsigned long vpn;
 	unsigned long old_pte, new_pte;
 	unsigned long rflags, pa, sz;
-	long slot;
+	long slot, offset;
 
 	BUG_ON(shift != mmu_psize_defs[mmu_psize].shift);
 
@@ -63,7 +63,11 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 	} while(!pte_xchg(ptep, __pte(old_pte), __pte(new_pte)));
 
 	rflags = htab_convert_pte_flags(new_pte);
-	rpte = __real_pte(__pte(old_pte), ptep);
+	if (unlikely(mmu_psize == MMU_PAGE_16G))
+		offset = PTRS_PER_PUD;
+	else
+		offset = PTRS_PER_PMD;
+	rpte = __real_pte(__pte(old_pte), ptep, offset);
 
 	sz = ((1UL) << shift);
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE))
@@ -104,7 +108,7 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 			return -1;
 		}
 
-		new_pte |= pte_set_hidx(ptep, rpte, 0, slot);
+		new_pte |= pte_set_hidx(ptep, rpte, 0, slot, offset);
 	}
 
 	/*

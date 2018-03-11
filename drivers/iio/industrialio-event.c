@@ -80,7 +80,7 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 
 		copied = kfifo_put(&ev_int->det_events, ev);
 		if (copied != 0)
-			wake_up_poll(&ev_int->wait, POLLIN);
+			wake_up_poll(&ev_int->wait, EPOLLIN);
 	}
 
 	return 0;
@@ -92,7 +92,7 @@ EXPORT_SYMBOL(iio_push_event);
  * @filep:	File structure pointer to identify the device
  * @wait:	Poll table pointer to add the wait queue on
  *
- * Return: (POLLIN | POLLRDNORM) if data is available for reading
+ * Return: (EPOLLIN | EPOLLRDNORM) if data is available for reading
  *	   or a negative error code on failure
  */
 static __poll_t iio_event_poll(struct file *filep,
@@ -108,7 +108,7 @@ static __poll_t iio_event_poll(struct file *filep,
 	poll_wait(filep, &ev_int->wait, wait);
 
 	if (!kfifo_is_empty(&ev_int->det_events))
-		events = POLLIN | POLLRDNORM;
+		events = EPOLLIN | EPOLLRDNORM;
 
 	return events;
 }

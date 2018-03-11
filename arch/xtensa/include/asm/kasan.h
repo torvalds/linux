@@ -10,6 +10,8 @@
 #include <linux/sizes.h>
 #include <asm/kmem_layout.h>
 
+#define KASAN_SHADOW_SCALE_SHIFT 3
+
 /* Start of area covered by KASAN */
 #define KASAN_START_VADDR __XTENSA_UL_CONST(0x90000000)
 /* Start of the shadow map */

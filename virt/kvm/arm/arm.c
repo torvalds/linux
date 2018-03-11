@@ -71,9 +71,10 @@ static DEFINE_PER_CPU(unsigned char, kvm_arm_hardware_enabled);
 
 static void kvm_arm_set_running_vcpu(struct kvm_vcpu *vcpu)
 {
-	BUG_ON(preemptible());
 	__this_cpu_write(kvm_arm_running_vcpu, vcpu);
 }
+
+DEFINE_STATIC_KEY_FALSE(userspace_irqchip_in_use);
 
 /**
  * kvm_arm_get_running_vcpu - get the vcpu running on the current CPU.
@@ -81,7 +82,6 @@ static void kvm_arm_set_running_vcpu(struct kvm_vcpu *vcpu)
  */
 struct kvm_vcpu *kvm_arm_get_running_vcpu(void)
 {
-	BUG_ON(preemptible());
 	return __this_cpu_read(kvm_arm_running_vcpu);
 }
 
@@ -295,6 +295,9 @@ void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
+	if (vcpu->arch.has_run_once && unlikely(!irqchip_in_kernel(vcpu->kvm)))
+		static_branch_dec(&userspace_irqchip_in_use);
+
 	kvm_mmu_free_memory_caches(vcpu);
 	kvm_timer_vcpu_terminate(vcpu);
 	kvm_pmu_vcpu_destroy(vcpu);
@@ -381,17 +384,24 @@ static void vcpu_power_off(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
+	vcpu_load(vcpu);
+
 	if (vcpu->arch.power_off)
 		mp_state->mp_state = KVM_MP_STATE_STOPPED;
 	else
 		mp_state->mp_state = KVM_MP_STATE_RUNNABLE;
 
+	vcpu_put(vcpu);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
+	int ret = 0;
+
+	vcpu_load(vcpu);
+
 	switch (mp_state->mp_state) {
 	case KVM_MP_STATE_RUNNABLE:
 		vcpu->arch.power_off = false;
@@ -400,10 +410,11 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 		vcpu_power_off(vcpu);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	vcpu_put(vcpu);
+	return ret;
 }
 
 /**
@@ -524,14 +535,22 @@ static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.has_run_once = true;
 
-	/*
-	 * Map the VGIC hardware resources before running a vcpu the first
-	 * time on this VM.
-	 */
-	if (unlikely(irqchip_in_kernel(kvm) && !vgic_ready(kvm))) {
-		ret = kvm_vgic_map_resources(kvm);
-		if (ret)
-			return ret;
+	if (likely(irqchip_in_kernel(kvm))) {
+		/*
+		 * Map the VGIC hardware resources before running a vcpu the
+		 * first time on this VM.
+		 */
+		if (unlikely(!vgic_ready(kvm))) {
+			ret = kvm_vgic_map_resources(kvm);
+			if (ret)
+				return ret;
+		}
+	} else {
+		/*
+		 * Tell the rest of the code that there are userspace irqchip
+		 * VMs in the wild.
+		 */
+		static_branch_inc(&userspace_irqchip_in_use);
 	}
 
 	ret = kvm_timer_enable(vcpu);
@@ -619,21 +638,27 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	if (unlikely(!kvm_vcpu_initialized(vcpu)))
 		return -ENOEXEC;
 
+	vcpu_load(vcpu);
+
 	ret = kvm_vcpu_first_run_init(vcpu);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (run->exit_reason == KVM_EXIT_MMIO) {
 		ret = kvm_handle_mmio_return(vcpu, vcpu->run);
 		if (ret)
-			return ret;
-		if (kvm_arm_handle_step_debug(vcpu, vcpu->run))
-			return 0;
+			goto out;
+		if (kvm_arm_handle_step_debug(vcpu, vcpu->run)) {
+			ret = 0;
+			goto out;
+		}
 
 	}
 
-	if (run->immediate_exit)
-		return -EINTR;
+	if (run->immediate_exit) {
+		ret = -EINTR;
+		goto out;
+	}
 
 	kvm_sigset_activate(vcpu);
 
@@ -666,16 +691,27 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		kvm_vgic_flush_hwstate(vcpu);
 
 		/*
-		 * If we have a singal pending, or need to notify a userspace
-		 * irqchip about timer or PMU level changes, then we exit (and
-		 * update the timer level state in kvm_timer_update_run
-		 * below).
+		 * Exit if we have a signal pending so that we can deliver the
+		 * signal to user space.
 		 */
-		if (signal_pending(current) ||
-		    kvm_timer_should_notify_user(vcpu) ||
-		    kvm_pmu_should_notify_user(vcpu)) {
+		if (signal_pending(current)) {
 			ret = -EINTR;
 			run->exit_reason = KVM_EXIT_INTR;
+		}
+
+		/*
+		 * If we're using a userspace irqchip, then check if we need
+		 * to tell a userspace irqchip about timer or PMU level
+		 * changes and if so, exit to userspace (the actual level
+		 * state gets updated in kvm_timer_update_run and
+		 * kvm_pmu_update_run below).
+		 */
+		if (static_branch_unlikely(&userspace_irqchip_in_use)) {
+			if (kvm_timer_should_notify_user(vcpu) ||
+			    kvm_pmu_should_notify_user(vcpu)) {
+				ret = -EINTR;
+				run->exit_reason = KVM_EXIT_INTR;
+			}
 		}
 
 		/*
@@ -690,7 +726,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		    kvm_request_pending(vcpu)) {
 			vcpu->mode = OUTSIDE_GUEST_MODE;
 			kvm_pmu_sync_hwstate(vcpu);
-			kvm_timer_sync_hwstate(vcpu);
+			if (static_branch_unlikely(&userspace_irqchip_in_use))
+				kvm_timer_sync_hwstate(vcpu);
 			kvm_vgic_sync_hwstate(vcpu);
 			local_irq_enable();
 			preempt_enable();
@@ -738,7 +775,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 		 * we don't want vtimer interrupts to race with syncing the
 		 * timer virtual interrupt state.
 		 */
-		kvm_timer_sync_hwstate(vcpu);
+		if (static_branch_unlikely(&userspace_irqchip_in_use))
+			kvm_timer_sync_hwstate(vcpu);
 
 		/*
 		 * We may have taken a host interrupt in HYP mode (ie
@@ -779,6 +817,8 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	kvm_sigset_deactivate(vcpu);
 
+out:
+	vcpu_put(vcpu);
 	return ret;
 }
 
@@ -994,66 +1034,88 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	struct kvm_device_attr attr;
+	long r;
+
+	vcpu_load(vcpu);
 
 	switch (ioctl) {
 	case KVM_ARM_VCPU_INIT: {
 		struct kvm_vcpu_init init;
 
+		r = -EFAULT;
 		if (copy_from_user(&init, argp, sizeof(init)))
-			return -EFAULT;
+			break;
 
-		return kvm_arch_vcpu_ioctl_vcpu_init(vcpu, &init);
+		r = kvm_arch_vcpu_ioctl_vcpu_init(vcpu, &init);
+		break;
 	}
 	case KVM_SET_ONE_REG:
 	case KVM_GET_ONE_REG: {
 		struct kvm_one_reg reg;
 
+		r = -ENOEXEC;
 		if (unlikely(!kvm_vcpu_initialized(vcpu)))
-			return -ENOEXEC;
+			break;
 
+		r = -EFAULT;
 		if (copy_from_user(&reg, argp, sizeof(reg)))
-			return -EFAULT;
+			break;
+
 		if (ioctl == KVM_SET_ONE_REG)
-			return kvm_arm_set_reg(vcpu, &reg);
+			r = kvm_arm_set_reg(vcpu, &reg);
 		else
-			return kvm_arm_get_reg(vcpu, &reg);
+			r = kvm_arm_get_reg(vcpu, &reg);
+		break;
 	}
 	case KVM_GET_REG_LIST: {
 		struct kvm_reg_list __user *user_list = argp;
 		struct kvm_reg_list reg_list;
 		unsigned n;
 
+		r = -ENOEXEC;
 		if (unlikely(!kvm_vcpu_initialized(vcpu)))
-			return -ENOEXEC;
+			break;
 
+		r = -EFAULT;
 		if (copy_from_user(&reg_list, user_list, sizeof(reg_list)))
-			return -EFAULT;
+			break;
 		n = reg_list.n;
 		reg_list.n = kvm_arm_num_regs(vcpu);
 		if (copy_to_user(user_list, &reg_list, sizeof(reg_list)))
-			return -EFAULT;
+			break;
+		r = -E2BIG;
 		if (n < reg_list.n)
-			return -E2BIG;
-		return kvm_arm_copy_reg_indices(vcpu, user_list->reg);
+			break;
+		r = kvm_arm_copy_reg_indices(vcpu, user_list->reg);
+		break;
 	}
 	case KVM_SET_DEVICE_ATTR: {
+		r = -EFAULT;
 		if (copy_from_user(&attr, argp, sizeof(attr)))
-			return -EFAULT;
-		return kvm_arm_vcpu_set_attr(vcpu, &attr);
+			break;
+		r = kvm_arm_vcpu_set_attr(vcpu, &attr);
+		break;
 	}
 	case KVM_GET_DEVICE_ATTR: {
+		r = -EFAULT;
 		if (copy_from_user(&attr, argp, sizeof(attr)))
-			return -EFAULT;
-		return kvm_arm_vcpu_get_attr(vcpu, &attr);
+			break;
+		r = kvm_arm_vcpu_get_attr(vcpu, &attr);
+		break;
 	}
 	case KVM_HAS_DEVICE_ATTR: {
+		r = -EFAULT;
 		if (copy_from_user(&attr, argp, sizeof(attr)))
-			return -EFAULT;
-		return kvm_arm_vcpu_has_attr(vcpu, &attr);
+			break;
+		r = kvm_arm_vcpu_has_attr(vcpu, &attr);
+		break;
 	}
 	default:
-		return -EINVAL;
+		r = -EINVAL;
 	}
+
+	vcpu_put(vcpu);
+	return r;
 }
 
 /**
@@ -1246,6 +1308,7 @@ static int hyp_init_cpu_pm_notifier(struct notifier_block *self,
 			cpu_hyp_reset();
 
 		return NOTIFY_OK;
+	case CPU_PM_ENTER_FAILED:
 	case CPU_PM_EXIT:
 		if (__this_cpu_read(kvm_arm_hardware_enabled))
 			/* The hardware was enabled before suspend. */

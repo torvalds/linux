@@ -60,7 +60,7 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 
 	spin_lock_irq(&tscm->lock);
 	if (tscm->dev_lock_changed)
-		events = POLLIN | POLLRDNORM;
+		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;
 	spin_unlock_irq(&tscm->lock);

@@ -62,7 +62,7 @@ static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 
 	spin_lock_irq(&dice->lock);
 	if (dice->dev_lock_changed || dice->notification_bits != 0)
-		events = POLLIN | POLLRDNORM;
+		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;
 	spin_unlock_irq(&dice->lock);

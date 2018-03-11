@@ -173,32 +173,54 @@ static inline pmd_t kvm_s2pmd_mkwrite(pmd_t pmd)
 	return pmd;
 }
 
-static inline void kvm_set_s2pte_readonly(pte_t *pte)
+static inline pte_t kvm_s2pte_mkexec(pte_t pte)
+{
+	pte_val(pte) &= ~PTE_S2_XN;
+	return pte;
+}
+
+static inline pmd_t kvm_s2pmd_mkexec(pmd_t pmd)
+{
+	pmd_val(pmd) &= ~PMD_S2_XN;
+	return pmd;
+}
+
+static inline void kvm_set_s2pte_readonly(pte_t *ptep)
 {
 	pteval_t old_pteval, pteval;
 
-	pteval = READ_ONCE(pte_val(*pte));
+	pteval = READ_ONCE(pte_val(*ptep));
 	do {
 		old_pteval = pteval;
 		pteval &= ~PTE_S2_RDWR;
 		pteval |= PTE_S2_RDONLY;
-		pteval = cmpxchg_relaxed(&pte_val(*pte), old_pteval, pteval);
+		pteval = cmpxchg_relaxed(&pte_val(*ptep), old_pteval, pteval);
 	} while (pteval != old_pteval);
 }
 
-static inline bool kvm_s2pte_readonly(pte_t *pte)
+static inline bool kvm_s2pte_readonly(pte_t *ptep)
 {
-	return (pte_val(*pte) & PTE_S2_RDWR) == PTE_S2_RDONLY;
+	return (READ_ONCE(pte_val(*ptep)) & PTE_S2_RDWR) == PTE_S2_RDONLY;
 }
 
-static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)
+static inline bool kvm_s2pte_exec(pte_t *ptep)
 {
-	kvm_set_s2pte_readonly((pte_t *)pmd);
+	return !(READ_ONCE(pte_val(*ptep)) & PTE_S2_XN);
 }
 
-static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
+static inline void kvm_set_s2pmd_readonly(pmd_t *pmdp)
 {
-	return kvm_s2pte_readonly((pte_t *)pmd);
+	kvm_set_s2pte_readonly((pte_t *)pmdp);
+}
+
+static inline bool kvm_s2pmd_readonly(pmd_t *pmdp)
+{
+	return kvm_s2pte_readonly((pte_t *)pmdp);
+}
+
+static inline bool kvm_s2pmd_exec(pmd_t *pmdp)
+{
+	return !(READ_ONCE(pmd_val(*pmdp)) & PMD_S2_XN);
 }
 
 static inline bool kvm_page_empty(void *ptr)
@@ -230,21 +252,25 @@ static inline bool vcpu_has_cache_enabled(struct kvm_vcpu *vcpu)
 	return (vcpu_sys_reg(vcpu, SCTLR_EL1) & 0b101) == 0b101;
 }
 
-static inline void __coherent_cache_guest_page(struct kvm_vcpu *vcpu,
-					       kvm_pfn_t pfn,
-					       unsigned long size)
+static inline void __clean_dcache_guest_page(kvm_pfn_t pfn, unsigned long size)
 {
 	void *va = page_address(pfn_to_page(pfn));
 
 	kvm_flush_dcache_to_poc(va, size);
+}
 
+static inline void __invalidate_icache_guest_page(kvm_pfn_t pfn,
+						  unsigned long size)
+{
 	if (icache_is_aliasing()) {
 		/* any kind of VIPT cache */
 		__flush_icache_all();
 	} else if (is_kernel_in_hyp_mode() || !icache_is_vpipt()) {
 		/* PIPT or VPIPT at EL2 (see comment in __kvm_tlb_flush_vmid_ipa) */
-		flush_icache_range((unsigned long)va,
-				   (unsigned long)va + size);
+		void *va = page_address(pfn_to_page(pfn));
+
+		invalidate_icache_range((unsigned long)va,
+					(unsigned long)va + size);
 	}
 }
 

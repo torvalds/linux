@@ -103,7 +103,12 @@
 #endif
 
 #define MANAGED_IRQ_SHUTDOWN_VECTOR	0xef
-#define LOCAL_TIMER_VECTOR		0xee
+
+#if IS_ENABLED(CONFIG_HYPERV)
+#define HYPERV_REENLIGHTENMENT_VECTOR	0xee
+#endif
+
+#define LOCAL_TIMER_VECTOR		0xed
 
 #define NR_VECTORS			 256
 

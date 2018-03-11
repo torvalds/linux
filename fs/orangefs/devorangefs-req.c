@@ -823,7 +823,7 @@ static __poll_t orangefs_devreq_poll(struct file *file,
 	poll_wait(file, &orangefs_request_list_waitq, poll_table);
 
 	if (!list_empty(&orangefs_request_list))
-		poll_revent_mask |= POLLIN;
+		poll_revent_mask |= EPOLLIN;
 	return poll_revent_mask;
 }
 

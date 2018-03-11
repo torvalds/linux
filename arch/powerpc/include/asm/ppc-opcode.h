@@ -156,6 +156,12 @@
 #define OP_31_XOP_LFDX          599
 #define OP_31_XOP_LFDUX		631
 
+/* VMX Vector Load Instructions */
+#define OP_31_XOP_LVX           103
+
+/* VMX Vector Store Instructions */
+#define OP_31_XOP_STVX          231
+
 #define OP_LWZ  32
 #define OP_STFS 52
 #define OP_STFSU 53

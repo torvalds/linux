@@ -650,12 +650,12 @@ static __poll_t evdev_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &evdev->wait, wait);
 
 	if (evdev->exist && !client->revoked)
-		mask = POLLOUT | POLLWRNORM;
+		mask = EPOLLOUT | EPOLLWRNORM;
 	else
-		mask = POLLHUP | POLLERR;
+		mask = EPOLLHUP | EPOLLERR;
 
 	if (client->packet_head != client->tail)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

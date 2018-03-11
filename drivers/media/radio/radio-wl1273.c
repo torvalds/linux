@@ -1104,10 +1104,10 @@ static __poll_t wl1273_fm_fops_poll(struct file *file,
 		poll_wait(file, &radio->read_queue, pts);
 
 		if (radio->rd_index != radio->wr_index)
-			return POLLIN | POLLRDNORM;
+			return EPOLLIN | EPOLLRDNORM;
 
 	} else if (core->mode == WL1273_MODE_TX) {
-		return POLLOUT | POLLWRNORM;
+		return EPOLLOUT | EPOLLWRNORM;
 	}
 
 	return 0;

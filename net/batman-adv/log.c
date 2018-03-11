@@ -193,7 +193,7 @@ static __poll_t batadv_log_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &debug_log->queue_wait, wait);
 
 	if (!batadv_log_empty(debug_log))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }

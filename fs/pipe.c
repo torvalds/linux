@@ -327,7 +327,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 			break;
 		}
 		if (do_wakeup) {
-			wake_up_interruptible_sync_poll(&pipe->wait, POLLOUT | POLLWRNORM);
+			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
  			kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 		}
 		pipe_wait(pipe);
@@ -336,7 +336,7 @@ pipe_read(struct kiocb *iocb, struct iov_iter *to)
 
 	/* Signal writers asynchronously that there is more room. */
 	if (do_wakeup) {
-		wake_up_interruptible_sync_poll(&pipe->wait, POLLOUT | POLLWRNORM);
+		wake_up_interruptible_sync_poll(&pipe->wait, EPOLLOUT | EPOLLWRNORM);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
 	if (ret > 0)
@@ -463,7 +463,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			break;
 		}
 		if (do_wakeup) {
-			wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLRDNORM);
+			wake_up_interruptible_sync_poll(&pipe->wait, EPOLLIN | EPOLLRDNORM);
 			kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 			do_wakeup = 0;
 		}
@@ -474,7 +474,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 out:
 	__pipe_unlock(pipe);
 	if (do_wakeup) {
-		wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLRDNORM);
+		wake_up_interruptible_sync_poll(&pipe->wait, EPOLLIN | EPOLLRDNORM);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 	}
 	if (ret > 0 && sb_start_write_trylock(file_inode(filp)->i_sb)) {
@@ -523,19 +523,19 @@ pipe_poll(struct file *filp, poll_table *wait)
 	nrbufs = pipe->nrbufs;
 	mask = 0;
 	if (filp->f_mode & FMODE_READ) {
-		mask = (nrbufs > 0) ? POLLIN | POLLRDNORM : 0;
+		mask = (nrbufs > 0) ? EPOLLIN | EPOLLRDNORM : 0;
 		if (!pipe->writers && filp->f_version != pipe->w_counter)
-			mask |= POLLHUP;
+			mask |= EPOLLHUP;
 	}
 
 	if (filp->f_mode & FMODE_WRITE) {
-		mask |= (nrbufs < pipe->buffers) ? POLLOUT | POLLWRNORM : 0;
+		mask |= (nrbufs < pipe->buffers) ? EPOLLOUT | EPOLLWRNORM : 0;
 		/*
-		 * Most Unices do not set POLLERR for FIFOs but on Linux they
+		 * Most Unices do not set EPOLLERR for FIFOs but on Linux they
 		 * behave exactly like pipes for poll().
 		 */
 		if (!pipe->readers)
-			mask |= POLLERR;
+			mask |= EPOLLERR;
 	}
 
 	return mask;
@@ -568,7 +568,7 @@ pipe_release(struct inode *inode, struct file *file)
 		pipe->writers--;
 
 	if (pipe->readers || pipe->writers) {
-		wake_up_interruptible_sync_poll(&pipe->wait, POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM | POLLERR | POLLHUP);
+		wake_up_interruptible_sync_poll(&pipe->wait, EPOLLIN | EPOLLOUT | EPOLLRDNORM | EPOLLWRNORM | EPOLLERR | EPOLLHUP);
 		kill_fasync(&pipe->fasync_readers, SIGIO, POLL_IN);
 		kill_fasync(&pipe->fasync_writers, SIGIO, POLL_OUT);
 	}
@@ -936,7 +936,7 @@ static int fifo_open(struct inode *inode, struct file *filp)
 
 		if (!is_pipe && !pipe->writers) {
 			if ((filp->f_flags & O_NONBLOCK)) {
-				/* suppress POLLHUP until we have
+				/* suppress EPOLLHUP until we have
 				 * seen a writer */
 				filp->f_version = pipe->w_counter;
 			} else {

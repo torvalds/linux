@@ -123,7 +123,7 @@ enum nvme_ctrl_state {
 	NVME_CTRL_LIVE,
 	NVME_CTRL_ADMIN_ONLY,    /* Only admin queue live */
 	NVME_CTRL_RESETTING,
-	NVME_CTRL_RECONNECTING,
+	NVME_CTRL_CONNECTING,
 	NVME_CTRL_DELETING,
 	NVME_CTRL_DEAD,
 };
@@ -183,6 +183,7 @@ struct nvme_ctrl {
 	struct work_struct scan_work;
 	struct work_struct async_event_work;
 	struct delayed_work ka_work;
+	struct nvme_command ka_cmd;
 	struct work_struct fw_act_work;
 
 	/* Power saving configuration */
@@ -409,9 +410,7 @@ bool nvme_req_needs_failover(struct request *req, blk_status_t error);
 void nvme_kick_requeue_lists(struct nvme_ctrl *ctrl);
 int nvme_mpath_alloc_disk(struct nvme_ctrl *ctrl,struct nvme_ns_head *head);
 void nvme_mpath_add_disk(struct nvme_ns_head *head);
-void nvme_mpath_add_disk_links(struct nvme_ns *ns);
 void nvme_mpath_remove_disk(struct nvme_ns_head *head);
-void nvme_mpath_remove_disk_links(struct nvme_ns *ns);
 
 static inline void nvme_mpath_clear_current_path(struct nvme_ns *ns)
 {
@@ -451,12 +450,6 @@ static inline void nvme_mpath_add_disk(struct nvme_ns_head *head)
 {
 }
 static inline void nvme_mpath_remove_disk(struct nvme_ns_head *head)
-{
-}
-static inline void nvme_mpath_add_disk_links(struct nvme_ns *ns)
-{
-}
-static inline void nvme_mpath_remove_disk_links(struct nvme_ns *ns)
 {
 }
 static inline void nvme_mpath_clear_current_path(struct nvme_ns *ns)

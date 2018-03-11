@@ -3147,7 +3147,7 @@ static struct amd64_family_type *per_family_init(struct amd64_pvt *pvt)
 	struct amd64_family_type *fam_type = NULL;
 
 	pvt->ext_model  = boot_cpu_data.x86_model >> 4;
-	pvt->stepping	= boot_cpu_data.x86_mask;
+	pvt->stepping	= boot_cpu_data.x86_stepping;
 	pvt->model	= boot_cpu_data.x86_model;
 	pvt->fam	= boot_cpu_data.x86;
 

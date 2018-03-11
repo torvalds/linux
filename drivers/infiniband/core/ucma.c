@@ -1149,6 +1149,9 @@ static ssize_t ucma_init_qp_attr(struct ucma_file *file,
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
 
+	if (cmd.qp_state > IB_QPS_ERR)
+		return -EINVAL;
+
 	ctx = ucma_get_ctx(file, cmd.id);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
@@ -1293,6 +1296,9 @@ static ssize_t ucma_set_option(struct ucma_file *file, const char __user *inbuf,
 	ctx = ucma_get_ctx(file, cmd.id);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
+
+	if (unlikely(cmd.optval > KMALLOC_MAX_SIZE))
+		return -EINVAL;
 
 	optval = memdup_user((void __user *) (unsigned long) cmd.optval,
 			     cmd.optlen);
@@ -1639,7 +1645,7 @@ static __poll_t ucma_poll(struct file *filp, struct poll_table_struct *wait)
 	poll_wait(filp, &file->poll_wait, wait);
 
 	if (!list_empty(&file->event_list))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

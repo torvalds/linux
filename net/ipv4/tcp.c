@@ -512,36 +512,36 @@ __poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	mask = 0;
 
 	/*
-	 * POLLHUP is certainly not done right. But poll() doesn't
+	 * EPOLLHUP is certainly not done right. But poll() doesn't
 	 * have a notion of HUP in just one direction, and for a
 	 * socket the read side is more interesting.
 	 *
-	 * Some poll() documentation says that POLLHUP is incompatible
-	 * with the POLLOUT/POLLWR flags, so somebody should check this
+	 * Some poll() documentation says that EPOLLHUP is incompatible
+	 * with the EPOLLOUT/POLLWR flags, so somebody should check this
 	 * all. But careful, it tends to be safer to return too many
 	 * bits than too few, and you can easily break real applications
 	 * if you don't tell them that something has hung up!
 	 *
 	 * Check-me.
 	 *
-	 * Check number 1. POLLHUP is _UNMASKABLE_ event (see UNIX98 and
+	 * Check number 1. EPOLLHUP is _UNMASKABLE_ event (see UNIX98 and
 	 * our fs/select.c). It means that after we received EOF,
 	 * poll always returns immediately, making impossible poll() on write()
-	 * in state CLOSE_WAIT. One solution is evident --- to set POLLHUP
+	 * in state CLOSE_WAIT. One solution is evident --- to set EPOLLHUP
 	 * if and only if shutdown has been made in both directions.
 	 * Actually, it is interesting to look how Solaris and DUX
-	 * solve this dilemma. I would prefer, if POLLHUP were maskable,
+	 * solve this dilemma. I would prefer, if EPOLLHUP were maskable,
 	 * then we could set it on SND_SHUTDOWN. BTW examples given
 	 * in Stevens' books assume exactly this behaviour, it explains
-	 * why POLLHUP is incompatible with POLLOUT.	--ANK
+	 * why EPOLLHUP is incompatible with EPOLLOUT.	--ANK
 	 *
 	 * NOTE. Check for TCP_CLOSE is added. The goal is to prevent
 	 * blocking on fresh not-connected or disconnected socket. --ANK
 	 */
 	if (sk->sk_shutdown == SHUTDOWN_MASK || state == TCP_CLOSE)
-		mask |= POLLHUP;
+		mask |= EPOLLHUP;
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
-		mask |= POLLIN | POLLRDNORM | POLLRDHUP;
+		mask |= EPOLLIN | EPOLLRDNORM | EPOLLRDHUP;
 
 	/* Connected or passive Fast Open socket? */
 	if (state != TCP_SYN_SENT &&
@@ -554,11 +554,11 @@ __poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 			target++;
 
 		if (tp->rcv_nxt - tp->copied_seq >= target)
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
 			if (sk_stream_is_writeable(sk)) {
-				mask |= POLLOUT | POLLWRNORM;
+				mask |= EPOLLOUT | EPOLLWRNORM;
 			} else {  /* send SIGIO later */
 				sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 				set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
@@ -570,24 +570,24 @@ __poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 				 */
 				smp_mb__after_atomic();
 				if (sk_stream_is_writeable(sk))
-					mask |= POLLOUT | POLLWRNORM;
+					mask |= EPOLLOUT | EPOLLWRNORM;
 			}
 		} else
-			mask |= POLLOUT | POLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRNORM;
 
 		if (tp->urg_data & TCP_URG_VALID)
-			mask |= POLLPRI;
+			mask |= EPOLLPRI;
 	} else if (state == TCP_SYN_SENT && inet_sk(sk)->defer_connect) {
 		/* Active TCP fastopen socket with defer_connect
-		 * Return POLLOUT so application can call write()
+		 * Return EPOLLOUT so application can call write()
 		 * in order for kernel to generate SYN+data
 		 */
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 	}
 	/* This barrier is coupled with smp_wmb() in tcp_reset() */
 	smp_rmb();
 	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
-		mask |= POLLERR;
+		mask |= EPOLLERR;
 
 	return mask;
 }

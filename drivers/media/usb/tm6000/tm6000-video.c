@@ -1424,25 +1424,25 @@ __tm6000_poll(struct file *file, struct poll_table_struct *wait)
 	__poll_t res = 0;
 
 	if (v4l2_event_pending(&fh->fh))
-		res = POLLPRI;
-	else if (req_events & POLLPRI)
+		res = EPOLLPRI;
+	else if (req_events & EPOLLPRI)
 		poll_wait(file, &fh->fh.wait, wait);
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != fh->type)
-		return res | POLLERR;
+		return res | EPOLLERR;
 
 	if (!!is_res_streaming(fh->dev, fh))
-		return res | POLLERR;
+		return res | EPOLLERR;
 
 	if (!is_res_read(fh->dev, fh)) {
 		/* streaming capture */
 		if (list_empty(&fh->vb_vidq.stream))
-			return res | POLLERR;
+			return res | EPOLLERR;
 		buf = list_entry(fh->vb_vidq.stream.next, struct tm6000_buffer, vb.stream);
 		poll_wait(file, &buf->vb.done, wait);
 		if (buf->vb.state == VIDEOBUF_DONE ||
 		    buf->vb.state == VIDEOBUF_ERROR)
-			return res | POLLIN | POLLRDNORM;
-	} else if (req_events & (POLLIN | POLLRDNORM)) {
+			return res | EPOLLIN | EPOLLRDNORM;
+	} else if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		/* read() capture */
 		return res | videobuf_poll_stream(file, &fh->vb_vidq, wait);
 	}

@@ -443,7 +443,7 @@ struct vb2_buf_ops {
  * @fileio_read_once:		report EOF after reading the first buffer
  * @fileio_write_immediately:	queue buffer after each write() call
  * @allow_zero_bytesused:	allow bytesused == 0 to be passed to the driver
- * @quirk_poll_must_check_waiting_for_buffers: Return %POLLERR at poll when QBUF
+ * @quirk_poll_must_check_waiting_for_buffers: Return %EPOLLERR at poll when QBUF
  *              has not been called. This is a vb1 idiom that has been adopted
  *              also by vb2.
  * @lock:	pointer to a mutex that protects the &struct vb2_queue. The
@@ -493,7 +493,7 @@ struct vb2_buf_ops {
  * @error:	a fatal error occurred on the queue
  * @waiting_for_buffers: used in poll() to check if vb2 is still waiting for
  *		buffers. Only set for capture queues if qbuf has not yet been
- *		called since poll() needs to return %POLLERR in that situation.
+ *		called since poll() needs to return %EPOLLERR in that situation.
  * @is_multiplanar: set if buffer type is multiplanar
  * @is_output:	set if buffer type is output
  * @copy_timestamp: set if vb2-core should set timestamps
@@ -869,7 +869,7 @@ void vb2_core_queue_release(struct vb2_queue *q);
  * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  *
  * Flag that a fatal unrecoverable error has occurred and wake up all processes
- * waiting on the queue. Polling will now set %POLLERR and queuing and dequeuing
+ * waiting on the queue. Polling will now set %EPOLLERR and queuing and dequeuing
  * buffers will return %-EIO.
  *
  * The error flag will be cleared when canceling the queue, either from

@@ -476,12 +476,12 @@ static __poll_t subdev_poll(struct file *file, poll_table *wait)
 	struct v4l2_fh *fh = file->private_data;
 
 	if (!(sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS))
-		return POLLERR;
+		return EPOLLERR;
 
 	poll_wait(file, &fh->wait, wait);
 
 	if (v4l2_event_pending(fh))
-		return POLLPRI;
+		return EPOLLPRI;
 
 	return 0;
 }

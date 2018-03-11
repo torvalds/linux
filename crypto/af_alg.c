@@ -735,9 +735,9 @@ void af_alg_wmem_wakeup(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
-							   POLLRDNORM |
-							   POLLRDBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN |
+							   EPOLLRDNORM |
+							   EPOLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	rcu_read_unlock();
 }
@@ -800,9 +800,9 @@ void af_alg_data_wakeup(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLOUT |
-							   POLLRDNORM |
-							   POLLRDBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLOUT |
+							   EPOLLRDNORM |
+							   EPOLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	rcu_read_unlock();
 }
@@ -1076,10 +1076,10 @@ __poll_t af_alg_poll(struct file *file, struct socket *sock,
 	mask = 0;
 
 	if (!ctx->more || ctx->used)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	if (af_alg_writable(sk))
-		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 
 	return mask;
 }

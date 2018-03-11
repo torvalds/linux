@@ -1225,16 +1225,16 @@ ep0_poll (struct file *fd, poll_table *wait)
        /* report fd mode change before acting on it */
        if (dev->setup_abort) {
                dev->setup_abort = 0;
-               mask = POLLHUP;
+               mask = EPOLLHUP;
                goto out;
        }
 
        if (dev->state == STATE_DEV_SETUP) {
                if (dev->setup_in || dev->setup_can_stall)
-                       mask = POLLOUT;
+                       mask = EPOLLOUT;
        } else {
                if (dev->ev_next != 0)
-                       mask = POLLIN;
+                       mask = EPOLLIN;
        }
 out:
        spin_unlock_irq(&dev->lock);

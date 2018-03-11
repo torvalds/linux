@@ -244,7 +244,7 @@
  * The two separate pointers let us decouple read()s from tail pointer aging.
  *
  * The tail pointers are checked and updated at a limited rate within a hrtimer
- * callback (the same callback that is used for delivering POLLIN events)
+ * callback (the same callback that is used for delivering EPOLLIN events)
  *
  * Initially the tails are marked invalid with %INVALID_TAIL_PTR which
  * indicates that an updated tail pointer is needed.
@@ -1303,9 +1303,8 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	 */
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	dev_priv->perf.oa.exclusive_stream = NULL;
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
 	dev_priv->perf.oa.ops.disable_metric_set(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	free_oa_buffer(dev_priv);
 
@@ -1756,22 +1755,13 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
  * Note: it's only the RCS/Render context that has any OA state.
  */
 static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
-				       const struct i915_oa_config *oa_config,
-				       bool interruptible)
+				       const struct i915_oa_config *oa_config)
 {
 	struct i915_gem_context *ctx;
 	int ret;
 	unsigned int wait_flags = I915_WAIT_LOCKED;
 
-	if (interruptible) {
-		ret = i915_mutex_lock_interruptible(&dev_priv->drm);
-		if (ret)
-			return ret;
-
-		wait_flags |= I915_WAIT_INTERRUPTIBLE;
-	} else {
-		mutex_lock(&dev_priv->drm.struct_mutex);
-	}
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	/* Switch away from any user context. */
 	ret = gen8_switch_to_updated_kernel_context(dev_priv, oa_config);
@@ -1819,8 +1809,6 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	}
 
  out:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
 	return ret;
 }
 
@@ -1863,7 +1851,7 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
 	 * to make sure all slices/subslices are ON before writing to NOA
 	 * registers.
 	 */
-	ret = gen8_configure_all_contexts(dev_priv, oa_config, true);
+	ret = gen8_configure_all_contexts(dev_priv, oa_config);
 	if (ret)
 		return ret;
 
@@ -1878,7 +1866,7 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
 static void gen8_disable_metric_set(struct drm_i915_private *dev_priv)
 {
 	/* Reset all contexts' slices/subslices configurations. */
-	gen8_configure_all_contexts(dev_priv, NULL, false);
+	gen8_configure_all_contexts(dev_priv, NULL);
 
 	I915_WRITE(GDT_CHICKEN_BITS, (I915_READ(GDT_CHICKEN_BITS) &
 				      ~GT_NOA_ENABLE));
@@ -1888,7 +1876,7 @@ static void gen8_disable_metric_set(struct drm_i915_private *dev_priv)
 static void gen10_disable_metric_set(struct drm_i915_private *dev_priv)
 {
 	/* Reset all contexts' slices/subslices configurations. */
-	gen8_configure_all_contexts(dev_priv, NULL, false);
+	gen8_configure_all_contexts(dev_priv, NULL);
 
 	/* Make sure we disable noa to save power. */
 	I915_WRITE(RPM_CONFIG1,
@@ -2138,6 +2126,10 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	if (ret)
 		goto err_oa_buf_alloc;
 
+	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
+	if (ret)
+		goto err_lock;
+
 	ret = dev_priv->perf.oa.ops.enable_metric_set(dev_priv,
 						      stream->oa_config);
 	if (ret)
@@ -2145,23 +2137,17 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	stream->ops = &i915_oa_stream_ops;
 
-	/* Lock device for exclusive_stream access late because
-	 * enable_metric_set() might lock as well on gen8+.
-	 */
-	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
-	if (ret)
-		goto err_lock;
-
 	dev_priv->perf.oa.exclusive_stream = stream;
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	return 0;
 
-err_lock:
-	dev_priv->perf.oa.ops.disable_metric_set(dev_priv);
-
 err_enable:
+	dev_priv->perf.oa.ops.disable_metric_set(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+err_lock:
 	free_oa_buffer(dev_priv);
 
 err_oa_buf_alloc:
@@ -2292,13 +2278,13 @@ static ssize_t i915_perf_read(struct file *file,
 		mutex_unlock(&dev_priv->perf.lock);
 	}
 
-	/* We allow the poll checking to sometimes report false positive POLLIN
+	/* We allow the poll checking to sometimes report false positive EPOLLIN
 	 * events where we might actually report EAGAIN on read() if there's
 	 * not really any data available. In this situation though we don't
-	 * want to enter a busy loop between poll() reporting a POLLIN event
+	 * want to enter a busy loop between poll() reporting a EPOLLIN event
 	 * and read() returning -EAGAIN. Clearing the oa.pollin state here
 	 * effectively ensures we back off until the next hrtimer callback
-	 * before reporting another POLLIN event.
+	 * before reporting another EPOLLIN event.
 	 */
 	if (ret >= 0 || ret == -EAGAIN) {
 		/* Maybe make ->pollin per-stream state if we support multiple
@@ -2358,7 +2344,7 @@ static __poll_t i915_perf_poll_locked(struct drm_i915_private *dev_priv,
 	 * samples to read.
 	 */
 	if (dev_priv->perf.oa.pollin)
-		events |= POLLIN;
+		events |= EPOLLIN;
 
 	return events;
 }

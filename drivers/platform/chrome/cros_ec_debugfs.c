@@ -200,7 +200,7 @@ static __poll_t cros_ec_console_log_poll(struct file *file,
 	if (CIRC_CNT(debug_info->log_buffer.head,
 		     debug_info->log_buffer.tail,
 		     LOG_SIZE))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	mutex_unlock(&debug_info->log_mutex);
 
 	return mask;

@@ -896,7 +896,7 @@ static __poll_t device_poll(struct file *file, poll_table *wait)
 	spin_lock(&proc->asts_spin);
 	if (!list_empty(&proc->asts)) {
 		spin_unlock(&proc->asts_spin);
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	}
 	spin_unlock(&proc->asts_spin);
 	return 0;

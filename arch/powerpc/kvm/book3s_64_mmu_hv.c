@@ -1269,6 +1269,11 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 		/* Nothing to do */
 		goto out;
 
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		rpte = be64_to_cpu(hptep[1]);
+		vpte = hpte_new_to_old_v(vpte, rpte);
+	}
+
 	/* Unmap */
 	rev = &old->rev[idx];
 	guest_rpte = rev->guest_rpte;
@@ -1298,7 +1303,6 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 
 	/* Reload PTE after unmap */
 	vpte = be64_to_cpu(hptep[0]);
-
 	BUG_ON(vpte & HPTE_V_VALID);
 	BUG_ON(!(vpte & HPTE_V_ABSENT));
 
@@ -1307,6 +1311,12 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 		goto out;
 
 	rpte = be64_to_cpu(hptep[1]);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		vpte = hpte_new_to_old_v(vpte, rpte);
+		rpte = hpte_new_to_old_r(rpte);
+	}
+
 	pshift = kvmppc_hpte_base_page_shift(vpte, rpte);
 	avpn = HPTE_V_AVPN_VAL(vpte) & ~(((1ul << pshift) - 1) >> 23);
 	pteg = idx / HPTES_PER_GROUP;
@@ -1337,17 +1347,17 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 	}
 
 	new_pteg = hash & new_hash_mask;
-	if (vpte & HPTE_V_SECONDARY) {
-		BUG_ON(~pteg != (hash & old_hash_mask));
-		new_pteg = ~new_pteg;
-	} else {
-		BUG_ON(pteg != (hash & old_hash_mask));
-	}
+	if (vpte & HPTE_V_SECONDARY)
+		new_pteg = ~hash & new_hash_mask;
 
 	new_idx = new_pteg * HPTES_PER_GROUP + (idx % HPTES_PER_GROUP);
 	new_hptep = (__be64 *)(new->virt + (new_idx << 4));
 
 	replace_vpte = be64_to_cpu(new_hptep[0]);
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		unsigned long replace_rpte = be64_to_cpu(new_hptep[1]);
+		replace_vpte = hpte_new_to_old_v(replace_vpte, replace_rpte);
+	}
 
 	if (replace_vpte & (HPTE_V_VALID | HPTE_V_ABSENT)) {
 		BUG_ON(new->order >= old->order);
@@ -1361,6 +1371,11 @@ static unsigned long resize_hpt_rehash_hpte(struct kvm_resize_hpt *resize,
 		}
 
 		/* Discard the previous HPTE */
+	}
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
+		rpte = hpte_old_to_new_r(vpte, rpte);
+		vpte = hpte_old_to_new_v(vpte);
 	}
 
 	new_hptep[1] = cpu_to_be64(rpte);
@@ -1380,12 +1395,6 @@ static int resize_hpt_rehash(struct kvm_resize_hpt *resize)
 	unsigned  long i;
 	int rc;
 
-	/*
-	 * resize_hpt_rehash_hpte() doesn't handle the new-format HPTEs
-	 * that POWER9 uses, and could well hit a BUG_ON on POWER9.
-	 */
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		return -EIO;
 	for (i = 0; i < kvmppc_hpt_npte(&kvm->arch.hpt); i++) {
 		rc = resize_hpt_rehash_hpte(resize, i);
 		if (rc != 0)
@@ -1415,6 +1424,9 @@ static void resize_hpt_pivot(struct kvm_resize_hpt *resize)
 	spin_unlock(&kvm->mmu_lock);
 
 	synchronize_srcu_expedited(&kvm->srcu);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		kvmppc_setup_partition_table(kvm);
 
 	resize_hpt_debug(resize, "resize_hpt_pivot() done\n");
 }

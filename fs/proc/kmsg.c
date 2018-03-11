@@ -44,7 +44,7 @@ static __poll_t kmsg_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &log_wait, wait);
 	if (do_syslog(SYSLOG_ACTION_SIZE_UNREAD, NULL, 0, SYSLOG_FROM_PROC))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

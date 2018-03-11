@@ -1060,11 +1060,12 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 		prog->insns = new_insn;
 		prog->main_prog_cnt = prog->insns_cnt;
 		prog->insns_cnt = new_cnt;
+		pr_debug("added %zd insn from %s to prog %s\n",
+			 text->insns_cnt, text->section_name,
+			 prog->section_name);
 	}
 	insn = &prog->insns[relo->insn_idx];
 	insn->imm += prog->main_prog_cnt - relo->insn_idx;
-	pr_debug("added %zd insn from %s to prog %s\n",
-		 text->insns_cnt, text->section_name, prog->section_name);
 	return 0;
 }
 

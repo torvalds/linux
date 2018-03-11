@@ -3147,7 +3147,7 @@ static __poll_t snd_pcm_playback_poll(struct file *file, poll_table * wait)
 
 	substream = pcm_file->substream;
 	if (PCM_RUNTIME_CHECK(substream))
-		return POLLOUT | POLLWRNORM | POLLERR;
+		return EPOLLOUT | EPOLLWRNORM | EPOLLERR;
 	runtime = substream->runtime;
 
 	poll_wait(file, &runtime->sleep, wait);
@@ -3159,7 +3159,7 @@ static __poll_t snd_pcm_playback_poll(struct file *file, poll_table * wait)
 	case SNDRV_PCM_STATE_PREPARED:
 	case SNDRV_PCM_STATE_PAUSED:
 		if (avail >= runtime->control->avail_min) {
-			mask = POLLOUT | POLLWRNORM;
+			mask = EPOLLOUT | EPOLLWRNORM;
 			break;
 		}
 		/* Fall through */
@@ -3167,7 +3167,7 @@ static __poll_t snd_pcm_playback_poll(struct file *file, poll_table * wait)
 		mask = 0;
 		break;
 	default:
-		mask = POLLOUT | POLLWRNORM | POLLERR;
+		mask = EPOLLOUT | EPOLLWRNORM | EPOLLERR;
 		break;
 	}
 	snd_pcm_stream_unlock_irq(substream);
@@ -3186,7 +3186,7 @@ static __poll_t snd_pcm_capture_poll(struct file *file, poll_table * wait)
 
 	substream = pcm_file->substream;
 	if (PCM_RUNTIME_CHECK(substream))
-		return POLLIN | POLLRDNORM | POLLERR;
+		return EPOLLIN | EPOLLRDNORM | EPOLLERR;
 	runtime = substream->runtime;
 
 	poll_wait(file, &runtime->sleep, wait);
@@ -3198,19 +3198,19 @@ static __poll_t snd_pcm_capture_poll(struct file *file, poll_table * wait)
 	case SNDRV_PCM_STATE_PREPARED:
 	case SNDRV_PCM_STATE_PAUSED:
 		if (avail >= runtime->control->avail_min) {
-			mask = POLLIN | POLLRDNORM;
+			mask = EPOLLIN | EPOLLRDNORM;
 			break;
 		}
 		mask = 0;
 		break;
 	case SNDRV_PCM_STATE_DRAINING:
 		if (avail > 0) {
-			mask = POLLIN | POLLRDNORM;
+			mask = EPOLLIN | EPOLLRDNORM;
 			break;
 		}
 		/* Fall through */
 	default:
-		mask = POLLIN | POLLRDNORM | POLLERR;
+		mask = EPOLLIN | EPOLLRDNORM | EPOLLERR;
 		break;
 	}
 	snd_pcm_stream_unlock_irq(substream);

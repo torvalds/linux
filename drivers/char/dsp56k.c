@@ -414,7 +414,7 @@ static __poll_t dsp56k_poll(struct file *file, poll_table *wait)
 	{
 	case DSP56K_DEV_56001:
 		/* poll_wait(file, ???, wait); */
-		return POLLIN | POLLRDNORM | POLLOUT;
+		return EPOLLIN | EPOLLRDNORM | EPOLLOUT;
 
 	default:
 		printk("DSP56k driver: Unknown minor device: %d\n", dev);

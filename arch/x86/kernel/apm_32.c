@@ -1515,7 +1515,7 @@ static __poll_t do_poll(struct file *fp, poll_table *wait)
 		return 0;
 	poll_wait(fp, &apm_waitqueue, wait);
 	if (!queue_empty(as))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

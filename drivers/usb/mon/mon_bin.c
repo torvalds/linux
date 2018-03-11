@@ -1203,7 +1203,7 @@ mon_bin_poll(struct file *file, struct poll_table_struct *wait)
 
 	spin_lock_irqsave(&rp->b_lock, flags);
 	if (!MON_RING_EMPTY(rp))
-		mask |= POLLIN | POLLRDNORM;    /* readable */
+		mask |= EPOLLIN | EPOLLRDNORM;    /* readable */
 	spin_unlock_irqrestore(&rp->b_lock, flags);
 	return mask;
 }

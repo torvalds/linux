@@ -1670,7 +1670,7 @@ pfm_poll(struct file *filp, poll_table * wait)
 	PROTECT_CTX(ctx, flags);
 
 	if (PFM_CTXQ_EMPTY(ctx) == 0)
-		mask =  POLLIN | POLLRDNORM;
+		mask =  EPOLLIN | EPOLLRDNORM;
 
 	UNPROTECT_CTX(ctx, flags);
 

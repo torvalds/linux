@@ -135,10 +135,10 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
  * Userspace can query the state of these implicitly tracked fences using poll()
  * and related system calls:
  *
- * - Checking for POLLIN, i.e. read access, can be use to query the state of the
+ * - Checking for EPOLLIN, i.e. read access, can be use to query the state of the
  *   most recent write or exclusive fence.
  *
- * - Checking for POLLOUT, i.e. write access, can be used to query the state of
+ * - Checking for EPOLLOUT, i.e. write access, can be used to query the state of
  *   all attached fences, shared and exclusive ones.
  *
  * Note that this only signals the completion of the respective fences, i.e. the
@@ -168,13 +168,13 @@ static __poll_t dma_buf_poll(struct file *file, poll_table *poll)
 
 	dmabuf = file->private_data;
 	if (!dmabuf || !dmabuf->resv)
-		return POLLERR;
+		return EPOLLERR;
 
 	resv = dmabuf->resv;
 
 	poll_wait(file, &dmabuf->poll, poll);
 
-	events = poll_requested_events(poll) & (POLLIN | POLLOUT);
+	events = poll_requested_events(poll) & (EPOLLIN | EPOLLOUT);
 	if (!events)
 		return 0;
 
@@ -193,12 +193,12 @@ retry:
 		goto retry;
 	}
 
-	if (fence_excl && (!(events & POLLOUT) || shared_count == 0)) {
+	if (fence_excl && (!(events & EPOLLOUT) || shared_count == 0)) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_excl;
-		__poll_t pevents = POLLIN;
+		__poll_t pevents = EPOLLIN;
 
 		if (shared_count == 0)
-			pevents |= POLLOUT;
+			pevents |= EPOLLOUT;
 
 		spin_lock_irq(&dmabuf->poll.lock);
 		if (dcb->active) {
@@ -228,19 +228,19 @@ retry:
 		}
 	}
 
-	if ((events & POLLOUT) && shared_count > 0) {
+	if ((events & EPOLLOUT) && shared_count > 0) {
 		struct dma_buf_poll_cb_t *dcb = &dmabuf->cb_shared;
 		int i;
 
 		/* Only queue a new callback if no event has fired yet */
 		spin_lock_irq(&dmabuf->poll.lock);
 		if (dcb->active)
-			events &= ~POLLOUT;
+			events &= ~EPOLLOUT;
 		else
-			dcb->active = POLLOUT;
+			dcb->active = EPOLLOUT;
 		spin_unlock_irq(&dmabuf->poll.lock);
 
-		if (!(events & POLLOUT))
+		if (!(events & EPOLLOUT))
 			goto out;
 
 		for (i = 0; i < shared_count; ++i) {
@@ -253,14 +253,14 @@ retry:
 				 *
 				 * call dma_buf_poll_cb and force a recheck!
 				 */
-				events &= ~POLLOUT;
+				events &= ~EPOLLOUT;
 				dma_buf_poll_cb(NULL, &dcb->cb);
 				break;
 			}
 			if (!dma_fence_add_callback(fence, &dcb->cb,
 						    dma_buf_poll_cb)) {
 				dma_fence_put(fence);
-				events &= ~POLLOUT;
+				events &= ~EPOLLOUT;
 				break;
 			}
 			dma_fence_put(fence);

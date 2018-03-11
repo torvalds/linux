@@ -5,7 +5,6 @@
 
 config AC97_BUS_NEW
 	tristate
-	select AC97
 	help
 	  This is the new AC97 bus type, successor of AC97_BUS. The ported
 	  drivers which benefit from the AC97 automatic probing should "select"

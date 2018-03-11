@@ -74,7 +74,7 @@ static __poll_t posix_clock_poll(struct file *fp, poll_table *wait)
 	__poll_t result = 0;
 
 	if (!clk)
-		return POLLERR;
+		return EPOLLERR;
 
 	if (clk->ops.poll)
 		result = clk->ops.poll(clk, fp, wait);

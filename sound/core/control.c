@@ -889,7 +889,7 @@ static int snd_ctl_elem_read(struct snd_card *card,
 
 	index_offset = snd_ctl_get_ioff(kctl, &control->id);
 	vd = &kctl->vd[index_offset];
-	if (!(vd->access & SNDRV_CTL_ELEM_ACCESS_READ) && kctl->get == NULL)
+	if (!(vd->access & SNDRV_CTL_ELEM_ACCESS_READ) || kctl->get == NULL)
 		return -EPERM;
 
 	snd_ctl_build_ioff(&control->id, kctl, index_offset);
@@ -1679,7 +1679,7 @@ static __poll_t snd_ctl_poll(struct file *file, poll_table * wait)
 
 	mask = 0;
 	if (!list_empty(&ctl->events))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

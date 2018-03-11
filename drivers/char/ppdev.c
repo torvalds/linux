@@ -776,7 +776,7 @@ static __poll_t pp_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &pp->irq_wait, wait);
 	if (atomic_read(&pp->irqc))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

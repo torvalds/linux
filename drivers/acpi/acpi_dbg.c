@@ -724,9 +724,9 @@ static __poll_t acpi_aml_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &acpi_aml_io.wait, wait);
 	if (acpi_aml_user_readable())
-		masks |= POLLIN | POLLRDNORM;
+		masks |= EPOLLIN | EPOLLRDNORM;
 	if (acpi_aml_user_writable())
-		masks |= POLLOUT | POLLWRNORM;
+		masks |= EPOLLOUT | EPOLLWRNORM;
 
 	return masks;
 }

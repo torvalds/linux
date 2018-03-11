@@ -666,16 +666,16 @@ static __poll_t sync_serial_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &port->in_wait_q, wait);
 	/* Some room to write */
 	if (port->out_count < OUT_BUFFER_SIZE)
-		mask |=  POLLOUT | POLLWRNORM;
+		mask |=  EPOLLOUT | EPOLLWRNORM;
 	/* At least an inbufchunk of data */
 	if (sync_data_avail(port) >= port->inbufchunk)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	DEBUGPOLL(if (mask != prev_mask)
 		printk(KERN_DEBUG "sync_serial_poll: mask 0x%08X %s %s\n",
 			mask,
-			mask & POLLOUT ? "POLLOUT" : "",
-			mask & POLLIN ? "POLLIN" : "");
+			mask & EPOLLOUT ? "POLLOUT" : "",
+			mask & EPOLLIN ? "POLLIN" : "");
 		prev_mask = mask;
 	);
 	return mask;

@@ -2024,6 +2024,11 @@ static inline int udp4_csum_init(struct sk_buff *skb, struct udphdr *uh,
 		err = udplite_checksum_init(skb, uh);
 		if (err)
 			return err;
+
+		if (UDP_SKB_CB(skb)->partial_cov) {
+			skb->csum = inet_compute_pseudo(skb, proto);
+			return 0;
+		}
 	}
 
 	/* Note, we are only interested in != 0 or == 0, thus the
@@ -2501,12 +2506,12 @@ __poll_t udp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	struct sock *sk = sock->sk;
 
 	if (!skb_queue_empty(&udp_sk(sk)->reader_queue))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	/* Check for false positives due to checksum errors */
-	if ((mask & POLLRDNORM) && !(file->f_flags & O_NONBLOCK) &&
+	if ((mask & EPOLLRDNORM) && !(file->f_flags & O_NONBLOCK) &&
 	    !(sk->sk_shutdown & RCV_SHUTDOWN) && first_packet_length(sk) == -1)
-		mask &= ~(POLLIN | POLLRDNORM);
+		mask &= ~(EPOLLIN | EPOLLRDNORM);
 
 	return mask;
 

@@ -823,7 +823,7 @@ void kernfs_drain_open_files(struct kernfs_node *kn)
  * the content and then you use 'poll' or 'select' to wait for
  * the content to change.  When the content changes (assuming the
  * manager for the kobject supports notification), poll will
- * return POLLERR|POLLPRI, and select will return the fd whether
+ * return EPOLLERR|EPOLLPRI, and select will return the fd whether
  * it is waiting for read, write, or exceptions.
  * Once poll/select indicates that the value has changed, you
  * need to close and re-open the file, or seek to 0 and read again.
@@ -851,7 +851,7 @@ static __poll_t kernfs_fop_poll(struct file *filp, poll_table *wait)
 	return DEFAULT_POLLMASK;
 
  trigger:
-	return DEFAULT_POLLMASK|POLLERR|POLLPRI;
+	return DEFAULT_POLLMASK|EPOLLERR|EPOLLPRI;
 }
 
 static void kernfs_notify_workfn(struct work_struct *work)

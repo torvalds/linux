@@ -182,7 +182,7 @@ static __poll_t vmci_host_poll(struct file *filp, poll_table *wait)
 		if (context->pending_datagrams > 0 ||
 		    vmci_handle_arr_get_size(
 				context->pending_doorbell_array) > 0) {
-			mask = POLLIN;
+			mask = EPOLLIN;
 		}
 		spin_unlock(&context->lock);
 	}

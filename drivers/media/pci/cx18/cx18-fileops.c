@@ -613,7 +613,7 @@ __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 
 	/* Start a capture if there is none */
 	if (!eof && !test_bit(CX18_F_S_STREAMING, &s->s_flags) &&
-			(req_events & (POLLIN | POLLRDNORM))) {
+			(req_events & (EPOLLIN | EPOLLRDNORM))) {
 		int rc;
 
 		mutex_lock(&cx->serialize_lock);
@@ -622,7 +622,7 @@ __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 		if (rc) {
 			CX18_DEBUG_INFO("Could not start capture for %s (%d)\n",
 					s->name, rc);
-			return POLLERR;
+			return EPOLLERR;
 		}
 		CX18_DEBUG_FILE("Encoder poll started capture\n");
 	}
@@ -632,23 +632,23 @@ __poll_t cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 		__poll_t videobuf_poll = videobuf_poll_stream(filp, &s->vbuf_q, wait);
 
 		if (v4l2_event_pending(&id->fh))
-			res |= POLLPRI;
-		if (eof && videobuf_poll == POLLERR)
-			return res | POLLHUP;
+			res |= EPOLLPRI;
+		if (eof && videobuf_poll == EPOLLERR)
+			return res | EPOLLHUP;
 		return res | videobuf_poll;
 	}
 
 	/* add stream's waitq to the poll list */
 	CX18_DEBUG_HI_FILE("Encoder poll\n");
 	if (v4l2_event_pending(&id->fh))
-		res |= POLLPRI;
+		res |= EPOLLPRI;
 	else
 		poll_wait(filp, &s->waitq, wait);
 
 	if (atomic_read(&s->q_full.depth))
-		return res | POLLIN | POLLRDNORM;
+		return res | EPOLLIN | EPOLLRDNORM;
 	if (eof)
-		return res | POLLHUP;
+		return res | EPOLLHUP;
 	return res;
 }
 

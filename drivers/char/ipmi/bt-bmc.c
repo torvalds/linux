@@ -349,10 +349,10 @@ static __poll_t bt_bmc_poll(struct file *file, poll_table *wait)
 	ctrl = bt_inb(bt_bmc, BT_CTRL);
 
 	if (ctrl & BT_CTRL_H2B_ATN)
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	if (!(ctrl & (BT_CTRL_H_BUSY | BT_CTRL_B2H_ATN)))
-		mask |= POLLOUT;
+		mask |= EPOLLOUT;
 
 	return mask;
 }

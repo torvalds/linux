@@ -1792,9 +1792,9 @@ static __poll_t fw_device_op_poll(struct file *file, poll_table * pt)
 	poll_wait(file, &client->wait, pt);
 
 	if (fw_device_is_shutdown(client->device))
-		mask |= POLLHUP | POLLERR;
+		mask |= EPOLLHUP | EPOLLERR;
 	if (!list_empty(&client->event_list))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

@@ -651,7 +651,7 @@ static __poll_t xenbus_file_poll(struct file *file, poll_table *wait)
 
 	poll_wait(file, &u->read_waitq, wait);
 	if (!list_empty(&u->read_buffers))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

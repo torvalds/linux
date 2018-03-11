@@ -42,12 +42,17 @@ struct ccp_vdata {
 	const unsigned int offset;
 	const unsigned int rsamax;
 };
+
+struct psp_vdata {
+	const unsigned int offset;
+};
+
 /* Structure to hold SP device data */
 struct sp_dev_vdata {
 	const unsigned int bar;
 
 	const struct ccp_vdata *ccp_vdata;
-	void *psp_vdata;
+	const struct psp_vdata *psp_vdata;
 };
 
 struct sp_device {
@@ -67,6 +72,10 @@ struct sp_device {
 
 	/* DMA caching attribute support */
 	unsigned int axcache;
+
+	/* get and set master device */
+	struct sp_device*(*get_psp_master_device)(void);
+	void (*set_psp_master_device)(struct sp_device *);
 
 	bool irq_registered;
 	bool use_tasklet;
@@ -103,6 +112,7 @@ void sp_free_ccp_irq(struct sp_device *sp, void *data);
 int sp_request_psp_irq(struct sp_device *sp, irq_handler_t handler,
 		       const char *name, void *data);
 void sp_free_psp_irq(struct sp_device *sp, void *data);
+struct sp_device *sp_get_psp_master_device(void);
 
 #ifdef CONFIG_CRYPTO_DEV_SP_CCP
 
@@ -129,5 +139,21 @@ static inline int ccp_dev_resume(struct sp_device *sp)
 	return 0;
 }
 #endif	/* CONFIG_CRYPTO_DEV_SP_CCP */
+
+#ifdef CONFIG_CRYPTO_DEV_SP_PSP
+
+int psp_dev_init(struct sp_device *sp);
+void psp_pci_init(void);
+void psp_dev_destroy(struct sp_device *sp);
+void psp_pci_exit(void);
+
+#else /* !CONFIG_CRYPTO_DEV_SP_PSP */
+
+static inline int psp_dev_init(struct sp_device *sp) { return 0; }
+static inline void psp_pci_init(void) { }
+static inline void psp_dev_destroy(struct sp_device *sp) { }
+static inline void psp_pci_exit(void) { }
+
+#endif /* CONFIG_CRYPTO_DEV_SP_PSP */
 
 #endif

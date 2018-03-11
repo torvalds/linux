@@ -828,7 +828,7 @@ int inet_shutdown(struct socket *sock, int how)
 	case TCP_CLOSE:
 		err = -ENOTCONN;
 		/* Hack to wake up other listeners, who can poll for
-		   POLLHUP, even on eg. unconnected UDP sockets -- RR */
+		   EPOLLHUP, even on eg. unconnected UDP sockets -- RR */
 		/* fall through */
 	default:
 		sk->sk_shutdown |= how;

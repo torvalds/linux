@@ -35,8 +35,8 @@ static void smc_rx_data_ready(struct sock *sk)
 	rcu_read_lock();
 	wq = rcu_dereference(sk->sk_wq);
 	if (skwq_has_sleeper(wq))
-		wake_up_interruptible_sync_poll(&wq->wait, POLLIN | POLLPRI |
-						POLLRDNORM | POLLRDBAND);
+		wake_up_interruptible_sync_poll(&wq->wait, EPOLLIN | EPOLLPRI |
+						EPOLLRDNORM | EPOLLRDBAND);
 	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	if ((sk->sk_shutdown == SHUTDOWN_MASK) ||
 	    (sk->sk_state == SMC_CLOSED))

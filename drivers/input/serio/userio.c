@@ -255,7 +255,7 @@ static __poll_t userio_char_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &userio->waitq, wait);
 
 	if (userio->head != userio->tail)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }

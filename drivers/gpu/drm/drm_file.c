@@ -567,7 +567,7 @@ __poll_t drm_poll(struct file *filp, struct poll_table_struct *wait)
 	poll_wait(filp, &file_priv->event_wait, wait);
 
 	if (!list_empty(&file_priv->event_list))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }

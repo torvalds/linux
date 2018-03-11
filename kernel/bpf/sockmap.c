@@ -521,8 +521,8 @@ static struct smap_psock *smap_init_psock(struct sock *sock,
 static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 {
 	struct bpf_stab *stab;
-	int err = -EINVAL;
 	u64 cost;
+	int err;
 
 	if (!capable(CAP_NET_ADMIN))
 		return ERR_PTR(-EPERM);
@@ -547,6 +547,7 @@ static struct bpf_map *sock_map_alloc(union bpf_attr *attr)
 
 	/* make sure page count doesn't overflow */
 	cost = (u64) stab->map.max_entries * sizeof(struct sock *);
+	err = -EINVAL;
 	if (cost >= U32_MAX - PAGE_SIZE)
 		goto free_stab;
 
