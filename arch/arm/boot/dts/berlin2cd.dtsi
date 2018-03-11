@@ -480,6 +480,12 @@
 				sys_pinctrl: pin-controller {
 					compatible = "marvell,berlin2cd-system-pinctrl";
 				};
+
+				adc: adc {
+					compatible = "marvell,berlin2-adc";
+					interrupts = <12>, <14>;
+					interrupt-names = "adc", "tsen";
+				};
 			};
 
 			sic: interrupt-controller@e000 {
