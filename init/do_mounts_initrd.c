@@ -43,7 +43,7 @@ static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 	sys_dup(0);
 	/* move initrd over / and chdir/chroot in initrd root */
 	sys_chdir("/root");
-	sys_mount(".", "/", NULL, MS_MOVE, NULL);
+	ksys_mount(".", "/", NULL, MS_MOVE, NULL);
 	sys_chroot(".");
 	sys_setsid();
 	return 0;
@@ -81,7 +81,7 @@ static void __init handle_initrd(void)
 	current->flags &= ~PF_FREEZER_SKIP;
 
 	/* move initrd to rootfs' /old */
-	sys_mount("..", ".", NULL, MS_MOVE, NULL);
+	ksys_mount("..", ".", NULL, MS_MOVE, NULL);
 	/* switch root and cwd back to / of rootfs */
 	sys_chroot("..");
 
@@ -95,7 +95,7 @@ static void __init handle_initrd(void)
 	mount_root();
 
 	printk(KERN_NOTICE "Trying to move old root to /initrd ... ");
-	error = sys_mount("/old", "/root/initrd", NULL, MS_MOVE, NULL);
+	error = ksys_mount("/old", "/root/initrd", NULL, MS_MOVE, NULL);
 	if (!error)
 		printk("okay\n");
 	else {

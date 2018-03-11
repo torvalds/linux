@@ -363,7 +363,7 @@ static void __init get_fs_names(char *page)
 static int __init do_mount_root(char *name, char *fs, int flags, void *data)
 {
 	struct super_block *s;
-	int err = sys_mount(name, "/root", fs, flags, data);
+	int err = ksys_mount(name, "/root", fs, flags, data);
 	if (err)
 		return err;
 
@@ -599,7 +599,7 @@ void __init prepare_namespace(void)
 	mount_root();
 out:
 	devtmpfs_mount("dev");
-	sys_mount(".", "/", NULL, MS_MOVE, NULL);
+	ksys_mount(".", "/", NULL, MS_MOVE, NULL);
 	sys_chroot(".");
 }
 

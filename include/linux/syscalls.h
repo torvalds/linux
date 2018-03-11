@@ -946,4 +946,7 @@ asmlinkage long sys_statx(int dfd, const char __user *path, unsigned flags,
  * the ksys_xyzyyz() functions prototyped below.
  */
 
+int ksys_mount(char __user *dev_name, char __user *dir_name, char __user *type,
+	       unsigned long flags, void __user *data);
+
 #endif
