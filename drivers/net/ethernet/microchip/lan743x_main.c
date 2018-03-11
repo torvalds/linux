@@ -53,12 +53,13 @@ return_error:
 	return ret;
 }
 
-u32 lan743x_csr_read(struct lan743x_adapter *adapter, int offset)
+static u32 lan743x_csr_read(struct lan743x_adapter *adapter, int offset)
 {
 	return ioread32(&adapter->csr.csr_address[offset]);
 }
 
-void lan743x_csr_write(struct lan743x_adapter *adapter, int offset, u32 data)
+static void lan743x_csr_write(struct lan743x_adapter *adapter, int offset,
+			      u32 data)
 {
 	iowrite32(data, &adapter->csr.csr_address[offset]);
 }
