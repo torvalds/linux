@@ -55,7 +55,7 @@ fi
 
 if [[ ! -v NUM_NETIFS ]]; then
 	echo "SKIP: importer does not define \"NUM_NETIFS\""
-	exit 0
+	exit 1
 fi
 
 ##############################################################################
@@ -115,7 +115,7 @@ for i in $(eval echo {1..$NUM_NETIFS}); do
 	ip link show dev ${NETIFS[p$i]} &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: could not find all required interfaces"
-		exit 0
+		exit 1
 	fi
 done
 
