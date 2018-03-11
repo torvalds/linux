@@ -39,8 +39,8 @@ static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 	sys_unshare(CLONE_FS | CLONE_FILES);
 	/* stdin/stdout/stderr for /linuxrc */
 	sys_open("/dev/console", O_RDWR, 0);
-	sys_dup(0);
-	sys_dup(0);
+	ksys_dup(0);
+	ksys_dup(0);
 	/* move initrd over / and chdir/chroot in initrd root */
 	sys_chdir("/root");
 	ksys_mount(".", "/", NULL, MS_MOVE, NULL);
