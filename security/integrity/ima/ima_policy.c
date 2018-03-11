@@ -389,7 +389,7 @@ int ima_match_policy(struct inode *inode, const struct cred *cred, u32 secid,
 		action |= entry->action & IMA_DO_MASK;
 		if (entry->action & IMA_APPRAISE) {
 			action |= get_subaction(entry, func);
-			action ^= IMA_HASH;
+			action &= ~IMA_HASH;
 		}
 
 		if (entry->action & IMA_DO_MASK)
