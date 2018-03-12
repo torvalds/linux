@@ -1417,7 +1417,8 @@ static int amdgpu_device_ip_late_set_cg_state(struct amdgpu_device *adev)
 			continue;
 		/* skip CG for VCE/UVD, it's handled specially */
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
-		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE) {
+		    adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE &&
+		    adev->ip_blocks[i].version->funcs->set_clockgating_state) {
 			/* enable clockgating to save power */
 			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
 										     AMD_CG_STATE_GATE);
@@ -1466,7 +1467,8 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.hw)
 			continue;
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) {
+		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC &&
+			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
 			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
 			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
 										     AMD_CG_STATE_UNGATE);
@@ -1578,7 +1580,8 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
 		/* ungate blocks so that suspend can properly shut them down */
-		if (i != AMD_IP_BLOCK_TYPE_SMC) {
+		if (i != AMD_IP_BLOCK_TYPE_SMC &&
+			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
 			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
 										     AMD_CG_STATE_UNGATE);
 			if (r) {
