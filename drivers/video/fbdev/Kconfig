@@ -1156,6 +1156,11 @@ config FB_I810_I2C
 	bool "Enable DDC Support"
 	depends on FB_I810 && FB_I810_GTF
 	select FB_DDC
+	help
+	  Add DDC/I2C support for i810fb.  This will allow the driver to get
+	  display information, especially for monitors with fickle timings.
+
+	  If unsure, say Y.
 
 config FB_LE80578
 	tristate "Intel LE80578 (Vermilion) support"
