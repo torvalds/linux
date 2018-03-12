@@ -121,8 +121,12 @@
 #define MX_TX_RX_LEN			SZ_64K
 #define MX_BLOCKS			(MX_TX_RX_LEN / QUP_READ_LIMIT)
 
-/* Max timeout in ms for 32k bytes */
-#define TOUT_MAX			300
+/*
+ * Minimum transfer timeout for i2c transfers in seconds. It will be added on
+ * the top of maximum transfer time calculated from i2c bus speed to compensate
+ * the overheads.
+ */
+#define TOUT_MIN			2
 
 /* Default values. Use these if FW query fails */
 #define DEFAULT_CLK_FREQ 100000
@@ -163,6 +167,7 @@ struct qup_i2c_dev {
 	int			in_blk_sz;
 
 	unsigned long		one_byte_t;
+	unsigned long		xfer_timeout;
 	struct qup_i2c_block	blk;
 
 	struct i2c_msg		*msg;
@@ -849,7 +854,7 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 		dma_async_issue_pending(qup->brx.dma);
 	}
 
-	if (!wait_for_completion_timeout(&qup->xfer, TOUT_MAX * HZ)) {
+	if (!wait_for_completion_timeout(&qup->xfer, qup->xfer_timeout)) {
 		dev_err(qup->dev, "normal trans timed out\n");
 		ret = -ETIMEDOUT;
 	}
@@ -1605,6 +1610,8 @@ nodma:
 	 */
 	one_bit_t = (USEC_PER_SEC / clk_freq) + 1;
 	qup->one_byte_t = one_bit_t * 9;
+	qup->xfer_timeout = TOUT_MIN * HZ +
+			    usecs_to_jiffies(MX_TX_RX_LEN * qup->one_byte_t);
 
 	dev_dbg(qup->dev, "IN:block:%d, fifo:%d, OUT:block:%d, fifo:%d\n",
 		qup->in_blk_sz, qup->in_fifo_sz,
