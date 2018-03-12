@@ -38,21 +38,21 @@
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 
-struct dsi_ctrl_hdr {
+struct cmd_ctrl_hdr {
 	u8 dtype;	/* data type */
 	u8 wait;	/* ms */
 	u8 dlen;	/* payload len */
 } __packed;
 
-struct dsi_cmd_desc {
-	struct dsi_ctrl_hdr dchdr;
+struct cmd_desc {
+	struct cmd_ctrl_hdr dchdr;
 	u8 *payload;
 };
 
-struct dsi_panel_cmds {
+struct panel_cmds {
 	u8 *buf;
 	int blen;
-	struct dsi_cmd_desc *cmds;
+	struct cmd_desc *cmds;
 	int cmd_cnt;
 };
 
@@ -113,8 +113,8 @@ struct panel_simple {
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *reset_gpio;
 
-	struct dsi_panel_cmds *on_cmds;
-	struct dsi_panel_cmds *off_cmds;
+	struct panel_cmds *on_cmds;
+	struct panel_cmds *off_cmds;
 };
 
 static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
@@ -122,7 +122,7 @@ static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
 	return container_of(panel, struct panel_simple, base);
 }
 
-static void panel_simple_dsi_cmds_cleanup(struct panel_simple *p)
+static void panel_simple_cmds_cleanup(struct panel_simple *p)
 {
 	if (p->on_cmds) {
 		kfree(p->on_cmds->buf);
@@ -135,13 +135,13 @@ static void panel_simple_dsi_cmds_cleanup(struct panel_simple *p)
 	}
 }
 
-static int panel_simple_dsi_parse_dcs_cmds(struct device *dev,
-					   const u8 *data, int blen,
-					   struct dsi_panel_cmds *pcmds)
+static int panel_simple_parse_cmds(struct device *dev,
+				   const u8 *data, int blen,
+				   struct panel_cmds *pcmds)
 {
 	int len;
 	char *buf, *bp;
-	struct dsi_ctrl_hdr *dchdr;
+	struct cmd_ctrl_hdr *dchdr;
 	int i, cnt;
 
 	if (!pcmds)
@@ -151,12 +151,12 @@ static int panel_simple_dsi_parse_dcs_cmds(struct device *dev,
 	if (!buf)
 		return -ENOMEM;
 
-	/* scan dcs commands */
+	/* scan init commands */
 	bp = buf;
 	len = blen;
 	cnt = 0;
 	while (len > sizeof(*dchdr)) {
-		dchdr = (struct dsi_ctrl_hdr *)bp;
+		dchdr = (struct cmd_ctrl_hdr *)bp;
 
 		if (dchdr->dlen > len) {
 			dev_err(dev, "%s: error, len=%d", __func__,
@@ -178,7 +178,7 @@ static int panel_simple_dsi_parse_dcs_cmds(struct device *dev,
 		return -EINVAL;
 	}
 
-	pcmds->cmds = kcalloc(cnt, sizeof(struct dsi_cmd_desc), GFP_KERNEL);
+	pcmds->cmds = kcalloc(cnt, sizeof(struct cmd_desc), GFP_KERNEL);
 	if (!pcmds->cmds) {
 		kfree(buf);
 		return -ENOMEM;
@@ -191,7 +191,7 @@ static int panel_simple_dsi_parse_dcs_cmds(struct device *dev,
 	bp = buf;
 	len = blen;
 	for (i = 0; i < cnt; i++) {
-		dchdr = (struct dsi_ctrl_hdr *)bp;
+		dchdr = (struct cmd_ctrl_hdr *)bp;
 		len -= sizeof(*dchdr);
 		bp += sizeof(*dchdr);
 		pcmds->cmds[i].dchdr = *dchdr;
@@ -206,7 +206,7 @@ static int panel_simple_dsi_parse_dcs_cmds(struct device *dev,
 }
 
 static int panel_simple_dsi_send_cmds(struct panel_simple *panel,
-				      struct dsi_panel_cmds *cmds)
+				      struct panel_cmds *cmds)
 {
 	struct mipi_dsi_device *dsi = panel->dsi;
 	int i, err;
@@ -215,7 +215,7 @@ static int panel_simple_dsi_send_cmds(struct panel_simple *panel,
 		return -EINVAL;
 
 	for (i = 0; i < cmds->cmd_cnt; i++) {
-		struct dsi_cmd_desc *cmd = &cmds->cmds[i];
+		struct cmd_desc *cmd = &cmds->cmds[i];
 
 		switch (cmd->dchdr.dtype) {
 		case MIPI_DSI_GENERIC_SHORT_WRITE_0_PARAM:
@@ -243,6 +243,48 @@ static int panel_simple_dsi_send_cmds(struct panel_simple *panel,
 			msleep(cmd->dchdr.wait);
 	}
 
+	return 0;
+}
+
+static int panel_simple_get_cmds(struct panel_simple *panel)
+{
+	const void *data;
+	int len;
+	int err;
+
+	data = of_get_property(panel->dev->of_node, "panel-init-sequence",
+			       &len);
+	if (data) {
+		panel->on_cmds = devm_kzalloc(panel->dev,
+					      sizeof(*panel->on_cmds),
+					      GFP_KERNEL);
+		if (!panel->on_cmds)
+			return -ENOMEM;
+
+		err = panel_simple_parse_cmds(panel->dev, data, len,
+					      panel->on_cmds);
+		if (err) {
+			dev_err(panel->dev, "failed to parse panel init sequence\n");
+			return err;
+		}
+	}
+
+	data = of_get_property(panel->dev->of_node, "panel-exit-sequence",
+			       &len);
+	if (data) {
+		panel->off_cmds = devm_kzalloc(panel->dev,
+					       sizeof(*panel->off_cmds),
+					       GFP_KERNEL);
+		if (!panel->off_cmds)
+			return -ENOMEM;
+
+		err = panel_simple_parse_cmds(panel->dev, data, len,
+					      panel->off_cmds);
+		if (err) {
+			dev_err(panel->dev, "failed to parse panel exit sequence\n");
+			return err;
+		}
+	}
 	return 0;
 }
 
@@ -418,13 +460,14 @@ static int panel_simple_disable(struct drm_panel *panel)
 static int panel_simple_unprepare(struct drm_panel *panel)
 {
 	struct panel_simple *p = to_panel_simple(panel);
-	int err;
+	int err = 0;
 
 	if (!p->prepared)
 		return 0;
 
 	if (p->off_cmds) {
-		err = panel_simple_dsi_send_cmds(p, p->off_cmds);
+		if (p->dsi)
+			err = panel_simple_dsi_send_cmds(p, p->off_cmds);
 		if (err)
 			dev_err(p->dev, "failed to send off cmds\n");
 	}
@@ -478,7 +521,8 @@ static int panel_simple_prepare(struct drm_panel *panel)
 		msleep(p->desc->delay.init);
 
 	if (p->on_cmds) {
-		err = panel_simple_dsi_send_cmds(p, p->on_cmds);
+		if (p->dsi)
+			err = panel_simple_dsi_send_cmds(p, p->on_cmds);
 		if (err)
 			dev_err(p->dev, "failed to send on cmds\n");
 	}
@@ -603,6 +647,11 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	panel->desc = of_desc;
 	panel->dev = dev;
 
+	err = panel_simple_get_cmds(panel);
+	if (err) {
+		dev_err(dev, "failed to get init cmd: %d\n", err);
+		return err;
+	}
 	panel->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(panel->supply))
 		return PTR_ERR(panel->supply);
@@ -682,7 +731,7 @@ static int panel_simple_remove(struct device *dev)
 	if (panel->backlight)
 		put_device(&panel->backlight->dev);
 
-	panel_simple_dsi_cmds_cleanup(panel);
+	panel_simple_cmds_cleanup(panel);
 
 	return 0;
 }
@@ -2113,10 +2162,8 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 	const struct panel_desc_dsi *desc;
 	const struct of_device_id *id;
 	const struct panel_desc *pdesc;
-	const void *data;
-	int len;
-	u32 val;
 	int err;
+	u32 val;
 
 	id = of_match_node(dsi_of_match, dsi->dev.of_node);
 	if (!id)
@@ -2148,38 +2195,6 @@ static int panel_simple_dsi_probe(struct mipi_dsi_device *dsi)
 
 	if (!of_property_read_u32(dsi->dev.of_node, "dsi,lanes", &val))
 		dsi->lanes = val;
-
-	data = of_get_property(dsi->dev.of_node, "panel-init-sequence", &len);
-	if (data) {
-		panel->on_cmds = devm_kzalloc(&dsi->dev,
-					      sizeof(*panel->on_cmds),
-					      GFP_KERNEL);
-		if (!panel->on_cmds)
-			return -ENOMEM;
-
-		err = panel_simple_dsi_parse_dcs_cmds(&dsi->dev, data, len,
-						      panel->on_cmds);
-		if (err) {
-			dev_err(&dsi->dev, "failed to parse panel init sequence\n");
-			return err;
-		}
-	}
-
-	data = of_get_property(dsi->dev.of_node, "panel-exit-sequence", &len);
-	if (data) {
-		panel->off_cmds = devm_kzalloc(&dsi->dev,
-					       sizeof(*panel->off_cmds),
-					       GFP_KERNEL);
-		if (!panel->off_cmds)
-			return -ENOMEM;
-
-		err = panel_simple_dsi_parse_dcs_cmds(&dsi->dev, data, len,
-						      panel->off_cmds);
-		if (err) {
-			dev_err(&dsi->dev, "failed to parse panel exit sequence\n");
-			return err;
-		}
-	}
 
 	return mipi_dsi_attach(dsi);
 }
