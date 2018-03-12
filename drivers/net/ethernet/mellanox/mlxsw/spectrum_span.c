@@ -133,39 +133,6 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_phys = {
 	.deconfigure = mlxsw_sp_span_entry_phys_deconfigure,
 };
 
-static struct net_device *
-mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
-			    __be32 *saddrp, __be32 *daddrp)
-{
-	struct ip_tunnel *tun = netdev_priv(to_dev);
-	struct net_device *dev = NULL;
-	struct ip_tunnel_parm parms;
-	struct rtable *rt = NULL;
-	struct flowi4 fl4;
-
-	/* We assume "dev" stays valid after rt is put. */
-	ASSERT_RTNL();
-
-	parms = mlxsw_sp_ipip_netdev_parms4(to_dev);
-	ip_tunnel_init_flow(&fl4, parms.iph.protocol, *daddrp, *saddrp,
-			    0, 0, parms.link, tun->fwmark);
-
-	rt = ip_route_output_key(tun->net, &fl4);
-	if (IS_ERR(rt))
-		return NULL;
-
-	if (rt->rt_type != RTN_UNICAST)
-		goto out;
-
-	dev = rt->dst.dev;
-	*saddrp = fl4.saddr;
-	*daddrp = rt->rt_gateway;
-
-out:
-	ip_rt_put(rt);
-	return dev;
-}
-
 static int mlxsw_sp_span_dmac(struct neigh_table *tbl,
 			      const void *pkey,
 			      struct net_device *l3edev,
@@ -200,7 +167,7 @@ mlxsw_sp_span_entry_unoffloadable(struct mlxsw_sp_span_parms *sparmsp)
 	return 0;
 }
 
-static int
+static __maybe_unused int
 mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
 					union mlxsw_sp_l3addr saddr,
 					union mlxsw_sp_l3addr daddr,
@@ -225,6 +192,40 @@ mlxsw_sp_span_entry_tunnel_parms_common(struct net_device *l3edev,
 	sparmsp->saddr = saddr;
 	sparmsp->daddr = daddr;
 	return 0;
+}
+
+#if IS_ENABLED(CONFIG_NET_IPGRE)
+static struct net_device *
+mlxsw_sp_span_gretap4_route(const struct net_device *to_dev,
+			    __be32 *saddrp, __be32 *daddrp)
+{
+	struct ip_tunnel *tun = netdev_priv(to_dev);
+	struct net_device *dev = NULL;
+	struct ip_tunnel_parm parms;
+	struct rtable *rt = NULL;
+	struct flowi4 fl4;
+
+	/* We assume "dev" stays valid after rt is put. */
+	ASSERT_RTNL();
+
+	parms = mlxsw_sp_ipip_netdev_parms4(to_dev);
+	ip_tunnel_init_flow(&fl4, parms.iph.protocol, *daddrp, *saddrp,
+			    0, 0, parms.link, tun->fwmark);
+
+	rt = ip_route_output_key(tun->net, &fl4);
+	if (IS_ERR(rt))
+		return NULL;
+
+	if (rt->rt_type != RTN_UNICAST)
+		goto out;
+
+	dev = rt->dst.dev;
+	*saddrp = fl4.saddr;
+	*daddrp = rt->rt_gateway;
+
+out:
+	ip_rt_put(rt);
+	return dev;
 }
 
 static int
@@ -291,7 +292,9 @@ static const struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap4 = {
 	.configure = mlxsw_sp_span_entry_gretap4_configure,
 	.deconfigure = mlxsw_sp_span_entry_gretap4_deconfigure,
 };
+#endif
 
+#if IS_ENABLED(CONFIG_IPV6_GRE)
 static struct net_device *
 mlxsw_sp_span_gretap6_route(const struct net_device *to_dev,
 			    struct in6_addr *saddrp,
@@ -389,12 +392,17 @@ struct mlxsw_sp_span_entry_ops mlxsw_sp_span_entry_ops_gretap6 = {
 	.configure = mlxsw_sp_span_entry_gretap6_configure,
 	.deconfigure = mlxsw_sp_span_entry_gretap6_deconfigure,
 };
+#endif
 
 static const
 struct mlxsw_sp_span_entry_ops *const mlxsw_sp_span_entry_types[] = {
 	&mlxsw_sp_span_entry_ops_phys,
+#if IS_ENABLED(CONFIG_NET_IPGRE)
 	&mlxsw_sp_span_entry_ops_gretap4,
+#endif
+#if IS_ENABLED(CONFIG_IPV6_GRE)
 	&mlxsw_sp_span_entry_ops_gretap6,
+#endif
 };
 
 static int

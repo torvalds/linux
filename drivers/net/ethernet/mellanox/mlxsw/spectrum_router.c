@@ -7031,7 +7031,7 @@ static void mlxsw_sp_mp4_hash_init(char *recr2_pl)
 
 static void mlxsw_sp_mp6_hash_init(char *recr2_pl)
 {
-	bool only_l3 = !init_net.ipv6.sysctl.multipath_hash_policy;
+	bool only_l3 = !ip6_multipath_hash_policy(&init_net);
 
 	mlxsw_sp_mp_hash_header_set(recr2_pl,
 				    MLXSW_REG_RECR2_IPV6_EN_NOT_TCP_NOT_UDP);

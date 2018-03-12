@@ -888,6 +888,17 @@ static inline int ip6_default_np_autolabel(struct net *net)
 }
 #endif
 
+#if IS_ENABLED(CONFIG_IPV6)
+static inline int ip6_multipath_hash_policy(const struct net *net)
+{
+	return net->ipv6.sysctl.multipath_hash_policy;
+}
+#else
+static inline int ip6_multipath_hash_policy(const struct net *net)
+{
+	return 0;
+}
+#endif
 
 /*
  *	Header manipulation
