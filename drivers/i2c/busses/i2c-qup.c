@@ -1300,7 +1300,8 @@ static int qup_i2c_xfer_v2(struct i2c_adapter *adap,
 			   int num)
 {
 	struct qup_i2c_dev *qup = i2c_get_adapdata(adap);
-	int ret, len, idx = 0;
+	int ret, idx = 0;
+	unsigned int total_len = 0;
 
 	qup->bus_err = 0;
 	qup->qup_err = 0;
@@ -1326,14 +1327,14 @@ static int qup_i2c_xfer_v2(struct i2c_adapter *adap,
 				goto out;
 			}
 
-			len = (msgs[idx].len > qup->out_fifo_sz) ||
-			      (msgs[idx].len > qup->in_fifo_sz);
-
-			if (is_vmalloc_addr(msgs[idx].buf) || !len)
+			if (is_vmalloc_addr(msgs[idx].buf))
 				break;
+
+			total_len += msgs[idx].len;
 		}
 
-		if (idx == num)
+		if (idx == num && (total_len > qup->out_fifo_sz ||
+				   total_len > qup->in_fifo_sz))
 			qup->use_dma = true;
 	}
 
