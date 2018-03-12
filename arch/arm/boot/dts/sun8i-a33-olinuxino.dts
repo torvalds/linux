@@ -62,8 +62,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pin_olinuxino>;
 
 		green {
 			label = "a33-olinuxino:green:usr";
@@ -78,7 +76,7 @@
 
 &mmc0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxino>;
+	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
 	cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
@@ -88,23 +86,6 @@
 
 &ohci0 {
 	status = "okay";
-};
-
-&pio {
-	led_pin_olinuxino: led_pins@0 {
-		pins = "PB7";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_olinuxino: mmc0_cd_pin@0 {
-		pins = "PB4";
-		function = "gpio_in";
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		pins = "PB3";
-		function = "gpio_in";
-	};
 };
 
 &r_rsb {
@@ -211,8 +192,6 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
 	usb0_id_det-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb0_vbus-supply = <&reg_drivevbus>;
