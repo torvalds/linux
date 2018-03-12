@@ -813,6 +813,7 @@ struct kvm_arch {
 
 	bool mwait_in_guest;
 	bool hlt_in_guest;
+	bool pause_in_guest;
 
 	bool ept_identity_pagetable_done;
 	gpa_t ept_identity_map_addr;

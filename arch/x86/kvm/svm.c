@@ -1460,7 +1460,8 @@ static void init_vmcb(struct vcpu_svm *svm)
 	svm->nested.vmcb = 0;
 	svm->vcpu.arch.hflags = 0;
 
-	if (boot_cpu_has(X86_FEATURE_PAUSEFILTER)) {
+	if (boot_cpu_has(X86_FEATURE_PAUSEFILTER) &&
+	    !kvm_pause_in_guest(svm->vcpu.kvm)) {
 		control->pause_filter_count = 3000;
 		set_intercept(svm, INTERCEPT_PAUSE);
 	}

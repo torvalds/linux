@@ -5595,7 +5595,7 @@ static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 	}
 	if (!enable_unrestricted_guest)
 		exec_control &= ~SECONDARY_EXEC_UNRESTRICTED_GUEST;
-	if (!ple_gap)
+	if (kvm_pause_in_guest(vmx->vcpu.kvm))
 		exec_control &= ~SECONDARY_EXEC_PAUSE_LOOP_EXITING;
 	if (!kvm_vcpu_apicv_active(vcpu))
 		exec_control &= ~(SECONDARY_EXEC_APIC_REGISTER_VIRT |
@@ -5758,7 +5758,7 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write64(POSTED_INTR_DESC_ADDR, __pa((&vmx->pi_desc)));
 	}
 
-	if (ple_gap) {
+	if (!kvm_pause_in_guest(vmx->vcpu.kvm)) {
 		vmcs_write32(PLE_GAP, ple_gap);
 		vmx->ple_window = ple_window;
 		vmx->ple_window_dirty = true;
@@ -7207,7 +7207,7 @@ static __exit void hardware_unsetup(void)
  */
 static int handle_pause(struct kvm_vcpu *vcpu)
 {
-	if (ple_gap)
+	if (!kvm_pause_in_guest(vcpu->kvm))
 		grow_ple_window(vcpu);
 
 	/*
@@ -9903,6 +9903,13 @@ free_vcpu:
 	return ERR_PTR(err);
 }
 
+static int vmx_vm_init(struct kvm *kvm)
+{
+	if (!ple_gap)
+		kvm->arch.pause_in_guest = true;
+	return 0;
+}
+
 static void __init vmx_check_processor_compat(void *rtn)
 {
 	struct vmcs_config vmcs_conf;
@@ -12052,7 +12059,7 @@ static void vmx_cancel_hv_timer(struct kvm_vcpu *vcpu)
 
 static void vmx_sched_in(struct kvm_vcpu *vcpu, int cpu)
 {
-	if (ple_gap)
+	if (!kvm_pause_in_guest(vcpu->kvm))
 		shrink_ple_window(vcpu);
 }
 
@@ -12411,6 +12418,8 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.hardware_disable = hardware_disable,
 	.cpu_has_accelerated_tpr = report_flexpriority,
 	.cpu_has_high_real_mode_segbase = vmx_has_high_real_mode_segbase,
+
+	.vm_init = vmx_vm_init,
 
 	.vcpu_create = vmx_create_vcpu,
 	.vcpu_free = vmx_free_vcpu,
