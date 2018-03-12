@@ -7549,10 +7549,17 @@ static netdev_features_t netdev_fix_features(struct net_device *dev,
 		}
 	}
 
-	/* LRO feature cannot be combined with RX-FCS */
-	if ((features & NETIF_F_LRO) && (features & NETIF_F_RXFCS)) {
-		netdev_dbg(dev, "Dropping LRO feature since RX-FCS is requested.\n");
-		features &= ~NETIF_F_LRO;
+	/* LRO/HW-GRO features cannot be combined with RX-FCS */
+	if (features & NETIF_F_RXFCS) {
+		if (features & NETIF_F_LRO) {
+			netdev_dbg(dev, "Dropping LRO feature since RX-FCS is requested.\n");
+			features &= ~NETIF_F_LRO;
+		}
+
+		if (features & NETIF_F_GRO_HW) {
+			netdev_dbg(dev, "Dropping HW-GRO feature since RX-FCS is requested.\n");
+			features &= ~NETIF_F_GRO_HW;
+		}
 	}
 
 	return features;
