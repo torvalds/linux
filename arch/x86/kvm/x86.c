@@ -5930,6 +5930,30 @@ static bool kvm_vcpu_check_breakpoint(struct kvm_vcpu *vcpu, int *r)
 	return false;
 }
 
+static bool is_vmware_backdoor_opcode(struct x86_emulate_ctxt *ctxt)
+{
+	if (ctxt->opcode_len != 1)
+		return false;
+
+	switch (ctxt->b) {
+	case 0xe4:	/* IN */
+	case 0xe5:
+	case 0xec:
+	case 0xed:
+	case 0xe6:	/* OUT */
+	case 0xe7:
+	case 0xee:
+	case 0xef:
+	case 0x6c:	/* INS */
+	case 0x6d:
+	case 0x6e:	/* OUTS */
+	case 0x6f:
+		return true;
+	}
+
+	return false;
+}
+
 int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 			    unsigned long cr2,
 			    int emulation_type,
@@ -5985,6 +6009,10 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
 			return handle_emulation_failure(vcpu, emulation_type);
 		}
 	}
+
+	if ((emulation_type & EMULTYPE_VMWARE) &&
+	    !is_vmware_backdoor_opcode(ctxt))
+		return EMULATE_FAIL;
 
 	if (emulation_type & EMULTYPE_SKIP) {
 		kvm_rip_write(vcpu, ctxt->_eip);
