@@ -187,6 +187,19 @@ if [ -n "$kernver" ]; then
 			build
 			;;
 
+		"spidev")
+			echo "Build SPIDEV-Test"
+			(
+				cd tools/spi;
+				make #CROSS_COMPILE=arm-linux-gnueabihf-
+			)
+			;;
+
+		"utils")
+			echo "Build utils"
+			( cd utils; make )
+			;;
+
 		"all-pack")
 			echo "Update Repo, Create Kernel & Build Archive"
 			$0 update
