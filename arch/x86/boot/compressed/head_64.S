@@ -336,23 +336,6 @@ ENTRY(startup_64)
 	/* Save the trampoline address in RCX */
 	movq	%rax, %rcx
 
-	/* Check if we need to enable 5-level paging */
-	cmpq	$0, %rdx
-	jz	lvl5
-
-	/* Clear additional page table */
-	leaq	lvl5_pgtable(%rbx), %rdi
-	xorq	%rax, %rax
-	movq	$(PAGE_SIZE/8), %rcx
-	rep	stosq
-
-	/*
-	 * Setup current CR3 as the first and only entry in a new top level
-	 * page table.
-	 */
-	movq	%cr3, %rdi
-	leaq	0x7 (%rdi), %rax
-	movq	%rax, lvl5_pgtable(%rbx)
 
 	/* Switch to compatibility mode (CS.L = 0 CS.D = 1) via far return */
 	pushq	$__KERNEL32_CS
@@ -524,13 +507,31 @@ compatible_mode:
 	btrl	$X86_CR0_PG_BIT, %eax
 	movl	%eax, %cr0
 
-	/* Point CR3 to 5-level paging */
-	leal	lvl5_pgtable(%ebx), %eax
-	movl	%eax, %cr3
+	/* Check what paging mode we want to be in after the trampoline */
+	cmpl	$0, %edx
+	jz	1f
 
-	/* Enable PAE and LA57 mode */
+	/* We want 5-level paging: don't touch CR3 if it already points to 5-level page tables */
 	movl	%cr4, %eax
-	orl	$(X86_CR4_PAE | X86_CR4_LA57), %eax
+	testl	$X86_CR4_LA57, %eax
+	jnz	3f
+	jmp	2f
+1:
+	/* We want 4-level paging: don't touch CR3 if it already points to 4-level page tables */
+	movl	%cr4, %eax
+	testl	$X86_CR4_LA57, %eax
+	jz	3f
+2:
+	/* Point CR3 to the trampoline's new top level page table */
+	leal	TRAMPOLINE_32BIT_PGTABLE_OFFSET(%ecx), %eax
+	movl	%eax, %cr3
+3:
+	/* Enable PAE and LA57 (if required) paging modes */
+	movl	$X86_CR4_PAE, %eax
+	cmpl	$0, %edx
+	jz	1f
+	orl	$X86_CR4_LA57, %eax
+1:
 	movl	%eax, %cr4
 
 	/* Calculate address we are running at */
@@ -611,5 +612,3 @@ boot_stack_end:
 	.balign 4096
 pgtable:
 	.fill BOOT_PGT_SIZE, 1, 0
-lvl5_pgtable:
-	.fill PAGE_SIZE, 1, 0
