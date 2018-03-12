@@ -174,12 +174,16 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 }
 
 static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    resource_size_t *base, resource_size_t *size)
+				    resource_size_t *base,
+				    resource_size_t *size)
 {
-	uint32_t reg_val = I915_READ(IS_GM45(dev_priv) ?
-				     CTG_STOLEN_RESERVED :
-				     ELK_STOLEN_RESERVED);
+	u32 reg_val = I915_READ(IS_GM45(dev_priv) ?
+				CTG_STOLEN_RESERVED :
+				ELK_STOLEN_RESERVED);
 	resource_size_t stolen_top = dev_priv->dsm.end + 1;
+
+	DRM_DEBUG_DRIVER("%s_STOLEN_RESERVED = %08x\n",
+			 IS_GM45(dev_priv) ? "CTG" : "ELK", reg_val);
 
 	if ((reg_val & G4X_STOLEN_RESERVED_ENABLE) == 0) {
 		*base = 0;
@@ -208,9 +212,12 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				     resource_size_t *base, resource_size_t *size)
+				     resource_size_t *base,
+				     resource_size_t *size)
 {
-	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+	u32 reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
 	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
 		*base = 0;
@@ -240,9 +247,12 @@ static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				     resource_size_t *base, resource_size_t *size)
+				     resource_size_t *base,
+				     resource_size_t *size)
 {
-	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+	u32 reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
 	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
 		*base = 0;
@@ -266,9 +276,12 @@ static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    resource_size_t *base, resource_size_t *size)
+				    resource_size_t *base,
+				    resource_size_t *size)
 {
-	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+	u32 reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+
+	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
 	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
 		*base = 0;
@@ -298,10 +311,13 @@ static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    resource_size_t *base, resource_size_t *size)
+				    resource_size_t *base,
+				    resource_size_t *size)
 {
-	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+	u32 reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 	resource_size_t stolen_top;
+
+	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
 	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
 		*base = 0;
