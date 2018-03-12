@@ -1221,7 +1221,10 @@ static int build_hdr_data(u8 hdr_field, struct sk_buff *skb,
 	int len = 0;
 	u8 *hdr;
 
-	hdr_len[0] = sizeof(struct ethhdr);
+	if (skb_vlan_tagged(skb) && !skb_vlan_tag_present(skb))
+		hdr_len[0] = sizeof(struct vlan_ethhdr);
+	else
+		hdr_len[0] = sizeof(struct ethhdr);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		hdr_len[1] = ip_hdr(skb)->ihl * 4;
