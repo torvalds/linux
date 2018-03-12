@@ -329,10 +329,6 @@ static void via_shutdown(void)
 	}
 }
 
-/*
- * FIXME: not sure how this is supposed to work exactly...
- */
-
 static void oss_shutdown(void)
 {
 	oss->rom_ctrl = OSS_POWEROFF;
