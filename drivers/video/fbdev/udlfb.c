@@ -428,7 +428,6 @@ static void dlfb_compress_hline(
 	const uint16_t *pixel = *pixel_start_ptr;
 	uint32_t dev_addr  = *device_address_ptr;
 	uint8_t *cmd = *command_buffer_ptr;
-	const int bpp = 2;
 
 	while ((pixel_end > pixel) &&
 	       (cmd_buffer_end - MIN_RLX_CMD_BYTES > cmd)) {
@@ -453,9 +452,9 @@ static void dlfb_compress_hline(
 
 		cmd_pixel_end = pixel + min(MAX_CMD_PIXELS + 1,
 			min((int)(pixel_end - pixel),
-			    (int)(cmd_buffer_end - cmd) / bpp));
+			    (int)(cmd_buffer_end - cmd) / BPP));
 
-		prefetch_range((void *) pixel, (cmd_pixel_end - pixel) * bpp);
+		prefetch_range((void *) pixel, (cmd_pixel_end - pixel) * BPP);
 
 		while (pixel < cmd_pixel_end) {
 			const uint16_t * const repeating_pixel = pixel;
@@ -490,7 +489,7 @@ static void dlfb_compress_hline(
 		}
 
 		*cmd_pixels_count_byte = (pixel - cmd_pixel_start) & 0xFF;
-		dev_addr += (pixel - cmd_pixel_start) * bpp;
+		dev_addr += (pixel - cmd_pixel_start) * BPP;
 	}
 
 	if (cmd_buffer_end <= MIN_RLX_CMD_BYTES + cmd) {
