@@ -920,7 +920,7 @@ static int btmrvl_sdio_register_dev(struct btmrvl_sdio_card *card)
 {
 	struct sdio_func *func;
 	u8 reg;
-	int ret = 0;
+	int ret;
 
 	if (!card || !card->func) {
 		BT_ERR("Error: card or function is NULL!");
