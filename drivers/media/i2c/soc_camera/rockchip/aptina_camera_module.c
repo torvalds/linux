@@ -603,10 +603,11 @@ int aptina_camera_module_s_stream(struct v4l2_subdev *sd, int enable)
 		if (!IS_ERR_OR_NULL(cam_mod->custom.set_flip))
 			cam_mod->custom.set_flip(cam_mod);
 
-		if (cam_mod->update_config)
+		if (cam_mod->update_config) {
 			ret = aptina_camera_module_write_config(cam_mod);
 			if (IS_ERR_VALUE(ret))
 				goto err;
+		}
 
 		ret = cam_mod->custom.start_streaming(cam_mod);
 		if (IS_ERR_VALUE(ret))

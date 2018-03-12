@@ -418,10 +418,11 @@ int ov_camera_module_s_stream(struct v4l2_subdev *sd, int enable)
 			ret = -EINVAL;
 			goto err;
 		}
-		if (cam_mod->update_config)
+		if (cam_mod->update_config) {
 			ret = ov_camera_module_write_config(cam_mod);
 			if (IS_ERR_VALUE(ret))
 				goto err;
+		}
 
 		ret = cam_mod->custom.start_streaming(cam_mod);
 		if (IS_ERR_VALUE(ret))
