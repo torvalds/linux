@@ -125,6 +125,8 @@
 #define ACLK_CRYPTO		135
 #define ACLK_VOP		136
 #define ACLK_GIC		137
+#define ACLK_DMAC0		138
+#define ACLK_DMAC1		139
 
 /* hclk */
 #define HCLK_BUS		150

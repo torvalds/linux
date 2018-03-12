@@ -921,6 +921,7 @@ static void __init rk3308_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
+	struct clk *clk;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -936,6 +937,22 @@ static void __init rk3308_clk_init(struct device_node *np)
 		iounmap(reg_base);
 		return;
 	}
+
+	/* aclk_dmac0 is controlled by sgrf. */
+	clk = clk_register_fixed_factor(NULL, "aclk_dmac0", "aclk_bus", 0, 1, 1);
+	if (IS_ERR(clk))
+		pr_warn("%s: could not register clock aclk_dmac0: %ld\n",
+			__func__, PTR_ERR(clk));
+	else
+		rockchip_clk_add_lookup(ctx, clk, ACLK_DMAC0);
+
+	/* aclk_dmac1 is controlled by sgrf. */
+	clk = clk_register_fixed_factor(NULL, "aclk_dmac1", "aclk_bus", 0, 1, 1);
+	if (IS_ERR(clk))
+		pr_warn("%s: could not register clock aclk_dmac1: %ld\n",
+			__func__, PTR_ERR(clk));
+	else
+		rockchip_clk_add_lookup(ctx, clk, ACLK_DMAC1);
 
 	rockchip_clk_register_plls(ctx, rk3308_pll_clks,
 				   ARRAY_SIZE(rk3308_pll_clks),
