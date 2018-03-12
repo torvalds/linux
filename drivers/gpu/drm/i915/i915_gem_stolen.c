@@ -121,8 +121,8 @@ static int i915_adjust_stolen(struct drm_i915_private *dev_priv,
 
 		if (stolen[0].start != stolen[1].start ||
 		    stolen[0].end != stolen[1].end) {
-			DRM_DEBUG_KMS("GTT within stolen memory at %pR\n", &ggtt_res);
-			DRM_DEBUG_KMS("Stolen memory adjusted to %pR\n", dsm);
+			DRM_DEBUG_DRIVER("GTT within stolen memory at %pR\n", &ggtt_res);
+			DRM_DEBUG_DRIVER("Stolen memory adjusted to %pR\n", dsm);
 		}
 	}
 
@@ -406,9 +406,9 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	 * memory, so just consider the start. */
 	reserved_total = stolen_top - reserved_base;
 
-	DRM_DEBUG_KMS("Memory reserved for graphics device: %lluK, usable: %lluK\n",
-		      (u64)resource_size(&dev_priv->dsm) >> 10,
-		      ((u64)resource_size(&dev_priv->dsm) - reserved_total) >> 10);
+	DRM_DEBUG_DRIVER("Memory reserved for graphics device: %lluK, usable: %lluK\n",
+			 (u64)resource_size(&dev_priv->dsm) >> 10,
+			 ((u64)resource_size(&dev_priv->dsm) - reserved_total) >> 10);
 
 	stolen_usable_start = 0;
 	/* WaSkipStolenMemoryFirstPage:bdw+ */
@@ -580,8 +580,8 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	DRM_DEBUG_KMS("creating preallocated stolen object: stolen_offset=%pa, gtt_offset=%pa, size=%pa\n",
-			&stolen_offset, &gtt_offset, &size);
+	DRM_DEBUG_DRIVER("creating preallocated stolen object: stolen_offset=%pa, gtt_offset=%pa, size=%pa\n",
+			 &stolen_offset, &gtt_offset, &size);
 
 	/* KISS and expect everything to be page-aligned */
 	if (WARN_ON(size == 0) ||
@@ -599,14 +599,14 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	ret = drm_mm_reserve_node(&dev_priv->mm.stolen, stolen);
 	mutex_unlock(&dev_priv->mm.stolen_lock);
 	if (ret) {
-		DRM_DEBUG_KMS("failed to allocate stolen space\n");
+		DRM_DEBUG_DRIVER("failed to allocate stolen space\n");
 		kfree(stolen);
 		return NULL;
 	}
 
 	obj = _i915_gem_object_create_stolen(dev_priv, stolen);
 	if (obj == NULL) {
-		DRM_DEBUG_KMS("failed to allocate stolen object\n");
+		DRM_DEBUG_DRIVER("failed to allocate stolen object\n");
 		i915_gem_stolen_remove_node(dev_priv, stolen);
 		kfree(stolen);
 		return NULL;
@@ -635,7 +635,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 				   size, gtt_offset, obj->cache_level,
 				   0);
 	if (ret) {
-		DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
+		DRM_DEBUG_DRIVER("failed to allocate stolen GTT space\n");
 		goto err_pages;
 	}
 
