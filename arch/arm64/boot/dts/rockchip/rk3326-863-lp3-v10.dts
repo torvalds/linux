@@ -599,6 +599,11 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	status = "okay";
+	rockchip,sleep-debug-en = <1>;
+};
+
 &route_dsi {
 	status = "okay";
 };
