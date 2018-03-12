@@ -185,11 +185,8 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	DRM_DEBUG_DRIVER("%s_STOLEN_RESERVED = %08x\n",
 			 IS_GM45(dev_priv) ? "CTG" : "ELK", reg_val);
 
-	if ((reg_val & G4X_STOLEN_RESERVED_ENABLE) == 0) {
-		*base = 0;
-		*size = 0;
+	if ((reg_val & G4X_STOLEN_RESERVED_ENABLE) == 0)
 		return;
-	}
 
 	/*
 	 * Whether ILK really reuses the ELK register for this is unclear.
@@ -197,18 +194,13 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	 */
 	WARN(IS_GEN5(dev_priv), "ILK stolen reserved found? 0x%08x\n", reg_val);
 
-	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
+	if (!(reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK))
+		return;
 
+	*base = (reg_val & G4X_STOLEN_RESERVED_ADDR2_MASK) << 16;
 	WARN_ON((reg_val & G4X_STOLEN_RESERVED_ADDR1_MASK) < *base);
 
-	/* On these platforms, the register doesn't have a size field, so the
-	 * size is the distance between the base and the top of the stolen
-	 * memory. We also have the genuine case where base is zero and there's
-	 * nothing reserved. */
-	if (*base == 0)
-		*size = 0;
-	else
-		*size = stolen_top - *base;
+	*size = stolen_top - *base;
 }
 
 static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
@@ -219,11 +211,8 @@ static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 
 	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
-	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
-		*base = 0;
-		*size = 0;
+	if (!(reg_val & GEN6_STOLEN_RESERVED_ENABLE))
 		return;
-	}
 
 	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
 
@@ -246,6 +235,33 @@ static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	}
 }
 
+static void vlv_get_stolen_reserved(struct drm_i915_private *dev_priv,
+				    resource_size_t *base,
+				    resource_size_t *size)
+{
+	u32 reg_val = I915_READ(GEN6_STOLEN_RESERVED);
+	resource_size_t stolen_top = dev_priv->dsm.end + 1;
+
+	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = %08x\n", reg_val);
+
+	if (!(reg_val & GEN6_STOLEN_RESERVED_ENABLE))
+		return;
+
+	switch (reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK) {
+	default:
+		MISSING_CASE(reg_val & GEN7_STOLEN_RESERVED_SIZE_MASK);
+	case GEN7_STOLEN_RESERVED_1M:
+		*size = 1024 * 1024;
+		break;
+	}
+
+	/*
+	 * On vlv, the ADDR_MASK portion is left as 0 and HW deduces the
+	 * reserved location as (top - size).
+	 */
+	*base = stolen_top - *size;
+}
+
 static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				     resource_size_t *base,
 				     resource_size_t *size)
@@ -254,11 +270,8 @@ static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
 
 	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
-	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
-		*base = 0;
-		*size = 0;
+	if (!(reg_val & GEN6_STOLEN_RESERVED_ENABLE))
 		return;
-	}
 
 	*base = reg_val & GEN7_STOLEN_RESERVED_ADDR_MASK;
 
@@ -283,11 +296,8 @@ static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 
 	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
-	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
-		*base = 0;
-		*size = 0;
+	if (!(reg_val & GEN6_STOLEN_RESERVED_ENABLE))
 		return;
-	}
 
 	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
 
@@ -315,28 +325,18 @@ static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				    resource_size_t *size)
 {
 	u32 reg_val = I915_READ(GEN6_STOLEN_RESERVED);
-	resource_size_t stolen_top;
+	resource_size_t stolen_top = dev_priv->dsm.end + 1;
 
 	DRM_DEBUG_DRIVER("GEN6_STOLEN_RESERVED = %08x\n", reg_val);
 
-	if ((reg_val & GEN6_STOLEN_RESERVED_ENABLE) == 0) {
-		*base = 0;
-		*size = 0;
+	if (!(reg_val & GEN6_STOLEN_RESERVED_ENABLE))
 		return;
-	}
 
-	stolen_top = dev_priv->dsm.end + 1;
+	if (!(reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK))
+		return;
 
 	*base = reg_val & GEN6_STOLEN_RESERVED_ADDR_MASK;
-
-	/* On these platforms, the register doesn't have a size field, so the
-	 * size is the distance between the base and the top of the stolen
-	 * memory. We also have the genuine case where base is zero and there's
-	 * nothing reserved. */
-	if (*base == 0)
-		*size = 0;
-	else
-		*size = stolen_top - *base;
+	*size = stolen_top - *base;
 }
 
 int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
@@ -369,7 +369,7 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(dev_priv->dsm.end <= dev_priv->dsm.start);
 
 	stolen_top = dev_priv->dsm.end + 1;
-	reserved_base = 0;
+	reserved_base = stolen_top;
 	reserved_size = 0;
 
 	switch (INTEL_GEN(dev_priv)) {
@@ -389,8 +389,12 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 					 &reserved_base, &reserved_size);
 		break;
 	case 7:
-		gen7_get_stolen_reserved(dev_priv,
-					 &reserved_base, &reserved_size);
+		if (IS_VALLEYVIEW(dev_priv))
+			vlv_get_stolen_reserved(dev_priv,
+						&reserved_base, &reserved_size);
+		else
+			gen7_get_stolen_reserved(dev_priv,
+						 &reserved_base, &reserved_size);
 		break;
 	default:
 		if (IS_LP(dev_priv))
@@ -402,11 +406,16 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 		break;
 	}
 
-	/* It is possible for the reserved base to be zero, but the register
-	 * field for size doesn't have a zero option. */
-	if (reserved_base == 0) {
-		reserved_size = 0;
+	/*
+	 * Our expectation is that the reserved space is at the top of the
+	 * stolen region and *never* at the bottom. If we see !reserved_base,
+	 * it likely means we failed to read the registers correctly.
+	 */
+	if (!reserved_base) {
+		DRM_ERROR("inconsistent reservation %pa + %pa; ignoring\n",
+			  &reserved_base, &reserved_size);
 		reserved_base = stolen_top;
+		reserved_size = 0;
 	}
 
 	dev_priv->dsm_reserved =
