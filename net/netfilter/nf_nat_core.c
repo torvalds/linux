@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/timer.h>
@@ -814,7 +816,7 @@ static int __init nf_nat_init(void)
 	ret = nf_ct_extend_register(&nat_extend);
 	if (ret < 0) {
 		nf_ct_free_hashtable(nf_nat_bysource, nf_nat_htable_size);
-		printk(KERN_ERR "nf_nat_core: Unable to register extension\n");
+		pr_err("Unable to register extension\n");
 		return ret;
 	}
 
