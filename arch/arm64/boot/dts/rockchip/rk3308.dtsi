@@ -364,6 +364,35 @@
 		status = "disabled";
 	};
 
+	amba {
+		compatible = "arm,amba-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dmac0: dma-controller@ff2c0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x0 0xff2c0000 0x0 0x4000>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH 0>;
+			#dma-cells = <1>;
+			clocks = <&cru ACLK_DMAC0>;
+			clock-names = "apb_pclk";
+			peripherals-req-type-burst;
+		};
+
+		dmac1: dma-controller@ff2d0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x0 0xff2d0000 0x0 0x4000>;
+			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH 0>;
+			#dma-cells = <1>;
+			clocks = <&cru ACLK_DMAC1>;
+			clock-names = "apb_pclk";
+			peripherals-req-type-burst;
+		};
+	};
+
 	vop: vop@ff2e0000 {
 		compatible = "rockchip,rk3308-vop";
 		reg = <0x0 0xff2e0000 0x0 0x1fc>, <0x0 0xff2e0a00 0x0 0x400>;
