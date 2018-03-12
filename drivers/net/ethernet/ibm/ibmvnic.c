@@ -1340,6 +1340,19 @@ static void build_hdr_descs_arr(struct ibmvnic_tx_buff *txbuff,
 			 txbuff->indir_arr + 1);
 }
 
+static int ibmvnic_xmit_workarounds(struct sk_buff *skb,
+				    struct net_device *netdev)
+{
+	/* For some backing devices, mishandling of small packets
+	 * can result in a loss of connection or TX stall. Device
+	 * architects recommend that no packet should be smaller
+	 * than the minimum MTU value provided to the driver, so
+	 * pad any packets to that length
+	 */
+	if (skb->len < netdev->min_mtu)
+		return skb_put_padto(skb, netdev->min_mtu);
+}
+
 static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
@@ -1373,6 +1386,13 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		tx_send_failed++;
 		tx_dropped++;
+		ret = NETDEV_TX_OK;
+		goto out;
+	}
+
+	if (ibmvnic_xmit_workarounds(skb, adapter)) {
+		tx_dropped++;
+		tx_send_failed++;
 		ret = NETDEV_TX_OK;
 		goto out;
 	}
