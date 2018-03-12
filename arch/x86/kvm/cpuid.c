@@ -135,6 +135,11 @@ int kvm_update_cpuid(struct kvm_vcpu *vcpu)
 			return -EINVAL;
 	}
 
+	best = kvm_find_cpuid_entry(vcpu, KVM_CPUID_FEATURES, 0);
+	if (kvm_hlt_in_guest(vcpu->kvm) && best &&
+		(best->eax & (1 << KVM_FEATURE_PV_UNHALT)))
+		best->eax &= ~(1 << KVM_FEATURE_PV_UNHALT);
+
 	/* Update physical-address width */
 	vcpu->arch.maxphyaddr = cpuid_query_maxphyaddr(vcpu);
 	kvm_mmu_reset_context(vcpu);

@@ -1380,7 +1380,6 @@ static void init_vmcb(struct vcpu_svm *svm)
 	set_intercept(svm, INTERCEPT_RDPMC);
 	set_intercept(svm, INTERCEPT_CPUID);
 	set_intercept(svm, INTERCEPT_INVD);
-	set_intercept(svm, INTERCEPT_HLT);
 	set_intercept(svm, INTERCEPT_INVLPG);
 	set_intercept(svm, INTERCEPT_INVLPGA);
 	set_intercept(svm, INTERCEPT_IOIO_PROT);
@@ -1402,6 +1401,9 @@ static void init_vmcb(struct vcpu_svm *svm)
 		set_intercept(svm, INTERCEPT_MONITOR);
 		set_intercept(svm, INTERCEPT_MWAIT);
 	}
+
+	if (!kvm_hlt_in_guest(svm->vcpu.kvm))
+		set_intercept(svm, INTERCEPT_HLT);
 
 	control->iopm_base_pa = __sme_set(iopm_base);
 	control->msrpm_base_pa = __sme_set(__pa(svm->msrpm));
