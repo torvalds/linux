@@ -456,7 +456,9 @@ register_user_hw_breakpoint(struct perf_event_attr *attr,
 }
 EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
 
-static int __modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
+static int
+modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *attr,
+			        bool check)
 {
 	u64 old_addr = bp->attr.bp_addr;
 	u64 old_len  = bp->attr.bp_len;
@@ -467,6 +469,9 @@ static int __modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_
 	bp->attr.bp_addr = attr->bp_addr;
 	bp->attr.bp_type = attr->bp_type;
 	bp->attr.bp_len  = attr->bp_len;
+
+	if (check && memcmp(&bp->attr, attr, sizeof(*attr)))
+		return -EINVAL;
 
 	err = validate_hw_breakpoint(bp);
 	if (!err && modify)
@@ -505,7 +510,7 @@ int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *att
 	else
 		perf_event_disable(bp);
 
-	err = __modify_user_hw_breakpoint(bp, attr);
+	err = modify_user_hw_breakpoint_check(bp, attr, false);
 
 	if (err) {
 		if (!bp->attr.disabled)
