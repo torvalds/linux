@@ -3414,18 +3414,37 @@ static const match_table_t srp_opt_tokens = {
 	{ SRP_OPT_ERR,			NULL 			}
 };
 
+/**
+ * srp_parse_in - parse an IP address and port number combination
+ *
+ * Parse the following address formats:
+ * - IPv4: <ip_address>:<port>, e.g. 1.2.3.4:5.
+ * - IPv6: \[<ipv6_address>\]:<port>, e.g. [1::2:3%4]:5.
+ */
 static int srp_parse_in(struct net *net, struct sockaddr_storage *sa,
 			const char *addr_port_str)
 {
-	char *addr = kstrdup(addr_port_str, GFP_KERNEL);
-	char *port_str = addr;
+	char *addr_end, *addr = kstrdup(addr_port_str, GFP_KERNEL);
+	char *port_str;
 	int ret;
 
 	if (!addr)
 		return -ENOMEM;
-	strsep(&port_str, ":");
-	ret = inet_pton_with_scope(net, AF_UNSPEC, addr, port_str, sa);
+	port_str = strrchr(addr, ':');
+	if (!port_str)
+		return -EINVAL;
+	*port_str++ = '\0';
+	ret = inet_pton_with_scope(net, AF_INET, addr, port_str, sa);
+	if (ret && addr[0]) {
+		addr_end = addr + strlen(addr) - 1;
+		if (addr[0] == '[' && *addr_end == ']') {
+			*addr_end = '\0';
+			ret = inet_pton_with_scope(net, AF_INET6, addr + 1,
+						   port_str, sa);
+		}
+	}
 	kfree(addr);
+	pr_debug("%s -> %pISpfsc\n", addr_port_str, sa);
 	return ret;
 }
 
