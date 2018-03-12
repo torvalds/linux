@@ -379,6 +379,10 @@ static int ssd1307fb_check_var(struct fb_var_screeninfo *var, struct fb_info *in
 {
 	struct ssd1307fb_par *par = info->par;
 
+	/* Only up right and upside down rotations are supported */
+	if ((var->rotate != FB_ROTATE_UR) && (var->rotate != FB_ROTATE_UD))
+		return -EINVAL;
+
 	if (par->rotate != var->rotate) {
 		if (var->rotate > FB_ROTATE_CCW) {
 			var->rotate = par->rotate;
