@@ -277,7 +277,7 @@ __weak void arch_unregister_hw_breakpoint(struct perf_event *bp)
  *       ((per_cpu(info->flexible, *) > 1) + max(per_cpu(info->cpu_pinned, *))
  *            + max(per_cpu(info->tsk_pinned, *))) < HBP_NUM
  */
-static int __reserve_bp_slot(struct perf_event *bp)
+static int __reserve_bp_slot(struct perf_event *bp, u64 bp_type)
 {
 	struct bp_busy_slots slots = {0};
 	enum bp_type_idx type;
@@ -288,11 +288,11 @@ static int __reserve_bp_slot(struct perf_event *bp)
 		return -ENOMEM;
 
 	/* Basic checks */
-	if (bp->attr.bp_type == HW_BREAKPOINT_EMPTY ||
-	    bp->attr.bp_type == HW_BREAKPOINT_INVALID)
+	if (bp_type == HW_BREAKPOINT_EMPTY ||
+	    bp_type == HW_BREAKPOINT_INVALID)
 		return -EINVAL;
 
-	type = find_slot_idx(bp->attr.bp_type);
+	type = find_slot_idx(bp_type);
 	weight = hw_breakpoint_weight(bp);
 
 	fetch_bp_busy_slots(&slots, bp, type);
@@ -317,19 +317,19 @@ int reserve_bp_slot(struct perf_event *bp)
 
 	mutex_lock(&nr_bp_mutex);
 
-	ret = __reserve_bp_slot(bp);
+	ret = __reserve_bp_slot(bp, bp->attr.bp_type);
 
 	mutex_unlock(&nr_bp_mutex);
 
 	return ret;
 }
 
-static void __release_bp_slot(struct perf_event *bp)
+static void __release_bp_slot(struct perf_event *bp, u64 bp_type)
 {
 	enum bp_type_idx type;
 	int weight;
 
-	type = find_slot_idx(bp->attr.bp_type);
+	type = find_slot_idx(bp_type);
 	weight = hw_breakpoint_weight(bp);
 	toggle_bp_slot(bp, false, type, weight);
 }
@@ -339,7 +339,7 @@ void release_bp_slot(struct perf_event *bp)
 	mutex_lock(&nr_bp_mutex);
 
 	arch_unregister_hw_breakpoint(bp);
-	__release_bp_slot(bp);
+	__release_bp_slot(bp, bp->attr.bp_type);
 
 	mutex_unlock(&nr_bp_mutex);
 }
@@ -354,7 +354,7 @@ int dbg_reserve_bp_slot(struct perf_event *bp)
 	if (mutex_is_locked(&nr_bp_mutex))
 		return -1;
 
-	return __reserve_bp_slot(bp);
+	return __reserve_bp_slot(bp, bp->attr.bp_type);
 }
 
 int dbg_release_bp_slot(struct perf_event *bp)
@@ -362,7 +362,7 @@ int dbg_release_bp_slot(struct perf_event *bp)
 	if (mutex_is_locked(&nr_bp_mutex))
 		return -1;
 
-	__release_bp_slot(bp);
+	__release_bp_slot(bp, bp->attr.bp_type);
 
 	return 0;
 }
