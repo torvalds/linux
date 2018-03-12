@@ -689,7 +689,7 @@ static int btmrvl_sdio_card_to_host(struct btmrvl_private *priv)
 	int ret, num_blocks, blksz;
 	struct sk_buff *skb = NULL;
 	u32 type;
-	u8 *payload = NULL;
+	u8 *payload;
 	struct hci_dev *hdev = priv->btmrvl_dev.hcidev;
 	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
 
