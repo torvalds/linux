@@ -441,9 +441,9 @@ static void dlfb_compress_hline(
 
 		*cmd++ = 0xAF;
 		*cmd++ = 0x6B;
-		*cmd++ = (uint8_t) ((dev_addr >> 16) & 0xFF);
-		*cmd++ = (uint8_t) ((dev_addr >> 8) & 0xFF);
-		*cmd++ = (uint8_t) ((dev_addr) & 0xFF);
+		*cmd++ = dev_addr >> 16;
+		*cmd++ = dev_addr >> 8;
+		*cmd++ = dev_addr;
 
 		cmd_pixels_count_byte = cmd++; /*  we'll know this later */
 		cmd_pixel_start = pixel;
@@ -460,8 +460,8 @@ static void dlfb_compress_hline(
 		while (pixel < cmd_pixel_end) {
 			const uint16_t * const repeating_pixel = pixel;
 
-			*(uint16_t *)cmd = cpu_to_be16p(pixel);
-			cmd += 2;
+			*cmd++ = *pixel >> 8;
+			*cmd++ = *pixel;
 			pixel++;
 
 			if (unlikely((pixel < cmd_pixel_end) &&
@@ -1531,15 +1531,16 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dlfb,
 			u8 length;
 			u16 key;
 
-			key = le16_to_cpu(*((u16 *) desc));
-			desc += sizeof(u16);
-			length = *desc;
-			desc++;
+			key = *desc++;
+			key |= (u16)*desc++ << 8;
+			length = *desc++;
 
 			switch (key) {
 			case 0x0200: { /* max_area */
-				u32 max_area;
-				max_area = le32_to_cpu(*((u32 *)desc));
+				u32 max_area = *desc++;
+				max_area |= (u32)*desc++ << 8;
+				max_area |= (u32)*desc++ << 16;
+				max_area |= (u32)*desc++ << 24;
 				dev_warn(&intf->dev,
 					 "DL chip limited to %d pixel modes\n",
 					 max_area);
