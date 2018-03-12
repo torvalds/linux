@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/ucs2_string.h>
 #include <linux/mem_encrypt.h>
+#include <linux/sched/task.h>
 
 #include <asm/setup.h>
 #include <asm/page.h>
@@ -82,9 +83,8 @@ pgd_t * __init efi_call_phys_prolog(void)
 	int n_pgds, i, j;
 
 	if (!efi_enabled(EFI_OLD_MEMMAP)) {
-		save_pgd = (pgd_t *)__read_cr3();
-		write_cr3((unsigned long)efi_scratch.efi_pgt);
-		goto out;
+		efi_switch_mm(&efi_mm);
+		return NULL;
 	}
 
 	early_code_mapping_set_exec(1);
@@ -156,8 +156,7 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)
 	pud_t *pud;
 
 	if (!efi_enabled(EFI_OLD_MEMMAP)) {
-		write_cr3((unsigned long)save_pgd);
-		__flush_tlb_all();
+		efi_switch_mm(efi_scratch.prev_mm);
 		return;
 	}
 
@@ -348,13 +347,6 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 		return 0;
 
 	/*
-	 * Since the PGD is encrypted, set the encryption mask so that when
-	 * this value is loaded into cr3 the PGD will be decrypted during
-	 * the pagetable walk.
-	 */
-	efi_scratch.efi_pgt = (pgd_t *)__sme_pa(pgd);
-
-	/*
 	 * It can happen that the physical address of new_memmap lands in memory
 	 * which is not mapped in the EFI page table. Therefore we need to go
 	 * and ident-map those pages containing the map before calling
@@ -366,8 +358,6 @@ int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)
 		pr_err("Error ident-mapping new memmap (0x%lx)!\n", pa_memmap);
 		return 1;
 	}
-
-	efi_scratch.use_pgd = true;
 
 	/*
 	 * Certain firmware versions are way too sentimential and still believe
@@ -627,6 +617,22 @@ void __init efi_dump_pagetable(void)
 #endif
 }
 
+/*
+ * Makes the calling thread switch to/from efi_mm context. Can be used
+ * for SetVirtualAddressMap() i.e. current->active_mm == init_mm as well
+ * as during efi runtime calls i.e current->active_mm == current_mm.
+ * We are not mm_dropping()/mm_grabbing() any mm, because we are not
+ * losing/creating any references.
+ */
+void efi_switch_mm(struct mm_struct *mm)
+{
+	task_lock(current);
+	efi_scratch.prev_mm = current->active_mm;
+	current->active_mm = mm;
+	switch_mm(efi_scratch.prev_mm, mm, NULL);
+	task_unlock(current);
+}
+
 #ifdef CONFIG_EFI_MIXED
 extern efi_status_t efi64_thunk(u32, ...);
 
@@ -680,16 +686,13 @@ efi_status_t efi_thunk_set_virtual_address_map(
 	efi_sync_low_kernel_mappings();
 	local_irq_save(flags);
 
-	efi_scratch.prev_cr3 = __read_cr3();
-	write_cr3((unsigned long)efi_scratch.efi_pgt);
-	__flush_tlb_all();
+	efi_switch_mm(&efi_mm);
 
 	func = (u32)(unsigned long)phys_set_virtual_address_map;
 	status = efi64_thunk(func, memory_map_size, descriptor_size,
 			     descriptor_version, virtual_map);
 
-	write_cr3(efi_scratch.prev_cr3);
-	__flush_tlb_all();
+	efi_switch_mm(efi_scratch.prev_mm);
 	local_irq_restore(flags);
 
 	return status;
