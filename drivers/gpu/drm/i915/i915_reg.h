@@ -6009,6 +6009,7 @@ enum {
 #define CURSIZE			_MMIO(0x700a0) /* 845/865 */
 #define _CUR_FBC_CTL_A		0x700a0 /* ivb+ */
 #define   CUR_FBC_CTL_EN	(1 << 31)
+#define _CURASURFLIVE		0x700ac /* g4x+ */
 #define _CURBCNTR		0x700c0
 #define _CURBBASE		0x700c4
 #define _CURBPOS		0x700c8
@@ -6025,15 +6026,13 @@ enum {
 #define CURBASE(pipe) _CURSOR2(pipe, _CURABASE)
 #define CURPOS(pipe) _CURSOR2(pipe, _CURAPOS)
 #define CUR_FBC_CTL(pipe) _CURSOR2(pipe, _CUR_FBC_CTL_A)
+#define CURSURFLIVE(pipe) _CURSOR2(pipe, _CURASURFLIVE)
 
 #define CURSOR_A_OFFSET 0x70080
 #define CURSOR_B_OFFSET 0x700c0
 #define CHV_CURSOR_C_OFFSET 0x700e0
 #define IVB_CURSOR_B_OFFSET 0x71080
 #define IVB_CURSOR_C_OFFSET 0x72080
-
-#define _CUR_SURLIVE		0x700AC
-#define CUR_SURLIVE(pipe)	_CURSOR2(pipe, _CUR_SURLIVE)
 
 /* Display A control */
 #define _DSPACNTR				0x70180

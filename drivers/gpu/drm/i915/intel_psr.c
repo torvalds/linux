@@ -1044,11 +1044,11 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 			 * This documented WA for bxt can be safely applied
 			 * broadly so we can force HW tracking to exit PSR
 			 * instead of disabling and re-enabling.
-			 * Workaround tells us to write 0 to CUR_SURLIVE_A,
+			 * Workaround tells us to write 0 to CUR_SURFLIVE_A,
 			 * but it makes more sense write to the current active
 			 * pipe.
 			 */
-			I915_WRITE(CUR_SURLIVE(pipe), 0);
+			I915_WRITE(CURSURFLIVE(pipe), 0);
 		}
 	}
 
