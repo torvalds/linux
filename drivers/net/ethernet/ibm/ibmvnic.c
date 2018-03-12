@@ -659,7 +659,7 @@ static int init_tx_pools(struct net_device *netdev)
 
 		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
 					 adapter->req_tx_entries_per_subcrq *
-					 adapter->req_mtu)) {
+					 (adapter->req_mtu + VLAN_HLEN))) {
 			release_tx_pools(adapter);
 			return -1;
 		}
@@ -1394,9 +1394,9 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (tx_pool->tso_index == IBMVNIC_TSO_BUFS)
 			tx_pool->tso_index = 0;
 	} else {
-		offset = index * adapter->req_mtu;
+		offset = index * (adapter->req_mtu + VLAN_HLEN);
 		dst = tx_pool->long_term_buff.buff + offset;
-		memset(dst, 0, adapter->req_mtu);
+		memset(dst, 0, adapter->req_mtu + VLAN_HLEN);
 		data_dma_addr = tx_pool->long_term_buff.addr + offset;
 	}
 
