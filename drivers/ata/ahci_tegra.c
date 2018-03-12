@@ -465,10 +465,18 @@ static const struct tegra_ahci_soc tegra124_ahci_soc = {
 	.ops = &tegra124_ahci_ops,
 };
 
+static const struct tegra_ahci_soc tegra210_ahci_soc = {
+	.supports_devslp = false,
+};
+
 static const struct of_device_id tegra_ahci_of_match[] = {
 	{
 		.compatible = "nvidia,tegra124-ahci",
 		.data = &tegra124_ahci_soc
+	},
+	{
+		.compatible = "nvidia,tegra210-ahci",
+		.data = &tegra210_ahci_soc
 	},
 	{}
 };
@@ -584,5 +592,5 @@ static struct platform_driver tegra_ahci_driver = {
 module_platform_driver(tegra_ahci_driver);
 
 MODULE_AUTHOR("Mikko Perttunen <mperttunen@nvidia.com>");
-MODULE_DESCRIPTION("Tegra124 AHCI SATA driver");
+MODULE_DESCRIPTION("Tegra AHCI SATA driver");
 MODULE_LICENSE("GPL v2");
