@@ -603,5 +603,11 @@
 			power-domains = <&k2g_pds 0x22>;
 			clocks = <&k2g_clks 0x22 0>;
 		};
+
+		emif: emif@21010000 {
+			compatible = "ti,emif-keystone";
+			reg = <0x21010000 0x200>;
+			interrupts = <GIC_SPI 123 IRQ_TYPE_EDGE_RISING>;
+		};
 	};
 };
