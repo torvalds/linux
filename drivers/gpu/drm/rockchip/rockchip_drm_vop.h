@@ -235,6 +235,20 @@ struct vop_ctrl {
 	struct vop_reg st2084oetf_post_conv_en;
 	struct vop_reg win_csc_mode_sel;
 
+	/* MCU OUTPUT */
+	struct vop_reg mcu_pix_total;
+	struct vop_reg mcu_cs_pst;
+	struct vop_reg mcu_cs_pend;
+	struct vop_reg mcu_rw_pst;
+	struct vop_reg mcu_rw_pend;
+	struct vop_reg mcu_clk_sel;
+	struct vop_reg mcu_hold_mode;
+	struct vop_reg mcu_frame_st;
+	struct vop_reg mcu_rs;
+	struct vop_reg mcu_bypass;
+	struct vop_reg mcu_type;
+	struct vop_reg mcu_rw_bypass_port;
+
 	struct vop_reg reg_done_frm;
 	struct vop_reg cfg_done;
 };
@@ -359,6 +373,12 @@ enum _vop_sdr2hdr_func {
 enum _vop_rgb2rgb_conv_mode {
 	BT709_TO_BT2020,
 	BT2020_TO_BT709,
+};
+
+enum _MCU_IOCTL {
+	MCU_WRCMD = 0,
+	MCU_WRDATA,
+	MCU_SETBYPASS,
 };
 
 struct vop_win_phy {
