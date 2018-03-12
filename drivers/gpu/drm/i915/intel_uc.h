@@ -36,6 +36,7 @@ void intel_uc_init_fw(struct drm_i915_private *dev_priv);
 void intel_uc_fini_fw(struct drm_i915_private *dev_priv);
 int intel_uc_init_misc(struct drm_i915_private *dev_priv);
 void intel_uc_fini_misc(struct drm_i915_private *dev_priv);
+void intel_uc_sanitize(struct drm_i915_private *dev_priv);
 int intel_uc_init_hw(struct drm_i915_private *dev_priv);
 void intel_uc_fini_hw(struct drm_i915_private *dev_priv);
 int intel_uc_init(struct drm_i915_private *dev_priv);

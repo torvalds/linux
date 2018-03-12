@@ -334,6 +334,24 @@ void intel_uc_fini(struct drm_i915_private *dev_priv)
 	intel_guc_fini(guc);
 }
 
+void intel_uc_sanitize(struct drm_i915_private *i915)
+{
+	struct intel_guc *guc = &i915->guc;
+	struct intel_huc *huc = &i915->huc;
+
+	if (!USES_GUC(i915))
+		return;
+
+	GEM_BUG_ON(!HAS_GUC(i915));
+
+	guc_disable_communication(guc);
+
+	intel_huc_sanitize(huc);
+	intel_guc_sanitize(guc);
+
+	__intel_uc_reset_hw(i915);
+}
+
 int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 {
 	struct intel_guc *guc = &dev_priv->guc;
@@ -345,7 +363,6 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 
 	GEM_BUG_ON(!HAS_GUC(dev_priv));
 
-	guc_disable_communication(guc);
 	gen9_reset_guc_interrupts(dev_priv);
 
 	/* init WOPCM */

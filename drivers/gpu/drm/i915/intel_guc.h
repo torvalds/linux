@@ -133,4 +133,10 @@ int intel_guc_resume(struct intel_guc *guc);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
 u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
 
+static inline int intel_guc_sanitize(struct intel_guc *guc)
+{
+	intel_uc_fw_sanitize(&guc->fw);
+	return 0;
+}
+
 #endif

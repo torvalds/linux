@@ -2998,6 +2998,7 @@ int i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 	}
 
 	i915_gem_revoke_fences(dev_priv);
+	intel_uc_sanitize(dev_priv);
 
 	return err;
 }
@@ -4978,6 +4979,7 @@ int i915_gem_suspend(struct drm_i915_private *dev_priv)
 	 * machines is a good idea, we don't - just in case it leaves the
 	 * machine in an unusable condition.
 	 */
+	intel_uc_sanitize(dev_priv);
 	i915_gem_sanitize(dev_priv);
 
 	intel_runtime_pm_put(dev_priv);
