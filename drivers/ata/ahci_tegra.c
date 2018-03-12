@@ -164,6 +164,8 @@ struct tegra_ahci_ops {
 };
 
 struct tegra_ahci_soc {
+	const char *const		*supply_names;
+	u32				num_supplies;
 	const struct tegra_ahci_ops	*ops;
 };
 
@@ -175,7 +177,7 @@ struct tegra_ahci_priv {
 	struct reset_control	   *sata_cold_rst;
 	/* Needs special handling, cannot use ahci_platform */
 	struct clk		   *sata_clk;
-	struct regulator_bulk_data supplies[5];
+	struct regulator_bulk_data *supplies;
 	const struct tegra_ahci_soc *soc;
 };
 
@@ -228,7 +230,7 @@ static int tegra_ahci_power_on(struct ahci_host_priv *hpriv)
 	struct tegra_ahci_priv *tegra = hpriv->plat_data;
 	int ret;
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(tegra->supplies),
+	ret = regulator_bulk_enable(tegra->soc->num_supplies,
 				    tegra->supplies);
 	if (ret)
 		return ret;
@@ -257,7 +259,7 @@ disable_power:
 	tegra_powergate_power_off(TEGRA_POWERGATE_SATA);
 
 disable_regulators:
-	regulator_bulk_disable(ARRAY_SIZE(tegra->supplies), tegra->supplies);
+	regulator_bulk_disable(tegra->soc->num_supplies, tegra->supplies);
 
 	return ret;
 }
@@ -275,7 +277,7 @@ static void tegra_ahci_power_off(struct ahci_host_priv *hpriv)
 	clk_disable_unprepare(tegra->sata_clk);
 	tegra_powergate_power_off(TEGRA_POWERGATE_SATA);
 
-	regulator_bulk_disable(ARRAY_SIZE(tegra->supplies), tegra->supplies);
+	regulator_bulk_disable(tegra->soc->num_supplies, tegra->supplies);
 }
 
 static int tegra_ahci_controller_init(struct ahci_host_priv *hpriv)
@@ -433,11 +435,17 @@ static const struct ata_port_info ahci_tegra_port_info = {
 	.port_ops	= &ahci_tegra_port_ops,
 };
 
+static const char *const tegra124_supply_names[] = {
+	"avdd", "hvdd", "vddio", "target-5v", "target-12v"
+};
+
 static const struct tegra_ahci_ops tegra124_ahci_ops = {
 	.init = tegra124_ahci_init,
 };
 
 static const struct tegra_ahci_soc tegra124_ahci_soc = {
+	.supply_names = tegra124_supply_names,
+	.num_supplies = ARRAY_SIZE(tegra124_supply_names),
 	.ops = &tegra124_ahci_ops,
 };
 
@@ -460,6 +468,7 @@ static int tegra_ahci_probe(struct platform_device *pdev)
 	struct tegra_ahci_priv *tegra;
 	struct resource *res;
 	int ret;
+	unsigned int i;
 
 	hpriv = ahci_platform_get_resources(pdev);
 	if (IS_ERR(hpriv))
@@ -503,13 +512,17 @@ static int tegra_ahci_probe(struct platform_device *pdev)
 		return PTR_ERR(tegra->sata_clk);
 	}
 
-	tegra->supplies[0].supply = "avdd";
-	tegra->supplies[1].supply = "hvdd";
-	tegra->supplies[2].supply = "vddio";
-	tegra->supplies[3].supply = "target-5v";
-	tegra->supplies[4].supply = "target-12v";
+	tegra->supplies = devm_kcalloc(&pdev->dev,
+				       tegra->soc->num_supplies,
+				       sizeof(*tegra->supplies), GFP_KERNEL);
+	if (!tegra->supplies)
+		return -ENOMEM;
 
-	ret = devm_regulator_bulk_get(&pdev->dev, ARRAY_SIZE(tegra->supplies),
+	for (i = 0; i < tegra->soc->num_supplies; i++)
+		tegra->supplies[i].supply = tegra->soc->supply_names[i];
+
+	ret = devm_regulator_bulk_get(&pdev->dev,
+				      tegra->soc->num_supplies,
 				      tegra->supplies);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to get regulators\n");
