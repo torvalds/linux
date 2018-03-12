@@ -28,7 +28,6 @@
 #include "intel_huc.h"
 #include "i915_params.h"
 
-void intel_uc_sanitize_options(struct drm_i915_private *dev_priv);
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
 void intel_uc_init_mmio(struct drm_i915_private *dev_priv);
 int intel_uc_register(struct drm_i915_private *dev_priv);

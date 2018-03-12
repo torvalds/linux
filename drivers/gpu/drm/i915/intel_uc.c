@@ -83,7 +83,7 @@ static int __get_default_guc_log_level(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_uc_sanitize_options - sanitize uC related modparam options
+ * sanitize_options_early - sanitize uC related modparam options
  * @dev_priv: device private
  *
  * In case of "enable_guc" option this function will attempt to modify
@@ -99,7 +99,7 @@ static int __get_default_guc_log_level(struct drm_i915_private *dev_priv)
  * unless GuC is enabled on given platform and the driver is compiled with
  * debug config when this modparam will default to "enable(1..4)".
  */
-void intel_uc_sanitize_options(struct drm_i915_private *dev_priv)
+static void sanitize_options_early(struct drm_i915_private *dev_priv)
 {
 	struct intel_uc_fw *guc_fw = &dev_priv->guc.fw;
 	struct intel_uc_fw *huc_fw = &dev_priv->huc.fw;
@@ -163,6 +163,8 @@ void intel_uc_init_early(struct drm_i915_private *dev_priv)
 {
 	intel_guc_init_early(&dev_priv->guc);
 	intel_huc_init_early(&dev_priv->huc);
+
+	sanitize_options_early(dev_priv);
 }
 
 void intel_uc_init_fw(struct drm_i915_private *dev_priv)

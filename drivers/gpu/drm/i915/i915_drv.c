@@ -1074,8 +1074,6 @@ static void intel_sanitize_options(struct drm_i915_private *dev_priv)
 					    i915_modparams.enable_ppgtt);
 	DRM_DEBUG_DRIVER("ppgtt mode: %i\n", i915_modparams.enable_ppgtt);
 
-	intel_uc_sanitize_options(dev_priv);
-
 	intel_gvt_sanitize_options(dev_priv);
 }
 
