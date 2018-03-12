@@ -419,6 +419,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	rq->channel = c;
 	rq->ix      = c->ix;
 	rq->mdev    = mdev;
+	rq->hw_mtu  = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 
 	rq->xdp_prog = params->xdp_prog ? bpf_prog_inc(params->xdp_prog) : NULL;
 	if (IS_ERR(rq->xdp_prog)) {
@@ -494,7 +495,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 		byte_count = params->lro_en  ?
 				params->lro_wqe_sz :
-				MLX5E_SW2HW_MTU(c->priv, c->netdev->mtu);
+				MLX5E_SW2HW_MTU(params, params->sw_mtu);
 #ifdef CONFIG_MLX5_EN_IPSEC
 		if (MLX5_IPSEC_DEV(mdev))
 			byte_count += MLX5E_METADATA_ETHER_LEN;
@@ -2498,10 +2499,10 @@ static void mlx5e_build_inner_indir_tir_ctx(struct mlx5e_priv *priv,
 	mlx5e_build_indir_tir_ctx_hash(&priv->channels.params, tt, tirc, true);
 }
 
-static int mlx5e_set_mtu(struct mlx5e_priv *priv, u16 mtu)
+static int mlx5e_set_mtu(struct mlx5_core_dev *mdev,
+			 struct mlx5e_params *params, u16 mtu)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
-	u16 hw_mtu = MLX5E_SW2HW_MTU(priv, mtu);
+	u16 hw_mtu = MLX5E_SW2HW_MTU(params, mtu);
 	int err;
 
 	err = mlx5_set_port_mtu(mdev, hw_mtu, 1);
@@ -2513,9 +2514,9 @@ static int mlx5e_set_mtu(struct mlx5e_priv *priv, u16 mtu)
 	return 0;
 }
 
-static void mlx5e_query_mtu(struct mlx5e_priv *priv, u16 *mtu)
+static void mlx5e_query_mtu(struct mlx5_core_dev *mdev,
+			    struct mlx5e_params *params, u16 *mtu)
 {
-	struct mlx5_core_dev *mdev = priv->mdev;
 	u16 hw_mtu = 0;
 	int err;
 
@@ -2523,25 +2524,27 @@ static void mlx5e_query_mtu(struct mlx5e_priv *priv, u16 *mtu)
 	if (err || !hw_mtu) /* fallback to port oper mtu */
 		mlx5_query_port_oper_mtu(mdev, &hw_mtu, 1);
 
-	*mtu = MLX5E_HW2SW_MTU(priv, hw_mtu);
+	*mtu = MLX5E_HW2SW_MTU(params, hw_mtu);
 }
 
 static int mlx5e_set_dev_port_mtu(struct mlx5e_priv *priv)
 {
+	struct mlx5e_params *params = &priv->channels.params;
 	struct net_device *netdev = priv->netdev;
+	struct mlx5_core_dev *mdev = priv->mdev;
 	u16 mtu;
 	int err;
 
-	err = mlx5e_set_mtu(priv, netdev->mtu);
+	err = mlx5e_set_mtu(mdev, params, params->sw_mtu);
 	if (err)
 		return err;
 
-	mlx5e_query_mtu(priv, &mtu);
-	if (mtu != netdev->mtu)
+	mlx5e_query_mtu(mdev, params, &mtu);
+	if (mtu != params->sw_mtu)
 		netdev_warn(netdev, "%s: VPort MTU %d is different than netdev mtu %d\n",
-			    __func__, mtu, netdev->mtu);
+			    __func__, mtu, params->sw_mtu);
 
-	netdev->mtu = mtu;
+	params->sw_mtu = mtu;
 	return 0;
 }
 
@@ -3411,34 +3414,33 @@ static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5e_channels new_channels = {};
-	int curr_mtu;
+	struct mlx5e_params *params;
 	int err = 0;
 	bool reset;
 
 	mutex_lock(&priv->state_lock);
 
-	reset = !priv->channels.params.lro_en &&
-		(priv->channels.params.rq_wq_type !=
-		 MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ);
+	params = &priv->channels.params;
+	reset = !params->lro_en &&
+		(params->rq_wq_type != MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ);
 
 	reset = reset && test_bit(MLX5E_STATE_OPENED, &priv->state);
 
-	curr_mtu    = netdev->mtu;
-	netdev->mtu = new_mtu;
-
 	if (!reset) {
+		params->sw_mtu = new_mtu;
 		mlx5e_set_dev_port_mtu(priv);
+		netdev->mtu = params->sw_mtu;
 		goto out;
 	}
 
-	new_channels.params = priv->channels.params;
+	new_channels.params = *params;
+	new_channels.params.sw_mtu = new_mtu;
 	err = mlx5e_open_channels(priv, &new_channels);
-	if (err) {
-		netdev->mtu = curr_mtu;
+	if (err)
 		goto out;
-	}
 
 	mlx5e_switch_priv_channels(priv, &new_channels, mlx5e_set_dev_port_mtu);
+	netdev->mtu = new_channels.params.sw_mtu;
 
 out:
 	mutex_unlock(&priv->state_lock);
@@ -4111,10 +4113,12 @@ static u32 mlx5e_choose_lro_timeout(struct mlx5_core_dev *mdev, u32 wanted_timeo
 
 void mlx5e_build_nic_params(struct mlx5_core_dev *mdev,
 			    struct mlx5e_params *params,
-			    u16 max_channels)
+			    u16 max_channels, u16 mtu)
 {
 	u8 cq_period_mode = 0;
 
+	params->sw_mtu = mtu;
+	params->hard_mtu = MLX5E_ETH_HARD_MTU;
 	params->num_channels = max_channels;
 	params->num_tc       = 1;
 
@@ -4175,9 +4179,9 @@ static void mlx5e_build_nic_netdev_priv(struct mlx5_core_dev *mdev,
 	priv->profile     = profile;
 	priv->ppriv       = ppriv;
 	priv->msglevel    = MLX5E_MSG_LEVEL;
-	priv->hard_mtu = MLX5E_ETH_HARD_MTU;
 
-	mlx5e_build_nic_params(mdev, &priv->channels.params, profile->max_nch(mdev));
+	mlx5e_build_nic_params(mdev, &priv->channels.params,
+			       profile->max_nch(mdev), netdev->mtu);
 
 	mutex_init(&priv->state_lock);
 
@@ -4454,7 +4458,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	/* MTU range: 68 - hw-specific max */
 	netdev->min_mtu = ETH_MIN_MTU;
 	mlx5_query_port_max_mtu(priv->mdev, &max_mtu, 1);
-	netdev->max_mtu = MLX5E_HW2SW_MTU(priv, max_mtu);
+	netdev->max_mtu = MLX5E_HW2SW_MTU(&priv->channels.params, max_mtu);
 	mlx5e_set_dev_port_mtu(priv);
 
 	mlx5_lag_add(mdev, netdev);

@@ -877,6 +877,7 @@ static void mlx5e_build_rep_params(struct mlx5_core_dev *mdev,
 					 MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
 					 MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
 
+	params->hard_mtu    = MLX5E_ETH_HARD_MTU;
 	params->log_sq_size = MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
 	params->rq_wq_type  = MLX5_WQ_TYPE_LINKED_LIST;
 	params->log_rq_size = MLX5E_PARAMS_MINIMUM_LOG_RQ_SIZE;
@@ -925,8 +926,6 @@ static void mlx5e_init_rep(struct mlx5_core_dev *mdev,
 	INIT_DELAYED_WORK(&priv->update_stats_work, mlx5e_update_stats_work);
 
 	priv->channels.params.num_channels = profile->max_nch(mdev);
-
-	priv->hard_mtu = MLX5E_ETH_HARD_MTU;
 
 	mlx5e_build_rep_params(mdev, &priv->channels.params);
 	mlx5e_build_rep_netdev(netdev);
