@@ -166,12 +166,14 @@ struct tegra_ahci_ops {
 struct tegra_ahci_soc {
 	const char *const		*supply_names;
 	u32				num_supplies;
+	bool				supports_devslp;
 	const struct tegra_ahci_ops	*ops;
 };
 
 struct tegra_ahci_priv {
 	struct platform_device	   *pdev;
 	void __iomem		   *sata_regs;
+	void __iomem		   *sata_aux_regs;
 	struct reset_control	   *sata_rst;
 	struct reset_control	   *sata_oob_rst;
 	struct reset_control	   *sata_cold_rst;
@@ -180,6 +182,18 @@ struct tegra_ahci_priv {
 	struct regulator_bulk_data *supplies;
 	const struct tegra_ahci_soc *soc;
 };
+
+static void tegra_ahci_handle_quirks(struct ahci_host_priv *hpriv)
+{
+	struct tegra_ahci_priv *tegra = hpriv->plat_data;
+	u32 val;
+
+	if (tegra->sata_aux_regs && !tegra->soc->supports_devslp) {
+		val = readl(tegra->sata_aux_regs + SATA_AUX_MISC_CNTL_1_0);
+		val &= ~SATA_AUX_MISC_CNTL_1_0_SDS_SUPPORT;
+		writel(val, tegra->sata_aux_regs + SATA_AUX_MISC_CNTL_1_0);
+	}
+}
 
 static int tegra124_ahci_init(struct ahci_host_priv *hpriv)
 {
@@ -401,6 +415,7 @@ static int tegra_ahci_controller_init(struct ahci_host_priv *hpriv)
 	val &= ~SATA_CONFIGURATION_0_CLK_OVERRIDE;
 	writel(val, tegra->sata_regs + SATA_CONFIGURATION_0);
 
+	tegra_ahci_handle_quirks(hpriv);
 
 	/* Unmask SATA interrupts */
 
@@ -446,6 +461,7 @@ static const struct tegra_ahci_ops tegra124_ahci_ops = {
 static const struct tegra_ahci_soc tegra124_ahci_soc = {
 	.supply_names = tegra124_supply_names,
 	.num_supplies = ARRAY_SIZE(tegra124_supply_names),
+	.supports_devslp = false,
 	.ops = &tegra124_ahci_ops,
 };
 
@@ -487,6 +503,16 @@ static int tegra_ahci_probe(struct platform_device *pdev)
 	tegra->sata_regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(tegra->sata_regs))
 		return PTR_ERR(tegra->sata_regs);
+
+	/*
+	 * AUX registers is optional.
+	 */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	if (res) {
+		tegra->sata_aux_regs = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(tegra->sata_aux_regs))
+			return PTR_ERR(tegra->sata_aux_regs);
+	}
 
 	tegra->sata_rst = devm_reset_control_get(&pdev->dev, "sata");
 	if (IS_ERR(tegra->sata_rst)) {
