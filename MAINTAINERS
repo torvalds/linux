@@ -9413,6 +9413,14 @@ S:	Maintained
 F:	drivers/media/i2c/mt9t001.c
 F:	include/media/i2c/mt9t001.h
 
+MT9T112 APTINA CAMERA SENSOR
+M:	Jacopo Mondi <jacopo@jmondi.org>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd Fixes
+F:	drivers/media/i2c/mt9t112.c
+F:	include/media/i2c/mt9t112.h
+
 MT9V032 APTINA CAMERA SENSOR
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 L:	linux-media@vger.kernel.org
