@@ -196,6 +196,10 @@ if [ -n "$kernver" ]; then
 			;;
 
 		*)
+			if [[ -n "$action" ]];then
+				echo "unknown command $action";
+				exit 1;
+			fi;
 			$0 build
 			if [ -e "./uImage" ]; then
 				echo "==========================================="
