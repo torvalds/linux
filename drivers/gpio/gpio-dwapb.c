@@ -8,8 +8,9 @@
  * All enquiries to support@picochip.com
  */
 #include <linux/acpi.h>
-#include <linux/gpio/driver.h>
+#include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -98,6 +99,7 @@ struct dwapb_gpio {
 	struct irq_domain	*domain;
 	unsigned int		flags;
 	struct reset_control	*rst;
+	struct clk		*clk;
 };
 
 static inline u32 gpio_reg_v2_convert(unsigned int offset)
@@ -670,6 +672,16 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio->regs))
 		return PTR_ERR(gpio->regs);
 
+	/* Optional bus clock */
+	gpio->clk = devm_clk_get(&pdev->dev, "bus");
+	if (!IS_ERR(gpio->clk)) {
+		err = clk_prepare_enable(gpio->clk);
+		if (err) {
+			dev_info(&pdev->dev, "Cannot enable clock\n");
+			return err;
+		}
+	}
+
 	gpio->flags = 0;
 	if (dev->of_node) {
 		const struct of_device_id *of_devid;
@@ -712,6 +724,7 @@ static int dwapb_gpio_remove(struct platform_device *pdev)
 	dwapb_gpio_unregister(gpio);
 	dwapb_irq_teardown(gpio);
 	reset_control_assert(gpio->rst);
+	clk_disable_unprepare(gpio->clk);
 
 	return 0;
 }
@@ -757,6 +770,8 @@ static int dwapb_gpio_suspend(struct device *dev)
 	}
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
+	clk_disable_unprepare(gpio->clk);
+
 	return 0;
 }
 
@@ -767,6 +782,9 @@ static int dwapb_gpio_resume(struct device *dev)
 	struct gpio_chip *gc	= &gpio->ports[0].gc;
 	unsigned long flags;
 	int i;
+
+	if (!IS_ERR(gpio->clk))
+		clk_prepare_enable(gpio->clk);
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 	for (i = 0; i < gpio->nr_ports; i++) {
