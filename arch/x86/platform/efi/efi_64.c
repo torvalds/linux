@@ -233,6 +233,9 @@ int __init efi_alloc_page_tables(void)
 		return -ENOMEM;
 	}
 
+	mm_init_cpumask(&efi_mm);
+	init_new_context(NULL, &efi_mm);
+
 	return 0;
 }
 
