@@ -1,4 +1,5 @@
 #include <linux/debugfs.h>
+#include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <asm/pgtable.h>
@@ -73,13 +74,12 @@ static const struct file_operations ptdump_curusr_fops = {
 #endif
 
 #if defined(CONFIG_EFI) && defined(CONFIG_X86_64)
-extern pgd_t *efi_pgd;
 static struct dentry *pe_efi;
 
 static int ptdump_show_efi(struct seq_file *m, void *v)
 {
-	if (efi_pgd)
-		ptdump_walk_pgd_level_debugfs(m, efi_pgd, false);
+	if (efi_mm.pgd)
+		ptdump_walk_pgd_level_debugfs(m, efi_mm.pgd, false);
 	return 0;
 }
 
