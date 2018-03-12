@@ -116,6 +116,10 @@ static struct test generic_tests[] = {
 		.is_supported = test__bp_signal_is_supported,
 	},
 	{
+		.desc = "Breakpoint accounting",
+		.func = test__bp_accounting,
+	},
+	{
 		.desc = "Number of exit events of a simple workload",
 		.func = test__task_exit,
 	},

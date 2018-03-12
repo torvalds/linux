@@ -58,6 +58,7 @@ int test__hists_link(struct test *test, int subtest);
 int test__python_use(struct test *test, int subtest);
 int test__bp_signal(struct test *test, int subtest);
 int test__bp_signal_overflow(struct test *test, int subtest);
+int test__bp_accounting(struct test *test, int subtest);
 int test__task_exit(struct test *test, int subtest);
 int test__mem(struct test *test, int subtest);
 int test__sw_clock_freq(struct test *test, int subtest);
