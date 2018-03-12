@@ -533,13 +533,11 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 				       int vector,
 				       struct hnae3_ring_chain_node *ring_chain)
 {
-#define HCLGEVF_RING_NODE_VARIABLE_NUM		3
-#define HCLGEVF_RING_MAP_MBX_BASIC_MSG_NUM	3
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	struct hnae3_ring_chain_node *node;
 	struct hclge_mbx_vf_to_pf_cmd *req;
 	struct hclgevf_desc desc;
-	int i, vector_id;
+	int i = 0, vector_id;
 	int status;
 	u8 type;
 
@@ -551,28 +549,33 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 		return vector_id;
 	}
 
-	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
-	type = en ?
-		HCLGE_MBX_MAP_RING_TO_VECTOR : HCLGE_MBX_UNMAP_RING_TO_VECTOR;
-	req->msg[0] = type;
-	req->msg[1] = vector_id; /* vector_id should be id in VF */
-
-	i = 0;
 	for (node = ring_chain; node; node = node->next) {
-		i++;
-		/* msg[2] is cause num */
-		req->msg[HCLGEVF_RING_NODE_VARIABLE_NUM * i] =
-				hnae_get_bit(node->flag, HNAE3_RING_TYPE_B);
-		req->msg[HCLGEVF_RING_NODE_VARIABLE_NUM * i + 1] =
-				node->tqp_index;
-		req->msg[HCLGEVF_RING_NODE_VARIABLE_NUM * i + 2] =
-				hnae_get_field(node->int_gl_idx,
-					       HNAE3_RING_GL_IDX_M,
-					       HNAE3_RING_GL_IDX_S);
+		int idx_offset = HCLGE_MBX_RING_MAP_BASIC_MSG_NUM +
+					HCLGE_MBX_RING_NODE_VARIABLE_NUM * i;
 
-		if (i == (HCLGE_MBX_VF_MSG_DATA_NUM -
-		    HCLGEVF_RING_MAP_MBX_BASIC_MSG_NUM) /
-		    HCLGEVF_RING_NODE_VARIABLE_NUM) {
+		if (i == 0) {
+			hclgevf_cmd_setup_basic_desc(&desc,
+						     HCLGEVF_OPC_MBX_VF_TO_PF,
+						     false);
+			type = en ?
+				HCLGE_MBX_MAP_RING_TO_VECTOR :
+				HCLGE_MBX_UNMAP_RING_TO_VECTOR;
+			req->msg[0] = type;
+			req->msg[1] = vector_id;
+		}
+
+		req->msg[idx_offset] =
+				hnae_get_bit(node->flag, HNAE3_RING_TYPE_B);
+		req->msg[idx_offset + 1] = node->tqp_index;
+		req->msg[idx_offset + 2] = hnae_get_field(node->int_gl_idx,
+							  HNAE3_RING_GL_IDX_M,
+							  HNAE3_RING_GL_IDX_S);
+
+		i++;
+		if ((i == (HCLGE_MBX_VF_MSG_DATA_NUM -
+		     HCLGE_MBX_RING_MAP_BASIC_MSG_NUM) /
+		     HCLGE_MBX_RING_NODE_VARIABLE_NUM) ||
+		    !node->next) {
 			req->msg[2] = i;
 
 			status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
@@ -588,17 +591,6 @@ static int hclgevf_bind_ring_to_vector(struct hnae3_handle *handle, bool en,
 						     false);
 			req->msg[0] = type;
 			req->msg[1] = vector_id;
-		}
-	}
-
-	if (i > 0) {
-		req->msg[2] = i;
-
-		status = hclgevf_cmd_send(&hdev->hw, &desc, 1);
-		if (status) {
-			dev_err(&hdev->pdev->dev,
-				"Map TQP fail, status is %d.\n", status);
-			return status;
 		}
 	}
 
@@ -734,21 +726,25 @@ static void hclgevf_get_mac_addr(struct hnae3_handle *handle, u8 *p)
 	ether_addr_copy(p, hdev->hw.mac.mac_addr);
 }
 
-static int hclgevf_set_mac_addr(struct hnae3_handle *handle, void *p)
+static int hclgevf_set_mac_addr(struct hnae3_handle *handle, void *p,
+				bool is_first)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	u8 *old_mac_addr = (u8 *)hdev->hw.mac.mac_addr;
 	u8 *new_mac_addr = (u8 *)p;
 	u8 msg_data[ETH_ALEN * 2];
+	u16 subcode;
 	int status;
 
 	ether_addr_copy(msg_data, new_mac_addr);
 	ether_addr_copy(&msg_data[ETH_ALEN], old_mac_addr);
 
+	subcode = is_first ? HCLGE_MBX_MAC_VLAN_UC_ADD :
+			HCLGE_MBX_MAC_VLAN_UC_MODIFY;
+
 	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_SET_UNICAST,
-				      HCLGE_MBX_MAC_VLAN_UC_MODIFY,
-				      msg_data, ETH_ALEN * 2,
-				      false, NULL, 0);
+				      subcode, msg_data, ETH_ALEN * 2,
+				      true, NULL, 0);
 	if (!status)
 		ether_addr_copy(hdev->hw.mac.mac_addr, new_mac_addr);
 
@@ -1062,6 +1058,9 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 
 	/* reset tqp stats */
 	hclgevf_reset_tqp_stats(handle);
+	del_timer_sync(&hdev->service_timer);
+	cancel_work_sync(&hdev->service_task);
+	hclgevf_update_link_status(hdev, 0);
 }
 
 static void hclgevf_state_init(struct hclgevf_dev *hdev)

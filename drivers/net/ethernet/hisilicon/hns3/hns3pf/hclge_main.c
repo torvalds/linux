@@ -3756,6 +3756,9 @@ static void hclge_ae_stop(struct hnae3_handle *handle)
 
 	/* reset tqp stats */
 	hclge_reset_tqp_stats(handle);
+	del_timer_sync(&hdev->service_timer);
+	cancel_work_sync(&hdev->service_task);
+	hclge_update_link_status(hdev);
 }
 
 static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
@@ -3776,11 +3779,11 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 		if ((!resp_code) || (resp_code == 1)) {
 			return_status = 0;
 		} else if (resp_code == 2) {
-			return_status = -EIO;
+			return_status = -ENOSPC;
 			dev_err(&hdev->pdev->dev,
 				"add mac addr failed for uc_overflow.\n");
 		} else if (resp_code == 3) {
-			return_status = -EIO;
+			return_status = -ENOSPC;
 			dev_err(&hdev->pdev->dev,
 				"add mac addr failed for mc_overflow.\n");
 		} else {
@@ -3792,7 +3795,7 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 		if (!resp_code) {
 			return_status = 0;
 		} else if (resp_code == 1) {
-			return_status = -EIO;
+			return_status = -ENOENT;
 			dev_dbg(&hdev->pdev->dev,
 				"remove mac addr failed for miss.\n");
 		} else {
@@ -3804,7 +3807,7 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 		if (!resp_code) {
 			return_status = 0;
 		} else if (resp_code == 1) {
-			return_status = -EIO;
+			return_status = -ENOENT;
 			dev_dbg(&hdev->pdev->dev,
 				"lookup mac addr failed for miss.\n");
 		} else {
@@ -3813,7 +3816,7 @@ static int hclge_get_mac_vlan_cmd_status(struct hclge_vport *vport,
 				resp_code);
 		}
 	} else {
-		return_status = -EIO;
+		return_status = -EINVAL;
 		dev_err(&hdev->pdev->dev,
 			"unknown opcode for get_mac_vlan_cmd_status,opcode=%d.\n",
 			op);
@@ -4104,8 +4107,9 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 {
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_mac_vlan_tbl_entry_cmd req;
-	enum hclge_cmd_status status;
+	struct hclge_desc desc;
 	u16 egress_port = 0;
+	int ret;
 
 	/* mac addr check */
 	if (is_zero_ether_addr(addr) ||
@@ -4137,9 +4141,23 @@ int hclge_add_uc_addr_common(struct hclge_vport *vport,
 
 	hclge_prepare_mac_addr(&req, addr);
 
-	status = hclge_add_mac_vlan_tbl(vport, &req, NULL);
+	/* Lookup the mac address in the mac_vlan table, and add
+	 * it if the entry is inexistent. Repeated unicast entry
+	 * is not allowed in the mac vlan table.
+	 */
+	ret = hclge_lookup_mac_vlan_tbl(vport, &req, &desc, false);
+	if (ret == -ENOENT)
+		return hclge_add_mac_vlan_tbl(vport, &req, NULL);
 
-	return status;
+	/* check if we just hit the duplicate */
+	if (!ret)
+		ret = -EINVAL;
+
+	dev_err(&hdev->pdev->dev,
+		"PF failed to add unicast entry(%pM) in the MAC table\n",
+		addr);
+
+	return ret;
 }
 
 static int hclge_rm_uc_addr(struct hnae3_handle *handle,
@@ -4155,7 +4173,7 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 {
 	struct hclge_dev *hdev = vport->back;
 	struct hclge_mac_vlan_tbl_entry_cmd req;
-	enum hclge_cmd_status status;
+	int ret;
 
 	/* mac addr check */
 	if (is_zero_ether_addr(addr) ||
@@ -4171,9 +4189,9 @@ int hclge_rm_uc_addr_common(struct hclge_vport *vport,
 	hnae_set_bit(req.flags, HCLGE_MAC_VLAN_BIT0_EN_B, 1);
 	hnae_set_bit(req.entry_type, HCLGE_MAC_VLAN_BIT0_EN_B, 0);
 	hclge_prepare_mac_addr(&req, addr);
-	status = hclge_remove_mac_vlan_tbl(vport, &req);
+	ret = hclge_remove_mac_vlan_tbl(vport, &req);
 
-	return status;
+	return ret;
 }
 
 static int hclge_add_mc_addr(struct hnae3_handle *handle,
@@ -4378,7 +4396,8 @@ static void hclge_get_mac_addr(struct hnae3_handle *handle, u8 *p)
 	ether_addr_copy(p, hdev->hw.mac.mac_addr);
 }
 
-static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p)
+static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p,
+			      bool is_first)
 {
 	const unsigned char *new_addr = (const unsigned char *)p;
 	struct hclge_vport *vport = hclge_get_vport(handle);
@@ -4395,11 +4414,9 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p)
 		return -EINVAL;
 	}
 
-	ret = hclge_rm_uc_addr(handle, hdev->hw.mac.mac_addr);
-	if (ret)
+	if (!is_first && hclge_rm_uc_addr(handle, hdev->hw.mac.mac_addr))
 		dev_warn(&hdev->pdev->dev,
-			 "remove old uc mac address fail, ret =%d.\n",
-			 ret);
+			 "remove old uc mac address fail.\n");
 
 	ret = hclge_add_uc_addr(handle, new_addr);
 	if (ret) {
@@ -4407,17 +4424,15 @@ static int hclge_set_mac_addr(struct hnae3_handle *handle, void *p)
 			"add uc mac address fail, ret =%d.\n",
 			ret);
 
-		ret = hclge_add_uc_addr(handle, hdev->hw.mac.mac_addr);
-		if (ret) {
+		if (!is_first &&
+		    hclge_add_uc_addr(handle, hdev->hw.mac.mac_addr))
 			dev_err(&hdev->pdev->dev,
-				"restore uc mac address fail, ret =%d.\n",
-				ret);
-		}
+				"restore uc mac address fail.\n");
 
 		return -EIO;
 	}
 
-	ret = hclge_mac_pause_addr_cfg(hdev, new_addr);
+	ret = hclge_pause_addr_cfg(hdev, new_addr);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"configure mac pause address fail, ret =%d.\n",

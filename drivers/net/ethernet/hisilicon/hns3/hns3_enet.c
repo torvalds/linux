@@ -1120,7 +1120,7 @@ static int hns3_nic_net_set_mac_address(struct net_device *netdev, void *p)
 	if (!mac_addr || !is_valid_ether_addr((const u8 *)mac_addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	ret = h->ae_algo->ops->set_mac_addr(h, mac_addr->sa_data);
+	ret = h->ae_algo->ops->set_mac_addr(h, mac_addr->sa_data, false);
 	if (ret) {
 		netdev_err(netdev, "set_mac_address fail, ret=%d!\n", ret);
 		return ret;
@@ -2080,15 +2080,13 @@ static void hns3_nic_reuse_page(struct sk_buff *skb, int i,
 	desc = &ring->desc[ring->next_to_clean];
 	size = le16_to_cpu(desc->rx.size);
 
-	if (twobufs) {
-		truesize = hnae_buf_size(ring);
-	} else {
-		truesize = ALIGN(size, L1_CACHE_BYTES);
+	truesize = hnae_buf_size(ring);
+
+	if (!twobufs)
 		last_offset = hnae_page_size(ring) - hnae_buf_size(ring);
-	}
 
 	skb_add_rx_frag(skb, i, desc_cb->priv, desc_cb->page_offset + pull_len,
-			size - pull_len, truesize - pull_len);
+			size - pull_len, truesize);
 
 	 /* Avoid re-using remote pages,flag default unreuse */
 	if (unlikely(page_to_nid(desc_cb->priv) != numa_node_id()))
@@ -3048,7 +3046,7 @@ static void hns3_init_mac_addr(struct net_device *netdev)
 	}
 
 	if (h->ae_algo->ops->set_mac_addr)
-		h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr);
+		h->ae_algo->ops->set_mac_addr(h, netdev->dev_addr, true);
 
 }
 
@@ -3503,7 +3501,7 @@ int hns3_set_channels(struct net_device *netdev,
 		return 0;
 
 	if (if_running)
-		dev_close(netdev);
+		hns3_nic_net_stop(netdev);
 
 	hns3_clear_all_ring(h);
 
@@ -3546,7 +3544,7 @@ int hns3_set_channels(struct net_device *netdev,
 
 open_netdev:
 	if (if_running)
-		dev_open(netdev);
+		hns3_nic_net_open(netdev);
 
 	return ret;
 }
