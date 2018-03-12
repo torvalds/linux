@@ -36,6 +36,7 @@
 #include <asm/xics.h>
 #include <asm/xive.h>
 #include <asm/plpar_wrappers.h>
+#include <asm/topology.h>
 
 #include "pseries.h"
 #include "offline_states.h"
@@ -331,6 +332,7 @@ static void pseries_remove_processor(struct device_node *np)
 			BUG_ON(cpu_online(cpu));
 			set_cpu_present(cpu, false);
 			set_hard_smp_processor_id(cpu, -1);
+			update_numa_cpu_lookup_table(cpu, -1);
 			break;
 		}
 		if (cpu >= nr_cpu_ids)
@@ -339,8 +341,6 @@ static void pseries_remove_processor(struct device_node *np)
 	}
 	cpu_maps_update_done();
 }
-
-extern int find_and_online_cpu_nid(int cpu);
 
 static int dlpar_online_cpu(struct device_node *dn)
 {

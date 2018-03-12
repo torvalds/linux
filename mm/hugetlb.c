@@ -1583,7 +1583,7 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
 		page = NULL;
 	} else {
 		h->surplus_huge_pages++;
-		h->nr_huge_pages_node[page_to_nid(page)]++;
+		h->surplus_huge_pages_node[page_to_nid(page)]++;
 	}
 
 out_unlock:

@@ -55,7 +55,7 @@
 		      <0x3ff00100 0x100>;
 	};
 
-	smc@0x3404e000 {
+	smc@3404e000 {
 		compatible = "brcm,bcm21664-smc", "brcm,kona-smc";
 		reg = <0x3404e000 0x400>; /* 1 KiB in SRAM */
 	};
