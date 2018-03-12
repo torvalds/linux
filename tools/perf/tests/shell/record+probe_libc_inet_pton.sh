@@ -47,7 +47,10 @@ trace_libc_inet_pton_backtrace() {
 		[ -z "${expected[$idx]}" ] && break
 	done
 
-	rm -f $file
+	# If any statements are executed from this point onwards,
+	# the exit code of the last among these will be reflected
+	# in err below. If the exit code is 0, the test will pass
+	# even if the perf script output does not match.
 }
 
 # Check for IPv6 interface existence
