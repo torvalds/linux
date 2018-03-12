@@ -2713,14 +2713,10 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 
 	if ((link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) &&
-	    link->type != dc_connection_none) {
-		amdgpu_dm_register_backlight_device(dm);
-
-		if (dm->backlight_dev) {
-			backlight_device_unregister(dm->backlight_dev);
-			dm->backlight_dev = NULL;
-		}
-
+	    link->type != dc_connection_none &&
+	    dm->backlight_dev) {
+		backlight_device_unregister(dm->backlight_dev);
+		dm->backlight_dev = NULL;
 	}
 #endif
 	drm_connector_unregister(connector);
