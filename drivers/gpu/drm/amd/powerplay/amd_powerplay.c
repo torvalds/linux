@@ -134,6 +134,10 @@ static int pp_sw_fini(void *handle)
 		if (hwmgr->smumgr_funcs->smu_fini != NULL)
 			hwmgr->smumgr_funcs->smu_fini(hwmgr);
 	}
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_SMU)
+		amdgpu_ucode_fini_bo(adev);
+
 	return 0;
 }
 
@@ -201,7 +205,9 @@ static int pp_late_init(void *handle)
 
 static void pp_late_fini(void *handle)
 {
-	amd_powerplay_destroy(handle);
+	struct amdgpu_device *adev = handle;
+
+	amd_powerplay_destroy(adev);
 }
 
 

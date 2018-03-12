@@ -1489,9 +1489,6 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	}
 
 	for (i = adev->num_ip_blocks - 1; i >= 0; i--) {
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC &&
-			adev->firmware.load_type == AMDGPU_FW_LOAD_SMU)
-			amdgpu_ucode_fini_bo(adev);
 		if (!adev->ip_blocks[i].status.hw)
 			continue;
 
