@@ -39,13 +39,14 @@ struct sh_pfc_pin {
 	unsigned int configs;
 };
 
-#define SH_PFC_PIN_GROUP(n)				\
+#define SH_PFC_PIN_GROUP_ALIAS(alias, n)		\
 	{						\
-		.name = #n,				\
+		.name = #alias,				\
 		.pins = n##_pins,			\
 		.mux = n##_mux,				\
 		.nr_pins = ARRAY_SIZE(n##_pins),	\
 	}
+#define SH_PFC_PIN_GROUP(n)	SH_PFC_PIN_GROUP_ALIAS(n, n)
 
 struct sh_pfc_pin_group {
 	const char *name;
