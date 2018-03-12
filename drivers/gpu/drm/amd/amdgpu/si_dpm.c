@@ -67,6 +67,8 @@ MODULE_FIRMWARE("radeon/hainan_smc.bin");
 MODULE_FIRMWARE("radeon/hainan_k_smc.bin");
 MODULE_FIRMWARE("radeon/banks_k_2_smc.bin");
 
+static const struct amd_pm_funcs si_dpm_funcs;
+
 union power_info {
 	struct _ATOM_POWERPLAY_INFO info;
 	struct _ATOM_POWERPLAY_INFO_V2 info_2;
@@ -7914,6 +7916,7 @@ static int si_dpm_early_init(void *handle)
 
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	adev->powerplay.pp_funcs = &si_dpm_funcs;
 	si_dpm_set_irq_funcs(adev);
 	return 0;
 }
@@ -8014,7 +8017,7 @@ static int si_dpm_read_sensor(void *handle, int idx,
 	}
 }
 
-const struct amd_ip_funcs si_dpm_ip_funcs = {
+static const struct amd_ip_funcs si_dpm_ip_funcs = {
 	.name = "si_dpm",
 	.early_init = si_dpm_early_init,
 	.late_init = si_dpm_late_init,
@@ -8031,7 +8034,16 @@ const struct amd_ip_funcs si_dpm_ip_funcs = {
 	.set_powergating_state = si_dpm_set_powergating_state,
 };
 
-const struct amd_pm_funcs si_dpm_funcs = {
+const struct amdgpu_ip_block_version si_smu_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 6,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &si_dpm_ip_funcs,
+};
+
+static const struct amd_pm_funcs si_dpm_funcs = {
 	.pre_set_power_state = &si_dpm_pre_set_power_state,
 	.set_power_state = &si_dpm_set_power_state,
 	.post_set_power_state = &si_dpm_post_set_power_state,

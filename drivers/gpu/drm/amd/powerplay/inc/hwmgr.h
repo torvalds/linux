@@ -25,7 +25,6 @@
 
 #include <linux/seq_file.h>
 #include "amd_powerplay.h"
-#include "pp_instance.h"
 #include "hardwaremanager.h"
 #include "pp_power_source.h"
 #include "hwmgr_ppt.h"
@@ -34,7 +33,6 @@
 #include "power_state.h"
 #include "smu_helper.h"
 
-struct pp_instance;
 struct pp_hwmgr;
 struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
@@ -703,6 +701,8 @@ struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
 	uint32_t smu_version;
+	bool pm_en;
+	struct mutex smu_lock;
 
 	uint32_t pp_table_version;
 	void *device;
@@ -769,12 +769,12 @@ struct cgs_irq_src_funcs {
 	cgs_irq_handler_func_t handler;
 };
 
-extern int hwmgr_early_init(struct pp_instance *handle);
-extern int hwmgr_hw_init(struct pp_instance *handle);
-extern int hwmgr_hw_fini(struct pp_instance *handle);
-extern int hwmgr_hw_suspend(struct pp_instance *handle);
-extern int hwmgr_hw_resume(struct pp_instance *handle);
-extern int hwmgr_handle_task(struct pp_instance *handle,
+extern int hwmgr_early_init(struct pp_hwmgr *hwmgr);
+extern int hwmgr_hw_init(struct pp_hwmgr *hwmgr);
+extern int hwmgr_hw_fini(struct pp_hwmgr *hwmgr);
+extern int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr);
+extern int hwmgr_hw_resume(struct pp_hwmgr *hwmgr);
+extern int hwmgr_handle_task(struct pp_hwmgr *hwmgr,
 				enum amd_pp_task task_id,
 				enum amd_pm_state_type *user_state);
 

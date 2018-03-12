@@ -116,23 +116,11 @@ static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
 	hwmgr->workload_setting[4] = PP_SMC_POWER_PROFILE_COMPUTE;
 }
 
-int hwmgr_early_init(struct pp_instance *handle)
+int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 {
-	struct pp_hwmgr *hwmgr;
-
-	if (handle == NULL)
+	if (hwmgr == NULL)
 		return -EINVAL;
 
-	hwmgr = kzalloc(sizeof(struct pp_hwmgr), GFP_KERNEL);
-	if (hwmgr == NULL)
-		return -ENOMEM;
-
-	handle->hwmgr = hwmgr;
-	hwmgr->adev = handle->parent;
-	hwmgr->device = handle->device;
-	hwmgr->chip_family = ((struct amdgpu_device *)handle->parent)->family;
-	hwmgr->chip_id = ((struct amdgpu_device *)handle->parent)->asic_type;
-	hwmgr->feature_mask = amdgpu_pp_feature_mask;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
 	hwmgr->pp_table_version = PP_TABLE_V1;
@@ -220,15 +208,12 @@ int hwmgr_early_init(struct pp_instance *handle)
 	return 0;
 }
 
-int hwmgr_hw_init(struct pp_instance *handle)
+int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 {
-	struct pp_hwmgr *hwmgr;
 	int ret = 0;
 
-	if (handle == NULL)
+	if (hwmgr == NULL)
 		return -EINVAL;
-
-	hwmgr = handle->hwmgr;
 
 	if (hwmgr->pptable_func == NULL ||
 	    hwmgr->pptable_func->pptable_init == NULL ||
@@ -275,14 +260,10 @@ err:
 	return ret;
 }
 
-int hwmgr_hw_fini(struct pp_instance *handle)
+int hwmgr_hw_fini(struct pp_hwmgr *hwmgr)
 {
-	struct pp_hwmgr *hwmgr;
-
-	if (handle == NULL || handle->hwmgr == NULL)
+	if (hwmgr == NULL)
 		return -EINVAL;
-
-	hwmgr = handle->hwmgr;
 
 	phm_stop_thermal_controller(hwmgr);
 	psm_set_boot_states(hwmgr);
@@ -297,15 +278,13 @@ int hwmgr_hw_fini(struct pp_instance *handle)
 	return psm_fini_power_state_table(hwmgr);
 }
 
-int hwmgr_hw_suspend(struct pp_instance *handle)
+int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr)
 {
-	struct pp_hwmgr *hwmgr;
 	int ret = 0;
 
-	if (handle == NULL || handle->hwmgr == NULL)
+	if (hwmgr == NULL)
 		return -EINVAL;
 
-	hwmgr = handle->hwmgr;
 	phm_disable_smc_firmware_ctf(hwmgr);
 	ret = psm_set_boot_states(hwmgr);
 	if (ret)
@@ -318,15 +297,13 @@ int hwmgr_hw_suspend(struct pp_instance *handle)
 	return ret;
 }
 
-int hwmgr_hw_resume(struct pp_instance *handle)
+int hwmgr_hw_resume(struct pp_hwmgr *hwmgr)
 {
-	struct pp_hwmgr *hwmgr;
 	int ret = 0;
 
-	if (handle == NULL || handle->hwmgr == NULL)
+	if (hwmgr == NULL)
 		return -EINVAL;
 
-	hwmgr = handle->hwmgr;
 	ret = phm_setup_asic(hwmgr);
 	if (ret)
 		return ret;
@@ -361,16 +338,13 @@ static enum PP_StateUILabel power_state_convert(enum amd_pm_state_type  state)
 	}
 }
 
-int hwmgr_handle_task(struct pp_instance *handle, enum amd_pp_task task_id,
+int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 		enum amd_pm_state_type *user_state)
 {
 	int ret = 0;
-	struct pp_hwmgr *hwmgr;
 
-	if (handle == NULL || handle->hwmgr == NULL)
+	if (hwmgr == NULL)
 		return -EINVAL;
-
-	hwmgr = handle->hwmgr;
 
 	switch (task_id) {
 	case AMD_PP_TASK_DISPLAY_CONFIG_CHANGE:

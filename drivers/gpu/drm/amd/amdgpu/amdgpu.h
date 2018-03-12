@@ -1393,9 +1393,7 @@ enum amd_hw_ip_block_type {
 #define HWIP_MAX_INSTANCE	6
 
 struct amd_powerplay {
-	struct cgs_device *cgs_device;
 	void *pp_handle;
-	const struct amd_ip_funcs *ip_funcs;
 	const struct amd_pm_funcs *pp_funcs;
 };
 

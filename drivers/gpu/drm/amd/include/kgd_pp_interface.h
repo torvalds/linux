@@ -24,8 +24,7 @@
 #ifndef __KGD_PP_INTERFACE_H__
 #define __KGD_PP_INTERFACE_H__
 
-extern const struct amd_ip_funcs pp_ip_funcs;
-extern const struct amd_pm_funcs pp_dpm_funcs;
+extern const struct amdgpu_ip_block_version pp_smu_ip_block;
 
 struct amd_vce_state {
 	/* vce clocks */
