@@ -1,7 +1,8 @@
 /*
  * at91sam9rl.dtsi - Device Tree Include file for AT91SAM9RL family SoC
  *
- *  Copyright (C) 2014 Alexandre Belloni <alexandre.belloni@free-electrons.com>
+ *  Copyright (C) 2014 Microchip
+ *  Alexandre Belloni <alexandre.belloni@free-electrons.com>
  *
  * Licensed under GPLv2 or later.
  */
