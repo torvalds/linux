@@ -6865,6 +6865,13 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 	bool intr_window_requested;
 	unsigned count = 130;
 
+	/*
+	 * We should never reach the point where we are emulating L2
+	 * due to invalid guest state as that means we incorrectly
+	 * allowed a nested VMEntry with an invalid vmcs12.
+	 */
+	WARN_ON_ONCE(vmx->emulation_required && vmx->nested.nested_run_pending);
+
 	cpu_exec_ctrl = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 	intr_window_requested = cpu_exec_ctrl & CPU_BASED_VIRTUAL_INTR_PENDING;
 
@@ -10989,6 +10996,14 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		prepare_vmcs02_full(vcpu, vmcs12, from_vmentry);
 		vmx->nested.dirty_vmcs12 = false;
 	}
+
+	/*
+	 * Guest state is invalid and unrestricted guest is disabled,
+	 * which means L1 attempted VMEntry to L2 with invalid state.
+	 * Fail the VMEntry.
+	 */
+	if (vmx->emulation_required)
+		return 1;
 
 	/* Shadow page tables on either EPT or shadow page tables. */
 	if (nested_vmx_load_cr3(vcpu, vmcs12->guest_cr3, nested_cpu_has_ept(vmcs12),
