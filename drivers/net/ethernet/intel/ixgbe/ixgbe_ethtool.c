@@ -97,6 +97,7 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"tx_heartbeat_errors", IXGBE_NETDEV_STAT(tx_heartbeat_errors)},
 	{"tx_timeout_count", IXGBE_STAT(tx_timeout_count)},
 	{"tx_restart_queue", IXGBE_STAT(restart_queue)},
+	{"rx_length_errors", IXGBE_STAT(stats.rlec)},
 	{"rx_long_length_errors", IXGBE_STAT(stats.roc)},
 	{"rx_short_length_errors", IXGBE_STAT(stats.ruc)},
 	{"tx_flow_control_xon", IXGBE_STAT(stats.lxontxc)},

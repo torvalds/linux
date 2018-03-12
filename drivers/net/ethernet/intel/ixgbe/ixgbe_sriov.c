@@ -831,7 +831,11 @@ static int ixgbe_vf_reset_msg(struct ixgbe_adapter *adapter, u32 vf)
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), reg);
 
 	/* force drop enable for all VF Rx queues */
-	ixgbe_write_qde(adapter, vf, IXGBE_QDE_ENABLE);
+	reg = IXGBE_QDE_ENABLE;
+	if (adapter->vfinfo[vf].pf_vlan)
+		reg |= IXGBE_QDE_HIDE_VLAN;
+
+	ixgbe_write_qde(adapter, vf, reg);
 
 	/* enable receive for vf */
 	reg = IXGBE_READ_REG(hw, IXGBE_VFRE(reg_offset));

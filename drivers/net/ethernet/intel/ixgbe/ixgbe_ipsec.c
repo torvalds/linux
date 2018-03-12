@@ -423,14 +423,20 @@ static int ixgbe_ipsec_parse_proto_keys(struct xfrm_state *xs,
 	const char aes_gcm_name[] = "rfc4106(gcm(aes))";
 	int key_len;
 
-	if (xs->aead) {
-		key_data = &xs->aead->alg_key[0];
-		key_len = xs->aead->alg_key_len;
-		alg_name = xs->aead->alg_name;
-	} else {
+	if (!xs->aead) {
 		netdev_err(dev, "Unsupported IPsec algorithm\n");
 		return -EINVAL;
 	}
+
+	if (xs->aead->alg_icv_len != IXGBE_IPSEC_AUTH_BITS) {
+		netdev_err(dev, "IPsec offload requires %d bit authentication\n",
+			   IXGBE_IPSEC_AUTH_BITS);
+		return -EINVAL;
+	}
+
+	key_data = &xs->aead->alg_key[0];
+	key_len = xs->aead->alg_key_len;
+	alg_name = xs->aead->alg_name;
 
 	if (strcmp(alg_name, aes_gcm_name)) {
 		netdev_err(dev, "Unsupported IPsec algorithm - please use %s\n",
@@ -718,23 +724,10 @@ static bool ixgbe_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *xs)
 	return true;
 }
 
-/**
- * ixgbe_ipsec_free - called by xfrm garbage collections
- * @xs: pointer to transformer state struct
- *
- * We don't have any garbage to collect, so we shouldn't bother
- * implementing this function, but the XFRM code doesn't check for
- * existence before calling the API callback.
- **/
-static void ixgbe_ipsec_free(struct xfrm_state *xs)
-{
-}
-
 static const struct xfrmdev_ops ixgbe_xfrmdev_ops = {
 	.xdo_dev_state_add = ixgbe_ipsec_add_sa,
 	.xdo_dev_state_delete = ixgbe_ipsec_del_sa,
 	.xdo_dev_offload_ok = ixgbe_ipsec_offload_ok,
-	.xdo_dev_state_free = ixgbe_ipsec_free,
 };
 
 /**
@@ -783,11 +776,33 @@ int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
 
 	itd->flags = 0;
 	if (xs->id.proto == IPPROTO_ESP) {
+		struct sk_buff *skb = first->skb;
+		int ret, authlen, trailerlen;
+		u8 padlen;
+
 		itd->flags |= IXGBE_ADVTXD_TUCMD_IPSEC_TYPE_ESP |
 			      IXGBE_ADVTXD_TUCMD_L4T_TCP;
 		if (first->protocol == htons(ETH_P_IP))
 			itd->flags |= IXGBE_ADVTXD_TUCMD_IPV4;
-		itd->trailer_len = xs->props.trailer_len;
+
+		/* The actual trailer length is authlen (16 bytes) plus
+		 * 2 bytes for the proto and the padlen values, plus
+		 * padlen bytes of padding.  This ends up not the same
+		 * as the static value found in xs->props.trailer_len (21).
+		 *
+		 * The "correct" way to get the auth length would be to use
+		 *    authlen = crypto_aead_authsize(xs->data);
+		 * but since we know we only have one size to worry about
+		 * we can let the compiler use the constant and save us a
+		 * few CPU cycles.
+		 */
+		authlen = IXGBE_IPSEC_AUTH_BITS / 8;
+
+		ret = skb_copy_bits(skb, skb->len - (authlen + 2), &padlen, 1);
+		if (unlikely(ret))
+			return 0;
+		trailerlen = authlen + 2 + padlen;
+		itd->trailer_len = trailerlen;
 	}
 	if (tsa->encrypt)
 		itd->flags |= IXGBE_ADVTXD_TUCMD_IPSEC_ENCRYPT_EN;
