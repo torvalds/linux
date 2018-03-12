@@ -1008,7 +1008,7 @@
 #define RT5659_PWR_ADC_R1			(0x1 << 3)
 #define RT5659_PWR_ADC_R1_BIT			3
 #define RT5659_PWR_ADC_L2			(0x1 << 2)
-#define RT5659_PWR_ADC_L2_BIT			4
+#define RT5659_PWR_ADC_L2_BIT			2
 #define RT5659_PWR_ADC_R2			(0x1 << 1)
 #define RT5659_PWR_ADC_R2_BIT			1
 #define RT5659_PWR_CLS_D			(0x1)
