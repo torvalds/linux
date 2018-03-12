@@ -451,9 +451,9 @@ EXPORT_SYMBOL_GPL(tcpci_irq);
 
 static irqreturn_t _tcpci_irq(int irq, void *dev_id)
 {
-	struct tcpci *tcpci = dev_id;
+	struct tcpci_chip *chip = dev_id;
 
-	return tcpci_irq(tcpci);
+	return tcpci_irq(chip->tcpci);
 }
 
 static const struct regmap_config tcpci_regmap_config = {
