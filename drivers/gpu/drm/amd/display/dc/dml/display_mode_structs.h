@@ -215,8 +215,8 @@ struct writeback_st {
 	int wb_vtaps_luma;
 	int wb_htaps_chroma;
 	int wb_vtaps_chroma;
-	int wb_hratio;
-	int wb_vratio;
+	double wb_hratio;
+	double wb_vratio;
 };
 
 struct	_vcs_dpi_display_output_params_st	{
