@@ -1039,6 +1039,11 @@ static inline bool is_invalid_opcode(u32 intr_info)
 	return is_exception_n(intr_info, UD_VECTOR);
 }
 
+static inline bool is_gp_fault(u32 intr_info)
+{
+	return is_exception_n(intr_info, GP_VECTOR);
+}
+
 static inline bool is_external_interrupt(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
@@ -1875,6 +1880,14 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 
 	eb = (1u << PF_VECTOR) | (1u << UD_VECTOR) | (1u << MC_VECTOR) |
 	     (1u << DB_VECTOR) | (1u << AC_VECTOR);
+	/*
+	 * Guest access to VMware backdoor ports could legitimately
+	 * trigger #GP because of TSS I/O permission bitmap.
+	 * We intercept those #GP and allow access to them anyway
+	 * as VMware does.
+	 */
+	if (enable_vmware_backdoor)
+		eb |= (1u << GP_VECTOR);
 	if ((vcpu->guest_debug &
 	     (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP)) ==
 	    (KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP))
@@ -6179,6 +6192,17 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 	error_code = 0;
 	if (intr_info & INTR_INFO_DELIVER_CODE_MASK)
 		error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
+
+	if (!vmx->rmode.vm86_active && is_gp_fault(intr_info)) {
+		WARN_ON_ONCE(!enable_vmware_backdoor);
+		er = emulate_instruction(vcpu,
+			EMULTYPE_VMWARE | EMULTYPE_NO_UD_ON_FAIL);
+		if (er == EMULATE_USER_EXIT)
+			return 0;
+		else if (er != EMULATE_DONE)
+			kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
+		return 1;
+	}
 
 	/*
 	 * The #PF with PFEC.RSVD = 1 indicates the guest is accessing
