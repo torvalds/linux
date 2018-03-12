@@ -1883,6 +1883,19 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 		goto err;
 	}
 
+	if (asoc->pmtu_pending)
+		sctp_assoc_pending_pmtu(asoc);
+
+	if (sctp_wspace(asoc) < msg_len)
+		sctp_prsctp_prune(asoc, sinfo, msg_len - sctp_wspace(asoc));
+
+	if (!sctp_wspace(asoc)) {
+		timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
+		err = sctp_wait_for_sndbuf(asoc, &timeo, msg_len);
+		if (err)
+			goto err;
+	}
+
 	if (sctp_state(asoc, CLOSED)) {
 		err = sctp_primitive_ASSOCIATE(net, asoc, NULL);
 		if (err)
@@ -1898,19 +1911,6 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 		}
 
 		pr_debug("%s: we associated primitively\n", __func__);
-	}
-
-	if (asoc->pmtu_pending)
-		sctp_assoc_pending_pmtu(asoc);
-
-	if (sctp_wspace(asoc) < msg_len)
-		sctp_prsctp_prune(asoc, sinfo, msg_len - sctp_wspace(asoc));
-
-	if (!sctp_wspace(asoc)) {
-		timeo = sock_sndtimeo(sk, msg->msg_flags & MSG_DONTWAIT);
-		err = sctp_wait_for_sndbuf(asoc, &timeo, msg_len);
-		if (err)
-			goto err;
 	}
 
 	datamsg = sctp_datamsg_from_user(asoc, sinfo, &msg->msg_iter);
