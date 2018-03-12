@@ -43,7 +43,8 @@ xfs_break_layouts(
 	while ((error = break_layout(inode, false) == -EWOULDBLOCK)) {
 		xfs_iunlock(ip, *iolock);
 		error = break_layout(inode, true);
-		*iolock = XFS_IOLOCK_EXCL;
+		*iolock &= ~XFS_IOLOCK_SHARED;
+		*iolock |= XFS_IOLOCK_EXCL;
 		xfs_ilock(ip, *iolock);
 	}
 

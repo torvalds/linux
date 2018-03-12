@@ -614,7 +614,7 @@ xfs_ioc_space(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct iattr		iattr;
 	enum xfs_prealloc_flags	flags = 0;
-	uint			iolock = XFS_IOLOCK_EXCL;
+	uint			iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
 	int			error;
 
 	/*
@@ -647,9 +647,6 @@ xfs_ioc_space(
 	error = xfs_break_layouts(inode, &iolock);
 	if (error)
 		goto out_unlock;
-
-	xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-	iolock |= XFS_MMAPLOCK_EXCL;
 
 	switch (bf->l_whence) {
 	case 0: /*SEEK_SET*/
