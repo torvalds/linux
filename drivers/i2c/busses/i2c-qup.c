@@ -104,6 +104,7 @@
 #define QUP_TAG_V2_DATAWR              0x82
 #define QUP_TAG_V2_DATAWR_STOP         0x83
 #define QUP_TAG_V2_DATARD              0x85
+#define QUP_TAG_V2_DATARD_NACK         0x86
 #define QUP_TAG_V2_DATARD_STOP         0x87
 
 /* Status, Error flags */
@@ -606,7 +607,9 @@ static int qup_i2c_set_tags(u8 *tags, struct qup_i2c_dev *qup,
 			tags[len++] = QUP_TAG_V2_DATAWR_STOP;
 	} else {
 		if (msg->flags & I2C_M_RD)
-			tags[len++] = QUP_TAG_V2_DATARD;
+			tags[len++] = qup->blk.pos == (qup->blk.count - 1) ?
+				      QUP_TAG_V2_DATARD_NACK :
+				      QUP_TAG_V2_DATARD;
 		else
 			tags[len++] = QUP_TAG_V2_DATAWR;
 	}
