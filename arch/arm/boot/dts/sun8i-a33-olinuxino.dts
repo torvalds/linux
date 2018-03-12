@@ -69,6 +69,14 @@
 	};
 };
 
+&codec {
+	status = "okay";
+};
+
+&dai {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -181,6 +189,21 @@
 
 &simplefb_lcd {
 	vcc-lcd-supply = <&reg_dc1sw>;
+};
+
+&sound {
+	/* Board level jack widgets */
+	simple-audio-card,widgets = "Microphone", "Microphone Jack",
+				    "Headphone", "Headphone Jack";
+	/* Board level routing. First 2 routes copied from SoC level */
+	simple-audio-card,routing =
+		"Left DAC", "AIF1 Slot 0 Left",
+		"Right DAC", "AIF1 Slot 0 Right",
+		"HP", "HPCOM",
+		"Headphone Jack", "HP",
+		"MIC1", "Microphone Jack",
+		"Microphone Jack", "MBIAS";
+	status = "okay";
 };
 
 &uart0 {
