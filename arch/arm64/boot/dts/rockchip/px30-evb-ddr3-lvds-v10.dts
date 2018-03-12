@@ -190,12 +190,21 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
 &display_subsystem {
 	status = "okay";
 };
 
-&cpu0 {
-	cpu-supply = <&vdd_arm>;
+&dfi {
+	status = "okay";
+};
+
+&dmc {
+	center-supply = <&vdd_logic>;
+	status = "okay";
 };
 
 &emmc {

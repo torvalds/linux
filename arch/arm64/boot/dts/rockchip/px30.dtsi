@@ -1586,15 +1586,15 @@
 		downdifferential = <20>;
 		system-status-freq = <
 			/*system status         freq(KHz)*/
-			SYS_STATUS_NORMAL       328000
-			SYS_STATUS_REBOOT       328000
+			SYS_STATUS_NORMAL       528000
+			SYS_STATUS_REBOOT       450000
 			SYS_STATUS_SUSPEND      194000
-			SYS_STATUS_VIDEO_1080P  328000
+			SYS_STATUS_VIDEO_1080P  450000
 			SYS_STATUS_BOOST        528000
 			SYS_STATUS_PERFORMANCE  666000
 		>;
-		auto-min-freq = <400000>;
-		auto-freq-en = <0>;
+		auto-min-freq = <328000>;
+		auto-freq-en = <1>;
 		#cooling-cells = <2>;
 		status = "disabled";
 
