@@ -189,6 +189,7 @@ struct rx_cmp_ext {
 	#define RX_CMP_FLAGS2_T_L4_CS_CALC			(0x1 << 3)
 	#define RX_CMP_FLAGS2_META_FORMAT_VLAN			(0x1 << 4)
 	__le32 rx_cmp_meta_data;
+	#define RX_CMP_FLAGS2_METADATA_TCI_MASK			0xffff
 	#define RX_CMP_FLAGS2_METADATA_VID_MASK			0xfff
 	#define RX_CMP_FLAGS2_METADATA_TPID_MASK		0xffff0000
 	 #define RX_CMP_FLAGS2_METADATA_TPID_SFT		 16
