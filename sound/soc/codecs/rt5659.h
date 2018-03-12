@@ -1743,10 +1743,14 @@
 #define RT5659_CKGEN_DAC2_SFT			4
 
 /* Chopper and Clock control for ADC (0x013b)*/
-#define RT5659_CKXEN_ADCC_MASK			(0x1 << 13)
-#define RT5659_CKXEN_ADCC_SFT			13
-#define RT5659_CKGEN_ADCC_MASK			(0x1 << 12)
-#define RT5659_CKGEN_ADCC_SFT			12
+#define RT5659_CKXEN_ADC1_MASK			(0x1 << 13)
+#define RT5659_CKXEN_ADC1_SFT			13
+#define RT5659_CKGEN_ADC1_MASK			(0x1 << 12)
+#define RT5659_CKGEN_ADC1_SFT			12
+#define RT5659_CKXEN_ADC2_MASK			(0x1 << 5)
+#define RT5659_CKXEN_ADC2_SFT			5
+#define RT5659_CKGEN_ADC2_MASK			(0x1 << 4)
+#define RT5659_CKGEN_ADC2_SFT			4
 
 /* Test Mode Control 1 (0x0145) */
 #define RT5659_AD2DA_LB_MASK			(0x1 << 9)
