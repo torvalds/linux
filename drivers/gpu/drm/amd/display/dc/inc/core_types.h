@@ -250,6 +250,7 @@ struct dce_bw_output {
 	bool all_displays_in_sync;
 	struct dce_watermarks urgent_wm_ns[MAX_PIPES];
 	struct dce_watermarks stutter_exit_wm_ns[MAX_PIPES];
+	struct dce_watermarks stutter_entry_wm_ns[MAX_PIPES];
 	struct dce_watermarks nbp_state_change_wm_ns[MAX_PIPES];
 	int sclk_khz;
 	int sclk_deep_sleep_khz;
