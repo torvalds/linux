@@ -22,6 +22,9 @@
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+		serial4 = &uart4;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -233,10 +236,14 @@
 		compatible = "rockchip,rk3308-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff0a0000 0x0 0x100>;
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&xin24m>, <&xin24m>;
+		clocks = <&cru SCLK_UART0>, <&cru PCLK_UART0>;
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dmas = <&dmac0 4>, <&dmac0 5>;
+		#dma-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart0_xfer &uart0_cts &uart0_rts>;
 		status = "disabled";
 	};
 
@@ -244,10 +251,59 @@
 		compatible = "rockchip,rk3308-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff0b0000 0x0 0x100>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&xin24m>, <&xin24m>;
+		clocks = <&cru SCLK_UART1>, <&cru PCLK_UART1>;
 		clock-names = "baudclk", "apb_pclk";
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		dmas = <&dmac0 6>, <&dmac0 7>;
+		#dma-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart1_xfer &uart1_cts &uart1_rts>;
+		status = "disabled";
+	};
+
+	uart2: serial@ff0c0000 {
+		compatible = "rockchip,rk3308-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff0c0000 0x0 0x100>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART2>, <&cru PCLK_UART2>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac0 8>, <&dmac0 9>;
+		#dma-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart2m0_xfer>;
+		status = "disabled";
+	};
+
+	uart3: serial@ff0d0000 {
+		compatible = "rockchip,rk3308-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff0d0000 0x0 0x100>;
+		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART3>, <&cru PCLK_UART3>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac0 10>, <&dmac0 11>;
+		#dma-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart3_xfer>;
+		status = "disabled";
+	};
+
+	uart4: serial@ff0e0000 {
+		compatible = "rockchip,rk3308-uart", "snps,dw-apb-uart";
+		reg = <0x0 0xff0e0000 0x0 0x100>;
+		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_UART4>, <&cru PCLK_UART4>;
+		clock-names = "baudclk", "apb_pclk";
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		dmas = <&dmac1 18>, <&dmac1 19>;
+		#dma-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&uart4_xfer &uart4_cts &uart4_rts>;
 		status = "disabled";
 	};
 
@@ -799,7 +855,7 @@
 			uart0_xfer: uart0-xfer {
 				rockchip,pins =
 					<2 RK_PA1 1 &pcfg_pull_up>,
-					<2 RK_PA0 1 &pcfg_pull_none>;
+					<2 RK_PA0 1 &pcfg_pull_up>;
 			};
 
 			uart0_cts: uart0-cts {
@@ -817,7 +873,7 @@
 			uart1_xfer: uart1-xfer {
 				rockchip,pins =
 					<1 RK_PD1 1 &pcfg_pull_up>,
-					<1 RK_PD0 1 &pcfg_pull_none>;
+					<1 RK_PD0 1 &pcfg_pull_up>;
 			};
 
 			uart1_cts: uart1-cts {
@@ -835,7 +891,7 @@
 			uart2m0_xfer: uart2m0-xfer {
 				rockchip,pins =
 					<1 RK_PC7 2 &pcfg_pull_up>,
-					<1 RK_PC6 2 &pcfg_pull_none>;
+					<1 RK_PC6 2 &pcfg_pull_up>;
 			};
 		};
 
@@ -843,7 +899,7 @@
 			uart2m1_xfer: uart2m1-xfer {
 				rockchip,pins =
 					<4 RK_PD3 2 &pcfg_pull_up>,
-					<4 RK_PD2 2 &pcfg_pull_none>;
+					<4 RK_PD2 2 &pcfg_pull_up>;
 			};
 		};
 
@@ -851,7 +907,7 @@
 			uart3_xfer: uart3-xfer {
 				rockchip,pins =
 					<3 RK_PB5 4 &pcfg_pull_up>,
-					<3 RK_PB4 4 &pcfg_pull_none>;
+					<3 RK_PB4 4 &pcfg_pull_up>;
 			};
 		};
 
@@ -860,7 +916,7 @@
 			uart4_xfer: uart4-xfer {
 				rockchip,pins =
 					<4 RK_PB1 1 &pcfg_pull_up>,
-					<4 RK_PB0 1 &pcfg_pull_none>;
+					<4 RK_PB0 1 &pcfg_pull_up>;
 			};
 
 			uart4_cts: uart4-cts {
