@@ -448,17 +448,18 @@ struct perf_event_query_bpf {
 /*
  * Ioctls that can be done on a perf event fd:
  */
-#define PERF_EVENT_IOC_ENABLE		_IO ('$', 0)
-#define PERF_EVENT_IOC_DISABLE		_IO ('$', 1)
-#define PERF_EVENT_IOC_REFRESH		_IO ('$', 2)
-#define PERF_EVENT_IOC_RESET		_IO ('$', 3)
-#define PERF_EVENT_IOC_PERIOD		_IOW('$', 4, __u64)
-#define PERF_EVENT_IOC_SET_OUTPUT	_IO ('$', 5)
-#define PERF_EVENT_IOC_SET_FILTER	_IOW('$', 6, char *)
-#define PERF_EVENT_IOC_ID		_IOR('$', 7, __u64 *)
-#define PERF_EVENT_IOC_SET_BPF		_IOW('$', 8, __u32)
-#define PERF_EVENT_IOC_PAUSE_OUTPUT	_IOW('$', 9, __u32)
-#define PERF_EVENT_IOC_QUERY_BPF	_IOWR('$', 10, struct perf_event_query_bpf *)
+#define PERF_EVENT_IOC_ENABLE			_IO ('$', 0)
+#define PERF_EVENT_IOC_DISABLE			_IO ('$', 1)
+#define PERF_EVENT_IOC_REFRESH			_IO ('$', 2)
+#define PERF_EVENT_IOC_RESET			_IO ('$', 3)
+#define PERF_EVENT_IOC_PERIOD			_IOW('$', 4, __u64)
+#define PERF_EVENT_IOC_SET_OUTPUT		_IO ('$', 5)
+#define PERF_EVENT_IOC_SET_FILTER		_IOW('$', 6, char *)
+#define PERF_EVENT_IOC_ID			_IOR('$', 7, __u64 *)
+#define PERF_EVENT_IOC_SET_BPF			_IOW('$', 8, __u32)
+#define PERF_EVENT_IOC_PAUSE_OUTPUT		_IOW('$', 9, __u32)
+#define PERF_EVENT_IOC_QUERY_BPF		_IOWR('$', 10, struct perf_event_query_bpf *)
+#define PERF_EVENT_IOC_MODIFY_ATTRIBUTES	_IOW('$', 11, struct perf_event_attr *)
 
 enum perf_event_ioc_flags {
 	PERF_IOC_FLAG_GROUP		= 1U << 0,
