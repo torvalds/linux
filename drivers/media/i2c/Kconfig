@@ -788,6 +788,17 @@ config VIDEO_MT9T001
 	  This is a Video4Linux2 sensor-level driver for the Aptina
 	  (Micron) mt0t001 3 Mpixel camera.
 
+config VIDEO_MT9T112
+	tristate "Aptina MT9T111/MT9T112 support"
+	depends on I2C && VIDEO_V4L2
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Aptina
+	  (Micron) MT9T111 and MT9T112 3 Mpixel camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mt9t112.
+
 config VIDEO_MT9V011
 	tristate "Micron mt9v011 sensor support"
 	depends on I2C && VIDEO_V4L2
