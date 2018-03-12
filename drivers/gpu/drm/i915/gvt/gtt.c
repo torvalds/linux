@@ -2046,7 +2046,7 @@ static void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
 	}
 
 	if (GEM_WARN_ON(!list_empty(&vgpu->gtt.ppgtt_mm_list_head)))
-		gvt_err("vgpu ppgtt mm is not fully destoried\n");
+		gvt_err("vgpu ppgtt mm is not fully destroyed\n");
 
 	if (GEM_WARN_ON(!radix_tree_empty(&vgpu->gtt.spt_tree))) {
 		gvt_err("Why we still has spt not freed?\n");
