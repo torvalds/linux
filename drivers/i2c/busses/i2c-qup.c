@@ -118,8 +118,12 @@
 #define ONE_BYTE			0x1
 #define QUP_I2C_MX_CONFIG_DURING_RUN   BIT(31)
 
+/* Maximum transfer length for single DMA descriptor */
 #define MX_TX_RX_LEN			SZ_64K
 #define MX_BLOCKS			(MX_TX_RX_LEN / QUP_READ_LIMIT)
+/* Maximum transfer length for all DMA descriptors */
+#define MX_DMA_TX_RX_LEN		(2 * MX_TX_RX_LEN)
+#define MX_DMA_BLOCKS			(MX_DMA_TX_RX_LEN / QUP_READ_LIMIT)
 
 /*
  * Minimum transfer timeout for i2c transfers in seconds. It will be added on
@@ -150,6 +154,7 @@ struct qup_i2c_bam {
 	struct	qup_i2c_tag tag;
 	struct	dma_chan *dma;
 	struct	scatterlist *sg;
+	unsigned int sg_cnt;
 };
 
 struct qup_i2c_dev {
@@ -188,6 +193,8 @@ struct qup_i2c_dev {
 	bool			is_dma;
 	/* To check if the current transfer is using DMA */
 	bool			use_dma;
+	unsigned int		max_xfer_sg_len;
+	unsigned int		tag_buf_pos;
 	struct			dma_pool *dpool;
 	struct			qup_i2c_tag start_tag;
 	struct			qup_i2c_bam brx;
@@ -692,101 +699,86 @@ static int qup_i2c_req_dma(struct qup_i2c_dev *qup)
 	return 0;
 }
 
-static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
-			       int num)
+static int qup_i2c_bam_make_desc(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 {
-	struct dma_async_tx_descriptor *txd, *rxd = NULL;
-	int ret = 0, idx = 0, limit = QUP_READ_LIMIT;
-	dma_cookie_t cookie_rx, cookie_tx;
-	u32 len, blocks, rem;
-	u32 i, tlen, tx_len, tx_cnt = 0, rx_cnt = 0, off = 0;
+	int ret = 0, limit = QUP_READ_LIMIT;
+	u32 len = 0, blocks, rem;
+	u32 i = 0, tlen, tx_len = 0;
 	u8 *tags;
 
-	while (idx < num) {
-		tx_len = 0, len = 0, i = 0;
+	qup_i2c_set_blk_data(qup, msg);
 
-		qup->is_last = (idx == (num - 1));
+	blocks = qup->blk.count;
+	rem = msg->len - (blocks - 1) * limit;
 
-		qup_i2c_set_blk_data(qup, msg);
+	if (msg->flags & I2C_M_RD) {
+		while (qup->blk.pos < blocks) {
+			tlen = (i == (blocks - 1)) ? rem : limit;
+			tags = &qup->start_tag.start[qup->tag_buf_pos + len];
+			len += qup_i2c_set_tags(tags, qup, msg);
+			qup->blk.data_len -= tlen;
 
-		blocks = qup->blk.count;
-		rem = msg->len - (blocks - 1) * limit;
+			/* scratch buf to read the start and len tags */
+			ret = qup_sg_set_buf(&qup->brx.sg[qup->brx.sg_cnt++],
+					     &qup->brx.tag.start[0],
+					     2, qup, DMA_FROM_DEVICE);
 
-		if (msg->flags & I2C_M_RD) {
-			while (qup->blk.pos < blocks) {
-				tlen = (i == (blocks - 1)) ? rem : limit;
-				tags = &qup->start_tag.start[off + len];
-				len += qup_i2c_set_tags(tags, qup, msg);
-				qup->blk.data_len -= tlen;
-
-				/* scratch buf to read the start and len tags */
-				ret = qup_sg_set_buf(&qup->brx.sg[rx_cnt++],
-						     &qup->brx.tag.start[0],
-						     2, qup, DMA_FROM_DEVICE);
-
-				if (ret)
-					return ret;
-
-				ret = qup_sg_set_buf(&qup->brx.sg[rx_cnt++],
-						     &msg->buf[limit * i],
-						     tlen, qup,
-						     DMA_FROM_DEVICE);
-				if (ret)
-					return ret;
-
-				i++;
-				qup->blk.pos = i;
-			}
-			ret = qup_sg_set_buf(&qup->btx.sg[tx_cnt++],
-					     &qup->start_tag.start[off],
-					     len, qup, DMA_TO_DEVICE);
 			if (ret)
 				return ret;
 
-			off += len;
-		} else {
-			while (qup->blk.pos < blocks) {
-				tlen = (i == (blocks - 1)) ? rem : limit;
-				tags = &qup->start_tag.start[off + tx_len];
-				len = qup_i2c_set_tags(tags, qup, msg);
-				qup->blk.data_len -= tlen;
+			ret = qup_sg_set_buf(&qup->brx.sg[qup->brx.sg_cnt++],
+					     &msg->buf[limit * i],
+					     tlen, qup,
+					     DMA_FROM_DEVICE);
+			if (ret)
+				return ret;
 
-				ret = qup_sg_set_buf(&qup->btx.sg[tx_cnt++],
-						     tags, len,
-						     qup, DMA_TO_DEVICE);
-				if (ret)
-					return ret;
-
-				tx_len += len;
-				ret = qup_sg_set_buf(&qup->btx.sg[tx_cnt++],
-						     &msg->buf[limit * i],
-						     tlen, qup, DMA_TO_DEVICE);
-				if (ret)
-					return ret;
-				i++;
-				qup->blk.pos = i;
-			}
-			off += tx_len;
-
-			if (idx == (num - 1)) {
-				len = 1;
-				if (rx_cnt) {
-					qup->btx.tag.start[0] =
-							QUP_BAM_INPUT_EOT;
-					len++;
-				}
-				qup->btx.tag.start[len - 1] =
-							QUP_BAM_FLUSH_STOP;
-				ret = qup_sg_set_buf(&qup->btx.sg[tx_cnt++],
-						     &qup->btx.tag.start[0],
-						     len, qup, DMA_TO_DEVICE);
-				if (ret)
-					return ret;
-			}
+			i++;
+			qup->blk.pos = i;
 		}
-		idx++;
-		msg++;
+		ret = qup_sg_set_buf(&qup->btx.sg[qup->btx.sg_cnt++],
+				     &qup->start_tag.start[qup->tag_buf_pos],
+				     len, qup, DMA_TO_DEVICE);
+		if (ret)
+			return ret;
+
+		qup->tag_buf_pos += len;
+	} else {
+		while (qup->blk.pos < blocks) {
+			tlen = (i == (blocks - 1)) ? rem : limit;
+			tags = &qup->start_tag.start[qup->tag_buf_pos + tx_len];
+			len = qup_i2c_set_tags(tags, qup, msg);
+			qup->blk.data_len -= tlen;
+
+			ret = qup_sg_set_buf(&qup->btx.sg[qup->btx.sg_cnt++],
+					     tags, len,
+					     qup, DMA_TO_DEVICE);
+			if (ret)
+				return ret;
+
+			tx_len += len;
+			ret = qup_sg_set_buf(&qup->btx.sg[qup->btx.sg_cnt++],
+					     &msg->buf[limit * i],
+					     tlen, qup, DMA_TO_DEVICE);
+			if (ret)
+				return ret;
+			i++;
+			qup->blk.pos = i;
+		}
+
+		qup->tag_buf_pos += tx_len;
 	}
+
+	return 0;
+}
+
+static int qup_i2c_bam_schedule_desc(struct qup_i2c_dev *qup)
+{
+	struct dma_async_tx_descriptor *txd, *rxd = NULL;
+	int ret = 0;
+	dma_cookie_t cookie_rx, cookie_tx;
+	u32 len = 0;
+	u32 tx_cnt = qup->btx.sg_cnt, rx_cnt = qup->brx.sg_cnt;
 
 	/* schedule the EOT and FLUSH I2C tags */
 	len = 1;
@@ -886,11 +878,19 @@ desc_err:
 	return ret;
 }
 
+static void qup_i2c_bam_clear_tag_buffers(struct qup_i2c_dev *qup)
+{
+	qup->btx.sg_cnt = 0;
+	qup->brx.sg_cnt = 0;
+	qup->tag_buf_pos = 0;
+}
+
 static int qup_i2c_bam_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 			    int num)
 {
 	struct qup_i2c_dev *qup = i2c_get_adapdata(adap);
 	int ret = 0;
+	int idx = 0;
 
 	enable_irq(qup->irq);
 	ret = qup_i2c_req_dma(qup);
@@ -913,9 +913,34 @@ static int qup_i2c_bam_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 		goto out;
 
 	writel(qup->clk_ctl, qup->base + QUP_I2C_CLK_CTL);
+	qup_i2c_bam_clear_tag_buffers(qup);
 
-	qup->msg = msg;
-	ret = qup_i2c_bam_do_xfer(qup, qup->msg, num);
+	for (idx = 0; idx < num; idx++) {
+		qup->msg = msg + idx;
+		qup->is_last = idx == (num - 1);
+
+		ret = qup_i2c_bam_make_desc(qup, qup->msg);
+		if (ret)
+			break;
+
+		/*
+		 * Make DMA descriptor and schedule the BAM transfer if its
+		 * already crossed the maximum length. Since the memory for all
+		 * tags buffers have been taken for 2 maximum possible
+		 * transfers length so it will never cross the buffer actual
+		 * length.
+		 */
+		if (qup->btx.sg_cnt > qup->max_xfer_sg_len ||
+		    qup->brx.sg_cnt > qup->max_xfer_sg_len ||
+		    qup->is_last) {
+			ret = qup_i2c_bam_schedule_desc(qup);
+			if (ret)
+				break;
+
+			qup_i2c_bam_clear_tag_buffers(qup);
+		}
+	}
+
 out:
 	disable_irq(qup->irq);
 
@@ -1468,7 +1493,8 @@ static int qup_i2c_probe(struct platform_device *pdev)
 		else if (ret != 0)
 			goto nodma;
 
-		blocks = (MX_BLOCKS << 1) + 1;
+		qup->max_xfer_sg_len = (MX_BLOCKS << 1);
+		blocks = (MX_DMA_BLOCKS << 1) + 1;
 		qup->btx.sg = devm_kzalloc(&pdev->dev,
 					   sizeof(*qup->btx.sg) * blocks,
 					   GFP_KERNEL);
@@ -1611,7 +1637,7 @@ nodma:
 	one_bit_t = (USEC_PER_SEC / clk_freq) + 1;
 	qup->one_byte_t = one_bit_t * 9;
 	qup->xfer_timeout = TOUT_MIN * HZ +
-			    usecs_to_jiffies(MX_TX_RX_LEN * qup->one_byte_t);
+		usecs_to_jiffies(MX_DMA_TX_RX_LEN * qup->one_byte_t);
 
 	dev_dbg(qup->dev, "IN:block:%d, fifo:%d, OUT:block:%d, fifo:%d\n",
 		qup->in_blk_sz, qup->in_fifo_sz,
