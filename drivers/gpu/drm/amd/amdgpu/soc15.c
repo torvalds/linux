@@ -508,6 +508,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	/* Set IP register base before any HW register access */
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_RAVEN:
 		vega10_reg_base_init(adev);
 		break;
