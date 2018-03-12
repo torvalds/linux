@@ -2887,6 +2887,9 @@ static bool emulator_bad_iopl(struct x86_emulate_ctxt *ctxt)
 	return ctxt->ops->cpl(ctxt) > iopl;
 }
 
+#define VMWARE_PORT_VMPORT	(0x5658)
+#define VMWARE_PORT_VMRPC	(0x5659)
+
 static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 					    u16 port, u16 len)
 {
@@ -2897,6 +2900,14 @@ static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
 	u16 tr, io_bitmap_ptr, perm, bit_idx = port & 0x7;
 	unsigned mask = (1 << len) - 1;
 	unsigned long base;
+
+	/*
+	 * VMware allows access to these ports even if denied
+	 * by TSS I/O permission bitmap. Mimic behavior.
+	 */
+	if (enable_vmware_backdoor &&
+	    ((port == VMWARE_PORT_VMPORT) || (port == VMWARE_PORT_VMRPC)))
+		return true;
 
 	ops->get_segment(ctxt, &tr, &tr_seg, &base3, VCPU_SREG_TR);
 	if (!tr_seg.p)
