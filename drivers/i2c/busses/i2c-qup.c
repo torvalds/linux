@@ -219,9 +219,24 @@ static irqreturn_t qup_i2c_interrupt(int irq, void *dev)
 	if (bus_err)
 		writel(bus_err, qup->base + QUP_I2C_STATUS);
 
+	/*
+	 * Check for BAM mode and returns if already error has come for current
+	 * transfer. In Error case, sometimes, QUP generates more than one
+	 * interrupt.
+	 */
+	if (qup->use_dma && (qup->qup_err || qup->bus_err))
+		return IRQ_HANDLED;
+
 	/* Reset the QUP State in case of error */
 	if (qup_err || bus_err) {
-		writel(QUP_RESET_STATE, qup->base + QUP_STATE);
+		/*
+		 * Don’t reset the QUP state in case of BAM mode. The BAM
+		 * flush operation needs to be scheduled in transfer function
+		 * which will clear the remaining schedule descriptors in BAM
+		 * HW FIFO and generates the BAM interrupt.
+		 */
+		if (!qup->use_dma)
+			writel(QUP_RESET_STATE, qup->base + QUP_STATE);
 		goto done;
 	}
 
@@ -847,19 +862,11 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 			goto desc_err;
 		}
 
-		if (rx_cnt)
-			writel(QUP_BAM_INPUT_EOT,
-			       qup->base + QUP_OUT_FIFO_BASE);
-
-		writel(QUP_BAM_FLUSH_STOP, qup->base + QUP_OUT_FIFO_BASE);
-
 		qup_i2c_flush(qup);
 
 		/* wait for remaining interrupts to occur */
 		if (!wait_for_completion_timeout(&qup->xfer, HZ))
 			dev_err(qup->dev, "flush timed out\n");
-
-		qup_i2c_rel_dma(qup);
 
 		ret =  (qup->bus_err & QUP_I2C_NACK_FLAG) ? -ENXIO : -EIO;
 	}
