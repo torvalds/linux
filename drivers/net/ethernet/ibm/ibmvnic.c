@@ -2049,6 +2049,23 @@ static int ibmvnic_change_mtu(struct net_device *netdev, int new_mtu)
 	return wait_for_reset(adapter);
 }
 
+static netdev_features_t ibmvnic_features_check(struct sk_buff *skb,
+						struct net_device *dev,
+						netdev_features_t features)
+{
+	/* Some backing hardware adapters can not
+	 * handle packets with a MSS less than 224
+	 * or with only one segment.
+	 */
+	if (skb_is_gso(skb)) {
+		if (skb_shinfo(skb)->gso_size < 224 ||
+		    skb_shinfo(skb)->gso_segs == 1)
+			features &= ~NETIF_F_GSO_MASK;
+	}
+
+	return features;
+}
+
 static const struct net_device_ops ibmvnic_netdev_ops = {
 	.ndo_open		= ibmvnic_open,
 	.ndo_stop		= ibmvnic_close,
@@ -2061,6 +2078,7 @@ static const struct net_device_ops ibmvnic_netdev_ops = {
 	.ndo_poll_controller	= ibmvnic_netpoll_controller,
 #endif
 	.ndo_change_mtu		= ibmvnic_change_mtu,
+	.ndo_features_check     = ibmvnic_features_check,
 };
 
 /* ethtool functions */
