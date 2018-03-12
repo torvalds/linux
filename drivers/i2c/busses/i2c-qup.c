@@ -774,10 +774,10 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 		qup->btx.tag.start[0] = QUP_BAM_INPUT_EOT;
 		len++;
 
-		/* scratch buf to read the BAM EOT and FLUSH tags */
+		/* scratch buf to read the BAM EOT FLUSH tags */
 		ret = qup_sg_set_buf(&qup->brx.sg[rx_cnt++],
 				     &qup->brx.tag.start[0],
-				     2, qup, DMA_FROM_DEVICE);
+				     1, qup, DMA_FROM_DEVICE);
 		if (ret)
 			return ret;
 	}
