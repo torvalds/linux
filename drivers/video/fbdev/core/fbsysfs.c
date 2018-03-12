@@ -254,12 +254,15 @@ static ssize_t store_rotate(struct device *device,
 		return err;
 
 	switch (rotate) {
+	case 270: /* fall through */
 	case 3:
 		var.rotate = FB_ROTATE_CCW;
 		break;
+	case 180: /* fall through */
 	case 2:
 		var.rotate = FB_ROTATE_UD;
 		break;
+	case 90: /* fall through */
 	case 1:
 		var.rotate = FB_ROTATE_CW;
 		break;
