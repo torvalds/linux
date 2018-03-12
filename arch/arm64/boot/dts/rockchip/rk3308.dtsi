@@ -221,6 +221,14 @@
 		};
 	};
 
+	wdt: watchdog@ff080000 {
+		compatible = "snps,dw-wdt";
+		reg = <0x0 0xff080000 0x0 0x100>;
+		clocks = <&cru PCLK_WDT_NS>;
+		interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	uart0: serial@ff0a0000 {
 		compatible = "rockchip,rk3308-uart", "snps,dw-apb-uart";
 		reg = <0x0 0xff0a0000 0x0 0x100>;
