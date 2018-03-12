@@ -83,12 +83,7 @@ static void cuda_write_pram(int offset, __u8 data)
 	while (!req.complete)
 		cuda_poll();
 }
-#else
-#define cuda_read_time() 0
-#define cuda_write_time(n)
-#define cuda_read_pram NULL
-#define cuda_write_pram NULL
-#endif
+#endif /* CONFIG_ADB_CUDA */
 
 #ifdef CONFIG_ADB_PMU68K
 static long pmu_read_time(void)
@@ -141,12 +136,7 @@ static void pmu_write_pram(int offset, __u8 data)
 	while (!req.complete)
 		pmu_poll();
 }
-#else
-#define pmu_read_time() 0
-#define pmu_write_time(n)
-#define pmu_read_pram NULL
-#define pmu_write_pram NULL
-#endif
+#endif /* CONFIG_ADB_PMU68K */
 
 /*
  * VIA PRAM/RTC access routines
@@ -426,19 +416,25 @@ void mac_pram_read(int offset, __u8 *buffer, int len)
 	int i;
 
 	switch (macintosh_config->adb_type) {
+	case MAC_ADB_IOP:
+	case MAC_ADB_II:
 	case MAC_ADB_PB1:
-	case MAC_ADB_PB2:
-		func = pmu_read_pram;
+		func = via_read_pram;
 		break;
+#ifdef CONFIG_ADB_CUDA
 	case MAC_ADB_EGRET:
 	case MAC_ADB_CUDA:
 		func = cuda_read_pram;
 		break;
+#endif
+#ifdef CONFIG_ADB_PMU68K
+	case MAC_ADB_PB2:
+		func = pmu_read_pram;
+		break;
+#endif
 	default:
-		func = via_read_pram;
-	}
-	if (!func)
 		return;
+	}
 	for (i = 0 ; i < len ; i++) {
 		buffer[i] = (*func)(offset++);
 	}
@@ -450,19 +446,25 @@ void mac_pram_write(int offset, __u8 *buffer, int len)
 	int i;
 
 	switch (macintosh_config->adb_type) {
+	case MAC_ADB_IOP:
+	case MAC_ADB_II:
 	case MAC_ADB_PB1:
-	case MAC_ADB_PB2:
-		func = pmu_write_pram;
+		func = via_write_pram;
 		break;
+#ifdef CONFIG_ADB_CUDA
 	case MAC_ADB_EGRET:
 	case MAC_ADB_CUDA:
 		func = cuda_write_pram;
 		break;
+#endif
+#ifdef CONFIG_ADB_PMU68K
+	case MAC_ADB_PB2:
+		func = pmu_write_pram;
+		break;
+#endif
 	default:
-		func = via_write_pram;
-	}
-	if (!func)
 		return;
+	}
 	for (i = 0 ; i < len ; i++) {
 		(*func)(offset++, buffer[i]);
 	}
@@ -663,18 +665,22 @@ int mac_hwclk(int op, struct rtc_time *t)
 
 	if (!op) { /* read */
 		switch (macintosh_config->adb_type) {
-		case MAC_ADB_II:
 		case MAC_ADB_IOP:
+		case MAC_ADB_II:
+		case MAC_ADB_PB1:
 			now = via_read_time();
 			break;
-		case MAC_ADB_PB1:
-		case MAC_ADB_PB2:
-			now = pmu_read_time();
-			break;
+#ifdef CONFIG_ADB_CUDA
 		case MAC_ADB_EGRET:
 		case MAC_ADB_CUDA:
 			now = cuda_read_time();
 			break;
+#endif
+#ifdef CONFIG_ADB_PMU68K
+		case MAC_ADB_PB2:
+			now = pmu_read_time();
+			break;
+#endif
 		default:
 			now = 0;
 		}
@@ -695,18 +701,24 @@ int mac_hwclk(int op, struct rtc_time *t)
 			     t->tm_hour, t->tm_min, t->tm_sec);
 
 		switch (macintosh_config->adb_type) {
-		case MAC_ADB_II:
 		case MAC_ADB_IOP:
+		case MAC_ADB_II:
+		case MAC_ADB_PB1:
 			via_write_time(now);
 			break;
+#ifdef CONFIG_ADB_CUDA
 		case MAC_ADB_EGRET:
 		case MAC_ADB_CUDA:
 			cuda_write_time(now);
 			break;
-		case MAC_ADB_PB1:
+#endif
+#ifdef CONFIG_ADB_PMU68K
 		case MAC_ADB_PB2:
 			pmu_write_time(now);
 			break;
+#endif
+		default:
+			return -ENODEV;
 		}
 	}
 	return 0;
