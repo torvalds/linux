@@ -26,12 +26,15 @@ void fb_parse_properties(struct device *dev, struct fb_of_properties *prop)
 		rotate = FB_ROTATE_UR;
 
 	switch (rotate) {
+	case 270: /* fall through */
 	case 3:
 		prop->rotate = FB_ROTATE_CCW;
 		break;
+	case 180: /* fall through */
 	case 2:
 		prop->rotate = FB_ROTATE_UD;
 		break;
+	case 90: /* fall through */
 	case 1:
 		prop->rotate = FB_ROTATE_CW;
 		break;
