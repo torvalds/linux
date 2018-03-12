@@ -142,6 +142,10 @@ module_param(lapic_timer_advance_ns, uint, S_IRUGO | S_IWUSR);
 static bool __read_mostly vector_hashing = true;
 module_param(vector_hashing, bool, S_IRUGO);
 
+bool __read_mostly enable_vmware_backdoor = false;
+module_param(enable_vmware_backdoor, bool, S_IRUGO);
+EXPORT_SYMBOL_GPL(enable_vmware_backdoor);
+
 #define KVM_NR_SHARED_MSRS 16
 
 struct kvm_shared_msrs_global {
