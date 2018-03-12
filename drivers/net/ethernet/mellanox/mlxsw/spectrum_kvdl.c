@@ -368,7 +368,7 @@ u64 mlxsw_sp_kvdl_occ_get(const struct mlxsw_sp *mlxsw_sp)
 	return occ;
 }
 
-u64 mlxsw_sp_kvdl_single_occ_get(struct devlink *devlink)
+static u64 mlxsw_sp_kvdl_single_occ_get(struct devlink *devlink)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
@@ -381,7 +381,7 @@ u64 mlxsw_sp_kvdl_single_occ_get(struct devlink *devlink)
 	return mlxsw_sp_kvdl_part_occ(part);
 }
 
-u64 mlxsw_sp_kvdl_chunks_occ_get(struct devlink *devlink)
+static u64 mlxsw_sp_kvdl_chunks_occ_get(struct devlink *devlink)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
@@ -394,7 +394,7 @@ u64 mlxsw_sp_kvdl_chunks_occ_get(struct devlink *devlink)
 	return mlxsw_sp_kvdl_part_occ(part);
 }
 
-u64 mlxsw_sp_kvdl_large_chunks_occ_get(struct devlink *devlink)
+static u64 mlxsw_sp_kvdl_large_chunks_occ_get(struct devlink *devlink)
 {
 	struct mlxsw_core *mlxsw_core = devlink_priv(devlink);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
