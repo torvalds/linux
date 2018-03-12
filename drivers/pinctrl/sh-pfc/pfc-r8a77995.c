@@ -988,11 +988,11 @@ static const unsigned int avb0_phy_int_pins[] = {
 static const unsigned int avb0_phy_int_mux[] = {
 	AVB0_PHY_INT_MARK,
 };
-static const unsigned int avb0_mdc_pins[] = {
+static const unsigned int avb0_mdio_pins[] = {
 	/* AVB0_MDC, AVB0_MDIO */
 	RCAR_GP_PIN(5, 17), RCAR_GP_PIN(5, 16),
 };
-static const unsigned int avb0_mdc_mux[] = {
+static const unsigned int avb0_mdio_mux[] = {
 	AVB0_MDC_MARK, AVB0_MDIO_MARK,
 };
 static const unsigned int avb0_mii_pins[] = {
@@ -1800,7 +1800,8 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(avb0_link),
 	SH_PFC_PIN_GROUP(avb0_magic),
 	SH_PFC_PIN_GROUP(avb0_phy_int),
-	SH_PFC_PIN_GROUP(avb0_mdc),
+	SH_PFC_PIN_GROUP_ALIAS(avb0_mdc, avb0_mdio),	/* Deprecated */
+	SH_PFC_PIN_GROUP(avb0_mdio),
 	SH_PFC_PIN_GROUP(avb0_mii),
 	SH_PFC_PIN_GROUP(avb0_avtp_pps_a),
 	SH_PFC_PIN_GROUP(avb0_avtp_match_a),
@@ -1901,7 +1902,8 @@ static const char * const avb0_groups[] = {
 	"avb0_link",
 	"avb0_magic",
 	"avb0_phy_int",
-	"avb0_mdc",
+	"avb0_mdc",	/* Deprecated, please use "avb0_mdio" instead */
+	"avb0_mdio",
 	"avb0_mii",
 	"avb0_avtp_pps_a",
 	"avb0_avtp_match_a",
