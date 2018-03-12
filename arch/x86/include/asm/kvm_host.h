@@ -811,6 +811,8 @@ struct kvm_arch {
 
 	gpa_t wall_clock;
 
+	bool mwait_in_guest;
+
 	bool ept_identity_pagetable_done;
 	gpa_t ept_identity_map_addr;
 

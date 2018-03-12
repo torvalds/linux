@@ -4358,6 +4358,24 @@ enables QEMU to build error log and branch to guest kernel registered
 machine check handling routine. Without this capability KVM will
 branch to guests' 0x200 interrupt vector.
 
+7.13 KVM_CAP_X86_DISABLE_EXITS
+
+Architectures: x86
+Parameters: args[0] defines which exits are disabled
+Returns: 0 on success, -EINVAL when args[0] contains invalid exits
+
+Valid bits in args[0] are
+
+#define KVM_X86_DISABLE_EXITS_MWAIT            (1 << 0)
+
+Enabling this capability on a VM provides userspace with a way to no
+longer intercept some instructions for improved latency in some
+workloads, and is suggested when vCPUs are associated to dedicated
+physical CPUs.  More bits can be added in the future; userspace can
+just pass the KVM_CHECK_EXTENSION result to KVM_ENABLE_CAP to disable
+all such vmexits.
+
+
 8. Other capabilities.
 ----------------------
 
@@ -4469,15 +4487,6 @@ reserved.
  2: MIPS64 or microMIPS64 with access to all address segments.
     Both registers and addresses are 64-bits wide.
     It will be possible to run 64-bit or 32-bit guest code.
-
-8.8 KVM_CAP_X86_GUEST_MWAIT
-
-Architectures: x86
-
-This capability indicates that guest using memory monotoring instructions
-(MWAIT/MWAITX) to stop the virtual CPU will not cause a VM exit.  As such time
-spent while virtual CPU is halted in this way will then be accounted for as
-guest running time on the host (as opposed to e.g. HLT).
 
 8.9 KVM_CAP_ARM_USER_IRQ
 
