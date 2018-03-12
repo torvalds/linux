@@ -3069,7 +3069,8 @@ static int cma_port_is_unique(struct rdma_bind_list *bind_list,
 			continue;
 
 		/* different dest port -> unique */
-		if (!cma_any_port(cur_daddr) &&
+		if (!cma_any_port(daddr) &&
+		    !cma_any_port(cur_daddr) &&
 		    (dport != cur_dport))
 			continue;
 
@@ -3080,7 +3081,8 @@ static int cma_port_is_unique(struct rdma_bind_list *bind_list,
 			continue;
 
 		/* different dst address -> unique */
-		if (!cma_any_addr(cur_daddr) &&
+		if (!cma_any_addr(daddr) &&
+		    !cma_any_addr(cur_daddr) &&
 		    cma_addr_cmp(daddr, cur_daddr))
 			continue;
 
@@ -3378,12 +3380,12 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr)
 		}
 #endif
 	}
+	daddr = cma_dst_addr(id_priv);
+	daddr->sa_family = addr->sa_family;
+
 	ret = cma_get_port(id_priv);
 	if (ret)
 		goto err2;
-
-	daddr = cma_dst_addr(id_priv);
-	daddr->sa_family = addr->sa_family;
 
 	return 0;
 err2:
