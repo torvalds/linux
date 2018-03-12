@@ -551,7 +551,7 @@ static int qup_i2c_set_tags_smb(u16 addr, u8 *tags, struct qup_i2c_dev *qup,
 }
 
 static int qup_i2c_set_tags(u8 *tags, struct qup_i2c_dev *qup,
-			    struct i2c_msg *msg,  int is_dma)
+			    struct i2c_msg *msg)
 {
 	u16 addr = i2c_8bit_addr_from_msg(msg);
 	int len = 0;
@@ -592,11 +592,6 @@ static int qup_i2c_set_tags(u8 *tags, struct qup_i2c_dev *qup,
 	else
 		tags[len++] = data_len;
 
-	if ((msg->flags & I2C_M_RD) && last && is_dma) {
-		tags[len++] = QUP_BAM_INPUT_EOT;
-		tags[len++] = QUP_BAM_FLUSH_STOP;
-	}
-
 	return len;
 }
 
@@ -605,7 +600,7 @@ static int qup_i2c_issue_xfer_v2(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 	int data_len = 0, tag_len, index;
 	int ret;
 
-	tag_len = qup_i2c_set_tags(qup->blk.tags, qup, msg, 0);
+	tag_len = qup_i2c_set_tags(qup->blk.tags, qup, msg);
 	index = msg->len - qup->blk.data_len;
 
 	/* only tags are written for read */
@@ -701,7 +696,7 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 			while (qup->blk.pos < blocks) {
 				tlen = (i == (blocks - 1)) ? rem : limit;
 				tags = &qup->start_tag.start[off + len];
-				len += qup_i2c_set_tags(tags, qup, msg, 1);
+				len += qup_i2c_set_tags(tags, qup, msg);
 				qup->blk.data_len -= tlen;
 
 				/* scratch buf to read the start and len tags */
@@ -729,17 +724,11 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 				return ret;
 
 			off += len;
-			/* scratch buf to read the BAM EOT and FLUSH tags */
-			ret = qup_sg_set_buf(&qup->brx.sg[rx_cnt++],
-					     &qup->brx.tag.start[0],
-					     2, qup, DMA_FROM_DEVICE);
-			if (ret)
-				return ret;
 		} else {
 			while (qup->blk.pos < blocks) {
 				tlen = (i == (blocks - 1)) ? rem : limit;
 				tags = &qup->start_tag.start[off + tx_len];
-				len = qup_i2c_set_tags(tags, qup, msg, 1);
+				len = qup_i2c_set_tags(tags, qup, msg);
 				qup->blk.data_len -= tlen;
 
 				ret = qup_sg_set_buf(&qup->btx.sg[tx_cnt++],
@@ -778,6 +767,26 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 		idx++;
 		msg++;
 	}
+
+	/* schedule the EOT and FLUSH I2C tags */
+	len = 1;
+	if (rx_cnt) {
+		qup->btx.tag.start[0] = QUP_BAM_INPUT_EOT;
+		len++;
+
+		/* scratch buf to read the BAM EOT and FLUSH tags */
+		ret = qup_sg_set_buf(&qup->brx.sg[rx_cnt++],
+				     &qup->brx.tag.start[0],
+				     2, qup, DMA_FROM_DEVICE);
+		if (ret)
+			return ret;
+	}
+
+	qup->btx.tag.start[len - 1] = QUP_BAM_FLUSH_STOP;
+	ret = qup_sg_set_buf(&qup->btx.sg[tx_cnt++], &qup->btx.tag.start[0],
+			     len, qup, DMA_TO_DEVICE);
+	if (ret)
+		return ret;
 
 	txd = dmaengine_prep_slave_sg(qup->btx.dma, qup->btx.sg, tx_cnt,
 				      DMA_MEM_TO_DEV,
