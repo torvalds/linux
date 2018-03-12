@@ -456,6 +456,33 @@ register_user_hw_breakpoint(struct perf_event_attr *attr,
 }
 EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
 
+static int __modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
+{
+	u64 old_addr = bp->attr.bp_addr;
+	u64 old_len  = bp->attr.bp_len;
+	int old_type = bp->attr.bp_type;
+	bool modify  = attr->bp_type != old_type;
+	int err = 0;
+
+	bp->attr.bp_addr = attr->bp_addr;
+	bp->attr.bp_type = attr->bp_type;
+	bp->attr.bp_len  = attr->bp_len;
+
+	err = validate_hw_breakpoint(bp);
+	if (!err && modify)
+		err = modify_bp_slot(bp, old_type);
+
+	if (err) {
+		bp->attr.bp_addr = old_addr;
+		bp->attr.bp_type = old_type;
+		bp->attr.bp_len  = old_len;
+		return err;
+	}
+
+	bp->attr.disabled = attr->disabled;
+	return 0;
+}
+
 /**
  * modify_user_hw_breakpoint - modify a user-space hardware breakpoint
  * @bp: the breakpoint structure to modify
@@ -465,11 +492,7 @@ EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
  */
 int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
 {
-	u64 old_addr = bp->attr.bp_addr;
-	u64 old_len = bp->attr.bp_len;
-	int old_type = bp->attr.bp_type;
-	bool modify = attr->bp_type != old_type;
-	int err = 0;
+	int err;
 
 	/*
 	 * modify_user_hw_breakpoint can be invoked with IRQs disabled and hence it
@@ -482,18 +505,9 @@ int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *att
 	else
 		perf_event_disable(bp);
 
-	bp->attr.bp_addr = attr->bp_addr;
-	bp->attr.bp_type = attr->bp_type;
-	bp->attr.bp_len = attr->bp_len;
-
-	err = validate_hw_breakpoint(bp);
-	if (!err && modify)
-		err = modify_bp_slot(bp, old_type);
+	err = __modify_user_hw_breakpoint(bp, attr);
 
 	if (err) {
-		bp->attr.bp_addr = old_addr;
-		bp->attr.bp_type = old_type;
-		bp->attr.bp_len = old_len;
 		if (!bp->attr.disabled)
 			perf_event_enable(bp);
 
@@ -502,8 +516,6 @@ int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *att
 
 	if (!attr->disabled)
 		perf_event_enable(bp);
-
-	bp->attr.disabled = attr->disabled;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(modify_user_hw_breakpoint);
