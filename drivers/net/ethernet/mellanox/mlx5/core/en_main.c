@@ -4094,26 +4094,37 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 	queue_work(priv->wq, &priv->tx_timeout_work);
 }
 
+static int mlx5e_xdp_allowed(struct mlx5e_priv *priv)
+{
+	struct net_device *netdev = priv->netdev;
+
+	if (priv->channels.params.lro_en) {
+		netdev_warn(netdev, "can't set XDP while LRO is on, disable LRO first\n");
+		return -EINVAL;
+	}
+
+	if (MLX5_IPSEC_DEV(priv->mdev)) {
+		netdev_warn(netdev, "can't set XDP with IPSec offload\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct bpf_prog *old_prog;
-	int err = 0;
 	bool reset, was_opened;
+	int err;
 	int i;
 
 	mutex_lock(&priv->state_lock);
 
-	if ((netdev->features & NETIF_F_LRO) && prog) {
-		netdev_warn(netdev, "can't set XDP while LRO is on, disable LRO first\n");
-		err = -EINVAL;
-		goto unlock;
-	}
-
-	if ((netdev->features & NETIF_F_HW_ESP) && prog) {
-		netdev_warn(netdev, "can't set XDP with IPSec offload\n");
-		err = -EINVAL;
-		goto unlock;
+	if (prog) {
+		err = mlx5e_xdp_allowed(priv);
+		if (err)
+			goto unlock;
 	}
 
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
