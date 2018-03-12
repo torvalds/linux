@@ -105,7 +105,7 @@
 
 				status = "okay";
 
-				isl12057: isl12057@68 {
+				isl12057: rtc@68 {
 					compatible = "isil,isl12057";
 					reg = <0x68>;
 					wakeup-source;
