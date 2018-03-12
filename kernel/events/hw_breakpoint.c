@@ -85,9 +85,9 @@ __weak int hw_breakpoint_weight(struct perf_event *bp)
 	return 1;
 }
 
-static inline enum bp_type_idx find_slot_idx(struct perf_event *bp)
+static inline enum bp_type_idx find_slot_idx(u64 bp_type)
 {
-	if (bp->attr.bp_type & HW_BREAKPOINT_RW)
+	if (bp_type & HW_BREAKPOINT_RW)
 		return TYPE_DATA;
 
 	return TYPE_INST;
@@ -122,7 +122,7 @@ static int task_bp_pinned(int cpu, struct perf_event *bp, enum bp_type_idx type)
 
 	list_for_each_entry(iter, &bp_task_head, hw.bp_list) {
 		if (iter->hw.target == tsk &&
-		    find_slot_idx(iter) == type &&
+		    find_slot_idx(iter->attr.bp_type) == type &&
 		    (iter->cpu < 0 || cpu == iter->cpu))
 			count += hw_breakpoint_weight(iter);
 	}
@@ -292,7 +292,7 @@ static int __reserve_bp_slot(struct perf_event *bp)
 	    bp->attr.bp_type == HW_BREAKPOINT_INVALID)
 		return -EINVAL;
 
-	type = find_slot_idx(bp);
+	type = find_slot_idx(bp->attr.bp_type);
 	weight = hw_breakpoint_weight(bp);
 
 	fetch_bp_busy_slots(&slots, bp, type);
@@ -329,7 +329,7 @@ static void __release_bp_slot(struct perf_event *bp)
 	enum bp_type_idx type;
 	int weight;
 
-	type = find_slot_idx(bp);
+	type = find_slot_idx(bp->attr.bp_type);
 	weight = hw_breakpoint_weight(bp);
 	toggle_bp_slot(bp, false, type, weight);
 }
