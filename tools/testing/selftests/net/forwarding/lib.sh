@@ -11,6 +11,8 @@ MZ=${MZ:=mausezahn}
 WAIT_TIME=${WAIT_TIME:=5}
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
+NETIF_TYPE=${NETIF_TYPE:=veth}
+NETIF_CREATE=${NETIF_CREATE:=yes}
 
 if [[ -f forwarding.config ]]; then
 	source forwarding.config
@@ -50,12 +52,12 @@ fi
 
 if [[ ! -x "$(command -v $MZ)" ]]; then
 	echo "SKIP: $MZ not installed"
-	exit 0
+	exit 1
 fi
 
 if [[ ! -v NUM_NETIFS ]]; then
 	echo "SKIP: importer does not define \"NUM_NETIFS\""
-	exit 0
+	exit 1
 fi
 
 ##############################################################################
@@ -115,7 +117,7 @@ for i in $(eval echo {1..$NUM_NETIFS}); do
 	ip link show dev ${NETIFS[p$i]} &> /dev/null
 	if [[ $? -ne 0 ]]; then
 		echo "SKIP: could not find all required interfaces"
-		exit 0
+		exit 1
 	fi
 done
 

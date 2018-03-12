@@ -14,11 +14,6 @@ NETIFS[p6]=veth5
 NETIFS[p7]=veth6
 NETIFS[p8]=veth7
 
-NETIF_TYPE=veth
-
-# only virtual interfaces (veth) can be created by test infra
-#NETIF_CREATE=yes
-
 ##############################################################################
 # Defines
 
@@ -34,3 +29,7 @@ WAIT_TIME=5
 PAUSE_ON_FAIL=no
 # Whether to pause on cleanup or not.
 PAUSE_ON_CLEANUP=no
+# Type of network interface to create
+NETIF_TYPE=veth
+# Whether to create virtual interfaces (veth) or not
+NETIF_CREATE=yes
