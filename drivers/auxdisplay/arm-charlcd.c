@@ -54,12 +54,14 @@
 #define HD_BUSY_FLAG			0x80U
 
 /**
+ * struct charlcd - Private data structure
  * @dev: a pointer back to containing device
  * @phybase: the offset to the controller in physical memory
  * @physize: the size of the physical page
  * @virtbase: the offset to the controller in virtual memory
  * @irq: reserved interrupt number
  * @complete: completion structure for the last LCD command
+ * @init_work: delayed work structure to initialize the display on boot
  */
 struct charlcd {
 	struct device *dev;
