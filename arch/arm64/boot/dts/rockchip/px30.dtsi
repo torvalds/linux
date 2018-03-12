@@ -1338,8 +1338,11 @@
 		resets = <&cru SRST_ISP>, <&cru SRST_MIPICSIPHY_P>;
 		reset-names = "rst_isp", "rst_mipicsiphy";
 		power-domains = <&power PX30_PD_VI>;
-		pinctrl-names = "default";
+		pinctrl-names = "default", "isp_dvp8bit2", "isp_dvp10bit", "isp_dvp12bit";
 		pinctrl-0 = <&cif_clkout_m0>;
+		pinctrl-1 = <&dvp_d2d9_m0>;
+		pinctrl-2 = <&dvp_d2d9_m0 &dvp_d10d11_m0>;
+		pinctrl-3 = <&dvp_d0d1_m0 &dvp_d2d9_m0 &dvp_d10d11_m0>;
 		rockchip,isp,mipiphy = <1>;
 		rockchip,isp,csiphy,reg = <0xff2f0000 0x4000>;
 		rockchip,grf = <&grf>;
@@ -2582,17 +2585,17 @@
 
 			dvp_d2d9_m1: dvp-d2d9-m1 {
 				rockchip,pins =
-					<3 RK_PA3 RK_FUNC_1 &pcfg_pull_none>,/* cif_data2 */
-					<3 RK_PA5 RK_FUNC_1 &pcfg_pull_none>,/* cif_data3 */
-					<3 RK_PA7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data4 */
-					<3 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,/* cif_data5 */
-					<3 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,/* cif_data6 */
-					<3 RK_PB4 RK_FUNC_1 &pcfg_pull_none>,/* cif_data7 */
-					<3 RK_PB6 RK_FUNC_1 &pcfg_pull_none>,/* cif_data8 */
-					<3 RK_PB7 RK_FUNC_1 &pcfg_pull_none>,/* cif_data9 */
+					<3 RK_PA3 RK_FUNC_3 &pcfg_pull_none>,/* cif_data2 */
+					<3 RK_PA5 RK_FUNC_3 &pcfg_pull_none>,/* cif_data3 */
+					<3 RK_PA7 RK_FUNC_3 &pcfg_pull_none>,/* cif_data4 */
+					<3 RK_PB0 RK_FUNC_3 &pcfg_pull_none>,/* cif_data5 */
+					<3 RK_PB1 RK_FUNC_3 &pcfg_pull_none>,/* cif_data6 */
+					<3 RK_PB4 RK_FUNC_3 &pcfg_pull_none>,/* cif_data7 */
+					<3 RK_PB6 RK_FUNC_3 &pcfg_pull_none>,/* cif_data8 */
+					<3 RK_PB7 RK_FUNC_3 &pcfg_pull_none>,/* cif_data9 */
 					<3 RK_PD1 RK_FUNC_3 &pcfg_pull_none>,/* cif_sync */
-					<3 RK_PD2 RK_FUNC_2 &pcfg_pull_none>,/* cif_href */
-					<3 RK_PD3 RK_FUNC_2 &pcfg_pull_none>,/* cif_clkin */
+					<3 RK_PD2 RK_FUNC_3 &pcfg_pull_none>,/* cif_href */
+					<3 RK_PD3 RK_FUNC_3 &pcfg_pull_none>,/* cif_clkin */
 					<3 RK_PD0 RK_FUNC_3 &pcfg_pull_none>;/* cif_clkout */
 			};
 
