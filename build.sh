@@ -153,6 +153,16 @@ if [ -n "$kernver" ]; then
 			nano arch/arm/configs/mt7623n_evb_fwu_defconfig
 			;;
 
+		"dtsi")
+			echo "Edit mt7623.dtsi"
+			nano arch/arm/boot/dts/mt7623.dtsi
+			;;
+
+		"dts")
+			echo "Edit mt7623n-bpi.dts"
+			nano arch/arm/boot/dts/mt7623n-bananapi-bpi-r2.dts
+			;;
+
 		"importconfig")
 			echo "Import config"
 			make mt7623n_evb_fwu_defconfig
