@@ -1835,8 +1835,8 @@ static const unsigned int avb_mii_pins[] = {
 	RCAR_GP_PIN(2, 2),
 
 	RCAR_GP_PIN(2, 7), RCAR_GP_PIN(2, 8), RCAR_GP_PIN(2, 9),
-	RCAR_GP_PIN(2, 10), RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 10),
-	RCAR_GP_PIN(3, 12),
+	RCAR_GP_PIN(2, 10), RCAR_GP_PIN(3, 8), RCAR_GP_PIN(3, 9),
+	RCAR_GP_PIN(3, 10), RCAR_GP_PIN(3, 12),
 };
 static const unsigned int avb_mii_mux[] = {
 	AVB_TXD0_MARK, AVB_TXD1_MARK, AVB_TXD2_MARK,
@@ -1846,8 +1846,8 @@ static const unsigned int avb_mii_mux[] = {
 	AVB_RXD3_MARK,
 
 	AVB_RX_ER_MARK, AVB_RX_CLK_MARK, AVB_RX_DV_MARK,
-	AVB_CRS_MARK, AVB_TX_EN_MARK, AVB_TX_CLK_MARK,
-	AVB_COL_MARK,
+	AVB_CRS_MARK, AVB_TX_EN_MARK, AVB_TX_ER_MARK,
+	AVB_TX_CLK_MARK, AVB_COL_MARK,
 };
 static const unsigned int avb_gmii_pins[] = {
 	RCAR_GP_PIN(0, 8), RCAR_GP_PIN(0, 9), RCAR_GP_PIN(0, 10),
