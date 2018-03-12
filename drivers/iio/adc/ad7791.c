@@ -153,6 +153,17 @@ struct ad7791_state {
 	const struct ad7791_chip_info *info;
 };
 
+static const int ad7791_sample_freq_avail[8][2] = {
+	[AD7791_FILTER_RATE_120] =  { 120, 0 },
+	[AD7791_FILTER_RATE_100] =  { 100, 0 },
+	[AD7791_FILTER_RATE_33_3] = { 33,  300000 },
+	[AD7791_FILTER_RATE_20] =   { 20,  0 },
+	[AD7791_FILTER_RATE_16_6] = { 16,  600000 },
+	[AD7791_FILTER_RATE_16_7] = { 16,  700000 },
+	[AD7791_FILTER_RATE_13_3] = { 13,  300000 },
+	[AD7791_FILTER_RATE_9_5] =  { 9,   500000 },
+};
+
 static struct ad7791_state *ad_sigma_delta_to_ad7791(struct ad_sigma_delta *sd)
 {
 	return container_of(sd, struct ad7791_state, sd);
@@ -202,6 +213,7 @@ static int ad7791_read_raw(struct iio_dev *indio_dev,
 {
 	struct ad7791_state *st = iio_priv(indio_dev);
 	bool unipolar = !!(st->mode & AD7791_MODE_UNIPOLAR);
+	unsigned int rate;
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
@@ -239,9 +251,51 @@ static int ad7791_read_raw(struct iio_dev *indio_dev,
 			*val2 = chan->scan_type.realbits - 1;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		rate = st->filter & AD7791_FILTER_RATE_MASK;
+		*val = ad7791_sample_freq_avail[rate][0];
+		*val2 = ad7791_sample_freq_avail[rate][1];
+		return IIO_VAL_INT_PLUS_MICRO;
 	}
 
 	return -EINVAL;
+}
+
+static int ad7791_write_raw(struct iio_dev *indio_dev,
+	struct iio_chan_spec const *chan, int val, int val2, long mask)
+{
+	struct ad7791_state *st = iio_priv(indio_dev);
+	int ret, i;
+
+	ret = iio_device_claim_direct_mode(indio_dev);
+	if (ret)
+		return ret;
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		for (i = 0; i < ARRAY_SIZE(ad7791_sample_freq_avail); i++) {
+			if (ad7791_sample_freq_avail[i][0] == val &&
+			    ad7791_sample_freq_avail[i][1] == val2)
+				break;
+		}
+
+		if (i == ARRAY_SIZE(ad7791_sample_freq_avail)) {
+			ret = -EINVAL;
+			break;
+		}
+
+		st->filter &= ~AD7791_FILTER_RATE_MASK;
+		st->filter |= i;
+		ad_sd_write_reg(&st->sd, AD7791_REG_FILTER,
+				sizeof(st->filter),
+				st->filter);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	iio_device_release_direct_mode(indio_dev);
+	return ret;
 }
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("120 100 33.3 20 16.7 16.6 13.3 9.5");
@@ -257,12 +311,14 @@ static const struct attribute_group ad7791_attribute_group = {
 
 static const struct iio_info ad7791_info = {
 	.read_raw = &ad7791_read_raw,
+	.write_raw = &ad7791_write_raw,
 	.attrs = &ad7791_attribute_group,
 	.validate_trigger = ad_sd_validate_trigger,
 };
 
 static const struct iio_info ad7791_no_filter_info = {
 	.read_raw = &ad7791_read_raw,
+	.write_raw = &ad7791_write_raw,
 	.validate_trigger = ad_sd_validate_trigger,
 };
 
