@@ -379,8 +379,8 @@ static void qed_rdma_free(struct qed_hwfn *p_hwfn)
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "Freeing RDMA\n");
 
 	qed_rdma_free_reserved_lkey(p_hwfn);
-	qed_rdma_resc_free(p_hwfn);
 	qed_cxt_free_proto_ilt(p_hwfn, p_hwfn->p_rdma_info->proto);
+	qed_rdma_resc_free(p_hwfn);
 }
 
 static void qed_rdma_get_guid(struct qed_hwfn *p_hwfn, u8 *guid)
