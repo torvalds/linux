@@ -292,8 +292,8 @@ efault:
 	return -EFAULT;
 }
 
-SYSCALL_DEFINE3(getdents64, unsigned int, fd,
-		struct linux_dirent64 __user *, dirent, unsigned int, count)
+int ksys_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
+		    unsigned int count)
 {
 	struct fd f;
 	struct linux_dirent64 __user * lastdirent;
@@ -324,6 +324,13 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 	}
 	fdput_pos(f);
 	return error;
+}
+
+
+SYSCALL_DEFINE3(getdents64, unsigned int, fd,
+		struct linux_dirent64 __user *, dirent, unsigned int, count)
+{
+	return ksys_getdents64(fd, dirent, count);
 }
 
 #ifdef CONFIG_COMPAT

@@ -579,7 +579,7 @@ static void __init clean_rootfs(void)
 	}
 
 	dirp = buf;
-	num = sys_getdents64(fd, dirp, BUF_SIZE);
+	num = ksys_getdents64(fd, dirp, BUF_SIZE);
 	while (num > 0) {
 		while (num > 0) {
 			struct kstat st;
@@ -599,7 +599,7 @@ static void __init clean_rootfs(void)
 		}
 		dirp = buf;
 		memset(buf, 0, BUF_SIZE);
-		num = sys_getdents64(fd, dirp, BUF_SIZE);
+		num = ksys_getdents64(fd, dirp, BUF_SIZE);
 	}
 
 	ksys_close(fd);

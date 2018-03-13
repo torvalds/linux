@@ -955,6 +955,8 @@ ssize_t ksys_write(unsigned int fd, const char __user *buf, size_t count);
 int ksys_chdir(const char __user *filename);
 int ksys_fchmod(unsigned int fd, umode_t mode);
 int ksys_fchown(unsigned int fd, uid_t user, gid_t group);
+int ksys_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
+		    unsigned int count);
 
 /*
  * The following kernel syscall equivalents are just wrappers to fs-internal
