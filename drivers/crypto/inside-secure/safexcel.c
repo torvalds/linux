@@ -882,16 +882,17 @@ static int safexcel_probe(struct platform_device *pdev)
 	}
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(priv->clk)) {
+	ret = PTR_ERR_OR_ZERO(priv->clk);
+	/* The clock isn't mandatory */
+	if  (ret != -ENOENT) {
+		if (ret)
+			return ret;
+
 		ret = clk_prepare_enable(priv->clk);
 		if (ret) {
 			dev_err(dev, "unable to enable clk (%d)\n", ret);
 			return ret;
 		}
-	} else {
-		/* The clock isn't mandatory */
-		if (PTR_ERR(priv->clk) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
 	}
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
