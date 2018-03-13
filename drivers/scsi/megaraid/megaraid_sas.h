@@ -2099,6 +2099,7 @@ enum MR_PD_TYPE {
 
 struct megasas_instance {
 
+	unsigned int *reply_map;
 	__le32 *producer;
 	dma_addr_t producer_h;
 	__le32 *consumer;
