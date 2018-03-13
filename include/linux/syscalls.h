@@ -958,6 +958,7 @@ int ksys_fchown(unsigned int fd, uid_t user, gid_t group);
 int ksys_getdents64(unsigned int fd, struct linux_dirent64 __user *dirent,
 		    unsigned int count);
 int ksys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg);
+off_t ksys_lseek(unsigned int fd, off_t offset, unsigned int whence);
 
 /*
  * The following kernel syscall equivalents are just wrappers to fs-internal

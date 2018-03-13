@@ -90,7 +90,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	/*
 	 * Read block 0 to test for compressed kernel
 	 */
-	sys_lseek(fd, start_block * BLOCK_SIZE, 0);
+	ksys_lseek(fd, start_block * BLOCK_SIZE, 0);
 	sys_read(fd, buf, size);
 
 	*decompressor = decompress_method(buf, size, &compress_name);
@@ -136,7 +136,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	/*
 	 * Read 512 bytes further to check if cramfs is padded
 	 */
-	sys_lseek(fd, start_block * BLOCK_SIZE + 0x200, 0);
+	ksys_lseek(fd, start_block * BLOCK_SIZE + 0x200, 0);
 	sys_read(fd, buf, size);
 
 	if (cramfsb->magic == CRAMFS_MAGIC) {
@@ -150,7 +150,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	/*
 	 * Read block 1 to test for minix and ext2 superblock
 	 */
-	sys_lseek(fd, (start_block+1) * BLOCK_SIZE, 0);
+	ksys_lseek(fd, (start_block+1) * BLOCK_SIZE, 0);
 	sys_read(fd, buf, size);
 
 	/* Try minix */
@@ -178,7 +178,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	       start_block);
 
 done:
-	sys_lseek(fd, start_block * BLOCK_SIZE, 0);
+	ksys_lseek(fd, start_block * BLOCK_SIZE, 0);
 	kfree(buf);
 	return nblocks;
 }
