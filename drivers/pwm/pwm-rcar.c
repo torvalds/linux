@@ -134,16 +134,12 @@ static int rcar_pwm_set_counter(struct rcar_pwm_chip *rp, int div, int duty_ns,
 
 static int rcar_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct rcar_pwm_chip *rp = to_rcar_pwm_chip(chip);
-
-	return clk_prepare_enable(rp->clk);
+	return pm_runtime_get_sync(chip->dev);
 }
 
 static void rcar_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	struct rcar_pwm_chip *rp = to_rcar_pwm_chip(chip);
-
-	clk_disable_unprepare(rp->clk);
+	pm_runtime_put(chip->dev);
 }
 
 static int rcar_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
