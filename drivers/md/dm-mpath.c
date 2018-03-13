@@ -223,6 +223,16 @@ static int alloc_multipath_stage2(struct dm_target *ti, struct multipath *m)
 
 	dm_table_set_type(ti->table, m->queue_mode);
 
+	/*
+	 * Init fields that are only used when a scsi_dh is attached
+	 * - must do this unconditionally (really doesn't hurt non-SCSI uses)
+	 */
+	set_bit(MPATHF_QUEUE_IO, &m->flags);
+	atomic_set(&m->pg_init_in_progress, 0);
+	atomic_set(&m->pg_init_count, 0);
+	m->pg_init_delay_msecs = DM_PG_INIT_DELAY_DEFAULT;
+	init_waitqueue_head(&m->pg_init_wait);
+
 	return 0;
 }
 
@@ -331,7 +341,6 @@ static void __switch_pg(struct multipath *m, struct priority_group *pg)
 		set_bit(MPATHF_PG_INIT_REQUIRED, &m->flags);
 		set_bit(MPATHF_QUEUE_IO, &m->flags);
 	} else {
-		/* FIXME: not needed if no scsi_dh is attached */
 		clear_bit(MPATHF_PG_INIT_REQUIRED, &m->flags);
 		clear_bit(MPATHF_QUEUE_IO, &m->flags);
 	}
@@ -823,16 +832,6 @@ retain:
 			 */
 			kfree(m->hw_handler_name);
 			m->hw_handler_name = attached_handler_name;
-
-			/*
-			 * Init fields that are only used when a scsi_dh is attached
-			 */
-			if (!test_and_set_bit(MPATHF_QUEUE_IO, &m->flags)) {
-				atomic_set(&m->pg_init_in_progress, 0);
-				atomic_set(&m->pg_init_count, 0);
-				m->pg_init_delay_msecs = DM_PG_INIT_DELAY_DEFAULT;
-				init_waitqueue_head(&m->pg_init_wait);
-			}
 		}
 	}
 
