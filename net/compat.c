@@ -820,7 +820,7 @@ COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
 		ret = __sys_connect(a0, compat_ptr(a1), a[2]);
 		break;
 	case SYS_LISTEN:
-		ret = sys_listen(a0, a1);
+		ret = __sys_listen(a0, a1);
 		break;
 	case SYS_ACCEPT:
 		ret = __sys_accept4(a0, compat_ptr(a1), compat_ptr(a[2]), 0);
