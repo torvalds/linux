@@ -339,4 +339,9 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 			  const struct sockaddr *dst_addr,
 			  struct rdma_dev_addr *addr);
 
+int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
+				 const union ib_gid *dgid,
+				 u8 *dmac, const struct net_device *ndev,
+				 int *hoplimit);
+
 #endif /* _CORE_PRIV_H */

@@ -127,11 +127,6 @@ void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
 
 int rdma_addr_size(struct sockaddr *addr);
 
-int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
-				 const union ib_gid *dgid,
-				 u8 *dmac, const struct net_device *ndev,
-				 int *hoplimit);
-
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
 {
 	return ((u16)dev_addr->broadcast[8] << 8) | (u16)dev_addr->broadcast[9];
