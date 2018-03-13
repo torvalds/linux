@@ -395,23 +395,6 @@ static int vm_validate_pt_pd_bos(struct amdgpu_vm *vm)
 	return 0;
 }
 
-static int sync_vm_fence(struct amdgpu_device *adev, struct amdgpu_sync *sync,
-			 struct dma_fence *f)
-{
-	int ret = amdgpu_sync_fence(adev, sync, f, false);
-
-	/* Sync objects can't handle multiple GPUs (contexts) updating
-	 * sync->last_vm_update. Fortunately we don't need it for
-	 * KFD's purposes, so we can just drop that fence.
-	 */
-	if (sync->last_vm_update) {
-		dma_fence_put(sync->last_vm_update);
-		sync->last_vm_update = NULL;
-	}
-
-	return ret;
-}
-
 static int vm_update_pds(struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 {
 	struct amdgpu_bo *pd = vm->root.base.bo;
@@ -422,7 +405,7 @@ static int vm_update_pds(struct amdgpu_vm *vm, struct amdgpu_sync *sync)
 	if (ret)
 		return ret;
 
-	return sync_vm_fence(adev, sync, vm->last_update);
+	return amdgpu_sync_fence(NULL, sync, vm->last_update, false);
 }
 
 /* add_bo_to_vm - Add a BO to a VM
@@ -826,7 +809,7 @@ static int unmap_bo_from_gpuvm(struct amdgpu_device *adev,
 	/* Add the eviction fence back */
 	amdgpu_bo_fence(pd, &vm->process_info->eviction_fence->base, true);
 
-	sync_vm_fence(adev, sync, bo_va->last_pt_update);
+	amdgpu_sync_fence(NULL, sync, bo_va->last_pt_update, false);
 
 	return 0;
 }
@@ -851,7 +834,7 @@ static int update_gpuvm_pte(struct amdgpu_device *adev,
 		return ret;
 	}
 
-	return sync_vm_fence(adev, sync, bo_va->last_pt_update);
+	return amdgpu_sync_fence(NULL, sync, bo_va->last_pt_update, false);
 }
 
 static int map_bo_to_gpuvm(struct amdgpu_device *adev,
@@ -911,7 +894,7 @@ static int process_sync_pds_resv(struct amdkfd_process_info *process_info,
 			    vm_list_node) {
 		struct amdgpu_bo *pd = peer_vm->root.base.bo;
 
-		ret = amdgpu_sync_resv(amdgpu_ttm_adev(pd->tbo.bdev),
+		ret = amdgpu_sync_resv(NULL,
 					sync, pd->tbo.resv,
 					AMDGPU_FENCE_OWNER_UNDEFINED, false);
 		if (ret)
@@ -2084,8 +2067,7 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
 			pr_debug("Memory eviction: Validate BOs failed. Try again\n");
 			goto validate_map_fail;
 		}
-		ret = amdgpu_sync_fence(amdgpu_ttm_adev(bo->tbo.bdev),
-					&sync_obj, bo->tbo.moving, false);
+		ret = amdgpu_sync_fence(NULL, &sync_obj, bo->tbo.moving, false);
 		if (ret) {
 			pr_debug("Memory eviction: Sync BO fence failed. Try again\n");
 			goto validate_map_fail;
