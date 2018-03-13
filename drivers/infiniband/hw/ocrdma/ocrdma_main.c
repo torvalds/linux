@@ -160,8 +160,6 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.modify_port = ocrdma_modify_port;
 	dev->ibdev.query_gid = ocrdma_query_gid;
 	dev->ibdev.get_netdev = ocrdma_get_netdev;
-	dev->ibdev.add_gid = ocrdma_add_gid;
-	dev->ibdev.del_gid = ocrdma_del_gid;
 	dev->ibdev.get_link_layer = ocrdma_link_layer;
 	dev->ibdev.alloc_pd = ocrdma_alloc_pd;
 	dev->ibdev.dealloc_pd = ocrdma_dealloc_pd;
