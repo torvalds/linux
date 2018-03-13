@@ -243,7 +243,7 @@ static void sym_calc_visibility(struct symbol *sym)
 	tri = yes;
 	if (sym->dir_dep.expr)
 		tri = expr_calc_value(sym->dir_dep.expr);
-	if (tri == mod)
+	if (tri == mod && sym_get_type(sym) == S_BOOLEAN)
 		tri = yes;
 	if (sym->dir_dep.tri != tri) {
 		sym->dir_dep.tri = tri;
@@ -414,7 +414,7 @@ void sym_calc_value(struct symbol *sym)
 				}
 			}
 		calc_newval:
-			if (sym->dir_dep.tri == no && sym->rev_dep.tri != no) {
+			if (sym->dir_dep.tri < sym->rev_dep.tri) {
 				struct expr *e;
 				e = expr_simplify_unmet_dep(sym->rev_dep.expr,
 				    sym->dir_dep.expr);
