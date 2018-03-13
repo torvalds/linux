@@ -1325,7 +1325,6 @@ static int ngene_buffer_config(struct ngene *dev)
 
 static int ngene_start(struct ngene *dev)
 {
-	struct device *pdev = &dev->pci_dev->dev;
 	int stat;
 	int i;
 
@@ -1359,6 +1358,7 @@ static int ngene_start(struct ngene *dev)
 #ifdef CONFIG_PCI_MSI
 	/* enable MSI if kernel and card support it */
 	if (pci_msi_enabled() && dev->card_info->msi_supported) {
+		struct device *pdev = &dev->pci_dev->dev;
 		unsigned long flags;
 
 		ngwritel(0, NGENE_INT_ENABLE);
