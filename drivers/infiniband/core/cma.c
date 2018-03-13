@@ -3918,10 +3918,14 @@ static int cma_ib_mc_handler(int status, struct ib_sa_multicast *multicast)
 			rdma_start_port(id_priv->cma_dev->device)];
 
 		event.event = RDMA_CM_EVENT_MULTICAST_JOIN;
-		ib_init_ah_from_mcmember(id_priv->id.device,
-					 id_priv->id.port_num, &multicast->rec,
-					 ndev, gid_type,
-					 &event.param.ud.ah_attr);
+		ret = ib_init_ah_from_mcmember(id_priv->id.device,
+					       id_priv->id.port_num,
+					       &multicast->rec,
+					       ndev, gid_type,
+					       &event.param.ud.ah_attr);
+		if (ret)
+			event.event = RDMA_CM_EVENT_MULTICAST_ERROR;
+
 		event.param.ud.qp_num = 0xFFFFFF;
 		event.param.ud.qkey = be32_to_cpu(multicast->rec.qkey);
 		if (ndev)
