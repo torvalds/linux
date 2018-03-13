@@ -7,10 +7,11 @@
 #include "i915_gem_batch_pool.h"
 #include "i915_gem_timeline.h"
 
-#include "i915_reg.h" /* FIXME split out i915_gpu_commands.h */
+#include "i915_reg.h"
 #include "i915_pmu.h"
 #include "i915_request.h"
 #include "i915_selftest.h"
+#include "intel_gpu_commands.h"
 
 struct drm_printer;
 
