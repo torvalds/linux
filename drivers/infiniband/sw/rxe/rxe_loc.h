@@ -56,9 +56,10 @@ int rxe_cq_chk_attr(struct rxe_dev *rxe, struct rxe_cq *cq,
 
 int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
 		     int comp_vector, struct ib_ucontext *context,
-		     struct ib_udata *udata);
+		     struct rxe_create_cq_resp __user *uresp);
 
-int rxe_cq_resize_queue(struct rxe_cq *cq, int new_cqe, struct ib_udata *udata);
+int rxe_cq_resize_queue(struct rxe_cq *cq, int new_cqe,
+			struct rxe_resize_cq_resp __user *uresp);
 
 int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited);
 
@@ -158,7 +159,8 @@ int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid);
 int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init);
 
 int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
-		     struct ib_qp_init_attr *init, struct ib_udata *udata,
+		     struct ib_qp_init_attr *init,
+		     struct rxe_create_qp_resp __user *uresp,
 		     struct ib_pd *ibpd);
 
 int rxe_qp_to_init(struct rxe_qp *qp, struct ib_qp_init_attr *init);
@@ -226,11 +228,12 @@ int rxe_srq_chk_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 
 int rxe_srq_from_init(struct rxe_dev *rxe, struct rxe_srq *srq,
 		      struct ib_srq_init_attr *init,
-		      struct ib_ucontext *context, struct ib_udata *udata);
+		      struct ib_ucontext *context,
+		      struct rxe_create_srq_resp __user *uresp);
 
 int rxe_srq_from_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 		      struct ib_srq_attr *attr, enum ib_srq_attr_mask mask,
-		      struct ib_udata *udata);
+		      struct rxe_modify_srq_cmd *ucmd);
 
 void rxe_release(struct kref *kref);
 

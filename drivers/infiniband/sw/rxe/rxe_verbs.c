@@ -407,6 +407,13 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	struct rxe_pd *pd = to_rpd(ibpd);
 	struct rxe_srq *srq;
 	struct ib_ucontext *context = udata ? ibpd->uobject->context : NULL;
+	struct rxe_create_srq_resp __user *uresp = NULL;
+
+	if (udata) {
+		if (udata->outlen < sizeof(*uresp))
+			return ERR_PTR(-EINVAL);
+		uresp = udata->outbuf;
+	}
 
 	err = rxe_srq_chk_attr(rxe, NULL, &init->attr, IB_SRQ_INIT_MASK);
 	if (err)
@@ -422,7 +429,7 @@ static struct ib_srq *rxe_create_srq(struct ib_pd *ibpd,
 	rxe_add_ref(pd);
 	srq->pd = pd;
 
-	err = rxe_srq_from_init(rxe, srq, init, context, udata);
+	err = rxe_srq_from_init(rxe, srq, init, context, uresp);
 	if (err)
 		goto err2;
 
@@ -443,12 +450,22 @@ static int rxe_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 	int err;
 	struct rxe_srq *srq = to_rsrq(ibsrq);
 	struct rxe_dev *rxe = to_rdev(ibsrq->device);
+	struct rxe_modify_srq_cmd ucmd = {};
+
+	if (udata) {
+		if (udata->inlen < sizeof(ucmd))
+			return -EINVAL;
+
+		err = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
+		if (err)
+			return err;
+	}
 
 	err = rxe_srq_chk_attr(rxe, srq, attr, mask);
 	if (err)
 		goto err1;
 
-	err = rxe_srq_from_attr(rxe, srq, attr, mask, udata);
+	err = rxe_srq_from_attr(rxe, srq, attr, mask, &ucmd);
 	if (err)
 		goto err1;
 
@@ -517,6 +534,13 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 	struct rxe_dev *rxe = to_rdev(ibpd->device);
 	struct rxe_pd *pd = to_rpd(ibpd);
 	struct rxe_qp *qp;
+	struct rxe_create_qp_resp __user *uresp = NULL;
+
+	if (udata) {
+		if (udata->outlen < sizeof(*uresp))
+			return ERR_PTR(-EINVAL);
+		uresp = udata->outbuf;
+	}
 
 	err = rxe_qp_chk_init(rxe, init);
 	if (err)
@@ -538,7 +562,7 @@ static struct ib_qp *rxe_create_qp(struct ib_pd *ibpd,
 
 	rxe_add_index(qp);
 
-	err = rxe_qp_from_init(rxe, qp, pd, init, udata, ibpd);
+	err = rxe_qp_from_init(rxe, qp, pd, init, uresp, ibpd);
 	if (err)
 		goto err3;
 
@@ -888,6 +912,13 @@ static struct ib_cq *rxe_create_cq(struct ib_device *dev,
 	int err;
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_cq *cq;
+	struct rxe_create_cq_resp __user *uresp = NULL;
+
+	if (udata) {
+		if (udata->outlen < sizeof(*uresp))
+			return ERR_PTR(-EINVAL);
+		uresp = udata->outbuf;
+	}
 
 	if (attr->flags)
 		return ERR_PTR(-EINVAL);
@@ -903,7 +934,7 @@ static struct ib_cq *rxe_create_cq(struct ib_device *dev,
 	}
 
 	err = rxe_cq_from_init(rxe, cq, attr->cqe, attr->comp_vector,
-			       context, udata);
+			       context, uresp);
 	if (err)
 		goto err2;
 
@@ -930,12 +961,19 @@ static int rxe_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	int err;
 	struct rxe_cq *cq = to_rcq(ibcq);
 	struct rxe_dev *rxe = to_rdev(ibcq->device);
+	struct rxe_resize_cq_resp __user *uresp = NULL;
+
+	if (udata) {
+		if (udata->outlen < sizeof(*uresp))
+			return -EINVAL;
+		uresp = udata->outbuf;
+	}
 
 	err = rxe_cq_chk_attr(rxe, cq, cqe, 0);
 	if (err)
 		goto err1;
 
-	err = rxe_cq_resize_queue(cq, cqe, udata);
+	err = rxe_cq_resize_queue(cq, cqe, uresp);
 	if (err)
 		goto err1;
 

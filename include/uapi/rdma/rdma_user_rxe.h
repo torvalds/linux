@@ -144,4 +144,26 @@ struct rxe_recv_wqe {
 	struct rxe_dma_info	dma;
 };
 
+struct rxe_create_cq_resp {
+	struct mminfo mi;
+};
+
+struct rxe_resize_cq_resp {
+	struct mminfo mi;
+};
+
+struct rxe_create_qp_resp {
+	struct mminfo rq_mi;
+	struct mminfo sq_mi;
+};
+
+struct rxe_create_srq_resp {
+	struct mminfo mi;
+	__u32 srq_num;
+};
+
+struct rxe_modify_srq_cmd {
+	__u64 mmap_info_addr;
+};
+
 #endif /* RDMA_USER_RXE_H */
