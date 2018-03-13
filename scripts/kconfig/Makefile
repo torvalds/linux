@@ -142,6 +142,14 @@ PHONY += tinyconfig
 tinyconfig:
 	$(Q)$(MAKE) -f $(srctree)/Makefile allnoconfig tiny.config
 
+# CHECK: -o cache_dir=<path> working?
+PHONY += testconfig
+testconfig: $(obj)/conf
+	$(PYTHON3) -B -m pytest $(srctree)/$(src)/tests \
+	-o cache_dir=$(abspath $(obj)/tests/.cache) \
+	$(if $(findstring 1,$(KBUILD_VERBOSE)),--capture=no)
+clean-dirs += tests/.cache
+
 # Help text used by make help
 help:
 	@echo  '  config	  - Update current config utilising a line-oriented program'
