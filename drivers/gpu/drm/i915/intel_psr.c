@@ -246,7 +246,7 @@ static i915_reg_t psr_aux_data_reg(struct drm_i915_private *dev_priv,
 		return EDP_PSR_AUX_DATA(index);
 }
 
-static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
+static void hsw_psr_setup_aux(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = dig_port->base.base.dev;
@@ -267,6 +267,24 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 	BUILD_BUG_ON(sizeof(aux_msg) > 20);
 
 	aux_clock_divider = intel_dp->get_aux_clock_divider(intel_dp, 0);
+	aux_ctl_reg = psr_aux_ctl_reg(dev_priv, port);
+
+	/* Setup AUX registers */
+	for (i = 0; i < sizeof(aux_msg); i += 4)
+		I915_WRITE(psr_aux_data_reg(dev_priv, port, i >> 2),
+			   intel_dp_pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
+
+	aux_ctl = intel_dp->get_aux_send_ctl(intel_dp, 0, sizeof(aux_msg),
+					     aux_clock_divider);
+	I915_WRITE(aux_ctl_reg, aux_ctl);
+}
+
+static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
 
 	/* Enable AUX frame sync at sink */
 	if (dev_priv->psr.aux_frame_sync)
@@ -285,16 +303,7 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
 				   DP_PSR_ENABLE);
 
-	aux_ctl_reg = psr_aux_ctl_reg(dev_priv, port);
-
-	/* Setup AUX registers */
-	for (i = 0; i < sizeof(aux_msg); i += 4)
-		I915_WRITE(psr_aux_data_reg(dev_priv, port, i >> 2),
-			   intel_dp_pack_aux(&aux_msg[i], sizeof(aux_msg) - i));
-
-	aux_ctl = intel_dp->get_aux_send_ctl(intel_dp, 0, sizeof(aux_msg),
-					     aux_clock_divider);
-	I915_WRITE(aux_ctl_reg, aux_ctl);
+	hsw_psr_setup_aux(intel_dp);
 }
 
 static void vlv_psr_enable_source(struct intel_dp *intel_dp,
