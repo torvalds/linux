@@ -38,6 +38,7 @@
 #include <linux/highmem.h>
 #include <linux/time.h>
 #include <linux/hugetlb.h>
+#include <linux/irq.h>
 #include <asm/byteorder.h>
 #include <net/ip.h>
 #include <rdma/ib_verbs.h>
