@@ -482,13 +482,11 @@ static int add_cm_id_to_port_list(struct cm_id_private *cm_id_priv,
 	return ret;
 }
 
-static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
-			      struct cm_id_private *cm_id_priv)
+static struct cm_port *get_cm_port_from_path(struct sa_path_rec *path)
 {
 	struct cm_device *cm_dev;
 	struct cm_port *port = NULL;
 	unsigned long flags;
-	int ret;
 	u8 p;
 	struct net_device *ndev = ib_get_ndev_from_path(path);
 
@@ -497,7 +495,7 @@ static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 		if (!ib_find_cached_gid(cm_dev->ib_device, &path->sgid,
 					sa_conv_pathrec_to_gid_type(path),
 					ndev, &p, NULL)) {
-			port = cm_dev->port[p-1];
+			port = cm_dev->port[p - 1];
 			break;
 		}
 	}
@@ -505,9 +503,20 @@ static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 
 	if (ndev)
 		dev_put(ndev);
+	return port;
+}
 
+static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
+			      struct cm_id_private *cm_id_priv)
+{
+	struct cm_device *cm_dev;
+	struct cm_port *port;
+	int ret;
+
+	port = get_cm_port_from_path(path);
 	if (!port)
 		return -EINVAL;
+	cm_dev = port->cm_dev;
 
 	ret = ib_find_cached_pkey(cm_dev->ib_device, port->port_num,
 				  be16_to_cpu(path->pkey), &av->pkey_index);
