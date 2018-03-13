@@ -34,8 +34,6 @@ parameters may be changed at runtime by the command
 			See drivers/scsi/BusLogic.c, comment before function
 			BusLogic_ParseDriverOptions().
 
-	eata=		[HW,SCSI]
-
 	fdomain=	[HW,SCSI]
 			See header of drivers/scsi/fdomain.c.
 

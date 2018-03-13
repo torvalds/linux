@@ -640,68 +640,6 @@ config SCSI_DMX3191D
 	  To compile this driver as a module, choose M here: the
 	  module will be called dmx3191d.
 
-config SCSI_EATA
-	tristate "EATA ISA/EISA/PCI (DPT and generic EATA/DMA-compliant boards) support"
-	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
-	---help---
-	  This driver supports all EATA/DMA-compliant SCSI host adapters.  DPT
-	  ISA and all EISA I/O addresses are probed looking for the "EATA"
-	  signature. The addresses of all the PCI SCSI controllers reported
-          by the PCI subsystem are probed as well.
-
-	  You want to read the start of <file:drivers/scsi/eata.c> and the
-	  SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called eata.
-
-config SCSI_EATA_TAGGED_QUEUE
-	bool "enable tagged command queueing"
-	depends on SCSI_EATA
-	help
-	  This is a feature of SCSI-2 which improves performance: the host
-	  adapter can send several SCSI commands to a device's queue even if
-	  previous commands haven't finished yet.
-	  This is equivalent to the "eata=tc:y" boot option.
-
-config SCSI_EATA_LINKED_COMMANDS
-	bool "enable elevator sorting"
-	depends on SCSI_EATA
-	help
-	  This option enables elevator sorting for all probed SCSI disks and
-	  CD-ROMs. It definitely reduces the average seek distance when doing
-	  random seeks, but this does not necessarily result in a noticeable
-	  performance improvement: your mileage may vary...
-	  This is equivalent to the "eata=lc:y" boot option.
-
-config SCSI_EATA_MAX_TAGS
-	int "maximum number of queued commands"
-	depends on SCSI_EATA
-	default "16"
-	help
-	  This specifies how many SCSI commands can be maximally queued for
-	  each probed SCSI device. You should reduce the default value of 16
-	  only if you have disks with buggy or limited tagged command support.
-	  Minimum is 2 and maximum is 62. This value is also the window size
-	  used by the elevator sorting option above. The effective value used
-	  by the driver for each probed SCSI device is reported at boot time.
-	  This is equivalent to the "eata=mq:8" boot option.
-
-config SCSI_EATA_PIO
-	tristate "EATA-PIO (old DPT PM2001, PM2012A) support"
-	depends on (ISA || EISA || PCI) && SCSI && BROKEN
-	---help---
-	  This driver supports all EATA-PIO protocol compliant SCSI Host
-	  Adapters like the DPT PM2001 and the PM2012A.  EATA-DMA compliant
-	  host adapters could also use this driver but are discouraged from
-	  doing so, since this driver only supports hard disks and lacks
-	  numerous features.  You might want to have a look at the SCSI-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called eata_pio.
-
 config SCSI_FUTURE_DOMAIN
 	tristate "Future Domain 16xx SCSI/AHA-2920A support"
 	depends on (ISA || PCI) && SCSI
