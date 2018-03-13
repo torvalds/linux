@@ -659,7 +659,7 @@ static int init_tx_pools(struct net_device *netdev)
 
 		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
 					 adapter->req_tx_entries_per_subcrq *
-					 adapter->req_mtu)) {
+					 (adapter->req_mtu + VLAN_HLEN))) {
 			release_tx_pools(adapter);
 			return -1;
 		}
@@ -1221,7 +1221,10 @@ static int build_hdr_data(u8 hdr_field, struct sk_buff *skb,
 	int len = 0;
 	u8 *hdr;
 
-	hdr_len[0] = sizeof(struct ethhdr);
+	if (skb_vlan_tagged(skb) && !skb_vlan_tag_present(skb))
+		hdr_len[0] = sizeof(struct vlan_ethhdr);
+	else
+		hdr_len[0] = sizeof(struct ethhdr);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		hdr_len[1] = ip_hdr(skb)->ihl * 4;
@@ -1337,6 +1340,19 @@ static void build_hdr_descs_arr(struct ibmvnic_tx_buff *txbuff,
 			 txbuff->indir_arr + 1);
 }
 
+static int ibmvnic_xmit_workarounds(struct sk_buff *skb,
+				    struct net_device *netdev)
+{
+	/* For some backing devices, mishandling of small packets
+	 * can result in a loss of connection or TX stall. Device
+	 * architects recommend that no packet should be smaller
+	 * than the minimum MTU value provided to the driver, so
+	 * pad any packets to that length
+	 */
+	if (skb->len < netdev->min_mtu)
+		return skb_put_padto(skb, netdev->min_mtu);
+}
+
 static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
@@ -1374,6 +1390,13 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto out;
 	}
 
+	if (ibmvnic_xmit_workarounds(skb, adapter)) {
+		tx_dropped++;
+		tx_send_failed++;
+		ret = NETDEV_TX_OK;
+		goto out;
+	}
+
 	tx_pool = &adapter->tx_pool[queue_num];
 	tx_scrq = adapter->tx_scrq[queue_num];
 	txq = netdev_get_tx_queue(netdev, skb_get_queue_mapping(skb));
@@ -1391,9 +1414,9 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (tx_pool->tso_index == IBMVNIC_TSO_BUFS)
 			tx_pool->tso_index = 0;
 	} else {
-		offset = index * adapter->req_mtu;
+		offset = index * (adapter->req_mtu + VLAN_HLEN);
 		dst = tx_pool->long_term_buff.buff + offset;
-		memset(dst, 0, adapter->req_mtu);
+		memset(dst, 0, adapter->req_mtu + VLAN_HLEN);
 		data_dma_addr = tx_pool->long_term_buff.addr + offset;
 	}
 
@@ -2026,6 +2049,23 @@ static int ibmvnic_change_mtu(struct net_device *netdev, int new_mtu)
 	return wait_for_reset(adapter);
 }
 
+static netdev_features_t ibmvnic_features_check(struct sk_buff *skb,
+						struct net_device *dev,
+						netdev_features_t features)
+{
+	/* Some backing hardware adapters can not
+	 * handle packets with a MSS less than 224
+	 * or with only one segment.
+	 */
+	if (skb_is_gso(skb)) {
+		if (skb_shinfo(skb)->gso_size < 224 ||
+		    skb_shinfo(skb)->gso_segs == 1)
+			features &= ~NETIF_F_GSO_MASK;
+	}
+
+	return features;
+}
+
 static const struct net_device_ops ibmvnic_netdev_ops = {
 	.ndo_open		= ibmvnic_open,
 	.ndo_stop		= ibmvnic_close,
@@ -2038,6 +2078,7 @@ static const struct net_device_ops ibmvnic_netdev_ops = {
 	.ndo_poll_controller	= ibmvnic_netpoll_controller,
 #endif
 	.ndo_change_mtu		= ibmvnic_change_mtu,
+	.ndo_features_check     = ibmvnic_features_check,
 };
 
 /* ethtool functions */
