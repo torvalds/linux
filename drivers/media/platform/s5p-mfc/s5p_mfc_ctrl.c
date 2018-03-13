@@ -62,7 +62,7 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 		if (!dev->variant->fw_name[i])
 			continue;
 		err = request_firmware((const struct firmware **)&fw_blob,
-				dev->variant->fw_name[i], dev->v4l2_dev.dev);
+				dev->variant->fw_name[i], &dev->plat_dev->dev);
 		if (!err) {
 			dev->fw_ver = (enum s5p_mfc_fw_ver) i;
 			break;
