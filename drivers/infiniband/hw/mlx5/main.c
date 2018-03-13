@@ -92,6 +92,12 @@ static LIST_HEAD(mlx5_ib_dev_list);
  */
 static DEFINE_MUTEX(mlx5_ib_multiport_mutex);
 
+/* We can't use an array for xlt_emergency_page because dma_map_single
+ * doesn't work on kernel modules memory
+ */
+static unsigned long xlt_emergency_page;
+static struct mutex xlt_emergency_page_mutex;
+
 struct mlx5_ib_dev *mlx5_ib_get_ibdev_from_mpi(struct mlx5_ib_multiport_info *mpi)
 {
 	struct mlx5_ib_dev *dev;
@@ -1698,17 +1704,10 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	context->ibucontext.invalidate_range = &mlx5_ib_invalidate_range;
 #endif
 
-	context->upd_xlt_page = __get_free_page(GFP_KERNEL);
-	if (!context->upd_xlt_page) {
-		err = -ENOMEM;
-		goto out_uars;
-	}
-	mutex_init(&context->upd_xlt_page_mutex);
-
 	if (MLX5_CAP_GEN(dev->mdev, log_max_transport_domain)) {
 		err = mlx5_ib_alloc_transport_domain(dev, &context->tdn);
 		if (err)
-			goto out_page;
+			goto out_uars;
 	}
 
 	INIT_LIST_HEAD(&context->vma_private_list);
@@ -1785,9 +1784,6 @@ out_td:
 	if (MLX5_CAP_GEN(dev->mdev, log_max_transport_domain))
 		mlx5_ib_dealloc_transport_domain(dev, context->tdn);
 
-out_page:
-	free_page(context->upd_xlt_page);
-
 out_uars:
 	deallocate_uars(dev, context);
 
@@ -1813,7 +1809,6 @@ static int mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	if (MLX5_CAP_GEN(dev->mdev, log_max_transport_domain))
 		mlx5_ib_dealloc_transport_domain(dev, context->tdn);
 
-	free_page(context->upd_xlt_page);
 	deallocate_uars(dev, context);
 	kfree(bfregi->sys_pages);
 	kfree(bfregi->count);
@@ -5292,13 +5287,32 @@ static struct mlx5_interface mlx5_ib_interface = {
 	.protocol	= MLX5_INTERFACE_PROTOCOL_IB,
 };
 
+unsigned long mlx5_ib_get_xlt_emergency_page(void)
+{
+	mutex_lock(&xlt_emergency_page_mutex);
+	return xlt_emergency_page;
+}
+
+void mlx5_ib_put_xlt_emergency_page(void)
+{
+	mutex_unlock(&xlt_emergency_page_mutex);
+}
+
 static int __init mlx5_ib_init(void)
 {
 	int err;
 
-	mlx5_ib_event_wq = alloc_ordered_workqueue("mlx5_ib_event_wq", 0);
-	if (!mlx5_ib_event_wq)
+	xlt_emergency_page = __get_free_page(GFP_KERNEL);
+	if (!xlt_emergency_page)
 		return -ENOMEM;
+
+	mutex_init(&xlt_emergency_page_mutex);
+
+	mlx5_ib_event_wq = alloc_ordered_workqueue("mlx5_ib_event_wq", 0);
+	if (!mlx5_ib_event_wq) {
+		free_page(xlt_emergency_page);
+		return -ENOMEM;
+	}
 
 	mlx5_ib_odp_init();
 
@@ -5311,6 +5325,8 @@ static void __exit mlx5_ib_cleanup(void)
 {
 	mlx5_unregister_interface(&mlx5_ib_interface);
 	destroy_workqueue(mlx5_ib_event_wq);
+	mutex_destroy(&xlt_emergency_page_mutex);
+	free_page(xlt_emergency_page);
 }
 
 module_init(mlx5_ib_init);
