@@ -2196,8 +2196,9 @@ static void __ib_drain_sq(struct ib_qp *qp)
 	struct ib_send_wr *bad_swr;
 	struct ib_rdma_wr swr = {
 		.wr = {
+			.next = NULL,
+			{ .wr_cqe	= &sdrain.cqe, },
 			.opcode	= IB_WR_RDMA_WRITE,
-			.wr_cqe	= &sdrain.cqe,
 		},
 	};
 	int ret;
