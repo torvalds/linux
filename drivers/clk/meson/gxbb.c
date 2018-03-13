@@ -29,98 +29,6 @@
 
 static DEFINE_SPINLOCK(meson_clk_lock);
 
-static const struct pll_rate_table sys_pll_rate_table[] = {
-	PLL_RATE(24000000, 56, 1, 2),
-	PLL_RATE(48000000, 64, 1, 2),
-	PLL_RATE(72000000, 72, 1, 2),
-	PLL_RATE(96000000, 64, 1, 2),
-	PLL_RATE(120000000, 80, 1, 2),
-	PLL_RATE(144000000, 96, 1, 2),
-	PLL_RATE(168000000, 56, 1, 1),
-	PLL_RATE(192000000, 64, 1, 1),
-	PLL_RATE(216000000, 72, 1, 1),
-	PLL_RATE(240000000, 80, 1, 1),
-	PLL_RATE(264000000, 88, 1, 1),
-	PLL_RATE(288000000, 96, 1, 1),
-	PLL_RATE(312000000, 52, 1, 2),
-	PLL_RATE(336000000, 56, 1, 2),
-	PLL_RATE(360000000, 60, 1, 2),
-	PLL_RATE(384000000, 64, 1, 2),
-	PLL_RATE(408000000, 68, 1, 2),
-	PLL_RATE(432000000, 72, 1, 2),
-	PLL_RATE(456000000, 76, 1, 2),
-	PLL_RATE(480000000, 80, 1, 2),
-	PLL_RATE(504000000, 84, 1, 2),
-	PLL_RATE(528000000, 88, 1, 2),
-	PLL_RATE(552000000, 92, 1, 2),
-	PLL_RATE(576000000, 96, 1, 2),
-	PLL_RATE(600000000, 50, 1, 1),
-	PLL_RATE(624000000, 52, 1, 1),
-	PLL_RATE(648000000, 54, 1, 1),
-	PLL_RATE(672000000, 56, 1, 1),
-	PLL_RATE(696000000, 58, 1, 1),
-	PLL_RATE(720000000, 60, 1, 1),
-	PLL_RATE(744000000, 62, 1, 1),
-	PLL_RATE(768000000, 64, 1, 1),
-	PLL_RATE(792000000, 66, 1, 1),
-	PLL_RATE(816000000, 68, 1, 1),
-	PLL_RATE(840000000, 70, 1, 1),
-	PLL_RATE(864000000, 72, 1, 1),
-	PLL_RATE(888000000, 74, 1, 1),
-	PLL_RATE(912000000, 76, 1, 1),
-	PLL_RATE(936000000, 78, 1, 1),
-	PLL_RATE(960000000, 80, 1, 1),
-	PLL_RATE(984000000, 82, 1, 1),
-	PLL_RATE(1008000000, 84, 1, 1),
-	PLL_RATE(1032000000, 86, 1, 1),
-	PLL_RATE(1056000000, 88, 1, 1),
-	PLL_RATE(1080000000, 90, 1, 1),
-	PLL_RATE(1104000000, 92, 1, 1),
-	PLL_RATE(1128000000, 94, 1, 1),
-	PLL_RATE(1152000000, 96, 1, 1),
-	PLL_RATE(1176000000, 98, 1, 1),
-	PLL_RATE(1200000000, 50, 1, 0),
-	PLL_RATE(1224000000, 51, 1, 0),
-	PLL_RATE(1248000000, 52, 1, 0),
-	PLL_RATE(1272000000, 53, 1, 0),
-	PLL_RATE(1296000000, 54, 1, 0),
-	PLL_RATE(1320000000, 55, 1, 0),
-	PLL_RATE(1344000000, 56, 1, 0),
-	PLL_RATE(1368000000, 57, 1, 0),
-	PLL_RATE(1392000000, 58, 1, 0),
-	PLL_RATE(1416000000, 59, 1, 0),
-	PLL_RATE(1440000000, 60, 1, 0),
-	PLL_RATE(1464000000, 61, 1, 0),
-	PLL_RATE(1488000000, 62, 1, 0),
-	PLL_RATE(1512000000, 63, 1, 0),
-	PLL_RATE(1536000000, 64, 1, 0),
-	PLL_RATE(1560000000, 65, 1, 0),
-	PLL_RATE(1584000000, 66, 1, 0),
-	PLL_RATE(1608000000, 67, 1, 0),
-	PLL_RATE(1632000000, 68, 1, 0),
-	PLL_RATE(1656000000, 68, 1, 0),
-	PLL_RATE(1680000000, 68, 1, 0),
-	PLL_RATE(1704000000, 68, 1, 0),
-	PLL_RATE(1728000000, 69, 1, 0),
-	PLL_RATE(1752000000, 69, 1, 0),
-	PLL_RATE(1776000000, 69, 1, 0),
-	PLL_RATE(1800000000, 69, 1, 0),
-	PLL_RATE(1824000000, 70, 1, 0),
-	PLL_RATE(1848000000, 70, 1, 0),
-	PLL_RATE(1872000000, 70, 1, 0),
-	PLL_RATE(1896000000, 70, 1, 0),
-	PLL_RATE(1920000000, 71, 1, 0),
-	PLL_RATE(1944000000, 71, 1, 0),
-	PLL_RATE(1968000000, 71, 1, 0),
-	PLL_RATE(1992000000, 71, 1, 0),
-	PLL_RATE(2016000000, 72, 1, 0),
-	PLL_RATE(2040000000, 72, 1, 0),
-	PLL_RATE(2064000000, 72, 1, 0),
-	PLL_RATE(2088000000, 72, 1, 0),
-	PLL_RATE(2112000000, 73, 1, 0),
-	{ /* sentinel */ },
-};
-
 static const struct pll_rate_table gxbb_gp0_pll_rate_table[] = {
 	PLL_RATE(96000000, 32, 1, 3),
 	PLL_RATE(99000000, 33, 1, 3),
@@ -294,6 +202,11 @@ static struct meson_clk_pll gxbb_fixed_pll = {
 		.shift   = 16,
 		.width   = 2,
 	},
+	.frac = {
+		.reg_off = HHI_MPLL_CNTL2,
+		.shift   = 0,
+		.width   = 12,
+	},
 	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll",
@@ -301,6 +214,17 @@ static struct meson_clk_pll gxbb_fixed_pll = {
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
 		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_fixed_factor gxbb_hdmi_pll_pre_mult = {
+	.mult = 2,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmi_pll_pre_mult",
+		.ops = &clk_fixed_factor_ops,
+		.parent_names = (const char *[]){ "xtal" },
+		.num_parents = 1,
 	},
 };
 
@@ -330,6 +254,57 @@ static struct meson_clk_pll gxbb_hdmi_pll = {
 		.shift   = 22,
 		.width   = 2,
 	},
+	.od3 = {
+		.reg_off = HHI_HDMI_PLL_CNTL2,
+		.shift   = 18,
+		.width   = 2,
+	},
+	.lock = &meson_clk_lock,
+	.hw.init = &(struct clk_init_data){
+		.name = "hdmi_pll",
+		.ops = &meson_clk_pll_ro_ops,
+		.parent_names = (const char *[]){ "hdmi_pll_pre_mult" },
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct meson_clk_pll gxl_hdmi_pll = {
+	.m = {
+		.reg_off = HHI_HDMI_PLL_CNTL,
+		.shift   = 0,
+		.width   = 9,
+	},
+	.n = {
+		.reg_off = HHI_HDMI_PLL_CNTL,
+		.shift   = 9,
+		.width   = 5,
+	},
+	.frac = {
+		/*
+		 * On gxl, there is a register shift due to HHI_HDMI_PLL_CNTL1
+		 * which does not exist on gxbb, so we compute the register
+		 * offset based on the PLL base to get it right
+		 */
+		.reg_off = HHI_HDMI_PLL_CNTL + 4,
+		.shift   = 0,
+		.width   = 12,
+	},
+	.od = {
+		.reg_off = HHI_HDMI_PLL_CNTL + 8,
+		.shift   = 21,
+		.width   = 2,
+	},
+	.od2 = {
+		.reg_off = HHI_HDMI_PLL_CNTL + 8,
+		.shift   = 23,
+		.width   = 2,
+	},
+	.od3 = {
+		.reg_off = HHI_HDMI_PLL_CNTL + 8,
+		.shift   = 19,
+		.width   = 2,
+	},
 	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "hdmi_pll",
@@ -356,8 +331,6 @@ static struct meson_clk_pll gxbb_sys_pll = {
 		.shift   = 10,
 		.width   = 2,
 	},
-	.rate_table = sys_pll_rate_table,
-	.rate_count = ARRAY_SIZE(sys_pll_rate_table),
 	.lock = &meson_clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
@@ -1601,6 +1574,7 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 		[CLKID_VAPB_1]		    = &gxbb_vapb_1.hw,
 		[CLKID_VAPB_SEL]	    = &gxbb_vapb_sel.hw,
 		[CLKID_VAPB]		    = &gxbb_vapb.hw,
+		[CLKID_HDMI_PLL_PRE_MULT]   = &gxbb_hdmi_pll_pre_mult.hw,
 		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
@@ -1609,7 +1583,7 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 	.hws = {
 		[CLKID_SYS_PLL]		    = &gxbb_sys_pll.hw,
-		[CLKID_HDMI_PLL]	    = &gxbb_hdmi_pll.hw,
+		[CLKID_HDMI_PLL]	    = &gxl_hdmi_pll.hw,
 		[CLKID_FIXED_PLL]	    = &gxbb_fixed_pll.hw,
 		[CLKID_FCLK_DIV2]	    = &gxbb_fclk_div2.hw,
 		[CLKID_FCLK_DIV3]	    = &gxbb_fclk_div3.hw,
@@ -1764,7 +1738,7 @@ static struct meson_clk_pll *const gxbb_clk_plls[] = {
 
 static struct meson_clk_pll *const gxl_clk_plls[] = {
 	&gxbb_fixed_pll,
-	&gxbb_hdmi_pll,
+	&gxl_hdmi_pll,
 	&gxbb_sys_pll,
 	&gxl_gp0_pll,
 };
