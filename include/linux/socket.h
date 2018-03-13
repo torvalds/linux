@@ -364,5 +364,6 @@ extern int __sys_sendto(int fd, void __user *buff, size_t len,
 extern int __sys_accept4(int fd, struct sockaddr __user *upeer_sockaddr,
 			 int __user *upeer_addrlen, int flags);
 extern int __sys_socket(int family, int type, int protocol);
+extern int __sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen);
 
 #endif /* _LINUX_SOCKET_H */

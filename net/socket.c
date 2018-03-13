@@ -1462,7 +1462,7 @@ out:
  *	the protocol layer (having also checked the address is ok).
  */
 
-SYSCALL_DEFINE3(bind, int, fd, struct sockaddr __user *, umyaddr, int, addrlen)
+int __sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
 {
 	struct socket *sock;
 	struct sockaddr_storage address;
@@ -1483,6 +1483,11 @@ SYSCALL_DEFINE3(bind, int, fd, struct sockaddr __user *, umyaddr, int, addrlen)
 		fput_light(sock->file, fput_needed);
 	}
 	return err;
+}
+
+SYSCALL_DEFINE3(bind, int, fd, struct sockaddr __user *, umyaddr, int, addrlen)
+{
+	return __sys_bind(fd, umyaddr, addrlen);
 }
 
 /*
@@ -2471,7 +2476,7 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 		err = __sys_socket(a0, a1, a[2]);
 		break;
 	case SYS_BIND:
-		err = sys_bind(a0, (struct sockaddr __user *)a1, a[2]);
+		err = __sys_bind(a0, (struct sockaddr __user *)a1, a[2]);
 		break;
 	case SYS_CONNECT:
 		err = sys_connect(a0, (struct sockaddr __user *)a1, a[2]);
