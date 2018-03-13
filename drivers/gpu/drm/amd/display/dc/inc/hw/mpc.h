@@ -113,6 +113,8 @@ struct mpcc_state {
 	uint32_t alpha_mode;
 	uint32_t pre_multiplied_alpha;
 	uint32_t overlap_only;
+	uint32_t idle;
+	uint32_t busy;
 };
 
 struct mpc_funcs {

@@ -422,7 +422,9 @@ void mpc1_read_mpcc_state(
 	REG_GET_4(MPCC_CONTROL[mpcc_inst], MPCC_MODE, &s->mode,
 			MPCC_ALPHA_BLND_MODE, &s->alpha_mode,
 			MPCC_ALPHA_MULTIPLIED_MODE, &s->pre_multiplied_alpha,
-			MPCC_BLND_ACTIVE_OVERLAP_ONLY, &s->pre_multiplied_alpha);
+			MPCC_BLND_ACTIVE_OVERLAP_ONLY, &s->overlap_only);
+	REG_GET_2(MPCC_STATUS[mpcc_inst], MPCC_IDLE, &s->idle,
+			MPCC_BUSY, &s->busy);
 }
 
 const struct mpc_funcs dcn10_mpc_funcs = {
