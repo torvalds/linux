@@ -1296,7 +1296,9 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		}
 	}
 
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	mr->live = 1;
+#endif
 	return &mr->ibmr;
 error:
 	ib_umem_release(umem);
@@ -1405,7 +1407,9 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		}
 
 		mr->allocated_from_cache = 0;
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 		mr->live = 1;
+#endif
 	} else {
 		/*
 		 * Send a UMR WQE
