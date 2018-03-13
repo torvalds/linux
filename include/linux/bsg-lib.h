@@ -40,7 +40,6 @@ struct bsg_buffer {
 struct bsg_job {
 	struct scsi_request sreq;
 	struct device *dev;
-	struct request *req;
 
 	struct kref kref;
 
