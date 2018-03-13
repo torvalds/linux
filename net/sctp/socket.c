@@ -1677,7 +1677,7 @@ static int sctp_sendmsg_new_asoc(struct sock *sk, __u16 sflags,
 	struct sctp_association *asoc;
 	enum sctp_scope scope;
 	struct cmsghdr *cmsg;
-	int err = -EINVAL;
+	int err;
 
 	*tp = NULL;
 
@@ -1761,16 +1761,20 @@ static int sctp_sendmsg_new_asoc(struct sock *sk, __u16 sflags,
 		memset(daddr, 0, sizeof(*daddr));
 		dlen = cmsg->cmsg_len - sizeof(struct cmsghdr);
 		if (cmsg->cmsg_type == SCTP_DSTADDRV4) {
-			if (dlen < sizeof(struct in_addr))
+			if (dlen < sizeof(struct in_addr)) {
+				err = -EINVAL;
 				goto free;
+			}
 
 			dlen = sizeof(struct in_addr);
 			daddr->v4.sin_family = AF_INET;
 			daddr->v4.sin_port = htons(asoc->peer.port);
 			memcpy(&daddr->v4.sin_addr, CMSG_DATA(cmsg), dlen);
 		} else {
-			if (dlen < sizeof(struct in6_addr))
+			if (dlen < sizeof(struct in6_addr)) {
+				err = -EINVAL;
 				goto free;
+			}
 
 			dlen = sizeof(struct in6_addr);
 			daddr->v6.sin6_family = AF_INET6;
