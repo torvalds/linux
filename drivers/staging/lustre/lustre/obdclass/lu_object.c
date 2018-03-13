@@ -1407,7 +1407,7 @@ void lu_context_key_degister(struct lu_context_key *key)
 	while (atomic_read(&key->lct_used) > 1) {
 		spin_unlock(&lu_keys_guard);
 		CDEBUG(D_INFO, "%s: \"%s\" %p, %d\n",
-		       __func__, key->lct_owner ? key->lct_owner->name : "",
+		       __func__, module_name(key->lct_owner),
 		       key, atomic_read(&key->lct_used));
 		schedule();
 		spin_lock(&lu_keys_guard);
@@ -1547,7 +1547,7 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 			spin_unlock(&lu_keys_guard);
 			CDEBUG(D_INFO, "%s: \"%s\" %p, %d (%d)\n",
 			       __func__,
-			       key->lct_owner ? key->lct_owner->name : "",
+			       module_name(key->lct_owner),
 			       key, atomic_read(&key->lct_used),
 			atomic_read(&lu_key_initing_cnt));
 			schedule();
