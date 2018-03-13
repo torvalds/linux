@@ -585,7 +585,6 @@ int smu7_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 int smu7_init(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_smumgr *smu_data;
-	uint8_t *internal_buf;
 	uint64_t mc_addr = 0;
 	int r;
 	/* Allocate memory for backend private data */
@@ -627,7 +626,6 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 					&smu_data->header_buffer.kaddr);
 		return -EINVAL;
 	}
-	internal_buf = smu_data->smu_buffer.kaddr;
 	smu_data->smu_buffer.mc_addr = mc_addr;
 
 	if (smum_is_hw_avfs_present(hwmgr))
