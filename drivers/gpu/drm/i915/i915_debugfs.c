@@ -4345,8 +4345,9 @@ static void cherryview_sseu_device_status(struct drm_i915_private *dev_priv,
 static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 				     struct sseu_dev_info *sseu)
 {
+#define SS_MAX 6
 	const struct intel_device_info *info = INTEL_INFO(dev_priv);
-	u32 s_reg[6], eu_reg[2 * 4], eu_mask[2];
+	u32 s_reg[SS_MAX], eu_reg[2 * SS_MAX], eu_mask[2];
 	int s, ss;
 
 	for (s = 0; s < info->sseu.max_slices; s++) {
@@ -4394,13 +4395,15 @@ static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 						      eu_cnt);
 		}
 	}
+#undef SS_MAX
 }
 
 static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 				    struct sseu_dev_info *sseu)
 {
+#define SS_MAX 3
 	const struct intel_device_info *info = INTEL_INFO(dev_priv);
-	u32 s_reg[3], eu_reg[2 * 4], eu_mask[2];
+	u32 s_reg[SS_MAX], eu_reg[2 * SS_MAX], eu_mask[2];
 	int s, ss;
 
 	for (s = 0; s < info->sseu.max_slices; s++) {
@@ -4448,6 +4451,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 						      eu_cnt);
 		}
 	}
+#undef SS_MAX
 }
 
 static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
