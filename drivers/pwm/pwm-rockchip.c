@@ -111,6 +111,7 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 {
 	struct rockchip_pwm_chip *pc = to_rockchip_pwm_chip(chip);
 	unsigned long period, duty;
+	unsigned long flags;
 	u64 clk_rate, div;
 	u32 ctrl;
 
@@ -128,6 +129,7 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	div = clk_rate * state->duty_cycle;
 	duty = DIV_ROUND_CLOSEST_ULL(div, pc->data->prescaler * NSEC_PER_SEC);
 
+	local_irq_save(flags);
 	/*
 	 * Lock the period and duty of previous configuration, then
 	 * change the duty and period, that would not be effective.
@@ -139,6 +141,7 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		else
 			ctrl &= ~PWM_ENABLE;
 	}
+
 	if (pc->data->supports_lock) {
 		ctrl |= PWM_LOCK_EN;
 		writel_relaxed(ctrl, pc->base + pc->data->regs.ctrl);
@@ -164,6 +167,7 @@ static void rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		ctrl &= ~PWM_LOCK_EN;
 
 	writel(ctrl, pc->base + pc->data->regs.ctrl);
+	local_irq_restore(flags);
 }
 
 static int rockchip_pwm_enable(struct pwm_chip *chip,
