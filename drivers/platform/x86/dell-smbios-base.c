@@ -637,7 +637,7 @@ static void __exit dell_smbios_exit(void)
 	mutex_unlock(&smbios_mutex);
 }
 
-subsys_initcall(dell_smbios_init);
+module_init(dell_smbios_init);
 module_exit(dell_smbios_exit);
 
 MODULE_AUTHOR("Matthew Garrett <mjg@redhat.com>");
