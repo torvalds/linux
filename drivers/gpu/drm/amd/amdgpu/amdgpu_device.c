@@ -1902,6 +1902,12 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		amdgpu_virt_request_full_gpu(adev, false);
 
+	/* ungate SMC block powergating */
+	if (adev->powerplay.pp_feature & PP_GFXOFF_MASK)
+		amdgpu_device_ip_set_powergating_state(adev,
+						       AMD_IP_BLOCK_TYPE_SMC,
+						       AMD_CG_STATE_UNGATE);
+
 	/* ungate SMC block first */
 	r = amdgpu_device_ip_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_SMC,
 						   AMD_CG_STATE_UNGATE);
