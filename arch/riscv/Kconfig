@@ -289,7 +289,7 @@ config CMDLINE_BOOL
 	  in CONFIG_CMDLINE.
 
 	  The built-in options will be concatenated to the default command
-	  line if CMDLINE_OVERRIDE is set to 'N'. Otherwise, the default
+	  line if CMDLINE_FORCE is set to 'N'. Otherwise, the default
 	  command line will be ignored and replaced by the built-in string.
 
 config CMDLINE
@@ -299,7 +299,7 @@ config CMDLINE
 	help
 	  Supply command-line options at build time by entering them here.
 
-config CMDLINE_OVERRIDE
+config CMDLINE_FORCE
 	bool "Built-in command line overrides bootloader arguments"
 	depends on CMDLINE_BOOL
 	help
