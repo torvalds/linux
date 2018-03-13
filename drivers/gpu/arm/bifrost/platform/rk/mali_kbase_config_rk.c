@@ -172,6 +172,7 @@ static void kbase_platform_rk_term(struct kbase_device *kbdev)
 	kbdev->platform_context = NULL;
 
 	if (platform) {
+		cancel_delayed_work_sync(&platform->work);
 		wake_lock_destroy(&platform->wake_lock);
 		destroy_workqueue(platform->power_off_wq);
 		platform->is_powered = false;
