@@ -823,7 +823,7 @@ COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
 		ret = sys_listen(a0, a1);
 		break;
 	case SYS_ACCEPT:
-		ret = sys_accept4(a0, compat_ptr(a1), compat_ptr(a[2]), 0);
+		ret = __sys_accept4(a0, compat_ptr(a1), compat_ptr(a[2]), 0);
 		break;
 	case SYS_GETSOCKNAME:
 		ret = sys_getsockname(a0, compat_ptr(a1), compat_ptr(a[2]));
@@ -873,7 +873,7 @@ COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
 					  compat_ptr(a[4]));
 		break;
 	case SYS_ACCEPT4:
-		ret = sys_accept4(a0, compat_ptr(a1), compat_ptr(a[2]), a[3]);
+		ret = __sys_accept4(a0, compat_ptr(a1), compat_ptr(a[2]), a[3]);
 		break;
 	default:
 		ret = -EINVAL;
