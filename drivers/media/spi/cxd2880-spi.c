@@ -88,7 +88,7 @@ static int cxd2880_write_reg(struct spi_device *spi,
 		pr_err("invalid arg\n");
 		return -EINVAL;
 	}
-	if (size > BURST_WRITE_MAX) {
+	if (size > BURST_WRITE_MAX || size > U8_MAX) {
 		pr_err("data size > WRITE_MAX\n");
 		return -EINVAL;
 	}
@@ -101,24 +101,14 @@ static int cxd2880_write_reg(struct spi_device *spi,
 	send_data[0] = 0x0e;
 	write_data_top = data;
 
-	while (size > 0) {
-		send_data[1] = sub_address;
-		if (size > 255)
-			send_data[2] = 255;
-		else
-			send_data[2] = (u8)size;
+	send_data[1] = sub_address;
+	send_data[2] = (u8)size;
 
-		memcpy(&send_data[3], write_data_top, send_data[2]);
+	memcpy(&send_data[3], write_data_top, send_data[2]);
 
-		ret = cxd2880_write_spi(spi, send_data, send_data[2] + 3);
-		if (ret) {
-			pr_err("write spi failed %d\n", ret);
-			break;
-		}
-		sub_address += send_data[2];
-		write_data_top += send_data[2];
-		size -= send_data[2];
-	}
+	ret = cxd2880_write_spi(spi, send_data, send_data[2] + 3);
+	if (ret)
+		pr_err("write spi failed %d\n", ret);
 
 	return ret;
 }
