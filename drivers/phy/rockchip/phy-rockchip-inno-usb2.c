@@ -30,7 +30,7 @@
 
 #define BIT_WRITEABLE_SHIFT	16
 #define SCHEDULE_DELAY		(60 * HZ)
-#define OTG_SCHEDULE_DELAY	(2 * HZ)
+#define OTG_SCHEDULE_DELAY	(1 * HZ)
 #define BYPASS_SCHEDULE_DELAY	(2 * HZ)
 
 struct rockchip_usb2phy;
@@ -123,6 +123,9 @@ struct rockchip_chg_det_reg {
  * @bypass_dm_en: usb bypass uart DM enable register.
  * @bypass_sel: usb bypass uart select register.
  * @bypass_iomux: usb bypass uart GRF iomux register.
+ * @bypass_bc: bypass battery charging module.
+ * @bypass_otg: bypass otg module.
+ * @bypass_host: bypass host module.
  * @ls_det_en: linestate detection enable register.
  * @ls_det_st: linestate detection state register.
  * @ls_det_clr: linestate detection clear register.
@@ -150,6 +153,9 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	bypass_dm_en;
 	struct usb2phy_reg	bypass_sel;
 	struct usb2phy_reg	bypass_iomux;
+	struct usb2phy_reg	bypass_bc;
+	struct usb2phy_reg	bypass_otg;
+	struct usb2phy_reg	bypass_host;
 	struct usb2phy_reg	ls_det_en;
 	struct usb2phy_reg	ls_det_st;
 	struct usb2phy_reg	ls_det_clr;
@@ -191,7 +197,9 @@ struct rockchip_usb2phy_cfg {
  * struct rockchip_usb2phy_port - usb-phy port data.
  * @phy: generic phy.
  * @port_id: flag for otg port or host port.
+ * @low_power_en: enable enter low power when suspend.
  * @perip_connected: flag for periphyeral connect status.
+ * @prev_iddig: previous otg port id pin status.
  * @suspended: phy suspended flag.
  * @utmi_avalid: utmi avalid status usage flag.
  *	true	- use avalid to get vbus status
@@ -219,7 +227,9 @@ struct rockchip_usb2phy_cfg {
 struct rockchip_usb2phy_port {
 	struct phy	*phy;
 	unsigned int	port_id;
+	bool		low_power_en;
 	bool		perip_connected;
+	bool		prev_iddig;
 	bool		suspended;
 	bool		utmi_avalid;
 	bool		vbus_attached;
@@ -634,7 +644,7 @@ static int rockchip_usb2phy_init(struct phy *phy)
 		}
 
 		schedule_delayed_work(&rport->otg_sm_work,
-				      OTG_SCHEDULE_DELAY * 3);
+				      OTG_SCHEDULE_DELAY);
 	} else if (rport->port_id == USB2PHY_PORT_HOST) {
 		/* clear linestate and enable linestate detect irq */
 		ret = rockchip_usb2phy_enable_line_irq(rphy, rport, true);
@@ -1062,7 +1072,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 			rport->perip_connected = false;
 			rphy->chg_state = USB_CHG_STATE_UNDEFINED;
 			rphy->chg_type = POWER_SUPPLY_TYPE_UNKNOWN;
-			delay = OTG_SCHEDULE_DELAY * 2;
+			delay = OTG_SCHEDULE_DELAY;
 		}
 		sch_work = true;
 		break;
@@ -1256,7 +1266,6 @@ static void rockchip_chg_detect_work(struct work_struct *work)
 		fallthrough;
 	case USB_CHG_STATE_SECONDARY_DONE:
 		rphy->chg_state = USB_CHG_STATE_DETECTED;
-		delay = 0;
 		fallthrough;
 	case USB_CHG_STATE_DETECTED:
 		/* put the controller in normal mode */
@@ -1501,6 +1510,10 @@ static int rockchip_usb2phy_host_port_init(struct rockchip_usb2phy *rphy,
 	rport->port_id = USB2PHY_PORT_HOST;
 	rport->port_cfg = &rphy->phy_cfg->port_cfgs[USB2PHY_PORT_HOST];
 
+	/* enter lower power state when suspend */
+	rport->low_power_en =
+		of_property_read_bool(child_np, "rockchip,low-power-mode");
+
 	mutex_init(&rport->mutex);
 	INIT_DELAYED_WORK(&rport->sm_work, rockchip_usb2phy_sm_work);
 
@@ -1557,6 +1570,7 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	rport->vbus_attached = false;
 	rport->vbus_enabled = false;
 	rport->perip_connected = false;
+	rport->prev_iddig = true;
 
 	mutex_init(&rport->mutex);
 
@@ -1567,6 +1581,10 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		of_property_read_bool(child_np, "rockchip,vbus-always-on");
 	rport->utmi_avalid =
 		of_property_read_bool(child_np, "rockchip,utmi-avalid");
+
+	/* enter lower power state when suspend */
+	rport->low_power_en =
+		of_property_read_bool(child_np, "rockchip,low-power-mode");
 
 	/* Get Vbus regulators */
 	rport->vbus = devm_regulator_get_optional(&rport->phy->dev, "vbus");
@@ -1867,6 +1885,42 @@ disable_clks:
 	return ret;
 }
 
+static int __maybe_unused
+rockchip_usb2phy_low_power_enable(struct rockchip_usb2phy *rphy,
+				  struct rockchip_usb2phy_port *rport,
+				  bool value)
+{
+	int ret = 0;
+
+	if (!rport->low_power_en)
+		return ret;
+
+	if (rport->port_id == USB2PHY_PORT_OTG) {
+		dev_info(&rport->phy->dev, "set otg port low power state %d\n",
+			 value);
+		ret = property_enable(rphy->grf, &rport->port_cfg->bypass_bc,
+				      value);
+		if (ret)
+			return ret;
+
+		ret = property_enable(rphy->grf, &rport->port_cfg->bypass_otg,
+				      value);
+		if (ret)
+			return ret;
+
+		ret = property_enable(rphy->grf, &rport->port_cfg->vbus_det_en,
+				      !value);
+	} else if (rport->port_id == USB2PHY_PORT_HOST) {
+		dev_info(&rport->phy->dev, "set host port low power state %d\n",
+			 value);
+
+		ret = property_enable(rphy->grf, &rport->port_cfg->bypass_host,
+				      value);
+	}
+
+	return ret;
+}
+
 static int rk312x_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
 	int ret;
@@ -2034,6 +2088,8 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 		if (rport->port_id == USB2PHY_PORT_OTG &&
 		    rport->id_irq > 0) {
 			mutex_lock(&rport->mutex);
+			rport->prev_iddig = property_enabled(rphy->grf,
+						&rport->port_cfg->utmi_iddig);
 			ret = rockchip_usb2phy_enable_id_irq(rphy, rport,
 							     false);
 			mutex_unlock(&rport->mutex);
@@ -2052,6 +2108,9 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 			dev_err(rphy->dev, "failed to enable linestate irq\n");
 			return ret;
 		}
+
+		/* enter low power state */
+		rockchip_usb2phy_low_power_enable(rphy, rport, true);
 	}
 
 	return ret;
@@ -2062,6 +2121,7 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
 	struct rockchip_usb2phy_port *rport;
 	unsigned int index;
+	bool iddig;
 	int ret = 0;
 
 	if (rphy->phy_cfg->phy_tuning)
@@ -2075,6 +2135,8 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 		if (rport->port_id == USB2PHY_PORT_OTG &&
 		    rport->id_irq > 0) {
 			mutex_lock(&rport->mutex);
+			iddig = property_enabled(rphy->grf,
+						 &rport->port_cfg->utmi_iddig);
 			ret = rockchip_usb2phy_enable_id_irq(rphy, rport,
 							     true);
 			mutex_unlock(&rport->mutex);
@@ -2084,23 +2146,24 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 				return ret;
 			}
 
-			if (!property_enabled(rphy->grf,
-					      &rport->port_cfg->utmi_iddig) &&
-			    !extcon_get_state(rphy->edev, EXTCON_USB_HOST)) {
+			if (iddig != rport->prev_iddig) {
 				dev_dbg(&rport->phy->dev,
-					"port power on when resume\n");
+					"iddig changed during resume\n");
+				rport->prev_iddig = iddig;
 				extcon_set_state_sync(rphy->edev,
 						      EXTCON_USB_HOST,
-						      true);
-				/* Enable VBUS supply */
+						      !iddig);
 				extcon_set_state_sync(rphy->edev,
 						      EXTCON_USB_VBUS_EN,
-						      true);
-				ret = rockchip_set_vbus_power(rport, true);
+						      !iddig);
+				ret = rockchip_set_vbus_power(rport, !iddig);
 				if (ret)
 					return ret;
 			}
 		}
+
+		/* exit low power state */
+		rockchip_usb2phy_low_power_enable(rphy, rport, false);
 	}
 
 	return ret;
@@ -2303,6 +2366,8 @@ static const struct rockchip_usb2phy_cfg rk3328_phy_cfgs[] = {
 				.bvalid_det_en	= { 0x0110, 2, 2, 0, 1 },
 				.bvalid_det_st	= { 0x0114, 2, 2, 0, 1 },
 				.bvalid_det_clr = { 0x0118, 2, 2, 0, 1 },
+				.bypass_bc      = { 0x0008, 14, 14, 0, 1 },
+				.bypass_otg     = { 0x0018, 15, 15, 1, 0 },
 				.iddig_output   = { 0x0100, 10, 10, 0, 1 },
 				.iddig_en       = { 0x0100, 9, 9, 0, 1 },
 				.idfall_det_en	= { 0x0110, 5, 5, 0, 1 },
@@ -2322,6 +2387,7 @@ static const struct rockchip_usb2phy_cfg rk3328_phy_cfgs[] = {
 			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0x104, 8, 0, 0, 0x1d1 },
+				.bypass_host	= { 0x048, 15, 15, 1, 0 },
 				.ls_det_en	= { 0x110, 1, 1, 0, 1 },
 				.ls_det_st	= { 0x114, 1, 1, 0, 1 },
 				.ls_det_clr	= { 0x118, 1, 1, 0, 1 },

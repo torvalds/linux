@@ -135,6 +135,10 @@ properties:
        $ref: /schemas/types.yaml#/definitions/flag
        description: when set, indicates that the otg vbus is always powered on.
 
+     rockchip,low-power-mode:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, the port will enter low power state when suspend.
+
     required:
       - "#phy-cells"
       - interrupts
