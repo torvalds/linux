@@ -293,7 +293,7 @@ void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv)
 static void mlx5e_rep_neigh_update_init_interval(struct mlx5e_rep_priv *rpriv)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	unsigned long ipv6_interval = NEIGH_VAR(&ipv6_stub->nd_tbl->parms,
+	unsigned long ipv6_interval = NEIGH_VAR(&nd_tbl.parms,
 						DELAY_PROBE_TIME);
 #else
 	unsigned long ipv6_interval = ~0UL;
@@ -429,7 +429,7 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 	case NETEVENT_NEIGH_UPDATE:
 		n = ptr;
 #if IS_ENABLED(CONFIG_IPV6)
-		if (n->tbl != ipv6_stub->nd_tbl && n->tbl != &arp_tbl)
+		if (n->tbl != &nd_tbl && n->tbl != &arp_tbl)
 #else
 		if (n->tbl != &arp_tbl)
 #endif
@@ -477,7 +477,7 @@ static int mlx5e_rep_netevent_event(struct notifier_block *nb,
 		 * done per device delay prob time parameter.
 		 */
 #if IS_ENABLED(CONFIG_IPV6)
-		if (!p->dev || (p->tbl != ipv6_stub->nd_tbl && p->tbl != &arp_tbl))
+		if (!p->dev || (p->tbl != &nd_tbl && p->tbl != &arp_tbl))
 #else
 		if (!p->dev || p->tbl != &arp_tbl)
 #endif
