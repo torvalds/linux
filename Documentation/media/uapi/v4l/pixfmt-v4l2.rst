@@ -40,7 +40,7 @@ Single-planar format structure
 	RGB formats in :ref:`rgb-formats`, YUV formats in
 	:ref:`yuv-formats`, and reserved codes in
 	:ref:`reserved-formats`
-    * - enum :c:type::`v4l2_field`
+    * - enum :c:type:`v4l2_field`
       - ``field``
       - Video images are typically interlaced. Applications can request to
 	capture or output only the top or bottom field, or both fields
