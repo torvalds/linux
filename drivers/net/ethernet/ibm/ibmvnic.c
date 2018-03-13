@@ -1351,6 +1351,8 @@ static int ibmvnic_xmit_workarounds(struct sk_buff *skb,
 	 */
 	if (skb->len < netdev->min_mtu)
 		return skb_put_padto(skb, netdev->min_mtu);
+
+	return 0;
 }
 
 static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
@@ -1390,7 +1392,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto out;
 	}
 
-	if (ibmvnic_xmit_workarounds(skb, adapter)) {
+	if (ibmvnic_xmit_workarounds(skb, netdev)) {
 		tx_dropped++;
 		tx_send_failed++;
 		ret = NETDEV_TX_OK;
