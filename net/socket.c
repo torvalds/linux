@@ -1767,10 +1767,8 @@ SYSCALL_DEFINE4(send, int, fd, void __user *, buff, size_t, len,
  *	sender. We verify the buffers are writable and if needed move the
  *	sender address from kernel to user space.
  */
-
-SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, ubuf, size_t, size,
-		unsigned int, flags, struct sockaddr __user *, addr,
-		int __user *, addr_len)
+int __sys_recvfrom(int fd, void __user *ubuf, size_t size, unsigned int flags,
+		   struct sockaddr __user *addr, int __user *addr_len)
 {
 	struct socket *sock;
 	struct iovec iov;
@@ -1810,6 +1808,13 @@ out:
 	return err;
 }
 
+SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, ubuf, size_t, size,
+		unsigned int, flags, struct sockaddr __user *, addr,
+		int __user *, addr_len)
+{
+	return __sys_recvfrom(fd, ubuf, size, flags, addr, addr_len);
+}
+
 /*
  *	Receive a datagram from a socket.
  */
@@ -1817,7 +1822,7 @@ out:
 SYSCALL_DEFINE4(recv, int, fd, void __user *, ubuf, size_t, size,
 		unsigned int, flags)
 {
-	return sys_recvfrom(fd, ubuf, size, flags, NULL, NULL);
+	return __sys_recvfrom(fd, ubuf, size, flags, NULL, NULL);
 }
 
 /*
@@ -2486,9 +2491,9 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 		err = sys_recv(a0, (void __user *)a1, a[2], a[3]);
 		break;
 	case SYS_RECVFROM:
-		err = sys_recvfrom(a0, (void __user *)a1, a[2], a[3],
-				   (struct sockaddr __user *)a[4],
-				   (int __user *)a[5]);
+		err = __sys_recvfrom(a0, (void __user *)a1, a[2], a[3],
+				     (struct sockaddr __user *)a[4],
+				     (int __user *)a[5]);
 		break;
 	case SYS_SHUTDOWN:
 		err = sys_shutdown(a0, a1);

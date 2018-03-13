@@ -353,4 +353,10 @@ extern int __sys_recvmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen
 			  unsigned int flags, struct timespec *timeout);
 extern int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg,
 			  unsigned int vlen, unsigned int flags);
+
+/* helpers which do the actual work for syscalls */
+extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
+			  unsigned int flags, struct sockaddr __user *addr,
+			  int __user *addr_len);
+
 #endif /* _LINUX_SOCKET_H */
