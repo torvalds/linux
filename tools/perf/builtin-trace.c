@@ -1962,7 +1962,7 @@ static int trace__event_handler(struct trace *trace, struct perf_evsel *evsel,
 				      trace->output);
 	}
 
-	fprintf(trace->output, ")\n");
+	fprintf(trace->output, "\n");
 
 	if (callchain_ret > 0)
 		trace__fprintf_callchain(trace, sample);
