@@ -766,6 +766,7 @@ enum fw_cmd_opcodes {
 	FW_DEVLOG_CMD                  = 0x25,
 	FW_CLIP_CMD                    = 0x28,
 	FW_PTP_CMD                     = 0x3e,
+	FW_HMA_CMD                     = 0x3f,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
 	FW_DEBUG_CMD                   = 0x81,
@@ -1132,6 +1133,7 @@ enum fw_memtype_cf {
 	FW_MEMTYPE_CF_FLASH		= 0x4,
 	FW_MEMTYPE_CF_INTERNAL		= 0x5,
 	FW_MEMTYPE_CF_EXTMEM1           = 0x6,
+	FW_MEMTYPE_CF_HMA		= 0x7,
 };
 
 struct fw_caps_config_cmd {
@@ -1210,6 +1212,7 @@ enum fw_params_param_dev {
 	FW_PARAMS_PARAM_DEV_RI_FR_NSMR_TPTE_WR	= 0x1C,
 	FW_PARAMS_PARAM_DEV_FILTER2_WR  = 0x1D,
 	FW_PARAMS_PARAM_DEV_MPSBGMAP	= 0x1E,
+	FW_PARAMS_PARAM_DEV_HMA_SIZE	= 0x20,
 };
 
 /*
@@ -3434,6 +3437,59 @@ struct fw_debug_cmd {
 #define FW_DEBUG_CMD_TYPE_M	0xff
 #define FW_DEBUG_CMD_TYPE_G(x)	\
 	(((x) >> FW_DEBUG_CMD_TYPE_S) & FW_DEBUG_CMD_TYPE_M)
+
+struct fw_hma_cmd {
+	__be32 op_pkd;
+	__be32 retval_len16;
+	__be32 mode_to_pcie_params;
+	__be32 naddr_size;
+	__be32 addr_size_pkd;
+	__be32 r6;
+	__be64 phy_address[5];
+};
+
+#define FW_HMA_CMD_MODE_S	31
+#define FW_HMA_CMD_MODE_M	0x1
+#define FW_HMA_CMD_MODE_V(x)	((x) << FW_HMA_CMD_MODE_S)
+#define FW_HMA_CMD_MODE_G(x)	\
+	(((x) >> FW_HMA_CMD_MODE_S) & FW_HMA_CMD_MODE_M)
+#define FW_HMA_CMD_MODE_F	FW_HMA_CMD_MODE_V(1U)
+
+#define FW_HMA_CMD_SOC_S	30
+#define FW_HMA_CMD_SOC_M	0x1
+#define FW_HMA_CMD_SOC_V(x)	((x) << FW_HMA_CMD_SOC_S)
+#define FW_HMA_CMD_SOC_G(x)	(((x) >> FW_HMA_CMD_SOC_S) & FW_HMA_CMD_SOC_M)
+#define FW_HMA_CMD_SOC_F	FW_HMA_CMD_SOC_V(1U)
+
+#define FW_HMA_CMD_EOC_S	29
+#define FW_HMA_CMD_EOC_M	0x1
+#define FW_HMA_CMD_EOC_V(x)	((x) << FW_HMA_CMD_EOC_S)
+#define FW_HMA_CMD_EOC_G(x)	(((x) >> FW_HMA_CMD_EOC_S) & FW_HMA_CMD_EOC_M)
+#define FW_HMA_CMD_EOC_F	FW_HMA_CMD_EOC_V(1U)
+
+#define FW_HMA_CMD_PCIE_PARAMS_S	0
+#define FW_HMA_CMD_PCIE_PARAMS_M	0x7ffffff
+#define FW_HMA_CMD_PCIE_PARAMS_V(x)	((x) << FW_HMA_CMD_PCIE_PARAMS_S)
+#define FW_HMA_CMD_PCIE_PARAMS_G(x)	\
+	(((x) >> FW_HMA_CMD_PCIE_PARAMS_S) & FW_HMA_CMD_PCIE_PARAMS_M)
+
+#define FW_HMA_CMD_NADDR_S	12
+#define FW_HMA_CMD_NADDR_M	0x3f
+#define FW_HMA_CMD_NADDR_V(x)	((x) << FW_HMA_CMD_NADDR_S)
+#define FW_HMA_CMD_NADDR_G(x)	\
+	(((x) >> FW_HMA_CMD_NADDR_S) & FW_HMA_CMD_NADDR_M)
+
+#define FW_HMA_CMD_SIZE_S	0
+#define FW_HMA_CMD_SIZE_M	0xfff
+#define FW_HMA_CMD_SIZE_V(x)	((x) << FW_HMA_CMD_SIZE_S)
+#define FW_HMA_CMD_SIZE_G(x)	\
+	(((x) >> FW_HMA_CMD_SIZE_S) & FW_HMA_CMD_SIZE_M)
+
+#define FW_HMA_CMD_ADDR_SIZE_S		11
+#define FW_HMA_CMD_ADDR_SIZE_M		0x1fffff
+#define FW_HMA_CMD_ADDR_SIZE_V(x)	((x) << FW_HMA_CMD_ADDR_SIZE_S)
+#define FW_HMA_CMD_ADDR_SIZE_G(x)	\
+	(((x) >> FW_HMA_CMD_ADDR_SIZE_S) & FW_HMA_CMD_ADDR_SIZE_M)
 
 enum pcie_fw_eval {
 	PCIE_FW_EVAL_CRASH = 0,

@@ -2617,7 +2617,7 @@ int mem_open(struct inode *inode, struct file *file)
 
 	file->private_data = inode->i_private;
 
-	mem = (uintptr_t)file->private_data & 0x3;
+	mem = (uintptr_t)file->private_data & 0x7;
 	adap = file->private_data - mem;
 
 	(void)t4_fwcache(adap, FW_PARAM_DEV_FWCACHE_FLUSH);
@@ -2630,7 +2630,7 @@ static ssize_t mem_read(struct file *file, char __user *buf, size_t count,
 {
 	loff_t pos = *ppos;
 	loff_t avail = file_inode(file)->i_size;
-	unsigned int mem = (uintptr_t)file->private_data & 3;
+	unsigned int mem = (uintptr_t)file->private_data & 0x7;
 	struct adapter *adap = file->private_data - mem;
 	__be32 *data;
 	int ret;
@@ -3041,6 +3041,12 @@ int t4_setup_debugfs(struct adapter *adap)
 			size = t4_read_reg(adap, MA_EXT_MEMORY_BAR_A);
 			add_debugfs_mem(adap, "mc", MEM_MC,
 					EXT_MEM_SIZE_G(size));
+		}
+
+		if (i & HMA_MUX_F) {
+			size = t4_read_reg(adap, MA_EXT_MEMORY1_BAR_A);
+			add_debugfs_mem(adap, "hma", MEM_HMA,
+					EXT_MEM1_SIZE_G(size));
 		}
 	}
 

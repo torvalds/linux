@@ -487,7 +487,7 @@ static int t4_edc_err_read(struct adapter *adap, int idx)
  * t4_memory_rw_init - Get memory window relative offset, base, and size.
  * @adap: the adapter
  * @win: PCI-E Memory Window to use
- * @mtype: memory type: MEM_EDC0, MEM_EDC1 or MEM_MC
+ * @mtype: memory type: MEM_EDC0, MEM_EDC1, MEM_HMA or MEM_MC
  * @mem_off: memory relative offset with respect to @mtype.
  * @mem_base: configured memory base address.
  * @mem_aperture: configured memory window aperture.

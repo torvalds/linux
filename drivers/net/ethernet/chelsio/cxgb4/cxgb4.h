@@ -831,6 +831,16 @@ struct vf_info {
 	u16 vlan;
 };
 
+enum {
+	HMA_DMA_MAPPED_FLAG = 1
+};
+
+struct hma_data {
+	unsigned char flags;
+	struct sg_table *sgt;
+	dma_addr_t *phy_addr;	/* physical address of the page */
+};
+
 struct mbox_list {
 	struct list_head list;
 };
@@ -946,6 +956,9 @@ struct adapter {
 
 	/* Ethtool Dump */
 	struct ethtool_dump eth_dump;
+
+	/* HMA */
+	struct hma_data hma;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
