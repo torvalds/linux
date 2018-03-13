@@ -1633,8 +1633,7 @@ SYSCALL_DEFINE3(accept, int, fd, struct sockaddr __user *, upeer_sockaddr,
  *	include the -EINPROGRESS status for such sockets.
  */
 
-SYSCALL_DEFINE3(connect, int, fd, struct sockaddr __user *, uservaddr,
-		int, addrlen)
+int __sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
 {
 	struct socket *sock;
 	struct sockaddr_storage address;
@@ -1658,6 +1657,12 @@ out_put:
 	fput_light(sock->file, fput_needed);
 out:
 	return err;
+}
+
+SYSCALL_DEFINE3(connect, int, fd, struct sockaddr __user *, uservaddr,
+		int, addrlen)
+{
+	return __sys_connect(fd, uservaddr, addrlen);
 }
 
 /*
@@ -2479,7 +2484,7 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 		err = __sys_bind(a0, (struct sockaddr __user *)a1, a[2]);
 		break;
 	case SYS_CONNECT:
-		err = sys_connect(a0, (struct sockaddr __user *)a1, a[2]);
+		err = __sys_connect(a0, (struct sockaddr __user *)a1, a[2]);
 		break;
 	case SYS_LISTEN:
 		err = sys_listen(a0, a1);
