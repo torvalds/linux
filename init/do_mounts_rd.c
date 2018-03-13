@@ -218,7 +218,7 @@ int __init rd_load_image(char *from)
 	 * NOTE NOTE: nblocks is not actually blocks but
 	 * the number of kibibytes of data to load into a ramdisk.
 	 */
-	if (sys_ioctl(out_fd, BLKGETSIZE, (unsigned long)&rd_blocks) < 0)
+	if (ksys_ioctl(out_fd, BLKGETSIZE, (unsigned long)&rd_blocks) < 0)
 		rd_blocks = 0;
 	else
 		rd_blocks >>= 1;
@@ -232,7 +232,7 @@ int __init rd_load_image(char *from)
 	/*
 	 * OK, time to copy in the data
 	 */
-	if (sys_ioctl(in_fd, BLKGETSIZE, (unsigned long)&devblocks) < 0)
+	if (ksys_ioctl(in_fd, BLKGETSIZE, (unsigned long)&devblocks) < 0)
 		devblocks = 0;
 	else
 		devblocks >>= 1;
