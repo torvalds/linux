@@ -91,7 +91,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	 * Read block 0 to test for compressed kernel
 	 */
 	ksys_lseek(fd, start_block * BLOCK_SIZE, 0);
-	sys_read(fd, buf, size);
+	ksys_read(fd, buf, size);
 
 	*decompressor = decompress_method(buf, size, &compress_name);
 	if (compress_name) {
@@ -137,7 +137,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	 * Read 512 bytes further to check if cramfs is padded
 	 */
 	ksys_lseek(fd, start_block * BLOCK_SIZE + 0x200, 0);
-	sys_read(fd, buf, size);
+	ksys_read(fd, buf, size);
 
 	if (cramfsb->magic == CRAMFS_MAGIC) {
 		printk(KERN_NOTICE
@@ -151,7 +151,7 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	 * Read block 1 to test for minix and ext2 superblock
 	 */
 	ksys_lseek(fd, (start_block+1) * BLOCK_SIZE, 0);
-	sys_read(fd, buf, size);
+	ksys_read(fd, buf, size);
 
 	/* Try minix */
 	if (minixsb->s_magic == MINIX_SUPER_MAGIC ||
@@ -269,7 +269,7 @@ int __init rd_load_image(char *from)
 			}
 			printk("Loading disk #%d... ", disk);
 		}
-		sys_read(in_fd, buf, BLOCK_SIZE);
+		ksys_read(in_fd, buf, BLOCK_SIZE);
 		ksys_write(out_fd, buf, BLOCK_SIZE);
 #if !defined(CONFIG_S390)
 		if (!(i % 16)) {
@@ -307,7 +307,7 @@ static int crd_infd, crd_outfd;
 
 static long __init compr_fill(void *buf, unsigned long len)
 {
-	long r = sys_read(crd_infd, buf, len);
+	long r = ksys_read(crd_infd, buf, len);
 	if (r < 0)
 		printk(KERN_ERR "RAMDISK: error while reading compressed data");
 	else if (r == 0)

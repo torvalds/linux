@@ -460,7 +460,7 @@ COMPAT_SYSCALL_DEFINE3(s390_read, unsigned int, fd, char __user *, buf, compat_s
 	if ((compat_ssize_t) count < 0)
 		return -EINVAL; 
 
-	return sys_read(fd, buf, count);
+	return ksys_read(fd, buf, count);
 }
 
 COMPAT_SYSCALL_DEFINE3(s390_write, unsigned int, fd, const char __user *, buf, compat_size_t, count)
