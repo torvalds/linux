@@ -234,10 +234,10 @@ static int rv_smu_fini(struct pp_hwmgr *hwmgr)
 		rv_smc_disable_vcn(hwmgr);
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[SMU10_WMTABLE].handle,
 					&priv->smu_tables.entry[SMU10_WMTABLE].mc_addr,
-					priv->smu_tables.entry[SMU10_WMTABLE].table);
+					&priv->smu_tables.entry[SMU10_WMTABLE].table);
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[SMU10_CLOCKTABLE].handle,
 					&priv->smu_tables.entry[SMU10_CLOCKTABLE].mc_addr,
-					priv->smu_tables.entry[SMU10_CLOCKTABLE].table);
+					&priv->smu_tables.entry[SMU10_CLOCKTABLE].table);
 		kfree(hwmgr->smu_backend);
 		hwmgr->smu_backend = NULL;
 	}
