@@ -851,7 +851,7 @@
 			#size-cells = <1>;
 			ranges;
 
-			pcie0: qcom,pcie@600000 {
+			pcie0: pcie@600000 {
 				compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
 				status = "disabled";
 				power-domains = <&gcc PCIE0_GDSC>;
@@ -904,7 +904,7 @@
 
 			};
 
-			pcie1: qcom,pcie@608000 {
+			pcie1: pcie@608000 {
 				compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
 				power-domains = <&gcc PCIE1_GDSC>;
 				bus-range = <0x00 0xff>;
@@ -957,7 +957,7 @@
 						"bus_slave";
 			};
 
-			pcie2: qcom,pcie@610000 {
+			pcie2: pcie@610000 {
 				compatible = "qcom,pcie-msm8996", "snps,dw-pcie";
 				power-domains = <&gcc PCIE2_GDSC>;
 				bus-range = <0x00 0xff>;
