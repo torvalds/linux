@@ -74,8 +74,8 @@ Example:
 
 bcm2835_i2s: i2s@7e203000 {
 	compatible = "brcm,bcm2835-i2s";
-	reg = <	0x7e203000 0x20>,
-	      < 0x7e101098 0x02>;
+	reg = <	0x7e203000 0x24>;
+	clocks = <&clocks BCM2835_CLOCK_PCM>;
 
 	dmas = <&dma 2>,
 	       <&dma 3>;
