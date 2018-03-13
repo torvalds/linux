@@ -3846,6 +3846,12 @@ enum {
 #define   EDP_PSR_IDLE_FRAME_SHIFT		0
 
 #define EDP_PSR_AUX_CTL				_MMIO(dev_priv->psr_mmio_base + 0x10)
+#define   EDP_PSR_AUX_CTL_TIME_OUT_MASK		(3 << 26)
+#define   EDP_PSR_AUX_CTL_MESSAGE_SIZE_MASK	(0x1f << 20)
+#define   EDP_PSR_AUX_CTL_PRECHARGE_2US_MASK	(0xf << 16)
+#define   EDP_PSR_AUX_CTL_ERROR_INTERRUPT	(1 << 11)
+#define   EDP_PSR_AUX_CTL_BIT_CLOCK_2X_MASK	(0x7ff)
+
 #define EDP_PSR_AUX_DATA(i)			_MMIO(dev_priv->psr_mmio_base + 0x14 + (i) * 4) /* 5 registers */
 
 #define EDP_PSR_STATUS				_MMIO(dev_priv->psr_mmio_base + 0x40)
