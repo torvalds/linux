@@ -268,6 +268,12 @@ struct dm_target {
 	unsigned num_discard_bios;
 
 	/*
+	 * The number of secure erase bios that will be submitted to the target.
+	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
+	 */
+	unsigned num_secure_erase_bios;
+
+	/*
 	 * The number of WRITE SAME bios that will be submitted to the target.
 	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
 	 */

@@ -1414,6 +1414,11 @@ static unsigned get_num_discard_bios(struct dm_target *ti)
 	return ti->num_discard_bios;
 }
 
+static unsigned get_num_secure_erase_bios(struct dm_target *ti)
+{
+	return ti->num_secure_erase_bios;
+}
+
 static unsigned get_num_write_same_bios(struct dm_target *ti)
 {
 	return ti->num_write_same_bios;
@@ -1467,6 +1472,11 @@ static int __send_discard(struct clone_info *ci, struct dm_target *ti)
 					   is_split_required_for_discard);
 }
 
+static int __send_secure_erase(struct clone_info *ci, struct dm_target *ti)
+{
+	return __send_changing_extent_only(ci, ti, get_num_secure_erase_bios, NULL);
+}
+
 static int __send_write_same(struct clone_info *ci, struct dm_target *ti)
 {
 	return __send_changing_extent_only(ci, ti, get_num_write_same_bios, NULL);
@@ -1484,6 +1494,8 @@ static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
 
 	if (bio_op(bio) == REQ_OP_DISCARD)
 		*result = __send_discard(ci, ti);
+	else if (bio_op(bio) == REQ_OP_SECURE_ERASE)
+		*result = __send_secure_erase(ci, ti);
 	else if (bio_op(bio) == REQ_OP_WRITE_SAME)
 		*result = __send_write_same(ci, ti);
 	else if (bio_op(bio) == REQ_OP_WRITE_ZEROES)
