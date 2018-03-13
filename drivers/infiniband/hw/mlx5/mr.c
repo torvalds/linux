@@ -220,26 +220,32 @@ static void remove_keys(struct mlx5_ib_dev *dev, int c, int num)
 {
 	struct mlx5_mr_cache *cache = &dev->cache;
 	struct mlx5_cache_ent *ent = &cache->ent[c];
+	struct mlx5_ib_mr *tmp_mr;
 	struct mlx5_ib_mr *mr;
-	int err;
+	LIST_HEAD(del_list);
 	int i;
 
 	for (i = 0; i < num; i++) {
 		spin_lock_irq(&ent->lock);
 		if (list_empty(&ent->head)) {
 			spin_unlock_irq(&ent->lock);
-			return;
+			break;
 		}
 		mr = list_first_entry(&ent->head, struct mlx5_ib_mr, list);
-		list_del(&mr->list);
+		list_move(&mr->list, &del_list);
 		ent->cur--;
 		ent->size--;
 		spin_unlock_irq(&ent->lock);
-		err = destroy_mkey(dev, mr);
-		if (err)
-			mlx5_ib_warn(dev, "failed destroy mkey\n");
-		else
-			kfree(mr);
+		mlx5_core_destroy_mkey(dev->mdev, &mr->mmkey);
+	}
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	synchronize_srcu(&dev->mr_srcu);
+#endif
+
+	list_for_each_entry_safe(mr, tmp_mr, &del_list, list) {
+		list_del(&mr->list);
+		kfree(mr);
 	}
 }
 
@@ -562,26 +568,32 @@ static void clean_keys(struct mlx5_ib_dev *dev, int c)
 {
 	struct mlx5_mr_cache *cache = &dev->cache;
 	struct mlx5_cache_ent *ent = &cache->ent[c];
+	struct mlx5_ib_mr *tmp_mr;
 	struct mlx5_ib_mr *mr;
-	int err;
+	LIST_HEAD(del_list);
 
 	cancel_delayed_work(&ent->dwork);
 	while (1) {
 		spin_lock_irq(&ent->lock);
 		if (list_empty(&ent->head)) {
 			spin_unlock_irq(&ent->lock);
-			return;
+			break;
 		}
 		mr = list_first_entry(&ent->head, struct mlx5_ib_mr, list);
-		list_del(&mr->list);
+		list_move(&mr->list, &del_list);
 		ent->cur--;
 		ent->size--;
 		spin_unlock_irq(&ent->lock);
-		err = destroy_mkey(dev, mr);
-		if (err)
-			mlx5_ib_warn(dev, "failed destroy mkey\n");
-		else
-			kfree(mr);
+		mlx5_core_destroy_mkey(dev->mdev, &mr->mmkey);
+	}
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	synchronize_srcu(&dev->mr_srcu);
+#endif
+
+	list_for_each_entry_safe(mr, tmp_mr, &del_list, list) {
+		list_del(&mr->list);
+		kfree(mr);
 	}
 }
 
