@@ -109,8 +109,7 @@ int mlx5_core_create_cq(struct mlx5_core_dev *dev, struct mlx5_core_cq *cq,
 	cq->cons_index = 0;
 	cq->arm_sn     = 0;
 	cq->eq         = eq;
-	refcount_set(&cq->refcount, 0);
-	mlx5_cq_hold(cq);
+	refcount_set(&cq->refcount, 1);
 	init_completion(&cq->free);
 	if (!cq->comp)
 		cq->comp = mlx5_add_cq_to_tasklet;
