@@ -272,6 +272,21 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_BLA_CRC,
 
+	/**
+	 * @BATADV_ATTR_DAT_CACHE_IP4ADDRESS: Client IPv4 address
+	 */
+	BATADV_ATTR_DAT_CACHE_IP4ADDRESS,
+
+	/**
+	 * @BATADV_ATTR_DAT_CACHE_HWADDRESS: Client MAC address
+	 */
+	BATADV_ATTR_DAT_CACHE_HWADDRESS,
+
+	/**
+	 * @BATADV_ATTR_DAT_CACHE_VID: VLAN ID
+	 */
+	BATADV_ATTR_DAT_CACHE_VID,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
@@ -360,6 +375,11 @@ enum batadv_nl_commands {
 	 * backbones
 	 */
 	BATADV_CMD_GET_BLA_BACKBONE,
+
+	/**
+	 * @BATADV_CMD_GET_DAT_CACHE: Query list of DAT cache entries
+	 */
+	BATADV_CMD_GET_DAT_CACHE,
 
 	/* add new commands above here */
 
