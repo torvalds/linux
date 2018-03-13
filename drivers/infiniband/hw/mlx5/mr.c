@@ -47,8 +47,8 @@ enum {
 
 #define MLX5_UMR_ALIGN 2048
 
-static int clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
-static int dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
+static void clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
+static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 static int mr_cache_max_order(struct mlx5_ib_dev *dev);
 static int unreg_umr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr);
 
@@ -1385,15 +1385,10 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		/*
 		 * UMR can't be used - MKey needs to be replaced.
 		 */
-		if (mr->allocated_from_cache) {
+		if (mr->allocated_from_cache)
 			err = unreg_umr(dev, mr);
-			if (err)
-				mlx5_ib_warn(dev, "Failed to unregister MR\n");
-		} else {
+		else
 			err = destroy_mkey(dev, mr);
-			if (err)
-				mlx5_ib_warn(dev, "Failed to destroy MKey\n");
-		}
 		if (err)
 			goto err;
 
@@ -1498,10 +1493,9 @@ mlx5_free_priv_descs(struct mlx5_ib_mr *mr)
 	}
 }
 
-static int clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
+static void clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 {
 	int allocated_from_cache = mr->allocated_from_cache;
-	int err;
 
 	if (mr->sig) {
 		if (mlx5_core_destroy_psv(dev->mdev,
@@ -1518,21 +1512,11 @@ static int clean_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 
 	mlx5_free_priv_descs(mr);
 
-	if (!allocated_from_cache) {
-		u32 key = mr->mmkey.key;
-
-		err = destroy_mkey(dev, mr);
-		if (err) {
-			mlx5_ib_warn(dev, "failed to destroy mkey 0x%x (%d)\n",
-				     key, err);
-			return err;
-		}
-	}
-
-	return 0;
+	if (!allocated_from_cache)
+		destroy_mkey(dev, mr);
 }
 
-static int dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
+static void dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 {
 	int npages = mr->npages;
 	struct ib_umem *umem = mr->umem;
@@ -1573,16 +1557,12 @@ static int dereg_mr(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
 		kfree(mr);
 	else
 		mlx5_mr_cache_free(dev, mr);
-
-	return 0;
 }
 
 int mlx5_ib_dereg_mr(struct ib_mr *ibmr)
 {
-	struct mlx5_ib_dev *dev = to_mdev(ibmr->device);
-	struct mlx5_ib_mr *mr = to_mmr(ibmr);
-
-	return dereg_mr(dev, mr);
+	dereg_mr(to_mdev(ibmr->device), to_mmr(ibmr));
+	return 0;
 }
 
 struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
