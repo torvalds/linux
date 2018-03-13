@@ -236,8 +236,10 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	if (cache_len) {
 		req->cache_dma = dma_map_single(priv->dev, req->cache,
 						cache_len, DMA_TO_DEVICE);
-		if (dma_mapping_error(priv->dev, req->cache_dma))
+		if (dma_mapping_error(priv->dev, req->cache_dma)) {
+			spin_unlock_bh(&priv->ring[ring].egress_lock);
 			return -EINVAL;
+		}
 
 		req->cache_sz = cache_len;
 		first_cdesc = safexcel_add_cdesc(priv, ring, 1,
