@@ -2137,11 +2137,15 @@ out_freeiov:
  *	BSD sendmsg interface
  */
 
-long __sys_sendmsg(int fd, struct user_msghdr __user *msg, unsigned flags)
+long __sys_sendmsg(int fd, struct user_msghdr __user *msg, unsigned int flags,
+		   bool forbid_cmsg_compat)
 {
 	int fput_needed, err;
 	struct msghdr msg_sys;
 	struct socket *sock;
+
+	if (forbid_cmsg_compat && (flags & MSG_CMSG_COMPAT))
+		return -EINVAL;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
@@ -2156,9 +2160,7 @@ out:
 
 SYSCALL_DEFINE3(sendmsg, int, fd, struct user_msghdr __user *, msg, unsigned int, flags)
 {
-	if (flags & MSG_CMSG_COMPAT)
-		return -EINVAL;
-	return __sys_sendmsg(fd, msg, flags);
+	return __sys_sendmsg(fd, msg, flags, true);
 }
 
 /*
@@ -2166,7 +2168,7 @@ SYSCALL_DEFINE3(sendmsg, int, fd, struct user_msghdr __user *, msg, unsigned int
  */
 
 int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
-		   unsigned int flags)
+		   unsigned int flags, bool forbid_cmsg_compat)
 {
 	int fput_needed, err, datagrams;
 	struct socket *sock;
@@ -2175,6 +2177,9 @@ int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 	struct msghdr msg_sys;
 	struct used_address used_address;
 	unsigned int oflags = flags;
+
+	if (forbid_cmsg_compat && (flags & MSG_CMSG_COMPAT))
+		return -EINVAL;
 
 	if (vlen > UIO_MAXIOV)
 		vlen = UIO_MAXIOV;
@@ -2232,9 +2237,7 @@ int __sys_sendmmsg(int fd, struct mmsghdr __user *mmsg, unsigned int vlen,
 SYSCALL_DEFINE4(sendmmsg, int, fd, struct mmsghdr __user *, mmsg,
 		unsigned int, vlen, unsigned int, flags)
 {
-	if (flags & MSG_CMSG_COMPAT)
-		return -EINVAL;
-	return __sys_sendmmsg(fd, mmsg, vlen, flags);
+	return __sys_sendmmsg(fd, mmsg, vlen, flags, true);
 }
 
 static int ___sys_recvmsg(struct socket *sock, struct user_msghdr __user *msg,
@@ -2307,11 +2310,15 @@ out_freeiov:
  *	BSD recvmsg interface
  */
 
-long __sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned flags)
+long __sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned int flags,
+		   bool forbid_cmsg_compat)
 {
 	int fput_needed, err;
 	struct msghdr msg_sys;
 	struct socket *sock;
+
+	if (forbid_cmsg_compat && (flags & MSG_CMSG_COMPAT))
+		return -EINVAL;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (!sock)
@@ -2327,9 +2334,7 @@ out:
 SYSCALL_DEFINE3(recvmsg, int, fd, struct user_msghdr __user *, msg,
 		unsigned int, flags)
 {
-	if (flags & MSG_CMSG_COMPAT)
-		return -EINVAL;
-	return __sys_recvmsg(fd, msg, flags);
+	return __sys_recvmsg(fd, msg, flags, true);
 }
 
 /*
@@ -2580,13 +2585,16 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 				     (int __user *)a[4]);
 		break;
 	case SYS_SENDMSG:
-		err = sys_sendmsg(a0, (struct user_msghdr __user *)a1, a[2]);
+		err = __sys_sendmsg(a0, (struct user_msghdr __user *)a1,
+				    a[2], true);
 		break;
 	case SYS_SENDMMSG:
-		err = sys_sendmmsg(a0, (struct mmsghdr __user *)a1, a[2], a[3]);
+		err = __sys_sendmmsg(a0, (struct mmsghdr __user *)a1, a[2],
+				     a[3], true);
 		break;
 	case SYS_RECVMSG:
-		err = sys_recvmsg(a0, (struct user_msghdr __user *)a1, a[2]);
+		err = __sys_recvmsg(a0, (struct user_msghdr __user *)a1,
+				    a[2], true);
 		break;
 	case SYS_RECVMMSG:
 		err = do_sys_recvmmsg(a0, (struct mmsghdr __user *)a1, a[2],
