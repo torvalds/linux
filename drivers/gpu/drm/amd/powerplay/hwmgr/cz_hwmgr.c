@@ -159,7 +159,7 @@ static uint32_t cz_get_uvd_level(struct pp_hwmgr *hwmgr,
 
 static uint32_t cz_get_max_sclk_level(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	if (cz_hwmgr->max_sclk_level == 0) {
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetMaxSclkLevel);
@@ -171,7 +171,7 @@ static uint32_t cz_get_max_sclk_level(struct pp_hwmgr *hwmgr)
 
 static int cz_initialize_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct amdgpu_device *adev = hwmgr->adev;
 
 	cz_hwmgr->gfx_ramp_step = 256*25/100;
@@ -253,7 +253,7 @@ static uint32_t cz_convert_8Bit_index_to_voltage(
 static int cz_construct_max_power_limits_table(struct pp_hwmgr *hwmgr,
 			struct phm_clock_and_voltage_limits *table)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)hwmgr->backend;
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct cz_sys_info *sys_info = &cz_hwmgr->sys_info;
 	struct phm_clock_voltage_dependency_table *dep_table =
 				hwmgr->dyn_state.vddc_dependency_on_sclk;
@@ -307,7 +307,7 @@ static int cz_init_dynamic_state_adjustment_rule_settings(
 
 static int cz_get_system_info_data(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)hwmgr->backend;
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	ATOM_INTEGRATED_SYSTEM_INFO_V1_9 *info = NULL;
 	uint32_t i;
 	int result = 0;
@@ -412,7 +412,7 @@ static int cz_get_system_info_data(struct pp_hwmgr *hwmgr)
 
 static int cz_construct_boot_state(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	cz_hwmgr->boot_power_level.engineClock =
 				cz_hwmgr->sys_info.bootup_engine_clock;
@@ -553,7 +553,7 @@ static int cz_upload_pptable_to_smu(struct pp_hwmgr *hwmgr)
 
 static int cz_init_sclk_limit(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct phm_clock_voltage_dependency_table *table =
 					hwmgr->dyn_state.vddc_dependency_on_sclk;
 	unsigned long clock = 0, level;
@@ -579,7 +579,7 @@ static int cz_init_sclk_limit(struct pp_hwmgr *hwmgr)
 
 static int cz_init_uvd_limit(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct phm_uvd_clock_voltage_dependency_table *table =
 				hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
@@ -606,7 +606,7 @@ static int cz_init_uvd_limit(struct pp_hwmgr *hwmgr)
 
 static int cz_init_vce_limit(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct phm_vce_clock_voltage_dependency_table *table =
 				hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
@@ -633,7 +633,7 @@ static int cz_init_vce_limit(struct pp_hwmgr *hwmgr)
 
 static int cz_init_acp_limit(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct phm_acp_clock_voltage_dependency_table *table =
 				hwmgr->dyn_state.acp_clock_voltage_dependency_table;
 	unsigned long clock = 0, level;
@@ -659,7 +659,7 @@ static int cz_init_acp_limit(struct pp_hwmgr *hwmgr)
 
 static void cz_init_power_gate_state(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	cz_hwmgr->uvd_power_gated = false;
 	cz_hwmgr->vce_power_gated = false;
@@ -670,14 +670,14 @@ static void cz_init_power_gate_state(struct pp_hwmgr *hwmgr)
 
 static void cz_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	cz_hwmgr->low_sclk_interrupt_threshold = 0;
 }
 
 static int cz_update_sclk_limit(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct phm_clock_voltage_dependency_table *table =
 					hwmgr->dyn_state.vddc_dependency_on_sclk;
 
@@ -766,7 +766,7 @@ static int cz_set_deep_sleep_sclk_threshold(struct pp_hwmgr *hwmgr)
 static int cz_set_watermark_threshold(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr =
-				  (struct cz_hwmgr *)(hwmgr->backend);
+				  hwmgr->backend;
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetWatermarkFrequency,
@@ -777,7 +777,7 @@ static int cz_set_watermark_threshold(struct pp_hwmgr *hwmgr)
 
 static int cz_nbdpm_pstate_enable_disable(struct pp_hwmgr *hwmgr, bool enable, bool lock)
 {
-	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *hw_data = hwmgr->backend;
 
 	if (hw_data->is_nb_dpm_enabled) {
 		if (enable) {
@@ -802,7 +802,7 @@ static int cz_disable_nb_dpm(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	unsigned long dpm_features = 0;
 
 	if (cz_hwmgr->is_nb_dpm_enabled) {
@@ -823,7 +823,7 @@ static int cz_enable_nb_dpm(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	unsigned long dpm_features = 0;
 
 	if (!cz_hwmgr->is_nb_dpm_enabled) {
@@ -844,7 +844,7 @@ static int cz_update_low_mem_pstate(struct pp_hwmgr *hwmgr, const void *input)
 {
 	bool disable_switch;
 	bool enable_low_mem_state;
-	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *hw_data = hwmgr->backend;
 	const struct phm_set_power_state_input *states = (struct phm_set_power_state_input *)input;
 	const struct cz_power_state *pnew_state = cast_const_PhwCzPowerState(states->pnew_state);
 
@@ -906,7 +906,7 @@ static int cz_setup_asic_task(struct pp_hwmgr *hwmgr)
 
 static void cz_power_up_display_clock_sys_pll(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *hw_data = hwmgr->backend;
 
 	hw_data->disp_clk_bypass_pending = false;
 	hw_data->disp_clk_bypass = false;
@@ -914,14 +914,14 @@ static void cz_power_up_display_clock_sys_pll(struct pp_hwmgr *hwmgr)
 
 static void cz_clear_nb_dpm_flag(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *hw_data = hwmgr->backend;
 
 	hw_data->is_nb_dpm_enabled = false;
 }
 
 static void cz_reset_cc6_data(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *hw_data = hwmgr->backend;
 
 	hw_data->cc6_settings.cc6_setting_changed = false;
 	hw_data->cc6_settings.cpu_pstate_separation_time = 0;
@@ -950,7 +950,7 @@ static void cz_clear_voting_clients(struct pp_hwmgr *hwmgr)
 
 static int cz_start_dpm(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	cz_hwmgr->dpm_flags |= DPMFlags_SCLK_Enabled;
 
@@ -962,7 +962,7 @@ static int cz_start_dpm(struct pp_hwmgr *hwmgr)
 static int cz_stop_dpm(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	unsigned long dpm_features = 0;
 
 	if (cz_hwmgr->dpm_flags & DPMFlags_SCLK_Enabled) {
@@ -977,7 +977,7 @@ static int cz_stop_dpm(struct pp_hwmgr *hwmgr)
 
 static int cz_program_bootup_state(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	cz_hwmgr->sclk_dpm.soft_min_clk = cz_hwmgr->sys_info.bootup_engine_clock;
 	cz_hwmgr->sclk_dpm.soft_max_clk = cz_hwmgr->sys_info.bootup_engine_clock;
@@ -999,7 +999,7 @@ static int cz_program_bootup_state(struct pp_hwmgr *hwmgr)
 
 static void cz_reset_acp_boot_level(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	cz_hwmgr->acp_boot_level = 0xff;
 }
@@ -1036,7 +1036,7 @@ static int cz_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	const struct cz_power_state *cz_current_ps =
 				cast_const_PhwCzPowerState(&pcurrent_ps->hardware);
 
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct PP_Clocks clocks = {0, 0, 0, 0};
 	bool force_high;
 	uint32_t  num_of_active_displays = 0;
@@ -1119,7 +1119,7 @@ static int cz_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 
 static int cz_phm_force_dpm_highest(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_SetSclkSoftMin,
@@ -1138,7 +1138,7 @@ static int cz_phm_force_dpm_highest(struct pp_hwmgr *hwmgr)
 
 static int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct phm_clock_voltage_dependency_table *table =
 				hwmgr->dyn_state.vddc_dependency_on_sclk;
 	unsigned long clock = 0, level;
@@ -1178,7 +1178,7 @@ static int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 
 static int cz_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 			PPSMC_MSG_SetSclkSoftMax,
@@ -1243,7 +1243,7 @@ static int cz_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
 
 static int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct phm_vce_clock_voltage_dependency_table *ptable =
 		hwmgr->dyn_state.vce_clock_voltage_dependency_table;
 
@@ -1288,7 +1288,7 @@ static int cz_dpm_powerup_vce(struct pp_hwmgr *hwmgr)
 
 static uint32_t cz_dpm_get_mclk(struct pp_hwmgr *hwmgr, bool low)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	return cz_hwmgr->sys_info.bootup_uma_clock;
 }
@@ -1317,7 +1317,7 @@ static uint32_t cz_dpm_get_sclk(struct pp_hwmgr *hwmgr, bool low)
 static int cz_dpm_patch_boot_state(struct pp_hwmgr *hwmgr,
 					struct pp_hw_power_state *hw_ps)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct cz_power_state *cz_ps = cast_PhwCzPowerState(hw_ps);
 
 	cz_ps->level = 1;
@@ -1409,7 +1409,7 @@ static void cz_hw_print_display_cfg(
 
  static int cz_set_cpu_power_state(struct pp_hwmgr *hwmgr)
 {
-	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *hw_data = hwmgr->backend;
 	uint32_t data = 0;
 
 	if (hw_data->cc6_settings.cc6_setting_changed) {
@@ -1443,7 +1443,7 @@ static void cz_hw_print_display_cfg(
 static int cz_store_cc6_data(struct pp_hwmgr *hwmgr, uint32_t separation_time,
 			bool cc6_disable, bool pstate_disable, bool pstate_switch_disable)
 {
-	struct cz_hwmgr *hw_data = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *hw_data = hwmgr->backend;
 
 	if (separation_time !=
 	    hw_data->cc6_settings.cpu_pstate_separation_time ||
@@ -1510,7 +1510,7 @@ static int cz_force_clock_level(struct pp_hwmgr *hwmgr,
 static int cz_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
-	struct cz_hwmgr *data = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *data = hwmgr->backend;
 	struct phm_clock_voltage_dependency_table *sclk_table =
 			hwmgr->dyn_state.vddc_dependency_on_sclk;
 	int i, now, size = 0;
@@ -1558,7 +1558,7 @@ static int cz_get_performance_level(struct pp_hwmgr *hwmgr, const struct pp_hw_p
 	if (level == NULL || hwmgr == NULL || state == NULL)
 		return -EINVAL;
 
-	data = (struct cz_hwmgr *)(hwmgr->backend);
+	data = hwmgr->backend;
 	ps = cast_const_PhwCzPowerState(state);
 
 	level_index = index > ps->level - 1 ? ps->level - 1 : index;
@@ -1599,7 +1599,7 @@ static int cz_get_current_shallow_sleep_clocks(struct pp_hwmgr *hwmgr,
 static int cz_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type,
 						struct amd_pp_clocks *clocks)
 {
-	struct cz_hwmgr *data = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *data = hwmgr->backend;
 	int i;
 	struct phm_clock_voltage_dependency_table *table;
 
@@ -1667,7 +1667,7 @@ static int cz_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			  void *value, int *size)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	struct phm_clock_voltage_dependency_table *table =
 				hwmgr->dyn_state.vddc_dependency_on_sclk;
@@ -1803,7 +1803,7 @@ static int cz_notify_cac_buffer_info(struct pp_hwmgr *hwmgr,
 static int cz_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *thermal_data)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	memcpy(thermal_data, &SMU7ThermalPolicy[0], sizeof(struct PP_TemperatureRange));
 
@@ -1816,7 +1816,7 @@ static int cz_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 
 static int cz_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	uint32_t dpm_features = 0;
 
 	if (enable &&
@@ -1837,7 +1837,7 @@ static int cz_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 
 int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	struct phm_uvd_clock_voltage_dependency_table *ptable =
 		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
 
@@ -1867,7 +1867,7 @@ int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
 
 static int cz_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 	uint32_t dpm_features = 0;
 
 	if (enable && phm_cap_enabled(
@@ -1890,7 +1890,7 @@ static int cz_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 
 static void cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	cz_hwmgr->uvd_power_gated = bgate;
 
@@ -1918,7 +1918,7 @@ static void cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 
 static void cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct cz_hwmgr *cz_hwmgr = hwmgr->backend;
 
 	if (bgate) {
 		cgs_set_powergating_state(
