@@ -720,6 +720,9 @@ static void __init cpufeatures_setup_finished(void)
 		cur_cpu_spec->cpu_features |= CPU_FTR_HVMODE;
 	}
 
+	/* Make sure powerpc_base_platform is non-NULL */
+	powerpc_base_platform = cur_cpu_spec->platform;
+
 	system_registers.lpcr = mfspr(SPRN_LPCR);
 	system_registers.hfscr = mfspr(SPRN_HFSCR);
 	system_registers.fscr = mfspr(SPRN_FSCR);
