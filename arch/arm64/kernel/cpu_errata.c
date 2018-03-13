@@ -60,6 +60,8 @@ static int cpu_enable_trap_ctr_access(void *__unused)
 	return 0;
 }
 
+atomic_t arm64_el2_vector_last_slot = ATOMIC_INIT(-1);
+
 #ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
@@ -90,7 +92,6 @@ static void __install_bp_hardening_cb(bp_hardening_cb_t fn,
 				      const char *hyp_vecs_start,
 				      const char *hyp_vecs_end)
 {
-	static int last_slot = -1;
 	static DEFINE_SPINLOCK(bp_lock);
 	int cpu, slot = -1;
 
@@ -103,10 +104,8 @@ static void __install_bp_hardening_cb(bp_hardening_cb_t fn,
 	}
 
 	if (slot == -1) {
-		last_slot++;
-		BUG_ON(((__bp_harden_hyp_vecs_end - __bp_harden_hyp_vecs_start)
-			/ SZ_2K) <= last_slot);
-		slot = last_slot;
+		slot = atomic_inc_return(&arm64_el2_vector_last_slot);
+		BUG_ON(slot >= BP_HARDEN_EL2_SLOTS);
 		__copy_hyp_vect_bpi(slot, hyp_vecs_start, hyp_vecs_end);
 	}
 

@@ -20,6 +20,7 @@
 #include <linux/arm-smccc.h>
 
 #include <asm/alternative.h>
+#include <asm/mmu.h>
 
 .macro hyp_ventry
 	.align 7
@@ -66,7 +67,7 @@ alternative_cb_end
 
 	.align	11
 ENTRY(__bp_harden_hyp_vecs_start)
-	.rept 4
+	.rept BP_HARDEN_EL2_SLOTS
 	generate_vectors
 	.endr
 ENTRY(__bp_harden_hyp_vecs_end)

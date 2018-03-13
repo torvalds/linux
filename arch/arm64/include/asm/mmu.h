@@ -21,6 +21,8 @@
 #define USER_ASID_FLAG	(UL(1) << USER_ASID_BIT)
 #define TTBR_ASID_MASK	(UL(0xffff) << 48)
 
+#define BP_HARDEN_EL2_SLOTS 4
+
 #ifndef __ASSEMBLY__
 
 typedef struct {
@@ -51,6 +53,7 @@ struct bp_hardening_data {
 
 #ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 extern char __bp_harden_hyp_vecs_start[], __bp_harden_hyp_vecs_end[];
+extern atomic_t arm64_el2_vector_last_slot;
 
 DECLARE_PER_CPU_READ_MOSTLY(struct bp_hardening_data, bp_hardening_data);
 
