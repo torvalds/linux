@@ -45,7 +45,7 @@ static struct {
 	{ "R_AARCH64_MOVW_SABS_Gn",	signed_movw, UL(SYM64_ABS_VAL) },
 	{ "R_AARCH64_MOVW_UABS_Gn",	unsigned_movw, UL(SYM64_ABS_VAL) },
 	{ "R_AARCH64_ADR_PREL_PG_HI21",	relative_adrp, (u64)&sym64_rel },
-	{ "R_AARCH64_ADR_PREL_PG_HI21",	relative_adrp_far, (u64)&printk },
+	{ "R_AARCH64_ADR_PREL_PG_HI21",	relative_adrp_far, (u64)&memstart_addr },
 	{ "R_AARCH64_ADR_PREL_LO21",	relative_adr, (u64)&sym64_rel },
 	{ "R_AARCH64_PREL64",		relative_data64, (u64)&sym64_rel },
 	{ "R_AARCH64_PREL32",		relative_data32, (u64)&sym64_rel },

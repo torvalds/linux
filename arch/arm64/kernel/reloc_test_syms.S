@@ -54,8 +54,8 @@ ENDPROC(relative_adrp)
 	.align	12
 	.space	0xffc
 ENTRY(relative_adrp_far)
-	adrp	x0, printk
-	add	x0, x0, #:lo12:printk
+	adrp	x0, memstart_addr
+	add	x0, x0, #:lo12:memstart_addr
 	ret
 ENDPROC(relative_adrp_far)
 
