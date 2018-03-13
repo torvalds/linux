@@ -1354,6 +1354,7 @@ static void __net_init sctp_ctrlsock_exit(struct net *net)
 static struct pernet_operations sctp_ctrlsock_ops = {
 	.init = sctp_ctrlsock_init,
 	.exit = sctp_ctrlsock_exit,
+	.async = true,
 };
 
 /* Initialize the universe into something sensible.  */
