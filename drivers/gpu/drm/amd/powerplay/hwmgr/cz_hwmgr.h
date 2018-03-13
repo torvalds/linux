@@ -311,12 +311,4 @@ struct cz_hwmgr {
 	uint32_t num_of_clk_entries;
 };
 
-struct pp_hwmgr;
-
-int cz_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr);
-int cz_dpm_powerup_uvd(struct pp_hwmgr *hwmgr);
-int cz_dpm_powerdown_vce(struct pp_hwmgr *hwmgr);
-int cz_dpm_powerup_vce(struct pp_hwmgr *hwmgr);
-int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate);
-int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr);
 #endif /* _CZ_HWMGR_H_ */

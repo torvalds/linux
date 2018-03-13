@@ -37,7 +37,6 @@
 #include "cz_ppsmc.h"
 #include "cz_hwmgr.h"
 #include "power_state.h"
-#include "cz_clockpowergating.h"
 #include "pp_thermal.h"
 
 #define ixSMUSVI_NB_CURRENTVID 0xD8230044
@@ -1223,14 +1222,14 @@ static int cz_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 	return ret;
 }
 
-int cz_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr)
+static int cz_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating))
 		return smum_send_msg_to_smc(hwmgr, PPSMC_MSG_UVDPowerOFF);
 	return 0;
 }
 
-int cz_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
+static int cz_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_UVDPowerGating)) {
 		return smum_send_msg_to_smc_with_parameter(
@@ -1242,37 +1241,7 @@ int cz_dpm_powerup_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
-{
-	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
-	struct phm_uvd_clock_voltage_dependency_table *ptable =
-		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
-
-	if (!bgate) {
-		/* Stable Pstate is enabled and we need to set the UVD DPM to highest level */
-		if (PP_CAP(PHM_PlatformCaps_StablePState) ||
-		    hwmgr->en_umd_pstate) {
-			cz_hwmgr->uvd_dpm.hard_min_clk =
-				   ptable->entries[ptable->count - 1].vclk;
-
-			smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SetUvdHardMin,
-				cz_get_uvd_level(hwmgr,
-					cz_hwmgr->uvd_dpm.hard_min_clk,
-					PPSMC_MSG_SetUvdHardMin));
-
-			cz_enable_disable_uvd_dpm(hwmgr, true);
-		} else {
-			cz_enable_disable_uvd_dpm(hwmgr, true);
-		}
-	} else {
-		cz_enable_disable_uvd_dpm(hwmgr, false);
-	}
-
-	return 0;
-}
-
-int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
+static int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_vce_clock_voltage_dependency_table *ptable =
@@ -1301,7 +1270,7 @@ int  cz_dpm_update_vce_dpm(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int cz_dpm_powerdown_vce(struct pp_hwmgr *hwmgr)
+static int cz_dpm_powerdown_vce(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_VCEPowerGating))
 		return smum_send_msg_to_smc(hwmgr,
@@ -1309,7 +1278,7 @@ int cz_dpm_powerdown_vce(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int cz_dpm_powerup_vce(struct pp_hwmgr *hwmgr)
+static int cz_dpm_powerup_vce(struct pp_hwmgr *hwmgr)
 {
 	if (PP_CAP(PHM_PlatformCaps_VCEPowerGating))
 		return smum_send_msg_to_smc(hwmgr,
@@ -1843,6 +1812,140 @@ static int cz_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	return 0;
+}
+
+static int cz_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
+{
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	uint32_t dpm_features = 0;
+
+	if (enable &&
+		phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+				  PHM_PlatformCaps_UVDDPM)) {
+		cz_hwmgr->dpm_flags |= DPMFlags_UVD_Enabled;
+		dpm_features |= UVD_DPM_MASK;
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			    PPSMC_MSG_EnableAllSmuFeatures, dpm_features);
+	} else {
+		dpm_features |= UVD_DPM_MASK;
+		cz_hwmgr->dpm_flags &= ~DPMFlags_UVD_Enabled;
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			   PPSMC_MSG_DisableAllSmuFeatures, dpm_features);
+	}
+	return 0;
+}
+
+int cz_dpm_update_uvd_dpm(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	struct phm_uvd_clock_voltage_dependency_table *ptable =
+		hwmgr->dyn_state.uvd_clock_voltage_dependency_table;
+
+	if (!bgate) {
+		/* Stable Pstate is enabled and we need to set the UVD DPM to highest level */
+		if (PP_CAP(PHM_PlatformCaps_StablePState) ||
+		    hwmgr->en_umd_pstate) {
+			cz_hwmgr->uvd_dpm.hard_min_clk =
+				   ptable->entries[ptable->count - 1].vclk;
+
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+				PPSMC_MSG_SetUvdHardMin,
+				cz_get_uvd_level(hwmgr,
+					cz_hwmgr->uvd_dpm.hard_min_clk,
+					PPSMC_MSG_SetUvdHardMin));
+
+			cz_enable_disable_uvd_dpm(hwmgr, true);
+		} else {
+			cz_enable_disable_uvd_dpm(hwmgr, true);
+		}
+	} else {
+		cz_enable_disable_uvd_dpm(hwmgr, false);
+	}
+
+	return 0;
+}
+
+static int cz_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
+{
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+	uint32_t dpm_features = 0;
+
+	if (enable && phm_cap_enabled(
+				hwmgr->platform_descriptor.platformCaps,
+				PHM_PlatformCaps_VCEDPM)) {
+		cz_hwmgr->dpm_flags |= DPMFlags_VCE_Enabled;
+		dpm_features |= VCE_DPM_MASK;
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			    PPSMC_MSG_EnableAllSmuFeatures, dpm_features);
+	} else {
+		dpm_features |= VCE_DPM_MASK;
+		cz_hwmgr->dpm_flags &= ~DPMFlags_VCE_Enabled;
+		smum_send_msg_to_smc_with_parameter(hwmgr,
+			   PPSMC_MSG_DisableAllSmuFeatures, dpm_features);
+	}
+
+	return 0;
+}
+
+
+static void cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+
+	cz_hwmgr->uvd_power_gated = bgate;
+
+	if (bgate) {
+		cgs_set_powergating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_UVD,
+						AMD_PG_STATE_GATE);
+		cgs_set_clockgating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_UVD,
+						AMD_CG_STATE_GATE);
+		cz_dpm_update_uvd_dpm(hwmgr, true);
+		cz_dpm_powerdown_uvd(hwmgr);
+	} else {
+		cz_dpm_powerup_uvd(hwmgr);
+		cgs_set_clockgating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_UVD,
+						AMD_CG_STATE_UNGATE);
+		cgs_set_powergating_state(hwmgr->device,
+						AMD_IP_BLOCK_TYPE_UVD,
+						AMD_PG_STATE_UNGATE);
+		cz_dpm_update_uvd_dpm(hwmgr, false);
+	}
+
+}
+
+static void cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate)
+{
+	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
+
+	if (bgate) {
+		cgs_set_powergating_state(
+					hwmgr->device,
+					AMD_IP_BLOCK_TYPE_VCE,
+					AMD_PG_STATE_GATE);
+		cgs_set_clockgating_state(
+					hwmgr->device,
+					AMD_IP_BLOCK_TYPE_VCE,
+					AMD_CG_STATE_GATE);
+		cz_enable_disable_vce_dpm(hwmgr, false);
+		cz_dpm_powerdown_vce(hwmgr);
+		cz_hwmgr->vce_power_gated = true;
+	} else {
+		cz_dpm_powerup_vce(hwmgr);
+		cz_hwmgr->vce_power_gated = false;
+		cgs_set_clockgating_state(
+					hwmgr->device,
+					AMD_IP_BLOCK_TYPE_VCE,
+					AMD_CG_STATE_UNGATE);
+		cgs_set_powergating_state(
+					hwmgr->device,
+					AMD_IP_BLOCK_TYPE_VCE,
+					AMD_PG_STATE_UNGATE);
+		cz_dpm_update_vce_dpm(hwmgr);
+		cz_enable_disable_vce_dpm(hwmgr, true);
+	}
 }
 
 static const struct pp_hwmgr_func cz_hwmgr_funcs = {
