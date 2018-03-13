@@ -134,7 +134,7 @@ config QCOM_APCS_IPC
 
 config TEGRA_HSP_MBOX
 	bool "Tegra HSP (Hardware Synchronization Primitives) Driver"
-	depends on ARCH_TEGRA_186_SOC
+	depends on ARCH_TEGRA
 	help
 	  The Tegra HSP driver is used for the interprocessor communication
 	  between different remote processors and host processors on Tegra186
