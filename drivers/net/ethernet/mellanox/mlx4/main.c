@@ -46,6 +46,7 @@
 #include <linux/etherdevice.h>
 #include <net/devlink.h>
 
+#include <uapi/rdma/mlx4-abi.h>
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/doorbell.h>
 

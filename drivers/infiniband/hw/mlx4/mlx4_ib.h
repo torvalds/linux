@@ -641,10 +641,6 @@ struct mlx4_uverbs_ex_query_device {
 	__u32 reserved;
 };
 
-enum query_device_resp_mask {
-	QUERY_DEVICE_RESP_MASK_TIMESTAMP = 1UL << 0,
-};
-
 static inline struct mlx4_ib_dev *to_mdev(struct ib_device *ibdev)
 {
 	return container_of(ibdev, struct mlx4_ib_dev, ib_dev);

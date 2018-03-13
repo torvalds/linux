@@ -59,6 +59,10 @@ struct mlx4_ib_alloc_ucontext_resp_v3 {
 	__u16	bf_regs_per_page;
 };
 
+enum {
+	MLX4_USER_DEV_CAP_LARGE_CQE	= 1L << 0,
+};
+
 struct mlx4_ib_alloc_ucontext_resp {
 	__u32	dev_caps;
 	__u32	qp_tab_size;
@@ -160,6 +164,10 @@ struct mlx4_ib_rss_caps {
 	__u64 rx_hash_fields_mask; /* enum mlx4_ib_rx_hash_fields */
 	__u8 rx_hash_function; /* enum mlx4_ib_rx_hash_function_flags */
 	__u8 reserved[7];
+};
+
+enum query_device_resp_mask {
+	MLX4_IB_QUERY_DEV_RESP_MASK_CORE_CLOCK_OFFSET = 1UL << 0,
 };
 
 struct mlx4_uverbs_ex_query_device_resp {

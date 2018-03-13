@@ -257,10 +257,6 @@ enum {
 };
 
 enum {
-	MLX4_USER_DEV_CAP_LARGE_CQE	= 1L << 0
-};
-
-enum {
 	MLX4_FUNC_CAP_64B_EQE_CQE	= 1L << 0,
 	MLX4_FUNC_CAP_EQE_CQE_STRIDE	= 1L << 1,
 	MLX4_FUNC_CAP_DMFS_A0_STATIC	= 1L << 2
