@@ -1356,11 +1356,16 @@ static int skl_platform_soc_probe(struct snd_soc_component *component)
 			return -EIO;
 		}
 
-		/* disable dynamic clock gating during fw and lib download */
+		/*
+		 * Disable dynamic clock and power gating during firmware
+		 * and library download
+		 */
 		skl->skl_sst->enable_miscbdcge(component->dev, false);
+		skl->skl_sst->clock_power_gating(component->dev, false);
 
 		ret = ops->init_fw(component->dev, skl->skl_sst);
 		skl->skl_sst->enable_miscbdcge(component->dev, true);
+		skl->skl_sst->clock_power_gating(component->dev, true);
 		if (ret < 0) {
 			dev_err(component->dev, "Failed to boot first fw: %d\n", ret);
 			return ret;
