@@ -558,7 +558,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 	vme_user_cdev->owner = THIS_MODULE;
 	err = cdev_add(vme_user_cdev, MKDEV(VME_MAJOR, 0), VME_DEVS);
 	if (err)
-		goto err_char;
+		goto err_class;
 
 	/* Request slave resources and allocate buffers (128kB wide) */
 	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
@@ -618,7 +618,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 	if (IS_ERR(vme_user_sysfs_class)) {
 		dev_err(&vdev->dev, "Error creating vme_user class.\n");
 		err = PTR_ERR(vme_user_sysfs_class);
-		goto err_class;
+		goto err_master;
 	}
 
 	/* Add sysfs Entries */
