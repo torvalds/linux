@@ -419,9 +419,10 @@ struct ceph_mds_session *__ceph_lookup_mds_session(struct ceph_mds_client *mdsc,
 
 static bool __have_session(struct ceph_mds_client *mdsc, int mds)
 {
-	if (mds >= mdsc->max_sessions)
+	if (mds >= mdsc->max_sessions || !mdsc->sessions[mds])
 		return false;
-	return mdsc->sessions[mds];
+	else
+		return true;
 }
 
 static int __verify_registered_session(struct ceph_mds_client *mdsc,
