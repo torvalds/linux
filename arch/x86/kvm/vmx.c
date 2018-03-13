@@ -2165,7 +2165,15 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 	 */
 	vmx->host_state.ldt_sel = kvm_read_ldt();
 	vmx->host_state.gs_ldt_reload_needed = vmx->host_state.ldt_sel;
+
+#ifdef CONFIG_X86_64
+	save_fsgs_for_kvm();
+	vmx->host_state.fs_sel = current->thread.fsindex;
+	vmx->host_state.gs_sel = current->thread.gsindex;
+#else
 	savesegment(fs, vmx->host_state.fs_sel);
+	savesegment(gs, vmx->host_state.gs_sel);
+#endif
 	if (!(vmx->host_state.fs_sel & 7)) {
 		vmcs_write16(HOST_FS_SELECTOR, vmx->host_state.fs_sel);
 		vmx->host_state.fs_reload_needed = 0;
@@ -2173,7 +2181,6 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 		vmcs_write16(HOST_FS_SELECTOR, 0);
 		vmx->host_state.fs_reload_needed = 1;
 	}
-	savesegment(gs, vmx->host_state.gs_sel);
 	if (!(vmx->host_state.gs_sel & 7))
 		vmcs_write16(HOST_GS_SELECTOR, vmx->host_state.gs_sel);
 	else {
@@ -2187,7 +2194,7 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 #endif
 
 #ifdef CONFIG_X86_64
-	vmcs_writel(HOST_FS_BASE, read_msr(MSR_FS_BASE));
+	vmcs_writel(HOST_FS_BASE, current->thread.fsbase);
 	vmcs_writel(HOST_GS_BASE, read_msr(MSR_GS_BASE));
 #else
 	vmcs_writel(HOST_FS_BASE, segment_base(vmx->host_state.fs_sel));
@@ -2195,7 +2202,7 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 #endif
 
 #ifdef CONFIG_X86_64
-	rdmsrl(MSR_KERNEL_GS_BASE, vmx->msr_host_kernel_gs_base);
+	vmx->msr_host_kernel_gs_base = current->thread.gsbase;
 	if (is_long_mode(&vmx->vcpu))
 		wrmsrl(MSR_KERNEL_GS_BASE, vmx->msr_guest_kernel_gs_base);
 #endif
