@@ -1375,10 +1375,8 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		ib_umem_release(mr->umem);
 		err = mr_umem_get(pd, addr, len, access_flags, &mr->umem,
 				  &npages, &page_shift, &ncont, &order);
-		if (err < 0) {
-			clean_mr(dev, mr);
-			return err;
-		}
+		if (err)
+			goto err;
 	}
 
 	if (flags & IB_MR_REREG_TRANS && !use_umr_mtt_update(mr, addr, len)) {
@@ -1395,13 +1393,16 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 				mlx5_ib_warn(dev, "Failed to destroy MKey\n");
 		}
 		if (err)
-			return err;
+			goto err;
 
 		mr = reg_create(ib_mr, pd, addr, len, mr->umem, ncont,
 				page_shift, access_flags, true);
 
-		if (IS_ERR(mr))
-			return PTR_ERR(mr);
+		if (IS_ERR(mr)) {
+			err = PTR_ERR(mr);
+			mr = to_mmr(ib_mr);
+			goto err;
+		}
 
 		mr->allocated_from_cache = 0;
 		mr->live = 1;
@@ -1427,13 +1428,8 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			err = rereg_umr(pd, mr, access_flags, flags);
 		}
 
-		if (err) {
-			mlx5_ib_warn(dev, "Failed to rereg UMR\n");
-			ib_umem_release(mr->umem);
-			mr->umem = NULL;
-			clean_mr(dev, mr);
-			return err;
-		}
+		if (err)
+			goto err;
 	}
 
 	set_mr_fileds(dev, mr, npages, len, access_flags);
@@ -1442,6 +1438,14 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 	update_odp_mr(mr);
 #endif
 	return 0;
+
+err:
+	if (mr->umem) {
+		ib_umem_release(mr->umem);
+		mr->umem = NULL;
+	}
+	clean_mr(dev, mr);
+	return err;
 }
 
 static int
