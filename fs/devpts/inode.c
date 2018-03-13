@@ -160,21 +160,27 @@ struct vfsmount *devpts_mntget(struct file *filp, struct pts_fs_info *fsi)
 	path = filp->f_path;
 	path_get(&path);
 
-	/* Has the devpts filesystem already been found? */
-	if (path.mnt->mnt_sb->s_magic != DEVPTS_SUPER_MAGIC)
+	/* Walk upward while the start point is a bind mount of
+	 * a single file.
+	 */
+	while (path.mnt->mnt_root == path.dentry)
+		if (follow_up(&path) == 0)
+			break;
+
+	/* devpts_ptmx_path() finds a devpts fs or returns an error. */
+	if ((path.mnt->mnt_sb->s_magic != DEVPTS_SUPER_MAGIC) ||
+	    (DEVPTS_SB(path.mnt->mnt_sb) != fsi))
 		err = devpts_ptmx_path(&path);
 	dput(path.dentry);
-	if (err) {
-		mntput(path.mnt);
-		return ERR_PTR(err);
+	if (!err) {
+		if (DEVPTS_SB(path.mnt->mnt_sb) == fsi)
+			return path.mnt;
+
+		err = -ENODEV;
 	}
 
-	if (DEVPTS_SB(path.mnt->mnt_sb) != fsi) {
-		mntput(path.mnt);
-		return ERR_PTR(-ENODEV);
-	}
-
-	return path.mnt;
+	mntput(path.mnt);
+	return ERR_PTR(err);
 }
 
 struct pts_fs_info *devpts_acquire(struct file *filp)
