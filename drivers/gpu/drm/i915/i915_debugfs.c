@@ -4312,9 +4312,10 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_cache_sharing_fops,
 static void cherryview_sseu_device_status(struct drm_i915_private *dev_priv,
 					  struct sseu_dev_info *sseu)
 {
-	int ss_max = 2;
+#define SS_MAX 2
+	const int ss_max = SS_MAX;
+	u32 sig1[SS_MAX], sig2[SS_MAX];
 	int ss;
-	u32 sig1[ss_max], sig2[ss_max];
 
 	sig1[0] = I915_READ(CHV_POWER_SS0_SIG1);
 	sig1[1] = I915_READ(CHV_POWER_SS1_SIG1);
@@ -4338,15 +4339,15 @@ static void cherryview_sseu_device_status(struct drm_i915_private *dev_priv,
 		sseu->eu_per_subslice = max_t(unsigned int,
 					      sseu->eu_per_subslice, eu_cnt);
 	}
+#undef SS_MAX
 }
 
 static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 				     struct sseu_dev_info *sseu)
 {
 	const struct intel_device_info *info = INTEL_INFO(dev_priv);
+	u32 s_reg[6], eu_reg[2 * 4], eu_mask[2];
 	int s, ss;
-	u32 s_reg[info->sseu.max_slices];
-	u32 eu_reg[2 * info->sseu.max_subslices], eu_mask[2];
 
 	for (s = 0; s < info->sseu.max_slices; s++) {
 		/*
@@ -4399,9 +4400,8 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 				    struct sseu_dev_info *sseu)
 {
 	const struct intel_device_info *info = INTEL_INFO(dev_priv);
+	u32 s_reg[3], eu_reg[2 * 4], eu_mask[2];
 	int s, ss;
-	u32 s_reg[info->sseu.max_slices];
-	u32 eu_reg[2 * info->sseu.max_subslices], eu_mask[2];
 
 	for (s = 0; s < info->sseu.max_slices; s++) {
 		s_reg[s] = I915_READ(GEN9_SLICE_PGCTL_ACK(s));
