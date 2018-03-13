@@ -1368,8 +1368,7 @@ SYSCALL_DEFINE3(socket, int, family, int, type, int, protocol)
  *	Create a pair of connected sockets.
  */
 
-SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
-		int __user *, usockvec)
+int __sys_socketpair(int family, int type, int protocol, int __user *usockvec)
 {
 	struct socket *sock1, *sock2;
 	int fd1, fd2, err;
@@ -1452,6 +1451,12 @@ out:
 	put_unused_fd(fd2);
 	put_unused_fd(fd1);
 	return err;
+}
+
+SYSCALL_DEFINE4(socketpair, int, family, int, type, int, protocol,
+		int __user *, usockvec)
+{
+	return __sys_socketpair(family, type, protocol, usockvec);
 }
 
 /*
@@ -2521,7 +2526,7 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 				      (int __user *)a[2]);
 		break;
 	case SYS_SOCKETPAIR:
-		err = sys_socketpair(a0, a1, a[2], (int __user *)a[3]);
+		err = __sys_socketpair(a0, a1, a[2], (int __user *)a[3]);
 		break;
 	case SYS_SEND:
 		err = sys_send(a0, (void __user *)a1, a[2], a[3]);
