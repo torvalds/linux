@@ -7968,6 +7968,51 @@ again:
 	up_read(&info->groups_sem);
 }
 
+/*
+ * btrfs_reserve_extent - entry point to the extent allocator. Tries to find a
+ *			  hole that is at least as big as @num_bytes.
+ *
+ * @root           -	The root that will contain this extent
+ *
+ * @ram_bytes      -	The amount of space in ram that @num_bytes take. This
+ *			is used for accounting purposes. This value differs
+ *			from @num_bytes only in the case of compressed extents.
+ *
+ * @num_bytes      -	Number of bytes to allocate on-disk.
+ *
+ * @min_alloc_size -	Indicates the minimum amount of space that the
+ *			allocator should try to satisfy. In some cases
+ *			@num_bytes may be larger than what is required and if
+ *			the filesystem is fragmented then allocation fails.
+ *			However, the presence of @min_alloc_size gives a
+ *			chance to try and satisfy the smaller allocation.
+ *
+ * @empty_size     -	A hint that you plan on doing more COW. This is the
+ *			size in bytes the allocator should try to find free
+ *			next to the block it returns.  This is just a hint and
+ *			may be ignored by the allocator.
+ *
+ * @hint_byte      -	Hint to the allocator to start searching above the byte
+ *			address passed. It might be ignored.
+ *
+ * @ins            -	This key is modified to record the found hole. It will
+ *			have the following values:
+ *			ins->objectid == start position
+ *			ins->flags = BTRFS_EXTENT_ITEM_KEY
+ *			ins->offset == the size of the hole.
+ *
+ * @is_data        -	Boolean flag indicating whether an extent is
+ *			allocated for data (true) or metadata (false)
+ *
+ * @delalloc       -	Boolean flag indicating whether this allocation is for
+ *			delalloc or not. If 'true' data_rwsem of block groups
+ *			is going to be acquired.
+ *
+ *
+ * Returns 0 when an allocation succeeded or < 0 when an error occurred. In
+ * case -ENOSPC is returned then @ins->offset will contain the size of the
+ * largest available hole the allocator managed to find.
+ */
 int btrfs_reserve_extent(struct btrfs_root *root, u64 ram_bytes,
 			 u64 num_bytes, u64 min_alloc_size,
 			 u64 empty_size, u64 hint_byte,
