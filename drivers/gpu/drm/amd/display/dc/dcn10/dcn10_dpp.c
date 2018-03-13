@@ -121,6 +121,13 @@ bool dpp_get_optimal_number_of_taps(
 	else
 		pixel_width = scl_data->viewport.width;
 
+	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
+	if (scl_data->viewport.width  != scl_data->h_active &&
+		scl_data->viewport.height != scl_data->v_active &&
+		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
+		scl_data->format == PIXEL_FORMAT_FP16)
+		return false;
+
 	/* TODO: add lb check */
 
 	/* No support for programming ratio of 4, drop to 3.99999.. */

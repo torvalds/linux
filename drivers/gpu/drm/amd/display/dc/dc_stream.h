@@ -209,14 +209,6 @@ bool dc_add_all_planes_for_stream(
 enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
 
 /*
- * This function takes a stream and checks if it is guaranteed to be supported.
- * Guaranteed means that MAX_COFUNC similar streams are supported.
- *
- * After this call:
- *   No hardware is programmed for call.  Only validation is done.
- */
-
-/*
  * Set up streams and links associated to drive sinks
  * The streams parameter is an absolute set of all active streams.
  *

@@ -1599,18 +1599,6 @@ enum dc_status dc_remove_stream_from_ctx(
 	return DC_OK;
 }
 
-static void copy_pipe_ctx(
-	const struct pipe_ctx *from_pipe_ctx, struct pipe_ctx *to_pipe_ctx)
-{
-	struct dc_plane_state *plane_state = to_pipe_ctx->plane_state;
-	struct dc_stream_state *stream = to_pipe_ctx->stream;
-
-	*to_pipe_ctx = *from_pipe_ctx;
-	to_pipe_ctx->stream = stream;
-	if (plane_state != NULL)
-		to_pipe_ctx->plane_state = plane_state;
-}
-
 static struct dc_stream_state *find_pll_sharable_stream(
 		struct dc_stream_state *stream_needs_pll,
 		struct dc_state *context)
@@ -1750,26 +1738,6 @@ enum dc_status resource_map_pool_resources(
 
 	DC_ERROR("Stream %p not found in new ctx!\n", stream);
 	return DC_ERROR_UNEXPECTED;
-}
-
-/* first stream in the context is used to populate the rest */
-void validate_guaranteed_copy_streams(
-		struct dc_state *context,
-		int max_streams)
-{
-	int i;
-
-	for (i = 1; i < max_streams; i++) {
-		context->streams[i] = context->streams[0];
-
-		copy_pipe_ctx(&context->res_ctx.pipe_ctx[0],
-			      &context->res_ctx.pipe_ctx[i]);
-		context->res_ctx.pipe_ctx[i].stream =
-				context->res_ctx.pipe_ctx[0].stream;
-
-		dc_stream_retain(context->streams[i]);
-		context->stream_count++;
-	}
 }
 
 void dc_resource_state_copy_construct_current(
