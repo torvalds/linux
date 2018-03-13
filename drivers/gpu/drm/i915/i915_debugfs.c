@@ -2565,7 +2565,6 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 	mutex_lock(&dev_priv->psr.lock);
 	seq_printf(m, "Enabled: %s\n", yesno((bool)dev_priv->psr.enabled));
-	seq_printf(m, "Active: %s\n", yesno(dev_priv->psr.active));
 	seq_printf(m, "Busy frontbuffer bits: 0x%03x\n",
 		   dev_priv->psr.busy_frontbuffer_bits);
 	seq_printf(m, "Re-enable work scheduled: %s\n",
