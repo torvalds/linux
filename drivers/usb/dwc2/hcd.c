@@ -5433,7 +5433,7 @@ int dwc2_host_enter_hibernation(struct dwc2_hsotg *hsotg)
 
 	/* Wait for the HPRT0.PrtSusp register field to be set */
 	if (dwc2_hsotg_wait_bit_set(hsotg, HPRT0, HPRT0_SUSP, 300))
-		dev_warn(hsotg->dev, "Suspend wasn't genereted\n");
+		dev_warn(hsotg->dev, "Suspend wasn't generated\n");
 
 	/*
 	 * We need to disable interrupts to prevent servicing of any IRQ
