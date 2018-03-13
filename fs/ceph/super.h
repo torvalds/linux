@@ -671,6 +671,10 @@ struct ceph_file_info {
 
 	spinlock_t rw_contexts_lock;
 	struct list_head rw_contexts;
+};
+
+struct ceph_dir_file_info {
+	struct ceph_file_info file_info;
 
 	/* readdir: position within the dir */
 	u32 frag;
