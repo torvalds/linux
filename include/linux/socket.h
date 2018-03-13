@@ -370,5 +370,7 @@ extern int __sys_connect(int fd, struct sockaddr __user *uservaddr,
 extern int __sys_listen(int fd, int backlog);
 extern int __sys_getsockname(int fd, struct sockaddr __user *usockaddr,
 			     int __user *usockaddr_len);
+extern int __sys_getpeername(int fd, struct sockaddr __user *usockaddr,
+			     int __user *usockaddr_len);
 
 #endif /* _LINUX_SOCKET_H */

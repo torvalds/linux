@@ -1712,8 +1712,8 @@ SYSCALL_DEFINE3(getsockname, int, fd, struct sockaddr __user *, usockaddr,
  *	name to user space.
  */
 
-SYSCALL_DEFINE3(getpeername, int, fd, struct sockaddr __user *, usockaddr,
-		int __user *, usockaddr_len)
+int __sys_getpeername(int fd, struct sockaddr __user *usockaddr,
+		      int __user *usockaddr_len)
 {
 	struct socket *sock;
 	struct sockaddr_storage address;
@@ -1736,6 +1736,12 @@ SYSCALL_DEFINE3(getpeername, int, fd, struct sockaddr __user *, usockaddr,
 		fput_light(sock->file, fput_needed);
 	}
 	return err;
+}
+
+SYSCALL_DEFINE3(getpeername, int, fd, struct sockaddr __user *, usockaddr,
+		int __user *, usockaddr_len)
+{
+	return __sys_getpeername(fd, usockaddr, usockaddr_len);
 }
 
 /*
@@ -2511,8 +2517,8 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 		break;
 	case SYS_GETPEERNAME:
 		err =
-		    sys_getpeername(a0, (struct sockaddr __user *)a1,
-				    (int __user *)a[2]);
+		    __sys_getpeername(a0, (struct sockaddr __user *)a1,
+				      (int __user *)a[2]);
 		break;
 	case SYS_SOCKETPAIR:
 		err = sys_socketpair(a0, a1, a[2], (int __user *)a[3]);
