@@ -109,7 +109,7 @@ imx6-mipi-csi2
 This is the MIPI CSI-2 receiver entity. It has one sink pad to receive
 the MIPI CSI-2 stream (usually from a MIPI CSI-2 camera sensor). It has
 four source pads, corresponding to the four MIPI CSI-2 demuxed virtual
-channel outputs. Multpiple source pads can be enabled to independently
+channel outputs. Multiple source pads can be enabled to independently
 stream from multiple virtual channels.
 
 This entity actually consists of two sub-blocks. One is the MIPI CSI-2
