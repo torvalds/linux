@@ -45,8 +45,6 @@ static struct unittest_results {
 	failed; \
 })
 
-static int __init overlay_data_apply(const char *overlay_name, int *overlay_id);
-
 static void __init of_unittest_find_node_by_name(void)
 {
 	struct device_node *np;
@@ -1192,6 +1190,7 @@ static int __init unittest_data_add(void)
 }
 
 #ifdef CONFIG_OF_OVERLAY
+static int __init overlay_data_apply(const char *overlay_name, int *overlay_id);
 
 static int unittest_probe(struct platform_device *pdev)
 {
