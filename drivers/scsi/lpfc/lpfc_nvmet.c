@@ -74,13 +74,13 @@ static int lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *,
 static void lpfc_nvmet_wqfull_flush(struct lpfc_hba *, struct lpfc_queue *,
 				    struct lpfc_nvmet_rcv_ctx *);
 
-union lpfc_wqe128 lpfc_tsend_cmd_template;
-union lpfc_wqe128 lpfc_treceive_cmd_template;
-union lpfc_wqe128 lpfc_trsp_cmd_template;
+static union lpfc_wqe128 lpfc_tsend_cmd_template;
+static union lpfc_wqe128 lpfc_treceive_cmd_template;
+static union lpfc_wqe128 lpfc_trsp_cmd_template;
 
 /* Setup WQE templates for NVME IOs */
 void
-lpfc_nvmet_cmd_template()
+lpfc_nvmet_cmd_template(void)
 {
 	union lpfc_wqe128 *wqe;
 

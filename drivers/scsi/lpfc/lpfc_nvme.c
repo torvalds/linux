@@ -65,13 +65,13 @@ lpfc_release_nvme_buf(struct lpfc_hba *, struct lpfc_nvme_buf *);
 
 static struct nvme_fc_port_template lpfc_nvme_template;
 
-union lpfc_wqe128 lpfc_iread_cmd_template;
-union lpfc_wqe128 lpfc_iwrite_cmd_template;
-union lpfc_wqe128 lpfc_icmnd_cmd_template;
+static union lpfc_wqe128 lpfc_iread_cmd_template;
+static union lpfc_wqe128 lpfc_iwrite_cmd_template;
+static union lpfc_wqe128 lpfc_icmnd_cmd_template;
 
 /* Setup WQE templates for NVME IOs */
 void
-lpfc_nvme_cmd_template()
+lpfc_nvme_cmd_template(void)
 {
 	union lpfc_wqe128 *wqe;
 
