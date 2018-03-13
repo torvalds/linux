@@ -492,6 +492,19 @@ static int ib_cache_gid_find(struct ib_device *ib_dev,
 					mask, port, index);
 }
 
+/**
+ * ib_find_cached_gid_by_port - Returns the GID table index where a specified
+ * GID value occurs. It searches for the specified GID value in the local
+ * software cache.
+ * @device: The device to query.
+ * @gid: The GID value to search for.
+ * @gid_type: The GID type to search for.
+ * @port_num: The port number of the device where the GID value should be
+ *   searched.
+ * @ndev: In RoCE, the net device of the device. Null means ignore.
+ * @index: The index into the cached GID table where the GID was found. This
+ *   parameter may be NULL.
+ */
 int ib_find_cached_gid_by_port(struct ib_device *ib_dev,
 			       const union ib_gid *gid,
 			       enum ib_gid_type gid_type,
@@ -528,7 +541,7 @@ int ib_find_cached_gid_by_port(struct ib_device *ib_dev,
 EXPORT_SYMBOL(ib_find_cached_gid_by_port);
 
 /**
- * ib_find_gid_by_filter - Returns the GID table index where a specified
+ * ib_cache_gid_find_by_filter - Returns the GID table index where a specified
  * GID value occurs
  * @device: The device to query.
  * @gid: The GID value to search for.
@@ -539,7 +552,7 @@ EXPORT_SYMBOL(ib_find_cached_gid_by_port);
  *   otherwise, we continue searching the GID table. It's guaranteed that
  *   while filter is executed, ndev field is valid and the structure won't
  *   change. filter is executed in an atomic context. filter must not be NULL.
- * @index: The index into the cached GID table where the GID was found.  This
+ * @index: The index into the cached GID table where the GID was found. This
  *   parameter may be NULL.
  *
  * ib_cache_gid_find_by_filter() searches for the specified GID value
@@ -848,6 +861,20 @@ int ib_get_cached_gid(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_get_cached_gid);
 
+/**
+ * ib_find_cached_gid - Returns the port number and GID table index where
+ *   a specified GID value occurs.
+ * @device: The device to query.
+ * @gid: The GID value to search for.
+ * @gid_type: The GID type to search for.
+ * @ndev: In RoCE, the net device of the device. NULL means ignore.
+ * @port_num: The port number of the device where the GID value was found.
+ * @index: The index into the cached GID table where the GID was found.  This
+ *   parameter may be NULL.
+ *
+ * ib_find_cached_gid() searches for the specified GID value in
+ * the local software cache.
+ */
 int ib_find_cached_gid(struct ib_device *device,
 		       const union ib_gid *gid,
 		       enum ib_gid_type gid_type,
