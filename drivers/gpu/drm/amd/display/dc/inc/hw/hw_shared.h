@@ -191,4 +191,9 @@ enum controller_dp_test_pattern {
 	CONTROLLER_DP_TEST_PATTERN_COLORSQUARES_CEA
 };
 
+enum dc_lut_mode {
+	LUT_BYPASS,
+	LUT_RAM_A,
+	LUT_RAM_B
+};
 #endif /* __DAL_HW_SHARED_H__ */
