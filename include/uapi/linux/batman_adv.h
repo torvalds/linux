@@ -92,6 +92,53 @@ enum batadv_tt_client_flags {
 };
 
 /**
+ * enum batadv_mcast_flags_priv - Private, own multicast flags
+ *
+ * These are internal, multicast related flags. Currently they describe certain
+ * multicast related attributes of the segment this originator bridges into the
+ * mesh.
+ *
+ * Those attributes are used to determine the public multicast flags this
+ * originator is going to announce via TT.
+ *
+ * For netlink, if BATADV_MCAST_FLAGS_BRIDGED is unset then all querier
+ * related flags are undefined.
+ */
+enum batadv_mcast_flags_priv {
+	/**
+	 * @BATADV_MCAST_FLAGS_BRIDGED: There is a bridge on top of the mesh
+	 * interface.
+	 */
+	BATADV_MCAST_FLAGS_BRIDGED			= (1 << 0),
+
+	/**
+	 * @BATADV_MCAST_FLAGS_QUERIER_IPV4_EXISTS: Whether an IGMP querier
+	 * exists in the mesh
+	 */
+	BATADV_MCAST_FLAGS_QUERIER_IPV4_EXISTS		= (1 << 1),
+
+	/**
+	 * @BATADV_MCAST_FLAGS_QUERIER_IPV6_EXISTS: Whether an MLD querier
+	 * exists in the mesh
+	 */
+	BATADV_MCAST_FLAGS_QUERIER_IPV6_EXISTS		= (1 << 2),
+
+	/**
+	 * @BATADV_MCAST_FLAGS_QUERIER_IPV4_SHADOWING: If an IGMP querier
+	 * exists, whether it is potentially shadowing multicast listeners
+	 * (i.e. querier is behind our own bridge segment)
+	 */
+	BATADV_MCAST_FLAGS_QUERIER_IPV4_SHADOWING	= (1 << 3),
+
+	/**
+	 * @BATADV_MCAST_FLAGS_QUERIER_IPV6_SHADOWING: If an MLD querier
+	 * exists, whether it is potentially shadowing multicast listeners
+	 * (i.e. querier is behind our own bridge segment)
+	 */
+	BATADV_MCAST_FLAGS_QUERIER_IPV6_SHADOWING	= (1 << 4),
+};
+
+/**
  * enum batadv_nl_attrs - batman-adv netlink attributes
  */
 enum batadv_nl_attrs {
@@ -287,6 +334,16 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_DAT_CACHE_VID,
 
+	/**
+	 * @BATADV_ATTR_MCAST_FLAGS: Per originator multicast flags
+	 */
+	BATADV_ATTR_MCAST_FLAGS,
+
+	/**
+	 * @BATADV_ATTR_MCAST_FLAGS_PRIV: Private, own multicast flags
+	 */
+	BATADV_ATTR_MCAST_FLAGS_PRIV,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
@@ -380,6 +437,11 @@ enum batadv_nl_commands {
 	 * @BATADV_CMD_GET_DAT_CACHE: Query list of DAT cache entries
 	 */
 	BATADV_CMD_GET_DAT_CACHE,
+
+	/**
+	 * @BATADV_CMD_GET_MCAST_FLAGS: Query list of multicast flags
+	 */
+	BATADV_CMD_GET_MCAST_FLAGS,
 
 	/* add new commands above here */
 

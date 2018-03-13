@@ -48,6 +48,7 @@
 #include "distributed-arp-table.h"
 #include "gateway_client.h"
 #include "hard-interface.h"
+#include "multicast.h"
 #include "originator.h"
 #include "soft-interface.h"
 #include "tp_meter.h"
@@ -101,6 +102,8 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_DAT_CACHE_IP4ADDRESS]	= { .type = NLA_U32 },
 	[BATADV_ATTR_DAT_CACHE_HWADDRESS]	= { .len = ETH_ALEN },
 	[BATADV_ATTR_DAT_CACHE_VID]		= { .type = NLA_U16 },
+	[BATADV_ATTR_MCAST_FLAGS]		= { .type = NLA_U32 },
+	[BATADV_ATTR_MCAST_FLAGS_PRIV]		= { .type = NLA_U32 },
 };
 
 /**
@@ -150,6 +153,9 @@ batadv_netlink_mesh_info_put(struct sk_buff *msg, struct net_device *soft_iface)
 			ntohs(bat_priv->bla.claim_dest.group)))
 		goto out;
 #endif
+
+	if (batadv_mcast_mesh_info_put(msg, bat_priv))
+		goto out;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (primary_if && primary_if->if_status == BATADV_IF_ACTIVE) {
@@ -613,6 +619,12 @@ static const struct genl_ops batadv_netlink_ops[] = {
 		.flags = GENL_ADMIN_PERM,
 		.policy = batadv_netlink_policy,
 		.dumpit = batadv_dat_cache_dump,
+	},
+	{
+		.cmd = BATADV_CMD_GET_MCAST_FLAGS,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.dumpit = batadv_mcast_flags_dump,
 	},
 
 };
