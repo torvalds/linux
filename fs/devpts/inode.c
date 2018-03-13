@@ -152,6 +152,24 @@ static int devpts_ptmx_path(struct path *path)
 	return 0;
 }
 
+/*
+ * Try to find a suitable devpts filesystem. We support the following
+ * scenarios:
+ * - The ptmx device node is located in the same directory as the devpts
+ *   mount where the pts device nodes are located.
+ *   This is e.g. the case when calling open on the /dev/pts/ptmx device
+ *   node when the devpts filesystem is mounted at /dev/pts.
+ * - The ptmx device node is located outside the devpts filesystem mount
+ *   where the pts device nodes are located. For example, the ptmx device
+ *   is a symlink, separate device node, or bind-mount.
+ *   A supported scenario is bind-mounting /dev/pts/ptmx to /dev/ptmx and
+ *   then calling open on /dev/ptmx. In this case a suitable pts
+ *   subdirectory can be found in the common parent directory /dev of the
+ *   devpts mount and the ptmx bind-mount, after resolving the /dev/ptmx
+ *   bind-mount.
+ *   If no suitable pts subdirectory can be found this function will fail.
+ *   This is e.g. the case when bind-mounting /dev/pts/ptmx to /ptmx.
+ */
 struct vfsmount *devpts_mntget(struct file *filp, struct pts_fs_info *fsi)
 {
 	struct path path;
