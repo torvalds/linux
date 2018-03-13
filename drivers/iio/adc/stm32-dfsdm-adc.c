@@ -144,6 +144,7 @@ static int stm32_dfsdm_set_osrs(struct stm32_dfsdm_filter *fl,
 	 * Leave as soon as if exact resolution if reached.
 	 * Otherwise the higher resolution below 32 bits is kept.
 	 */
+	fl->res = 0;
 	for (fosr = 1; fosr <= DFSDM_MAX_FL_OVERSAMPLING; fosr++) {
 		for (iosr = 1; iosr <= DFSDM_MAX_INT_OVERSAMPLING; iosr++) {
 			if (fast)
@@ -193,7 +194,7 @@ static int stm32_dfsdm_set_osrs(struct stm32_dfsdm_filter *fl,
 		}
 	}
 
-	if (!fl->fosr)
+	if (!fl->res)
 		return -EINVAL;
 
 	return 0;
