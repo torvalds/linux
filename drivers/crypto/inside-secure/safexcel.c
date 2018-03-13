@@ -895,16 +895,30 @@ static int safexcel_probe(struct platform_device *pdev)
 		}
 	}
 
+	priv->reg_clk = devm_clk_get(&pdev->dev, "reg");
+	ret = PTR_ERR_OR_ZERO(priv->reg_clk);
+	/* The clock isn't mandatory */
+	if  (ret != -ENOENT) {
+		if (ret)
+			goto err_core_clk;
+
+		ret = clk_prepare_enable(priv->reg_clk);
+		if (ret) {
+			dev_err(dev, "unable to enable reg clk (%d)\n", ret);
+			goto err_core_clk;
+		}
+	}
+
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret)
-		goto err_clk;
+		goto err_reg_clk;
 
 	priv->context_pool = dmam_pool_create("safexcel-context", dev,
 					      sizeof(struct safexcel_context_record),
 					      1, 0);
 	if (!priv->context_pool) {
 		ret = -ENOMEM;
-		goto err_clk;
+		goto err_reg_clk;
 	}
 
 	safexcel_configure(priv);
@@ -919,12 +933,12 @@ static int safexcel_probe(struct platform_device *pdev)
 						     &priv->ring[i].cdr,
 						     &priv->ring[i].rdr);
 		if (ret)
-			goto err_clk;
+			goto err_reg_clk;
 
 		ring_irq = devm_kzalloc(dev, sizeof(*ring_irq), GFP_KERNEL);
 		if (!ring_irq) {
 			ret = -ENOMEM;
-			goto err_clk;
+			goto err_reg_clk;
 		}
 
 		ring_irq->priv = priv;
@@ -936,7 +950,7 @@ static int safexcel_probe(struct platform_device *pdev)
 						ring_irq);
 		if (irq < 0) {
 			ret = irq;
-			goto err_clk;
+			goto err_reg_clk;
 		}
 
 		priv->ring[i].work_data.priv = priv;
@@ -947,7 +961,7 @@ static int safexcel_probe(struct platform_device *pdev)
 		priv->ring[i].workqueue = create_singlethread_workqueue(wq_name);
 		if (!priv->ring[i].workqueue) {
 			ret = -ENOMEM;
-			goto err_clk;
+			goto err_reg_clk;
 		}
 
 		priv->ring[i].requests = 0;
@@ -968,18 +982,20 @@ static int safexcel_probe(struct platform_device *pdev)
 	ret = safexcel_hw_init(priv);
 	if (ret) {
 		dev_err(dev, "EIP h/w init failed (%d)\n", ret);
-		goto err_clk;
+		goto err_reg_clk;
 	}
 
 	ret = safexcel_register_algorithms(priv);
 	if (ret) {
 		dev_err(dev, "Failed to register algorithms (%d)\n", ret);
-		goto err_clk;
+		goto err_reg_clk;
 	}
 
 	return 0;
 
-err_clk:
+err_reg_clk:
+	clk_disable_unprepare(priv->reg_clk);
+err_core_clk:
 	clk_disable_unprepare(priv->clk);
 	return ret;
 }

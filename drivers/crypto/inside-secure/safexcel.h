@@ -525,6 +525,7 @@ struct safexcel_crypto_priv {
 	void __iomem *base;
 	struct device *dev;
 	struct clk *clk;
+	struct clk *reg_clk;
 	struct safexcel_config config;
 
 	enum safexcel_eip_version version;
