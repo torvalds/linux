@@ -488,10 +488,12 @@ static int macb_mii_probe(struct net_device *dev)
 			}
 			bp->phy_node = of_node_get(np);
 		} else {
-			/* fallback to standard phy registration if no phy were
-			 * found during dt phy registration
+			bp->phy_node = of_parse_phandle(np, "phy-handle", 0);
+			/* fallback to standard phy registration if no
+			 * phy-handle was found nor any phy found during
+			 * dt phy registration
 			 */
-			if (!phy_find_first(bp->mii_bus)) {
+			if (!bp->phy_node && !phy_find_first(bp->mii_bus)) {
 				for (i = 0; i < PHY_MAX_ADDR; i++) {
 					struct phy_device *phydev;
 
