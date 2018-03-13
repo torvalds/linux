@@ -36,7 +36,7 @@
 #include "rxe_queue.h"
 
 int rxe_cq_chk_attr(struct rxe_dev *rxe, struct rxe_cq *cq,
-		    int cqe, int comp_vector, struct ib_udata *udata)
+		    int cqe, int comp_vector)
 {
 	int count;
 

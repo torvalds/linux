@@ -892,7 +892,7 @@ static struct ib_cq *rxe_create_cq(struct ib_device *dev,
 	if (attr->flags)
 		return ERR_PTR(-EINVAL);
 
-	err = rxe_cq_chk_attr(rxe, NULL, attr->cqe, attr->comp_vector, udata);
+	err = rxe_cq_chk_attr(rxe, NULL, attr->cqe, attr->comp_vector);
 	if (err)
 		goto err1;
 
@@ -931,7 +931,7 @@ static int rxe_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	struct rxe_cq *cq = to_rcq(ibcq);
 	struct rxe_dev *rxe = to_rdev(ibcq->device);
 
-	err = rxe_cq_chk_attr(rxe, cq, cqe, 0, udata);
+	err = rxe_cq_chk_attr(rxe, cq, cqe, 0);
 	if (err)
 		goto err1;
 

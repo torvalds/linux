@@ -52,7 +52,7 @@ struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt);
 
 /* rxe_cq.c */
 int rxe_cq_chk_attr(struct rxe_dev *rxe, struct rxe_cq *cq,
-		    int cqe, int comp_vector, struct ib_udata *udata);
+		    int cqe, int comp_vector);
 
 int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
 		     int comp_vector, struct ib_ucontext *context,
