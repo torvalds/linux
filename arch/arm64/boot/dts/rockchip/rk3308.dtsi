@@ -277,6 +277,16 @@
 		};
 	};
 
+	fiq_debugger: fiq-debugger {
+		compatible = "rockchip,fiq-debugger";
+		rockchip,serial-id = <2>;
+		rockchip,wake-irq = <0>;
+		rockchip,irq-mode-enable = <0>;
+		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+		status = "disabled";
+	};
+
 	mac_clkin: external-mac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <50000000>;
