@@ -50,9 +50,13 @@
 #define PIN_MAP_E		BIT(4)
 #define PIN_MAP_F		BIT(5)
 
-#define PACKET_IS_GOOD_CRC(header) \
-		(PD_HEADER_TYPE(header) == CMT_GOODCRC && \
-		 PD_HEADER_CNT(header) == 0)
+#define PACKET_IS_CONTROL_MSG(header, type) \
+		(PD_HEADER_CNT(header) == 0 && \
+		 PD_HEADER_TYPE(header) == type)
+
+#define PACKET_IS_DATA_MSG(header, type) \
+		(PD_HEADER_CNT(header) != 0 && \
+		 PD_HEADER_TYPE(header) == type)
 
 static u8 fusb30x_port_used;
 static struct fusb30x_chip *fusb30x_port_info[256];
@@ -352,7 +356,7 @@ static int tcpm_get_message(struct fusb30x_chip *chip)
 		len = PD_HEADER_CNT(chip->rec_head) << 2;
 		regmap_raw_read(chip->regmap, FUSB_REG_FIFO, buf, len + 4);
 	/* ignore good_crc message */
-	} while (PACKET_IS_GOOD_CRC(chip->rec_head));
+	} while (PACKET_IS_CONTROL_MSG(chip->rec_head, CMT_GOODCRC));
 
 	memcpy(chip->rec_load, buf, len);
 
@@ -1608,8 +1612,7 @@ static void fusb_state_src_send_caps(struct fusb30x_chip *chip, int evt)
 			break;
 	default:
 		if (evt & EVENT_RX) {
-			if ((PD_HEADER_CNT(chip->rec_head) == 1) &&
-			    (PD_HEADER_TYPE(chip->rec_head) == DMT_REQUEST)) {
+			if (PACKET_IS_DATA_MSG(chip->rec_head, DMT_REQUEST)) {
 				set_state(chip, policy_src_negotiate_cap);
 			} else {
 				set_state(chip, policy_src_send_softrst);
@@ -1754,8 +1757,7 @@ static void fusb_state_src_transition_default(struct fusb30x_chip *chip,
 static void fusb_state_src_ready(struct fusb30x_chip *chip, int evt)
 {
 	if (evt & EVENT_RX) {
-		if ((PD_HEADER_CNT(chip->rec_head)) &&
-		    (PD_HEADER_TYPE(chip->rec_head) == DMT_VENDERDEFINED)) {
+		if (PACKET_IS_DATA_MSG(chip->rec_head, DMT_VENDERDEFINED)) {
 			process_vdm_msg(chip);
 			chip->work_continue = 1;
 			chip->timer_state = T_DISABLED;
@@ -1795,9 +1797,8 @@ static void fusb_state_src_get_sink_cap(struct fusb30x_chip *chip, int evt)
 			break;
 	default:
 		if (evt & EVENT_RX) {
-			if ((PD_HEADER_CNT(chip->rec_head)) &&
-			    (PD_HEADER_TYPE(chip->rec_head) ==
-			     DMT_SINKCAPABILITIES)) {
+			if (PACKET_IS_DATA_MSG(chip->rec_head,
+					       DMT_SINKCAPABILITIES)) {
 				for (tmp = 0;
 				     tmp < PD_HEADER_CNT(chip->rec_head);
 				     tmp++) {
@@ -1886,8 +1887,7 @@ static void fusb_state_src_send_softreset(struct fusb30x_chip *chip, int evt)
 			break;
 	default:
 		if (evt & EVENT_RX) {
-			if ((!PD_HEADER_CNT(chip->rec_head)) &&
-			    (PD_HEADER_TYPE(chip->rec_head) == CMT_ACCEPT)) {
+			if (PACKET_IS_CONTROL_MSG(chip->rec_head, CMT_ACCEPT)) {
 				fusb_soft_reset_parameter(chip);
 				set_state(chip, policy_src_send_caps);
 			}
@@ -1923,8 +1923,8 @@ static void fusb_state_snk_discovery(struct fusb30x_chip *chip, int evt)
 static void fusb_state_snk_wait_caps(struct fusb30x_chip *chip, int evt)
 {
 	if (evt & EVENT_RX) {
-		if (PD_HEADER_CNT(chip->rec_head) &&
-		    PD_HEADER_TYPE(chip->rec_head) == DMT_SOURCECAPABILITIES) {
+		if (PACKET_IS_DATA_MSG(chip->rec_head,
+				       DMT_SOURCECAPABILITIES)) {
 			chip->is_pd_support = 1;
 			chip->timer_mux = T_DISABLED;
 			set_state(chip, policy_snk_evaluate_caps);
@@ -2055,15 +2055,13 @@ static void fusb_state_snk_select_cap(struct fusb30x_chip *chip, int evt)
 static void fusb_state_snk_transition_sink(struct fusb30x_chip *chip, int evt)
 {
 	if (evt & EVENT_RX) {
-		if ((!PD_HEADER_CNT(chip->rec_head)) &&
-		    (PD_HEADER_TYPE(chip->rec_head) == CMT_PS_RDY)) {
+		if (PACKET_IS_CONTROL_MSG(chip->rec_head, CMT_PS_RDY)) {
 			chip->notify.is_pd_connected = 1;
 			dev_info(chip->dev,
 				 "PD connected as UFP, fetching 5V\n");
 			set_state(chip, policy_snk_ready);
-		} else if ((PD_HEADER_CNT(chip->rec_head)) &&
-			   (PD_HEADER_TYPE(chip->rec_head) ==
-			    DMT_SOURCECAPABILITIES)) {
+		} else if (PACKET_IS_DATA_MSG(chip->rec_head,
+					      DMT_SOURCECAPABILITIES)) {
 			set_state(chip, policy_snk_evaluate_caps);
 		}
 	} else if (evt & EVENT_TIMER_STATE) {
@@ -2229,8 +2227,7 @@ static void state_machine_typec(struct fusb30x_chip *chip)
 
 	if (evt & EVENT_RX) {
 		tcpm_get_message(chip);
-		if ((!PD_HEADER_CNT(chip->rec_head)) &&
-		    (PD_HEADER_TYPE(chip->rec_head) == CMT_SOFTRESET)) {
+		if (PACKET_IS_CONTROL_MSG(chip->rec_head, CMT_SOFTRESET)) {
 			if (chip->notify.power_role)
 				set_state(chip, policy_src_softrst);
 			else
