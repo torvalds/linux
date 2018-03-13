@@ -69,8 +69,8 @@ int addrconf_set_dstaddr(struct net *net, void __user *arg);
 int ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 		  const struct net_device *dev, int strict);
 int ipv6_chk_addr_and_flags(struct net *net, const struct in6_addr *addr,
-			    const struct net_device *dev, int strict,
-			    u32 banned_flags);
+			    const struct net_device *dev, bool skip_dev_check,
+			    int strict, u32 banned_flags);
 
 #if defined(CONFIG_IPV6_MIP6) || defined(CONFIG_IPV6_MIP6_MODULE)
 int ipv6_chk_home_addr(struct net *net, const struct in6_addr *addr);

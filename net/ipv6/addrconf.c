@@ -1851,19 +1851,24 @@ static int ipv6_count_addresses(const struct inet6_dev *idev)
 int ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 		  const struct net_device *dev, int strict)
 {
-	return ipv6_chk_addr_and_flags(net, addr, dev, strict, IFA_F_TENTATIVE);
+	return ipv6_chk_addr_and_flags(net, addr, dev, !dev,
+				       strict, IFA_F_TENTATIVE);
 }
 EXPORT_SYMBOL(ipv6_chk_addr);
 
 int ipv6_chk_addr_and_flags(struct net *net, const struct in6_addr *addr,
-			    const struct net_device *dev, int strict,
-			    u32 banned_flags)
+			    const struct net_device *dev, bool skip_dev_check,
+			    int strict, u32 banned_flags)
 {
 	unsigned int hash = inet6_addr_hash(net, addr);
 	struct inet6_ifaddr *ifp;
 	u32 ifp_flags;
 
 	rcu_read_lock();
+
+	if (skip_dev_check)
+		dev = NULL;
+
 	hlist_for_each_entry_rcu(ifp, &inet6_addr_lst[hash], addr_lst) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;

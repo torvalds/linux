@@ -2632,7 +2632,9 @@ static int ip6_validate_gw(struct net *net, struct fib6_config *cfg,
 {
 	const struct in6_addr *gw_addr = &cfg->fc_gateway;
 	int gwa_type = ipv6_addr_type(gw_addr);
+	bool skip_dev = gwa_type & IPV6_ADDR_LINKLOCAL ? false : true;
 	const struct net_device *dev = *_dev;
+	bool need_addr_check = !dev;
 	int err = -EINVAL;
 
 	/* if gw_addr is local we will fail to detect this in case
@@ -2640,10 +2642,9 @@ static int ip6_validate_gw(struct net *net, struct fib6_config *cfg,
 	 * will return already-added prefix route via interface that
 	 * prefix route was assigned to, which might be non-loopback.
 	 */
-	if (ipv6_chk_addr_and_flags(net, gw_addr,
-				    gwa_type & IPV6_ADDR_LINKLOCAL ?
-				    dev : NULL, 0, 0)) {
-		NL_SET_ERR_MSG(extack, "Invalid gateway address");
+	if (dev &&
+	    ipv6_chk_addr_and_flags(net, gw_addr, dev, skip_dev, 0, 0)) {
+		NL_SET_ERR_MSG(extack, "Gateway can not be a local address");
 		goto out;
 	}
 
@@ -2683,6 +2684,16 @@ static int ip6_validate_gw(struct net *net, struct fib6_config *cfg,
 			       "Egress device can not be loopback device for this route");
 		goto out;
 	}
+
+	/* if we did not check gw_addr above, do so now that the
+	 * egress device has been resolved.
+	 */
+	if (need_addr_check &&
+	    ipv6_chk_addr_and_flags(net, gw_addr, dev, skip_dev, 0, 0)) {
+		NL_SET_ERR_MSG(extack, "Gateway can not be a local address");
+		goto out;
+	}
+
 	err = 0;
 out:
 	return err;
