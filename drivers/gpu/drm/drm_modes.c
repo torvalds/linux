@@ -1596,12 +1596,8 @@ int drm_mode_convert_umode(struct drm_device *dev,
 			   struct drm_display_mode *out,
 			   const struct drm_mode_modeinfo *in)
 {
-	int ret = -EINVAL;
-
-	if (in->clock > INT_MAX || in->vrefresh > INT_MAX) {
-		ret = -ERANGE;
-		goto out;
-	}
+	if (in->clock > INT_MAX || in->vrefresh > INT_MAX)
+		return -ERANGE;
 
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
@@ -1622,14 +1618,11 @@ int drm_mode_convert_umode(struct drm_device *dev,
 
 	out->status = drm_mode_validate_driver(dev, out);
 	if (out->status != MODE_OK)
-		goto out;
+		return -EINVAL;
 
 	drm_mode_set_crtcinfo(out, CRTC_INTERLACE_HALVE_V);
 
-	ret = 0;
-
-out:
-	return ret;
+	return 0;
 }
 
 /**
