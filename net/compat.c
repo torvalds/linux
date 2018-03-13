@@ -849,7 +849,7 @@ COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
 					  compat_ptr(a[4]), compat_ptr(a[5]));
 		break;
 	case SYS_SHUTDOWN:
-		ret = sys_shutdown(a0, a1);
+		ret = __sys_shutdown(a0, a1);
 		break;
 	case SYS_SETSOCKOPT:
 		ret = compat_sys_setsockopt(a0, a1, a[2],
