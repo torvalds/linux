@@ -1345,7 +1345,7 @@ static ssize_t ucma_process_join(struct ucma_file *file,
 		return -ENOSPC;
 
 	addr = (struct sockaddr *) &cmd->addr;
-	if (cmd->reserved || !cmd->addr_size || (cmd->addr_size != rdma_addr_size(addr)))
+	if (cmd->reserved || (cmd->addr_size != rdma_addr_size(addr)))
 		return -EINVAL;
 
 	ctx = ucma_get_ctx(file, cmd->id);
@@ -1405,6 +1405,9 @@ static ssize_t ucma_join_ip_multicast(struct ucma_file *file,
 	join_cmd.uid = cmd.uid;
 	join_cmd.id = cmd.id;
 	join_cmd.addr_size = rdma_addr_size((struct sockaddr *) &cmd.addr);
+	if (!join_cmd.addr_size)
+		return -EINVAL;
+
 	join_cmd.reserved = 0;
 	memcpy(&join_cmd.addr, &cmd.addr, join_cmd.addr_size);
 
@@ -1419,6 +1422,9 @@ static ssize_t ucma_join_multicast(struct ucma_file *file,
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
+
+	if (!rdma_addr_size((struct sockaddr *)&cmd.addr))
+		return -EINVAL;
 
 	return ucma_process_join(file, &cmd, out_len);
 }
