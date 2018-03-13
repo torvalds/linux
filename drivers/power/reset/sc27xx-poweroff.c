@@ -25,7 +25,7 @@ static struct regmap *regmap;
  * taking cpus down to avoid racing regmap or spi mutex lock when poweroff
  * system through PMIC.
  */
-void sc27xx_poweroff_shutdown(void)
+static void sc27xx_poweroff_shutdown(void)
 {
 #ifdef CONFIG_PM_SLEEP_SMP
 	int cpu = smp_processor_id();
