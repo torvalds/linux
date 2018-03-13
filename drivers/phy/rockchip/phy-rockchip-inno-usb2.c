@@ -133,6 +133,9 @@ struct rockchip_chg_det_reg {
  * @bypass_dm_en: usb bypass uart DM enable register.
  * @bypass_sel: usb bypass uart select register.
  * @bypass_iomux: usb bypass uart GRF iomux register.
+ * @bypass_bc: bypass battery charging module.
+ * @bypass_otg: bypass otg module.
+ * @bypass_host: bypass host module.
  * @ls_det_en: linestate detection enable register.
  * @ls_det_st: linestate detection state register.
  * @ls_det_clr: linestate detection clear register.
@@ -160,6 +163,9 @@ struct rockchip_usb2phy_port_cfg {
 	struct usb2phy_reg	bypass_dm_en;
 	struct usb2phy_reg	bypass_sel;
 	struct usb2phy_reg	bypass_iomux;
+	struct usb2phy_reg	bypass_bc;
+	struct usb2phy_reg	bypass_otg;
+	struct usb2phy_reg	bypass_host;
 	struct usb2phy_reg	ls_det_en;
 	struct usb2phy_reg	ls_det_st;
 	struct usb2phy_reg	ls_det_clr;
@@ -199,6 +205,7 @@ struct rockchip_usb2phy_cfg {
 /**
  * struct rockchip_usb2phy_port: usb-phy port data.
  * @port_id: flag for otg port or host port.
+ * @low_power_en: enable enter low power when suspend.
  * @perip_connected: flag for periphyeral connect status.
  * @suspended: phy suspended flag.
  * @utmi_avalid: utmi avalid status usage flag.
@@ -227,6 +234,7 @@ struct rockchip_usb2phy_cfg {
 struct rockchip_usb2phy_port {
 	struct phy	*phy;
 	unsigned int	port_id;
+	bool		low_power_en;
 	bool		perip_connected;
 	bool		suspended;
 	bool		utmi_avalid;
@@ -1477,6 +1485,10 @@ static int rockchip_usb2phy_host_port_init(struct rockchip_usb2phy *rphy,
 	rport->port_id = USB2PHY_PORT_HOST;
 	rport->port_cfg = &rphy->phy_cfg->port_cfgs[USB2PHY_PORT_HOST];
 
+	/* enter lower power state when suspend */
+	rport->low_power_en =
+		of_property_read_bool(child_np, "rockchip,low-power-mode");
+
 	mutex_init(&rport->mutex);
 	INIT_DELAYED_WORK(&rport->sm_work, rockchip_usb2phy_sm_work);
 
@@ -1542,6 +1554,10 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		of_property_read_bool(child_np, "rockchip,vbus-always-on");
 	rport->utmi_avalid =
 		of_property_read_bool(child_np, "rockchip,utmi-avalid");
+
+	/* enter lower power state when suspend */
+	rport->low_power_en =
+		of_property_read_bool(child_np, "rockchip,low-power-mode");
 
 	rport->ls_irq = of_irq_get_byname(child_np, "linestate");
 	if (rport->ls_irq < 0) {
@@ -1810,6 +1826,41 @@ disable_clks:
 	return ret;
 }
 
+static int rockchip_usb2phy_low_power_enable(struct rockchip_usb2phy *rphy,
+					struct rockchip_usb2phy_port *rport,
+					bool value)
+{
+	int ret = 0;
+
+	if (!rport->low_power_en)
+		return ret;
+
+	if (rport->port_id == USB2PHY_PORT_OTG) {
+		dev_info(&rport->phy->dev, "set otg port low power state %d\n",
+			 value);
+		ret = property_enable(rphy, &rport->port_cfg->bypass_bc,
+				      value);
+		if (ret)
+			return ret;
+
+		ret = property_enable(rphy, &rport->port_cfg->bypass_otg,
+				      value);
+		if (ret)
+			return ret;
+
+		ret = property_enable(rphy, &rport->port_cfg->vbus_det_en,
+				      !value);
+	} else if (rport->port_id == USB2PHY_PORT_HOST) {
+		dev_info(&rport->phy->dev, "set host port low power state %d\n",
+			 value);
+
+		ret = property_enable(rphy, &rport->port_cfg->bypass_host,
+				      value);
+	}
+
+	return ret;
+}
+
 static int rk312x_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
 	int ret;
@@ -1995,6 +2046,9 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 			dev_err(rphy->dev, "failed to enable linestate irq\n");
 			return ret;
 		}
+
+		/* enter low power state */
+		rockchip_usb2phy_low_power_enable(rphy, rport, true);
 	}
 
 	return ret;
@@ -2045,6 +2099,9 @@ static int rockchip_usb2phy_pm_resume(struct device *dev)
 					return ret;
 			}
 		}
+
+		/* exit low power state */
+		rockchip_usb2phy_low_power_enable(rphy, rport, false);
 	}
 
 	return ret;
@@ -2247,6 +2304,8 @@ static const struct rockchip_usb2phy_cfg rk3328_phy_cfgs[] = {
 				.bvalid_det_en	= { 0x0110, 2, 2, 0, 1 },
 				.bvalid_det_st	= { 0x0114, 2, 2, 0, 1 },
 				.bvalid_det_clr = { 0x0118, 2, 2, 0, 1 },
+				.bypass_bc	= { 0x0008, 14, 14, 0, 1 },
+				.bypass_otg	= { 0x0018, 15, 15, 1, 0 },
 				.iddig_output	= { 0x0100, 10, 10, 0, 1 },
 				.iddig_en	= { 0x0100, 9, 9, 0, 1 },
 				.idfall_det_en	= { 0x0110, 5, 5, 0, 1 },
@@ -2266,6 +2325,7 @@ static const struct rockchip_usb2phy_cfg rk3328_phy_cfgs[] = {
 			},
 			[USB2PHY_PORT_HOST] = {
 				.phy_sus	= { 0x104, 8, 0, 0, 0x1d1 },
+				.bypass_host	= { 0x048, 15, 15, 1, 0 },
 				.ls_det_en	= { 0x110, 1, 1, 0, 1 },
 				.ls_det_st	= { 0x114, 1, 1, 0, 1 },
 				.ls_det_clr	= { 0x118, 1, 1, 0, 1 },
