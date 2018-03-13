@@ -838,7 +838,8 @@ COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
 		ret = sys_send(a0, compat_ptr(a1), a[2], a[3]);
 		break;
 	case SYS_SENDTO:
-		ret = sys_sendto(a0, compat_ptr(a1), a[2], a[3], compat_ptr(a[4]), a[5]);
+		ret = __sys_sendto(a0, compat_ptr(a1), a[2], a[3],
+				   compat_ptr(a[4]), a[5]);
 		break;
 	case SYS_RECV:
 		ret = compat_sys_recv(a0, compat_ptr(a1), a[2], a[3]);

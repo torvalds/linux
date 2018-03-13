@@ -1711,10 +1711,8 @@ SYSCALL_DEFINE3(getpeername, int, fd, struct sockaddr __user *, usockaddr,
  *	space and check the user space data area is readable before invoking
  *	the protocol.
  */
-
-SYSCALL_DEFINE6(sendto, int, fd, void __user *, buff, size_t, len,
-		unsigned int, flags, struct sockaddr __user *, addr,
-		int, addr_len)
+int __sys_sendto(int fd, void __user *buff, size_t len, unsigned int flags,
+		 struct sockaddr __user *addr,  int addr_len)
 {
 	struct socket *sock;
 	struct sockaddr_storage address;
@@ -1752,6 +1750,13 @@ out:
 	return err;
 }
 
+SYSCALL_DEFINE6(sendto, int, fd, void __user *, buff, size_t, len,
+		unsigned int, flags, struct sockaddr __user *, addr,
+		int, addr_len)
+{
+	return __sys_sendto(fd, buff, len, flags, addr, addr_len);
+}
+
 /*
  *	Send a datagram down a socket.
  */
@@ -1759,7 +1764,7 @@ out:
 SYSCALL_DEFINE4(send, int, fd, void __user *, buff, size_t, len,
 		unsigned int, flags)
 {
-	return sys_sendto(fd, buff, len, flags, NULL, 0);
+	return __sys_sendto(fd, buff, len, flags, NULL, 0);
 }
 
 /*
@@ -2484,8 +2489,8 @@ SYSCALL_DEFINE2(socketcall, int, call, unsigned long __user *, args)
 		err = sys_send(a0, (void __user *)a1, a[2], a[3]);
 		break;
 	case SYS_SENDTO:
-		err = sys_sendto(a0, (void __user *)a1, a[2], a[3],
-				 (struct sockaddr __user *)a[4], a[5]);
+		err = __sys_sendto(a0, (void __user *)a1, a[2], a[3],
+				   (struct sockaddr __user *)a[4], a[5]);
 		break;
 	case SYS_RECV:
 		err = sys_recv(a0, (void __user *)a1, a[2], a[3]);
