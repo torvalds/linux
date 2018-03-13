@@ -228,7 +228,6 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 	 */
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
 	blk_queue_flag_set(QUEUE_FLAG_BIDI, q);
-	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 	return 0;
 }
 

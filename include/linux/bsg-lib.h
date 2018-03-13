@@ -38,7 +38,6 @@ struct bsg_buffer {
 };
 
 struct bsg_job {
-	struct scsi_request sreq;
 	struct device *dev;
 
 	struct kref kref;
@@ -63,6 +62,9 @@ struct bsg_job {
 	/* DMA payloads for the request/response */
 	struct bsg_buffer request_payload;
 	struct bsg_buffer reply_payload;
+
+	int result;
+	unsigned int reply_payload_rcv_len;
 
 	void *dd_data;		/* Used for driver-specific storage */
 };

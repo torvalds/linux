@@ -2140,8 +2140,6 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 {
 	struct device *dev = shost->dma_dev;
 
-	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
-
 	/*
 	 * this limit is imposed by hardware restrictions
 	 */
@@ -2239,6 +2237,7 @@ struct request_queue *scsi_old_alloc_queue(struct scsi_device *sdev)
 	}
 
 	__scsi_init_queue(shost, q);
+	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 	blk_queue_prep_rq(q, scsi_prep_fn);
 	blk_queue_unprep_rq(q, scsi_unprep_fn);
 	blk_queue_softirq_done(q, scsi_softirq_done);
@@ -2270,6 +2269,7 @@ struct request_queue *scsi_mq_alloc_queue(struct scsi_device *sdev)
 
 	sdev->request_queue->queuedata = sdev;
 	__scsi_init_queue(sdev->host, sdev->request_queue);
+	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, sdev->request_queue);
 	return sdev->request_queue;
 }
 
