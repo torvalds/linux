@@ -333,4 +333,10 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 
 	return qp;
 }
+
+struct rdma_dev_addr;
+int rdma_resolve_ip_route(struct sockaddr *src_addr,
+			  const struct sockaddr *dst_addr,
+			  struct rdma_dev_addr *addr);
+
 #endif /* _CORE_PRIV_H */

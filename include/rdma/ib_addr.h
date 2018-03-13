@@ -119,10 +119,6 @@ int rdma_resolve_ip(struct rdma_addr_client *client,
 				     struct rdma_dev_addr *addr, void *context),
 		    void *context);
 
-int rdma_resolve_ip_route(struct sockaddr *src_addr,
-			  const struct sockaddr *dst_addr,
-			  struct rdma_dev_addr *addr);
-
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
 void rdma_copy_addr(struct rdma_dev_addr *dev_addr,

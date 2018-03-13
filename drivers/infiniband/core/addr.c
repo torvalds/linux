@@ -711,7 +711,6 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 
 	return addr_resolve(src_in, dst_addr, addr, false, 0);
 }
-EXPORT_SYMBOL(rdma_resolve_ip_route);
 
 void rdma_addr_cancel(struct rdma_dev_addr *addr)
 {
