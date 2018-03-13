@@ -590,6 +590,11 @@ static inline bool sa_path_is_roce(struct sa_path_rec *rec)
 		(rec->rec_type == SA_PATH_REC_TYPE_ROCE_V2));
 }
 
+static inline bool sa_path_is_opa(struct sa_path_rec *rec)
+{
+	return (rec->rec_type == SA_PATH_REC_TYPE_OPA);
+}
+
 static inline void sa_path_set_slid(struct sa_path_rec *rec, u32 slid)
 {
 	if (rec->rec_type == SA_PATH_REC_TYPE_IB)
