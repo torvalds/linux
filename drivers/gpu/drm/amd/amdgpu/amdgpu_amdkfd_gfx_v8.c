@@ -98,7 +98,7 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type);
 static void set_scratch_backing_va(struct kgd_dev *kgd,
 					uint64_t va, uint32_t vmid);
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint32_t page_table_base);
+		uint64_t page_table_base);
 static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid);
 static int invalidate_tlbs_vmid(struct kgd_dev *kgd, uint16_t vmid);
 
@@ -833,7 +833,7 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
 }
 
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint32_t page_table_base)
+		uint64_t page_table_base)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 
@@ -841,7 +841,8 @@ static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
 		pr_err("trying to set page table base for wrong VMID\n");
 		return;
 	}
-	WREG32(mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8, page_table_base);
+	WREG32(mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8,
+			lower_32_bits(page_table_base));
 }
 
 static int invalidate_tlbs(struct kgd_dev *kgd, uint16_t pasid)

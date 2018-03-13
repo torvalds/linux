@@ -1131,11 +1131,15 @@ void amdgpu_amdkfd_gpuvm_release_process_vm(struct kgd_dev *kgd, void *vm)
 	amdgpu_vm_release_compute(adev, avm);
 }
 
-uint32_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *vm)
+uint64_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *vm)
 {
 	struct amdgpu_vm *avm = (struct amdgpu_vm *)vm;
+	struct amdgpu_bo *pd = avm->root.base.bo;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(pd->tbo.bdev);
 
-	return avm->pd_phys_addr >> AMDGPU_GPU_PAGE_SHIFT;
+	if (adev->asic_type < CHIP_VEGA10)
+		return avm->pd_phys_addr >> AMDGPU_GPU_PAGE_SHIFT;
+	return avm->pd_phys_addr;
 }
 
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(

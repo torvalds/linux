@@ -138,7 +138,7 @@ static bool get_atc_vmid_pasid_mapping_valid(struct kgd_dev *kgd,
 static uint16_t get_atc_vmid_pasid_mapping_pasid(struct kgd_dev *kgd,
 		uint8_t vmid);
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint32_t page_table_base);
+		uint64_t page_table_base);
 static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type);
 static void set_scratch_backing_va(struct kgd_dev *kgd,
 					uint64_t va, uint32_t vmid);
@@ -1013,11 +1013,10 @@ static uint16_t get_fw_version(struct kgd_dev *kgd, enum kgd_engine_type type)
 }
 
 static void set_vm_context_page_table_base(struct kgd_dev *kgd, uint32_t vmid,
-		uint32_t page_table_base)
+		uint64_t page_table_base)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
-	uint64_t base = (uint64_t)page_table_base << PAGE_SHIFT |
-		AMDGPU_PTE_VALID;
+	uint64_t base = page_table_base | AMDGPU_PTE_VALID;
 
 	if (!amdgpu_amdkfd_is_kfd_vmid(adev, vmid)) {
 		pr_err("trying to set page table base for wrong VMID %u\n",

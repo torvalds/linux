@@ -409,9 +409,9 @@ struct kfd2kgd_calls {
 			struct dma_fence **ef);
 	void (*destroy_process_vm)(struct kgd_dev *kgd, void *vm);
 	void (*release_process_vm)(struct kgd_dev *kgd, void *vm);
-	uint32_t (*get_process_page_dir)(void *vm);
+	uint64_t (*get_process_page_dir)(void *vm);
 	void (*set_vm_context_page_table_base)(struct kgd_dev *kgd,
-			uint32_t vmid, uint32_t page_table_base);
+			uint32_t vmid, uint64_t page_table_base);
 	int (*alloc_memory_of_gpu)(struct kgd_dev *kgd, uint64_t va,
 			uint64_t size, void *vm,
 			struct kgd_mem **mem, uint64_t *offset,

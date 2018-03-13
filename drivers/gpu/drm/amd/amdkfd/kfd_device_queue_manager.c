@@ -656,7 +656,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 	struct queue *q;
 	struct mqd_manager *mqd_mgr;
 	struct kfd_process_device *pdd;
-	uint32_t pd_base;
+	uint64_t pd_base;
 	int retval = 0;
 
 	pdd = qpd_to_pdd(qpd);
@@ -676,7 +676,7 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 
 	/* Update PD Base in QPD */
 	qpd->page_table_base = pd_base;
-	pr_debug("Updated PD address to 0x%08x\n", pd_base);
+	pr_debug("Updated PD address to 0x%llx\n", pd_base);
 
 	if (!list_empty(&qpd->queues_list)) {
 		dqm->dev->kfd2kgd->set_vm_context_page_table_base(
@@ -717,7 +717,7 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 {
 	struct queue *q;
 	struct kfd_process_device *pdd;
-	uint32_t pd_base;
+	uint64_t pd_base;
 	int retval = 0;
 
 	pdd = qpd_to_pdd(qpd);
@@ -737,7 +737,7 @@ static int restore_process_queues_cpsch(struct device_queue_manager *dqm,
 
 	/* Update PD Base in QPD */
 	qpd->page_table_base = pd_base;
-	pr_debug("Updated PD address to 0x%08x\n", pd_base);
+	pr_debug("Updated PD address to 0x%llx\n", pd_base);
 
 	/* activate all active queues on the qpd */
 	list_for_each_entry(q, &qpd->queues_list, list) {
@@ -761,7 +761,7 @@ static int register_process(struct device_queue_manager *dqm,
 {
 	struct device_process_node *n;
 	struct kfd_process_device *pdd;
-	uint32_t pd_base;
+	uint64_t pd_base;
 	int retval;
 
 	n = kzalloc(sizeof(*n), GFP_KERNEL);
@@ -779,6 +779,7 @@ static int register_process(struct device_queue_manager *dqm,
 
 	/* Update PD Base in QPD */
 	qpd->page_table_base = pd_base;
+	pr_debug("Updated PD address to 0x%llx\n", pd_base);
 
 	retval = dqm->asic_ops.update_qpd(dqm, qpd);
 

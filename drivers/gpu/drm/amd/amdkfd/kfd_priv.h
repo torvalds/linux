@@ -507,11 +507,11 @@ struct qcm_process_device {
 	 * All the memory management data should be here too
 	 */
 	uint64_t gds_context_area;
+	uint64_t page_table_base;
 	uint32_t sh_mem_config;
 	uint32_t sh_mem_bases;
 	uint32_t sh_mem_ape1_base;
 	uint32_t sh_mem_ape1_limit;
-	uint32_t page_table_base;
 	uint32_t gds_size;
 	uint32_t num_gws;
 	uint32_t num_oac;
