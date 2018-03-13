@@ -462,6 +462,26 @@ static int cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
 				       grh, &av->ah_attr);
 }
 
+static int add_cm_id_to_port_list(struct cm_id_private *cm_id_priv,
+				  struct cm_av *av,
+				  struct cm_port *port)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&cm.lock, flags);
+
+	if (&cm_id_priv->av == av)
+		list_add_tail(&cm_id_priv->prim_list, &port->cm_priv_prim_list);
+	else if (&cm_id_priv->alt_av == av)
+		list_add_tail(&cm_id_priv->altr_list, &port->cm_priv_altr_list);
+	else
+		ret = -EINVAL;
+
+	spin_unlock_irqrestore(&cm.lock, flags);
+	return ret;
+}
+
 static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 			      struct cm_id_private *cm_id_priv)
 {
@@ -502,16 +522,7 @@ static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 
 	av->timeout = path->packet_life_time + 1;
 
-	spin_lock_irqsave(&cm.lock, flags);
-	if (&cm_id_priv->av == av)
-		list_add_tail(&cm_id_priv->prim_list, &port->cm_priv_prim_list);
-	else if (&cm_id_priv->alt_av == av)
-		list_add_tail(&cm_id_priv->altr_list, &port->cm_priv_altr_list);
-	else
-		ret = -EINVAL;
-
-	spin_unlock_irqrestore(&cm.lock, flags);
-
+	ret = add_cm_id_to_port_list(cm_id_priv, av, port);
 	return ret;
 }
 
