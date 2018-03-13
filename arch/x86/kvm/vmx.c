@@ -2153,6 +2153,7 @@ static unsigned long segment_base(u16 selector)
 static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	int cpu = raw_smp_processor_id();
 	int i;
 
 	if (vmx->host_state.loaded)
@@ -2195,7 +2196,7 @@ static void vmx_save_host_state(struct kvm_vcpu *vcpu)
 
 #ifdef CONFIG_X86_64
 	vmcs_writel(HOST_FS_BASE, current->thread.fsbase);
-	vmcs_writel(HOST_GS_BASE, read_msr(MSR_GS_BASE));
+	vmcs_writel(HOST_GS_BASE, cpu_kernelmode_gs_base(cpu));
 #else
 	vmcs_writel(HOST_FS_BASE, segment_base(vmx->host_state.fs_sel));
 	vmcs_writel(HOST_GS_BASE, segment_base(vmx->host_state.gs_sel));
