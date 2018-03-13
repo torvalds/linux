@@ -3473,13 +3473,12 @@ void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 }
 
 /*
- * drop all leases (and dentry refs) in preparation for umount
+ * lock unlock sessions, to wait ongoing session activities
  */
-static void drop_leases(struct ceph_mds_client *mdsc)
+static void lock_unlock_sessions(struct ceph_mds_client *mdsc)
 {
 	int i;
 
-	dout("drop_leases\n");
 	mutex_lock(&mdsc->mutex);
 	for (i = 0; i < mdsc->max_sessions; i++) {
 		struct ceph_mds_session *s = __ceph_lookup_mds_session(mdsc, i);
@@ -3663,7 +3662,7 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
 	dout("pre_umount\n");
 	mdsc->stopping = 1;
 
-	drop_leases(mdsc);
+	lock_unlock_sessions(mdsc);
 	ceph_flush_dirty_caps(mdsc);
 	wait_requests(mdsc);
 
