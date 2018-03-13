@@ -6,6 +6,7 @@
 
 ret=0
 
+VERBOSE=${VERBOSE:=0}
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
 IP="ip -netns testns"
 
@@ -16,10 +17,10 @@ log_test()
 	local msg="$3"
 
 	if [ ${rc} -eq ${expected} ]; then
-		printf "        %-60s  [ OK ]\n" "${msg}"
+		printf "    TEST: %-60s  [ OK ]\n" "${msg}"
 	else
 		ret=1
-		printf "        %-60s  [FAIL]\n" "${msg}"
+		printf "    TEST: %-60s  [FAIL]\n" "${msg}"
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
 		echo
 			echo "hit enter to continue, 'q' to quit"
@@ -47,6 +48,28 @@ cleanup()
 {
 	$IP link del dev dummy0 &> /dev/null
 	ip netns del testns
+}
+
+get_linklocal()
+{
+	local dev=$1
+	local addr
+
+	addr=$($IP -6 -br addr show dev ${dev} | \
+	awk '{
+		for (i = 3; i <= NF; ++i) {
+			if ($i ~ /^fe80/)
+				print $i
+		}
+	}'
+	)
+	addr=${addr/\/*}
+
+	[ -z "$addr" ] && return 1
+
+	echo $addr
+
+	return 0
 }
 
 fib_unreg_unicast_test()
@@ -390,6 +413,158 @@ fib_carrier_test()
 	fib_carrier_unicast_test
 }
 
+################################################################################
+# Tests on nexthop spec
+
+# run 'ip route add' with given spec
+add_rt()
+{
+	local desc="$1"
+	local erc=$2
+	local vrf=$3
+	local pfx=$4
+	local gw=$5
+	local dev=$6
+	local cmd out rc
+
+	[ "$vrf" = "-" ] && vrf="default"
+	[ -n "$gw" ] && gw="via $gw"
+	[ -n "$dev" ] && dev="dev $dev"
+
+	cmd="$IP route add vrf $vrf $pfx $gw $dev"
+	if [ "$VERBOSE" = "1" ]; then
+		printf "\n    COMMAND: $cmd\n"
+	fi
+
+	out=$(eval $cmd 2>&1)
+	rc=$?
+	if [ "$VERBOSE" = "1" -a -n "$out" ]; then
+		echo "    $out"
+	fi
+	log_test $rc $erc "$desc"
+}
+
+fib4_nexthop()
+{
+	echo
+	echo "IPv4 nexthop tests"
+
+	echo "<<< write me >>>"
+}
+
+fib6_nexthop()
+{
+	local lldummy=$(get_linklocal dummy0)
+	local llv1=$(get_linklocal dummy0)
+
+	if [ -z "$lldummy" ]; then
+		echo "Failed to get linklocal address for dummy0"
+		return 1
+	fi
+	if [ -z "$llv1" ]; then
+		echo "Failed to get linklocal address for veth1"
+		return 1
+	fi
+
+	echo
+	echo "IPv6 nexthop tests"
+
+	add_rt "Directly connected nexthop, unicast address" 0 \
+		- 2001:db8:101::/64 2001:db8:1::2
+	add_rt "Directly connected nexthop, unicast address with device" 0 \
+		- 2001:db8:102::/64 2001:db8:1::2 "dummy0"
+	add_rt "Gateway is linklocal address" 0 \
+		- 2001:db8:103::1/64 $llv1 "veth0"
+
+	# fails because LL address requires a device
+	add_rt "Gateway is linklocal address, no device" 2 \
+		- 2001:db8:104::1/64 $llv1
+
+	# local address can not be a gateway
+	add_rt "Gateway can not be local unicast address" 2 \
+		- 2001:db8:105::/64 2001:db8:1::1
+	add_rt "Gateway can not be local unicast address, with device" 2 \
+		- 2001:db8:106::/64 2001:db8:1::1 "dummy0"
+	add_rt "Gateway can not be a local linklocal address" 2 \
+		- 2001:db8:107::1/64 $lldummy "dummy0"
+
+	# VRF tests
+	add_rt "Gateway can be local address in a VRF" 0 \
+		- 2001:db8:108::/64 2001:db8:51::2
+	add_rt "Gateway can be local address in a VRF, with device" 0 \
+		- 2001:db8:109::/64 2001:db8:51::2 "veth0"
+	add_rt "Gateway can be local linklocal address in a VRF" 0 \
+		- 2001:db8:110::1/64 $llv1 "veth0"
+
+	add_rt "Redirect to VRF lookup" 0 \
+		- 2001:db8:111::/64 "" "red"
+
+	add_rt "VRF route, gateway can be local address in default VRF" 0 \
+		red 2001:db8:112::/64 2001:db8:51::1
+
+	# local address in same VRF fails
+	add_rt "VRF route, gateway can not be a local address" 2 \
+		red 2001:db8:113::1/64 2001:db8:2::1
+	add_rt "VRF route, gateway can not be a local addr with device" 2 \
+		red 2001:db8:114::1/64 2001:db8:2::1 "dummy1"
+}
+
+# Default VRF:
+#   dummy0 - 198.51.100.1/24 2001:db8:1::1/64
+#   veth0  - 192.0.2.1/24    2001:db8:51::1/64
+#
+# VRF red:
+#   dummy1 - 192.168.2.1/24 2001:db8:2::1/64
+#   veth1  - 192.0.2.2/24   2001:db8:51::2/64
+#
+#  [ dummy0   veth0 ]--[ veth1   dummy1 ]
+
+fib_nexthop_test()
+{
+	setup
+
+	set -e
+
+	$IP -4 rule add pref 32765 table local
+	$IP -4 rule del pref 0
+	$IP -6 rule add pref 32765 table local
+	$IP -6 rule del pref 0
+
+	$IP link add red type vrf table 1
+	$IP link set red up
+	$IP -4 route add vrf red unreachable default metric 4278198272
+	$IP -6 route add vrf red unreachable default metric 4278198272
+
+	$IP link add veth0 type veth peer name veth1
+	$IP link set dev veth0 up
+	$IP address add 192.0.2.1/24 dev veth0
+	$IP -6 address add 2001:db8:51::1/64 dev veth0
+
+	$IP link set dev veth1 vrf red up
+	$IP address add 192.0.2.2/24 dev veth1
+	$IP -6 address add 2001:db8:51::2/64 dev veth1
+
+	$IP link add dummy1 type dummy
+	$IP link set dev dummy1 vrf red up
+	$IP address add 192.168.2.1/24 dev dummy1
+	$IP -6 address add 2001:db8:2::1/64 dev dummy1
+	set +e
+
+	sleep 1
+	fib4_nexthop
+	fib6_nexthop
+
+	(
+	$IP link del dev dummy1
+	$IP link del veth0
+	$IP link del red
+	) 2>/dev/null
+	cleanup
+}
+
+################################################################################
+#
+
 fib_test()
 {
 	if [ -n "$TEST" ]; then
@@ -398,6 +573,7 @@ fib_test()
 		fib_unreg_test
 		fib_down_test
 		fib_carrier_test
+		fib_nexthop_test
 	fi
 }
 
