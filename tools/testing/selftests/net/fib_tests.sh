@@ -392,9 +392,13 @@ fib_carrier_test()
 
 fib_test()
 {
-	fib_unreg_test
-	fib_down_test
-	fib_carrier_test
+	if [ -n "$TEST" ]; then
+		eval $TEST
+	else
+		fib_unreg_test
+		fib_down_test
+		fib_carrier_test
+	fi
 }
 
 if [ "$(id -u)" -ne 0 ];then
