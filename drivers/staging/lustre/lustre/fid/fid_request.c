@@ -174,6 +174,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 		if (rc) {
 			CERROR("%s: Can't allocate new meta-sequence, rc %d\n",
 			       seq->lcs_name, rc);
+			*seqnr = U64_MAX;
 			return rc;
 		}
 		CDEBUG(D_INFO, "%s: New range - " DRANGE "\n",
