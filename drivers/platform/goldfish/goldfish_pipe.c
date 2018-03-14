@@ -58,7 +58,9 @@
 #define CMD_WAKE_ON_READ       7  /* tell the emulator to wake us when reading
 				   * is possible */
 
-/* Possible status values used to signal errors - see goldfish_pipe_error_convert */
+/* Possible status values used to signal errors -
+ * see goldfish_pipe_error_convert
+ */
 #define PIPE_ERROR_INVAL       -1
 #define PIPE_ERROR_AGAIN       -2
 #define PIPE_ERROR_NOMEM       -3
@@ -158,6 +160,7 @@ static int valid_batchbuffer_addr(struct goldfish_pipe_dev *dev,
 {
 	u32 aph, apl;
 	u64 paddr;
+
 	aph = readl(dev->base + PIPE_REG_PARAMS_ADDR_HIGH);
 	apl = readl(dev->base + PIPE_REG_PARAMS_ADDR_LOW);
 
@@ -174,7 +177,8 @@ static int setup_access_params_addr(struct platform_device *pdev,
 	u64 paddr;
 	struct access_params *aps;
 
-	aps = devm_kzalloc(&pdev->dev, sizeof(struct access_params), GFP_KERNEL);
+	aps = devm_kzalloc(&pdev->dev, sizeof(struct access_params),
+		GFP_KERNEL);
 	if (!aps)
 		return -1;
 
@@ -226,7 +230,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 	struct goldfish_pipe *pipe = filp->private_data;
 	struct goldfish_pipe_dev *dev = pipe->dev;
 	unsigned long address, address_end;
-	struct page* pages[MAX_PAGES_TO_GRAB] = {};
+	struct page *pages[MAX_PAGES_TO_GRAB] = {};
 	int count = 0, ret = -EINVAL;
 
 	/* If the emulator already closed the pipe, no need to go further */
@@ -517,7 +521,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	pipe->dev = dev;
 	mutex_init(&pipe->lock);
 	DPRINT("%s: call. pipe_dev pipe_dev=0x%lx new_pipe_addr=0x%lx file=0x%lx\n", __FUNCTION__, pipe_dev, pipe, file);
-	// spin lock init, write head of list, i guess
+	/* spin lock init, write head of list, i guess */
 	init_waitqueue_head(&pipe->wake_queue);
 
 	/*
@@ -566,8 +570,8 @@ static struct miscdevice goldfish_pipe_dev = {
 int goldfish_pipe_device_init_v1(struct platform_device *pdev)
 {
 	struct goldfish_pipe_dev *dev = pipe_dev;
-	int err = devm_request_irq(&pdev->dev, dev->irq, goldfish_pipe_interrupt,
-				IRQF_SHARED, "goldfish_pipe", dev);
+	int err = devm_request_irq(&pdev->dev, dev->irq,
+		goldfish_pipe_interrupt, IRQF_SHARED, "goldfish_pipe", dev);
 	if (err) {
 		dev_err(&pdev->dev, "unable to allocate IRQ for v1\n");
 		return err;
