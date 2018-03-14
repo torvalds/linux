@@ -54,6 +54,8 @@
 
 /* 24KB at the end of WOPCM is reserved for RC6 CTX on BXT. */
 #define BXT_WOPCM_RC6_CTX_RESERVED	(24 * 1024)
+/* 36KB WOPCM reserved at the end of WOPCM on CNL. */
+#define CNL_WOPCM_HW_CTX_RESERVED	(36 * 1024)
 
 /* 128KB from GUC_WOPCM_RESERVED is reserved for FW on Gen9. */
 #define GEN9_GUC_FW_RESERVED	(128 * 1024)
@@ -76,6 +78,8 @@ static inline u32 context_reserved_size(struct drm_i915_private *i915)
 {
 	if (IS_GEN9_LP(i915))
 		return BXT_WOPCM_RC6_CTX_RESERVED;
+	else if (INTEL_GEN(i915) >= 10)
+		return CNL_WOPCM_HW_CTX_RESERVED;
 	else
 		return 0;
 }
