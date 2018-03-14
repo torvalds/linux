@@ -1488,6 +1488,36 @@ static int efx_ethtool_get_module_info(struct net_device *net_dev,
 	return ret;
 }
 
+static int efx_ethtool_get_fecparam(struct net_device *net_dev,
+				    struct ethtool_fecparam *fecparam)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	if (!efx->phy_op || !efx->phy_op->get_fecparam)
+		return -EOPNOTSUPP;
+	mutex_lock(&efx->mac_lock);
+	rc = efx->phy_op->get_fecparam(efx, fecparam);
+	mutex_unlock(&efx->mac_lock);
+
+	return rc;
+}
+
+static int efx_ethtool_set_fecparam(struct net_device *net_dev,
+				    struct ethtool_fecparam *fecparam)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	int rc;
+
+	if (!efx->phy_op || !efx->phy_op->get_fecparam)
+		return -EOPNOTSUPP;
+	mutex_lock(&efx->mac_lock);
+	rc = efx->phy_op->set_fecparam(efx, fecparam);
+	mutex_unlock(&efx->mac_lock);
+
+	return rc;
+}
+
 const struct ethtool_ops efx_ethtool_ops = {
 	.get_drvinfo		= efx_ethtool_get_drvinfo,
 	.get_regs_len		= efx_ethtool_get_regs_len,
@@ -1523,4 +1553,6 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_module_eeprom	= efx_ethtool_get_module_eeprom,
 	.get_link_ksettings	= efx_ethtool_get_link_ksettings,
 	.set_link_ksettings	= efx_ethtool_set_link_ksettings,
+	.get_fecparam		= efx_ethtool_get_fecparam,
+	.set_fecparam		= efx_ethtool_set_fecparam,
 };
