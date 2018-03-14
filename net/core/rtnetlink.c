@@ -75,6 +75,12 @@ void rtnl_lock(void)
 }
 EXPORT_SYMBOL(rtnl_lock);
 
+int rtnl_lock_killable(void)
+{
+	return mutex_lock_killable(&rtnl_mutex);
+}
+EXPORT_SYMBOL(rtnl_lock_killable);
+
 static struct sk_buff *defer_kfree_skb_list;
 void rtnl_kfree_skbs(struct sk_buff *head, struct sk_buff *tail)
 {
