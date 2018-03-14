@@ -85,7 +85,7 @@ static int hisi_clk_set_phase(struct clk_hw *hw, int degrees)
 	return 0;
 }
 
-const struct clk_ops clk_phase_ops = {
+static const struct clk_ops clk_phase_ops = {
 	.get_phase = hisi_clk_get_phase,
 	.set_phase = hisi_clk_set_phase,
 };
