@@ -339,8 +339,10 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	}
 
 	dcfg = of_device_get_match_data(dev);
-	if (!dcfg)
-		return -EINVAL;
+	if (!dcfg) {
+		ret = -EINVAL;
+		goto err_put_rproc;
+	}
 
 	priv = rproc->priv;
 	priv->rproc = rproc;
