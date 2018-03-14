@@ -613,8 +613,7 @@ xfs_extent_busy_flush(
 	DEFINE_WAIT		(wait);
 	int			error;
 
-	trace_xfs_log_force(mp, 0, _THIS_IP_);
-	error = _xfs_log_force(mp, XFS_LOG_SYNC, NULL);
+	error = xfs_log_force(mp, XFS_LOG_SYNC);
 	if (error)
 		return;
 

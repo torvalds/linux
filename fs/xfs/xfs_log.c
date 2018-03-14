@@ -869,7 +869,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 		return 0;
 	}
 
-	error = _xfs_log_force(mp, XFS_LOG_SYNC, NULL);
+	error = xfs_log_force(mp, XFS_LOG_SYNC);
 	ASSERT(error || !(XLOG_FORCED_SHUTDOWN(log)));
 
 #ifdef DEBUG
@@ -3304,16 +3304,16 @@ xlog_state_switch_iclogs(
  *		not in the active nor dirty state.
  */
 int
-_xfs_log_force(
+xfs_log_force(
 	struct xfs_mount	*mp,
-	uint			flags,
-	int			*log_flushed)
+	uint			flags)
 {
 	struct xlog		*log = mp->m_log;
 	struct xlog_in_core	*iclog;
 	xfs_lsn_t		lsn;
 
 	XFS_STATS_INC(mp, xs_log_force);
+	trace_xfs_log_force(mp, 0, _RET_IP_);
 
 	xlog_cil_force(log);
 
@@ -3362,8 +3362,6 @@ _xfs_log_force(
 				if (xlog_state_release_iclog(log, iclog))
 					return -EIO;
 
-				if (log_flushed)
-					*log_flushed = 1;
 				spin_lock(&log->l_icloglock);
 				if (be64_to_cpu(iclog->ic_header.h_lsn) == lsn &&
 				    iclog->ic_state != XLOG_STATE_DIRTY)
@@ -3413,20 +3411,6 @@ no_sleep:
 		spin_unlock(&log->l_icloglock);
 	}
 	return 0;
-}
-
-/*
- * Wrapper for _xfs_log_force(), to be used when caller doesn't care
- * about errors or whether the log was flushed or not. This is the normal
- * interface to use when trying to unpin items or move the log forward.
- */
-void
-xfs_log_force(
-	xfs_mount_t	*mp,
-	uint		flags)
-{
-	trace_xfs_log_force(mp, 0, _RET_IP_);
-	_xfs_log_force(mp, flags, NULL);
 }
 
 /*
@@ -4035,7 +4019,7 @@ xfs_log_force_umount(
 	 * to guarantee this.
 	 */
 	if (!logerror)
-		_xfs_log_force(mp, XFS_LOG_SYNC, NULL);
+		xfs_log_force(mp, XFS_LOG_SYNC);
 
 	/*
 	 * mark the filesystem and the as in a shutdown state and wake

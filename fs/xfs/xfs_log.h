@@ -129,11 +129,7 @@ xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
 		       struct xlog_ticket *ticket,
 		       struct xlog_in_core **iclog,
 		       bool regrant);
-int	  _xfs_log_force(struct xfs_mount *mp,
-			 uint		flags,
-			 int		*log_forced);
-void	  xfs_log_force(struct xfs_mount	*mp,
-			uint			flags);
+int	  xfs_log_force(struct xfs_mount *mp, uint flags);
 int	  _xfs_log_force_lsn(struct xfs_mount *mp,
 			     xfs_lsn_t		lsn,
 			     uint		flags,

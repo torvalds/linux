@@ -619,7 +619,7 @@ xfs_scrub_checkpoint_log(
 {
 	int			error;
 
-	error = _xfs_log_force(mp, XFS_LOG_SYNC, NULL);
+	error = xfs_log_force(mp, XFS_LOG_SYNC);
 	if (error)
 		return error;
 	xfs_ail_push_all_sync(mp->m_ail);
