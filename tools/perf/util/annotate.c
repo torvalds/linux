@@ -1432,7 +1432,7 @@ int symbol__disassemble(struct symbol *sym, struct map *map,
 			struct arch **parch, char *cpuid)
 {
 	struct dso *dso = map->dso;
-	char command[PATH_MAX * 2];
+	char *command;
 	struct arch *arch = NULL;
 	FILE *file;
 	char symfs_filename[PATH_MAX];
@@ -1496,7 +1496,7 @@ int symbol__disassemble(struct symbol *sym, struct map *map,
 		strcpy(symfs_filename, tmp);
 	}
 
-	snprintf(command, sizeof(command),
+	err = asprintf(&command,
 		 "%s %s%s --start-address=0x%016" PRIx64
 		 " --stop-address=0x%016" PRIx64
 		 " -l -d %s %s -C \"%s\" 2>/dev/null|grep -v \"%s:\"|expand",
@@ -1509,12 +1509,17 @@ int symbol__disassemble(struct symbol *sym, struct map *map,
 		 symbol_conf.annotate_src ? "-S" : "",
 		 symfs_filename, symfs_filename);
 
+	if (err < 0) {
+		pr_err("Failure allocating memory for the command to run\n");
+		goto out_remove_tmp;
+	}
+
 	pr_debug("Executing: %s\n", command);
 
 	err = -1;
 	if (pipe(stdout_fd) < 0) {
 		pr_err("Failure creating the pipe to run %s\n", command);
-		goto out_remove_tmp;
+		goto out_free_command;
 	}
 
 	pid = fork();
@@ -1541,7 +1546,7 @@ int symbol__disassemble(struct symbol *sym, struct map *map,
 		 * If we were using debug info should retry with
 		 * original binary.
 		 */
-		goto out_remove_tmp;
+		goto out_free_command;
 	}
 
 	nline = 0;
@@ -1570,6 +1575,8 @@ int symbol__disassemble(struct symbol *sym, struct map *map,
 
 	fclose(file);
 	err = 0;
+out_free_command:
+	free(command);
 out_remove_tmp:
 	close(stdout_fd[0]);
 
@@ -1583,7 +1590,7 @@ out:
 
 out_close_stdout:
 	close(stdout_fd[1]);
-	goto out_remove_tmp;
+	goto out_free_command;
 }
 
 static void insert_source_line(struct rb_root *root, struct source_line *src_line)
