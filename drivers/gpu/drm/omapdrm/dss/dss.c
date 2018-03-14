@@ -343,7 +343,6 @@ const char *dss_get_clk_source_name(enum dss_clk_source clk_src)
 	return dss_generic_clk_source_names[clk_src];
 }
 
-#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
 static void dss_dump_clocks(struct dss_device *dss, struct seq_file *s)
 {
 	const char *fclk_name;
@@ -363,7 +362,6 @@ static void dss_dump_clocks(struct dss_device *dss, struct seq_file *s)
 
 	dss_runtime_put(dss);
 }
-#endif
 
 static int dss_dump_regs(struct seq_file *s, void *p)
 {
@@ -387,6 +385,18 @@ static int dss_dump_regs(struct seq_file *s, void *p)
 
 	dss_runtime_put(dss);
 #undef DUMPREG
+	return 0;
+}
+
+static int dss_debug_dump_clocks(struct seq_file *s, void *p)
+{
+	struct dss_device *dss = s->private;
+
+	dss_dump_clocks(dss, s);
+	dispc_dump_clocks(dss->dispc, s);
+#ifdef CONFIG_OMAP2_DSS_DSI
+	dsi_dump_clocks(s);
+#endif
 	return 0;
 }
 
@@ -889,18 +899,6 @@ struct dss_device *dss_get_device(struct device *dev)
 
 /* DEBUGFS */
 #if defined(CONFIG_OMAP2_DSS_DEBUGFS)
-static int dss_debug_dump_clocks(struct seq_file *s, void *p)
-{
-	struct dss_device *dss = s->private;
-
-	dss_dump_clocks(dss, s);
-	dispc_dump_clocks(dss->dispc, s);
-#ifdef CONFIG_OMAP2_DSS_DSI
-	dsi_dump_clocks(s);
-#endif
-	return 0;
-}
-
 static int dss_initialize_debugfs(struct dss_device *dss)
 {
 	struct dentry *dir;
