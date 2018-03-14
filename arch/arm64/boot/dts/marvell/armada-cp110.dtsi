@@ -402,7 +402,9 @@
 				<ICU_GRP_NSR 92 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "mem", "ring0", "ring1",
 				"ring2", "ring3", "eip";
-			clocks = <&CP110_LABEL(clk) 1 26>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 26>,
+				 <&CP110_LABEL(clk) 1 17>;
 			dma-coherent;
 		};
 	};
