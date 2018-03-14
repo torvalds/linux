@@ -59,6 +59,9 @@ static int uverbs_process_attr(struct ib_device *ibdev,
 			return 0;
 	}
 
+	if (test_bit(attr_id, attr_bundle_h->valid_bitmap))
+		return -EINVAL;
+
 	spec = &attr_spec_bucket->attrs[attr_id];
 	e = &elements[attr_id];
 	e->uattr = uattr_ptr;

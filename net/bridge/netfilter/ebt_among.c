@@ -172,32 +172,49 @@ ebt_among_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	return true;
 }
 
+static bool poolsize_invalid(const struct ebt_mac_wormhash *w)
+{
+	return w && w->poolsize >= (INT_MAX / sizeof(struct ebt_mac_wormhash_tuple));
+}
+
 static int ebt_among_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_among_info *info = par->matchinfo;
 	const struct ebt_entry_match *em =
 		container_of(par->matchinfo, const struct ebt_entry_match, data);
-	int expected_length = sizeof(struct ebt_among_info);
+	unsigned int expected_length = sizeof(struct ebt_among_info);
 	const struct ebt_mac_wormhash *wh_dst, *wh_src;
 	int err;
 
+	if (expected_length > em->match_size)
+		return -EINVAL;
+
 	wh_dst = ebt_among_wh_dst(info);
-	wh_src = ebt_among_wh_src(info);
+	if (poolsize_invalid(wh_dst))
+		return -EINVAL;
+
 	expected_length += ebt_mac_wormhash_size(wh_dst);
+	if (expected_length > em->match_size)
+		return -EINVAL;
+
+	wh_src = ebt_among_wh_src(info);
+	if (poolsize_invalid(wh_src))
+		return -EINVAL;
+
 	expected_length += ebt_mac_wormhash_size(wh_src);
 
 	if (em->match_size != EBT_ALIGN(expected_length)) {
-		pr_info("wrong size: %d against expected %d, rounded to %zd\n",
-			em->match_size, expected_length,
-			EBT_ALIGN(expected_length));
+		pr_err_ratelimited("wrong size: %d against expected %d, rounded to %zd\n",
+				   em->match_size, expected_length,
+				   EBT_ALIGN(expected_length));
 		return -EINVAL;
 	}
 	if (wh_dst && (err = ebt_mac_wormhash_check_integrity(wh_dst))) {
-		pr_info("dst integrity fail: %x\n", -err);
+		pr_err_ratelimited("dst integrity fail: %x\n", -err);
 		return -EINVAL;
 	}
 	if (wh_src && (err = ebt_mac_wormhash_check_integrity(wh_src))) {
-		pr_info("src integrity fail: %x\n", -err);
+		pr_err_ratelimited("src integrity fail: %x\n", -err);
 		return -EINVAL;
 	}
 	return 0;

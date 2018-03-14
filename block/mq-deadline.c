@@ -536,12 +536,21 @@ static void dd_insert_requests(struct blk_mq_hw_ctx *hctx,
 }
 
 /*
+ * Nothing to do here. This is defined only to ensure that .finish_request
+ * method is called upon request completion.
+ */
+static void dd_prepare_request(struct request *rq, struct bio *bio)
+{
+}
+
+/*
  * For zoned block devices, write unlock the target zone of
  * completed write requests. Do this while holding the zone lock
  * spinlock so that the zone is never unlocked while deadline_fifo_request()
- * while deadline_next_request() are executing.
+ * or deadline_next_request() are executing. This function is called for
+ * all requests, whether or not these requests complete successfully.
  */
-static void dd_completed_request(struct request *rq)
+static void dd_finish_request(struct request *rq)
 {
 	struct request_queue *q = rq->q;
 
@@ -756,7 +765,8 @@ static struct elevator_type mq_deadline = {
 	.ops.mq = {
 		.insert_requests	= dd_insert_requests,
 		.dispatch_request	= dd_dispatch_request,
-		.completed_request	= dd_completed_request,
+		.prepare_request	= dd_prepare_request,
+		.finish_request		= dd_finish_request,
 		.next_request		= elv_rb_latter_request,
 		.former_request		= elv_rb_former_request,
 		.bio_merge		= dd_bio_merge,

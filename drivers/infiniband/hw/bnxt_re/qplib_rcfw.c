@@ -305,9 +305,8 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 			err_event->res_err_state_reason);
 		if (!qp)
 			break;
-		bnxt_qplib_acquire_cq_locks(qp, &flags);
 		bnxt_qplib_mark_qp_error(qp);
-		bnxt_qplib_release_cq_locks(qp, &flags);
+		rcfw->aeq_handler(rcfw, qp_event, qp);
 		break;
 	default:
 		/* Command Response */
@@ -460,7 +459,11 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 	int rc;
 
 	RCFW_CMD_PREP(req, INITIALIZE_FW, cmd_flags);
-
+	/* Supply (log-base-2-of-host-page-size - base-page-shift)
+	 * to bono to adjust the doorbell page sizes.
+	 */
+	req.log2_dbr_pg_size = cpu_to_le16(PAGE_SHIFT -
+					   RCFW_DBR_BASE_PAGE_SHIFT);
 	/*
 	 * VFs need not setup the HW context area, PF
 	 * shall setup this area for VF. Skipping the

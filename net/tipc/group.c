@@ -189,6 +189,7 @@ struct tipc_group *tipc_group_create(struct net *net, u32 portid,
 	grp->loopback = mreq->flags & TIPC_GROUP_LOOPBACK;
 	grp->events = mreq->flags & TIPC_GROUP_MEMBER_EVTS;
 	grp->open = group_is_open;
+	*grp->open = false;
 	filter |= global ? TIPC_SUB_CLUSTER_SCOPE : TIPC_SUB_NODE_SCOPE;
 	if (tipc_topsrv_kern_subscr(net, portid, type, 0, ~0,
 				    filter, &grp->subid))
