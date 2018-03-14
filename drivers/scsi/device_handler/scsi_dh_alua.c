@@ -214,8 +214,8 @@ static struct alua_port_group *alua_find_get_pg(char *id_str, size_t id_size,
 /*
  * alua_alloc_pg - Allocate a new port_group structure
  * @sdev: scsi device
- * @h: alua device_handler data
  * @group_id: port group id
+ * @tpgs: target port group settings
  *
  * Allocate a new port_group structure for a given
  * device.
