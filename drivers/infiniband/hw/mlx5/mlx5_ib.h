@@ -739,8 +739,9 @@ enum mlx5_ib_stages {
 	MLX5_IB_STAGE_CONG_DEBUGFS,
 	MLX5_IB_STAGE_UAR,
 	MLX5_IB_STAGE_BFREG,
+	MLX5_IB_STAGE_PRE_IB_REG_UMR,
 	MLX5_IB_STAGE_IB_REG,
-	MLX5_IB_STAGE_UMR_RESOURCES,
+	MLX5_IB_STAGE_POST_IB_REG_UMR,
 	MLX5_IB_STAGE_DELAY_DROP,
 	MLX5_IB_STAGE_CLASS_ATTR,
 	MLX5_IB_STAGE_REP_REG,
@@ -1065,10 +1066,10 @@ int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev);
 void mlx5_ib_stage_counters_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_ib_stage_bfrag_init(struct mlx5_ib_dev *dev);
 void mlx5_ib_stage_bfrag_cleanup(struct mlx5_ib_dev *dev);
+void mlx5_ib_stage_pre_ib_reg_umr_cleanup(struct mlx5_ib_dev *dev);
 int mlx5_ib_stage_ib_reg_init(struct mlx5_ib_dev *dev);
 void mlx5_ib_stage_ib_reg_cleanup(struct mlx5_ib_dev *dev);
-int mlx5_ib_stage_umr_res_init(struct mlx5_ib_dev *dev);
-void mlx5_ib_stage_umr_res_cleanup(struct mlx5_ib_dev *dev);
+int mlx5_ib_stage_post_ib_reg_umr_init(struct mlx5_ib_dev *dev);
 int mlx5_ib_stage_class_attr_init(struct mlx5_ib_dev *dev);
 void __mlx5_ib_remove(struct mlx5_ib_dev *dev,
 		      const struct mlx5_ib_profile *profile,
