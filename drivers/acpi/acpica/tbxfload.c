@@ -103,7 +103,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_load_tables(void)
 				"While loading namespace from ACPI tables"));
 	}
 
-	if (acpi_gbl_parse_table_as_term_list
+	if (acpi_gbl_execute_tables_as_methods
 	    || !acpi_gbl_group_module_level_code) {
 		/*
 		 * Initialize the objects that remain uninitialized. This

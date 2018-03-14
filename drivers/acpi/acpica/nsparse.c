@@ -266,7 +266,7 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 
 	ACPI_FUNCTION_TRACE(ns_parse_table);
 
-	if (acpi_gbl_parse_table_as_term_list) {
+	if (acpi_gbl_execute_tables_as_methods) {
 		ACPI_DEBUG_PRINT_RAW((ACPI_DB_PARSE,
 				      "%s: **** Start table execution pass\n",
 				      ACPI_GET_FUNCTION_NAME));

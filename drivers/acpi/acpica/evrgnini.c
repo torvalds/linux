@@ -562,7 +562,7 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 				 *
 				 * See acpi_ns_exec_module_code
 				 */
-				if (!acpi_gbl_parse_table_as_term_list &&
+				if (!acpi_gbl_execute_tables_as_methods &&
 				    obj_desc->method.
 				    info_flags & ACPI_METHOD_MODULE_LEVEL) {
 					handler_obj =

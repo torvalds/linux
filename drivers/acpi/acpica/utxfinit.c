@@ -265,7 +265,7 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 	 * all of the tables have been loaded. It is a legacy option and is
 	 * not compatible with other ACPI implementations. See acpi_ns_load_table.
 	 */
-	if (!acpi_gbl_parse_table_as_term_list
+	if (!acpi_gbl_execute_tables_as_methods
 	    && acpi_gbl_group_module_level_code) {
 		acpi_ns_exec_module_code_list();
 

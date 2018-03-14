@@ -198,13 +198,12 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_group_module_level_code, FALSE);
 
 /*
- * Optionally support module level code by parsing the entire table as
- * a term_list. Default is FALSE, do not execute entire table until some
- * lock order issues are fixed.
+ * Optionally support module level code by parsing an entire table as
+ * a method as it is loaded. Default is TRUE.
  * NOTE, this is essentially obsolete and will be removed soon
  * (01/2018).
  */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_parse_table_as_term_list, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_execute_tables_as_methods, TRUE);
 
 /*
  * Optionally use 32-bit FADT addresses if and when there is a conflict

@@ -968,7 +968,7 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
 
 	/* Execute any module-level code that was found in the table */
 
-	if (!acpi_gbl_parse_table_as_term_list
+	if (!acpi_gbl_execute_tables_as_methods
 	    && acpi_gbl_group_module_level_code) {
 		acpi_ns_exec_module_code_list();
 	}
