@@ -1716,13 +1716,15 @@ static void print_request(struct drm_printer *m,
 			  struct i915_request *rq,
 			  const char *prefix)
 {
+	const char *name = rq->fence.ops->get_timeline_name(&rq->fence);
+
 	drm_printf(m, "%s%x%s [%llx:%x] prio=%d @ %dms: %s\n", prefix,
 		   rq->global_seqno,
 		   i915_request_completed(rq) ? "!" : "",
 		   rq->fence.context, rq->fence.seqno,
 		   rq->priotree.priority,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
-		   rq->timeline->common->name);
+		   name);
 }
 
 static void hexdump(struct drm_printer *m, const void *buf, size_t len)
