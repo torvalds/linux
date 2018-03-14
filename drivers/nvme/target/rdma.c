@@ -913,8 +913,11 @@ err_destroy_cq:
 
 static void nvmet_rdma_destroy_queue_ib(struct nvmet_rdma_queue *queue)
 {
-	ib_drain_qp(queue->cm_id->qp);
-	rdma_destroy_qp(queue->cm_id);
+	struct ib_qp *qp = queue->cm_id->qp;
+
+	ib_drain_qp(qp);
+	rdma_destroy_id(queue->cm_id);
+	ib_destroy_qp(qp);
 	ib_free_cq(queue->cq);
 }
 
@@ -939,12 +942,9 @@ static void nvmet_rdma_release_queue_work(struct work_struct *w)
 {
 	struct nvmet_rdma_queue *queue =
 		container_of(w, struct nvmet_rdma_queue, release_work);
-	struct rdma_cm_id *cm_id = queue->cm_id;
 	struct nvmet_rdma_device *dev = queue->dev;
 
 	nvmet_rdma_free_queue(queue);
-
-	rdma_destroy_id(cm_id);
 
 	kref_put(&dev->ref, nvmet_rdma_free_dev);
 }
@@ -1150,8 +1150,11 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 	}
 
 	ret = nvmet_rdma_cm_accept(cm_id, queue, &event->param.conn);
-	if (ret)
-		goto release_queue;
+	if (ret) {
+		schedule_work(&queue->release_work);
+		/* Destroying rdma_cm id is not needed here */
+		return 0;
+	}
 
 	mutex_lock(&nvmet_rdma_queue_mutex);
 	list_add_tail(&queue->queue_list, &nvmet_rdma_queue_list);
@@ -1159,8 +1162,6 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 
 	return 0;
 
-release_queue:
-	nvmet_rdma_free_queue(queue);
 put_device:
 	kref_put(&ndev->ref, nvmet_rdma_free_dev);
 
@@ -1318,13 +1319,7 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 	case RDMA_CM_EVENT_ADDR_CHANGE:
 	case RDMA_CM_EVENT_DISCONNECTED:
 	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
-		/*
-		 * We might end up here when we already freed the qp
-		 * which means queue release sequence is in progress,
-		 * so don't get in the way...
-		 */
-		if (queue)
-			nvmet_rdma_queue_disconnect(queue);
+		nvmet_rdma_queue_disconnect(queue);
 		break;
 	case RDMA_CM_EVENT_DEVICE_REMOVAL:
 		ret = nvmet_rdma_device_removal(cm_id, queue);
