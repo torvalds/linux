@@ -3,5 +3,6 @@
 - fix ethtool - currently doesn't return valid data.
 - general code review and clean up
 - add support for second MAC on mt7621
+- convert gsw code to use switchdev interfaces
 
 Cc: NeilBrown <neil@brown.name>
