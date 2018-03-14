@@ -32,6 +32,17 @@
 
 static u32 smc_lgr_num;			/* unique link group number */
 
+static void smc_lgr_schedule_free_work(struct smc_link_group *lgr)
+{
+	/* client link group creation always follows the server link group
+	 * creation. For client use a somewhat higher removal delay time,
+	 * otherwise there is a risk of out-of-sync link groups.
+	 */
+	mod_delayed_work(system_wq, &lgr->free_work,
+			 lgr->role == SMC_CLNT ? SMC_LGR_FREE_DELAY_CLNT :
+						 SMC_LGR_FREE_DELAY_SERV);
+}
+
 /* Register connection's alert token in our lookup structure.
  * To use rbtrees we have to implement our own insert core.
  * Requires @conns_lock
@@ -111,13 +122,7 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
 	write_unlock_bh(&lgr->conns_lock);
 	if (!reduced || lgr->conns_num)
 		return;
-	/* client link group creation always follows the server link group
-	 * creation. For client use a somewhat higher removal delay time,
-	 * otherwise there is a risk of out-of-sync link groups.
-	 */
-	mod_delayed_work(system_wq, &lgr->free_work,
-			 lgr->role == SMC_CLNT ? SMC_LGR_FREE_DELAY_CLNT :
-						 SMC_LGR_FREE_DELAY_SERV);
+	smc_lgr_schedule_free_work(lgr);
 }
 
 static void smc_lgr_free_work(struct work_struct *work)
@@ -344,6 +349,7 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	}
 	write_unlock_bh(&lgr->conns_lock);
 	wake_up(&lgr->lnk[SMC_SINGLE_LINK].wr_reg_wait);
+	smc_lgr_schedule_free_work(lgr);
 }
 
 /* Determine vlan of internal TCP socket.
