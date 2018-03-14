@@ -92,7 +92,6 @@ struct engine_info {
 		u32 gen : 8;
 		u32 base : 24;
 	} mmio_bases[MAX_MMIO_BASES];
-	unsigned irq_shift;
 };
 
 static const struct engine_info intel_engines[] = {
@@ -104,7 +103,6 @@ static const struct engine_info intel_engines[] = {
 		.mmio_bases = {
 			{ .gen = 1, .base = RENDER_RING_BASE }
 		},
-		.irq_shift = GEN8_RCS_IRQ_SHIFT,
 	},
 	[BCS] = {
 		.hw_id = BCS_HW,
@@ -114,7 +112,6 @@ static const struct engine_info intel_engines[] = {
 		.mmio_bases = {
 			{ .gen = 6, .base = BLT_RING_BASE }
 		},
-		.irq_shift = GEN8_BCS_IRQ_SHIFT,
 	},
 	[VCS] = {
 		.hw_id = VCS_HW,
@@ -126,7 +123,6 @@ static const struct engine_info intel_engines[] = {
 			{ .gen = 6, .base = GEN6_BSD_RING_BASE },
 			{ .gen = 4, .base = BSD_RING_BASE }
 		},
-		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
 	},
 	[VCS2] = {
 		.hw_id = VCS2_HW,
@@ -137,7 +133,6 @@ static const struct engine_info intel_engines[] = {
 			{ .gen = 11, .base = GEN11_BSD2_RING_BASE },
 			{ .gen = 8, .base = GEN8_BSD2_RING_BASE }
 		},
-		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
 	},
 	[VCS3] = {
 		.hw_id = VCS3_HW,
@@ -147,7 +142,6 @@ static const struct engine_info intel_engines[] = {
 		.mmio_bases = {
 			{ .gen = 11, .base = GEN11_BSD3_RING_BASE }
 		},
-		.irq_shift = 0, /* not used */
 	},
 	[VCS4] = {
 		.hw_id = VCS4_HW,
@@ -157,7 +151,6 @@ static const struct engine_info intel_engines[] = {
 		.mmio_bases = {
 			{ .gen = 11, .base = GEN11_BSD4_RING_BASE }
 		},
-		.irq_shift = 0, /* not used */
 	},
 	[VECS] = {
 		.hw_id = VECS_HW,
@@ -168,7 +161,6 @@ static const struct engine_info intel_engines[] = {
 			{ .gen = 11, .base = GEN11_VEBOX_RING_BASE },
 			{ .gen = 7, .base = VEBOX_RING_BASE }
 		},
-		.irq_shift = GEN8_VECS_IRQ_SHIFT,
 	},
 	[VECS2] = {
 		.hw_id = VECS2_HW,
@@ -178,7 +170,6 @@ static const struct engine_info intel_engines[] = {
 		.mmio_bases = {
 			{ .gen = 11, .base = GEN11_VEBOX2_RING_BASE }
 		},
-		.irq_shift = 0, /* not used */
 	},
 };
 
@@ -301,7 +292,6 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	__sprint_engine_name(engine->name, info);
 	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = __engine_mmio_base(dev_priv, info->mmio_bases);
-	engine->irq_shift = info->irq_shift;
 	engine->class = info->class;
 	engine->instance = info->instance;
 
