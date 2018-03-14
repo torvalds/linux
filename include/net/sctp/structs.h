@@ -2118,6 +2118,7 @@ struct sctp_cmsgs {
 	struct sctp_sndrcvinfo *srinfo;
 	struct sctp_sndinfo *sinfo;
 	struct sctp_prinfo *prinfo;
+	struct sctp_authinfo *authinfo;
 	struct msghdr *addrs_msg;
 };
 

@@ -1987,6 +1987,14 @@ static void sctp_sendmsg_update_sinfo(struct sctp_association *asoc,
 
 	if (!cmsgs->srinfo && !cmsgs->prinfo)
 		sinfo->sinfo_timetolive = asoc->default_timetolive;
+
+	if (cmsgs->authinfo) {
+		/* Reuse sinfo_tsn to indicate that authinfo was set and
+		 * sinfo_ssn to save the keyid on tx path.
+		 */
+		sinfo->sinfo_tsn = 1;
+		sinfo->sinfo_ssn = cmsgs->authinfo->auth_keynumber;
+	}
 }
 
 static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
@@ -7873,6 +7881,21 @@ static int sctp_msghdr_parse(const struct msghdr *msg, struct sctp_cmsgs *cmsgs)
 
 			if (cmsgs->prinfo->pr_policy == SCTP_PR_SCTP_NONE)
 				cmsgs->prinfo->pr_value = 0;
+			break;
+		case SCTP_AUTHINFO:
+			/* SCTP Socket API Extension
+			 * 5.3.8 SCTP AUTH Information Structure (SCTP_AUTHINFO)
+			 *
+			 * This cmsghdr structure specifies SCTP options for sendmsg().
+			 *
+			 * cmsg_level    cmsg_type      cmsg_data[]
+			 * ------------  ------------   ---------------------
+			 * IPPROTO_SCTP  SCTP_AUTHINFO  struct sctp_authinfo
+			 */
+			if (cmsg->cmsg_len != CMSG_LEN(sizeof(struct sctp_authinfo)))
+				return -EINVAL;
+
+			cmsgs->authinfo = CMSG_DATA(cmsg);
 			break;
 		case SCTP_DSTADDRV4:
 		case SCTP_DSTADDRV6:

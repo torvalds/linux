@@ -206,7 +206,16 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 			max_data -= SCTP_PAD4(sizeof(struct sctp_auth_chunk) +
 					      hmac_desc->hmac_len);
 
-		shkey = asoc->shkey;
+		if (sinfo->sinfo_tsn &&
+		    sinfo->sinfo_ssn != asoc->active_key_id) {
+			shkey = sctp_auth_get_shkey(asoc, sinfo->sinfo_ssn);
+			if (!shkey) {
+				err = -EINVAL;
+				goto errout;
+			}
+		} else {
+			shkey = asoc->shkey;
+		}
 	}
 
 	/* Check what's our max considering the above */
