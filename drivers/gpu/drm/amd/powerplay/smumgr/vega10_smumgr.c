@@ -406,9 +406,8 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 			&handle,
 			&mc_addr,
 			&kaddr);
-
 	if (ret)
-		return -EINVAL;
+		goto free_backend;
 
 	priv->smu_tables.entry[PPTABLE].version = 0x01;
 	priv->smu_tables.entry[PPTABLE].size = sizeof(PPTable_t);
@@ -511,6 +510,9 @@ err0:
 	amdgpu_bo_free_kernel(&priv->smu_tables.entry[PPTABLE].handle,
 			&priv->smu_tables.entry[PPTABLE].mc_addr,
 			&priv->smu_tables.entry[PPTABLE].table);
+free_backend:
+	kfree(hwmgr->smu_backend);
+
 	return -EINVAL;
 }
 
