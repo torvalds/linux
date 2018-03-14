@@ -291,7 +291,6 @@
 };
 
 &ssi1 {
-	codec-handle = <&codec>;
 	status = "okay";
 };
 
