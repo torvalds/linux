@@ -1052,8 +1052,6 @@ set_rcvbuf:
 		if (sk->sk_family == PF_INET || sk->sk_family == PF_INET6) {
 			if (sk->sk_protocol != IPPROTO_TCP)
 				ret = -ENOTSUPP;
-			else if (sk->sk_state != TCP_CLOSE)
-				ret = -EBUSY;
 		} else if (sk->sk_family != PF_RDS) {
 			ret = -ENOTSUPP;
 		}
