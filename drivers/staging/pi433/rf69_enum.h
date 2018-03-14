@@ -135,9 +135,9 @@ enum address_filtering {
 };
 
 enum dagc {
-	normalMode,
+	normal_mode,
 	improve,
-	improve4LowModulationIndex
+	improve_for_low_modulation_index
 };
 
 #endif

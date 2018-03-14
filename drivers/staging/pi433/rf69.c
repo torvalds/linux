@@ -751,11 +751,11 @@ int rf69_set_fifo_threshold(struct spi_device *spi, u8 threshold)
 int rf69_set_dagc(struct spi_device *spi, enum dagc dagc)
 {
 	switch (dagc) {
-	case normalMode:
+	case normal_mode:
 		return rf69_write_reg(spi, REG_TESTDAGC, DAGC_NORMAL);
 	case improve:
 		return rf69_write_reg(spi, REG_TESTDAGC, DAGC_IMPROVED_LOWBETA0);
-	case improve4LowModulationIndex:
+	case improve_for_low_modulation_index:
 		return rf69_write_reg(spi, REG_TESTDAGC, DAGC_IMPROVED_LOWBETA1);
 	default:
 		dev_dbg(&spi->dev, "set: illegal input param");

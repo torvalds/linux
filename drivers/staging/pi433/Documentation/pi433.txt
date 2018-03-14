@@ -215,9 +215,9 @@ rf params:
 		Allowd values: 0...7
 	dagc;
 		operation mode of the digital automatic gain control
-		normalMode
+		normal_mode
 		improve
-		improve4LowModulationIndex
+		improve_for_low_modulation_index
 
  packet format:
 	enable_sync
