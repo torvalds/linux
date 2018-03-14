@@ -65,6 +65,7 @@ static void mpc1_update_blending(
 	int mpcc_id)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+	struct mpcc *mpcc = mpc1_get_mpcc(mpc, mpcc_id);
 
 	REG_UPDATE_5(MPCC_CONTROL[mpcc_id],
 			MPCC_ALPHA_BLND_MODE,		blnd_cfg->alpha_mode,
@@ -74,6 +75,7 @@ static void mpc1_update_blending(
 			MPCC_GLOBAL_GAIN,		blnd_cfg->global_gain);
 
 	mpc1_set_bg_color(mpc, &blnd_cfg->black_color, mpcc_id);
+	mpcc->blnd_cfg = *blnd_cfg;
 }
 
 void mpc1_update_stereo_mix(
@@ -235,8 +237,7 @@ struct mpcc *mpc1_insert_plane(
 	}
 
 	/* update the blending configuration */
-	new_mpcc->blnd_cfg = *blnd_cfg;
-	mpc->funcs->update_blending(mpc, &new_mpcc->blnd_cfg, mpcc_id);
+	mpc->funcs->update_blending(mpc, blnd_cfg, mpcc_id);
 
 	/* update the stereo mix settings, if provided */
 	if (sm_cfg != NULL) {
