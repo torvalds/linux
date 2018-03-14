@@ -263,16 +263,21 @@ static u32 __engine_mmio_base(struct drm_i915_private *i915,
 	return bases[i].base;
 }
 
+static void __sprint_engine_name(char *name, const struct engine_info *info)
+{
+	WARN_ON(snprintf(name, INTEL_ENGINE_CS_MAX_NAME, "%s%u",
+			 intel_engine_classes[info->class].name,
+			 info->instance) >= INTEL_ENGINE_CS_MAX_NAME);
+}
+
 static int
 intel_engine_setup(struct drm_i915_private *dev_priv,
 		   enum intel_engine_id id)
 {
 	const struct engine_info *info = &intel_engines[id];
-	const struct engine_class_info *class_info;
 	struct intel_engine_cs *engine;
 
 	GEM_BUG_ON(info->class >= ARRAY_SIZE(intel_engine_classes));
-	class_info = &intel_engine_classes[info->class];
 
 	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
 	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
@@ -293,9 +298,7 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 
 	engine->id = id;
 	engine->i915 = dev_priv;
-	WARN_ON(snprintf(engine->name, sizeof(engine->name), "%s%u",
-			 class_info->name, info->instance) >=
-		sizeof(engine->name));
+	__sprint_engine_name(engine->name, info);
 	engine->hw_id = engine->guc_id = info->hw_id;
 	engine->mmio_base = __engine_mmio_base(dev_priv, info->mmio_bases);
 	engine->irq_shift = info->irq_shift;
@@ -303,7 +306,7 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	engine->instance = info->instance;
 
 	engine->uabi_id = info->uabi_id;
-	engine->uabi_class = class_info->uabi_class;
+	engine->uabi_class = intel_engine_classes[info->class].uabi_class;
 
 	engine->context_size = __intel_engine_context_size(dev_priv,
 							   engine->class);
@@ -2140,4 +2143,5 @@ void intel_disable_engine_stats(struct intel_engine_cs *engine)
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/mock_engine.c"
+#include "selftests/intel_engine_cs.c"
 #endif
