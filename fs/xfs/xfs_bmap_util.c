@@ -2014,11 +2014,11 @@ xfs_swap_extents(
 		ip->i_cowfp = tip->i_cowfp;
 		tip->i_cowfp = cowfp;
 
-		if (ip->i_cowfp && ip->i_cnextents)
+		if (ip->i_cowfp && ip->i_cowfp->if_bytes)
 			xfs_inode_set_cowblocks_tag(ip);
 		else
 			xfs_inode_clear_cowblocks_tag(ip);
-		if (tip->i_cowfp && tip->i_cnextents)
+		if (tip->i_cowfp && tip->i_cowfp->if_bytes)
 			xfs_inode_set_cowblocks_tag(tip);
 		else
 			xfs_inode_clear_cowblocks_tag(tip);
