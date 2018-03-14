@@ -160,7 +160,9 @@ COMPAT_SYS_NI(timer_settime);
 COMPAT_SYS_NI(timer_gettime);
 COMPAT_SYS_NI(getitimer);
 COMPAT_SYS_NI(setitimer);
+#endif
 
+#ifdef CONFIG_COMPAT_32BIT_TIME
 COMPAT_SYSCALL_DEFINE2(clock_settime, const clockid_t, which_clock,
 		       struct compat_timespec __user *, tp)
 {
