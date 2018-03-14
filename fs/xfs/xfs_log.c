@@ -3395,41 +3395,17 @@ out_error:
 	return -EIO;
 }
 
-/*
- * Force the in-core log to disk for a specific LSN.
- *
- * Find in-core log with lsn.
- *	If it is in the DIRTY state, just return.
- *	If it is in the ACTIVE state, move the in-core log into the WANT_SYNC
- *		state and go to sleep or return.
- *	If it is in any other state, go to sleep or return.
- *
- * Synchronous forces are implemented with a wait queue.  All callers trying
- * to force a given lsn to disk must wait on the queue attached to the
- * specific in-core log.  When given in-core log finally completes its write
- * to disk, that thread will wake up all threads waiting on the queue.
- */
-int
-xfs_log_force_lsn(
+static int
+__xfs_log_force_lsn(
 	struct xfs_mount	*mp,
 	xfs_lsn_t		lsn,
 	uint			flags,
-	int			*log_flushed)
+	int			*log_flushed,
+	bool			already_slept)
 {
 	struct xlog		*log = mp->m_log;
 	struct xlog_in_core	*iclog;
-	int			already_slept = 0;
 
-	ASSERT(lsn != 0);
-
-	XFS_STATS_INC(mp, xs_log_force);
-	trace_xfs_log_force(mp, lsn, _RET_IP_);
-
-	lsn = xlog_cil_force_lsn(log, lsn);
-	if (lsn == NULLCOMMITLSN)
-		return 0;
-
-try_again:
 	spin_lock(&log->l_icloglock);
 	iclog = log->l_iclog;
 	if (iclog->ic_state & XLOG_STATE_IOERROR)
@@ -3469,8 +3445,7 @@ try_again:
 
 			xlog_wait(&iclog->ic_prev->ic_write_wait,
 					&log->l_icloglock);
-			already_slept = 1;
-			goto try_again;
+			return -EAGAIN;
 		}
 		atomic_inc(&iclog->ic_refcnt);
 		xlog_state_switch_iclogs(log, iclog, 0);
@@ -3501,6 +3476,43 @@ out_unlock:
 out_error:
 	spin_unlock(&log->l_icloglock);
 	return -EIO;
+}
+
+/*
+ * Force the in-core log to disk for a specific LSN.
+ *
+ * Find in-core log with lsn.
+ *	If it is in the DIRTY state, just return.
+ *	If it is in the ACTIVE state, move the in-core log into the WANT_SYNC
+ *		state and go to sleep or return.
+ *	If it is in any other state, go to sleep or return.
+ *
+ * Synchronous forces are implemented with a wait queue.  All callers trying
+ * to force a given lsn to disk must wait on the queue attached to the
+ * specific in-core log.  When given in-core log finally completes its write
+ * to disk, that thread will wake up all threads waiting on the queue.
+ */
+int
+xfs_log_force_lsn(
+	struct xfs_mount	*mp,
+	xfs_lsn_t		lsn,
+	uint			flags,
+	int			*log_flushed)
+{
+	int			ret;
+	ASSERT(lsn != 0);
+
+	XFS_STATS_INC(mp, xs_log_force);
+	trace_xfs_log_force(mp, lsn, _RET_IP_);
+
+	lsn = xlog_cil_force_lsn(mp->m_log, lsn);
+	if (lsn == NULLCOMMITLSN)
+		return 0;
+
+	ret = __xfs_log_force_lsn(mp, lsn, flags, log_flushed, false);
+	if (ret == -EAGAIN)
+		ret = __xfs_log_force_lsn(mp, lsn, flags, log_flushed, true);
+	return ret;
 }
 
 /*
