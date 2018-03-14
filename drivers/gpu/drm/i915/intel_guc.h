@@ -49,6 +49,9 @@ struct intel_guc {
 	struct intel_guc_log log;
 	struct intel_guc_ct ct;
 
+	/* Offset where Non-WOPCM memory starts. */
+	u32 ggtt_pin_bias;
+
 	/* Log snapshot if GuC errors during load */
 	struct drm_i915_gem_object *load_err_log;
 
@@ -108,19 +111,20 @@ static inline void intel_guc_notify(struct intel_guc *guc)
  * @guc: intel_guc structure.
  * @vma: i915 graphics virtual memory area.
  *
- * GuC does not allow any gfx GGTT address that falls into range [0, WOPCM_TOP),
- * which is reserved for Boot ROM, SRAM and WOPCM. Currently this top address is
- * 512K. In order to exclude 0-512K address space from GGTT, all gfx objects
- * used by GuC is pinned with PIN_OFFSET_BIAS along with size of WOPCM.
+ * GuC does not allow any gfx GGTT address that falls into range
+ * [0, GuC ggtt_pin_bias), which is reserved for Boot ROM, SRAM and WOPCM.
+ * Currently, in order to exclude [0, GuC ggtt_pin_bias) address space from
+ * GGTT, all gfx objects used by GuC are allocated with intel_guc_allocate_vma()
+ * and pinned with PIN_OFFSET_BIAS along with the value of GuC ggtt_pin_bias.
  *
- * Return: GGTT offset that meets the GuC gfx address requirement.
+ * Return: GGTT offset of the @vma.
  */
 static inline u32 intel_guc_ggtt_offset(struct intel_guc *guc,
 					struct i915_vma *vma)
 {
 	u32 offset = i915_ggtt_offset(vma);
 
-	GEM_BUG_ON(offset < GUC_WOPCM_TOP);
+	GEM_BUG_ON(offset < guc->ggtt_pin_bias);
 	GEM_BUG_ON(range_overflows_t(u64, offset, vma->size, GUC_GGTT_TOP));
 
 	return offset;
@@ -129,6 +133,7 @@ static inline u32 intel_guc_ggtt_offset(struct intel_guc *guc,
 void intel_guc_init_early(struct intel_guc *guc);
 void intel_guc_init_send_regs(struct intel_guc *guc);
 void intel_guc_init_params(struct intel_guc *guc);
+void intel_guc_init_ggtt_pin_bias(struct intel_guc *guc);
 int intel_guc_init_wq(struct intel_guc *guc);
 void intel_guc_fini_wq(struct intel_guc *guc);
 int intel_guc_init(struct intel_guc *guc);
@@ -141,7 +146,6 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
 int intel_guc_suspend(struct intel_guc *guc);
 int intel_guc_resume(struct intel_guc *guc);
 struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size);
-u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv);
 
 static inline int intel_guc_sanitize(struct intel_guc *guc)
 {

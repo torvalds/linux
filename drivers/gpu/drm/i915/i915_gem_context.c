@@ -318,12 +318,13 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	ctx->desc_template =
 		default_desc_template(dev_priv, dev_priv->mm.aliasing_ppgtt);
 
-	/* GuC requires the ring to be placed above GUC_WOPCM_TOP. If GuC is not
+	/*
+	 * GuC requires the ring to be placed in Non-WOPCM memory. If GuC is not
 	 * present or not in use we still need a small bias as ring wraparound
 	 * at offset 0 sometimes hangs. No idea why.
 	 */
 	if (USES_GUC(dev_priv))
-		ctx->ggtt_offset_bias = GUC_WOPCM_TOP;
+		ctx->ggtt_offset_bias = dev_priv->guc.ggtt_pin_bias;
 	else
 		ctx->ggtt_offset_bias = I915_GTT_PAGE_SIZE;
 

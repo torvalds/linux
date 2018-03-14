@@ -64,6 +64,7 @@
 #include "intel_opregion.h"
 #include "intel_ringbuffer.h"
 #include "intel_uncore.h"
+#include "intel_wopcm.h"
 #include "intel_uc.h"
 
 #include "i915_gem.h"
@@ -1589,6 +1590,8 @@ struct drm_i915_private {
 
 	struct intel_gvt *gvt;
 
+	struct intel_wopcm wopcm;
+
 	struct intel_huc huc;
 	struct intel_guc guc;
 
@@ -2119,6 +2122,11 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 {
 	return to_i915(dev_get_drvdata(kdev));
+}
+
+static inline struct drm_i915_private *wopcm_to_i915(struct intel_wopcm *wopcm)
+{
+	return container_of(wopcm, struct drm_i915_private, wopcm);
 }
 
 static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)

@@ -493,6 +493,57 @@ int intel_guc_resume(struct intel_guc *guc)
 }
 
 /**
+ * DOC: GuC Address Space
+ *
+ * The layout of GuC address space is shown as below:
+ *
+ *    +==============> +====================+ <== GUC_GGTT_TOP
+ *    ^                |                    |
+ *    |                |                    |
+ *    |                |        DRAM        |
+ *    |                |       Memory       |
+ *    |                |                    |
+ *   GuC               |                    |
+ * Address  +========> +====================+ <== WOPCM Top
+ *  Space   ^          |   HW contexts RSVD |
+ *    |     |          |        WOPCM       |
+ *    |     |     +==> +--------------------+ <== GuC WOPCM Top
+ *    |    GuC    ^    |                    |
+ *    |    GGTT   |    |                    |
+ *    |    Pin   GuC   |        GuC         |
+ *    |    Bias WOPCM  |       WOPCM        |
+ *    |     |    Size  |                    |
+ *    |     |     |    |                    |
+ *    v     v     v    |                    |
+ *    +=====+=====+==> +====================+ <== GuC WOPCM Base
+ *                     |   Non-GuC WOPCM    |
+ *                     |   (HuC/Reserved)   |
+ *                     +====================+ <== WOPCM Base
+ *
+ * The lower part [0, GuC ggtt_pin_bias) is mapped to WOPCM which consists of
+ * GuC WOPCM and WOPCM reserved for other usage (e.g.RC6 context). The value of
+ * the GuC ggtt_pin_bias is determined by the actually GuC WOPCM size which is
+ * set in GUC_WOPCM_SIZE register.
+ */
+
+/**
+ * intel_guc_init_ggtt_pin_bias() - Initialize the GuC ggtt_pin_bias value.
+ * @guc: intel_guc structure.
+ *
+ * This function will calculate and initialize the ggtt_pin_bias value based on
+ * overall WOPCM size and GuC WOPCM size.
+ */
+void intel_guc_init_ggtt_pin_bias(struct intel_guc *guc)
+{
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+
+	GEM_BUG_ON(!i915->wopcm.size);
+	GEM_BUG_ON(i915->wopcm.size < i915->wopcm.guc.base);
+
+	guc->ggtt_pin_bias = i915->wopcm.size - i915->wopcm.guc.base;
+}
+
+/**
  * intel_guc_allocate_vma() - Allocate a GGTT VMA for GuC usage
  * @guc:	the guc
  * @size:	size of area to allocate (both virtual space and memory)
@@ -500,7 +551,7 @@ int intel_guc_resume(struct intel_guc *guc)
  * This is a wrapper to create an object for use with the GuC. In order to
  * use it inside the GuC, an object needs to be pinned lifetime, so we allocate
  * both some backing storage and a range inside the Global GTT. We must pin
- * it in the GGTT somewhere other than than [0, GUC_WOPCM_TOP) because that
+ * it in the GGTT somewhere other than than [0, GUC ggtt_pin_bias) because that
  * range is reserved inside GuC.
  *
  * Return:	A i915_vma if successful, otherwise an ERR_PTR.
@@ -521,7 +572,7 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 		goto err;
 
 	ret = i915_vma_pin(vma, 0, PAGE_SIZE,
-			   PIN_GLOBAL | PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+			   PIN_GLOBAL | PIN_OFFSET_BIAS | guc->ggtt_pin_bias);
 	if (ret) {
 		vma = ERR_PTR(ret);
 		goto err;
@@ -532,15 +583,4 @@ struct i915_vma *intel_guc_allocate_vma(struct intel_guc *guc, u32 size)
 err:
 	i915_gem_object_put(obj);
 	return vma;
-}
-
-u32 intel_guc_wopcm_size(struct drm_i915_private *dev_priv)
-{
-	u32 wopcm_size = GUC_WOPCM_TOP;
-
-	/* On BXT, the top of WOPCM is reserved for RC6 context */
-	if (IS_GEN9_LP(dev_priv))
-		wopcm_size -= BXT_GUC_WOPCM_RC6_RESERVED;
-
-	return wopcm_size;
 }

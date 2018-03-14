@@ -55,7 +55,7 @@ int intel_huc_auth(struct intel_huc *huc)
 		return -ENOEXEC;
 
 	vma = i915_gem_object_ggtt_pin(huc->fw.obj, NULL, 0, 0,
-				PIN_OFFSET_BIAS | GUC_WOPCM_TOP);
+				       PIN_OFFSET_BIAS | guc->ggtt_pin_bias);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		DRM_ERROR("HuC: Failed to pin huc fw object %d\n", ret);
