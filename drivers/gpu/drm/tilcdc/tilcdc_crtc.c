@@ -224,7 +224,7 @@ static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
 
 	ret = clk_set_rate(priv->clk, req_rate * clkdiv);
 	clk_rate = clk_get_rate(priv->clk);
-	if (ret < 0) {
+	if (ret < 0 || tilcdc_pclk_diff(req_rate, clk_rate) > 5) {
 		/*
 		 * If we fail to set the clock rate (some architectures don't
 		 * use the common clock framework yet and may not implement
