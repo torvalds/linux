@@ -13,6 +13,46 @@
 		function = "aout";
 	};
 
+	pinctrl_ain1: ain1 {
+		groups = "ain1";
+		function = "ain1";
+	};
+
+	pinctrl_ain2: ain2 {
+		groups = "ain2";
+		function = "ain2";
+	};
+
+	pinctrl_ainiec1: ainiec1 {
+		groups = "ainiec1";
+		function = "ainiec1";
+	};
+
+	pinctrl_aout1: aout1 {
+		groups = "aout1";
+		function = "aout1";
+	};
+
+	pinctrl_aout2: aout2 {
+		groups = "aout2";
+		function = "aout2";
+	};
+
+	pinctrl_aout3: aout3 {
+		groups = "aout3";
+		function = "aout3";
+	};
+
+	pinctrl_aoutiec1: aoutiec1 {
+		groups = "aoutiec1";
+		function = "aoutiec1";
+	};
+
+	pinctrl_aoutiec2: aoutiec2 {
+		groups = "aoutiec2";
+		function = "aoutiec2";
+	};
+
 	pinctrl_emmc: emmc {
 		groups = "emmc", "emmc_dat8";
 		function = "emmc";
