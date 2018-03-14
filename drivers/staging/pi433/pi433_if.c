@@ -997,7 +997,7 @@ static int pi433_release(struct inode *inode, struct file *filp)
 
 /*-------------------------------------------------------------------------*/
 
-static int setup_GPIOs(struct pi433_device *device)
+static int setup_gpio(struct pi433_device *device)
 {
 	char	name[5];
 	int	retval;
@@ -1059,7 +1059,7 @@ static int setup_GPIOs(struct pi433_device *device)
 	return 0;
 }
 
-static void free_GPIOs(struct pi433_device *device)
+static void free_gpio(struct pi433_device *device)
 {
 	int i;
 
@@ -1174,7 +1174,7 @@ static int pi433_probe(struct spi_device *spi)
 	mutex_init(&device->rx_lock);
 
 	/* setup GPIO (including irq_handler) for the different DIOs */
-	retval = setup_GPIOs(device);
+	retval = setup_gpio(device);
 	if (retval) {
 		dev_dbg(&spi->dev, "setup of GPIOs failed");
 		goto GPIO_failed;
@@ -1261,7 +1261,7 @@ send_thread_failed:
 device_create_failed:
 	pi433_free_minor(device);
 minor_failed:
-	free_GPIOs(device);
+	free_gpio(device);
 GPIO_failed:
 	kfree(device);
 
@@ -1273,7 +1273,7 @@ static int pi433_remove(struct spi_device *spi)
 	struct pi433_device	*device = spi_get_drvdata(spi);
 
 	/* free GPIOs */
-	free_GPIOs(device);
+	free_gpio(device);
 
 	/* make sure ops on existing fds can abort cleanly */
 	device->spi = NULL;
