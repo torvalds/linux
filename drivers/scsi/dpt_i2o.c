@@ -302,16 +302,12 @@ rebuild_sys_tab:
 }
 
 
-/*
- * scsi_unregister will be called AFTER we return.
- */
-static int adpt_release(struct Scsi_Host *host)
+static void adpt_release(adpt_hba *pHba)
 {
-	adpt_hba* pHba = (adpt_hba*) host->hostdata[0];
+	scsi_remove_host(pHba->host);
 //	adpt_i2o_quiesce_hba(pHba);
 	adpt_i2o_delete_hba(pHba);
-	scsi_unregister(host);
-	return 0;
+	scsi_host_put(pHba->host);
 }
 
 
@@ -1087,8 +1083,6 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 
 
 	mutex_lock(&adpt_configuration_lock);
-	// scsi_unregister calls our adpt_release which
-	// does a quiese
 	if(pHba->host){
 		free_irq(pHba->host->irq, pHba);
 	}
@@ -3595,11 +3589,9 @@ static void __exit adpt_exit(void)
 {
 	adpt_hba	*pHba, *next;
 
-	for (pHba = hba_chain; pHba; pHba = pHba->next)
-		scsi_remove_host(pHba->host);
 	for (pHba = hba_chain; pHba; pHba = next) {
 		next = pHba->next;
-		adpt_release(pHba->host);
+		adpt_release(pHba);
 	}
 }
 
