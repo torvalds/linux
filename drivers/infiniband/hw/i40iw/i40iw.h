@@ -559,6 +559,7 @@ void i40iw_next_iw_state(struct i40iw_qp *iwqp,
 			 u8 state, u8 del_hash,
 			 u8 term, u8 term_len);
 int i40iw_send_syn(struct i40iw_cm_node *cm_node, u32 sendack);
+int i40iw_send_reset(struct i40iw_cm_node *cm_node);
 struct i40iw_cm_node *i40iw_find_node(struct i40iw_cm_core *cm_core,
 				      u16 rem_port,
 				      u32 *rem_addr,

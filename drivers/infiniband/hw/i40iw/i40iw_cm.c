@@ -539,7 +539,7 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
  * i40iw_send_reset - Send RST packet
  * @cm_node: connection's node
  */
-static int i40iw_send_reset(struct i40iw_cm_node *cm_node)
+int i40iw_send_reset(struct i40iw_cm_node *cm_node)
 {
 	struct i40iw_puda_buf *sqbuf;
 	int flags = SET_RST | SET_ACK;
