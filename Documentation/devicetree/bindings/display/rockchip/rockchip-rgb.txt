@@ -1,8 +1,9 @@
-Rockchip RV1108 RGB interface
+Rockchip RGB interface
 ================================
 
 Required properties:
 - compatible: matching the soc type:
+	- "rockchip,px30-rgb";
 	- "rockchip,rv1108-rgb";
 	- "rockchip,rk3066-rgb";
 	- "rockchip,rk3308-rgb";
@@ -68,6 +69,45 @@ For Rockchip RV1108:
 
 				rgb_out_panel: endpoint {
 					remote-endpoint = <&panel_in_rgb>;
+				};
+			};
+		};
+	};
+
+For Rockchip PX30:
+
+	grf: syscon@ff140000 {
+		compatible = "rockchip,px30-grf", "syscon", "simple-mfd";
+		...
+
+		rgb: rgb {
+			compatible = "rockchip,px30-rgb";
+			pinctrl-names = "default";
+			pinctrl-0 = <&lcdc_rgb_dclk_pin
+				     &lcdc_rgb_m0_den_pin
+				     &lcdc_rgb_m0_hsync_pin
+				     &lcdc_rgb_m0_vsync_pin
+				     &lcdc_rgb888_m0_data_pins>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					rgb_in_vopb: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&vopb_out_rgb>;
+					};
+
+					rgb_in_vopl: endpoint@1 {
+						reg = <1>;
+						remote-endpoint = <&vopl_out_rgb>;
+					};
 				};
 			};
 		};
