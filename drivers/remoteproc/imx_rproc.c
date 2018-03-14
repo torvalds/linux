@@ -333,10 +333,8 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	/* set some other name then imx */
 	rproc = rproc_alloc(dev, "imx-rproc", &imx_rproc_ops,
 			    NULL, sizeof(*priv));
-	if (!rproc) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (!rproc)
+		return -ENOMEM;
 
 	dcfg = of_device_get_match_data(dev);
 	if (!dcfg) {
@@ -381,13 +379,13 @@ static int imx_rproc_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	return ret;
+	return 0;
 
 err_put_clk:
 	clk_disable_unprepare(priv->clk);
 err_put_rproc:
 	rproc_free(rproc);
-err:
+
 	return ret;
 }
 
