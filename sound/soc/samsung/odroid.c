@@ -46,14 +46,12 @@ static int odroid_card_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 44100:
 	case 88200:
-	case 176400:
 		pll_freq = 180633609U;
 		rfs = 512;
 		break;
 	case 32000:
 	case 48000:
 	case 96000:
-	case 192000:
 		pll_freq = 196608001U;
 		rfs = 512;
 		break;
