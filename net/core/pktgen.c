@@ -913,7 +913,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			return PTR_ERR(tp);
 
 		pr_debug("%s,%zu  buffer -:%s:-\n", name, count, tp);
-		kfree(buf);
+		kfree(tp);
 	}
 
 	if (!strcmp(name, "min_pkt_size")) {
