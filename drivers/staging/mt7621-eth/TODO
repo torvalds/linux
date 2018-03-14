@@ -4,5 +4,7 @@
 - general code review and clean up
 - add support for second MAC on mt7621
 - convert gsw code to use switchdev interfaces
+- md7620_mmi_write etc should probably be wrapped
+  in a regmap abstraction.
 
 Cc: NeilBrown <neil@brown.name>
