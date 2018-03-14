@@ -126,4 +126,6 @@ source "drivers/staging/mt7621-spi/Kconfig"
 
 source "drivers/staging/mt7621-dma/Kconfig"
 
+source "drivers/staging/mt7621-mmc/Kconfig"
+
 endif # STAGING
