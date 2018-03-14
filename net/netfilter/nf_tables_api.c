@@ -2446,6 +2446,9 @@ EXPORT_SYMBOL_GPL(nft_unregister_set);
 
 static bool nft_set_ops_candidate(const struct nft_set_ops *ops, u32 flags)
 {
+	if ((flags & NFT_SET_EVAL) && !ops->update)
+		return false;
+
 	return (flags & ops->features) == (flags & NFT_SET_FEATURES);
 }
 
@@ -2510,7 +2513,7 @@ nft_select_set_ops(const struct nft_ctx *ctx,
 				if (est.space == best.space &&
 				    est.lookup < best.lookup)
 					break;
-			} else if (est.size < best.size) {
+			} else if (est.size < best.size || !bops) {
 				break;
 			}
 			continue;
