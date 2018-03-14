@@ -211,7 +211,9 @@
 			reg = <0x500000 0x4000>;
 			dma-coherent;
 			interrupts = <ICU_GRP_NSR 106 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&CP110_LABEL(clk) 1 22>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 22>,
+				 <&CP110_LABEL(clk) 1 16>;
 			status = "disabled";
 		};
 
@@ -221,7 +223,9 @@
 			reg = <0x510000 0x4000>;
 			dma-coherent;
 			interrupts = <ICU_GRP_NSR 105 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&CP110_LABEL(clk) 1 23>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 23>,
+				 <&CP110_LABEL(clk) 1 16>;
 			status = "disabled";
 		};
 
