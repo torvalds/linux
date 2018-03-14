@@ -2804,7 +2804,8 @@ ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 	    !(rx->flags & IEEE80211_RX_BEACON_REPORTED)) {
 		int sig = 0;
 
-		if (ieee80211_hw_check(&rx->local->hw, SIGNAL_DBM))
+		if (ieee80211_hw_check(&rx->local->hw, SIGNAL_DBM) &&
+		    !(status->flag & RX_FLAG_NO_SIGNAL_VAL))
 			sig = status->signal;
 
 		cfg80211_report_obss_beacon(rx->local->hw.wiphy,
@@ -3145,7 +3146,8 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 	 * it transmitted were processed or returned.
 	 */
 
-	if (ieee80211_hw_check(&rx->local->hw, SIGNAL_DBM))
+	if (ieee80211_hw_check(&rx->local->hw, SIGNAL_DBM) &&
+	    !(status->flag & RX_FLAG_NO_SIGNAL_VAL))
 		sig = status->signal;
 
 	if (cfg80211_rx_mgmt(&rx->sdata->wdev, status->freq, sig,
