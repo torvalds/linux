@@ -1739,11 +1739,13 @@ static int do_reset(struct ibmvnic_adapter *adapter,
 			rc = reset_rx_pools(adapter);
 			if (rc)
 				return rc;
-
-			if (reset_state == VNIC_CLOSED)
-				return 0;
 		}
 	}
+
+	adapter->state = VNIC_CLOSED;
+
+	if (reset_state == VNIC_CLOSED)
+		return 0;
 
 	rc = __ibmvnic_open(netdev);
 	if (rc) {
