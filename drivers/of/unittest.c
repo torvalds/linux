@@ -1423,15 +1423,13 @@ static int __init of_unittest_apply_overlay(int overlay_nr, int unittest_nr,
 		int *overlay_id)
 {
 	const char *overlay_name;
-	int ret;
 
 	overlay_name = overlay_name_from_nr(overlay_nr);
 
-	ret = overlay_data_apply(overlay_name, overlay_id);
-	if (!ret) {
+	if (!overlay_data_apply(overlay_name, overlay_id)) {
 		unittest(0, "could not apply overlay \"%s\"\n",
 				overlay_name);
-		return ret;
+		return -EFAULT;
 	}
 	of_unittest_track_overlay(*overlay_id);
 
