@@ -642,9 +642,8 @@ void acpi_db_display_object_type(char *object_arg)
 		return;
 	}
 
-	acpi_os_printf("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
-		       ACPI_FORMAT_UINT64(info->address),
-		       info->current_status, info->flags);
+	acpi_os_printf("ADR: %8.8X%8.8X, Flags: %X\n",
+		       ACPI_FORMAT_UINT64(info->address), info->flags);
 
 	acpi_os_printf("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
 		       info->highest_dstates[0], info->highest_dstates[1],

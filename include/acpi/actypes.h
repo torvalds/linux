@@ -1194,7 +1194,6 @@ struct acpi_device_info {
 	u8 flags;		/* Miscellaneous info */
 	u8 highest_dstates[4];	/* _sx_d values: 0xFF indicates not valid */
 	u8 lowest_dstates[5];	/* _sx_w values: 0xFF indicates not valid */
-	u32 current_status;	/* _STA value */
 	u64 address;	/* _ADR value */
 	struct acpi_pnp_device_id hardware_id;	/* _HID value */
 	struct acpi_pnp_device_id unique_id;	/* _UID value */
@@ -1208,7 +1207,6 @@ struct acpi_device_info {
 
 /* Flags for Valid field above (acpi_get_object_info) */
 
-#define ACPI_VALID_STA                  0x0001
 #define ACPI_VALID_ADR                  0x0002
 #define ACPI_VALID_HID                  0x0004
 #define ACPI_VALID_UID                  0x0008
