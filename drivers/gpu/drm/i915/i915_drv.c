@@ -377,9 +377,9 @@ static int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		value = INTEL_INFO(dev_priv)->sseu.min_eu_in_pool;
 		break;
 	case I915_PARAM_HUC_STATUS:
-		intel_runtime_pm_get(dev_priv);
-		value = I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED;
-		intel_runtime_pm_put(dev_priv);
+		value = intel_huc_check_status(&dev_priv->huc);
+		if (value < 0)
+			return value;
 		break;
 	case I915_PARAM_MMAP_GTT_VERSION:
 		/* Though we've started our numbering from 1, and so class all

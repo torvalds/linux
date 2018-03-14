@@ -92,3 +92,28 @@ fail:
 	DRM_ERROR("HuC: Authentication failed %d\n", ret);
 	return ret;
 }
+
+/**
+ * intel_huc_check_status() - check HuC status
+ * @huc: intel_huc structure
+ *
+ * This function reads status register to verify if HuC
+ * firmware was successfully loaded.
+ *
+ * Returns positive value if HuC firmware is loaded and verified
+ * and -ENODEV if HuC is not present.
+ */
+int intel_huc_check_status(struct intel_huc *huc)
+{
+	struct drm_i915_private *dev_priv = huc_to_i915(huc);
+	u32 status;
+
+	if (!HAS_HUC(dev_priv))
+		return -ENODEV;
+
+	intel_runtime_pm_get(dev_priv);
+	status = I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED;
+	intel_runtime_pm_put(dev_priv);
+
+	return status;
+}
