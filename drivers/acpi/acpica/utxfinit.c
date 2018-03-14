@@ -211,41 +211,29 @@ acpi_status ACPI_INIT_FUNCTION acpi_initialize_objects(u32 flags)
 
 	ACPI_FUNCTION_TRACE(acpi_initialize_objects);
 
-#ifdef ACPI_EXEC_APP
 	/*
-	 * This call implements the "initialization file" option for acpi_exec.
-	 * This is the precise point that we want to perform the overrides.
-	 */
-	ae_do_object_overrides();
-#endif
-
-	/*
-	 * Execute any module-level code that was detected during the table load
-	 * phase. Although illegal since ACPI 2.0, there are many machines that
-	 * contain this type of code. Each block of detected executable AML code
-	 * outside of any control method is wrapped with a temporary control
-	 * method object and placed on a global list. The methods on this list
-	 * are executed below.
+	 * This case handles the legacy option that groups all module-level
+	 * code blocks together and defers execution until all of the tables
+	 * are loaded. Execute all of these blocks at this time.
+	 * Execute any module-level code that was detected during the table
+	 * load phase.
 	 *
-	 * This case executes the module-level code for all tables only after
-	 * all of the tables have been loaded. It is a legacy option and is
-	 * not compatible with other ACPI implementations. See acpi_ns_load_table.
+	 * Note: this option is deprecated and will be eliminated in the
+	 * future. Use of this option can cause problems with AML code that
+	 * depends upon in-order immediate execution of module-level code.
 	 */
-	if (!acpi_gbl_execute_tables_as_methods
-	    && acpi_gbl_group_module_level_code) {
-		acpi_ns_exec_module_code_list();
+	acpi_ns_exec_module_code_list();
 
-		/*
-		 * Initialize the objects that remain uninitialized. This
-		 * runs the executable AML that may be part of the
-		 * declaration of these objects:
-		 * operation_regions, buffer_fields, Buffers, and Packages.
-		 */
-		if (!(flags & ACPI_NO_OBJECT_INIT)) {
-			status = acpi_ns_initialize_objects();
-			if (ACPI_FAILURE(status)) {
-				return_ACPI_STATUS(status);
-			}
+	/*
+	 * Initialize the objects that remain uninitialized. This
+	 * runs the executable AML that may be part of the
+	 * declaration of these objects:
+	 * operation_regions, buffer_fields, Buffers, and Packages.
+	 */
+	if (!(flags & ACPI_NO_OBJECT_INIT)) {
+		status = acpi_ns_initialize_objects();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 

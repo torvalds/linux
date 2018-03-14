@@ -310,6 +310,17 @@ cleanup:
  * DESCRIPTION: Execute all elements of the global module-level code list.
  *              Each element is executed as a single control method.
  *
+ * NOTE: With this option enabled, each block of detected executable AML
+ * code that is outside of any control method is wrapped with a temporary
+ * control method object and placed on a global list. The methods on this
+ * list are executed below.
+ *
+ * This function executes the module-level code for all tables only after
+ * all of the tables have been loaded. It is a legacy option and is
+ * not compatible with other ACPI implementations. See acpi_ns_load_table.
+ *
+ * This function will be removed when the legacy option is removed.
+ *
  ******************************************************************************/
 
 void acpi_ns_exec_module_code_list(void)
@@ -325,6 +336,9 @@ void acpi_ns_exec_module_code_list(void)
 
 	next = acpi_gbl_module_code_list;
 	if (!next) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INIT_NAMES,
+				  "Legacy MLC block list is empty\n"));
+
 		return_VOID;
 	}
 

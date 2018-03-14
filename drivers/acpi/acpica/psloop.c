@@ -136,10 +136,18 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 				  walk_state->pass_number));
 
 		/*
-		 * Handle executable code at "module-level". This refers to
-		 * executable opcodes that appear outside of any control method.
+		 * This case handles the legacy option that groups all module-level
+		 * code blocks together and defers execution until all of the tables
+		 * are loaded. Execute all of these blocks at this time.
+		 * Execute any module-level code that was detected during the table
+		 * load phase.
+		 *
+		 * Note: this option is deprecated and will be eliminated in the
+		 * future. Use of this option can cause problems with AML code that
+		 * depends upon in-order immediate execution of module-level code.
 		 */
-		if ((walk_state->pass_number <= ACPI_IMODE_LOAD_PASS2) &&
+		if (acpi_gbl_group_module_level_code &&
+		    (walk_state->pass_number <= ACPI_IMODE_LOAD_PASS2) &&
 		    ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE) == 0)) {
 			/*
 			 * We want to skip If/Else/While constructs during Pass1 because we
@@ -305,6 +313,16 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
  * DESCRIPTION: Wrap the module-level code with a method object and link the
  *              object to the global list. Note, the mutex field of the method
  *              object is used to link multiple module-level code objects.
+ *
+ * NOTE: In this legacy option, each block of detected executable AML
+ * code that is outside of any control method is wrapped with a temporary
+ * control method object and placed on a global list below.
+ *
+ * This function executes the module-level code for all tables only after
+ * all of the tables have been loaded. It is a legacy option and is
+ * not compatible with other ACPI implementations. See acpi_ns_load_table.
+ *
+ * This function will be removed when the legacy option is removed.
  *
  ******************************************************************************/
 

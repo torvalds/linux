@@ -526,6 +526,9 @@ acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj)
 				 * Node's object was replaced by this Method object and we
 				 * saved the handler in the method object.
 				 *
+				 * Note: Only used for the legacy MLC support. Will
+				 * be removed in the future.
+				 *
 				 * See acpi_ns_exec_module_code
 				 */
 				if (!acpi_gbl_execute_tables_as_methods &&
