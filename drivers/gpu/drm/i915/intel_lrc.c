@@ -1666,6 +1666,10 @@ static void reset_irq(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = engine->i915;
 	int i;
 
+	/* TODO: correctly reset irqs for gen11 */
+	if (WARN_ON_ONCE(INTEL_GEN(engine->i915) >= 11))
+		return;
+
 	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
 
 	/*
@@ -1677,11 +1681,11 @@ static void reset_irq(struct intel_engine_cs *engine)
 	 */
 	for (i = 0; i < 2; i++) {
 		I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
-			   GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift);
+			   engine->irq_keep_mask);
 		POSTING_READ(GEN8_GT_IIR(gtiir[engine->id]));
 	}
 	GEM_BUG_ON(I915_READ(GEN8_GT_IIR(gtiir[engine->id])) &
-		   (GT_CONTEXT_SWITCH_INTERRUPT << engine->irq_shift));
+		   engine->irq_keep_mask);
 
 	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 }
