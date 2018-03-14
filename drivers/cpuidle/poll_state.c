@@ -6,15 +6,24 @@
 
 #include <linux/cpuidle.h>
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/sched/idle.h>
+
+#define POLL_IDLE_TIME_LIMIT	(TICK_NSEC / 16)
 
 static int __cpuidle poll_idle(struct cpuidle_device *dev,
 			       struct cpuidle_driver *drv, int index)
 {
+	u64 time_start = local_clock();
+
 	local_irq_enable();
 	if (!current_set_polling_and_test()) {
-		while (!need_resched())
+		while (!need_resched()) {
 			cpu_relax();
+
+			if (local_clock() - time_start > POLL_IDLE_TIME_LIMIT)
+				break;
+		}
 	}
 	current_clr_polling();
 
