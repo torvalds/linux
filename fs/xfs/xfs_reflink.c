@@ -394,7 +394,7 @@ xfs_reflink_allocate_cow(
 
 retry:
 	ASSERT(xfs_is_reflink_inode(ip));
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	/*
 	 * Even if the extent is not shared we might have a preallocation for
