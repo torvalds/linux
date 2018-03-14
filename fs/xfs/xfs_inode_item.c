@@ -634,10 +634,6 @@ xfs_inode_item_committed(
 	return lsn;
 }
 
-/*
- * XXX rcc - this one really has to do something.  Probably needs
- * to stamp in a new field in the incore inode.
- */
 STATIC void
 xfs_inode_item_committing(
 	struct xfs_log_item	*lip,
