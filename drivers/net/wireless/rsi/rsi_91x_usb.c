@@ -140,7 +140,6 @@ static int rsi_find_bulk_in_and_out_endpoints(struct usb_interface *interface,
 			buffer_size = endpoint->wMaxPacketSize;
 			dev->bulkout_endpoint_addr[bout_found] =
 				endpoint->bEndpointAddress;
-			buffer_size = endpoint->wMaxPacketSize;
 			dev->bulkout_size[bout_found] = buffer_size;
 			bout_found++;
 		}
