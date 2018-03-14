@@ -2502,7 +2502,7 @@ static int i915_guc_log_control_get(void *data, u64 *val)
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	*val = intel_guc_log_control_get(&dev_priv->guc);
+	*val = intel_guc_log_control_get(&dev_priv->guc.log);
 
 	return 0;
 }
@@ -2514,7 +2514,7 @@ static int i915_guc_log_control_set(void *data, u64 val)
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	return intel_guc_log_control_set(&dev_priv->guc, val);
+	return intel_guc_log_control_set(&dev_priv->guc.log, val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_control_fops,

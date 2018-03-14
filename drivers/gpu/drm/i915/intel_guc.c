@@ -64,7 +64,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 {
 	intel_guc_fw_init_early(guc);
 	intel_guc_ct_init_early(&guc->ct);
-	intel_guc_log_init_early(guc);
+	intel_guc_log_init_early(&guc->log);
 
 	mutex_init(&guc->send_mutex);
 	guc->send = intel_guc_send_nop;
@@ -169,7 +169,7 @@ int intel_guc_init(struct intel_guc *guc)
 		return ret;
 	GEM_BUG_ON(!guc->shared_data);
 
-	ret = intel_guc_log_create(guc);
+	ret = intel_guc_log_create(&guc->log);
 	if (ret)
 		goto err_shared;
 
@@ -184,7 +184,7 @@ int intel_guc_init(struct intel_guc *guc)
 	return 0;
 
 err_log:
-	intel_guc_log_destroy(guc);
+	intel_guc_log_destroy(&guc->log);
 err_shared:
 	guc_shared_data_destroy(guc);
 	return ret;
@@ -196,7 +196,7 @@ void intel_guc_fini(struct intel_guc *guc)
 
 	i915_ggtt_disable_guc(dev_priv);
 	intel_guc_ads_destroy(guc);
-	intel_guc_log_destroy(guc);
+	intel_guc_log_destroy(&guc->log);
 	guc_shared_data_destroy(guc);
 }
 

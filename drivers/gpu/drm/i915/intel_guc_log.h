@@ -25,11 +25,12 @@
 #ifndef _INTEL_GUC_LOG_H_
 #define _INTEL_GUC_LOG_H_
 
+#include <linux/mutex.h>
+#include <linux/relay.h>
 #include <linux/workqueue.h>
 
 #include "intel_guc_fwif.h"
 
-struct drm_i915_private;
 struct intel_guc;
 
 /*
@@ -59,12 +60,13 @@ struct intel_guc_log {
 	u32 flush_count[GUC_MAX_LOG_BUFFER];
 };
 
-int intel_guc_log_create(struct intel_guc *guc);
-void intel_guc_log_destroy(struct intel_guc *guc);
-void intel_guc_log_init_early(struct intel_guc *guc);
-int intel_guc_log_control_get(struct intel_guc *guc);
-int intel_guc_log_control_set(struct intel_guc *guc, u64 control_val);
-int intel_guc_log_register(struct intel_guc *guc);
-void intel_guc_log_unregister(struct intel_guc *guc);
+void intel_guc_log_init_early(struct intel_guc_log *log);
+int intel_guc_log_create(struct intel_guc_log *log);
+int intel_guc_log_register(struct intel_guc_log *log);
+void intel_guc_log_unregister(struct intel_guc_log *log);
+void intel_guc_log_destroy(struct intel_guc_log *log);
+
+int intel_guc_log_control_get(struct intel_guc_log *log);
+int intel_guc_log_control_set(struct intel_guc_log *log, u64 control);
 
 #endif
