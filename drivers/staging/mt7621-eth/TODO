@@ -1,4 +1,7 @@
 
 - verify devicetree documentation is consistent with code
+- fix ethtool - currently doesn't return valid data.
+- general code review and clean up
+- add support for second MAC on mt7621
 
 Cc: NeilBrown <neil@brown.name>
