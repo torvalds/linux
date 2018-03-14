@@ -77,7 +77,6 @@ enum nvmet_rdma_queue_state {
 	NVMET_RDMA_Q_CONNECTING,
 	NVMET_RDMA_Q_LIVE,
 	NVMET_RDMA_Q_DISCONNECTING,
-	NVMET_RDMA_IN_DEVICE_REMOVAL,
 };
 
 struct nvmet_rdma_queue {
@@ -942,12 +941,10 @@ static void nvmet_rdma_release_queue_work(struct work_struct *w)
 		container_of(w, struct nvmet_rdma_queue, release_work);
 	struct rdma_cm_id *cm_id = queue->cm_id;
 	struct nvmet_rdma_device *dev = queue->dev;
-	enum nvmet_rdma_queue_state state = queue->state;
 
 	nvmet_rdma_free_queue(queue);
 
-	if (state != NVMET_RDMA_IN_DEVICE_REMOVAL)
-		rdma_destroy_id(cm_id);
+	rdma_destroy_id(cm_id);
 
 	kref_put(&dev->ref, nvmet_rdma_free_dev);
 }
@@ -1209,7 +1206,6 @@ static void __nvmet_rdma_queue_disconnect(struct nvmet_rdma_queue *queue)
 	case NVMET_RDMA_Q_CONNECTING:
 	case NVMET_RDMA_Q_LIVE:
 		queue->state = NVMET_RDMA_Q_DISCONNECTING;
-	case NVMET_RDMA_IN_DEVICE_REMOVAL:
 		disconnect = true;
 		break;
 	case NVMET_RDMA_Q_DISCONNECTING:
