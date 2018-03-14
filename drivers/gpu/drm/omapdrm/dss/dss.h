@@ -383,7 +383,7 @@ int dpi_init_port(struct dss_device *dss, struct platform_device *pdev,
 		  struct device_node *port, enum dss_model dss_model);
 void dpi_uninit_port(struct device_node *port);
 #else
-static inline int dpi_init_port(struct dss_device *port,
+static inline int dpi_init_port(struct dss_device *dss,
 				struct platform_device *pdev,
 				struct device_node *port,
 				enum dss_model dss_model)
