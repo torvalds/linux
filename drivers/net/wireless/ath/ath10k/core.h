@@ -325,6 +325,27 @@ struct ath10k_tpc_stats {
 	struct ath10k_tpc_table tpc_table[WMI_TPC_FLAG];
 };
 
+struct ath10k_tpc_table_final {
+	u32 pream_idx[WMI_TPC_FINAL_RATE_MAX];
+	u8 rate_code[WMI_TPC_FINAL_RATE_MAX];
+	char tpc_value[WMI_TPC_FINAL_RATE_MAX][WMI_TPC_TX_N_CHAIN * WMI_TPC_BUF_SIZE];
+};
+
+struct ath10k_tpc_stats_final {
+	u32 reg_domain;
+	u32 chan_freq;
+	u32 phy_mode;
+	u32 twice_antenna_reduction;
+	u32 twice_max_rd_power;
+	s32 twice_antenna_gain;
+	u32 power_limit;
+	u32 num_tx_chain;
+	u32 ctl;
+	u32 rate_max;
+	u8 flag[WMI_TPC_FLAG];
+	struct ath10k_tpc_table_final tpc_table_final[WMI_TPC_FLAG];
+};
+
 struct ath10k_dfs_stats {
 	u32 phy_errors;
 	u32 pulses_total;
@@ -530,6 +551,7 @@ struct ath10k_debug {
 
 	/* used for tpc-dump storage, protected by data-lock */
 	struct ath10k_tpc_stats *tpc_stats;
+	struct ath10k_tpc_stats_final *tpc_stats_final;
 
 	struct completion tpc_complete;
 
