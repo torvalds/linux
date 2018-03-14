@@ -3647,6 +3647,33 @@ static int sctp_setsockopt_del_key(struct sock *sk,
 }
 
 /*
+ * 8.3.4  Deactivate a Shared Key (SCTP_AUTH_DEACTIVATE_KEY)
+ *
+ * This set option will deactivate a shared secret key.
+ */
+static int sctp_setsockopt_deactivate_key(struct sock *sk, char __user *optval,
+					  unsigned int optlen)
+{
+	struct sctp_endpoint *ep = sctp_sk(sk)->ep;
+	struct sctp_authkeyid val;
+	struct sctp_association *asoc;
+
+	if (!ep->auth_enable)
+		return -EACCES;
+
+	if (optlen != sizeof(struct sctp_authkeyid))
+		return -EINVAL;
+	if (copy_from_user(&val, optval, optlen))
+		return -EFAULT;
+
+	asoc = sctp_id2assoc(sk, val.scact_assoc_id);
+	if (!asoc && val.scact_assoc_id && sctp_style(sk, UDP))
+		return -EINVAL;
+
+	return sctp_auth_deact_key_id(ep, asoc, val.scact_keynumber);
+}
+
+/*
  * 8.1.23 SCTP_AUTO_ASCONF
  *
  * This option will enable or disable the use of the automatic generation of
@@ -4237,6 +4264,9 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		break;
 	case SCTP_AUTH_DELETE_KEY:
 		retval = sctp_setsockopt_del_key(sk, optval, optlen);
+		break;
+	case SCTP_AUTH_DEACTIVATE_KEY:
+		retval = sctp_setsockopt_deactivate_key(sk, optval, optlen);
 		break;
 	case SCTP_AUTO_ASCONF:
 		retval = sctp_setsockopt_auto_asconf(sk, optval, optlen);
@@ -7212,6 +7242,7 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 	case SCTP_AUTH_KEY:
 	case SCTP_AUTH_CHUNK:
 	case SCTP_AUTH_DELETE_KEY:
+	case SCTP_AUTH_DEACTIVATE_KEY:
 		retval = -EOPNOTSUPP;
 		break;
 	case SCTP_HMAC_IDENT:
