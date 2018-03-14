@@ -72,8 +72,8 @@ void pre_surface_trace(
 				"plane_state->visible = %d;\n"
 				"plane_state->flip_immediate = %d;\n"
 				"plane_state->address.type = %d;\n"
-				"plane_state->address.grph.addr.quad_part = 0x%X;\n"
-				"plane_state->address.grph.meta_addr.quad_part = 0x%X;\n"
+				"plane_state->address.grph.addr.quad_part = 0x%llX;\n"
+				"plane_state->address.grph.meta_addr.quad_part = 0x%llX;\n"
 				"plane_state->scaling_quality.h_taps = %d;\n"
 				"plane_state->scaling_quality.v_taps = %d;\n"
 				"plane_state->scaling_quality.h_taps_c = %d;\n"
@@ -192,8 +192,8 @@ void update_surface_trace(
 		SURFACE_TRACE("Update %d\n", i);
 		if (update->flip_addr) {
 			SURFACE_TRACE("flip_addr->address.type = %d;\n"
-					"flip_addr->address.grph.addr.quad_part = 0x%X;\n"
-					"flip_addr->address.grph.meta_addr.quad_part = 0x%X;\n"
+					"flip_addr->address.grph.addr.quad_part = 0x%llX;\n"
+					"flip_addr->address.grph.meta_addr.quad_part = 0x%llX;\n"
 					"flip_addr->flip_immediate = %d;\n",
 					update->flip_addr->address.type,
 					update->flip_addr->address.grph.addr.quad_part,
@@ -211,7 +211,8 @@ void update_surface_trace(
 					"plane_info->plane_size.grph.surface_size.width = %d;\n"
 					"plane_info->plane_size.grph.surface_size.x = %d;\n"
 					"plane_info->plane_size.grph.surface_size.y = %d;\n"
-					"plane_info->rotation = %d;\n",
+					"plane_info->rotation = %d;\n"
+					"plane_info->stereo_format = %d;\n",
 					update->plane_info->color_space,
 					update->plane_info->input_tf,
 					update->plane_info->format,
@@ -371,6 +372,7 @@ void context_clock_trace(
 			context->bw.dcn.calc_clk.dppclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_khz,
 			context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz,
-			context->bw.dcn.calc_clk.fclk_khz);
+			context->bw.dcn.calc_clk.fclk_khz,
+			context->bw.dcn.calc_clk.socclk_khz);
 #endif
 }

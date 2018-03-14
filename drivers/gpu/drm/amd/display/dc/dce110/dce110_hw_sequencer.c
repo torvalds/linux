@@ -2777,13 +2777,13 @@ static void dce110_program_front_end_for_pipe(
 		dc->hwss.set_output_transfer_func(pipe_ctx, pipe_ctx->stream);
 
 	DC_LOG_SURFACE(
-			"Pipe:%d 0x%x: addr hi:0x%x, "
+			"Pipe:%d %p: addr hi:0x%x, "
 			"addr low:0x%x, "
 			"src: %d, %d, %d,"
 			" %d; dst: %d, %d, %d, %d;"
 			"clip: %d, %d, %d, %d\n",
 			pipe_ctx->pipe_idx,
-			pipe_ctx->plane_state,
+			(void *) pipe_ctx->plane_state,
 			pipe_ctx->plane_state->address.grph.addr.high_part,
 			pipe_ctx->plane_state->address.grph.addr.low_part,
 			pipe_ctx->plane_state->src_rect.x,

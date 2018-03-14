@@ -2165,11 +2165,11 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: 0x%x      "
+		DC_LOG_MST("stream_enc[%d]: %p      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
 		i,
-		link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
+		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
 		i,
 		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
 		i,
@@ -2255,11 +2255,11 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 			link->mst_stream_alloc_table.stream_count);
 
 	for (i = 0; i < MAX_CONTROLLER_NUM; i++) {
-		DC_LOG_MST("stream_enc[%d]: 0x%x      "
+		DC_LOG_MST("stream_enc[%d]: %p      "
 		"stream[%d].vcp_id: %d      "
 		"stream[%d].slot_count: %d\n",
 		i,
-		link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
+		(void *) link->mst_stream_alloc_table.stream_allocations[i].stream_enc,
 		i,
 		link->mst_stream_alloc_table.stream_allocations[i].vcp_id,
 		i,
