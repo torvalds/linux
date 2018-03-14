@@ -509,7 +509,7 @@ static struct clk_regmap meson8b_mpeg_clk_sel = {
 	},
 };
 
-struct clk_regmap meson8b_mpeg_clk_div = {
+static struct clk_regmap meson8b_mpeg_clk_div = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = HHI_MPEG_CLK_CNTL,
 		.shift = 0,
@@ -523,7 +523,7 @@ struct clk_regmap meson8b_mpeg_clk_div = {
 	},
 };
 
-struct clk_regmap meson8b_clk81 = {
+static struct clk_regmap meson8b_clk81 = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = HHI_MPEG_CLK_CNTL,
 		.bit_idx = 7,
@@ -537,7 +537,7 @@ struct clk_regmap meson8b_clk81 = {
 	},
 };
 
-struct clk_regmap meson8b_cpu_in_sel = {
+static struct clk_regmap meson8b_cpu_in_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = HHI_SYS_CPU_CLK_CNTL0,
 		.mask = 0x1,
@@ -588,7 +588,7 @@ static const struct clk_div_table cpu_scale_table[] = {
 	{ /* sentinel */ },
 };
 
-struct clk_regmap meson8b_cpu_scale_div = {
+static struct clk_regmap meson8b_cpu_scale_div = {
 	.data = &(struct clk_regmap_div_data){
 		.offset =  HHI_SYS_CPU_CLK_CNTL1,
 		.shift = 20,
@@ -605,7 +605,7 @@ struct clk_regmap meson8b_cpu_scale_div = {
 	},
 };
 
-struct clk_regmap meson8b_cpu_scale_out_sel = {
+static struct clk_regmap meson8b_cpu_scale_out_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = HHI_SYS_CPU_CLK_CNTL0,
 		.mask = 0x3,
@@ -623,7 +623,7 @@ struct clk_regmap meson8b_cpu_scale_out_sel = {
 	},
 };
 
-struct clk_regmap meson8b_cpu_clk = {
+static struct clk_regmap meson8b_cpu_clk = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = HHI_SYS_CPU_CLK_CNTL0,
 		.mask = 0x1,
@@ -1049,7 +1049,6 @@ static const struct regmap_config clkc_regmap_config = {
 static int meson8b_clkc_probe(struct platform_device *pdev)
 {
 	int ret, i;
-	struct clk *clk;
 	struct device *dev = &pdev->dev;
 	struct regmap *map;
 

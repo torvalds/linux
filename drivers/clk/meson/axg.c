@@ -192,7 +192,7 @@ static const struct pll_rate_table axg_gp0_pll_rate_table[] = {
 	{ /* sentinel */ },
 };
 
-const struct reg_sequence axg_gp0_init_regs[] = {
+static const struct reg_sequence axg_gp0_init_regs[] = {
 	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0xc084b000 },
 	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0xb75020be },
 	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x0a59a288 },
@@ -245,7 +245,7 @@ static struct clk_regmap axg_gp0_pll = {
 	},
 };
 
-const struct reg_sequence axg_hifi_init_regs[] = {
+static const struct reg_sequence axg_hifi_init_regs[] = {
 	{ .reg = HHI_HIFI_PLL_CNTL1,	.def = 0xc084b000 },
 	{ .reg = HHI_HIFI_PLL_CNTL2,	.def = 0xb75020be },
 	{ .reg = HHI_HIFI_PLL_CNTL3,	.def = 0x0a6a3a88 },
