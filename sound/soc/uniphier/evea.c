@@ -18,6 +18,8 @@
 
 #define AADCPOW(n)                           (0x0078 + 0x04 * (n))
 #define   AADCPOW_AADC_POWD                   BIT(0)
+#define ALINSW1                              0x0088
+#define   ALINSW1_SEL1_SHIFT                  3
 #define AHPOUTPOW                            0x0098
 #define   AHPOUTPOW_HP_ON                     BIT(4)
 #define ALINEPOW                             0x009c
@@ -278,7 +280,16 @@ static int evea_set_switch_hp(struct snd_kcontrol *kcontrol,
 	return evea_update_switch_hp(evea);
 }
 
+static const char * const linsw1_sel1_text[] = {
+	"LIN1", "LIN2", "LIN3"
+};
+
+static SOC_ENUM_SINGLE_DECL(linsw1_sel1_enum,
+	ALINSW1, ALINSW1_SEL1_SHIFT,
+	linsw1_sel1_text);
+
 static const struct snd_kcontrol_new evea_controls[] = {
+	SOC_ENUM("Line Capture Source", linsw1_sel1_enum),
 	SOC_SINGLE_BOOL_EXT("Line Capture Switch", 0,
 			    evea_get_switch_lin, evea_set_switch_lin),
 	SOC_SINGLE_BOOL_EXT("Line Playback Switch", 0,
