@@ -347,7 +347,7 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 			&priv->smu_tables.entry[WMTABLE].table);
 
 	if (r)
-		return -EINVAL;
+		goto err0;
 
 	priv->smu_tables.entry[WMTABLE].version = 0x01;
 	priv->smu_tables.entry[WMTABLE].size = sizeof(Watermarks_t);
@@ -363,18 +363,22 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 			&priv->smu_tables.entry[CLOCKTABLE].mc_addr,
 			&priv->smu_tables.entry[CLOCKTABLE].table);
 
-	if (r) {
-		amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
-					&priv->smu_tables.entry[WMTABLE].mc_addr,
-					&priv->smu_tables.entry[WMTABLE].table);
-		return -EINVAL;
-	}
+	if (r)
+		goto err1;
 
 	priv->smu_tables.entry[CLOCKTABLE].version = 0x01;
 	priv->smu_tables.entry[CLOCKTABLE].size = sizeof(DpmClocks_t);
 	priv->smu_tables.entry[CLOCKTABLE].table_id = TABLE_DPMCLOCKS;
 
 	return 0;
+
+err1:
+	amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
+				&priv->smu_tables.entry[WMTABLE].mc_addr,
+				&priv->smu_tables.entry[WMTABLE].table);
+err0:
+	kfree(priv);
+	return -EINVAL;
 }
 
 const struct pp_smumgr_func rv_smu_funcs = {

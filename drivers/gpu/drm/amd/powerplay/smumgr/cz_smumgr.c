@@ -764,7 +764,7 @@ static int cz_smu_init(struct pp_hwmgr *hwmgr)
 				&cz_smu->toc_buffer.mc_addr,
 				&cz_smu->toc_buffer.kaddr);
 	if (ret)
-		return -EINVAL;
+		goto err2;
 
 	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 				cz_smu->smu_buffer.data_size,
@@ -773,19 +773,15 @@ static int cz_smu_init(struct pp_hwmgr *hwmgr)
 				&cz_smu->smu_buffer.handle,
 				&cz_smu->smu_buffer.mc_addr,
 				&cz_smu->smu_buffer.kaddr);
-	if (ret) {
-		amdgpu_bo_free_kernel(&cz_smu->toc_buffer.handle,
-					&cz_smu->toc_buffer.mc_addr,
-					&cz_smu->toc_buffer.kaddr);
-		return -EINVAL;
-	}
+	if (ret)
+		goto err1;
 
 	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SCRATCH,
 		UCODE_ID_RLC_SCRATCH_SIZE_BYTE,
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
 		pr_err("Error when Populate Firmware Entry.\n");
-		return -1;
+		goto err0;
 	}
 
 	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
@@ -793,14 +789,14 @@ static int cz_smu_init(struct pp_hwmgr *hwmgr)
 		UCODE_ID_RLC_SRM_ARAM_SIZE_BYTE,
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
 		pr_err("Error when Populate Firmware Entry.\n");
-		return -1;
+		goto err0;
 	}
 	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SRM_DRAM,
 		UCODE_ID_RLC_SRM_DRAM_SIZE_BYTE,
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
 		pr_err("Error when Populate Firmware Entry.\n");
-		return -1;
+		goto err0;
 	}
 
 	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
@@ -808,7 +804,7 @@ static int cz_smu_init(struct pp_hwmgr *hwmgr)
 		sizeof(struct SMU8_MultimediaPowerLogData),
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
 		pr_err("Error when Populate Firmware Entry.\n");
-		return -1;
+		goto err0;
 	}
 
 	if (0 != cz_smu_populate_single_scratch_entry(hwmgr,
@@ -816,10 +812,22 @@ static int cz_smu_init(struct pp_hwmgr *hwmgr)
 		sizeof(struct SMU8_Fusion_ClkTable),
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
 		pr_err("Error when Populate Firmware Entry.\n");
-		return -1;
+		goto err0;
 	}
 
 	return 0;
+
+err0:
+	amdgpu_bo_free_kernel(&cz_smu->smu_buffer.handle,
+				&cz_smu->smu_buffer.mc_addr,
+				&cz_smu->smu_buffer.kaddr);
+err1:
+	amdgpu_bo_free_kernel(&cz_smu->toc_buffer.handle,
+				&cz_smu->toc_buffer.mc_addr,
+				&cz_smu->toc_buffer.kaddr);
+err2:
+	kfree(cz_smu);
+	return -EINVAL;
 }
 
 static int cz_smu_fini(struct pp_hwmgr *hwmgr)

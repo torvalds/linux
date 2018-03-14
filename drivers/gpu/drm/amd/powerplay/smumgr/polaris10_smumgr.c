@@ -349,8 +349,10 @@ static int polaris10_smu_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->smu_backend = smu_data;
 
-	if (smu7_init(hwmgr))
+	if (smu7_init(hwmgr)) {
+		kfree(smu_data);
 		return -EINVAL;
+	}
 
 	return 0;
 }

@@ -354,8 +354,10 @@ static int fiji_smu_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->smu_backend = fiji_priv;
 
-	if (smu7_init(hwmgr))
+	if (smu7_init(hwmgr)) {
+		kfree(fiji_priv);
 		return -EINVAL;
+	}
 
 	return 0;
 }
