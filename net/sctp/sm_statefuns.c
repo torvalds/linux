@@ -4246,7 +4246,7 @@ enum sctp_disposition sctp_sf_eat_auth(struct net *net,
 		struct sctp_ulpevent *ev;
 
 		ev = sctp_ulpevent_make_authkey(asoc, ntohs(auth_hdr->shkey_id),
-				    SCTP_AUTH_NEWKEY, GFP_ATOMIC);
+				    SCTP_AUTH_NEW_KEY, GFP_ATOMIC);
 
 		if (!ev)
 			return -ENOMEM;

@@ -992,6 +992,20 @@ int sctp_auth_deact_key_id(struct sctp_endpoint *ep,
 	if (!found)
 		return -EINVAL;
 
+	/* refcnt == 1 and !list_empty mean it's not being used anywhere
+	 * and deactivated will be set, so it's time to notify userland
+	 * that this shkey can be freed.
+	 */
+	if (asoc && !list_empty(&key->key_list) &&
+	    refcount_read(&key->refcnt) == 1) {
+		struct sctp_ulpevent *ev;
+
+		ev = sctp_ulpevent_make_authkey(asoc, key->key_id,
+						SCTP_AUTH_FREE_KEY, GFP_KERNEL);
+		if (ev)
+			asoc->stream.si->enqueue_event(&asoc->ulpq, ev);
+	}
+
 	key->deactivated = 1;
 
 	return 0;
