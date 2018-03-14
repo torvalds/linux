@@ -336,8 +336,7 @@ static int bmc150_accel_update_slope(struct bmc150_accel_data *data)
 		return ret;
 	}
 
-	dev_dbg(dev, "%s: %x %x\n", __func__, data->slope_thres,
-		data->slope_dur);
+	dev_dbg(dev, "%x %x\n", data->slope_thres, data->slope_dur);
 
 	return ret;
 }
@@ -1716,7 +1715,6 @@ static int bmc150_accel_runtime_suspend(struct device *dev)
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 	int ret;
 
-	dev_dbg(dev,  __func__);
 	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_SUSPEND, 0);
 	if (ret < 0)
 		return -EAGAIN;
@@ -1730,8 +1728,6 @@ static int bmc150_accel_runtime_resume(struct device *dev)
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
 	int ret;
 	int sleep_val;
-
-	dev_dbg(dev,  __func__);
 
 	ret = bmc150_accel_set_mode(data, BMC150_ACCEL_SLEEP_MODE_NORMAL, 0);
 	if (ret < 0)

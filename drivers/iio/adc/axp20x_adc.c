@@ -445,7 +445,7 @@ static int axp20x_adc_offset_voltage(struct iio_dev *indio_dev, int channel,
 		return -EINVAL;
 	}
 
-	*val = !!(*val) * 700000;
+	*val = *val ? 700000 : 0;
 
 	return IIO_VAL_INT;
 }
@@ -542,15 +542,17 @@ static int axp20x_write_raw(struct iio_dev *indio_dev,
 	if (val != 0 && val != 700000)
 		return -EINVAL;
 
+	val = val ? 1 : 0;
+
 	switch (chan->channel) {
 	case AXP20X_GPIO0_V:
 		reg = AXP20X_GPIO10_IN_RANGE_GPIO0;
-		regval = AXP20X_GPIO10_IN_RANGE_GPIO0_VAL(!!val);
+		regval = AXP20X_GPIO10_IN_RANGE_GPIO0_VAL(val);
 		break;
 
 	case AXP20X_GPIO1_V:
 		reg = AXP20X_GPIO10_IN_RANGE_GPIO1;
-		regval = AXP20X_GPIO10_IN_RANGE_GPIO1_VAL(!!val);
+		regval = AXP20X_GPIO10_IN_RANGE_GPIO1_VAL(val);
 		break;
 
 	default:

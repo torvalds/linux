@@ -506,6 +506,8 @@ static int mlx90632_calc_ambient_dsp105(struct mlx90632_data *data, int *val)
 
 	ret = mlx90632_read_ambient_raw(data->regmap, &ambient_new_raw,
 					&ambient_old_raw);
+	if (ret < 0)
+		return ret;
 	*val = mlx90632_calc_temp_ambient(ambient_new_raw, ambient_old_raw,
 					  PT, PR, PG, PO, Gb);
 	return ret;
