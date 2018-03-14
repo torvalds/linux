@@ -348,7 +348,7 @@ static int transfer_max_buffers(struct goldfish_pipe* pipe,
 		pipe->command_buffer);
 
 	/* Transfer the data */
-	*status = goldfish_pipe_cmd_locked(
+	*status = goldfish_cmd_locked(
 		pipe,
 		is_write ? PIPE_CMD_WRITE : PIPE_CMD_READ);
 
