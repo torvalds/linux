@@ -150,17 +150,7 @@ static struct nd_device_driver dax_pmem_driver = {
 	.type = ND_DRIVER_DAX_PMEM,
 };
 
-static int __init dax_pmem_init(void)
-{
-	return nd_driver_register(&dax_pmem_driver);
-}
-module_init(dax_pmem_init);
-
-static void __exit dax_pmem_exit(void)
-{
-	driver_unregister(&dax_pmem_driver.drv);
-}
-module_exit(dax_pmem_exit);
+module_nd_driver(dax_pmem_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
