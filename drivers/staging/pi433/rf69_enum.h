@@ -65,7 +65,7 @@ enum antenna_impedance {
 	two_hundred_ohm
 };
 
-enum lnaGain {
+enum lna_gain {
 	automatic,
 	max,
 	max_minus_6,

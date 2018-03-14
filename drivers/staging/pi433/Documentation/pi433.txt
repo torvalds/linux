@@ -196,7 +196,7 @@ rf params:
 		sets the electrical adoption of the antenna
 		fifty_ohm	- for antennas with an impedance of 50Ohm
 		two_hundred_ohm	- for antennas with an impedance of 200Ohm
-	lnaGain
+	lna_gain
 		sets the gain of the low noise amp
 		automatic	- lna gain is determined by an agc
 		max		- lna gain is set to maximum

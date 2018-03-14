@@ -399,9 +399,9 @@ int rf69_set_antenna_impedance(struct spi_device *spi, enum antenna_impedance an
 	}
 }
 
-int rf69_set_lna_gain(struct spi_device *spi, enum lnaGain lnaGain)
+int rf69_set_lna_gain(struct spi_device *spi, enum lna_gain lna_gain)
 {
-	switch (lnaGain) {
+	switch (lna_gain) {
 	case automatic:
 		return rf69_read_mod_write(spi, REG_LNA, MASK_LNA_GAIN, LNA_GAIN_AUTO);
 	case max:
