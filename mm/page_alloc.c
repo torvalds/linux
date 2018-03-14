@@ -1910,7 +1910,9 @@ static int move_freepages(struct zone *zone,
 	 * Remove at a later date when no bug reports exist related to
 	 * grouping pages by mobility
 	 */
-	VM_BUG_ON(page_zone(start_page) != page_zone(end_page));
+	VM_BUG_ON(pfn_valid(page_to_pfn(start_page)) &&
+	          pfn_valid(page_to_pfn(end_page)) &&
+	          page_zone(start_page) != page_zone(end_page));
 #endif
 
 	if (num_movable)
@@ -5359,14 +5361,9 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 			/*
 			 * Skip to the pfn preceding the next valid one (or
 			 * end_pfn), such that we hit a valid pfn (or end_pfn)
-			 * on our next iteration of the loop. Note that it needs
-			 * to be pageblock aligned even when the region itself
-			 * is not. move_freepages_block() can shift ahead of
-			 * the valid region but still depends on correct page
-			 * metadata.
+			 * on our next iteration of the loop.
 			 */
-			pfn = (memblock_next_valid_pfn(pfn, end_pfn) &
-					~(pageblock_nr_pages-1)) - 1;
+			pfn = memblock_next_valid_pfn(pfn, end_pfn) - 1;
 #endif
 			continue;
 		}
