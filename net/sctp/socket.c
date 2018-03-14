@@ -156,6 +156,9 @@ static inline void sctp_set_owner_w(struct sctp_chunk *chunk)
 	/* The sndbuf space is tracked per association.  */
 	sctp_association_hold(asoc);
 
+	if (chunk->shkey)
+		sctp_auth_shkey_hold(chunk->shkey);
+
 	skb_set_owner_w(chunk->skb, sk);
 
 	chunk->skb->destructor = sctp_wfree;
@@ -8108,6 +8111,9 @@ static void sctp_wfree(struct sk_buff *skb)
 	 */
 	sk->sk_wmem_queued   -= skb->truesize;
 	sk_mem_uncharge(sk, skb->truesize);
+
+	if (chunk->shkey)
+		sctp_auth_shkey_release(chunk->shkey);
 
 	sock_wfree(skb);
 	sctp_wake_up_waiters(sk, asoc);

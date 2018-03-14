@@ -577,8 +577,12 @@ struct sctp_chunk {
 	/* This points to the sk_buff containing the actual data.  */
 	struct sk_buff *skb;
 
-	/* In case of GSO packets, this will store the head one */
-	struct sk_buff *head_skb;
+	union {
+		/* In case of GSO packets, this will store the head one */
+		struct sk_buff *head_skb;
+		/* In case of auth enabled, this will point to the shkey */
+		struct sctp_shared_key *shkey;
+	};
 
 	/* These are the SCTP headers by reverse order in a packet.
 	 * Note that some of these may happen more than once.  In that
@@ -1995,6 +1999,7 @@ struct sctp_association {
 	 * The current generated assocaition shared key (secret)
 	 */
 	struct sctp_auth_bytes *asoc_shared_key;
+	struct sctp_shared_key *shkey;
 
 	/* SCTP AUTH: hmac id of the first peer requested algorithm
 	 * that we support.

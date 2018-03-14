@@ -4114,6 +4114,7 @@ static enum sctp_ierror sctp_sf_authenticate(
 					const union sctp_subtype type,
 					struct sctp_chunk *chunk)
 {
+	struct sctp_shared_key *sh_key = NULL;
 	struct sctp_authhdr *auth_hdr;
 	__u8 *save_digest, *digest;
 	struct sctp_hmac *hmac;
@@ -4135,9 +4136,11 @@ static enum sctp_ierror sctp_sf_authenticate(
 	 * configured
 	 */
 	key_id = ntohs(auth_hdr->shkey_id);
-	if (key_id != asoc->active_key_id && !sctp_auth_get_shkey(asoc, key_id))
-		return SCTP_IERROR_AUTH_BAD_KEYID;
-
+	if (key_id != asoc->active_key_id) {
+		sh_key = sctp_auth_get_shkey(asoc, key_id);
+		if (!sh_key)
+			return SCTP_IERROR_AUTH_BAD_KEYID;
+	}
 
 	/* Make sure that the length of the signature matches what
 	 * we expect.
@@ -4166,7 +4169,7 @@ static enum sctp_ierror sctp_sf_authenticate(
 
 	sctp_auth_calculate_hmac(asoc, chunk->skb,
 				 (struct sctp_auth_chunk *)chunk->chunk_hdr,
-				 GFP_ATOMIC);
+				 sh_key, GFP_ATOMIC);
 
 	/* Discard the packet if the digests do not match */
 	if (memcmp(save_digest, digest, sig_len)) {

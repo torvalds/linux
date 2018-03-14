@@ -168,6 +168,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 {
 	size_t len, first_len, max_data, remaining;
 	size_t msg_len = iov_iter_count(from);
+	struct sctp_shared_key *shkey = NULL;
 	struct list_head *pos, *temp;
 	struct sctp_chunk *chunk;
 	struct sctp_datamsg *msg;
@@ -204,6 +205,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		if (hmac_desc)
 			max_data -= SCTP_PAD4(sizeof(struct sctp_auth_chunk) +
 					      hmac_desc->hmac_len);
+
+		shkey = asoc->shkey;
 	}
 
 	/* Check what's our max considering the above */
@@ -274,6 +277,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		err = sctp_user_addto_chunk(chunk, len, from);
 		if (err < 0)
 			goto errout_chunk_free;
+
+		chunk->shkey = shkey;
 
 		/* Put the chunk->skb back into the form expected by send.  */
 		__skb_pull(chunk->skb, (__u8 *)chunk->chunk_hdr -

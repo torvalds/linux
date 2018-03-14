@@ -87,7 +87,10 @@ static void  *sctp_addto_chunk_fixed(struct sctp_chunk *, int len,
 /* Control chunk destructor */
 static void sctp_control_release_owner(struct sk_buff *skb)
 {
-	/*TODO: do memory release */
+	struct sctp_chunk *chunk = skb_shinfo(skb)->destructor_arg;
+
+	if (chunk->shkey)
+		sctp_auth_shkey_release(chunk->shkey);
 }
 
 static void sctp_control_set_owner_w(struct sctp_chunk *chunk)
@@ -102,7 +105,12 @@ static void sctp_control_set_owner_w(struct sctp_chunk *chunk)
 	 *
 	 *  For now don't do anything for now.
 	 */
+	if (chunk->auth) {
+		chunk->shkey = asoc->shkey;
+		sctp_auth_shkey_hold(chunk->shkey);
+	}
 	skb->sk = asoc ? asoc->base.sk : NULL;
+	skb_shinfo(skb)->destructor_arg = chunk;
 	skb->destructor = sctp_control_release_owner;
 }
 
@@ -1271,7 +1279,8 @@ nodata:
 	return retval;
 }
 
-struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc)
+struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc,
+				  __u16 key_id)
 {
 	struct sctp_authhdr auth_hdr;
 	struct sctp_hmac *hmac_desc;
@@ -1289,7 +1298,7 @@ struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc)
 		return NULL;
 
 	auth_hdr.hmac_id = htons(hmac_desc->hmac_id);
-	auth_hdr.shkey_id = htons(asoc->active_key_id);
+	auth_hdr.shkey_id = htons(key_id);
 
 	retval->subh.auth_hdr = sctp_addto_chunk(retval, sizeof(auth_hdr),
 						 &auth_hdr);

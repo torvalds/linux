@@ -241,9 +241,12 @@ static enum sctp_xmit sctp_packet_bundle_auth(struct sctp_packet *pkt,
 	if (!chunk->auth)
 		return retval;
 
-	auth = sctp_make_auth(asoc);
+	auth = sctp_make_auth(asoc, chunk->shkey->key_id);
 	if (!auth)
 		return retval;
+
+	auth->shkey = chunk->shkey;
+	sctp_auth_shkey_hold(auth->shkey);
 
 	retval = __sctp_packet_append_chunk(pkt, auth);
 
@@ -490,7 +493,8 @@ merge:
 		}
 
 		if (auth) {
-			sctp_auth_calculate_hmac(tp->asoc, nskb, auth, gfp);
+			sctp_auth_calculate_hmac(tp->asoc, nskb, auth,
+						 packet->auth->shkey, gfp);
 			/* free auth if no more chunks, or add it back */
 			if (list_empty(&packet->chunk_list))
 				sctp_chunk_free(packet->auth);
@@ -769,6 +773,16 @@ static enum sctp_xmit sctp_packet_will_fit(struct sctp_packet *packet,
 {
 	enum sctp_xmit retval = SCTP_XMIT_OK;
 	size_t psize, pmtu, maxsize;
+
+	/* Don't bundle in this packet if this chunk's auth key doesn't
+	 * match other chunks already enqueued on this packet. Also,
+	 * don't bundle the chunk with auth key if other chunks in this
+	 * packet don't have auth key.
+	 */
+	if ((packet->auth && chunk->shkey != packet->auth->shkey) ||
+	    (!packet->auth && chunk->shkey &&
+	     chunk->chunk_hdr->type != SCTP_CID_AUTH))
+		return SCTP_XMIT_PMTU_FULL;
 
 	psize = packet->size;
 	if (packet->transport->asoc)
