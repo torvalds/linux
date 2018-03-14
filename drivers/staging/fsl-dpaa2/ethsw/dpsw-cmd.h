@@ -49,6 +49,8 @@
 #define DPSW_CMDID_IF_SET_FLOODING          DPSW_CMD_ID(0x047)
 #define DPSW_CMDID_IF_SET_BROADCAST         DPSW_CMD_ID(0x048)
 
+#define DPSW_CMDID_IF_SET_LINK_CFG          DPSW_CMD_ID(0x04C)
+
 #define DPSW_CMDID_VLAN_ADD                 DPSW_CMD_ID(0x060)
 #define DPSW_CMDID_VLAN_ADD_IF              DPSW_CMD_ID(0x061)
 #define DPSW_CMDID_VLAN_ADD_IF_UNTAGGED     DPSW_CMD_ID(0x062)
@@ -235,6 +237,17 @@ struct dpsw_cmd_if {
 struct dpsw_cmd_if_set_max_frame_length {
 	__le16 if_id;
 	__le16 frame_length;
+};
+
+struct dpsw_cmd_if_set_link_cfg {
+	/* cmd word 0 */
+	__le16 if_id;
+	u8 pad[6];
+	/* cmd word 1 */
+	__le32 rate;
+	__le32 pad1;
+	/* cmd word 2 */
+	__le64 options;
 };
 
 struct dpsw_cmd_if_get_link_state {

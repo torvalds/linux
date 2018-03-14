@@ -358,6 +358,38 @@ int dpsw_get_attributes(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * dpsw_if_set_link_cfg() - Set the link configuration.
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface id
+ * @cfg:	Link configuration
+ *
+ * Return:	'0' on Success; Error code otherwise.
+ */
+int dpsw_if_set_link_cfg(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 u16 if_id,
+			 struct dpsw_link_cfg *cfg)
+{
+	struct mc_command cmd = { 0 };
+	struct dpsw_cmd_if_set_link_cfg *cmd_params;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_SET_LINK_CFG,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if_set_link_cfg *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+	cmd_params->rate = cpu_to_le32(cfg->rate);
+	cmd_params->options = cpu_to_le64(cfg->options);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
  * dpsw_if_get_link_state - Return the link state
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'

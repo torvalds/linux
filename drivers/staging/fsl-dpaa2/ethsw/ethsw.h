@@ -33,6 +33,8 @@
 #define ETHSW_MAX_FRAME_LENGTH	(DPAA2_MFL - VLAN_ETH_HLEN - ETH_FCS_LEN)
 #define ETHSW_L2_MAX_FRM(mtu)	((mtu) + VLAN_ETH_HLEN + ETH_FCS_LEN)
 
+extern const struct ethtool_ops ethsw_port_ethtool_ops;
+
 struct ethsw_core;
 
 /* Per port private data */

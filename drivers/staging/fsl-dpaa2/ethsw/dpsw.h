@@ -220,6 +220,38 @@ enum dpsw_action {
 };
 
 /**
+ * Enable auto-negotiation
+ */
+#define DPSW_LINK_OPT_AUTONEG		0x0000000000000001ULL
+/**
+ * Enable half-duplex mode
+ */
+#define DPSW_LINK_OPT_HALF_DUPLEX	0x0000000000000002ULL
+/**
+ * Enable pause frames
+ */
+#define DPSW_LINK_OPT_PAUSE		0x0000000000000004ULL
+/**
+ * Enable a-symmetric pause frames
+ */
+#define DPSW_LINK_OPT_ASYM_PAUSE	0x0000000000000008ULL
+
+/**
+ * struct dpsw_link_cfg - Structure representing DPSW link configuration
+ * @rate: Rate
+ * @options: Mask of available options; use 'DPSW_LINK_OPT_<X>' values
+ */
+struct dpsw_link_cfg {
+	u32 rate;
+	u64 options;
+};
+
+int dpsw_if_set_link_cfg(struct fsl_mc_io *mc_io,
+			 u32 cmd_flags,
+			 u16 token,
+			 u16 if_id,
+			 struct dpsw_link_cfg *cfg);
+/**
  * struct dpsw_link_state - Structure representing DPSW link state
  * @rate: Rate
  * @options: Mask of available options; use 'DPSW_LINK_OPT_<X>' values
