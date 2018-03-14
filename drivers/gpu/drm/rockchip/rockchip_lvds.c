@@ -80,10 +80,6 @@ struct rockchip_lvds {
 	struct drm_connector connector;
 	struct drm_encoder encoder;
 	struct drm_display_mode mode;
-
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *pins_m0;
-	struct pinctrl_state *pins_m1;
 };
 
 static inline void lvds_writel(struct rockchip_lvds *lvds, u32 offset, u32 val)
@@ -731,36 +727,6 @@ static int innov1_lvds_probe(struct rockchip_lvds *lvds)
 	return 0;
 }
 
-static int px30_lvds_probe(struct rockchip_lvds *lvds)
-{
-	struct device *dev = lvds->dev;
-	int ret;
-
-	ret = innov1_lvds_probe(lvds);
-	if (ret)
-		return ret;
-
-	lvds->pinctrl = devm_pinctrl_get(dev);
-	if (IS_ERR_OR_NULL(lvds->pinctrl)) {
-		dev_info(dev, "no pinctrl handle\n");
-		lvds->pinctrl = NULL;
-	} else {
-		lvds->pins_m0 = pinctrl_lookup_state(lvds->pinctrl, "m0");
-		if (IS_ERR(lvds->pins_m0)) {
-			dev_info(dev, "no m0 pinctrl state\n");
-			lvds->pins_m0 = NULL;
-		}
-
-		lvds->pins_m1 = pinctrl_lookup_state(lvds->pinctrl, "m1");
-		if (IS_ERR(lvds->pins_m1)) {
-			dev_info(dev, "no m1 pinctrl state\n");
-			lvds->pins_m1 = NULL;
-		}
-	}
-
-	return 0;
-}
-
 static int px30_lvds_power_on(struct rockchip_lvds *lvds)
 {
 	int pipe;
@@ -771,17 +737,9 @@ static int px30_lvds_power_on(struct rockchip_lvds *lvds)
 	if (lvds->output == DISPLAY_OUTPUT_RGB) {
 		regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
 			     PX30_RGB_VOP_SEL(pipe));
-		if (lvds->pins_m0) {
-			pinctrl_select_state(lvds->pinctrl, lvds->pins_m0);
-			return 0;
-		} else if (lvds->pins_m1) {
-			pinctrl_select_state(lvds->pinctrl, lvds->pins_m1);
-			regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
-				     PX30_DPHY_FORCERXMODE(1));
-		} else {
-			dev_err(lvds->dev, "Can't find pinctrl state m0/m1\n");
-			WARN_ON(1);
-		}
+		regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
+			     PX30_DPHY_FORCERXMODE(1) |
+			     PX30_RGB_SYNC_BYPASS(1));
 	} else if (lvds->output == DISPLAY_OUTPUT_LVDS) {
 		regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
 			     PX30_LVDS_VOP_SEL(pipe));
@@ -804,7 +762,7 @@ static void px30_lvds_power_off(struct rockchip_lvds *lvds)
 
 static const struct rockchip_lvds_soc_data px30_lvds_soc_data = {
 	.chip_type = PX30,
-	.probe = px30_lvds_probe,
+	.probe = innov1_lvds_probe,
 	.power_on = px30_lvds_power_on,
 	.power_off = px30_lvds_power_off,
 };
