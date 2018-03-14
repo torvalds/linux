@@ -32,7 +32,7 @@
 #include "smu/smu_8_0_sh_mask.h"
 #include "smu8.h"
 #include "smu8_fusion.h"
-#include "cz_smumgr.h"
+#include "smu8_smumgr.h"
 #include "cz_ppsmc.h"
 #include "smu_ucode_xfer_cz.h"
 #include "gca/gfx_8_0_d.h"

@@ -24,7 +24,7 @@
 # It provides the hardware management services for the driver.
 
 HARDWARE_MGR = hwmgr.o processpptables.o \
-		hardwaremanager.o cz_hwmgr.o \
+		hardwaremanager.o smu8_hwmgr.o \
 		pppcielanes.o\
 		process_pptables_v1_0.o ppatomctrl.o ppatomfwctrl.o \
 		smu7_hwmgr.o smu7_powertune.o smu7_thermal.o \

@@ -35,7 +35,7 @@
 #include "hwmgr.h"
 #include "hardwaremanager.h"
 #include "cz_ppsmc.h"
-#include "cz_hwmgr.h"
+#include "smu8_hwmgr.h"
 #include "power_state.h"
 #include "pp_thermal.h"
 
