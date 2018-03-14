@@ -3104,14 +3104,10 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x0e0d, quirk_intel_ntb);
 static ktime_t fixup_debug_start(struct pci_dev *dev,
 				 void (*fn)(struct pci_dev *dev))
 {
-	ktime_t calltime = 0;
-
-	if (initcall_debug) {
+	if (initcall_debug)
 		pci_info(dev, "calling  %pF @ %i\n", fn, task_pid_nr(current));
-		calltime = ktime_get();
-	}
 
-	return calltime;
+	return ktime_get();
 }
 
 static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
@@ -3120,12 +3116,11 @@ static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
 	ktime_t delta, rettime;
 	unsigned long long duration;
 
-	if (initcall_debug) {
-		rettime = ktime_get();
-		delta = ktime_sub(rettime, calltime);
-		duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+	rettime = ktime_get();
+	delta = ktime_sub(rettime, calltime);
+	duration = (unsigned long long) ktime_to_ns(delta) >> 10;
+	if (initcall_debug || duration > 10000)
 		pci_info(dev, "%pF took %lld usecs\n", fn, duration);
-	}
 }
 
 /*
