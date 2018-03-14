@@ -1663,6 +1663,13 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 	iph = (struct iphdr *)((u8 *)(ethh) + eth_hlen);
 
 	if (eth_type == ETH_P_IP) {
+		if (iph->protocol != IPPROTO_TCP) {
+			DP_NOTICE(p_hwfn,
+				  "Unexpected ip protocol on ll2 %x\n",
+				  iph->protocol);
+			return -EINVAL;
+		}
+
 		cm_info->local_ip[0] = ntohl(iph->daddr);
 		cm_info->remote_ip[0] = ntohl(iph->saddr);
 		cm_info->ip_version = TCP_IPV4;
@@ -1671,6 +1678,14 @@ qed_iwarp_parse_rx_pkt(struct qed_hwfn *p_hwfn,
 		*payload_len = ntohs(iph->tot_len) - ip_hlen;
 	} else if (eth_type == ETH_P_IPV6) {
 		ip6h = (struct ipv6hdr *)iph;
+
+		if (ip6h->nexthdr != IPPROTO_TCP) {
+			DP_NOTICE(p_hwfn,
+				  "Unexpected ip protocol on ll2 %x\n",
+				  iph->protocol);
+			return -EINVAL;
+		}
+
 		for (i = 0; i < 4; i++) {
 			cm_info->local_ip[i] =
 			    ntohl(ip6h->daddr.in6_u.u6_addr32[i]);
