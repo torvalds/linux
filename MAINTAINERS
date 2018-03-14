@@ -6572,7 +6572,7 @@ F:	drivers/i2c/muxes/
 F:	include/linux/i2c-mux.h
 
 I2C MV64XXX MARVELL AND ALLWINNER DRIVER
-M:	Gregory CLEMENT <gregory.clement@free-electrons.com>
+M:	Gregory CLEMENT <gregory.clement@bootlin.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/busses/i2c-mv64xxx.c
