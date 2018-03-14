@@ -1,0 +1,4 @@
+
+- verify devicetree documentation is consistent with code
+
+Cc: NeilBrown <neil@brown.name>
