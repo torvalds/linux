@@ -168,6 +168,9 @@ struct netns_ipv4 {
 	atomic_t tfo_active_disable_times;
 	unsigned long tfo_active_disable_stamp;
 
+	int sysctl_udp_wmem_min;
+	int sysctl_udp_rmem_min;
+
 #ifdef CONFIG_NET_L3_MASTER_DEV
 	int sysctl_udp_l3mdev_accept;
 #endif
