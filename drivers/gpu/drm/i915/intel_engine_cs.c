@@ -81,12 +81,17 @@ static const struct engine_class_info intel_engine_classes[] = {
 	},
 };
 
+#define MAX_MMIO_BASES 3
 struct engine_info {
 	unsigned int hw_id;
 	unsigned int uabi_id;
 	u8 class;
 	u8 instance;
-	u32 mmio_base;
+	/* mmio bases table *must* be sorted in reverse gen order */
+	struct engine_mmio_base {
+		u32 gen : 8;
+		u32 base : 24;
+	} mmio_bases[MAX_MMIO_BASES];
 	unsigned irq_shift;
 };
 
@@ -96,7 +101,9 @@ static const struct engine_info intel_engines[] = {
 		.uabi_id = I915_EXEC_RENDER,
 		.class = RENDER_CLASS,
 		.instance = 0,
-		.mmio_base = RENDER_RING_BASE,
+		.mmio_bases = {
+			{ .gen = 1, .base = RENDER_RING_BASE }
+		},
 		.irq_shift = GEN8_RCS_IRQ_SHIFT,
 	},
 	[BCS] = {
@@ -104,7 +111,9 @@ static const struct engine_info intel_engines[] = {
 		.uabi_id = I915_EXEC_BLT,
 		.class = COPY_ENGINE_CLASS,
 		.instance = 0,
-		.mmio_base = BLT_RING_BASE,
+		.mmio_bases = {
+			{ .gen = 6, .base = BLT_RING_BASE }
+		},
 		.irq_shift = GEN8_BCS_IRQ_SHIFT,
 	},
 	[VCS] = {
@@ -112,7 +121,11 @@ static const struct engine_info intel_engines[] = {
 		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 0,
-		.mmio_base = GEN6_BSD_RING_BASE,
+		.mmio_bases = {
+			{ .gen = 11, .base = GEN11_BSD_RING_BASE },
+			{ .gen = 6, .base = GEN6_BSD_RING_BASE },
+			{ .gen = 4, .base = BSD_RING_BASE }
+		},
 		.irq_shift = GEN8_VCS1_IRQ_SHIFT,
 	},
 	[VCS2] = {
@@ -120,7 +133,10 @@ static const struct engine_info intel_engines[] = {
 		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 1,
-		.mmio_base = GEN8_BSD2_RING_BASE,
+		.mmio_bases = {
+			{ .gen = 11, .base = GEN11_BSD2_RING_BASE },
+			{ .gen = 8, .base = GEN8_BSD2_RING_BASE }
+		},
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
 	},
 	[VCS3] = {
@@ -128,7 +144,9 @@ static const struct engine_info intel_engines[] = {
 		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 2,
-		.mmio_base = GEN11_BSD3_RING_BASE,
+		.mmio_bases = {
+			{ .gen = 11, .base = GEN11_BSD3_RING_BASE }
+		},
 		.irq_shift = 0, /* not used */
 	},
 	[VCS4] = {
@@ -136,7 +154,9 @@ static const struct engine_info intel_engines[] = {
 		.uabi_id = I915_EXEC_BSD,
 		.class = VIDEO_DECODE_CLASS,
 		.instance = 3,
-		.mmio_base = GEN11_BSD4_RING_BASE,
+		.mmio_bases = {
+			{ .gen = 11, .base = GEN11_BSD4_RING_BASE }
+		},
 		.irq_shift = 0, /* not used */
 	},
 	[VECS] = {
@@ -144,7 +164,10 @@ static const struct engine_info intel_engines[] = {
 		.uabi_id = I915_EXEC_VEBOX,
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 0,
-		.mmio_base = VEBOX_RING_BASE,
+		.mmio_bases = {
+			{ .gen = 11, .base = GEN11_VEBOX_RING_BASE },
+			{ .gen = 7, .base = VEBOX_RING_BASE }
+		},
 		.irq_shift = GEN8_VECS_IRQ_SHIFT,
 	},
 	[VECS2] = {
@@ -152,7 +175,9 @@ static const struct engine_info intel_engines[] = {
 		.uabi_id = I915_EXEC_VEBOX,
 		.class = VIDEO_ENHANCEMENT_CLASS,
 		.instance = 1,
-		.mmio_base = GEN11_VEBOX2_RING_BASE,
+		.mmio_bases = {
+			{ .gen = 11, .base = GEN11_VEBOX2_RING_BASE }
+		},
 		.irq_shift = 0, /* not used */
 	},
 };
@@ -223,6 +248,21 @@ __intel_engine_context_size(struct drm_i915_private *dev_priv, u8 class)
 	}
 }
 
+static u32 __engine_mmio_base(struct drm_i915_private *i915,
+			      const struct engine_mmio_base *bases)
+{
+	int i;
+
+	for (i = 0; i < MAX_MMIO_BASES; i++)
+		if (INTEL_GEN(i915) >= bases[i].gen)
+			break;
+
+	GEM_BUG_ON(i == MAX_MMIO_BASES);
+	GEM_BUG_ON(!bases[i].base);
+
+	return bases[i].base;
+}
+
 static int
 intel_engine_setup(struct drm_i915_private *dev_priv,
 		   enum intel_engine_id id)
@@ -257,25 +297,7 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 			 class_info->name, info->instance) >=
 		sizeof(engine->name));
 	engine->hw_id = engine->guc_id = info->hw_id;
-	if (INTEL_GEN(dev_priv) >= 11) {
-		switch (engine->id) {
-		case VCS:
-			engine->mmio_base = GEN11_BSD_RING_BASE;
-			break;
-		case VCS2:
-			engine->mmio_base = GEN11_BSD2_RING_BASE;
-			break;
-		case VECS:
-			engine->mmio_base = GEN11_VEBOX_RING_BASE;
-			break;
-		default:
-			/* take the original value for all other engines  */
-			engine->mmio_base = info->mmio_base;
-			break;
-		}
-	} else {
-		engine->mmio_base = info->mmio_base;
-	}
+	engine->mmio_base = __engine_mmio_base(dev_priv, info->mmio_bases);
 	engine->irq_shift = info->irq_shift;
 	engine->class = info->class;
 	engine->instance = info->instance;

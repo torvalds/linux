@@ -2080,7 +2080,6 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 		engine->emit_flush = gen6_bsd_ring_flush;
 		engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 	} else {
-		engine->mmio_base = BSD_RING_BASE;
 		engine->emit_flush = bsd_ring_flush;
 		if (IS_GEN5(dev_priv))
 			engine->irq_enable_mask = ILK_BSD_USER_INTERRUPT;
