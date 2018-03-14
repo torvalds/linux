@@ -1801,6 +1801,9 @@ static bool should_enable_fbc(struct dc *dc,
 		}
 	}
 
+	/* Pipe context should be found */
+	ASSERT(pipe_ctx);
+
 	/* Only supports eDP */
 	if (pipe_ctx->stream->sink->link->connector_signal != SIGNAL_TYPE_EDP)
 		return false;
