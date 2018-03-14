@@ -590,7 +590,7 @@ int rf69_set_rssi_threshold(struct spi_device *spi, u8 threshold)
 	return rf69_write_reg(spi, REG_RSSITHRESH, threshold);
 }
 
-int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
+int rf69_set_preamble_length(struct spi_device *spi, u16 preamble_length)
 {
 	int retval;
 	u8 msb, lsb;
@@ -598,8 +598,8 @@ int rf69_set_preamble_length(struct spi_device *spi, u16 preambleLength)
 	/* no value check needed - u16 exactly matches register size */
 
 	/* calculate reg settings */
-	msb = (preambleLength & 0xff00) >> 8;
-	lsb = (preambleLength & 0xff);
+	msb = (preamble_length & 0xff00) >> 8;
+	lsb = (preamble_length & 0xff);
 
 	/* transmit to chip */
 	retval = rf69_write_reg(spi, REG_PREAMBLE_MSB, msb);
