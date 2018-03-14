@@ -633,16 +633,16 @@ int rf69_set_fifo_fill_condition(struct spi_device *spi, enum fifo_fill_conditio
 	}
 }
 
-int rf69_set_sync_size(struct spi_device *spi, u8 syncSize)
+int rf69_set_sync_size(struct spi_device *spi, u8 sync_size)
 {
 	// check input value
-	if (syncSize > 0x07) {
+	if (sync_size > 0x07) {
 		dev_dbg(&spi->dev, "set: illegal input param");
 		return -EINVAL;
 	}
 
 	// write value
-	return rf69_read_mod_write(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_SIZE, (syncSize << 3));
+	return rf69_read_mod_write(spi, REG_SYNC_CONFIG, MASK_SYNC_CONFIG_SYNC_SIZE, (sync_size << 3));
 }
 
 int rf69_set_sync_values(struct spi_device *spi, u8 sync_values[8])
