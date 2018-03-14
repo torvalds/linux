@@ -225,6 +225,60 @@
 						     <21 217 3>;
 		};
 
+		audio@56000000 {
+			compatible = "socionext,uniphier-pxs2-aio";
+			reg = <0x56000000 0x80000>;
+			interrupts = <0 144 4>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_ain1>,
+				    <&pinctrl_ain2>,
+				    <&pinctrl_ainiec1>,
+				    <&pinctrl_aout2>,
+				    <&pinctrl_aout3>,
+				    <&pinctrl_aoutiec1>,
+				    <&pinctrl_aoutiec2>;
+			clock-names = "aio";
+			clocks = <&sys_clk 40>;
+			reset-names = "aio";
+			resets = <&sys_rst 40>;
+			#sound-dai-cells = <1>;
+
+			i2s_port0: port@0 {
+				i2s_hdmi: endpoint {
+				};
+			};
+
+			i2s_port1: port@1 {
+				i2s_line: endpoint {
+				};
+			};
+
+			i2s_port2: port@2 {
+				i2s_aux: endpoint {
+				};
+			};
+
+			spdif_port0: port@3 {
+				spdif_hiecout1: endpoint {
+				};
+			};
+
+			spdif_port1: port@4 {
+				spdif_iecout1: endpoint {
+				};
+			};
+
+			comp_spdif_port0: port@5 {
+				comp_spdif_hiecout1: endpoint {
+				};
+			};
+
+			comp_spdif_port1: port@6 {
+				comp_spdif_iecout1: endpoint {
+				};
+			};
+		};
+
 		i2c0: i2c@58780000 {
 			compatible = "socionext,uniphier-fi2c";
 			status = "disabled";
