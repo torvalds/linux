@@ -63,7 +63,8 @@ int intel_huc_auth(struct intel_huc *huc)
 	}
 
 	ret = intel_guc_auth_huc(guc,
-				 guc_ggtt_offset(vma) + huc->fw.rsa_offset);
+				 intel_guc_ggtt_offset(guc, vma) +
+				 huc->fw.rsa_offset);
 	if (ret) {
 		DRM_ERROR("HuC: GuC did not ack Auth request %d\n", ret);
 		goto fail_unpin;

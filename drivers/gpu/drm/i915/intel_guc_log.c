@@ -581,7 +581,7 @@ int intel_guc_log_create(struct intel_guc *guc)
 		(GUC_LOG_ISR_PAGES << GUC_LOG_ISR_SHIFT) |
 		(GUC_LOG_CRASH_PAGES << GUC_LOG_CRASH_SHIFT);
 
-	offset = guc_ggtt_offset(vma) >> PAGE_SHIFT; /* in pages */
+	offset = intel_guc_ggtt_offset(guc, vma) >> PAGE_SHIFT;
 	guc->log.flags = (offset << GUC_LOG_BUF_ADDR_SHIFT) | flags;
 
 	return 0;

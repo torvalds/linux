@@ -100,13 +100,23 @@ static inline void intel_guc_notify(struct intel_guc *guc)
 	guc->notify(guc);
 }
 
-/*
+/* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
+#define GUC_GGTT_TOP	0xFEE00000
+
+/**
+ * intel_guc_ggtt_offset() - Get and validate the GGTT offset of @vma
+ * @guc: intel_guc structure.
+ * @vma: i915 graphics virtual memory area.
+ *
  * GuC does not allow any gfx GGTT address that falls into range [0, WOPCM_TOP),
  * which is reserved for Boot ROM, SRAM and WOPCM. Currently this top address is
  * 512K. In order to exclude 0-512K address space from GGTT, all gfx objects
  * used by GuC is pinned with PIN_OFFSET_BIAS along with size of WOPCM.
+ *
+ * Return: GGTT offset that meets the GuC gfx address requirement.
  */
-static inline u32 guc_ggtt_offset(struct i915_vma *vma)
+static inline u32 intel_guc_ggtt_offset(struct intel_guc *guc,
+					struct i915_vma *vma)
 {
 	u32 offset = i915_ggtt_offset(vma);
 

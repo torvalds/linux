@@ -75,7 +75,7 @@ static void guc_policies_init(struct guc_policies *policies)
 int intel_guc_ads_create(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct i915_vma *vma;
+	struct i915_vma *vma, *kernel_ctx_vma;
 	struct page *page;
 	/* The ads obj includes the struct itself and buffers passed to GuC */
 	struct {
@@ -121,9 +121,9 @@ int intel_guc_ads_create(struct intel_guc *guc)
 	 * to find it. Note that we have to skip our header (1 page),
 	 * because our GuC shared data is there.
 	 */
+	kernel_ctx_vma = dev_priv->kernel_context->engine[RCS].state;
 	blob->ads.golden_context_lrca =
-		guc_ggtt_offset(dev_priv->kernel_context->engine[RCS].state) +
-		skipped_offset;
+		intel_guc_ggtt_offset(guc, kernel_ctx_vma) + skipped_offset;
 
 	/*
 	 * The GuC expects us to exclude the portion of the context image that
@@ -135,7 +135,7 @@ int intel_guc_ads_create(struct intel_guc *guc)
 		blob->ads.eng_state_size[engine->guc_id] =
 			engine->context_size - skipped_size;
 
-	base = guc_ggtt_offset(vma);
+	base = intel_guc_ggtt_offset(guc, vma);
 	blob->ads.scheduler_policies = base + ptr_offset(blob, policies);
 	blob->ads.reg_state_buffer = base + ptr_offset(blob, reg_state_buffer);
 	blob->ads.reg_state_addr = base + ptr_offset(blob, reg_state);

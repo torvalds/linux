@@ -156,7 +156,8 @@ static int ctch_init(struct intel_guc *guc,
 		err = PTR_ERR(blob);
 		goto err_vma;
 	}
-	DRM_DEBUG_DRIVER("CT: vma base=%#x\n", guc_ggtt_offset(ctch->vma));
+	DRM_DEBUG_DRIVER("CT: vma base=%#x\n",
+			 intel_guc_ggtt_offset(guc, ctch->vma));
 
 	/* store pointers to desc and cmds */
 	for (i = 0; i < ARRAY_SIZE(ctch->ctbs); i++) {
@@ -202,7 +203,7 @@ static int ctch_open(struct intel_guc *guc,
 	}
 
 	/* vma should be already allocated and map'ed */
-	base = guc_ggtt_offset(ctch->vma);
+	base = intel_guc_ggtt_offset(guc, ctch->vma);
 
 	/* (re)initialize descriptors
 	 * cmds buffers are in the second half of the blob page

@@ -386,8 +386,8 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 		lrc->context_desc = lower_32_bits(ce->lrc_desc);
 
 		/* The state page is after PPHWSP */
-		lrc->ring_lrca =
-			guc_ggtt_offset(ce->state) + LRC_STATE_PN * PAGE_SIZE;
+		lrc->ring_lrca = intel_guc_ggtt_offset(guc, ce->state) +
+				 LRC_STATE_PN * PAGE_SIZE;
 
 		/* XXX: In direct submission, the GuC wants the HW context id
 		 * here. In proxy submission, it wants the stage id
@@ -395,7 +395,7 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 		lrc->context_id = (client->stage_id << GUC_ELC_CTXID_OFFSET) |
 				(guc_engine_id << GUC_ELC_ENGINE_OFFSET);
 
-		lrc->ring_begin = guc_ggtt_offset(ce->ring->vma);
+		lrc->ring_begin = intel_guc_ggtt_offset(guc, ce->ring->vma);
 		lrc->ring_end = lrc->ring_begin + ce->ring->size - 1;
 		lrc->ring_next_free_location = lrc->ring_begin;
 		lrc->ring_current_tail_pointer_value = 0;
@@ -411,7 +411,7 @@ static void guc_stage_desc_init(struct intel_guc *guc,
 	 * The doorbell, process descriptor, and workqueue are all parts
 	 * of the client object, which the GuC will reference via the GGTT
 	 */
-	gfx_addr = guc_ggtt_offset(client->vma);
+	gfx_addr = intel_guc_ggtt_offset(guc, client->vma);
 	desc->db_trigger_phy = sg_dma_address(client->vma->pages->sgl) +
 				client->doorbell_offset;
 	desc->db_trigger_cpu = ptr_to_u64(__get_doorbell(client));
@@ -584,7 +584,7 @@ static void inject_preempt_context(struct work_struct *work)
 	data[3] = engine->guc_id;
 	data[4] = guc->execbuf_client->priority;
 	data[5] = guc->execbuf_client->stage_id;
-	data[6] = guc_ggtt_offset(guc->shared_data);
+	data[6] = intel_guc_ggtt_offset(guc, guc->shared_data);
 
 	if (WARN_ON(intel_guc_send(guc, data, ARRAY_SIZE(data)))) {
 		execlists_clear_active(&engine->execlists,

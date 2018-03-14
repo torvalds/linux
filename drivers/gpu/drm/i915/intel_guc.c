@@ -269,8 +269,9 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (USES_GUC_SUBMISSION(dev_priv)) {
-		u32 ads = guc_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
-		u32 pgs = guc_ggtt_offset(dev_priv->guc.stage_desc_pool);
+		u32 ads = intel_guc_ggtt_offset(guc,
+						guc->ads_vma) >> PAGE_SHIFT;
+		u32 pgs = intel_guc_ggtt_offset(guc, guc->stage_desc_pool);
 		u32 ctx_in_16 = GUC_MAX_STAGE_DESCRIPTORS / 16;
 
 		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
@@ -447,7 +448,7 @@ int intel_guc_suspend(struct intel_guc *guc)
 	u32 data[] = {
 		INTEL_GUC_ACTION_ENTER_S_STATE,
 		GUC_POWER_D1, /* any value greater than GUC_POWER_D0 */
-		guc_ggtt_offset(guc->shared_data)
+		intel_guc_ggtt_offset(guc, guc->shared_data)
 	};
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
@@ -471,7 +472,7 @@ int intel_guc_reset_engine(struct intel_guc *guc,
 	data[3] = 0;
 	data[4] = 0;
 	data[5] = guc->execbuf_client->stage_id;
-	data[6] = guc_ggtt_offset(guc->shared_data);
+	data[6] = intel_guc_ggtt_offset(guc, guc->shared_data);
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
@@ -485,7 +486,7 @@ int intel_guc_resume(struct intel_guc *guc)
 	u32 data[] = {
 		INTEL_GUC_ACTION_EXIT_S_STATE,
 		GUC_POWER_D0,
-		guc_ggtt_offset(guc->shared_data)
+		intel_guc_ggtt_offset(guc, guc->shared_data)
 	};
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));

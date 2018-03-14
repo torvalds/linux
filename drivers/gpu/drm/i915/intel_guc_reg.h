@@ -80,9 +80,6 @@
 #define   GUC_WOPCM_TOP			  (0x80 << 12)	/* 512KB */
 #define   BXT_GUC_WOPCM_RC6_RESERVED	  (0x10 << 12)	/* 64KB  */
 
-/* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
-#define GUC_GGTT_TOP			0xFEE00000
-
 #define GEN8_GT_PM_CONFIG		_MMIO(0x138140)
 #define GEN9LP_GT_PM_CONFIG		_MMIO(0x138140)
 #define GEN9_GT_PM_CONFIG		_MMIO(0x13816c)
