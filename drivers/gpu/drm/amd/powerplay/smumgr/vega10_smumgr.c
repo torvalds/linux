@@ -377,10 +377,7 @@ static int vega10_verify_smc_interface(struct pp_hwmgr *hwmgr)
 
 static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 {
-	struct amdgpu_bo *handle = NULL;
 	struct vega10_smumgr *priv;
-	uint64_t mc_addr;
-	void *kaddr = NULL;
 	unsigned long tools_size;
 	int ret;
 	struct cgs_firmware_info info = {0};
@@ -403,27 +400,24 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 			sizeof(PPTable_t),
 			PAGE_SIZE,
 			AMDGPU_GEM_DOMAIN_VRAM,
-			&handle,
-			&mc_addr,
-			&kaddr);
+			&priv->smu_tables.entry[PPTABLE].handle,
+			&priv->smu_tables.entry[PPTABLE].mc_addr,
+			&priv->smu_tables.entry[PPTABLE].table);
 	if (ret)
 		goto free_backend;
 
 	priv->smu_tables.entry[PPTABLE].version = 0x01;
 	priv->smu_tables.entry[PPTABLE].size = sizeof(PPTable_t);
 	priv->smu_tables.entry[PPTABLE].table_id = TABLE_PPTABLE;
-	priv->smu_tables.entry[PPTABLE].mc_addr = mc_addr;
-	priv->smu_tables.entry[PPTABLE].table = kaddr;
-	priv->smu_tables.entry[PPTABLE].handle = handle;
 
 	/* allocate space for watermarks table */
 	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(Watermarks_t),
 			PAGE_SIZE,
 			AMDGPU_GEM_DOMAIN_VRAM,
-			&handle,
-			&mc_addr,
-			&kaddr);
+			&priv->smu_tables.entry[WMTABLE].handle,
+			&priv->smu_tables.entry[WMTABLE].mc_addr,
+			&priv->smu_tables.entry[WMTABLE].table);
 
 	if (ret)
 		goto err0;
@@ -431,18 +425,15 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	priv->smu_tables.entry[WMTABLE].version = 0x01;
 	priv->smu_tables.entry[WMTABLE].size = sizeof(Watermarks_t);
 	priv->smu_tables.entry[WMTABLE].table_id = TABLE_WATERMARKS;
-	priv->smu_tables.entry[WMTABLE].mc_addr = mc_addr;
-	priv->smu_tables.entry[WMTABLE].table = kaddr;
-	priv->smu_tables.entry[WMTABLE].handle = handle;
 
 	/* allocate space for AVFS table */
 	ret = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(AvfsTable_t),
 			PAGE_SIZE,
 			AMDGPU_GEM_DOMAIN_VRAM,
-			&handle,
-			&mc_addr,
-			&kaddr);
+			&priv->smu_tables.entry[AVFSTABLE].handle,
+			&priv->smu_tables.entry[AVFSTABLE].mc_addr,
+			&priv->smu_tables.entry[AVFSTABLE].table);
 
 	if (ret)
 		goto err1;
@@ -450,9 +441,6 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 	priv->smu_tables.entry[AVFSTABLE].version = 0x01;
 	priv->smu_tables.entry[AVFSTABLE].size = sizeof(AvfsTable_t);
 	priv->smu_tables.entry[AVFSTABLE].table_id = TABLE_AVFS;
-	priv->smu_tables.entry[AVFSTABLE].mc_addr = mc_addr;
-	priv->smu_tables.entry[AVFSTABLE].table = kaddr;
-	priv->smu_tables.entry[AVFSTABLE].handle = handle;
 
 	tools_size = 0x19000;
 	if (tools_size) {
@@ -460,17 +448,14 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 				tools_size,
 				PAGE_SIZE,
 				AMDGPU_GEM_DOMAIN_VRAM,
-				&handle,
-				&mc_addr,
-				&kaddr);
+				&priv->smu_tables.entry[TOOLSTABLE].handle,
+				&priv->smu_tables.entry[TOOLSTABLE].mc_addr,
+				&priv->smu_tables.entry[TOOLSTABLE].table);
 		if (ret)
 			goto err2;
 		priv->smu_tables.entry[TOOLSTABLE].version = 0x01;
 		priv->smu_tables.entry[TOOLSTABLE].size = tools_size;
 		priv->smu_tables.entry[TOOLSTABLE].table_id = TABLE_PMSTATUSLOG;
-		priv->smu_tables.entry[TOOLSTABLE].mc_addr = mc_addr;
-		priv->smu_tables.entry[TOOLSTABLE].table = kaddr;
-		priv->smu_tables.entry[TOOLSTABLE].handle = handle;
 	}
 
 	/* allocate space for AVFS Fuse table */
@@ -478,18 +463,16 @@ static int vega10_smu_init(struct pp_hwmgr *hwmgr)
 			sizeof(AvfsFuseOverride_t),
 			PAGE_SIZE,
 			AMDGPU_GEM_DOMAIN_VRAM,
-			&handle,
-			&mc_addr,
-			&kaddr);
+			&priv->smu_tables.entry[AVFSFUSETABLE].handle,
+			&priv->smu_tables.entry[AVFSFUSETABLE].mc_addr,
+			&priv->smu_tables.entry[AVFSFUSETABLE].table);
 	if (ret)
 		goto err3;
 
 	priv->smu_tables.entry[AVFSFUSETABLE].version = 0x01;
 	priv->smu_tables.entry[AVFSFUSETABLE].size = sizeof(AvfsFuseOverride_t);
 	priv->smu_tables.entry[AVFSFUSETABLE].table_id = TABLE_AVFS_FUSE_OVERRIDE;
-	priv->smu_tables.entry[AVFSFUSETABLE].mc_addr = mc_addr;
-	priv->smu_tables.entry[AVFSFUSETABLE].table = kaddr;
-	priv->smu_tables.entry[AVFSFUSETABLE].handle = handle;
+
 
 	return 0;
 

@@ -327,10 +327,7 @@ static int rv_start_smu(struct pp_hwmgr *hwmgr)
 
 static int rv_smu_init(struct pp_hwmgr *hwmgr)
 {
-	struct amdgpu_bo *handle = NULL;
 	struct rv_smumgr *priv;
-	uint64_t mc_addr;
-	void *kaddr = NULL;
 	int r;
 
 	priv = kzalloc(sizeof(struct rv_smumgr), GFP_KERNEL);
@@ -345,9 +342,9 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 			sizeof(Watermarks_t),
 			PAGE_SIZE,
 			AMDGPU_GEM_DOMAIN_VRAM,
-			&handle,
-			&mc_addr,
-			&kaddr);
+			&priv->smu_tables.entry[WMTABLE].handle,
+			&priv->smu_tables.entry[WMTABLE].mc_addr,
+			&priv->smu_tables.entry[WMTABLE].table);
 
 	if (r)
 		return -EINVAL;
@@ -355,18 +352,16 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 	priv->smu_tables.entry[WMTABLE].version = 0x01;
 	priv->smu_tables.entry[WMTABLE].size = sizeof(Watermarks_t);
 	priv->smu_tables.entry[WMTABLE].table_id = TABLE_WATERMARKS;
-	priv->smu_tables.entry[WMTABLE].mc_addr = mc_addr;
-	priv->smu_tables.entry[WMTABLE].table = kaddr;
-	priv->smu_tables.entry[WMTABLE].handle = handle;
+
 
 	/* allocate space for watermarks table */
 	r = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 			sizeof(DpmClocks_t),
 			PAGE_SIZE,
 			AMDGPU_GEM_DOMAIN_VRAM,
-			&handle,
-			&mc_addr,
-			&kaddr);
+			&priv->smu_tables.entry[CLOCKTABLE].handle,
+			&priv->smu_tables.entry[CLOCKTABLE].mc_addr,
+			&priv->smu_tables.entry[CLOCKTABLE].table);
 
 	if (r) {
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[WMTABLE].handle,
@@ -378,9 +373,6 @@ static int rv_smu_init(struct pp_hwmgr *hwmgr)
 	priv->smu_tables.entry[CLOCKTABLE].version = 0x01;
 	priv->smu_tables.entry[CLOCKTABLE].size = sizeof(DpmClocks_t);
 	priv->smu_tables.entry[CLOCKTABLE].table_id = TABLE_DPMCLOCKS;
-	priv->smu_tables.entry[CLOCKTABLE].mc_addr = mc_addr;
-	priv->smu_tables.entry[CLOCKTABLE].table = kaddr;
-	priv->smu_tables.entry[CLOCKTABLE].handle = handle;
 
 	return 0;
 }
