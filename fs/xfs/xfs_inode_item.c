@@ -579,9 +579,6 @@ out_unlock:
 
 /*
  * Unlock the inode associated with the inode log item.
- * Clear the fields of the inode and inode log item that
- * are specific to the current transaction.  If the
- * hold flags is set, do not unlock the inode.
  */
 STATIC void
 xfs_inode_item_unlock(
