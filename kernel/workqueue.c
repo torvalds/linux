@@ -1604,6 +1604,40 @@ bool mod_delayed_work_on(int cpu, struct workqueue_struct *wq,
 }
 EXPORT_SYMBOL_GPL(mod_delayed_work_on);
 
+static void rcu_work_rcufn(struct rcu_head *rcu)
+{
+	struct rcu_work *rwork = container_of(rcu, struct rcu_work, rcu);
+
+	/* read the comment in __queue_work() */
+	local_irq_disable();
+	__queue_work(WORK_CPU_UNBOUND, rwork->wq, &rwork->work);
+	local_irq_enable();
+}
+
+/**
+ * queue_rcu_work - queue work after a RCU grace period
+ * @wq: workqueue to use
+ * @rwork: work to queue
+ *
+ * Return: %false if @rwork was already pending, %true otherwise.  Note
+ * that a full RCU grace period is guaranteed only after a %true return.
+ * While @rwork is guarnateed to be executed after a %false return, the
+ * execution may happen before a full RCU grace period has passed.
+ */
+bool queue_rcu_work(struct workqueue_struct *wq, struct rcu_work *rwork)
+{
+	struct work_struct *work = &rwork->work;
+
+	if (!test_and_set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))) {
+		rwork->wq = wq;
+		call_rcu(&rwork->rcu, rcu_work_rcufn);
+		return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(queue_rcu_work);
+
 /**
  * worker_enter_idle - enter idle state
  * @worker: worker which is entering idle state
@@ -3000,6 +3034,26 @@ bool flush_delayed_work(struct delayed_work *dwork)
 	return flush_work(&dwork->work);
 }
 EXPORT_SYMBOL(flush_delayed_work);
+
+/**
+ * flush_rcu_work - wait for a rwork to finish executing the last queueing
+ * @rwork: the rcu work to flush
+ *
+ * Return:
+ * %true if flush_rcu_work() waited for the work to finish execution,
+ * %false if it was already idle.
+ */
+bool flush_rcu_work(struct rcu_work *rwork)
+{
+	if (test_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(&rwork->work))) {
+		rcu_barrier();
+		flush_work(&rwork->work);
+		return true;
+	} else {
+		return flush_work(&rwork->work);
+	}
+}
+EXPORT_SYMBOL(flush_rcu_work);
 
 static bool __cancel_work(struct work_struct *work, bool is_dwork)
 {
