@@ -501,14 +501,14 @@ int rf69_set_ook_threshold_dec(struct spi_device *spi, enum threshold_decrement 
 	}
 }
 
-int rf69_set_dio_mapping(struct spi_device *spi, u8 DIONumber, u8 value)
+int rf69_set_dio_mapping(struct spi_device *spi, u8 dio_number, u8 value)
 {
 	u8 mask;
 	u8 shift;
 	u8 dio_addr;
 	u8 dio_value;
 
-	switch (DIONumber) {
+	switch (dio_number) {
 	case 0:
 		mask = MASK_DIO0; shift = SHIFT_DIO0; dio_addr = REG_DIOMAPPING1;
 		break;
