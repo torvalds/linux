@@ -88,14 +88,13 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 		return_VOID;
 	}
 
-	/* Null string or newline -- don't emit the line header */
+	/* Newline -- don't emit the line header */
 
 	if (source_desc &&
 	    (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_OPERAND) &&
 	    (source_desc->common.type == ACPI_TYPE_STRING)) {
-		if ((source_desc->string.length == 0) ||
-		    ((source_desc->string.length == 1) &&
-		     (*source_desc->string.pointer == '\n'))) {
+		if ((source_desc->string.length == 1) &&
+		    (*source_desc->string.pointer == '\n')) {
 			acpi_os_printf("\n");
 			return_VOID;
 		}
