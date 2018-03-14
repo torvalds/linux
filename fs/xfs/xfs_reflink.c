@@ -762,10 +762,8 @@ xfs_reflink_end_cow(
 		xfs_trim_extent(&del, offset_fsb, end_fsb - offset_fsb);
 
 		/* Extent delete may have bumped ext forward */
-		if (!del.br_blockcount) {
-			xfs_iext_prev(ifp, &icur);
-			goto next_extent;
-		}
+		if (!del.br_blockcount)
+			goto prev_extent;
 
 		ASSERT(!isnullstartblock(got.br_startblock));
 
@@ -774,10 +772,8 @@ xfs_reflink_end_cow(
 		 * speculatively preallocated CoW extents that have been
 		 * allocated but have not yet been involved in a write.
 		 */
-		if (got.br_state == XFS_EXT_UNWRITTEN) {
-			xfs_iext_prev(ifp, &icur);
-			goto next_extent;
-		}
+		if (got.br_state == XFS_EXT_UNWRITTEN)
+			goto prev_extent;
 
 		/* Unmap the old blocks in the data fork. */
 		xfs_defer_init(&dfops, &firstfsb);
@@ -816,8 +812,11 @@ xfs_reflink_end_cow(
 		error = xfs_defer_finish(&tp, &dfops);
 		if (error)
 			goto out_defer;
-next_extent:
 		if (!xfs_iext_get_extent(ifp, &icur, &got))
+			break;
+		continue;
+prev_extent:
+		if (!xfs_iext_prev_extent(ifp, &icur, &got))
 			break;
 	}
 
