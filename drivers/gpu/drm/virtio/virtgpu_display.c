@@ -61,9 +61,9 @@ static void virtio_gpu_user_framebuffer_destroy(struct drm_framebuffer *fb)
 static int
 virtio_gpu_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 				     struct drm_file *file_priv,
-				     unsigned flags, unsigned color,
+				     unsigned int flags, unsigned int color,
 				     struct drm_clip_rect *clips,
-				     unsigned num_clips)
+				     unsigned int num_clips)
 {
 	struct virtio_gpu_framebuffer *virtio_gpu_fb
 		= to_virtio_gpu_framebuffer(fb);
@@ -96,6 +96,7 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 	struct virtio_gpu_object *bo;
+
 	vgfb->obj = obj;
 
 	bo = gem_to_virtio_gpu_obj(obj);
@@ -387,7 +388,7 @@ int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 	for (i = 0 ; i < vgdev->num_scanouts; ++i)
 		vgdev_output_init(vgdev, i);
 
-        drm_mode_config_reset(vgdev->ddev);
+	drm_mode_config_reset(vgdev->ddev);
 	return 0;
 }
 

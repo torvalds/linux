@@ -681,7 +681,7 @@ static void vc4_hdmi_encoder_enable(struct drm_encoder *encoder)
 			   drift & ~VC4_HDMI_FIFO_CTL_RECENTER);
 		HDMI_WRITE(VC4_HDMI_FIFO_CTL,
 			   drift | VC4_HDMI_FIFO_CTL_RECENTER);
-		udelay(1000);
+		usleep_range(1000, 1100);
 		HDMI_WRITE(VC4_HDMI_FIFO_CTL,
 			   drift & ~VC4_HDMI_FIFO_CTL_RECENTER);
 		HDMI_WRITE(VC4_HDMI_FIFO_CTL,

@@ -55,7 +55,6 @@ static int zx_vl_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_crtc *crtc = plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_rect clip = {};
 	int min_scale = FRAC_16_16(1, 8);
 	int max_scale = FRAC_16_16(8, 1);
 
@@ -75,12 +74,8 @@ static int zx_vl_plane_atomic_check(struct drm_plane *plane,
 	if (!plane_state->crtc)
 		return -EINVAL;
 
-	if (crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
 	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						   &clip, min_scale, max_scale,
+						   min_scale, max_scale,
 						   true, true);
 }
 
@@ -291,7 +286,6 @@ static int zx_gl_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_crtc *crtc = plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_rect clip = {};
 
 	if (!crtc || !fb)
 		return 0;
@@ -309,12 +303,7 @@ static int zx_gl_plane_atomic_check(struct drm_plane *plane,
 	if (!plane_state->crtc)
 		return -EINVAL;
 
-	if (crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
 	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						   &clip,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   false, true);

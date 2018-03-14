@@ -230,26 +230,26 @@ void drm_gem_map_detach(struct dma_buf *dma_buf,
 	struct drm_prime_attachment *prime_attach = attach->priv;
 	struct drm_gem_object *obj = dma_buf->priv;
 	struct drm_device *dev = obj->dev;
-	struct sg_table *sgt;
+
+	if (prime_attach) {
+		struct sg_table *sgt = prime_attach->sgt;
+
+		if (sgt) {
+			if (prime_attach->dir != DMA_NONE)
+				dma_unmap_sg_attrs(attach->dev, sgt->sgl,
+						   sgt->nents,
+						   prime_attach->dir,
+						   DMA_ATTR_SKIP_CPU_SYNC);
+			sg_free_table(sgt);
+		}
+
+		kfree(sgt);
+		kfree(prime_attach);
+		attach->priv = NULL;
+	}
 
 	if (dev->driver->gem_prime_unpin)
 		dev->driver->gem_prime_unpin(obj);
-
-	if (!prime_attach)
-		return;
-
-	sgt = prime_attach->sgt;
-	if (sgt) {
-		if (prime_attach->dir != DMA_NONE)
-			dma_unmap_sg_attrs(attach->dev, sgt->sgl, sgt->nents,
-					   prime_attach->dir,
-					   DMA_ATTR_SKIP_CPU_SYNC);
-		sg_free_table(sgt);
-	}
-
-	kfree(sgt);
-	kfree(prime_attach);
-	attach->priv = NULL;
 }
 EXPORT_SYMBOL(drm_gem_map_detach);
 
@@ -922,40 +922,40 @@ EXPORT_SYMBOL(drm_prime_pages_to_sg);
 /**
  * drm_prime_sg_to_page_addr_arrays - convert an sg table into a page array
  * @sgt: scatter-gather table to convert
- * @pages: array of page pointers to store the page array in
+ * @pages: optional array of page pointers to store the page array in
  * @addrs: optional array to store the dma bus address of each page
- * @max_pages: size of both the passed-in arrays
+ * @max_entries: size of both the passed-in arrays
  *
  * Exports an sg table into an array of pages and addresses. This is currently
  * required by the TTM driver in order to do correct fault handling.
  */
 int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,
-				     dma_addr_t *addrs, int max_pages)
+				     dma_addr_t *addrs, int max_entries)
 {
 	unsigned count;
 	struct scatterlist *sg;
 	struct page *page;
-	u32 len;
-	int pg_index;
+	u32 len, index;
 	dma_addr_t addr;
 
-	pg_index = 0;
+	index = 0;
 	for_each_sg(sgt->sgl, sg, sgt->nents, count) {
 		len = sg->length;
 		page = sg_page(sg);
 		addr = sg_dma_address(sg);
 
 		while (len > 0) {
-			if (WARN_ON(pg_index >= max_pages))
+			if (WARN_ON(index >= max_entries))
 				return -1;
-			pages[pg_index] = page;
+			if (pages)
+				pages[index] = page;
 			if (addrs)
-				addrs[pg_index] = addr;
+				addrs[index] = addr;
 
 			page++;
 			addr += PAGE_SIZE;
 			len -= PAGE_SIZE;
-			pg_index++;
+			index++;
 		}
 	}
 	return 0;

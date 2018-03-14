@@ -286,7 +286,6 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 	uint32_t max_width, max_height;
 	bool out_of_bounds = false;
 	uint32_t caps = 0;
-	struct drm_rect clip = {};
 	int min_scale, max_scale;
 	int ret;
 
@@ -323,11 +322,7 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 	min_scale = FRAC_16_16(1, 8);
 	max_scale = FRAC_16_16(8, 1);
 
-	if (crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
@@ -471,7 +466,6 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 {
 	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(state);
 	struct drm_crtc_state *crtc_state;
-	struct drm_rect clip = {};
 	int min_scale, max_scale;
 	int ret;
 
@@ -502,11 +496,7 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 	min_scale = FRAC_16_16(1, 8);
 	max_scale = FRAC_16_16(8, 1);
 
-	if (crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)

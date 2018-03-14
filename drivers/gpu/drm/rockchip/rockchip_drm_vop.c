@@ -256,6 +256,9 @@ static uint16_t scl_vop_cal_scale(enum scale_mode mode, uint32_t src,
 {
 	uint16_t val = 1 << SCL_FT_DEFAULT_FIXPOINT_SHIFT;
 
+	if (vskiplines)
+		*vskiplines = 0;
+
 	if (is_horizontal) {
 		if (mode == SCALE_UP)
 			val = GET_SCL_FT_BIC(src, dst);
@@ -296,7 +299,7 @@ static void scl_vop_cal_scl_fac(struct vop *vop, const struct vop_win_data *win,
 	uint16_t vsu_mode;
 	uint16_t lb_mode;
 	uint32_t val;
-	int vskiplines = 0;
+	int vskiplines;
 
 	if (dst_w > 3840) {
 		DRM_DEV_ERROR(vop->dev, "Maximum dst width (3840) exceeded\n");
@@ -566,8 +569,6 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	WARN_ON(vop->event);
 
-	rockchip_drm_psr_deactivate(&vop->crtc);
-
 	drm_crtc_vblank_off(crtc);
 
 	/*
@@ -627,7 +628,6 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	struct vop_win *vop_win = to_vop_win(plane);
 	const struct vop_win_data *win = vop_win->data;
 	int ret;
-	struct drm_rect clip = {};
 	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
 					DRM_PLANE_HELPER_NO_SCALING;
 	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
@@ -640,11 +640,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	if (crtc_state->enable)
-		drm_mode_get_hv_timing(&crtc_state->mode,
-				       &clip.x2, &clip.y2);
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state, &clip,
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
 						  min_scale, max_scale,
 						  true, true);
 	if (ret)
@@ -939,8 +935,6 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
 
 	VOP_REG_SET(vop, common, standby, 0);
-
-	rockchip_drm_psr_activate(&vop->crtc);
 }
 
 static bool vop_fs_irq_is_pending(struct vop *vop)

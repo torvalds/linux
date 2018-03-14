@@ -759,6 +759,10 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
 		state->rotation = val;
 	} else if (property == plane->zpos_property) {
 		state->zpos = val;
+	} else if (property == plane->color_encoding_property) {
+		state->color_encoding = val;
+	} else if (property == plane->color_range_property) {
+		state->color_range = val;
 	} else if (plane->funcs->atomic_set_property) {
 		return plane->funcs->atomic_set_property(plane, state,
 				property, val);
@@ -818,6 +822,10 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
 		*val = state->rotation;
 	} else if (property == plane->zpos_property) {
 		*val = state->zpos;
+	} else if (property == plane->color_encoding_property) {
+		*val = state->color_encoding;
+	} else if (property == plane->color_range_property) {
+		*val = state->color_range;
 	} else if (plane->funcs->atomic_get_property) {
 		return plane->funcs->atomic_get_property(plane, state, property, val);
 	} else {
@@ -882,12 +890,14 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, state->fb->format->format);
+	ret = drm_plane_check_pixel_format(plane, state->fb->format->format,
+					   state->fb->modifier);
 	if (ret) {
 		struct drm_format_name_buf format_name;
-		DRM_DEBUG_ATOMIC("Invalid pixel format %s\n",
-		                 drm_get_format_name(state->fb->format->format,
-		                                     &format_name));
+		DRM_DEBUG_ATOMIC("Invalid pixel format %s, modifier 0x%llx\n",
+				 drm_get_format_name(state->fb->format->format,
+						     &format_name),
+				 state->fb->modifier);
 		return ret;
 	}
 
@@ -944,6 +954,10 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 	drm_printf(p, "\tcrtc-pos=" DRM_RECT_FMT "\n", DRM_RECT_ARG(&dest));
 	drm_printf(p, "\tsrc-pos=" DRM_RECT_FP_FMT "\n", DRM_RECT_FP_ARG(&src));
 	drm_printf(p, "\trotation=%x\n", state->rotation);
+	drm_printf(p, "\tcolor-encoding=%s\n",
+		   drm_get_color_encoding_name(state->color_encoding));
+	drm_printf(p, "\tcolor-range=%s\n",
+		   drm_get_color_range_name(state->color_range));
 
 	if (plane->funcs->atomic_print_state)
 		plane->funcs->atomic_print_state(p, state);

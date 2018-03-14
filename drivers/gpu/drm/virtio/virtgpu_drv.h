@@ -246,7 +246,7 @@ int virtio_gpu_fbdev_init(struct virtio_gpu_device *vgdev);
 void virtio_gpu_fbdev_fini(struct virtio_gpu_device *vgdev);
 int virtio_gpu_surface_dirty(struct virtio_gpu_framebuffer *qfb,
 			     struct drm_clip_rect *clips,
-			     unsigned num_clips);
+			     unsigned int num_clips);
 /* virtio vg */
 int virtio_gpu_alloc_vbufs(struct virtio_gpu_device *vgdev);
 void virtio_gpu_free_vbufs(struct virtio_gpu_device *vgdev);
@@ -363,12 +363,12 @@ int virtgpu_gem_prime_pin(struct drm_gem_object *obj);
 void virtgpu_gem_prime_unpin(struct drm_gem_object *obj);
 struct sg_table *virtgpu_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *virtgpu_gem_prime_import_sg_table(
-        struct drm_device *dev, struct dma_buf_attachment *attach,
-        struct sg_table *sgt);
+	struct drm_device *dev, struct dma_buf_attachment *attach,
+	struct sg_table *sgt);
 void *virtgpu_gem_prime_vmap(struct drm_gem_object *obj);
 void virtgpu_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 int virtgpu_gem_prime_mmap(struct drm_gem_object *obj,
-                                struct vm_area_struct *vma);
+			   struct vm_area_struct *vma);
 
 static inline struct virtio_gpu_object*
 virtio_gpu_object_ref(struct virtio_gpu_object *bo)
