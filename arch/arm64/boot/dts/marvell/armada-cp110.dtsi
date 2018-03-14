@@ -365,7 +365,9 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			interrupts = <ICU_GRP_NSR 115 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&CP110_LABEL(clk) 1 2>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 2>,
+				 <&CP110_LABEL(clk) 1 17>;
 			marvell,system-controller = <&CP110_LABEL(syscon0)>;
 			status = "disabled";
 		};
