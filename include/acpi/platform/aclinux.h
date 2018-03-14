@@ -63,6 +63,7 @@
 #ifdef __KERNEL__
 
 #define ACPI_USE_SYSTEM_INTTYPES
+#define ACPI_USE_GPE_POLLING
 
 /* Kernel specific ACPICA configuration */
 

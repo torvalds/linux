@@ -802,6 +802,7 @@ typedef u32 acpi_event_status;
 
 #define ACPI_GPE_CAN_WAKE               (u8) 0x10
 #define ACPI_GPE_AUTO_ENABLED           (u8) 0x20
+#define ACPI_GPE_INITIALIZED            (u8) 0x40
 
 /*
  * Flags for GPE and Lock interfaces

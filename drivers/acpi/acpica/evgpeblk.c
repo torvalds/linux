@@ -437,16 +437,16 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 acpi_status
 acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			     struct acpi_gpe_block_info *gpe_block,
-			     void *ignored)
+			     void *context)
 {
 	acpi_status status;
-	acpi_event_status event_status;
 	struct acpi_gpe_event_info *gpe_event_info;
 	u32 gpe_enabled_count;
 	u32 gpe_index;
 	u32 gpe_number;
 	u32 i;
 	u32 j;
+	u8 *is_polling_needed = context;
 
 	ACPI_FUNCTION_TRACE(ev_initialize_gpe_block);
 
@@ -473,6 +473,7 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 			gpe_index = (i * ACPI_GPE_REGISTER_WIDTH) + j;
 			gpe_event_info = &gpe_block->event_info[gpe_index];
 			gpe_number = gpe_block->block_base_number + gpe_index;
+			gpe_event_info->flags |= ACPI_GPE_INITIALIZED;
 
 			/*
 			 * Ignore GPEs that have no corresponding _Lxx/_Exx method
@@ -484,10 +485,6 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				continue;
 			}
 
-			event_status = 0;
-			(void)acpi_hw_get_gpe_status(gpe_event_info,
-						     &event_status);
-
 			status = acpi_ev_add_gpe_reference(gpe_event_info);
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
@@ -498,12 +495,9 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 			gpe_event_info->flags |= ACPI_GPE_AUTO_ENABLED;
 
-			if (event_status & ACPI_EVENT_FLAG_STATUS_SET) {
-				ACPI_INFO(("GPE 0x%02X active on init",
-					   gpe_number));
-				(void)acpi_ev_gpe_dispatch(gpe_block->node,
-							   gpe_event_info,
-							   gpe_number);
+			if (is_polling_needed &&
+			    ACPI_GPE_IS_POLLING_NEEDED(gpe_event_info)) {
+				*is_polling_needed = TRUE;
 			}
 
 			gpe_enabled_count++;
