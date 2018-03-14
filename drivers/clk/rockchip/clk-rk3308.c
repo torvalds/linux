@@ -129,7 +129,7 @@ static const struct rockchip_cpuclk_reg_data rk3308_cpuclk_data = {
 PNAME(mux_pll_p)		= { "xin24m", "clk_rtc32k" };
 PNAME(mux_usb480m_p)		= { "xin24m", "usb480m_phy", "clk_rtc32k" };
 PNAME(mux_armclk_p)		= { "apll_core", "vpll0_core", "vpll1_core" };
-PNAME(mux_dpll_vpll0_p)	= { "dpll", "vpll0" };
+PNAME(mux_dpll_vpll0_p)		= { "dpll", "vpll0" };
 PNAME(mux_dpll_vpll0_xin24m_p)	= { "dpll", "vpll0", "xin24m" };
 PNAME(mux_dpll_vpll0_vpll1_p)	= { "dpll", "vpll0", "vpll1" };
 PNAME(mux_dpll_vpll0_vpll1_xin24m_p)	= { "dpll", "vpll0", "vpll1", "xin24m" };
@@ -141,47 +141,47 @@ PNAME(mux_uart1_p)		= { "clk_uart1_src", "dummy", "clk_uart1_frac" };
 PNAME(mux_uart2_p)		= { "clk_uart2_src", "dummy", "clk_uart2_frac" };
 PNAME(mux_uart3_p)		= { "clk_uart3_src", "dummy", "clk_uart3_frac" };
 PNAME(mux_uart4_p)		= { "clk_uart4_src", "dummy", "clk_uart4_frac" };
-PNAME(mux_timer_src_p)	= { "xin24m", "clk_rtc32k" };
+PNAME(mux_timer_src_p)		= { "xin24m", "clk_rtc32k" };
 PNAME(mux_dclk_vop_p)		= { "dclk_vop_src", "dclk_vop_frac", "xin24m" };
 PNAME(mux_nandc_p)		= { "clk_nandc_div", "clk_nandc_div50" };
 PNAME(mux_sdmmc_p)		= { "clk_sdmmc_div", "clk_sdmmc_div50" };
 PNAME(mux_sdio_p)		= { "clk_sdio_div", "clk_sdio_div50" };
 PNAME(mux_emmc_p)		= { "clk_emmc_div", "clk_emmc_div50" };
-PNAME(mux_gmac_p)		= { "clk_gmac_src", "gmac_clkin" };
-PNAME(mux_gmac_rmii_sel_p)		= { "clk_gmac_rx_tx_div20", "clk_gmac_rx_tx_div2" };
+PNAME(mux_mac_p)		= { "clk_mac_src", "mac_clkin" };
+PNAME(mux_mac_rmii_sel_p)	= { "clk_mac_rx_tx_div20", "clk_mac_rx_tx_div2" };
 PNAME(mux_ddrstdby_p)		= { "clk_ddrphy1x_out", "clk_ddr_stdby_div4" };
 PNAME(mux_rtc32k_p)		= { "xin32k", "clk_pvtm_32k", "clk_rtc32k_frac", "clk_rtc32k_div" };
 PNAME(mux_usbphy_ref_p)		= { "xin24m", "clk_usbphy_ref_src" };
 PNAME(mux_wifi_p)		= { "xin24m", "clk_wifi_src" };
 PNAME(mux_pdm_p)		= { "clk_pdm_src", "clk_pdm_frac" };
-PNAME(mux_i2s0_8ch_tx_p)		= { "clk_i2s0_8ch_tx_src", "clk_i2s0_8ch_tx_frac", "mclk_i2s0_8ch_in" };
-PNAME(mux_i2s0_8ch_tx_rx_p)		= { "clk_i2s0_8ch_tx_mux", "clk_i2s0_8ch_rx_mux"};
+PNAME(mux_i2s0_8ch_tx_p)	= { "clk_i2s0_8ch_tx_src", "clk_i2s0_8ch_tx_frac", "mclk_i2s0_8ch_in" };
+PNAME(mux_i2s0_8ch_tx_rx_p)	= { "clk_i2s0_8ch_tx_mux", "clk_i2s0_8ch_rx_mux"};
 PNAME(mux_i2s0_8ch_tx_out_p)	= { "clk_i2s0_8ch_tx", "xin12m" };
-PNAME(mux_i2s0_8ch_rx_p)		= { "clk_i2s0_8ch_rx_src", "clk_i2s0_8ch_rx_frac", "mclk_i2s0_8ch_in" };
-PNAME(mux_i2s0_8ch_rx_tx_p)		= { "clk_i2s0_8ch_rx_mux", "clk_i2s0_8ch_tx_mux"};
-PNAME(mux_i2s1_8ch_tx_p)		= { "clk_i2s1_8ch_tx_src", "clk_i2s1_8ch_tx_frac", "mclk_i2s1_8ch_in" };
-PNAME(mux_i2s1_8ch_tx_rx_p)		= { "clk_i2s1_8ch_tx_mux", "clk_i2s1_8ch_rx_mux"};
+PNAME(mux_i2s0_8ch_rx_p)	= { "clk_i2s0_8ch_rx_src", "clk_i2s0_8ch_rx_frac", "mclk_i2s0_8ch_in" };
+PNAME(mux_i2s0_8ch_rx_tx_p)	= { "clk_i2s0_8ch_rx_mux", "clk_i2s0_8ch_tx_mux"};
+PNAME(mux_i2s1_8ch_tx_p)	= { "clk_i2s1_8ch_tx_src", "clk_i2s1_8ch_tx_frac", "mclk_i2s1_8ch_in" };
+PNAME(mux_i2s1_8ch_tx_rx_p)	= { "clk_i2s1_8ch_tx_mux", "clk_i2s1_8ch_rx_mux"};
 PNAME(mux_i2s1_8ch_tx_out_p)	= { "clk_i2s1_8ch_tx", "xin12m" };
-PNAME(mux_i2s1_8ch_rx_p)		= { "clk_i2s1_8ch_rx_src", "clk_i2s1_8ch_rx_frac", "mclk_i2s1_8ch_in" };
-PNAME(mux_i2s1_8ch_rx_tx_p)		= { "clk_i2s1_8ch_rx_mux", "clk_i2s1_8ch_tx_mux"};
-PNAME(mux_i2s2_8ch_tx_p)		= { "clk_i2s2_8ch_tx_src", "clk_i2s2_8ch_tx_frac", "mclk_i2s2_8ch_in" };
-PNAME(mux_i2s2_8ch_tx_rx_p)		= { "clk_i2s2_8ch_tx_mux", "clk_i2s2_8ch_rx_mux"};
+PNAME(mux_i2s1_8ch_rx_p)	= { "clk_i2s1_8ch_rx_src", "clk_i2s1_8ch_rx_frac", "mclk_i2s1_8ch_in" };
+PNAME(mux_i2s1_8ch_rx_tx_p)	= { "clk_i2s1_8ch_rx_mux", "clk_i2s1_8ch_tx_mux"};
+PNAME(mux_i2s2_8ch_tx_p)	= { "clk_i2s2_8ch_tx_src", "clk_i2s2_8ch_tx_frac", "mclk_i2s2_8ch_in" };
+PNAME(mux_i2s2_8ch_tx_rx_p)	= { "clk_i2s2_8ch_tx_mux", "clk_i2s2_8ch_rx_mux"};
 PNAME(mux_i2s2_8ch_tx_out_p)	= { "clk_i2s2_8ch_tx", "xin12m" };
-PNAME(mux_i2s2_8ch_rx_p)		= { "clk_i2s2_8ch_rx_src", "clk_i2s2_8ch_rx_frac", "mclk_i2s2_8ch_in" };
-PNAME(mux_i2s2_8ch_rx_tx_p)		= { "clk_i2s2_8ch_rx_mux", "clk_i2s2_8ch_tx_mux"};
-PNAME(mux_i2s3_8ch_tx_p)		= { "clk_i2s3_8ch_tx_src", "clk_i2s3_8ch_tx_frac", "mclk_i2s3_8ch_in" };
-PNAME(mux_i2s3_8ch_tx_rx_p)		= { "clk_i2s3_8ch_tx_mux", "clk_i2s3_8ch_rx_mux"};
+PNAME(mux_i2s2_8ch_rx_p)	= { "clk_i2s2_8ch_rx_src", "clk_i2s2_8ch_rx_frac", "mclk_i2s2_8ch_in" };
+PNAME(mux_i2s2_8ch_rx_tx_p)	= { "clk_i2s2_8ch_rx_mux", "clk_i2s2_8ch_tx_mux"};
+PNAME(mux_i2s3_8ch_tx_p)	= { "clk_i2s3_8ch_tx_src", "clk_i2s3_8ch_tx_frac", "mclk_i2s3_8ch_in" };
+PNAME(mux_i2s3_8ch_tx_rx_p)	= { "clk_i2s3_8ch_tx_mux", "clk_i2s3_8ch_rx_mux"};
 PNAME(mux_i2s3_8ch_tx_out_p)	= { "clk_i2s3_8ch_tx", "xin12m" };
-PNAME(mux_i2s3_8ch_rx_p)		= { "clk_i2s3_8ch_rx_src", "clk_i2s3_8ch_rx_frac", "mclk_i2s3_8ch_in" };
-PNAME(mux_i2s3_8ch_rx_tx_p)		= { "clk_i2s3_8ch_rx_mux", "clk_i2s3_8ch_tx_mux"};
+PNAME(mux_i2s3_8ch_rx_p)	= { "clk_i2s3_8ch_rx_src", "clk_i2s3_8ch_rx_frac", "mclk_i2s3_8ch_in" };
+PNAME(mux_i2s3_8ch_rx_tx_p)	= { "clk_i2s3_8ch_rx_mux", "clk_i2s3_8ch_tx_mux"};
 PNAME(mux_i2s0_2ch_p)		= { "clk_i2s0_2ch_src", "clk_i2s0_2ch_frac", "mclk_i2s0_2ch_in" };
 PNAME(mux_i2s0_2ch_out_p)	= { "clk_i2s0_2ch", "xin12m" };
 PNAME(mux_i2s1_2ch_p)		= { "clk_i2s1_2ch_src", "clk_i2s1_2ch_frac", "mclk_i2s1_2ch_in"};
 PNAME(mux_i2s1_2ch_out_p)	= { "clk_i2s1_2ch", "xin12m" };
 PNAME(mux_spdif_tx_src_p)	= { "clk_spdif_tx_div", "clk_spdif_tx_div50" };
-PNAME(mux_spdif_tx_p)	= { "clk_spdif_tx_src", "clk_spdif_tx_frac", "mclk_i2s0_2ch_in" };
+PNAME(mux_spdif_tx_p)		= { "clk_spdif_tx_src", "clk_spdif_tx_frac", "mclk_i2s0_2ch_in" };
 PNAME(mux_spdif_rx_src_p)	= { "clk_spdif_rx_div", "clk_spdif_rx_div50" };
-PNAME(mux_spdif_rx_p)	= { "clk_spdif_rx_src", "clk_spdif_rx_frac" };
+PNAME(mux_spdif_rx_p)		= { "clk_spdif_rx_src", "clk_spdif_rx_frac" };
 
 static struct rockchip_pll_clock rk3308_pll_clks[] __initdata = {
 	[apll] = PLL(pll_rk3036, PLL_APLL, "apll", mux_pll_p,
@@ -528,18 +528,18 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	GATE(SCLK_OTG_ADP, "clk_otg_adp", "clk_rtc32k", 0,
 			RK3308_CLKGATE_CON(8), 13, GFLAGS),
 
-	COMPOSITE(SCLK_GMAC_SRC, "clk_gmac_src", mux_dpll_vpll0_vpll1_p, 0,
+	COMPOSITE(SCLK_MAC_SRC, "clk_mac_src", mux_dpll_vpll0_vpll1_p, 0,
 			RK3308_CLKSEL_CON(43), 6, 2, MFLAGS, 0, 5, DFLAGS,
 			RK3308_CLKGATE_CON(8), 14, GFLAGS),
-	MUX(SCLK_GMAC, "clk_gmac", mux_gmac_p,  CLK_SET_RATE_PARENT,
+	MUX(SCLK_MAC, "clk_mac", mux_mac_p,  CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(43), 14, 1, MFLAGS),
-	GATE(SCLK_MAC_REF, "clk_mac_ref", "clk_gmac", 0,
+	GATE(SCLK_MAC_REF, "clk_mac_ref", "clk_mac", 0,
 			RK3308_CLKGATE_CON(9), 1, GFLAGS),
-	GATE(SCLK_GMAC_RX_TX, "clk_gmac_rx_tx", "clk_gmac", 0,
+	GATE(SCLK_MAC_RX_TX, "clk_mac_rx_tx", "clk_mac", 0,
 			RK3308_CLKGATE_CON(9), 0, GFLAGS),
-	FACTOR(0, "clk_gmac_rx_tx_div2", "clk_gmac_rx_tx", 0, 1, 2),
-	FACTOR(0, "clk_gmac_rx_tx_div20", "clk_gmac_rx_tx", 0, 1, 20),
-	MUX(SCLK_GMAC_RMII, "clk_gmac_rmii_sel", mux_gmac_rmii_sel_p,  CLK_SET_RATE_PARENT,
+	FACTOR(0, "clk_mac_rx_tx_div2", "clk_mac_rx_tx", 0, 1, 2),
+	FACTOR(0, "clk_mac_rx_tx_div20", "clk_mac_rx_tx", 0, 1, 20),
+	MUX(SCLK_MAC_RMII, "clk_mac_rmii_sel", mux_mac_rmii_sel_p,  CLK_SET_RATE_PARENT,
 			RK3308_CLKSEL_CON(43), 15, 1, MFLAGS),
 
 	/*
@@ -805,7 +805,7 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 
 	GATE(0, "aclk_peri_niu", "aclk_peri", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(9), 2, GFLAGS),
 	GATE(0, "aclk_peribus_niu", "aclk_peri", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(9), 3, GFLAGS),
-	GATE(ACLK_GMAC, "aclk_gmac", "aclk_peri", 0, RK3308_CLKGATE_CON(9), 4, GFLAGS),
+	GATE(ACLK_MAC, "aclk_mac", "aclk_peri", 0, RK3308_CLKGATE_CON(9), 4, GFLAGS),
 
 	GATE(0, "hclk_peri_niu", "hclk_peri", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(9), 5, GFLAGS),
 	GATE(HCLK_NANDC, "hclk_nandc", "hclk_peri", 0, RK3308_CLKGATE_CON(9), 6, GFLAGS),
@@ -818,7 +818,7 @@ static struct rockchip_clk_branch rk3308_clk_branches[] __initdata = {
 	GATE(HCLK_HOST_ARB, "hclk_host_arb", "hclk_peri", 0, RK3308_CLKGATE_CON(9), 13, GFLAGS),
 
 	GATE(0, "pclk_peri_niu", "pclk_peri", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(9), 14, GFLAGS),
-	GATE(PCLK_GMAC, "pclk_gmac", "pclk_peri", 0, RK3308_CLKGATE_CON(9), 15, GFLAGS),
+	GATE(PCLK_MAC, "pclk_mac", "pclk_peri", 0, RK3308_CLKGATE_CON(9), 15, GFLAGS),
 
 	GATE(0, "hclk_audio_niu", "hclk_audio", CLK_IGNORE_UNUSED, RK3308_CLKGATE_CON(14), 0, GFLAGS),
 	GATE(HCLK_PDM, "hclk_pdm", "hclk_audio", 0, RK3308_CLKGATE_CON(14), 1, GFLAGS),

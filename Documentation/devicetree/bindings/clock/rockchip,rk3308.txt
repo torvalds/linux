@@ -31,7 +31,7 @@ clock-output-names:
  - "xin24m" - crystal input - required,
  - "xin32k" - rtc clock - optional,
  - "mclk_i2sx_xch_in" - external I2S or SPDIF clock - optional,
- - "gmac_clkin" - external GMAC clock - optional
+ - "mac_clkin" - external MAC clock - optional
 
 Example: Clock controller node:
 

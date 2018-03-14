@@ -73,11 +73,11 @@
 #define SCLK_EMMC_SAMPLE	60
 #define SCLK_SFC		61
 #define SCLK_OTG_ADP		62
-#define SCLK_GMAC_SRC		63
-#define SCLK_GMAC		64
+#define SCLK_MAC_SRC		63
+#define SCLK_MAC		64
 #define SCLK_MAC_REF		65
-#define SCLK_GMAC_RX_TX		66
-#define SCLK_GMAC_RMII		67
+#define SCLK_MAC_RX_TX		66
+#define SCLK_MAC_RMII		67
 #define SCLK_DDR_MON_TIMER	68
 #define SCLK_DDR_MON		69
 #define SCLK_DDRCLK		70
@@ -121,7 +121,7 @@
 #define ACLK_BUS		131
 #define ACLK_PERI_SRC		132
 #define ACLK_PERI		133
-#define ACLK_GMAC		134
+#define ACLK_MAC		134
 #define ACLK_CRYPTO		135
 #define ACLK_VOP		136
 #define ACLK_GIC		137
@@ -159,7 +159,7 @@
 #define PCLK_PERI		192
 #define PCLK_PMU		193
 #define PCLK_AUDIO		194
-#define PCLK_GMAC		195
+#define PCLK_MAC		195
 #define PCLK_ACODEC		196
 #define PCLK_UART0		197
 #define PCLK_UART1		198
@@ -330,7 +330,7 @@
 #define SRST_SD_H		122
 #define SRST_NANDC_H		123
 #define SRST_NANDC_N		124
-#define SRST_GMAC_A		125
+#define SRST_MAC_A		125
 
 /* cru_softrst_con8 */
 #define SRST_AUDIO_NIU_H	128
