@@ -668,6 +668,39 @@ enum i40iw_status_code i40iw_hw_flush_wqes(struct i40iw_device *iwdev,
 }
 
 /**
+ * i40iw_gen_ae - generate AE
+ * @iwdev: iwarp device
+ * @qp: qp associated with AE
+ * @info: info for ae
+ * @wait: wait for completion
+ */
+void i40iw_gen_ae(struct i40iw_device *iwdev,
+		  struct i40iw_sc_qp *qp,
+		  struct i40iw_gen_ae_info *info,
+		  bool wait)
+{
+	struct i40iw_gen_ae_info *ae_info;
+	struct i40iw_cqp_request *cqp_request;
+	struct cqp_commands_info *cqp_info;
+
+	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, wait);
+	if (!cqp_request)
+		return;
+
+	cqp_info = &cqp_request->info;
+	ae_info = &cqp_request->info.in.u.gen_ae.info;
+	memcpy(ae_info, info, sizeof(*ae_info));
+
+	cqp_info->cqp_cmd = OP_GEN_AE;
+	cqp_info->post_sq = 1;
+	cqp_info->in.u.gen_ae.qp = qp;
+	cqp_info->in.u.gen_ae.scratch = (uintptr_t)cqp_request;
+	if (i40iw_handle_cqp_op(iwdev, cqp_request))
+		i40iw_pr_err("CQP OP failed attempting to generate ae_code=0x%x\n",
+			     info->ae_code);
+}
+
+/**
  * i40iw_hw_manage_vf_pble_bp - manage vf pbles
  * @iwdev: iwarp device
  * @info: info for managing pble
