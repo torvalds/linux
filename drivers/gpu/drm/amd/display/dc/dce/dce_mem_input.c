@@ -225,7 +225,7 @@ static void program_nbp_watermark(
 	}
 }
 
-static void program_stutter_watermark(
+static void dce120_program_stutter_watermark(
 	struct dce_mem_input *dce_mi,
 	uint32_t wm_select,
 	uint32_t stutter_mark,
@@ -242,6 +242,22 @@ static void program_stutter_watermark(
 		REG_UPDATE_2(DPG_PIPE_STUTTER_CONTROL,
 				STUTTER_EXIT_SELF_REFRESH_WATERMARK, stutter_mark,
 				STUTTER_ENTER_SELF_REFRESH_WATERMARK, stutter_entry);
+}
+
+static void program_stutter_watermark(
+	struct dce_mem_input *dce_mi,
+	uint32_t wm_select,
+	uint32_t stutter_mark)
+{
+	REG_UPDATE(DPG_WATERMARK_MASK_CONTROL,
+		STUTTER_EXIT_SELF_REFRESH_WATERMARK_MASK, wm_select);
+
+	if (REG(DPG_PIPE_STUTTER_CONTROL2))
+		REG_UPDATE(DPG_PIPE_STUTTER_CONTROL2,
+				STUTTER_EXIT_SELF_REFRESH_WATERMARK, stutter_mark);
+	else
+		REG_UPDATE(DPG_PIPE_STUTTER_CONTROL,
+				STUTTER_EXIT_SELF_REFRESH_WATERMARK, stutter_mark);
 }
 
 static void dce_mi_program_display_marks(
@@ -266,8 +282,41 @@ static void dce_mi_program_display_marks(
 	program_nbp_watermark(dce_mi, 2, nbp.a_mark); /* set a */
 	program_nbp_watermark(dce_mi, 1, nbp.d_mark); /* set d */
 
-	program_stutter_watermark(dce_mi, 2, stutter_exit.a_mark, stutter_enter.a_mark); /* set a */
-	program_stutter_watermark(dce_mi, 1, stutter_exit.d_mark, stutter_enter.d_mark); /* set d */
+	program_stutter_watermark(dce_mi, 2, stutter_exit.a_mark); /* set a */
+	program_stutter_watermark(dce_mi, 1, stutter_exit.d_mark); /* set d */
+}
+
+static void dce112_mi_program_display_marks(struct mem_input *mi,
+	struct dce_watermarks nbp,
+	struct dce_watermarks stutter_exit,
+	struct dce_watermarks stutter_entry,
+	struct dce_watermarks urgent,
+	uint32_t total_dest_line_time_ns)
+{
+	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
+	uint32_t stutter_en = mi->ctx->dc->debug.disable_stutter ? 0 : 1;
+
+	program_urgency_watermark(dce_mi, 0, /* set a */
+			urgent.a_mark, total_dest_line_time_ns);
+	program_urgency_watermark(dce_mi, 1, /* set b */
+			urgent.b_mark, total_dest_line_time_ns);
+	program_urgency_watermark(dce_mi, 2, /* set c */
+			urgent.c_mark, total_dest_line_time_ns);
+	program_urgency_watermark(dce_mi, 3, /* set d */
+			urgent.d_mark, total_dest_line_time_ns);
+
+	REG_UPDATE_2(DPG_PIPE_STUTTER_CONTROL,
+		STUTTER_ENABLE, stutter_en,
+		STUTTER_IGNORE_FBC, 1);
+	program_nbp_watermark(dce_mi, 0, nbp.a_mark); /* set a */
+	program_nbp_watermark(dce_mi, 1, nbp.b_mark); /* set b */
+	program_nbp_watermark(dce_mi, 2, nbp.c_mark); /* set c */
+	program_nbp_watermark(dce_mi, 3, nbp.d_mark); /* set d */
+
+	program_stutter_watermark(dce_mi, 0, stutter_exit.a_mark); /* set a */
+	program_stutter_watermark(dce_mi, 1, stutter_exit.b_mark); /* set b */
+	program_stutter_watermark(dce_mi, 2, stutter_exit.c_mark); /* set c */
+	program_stutter_watermark(dce_mi, 3, stutter_exit.d_mark); /* set d */
 }
 
 static void dce120_mi_program_display_marks(struct mem_input *mi,
@@ -297,10 +346,10 @@ static void dce120_mi_program_display_marks(struct mem_input *mi,
 	program_nbp_watermark(dce_mi, 2, nbp.c_mark); /* set c */
 	program_nbp_watermark(dce_mi, 3, nbp.d_mark); /* set d */
 
-	program_stutter_watermark(dce_mi, 0, stutter_exit.a_mark, stutter_entry.a_mark); /* set a */
-	program_stutter_watermark(dce_mi, 1, stutter_exit.b_mark, stutter_entry.b_mark); /* set b */
-	program_stutter_watermark(dce_mi, 2, stutter_exit.c_mark, stutter_entry.c_mark); /* set c */
-	program_stutter_watermark(dce_mi, 3, stutter_exit.d_mark, stutter_entry.d_mark); /* set d */
+	dce120_program_stutter_watermark(dce_mi, 0, stutter_exit.a_mark, stutter_entry.a_mark); /* set a */
+	dce120_program_stutter_watermark(dce_mi, 1, stutter_exit.b_mark, stutter_entry.b_mark); /* set b */
+	dce120_program_stutter_watermark(dce_mi, 2, stutter_exit.c_mark, stutter_entry.c_mark); /* set c */
+	dce120_program_stutter_watermark(dce_mi, 3, stutter_exit.d_mark, stutter_entry.d_mark); /* set d */
 }
 
 static void program_tiling(
@@ -712,6 +761,18 @@ void dce_mem_input_construct(
 }
 
 void dce112_mem_input_construct(
+	struct dce_mem_input *dce_mi,
+	struct dc_context *ctx,
+	int inst,
+	const struct dce_mem_input_registers *regs,
+	const struct dce_mem_input_shift *mi_shift,
+	const struct dce_mem_input_mask *mi_mask)
+{
+	dce_mem_input_construct(dce_mi, ctx, inst, regs, mi_shift, mi_mask);
+	dce_mi->base.funcs->mem_input_program_display_marks = dce112_mi_program_display_marks;
+}
+
+void dce120_mem_input_construct(
 	struct dce_mem_input *dce_mi,
 	struct dc_context *ctx,
 	int inst,

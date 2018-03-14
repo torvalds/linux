@@ -353,4 +353,12 @@ void dce112_mem_input_construct(
 	const struct dce_mem_input_shift *mi_shift,
 	const struct dce_mem_input_mask *mi_mask);
 
+void dce120_mem_input_construct(
+	struct dce_mem_input *dce_mi,
+	struct dc_context *ctx,
+	int inst,
+	const struct dce_mem_input_registers *regs,
+	const struct dce_mem_input_shift *mi_shift,
+	const struct dce_mem_input_mask *mi_mask);
+
 #endif /*__DCE_MEM_INPUT_H__*/

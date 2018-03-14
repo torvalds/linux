@@ -652,7 +652,7 @@ static struct mem_input *dce120_mem_input_create(
 		return NULL;
 	}
 
-	dce112_mem_input_construct(dce_mi, ctx, inst, &mi_regs[inst], &mi_shifts, &mi_masks);
+	dce120_mem_input_construct(dce_mi, ctx, inst, &mi_regs[inst], &mi_shifts, &mi_masks);
 	return &dce_mi->base;
 }
 
