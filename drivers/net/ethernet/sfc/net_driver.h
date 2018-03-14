@@ -627,6 +627,8 @@ static inline bool efx_link_state_equal(const struct efx_link_state *left,
  *	Serialised by the mac_lock.
  * @get_link_ksettings: Get ethtool settings. Serialised by the mac_lock.
  * @set_link_ksettings: Set ethtool settings. Serialised by the mac_lock.
+ * @get_fecparam: Get Forward Error Correction settings. Serialised by mac_lock.
+ * @set_fecparam: Set Forward Error Correction settings. Serialised by mac_lock.
  * @set_npage_adv: Set abilities advertised in (Extended) Next Page
  *	(only needed where AN bit is set in mmds)
  * @test_alive: Test that PHY is 'alive' (online)
@@ -645,6 +647,9 @@ struct efx_phy_operations {
 				   struct ethtool_link_ksettings *cmd);
 	int (*set_link_ksettings)(struct efx_nic *efx,
 				  const struct ethtool_link_ksettings *cmd);
+	int (*get_fecparam)(struct efx_nic *efx, struct ethtool_fecparam *fec);
+	int (*set_fecparam)(struct efx_nic *efx,
+			    const struct ethtool_fecparam *fec);
 	void (*set_npage_adv) (struct efx_nic *efx, u32);
 	int (*test_alive) (struct efx_nic *efx);
 	const char *(*test_name) (struct efx_nic *efx, unsigned int index);
@@ -820,6 +825,8 @@ struct efx_rss_context {
  * @mdio_bus: PHY MDIO bus ID (only used by Siena)
  * @phy_mode: PHY operating mode. Serialised by @mac_lock.
  * @link_advertising: Autonegotiation advertising flags
+ * @fec_config: Forward Error Correction configuration flags.  For bit positions
+ *	see &enum ethtool_fec_config_bits.
  * @link_state: Current state of the link
  * @n_link_state_changes: Number of times the link has changed state
  * @unicast_filter: Flag for Falcon-arch simple unicast filter.
@@ -972,6 +979,7 @@ struct efx_nic {
 	enum efx_phy_mode phy_mode;
 
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(link_advertising);
+	u32 fec_config;
 	struct efx_link_state link_state;
 	unsigned int n_link_state_changes;
 
