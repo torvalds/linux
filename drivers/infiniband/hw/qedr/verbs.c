@@ -1870,7 +1870,7 @@ static int qedr_update_qp_state(struct qedr_dev *dev,
 
 			if (rdma_protocol_roce(&dev->ibdev, 1)) {
 				wmb();
-				writel(qp->rq.db_data.raw, qp->rq.db);
+				writel_relaxed(qp->rq.db_data.raw, qp->rq.db);
 				/* Make sure write takes effect */
 				mmiowb();
 			}
@@ -3257,7 +3257,7 @@ int qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	 * redundant doorbell.
 	 */
 	wmb();
-	writel(qp->sq.db_data.raw, qp->sq.db);
+	writel_relaxed(qp->sq.db_data.raw, qp->sq.db);
 
 	/* Make sure write sticks */
 	mmiowb();
