@@ -114,8 +114,6 @@ source "drivers/staging/greybus/Kconfig"
 
 source "drivers/staging/vc04_services/Kconfig"
 
-source "drivers/staging/ccree/Kconfig"
-
 source "drivers/staging/typec/Kconfig"
 
 source "drivers/staging/vboxvideo/Kconfig"
