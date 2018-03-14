@@ -1208,18 +1208,15 @@ xfs_free_file_space(
 
 	/*
 	 * Now that we've unmap all full blocks we'll have to zero out any
-	 * partial block at the beginning and/or end.  xfs_zero_range is
-	 * smart enough to skip any holes, including those we just created,
-	 * but we must take care not to zero beyond EOF and enlarge i_size.
+	 * partial block at the beginning and/or end.  iomap_zero_range is smart
+	 * enough to skip any holes, including those we just created, but we
+	 * must take care not to zero beyond EOF and enlarge i_size.
 	 */
-
 	if (offset >= XFS_ISIZE(ip))
 		return 0;
-
 	if (offset + len > XFS_ISIZE(ip))
 		len = XFS_ISIZE(ip) - offset;
-
-	return xfs_zero_range(ip, offset, len, NULL);
+	return iomap_zero_range(VFS_I(ip), offset, len, NULL, &xfs_iomap_ops);
 }
 
 /*

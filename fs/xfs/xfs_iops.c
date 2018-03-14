@@ -875,7 +875,9 @@ xfs_setattr_size(
 	 * truncate.
 	 */
 	if (newsize > oldsize) {
-		error = xfs_zero_eof(ip, newsize, oldsize, &did_zeroing);
+		trace_xfs_zero_eof(ip, oldsize, newsize - oldsize);
+		error = iomap_zero_range(inode, oldsize, newsize - oldsize,
+				&did_zeroing, &xfs_iomap_ops);
 	} else {
 		error = iomap_truncate_page(inode, newsize, &did_zeroing,
 				&xfs_iomap_ops);
