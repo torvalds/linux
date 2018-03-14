@@ -23,11 +23,6 @@
 #define FUSB302_MAX_REG		(FUSB_REG_FIFO + 50)
 #define FUSB_MS_TO_NS(x)	((s64)x * 1000 * 1000)
 
-#define FUSB_MODE_DRP		0
-#define FUSB_MODE_UFP		1
-#define FUSB_MODE_DFP		2
-#define FUSB_MODE_ASS		3
-
 #define TYPEC_CC_VOLT_OPEN	0
 #define TYPEC_CC_VOLT_RA	1
 #define TYPEC_CC_VOLT_RD	2
@@ -229,7 +224,9 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 	union extcon_property_value property;
 
 	if (chip->notify.is_cc_connected)
-		chip->notify.orientation = chip->cc_polarity + 1;
+		chip->notify.orientation =
+			(chip->cc_polarity == TYPEC_POLARITY_CC1) ?
+			CC1 : CC2;
 
 	/* avoid notify repeated */
 	if (memcmp(&chip->notify, &chip->notify_cmp,
@@ -377,12 +374,12 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 	*CC1 = TYPEC_CC_VOLT_OPEN;
 	*CC2 = TYPEC_CC_VOLT_OPEN;
 
-	if (chip->cc_state & 0x01)
+	if (chip->cc_state & CC_STATE_TOGSS_CC1)
 		CC_MEASURE = CC1;
 	else
 		CC_MEASURE = CC2;
 
-	if (chip->cc_state & 0x04) {
+	if (chip->cc_state & CC_STATE_TOGSS_IS_UFP) {
 		regmap_read(chip->regmap, FUSB_REG_SWITCHES0, &store);
 		/* measure cc1 first */
 		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
@@ -418,7 +415,7 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 		val = store;
 		val &= ~(SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
 				SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2);
-		if (chip->cc_state & 0x01) {
+		if (chip->cc_state & CC_STATE_TOGSS_CC1) {
 			val |= SWITCHES0_MEAS_CC1 | SWITCHES0_PU_EN1;
 		} else {
 			val |= SWITCHES0_MEAS_CC2 | SWITCHES0_PU_EN2;
@@ -456,40 +453,74 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 				*CC_MEASURE = TYPEC_CC_VOLT_RD;
 			else
 				*CC_MEASURE = TYPEC_CC_VOLT_RA;
-			regmap_write(chip->regmap, FUSB_REG_SWITCHES0, store);
 		}
+		regmap_write(chip->regmap, FUSB_REG_SWITCHES0, store);
+		regmap_write(chip->regmap, FUSB_REG_MEASURE,
+			     chip->cc_meas_high);
 	}
 
 	return 0;
 }
 
-static int tcpm_set_cc(struct fusb30x_chip *chip, int mode)
+static void tcpm_set_cc_pull_mode(struct fusb30x_chip *chip, enum CC_MODE mode)
 {
-	u8 val = 0, mask;
-
-	val &= ~(SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2 |
-		 SWITCHES0_PDWN1 | SWITCHES0_PDWN2);
-
-	mask = ~val;
+	u8 val;
 
 	switch (mode) {
-	case FUSB_MODE_DFP:
-		if (chip->togdone_pullup)
-			val |= SWITCHES0_PU_EN2;
+	case CC_PULL_UP:
+		if (chip->cc_polarity == TYPEC_POLARITY_CC1)
+			val = SWITCHES0_PU_EN1;
 		else
-			val |= SWITCHES0_PU_EN1;
+			val = SWITCHES0_PU_EN2;
 		break;
-	case FUSB_MODE_UFP:
-		val |= SWITCHES0_PDWN1 | SWITCHES0_PDWN2;
+	case CC_PULL_DOWN:
+		val = SWITCHES0_PDWN1 | SWITCHES0_PDWN2;
 		break;
-	case FUSB_MODE_DRP:
-		val |= SWITCHES0_PDWN1 | SWITCHES0_PDWN2;
-		break;
-	case FUSB_MODE_ASS:
+	default:
+		val = 0;
 		break;
 	}
 
-	regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0, mask, val);
+	regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
+			   SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2 |
+			   SWITCHES0_PDWN1 | SWITCHES0_PDWN2,
+			   val);
+}
+
+static int tcpm_set_cc(struct fusb30x_chip *chip, enum role_mode mode)
+{
+	switch (mode) {
+	case ROLE_MODE_DFP:
+		tcpm_set_cc_pull_mode(chip, CC_PULL_UP);
+		regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2,
+				   CONTROL2_MODE | CONTROL2_TOG_RD_ONLY,
+				   CONTROL2_MODE_DFP | CONTROL2_TOG_RD_ONLY);
+		break;
+	case ROLE_MODE_UFP:
+		tcpm_set_cc_pull_mode(chip, CC_PULL_UP);
+		regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2,
+				   CONTROL2_MODE | CONTROL2_TOG_RD_ONLY,
+				   CONTROL2_MODE_UFP);
+		break;
+	case ROLE_MODE_DRP:
+		tcpm_set_cc_pull_mode(chip, CC_PULL_NONE);
+		regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2,
+				   CONTROL2_MODE | CONTROL2_TOG_RD_ONLY,
+				   CONTROL2_MODE_DRP | CONTROL2_TOG_RD_ONLY);
+		break;
+	default:
+		dev_err(chip->dev, "%s: Unsupport cc mode %d\n",
+			__func__, mode);
+		return -EINVAL;
+		break;
+	}
+
+	if (chip->cc_meas_high && (mode != ROLE_MODE_UFP))
+		regmap_write(chip->regmap, FUSB_REG_MEASURE,
+			     chip->cc_meas_high);
+	regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2, CONTROL2_TOGGLE,
+			   CONTROL2_TOGGLE);
+
 	return 0;
 }
 
@@ -498,10 +529,10 @@ static int tcpm_set_rx_enable(struct fusb30x_chip *chip, int enable)
 	u8 val = 0;
 
 	if (enable) {
-		if (chip->cc_polarity)
-			val |= SWITCHES0_MEAS_CC2;
-		else
+		if (chip->cc_polarity == TYPEC_POLARITY_CC1)
 			val |= SWITCHES0_MEAS_CC1;
+		else
+			val |= SWITCHES0_MEAS_CC2;
 		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
 				   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2,
 				   val);
@@ -509,21 +540,6 @@ static int tcpm_set_rx_enable(struct fusb30x_chip *chip, int enable)
 		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES1,
 				   SWITCHES1_AUTO_CRC, SWITCHES1_AUTO_CRC);
 	} else {
-		/*
-		 * bit of a hack here.
-		 * when this function is called to disable rx (enable=0)
-		 * using it as an indication of detach (gulp!)
-		 * to reset our knowledge of where
-		 * the toggle state machine landed.
-		 */
-		chip->togdone_pullup = 0;
-
-#ifdef	FUSB_HAVE_DRP
-		tcpm_set_cc(chip, FUSB_MODE_DRP);
-		regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2,
-				   CONTROL2_TOG_RD_ONLY,
-				   CONTROL2_TOG_RD_ONLY);
-#endif
 		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
 				   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2,
 				   0);
@@ -545,7 +561,8 @@ static int tcpm_set_msg_header(struct fusb30x_chip *chip)
 	return 0;
 }
 
-static int tcpm_set_polarity(struct fusb30x_chip *chip, bool polarity)
+static int tcpm_set_polarity(struct fusb30x_chip *chip,
+			     enum typec_cc_polarity polarity)
 {
 	u8 val = 0;
 
@@ -558,21 +575,29 @@ static int tcpm_set_polarity(struct fusb30x_chip *chip, bool polarity)
 	}
 #endif
 
-	if (polarity)
-		val |= SWITCHES0_MEAS_CC2;
-	else
-		val |= SWITCHES0_MEAS_CC1;
+	if (chip->cc_state & CC_STATE_TOGSS_IS_UFP) {
+		if (polarity == TYPEC_POLARITY_CC1)
+			val |= SWITCHES0_MEAS_CC1;
+		else
+			val |= SWITCHES0_MEAS_CC2;
+	} else {
+		if (polarity == TYPEC_POLARITY_CC1)
+			val |= SWITCHES0_MEAS_CC1 | SWITCHES0_PU_EN1;
+		else
+			val |= SWITCHES0_MEAS_CC2 | SWITCHES0_PU_EN2;
+	}
 
 	regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
 			   SWITCHES0_VCONN_CC1 | SWITCHES0_VCONN_CC2 |
-			   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2,
+			   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
+			   SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2,
 			   val);
 
 	val = 0;
-	if (polarity)
-		val |= SWITCHES1_TXCC2;
-	else
+	if (polarity == TYPEC_POLARITY_CC1)
 		val |= SWITCHES1_TXCC1;
+	else
+		val |= SWITCHES1_TXCC2;
 	regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES1,
 			   SWITCHES1_TXCC1 | SWITCHES1_TXCC2,
 			   val);
@@ -587,13 +612,14 @@ static int tcpm_set_vconn(struct fusb30x_chip *chip, int enable)
 	u8 val = 0;
 
 	if (enable) {
-		tcpm_set_polarity(chip, chip->cc_polarity);
-	} else {
-		val &= ~(SWITCHES0_VCONN_CC1 | SWITCHES0_VCONN_CC2);
-		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
-				   SWITCHES0_VCONN_CC1 | SWITCHES0_VCONN_CC2,
-				   val);
+		if (chip->cc_polarity == TYPEC_POLARITY_CC1)
+			val = SWITCHES0_VCONN_CC2;
+		else
+			val = SWITCHES0_VCONN_CC1;
 	}
+	regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
+			   SWITCHES0_VCONN_CC1 | SWITCHES0_VCONN_CC2,
+			   val);
 	chip->vconn_enabled = enable;
 	return 0;
 }
@@ -613,26 +639,32 @@ static void tcpm_select_rp_value(struct fusb30x_chip *chip, u32 rp)
 	control0_reg &= ~CONTROL0_HOST_CUR;
 	/*
 	 * according to the host current, the compare value is different
-	*/
+	 * Fusb302 datasheet Table 3
+	 */
 	switch (rp) {
-	/* host pull up current is 80ua , high voltage is 1.596v, low is 0.21v */
+	/*
+	 * host pull up current is 80ua , high voltage is 1.596v,
+	 * low is 0.21v
+	 */
 	case TYPEC_RP_USB:
 		chip->cc_meas_high = 0x26;
 		chip->cc_meas_low = 0x5;
 		control0_reg |= CONTROL0_HOST_CUR_USB;
 		break;
-	/* host pull up current is 180ua , high voltage is 1.596v, low is 0.42v */
-	case TYPEC_RP_1A5:
-		chip->cc_meas_high = 0x26;
-		chip->cc_meas_low = 0xa;
-		control0_reg |= CONTROL0_HOST_CUR_1A5;
-		break;
-	/* host pull up current is 330ua , high voltage is 2.604v, low is 0.798v*/
+	/*
+	 * host pull up current is 330ua , high voltage is 2.604v,
+	 * low is 0.798v
+	 */
 	case TYPEC_RP_3A0:
-		chip->cc_meas_high = 0x26;
+		chip->cc_meas_high = 0x3e;
 		chip->cc_meas_low = 0x13;
 		control0_reg |= CONTROL0_HOST_CUR_3A0;
 		break;
+	/*
+	 * host pull up current is 180ua , high voltage is 1.596v,
+	 * low is 0.42v
+	 */
+	case TYPEC_RP_1A5:
 	default:
 		chip->cc_meas_high = 0x26;
 		chip->cc_meas_low = 0xa;
@@ -675,35 +707,24 @@ static void tcpm_init(struct fusb30x_chip *chip)
 
 	/* set interrupts */
 	val = 0xff;
-	val &= ~(MASK_M_BC_LVL | MASK_M_COLLISION | MASK_M_ALERT |
-		 MASK_M_VBUSOK);
+	val &= ~(MASK_M_COLLISION | MASK_M_ALERT | MASK_M_VBUSOK);
 	regmap_write(chip->regmap, FUSB_REG_MASK, val);
 
 	val = 0xff;
-	val &= ~(MASKA_M_TOGDONE | MASKA_M_RETRYFAIL | MASKA_M_HARDSENT |
-		 MASKA_M_TXSENT | MASKA_M_HARDRST);
+	val &= ~(MASKA_M_RETRYFAIL | MASKA_M_HARDSENT | MASKA_M_TXSENT |
+		 MASKA_M_HARDRST | MASKA_M_TOGDONE);
 	regmap_write(chip->regmap, FUSB_REG_MASKA, val);
 
 	val = 0xff;
 	val = ~MASKB_M_GCRCSEND;
 	regmap_write(chip->regmap, FUSB_REG_MASKB, val);
 
-#ifdef	FUSB_HAVE_DRP
-		regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2,
-				   CONTROL2_MODE | CONTROL2_TOGGLE,
-				   (1 << 1) | CONTROL2_TOGGLE);
-
-		regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2,
-				   CONTROL2_TOG_RD_ONLY,
-				   CONTROL2_TOG_RD_ONLY);
-#endif
-
 	tcpm_select_rp_value(chip, TYPEC_RP_1A5);
 	/* Interrupts Enable */
 	regmap_update_bits(chip->regmap, FUSB_REG_CONTROL0, CONTROL0_INT_MASK,
 			   ~CONTROL0_INT_MASK);
 
-	tcpm_set_polarity(chip, 0);
+	tcpm_set_polarity(chip, TYPEC_POLARITY_CC1);
 	tcpm_set_vconn(chip, 0);
 
 	regmap_write(chip->regmap, FUSB_REG_POWER, 0xf);
@@ -730,8 +751,10 @@ static void tcpc_alert(struct fusb30x_chip *chip, int *evt)
 	regmap_read(chip->regmap, FUSB_REG_INTERRUPTA, &interrupta);
 	regmap_read(chip->regmap, FUSB_REG_INTERRUPTB, &interruptb);
 
-	if (interrupt & INTERRUPT_BC_LVL) {
-		if (chip->notify.is_cc_connected)
+	if ((interrupt & INTERRUPT_COMP_CHNG) &&
+	    (!(chip->cc_state & CC_STATE_TOGSS_IS_UFP))) {
+		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
+		if (val & STATUS0_COMP)
 			*evt |= EVENT_CC;
 	}
 
@@ -748,19 +771,6 @@ static void tcpc_alert(struct fusb30x_chip *chip, int *evt)
 		regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2,
 				   CONTROL2_TOGGLE,
 				   0);
-
-		val &= ~(SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2 |
-			 SWITCHES0_PDWN1 | SWITCHES0_PDWN2);
-
-		if (chip->cc_state & 0x01)
-			val |= SWITCHES0_PU_EN1;
-		else
-			val |= SWITCHES0_PU_EN2;
-
-		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
-				   SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2 |
-				   SWITCHES0_PDWN1 | SWITCHES0_PDWN2,
-				   val);
 	}
 
 	if (interrupta & INTERRUPTA_TXSENT) {
@@ -824,8 +834,8 @@ static void set_state_unattached(struct fusb30x_chip *chip)
 	dev_info(chip->dev, "connection has disconnected\n");
 	tcpm_init(chip);
 	tcpm_set_rx_enable(chip, 0);
-	chip->conn_state = unattached;
-	tcpm_set_cc(chip, FUSB_MODE_DRP);
+	set_state(chip, unattached);
+	tcpm_set_cc(chip, chip->role);
 
 	/* claer notify_info */
 	memset(&chip->notify, 0, sizeof(struct notify_info));
@@ -836,6 +846,9 @@ static void set_state_unattached(struct fusb30x_chip *chip)
 	msleep(100);
 	if (chip->gpio_discharge)
 		gpiod_set_value(chip->gpio_discharge, 0);
+
+	regmap_update_bits(chip->regmap, FUSB_REG_MASK,
+			   MASK_M_COMP_CHNG, MASK_M_COMP_CHNG);
 }
 
 static void set_mesg(struct fusb30x_chip *chip, int cmd, int is_DMT)
@@ -1415,11 +1428,14 @@ static void fusb_state_unattached(struct fusb30x_chip *chip, int evt)
 	chip->is_pd_support = 0;
 
 	if ((evt & EVENT_CC) && chip->cc_state) {
-		if (chip->cc_state & 0x04)
+		if (chip->cc_state & CC_STATE_TOGSS_IS_UFP)
 			set_state(chip, attach_wait_sink);
 		else
 			set_state(chip, attach_wait_source);
 
+		tcpm_set_polarity(chip, (chip->cc_state & CC_STATE_TOGSS_CC1) ?
+					TYPEC_POLARITY_CC1 :
+					TYPEC_POLARITY_CC2);
 		tcpm_get_cc(chip, &chip->cc1, &chip->cc2);
 		chip->debounce_cnt = 0;
 		chip->timer_mux = 2;
@@ -1477,12 +1493,10 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 		if (chip->debounce_cnt > N_DEBOUNCE_CNT) {
 			if (((!chip->cc1) || (!chip->cc2)) &&
 			    ((chip->cc1 == TYPEC_CC_VOLT_RD) ||
-			     (chip->cc2 == TYPEC_CC_VOLT_RD))) {
+			     (chip->cc2 == TYPEC_CC_VOLT_RD)))
 				set_state(chip, attached_source);
-			} else {
+			else
 				set_state_unattached(chip);
-			}
-
 			return;
 		}
 
@@ -1494,35 +1508,33 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 
 static void fusb_state_attached_source(struct fusb30x_chip *chip, int evt)
 {
-	tcpm_set_polarity(chip, !(chip->cc_state & 0x01));
+	tcpm_set_polarity(chip, (chip->cc_state & CC_STATE_TOGSS_CC1) ?
+				TYPEC_POLARITY_CC1 : TYPEC_POLARITY_CC2);
 	tcpm_set_vconn(chip, 1);
 
-	chip->notify.is_cc_connected = 1;
-	if (chip->cc_state & 0x01)
-		chip->cc_polarity = 0;
-	else
-		chip->cc_polarity = 1;
+	chip->notify.is_cc_connected = true;
 
 	chip->notify.power_role = 1;
 	chip->notify.data_role = 1;
 	chip->hardrst_count = 0;
 	set_state(chip, policy_src_startup);
-	dev_info(chip->dev, "CC connected in %d as DFP\n", chip->cc_polarity);
+	regmap_update_bits(chip->regmap, FUSB_REG_MASK, MASK_M_COMP_CHNG, 0);
+	dev_info(chip->dev, "CC connected in %s as DFP\n",
+		 chip->cc_polarity ? "CC1" : "CC2");
 }
 
 static void fusb_state_attached_sink(struct fusb30x_chip *chip, int evt)
 {
-	chip->notify.is_cc_connected = 1;
-	if (chip->cc_state & 0x01)
-		chip->cc_polarity = 0;
-	else
-		chip->cc_polarity = 1;
+	chip->notify.is_cc_connected = true;
+	tcpm_set_polarity(chip, (chip->cc_state & CC_STATE_TOGSS_CC1) ?
+				TYPEC_POLARITY_CC1 : TYPEC_POLARITY_CC2);
 
 	chip->notify.power_role = 0;
 	chip->notify.data_role = 0;
 	chip->hardrst_count = 0;
 	set_state(chip, policy_snk_startup);
-	dev_info(chip->dev, "CC connected in %d as UFP\n", chip->cc_polarity);
+	dev_info(chip->dev, "CC connected in %s as UFP\n",
+		 chip->cc_polarity ? "CC1" : "CC2");
 }
 
 static void fusb_soft_reset_parameter(struct fusb30x_chip *chip)
@@ -2209,7 +2221,7 @@ static void state_machine_typec(struct fusb30x_chip *chip)
 
 	if (chip->notify.is_cc_connected) {
 		if (evt & EVENT_CC) {
-			if ((chip->cc_state & 0x04) &&
+			if ((chip->cc_state & CC_STATE_TOGSS_IS_UFP) &&
 			    (chip->conn_state !=
 			     policy_snk_transition_default)) {
 				if (!tcpm_check_vbus(chip))
@@ -2217,7 +2229,7 @@ static void state_machine_typec(struct fusb30x_chip *chip)
 			} else if (chip->conn_state !=
 				   policy_src_transition_default) {
 				tcpm_get_cc(chip, &cc1, &cc2);
-				if (!(chip->cc_state & 0x01))
+				if (chip->cc_state & CC_STATE_TOGSS_CC2)
 					cc1 = cc2;
 				if (cc1 == TYPEC_CC_VOLT_OPEN)
 					set_state_unattached(chip);
@@ -2449,6 +2461,7 @@ static int fusb30x_probe(struct i2c_client *client,
 	struct fusb30x_chip *chip;
 	struct PD_CAP_INFO *pd_cap_info;
 	int ret;
+	char *string;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -2476,10 +2489,27 @@ static int fusb30x_probe(struct i2c_client *client,
 	chip->fusb30x_wq = create_workqueue("fusb302_wq");
 	INIT_WORK(&chip->work, fusb302_work_func);
 
+	chip->role = ROLE_MODE_NONE;
+	if (!of_property_read_string(chip->dev->of_node, "fusb302,role",
+				     (const char **)&string)) {
+		if (!strcmp(string, "ROLE_MODE_DRP"))
+			chip->role = ROLE_MODE_DRP;
+		else if (!strcmp(string, "ROLE_MODE_DFP"))
+			chip->role = ROLE_MODE_DFP;
+		else if (!strcmp(string, "ROLE_MODE_UFP"))
+			chip->role = ROLE_MODE_UFP;
+	}
+
+	if (chip->role == ROLE_MODE_NONE) {
+		dev_warn(chip->dev,
+			 "Can't get property of role, set role to default DRP\n");
+		chip->role = ROLE_MODE_DRP;
+	}
+
 	tcpm_init(chip);
 	tcpm_set_rx_enable(chip, 0);
 	chip->conn_state = unattached;
-	tcpm_set_cc(chip, FUSB_MODE_DRP);
+	tcpm_set_cc(chip, chip->role);
 
 	chip->n_caps_used = 1;
 	chip->source_power_supply[0] = 0x64;

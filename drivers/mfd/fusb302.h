@@ -99,6 +99,14 @@ enum tcpm_rp_value {
 	TYPEC_RP_RESERVED = 3,
 };
 
+enum role_mode {
+	ROLE_MODE_NONE,
+	ROLE_MODE_DRP,
+	ROLE_MODE_UFP,
+	ROLE_MODE_DFP,
+	ROLE_MODE_ASS,
+};
+
 #define SBF(s, v)		((s) << (v))
 #define SWITCHES0_PDWN1		SBF(1, 0)
 #define SWITCHES0_PDWN2		SBF(1, 1)
@@ -140,6 +148,10 @@ enum tcpm_rp_value {
 
 #define CONTROL2_TOGGLE		SBF(1, 0)
 #define CONTROL2_MODE		SBF(3, 1)
+#define CONTROL2_MODE_NONE	0
+#define CONTROL2_MODE_DFP	SBF(3, 1)
+#define CONTROL2_MODE_UFP	SBF(2, 1)
+#define CONTROL2_MODE_DRP	SBF(1, 1)
 #define CONTROL2_WAKE_EN	SBF(1, 3)
 #define CONTROL2_TOG_RD_ONLY	SBF(1, 5)
 #define CONTROL2_TOG_SAVE_PWR1	SBF(1, 6)
@@ -192,6 +204,9 @@ enum tcpm_rp_value {
 #define STATUS1A_RXSOP1DB	SBF(1, 1)
 #define STATUS1A_RXSOP2DB	SBF(1, 2)
 #define STATUS1A_TOGSS		SBF(7, 3)
+#define CC_STATE_TOGSS_CC1	SBF(1, 0)
+#define CC_STATE_TOGSS_CC2	SBF(1, 1)
+#define CC_STATE_TOGSS_IS_UFP	SBF(1, 2)
 
 #define INTERRUPTA_HARDRST	SBF(1, 0)
 #define INTERRUPTA_SOFTRST	SBF(1, 1)
@@ -280,7 +295,8 @@ enum tcpm_rp_value {
 #define VDM_TYPE_NACK		2
 #define VDM_TYPE_BUSY		3
 
-#define N_DEBOUNCE_CNT		(10 - 1)
+/* 200ms at least, 1 cycle about 6ms */
+#define N_DEBOUNCE_CNT		33
 #define N_CAPS_COUNT		50
 #define N_HARDRESET_COUNT	0
 
@@ -335,6 +351,17 @@ enum CC_ORIENTATION {
 	NONE,
 	CC1,
 	CC2,
+};
+
+enum typec_cc_polarity {
+	TYPEC_POLARITY_CC1,
+	TYPEC_POLARITY_CC2,
+};
+
+enum CC_MODE {
+	CC_PULL_UP,
+	CC_PULL_DOWN,
+	CC_PULL_NONE,
 };
 
 struct notify_info {
@@ -406,8 +433,7 @@ struct fusb30x_chip {
 	u8 cc_state;
 	int cc1;
 	int cc2;
-	/* 0 cc1 : 1 cc2 */
-	bool cc_polarity;
+	enum typec_cc_polarity cc_polarity;
 	u8 val_tmp;
 	u8 debounce_cnt;
 	int sub_state;
@@ -439,12 +465,13 @@ struct fusb30x_chip {
 	u8 chip_id;
 	bool vconn_enabled;
 	bool is_pd_support;
-	int togdone_pullup;
 	int pd_output_vol;
 	int pd_output_cur;
 	int cc_meas_high;
 	int cc_meas_low;
 	bool vbus_begin;
+
+	enum role_mode role;
 };
 
 #endif /* FUSB302_H */
