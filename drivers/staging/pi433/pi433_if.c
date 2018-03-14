@@ -1331,7 +1331,7 @@ static int __init pi433_init(void)
 	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
 	 * Last, register the driver which manages those device numbers.
 	 */
-	status = alloc_chrdev_region(&pi433_dev, 0 /*firstminor*/, N_PI433_MINORS /*count*/, "pi433" /*name*/);
+	status = alloc_chrdev_region(&pi433_dev, 0, N_PI433_MINORS, "pi433");
 	if (status < 0)
 		return status;
 
