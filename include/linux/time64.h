@@ -2,11 +2,19 @@
 #ifndef _LINUX_TIME64_H
 #define _LINUX_TIME64_H
 
-#include <uapi/linux/time.h>
 #include <linux/math64.h>
 
 typedef __s64 time64_t;
 typedef __u64 timeu64_t;
+
+/* CONFIG_64BIT_TIME enables new 64 bit time_t syscalls in the compat path
+ * and 32-bit emulation.
+ */
+#ifndef CONFIG_64BIT_TIME
+#define __kernel_timespec timespec
+#endif
+
+#include <uapi/linux/time.h>
 
 #if __BITS_PER_LONG == 64
 /* this trick allows us to optimize out timespec64_to_timespec */
