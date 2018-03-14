@@ -5275,10 +5275,11 @@ int btrfs_is_parity_mirror(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 
 static int find_live_mirror(struct btrfs_fs_info *fs_info,
 			    struct map_lookup *map, int first,
-			    int optimal, int dev_replace_is_ongoing)
+			    int dev_replace_is_ongoing)
 {
 	int i;
 	int num_stripes;
+	int preferred_mirror;
 	int tolerance;
 	struct btrfs_device *srcdev;
 
@@ -5289,6 +5290,8 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 		num_stripes = map->sub_stripes;
 	else
 		num_stripes = map->num_stripes;
+
+	preferred_mirror = first + current->pid % num_stripes;
 
 	if (dev_replace_is_ongoing &&
 	    fs_info->dev_replace.cont_reading_from_srcdev_mode ==
@@ -5303,9 +5306,9 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 	 * mirror is available
 	 */
 	for (tolerance = 0; tolerance < 2; tolerance++) {
-		if (map->stripes[optimal].dev->bdev &&
-		    (tolerance || map->stripes[optimal].dev != srcdev))
-			return optimal;
+		if (map->stripes[preferred_mirror].dev->bdev &&
+		    (tolerance || map->stripes[preferred_mirror].dev != srcdev))
+			return preferred_mirror;
 		for (i = first; i < first + num_stripes; i++) {
 			if (map->stripes[i].dev->bdev &&
 			    (tolerance || map->stripes[i].dev != srcdev))
@@ -5316,7 +5319,7 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 	/* we couldn't find one that doesn't fail.  Just return something
 	 * and the io error handling code will clean up eventually
 	 */
-	return optimal;
+	return preferred_mirror;
 }
 
 static inline int parity_smaller(u64 a, u64 b)
@@ -5843,7 +5846,6 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 			stripe_index = mirror_num - 1;
 		else {
 			stripe_index = find_live_mirror(fs_info, map, 0,
-					    current->pid % map->num_stripes,
 					    dev_replace_is_ongoing);
 			mirror_num = stripe_index + 1;
 		}
@@ -5871,8 +5873,6 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 			int old_stripe_index = stripe_index;
 			stripe_index = find_live_mirror(fs_info, map,
 					      stripe_index,
-					      stripe_index +
-					      current->pid % map->sub_stripes,
 					      dev_replace_is_ongoing);
 			mirror_num = stripe_index - old_stripe_index + 1;
 		}
