@@ -1319,6 +1319,7 @@ static const struct samsung_pll_rate_table exynos4x12_apll_rates[] __initconst =
 };
 
 static const struct samsung_pll_rate_table exynos4x12_epll_rates[] __initconst = {
+	PLL_36XX_RATE(24 * MHZ, 196608001, 197, 3, 3, -25690),
 	PLL_36XX_RATE(24 * MHZ, 192000000, 48, 3, 1,     0),
 	PLL_36XX_RATE(24 * MHZ, 180633605, 45, 3, 1, 10381),
 	PLL_36XX_RATE(24 * MHZ, 180000000, 45, 3, 1,     0),
