@@ -70,6 +70,9 @@ struct dc_stream_state {
 	enum color_transfer_func output_tf;
 
 	bool ignore_msa_timing_param;
+
+	unsigned long long periodic_fn_vsync_delta;
+
 	/* TODO: custom INFO packets */
 	/* TODO: ABM info (DMCU) */
 	/* PSR info */
@@ -113,6 +116,7 @@ struct dc_stream_update {
 	struct dc_hdr_static_metadata *hdr_static_metadata;
 	enum color_transfer_func color_output_tf;
 	unsigned int *abm_level;
+	unsigned long long *periodic_fn_vsync_delta;
 };
 
 bool dc_is_stream_unchanged(

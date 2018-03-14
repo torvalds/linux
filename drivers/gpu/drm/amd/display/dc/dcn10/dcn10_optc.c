@@ -93,6 +93,81 @@ static void optc1_disable_stereo(struct timing_generator *optc)
 		OTG_3D_STRUCTURE_STEREO_SEL_OVR, 0);
 }
 
+static uint32_t get_start_vline(struct timing_generator *optc, const struct dc_crtc_timing *dc_crtc_timing)
+{
+	struct dc_crtc_timing patched_crtc_timing;
+	uint32_t vesa_sync_start;
+	uint32_t asic_blank_end;
+	uint32_t interlace_factor;
+	uint32_t vertical_line_start;
+
+	patched_crtc_timing = *dc_crtc_timing;
+	optc1_apply_front_porch_workaround(optc, &patched_crtc_timing);
+
+	vesa_sync_start = patched_crtc_timing.h_addressable +
+			patched_crtc_timing.h_border_right +
+			patched_crtc_timing.h_front_porch;
+
+	asic_blank_end = patched_crtc_timing.h_total -
+			vesa_sync_start -
+			patched_crtc_timing.h_border_left;
+
+	interlace_factor = patched_crtc_timing.flags.INTERLACE ? 2 : 1;
+
+	vesa_sync_start = patched_crtc_timing.v_addressable +
+			patched_crtc_timing.v_border_bottom +
+			patched_crtc_timing.v_front_porch;
+
+	asic_blank_end = (patched_crtc_timing.v_total -
+			vesa_sync_start -
+			patched_crtc_timing.v_border_top)
+			* interlace_factor;
+
+	vertical_line_start = asic_blank_end - optc->dlg_otg_param.vstartup_start + 1;
+	if (vertical_line_start < 0) {
+		ASSERT(0);
+		vertical_line_start = 0;
+	}
+
+	return vertical_line_start;
+}
+
+void optc1_program_vline_interrupt(
+		struct timing_generator *optc,
+		const struct dc_crtc_timing *dc_crtc_timing,
+		unsigned long long vsync_delta)
+{
+
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	unsigned long long req_delta_tens_of_usec = div64_u64((vsync_delta + 9999), 10000);
+	unsigned long long pix_clk_hundreds_khz = div64_u64((dc_crtc_timing->pix_clk_khz + 99), 100);
+	uint32_t req_delta_lines = (uint32_t) div64_u64(
+			(req_delta_tens_of_usec * pix_clk_hundreds_khz + dc_crtc_timing->h_total - 1),
+								dc_crtc_timing->h_total);
+
+	uint32_t vsync_line = get_start_vline(optc, dc_crtc_timing);
+	uint32_t start_line = 0;
+	uint32_t endLine = 0;
+
+	if (req_delta_lines != 0)
+		req_delta_lines--;
+
+	if (req_delta_lines > vsync_line)
+		start_line = dc_crtc_timing->v_total - (req_delta_lines - vsync_line) - 1;
+	else
+		start_line = vsync_line - req_delta_lines;
+
+	endLine = start_line + 2;
+
+	if (endLine >= dc_crtc_timing->v_total)
+		endLine = 2;
+
+	REG_SET_2(OTG_VERTICAL_INTERRUPT0_POSITION, 0,
+			OTG_VERTICAL_INTERRUPT0_LINE_START, start_line,
+			OTG_VERTICAL_INTERRUPT0_LINE_END, endLine);
+}
+
 /**
  * program_timing_generator   used by mode timing set
  * Program CRTC Timing Registers - OTG_H_*, OTG_V_*, Pixel repetition.
@@ -1215,6 +1290,7 @@ static bool optc1_is_optc_underflow_occurred(struct timing_generator *optc)
 static const struct timing_generator_funcs dcn10_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
 		.program_timing = optc1_program_timing,
+		.program_vline_interrupt = optc1_program_vline_interrupt,
 		.program_global_sync = optc1_program_global_sync,
 		.enable_crtc = optc1_enable_crtc,
 		.disable_crtc = optc1_disable_crtc,

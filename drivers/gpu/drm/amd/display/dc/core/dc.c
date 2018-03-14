@@ -1375,6 +1375,12 @@ static void commit_planes_for_stream(struct dc *dc,
 					pipe_ctx->stream_res.abm->funcs->set_abm_level(
 							pipe_ctx->stream_res.abm, stream->abm_level);
 			}
+
+			if (stream_update && stream_update->periodic_fn_vsync_delta &&
+					pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
+				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
+						pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing,
+						pipe_ctx->stream->periodic_fn_vsync_delta);
 		}
 	}
 
