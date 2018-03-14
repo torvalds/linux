@@ -244,7 +244,9 @@
 			reg = <0x6a0000 0x1000>, <0x6b0000 0x1000>;
 			dma-coherent;
 			msi-parent = <&gic_v2m0>;
-			clocks = <&CP110_LABEL(clk) 1 8>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 8>,
+				 <&CP110_LABEL(clk) 1 14>;
 		};
 
 		CP110_LABEL(xor1): xor@6c0000 {
@@ -252,7 +254,9 @@
 			reg = <0x6c0000 0x1000>, <0x6d0000 0x1000>;
 			dma-coherent;
 			msi-parent = <&gic_v2m0>;
-			clocks = <&CP110_LABEL(clk) 1 7>;
+			clock-names = "core", "reg";
+			clocks = <&CP110_LABEL(clk) 1 7>,
+				 <&CP110_LABEL(clk) 1 14>;
 		};
 
 		CP110_LABEL(spi0): spi@700600 {
