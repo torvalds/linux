@@ -224,8 +224,6 @@ module_param(ips, charp, 0);
 /*
  * Function prototypes
  */
-static int ips_detect(struct scsi_host_template *);
-static int ips_release(struct Scsi_Host *);
 static int ips_eh_abort(struct scsi_cmnd *);
 static int ips_eh_reset(struct scsi_cmnd *);
 static int ips_queue(struct Scsi_Host *, struct scsi_cmnd *);
@@ -355,8 +353,6 @@ static dma_addr_t ips_flashbusaddr;
 static long ips_FlashDataInUse;		/* CD Boot - Flash Data In Use Flag */
 static uint32_t MaxLiteCmds = 32;	/* Max Active Cmds for a Lite Adapter */
 static struct scsi_host_template ips_driver_template = {
-	.detect			= ips_detect,
-	.release		= ips_release,
 	.info			= ips_info,
 	.queuecommand		= ips_queue,
 	.eh_abort_handler	= ips_eh_abort,
