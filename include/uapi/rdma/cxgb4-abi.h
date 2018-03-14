@@ -79,4 +79,9 @@ struct c4iw_alloc_ucontext_resp {
 	__u32 status_page_size;
 	__u32 reserved; /* explicit padding (optional for i386) */
 };
+
+struct c4iw_alloc_pd_resp {
+	__u32 pdid;
+};
+
 #endif /* CXGB4_ABI_USER_H */

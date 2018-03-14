@@ -281,7 +281,9 @@ static struct ib_pd *c4iw_allocate_pd(struct ib_device *ibdev,
 	php->pdid = pdid;
 	php->rhp = rhp;
 	if (context) {
-		if (ib_copy_to_udata(udata, &php->pdid, sizeof(u32))) {
+		struct c4iw_alloc_pd_resp uresp = {.pdid = php->pdid};
+
+		if (ib_copy_to_udata(udata, &uresp, sizeof(uresp))) {
 			c4iw_deallocate_pd(&php->ibpd);
 			return ERR_PTR(-EFAULT);
 		}
