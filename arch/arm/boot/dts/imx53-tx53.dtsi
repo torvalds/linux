@@ -550,7 +550,6 @@
 };
 
 &ssi1 {
-	codec-handle = <&sgtl5000>;
 	status = "okay";
 };
 
