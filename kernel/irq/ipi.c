@@ -1,6 +1,4 @@
 /*
- * linux/kernel/irq/ipi.c
- *
  * Copyright (C) 2015 Imagination Technologies Ltd
  * Author: Qais Yousef <qais.yousef@imgtec.com>
  *
