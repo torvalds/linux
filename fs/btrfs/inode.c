@@ -2043,12 +2043,15 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 			     struct inode *inode, struct list_head *list)
 {
 	struct btrfs_ordered_sum *sum;
+	int ret;
 
 	list_for_each_entry(sum, list, list) {
 		trans->adding_csums = true;
-		btrfs_csum_file_blocks(trans,
+		ret = btrfs_csum_file_blocks(trans,
 		       BTRFS_I(inode)->root->fs_info->csum_root, sum);
 		trans->adding_csums = false;
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -3062,7 +3065,11 @@ static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 		goto out;
 	}
 
-	add_pending_csums(trans, inode, &ordered_extent->list);
+	ret = add_pending_csums(trans, inode, &ordered_extent->list);
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		goto out;
+	}
 
 	btrfs_ordered_update_i_size(inode, 0, ordered_extent);
 	ret = btrfs_update_inode_fallback(trans, root, inode);

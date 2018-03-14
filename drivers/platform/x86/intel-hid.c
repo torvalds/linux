@@ -376,6 +376,7 @@ static int intel_hid_remove(struct platform_device *device)
 {
 	acpi_handle handle = ACPI_HANDLE(&device->dev);
 
+	device_init_wakeup(&device->dev, false);
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, notify_handler);
 	intel_hid_set_enable(&device->dev, false);
 	intel_button_array_enable(&device->dev, false);
