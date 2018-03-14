@@ -92,6 +92,8 @@ struct amdgpu_bo {
 		struct list_head	mn_list;
 		struct list_head	shadow_list;
 	};
+
+	struct kgd_mem                  *kfd_bo;
 };
 
 static inline struct amdgpu_bo *ttm_to_amdgpu_bo(struct ttm_buffer_object *tbo)

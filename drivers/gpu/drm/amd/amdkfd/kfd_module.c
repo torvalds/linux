@@ -43,6 +43,8 @@ static const struct kgd2kfd_calls kgd2kfd = {
 	.interrupt	= kgd2kfd_interrupt,
 	.suspend	= kgd2kfd_suspend,
 	.resume		= kgd2kfd_resume,
+	.schedule_evict_and_restore_process =
+			  kgd2kfd_schedule_evict_and_restore_process,
 };
 
 int sched_policy = KFD_SCHED_POLICY_HWS;

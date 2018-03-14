@@ -28,6 +28,7 @@
 #include <linux/kfifo.h>
 #include <linux/rbtree.h>
 #include <drm/gpu_scheduler.h>
+#include <drm/drm_file.h>
 
 #include "amdgpu_sync.h"
 #include "amdgpu_ring.h"

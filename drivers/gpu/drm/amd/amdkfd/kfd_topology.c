@@ -35,6 +35,7 @@
 #include "kfd_crat.h"
 #include "kfd_topology.h"
 #include "kfd_device_queue_manager.h"
+#include "kfd_iommu.h"
 
 /* topology_device_list - Master list of all topology devices */
 static struct list_head topology_device_list;
@@ -677,7 +678,7 @@ static int kfd_build_sysfs_node_entry(struct kfd_topology_device *dev,
 	}
 
 	/* All hardware blocks have the same number of attributes. */
-	num_attrs = sizeof(perf_attr_iommu)/sizeof(struct kfd_perf_attr);
+	num_attrs = ARRAY_SIZE(perf_attr_iommu);
 	list_for_each_entry(perf, &dev->perf_props, list) {
 		perf->attr_group = kzalloc(sizeof(struct kfd_perf_attr)
 			* num_attrs + sizeof(struct attribute_group),
@@ -875,19 +876,8 @@ static void find_system_memory(const struct dmi_header *dm,
  */
 static int kfd_add_perf_to_topology(struct kfd_topology_device *kdev)
 {
-	struct kfd_perf_properties *props;
-
-	if (amd_iommu_pc_supported()) {
-		props = kfd_alloc_struct(props);
-		if (!props)
-			return -ENOMEM;
-		strcpy(props->block_name, "iommu");
-		props->max_concurrent = amd_iommu_pc_get_max_banks(0) *
-			amd_iommu_pc_get_max_counters(0); /* assume one iommu */
-		list_add_tail(&props->list, &kdev->perf_props);
-	}
-
-	return 0;
+	/* These are the only counters supported so far */
+	return kfd_iommu_add_perf_counters(kdev);
 }
 
 /* kfd_add_non_crat_information - Add information that is not currently
