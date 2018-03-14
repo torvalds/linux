@@ -497,7 +497,6 @@ acpi_status acpi_hw_disable_all_gpes(void)
 	ACPI_FUNCTION_TRACE(hw_disable_all_gpes);
 
 	status = acpi_ev_walk_gpe_list(acpi_hw_disable_gpe_block, NULL);
-	status = acpi_ev_walk_gpe_list(acpi_hw_clear_gpe_block, NULL);
 	return_ACPI_STATUS(status);
 }
 

@@ -209,7 +209,7 @@ acpi_status acpi_enter_sleep_state_s4bios(void)
 	}
 
 	/*
-	 * 1) Disable/Clear all GPEs
+	 * 1) Disable all GPEs
 	 * 2) Enable all wakeup GPEs
 	 */
 	status = acpi_hw_disable_all_gpes();
