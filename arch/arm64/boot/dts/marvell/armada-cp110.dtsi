@@ -433,7 +433,8 @@
 		interrupt-map = <0 0 0 0 &CP110_LABEL(icu) ICU_GRP_NSR 22 IRQ_TYPE_LEVEL_HIGH>;
 		interrupts = <ICU_GRP_NSR 22 IRQ_TYPE_LEVEL_HIGH>;
 		num-lanes = <1>;
-		clocks = <&CP110_LABEL(clk) 1 13>;
+		clock-names = "core", "reg";
+		clocks = <&CP110_LABEL(clk) 1 13>, <&CP110_LABEL(clk) 1 14>;
 		status = "disabled";
 	};
 
@@ -460,7 +461,8 @@
 		interrupts = <ICU_GRP_NSR 24 IRQ_TYPE_LEVEL_HIGH>;
 
 		num-lanes = <1>;
-		clocks = <&CP110_LABEL(clk) 1 11>;
+		clock-names = "core", "reg";
+		clocks = <&CP110_LABEL(clk) 1 11>, <&CP110_LABEL(clk) 1 14>;
 		status = "disabled";
 	};
 
@@ -487,7 +489,8 @@
 		interrupts = <ICU_GRP_NSR 23 IRQ_TYPE_LEVEL_HIGH>;
 
 		num-lanes = <1>;
-		clocks = <&CP110_LABEL(clk) 1 12>;
+		clock-names = "core", "reg";
+		clocks = <&CP110_LABEL(clk) 1 12>, <&CP110_LABEL(clk) 1 14>;
 		status = "disabled";
 	};
 };
