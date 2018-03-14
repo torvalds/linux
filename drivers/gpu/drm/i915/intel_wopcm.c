@@ -105,13 +105,35 @@ static inline int gen9_check_dword_gap(u32 guc_wopcm_base, u32 guc_wopcm_size)
 	return 0;
 }
 
+static inline int gen9_check_huc_fw_fits(u32 guc_wopcm_size, u32 huc_fw_size)
+{
+	/*
+	 * On Gen9 & CNL A0, hardware requires the total available GuC WOPCM
+	 * size to be larger than or equal to HuC firmware size. Otherwise,
+	 * firmware uploading would fail.
+	 */
+	if (huc_fw_size > guc_wopcm_size - GUC_WOPCM_RESERVED) {
+		DRM_ERROR("HuC FW (%uKiB) won't fit in GuC WOPCM (%uKiB).\n",
+			  huc_fw_size / 1024,
+			  (guc_wopcm_size - GUC_WOPCM_RESERVED) / 1024);
+		return -E2BIG;
+	}
+
+	return 0;
+}
+
 static inline int check_hw_restriction(struct drm_i915_private *i915,
-				       u32 guc_wopcm_base, u32 guc_wopcm_size)
+				       u32 guc_wopcm_base, u32 guc_wopcm_size,
+				       u32 huc_fw_size)
 {
 	int err = 0;
 
 	if (IS_GEN9(i915))
 		err = gen9_check_dword_gap(guc_wopcm_base, guc_wopcm_size);
+
+	if (!err &&
+	    (IS_GEN9(i915) || IS_CNL_REVID(i915, CNL_REVID_A0, CNL_REVID_A0)))
+		err = gen9_check_huc_fw_fits(guc_wopcm_size, huc_fw_size);
 
 	return err;
 }
@@ -175,7 +197,8 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 		return -E2BIG;
 	}
 
-	err = check_hw_restriction(i915, guc_wopcm_base, guc_wopcm_size);
+	err = check_hw_restriction(i915, guc_wopcm_base, guc_wopcm_size,
+				   huc_fw_size);
 	if (err)
 		return err;
 
