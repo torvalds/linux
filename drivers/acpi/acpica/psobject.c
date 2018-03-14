@@ -67,7 +67,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state);
 
 static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 {
-	u32 aml_offset;
+	ACPI_ERROR_ONLY(u32 aml_offset);
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_aml_opcode, walk_state);
 
@@ -98,9 +98,11 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 		/* The opcode is unrecognized. Complain and skip unknown opcodes */
 
 		if (walk_state->pass_number == 2) {
-			aml_offset = (u32)ACPI_PTR_DIFF(walk_state->aml,
-							walk_state->
-							parser_state.aml_start);
+			ACPI_ERROR_ONLY(aml_offset =
+					(u32)ACPI_PTR_DIFF(walk_state->aml,
+							   walk_state->
+							   parser_state.
+							   aml_start));
 
 			ACPI_ERROR((AE_INFO,
 				    "Unknown opcode 0x%.2X at table offset 0x%.4X, ignoring",

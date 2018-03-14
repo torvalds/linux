@@ -231,11 +231,11 @@ release_and_exit:
 void acpi_tb_override_table(struct acpi_table_desc *old_table_desc)
 {
 	acpi_status status;
-	char *override_type;
 	struct acpi_table_desc new_table_desc;
 	struct acpi_table_header *table;
 	acpi_physical_address address;
 	u32 length;
+	ACPI_ERROR_ONLY(char *override_type);
 
 	/* (1) Attempt logical override (returns a logical address) */
 
@@ -244,7 +244,7 @@ void acpi_tb_override_table(struct acpi_table_desc *old_table_desc)
 		acpi_tb_acquire_temp_table(&new_table_desc,
 					   ACPI_PTR_TO_PHYSADDR(table),
 					   ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL);
-		override_type = "Logical";
+		ACPI_ERROR_ONLY(override_type = "Logical");
 		goto finish_override;
 	}
 
@@ -255,7 +255,7 @@ void acpi_tb_override_table(struct acpi_table_desc *old_table_desc)
 	if (ACPI_SUCCESS(status) && address && length) {
 		acpi_tb_acquire_temp_table(&new_table_desc, address,
 					   ACPI_TABLE_ORIGIN_INTERNAL_PHYSICAL);
-		override_type = "Physical";
+		ACPI_ERROR_ONLY(override_type = "Physical");
 		goto finish_override;
 	}
 

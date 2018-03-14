@@ -443,10 +443,10 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 	struct acpi_gpe_event_info *gpe_event_info;
 	u32 gpe_enabled_count;
 	u32 gpe_index;
-	u32 gpe_number;
 	u32 i;
 	u32 j;
 	u8 *is_polling_needed = context;
+	ACPI_ERROR_ONLY(u32 gpe_number);
 
 	ACPI_FUNCTION_TRACE(ev_initialize_gpe_block);
 
@@ -472,7 +472,9 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 			gpe_index = (i * ACPI_GPE_REGISTER_WIDTH) + j;
 			gpe_event_info = &gpe_block->event_info[gpe_index];
-			gpe_number = gpe_block->block_base_number + gpe_index;
+			ACPI_ERROR_ONLY(gpe_number =
+					gpe_block->block_base_number +
+					gpe_index);
 			gpe_event_info->flags |= ACPI_GPE_INITIALIZED;
 
 			/*
