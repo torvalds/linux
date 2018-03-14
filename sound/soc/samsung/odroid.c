@@ -91,18 +91,6 @@ static const struct snd_soc_ops odroid_card_ops = {
 	.hw_params = odroid_card_hw_params,
 };
 
-static void odroid_put_codec_of_nodes(struct snd_soc_dai_link *link)
-{
-	struct snd_soc_dai_link_component *component = link->codecs;
-	int i;
-
-	for (i = 0; i < link->num_codecs; i++, component++) {
-		if (!component->of_node)
-			break;
-		of_node_put(component->of_node);
-	}
-}
-
 static int odroid_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -197,7 +185,7 @@ err_put_sclk:
 err_put_i2s_n:
 	of_node_put(link->cpu_of_node);
 err_put_codec_n:
-	odroid_put_codec_of_nodes(link);
+	snd_soc_of_put_dai_link_codecs(link);
 	return ret;
 }
 
@@ -206,7 +194,7 @@ static int odroid_audio_remove(struct platform_device *pdev)
 	struct odroid_priv *priv = platform_get_drvdata(pdev);
 
 	of_node_put(priv->dai_link.cpu_of_node);
-	odroid_put_codec_of_nodes(&priv->dai_link);
+	snd_soc_of_put_dai_link_codecs(&priv->dai_link);
 	clk_put(priv->sclk_i2s);
 	clk_put(priv->clk_i2s_bus);
 
