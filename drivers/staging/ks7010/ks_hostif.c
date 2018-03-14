@@ -1385,9 +1385,8 @@ static __le16 ks_wlan_cap(struct ks_wlan_private *priv)
 {
 	u16 capability = 0x0000;
 
-	if (priv->reg.preamble == SHORT_PREAMBLE) {
+	if (priv->reg.preamble == SHORT_PREAMBLE)
 		capability |= WLAN_CAPABILITY_SHORT_PREAMBLE;
-	}
 
 	capability &= ~(WLAN_CAPABILITY_PBCC);	/* pbcc not support */
 
