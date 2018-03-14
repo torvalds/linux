@@ -201,26 +201,26 @@ int rf69_set_modulation_shaping(struct spi_device *spi,
 	}
 }
 
-int rf69_set_bit_rate(struct spi_device *spi, u16 bitRate)
+int rf69_set_bit_rate(struct spi_device *spi, u16 bit_rate)
 {
 	int retval;
-	u32 bitRate_min;
-	u32 bitRate_reg;
+	u32 bit_rate_min;
+	u32 bit_rate_reg;
 	u8 msb;
 	u8 lsb;
 
 	// check input value
-	bitRate_min = F_OSC / 8388608; // 8388608 = 2^23;
-	if (bitRate < bitRate_min) {
+	bit_rate_min = F_OSC / 8388608; // 8388608 = 2^23;
+	if (bit_rate < bit_rate_min) {
 		dev_dbg(&spi->dev, "setBitRate: illegal input param");
 		return -EINVAL;
 	}
 
 	// calculate reg settings
-	bitRate_reg = (F_OSC / bitRate);
+	bit_rate_reg = (F_OSC / bit_rate);
 
-	msb = (bitRate_reg & 0xff00) >> 8;
-	lsb = (bitRate_reg & 0xff);
+	msb = (bit_rate_reg & 0xff00) >> 8;
+	lsb = (bit_rate_reg & 0xff);
 
 	// transmit to RF 69
 	retval = rf69_write_reg(spi, REG_BITRATE_MSB, msb);
