@@ -367,15 +367,15 @@ bool cm_helper_translate_curve_to_hw_format(
 
 	lut_params->hw_points_num = hw_points;
 
-	i = 1;
-	for (k = 0; k < MAX_REGIONS_NUMBER && i < MAX_REGIONS_NUMBER; k++) {
+	k = 0;
+	for (i = 1; i < MAX_REGIONS_NUMBER; i++) {
 		if (seg_distr[k] != -1) {
 			lut_params->arr_curve_points[k].segments_num =
 					seg_distr[k];
 			lut_params->arr_curve_points[i].offset =
 					lut_params->arr_curve_points[k].offset + (1 << seg_distr[k]);
 		}
-		i++;
+		k++;
 	}
 
 	if (seg_distr[k] != -1)
@@ -529,15 +529,15 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 
 	lut_params->hw_points_num = hw_points;
 
-	i = 1;
-	for (k = 0; k < MAX_REGIONS_NUMBER && i < MAX_REGIONS_NUMBER; k++) {
+	k = 0;
+	for (i = 1; i < MAX_REGIONS_NUMBER; i++) {
 		if (seg_distr[k] != -1) {
 			lut_params->arr_curve_points[k].segments_num =
 					seg_distr[k];
 			lut_params->arr_curve_points[i].offset =
 					lut_params->arr_curve_points[k].offset + (1 << seg_distr[k]);
 		}
-		i++;
+		k++;
 	}
 
 	if (seg_distr[k] != -1)
