@@ -892,7 +892,7 @@ static int mtd_part_of_parse(struct mtd_info *master,
 	struct device_node *np;
 	struct property *prop;
 	const char *compat;
-	const char *fixed = "ofpart";
+	const char *fixed = "fixed-partitions";
 	int ret, err = 0;
 
 	np = of_get_child_by_name(mtd_get_of_node(master), "partitions");
@@ -912,7 +912,7 @@ static int mtd_part_of_parse(struct mtd_info *master,
 	of_node_put(np);
 
 	/*
-	 * For backward compatibility we have to try the "ofpart"
+	 * For backward compatibility we have to try the "fixed-partitions"
 	 * parser. It supports old DT format with partitions specified as a
 	 * direct subnodes of a flash device DT node without any compatibility
 	 * specified we could match.
