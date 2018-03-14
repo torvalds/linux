@@ -522,6 +522,7 @@ enum {
 	SCTP_AUTH_NEW_KEY,
 #define	SCTP_AUTH_NEWKEY	SCTP_AUTH_NEW_KEY /* compatible with before */
 	SCTP_AUTH_FREE_KEY,
+	SCTP_AUTH_NO_AUTH,
 };
 
 /*

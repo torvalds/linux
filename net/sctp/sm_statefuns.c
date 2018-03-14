@@ -659,7 +659,7 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 					 void *arg,
 					 struct sctp_cmd_seq *commands)
 {
-	struct sctp_ulpevent *ev, *ai_ev = NULL;
+	struct sctp_ulpevent *ev, *ai_ev = NULL, *auth_ev = NULL;
 	struct sctp_association *new_asoc;
 	struct sctp_init_chunk *peer_init;
 	struct sctp_chunk *chunk = arg;
@@ -820,6 +820,14 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 			goto nomem_aiev;
 	}
 
+	if (!new_asoc->peer.auth_capable) {
+		auth_ev = sctp_ulpevent_make_authkey(new_asoc, 0,
+						     SCTP_AUTH_NO_AUTH,
+						     GFP_ATOMIC);
+		if (!auth_ev)
+			goto nomem_authev;
+	}
+
 	/* Add all the state machine commands now since we've created
 	 * everything.  This way we don't introduce memory corruptions
 	 * during side-effect processing and correclty count established
@@ -847,8 +855,14 @@ enum sctp_disposition sctp_sf_do_5_1D_ce(struct net *net,
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
 				SCTP_ULPEVENT(ai_ev));
 
+	if (auth_ev)
+		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
+				SCTP_ULPEVENT(auth_ev));
+
 	return SCTP_DISPOSITION_CONSUME;
 
+nomem_authev:
+	sctp_ulpevent_free(ai_ev);
 nomem_aiev:
 	sctp_ulpevent_free(ev);
 nomem_ev:
@@ -949,6 +963,15 @@ enum sctp_disposition sctp_sf_do_5_1E_ca(struct net *net,
 		if (!ev)
 			goto nomem;
 
+		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
+				SCTP_ULPEVENT(ev));
+	}
+
+	if (!asoc->peer.auth_capable) {
+		ev = sctp_ulpevent_make_authkey(asoc, 0, SCTP_AUTH_NO_AUTH,
+						GFP_ATOMIC);
+		if (!ev)
+			goto nomem;
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
 				SCTP_ULPEVENT(ev));
 	}
@@ -1908,6 +1931,9 @@ static enum sctp_disposition sctp_sf_do_dupcook_b(
 	if (asoc->peer.adaptation_ind)
 		sctp_add_cmd_sf(commands, SCTP_CMD_ADAPTATION_IND, SCTP_NULL());
 
+	if (!asoc->peer.auth_capable)
+		sctp_add_cmd_sf(commands, SCTP_CMD_PEER_NO_AUTH, SCTP_NULL());
+
 	return SCTP_DISPOSITION_CONSUME;
 
 nomem:
@@ -1954,7 +1980,7 @@ static enum sctp_disposition sctp_sf_do_dupcook_d(
 					struct sctp_cmd_seq *commands,
 					struct sctp_association *new_asoc)
 {
-	struct sctp_ulpevent *ev = NULL, *ai_ev = NULL;
+	struct sctp_ulpevent *ev = NULL, *ai_ev = NULL, *auth_ev = NULL;
 	struct sctp_chunk *repl;
 
 	/* Clarification from Implementor's Guide:
@@ -2001,6 +2027,14 @@ static enum sctp_disposition sctp_sf_do_dupcook_d(
 				goto nomem;
 
 		}
+
+		if (!asoc->peer.auth_capable) {
+			auth_ev = sctp_ulpevent_make_authkey(asoc, 0,
+							     SCTP_AUTH_NO_AUTH,
+							     GFP_ATOMIC);
+			if (!auth_ev)
+				goto nomem;
+		}
 	}
 
 	repl = sctp_make_cookie_ack(new_asoc, chunk);
@@ -2015,10 +2049,15 @@ static enum sctp_disposition sctp_sf_do_dupcook_d(
 	if (ai_ev)
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
 					SCTP_ULPEVENT(ai_ev));
+	if (auth_ev)
+		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
+				SCTP_ULPEVENT(auth_ev));
 
 	return SCTP_DISPOSITION_CONSUME;
 
 nomem:
+	if (auth_ev)
+		sctp_ulpevent_free(auth_ev);
 	if (ai_ev)
 		sctp_ulpevent_free(ai_ev);
 	if (ev)
