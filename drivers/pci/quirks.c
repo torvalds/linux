@@ -3106,10 +3106,8 @@ static ktime_t fixup_debug_start(struct pci_dev *dev,
 {
 	ktime_t calltime = 0;
 
-	pci_dbg(dev, "calling %pF\n", fn);
 	if (initcall_debug) {
-		pr_debug("calling  %pF @ %i for %s\n",
-			 fn, task_pid_nr(current), dev_name(&dev->dev));
+		pci_info(dev, "calling  %pF @ %i\n", fn, task_pid_nr(current));
 		calltime = ktime_get();
 	}
 
@@ -3126,8 +3124,7 @@ static void fixup_debug_report(struct pci_dev *dev, ktime_t calltime,
 		rettime = ktime_get();
 		delta = ktime_sub(rettime, calltime);
 		duration = (unsigned long long) ktime_to_ns(delta) >> 10;
-		pr_debug("pci fixup %pF returned after %lld usecs for %s\n",
-			 fn, duration, dev_name(&dev->dev));
+		pci_info(dev, "%pF took %lld usecs\n", fn, duration);
 	}
 }
 
