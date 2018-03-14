@@ -319,12 +319,41 @@ static const struct dcn_dpp_registers tf_regs[] = {
 	tf_regs(3),
 };
 
+/*
+ *
+	DCN1 CM debug status register definition
+
+	register :ID9_CM_STATUS do
+	implement_ref :cm
+	map to:  :cmdebugind, at: j
+	width 32
+	disclosure   NEVER
+
+		field :ID9_VUPDATE_CFG, [0], R
+		field :ID9_IGAM_LUT_MODE, [2..1], R
+		field :ID9_BNS_BYPASS, [3], R
+		field :ID9_ICSC_MODE, [5..4], R
+		field :ID9_DGAM_LUT_MODE, [8..6], R
+		field :ID9_HDR_BYPASS, [9], R
+		field :ID9_GAMUT_REMAP_MODE, [11..10], R
+		field :ID9_RGAM_LUT_MODE, [14..12], R
+		#1 free bit
+		field :ID9_OCSC_MODE, [18..16], R
+		field :ID9_DENORM_MODE, [21..19], R
+		field :ID9_ROUND_TRUNC_MODE, [25..22], R
+		field :ID9_DITHER_EN, [26], R
+		field :ID9_DITHER_MODE, [28..27], R
+	end
+*/
+
 static const struct dcn_dpp_shift tf_shift = {
-	TF_REG_LIST_SH_MASK_DCN10(__SHIFT)
+	TF_REG_LIST_SH_MASK_DCN10(__SHIFT),
+	.CM_TEST_DEBUG_DATA_ID9_ICSC_MODE = 0x4
 };
 
 static const struct dcn_dpp_mask tf_mask = {
 	TF_REG_LIST_SH_MASK_DCN10(_MASK),
+	.CM_TEST_DEBUG_DATA_ID9_ICSC_MODE = 0x30
 };
 
 static const struct dcn_mpc_registers mpc_regs = {
