@@ -60,7 +60,7 @@
 #include <i40e_client.h>
 #include "i40iw_type.h"
 #include "i40iw_p.h"
-#include "i40iw_ucontext.h"
+#include <rdma/i40iw-abi.h>
 #include "i40iw_pble.h"
 #include "i40iw_verbs.h"
 #include "i40iw_cm.h"

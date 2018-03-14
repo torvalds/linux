@@ -34,8 +34,8 @@
  *
  */
 
-#ifndef I40IW_USER_CONTEXT_H
-#define I40IW_USER_CONTEXT_H
+#ifndef I40IW_ABI_H
+#define I40IW_ABI_H
 
 #include <linux/types.h>
 
