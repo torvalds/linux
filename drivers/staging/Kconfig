@@ -122,4 +122,6 @@ source "drivers/staging/mt7621-pinctrl/Kconfig"
 
 source "drivers/staging/mt7621-gpio/Kconfig"
 
+source "drivers/staging/mt7621-spi/Kconfig"
+
 endif # STAGING

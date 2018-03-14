@@ -52,3 +52,4 @@ obj-$(CONFIG_PI433)		+= pi433/
 obj-$(CONFIG_SOC_MT7621)	+= mt7621-pci/
 obj-$(CONFIG_SOC_MT7621)	+= mt7621-pinctrl/
 obj-$(CONFIG_SOC_MT7621)	+= mt7621-gpio/
+obj-$(CONFIG_SOC_MT7621)	+= mt7621-spi/
