@@ -1335,16 +1335,15 @@ xfs_get_blocks(
 			&nimaps, 0);
 	if (error)
 		goto out_unlock;
-
-	if (nimaps) {
-		trace_xfs_get_blocks_found(ip, offset, size,
-			imap.br_state == XFS_EXT_UNWRITTEN ?
-				XFS_IO_UNWRITTEN : XFS_IO_OVERWRITE, &imap);
-		xfs_iunlock(ip, lockmode);
-	} else {
+	if (!nimaps) {
 		trace_xfs_get_blocks_notfound(ip, offset, size);
 		goto out_unlock;
 	}
+
+	trace_xfs_get_blocks_found(ip, offset, size,
+		imap.br_state == XFS_EXT_UNWRITTEN ?
+			XFS_IO_UNWRITTEN : XFS_IO_OVERWRITE, &imap);
+	xfs_iunlock(ip, lockmode);
 
 	/* trim mapping down to size requested */
 	xfs_map_trim_size(inode, iblock, bh_result, &imap, offset, size);
