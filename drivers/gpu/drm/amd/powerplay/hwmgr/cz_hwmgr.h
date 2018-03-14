@@ -21,18 +21,18 @@
  *
  */
 
-#ifndef _CZ_HWMGR_H_
-#define _CZ_HWMGR_H_
+#ifndef _SMU8_HWMGR_H_
+#define _SMU8_HWMGR_H_
 
 #include "cgs_common.h"
 #include "ppatomctrl.h"
 
-#define CZ_NUM_NBPSTATES               4
-#define CZ_NUM_NBPMEMORYCLOCK          2
+#define SMU8_NUM_NBPSTATES               4
+#define SMU8_NUM_NBPMEMORYCLOCK          2
 #define MAX_DISPLAY_CLOCK_LEVEL        8
-#define CZ_MAX_HARDWARE_POWERLEVELS    8
-#define PPCZ_VOTINGRIGHTSCLIENTS_DFLT0   0x3FFFC102
-#define CZ_MIN_DEEP_SLEEP_SCLK         800
+#define SMU8_MAX_HARDWARE_POWERLEVELS    8
+#define SMU8_VOTINGRIGHTSCLIENTS_DFLT0   0x3FFFC102
+#define SMU8_MIN_DEEP_SLEEP_SCLK         800
 
 /* Carrizo device IDs */
 #define DEVICE_ID_CZ_9870             0x9870
@@ -41,24 +41,21 @@
 #define DEVICE_ID_CZ_9876             0x9876
 #define DEVICE_ID_CZ_9877             0x9877
 
-#define PHMCZ_WRITE_SMC_REGISTER(device, reg, value)                            \
-		cgs_write_ind_register(device, CGS_IND_REG__SMC, ix##reg, value)
-
-struct cz_dpm_entry {
+struct smu8_dpm_entry {
 	uint32_t soft_min_clk;
 	uint32_t hard_min_clk;
 	uint32_t soft_max_clk;
 	uint32_t hard_max_clk;
 };
 
-struct cz_sys_info {
+struct smu8_sys_info {
 	uint32_t bootup_uma_clock;
 	uint32_t bootup_engine_clock;
 	uint32_t dentist_vco_freq;
 	uint32_t nb_dpm_enable;
-	uint32_t nbp_memory_clock[CZ_NUM_NBPMEMORYCLOCK];
-	uint32_t nbp_n_clock[CZ_NUM_NBPSTATES];
-	uint16_t nbp_voltage_index[CZ_NUM_NBPSTATES];
+	uint32_t nbp_memory_clock[SMU8_NUM_NBPMEMORYCLOCK];
+	uint32_t nbp_n_clock[SMU8_NUM_NBPSTATES];
+	uint16_t nbp_voltage_index[SMU8_NUM_NBPSTATES];
 	uint32_t display_clock[MAX_DISPLAY_CLOCK_LEVEL];
 	uint16_t bootup_nb_voltage_index;
 	uint8_t htc_tmp_lmt;
@@ -85,21 +82,21 @@ struct cz_sys_info {
 		((tx) ? DISPLAYPHY_TX_SELECT : 0) | \
 		((core) ? DISPLAYPHY_CORE_SELECT : 0))
 
-struct cz_display_phy_info_entry {
+struct smu8_display_phy_info_entry {
 	uint8_t phy_present;
 	uint8_t active_lane_mapping;
 	uint8_t display_config_type;
 	uint8_t active_number_of_lanes;
 };
 
-#define CZ_MAX_DISPLAYPHY_IDS			10
+#define SMU8_MAX_DISPLAYPHY_IDS			10
 
-struct cz_display_phy_info {
+struct smu8_display_phy_info {
 	bool display_phy_access_initialized;
-	struct cz_display_phy_info_entry entries[CZ_MAX_DISPLAYPHY_IDS];
+	struct smu8_display_phy_info_entry entries[SMU8_MAX_DISPLAYPHY_IDS];
 };
 
-struct cz_power_level {
+struct smu8_power_level {
 	uint32_t engineClock;
 	uint8_t vddcIndex;
 	uint8_t dsDividerIndex;
@@ -113,7 +110,7 @@ struct cz_power_level {
 	uint8_t rsv[3];
 };
 
-struct cz_uvd_clocks {
+struct smu8_uvd_clocks {
 	uint32_t vclk;
 	uint32_t dclk;
 	uint32_t vclk_low_divider;
@@ -122,7 +119,7 @@ struct cz_uvd_clocks {
 	uint32_t dclk_high_divider;
 };
 
-enum cz_pstate_previous_action {
+enum smu8_pstate_previous_action {
 	DO_NOTHING = 1,
 	FORCE_HIGH,
 	CANCEL_FORCE_HIGH
@@ -143,10 +140,10 @@ struct pp_disable_nb_ps_flags {
 	};
 };
 
-struct cz_power_state {
+struct smu8_power_state {
 	unsigned int magic;
 	uint32_t level;
-	struct cz_uvd_clocks uvd_clocks;
+	struct smu8_uvd_clocks uvd_clocks;
 	uint32_t evclk;
 	uint32_t ecclk;
 	uint32_t samclk;
@@ -158,8 +155,8 @@ struct cz_power_state {
 	uint8_t dpm_0_pg_nb_ps_high;
 	uint8_t dpm_x_nb_ps_low;
 	uint8_t dpm_x_nb_ps_high;
-	enum cz_pstate_previous_action action;
-	struct cz_power_level levels[CZ_MAX_HARDWARE_POWERLEVELS];
+	enum smu8_pstate_previous_action action;
+	struct smu8_power_level levels[SMU8_MAX_HARDWARE_POWERLEVELS];
 	struct pp_disable_nb_ps_flags disable_nb_ps_flag;
 };
 
@@ -182,7 +179,7 @@ struct cc6_settings {
 	uint32_t cpu_pstate_separation_time;
 };
 
-struct cz_hwmgr {
+struct smu8_hwmgr {
 	uint32_t dpm_interval;
 
 	uint32_t voltage_drop_threshold;
@@ -202,11 +199,11 @@ struct cz_hwmgr {
 
 	uint32_t thermal_auto_throttling_treshold;
 
-	struct cz_sys_info sys_info;
+	struct smu8_sys_info sys_info;
 
-	struct cz_power_level boot_power_level;
-	struct cz_power_state *cz_current_ps;
-	struct cz_power_state *cz_requested_ps;
+	struct smu8_power_level boot_power_level;
+	struct smu8_power_state *smu8_current_ps;
+	struct smu8_power_state *smu8_requested_ps;
 
 	uint32_t mgcg_cgtt_local0;
 	uint32_t mgcg_cgtt_local1;
@@ -219,7 +216,7 @@ struct cz_hwmgr {
 
 	uint32_t lock_nb_ps_in_uvd_play_back;
 
-	struct cz_display_phy_info display_phy_info;
+	struct smu8_display_phy_info display_phy_info;
 	uint32_t vce_slow_sclk_threshold; /* default 200mhz */
 	uint32_t dce_slow_sclk_threshold; /* default 300mhz */
 	uint32_t min_sclk_did;  /* minimum sclk divider */
@@ -270,10 +267,10 @@ struct cz_hwmgr {
 	uint32_t fps_low_threshold;
 
 	uint32_t dpm_flags;
-	struct cz_dpm_entry sclk_dpm;
-	struct cz_dpm_entry uvd_dpm;
-	struct cz_dpm_entry vce_dpm;
-	struct cz_dpm_entry acp_dpm;
+	struct smu8_dpm_entry sclk_dpm;
+	struct smu8_dpm_entry uvd_dpm;
+	struct smu8_dpm_entry vce_dpm;
+	struct smu8_dpm_entry acp_dpm;
 
 	uint8_t uvd_boot_level;
 	uint8_t vce_boot_level;
@@ -311,4 +308,4 @@ struct cz_hwmgr {
 	uint32_t num_of_clk_entries;
 };
 
-#endif /* _CZ_HWMGR_H_ */
+#endif /* _SMU8_HWMGR_H_ */

@@ -35,7 +35,7 @@
 #include "pp_psm.h"
 
 extern const struct pp_smumgr_func ci_smu_funcs;
-extern const struct pp_smumgr_func cz_smu_funcs;
+extern const struct pp_smumgr_func smu8_smu_funcs;
 extern const struct pp_smumgr_func iceland_smu_funcs;
 extern const struct pp_smumgr_func tonga_smu_funcs;
 extern const struct pp_smumgr_func fiji_smu_funcs;
@@ -44,7 +44,7 @@ extern const struct pp_smumgr_func vega10_smu_funcs;
 extern const struct pp_smumgr_func smu10_smu_funcs;
 
 extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
-extern int cz_init_function_pointers(struct pp_hwmgr *hwmgr);
+extern int smu8_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int vega10_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int smu10_init_function_pointers(struct pp_hwmgr *hwmgr);
 
@@ -144,8 +144,8 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		break;
 	case AMDGPU_FAMILY_CZ:
 		hwmgr->od_enabled = false;
-		hwmgr->smumgr_funcs = &cz_smu_funcs;
-		cz_init_function_pointers(hwmgr);
+		hwmgr->smumgr_funcs = &smu8_smu_funcs;
+		smu8_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
