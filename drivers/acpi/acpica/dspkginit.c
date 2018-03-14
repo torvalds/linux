@@ -413,32 +413,32 @@ acpi_ds_resolve_package_element(union acpi_operand_object **element_ptr)
 
 	scope_info.scope.node = element->reference.node;	/* Prefix node */
 
-	status = acpi_ns_lookup(&scope_info, (char *)element->reference.aml,	/* Pointer to AML path */
+	status = acpi_ns_lookup(&scope_info, (char *)element->reference.aml,
 				ACPI_TYPE_ANY, ACPI_IMODE_EXECUTE,
 				ACPI_NS_SEARCH_PARENT | ACPI_NS_DONT_OPEN_SCOPE,
 				NULL, &resolved_node);
 	if (ACPI_FAILURE(status)) {
-#if defined ACPI_IGNORE_PACKAGE_RESOLUTION_ERRORS && !defined ACPI_APPLICATION
-		/*
-		 * For the kernel-resident ACPICA, optionally be silent about the
-		 * NOT_FOUND case. Although this is potentially a serious problem,
-		 * it can generate a lot of noise/errors on platforms whose
-		 * firmware carries around a bunch of unused Package objects.
-		 * To disable these errors, define ACPI_IGNORE_PACKAGE_RESOLUTION_ERRORS
-		 * in the OS-specific header.
-		 *
-		 * All errors are always reported for ACPICA applications such as
-		 * acpi_exec.
-		 */
-		if (status == AE_NOT_FOUND) {
+		if ((status == AE_NOT_FOUND)
+		    && acpi_gbl_ignore_package_resolution_errors) {
+			/*
+			 * Optionally be silent about the NOT_FOUND case for the referenced
+			 * name. Although this is potentially a serious problem,
+			 * it can generate a lot of noise/errors on platforms whose
+			 * firmware carries around a bunch of unused Package objects.
+			 * To disable these errors, set this global to TRUE:
+			 *     acpi_gbl_ignore_package_resolution_errors
+			 *
+			 * If the AML actually tries to use such a package, the unresolved
+			 * element(s) will be replaced with NULL elements.
+			 */
 
-			/* Reference name not found, set the element to NULL */
+			/* Referenced name not found, set the element to NULL */
 
 			acpi_ut_remove_reference(*element_ptr);
 			*element_ptr = NULL;
 			return_VOID;
 		}
-#endif
+
 		status2 = acpi_ns_externalize_name(ACPI_UINT32_MAX,
 						   (char *)element->reference.
 						   aml, NULL, &external_path);
