@@ -45,7 +45,7 @@ void amdgpu_gem_object_free(struct drm_gem_object *gobj)
 
 int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 			     int alignment, u32 initial_domain,
-			     u64 flags, bool kernel,
+			     u64 flags, enum ttm_bo_type type,
 			     struct reservation_object *resv,
 			     struct drm_gem_object **obj)
 {
@@ -59,8 +59,8 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 	}
 
 retry:
-	r = amdgpu_bo_create(adev, size, alignment, kernel, initial_domain,
-			     flags, NULL, resv, &bo);
+	r = amdgpu_bo_create(adev, size, alignment, initial_domain,
+			     flags, type, resv, &bo);
 	if (r) {
 		if (r != -ERESTARTSYS) {
 			if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
