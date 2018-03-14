@@ -52,6 +52,7 @@
  *****************************************************************************/
 #include <linux/pm_runtime.h>
 #include <net/tso.h>
+#include <linux/tcp.h>
 
 #include "iwl-debug.h"
 #include "iwl-csr.h"
