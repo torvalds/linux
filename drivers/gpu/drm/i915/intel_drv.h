@@ -215,7 +215,8 @@ struct intel_encoder {
 	enum intel_output_type type;
 	enum port port;
 	unsigned int cloneable;
-	void (*hot_plug)(struct intel_encoder *);
+	bool (*hotplug)(struct intel_encoder *encoder,
+			struct intel_connector *connector);
 	enum intel_output_type (*compute_output_type)(struct intel_encoder *,
 						      struct intel_crtc_state *,
 						      struct drm_connector_state *);
@@ -935,6 +936,7 @@ struct intel_plane {
 	enum plane_id id;
 	enum pipe pipe;
 	bool can_scale;
+	bool has_fbc;
 	int max_downscale;
 	uint32_t frontbuffer_bit;
 
@@ -1041,17 +1043,16 @@ struct intel_dp_compliance {
 
 struct intel_dp {
 	i915_reg_t output_reg;
-	i915_reg_t aux_ch_ctl_reg;
-	i915_reg_t aux_ch_data_reg[5];
 	uint32_t DP;
 	int link_rate;
 	uint8_t lane_count;
 	uint8_t sink_count;
 	bool link_mst;
+	bool link_trained;
 	bool has_audio;
 	bool detect_done;
-	bool channel_eq_status;
 	bool reset_link_params;
+	enum aux_ch aux_ch;
 	uint8_t dpcd[DP_RECEIVER_CAP_SIZE];
 	uint8_t psr_dpcd[EDP_PSR_RECEIVER_CAP_SIZE];
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
@@ -1125,6 +1126,9 @@ struct intel_dp {
 				     bool has_aux_irq,
 				     int send_bytes,
 				     uint32_t aux_clock_divider);
+
+	i915_reg_t (*aux_ch_ctl_reg)(struct intel_dp *dp);
+	i915_reg_t (*aux_ch_data_reg)(struct intel_dp *dp, int index);
 
 	/* This is called before a link training is starterd */
 	void (*prepare_link_retrain)(struct intel_dp *intel_dp);
@@ -1508,6 +1512,7 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 struct i915_vma *
 intel_pin_and_fence_fb_obj(struct drm_framebuffer *fb,
 			   unsigned int rotation,
+			   bool uses_fence,
 			   unsigned long *out_flags);
 void intel_unpin_fb_vma(struct i915_vma *vma, unsigned long flags);
 struct drm_framebuffer *
@@ -1622,6 +1627,8 @@ int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 					    int link_rate, uint8_t lane_count);
 void intel_dp_start_link_train(struct intel_dp *intel_dp);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp);
+int intel_dp_retrain_link(struct intel_encoder *encoder,
+			  struct drm_modeset_acquire_ctx *ctx);
 void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
 void intel_dp_encoder_reset(struct drm_encoder *encoder);
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder);
@@ -1701,7 +1708,8 @@ int intel_dsi_dcs_init_backlight_funcs(struct intel_connector *intel_connector);
 void intel_dvo_init(struct drm_i915_private *dev_priv);
 /* intel_hotplug.c */
 void intel_hpd_poll_init(struct drm_i915_private *dev_priv);
-
+bool intel_encoder_hotplug(struct intel_encoder *encoder,
+			   struct intel_connector *connector);
 
 /* legacy fbdev emulation in intel_fbdev.c */
 #ifdef CONFIG_DRM_FBDEV_EMULATION
@@ -1863,6 +1871,7 @@ bool is_hdcp_supported(struct drm_i915_private *dev_priv, enum port port);
 
 /* intel_psr.c */
 #define CAN_PSR(dev_priv) (HAS_PSR(dev_priv) && dev_priv->psr.sink_support)
+void intel_psr_init_dpcd(struct intel_dp *intel_dp);
 void intel_psr_enable(struct intel_dp *intel_dp,
 		      const struct intel_crtc_state *crtc_state);
 void intel_psr_disable(struct intel_dp *intel_dp,
@@ -1989,8 +1998,7 @@ void intel_suspend_gt_powersave(struct drm_i915_private *dev_priv);
 void gen6_rps_busy(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
-void gen6_rps_boost(struct drm_i915_gem_request *rq,
-		    struct intel_rps_client *rps);
+void gen6_rps_boost(struct i915_request *rq, struct intel_rps_client *rps);
 void g4x_wm_get_hw_state(struct drm_device *dev);
 void vlv_wm_get_hw_state(struct drm_device *dev);
 void ilk_wm_get_hw_state(struct drm_device *dev);

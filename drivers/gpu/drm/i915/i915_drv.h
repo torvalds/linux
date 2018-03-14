@@ -71,9 +71,9 @@
 #include "i915_gem_fence_reg.h"
 #include "i915_gem_object.h"
 #include "i915_gem_gtt.h"
-#include "i915_gem_request.h"
 #include "i915_gem_timeline.h"
 
+#include "i915_request.h"
 #include "i915_vma.h"
 
 #include "intel_gvt.h"
@@ -83,8 +83,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20180221"
-#define DRIVER_TIMESTAMP	1519219289
+#define DRIVER_DATE		"20180308"
+#define DRIVER_TIMESTAMP	1520513379
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -1231,7 +1231,7 @@ struct i915_gpu_error {
 	 *
 	 * #I915_WEDGED - If reset fails and we can no longer use the GPU,
 	 * we set the #I915_WEDGED bit. Prior to command submission, e.g.
-	 * i915_gem_request_alloc(), this bit is checked and the sequence
+	 * i915_request_alloc(), this bit is checked and the sequence
 	 * aborted (with -EIO reported to userspace) if set.
 	 */
 	unsigned long flags;
@@ -2103,6 +2103,7 @@ struct drm_i915_private {
 		 */
 		struct ida hw_ida;
 #define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
+#define GEN11_MAX_CONTEXT_HW_ID (1<<11) /* exclusive */
 	} contexts;
 
 	u32 fdi_rx_config;
@@ -2746,6 +2747,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define BLT_RING	ENGINE_MASK(BCS)
 #define VEBOX_RING	ENGINE_MASK(VECS)
 #define BSD2_RING	ENGINE_MASK(VCS2)
+#define BSD3_RING	ENGINE_MASK(VCS3)
+#define BSD4_RING	ENGINE_MASK(VCS4)
+#define VEBOX2_RING	ENGINE_MASK(VECS2)
 #define ALL_ENGINES	(~0)
 
 #define HAS_ENGINE(dev_priv, id) \
@@ -2768,6 +2772,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define HAS_LOGICAL_RING_CONTEXTS(dev_priv) \
 		((dev_priv)->info.has_logical_ring_contexts)
+#define HAS_LOGICAL_RING_ELSQ(dev_priv) \
+		((dev_priv)->info.has_logical_ring_elsq)
 #define HAS_LOGICAL_RING_PREEMPTION(dev_priv) \
 		((dev_priv)->info.has_logical_ring_preemption)
 
@@ -2788,9 +2794,10 @@ intel_info(const struct drm_i915_private *dev_priv)
 /* Early gen2 have a totally busted CS tlb and require pinned batches. */
 #define HAS_BROKEN_CS_TLB(dev_priv)	(IS_I830(dev_priv) || IS_I845G(dev_priv))
 
-/* WaRsDisableCoarsePowerGating:skl,bxt */
+/* WaRsDisableCoarsePowerGating:skl,cnl */
 #define NEEDS_WaRsDisableCoarsePowerGating(dev_priv) \
-	(IS_SKL_GT3(dev_priv) || IS_SKL_GT4(dev_priv))
+	(IS_CANNONLAKE(dev_priv) || \
+	 IS_SKL_GT3(dev_priv) || IS_SKL_GT4(dev_priv))
 
 /*
  * dp aux and gmbus irq on gen4 seems to be able to generate legacy interrupts
@@ -3329,7 +3336,7 @@ i915_gem_obj_finish_shmem_access(struct drm_i915_gem_object *obj)
 
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct drm_i915_gem_request *req,
+			     struct i915_request *rq,
 			     unsigned int flags);
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
@@ -3344,10 +3351,8 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 
 int __must_check i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno);
 
-struct drm_i915_gem_request *
+struct i915_request *
 i915_gem_find_active_request(struct intel_engine_cs *engine);
-
-void i915_gem_retire_requests(struct drm_i915_private *dev_priv);
 
 static inline bool i915_reset_backoff(struct i915_gpu_error *error)
 {
@@ -3380,7 +3385,7 @@ static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
 	return READ_ONCE(error->reset_engine_count[engine->id]);
 }
 
-struct drm_i915_gem_request *
+struct i915_request *
 i915_gem_reset_prepare_engine(struct intel_engine_cs *engine);
 int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
 void i915_gem_reset(struct drm_i915_private *dev_priv);
@@ -3389,7 +3394,7 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 bool i915_gem_unset_wedged(struct drm_i915_private *dev_priv);
 void i915_gem_reset_engine(struct intel_engine_cs *engine,
-			   struct drm_i915_gem_request *request);
+			   struct i915_request *request);
 
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
@@ -4008,9 +4013,9 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 }
 
 static inline bool
-__i915_request_irq_complete(const struct drm_i915_gem_request *req)
+__i915_request_irq_complete(const struct i915_request *rq)
 {
-	struct intel_engine_cs *engine = req->engine;
+	struct intel_engine_cs *engine = rq->engine;
 	u32 seqno;
 
 	/* Note that the engine may have wrapped around the seqno, and
@@ -4019,7 +4024,7 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 	 * this by kicking all the waiters before resetting the seqno
 	 * in hardware, and also signal the fence.
 	 */
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &req->fence.flags))
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
 		return true;
 
 	/* The request was dequeued before we were awoken. We check after
@@ -4028,14 +4033,14 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 	 * the request execution are sufficient to ensure that a check
 	 * after reading the value from hw matches this request.
 	 */
-	seqno = i915_gem_request_global_seqno(req);
+	seqno = i915_request_global_seqno(rq);
 	if (!seqno)
 		return false;
 
 	/* Before we do the heavier coherent read of the seqno,
 	 * check the value (hopefully) in the CPU cacheline.
 	 */
-	if (__i915_gem_request_completed(req, seqno))
+	if (__i915_request_completed(rq, seqno))
 		return true;
 
 	/* Ensure our read of the seqno is coherent so that we
@@ -4084,7 +4089,7 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 			wake_up_process(b->irq_wait->tsk);
 		spin_unlock_irq(&b->irq_lock);
 
-		if (__i915_gem_request_completed(req, seqno))
+		if (__i915_request_completed(rq, seqno))
 			return true;
 	}
 

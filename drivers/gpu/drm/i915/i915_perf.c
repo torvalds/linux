@@ -1303,9 +1303,8 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	 */
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	dev_priv->perf.oa.exclusive_stream = NULL;
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
 	dev_priv->perf.oa.ops.disable_metric_set(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	free_oa_buffer(dev_priv);
 
@@ -1630,10 +1629,10 @@ static void gen8_update_reg_state_unlocked(struct i915_gem_context *ctx,
  * Same as gen8_update_reg_state_unlocked only through the batchbuffer. This
  * is only used by the kernel context.
  */
-static int gen8_emit_oa_config(struct drm_i915_gem_request *req,
+static int gen8_emit_oa_config(struct i915_request *rq,
 			       const struct i915_oa_config *oa_config)
 {
-	struct drm_i915_private *dev_priv = req->i915;
+	struct drm_i915_private *dev_priv = rq->i915;
 	/* The MMIO offsets for Flex EU registers aren't contiguous */
 	u32 flex_mmio[] = {
 		i915_mmio_reg_offset(EU_PERF_CNTL0),
@@ -1647,7 +1646,7 @@ static int gen8_emit_oa_config(struct drm_i915_gem_request *req,
 	u32 *cs;
 	int i;
 
-	cs = intel_ring_begin(req, ARRAY_SIZE(flex_mmio) * 2 + 4);
+	cs = intel_ring_begin(rq, ARRAY_SIZE(flex_mmio) * 2 + 4);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1685,7 +1684,7 @@ static int gen8_emit_oa_config(struct drm_i915_gem_request *req,
 	}
 
 	*cs++ = MI_NOOP;
-	intel_ring_advance(req, cs);
+	intel_ring_advance(rq, cs);
 
 	return 0;
 }
@@ -1695,38 +1694,38 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
 {
 	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 	struct i915_gem_timeline *timeline;
-	struct drm_i915_gem_request *req;
+	struct i915_request *rq;
 	int ret;
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	i915_gem_retire_requests(dev_priv);
+	i915_retire_requests(dev_priv);
 
-	req = i915_gem_request_alloc(engine, dev_priv->kernel_context);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	rq = i915_request_alloc(engine, dev_priv->kernel_context);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
 
-	ret = gen8_emit_oa_config(req, oa_config);
+	ret = gen8_emit_oa_config(rq, oa_config);
 	if (ret) {
-		i915_add_request(req);
+		i915_request_add(rq);
 		return ret;
 	}
 
 	/* Queue this switch after all other activity */
 	list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
-		struct drm_i915_gem_request *prev;
+		struct i915_request *prev;
 		struct intel_timeline *tl;
 
 		tl = &timeline->engine[engine->id];
 		prev = i915_gem_active_raw(&tl->last_request,
 					   &dev_priv->drm.struct_mutex);
 		if (prev)
-			i915_sw_fence_await_sw_fence_gfp(&req->submit,
+			i915_sw_fence_await_sw_fence_gfp(&rq->submit,
 							 &prev->submit,
 							 GFP_KERNEL);
 	}
 
-	i915_add_request(req);
+	i915_request_add(rq);
 
 	return 0;
 }
@@ -1756,22 +1755,13 @@ static int gen8_switch_to_updated_kernel_context(struct drm_i915_private *dev_pr
  * Note: it's only the RCS/Render context that has any OA state.
  */
 static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
-				       const struct i915_oa_config *oa_config,
-				       bool interruptible)
+				       const struct i915_oa_config *oa_config)
 {
 	struct i915_gem_context *ctx;
 	int ret;
 	unsigned int wait_flags = I915_WAIT_LOCKED;
 
-	if (interruptible) {
-		ret = i915_mutex_lock_interruptible(&dev_priv->drm);
-		if (ret)
-			return ret;
-
-		wait_flags |= I915_WAIT_INTERRUPTIBLE;
-	} else {
-		mutex_lock(&dev_priv->drm.struct_mutex);
-	}
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	/* Switch away from any user context. */
 	ret = gen8_switch_to_updated_kernel_context(dev_priv, oa_config);
@@ -1819,8 +1809,6 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 	}
 
  out:
-	mutex_unlock(&dev_priv->drm.struct_mutex);
-
 	return ret;
 }
 
@@ -1863,7 +1851,7 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
 	 * to make sure all slices/subslices are ON before writing to NOA
 	 * registers.
 	 */
-	ret = gen8_configure_all_contexts(dev_priv, oa_config, true);
+	ret = gen8_configure_all_contexts(dev_priv, oa_config);
 	if (ret)
 		return ret;
 
@@ -1878,7 +1866,7 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
 static void gen8_disable_metric_set(struct drm_i915_private *dev_priv)
 {
 	/* Reset all contexts' slices/subslices configurations. */
-	gen8_configure_all_contexts(dev_priv, NULL, false);
+	gen8_configure_all_contexts(dev_priv, NULL);
 
 	I915_WRITE(GDT_CHICKEN_BITS, (I915_READ(GDT_CHICKEN_BITS) &
 				      ~GT_NOA_ENABLE));
@@ -1888,7 +1876,7 @@ static void gen8_disable_metric_set(struct drm_i915_private *dev_priv)
 static void gen10_disable_metric_set(struct drm_i915_private *dev_priv)
 {
 	/* Reset all contexts' slices/subslices configurations. */
-	gen8_configure_all_contexts(dev_priv, NULL, false);
+	gen8_configure_all_contexts(dev_priv, NULL);
 
 	/* Make sure we disable noa to save power. */
 	I915_WRITE(RPM_CONFIG1,
@@ -2138,6 +2126,10 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	if (ret)
 		goto err_oa_buf_alloc;
 
+	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
+	if (ret)
+		goto err_lock;
+
 	ret = dev_priv->perf.oa.ops.enable_metric_set(dev_priv,
 						      stream->oa_config);
 	if (ret)
@@ -2145,23 +2137,17 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	stream->ops = &i915_oa_stream_ops;
 
-	/* Lock device for exclusive_stream access late because
-	 * enable_metric_set() might lock as well on gen8+.
-	 */
-	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
-	if (ret)
-		goto err_lock;
-
 	dev_priv->perf.oa.exclusive_stream = stream;
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 
 	return 0;
 
-err_lock:
-	dev_priv->perf.oa.ops.disable_metric_set(dev_priv);
-
 err_enable:
+	dev_priv->perf.oa.ops.disable_metric_set(dev_priv);
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+
+err_lock:
 	free_oa_buffer(dev_priv);
 
 err_oa_buf_alloc:

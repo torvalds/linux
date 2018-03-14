@@ -154,54 +154,31 @@ static inline unsigned long intel_gvt_hypervisor_virt_to_mfn(void *p)
 }
 
 /**
- * intel_gvt_hypervisor_enable - set a guest page to write-protected
+ * intel_gvt_hypervisor_enable_page_track - track a guest page
  * @vgpu: a vGPU
- * @t: page track data structure
+ * @gfn: the gfn of guest
  *
  * Returns:
  * Zero on success, negative error code if failed.
  */
 static inline int intel_gvt_hypervisor_enable_page_track(
-		struct intel_vgpu *vgpu,
-		struct intel_vgpu_page_track *t)
+		struct intel_vgpu *vgpu, unsigned long gfn)
 {
-	int ret;
-
-	if (t->tracked)
-		return 0;
-
-	ret = intel_gvt_host.mpt->set_wp_page(vgpu->handle, t->gfn);
-	if (ret)
-		return ret;
-	t->tracked = true;
-	atomic_inc(&vgpu->gtt.n_tracked_guest_page);
-	return 0;
+	return intel_gvt_host.mpt->enable_page_track(vgpu->handle, gfn);
 }
 
 /**
- * intel_gvt_hypervisor_disable_page_track - remove the write-protection of a
- * guest page
+ * intel_gvt_hypervisor_disable_page_track - untrack a guest page
  * @vgpu: a vGPU
- * @t: page track data structure
+ * @gfn: the gfn of guest
  *
  * Returns:
  * Zero on success, negative error code if failed.
  */
 static inline int intel_gvt_hypervisor_disable_page_track(
-		struct intel_vgpu *vgpu,
-		struct intel_vgpu_page_track *t)
+		struct intel_vgpu *vgpu, unsigned long gfn)
 {
-	int ret;
-
-	if (!t->tracked)
-		return 0;
-
-	ret = intel_gvt_host.mpt->unset_wp_page(vgpu->handle, t->gfn);
-	if (ret)
-		return ret;
-	t->tracked = false;
-	atomic_dec(&vgpu->gtt.n_tracked_guest_page);
-	return 0;
+	return intel_gvt_host.mpt->disable_page_track(vgpu->handle, gfn);
 }
 
 /**
@@ -248,6 +225,34 @@ static inline unsigned long intel_gvt_hypervisor_gfn_to_mfn(
 		struct intel_vgpu *vgpu, unsigned long gfn)
 {
 	return intel_gvt_host.mpt->gfn_to_mfn(vgpu->handle, gfn);
+}
+
+/**
+ * intel_gvt_hypervisor_dma_map_guest_page - setup dma map for guest page
+ * @vgpu: a vGPU
+ * @gpfn: guest pfn
+ * @dma_addr: retrieve allocated dma addr
+ *
+ * Returns:
+ * 0 on success, negative error code if failed.
+ */
+static inline int intel_gvt_hypervisor_dma_map_guest_page(
+		struct intel_vgpu *vgpu, unsigned long gfn,
+		dma_addr_t *dma_addr)
+{
+	return intel_gvt_host.mpt->dma_map_guest_page(vgpu->handle, gfn,
+						      dma_addr);
+}
+
+/**
+ * intel_gvt_hypervisor_dma_unmap_guest_page - cancel dma map for guest page
+ * @vgpu: a vGPU
+ * @dma_addr: the mapped dma addr
+ */
+static inline void intel_gvt_hypervisor_dma_unmap_guest_page(
+		struct intel_vgpu *vgpu, dma_addr_t dma_addr)
+{
+	intel_gvt_host.mpt->dma_unmap_guest_page(vgpu->handle, dma_addr);
 }
 
 /**

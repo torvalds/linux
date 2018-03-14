@@ -594,7 +594,8 @@ static const struct intel_device_info intel_cannonlake_info = {
 	GEN10_FEATURES, \
 	GEN(11), \
 	.ddb_size = 2048, \
-	.has_csr = 0
+	.has_csr = 0, \
+	.has_logical_ring_elsq = 1
 
 static const struct intel_device_info intel_icelake_11_info = {
 	GEN11_FEATURES,
@@ -664,6 +665,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_CFL_U_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_CFL_U_GT3_IDS(&intel_coffeelake_gt3_info),
 	INTEL_CNL_IDS(&intel_cannonlake_info),
+	INTEL_ICL_11_IDS(&intel_icelake_11_info),
 	{0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);

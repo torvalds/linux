@@ -27,9 +27,9 @@
 
 #include <linux/list.h>
 
-#include "i915_utils.h"
-#include "i915_gem_request.h"
+#include "i915_request.h"
 #include "i915_syncmap.h"
+#include "i915_utils.h"
 
 struct i915_gem_timeline;
 

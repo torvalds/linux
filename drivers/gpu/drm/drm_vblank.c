@@ -1247,12 +1247,15 @@ void drm_crtc_vblank_on(struct drm_crtc *crtc)
 EXPORT_SYMBOL(drm_crtc_vblank_on);
 
 /**
- * drm_vblank_restore - estimated vblanks using timestamps and update it.
+ * drm_vblank_restore - estimate missed vblanks and update vblank count.
+ * @dev: DRM device
+ * @pipe: CRTC index
  *
  * Power manamement features can cause frame counter resets between vblank
- * disable and enable. Drivers can then use this function in their
- * &drm_crtc_funcs.enable_vblank implementation to estimate the vblanks since
- * the last &drm_crtc_funcs.disable_vblank.
+ * disable and enable. Drivers can use this function in their
+ * &drm_crtc_funcs.enable_vblank implementation to estimate missed vblanks since
+ * the last &drm_crtc_funcs.disable_vblank using timestamps and update the
+ * vblank counter.
  *
  * This function is the legacy version of drm_crtc_vblank_restore().
  */
@@ -1293,11 +1296,14 @@ void drm_vblank_restore(struct drm_device *dev, unsigned int pipe)
 EXPORT_SYMBOL(drm_vblank_restore);
 
 /**
- * drm_crtc_vblank_restore - estimate vblanks using timestamps and update it.
+ * drm_crtc_vblank_restore - estimate missed vblanks and update vblank count.
+ * @crtc: CRTC in question
+ *
  * Power manamement features can cause frame counter resets between vblank
- * disable and enable. Drivers can then use this function in their
- * &drm_crtc_funcs.enable_vblank implementation to estimate the vblanks since
- * the last &drm_crtc_funcs.disable_vblank.
+ * disable and enable. Drivers can use this function in their
+ * &drm_crtc_funcs.enable_vblank implementation to estimate missed vblanks since
+ * the last &drm_crtc_funcs.disable_vblank using timestamps and update the
+ * vblank counter.
  */
 void drm_crtc_vblank_restore(struct drm_crtc *crtc)
 {

@@ -43,7 +43,7 @@ void mock_device_flush(struct drm_i915_private *i915)
 	for_each_engine(engine, i915, id)
 		mock_engine_flush(engine);
 
-	i915_gem_retire_requests(i915);
+	i915_retire_requests(i915);
 }
 
 static void mock_device_release(struct drm_device *dev)

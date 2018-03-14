@@ -450,5 +450,12 @@ See drivers/gpu/drm/amd/display/TODO for tasks.
 
 Contact: Harry Wentland, Alex Deucher
 
+i915
+----
+
+- Our early/late pm callbacks could be removed in favour of using
+  device_link_add to model the dependency between i915 and snd_had. See
+  https://dri.freedesktop.org/docs/drm/driver-api/device_link.html
+
 Outside DRM
 ===========

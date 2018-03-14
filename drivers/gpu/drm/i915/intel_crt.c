@@ -956,8 +956,10 @@ void intel_crt_init(struct drm_i915_private *dev_priv)
 	crt->base.power_domain = POWER_DOMAIN_PORT_CRT;
 
 	if (I915_HAS_HOTPLUG(dev_priv) &&
-	    !dmi_check_system(intel_spurious_crt_detect))
+	    !dmi_check_system(intel_spurious_crt_detect)) {
 		crt->base.hpd_pin = HPD_CRT;
+		crt->base.hotplug = intel_encoder_hotplug;
+	}
 
 	if (HAS_DDI(dev_priv)) {
 		crt->base.port = PORT_E;

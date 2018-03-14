@@ -178,6 +178,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define BCS_HW		2
 #define VECS_HW		3
 #define VCS2_HW		4
+#define VCS3_HW		6
+#define VCS4_HW		7
+#define VECS2_HW	12
 
 /* Engine class */
 
@@ -188,7 +191,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OTHER_CLASS		4
 #define MAX_ENGINE_CLASS	4
 
-#define MAX_ENGINE_INSTANCE    1
+#define MAX_ENGINE_INSTANCE    3
 
 /* PCI config space */
 
@@ -2342,7 +2345,13 @@ enum i915_power_well_id {
 #define BSD_RING_BASE		0x04000
 #define GEN6_BSD_RING_BASE	0x12000
 #define GEN8_BSD2_RING_BASE	0x1c000
+#define GEN11_BSD_RING_BASE	0x1c0000
+#define GEN11_BSD2_RING_BASE	0x1c4000
+#define GEN11_BSD3_RING_BASE	0x1d0000
+#define GEN11_BSD4_RING_BASE	0x1d4000
 #define VEBOX_RING_BASE		0x1a000
+#define GEN11_VEBOX_RING_BASE		0x1c8000
+#define GEN11_VEBOX2_RING_BASE		0x1d8000
 #define BLT_RING_BASE		0x22000
 #define RING_TAIL(base)		_MMIO((base)+0x30)
 #define RING_HEAD(base)		_MMIO((base)+0x34)
@@ -2807,6 +2816,13 @@ enum i915_power_well_id {
 #define GEN9_RCS_FE_FSM2 _MMIO(0x22a4)
 
 /* Fuse readout registers for GT */
+#define HSW_PAVP_FUSE1			_MMIO(0x911C)
+#define   HSW_F1_EU_DIS_SHIFT		16
+#define   HSW_F1_EU_DIS_MASK		(0x3 << HSW_F1_EU_DIS_SHIFT)
+#define   HSW_F1_EU_DIS_10EUS		0
+#define   HSW_F1_EU_DIS_8EUS		1
+#define   HSW_F1_EU_DIS_6EUS		2
+
 #define CHV_FUSE_GT			_MMIO(VLV_DISPLAY_BASE + 0x2168)
 #define   CHV_FGT_DISABLE_SS0		(1 << 10)
 #define   CHV_FGT_DISABLE_SS1		(1 << 11)
@@ -3896,6 +3912,12 @@ enum {
 
 #define GEN8_CTX_ID_SHIFT 32
 #define GEN8_CTX_ID_WIDTH 21
+#define GEN11_SW_CTX_ID_SHIFT 37
+#define GEN11_SW_CTX_ID_WIDTH 11
+#define GEN11_ENGINE_CLASS_SHIFT 61
+#define GEN11_ENGINE_CLASS_WIDTH 3
+#define GEN11_ENGINE_INSTANCE_SHIFT 48
+#define GEN11_ENGINE_INSTANCE_WIDTH 6
 
 #define CHV_CLK_CTL1			_MMIO(0x101100)
 #define VLV_CLK_CTL2			_MMIO(0x101104)
@@ -3942,6 +3964,9 @@ enum {
 #define SLICE_UNIT_LEVEL_CLKGATE	_MMIO(0x94d4)
 #define  SARBUNIT_CLKGATE_DIS		(1 << 5)
 #define  RCCUNIT_CLKGATE_DIS		(1 << 7)
+
+#define SUBSLICE_UNIT_LEVEL_CLKGATE	_MMIO(0x9524)
+#define  GWUNIT_CLKGATE_DIS		(1 << 16)
 
 #define UNSLICE_UNIT_LEVEL_CLKGATE	_MMIO(0x9434)
 #define  VFUNIT_CLKGATE_DIS		(1 << 20)
@@ -5347,8 +5372,8 @@ enum {
 #define _DPF_AUX_CH_DATA4	(dev_priv->info.display_mmio_offset + 0x64520)
 #define _DPF_AUX_CH_DATA5	(dev_priv->info.display_mmio_offset + 0x64524)
 
-#define DP_AUX_CH_CTL(port)	_MMIO_PORT(port, _DPA_AUX_CH_CTL, _DPB_AUX_CH_CTL)
-#define DP_AUX_CH_DATA(port, i)	_MMIO(_PORT(port, _DPA_AUX_CH_DATA1, _DPB_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
+#define DP_AUX_CH_CTL(aux_ch)	_MMIO_PORT(aux_ch, _DPA_AUX_CH_CTL, _DPB_AUX_CH_CTL)
+#define DP_AUX_CH_DATA(aux_ch, i)	_MMIO(_PORT(aux_ch, _DPA_AUX_CH_DATA1, _DPB_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
 
 #define   DP_AUX_CH_CTL_SEND_BUSY	    (1 << 31)
 #define   DP_AUX_CH_CTL_DONE		    (1 << 30)
@@ -7897,8 +7922,8 @@ enum {
 #define _PCH_DPD_AUX_CH_DATA4	0xe4320
 #define _PCH_DPD_AUX_CH_DATA5	0xe4324
 
-#define PCH_DP_AUX_CH_CTL(port)		_MMIO_PORT((port) - PORT_B, _PCH_DPB_AUX_CH_CTL, _PCH_DPC_AUX_CH_CTL)
-#define PCH_DP_AUX_CH_DATA(port, i)	_MMIO(_PORT((port) - PORT_B, _PCH_DPB_AUX_CH_DATA1, _PCH_DPC_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
+#define PCH_DP_AUX_CH_CTL(aux_ch)		_MMIO_PORT((aux_ch) - AUX_CH_B, _PCH_DPB_AUX_CH_CTL, _PCH_DPC_AUX_CH_CTL)
+#define PCH_DP_AUX_CH_DATA(aux_ch, i)	_MMIO(_PORT((aux_ch) - AUX_CH_B, _PCH_DPB_AUX_CH_DATA1, _PCH_DPC_AUX_CH_DATA1) + (i) * 4) /* 5 registers */
 
 /* CPT */
 #define  PORT_TRANS_A_SEL_CPT	0
@@ -7998,9 +8023,13 @@ enum {
 #define   VLV_GTLC_PW_RENDER_STATUS_MASK	(1 << 7)
 #define  FORCEWAKE_MT				_MMIO(0xa188) /* multi-threaded */
 #define  FORCEWAKE_MEDIA_GEN9			_MMIO(0xa270)
+#define  FORCEWAKE_MEDIA_VDBOX_GEN11(n)		_MMIO(0xa540 + (n) * 4)
+#define  FORCEWAKE_MEDIA_VEBOX_GEN11(n)		_MMIO(0xa560 + (n) * 4)
 #define  FORCEWAKE_RENDER_GEN9			_MMIO(0xa278)
 #define  FORCEWAKE_BLITTER_GEN9			_MMIO(0xa188)
 #define  FORCEWAKE_ACK_MEDIA_GEN9		_MMIO(0x0D88)
+#define  FORCEWAKE_ACK_MEDIA_VDBOX_GEN11(n)	_MMIO(0x0D50 + (n) * 4)
+#define  FORCEWAKE_ACK_MEDIA_VEBOX_GEN11(n)	_MMIO(0x0D70 + (n) * 4)
 #define  FORCEWAKE_ACK_RENDER_GEN9		_MMIO(0x0D84)
 #define  FORCEWAKE_ACK_BLITTER_GEN9		_MMIO(0x130044)
 #define   FORCEWAKE_KERNEL			BIT(0)

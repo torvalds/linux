@@ -123,6 +123,22 @@ static const struct engine_info intel_engines[] = {
 		.mmio_base = GEN8_BSD2_RING_BASE,
 		.irq_shift = GEN8_VCS2_IRQ_SHIFT,
 	},
+	[VCS3] = {
+		.hw_id = VCS3_HW,
+		.uabi_id = I915_EXEC_BSD,
+		.class = VIDEO_DECODE_CLASS,
+		.instance = 2,
+		.mmio_base = GEN11_BSD3_RING_BASE,
+		.irq_shift = 0, /* not used */
+	},
+	[VCS4] = {
+		.hw_id = VCS4_HW,
+		.uabi_id = I915_EXEC_BSD,
+		.class = VIDEO_DECODE_CLASS,
+		.instance = 3,
+		.mmio_base = GEN11_BSD4_RING_BASE,
+		.irq_shift = 0, /* not used */
+	},
 	[VECS] = {
 		.hw_id = VECS_HW,
 		.uabi_id = I915_EXEC_VEBOX,
@@ -130,6 +146,14 @@ static const struct engine_info intel_engines[] = {
 		.instance = 0,
 		.mmio_base = VEBOX_RING_BASE,
 		.irq_shift = GEN8_VECS_IRQ_SHIFT,
+	},
+	[VECS2] = {
+		.hw_id = VECS2_HW,
+		.uabi_id = I915_EXEC_VEBOX,
+		.class = VIDEO_ENHANCEMENT_CLASS,
+		.instance = 1,
+		.mmio_base = GEN11_VEBOX2_RING_BASE,
+		.irq_shift = 0, /* not used */
 	},
 };
 
@@ -210,6 +234,9 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	GEM_BUG_ON(info->class >= ARRAY_SIZE(intel_engine_classes));
 	class_info = &intel_engine_classes[info->class];
 
+	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
+	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
+
 	if (GEM_WARN_ON(info->class > MAX_ENGINE_CLASS))
 		return -EINVAL;
 
@@ -230,7 +257,25 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 			 class_info->name, info->instance) >=
 		sizeof(engine->name));
 	engine->hw_id = engine->guc_id = info->hw_id;
-	engine->mmio_base = info->mmio_base;
+	if (INTEL_GEN(dev_priv) >= 11) {
+		switch (engine->id) {
+		case VCS:
+			engine->mmio_base = GEN11_BSD_RING_BASE;
+			break;
+		case VCS2:
+			engine->mmio_base = GEN11_BSD2_RING_BASE;
+			break;
+		case VECS:
+			engine->mmio_base = GEN11_VEBOX_RING_BASE;
+			break;
+		default:
+			/* take the original value for all other engines  */
+			engine->mmio_base = info->mmio_base;
+			break;
+		}
+	} else {
+		engine->mmio_base = info->mmio_base;
+	}
 	engine->irq_shift = info->irq_shift;
 	engine->class = info->class;
 	engine->instance = info->instance;
@@ -423,6 +468,7 @@ static void intel_engine_init_execlist(struct intel_engine_cs *engine)
 	BUILD_BUG_ON_NOT_POWER_OF_2(execlists_num_ports(execlists));
 	GEM_BUG_ON(execlists_num_ports(execlists) > EXECLIST_MAX_PORTS);
 
+	execlists->queue_priority = INT_MIN;
 	execlists->queue = RB_ROOT;
 	execlists->first = NULL;
 }
@@ -1426,20 +1472,20 @@ int init_workarounds_ring(struct intel_engine_cs *engine)
 	return 0;
 }
 
-int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
+int intel_ring_workarounds_emit(struct i915_request *rq)
 {
-	struct i915_workarounds *w = &req->i915->workarounds;
+	struct i915_workarounds *w = &rq->i915->workarounds;
 	u32 *cs;
 	int ret, i;
 
 	if (w->count == 0)
 		return 0;
 
-	ret = req->engine->emit_flush(req, EMIT_BARRIER);
+	ret = rq->engine->emit_flush(rq, EMIT_BARRIER);
 	if (ret)
 		return ret;
 
-	cs = intel_ring_begin(req, (w->count * 2 + 2));
+	cs = intel_ring_begin(rq, w->count * 2 + 2);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
@@ -1450,9 +1496,9 @@ int intel_ring_workarounds_emit(struct drm_i915_gem_request *req)
 	}
 	*cs++ = MI_NOOP;
 
-	intel_ring_advance(req, cs);
+	intel_ring_advance(rq, cs);
 
-	ret = req->engine->emit_flush(req, EMIT_BARRIER);
+	ret = rq->engine->emit_flush(rq, EMIT_BARRIER);
 	if (ret)
 		return ret;
 
@@ -1552,7 +1598,7 @@ bool intel_engine_has_kernel_context(const struct intel_engine_cs *engine)
 {
 	const struct i915_gem_context * const kernel_context =
 		engine->i915->kernel_context;
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 
 	lockdep_assert_held(&engine->i915->drm.struct_mutex);
 
@@ -1664,13 +1710,13 @@ unsigned int intel_engines_has_context_isolation(struct drm_i915_private *i915)
 }
 
 static void print_request(struct drm_printer *m,
-			  struct drm_i915_gem_request *rq,
+			  struct i915_request *rq,
 			  const char *prefix)
 {
-	drm_printf(m, "%s%x%s [%x:%x] prio=%d @ %dms: %s\n", prefix,
+	drm_printf(m, "%s%x%s [%llx:%x] prio=%d @ %dms: %s\n", prefix,
 		   rq->global_seqno,
-		   i915_gem_request_completed(rq) ? "!" : "",
-		   rq->ctx->hw_id, rq->fence.seqno,
+		   i915_request_completed(rq) ? "!" : "",
+		   rq->fence.context, rq->fence.seqno,
 		   rq->priotree.priority,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
 		   rq->timeline->common->name);
@@ -1803,7 +1849,7 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 
 		rcu_read_lock();
 		for (idx = 0; idx < execlists_num_ports(execlists); idx++) {
-			struct drm_i915_gem_request *rq;
+			struct i915_request *rq;
 			unsigned int count;
 
 			rq = port_unpack(&execlists->port[idx], &count);
@@ -1837,7 +1883,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	struct intel_breadcrumbs * const b = &engine->breadcrumbs;
 	const struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct i915_gpu_error * const error = &engine->i915->gpu_error;
-	struct drm_i915_gem_request *rq;
+	struct i915_request *rq;
 	struct rb_node *rb;
 
 	if (header) {
@@ -1866,12 +1912,12 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	drm_printf(m, "\tRequests:\n");
 
 	rq = list_first_entry(&engine->timeline->requests,
-			      struct drm_i915_gem_request, link);
+			      struct i915_request, link);
 	if (&rq->link != &engine->timeline->requests)
 		print_request(m, rq, "\t\tfirst  ");
 
 	rq = list_last_entry(&engine->timeline->requests,
-			     struct drm_i915_gem_request, link);
+			     struct i915_request, link);
 	if (&rq->link != &engine->timeline->requests)
 		print_request(m, rq, "\t\tlast   ");
 
@@ -1903,6 +1949,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	spin_lock_irq(&engine->timeline->lock);
 	list_for_each_entry(rq, &engine->timeline->requests, link)
 		print_request(m, rq, "\t\tE ");
+	drm_printf(m, "\t\tQueue priority: %d\n", execlists->queue_priority);
 	for (rb = execlists->first; rb; rb = rb_next(rb)) {
 		struct i915_priolist *p =
 			rb_entry(rb, typeof(*p), node);

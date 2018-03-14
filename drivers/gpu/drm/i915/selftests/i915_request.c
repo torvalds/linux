@@ -32,7 +32,7 @@
 static int igt_add_request(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_request *request;
+	struct i915_request *request;
 	int err = -ENOMEM;
 
 	/* Basic preliminary test to create a request and let it loose! */
@@ -44,7 +44,7 @@ static int igt_add_request(void *arg)
 	if (!request)
 		goto out_unlock;
 
-	i915_add_request(request);
+	i915_request_add(request);
 
 	err = 0;
 out_unlock:
@@ -56,7 +56,7 @@ static int igt_wait_request(void *arg)
 {
 	const long T = HZ / 4;
 	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_request *request;
+	struct i915_request *request;
 	int err = -EINVAL;
 
 	/* Submit a request, then wait upon it */
@@ -68,49 +68,49 @@ static int igt_wait_request(void *arg)
 		goto out_unlock;
 	}
 
-	if (i915_wait_request(request, I915_WAIT_LOCKED, 0) != -ETIME) {
+	if (i915_request_wait(request, I915_WAIT_LOCKED, 0) != -ETIME) {
 		pr_err("request wait (busy query) succeeded (expected timeout before submit!)\n");
 		goto out_unlock;
 	}
 
-	if (i915_wait_request(request, I915_WAIT_LOCKED, T) != -ETIME) {
+	if (i915_request_wait(request, I915_WAIT_LOCKED, T) != -ETIME) {
 		pr_err("request wait succeeded (expected timeout before submit!)\n");
 		goto out_unlock;
 	}
 
-	if (i915_gem_request_completed(request)) {
+	if (i915_request_completed(request)) {
 		pr_err("request completed before submit!!\n");
 		goto out_unlock;
 	}
 
-	i915_add_request(request);
+	i915_request_add(request);
 
-	if (i915_wait_request(request, I915_WAIT_LOCKED, 0) != -ETIME) {
+	if (i915_request_wait(request, I915_WAIT_LOCKED, 0) != -ETIME) {
 		pr_err("request wait (busy query) succeeded (expected timeout after submit!)\n");
 		goto out_unlock;
 	}
 
-	if (i915_gem_request_completed(request)) {
+	if (i915_request_completed(request)) {
 		pr_err("request completed immediately!\n");
 		goto out_unlock;
 	}
 
-	if (i915_wait_request(request, I915_WAIT_LOCKED, T / 2) != -ETIME) {
+	if (i915_request_wait(request, I915_WAIT_LOCKED, T / 2) != -ETIME) {
 		pr_err("request wait succeeded (expected timeout!)\n");
 		goto out_unlock;
 	}
 
-	if (i915_wait_request(request, I915_WAIT_LOCKED, T) == -ETIME) {
+	if (i915_request_wait(request, I915_WAIT_LOCKED, T) == -ETIME) {
 		pr_err("request wait timed out!\n");
 		goto out_unlock;
 	}
 
-	if (!i915_gem_request_completed(request)) {
+	if (!i915_request_completed(request)) {
 		pr_err("request not complete after waiting!\n");
 		goto out_unlock;
 	}
 
-	if (i915_wait_request(request, I915_WAIT_LOCKED, T) == -ETIME) {
+	if (i915_request_wait(request, I915_WAIT_LOCKED, T) == -ETIME) {
 		pr_err("request wait timed out when already complete!\n");
 		goto out_unlock;
 	}
@@ -126,7 +126,7 @@ static int igt_fence_wait(void *arg)
 {
 	const long T = HZ / 4;
 	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_request *request;
+	struct i915_request *request;
 	int err = -EINVAL;
 
 	/* Submit a request, treat it as a fence and wait upon it */
@@ -145,7 +145,7 @@ static int igt_fence_wait(void *arg)
 	}
 
 	mutex_lock(&i915->drm.struct_mutex);
-	i915_add_request(request);
+	i915_request_add(request);
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	if (dma_fence_is_signaled(&request->fence)) {
@@ -185,7 +185,7 @@ out_locked:
 static int igt_request_rewind(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_request *request, *vip;
+	struct i915_request *request, *vip;
 	struct i915_gem_context *ctx[2];
 	int err = -EINVAL;
 
@@ -197,8 +197,8 @@ static int igt_request_rewind(void *arg)
 		goto err_context_0;
 	}
 
-	i915_gem_request_get(request);
-	i915_add_request(request);
+	i915_request_get(request);
+	i915_request_add(request);
 
 	ctx[1] = mock_context(i915, "B");
 	vip = mock_request(i915->engine[RCS], ctx[1], 0);
@@ -210,35 +210,35 @@ static int igt_request_rewind(void *arg)
 	/* Simulate preemption by manual reordering */
 	if (!mock_cancel_request(request)) {
 		pr_err("failed to cancel request (already executed)!\n");
-		i915_add_request(vip);
+		i915_request_add(vip);
 		goto err_context_1;
 	}
-	i915_gem_request_get(vip);
-	i915_add_request(vip);
+	i915_request_get(vip);
+	i915_request_add(vip);
 	rcu_read_lock();
 	request->engine->submit_request(request);
 	rcu_read_unlock();
 
 	mutex_unlock(&i915->drm.struct_mutex);
 
-	if (i915_wait_request(vip, 0, HZ) == -ETIME) {
+	if (i915_request_wait(vip, 0, HZ) == -ETIME) {
 		pr_err("timed out waiting for high priority request, vip.seqno=%d, current seqno=%d\n",
 		       vip->global_seqno, intel_engine_get_seqno(i915->engine[RCS]));
 		goto err;
 	}
 
-	if (i915_gem_request_completed(request)) {
+	if (i915_request_completed(request)) {
 		pr_err("low priority request already completed\n");
 		goto err;
 	}
 
 	err = 0;
 err:
-	i915_gem_request_put(vip);
+	i915_request_put(vip);
 	mutex_lock(&i915->drm.struct_mutex);
 err_context_1:
 	mock_context_close(ctx[1]);
-	i915_gem_request_put(request);
+	i915_request_put(request);
 err_context_0:
 	mock_context_close(ctx[0]);
 	mock_device_flush(i915);
@@ -246,7 +246,7 @@ err_context_0:
 	return err;
 }
 
-int i915_gem_request_mock_selftests(void)
+int i915_request_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_add_request),
@@ -303,7 +303,7 @@ static int end_live_test(struct live_test *t)
 {
 	struct drm_i915_private *i915 = t->i915;
 
-	i915_gem_retire_requests(i915);
+	i915_retire_requests(i915);
 
 	if (wait_for(intel_engines_are_idle(i915), 10)) {
 		pr_err("%s(%s): GPU not idle\n", t->func, t->name);
@@ -343,7 +343,7 @@ static int live_nop_request(void *arg)
 
 	for_each_engine(engine, i915, id) {
 		IGT_TIMEOUT(end_time);
-		struct drm_i915_gem_request *request;
+		struct i915_request *request;
 		unsigned long n, prime;
 		ktime_t times[2] = {};
 
@@ -355,8 +355,8 @@ static int live_nop_request(void *arg)
 			times[1] = ktime_get_raw();
 
 			for (n = 0; n < prime; n++) {
-				request = i915_gem_request_alloc(engine,
-								 i915->kernel_context);
+				request = i915_request_alloc(engine,
+							     i915->kernel_context);
 				if (IS_ERR(request)) {
 					err = PTR_ERR(request);
 					goto out_unlock;
@@ -375,9 +375,9 @@ static int live_nop_request(void *arg)
 				 * for latency.
 				 */
 
-				i915_add_request(request);
+				i915_request_add(request);
 			}
-			i915_wait_request(request,
+			i915_request_wait(request,
 					  I915_WAIT_LOCKED,
 					  MAX_SCHEDULE_TIMEOUT);
 
@@ -447,15 +447,14 @@ err:
 	return ERR_PTR(err);
 }
 
-static struct drm_i915_gem_request *
+static struct i915_request *
 empty_request(struct intel_engine_cs *engine,
 	      struct i915_vma *batch)
 {
-	struct drm_i915_gem_request *request;
+	struct i915_request *request;
 	int err;
 
-	request = i915_gem_request_alloc(engine,
-					 engine->i915->kernel_context);
+	request = i915_request_alloc(engine, engine->i915->kernel_context);
 	if (IS_ERR(request))
 		return request;
 
@@ -467,7 +466,7 @@ empty_request(struct intel_engine_cs *engine,
 		goto out_request;
 
 out_request:
-	__i915_add_request(request, err == 0);
+	__i915_request_add(request, err == 0);
 	return err ? ERR_PTR(err) : request;
 }
 
@@ -495,7 +494,7 @@ static int live_empty_request(void *arg)
 
 	for_each_engine(engine, i915, id) {
 		IGT_TIMEOUT(end_time);
-		struct drm_i915_gem_request *request;
+		struct i915_request *request;
 		unsigned long n, prime;
 		ktime_t times[2] = {};
 
@@ -509,7 +508,7 @@ static int live_empty_request(void *arg)
 			err = PTR_ERR(request);
 			goto out_batch;
 		}
-		i915_wait_request(request,
+		i915_request_wait(request,
 				  I915_WAIT_LOCKED,
 				  MAX_SCHEDULE_TIMEOUT);
 
@@ -523,7 +522,7 @@ static int live_empty_request(void *arg)
 					goto out_batch;
 				}
 			}
-			i915_wait_request(request,
+			i915_request_wait(request,
 					  I915_WAIT_LOCKED,
 					  MAX_SCHEDULE_TIMEOUT);
 
@@ -633,7 +632,7 @@ static int live_all_engines(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
-	struct drm_i915_gem_request *request[I915_NUM_ENGINES];
+	struct i915_request *request[I915_NUM_ENGINES];
 	struct i915_vma *batch;
 	struct live_test t;
 	unsigned int id;
@@ -658,8 +657,7 @@ static int live_all_engines(void *arg)
 	}
 
 	for_each_engine(engine, i915, id) {
-		request[id] = i915_gem_request_alloc(engine,
-						     i915->kernel_context);
+		request[id] = i915_request_alloc(engine, i915->kernel_context);
 		if (IS_ERR(request[id])) {
 			err = PTR_ERR(request[id]);
 			pr_err("%s: Request allocation failed with err=%d\n",
@@ -680,12 +678,12 @@ static int live_all_engines(void *arg)
 		}
 
 		i915_vma_move_to_active(batch, request[id], 0);
-		i915_gem_request_get(request[id]);
-		i915_add_request(request[id]);
+		i915_request_get(request[id]);
+		i915_request_add(request[id]);
 	}
 
 	for_each_engine(engine, i915, id) {
-		if (i915_gem_request_completed(request[id])) {
+		if (i915_request_completed(request[id])) {
 			pr_err("%s(%s): request completed too early!\n",
 			       __func__, engine->name);
 			err = -EINVAL;
@@ -702,7 +700,7 @@ static int live_all_engines(void *arg)
 	for_each_engine(engine, i915, id) {
 		long timeout;
 
-		timeout = i915_wait_request(request[id],
+		timeout = i915_request_wait(request[id],
 					    I915_WAIT_LOCKED,
 					    MAX_SCHEDULE_TIMEOUT);
 		if (timeout < 0) {
@@ -712,8 +710,8 @@ static int live_all_engines(void *arg)
 			goto out_request;
 		}
 
-		GEM_BUG_ON(!i915_gem_request_completed(request[id]));
-		i915_gem_request_put(request[id]);
+		GEM_BUG_ON(!i915_request_completed(request[id]));
+		i915_request_put(request[id]);
 		request[id] = NULL;
 	}
 
@@ -722,7 +720,7 @@ static int live_all_engines(void *arg)
 out_request:
 	for_each_engine(engine, i915, id)
 		if (request[id])
-			i915_gem_request_put(request[id]);
+			i915_request_put(request[id]);
 	i915_vma_unpin(batch);
 	i915_vma_put(batch);
 out_unlock:
@@ -733,8 +731,8 @@ out_unlock:
 static int live_sequential_engines(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_request *request[I915_NUM_ENGINES] = {};
-	struct drm_i915_gem_request *prev = NULL;
+	struct i915_request *request[I915_NUM_ENGINES] = {};
+	struct i915_request *prev = NULL;
 	struct intel_engine_cs *engine;
 	struct live_test t;
 	unsigned int id;
@@ -763,8 +761,7 @@ static int live_sequential_engines(void *arg)
 			goto out_unlock;
 		}
 
-		request[id] = i915_gem_request_alloc(engine,
-						     i915->kernel_context);
+		request[id] = i915_request_alloc(engine, i915->kernel_context);
 		if (IS_ERR(request[id])) {
 			err = PTR_ERR(request[id]);
 			pr_err("%s: Request allocation failed for %s with err=%d\n",
@@ -773,10 +770,10 @@ static int live_sequential_engines(void *arg)
 		}
 
 		if (prev) {
-			err = i915_gem_request_await_dma_fence(request[id],
-							       &prev->fence);
+			err = i915_request_await_dma_fence(request[id],
+							   &prev->fence);
 			if (err) {
-				i915_add_request(request[id]);
+				i915_request_add(request[id]);
 				pr_err("%s: Request await failed for %s with err=%d\n",
 				       __func__, engine->name, err);
 				goto out_request;
@@ -794,8 +791,8 @@ static int live_sequential_engines(void *arg)
 		i915_gem_object_set_active_reference(batch->obj);
 		i915_vma_get(batch);
 
-		i915_gem_request_get(request[id]);
-		i915_add_request(request[id]);
+		i915_request_get(request[id]);
+		i915_request_add(request[id]);
 
 		prev = request[id];
 	}
@@ -803,7 +800,7 @@ static int live_sequential_engines(void *arg)
 	for_each_engine(engine, i915, id) {
 		long timeout;
 
-		if (i915_gem_request_completed(request[id])) {
+		if (i915_request_completed(request[id])) {
 			pr_err("%s(%s): request completed too early!\n",
 			       __func__, engine->name);
 			err = -EINVAL;
@@ -817,7 +814,7 @@ static int live_sequential_engines(void *arg)
 			goto out_request;
 		}
 
-		timeout = i915_wait_request(request[id],
+		timeout = i915_request_wait(request[id],
 					    I915_WAIT_LOCKED,
 					    MAX_SCHEDULE_TIMEOUT);
 		if (timeout < 0) {
@@ -827,7 +824,7 @@ static int live_sequential_engines(void *arg)
 			goto out_request;
 		}
 
-		GEM_BUG_ON(!i915_gem_request_completed(request[id]));
+		GEM_BUG_ON(!i915_request_completed(request[id]));
 	}
 
 	err = end_live_test(&t);
@@ -849,14 +846,14 @@ out_request:
 		}
 
 		i915_vma_put(request[id]->batch);
-		i915_gem_request_put(request[id]);
+		i915_request_put(request[id]);
 	}
 out_unlock:
 	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
 
-int i915_gem_request_live_selftests(struct drm_i915_private *i915)
+int i915_request_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_nop_request),

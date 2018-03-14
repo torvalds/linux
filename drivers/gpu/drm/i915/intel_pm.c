@@ -6360,7 +6360,7 @@ void gen6_rps_idle(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->pcu_lock);
 }
 
-void gen6_rps_boost(struct drm_i915_gem_request *rq,
+void gen6_rps_boost(struct i915_request *rq,
 		    struct intel_rps_client *rps_client)
 {
 	struct intel_rps *rps = &rq->i915->gt_pm.rps;
@@ -6376,7 +6376,7 @@ void gen6_rps_boost(struct drm_i915_gem_request *rq,
 	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
 		return;
 
-	/* Serializes with i915_gem_request_retire() */
+	/* Serializes with i915_request_retire() */
 	boost = false;
 	spin_lock_irqsave(&rq->lock, flags);
 	if (!rq->waitboost && !dma_fence_is_signaled_locked(&rq->fence)) {
@@ -6715,7 +6715,7 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 
 	/*
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
-	 * WaRsDisableCoarsePowerGating:skl,bxt - Render/Media PG need to be disabled with RC6.
+	 * WaRsDisableCoarsePowerGating:skl,cnl - Render/Media PG need to be disabled with RC6.
 	 */
 	if (NEEDS_WaRsDisableCoarsePowerGating(dev_priv))
 		I915_WRITE(GEN9_PG_ENABLE, 0);
@@ -8026,7 +8026,10 @@ void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 	dev_priv->gt_pm.rc6.enabled = true; /* force RC6 disabling */
 	intel_disable_gt_powersave(dev_priv);
 
-	gen6_reset_rps_interrupts(dev_priv);
+	if (INTEL_GEN(dev_priv) < 11)
+		gen6_reset_rps_interrupts(dev_priv);
+	else
+		WARN_ON_ONCE(1);
 }
 
 static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
@@ -8139,6 +8142,8 @@ static void intel_enable_rps(struct drm_i915_private *dev_priv)
 		cherryview_enable_rps(dev_priv);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		valleyview_enable_rps(dev_priv);
+	} else if (WARN_ON_ONCE(INTEL_GEN(dev_priv) >= 11)) {
+		/* TODO */
 	} else if (INTEL_GEN(dev_priv) >= 9) {
 		gen9_enable_rps(dev_priv);
 	} else if (IS_BROADWELL(dev_priv)) {
@@ -8487,7 +8492,7 @@ static void cnp_init_clock_gating(struct drm_i915_private *dev_priv)
 	if (!HAS_PCH_CNP(dev_priv))
 		return;
 
-	/* Display WA #1181: cnp */
+	/* Display WA #1181 WaSouthDisplayDisablePWMCGEGating: cnp */
 	I915_WRITE(SOUTH_DSPCLK_GATE_D, I915_READ(SOUTH_DSPCLK_GATE_D) |
 		   CNP_PWM_CGE_GATING_DISABLE);
 }
@@ -8517,7 +8522,13 @@ static void cnl_init_clock_gating(struct drm_i915_private *dev_priv)
 		val |= SARBUNIT_CLKGATE_DIS;
 	I915_WRITE(SLICE_UNIT_LEVEL_CLKGATE, val);
 
+	/* Wa_2201832410:cnl */
+	val = I915_READ(SUBSLICE_UNIT_LEVEL_CLKGATE);
+	val |= GWUNIT_CLKGATE_DIS;
+	I915_WRITE(SUBSLICE_UNIT_LEVEL_CLKGATE, val);
+
 	/* WaDisableVFclkgate:cnl */
+	/* WaVFUnitClockGatingDisable:cnl */
 	val = I915_READ(UNSLICE_UNIT_LEVEL_CLKGATE);
 	val |= VFUNIT_CLKGATE_DIS;
 	I915_WRITE(UNSLICE_UNIT_LEVEL_CLKGATE, val);

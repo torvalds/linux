@@ -211,17 +211,23 @@ static void context_close(struct i915_gem_context *ctx)
 static int assign_hw_id(struct drm_i915_private *dev_priv, unsigned *out)
 {
 	int ret;
+	unsigned int max;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		max = GEN11_MAX_CONTEXT_HW_ID;
+	else
+		max = MAX_CONTEXT_HW_ID;
 
 	ret = ida_simple_get(&dev_priv->contexts.hw_ida,
-			     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
+			     0, max, GFP_KERNEL);
 	if (ret < 0) {
 		/* Contexts are only released when no longer active.
 		 * Flush any pending retires to hopefully release some
 		 * stale contexts and try again.
 		 */
-		i915_gem_retire_requests(dev_priv);
+		i915_retire_requests(dev_priv);
 		ret = ida_simple_get(&dev_priv->contexts.hw_ida,
-				     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);
+				     0, max, GFP_KERNEL);
 		if (ret < 0)
 			return ret;
 	}
@@ -463,6 +469,7 @@ int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 
 	/* Using the simple ida interface, the max is limited by sizeof(int) */
 	BUILD_BUG_ON(MAX_CONTEXT_HW_ID > INT_MAX);
+	BUILD_BUG_ON(GEN11_MAX_CONTEXT_HW_ID > INT_MAX);
 	ida_init(&dev_priv->contexts.hw_ida);
 
 	/* lowest priority; idle task */
@@ -590,28 +597,28 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
-	i915_gem_retire_requests(dev_priv);
+	i915_retire_requests(dev_priv);
 
 	for_each_engine(engine, dev_priv, id) {
-		struct drm_i915_gem_request *req;
+		struct i915_request *rq;
 
 		if (engine_has_idle_kernel_context(engine))
 			continue;
 
-		req = i915_gem_request_alloc(engine, dev_priv->kernel_context);
-		if (IS_ERR(req))
-			return PTR_ERR(req);
+		rq = i915_request_alloc(engine, dev_priv->kernel_context);
+		if (IS_ERR(rq))
+			return PTR_ERR(rq);
 
 		/* Queue this switch after all other activity */
 		list_for_each_entry(timeline, &dev_priv->gt.timelines, link) {
-			struct drm_i915_gem_request *prev;
+			struct i915_request *prev;
 			struct intel_timeline *tl;
 
 			tl = &timeline->engine[engine->id];
 			prev = i915_gem_active_raw(&tl->last_request,
 						   &dev_priv->drm.struct_mutex);
 			if (prev)
-				i915_sw_fence_await_sw_fence_gfp(&req->submit,
+				i915_sw_fence_await_sw_fence_gfp(&rq->submit,
 								 &prev->submit,
 								 I915_FENCE_GFP);
 		}
@@ -623,7 +630,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 		 * but an extra layer of paranoia before we declare the system
 		 * idle (on suspend etc) is advisable!
 		 */
-		__i915_add_request(req, true);
+		__i915_request_add(rq, true);
 	}
 
 	return 0;

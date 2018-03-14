@@ -519,7 +519,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 	list_for_each_entry_reverse(file, &dev->filelist, lhead) {
 		struct file_stats stats;
 		struct drm_i915_file_private *file_priv = file->driver_priv;
-		struct drm_i915_gem_request *request;
+		struct i915_request *request;
 		struct task_struct *task;
 
 		mutex_lock(&dev->struct_mutex);
@@ -536,7 +536,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
 		request = list_first_entry_or_null(&file_priv->mm.request_list,
-						   struct drm_i915_gem_request,
+						   struct i915_request,
 						   client_link);
 		rcu_read_lock();
 		task = pid_task(request && request->ctx->pid ?
@@ -646,6 +646,56 @@ static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static void gen8_display_interrupt_info(struct seq_file *m)
+{
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	int pipe;
+
+	for_each_pipe(dev_priv, pipe) {
+		enum intel_display_power_domain power_domain;
+
+		power_domain = POWER_DOMAIN_PIPE(pipe);
+		if (!intel_display_power_get_if_enabled(dev_priv,
+							power_domain)) {
+			seq_printf(m, "Pipe %c power disabled\n",
+				   pipe_name(pipe));
+			continue;
+		}
+		seq_printf(m, "Pipe %c IMR:\t%08x\n",
+			   pipe_name(pipe),
+			   I915_READ(GEN8_DE_PIPE_IMR(pipe)));
+		seq_printf(m, "Pipe %c IIR:\t%08x\n",
+			   pipe_name(pipe),
+			   I915_READ(GEN8_DE_PIPE_IIR(pipe)));
+		seq_printf(m, "Pipe %c IER:\t%08x\n",
+			   pipe_name(pipe),
+			   I915_READ(GEN8_DE_PIPE_IER(pipe)));
+
+		intel_display_power_put(dev_priv, power_domain);
+	}
+
+	seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",
+		   I915_READ(GEN8_DE_PORT_IMR));
+	seq_printf(m, "Display Engine port interrupt identity:\t%08x\n",
+		   I915_READ(GEN8_DE_PORT_IIR));
+	seq_printf(m, "Display Engine port interrupt enable:\t%08x\n",
+		   I915_READ(GEN8_DE_PORT_IER));
+
+	seq_printf(m, "Display Engine misc interrupt mask:\t%08x\n",
+		   I915_READ(GEN8_DE_MISC_IMR));
+	seq_printf(m, "Display Engine misc interrupt identity:\t%08x\n",
+		   I915_READ(GEN8_DE_MISC_IIR));
+	seq_printf(m, "Display Engine misc interrupt enable:\t%08x\n",
+		   I915_READ(GEN8_DE_MISC_IER));
+
+	seq_printf(m, "PCU interrupt mask:\t%08x\n",
+		   I915_READ(GEN8_PCU_IMR));
+	seq_printf(m, "PCU interrupt identity:\t%08x\n",
+		   I915_READ(GEN8_PCU_IIR));
+	seq_printf(m, "PCU interrupt enable:\t%08x\n",
+		   I915_READ(GEN8_PCU_IER));
+}
+
 static int i915_interrupt_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -709,6 +759,27 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 			   I915_READ(GEN8_PCU_IIR));
 		seq_printf(m, "PCU interrupt enable:\t%08x\n",
 			   I915_READ(GEN8_PCU_IER));
+	} else if (INTEL_GEN(dev_priv) >= 11) {
+		seq_printf(m, "Master Interrupt Control:  %08x\n",
+			   I915_READ(GEN11_GFX_MSTR_IRQ));
+
+		seq_printf(m, "Render/Copy Intr Enable:   %08x\n",
+			   I915_READ(GEN11_RENDER_COPY_INTR_ENABLE));
+		seq_printf(m, "VCS/VECS Intr Enable:      %08x\n",
+			   I915_READ(GEN11_VCS_VECS_INTR_ENABLE));
+		seq_printf(m, "GUC/SG Intr Enable:\t   %08x\n",
+			   I915_READ(GEN11_GUC_SG_INTR_ENABLE));
+		seq_printf(m, "GPM/WGBOXPERF Intr Enable: %08x\n",
+			   I915_READ(GEN11_GPM_WGBOXPERF_INTR_ENABLE));
+		seq_printf(m, "Crypto Intr Enable:\t   %08x\n",
+			   I915_READ(GEN11_CRYPTO_RSVD_INTR_ENABLE));
+		seq_printf(m, "GUnit/CSME Intr Enable:\t   %08x\n",
+			   I915_READ(GEN11_GUNIT_CSME_INTR_ENABLE));
+
+		seq_printf(m, "Display Interrupt Control:\t%08x\n",
+			   I915_READ(GEN11_DISPLAY_INT_CTL));
+
+		gen8_display_interrupt_info(m);
 	} else if (INTEL_GEN(dev_priv) >= 8) {
 		seq_printf(m, "Master Interrupt Control:\t%08x\n",
 			   I915_READ(GEN8_MASTER_IRQ));
@@ -722,49 +793,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 				   i, I915_READ(GEN8_GT_IER(i)));
 		}
 
-		for_each_pipe(dev_priv, pipe) {
-			enum intel_display_power_domain power_domain;
-
-			power_domain = POWER_DOMAIN_PIPE(pipe);
-			if (!intel_display_power_get_if_enabled(dev_priv,
-								power_domain)) {
-				seq_printf(m, "Pipe %c power disabled\n",
-					   pipe_name(pipe));
-				continue;
-			}
-			seq_printf(m, "Pipe %c IMR:\t%08x\n",
-				   pipe_name(pipe),
-				   I915_READ(GEN8_DE_PIPE_IMR(pipe)));
-			seq_printf(m, "Pipe %c IIR:\t%08x\n",
-				   pipe_name(pipe),
-				   I915_READ(GEN8_DE_PIPE_IIR(pipe)));
-			seq_printf(m, "Pipe %c IER:\t%08x\n",
-				   pipe_name(pipe),
-				   I915_READ(GEN8_DE_PIPE_IER(pipe)));
-
-			intel_display_power_put(dev_priv, power_domain);
-		}
-
-		seq_printf(m, "Display Engine port interrupt mask:\t%08x\n",
-			   I915_READ(GEN8_DE_PORT_IMR));
-		seq_printf(m, "Display Engine port interrupt identity:\t%08x\n",
-			   I915_READ(GEN8_DE_PORT_IIR));
-		seq_printf(m, "Display Engine port interrupt enable:\t%08x\n",
-			   I915_READ(GEN8_DE_PORT_IER));
-
-		seq_printf(m, "Display Engine misc interrupt mask:\t%08x\n",
-			   I915_READ(GEN8_DE_MISC_IMR));
-		seq_printf(m, "Display Engine misc interrupt identity:\t%08x\n",
-			   I915_READ(GEN8_DE_MISC_IIR));
-		seq_printf(m, "Display Engine misc interrupt enable:\t%08x\n",
-			   I915_READ(GEN8_DE_MISC_IER));
-
-		seq_printf(m, "PCU interrupt mask:\t%08x\n",
-			   I915_READ(GEN8_PCU_IMR));
-		seq_printf(m, "PCU interrupt identity:\t%08x\n",
-			   I915_READ(GEN8_PCU_IIR));
-		seq_printf(m, "PCU interrupt enable:\t%08x\n",
-			   I915_READ(GEN8_PCU_IER));
+		gen8_display_interrupt_info(m);
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		seq_printf(m, "Display IER:\t%08x\n",
 			   I915_READ(VLV_IER));
@@ -846,13 +875,35 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		seq_printf(m, "Graphics Interrupt mask:		%08x\n",
 			   I915_READ(GTIMR));
 	}
-	if (INTEL_GEN(dev_priv) >= 6) {
+
+	if (INTEL_GEN(dev_priv) >= 11) {
+		seq_printf(m, "RCS Intr Mask:\t %08x\n",
+			   I915_READ(GEN11_RCS0_RSVD_INTR_MASK));
+		seq_printf(m, "BCS Intr Mask:\t %08x\n",
+			   I915_READ(GEN11_BCS_RSVD_INTR_MASK));
+		seq_printf(m, "VCS0/VCS1 Intr Mask:\t %08x\n",
+			   I915_READ(GEN11_VCS0_VCS1_INTR_MASK));
+		seq_printf(m, "VCS2/VCS3 Intr Mask:\t %08x\n",
+			   I915_READ(GEN11_VCS2_VCS3_INTR_MASK));
+		seq_printf(m, "VECS0/VECS1 Intr Mask:\t %08x\n",
+			   I915_READ(GEN11_VECS0_VECS1_INTR_MASK));
+		seq_printf(m, "GUC/SG Intr Mask:\t %08x\n",
+			   I915_READ(GEN11_GUC_SG_INTR_MASK));
+		seq_printf(m, "GPM/WGBOXPERF Intr Mask: %08x\n",
+			   I915_READ(GEN11_GPM_WGBOXPERF_INTR_MASK));
+		seq_printf(m, "Crypto Intr Mask:\t %08x\n",
+			   I915_READ(GEN11_CRYPTO_RSVD_INTR_MASK));
+		seq_printf(m, "Gunit/CSME Intr Mask:\t %08x\n",
+			   I915_READ(GEN11_GUNIT_CSME_INTR_MASK));
+
+	} else if (INTEL_GEN(dev_priv) >= 6) {
 		for_each_engine(engine, dev_priv, id) {
 			seq_printf(m,
 				   "Graphics Interrupt mask (%s):	%08x\n",
 				   engine->name, I915_READ_IMR(engine));
 		}
 	}
+
 	intel_runtime_pm_put(dev_priv);
 
 	return 0;
@@ -3150,6 +3201,16 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int i915_rcs_topology(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *dev_priv = node_to_i915(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	intel_device_info_dump_topology(&INTEL_INFO(dev_priv)->sseu, &p);
+
+	return 0;
+}
+
 static int i915_shrinker_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
@@ -3926,7 +3987,8 @@ i915_wedged_set(void *data, u64 val)
 		engine->hangcheck.stalled = true;
 	}
 
-	i915_handle_error(i915, val, "Manually setting wedged to %llu", val);
+	i915_handle_error(i915, val, "Manually set wedged engine mask = %llx",
+			  val);
 
 	wait_on_bit(&i915->gpu_error.flags,
 		    I915_RESET_HANDOFF,
@@ -4060,7 +4122,7 @@ i915_drop_caches_set(void *data, u64 val)
 						     I915_WAIT_LOCKED);
 
 		if (val & DROP_RETIRE)
-			i915_gem_retire_requests(dev_priv);
+			i915_retire_requests(dev_priv);
 
 		mutex_unlock(&dev->struct_mutex);
 	}
@@ -4271,7 +4333,7 @@ static void cherryview_sseu_device_status(struct drm_i915_private *dev_priv,
 			continue;
 
 		sseu->slice_mask = BIT(0);
-		sseu->subslice_mask |= BIT(ss);
+		sseu->subslice_mask[0] |= BIT(ss);
 		eu_cnt = ((sig1[ss] & CHV_EU08_PG_ENABLE) ? 0 : 2) +
 			 ((sig1[ss] & CHV_EU19_PG_ENABLE) ? 0 : 2) +
 			 ((sig1[ss] & CHV_EU210_PG_ENABLE) ? 0 : 2) +
@@ -4286,11 +4348,11 @@ static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 				     struct sseu_dev_info *sseu)
 {
 	const struct intel_device_info *info = INTEL_INFO(dev_priv);
-	int s_max = 6, ss_max = 4;
 	int s, ss;
-	u32 s_reg[s_max], eu_reg[2 * s_max], eu_mask[2];
+	u32 s_reg[info->sseu.max_slices];
+	u32 eu_reg[2 * info->sseu.max_subslices], eu_mask[2];
 
-	for (s = 0; s < s_max; s++) {
+	for (s = 0; s < info->sseu.max_slices; s++) {
 		/*
 		 * FIXME: Valid SS Mask respects the spec and read
 		 * only valid bits for those registers, excluding reserverd
@@ -4312,15 +4374,15 @@ static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 		     GEN9_PGCTL_SSB_EU210_ACK |
 		     GEN9_PGCTL_SSB_EU311_ACK;
 
-	for (s = 0; s < s_max; s++) {
+	for (s = 0; s < info->sseu.max_slices; s++) {
 		if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
 			/* skip disabled slice */
 			continue;
 
 		sseu->slice_mask |= BIT(s);
-		sseu->subslice_mask = info->sseu.subslice_mask;
+		sseu->subslice_mask[s] = info->sseu.subslice_mask[s];
 
-		for (ss = 0; ss < ss_max; ss++) {
+		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
 			unsigned int eu_cnt;
 
 			if (!(s_reg[s] & (GEN9_PGCTL_SS_ACK(ss))))
@@ -4340,17 +4402,12 @@ static void gen10_sseu_device_status(struct drm_i915_private *dev_priv,
 static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 				    struct sseu_dev_info *sseu)
 {
-	int s_max = 3, ss_max = 4;
+	const struct intel_device_info *info = INTEL_INFO(dev_priv);
 	int s, ss;
-	u32 s_reg[s_max], eu_reg[2*s_max], eu_mask[2];
+	u32 s_reg[info->sseu.max_slices];
+	u32 eu_reg[2 * info->sseu.max_subslices], eu_mask[2];
 
-	/* BXT has a single slice and at most 3 subslices. */
-	if (IS_GEN9_LP(dev_priv)) {
-		s_max = 1;
-		ss_max = 3;
-	}
-
-	for (s = 0; s < s_max; s++) {
+	for (s = 0; s < info->sseu.max_slices; s++) {
 		s_reg[s] = I915_READ(GEN9_SLICE_PGCTL_ACK(s));
 		eu_reg[2*s] = I915_READ(GEN9_SS01_EU_PGCTL_ACK(s));
 		eu_reg[2*s + 1] = I915_READ(GEN9_SS23_EU_PGCTL_ACK(s));
@@ -4365,7 +4422,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 		     GEN9_PGCTL_SSB_EU210_ACK |
 		     GEN9_PGCTL_SSB_EU311_ACK;
 
-	for (s = 0; s < s_max; s++) {
+	for (s = 0; s < info->sseu.max_slices; s++) {
 		if ((s_reg[s] & GEN9_PGCTL_SLICE_ACK) == 0)
 			/* skip disabled slice */
 			continue;
@@ -4373,10 +4430,10 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 		sseu->slice_mask |= BIT(s);
 
 		if (IS_GEN9_BC(dev_priv))
-			sseu->subslice_mask =
-				INTEL_INFO(dev_priv)->sseu.subslice_mask;
+			sseu->subslice_mask[s] =
+				INTEL_INFO(dev_priv)->sseu.subslice_mask[s];
 
-		for (ss = 0; ss < ss_max; ss++) {
+		for (ss = 0; ss < info->sseu.max_subslices; ss++) {
 			unsigned int eu_cnt;
 
 			if (IS_GEN9_LP(dev_priv)) {
@@ -4384,7 +4441,7 @@ static void gen9_sseu_device_status(struct drm_i915_private *dev_priv,
 					/* skip disabled subslice */
 					continue;
 
-				sseu->subslice_mask |= BIT(ss);
+				sseu->subslice_mask[s] |= BIT(ss);
 			}
 
 			eu_cnt = 2 * hweight32(eu_reg[2*s + ss/2] &
@@ -4406,9 +4463,12 @@ static void broadwell_sseu_device_status(struct drm_i915_private *dev_priv,
 	sseu->slice_mask = slice_info & GEN8_LSLICESTAT_MASK;
 
 	if (sseu->slice_mask) {
-		sseu->subslice_mask = INTEL_INFO(dev_priv)->sseu.subslice_mask;
 		sseu->eu_per_subslice =
 				INTEL_INFO(dev_priv)->sseu.eu_per_subslice;
+		for (s = 0; s < fls(sseu->slice_mask); s++) {
+			sseu->subslice_mask[s] =
+				INTEL_INFO(dev_priv)->sseu.subslice_mask[s];
+		}
 		sseu->eu_total = sseu->eu_per_subslice *
 				 sseu_subslice_total(sseu);
 
@@ -4427,6 +4487,7 @@ static void i915_print_sseu_info(struct seq_file *m, bool is_available_info,
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	const char *type = is_available_info ? "Available" : "Enabled";
+	int s;
 
 	seq_printf(m, "  %s Slice Mask: %04x\n", type,
 		   sseu->slice_mask);
@@ -4434,10 +4495,10 @@ static void i915_print_sseu_info(struct seq_file *m, bool is_available_info,
 		   hweight8(sseu->slice_mask));
 	seq_printf(m, "  %s Subslice Total: %u\n", type,
 		   sseu_subslice_total(sseu));
-	seq_printf(m, "  %s Subslice Mask: %04x\n", type,
-		   sseu->subslice_mask);
-	seq_printf(m, "  %s Subslice Per Slice: %u\n", type,
-		   hweight8(sseu->subslice_mask));
+	for (s = 0; s < fls(sseu->slice_mask); s++) {
+		seq_printf(m, "  %s Slice%i subslices: %u\n", type,
+			   s, hweight8(sseu->subslice_mask[s]));
+	}
 	seq_printf(m, "  %s EU Total: %u\n", type,
 		   sseu->eu_total);
 	seq_printf(m, "  %s EU Per Subslice: %u\n", type,
@@ -4471,6 +4532,10 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 
 	seq_puts(m, "SSEU Device Status\n");
 	memset(&sseu, 0, sizeof(sseu));
+	sseu.max_slices = INTEL_INFO(dev_priv)->sseu.max_slices;
+	sseu.max_subslices = INTEL_INFO(dev_priv)->sseu.max_subslices;
+	sseu.max_eus_per_subslice =
+		INTEL_INFO(dev_priv)->sseu.max_eus_per_subslice;
 
 	intel_runtime_pm_get(dev_priv);
 
@@ -4678,6 +4743,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_dmc_info", i915_dmc_info, 0},
 	{"i915_display_info", i915_display_info, 0},
 	{"i915_engine_info", i915_engine_info, 0},
+	{"i915_rcs_topology", i915_rcs_topology, 0},
 	{"i915_shrinker_info", i915_shrinker_info, 0},
 	{"i915_shared_dplls_info", i915_shared_dplls_info, 0},
 	{"i915_dp_mst_info", i915_dp_mst_info, 0},
