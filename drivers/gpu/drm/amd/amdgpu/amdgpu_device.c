@@ -1580,7 +1580,7 @@ int amdgpu_device_ip_suspend(struct amdgpu_device *adev)
 		if (!adev->ip_blocks[i].status.valid)
 			continue;
 		/* ungate blocks so that suspend can properly shut them down */
-		if (i != AMD_IP_BLOCK_TYPE_SMC &&
+		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_SMC &&
 			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
 			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
 										     AMD_CG_STATE_UNGATE);
