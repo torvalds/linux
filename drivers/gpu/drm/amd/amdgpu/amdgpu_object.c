@@ -175,12 +175,14 @@ void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain)
  * @size: size for the new BO
  * @align: alignment for the new BO
  * @domain: where to place it
- * @bo_ptr: resulting BO
+ * @bo_ptr: used to initialize BOs in structures
  * @gpu_addr: GPU addr of the pinned BO
  * @cpu_addr: optional CPU address mapping
  *
  * Allocates and pins a BO for kernel internal use, and returns it still
  * reserved.
+ *
+ * Note: For bo_ptr new BO is only created if bo_ptr points to NULL.
  *
  * Returns 0 on success, negative error code otherwise.
  */
@@ -244,11 +246,13 @@ error_free:
  * @size: size for the new BO
  * @align: alignment for the new BO
  * @domain: where to place it
- * @bo_ptr: resulting BO
+ * @bo_ptr:  used to initialize BOs in structures
  * @gpu_addr: GPU addr of the pinned BO
  * @cpu_addr: optional CPU address mapping
  *
  * Allocates and pins a BO for kernel internal use.
+ *
+ * Note: For bo_ptr new BO is only created if bo_ptr points to NULL.
  *
  * Returns 0 on success, negative error code otherwise.
  */
