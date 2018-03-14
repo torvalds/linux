@@ -367,11 +367,6 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 
 	gen9_reset_guc_interrupts(dev_priv);
 
-	/* init WOPCM */
-	I915_WRITE(GUC_WOPCM_SIZE, dev_priv->wopcm.guc.size);
-	I915_WRITE(DMA_GUC_WOPCM_OFFSET,
-		   dev_priv->wopcm.guc.base | HUC_LOADING_AGENT_GUC);
-
 	/* WaEnableuKernelHeaderValidFix:skl */
 	/* WaEnableGuCBootHashCheckNotSet:skl,bxt,kbl */
 	if (IS_GEN9(dev_priv))
