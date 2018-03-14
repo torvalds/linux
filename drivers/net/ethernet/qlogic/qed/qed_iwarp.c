@@ -1928,8 +1928,8 @@ qed_iwarp_update_fpdu_length(struct qed_hwfn *p_hwfn,
 		/* Missing lower byte is now available */
 		mpa_len = fpdu->fpdu_length | *mpa_data;
 		fpdu->fpdu_length = QED_IWARP_FPDU_LEN_WITH_PAD(mpa_len);
-		fpdu->mpa_frag_len = fpdu->fpdu_length;
 		/* one byte of hdr */
+		fpdu->mpa_frag_len = 1;
 		fpdu->incomplete_bytes = fpdu->fpdu_length - 1;
 		DP_VERBOSE(p_hwfn,
 			   QED_MSG_RDMA,
