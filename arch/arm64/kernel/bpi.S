@@ -48,12 +48,18 @@
 	ventry \target + 0x780
 .endm
 
+
+	.text
+	.pushsection	.hyp.text, "ax"
+
 	.align	11
 ENTRY(__bp_harden_hyp_vecs_start)
 	.rept 4
 	vectors __kvm_hyp_vector
 	.endr
 ENTRY(__bp_harden_hyp_vecs_end)
+
+	.popsection
 
 ENTRY(__qcom_hyp_sanitize_link_stack_start)
 	stp     x29, x30, [sp, #-16]!

@@ -380,9 +380,7 @@ static inline void *kvm_get_hyp_vector(void)
 
 static inline int kvm_map_vectors(void)
 {
-	return create_hyp_mappings(kvm_ksym_ref(__bp_harden_hyp_vecs_start),
-				   kvm_ksym_ref(__bp_harden_hyp_vecs_end),
-				   PAGE_HYP_EXEC);
+	return 0;
 }
 
 #else
