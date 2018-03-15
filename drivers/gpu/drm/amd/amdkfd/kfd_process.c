@@ -54,7 +54,6 @@ static struct kfd_process *find_process(const struct task_struct *thread);
 static void kfd_process_ref_release(struct kref *ref);
 static struct kfd_process *create_process(const struct task_struct *thread,
 					struct file *filep);
-static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep);
 
 static void evict_process_worker(struct work_struct *work);
 static void restore_process_worker(struct work_struct *work);
@@ -72,6 +71,82 @@ void kfd_process_destroy_wq(void)
 		destroy_workqueue(kfd_process_wq);
 		kfd_process_wq = NULL;
 	}
+}
+
+static void kfd_process_free_gpuvm(struct kgd_mem *mem,
+			struct kfd_process_device *pdd)
+{
+	struct kfd_dev *dev = pdd->dev;
+
+	dev->kfd2kgd->unmap_memory_to_gpu(dev->kgd, mem, pdd->vm);
+	dev->kfd2kgd->free_memory_of_gpu(dev->kgd, mem);
+}
+
+/* kfd_process_alloc_gpuvm - Allocate GPU VM for the KFD process
+ *	This function should be only called right after the process
+ *	is created and when kfd_processes_mutex is still being held
+ *	to avoid concurrency. Because of that exclusiveness, we do
+ *	not need to take p->mutex.
+ */
+static int kfd_process_alloc_gpuvm(struct kfd_process_device *pdd,
+				   uint64_t gpu_va, uint32_t size,
+				   uint32_t flags, void **kptr)
+{
+	struct kfd_dev *kdev = pdd->dev;
+	struct kgd_mem *mem = NULL;
+	int handle;
+	int err;
+
+	err = kdev->kfd2kgd->alloc_memory_of_gpu(kdev->kgd, gpu_va, size,
+						 pdd->vm, &mem, NULL, flags);
+	if (err)
+		goto err_alloc_mem;
+
+	err = kdev->kfd2kgd->map_memory_to_gpu(kdev->kgd, mem, pdd->vm);
+	if (err)
+		goto err_map_mem;
+
+	err = kdev->kfd2kgd->sync_memory(kdev->kgd, mem, true);
+	if (err) {
+		pr_debug("Sync memory failed, wait interrupted by user signal\n");
+		goto sync_memory_failed;
+	}
+
+	/* Create an obj handle so kfd_process_device_remove_obj_handle
+	 * will take care of the bo removal when the process finishes.
+	 * We do not need to take p->mutex, because the process is just
+	 * created and the ioctls have not had the chance to run.
+	 */
+	handle = kfd_process_device_create_obj_handle(pdd, mem);
+
+	if (handle < 0) {
+		err = handle;
+		goto free_gpuvm;
+	}
+
+	if (kptr) {
+		err = kdev->kfd2kgd->map_gtt_bo_to_kernel(kdev->kgd,
+				(struct kgd_mem *)mem, kptr, NULL);
+		if (err) {
+			pr_debug("Map GTT BO to kernel failed\n");
+			goto free_obj_handle;
+		}
+	}
+
+	return err;
+
+free_obj_handle:
+	kfd_process_device_remove_obj_handle(pdd, handle);
+free_gpuvm:
+sync_memory_failed:
+	kfd_process_free_gpuvm(mem, pdd);
+	return err;
+
+err_map_mem:
+	kdev->kfd2kgd->free_memory_of_gpu(kdev->kgd, mem);
+err_alloc_mem:
+	*kptr = NULL;
+	return err;
 }
 
 struct kfd_process *kfd_create_process(struct file *filep)
@@ -201,7 +276,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 
 		list_del(&pdd->per_device_list);
 
-		if (pdd->qpd.cwsr_kaddr)
+		if (pdd->qpd.cwsr_kaddr && !pdd->qpd.cwsr_base)
 			free_pages((unsigned long)pdd->qpd.cwsr_kaddr,
 				get_order(KFD_CWSR_TBA_TMA_SIZE));
 
@@ -312,18 +387,18 @@ static const struct mmu_notifier_ops kfd_process_mmu_notifier_ops = {
 	.release = kfd_process_notifier_release,
 };
 
-static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep)
+static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep)
 {
 	unsigned long  offset;
-	struct kfd_process_device *pdd = NULL;
-	struct kfd_dev *dev = NULL;
-	struct qcm_process_device *qpd = NULL;
+	struct kfd_process_device *pdd;
 
 	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
-		dev = pdd->dev;
-		qpd = &pdd->qpd;
-		if (!dev->cwsr_enabled || qpd->cwsr_kaddr)
+		struct kfd_dev *dev = pdd->dev;
+		struct qcm_process_device *qpd = &pdd->qpd;
+
+		if (!dev->cwsr_enabled || qpd->cwsr_kaddr || qpd->cwsr_base)
 			continue;
+
 		offset = (dev->id | KFD_MMAP_RESERVED_MEM_MASK) << PAGE_SHIFT;
 		qpd->tba_addr = (int64_t)vm_mmap(filep, 0,
 			KFD_CWSR_TBA_TMA_SIZE, PROT_READ | PROT_EXEC,
@@ -344,6 +419,36 @@ static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep)
 		pr_debug("set tba :0x%llx, tma:0x%llx, cwsr_kaddr:%p for pqm.\n",
 			qpd->tba_addr, qpd->tma_addr, qpd->cwsr_kaddr);
 	}
+
+	return 0;
+}
+
+static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
+{
+	struct kfd_dev *dev = pdd->dev;
+	struct qcm_process_device *qpd = &pdd->qpd;
+	uint32_t flags = ALLOC_MEM_FLAGS_GTT |
+		ALLOC_MEM_FLAGS_NO_SUBSTITUTE | ALLOC_MEM_FLAGS_EXECUTABLE;
+	void *kaddr;
+	int ret;
+
+	if (!dev->cwsr_enabled || qpd->cwsr_kaddr || !qpd->cwsr_base)
+		return 0;
+
+	/* cwsr_base is only set for dGPU */
+	ret = kfd_process_alloc_gpuvm(pdd, qpd->cwsr_base,
+				      KFD_CWSR_TBA_TMA_SIZE, flags, &kaddr);
+	if (ret)
+		return ret;
+
+	qpd->cwsr_kaddr = kaddr;
+	qpd->tba_addr = qpd->cwsr_base;
+
+	memcpy(qpd->cwsr_kaddr, dev->cwsr_isa, dev->cwsr_isa_size);
+
+	qpd->tma_addr = qpd->tba_addr + KFD_CWSR_TMA_OFFSET;
+	pr_debug("set tba :0x%llx, tma:0x%llx, cwsr_kaddr:%p for pqm.\n",
+		 qpd->tba_addr, qpd->tma_addr, qpd->cwsr_kaddr);
 
 	return 0;
 }
@@ -402,7 +507,7 @@ static struct kfd_process *create_process(const struct task_struct *thread,
 	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
 	process->last_restore_timestamp = get_jiffies_64();
 
-	err = kfd_process_init_cwsr(process, filep);
+	err = kfd_process_init_cwsr_apu(process, filep);
 	if (err)
 		goto err_init_cwsr;
 
@@ -505,9 +610,21 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 		return ret;
 	}
 
+	ret = kfd_process_device_init_cwsr_dgpu(pdd);
+	if (ret)
+		goto err_init_cwsr;
+
 	pdd->drm_file = drm_file;
 
 	return 0;
+
+err_init_cwsr:
+	kfd_process_device_free_bos(pdd);
+	if (!drm_file)
+		dev->kfd2kgd->destroy_process_vm(dev->kgd, pdd->vm);
+	pdd->vm = NULL;
+
+	return ret;
 }
 
 /*
