@@ -506,7 +506,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 {
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_qp ucmd;
-	struct hns_roce_ib_create_qp_resp resp;
+	struct hns_roce_ib_create_qp_resp resp = {};
 	unsigned long qpn = 0;
 	int ret = 0;
 	u32 page_shift;
@@ -614,7 +614,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		}
 
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-		    (udata->outlen == sizeof(resp)) &&
+		    (udata->outlen >= sizeof(resp)) &&
 		    hns_roce_qp_has_rq(init_attr)) {
 			ret = hns_roce_db_map_user(
 					to_hr_ucontext(ib_pd->uobject->context),
@@ -730,7 +730,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	else
 		hr_qp->doorbell_qpn = cpu_to_le64(hr_qp->qpn);
 
-	if (ib_pd->uobject && (udata->outlen == sizeof(resp)) &&
+	if (ib_pd->uobject && (udata->outlen >= sizeof(resp)) &&
 		(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)) {
 
 		/* indicate kernel supports record db */
@@ -759,7 +759,7 @@ err_qpn:
 err_wrid:
 	if (ib_pd->uobject) {
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-		    (udata->outlen == sizeof(resp)) &&
+		    (udata->outlen >= sizeof(resp)) &&
 		    hns_roce_qp_has_rq(init_attr))
 			hns_roce_db_unmap_user(
 					to_hr_ucontext(ib_pd->uobject->context),

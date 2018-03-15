@@ -315,7 +315,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
 	struct device *dev = hr_dev->dev;
 	struct hns_roce_ib_create_cq ucmd;
-	struct hns_roce_ib_create_cq_resp resp;
+	struct hns_roce_ib_create_cq_resp resp = {};
 	struct hns_roce_cq *hr_cq = NULL;
 	struct hns_roce_uar *uar = NULL;
 	int vector = attr->comp_vector;
@@ -389,7 +389,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	}
 
 	if (context && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-	    (udata->outlen == sizeof(resp))) {
+	    (udata->outlen >= sizeof(resp))) {
 		ret = hns_roce_db_map_user(to_hr_ucontext(context),
 					   ucmd.db_addr, &hr_cq->db);
 		if (ret) {
@@ -413,15 +413,14 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 	hr_cq->cq_depth = cq_entries;
 
 	if (context) {
+		resp.cqn = hr_cq->cqn;
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-					(udata->outlen == sizeof(resp))) {
+					(udata->outlen >= sizeof(resp))) {
 			hr_cq->db_en = 1;
-			resp.cqn = hr_cq->cqn;
 			resp.cap_flags |= HNS_ROCE_SUPPORT_CQ_RECORD_DB;
-			ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
-		} else
-			ret = ib_copy_to_udata(udata, &hr_cq->cqn, sizeof(u64));
+		}
 
+		ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
 		if (ret)
 			goto err_dbmap;
 	}
@@ -430,7 +429,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 
 err_dbmap:
 	if (context && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-	    (udata->outlen == sizeof(resp)))
+	    (udata->outlen >= sizeof(resp)))
 		hns_roce_db_unmap_user(to_hr_ucontext(context),
 				       &hr_cq->db);
 

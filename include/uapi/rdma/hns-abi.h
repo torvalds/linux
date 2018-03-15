@@ -42,8 +42,7 @@ struct hns_roce_ib_create_cq {
 };
 
 struct hns_roce_ib_create_cq_resp {
-	__u32	cqn;
-	__u32	reserved;
+	__u64	cqn; /* Only 32 bits used, 64 for compat */
 	__u64	cap_flags;
 };
 
