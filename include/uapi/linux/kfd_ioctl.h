@@ -107,8 +107,6 @@ struct kfd_ioctl_get_clock_counters_args {
 	__u32 pad;
 };
 
-#define NUM_OF_SUPPORTED_GPUS 7
-
 struct kfd_process_device_apertures {
 	__u64 lds_base;		/* from KFD */
 	__u64 lds_limit;		/* from KFD */
@@ -120,11 +118,30 @@ struct kfd_process_device_apertures {
 	__u32 pad;
 };
 
+/*
+ * AMDKFD_IOC_GET_PROCESS_APERTURES is deprecated. Use
+ * AMDKFD_IOC_GET_PROCESS_APERTURES_NEW instead, which supports an
+ * unlimited number of GPUs.
+ */
+#define NUM_OF_SUPPORTED_GPUS 7
 struct kfd_ioctl_get_process_apertures_args {
 	struct kfd_process_device_apertures
 			process_apertures[NUM_OF_SUPPORTED_GPUS];/* from KFD */
 
 	/* from KFD, should be in the range [1 - NUM_OF_SUPPORTED_GPUS] */
+	__u32 num_of_nodes;
+	__u32 pad;
+};
+
+struct kfd_ioctl_get_process_apertures_new_args {
+	/* User allocated. Pointer to struct kfd_process_device_apertures
+	 * filled in by Kernel
+	 */
+	__u64 kfd_process_device_apertures_ptr;
+	/* to KFD - indicates amount of memory present in
+	 *  kfd_process_device_apertures_ptr
+	 * from KFD - Number of entries filled by KFD.
+	 */
 	__u32 num_of_nodes;
 	__u32 pad;
 };
@@ -332,7 +349,11 @@ struct kfd_ioctl_set_trap_handler_args {
 #define AMDKFD_IOC_SET_TRAP_HANDLER		\
 		AMDKFD_IOW(0x13, struct kfd_ioctl_set_trap_handler_args)
 
+#define AMDKFD_IOC_GET_PROCESS_APERTURES_NEW	\
+		AMDKFD_IOWR(0x14,		\
+			struct kfd_ioctl_get_process_apertures_new_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x14
+#define AMDKFD_COMMAND_END		0x15
 
 #endif

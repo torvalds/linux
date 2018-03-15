@@ -825,6 +825,97 @@ static int kfd_ioctl_get_process_apertures(struct file *filp,
 	return 0;
 }
 
+static int kfd_ioctl_get_process_apertures_new(struct file *filp,
+				struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_get_process_apertures_new_args *args = data;
+	struct kfd_process_device_apertures *pa;
+	struct kfd_process_device *pdd;
+	uint32_t nodes = 0;
+	int ret;
+
+	dev_dbg(kfd_device, "get apertures for PASID %d", p->pasid);
+
+	if (args->num_of_nodes == 0) {
+		/* Return number of nodes, so that user space can alloacate
+		 * sufficient memory
+		 */
+		mutex_lock(&p->mutex);
+
+		if (!kfd_has_process_device_data(p))
+			goto out_unlock;
+
+		/* Run over all pdd of the process */
+		pdd = kfd_get_first_process_device_data(p);
+		do {
+			args->num_of_nodes++;
+			pdd = kfd_get_next_process_device_data(p, pdd);
+		} while (pdd);
+
+		goto out_unlock;
+	}
+
+	/* Fill in process-aperture information for all available
+	 * nodes, but not more than args->num_of_nodes as that is
+	 * the amount of memory allocated by user
+	 */
+	pa = kzalloc((sizeof(struct kfd_process_device_apertures) *
+				args->num_of_nodes), GFP_KERNEL);
+	if (!pa)
+		return -ENOMEM;
+
+	mutex_lock(&p->mutex);
+
+	if (!kfd_has_process_device_data(p)) {
+		args->num_of_nodes = 0;
+		kfree(pa);
+		goto out_unlock;
+	}
+
+	/* Run over all pdd of the process */
+	pdd = kfd_get_first_process_device_data(p);
+	do {
+		pa[nodes].gpu_id = pdd->dev->id;
+		pa[nodes].lds_base = pdd->lds_base;
+		pa[nodes].lds_limit = pdd->lds_limit;
+		pa[nodes].gpuvm_base = pdd->gpuvm_base;
+		pa[nodes].gpuvm_limit = pdd->gpuvm_limit;
+		pa[nodes].scratch_base = pdd->scratch_base;
+		pa[nodes].scratch_limit = pdd->scratch_limit;
+
+		dev_dbg(kfd_device,
+			"gpu id %u\n", pdd->dev->id);
+		dev_dbg(kfd_device,
+			"lds_base %llX\n", pdd->lds_base);
+		dev_dbg(kfd_device,
+			"lds_limit %llX\n", pdd->lds_limit);
+		dev_dbg(kfd_device,
+			"gpuvm_base %llX\n", pdd->gpuvm_base);
+		dev_dbg(kfd_device,
+			"gpuvm_limit %llX\n", pdd->gpuvm_limit);
+		dev_dbg(kfd_device,
+			"scratch_base %llX\n", pdd->scratch_base);
+		dev_dbg(kfd_device,
+			"scratch_limit %llX\n", pdd->scratch_limit);
+		nodes++;
+
+		pdd = kfd_get_next_process_device_data(p, pdd);
+	} while (pdd && (nodes < args->num_of_nodes));
+	mutex_unlock(&p->mutex);
+
+	args->num_of_nodes = nodes;
+	ret = copy_to_user(
+			(void __user *)args->kfd_process_device_apertures_ptr,
+			pa,
+			(nodes * sizeof(struct kfd_process_device_apertures)));
+	kfree(pa);
+	return ret ? -EFAULT : 0;
+
+out_unlock:
+	mutex_unlock(&p->mutex);
+	return 0;
+}
+
 static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 					void *data)
 {
@@ -1017,6 +1108,9 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_SET_TRAP_HANDLER,
 			kfd_ioctl_set_trap_handler, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_PROCESS_APERTURES_NEW,
+			kfd_ioctl_get_process_apertures_new, 0),
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)

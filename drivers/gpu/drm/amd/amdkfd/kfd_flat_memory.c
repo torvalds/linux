@@ -282,14 +282,14 @@
 	(((uint64_t)(base) & \
 		0xFFFFFF0000000000UL) | 0xFFFFFFFFFFL)
 
-#define MAKE_SCRATCH_APP_BASE(gpu_num) \
-	(((uint64_t)(gpu_num) << 61) + 0x100000000L)
+#define MAKE_SCRATCH_APP_BASE() \
+	(((uint64_t)(0x1UL) << 61) + 0x100000000L)
 
 #define MAKE_SCRATCH_APP_LIMIT(base) \
 	(((uint64_t)base & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
 
-#define MAKE_LDS_APP_BASE(gpu_num) \
-	(((uint64_t)(gpu_num) << 61) + 0x0)
+#define MAKE_LDS_APP_BASE() \
+	(((uint64_t)(0x1UL) << 61) + 0x0)
 #define MAKE_LDS_APP_LIMIT(base) \
 	(((uint64_t)(base) & 0xFFFFFFFF00000000UL) | 0xFFFFFFFF)
 
@@ -314,7 +314,7 @@ int kfd_init_apertures(struct kfd_process *process)
 			return -1;
 		}
 		/*
-		 * For 64 bit process aperture will be statically reserved in
+		 * For 64 bit process apertures will be statically reserved in
 		 * the x86_64 non canonical process address space
 		 * amdkfd doesn't currently support apertures for 32 bit process
 		 */
@@ -323,12 +323,11 @@ int kfd_init_apertures(struct kfd_process *process)
 			pdd->gpuvm_base = pdd->gpuvm_limit = 0;
 			pdd->scratch_base = pdd->scratch_limit = 0;
 		} else {
-			/*
-			 * node id couldn't be 0 - the three MSB bits of
-			 * aperture shoudn't be 0
+			/* Same LDS and scratch apertures can be used
+			 * on all GPUs. This allows using more dGPUs
+			 * than placement options for apertures.
 			 */
-			pdd->lds_base = MAKE_LDS_APP_BASE(id + 1);
-
+			pdd->lds_base = MAKE_LDS_APP_BASE();
 			pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
 
 			pdd->gpuvm_base = MAKE_GPUVM_APP_BASE(id + 1);
@@ -336,8 +335,7 @@ int kfd_init_apertures(struct kfd_process *process)
 			pdd->gpuvm_limit =
 					MAKE_GPUVM_APP_LIMIT(pdd->gpuvm_base);
 
-			pdd->scratch_base = MAKE_SCRATCH_APP_BASE(id + 1);
-
+			pdd->scratch_base = MAKE_SCRATCH_APP_BASE();
 			pdd->scratch_limit =
 				MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
 		}
