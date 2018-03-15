@@ -93,27 +93,6 @@ struct amdkfd_process_info {
 	struct amdgpu_amdkfd_fence *eviction_fence;
 };
 
-/* struct amdkfd_vm -
- * For Memory Eviction KGD requires a mechanism to keep track of all KFD BOs
- * belonging to a KFD process. All the VMs belonging to the same process point
- * to the same amdkfd_process_info.
- */
-struct amdkfd_vm {
-	/* Keep base as the first parameter for pointer compatibility between
-	 * amdkfd_vm and amdgpu_vm.
-	 */
-	struct amdgpu_vm base;
-
-	/* List node in amdkfd_process_info.vm_list_head*/
-	struct list_head vm_list_node;
-
-	struct amdgpu_device *adev;
-	/* Points to the KFD process VM info*/
-	struct amdkfd_process_info *process_info;
-
-	uint64_t pd_phys_addr;
-};
-
 int amdgpu_amdkfd_init(void);
 void amdgpu_amdkfd_fini(void);
 

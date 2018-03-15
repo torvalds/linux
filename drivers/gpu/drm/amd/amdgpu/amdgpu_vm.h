@@ -207,6 +207,15 @@ struct amdgpu_vm {
 
 	/* Limit non-retry fault storms */
 	unsigned int		fault_credit;
+
+	/* Points to the KFD process VM info */
+	struct amdkfd_process_info *process_info;
+
+	/* List node in amdkfd_process_info.vm_list_head */
+	struct list_head	vm_list_node;
+
+	/* Valid while the PD is reserved or fenced */
+	uint64_t		pd_phys_addr;
 };
 
 struct amdgpu_vm_manager {
