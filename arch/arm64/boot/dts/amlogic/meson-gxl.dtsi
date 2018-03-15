@@ -269,7 +269,7 @@
 
 &sysctrl {
 	clkc: clock-controller {
-		compatible = "amlogic,gxl-clkc", "amlogic,gxbb-clkc";
+		compatible = "amlogic,gxl-clkc";
 		#clock-cells = <1>;
 	};
 };
