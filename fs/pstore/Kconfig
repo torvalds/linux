@@ -1,5 +1,6 @@
 config PSTORE
 	tristate "Persistent store support"
+	select CRYPTO if PSTORE_COMPRESS
 	default n
 	help
 	   This option enables generic access to platform level
@@ -13,7 +14,7 @@ config PSTORE
 	   say N.
 
 config PSTORE_DEFLATE_COMPRESS
-	bool "DEFLATE (ZLIB) compression"
+	tristate "DEFLATE (ZLIB) compression"
 	default y
 	depends on PSTORE
 	select CRYPTO_DEFLATE
@@ -22,21 +23,21 @@ config PSTORE_DEFLATE_COMPRESS
 	  algorithm support.
 
 config PSTORE_LZO_COMPRESS
-	bool "LZO compression"
+	tristate "LZO compression"
 	depends on PSTORE
 	select CRYPTO_LZO
 	help
 	  This option enables LZO compression algorithm support.
 
 config PSTORE_LZ4_COMPRESS
-	bool "LZ4 compression"
+	tristate "LZ4 compression"
 	depends on PSTORE
 	select CRYPTO_LZ4
 	help
 	  This option enables LZ4 compression algorithm support.
 
 config PSTORE_LZ4HC_COMPRESS
-	bool "LZ4HC compression"
+	tristate "LZ4HC compression"
 	depends on PSTORE
 	select CRYPTO_LZ4HC
 	help
@@ -70,19 +71,19 @@ choice
 	  The default compression algorithm is deflate.
 
 	config PSTORE_DEFLATE_COMPRESS_DEFAULT
-		bool "deflate" if PSTORE_DEFLATE_COMPRESS=y
+		bool "deflate" if PSTORE_DEFLATE_COMPRESS
 
 	config PSTORE_LZO_COMPRESS_DEFAULT
-		bool "lzo" if PSTORE_LZO_COMPRESS=y
+		bool "lzo" if PSTORE_LZO_COMPRESS
 
 	config PSTORE_LZ4_COMPRESS_DEFAULT
-		bool "lz4" if PSTORE_LZ4_COMPRESS=y
+		bool "lz4" if PSTORE_LZ4_COMPRESS
 
 	config PSTORE_LZ4HC_COMPRESS_DEFAULT
-		bool "lz4hc" if PSTORE_LZ4HC_COMPRESS=y
+		bool "lz4hc" if PSTORE_LZ4HC_COMPRESS
 
 	config PSTORE_842_COMPRESS_DEFAULT
-		bool "842" if PSTORE_842_COMPRESS=y
+		bool "842" if PSTORE_842_COMPRESS
 
 endchoice
 

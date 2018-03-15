@@ -28,10 +28,10 @@
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/pstore.h>
-#ifdef CONFIG_PSTORE_LZO_COMPRESS
+#if IS_ENABLED(CONFIG_PSTORE_LZO_COMPRESS)
 #include <linux/lzo.h>
 #endif
-#if defined(CONFIG_PSTORE_LZ4_COMPRESS) || defined(CONFIG_PSTORE_LZ4HC_COMPRESS)
+#if IS_ENABLED(CONFIG_PSTORE_LZ4_COMPRESS) || IS_ENABLED(CONFIG_PSTORE_LZ4HC_COMPRESS)
 #include <linux/lz4.h>
 #endif
 #include <linux/crypto.h>
@@ -142,7 +142,7 @@ bool pstore_cannot_block_path(enum kmsg_dump_reason reason)
 }
 EXPORT_SYMBOL_GPL(pstore_cannot_block_path);
 
-#ifdef CONFIG_PSTORE_DEFLATE_COMPRESS
+#if IS_ENABLED(CONFIG_PSTORE_DEFLATE_COMPRESS)
 static int zbufsize_deflate(size_t size)
 {
 	size_t cmpr;
@@ -171,21 +171,21 @@ static int zbufsize_deflate(size_t size)
 }
 #endif
 
-#ifdef CONFIG_PSTORE_LZO_COMPRESS
+#if IS_ENABLED(CONFIG_PSTORE_LZO_COMPRESS)
 static int zbufsize_lzo(size_t size)
 {
 	return lzo1x_worst_compress(size);
 }
 #endif
 
-#if defined(CONFIG_PSTORE_LZ4_COMPRESS) || defined(CONFIG_PSTORE_LZ4HC_COMPRESS)
+#if IS_ENABLED(CONFIG_PSTORE_LZ4_COMPRESS) || IS_ENABLED(CONFIG_PSTORE_LZ4HC_COMPRESS)
 static int zbufsize_lz4(size_t size)
 {
 	return LZ4_compressBound(size);
 }
 #endif
 
-#ifdef CONFIG_PSTORE_842_COMPRESS
+#if IS_ENABLED(CONFIG_PSTORE_842_COMPRESS)
 static int zbufsize_842(size_t size)
 {
 	return size;
@@ -195,31 +195,31 @@ static int zbufsize_842(size_t size)
 static const struct pstore_zbackend *zbackend __ro_after_init;
 
 static const struct pstore_zbackend zbackends[] = {
-#ifdef CONFIG_PSTORE_DEFLATE_COMPRESS
+#if IS_ENABLED(CONFIG_PSTORE_DEFLATE_COMPRESS)
 	{
 		.zbufsize	= zbufsize_deflate,
 		.name		= "deflate",
 	},
 #endif
-#ifdef CONFIG_PSTORE_LZO_COMPRESS
+#if IS_ENABLED(CONFIG_PSTORE_LZO_COMPRESS)
 	{
 		.zbufsize	= zbufsize_lzo,
 		.name		= "lzo",
 	},
 #endif
-#ifdef CONFIG_PSTORE_LZ4_COMPRESS
+#if IS_ENABLED(CONFIG_PSTORE_LZ4_COMPRESS)
 	{
 		.zbufsize	= zbufsize_lz4,
 		.name		= "lz4",
 	},
 #endif
-#ifdef CONFIG_PSTORE_LZ4HC_COMPRESS
+#if IS_ENABLED(CONFIG_PSTORE_LZ4HC_COMPRESS)
 	{
 		.zbufsize	= zbufsize_lz4,
 		.name		= "lz4hc",
 	},
 #endif
-#ifdef CONFIG_PSTORE_842_COMPRESS
+#if IS_ENABLED(CONFIG_PSTORE_842_COMPRESS)
 	{
 		.zbufsize	= zbufsize_842,
 		.name		= "842",
