@@ -80,7 +80,7 @@ enum {
 static void dce110_update_generic_info_packet(
 	struct dce110_stream_encoder *enc110,
 	uint32_t packet_index,
-	const struct encoder_info_packet *info_packet)
+	const struct dc_info_packet *info_packet)
 {
 	uint32_t regval;
 	/* TODOFPGA Figure out a proper number for max_retries polling for lock
@@ -196,7 +196,7 @@ static void dce110_update_generic_info_packet(
 static void dce110_update_hdmi_info_packet(
 	struct dce110_stream_encoder *enc110,
 	uint32_t packet_index,
-	const struct encoder_info_packet *info_packet)
+	const struct dc_info_packet *info_packet)
 {
 	uint32_t cont, send, line;
 

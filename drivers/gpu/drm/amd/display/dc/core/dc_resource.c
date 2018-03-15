@@ -1811,7 +1811,7 @@ enum dc_status dc_validate_global_state(
 }
 
 static void patch_gamut_packet_checksum(
-		struct encoder_info_packet *gamut_packet)
+		struct dc_info_packet *gamut_packet)
 {
 	/* For gamut we recalc checksum */
 	if (gamut_packet->valid) {
@@ -1830,12 +1830,11 @@ static void patch_gamut_packet_checksum(
 }
 
 static void set_avi_info_frame(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space = COLOR_SPACE_UNKNOWN;
-	struct info_frame info_frame = { {0} };
 	uint32_t pixel_encoding = 0;
 	enum scanning_type scan_type = SCANNING_TYPE_NODATA;
 	enum dc_aspect_ratio aspect = ASPECT_RATIO_NO_DATA;
@@ -1845,7 +1844,7 @@ static void set_avi_info_frame(
 	unsigned int cn0_cn1_value = 0;
 	uint8_t *check_sum = NULL;
 	uint8_t byte_index = 0;
-	union hdmi_info_packet *hdmi_info = &info_frame.avi_info_packet.info_packet_hdmi;
+	union hdmi_info_packet hdmi_info = {0};
 	union display_content_support support = {0};
 	unsigned int vic = pipe_ctx->stream->timing.vic;
 	enum dc_timing_3d_format format;
@@ -1856,11 +1855,11 @@ static void set_avi_info_frame(
 			COLOR_SPACE_SRGB:COLOR_SPACE_YCBCR709;
 
 	/* Initialize header */
-	hdmi_info->bits.header.info_frame_type = HDMI_INFOFRAME_TYPE_AVI;
+	hdmi_info.bits.header.info_frame_type = HDMI_INFOFRAME_TYPE_AVI;
 	/* InfoFrameVersion_3 is defined by CEA861F (Section 6.4), but shall
 	* not be used in HDMI 2.0 (Section 10.1) */
-	hdmi_info->bits.header.version = 2;
-	hdmi_info->bits.header.length = HDMI_AVI_INFOFRAME_SIZE;
+	hdmi_info.bits.header.version = 2;
+	hdmi_info.bits.header.length = HDMI_AVI_INFOFRAME_SIZE;
 
 	/*
 	 * IDO-defined (Y2,Y1,Y0 = 1,1,1) shall not be used by devices built
@@ -1886,39 +1885,39 @@ static void set_avi_info_frame(
 
 	/* Y0_Y1_Y2 : The pixel encoding */
 	/* H14b AVI InfoFrame has extension on Y-field from 2 bits to 3 bits */
-	hdmi_info->bits.Y0_Y1_Y2 = pixel_encoding;
+	hdmi_info.bits.Y0_Y1_Y2 = pixel_encoding;
 
 	/* A0 = 1 Active Format Information valid */
-	hdmi_info->bits.A0 = ACTIVE_FORMAT_VALID;
+	hdmi_info.bits.A0 = ACTIVE_FORMAT_VALID;
 
 	/* B0, B1 = 3; Bar info data is valid */
-	hdmi_info->bits.B0_B1 = BAR_INFO_BOTH_VALID;
+	hdmi_info.bits.B0_B1 = BAR_INFO_BOTH_VALID;
 
-	hdmi_info->bits.SC0_SC1 = PICTURE_SCALING_UNIFORM;
+	hdmi_info.bits.SC0_SC1 = PICTURE_SCALING_UNIFORM;
 
 	/* S0, S1 : Underscan / Overscan */
 	/* TODO: un-hardcode scan type */
 	scan_type = SCANNING_TYPE_UNDERSCAN;
-	hdmi_info->bits.S0_S1 = scan_type;
+	hdmi_info.bits.S0_S1 = scan_type;
 
 	/* C0, C1 : Colorimetry */
 	if (color_space == COLOR_SPACE_YCBCR709 ||
 			color_space == COLOR_SPACE_YCBCR709_LIMITED)
-		hdmi_info->bits.C0_C1 = COLORIMETRY_ITU709;
+		hdmi_info.bits.C0_C1 = COLORIMETRY_ITU709;
 	else if (color_space == COLOR_SPACE_YCBCR601 ||
 			color_space == COLOR_SPACE_YCBCR601_LIMITED)
-		hdmi_info->bits.C0_C1 = COLORIMETRY_ITU601;
+		hdmi_info.bits.C0_C1 = COLORIMETRY_ITU601;
 	else {
-		hdmi_info->bits.C0_C1 = COLORIMETRY_NO_DATA;
+		hdmi_info.bits.C0_C1 = COLORIMETRY_NO_DATA;
 	}
 	if (color_space == COLOR_SPACE_2020_RGB_FULLRANGE ||
 			color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE ||
 			color_space == COLOR_SPACE_2020_YCBCR) {
-		hdmi_info->bits.EC0_EC2 = COLORIMETRYEX_BT2020RGBYCBCR;
-		hdmi_info->bits.C0_C1   = COLORIMETRY_EXTENDED;
+		hdmi_info.bits.EC0_EC2 = COLORIMETRYEX_BT2020RGBYCBCR;
+		hdmi_info.bits.C0_C1   = COLORIMETRY_EXTENDED;
 	} else if (color_space == COLOR_SPACE_ADOBERGB) {
-		hdmi_info->bits.EC0_EC2 = COLORIMETRYEX_ADOBERGB;
-		hdmi_info->bits.C0_C1   = COLORIMETRY_EXTENDED;
+		hdmi_info.bits.EC0_EC2 = COLORIMETRYEX_ADOBERGB;
+		hdmi_info.bits.C0_C1   = COLORIMETRY_EXTENDED;
 	}
 
 	/* TODO: un-hardcode aspect ratio */
@@ -1927,18 +1926,18 @@ static void set_avi_info_frame(
 	switch (aspect) {
 	case ASPECT_RATIO_4_3:
 	case ASPECT_RATIO_16_9:
-		hdmi_info->bits.M0_M1 = aspect;
+		hdmi_info.bits.M0_M1 = aspect;
 		break;
 
 	case ASPECT_RATIO_NO_DATA:
 	case ASPECT_RATIO_64_27:
 	case ASPECT_RATIO_256_135:
 	default:
-		hdmi_info->bits.M0_M1 = 0;
+		hdmi_info.bits.M0_M1 = 0;
 	}
 
 	/* Active Format Aspect ratio - same as Picture Aspect Ratio. */
-	hdmi_info->bits.R0_R3 = ACTIVE_FORMAT_ASPECT_RATIO_SAME_AS_PICTURE;
+	hdmi_info.bits.R0_R3 = ACTIVE_FORMAT_ASPECT_RATIO_SAME_AS_PICTURE;
 
 	/* TODO: un-hardcode cn0_cn1 and itc */
 
@@ -1981,8 +1980,8 @@ static void set_avi_info_frame(
 				}
 			}
 		}
-		hdmi_info->bits.CN0_CN1 = cn0_cn1_value;
-		hdmi_info->bits.ITC = itc_value;
+		hdmi_info.bits.CN0_CN1 = cn0_cn1_value;
+		hdmi_info.bits.ITC = itc_value;
 	}
 
 	/* TODO : We should handle YCC quantization */
@@ -1991,19 +1990,19 @@ static void set_avi_info_frame(
 			stream->sink->edid_caps.qy_bit == 1) {
 		if (color_space == COLOR_SPACE_SRGB ||
 			color_space == COLOR_SPACE_2020_RGB_FULLRANGE) {
-			hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
-			hdmi_info->bits.YQ0_YQ1 = YYC_QUANTIZATION_FULL_RANGE;
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_FULL_RANGE;
 		} else if (color_space == COLOR_SPACE_SRGB_LIMITED ||
 					color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE) {
-			hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
-			hdmi_info->bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_LIMITED_RANGE;
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 		} else {
-			hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
-			hdmi_info->bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
+			hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+			hdmi_info.bits.YQ0_YQ1 = YYC_QUANTIZATION_LIMITED_RANGE;
 		}
 	} else {
-		hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
-		hdmi_info->bits.YQ0_YQ1   = YYC_QUANTIZATION_LIMITED_RANGE;
+		hdmi_info.bits.Q0_Q1   = RGB_QUANTIZATION_DEFAULT_RANGE;
+		hdmi_info.bits.YQ0_YQ1   = YYC_QUANTIZATION_LIMITED_RANGE;
 	}
 
 	///VIC
@@ -2028,51 +2027,49 @@ static void set_avi_info_frame(
 			break;
 		}
 	}
-	hdmi_info->bits.VIC0_VIC7 = vic;
+	hdmi_info.bits.VIC0_VIC7 = vic;
 
 	/* pixel repetition
 	 * PR0 - PR3 start from 0 whereas pHwPathMode->mode.timing.flags.pixel
 	 * repetition start from 1 */
-	hdmi_info->bits.PR0_PR3 = 0;
+	hdmi_info.bits.PR0_PR3 = 0;
 
 	/* Bar Info
 	 * barTop:    Line Number of End of Top Bar.
 	 * barBottom: Line Number of Start of Bottom Bar.
 	 * barLeft:   Pixel Number of End of Left Bar.
 	 * barRight:  Pixel Number of Start of Right Bar. */
-	hdmi_info->bits.bar_top = stream->timing.v_border_top;
-	hdmi_info->bits.bar_bottom = (stream->timing.v_total
+	hdmi_info.bits.bar_top = stream->timing.v_border_top;
+	hdmi_info.bits.bar_bottom = (stream->timing.v_total
 			- stream->timing.v_border_bottom + 1);
-	hdmi_info->bits.bar_left  = stream->timing.h_border_left;
-	hdmi_info->bits.bar_right = (stream->timing.h_total
+	hdmi_info.bits.bar_left  = stream->timing.h_border_left;
+	hdmi_info.bits.bar_right = (stream->timing.h_total
 			- stream->timing.h_border_right + 1);
 
 	/* check_sum - Calculate AFMT_AVI_INFO0 ~ AFMT_AVI_INFO3 */
-	check_sum = &info_frame.avi_info_packet.info_packet_hdmi.packet_raw_data.sb[0];
+	check_sum = &hdmi_info.packet_raw_data.sb[0];
 
 	*check_sum = HDMI_INFOFRAME_TYPE_AVI + HDMI_AVI_INFOFRAME_SIZE + 2;
 
 	for (byte_index = 1; byte_index <= HDMI_AVI_INFOFRAME_SIZE; byte_index++)
-		*check_sum += hdmi_info->packet_raw_data.sb[byte_index];
+		*check_sum += hdmi_info.packet_raw_data.sb[byte_index];
 
 	/* one byte complement */
 	*check_sum = (uint8_t) (0x100 - *check_sum);
 
 	/* Store in hw_path_mode */
-	info_packet->hb0 = hdmi_info->packet_raw_data.hb0;
-	info_packet->hb1 = hdmi_info->packet_raw_data.hb1;
-	info_packet->hb2 = hdmi_info->packet_raw_data.hb2;
+	info_packet->hb0 = hdmi_info.packet_raw_data.hb0;
+	info_packet->hb1 = hdmi_info.packet_raw_data.hb1;
+	info_packet->hb2 = hdmi_info.packet_raw_data.hb2;
 
-	for (byte_index = 0; byte_index < sizeof(info_frame.avi_info_packet.
-				info_packet_hdmi.packet_raw_data.sb); byte_index++)
-		info_packet->sb[byte_index] = info_frame.avi_info_packet.
-				info_packet_hdmi.packet_raw_data.sb[byte_index];
+	for (byte_index = 0; byte_index < sizeof(hdmi_info.packet_raw_data.sb); byte_index++)
+		info_packet->sb[byte_index] = hdmi_info.packet_raw_data.sb[byte_index];
 
 	info_packet->valid = true;
 }
 
 static void set_vendor_info_packet(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
 	uint32_t length = 0;
@@ -2185,7 +2182,7 @@ static void set_vendor_info_packet(
 }
 
 static void set_spd_info_packet(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
 	/* SPD info packet for FreeSync */
@@ -2306,7 +2303,7 @@ static void set_spd_info_packet(
 }
 
 static void set_hdr_static_info_packet(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
 	uint16_t i = 0;
@@ -2403,7 +2400,7 @@ static void set_hdr_static_info_packet(
 }
 
 static void set_vsc_info_packet(
-		struct encoder_info_packet *info_packet,
+		struct dc_info_packet *info_packet,
 		struct dc_stream_state *stream)
 {
 	unsigned int vscPacketRevision = 0;
