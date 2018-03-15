@@ -16,16 +16,14 @@
  *
  */
 
+#include <linux/acpi.h>
+#include <linux/dmi.h>
+#include <linux/input.h>
+#include <linux/input/sparse-keymap.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/input.h>
 #include <linux/platform_device.h>
-#include <linux/input/sparse-keymap.h>
-#include <linux/acpi.h>
 #include <linux/suspend.h>
-#include <acpi/acpi_bus.h>
-#include <linux/dmi.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Hung");
