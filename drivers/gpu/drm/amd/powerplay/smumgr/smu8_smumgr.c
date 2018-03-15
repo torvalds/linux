@@ -698,7 +698,8 @@ static int smu8_start_smu(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 	uint32_t fw_to_check = 0;
-	struct cgs_firmware_info info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
+
 	uint32_t index = SMN_MP1_SRAM_START_ADDR +
 			 SMU8_FIRMWARE_HEADER_LOCATION +
 			 offsetof(struct SMU8_Firmware_Header, Version);
@@ -709,8 +710,7 @@ static int smu8_start_smu(struct pp_hwmgr *hwmgr)
 
 	cgs_write_register(hwmgr->device, mmMP0PUB_IND_INDEX, index);
 	hwmgr->smu_version = cgs_read_register(hwmgr->device, mmMP0PUB_IND_DATA);
-	info.version = hwmgr->smu_version >> 8;
-	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
+	adev->pm.fw_version = hwmgr->smu_version >> 8;
 
 	fw_to_check = UCODE_ID_RLC_G_MASK |
 			UCODE_ID_SDMA0_MASK |

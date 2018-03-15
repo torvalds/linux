@@ -247,13 +247,11 @@ static int smu10_smu_fini(struct pp_hwmgr *hwmgr)
 
 static int smu10_start_smu(struct pp_hwmgr *hwmgr)
 {
-	struct cgs_firmware_info info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
 	hwmgr->smu_version = smu10_read_arg_from_smc(hwmgr);
-	info.version = hwmgr->smu_version >> 8;
-
-	cgs_get_firmware_info(hwmgr->device, CGS_UCODE_ID_SMU, &info);
+	adev->pm.fw_version = hwmgr->smu_version >> 8;
 
 	if (smu10_verify_smc_interface(hwmgr))
 		return -EINVAL;
