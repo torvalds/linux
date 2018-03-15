@@ -138,7 +138,7 @@ static int scmi_hwmon_probe(struct scmi_device *sdev)
 	for (i = 0; i < nr_sensors; i++) {
 		sensor = handle->sensor_ops->info_get(handle, i);
 		if (!sensor)
-			return PTR_ERR(sensor);
+			return -EINVAL;
 
 		switch (sensor->type) {
 		case TEMPERATURE_C:
