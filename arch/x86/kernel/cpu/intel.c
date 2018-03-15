@@ -587,11 +587,8 @@ detect_keyid_bits:
 	}
 
 	/*
-	 * Exclude KeyID bits from physical address bits.
-	 *
-	 * We have to do this even if we are not going to use KeyID bits
-	 * ourself. VM guests still have to know that these bits are not usable
-	 * for physical address.
+	 * KeyID bits effectively lower the number of physical address
+	 * bits.  Update cpuinfo_x86::x86_phys_bits accordingly.
 	 */
 	c->x86_phys_bits -= keyid_bits;
 }
