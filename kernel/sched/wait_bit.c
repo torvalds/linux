@@ -149,6 +149,54 @@ void wake_up_bit(void *word, int bit)
 }
 EXPORT_SYMBOL(wake_up_bit);
 
+wait_queue_head_t *__var_waitqueue(void *p)
+{
+	if (BITS_PER_LONG == 64) {
+		unsigned long q = (unsigned long)p;
+
+		return bit_waitqueue((void *)(q & ~1), q & 1);
+	}
+	return bit_waitqueue(p, 0);
+}
+EXPORT_SYMBOL(__var_waitqueue);
+
+static int
+var_wake_function(struct wait_queue_entry *wq_entry, unsigned int mode,
+		  int sync, void *arg)
+{
+	struct wait_bit_key *key = arg;
+	struct wait_bit_queue_entry *wbq_entry =
+		container_of(wq_entry, struct wait_bit_queue_entry, wq_entry);
+
+	if (wbq_entry->key.flags != key->flags ||
+	    wbq_entry->key.bit_nr != key->bit_nr)
+		return 0;
+
+	return autoremove_wake_function(wq_entry, mode, sync, key);
+}
+
+void init_wait_var_entry(struct wait_bit_queue_entry *wbq_entry, void *var, int flags)
+{
+	*wbq_entry = (struct wait_bit_queue_entry){
+		.key = {
+			.flags	= (var),
+			.bit_nr = -1,
+		},
+		.wq_entry = {
+			.private = current,
+			.func	 = var_wake_function,
+			.entry	 = LIST_HEAD_INIT(wbq_entry->wq_entry.entry),
+		},
+	};
+}
+EXPORT_SYMBOL(init_wait_var_entry);
+
+void wake_up_var(void *var)
+{
+	__wake_up_bit(__var_waitqueue(var), var, -1);
+}
+EXPORT_SYMBOL(wake_up_var);
+
 /*
  * Manipulate the atomic_t address to produce a better bit waitqueue table hash
  * index (we're keying off bit -1, but that would produce a horrible hash
