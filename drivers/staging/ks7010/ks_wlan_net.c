@@ -86,7 +86,7 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 {
 	struct iw_statistics *wstats = &priv->wstats;
 
-	DPRINTK(4, "in_interrupt = %ld\n", in_interrupt());
+	netdev_dbg(priv->net_dev, "in_interrupt = %ld\n", in_interrupt());
 
 	if (priv->dev_state < DEVICE_STATE_READY)
 		return -EBUSY;	/* not finished initialize */
@@ -103,7 +103,7 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 	/* interruptible_sleep_on_timeout(&priv->confirm_wait, HZ/2); */
 	if (!wait_for_completion_interruptible_timeout
 	    (&priv->confirm_wait, HZ / 2)) {
-		DPRINTK(1, "wait time out!!\n");
+		netdev_dbg(priv->net_dev, "wait time out!!\n");
 	}
 
 	atomic_inc(&update_phyinfo);
@@ -116,7 +116,7 @@ int ks_wlan_update_phy_information(struct ks_wlan_private *priv)
 static
 void ks_wlan_update_phyinfo_timeout(struct timer_list *unused)
 {
-	DPRINTK(4, "in_interrupt = %ld\n", in_interrupt());
+	pr_debug("in_interrupt = %ld\n", in_interrupt());
 	atomic_set(&update_phyinfo, 0);
 }
 
@@ -364,7 +364,7 @@ static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 		return -EOPNOTSUPP;
 	}
 
-	DPRINTK(2, "bssid = %pM\n", priv->reg.bssid);
+	netdev_dbg(dev, "bssid = %pM\n", priv->reg.bssid);
 
 	/* Write it to the card */
 	if (priv->need_commit) {
@@ -677,8 +677,8 @@ static int ks_wlan_get_rate(struct net_device *dev,
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	DPRINTK(2, "in_interrupt = %ld update_phyinfo = %d\n",
-		in_interrupt(), atomic_read(&update_phyinfo));
+	netdev_dbg(dev, "in_interrupt = %ld update_phyinfo = %d\n",
+		   in_interrupt(), atomic_read(&update_phyinfo));
 
 	if (priv->sleep_mode == SLP_SLEEP)
 		return -EPERM;
@@ -1435,7 +1435,7 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 			pbuf += sprintf(pbuf, "%02x", ap->rsn_ie.body[i]);
 		iwe.u.data.length += (ap->rsn_ie.size) * 2;
 
-		DPRINTK(4, "ap->rsn.size=%d\n", ap->rsn_ie.size);
+		netdev_dbg(dev, "ap->rsn.size=%d\n", ap->rsn_ie.size);
 
 		current_ev =
 		    iwe_stream_add_point(info, current_ev, end_buf, &iwe,
@@ -1457,8 +1457,8 @@ static inline char *ks_wlan_translate_scan(struct net_device *dev,
 			pbuf += sprintf(pbuf, "%02x", ap->wpa_ie.body[i]);
 		iwe.u.data.length += (ap->wpa_ie.size) * 2;
 
-		DPRINTK(4, "ap->rsn.size=%d\n", ap->wpa_ie.size);
-		DPRINTK(4, "iwe.u.data.length=%d\n", iwe.u.data.length);
+		netdev_dbg(dev, "ap->rsn.size=%d\n", ap->wpa_ie.size);
+		netdev_dbg(dev, "iwe.u.data.length=%d\n", iwe.u.data.length);
 
 		current_ev =
 		    iwe_stream_add_point(info, current_ev, end_buf, &iwe,
@@ -2320,10 +2320,10 @@ static int ks_wlan_set_wps_probe_req(struct net_device *dev,
 	memcpy(priv->wps.ie, &len, sizeof(len));
 	p = memcpy(priv->wps.ie + 1, p, len);
 
-	DPRINTK(2, "%d(%#x): %02X %02X %02X %02X ... %02X %02X %02X\n",
-		priv->wps.ielen, priv->wps.ielen, p[0], p[1], p[2], p[3],
-		p[priv->wps.ielen - 3], p[priv->wps.ielen - 2],
-		p[priv->wps.ielen - 1]);
+	netdev_dbg(dev, "%d(%#x): %02X %02X %02X %02X ... %02X %02X %02X\n",
+		   priv->wps.ielen, priv->wps.ielen, p[0], p[1], p[2], p[3],
+		   p[priv->wps.ielen - 3], p[priv->wps.ielen - 2],
+		   p[priv->wps.ielen - 1]);
 
 	hostif_sme_enqueue(priv, SME_WPS_PROBE_REQUEST);
 
@@ -2778,8 +2778,8 @@ void ks_wlan_tx_timeout(struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	DPRINTK(1, "head(%d) tail(%d)!!\n", priv->tx_dev.qhead,
-		priv->tx_dev.qtail);
+	netdev_dbg(dev, "head(%d) tail(%d)!!\n", priv->tx_dev.qhead,
+		   priv->tx_dev.qtail);
 	if (!netif_queue_stopped(dev))
 		netif_stop_queue(dev);
 	priv->nstats.tx_errors++;
@@ -2792,7 +2792,7 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ks_wlan_private *priv = netdev_priv(dev);
 	int ret;
 
-	DPRINTK(3, "in_interrupt()=%ld\n", in_interrupt());
+	netdev_dbg(dev, "in_interrupt()=%ld\n", in_interrupt());
 
 	if (!skb) {
 		netdev_err(dev, "ks_wlan:  skb == NULL!!!\n");
@@ -2810,7 +2810,7 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	netif_trans_update(dev);
 
 	if (ret)
-		DPRINTK(4, "hostif_data_request error: =%d\n", ret);
+		netdev_err(dev, "hostif_data_request error: =%d\n", ret);
 
 	return 0;
 }
