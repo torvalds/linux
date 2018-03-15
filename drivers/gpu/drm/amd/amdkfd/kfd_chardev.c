@@ -923,12 +923,68 @@ static int kfd_ioctl_create_event(struct file *filp, struct kfd_process *p,
 	struct kfd_ioctl_create_event_args *args = data;
 	int err;
 
+	/* For dGPUs the event page is allocated in user mode. The
+	 * handle is passed to KFD with the first call to this IOCTL
+	 * through the event_page_offset field.
+	 */
+	if (args->event_page_offset) {
+		struct kfd_dev *kfd;
+		struct kfd_process_device *pdd;
+		void *mem, *kern_addr;
+		uint64_t size;
+
+		if (p->signal_page) {
+			pr_err("Event page is already set\n");
+			return -EINVAL;
+		}
+
+		kfd = kfd_device_by_id(GET_GPU_ID(args->event_page_offset));
+		if (!kfd) {
+			pr_err("Getting device by id failed in %s\n", __func__);
+			return -EINVAL;
+		}
+
+		mutex_lock(&p->mutex);
+		pdd = kfd_bind_process_to_device(kfd, p);
+		if (IS_ERR(pdd)) {
+			err = PTR_ERR(pdd);
+			goto out_unlock;
+		}
+
+		mem = kfd_process_device_translate_handle(pdd,
+				GET_IDR_HANDLE(args->event_page_offset));
+		if (!mem) {
+			pr_err("Can't find BO, offset is 0x%llx\n",
+			       args->event_page_offset);
+			err = -EINVAL;
+			goto out_unlock;
+		}
+		mutex_unlock(&p->mutex);
+
+		err = kfd->kfd2kgd->map_gtt_bo_to_kernel(kfd->kgd,
+						mem, &kern_addr, &size);
+		if (err) {
+			pr_err("Failed to map event page to kernel\n");
+			return err;
+		}
+
+		err = kfd_event_page_set(p, kern_addr, size);
+		if (err) {
+			pr_err("Failed to set event page\n");
+			return err;
+		}
+	}
+
 	err = kfd_event_create(filp, p, args->event_type,
 				args->auto_reset != 0, args->node_id,
 				&args->event_id, &args->event_trigger_data,
 				&args->event_page_offset,
 				&args->event_slot_index);
 
+	return err;
+
+out_unlock:
+	mutex_unlock(&p->mutex);
 	return err;
 }
 
