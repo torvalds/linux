@@ -205,7 +205,7 @@ if [ -n "$kernver" ]; then
 		"build")
 			echo "Build Kernel"
 			build
-			$0 cryptodev
+			#$0 cryptodev
 			;;
 
 		"spidev")
