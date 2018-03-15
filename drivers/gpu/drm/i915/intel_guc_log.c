@@ -22,6 +22,8 @@
  *
  */
 
+#include <linux/debugfs.h>
+
 #include "intel_guc_log.h"
 #include "i915_drv.h"
 
