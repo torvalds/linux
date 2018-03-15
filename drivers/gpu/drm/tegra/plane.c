@@ -297,6 +297,10 @@ int tegra_plane_format_get_alpha(unsigned int opaque, unsigned int *alpha)
 	case WIN_COLOR_DEPTH_B8G8R8X8:
 		*alpha = WIN_COLOR_DEPTH_B8G8R8A8;
 		return 0;
+
+	case WIN_COLOR_DEPTH_B5G6R5:
+		*alpha = opaque;
+		return 0;
 	}
 
 	return -EINVAL;
