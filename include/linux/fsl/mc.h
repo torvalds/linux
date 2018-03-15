@@ -209,7 +209,7 @@ struct mc_cmd_header {
 	__le16 cmd_id;
 };
 
-struct mc_command {
+struct fsl_mc_command {
 	u64 header;
 	u64 params[MC_CMD_NUM_OF_PARAMS];
 };
@@ -256,7 +256,7 @@ static inline u64 mc_encode_cmd_header(u16 cmd_id,
 	return header;
 }
 
-static inline u16 mc_cmd_hdr_read_token(struct mc_command *cmd)
+static inline u16 mc_cmd_hdr_read_token(struct fsl_mc_command *cmd)
 {
 	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
 	u16 token = le16_to_cpu(hdr->token);
@@ -273,7 +273,7 @@ struct mc_rsp_api_ver {
 	__le16 minor_ver;
 };
 
-static inline u32 mc_cmd_read_object_id(struct mc_command *cmd)
+static inline u32 mc_cmd_read_object_id(struct fsl_mc_command *cmd)
 {
 	struct mc_rsp_create *rsp_params;
 
@@ -281,7 +281,7 @@ static inline u32 mc_cmd_read_object_id(struct mc_command *cmd)
 	return le32_to_cpu(rsp_params->object_id);
 }
 
-static inline void mc_cmd_read_api_version(struct mc_command *cmd,
+static inline void mc_cmd_read_api_version(struct fsl_mc_command *cmd,
 					   u16 *major_ver,
 					   u16 *minor_ver)
 {
@@ -342,7 +342,7 @@ struct fsl_mc_io {
 	};
 };
 
-int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd);
+int mc_send_command(struct fsl_mc_io *mc_io, struct fsl_mc_command *cmd);
 
 #ifdef CONFIG_FSL_MC_BUS
 #define dev_is_fsl_mc(_dev) ((_dev)->bus == &fsl_mc_bus_type)

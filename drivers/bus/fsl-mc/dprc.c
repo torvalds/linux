@@ -24,7 +24,7 @@ int dprc_open(struct fsl_mc_io *mc_io,
 	      int container_id,
 	      u16 *token)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_open *cmd_params;
 	int err;
 
@@ -61,7 +61,7 @@ int dprc_close(struct fsl_mc_io *mc_io,
 	       u32 cmd_flags,
 	       u16 token)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 
 	/* prepare command */
 	cmd.header = mc_encode_cmd_header(DPRC_CMDID_CLOSE, cmd_flags,
@@ -88,7 +88,7 @@ int dprc_set_irq(struct fsl_mc_io *mc_io,
 		 u8 irq_index,
 		 struct dprc_irq_cfg *irq_cfg)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_set_irq *cmd_params;
 
 	/* prepare command */
@@ -126,7 +126,7 @@ int dprc_set_irq_enable(struct fsl_mc_io *mc_io,
 			u8 irq_index,
 			u8 en)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_set_irq_enable *cmd_params;
 
 	/* prepare command */
@@ -162,7 +162,7 @@ int dprc_set_irq_mask(struct fsl_mc_io *mc_io,
 		      u8 irq_index,
 		      u32 mask)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_set_irq_mask *cmd_params;
 
 	/* prepare command */
@@ -194,7 +194,7 @@ int dprc_get_irq_status(struct fsl_mc_io *mc_io,
 			u8 irq_index,
 			u32 *status)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_get_irq_status *cmd_params;
 	struct dprc_rsp_get_irq_status *rsp_params;
 	int err;
@@ -236,7 +236,7 @@ int dprc_clear_irq_status(struct fsl_mc_io *mc_io,
 			  u8 irq_index,
 			  u32 status)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_clear_irq_status *cmd_params;
 
 	/* prepare command */
@@ -264,7 +264,7 @@ int dprc_get_attributes(struct fsl_mc_io *mc_io,
 			u16 token,
 			struct dprc_attributes *attr)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_rsp_get_attributes *rsp_params;
 	int err;
 
@@ -302,7 +302,7 @@ int dprc_get_obj_count(struct fsl_mc_io *mc_io,
 		       u16 token,
 		       int *obj_count)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_rsp_get_obj_count *rsp_params;
 	int err;
 
@@ -344,7 +344,7 @@ int dprc_get_obj(struct fsl_mc_io *mc_io,
 		 int obj_index,
 		 struct fsl_mc_obj_desc *obj_desc)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_get_obj *cmd_params;
 	struct dprc_rsp_get_obj *rsp_params;
 	int err;
@@ -399,7 +399,7 @@ int dprc_set_obj_irq(struct fsl_mc_io *mc_io,
 		     u8 irq_index,
 		     struct dprc_irq_cfg *irq_cfg)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_set_obj_irq *cmd_params;
 
 	/* prepare command */
@@ -440,7 +440,7 @@ int dprc_get_obj_region(struct fsl_mc_io *mc_io,
 			u8 region_index,
 			struct dprc_region_desc *region_desc)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	struct dprc_cmd_get_obj_region *cmd_params;
 	struct dprc_rsp_get_obj_region *rsp_params;
 	int err;
@@ -482,7 +482,7 @@ int dprc_get_api_version(struct fsl_mc_io *mc_io,
 			 u16 *major_ver,
 			 u16 *minor_ver)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	int err;
 
 	/* prepare command */
@@ -512,7 +512,7 @@ int dprc_get_container_id(struct fsl_mc_io *mc_io,
 			  u32 cmd_flags,
 			  int *container_id)
 {
-	struct mc_command cmd = { 0 };
+	struct fsl_mc_command cmd = { 0 };
 	int err;
 
 	/* prepare command */

@@ -28,14 +28,14 @@
 #define MC_CMD_COMPLETION_POLLING_MIN_SLEEP_USECS    10
 #define MC_CMD_COMPLETION_POLLING_MAX_SLEEP_USECS    500
 
-static enum mc_cmd_status mc_cmd_hdr_read_status(struct mc_command *cmd)
+static enum mc_cmd_status mc_cmd_hdr_read_status(struct fsl_mc_command *cmd)
 {
 	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
 
 	return (enum mc_cmd_status)hdr->status;
 }
 
-static u16 mc_cmd_hdr_read_cmdid(struct mc_command *cmd)
+static u16 mc_cmd_hdr_read_cmdid(struct fsl_mc_command *cmd)
 {
 	struct mc_cmd_header *hdr = (struct mc_cmd_header *)&cmd->header;
 	u16 cmd_id = le16_to_cpu(hdr->cmd_id);
@@ -94,8 +94,8 @@ static const char *mc_status_to_string(enum mc_cmd_status status)
  * @portal: pointer to an MC portal
  * @cmd: pointer to a filled command
  */
-static inline void mc_write_command(struct mc_command __iomem *portal,
-				    struct mc_command *cmd)
+static inline void mc_write_command(struct fsl_mc_command __iomem *portal,
+				    struct fsl_mc_command *cmd)
 {
 	int i;
 
@@ -121,9 +121,9 @@ static inline void mc_write_command(struct mc_command __iomem *portal,
  *
  * Returns MC_CMD_STATUS_OK on Success; Error code otherwise.
  */
-static inline enum mc_cmd_status mc_read_response(struct mc_command __iomem *
-						  portal,
-						  struct mc_command *resp)
+static inline enum mc_cmd_status mc_read_response(struct fsl_mc_command __iomem
+						  *portal,
+						  struct fsl_mc_command *resp)
 {
 	int i;
 	enum mc_cmd_status status;
@@ -156,7 +156,7 @@ static inline enum mc_cmd_status mc_read_response(struct mc_command __iomem *
  * @mc_status: MC command completion status
  */
 static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
-				       struct mc_command *cmd,
+				       struct fsl_mc_command *cmd,
 				       enum mc_cmd_status *mc_status)
 {
 	enum mc_cmd_status status;
@@ -202,7 +202,7 @@ static int mc_polling_wait_preemptible(struct fsl_mc_io *mc_io,
  * @mc_status: MC command completion status
  */
 static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
-				  struct mc_command *cmd,
+				  struct fsl_mc_command *cmd,
 				  enum mc_cmd_status *mc_status)
 {
 	enum mc_cmd_status status;
@@ -241,7 +241,7 @@ static int mc_polling_wait_atomic(struct fsl_mc_io *mc_io,
  *
  * Returns '0' on Success; Error code otherwise.
  */
-int mc_send_command(struct fsl_mc_io *mc_io, struct mc_command *cmd)
+int mc_send_command(struct fsl_mc_io *mc_io, struct fsl_mc_command *cmd)
 {
 	int error;
 	enum mc_cmd_status status;
