@@ -54,19 +54,22 @@ struct tipc_group;
  * @type: name sequence type
  * @lower: name sequence lower bound
  * @upper: name sequence upper bound
- * @scope: scope of publication
- * @node: network address of publishing port's node
- * @ref: publishing port
- * @key: publication key
- * @nodesub_list: subscription to "node down" event (off-node publication only)
- * @local_list: adjacent entries in list of publications made by this node
- * @pport_list: adjacent entries in list of publications made by this port
- * @node_list: adjacent matching name seq publications with >= node scope
- * @cluster_list: adjacent matching name seq publications with >= cluster scope
- * @zone_list: adjacent matching name seq publications with >= zone scope
+ * @scope: scope of publication, TIPC_NODE_SCOPE or TIPC_CLUSTER_SCOPE
+ * @node: network address of publishing socket's node
+ * @port: publishing port
+ * @key: publication key, unique across the cluster
+ * @binding_node: all publications from the same node which bound this one
+ * - Remote publications: in node->publ_list
+ *   Used by node/name distr to withdraw publications when node is lost
+ * - Local/node scope publications: in name_table->node_scope list
+ * - Local/cluster scope publications: in name_table->cluster_scope list
+ * @binding_sock: all publications from the same socket which bound this one
+ *   Used by socket to withdraw publications when socket is unbound/released
+ * @local_publ: list of identical publications made from this node
+ *   Used by closest_first and multicast receive lookup algorithms
+ * @all_publ: all publications identical to this one, whatever node and scope
+ *   Used by round-robin lookup algorithm
  * @rcu: RCU callback head used for deferred freeing
- *
- * Note that the node list, cluster list, and zone list are circular lists.
  */
 struct publication {
 	u32 type;
@@ -74,12 +77,12 @@ struct publication {
 	u32 upper;
 	u32 scope;
 	u32 node;
-	u32 ref;
+	u32 port;
 	u32 key;
 	struct list_head binding_node;
-	struct list_head pport_list;
-	struct list_head node_list;
-	struct list_head cluster_list;
+	struct list_head binding_sock;
+	struct list_head local_publ;
+	struct list_head all_publ;
 	struct rcu_head rcu;
 };
 
@@ -87,7 +90,10 @@ struct publication {
  * struct name_table - table containing all existing port name publications
  * @seq_hlist: name sequence hash lists
  * @node_scope: all local publications with node scope
+ *               - used by name_distr during re-init of name table
  * @cluster_scope: all local publications with cluster scope
+ *               - used by name_distr to send bulk updates to new nodes
+ *               - used by name_distr during re-init of name table
  * @local_publ_count: number of publications issued by this node
  */
 struct name_table {

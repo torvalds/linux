@@ -2605,7 +2605,7 @@ static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 	if (unlikely(!publ))
 		return -EINVAL;
 
-	list_add(&publ->pport_list, &tsk->publications);
+	list_add(&publ->binding_sock, &tsk->publications);
 	tsk->pub_count++;
 	tsk->published = 1;
 	return 0;
@@ -2622,7 +2622,7 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 	if (scope != TIPC_NODE_SCOPE)
 		scope = TIPC_CLUSTER_SCOPE;
 
-	list_for_each_entry_safe(publ, safe, &tsk->publications, pport_list) {
+	list_for_each_entry_safe(publ, safe, &tsk->publications, binding_sock) {
 		if (seq) {
 			if (publ->scope != scope)
 				continue;
@@ -2633,12 +2633,12 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 			if (publ->upper != seq->upper)
 				break;
 			tipc_nametbl_withdraw(net, publ->type, publ->lower,
-					      publ->ref, publ->key);
+					      publ->port, publ->key);
 			rc = 0;
 			break;
 		}
 		tipc_nametbl_withdraw(net, publ->type, publ->lower,
-				      publ->ref, publ->key);
+				      publ->port, publ->key);
 		rc = 0;
 	}
 	if (list_empty(&tsk->publications))
@@ -3292,7 +3292,7 @@ static int __tipc_nl_list_sk_publ(struct sk_buff *skb,
 	struct publication *p;
 
 	if (*last_publ) {
-		list_for_each_entry(p, &tsk->publications, pport_list) {
+		list_for_each_entry(p, &tsk->publications, binding_sock) {
 			if (p->key == *last_publ)
 				break;
 		}
@@ -3309,10 +3309,10 @@ static int __tipc_nl_list_sk_publ(struct sk_buff *skb,
 		}
 	} else {
 		p = list_first_entry(&tsk->publications, struct publication,
-				     pport_list);
+				     binding_sock);
 	}
 
-	list_for_each_entry_from(p, &tsk->publications, pport_list) {
+	list_for_each_entry_from(p, &tsk->publications, binding_sock) {
 		err = __tipc_nl_add_sk_publ(skb, cb, p);
 		if (err) {
 			*last_publ = p->key;

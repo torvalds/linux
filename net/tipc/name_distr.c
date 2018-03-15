@@ -56,7 +56,7 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
 	i->type = htonl(p->type);
 	i->lower = htonl(p->lower);
 	i->upper = htonl(p->upper);
-	i->ref = htonl(p->ref);
+	i->port = htonl(p->port);
 	i->key = htonl(p->key);
 }
 
@@ -209,15 +209,15 @@ static void tipc_publ_purge(struct net *net, struct publication *publ, u32 addr)
 
 	spin_lock_bh(&tn->nametbl_lock);
 	p = tipc_nametbl_remove_publ(net, publ->type, publ->lower,
-				     publ->node, publ->ref, publ->key);
+				     publ->node, publ->port, publ->key);
 	if (p)
 		tipc_node_unsubscribe(net, &p->binding_node, addr);
 	spin_unlock_bh(&tn->nametbl_lock);
 
 	if (p != publ) {
 		pr_err("Unable to remove publication from failed node\n"
-		       " (type=%u, lower=%u, node=0x%x, ref=%u, key=%u)\n",
-		       publ->type, publ->lower, publ->node, publ->ref,
+		       " (type=%u, lower=%u, node=0x%x, port=%u, key=%u)\n",
+		       publ->type, publ->lower, publ->node, publ->port,
 		       publ->key);
 	}
 
@@ -268,7 +268,7 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 						ntohl(i->lower),
 						ntohl(i->upper),
 						TIPC_CLUSTER_SCOPE, node,
-						ntohl(i->ref), ntohl(i->key));
+						ntohl(i->port), ntohl(i->key));
 		if (publ) {
 			tipc_node_subscribe(net, &publ->binding_node, node);
 			return true;
@@ -276,7 +276,7 @@ static bool tipc_update_nametbl(struct net *net, struct distr_item *i,
 	} else if (dtype == WITHDRAWAL) {
 		publ = tipc_nametbl_remove_publ(net, ntohl(i->type),
 						ntohl(i->lower),
-						node, ntohl(i->ref),
+						node, ntohl(i->port),
 						ntohl(i->key));
 		if (publ) {
 			tipc_node_unsubscribe(net, &publ->binding_node, node);
