@@ -164,6 +164,7 @@ struct annotated_source {
 struct annotation {
 	pthread_mutex_t		lock;
 	u64			max_coverage;
+	struct annotation_options *options;
 	struct annotation_line	**offsets;
 	int			nr_events;
 	bool			have_cycles;
