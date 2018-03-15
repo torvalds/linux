@@ -3,6 +3,7 @@
 #define _PERF_UI_BROWSER_H_ 1
 
 #include <linux/types.h>
+#include <stdarg.h>
 
 #define HE_COLORSET_TOP		50
 #define HE_COLORSET_MEDIUM	51
@@ -40,6 +41,7 @@ void ui_browser__reset_index(struct ui_browser *browser);
 void ui_browser__gotorc(struct ui_browser *browser, int y, int x);
 void ui_browser__write_nstring(struct ui_browser *browser, const char *msg,
 			       unsigned int width);
+void ui_browser__vprintf(struct ui_browser *browser, const char *fmt, va_list args);
 void ui_browser__printf(struct ui_browser *browser, const char *fmt, ...);
 void ui_browser__write_graph(struct ui_browser *browser, int graph);
 void __ui_browser__line_arrow(struct ui_browser *browser, unsigned int column,
