@@ -488,8 +488,12 @@ struct qcm_process_device {
 
 	/* CWSR memory */
 	void *cwsr_kaddr;
+	uint64_t cwsr_base;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
+
+	/* IB memory */
+	uint64_t ib_base;
 };
 
 /* KFD Memory Eviction */
