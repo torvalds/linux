@@ -3200,9 +3200,10 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 	u32 valid_functions, num_functions;
 	u32 number, logical_id, phys_id;
 	struct i40e_hw_capabilities *p;
+	u16 id, ocp_cfg_word0;
+	i40e_status status;
 	u8 major_rev;
 	u32 i = 0;
-	u16 id;
 
 	cap = (struct i40e_aqc_list_capabilities_element_resp *) buff;
 
@@ -3387,6 +3388,26 @@ static void i40e_parse_discover_capabilities(struct i40e_hw *hw, void *buff,
 		i40e_aq_debug_read_register(hw, port_cfg_reg, &port_cfg, NULL);
 		if (!(port_cfg & I40E_PRTGEN_CNF_PORT_DIS_MASK))
 			hw->num_ports++;
+	}
+
+	/* OCP cards case: if a mezz is removed the Ethernet port is at
+	 * disabled state in PRTGEN_CNF register. Additional NVM read is
+	 * needed in order to check if we are dealing with OCP card.
+	 * Those cards have 4 PFs at minimum, so using PRTGEN_CNF for counting
+	 * physical ports results in wrong partition id calculation and thus
+	 * not supporting WoL.
+	 */
+	if (hw->mac.type == I40E_MAC_X722) {
+		if (!i40e_acquire_nvm(hw, I40E_RESOURCE_READ)) {
+			status = i40e_aq_read_nvm(hw, I40E_SR_EMP_MODULE_PTR,
+						  2 * I40E_SR_OCP_CFG_WORD0,
+						  sizeof(ocp_cfg_word0),
+						  &ocp_cfg_word0, true, NULL);
+			if (!status &&
+			    (ocp_cfg_word0 & I40E_SR_OCP_ENABLED))
+				hw->num_ports = 4;
+			i40e_release_nvm(hw);
+		}
 	}
 
 	valid_functions = p->valid_functions;

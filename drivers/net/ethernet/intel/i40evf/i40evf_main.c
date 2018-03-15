@@ -2749,7 +2749,7 @@ static int i40evf_parse_cls_flower(struct i40evf_adapter *adapter,
 
 		if (key->src) {
 			vf->mask.tcp_spec.src_port |= cpu_to_be16(0xffff);
-			vf->data.tcp_spec.src_port = key->dst;
+			vf->data.tcp_spec.src_port = key->src;
 		}
 	}
 	vf->field_flags = field_flags;

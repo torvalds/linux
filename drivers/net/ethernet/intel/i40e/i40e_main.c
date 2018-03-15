@@ -2719,22 +2719,6 @@ void i40e_vlan_stripping_disable(struct i40e_vsi *vsi)
 }
 
 /**
- * i40e_vlan_rx_register - Setup or shutdown vlan offload
- * @netdev: network interface to be adjusted
- * @features: netdev features to test if VLAN offload is enabled or not
- **/
-static void i40e_vlan_rx_register(struct net_device *netdev, u32 features)
-{
-	struct i40e_netdev_priv *np = netdev_priv(netdev);
-	struct i40e_vsi *vsi = np->vsi;
-
-	if (features & NETIF_F_HW_VLAN_CTAG_RX)
-		i40e_vlan_stripping_enable(vsi);
-	else
-		i40e_vlan_stripping_disable(vsi);
-}
-
-/**
  * i40e_add_vlan_all_mac - Add a MAC/VLAN filter for each existing MAC address
  * @vsi: the vsi being configured
  * @vid: vlan id to be added (0 = untagged only , -1 = any)
@@ -2909,7 +2893,10 @@ static void i40e_restore_vlan(struct i40e_vsi *vsi)
 	if (!vsi->netdev)
 		return;
 
-	i40e_vlan_rx_register(vsi->netdev, vsi->netdev->features);
+	if (vsi->netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
+		i40e_vlan_stripping_enable(vsi);
+	else
+		i40e_vlan_stripping_disable(vsi);
 
 	for_each_set_bit(vid, vsi->active_vlans, VLAN_N_VID)
 		i40e_vlan_rx_add_vid(vsi->netdev, htons(ETH_P_8021Q),
@@ -8149,6 +8136,88 @@ u32 i40e_get_global_fd_count(struct i40e_pf *pf)
 }
 
 /**
+ * i40e_reenable_fdir_sb - Restore FDir SB capability
+ * @pf: board private structure
+ **/
+static void i40e_reenable_fdir_sb(struct i40e_pf *pf)
+{
+	if (pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED) {
+		pf->flags &= ~I40E_FLAG_FD_SB_AUTO_DISABLED;
+		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
+		    (I40E_DEBUG_FD & pf->hw.debug_mask))
+			dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
+	}
+}
+
+/**
+ * i40e_reenable_fdir_atr - Restore FDir ATR capability
+ * @pf: board private structure
+ **/
+static void i40e_reenable_fdir_atr(struct i40e_pf *pf)
+{
+	if (pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED) {
+		/* ATR uses the same filtering logic as SB rules. It only
+		 * functions properly if the input set mask is at the default
+		 * settings. It is safe to restore the default input set
+		 * because there are no active TCPv4 filter rules.
+		 */
+		i40e_write_fd_input_set(pf, I40E_FILTER_PCTYPE_NONF_IPV4_TCP,
+					I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
+					I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
+
+		pf->flags &= ~I40E_FLAG_FD_ATR_AUTO_DISABLED;
+		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		    (I40E_DEBUG_FD & pf->hw.debug_mask))
+			dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table and there are no conflicting ntuple rules\n");
+	}
+}
+
+/**
+ * i40e_delete_invalid_filter - Delete an invalid FDIR filter
+ * @pf: board private structure
+ * @filter: FDir filter to remove
+ */
+static void i40e_delete_invalid_filter(struct i40e_pf *pf,
+				       struct i40e_fdir_filter *filter)
+{
+	/* Update counters */
+	pf->fdir_pf_active_filters--;
+	pf->fd_inv = 0;
+
+	switch (filter->flow_type) {
+	case TCP_V4_FLOW:
+		pf->fd_tcp4_filter_cnt--;
+		break;
+	case UDP_V4_FLOW:
+		pf->fd_udp4_filter_cnt--;
+		break;
+	case SCTP_V4_FLOW:
+		pf->fd_sctp4_filter_cnt--;
+		break;
+	case IP_USER_FLOW:
+		switch (filter->ip4_proto) {
+		case IPPROTO_TCP:
+			pf->fd_tcp4_filter_cnt--;
+			break;
+		case IPPROTO_UDP:
+			pf->fd_udp4_filter_cnt--;
+			break;
+		case IPPROTO_SCTP:
+			pf->fd_sctp4_filter_cnt--;
+			break;
+		case IPPROTO_IP:
+			pf->fd_ip4_filter_cnt--;
+			break;
+		}
+		break;
+	}
+
+	/* Remove the filter from the list and free memory */
+	hlist_del(&filter->fdir_node);
+	kfree(filter);
+}
+
+/**
  * i40e_fdir_check_and_reenable - Function to reenabe FD ATR or SB if disabled
  * @pf: board private structure
  **/
@@ -8166,40 +8235,23 @@ void i40e_fdir_check_and_reenable(struct i40e_pf *pf)
 	fcnt_avail = pf->fdir_pf_filter_count;
 	if ((fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM)) ||
 	    (pf->fd_add_err == 0) ||
-	    (i40e_get_current_atr_cnt(pf) < pf->fd_atr_cnt)) {
-		if (pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED) {
-			pf->flags &= ~I40E_FLAG_FD_SB_AUTO_DISABLED;
-			if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
-			    (I40E_DEBUG_FD & pf->hw.debug_mask))
-				dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
-		}
-	}
+	    (i40e_get_current_atr_cnt(pf) < pf->fd_atr_cnt))
+		i40e_reenable_fdir_sb(pf);
 
 	/* We should wait for even more space before re-enabling ATR.
 	 * Additionally, we cannot enable ATR as long as we still have TCP SB
 	 * rules active.
 	 */
 	if ((fcnt_prog < (fcnt_avail - I40E_FDIR_BUFFER_HEAD_ROOM_FOR_ATR)) &&
-	    (pf->fd_tcp4_filter_cnt == 0)) {
-		if (pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED) {
-			pf->flags &= ~I40E_FLAG_FD_ATR_AUTO_DISABLED;
-			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
-			    (I40E_DEBUG_FD & pf->hw.debug_mask))
-				dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table and there are no conflicting ntuple rules\n");
-		}
-	}
+	    (pf->fd_tcp4_filter_cnt == 0))
+		i40e_reenable_fdir_atr(pf);
 
 	/* if hw had a problem adding a filter, delete it */
 	if (pf->fd_inv > 0) {
 		hlist_for_each_entry_safe(filter, node,
-					  &pf->fdir_filter_list, fdir_node) {
-			if (filter->fd_id == pf->fd_inv) {
-				hlist_del(&filter->fdir_node);
-				kfree(filter);
-				pf->fdir_pf_active_filters--;
-				pf->fd_inv = 0;
-			}
-		}
+					  &pf->fdir_filter_list, fdir_node)
+			if (filter->fd_id == pf->fd_inv)
+				i40e_delete_invalid_filter(pf, filter);
 	}
 }
 
