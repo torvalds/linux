@@ -262,10 +262,14 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xff63c000 0x0 0x1c00>;
 
-			clkc: clock-controller@0 {
-				compatible = "amlogic,axg-clkc";
-				#clock-cells = <1>;
-				reg = <0x0 0x0 0x0 0x320>;
+			sysctrl: system-controller@0 {
+				compatible = "amlogic,meson-axg-hhi-sysctrl", "syscon", "simple-mfd";
+				reg = <0 0 0 0x400>;
+
+				clkc: clock-controller {
+					compatible = "amlogic,axg-clkc";
+					#clock-cells = <1>;
+				};
 			};
 		};
 
