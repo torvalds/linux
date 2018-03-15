@@ -509,6 +509,14 @@ struct qcm_process_device {
 int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
 					       struct dma_fence *fence);
 
+/* 8 byte handle containing GPU ID in the most significant 4 bytes and
+ * idr_handle in the least significant 4 bytes
+ */
+#define MAKE_HANDLE(gpu_id, idr_handle) \
+	(((uint64_t)(gpu_id) << 32) + idr_handle)
+#define GET_GPU_ID(handle) (handle >> 32)
+#define GET_IDR_HANDLE(handle) (handle & 0xFFFFFFFF)
+
 enum kfd_pdd_bound {
 	PDD_UNBOUND = 0,
 	PDD_BOUND,

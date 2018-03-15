@@ -130,6 +130,7 @@ struct tile_config {
 
 /*
  * Allocation flag domains
+ * NOTE: This must match the corresponding definitions in kfd_ioctl.h.
  */
 #define ALLOC_MEM_FLAGS_VRAM		(1 << 0)
 #define ALLOC_MEM_FLAGS_GTT		(1 << 1)
@@ -138,6 +139,7 @@ struct tile_config {
 
 /*
  * Allocation flags attributes/access options.
+ * NOTE: This must match the corresponding definitions in kfd_ioctl.h.
  */
 #define ALLOC_MEM_FLAGS_WRITABLE	(1 << 31)
 #define ALLOC_MEM_FLAGS_EXECUTABLE	(1 << 30)

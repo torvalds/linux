@@ -24,6 +24,7 @@
 #include <linux/export.h>
 #include <linux/err.h>
 #include <linux/fs.h>
+#include <linux/file.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -1046,6 +1047,366 @@ static int kfd_ioctl_get_tile_config(struct file *filep,
 	return 0;
 }
 
+static int kfd_ioctl_acquire_vm(struct file *filep, struct kfd_process *p,
+				void *data)
+{
+	struct kfd_ioctl_acquire_vm_args *args = data;
+	struct kfd_process_device *pdd;
+	struct kfd_dev *dev;
+	struct file *drm_file;
+	int ret;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (!dev)
+		return -EINVAL;
+
+	drm_file = fget(args->drm_fd);
+	if (!drm_file)
+		return -EINVAL;
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_get_process_device_data(dev, p);
+	if (!pdd) {
+		ret = -EINVAL;
+		goto err_unlock;
+	}
+
+	if (pdd->drm_file) {
+		ret = pdd->drm_file == drm_file ? 0 : -EBUSY;
+		goto err_unlock;
+	}
+
+	ret = kfd_process_device_init_vm(pdd, drm_file);
+	if (ret)
+		goto err_unlock;
+	/* On success, the PDD keeps the drm_file reference */
+	mutex_unlock(&p->mutex);
+
+	return 0;
+
+err_unlock:
+	mutex_unlock(&p->mutex);
+	fput(drm_file);
+	return ret;
+}
+
+bool kfd_dev_is_large_bar(struct kfd_dev *dev)
+{
+	struct kfd_local_mem_info mem_info;
+
+	if (dev->device_info->needs_iommu_device)
+		return false;
+
+	dev->kfd2kgd->get_local_mem_info(dev->kgd, &mem_info);
+	if (mem_info.local_mem_size_private == 0 &&
+			mem_info.local_mem_size_public > 0)
+		return true;
+	return false;
+}
+
+static int kfd_ioctl_alloc_memory_of_gpu(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_alloc_memory_of_gpu_args *args = data;
+	struct kfd_process_device *pdd;
+	void *mem;
+	struct kfd_dev *dev;
+	int idr_handle;
+	long err;
+	uint64_t offset = args->mmap_offset;
+	uint32_t flags = args->flags;
+
+	if (args->size == 0)
+		return -EINVAL;
+
+	dev = kfd_device_by_id(args->gpu_id);
+	if (!dev)
+		return -EINVAL;
+
+	if ((flags & KFD_IOC_ALLOC_MEM_FLAGS_PUBLIC) &&
+		(flags & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) &&
+		!kfd_dev_is_large_bar(dev)) {
+		pr_err("Alloc host visible vram on small bar is not allowed\n");
+		return -EINVAL;
+	}
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_bind_process_to_device(dev, p);
+	if (IS_ERR(pdd)) {
+		err = PTR_ERR(pdd);
+		goto err_unlock;
+	}
+
+	err = dev->kfd2kgd->alloc_memory_of_gpu(
+		dev->kgd, args->va_addr, args->size,
+		pdd->vm, (struct kgd_mem **) &mem, &offset,
+		flags);
+
+	if (err)
+		goto err_unlock;
+
+	idr_handle = kfd_process_device_create_obj_handle(pdd, mem);
+	if (idr_handle < 0) {
+		err = -EFAULT;
+		goto err_free;
+	}
+
+	mutex_unlock(&p->mutex);
+
+	args->handle = MAKE_HANDLE(args->gpu_id, idr_handle);
+	args->mmap_offset = offset;
+
+	return 0;
+
+err_free:
+	dev->kfd2kgd->free_memory_of_gpu(dev->kgd, (struct kgd_mem *)mem);
+err_unlock:
+	mutex_unlock(&p->mutex);
+	return err;
+}
+
+static int kfd_ioctl_free_memory_of_gpu(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_free_memory_of_gpu_args *args = data;
+	struct kfd_process_device *pdd;
+	void *mem;
+	struct kfd_dev *dev;
+	int ret;
+
+	dev = kfd_device_by_id(GET_GPU_ID(args->handle));
+	if (!dev)
+		return -EINVAL;
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_get_process_device_data(dev, p);
+	if (!pdd) {
+		pr_err("Process device data doesn't exist\n");
+		ret = -EINVAL;
+		goto err_unlock;
+	}
+
+	mem = kfd_process_device_translate_handle(
+		pdd, GET_IDR_HANDLE(args->handle));
+	if (!mem) {
+		ret = -EINVAL;
+		goto err_unlock;
+	}
+
+	ret = dev->kfd2kgd->free_memory_of_gpu(dev->kgd, (struct kgd_mem *)mem);
+
+	/* If freeing the buffer failed, leave the handle in place for
+	 * clean-up during process tear-down.
+	 */
+	if (!ret)
+		kfd_process_device_remove_obj_handle(
+			pdd, GET_IDR_HANDLE(args->handle));
+
+err_unlock:
+	mutex_unlock(&p->mutex);
+	return ret;
+}
+
+static int kfd_ioctl_map_memory_to_gpu(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_map_memory_to_gpu_args *args = data;
+	struct kfd_process_device *pdd, *peer_pdd;
+	void *mem;
+	struct kfd_dev *dev, *peer;
+	long err = 0;
+	int i;
+	uint32_t *devices_arr = NULL;
+
+	dev = kfd_device_by_id(GET_GPU_ID(args->handle));
+	if (!dev)
+		return -EINVAL;
+
+	if (!args->n_devices) {
+		pr_debug("Device IDs array empty\n");
+		return -EINVAL;
+	}
+	if (args->n_success > args->n_devices) {
+		pr_debug("n_success exceeds n_devices\n");
+		return -EINVAL;
+	}
+
+	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
+			      GFP_KERNEL);
+	if (!devices_arr)
+		return -ENOMEM;
+
+	err = copy_from_user(devices_arr,
+			     (void __user *)args->device_ids_array_ptr,
+			     args->n_devices * sizeof(*devices_arr));
+	if (err != 0) {
+		err = -EFAULT;
+		goto copy_from_user_failed;
+	}
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_bind_process_to_device(dev, p);
+	if (IS_ERR(pdd)) {
+		err = PTR_ERR(pdd);
+		goto bind_process_to_device_failed;
+	}
+
+	mem = kfd_process_device_translate_handle(pdd,
+						GET_IDR_HANDLE(args->handle));
+	if (!mem) {
+		err = -ENOMEM;
+		goto get_mem_obj_from_handle_failed;
+	}
+
+	for (i = args->n_success; i < args->n_devices; i++) {
+		peer = kfd_device_by_id(devices_arr[i]);
+		if (!peer) {
+			pr_debug("Getting device by id failed for 0x%x\n",
+				 devices_arr[i]);
+			err = -EINVAL;
+			goto get_mem_obj_from_handle_failed;
+		}
+
+		peer_pdd = kfd_bind_process_to_device(peer, p);
+		if (IS_ERR(peer_pdd)) {
+			err = PTR_ERR(peer_pdd);
+			goto get_mem_obj_from_handle_failed;
+		}
+		err = peer->kfd2kgd->map_memory_to_gpu(
+			peer->kgd, (struct kgd_mem *)mem, peer_pdd->vm);
+		if (err) {
+			pr_err("Failed to map to gpu %d/%d\n",
+			       i, args->n_devices);
+			goto map_memory_to_gpu_failed;
+		}
+		args->n_success = i+1;
+	}
+
+	mutex_unlock(&p->mutex);
+
+	err = dev->kfd2kgd->sync_memory(dev->kgd, (struct kgd_mem *) mem, true);
+	if (err) {
+		pr_debug("Sync memory failed, wait interrupted by user signal\n");
+		goto sync_memory_failed;
+	}
+
+	/* Flush TLBs after waiting for the page table updates to complete */
+	for (i = 0; i < args->n_devices; i++) {
+		peer = kfd_device_by_id(devices_arr[i]);
+		if (WARN_ON_ONCE(!peer))
+			continue;
+		peer_pdd = kfd_get_process_device_data(peer, p);
+		if (WARN_ON_ONCE(!peer_pdd))
+			continue;
+		kfd_flush_tlb(peer_pdd);
+	}
+
+	kfree(devices_arr);
+
+	return err;
+
+bind_process_to_device_failed:
+get_mem_obj_from_handle_failed:
+map_memory_to_gpu_failed:
+	mutex_unlock(&p->mutex);
+copy_from_user_failed:
+sync_memory_failed:
+	kfree(devices_arr);
+
+	return err;
+}
+
+static int kfd_ioctl_unmap_memory_from_gpu(struct file *filep,
+					struct kfd_process *p, void *data)
+{
+	struct kfd_ioctl_unmap_memory_from_gpu_args *args = data;
+	struct kfd_process_device *pdd, *peer_pdd;
+	void *mem;
+	struct kfd_dev *dev, *peer;
+	long err = 0;
+	uint32_t *devices_arr = NULL, i;
+
+	dev = kfd_device_by_id(GET_GPU_ID(args->handle));
+	if (!dev)
+		return -EINVAL;
+
+	if (!args->n_devices) {
+		pr_debug("Device IDs array empty\n");
+		return -EINVAL;
+	}
+	if (args->n_success > args->n_devices) {
+		pr_debug("n_success exceeds n_devices\n");
+		return -EINVAL;
+	}
+
+	devices_arr = kmalloc(args->n_devices * sizeof(*devices_arr),
+			      GFP_KERNEL);
+	if (!devices_arr)
+		return -ENOMEM;
+
+	err = copy_from_user(devices_arr,
+			     (void __user *)args->device_ids_array_ptr,
+			     args->n_devices * sizeof(*devices_arr));
+	if (err != 0) {
+		err = -EFAULT;
+		goto copy_from_user_failed;
+	}
+
+	mutex_lock(&p->mutex);
+
+	pdd = kfd_get_process_device_data(dev, p);
+	if (!pdd) {
+		err = PTR_ERR(pdd);
+		goto bind_process_to_device_failed;
+	}
+
+	mem = kfd_process_device_translate_handle(pdd,
+						GET_IDR_HANDLE(args->handle));
+	if (!mem) {
+		err = -ENOMEM;
+		goto get_mem_obj_from_handle_failed;
+	}
+
+	for (i = args->n_success; i < args->n_devices; i++) {
+		peer = kfd_device_by_id(devices_arr[i]);
+		if (!peer) {
+			err = -EINVAL;
+			goto get_mem_obj_from_handle_failed;
+		}
+
+		peer_pdd = kfd_get_process_device_data(peer, p);
+		if (!peer_pdd) {
+			err = -ENODEV;
+			goto get_mem_obj_from_handle_failed;
+		}
+		err = dev->kfd2kgd->unmap_memory_to_gpu(
+			peer->kgd, (struct kgd_mem *)mem, peer_pdd->vm);
+		if (err) {
+			pr_err("Failed to unmap from gpu %d/%d\n",
+			       i, args->n_devices);
+			goto unmap_memory_from_gpu_failed;
+		}
+		args->n_success = i+1;
+	}
+	kfree(devices_arr);
+
+	mutex_unlock(&p->mutex);
+
+	return 0;
+
+bind_process_to_device_failed:
+get_mem_obj_from_handle_failed:
+unmap_memory_from_gpu_failed:
+	mutex_unlock(&p->mutex);
+copy_from_user_failed:
+	kfree(devices_arr);
+	return err;
+}
+
 #define AMDKFD_IOCTL_DEF(ioctl, _func, _flags) \
 	[_IOC_NR(ioctl)] = {.cmd = ioctl, .func = _func, .flags = _flags, \
 			    .cmd_drv = 0, .name = #ioctl}
@@ -1111,6 +1472,22 @@ static const struct amdkfd_ioctl_desc amdkfd_ioctls[] = {
 
 	AMDKFD_IOCTL_DEF(AMDKFD_IOC_GET_PROCESS_APERTURES_NEW,
 			kfd_ioctl_get_process_apertures_new, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_ACQUIRE_VM,
+			kfd_ioctl_acquire_vm, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_ALLOC_MEMORY_OF_GPU,
+			kfd_ioctl_alloc_memory_of_gpu, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_FREE_MEMORY_OF_GPU,
+			kfd_ioctl_free_memory_of_gpu, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_MAP_MEMORY_TO_GPU,
+			kfd_ioctl_map_memory_to_gpu, 0),
+
+	AMDKFD_IOCTL_DEF(AMDKFD_IOC_UNMAP_MEMORY_FROM_GPU,
+			kfd_ioctl_unmap_memory_from_gpu, 0),
+
 };
 
 #define AMDKFD_CORE_IOCTL_COUNT	ARRAY_SIZE(amdkfd_ioctls)
