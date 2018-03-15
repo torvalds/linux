@@ -279,12 +279,16 @@ void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect)
 void ovl_inode_init(struct inode *inode, struct dentry *upperdentry,
 		    struct dentry *lowerdentry)
 {
+	struct inode *realinode = d_inode(upperdentry ?: lowerdentry);
+
 	if (upperdentry)
 		OVL_I(inode)->__upperdentry = upperdentry;
 	if (lowerdentry)
 		OVL_I(inode)->lower = igrab(d_inode(lowerdentry));
 
-	ovl_copyattr(d_inode(upperdentry ?: lowerdentry), inode);
+	ovl_copyattr(realinode, inode);
+	if (!inode->i_ino)
+		inode->i_ino = realinode->i_ino;
 }
 
 void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
@@ -299,6 +303,8 @@ void ovl_inode_update(struct inode *inode, struct dentry *upperdentry)
 	smp_wmb();
 	OVL_I(inode)->__upperdentry = upperdentry;
 	if (inode_unhashed(inode)) {
+		if (!inode->i_ino)
+			inode->i_ino = upperinode->i_ino;
 		inode->i_private = upperinode;
 		__insert_inode_hash(inode, (unsigned long) upperinode);
 	}

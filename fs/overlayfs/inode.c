@@ -459,9 +459,20 @@ static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
 #endif
 }
 
-static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
+static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
+			   unsigned long ino)
 {
-	inode->i_ino = get_next_ino();
+	/*
+	 * When NFS export is enabled and d_ino is consistent with st_ino
+	 * (samefs), set the same value to i_ino, because nfsd readdirplus
+	 * compares d_ino values to i_ino values of child entries. When called
+	 * from ovl_new_inode(), ino arg is 0, so i_ino will be updated to real
+	 * upper inode i_ino on ovl_inode_init() or ovl_inode_update().
+	 */
+	if (inode->i_sb->s_export_op && ovl_same_sb(inode->i_sb))
+		inode->i_ino = ino;
+	else
+		inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_flags |= S_NOCMTIME;
 #ifdef CONFIG_FS_POSIX_ACL
@@ -597,7 +608,7 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 
 	inode = new_inode(sb);
 	if (inode)
-		ovl_fill_inode(inode, mode, rdev);
+		ovl_fill_inode(inode, mode, rdev, 0);
 
 	return inode;
 }
@@ -710,6 +721,7 @@ struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
 	struct inode *inode;
 	bool bylower = ovl_hash_bylower(sb, upperdentry, lowerdentry, index);
 	bool is_dir;
+	unsigned long ino = 0;
 
 	if (!realinode)
 		realinode = d_inode(lowerdentry);
@@ -748,13 +760,14 @@ struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
 		if (!is_dir)
 			nlink = ovl_get_nlink(lowerdentry, upperdentry, nlink);
 		set_nlink(inode, nlink);
+		ino = key->i_ino;
 	} else {
 		/* Lower hardlink that will be broken on copy up */
 		inode = new_inode(sb);
 		if (!inode)
 			goto out_nomem;
 	}
-	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
+	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev, ino);
 	ovl_inode_init(inode, upperdentry, lowerdentry);
 
 	if (upperdentry && ovl_is_impuredir(upperdentry))
