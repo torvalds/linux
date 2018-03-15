@@ -30,6 +30,7 @@
 #include <linux/notifier.h>
 #include <linux/compat.h>
 #include <linux/mman.h>
+#include <linux/file.h>
 
 struct mm_struct;
 
@@ -158,7 +159,9 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		pr_debug("Releasing pdd (topology id %d) for process (pasid %d)\n",
 				pdd->dev->id, p->pasid);
 
-		if (pdd->vm)
+		if (pdd->drm_file)
+			fput(pdd->drm_file);
+		else if (pdd->vm)
 			pdd->dev->kfd2kgd->destroy_process_vm(
 				pdd->dev->kgd, pdd->vm);
 
@@ -418,18 +421,51 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	pdd->already_dequeued = false;
 	list_add(&pdd->per_device_list, &p->per_device_data);
 
-	/* Create the GPUVM context for this specific device */
-	if (dev->kfd2kgd->create_process_vm(dev->kgd, &pdd->vm,
-					    &p->kgd_process_info, &p->ef)) {
-		pr_err("Failed to create process VM object\n");
-		goto err_create_pdd;
-	}
 	return pdd;
+}
 
-err_create_pdd:
-	list_del(&pdd->per_device_list);
-	kfree(pdd);
-	return NULL;
+/**
+ * kfd_process_device_init_vm - Initialize a VM for a process-device
+ *
+ * @pdd: The process-device
+ * @drm_file: Optional pointer to a DRM file descriptor
+ *
+ * If @drm_file is specified, it will be used to acquire the VM from
+ * that file descriptor. If successful, the @pdd takes ownership of
+ * the file descriptor.
+ *
+ * If @drm_file is NULL, a new VM is created.
+ *
+ * Returns 0 on success, -errno on failure.
+ */
+int kfd_process_device_init_vm(struct kfd_process_device *pdd,
+			       struct file *drm_file)
+{
+	struct kfd_process *p;
+	struct kfd_dev *dev;
+	int ret;
+
+	if (pdd->vm)
+		return drm_file ? -EBUSY : 0;
+
+	p = pdd->process;
+	dev = pdd->dev;
+
+	if (drm_file)
+		ret = dev->kfd2kgd->acquire_process_vm(
+			dev->kgd, drm_file,
+			&pdd->vm, &p->kgd_process_info, &p->ef);
+	else
+		ret = dev->kfd2kgd->create_process_vm(
+			dev->kgd, &pdd->vm, &p->kgd_process_info, &p->ef);
+	if (ret) {
+		pr_err("Failed to create process VM object\n");
+		return ret;
+	}
+
+	pdd->drm_file = drm_file;
+
+	return 0;
 }
 
 /*
@@ -452,6 +488,10 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 	}
 
 	err = kfd_iommu_bind_process_to_device(pdd);
+	if (err)
+		return ERR_PTR(err);
+
+	err = kfd_process_device_init_vm(pdd, NULL);
 	if (err)
 		return ERR_PTR(err);
 
