@@ -50,10 +50,12 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define ENABLE	0x01
 #define OTG_SLP_ENABLE	0x03
 #define OTG_SLP_DISABLE	0x00
-#define OTG_ENABLE		0x33
-#define OTG_DISABLE		0x30
-#define OTG_MODE		0x03
-#define OTG_MODE_ON		0x03
+#define OTG_ENABLE		0x11
+#define OTG_DISABLE		0x10
+#define RK817_BOOST_ENABLE	0x11
+#define RK817_BOOST_DISABLE	0x10
+#define OTG_MODE		0x01
+#define OTG_MODE_ON		0x01
 #define DEFAULT_INPUT_VOLTAGE	4500
 #define DEFAULT_INPUT_CURRENT	2000
 #define DEFAULT_CHRG_VOLTAGE	4200
@@ -191,7 +193,7 @@ enum charger_t {
 };
 
 enum rk817_charge_fields {
-	OTG_EN, OTG_SLP_EN, CHRG_CLK_SEL,
+	BOOST_EN, OTG_EN, OTG_SLP_EN, CHRG_CLK_SEL,
 	CHRG_EN, CHRG_VOL_SEL, CHRG_CT_EN, CHRG_CUR_SEL,
 	USB_VLIM_EN, USB_VLIM_SEL, USB_ILIM_EN, USB_ILIM_SEL,
 	SYS_CAN_SD,  USB_SYS_EN, BAT_OVP_EN, CHRG_TERM_ANA_DIG,
@@ -210,7 +212,8 @@ enum rk817_charge_fields {
 
 static const struct reg_field rk817_charge_reg_fields[] = {
 	[SOC_REG] = REG_FIELD(0xA5, 0, 6),
-	[OTG_EN] = REG_FIELD(0xB4, 1, 6),
+	[BOOST_EN] = REG_FIELD(0xB4, 1, 5),
+	[OTG_EN] = REG_FIELD(0xB4, 2, 6),
 	[OTG_SLP_EN] = REG_FIELD(0xB5, 5, 6),
 	[CHRG_EN] = REG_FIELD(0xE4, 7, 7),
 	[CHRG_VOL_SEL] = REG_FIELD(0xE4, 4, 6),
@@ -504,6 +507,16 @@ static int rk817_charge_get_otg_state(struct rk817_charger *charge)
 {
 	return ((rk817_charge_field_read(charge, OTG_EN) &
 		OTG_MODE) == OTG_MODE_ON);
+}
+
+static void rk817_charge_boost_disable(struct rk817_charger *charge)
+{
+	rk817_charge_field_write(charge, BOOST_EN, RK817_BOOST_DISABLE);
+}
+
+static void rk817_charge_boost_enable(struct rk817_charger *charge)
+{
+	rk817_charge_field_write(charge, BOOST_EN, RK817_BOOST_ENABLE);
 }
 
 static void rk817_charge_otg_disable(struct rk817_charger *charge)
@@ -907,17 +920,13 @@ static void rk817_charge_dc_det_worker(struct work_struct *work)
 	if (charger == DC_TYPE_DC_CHARGER) {
 		DBG("detect dc charger in..\n");
 		rk817_charge_set_chrg_param(charge, DC_TYPE_DC_CHARGER);
-		/* check otg supply */
-		if (charge->otg_in && charge->pdata->power_dc2otg) {
-			DBG("otg power from dc adapter\n");
-			rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
-		}
+		rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
+		rk817_charge_boost_disable(charge);
 	} else {
 		DBG("detect dc charger out..\n");
 		rk817_charge_set_chrg_param(charge, DC_TYPE_NONE_CHARGER);
-		/* check otg supply, power on anyway */
-		if (charge->otg_in)
-			rk817_charge_set_otg_state(charge, USB_OTG_POWER_ON);
+		rk817_charge_boost_enable(charge);
+		rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
 	}
 }
 
@@ -1676,6 +1685,7 @@ static void rk817_charger_shutdown(struct platform_device *dev)
 	}
 
 	rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
+	rk817_charge_boost_disable(charge);
 	disable_irq(charge->plugin_irq);
 	disable_irq(charge->plugout_irq);
 
