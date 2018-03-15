@@ -90,6 +90,23 @@ enum connection_state {
 	policy_snk_send_hardrst,
 
 	policy_snk_transition_default,
+
+	/* PR SWAP */
+	policy_src_prs_evaluate,
+	policy_src_prs_accept,
+	policy_src_prs_transition_to_off,
+	policy_src_prs_source_off,
+	policy_src_prs_assert_rd,
+	policy_src_prs_reject,
+	policy_src_prs_send_swap,
+
+	policy_snk_prs_evaluate,
+	policy_snk_prs_accept,
+	policy_snk_prs_transition_to_off,
+	policy_snk_prs_source_on,
+	policy_snk_prs_assert_rp,
+	policy_snk_prs_reject,
+	policy_snk_prs_send_swap,
 };
 
 enum tcpm_rp_value {
@@ -312,6 +329,9 @@ enum role_mode {
 #define T_SAFE_0V		650
 #define T_SRC_TURN_ON		275
 #define T_SRC_RECOVER_MAX	1000
+#define T_PD_SOURCE_OFF		920
+#define T_PD_SOURCE_ON		480
+#define T_PD_SWAP_SOURCE_START	20
 
 #define T_NO_TRIGGER		500
 #define T_DISABLED		0xffff

@@ -1153,6 +1153,7 @@ static int vdm_send_discoveryid(struct fusb30x_chip *chip, int evt)
 			dev_warn(chip->dev, "VDM_DISCOVERY_ID send failed\n");
 			/* disable auto_vdm_machine */
 			chip->vdm_state = 0xff;
+			return -EPIPE;
 		}
 
 		if (chip->vdm_send_state != 2)
@@ -1165,6 +1166,7 @@ static int vdm_send_discoveryid(struct fusb30x_chip *chip, int evt)
 			dev_warn(chip->dev, "VDM_DISCOVERY_ID time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
+			return -ETIMEDOUT;
 		}
 		break;
 	}
@@ -1193,6 +1195,7 @@ static int vdm_send_discoverysvid(struct fusb30x_chip *chip, int evt)
 			dev_warn(chip->dev, "VDM_DISCOVERY_SVIDS send failed\n");
 			/* disable auto_vdm_machine */
 			chip->vdm_state = 0xff;
+			return -EPIPE;
 		}
 
 		if (chip->vdm_send_state != 2)
@@ -1205,6 +1208,7 @@ static int vdm_send_discoverysvid(struct fusb30x_chip *chip, int evt)
 			dev_warn(chip->dev, "VDM_DISCOVERY_SVIDS time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
+			return -ETIMEDOUT;
 		}
 		break;
 	}
@@ -1233,6 +1237,7 @@ static int vdm_send_discoverymodes(struct fusb30x_chip *chip, int evt)
 				dev_warn(chip->dev,
 					 "VDM_DISCOVERY_MODES send failed\n");
 				chip->vdm_state = 0xff;
+				return -EPIPE;
 			}
 
 			if (chip->vdm_send_state != 2)
@@ -1248,6 +1253,7 @@ static int vdm_send_discoverymodes(struct fusb30x_chip *chip, int evt)
 					 "VDM_DISCOVERY_MODES time out\n");
 				chip->vdm_state = 0xff;
 				chip->work_continue = 1;
+				return -ETIMEDOUT;
 			}
 			break;
 		}
@@ -1280,6 +1286,7 @@ static int vdm_send_entermode(struct fusb30x_chip *chip, int evt)
 			dev_warn(chip->dev, "VDM_ENTER_MODE send failed\n");
 			/* disable auto_vdm_machine */
 			chip->vdm_state = 0xff;
+			return -EPIPE;
 		}
 
 		if (chip->vdm_send_state != 2)
@@ -1293,6 +1300,7 @@ static int vdm_send_entermode(struct fusb30x_chip *chip, int evt)
 			dev_warn(chip->dev, "VDM_ENTER_MODE time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
+			return -ETIMEDOUT;
 		}
 		break;
 	}
@@ -1320,6 +1328,7 @@ static int vdm_send_getdpstatus(struct fusb30x_chip *chip, int evt)
 				 "VDM_DP_STATUS_UPDATE send failed\n");
 			/* disable auto_vdm_machine */
 			chip->vdm_state = 0xff;
+			return -EPIPE;
 		}
 
 		if (chip->vdm_send_state != 2)
@@ -1333,6 +1342,7 @@ static int vdm_send_getdpstatus(struct fusb30x_chip *chip, int evt)
 			dev_warn(chip->dev, "VDM_DP_STATUS_UPDATE time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
+			return -ETIMEDOUT;
 		}
 		break;
 	}
@@ -1359,6 +1369,7 @@ static int vdm_send_dpconfig(struct fusb30x_chip *chip, int evt)
 			dev_warn(chip->dev, "vdm_send_dpconfig send failed\n");
 			/* disable auto_vdm_machine */
 			chip->vdm_state = 0xff;
+			return -EPIPE;
 		}
 
 		if (chip->vdm_send_state != 2)
@@ -1372,45 +1383,55 @@ static int vdm_send_dpconfig(struct fusb30x_chip *chip, int evt)
 			dev_warn(chip->dev, "vdm_send_dpconfig time out\n");
 			chip->vdm_state = 0xff;
 			chip->work_continue = 1;
+			return -ETIMEDOUT;
 		}
 		break;
 	}
 	return -EINPROGRESS;
 }
 
+/* without break if success */
+#define AUTO_VDM_HANDLE(func, chip, evt, conditions) \
+do { \
+	conditions = func(chip, evt); \
+	if (!conditions) { \
+		chip->vdm_state++; \
+		chip->work_continue = 1; \
+	} else { \
+		if (conditions != -EINPROGRESS) \
+			chip->vdm_state = 0xff; \
+	} \
+} while (0)
+
 static void auto_vdm_machine(struct fusb30x_chip *chip, int evt)
 {
+	int conditions;
+
 	switch (chip->vdm_state) {
 	case 0:
-		if (vdm_send_discoveryid(chip, evt))
-			break;
-		chip->vdm_state++;
-		/* without break */
+		AUTO_VDM_HANDLE(vdm_send_discoveryid, chip, evt, conditions);
+		break;
 	case 1:
-		if (vdm_send_discoverysvid(chip, evt))
-			break;
-		chip->vdm_state++;
-		/* without break */
+		AUTO_VDM_HANDLE(vdm_send_discoverysvid, chip, evt, conditions);
+		break;
 	case 2:
-		if (vdm_send_discoverymodes(chip, evt))
-			break;
-		chip->vdm_state++;
-		/* without break */
+		AUTO_VDM_HANDLE(vdm_send_discoverymodes, chip, evt, conditions);
+		break;
 	case 3:
-		if (vdm_send_entermode(chip, evt))
-			break;
-		chip->vdm_state++;
-		/* without break */
+		AUTO_VDM_HANDLE(vdm_send_entermode, chip, evt, conditions);
+		break;
 	case 4:
-		if (vdm_send_dpconfig(chip, evt))
-			break;
-		chip->vdm_state = 6;
-		/* without break */
+		AUTO_VDM_HANDLE(vdm_send_dpconfig, chip, evt, conditions);
+		break;
 	case 5:
-		if (vdm_send_getdpstatus(chip, evt))
-			break;
-		chip->vdm_state++;
-		/* without break */
+		platform_fusb_notify(chip);
+		break;
+	case 6:
+		/* TODO: triggered by user */
+		AUTO_VDM_HANDLE(vdm_send_getdpstatus, chip, evt, conditions);
+		if (chip->vdm_state == 7)
+			chip->vdm_state = 5;
+		break;
 	default:
 		platform_fusb_notify(chip);
 		break;
@@ -1773,15 +1794,157 @@ static void fusb_state_src_ready(struct fusb30x_chip *chip, int evt)
 			process_vdm_msg(chip);
 			chip->work_continue = 1;
 			chip->timer_state = T_DISABLED;
+		} else if (PACKET_IS_CONTROL_MSG(chip->rec_head,
+						 CMT_PR_SWAP)) {
+			if ((chip->vdm_state == 5) || (chip->vdm_state == 0xff))
+				set_state(chip, policy_src_prs_evaluate);
+			return;
 		}
 	}
 
-	/* TODO: swap function would be added here later on*/
-
 	if (!chip->partner_cap[0])
 		set_state(chip, policy_src_get_sink_caps);
-	else
+	else if ((chip->vdm_state != 5) && (chip->vdm_state != 0xff))
 		auto_vdm_machine(chip, evt);
+}
+
+static void fusb_state_prs_evaluate(struct fusb30x_chip *chip, int evt)
+{
+	if (chip->role == ROLE_MODE_DRP)
+		set_state(chip, policy_src_prs_accept);
+	else
+		set_state(chip, policy_src_prs_reject);
+}
+
+static void fusb_state_prs_reject(struct fusb30x_chip *chip, int evt)
+{
+	u32 tmp;
+
+	switch (chip->sub_state) {
+	case 0:
+		set_mesg(chip, CMT_REJECT, CONTROLMESSAGE);
+		chip->tx_state = tx_idle;
+		chip->sub_state++;
+		/* fallthrough */
+	case 1:
+		tmp = policy_send_data(chip);
+		if (tmp == tx_success) {
+			if (chip->notify.power_role)
+				set_state(chip, policy_src_ready);
+			else
+				set_state(chip, policy_snk_ready);
+		} else if (tmp == tx_failed) {
+			if (chip->notify.power_role)
+				set_state(chip, policy_src_send_softrst);
+			else
+				set_state(chip, policy_snk_send_softrst);
+		}
+	}
+}
+
+static void fusb_state_prs_accept(struct fusb30x_chip *chip, int evt)
+{
+	u32 tmp;
+
+	switch (chip->sub_state) {
+	case 0:
+		set_mesg(chip, CMT_ACCEPT, CONTROLMESSAGE);
+		chip->tx_state = tx_idle;
+		chip->sub_state++;
+		/* fallthrough */
+	case 1:
+		tmp = policy_send_data(chip);
+		if (tmp == tx_success) {
+			if (chip->notify.power_role)
+				set_state(chip,
+					  policy_src_prs_transition_to_off);
+			else
+				set_state(chip,
+					  policy_snk_prs_transition_to_off);
+		} else if (tmp == tx_failed) {
+			if (chip->notify.power_role)
+				set_state(chip, policy_src_send_softrst);
+			else
+				set_state(chip, policy_snk_send_softrst);
+		}
+	}
+}
+
+static void fusb_state_src_prs_transition_to_off(struct fusb30x_chip *chip,
+						 int evt)
+{
+	switch (chip->sub_state) {
+	case 0:
+		chip->timer_state = T_SRC_TRANSITION;
+		fusb_timer_start(&chip->timer_state_machine,
+				 chip->timer_state);
+		chip->sub_state++;
+		break;
+	case 1:
+		if (evt & EVENT_TIMER_STATE) {
+			platform_set_vbus_lvl_enable(chip, 0, 0);
+			chip->notify.power_role = 0;
+			tcpm_set_msg_header(chip);
+			if (chip->role == ROLE_MODE_DRP)
+				set_state(chip, policy_src_prs_assert_rd);
+			else
+				set_state(chip, policy_src_prs_source_off);
+		}
+	}
+}
+
+static void fusb_state_src_prs_assert_rd(struct fusb30x_chip *chip, int evt)
+{
+	tcpm_set_cc_pull_mode(chip, CC_PULL_DOWN);
+	set_state(chip, policy_src_prs_source_off);
+}
+
+static void fusb_state_src_prs_source_off(struct fusb30x_chip *chip, int evt)
+{
+	u32 tmp;
+
+	switch (chip->sub_state) {
+	case 0:
+		set_mesg(chip, CMT_PS_RDY, CONTROLMESSAGE);
+		chip->tx_state = tx_idle;
+		chip->sub_state++;
+		/* fallthrough */
+	case 1:
+		tmp = policy_send_data(chip);
+		if (tmp == tx_success) {
+			chip->timer_state = T_PD_SOURCE_ON;
+			fusb_timer_start(&chip->timer_state_machine,
+					 chip->timer_state);
+			chip->sub_state++;
+		} else if (tmp == tx_failed) {
+			chip->notify.power_role = 1;
+			tcpm_set_msg_header(chip);
+			set_state(chip, policy_src_send_hardrst);
+		}
+		if (chip->sub_state != 3)
+			break;
+	case 2:
+		if (evt & EVENT_RX) {
+			if (PACKET_IS_CONTROL_MSG(chip->rec_head,
+						  CMT_PS_RDY)) {
+				chip->timer_state = T_DISABLED;
+				/* snk startup */
+				chip->notify.is_pd_connected = 0;
+				chip->cc_state |= CC_STATE_TOGSS_IS_UFP;
+				tcpm_set_polarity(chip, chip->cc_polarity);
+				tcpm_set_rx_enable(chip, 1);
+				set_state(chip, policy_snk_discovery);
+			} else {
+				dev_dbg(chip->dev,
+					"rec careless msg: head %x\n",
+					chip->rec_head);
+			}
+		} else if (evt & EVENT_TIMER_STATE) {
+			chip->notify.power_role = 1;
+			tcpm_set_msg_header(chip);
+			set_state(chip, policy_src_send_hardrst);
+		}
+	}
 }
 
 static void fusb_state_src_get_sink_cap(struct fusb30x_chip *chip, int evt)
@@ -2120,7 +2283,10 @@ static void fusb_state_snk_transition_default(struct fusb30x_chip *chip,
 
 static void fusb_state_snk_ready(struct fusb30x_chip *chip, int evt)
 {
-	/* TODO: snk_ready_function would be added later on*/
+	if (evt & EVENT_RX)
+		if (PACKET_IS_CONTROL_MSG(chip->rec_head, CMT_PR_SWAP))
+			set_state(chip, policy_snk_prs_evaluate);
+
 	platform_fusb_notify(chip);
 }
 
@@ -2139,6 +2305,144 @@ static void fusb_state_snk_send_hardreset(struct fusb30x_chip *chip, int evt)
 			set_state(chip, policy_snk_transition_default);
 		} else if (tmp == tx_failed) {
 			set_state(chip, error_recovery);
+		}
+		break;
+	}
+}
+
+static void fusb_state_prs_send_swap(struct fusb30x_chip *chip, int evt)
+{
+	u32 tmp;
+
+	switch (chip->sub_state) {
+	case 0:
+		set_mesg(chip, CMT_PR_SWAP, CONTROLMESSAGE);
+		chip->sub_state = 1;
+		chip->tx_state = tx_idle;
+		/* fallthrough */
+	case 1:
+		tmp = policy_send_data(chip);
+
+		if (tmp == tx_success) {
+			chip->timer_state = T_SENDER_RESPONSE;
+			fusb_timer_start(&chip->timer_state_machine,
+					 chip->timer_state);
+			chip->sub_state++;
+		} else if (tmp == tx_failed) {
+			if (chip->notify.power_role)
+				set_state(chip, policy_src_send_softrst);
+			else
+				set_state(chip, policy_snk_send_softrst);
+		}
+		break;
+	case 2:
+		if (evt & EVENT_RX) {
+			if (PACKET_IS_CONTROL_MSG(chip->rec_head,
+						  CMT_ACCEPT)) {
+				tcpm_set_msg_header(chip);
+				chip->timer_state = T_DISABLED;
+				if (chip->notify.power_role)
+					set_state(chip, policy_src_prs_transition_to_off);
+				else
+					set_state(chip, policy_snk_prs_transition_to_off);
+				chip->notify.power_role = 1;
+				tcpm_set_msg_header(chip);
+			} else if (PACKET_IS_CONTROL_MSG(chip->rec_head,
+							 CMT_REJECT) ||
+				   PACKET_IS_CONTROL_MSG(chip->rec_head,
+							 CMT_WAIT)) {
+				chip->timer_state = T_DISABLED;
+				if (chip->notify.power_role)
+					set_state(chip, policy_src_ready);
+				else
+					set_state(chip, policy_snk_ready);
+			}
+		} else if (evt & EVENT_TIMER_STATE) {
+			if (chip->notify.power_role)
+				set_state(chip, policy_src_ready);
+			else
+				set_state(chip, policy_snk_ready);
+		}
+		break;
+	}
+}
+
+static void fusb_state_snk_prs_transition_to_off(struct fusb30x_chip *chip,
+						 int evt)
+{
+	switch (chip->sub_state) {
+	case 0:
+		chip->timer_state = T_PD_SOURCE_OFF;
+		fusb_timer_start(&chip->timer_state_machine,
+				 chip->timer_state);
+		chip->sub_state++;
+		/* fallthrough */
+	case 1:
+		if (evt & EVENT_RX) {
+			if (PACKET_IS_CONTROL_MSG(chip->rec_head,
+						  CMT_PS_RDY)) {
+				if (chip->role == ROLE_MODE_DRP)
+					set_state(chip,
+						  policy_snk_prs_assert_rp);
+				else
+					set_state(chip,
+						  policy_snk_prs_source_on);
+			} else {
+				dev_dbg(chip->dev,
+					"rec careless msg: head %x\n",
+					chip->rec_head);
+			}
+		} else if (evt & EVENT_TIMER_STATE) {
+			chip->notify.power_role = 0;
+			tcpm_set_msg_header(chip);
+			set_state(chip, policy_snk_send_hardrst);
+		}
+		break;
+	}
+}
+
+static void fusb_state_snk_prs_assert_rp(struct fusb30x_chip *chip, int evt)
+{
+	tcpm_set_cc_pull_mode(chip, CC_PULL_UP);
+	set_state(chip, policy_snk_prs_source_on);
+}
+
+static void fusb_state_snk_prs_source_on(struct fusb30x_chip *chip, int evt)
+{
+	u32 tmp;
+
+	switch (chip->sub_state) {
+	case 0:
+		/* supply power in 50ms */
+		platform_set_vbus_lvl_enable(chip, 1, 0);
+		chip->sub_state++;
+		chip->work_continue = 1;
+		break;
+	case 1:
+		set_mesg(chip, CMT_PS_RDY, CONTROLMESSAGE);
+		chip->tx_state = tx_idle;
+		chip->sub_state++;
+		/* fallthrough */
+	case 2:
+		tmp = policy_send_data(chip);
+		if (tmp == tx_success) {
+			/* PD spe 6.5.10.2 */
+			chip->timer_state = T_PD_SWAP_SOURCE_START;
+			fusb_timer_start(&chip->timer_state_machine,
+					 chip->timer_state);
+			chip->sub_state++;
+		} else if (tmp == tx_failed) {
+			chip->notify.power_role = 0;
+			tcpm_set_msg_header(chip);
+			set_state(chip, policy_snk_send_hardrst);
+		}
+		break;
+	case 3:
+		if (evt & EVENT_TIMER_STATE) {
+			chip->cc_state &= ~CC_STATE_TOGSS_IS_UFP;
+			regmap_update_bits(chip->regmap, FUSB_REG_MASK,
+					   MASK_M_COMP_CHNG, 0);
+			set_state(chip, policy_src_send_caps);
 		}
 		break;
 	}
@@ -2209,33 +2513,46 @@ static void fusb_state_snk_send_softreset(struct fusb30x_chip *chip, int evt)
 	}
 }
 
+static void fusb_try_detach(struct fusb30x_chip *chip)
+{
+	int cc1, cc2;
+
+	if ((chip->cc_state & CC_STATE_TOGSS_IS_UFP) &&
+	    (chip->conn_state !=
+	     policy_snk_transition_default) &&
+	    (chip->conn_state !=
+	     policy_src_prs_source_off) &&
+	    (chip->conn_state != policy_snk_prs_send_swap) &&
+	    (chip->conn_state != policy_snk_prs_assert_rp) &&
+	    (chip->conn_state != policy_snk_prs_source_on) &&
+	    (chip->conn_state != policy_snk_prs_transition_to_off)) {
+		if (!tcpm_check_vbus(chip))
+			set_state_unattached(chip);
+	} else if ((chip->conn_state !=
+		    policy_src_transition_default) &&
+		   (chip->conn_state !=
+		    policy_src_prs_source_off) &&
+		   (chip->conn_state != policy_snk_prs_source_on)) {
+		tcpm_get_cc(chip, &cc1, &cc2);
+		if (chip->cc_state & CC_STATE_TOGSS_CC2)
+			cc1 = cc2;
+		if (cc1 == TYPEC_CC_VOLT_OPEN)
+			set_state_unattached(chip);
+	}
+}
+
 static void state_machine_typec(struct fusb30x_chip *chip)
 {
 	int evt = 0;
-	int cc1, cc2;
 
 	tcpc_alert(chip, &evt);
 	mux_alert(chip, &evt);
 	if (!evt)
 		goto BACK;
 
-	if (chip->notify.is_cc_connected) {
-		if (evt & EVENT_CC) {
-			if ((chip->cc_state & CC_STATE_TOGSS_IS_UFP) &&
-			    (chip->conn_state !=
-			     policy_snk_transition_default)) {
-				if (!tcpm_check_vbus(chip))
-					set_state_unattached(chip);
-			} else if (chip->conn_state !=
-				   policy_src_transition_default) {
-				tcpm_get_cc(chip, &cc1, &cc2);
-				if (chip->cc_state & CC_STATE_TOGSS_CC2)
-					cc1 = cc2;
-				if (cc1 == TYPEC_CC_VOLT_OPEN)
-					set_state_unattached(chip);
-			}
-		}
-	}
+	if (chip->notify.is_cc_connected)
+		if (evt & EVENT_CC)
+			fusb_try_detach(chip);
 
 	if (evt & EVENT_RX) {
 		tcpm_get_message(chip);
@@ -2346,6 +2663,42 @@ static void state_machine_typec(struct fusb30x_chip *chip)
 		break;
 	case policy_snk_softrst:
 		fusb_state_snk_softreset(chip);
+		break;
+
+	/* PD Spec 1.0 chap 8.3.3.6.3.1/2 */
+	case policy_src_prs_evaluate:
+	case policy_snk_prs_evaluate:
+		fusb_state_prs_evaluate(chip, evt);
+		break;
+	case policy_snk_prs_accept:
+	case policy_src_prs_accept:
+		fusb_state_prs_accept(chip, evt);
+		break;
+	case policy_snk_prs_reject:
+	case policy_src_prs_reject:
+		fusb_state_prs_reject(chip, evt);
+		break;
+	case policy_src_prs_transition_to_off:
+		fusb_state_src_prs_transition_to_off(chip, evt);
+		break;
+	case policy_src_prs_assert_rd:
+		fusb_state_src_prs_assert_rd(chip, evt);
+		break;
+	case policy_src_prs_source_off:
+		fusb_state_src_prs_source_off(chip, evt);
+		break;
+	case policy_snk_prs_send_swap:
+	case policy_src_prs_send_swap:
+		fusb_state_prs_send_swap(chip, evt);
+		break;
+	case policy_snk_prs_transition_to_off:
+		fusb_state_snk_prs_transition_to_off(chip, evt);
+		break;
+	case policy_snk_prs_assert_rp:
+		fusb_state_snk_prs_assert_rp(chip, evt);
+		break;
+	case policy_snk_prs_source_on:
+		fusb_state_snk_prs_source_on(chip, evt);
 		break;
 
 	default:
@@ -2515,13 +2868,9 @@ static int fusb30x_probe(struct i2c_client *client,
 	chip->source_power_supply[0] = 0x64;
 	chip->source_max_current[0] = 0x96;
 
-	/*
-	 * these two variable should be 1 if support DRP,
-	 * but now we do not support swap,
-	 * it will be blanked in future
-	 */
 	pd_cap_info = &chip->pd_cap_info;
-	pd_cap_info->dual_role_power = 0;
+	pd_cap_info->dual_role_power = 1;
+	/* TODO: add date role swap */
 	pd_cap_info->data_role_swap = 0;
 
 	pd_cap_info->externally_powered = 1;
