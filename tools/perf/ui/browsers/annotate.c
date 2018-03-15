@@ -44,7 +44,6 @@ struct annotate_browser {
 	u64			    start;
 	int			    nr_asm_entries;
 	int			    nr_entries;
-	int			    nr_jumps;
 	bool			    searching_backwards;
 	u8			    addr_width;
 	u8			    jumps_width;
@@ -965,13 +964,9 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
 }
 
-static void annotate_browser__mark_jump_targets(struct annotate_browser *browser,
-						size_t size)
+static void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 {
-	u64 offset;
-	struct map_symbol *ms = browser->b.priv;
-	struct symbol *sym = ms->sym;
-	struct annotation *notes = symbol__annotation(sym);
+	u64 offset, size = symbol__size(sym);
 
 	/* PLT symbols contain external offsets */
 	if (strstr(sym->name, "@plt"))
@@ -1000,7 +995,7 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 		if (++blt->jump_sources > notes->max_jump_sources)
 			notes->max_jump_sources = blt->jump_sources;
 
-		++browser->nr_jumps;
+		++notes->nr_jumps;
 	}
 }
 
@@ -1093,7 +1088,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			bpos->idx_asm = -1;
 	}
 
-	annotate_browser__mark_jump_targets(&browser, size);
+	annotation__mark_jump_targets(notes, sym);
 	annotation__compute_ipc(notes, size);
 
 	browser.addr_width = browser.target_width = browser.min_addr_width = hex_width(size);
