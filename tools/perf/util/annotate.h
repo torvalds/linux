@@ -58,6 +58,16 @@ bool ins__is_lock(const struct ins *ins);
 int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
 bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
+struct annotation_options {
+	bool hide_src_code,
+	     use_offset,
+	     jump_arrows,
+	     show_linenr,
+	     show_nr_jumps,
+	     show_nr_samples,
+	     show_total_period;
+};
+
 struct annotation;
 
 struct sym_hist_entry {

@@ -31,15 +31,7 @@ struct browser_line {
 	int	jump_sources;
 };
 
-static struct annotate_browser_opt {
-	bool hide_src_code,
-	     use_offset,
-	     jump_arrows,
-	     show_linenr,
-	     show_nr_jumps,
-	     show_nr_samples,
-	     show_total_period;
-} annotate_browser__opts = {
+static struct annotation_options annotate_browser__opts = {
 	.use_offset	= true,
 	.jump_arrows	= true,
 };
