@@ -1,0 +1,24 @@
+#!/bin/sh
+
+first_test=1
+last_test=10
+executable=tracer_test
+
+for i in $(seq $first_test $last_test); do
+    ./"$executable" $i
+done | tee results.txt
+
+cat results.txt | grep '\[.*\]$' | awk -F '[] /[]+' '
+BEGIN {
+    sum=0
+}
+
+{
+    sum += $2;
+}
+
+END {
+    printf "\n%66s  [%03d/100]\n", "Total:", sum;
+}'
+
+rm -f results.txt
