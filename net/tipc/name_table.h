@@ -1,7 +1,7 @@
 /*
  * net/tipc/name_table.h: Include file for TIPC name table code
  *
- * Copyright (c) 2000-2006, 2014-2015, Ericsson AB
+ * Copyright (c) 2000-2006, 2014-2018, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -76,8 +76,7 @@ struct publication {
 	u32 node;
 	u32 ref;
 	u32 key;
-	struct list_head nodesub_list;
-	struct list_head local_list;
+	struct list_head binding_node;
 	struct list_head pport_list;
 	struct list_head node_list;
 	struct list_head cluster_list;
