@@ -2012,6 +2012,50 @@ size_t disasm__fprintf(struct list_head *head, FILE *fp)
 	return printed;
 }
 
+
+bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sym)
+{
+	if (!dl || !dl->ins.ops || !ins__is_jump(&dl->ins) ||
+	    !disasm_line__has_offset(dl) || dl->ops.target.offset < 0 ||
+	    dl->ops.target.offset >= (s64)symbol__size(sym))
+		return false;
+
+	return true;
+}
+
+void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
+{
+	u64 offset, size = symbol__size(sym);
+
+	/* PLT symbols contain external offsets */
+	if (strstr(sym->name, "@plt"))
+		return;
+
+	for (offset = 0; offset < size; ++offset) {
+		struct annotation_line *al = notes->offsets[offset];
+		struct disasm_line *dl;
+
+		dl = disasm_line(al);
+
+		if (!disasm_line__is_valid_jump(dl, sym))
+			continue;
+
+		al = notes->offsets[dl->ops.target.offset];
+
+		/*
+		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
+		 * have to adjust to the previous offset?
+		 */
+		if (al == NULL)
+			continue;
+
+		if (++al->jump_sources > notes->max_jump_sources)
+			notes->max_jump_sources = al->jump_sources;
+
+		++notes->nr_jumps;
+	}
+}
+
 static void annotation__calc_lines(struct annotation *notes, struct map *map,
 				  struct rb_root *root, u64 start)
 {

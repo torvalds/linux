@@ -25,7 +25,6 @@ struct disasm_line_samples {
 struct browser_line {
 	u32	idx;
 	int	idx_asm;
-	int	jump_sources;
 };
 
 static struct annotation_options annotate_browser__opts = {
@@ -132,7 +131,6 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	struct annotation *notes = browser__annotation(browser);
 	struct annotation_line *al = list_entry(entry, struct annotation_line, node);
-	struct browser_line *bl = browser_line(al);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
 	bool change_color = (!notes->options->hide_src_code &&
 			     (!current_entry || (browser->use_navkeypressed &&
@@ -228,13 +226,13 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		if (!notes->options->use_offset) {
 			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
 		} else {
-			if (bl->jump_sources) {
+			if (al->jump_sources) {
 				if (notes->options->show_nr_jumps) {
 					int prev;
 					printed = scnprintf(bf, sizeof(bf), "%*d ",
 							    ab->jumps_width,
-							    bl->jump_sources);
-					prev = ui_browser__set_jumps_percent_color(browser, bl->jump_sources,
+							    al->jump_sources);
+					prev = ui_browser__set_jumps_percent_color(browser, al->jump_sources,
 										   current_entry);
 					ui_browser__write_nstring(browser, bf, printed);
 					ui_browser__set_color(browser, prev);
@@ -261,17 +259,6 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 
 	if (current_entry)
 		ab->selection = al;
-}
-
-static bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sym)
-{
-	if (!dl || !dl->ins.ops || !ins__is_jump(&dl->ins)
-	    || !disasm_line__has_offset(dl)
-	    || dl->ops.target.offset < 0
-	    || dl->ops.target.offset >= (s64)symbol__size(sym))
-		return false;
-
-	return true;
 }
 
 static bool is_fused(struct annotate_browser *ab, struct disasm_line *cursor)
@@ -962,41 +949,6 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 	SLang_init_tty(0, 0, 0);
 
 	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
-}
-
-static void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
-{
-	u64 offset, size = symbol__size(sym);
-
-	/* PLT symbols contain external offsets */
-	if (strstr(sym->name, "@plt"))
-		return;
-
-	for (offset = 0; offset < size; ++offset) {
-		struct annotation_line *al = notes->offsets[offset];
-		struct disasm_line *dl;
-		struct browser_line *blt;
-
-		dl = disasm_line(al);
-
-		if (!disasm_line__is_valid_jump(dl, sym))
-			continue;
-
-		al = notes->offsets[dl->ops.target.offset];
-
-		/*
- 		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
- 		 * have to adjust to the previous offset?
- 		 */
-		if (al == NULL)
-			continue;
-
-		blt = browser_line(al);
-		if (++blt->jump_sources > notes->max_jump_sources)
-			notes->max_jump_sources = blt->jump_sources;
-
-		++notes->nr_jumps;
-	}
 }
 
 static inline int width_jumps(int n)
