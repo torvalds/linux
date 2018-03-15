@@ -383,6 +383,12 @@ static const u32 tegra20_primary_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
+static const u64 tegra20_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_NVIDIA_TEGRA_TILED,
+	DRM_FORMAT_MOD_INVALID
+};
+
 static const u32 tegra114_primary_formats[] = {
 	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_ARGB1555,
@@ -428,6 +434,17 @@ static const u32 tegra124_primary_formats[] = {
 	/* new on Tegra124 */
 	DRM_FORMAT_RGBX8888,
 	DRM_FORMAT_BGRX8888,
+};
+
+static const u64 tegra124_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(0),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(1),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(2),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5),
+	DRM_FORMAT_MOD_INVALID
 };
 
 static int tegra_plane_atomic_check(struct drm_plane *plane,
@@ -596,6 +613,7 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 	enum drm_plane_type type = DRM_PLANE_TYPE_PRIMARY;
 	struct tegra_plane *plane;
 	unsigned int num_formats;
+	const u64 *modifiers;
 	const u32 *formats;
 	int err;
 
@@ -610,10 +628,11 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 
 	num_formats = dc->soc->num_primary_formats;
 	formats = dc->soc->primary_formats;
+	modifiers = dc->soc->modifiers;
 
 	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_plane_funcs, formats,
-				       num_formats, NULL, type, NULL);
+				       num_formats, modifiers, type, NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -1974,6 +1993,7 @@ static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 	.primary_formats = tegra20_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra20_overlay_formats),
 	.overlay_formats = tegra20_overlay_formats,
+	.modifiers = tegra20_modifiers,
 };
 
 static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
@@ -1990,6 +2010,7 @@ static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 	.primary_formats = tegra20_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra20_overlay_formats),
 	.overlay_formats = tegra20_overlay_formats,
+	.modifiers = tegra20_modifiers,
 };
 
 static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
@@ -2006,6 +2027,7 @@ static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
 	.primary_formats = tegra114_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra114_overlay_formats),
 	.overlay_formats = tegra114_overlay_formats,
+	.modifiers = tegra20_modifiers,
 };
 
 static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
@@ -2022,6 +2044,7 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.primary_formats = tegra114_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra124_overlay_formats),
 	.overlay_formats = tegra114_overlay_formats,
+	.modifiers = tegra124_modifiers,
 };
 
 static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
@@ -2038,6 +2061,7 @@ static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
 	.primary_formats = tegra114_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra114_overlay_formats),
 	.overlay_formats = tegra114_overlay_formats,
+	.modifiers = tegra124_modifiers,
 };
 
 static const struct tegra_windowgroup_soc tegra186_dc_wgrps[] = {

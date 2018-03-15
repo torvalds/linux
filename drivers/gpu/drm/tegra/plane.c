@@ -68,6 +68,21 @@ static void tegra_plane_atomic_destroy_state(struct drm_plane *plane,
 	kfree(state);
 }
 
+static bool tegra_plane_format_mod_supported(struct drm_plane *plane,
+					     uint32_t format,
+					     uint64_t modifier)
+{
+	const struct drm_format_info *info = drm_format_info(format);
+
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
+
+	if (info->num_planes == 1)
+		return true;
+
+	return false;
+}
+
 const struct drm_plane_funcs tegra_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
@@ -75,6 +90,7 @@ const struct drm_plane_funcs tegra_plane_funcs = {
 	.reset = tegra_plane_reset,
 	.atomic_duplicate_state = tegra_plane_atomic_duplicate_state,
 	.atomic_destroy_state = tegra_plane_atomic_destroy_state,
+	.format_mod_supported = tegra_plane_format_mod_supported,
 };
 
 int tegra_plane_state_add(struct tegra_plane *plane,

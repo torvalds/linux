@@ -49,6 +49,17 @@ static const u32 tegra_shared_plane_formats[] = {
 	DRM_FORMAT_YUV422,
 };
 
+static const u64 tegra_shared_plane_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(0),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(1),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(2),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5),
+	DRM_FORMAT_MOD_INVALID
+};
+
 static inline unsigned int tegra_plane_offset(struct tegra_plane *plane,
 					      unsigned int offset)
 {
@@ -527,6 +538,7 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	unsigned int possible_crtcs = 0x7;
 	struct tegra_shared_plane *plane;
 	unsigned int num_formats;
+	const u64 *modifiers;
 	struct drm_plane *p;
 	const u32 *formats;
 	int err;
@@ -545,10 +557,11 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 
 	num_formats = ARRAY_SIZE(tegra_shared_plane_formats);
 	formats = tegra_shared_plane_formats;
+	modifiers = tegra_shared_plane_modifiers;
 
 	err = drm_universal_plane_init(drm, p, possible_crtcs,
 				       &tegra_plane_funcs, formats,
-				       num_formats, NULL, type, NULL);
+				       num_formats, modifiers, type, NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
