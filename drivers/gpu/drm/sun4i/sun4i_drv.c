@@ -176,7 +176,13 @@ static bool sun4i_drv_node_is_frontend(struct device_node *node)
 		of_device_is_compatible(node, "allwinner,sun5i-a13-display-frontend") ||
 		of_device_is_compatible(node, "allwinner,sun6i-a31-display-frontend") ||
 		of_device_is_compatible(node, "allwinner,sun7i-a20-display-frontend") ||
-		of_device_is_compatible(node, "allwinner,sun8i-a33-display-frontend");
+		of_device_is_compatible(node, "allwinner,sun8i-a33-display-frontend") ||
+		of_device_is_compatible(node, "allwinner,sun9i-a80-display-frontend");
+}
+
+static bool sun4i_drv_node_is_deu(struct device_node *node)
+{
+	return of_device_is_compatible(node, "allwinner,sun9i-a80-deu");
 }
 
 static bool sun4i_drv_node_is_supported_frontend(struct device_node *node)
@@ -257,7 +263,8 @@ static int sun4i_drv_add_endpoints(struct device *dev,
 	 * enabled frontend supported by the driver, we add it to our
 	 * component list.
 	 */
-	if (!sun4i_drv_node_is_frontend(node) ||
+	if (!(sun4i_drv_node_is_frontend(node) ||
+	      sun4i_drv_node_is_deu(node)) ||
 	    (sun4i_drv_node_is_supported_frontend(node) &&
 	     of_device_is_available(node))) {
 		/* Add current component */
@@ -361,6 +368,7 @@ static const struct of_device_id sun4i_drv_of_table[] = {
 	{ .compatible = "allwinner,sun8i-a83t-display-engine" },
 	{ .compatible = "allwinner,sun8i-h3-display-engine" },
 	{ .compatible = "allwinner,sun8i-v3s-display-engine" },
+	{ .compatible = "allwinner,sun9i-a80-display-engine" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);

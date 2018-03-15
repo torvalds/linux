@@ -793,6 +793,9 @@ static const struct sun4i_backend_quirks sun7i_backend_quirks = {
 static const struct sun4i_backend_quirks sun8i_a33_backend_quirks = {
 };
 
+static const struct sun4i_backend_quirks sun9i_backend_quirks = {
+};
+
 static const struct of_device_id sun4i_backend_of_table[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-display-backend",
@@ -813,6 +816,10 @@ static const struct of_device_id sun4i_backend_of_table[] = {
 	{
 		.compatible = "allwinner,sun8i-a33-display-backend",
 		.data = &sun8i_a33_backend_quirks,
+	},
+	{
+		.compatible = "allwinner,sun9i-a80-display-backend",
+		.data = &sun9i_backend_quirks,
 	},
 	{ }
 };
