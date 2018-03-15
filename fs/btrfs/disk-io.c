@@ -2389,7 +2389,6 @@ int open_ctree(struct super_block *sb,
 	int err = -EINVAL;
 	int num_backups_tried = 0;
 	int backup_index = 0;
-	u32 max_active;
 	int clear_free_space_tree = 0;
 
 	tree_root = fs_info->tree_root = btrfs_alloc_root(fs_info, GFP_KERNEL);
@@ -2697,8 +2696,6 @@ int open_ctree(struct super_block *sb,
 		err = -EINVAL;
 		goto fail_alloc;
 	}
-
-	max_active = fs_info->thread_pool_size;
 
 	ret = btrfs_init_workqueues(fs_info, fs_devices);
 	if (ret) {
