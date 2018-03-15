@@ -41,7 +41,6 @@ struct annotate_browser {
 	struct rb_node		   *curr_hot;
 	struct annotation_line	   *selection;
 	struct arch		   *arch;
-	int			    nr_events;
 	u64			    start;
 	int			    nr_asm_entries;
 	int			    nr_entries;
@@ -97,7 +96,9 @@ static int annotate_browser__set_jumps_percent_color(struct annotate_browser *br
 
 static int annotate_browser__pcnt_width(struct annotate_browser *ab)
 {
-	return (annotate_browser__opts.show_total_period ? 12 : 7) * ab->nr_events;
+	struct map_symbol *ms = ab->b.priv;
+	struct annotation *notes = symbol__annotation(ms->sym);
+	return (annotate_browser__opts.show_total_period ? 12 : 7) * notes->nr_events;
 }
 
 static void disasm_line__write(struct disasm_line *dl, struct ui_browser *browser,
@@ -145,7 +146,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	char bf[256];
 	bool show_title = false;
 
-	for (i = 0; i < ab->nr_events; i++) {
+	for (i = 0; i < notes->nr_events; i++) {
 		if (al->samples[i].percent > percent_max)
 			percent_max = al->samples[i].percent;
 	}
@@ -159,7 +160,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	}
 
 	if (al->offset != -1 && percent_max != 0.0) {
-		for (i = 0; i < ab->nr_events; i++) {
+		for (i = 0; i < notes->nr_events; i++) {
 			ui_browser__set_percent_color(browser,
 						al->samples[i].percent,
 						current_entry);
@@ -1099,7 +1100,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	browser.addr_width = browser.target_width = browser.min_addr_width = hex_width(size);
 	browser.max_addr_width = hex_width(sym->end);
 	browser.jumps_width = width_jumps(browser.max_jump_sources);
-	browser.nr_events = nr_pcnt;
+	notes->nr_events = nr_pcnt;
 	browser.b.nr_entries = browser.nr_entries;
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */
