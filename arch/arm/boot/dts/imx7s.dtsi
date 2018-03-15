@@ -173,6 +173,17 @@
 		};
 	};
 
+	tempmon: tempmon {
+		compatible = "fsl,imx7d-tempmon";
+		interrupt-parent = <&gpc>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+		fsl,tempmon =<&anatop>;
+		nvmem-cells = <&tempmon_calib>,
+			<&tempmon_temp_grade>;
+		nvmem-cell-names = "calib", "temp_grade";
+		clocks = <&clks IMX7D_PLL_SYS_MAIN_CLK>;
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupt-parent = <&intc>;
@@ -538,16 +549,6 @@
 				tempmon_temp_grade: temp-grade@10 {
 					reg = <0x10 0x4>;
 				};
-			};
-
-			tempmon: tempmon {
-				compatible = "fsl,imx7d-tempmon";
-				interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-				fsl,tempmon =<&anatop>;
-				nvmem-cells = <&tempmon_calib>,
-					<&tempmon_temp_grade>;
-				nvmem-cell-names = "calib", "temp_grade";
-				clocks = <&clks IMX7D_PLL_SYS_MAIN_CLK>;
 			};
 
 			anatop: anatop@30360000 {
