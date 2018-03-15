@@ -445,6 +445,18 @@
 	};
 };
 
+&rockchip_suspend {
+	status = "okay";
+	rockchip,virtual-poweroff = <1>;
+	rockchip,sleep-mode-config = <
+		(0
+		|RKPM_CTR_GTCLKS
+		|RKPM_CTR_IDLESRAM_MD
+		|RKPM_CTR_PMIC
+		)
+	>;
+};
+
 &sdio {
 	status = "okay";
 	mmc-pwrseq = <&sdio_pwrseq>;
