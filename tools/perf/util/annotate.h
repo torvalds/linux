@@ -124,6 +124,9 @@ bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sym);
 void disasm_line__free(struct disasm_line *dl);
 struct annotation_line *
 annotation_line__next(struct annotation_line *pos, struct list_head *head);
+
+double annotation_line__max_percent(struct annotation_line *al, struct annotation *notes);
+
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
 void symbol__calc_percent(struct symbol *sym, struct perf_evsel *evsel);

@@ -2184,6 +2184,20 @@ bool ui__has_annotation(void)
 	return use_browser == 1 && perf_hpp_list.sym;
 }
 
+
+double annotation_line__max_percent(struct annotation_line *al, struct annotation *notes)
+{
+	double percent_max = 0.0;
+	int i;
+
+	for (i = 0; i < notes->nr_events; i++) {
+		if (al->samples[i].percent > percent_max)
+			percent_max = al->samples[i].percent;
+	}
+
+	return percent_max;
+}
+
 int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *evsel,
 		      struct annotation_options *options, struct arch **parch)
 {

@@ -117,14 +117,9 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	int width = browser->width, printed;
 	int i, pcnt_width = annotation__pcnt_width(notes),
 	       cycles_width = annotation__cycles_width(notes);
-	double percent_max = 0.0;
+	double percent_max = annotation_line__max_percent(al, notes);
 	char bf[256];
 	bool show_title = false;
-
-	for (i = 0; i < notes->nr_events; i++) {
-		if (al->samples[i].percent > percent_max)
-			percent_max = al->samples[i].percent;
-	}
 
 	if ((row == 0) && (al->offset == -1 || percent_max == 0.0)) {
 		if (notes->have_cycles) {
