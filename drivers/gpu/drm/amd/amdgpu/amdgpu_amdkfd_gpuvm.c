@@ -812,7 +812,7 @@ int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
 {
 	int ret;
 	struct amdgpu_vm *new_vm;
-	struct amdkfd_process_info *info;
+	struct amdkfd_process_info *info = NULL;
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 
 	new_vm = kzalloc(sizeof(*new_vm), GFP_KERNEL);
@@ -851,6 +851,23 @@ int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
 
 	new_vm->process_info = *process_info;
 
+	/* Validate page directory and attach eviction fence */
+	ret = amdgpu_bo_reserve(new_vm->root.base.bo, true);
+	if (ret)
+		goto reserve_pd_fail;
+	ret = vm_validate_pt_pd_bos(new_vm);
+	if (ret) {
+		pr_err("validate_pt_pd_bos() failed\n");
+		goto validate_pd_fail;
+	}
+	ret = ttm_bo_wait(&new_vm->root.base.bo->tbo, false, false);
+	if (ret)
+		goto wait_pd_fail;
+	amdgpu_bo_fence(new_vm->root.base.bo,
+			&new_vm->process_info->eviction_fence->base, true);
+	amdgpu_bo_unreserve(new_vm->root.base.bo);
+
+	/* Update process info */
 	mutex_lock(&new_vm->process_info->lock);
 	list_add_tail(&new_vm->vm_list_node,
 			&(new_vm->process_info->vm_list_head));
@@ -863,6 +880,10 @@ int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
 
 	return ret;
 
+wait_pd_fail:
+validate_pd_fail:
+	amdgpu_bo_unreserve(new_vm->root.base.bo);
+reserve_pd_fail:
 create_evict_fence_fail:
 	mutex_destroy(&info->lock);
 	kfree(info);
