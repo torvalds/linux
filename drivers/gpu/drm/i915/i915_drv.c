@@ -1995,7 +1995,6 @@ taint:
 error:
 	i915_gem_set_wedged(i915);
 	i915_retire_requests(i915);
-	intel_gpu_reset(i915, ALL_ENGINES);
 	goto finish;
 }
 
