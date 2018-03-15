@@ -643,7 +643,7 @@ static void perf_event_update_sibling_time(struct perf_event *leader)
 {
 	struct perf_event *sibling;
 
-	list_for_each_entry(sibling, &leader->sibling_list, sibling_list)
+	for_each_sibling_event(sibling, leader)
 		perf_event_update_time(sibling);
 }
 
@@ -1828,7 +1828,7 @@ static void perf_group_attach(struct perf_event *event)
 
 	perf_event__header_size(group_leader);
 
-	list_for_each_entry(pos, &group_leader->sibling_list, sibling_list)
+	for_each_sibling_event(pos, group_leader)
 		perf_event__header_size(pos);
 }
 
@@ -1928,7 +1928,7 @@ static void perf_group_detach(struct perf_event *event)
 out:
 	perf_event__header_size(event->group_leader);
 
-	list_for_each_entry(tmp, &event->group_leader->sibling_list, sibling_list)
+	for_each_sibling_event(tmp, event->group_leader)
 		perf_event__header_size(tmp);
 }
 
@@ -1951,13 +1951,13 @@ static inline int __pmu_filter_match(struct perf_event *event)
  */
 static inline int pmu_filter_match(struct perf_event *event)
 {
-	struct perf_event *child;
+	struct perf_event *sibling;
 
 	if (!__pmu_filter_match(event))
 		return 0;
 
-	list_for_each_entry(child, &event->sibling_list, sibling_list) {
-		if (!__pmu_filter_match(child))
+	for_each_sibling_event(sibling, event) {
+		if (!__pmu_filter_match(sibling))
 			return 0;
 	}
 
@@ -2031,7 +2031,7 @@ group_sched_out(struct perf_event *group_event,
 	/*
 	 * Schedule out siblings (if any):
 	 */
-	list_for_each_entry(event, &group_event->sibling_list, sibling_list)
+	for_each_sibling_event(event, group_event)
 		event_sched_out(event, cpuctx, ctx);
 
 	perf_pmu_enable(ctx->pmu);
@@ -2310,7 +2310,7 @@ group_sched_in(struct perf_event *group_event,
 	/*
 	 * Schedule in siblings as one group (if any):
 	 */
-	list_for_each_entry(event, &group_event->sibling_list, sibling_list) {
+	for_each_sibling_event(event, group_event) {
 		if (event_sched_in(event, cpuctx, ctx)) {
 			partial_group = event;
 			goto group_error;
@@ -2326,7 +2326,7 @@ group_error:
 	 * partial group before returning:
 	 * The events up to the failed event are scheduled out normally.
 	 */
-	list_for_each_entry(event, &group_event->sibling_list, sibling_list) {
+	for_each_sibling_event(event, group_event) {
 		if (event == partial_group)
 			break;
 
@@ -3863,7 +3863,7 @@ static void __perf_event_read(void *info)
 
 	pmu->read(event);
 
-	list_for_each_entry(sub, &event->sibling_list, sibling_list) {
+	for_each_sibling_event(sub, event) {
 		if (sub->state == PERF_EVENT_STATE_ACTIVE) {
 			/*
 			 * Use sibling's PMU rather than @event's since
@@ -4711,7 +4711,7 @@ static int __perf_read_group_add(struct perf_event *leader,
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(leader);
 
-	list_for_each_entry(sub, &leader->sibling_list, sibling_list) {
+	for_each_sibling_event(sub, leader) {
 		values[n++] += perf_event_count(sub);
 		if (read_format & PERF_FORMAT_ID)
 			values[n++] = primary_event_id(sub);
@@ -4905,7 +4905,7 @@ static void perf_event_for_each(struct perf_event *event,
 	event = event->group_leader;
 
 	perf_event_for_each_child(event, func);
-	list_for_each_entry(sibling, &event->sibling_list, sibling_list)
+	for_each_sibling_event(sibling, event)
 		perf_event_for_each_child(sibling, func);
 }
 
@@ -6077,7 +6077,7 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 
 	__output_copy(handle, values, n * sizeof(u64));
 
-	list_for_each_entry(sub, &leader->sibling_list, sibling_list) {
+	for_each_sibling_event(sub, leader) {
 		n = 0;
 
 		if ((sub != event) &&
@@ -10662,8 +10662,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		perf_remove_from_context(group_leader, 0);
 		put_ctx(gctx);
 
-		list_for_each_entry(sibling, &group_leader->sibling_list,
-				    sibling_list) {
+		for_each_sibling_event(sibling, group_leader) {
 			perf_remove_from_context(sibling, 0);
 			put_ctx(gctx);
 		}
@@ -10684,8 +10683,7 @@ SYSCALL_DEFINE5(perf_event_open,
 		 * By installing siblings first we NO-OP because they're not
 		 * reachable through the group lists.
 		 */
-		list_for_each_entry(sibling, &group_leader->sibling_list,
-				    sibling_list) {
+		for_each_sibling_event(sibling, group_leader) {
 			perf_event__state_init(sibling);
 			perf_install_in_context(ctx, sibling, sibling->cpu);
 			get_ctx(ctx);
@@ -11324,7 +11322,7 @@ static int inherit_group(struct perf_event *parent_event,
 	 * case inherit_event() will create individual events, similar to what
 	 * perf_group_detach() would do anyway.
 	 */
-	list_for_each_entry(sub, &parent_event->sibling_list, sibling_list) {
+	for_each_sibling_event(sub, parent_event) {
 		child_ctr = inherit_event(sub, parent, parent_ctx,
 					    child, leader, child_ctx);
 		if (IS_ERR(child_ctr))

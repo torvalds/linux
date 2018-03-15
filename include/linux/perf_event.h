@@ -536,6 +536,10 @@ struct pmu_event_list {
 	struct list_head	list;
 };
 
+#define for_each_sibling_event(sibling, event)			\
+	if ((event)->group_leader == (event))			\
+		list_for_each_entry((sibling), &(event)->sibling_list, sibling_list)
+
 /**
  * struct perf_event - performance event kernel representation:
  */
