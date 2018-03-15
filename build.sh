@@ -2,7 +2,7 @@
 if [[ $UID -eq 0 ]];
 then
   echo "do not run as root!"
-  exit 1;
+#  exit 1;
 fi
 
 #Check Crosscompile
@@ -16,7 +16,7 @@ fi;
 
 #Check Dependencies
 PACKAGE_Error=0
-for package in "u-boot-tools" "bc" "make" "gcc" "libc6-dev" "libncurses5-dev"; do
+for package in "u-boot-tools" "bc" "make" "gcc" "libc6-dev" "libncurses5-dev" "libssl-dev"; do
 	if [[ -z "$(dpkg -l |grep ${package})" ]];then echo "please install ${package}";PACKAGE_Error=1;fi
 done
 if [ ${PACKAGE_Error} == 1 ]; then exit 1; fi
@@ -112,6 +112,21 @@ function prepare_SD {
 	cp ./uImage $SD/BPI-BOOT/bananapi/bpi-r2/linux/uImage
 	make modules_install
 
+	#Add CryptoDev Module if exists or Blacklist
+	CRYPTODEV="cryptodev/cryptodev-linux/cryptodev.ko"
+	mkdir -p "${INSTALL_MOD_PATH}/etc/modules-load.d"
+
+	if [ -e "${CRYPTODEV}" ]; then
+		echo Copy CryptoDev
+		mkdir -p "${INSTALL_MOD_PATH}/lib/modules/${kernver}/kernel/extras"
+		cp "${CRYPTODEV}" "${INSTALL_MOD_PATH}/lib/modules/${kernver}/kernel/extras"
+		#Load Cryptodev on BOOT
+		echo  "cryptodev" >${INSTALL_MOD_PATH}/etc/modules-load.d/cryptodev.conf
+	else
+		#Blacklist Cryptodev Module
+		echo "blacklist cryptodev" >${INSTALL_MOD_PATH}/etc/modules-load.d/cryptodev.conf
+	fi
+
 	cp utils/wmt/config/* $SD/BPI-ROOT/system/etc/firmware/
 	cp utils/wmt/src/{wmt_loader,wmt_loopback,stp_uart_launcher} $SD/BPI-ROOT/usr/bin/
 	cp -r utils/wmt/firmware/* $SD/BPI-ROOT/etc/firmware/
@@ -185,6 +200,7 @@ if [ -n "$kernver" ]; then
 		"build")
 			echo "Build Kernel"
 			build
+			$0 cryptodev
 			;;
 
 		"spidev")
@@ -193,6 +209,11 @@ if [ -n "$kernver" ]; then
 				cd tools/spi;
 				make #CROSS_COMPILE=arm-linux-gnueabihf-
 			)
+			;;
+
+		"cryptodev")
+			echo "Build CryptoDev"
+			cryptodev/build.sh
 			;;
 
 		"utils")
