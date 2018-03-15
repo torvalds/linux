@@ -833,6 +833,66 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 	return err;
 }
 
+static unsigned annotation__count_insn(struct annotation *notes, u64 start, u64 end)
+{
+	unsigned n_insn = 0;
+	u64 offset;
+
+	for (offset = start; offset <= end; offset++) {
+		if (notes->offsets[offset])
+			n_insn++;
+	}
+	return n_insn;
+}
+
+static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 end, struct cyc_hist *ch)
+{
+	unsigned n_insn;
+	u64 offset;
+
+	n_insn = annotation__count_insn(notes, start, end);
+	if (n_insn && ch->num && ch->cycles) {
+		float ipc = n_insn / ((double)ch->cycles / (double)ch->num);
+
+		/* Hide data when there are too many overlaps. */
+		if (ch->reset >= 0x7fff || ch->reset >= ch->num / 2)
+			return;
+
+		for (offset = start; offset <= end; offset++) {
+			struct annotation_line *al = notes->offsets[offset];
+
+			if (al)
+				al->ipc = ipc;
+		}
+	}
+}
+
+void annotation__compute_ipc(struct annotation *notes, size_t size)
+{
+	u64 offset;
+
+	if (!notes->src || !notes->src->cycles_hist)
+		return;
+
+	pthread_mutex_lock(&notes->lock);
+	for (offset = 0; offset < size; ++offset) {
+		struct cyc_hist *ch;
+
+		ch = &notes->src->cycles_hist[offset];
+		if (ch && ch->cycles) {
+			struct annotation_line *al;
+
+			if (ch->have_start)
+				annotation__count_and_fill(notes, ch->start, offset, ch);
+			al = notes->offsets[offset];
+			if (al && ch->num_aggr)
+				al->cycles = ch->cycles_aggr / ch->num_aggr;
+			notes->have_cycles = true;
+		}
+	}
+	pthread_mutex_unlock(&notes->lock);
+}
+
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
 				 int evidx)
 {
