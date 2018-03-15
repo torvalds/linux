@@ -809,6 +809,10 @@ static int stm32_init_port(struct stm32_port *stm32port,
 	port->ops	= &stm32_uart_ops;
 	port->dev	= &pdev->dev;
 	port->irq	= platform_get_irq(pdev, 0);
+	port->rs485_config = stm32_config_rs485;
+
+	stm32_init_rs485(port, pdev);
+
 	stm32port->wakeirq = platform_get_irq(pdev, 1);
 	stm32port->fifoen = stm32port->info->cfg.has_fifo;
 
