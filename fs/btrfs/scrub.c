@@ -1111,7 +1111,6 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	struct scrub_ctx *sctx = sblock_to_check->sctx;
 	struct btrfs_device *dev;
 	struct btrfs_fs_info *fs_info;
-	u64 length;
 	u64 logical;
 	unsigned int failed_mirror_index;
 	unsigned int is_metadata;
@@ -1139,7 +1138,6 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 		spin_unlock(&sctx->stat_lock);
 		return 0;
 	}
-	length = sblock_to_check->page_count * PAGE_SIZE;
 	logical = sblock_to_check->pagev[0]->logical;
 	BUG_ON(sblock_to_check->pagev[0]->mirror_num < 1);
 	failed_mirror_index = sblock_to_check->pagev[0]->mirror_num - 1;
