@@ -35,6 +35,7 @@
 
 #include <video/display_timing.h>
 #include <video/mipi_display.h>
+#include <linux/of_device.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
 
@@ -112,10 +113,34 @@ struct panel_simple {
 
 	struct gpio_desc *enable_gpio;
 	struct gpio_desc *reset_gpio;
+	int cmd_type;
+
+	struct gpio_desc *spi_sdi_gpio;
+	struct gpio_desc *spi_scl_gpio;
+	struct gpio_desc *spi_cs_gpio;
 
 	struct panel_cmds *on_cmds;
 	struct panel_cmds *off_cmds;
 };
+
+enum rockchip_cmd_type {
+	CMD_TYPE_DEFAULT,
+	CMD_TYPE_SPI,
+	CMD_TYPE_MCU
+};
+
+static inline int get_panel_cmd_type(const char *s)
+{
+	if (!s)
+		return -EINVAL;
+
+	if (strncmp(s, "spi", 3) == 0)
+		return CMD_TYPE_SPI;
+	else if (strncmp(s, "mcu", 3) == 0)
+		return CMD_TYPE_MCU;
+
+	return CMD_TYPE_DEFAULT;
+}
 
 static inline struct panel_simple *to_panel_simple(struct drm_panel *panel)
 {
@@ -200,8 +225,59 @@ static int panel_simple_parse_cmds(struct device *dev,
 		len -= dchdr->dlen;
 	}
 
-	dev_info(dev, "%s: dcs_cmd=%x len=%d, cmd_cnt=%d\n", __func__,
-		 pcmds->buf[0], pcmds->blen, pcmds->cmd_cnt);
+	return 0;
+}
+
+static void panel_simple_spi_write_cmd(struct panel_simple *panel,
+				       u8 type, int value)
+{
+	int i;
+
+	gpiod_direction_output(panel->spi_cs_gpio, 0);
+
+	if (type == 0)
+		value &= (~(1 << 8));
+	else
+		value |= (1 << 8);
+
+	for (i = 0; i < 9; i++) {
+		if (value & 0x100)
+			gpiod_direction_output(panel->spi_sdi_gpio, 1);
+		else
+			gpiod_direction_output(panel->spi_sdi_gpio, 0);
+
+		gpiod_direction_output(panel->spi_scl_gpio, 0);
+		udelay(10);
+		gpiod_direction_output(panel->spi_scl_gpio, 1);
+		value <<= 1;
+		udelay(10);
+	}
+
+	gpiod_direction_output(panel->spi_cs_gpio, 1);
+}
+
+static int panel_simple_spi_send_cmds(struct panel_simple *panel,
+				      struct panel_cmds *cmds)
+{
+	int i;
+
+	if (!cmds)
+		return -EINVAL;
+
+	for (i = 0; i < cmds->cmd_cnt; i++) {
+		struct cmd_desc *cmd = &cmds->cmds[i];
+		int value = 0;
+
+		if (cmd->dchdr.dlen == 2)
+			value = (cmd->payload[0] << 8) | cmd->payload[1];
+		else
+			value = cmd->payload[0];
+		panel_simple_spi_write_cmd(panel, cmd->dchdr.dtype, value);
+
+		if (cmd->dchdr.wait)
+			msleep(cmd->dchdr.wait);
+	}
+
 	return 0;
 }
 
@@ -468,6 +544,8 @@ static int panel_simple_unprepare(struct drm_panel *panel)
 	if (p->off_cmds) {
 		if (p->dsi)
 			err = panel_simple_dsi_send_cmds(p, p->off_cmds);
+		else if (p->cmd_type == CMD_TYPE_SPI)
+			err = panel_simple_spi_send_cmds(p, p->off_cmds);
 		if (err)
 			dev_err(p->dev, "failed to send off cmds\n");
 	}
@@ -523,6 +601,8 @@ static int panel_simple_prepare(struct drm_panel *panel)
 	if (p->on_cmds) {
 		if (p->dsi)
 			err = panel_simple_dsi_send_cmds(p, p->on_cmds);
+		else if (p->cmd_type == CMD_TYPE_SPI)
+			err = panel_simple_spi_send_cmds(p, p->on_cmds);
 		if (err)
 			dev_err(p->dev, "failed to send on cmds\n");
 	}
@@ -611,6 +691,7 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 	struct device_node *backlight, *ddc;
 	struct panel_simple *panel;
 	struct panel_desc *of_desc;
+	const char *cmd_type;
 	u32 val;
 	int err;
 
@@ -670,6 +751,39 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 		return err;
 	}
 
+	if (of_property_read_string(dev->of_node, "rockchip,cmd-type",
+				    &cmd_type))
+		panel->cmd_type = CMD_TYPE_DEFAULT;
+	else
+		panel->cmd_type = get_panel_cmd_type(cmd_type);
+
+	if (panel->cmd_type == CMD_TYPE_SPI) {
+		panel->spi_sdi_gpio =
+				devm_gpiod_get_optional(dev, "spi-sdi", 0);
+		if (IS_ERR(panel->spi_sdi_gpio)) {
+			err = PTR_ERR(panel->spi_sdi_gpio);
+			dev_err(dev, "failed to request spi_sdi: %d\n", err);
+			return err;
+		}
+
+		panel->spi_scl_gpio =
+				devm_gpiod_get_optional(dev, "spi-scl", 0);
+		if (IS_ERR(panel->spi_scl_gpio)) {
+			err = PTR_ERR(panel->spi_scl_gpio);
+			dev_err(dev, "failed to request spi_scl: %d\n", err);
+			return err;
+		}
+
+		panel->spi_cs_gpio = devm_gpiod_get_optional(dev, "spi-cs", 0);
+		if (IS_ERR(panel->spi_cs_gpio)) {
+			err = PTR_ERR(panel->spi_cs_gpio);
+			dev_err(dev, "failed to request spi_cs: %d\n", err);
+			return err;
+		}
+		gpiod_direction_output(panel->spi_cs_gpio, 1);
+		gpiod_direction_output(panel->spi_sdi_gpio, 1);
+		gpiod_direction_output(panel->spi_scl_gpio, 1);
+	}
 	panel->power_invert =
 			of_property_read_bool(dev->of_node, "power-invert");
 
