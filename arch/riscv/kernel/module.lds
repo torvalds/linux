@@ -4,4 +4,5 @@
 SECTIONS {
 	.plt (NOLOAD) : { BYTE(0) }
 	.got (NOLOAD) : { BYTE(0) }
+	.got.plt (NOLOAD) : { BYTE(0) }
 }

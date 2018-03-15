@@ -21,6 +21,7 @@ struct mod_section {
 struct mod_arch_specific {
 	struct mod_section got;
 	struct mod_section plt;
+	struct mod_section got_plt;
 };
 
 struct got_entry {
@@ -48,13 +49,10 @@ struct plt_entry {
 	/*
 	 * Trampoline code to real target address. The return address
 	 * should be the original (pc+4) before entring plt entry.
-	 * For 8 byte alignment of symbol_addr,
-	 * don't pack structure to remove the padding.
 	 */
 	u32 insn_auipc;		/* auipc t0, 0x0                       */
 	u32 insn_ld;		/* ld    t1, 0x10(t0)                  */
 	u32 insn_jr;		/* jr    t1                            */
-	u64 symbol_addr;	/* the real jump target address        */
 };
 
 #define OPC_AUIPC  0x0017
@@ -62,9 +60,8 @@ struct plt_entry {
 #define OPC_JALR   0x0067
 #define REG_T0     0x5
 #define REG_T1     0x6
-#define IMM_OFFSET 0x10
 
-static inline struct plt_entry emit_plt_entry(u64 val)
+static inline struct plt_entry emit_plt_entry(u64 val, u64 plt, u64 got_plt)
 {
 	/*
 	 * U-Type encoding:
@@ -78,24 +75,37 @@ static inline struct plt_entry emit_plt_entry(u64 val)
 	 * +------------+------------+--------+----------+----------+
 	 *
 	 */
+	u64 offset = got_plt - plt;
+	u32 hi20 = (offset + 0x800) & 0xfffff000;
+	u32 lo12 = (offset - hi20);
 	return (struct plt_entry) {
-		OPC_AUIPC | (REG_T0 << 7),
-		OPC_LD | (IMM_OFFSET << 20) | (REG_T0 << 15) | (REG_T1 << 7),
-		OPC_JALR | (REG_T1 << 15),
-		val
+		OPC_AUIPC | (REG_T0 << 7) | hi20,
+		OPC_LD | (lo12 << 20) | (REG_T0 << 15) | (REG_T1 << 7),
+		OPC_JALR | (REG_T1 << 15)
 	};
 }
 
-static inline struct plt_entry *get_plt_entry(u64 val,
-					      const struct mod_section *sec)
+static inline int get_got_plt_idx(u64 val, const struct mod_section *sec)
 {
-	struct plt_entry *plt = (struct plt_entry *)sec->shdr->sh_addr;
+	struct got_entry *got_plt = (struct got_entry *)sec->shdr->sh_addr;
 	int i;
 	for (i = 0; i < sec->num_entries; i++) {
-		if (plt[i].symbol_addr == val)
-			return &plt[i];
+		if (got_plt[i].symbol_addr == val)
+			return i;
 	}
-	return NULL;
+	return -1;
+}
+
+static inline struct plt_entry *get_plt_entry(u64 val,
+				      const struct mod_section *sec_plt,
+				      const struct mod_section *sec_got_plt)
+{
+	struct plt_entry *plt = (struct plt_entry *)sec_plt->shdr->sh_addr;
+	int got_plt_idx = get_got_plt_idx(val, sec_got_plt);
+	if (got_plt_idx >= 0)
+		return plt + got_plt_idx;
+	else
+		return NULL;
 }
 
 #endif /* CONFIG_MODULE_SECTIONS */

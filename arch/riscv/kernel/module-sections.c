@@ -30,18 +30,23 @@ u64 module_emit_got_entry(struct module *mod, u64 val)
 
 u64 module_emit_plt_entry(struct module *mod, u64 val)
 {
+	struct mod_section *got_plt_sec = &mod->arch.got_plt;
+	struct got_entry *got_plt;
 	struct mod_section *plt_sec = &mod->arch.plt;
-	struct plt_entry *plt = get_plt_entry(val, plt_sec);
+	struct plt_entry *plt = get_plt_entry(val, plt_sec, got_plt_sec);
 	int i = plt_sec->num_entries;
 
 	if (plt)
 		return (u64)plt;
 
 	/* There is no duplicate entry, create a new one */
+	got_plt = (struct got_entry *)got_plt_sec->shdr->sh_addr;
+	got_plt[i] = emit_got_entry(val);
 	plt = (struct plt_entry *)plt_sec->shdr->sh_addr;
-	plt[i] = emit_plt_entry(val);
+	plt[i] = emit_plt_entry(val, (u64)&plt[i], (u64)&got_plt[i]);
 
 	plt_sec->num_entries++;
+	got_plt_sec->num_entries++;
 	BUG_ON(plt_sec->num_entries > plt_sec->max_entries);
 
 	return (u64)&plt[i];
@@ -94,6 +99,8 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 			mod->arch.plt.shdr = sechdrs + i;
 		else if (!strcmp(secstrings + sechdrs[i].sh_name, ".got"))
 			mod->arch.got.shdr = sechdrs + i;
+		else if (!strcmp(secstrings + sechdrs[i].sh_name, ".got.plt"))
+			mod->arch.got_plt.shdr = sechdrs + i;
 	}
 
 	if (!mod->arch.plt.shdr) {
@@ -102,6 +109,10 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	}
 	if (!mod->arch.got.shdr) {
 		pr_err("%s: module GOT section(s) missing\n", mod->name);
+		return -ENOEXEC;
+	}
+	if (!mod->arch.got_plt.shdr) {
+		pr_err("%s: module GOT.PLT section(s) missing\n", mod->name);
 		return -ENOEXEC;
 	}
 
@@ -135,5 +146,11 @@ int module_frob_arch_sections(Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
 	mod->arch.got.num_entries = 0;
 	mod->arch.got.max_entries = num_gots;
 
+	mod->arch.got_plt.shdr->sh_type = SHT_NOBITS;
+	mod->arch.got_plt.shdr->sh_flags = SHF_ALLOC;
+	mod->arch.got_plt.shdr->sh_addralign = L1_CACHE_BYTES;
+	mod->arch.got_plt.shdr->sh_size = (num_plts + 1) * sizeof(struct got_entry);
+	mod->arch.got_plt.num_entries = 0;
+	mod->arch.got_plt.max_entries = num_plts;
 	return 0;
 }
