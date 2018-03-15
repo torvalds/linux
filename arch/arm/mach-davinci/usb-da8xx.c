@@ -26,6 +26,8 @@
 
 static struct clk *usb20_clk;
 
+static struct da8xx_usb_phy_platform_data da8xx_usb_phy_pdata;
+
 static struct platform_device da8xx_usb_phy = {
 	.name		= "da8xx-usb-phy",
 	.id		= -1,
@@ -36,15 +38,13 @@ static struct platform_device da8xx_usb_phy = {
 		 * registered yet.
 		 */
 		.init_name	= "da8xx-usb-phy",
+		.platform_data	= &da8xx_usb_phy_pdata,
 	},
 };
 
 int __init da8xx_register_usb_phy(void)
 {
-	struct da8xx_usb_phy_platform_data pdata;
-
-	pdata.cfgchip = da8xx_get_cfgchip();
-	da8xx_usb_phy.dev.platform_data = &pdata;
+	da8xx_usb_phy_pdata.cfgchip = da8xx_get_cfgchip();
 
 	return platform_device_register(&da8xx_usb_phy);
 }
