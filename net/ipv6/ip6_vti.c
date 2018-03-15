@@ -879,7 +879,7 @@ static void vti6_dev_setup(struct net_device *dev)
 
 	dev->type = ARPHRD_TUNNEL6;
 	dev->min_mtu = IPV6_MIN_MTU;
-	dev->max_mtu = IP_MAX_MTU;
+	dev->max_mtu = IP_MAX_MTU - sizeof(struct ipv6hdr);
 	dev->flags |= IFF_NOARP;
 	dev->addr_len = sizeof(struct in6_addr);
 	netif_keep_dst(dev);
