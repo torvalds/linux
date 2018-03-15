@@ -773,15 +773,12 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 	struct btrfs_delayed_extent_op *extent_op = head->extent_op;
 	struct btrfs_key key;
 	struct btrfs_key tmp_op_key;
-	struct btrfs_key *op_key = NULL;
 	struct rb_node *n;
 	int count;
 	int ret = 0;
 
-	if (extent_op && extent_op->update_key) {
+	if (extent_op && extent_op->update_key)
 		btrfs_disk_key_to_cpu(&tmp_op_key, &extent_op->key);
-		op_key = &tmp_op_key;
-	}
 
 	spin_lock(&head->lock);
 	for (n = rb_first(&head->ref_tree); n; n = rb_next(n)) {
