@@ -151,12 +151,7 @@ EXPORT_SYMBOL(wake_up_bit);
 
 wait_queue_head_t *__var_waitqueue(void *p)
 {
-	if (BITS_PER_LONG == 64) {
-		unsigned long q = (unsigned long)p;
-
-		return bit_waitqueue((void *)(q & ~1), q & 1);
-	}
-	return bit_waitqueue(p, 0);
+	return bit_wait_table + hash_ptr(p, WAIT_TABLE_BITS);
 }
 EXPORT_SYMBOL(__var_waitqueue);
 
