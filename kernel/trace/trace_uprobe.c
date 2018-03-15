@@ -608,7 +608,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 
 	/* Don't print "0x  (null)" when offset is 0 */
 	if (tu->offset) {
-		seq_printf(m, "0x%px", (void *)tu->offset);
+		seq_printf(m, "0x%0*lx", (int)(sizeof(void *) * 2), tu->offset);
 	} else {
 		switch (sizeof(void *)) {
 		case 4:
