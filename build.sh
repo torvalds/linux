@@ -116,14 +116,17 @@ function prepare_SD {
 	CRYPTODEV="cryptodev/cryptodev-linux/cryptodev.ko"
 	mkdir -p "${INSTALL_MOD_PATH}/etc/modules-load.d"
 
-	LOCALVERSION=$(find $SD/BPI-ROOT/lib/modules/* -maxdepth 0 -type d)
-	EXTRA_MODUL_PATH="${LOCALVERSION}/kernel/extras"
+	LOCALVERSION=$(find ../SD/BPI-ROOT/lib/modules/* -maxdepth 0 -type d |rev|cut -d"/" -f1 | rev)
+	EXTRA_MODUL_PATH="${SD}/BPI-ROOT/lib/modules/${LOCALVERSION}/kernel/extras"
 	if [ -e "${CRYPTODEV}" ]; then
 		echo Copy CryptoDev
 		mkdir -p "${EXTRA_MODUL_PATH}"
 		cp "${CRYPTODEV}" "${EXTRA_MODUL_PATH}"
 		#Load Cryptodev on BOOT
 		echo  "cryptodev" >${INSTALL_MOD_PATH}/etc/modules-load.d/cryptodev.conf
+
+		#Build Module Dependencies
+		/sbin/depmod -b "${SD}/BPI-ROOT/" 4.14.26-bpi-r2-main ${LOCALVERION}
 	else
 		#Blacklist Cryptodev Module
 		echo "blacklist cryptodev" >${INSTALL_MOD_PATH}/etc/modules-load.d/cryptodev.conf
