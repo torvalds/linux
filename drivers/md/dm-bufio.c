@@ -618,7 +618,6 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t sector,
 		unsigned this_step = min((unsigned)(PAGE_SIZE - offset_in_page(ptr)), len);
 		if (!bio_add_page(&b->bio, virt_to_page(ptr), this_step,
 				  offset_in_page(ptr))) {
-			BUG_ON(b->c->block_size <= PAGE_SIZE);
 			use_dmio(b, rw, sector, n_sectors, offset, end_io);
 			return;
 		}
@@ -1686,7 +1685,8 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	if (block_size < PAGE_SIZE) {
 		char name[26];
 		snprintf(name, sizeof name, "dm_bufio_cache-%u", c->block_size);
-		c->slab_cache = kmem_cache_create(name, c->block_size, c->block_size, 0, NULL);
+		c->slab_cache = kmem_cache_create(name, c->block_size, ARCH_KMALLOC_MINALIGN,
+						  SLAB_RECLAIM_ACCOUNT, NULL);
 		if (!c->slab_cache) {
 			r = -ENOMEM;
 			goto bad;
