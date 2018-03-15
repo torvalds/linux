@@ -164,8 +164,14 @@ struct annotated_source {
 struct annotation {
 	pthread_mutex_t		lock;
 	u64			max_coverage;
+	bool			have_cycles;
 	struct annotated_source *src;
 };
+
+static inline int annotation__cycles_width(struct annotation *notes)
+{
+	return notes->have_cycles ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
+}
 
 static inline struct sym_hist *annotation__histogram(struct annotation *notes, int idx)
 {

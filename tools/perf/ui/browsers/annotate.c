@@ -49,7 +49,6 @@ struct annotate_browser {
 	int			    max_jump_sources;
 	int			    nr_jumps;
 	bool			    searching_backwards;
-	bool			    have_cycles;
 	u8			    addr_width;
 	u8			    jumps_width;
 	u8			    target_width;
@@ -102,11 +101,6 @@ static int annotate_browser__pcnt_width(struct annotate_browser *ab)
 	return (annotate_browser__opts.show_total_period ? 12 : 7) * ab->nr_events;
 }
 
-static int annotate_browser__cycles_width(struct annotate_browser *ab)
-{
-	return ab->have_cycles ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
-}
-
 static void disasm_line__write(struct disasm_line *dl, struct ui_browser *browser,
 			       char *bf, size_t size)
 {
@@ -136,6 +130,9 @@ static void disasm_line__write(struct disasm_line *dl, struct ui_browser *browse
 static void annotate_browser__write(struct ui_browser *browser, void *entry, int row)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
+	struct map_symbol *ms = browser->priv;
+	struct symbol *sym = ms->sym;
+	struct annotation *notes = symbol__annotation(sym);
 	struct annotation_line *al = list_entry(entry, struct annotation_line, node);
 	struct browser_line *bl = browser_line(al);
 	bool current_entry = ui_browser__is_current_entry(browser, row);
@@ -144,7 +141,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 					         !browser->navkeypressed)));
 	int width = browser->width, printed;
 	int i, pcnt_width = annotate_browser__pcnt_width(ab),
-	       cycles_width = annotate_browser__cycles_width(ab);
+	       cycles_width = annotation__cycles_width(notes);
 	double percent_max = 0.0;
 	char bf[256];
 	bool show_title = false;
@@ -155,7 +152,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	}
 
 	if ((row == 0) && (al->offset == -1 || percent_max == 0.0)) {
-		if (ab->have_cycles) {
+		if (notes->have_cycles) {
 			if (al->ipc == 0.0 && al->cycles == 0)
 				show_title = true;
 		} else
@@ -189,7 +186,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 					   annotate_browser__opts.show_nr_samples ? "Samples" : "Percent");
 		}
 	}
-	if (ab->have_cycles) {
+	if (notes->have_cycles) {
 		if (al->ipc)
 			ui_browser__printf(browser, "%*.2f ", ANNOTATION__IPC_WIDTH - 1, al->ipc);
 		else if (!show_title)
@@ -307,6 +304,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	unsigned int from, to;
 	struct map_symbol *ms = ab->b.priv;
 	struct symbol *sym = ms->sym;
+	struct annotation *notes = symbol__annotation(sym);
 	u8 pcnt_width = annotate_browser__pcnt_width(ab);
 	int width;
 
@@ -355,7 +353,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 		to = (u64)btarget->idx;
 	}
 
-	width = annotate_browser__cycles_width(ab);
+	width = annotation__cycles_width(notes);
 
 	ui_browser__set_color(browser, HE_COLORSET_JUMP_ARROWS);
 	__ui_browser__line_arrow(browser,
@@ -1033,7 +1031,7 @@ static void annotate__compute_ipc(struct annotate_browser *browser, size_t size,
 			al = browser->offsets[offset];
 			if (al && ch->num_aggr)
 				al->cycles = ch->cycles_aggr / ch->num_aggr;
-			browser->have_cycles = true;
+			notes->have_cycles = true;
 		}
 	}
 	pthread_mutex_unlock(&notes->lock);
