@@ -779,12 +779,12 @@ struct AdapterControlBlock
 /* message clear rqbuffer */
 #define ACB_F_MESSAGE_WQBUFFER_READED   0x0040
 #define ACB_F_BUS_RESET               	0x0080
-#define ACB_F_BUS_HANG_ON		0x0800/* need hardware reset bus */
 
 #define ACB_F_IOP_INITED              	0x0100
 /* iop init */
 #define ACB_F_ABORT			0x0200
 #define ACB_F_FIRMWARE_TRAP           	0x0400
+#define ACB_F_ADAPTER_REMOVED		0x0800
 #define ACB_F_MSG_GET_CONFIG		0x1000
 	struct CommandControlBlock *	pccb_pool[ARCMSR_MAX_FREECCB_NUM];
 	/* used for memory free */
