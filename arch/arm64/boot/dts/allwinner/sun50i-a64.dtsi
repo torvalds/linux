@@ -52,6 +52,26 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	chosen {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+/*
+ * The pipeline mixer0-lcd0 depends on clock CLK_MIXER0 from DE2 CCU.
+ * However there is no support for this clock on A64 yet, so we depend
+ * on the upstream clocks here to keep them (and thus CLK_MIXER0) up.
+ */
+		simplefb_lcd: framebuffer-lcd {
+			compatible = "allwinner,simple-framebuffer",
+				     "simple-framebuffer";
+			allwinner,pipeline = "mixer0-lcd0";
+			clocks = <&ccu CLK_TCON0>,
+				 <&ccu CLK_DE>, <&ccu CLK_BUS_DE>;
+			status = "disabled";
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
