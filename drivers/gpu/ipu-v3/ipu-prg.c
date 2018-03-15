@@ -252,10 +252,14 @@ void ipu_prg_channel_disable(struct ipuv3_channel *ipu_chan)
 {
 	int prg_chan = ipu_prg_ipu_to_prg_chan(ipu_chan->num);
 	struct ipu_prg *prg = ipu_chan->ipu->prg_priv;
-	struct ipu_prg_channel *chan = &prg->chan[prg_chan];
+	struct ipu_prg_channel *chan;
 	u32 val;
 
-	if (!chan->enabled || prg_chan < 0)
+	if (prg_chan < 0)
+		return;
+
+	chan = &prg->chan[prg_chan];
+	if (!chan->enabled)
 		return;
 
 	clk_prepare_enable(prg->clk_ipg);
@@ -282,12 +286,14 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 {
 	int prg_chan = ipu_prg_ipu_to_prg_chan(ipu_chan->num);
 	struct ipu_prg *prg = ipu_chan->ipu->prg_priv;
-	struct ipu_prg_channel *chan = &prg->chan[prg_chan];
+	struct ipu_prg_channel *chan;
 	u32 val;
 	int ret;
 
 	if (prg_chan < 0)
 		return prg_chan;
+
+	chan = &prg->chan[prg_chan];
 
 	if (chan->enabled) {
 		ipu_pre_update(prg->pres[chan->used_pre], *eba);
