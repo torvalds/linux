@@ -240,6 +240,15 @@ static int apply_r_riscv_relax_rela(struct module *me, u32 *location,
 	return 0;
 }
 
+static int apply_r_riscv_align_rela(struct module *me, u32 *location,
+				    Elf_Addr v)
+{
+	pr_err(
+	  "%s: The unexpected relocation type 'R_RISCV_ALIGN' from PC = %p\n",
+	  me->name, location);
+	return -EINVAL;
+}
+
 static int (*reloc_handlers_rela[]) (struct module *me, u32 *location,
 				Elf_Addr v) = {
 	[R_RISCV_64]			= apply_r_riscv_64_rela,
@@ -257,6 +266,7 @@ static int (*reloc_handlers_rela[]) (struct module *me, u32 *location,
 	[R_RISCV_CALL_PLT]		= apply_r_riscv_call_plt_rela,
 	[R_RISCV_CALL]			= apply_r_riscv_call_rela,
 	[R_RISCV_RELAX]			= apply_r_riscv_relax_rela,
+	[R_RISCV_ALIGN]			= apply_r_riscv_align_rela,
 };
 
 int apply_relocate_add(Elf_Shdr *sechdrs, const char *strtab,
