@@ -165,7 +165,7 @@ void dcn10_log_hw_state(struct dc *dc)
 	}
 	DTN_INFO("\n");
 
-	DTN_INFO("OTG:  v_bs  v_be  v_ss  v_se  vpol  vmax  vmin"
+	DTN_INFO("OTG:  v_bs  v_be  v_ss  v_se  vpol  vmax  vmin  vmax_sel  vmin_sel"
 			"  h_bs  h_be  h_ss  h_se  hpol  htot  vtot  underflow\n");
 
 	for (i = 0; i < pool->timing_generator_count; i++) {
@@ -178,7 +178,7 @@ void dcn10_log_hw_state(struct dc *dc)
 		if ((s.otg_enabled & 1) == 0)
 			continue;
 
-		DTN_INFO("[%d]: %5d %5d %5d %5d %5d %5d %5d %5d %5d %5d"
+		DTN_INFO("[%d]: %5d %5d %5d %5d %5d %5d %5d %9d %9d %5d %5d %5d"
 				" %5d %5d %5d %5d  %9d\n",
 				tg->inst,
 				s.v_blank_start,
@@ -188,6 +188,8 @@ void dcn10_log_hw_state(struct dc *dc)
 				s.v_sync_a_pol,
 				s.v_total_max,
 				s.v_total_min,
+				s.v_total_max_sel,
+				s.v_total_min_sel,
 				s.h_blank_start,
 				s.h_blank_end,
 				s.h_sync_a_start,

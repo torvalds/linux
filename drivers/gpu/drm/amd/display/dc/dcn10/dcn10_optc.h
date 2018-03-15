@@ -406,6 +406,8 @@ struct dcn_otg_state {
 	uint32_t v_total;
 	uint32_t v_total_max;
 	uint32_t v_total_min;
+	uint32_t v_total_min_sel;
+	uint32_t v_total_max_sel;
 	uint32_t v_sync_a_start;
 	uint32_t v_sync_a_end;
 	uint32_t h_blank_start;
