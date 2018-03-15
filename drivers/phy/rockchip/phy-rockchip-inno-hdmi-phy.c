@@ -572,24 +572,6 @@ static int inno_hdmi_phy_clk_register(struct inno_hdmi_phy *inno)
 	return 0;
 }
 
-static void inno_hdmi_phy_rk3228_init(struct inno_hdmi_phy *inno)
-{
-	u32 m, v;
-
-	/*
-	 * Use phy internal register control
-	 * rxsense/poweron/pllpd/pdataen signal.
-	 */
-	m = BYPASS_RXSENSE_EN_MASK | BYPASS_PWRON_EN_MASK |
-	    BYPASS_PLLPD_EN_MASK;
-	v = BYPASS_RXSENSE_EN | BYPASS_PWRON_EN | BYPASS_PLLPD_EN;
-	inno_update_bits(inno, 0x01, m, v);
-	inno_update_bits(inno, 0x02, BYPASS_PDATA_EN_MASK, BYPASS_PDATA_EN);
-
-	/* manual power down post-PLL */
-	inno_update_bits(inno, 0xaa, POST_PLL_CTRL_MASK, POST_PLL_CTRL_MANUAL);
-}
-
 static int
 inno_hdmi_phy_rk3228_power_on(struct inno_hdmi_phy *inno,
 			      const struct post_pll_config *cfg,
@@ -674,6 +656,35 @@ static void inno_hdmi_phy_rk3228_power_off(struct inno_hdmi_phy *inno)
 
 	/* Post-PLL power down */
 	inno_update_bits(inno, 0xe0, POST_PLL_POWER_MASK, POST_PLL_POWER_DOWN);
+}
+
+static void inno_hdmi_phy_rk3228_init(struct inno_hdmi_phy *inno)
+{
+	u32 m, v;
+
+	/*
+	 * Use phy internal register control
+	 * rxsense/poweron/pllpd/pdataen signal.
+	 */
+	m = BYPASS_RXSENSE_EN_MASK | BYPASS_PWRON_EN_MASK |
+	    BYPASS_PLLPD_EN_MASK;
+	v = BYPASS_RXSENSE_EN | BYPASS_PWRON_EN | BYPASS_PLLPD_EN;
+	inno_update_bits(inno, 0x01, m, v);
+	inno_update_bits(inno, 0x02, BYPASS_PDATA_EN_MASK, BYPASS_PDATA_EN);
+
+	/*
+	 * reg0xe9 default value is 0xe4, reg0xea is 0x50.
+	 * if phy had been set in uboot, one of them will be different.
+	 */
+	if ((inno_read(inno, 0xe9) != 0xe4 || inno_read(inno, 0xea) != 0x50)) {
+		dev_info(inno->dev, "phy had been powered up\n");
+		inno->phy->power_count = 1;
+	} else {
+		inno_hdmi_phy_rk3228_power_off(inno);
+		/* manual power down post-PLL */
+		inno_update_bits(inno, 0xaa,
+				 POST_PLL_CTRL_MASK, POST_PLL_CTRL_MANUAL);
+	}
 }
 
 static int
