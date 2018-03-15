@@ -96,13 +96,6 @@ static int annotate_browser__set_jumps_percent_color(struct annotate_browser *br
 	 return ui_browser__set_color(&browser->b, color);
 }
 
-static int annotate_browser__pcnt_width(struct annotate_browser *ab)
-{
-	struct map_symbol *ms = ab->b.priv;
-	struct annotation *notes = symbol__annotation(ms->sym);
-	return (notes->options->show_total_period ? 12 : 7) * notes->nr_events;
-}
-
 static void disasm_line__write(struct disasm_line *dl, struct ui_browser *browser,
 			       char *bf, size_t size)
 {
@@ -145,7 +138,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			     (!current_entry || (browser->use_navkeypressed &&
 					         !browser->navkeypressed)));
 	int width = browser->width, printed;
-	int i, pcnt_width = annotate_browser__pcnt_width(ab),
+	int i, pcnt_width = annotation__pcnt_width(notes),
 	       cycles_width = annotation__cycles_width(notes);
 	double percent_max = 0.0;
 	char bf[256];
@@ -310,7 +303,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	struct map_symbol *ms = ab->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	u8 pcnt_width = annotate_browser__pcnt_width(ab);
+	u8 pcnt_width = annotation__pcnt_width(notes);
 	int width;
 
 	/* PLT symbols contain external offsets */
@@ -375,11 +368,10 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 
 static unsigned int annotate_browser__refresh(struct ui_browser *browser)
 {
-	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	struct map_symbol *ms = browser->priv;
 	struct annotation *notes = symbol__annotation(ms->sym);
 	int ret = ui_browser__list_head_refresh(browser);
-	int pcnt_width = annotate_browser__pcnt_width(ab);
+	int pcnt_width = annotation__pcnt_width(notes);
 
 	if (notes->options->jump_arrows)
 		annotate_browser__draw_current_jump(browser);

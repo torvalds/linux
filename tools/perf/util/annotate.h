@@ -176,6 +176,11 @@ static inline int annotation__cycles_width(struct annotation *notes)
 	return notes->have_cycles ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
 }
 
+static inline int annotation__pcnt_width(struct annotation *notes)
+{
+	return (notes->options->show_total_period ? 12 : 7) * notes->nr_events;
+}
+
 void annotation__compute_ipc(struct annotation *notes, size_t size);
 
 static inline struct sym_hist *annotation__histogram(struct annotation *notes, int idx)
