@@ -131,6 +131,11 @@ static inline struct list_head *tipc_nodes(struct net *net)
 	return &tipc_net(net)->node_list;
 }
 
+static inline struct name_table *tipc_name_table(struct net *net)
+{
+	return tipc_net(net)->nametbl;
+}
+
 static inline struct tipc_topsrv *tipc_topsrv(struct net *net)
 {
 	return tipc_net(net)->topsrv;

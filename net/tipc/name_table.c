@@ -878,9 +878,8 @@ int tipc_nametbl_init(struct net *net)
 	for (i = 0; i < TIPC_NAMETBL_SIZE; i++)
 		INIT_HLIST_HEAD(&tipc_nametbl->seq_hlist[i]);
 
-	INIT_LIST_HEAD(&tipc_nametbl->publ_list[TIPC_ZONE_SCOPE]);
-	INIT_LIST_HEAD(&tipc_nametbl->publ_list[TIPC_CLUSTER_SCOPE]);
-	INIT_LIST_HEAD(&tipc_nametbl->publ_list[TIPC_NODE_SCOPE]);
+	INIT_LIST_HEAD(&tipc_nametbl->node_scope);
+	INIT_LIST_HEAD(&tipc_nametbl->cluster_scope);
 	tn->nametbl = tipc_nametbl;
 	spin_lock_init(&tn->nametbl_lock);
 	return 0;

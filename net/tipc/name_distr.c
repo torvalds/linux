@@ -86,25 +86,25 @@ static struct sk_buff *named_prepare_buf(struct net *net, u32 type, u32 size,
  */
 struct sk_buff *tipc_named_publish(struct net *net, struct publication *publ)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	struct sk_buff *buf;
+	struct name_table *nt = tipc_name_table(net);
 	struct distr_item *item;
+	struct sk_buff *skb;
 
-	list_add_tail_rcu(&publ->local_list,
-			  &tn->nametbl->publ_list[publ->scope]);
-
-	if (publ->scope == TIPC_NODE_SCOPE)
+	if (publ->scope == TIPC_NODE_SCOPE) {
+		list_add_tail_rcu(&publ->local_list, &nt->node_scope);
 		return NULL;
+	}
+	list_add_tail_rcu(&publ->local_list, &nt->cluster_scope);
 
-	buf = named_prepare_buf(net, PUBLICATION, ITEM_SIZE, 0);
-	if (!buf) {
+	skb = named_prepare_buf(net, PUBLICATION, ITEM_SIZE, 0);
+	if (!skb) {
 		pr_warn("Publication distribution failure\n");
 		return NULL;
 	}
 
-	item = (struct distr_item *)msg_data(buf_msg(buf));
+	item = (struct distr_item *)msg_data(buf_msg(skb));
 	publ_to_item(item, publ);
-	return buf;
+	return skb;
 }
 
 /**
@@ -184,16 +184,13 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
  */
 void tipc_named_node_up(struct net *net, u32 dnode)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct name_table *nt = tipc_name_table(net);
 	struct sk_buff_head head;
 
 	__skb_queue_head_init(&head);
 
 	rcu_read_lock();
-	named_distribute(net, &head, dnode,
-			 &tn->nametbl->publ_list[TIPC_CLUSTER_SCOPE]);
-	named_distribute(net, &head, dnode,
-			 &tn->nametbl->publ_list[TIPC_ZONE_SCOPE]);
+	named_distribute(net, &head, dnode, &nt->cluster_scope);
 	rcu_read_unlock();
 
 	tipc_node_xmit(net, &head, dnode, 0);
@@ -382,16 +379,16 @@ void tipc_named_rcv(struct net *net, struct sk_buff_head *inputq)
  */
 void tipc_named_reinit(struct net *net)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct name_table *nt = tipc_name_table(net);
+	struct tipc_net *tn = tipc_net(net);
 	struct publication *publ;
-	int scope;
 
 	spin_lock_bh(&tn->nametbl_lock);
 
-	for (scope = TIPC_ZONE_SCOPE; scope <= TIPC_NODE_SCOPE; scope++)
-		list_for_each_entry_rcu(publ, &tn->nametbl->publ_list[scope],
-					local_list)
-			publ->node = tn->own_addr;
+	list_for_each_entry_rcu(publ, &nt->node_scope, local_list)
+		publ->node = tn->own_addr;
+	list_for_each_entry_rcu(publ, &nt->cluster_scope, local_list)
+		publ->node = tn->own_addr;
 
 	spin_unlock_bh(&tn->nametbl_lock);
 }

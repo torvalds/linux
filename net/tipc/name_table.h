@@ -88,12 +88,14 @@ struct publication {
 /**
  * struct name_table - table containing all existing port name publications
  * @seq_hlist: name sequence hash lists
- * @publ_list: pulication lists
+ * @node_scope: all local publications with node scope
+ * @cluster_scope: all local publications with cluster scope
  * @local_publ_count: number of publications issued by this node
  */
 struct name_table {
 	struct hlist_head seq_hlist[TIPC_NAMETBL_SIZE];
-	struct list_head publ_list[TIPC_PUBL_SCOPE_NUM];
+	struct list_head node_scope;
+	struct list_head cluster_scope;
 	u32 local_publ_count;
 };
 
