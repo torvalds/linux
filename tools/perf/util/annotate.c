@@ -2084,6 +2084,23 @@ void annotation__set_offsets(struct annotation *notes, s64 size)
 	}
 }
 
+static inline int width_jumps(int n)
+{
+	if (n >= 100)
+		return 5;
+	if (n / 10)
+		return 2;
+	return 1;
+}
+
+void annotation__init_column_widths(struct annotation *notes, struct symbol *sym)
+{
+	notes->widths.addr = notes->widths.target =
+		notes->widths.min_addr = hex_width(symbol__size(sym));
+	notes->widths.max_addr = hex_width(sym->end);
+	notes->widths.jumps = width_jumps(notes->max_jump_sources);
+}
+
 void annotation__update_column_widths(struct annotation *notes)
 {
 	if (notes->options->use_offset)

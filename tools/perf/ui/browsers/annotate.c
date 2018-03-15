@@ -905,15 +905,6 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
 }
 
-static inline int width_jumps(int n)
-{
-	if (n >= 100)
-		return 5;
-	if (n / 10)
-		return 2;
-	return 1;
-}
-
 int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			 struct perf_evsel *evsel,
 			 struct hist_browser_timer *hbt)
@@ -974,10 +965,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	browser.b.width = notes->max_line_len;
 	annotation__mark_jump_targets(notes, sym);
 	annotation__compute_ipc(notes, size);
-
-	notes->widths.addr = notes->widths.target = notes->widths.min_addr = hex_width(size);
-	notes->widths.max_addr = hex_width(sym->end);
-	notes->widths.jumps = width_jumps(notes->max_jump_sources);
+	annotation__init_column_widths(notes, sym);
 	notes->nr_events = nr_pcnt;
 	browser.b.nr_entries = notes->nr_entries;
 	browser.b.entries = &notes->src->source,
