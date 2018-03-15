@@ -535,13 +535,11 @@ static noinline void caching_thread(struct btrfs_work *work)
 	struct btrfs_block_group_cache *block_group;
 	struct btrfs_fs_info *fs_info;
 	struct btrfs_caching_control *caching_ctl;
-	struct btrfs_root *extent_root;
 	int ret;
 
 	caching_ctl = container_of(work, struct btrfs_caching_control, work);
 	block_group = caching_ctl->block_group;
 	fs_info = block_group->fs_info;
-	extent_root = fs_info->extent_root;
 
 	mutex_lock(&caching_ctl->mutex);
 	down_read(&fs_info->commit_root_sem);
