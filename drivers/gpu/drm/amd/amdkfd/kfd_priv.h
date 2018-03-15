@@ -543,6 +543,9 @@ struct kfd_process_device {
 	struct file *drm_file;
 	void *vm;
 
+	/* GPUVM allocations storage */
+	struct idr alloc_idr;
+
 	/* Flag used to tell the pdd has dequeued from the dqm.
 	 * This is used to prevent dev->dqm->ops.process_termination() from
 	 * being called twice when it is already called in IOMMU callback
@@ -677,6 +680,14 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 
 int kfd_reserved_mem_mmap(struct kfd_process *process,
 			  struct vm_area_struct *vma);
+
+/* KFD process API for creating and translating handles */
+int kfd_process_device_create_obj_handle(struct kfd_process_device *pdd,
+					void *mem);
+void *kfd_process_device_translate_handle(struct kfd_process_device *p,
+					int handle);
+void kfd_process_device_remove_obj_handle(struct kfd_process_device *pdd,
+					int handle);
 
 /* Process device data iterator */
 struct kfd_process_device *kfd_get_first_process_device_data(
