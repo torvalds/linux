@@ -116,8 +116,8 @@ function prepare_SD {
 	CRYPTODEV="cryptodev/cryptodev-linux/cryptodev.ko"
 	mkdir -p "${INSTALL_MOD_PATH}/etc/modules-load.d"
 
-	LOCALVERSION=$(cat .config |grep ^CONFIG_LOCALVERSION|cut -d"\"" -f2)
-	EXTRA_MODUL_PATH="${INSTALL_MOD_PATH}/lib/modules/${kernver}${LOCALVERSION}/kernel/extras"
+	LOCALVERSION=$(find $SD/BPI-ROOT/lib/modules/* -maxdepth 0 -type d)
+	EXTRA_MODUL_PATH="${LOCALVERSION}/kernel/extras"
 	if [ -e "${CRYPTODEV}" ]; then
 		echo Copy CryptoDev
 		mkdir -p "${EXTRA_MODUL_PATH}"
