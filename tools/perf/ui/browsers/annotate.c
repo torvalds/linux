@@ -81,12 +81,11 @@ static bool disasm_line__filter(struct ui_browser *browser, void *entry)
 	return false;
 }
 
-static int annotate_browser__jumps_percent_color(struct annotate_browser *browser,
-						 int nr, bool current)
+static int ui_browser__jumps_percent_color(struct ui_browser *browser, int nr, bool current)
 {
-	struct annotation *notes = browser__annotation(&browser->b);
+	struct annotation *notes = browser__annotation(browser);
 
-	if (current && (!browser->b.use_navkeypressed || browser->b.navkeypressed))
+	if (current && (!browser->use_navkeypressed || browser->navkeypressed))
 		return HE_COLORSET_SELECTED;
 	if (nr == notes->max_jump_sources)
 		return HE_COLORSET_TOP;
@@ -95,11 +94,10 @@ static int annotate_browser__jumps_percent_color(struct annotate_browser *browse
 	return HE_COLORSET_NORMAL;
 }
 
-static int annotate_browser__set_jumps_percent_color(struct annotate_browser *browser,
-						     int nr, bool current)
+static int ui_browser__set_jumps_percent_color(struct ui_browser *browser, int nr, bool current)
 {
-	 int color = annotate_browser__jumps_percent_color(browser, nr, current);
-	 return ui_browser__set_color(&browser->b, color);
+	 int color = ui_browser__jumps_percent_color(browser, nr, current);
+	 return ui_browser__set_color(browser, color);
 }
 
 static void disasm_line__write(struct disasm_line *dl, struct ui_browser *browser,
@@ -237,8 +235,8 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 					printed = scnprintf(bf, sizeof(bf), "%*d ",
 							    ab->jumps_width,
 							    bl->jump_sources);
-					prev = annotate_browser__set_jumps_percent_color(ab, bl->jump_sources,
-											 current_entry);
+					prev = ui_browser__set_jumps_percent_color(browser, bl->jump_sources,
+										   current_entry);
 					ui_browser__write_nstring(browser, bf, printed);
 					ui_browser__set_color(browser, prev);
 				}
