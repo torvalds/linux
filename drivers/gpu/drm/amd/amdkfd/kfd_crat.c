@@ -882,7 +882,7 @@ static int kfd_create_vcrat_image_cpu(void *pcrat_image, size_t *size)
 	crat_table->length = sizeof(struct crat_header);
 
 	status = acpi_get_table("DSDT", 0, &acpi_table);
-	if (status == AE_NOT_FOUND)
+	if (status != AE_OK)
 		pr_warn("DSDT table not found for OEM information\n");
 	else {
 		crat_table->oem_revision = acpi_table->revision;
