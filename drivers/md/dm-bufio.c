@@ -173,7 +173,6 @@ struct dm_buffer {
 /*----------------------------------------------------------------*/
 
 static struct kmem_cache *dm_bufio_caches[PAGE_SHIFT - SECTOR_SHIFT];
-static char *dm_bufio_cache_names[PAGE_SHIFT - SECTOR_SHIFT];
 
 static inline int dm_bufio_cache_index(struct dm_bufio_client *c)
 {
@@ -185,7 +184,6 @@ static inline int dm_bufio_cache_index(struct dm_bufio_client *c)
 }
 
 #define DM_BUFIO_CACHE(c)	(dm_bufio_caches[dm_bufio_cache_index(c)])
-#define DM_BUFIO_CACHE_NAME(c)	(dm_bufio_cache_names[dm_bufio_cache_index(c)])
 
 #define dm_bufio_in_request()	(!!current->bio_list)
 
@@ -1703,19 +1701,10 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 
 	mutex_lock(&dm_bufio_clients_lock);
 	if (c->blocks_per_page_bits) {
-		if (!DM_BUFIO_CACHE_NAME(c)) {
-			DM_BUFIO_CACHE_NAME(c) = kasprintf(GFP_KERNEL, "dm_bufio_cache-%u", c->block_size);
-			if (!DM_BUFIO_CACHE_NAME(c)) {
-				r = -ENOMEM;
-				mutex_unlock(&dm_bufio_clients_lock);
-				goto bad;
-			}
-		}
-
 		if (!DM_BUFIO_CACHE(c)) {
-			DM_BUFIO_CACHE(c) = kmem_cache_create(DM_BUFIO_CACHE_NAME(c),
-							      c->block_size,
-							      c->block_size, 0, NULL);
+			char name[26];
+			snprintf(name, sizeof name, "dm_bufio_cache-%u", c->block_size);
+			DM_BUFIO_CACHE(c) = kmem_cache_create(name, c->block_size, c->block_size, 0, NULL);
 			if (!DM_BUFIO_CACHE(c)) {
 				r = -ENOMEM;
 				mutex_unlock(&dm_bufio_clients_lock);
@@ -1908,7 +1897,6 @@ static int __init dm_bufio_init(void)
 	dm_bufio_current_allocated = 0;
 
 	memset(&dm_bufio_caches, 0, sizeof dm_bufio_caches);
-	memset(&dm_bufio_cache_names, 0, sizeof dm_bufio_cache_names);
 
 	mem = (__u64)mult_frac(totalram_pages - totalhigh_pages,
 			       DM_BUFIO_MEMORY_PERCENT, 100) << PAGE_SHIFT;
@@ -1951,9 +1939,6 @@ static void __exit dm_bufio_exit(void)
 
 	for (i = 0; i < ARRAY_SIZE(dm_bufio_caches); i++)
 		kmem_cache_destroy(dm_bufio_caches[i]);
-
-	for (i = 0; i < ARRAY_SIZE(dm_bufio_cache_names); i++)
-		kfree(dm_bufio_cache_names[i]);
 
 	if (dm_bufio_client_count) {
 		DMCRIT("%s: dm_bufio_client_count leaked: %d",
