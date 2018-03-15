@@ -2014,9 +2014,9 @@ out_free:
 	return ret;
 }
 
-int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans,
-				 struct btrfs_fs_info *fs_info)
+int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_qgroup_extent_record *record;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct ulist *new_roots = NULL;

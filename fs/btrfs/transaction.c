@@ -1369,7 +1369,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 	ret = commit_fs_roots(trans);
 	if (ret)
 		goto out;
-	ret = btrfs_qgroup_account_extents(trans, fs_info);
+	ret = btrfs_qgroup_account_extents(trans);
 	if (ret < 0)
 		goto out;
 
@@ -2185,7 +2185,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * Since fs roots are all committed, we can get a quite accurate
 	 * new_roots. So let's do quota accounting.
 	 */
-	ret = btrfs_qgroup_account_extents(trans, fs_info);
+	ret = btrfs_qgroup_account_extents(trans);
 	if (ret < 0) {
 		mutex_unlock(&fs_info->tree_log_mutex);
 		mutex_unlock(&fs_info->reloc_mutex);
