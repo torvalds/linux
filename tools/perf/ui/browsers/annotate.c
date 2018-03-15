@@ -71,38 +71,20 @@ static int ui_browser__jumps_percent_color(struct ui_browser *browser, int nr, b
 	return HE_COLORSET_NORMAL;
 }
 
-static int ui_browser__set_jumps_percent_color(struct ui_browser *browser, int nr, bool current)
+static int ui_browser__set_jumps_percent_color(void *browser, int nr, bool current)
 {
 	 int color = ui_browser__jumps_percent_color(browser, nr, current);
 	 return ui_browser__set_color(browser, color);
 }
 
-static void disasm_line__write(struct disasm_line *dl, struct ui_browser *browser,
-			       char *bf, size_t size)
+static int annotate_browser__set_color(void *browser, int color)
 {
-	struct annotation *notes = browser__annotation(browser);
+	return ui_browser__set_color(browser, color);
+}
 
-	if (dl->ins.ops && dl->ins.ops->scnprintf) {
-		if (ins__is_jump(&dl->ins)) {
-			bool fwd = dl->ops.target.offset > dl->al.offset;
-
-			ui_browser__write_graph(browser, fwd ? SLSMG_DARROW_CHAR :
-							    SLSMG_UARROW_CHAR);
-			SLsmg_write_char(' ');
-		} else if (ins__is_call(&dl->ins)) {
-			ui_browser__write_graph(browser, SLSMG_RARROW_CHAR);
-			SLsmg_write_char(' ');
-		} else if (ins__is_ret(&dl->ins)) {
-			ui_browser__write_graph(browser, SLSMG_LARROW_CHAR);
-			SLsmg_write_char(' ');
-		} else {
-			ui_browser__write_nstring(browser, " ", 2);
-		}
-	} else {
-		ui_browser__write_nstring(browser, " ", 2);
-	}
-
-	disasm_line__scnprintf(dl, bf, size, !notes->options->use_offset);
+static void annotate_browser__write_graph(void *browser, int graph)
+{
+	ui_browser__write_graph(browser, graph);
 }
 
 static void annotate_browser__set_percent_color(void *browser, double percent, bool current)
@@ -128,68 +110,19 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	bool change_color = (!notes->options->hide_src_code &&
 			     (!current_entry || (browser->use_navkeypressed &&
 					         !browser->navkeypressed)));
-	int width = browser->width, printed;
-	int pcnt_width = annotation__pcnt_width(notes),
-	    cycles_width = annotation__cycles_width(notes);
-	char bf[256];
-
-	annotation_line__print_start(al, notes, row == 0, current_entry, browser,
-				     annotate_browser__set_percent_color,
-				     annotate_browser__printf);
+	int width = browser->width;
 
 	/* The scroll bar isn't being used */
 	if (!browser->navkeypressed)
 		width += 1;
 
-	if (!*al->line)
-		ui_browser__write_nstring(browser, " ", width - pcnt_width - cycles_width);
-	else if (al->offset == -1) {
-		if (al->line_nr && notes->options->show_linenr)
-			printed = scnprintf(bf, sizeof(bf), "%-*d ", notes->widths.addr + 1, al->line_nr);
-		else
-			printed = scnprintf(bf, sizeof(bf), "%*s  ", notes->widths.addr, " ");
-		ui_browser__write_nstring(browser, bf, printed);
-		ui_browser__write_nstring(browser, al->line, width - printed - pcnt_width - cycles_width + 1);
-	} else {
-		u64 addr = al->offset;
-		int color = -1;
-
-		if (!notes->options->use_offset)
-			addr += notes->start;
-
-		if (!notes->options->use_offset) {
-			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
-		} else {
-			if (al->jump_sources) {
-				if (notes->options->show_nr_jumps) {
-					int prev;
-					printed = scnprintf(bf, sizeof(bf), "%*d ",
-							    notes->widths.jumps,
-							    al->jump_sources);
-					prev = ui_browser__set_jumps_percent_color(browser, al->jump_sources,
-										   current_entry);
-					ui_browser__write_nstring(browser, bf, printed);
-					ui_browser__set_color(browser, prev);
-				}
-
-				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
-						    notes->widths.target, addr);
-			} else {
-				printed = scnprintf(bf, sizeof(bf), "%*s  ",
-						    notes->widths.addr, " ");
-			}
-		}
-
-		if (change_color)
-			color = ui_browser__set_color(browser, HE_COLORSET_ADDR);
-		ui_browser__write_nstring(browser, bf, printed);
-		if (change_color)
-			ui_browser__set_color(browser, color);
-
-		disasm_line__write(disasm_line(al), browser, bf, sizeof(bf));
-
-		ui_browser__write_nstring(browser, bf, width - pcnt_width - cycles_width - 3 - printed);
-	}
+	annotation_line__write(al, notes, row == 0, current_entry, change_color,
+			       width, browser,
+			       annotate_browser__set_color,
+			       annotate_browser__set_percent_color,
+			       ui_browser__set_jumps_percent_color,
+			       annotate_browser__printf,
+			       annotate_browser__write_graph);
 
 	if (current_entry)
 		ab->selection = al;

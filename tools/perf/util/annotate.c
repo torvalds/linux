@@ -27,6 +27,18 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 
+/* FIXME: For the HE_COLORSET */
+#include "ui/browser.h"
+
+/*
+ * FIXME: Using the same values as slang.h,
+ * but that header may not be available everywhere
+ */
+#define LARROW_CHAR	0x1B
+#define RARROW_CHAR	0x1A
+#define DARROW_CHAR	0x19
+#define UARROW_CHAR	0x18
+
 #include "sane_ctype.h"
 
 const char 	*disassembler_style;
@@ -2204,14 +2216,48 @@ static void set_percent_color_stub(void *obj __maybe_unused,
 {
 }
 
-void annotation_line__print_start(struct annotation_line *al, struct annotation *notes,
-				  bool first_line, bool current_entry,
-				  void *obj,
-				  void (*obj__set_percent_color)(void *obj, double percent, bool current),
-				  void (*obj__printf)(void *obj, const char *fmt, ...))
+static void disasm_line__write(struct disasm_line *dl, struct annotation *notes,
+			       void *obj, char *bf, size_t size,
+			       void (*obj__printf)(void *obj, const char *fmt, ...),
+			       void (*obj__write_graph)(void *obj, int graph))
+{
+	if (dl->ins.ops && dl->ins.ops->scnprintf) {
+		if (ins__is_jump(&dl->ins)) {
+			bool fwd = dl->ops.target.offset > dl->al.offset;
+
+			obj__write_graph(obj, fwd ? DARROW_CHAR : UARROW_CHAR);
+			obj__printf(obj, " ");
+		} else if (ins__is_call(&dl->ins)) {
+			obj__write_graph(obj, RARROW_CHAR);
+			obj__printf(obj, " ");
+		} else if (ins__is_ret(&dl->ins)) {
+			obj__write_graph(obj, LARROW_CHAR);
+			obj__printf(obj, " ");
+		} else {
+			obj__printf(obj, "  ");
+		}
+	} else {
+		obj__printf(obj, "  ");
+	}
+
+	disasm_line__scnprintf(dl, bf, size, !notes->options->use_offset);
+}
+
+void annotation_line__write(struct annotation_line *al, struct annotation *notes,
+			    bool first_line, bool current_entry, bool change_color, int width,
+			    void *obj,
+			    int  (*obj__set_color)(void *obj, int color),
+			    void (*obj__set_percent_color)(void *obj, double percent, bool current),
+			    int  (*obj__set_jumps_percent_color)(void *obj, int nr, bool current),
+			    void (*obj__printf)(void *obj, const char *fmt, ...),
+			    void (*obj__write_graph)(void *obj, int graph))
 {
 	double percent_max = annotation_line__max_percent(al, notes);
+	int pcnt_width = annotation__pcnt_width(notes),
+	    cycles_width = annotation__cycles_width(notes);
 	bool show_title = false;
+	char bf[256];
+	int printed;
 
 	if (first_line && (al->offset == -1 || percent_max == 0.0)) {
 		if (notes->have_cycles) {
@@ -2240,14 +2286,12 @@ void annotation_line__print_start(struct annotation_line *al, struct annotation 
 			}
 		}
 	} else {
-		int pcnt_width = annotation__pcnt_width(notes);
-
 		obj__set_percent_color(obj, 0, current_entry);
 
 		if (!show_title)
-			obj__printf(obj, "%*s", pcnt_width, " ");
+			obj__printf(obj, "%-*s", pcnt_width, " ");
 		else {
-			obj__printf(obj, "%*s", pcnt_width,
+			obj__printf(obj, "%-*s", pcnt_width,
 					   notes->options->show_total_period ? "Period" :
 					   notes->options->show_nr_samples ? "Samples" : "Percent");
 		}
@@ -2271,6 +2315,57 @@ void annotation_line__print_start(struct annotation_line *al, struct annotation 
 	}
 
 	obj__printf(obj, " ");
+
+	if (!*al->line)
+		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width, " ");
+	else if (al->offset == -1) {
+		if (al->line_nr && notes->options->show_linenr)
+			printed = scnprintf(bf, sizeof(bf), "%-*d ", notes->widths.addr + 1, al->line_nr);
+		else
+			printed = scnprintf(bf, sizeof(bf), "%-*s  ", notes->widths.addr, " ");
+		obj__printf(obj, bf);
+		obj__printf(obj, "%-*s", width - printed - pcnt_width - cycles_width + 1, al->line);
+	} else {
+		u64 addr = al->offset;
+		int color = -1;
+
+		if (!notes->options->use_offset)
+			addr += notes->start;
+
+		if (!notes->options->use_offset) {
+			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
+		} else {
+			if (al->jump_sources) {
+				if (notes->options->show_nr_jumps) {
+					int prev;
+					printed = scnprintf(bf, sizeof(bf), "%*d ",
+							    notes->widths.jumps,
+							    al->jump_sources);
+					prev = obj__set_jumps_percent_color(obj, al->jump_sources,
+									    current_entry);
+					obj__printf(obj, bf);
+					obj__set_color(obj, prev);
+				}
+
+				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
+						    notes->widths.target, addr);
+			} else {
+				printed = scnprintf(bf, sizeof(bf), "%-*s  ",
+						    notes->widths.addr, " ");
+			}
+		}
+
+		if (change_color)
+			color = obj__set_color(obj, HE_COLORSET_ADDR);
+		obj__printf(obj, bf);
+		if (change_color)
+			obj__set_color(obj, color);
+
+		disasm_line__write(disasm_line(al), notes, obj, bf, sizeof(bf), obj__printf, obj__write_graph);
+
+		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width - 3 - printed, bf);
+	}
+
 }
 
 int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *evsel,
