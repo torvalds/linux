@@ -4,6 +4,7 @@
  * Author: Ludovic Barre <ludovic.barre@st.com> for STMicroelectronics.
  */
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/stm32mp1-clks.h>
 
 / {
 	#address-cells = <1>;
@@ -71,12 +72,6 @@
 			clock-frequency = <24000000>;
 		};
 
-		clk_pll_per: clk-pll-per {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <64000000>;
-		};
-
 		clk_hsi: clk-hsi {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -100,24 +95,6 @@
 			compatible = "fixed-clock";
 			clock-frequency = <4000000>;
 		};
-
-		clk_pclk1: clk-pclk1 {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <86000000>;
-		};
-
-		clk_pll3_p: clk-pll3_p {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <172000000>;
-		};
-
-		clk_pll2_p: clk-pll2_p {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <264000000>;
-		};
 	};
 
 	soc {
@@ -131,7 +108,7 @@
 			compatible = "st,stm32h7-uart";
 			reg = <0x4000e000 0x400>;
 			interrupts = <GIC_SPI 38 IRQ_TYPE_NONE>;
-			clocks = <&clk_pclk1>;
+			clocks = <&rcc USART2_K>;
 			status = "disabled";
 		};
 
@@ -139,7 +116,7 @@
 			compatible = "st,stm32h7-uart";
 			reg = <0x4000f000 0x400>;
 			interrupts = <GIC_SPI 39 IRQ_TYPE_NONE>;
-			clocks = <&clk_pclk1>;
+			clocks = <&rcc USART3_K>;
 			status = "disabled";
 		};
 
@@ -147,7 +124,7 @@
 			compatible = "st,stm32h7-uart";
 			reg = <0x40010000 0x400>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_NONE>;
-			clocks = <&clk_pclk1>;
+			clocks = <&rcc UART4_K>;
 			status = "disabled";
 		};
 
@@ -155,7 +132,7 @@
 			compatible = "st,stm32h7-uart";
 			reg = <0x40011000 0x400>;
 			interrupts = <GIC_SPI 53 IRQ_TYPE_NONE>;
-			clocks = <&clk_pclk1>;
+			clocks = <&rcc UART5_K>;
 			status = "disabled";
 		};
 
@@ -163,7 +140,7 @@
 			compatible = "st,stm32h7-uart";
 			reg = <0x40018000 0x400>;
 			interrupts = <GIC_SPI 82 IRQ_TYPE_NONE>;
-			clocks = <&clk_pclk1>;
+			clocks = <&rcc UART7_K>;
 			status = "disabled";
 		};
 
@@ -171,7 +148,7 @@
 			compatible = "st,stm32h7-uart";
 			reg = <0x40019000 0x400>;
 			interrupts = <GIC_SPI 83 IRQ_TYPE_NONE>;
-			clocks = <&clk_pclk1>;
+			clocks = <&rcc UART8_K>;
 			status = "disabled";
 		};
 
@@ -179,15 +156,22 @@
 			compatible = "st,stm32h7-uart";
 			reg = <0x44003000 0x400>;
 			interrupts = <GIC_SPI 71 IRQ_TYPE_NONE>;
-			clocks = <&clk_pclk1>;
+			clocks = <&rcc USART6_K>;
 			status = "disabled";
+		};
+
+		rcc: rcc@50000000 {
+			compatible = "st,stm32mp1-rcc", "syscon";
+			reg = <0x50000000 0x1000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
 		};
 
 		usart1: serial@5c000000 {
 			compatible = "st,stm32h7-uart";
 			reg = <0x5c000000 0x400>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_NONE>;
-			clocks = <&clk_pclk1>;
+			clocks = <&rcc USART1_K>;
 			status = "disabled";
 		};
 	};
