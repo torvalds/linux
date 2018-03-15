@@ -58,6 +58,9 @@ bool ins__is_lock(const struct ins *ins);
 int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
 bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
+#define ANNOTATION__IPC_WIDTH 6
+#define ANNOTATION__CYCLES_WIDTH 6
+
 struct annotation_options {
 	bool hide_src_code,
 	     use_offset,

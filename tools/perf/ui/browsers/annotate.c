@@ -22,9 +22,6 @@ struct disasm_line_samples {
 	struct sym_hist_entry he;
 };
 
-#define IPC_WIDTH 6
-#define CYCLES_WIDTH 6
-
 struct browser_line {
 	u32	idx;
 	int	idx_asm;
@@ -107,7 +104,7 @@ static int annotate_browser__pcnt_width(struct annotate_browser *ab)
 
 static int annotate_browser__cycles_width(struct annotate_browser *ab)
 {
-	return ab->have_cycles ? IPC_WIDTH + CYCLES_WIDTH : 0;
+	return ab->have_cycles ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
 }
 
 static void disasm_line__write(struct disasm_line *dl, struct ui_browser *browser,
@@ -194,19 +191,19 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	}
 	if (ab->have_cycles) {
 		if (al->ipc)
-			ui_browser__printf(browser, "%*.2f ", IPC_WIDTH - 1, al->ipc);
+			ui_browser__printf(browser, "%*.2f ", ANNOTATION__IPC_WIDTH - 1, al->ipc);
 		else if (!show_title)
-			ui_browser__write_nstring(browser, " ", IPC_WIDTH);
+			ui_browser__write_nstring(browser, " ", ANNOTATION__IPC_WIDTH);
 		else
-			ui_browser__printf(browser, "%*s ", IPC_WIDTH - 1, "IPC");
+			ui_browser__printf(browser, "%*s ", ANNOTATION__IPC_WIDTH - 1, "IPC");
 
 		if (al->cycles)
 			ui_browser__printf(browser, "%*" PRIu64 " ",
-					   CYCLES_WIDTH - 1, al->cycles);
+					   ANNOTATION__CYCLES_WIDTH - 1, al->cycles);
 		else if (!show_title)
-			ui_browser__write_nstring(browser, " ", CYCLES_WIDTH);
+			ui_browser__write_nstring(browser, " ", ANNOTATION__CYCLES_WIDTH);
 		else
-			ui_browser__printf(browser, "%*s ", CYCLES_WIDTH - 1, "Cycle");
+			ui_browser__printf(browser, "%*s ", ANNOTATION__CYCLES_WIDTH - 1, "Cycle");
 	}
 
 	SLsmg_write_char(' ');
@@ -359,7 +356,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	}
 
 	if (ab->have_cycles)
-		width = IPC_WIDTH + CYCLES_WIDTH;
+		width = ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH;
 
 	ui_browser__set_color(browser, HE_COLORSET_JUMP_ARROWS);
 	__ui_browser__line_arrow(browser,
