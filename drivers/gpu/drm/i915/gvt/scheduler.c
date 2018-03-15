@@ -426,6 +426,17 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 			goto err;
 		}
 
+		/* For privilge batch buffer and not wa_ctx, the bb_start_cmd_va
+		 * is only updated into ring_scan_buffer, not real ring address
+		 * allocated in later copy_workload_to_ring_buffer. pls be noted
+		 * shadow_ring_buffer_va is now pointed to real ring buffer va
+		 * in copy_workload_to_ring_buffer.
+		 */
+
+		if (bb->bb_offset)
+			bb->bb_start_cmd_va = workload->shadow_ring_buffer_va
+				+ bb->bb_offset;
+
 		/* relocate shadow batch buffer */
 		bb->bb_start_cmd_va[1] = i915_ggtt_offset(bb->vma);
 		if (gmadr_bytes == 8)
