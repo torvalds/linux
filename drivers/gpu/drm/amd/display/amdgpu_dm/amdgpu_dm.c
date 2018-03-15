@@ -2487,6 +2487,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 	update_stream_signal(stream);
 
+	if (dm_state && dm_state->freesync_capable)
+		stream->ignore_msa_timing_param = true;
+
 	return stream;
 }
 
