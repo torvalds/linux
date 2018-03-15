@@ -944,16 +944,17 @@ inno_hdmi_phy_rk3328_pre_pll_update(struct inno_hdmi_phy *inno,
 }
 
 static unsigned long
-inno_hdmi_3328_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
-				   unsigned long parent_rate)
+inno_hdmi_rk3328_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
+				     unsigned long parent_rate)
 {
-	unsigned long rate, vco, frac;
+	unsigned long frac;
 	u8 nd, no_a, no_b, no_c, no_d;
 	u16 nf;
+	u64 vco = parent_rate;
 
 	nd = inno_read(inno, 0xa1) & 0x3f;
 	nf = ((inno_read(inno, 0xa2) & 0x0f) << 8) | inno_read(inno, 0xa3);
-	vco = parent_rate * nf;
+	vco *= nf;
 	if ((inno_read(inno, 0xa2) & 0x30) == 0) {
 		frac = inno_read(inno, 0xd3) |
 		       (inno_read(inno, 0xd2) << 8) |
@@ -961,54 +962,55 @@ inno_hdmi_3328_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
 		vco += DIV_ROUND_CLOSEST(parent_rate * frac, (1 << 24));
 	}
 	if (inno_read(inno, 0xa0) & 2) {
-		rate = vco / (nd * 5);
+		do_div(vco, nd * 5);
 	} else {
 		no_a = inno_read(inno, 0xa5) & 0x1f;
 		no_b = ((inno_read(inno, 0xa5) >> 5) & 7) + 2;
 		no_c = (1 << ((inno_read(inno, 0xa6) >> 5) & 7));
 		no_d = inno_read(inno, 0xa6) & 0x1f;
 		if (no_a == 1)
-			rate = vco / (nd * no_b * no_d * 2);
+			do_div(vco, nd * no_b * no_d * 2);
 		else
-			rate = vco / (nd * no_a * no_d * 2);
+			do_div(vco, nd * no_a * no_d * 2);
 	}
 
-	inno->pixclock = rate;
+	inno->pixclock = vco;
 
 	dev_dbg(inno->dev, "%s rate %lu\n", __func__, inno->pixclock);
 
-	return rate;
+	return inno->pixclock;
 }
 
 static unsigned long
 inno_hdmi_rk3228_phy_pll_recalc_rate(struct inno_hdmi_phy *inno,
-				   unsigned long parent_rate)
+				     unsigned long parent_rate)
 {
-	unsigned long rate, vco;
 	u8 nd, no_a, no_b, no_d;
 	u16 nf;
+	u64 vco = parent_rate;
 
 	nd = inno_read(inno, 0xe2) & 0x1f;
 	nf = ((inno_read(inno, 0xe2) & 0x80) << 1) | inno_read(inno, 0xe3);
-	vco = parent_rate * nf;
+	vco *= nf;
 
 	if ((inno_read(inno, 0xe2) >> 5) & 0x1) {
-		rate = vco / 5;
+		do_div(vco, nd * 5);
 	} else {
 		no_a = inno_read(inno, 0xe4) & 0x1f;
 		no_b = ((inno_read(inno, 0xe4) >> 5) & 0x3) + 2;
 		no_d = inno_read(inno, 0xe5) & 0x1f;
+
 		if (no_a == 1)
-			rate = vco / (nd * no_b * no_d * 2);
+			do_div(vco, nd * no_b * no_d * 2);
 		else
-			rate = vco / (nd * no_a * no_d * 2);
+			do_div(vco, nd * no_a * no_d * 2);
 	}
 
-	inno->pixclock = rate;
+	inno->pixclock = vco;
 
 	dev_dbg(inno->dev, "%s rate %lu\n", __func__, inno->pixclock);
 
-	return rate;
+	return inno->pixclock;
 }
 
 static const struct inno_hdmi_phy_ops rk3228_hdmi_phy_ops = {
@@ -1024,7 +1026,7 @@ static const struct inno_hdmi_phy_ops rk3328_hdmi_phy_ops = {
 	.power_on = inno_hdmi_phy_rk3328_power_on,
 	.power_off = inno_hdmi_phy_rk3328_power_off,
 	.pre_pll_update = inno_hdmi_phy_rk3328_pre_pll_update,
-	.recalc_rate = inno_hdmi_3328_phy_pll_recalc_rate,
+	.recalc_rate = inno_hdmi_rk3328_phy_pll_recalc_rate,
 };
 
 static const struct inno_hdmi_phy_drv_data rk3228_hdmi_phy_drv_data = {
