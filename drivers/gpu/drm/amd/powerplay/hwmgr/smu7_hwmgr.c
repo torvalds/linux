@@ -2788,10 +2788,13 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				    PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
 
 
-	disable_mclk_switching = ((1 < info.display_count) ||
-				  disable_mclk_switching_for_frame_lock ||
-				  smu7_vblank_too_short(hwmgr, mode_info.vblank_time_us) ||
-				  (mode_info.refresh_rate > 120));
+	if (info.display_count == 0)
+		disable_mclk_switching = false;
+	else
+		disable_mclk_switching = ((1 < info.display_count) ||
+					  disable_mclk_switching_for_frame_lock ||
+					  smu7_vblank_too_short(hwmgr, mode_info.vblank_time_us) ||
+					  (mode_info.refresh_rate > 120));
 
 	sclk = smu7_ps->performance_levels[0].engine_clock;
 	mclk = smu7_ps->performance_levels[0].memory_clock;
@@ -4575,13 +4578,6 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int tmp_result, result = 0;
 	uint32_t sclk_mask = 0, mclk_mask = 0;
-
-	if (hwmgr->chip_id == CHIP_FIJI) {
-		if (request->type == AMD_PP_GFX_PROFILE)
-			smu7_enable_power_containment(hwmgr);
-		else if (request->type == AMD_PP_COMPUTE_PROFILE)
-			smu7_disable_power_containment(hwmgr);
-	}
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
 		return -EINVAL;

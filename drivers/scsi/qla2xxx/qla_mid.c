@@ -343,15 +343,21 @@ qla2x00_do_dpc_vp(scsi_qla_host_t *vha)
 		    "FCPort update end.\n");
 	}
 
-	if ((test_and_clear_bit(RELOGIN_NEEDED, &vha->dpc_flags)) &&
-		!test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags) &&
-		atomic_read(&vha->loop_state) != LOOP_DOWN) {
+	if (test_bit(RELOGIN_NEEDED, &vha->dpc_flags) &&
+	    !test_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags) &&
+	    atomic_read(&vha->loop_state) != LOOP_DOWN) {
 
-		ql_dbg(ql_dbg_dpc, vha, 0x4018,
-		    "Relogin needed scheduled.\n");
-		qla2x00_relogin(vha);
-		ql_dbg(ql_dbg_dpc, vha, 0x4019,
-		    "Relogin needed end.\n");
+		if (!vha->relogin_jif ||
+		    time_after_eq(jiffies, vha->relogin_jif)) {
+			vha->relogin_jif = jiffies + HZ;
+			clear_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+
+			ql_dbg(ql_dbg_dpc, vha, 0x4018,
+			    "Relogin needed scheduled.\n");
+			qla2x00_relogin(vha);
+			ql_dbg(ql_dbg_dpc, vha, 0x4019,
+			    "Relogin needed end.\n");
+		}
 	}
 
 	if (test_and_clear_bit(RESET_MARKER_NEEDED, &vha->dpc_flags) &&
@@ -569,14 +575,15 @@ qla25xx_free_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 int
 qla25xx_delete_req_que(struct scsi_qla_host *vha, struct req_que *req)
 {
-	int ret = -1;
+	int ret = QLA_SUCCESS;
 
-	if (req) {
+	if (req && vha->flags.qpairs_req_created) {
 		req->options |= BIT_0;
 		ret = qla25xx_init_req_que(vha, req);
+		if (ret != QLA_SUCCESS)
+			return QLA_FUNCTION_FAILED;
 	}
-	if (ret == QLA_SUCCESS)
-		qla25xx_free_req_que(vha, req);
+	qla25xx_free_req_que(vha, req);
 
 	return ret;
 }
@@ -584,14 +591,15 @@ qla25xx_delete_req_que(struct scsi_qla_host *vha, struct req_que *req)
 int
 qla25xx_delete_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 {
-	int ret = -1;
+	int ret = QLA_SUCCESS;
 
-	if (rsp) {
+	if (rsp && vha->flags.qpairs_rsp_created) {
 		rsp->options |= BIT_0;
 		ret = qla25xx_init_rsp_que(vha, rsp);
+		if (ret != QLA_SUCCESS)
+			return QLA_FUNCTION_FAILED;
 	}
-	if (ret == QLA_SUCCESS)
-		qla25xx_free_rsp_que(vha, rsp);
+	qla25xx_free_rsp_que(vha, rsp);
 
 	return ret;
 }

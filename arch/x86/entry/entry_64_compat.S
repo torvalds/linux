@@ -85,25 +85,25 @@ ENTRY(entry_SYSENTER_compat)
 	pushq	%rcx			/* pt_regs->cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
 	pushq   $0			/* pt_regs->r8  = 0 */
-	xorq	%r8, %r8		/* nospec   r8 */
+	xorl	%r8d, %r8d		/* nospec   r8 */
 	pushq   $0			/* pt_regs->r9  = 0 */
-	xorq	%r9, %r9		/* nospec   r9 */
+	xorl	%r9d, %r9d		/* nospec   r9 */
 	pushq   $0			/* pt_regs->r10 = 0 */
-	xorq	%r10, %r10		/* nospec   r10 */
+	xorl	%r10d, %r10d		/* nospec   r10 */
 	pushq   $0			/* pt_regs->r11 = 0 */
-	xorq	%r11, %r11		/* nospec   r11 */
+	xorl	%r11d, %r11d		/* nospec   r11 */
 	pushq   %rbx                    /* pt_regs->rbx */
 	xorl	%ebx, %ebx		/* nospec   rbx */
 	pushq   %rbp                    /* pt_regs->rbp (will be overwritten) */
 	xorl	%ebp, %ebp		/* nospec   rbp */
 	pushq   $0			/* pt_regs->r12 = 0 */
-	xorq	%r12, %r12		/* nospec   r12 */
+	xorl	%r12d, %r12d		/* nospec   r12 */
 	pushq   $0			/* pt_regs->r13 = 0 */
-	xorq	%r13, %r13		/* nospec   r13 */
+	xorl	%r13d, %r13d		/* nospec   r13 */
 	pushq   $0			/* pt_regs->r14 = 0 */
-	xorq	%r14, %r14		/* nospec   r14 */
+	xorl	%r14d, %r14d		/* nospec   r14 */
 	pushq   $0			/* pt_regs->r15 = 0 */
-	xorq	%r15, %r15		/* nospec   r15 */
+	xorl	%r15d, %r15d		/* nospec   r15 */
 	cld
 
 	/*
@@ -224,25 +224,25 @@ GLOBAL(entry_SYSCALL_compat_after_hwframe)
 	pushq	%rbp			/* pt_regs->cx (stashed in bp) */
 	pushq	$-ENOSYS		/* pt_regs->ax */
 	pushq   $0			/* pt_regs->r8  = 0 */
-	xorq	%r8, %r8		/* nospec   r8 */
+	xorl	%r8d, %r8d		/* nospec   r8 */
 	pushq   $0			/* pt_regs->r9  = 0 */
-	xorq	%r9, %r9		/* nospec   r9 */
+	xorl	%r9d, %r9d		/* nospec   r9 */
 	pushq   $0			/* pt_regs->r10 = 0 */
-	xorq	%r10, %r10		/* nospec   r10 */
+	xorl	%r10d, %r10d		/* nospec   r10 */
 	pushq   $0			/* pt_regs->r11 = 0 */
-	xorq	%r11, %r11		/* nospec   r11 */
+	xorl	%r11d, %r11d		/* nospec   r11 */
 	pushq   %rbx                    /* pt_regs->rbx */
 	xorl	%ebx, %ebx		/* nospec   rbx */
 	pushq   %rbp                    /* pt_regs->rbp (will be overwritten) */
 	xorl	%ebp, %ebp		/* nospec   rbp */
 	pushq   $0			/* pt_regs->r12 = 0 */
-	xorq	%r12, %r12		/* nospec   r12 */
+	xorl	%r12d, %r12d		/* nospec   r12 */
 	pushq   $0			/* pt_regs->r13 = 0 */
-	xorq	%r13, %r13		/* nospec   r13 */
+	xorl	%r13d, %r13d		/* nospec   r13 */
 	pushq   $0			/* pt_regs->r14 = 0 */
-	xorq	%r14, %r14		/* nospec   r14 */
+	xorl	%r14d, %r14d		/* nospec   r14 */
 	pushq   $0			/* pt_regs->r15 = 0 */
-	xorq	%r15, %r15		/* nospec   r15 */
+	xorl	%r15d, %r15d		/* nospec   r15 */
 
 	/*
 	 * User mode is traced as though IRQs are on, and SYSENTER
@@ -298,9 +298,9 @@ sysret32_from_system_call:
 	 */
 	SWITCH_TO_USER_CR3_NOSTACK scratch_reg=%r8 scratch_reg2=%r9
 
-	xorq	%r8, %r8
-	xorq	%r9, %r9
-	xorq	%r10, %r10
+	xorl	%r8d, %r8d
+	xorl	%r9d, %r9d
+	xorl	%r10d, %r10d
 	swapgs
 	sysretl
 END(entry_SYSCALL_compat)
@@ -358,25 +358,25 @@ ENTRY(entry_INT80_compat)
 	pushq	%rcx			/* pt_regs->cx */
 	pushq	$-ENOSYS		/* pt_regs->ax */
 	pushq   $0			/* pt_regs->r8  = 0 */
-	xorq	%r8, %r8		/* nospec   r8 */
+	xorl	%r8d, %r8d		/* nospec   r8 */
 	pushq   $0			/* pt_regs->r9  = 0 */
-	xorq	%r9, %r9		/* nospec   r9 */
+	xorl	%r9d, %r9d		/* nospec   r9 */
 	pushq   $0			/* pt_regs->r10 = 0 */
-	xorq	%r10, %r10		/* nospec   r10 */
+	xorl	%r10d, %r10d		/* nospec   r10 */
 	pushq   $0			/* pt_regs->r11 = 0 */
-	xorq	%r11, %r11		/* nospec   r11 */
+	xorl	%r11d, %r11d		/* nospec   r11 */
 	pushq   %rbx                    /* pt_regs->rbx */
 	xorl	%ebx, %ebx		/* nospec   rbx */
 	pushq   %rbp                    /* pt_regs->rbp */
 	xorl	%ebp, %ebp		/* nospec   rbp */
 	pushq   %r12                    /* pt_regs->r12 */
-	xorq	%r12, %r12		/* nospec   r12 */
+	xorl	%r12d, %r12d		/* nospec   r12 */
 	pushq   %r13                    /* pt_regs->r13 */
-	xorq	%r13, %r13		/* nospec   r13 */
+	xorl	%r13d, %r13d		/* nospec   r13 */
 	pushq   %r14                    /* pt_regs->r14 */
-	xorq	%r14, %r14		/* nospec   r14 */
+	xorl	%r14d, %r14d		/* nospec   r14 */
 	pushq   %r15                    /* pt_regs->r15 */
-	xorq	%r15, %r15		/* nospec   r15 */
+	xorl	%r15d, %r15d		/* nospec   r15 */
 	cld
 
 	/*

@@ -774,7 +774,7 @@ hashlimit_mt_common(const struct sk_buff *skb, struct xt_action_param *par,
 		if (!dh->rateinfo.prev_window &&
 		    (dh->rateinfo.current_rate <= dh->rateinfo.burst)) {
 			spin_unlock(&dh->lock);
-			rcu_read_unlock_bh();
+			local_bh_enable();
 			return !(cfg->mode & XT_HASHLIMIT_INVERT);
 		} else {
 			goto overlimit;

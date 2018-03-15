@@ -2119,6 +2119,7 @@ static void sca_add_vcpu(struct kvm_vcpu *vcpu)
 		/* we still need the basic sca for the ipte control */
 		vcpu->arch.sie_block->scaoh = (__u32)(((__u64)sca) >> 32);
 		vcpu->arch.sie_block->scaol = (__u32)(__u64)sca;
+		return;
 	}
 	read_lock(&vcpu->kvm->arch.sca_lock);
 	if (vcpu->kvm->arch.use_esca) {

@@ -1844,6 +1844,7 @@ void intel_display_power_put(struct drm_i915_private *dev_priv,
 	CNL_DISPLAY_POWERWELL_2_POWER_DOMAINS |		\
 	BIT_ULL(POWER_DOMAIN_MODESET) |			\
 	BIT_ULL(POWER_DOMAIN_AUX_A) |			\
+	BIT_ULL(POWER_DOMAIN_GMBUS) |			\
 	BIT_ULL(POWER_DOMAIN_INIT))
 
 static const struct i915_power_well_ops i9xx_always_on_power_well_ops = {

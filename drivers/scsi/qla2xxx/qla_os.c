@@ -3003,9 +3003,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	base_vha = qla2x00_create_host(sht, ha);
 	if (!base_vha) {
 		ret = -ENOMEM;
-		qla2x00_mem_free(ha);
-		qla2x00_free_req_que(ha, req);
-		qla2x00_free_rsp_que(ha, rsp);
 		goto probe_hw_failed;
 	}
 
@@ -3066,7 +3063,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Set up the irqs */
 	ret = qla2x00_request_irqs(ha, rsp);
 	if (ret)
-		goto probe_init_failed;
+		goto probe_hw_failed;
 
 	/* Alloc arrays of request and response ring ptrs */
 	if (!qla2x00_alloc_queues(ha, req, rsp)) {
@@ -3177,10 +3174,11 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    host->can_queue, base_vha->req,
 	    base_vha->mgmt_svr_loop_id, host->sg_tablesize);
 
+	ha->wq = alloc_workqueue("qla2xxx_wq", WQ_MEM_RECLAIM, 0);
+
 	if (ha->mqenable) {
 		bool mq = false;
 		bool startit = false;
-		ha->wq = alloc_workqueue("qla2xxx_wq", WQ_MEM_RECLAIM, 0);
 
 		if (QLA_TGT_MODE_ENABLED()) {
 			mq = true;
@@ -3374,6 +3372,9 @@ probe_failed:
 	scsi_host_put(base_vha->host);
 
 probe_hw_failed:
+	qla2x00_mem_free(ha);
+	qla2x00_free_req_que(ha, req);
+	qla2x00_free_rsp_que(ha, rsp);
 	qla2x00_clear_drv_active(ha);
 
 iospace_config_failed:
@@ -4498,6 +4499,7 @@ struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *sht,
 	INIT_LIST_HEAD(&vha->qp_list);
 	INIT_LIST_HEAD(&vha->gnl.fcports);
 	INIT_LIST_HEAD(&vha->nvme_rport_list);
+	INIT_LIST_HEAD(&vha->gpnid_list);
 
 	spin_lock_init(&vha->work_lock);
 	spin_lock_init(&vha->cmd_list_lock);
@@ -4732,11 +4734,11 @@ void qla24xx_create_new_sess(struct scsi_qla_host *vha, struct qla_work_evt *e)
 		} else {
 			list_add_tail(&fcport->list, &vha->vp_fcports);
 
-			if (pla) {
-				qlt_plogi_ack_link(vha, pla, fcport,
-				    QLT_PLOGI_LINK_SAME_WWN);
-				pla->ref_count--;
-			}
+		}
+		if (pla) {
+			qlt_plogi_ack_link(vha, pla, fcport,
+			    QLT_PLOGI_LINK_SAME_WWN);
+			pla->ref_count--;
 		}
 	}
 	spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
@@ -4858,7 +4860,7 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 	 */
 		if (atomic_read(&fcport->state) != FCS_ONLINE &&
 		    fcport->login_retry && !(fcport->flags & FCF_ASYNC_SENT)) {
-			fcport->login_retry--;
+
 			if (fcport->flags & FCF_FABRIC_DEVICE) {
 				ql_dbg(ql_dbg_disc, fcport->vha, 0x2108,
 				    "%s %8phC DS %d LS %d\n", __func__,
@@ -4869,6 +4871,7 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 				ea.fcport = fcport;
 				qla2x00_fcport_event_handler(vha, &ea);
 			} else {
+				fcport->login_retry--;
 				status = qla2x00_local_device_login(vha,
 								fcport);
 				if (status == QLA_SUCCESS) {
@@ -5851,16 +5854,21 @@ qla2x00_do_dpc(void *data)
 		}
 
 		/* Retry each device up to login retry count */
-		if ((test_and_clear_bit(RELOGIN_NEEDED,
-						&base_vha->dpc_flags)) &&
+		if (test_bit(RELOGIN_NEEDED, &base_vha->dpc_flags) &&
 		    !test_bit(LOOP_RESYNC_NEEDED, &base_vha->dpc_flags) &&
 		    atomic_read(&base_vha->loop_state) != LOOP_DOWN) {
 
-			ql_dbg(ql_dbg_dpc, base_vha, 0x400d,
-			    "Relogin scheduled.\n");
-			qla2x00_relogin(base_vha);
-			ql_dbg(ql_dbg_dpc, base_vha, 0x400e,
-			    "Relogin end.\n");
+			if (!base_vha->relogin_jif ||
+			    time_after_eq(jiffies, base_vha->relogin_jif)) {
+				base_vha->relogin_jif = jiffies + HZ;
+				clear_bit(RELOGIN_NEEDED, &base_vha->dpc_flags);
+
+				ql_dbg(ql_dbg_dpc, base_vha, 0x400d,
+				    "Relogin scheduled.\n");
+				qla2x00_relogin(base_vha);
+				ql_dbg(ql_dbg_dpc, base_vha, 0x400e,
+				    "Relogin end.\n");
+			}
 		}
 loop_resync_check:
 		if (test_and_clear_bit(LOOP_RESYNC_NEEDED,
@@ -6591,9 +6599,14 @@ qla83xx_disable_laser(scsi_qla_host_t *vha)
 
 static int qla2xxx_map_queues(struct Scsi_Host *shost)
 {
+	int rc;
 	scsi_qla_host_t *vha = (scsi_qla_host_t *)shost->hostdata;
 
-	return blk_mq_pci_map_queues(&shost->tag_set, vha->hw->pdev);
+	if (USER_CTRL_IRQ(vha->hw))
+		rc = blk_mq_map_queues(&shost->tag_set);
+	else
+		rc = blk_mq_pci_map_queues(&shost->tag_set, vha->hw->pdev);
+	return rc;
 }
 
 static const struct pci_error_handlers qla2xxx_err_handler = {

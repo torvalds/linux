@@ -386,9 +386,6 @@ static void __cache_size_refresh(void)
 static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
 			       enum data_mode *data_mode)
 {
-	unsigned noio_flag;
-	void *ptr;
-
 	if (c->block_size <= DM_BUFIO_BLOCK_SIZE_SLAB_LIMIT) {
 		*data_mode = DATA_MODE_SLAB;
 		return kmem_cache_alloc(DM_BUFIO_CACHE(c), gfp_mask);
@@ -412,16 +409,15 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
 	 * all allocations done by this process (including pagetables) are done
 	 * as if GFP_NOIO was specified.
 	 */
+	if (gfp_mask & __GFP_NORETRY) {
+		unsigned noio_flag = memalloc_noio_save();
+		void *ptr = __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
 
-	if (gfp_mask & __GFP_NORETRY)
-		noio_flag = memalloc_noio_save();
-
-	ptr = __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
-
-	if (gfp_mask & __GFP_NORETRY)
 		memalloc_noio_restore(noio_flag);
+		return ptr;
+	}
 
-	return ptr;
+	return __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
 }
 
 /*

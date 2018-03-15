@@ -4426,6 +4426,7 @@ nv50_display_create(struct drm_device *dev)
 	nouveau_display(dev)->fini = nv50_display_fini;
 	disp->disp = &nouveau_display(dev)->disp;
 	dev->mode_config.funcs = &nv50_disp_func;
+	dev->driver->driver_features |= DRIVER_PREFER_XBGR_30BPP;
 	if (nouveau_atomic)
 		dev->driver->driver_features |= DRIVER_ATOMIC;
 

@@ -1806,6 +1806,8 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	if (IS_GEN9_LP(dev_priv) ||
 	    !(dev_priv->suspended_to_idle && dev_priv->csr.dmc_payload))
 		intel_power_domains_init_hw(dev_priv, true);
+	else
+		intel_display_set_init_power(dev_priv, true);
 
 	i915_gem_sanitize(dev_priv);
 
