@@ -1183,16 +1183,21 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
-	union down_spread_ctrl downspread;
+	union down_spread_ctrl old_downspread;
+	union down_spread_ctrl new_downspread;
 
 	core_link_read_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&downspread.raw, sizeof(downspread));
+			&old_downspread.raw, sizeof(old_downspread));
 
-	downspread.bits.IGNORE_MSA_TIMING_PARAM =
+	new_downspread.raw = old_downspread.raw;
+
+	new_downspread.bits.IGNORE_MSA_TIMING_PARAM =
 			(stream->ignore_msa_timing_param) ? 1 : 0;
 
-	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
-			&downspread.raw, sizeof(downspread));
+	if (new_downspread.raw != old_downspread.raw) {
+		core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
+			&new_downspread.raw, sizeof(new_downspread));
+	}
 }
 
 static enum dc_status enable_link_dp(
