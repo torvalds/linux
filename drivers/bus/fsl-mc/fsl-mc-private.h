@@ -525,6 +525,8 @@ void dprc_driver_exit(void);
 
 int __init fsl_mc_allocator_driver_init(void);
 
+void fsl_mc_allocator_driver_exit(void);
+
 void fsl_mc_init_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
 
 void fsl_mc_cleanup_all_resource_pools(struct fsl_mc_device *mc_bus_dev);
