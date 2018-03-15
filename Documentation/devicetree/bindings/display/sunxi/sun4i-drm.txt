@@ -248,6 +248,28 @@ On the A33, some additional properties are required:
   - resets and reset-names need to have a phandle to the SAT bus
     resets, whose name will be "sat"
 
+DEU
+---
+
+The DEU (Detail Enhancement Unit), found in the Allwinner A80 SoC,
+can sharpen the display content in both luma and chroma channels.
+
+Required properties:
+  - compatible: value must be one of:
+    * allwinner,sun9i-a80-deu
+  - reg: base address and size of the memory-mapped region.
+  - interrupts: interrupt associated to this IP
+  - clocks: phandles to the clocks feeding the DEU
+    * ahb: the DEU interface clock
+    * mod: the DEU module clock
+    * ram: the DEU DRAM clock
+  - clock-names: the clock names mentioned above
+  - resets: phandles to the reset line driving the DEU
+
+- ports: A ports node with endpoint definitions as defined in
+  Documentation/devicetree/bindings/media/video-interfaces.txt. The
+  first port should be the input endpoints, the second one the outputs
+
 Display Engine Frontend
 -----------------------
 
