@@ -302,8 +302,8 @@ int tegra_plane_format_get_alpha(unsigned int opaque, unsigned int *alpha)
 	return -EINVAL;
 }
 
-unsigned int tegra_plane_get_overlap_index(struct tegra_plane *plane,
-					   struct tegra_plane *other)
+static unsigned int tegra_plane_get_overlap_index(struct tegra_plane *plane,
+						  struct tegra_plane *other)
 {
 	unsigned int index = 0, i;
 
