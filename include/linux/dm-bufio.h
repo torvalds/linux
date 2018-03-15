@@ -6,8 +6,8 @@
  * This file is released under the GPL.
  */
 
-#ifndef DM_BUFIO_H
-#define DM_BUFIO_H
+#ifndef _LINUX_DM_BUFIO_H
+#define _LINUX_DM_BUFIO_H
 
 #include <linux/blkdev.h>
 #include <linux/types.h>

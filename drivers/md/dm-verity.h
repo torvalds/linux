@@ -12,7 +12,7 @@
 #ifndef DM_VERITY_H
 #define DM_VERITY_H
 
-#include "dm-bufio.h"
+#include <linux/dm-bufio.h>
 #include <linux/device-mapper.h>
 #include <crypto/hash.h>
 

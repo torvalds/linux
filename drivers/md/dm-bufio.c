@@ -6,7 +6,7 @@
  * This file is released under the GPL.
  */
 
-#include "dm-bufio.h"
+#include <linux/dm-bufio.h>
 
 #include <linux/device-mapper.h>
 #include <linux/dm-io.h>
@@ -1478,13 +1478,13 @@ void dm_bufio_forget(struct dm_bufio_client *c, sector_t block)
 
 	dm_bufio_unlock(c);
 }
-EXPORT_SYMBOL(dm_bufio_forget);
+EXPORT_SYMBOL_GPL(dm_bufio_forget);
 
 void dm_bufio_set_minimum_buffers(struct dm_bufio_client *c, unsigned n)
 {
 	c->minimum_buffers = n;
 }
-EXPORT_SYMBOL(dm_bufio_set_minimum_buffers);
+EXPORT_SYMBOL_GPL(dm_bufio_set_minimum_buffers);
 
 unsigned dm_bufio_get_block_size(struct dm_bufio_client *c)
 {
@@ -1690,7 +1690,7 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	INIT_LIST_HEAD(&c->reserved_buffers);
 	c->need_reserved_buffers = reserved_buffers;
 
-	c->minimum_buffers = DM_BUFIO_MIN_BUFFERS;
+	dm_bufio_set_minimum_buffers(c, DM_BUFIO_MIN_BUFFERS);
 
 	init_waitqueue_head(&c->free_buffer_wait);
 	c->async_write_error = 0;

@@ -18,7 +18,7 @@
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/async_tx.h>
-#include "dm-bufio.h"
+#include <linux/dm-bufio.h>
 
 #define DM_MSG_PREFIX "integrity"
 
