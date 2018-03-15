@@ -864,11 +864,13 @@ static const u32 tegra124_overlay_formats[] = {
 
 static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 						       struct tegra_dc *dc,
-						       unsigned int index)
+						       unsigned int index,
+						       bool cursor)
 {
 	unsigned long possible_crtcs = tegra_plane_get_possible_crtcs(drm);
 	struct tegra_plane *plane;
 	unsigned int num_formats;
+	enum drm_plane_type type;
 	const u32 *formats;
 	int err;
 
@@ -883,10 +885,14 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	num_formats = dc->soc->num_overlay_formats;
 	formats = dc->soc->overlay_formats;
 
+	if (!cursor)
+		type = DRM_PLANE_TYPE_OVERLAY;
+	else
+		type = DRM_PLANE_TYPE_CURSOR;
+
 	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_plane_funcs, formats,
-				       num_formats, NULL,
-				       DRM_PLANE_TYPE_OVERLAY, NULL);
+				       num_formats, NULL, type, NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -938,6 +944,7 @@ static struct drm_plane *tegra_dc_add_planes(struct drm_device *drm,
 					     struct tegra_dc *dc)
 {
 	struct drm_plane *planes[2], *primary;
+	unsigned int planes_num;
 	unsigned int i;
 	int err;
 
@@ -945,8 +952,14 @@ static struct drm_plane *tegra_dc_add_planes(struct drm_device *drm,
 	if (IS_ERR(primary))
 		return primary;
 
-	for (i = 0; i < 2; i++) {
-		planes[i] = tegra_dc_overlay_plane_create(drm, dc, 1 + i);
+	if (dc->soc->supports_cursor)
+		planes_num = 2;
+	else
+		planes_num = 1;
+
+	for (i = 0; i < planes_num; i++) {
+		planes[i] = tegra_dc_overlay_plane_create(drm, dc, 1 + i,
+							  false);
 		if (IS_ERR(planes[i])) {
 			err = PTR_ERR(planes[i]);
 
@@ -1860,6 +1873,13 @@ static int tegra_dc_init(struct host1x_client *client)
 
 	if (dc->soc->supports_cursor) {
 		cursor = tegra_dc_cursor_plane_create(drm, dc);
+		if (IS_ERR(cursor)) {
+			err = PTR_ERR(cursor);
+			goto cleanup;
+		}
+	} else {
+		/* dedicate one overlay to mouse cursor */
+		cursor = tegra_dc_overlay_plane_create(drm, dc, 2, true);
 		if (IS_ERR(cursor)) {
 			err = PTR_ERR(cursor);
 			goto cleanup;
