@@ -1151,6 +1151,11 @@ bool kfd_dev_is_large_bar(struct kfd_dev *dev)
 {
 	struct kfd_local_mem_info mem_info;
 
+	if (debug_largebar) {
+		pr_debug("Simulate large-bar allocation on non large-bar machine\n");
+		return true;
+	}
+
 	if (dev->device_info->needs_iommu_device)
 		return false;
 

@@ -105,6 +105,12 @@ extern int cwsr_enable;
 extern int send_sigterm;
 
 /*
+ * This kernel module is used to simulate large bar machine on non-large bar
+ * enabled machines.
+ */
+extern int debug_largebar;
+
+/*
  * Ignore CRAT table during KFD initialization, can be used to work around
  * broken CRAT tables on some AMD systems
  */
