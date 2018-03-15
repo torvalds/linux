@@ -292,8 +292,7 @@ static ssize_t coredump_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	device_lock(dev);
-	if (dev->driver->coredump)
-		dev->driver->coredump(dev);
+	dev->driver->coredump(dev);
 	device_unlock(dev);
 
 	return count;
