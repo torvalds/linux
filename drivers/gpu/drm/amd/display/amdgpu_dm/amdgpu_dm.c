@@ -3977,6 +3977,97 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 }
 
+/*
+ * TODO this whole function needs to go
+ *
+ * dc_surface_update is needlessly complex. See if we can just replace this
+ * with a dc_plane_state and follow the atomic model a bit more closely here.
+ */
+static bool commit_planes_to_stream(
+		struct dc *dc,
+		struct dc_plane_state **plane_states,
+		uint8_t new_plane_count,
+		struct dm_crtc_state *dm_new_crtc_state,
+		struct dm_crtc_state *dm_old_crtc_state,
+		struct dc_state *state)
+{
+	/* no need to dynamically allocate this. it's pretty small */
+	struct dc_surface_update updates[MAX_SURFACES];
+	struct dc_flip_addrs *flip_addr;
+	struct dc_plane_info *plane_info;
+	struct dc_scaling_info *scaling_info;
+	int i;
+	struct dc_stream_state *dc_stream = dm_new_crtc_state->stream;
+	struct dc_stream_update *stream_update =
+			kzalloc(sizeof(struct dc_stream_update), GFP_KERNEL);
+
+	if (!stream_update) {
+		BREAK_TO_DEBUGGER();
+		return false;
+	}
+
+	flip_addr = kcalloc(MAX_SURFACES, sizeof(struct dc_flip_addrs),
+			    GFP_KERNEL);
+	plane_info = kcalloc(MAX_SURFACES, sizeof(struct dc_plane_info),
+			     GFP_KERNEL);
+	scaling_info = kcalloc(MAX_SURFACES, sizeof(struct dc_scaling_info),
+			       GFP_KERNEL);
+
+	if (!flip_addr || !plane_info || !scaling_info) {
+		kfree(flip_addr);
+		kfree(plane_info);
+		kfree(scaling_info);
+		kfree(stream_update);
+		return false;
+	}
+
+	memset(updates, 0, sizeof(updates));
+
+	stream_update->src = dc_stream->src;
+	stream_update->dst = dc_stream->dst;
+	stream_update->out_transfer_func = dc_stream->out_transfer_func;
+
+	for (i = 0; i < new_plane_count; i++) {
+		updates[i].surface = plane_states[i];
+		updates[i].gamma =
+			(struct dc_gamma *)plane_states[i]->gamma_correction;
+		updates[i].in_transfer_func = plane_states[i]->in_transfer_func;
+		flip_addr[i].address = plane_states[i]->address;
+		flip_addr[i].flip_immediate = plane_states[i]->flip_immediate;
+		plane_info[i].color_space = plane_states[i]->color_space;
+		plane_info[i].input_tf = plane_states[i]->input_tf;
+		plane_info[i].format = plane_states[i]->format;
+		plane_info[i].plane_size = plane_states[i]->plane_size;
+		plane_info[i].rotation = plane_states[i]->rotation;
+		plane_info[i].horizontal_mirror = plane_states[i]->horizontal_mirror;
+		plane_info[i].stereo_format = plane_states[i]->stereo_format;
+		plane_info[i].tiling_info = plane_states[i]->tiling_info;
+		plane_info[i].visible = plane_states[i]->visible;
+		plane_info[i].per_pixel_alpha = plane_states[i]->per_pixel_alpha;
+		plane_info[i].dcc = plane_states[i]->dcc;
+		scaling_info[i].scaling_quality = plane_states[i]->scaling_quality;
+		scaling_info[i].src_rect = plane_states[i]->src_rect;
+		scaling_info[i].dst_rect = plane_states[i]->dst_rect;
+		scaling_info[i].clip_rect = plane_states[i]->clip_rect;
+
+		updates[i].flip_addr = &flip_addr[i];
+		updates[i].plane_info = &plane_info[i];
+		updates[i].scaling_info = &scaling_info[i];
+	}
+
+	dc_commit_updates_for_stream(
+			dc,
+			updates,
+			new_plane_count,
+			dc_stream, stream_update, plane_states, state);
+
+	kfree(flip_addr);
+	kfree(plane_info);
+	kfree(scaling_info);
+	kfree(stream_update);
+	return true;
+}
+
 static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				    struct drm_device *dev,
 				    struct amdgpu_display_manager *dm,
@@ -3992,6 +4083,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	struct drm_crtc_state *new_pcrtc_state =
 			drm_atomic_get_new_crtc_state(state, pcrtc);
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(new_pcrtc_state);
+	struct dm_crtc_state *dm_old_crtc_state =
+			to_dm_crtc_state(drm_atomic_get_old_crtc_state(state, pcrtc));
 	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
 	int planes_count = 0;
 	unsigned long flags;
@@ -4070,10 +4163,12 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			spin_unlock_irqrestore(&pcrtc->dev->event_lock, flags);
 		}
 
-		if (false == dc_commit_planes_to_stream(dm->dc,
+
+		if (false == commit_planes_to_stream(dm->dc,
 							plane_states_constructed,
 							planes_count,
-							dc_stream_attach,
+							acrtc_state,
+							dm_old_crtc_state,
 							dm_state->context))
 			dm_error("%s: Failed to attach plane!\n", __func__);
 	} else {
@@ -4298,8 +4393,10 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
 		struct dc_stream_status *status = NULL;
 
-		if (acrtc)
+		if (acrtc) {
 			new_crtc_state = drm_atomic_get_new_crtc_state(state, &acrtc->base);
+			old_crtc_state = drm_atomic_get_old_crtc_state(state, &acrtc->base);
+		}
 
 		/* Skip any modesets/resets */
 		if (!acrtc || drm_atomic_crtc_needs_modeset(new_crtc_state))
@@ -4322,11 +4419,12 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		WARN_ON(!status->plane_count);
 
 		/*TODO How it works with MPO ?*/
-		if (!dc_commit_planes_to_stream(
+		if (!commit_planes_to_stream(
 				dm->dc,
 				status->plane_states,
 				status->plane_count,
-				dm_new_crtc_state->stream,
+				dm_new_crtc_state,
+				to_dm_crtc_state(old_crtc_state),
 				dm_state->context))
 			dm_error("%s: Failed to update stream scaling!\n", __func__);
 	}

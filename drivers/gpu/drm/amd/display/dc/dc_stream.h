@@ -135,13 +135,6 @@ bool dc_is_stream_scaling_unchanged(
  *   This does not trigger a flip.  No surface address is programmed.
  */
 
-bool dc_commit_planes_to_stream(
-		struct dc *dc,
-		struct dc_plane_state **plane_states,
-		uint8_t new_plane_count,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *state);
-
 void dc_commit_updates_for_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
