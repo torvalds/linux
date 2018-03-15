@@ -21,4 +21,4 @@ fi
 #  tar -czf $filename {async_cipher,async_hmac,async_speed,cipher,cipher-aead,cipher-aead-srtp,cipher_comp,cipher-gcm,fullspeed,hash_comp,hashcrypt_speed,hmac,hmac_comp,sha_speed,speed}
 #  md5sum $filename > $filename.md5
 #fi
-#)
+)

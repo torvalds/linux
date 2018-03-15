@@ -2,7 +2,7 @@
 if [[ $UID -eq 0 ]];
 then
   echo "do not run as root!"
-#  exit 1;
+  exit 1;
 fi
 
 #Check Crosscompile
