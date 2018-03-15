@@ -1722,9 +1722,6 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 	int i, r;
 
 	amdgpu_amdkfd_device_fini(adev);
-	/* disable all interrupts */
-	amdgpu_irq_disable_all(adev);
-
 	/* need to disable SMC first */
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.hw)
@@ -2447,6 +2444,8 @@ void amdgpu_device_fini(struct amdgpu_device *adev)
 
 	DRM_INFO("amdgpu: finishing device.\n");
 	adev->shutdown = true;
+	/* disable all interrupts */
+	amdgpu_irq_disable_all(adev);
 	if (adev->mode_info.mode_config_initialized){
 		if (!amdgpu_device_has_dc_support(adev))
 			drm_crtc_force_disable_all(adev->ddev);
