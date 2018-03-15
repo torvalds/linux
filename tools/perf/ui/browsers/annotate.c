@@ -40,7 +40,6 @@ struct annotate_browser {
 	struct rb_root		    entries;
 	struct rb_node		   *curr_hot;
 	struct annotation_line	   *selection;
-	struct annotation_line	  **offsets;
 	struct arch		   *arch;
 	int			    nr_events;
 	u64			    start;
@@ -335,9 +334,9 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	 *  name right after the '<' token and probably treating this like a
 	 *  'call' instruction.
 	 */
-	target = ab->offsets[cursor->ops.target.offset];
+	target = notes->offsets[cursor->ops.target.offset];
 	if (target == NULL) {
-		ui_helpline__printf("WARN: jump target inconsistency, press 'o', ab->offsets[%#x] = NULL\n",
+		ui_helpline__printf("WARN: jump target inconsistency, press 'o', notes->offsets[%#x] = NULL\n",
 				    cursor->ops.target.offset);
 		return;
 	}
@@ -969,25 +968,25 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 }
 
 
-static unsigned count_insn(struct annotate_browser *browser, u64 start, u64 end)
+static unsigned count_insn(struct annotation *notes, u64 start, u64 end)
 {
 	unsigned n_insn = 0;
 	u64 offset;
 
 	for (offset = start; offset <= end; offset++) {
-		if (browser->offsets[offset])
+		if (notes->offsets[offset])
 			n_insn++;
 	}
 	return n_insn;
 }
 
-static void count_and_fill(struct annotate_browser *browser, u64 start, u64 end,
+static void count_and_fill(struct annotation *notes, u64 start, u64 end,
 			   struct cyc_hist *ch)
 {
 	unsigned n_insn;
 	u64 offset;
 
-	n_insn = count_insn(browser, start, end);
+	n_insn = count_insn(notes, start, end);
 	if (n_insn && ch->num && ch->cycles) {
 		float ipc = n_insn / ((double)ch->cycles / (double)ch->num);
 
@@ -996,7 +995,7 @@ static void count_and_fill(struct annotate_browser *browser, u64 start, u64 end,
 			return;
 
 		for (offset = start; offset <= end; offset++) {
-			struct annotation_line *al = browser->offsets[offset];
+			struct annotation_line *al = notes->offsets[offset];
 
 			if (al)
 				al->ipc = ipc;
@@ -1009,11 +1008,9 @@ static void count_and_fill(struct annotate_browser *browser, u64 start, u64 end,
  * annotate, but right now we need the per byte offsets arrays,
  * which are only here.
  */
-static void annotate__compute_ipc(struct annotate_browser *browser, size_t size,
-			   struct symbol *sym)
+static void annotate__compute_ipc(struct annotation *notes, size_t size)
 {
 	u64 offset;
-	struct annotation *notes = symbol__annotation(sym);
 
 	if (!notes->src || !notes->src->cycles_hist)
 		return;
@@ -1027,8 +1024,8 @@ static void annotate__compute_ipc(struct annotate_browser *browser, size_t size,
 			struct annotation_line *al;
 
 			if (ch->have_start)
-				count_and_fill(browser, ch->start, offset, ch);
-			al = browser->offsets[offset];
+				count_and_fill(notes, ch->start, offset, ch);
+			al = notes->offsets[offset];
 			if (al && ch->num_aggr)
 				al->cycles = ch->cycles_aggr / ch->num_aggr;
 			notes->have_cycles = true;
@@ -1043,13 +1040,14 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 	u64 offset;
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
+	struct annotation *notes = symbol__annotation(sym);
 
 	/* PLT symbols contain external offsets */
 	if (strstr(sym->name, "@plt"))
 		return;
 
 	for (offset = 0; offset < size; ++offset) {
-		struct annotation_line *al = browser->offsets[offset];
+		struct annotation_line *al = notes->offsets[offset];
 		struct disasm_line *dl;
 		struct browser_line *blt;
 
@@ -1058,7 +1056,7 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 		if (!disasm_line__is_valid_jump(dl, sym))
 			continue;
 
-		al = browser->offsets[dl->ops.target.offset];
+		al = notes->offsets[dl->ops.target.offset];
 
 		/*
  		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
@@ -1089,7 +1087,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			 struct hist_browser_timer *hbt)
 {
 	struct annotation_line *al;
-	struct annotation *notes;
+	struct annotation *notes = symbol__annotation(sym);
 	size_t size;
 	struct map_symbol ms = {
 		.map = map,
@@ -1116,8 +1114,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	if (map->dso->annotate_warned)
 		return -1;
 
-	browser.offsets = zalloc(size * sizeof(struct annotation_line *));
-	if (browser.offsets == NULL) {
+	notes->offsets = zalloc(size * sizeof(struct annotation_line *));
+	if (notes->offsets == NULL) {
 		ui__error("Not enough memory!");
 		return -1;
 	}
@@ -1137,7 +1135,6 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 
 	ui_helpline__push("Press ESC to exit");
 
-	notes = symbol__annotation(sym);
 	browser.start = map__rip_2objdump(map, sym->start);
 
 	list_for_each_entry(al, &notes->src->source, node) {
@@ -1158,13 +1155,13 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			 * E.g. copy_user_generic_unrolled
  			 */
 			if (al->offset < (s64)size)
-				browser.offsets[al->offset] = al;
+				notes->offsets[al->offset] = al;
 		} else
 			bpos->idx_asm = -1;
 	}
 
 	annotate_browser__mark_jump_targets(&browser, size);
-	annotate__compute_ipc(&browser, size, sym);
+	annotate__compute_ipc(notes, size);
 
 	browser.addr_width = browser.target_width = browser.min_addr_width = hex_width(size);
 	browser.max_addr_width = hex_width(sym->end);
@@ -1184,7 +1181,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	annotated_source__purge(notes->src);
 
 out_free_offsets:
-	free(browser.offsets);
+	zfree(&notes->offsets);
 	return ret;
 }
 
