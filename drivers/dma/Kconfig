@@ -633,6 +633,8 @@ config ZX_DMA
 # driver files
 source "drivers/dma/bestcomm/Kconfig"
 
+source "drivers/dma/mediatek/Kconfig"
+
 source "drivers/dma/qcom/Kconfig"
 
 source "drivers/dma/dw/Kconfig"
