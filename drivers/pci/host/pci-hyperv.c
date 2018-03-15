@@ -1842,10 +1842,7 @@ static void hv_eject_device_work(struct work_struct *work)
 
 	hpdev = container_of(work, struct hv_pci_dev, wrk);
 
-	if (hpdev->state != hv_pcichild_ejecting) {
-		put_pcichild(hpdev, hv_pcidev_ref_pnp);
-		return;
-	}
+	WARN_ON(hpdev->state != hv_pcichild_ejecting);
 
 	/*
 	 * Ejection can come before or after the PCI bus has been set up, so
