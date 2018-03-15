@@ -433,11 +433,6 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.dce_environment = DCE_ENV_PRODUCTION_DRV;
 
-	if (amdgpu_dc_log)
-		init_data.log_mask = DC_DEFAULT_LOG_MASK;
-	else
-		init_data.log_mask = DC_MIN_LOG_MASK;
-
 	/*
 	 * TODO debug why this doesn't work on Raven
 	 */

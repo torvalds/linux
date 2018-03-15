@@ -41,8 +41,9 @@
 
 #define CTX \
 	clk_src->base.ctx
-#define DC_LOGGER \
-	calc_pll_cs->ctx->logger
+
+#define DC_LOGGER_INIT()
+
 #undef FN
 #define FN(reg_name, field_name) \
 	clk_src->cs_shift->field_name, clk_src->cs_mask->field_name
@@ -467,7 +468,7 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 {
 	uint32_t field = 0;
 	uint32_t pll_calc_error = MAX_PLL_CALC_ERROR;
-	struct calc_pll_clock_source *calc_pll_cs = &clk_src->calc_pll;
+	DC_LOGGER_INIT();
 	/* Check if reference clock is external (not pcie/xtalin)
 	* HW Dce80 spec:
 	* 00 - PCIE_REFCLK, 01 - XTALIN,    02 - GENERICA,    03 - GENERICB
@@ -557,8 +558,8 @@ static uint32_t dce110_get_pix_clk_dividers(
 		struct pll_settings *pll_settings)
 {
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(cs);
-	struct calc_pll_clock_source *calc_pll_cs = &clk_src->calc_pll;
 	uint32_t pll_calc_error = MAX_PLL_CALC_ERROR;
+	DC_LOGGER_INIT();
 
 	if (pix_clk_params == NULL || pll_settings == NULL
 			|| pix_clk_params->requested_pix_clk == 0) {
@@ -1054,7 +1055,7 @@ static void get_ss_info_from_atombios(
 	struct spread_spectrum_info *ss_info_cur;
 	struct spread_spectrum_data *ss_data_cur;
 	uint32_t i;
-	struct calc_pll_clock_source *calc_pll_cs = &clk_src->calc_pll;
+	DC_LOGGER_INIT();
 	if (ss_entries_num == NULL) {
 		DC_LOG_SYNC(
 			"Invalid entry !!!\n");
