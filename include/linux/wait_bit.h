@@ -10,7 +10,6 @@
 struct wait_bit_key {
 	void			*flags;
 	int			bit_nr;
-#define WAIT_ATOMIC_T_BIT_NR	-1
 	unsigned long		timeout;
 };
 
@@ -22,21 +21,15 @@ struct wait_bit_queue_entry {
 #define __WAIT_BIT_KEY_INITIALIZER(word, bit)					\
 	{ .flags = word, .bit_nr = bit, }
 
-#define __WAIT_ATOMIC_T_KEY_INITIALIZER(p)					\
-	{ .flags = p, .bit_nr = WAIT_ATOMIC_T_BIT_NR, }
-
 typedef int wait_bit_action_f(struct wait_bit_key *key, int mode);
-typedef int wait_atomic_t_action_f(atomic_t *counter, unsigned int mode);
 
 void __wake_up_bit(struct wait_queue_head *wq_head, void *word, int bit);
 int __wait_on_bit(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry, wait_bit_action_f *action, unsigned int mode);
 int __wait_on_bit_lock(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry, wait_bit_action_f *action, unsigned int mode);
 void wake_up_bit(void *word, int bit);
-void wake_up_atomic_t(atomic_t *p);
 int out_of_line_wait_on_bit(void *word, int, wait_bit_action_f *action, unsigned int mode);
 int out_of_line_wait_on_bit_timeout(void *word, int, wait_bit_action_f *action, unsigned int mode, unsigned long timeout);
 int out_of_line_wait_on_bit_lock(void *word, int, wait_bit_action_f *action, unsigned int mode);
-int out_of_line_wait_on_atomic_t(atomic_t *p, wait_atomic_t_action_f action, unsigned int mode);
 struct wait_queue_head *bit_waitqueue(void *word, int bit);
 extern void __init wait_bit_init(void);
 
@@ -57,7 +50,6 @@ extern int bit_wait(struct wait_bit_key *key, int mode);
 extern int bit_wait_io(struct wait_bit_key *key, int mode);
 extern int bit_wait_timeout(struct wait_bit_key *key, int mode);
 extern int bit_wait_io_timeout(struct wait_bit_key *key, int mode);
-extern int atomic_t_wait(atomic_t *counter, unsigned int mode);
 
 /**
  * wait_on_bit - wait for a bit to be cleared
@@ -241,25 +233,6 @@ wait_on_bit_lock_action(unsigned long *word, int bit, wait_bit_action_f *action,
 	if (!test_and_set_bit(bit, word))
 		return 0;
 	return out_of_line_wait_on_bit_lock(word, bit, action, mode);
-}
-
-/**
- * wait_on_atomic_t - Wait for an atomic_t to become 0
- * @val: The atomic value being waited on, a kernel virtual address
- * @action: the function used to sleep, which may take special actions
- * @mode: the task state to sleep in
- *
- * Wait for an atomic_t to become 0.  We abuse the bit-wait waitqueue table for
- * the purpose of getting a waitqueue, but we set the key to a bit number
- * outside of the target 'word'.
- */
-static inline
-int wait_on_atomic_t(atomic_t *val, wait_atomic_t_action_f action, unsigned mode)
-{
-	might_sleep();
-	if (atomic_read(val) == 0)
-		return 0;
-	return out_of_line_wait_on_atomic_t(val, action, mode);
 }
 
 extern void init_wait_var_entry(struct wait_bit_queue_entry *wbq_entry, void *var, int flags);
