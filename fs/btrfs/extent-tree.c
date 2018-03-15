@@ -6770,9 +6770,9 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
-			       struct btrfs_fs_info *fs_info)
+int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_block_group_cache *block_group, *tmp;
 	struct list_head *deleted_bgs;
 	struct extent_io_tree *unpin;

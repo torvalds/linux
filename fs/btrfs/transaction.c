@@ -2268,7 +2268,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (ret)
 		goto scrub_continue;
 
-	btrfs_finish_extent_commit(trans, fs_info);
+	btrfs_finish_extent_commit(trans);
 
 	if (test_bit(BTRFS_TRANS_HAVE_FREE_BGS, &cur_trans->flags))
 		btrfs_clear_space_info_full(fs_info);
