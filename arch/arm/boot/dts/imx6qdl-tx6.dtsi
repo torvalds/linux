@@ -61,8 +61,8 @@
 		sdhc1 = &usdhc2;
 	};
 
-	memory {
-		reg = <0 0>; /* will be filled by U-Boot */
+	memory@10000000 {
+		reg = <0x10000000 0>; /* will be filled by U-Boot */
 	};
 
 	clocks {

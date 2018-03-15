@@ -16,7 +16,7 @@
 	model = "MSR M28CU3";
 	compatible = "msr,m28cu3", "fsl,imx28";
 
-	memory {
+	memory@40000000 {
 		reg = <0x40000000 0x08000000>;
 	};
 

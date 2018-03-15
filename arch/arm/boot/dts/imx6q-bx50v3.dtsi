@@ -353,6 +353,14 @@
 	};
 };
 
+&pmu {
+	secure-reg-access;
+};
+
+&usdhc2 {
+	status = "disabled";
+};
+
 &usdhc4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc4>;

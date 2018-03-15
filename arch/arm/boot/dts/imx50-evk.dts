@@ -18,7 +18,7 @@
 	model = "Freescale i.MX50 Evaluation Kit";
 	compatible = "fsl,imx50-evk", "fsl,imx50";
 
-	memory {
+	memory@70000000 {
 		reg = <0x70000000 0x80000000>;
 	};
 };

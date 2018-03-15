@@ -54,7 +54,7 @@
 		stdout-path = "&uart2";
 	};
 
-	memory {
+	memory@8c000000 {
 		reg = <0x8c000000 0x3000000>;
 	};
 };
