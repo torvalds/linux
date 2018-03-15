@@ -116,10 +116,12 @@ function prepare_SD {
 	CRYPTODEV="cryptodev/cryptodev-linux/cryptodev.ko"
 	mkdir -p "${INSTALL_MOD_PATH}/etc/modules-load.d"
 
+	LOCALVERSION=$(cat .config |grep ^CONFIG_LOCALVERSION|cut -d"\"" -f2)
+	EXTRA_MODUL_PATH="${INSTALL_MOD_PATH}/lib/modules/${kernver}${LOCALVERSION}/kernel/extras"
 	if [ -e "${CRYPTODEV}" ]; then
 		echo Copy CryptoDev
-		mkdir -p "${INSTALL_MOD_PATH}/lib/modules/${kernver}/kernel/extras"
-		cp "${CRYPTODEV}" "${INSTALL_MOD_PATH}/lib/modules/${kernver}/kernel/extras"
+		mkdir -p "${EXTRA_MODUL_PATH}"
+		cp "${CRYPTODEV}" "${EXTRA_MODUL_PATH}"
 		#Load Cryptodev on BOOT
 		echo  "cryptodev" >${INSTALL_MOD_PATH}/etc/modules-load.d/cryptodev.conf
 	else
