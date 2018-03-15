@@ -157,10 +157,11 @@ void dcn10_log_hw_state(struct dc *dc)
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
-		DTN_INFO("[%2d]:  %2xh  %2xh  %6xh  %4d  %10d  %7d  %12d  %4d\n",
-			i, s.opp_id, s.dpp_id, s.bot_mpcc_id,
-			s.mode, s.alpha_mode, s.pre_multiplied_alpha, s.overlap_only,
-			s.idle);
+		if (s.opp_id != 0xf)
+			DTN_INFO("[%2d]:  %2xh  %2xh  %6xh  %4d  %10d  %7d  %12d  %4d\n",
+				i, s.opp_id, s.dpp_id, s.bot_mpcc_id,
+				s.mode, s.alpha_mode, s.pre_multiplied_alpha, s.overlap_only,
+				s.idle);
 	}
 	DTN_INFO("\n");
 
