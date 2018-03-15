@@ -146,13 +146,16 @@ Required properties:
    * allwinner,sun8i-a83t-tcon-lcd
    * allwinner,sun8i-a83t-tcon-tv
    * allwinner,sun8i-v3s-tcon
+   * allwinner,sun9i-a80-tcon-lcd
+   * allwinner,sun9i-a80-tcon-tv
  - reg: base address and size of memory-mapped region
  - interrupts: interrupt associated to this IP
  - clocks: phandles to the clocks feeding the TCON.
    - 'ahb': the interface clocks
-   - 'tcon-ch0': The clock driving the TCON channel 0, except for A83T TV TCON
+   - 'tcon-ch0': The clock driving the TCON channel 0, if supported
  - resets: phandles to the reset controllers driving the encoder
-   - "lcd": the reset line for the TCON channel 0
+   - "lcd": the reset line for the TCON
+   - "edp": the reset line for the eDP block (A80 only)
 
  - clock-names: the clock names mentioned above
  - reset-names: the reset names mentioned above
@@ -171,7 +174,9 @@ Required properties:
   channel the endpoint is associated to. If that property is not
   present, the endpoint number will be used as the channel number.
 
-On SoCs other than the A33 and V3s, there is one more clock required:
+For TCONs with channel 0, there is one more clock required:
+   - 'tcon-ch0': The clock driving the TCON channel 0
+For TCONs with channel 1, there is one more clock required:
    - 'tcon-ch1': The clock driving the TCON channel 1
 
 When TCON support LVDS (all TCONs except TV TCON on A83T and those found
