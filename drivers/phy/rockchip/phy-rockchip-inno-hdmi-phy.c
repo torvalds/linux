@@ -12,19 +12,21 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/of.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/rockchip/cpu.h>
-#include <linux/phy/phy.h>
+#include <linux/slab.h>
 
 #define INNO_HDMI_PHY_TIMEOUT_LOOP_COUNT	1000
 
@@ -165,6 +167,9 @@ struct inno_hdmi_phy {
 	/* platform data */
 	struct inno_hdmi_phy_drv_data *plat_data;
 
+	/* efuse flag */
+	bool efuse_flag;
+
 	/* clk provider */
 	struct clk_hw hw;
 	struct clk *pclk;
@@ -251,6 +256,7 @@ static const struct pre_pll_config pre_pll_cfg_table[] = {
 static const struct post_pll_config post_pll_cfg_table[] = {
 	{33750000,  1, 40, 8, 1},
 	{33750000,  1, 80, 8, 2},
+	{33750000,  1, 10, 2, 4},
 	{74250000,  1, 40, 8, 1},
 	{74250000, 18, 80, 8, 2},
 	{148500000, 2, 40, 4, 3},
@@ -380,6 +386,9 @@ static int inno_hdmi_phy_power_on(struct phy *phy)
 	if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3328 &&
 	    rockchip_get_cpu_version())
 		chipversion = 2;
+	else if (inno->plat_data->dev_type == INNO_HDMI_PHY_RK3228 &&
+		 tmdsclock <= 33750000 && inno->efuse_flag)
+		chipversion = 4;
 
 	for (; cfg->tmdsclock != ~0UL; cfg++)
 		if (tmdsclock <= cfg->tmdsclock &&
@@ -661,6 +670,9 @@ static void inno_hdmi_phy_rk3228_power_off(struct inno_hdmi_phy *inno)
 static void inno_hdmi_phy_rk3228_init(struct inno_hdmi_phy *inno)
 {
 	u32 m, v;
+	struct nvmem_cell *cell;
+	unsigned char *efuse_buf;
+	size_t len;
 
 	/*
 	 * Use phy internal register control
@@ -685,6 +697,18 @@ static void inno_hdmi_phy_rk3228_init(struct inno_hdmi_phy *inno)
 		inno_update_bits(inno, 0xaa,
 				 POST_PLL_CTRL_MASK, POST_PLL_CTRL_MANUAL);
 	}
+
+	cell = nvmem_cell_get(inno->dev, "hdmi_phy_flag");
+	if (IS_ERR(cell)) {
+		dev_err(inno->dev,
+			"failed to get id cell: %ld\n", PTR_ERR(cell));
+		return;
+	}
+	efuse_buf = nvmem_cell_read(cell, &len);
+	nvmem_cell_put(cell);
+	if (len == 1)
+		inno->efuse_flag = (efuse_buf[0] & BIT(1)) ? true : false;
+	kfree(efuse_buf);
 }
 
 static int
