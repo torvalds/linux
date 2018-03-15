@@ -32,6 +32,7 @@
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
+#include "amdgpu_amdkfd.h"
 
 /*
  * GPUVM
@@ -2574,6 +2575,8 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	struct amdgpu_bo *root;
 	u64 fault;
 	int i, r;
+
+	amdgpu_amdkfd_gpuvm_destroy_cb(adev, vm);
 
 	/* Clear pending page faults from IH when the VM is destroyed */
 	while (kfifo_get(&vm->faults, &fault))

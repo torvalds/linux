@@ -145,6 +145,12 @@ uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd);
 int amdgpu_amdkfd_gpuvm_create_process_vm(struct kgd_dev *kgd, void **vm,
 					  void **process_info,
 					  struct dma_fence **ef);
+int amdgpu_amdkfd_gpuvm_acquire_process_vm(struct kgd_dev *kgd,
+					   struct file *filp,
+					   void **vm, void **process_info,
+					   struct dma_fence **ef);
+void amdgpu_amdkfd_gpuvm_destroy_cb(struct amdgpu_device *adev,
+				    struct amdgpu_vm *vm);
 void amdgpu_amdkfd_gpuvm_destroy_process_vm(struct kgd_dev *kgd, void *vm);
 uint32_t amdgpu_amdkfd_gpuvm_get_process_page_dir(void *vm);
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
