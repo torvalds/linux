@@ -232,6 +232,19 @@
 	cpu-supply = <&vdd_arm>;
 };
 
+&cpu0_opp_table {
+	/*
+	 * The irdrop of evb is 25000uV, so the delta irdrop between
+	 * evb and client board will be added to opp-tabe.
+	 */
+	rockchip,board-irdrop = <
+		/*MHz	MHz	uV */
+		0	815	37500
+		816	1119	50000
+		1200	1512	75000
+	>;
+};
+
 &dsi_in_vopl {
 	status = "disabled";
 };

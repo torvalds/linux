@@ -10,12 +10,12 @@
 	assigned-clocks =
 		<&cru PLL_NPLL>, <&cru ARMCLK>;
 	assigned-clock-rates =
-		<1100000000>, <816000000>;
+		<1040000000>, <816000000>;
 };
 
 &gpu_opp_table {
-	opp-550000000 {
-		opp-hz = /bits/ 64 <550000000>;
+	opp-520000000 {
+		opp-hz = /bits/ 64 <520000000>;
 		opp-microvolt = <1150000>;
 	};
 };

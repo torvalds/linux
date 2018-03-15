@@ -80,10 +80,9 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		rockchip,leakage-scaling-sel = <
-			0   254   13
-		>;
 		clocks = <&cru PLL_APLL>;
+		rockchip,max-volt = <1350000>;
+		rockchip,evb-irdrop = <25000>;
 		nvmem-cells = <&cpu_leakage>;
 		nvmem-cell-names = "cpu_leakage";
 
@@ -100,17 +99,22 @@
 		};
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <1075000>;
+			opp-microvolt = <1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <1200000>;
+			opp-microvolt = <1125000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <1350000>;
+			opp-microvolt = <1275000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1248000000 {
+			opp-hz = /bits/ 64 <1248000000>;
+			opp-microvolt = <1300000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1296000000 {
@@ -1089,6 +1093,9 @@
 	gpu_opp_table: gpu-opp-table {
 		compatible = "operating-points-v2";
 
+		rockchip,max-volt = <1150000>;
+		rockchip,evb-irdrop = <25000>;
+
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
 			opp-microvolt = <1000000>;
@@ -1099,11 +1106,11 @@
 		};
 		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <1000000>;
+			opp-microvolt = <1025000>;
 		};
-		opp-500000000 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <1075000>;
+		opp-480000000 {
+			opp-hz = /bits/ 64 <480000000>;
+			opp-microvolt = <1100000>;
 		};
 	};
 
@@ -1483,12 +1490,11 @@
 		downdifferential = <20>;
 		system-status-freq = <
 			/*system status         freq(KHz)*/
-			SYS_STATUS_NORMAL       786000
-			SYS_STATUS_REBOOT       786000
-			SYS_STATUS_SUSPEND      786000
-			SYS_STATUS_VIDEO_1080P  786000
-			SYS_STATUS_PERFORMANCE  786000
-			SYS_STATUS_BOOST        786000
+			SYS_STATUS_NORMAL       328000
+			SYS_STATUS_REBOOT       328000
+			SYS_STATUS_SUSPEND      194000
+			SYS_STATUS_VIDEO_1080P  328000
+			SYS_STATUS_PERFORMANCE  666000
 		>;
 		auto-min-freq = <400000>;
 		auto-freq-en = <0>;
@@ -1507,29 +1513,33 @@
 	dmc_opp_table: dmc-opp-table {
 		compatible = "operating-points-v2";
 
-		opp-400000000 {
-			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <925000>;
-			opp-microvolt-L0 = <925000>;
-			opp-microvolt-L1 = <900000>;
+		rockchip,max-volt = <1150000>;
+		rockchip,evb-irdrop = <25000>;
+
+		opp-194000000 {
+			opp-hz = /bits/ 64 <194000000>;
+			opp-microvolt = <950000>;
 		};
-		opp-600000000 {
-			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <1025000>;
-			opp-microvolt-L0 = <1025000>;
-			opp-microvolt-L1 = <1000000>;
+		opp-328000000 {
+			opp-hz = /bits/ 64 <328000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-450000000 {
+			opp-hz = /bits/ 64 <450000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
+			opp-microvolt = <950000>;
+		};
+		opp-666000000 {
+			opp-hz = /bits/ 64 <666000000>;
+			opp-microvolt = <975000>;
 		};
 		opp-786000000 {
 			opp-hz = /bits/ 64 <786000000>;
-			opp-microvolt = <1075000>;
-			opp-microvolt-L0 = <1075000>;
-			opp-microvolt-L1 = <1050000>;
-		};
-		opp-800000000 {
-			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <1075000>;
-			opp-microvolt-L0 = <1075000>;
-			opp-microvolt-L1 = <1050000>;
+			opp-microvolt = <1025000>;
+			status = "disabled";
 		};
 	};
 
