@@ -626,7 +626,8 @@ static void tcf_csum_cleanup(struct tc_action *a)
 	struct tcf_csum_params *params;
 
 	params = rcu_dereference_protected(p->params, 1);
-	kfree_rcu(params, rcu);
+	if (params)
+		kfree_rcu(params, rcu);
 }
 
 static int tcf_csum_walker(struct net *net, struct sk_buff *skb,
