@@ -178,6 +178,13 @@ struct annotation {
 	int			nr_entries;
 	int			nr_asm_entries;
 	u16			max_line_len;
+	struct {
+		u8		addr;
+		u8		jumps;
+		u8		target;
+		u8		min_addr;
+		u8		max_addr;
+	} widths;
 	bool			have_cycles;
 	struct annotated_source *src;
 };
