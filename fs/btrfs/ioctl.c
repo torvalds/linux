@@ -723,7 +723,7 @@ fail:
 	btrfs_subvolume_release_metadata(fs_info, &pending_snapshot->block_rsv);
 dec_and_free:
 	if (atomic_dec_and_test(&root->will_be_snapshotted))
-		wake_up_atomic_t(&root->will_be_snapshotted);
+		wake_up_var(&root->will_be_snapshotted);
 free_pending:
 	kfree(pending_snapshot->root_item);
 	btrfs_free_path(pending_snapshot->path);
