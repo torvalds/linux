@@ -84,6 +84,7 @@
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 13, 0))
 #include <linux/pm_opp.h>
+#include <soc/rockchip/rockchip_opp_select.h>
 #else
 #include <linux/opp.h>
 #endif
@@ -3059,6 +3060,7 @@ static int power_control_init(struct platform_device *pdev)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) \
 	|| defined(LSK_OPPV2_BACKPORT)
 	err = dev_pm_opp_of_add_table(kbdev->dev);
+	rockchip_adjust_opp_by_irdrop(kbdev->dev);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0))
 	err = of_init_opp_table(kbdev->dev);
 #else

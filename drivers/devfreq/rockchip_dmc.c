@@ -2761,6 +2761,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		dev_err(dev, "Invalid operating-points in device tree.\n");
 		return -EINVAL;
 	}
+	rockchip_adjust_opp_by_irdrop(dev);
 
 	if (rockchip_dmcfreq_init_freq_table(dev, devp))
 		return -EFAULT;
