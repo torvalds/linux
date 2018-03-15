@@ -118,7 +118,7 @@ int tipc_net_start(struct net *net, u32 addr)
 	tipc_sk_reinit(net);
 
 	tipc_nametbl_publish(net, TIPC_CFG_SRV, tn->own_addr, tn->own_addr,
-			     TIPC_ZONE_SCOPE, 0, tn->own_addr);
+			     TIPC_CLUSTER_SCOPE, 0, tn->own_addr);
 
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, network identity %u\n",

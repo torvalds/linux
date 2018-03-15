@@ -60,6 +60,16 @@ static inline u32 tipc_cluster_mask(u32 addr)
 	return addr & TIPC_ZONE_CLUSTER_MASK;
 }
 
+static inline int tipc_node2scope(u32 node)
+{
+	return node ? TIPC_NODE_SCOPE : TIPC_CLUSTER_SCOPE;
+}
+
+static inline int tipc_scope2node(struct net *net, int sc)
+{
+	return sc != TIPC_NODE_SCOPE ? 0 : tipc_own_addr(net);
+}
+
 u32 tipc_own_addr(struct net *net);
 int in_own_cluster(struct net *net, u32 addr);
 int in_own_cluster_exact(struct net *net, u32 addr);

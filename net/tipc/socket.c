@@ -644,7 +644,7 @@ static int tipc_bind(struct socket *sock, struct sockaddr *uaddr,
 		goto exit;
 	}
 
-	res = (addr->scope > 0) ?
+	res = (addr->scope >= 0) ?
 		tipc_sk_publish(tsk, addr->scope, &addr->addr.nameseq) :
 		tipc_sk_withdraw(tsk, -addr->scope, &addr->addr.nameseq);
 exit:
@@ -1280,8 +1280,8 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct tipc_name_seq *seq;
 	struct sk_buff_head pkts;
-	u32 type, inst, domain;
 	u32 dnode, dport;
+	u32 type, inst;
 	int mtu, rc;
 
 	if (unlikely(dlen > TIPC_MAX_USER_MSG_SIZE))
@@ -1332,13 +1332,12 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	if (dest->addrtype == TIPC_ADDR_NAME) {
 		type = dest->addr.name.name.type;
 		inst = dest->addr.name.name.instance;
-		domain = dest->addr.name.domain;
-		dnode = domain;
+		dnode = dest->addr.name.domain;
 		msg_set_type(hdr, TIPC_NAMED_MSG);
 		msg_set_hdr_sz(hdr, NAMED_H_SIZE);
 		msg_set_nametype(hdr, type);
 		msg_set_nameinst(hdr, inst);
-		msg_set_lookup_scope(hdr, tipc_addr_scope(domain));
+		msg_set_lookup_scope(hdr, tipc_node2scope(dnode));
 		dport = tipc_nametbl_translate(net, type, inst, &dnode);
 		msg_set_destnode(hdr, dnode);
 		msg_set_destport(hdr, dport);
@@ -2592,6 +2591,9 @@ static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 	struct publication *publ;
 	u32 key;
 
+	if (scope != TIPC_NODE_SCOPE)
+		scope = TIPC_CLUSTER_SCOPE;
+
 	if (tipc_sk_connected(sk))
 		return -EINVAL;
 	key = tsk->portid + tsk->pub_count + 1;
@@ -2616,6 +2618,9 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 	struct publication *publ;
 	struct publication *safe;
 	int rc = -EINVAL;
+
+	if (scope != TIPC_NODE_SCOPE)
+		scope = TIPC_CLUSTER_SCOPE;
 
 	list_for_each_entry_safe(publ, safe, &tsk->publications, pport_list) {
 		if (seq) {

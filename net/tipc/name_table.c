@@ -473,8 +473,7 @@ struct publication *tipc_nametbl_insert_publ(struct net *net, u32 type,
 	struct name_seq *seq = nametbl_find_seq(net, type);
 	int index = hash(type);
 
-	if ((scope < TIPC_ZONE_SCOPE) || (scope > TIPC_NODE_SCOPE) ||
-	    (lower > upper)) {
+	if (scope > TIPC_NODE_SCOPE || lower > upper) {
 		pr_debug("Failed to publish illegal {%u,%u,%u} with scope %u\n",
 			 type, lower, upper, scope);
 		return NULL;

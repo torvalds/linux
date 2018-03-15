@@ -61,50 +61,6 @@ struct tipc_name_seq {
 	__u32 upper;
 };
 
-/* TIPC Address Size, Offset, Mask specification for Z.C.N
- */
-#define TIPC_NODE_BITS          12
-#define TIPC_CLUSTER_BITS       12
-#define TIPC_ZONE_BITS          8
-
-#define TIPC_NODE_OFFSET        0
-#define TIPC_CLUSTER_OFFSET     TIPC_NODE_BITS
-#define TIPC_ZONE_OFFSET        (TIPC_CLUSTER_OFFSET + TIPC_CLUSTER_BITS)
-
-#define TIPC_NODE_SIZE          ((1UL << TIPC_NODE_BITS) - 1)
-#define TIPC_CLUSTER_SIZE       ((1UL << TIPC_CLUSTER_BITS) - 1)
-#define TIPC_ZONE_SIZE          ((1UL << TIPC_ZONE_BITS) - 1)
-
-#define TIPC_NODE_MASK		(TIPC_NODE_SIZE << TIPC_NODE_OFFSET)
-#define TIPC_CLUSTER_MASK	(TIPC_CLUSTER_SIZE << TIPC_CLUSTER_OFFSET)
-#define TIPC_ZONE_MASK		(TIPC_ZONE_SIZE << TIPC_ZONE_OFFSET)
-
-#define TIPC_ZONE_CLUSTER_MASK (TIPC_ZONE_MASK | TIPC_CLUSTER_MASK)
-
-static inline __u32 tipc_addr(unsigned int zone,
-			      unsigned int cluster,
-			      unsigned int node)
-{
-	return (zone << TIPC_ZONE_OFFSET) |
-		(cluster << TIPC_CLUSTER_OFFSET) |
-		node;
-}
-
-static inline unsigned int tipc_zone(__u32 addr)
-{
-	return addr >> TIPC_ZONE_OFFSET;
-}
-
-static inline unsigned int tipc_cluster(__u32 addr)
-{
-	return (addr & TIPC_CLUSTER_MASK) >> TIPC_CLUSTER_OFFSET;
-}
-
-static inline unsigned int tipc_node(__u32 addr)
-{
-	return addr & TIPC_NODE_MASK;
-}
-
 /*
  * Application-accessible port name types
  */
@@ -117,9 +73,10 @@ static inline unsigned int tipc_node(__u32 addr)
 /*
  * Publication scopes when binding port names and port name sequences
  */
-#define TIPC_ZONE_SCOPE         1
-#define TIPC_CLUSTER_SCOPE      2
-#define TIPC_NODE_SCOPE         3
+enum tipc_scope {
+	TIPC_CLUSTER_SCOPE = 2, /* 0 can also be used */
+	TIPC_NODE_SCOPE    = 3
+};
 
 /*
  * Limiting values for messages
@@ -243,7 +200,7 @@ struct sockaddr_tipc {
 struct tipc_group_req {
 	__u32 type;      /* group id */
 	__u32 instance;  /* member id */
-	__u32 scope;     /* zone/cluster/node */
+	__u32 scope;     /* cluster/node */
 	__u32 flags;
 };
 
@@ -268,4 +225,53 @@ struct tipc_sioc_ln_req {
 	__u32 bearer_id;
 	char linkname[TIPC_MAX_LINK_NAME];
 };
+
+
+/* The macros and functions below are deprecated:
+ */
+
+#define TIPC_ZONE_SCOPE         1
+
+#define TIPC_NODE_BITS          12
+#define TIPC_CLUSTER_BITS       12
+#define TIPC_ZONE_BITS          8
+
+#define TIPC_NODE_OFFSET        0
+#define TIPC_CLUSTER_OFFSET     TIPC_NODE_BITS
+#define TIPC_ZONE_OFFSET        (TIPC_CLUSTER_OFFSET + TIPC_CLUSTER_BITS)
+
+#define TIPC_NODE_SIZE          ((1UL << TIPC_NODE_BITS) - 1)
+#define TIPC_CLUSTER_SIZE       ((1UL << TIPC_CLUSTER_BITS) - 1)
+#define TIPC_ZONE_SIZE          ((1UL << TIPC_ZONE_BITS) - 1)
+
+#define TIPC_NODE_MASK		(TIPC_NODE_SIZE << TIPC_NODE_OFFSET)
+#define TIPC_CLUSTER_MASK	(TIPC_CLUSTER_SIZE << TIPC_CLUSTER_OFFSET)
+#define TIPC_ZONE_MASK		(TIPC_ZONE_SIZE << TIPC_ZONE_OFFSET)
+
+#define TIPC_ZONE_CLUSTER_MASK (TIPC_ZONE_MASK | TIPC_CLUSTER_MASK)
+
+static inline __u32 tipc_addr(unsigned int zone,
+			      unsigned int cluster,
+			      unsigned int node)
+{
+	return (zone << TIPC_ZONE_OFFSET) |
+		(cluster << TIPC_CLUSTER_OFFSET) |
+		node;
+}
+
+static inline unsigned int tipc_zone(__u32 addr)
+{
+	return addr >> TIPC_ZONE_OFFSET;
+}
+
+static inline unsigned int tipc_cluster(__u32 addr)
+{
+	return (addr & TIPC_CLUSTER_MASK) >> TIPC_CLUSTER_OFFSET;
+}
+
+static inline unsigned int tipc_node(__u32 addr)
+{
+	return addr & TIPC_NODE_MASK;
+}
+
 #endif
