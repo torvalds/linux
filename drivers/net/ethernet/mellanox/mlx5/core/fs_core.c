@@ -1647,7 +1647,6 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 
 	list_for_each_entry(iter, match_head, list) {
 		nested_down_read_ref_node(&iter->g->node, FS_LOCK_PARENT);
-		ida_pre_get(&iter->g->fte_allocator, GFP_KERNEL);
 	}
 
 search_again_locked:
