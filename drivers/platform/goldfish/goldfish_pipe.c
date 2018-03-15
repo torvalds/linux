@@ -35,8 +35,10 @@
 #define PIPE_REG_ADDRESS		0x10  /* write: physical address */
 #define PIPE_REG_ADDRESS_HIGH	        0x34  /* write: physical address */
 #define PIPE_REG_WAKES			0x14  /* read: wake flags */
-#define PIPE_REG_PARAMS_ADDR_LOW	0x18  /* read/write: batch data address */
-#define PIPE_REG_PARAMS_ADDR_HIGH	0x1c  /* read/write: batch data address */
+#define PIPE_REG_PARAMS_ADDR_LOW	0x18  /* read/write: batch data address
+					       */
+#define PIPE_REG_PARAMS_ADDR_HIGH	0x1c  /* read/write: batch data address
+					       */
 #define PIPE_REG_ACCESS_PARAMS		0x20  /* write: batch access */
 #define PIPE_REG_VERSION		0x24  /* read: device version */
 
@@ -53,10 +55,12 @@
 /* The following commands are related to write operations */
 #define CMD_WRITE_BUFFER	4  /* send a user buffer to the emulator */
 #define CMD_WAKE_ON_WRITE	5  /* tell the emulator to wake us when writing
-				     is possible */
+				    * is possible
+				    */
 #define CMD_READ_BUFFER        6  /* receive a user buffer from the emulator */
 #define CMD_WAKE_ON_READ       7  /* tell the emulator to wake us when reading
-				   * is possible */
+				   * is possible
+				   */
 
 /* Possible status values used to signal errors -
  * see goldfish_pipe_error_convert
@@ -589,5 +593,5 @@ int goldfish_pipe_device_init_v1(struct platform_device *pdev)
 
 void goldfish_pipe_device_deinit_v1(struct platform_device *pdev)
 {
-    misc_deregister(&goldfish_pipe_dev);
+	misc_deregister(&goldfish_pipe_dev);
 }

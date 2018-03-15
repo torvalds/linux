@@ -186,7 +186,6 @@ struct goldfish_pipe {
 	 */
 	unsigned long flags;
 
-	/* doubly linked list of signalled pipes, protected by goldfish_pipe_dev::lock */
 	/* wake flags host have signalled,
 	 * protected by goldfish_pipe_dev::lock
 	 */
@@ -195,6 +194,9 @@ struct goldfish_pipe {
 	/* A pointer to command buffer */
 	struct goldfish_pipe_command *command_buffer;
 
+	/* doubly linked list of signalled pipes,
+	 * protected by goldfish_pipe_dev::lock
+	 */
 	struct goldfish_pipe *prev_signalled;
 	struct goldfish_pipe *next_signalled;
 
@@ -216,7 +218,8 @@ struct goldfish_pipe_dev pipe_dev[1] = {};
 static int goldfish_cmd_locked(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
 {
 	pipe->command_buffer->cmd = cmd;
-	pipe->command_buffer->status = PIPE_ERROR_INVAL;	/* failure by default */
+	/* failure by default */
+	pipe->command_buffer->status = PIPE_ERROR_INVAL;
 	writel(pipe->id, pipe->dev->base + PIPE_REG_CMD);
 	return pipe->command_buffer->status;
 }
@@ -488,9 +491,8 @@ static unsigned int goldfish_pipe_poll(struct file *filp, poll_table *wait)
 	poll_wait(filp, &pipe->wake_queue, wait);
 
 	status = goldfish_cmd(pipe, PIPE_CMD_POLL);
-	if (status < 0) {
+	if (status < 0)
 		return -ERESTARTSYS;
-	}
 
 	if (status & PIPE_POLL_IN)
 		mask |= POLLIN | POLLRDNORM;
@@ -715,8 +717,9 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 			(u64)(unsigned long)__pa(pipe->command_buffer);
 	status = goldfish_cmd_locked(pipe, PIPE_CMD_OPEN);
 	spin_unlock_irqrestore(&dev->lock, flags);
-	if (status < 0)
+	if (status < 0) {
 		goto err_cmd;
+	}
 	/* All is done, save the pipe into the file's private data field */
 	file->private_data = pipe;
 	return 0;
@@ -786,7 +789,8 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 
 	dev->first_signalled_pipe = NULL;
 	dev->pipes_capacity = INITIAL_PIPES_CAPACITY;
-	dev->pipes = kcalloc(dev->pipes_capacity, sizeof(*dev->pipes), GFP_KERNEL);
+	dev->pipes = kcalloc(dev->pipes_capacity, sizeof(*dev->pipes),
+		GFP_KERNEL);
 	if (!dev->pipes)
 		return -ENOMEM;
 
@@ -807,13 +811,19 @@ static int goldfish_pipe_device_init_v2(struct platform_device *pdev)
 	/* Send the buffer addresses to the host */
 	{
 		u64 paddr = __pa(&dev->buffers->signalled_pipe_buffers);
-		writel((u32)(unsigned long)(paddr >> 32), dev->base + PIPE_REG_SIGNAL_BUFFER_HIGH);
-		writel((u32)(unsigned long)paddr, dev->base + PIPE_REG_SIGNAL_BUFFER);
-		writel((u32)MAX_SIGNALLED_PIPES, dev->base + PIPE_REG_SIGNAL_BUFFER_COUNT);
+
+		writel((u32)(unsigned long)(paddr >> 32),
+			dev->base + PIPE_REG_SIGNAL_BUFFER_HIGH);
+		writel((u32)(unsigned long)paddr,
+			dev->base + PIPE_REG_SIGNAL_BUFFER);
+		writel((u32)MAX_SIGNALLED_PIPES,
+			dev->base + PIPE_REG_SIGNAL_BUFFER_COUNT);
 
 		paddr = __pa(&dev->buffers->open_command_params);
-		writel((u32)(unsigned long)(paddr >> 32), dev->base + PIPE_REG_OPEN_BUFFER_HIGH);
-		writel((u32)(unsigned long)paddr, dev->base + PIPE_REG_OPEN_BUFFER);
+		writel((u32)(unsigned long)(paddr >> 32),
+			dev->base + PIPE_REG_OPEN_BUFFER_HIGH);
+		writel((u32)(unsigned long)paddr,
+			dev->base + PIPE_REG_OPEN_BUFFER);
 	}
 	return 0;
 }
