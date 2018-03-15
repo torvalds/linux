@@ -132,6 +132,7 @@ enum {
 	Opt_whint,
 	Opt_alloc,
 	Opt_fsync,
+	Opt_test_dummy_encryption,
 	Opt_err,
 };
 
@@ -188,6 +189,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_whint, "whint_mode=%s"},
 	{Opt_alloc, "alloc_mode=%s"},
 	{Opt_fsync, "fsync_mode=%s"},
+	{Opt_test_dummy_encryption, "test_dummy_encryption"},
 	{Opt_err, NULL},
 };
 
@@ -743,6 +745,21 @@ static int parse_options(struct super_block *sb, char *options)
 				return -EINVAL;
 			}
 			kfree(name);
+			break;
+		case Opt_test_dummy_encryption:
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+			if (!f2fs_sb_has_encrypt(sb)) {
+				f2fs_msg(sb, KERN_ERR, "Encrypt feature is off");
+				return -EINVAL;
+			}
+
+			F2FS_OPTION(sbi).test_dummy_encryption = true;
+			f2fs_msg(sb, KERN_INFO,
+					"Test dummy encryption mode enabled");
+#else
+			f2fs_msg(sb, KERN_INFO,
+					"Test dummy encryption mount option ignored");
+#endif
 			break;
 		default:
 			f2fs_msg(sb, KERN_ERR,
@@ -1315,6 +1332,10 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_printf(seq, ",whint_mode=%s", "user-based");
 	else if (F2FS_OPTION(sbi).whint_mode == WHINT_MODE_FS)
 		seq_printf(seq, ",whint_mode=%s", "fs-based");
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+	if (F2FS_OPTION(sbi).test_dummy_encryption)
+		seq_puts(seq, ",test_dummy_encryption");
+#endif
 
 	if (F2FS_OPTION(sbi).alloc_mode == ALLOC_MODE_DEFAULT)
 		seq_printf(seq, ",alloc_mode=%s", "default");
@@ -1336,6 +1357,7 @@ static void default_options(struct f2fs_sb_info *sbi)
 	F2FS_OPTION(sbi).whint_mode = WHINT_MODE_OFF;
 	F2FS_OPTION(sbi).alloc_mode = ALLOC_MODE_DEFAULT;
 	F2FS_OPTION(sbi).fsync_mode = FSYNC_MODE_POSIX;
+	F2FS_OPTION(sbi).test_dummy_encryption = false;
 	sbi->readdir_ra = 1;
 
 	set_opt(sbi, BG_GC);
@@ -1912,6 +1934,11 @@ static int f2fs_set_context(struct inode *inode, const void *ctx, size_t len,
 				ctx, len, fs_data, XATTR_CREATE);
 }
 
+static bool f2fs_dummy_context(struct inode *inode)
+{
+	return DUMMY_ENCRYPTION_ENABLED(F2FS_I_SB(inode));
+}
+
 static unsigned f2fs_max_namelen(struct inode *inode)
 {
 	return S_ISLNK(inode->i_mode) ?
@@ -1922,6 +1949,7 @@ static const struct fscrypt_operations f2fs_cryptops = {
 	.key_prefix	= "f2fs:",
 	.get_context	= f2fs_get_context,
 	.set_context	= f2fs_set_context,
+	.dummy_context	= f2fs_dummy_context,
 	.empty_dir	= f2fs_empty_dir,
 	.max_namelen	= f2fs_max_namelen,
 };

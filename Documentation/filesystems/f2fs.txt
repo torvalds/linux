@@ -187,6 +187,8 @@ fsync_mode=%s          Control the policy of fsync. Currently supports "posix"
                        fsync will be heavy and behaves in line with xfs, ext4
                        and btrfs, where xfstest generic/342 will pass, but the
                        performance will regress.
+test_dummy_encryption  Enable dummy encryption, which provides a fake fscrypt
+                       context. The fake fscrypt context is used by xfstests.
 
 ================================================================================
 DEBUGFS ENTRIES

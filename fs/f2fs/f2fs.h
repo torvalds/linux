@@ -134,6 +134,7 @@ struct f2fs_mount_info {
 	int whint_mode;
 	int alloc_mode;			/* segment allocation policy */
 	int fsync_mode;			/* fsync policy */
+	bool test_dummy_encryption;	/* test dummy encryption */
 };
 
 #define F2FS_FEATURE_ENCRYPT		0x0001
@@ -1140,6 +1141,13 @@ enum fsync_mode {
 	FSYNC_MODE_POSIX,	/* fsync follows posix semantics */
 	FSYNC_MODE_STRICT,	/* fsync behaves in line with ext4 */
 };
+
+#ifdef CONFIG_F2FS_FS_ENCRYPTION
+#define DUMMY_ENCRYPTION_ENABLED(sbi) \
+			(unlikely(F2FS_OPTION(sbi).test_dummy_encryption))
+#else
+#define DUMMY_ENCRYPTION_ENABLED(sbi) (0)
+#endif
 
 struct f2fs_sb_info {
 	struct super_block *sb;			/* pointer to VFS super block */
