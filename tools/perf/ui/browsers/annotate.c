@@ -105,6 +105,20 @@ static void disasm_line__write(struct disasm_line *dl, struct ui_browser *browse
 	disasm_line__scnprintf(dl, bf, size, !notes->options->use_offset);
 }
 
+static void annotate_browser__set_percent_color(void *browser, double percent, bool current)
+{
+	ui_browser__set_percent_color(browser, percent, current);
+}
+
+static void annotate_browser__printf(void *browser, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	ui_browser__vprintf(browser, fmt, args);
+	va_end(args);
+}
+
 static void annotate_browser__write(struct ui_browser *browser, void *entry, int row)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
@@ -115,65 +129,13 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			     (!current_entry || (browser->use_navkeypressed &&
 					         !browser->navkeypressed)));
 	int width = browser->width, printed;
-	int i, pcnt_width = annotation__pcnt_width(notes),
-	       cycles_width = annotation__cycles_width(notes);
-	double percent_max = annotation_line__max_percent(al, notes);
+	int pcnt_width = annotation__pcnt_width(notes),
+	    cycles_width = annotation__cycles_width(notes);
 	char bf[256];
-	bool show_title = false;
 
-	if ((row == 0) && (al->offset == -1 || percent_max == 0.0)) {
-		if (notes->have_cycles) {
-			if (al->ipc == 0.0 && al->cycles == 0)
-				show_title = true;
-		} else
-			show_title = true;
-	}
-
-	if (al->offset != -1 && percent_max != 0.0) {
-		for (i = 0; i < notes->nr_events; i++) {
-			ui_browser__set_percent_color(browser,
-						al->samples[i].percent,
-						current_entry);
-			if (notes->options->show_total_period) {
-				ui_browser__printf(browser, "%11" PRIu64 " ",
-						   al->samples[i].he.period);
-			} else if (notes->options->show_nr_samples) {
-				ui_browser__printf(browser, "%6" PRIu64 " ",
-						   al->samples[i].he.nr_samples);
-			} else {
-				ui_browser__printf(browser, "%6.2f ",
-						   al->samples[i].percent);
-			}
-		}
-	} else {
-		ui_browser__set_percent_color(browser, 0, current_entry);
-
-		if (!show_title)
-			ui_browser__write_nstring(browser, " ", pcnt_width);
-		else {
-			ui_browser__printf(browser, "%*s", pcnt_width,
-					   notes->options->show_total_period ? "Period" :
-					   notes->options->show_nr_samples ? "Samples" : "Percent");
-		}
-	}
-	if (notes->have_cycles) {
-		if (al->ipc)
-			ui_browser__printf(browser, "%*.2f ", ANNOTATION__IPC_WIDTH - 1, al->ipc);
-		else if (!show_title)
-			ui_browser__write_nstring(browser, " ", ANNOTATION__IPC_WIDTH);
-		else
-			ui_browser__printf(browser, "%*s ", ANNOTATION__IPC_WIDTH - 1, "IPC");
-
-		if (al->cycles)
-			ui_browser__printf(browser, "%*" PRIu64 " ",
-					   ANNOTATION__CYCLES_WIDTH - 1, al->cycles);
-		else if (!show_title)
-			ui_browser__write_nstring(browser, " ", ANNOTATION__CYCLES_WIDTH);
-		else
-			ui_browser__printf(browser, "%*s ", ANNOTATION__CYCLES_WIDTH - 1, "Cycle");
-	}
-
-	SLsmg_write_char(' ');
+	annotation_line__print_start(al, notes, row == 0, current_entry, browser,
+				     annotate_browser__set_percent_color,
+				     annotate_browser__printf);
 
 	/* The scroll bar isn't being used */
 	if (!browser->navkeypressed)
@@ -183,11 +145,9 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		ui_browser__write_nstring(browser, " ", width - pcnt_width - cycles_width);
 	else if (al->offset == -1) {
 		if (al->line_nr && notes->options->show_linenr)
-			printed = scnprintf(bf, sizeof(bf), "%-*d ",
-					notes->widths.addr + 1, al->line_nr);
+			printed = scnprintf(bf, sizeof(bf), "%-*d ", notes->widths.addr + 1, al->line_nr);
 		else
-			printed = scnprintf(bf, sizeof(bf), "%*s  ",
-				    notes->widths.addr, " ");
+			printed = scnprintf(bf, sizeof(bf), "%*s  ", notes->widths.addr, " ");
 		ui_browser__write_nstring(browser, bf, printed);
 		ui_browser__write_nstring(browser, al->line, width - printed - pcnt_width - cycles_width + 1);
 	} else {

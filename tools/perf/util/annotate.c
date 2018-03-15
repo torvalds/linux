@@ -2198,6 +2198,81 @@ double annotation_line__max_percent(struct annotation_line *al, struct annotatio
 	return percent_max;
 }
 
+static void set_percent_color_stub(void *obj __maybe_unused,
+				   double percent __maybe_unused,
+				   bool current __maybe_unused)
+{
+}
+
+void annotation_line__print_start(struct annotation_line *al, struct annotation *notes,
+				  bool first_line, bool current_entry,
+				  void *obj,
+				  void (*obj__set_percent_color)(void *obj, double percent, bool current),
+				  void (*obj__printf)(void *obj, const char *fmt, ...))
+{
+	double percent_max = annotation_line__max_percent(al, notes);
+	bool show_title = false;
+
+	if (first_line && (al->offset == -1 || percent_max == 0.0)) {
+		if (notes->have_cycles) {
+			if (al->ipc == 0.0 && al->cycles == 0)
+				show_title = true;
+		} else
+			show_title = true;
+	}
+
+	if (!obj__set_percent_color)
+		obj__set_percent_color = set_percent_color_stub;
+
+	if (al->offset != -1 && percent_max != 0.0) {
+		int i;
+
+		for (i = 0; i < notes->nr_events; i++) {
+			obj__set_percent_color(obj, al->samples[i].percent, current_entry);
+			if (notes->options->show_total_period) {
+				obj__printf(obj, "%11" PRIu64 " ", al->samples[i].he.period);
+			} else if (notes->options->show_nr_samples) {
+				obj__printf(obj, "%6" PRIu64 " ",
+						   al->samples[i].he.nr_samples);
+			} else {
+				obj__printf(obj, "%6.2f ",
+						   al->samples[i].percent);
+			}
+		}
+	} else {
+		int pcnt_width = annotation__pcnt_width(notes);
+
+		obj__set_percent_color(obj, 0, current_entry);
+
+		if (!show_title)
+			obj__printf(obj, "%*s", pcnt_width, " ");
+		else {
+			obj__printf(obj, "%*s", pcnt_width,
+					   notes->options->show_total_period ? "Period" :
+					   notes->options->show_nr_samples ? "Samples" : "Percent");
+		}
+	}
+
+	if (notes->have_cycles) {
+		if (al->ipc)
+			obj__printf(obj, "%*.2f ", ANNOTATION__IPC_WIDTH - 1, al->ipc);
+		else if (!show_title)
+			obj__printf(obj, "%*s", ANNOTATION__IPC_WIDTH, " ");
+		else
+			obj__printf(obj, "%*s ", ANNOTATION__IPC_WIDTH - 1, "IPC");
+
+		if (al->cycles)
+			obj__printf(obj, "%*" PRIu64 " ",
+					   ANNOTATION__CYCLES_WIDTH - 1, al->cycles);
+		else if (!show_title)
+			obj__printf(obj, "%*s", ANNOTATION__CYCLES_WIDTH, " ");
+		else
+			obj__printf(obj, "%*s ", ANNOTATION__CYCLES_WIDTH - 1, "Cycle");
+	}
+
+	obj__printf(obj, " ");
+}
+
 int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *evsel,
 		      struct annotation_options *options, struct arch **parch)
 {
