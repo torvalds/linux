@@ -494,6 +494,7 @@ struct qcm_process_device {
 
 	/* IB memory */
 	uint64_t ib_base;
+	void *ib_kaddr;
 };
 
 /* KFD Memory Eviction */
@@ -833,6 +834,8 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 			unsigned int sdma_engine);
 
 void pm_release_ib(struct packet_manager *pm);
+
+uint32_t pm_create_release_mem(uint64_t gpu_addr, uint32_t *buffer);
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 

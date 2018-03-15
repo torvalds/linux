@@ -149,6 +149,36 @@ err_alloc_mem:
 	return err;
 }
 
+/* kfd_process_device_reserve_ib_mem - Reserve memory inside the
+ *	process for IB usage The memory reserved is for KFD to submit
+ *	IB to AMDGPU from kernel.  If the memory is reserved
+ *	successfully, ib_kaddr will have the CPU/kernel
+ *	address. Check ib_kaddr before accessing the memory.
+ */
+static int kfd_process_device_reserve_ib_mem(struct kfd_process_device *pdd)
+{
+	struct qcm_process_device *qpd = &pdd->qpd;
+	uint32_t flags = ALLOC_MEM_FLAGS_GTT |
+			 ALLOC_MEM_FLAGS_NO_SUBSTITUTE |
+			 ALLOC_MEM_FLAGS_WRITABLE |
+			 ALLOC_MEM_FLAGS_EXECUTABLE;
+	void *kaddr;
+	int ret;
+
+	if (qpd->ib_kaddr || !qpd->ib_base)
+		return 0;
+
+	/* ib_base is only set for dGPU */
+	ret = kfd_process_alloc_gpuvm(pdd, qpd->ib_base, PAGE_SIZE, flags,
+				      &kaddr);
+	if (ret)
+		return ret;
+
+	qpd->ib_kaddr = kaddr;
+
+	return 0;
+}
+
 struct kfd_process *kfd_create_process(struct file *filep)
 {
 	struct kfd_process *process;
@@ -610,6 +640,9 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 		return ret;
 	}
 
+	ret = kfd_process_device_reserve_ib_mem(pdd);
+	if (ret)
+		goto err_reserve_ib_mem;
 	ret = kfd_process_device_init_cwsr_dgpu(pdd);
 	if (ret)
 		goto err_init_cwsr;
@@ -619,6 +652,7 @@ int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 	return 0;
 
 err_init_cwsr:
+err_reserve_ib_mem:
 	kfd_process_device_free_bos(pdd);
 	if (!drm_file)
 		dev->kfd2kgd->destroy_process_vm(dev->kgd, pdd->vm);
