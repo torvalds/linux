@@ -356,17 +356,19 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
 				if (chan->flags & IEEE80211_CHAN_NO_HT40PLUS) {
 					ht_cap->ht_cap.cap_info &=
-					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+					cpu_to_le16
+					(~IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 					ht_cap->ht_cap.cap_info &=
-					~IEEE80211_HT_CAP_SGI_40;
+					cpu_to_le16(~IEEE80211_HT_CAP_SGI_40);
 				}
 				break;
 			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
 				if (chan->flags & IEEE80211_CHAN_NO_HT40MINUS) {
 					ht_cap->ht_cap.cap_info &=
-					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+					cpu_to_le16
+					(~IEEE80211_HT_CAP_SUP_WIDTH_20_40);
 					ht_cap->ht_cap.cap_info &=
-					~IEEE80211_HT_CAP_SGI_40;
+					cpu_to_le16(~IEEE80211_HT_CAP_SGI_40);
 				}
 				break;
 			}
