@@ -186,11 +186,9 @@ typedef struct siginfo {
 #define ILL_PRVREG	6	/* privileged register */
 #define ILL_COPROC	7	/* coprocessor error */
 #define ILL_BADSTK	8	/* internal stack error */
-#ifdef __ia64__
-# define ILL_BADIADDR	9	/* unimplemented instruction address */
-# define __ILL_BREAK	10	/* illegal break */
-# define __ILL_BNDMOD	11	/* bundle-update (modification) in progress */
-#endif
+#define ILL_BADIADDR	9	/* unimplemented instruction address */
+#define __ILL_BREAK	10	/* illegal break */
+#define __ILL_BNDMOD	11	/* bundle-update (modification) in progress */
 #define NSIGILL		11
 
 /*
@@ -204,13 +202,11 @@ typedef struct siginfo {
 #define FPE_FLTRES	6	/* floating point inexact result */
 #define FPE_FLTINV	7	/* floating point invalid operation */
 #define FPE_FLTSUB	8	/* subscript out of range */
-#ifdef __ia64__
-# define __FPE_DECOVF	9	/* decimal overflow */
-# define __FPE_DECDIV	10	/* decimal division by zero */
-# define __FPE_DECERR	11	/* packed decimal error */
-# define __FPE_INVASC	12	/* invalid ASCII digit */
-# define __FPE_INVDEC	13	/* invalid decimal digit */
-#endif
+#define __FPE_DECOVF	9	/* decimal overflow */
+#define __FPE_DECDIV	10	/* decimal division by zero */
+#define __FPE_DECERR	11	/* packed decimal error */
+#define __FPE_INVASC	12	/* invalid ASCII digit */
+#define __FPE_INVDEC	13	/* invalid decimal digit */
 #define NSIGFPE		13
 
 /*
