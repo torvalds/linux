@@ -1,11 +1,9 @@
-/*
- * Device Tree Source for UniPhier PXs2 Gentil Board
- *
- * Copyright (C) 2015-2016 Socionext Inc.
- *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
- */
+// SPDX-License-Identifier: GPL-2.0+ OR MIT
+//
+// Device Tree Source for UniPhier PXs2 Gentil Board
+//
+// Copyright (C) 2015-2016 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 /dts-v1/;
 #include "uniphier-pxs2.dtsi"
@@ -34,6 +32,12 @@
 		device_type = "memory";
 		reg = <0x80000000 0x80000000>;
 	};
+
+	sound {
+		compatible = "audio-graph-card";
+		label = "UniPhier PXs2";
+		dais = <&i2s_port2>;
+	};
 };
 
 &serial2 {
@@ -50,6 +54,35 @@
 	};
 };
 
+&i2s_aux {
+	dai-format = "i2s";
+	remote-endpoint = <&wm_speaker>;
+};
+
 &i2c2 {
 	status = "okay";
+
+	wm8960@1a {
+		compatible = "wlf,wm8960";
+		reg = <0x1a>;
+		#sound-dai-cells = <0>;
+
+		port@0 {
+			wm_speaker: endpoint {
+				dai-format = "i2s";
+				remote-endpoint = <&i2s_aux>;
+			};
+		};
+	};
+};
+
+&eth {
+	status = "okay";
+	phy-handle = <&ethphy>;
+};
+
+&mdio {
+	ethphy: ethphy@1 {
+		reg = <1>;
+	};
 };
