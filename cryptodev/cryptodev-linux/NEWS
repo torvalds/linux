@@ -1,0 +1,244 @@
+Version 1.9 (released 2017-04-22)
+
+* fix benchmarks linking
+
+* fix Makefile to allow parallel make with -j option
+
+* use Linux kernel conventions for Makefile variables
+
+* for consistency, use $(...) instead of ${...} in makefiles
+
+* fix clean-up on error path for crypto_create_session
+
+* remove code duplication in cryptodev_hash_init
+
+* add separate target for building tests
+
+* fix destination for staged installs
+
+* add install target for tests
+
+* fix comment typo
+
+* avoid calls to kmalloc on hotpaths
+
+* avoid redundant checks in cryptodev_hash_deinit
+
+* Fix test compile time warnings
+
+* Support skcipher in addition to ablkcipher API
+
+* Adjust to recent user page API changes
+
+* Adjust to another change in the user page API
+
+* fix issues with install target
+
+* setting KERNEL_DIR is not necessary to build tests
+
+* fix ignored SIGALRM signals on some platforms
+
+* fix incorrect return code in case of error from openssl_cioccrypt
+
+* remove not used local variables
+
+* fix warnings of "implicit declaration of function" in async_speed
+
+* rename header file to clarify purpose
+
+* use buf_align macro to reduce code duplication
+
+* avoid implicit conversion between signed and unsigned char
+
+* do more strict code checking to avoid maintenance issues
+
+* adjust to API changes in kernel >=4.10
+
+* zc: Use the power of #elif
+
+* Fix ablkcipher algorithms usage in v4.8+ kernels
+
+Version 1.8 (released 2015-11-28)
+
+* Fixed compilation against linux-3.19.
+
+* Tests: cixed arg passing to CC in implicit rule.
+
+* Fix tag printing in cipher-gcm test by Fridolin Pokorny.
+
+* Fix compilation against linux 4.3 by Gustavo Zacarias.
+
+Version 1.7 (released 2015-02-07)
+
+* Added support for composite AEAD keys by Cristian Stoica.
+
+* Added support for sysctl to modify verbosity by Nikolaos Tsakalakis.
+
+* Several bugfixes by Cristian Stoica.
+
+* When a driver requires aligned data but unaligned are provided, then
+  zero copy is disabled to prevent driver failing to encrypt.
+
+* Compatibility to kernel version 3.13 and above by Cosmin Paraschiv.
+
+* Various checkpatch.pl fixes.
+
+* Introduced ddebug, dinfo, dwarning and derr macros wrapping dprintk.
+
+* Improved support for cross-compiling.
+
+* Hmac_comp test has become more picky when checking results.
+
+* Fixed allocated resource cleanup in error case, patch by Cristian Stoica.
+
+* Buffer size allocation fixup for AEAD modes by Nikos Mavrogiannopoulos.
+
+* Support for composite AEAD keys added by Cristian Stoica.
+
+* Fixed tag and dsl_len calculation for AEAD ciphers, patch by Cristian Stoica.
+
+* Documentation updates by Nikos Mavrogiannopoulos.
+
+
+Version 1.6 (released 2013-03-20)
+
+* Added modules_install target in Makefile
+
+* Added SHA224. Patch by Yashpal Dutta.
+
+* Asynchronous operations will not be scheduled if zero copy is disabled.
+
+* Asynchronous operations are disabled by default, unless -DENABLE_ASYNC 
+  is enabled on Makefile.
+
+
+Version 1.5 (released 2012-08-04)
+
+* Fixes in AEAD support. Patches by Jaren Johnston.
+
+* Simplifications in memory locking. Patch by Phil Sutter.
+
+* Allow empty plaintext and authenticated data in AEAD  ciphers. 
+  Patch by Jaren Johnston.
+
+
+Version 1.4 (released 2012-03-15)
+
+* Correctly report hw accelerated ciphers.
+
+
+Version 1.3 (released 2012-02-29)
+
+* Return EBADMSG instead of ECANCELED on tag verification failure in 
+  authenc modes.
+
+* COP_FLAG_RESET can be combined with COP_FLAG_UPDATE for efficiency.
+
+* Added more test cases.
+
+* Automatically set public permissions for the device
+
+
+Version 1.2 (released 2012-02-24)
+
+* In kernels that do not distinguish between hw accelerated ciphers or 
+  not set the SIOP_FLAG_KERNEL_DRIVER_ONLY flag based on driver name.
+
+* camelia was renamed to camellia.
+
+* Added COP_FLAG_RESET to allow resetting the state in multi-update.
+
+* Corrected issue in ARM processors with mv_cesa.
+
+
+Version 1.1 (released 2012-02-20)
+
+* Fixed alignment issue in speed.c
+
+* Defined HASH_MAX_LEN in cryptodev.h
+
+* CIOCGSESSINFO ioctl() sets the SIOP_FLAG_KERNEL_DRIVER_ONLY flag if the 
+  driver is only available through kernel driver (and is not just software 
+  cipher).
+
+* Added new encryption ioctl, CIOCAUTHCRYPT, which combines authentication 
+  and encryption. Operates in AEAD, TLS and SRTP modes (the API might change
+  in later versions).
+
+
+Version 1.0 (released 2011-04-12)
+
+* Several fixes in the included examples. Based on patches by Vladimir 
+  Zapolskiy.
+
+
+Version 0.9 (released 2011-02-11)
+
+* Added additional test tools:
+  - sha_speed does performance testing of SHA1 and SHA256
+  - hashcrypt_speed additionally encrypts with AES128 and AES256
+
+* Allow updating the IV in userspace via the COP_FLAG_WRITE_IV flag.
+
+* Export the alignmask in an OCF compatible way.
+
+* Fix for kernel crash on passing incorrect session ID.
+
+* Added CIOCGSESSINFO to export additional information for each session.
+
+
+Version 0.8 (released 2010-11-06)
+
+* Made cryptodev aware of alignment constraints.
+
+* Added support for CRYPTO_AES_ECB.
+
+* Added asynchronous operation support using
+  CIOCASYNCCRYPT, CIOCASYNCFETCH ioctls and poll().
+
+
+Version 0.7 (released 2010-10-08)
+
+* Added COP_FLAG_FINAL to make multi-update more efficient.
+
+* Added CRIOGET_NOT_NEEDED definition to allow users of the API to 
+  distinguish from the bare OpenBSD API that requires the CRIOGET.
+
+
+Version 0.6 (released 2010-09-16)
+
+* multi-update support for hash calculation using the new flag 
+  COP_FLAG_UPDATE.
+
+* Relicensed under GPLv2.
+
+* Added AES-CTR.
+
+* Corrected fallback to non-zero copy when referenced pages were 
+  not writable.
+
+
+Version 0.5 (released 2010-07-06)
+
+* Corrected issue with zero copy on multiple pages.
+
+* Fallback to normal operation if user pages cannot be mapped.
+
+
+Version 0.4 (released 2010-07-03)
+
+* Internal engine supports operations with zero copy from user space. 
+
+
+Version 0.3 (released 2010-06-19)
+
+* Corrected bug when initializing unsupported algorithms.
+
+
+Version 0.2 (released 2010-06-18)
+
+* Added compat_ioctl() to allow working on systems where userspace is 32bits
+  and kernel is operating in 64bit mode (Phil Sutter)
+
+* Added several sanity checks to input.
+
