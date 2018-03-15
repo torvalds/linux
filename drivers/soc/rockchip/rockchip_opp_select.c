@@ -9,7 +9,11 @@
 #include <linux/slab.h>
 #include <linux/soc/rockchip/pvtm.h>
 #include <linux/thermal.h>
+#include <linux/pm_opp.h>
 #include <soc/rockchip/rockchip_opp_select.h>
+
+#include "../../clk/rockchip/clk.h"
+#include "../../base/power/opp/opp.h"
 
 #define LEAKAGE_TABLE_END	~1
 #define LEAKAGE_INVALID		0xff
@@ -352,3 +356,78 @@ int rockchip_of_get_pvtm_volt_sel(struct device *dev,
 }
 EXPORT_SYMBOL(rockchip_of_get_pvtm_volt_sel);
 
+static int rockchip_of_get_irdrop(struct device_node *np, unsigned long rate)
+{
+	int irdrop, ret;
+
+	ret = rockchip_get_volt_sel(np, "rockchip,board-irdrop",
+				    rate / 1000000, &irdrop);
+	return ret ? ret : irdrop;
+}
+
+int rockchip_adjust_opp_by_irdrop(struct device *dev)
+{
+	struct dev_pm_opp *opp, *safe_opp = NULL;
+	struct device_node *np;
+	unsigned long rate;
+	u32 max_volt = UINT_MAX;
+	int evb_irdrop = 0, board_irdrop, delta_irdrop;
+	int i, count, ret = 0;
+	bool reach_max_volt = false;
+
+	np = of_parse_phandle(dev->of_node, "operating-points-v2", 0);
+	if (!np) {
+		dev_warn(dev, "OPP-v2 not supported\n");
+		return -ENOENT;
+	}
+
+	of_property_read_u32_index(np, "rockchip,max-volt", 0, &max_volt);
+	of_property_read_u32_index(np, "rockchip,evb-irdrop", 0, &evb_irdrop);
+
+	count = dev_pm_opp_get_opp_count(dev);
+	if (count <= 0) {
+		ret = count ? count : -ENODATA;
+		goto out;
+	}
+
+	for (i = 0, rate = 0; i < count; i++, rate++) {
+		/* find next rate */
+		opp = dev_pm_opp_find_freq_ceil(dev, &rate);
+		if (IS_ERR(opp)) {
+			ret = PTR_ERR(opp);
+			goto out;
+		}
+		board_irdrop = rockchip_of_get_irdrop(np, opp->rate);
+		if (IS_ERR_VALUE(board_irdrop))
+			/* Assume it has the same IR-Drop as evb */
+			delta_irdrop = 0;
+		else
+			delta_irdrop = board_irdrop - evb_irdrop;
+		if ((opp->u_volt + delta_irdrop) <= max_volt) {
+			opp->u_volt += delta_irdrop;
+			opp->u_volt_min += delta_irdrop;
+			opp->u_volt_max += delta_irdrop;
+			if (!reach_max_volt)
+				safe_opp = opp;
+			if (opp->u_volt == max_volt)
+				reach_max_volt = true;
+		} else {
+			opp->u_volt = max_volt;
+			opp->u_volt_min = max_volt;
+			opp->u_volt_max = max_volt;
+		}
+	}
+
+	if (safe_opp && safe_opp != opp) {
+		struct clk *clk = of_clk_get_by_name(np, NULL);
+
+		if (!IS_ERR(clk)) {
+			rockchip_pll_clk_adaptive_rate(clk, safe_opp->rate);
+			clk_put(clk);
+		}
+	}
+out:
+	of_node_put(np);
+	return ret;
+}
+EXPORT_SYMBOL(rockchip_adjust_opp_by_irdrop);
