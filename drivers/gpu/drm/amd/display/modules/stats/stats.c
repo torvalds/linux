@@ -187,7 +187,7 @@ void mod_stats_dump(struct mod_stats *mod_stats)
 
 		for (int i = 0; i < core_stats->index && i < core_stats->entries; i++) {
 			dm_logger_write(logger, LOG_PROFILING,
-					"%u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u\n",
+					"%u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u  %u",
 					time[i].render_time_in_us,
 					time[i].avg_render_time_in_us_last_ten,
 					time[i].min_window,
@@ -227,7 +227,7 @@ void mod_stats_reset_data(struct mod_stats *mod_stats)
 	memset(core_stats->time, 0,
 		sizeof(struct stats_time_cache) * core_stats->entries);
 
-	core_stats->index = 0;
+	core_stats->index = 1;
 }
 
 void mod_stats_update_flip(struct mod_stats *mod_stats,
@@ -250,7 +250,7 @@ void mod_stats_update_flip(struct mod_stats *mod_stats,
 
 	time[index].flip_timestamp_in_ns = timestamp_in_ns;
 	time[index].render_time_in_us =
-		timestamp_in_ns - time[index - 1].flip_timestamp_in_ns;
+		(timestamp_in_ns - time[index - 1].flip_timestamp_in_ns) / 1000;
 
 	if (index >= 10) {
 		for (unsigned int i = 0; i < 10; i++)
@@ -261,10 +261,12 @@ void mod_stats_update_flip(struct mod_stats *mod_stats,
 
 	if (time[index].num_vsync_between_flips > 0)
 		time[index].vsync_to_flip_time_in_us =
-			timestamp_in_ns - time[index].vupdate_timestamp_in_ns;
+			(timestamp_in_ns -
+				time[index].vupdate_timestamp_in_ns) / 1000;
 	else
 		time[index].vsync_to_flip_time_in_us =
-			timestamp_in_ns - time[index - 1].vupdate_timestamp_in_ns;
+			(timestamp_in_ns -
+				time[index - 1].vupdate_timestamp_in_ns) / 1000;
 
 	core_stats->index++;
 }
@@ -275,6 +277,8 @@ void mod_stats_update_vupdate(struct mod_stats *mod_stats,
 	struct core_stats *core_stats = NULL;
 	struct stats_time_cache *time = NULL;
 	unsigned int index = 0;
+	unsigned int num_vsyncs = 0;
+	unsigned int prev_vsync_in_ns = 0;
 
 	if (mod_stats == NULL)
 		return;
@@ -286,14 +290,27 @@ void mod_stats_update_vupdate(struct mod_stats *mod_stats,
 
 	time = core_stats->time;
 	index = core_stats->index;
+	num_vsyncs = time[index].num_vsync_between_flips;
+
+	if (num_vsyncs < MOD_STATS_NUM_VSYNCS) {
+		if (num_vsyncs == 0) {
+			prev_vsync_in_ns =
+				time[index - 1].vupdate_timestamp_in_ns;
+
+			time[index].flip_to_vsync_time_in_us =
+				(timestamp_in_ns -
+					time[index - 1].flip_timestamp_in_ns) /
+					1000;
+		} else {
+			prev_vsync_in_ns =
+				time[index].vupdate_timestamp_in_ns;
+		}
+
+		time[index].v_sync_time_in_us[num_vsyncs] =
+			(timestamp_in_ns - prev_vsync_in_ns) / 1000;
+	}
 
 	time[index].vupdate_timestamp_in_ns = timestamp_in_ns;
-	if (time[index].num_vsync_between_flips < MOD_STATS_NUM_VSYNCS)
-		time[index].v_sync_time_in_us[time[index].num_vsync_between_flips] =
-			timestamp_in_ns - time[index - 1].vupdate_timestamp_in_ns;
-	time[index].flip_to_vsync_time_in_us =
-		timestamp_in_ns - time[index - 1].flip_timestamp_in_ns;
-
 	time[index].num_vsync_between_flips++;
 }
 
