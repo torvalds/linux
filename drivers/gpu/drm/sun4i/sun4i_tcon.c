@@ -875,6 +875,7 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	struct sunxi_engine *engine;
 	struct device_node *remote;
 	struct sun4i_tcon *tcon;
+	struct reset_control *edp_rstc;
 	bool has_lvds_rst, has_lvds_alt, can_lvds;
 	int ret;
 
@@ -897,6 +898,20 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	if (IS_ERR(tcon->lcd_rst)) {
 		dev_err(dev, "Couldn't get our reset line\n");
 		return PTR_ERR(tcon->lcd_rst);
+	}
+
+	if (tcon->quirks->needs_edp_reset) {
+		edp_rstc = devm_reset_control_get_shared(dev, "edp");
+		if (IS_ERR(edp_rstc)) {
+			dev_err(dev, "Couldn't get edp reset line\n");
+			return PTR_ERR(edp_rstc);
+		}
+
+		ret = reset_control_deassert(edp_rstc);
+		if (ret) {
+			dev_err(dev, "Couldn't deassert edp reset line\n");
+			return ret;
+		}
 	}
 
 	/* Make sure our TCON is reset */
@@ -1191,6 +1206,16 @@ static const struct sun4i_tcon_quirks sun8i_v3s_quirks = {
 	.has_channel_0		= true,
 };
 
+static const struct sun4i_tcon_quirks sun9i_a80_tcon_lcd_quirks = {
+	.has_channel_0	= true,
+	.needs_edp_reset = true,
+};
+
+static const struct sun4i_tcon_quirks sun9i_a80_tcon_tv_quirks = {
+	.has_channel_1	= true,
+	.needs_edp_reset = true,
+};
+
 /* sun4i_drv uses this list to check if a device node is a TCON */
 const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun4i-a10-tcon", .data = &sun4i_a10_quirks },
@@ -1202,6 +1227,8 @@ const struct of_device_id sun4i_tcon_of_table[] = {
 	{ .compatible = "allwinner,sun8i-a83t-tcon-lcd", .data = &sun8i_a83t_lcd_quirks },
 	{ .compatible = "allwinner,sun8i-a83t-tcon-tv", .data = &sun8i_a83t_tv_quirks },
 	{ .compatible = "allwinner,sun8i-v3s-tcon", .data = &sun8i_v3s_quirks },
+	{ .compatible = "allwinner,sun9i-a80-tcon-lcd", .data = &sun9i_a80_tcon_lcd_quirks },
+	{ .compatible = "allwinner,sun9i-a80-tcon-tv", .data = &sun9i_a80_tcon_tv_quirks },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_tcon_of_table);
