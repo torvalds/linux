@@ -656,7 +656,7 @@ static void _hv_pcifront_read_config(struct hv_pci_dev *hpdev, int where,
 			break;
 		}
 		/*
-		 * Make sure the write was done before we release the spinlock
+		 * Make sure the read was done before we release the spinlock
 		 * allowing consecutive reads/writes.
 		 */
 		mb();
