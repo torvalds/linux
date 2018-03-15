@@ -5,7 +5,7 @@ http://forum.banana-pi.org/t/is-it-possible-to-have-the-crypto-extensions-workin
 
 1. How to build the cryptodev driver
 
-  1) Downloadd it from here : http://cryptodev-linux.org/download.html
+  1) Downloadd it from here : http://cryptodev-linux.org/download.html or git clone https://github.com/cryptodev-linux/cryptodev-linux.git for newest Version
   2) decompress it on host PC in which there is BPI R2 BSP 
   3) Run below command to compile it
     cd cryptodev-linux-1.9

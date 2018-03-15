@@ -3,7 +3,7 @@
 cd $(dirname $0)
 kerneldir=$(dirname $(pwd))
 kernelver=$(cd ..;make kernelversion)
-cd cryptodev-linux-1.9
+cd cryptodev-linux
 make KERNEL_DIR=$kerneldir CROSS_COMPILE=arm-linux-gnueabihf- ARCH=arm
 if [[ $? == 0 ]];then
   echo "build successful"
