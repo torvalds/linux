@@ -175,6 +175,8 @@ struct annotation {
 	int			nr_events;
 	int			nr_jumps;
 	int			max_jump_sources;
+	int			nr_entries;
+	int			nr_asm_entries;
 	bool			have_cycles;
 	struct annotated_source *src;
 };

@@ -35,8 +35,6 @@ struct annotate_browser {
 	struct rb_node		   *curr_hot;
 	struct annotation_line	   *selection;
 	struct arch		   *arch;
-	int			    nr_asm_entries;
-	int			    nr_entries;
 	bool			    searching_backwards;
 	u8			    addr_width;
 	u8			    jumps_width;
@@ -470,7 +468,7 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 		if (al->idx_asm < offset)
 			offset = al->idx;
 
-		browser->b.nr_entries = browser->nr_entries;
+		browser->b.nr_entries = notes->nr_entries;
 		notes->options->hide_src_code = false;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
 		browser->b.top_idx = al->idx - offset;
@@ -485,7 +483,7 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 		if (al->idx_asm < offset)
 			offset = al->idx_asm;
 
-		browser->b.nr_entries = browser->nr_asm_entries;
+		browser->b.nr_entries = notes->nr_asm_entries;
 		notes->options->hide_src_code = true;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
 		browser->b.top_idx = al->idx_asm - offset;
@@ -495,10 +493,11 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 	return true;
 }
 
-static void annotate_browser__init_asm_mode(struct annotate_browser *browser)
+static void ui_browser__init_asm_mode(struct ui_browser *browser)
 {
-	ui_browser__reset_index(&browser->b);
-	browser->b.nr_entries = browser->nr_asm_entries;
+	struct annotation *notes = browser__annotation(browser);
+	ui_browser__reset_index(browser);
+	browser->nr_entries = notes->nr_asm_entries;
 }
 
 #define SYM_TITLE_MAX_SIZE (PATH_MAX + 64)
@@ -854,7 +853,7 @@ show_help:
 					   browser->b.height,
 					   browser->b.index,
 					   browser->b.top_idx,
-					   browser->nr_asm_entries);
+					   notes->nr_asm_entries);
 		}
 			continue;
 		case K_ENTER:
@@ -997,9 +996,9 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 
 		if (browser.b.width < line_len)
 			browser.b.width = line_len;
-		al->idx = browser.nr_entries++;
+		al->idx = notes->nr_entries++;
 		if (al->offset != -1) {
-			al->idx_asm = browser.nr_asm_entries++;
+			al->idx_asm = notes->nr_asm_entries++;
 			/*
 			 * FIXME: short term bandaid to cope with assembly
 			 * routines that comes with labels in the same column
@@ -1020,12 +1019,12 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	browser.max_addr_width = hex_width(sym->end);
 	browser.jumps_width = width_jumps(notes->max_jump_sources);
 	notes->nr_events = nr_pcnt;
-	browser.b.nr_entries = browser.nr_entries;
+	browser.b.nr_entries = notes->nr_entries;
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */
 
 	if (notes->options->hide_src_code)
-		annotate_browser__init_asm_mode(&browser);
+		ui_browser__init_asm_mode(&browser.b);
 
 	annotate_browser__update_addr_width(&browser);
 
