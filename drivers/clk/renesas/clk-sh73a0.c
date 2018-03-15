@@ -85,7 +85,7 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 
 	if (!strcmp(name, "main")) {
 		/* extal1, extal1_div2, extal2, extal2_div2 */
-		u32 parent_idx = (clk_readl(cpg->reg + CPG_CKSCR) >> 28) & 3;
+		u32 parent_idx = (readl(cpg->reg + CPG_CKSCR) >> 28) & 3;
 
 		parent_name = of_clk_get_parent_name(np, parent_idx >> 1);
 		div = (parent_idx & 1) + 1;
@@ -110,11 +110,11 @@ sh73a0_cpg_register_clock(struct device_node *np, struct sh73a0_cpg *cpg,
 		default:
 			return ERR_PTR(-EINVAL);
 		}
-		if (clk_readl(cpg->reg + CPG_PLLECR) & BIT(enable_bit)) {
-			mult = ((clk_readl(enable_reg) >> 24) & 0x3f) + 1;
+		if (readl(cpg->reg + CPG_PLLECR) & BIT(enable_bit)) {
+			mult = ((readl(enable_reg) >> 24) & 0x3f) + 1;
 			/* handle CFG bit for PLL1 and PLL2 */
 			if (enable_bit == 1 || enable_bit == 2)
-				if (clk_readl(enable_reg) & BIT(20))
+				if (readl(enable_reg) & BIT(20))
 					mult *= 2;
 		}
 	} else if (!strcmp(name, "dsi0phy") || !strcmp(name, "dsi1phy")) {
@@ -193,9 +193,9 @@ static void __init sh73a0_cpg_clocks_init(struct device_node *np)
 		return;
 
 	/* Set SDHI clocks to a known state */
-	clk_writel(0x108, cpg->reg + CPG_SD0CKCR);
-	clk_writel(0x108, cpg->reg + CPG_SD1CKCR);
-	clk_writel(0x108, cpg->reg + CPG_SD2CKCR);
+	writel(0x108, cpg->reg + CPG_SD0CKCR);
+	writel(0x108, cpg->reg + CPG_SD1CKCR);
+	writel(0x108, cpg->reg + CPG_SD2CKCR);
 
 	for (i = 0; i < num_clks; ++i) {
 		const char *name;
