@@ -1487,6 +1487,7 @@
 	rockchip_suspend: rockchip-suspend {
 		compatible = "rockchip,pm-rk322x";
 		status = "disabled";
+		rockchip,virtual-poweroff = <0>;
 		rockchip,sleep-mode-config = <
 			(0
 			|RKPM_CTR_GTCLKS
