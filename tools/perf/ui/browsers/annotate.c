@@ -35,7 +35,6 @@ struct annotate_browser {
 	struct rb_node		   *curr_hot;
 	struct annotation_line	   *selection;
 	struct arch		   *arch;
-	u64			    start;
 	int			    nr_asm_entries;
 	int			    nr_entries;
 	bool			    searching_backwards;
@@ -208,7 +207,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		int color = -1;
 
 		if (!notes->options->use_offset)
-			addr += ab->start;
+			addr += notes->start;
 
 		if (!notes->options->use_offset) {
 			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
@@ -991,7 +990,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 
 	ui_helpline__push("Press ESC to exit");
 
-	browser.start = map__rip_2objdump(map, sym->start);
+	notes->start = map__rip_2objdump(map, sym->start);
 
 	list_for_each_entry(al, &notes->src->source, node) {
 		size_t line_len = strlen(al->line);
