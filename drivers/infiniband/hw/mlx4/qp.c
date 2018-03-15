@@ -1096,6 +1096,17 @@ static int create_qp_common(struct mlx4_ib_dev *dev, struct ib_pd *pd,
 			qp->inl_recv_sz = ucmd.qp.inl_recv_sz;
 		}
 
+		if (init_attr->create_flags & IB_QP_CREATE_SCATTER_FCS) {
+			if (!(dev->dev->caps.flags &
+			      MLX4_DEV_CAP_FLAG_FCS_KEEP)) {
+				pr_debug("scatter FCS is unsupported\n");
+				err = -EOPNOTSUPP;
+				goto err;
+			}
+
+			qp->flags |= MLX4_IB_QP_SCATTER_FCS;
+		}
+
 		err = set_rq_size(dev, &init_attr->cap, !!pd->uobject,
 				  qp_has_rq(init_attr), qp, qp->inl_recv_sz);
 		if (err)
@@ -2233,6 +2244,9 @@ static int __mlx4_ib_modify_qp(void *src, enum mlx4_ib_source_type src_type,
 
 	if (qp->inl_recv_sz)
 		context->param3 |= cpu_to_be32(1 << 25);
+
+	if (qp->flags & MLX4_IB_QP_SCATTER_FCS)
+		context->param3 |= cpu_to_be32(1 << 29);
 
 	if (qp_type == IB_QPT_GSI || qp_type == IB_QPT_SMI)
 		context->mtu_msgmax = (IB_MTU_4096 << 5) | 11;
@@ -4204,7 +4218,7 @@ struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
 		return ERR_PTR(-EOPNOTSUPP);
 	}
 
-	if (init_attr->create_flags) {
+	if (init_attr->create_flags & ~IB_WQ_FLAGS_SCATTER_FCS) {
 		pr_debug("unsupported create_flags %u\n",
 			 init_attr->create_flags);
 		return ERR_PTR(-EOPNOTSUPP);
@@ -4224,6 +4238,9 @@ struct ib_wq *mlx4_ib_create_wq(struct ib_pd *pd,
 	ib_qp_init_attr.cap.max_recv_sge = init_attr->max_sge;
 	ib_qp_init_attr.recv_cq = init_attr->cq;
 	ib_qp_init_attr.send_cq = ib_qp_init_attr.recv_cq; /* Dummy CQ */
+
+	if (init_attr->create_flags & IB_WQ_FLAGS_SCATTER_FCS)
+		ib_qp_init_attr.create_flags |= IB_QP_CREATE_SCATTER_FCS;
 
 	err = create_qp_common(dev, pd, MLX4_IB_RWQ_SRC, &ib_qp_init_attr,
 			       udata, 0, &qp);
