@@ -2183,3 +2183,42 @@ bool ui__has_annotation(void)
 {
 	return use_browser == 1 && perf_hpp_list.sym;
 }
+
+int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *evsel,
+		      struct annotation_options *options, struct arch **parch)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	size_t size = symbol__size(sym);
+	int nr_pcnt = 1, err;
+
+	notes->offsets = zalloc(size * sizeof(struct annotation_line *));
+	if (notes->offsets == NULL)
+		return -1;
+
+	if (perf_evsel__is_group_event(evsel))
+		nr_pcnt = evsel->nr_members;
+
+	err = symbol__annotate(sym, map, evsel, 0, parch);
+	if (err)
+		goto out_free_offsets;
+
+	notes->options = options;
+
+	symbol__calc_percent(sym, evsel);
+
+	notes->start = map__rip_2objdump(map, sym->start);
+
+	annotation__set_offsets(notes, size);
+	annotation__mark_jump_targets(notes, sym);
+	annotation__compute_ipc(notes, size);
+	annotation__init_column_widths(notes, sym);
+	notes->nr_events = nr_pcnt;
+
+	annotation__update_column_widths(notes);
+
+	return 0;
+
+out_free_offsets:
+	zfree(&notes->offsets);
+	return -1;
+}

@@ -910,7 +910,6 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			 struct hist_browser_timer *hbt)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	size_t size;
 	struct map_symbol ms = {
 		.map = map,
 		.sym = sym,
@@ -926,28 +925,14 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		},
 	};
 	int ret = -1, err;
-	int nr_pcnt = 1;
 
 	if (sym == NULL)
 		return -1;
 
-	size = symbol__size(sym);
-
 	if (map->dso->annotate_warned)
 		return -1;
 
-	notes->options = &annotate_browser__opts;
-
-	notes->offsets = zalloc(size * sizeof(struct annotation_line *));
-	if (notes->offsets == NULL) {
-		ui__error("Not enough memory!");
-		return -1;
-	}
-
-	if (perf_evsel__is_group_event(evsel))
-		nr_pcnt = evsel->nr_members;
-
-	err = symbol__annotate(sym, map, evsel, 0, &browser.arch);
+	err = symbol__annotate2(sym, map, evsel, &annotate_browser__opts, &browser.arch);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
@@ -955,26 +940,15 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		goto out_free_offsets;
 	}
 
-	symbol__calc_percent(sym, evsel);
-
 	ui_helpline__push("Press ESC to exit");
 
-	notes->start = map__rip_2objdump(map, sym->start);
-
-	annotation__set_offsets(notes, size);
 	browser.b.width = notes->max_line_len;
-	annotation__mark_jump_targets(notes, sym);
-	annotation__compute_ipc(notes, size);
-	annotation__init_column_widths(notes, sym);
-	notes->nr_events = nr_pcnt;
 	browser.b.nr_entries = notes->nr_entries;
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */
 
 	if (notes->options->hide_src_code)
 		ui_browser__init_asm_mode(&browser.b);
-
-	annotation__update_column_widths(notes);
 
 	ret = annotate_browser__run(&browser, evsel, hbt);
 
