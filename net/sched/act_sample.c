@@ -103,7 +103,8 @@ static void tcf_sample_cleanup_rcu(struct rcu_head *rcu)
 
 	psample_group = rcu_dereference_protected(s->psample_group, 1);
 	RCU_INIT_POINTER(s->psample_group, NULL);
-	psample_group_put(psample_group);
+	if (psample_group)
+		psample_group_put(psample_group);
 }
 
 static void tcf_sample_cleanup(struct tc_action *a, int bind)
