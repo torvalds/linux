@@ -2294,6 +2294,7 @@ static struct pernet_operations ipvs_core_ops = {
 
 static struct pernet_operations ipvs_core_dev_ops = {
 	.exit = __ip_vs_dev_cleanup,
+	.async = true,
 };
 
 /*
