@@ -28,6 +28,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/thermal.h>
+#ifdef CONFIG_ARCH_ROCKCHIP
+#include <soc/rockchip/rockchip_opp_select.h>
+#endif
 
 #define MAX_CLUSTERS		2
 
@@ -224,6 +227,7 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 				dev_pm_opp_of_remove_table(cpu_dev);
 		}
 	}
+	rockchip_adjust_opp_by_irdrop(cpu_dev);
 #else
 	dev_pm_opp_of_cpumask_add_table(policy->cpus);
 #endif
