@@ -167,6 +167,7 @@ struct annotation {
 	struct annotation_options *options;
 	struct annotation_line	**offsets;
 	int			nr_events;
+	int			max_jump_sources;
 	bool			have_cycles;
 	struct annotated_source *src;
 };

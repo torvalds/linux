@@ -44,7 +44,6 @@ struct annotate_browser {
 	u64			    start;
 	int			    nr_asm_entries;
 	int			    nr_entries;
-	int			    max_jump_sources;
 	int			    nr_jumps;
 	bool			    searching_backwards;
 	u8			    addr_width;
@@ -85,9 +84,11 @@ static bool disasm_line__filter(struct ui_browser *browser, void *entry)
 static int annotate_browser__jumps_percent_color(struct annotate_browser *browser,
 						 int nr, bool current)
 {
+	struct annotation *notes = browser__annotation(&browser->b);
+
 	if (current && (!browser->b.use_navkeypressed || browser->b.navkeypressed))
 		return HE_COLORSET_SELECTED;
-	if (nr == browser->max_jump_sources)
+	if (nr == notes->max_jump_sources)
 		return HE_COLORSET_TOP;
 	if (nr > 1)
 		return HE_COLORSET_MEDIUM;
@@ -998,8 +999,8 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 			continue;
 
 		blt = browser_line(al);
-		if (++blt->jump_sources > browser->max_jump_sources)
-			browser->max_jump_sources = blt->jump_sources;
+		if (++blt->jump_sources > notes->max_jump_sources)
+			notes->max_jump_sources = blt->jump_sources;
 
 		++browser->nr_jumps;
 	}
@@ -1099,7 +1100,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 
 	browser.addr_width = browser.target_width = browser.min_addr_width = hex_width(size);
 	browser.max_addr_width = hex_width(sym->end);
-	browser.jumps_width = width_jumps(browser.max_jump_sources);
+	browser.jumps_width = width_jumps(notes->max_jump_sources);
 	notes->nr_events = nr_pcnt;
 	browser.b.nr_entries = browser.nr_entries;
 	browser.b.entries = &notes->src->source,
