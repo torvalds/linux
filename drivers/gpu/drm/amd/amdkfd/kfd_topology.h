@@ -71,6 +71,7 @@ struct kfd_node_properties {
 	uint32_t location_id;
 	uint32_t max_engine_clk_fcompute;
 	uint32_t max_engine_clk_ccompute;
+	int32_t  drm_render_minor;
 	uint16_t marketing_name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
 };
 
