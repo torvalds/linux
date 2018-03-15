@@ -3193,6 +3193,9 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 
 static void nop_submit_request(struct i915_request *request)
 {
+	GEM_TRACE("%s fence %llx:%d -> -EIO\n",
+		  request->engine->name,
+		  request->fence.context, request->fence.seqno);
 	dma_fence_set_error(&request->fence, -EIO);
 
 	i915_request_submit(request);
@@ -3202,6 +3205,9 @@ static void nop_complete_submit_request(struct i915_request *request)
 {
 	unsigned long flags;
 
+	GEM_TRACE("%s fence %llx:%d -> -EIO\n",
+		  request->engine->name,
+		  request->fence.context, request->fence.seqno);
 	dma_fence_set_error(&request->fence, -EIO);
 
 	spin_lock_irqsave(&request->engine->timeline->lock, flags);
@@ -3214,6 +3220,8 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
+
+	GEM_TRACE("start\n");
 
 	if (drm_debug & DRM_UT_DRIVER) {
 		struct drm_printer p = drm_debug_printer(__func__);
@@ -3279,6 +3287,8 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 		i915_gem_reset_finish_engine(engine);
 	}
 
+	GEM_TRACE("end\n");
+
 	wake_up_all(&i915->gpu_error.reset_queue);
 }
 
@@ -3290,6 +3300,8 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	lockdep_assert_held(&i915->drm.struct_mutex);
 	if (!test_bit(I915_WEDGED, &i915->gpu_error.flags))
 		return true;
+
+	GEM_TRACE("start\n");
 
 	/*
 	 * Before unwedging, make sure that all pending operations
@@ -3340,6 +3352,8 @@ bool i915_gem_unset_wedged(struct drm_i915_private *i915)
 	 */
 	intel_engines_reset_default_submission(i915);
 	i915_gem_contexts_lost(i915);
+
+	GEM_TRACE("end\n");
 
 	smp_mb__before_atomic(); /* complete takeover before enabling execbuf */
 	clear_bit(I915_WEDGED, &i915->gpu_error.flags);
