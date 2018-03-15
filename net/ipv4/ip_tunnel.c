@@ -1103,8 +1103,14 @@ int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		eth_hw_addr_random(dev);
 
 	mtu = ip_tunnel_bind_dev(dev);
-	if (!tb[IFLA_MTU])
+	if (tb[IFLA_MTU]) {
+		unsigned int max = 0xfff8 - dev->hard_header_len - nt->hlen;
+
+		dev->mtu = clamp(dev->mtu, (unsigned int)ETH_MIN_MTU,
+				 (unsigned int)(max - sizeof(struct iphdr)));
+	} else {
 		dev->mtu = mtu;
+	}
 
 	ip_tunnel_add(itn, nt);
 out:
