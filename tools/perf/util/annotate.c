@@ -2084,6 +2084,19 @@ void annotation__set_offsets(struct annotation *notes, s64 size)
 	}
 }
 
+void annotation__update_column_widths(struct annotation *notes)
+{
+	if (notes->options->use_offset)
+		notes->widths.target = notes->widths.min_addr;
+	else
+		notes->widths.target = notes->widths.max_addr;
+
+	notes->widths.addr = notes->widths.target;
+
+	if (notes->options->show_nr_jumps)
+		notes->widths.addr += notes->widths.jumps + 1;
+}
+
 static void annotation__calc_lines(struct annotation *notes, struct map *map,
 				  struct rb_root *root, u64 start)
 {

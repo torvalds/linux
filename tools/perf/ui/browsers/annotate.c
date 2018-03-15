@@ -698,19 +698,6 @@ bool annotate_browser__continue_search_reverse(struct annotate_browser *browser,
 	return __annotate_browser__search_reverse(browser);
 }
 
-static void annotation__update_column_widths(struct annotation *notes)
-{
-	if (notes->options->use_offset)
-		notes->widths.target = notes->widths.min_addr;
-	else
-		notes->widths.target = notes->widths.max_addr;
-
-	notes->widths.addr = notes->widths.target;
-
-	if (notes->options->show_nr_jumps)
-		notes->widths.addr += notes->widths.jumps + 1;
-}
-
 static int annotate_browser__run(struct annotate_browser *browser,
 				 struct perf_evsel *evsel,
 				 struct hist_browser_timer *hbt)

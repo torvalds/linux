@@ -203,6 +203,7 @@ static inline int annotation__pcnt_width(struct annotation *notes)
 void annotation__set_offsets(struct annotation *notes, s64 size);
 void annotation__compute_ipc(struct annotation *notes, size_t size);
 void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym);
+void annotation__update_column_widths(struct annotation *notes);
 
 static inline struct sym_hist *annotation__histogram(struct annotation *notes, int idx)
 {
