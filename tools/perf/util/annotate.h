@@ -95,6 +95,8 @@ struct annotation_line {
 	u64			 cycles;
 	size_t			 privsize;
 	char			*path;
+	u32			 idx;
+	int			 idx_asm;
 	int			 samples_nr;
 	struct annotation_data	 samples[0];
 };
