@@ -177,6 +177,7 @@ struct annotation {
 	int			max_jump_sources;
 	int			nr_entries;
 	int			nr_asm_entries;
+	u16			max_line_len;
 	bool			have_cycles;
 	struct annotated_source *src;
 };
@@ -191,6 +192,8 @@ static inline int annotation__pcnt_width(struct annotation *notes)
 	return (notes->options->show_total_period ? 12 : 7) * notes->nr_events;
 }
 
+
+void annotation__set_offsets(struct annotation *notes, s64 size);
 void annotation__compute_ipc(struct annotation *notes, size_t size);
 void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym);
 

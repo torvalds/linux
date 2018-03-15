@@ -2056,6 +2056,34 @@ void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 	}
 }
 
+void annotation__set_offsets(struct annotation *notes, s64 size)
+{
+	struct annotation_line *al;
+
+	notes->max_line_len = 0;
+
+	list_for_each_entry(al, &notes->src->source, node) {
+		size_t line_len = strlen(al->line);
+
+		if (notes->max_line_len < line_len)
+			notes->max_line_len = line_len;
+		al->idx = notes->nr_entries++;
+		if (al->offset != -1) {
+			al->idx_asm = notes->nr_asm_entries++;
+			/*
+			 * FIXME: short term bandaid to cope with assembly
+			 * routines that comes with labels in the same column
+			 * as the address in objdump, sigh.
+			 *
+			 * E.g. copy_user_generic_unrolled
+ 			 */
+			if (al->offset < size)
+				notes->offsets[al->offset] = al;
+		} else
+			al->idx_asm = -1;
+	}
+}
+
 static void annotation__calc_lines(struct annotation *notes, struct map *map,
 				  struct rb_root *root, u64 start)
 {

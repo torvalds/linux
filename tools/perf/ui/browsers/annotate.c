@@ -938,7 +938,6 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			 struct perf_evsel *evsel,
 			 struct hist_browser_timer *hbt)
 {
-	struct annotation_line *al;
 	struct annotation *notes = symbol__annotation(sym);
 	size_t size;
 	struct map_symbol ms = {
@@ -991,27 +990,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 
 	notes->start = map__rip_2objdump(map, sym->start);
 
-	list_for_each_entry(al, &notes->src->source, node) {
-		size_t line_len = strlen(al->line);
-
-		if (browser.b.width < line_len)
-			browser.b.width = line_len;
-		al->idx = notes->nr_entries++;
-		if (al->offset != -1) {
-			al->idx_asm = notes->nr_asm_entries++;
-			/*
-			 * FIXME: short term bandaid to cope with assembly
-			 * routines that comes with labels in the same column
-			 * as the address in objdump, sigh.
-			 *
-			 * E.g. copy_user_generic_unrolled
- 			 */
-			if (al->offset < (s64)size)
-				notes->offsets[al->offset] = al;
-		} else
-			al->idx_asm = -1;
-	}
-
+	annotation__set_offsets(notes, size);
+	browser.b.width = notes->max_line_len;
 	annotation__mark_jump_targets(notes, sym);
 	annotation__compute_ipc(notes, size);
 
