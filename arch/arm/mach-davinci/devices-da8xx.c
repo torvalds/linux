@@ -1106,11 +1106,8 @@ int __init da850_register_sata(unsigned long refclkpn)
 
 static struct regmap *da8xx_cfgchip;
 
-/* regmap doesn't make a copy of this, so we need to keep the pointer around */
-static const char da8xx_cfgchip_name[] = "cfgchip";
-
 static const struct regmap_config da8xx_cfgchip_config __initconst = {
-	.name		= da8xx_cfgchip_name,
+	.name		= "cfgchip",
 	.reg_bits	= 32,
 	.val_bits	= 32,
 	.reg_stride	= 4,
