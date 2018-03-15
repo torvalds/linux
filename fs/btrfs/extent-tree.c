@@ -2992,7 +2992,7 @@ static void delayed_ref_async_start(struct btrfs_work *work)
 	if (trans->transid > async->transid)
 		goto end;
 
-	ret = btrfs_run_delayed_refs(trans, fs_info, async->count);
+	ret = btrfs_run_delayed_refs(trans, async->count);
 	if (ret)
 		async->error = ret;
 end:
@@ -3051,8 +3051,9 @@ int btrfs_async_run_delayed_refs(struct btrfs_fs_info *fs_info,
  * Returns <0 on error and aborts the transaction
  */
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
-			   struct btrfs_fs_info *fs_info, unsigned long count)
+			   unsigned long count)
 {
+	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct rb_node *node;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_delayed_ref_head *head;
@@ -3799,7 +3800,7 @@ again:
 	 * go through delayed refs for all the stuff we've just kicked off
 	 * and then loop back (just once)
 	 */
-	ret = btrfs_run_delayed_refs(trans, fs_info, 0);
+	ret = btrfs_run_delayed_refs(trans, 0);
 	if (!ret && loops == 0) {
 		loops++;
 		spin_lock(&cur_trans->dirty_bgs_lock);
@@ -3881,7 +3882,7 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 		cache_save_setup(cache, trans, path);
 
 		if (!ret)
-			ret = btrfs_run_delayed_refs(trans, fs_info,
+			ret = btrfs_run_delayed_refs(trans,
 						     (unsigned long) -1);
 
 		if (!ret && cache->disk_cache_state == BTRFS_DC_SETUP) {

@@ -781,7 +781,6 @@ static int should_end_transaction(struct btrfs_trans_handle *trans)
 int btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
-	struct btrfs_fs_info *fs_info = trans->fs_info;
 	int updates;
 	int err;
 
@@ -793,7 +792,7 @@ int btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
 	updates = trans->delayed_ref_updates;
 	trans->delayed_ref_updates = 0;
 	if (updates) {
-		err = btrfs_run_delayed_refs(trans, fs_info, updates * 2);
+		err = btrfs_run_delayed_refs(trans, updates * 2);
 		if (err) /* Error code will also eval true */
 			return err;
 	}
@@ -1161,7 +1160,7 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans)
 	if (ret)
 		return ret;
 
-	ret = btrfs_run_delayed_refs(trans, fs_info, (unsigned long)-1);
+	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 	if (ret)
 		return ret;
 
@@ -1180,7 +1179,7 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans)
 		return ret;
 
 	/* run_qgroups might have added some more refs */
-	ret = btrfs_run_delayed_refs(trans, fs_info, (unsigned long)-1);
+	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 	if (ret)
 		return ret;
 again:
@@ -1197,7 +1196,7 @@ again:
 		ret = update_cowonly_root(trans, root);
 		if (ret)
 			return ret;
-		ret = btrfs_run_delayed_refs(trans, fs_info, (unsigned long)-1);
+		ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 		if (ret)
 			return ret;
 	}
@@ -1206,7 +1205,7 @@ again:
 		ret = btrfs_write_dirty_block_groups(trans, fs_info);
 		if (ret)
 			return ret;
-		ret = btrfs_run_delayed_refs(trans, fs_info, (unsigned long)-1);
+		ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 		if (ret)
 			return ret;
 	}
@@ -1617,7 +1616,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
-	ret = btrfs_run_delayed_refs(trans, fs_info, (unsigned long)-1);
+	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
@@ -1671,7 +1670,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	ret = btrfs_run_delayed_refs(trans, fs_info, (unsigned long)-1);
+	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
@@ -1954,7 +1953,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	/* make a pass through all the delayed refs we have so far
 	 * any runnings procs may add more while we are here
 	 */
-	ret = btrfs_run_delayed_refs(trans, fs_info, 0);
+	ret = btrfs_run_delayed_refs(trans, 0);
 	if (ret) {
 		btrfs_end_transaction(trans);
 		return ret;
@@ -1975,7 +1974,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	if (!list_empty(&trans->new_bgs))
 		btrfs_create_pending_block_groups(trans);
 
-	ret = btrfs_run_delayed_refs(trans, fs_info, 0);
+	ret = btrfs_run_delayed_refs(trans, 0);
 	if (ret) {
 		btrfs_end_transaction(trans);
 		return ret;
@@ -2124,7 +2123,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		goto scrub_continue;
 	}
 
-	ret = btrfs_run_delayed_refs(trans, fs_info, (unsigned long)-1);
+	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 	if (ret) {
 		mutex_unlock(&fs_info->reloc_mutex);
 		goto scrub_continue;
@@ -2175,7 +2174,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 * commit_fs_roots() can call btrfs_save_ino_cache(), which generates
 	 * new delayed refs. Must handle them or qgroup can be wrong.
 	 */
-	ret = btrfs_run_delayed_refs(trans, fs_info, (unsigned long)-1);
+	ret = btrfs_run_delayed_refs(trans, (unsigned long)-1);
 	if (ret) {
 		mutex_unlock(&fs_info->tree_log_mutex);
 		mutex_unlock(&fs_info->reloc_mutex);

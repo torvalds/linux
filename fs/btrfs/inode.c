@@ -4730,7 +4730,6 @@ delete:
 				if (updates) {
 					trans->delayed_ref_updates = 0;
 					ret = btrfs_run_delayed_refs(trans,
-								   fs_info,
 								   updates * 2);
 					if (ret && !err)
 						err = ret;
@@ -4770,8 +4769,7 @@ error:
 		unsigned long updates = trans->delayed_ref_updates;
 		if (updates) {
 			trans->delayed_ref_updates = 0;
-			ret = btrfs_run_delayed_refs(trans, fs_info,
-						     updates * 2);
+			ret = btrfs_run_delayed_refs(trans, updates * 2);
 			if (ret && !err)
 				err = ret;
 		}
