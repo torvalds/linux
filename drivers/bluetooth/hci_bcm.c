@@ -1076,6 +1076,7 @@ static const struct hci_uart_proto bcm_proto = {
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E1A", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
+	{ "BCM2E38", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
 	{ "BCM2E39", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
 	{ "BCM2E3A", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
 	{ "BCM2E3D", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
@@ -1088,12 +1089,17 @@ static const struct acpi_device_id bcm_acpi_match[] = {
 	{ "BCM2E67", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
 	{ "BCM2E71", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
 	{ "BCM2E72", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
+	{ "BCM2E74", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
 	{ "BCM2E7B", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
 	{ "BCM2E7C", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
 	{ "BCM2E7E", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
+	{ "BCM2E83", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
+	{ "BCM2E84", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
+	{ "BCM2E90", (kernel_ulong_t)&acpi_bcm_int_last_gpios },
 	{ "BCM2E95", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
 	{ "BCM2E96", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
 	{ "BCM2EA4", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
+	{ "BCM2EAA", (kernel_ulong_t)&acpi_bcm_int_first_gpios },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, bcm_acpi_match);
