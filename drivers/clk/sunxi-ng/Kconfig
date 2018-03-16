@@ -11,6 +11,11 @@ config SUN50I_A64_CCU
 	default ARM64 && ARCH_SUNXI
 	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 
+config SUN50I_H6_CCU
+	bool "Support for the Allwinner H6 CCU"
+	default ARM64 && ARCH_SUNXI
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+
 config SUN4I_A10_CCU
 	bool "Support for the Allwinner A10/A20 CCU"
 	default MACH_SUN4I
