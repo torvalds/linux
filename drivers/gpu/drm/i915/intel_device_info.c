@@ -780,3 +780,50 @@ void intel_driver_caps_print(const struct intel_driver_caps *caps,
 {
 	drm_printf(p, "scheduler: %x\n", caps->scheduler);
 }
+
+/*
+ * Determine which engines are fused off in our particular hardware. Since the
+ * fuse register is in the blitter powerwell, we need forcewake to be ready at
+ * this point (but later we need to prune the forcewake domains for engines that
+ * are indeed fused off).
+ */
+void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
+{
+	struct intel_device_info *info = mkwrite_device_info(dev_priv);
+	u8 vdbox_disable, vebox_disable;
+	u32 media_fuse;
+	int i;
+
+	if (INTEL_GEN(dev_priv) < 11)
+		return;
+
+	media_fuse = I915_READ(GEN11_GT_VEBOX_VDBOX_DISABLE);
+
+	vdbox_disable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
+	vebox_disable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
+			GEN11_GT_VEBOX_DISABLE_SHIFT;
+
+	DRM_DEBUG_DRIVER("vdbox disable: %04x\n", vdbox_disable);
+	for (i = 0; i < I915_MAX_VCS; i++) {
+		if (!HAS_ENGINE(dev_priv, _VCS(i)))
+			continue;
+
+		if (!(BIT(i) & vdbox_disable))
+			continue;
+
+		info->ring_mask &= ~ENGINE_MASK(_VCS(i));
+		DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
+	}
+
+	DRM_DEBUG_DRIVER("vebox disable: %04x\n", vebox_disable);
+	for (i = 0; i < I915_MAX_VECS; i++) {
+		if (!HAS_ENGINE(dev_priv, _VECS(i)))
+			continue;
+
+		if (!(BIT(i) & vebox_disable))
+			continue;
+
+		info->ring_mask &= ~ENGINE_MASK(_VECS(i));
+		DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
+	}
+}

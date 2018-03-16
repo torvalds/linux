@@ -62,6 +62,11 @@ static inline void
 fw_domain_reset(struct drm_i915_private *i915,
 		const struct intel_uncore_forcewake_domain *d)
 {
+	/*
+	 * We don't really know if the powerwell for the forcewake domain we are
+	 * trying to reset here does exist at this point (engines could be fused
+	 * off in ICL+), so no waiting for acks
+	 */
 	__raw_i915_write32(i915, d->reg_set, i915->uncore.fw_reset);
 }
 
@@ -1353,6 +1358,23 @@ static void fw_domain_init(struct drm_i915_private *dev_priv,
 	fw_domain_reset(dev_priv, d);
 }
 
+static void fw_domain_fini(struct drm_i915_private *dev_priv,
+			   enum forcewake_domain_id domain_id)
+{
+	struct intel_uncore_forcewake_domain *d;
+
+	if (WARN_ON(domain_id >= FW_DOMAIN_ID_COUNT))
+		return;
+
+	d = &dev_priv->uncore.fw_domain[domain_id];
+
+	WARN_ON(d->wake_count);
+	WARN_ON(hrtimer_cancel(&d->timer));
+	memset(d, 0, sizeof(*d));
+
+	dev_priv->uncore.fw_domains &= ~BIT(domain_id);
+}
+
 static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 {
 	if (INTEL_GEN(dev_priv) <= 5 || intel_vgpu_active(dev_priv))
@@ -1563,6 +1585,40 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 
 	iosf_mbi_register_pmic_bus_access_notifier(
 		&dev_priv->uncore.pmic_bus_access_nb);
+}
+
+/*
+ * We might have detected that some engines are fused off after we initialized
+ * the forcewake domains. Prune them, to make sure they only reference existing
+ * engines.
+ */
+void intel_uncore_prune(struct drm_i915_private *dev_priv)
+{
+	if (INTEL_GEN(dev_priv) >= 11) {
+		enum forcewake_domains fw_domains = dev_priv->uncore.fw_domains;
+		enum forcewake_domain_id domain_id;
+		int i;
+
+		for (i = 0; i < I915_MAX_VCS; i++) {
+			domain_id = FW_DOMAIN_ID_MEDIA_VDBOX0 + i;
+
+			if (HAS_ENGINE(dev_priv, _VCS(i)))
+				continue;
+
+			if (fw_domains & BIT(domain_id))
+				fw_domain_fini(dev_priv, domain_id);
+		}
+
+		for (i = 0; i < I915_MAX_VECS; i++) {
+			domain_id = FW_DOMAIN_ID_MEDIA_VEBOX0 + i;
+
+			if (HAS_ENGINE(dev_priv, _VECS(i)))
+				continue;
+
+			if (fw_domains & BIT(domain_id))
+				fw_domain_fini(dev_priv, domain_id);
+		}
+	}
 }
 
 void intel_uncore_fini(struct drm_i915_private *dev_priv)

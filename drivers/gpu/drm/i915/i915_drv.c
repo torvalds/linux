@@ -1033,6 +1033,10 @@ static int i915_driver_init_mmio(struct drm_i915_private *dev_priv)
 
 	intel_uncore_init(dev_priv);
 
+	intel_device_info_init_mmio(dev_priv);
+
+	intel_uncore_prune(dev_priv);
+
 	intel_uc_init_mmio(dev_priv);
 
 	ret = intel_engines_init_mmio(dev_priv);
