@@ -427,7 +427,7 @@ static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 		data->smu_features[GNLD_VR0HOT].supported = true;
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion);
-	vega10_read_arg_from_smc(hwmgr, &(hwmgr->smu_version));
+	hwmgr->smu_version = smum_get_argument(hwmgr);
 		/* ACG firmware has major version 5 */
 	if ((hwmgr->smu_version & 0xff000000) == 0x5000000)
 		data->smu_features[GNLD_ACG].supported = true;
@@ -2273,7 +2273,7 @@ static int vega10_acg_enable(struct pp_hwmgr *hwmgr)
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_InitializeAcg);
 
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_RunAcgBtc);
-		vega10_read_arg_from_smc(hwmgr, &agc_btc_response);
+		agc_btc_response = smum_get_argument(hwmgr);
 
 		if (1 == agc_btc_response) {
 			if (1 == data->acg_loop_state)
@@ -2380,10 +2380,10 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 	AvfsFuseOverride_t *avfs_fuse_table = &(data->smc_state_table.avfs_fuse_override_table);
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumTop32);
-	vega10_read_arg_from_smc(hwmgr, &top32);
+	top32 = smum_get_argument(hwmgr);
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumBottom32);
-	vega10_read_arg_from_smc(hwmgr, &bottom32);
+	bottom32 = smum_get_argument(hwmgr);
 
 	serial_number = ((uint64_t)bottom32 << 32) | top32;
 
@@ -2397,8 +2397,8 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 		avfs_fuse_table->VFT2_b  = fuse.VFT2_b;
 		avfs_fuse_table->VFT2_m1 = fuse.VFT2_m1;
 		avfs_fuse_table->VFT2_m2 = fuse.VFT2_m2;
-		result = vega10_copy_table_to_smc(hwmgr,
-			(uint8_t *)avfs_fuse_table, AVFSFUSETABLE);
+		result = smum_smc_table_manager(hwmgr,  (uint8_t *)avfs_fuse_table,
+						AVFSFUSETABLE, false);
 		PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload FuseOVerride!",
 			);
@@ -2541,8 +2541,8 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	vega10_populate_and_upload_avfs_fuse_override(hwmgr);
 
-	result = vega10_copy_table_to_smc(hwmgr,
-			(uint8_t *)pp_table, PPTABLE);
+	result = smum_smc_table_manager(hwmgr, (uint8_t *)pp_table, PPTABLE, false);
+
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
 
@@ -3780,8 +3780,7 @@ static int vega10_set_power_state_tasks(struct pp_hwmgr *hwmgr,
 			"Failed to update SCLK threshold!",
 			result = tmp_result);
 
-	result = vega10_copy_table_to_smc(hwmgr,
-			(uint8_t *)pp_table, PPTABLE);
+	result = smum_smc_table_manager(hwmgr, (uint8_t *)pp_table, PPTABLE, false);
 	PP_ASSERT_WITH_CODE(!result,
 			"Failed to upload PPtable!", return result);
 
@@ -3841,7 +3840,7 @@ static int vega10_get_gpu_power(struct pp_hwmgr *hwmgr,
 	uint32_t value;
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrPkgPwr);
-	vega10_read_arg_from_smc(hwmgr, &value);
+	value = smum_get_argument(hwmgr);
 
 	/* power value is an integer */
 	memset(query, 0, sizeof *query);
@@ -3862,7 +3861,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	switch (idx) {
 	case AMDGPU_PP_SENSOR_GFX_SCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentGfxclkIndex);
-		vega10_read_arg_from_smc(hwmgr, &sclk_idx);
+		sclk_idx = smum_get_argument(hwmgr);
 		if (sclk_idx <  dpm_table->gfx_table.count) {
 			*((uint32_t *)value) = dpm_table->gfx_table.dpm_levels[sclk_idx].value;
 			*size = 4;
@@ -3872,7 +3871,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		break;
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex);
-		vega10_read_arg_from_smc(hwmgr, &mclk_idx);
+		mclk_idx = smum_get_argument(hwmgr);
 		if (mclk_idx < dpm_table->mem_table.count) {
 			*((uint32_t *)value) = dpm_table->mem_table.dpm_levels[mclk_idx].value;
 			*size = 4;
@@ -3882,7 +3881,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		break;
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
 		smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_GetAverageGfxActivity, 0);
-		vega10_read_arg_from_smc(hwmgr, &activity_percent);
+		activity_percent = smum_get_argument(hwmgr);
 		*((uint32_t *)value) = activity_percent > 100 ? 100 : activity_percent;
 		*size = 4;
 		break;
@@ -4508,7 +4507,7 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 			break;
 
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentGfxclkIndex);
-		vega10_read_arg_from_smc(hwmgr, &now);
+		now = smum_get_argument(hwmgr);
 
 		for (i = 0; i < sclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
@@ -4520,7 +4519,7 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 			break;
 
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentUclkIndex);
-		vega10_read_arg_from_smc(hwmgr, &now);
+		now = smum_get_argument(hwmgr);
 
 		for (i = 0; i < mclk_table->count; i++)
 			size += sprintf(buf + size, "%d: %uMhz %s\n",
@@ -4529,7 +4528,7 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		break;
 	case PP_PCIE:
 		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentLinkIndex);
-		vega10_read_arg_from_smc(hwmgr, &now);
+		now = smum_get_argument(hwmgr);
 
 		for (i = 0; i < pcie_table->count; i++)
 			size += sprintf(buf + size, "%d: %s %s\n", i,
@@ -4554,8 +4553,7 @@ static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 	if ((data->water_marks_bitmap & WaterMarksExist) &&
 			!(data->water_marks_bitmap & WaterMarksLoaded)) {
-		result = vega10_copy_table_to_smc(hwmgr,
-			(uint8_t *)wm_table, WMTABLE);
+		result = smum_smc_table_manager(hwmgr, (uint8_t *)wm_table, WMTABLE, false);
 		PP_ASSERT_WITH_CODE(result, "Failed to update WMTABLE!", return EINVAL);
 		data->water_marks_bitmap |= WaterMarksLoaded;
 	}

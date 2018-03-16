@@ -32,7 +32,7 @@
 static int vega10_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentRpm);
-	vega10_read_arg_from_smc(hwmgr, current_rpm);
+	*current_rpm = smum_get_argument(hwmgr);
 	return 0;
 }
 
@@ -571,8 +571,9 @@ int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	table->FanStartTemp = hwmgr->thermal_controller.
 			advanceFanControlParameters.usZeroRPMStartTemperature;
 
-	ret = vega10_copy_table_to_smc(hwmgr,
-			(uint8_t *)(&(data->smc_state_table.pp_table)), PPTABLE);
+	ret = smum_smc_table_manager(hwmgr,
+				(uint8_t *)(&(data->smc_state_table.pp_table)),
+				PPTABLE, false);
 	if (ret)
 		pr_info("Failed to update Fan Control Table in PPTable!");
 
