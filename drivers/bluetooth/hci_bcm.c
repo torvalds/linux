@@ -774,25 +774,21 @@ unlock:
 }
 #endif
 
-static const struct acpi_gpio_params int_last_device_wakeup_gpios = { 0, 0, false };
-static const struct acpi_gpio_params int_last_shutdown_gpios = { 1, 0, false };
-static const struct acpi_gpio_params int_last_host_wakeup_gpios = { 2, 0, false };
+static const struct acpi_gpio_params first_gpio = { 0, 0, false };
+static const struct acpi_gpio_params second_gpio = { 1, 0, false };
+static const struct acpi_gpio_params third_gpio = { 2, 0, false };
 
 static const struct acpi_gpio_mapping acpi_bcm_int_last_gpios[] = {
-	{ "device-wakeup-gpios", &int_last_device_wakeup_gpios, 1 },
-	{ "shutdown-gpios", &int_last_shutdown_gpios, 1 },
-	{ "host-wakeup-gpios", &int_last_host_wakeup_gpios, 1 },
+	{ "device-wakeup-gpios", &first_gpio, 1 },
+	{ "shutdown-gpios", &second_gpio, 1 },
+	{ "host-wakeup-gpios", &third_gpio, 1 },
 	{ },
 };
 
-static const struct acpi_gpio_params int_first_host_wakeup_gpios = { 0, 0, false };
-static const struct acpi_gpio_params int_first_device_wakeup_gpios = { 1, 0, false };
-static const struct acpi_gpio_params int_first_shutdown_gpios = { 2, 0, false };
-
 static const struct acpi_gpio_mapping acpi_bcm_int_first_gpios[] = {
-	{ "device-wakeup-gpios", &int_first_device_wakeup_gpios, 1 },
-	{ "shutdown-gpios", &int_first_shutdown_gpios, 1 },
-	{ "host-wakeup-gpios", &int_first_host_wakeup_gpios, 1 },
+	{ "host-wakeup-gpios", &first_gpio, 1 },
+	{ "device-wakeup-gpios", &second_gpio, 1 },
+	{ "shutdown-gpios", &third_gpio, 1 },
 	{ },
 };
 
