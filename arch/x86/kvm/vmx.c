@@ -175,24 +175,24 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
 #define KVM_VMX_DEFAULT_PLE_WINDOW_MAX    \
 		INT_MAX / KVM_VMX_DEFAULT_PLE_WINDOW_GROW
 
-static int ple_gap = KVM_VMX_DEFAULT_PLE_GAP;
-module_param(ple_gap, int, S_IRUGO);
+static unsigned int ple_gap = KVM_VMX_DEFAULT_PLE_GAP;
+module_param(ple_gap, uint, 0444);
 
-static int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
-module_param(ple_window, int, S_IRUGO);
+static unsigned int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
+module_param(ple_window, uint, 0444);
 
 /* Default doubles per-vcpu window every exit. */
-static int ple_window_grow = KVM_VMX_DEFAULT_PLE_WINDOW_GROW;
-module_param(ple_window_grow, int, S_IRUGO);
+static unsigned int ple_window_grow = KVM_VMX_DEFAULT_PLE_WINDOW_GROW;
+module_param(ple_window_grow, uint, 0444);
 
 /* Default resets per-vcpu window every exit to ple_window. */
-static int ple_window_shrink = KVM_VMX_DEFAULT_PLE_WINDOW_SHRINK;
-module_param(ple_window_shrink, int, S_IRUGO);
+static unsigned int ple_window_shrink = KVM_VMX_DEFAULT_PLE_WINDOW_SHRINK;
+module_param(ple_window_shrink, uint, 0444);
 
 /* Default is to compute the maximum so we can never overflow. */
-static int ple_window_actual_max = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
-static int ple_window_max        = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
-module_param(ple_window_max, int, S_IRUGO);
+static unsigned int ple_window_actual_max = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
+static unsigned int ple_window_max        = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
+module_param(ple_window_max, uint, 0444);
 
 extern const ulong vmx_return;
 
@@ -6984,7 +6984,7 @@ out:
 	return ret;
 }
 
-static int __grow_ple_window(int val)
+static unsigned int __grow_ple_window(unsigned int val)
 {
 	if (ple_window_grow < 1)
 		return ple_window;
@@ -6999,7 +6999,8 @@ static int __grow_ple_window(int val)
 	return val;
 }
 
-static int __shrink_ple_window(int val, int modifier, int minimum)
+static unsigned int __shrink_ple_window(unsigned int val,
+		unsigned int modifier, unsigned int minimum)
 {
 	if (modifier < 1)
 		return ple_window;
