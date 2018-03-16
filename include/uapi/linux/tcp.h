@@ -243,6 +243,7 @@ enum {
 	TCP_NLA_DELIVERY_RATE_APP_LMT, /* delivery rate application limited ? */
 	TCP_NLA_SNDQ_SIZE,	/* Data (bytes) pending in send queue */
 	TCP_NLA_CA_STATE,	/* ca_state of socket */
+	TCP_NLA_SND_SSTHRESH,	/* Slow start size threshold */
 
 };
 
