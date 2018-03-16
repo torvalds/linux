@@ -70,7 +70,7 @@ ifeq ($(feature-disassembler-four-args), 1)
 CFLAGS += -DDISASM_FOUR_ARGS_SIGNATURE
 endif
 
-include $(wildcard *.d)
+include $(wildcard $(OUTPUT)*.d)
 
 all: $(OUTPUT)bpftool
 
