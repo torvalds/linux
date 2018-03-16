@@ -27,11 +27,6 @@
 #define CLKSRC		0x1c
 #define SWRST		0x30
 
-/* list of PLLs to be registered */
-enum s3c2412_plls {
-	mpll, upll,
-};
-
 static void __iomem *reg_base;
 
 #ifdef CONFIG_PM_SLEEP
@@ -144,10 +139,8 @@ struct samsung_mux_clock s3c2412_muxes[] __initdata = {
 };
 
 static struct samsung_pll_clock s3c2412_plls[] __initdata = {
-	[mpll] = PLL(pll_s3c2440_mpll, MPLL, "mpll", "xti",
-						LOCKTIME, MPLLCON, NULL),
-	[upll] = PLL(pll_s3c2410_upll, UPLL, "upll", "urefclk",
-						LOCKTIME, UPLLCON, NULL),
+	PLL(pll_s3c2440_mpll, MPLL, "mpll", "xti", LOCKTIME, MPLLCON, NULL),
+	PLL(pll_s3c2410_upll, UPLL, "upll", "urefclk", LOCKTIME, UPLLCON, NULL),
 };
 
 struct samsung_gate_clock s3c2412_gates[] __initdata = {

@@ -226,16 +226,16 @@ static const struct samsung_gate_clock exynos5410_gate_clks[] __initconst = {
 };
 
 static const struct samsung_pll_rate_table exynos5410_pll2550x_24mhz_tbl[] __initconst = {
-	PLL_36XX_RATE(400000000U, 200, 3, 2, 0),
-	PLL_36XX_RATE(333000000U, 111, 2, 2, 0),
-	PLL_36XX_RATE(300000000U, 100, 2, 2, 0),
-	PLL_36XX_RATE(266000000U, 266, 3, 3, 0),
-	PLL_36XX_RATE(200000000U, 200, 3, 3, 0),
-	PLL_36XX_RATE(192000000U, 192, 3, 3, 0),
-	PLL_36XX_RATE(166000000U, 166, 3, 3, 0),
-	PLL_36XX_RATE(133000000U, 266, 3, 4, 0),
-	PLL_36XX_RATE(100000000U, 200, 3, 4, 0),
-	PLL_36XX_RATE(66000000U,  176, 2, 5, 0),
+	PLL_36XX_RATE(24 * MHZ, 400000000U, 200, 3, 2, 0),
+	PLL_36XX_RATE(24 * MHZ, 333000000U, 111, 2, 2, 0),
+	PLL_36XX_RATE(24 * MHZ, 300000000U, 100, 2, 2, 0),
+	PLL_36XX_RATE(24 * MHZ, 266000000U, 266, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 200000000U, 200, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 192000000U, 192, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 166000000U, 166, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 133000000U, 266, 3, 4, 0),
+	PLL_36XX_RATE(24 * MHZ, 100000000U, 200, 3, 4, 0),
+	PLL_36XX_RATE(24 * MHZ, 66000000U,  176, 2, 5, 0),
 };
 
 static struct samsung_pll_clock exynos5410_plls[nr_plls] __initdata = {
