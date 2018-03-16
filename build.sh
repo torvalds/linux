@@ -231,6 +231,7 @@ if [ -n "$kernver" ]; then
 			$0 update
 			$0 importconfig
 			$0 build
+			$0 cryptodev
 			$0 pack
 			;;
 
