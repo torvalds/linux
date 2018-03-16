@@ -29,6 +29,7 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
+		ethernet0 = &mac;
 	};
 
 	cpus {
@@ -630,6 +631,28 @@
 		interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdio_bus4 &sdio_cmd &sdio_clk>;
+		status = "disabled";
+	};
+
+	mac: ethernet@ff4e0000 {
+		compatible = "rockchip,px3308-mac";
+		reg = <0x0 0xff4e0000 0x0 0x10000>;
+		rockchip,grf = <&grf>;
+		interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&cru SCLK_MAC>, <&cru SCLK_MAC_RX_TX>,
+			 <&cru SCLK_MAC_RX_TX>, <&cru SCLK_MAC_REF>,
+			 <&cru SCLK_MAC>, <&cru ACLK_MAC>,
+			 <&cru PCLK_MAC>, <&cru SCLK_MAC_RMII>;
+		clock-names = "stmmaceth", "mac_clk_rx",
+			      "mac_clk_tx", "clk_mac_ref",
+			      "clk_mac_refout", "aclk_mac",
+			      "pclk_mac", "clk_mac_speed";
+		phy-mode = "rmii";
+		pinctrl-names = "default";
+		pinctrl-0 = <&rmii_pins &mac_refclk_12ma>;
+		resets = <&cru SRST_MAC_A>;
+		reset-names = "stmmaceth";
 		status = "disabled";
 	};
 
@@ -1329,8 +1352,16 @@
 					/* mac_mdio */
 					<1 RK_PB6 3 &pcfg_pull_none>,
 					/* mac_mdc */
-					<1 RK_PB5 3 &pcfg_pull_none>,
-					/* mac_clk */
+					<1 RK_PB5 3 &pcfg_pull_none>;
+			};
+
+			mac_refclk_12ma: mac-refclk-12ma {
+				rockchip,pins =
+					<1 RK_PB4 3 &pcfg_pull_none_12ma>;
+			};
+
+			mac_refclk: mac-refclk {
+				rockchip,pins =
 					<1 RK_PB4 3 &pcfg_pull_none>;
 			};
 		};
