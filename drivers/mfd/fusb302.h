@@ -118,6 +118,18 @@ enum connection_state {
 	policy_vcs_ufp_turn_off_vconn,
 	policy_vcs_ufp_turn_on_vconn,
 	policy_vcs_ufp_send_ps_rdy,
+
+	policy_drs_ufp_evaluate,
+	policy_drs_ufp_accept,
+	policy_drs_ufp_reject,
+	policy_drs_ufp_change,
+	policy_drs_ufp_send_swap,
+
+	policy_drs_dfp_evaluate,
+	policy_drs_dfp_accept,
+	policy_drs_dfp_reject,
+	policy_drs_dfp_change,
+	policy_drs_dfp_send_swap,
 };
 
 enum tcpm_rp_value {
