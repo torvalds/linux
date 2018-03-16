@@ -48,14 +48,8 @@ static inline struct annotation *browser__annotation(struct ui_browser *browser)
 static bool disasm_line__filter(struct ui_browser *browser, void *entry)
 {
 	struct annotation *notes = browser__annotation(browser);
-
-	if (notes->options->hide_src_code) {
-		struct annotation_line *al = list_entry(entry, struct annotation_line, node);
-
-		return al->offset == -1;
-	}
-
-	return false;
+	struct annotation_line *al = list_entry(entry, struct annotation_line, node);
+	return annotation_line__filter(al, notes);
 }
 
 static int ui_browser__jumps_percent_color(struct ui_browser *browser, int nr, bool current)
@@ -268,6 +262,7 @@ static void disasm_rb_tree__insert(struct rb_root *root, struct annotation_line 
 static void annotate_browser__set_top(struct annotate_browser *browser,
 				      struct annotation_line *pos, u32 idx)
 {
+	struct annotation *notes = browser__annotation(&browser->b);
 	unsigned back;
 
 	ui_browser__refresh_dimensions(&browser->b);
@@ -277,7 +272,7 @@ static void annotate_browser__set_top(struct annotate_browser *browser,
 	while (browser->b.top_idx != 0 && back != 0) {
 		pos = list_entry(pos->node.prev, struct annotation_line, node);
 
-		if (disasm_line__filter(&browser->b, &pos->node))
+		if (annotation_line__filter(pos, notes))
 			continue;
 
 		--browser->b.top_idx;
@@ -440,7 +435,7 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 	list_for_each_entry(pos, &notes->src->source, al.node) {
 		if (pos->al.offset == offset)
 			return pos;
-		if (!disasm_line__filter(&browser->b, &pos->al.node))
+		if (!annotation_line__filter(&pos->al, notes))
 			++*idx;
 	}
 
@@ -477,7 +472,7 @@ struct annotation_line *annotate_browser__find_string(struct annotate_browser *b
 
 	*idx = browser->b.index;
 	list_for_each_entry_continue(al, &notes->src->source, node) {
-		if (disasm_line__filter(&browser->b, &al->node))
+		if (annotation_line__filter(al, notes))
 			continue;
 
 		++*idx;
@@ -514,7 +509,7 @@ struct annotation_line *annotate_browser__find_string_reverse(struct annotate_br
 
 	*idx = browser->b.index;
 	list_for_each_entry_continue_reverse(al, &notes->src->source, node) {
-		if (disasm_line__filter(&browser->b, &al->node))
+		if (annotation_line__filter(al, notes))
 			continue;
 
 		--*idx;

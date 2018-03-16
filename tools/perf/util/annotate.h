@@ -215,6 +215,10 @@ static inline int annotation__pcnt_width(struct annotation *notes)
 	return (notes->options->show_total_period ? 12 : 7) * notes->nr_events;
 }
 
+static inline bool annotation_line__filter(struct annotation_line *al, struct annotation *notes)
+{
+	return notes->options->hide_src_code && al->offset == -1;
+}
 
 void annotation__set_offsets(struct annotation *notes, s64 size);
 void annotation__compute_ipc(struct annotation *notes, size_t size);
