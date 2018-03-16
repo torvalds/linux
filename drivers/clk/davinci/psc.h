@@ -94,4 +94,7 @@ struct davinci_psc_init_data {
 	int (*psc_init)(struct device *dev, void __iomem *base);
 };
 
+extern const struct davinci_psc_init_data da830_psc0_init_data;
+extern const struct davinci_psc_init_data da830_psc1_init_data;
+
 #endif /* __CLK_DAVINCI_PSC_H__ */
