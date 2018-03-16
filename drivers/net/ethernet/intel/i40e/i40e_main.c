@@ -1083,13 +1083,13 @@ static void i40e_update_pf_stats(struct i40e_pf *pf)
 			   &osd->rx_lpi_count, &nsd->rx_lpi_count);
 
 	if (pf->flags & I40E_FLAG_FD_SB_ENABLED &&
-	    !(pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED))
+	    !test_bit(__I40E_FD_SB_AUTO_DISABLED, pf->state))
 		nsd->fd_sb_status = true;
 	else
 		nsd->fd_sb_status = false;
 
 	if (pf->flags & I40E_FLAG_FD_ATR_ENABLED &&
-	    !(pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED))
+	    !test_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
 		nsd->fd_atr_status = true;
 	else
 		nsd->fd_atr_status = false;
@@ -8144,12 +8144,10 @@ u32 i40e_get_global_fd_count(struct i40e_pf *pf)
  **/
 static void i40e_reenable_fdir_sb(struct i40e_pf *pf)
 {
-	if (pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED) {
-		pf->flags &= ~I40E_FLAG_FD_SB_AUTO_DISABLED;
+	if (test_and_clear_bit(__I40E_FD_SB_AUTO_DISABLED, pf->state))
 		if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
 		    (I40E_DEBUG_FD & pf->hw.debug_mask))
 			dev_info(&pf->pdev->dev, "FD Sideband/ntuple is being enabled since we have space in the table now\n");
-	}
 }
 
 /**
@@ -8158,7 +8156,7 @@ static void i40e_reenable_fdir_sb(struct i40e_pf *pf)
  **/
 static void i40e_reenable_fdir_atr(struct i40e_pf *pf)
 {
-	if (pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED) {
+	if (test_and_clear_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state)) {
 		/* ATR uses the same filtering logic as SB rules. It only
 		 * functions properly if the input set mask is at the default
 		 * settings. It is safe to restore the default input set
@@ -8168,7 +8166,6 @@ static void i40e_reenable_fdir_atr(struct i40e_pf *pf)
 					I40E_L3_SRC_MASK | I40E_L3_DST_MASK |
 					I40E_L4_SRC_MASK | I40E_L4_DST_MASK);
 
-		pf->flags &= ~I40E_FLAG_FD_ATR_AUTO_DISABLED;
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    (I40E_DEBUG_FD & pf->hw.debug_mask))
 			dev_info(&pf->pdev->dev, "ATR is being enabled since we have space in the table and there are no conflicting ntuple rules\n");
@@ -8291,7 +8288,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 	}
 
 	pf->fd_flush_timestamp = jiffies;
-	pf->flags |= I40E_FLAG_FD_ATR_AUTO_DISABLED;
+	set_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
 	/* flush all filters */
 	wr32(&pf->hw, I40E_PFQF_CTL_1,
 	     I40E_PFQF_CTL_1_CLEARFDTABLE_MASK);
@@ -8311,7 +8308,7 @@ static void i40e_fdir_flush_and_replay(struct i40e_pf *pf)
 		/* replay sideband filters */
 		i40e_fdir_filter_restore(pf->vsi[pf->lan_vsi]);
 		if (!disable_atr && !pf->fd_tcp4_filter_cnt)
-			pf->flags &= ~I40E_FLAG_FD_ATR_AUTO_DISABLED;
+			clear_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
 		clear_bit(__I40E_FD_FLUSH_REQUESTED, pf->state);
 		if (I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pf->pdev->dev, "FD Filter table flushed and FD-SB replayed.\n");
@@ -11291,20 +11288,18 @@ bool i40e_set_ntuple(struct i40e_pf *pf, netdev_features_t features)
 			need_reset = true;
 			i40e_fdir_filter_exit(pf);
 		}
-		pf->flags &= ~(I40E_FLAG_FD_SB_ENABLED |
-			       I40E_FLAG_FD_SB_AUTO_DISABLED);
+		pf->flags &= ~I40E_FLAG_FD_SB_ENABLED;
+		clear_bit(__I40E_FD_SB_AUTO_DISABLED, pf->state);
 		pf->flags |= I40E_FLAG_FD_SB_INACTIVE;
 
 		/* reset fd counters */
 		pf->fd_add_err = 0;
 		pf->fd_atr_cnt = 0;
 		/* if ATR was auto disabled it can be re-enabled. */
-		if (pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED) {
-			pf->flags &= ~I40E_FLAG_FD_ATR_AUTO_DISABLED;
+		if (test_and_clear_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
 			if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 			    (I40E_DEBUG_FD & pf->hw.debug_mask))
 				dev_info(&pf->pdev->dev, "ATR re-enabled.\n");
-		}
 	}
 	return need_reset;
 }

@@ -336,7 +336,7 @@ static int i40e_add_del_fdir_tcpv4(struct i40e_vsi *vsi,
 		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
 		    I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
-		pf->flags |= I40E_FLAG_FD_ATR_AUTO_DISABLED;
+		set_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
 	} else {
 		pf->fd_tcp4_filter_cnt--;
 	}
@@ -594,8 +594,14 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		pf->fd_atr_cnt = i40e_get_current_atr_cnt(pf);
 
 		if ((rx_desc->wb.qword0.hi_dword.fd_id == 0) &&
-		    pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED) {
-			pf->flags |= I40E_FLAG_FD_ATR_AUTO_DISABLED;
+		    test_bit(__I40E_FD_SB_AUTO_DISABLED, pf->state)) {
+			/* These set_bit() calls aren't atomic with the
+			 * test_bit() here, but worse case we potentially
+			 * disable ATR and queue a flush right after SB
+			 * support is re-enabled. That shouldn't cause an
+			 * issue in practice
+			 */
+			set_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
 			set_bit(__I40E_FD_FLUSH_REQUESTED, pf->state);
 		}
 
@@ -608,11 +614,10 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		 */
 		if (fcnt_prog >= (fcnt_avail - I40E_FDIR_BUFFER_FULL_MARGIN)) {
 			if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
-			    !(pf->flags & I40E_FLAG_FD_SB_AUTO_DISABLED)) {
-				pf->flags |= I40E_FLAG_FD_SB_AUTO_DISABLED;
+			    !test_and_set_bit(__I40E_FD_SB_AUTO_DISABLED,
+					      pf->state))
 				if (I40E_DEBUG_FD & pf->hw.debug_mask)
 					dev_warn(&pdev->dev, "FD filter space full, new ntuple rules will not be added\n");
-			}
 		}
 	} else if (error == BIT(I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
 		if (I40E_DEBUG_FD & pf->hw.debug_mask)
@@ -2647,7 +2652,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
 		return;
 
-	if (pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED)
+	if (test_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
 		return;
 
 	/* if sampling is disabled do nothing */
@@ -2687,7 +2692,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	th = (struct tcphdr *)(hdr.network + hlen);
 
 	/* Due to lack of space, no more new filters can be programmed */
-	if (th->syn && (pf->flags & I40E_FLAG_FD_ATR_AUTO_DISABLED))
+	if (th->syn && test_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
 		return;
 	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_ENABLED) {
 		/* HW ATR eviction will take care of removing filters on FIN
