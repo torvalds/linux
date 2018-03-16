@@ -787,9 +787,9 @@ COMPAT_SYSCALL_DEFINE6(recvfrom, int, fd, void __user *, buf, compat_size_t, len
 	return __compat_sys_recvfrom(fd, buf, len, flags, addr, addrlen);
 }
 
-COMPAT_SYSCALL_DEFINE5(recvmmsg, int, fd, struct compat_mmsghdr __user *, mmsg,
-		       unsigned int, vlen, unsigned int, flags,
-		       struct compat_timespec __user *, timeout)
+static int __compat_sys_recvmmsg(int fd, struct compat_mmsghdr __user *mmsg,
+				 unsigned int vlen, unsigned int flags,
+				 struct compat_timespec __user *timeout)
 {
 	int datagrams;
 	struct timespec ktspec;
@@ -807,6 +807,13 @@ COMPAT_SYSCALL_DEFINE5(recvmmsg, int, fd, struct compat_mmsghdr __user *, mmsg,
 		datagrams = -EFAULT;
 
 	return datagrams;
+}
+
+COMPAT_SYSCALL_DEFINE5(recvmmsg, int, fd, struct compat_mmsghdr __user *, mmsg,
+		       unsigned int, vlen, unsigned int, flags,
+		       struct compat_timespec __user *, timeout)
+{
+	return __compat_sys_recvmmsg(fd, mmsg, vlen, flags, timeout);
 }
 
 COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
@@ -895,8 +902,8 @@ COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
 		ret = compat_sys_recvmsg(a0, compat_ptr(a1), a[2]);
 		break;
 	case SYS_RECVMMSG:
-		ret = compat_sys_recvmmsg(a0, compat_ptr(a1), a[2], a[3],
-					  compat_ptr(a[4]));
+		ret = __compat_sys_recvmmsg(a0, compat_ptr(a1), a[2], a[3],
+					    compat_ptr(a[4]));
 		break;
 	case SYS_ACCEPT4:
 		ret = __sys_accept4(a0, compat_ptr(a1), compat_ptr(a[2]), a[3]);
