@@ -269,7 +269,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbevf_ring *tx_ring = NULL, *rx_ring = NULL;
 	u32 new_rx_count, new_tx_count;
-	int i, err = 0;
+	int i, j, err = 0;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
@@ -293,15 +293,19 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	if (!netif_running(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			adapter->tx_ring[i]->count = new_tx_count;
+		for (i = 0; i < adapter->num_xdp_queues; i++)
+			adapter->xdp_ring[i]->count = new_tx_count;
 		for (i = 0; i < adapter->num_rx_queues; i++)
 			adapter->rx_ring[i]->count = new_rx_count;
 		adapter->tx_ring_count = new_tx_count;
+		adapter->xdp_ring_count = new_tx_count;
 		adapter->rx_ring_count = new_rx_count;
 		goto clear_reset;
 	}
 
 	if (new_tx_count != adapter->tx_ring_count) {
-		tx_ring = vmalloc(adapter->num_tx_queues * sizeof(*tx_ring));
+		tx_ring = vmalloc((adapter->num_tx_queues +
+				   adapter->num_xdp_queues) * sizeof(*tx_ring));
 		if (!tx_ring) {
 			err = -ENOMEM;
 			goto clear_reset;
@@ -310,6 +314,24 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 		for (i = 0; i < adapter->num_tx_queues; i++) {
 			/* clone ring and setup updated count */
 			tx_ring[i] = *adapter->tx_ring[i];
+			tx_ring[i].count = new_tx_count;
+			err = ixgbevf_setup_tx_resources(&tx_ring[i]);
+			if (err) {
+				while (i) {
+					i--;
+					ixgbevf_free_tx_resources(&tx_ring[i]);
+				}
+
+				vfree(tx_ring);
+				tx_ring = NULL;
+
+				goto clear_reset;
+			}
+		}
+
+		for (j = 0; j < adapter->num_xdp_queues; i++, j++) {
+			/* clone ring and setup updated count */
+			tx_ring[i] = *adapter->xdp_ring[j];
 			tx_ring[i].count = new_tx_count;
 			err = ixgbevf_setup_tx_resources(&tx_ring[i]);
 			if (err) {
@@ -368,6 +390,12 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 		}
 		adapter->tx_ring_count = new_tx_count;
 
+		for (j = 0; j < adapter->num_xdp_queues; i++, j++) {
+			ixgbevf_free_tx_resources(adapter->xdp_ring[j]);
+			*adapter->xdp_ring[j] = tx_ring[i];
+		}
+		adapter->xdp_ring_count = new_tx_count;
+
 		vfree(tx_ring);
 		tx_ring = NULL;
 	}
@@ -390,7 +418,8 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 clear_reset:
 	/* free Tx resources if Rx error is encountered */
 	if (tx_ring) {
-		for (i = 0; i < adapter->num_tx_queues; i++)
+		for (i = 0;
+		     i < adapter->num_tx_queues + adapter->num_xdp_queues; i++)
 			ixgbevf_free_tx_resources(&tx_ring[i]);
 		vfree(tx_ring);
 	}
