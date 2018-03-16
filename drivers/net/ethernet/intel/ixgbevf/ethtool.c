@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2015 Intel Corporation.
+  Copyright(c) 1999 - 2018 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -336,8 +336,13 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			/* clone ring and setup updated count */
 			rx_ring[i] = *adapter->rx_ring[i];
+
+			/* Clear copied XDP RX-queue info */
+			memset(&rx_ring[i].xdp_rxq, 0,
+			       sizeof(rx_ring[i].xdp_rxq));
+
 			rx_ring[i].count = new_rx_count;
-			err = ixgbevf_setup_rx_resources(&rx_ring[i]);
+			err = ixgbevf_setup_rx_resources(adapter, &rx_ring[i]);
 			if (err) {
 				while (i) {
 					i--;
