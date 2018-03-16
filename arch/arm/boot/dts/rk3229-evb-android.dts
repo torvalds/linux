@@ -176,7 +176,7 @@
 		compatible = "bluetooth-platdata";
 		clocks = <&hym8563>;
 		clock-names = "ext_clock";
-		uart_rts_gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+		uart_rts_gpios = <&gpio3 6 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart11_rts>;
 		pinctrl-1 = <&uart11_rts_gpio>;
