@@ -162,6 +162,7 @@ enum i40e_state_t {
 	__I40E_RESET_FAILED,
 	__I40E_PORT_SUSPENDED,
 	__I40E_VF_DISABLE,
+	__I40E_MACVLAN_SYNC_PENDING,
 	/* This must be last as it determines the size of the BITMAP */
 	__I40E_STATE_SIZE__,
 };
@@ -516,7 +517,7 @@ struct i40e_pf {
 #define I40E_FLAG_MSIX_ENABLED			BIT_ULL(2)
 #define I40E_FLAG_RSS_ENABLED			BIT_ULL(3)
 #define I40E_FLAG_VMDQ_ENABLED			BIT_ULL(4)
-#define I40E_FLAG_FILTER_SYNC			BIT_ULL(5)
+/* Gap for BIT_ULL(5) */
 #define I40E_FLAG_SRIOV_ENABLED			BIT_ULL(6)
 #define I40E_FLAG_DCB_CAPABLE			BIT_ULL(7)
 #define I40E_FLAG_DCB_ENABLED			BIT_ULL(8)
