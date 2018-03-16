@@ -3408,7 +3408,8 @@ static sector_t rs_get_progress(struct raid_set *rs, unsigned long recovery,
 		set_bit(RT_FLAG_RS_IN_SYNC, &rs->runtime_flags);
 
 	} else {
-		if (!test_bit(MD_RECOVERY_INTR, &recovery) &&
+		if (!test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags) &&
+		    !test_bit(MD_RECOVERY_INTR, &recovery) &&
 		    (test_bit(MD_RECOVERY_NEEDED, &recovery) ||
 		     test_bit(MD_RECOVERY_RESHAPE, &recovery) ||
 		     test_bit(MD_RECOVERY_RUNNING, &recovery)))
