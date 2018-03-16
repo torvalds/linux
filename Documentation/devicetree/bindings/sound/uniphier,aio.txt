@@ -22,6 +22,12 @@ Required properties:
                     entry in reset-names.
 - #sound-dai-cells: should be 1.
 
+Optional properties:
+- socionext,syscon: a phandle, should contain soc-glue.
+                    The soc-glue is used for changing mode of S/PDIF signal pin
+                    to Output from Hi-Z. This property is optional if you use
+                    I2S signal pins only.
+
 Example:
 	audio {
 		compatible = "socionext,uniphier-ld20-aio";
@@ -34,4 +40,6 @@ Example:
 		reset-names = "aio";
 		resets = <&sys_rst 40>;
 		#sound-dai-cells = <1>;
+
+		socionext,syscon = <&sg>;
 	};
