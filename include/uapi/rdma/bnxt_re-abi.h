@@ -53,11 +53,16 @@ struct bnxt_re_uctx_resp {
 	__u32 rsvd;
 };
 
+/*
+ * This struct is placed after the ib_uverbs_alloc_pd_resp struct, which is
+ * not 8 byted aligned. To avoid undesired padding in various cases we have to
+ * set this struct to packed.
+ */
 struct bnxt_re_pd_resp {
 	__u32 pdid;
 	__u32 dpi;
 	__u64 dbr;
-};
+} __attribute__((packed, aligned(4)));
 
 struct bnxt_re_cq_req {
 	__u64 cq_va;
