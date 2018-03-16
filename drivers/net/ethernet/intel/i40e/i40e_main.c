@@ -9721,7 +9721,7 @@ static void i40e_sync_udp_filters(struct i40e_pf *pf)
 			pf->pending_udp_bitmap |= BIT_ULL(i);
 	}
 
-	pf->flags |= I40E_FLAG_UDP_FILTER_SYNC;
+	set_bit(__I40E_UDP_FILTER_SYNC_PENDING, pf->state);
 }
 
 /**
@@ -9735,10 +9735,8 @@ static void i40e_sync_udp_filters_subtask(struct i40e_pf *pf)
 	u16 port;
 	int i;
 
-	if (!(pf->flags & I40E_FLAG_UDP_FILTER_SYNC))
+	if (!test_and_clear_bit(__I40E_UDP_FILTER_SYNC_PENDING, pf->state))
 		return;
-
-	pf->flags &= ~I40E_FLAG_UDP_FILTER_SYNC;
 
 	for (i = 0; i < I40E_MAX_PF_UDP_OFFLOAD_PORTS; i++) {
 		if (pf->pending_udp_bitmap & BIT_ULL(i)) {
@@ -11439,7 +11437,7 @@ static void i40e_udp_tunnel_add(struct net_device *netdev,
 	/* New port: add it and mark its index in the bitmap */
 	pf->udp_ports[next_idx].port = port;
 	pf->pending_udp_bitmap |= BIT_ULL(next_idx);
-	pf->flags |= I40E_FLAG_UDP_FILTER_SYNC;
+	set_bit(__I40E_UDP_FILTER_SYNC_PENDING, pf->state);
 }
 
 /**
@@ -11480,7 +11478,7 @@ static void i40e_udp_tunnel_del(struct net_device *netdev,
 	 */
 	pf->udp_ports[idx].port = 0;
 	pf->pending_udp_bitmap |= BIT_ULL(idx);
-	pf->flags |= I40E_FLAG_UDP_FILTER_SYNC;
+	set_bit(__I40E_UDP_FILTER_SYNC_PENDING, pf->state);
 
 	return;
 not_found:
