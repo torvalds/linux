@@ -1441,8 +1441,8 @@ static inline int should_cow_block(struct btrfs_trans_handle *trans,
 	if (btrfs_is_testing(root->fs_info))
 		return 0;
 
-	/* ensure we can see the force_cow */
-	smp_rmb();
+	/* Ensure we can see the FORCE_COW bit */
+	smp_mb__before_atomic();
 
 	/*
 	 * We do not need to cow a block if
