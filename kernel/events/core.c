@@ -1906,12 +1906,12 @@ static void perf_group_detach(struct perf_event *event)
 	list_for_each_entry_safe(sibling, tmp, &event->sibling_list, sibling_list) {
 
 		sibling->group_leader = sibling;
+		list_del_init(&sibling->sibling_list);
 
 		/* Inherit group flags from the previous leader */
 		sibling->group_caps = event->group_caps;
 
 		if (!RB_EMPTY_NODE(&event->group_node)) {
-			list_del_init(&sibling->sibling_list);
 			add_event_to_groups(sibling, event->ctx);
 
 			if (sibling->state == PERF_EVENT_STATE_ACTIVE) {
