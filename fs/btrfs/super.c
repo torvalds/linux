@@ -2304,11 +2304,18 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 	struct list_head *head;
 	struct rcu_string *name;
 
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	/*
+	 * Lightweight locking of the devices. We should not need
+	 * device_list_mutex here as we only read the device data and the list
+	 * is protected by RCU.  Even if a device is deleted during the list
+	 * traversals, we'll get valid data, the freeing callback will wait at
+	 * least until until the rcu_read_unlock.
+	 */
+	rcu_read_lock();
 	cur_devices = fs_info->fs_devices;
 	while (cur_devices) {
 		head = &cur_devices->devices;
-		list_for_each_entry(dev, head, dev_list) {
+		list_for_each_entry_rcu(dev, head, dev_list) {
 			if (test_bit(BTRFS_DEV_STATE_MISSING, &dev->dev_state))
 				continue;
 			if (!dev->name)
@@ -2320,14 +2327,12 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 	}
 
 	if (first_dev) {
-		rcu_read_lock();
 		name = rcu_dereference(first_dev->name);
 		seq_escape(m, name->str, " \t\n\\");
-		rcu_read_unlock();
 	} else {
 		WARN_ON(1);
 	}
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	rcu_read_unlock();
 	return 0;
 }
 
