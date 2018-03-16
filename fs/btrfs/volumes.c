@@ -2067,7 +2067,7 @@ void btrfs_rm_dev_replace_remove_srcdev(struct btrfs_fs_info *fs_info,
 {
 	struct btrfs_fs_devices *fs_devices;
 
-	WARN_ON(!mutex_is_locked(&fs_info->fs_devices->device_list_mutex));
+	lockdep_assert_held(&fs_info->fs_devices->device_list_mutex);
 
 	/*
 	 * in case of fs with no seed, srcdev->fs_devices will point
@@ -2257,7 +2257,7 @@ static int btrfs_prepare_sprout(struct btrfs_fs_info *fs_info)
 	struct btrfs_device *device;
 	u64 super_flags;
 
-	BUG_ON(!mutex_is_locked(&uuid_mutex));
+	lockdep_assert_held(&uuid_mutex);
 	if (!fs_devices->seeding)
 		return -EINVAL;
 
@@ -2990,7 +2990,7 @@ static int btrfs_relocate_chunk(struct btrfs_fs_info *fs_info, u64 chunk_offset)
 	 * we release the path used to search the chunk/dev tree and before
 	 * the current task acquires this mutex and calls us.
 	 */
-	ASSERT(mutex_is_locked(&fs_info->delete_unused_bgs_mutex));
+	lockdep_assert_held(&fs_info->delete_unused_bgs_mutex);
 
 	ret = btrfs_can_relocate(fs_info, chunk_offset);
 	if (ret)
@@ -5100,7 +5100,7 @@ int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 {
 	u64 chunk_offset;
 
-	ASSERT(mutex_is_locked(&fs_info->chunk_mutex));
+	lockdep_assert_held(&fs_info->chunk_mutex);
 	chunk_offset = find_next_chunk(fs_info);
 	return __btrfs_alloc_chunk(trans, chunk_offset, type);
 }
@@ -6658,7 +6658,7 @@ static struct btrfs_fs_devices *open_seed_devices(struct btrfs_fs_info *fs_info,
 	struct btrfs_fs_devices *fs_devices;
 	int ret;
 
-	BUG_ON(!mutex_is_locked(&uuid_mutex));
+	lockdep_assert_held(&uuid_mutex);
 	ASSERT(fsid);
 
 	fs_devices = fs_info->fs_devices->seed;

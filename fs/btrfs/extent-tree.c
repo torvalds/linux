@@ -4545,7 +4545,7 @@ void check_system_chunk(struct btrfs_trans_handle *trans,
 	 * Needed because we can end up allocating a system chunk and for an
 	 * atomic and race free space reservation in the chunk block reserve.
 	 */
-	ASSERT(mutex_is_locked(&fs_info->chunk_mutex));
+	lockdep_assert_held(&fs_info->chunk_mutex);
 
 	info = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_SYSTEM);
 	spin_lock(&info->lock);

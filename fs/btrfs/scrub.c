@@ -371,7 +371,7 @@ static struct full_stripe_lock *insert_full_stripe_lock(
 	struct full_stripe_lock *entry;
 	struct full_stripe_lock *ret;
 
-	WARN_ON(!mutex_is_locked(&locks_root->lock));
+	lockdep_assert_held(&locks_root->lock);
 
 	p = &locks_root->root.rb_node;
 	while (*p) {
@@ -413,7 +413,7 @@ static struct full_stripe_lock *search_full_stripe_lock(
 	struct rb_node *node;
 	struct full_stripe_lock *entry;
 
-	WARN_ON(!mutex_is_locked(&locks_root->lock));
+	lockdep_assert_held(&locks_root->lock);
 
 	node = locks_root->root.rb_node;
 	while (node) {
