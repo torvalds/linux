@@ -310,6 +310,7 @@ static struct dentry *aafs_create_dir(const char *name, struct dentry *parent)
  * @name: name of dentry to create
  * @parent: parent directory for this dentry
  * @target: if symlink, symlink target string
+ * @private: private data
  * @iops: struct of inode_operations that should be used
  *
  * If @target parameter is %NULL, then the @iops parameter needs to be
@@ -318,17 +319,17 @@ static struct dentry *aafs_create_dir(const char *name, struct dentry *parent)
 static struct dentry *aafs_create_symlink(const char *name,
 					  struct dentry *parent,
 					  const char *target,
+					  void *private,
 					  const struct inode_operations *iops)
 {
 	struct dentry *dent;
 	char *link = NULL;
 
 	if (target) {
-		link = kstrdup(target, GFP_KERNEL);
 		if (!link)
 			return ERR_PTR(-ENOMEM);
 	}
-	dent = aafs_create(name, S_IFLNK | 0444, parent, NULL, link, NULL,
+	dent = aafs_create(name, S_IFLNK | 0444, parent, private, link, NULL,
 			   iops);
 	if (IS_ERR(dent))
 		kfree(link);
@@ -1479,25 +1480,94 @@ static int profile_depth(struct aa_profile *profile)
 	return depth;
 }
 
-static int gen_symlink_name(char *buffer, size_t bsize, int depth,
-			    const char *dirname, const char *fname)
+static char *gen_symlink_name(int depth, const char *dirname, const char *fname)
 {
+	char *buffer, *s;
 	int error;
+	int size = depth * 6 + strlen(dirname) + strlen(fname) + 11;
+
+	s = buffer = kmalloc(size, GFP_KERNEL);
+	if (!buffer)
+		return ERR_PTR(-ENOMEM);
 
 	for (; depth > 0; depth--) {
-		if (bsize < 7)
-			return -ENAMETOOLONG;
-		strcpy(buffer, "../../");
-		buffer += 6;
-		bsize -= 6;
+		strcpy(s, "../../");
+		s += 6;
+		size -= 6;
 	}
 
-	error = snprintf(buffer, bsize, "raw_data/%s/%s", dirname, fname);
-	if (error >= bsize || error < 0)
-		return -ENAMETOOLONG;
+	error = snprintf(s, size, "raw_data/%s/%s", dirname, fname);
+	if (error >= size || error < 0)
+		return ERR_PTR(-ENAMETOOLONG);
 
-	return 0;
+	return buffer;
 }
+
+static void rawdata_link_cb(void *arg)
+{
+	kfree(arg);
+}
+
+static const char *rawdata_get_link_base(struct dentry *dentry,
+					 struct inode *inode,
+					 struct delayed_call *done,
+					 const char *name)
+{
+	struct aa_proxy *proxy = inode->i_private;
+	struct aa_label *label;
+	struct aa_profile *profile;
+	char *target;
+	int depth;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
+
+	label = aa_get_label_rcu(&proxy->label);
+	profile = labels_profile(label);
+	depth = profile_depth(profile);
+	target = gen_symlink_name(depth, profile->rawdata->name, name);
+	aa_put_label(label);
+
+	if (IS_ERR(target))
+		return target;
+
+	set_delayed_call(done, rawdata_link_cb, target);
+
+	return target;
+}
+
+static const char *rawdata_get_link_sha1(struct dentry *dentry,
+					 struct inode *inode,
+					 struct delayed_call *done)
+{
+	return rawdata_get_link_base(dentry, inode, done, "sha1");
+}
+
+static const char *rawdata_get_link_abi(struct dentry *dentry,
+					struct inode *inode,
+					struct delayed_call *done)
+{
+	return rawdata_get_link_base(dentry, inode, done, "abi");
+}
+
+static const char *rawdata_get_link_data(struct dentry *dentry,
+					 struct inode *inode,
+					 struct delayed_call *done)
+{
+	return rawdata_get_link_base(dentry, inode, done, "raw_data");
+}
+
+static const struct inode_operations rawdata_link_sha1_iops = {
+	.get_link	= rawdata_get_link_sha1,
+};
+
+static const struct inode_operations rawdata_link_abi_iops = {
+	.get_link	= rawdata_get_link_abi,
+};
+static const struct inode_operations rawdata_link_data_iops = {
+	.get_link	= rawdata_get_link_data,
+};
+
 
 /*
  * Requires: @profile->ns->lock held
@@ -1569,34 +1639,28 @@ int __aafs_profile_mkdir(struct aa_profile *profile, struct dentry *parent)
 	}
 
 	if (profile->rawdata) {
-		char target[64];
-		int depth = profile_depth(profile);
-
-		error = gen_symlink_name(target, sizeof(target), depth,
-					 profile->rawdata->name, "sha1");
-		if (error < 0)
-			goto fail2;
-		dent = aafs_create_symlink("raw_sha1", dir, target, NULL);
+		dent = aafs_create_symlink("raw_sha1", dir, NULL,
+					   profile->label.proxy,
+					   &rawdata_link_sha1_iops);
 		if (IS_ERR(dent))
 			goto fail;
+		aa_get_proxy(profile->label.proxy);
 		profile->dents[AAFS_PROF_RAW_HASH] = dent;
 
-		error = gen_symlink_name(target, sizeof(target), depth,
-					 profile->rawdata->name, "abi");
-		if (error < 0)
-			goto fail2;
-		dent = aafs_create_symlink("raw_abi", dir, target, NULL);
+		dent = aafs_create_symlink("raw_abi", dir, NULL,
+					   profile->label.proxy,
+					   &rawdata_link_abi_iops);
 		if (IS_ERR(dent))
 			goto fail;
+		aa_get_proxy(profile->label.proxy);
 		profile->dents[AAFS_PROF_RAW_ABI] = dent;
 
-		error = gen_symlink_name(target, sizeof(target), depth,
-					 profile->rawdata->name, "raw_data");
-		if (error < 0)
-			goto fail2;
-		dent = aafs_create_symlink("raw_data", dir, target, NULL);
+		dent = aafs_create_symlink("raw_data", dir, NULL,
+					   profile->label.proxy,
+					   &rawdata_link_data_iops);
 		if (IS_ERR(dent))
 			goto fail;
+		aa_get_proxy(profile->label.proxy);
 		profile->dents[AAFS_PROF_RAW_DATA] = dent;
 	}
 
