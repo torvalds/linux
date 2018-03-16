@@ -20,6 +20,7 @@
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -387,6 +388,7 @@ int uniphier_aio_dai_probe(struct snd_soc_dai *dai)
 		sub->spec = spec;
 	}
 
+	aio_iecout_set_enable(aio->chip, true);
 	aio_chip_init(aio->chip);
 	aio->chip->active = 1;
 
@@ -431,6 +433,7 @@ int uniphier_aio_dai_resume(struct snd_soc_dai *dai)
 	if (ret)
 		goto err_out_clock;
 
+	aio_iecout_set_enable(aio->chip, true);
 	aio_chip_init(aio->chip);
 
 	for (i = 0; i < ARRAY_SIZE(aio->sub); i++) {
@@ -476,6 +479,14 @@ int uniphier_aio_probe(struct platform_device *pdev)
 	chip->chip_spec = of_device_get_match_data(dev);
 	if (!chip->chip_spec)
 		return -EINVAL;
+
+	chip->regmap_sg = syscon_regmap_lookup_by_phandle(dev->of_node,
+							  "socionext,syscon");
+	if (IS_ERR(chip->regmap_sg)) {
+		if (PTR_ERR(chip->regmap_sg) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		chip->regmap_sg = NULL;
+	}
 
 	chip->clk = devm_clk_get(dev, "aio");
 	if (IS_ERR(chip->clk))

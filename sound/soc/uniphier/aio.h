@@ -296,6 +296,7 @@ struct uniphier_aio_chip {
 	struct clk *clk;
 	struct reset_control *rst;
 	struct regmap *regmap;
+	struct regmap *regmap_sg;
 	int active;
 };
 
@@ -323,6 +324,7 @@ u64 aio_rbt_cnt_to_end(struct uniphier_aio_sub *sub);
 u64 aio_rb_space(struct uniphier_aio_sub *sub);
 u64 aio_rb_space_to_end(struct uniphier_aio_sub *sub);
 
+void aio_iecout_set_enable(struct uniphier_aio_chip *chip, bool enable);
 int aio_chip_set_pll(struct uniphier_aio_chip *chip, int pll_id,
 		     unsigned int freq);
 void aio_chip_init(struct uniphier_aio_chip *chip);

@@ -23,6 +23,9 @@
 
 #include <linux/bitops.h>
 
+/* soc-glue */
+#define SG_AOUTEN                       0x1c04
+
 /* SW view */
 #define A2CHNMAPCTR0(n)                 (0x00000 + 0x40 * (n))
 #define A2RBNMAPCTR0(n)                 (0x01000 + 0x40 * (n))

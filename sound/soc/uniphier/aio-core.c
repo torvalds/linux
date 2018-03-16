@@ -84,6 +84,27 @@ u64 aio_rb_space_to_end(struct uniphier_aio_sub *sub)
 }
 
 /**
+ * aio_iecout_set_enable - setup IEC output via SoC glue
+ * @chip: the AIO chip pointer
+ * @enable: false to stop the output, true to start
+ *
+ * Set enabled or disabled S/PDIF signal output to out of SoC via AOnIEC pins.
+ * This function need to call at driver startup.
+ *
+ * The regmap of SoC glue is specified by 'socionext,syscon' optional property
+ * of DT. This function has no effect if no property.
+ */
+void aio_iecout_set_enable(struct uniphier_aio_chip *chip, bool enable)
+{
+	struct regmap *r = chip->regmap_sg;
+
+	if (!r)
+		return;
+
+	regmap_write(r, SG_AOUTEN, (enable) ? ~0 : 0);
+}
+
+/**
  * aio_chip_set_pll - set frequency to audio PLL
  * @chip  : the AIO chip pointer
  * @source: PLL
