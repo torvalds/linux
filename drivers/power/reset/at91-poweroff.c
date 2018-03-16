@@ -55,10 +55,10 @@ static void __iomem *at91_shdwc_base;
 static struct clk *sclk;
 static void __iomem *mpddrc_base;
 
-static void __init at91_wakeup_status(void)
+static void __init at91_wakeup_status(struct platform_device *pdev)
 {
+	const char *reason;
 	u32 reg = readl(at91_shdwc_base + AT91_SHDW_SR);
-	char *reason = "unknown";
 
 	/* Simple power-on, just bail out */
 	if (!reg)
@@ -68,8 +68,10 @@ static void __init at91_wakeup_status(void)
 		reason = "RTT";
 	else if (reg & AT91_SHDW_RTCWK)
 		reason = "RTC";
+	else
+		reason = "unknown";
 
-	pr_info("AT91: Wake-Up source: %s\n", reason);
+	dev_info(&pdev->dev, "Wake-Up source: %s\n", reason);
 }
 
 static void at91_poweroff(void)
@@ -172,7 +174,7 @@ static int __init at91_poweroff_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	at91_wakeup_status();
+	at91_wakeup_status(pdev);
 
 	if (pdev->dev.of_node)
 		at91_poweroff_dt_set_wakeup_mode(pdev);
