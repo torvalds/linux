@@ -68,9 +68,11 @@ static int cfg_num_pkts = 4;
 static int do_ipv4 = 1;
 static int do_ipv6 = 1;
 static int cfg_payload_len = 10;
+static int cfg_poll_timeout = 100;
 static bool cfg_show_payload;
 static bool cfg_do_pktinfo;
 static bool cfg_loop_nodata;
+static bool cfg_no_delay;
 static uint16_t dest_port = 9000;
 
 static struct sockaddr_in daddr;
@@ -171,7 +173,7 @@ static void __poll(int fd)
 
 	memset(&pollfd, 0, sizeof(pollfd));
 	pollfd.fd = fd;
-	ret = poll(&pollfd, 1, 100);
+	ret = poll(&pollfd, 1, cfg_poll_timeout);
 	if (ret != 1)
 		error(1, errno, "poll");
 }
@@ -371,7 +373,8 @@ static void do_test(int family, unsigned int opt)
 			error(1, errno, "send");
 
 		/* wait for all errors to be queued, else ACKs arrive OOO */
-		usleep(50 * 1000);
+		if (!cfg_no_delay)
+			usleep(50 * 1000);
 
 		__poll(fd);
 
@@ -392,6 +395,9 @@ static void __attribute__((noreturn)) usage(const char *filepath)
 			"  -4:   only IPv4\n"
 			"  -6:   only IPv6\n"
 			"  -h:   show this message\n"
+			"  -c N: number of packets for each test\n"
+			"  -D:   no delay between packets\n"
+			"  -F:   poll() waits forever for an event\n"
 			"  -I:   request PKTINFO\n"
 			"  -l N: send N bytes at a time\n"
 			"  -n:   set no-payload option\n"
@@ -409,13 +415,22 @@ static void parse_opt(int argc, char **argv)
 	int proto_count = 0;
 	char c;
 
-	while ((c = getopt(argc, argv, "46hIl:np:rRux")) != -1) {
+	while ((c = getopt(argc, argv, "46c:DFhIl:np:rRux")) != -1) {
 		switch (c) {
 		case '4':
 			do_ipv6 = 0;
 			break;
 		case '6':
 			do_ipv4 = 0;
+			break;
+		case 'c':
+			cfg_num_pkts = strtoul(optarg, NULL, 10);
+			break;
+		case 'D':
+			cfg_no_delay = true;
+			break;
+		case 'F':
+			cfg_poll_timeout = -1;
 			break;
 		case 'I':
 			cfg_do_pktinfo = true;
