@@ -69,6 +69,8 @@ OPTIONS
 
 --stdio:: Use the stdio interface.
 
+--stdio2:: Use the stdio2 interface, non-interactive, uses the TUI formatting.
+
 --stdio-color=<mode>::
 	'always', 'never' or 'auto', allowing configuring color output
 	via the command line, in addition to via "color.ui" .perfconfig.

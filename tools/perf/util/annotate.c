@@ -1965,6 +1965,72 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	return more;
 }
 
+static void FILE__set_percent_color(void *fp __maybe_unused,
+				    double percent __maybe_unused,
+				    bool current __maybe_unused)
+{
+}
+
+static int FILE__set_jumps_percent_color(void *fp __maybe_unused,
+					 int nr __maybe_unused, bool current __maybe_unused)
+{
+	return 0;
+}
+
+static int FILE__set_color(void *fp __maybe_unused, int color __maybe_unused)
+{
+	return 0;
+}
+
+static void FILE__printf(void *fp, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	vfprintf(fp, fmt, args);
+	va_end(args);
+}
+
+static void FILE__write_graph(void *fp, int graph)
+{
+	const char *s;
+	switch (graph) {
+
+	case DARROW_CHAR: s = "↓"; break;
+	case UARROW_CHAR: s = "↑"; break;
+	case LARROW_CHAR: s = "←"; break;
+	case RARROW_CHAR: s = "→"; break;
+	default:		s = "?"; break;
+	}
+
+	fputs(s, fp);
+}
+
+int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp)
+{
+	struct annotation *notes = symbol__annotation(sym);
+	struct annotation_write_ops ops = {
+		.first_line		 = true,
+		.obj			 = fp,
+		.set_color		 = FILE__set_color,
+		.set_percent_color	 = FILE__set_percent_color,
+		.set_jumps_percent_color = FILE__set_jumps_percent_color,
+		.printf			 = FILE__printf,
+		.write_graph		 = FILE__write_graph,
+	};
+	struct annotation_line *al;
+
+	list_for_each_entry(al, &notes->src->source, node) {
+		if (annotation_line__filter(al, notes))
+			continue;
+		annotation_line__write(al, notes, &ops);
+		fputc('\n', fp);
+		ops.first_line = false;
+	}
+
+	return 0;
+}
+
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx)
 {
 	struct annotation *notes = symbol__annotation(sym);
@@ -2163,6 +2229,32 @@ static void symbol__calc_lines(struct symbol *sym, struct map *map,
 	u64 start = map__rip_2objdump(map, sym->start);
 
 	annotation__calc_lines(notes, map, root, start);
+}
+
+int symbol__tty_annotate2(struct symbol *sym, struct map *map,
+			  struct perf_evsel *evsel, bool print_lines,
+			  bool full_paths)
+{
+	struct dso *dso = map->dso;
+	struct rb_root source_line = RB_ROOT;
+	struct annotation_options opts = {
+		.use_offset	= true,
+	};
+
+	if (symbol__annotate2(sym, map, evsel, &opts, NULL) < 0)
+		return -1;
+
+	if (print_lines) {
+		srcline_full_filename = full_paths;
+		symbol__calc_lines(sym, map, &source_line);
+		print_summary(&source_line, dso->long_name);
+	}
+
+	symbol__annotate_fprintf2(sym, stdout);
+
+	annotated_source__purge(symbol__annotation(sym)->src);
+
+	return 0;
 }
 
 int symbol__tty_annotate(struct symbol *sym, struct map *map,

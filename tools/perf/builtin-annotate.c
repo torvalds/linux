@@ -40,7 +40,7 @@
 struct perf_annotate {
 	struct perf_tool tool;
 	struct perf_session *session;
-	bool	   use_tui, use_stdio, use_gtk;
+	bool	   use_tui, use_stdio, use_stdio2, use_gtk;
 	bool	   full_paths;
 	bool	   print_line;
 	bool	   skip_missing;
@@ -202,6 +202,11 @@ static int process_branch_callback(struct perf_evsel *evsel,
 	return ret;
 }
 
+static bool has_annotation(struct perf_annotate *ann)
+{
+	return ui__has_annotation() || ann->use_stdio2;
+}
+
 static int perf_evsel__add_sample(struct perf_evsel *evsel,
 				  struct perf_sample *sample,
 				  struct addr_location *al,
@@ -212,7 +217,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	struct hist_entry *he;
 	int ret;
 
-	if ((!ann->has_br_stack || !ui__has_annotation()) &&
+	if ((!ann->has_br_stack || !has_annotation(ann)) &&
 	    ann->sym_hist_filter != NULL &&
 	    (al->sym == NULL ||
 	     strcmp(ann->sym_hist_filter, al->sym->name) != 0)) {
@@ -236,7 +241,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	 */
 	process_branch_stack(sample->branch_stack, al, sample);
 
-	if (ann->has_br_stack && ui__has_annotation())
+	if (ann->has_br_stack && has_annotation(ann))
 		return process_branch_callback(evsel, sample, al, ann, machine);
 
 	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
@@ -282,8 +287,11 @@ static int hist_entry__tty_annotate(struct hist_entry *he,
 				    struct perf_evsel *evsel,
 				    struct perf_annotate *ann)
 {
-	return symbol__tty_annotate(he->ms.sym, he->ms.map, evsel,
-				    ann->print_line, ann->full_paths, 0, 0);
+	if (!ann->use_stdio2)
+		return symbol__tty_annotate(he->ms.sym, he->ms.map, evsel,
+					    ann->print_line, ann->full_paths, 0, 0);
+	return symbol__tty_annotate2(he->ms.sym, he->ms.map, evsel,
+				     ann->print_line, ann->full_paths);
 }
 
 static void hists__find_annotations(struct hists *hists,
@@ -487,6 +495,7 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_BOOLEAN(0, "gtk", &annotate.use_gtk, "Use the GTK interface"),
 	OPT_BOOLEAN(0, "tui", &annotate.use_tui, "Use the TUI interface"),
 	OPT_BOOLEAN(0, "stdio", &annotate.use_stdio, "Use the stdio interface"),
+	OPT_BOOLEAN(0, "stdio2", &annotate.use_stdio2, "Use the stdio interface"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
@@ -569,7 +578,7 @@ int cmd_annotate(int argc, const char **argv)
 	if (ret < 0)
 		goto out_delete;
 
-	if (annotate.use_stdio)
+	if (annotate.use_stdio || annotate.use_stdio2)
 		use_browser = 0;
 	else if (annotate.use_tui)
 		use_browser = 1;
@@ -578,7 +587,7 @@ int cmd_annotate(int argc, const char **argv)
 
 	setup_browser(true);
 
-	if (use_browser == 1 && annotate.has_br_stack) {
+	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack) {
 		sort__mode = SORT_MODE__BRANCH;
 		if (setup_sorting(annotate.session->evlist) < 0)
 			usage_with_options(annotate_usage, options);
