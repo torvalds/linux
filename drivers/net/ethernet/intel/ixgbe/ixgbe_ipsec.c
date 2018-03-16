@@ -929,8 +929,13 @@ void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter)
 	ixgbe_ipsec_clear_hw_tables(adapter);
 
 	adapter->netdev->xfrmdev_ops = &ixgbe_xfrmdev_ops;
-	adapter->netdev->features |= NETIF_F_HW_ESP;
-	adapter->netdev->hw_enc_features |= NETIF_F_HW_ESP;
+
+#define IXGBE_ESP_FEATURES	(NETIF_F_HW_ESP | \
+				 NETIF_F_HW_ESP_TX_CSUM | \
+				 NETIF_F_GSO_ESP)
+
+	adapter->netdev->features |= IXGBE_ESP_FEATURES;
+	adapter->netdev->hw_enc_features |= IXGBE_ESP_FEATURES;
 
 	return;
 
