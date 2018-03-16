@@ -873,7 +873,9 @@ static bool vc4_format_mod_supported(struct drm_plane *plane,
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
 	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
 	default:
 		return (modifier == DRM_FORMAT_MOD_LINEAR);
 	}
