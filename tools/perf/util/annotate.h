@@ -71,6 +71,8 @@ struct annotation_options {
 	     show_total_period;
 };
 
+extern struct annotation_options annotation__default_options;
+
 struct annotation;
 
 struct sym_hist_entry {
@@ -312,5 +314,7 @@ static inline int symbol__tui_annotate(struct symbol *sym __maybe_unused,
 #endif
 
 extern const char	*disassembler_style;
+
+void annotation_config__init(void);
 
 #endif	/* __PERF_ANNOTATE_H */

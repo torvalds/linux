@@ -9,7 +9,6 @@
 #include "../../util/sort.h"
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
-#include "../../util/config.h"
 #include "../../util/evlist.h"
 #include <inttypes.h>
 #include <pthread.h>
@@ -20,11 +19,6 @@
 struct disasm_line_samples {
 	double		      percent;
 	struct sym_hist_entry he;
-};
-
-static struct annotation_options annotate_browser__opts = {
-	.use_offset	= true,
-	.jump_arrows	= true,
 };
 
 struct arch;
@@ -773,12 +767,6 @@ out:
 int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
 			     struct hist_browser_timer *hbt)
 {
-	/* Set default value for show_total_period and show_nr_samples  */
-	annotate_browser__opts.show_total_period =
-		symbol_conf.show_total_period;
-	annotate_browser__opts.show_nr_samples =
-		symbol_conf.show_nr_samples;
-
 	return symbol__tui_annotate(ms->sym, ms->map, evsel, hbt);
 }
 
@@ -819,7 +807,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	if (map->dso->annotate_warned)
 		return -1;
 
-	err = symbol__annotate2(sym, map, evsel, &annotate_browser__opts, &browser.arch);
+	err = symbol__annotate2(sym, map, evsel, &annotation__default_options, &browser.arch);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
@@ -844,57 +832,4 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 out_free_offsets:
 	zfree(&notes->offsets);
 	return ret;
-}
-
-#define ANNOTATE_CFG(n) \
-	{ .name = #n, .value = &annotate_browser__opts.n, }
-
-/*
- * Keep the entries sorted, they are bsearch'ed
- */
-static struct annotate_config {
-	const char *name;
-	bool *value;
-} annotate__configs[] = {
-	ANNOTATE_CFG(hide_src_code),
-	ANNOTATE_CFG(jump_arrows),
-	ANNOTATE_CFG(show_linenr),
-	ANNOTATE_CFG(show_nr_jumps),
-	ANNOTATE_CFG(show_nr_samples),
-	ANNOTATE_CFG(show_total_period),
-	ANNOTATE_CFG(use_offset),
-};
-
-#undef ANNOTATE_CFG
-
-static int annotate_config__cmp(const void *name, const void *cfgp)
-{
-	const struct annotate_config *cfg = cfgp;
-
-	return strcmp(name, cfg->name);
-}
-
-static int annotate__config(const char *var, const char *value,
-			    void *data __maybe_unused)
-{
-	struct annotate_config *cfg;
-	const char *name;
-
-	if (!strstarts(var, "annotate."))
-		return 0;
-
-	name = var + 9;
-	cfg = bsearch(name, annotate__configs, ARRAY_SIZE(annotate__configs),
-		      sizeof(struct annotate_config), annotate_config__cmp);
-
-	if (cfg == NULL)
-		ui__warning("%s variable unknown, ignoring...", var);
-	else
-		*cfg->value = perf_config_bool(name, value);
-	return 0;
-}
-
-void annotate_browser__init(void)
-{
-	perf_config(annotate__config, NULL);
 }

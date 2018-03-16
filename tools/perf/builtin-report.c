@@ -1340,6 +1340,7 @@ repeat:
 			symbol_conf.priv_size += sizeof(u32);
 			symbol_conf.sort_by_name = true;
 		}
+		annotation_config__init();
 	}
 
 	if (symbol__init(&session->header.env) < 0)

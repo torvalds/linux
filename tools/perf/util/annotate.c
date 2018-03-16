@@ -14,6 +14,7 @@
 #include "sort.h"
 #include "build-id.h"
 #include "color.h"
+#include "config.h"
 #include "cache.h"
 #include "symbol.h"
 #include "debug.h"
@@ -40,6 +41,11 @@
 #define UARROW_CHAR	((unsigned char)'-')
 
 #include "sane_ctype.h"
+
+struct annotation_options annotation__default_options = {
+	.use_offset     = true,
+	.jump_arrows    = true,
+};
 
 const char 	*disassembler_style;
 const char	*objdump_path;
@@ -2499,4 +2505,60 @@ int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *ev
 out_free_offsets:
 	zfree(&notes->offsets);
 	return -1;
+}
+
+#define ANNOTATION__CFG(n) \
+	{ .name = #n, .value = &annotation__default_options.n, }
+
+/*
+ * Keep the entries sorted, they are bsearch'ed
+ */
+static struct annotation_config {
+	const char *name;
+	bool *value;
+} annotation__configs[] = {
+	ANNOTATION__CFG(hide_src_code),
+	ANNOTATION__CFG(jump_arrows),
+	ANNOTATION__CFG(show_linenr),
+	ANNOTATION__CFG(show_nr_jumps),
+	ANNOTATION__CFG(show_nr_samples),
+	ANNOTATION__CFG(show_total_period),
+	ANNOTATION__CFG(use_offset),
+};
+
+#undef ANNOTATION__CFG
+
+static int annotation_config__cmp(const void *name, const void *cfgp)
+{
+	const struct annotation_config *cfg = cfgp;
+
+	return strcmp(name, cfg->name);
+}
+
+static int annotation__config(const char *var, const char *value,
+			    void *data __maybe_unused)
+{
+	struct annotation_config *cfg;
+	const char *name;
+
+	if (!strstarts(var, "annotate."))
+		return 0;
+
+	name = var + 9;
+	cfg = bsearch(name, annotation__configs, ARRAY_SIZE(annotation__configs),
+		      sizeof(struct annotation_config), annotation_config__cmp);
+
+	if (cfg == NULL)
+		pr_debug("%s variable unknown, ignoring...", var);
+	else
+		*cfg->value = perf_config_bool(name, value);
+	return 0;
+}
+
+void annotation_config__init(void)
+{
+	perf_config(annotation__config, NULL);
+
+	annotation__default_options.show_total_period = symbol_conf.show_total_period;
+	annotation__default_options.show_nr_samples   = symbol_conf.show_nr_samples;
 }

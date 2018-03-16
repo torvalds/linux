@@ -784,6 +784,4 @@ void ui_browser__init(void)
 		struct ui_browser_colorset *c = &ui_browser__colorsets[i++];
 		sltt_set_color(c->colorset, c->name, c->fg, c->bg);
 	}
-
-	annotate_browser__init();
 }
