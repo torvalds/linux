@@ -15,10 +15,6 @@
 #include <linux/i2c.h>
 #include <linux/hrtimer.h>
 
-#define FUSB_VCONN_SUPPORT
-/* TODO: more modes would be added here later on */
-#define FUSB_HAVE_DRP
-
 const char *FUSB_DT_INTERRUPT_INTN =	"fsc_interrupt_int_n";
 #define FUSB_DT_GPIO_INTN		"fairchild,int_n"
 #define FUSB_DT_GPIO_VBUS_5V		"fairchild,vbus5v"
@@ -107,6 +103,21 @@ enum connection_state {
 	policy_snk_prs_assert_rp,
 	policy_snk_prs_reject,
 	policy_snk_prs_send_swap,
+
+	/* VC SWAP */
+	policy_vcs_dfp_send_swap,
+	policy_vcs_dfp_wait_for_ufp_vconn,
+	policy_vcs_dfp_turn_off_vconn,
+	policy_vcs_dfp_turn_on_vconn,
+	policy_vcs_dfp_send_ps_rdy,
+
+	policy_vcs_ufp_evaluate_swap,
+	policy_vcs_ufp_reject,
+	policy_vcs_ufp_accept,
+	policy_vcs_ufp_wait_for_dfp_vconn,
+	policy_vcs_ufp_turn_off_vconn,
+	policy_vcs_ufp_turn_on_vconn,
+	policy_vcs_ufp_send_ps_rdy,
 };
 
 enum tcpm_rp_value {
@@ -332,6 +343,7 @@ enum role_mode {
 #define T_PD_SOURCE_OFF		920
 #define T_PD_SOURCE_ON		480
 #define T_PD_SWAP_SOURCE_START	20
+#define T_PD_VCONN_SRC_ON	100
 
 #define T_NO_TRIGGER		500
 #define T_DISABLED		0xffff
@@ -492,6 +504,7 @@ struct fusb30x_chip {
 	bool vbus_begin;
 
 	enum role_mode role;
+	bool vconn_supported;
 };
 
 #endif /* FUSB302_H */
