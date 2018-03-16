@@ -31,6 +31,7 @@
 #include <linux/rtnetlink.h>
 
 #include "hyperv_net.h"
+#include "netvsc_trace.h"
 
 static void rndis_set_multicast(struct work_struct *w);
 
@@ -240,6 +241,8 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 		pb[1].len = req->request_msg.msg_len -
 			pb[0].len;
 	}
+
+	trace_rndis_send(dev->ndev, 0, &req->request_msg);
 
 	rcu_read_lock_bh();
 	ret = netvsc_send(dev->ndev, packet, NULL, pb, NULL);
@@ -1087,6 +1090,8 @@ void rndis_set_subchannel(struct work_struct *w)
 	init_packet->msg.v5_msg.subchn_req.op = NVSP_SUBCHANNEL_ALLOCATE;
 	init_packet->msg.v5_msg.subchn_req.num_subchannels =
 						nvdev->num_chn - 1;
+	trace_nvsp_send(ndev, init_packet);
+
 	ret = vmbus_sendpacket(hv_dev->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
