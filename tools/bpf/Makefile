@@ -100,4 +100,4 @@ bpftool_install:
 bpftool_clean:
 	$(call descend,bpftool,clean)
 
-.PHONY: bpftool FORCE
+.PHONY: all install clean bpftool bpftool_install bpftool_clean
