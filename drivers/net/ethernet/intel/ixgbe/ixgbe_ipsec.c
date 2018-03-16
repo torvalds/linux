@@ -774,11 +774,7 @@ int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
 
 	first->tx_flags |= IXGBE_TX_FLAGS_IPSEC | IXGBE_TX_FLAGS_CC;
 
-	itd->flags = 0;
 	if (xs->id.proto == IPPROTO_ESP) {
-		struct sk_buff *skb = first->skb;
-		int ret, authlen, trailerlen;
-		u8 padlen;
 
 		itd->flags |= IXGBE_ADVTXD_TUCMD_IPSEC_TYPE_ESP |
 			      IXGBE_ADVTXD_TUCMD_L4T_TCP;
@@ -790,19 +786,28 @@ int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
 		 * padlen bytes of padding.  This ends up not the same
 		 * as the static value found in xs->props.trailer_len (21).
 		 *
-		 * The "correct" way to get the auth length would be to use
-		 *    authlen = crypto_aead_authsize(xs->data);
-		 * but since we know we only have one size to worry about
-		 * we can let the compiler use the constant and save us a
-		 * few CPU cycles.
+		 * ... but if we're doing GSO, don't bother as the stack
+		 * doesn't add a trailer for those.
 		 */
-		authlen = IXGBE_IPSEC_AUTH_BITS / 8;
+		if (!skb_is_gso(first->skb)) {
+			/* The "correct" way to get the auth length would be
+			 * to use
+			 *    authlen = crypto_aead_authsize(xs->data);
+			 * but since we know we only have one size to worry
+			 * about * we can let the compiler use the constant
+			 * and save us a few CPU cycles.
+			 */
+			const int authlen = IXGBE_IPSEC_AUTH_BITS / 8;
+			struct sk_buff *skb = first->skb;
+			u8 padlen;
+			int ret;
 
-		ret = skb_copy_bits(skb, skb->len - (authlen + 2), &padlen, 1);
-		if (unlikely(ret))
-			return 0;
-		trailerlen = authlen + 2 + padlen;
-		itd->trailer_len = trailerlen;
+			ret = skb_copy_bits(skb, skb->len - (authlen + 2),
+					    &padlen, 1);
+			if (unlikely(ret))
+				return 0;
+			itd->trailer_len = authlen + 2 + padlen;
+		}
 	}
 	if (tsa->encrypt)
 		itd->flags |= IXGBE_ADVTXD_TUCMD_IPSEC_ENCRYPT_EN;
