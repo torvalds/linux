@@ -101,7 +101,7 @@ static uint32_t vega10_wait_for_response(struct pp_hwmgr *hwmgr)
  * @param    msg the message to send.
  * @return   Always return 0.
  */
-int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
+static int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
 		uint16_t msg)
 {
 	uint32_t reg;
@@ -119,7 +119,7 @@ int vega10_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr,
  * @param    msg the message to send.
  * @return   Always return 0.
  */
-int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
+static int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	uint32_t reg;
 	uint32_t ret;
@@ -146,7 +146,7 @@ int vega10_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
  * @param    parameter: the parameter to send
  * @return   Always return 0.
  */
-int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
+static int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 		uint16_t msg, uint32_t parameter)
 {
 	uint32_t reg;
@@ -266,7 +266,7 @@ int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
 			msg, feature_mask);
 }
 
-int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
+static int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
 		uint32_t *features_enabled)
 {
 	if (features_enabled == NULL)
@@ -289,7 +289,7 @@ static bool vega10_is_dpm_running(struct pp_hwmgr *hwmgr)
 		return false;
 }
 
-int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
+static int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_smumgr *priv =
 			(struct vega10_smumgr *)(hwmgr->smu_backend);
