@@ -45,7 +45,7 @@ static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 	ksys_chdir("/root");
 	ksys_mount(".", "/", NULL, MS_MOVE, NULL);
 	ksys_chroot(".");
-	sys_setsid();
+	ksys_setsid();
 	return 0;
 }
 
