@@ -130,11 +130,3 @@ void sctp_dbg_objcnt_init(struct net *net)
 	if (!ent)
 		pr_warn("sctp_dbg_objcnt: Unable to create /proc entry.\n");
 }
-
-/* Cleanup the objcount entry in the proc filesystem.  */
-void sctp_dbg_objcnt_exit(struct net *net)
-{
-	remove_proc_entry("sctp_dbg_objcnt", net->sctp.proc_net_sctp);
-}
-
-
