@@ -3562,7 +3562,8 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 
 static int i915_displayport_test_active_show(struct seq_file *m, void *data)
 {
-	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = m->private;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
@@ -3596,10 +3597,8 @@ static int i915_displayport_test_active_show(struct seq_file *m, void *data)
 static int i915_displayport_test_active_open(struct inode *inode,
 					     struct file *file)
 {
-	struct drm_i915_private *dev_priv = inode->i_private;
-
 	return single_open(file, i915_displayport_test_active_show,
-			   &dev_priv->drm);
+			   inode->i_private);
 }
 
 static const struct file_operations i915_displayport_test_active_fops = {
@@ -3613,7 +3612,8 @@ static const struct file_operations i915_displayport_test_active_fops = {
 
 static int i915_displayport_test_data_show(struct seq_file *m, void *data)
 {
-	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = m->private;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
@@ -3652,26 +3652,12 @@ static int i915_displayport_test_data_show(struct seq_file *m, void *data)
 
 	return 0;
 }
-static int i915_displayport_test_data_open(struct inode *inode,
-					   struct file *file)
-{
-	struct drm_i915_private *dev_priv = inode->i_private;
-
-	return single_open(file, i915_displayport_test_data_show,
-			   &dev_priv->drm);
-}
-
-static const struct file_operations i915_displayport_test_data_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_displayport_test_data_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release
-};
+DEFINE_SHOW_ATTRIBUTE(i915_displayport_test_data);
 
 static int i915_displayport_test_type_show(struct seq_file *m, void *data)
 {
-	struct drm_device *dev = m->private;
+	struct drm_i915_private *dev_priv = m->private;
+	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector;
 	struct drm_connector_list_iter conn_iter;
 	struct intel_dp *intel_dp;
@@ -3698,23 +3684,7 @@ static int i915_displayport_test_type_show(struct seq_file *m, void *data)
 
 	return 0;
 }
-
-static int i915_displayport_test_type_open(struct inode *inode,
-				       struct file *file)
-{
-	struct drm_i915_private *dev_priv = inode->i_private;
-
-	return single_open(file, i915_displayport_test_type_show,
-			   &dev_priv->drm);
-}
-
-static const struct file_operations i915_displayport_test_type_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_displayport_test_type_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release
-};
+DEFINE_SHOW_ATTRIBUTE(i915_displayport_test_type);
 
 static void wm_latency_show(struct seq_file *m, const uint16_t wm[8])
 {
@@ -4875,19 +4845,7 @@ static int i915_dpcd_show(struct seq_file *m, void *data)
 
 	return 0;
 }
-
-static int i915_dpcd_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, i915_dpcd_show, inode->i_private);
-}
-
-static const struct file_operations i915_dpcd_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_dpcd_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(i915_dpcd);
 
 static int i915_panel_show(struct seq_file *m, void *data)
 {
@@ -4909,19 +4867,7 @@ static int i915_panel_show(struct seq_file *m, void *data)
 
 	return 0;
 }
-
-static int i915_panel_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, i915_panel_show, inode->i_private);
-}
-
-static const struct file_operations i915_panel_fops = {
-	.owner = THIS_MODULE,
-	.open = i915_panel_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(i915_panel);
 
 /**
  * i915_debugfs_connector_add - add i915 specific connector debugfs files
