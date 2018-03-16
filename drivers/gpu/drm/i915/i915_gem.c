@@ -434,20 +434,28 @@ i915_gem_object_wait_reservation(struct reservation_object *resv,
 			dma_fence_put(shared[i]);
 		kfree(shared);
 
+		/*
+		 * If both shared fences and an exclusive fence exist,
+		 * then by construction the shared fences must be later
+		 * than the exclusive fence. If we successfully wait for
+		 * all the shared fences, we know that the exclusive fence
+		 * must all be signaled. If all the shared fences are
+		 * signaled, we can prune the array and recover the
+		 * floating references on the fences/requests.
+		 */
 		prune_fences = count && timeout >= 0;
 	} else {
 		excl = reservation_object_get_excl_rcu(resv);
 	}
 
-	if (excl && timeout >= 0) {
+	if (excl && timeout >= 0)
 		timeout = i915_gem_object_wait_fence(excl, flags, timeout,
 						     rps_client);
-		prune_fences = timeout >= 0;
-	}
 
 	dma_fence_put(excl);
 
-	/* Oportunistically prune the fences iff we know they have *all* been
+	/*
+	 * Opportunistically prune the fences iff we know they have *all* been
 	 * signaled and that the reservation object has not been changed (i.e.
 	 * no new fences have been added).
 	 */

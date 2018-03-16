@@ -52,6 +52,54 @@ static void set_context_pdp_root_pointer(
 		pdp_pair[i].val = pdp[7 - i];
 }
 
+/*
+ * when populating shadow ctx from guest, we should not overrride oa related
+ * registers, so that they will not be overlapped by guest oa configs. Thus
+ * made it possible to capture oa data from host for both host and guests.
+ */
+static void sr_oa_regs(struct intel_vgpu_workload *workload,
+		u32 *reg_state, bool save)
+{
+	struct drm_i915_private *dev_priv = workload->vgpu->gvt->dev_priv;
+	u32 ctx_oactxctrl = dev_priv->perf.oa.ctx_oactxctrl_offset;
+	u32 ctx_flexeu0 = dev_priv->perf.oa.ctx_flexeu0_offset;
+	int i = 0;
+	u32 flex_mmio[] = {
+		i915_mmio_reg_offset(EU_PERF_CNTL0),
+		i915_mmio_reg_offset(EU_PERF_CNTL1),
+		i915_mmio_reg_offset(EU_PERF_CNTL2),
+		i915_mmio_reg_offset(EU_PERF_CNTL3),
+		i915_mmio_reg_offset(EU_PERF_CNTL4),
+		i915_mmio_reg_offset(EU_PERF_CNTL5),
+		i915_mmio_reg_offset(EU_PERF_CNTL6),
+	};
+
+	if (!workload || !reg_state || workload->ring_id != RCS)
+		return;
+
+	if (save) {
+		workload->oactxctrl = reg_state[ctx_oactxctrl + 1];
+
+		for (i = 0; i < ARRAY_SIZE(workload->flex_mmio); i++) {
+			u32 state_offset = ctx_flexeu0 + i * 2;
+
+			workload->flex_mmio[i] = reg_state[state_offset + 1];
+		}
+	} else {
+		reg_state[ctx_oactxctrl] =
+			i915_mmio_reg_offset(GEN8_OACTXCONTROL);
+		reg_state[ctx_oactxctrl + 1] = workload->oactxctrl;
+
+		for (i = 0; i < ARRAY_SIZE(workload->flex_mmio); i++) {
+			u32 state_offset = ctx_flexeu0 + i * 2;
+			u32 mmio = flex_mmio[i];
+
+			reg_state[state_offset] = mmio;
+			reg_state[state_offset + 1] = workload->flex_mmio[i];
+		}
+	}
+}
+
 static int populate_shadow_context(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
@@ -98,6 +146,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
 	shadow_ring_context = kmap(page);
 
+	sr_oa_regs(workload, (u32 *)shadow_ring_context, true);
 #define COPY_REG(name) \
 	intel_gvt_hypervisor_read_gpa(vgpu, workload->ring_context_gpa \
 		+ RING_CTX_OFF(name.val), &shadow_ring_context->name.val, 4)
@@ -122,6 +171,7 @@ static int populate_shadow_context(struct intel_vgpu_workload *workload)
 			sizeof(*shadow_ring_context),
 			I915_GTT_PAGE_SIZE - sizeof(*shadow_ring_context));
 
+	sr_oa_regs(workload, (u32 *)shadow_ring_context, false);
 	kunmap(page);
 	return 0;
 }
@@ -375,6 +425,17 @@ static int prepare_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 			ret = PTR_ERR(bb->vma);
 			goto err;
 		}
+
+		/* For privilge batch buffer and not wa_ctx, the bb_start_cmd_va
+		 * is only updated into ring_scan_buffer, not real ring address
+		 * allocated in later copy_workload_to_ring_buffer. pls be noted
+		 * shadow_ring_buffer_va is now pointed to real ring buffer va
+		 * in copy_workload_to_ring_buffer.
+		 */
+
+		if (bb->bb_offset)
+			bb->bb_start_cmd_va = workload->shadow_ring_buffer_va
+				+ bb->bb_offset;
 
 		/* relocate shadow batch buffer */
 		bb->bb_start_cmd_va[1] = i915_ggtt_offset(bb->vma);
@@ -1044,10 +1105,12 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 
 	bitmap_zero(s->shadow_ctx_desc_updated, I915_NUM_ENGINES);
 
-	s->workloads = kmem_cache_create("gvt-g_vgpu_workload",
-			sizeof(struct intel_vgpu_workload), 0,
-			SLAB_HWCACHE_ALIGN,
-			NULL);
+	s->workloads = kmem_cache_create_usercopy("gvt-g_vgpu_workload",
+						  sizeof(struct intel_vgpu_workload), 0,
+						  SLAB_HWCACHE_ALIGN,
+						  offsetof(struct intel_vgpu_workload, rb_tail),
+						  sizeof_field(struct intel_vgpu_workload, rb_tail),
+						  NULL);
 
 	if (!s->workloads) {
 		ret = -ENOMEM;
