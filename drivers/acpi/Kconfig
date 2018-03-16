@@ -217,6 +217,19 @@ config ACPI_FAN
 	  To compile this driver as a module, choose M here:
 	  the module will be called fan.
 
+config ACPI_TAD
+	tristate "ACPI Time and Alarm (TAD) Device Support"
+	depends on SYSFS && PM_SLEEP
+	help
+	  The ACPI Time and Alarm (TAD) device is an alternative to the Real
+	  Time Clock (RTC).  Its wake timers allow the system to transition from
+	  the S3 (or optionally S4/S5) state to S0 state after a time period
+	  elapses.  In comparison with the RTC Alarm, the TAD provides a larger
+	  scale of flexibility in the wake timers.  The time capabilities of the
+	  TAD maintain the time of day information across platform power
+	  transitions, and keep track of time even when the platform is turned
+	  off.
+
 config ACPI_DOCK
 	bool "Dock"
 	help
