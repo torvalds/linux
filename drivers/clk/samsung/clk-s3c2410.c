@@ -95,7 +95,7 @@ static void __init s3c2410_clk_sleep_init(void) {}
 
 PNAME(fclk_p) = { "mpll", "div_slow" };
 
-struct samsung_mux_clock s3c2410_common_muxes[] __initdata = {
+static struct samsung_mux_clock s3c2410_common_muxes[] __initdata = {
 	MUX(FCLK, "fclk", fclk_p, CLKSLOW, 4, 1),
 };
 
@@ -111,12 +111,12 @@ static struct clk_div_table divslow_d[] = {
 	{ /* sentinel */ },
 };
 
-struct samsung_div_clock s3c2410_common_dividers[] __initdata = {
+static struct samsung_div_clock s3c2410_common_dividers[] __initdata = {
 	DIV_T(0, "div_slow", "xti", CLKSLOW, 0, 3, divslow_d),
 	DIV(PCLK, "pclk", "hclk", CLKDIVN, 0, 1),
 };
 
-struct samsung_gate_clock s3c2410_common_gates[] __initdata = {
+static struct samsung_gate_clock s3c2410_common_gates[] __initdata = {
 	GATE(PCLK_SPI, "spi", "pclk", CLKCON, 18, 0, 0),
 	GATE(PCLK_I2S, "i2s", "pclk", CLKCON, 17, 0, 0),
 	GATE(PCLK_I2C, "i2c", "pclk", CLKCON, 16, 0, 0),
@@ -135,7 +135,7 @@ struct samsung_gate_clock s3c2410_common_gates[] __initdata = {
 };
 
 /* should be added _after_ the soc-specific clocks are created */
-struct samsung_clock_alias s3c2410_common_aliases[] __initdata = {
+static struct samsung_clock_alias s3c2410_common_aliases[] __initdata = {
 	ALIAS(PCLK_I2C, "s3c2410-i2c.0", "i2c"),
 	ALIAS(PCLK_ADC, NULL, "adc"),
 	ALIAS(PCLK_RTC, NULL, "rtc"),
@@ -200,11 +200,11 @@ static struct samsung_pll_clock s3c2410_plls[] __initdata = {
 						LOCKTIME, UPLLCON, NULL),
 };
 
-struct samsung_div_clock s3c2410_dividers[] __initdata = {
+static struct samsung_div_clock s3c2410_dividers[] __initdata = {
 	DIV(HCLK, "hclk", "mpll", CLKDIVN, 1, 1),
 };
 
-struct samsung_fixed_factor_clock s3c2410_ffactor[] __initdata = {
+static struct samsung_fixed_factor_clock s3c2410_ffactor[] __initdata = {
 	/*
 	 * armclk is directly supplied by the fclk, without
 	 * switching possibility like on the s3c244x below.
@@ -215,7 +215,7 @@ struct samsung_fixed_factor_clock s3c2410_ffactor[] __initdata = {
 	FFACTOR(UCLK, "uclk", "upll", 1, 1, 0),
 };
 
-struct samsung_clock_alias s3c2410_aliases[] __initdata = {
+static struct samsung_clock_alias s3c2410_aliases[] __initdata = {
 	ALIAS(PCLK_UART0, "s3c2410-uart.0", "uart"),
 	ALIAS(PCLK_UART1, "s3c2410-uart.1", "uart"),
 	ALIAS(PCLK_UART2, "s3c2410-uart.2", "uart"),
@@ -269,12 +269,12 @@ static struct samsung_pll_clock s3c244x_common_plls[] __initdata = {
 PNAME(hclk_p) = { "fclk", "div_hclk_2", "div_hclk_4", "div_hclk_3" };
 PNAME(armclk_p) = { "fclk", "hclk" };
 
-struct samsung_mux_clock s3c244x_common_muxes[] __initdata = {
+static struct samsung_mux_clock s3c244x_common_muxes[] __initdata = {
 	MUX(HCLK, "hclk", hclk_p, CLKDIVN, 1, 2),
 	MUX(ARMCLK, "armclk", armclk_p, CAMDIVN, 12, 1),
 };
 
-struct samsung_fixed_factor_clock s3c244x_common_ffactor[] __initdata = {
+static struct samsung_fixed_factor_clock s3c244x_common_ffactor[] __initdata = {
 	FFACTOR(0, "div_hclk_2", "fclk", 1, 2, 0),
 	FFACTOR(0, "ff_cam", "div_cam", 2, 1, CLK_SET_RATE_PARENT),
 };
@@ -291,7 +291,7 @@ static struct clk_div_table div_hclk_3_d[] = {
 	{ /* sentinel */ },
 };
 
-struct samsung_div_clock s3c244x_common_dividers[] __initdata = {
+static struct samsung_div_clock s3c244x_common_dividers[] __initdata = {
 	DIV(UCLK, "uclk", "upll", CLKDIVN, 3, 1),
 	DIV(0, "div_hclk", "fclk", CLKDIVN, 1, 1),
 	DIV_T(0, "div_hclk_4", "fclk", CAMDIVN, 9, 1, div_hclk_4_d),
@@ -299,11 +299,11 @@ struct samsung_div_clock s3c244x_common_dividers[] __initdata = {
 	DIV(0, "div_cam", "upll", CAMDIVN, 0, 3),
 };
 
-struct samsung_gate_clock s3c244x_common_gates[] __initdata = {
+static struct samsung_gate_clock s3c244x_common_gates[] __initdata = {
 	GATE(HCLK_CAM, "cam", "hclk", CLKCON, 19, 0, 0),
 };
 
-struct samsung_clock_alias s3c244x_common_aliases[] __initdata = {
+static struct samsung_clock_alias s3c244x_common_aliases[] __initdata = {
 	ALIAS(PCLK_UART0, "s3c2440-uart.0", "uart"),
 	ALIAS(PCLK_UART1, "s3c2440-uart.1", "uart"),
 	ALIAS(PCLK_UART2, "s3c2440-uart.2", "uart"),
@@ -318,23 +318,23 @@ struct samsung_clock_alias s3c244x_common_aliases[] __initdata = {
 
 PNAME(s3c2440_camif_p) = { "upll", "ff_cam" };
 
-struct samsung_mux_clock s3c2440_muxes[] __initdata = {
+static struct samsung_mux_clock s3c2440_muxes[] __initdata = {
 	MUX(CAMIF, "camif", s3c2440_camif_p, CAMDIVN, 4, 1),
 };
 
-struct samsung_gate_clock s3c2440_gates[] __initdata = {
+static struct samsung_gate_clock s3c2440_gates[] __initdata = {
 	GATE(PCLK_AC97, "ac97", "pclk", CLKCON, 20, 0, 0),
 };
 
 /* S3C2442 specific clocks */
 
-struct samsung_fixed_factor_clock s3c2442_ffactor[] __initdata = {
+static struct samsung_fixed_factor_clock s3c2442_ffactor[] __initdata = {
 	FFACTOR(0, "upll_3", "upll", 1, 3, 0),
 };
 
 PNAME(s3c2442_camif_p) = { "upll", "ff_cam", "upll", "upll_3" };
 
-struct samsung_mux_clock s3c2442_muxes[] __initdata = {
+static struct samsung_mux_clock s3c2442_muxes[] __initdata = {
 	MUX(CAMIF, "camif", s3c2442_camif_p, CAMDIVN, 4, 2),
 };
 
@@ -343,7 +343,7 @@ struct samsung_mux_clock s3c2442_muxes[] __initdata = {
  * Only necessary until the devicetree-move is complete
  */
 #define XTI	1
-struct samsung_fixed_rate_clock s3c2410_common_frate_clks[] __initdata = {
+static struct samsung_fixed_rate_clock s3c2410_common_frate_clks[] __initdata = {
 	FRATE(XTI, "xti", NULL, 0, 0),
 };
 
@@ -468,18 +468,18 @@ void __init s3c2410_common_clk_init(struct device_node *np, unsigned long xti_f,
 
 static void __init s3c2410_clk_init(struct device_node *np)
 {
-	s3c2410_common_clk_init(np, 0, S3C2410, 0);
+	s3c2410_common_clk_init(np, 0, S3C2410, NULL);
 }
 CLK_OF_DECLARE(s3c2410_clk, "samsung,s3c2410-clock", s3c2410_clk_init);
 
 static void __init s3c2440_clk_init(struct device_node *np)
 {
-	s3c2410_common_clk_init(np, 0, S3C2440, 0);
+	s3c2410_common_clk_init(np, 0, S3C2440, NULL);
 }
 CLK_OF_DECLARE(s3c2440_clk, "samsung,s3c2440-clock", s3c2440_clk_init);
 
 static void __init s3c2442_clk_init(struct device_node *np)
 {
-	s3c2410_common_clk_init(np, 0, S3C2442, 0);
+	s3c2410_common_clk_init(np, 0, S3C2442, NULL);
 }
 CLK_OF_DECLARE(s3c2442_clk, "samsung,s3c2442-clock", s3c2442_clk_init);
