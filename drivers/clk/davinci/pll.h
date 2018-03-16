@@ -135,4 +135,7 @@ int dm365_pll2_init(struct device *dev, void __iomem *base);
 int dm644x_pll1_init(struct device *dev, void __iomem *base);
 int dm644x_pll2_init(struct device *dev, void __iomem *base);
 
+int dm646x_pll1_init(struct device *dev, void __iomem *base);
+int dm646x_pll2_init(struct device *dev, void __iomem *base);
+
 #endif /* __CLK_DAVINCI_PLL_H___ */
