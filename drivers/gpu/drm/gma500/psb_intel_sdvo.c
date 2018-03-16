@@ -2281,7 +2281,7 @@ static bool psb_intel_sdvo_tv_create_property(struct psb_intel_sdvo *psb_intel_s
 
 	for (i = 0; i < psb_intel_sdvo_connector->format_supported_num; i++)
 		drm_property_add_enum(
-				psb_intel_sdvo_connector->tv_format, i,
+				psb_intel_sdvo_connector->tv_format,
 				i, tv_format_names[psb_intel_sdvo_connector->tv_format_supported[i]]);
 
 	psb_intel_sdvo->tv_format_index = psb_intel_sdvo_connector->tv_format_supported[0];

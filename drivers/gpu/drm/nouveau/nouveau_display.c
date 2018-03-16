@@ -338,11 +338,9 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 	if (c) {                                                               \
 		p = drm_property_create(dev, DRM_MODE_PROP_ENUM, n, c);        \
 		l = (list);                                                    \
-		c = 0;                                                         \
 		while (p && l->gen_mask) {                                     \
 			if (l->gen_mask & (1 << (gen))) {                      \
-				drm_property_add_enum(p, c, l->type, l->name); \
-				c++;                                           \
+				drm_property_add_enum(p, l->type, l->name);    \
 			}                                                      \
 			l++;                                                   \
 		}                                                              \
