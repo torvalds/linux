@@ -66,7 +66,11 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 		return -EPERM;
 	if (ipv6_addr_is_multicast(addr))
 		return -EINVAL;
-	if (ipv6_chk_addr(net, addr, NULL, 0))
+
+	if (ifindex)
+		dev = __dev_get_by_index(net, ifindex);
+
+	if (ipv6_chk_addr_and_flags(net, addr, dev, true, 0, IFA_F_TENTATIVE))
 		return -EINVAL;
 
 	pac = sock_kmalloc(sk, sizeof(struct ipv6_ac_socklist), GFP_KERNEL);
@@ -90,8 +94,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, const struct in6_addr *addr)
 			dev = __dev_get_by_flags(net, IFF_UP,
 						 IFF_UP | IFF_LOOPBACK);
 		}
-	} else
-		dev = __dev_get_by_index(net, ifindex);
+	}
 
 	if (!dev) {
 		err = -ENODEV;

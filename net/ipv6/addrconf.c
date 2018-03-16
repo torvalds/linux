@@ -1851,22 +1851,42 @@ static int ipv6_count_addresses(const struct inet6_dev *idev)
 int ipv6_chk_addr(struct net *net, const struct in6_addr *addr,
 		  const struct net_device *dev, int strict)
 {
-	return ipv6_chk_addr_and_flags(net, addr, dev, strict, IFA_F_TENTATIVE);
+	return ipv6_chk_addr_and_flags(net, addr, dev, !dev,
+				       strict, IFA_F_TENTATIVE);
 }
 EXPORT_SYMBOL(ipv6_chk_addr);
 
+/* device argument is used to find the L3 domain of interest. If
+ * skip_dev_check is set, then the ifp device is not checked against
+ * the passed in dev argument. So the 2 cases for addresses checks are:
+ *   1. does the address exist in the L3 domain that dev is part of
+ *      (skip_dev_check = true), or
+ *
+ *   2. does the address exist on the specific device
+ *      (skip_dev_check = false)
+ */
 int ipv6_chk_addr_and_flags(struct net *net, const struct in6_addr *addr,
-			    const struct net_device *dev, int strict,
-			    u32 banned_flags)
+			    const struct net_device *dev, bool skip_dev_check,
+			    int strict, u32 banned_flags)
 {
 	unsigned int hash = inet6_addr_hash(net, addr);
+	const struct net_device *l3mdev;
 	struct inet6_ifaddr *ifp;
 	u32 ifp_flags;
 
 	rcu_read_lock();
+
+	l3mdev = l3mdev_master_dev_rcu(dev);
+	if (skip_dev_check)
+		dev = NULL;
+
 	hlist_for_each_entry_rcu(ifp, &inet6_addr_lst[hash], addr_lst) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
+
+		if (l3mdev_master_dev_rcu(ifp->idev->dev) != l3mdev)
+			continue;
+
 		/* Decouple optimistic from tentative for evaluation here.
 		 * Ban optimistic addresses explicitly, when required.
 		 */

@@ -707,7 +707,7 @@ static void ndisc_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	int probes = atomic_read(&neigh->probes);
 
 	if (skb && ipv6_chk_addr_and_flags(dev_net(dev), &ipv6_hdr(skb)->saddr,
-					   dev, 1,
+					   dev, false, 1,
 					   IFA_F_TENTATIVE|IFA_F_OPTIMISTIC))
 		saddr = &ipv6_hdr(skb)->saddr;
 	probes -= NEIGH_VAR(neigh->parms, UCAST_PROBES);
