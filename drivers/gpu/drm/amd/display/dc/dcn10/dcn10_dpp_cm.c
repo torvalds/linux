@@ -216,41 +216,55 @@ static void dpp1_cm_program_color_matrix(
 		struct dcn10_dpp *dpp,
 		const uint16_t *regval)
 {
-	uint32_t mode;
+	uint32_t ocsc_mode;
+	uint32_t cur_mode;
 	struct color_matrices_reg gam_regs;
-
-	REG_GET(CM_OCSC_CONTROL, CM_OCSC_MODE, &mode);
 
 	if (regval == NULL) {
 		BREAK_TO_DEBUGGER();
 		return;
 	}
-	mode = 4;
+
+	/* determine which CSC matrix (ocsc or comb) we are using
+	 * currently.  select the alternate set to double buffer
+	 * the CSC update so CSC is updated on frame boundary
+	 */
+	REG_SET(CM_TEST_DEBUG_INDEX, 0,
+			CM_TEST_DEBUG_INDEX, 9);
+
+	REG_GET(CM_TEST_DEBUG_DATA,
+			CM_TEST_DEBUG_DATA_ID9_OCSC_MODE, &cur_mode);
+
+	if (cur_mode != 4)
+		ocsc_mode = 4;
+	else
+		ocsc_mode = 5;
+
+
 	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_OCSC_C11;
 	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_OCSC_C11;
 	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_OCSC_C12;
 	gam_regs.masks.csc_c12 = dpp->tf_mask->CM_OCSC_C12;
 
-	if (mode == 4) {
+	if (ocsc_mode == 4) {
 
 		gam_regs.csc_c11_c12 = REG(CM_OCSC_C11_C12);
 		gam_regs.csc_c33_c34 = REG(CM_OCSC_C33_C34);
-
-		cm_helper_program_color_matrices(
-				dpp->base.ctx,
-				regval,
-				&gam_regs);
 
 	} else {
 
 		gam_regs.csc_c11_c12 = REG(CM_COMB_C11_C12);
 		gam_regs.csc_c33_c34 = REG(CM_COMB_C33_C34);
 
-		cm_helper_program_color_matrices(
-				dpp->base.ctx,
-				regval,
-				&gam_regs);
 	}
+
+	cm_helper_program_color_matrices(
+			dpp->base.ctx,
+			regval,
+			&gam_regs);
+
+	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
+
 }
 
 void dpp1_cm_set_output_csc_default(
@@ -260,7 +274,6 @@ void dpp1_cm_set_output_csc_default(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	const uint16_t *regval = NULL;
 	int arr_size;
-	uint32_t ocsc_mode = 4;
 
 	regval = find_color_matrix(colorspace, &arr_size);
 	if (regval == NULL) {
@@ -269,7 +282,6 @@ void dpp1_cm_set_output_csc_default(
 	}
 
 	dpp1_cm_program_color_matrix(dpp, regval);
-	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
 }
 
 static void dpp1_cm_get_reg_field(
@@ -330,10 +342,8 @@ void dpp1_cm_set_output_csc_adjustment(
 		const uint16_t *regval)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	uint32_t ocsc_mode = 4;
 
 	dpp1_cm_program_color_matrix(dpp, regval);
-	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
 }
 
 void dpp1_cm_power_on_regamma_lut(struct dpp *dpp_base,

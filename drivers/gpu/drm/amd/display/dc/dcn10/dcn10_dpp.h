@@ -420,6 +420,41 @@
 	TF_SF(CURSOR0_CURSOR_CONTROL, CURSOR_ENABLE, mask_sh), \
 	TF_SF(DPP_TOP0_DPP_CONTROL, DPPCLK_RATE_CONTROL, mask_sh)
 
+/*
+ *
+	DCN1 CM debug status register definition
+
+	register :ID9_CM_STATUS do
+	implement_ref :cm
+	map to:  :cmdebugind, at: j
+	width 32
+	disclosure   NEVER
+
+		field :ID9_VUPDATE_CFG, [0], R
+		field :ID9_IGAM_LUT_MODE, [2..1], R
+		field :ID9_BNS_BYPASS, [3], R
+		field :ID9_ICSC_MODE, [5..4], R
+		field :ID9_DGAM_LUT_MODE, [8..6], R
+		field :ID9_HDR_BYPASS, [9], R
+		field :ID9_GAMUT_REMAP_MODE, [11..10], R
+		field :ID9_RGAM_LUT_MODE, [14..12], R
+		#1 free bit
+		field :ID9_OCSC_MODE, [18..16], R
+		field :ID9_DENORM_MODE, [21..19], R
+		field :ID9_ROUND_TRUNC_MODE, [25..22], R
+		field :ID9_DITHER_EN, [26], R
+		field :ID9_DITHER_MODE, [28..27], R
+	end
+*/
+
+#define TF_DEBUG_REG_LIST_SH_DCN10 \
+	.CM_TEST_DEBUG_DATA_ID9_ICSC_MODE = 4, \
+	.CM_TEST_DEBUG_DATA_ID9_OCSC_MODE = 16
+
+#define TF_DEBUG_REG_LIST_MASK_DCN10 \
+	.CM_TEST_DEBUG_DATA_ID9_ICSC_MODE = 0x30, \
+	.CM_TEST_DEBUG_DATA_ID9_OCSC_MODE = 0x70000
+
 #define TF_REG_FIELD_LIST(type) \
 	type EXT_OVERSCAN_LEFT; \
 	type EXT_OVERSCAN_RIGHT; \
@@ -1015,6 +1050,7 @@
 	type CM_BYPASS; \
 	type CM_TEST_DEBUG_INDEX; \
 	type CM_TEST_DEBUG_DATA_ID9_ICSC_MODE; \
+	type CM_TEST_DEBUG_DATA_ID9_OCSC_MODE;\
 	type FORMAT_CONTROL__ALPHA_EN; \
 	type CUR0_COLOR0; \
 	type CUR0_COLOR1; \
