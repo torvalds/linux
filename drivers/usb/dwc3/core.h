@@ -929,6 +929,10 @@ struct dwc3_scratchpad_array {
  * @test_mode_nr: test feature selector
  * @lpm_nyet_threshold: LPM NYET response threshold
  * @hird_threshold: HIRD threshold
+ * @rx_thr_num_pkt_prd: periodic ESS receive packet count
+ * @rx_max_burst_prd: max periodic ESS receive burst size
+ * @tx_thr_num_pkt_prd: periodic ESS transmit packet count
+ * @tx_max_burst_prd: max periodic ESS transmit burst size
  * @hsphy_interface: "utmi" or "ulpi"
  * @connected: true when we're connected to a host, false otherwise
  * @delayed_status: true when gadget driver asks for delayed status
@@ -1096,6 +1100,10 @@ struct dwc3 {
 	u8			test_mode_nr;
 	u8			lpm_nyet_threshold;
 	u8			hird_threshold;
+	u8			rx_thr_num_pkt_prd;
+	u8			rx_max_burst_prd;
+	u8			tx_thr_num_pkt_prd;
+	u8			tx_max_burst_prd;
 
 	const char		*hsphy_interface;
 
