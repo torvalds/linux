@@ -3233,17 +3233,9 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 		}
 		sta_id = mvm_sta->sta_id;
 
-		if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
-		    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
-		    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256) {
-			ret = iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id,
-						    false);
-			goto end;
-		}
-
 		/*
 		 * It is possible that the 'sta' parameter is NULL, and thus
-		 * there is a need to retrieve  the sta from the local station
+		 * there is a need to retrieve the sta from the local station
 		 * table.
 		 */
 		if (!sta) {
@@ -3258,6 +3250,17 @@ int iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 
 		if (WARN_ON_ONCE(iwl_mvm_sta_from_mac80211(sta)->vif != vif))
 			return -EINVAL;
+	} else {
+		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+		sta_id = mvmvif->mcast_sta.sta_id;
+	}
+
+	if (keyconf->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
+	    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
+	    keyconf->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256) {
+		ret = iwl_mvm_send_sta_igtk(mvm, keyconf, sta_id, false);
+		goto end;
 	}
 
 	/* If the key_offset is not pre-assigned, we need to find a
