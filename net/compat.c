@@ -509,8 +509,9 @@ int compat_sock_get_timestampns(struct sock *sk, struct timespec __user *usersta
 }
 EXPORT_SYMBOL(compat_sock_get_timestampns);
 
-COMPAT_SYSCALL_DEFINE5(getsockopt, int, fd, int, level, int, optname,
-		       char __user *, optval, int __user *, optlen)
+static int __compat_sys_getsockopt(int fd, int level, int optname,
+				   char __user *optval,
+				   int __user *optlen)
 {
 	int err;
 	struct socket *sock = sockfd_lookup(fd, &err);
@@ -534,6 +535,12 @@ COMPAT_SYSCALL_DEFINE5(getsockopt, int, fd, int, level, int, optname,
 		sockfd_put(sock);
 	}
 	return err;
+}
+
+COMPAT_SYSCALL_DEFINE5(getsockopt, int, fd, int, level, int, optname,
+		       char __user *, optval, int __user *, optlen)
+{
+	return __compat_sys_getsockopt(fd, level, optname, optval, optlen);
 }
 
 struct compat_group_req {
@@ -874,8 +881,9 @@ COMPAT_SYSCALL_DEFINE2(socketcall, int, call, u32 __user *, args)
 					      compat_ptr(a[3]), a[4]);
 		break;
 	case SYS_GETSOCKOPT:
-		ret = compat_sys_getsockopt(a0, a1, a[2],
-				compat_ptr(a[3]), compat_ptr(a[4]));
+		ret = __compat_sys_getsockopt(a0, a1, a[2],
+					      compat_ptr(a[3]),
+					      compat_ptr(a[4]));
 		break;
 	case SYS_SENDMSG:
 		ret = compat_sys_sendmsg(a0, compat_ptr(a1), a[2]);
