@@ -489,19 +489,26 @@ static inline void ovl_lockdep_annotate_inode_mutex_key(struct inode *inode)
 }
 
 static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev,
-			   unsigned long ino)
+			   unsigned long ino, int fsid)
 {
+	int xinobits = ovl_xino_bits(inode->i_sb);
+
 	/*
 	 * When NFS export is enabled and d_ino is consistent with st_ino
-	 * (samefs), set the same value to i_ino, because nfsd readdirplus
-	 * compares d_ino values to i_ino values of child entries. When called
-	 * from ovl_new_inode(), ino arg is 0, so i_ino will be updated to real
+	 * (samefs or i_ino has enough bits to encode layer), set the same
+	 * value used for d_ino to i_ino, because nfsd readdirplus compares
+	 * d_ino values to i_ino values of child entries. When called from
+	 * ovl_new_inode(), ino arg is 0, so i_ino will be updated to real
 	 * upper inode i_ino on ovl_inode_init() or ovl_inode_update().
 	 */
-	if (inode->i_sb->s_export_op && ovl_same_sb(inode->i_sb))
+	if (inode->i_sb->s_export_op &&
+	    (ovl_same_sb(inode->i_sb) || xinobits)) {
 		inode->i_ino = ino;
-	else
+		if (xinobits && fsid && !(ino >> (64 - xinobits)))
+			inode->i_ino |= (unsigned long)fsid << (64 - xinobits);
+	} else {
 		inode->i_ino = get_next_ino();
+	}
 	inode->i_mode = mode;
 	inode->i_flags |= S_NOCMTIME;
 #ifdef CONFIG_FS_POSIX_ACL
@@ -637,7 +644,7 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 
 	inode = new_inode(sb);
 	if (inode)
-		ovl_fill_inode(inode, mode, rdev, 0);
+		ovl_fill_inode(inode, mode, rdev, 0, 0);
 
 	return inode;
 }
@@ -743,12 +750,14 @@ static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
 }
 
 struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
-			    struct dentry *lowerdentry, struct dentry *index,
+			    struct ovl_path *lowerpath, struct dentry *index,
 			    unsigned int numlower)
 {
 	struct inode *realinode = upperdentry ? d_inode(upperdentry) : NULL;
 	struct inode *inode;
+	struct dentry *lowerdentry = lowerpath ? lowerpath->dentry : NULL;
 	bool bylower = ovl_hash_bylower(sb, upperdentry, lowerdentry, index);
+	int fsid = bylower ? lowerpath->layer->fsid : 0;
 	bool is_dir;
 	unsigned long ino = 0;
 
@@ -796,7 +805,7 @@ struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
 		if (!inode)
 			goto out_nomem;
 	}
-	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev, ino);
+	ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev, ino, fsid);
 	ovl_inode_init(inode, upperdentry, lowerdentry);
 
 	if (upperdentry && ovl_is_impuredir(upperdentry))

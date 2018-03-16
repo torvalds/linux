@@ -338,7 +338,7 @@ struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev);
 struct inode *ovl_lookup_inode(struct super_block *sb, struct dentry *real,
 			       bool is_upper);
 struct inode *ovl_get_inode(struct super_block *sb, struct dentry *upperdentry,
-			    struct dentry *lowerdentry, struct dentry *index,
+			    struct ovl_path *lowerpath, struct dentry *index,
 			    unsigned int numlower);
 static inline void ovl_copyattr(struct inode *from, struct inode *to)
 {
