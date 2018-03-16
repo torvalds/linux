@@ -917,6 +917,7 @@ struct adapter {
 	struct work_struct tid_release_task;
 	struct work_struct db_full_task;
 	struct work_struct db_drop_task;
+	struct work_struct fatal_err_notify_task;
 	bool tid_release_task_busy;
 
 	/* lock for mailbox cmd list */

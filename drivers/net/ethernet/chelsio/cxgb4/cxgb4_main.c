@@ -3255,6 +3255,14 @@ static const struct ethtool_ops cxgb4_mgmt_ethtool_ops = {
 	.get_drvinfo       = cxgb4_mgmt_get_drvinfo,
 };
 
+static void notify_fatal_err(struct work_struct *work)
+{
+	struct adapter *adap;
+
+	adap = container_of(work, struct adapter, fatal_err_notify_task);
+	notify_ulds(adap, CXGB4_STATE_FATAL_ERROR);
+}
+
 void t4_fatal_err(struct adapter *adap)
 {
 	int port;
@@ -3279,6 +3287,7 @@ void t4_fatal_err(struct adapter *adap)
 		netif_carrier_off(dev);
 	}
 	dev_alert(adap->pdev_dev, "encountered fatal error, adapter stopped\n");
+	queue_work(adap->workq, &adap->fatal_err_notify_task);
 }
 
 static void setup_memwin(struct adapter *adap)
@@ -5479,6 +5488,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	INIT_WORK(&adapter->tid_release_task, process_tid_release_list);
 	INIT_WORK(&adapter->db_full_task, process_db_full);
 	INIT_WORK(&adapter->db_drop_task, process_db_drop);
+	INIT_WORK(&adapter->fatal_err_notify_task, notify_fatal_err);
 
 	err = t4_prep_adapter(adapter);
 	if (err)
