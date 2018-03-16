@@ -23,8 +23,6 @@
 #ifndef _VEGA10_SMUMANAGER_H_
 #define _VEGA10_SMUMANAGER_H_
 
-#include "vega10_hwmgr.h"
-
 #define MAX_SMU_TABLE 5
 
 struct smu_table_entry {
@@ -43,9 +41,6 @@ struct smu_table_array {
 struct vega10_smumgr {
 	struct smu_table_array            smu_tables;
 };
-
-int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
-		bool enable, uint32_t feature_mask);
 
 
 #endif

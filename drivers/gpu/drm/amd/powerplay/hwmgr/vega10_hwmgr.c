@@ -28,7 +28,6 @@
 
 #include "hwmgr.h"
 #include "amd_powerplay.h"
-#include "vega10_smumgr.h"
 #include "hardwaremanager.h"
 #include "ppatomfwctrl.h"
 #include "atomfirmware.h"
@@ -5023,6 +5022,16 @@ static const struct pp_hwmgr_func vega10_hwmgr_funcs = {
 	.set_power_profile_mode = vega10_set_power_profile_mode,
 	.set_power_limit = vega10_set_power_limit,
 };
+
+int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
+		bool enable, uint32_t feature_mask)
+{
+	int msg = enable ? PPSMC_MSG_EnableSmuFeatures :
+			PPSMC_MSG_DisableSmuFeatures;
+
+	return smum_send_msg_to_smc_with_parameter(hwmgr,
+			msg, feature_mask);
+}
 
 int vega10_hwmgr_init(struct pp_hwmgr *hwmgr)
 {
