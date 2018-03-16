@@ -392,8 +392,7 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 
 		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
 		val &= STATUS0_BC_LVL;
-		if (val)
-			*CC1 = val;
+		*CC1 = val ? TYPEC_CC_VOLT_RP : TYPEC_CC_VOLT_OPEN;
 
 		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
 				   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
@@ -405,8 +404,8 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 
 		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
 		val &= STATUS0_BC_LVL;
-		if (val)
-			*CC2 = val;
+		*CC2 = val ? TYPEC_CC_VOLT_RP : TYPEC_CC_VOLT_OPEN;
+
 		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
 				   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2,
 				   store);
@@ -485,6 +484,10 @@ static void tcpm_set_cc_pull_mode(struct fusb30x_chip *chip, enum CC_MODE mode)
 			   SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2 |
 			   SWITCHES0_PDWN1 | SWITCHES0_PDWN2,
 			   val);
+
+	if (chip->cc_meas_high && mode == CC_PULL_UP)
+		regmap_write(chip->regmap, FUSB_REG_MEASURE,
+			     chip->cc_meas_high);
 }
 
 static int tcpm_set_cc(struct fusb30x_chip *chip, enum role_mode mode)
@@ -515,9 +518,6 @@ static int tcpm_set_cc(struct fusb30x_chip *chip, enum role_mode mode)
 		break;
 	}
 
-	if (chip->cc_meas_high && (mode != ROLE_MODE_UFP))
-		regmap_write(chip->regmap, FUSB_REG_MEASURE,
-			     chip->cc_meas_high);
 	regmap_update_bits(chip->regmap, FUSB_REG_CONTROL2, CONTROL2_TOGGLE,
 			   CONTROL2_TOGGLE);
 
@@ -722,11 +722,9 @@ static void tcpm_init(struct fusb30x_chip *chip)
 	regmap_update_bits(chip->regmap, FUSB_REG_CONTROL0, CONTROL0_INT_MASK,
 			   ~CONTROL0_INT_MASK);
 
-	tcpm_set_polarity(chip, TYPEC_POLARITY_CC1);
 	tcpm_set_vconn(chip, 0);
 
 	regmap_write(chip->regmap, FUSB_REG_POWER, 0xf);
-	chip->vbus_begin = tcpm_check_vbus(chip);
 }
 
 static void pd_execute_hard_reset(struct fusb30x_chip *chip)
@@ -847,6 +845,7 @@ static void set_state_unattached(struct fusb30x_chip *chip)
 
 	regmap_update_bits(chip->regmap, FUSB_REG_MASK,
 			   MASK_M_COMP_CHNG, MASK_M_COMP_CHNG);
+	chip->try_role_complete = false;
 }
 
 static void set_mesg(struct fusb30x_chip *chip, int cmd, int is_DMT)
@@ -1452,6 +1451,8 @@ static void fusb_state_unattached(struct fusb30x_chip *chip, int evt)
 		else
 			set_state(chip, attach_wait_source);
 
+		chip->vbus_begin = tcpm_check_vbus(chip);
+
 		tcpm_set_polarity(chip, (chip->cc_state & CC_STATE_TOGSS_CC1) ?
 					TYPEC_POLARITY_CC1 :
 					TYPEC_POLARITY_CC2);
@@ -1462,11 +1463,43 @@ static void fusb_state_unattached(struct fusb30x_chip *chip, int evt)
 	}
 }
 
+static void fusb_state_try_attach_set(struct fusb30x_chip *chip,
+				      enum role_mode mode)
+{
+	if (mode == ROLE_MODE_NONE || mode == ROLE_MODE_DRP ||
+	    mode == ROLE_MODE_ASS)
+		return;
+
+	tcpm_init(chip);
+	tcpm_set_cc(chip, (mode == ROLE_MODE_DFP) ?
+			  ROLE_MODE_DFP : ROLE_MODE_UFP);
+	chip->timer_mux = T_PD_TRY_DRP;
+	fusb_timer_start(&chip->timer_mux_machine, chip->timer_mux);
+	set_state(chip, (mode == ROLE_MODE_DFP) ?
+			attach_try_src : attach_try_snk);
+}
+
 static void fusb_state_attach_wait_sink(struct fusb30x_chip *chip, int evt)
 {
 	int cc1, cc2;
 
 	if (evt & EVENT_TIMER_MUX) {
+		if (tcpm_check_vbus(chip)) {
+			chip->timer_mux = T_DISABLED;
+			if (chip->role == ROLE_MODE_DRP &&
+			    chip->try_role == ROLE_MODE_DFP &&
+			    !chip->try_role_complete) {
+				fusb_state_try_attach_set(chip, ROLE_MODE_DFP);
+				return;
+			} else if (chip->try_role_complete) {
+				chip->timer_mux = T_PD_SOURCE_ON;
+				fusb_timer_start(&chip->timer_mux_machine,
+						 chip->timer_mux);
+				set_state(chip, attached_sink);
+				return;
+			}
+		}
+
 		tcpm_get_cc(chip, &cc1, &cc2);
 
 		if ((chip->cc1 == cc1) && (chip->cc2 == cc2)) {
@@ -1478,8 +1511,14 @@ static void fusb_state_attach_wait_sink(struct fusb30x_chip *chip, int evt)
 		}
 
 		if (chip->debounce_cnt > N_DEBOUNCE_CNT) {
-			if ((chip->cc1 != chip->cc2) &&
-			    ((!chip->cc1) || (!chip->cc2))) {
+			chip->timer_mux = T_DISABLED;
+			if ((chip->cc1 == TYPEC_CC_VOLT_RP &&
+			     chip->cc2 == TYPEC_CC_VOLT_OPEN) ||
+			    (chip->cc2 == TYPEC_CC_VOLT_RP &&
+			     chip->cc1 == TYPEC_CC_VOLT_OPEN)) {
+				chip->timer_mux = T_PD_SOURCE_ON;
+				fusb_timer_start(&chip->timer_mux_machine,
+						 chip->timer_mux);
 				set_state(chip, attached_sink);
 			} else {
 				set_state_unattached(chip);
@@ -1501,8 +1540,7 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 		tcpm_get_cc(chip, &cc1, &cc2);
 
 		if ((chip->cc1 == cc1) && (chip->cc2 == cc2)) {
-			if (chip->debounce_cnt++ == 0)
-				platform_set_vbus_lvl_enable(chip, 1, 0);
+			chip->debounce_cnt++;
 		} else {
 			chip->cc1 = cc1;
 			chip->cc2 = cc2;
@@ -1512,10 +1550,17 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 		if (chip->debounce_cnt > N_DEBOUNCE_CNT) {
 			if (((!chip->cc1) || (!chip->cc2)) &&
 			    ((chip->cc1 == TYPEC_CC_VOLT_RD) ||
-			     (chip->cc2 == TYPEC_CC_VOLT_RD)))
-				set_state(chip, attached_source);
-			else
+			     (chip->cc2 == TYPEC_CC_VOLT_RD))) {
+				if (chip->role == ROLE_MODE_DRP &&
+				    chip->try_role == ROLE_MODE_UFP &&
+				    !chip->try_role_complete)
+					fusb_state_try_attach_set(chip,
+							ROLE_MODE_UFP);
+				else
+					set_state(chip, attached_source);
+			} else {
 				set_state_unattached(chip);
+			}
 			return;
 		}
 
@@ -1527,6 +1572,7 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 
 static void fusb_state_attached_source(struct fusb30x_chip *chip, int evt)
 {
+	platform_set_vbus_lvl_enable(chip, 1, 0);
 	tcpm_set_polarity(chip, (chip->cc_state & CC_STATE_TOGSS_CC1) ?
 				TYPEC_POLARITY_CC1 : TYPEC_POLARITY_CC2);
 	tcpm_set_vconn(chip, 1);
@@ -1544,16 +1590,65 @@ static void fusb_state_attached_source(struct fusb30x_chip *chip, int evt)
 
 static void fusb_state_attached_sink(struct fusb30x_chip *chip, int evt)
 {
-	chip->notify.is_cc_connected = true;
-	tcpm_set_polarity(chip, (chip->cc_state & CC_STATE_TOGSS_CC1) ?
-				TYPEC_POLARITY_CC1 : TYPEC_POLARITY_CC2);
+	if (tcpm_check_vbus(chip)) {
+		chip->timer_mux = T_DISABLED;
+		chip->timer_state = T_DISABLED;
+		if (!chip->try_role_complete &&
+		    chip->try_role == ROLE_MODE_DFP &&
+		    chip->role == ROLE_MODE_DRP) {
+			fusb_state_try_attach_set(chip, ROLE_MODE_DFP);
+			return;
+		}
 
-	chip->notify.power_role = 0;
-	chip->notify.data_role = 0;
-	chip->hardrst_count = 0;
-	set_state(chip, policy_snk_startup);
-	dev_info(chip->dev, "CC connected in %s as UFP\n",
-		 chip->cc_polarity ? "CC1" : "CC2");
+		chip->try_role_complete = true;
+		chip->notify.is_cc_connected = true;
+		chip->notify.power_role = 0;
+		chip->notify.data_role = 0;
+		chip->hardrst_count = 0;
+		set_state(chip, policy_snk_startup);
+		dev_info(chip->dev, "CC connected in %s as UFP\n",
+			 chip->cc_polarity ? "CC1" : "CC2");
+		return;
+	} else if (evt & EVENT_TIMER_MUX) {
+		set_state_unattached(chip);
+		return;
+	}
+
+	chip->timer_state = 2;
+	fusb_timer_start(&chip->timer_state_machine,
+			 chip->timer_state);
+}
+
+static void fusb_state_try_attach(struct fusb30x_chip *chip, int evt,
+				  enum role_mode mode)
+{
+	if ((evt & EVENT_CC) && chip->cc_state) {
+		chip->try_role_complete = true;
+		if (chip->cc_state & CC_STATE_TOGSS_IS_UFP)
+			set_state(chip, (mode == ROLE_MODE_UFP) ?
+					attach_wait_sink : error_recovery);
+		else
+			set_state(chip, (mode == ROLE_MODE_DFP) ?
+					attach_wait_source : error_recovery);
+
+		tcpm_set_polarity(chip, (chip->cc_state & CC_STATE_TOGSS_CC1) ?
+					TYPEC_POLARITY_CC1 :
+					TYPEC_POLARITY_CC2);
+		tcpm_get_cc(chip, &chip->cc1, &chip->cc2);
+		chip->debounce_cnt = 0;
+		chip->timer_mux = 2;
+		fusb_timer_start(&chip->timer_mux_machine, chip->timer_mux);
+	} else if (evt & EVENT_TIMER_MUX) {
+		if (!chip->try_role_complete) {
+			chip->try_role_complete = true;
+			fusb_state_try_attach_set(chip,
+						  (mode == ROLE_MODE_DFP) ?
+						  ROLE_MODE_UFP :
+						  ROLE_MODE_DFP);
+		} else {
+			set_state(chip, error_recovery);
+		}
+	}
 }
 
 static void fusb_soft_reset_parameter(struct fusb30x_chip *chip)
@@ -2725,6 +2820,12 @@ static void state_machine_typec(struct fusb30x_chip *chip)
 	case attached_sink:
 		fusb_state_attached_sink(chip, evt);
 		break;
+	case attach_try_src:
+		fusb_state_try_attach(chip, evt, ROLE_MODE_DFP);
+		break;
+	case attach_try_snk:
+		fusb_state_try_attach(chip, evt, ROLE_MODE_UFP);
+		break;
 
 	/* POWER DELIVERY */
 	case policy_src_startup:
@@ -2996,7 +3097,7 @@ static int fusb30x_probe(struct i2c_client *client,
 	struct fusb30x_chip *chip;
 	struct PD_CAP_INFO *pd_cap_info;
 	int ret;
-	char *string;
+	char *string[2];
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -3025,13 +3126,14 @@ static int fusb30x_probe(struct i2c_client *client,
 	INIT_WORK(&chip->work, fusb302_work_func);
 
 	chip->role = ROLE_MODE_NONE;
+	chip->try_role = ROLE_MODE_NONE;
 	if (!of_property_read_string(chip->dev->of_node, "fusb302,role",
-				     (const char **)&string)) {
-		if (!strcmp(string, "ROLE_MODE_DRP"))
+				     (const char **)&string[0])) {
+		if (!strcmp(string[0], "ROLE_MODE_DRP"))
 			chip->role = ROLE_MODE_DRP;
-		else if (!strcmp(string, "ROLE_MODE_DFP"))
+		else if (!strcmp(string[0], "ROLE_MODE_DFP"))
 			chip->role = ROLE_MODE_DFP;
-		else if (!strcmp(string, "ROLE_MODE_UFP"))
+		else if (!strcmp(string[0], "ROLE_MODE_UFP"))
 			chip->role = ROLE_MODE_UFP;
 	}
 
@@ -3039,7 +3141,19 @@ static int fusb30x_probe(struct i2c_client *client,
 		dev_warn(chip->dev,
 			 "Can't get property of role, set role to default DRP\n");
 		chip->role = ROLE_MODE_DRP;
+		string[0] = "ROLE_MODE_DRP";
 	}
+
+	if (!of_property_read_string(chip->dev->of_node, "fusb302,try_role",
+				     (const char **)&string[1])) {
+		if (!strcmp(string[1], "ROLE_MODE_DFP"))
+			chip->try_role = ROLE_MODE_DFP;
+		else if (!strcmp(string[1], "ROLE_MODE_UFP"))
+			chip->try_role = ROLE_MODE_UFP;
+	}
+
+	if (chip->try_role == ROLE_MODE_NONE)
+		string[1] = "ROLE_MODE_NONE";
 
 	chip->vconn_supported = true;
 	tcpm_init(chip);
@@ -3162,7 +3276,9 @@ static int fusb30x_probe(struct i2c_client *client,
 		goto IRQ_ERR;
 	}
 
-	dev_info(chip->dev, "port %d probe success\n", chip->port_num);
+	dev_info(chip->dev,
+		 "port %d probe success with role %s, try_role %s\n",
+		 chip->port_num, string[0], string[1]);
 
 	return 0;
 

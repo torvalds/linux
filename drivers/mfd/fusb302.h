@@ -130,6 +130,9 @@ enum connection_state {
 	policy_drs_dfp_reject,
 	policy_drs_dfp_change,
 	policy_drs_dfp_send_swap,
+
+	attach_try_src,
+	attach_try_snk,
 };
 
 enum tcpm_rp_value {
@@ -356,6 +359,7 @@ enum role_mode {
 #define T_PD_SOURCE_ON		480
 #define T_PD_SWAP_SOURCE_START	20
 #define T_PD_VCONN_SRC_ON	100
+#define T_PD_TRY_DRP		75
 
 #define T_NO_TRIGGER		500
 #define T_DISABLED		0xffff
@@ -517,6 +521,8 @@ struct fusb30x_chip {
 
 	enum role_mode role;
 	bool vconn_supported;
+	bool try_role_complete;
+	enum role_mode try_role;
 };
 
 #endif /* FUSB302_H */
