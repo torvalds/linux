@@ -356,6 +356,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev, unsigned long size,
 	struct amdgpu_bo *bo;
 	unsigned long page_align;
 	size_t acc_size;
+	u32 domains;
 	int r;
 
 	page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
@@ -417,12 +418,23 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev, unsigned long size,
 #endif
 
 	bo->tbo.bdev = &adev->mman.bdev;
-	amdgpu_ttm_placement_from_domain(bo, domain);
-
+	domains = bo->preferred_domains;
+retry:
+	amdgpu_ttm_placement_from_domain(bo, domains);
 	r = ttm_bo_init_reserved(&adev->mman.bdev, &bo->tbo, size, type,
 				 &bo->placement, page_align, &ctx, acc_size,
 				 NULL, resv, &amdgpu_ttm_bo_destroy);
-	if (unlikely(r != 0))
+
+	if (unlikely(r && r != -ERESTARTSYS)) {
+		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
+			bo->flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+			goto retry;
+		} else if (domains != bo->preferred_domains) {
+			domains = bo->allowed_domains;
+			goto retry;
+		}
+	}
+	if (unlikely(r))
 		return r;
 
 	if (adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
