@@ -117,4 +117,8 @@ int of_davinci_pll_init(struct device *dev,
 			u8 max_sysclk_id,
 			void __iomem *base);
 
+/* Platform-specific callbacks */
+
+int da830_pll_init(struct device *dev, void __iomem *base);
+
 #endif /* __CLK_DAVINCI_PLL_H___ */

@@ -775,6 +775,7 @@ static const struct of_device_id davinci_pll_of_match[] = {
 };
 
 static const struct platform_device_id davinci_pll_id_table[] = {
+	{ .name = "da830-pll",   .driver_data = (kernel_ulong_t)da830_pll_init   },
 	{ }
 };
 
