@@ -60,10 +60,15 @@ struct smc_clc_msg_local {	/* header2 of clc messages */
 	u8 mac[6];		/* mac of ib_device port */
 };
 
+#define SMC_CLC_MAX_V6_PREFIX	8
+
+/* Struct would be 4 byte aligned, but it is used in an array that is sent
+ * to peers and must conform to RFC7609, hence we need to use packed here.
+ */
 struct smc_clc_ipv6_prefix {
-	u8 prefix[4];
+	struct in6_addr prefix;
 	u8 prefix_len;
-} __packed;
+} __packed;			/* format defined in RFC7609 */
 
 struct smc_clc_msg_proposal_prefix {	/* prefix part of clc proposal message*/
 	__be32 outgoing_subnet;	/* subnet mask */
@@ -79,9 +84,11 @@ struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
 } __aligned(4);
 
 #define SMC_CLC_PROPOSAL_MAX_OFFSET	0x28
-#define SMC_CLC_PROPOSAL_MAX_PREFIX	(8 * sizeof(struct smc_clc_ipv6_prefix))
+#define SMC_CLC_PROPOSAL_MAX_PREFIX	(SMC_CLC_MAX_V6_PREFIX * \
+					 sizeof(struct smc_clc_ipv6_prefix))
 #define SMC_CLC_MAX_LEN		(sizeof(struct smc_clc_msg_proposal) + \
 				 SMC_CLC_PROPOSAL_MAX_OFFSET + \
+				 sizeof(struct smc_clc_msg_proposal_prefix) + \
 				 SMC_CLC_PROPOSAL_MAX_PREFIX + \
 				 sizeof(struct smc_clc_msg_trail))
 
