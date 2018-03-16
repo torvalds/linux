@@ -8,4 +8,6 @@ obj-$(CONFIG_ARCH_DAVINCI_DM355)	+= pll-dm355.o
 obj-$(CONFIG_ARCH_DAVINCI_DM365)	+= pll-dm365.o
 obj-$(CONFIG_ARCH_DAVINCI_DM644x)	+= pll-dm644x.o
 obj-$(CONFIG_ARCH_DAVINCI_DM646x)	+= pll-dm646x.o
+
+obj-y += psc.o
 endif
