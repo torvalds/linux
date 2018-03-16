@@ -767,8 +767,6 @@ static void smc_listen_work(struct work_struct *work)
 	struct smc_link *link;
 	int reason_code = 0;
 	int rc = 0;
-	__be32 subnet;
-	u8 prefix_len;
 	u8 ibport;
 
 	/* check if peer is smc capable */
@@ -803,17 +801,11 @@ static void smc_listen_work(struct work_struct *work)
 		goto decline_rdma;
 	}
 
-	/* determine subnet and mask from internal TCP socket */
-	rc = smc_clc_netinfo_by_tcpsk(newclcsock, &subnet, &prefix_len);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
-		goto decline_rdma;
-	}
-
 	pclc = (struct smc_clc_msg_proposal *)&buf;
 	pclc_prfx = smc_clc_proposal_get_prefix(pclc);
-	if (pclc_prfx->outgoing_subnet != subnet ||
-	    pclc_prfx->prefix_len != prefix_len) {
+
+	rc = smc_clc_prfx_match(newclcsock, pclc_prfx);
+	if (rc) {
 		reason_code = SMC_CLC_DECL_CNFERR; /* configuration error */
 		goto decline_rdma;
 	}

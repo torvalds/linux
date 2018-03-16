@@ -74,13 +74,81 @@ static bool smc_clc_msg_hdr_valid(struct smc_clc_msg_hdr *clcm)
 	return true;
 }
 
-/* determine subnet and mask of internal TCP socket */
-int smc_clc_netinfo_by_tcpsk(struct socket *clcsock,
-			     __be32 *subnet, u8 *prefix_len)
+/* find ipv4 addr on device and get the prefix len, fill CLC proposal msg */
+static int smc_clc_prfx_set4_rcu(struct dst_entry *dst, __be32 ipv4,
+				 struct smc_clc_msg_proposal_prefix *prop)
+{
+	struct in_device *in_dev = __in_dev_get_rcu(dst->dev);
+
+	if (!in_dev)
+		return -ENODEV;
+	for_ifa(in_dev) {
+		if (!inet_ifa_match(ipv4, ifa))
+			continue;
+		prop->prefix_len = inet_mask_len(ifa->ifa_mask);
+		prop->outgoing_subnet = ifa->ifa_address & ifa->ifa_mask;
+		/* prop->ipv6_prefixes_cnt = 0; already done by memset before */
+		return 0;
+	} endfor_ifa(in_dev);
+	return -ENOENT;
+}
+
+/* retrieve and set prefixes in CLC proposal msg */
+static int smc_clc_prfx_set(struct socket *clcsock,
+			    struct smc_clc_msg_proposal_prefix *prop)
 {
 	struct dst_entry *dst = sk_dst_get(clcsock->sk);
-	struct in_device *in_dev;
-	struct sockaddr_in addr;
+	struct sockaddr_storage addrs;
+	struct sockaddr_in *addr;
+	int rc = -ENOENT;
+
+	memset(prop, 0, sizeof(*prop));
+	if (!dst) {
+		rc = -ENOTCONN;
+		goto out;
+	}
+	if (!dst->dev) {
+		rc = -ENODEV;
+		goto out_rel;
+	}
+	/* get address to which the internal TCP socket is bound */
+	kernel_getsockname(clcsock, (struct sockaddr *)&addrs);
+	/* analyze IP specific data of net_device belonging to TCP socket */
+	rcu_read_lock();
+	if (addrs.ss_family == PF_INET) {
+		/* IPv4 */
+		addr = (struct sockaddr_in *)&addrs;
+		rc = smc_clc_prfx_set4_rcu(dst, addr->sin_addr.s_addr, prop);
+	}
+	rcu_read_unlock();
+out_rel:
+	dst_release(dst);
+out:
+	return rc;
+}
+
+/* match ipv4 addrs of dev against addr in CLC proposal */
+static int smc_clc_prfx_match4_rcu(struct net_device *dev,
+				   struct smc_clc_msg_proposal_prefix *prop)
+{
+	struct in_device *in_dev = __in_dev_get_rcu(dev);
+
+	if (!in_dev)
+		return -ENODEV;
+	for_ifa(in_dev) {
+		if (prop->prefix_len == inet_mask_len(ifa->ifa_mask) &&
+		    inet_ifa_match(prop->outgoing_subnet, ifa))
+			return 0;
+	} endfor_ifa(in_dev);
+
+	return -ENOENT;
+}
+
+/* check if proposed prefixes match one of our device prefixes */
+int smc_clc_prfx_match(struct socket *clcsock,
+		       struct smc_clc_msg_proposal_prefix *prop)
+{
+	struct dst_entry *dst = sk_dst_get(clcsock->sk);
 	int rc = -ENOENT;
 
 	if (!dst) {
@@ -91,22 +159,10 @@ int smc_clc_netinfo_by_tcpsk(struct socket *clcsock,
 		rc = -ENODEV;
 		goto out_rel;
 	}
-
-	/* get address to which the internal TCP socket is bound */
-	kernel_getsockname(clcsock, (struct sockaddr *)&addr);
-	/* analyze IPv4 specific data of net_device belonging to TCP socket */
 	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(dst->dev);
-	for_ifa(in_dev) {
-		if (!inet_ifa_match(addr.sin_addr.s_addr, ifa))
-			continue;
-		*prefix_len = inet_mask_len(ifa->ifa_mask);
-		*subnet = ifa->ifa_address & ifa->ifa_mask;
-		rc = 0;
-		break;
-	} endfor_ifa(in_dev);
+	if (!prop->ipv6_prefixes_cnt)
+		rc = smc_clc_prfx_match4_rcu(dst->dev, prop);
 	rcu_read_unlock();
-
 out_rel:
 	dst_release(dst);
 out:
@@ -240,6 +296,11 @@ int smc_clc_send_proposal(struct smc_sock *smc,
 	struct msghdr msg;
 	int len, plen, rc;
 
+	/* retrieve ip prefixes for CLC proposal msg */
+	rc = smc_clc_prfx_set(smc->clcsock, &pclc_prfx);
+	if (rc)
+		return SMC_CLC_DECL_CNFERR; /* configuration error */
+
 	/* send SMC Proposal CLC message */
 	plen = sizeof(pclc) + sizeof(pclc_prfx) + sizeof(trl);
 	memset(&pclc, 0, sizeof(pclc));
@@ -252,13 +313,6 @@ int smc_clc_send_proposal(struct smc_sock *smc,
 	memcpy(&pclc.lcl.mac, &smcibdev->mac[ibport - 1], ETH_ALEN);
 	pclc.iparea_offset = htons(0);
 
-	memset(&pclc_prfx, 0, sizeof(pclc_prfx));
-	/* determine subnet and mask from internal TCP socket */
-	rc = smc_clc_netinfo_by_tcpsk(smc->clcsock, &pclc_prfx.outgoing_subnet,
-				      &pclc_prfx.prefix_len);
-	if (rc)
-		return SMC_CLC_DECL_CNFERR; /* configuration error */
-	pclc_prfx.ipv6_prefixes_cnt = 0;
 	memcpy(trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	memset(&msg, 0, sizeof(msg));
 	vec[0].iov_base = &pclc;
