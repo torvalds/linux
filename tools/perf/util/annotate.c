@@ -2037,6 +2037,37 @@ int symbol__annotate_fprintf2(struct symbol *sym, FILE *fp)
 	return 0;
 }
 
+int map_symbol__annotation_dump(struct map_symbol *ms, struct perf_evsel *evsel)
+{
+	const char *ev_name = perf_evsel__name(evsel);
+	char buf[1024];
+	char *filename;
+	int err = -1;
+	FILE *fp;
+
+	if (asprintf(&filename, "%s.annotation", ms->sym->name) < 0)
+		return -1;
+
+	fp = fopen(filename, "w");
+	if (fp == NULL)
+		goto out_free_filename;
+
+	if (perf_evsel__is_group_event(evsel)) {
+		perf_evsel__group_desc(evsel, buf, sizeof(buf));
+		ev_name = buf;
+	}
+
+	fprintf(fp, "%s() %s\nEvent: %s\n\n",
+		ms->sym->name, ms->map->dso->long_name, ev_name);
+	symbol__annotate_fprintf2(ms->sym, fp);
+
+	fclose(fp);
+	err = 0;
+out_free_filename:
+	free(filename);
+	return err;
+}
+
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx)
 {
 	struct annotation *notes = symbol__annotation(sym);

@@ -661,6 +661,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"t             Circulate percent, total period, samples view\n"
 		"/             Search string\n"
 		"k             Toggle line numbers\n"
+		"P             Print to [symbol_name].annotation file.\n"
 		"r             Run available scripts\n"
 		"?             Search string backwards\n");
 			continue;
@@ -737,6 +738,9 @@ show_sup_ins:
 			}
 			continue;
 		}
+		case 'P':
+			map_symbol__annotation_dump(ms, evsel);
+			continue;
 		case 't':
 			if (notes->options->show_total_period) {
 				notes->options->show_total_period = false;
