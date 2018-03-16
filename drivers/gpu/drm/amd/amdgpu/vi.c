@@ -896,7 +896,6 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 
 static int vi_common_early_init(void *handle)
 {
-	bool smc_enabled = false;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	if (adev->flags & AMD_IS_APU) {
@@ -916,10 +915,6 @@ static int vi_common_early_init(void *handle)
 	adev->gc_cac_wreg = &vi_gc_cac_wreg;
 
 	adev->asic_funcs = &vi_asic_funcs;
-
-	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_SMC) &&
-	    (amdgpu_ip_block_mask & (1 << AMD_IP_BLOCK_TYPE_SMC)))
-		smc_enabled = true;
 
 	adev->rev_id = vi_get_rev_id(adev);
 	adev->external_rev_id = 0xFF;
