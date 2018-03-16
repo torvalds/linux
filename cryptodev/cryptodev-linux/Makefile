@@ -5,7 +5,7 @@
 #
 CRYPTODEV_CFLAGS ?= #-DENABLE_ASYNC
 KBUILD_CFLAGS += -I$(src) $(CRYPTODEV_CFLAGS)
-KERNEL_DIR ?= /lib/modules/$(shell uname -r)/build
+#KERNEL_DIR ?= /lib/modules/$(shell uname -r)/build
 VERSION = 1.9
 
 prefix ?= /usr/local
