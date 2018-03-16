@@ -1887,7 +1887,7 @@ call_connect_status(struct rpc_task *task)
 
 	dprint_status(task);
 
-	trace_rpc_connect_status(task, status);
+	trace_rpc_connect_status(task);
 	task->tk_status = 0;
 	switch (status) {
 	case -ECONNREFUSED:

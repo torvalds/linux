@@ -50,9 +50,9 @@ DEFINE_EVENT(rpc_task_status, rpc_bind_status,
 );
 
 TRACE_EVENT(rpc_connect_status,
-	TP_PROTO(struct rpc_task *task, int status),
+	TP_PROTO(const struct rpc_task *task),
 
-	TP_ARGS(task, status),
+	TP_ARGS(task),
 
 	TP_STRUCT__entry(
 		__field(unsigned int, task_id)
@@ -63,7 +63,7 @@ TRACE_EVENT(rpc_connect_status,
 	TP_fast_assign(
 		__entry->task_id = task->tk_pid;
 		__entry->client_id = task->tk_client->cl_clid;
-		__entry->status = status;
+		__entry->status = task->tk_status;
 	),
 
 	TP_printk("task:%u@%u status=%d",
@@ -103,9 +103,9 @@ TRACE_EVENT(rpc_request,
 
 DECLARE_EVENT_CLASS(rpc_task_running,
 
-	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const void *action),
+	TP_PROTO(const struct rpc_task *task, const void *action),
 
-	TP_ARGS(clnt, task, action),
+	TP_ARGS(task, action),
 
 	TP_STRUCT__entry(
 		__field(unsigned int, task_id)
@@ -117,7 +117,8 @@ DECLARE_EVENT_CLASS(rpc_task_running,
 		),
 
 	TP_fast_assign(
-		__entry->client_id = clnt ? clnt->cl_clid : -1;
+		__entry->client_id = task->tk_client ?
+				     task->tk_client->cl_clid : -1;
 		__entry->task_id = task->tk_pid;
 		__entry->action = action;
 		__entry->runstate = task->tk_runstate;
@@ -136,33 +137,33 @@ DECLARE_EVENT_CLASS(rpc_task_running,
 
 DEFINE_EVENT(rpc_task_running, rpc_task_begin,
 
-	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const void *action),
+	TP_PROTO(const struct rpc_task *task, const void *action),
 
-	TP_ARGS(clnt, task, action)
+	TP_ARGS(task, action)
 
 );
 
 DEFINE_EVENT(rpc_task_running, rpc_task_run_action,
 
-	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const void *action),
+	TP_PROTO(const struct rpc_task *task, const void *action),
 
-	TP_ARGS(clnt, task, action)
+	TP_ARGS(task, action)
 
 );
 
 DEFINE_EVENT(rpc_task_running, rpc_task_complete,
 
-	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const void *action),
+	TP_PROTO(const struct rpc_task *task, const void *action),
 
-	TP_ARGS(clnt, task, action)
+	TP_ARGS(task, action)
 
 );
 
 DECLARE_EVENT_CLASS(rpc_task_queued,
 
-	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const struct rpc_wait_queue *q),
+	TP_PROTO(const struct rpc_task *task, const struct rpc_wait_queue *q),
 
-	TP_ARGS(clnt, task, q),
+	TP_ARGS(task, q),
 
 	TP_STRUCT__entry(
 		__field(unsigned int, task_id)
@@ -175,7 +176,8 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 		),
 
 	TP_fast_assign(
-		__entry->client_id = clnt ? clnt->cl_clid : -1;
+		__entry->client_id = task->tk_client ?
+				     task->tk_client->cl_clid : -1;
 		__entry->task_id = task->tk_pid;
 		__entry->timeout = task->tk_timeout;
 		__entry->runstate = task->tk_runstate;
@@ -196,17 +198,17 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 
 DEFINE_EVENT(rpc_task_queued, rpc_task_sleep,
 
-	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const struct rpc_wait_queue *q),
+	TP_PROTO(const struct rpc_task *task, const struct rpc_wait_queue *q),
 
-	TP_ARGS(clnt, task, q)
+	TP_ARGS(task, q)
 
 );
 
 DEFINE_EVENT(rpc_task_queued, rpc_task_wakeup,
 
-	TP_PROTO(const struct rpc_clnt *clnt, const struct rpc_task *task, const struct rpc_wait_queue *q),
+	TP_PROTO(const struct rpc_task *task, const struct rpc_wait_queue *q),
 
-	TP_ARGS(clnt, task, q)
+	TP_ARGS(task, q)
 
 );
 
