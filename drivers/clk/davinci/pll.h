@@ -126,4 +126,7 @@ int da850_pll1_init(struct device *dev, void __iomem *base);
 int of_da850_pll0_init(struct device *dev, void __iomem *base);
 int of_da850_pll1_init(struct device *dev, void __iomem *base);
 
+int dm355_pll1_init(struct device *dev, void __iomem *base);
+int dm355_pll2_init(struct device *dev, void __iomem *base);
+
 #endif /* __CLK_DAVINCI_PLL_H___ */
