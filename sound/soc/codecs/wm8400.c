@@ -1343,7 +1343,7 @@ static const struct snd_soc_component_driver soc_component_dev_wm8400 = {
 
 static int wm8400_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_component(&pdev->dev,
+	return devm_snd_soc_register_component(&pdev->dev,
 			&soc_component_dev_wm8400,
 			&wm8400_dai, 1);
 }
