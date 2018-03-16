@@ -2985,6 +2985,7 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	 */
 	intel_runtime_pm_get(dev_priv);
 
+	engine_mask &= INTEL_INFO(dev_priv)->ring_mask;
 	i915_capture_error_state(dev_priv, engine_mask, error_msg);
 	i915_clear_error_registers(dev_priv);
 
