@@ -132,6 +132,7 @@
 		compatible = "amlogic,meson-gx-efuse", "amlogic,meson-gxbb-efuse";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		read-only;
 
 		sn: sn@14 {
 			reg = <0x14 0x10>;
