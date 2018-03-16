@@ -627,9 +627,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 	iq_no = droq->q_no;
 
 	/* Handle Droq descriptors */
-	work_done = octeon_process_droq_poll_cmd(oct, droq->q_no,
-						 POLL_EVENT_PROCESS_PKTS,
-						 budget);
+	work_done = octeon_droq_process_poll_pkts(oct, droq, budget);
 
 	/* Flush the instruction queue */
 	iq = oct->instr_queue[iq_no];
@@ -660,8 +658,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 		tx_done = 1;
 		napi_complete_done(napi, work_done);
 
-		octeon_process_droq_poll_cmd(droq->oct_dev, droq->q_no,
-					     POLL_EVENT_ENABLE_INTR, 0);
+		octeon_enable_irq(droq->oct_dev, droq->q_no);
 		return 0;
 	}
 
