@@ -1563,7 +1563,7 @@ void brcms_free_timer(struct brcms_timer *t)
 }
 
 /*
- * precondition: perimeter lock has been acquired
+ * precondition: no locking required
  */
 int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 {
@@ -1578,7 +1578,7 @@ int brcms_ucode_init_buf(struct brcms_info *wl, void **pbuf, u32 idx)
 			if (le32_to_cpu(hdr->idx) == idx) {
 				pdata = wl->fw.fw_bin[i]->data +
 					le32_to_cpu(hdr->offset);
-				*pbuf = kmemdup(pdata, len, GFP_ATOMIC);
+				*pbuf = kmemdup(pdata, len, GFP_KERNEL);
 				if (*pbuf == NULL)
 					goto fail;
 
