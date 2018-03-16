@@ -495,7 +495,7 @@ static void ssip_rx_wd(struct timer_list *t)
 	struct ssi_protocol *ssi = from_timer(ssi, t, rx_wd);
 	struct hsi_client *cl = ssi->cl;
 
-	dev_err(&cl->device, "Watchdog trigerred\n");
+	dev_err(&cl->device, "Watchdog triggered\n");
 	ssip_error(cl);
 }
 
@@ -504,7 +504,7 @@ static void ssip_tx_wd(struct timer_list *t)
 	struct ssi_protocol *ssi = from_timer(ssi, t, tx_wd);
 	struct hsi_client *cl = ssi->cl;
 
-	dev_err(&cl->device, "Watchdog trigerred\n");
+	dev_err(&cl->device, "Watchdog triggered\n");
 	ssip_error(cl);
 }
 
