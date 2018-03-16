@@ -81,6 +81,8 @@ clean: bpftool_clean
 	$(call QUIET_CLEAN, bpf-progs)
 	$(Q)rm -rf $(OUTPUT)*.o $(OUTPUT)bpf_jit_disasm $(OUTPUT)bpf_dbg \
 	       $(OUTPUT)bpf_asm $(OUTPUT)bpf_exp.yacc.* $(OUTPUT)bpf_exp.lex.*
+	$(call QUIET_CLEAN, core-gen)
+	$(Q)rm -f $(OUTPUT)FEATURE-DUMP.bpf
 
 install: $(PROGS) bpftool_install
 	$(call QUIET_INSTALL, bpf_jit_disasm)
@@ -100,4 +102,4 @@ bpftool_install:
 bpftool_clean:
 	$(call descend,bpftool,clean)
 
-.PHONY: bpftool FORCE
+.PHONY: all install clean bpftool bpftool_install bpftool_clean

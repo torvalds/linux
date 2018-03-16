@@ -70,7 +70,7 @@ ifeq ($(feature-disassembler-four-args), 1)
 CFLAGS += -DDISASM_FOUR_ARGS_SIGNATURE
 endif
 
-include $(wildcard *.d)
+include $(wildcard $(OUTPUT)*.d)
 
 all: $(OUTPUT)bpftool
 
@@ -89,6 +89,8 @@ $(OUTPUT)%.o: %.c
 clean: $(LIBBPF)-clean
 	$(call QUIET_CLEAN, bpftool)
 	$(Q)$(RM) $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
+	$(call QUIET_CLEAN, core-gen)
+	$(Q)$(RM) $(OUTPUT)FEATURE-DUMP.bpftool
 
 install: $(OUTPUT)bpftool
 	$(call QUIET_INSTALL, bpftool)

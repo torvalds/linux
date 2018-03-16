@@ -49,7 +49,7 @@ struct dump_data {
 	unsigned long address_call_base;
 	struct kernel_sym *sym_mapping;
 	__u32 sym_count;
-	char scratch_buff[SYM_MAX_NAME];
+	char scratch_buff[SYM_MAX_NAME + 8];
 };
 
 void kernel_syms_load(struct dump_data *dd);
