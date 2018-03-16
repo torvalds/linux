@@ -14348,7 +14348,13 @@ static int __maybe_unused i40e_suspend(struct device *dev)
 	if (pf->wol_en && (pf->hw_features & I40E_HW_WOL_MC_MAGIC_PKT_WAKE))
 		i40e_enable_mc_magic_wake(pf);
 
-	i40e_prep_for_reset(pf, false);
+	/* Since we're going to destroy queues during the
+	 * i40e_clear_interrupt_scheme() we should hold the RTNL lock for this
+	 * whole section
+	 */
+	rtnl_lock();
+
+	i40e_prep_for_reset(pf, true);
 
 	wr32(hw, I40E_PFPM_APM, (pf->wol_en ? I40E_PFPM_APM_APME_MASK : 0));
 	wr32(hw, I40E_PFPM_WUFC, (pf->wol_en ? I40E_PFPM_WUFC_MAG_MASK : 0));
@@ -14359,6 +14365,8 @@ static int __maybe_unused i40e_suspend(struct device *dev)
 	 * to CPU0.
 	 */
 	i40e_clear_interrupt_scheme(pf);
+
+	rtnl_unlock();
 
 	return 0;
 }
@@ -14377,6 +14385,11 @@ static int __maybe_unused i40e_resume(struct device *dev)
 	if (!test_bit(__I40E_SUSPENDED, pf->state))
 		return 0;
 
+	/* We need to hold the RTNL lock prior to restoring interrupt schemes,
+	 * since we're going to be restoring queues
+	 */
+	rtnl_lock();
+
 	/* We cleared the interrupt scheme when we suspended, so we need to
 	 * restore it now to resume device functionality.
 	 */
@@ -14387,7 +14400,9 @@ static int __maybe_unused i40e_resume(struct device *dev)
 	}
 
 	clear_bit(__I40E_DOWN, pf->state);
-	i40e_reset_and_rebuild(pf, false, false);
+	i40e_reset_and_rebuild(pf, false, true);
+
+	rtnl_unlock();
 
 	/* Clear suspended state last after everything is recovered */
 	clear_bit(__I40E_SUSPENDED, pf->state);
