@@ -7873,10 +7873,8 @@ no_csum:
 	vlan_macip_lens |= skb_network_offset(skb) << IXGBE_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= first->tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
 
-	if (first->tx_flags & IXGBE_TX_FLAGS_IPSEC) {
-		fceof_saidx |= itd->sa_idx;
-		type_tucmd |= itd->flags | itd->trailer_len;
-	}
+	fceof_saidx |= itd->sa_idx;
+	type_tucmd |= itd->flags | itd->trailer_len;
 
 	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, fceof_saidx, type_tucmd, 0);
 }
