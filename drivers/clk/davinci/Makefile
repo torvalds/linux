@@ -13,4 +13,5 @@ obj-y += psc.o
 obj-$(CONFIG_ARCH_DAVINCI_DA830)	+= psc-da830.o
 obj-$(CONFIG_ARCH_DAVINCI_DA850)	+= psc-da850.o
 obj-$(CONFIG_ARCH_DAVINCI_DM355)	+= psc-dm355.o
+obj-$(CONFIG_ARCH_DAVINCI_DM365)	+= psc-dm365.o
 endif
