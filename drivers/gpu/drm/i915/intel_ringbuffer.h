@@ -86,7 +86,7 @@ hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
 }
 
 #define I915_MAX_SLICES	3
-#define I915_MAX_SUBSLICES 3
+#define I915_MAX_SUBSLICES 8
 
 #define instdone_slice_mask(dev_priv__) \
 	(INTEL_GEN(dev_priv__) == 7 ? \

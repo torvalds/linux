@@ -2151,6 +2151,10 @@ enum i915_power_well_id {
 #define   GEN8_MCR_SLICE_MASK		GEN8_MCR_SLICE(3)
 #define   GEN8_MCR_SUBSLICE(subslice)	(((subslice) & 3) << 24)
 #define   GEN8_MCR_SUBSLICE_MASK	GEN8_MCR_SUBSLICE(3)
+#define   GEN11_MCR_SLICE(slice)	(((slice) & 0xf) << 27)
+#define   GEN11_MCR_SLICE_MASK		GEN11_MCR_SLICE(0xf)
+#define   GEN11_MCR_SUBSLICE(subslice)	(((subslice) & 0x7) << 24)
+#define   GEN11_MCR_SUBSLICE_MASK	GEN11_MCR_SUBSLICE(0x7)
 #define RING_IPEIR(base)	_MMIO((base)+0x64)
 #define RING_IPEHR(base)	_MMIO((base)+0x68)
 /*
