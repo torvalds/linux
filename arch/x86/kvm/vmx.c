@@ -172,8 +172,7 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
 #define KVM_VMX_DEFAULT_PLE_WINDOW        4096
 #define KVM_VMX_DEFAULT_PLE_WINDOW_GROW   2
 #define KVM_VMX_DEFAULT_PLE_WINDOW_SHRINK 0
-#define KVM_VMX_DEFAULT_PLE_WINDOW_MAX    \
-		INT_MAX / KVM_VMX_DEFAULT_PLE_WINDOW_GROW
+#define KVM_VMX_DEFAULT_PLE_WINDOW_MAX    UINT_MAX
 
 static unsigned int ple_gap = KVM_VMX_DEFAULT_PLE_GAP;
 module_param(ple_gap, uint, 0444);
@@ -190,7 +189,6 @@ static unsigned int ple_window_shrink = KVM_VMX_DEFAULT_PLE_WINDOW_SHRINK;
 module_param(ple_window_shrink, uint, 0444);
 
 /* Default is to compute the maximum so we can never overflow. */
-static unsigned int ple_window_actual_max = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
 static unsigned int ple_window_max        = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
 module_param(ple_window_max, uint, 0444);
 
@@ -6986,17 +6984,17 @@ out:
 
 static unsigned int __grow_ple_window(unsigned int val)
 {
+	u64 ret = val;
+
 	if (ple_window_grow < 1)
 		return ple_window;
 
-	val = min(val, ple_window_actual_max);
-
 	if (ple_window_grow < ple_window)
-		val *= ple_window_grow;
+		ret *= ple_window_grow;
 	else
-		val += ple_window_grow;
+		ret += ple_window_grow;
 
-	return val;
+	return min(ret, (u64)ple_window_max);
 }
 
 static unsigned int __shrink_ple_window(unsigned int val,
@@ -7038,21 +7036,6 @@ static void shrink_ple_window(struct kvm_vcpu *vcpu)
 		vmx->ple_window_dirty = true;
 
 	trace_kvm_ple_window_shrink(vcpu->vcpu_id, vmx->ple_window, old);
-}
-
-/*
- * ple_window_actual_max is computed to be one grow_ple_window() below
- * ple_window_max. (See __grow_ple_window for the reason.)
- * This prevents overflows, because ple_window_max is int.
- * ple_window_max effectively rounded down to a multiple of ple_window_grow in
- * this process.
- * ple_window_max is also prevented from setting vmx->ple_window < ple_window.
- */
-static void update_ple_window_actual_max(void)
-{
-	ple_window_actual_max =
-			__shrink_ple_window(max(ple_window_max, ple_window),
-			                    ple_window_grow, INT_MIN);
 }
 
 /*
@@ -7174,8 +7157,6 @@ static __init int hardware_setup(void)
 		vmx_enable_tdp();
 	else
 		kvm_disable_tdp();
-
-	update_ple_window_actual_max();
 
 	/*
 	 * Only enable PML when hardware supports PML feature, and both EPT
