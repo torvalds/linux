@@ -771,11 +771,15 @@ int of_davinci_pll_init(struct device *dev,
 }
 
 static const struct of_device_id davinci_pll_of_match[] = {
+	{ .compatible = "ti,da850-pll0", .data = of_da850_pll0_init },
+	{ .compatible = "ti,da850-pll1", .data = of_da850_pll1_init },
 	{ }
 };
 
 static const struct platform_device_id davinci_pll_id_table[] = {
 	{ .name = "da830-pll",   .driver_data = (kernel_ulong_t)da830_pll_init   },
+	{ .name = "da850-pll0",  .driver_data = (kernel_ulong_t)da850_pll0_init  },
+	{ .name = "da850-pll1",  .driver_data = (kernel_ulong_t)da850_pll1_init  },
 	{ }
 };
 
