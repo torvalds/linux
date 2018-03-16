@@ -3334,9 +3334,6 @@ static bool srp_conn_unique(struct srp_host *host,
 		if (t != target &&
 		    target->id_ext == t->id_ext &&
 		    target->ioc_guid == t->ioc_guid &&
-		    (!target->using_rdma_cm ||
-		     memcmp(&target->rdma_cm.dst, &t->rdma_cm.dst,
-			    sizeof(target->rdma_cm.dst)) == 0) &&
 		    target->initiator_ext == t->initiator_ext) {
 			ret = false;
 			break;
