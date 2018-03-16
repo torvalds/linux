@@ -356,6 +356,7 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev, unsigned long size,
 	struct amdgpu_bo *bo;
 	unsigned long page_align;
 	size_t acc_size;
+	u32 domains, preferred_domains, allowed_domains;
 	int r;
 
 	page_align = roundup(byte_align, PAGE_SIZE) >> PAGE_SHIFT;
@@ -369,22 +370,24 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev, unsigned long size,
 	acc_size = ttm_bo_dma_acc_size(&adev->mman.bdev, size,
 				       sizeof(struct amdgpu_bo));
 
+	preferred_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
+				      AMDGPU_GEM_DOMAIN_GTT |
+				      AMDGPU_GEM_DOMAIN_CPU |
+				      AMDGPU_GEM_DOMAIN_GDS |
+				      AMDGPU_GEM_DOMAIN_GWS |
+				      AMDGPU_GEM_DOMAIN_OA);
+	allowed_domains = preferred_domains;
+	if (type != ttm_bo_type_kernel &&
+	    allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
+		allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
+	domains = preferred_domains;
+retry:
 	bo = kzalloc(sizeof(struct amdgpu_bo), GFP_KERNEL);
 	if (bo == NULL)
 		return -ENOMEM;
 	drm_gem_private_object_init(adev->ddev, &bo->gem_base, size);
 	INIT_LIST_HEAD(&bo->shadow_list);
 	INIT_LIST_HEAD(&bo->va);
-	bo->preferred_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
-					 AMDGPU_GEM_DOMAIN_GTT |
-					 AMDGPU_GEM_DOMAIN_CPU |
-					 AMDGPU_GEM_DOMAIN_GDS |
-					 AMDGPU_GEM_DOMAIN_GWS |
-					 AMDGPU_GEM_DOMAIN_OA);
-	bo->allowed_domains = bo->preferred_domains;
-	if (type != ttm_bo_type_kernel &&
-	    bo->allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
-		bo->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
 
 	bo->flags = flags;
 
@@ -417,12 +420,20 @@ static int amdgpu_bo_do_create(struct amdgpu_device *adev, unsigned long size,
 #endif
 
 	bo->tbo.bdev = &adev->mman.bdev;
-	amdgpu_ttm_placement_from_domain(bo, domain);
-
+	amdgpu_ttm_placement_from_domain(bo, domains);
 	r = ttm_bo_init_reserved(&adev->mman.bdev, &bo->tbo, size, type,
 				 &bo->placement, page_align, &ctx, acc_size,
 				 NULL, resv, &amdgpu_ttm_bo_destroy);
-	if (unlikely(r != 0))
+	if (unlikely(r && r != -ERESTARTSYS) && type == ttm_bo_type_device) {
+		if (flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
+			flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
+			goto retry;
+		} else if (domains != allowed_domains) {
+			domains = allowed_domains;
+			goto retry;
+		}
+	}
+	if (unlikely(r))
 		return r;
 
 	if (adev->gmc.visible_vram_size < adev->gmc.real_vram_size &&
