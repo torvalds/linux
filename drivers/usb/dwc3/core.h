@@ -178,6 +178,16 @@
 #define DWC3_GRXTHRCFG_RXPKTCNT(n) (((n) & 0xf) << 24)
 #define DWC3_GRXTHRCFG_PKTCNTSEL BIT(29)
 
+/* Global RX Threshold Configuration Register for DWC_usb31 only */
+#define DWC31_GRXTHRCFG_MAXRXBURSTSIZE(n)	(((n) & 0x1f) << 16)
+#define DWC31_GRXTHRCFG_RXPKTCNT(n)		(((n) & 0x1f) << 21)
+#define DWC31_GRXTHRCFG_PKTCNTSEL		BIT(26)
+#define DWC31_RXTHRNUMPKTSEL_HS_PRD		BIT(15)
+#define DWC31_RXTHRNUMPKT_HS_PRD(n)		(((n) & 0x3) << 13)
+#define DWC31_RXTHRNUMPKTSEL_PRD		BIT(10)
+#define DWC31_RXTHRNUMPKT_PRD(n)		(((n) & 0x1f) << 5)
+#define DWC31_MAXRXBURSTSIZE_PRD(n)		((n) & 0x1f)
+
 /* Global Configuration Register */
 #define DWC3_GCTL_PWRDNSCALE(n)	((n) << 19)
 #define DWC3_GCTL_U2RSTECN	BIT(16)
