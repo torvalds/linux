@@ -1233,7 +1233,7 @@ static int da7210_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0)
 		dev_warn(&i2c->dev, "Failed to apply regmap patch: %d\n", ret);
 
-	ret =  snd_soc_register_component(&i2c->dev,
+	ret =  devm_snd_soc_register_component(&i2c->dev,
 			&soc_component_dev_da7210, &da7210_dai, 1);
 	if (ret < 0)
 		dev_err(&i2c->dev, "Failed to register component: %d\n", ret);
