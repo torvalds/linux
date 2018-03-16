@@ -126,7 +126,7 @@ function prepare_SD {
 		echo  "cryptodev" >${INSTALL_MOD_PATH}/etc/modules-load.d/cryptodev.conf
 
 		#Build Module Dependencies
-		/sbin/depmod -b "${SD}/BPI-ROOT/" 4.14.26-bpi-r2-main ${LOCALVERION}
+		/sbin/depmod -b "${SD}/BPI-ROOT/" ${LOCALVERSION}
 	else
 		#Blacklist Cryptodev Module
 		echo "blacklist cryptodev" >${INSTALL_MOD_PATH}/etc/modules-load.d/cryptodev.conf
