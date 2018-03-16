@@ -1193,7 +1193,7 @@ static int vega10_disable_se_edc_force_stall_config(struct pp_hwmgr *hwmgr)
 int vega10_enable_didt_config(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DIDT].supported) {
 		if (data->smu_features[GNLD_DIDT].enabled)
@@ -1240,7 +1240,7 @@ int vega10_enable_didt_config(struct pp_hwmgr *hwmgr)
 int vega10_disable_didt_config(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DIDT].supported) {
 		if (!data->smu_features[GNLD_DIDT].enabled)
@@ -1286,7 +1286,7 @@ int vega10_disable_didt_config(struct pp_hwmgr *hwmgr)
 
 void vega10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	struct phm_tdp_table *tdp_table = table_info->tdp_table;
@@ -1325,8 +1325,7 @@ void vega10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 int vega10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->registry_data.enable_pkg_pwr_tracking_feature)
 		smum_send_msg_to_smc_with_parameter(hwmgr,
@@ -1337,8 +1336,7 @@ int vega10_set_power_limit(struct pp_hwmgr *hwmgr, uint32_t n)
 
 int vega10_enable_power_containment(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	struct phm_tdp_table *tdp_table = table_info->tdp_table;
@@ -1371,8 +1369,7 @@ int vega10_enable_power_containment(struct pp_hwmgr *hwmgr)
 
 int vega10_disable_power_containment(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (PP_CAP(PHM_PlatformCaps_PowerContainment)) {
 		if (data->smu_features[GNLD_PPT].supported)

@@ -185,8 +185,7 @@ static int vega10_get_argument(struct pp_hwmgr *hwmgr)
 static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -213,8 +212,7 @@ static int vega10_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 static int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	PP_ASSERT_WITH_CODE(table_id < MAX_SMU_TABLE,
 			"Invalid SMU Table ID!", return -EINVAL);
@@ -265,8 +263,7 @@ static bool vega10_is_dpm_running(struct pp_hwmgr *hwmgr)
 
 static int vega10_set_tools_address(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	if (priv->smu_tables.entry[TOOLSTABLE].mc_addr) {
 		vega10_send_msg_to_smc_with_parameter(hwmgr,
@@ -435,8 +432,7 @@ free_backend:
 
 static int vega10_smu_fini(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_smumgr *priv =
-			(struct vega10_smumgr *)(hwmgr->smu_backend);
+	struct vega10_smumgr *priv = hwmgr->smu_backend;
 
 	if (priv) {
 		amdgpu_bo_free_kernel(&priv->smu_tables.entry[PPTABLE].handle,

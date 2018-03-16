@@ -89,7 +89,7 @@ int vega10_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
 
 int vega10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t tach_period;
 	uint32_t crystal_clock_freq;
 	int result = 0;
@@ -188,7 +188,7 @@ int vega10_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
  */
 static int vega10_enable_fan_control_feature(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(
@@ -205,7 +205,7 @@ static int vega10_enable_fan_control_feature(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_fan_control_feature(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(
@@ -235,7 +235,7 @@ int vega10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 
 int vega10_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (hwmgr->thermal_controller.fanInfo.bNoFan)
 		return -1;
@@ -445,7 +445,7 @@ static int vega10_thermal_initialize(struct pp_hwmgr *hwmgr)
 */
 static int vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t val = 0;
 	uint32_t reg;
 
@@ -477,7 +477,7 @@ static int vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 */
 int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t reg;
 
 	if (data->smu_features[GNLD_FW_CTF].supported) {
@@ -526,7 +526,7 @@ int vega10_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	int ret;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *table = &(data->smc_state_table.pp_table);
 
 	if (!data->smu_features[GNLD_FAN_CONTROL].supported)

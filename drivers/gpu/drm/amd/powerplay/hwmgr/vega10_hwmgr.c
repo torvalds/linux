@@ -107,8 +107,7 @@ const struct vega10_power_state *cast_const_phw_vega10_power_state(
 
 static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->registry_data.sclk_dpm_key_disabled =
 			hwmgr->feature_mask & PP_SCLK_DPM_MASK ? false : true;
@@ -185,8 +184,7 @@ static void vega10_set_default_registry_data(struct pp_hwmgr *hwmgr)
 
 static int vega10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)hwmgr->pptable;
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -296,7 +294,7 @@ static int vega10_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 
 static void vega10_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	int i;
 	uint32_t sub_vendor_id, hw_revision;
 	struct amdgpu_device *adev = hwmgr->adev;
@@ -484,7 +482,7 @@ static int vega10_get_socclk_for_voltage_evv(struct pp_hwmgr *hwmgr,
 */
 static int vega10_get_evv_voltages(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint16_t vv_id;
 	uint32_t vddc = 0;
 	uint16_t i, j;
@@ -675,7 +673,7 @@ static int vega10_complete_dependency_tables(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 #ifdef PPLIB_VEGA10_EVV_SUPPORT
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	tmp_result = vega10_patch_lookup_table_with_leakage(hwmgr,
 			table_info->vddc_lookup_table, &(data->vddc_leakage));
@@ -878,8 +876,7 @@ static int vega10_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 static int vega10_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->low_sclk_interrupt_threshold = 0;
 
@@ -888,8 +885,7 @@ static int vega10_init_sclk_threshold(struct pp_hwmgr *hwmgr)
 
 static int vega10_setup_dpm_led_config(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 
 	struct pp_atomfwctrl_voltage_table table;
@@ -1092,7 +1088,7 @@ static void vega10_trim_voltage_table_to_fit_state_table(
 */
 static int vega10_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)hwmgr->pptable;
 	int result;
@@ -1180,8 +1176,7 @@ static void vega10_setup_default_single_dpm_table(struct pp_hwmgr *hwmgr,
 }
 static int vega10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_pcie_table *pcie_table = &(data->dpm_table.pcie_table);
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
@@ -1230,8 +1225,7 @@ static int vega10_setup_default_pcie_table(struct pp_hwmgr *hwmgr)
  */
 static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	struct vega10_single_dpm_table *dpm_table;
@@ -1431,8 +1425,7 @@ static int vega10_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
  */
 static int vega10_populate_ulv_state(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 
@@ -1473,8 +1466,7 @@ static int vega10_populate_single_lclk_level(struct pp_hwmgr *hwmgr,
 static int vega10_populate_smc_link_levels(struct pp_hwmgr *hwmgr)
 {
 	int result = -1;
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct vega10_pcie_table *pcie_table =
 			&(data->dpm_table.pcie_table);
@@ -1525,8 +1517,7 @@ static int vega10_populate_single_gfx_level(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_on_sclk =
 			table_info->vdd_dep_on_sclk;
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct pp_atomfwctrl_clock_dividers_soc15 dividers;
 	uint32_t gfx_max_clock =
 			hwmgr->platform_descriptor.overdriveLimit.engineClock;
@@ -1638,8 +1629,7 @@ uint16_t vega10_locate_vddc_given_clock(struct pp_hwmgr *hwmgr,
 */
 static int vega10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table =
@@ -1713,8 +1703,7 @@ static int vega10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 		uint32_t mem_clock, uint8_t *current_mem_vid,
 		PllSetting_t *current_memclk_level, uint8_t *current_mem_soc_vind)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_on_mclk =
@@ -1772,8 +1761,7 @@ static int vega10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
  */
 static int vega10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct vega10_single_dpm_table *dpm_table =
 			&(data->dpm_table.mem_table);
@@ -1816,8 +1804,7 @@ static int vega10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 static int vega10_populate_single_display_type(struct pp_hwmgr *hwmgr,
 		DSPCLK_e disp_clock)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)
@@ -1912,8 +1899,7 @@ static int vega10_populate_single_eclock_level(struct pp_hwmgr *hwmgr,
 
 static int vega10_populate_smc_vce_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct vega10_single_dpm_table *dpm_table = &(data->dpm_table.eclk_table);
 	int result = -EINVAL;
@@ -1976,8 +1962,7 @@ static int vega10_populate_single_dclock_level(struct pp_hwmgr *hwmgr,
 
 static int vega10_populate_smc_uvd_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct vega10_single_dpm_table *vclk_dpm_table =
 			&(data->dpm_table.vclk_table);
@@ -2048,8 +2033,7 @@ static int vega10_populate_smc_uvd_levels(struct pp_hwmgr *hwmgr)
 
 static int vega10_populate_clock_stretcher_table(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
@@ -2068,8 +2052,7 @@ static int vega10_populate_clock_stretcher_table(struct pp_hwmgr *hwmgr)
 
 static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
@@ -2260,8 +2243,7 @@ static int vega10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 
 static int vega10_acg_enable(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t agc_btc_response;
 
 	if (data->smu_features[GNLD_ACG].supported) {
@@ -2293,8 +2275,7 @@ static int vega10_acg_enable(struct pp_hwmgr *hwmgr)
 
 static int vega10_acg_disable(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_ACG].supported && 
 	    data->smu_features[GNLD_ACG].enabled)
@@ -2307,8 +2288,7 @@ static int vega10_acg_disable(struct pp_hwmgr *hwmgr)
 
 static int vega10_populate_gpio_parameters(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 	struct pp_atomfwctrl_gpio_parameters gpio_params = {0};
 	int result;
@@ -2343,8 +2323,7 @@ static int vega10_populate_gpio_parameters(struct pp_hwmgr *hwmgr)
 
 static int vega10_avfs_enable(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_AVFS].supported) {
 		if (enable) {
@@ -2375,7 +2354,7 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 	uint32_t top32, bottom32;
 	struct phm_fuses_default fuse;
 
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	AvfsFuseOverride_t *avfs_fuse_table = &(data->smc_state_table.avfs_fuse_override_table);
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ReadSerialNumTop32);
@@ -2416,8 +2395,7 @@ static int vega10_populate_and_upload_avfs_fuse_override(struct pp_hwmgr *hwmgr)
 static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
@@ -2555,7 +2533,7 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 
 static int vega10_enable_thermal_protection(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_THERMAL].supported) {
 		if (data->smu_features[GNLD_THERMAL].enabled)
@@ -2575,7 +2553,7 @@ static int vega10_enable_thermal_protection(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_thermal_protection(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_THERMAL].supported) {
 		if (!data->smu_features[GNLD_THERMAL].enabled)
@@ -2595,8 +2573,7 @@ static int vega10_disable_thermal_protection(struct pp_hwmgr *hwmgr)
 
 static int vega10_enable_vrhot_feature(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (PP_CAP(PHM_PlatformCaps_RegulatorHot)) {
 		if (data->smu_features[GNLD_VR0HOT].supported) {
@@ -2624,8 +2601,7 @@ static int vega10_enable_vrhot_feature(struct pp_hwmgr *hwmgr)
 
 static int vega10_enable_ulv(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->registry_data.ulv_support) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
@@ -2640,8 +2616,7 @@ static int vega10_enable_ulv(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_ulv(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->registry_data.ulv_support) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
@@ -2656,8 +2631,7 @@ static int vega10_disable_ulv(struct pp_hwmgr *hwmgr)
 
 static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DS_GFXCLK].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
@@ -2696,8 +2670,7 @@ static int vega10_enable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DS_GFXCLK].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
@@ -2736,8 +2709,7 @@ static int vega10_disable_deep_sleep_master_switch(struct pp_hwmgr *hwmgr)
 
 static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t i, feature_mask = 0;
 
 
@@ -2774,8 +2746,7 @@ static int vega10_stop_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
  */
 static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t i, feature_mask = 0;
 
 	for (i = 0; i < GNLD_DPM_MAX; i++) {
@@ -2827,8 +2798,7 @@ static int vega10_start_dpm(struct pp_hwmgr *hwmgr, uint32_t bitmap)
 
 static int vega10_enable_disable_PCC_limit_feature(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_PCC_LIMIT].supported) {
 		if (enable == data->smu_features[GNLD_PCC_LIMIT].enabled)
@@ -2845,8 +2815,7 @@ static int vega10_enable_disable_PCC_limit_feature(struct pp_hwmgr *hwmgr, bool 
 
 static int vega10_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	int tmp_result, result = 0;
 
 	vega10_enable_disable_PCC_limit_feature(hwmgr, true);
@@ -3063,7 +3032,7 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	struct cgs_display_info info = {0};
 	const struct phm_clock_and_voltage_limits *max_limits;
 	uint32_t i;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct phm_ppt_v2_information *table_info =
 			(struct phm_ppt_v2_information *)(hwmgr->pptable);
 	int32_t count;
@@ -3207,8 +3176,7 @@ static int vega10_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, co
 			(const struct phm_set_power_state_input *)input;
 	const struct vega10_power_state *vega10_ps =
 			cast_const_phw_vega10_power_state(states->pnew_state);
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *sclk_table =
 			&(data->dpm_table.gfx_table);
 	uint32_t sclk = vega10_ps->performance_levels
@@ -3296,8 +3264,7 @@ static int vega10_populate_and_upload_sclk_mclk_dpm_levels(
 			(const struct phm_set_power_state_input *)input;
 	const struct vega10_power_state *vega10_ps =
 			cast_const_phw_vega10_power_state(states->pnew_state);
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t sclk = vega10_ps->performance_levels
 			[vega10_ps->performance_level_count - 1].gfx_clock;
 	uint32_t mclk = vega10_ps->performance_levels
@@ -3522,8 +3489,7 @@ static int vega10_trim_single_dpm_states_with_mask(struct pp_hwmgr *hwmgr,
 static int vega10_trim_dpm_states(struct pp_hwmgr *hwmgr,
 		const struct vega10_power_state *vega10_ps)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t high_limit_count;
 
 	PP_ASSERT_WITH_CODE((vega10_ps->performance_level_count >= 1),
@@ -3601,8 +3567,7 @@ static int vega10_get_soc_index_for_max_uclk(struct pp_hwmgr *hwmgr)
 
 static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t socclk_idx;
 
 	vega10_apply_dal_minimum_voltage_request(hwmgr);
@@ -3641,8 +3606,7 @@ static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 
 static int vega10_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	vega10_apply_dal_minimum_voltage_request(hwmgr);
 
@@ -3674,8 +3638,7 @@ static int vega10_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 static int vega10_generate_dpm_level_enable_mask(
 		struct pp_hwmgr *hwmgr, const void *input)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	const struct phm_set_power_state_input *states =
 			(const struct phm_set_power_state_input *)input;
 	const struct vega10_power_state *vega10_ps =
@@ -3713,8 +3676,7 @@ static int vega10_generate_dpm_level_enable_mask(
 
 int vega10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DPM_VCE].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
@@ -3730,8 +3692,7 @@ int vega10_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 
 static int vega10_update_sclk_threshold(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t low_sclk_interrupt_threshold = 0;
 
 	if (PP_CAP(PHM_PlatformCaps_SclkThrottleLowNotification) &&
@@ -3755,8 +3716,7 @@ static int vega10_set_power_state_tasks(struct pp_hwmgr *hwmgr,
 		const void *input)
 {
 	int tmp_result, result = 0;
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
 
 	tmp_result = vega10_find_dpm_states_clocks_in_dpm_table(hwmgr, input);
@@ -3852,7 +3812,7 @@ static int vega10_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 			      void *value, int *size)
 {
 	uint32_t sclk_idx, mclk_idx, activity_percent = 0;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_dpm_table *dpm_table = &data->dpm_table;
 	int ret = 0;
 	uint32_t reg, val_vid;
@@ -3990,8 +3950,7 @@ static uint8_t vega10_get_uclk_index(struct pp_hwmgr *hwmgr,
 static int vega10_notify_smc_display_config_after_ps_adjustment(
 		struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *dpm_table =
 			&data->dpm_table.dcef_table;
 	struct phm_ppt_v2_information *table_info =
@@ -4049,8 +4008,7 @@ static int vega10_notify_smc_display_config_after_ps_adjustment(
 
 static int vega10_force_dpm_highest(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->smc_state_table.gfx_boot_level =
 	data->smc_state_table.gfx_max_level =
@@ -4072,8 +4030,7 @@ static int vega10_force_dpm_highest(struct pp_hwmgr *hwmgr)
 
 static int vega10_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->smc_state_table.gfx_boot_level =
 	data->smc_state_table.gfx_max_level =
@@ -4096,7 +4053,7 @@ static int vega10_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 
 static int vega10_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->smc_state_table.gfx_boot_level =
 			vega10_find_lowest_dpm_level(&(data->dpm_table.gfx_table));
@@ -4213,7 +4170,7 @@ static int vega10_dpm_force_dpm_level(struct pp_hwmgr *hwmgr,
 
 static uint32_t vega10_get_fan_control_mode(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_FAN_CONTROL].enabled == false)
 		return AMD_FAN_CTRL_MANUAL;
@@ -4273,7 +4230,7 @@ static void vega10_get_memclocks(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v2_information *)hwmgr->pptable;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_table =
 			table_info->vdd_dep_on_mclk;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t i;
 
 	clocks->num_levels = 0;
@@ -4397,7 +4354,7 @@ static int vega10_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
 static int vega10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 		struct pp_wm_sets_with_clock_ranges_soc15 *wm_with_clock_ranges)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	Watermarks_t *table = &(data->smc_state_table.water_marks_table);
 	int result = 0;
 	uint32_t i;
@@ -4453,7 +4410,7 @@ static int vega10_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
 static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	switch (type) {
 	case PP_SCLK:
@@ -4494,7 +4451,7 @@ static int vega10_force_clock_level(struct pp_hwmgr *hwmgr,
 static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, char *buf)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *sclk_table = &(data->dpm_table.gfx_table);
 	struct vega10_single_dpm_table *mclk_table = &(data->dpm_table.mem_table);
 	struct vega10_pcie_table *pcie_table = &(data->dpm_table.pcie_table);
@@ -4544,7 +4501,7 @@ static int vega10_print_clock_levels(struct pp_hwmgr *hwmgr,
 
 static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	int result = 0;
 	uint32_t num_turned_on_displays = 1;
 	Watermarks_t *wm_table = &(data->smc_state_table.water_marks_table);
@@ -4569,8 +4526,7 @@ static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 
 int vega10_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
-	struct vega10_hwmgr *data =
-			(struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_DPM_UVD].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(hwmgr,
@@ -4585,7 +4541,7 @@ int vega10_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 
 static void vega10_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->vce_power_gated = bgate;
 	vega10_enable_disable_vce_dpm(hwmgr, !bgate);
@@ -4593,7 +4549,7 @@ static void vega10_power_gate_vce(struct pp_hwmgr *hwmgr, bool bgate)
 
 static void vega10_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	data->uvd_power_gated = bgate;
 	vega10_enable_disable_uvd_dpm(hwmgr, !bgate);
@@ -4646,7 +4602,7 @@ static int vega10_check_states_equal(struct pp_hwmgr *hwmgr,
 static bool
 vega10_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	bool is_update_required = false;
 	struct cgs_display_info info = {0, 0, NULL};
 
@@ -4704,7 +4660,7 @@ static int vega10_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 
 static int vega10_power_off_asic(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	int result;
 
 	result = vega10_disable_dpm_tasks(hwmgr);
@@ -4718,7 +4674,7 @@ static int vega10_power_off_asic(struct pp_hwmgr *hwmgr)
 
 static int vega10_get_sclk_od(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *sclk_table = &(data->dpm_table.gfx_table);
 	struct vega10_single_dpm_table *golden_sclk_table =
 			&(data->golden_dpm_table.gfx_table);
@@ -4736,7 +4692,7 @@ static int vega10_get_sclk_od(struct pp_hwmgr *hwmgr)
 
 static int vega10_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *golden_sclk_table =
 			&(data->golden_dpm_table.gfx_table);
 	struct pp_power_state *ps;
@@ -4769,7 +4725,7 @@ static int vega10_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 
 static int vega10_get_mclk_od(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *mclk_table = &(data->dpm_table.mem_table);
 	struct vega10_single_dpm_table *golden_mclk_table =
 			&(data->golden_dpm_table.mem_table);
@@ -4788,7 +4744,7 @@ static int vega10_get_mclk_od(struct pp_hwmgr *hwmgr)
 
 static int vega10_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	struct vega10_single_dpm_table *golden_mclk_table =
 			&(data->golden_dpm_table.mem_table);
 	struct pp_power_state  *ps;
@@ -4894,7 +4850,7 @@ static int vega10_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
 
 static int vega10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t i, size = 0;
 	static const uint8_t profile_mode_setting[5][4] = {{70, 60, 1, 3,},
 						{90, 60, 0, 0,},
@@ -4935,7 +4891,7 @@ static int vega10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 
 static int vega10_set_power_profile_mode(struct pp_hwmgr *hwmgr, long *input, uint32_t size)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint8_t busy_set_point;
 	uint8_t FPS;
 	uint8_t use_rlc_busy;
