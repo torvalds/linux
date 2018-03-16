@@ -171,26 +171,6 @@ int vega10_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-
-/*
- * Send a message to the SMC with parameter, do not wait for response
- * @param    hwmgr:  the address of the powerplay hardware manager.
- * @param    msg: the message to send.
- * @param    parameter: the parameter to send
- * @return   The response that came from the SMC.
- */
-int vega10_send_msg_to_smc_with_parameter_without_waiting(
-		struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t parameter)
-{
-	uint32_t reg;
-
-	reg = soc15_get_register_offset(MP1_HWID, 0,
-			mmMP1_SMN_C2PMSG_82_BASE_IDX, mmMP1_SMN_C2PMSG_82);
-	cgs_write_register(hwmgr->device, reg, parameter);
-
-	return vega10_send_msg_to_smc_without_waiting(hwmgr, msg);
-}
-
 /*
  * Retrieve an argument from SMC.
  * @param    hwmgr  the address of the powerplay hardware manager.
@@ -274,24 +254,6 @@ int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 			priv->smu_tables.entry[table_id].table_id);
 
 	return 0;
-}
-
-int vega10_save_vft_table(struct pp_hwmgr *hwmgr, uint8_t *avfs_table)
-{
-	PP_ASSERT_WITH_CODE(avfs_table,
-			"No access to SMC AVFS Table",
-			return -EINVAL);
-
-	return vega10_copy_table_from_smc(hwmgr, avfs_table, AVFSTABLE);
-}
-
-int vega10_restore_vft_table(struct pp_hwmgr *hwmgr, uint8_t *avfs_table)
-{
-	PP_ASSERT_WITH_CODE(avfs_table,
-			"No access to SMC AVFS Table",
-			return -EINVAL);
-
-	return vega10_copy_table_to_smc(hwmgr, avfs_table, AVFSTABLE);
 }
 
 int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
