@@ -159,10 +159,8 @@ static int __init at91_poweroff_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	at91_shdwc_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(at91_shdwc_base)) {
-		dev_err(&pdev->dev, "Could not map reset controller address\n");
+	if (IS_ERR(at91_shdwc_base))
 		return PTR_ERR(at91_shdwc_base);
-	}
 
 	sclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sclk))
