@@ -34,10 +34,10 @@
  * FIXME: Using the same values as slang.h,
  * but that header may not be available everywhere
  */
-#define LARROW_CHAR	0x1B
-#define RARROW_CHAR	0x1A
-#define DARROW_CHAR	0x19
-#define UARROW_CHAR	0x18
+#define LARROW_CHAR	((unsigned char)',')
+#define RARROW_CHAR	((unsigned char)'+')
+#define DARROW_CHAR	((unsigned char)'.')
+#define UARROW_CHAR	((unsigned char)'-')
 
 #include "sane_ctype.h"
 
@@ -2210,12 +2210,6 @@ double annotation_line__max_percent(struct annotation_line *al, struct annotatio
 	return percent_max;
 }
 
-static void set_percent_color_stub(void *obj __maybe_unused,
-				   double percent __maybe_unused,
-				   bool current __maybe_unused)
-{
-}
-
 static void disasm_line__write(struct disasm_line *dl, struct annotation *notes,
 			       void *obj, char *bf, size_t size,
 			       void (*obj__printf)(void *obj, const char *fmt, ...),
@@ -2243,14 +2237,15 @@ static void disasm_line__write(struct disasm_line *dl, struct annotation *notes,
 	disasm_line__scnprintf(dl, bf, size, !notes->options->use_offset);
 }
 
-void annotation_line__write(struct annotation_line *al, struct annotation *notes,
-			    bool first_line, bool current_entry, bool change_color, int width,
-			    void *obj,
-			    int  (*obj__set_color)(void *obj, int color),
-			    void (*obj__set_percent_color)(void *obj, double percent, bool current),
-			    int  (*obj__set_jumps_percent_color)(void *obj, int nr, bool current),
-			    void (*obj__printf)(void *obj, const char *fmt, ...),
-			    void (*obj__write_graph)(void *obj, int graph))
+static void __annotation_line__write(struct annotation_line *al, struct annotation *notes,
+				     bool first_line, bool current_entry, bool change_color, int width,
+				     void *obj,
+				     int  (*obj__set_color)(void *obj, int color),
+				     void (*obj__set_percent_color)(void *obj, double percent, bool current),
+				     int  (*obj__set_jumps_percent_color)(void *obj, int nr, bool current),
+				     void (*obj__printf)(void *obj, const char *fmt, ...),
+				     void (*obj__write_graph)(void *obj, int graph))
+
 {
 	double percent_max = annotation_line__max_percent(al, notes);
 	int pcnt_width = annotation__pcnt_width(notes),
@@ -2266,9 +2261,6 @@ void annotation_line__write(struct annotation_line *al, struct annotation *notes
 		} else
 			show_title = true;
 	}
-
-	if (!obj__set_percent_color)
-		obj__set_percent_color = set_percent_color_stub;
 
 	if (al->offset != -1 && percent_max != 0.0) {
 		int i;
@@ -2366,6 +2358,16 @@ void annotation_line__write(struct annotation_line *al, struct annotation *notes
 		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width - 3 - printed, bf);
 	}
 
+}
+
+void annotation_line__write(struct annotation_line *al, struct annotation *notes,
+			    struct annotation_write_ops *ops)
+{
+	__annotation_line__write(al, notes, ops->first_line, ops->current_entry,
+				 ops->change_color, ops->width, ops->obj,
+				 ops->set_color, ops->set_percent_color,
+				 ops->set_jumps_percent_color, ops->printf,
+				 ops->write_graph);
 }
 
 int symbol__annotate2(struct symbol *sym, struct map *map, struct perf_evsel *evsel,

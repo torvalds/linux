@@ -106,25 +106,29 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	struct annotation *notes = browser__annotation(browser);
 	struct annotation_line *al = list_entry(entry, struct annotation_line, node);
-	bool current_entry = ui_browser__is_current_entry(browser, row);
-	bool change_color = (!notes->options->hide_src_code &&
-			     (!current_entry || (browser->use_navkeypressed &&
-					         !browser->navkeypressed)));
-	int width = browser->width;
+	struct annotation_write_ops ops = {
+		.first_line		 = row == 0,
+		.current_entry		 = ui_browser__is_current_entry(browser, row),
+		.change_color		 = (!notes->options->hide_src_code &&
+					    (!ops.current_entry ||
+					     (browser->use_navkeypressed &&
+					      !browser->navkeypressed))),
+		.width			 = browser->width,
+		.obj			 = browser,
+		.set_color		 = annotate_browser__set_color,
+		.set_percent_color	 = annotate_browser__set_percent_color,
+		.set_jumps_percent_color = ui_browser__set_jumps_percent_color,
+		.printf			 = annotate_browser__printf,
+		.write_graph		 = annotate_browser__write_graph,
+	};
 
 	/* The scroll bar isn't being used */
 	if (!browser->navkeypressed)
-		width += 1;
+		ops.width += 1;
 
-	annotation_line__write(al, notes, row == 0, current_entry, change_color,
-			       width, browser,
-			       annotate_browser__set_color,
-			       annotate_browser__set_percent_color,
-			       ui_browser__set_jumps_percent_color,
-			       annotate_browser__printf,
-			       annotate_browser__write_graph);
+	annotation_line__write(al, notes, &ops);
 
-	if (current_entry)
+	if (ops.current_entry)
 		ab->selection = al;
 }
 

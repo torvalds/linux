@@ -125,15 +125,20 @@ void disasm_line__free(struct disasm_line *dl);
 struct annotation_line *
 annotation_line__next(struct annotation_line *pos, struct list_head *head);
 
+struct annotation_write_ops {
+	bool first_line, current_entry, change_color;
+	int  width;
+	void *obj;
+	int  (*set_color)(void *obj, int color);
+	void (*set_percent_color)(void *obj, double percent, bool current);
+	int  (*set_jumps_percent_color)(void *obj, int nr, bool current);
+	void (*printf)(void *obj, const char *fmt, ...);
+	void (*write_graph)(void *obj, int graph);
+};
+
 double annotation_line__max_percent(struct annotation_line *al, struct annotation *notes);
 void annotation_line__write(struct annotation_line *al, struct annotation *notes,
-			    bool first_line, bool current_entry, bool change_color, int width,
-			    void *obj,
-			    int  (*obj__set_color)(void *obj, int color),
-			    void (*obj__set_percent_color)(void *obj, double percent, bool current),
-			    int  (*obj__set_jumps_percent_color)(void *obj, int nr, bool current),
-			    void (*obj__printf)(void *obj, const char *fmt, ...),
-			    void (*obj__write_graph)(void *obj, int graph));
+			    struct annotation_write_ops *ops);
 
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
