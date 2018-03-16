@@ -6,6 +6,42 @@
 #include <asm/pvclock.h>
 #include "kvm_cache_regs.h"
 
+#define KVM_DEFAULT_PLE_GAP		128
+#define KVM_VMX_DEFAULT_PLE_WINDOW	4096
+#define KVM_DEFAULT_PLE_WINDOW_GROW	2
+#define KVM_DEFAULT_PLE_WINDOW_SHRINK	0
+#define KVM_VMX_DEFAULT_PLE_WINDOW_MAX	UINT_MAX
+
+static inline unsigned int __grow_ple_window(unsigned int val,
+		unsigned int base, unsigned int modifier, unsigned int max)
+{
+	u64 ret = val;
+
+	if (modifier < 1)
+		return base;
+
+	if (modifier < base)
+		ret *= modifier;
+	else
+		ret += modifier;
+
+	return min(ret, (u64)max);
+}
+
+static inline unsigned int __shrink_ple_window(unsigned int val,
+		unsigned int base, unsigned int modifier, unsigned int min)
+{
+	if (modifier < 1)
+		return base;
+
+	if (modifier < base)
+		val /= modifier;
+	else
+		val -= modifier;
+
+	return max(val, min);
+}
+
 #define MSR_IA32_CR_PAT_DEFAULT  0x0007040600070406ULL
 
 static inline void kvm_clear_exception_queue(struct kvm_vcpu *vcpu)

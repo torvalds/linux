@@ -168,24 +168,17 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
  * Time is measured based on a counter that runs at the same rate as the TSC,
  * refer SDM volume 3b section 21.6.13 & 22.1.3.
  */
-#define KVM_VMX_DEFAULT_PLE_GAP           128
-#define KVM_VMX_DEFAULT_PLE_WINDOW        4096
-#define KVM_VMX_DEFAULT_PLE_WINDOW_GROW   2
-#define KVM_VMX_DEFAULT_PLE_WINDOW_SHRINK 0
-#define KVM_VMX_DEFAULT_PLE_WINDOW_MAX    UINT_MAX
-
-static unsigned int ple_gap = KVM_VMX_DEFAULT_PLE_GAP;
-module_param(ple_gap, uint, 0444);
+static unsigned int ple_gap = KVM_DEFAULT_PLE_GAP;
 
 static unsigned int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
 module_param(ple_window, uint, 0444);
 
 /* Default doubles per-vcpu window every exit. */
-static unsigned int ple_window_grow = KVM_VMX_DEFAULT_PLE_WINDOW_GROW;
+static unsigned int ple_window_grow = KVM_DEFAULT_PLE_WINDOW_GROW;
 module_param(ple_window_grow, uint, 0444);
 
 /* Default resets per-vcpu window every exit to ple_window. */
-static unsigned int ple_window_shrink = KVM_VMX_DEFAULT_PLE_WINDOW_SHRINK;
+static unsigned int ple_window_shrink = KVM_DEFAULT_PLE_WINDOW_SHRINK;
 module_param(ple_window_shrink, uint, 0444);
 
 /* Default is to compute the maximum so we can never overflow. */
@@ -6982,41 +6975,14 @@ out:
 	return ret;
 }
 
-static unsigned int __grow_ple_window(unsigned int val)
-{
-	u64 ret = val;
-
-	if (ple_window_grow < 1)
-		return ple_window;
-
-	if (ple_window_grow < ple_window)
-		ret *= ple_window_grow;
-	else
-		ret += ple_window_grow;
-
-	return min(ret, (u64)ple_window_max);
-}
-
-static unsigned int __shrink_ple_window(unsigned int val,
-		unsigned int modifier, unsigned int minimum)
-{
-	if (modifier < 1)
-		return ple_window;
-
-	if (modifier < ple_window)
-		val /= modifier;
-	else
-		val -= modifier;
-
-	return max(val, minimum);
-}
-
 static void grow_ple_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int old = vmx->ple_window;
 
-	vmx->ple_window = __grow_ple_window(old);
+	vmx->ple_window = __grow_ple_window(old, ple_window,
+					    ple_window_grow,
+					    ple_window_max);
 
 	if (vmx->ple_window != old)
 		vmx->ple_window_dirty = true;
@@ -7029,8 +6995,9 @@ static void shrink_ple_window(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	int old = vmx->ple_window;
 
-	vmx->ple_window = __shrink_ple_window(old,
-	                                      ple_window_shrink, ple_window);
+	vmx->ple_window = __shrink_ple_window(old, ple_window,
+					      ple_window_shrink,
+					      ple_window);
 
 	if (vmx->ple_window != old)
 		vmx->ple_window_dirty = true;
