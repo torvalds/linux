@@ -453,6 +453,27 @@ DEFINE_EVENT(rpc_xprt_event, xprt_complete_rqst,
 	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
 	TP_ARGS(xprt, xid, status));
 
+TRACE_EVENT(xprt_ping,
+	TP_PROTO(const struct rpc_xprt *xprt, int status),
+
+	TP_ARGS(xprt, status),
+
+	TP_STRUCT__entry(
+		__field(int, status)
+		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
+		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
+	),
+
+	TP_fast_assign(
+		__entry->status = status;
+		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
+		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
+	),
+
+	TP_printk("peer=[%s]:%s status=%d",
+			__get_str(addr), __get_str(port), __entry->status)
+);
+
 TRACE_EVENT(xs_tcp_data_ready,
 	TP_PROTO(struct rpc_xprt *xprt, int err, unsigned int total),
 
