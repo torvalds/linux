@@ -110,7 +110,7 @@ int vega10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 		if (tach_period == 0)
 			return -EINVAL;
 
-		crystal_clock_freq = smu7_get_xclk(hwmgr);
+		crystal_clock_freq = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 		*speed = 60 * crystal_clock_freq * 10000 / tach_period;
 	}
@@ -331,7 +331,7 @@ int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 		result = vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
 
 	if (!result) {
-		crystal_clock_freq = smu7_get_xclk(hwmgr);
+		crystal_clock_freq = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 		tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
 		reg = soc15_get_register_offset(THM_HWID, 0,
 				mmCG_TACH_STATUS_BASE_IDX, mmCG_TACH_STATUS);

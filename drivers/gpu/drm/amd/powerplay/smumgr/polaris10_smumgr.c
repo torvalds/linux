@@ -811,7 +811,7 @@ static void polaris10_get_sclk_range_table(struct pp_hwmgr *hwmgr,
 
 	struct pp_atom_ctrl_sclk_range_table range_table_from_vbios = { { {0} } };
 
-	ref_clk = smu7_get_xclk(hwmgr);
+	ref_clk = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 	if (0 == atomctrl_get_smc_sclk_range_table(hwmgr, &range_table_from_vbios)) {
 		for (i = 0; i < NUM_SCLK_RANGE; i++) {
@@ -876,7 +876,7 @@ static int polaris10_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 		return result;
 	}
 
-	ref_clock = smu7_get_xclk(hwmgr);
+	ref_clock = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 	for (i = 0; i < NUM_SCLK_RANGE; i++) {
 		if (clock > smu_data->range_table[i].trans_lower_frequency
@@ -2132,7 +2132,7 @@ static int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 	fan_table.TempRespLim = cpu_to_be16(5);
 
-	reference_clock = smu7_get_xclk(hwmgr);
+	reference_clock = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 	fan_table.RefreshPeriod = cpu_to_be32((hwmgr->
 			thermal_controller.advanceFanControlParameters.ulCycleDelay *

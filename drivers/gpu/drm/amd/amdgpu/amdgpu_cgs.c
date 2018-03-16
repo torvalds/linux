@@ -715,12 +715,9 @@ static int amdgpu_cgs_get_active_displays_info(struct cgs_device *cgs_device,
 		return -EINVAL;
 
 	mode_info = info->mode_info;
-	if (mode_info) {
+	if (mode_info)
 		/* if the displays are off, vblank time is max */
 		mode_info->vblank_time_us = 0xffffffff;
-		/* always set the reference clock */
-		mode_info->ref_clock = adev->clock.spll.reference_freq;
-	}
 
 	if (!amdgpu_device_has_dc_support(adev)) {
 		struct amdgpu_crtc *amdgpu_crtc;

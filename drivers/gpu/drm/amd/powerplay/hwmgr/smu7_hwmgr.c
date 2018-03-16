@@ -891,30 +891,6 @@ static int smu7_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-uint32_t smu7_get_xclk(struct pp_hwmgr *hwmgr)
-{
-	uint32_t reference_clock, tmp;
-	struct cgs_display_info info = {0};
-	struct cgs_mode_info mode_info = {0};
-
-	info.mode_info = &mode_info;
-
-	tmp = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_CLKPIN_CNTL_2, MUX_TCLK_TO_XCLK);
-
-	if (tmp)
-		return TCLK;
-
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	reference_clock = mode_info.ref_clock;
-
-	tmp = PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, CG_CLKPIN_CNTL, XTALIN_DIVIDE);
-
-	if (0 != tmp)
-		return reference_clock / 4;
-
-	return reference_clock;
-}
-
 static int smu7_enable_vrhot_gpio_interrupt(struct pp_hwmgr *hwmgr)
 {
 
@@ -3970,7 +3946,8 @@ static int smu7_program_display_gap(struct pp_hwmgr *hwmgr)
 	display_gap = PHM_SET_FIELD(display_gap, CG_DISPLAY_GAP_CNTL, DISP_GAP, (num_active_displays > 0) ? DISPLAY_GAP_VBLANK_OR_WM : DISPLAY_GAP_IGNORE);
 	cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, ixCG_DISPLAY_GAP_CNTL, display_gap);
 
-	ref_clock = mode_info.ref_clock;
+	ref_clock =  amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
+
 	refresh_rate = mode_info.refresh_rate;
 
 	if (0 == refresh_rate)

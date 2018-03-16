@@ -106,7 +106,6 @@ struct cgs_firmware_info {
 
 struct cgs_mode_info {
 	uint32_t		refresh_rate;
-	uint32_t		ref_clock;
 	uint32_t		vblank_time_us;
 };
 
