@@ -6,6 +6,14 @@
 #
 # Tests currently implemented:
 #
+# - pmtu_vti4_exception
+#	Set up vti tunnel on top of veth, with xfrm states and policies, in two
+#	namespaces with matching endpoints. Check that route exception is not
+#	created if link layer MTU is not exceeded, then exceed it and check that
+#	exception is created with the expected PMTU. The approach described
+#	below for IPv6 doesn't apply here, because, on IPv4, administrative MTU
+#	changes alone won't affect PMTU
+#
 # - pmtu_vti6_exception
 #	Set up vti6 tunnel on top of veth, with xfrm states and policies, in two
 #	namespaces with matching endpoints. Check that route exception is
@@ -24,6 +32,7 @@
 
 tests="
 	pmtu_vti6_exception	vti6: PMTU exceptions
+	pmtu_vti4_exception	vti4: PMTU exceptions
 	pmtu_vti4_default_mtu	vti4: default MTU assignment
 	pmtu_vti6_default_mtu	vti6: default MTU assignment"
 
@@ -109,15 +118,27 @@ setup_vti6() {
 }
 
 setup_xfrm() {
-	${ns_a} ip -6 xfrm state add src ${veth6_a_addr} dst ${veth6_b_addr} spi 0x1000 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel || return 1
-	${ns_a} ip -6 xfrm state add src ${veth6_b_addr} dst ${veth6_a_addr} spi 0x1001 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
-	${ns_a} ip -6 xfrm policy add dir out mark 10 tmpl src ${veth6_a_addr} dst ${veth6_b_addr} proto esp mode tunnel
-	${ns_a} ip -6 xfrm policy add dir in mark 10 tmpl src ${veth6_b_addr} dst ${veth6_a_addr} proto esp mode tunnel
+	proto=${1}
+	veth_a_addr="${2}"
+	veth_b_addr="${3}"
 
-	${ns_b} ip -6 xfrm state add src ${veth6_a_addr} dst ${veth6_b_addr} spi 0x1000 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
-	${ns_b} ip -6 xfrm state add src ${veth6_b_addr} dst ${veth6_a_addr} spi 0x1001 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
-	${ns_b} ip -6 xfrm policy add dir out mark 10 tmpl src ${veth6_b_addr} dst ${veth6_a_addr} proto esp mode tunnel
-	${ns_b} ip -6 xfrm policy add dir in mark 10 tmpl src ${veth6_a_addr} dst ${veth6_b_addr} proto esp mode tunnel
+	${ns_a} ip -${proto} xfrm state add src ${veth_a_addr} dst ${veth_b_addr} spi 0x1000 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel || return 1
+	${ns_a} ip -${proto} xfrm state add src ${veth_b_addr} dst ${veth_a_addr} spi 0x1001 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
+	${ns_a} ip -${proto} xfrm policy add dir out mark 10 tmpl src ${veth_a_addr} dst ${veth_b_addr} proto esp mode tunnel
+	${ns_a} ip -${proto} xfrm policy add dir in mark 10 tmpl src ${veth_b_addr} dst ${veth_a_addr} proto esp mode tunnel
+
+	${ns_b} ip -${proto} xfrm state add src ${veth_a_addr} dst ${veth_b_addr} spi 0x1000 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
+	${ns_b} ip -${proto} xfrm state add src ${veth_b_addr} dst ${veth_a_addr} spi 0x1001 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
+	${ns_b} ip -${proto} xfrm policy add dir out mark 10 tmpl src ${veth_b_addr} dst ${veth_a_addr} proto esp mode tunnel
+	${ns_b} ip -${proto} xfrm policy add dir in mark 10 tmpl src ${veth_a_addr} dst ${veth_b_addr} proto esp mode tunnel
+}
+
+setup_xfrm4() {
+	setup_xfrm 4 ${veth4_a_addr} ${veth4_b_addr}
+}
+
+setup_xfrm6() {
+	setup_xfrm 6 ${veth6_a_addr} ${veth6_b_addr}
 }
 
 setup() {
@@ -182,8 +203,47 @@ route_get_dst_pmtu_from_exception() {
 	mtu_parse "$(route_get_dst_exception "${ns_cmd}" ${dst})"
 }
 
+test_pmtu_vti4_exception() {
+	setup namespaces veth vti4 xfrm4 || return 2
+
+	veth_mtu=1500
+	vti_mtu=$((veth_mtu - 20))
+
+	#                                SPI   SN   IV  ICV   pad length   next header
+	esp_payload_rfc4106=$((vti_mtu - 4   - 4  - 8 - 16  - 1          - 1))
+	ping_payload=$((esp_payload_rfc4106 - 28))
+
+	mtu "${ns_a}" veth_a ${veth_mtu}
+	mtu "${ns_b}" veth_b ${veth_mtu}
+	mtu "${ns_a}" vti4_a ${vti_mtu}
+	mtu "${ns_b}" vti4_b ${vti_mtu}
+
+	# Send DF packet without exceeding link layer MTU, check that no
+	# exception is created
+	${ns_a} ping -q -M want -i 0.1 -w 2 -s ${ping_payload} ${vti4_b_addr} > /dev/null
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti4_b_addr})"
+	if [ "${pmtu}" != "" ]; then
+		err "  unexpected exception created with PMTU ${pmtu} for IP payload length ${esp_payload_rfc4106}"
+		return 1
+	fi
+
+	# Now exceed link layer MTU by one byte, check that exception is created
+	${ns_a} ping -q -M want -i 0.1 -w 2 -s $((ping_payload + 1)) ${vti4_b_addr} > /dev/null
+	pmtu="$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti4_b_addr})"
+	if [ "${pmtu}" = "" ]; then
+		err "  exception not created for IP payload length $((esp_payload_rfc4106 + 1))"
+		return 1
+	fi
+
+	# ...with the right PMTU value
+	if [ ${pmtu} -ne ${esp_payload_rfc4106} ]; then
+		err "  wrong PMTU ${pmtu} in exception, expected: ${esp_payload_rfc4106}"
+		return 1
+	fi
+}
+
 test_pmtu_vti6_exception() {
-	setup namespaces veth vti6 xfrm || return 2
+	setup namespaces veth vti6 xfrm6 || return 2
 	fail=0
 
 	# Create route exception by exceeding link layer MTU
