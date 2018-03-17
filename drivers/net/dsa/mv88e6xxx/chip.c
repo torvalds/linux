@@ -4204,15 +4204,18 @@ static void mv88e6xxx_remove(struct mdio_device *mdiodev)
 	mv88e6xxx_unregister_switch(chip);
 	mv88e6xxx_mdios_unregister(chip);
 
-	if (chip->irq > 0) {
-		mv88e6xxx_g1_vtu_prob_irq_free(chip);
-		mv88e6xxx_g1_atu_prob_irq_free(chip);
-		if (chip->info->g2_irqs > 0)
-			mv88e6xxx_g2_irq_free(chip);
-		mutex_lock(&chip->reg_lock);
+	mv88e6xxx_g1_vtu_prob_irq_free(chip);
+	mv88e6xxx_g1_atu_prob_irq_free(chip);
+
+	if (chip->info->g2_irqs > 0)
+		mv88e6xxx_g2_irq_free(chip);
+
+	mutex_lock(&chip->reg_lock);
+	if (chip->irq > 0)
 		mv88e6xxx_g1_irq_free(chip);
-		mutex_unlock(&chip->reg_lock);
-	}
+	else
+		mv88e6xxx_irq_poll_free(chip);
+	mutex_unlock(&chip->reg_lock);
 }
 
 static const struct of_device_id mv88e6xxx_of_match[] = {
