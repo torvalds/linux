@@ -54,6 +54,7 @@
 #include <linux/usb.h>
 #include <linux/usb/input.h>
 #include <linux/hid.h>
+#include <linux/mutex.h>
 
 static bool swap_xy;
 module_param(swap_xy, bool, 0644);
@@ -107,6 +108,7 @@ struct usbtouch_usb {
 	struct usb_interface *interface;
 	struct input_dev *input;
 	struct usbtouch_device_info *type;
+	struct mutex pm_mutex;  /* serialize access to open/suspend */
 	char name[128];
 	char phys[64];
 	void *priv;
@@ -1450,6 +1452,7 @@ static int usbtouch_open(struct input_dev *input)
 	if (r < 0)
 		goto out;
 
+	mutex_lock(&usbtouch->pm_mutex);
 	if (!usbtouch->type->irq_always) {
 		if (usb_submit_urb(usbtouch->irq, GFP_KERNEL)) {
 			r = -EIO;
@@ -1459,6 +1462,7 @@ static int usbtouch_open(struct input_dev *input)
 
 	usbtouch->interface->needs_remote_wakeup = 1;
 out_put:
+	mutex_unlock(&usbtouch->pm_mutex);
 	usb_autopm_put_interface(usbtouch->interface);
 out:
 	return r;
@@ -1469,8 +1473,11 @@ static void usbtouch_close(struct input_dev *input)
 	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
 	int r;
 
+	mutex_lock(&usbtouch->pm_mutex);
 	if (!usbtouch->type->irq_always)
 		usb_kill_urb(usbtouch->irq);
+	mutex_unlock(&usbtouch->pm_mutex);
+
 	r = usb_autopm_get_interface(usbtouch->interface);
 	usbtouch->interface->needs_remote_wakeup = 0;
 	if (!r)
@@ -1493,10 +1500,10 @@ static int usbtouch_resume(struct usb_interface *intf)
 	struct input_dev *input = usbtouch->input;
 	int result = 0;
 
-	mutex_lock(&input->mutex);
+	mutex_lock(&usbtouch->pm_mutex);
 	if (input->users || usbtouch->type->irq_always)
 		result = usb_submit_urb(usbtouch->irq, GFP_NOIO);
-	mutex_unlock(&input->mutex);
+	mutex_unlock(&usbtouch->pm_mutex);
 
 	return result;
 }
@@ -1519,10 +1526,10 @@ static int usbtouch_reset_resume(struct usb_interface *intf)
 	}
 
 	/* restart IO if needed */
-	mutex_lock(&input->mutex);
+	mutex_lock(&usbtouch->pm_mutex);
 	if (input->users)
 		err = usb_submit_urb(usbtouch->irq, GFP_NOIO);
-	mutex_unlock(&input->mutex);
+	mutex_unlock(&usbtouch->pm_mutex);
 
 	return err;
 }
