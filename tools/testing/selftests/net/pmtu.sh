@@ -36,14 +36,21 @@
 #
 # - pmtu_vti6_link_add_mtu
 #	Same as above, for IPv6
+#
+# - pmtu_vti6_link_change_mtu
+#	Set up two dummy interfaces with different MTUs, create a vti6 tunnel
+#	and check that configured MTU is used on link creation and changes, and
+#	that MTU is properly calculated instead when MTU is not configured from
+#	userspace
 
 tests="
-	pmtu_vti6_exception	vti6: PMTU exceptions
-	pmtu_vti4_exception	vti4: PMTU exceptions
-	pmtu_vti4_default_mtu	vti4: default MTU assignment
-	pmtu_vti6_default_mtu	vti6: default MTU assignment
-	pmtu_vti4_link_add_mtu	vti4: MTU setting on link creation
-	pmtu_vti6_link_add_mtu	vti6: MTU setting on link creation"
+	pmtu_vti6_exception		vti6: PMTU exceptions
+	pmtu_vti4_exception		vti4: PMTU exceptions
+	pmtu_vti4_default_mtu		vti4: default MTU assignment
+	pmtu_vti6_default_mtu		vti6: default MTU assignment
+	pmtu_vti4_link_add_mtu		vti4: MTU setting on link creation
+	pmtu_vti6_link_add_mtu		vti6: MTU setting on link creation
+	pmtu_vti6_link_change_mtu	vti6: MTU changes on link changes"
 
 NS_A="ns-$(mktemp -u XXXXXX)"
 NS_B="ns-$(mktemp -u XXXXXX)"
@@ -63,6 +70,10 @@ vti4_mask="24"
 vti6_a_addr="fd00:2::a"
 vti6_b_addr="fd00:2::b"
 vti6_mask="64"
+
+dummy6_0_addr="fc00:1000::0"
+dummy6_1_addr="fc00:1001::0"
+dummy6_mask="64"
 
 cleanup_done=1
 err_buf=
@@ -382,6 +393,50 @@ test_pmtu_vti6_link_add_mtu() {
 			fail=1
 		fi
 	done
+
+	return ${fail}
+}
+
+test_pmtu_vti6_link_change_mtu() {
+	setup namespaces || return 2
+
+	${ns_a} ip link add dummy0 mtu 1500 type dummy
+	[ $? -ne 0 ] && err "  dummy not supported" && return 2
+	${ns_a} ip link add dummy1 mtu 3000 type dummy
+	${ns_a} ip link set dummy0 up
+	${ns_a} ip link set dummy1 up
+
+	${ns_a} ip addr add ${dummy6_0_addr}/${dummy6_mask} dev dummy0
+	${ns_a} ip addr add ${dummy6_1_addr}/${dummy6_mask} dev dummy1
+
+	fail=0
+
+	# Create vti6 interface bound to device, passing MTU, check it
+	${ns_a} ip link add vti6_a mtu 1300 type vti6 remote ${dummy6_0_addr} local ${dummy6_0_addr}
+	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
+	if [ ${mtu} -ne 1300 ]; then
+		err "  vti6 MTU ${mtu} doesn't match configured value 1300"
+		fail=1
+	fi
+
+	# Move to another device with different MTU, without passing MTU, check
+	# MTU is adjusted
+	echo "${ns_a} ip link set vti6_a type vti6 remote ${dummy6_1_addr} local ${dummy6_1_addr}" > /dev/kmsg
+	${ns_a} ip link set vti6_a type vti6 remote ${dummy6_1_addr} local ${dummy6_1_addr}
+	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
+	if [ ${mtu} -ne $((3000 - 40)) ]; then
+		err "  vti MTU ${mtu} is not dummy MTU 3000 minus IPv6 header length"
+		fail=1
+	fi
+
+	# Move it back, passing MTU, check MTU is not overridden
+	echo "${ns_a} ip link set vti6_a mtu 1280 type vti6 remote ${dummy6_0_addr} local ${dummy6_0_addr}" > /dev/kmsg
+	${ns_a} ip link set vti6_a mtu 1280 type vti6 remote ${dummy6_0_addr} local ${dummy6_0_addr}
+	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
+	if [ ${mtu} -ne 1280 ]; then
+		err "  vti6 MTU ${mtu} doesn't match configured value 1280"
+		fail=1
+	fi
 
 	return ${fail}
 }
