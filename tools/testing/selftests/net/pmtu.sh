@@ -29,12 +29,17 @@
 #
 # - pmtu_vti6_default_mtu
 #	Same as above, for IPv6
+#
+# - pmtu_vti4_link_add_mtu
+#	Set up vti4 interface passing MTU value at link creation, check MTU is
+#	configured, and that link is not created with invalid MTU values
 
 tests="
 	pmtu_vti6_exception	vti6: PMTU exceptions
 	pmtu_vti4_exception	vti4: PMTU exceptions
 	pmtu_vti4_default_mtu	vti4: default MTU assignment
-	pmtu_vti6_default_mtu	vti6: default MTU assignment"
+	pmtu_vti6_default_mtu	vti6: default MTU assignment
+	pmtu_vti4_link_add_mtu	vti4: MTU setting on link creation"
 
 NS_A="ns-$(mktemp -u XXXXXX)"
 NS_B="ns-$(mktemp -u XXXXXX)"
@@ -299,6 +304,44 @@ test_pmtu_vti6_default_mtu() {
 		err "  vti MTU ${vti6_mtu} is not veth MTU ${veth_mtu} minus IPv6 header length"
 		return 1
 	fi
+}
+
+test_pmtu_vti4_link_add_mtu() {
+	setup namespaces || return 2
+
+	${ns_a} ip link add vti4_a type vti local ${veth4_a_addr} remote ${veth4_b_addr} key 10
+	[ $? -ne 0 ] && err "  vti not supported" && return 2
+	${ns_a} ip link del vti4_a
+
+	fail=0
+
+	min=68
+	max=$((65528 - 20))
+	# Check invalid values first
+	for v in $((min - 1)) $((max + 1)); do
+		${ns_a} ip link add vti4_a mtu ${v} type vti local ${veth4_a_addr} remote ${veth4_b_addr} key 10 2>/dev/null
+		# This can fail, or MTU can be adjusted to a proper value
+		[ $? -ne 0 ] && continue
+		mtu="$(link_get_mtu "${ns_a}" vti4_a)"
+		if [ ${mtu} -lt ${min} -o ${mtu} -gt ${max} ]; then
+			err "  vti tunnel created with invalid MTU ${mtu}"
+			fail=1
+		fi
+		${ns_a} ip link del vti4_a
+	done
+
+	# Now check valid values
+	for v in ${min} 1300 ${max}; do
+		${ns_a} ip link add vti4_a mtu ${v} type vti local ${veth4_a_addr} remote ${veth4_b_addr} key 10
+		mtu="$(link_get_mtu "${ns_a}" vti4_a)"
+		${ns_a} ip link del vti4_a
+		if [ "${mtu}" != "${v}" ]; then
+			err "  vti MTU ${mtu} doesn't match configured value ${v}"
+			fail=1
+		fi
+	done
+
+	return ${fail}
 }
 
 trap cleanup EXIT
