@@ -18,10 +18,14 @@
 #	endpoints. Check that MTU assigned to vti interface is the MTU of the
 #	lower layer (veth) minus additional lower layer headers (zero, for veth)
 #	minus IPv4 header length
+#
+# - pmtu_vti6_default_mtu
+#	Same as above, for IPv6
 
 tests="
 	pmtu_vti6_exception	vti6: PMTU exceptions
-	pmtu_vti4_default_mtu	vti4: default MTU assignment"
+	pmtu_vti4_default_mtu	vti4: default MTU assignment
+	pmtu_vti6_default_mtu	vti6: default MTU assignment"
 
 NS_A="ns-$(mktemp -u XXXXXX)"
 NS_B="ns-$(mktemp -u XXXXXX)"
@@ -221,6 +225,18 @@ test_pmtu_vti4_default_mtu() {
 	vti4_mtu="$(link_get_mtu "${ns_a}" vti4_a)"
 	if [ $((veth_mtu - vti4_mtu)) -ne 20 ]; then
 		err "  vti MTU ${vti4_mtu} is not veth MTU ${veth_mtu} minus IPv4 header length"
+		return 1
+	fi
+}
+
+test_pmtu_vti6_default_mtu() {
+	setup namespaces veth vti6 || return 2
+
+	# Check that MTU of vti device is MTU of veth minus IPv6 header length
+	veth_mtu="$(link_get_mtu "${ns_a}" veth_a)"
+	vti6_mtu="$(link_get_mtu "${ns_a}" vti6_a)"
+	if [ $((veth_mtu - vti6_mtu)) -ne 40 ]; then
+		err "  vti MTU ${vti6_mtu} is not veth MTU ${veth_mtu} minus IPv6 header length"
 		return 1
 	fi
 }
