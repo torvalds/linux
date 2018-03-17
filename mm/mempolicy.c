@@ -1365,8 +1365,8 @@ SYSCALL_DEFINE6(mbind, unsigned long, start, unsigned long, len,
 }
 
 /* Set the process memory policy */
-SYSCALL_DEFINE3(set_mempolicy, int, mode, const unsigned long __user *, nmask,
-		unsigned long, maxnode)
+static long kernel_set_mempolicy(int mode, const unsigned long __user *nmask,
+				 unsigned long maxnode)
 {
 	int err;
 	nodemask_t nodes;
@@ -1382,6 +1382,12 @@ SYSCALL_DEFINE3(set_mempolicy, int, mode, const unsigned long __user *, nmask,
 	if (err)
 		return err;
 	return do_set_mempolicy(mode, flags, &nodes);
+}
+
+SYSCALL_DEFINE3(set_mempolicy, int, mode, const unsigned long __user *, nmask,
+		unsigned long, maxnode)
+{
+	return kernel_set_mempolicy(mode, nmask, maxnode);
 }
 
 static int kernel_migrate_pages(pid_t pid, unsigned long maxnode,
@@ -1485,9 +1491,11 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
 
 
 /* Retrieve NUMA policy */
-SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
-		unsigned long __user *, nmask, unsigned long, maxnode,
-		unsigned long, addr, unsigned long, flags)
+static int kernel_get_mempolicy(int __user *policy,
+				unsigned long __user *nmask,
+				unsigned long maxnode,
+				unsigned long addr,
+				unsigned long flags)
 {
 	int err;
 	int uninitialized_var(pval);
@@ -1510,6 +1518,13 @@ SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
 	return err;
 }
 
+SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
+		unsigned long __user *, nmask, unsigned long, maxnode,
+		unsigned long, addr, unsigned long, flags)
+{
+	return kernel_get_mempolicy(policy, nmask, maxnode, addr, flags);
+}
+
 #ifdef CONFIG_COMPAT
 
 COMPAT_SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
@@ -1528,7 +1543,7 @@ COMPAT_SYSCALL_DEFINE5(get_mempolicy, int __user *, policy,
 	if (nmask)
 		nm = compat_alloc_user_space(alloc_size);
 
-	err = sys_get_mempolicy(policy, nm, nr_bits+1, addr, flags);
+	err = kernel_get_mempolicy(policy, nm, nr_bits+1, addr, flags);
 
 	if (!err && nmask) {
 		unsigned long copy_size;
@@ -1560,7 +1575,7 @@ COMPAT_SYSCALL_DEFINE3(set_mempolicy, int, mode, compat_ulong_t __user *, nmask,
 			return -EFAULT;
 	}
 
-	return sys_set_mempolicy(mode, nm, nr_bits+1);
+	return kernel_set_mempolicy(mode, nm, nr_bits+1);
 }
 
 COMPAT_SYSCALL_DEFINE6(mbind, compat_ulong_t, start, compat_ulong_t, len,
