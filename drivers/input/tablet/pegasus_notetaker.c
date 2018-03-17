@@ -80,6 +80,7 @@ struct pegasus {
 
 	/* serialize access to open/suspend */
 	struct mutex pm_mutex;
+	bool is_open;
 
 	char name[128];
 	char phys[64];
@@ -232,6 +233,7 @@ static int pegasus_open(struct input_dev *dev)
 	if (error)
 		goto err_kill_urb;
 
+	pegasus->is_open = true;
 	mutex_unlock(&pegasus->pm_mutex);
 	return 0;
 
@@ -251,6 +253,7 @@ static void pegasus_close(struct input_dev *dev)
 	mutex_lock(&pegasus->pm_mutex);
 	usb_kill_urb(pegasus->irq);
 	cancel_work_sync(&pegasus->init);
+	pegasus->is_open = false;
 	mutex_unlock(&pegasus->pm_mutex);
 
 	usb_autopm_put_interface(pegasus->intf);
@@ -415,7 +418,7 @@ static int pegasus_resume(struct usb_interface *intf)
 	int retval = 0;
 
 	mutex_lock(&pegasus->pm_mutex);
-	if (pegasus->dev->users && usb_submit_urb(pegasus->irq, GFP_NOIO) < 0)
+	if (pegasus->is_open && usb_submit_urb(pegasus->irq, GFP_NOIO) < 0)
 		retval = -EIO;
 	mutex_unlock(&pegasus->pm_mutex);
 
@@ -428,7 +431,7 @@ static int pegasus_reset_resume(struct usb_interface *intf)
 	int retval = 0;
 
 	mutex_lock(&pegasus->pm_mutex);
-	if (pegasus->dev->users) {
+	if (pegasus->is_open) {
 		retval = pegasus_set_mode(pegasus, PEN_MODE_XY,
 					  NOTETAKER_LED_MOUSE);
 		if (!retval && usb_submit_urb(pegasus->irq, GFP_NOIO) < 0)
