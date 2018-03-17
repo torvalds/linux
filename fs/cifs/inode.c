@@ -1066,10 +1066,7 @@ iget_no_retry:
 
 out:
 	kfree(path);
-	/* can not call macro free_xid here since in a void func
-	 * TODO: This is no longer true
-	 */
-	_free_xid(xid);
+	free_xid(xid);
 	return inode;
 }
 
