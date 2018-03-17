@@ -109,6 +109,7 @@ struct usbtouch_usb {
 	struct input_dev *input;
 	struct usbtouch_device_info *type;
 	struct mutex pm_mutex;  /* serialize access to open/suspend */
+	bool is_open;
 	char name[128];
 	char phys[64];
 	void *priv;
@@ -1461,6 +1462,7 @@ static int usbtouch_open(struct input_dev *input)
 	}
 
 	usbtouch->interface->needs_remote_wakeup = 1;
+	usbtouch->is_open = true;
 out_put:
 	mutex_unlock(&usbtouch->pm_mutex);
 	usb_autopm_put_interface(usbtouch->interface);
@@ -1476,6 +1478,7 @@ static void usbtouch_close(struct input_dev *input)
 	mutex_lock(&usbtouch->pm_mutex);
 	if (!usbtouch->type->irq_always)
 		usb_kill_urb(usbtouch->irq);
+	usbtouch->is_open = false;
 	mutex_unlock(&usbtouch->pm_mutex);
 
 	r = usb_autopm_get_interface(usbtouch->interface);
@@ -1497,11 +1500,10 @@ static int usbtouch_suspend
 static int usbtouch_resume(struct usb_interface *intf)
 {
 	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
-	struct input_dev *input = usbtouch->input;
 	int result = 0;
 
 	mutex_lock(&usbtouch->pm_mutex);
-	if (input->users || usbtouch->type->irq_always)
+	if (usbtouch->is_open || usbtouch->type->irq_always)
 		result = usb_submit_urb(usbtouch->irq, GFP_NOIO);
 	mutex_unlock(&usbtouch->pm_mutex);
 
@@ -1511,7 +1513,6 @@ static int usbtouch_resume(struct usb_interface *intf)
 static int usbtouch_reset_resume(struct usb_interface *intf)
 {
 	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
-	struct input_dev *input = usbtouch->input;
 	int err = 0;
 
 	/* reinit the device */
@@ -1527,7 +1528,7 @@ static int usbtouch_reset_resume(struct usb_interface *intf)
 
 	/* restart IO if needed */
 	mutex_lock(&usbtouch->pm_mutex);
-	if (input->users)
+	if (usbtouch->is_open)
 		err = usb_submit_urb(usbtouch->irq, GFP_NOIO);
 	mutex_unlock(&usbtouch->pm_mutex);
 
