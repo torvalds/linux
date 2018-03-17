@@ -635,13 +635,43 @@ static void release_tx_pools(struct ibmvnic_adapter *adapter)
 	adapter->num_active_tx_pools = 0;
 }
 
+static int init_one_tx_pool(struct net_device *netdev,
+			    struct ibmvnic_tx_pool *tx_pool,
+			    int num_entries, int buf_size)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	int i;
+
+	tx_pool->tx_buff = kcalloc(num_entries,
+				   sizeof(struct ibmvnic_tx_buff),
+				   GFP_KERNEL);
+	if (!tx_pool->tx_buff)
+		return -1;
+
+	if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
+				 num_entries * buf_size))
+		return -1;
+
+	tx_pool->free_map = kcalloc(num_entries, sizeof(int), GFP_KERNEL);
+	if (!tx_pool->free_map)
+		return -1;
+
+	for (i = 0; i < num_entries; i++)
+		tx_pool->free_map[i] = i;
+
+	tx_pool->consumer_index = 0;
+	tx_pool->producer_index = 0;
+	tx_pool->num_buffers = num_entries;
+	tx_pool->buf_size = buf_size;
+
+	return 0;
+}
+
 static int init_tx_pools(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	struct device *dev = &adapter->vdev->dev;
-	struct ibmvnic_tx_pool *tx_pool;
 	int tx_subcrqs;
-	int i, j;
+	int i, rc;
 
 	tx_subcrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
 	adapter->tx_pool = kcalloc(tx_subcrqs,
@@ -649,53 +679,29 @@ static int init_tx_pools(struct net_device *netdev)
 	if (!adapter->tx_pool)
 		return -1;
 
+	adapter->tso_pool = kcalloc(tx_subcrqs,
+				    sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
+	if (!adapter->tso_pool)
+		return -1;
+
 	adapter->num_active_tx_pools = tx_subcrqs;
 
 	for (i = 0; i < tx_subcrqs; i++) {
-		tx_pool = &adapter->tx_pool[i];
-
-		netdev_dbg(adapter->netdev,
-			   "Initializing tx_pool[%d], %lld buffs\n",
-			   i, adapter->req_tx_entries_per_subcrq);
-
-		tx_pool->tx_buff = kcalloc(adapter->req_tx_entries_per_subcrq,
-					   sizeof(struct ibmvnic_tx_buff),
-					   GFP_KERNEL);
-		if (!tx_pool->tx_buff) {
-			dev_err(dev, "tx pool buffer allocation failed\n");
+		rc = init_one_tx_pool(netdev, &adapter->tx_pool[i],
+				      adapter->req_tx_entries_per_subcrq,
+				      adapter->req_mtu + VLAN_HLEN);
+		if (rc) {
 			release_tx_pools(adapter);
-			return -1;
+			return rc;
 		}
 
-		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
-					 adapter->req_tx_entries_per_subcrq *
-					 (adapter->req_mtu + VLAN_HLEN))) {
+		init_one_tx_pool(netdev, &adapter->tso_pool[i],
+				 IBMVNIC_TSO_BUFS,
+				 IBMVNIC_TSO_BUF_SZ);
+		if (rc) {
 			release_tx_pools(adapter);
-			return -1;
+			return rc;
 		}
-
-		/* alloc TSO ltb */
-		if (alloc_long_term_buff(adapter, &tx_pool->tso_ltb,
-					 IBMVNIC_TSO_BUFS *
-					 IBMVNIC_TSO_BUF_SZ)) {
-			release_tx_pools(adapter);
-			return -1;
-		}
-
-		tx_pool->tso_index = 0;
-
-		tx_pool->free_map = kcalloc(adapter->req_tx_entries_per_subcrq,
-					    sizeof(int), GFP_KERNEL);
-		if (!tx_pool->free_map) {
-			release_tx_pools(adapter);
-			return -1;
-		}
-
-		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
-			tx_pool->free_map[j] = j;
-
-		tx_pool->consumer_index = 0;
-		tx_pool->producer_index = 0;
 	}
 
 	return 0;
