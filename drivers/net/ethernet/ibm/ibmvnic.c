@@ -1426,6 +1426,16 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	index = tx_pool->free_map[tx_pool->consumer_index];
 
+	if (index == IBMVNIC_INVALID_MAP) {
+		dev_kfree_skb_any(skb);
+		tx_send_failed++;
+		tx_dropped++;
+		ret = NETDEV_TX_OK;
+		goto out;
+	}
+
+	tx_pool->free_map[tx_pool->consumer_index] = IBMVNIC_INVALID_MAP;
+
 	offset = index * tx_pool->buf_size;
 	dst = tx_pool->long_term_buff.buff + offset;
 	memset(dst, 0, tx_pool->buf_size);
@@ -1522,7 +1532,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 			tx_map_failed++;
 			tx_dropped++;
 			ret = NETDEV_TX_OK;
-			goto out;
+			goto tx_err_out;
 		}
 		lpar_rc = send_subcrq_indirect(adapter, handle_array[queue_num],
 					       (u64)tx_buff->indir_dma,
@@ -1534,13 +1544,6 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 	if (lpar_rc != H_SUCCESS) {
 		dev_err(dev, "tx failed with code %ld\n", lpar_rc);
-
-		if (tx_pool->consumer_index == 0)
-			tx_pool->consumer_index =
-				tx_pool->num_buffers - 1;
-		else
-			tx_pool->consumer_index--;
-
 		dev_kfree_skb_any(skb);
 		tx_buff->skb = NULL;
 
@@ -1556,7 +1559,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		tx_send_failed++;
 		tx_dropped++;
 		ret = NETDEV_TX_OK;
-		goto out;
+		goto tx_err_out;
 	}
 
 	if (atomic_add_return(num_entries, &tx_scrq->used)
@@ -1569,7 +1572,16 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	tx_bytes += skb->len;
 	txq->trans_start = jiffies;
 	ret = NETDEV_TX_OK;
+	goto out;
 
+tx_err_out:
+	/* roll back consumer index and map array*/
+	if (tx_pool->consumer_index == 0)
+		tx_pool->consumer_index =
+			tx_pool->num_buffers - 1;
+	else
+		tx_pool->consumer_index--;
+	tx_pool->free_map[tx_pool->consumer_index] = index;
 out:
 	netdev->stats.tx_dropped += tx_dropped;
 	netdev->stats.tx_bytes += tx_bytes;
