@@ -13,6 +13,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
 
 /*
  * This is commented-out for now.
@@ -221,6 +222,17 @@
 			compatible = "nintendo,hollywood-di";
 			reg = <0x0d806000 0x40>;
 			interrupts = <2>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		/* This is the blue LED in the disk drive slot */
+		drive-slot {
+			label = "wii:blue:drive_slot";
+			gpios = <&GPIO 5 GPIO_ACTIVE_HIGH>;
+			panic-indicator;
 		};
 	};
 };
