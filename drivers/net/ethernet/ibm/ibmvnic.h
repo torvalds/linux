@@ -919,8 +919,6 @@ struct ibmvnic_tx_pool {
 	int consumer_index;
 	int producer_index;
 	struct ibmvnic_long_term_buff long_term_buff;
-	struct ibmvnic_long_term_buff tso_ltb;
-	int tso_index;
 	int num_buffers;
 	int buf_size;
 };
