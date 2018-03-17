@@ -97,6 +97,16 @@ mtu() {
 	${ns_cmd} ip link set dev ${dev} mtu ${mtu}
 }
 
+mtu_parse() {
+	input="${1}"
+
+	next=0
+	for i in ${input}; do
+		[ ${next} -eq 1 ] && echo "${i}" && return
+		[ "${i}" = "mtu" ] && next=1
+	done
+}
+
 route_get_dst_exception() {
 	ns_cmd="${1}"
 	dst="${2}"
@@ -108,12 +118,7 @@ route_get_dst_pmtu_from_exception() {
 	ns_cmd="${1}"
 	dst="${2}"
 
-	exception="$(route_get_dst_exception "${ns_cmd}" ${dst})"
-	next=0
-	for i in ${exception}; do
-		[ ${next} -eq 1 ] && echo "${i}" && return
-		[ "${i}" = "mtu" ] && next=1
-	done
+	mtu_parse "$(route_get_dst_exception "${ns_cmd}" ${dst})"
 }
 
 test_pmtu_vti6_exception() {
