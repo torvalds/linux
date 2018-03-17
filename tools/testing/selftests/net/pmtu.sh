@@ -33,13 +33,17 @@
 # - pmtu_vti4_link_add_mtu
 #	Set up vti4 interface passing MTU value at link creation, check MTU is
 #	configured, and that link is not created with invalid MTU values
+#
+# - pmtu_vti6_link_add_mtu
+#	Same as above, for IPv6
 
 tests="
 	pmtu_vti6_exception	vti6: PMTU exceptions
 	pmtu_vti4_exception	vti4: PMTU exceptions
 	pmtu_vti4_default_mtu	vti4: default MTU assignment
 	pmtu_vti6_default_mtu	vti6: default MTU assignment
-	pmtu_vti4_link_add_mtu	vti4: MTU setting on link creation"
+	pmtu_vti4_link_add_mtu	vti4: MTU setting on link creation
+	pmtu_vti6_link_add_mtu	vti6: MTU setting on link creation"
 
 NS_A="ns-$(mktemp -u XXXXXX)"
 NS_B="ns-$(mktemp -u XXXXXX)"
@@ -337,6 +341,44 @@ test_pmtu_vti4_link_add_mtu() {
 		${ns_a} ip link del vti4_a
 		if [ "${mtu}" != "${v}" ]; then
 			err "  vti MTU ${mtu} doesn't match configured value ${v}"
+			fail=1
+		fi
+	done
+
+	return ${fail}
+}
+
+test_pmtu_vti6_link_add_mtu() {
+	setup namespaces || return 2
+
+	${ns_a} ip link add vti6_a type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10
+	[ $? -ne 0 ] && err "  vti6 not supported" && return 2
+	${ns_a} ip link del vti6_a
+
+	fail=0
+
+	min=1280
+	max=$((65535 - 40))
+	# Check invalid values first
+	for v in $((min - 1)) $((max + 1)); do
+		${ns_a} ip link add vti6_a mtu ${v} type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10 2>/dev/null
+		# This can fail, or MTU can be adjusted to a proper value
+		[ $? -ne 0 ] && continue
+		mtu="$(link_get_mtu "${ns_a}" vti6_a)"
+		if [ ${mtu} -lt ${min} -o ${mtu} -gt ${max} ]; then
+			err "  vti6 tunnel created with invalid MTU ${v}"
+			fail=1
+		fi
+		${ns_a} ip link del vti6_a
+	done
+
+	# Now check valid values
+	for v in 1280 1300 $((65535 - 40)); do
+		${ns_a} ip link add vti6_a mtu ${v} type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10
+		mtu="$(link_get_mtu "${ns_a}" vti6_a)"
+		${ns_a} ip link del vti6_a
+		if [ "${mtu}" != "${v}" ]; then
+			err "  vti6 MTU ${mtu} doesn't match configured value ${v}"
 			fail=1
 		fi
 	done
