@@ -917,11 +917,11 @@ struct ibmvnic_tx_pool {
 	int *free_map;
 	int consumer_index;
 	int producer_index;
-	wait_queue_head_t ibmvnic_tx_comp_q;
-	struct task_struct *work_thread;
 	struct ibmvnic_long_term_buff long_term_buff;
 	struct ibmvnic_long_term_buff tso_ltb;
 	int tso_index;
+	int num_buffers;
+	int buf_size;
 };
 
 struct ibmvnic_rx_buff {
@@ -1044,6 +1044,7 @@ struct ibmvnic_adapter {
 	u64 promisc;
 
 	struct ibmvnic_tx_pool *tx_pool;
+	struct ibmvnic_tx_pool *tso_pool;
 	struct completion init_done;
 	int init_done_rc;
 
