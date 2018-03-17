@@ -557,36 +557,41 @@ static int init_rx_pools(struct net_device *netdev)
 	return 0;
 }
 
+static int reset_one_tx_pool(struct ibmvnic_adapter *adapter,
+			     struct ibmvnic_tx_pool *tx_pool)
+{
+	int rc, i;
+
+	rc = reset_long_term_buff(adapter, &tx_pool->long_term_buff);
+	if (rc)
+		return rc;
+
+	memset(tx_pool->tx_buff, 0,
+	       tx_pool->num_buffers *
+	       sizeof(struct ibmvnic_tx_buff));
+
+	for (i = 0; i < tx_pool->num_buffers; i++)
+		tx_pool->free_map[i] = i;
+
+	tx_pool->consumer_index = 0;
+	tx_pool->producer_index = 0;
+
+	return 0;
+}
+
 static int reset_tx_pools(struct ibmvnic_adapter *adapter)
 {
-	struct ibmvnic_tx_pool *tx_pool;
 	int tx_scrqs;
-	int i, j, rc;
+	int i, rc;
 
 	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
 	for (i = 0; i < tx_scrqs; i++) {
-		netdev_dbg(adapter->netdev, "Re-setting tx_pool[%d]\n", i);
-
-		tx_pool = &adapter->tx_pool[i];
-
-		rc = reset_long_term_buff(adapter, &tx_pool->long_term_buff);
+		rc = reset_one_tx_pool(adapter, &adapter->tso_pool[i]);
 		if (rc)
 			return rc;
-
-		rc = reset_long_term_buff(adapter, &tx_pool->tso_ltb);
+		rc = reset_one_tx_pool(adapter, &adapter->tx_pool[i]);
 		if (rc)
 			return rc;
-
-		memset(tx_pool->tx_buff, 0,
-		       adapter->req_tx_entries_per_subcrq *
-		       sizeof(struct ibmvnic_tx_buff));
-
-		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
-			tx_pool->free_map[j] = j;
-
-		tx_pool->consumer_index = 0;
-		tx_pool->producer_index = 0;
-		tx_pool->tso_index = 0;
 	}
 
 	return 0;
