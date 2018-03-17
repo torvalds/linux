@@ -26,14 +26,12 @@ vti6_b_addr="fd00:2::b"
 vti6_mask="64"
 
 setup_namespaces() {
-	ip netns add ${NS_A} || return 0
+	ip netns add ${NS_A} || return 1
 	ip netns add ${NS_B}
-
-	return 1
 }
 
 setup_veth() {
-	${ns_a} ip link add veth_a type veth peer name veth_b || return 0
+	${ns_a} ip link add veth_a type veth peer name veth_b || return 1
 	${ns_a} ip link set veth_b netns ${NS_B}
 
 	${ns_a} ip addr add ${veth6_a_addr}/${veth6_mask} dev veth_a
@@ -41,12 +39,10 @@ setup_veth() {
 
 	${ns_a} ip link set veth_a up
 	${ns_b} ip link set veth_b up
-
-	return 1
 }
 
 setup_vti6() {
-	${ns_a} ip link add vti_a type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10 || return 0
+	${ns_a} ip link add vti_a type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10 || return 1
 	${ns_b} ip link add vti_b type vti6 local ${veth6_b_addr} remote ${veth6_a_addr} key 10
 
 	${ns_a} ip addr add ${vti6_a_addr}/${vti6_mask} dev vti_a
@@ -56,12 +52,10 @@ setup_vti6() {
 	${ns_b} ip link set vti_b up
 
 	sleep 1
-
-	return 1
 }
 
 setup_xfrm() {
-	${ns_a} ip -6 xfrm state add src ${veth6_a_addr} dst ${veth6_b_addr} spi 0x1000 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel || return 0
+	${ns_a} ip -6 xfrm state add src ${veth6_a_addr} dst ${veth6_b_addr} spi 0x1000 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel || return 1
 	${ns_a} ip -6 xfrm state add src ${veth6_b_addr} dst ${veth6_a_addr} spi 0x1001 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
 	${ns_a} ip -6 xfrm policy add dir out mark 10 tmpl src ${veth6_a_addr} dst ${veth6_b_addr} proto esp mode tunnel
 	${ns_a} ip -6 xfrm policy add dir in mark 10 tmpl src ${veth6_b_addr} dst ${veth6_a_addr} proto esp mode tunnel
@@ -70,8 +64,6 @@ setup_xfrm() {
 	${ns_b} ip -6 xfrm state add src ${veth6_b_addr} dst ${veth6_a_addr} spi 0x1001 proto esp aead "rfc4106(gcm(aes))" 0x0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f 128 mode tunnel
 	${ns_b} ip -6 xfrm policy add dir out mark 10 tmpl src ${veth6_b_addr} dst ${veth6_a_addr} proto esp mode tunnel
 	${ns_b} ip -6 xfrm policy add dir in mark 10 tmpl src ${veth6_a_addr} dst ${veth6_b_addr} proto esp mode tunnel
-
-	return 1
 }
 
 setup() {
@@ -79,13 +71,13 @@ setup() {
 
 	[ "$(id -u)" -ne 0 ] && echo "SKIP: need to run as root" && exit 0
 
-	setup_namespaces && echo "SKIP: namespaces not supported" && exit 0
-	setup_veth && echo "SKIP: veth not supported" && exit 0
+	setup_namespaces || { echo "SKIP: namespaces not supported"; exit 0; }
+	setup_veth || { echo "SKIP: veth not supported"; exit 0; }
 
 	case ${tunnel_type} in
 	"vti6")
-		setup_vti6 && echo "SKIP: vti6 not supported" && exit 0
-		setup_xfrm && echo "SKIP: xfrm not supported" && exit 0
+		setup_vti6 || { echo "SKIP: vti6 not supported"; exit 0; }
+		setup_xfrm || { echo "SKIP: xfrm not supported"; exit 0; }
 		;;
 	*)
 		;;
