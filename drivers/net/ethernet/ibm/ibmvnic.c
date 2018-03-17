@@ -608,25 +608,30 @@ static void release_vpd_data(struct ibmvnic_adapter *adapter)
 	adapter->vpd = NULL;
 }
 
+static void release_one_tx_pool(struct ibmvnic_adapter *adapter,
+				struct ibmvnic_tx_pool *tx_pool)
+{
+	kfree(tx_pool->tx_buff);
+	kfree(tx_pool->free_map);
+	free_long_term_buff(adapter, &tx_pool->long_term_buff);
+}
+
 static void release_tx_pools(struct ibmvnic_adapter *adapter)
 {
-	struct ibmvnic_tx_pool *tx_pool;
 	int i;
 
 	if (!adapter->tx_pool)
 		return;
 
 	for (i = 0; i < adapter->num_active_tx_pools; i++) {
-		netdev_dbg(adapter->netdev, "Releasing tx_pool[%d]\n", i);
-		tx_pool = &adapter->tx_pool[i];
-		kfree(tx_pool->tx_buff);
-		free_long_term_buff(adapter, &tx_pool->long_term_buff);
-		free_long_term_buff(adapter, &tx_pool->tso_ltb);
-		kfree(tx_pool->free_map);
+		release_one_tx_pool(adapter, &adapter->tx_pool[i]);
+		release_one_tx_pool(adapter, &adapter->tso_pool[i]);
 	}
 
 	kfree(adapter->tx_pool);
 	adapter->tx_pool = NULL;
+	kfree(adapter->tso_pool);
+	adapter->tso_pool = NULL;
 	adapter->num_active_tx_pools = 0;
 }
 
