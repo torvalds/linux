@@ -1377,9 +1377,9 @@ SYSCALL_DEFINE3(set_mempolicy, int, mode, const unsigned long __user *, nmask,
 	return do_set_mempolicy(mode, flags, &nodes);
 }
 
-SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
-		const unsigned long __user *, old_nodes,
-		const unsigned long __user *, new_nodes)
+static int kernel_migrate_pages(pid_t pid, unsigned long maxnode,
+				const unsigned long __user *old_nodes,
+				const unsigned long __user *new_nodes)
 {
 	struct mm_struct *mm = NULL;
 	struct task_struct *task;
@@ -1467,6 +1467,13 @@ out_put:
 	put_task_struct(task);
 	goto out;
 
+}
+
+SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
+		const unsigned long __user *, old_nodes,
+		const unsigned long __user *, new_nodes)
+{
+	return kernel_migrate_pages(pid, maxnode, old_nodes, new_nodes);
 }
 
 
@@ -1571,7 +1578,40 @@ COMPAT_SYSCALL_DEFINE6(mbind, compat_ulong_t, start, compat_ulong_t, len,
 	return sys_mbind(start, len, mode, nm, nr_bits+1, flags);
 }
 
-#endif
+COMPAT_SYSCALL_DEFINE4(migrate_pages, compat_pid_t, pid,
+		       compat_ulong_t, maxnode,
+		       const compat_ulong_t __user *, old_nodes,
+		       const compat_ulong_t __user *, new_nodes)
+{
+	unsigned long __user *old = NULL;
+	unsigned long __user *new = NULL;
+	nodemask_t tmp_mask;
+	unsigned long nr_bits;
+	unsigned long size;
+
+	nr_bits = min_t(unsigned long, maxnode - 1, MAX_NUMNODES);
+	size = ALIGN(nr_bits, BITS_PER_LONG) / 8;
+	if (old_nodes) {
+		if (compat_get_bitmap(nodes_addr(tmp_mask), old_nodes, nr_bits))
+			return -EFAULT;
+		old = compat_alloc_user_space(new_nodes ? size * 2 : size);
+		if (new_nodes)
+			new = old + size / sizeof(unsigned long);
+		if (copy_to_user(old, nodes_addr(tmp_mask), size))
+			return -EFAULT;
+	}
+	if (new_nodes) {
+		if (compat_get_bitmap(nodes_addr(tmp_mask), new_nodes, nr_bits))
+			return -EFAULT;
+		if (new == NULL)
+			new = compat_alloc_user_space(size);
+		if (copy_to_user(new, nodes_addr(tmp_mask), size))
+			return -EFAULT;
+	}
+	return kernel_migrate_pages(pid, nr_bits + 1, old, new);
+}
+
+#endif /* CONFIG_COMPAT */
 
 struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
 						unsigned long addr)
