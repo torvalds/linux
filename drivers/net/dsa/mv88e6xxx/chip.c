@@ -2293,12 +2293,19 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 	bus->write = mv88e6xxx_mdio_write;
 	bus->parent = chip->dev;
 
+	if (!external) {
+		err = mv88e6xxx_g2_irq_mdio_setup(chip, bus);
+		if (err)
+			return err;
+	}
+
 	if (np)
 		err = of_mdiobus_register(bus, np);
 	else
 		err = mdiobus_register(bus);
 	if (err) {
 		dev_err(chip->dev, "Cannot register MDIO bus (%d)\n", err);
+		mv88e6xxx_g2_irq_mdio_free(chip, bus);
 		return err;
 	}
 
@@ -2324,6 +2331,9 @@ static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
 
 	list_for_each_entry(mdio_bus, &chip->mdios, list) {
 		bus = mdio_bus->bus;
+
+		if (!mdio_bus->external)
+			mv88e6xxx_g2_irq_mdio_free(chip, bus);
 
 		mdiobus_unregister(bus);
 	}
