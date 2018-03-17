@@ -1307,8 +1307,8 @@ static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, bool fast, u64 param)
 
 int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 {
-	u64 param, ingpa, outgpa, ret;
-	uint16_t code, rep_idx, rep_cnt, res = HV_STATUS_SUCCESS, rep_done = 0;
+	u64 param, ingpa, outgpa, ret = HV_STATUS_SUCCESS;
+	uint16_t code, rep_idx, rep_cnt;
 	bool fast, longmode;
 
 	/*
@@ -1347,7 +1347,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 
 	/* Hypercall continuation is not supported yet */
 	if (rep_cnt || rep_idx) {
-		res = HV_STATUS_INVALID_HYPERCALL_CODE;
+		ret = HV_STATUS_INVALID_HYPERCALL_CODE;
 		goto set_result;
 	}
 
@@ -1356,14 +1356,14 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		kvm_vcpu_on_spin(vcpu, true);
 		break;
 	case HVCALL_SIGNAL_EVENT:
-		res = kvm_hvcall_signal_event(vcpu, fast, ingpa);
-		if (res != HV_STATUS_INVALID_PORT_ID)
+		ret = kvm_hvcall_signal_event(vcpu, fast, ingpa);
+		if (ret != HV_STATUS_INVALID_PORT_ID)
 			break;
 		/* maybe userspace knows this conn_id: fall through */
 	case HVCALL_POST_MESSAGE:
 		/* don't bother userspace if it has no way to handle it */
 		if (!vcpu_to_synic(vcpu)->active) {
-			res = HV_STATUS_INVALID_HYPERCALL_CODE;
+			ret = HV_STATUS_INVALID_HYPERCALL_CODE;
 			break;
 		}
 		vcpu->run->exit_reason = KVM_EXIT_HYPERV;
@@ -1375,12 +1375,11 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 				kvm_hv_hypercall_complete_userspace;
 		return 0;
 	default:
-		res = HV_STATUS_INVALID_HYPERCALL_CODE;
+		ret = HV_STATUS_INVALID_HYPERCALL_CODE;
 		break;
 	}
 
 set_result:
-	ret = res | (((u64)rep_done & 0xfff) << 32);
 	kvm_hv_hypercall_set_result(vcpu, ret);
 	return 1;
 }
