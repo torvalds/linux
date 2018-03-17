@@ -1,7 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 #
-# Check that route PMTU values match expectations
+# Check that route PMTU values match expectations, and that initial device MTU
+# values are assigned correctly
 #
 # Tests currently implemented:
 #
@@ -11,19 +12,32 @@
 #	created by exceeding link layer MTU with ping to other endpoint. Then
 #	decrease and increase MTU of tunnel, checking that route exception PMTU
 #	changes accordingly
+#
+# - pmtu_vti4_default_mtu
+#	Set up vti4 tunnel on top of veth, in two namespaces with matching
+#	endpoints. Check that MTU assigned to vti interface is the MTU of the
+#	lower layer (veth) minus additional lower layer headers (zero, for veth)
+#	minus IPv4 header length
 
 tests="
-	pmtu_vti6_exception	vti6: PMTU exceptions"
+	pmtu_vti6_exception	vti6: PMTU exceptions
+	pmtu_vti4_default_mtu	vti4: default MTU assignment"
 
 NS_A="ns-$(mktemp -u XXXXXX)"
 NS_B="ns-$(mktemp -u XXXXXX)"
 ns_a="ip netns exec ${NS_A}"
 ns_b="ip netns exec ${NS_B}"
 
+veth4_a_addr="192.168.1.1"
+veth4_b_addr="192.168.1.2"
+veth4_mask="24"
 veth6_a_addr="fd00:1::a"
 veth6_b_addr="fd00:1::b"
 veth6_mask="64"
 
+vti4_a_addr="192.168.2.1"
+vti4_b_addr="192.168.2.2"
+vti4_mask="24"
 vti6_a_addr="fd00:2::a"
 vti6_b_addr="fd00:2::b"
 vti6_mask="64"
@@ -50,6 +64,9 @@ setup_veth() {
 	${ns_a} ip link add veth_a type veth peer name veth_b || return 1
 	${ns_a} ip link set veth_b netns ${NS_B}
 
+	${ns_a} ip addr add ${veth4_a_addr}/${veth4_mask} dev veth_a
+	${ns_b} ip addr add ${veth4_b_addr}/${veth4_mask} dev veth_b
+
 	${ns_a} ip addr add ${veth6_a_addr}/${veth6_mask} dev veth_a
 	${ns_b} ip addr add ${veth6_b_addr}/${veth6_mask} dev veth_b
 
@@ -57,17 +74,34 @@ setup_veth() {
 	${ns_b} ip link set veth_b up
 }
 
-setup_vti6() {
-	${ns_a} ip link add vti_a type vti6 local ${veth6_a_addr} remote ${veth6_b_addr} key 10 || return 1
-	${ns_b} ip link add vti_b type vti6 local ${veth6_b_addr} remote ${veth6_a_addr} key 10
+setup_vti() {
+	proto=${1}
+	veth_a_addr="${2}"
+	veth_b_addr="${3}"
+	vti_a_addr="${4}"
+	vti_b_addr="${5}"
+	vti_mask=${6}
 
-	${ns_a} ip addr add ${vti6_a_addr}/${vti6_mask} dev vti_a
-	${ns_b} ip addr add ${vti6_b_addr}/${vti6_mask} dev vti_b
+	[ ${proto} -eq 6 ] && vti_type="vti6" || vti_type="vti"
 
-	${ns_a} ip link set vti_a up
-	${ns_b} ip link set vti_b up
+	${ns_a} ip link add vti${proto}_a type ${vti_type} local ${veth_a_addr} remote ${veth_b_addr} key 10 || return 1
+	${ns_b} ip link add vti${proto}_b type ${vti_type} local ${veth_b_addr} remote ${veth_a_addr} key 10
+
+	${ns_a} ip addr add ${vti_a_addr}/${vti_mask} dev vti${proto}_a
+	${ns_b} ip addr add ${vti_b_addr}/${vti_mask} dev vti${proto}_b
+
+	${ns_a} ip link set vti${proto}_a up
+	${ns_b} ip link set vti${proto}_b up
 
 	sleep 1
+}
+
+setup_vti4() {
+	setup_vti 4 ${veth4_a_addr} ${veth4_b_addr} ${vti4_a_addr} ${vti4_b_addr} ${vti4_mask}
+}
+
+setup_vti6() {
+	setup_vti 6 ${veth6_a_addr} ${veth6_b_addr} ${vti6_a_addr} ${vti6_b_addr} ${vti6_mask}
 }
 
 setup_xfrm() {
@@ -116,6 +150,20 @@ mtu_parse() {
 	done
 }
 
+link_get() {
+	ns_cmd="${1}"
+	name="${2}"
+
+	${ns_cmd} ip link show dev "${name}"
+}
+
+link_get_mtu() {
+	ns_cmd="${1}"
+	name="${2}"
+
+	mtu_parse "$(link_get "${ns_cmd}" ${name})"
+}
+
 route_get_dst_exception() {
 	ns_cmd="${1}"
 	dst="${2}"
@@ -137,8 +185,8 @@ test_pmtu_vti6_exception() {
 	# Create route exception by exceeding link layer MTU
 	mtu "${ns_a}" veth_a 4000
 	mtu "${ns_b}" veth_b 4000
-	mtu "${ns_a}" vti_a 5000
-	mtu "${ns_b}" vti_b 5000
+	mtu "${ns_a}" vti6_a 5000
+	mtu "${ns_b}" vti6_b 5000
 	${ns_a} ping6 -q -i 0.1 -w 2 -s 60000 ${vti6_b_addr} > /dev/null
 
 	# Check that exception was created
@@ -148,7 +196,7 @@ test_pmtu_vti6_exception() {
 	fi
 
 	# Decrease tunnel MTU, check for PMTU decrease in route exception
-	mtu "${ns_a}" vti_a 3000
+	mtu "${ns_a}" vti6_a 3000
 
 	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" -ne 3000 ]; then
 		err "  decreasing tunnel MTU didn't decrease route exception PMTU"
@@ -156,13 +204,25 @@ test_pmtu_vti6_exception() {
 	fi
 
 	# Increase tunnel MTU, check for PMTU increase in route exception
-	mtu "${ns_a}" vti_a 9000
+	mtu "${ns_a}" vti6_a 9000
 	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" -ne 9000 ]; then
 		err "  increasing tunnel MTU didn't increase route exception PMTU"
 		fail=1
 	fi
 
 	return ${fail}
+}
+
+test_pmtu_vti4_default_mtu() {
+	setup namespaces veth vti4 || return 2
+
+	# Check that MTU of vti device is MTU of veth minus IPv4 header length
+	veth_mtu="$(link_get_mtu "${ns_a}" veth_a)"
+	vti4_mtu="$(link_get_mtu "${ns_a}" vti4_a)"
+	if [ $((veth_mtu - vti4_mtu)) -ne 20 ]; then
+		err "  vti MTU ${vti4_mtu} is not veth MTU ${veth_mtu} minus IPv4 header length"
+		return 1
+	fi
 }
 
 trap cleanup EXIT
