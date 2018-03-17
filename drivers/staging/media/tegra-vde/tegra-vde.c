@@ -440,7 +440,7 @@ static int tegra_vde_setup_hw_context(struct tegra_vde *vde,
 	VDE_WR(value, vde->sxe + 0x4C);
 
 	value = 0x03800000;
-	value |= min_t(size_t, bitstream_data_size, SZ_1M);
+	value |= bitstream_data_size & GENMASK(19, 15);
 
 	VDE_WR(value, vde->sxe + 0x68);
 
@@ -522,7 +522,8 @@ static void tegra_vde_detach_and_put_dmabuf(struct dma_buf_attachment *a,
 static int tegra_vde_attach_dmabuf(struct device *dev,
 				   int fd,
 				   unsigned long offset,
-				   unsigned int min_size,
+				   size_t min_size,
+				   size_t align_size,
 				   struct dma_buf_attachment **a,
 				   dma_addr_t *addr,
 				   struct sg_table **s,
@@ -540,9 +541,16 @@ static int tegra_vde_attach_dmabuf(struct device *dev,
 		return PTR_ERR(dmabuf);
 	}
 
+	if (dmabuf->size & (align_size - 1)) {
+		dev_err(dev, "Unaligned dmabuf 0x%zX, "
+			     "should be aligned to 0x%zX\n",
+			dmabuf->size, align_size);
+		return -EINVAL;
+	}
+
 	if ((u64)offset + min_size > dmabuf->size) {
 		dev_err(dev, "Too small dmabuf size %zu @0x%lX, "
-			     "should be at least %d\n",
+			     "should be at least %zu\n",
 			dmabuf->size, offset, min_size);
 		return -EINVAL;
 	}
@@ -596,7 +604,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 	int err;
 
 	err = tegra_vde_attach_dmabuf(dev, src->y_fd,
-				      src->y_offset, csize * 4,
+				      src->y_offset, csize * 4, SZ_256,
 				      &frame->y_dmabuf_attachment,
 				      &frame->y_addr,
 				      &frame->y_sgt,
@@ -605,7 +613,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 		return err;
 
 	err = tegra_vde_attach_dmabuf(dev, src->cb_fd,
-				      src->cb_offset, csize,
+				      src->cb_offset, csize, SZ_256,
 				      &frame->cb_dmabuf_attachment,
 				      &frame->cb_addr,
 				      &frame->cb_sgt,
@@ -614,7 +622,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 		goto err_release_y;
 
 	err = tegra_vde_attach_dmabuf(dev, src->cr_fd,
-				      src->cr_offset, csize,
+				      src->cr_offset, csize, SZ_256,
 				      &frame->cr_dmabuf_attachment,
 				      &frame->cr_addr,
 				      &frame->cr_sgt,
@@ -628,7 +636,7 @@ static int tegra_vde_attach_dmabufs_to_frame(struct device *dev,
 	}
 
 	err = tegra_vde_attach_dmabuf(dev, src->aux_fd,
-				      src->aux_offset, csize,
+				      src->aux_offset, csize, SZ_256,
 				      &frame->aux_dmabuf_attachment,
 				      &frame->aux_addr,
 				      &frame->aux_sgt,
@@ -674,21 +682,6 @@ static int tegra_vde_validate_frame(struct device *dev,
 {
 	if (frame->frame_num > 0x7FFFFF) {
 		dev_err(dev, "Bad frame_num %u\n", frame->frame_num);
-		return -EINVAL;
-	}
-
-	if (frame->y_offset & 0xFF) {
-		dev_err(dev, "Bad y_offset 0x%X\n", frame->y_offset);
-		return -EINVAL;
-	}
-
-	if (frame->cb_offset & 0xFF) {
-		dev_err(dev, "Bad cb_offset 0x%X\n", frame->cb_offset);
-		return -EINVAL;
-	}
-
-	if (frame->cr_offset & 0xFF) {
-		dev_err(dev, "Bad cr_offset 0x%X\n", frame->cr_offset);
 		return -EINVAL;
 	}
 
@@ -792,7 +785,8 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 		return ret;
 
 	ret = tegra_vde_attach_dmabuf(dev, ctx.bitstream_data_fd,
-				      ctx.bitstream_data_offset, 0,
+				      ctx.bitstream_data_offset,
+				      SZ_16K, SZ_16K,
 				      &bitstream_data_dmabuf_attachment,
 				      &bitstream_data_addr,
 				      &bitstream_sgt,
