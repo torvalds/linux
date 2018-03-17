@@ -103,7 +103,8 @@ static void tcf_sample_cleanup(struct tc_action *a)
 
 	psample_group = rtnl_dereference(s->psample_group);
 	RCU_INIT_POINTER(s->psample_group, NULL);
-	psample_group_put(psample_group);
+	if (psample_group)
+		psample_group_put(psample_group);
 }
 
 static bool tcf_sample_dev_ok_push(struct net_device *dev)
