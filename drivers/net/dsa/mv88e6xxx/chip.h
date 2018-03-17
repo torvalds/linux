@@ -110,6 +110,7 @@ struct mv88e6xxx_info {
 	const char *name;
 	unsigned int num_databases;
 	unsigned int num_ports;
+	unsigned int num_internal_phys;
 	unsigned int num_gpio;
 	unsigned int max_vid;
 	unsigned int port_base_addr;
