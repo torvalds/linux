@@ -644,7 +644,7 @@ static int tipc_bind(struct socket *sock, struct sockaddr *uaddr,
 		goto exit;
 	}
 
-	res = (addr->scope > 0) ?
+	res = (addr->scope >= 0) ?
 		tipc_sk_publish(tsk, addr->scope, &addr->addr.nameseq) :
 		tipc_sk_withdraw(tsk, -addr->scope, &addr->addr.nameseq);
 exit:
@@ -1280,8 +1280,8 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	struct tipc_msg *hdr = &tsk->phdr;
 	struct tipc_name_seq *seq;
 	struct sk_buff_head pkts;
-	u32 type, inst, domain;
 	u32 dnode, dport;
+	u32 type, inst;
 	int mtu, rc;
 
 	if (unlikely(dlen > TIPC_MAX_USER_MSG_SIZE))
@@ -1332,13 +1332,12 @@ static int __tipc_sendmsg(struct socket *sock, struct msghdr *m, size_t dlen)
 	if (dest->addrtype == TIPC_ADDR_NAME) {
 		type = dest->addr.name.name.type;
 		inst = dest->addr.name.name.instance;
-		domain = dest->addr.name.domain;
-		dnode = domain;
+		dnode = dest->addr.name.domain;
 		msg_set_type(hdr, TIPC_NAMED_MSG);
 		msg_set_hdr_sz(hdr, NAMED_H_SIZE);
 		msg_set_nametype(hdr, type);
 		msg_set_nameinst(hdr, inst);
-		msg_set_lookup_scope(hdr, tipc_addr_scope(domain));
+		msg_set_lookup_scope(hdr, tipc_node2scope(dnode));
 		dport = tipc_nametbl_translate(net, type, inst, &dnode);
 		msg_set_destnode(hdr, dnode);
 		msg_set_destport(hdr, dport);
@@ -2592,6 +2591,9 @@ static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 	struct publication *publ;
 	u32 key;
 
+	if (scope != TIPC_NODE_SCOPE)
+		scope = TIPC_CLUSTER_SCOPE;
+
 	if (tipc_sk_connected(sk))
 		return -EINVAL;
 	key = tsk->portid + tsk->pub_count + 1;
@@ -2603,7 +2605,7 @@ static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 	if (unlikely(!publ))
 		return -EINVAL;
 
-	list_add(&publ->pport_list, &tsk->publications);
+	list_add(&publ->binding_sock, &tsk->publications);
 	tsk->pub_count++;
 	tsk->published = 1;
 	return 0;
@@ -2617,7 +2619,10 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 	struct publication *safe;
 	int rc = -EINVAL;
 
-	list_for_each_entry_safe(publ, safe, &tsk->publications, pport_list) {
+	if (scope != TIPC_NODE_SCOPE)
+		scope = TIPC_CLUSTER_SCOPE;
+
+	list_for_each_entry_safe(publ, safe, &tsk->publications, binding_sock) {
 		if (seq) {
 			if (publ->scope != scope)
 				continue;
@@ -2628,12 +2633,12 @@ static int tipc_sk_withdraw(struct tipc_sock *tsk, uint scope,
 			if (publ->upper != seq->upper)
 				break;
 			tipc_nametbl_withdraw(net, publ->type, publ->lower,
-					      publ->ref, publ->key);
+					      publ->port, publ->key);
 			rc = 0;
 			break;
 		}
 		tipc_nametbl_withdraw(net, publ->type, publ->lower,
-				      publ->ref, publ->key);
+				      publ->port, publ->key);
 		rc = 0;
 	}
 	if (list_empty(&tsk->publications))
@@ -3287,7 +3292,7 @@ static int __tipc_nl_list_sk_publ(struct sk_buff *skb,
 	struct publication *p;
 
 	if (*last_publ) {
-		list_for_each_entry(p, &tsk->publications, pport_list) {
+		list_for_each_entry(p, &tsk->publications, binding_sock) {
 			if (p->key == *last_publ)
 				break;
 		}
@@ -3304,10 +3309,10 @@ static int __tipc_nl_list_sk_publ(struct sk_buff *skb,
 		}
 	} else {
 		p = list_first_entry(&tsk->publications, struct publication,
-				     pport_list);
+				     binding_sock);
 	}
 
-	list_for_each_entry_from(p, &tsk->publications, pport_list) {
+	list_for_each_entry_from(p, &tsk->publications, binding_sock) {
 		err = __tipc_nl_add_sk_publ(skb, cb, p);
 		if (err) {
 			*last_publ = p->key;

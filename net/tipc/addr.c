@@ -64,23 +64,6 @@ int in_own_node(struct net *net, u32 addr)
 }
 
 /**
- * addr_domain - convert 2-bit scope value to equivalent message lookup domain
- *
- * Needed when address of a named message must be looked up a second time
- * after a network hop.
- */
-u32 addr_domain(struct net *net, u32 sc)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-
-	if (likely(sc == TIPC_NODE_SCOPE))
-		return tn->own_addr;
-	if (sc == TIPC_CLUSTER_SCOPE)
-		return tipc_cluster_mask(tn->own_addr);
-	return tipc_zone_mask(tn->own_addr);
-}
-
-/**
  * tipc_addr_domain_valid - validates a network domain address
  *
  * Accepts <Z.C.N>, <Z.C.0>, <Z.0.0>, and <0.0.0>,
@@ -122,20 +105,6 @@ int tipc_in_scope(u32 domain, u32 addr)
 	if (domain == tipc_zone_mask(addr)) /* domain <Z.0.0> */
 		return 1;
 	return 0;
-}
-
-/**
- * tipc_addr_scope - convert message lookup domain to a 2-bit scope value
- */
-int tipc_addr_scope(u32 domain)
-{
-	if (likely(!domain))
-		return TIPC_ZONE_SCOPE;
-	if (tipc_node(domain))
-		return TIPC_NODE_SCOPE;
-	if (tipc_cluster(domain))
-		return TIPC_CLUSTER_SCOPE;
-	return TIPC_ZONE_SCOPE;
 }
 
 char *tipc_addr_string_fill(char *string, u32 addr)

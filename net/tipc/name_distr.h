@@ -63,7 +63,7 @@ struct distr_item {
 	__be32 type;
 	__be32 lower;
 	__be32 upper;
-	__be32 ref;
+	__be32 port;
 	__be32 key;
 };
 
