@@ -5,12 +5,15 @@
 #
 # Tests currently implemented:
 #
-# - test_pmtu_vti6_exception
+# - pmtu_vti6_exception
 #	Set up vti6 tunnel on top of veth, with xfrm states and policies, in two
 #	namespaces with matching endpoints. Check that route exception is
 #	created by exceeding link layer MTU with ping to other endpoint. Then
 #	decrease and increase MTU of tunnel, checking that route exception PMTU
 #	changes accordingly
+
+tests="
+	pmtu_vti6_exception	vti6: PMTU exceptions"
 
 NS_A="ns-$(mktemp -u XXXXXX)"
 NS_B="ns-$(mktemp -u XXXXXX)"
@@ -24,6 +27,19 @@ veth6_mask="64"
 vti6_a_addr="fd00:2::a"
 vti6_b_addr="fd00:2::b"
 vti6_mask="64"
+
+cleanup_done=1
+err_buf=
+
+err() {
+	err_buf="${err_buf}${1}
+"
+}
+
+err_flush() {
+	echo -n "${err_buf}"
+	err_buf=
+}
 
 setup_namespaces() {
 	ip netns add ${NS_A} || return 1
@@ -67,26 +83,19 @@ setup_xfrm() {
 }
 
 setup() {
-	tunnel_type="$1"
+	[ "$(id -u)" -ne 0 ] && echo "  need to run as root" && return 1
 
-	[ "$(id -u)" -ne 0 ] && echo "SKIP: need to run as root" && exit 0
-
-	setup_namespaces || { echo "SKIP: namespaces not supported"; exit 0; }
-	setup_veth || { echo "SKIP: veth not supported"; exit 0; }
-
-	case ${tunnel_type} in
-	"vti6")
-		setup_vti6 || { echo "SKIP: vti6 not supported"; exit 0; }
-		setup_xfrm || { echo "SKIP: xfrm not supported"; exit 0; }
-		;;
-	*)
-		;;
-	esac
+	cleanup_done=0
+	for arg do
+		eval setup_${arg} || { echo "  ${arg} not supported"; return 1; }
+	done
 }
 
 cleanup() {
+	[ ${cleanup_done} -eq 1 ] && return
 	ip netns del ${NS_A} 2 > /dev/null
 	ip netns del ${NS_B} 2 > /dev/null
+	cleanup_done=1
 }
 
 mtu() {
@@ -122,7 +131,8 @@ route_get_dst_pmtu_from_exception() {
 }
 
 test_pmtu_vti6_exception() {
-	setup vti6
+	setup namespaces veth vti6 xfrm || return 2
+	fail=0
 
 	# Create route exception by exceeding link layer MTU
 	mtu "${ns_a}" veth_a 4000
@@ -133,30 +143,55 @@ test_pmtu_vti6_exception() {
 
 	# Check that exception was created
 	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" = "" ]; then
-		echo "FAIL: Tunnel exceeding link layer MTU didn't create route exception"
-		exit 1
+		err "  tunnel exceeding link layer MTU didn't create route exception"
+		return 1
 	fi
 
 	# Decrease tunnel MTU, check for PMTU decrease in route exception
 	mtu "${ns_a}" vti_a 3000
 
 	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" -ne 3000 ]; then
-		echo "FAIL: Decreasing tunnel MTU didn't decrease route exception PMTU"
-		exit 1
+		err "  decreasing tunnel MTU didn't decrease route exception PMTU"
+		fail=1
 	fi
 
 	# Increase tunnel MTU, check for PMTU increase in route exception
 	mtu "${ns_a}" vti_a 9000
 	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" -ne 9000 ]; then
-		echo "FAIL: Increasing tunnel MTU didn't increase route exception PMTU"
-		exit 1
+		err "  increasing tunnel MTU didn't increase route exception PMTU"
+		fail=1
 	fi
 
-	echo "PASS"
+	return ${fail}
 }
 
 trap cleanup EXIT
 
-test_pmtu_vti6_exception
+exitcode=0
+desc=0
+IFS="	
+"
+for t in ${tests}; do
+	[ $desc -eq 0 ] && name="${t}" && desc=1 && continue || desc=0
 
-exit 0
+	(
+		unset IFS
+		eval test_${name}
+		ret=$?
+		cleanup
+
+		if [ $ret -eq 0 ]; then
+			printf "TEST: %-60s  [ OK ]\n" "${t}"
+		elif [ $ret -eq 1 ]; then
+			printf "TEST: %-60s  [FAIL]\n" "${t}"
+			err_flush
+			exit 1
+		elif [ $ret -eq 2 ]; then
+			printf "TEST: %-60s  [SKIP]\n" "${t}"
+			err_flush
+		fi
+	)
+	[ $? -ne 0 ] && exitcode=1
+done
+
+exit ${exitcode}
