@@ -1128,34 +1128,42 @@ static void clean_rx_pools(struct ibmvnic_adapter *adapter)
 	}
 }
 
-static void clean_tx_pools(struct ibmvnic_adapter *adapter)
+static void clean_one_tx_pool(struct ibmvnic_adapter *adapter,
+			      struct ibmvnic_tx_pool *tx_pool)
 {
-	struct ibmvnic_tx_pool *tx_pool;
 	struct ibmvnic_tx_buff *tx_buff;
 	u64 tx_entries;
-	int tx_scrqs;
-	int i, j;
+	int i;
 
-	if (!adapter->tx_pool)
+	if (!tx_pool && !tx_pool->tx_buff)
+		return;
+
+	tx_entries = tx_pool->num_buffers;
+
+	for (i = 0; i < tx_entries; i++) {
+		tx_buff = &tx_pool->tx_buff[i];
+		if (tx_buff && tx_buff->skb) {
+			dev_kfree_skb_any(tx_buff->skb);
+			tx_buff->skb = NULL;
+		}
+	}
+}
+
+static void clean_tx_pools(struct ibmvnic_adapter *adapter)
+{
+	int tx_scrqs;
+	int i;
+
+	if (!adapter->tx_pool || !adapter->tso_pool)
 		return;
 
 	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
-	tx_entries = adapter->req_tx_entries_per_subcrq;
 
 	/* Free any remaining skbs in the tx buffer pools */
 	for (i = 0; i < tx_scrqs; i++) {
-		tx_pool = &adapter->tx_pool[i];
-		if (!tx_pool && !tx_pool->tx_buff)
-			continue;
-
 		netdev_dbg(adapter->netdev, "Cleaning tx_pool[%d]\n", i);
-		for (j = 0; j < tx_entries; j++) {
-			tx_buff = &tx_pool->tx_buff[j];
-			if (tx_buff && tx_buff->skb) {
-				dev_kfree_skb_any(tx_buff->skb);
-				tx_buff->skb = NULL;
-			}
-		}
+		clean_one_tx_pool(adapter, &adapter->tx_pool[i]);
+		clean_one_tx_pool(adapter, &adapter->tso_pool[i]);
 	}
 }
 
