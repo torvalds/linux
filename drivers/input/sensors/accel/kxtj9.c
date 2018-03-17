@@ -33,7 +33,7 @@
 
 
 #define KXTJ9_DEVID	0x09	//chip id
-#define KXTJ9_RANGE	2000000
+#define KXTJ9_RANGE	(2 * 16384)
 
 #define KXTJ9_XOUT_HPF_L                (0x00)	/* 0000 0000 */
 #define KXTJ9_XOUT_HPF_H                (0x01)	/* 0000 0001 */
@@ -186,16 +186,16 @@ static int sensor_init(struct i2c_client *client)
 	return result;
 }
 
-static int sensor_convert_data(struct i2c_client *client, char high_byte, char low_byte)
+static short sensor_convert_data(struct i2c_client *client, char high_byte, char low_byte)
 {
-    s64 result;
+	short result;
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	//int precision = sensor->ops->precision;
 	switch (sensor->devid) {	
 		case KXTJ9_DEVID:		
-			result = (((int)high_byte << 8) | ((int)low_byte ))>>4;
-			result *= 16;
+			result = (((short)high_byte << 8) | ((short)low_byte)) >> 4;
+			result *= KXTJ9_GRAVITY_STEP;
 			break;
 
 		default:
@@ -203,7 +203,7 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 			return -EFAULT;
     }
 
-    return (int)result;
+	return result;
 }
 
 static int gsensor_report_value(struct i2c_client *client, struct sensor_axis *axis)
@@ -229,7 +229,7 @@ static int sensor_report_value(struct i2c_client *client)
 			(struct sensor_private_data *) i2c_get_clientdata(client);	
     	struct sensor_platform_data *pdata = sensor->pdata;
 	int ret = 0;
-	int x,y,z;
+	short x, y, z;
 	struct sensor_axis axis;	
 	char buffer[6] = {0};	
 	char value = 0;
