@@ -98,15 +98,17 @@ mtu() {
 }
 
 route_get_dst_exception() {
-	dst="${1}"
+	ns_cmd="${1}"
+	dst="${2}"
 
-	${ns_a} ip route get "${dst}"
+	${ns_cmd} ip route get "${dst}"
 }
 
 route_get_dst_pmtu_from_exception() {
-	dst="${1}"
+	ns_cmd="${1}"
+	dst="${2}"
 
-	exception="$(route_get_dst_exception ${dst})"
+	exception="$(route_get_dst_exception "${ns_cmd}" ${dst})"
 	next=0
 	for i in ${exception}; do
 		[ ${next} -eq 1 ] && echo "${i}" && return
@@ -125,7 +127,7 @@ test_pmtu_vti6_exception() {
 	${ns_a} ping6 -q -i 0.1 -w 2 -s 60000 ${vti6_b_addr} > /dev/null
 
 	# Check that exception was created
-	if [ "$(route_get_dst_pmtu_from_exception ${vti6_b_addr})" = "" ]; then
+	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" = "" ]; then
 		echo "FAIL: Tunnel exceeding link layer MTU didn't create route exception"
 		exit 1
 	fi
@@ -133,14 +135,14 @@ test_pmtu_vti6_exception() {
 	# Decrease tunnel MTU, check for PMTU decrease in route exception
 	mtu "${ns_a}" vti_a 3000
 
-	if [ "$(route_get_dst_pmtu_from_exception ${vti6_b_addr})" -ne 3000 ]; then
+	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" -ne 3000 ]; then
 		echo "FAIL: Decreasing tunnel MTU didn't decrease route exception PMTU"
 		exit 1
 	fi
 
 	# Increase tunnel MTU, check for PMTU increase in route exception
 	mtu "${ns_a}" vti_a 9000
-	if [ "$(route_get_dst_pmtu_from_exception ${vti6_b_addr})" -ne 9000 ]; then
+	if [ "$(route_get_dst_pmtu_from_exception "${ns_a}" ${vti6_b_addr})" -ne 9000 ]; then
 		echo "FAIL: Increasing tunnel MTU didn't increase route exception PMTU"
 		exit 1
 	fi
