@@ -935,6 +935,9 @@ static irqreturn_t tegra_vde_isr(int irq, void *data)
 {
 	struct tegra_vde *vde = data;
 
+	if (completion_done(&vde->decode_completion))
+		return IRQ_NONE;
+
 	tegra_vde_set_bits(vde, 0, vde->frameid + 0x208);
 	complete(&vde->decode_completion);
 
