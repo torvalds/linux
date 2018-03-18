@@ -60,6 +60,7 @@ int txmsg_noisy;
 int txmsg_redir;
 int txmsg_redir_noisy;
 int txmsg_apply;
+int txmsg_cork;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -75,6 +76,7 @@ static const struct option long_options[] = {
 	{"txmsg_redir",		no_argument,	&txmsg_redir, 1  },
 	{"txmsg_redir_noisy",	no_argument,	&txmsg_redir_noisy, 1},
 	{"txmsg_apply",	required_argument,	NULL, 'a'},
+	{"txmsg_cork",	required_argument,	NULL, 'k'},
 	{0, 0, NULL, 0 }
 };
 
@@ -551,6 +553,9 @@ int main(int argc, char **argv)
 		case 'a':
 			txmsg_apply = atoi(optarg);
 			break;
+		case 'k':
+			txmsg_cork = atoi(optarg);
+			break;
 		case 'c':
 			cg_fd = open(optarg, O_DIRECTORY, O_RDONLY);
 			if (cg_fd < 0) {
@@ -671,6 +676,8 @@ run:
 		tx_prog_fd = prog_fd[6];
 	else if (txmsg_apply)
 		tx_prog_fd = prog_fd[7];
+	else if (txmsg_cork)
+		tx_prog_fd = prog_fd[8];
 	else
 		tx_prog_fd = 0;
 
@@ -716,6 +723,18 @@ run:
 				return err;
 			}
 		}
+
+		if (txmsg_cork) {
+			err = bpf_map_update_elem(map_fd[4],
+						  &i, &txmsg_cork, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (cork_bytes):  %d (%s\n",
+					err, strerror(errno));
+				return err;
+			}
+		}
+
 	}
 	if (test == PING_PONG)
 		err = forever_ping_pong(rate, &options);

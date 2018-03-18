@@ -90,6 +90,8 @@ static int (*bpf_msg_redirect_map)(void *ctx, void *map, int key, int flags) =
 	(void *) BPF_FUNC_msg_redirect_map;
 static int (*bpf_msg_apply_bytes)(void *ctx, int len) =
 	(void *) BPF_FUNC_msg_apply_bytes;
+static int (*bpf_msg_cork_bytes)(void *ctx, int len) =
+	(void *) BPF_FUNC_msg_cork_bytes;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
