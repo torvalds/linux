@@ -72,6 +72,11 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 		dest[i].vport.num = attr->out_rep->vport;
+		if (MLX5_CAP_ESW(esw->dev, merged_eswitch)) {
+			dest[i].vport.vhca_id =
+				MLX5_CAP_GEN(attr->out_mdev, vhca_id);
+			dest[i].vport.vhca_id_valid = 1;
+		}
 		i++;
 	}
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
