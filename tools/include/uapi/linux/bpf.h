@@ -133,6 +133,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_SOCK_OPS,
 	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_CGROUP_DEVICE,
+	BPF_PROG_TYPE_SK_MSG,
 };
 
 enum bpf_attach_type {
@@ -143,6 +144,7 @@ enum bpf_attach_type {
 	BPF_SK_SKB_STREAM_PARSER,
 	BPF_SK_SKB_STREAM_VERDICT,
 	BPF_CGROUP_DEVICE,
+	BPF_SK_MSG_VERDICT,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -939,6 +941,14 @@ struct xdp_md {
 enum sk_action {
 	SK_DROP = 0,
 	SK_PASS,
+};
+
+/* user accessible metadata for SK_MSG packet hook, new fields must
+ * be added to the end of this structure
+ */
+struct sk_msg_md {
+	void *data;
+	void *data_end;
 };
 
 #define BPF_TAG_SIZE	8
