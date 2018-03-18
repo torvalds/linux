@@ -86,6 +86,9 @@ static int (*bpf_perf_prog_read_value)(void *ctx, void *buf,
 	(void *) BPF_FUNC_perf_prog_read_value;
 static int (*bpf_override_return)(void *ctx, unsigned long rc) =
 	(void *) BPF_FUNC_override_return;
+static int (*bpf_msg_redirect_map)(void *ctx, void *map, int key, int flags) =
+	(void *) BPF_FUNC_msg_redirect_map;
+
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions

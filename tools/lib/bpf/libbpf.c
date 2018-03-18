@@ -1857,6 +1857,7 @@ static const struct {
 	BPF_PROG_SEC("lwt_xmit",	BPF_PROG_TYPE_LWT_XMIT),
 	BPF_PROG_SEC("sockops",		BPF_PROG_TYPE_SOCK_OPS),
 	BPF_PROG_SEC("sk_skb",		BPF_PROG_TYPE_SK_SKB),
+	BPF_PROG_SEC("sk_msg",		BPF_PROG_TYPE_SK_MSG),
 };
 #undef BPF_PROG_SEC
 

@@ -43,6 +43,20 @@ struct bpf_map_def SEC("maps") sock_map = {
 	.max_entries = 20,
 };
 
+struct bpf_map_def SEC("maps") sock_map_txmsg = {
+	.type = BPF_MAP_TYPE_SOCKMAP,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 20,
+};
+
+struct bpf_map_def SEC("maps") sock_map_redir = {
+	.type = BPF_MAP_TYPE_SOCKMAP,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 1,
+};
+
 SEC("sk_skb1")
 int bpf_prog1(struct __sk_buff *skb)
 {
@@ -105,4 +119,42 @@ int bpf_sockmap(struct bpf_sock_ops *skops)
 
 	return 0;
 }
+
+SEC("sk_msg1")
+int bpf_prog4(struct sk_msg_md *msg)
+{
+	return SK_PASS;
+}
+
+SEC("sk_msg2")
+int bpf_prog5(struct sk_msg_md *msg)
+{
+	void *data_end = (void *)(long) msg->data_end;
+	void *data = (void *)(long) msg->data;
+
+	bpf_printk("sk_msg2: data length %i\n", (__u32)data_end - (__u32)data);
+	return SK_PASS;
+}
+
+SEC("sk_msg3")
+int bpf_prog6(struct sk_msg_md *msg)
+{
+	void *data_end = (void *)(long) msg->data_end;
+	void *data = (void *)(long) msg->data;
+	int ret = 0;
+
+	return bpf_msg_redirect_map(msg, &sock_map_redir, ret, 0);
+}
+
+SEC("sk_msg4")
+int bpf_prog7(struct sk_msg_md *msg)
+{
+	void *data_end = (void *)(long) msg->data_end;
+	void *data = (void *)(long) msg->data;
+	int ret = 0;
+
+	bpf_printk("sk_msg3: redirect(%iB)\n", (__u32)data_end - (__u32)data);
+	return bpf_msg_redirect_map(msg, &sock_map_redir, ret, 0);
+}
+
 char _license[] SEC("license") = "GPL";

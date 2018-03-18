@@ -54,6 +54,11 @@ void running_handler(int a);
 /* global sockets */
 int s1, s2, c1, c2, p1, p2;
 
+int txmsg_pass;
+int txmsg_noisy;
+int txmsg_redir;
+int txmsg_redir_noisy;
+
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
 	{"cgroup",	required_argument,	NULL, 'c' },
@@ -62,6 +67,10 @@ static const struct option long_options[] = {
 	{"iov_count",	required_argument,	NULL, 'i' },
 	{"length",	required_argument,	NULL, 'l' },
 	{"test",	required_argument,	NULL, 't' },
+	{"txmsg",		no_argument,		&txmsg_pass,  1  },
+	{"txmsg_noisy",		no_argument,		&txmsg_noisy, 1  },
+	{"txmsg_redir",		no_argument,		&txmsg_redir, 1  },
+	{"txmsg_redir_noisy",	no_argument,		&txmsg_redir_noisy, 1},
 	{0, 0, NULL, 0 }
 };
 
@@ -447,13 +456,13 @@ enum {
 
 int main(int argc, char **argv)
 {
-	int iov_count = 1, length = 1024, rate = 1, verbose = 0;
+	int iov_count = 1, length = 1024, rate = 1, verbose = 0, tx_prog_fd;
 	struct rlimit r = {10 * 1024 * 1024, RLIM_INFINITY};
 	int opt, longindex, err, cg_fd = 0;
 	int test = PING_PONG;
 	char filename[256];
 
-	while ((opt = getopt_long(argc, argv, "hvc:r:i:l:t:",
+	while ((opt = getopt_long(argc, argv, ":hvc:r:i:l:t:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
 		/* Cgroup configuration */
@@ -490,6 +499,8 @@ int main(int argc, char **argv)
 				return -1;
 			}
 			break;
+		case 0:
+			break;
 		case 'h':
 		default:
 			usage(argv);
@@ -515,15 +526,15 @@ int main(int argc, char **argv)
 	/* catch SIGINT */
 	signal(SIGINT, running_handler);
 
-	/* If base test skip BPF setup */
-	if (test == BASE)
-		goto run;
-
 	if (load_bpf_file(filename)) {
 		fprintf(stderr, "load_bpf_file: (%s) %s\n",
 			filename, strerror(errno));
 		return 1;
 	}
+
+	/* If base test skip BPF setup */
+	if (test == BASE)
+		goto run;
 
 	/* Attach programs to sockmap */
 	err = bpf_prog_attach(prog_fd[0], map_fd[0],
@@ -557,6 +568,50 @@ run:
 		goto out;
 	}
 
+	/* Attach txmsg program to sockmap */
+	if (txmsg_pass)
+		tx_prog_fd = prog_fd[3];
+	else if (txmsg_noisy)
+		tx_prog_fd = prog_fd[4];
+	else if (txmsg_redir)
+		tx_prog_fd = prog_fd[5];
+	else if (txmsg_redir_noisy)
+		tx_prog_fd = prog_fd[6];
+	else
+		tx_prog_fd = 0;
+
+	if (tx_prog_fd) {
+		int redir_fd, i = 0;
+
+		err = bpf_prog_attach(tx_prog_fd,
+				      map_fd[1], BPF_SK_MSG_VERDICT, 0);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_prog_attach (txmsg): %d (%s)\n",
+				err, strerror(errno));
+			return err;
+		}
+
+		err = bpf_map_update_elem(map_fd[1], &i, &c1, BPF_ANY);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_map_update_elem (txmsg):  %d (%s\n",
+				err, strerror(errno));
+			return err;
+		}
+		if (test == SENDMSG)
+			redir_fd = c2;
+		else
+			redir_fd = c1;
+
+		err = bpf_map_update_elem(map_fd[2], &i, &redir_fd, BPF_ANY);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_map_update_elem (txmsg):  %d (%s\n",
+				err, strerror(errno));
+			return err;
+		}
+	}
 	if (test == PING_PONG)
 		err = forever_ping_pong(rate, verbose);
 	else if (test == SENDMSG)
