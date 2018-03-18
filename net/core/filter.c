@@ -1890,6 +1890,44 @@ static const struct bpf_func_proto bpf_sk_redirect_map_proto = {
 	.arg4_type      = ARG_ANYTHING,
 };
 
+BPF_CALL_4(bpf_msg_redirect_map, struct sk_msg_buff *, msg,
+	   struct bpf_map *, map, u32, key, u64, flags)
+{
+	/* If user passes invalid input drop the packet. */
+	if (unlikely(flags))
+		return SK_DROP;
+
+	msg->key = key;
+	msg->flags = flags;
+	msg->map = map;
+
+	return SK_PASS;
+}
+
+struct sock *do_msg_redirect_map(struct sk_msg_buff *msg)
+{
+	struct sock *sk = NULL;
+
+	if (msg->map) {
+		sk = __sock_map_lookup_elem(msg->map, msg->key);
+
+		msg->key = 0;
+		msg->map = NULL;
+	}
+
+	return sk;
+}
+
+static const struct bpf_func_proto bpf_msg_redirect_map_proto = {
+	.func           = bpf_msg_redirect_map,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type      = ARG_CONST_MAP_PTR,
+	.arg3_type      = ARG_ANYTHING,
+	.arg4_type      = ARG_ANYTHING,
+};
+
 BPF_CALL_1(bpf_get_cgroup_classid, const struct sk_buff *, skb)
 {
 	return task_get_classid(skb);
@@ -3591,6 +3629,16 @@ static const struct bpf_func_proto *
 	}
 }
 
+static const struct bpf_func_proto *sk_msg_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_msg_redirect_map:
+		return &bpf_msg_redirect_map_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
 static const struct bpf_func_proto *sk_skb_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
@@ -3978,6 +4026,32 @@ static bool sk_skb_is_valid_access(int off, int size,
 	}
 
 	return bpf_skb_is_valid_access(off, size, type, info);
+}
+
+static bool sk_msg_is_valid_access(int off, int size,
+				   enum bpf_access_type type,
+				   struct bpf_insn_access_aux *info)
+{
+	if (type == BPF_WRITE)
+		return false;
+
+	switch (off) {
+	case offsetof(struct sk_msg_md, data):
+		info->reg_type = PTR_TO_PACKET;
+		break;
+	case offsetof(struct sk_msg_md, data_end):
+		info->reg_type = PTR_TO_PACKET_END;
+		break;
+	}
+
+	if (off < 0 || off >= sizeof(struct sk_msg_md))
+		return false;
+	if (off % size != 0)
+		return false;
+	if (size != sizeof(__u64))
+		return false;
+
+	return true;
 }
 
 static u32 bpf_convert_ctx_access(enum bpf_access_type type,
@@ -4778,6 +4852,29 @@ static u32 sk_skb_convert_ctx_access(enum bpf_access_type type,
 	return insn - insn_buf;
 }
 
+static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
+				     const struct bpf_insn *si,
+				     struct bpf_insn *insn_buf,
+				     struct bpf_prog *prog, u32 *target_size)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	switch (si->off) {
+	case offsetof(struct sk_msg_md, data):
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_msg_buff, data),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, data));
+		break;
+	case offsetof(struct sk_msg_md, data_end):
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_msg_buff, data_end),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, data_end));
+		break;
+	}
+
+	return insn - insn_buf;
+}
+
 const struct bpf_verifier_ops sk_filter_verifier_ops = {
 	.get_func_proto		= sk_filter_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
@@ -4866,6 +4963,15 @@ const struct bpf_verifier_ops sk_skb_verifier_ops = {
 };
 
 const struct bpf_prog_ops sk_skb_prog_ops = {
+};
+
+const struct bpf_verifier_ops sk_msg_verifier_ops = {
+	.get_func_proto		= sk_msg_func_proto,
+	.is_valid_access	= sk_msg_is_valid_access,
+	.convert_ctx_access	= sk_msg_convert_ctx_access,
+};
+
+const struct bpf_prog_ops sk_msg_prog_ops = {
 };
 
 int sk_detach_filter(struct sock *sk)
