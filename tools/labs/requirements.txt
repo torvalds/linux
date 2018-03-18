@@ -1,0 +1,3 @@
+Sphinx==1.6.7
+sphinx_rtd_theme
+hieroglyph==1.0

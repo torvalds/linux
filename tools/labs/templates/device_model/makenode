@@ -1,0 +1,8 @@
+#!/bin/sh
+device="echodev"
+major=42
+minor=0
+
+rm -f /dev/${device}
+mknod /dev/${device} c $major $minor
+
