@@ -94,13 +94,13 @@ config BATMAN_ADV_DEBUGFS
 	bool "batman-adv debugfs entries"
 	depends on BATMAN_ADV
 	depends on DEBUG_FS
-	default y
+	default n
 	help
 	  Enable this to export routing related debug tables via debugfs.
 	  The information for each soft-interface and used hard-interface can be
 	  found under batman_adv/
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config BATMAN_ADV_DEBUG
 	bool "B.A.T.M.A.N. debugging"
