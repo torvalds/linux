@@ -320,7 +320,6 @@ kvm_novcpu_exit:
 	stw	r12, STACK_SLOT_TRAP(r1)
 	bl	kvmhv_commence_exit
 	nop
-	lwz	r12, STACK_SLOT_TRAP(r1)
 	b	kvmhv_switch_to_host
 
 /*
@@ -1220,6 +1219,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 secondary_too_late:
 	li	r12, 0
+	stw	r12, STACK_SLOT_TRAP(r1)
 	cmpdi	r4, 0
 	beq	11f
 	stw	r12, VCPU_TRAP(r4)
@@ -1558,12 +1558,12 @@ mc_cont:
 3:	stw	r5,VCPU_SLB_MAX(r9)
 
 guest_bypass:
+	stw	r12, STACK_SLOT_TRAP(r1)
 	mr 	r3, r12
 	/* Increment exit count, poke other threads to exit */
 	bl	kvmhv_commence_exit
 	nop
 	ld	r9, HSTATE_KVM_VCPU(r13)
-	lwz	r12, VCPU_TRAP(r9)
 
 	/* Stop others sending VCPU interrupts to this physical CPU */
 	li	r0, -1
@@ -1898,6 +1898,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_POWER9_DD1)
 	 * POWER7/POWER8 guest -> host partition switch code.
 	 * We don't have to lock against tlbies but we do
 	 * have to coordinate the hardware threads.
+	 * Here STACK_SLOT_TRAP(r1) contains the trap number.
 	 */
 kvmhv_switch_to_host:
 	/* Secondary threads wait for primary to do partition switch */
@@ -1950,12 +1951,12 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 
 	/* If HMI, call kvmppc_realmode_hmi_handler() */
+	lwz	r12, STACK_SLOT_TRAP(r1)
 	cmpwi	r12, BOOK3S_INTERRUPT_HMI
 	bne	27f
 	bl	kvmppc_realmode_hmi_handler
 	nop
 	cmpdi	r3, 0
-	li	r12, BOOK3S_INTERRUPT_HMI
 	/*
 	 * At this point kvmppc_realmode_hmi_handler may have resync-ed
 	 * the TB, and if it has, we must not subtract the guest timebase
@@ -2008,10 +2009,8 @@ BEGIN_FTR_SECTION
 	lwz	r8, KVM_SPLIT_DO_RESTORE(r3)
 	cmpwi	r8, 0
 	beq	47f
-	stw	r12, STACK_SLOT_TRAP(r1)
 	bl	kvmhv_p9_restore_lpcr
 	nop
-	lwz	r12, STACK_SLOT_TRAP(r1)
 	b	48f
 47:
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
@@ -2049,6 +2048,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
 	li	r0, KVM_GUEST_MODE_NONE
 	stb	r0, HSTATE_IN_GUEST(r13)
 
+	lwz	r12, STACK_SLOT_TRAP(r1)	/* return trap # in r12 */
 	ld	r0, SFS+PPC_LR_STKOFF(r1)
 	addi	r1, r1, SFS
 	mtlr	r0
