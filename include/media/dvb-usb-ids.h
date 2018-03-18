@@ -418,6 +418,7 @@
 #define USB_PID_SVEON_STV27                             0xd3af
 #define USB_PID_TURBOX_DTT_2000                         0xd3a4
 #define USB_PID_WINTV_SOLOHD                            0x0264
+#define USB_PID_WINTV_SOLOHD_2                          0x8268
 #define USB_PID_EVOLVEO_XTRATV_STICK			0xa115
 #define USB_PID_HAMA_DVBT_HYBRID			0x2758
 #define USB_PID_XBOX_ONE_TUNER                          0x02d5
