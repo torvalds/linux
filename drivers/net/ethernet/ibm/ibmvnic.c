@@ -557,36 +557,41 @@ static int init_rx_pools(struct net_device *netdev)
 	return 0;
 }
 
+static int reset_one_tx_pool(struct ibmvnic_adapter *adapter,
+			     struct ibmvnic_tx_pool *tx_pool)
+{
+	int rc, i;
+
+	rc = reset_long_term_buff(adapter, &tx_pool->long_term_buff);
+	if (rc)
+		return rc;
+
+	memset(tx_pool->tx_buff, 0,
+	       tx_pool->num_buffers *
+	       sizeof(struct ibmvnic_tx_buff));
+
+	for (i = 0; i < tx_pool->num_buffers; i++)
+		tx_pool->free_map[i] = i;
+
+	tx_pool->consumer_index = 0;
+	tx_pool->producer_index = 0;
+
+	return 0;
+}
+
 static int reset_tx_pools(struct ibmvnic_adapter *adapter)
 {
-	struct ibmvnic_tx_pool *tx_pool;
 	int tx_scrqs;
-	int i, j, rc;
+	int i, rc;
 
 	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
 	for (i = 0; i < tx_scrqs; i++) {
-		netdev_dbg(adapter->netdev, "Re-setting tx_pool[%d]\n", i);
-
-		tx_pool = &adapter->tx_pool[i];
-
-		rc = reset_long_term_buff(adapter, &tx_pool->long_term_buff);
+		rc = reset_one_tx_pool(adapter, &adapter->tso_pool[i]);
 		if (rc)
 			return rc;
-
-		rc = reset_long_term_buff(adapter, &tx_pool->tso_ltb);
+		rc = reset_one_tx_pool(adapter, &adapter->tx_pool[i]);
 		if (rc)
 			return rc;
-
-		memset(tx_pool->tx_buff, 0,
-		       adapter->req_tx_entries_per_subcrq *
-		       sizeof(struct ibmvnic_tx_buff));
-
-		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
-			tx_pool->free_map[j] = j;
-
-		tx_pool->consumer_index = 0;
-		tx_pool->producer_index = 0;
-		tx_pool->tso_index = 0;
 	}
 
 	return 0;
@@ -603,35 +608,70 @@ static void release_vpd_data(struct ibmvnic_adapter *adapter)
 	adapter->vpd = NULL;
 }
 
+static void release_one_tx_pool(struct ibmvnic_adapter *adapter,
+				struct ibmvnic_tx_pool *tx_pool)
+{
+	kfree(tx_pool->tx_buff);
+	kfree(tx_pool->free_map);
+	free_long_term_buff(adapter, &tx_pool->long_term_buff);
+}
+
 static void release_tx_pools(struct ibmvnic_adapter *adapter)
 {
-	struct ibmvnic_tx_pool *tx_pool;
 	int i;
 
 	if (!adapter->tx_pool)
 		return;
 
 	for (i = 0; i < adapter->num_active_tx_pools; i++) {
-		netdev_dbg(adapter->netdev, "Releasing tx_pool[%d]\n", i);
-		tx_pool = &adapter->tx_pool[i];
-		kfree(tx_pool->tx_buff);
-		free_long_term_buff(adapter, &tx_pool->long_term_buff);
-		free_long_term_buff(adapter, &tx_pool->tso_ltb);
-		kfree(tx_pool->free_map);
+		release_one_tx_pool(adapter, &adapter->tx_pool[i]);
+		release_one_tx_pool(adapter, &adapter->tso_pool[i]);
 	}
 
 	kfree(adapter->tx_pool);
 	adapter->tx_pool = NULL;
+	kfree(adapter->tso_pool);
+	adapter->tso_pool = NULL;
 	adapter->num_active_tx_pools = 0;
+}
+
+static int init_one_tx_pool(struct net_device *netdev,
+			    struct ibmvnic_tx_pool *tx_pool,
+			    int num_entries, int buf_size)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+	int i;
+
+	tx_pool->tx_buff = kcalloc(num_entries,
+				   sizeof(struct ibmvnic_tx_buff),
+				   GFP_KERNEL);
+	if (!tx_pool->tx_buff)
+		return -1;
+
+	if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
+				 num_entries * buf_size))
+		return -1;
+
+	tx_pool->free_map = kcalloc(num_entries, sizeof(int), GFP_KERNEL);
+	if (!tx_pool->free_map)
+		return -1;
+
+	for (i = 0; i < num_entries; i++)
+		tx_pool->free_map[i] = i;
+
+	tx_pool->consumer_index = 0;
+	tx_pool->producer_index = 0;
+	tx_pool->num_buffers = num_entries;
+	tx_pool->buf_size = buf_size;
+
+	return 0;
 }
 
 static int init_tx_pools(struct net_device *netdev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	struct device *dev = &adapter->vdev->dev;
-	struct ibmvnic_tx_pool *tx_pool;
 	int tx_subcrqs;
-	int i, j;
+	int i, rc;
 
 	tx_subcrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
 	adapter->tx_pool = kcalloc(tx_subcrqs,
@@ -639,53 +679,29 @@ static int init_tx_pools(struct net_device *netdev)
 	if (!adapter->tx_pool)
 		return -1;
 
+	adapter->tso_pool = kcalloc(tx_subcrqs,
+				    sizeof(struct ibmvnic_tx_pool), GFP_KERNEL);
+	if (!adapter->tso_pool)
+		return -1;
+
 	adapter->num_active_tx_pools = tx_subcrqs;
 
 	for (i = 0; i < tx_subcrqs; i++) {
-		tx_pool = &adapter->tx_pool[i];
-
-		netdev_dbg(adapter->netdev,
-			   "Initializing tx_pool[%d], %lld buffs\n",
-			   i, adapter->req_tx_entries_per_subcrq);
-
-		tx_pool->tx_buff = kcalloc(adapter->req_tx_entries_per_subcrq,
-					   sizeof(struct ibmvnic_tx_buff),
-					   GFP_KERNEL);
-		if (!tx_pool->tx_buff) {
-			dev_err(dev, "tx pool buffer allocation failed\n");
+		rc = init_one_tx_pool(netdev, &adapter->tx_pool[i],
+				      adapter->req_tx_entries_per_subcrq,
+				      adapter->req_mtu + VLAN_HLEN);
+		if (rc) {
 			release_tx_pools(adapter);
-			return -1;
+			return rc;
 		}
 
-		if (alloc_long_term_buff(adapter, &tx_pool->long_term_buff,
-					 adapter->req_tx_entries_per_subcrq *
-					 (adapter->req_mtu + VLAN_HLEN))) {
+		init_one_tx_pool(netdev, &adapter->tso_pool[i],
+				 IBMVNIC_TSO_BUFS,
+				 IBMVNIC_TSO_BUF_SZ);
+		if (rc) {
 			release_tx_pools(adapter);
-			return -1;
+			return rc;
 		}
-
-		/* alloc TSO ltb */
-		if (alloc_long_term_buff(adapter, &tx_pool->tso_ltb,
-					 IBMVNIC_TSO_BUFS *
-					 IBMVNIC_TSO_BUF_SZ)) {
-			release_tx_pools(adapter);
-			return -1;
-		}
-
-		tx_pool->tso_index = 0;
-
-		tx_pool->free_map = kcalloc(adapter->req_tx_entries_per_subcrq,
-					    sizeof(int), GFP_KERNEL);
-		if (!tx_pool->free_map) {
-			release_tx_pools(adapter);
-			return -1;
-		}
-
-		for (j = 0; j < adapter->req_tx_entries_per_subcrq; j++)
-			tx_pool->free_map[j] = j;
-
-		tx_pool->consumer_index = 0;
-		tx_pool->producer_index = 0;
 	}
 
 	return 0;
@@ -1112,34 +1128,42 @@ static void clean_rx_pools(struct ibmvnic_adapter *adapter)
 	}
 }
 
-static void clean_tx_pools(struct ibmvnic_adapter *adapter)
+static void clean_one_tx_pool(struct ibmvnic_adapter *adapter,
+			      struct ibmvnic_tx_pool *tx_pool)
 {
-	struct ibmvnic_tx_pool *tx_pool;
 	struct ibmvnic_tx_buff *tx_buff;
 	u64 tx_entries;
-	int tx_scrqs;
-	int i, j;
+	int i;
 
-	if (!adapter->tx_pool)
+	if (!tx_pool && !tx_pool->tx_buff)
+		return;
+
+	tx_entries = tx_pool->num_buffers;
+
+	for (i = 0; i < tx_entries; i++) {
+		tx_buff = &tx_pool->tx_buff[i];
+		if (tx_buff && tx_buff->skb) {
+			dev_kfree_skb_any(tx_buff->skb);
+			tx_buff->skb = NULL;
+		}
+	}
+}
+
+static void clean_tx_pools(struct ibmvnic_adapter *adapter)
+{
+	int tx_scrqs;
+	int i;
+
+	if (!adapter->tx_pool || !adapter->tso_pool)
 		return;
 
 	tx_scrqs = be32_to_cpu(adapter->login_rsp_buf->num_txsubm_subcrqs);
-	tx_entries = adapter->req_tx_entries_per_subcrq;
 
 	/* Free any remaining skbs in the tx buffer pools */
 	for (i = 0; i < tx_scrqs; i++) {
-		tx_pool = &adapter->tx_pool[i];
-		if (!tx_pool && !tx_pool->tx_buff)
-			continue;
-
 		netdev_dbg(adapter->netdev, "Cleaning tx_pool[%d]\n", i);
-		for (j = 0; j < tx_entries; j++) {
-			tx_buff = &tx_pool->tx_buff[j];
-			if (tx_buff && tx_buff->skb) {
-				dev_kfree_skb_any(tx_buff->skb);
-				tx_buff->skb = NULL;
-			}
-		}
+		clean_one_tx_pool(adapter, &adapter->tx_pool[i]);
+		clean_one_tx_pool(adapter, &adapter->tso_pool[i]);
 	}
 }
 
@@ -1398,8 +1422,11 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		ret = NETDEV_TX_OK;
 		goto out;
 	}
+	if (skb_is_gso(skb))
+		tx_pool = &adapter->tso_pool[queue_num];
+	else
+		tx_pool = &adapter->tx_pool[queue_num];
 
-	tx_pool = &adapter->tx_pool[queue_num];
 	tx_scrq = adapter->tx_scrq[queue_num];
 	txq = netdev_get_tx_queue(netdev, skb_get_queue_mapping(skb));
 	handle_array = (u64 *)((u8 *)(adapter->login_rsp_buf) +
@@ -1407,20 +1434,20 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	index = tx_pool->free_map[tx_pool->consumer_index];
 
-	if (skb_is_gso(skb)) {
-		offset = tx_pool->tso_index * IBMVNIC_TSO_BUF_SZ;
-		dst = tx_pool->tso_ltb.buff + offset;
-		memset(dst, 0, IBMVNIC_TSO_BUF_SZ);
-		data_dma_addr = tx_pool->tso_ltb.addr + offset;
-		tx_pool->tso_index++;
-		if (tx_pool->tso_index == IBMVNIC_TSO_BUFS)
-			tx_pool->tso_index = 0;
-	} else {
-		offset = index * (adapter->req_mtu + VLAN_HLEN);
-		dst = tx_pool->long_term_buff.buff + offset;
-		memset(dst, 0, adapter->req_mtu + VLAN_HLEN);
-		data_dma_addr = tx_pool->long_term_buff.addr + offset;
+	if (index == IBMVNIC_INVALID_MAP) {
+		dev_kfree_skb_any(skb);
+		tx_send_failed++;
+		tx_dropped++;
+		ret = NETDEV_TX_OK;
+		goto out;
 	}
+
+	tx_pool->free_map[tx_pool->consumer_index] = IBMVNIC_INVALID_MAP;
+
+	offset = index * tx_pool->buf_size;
+	dst = tx_pool->long_term_buff.buff + offset;
+	memset(dst, 0, tx_pool->buf_size);
+	data_dma_addr = tx_pool->long_term_buff.addr + offset;
 
 	if (skb_shinfo(skb)->nr_frags) {
 		int cur, i;
@@ -1443,8 +1470,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	tx_pool->consumer_index =
-	    (tx_pool->consumer_index + 1) %
-		adapter->req_tx_entries_per_subcrq;
+	    (tx_pool->consumer_index + 1) % tx_pool->num_buffers;
 
 	tx_buff = &tx_pool->tx_buff[index];
 	tx_buff->skb = skb;
@@ -1460,11 +1486,13 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	tx_crq.v1.n_crq_elem = 1;
 	tx_crq.v1.n_sge = 1;
 	tx_crq.v1.flags1 = IBMVNIC_TX_COMP_NEEDED;
-	tx_crq.v1.correlator = cpu_to_be32(index);
+
 	if (skb_is_gso(skb))
-		tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->tso_ltb.map_id);
+		tx_crq.v1.correlator =
+			cpu_to_be32(index | IBMVNIC_TSO_POOL_MASK);
 	else
-		tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->long_term_buff.map_id);
+		tx_crq.v1.correlator = cpu_to_be32(index);
+	tx_crq.v1.dma_reg = cpu_to_be16(tx_pool->long_term_buff.map_id);
 	tx_crq.v1.sge_len = cpu_to_be32(skb->len);
 	tx_crq.v1.ioba = cpu_to_be64(data_dma_addr);
 
@@ -1512,7 +1540,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 			tx_map_failed++;
 			tx_dropped++;
 			ret = NETDEV_TX_OK;
-			goto out;
+			goto tx_err_out;
 		}
 		lpar_rc = send_subcrq_indirect(adapter, handle_array[queue_num],
 					       (u64)tx_buff->indir_dma,
@@ -1524,13 +1552,6 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	}
 	if (lpar_rc != H_SUCCESS) {
 		dev_err(dev, "tx failed with code %ld\n", lpar_rc);
-
-		if (tx_pool->consumer_index == 0)
-			tx_pool->consumer_index =
-				adapter->req_tx_entries_per_subcrq - 1;
-		else
-			tx_pool->consumer_index--;
-
 		dev_kfree_skb_any(skb);
 		tx_buff->skb = NULL;
 
@@ -1546,7 +1567,7 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 		tx_send_failed++;
 		tx_dropped++;
 		ret = NETDEV_TX_OK;
-		goto out;
+		goto tx_err_out;
 	}
 
 	if (atomic_add_return(num_entries, &tx_scrq->used)
@@ -1559,7 +1580,16 @@ static int ibmvnic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	tx_bytes += skb->len;
 	txq->trans_start = jiffies;
 	ret = NETDEV_TX_OK;
+	goto out;
 
+tx_err_out:
+	/* roll back consumer index and map array*/
+	if (tx_pool->consumer_index == 0)
+		tx_pool->consumer_index =
+			tx_pool->num_buffers - 1;
+	else
+		tx_pool->consumer_index--;
+	tx_pool->free_map[tx_pool->consumer_index] = index;
 out:
 	netdev->stats.tx_dropped += tx_dropped;
 	netdev->stats.tx_bytes += tx_bytes;
@@ -2531,6 +2561,7 @@ static int ibmvnic_complete_tx(struct ibmvnic_adapter *adapter,
 			       struct ibmvnic_sub_crq_queue *scrq)
 {
 	struct device *dev = &adapter->vdev->dev;
+	struct ibmvnic_tx_pool *tx_pool;
 	struct ibmvnic_tx_buff *txbuff;
 	union sub_crq *next;
 	int index;
@@ -2550,7 +2581,14 @@ restart_loop:
 				continue;
 			}
 			index = be32_to_cpu(next->tx_comp.correlators[i]);
-			txbuff = &adapter->tx_pool[pool].tx_buff[index];
+			if (index & IBMVNIC_TSO_POOL_MASK) {
+				tx_pool = &adapter->tso_pool[pool];
+				index &= ~IBMVNIC_TSO_POOL_MASK;
+			} else {
+				tx_pool = &adapter->tx_pool[pool];
+			}
+
+			txbuff = &tx_pool->tx_buff[index];
 
 			for (j = 0; j < IBMVNIC_MAX_FRAGS_PER_CRQ; j++) {
 				if (!txbuff->data_dma[j])
@@ -2573,11 +2611,10 @@ restart_loop:
 
 			num_entries += txbuff->num_entries;
 
-			adapter->tx_pool[pool].free_map[adapter->tx_pool[pool].
-						     producer_index] = index;
-			adapter->tx_pool[pool].producer_index =
-			    (adapter->tx_pool[pool].producer_index + 1) %
-			    adapter->req_tx_entries_per_subcrq;
+			tx_pool->free_map[tx_pool->producer_index] = index;
+			tx_pool->producer_index =
+				(tx_pool->producer_index + 1) %
+					tx_pool->num_buffers;
 		}
 		/* remove tx_comp scrq*/
 		next->tx_comp.first = 0;
