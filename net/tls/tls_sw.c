@@ -87,71 +87,16 @@ static void trim_both_sgl(struct sock *sk, int target_size)
 		target_size);
 }
 
-static int alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
-		    int *sg_num_elem, unsigned int *sg_size,
-		    int first_coalesce)
-{
-	struct page_frag *pfrag;
-	unsigned int size = *sg_size;
-	int num_elem = *sg_num_elem, use = 0, rc = 0;
-	struct scatterlist *sge;
-	unsigned int orig_offset;
-
-	len -= size;
-	pfrag = sk_page_frag(sk);
-
-	while (len > 0) {
-		if (!sk_page_frag_refill(sk, pfrag)) {
-			rc = -ENOMEM;
-			goto out;
-		}
-
-		use = min_t(int, len, pfrag->size - pfrag->offset);
-
-		if (!sk_wmem_schedule(sk, use)) {
-			rc = -ENOMEM;
-			goto out;
-		}
-
-		sk_mem_charge(sk, use);
-		size += use;
-		orig_offset = pfrag->offset;
-		pfrag->offset += use;
-
-		sge = sg + num_elem - 1;
-		if (num_elem > first_coalesce && sg_page(sg) == pfrag->page &&
-		    sg->offset + sg->length == orig_offset) {
-			sg->length += use;
-		} else {
-			sge++;
-			sg_unmark_end(sge);
-			sg_set_page(sge, pfrag->page, use, orig_offset);
-			get_page(pfrag->page);
-			++num_elem;
-			if (num_elem == MAX_SKB_FRAGS) {
-				rc = -ENOSPC;
-				break;
-			}
-		}
-
-		len -= use;
-	}
-	goto out;
-
-out:
-	*sg_size = size;
-	*sg_num_elem = num_elem;
-	return rc;
-}
-
 static int alloc_encrypted_sg(struct sock *sk, int len)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context *ctx = tls_sw_ctx(tls_ctx);
 	int rc = 0;
 
-	rc = alloc_sg(sk, len, ctx->sg_encrypted_data,
-		      &ctx->sg_encrypted_num_elem, &ctx->sg_encrypted_size, 0);
+	rc = sk_alloc_sg(sk, len,
+			 ctx->sg_encrypted_data,
+			 &ctx->sg_encrypted_num_elem,
+			 &ctx->sg_encrypted_size, 0);
 
 	return rc;
 }
@@ -162,9 +107,9 @@ static int alloc_plaintext_sg(struct sock *sk, int len)
 	struct tls_sw_context *ctx = tls_sw_ctx(tls_ctx);
 	int rc = 0;
 
-	rc = alloc_sg(sk, len, ctx->sg_plaintext_data,
-		      &ctx->sg_plaintext_num_elem, &ctx->sg_plaintext_size,
-		      tls_ctx->pending_open_record_frags);
+	rc = sk_alloc_sg(sk, len, ctx->sg_plaintext_data,
+			 &ctx->sg_plaintext_num_elem, &ctx->sg_plaintext_size,
+			 tls_ctx->pending_open_record_frags);
 
 	return rc;
 }
