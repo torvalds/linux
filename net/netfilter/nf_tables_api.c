@@ -74,15 +74,77 @@ static void nft_trans_destroy(struct nft_trans *trans)
 	kfree(trans);
 }
 
+/* removal requests are queued in the commit_list, but not acted upon
+ * until after all new rules are in place.
+ *
+ * Therefore, nf_register_net_hook(net, &nat_hook) runs before pending
+ * nf_unregister_net_hook().
+ *
+ * nf_register_net_hook thus fails if a nat hook is already in place
+ * even if the conflicting hook is about to be removed.
+ *
+ * If collision is detected, search commit_log for DELCHAIN matching
+ * the new nat hooknum; if we find one collision is temporary:
+ *
+ * Either transaction is aborted (new/colliding hook is removed), or
+ * transaction is committed (old hook is removed).
+ */
+static bool nf_tables_allow_nat_conflict(const struct net *net,
+					 const struct nf_hook_ops *ops)
+{
+	const struct nft_trans *trans;
+	bool ret = false;
+
+	if (!ops->nat_hook)
+		return false;
+
+	list_for_each_entry(trans, &net->nft.commit_list, list) {
+		const struct nf_hook_ops *pending_ops;
+		const struct nft_chain *pending;
+
+		if (trans->msg_type != NFT_MSG_NEWCHAIN &&
+		    trans->msg_type != NFT_MSG_DELCHAIN)
+			continue;
+
+		pending = trans->ctx.chain;
+		if (!nft_is_base_chain(pending))
+			continue;
+
+		pending_ops = &nft_base_chain(pending)->ops;
+		if (pending_ops->nat_hook &&
+		    pending_ops->pf == ops->pf &&
+		    pending_ops->hooknum == ops->hooknum) {
+			/* other hook registration already pending? */
+			if (trans->msg_type == NFT_MSG_NEWCHAIN)
+				return false;
+
+			ret = true;
+		}
+	}
+
+	return ret;
+}
+
 static int nf_tables_register_hook(struct net *net,
 				   const struct nft_table *table,
 				   struct nft_chain *chain)
 {
+	struct nf_hook_ops *ops;
+	int ret;
+
 	if (table->flags & NFT_TABLE_F_DORMANT ||
 	    !nft_is_base_chain(chain))
 		return 0;
 
-	return nf_register_net_hook(net, &nft_base_chain(chain)->ops);
+	ops = &nft_base_chain(chain)->ops;
+	ret = nf_register_net_hook(net, ops);
+	if (ret == -EBUSY && nf_tables_allow_nat_conflict(net, ops)) {
+		ops->nat_hook = false;
+		ret = nf_register_net_hook(net, ops);
+		ops->nat_hook = true;
+	}
+
+	return ret;
 }
 
 static void nf_tables_unregister_hook(struct net *net,
