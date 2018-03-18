@@ -6626,10 +6626,8 @@ nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, vo
 	struct nfs_lowner	*lowner = &cbnl->cbnl_owner,
 				*wowner = waiter->owner;
 
-	/* Only wake if the callback was for the same owner */
-	if (lowner->clientid != wowner->clientid ||
-	    lowner->id != wowner->id		 ||
-	    lowner->s_dev != wowner->s_dev)
+	/* Only wake if the callback was for the same owner. */
+	if (lowner->id != wowner->id || lowner->s_dev != wowner->s_dev)
 		return 0;
 
 	/* Make sure it's for the right inode */
