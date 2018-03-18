@@ -183,8 +183,13 @@ if [ -n "$kernver" ]; then
 			nano arch/arm/boot/dts/mt7623n-bananapi-bpi-r2.dts
 			;;
 
+		"importmylconfig")
+			echo "Improt myl config"
+			make mt7623n_myl_defconfig
+			;;
+
 		"importconfig")
-			echo "Import config"
+			echo "Import fwu config"
 			make mt7623n_evb_fwu_defconfig
 			;;
 
