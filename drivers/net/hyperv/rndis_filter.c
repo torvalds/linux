@@ -31,6 +31,7 @@
 #include <linux/rtnetlink.h>
 
 #include "hyperv_net.h"
+#include "netvsc_trace.h"
 
 static void rndis_set_multicast(struct work_struct *w);
 
@@ -240,6 +241,8 @@ static int rndis_filter_send_request(struct rndis_device *dev,
 		pb[1].len = req->request_msg.msg_len -
 			pb[0].len;
 	}
+
+	trace_rndis_send(dev->ndev, 0, &req->request_msg);
 
 	rcu_read_lock_bh();
 	ret = netvsc_send(dev->ndev, packet, NULL, pb, NULL);
@@ -944,12 +947,11 @@ static bool netvsc_device_idle(const struct netvsc_device *nvdev)
 	return true;
 }
 
-static void rndis_filter_halt_device(struct rndis_device *dev)
+static void rndis_filter_halt_device(struct netvsc_device *nvdev,
+				     struct rndis_device *dev)
 {
 	struct rndis_request *request;
 	struct rndis_halt_request *halt;
-	struct net_device_context *net_device_ctx = netdev_priv(dev->ndev);
-	struct netvsc_device *nvdev = rtnl_dereference(net_device_ctx->nvdev);
 
 	/* Attempt to do a rndis device halt */
 	request = get_rndis_request(dev, RNDIS_MSG_HALT,
@@ -1088,6 +1090,8 @@ void rndis_set_subchannel(struct work_struct *w)
 	init_packet->msg.v5_msg.subchn_req.op = NVSP_SUBCHANNEL_ALLOCATE;
 	init_packet->msg.v5_msg.subchn_req.num_subchannels =
 						nvdev->num_chn - 1;
+	trace_nvsp_send(ndev, init_packet);
+
 	ret = vmbus_sendpacket(hv_dev->channel, init_packet,
 			       sizeof(struct nvsp_message),
 			       (unsigned long)init_packet,
@@ -1348,7 +1352,7 @@ void rndis_filter_device_remove(struct hv_device *dev,
 	cancel_work_sync(&net_dev->subchan_work);
 
 	/* Halt and release the rndis device */
-	rndis_filter_halt_device(rndis_dev);
+	rndis_filter_halt_device(net_dev, rndis_dev);
 
 	net_dev->extension = NULL;
 
