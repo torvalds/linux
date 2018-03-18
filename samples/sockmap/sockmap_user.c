@@ -62,6 +62,8 @@ int txmsg_redir_noisy;
 int txmsg_drop;
 int txmsg_apply;
 int txmsg_cork;
+int txmsg_start;
+int txmsg_end;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -79,6 +81,8 @@ static const struct option long_options[] = {
 	{"txmsg_drop",		no_argument,	&txmsg_drop, 1 },
 	{"txmsg_apply",	required_argument,	NULL, 'a'},
 	{"txmsg_cork",	required_argument,	NULL, 'k'},
+	{"txmsg_start", required_argument,	NULL, 's'},
+	{"txmsg_end",	required_argument,	NULL, 'e'},
 	{0, 0, NULL, 0 }
 };
 
@@ -572,6 +576,12 @@ int main(int argc, char **argv)
 	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
+		case 's':
+			txmsg_start = atoi(optarg);
+			break;
+		case 'e':
+			txmsg_end = atoi(optarg);
+			break;
 		case 'a':
 			txmsg_apply = atoi(optarg);
 			break;
@@ -761,6 +771,28 @@ run:
 			}
 		}
 
+		if (txmsg_start) {
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_start, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (txmsg_start):  %d (%s)\n",
+					err, strerror(errno));
+				return err;
+			}
+		}
+
+		if (txmsg_end) {
+			i = 1;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_end, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (txmsg_end):  %d (%s)\n",
+					err, strerror(errno));
+				return err;
+			}
+		}
 	}
 
 	if (txmsg_drop)

@@ -92,6 +92,8 @@ static int (*bpf_msg_apply_bytes)(void *ctx, int len) =
 	(void *) BPF_FUNC_msg_apply_bytes;
 static int (*bpf_msg_cork_bytes)(void *ctx, int len) =
 	(void *) BPF_FUNC_msg_cork_bytes;
+static int (*bpf_msg_pull_data)(void *ctx, int start, int end, int flags) =
+	(void *) BPF_FUNC_msg_pull_data;
 
 /* llvm builtin functions that eBPF C program may use to
  * emit BPF_LD_ABS and BPF_LD_IND instructions
