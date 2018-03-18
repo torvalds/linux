@@ -61,11 +61,25 @@ function install {
 			export INSTALL_MOD_PATH=/media/$USER/BPI-ROOT/;
 			echo "INSTALL_MOD_PATH: $INSTALL_MOD_PATH"
 			sudo make ARCH=$ARCH INSTALL_MOD_PATH=$INSTALL_MOD_PATH modules_install
+			echo "syncing sd-card...this will take a while"
+			sync
+
+			kernelname=$(ls -1t $INSTALL_MOD_PATH"/lib/modules" | head -n 1)
+			EXTRA_MODULE_PATH=$INSTALL_MOD_PATH"/lib/modules/"$kernelname"/kernel/extras"
+			#echo $kernelname" - "${EXTRA_MODULE_PATH}
+			CRYPTODEV="cryptodev/cryptodev-linux/cryptodev.ko"
+			if [ -e "${CRYPTODEV}" ]; then
+				echo Copy CryptoDev
+				sudo mkdir -p "${EXTRA_MODULE_PATH}"
+				sudo cp "${CRYPTODEV}" "${EXTRA_MODULE_PATH}"
+	        	#Build Module Dependencies
+				sudo /sbin/depmod -b $INSTALL_MOD_PATH ${kernelname}
+			fi
+
 			#sudo cp -r ../mod/lib/modules /media/$USER/BPI-ROOT/lib/
 			if [[ -n "$(grep 'CONFIG_MT76=' .config)" ]];then
 				echo "MT76 set,don't forget the firmware-files...";
 			fi
-			sync
 		else
 			echo "SD-Card not found!"
 		fi
@@ -184,9 +198,10 @@ if [ -n "$kernver" ]; then
 			;;
 
 		"importmylconfig")
-			echo "Improt myl config"
+			echo "Import myl config"
 			make mt7623n_myl_defconfig
 			;;
+
 
 		"importconfig")
 			echo "Import fwu config"
@@ -246,6 +261,7 @@ if [ -n "$kernver" ]; then
 				exit 1;
 			fi;
 			$0 build
+			$0 cryptodev
 			if [ -e "./uImage" ]; then
 				echo "==========================================="
 				echo "1) pack"
