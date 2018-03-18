@@ -538,7 +538,8 @@ static int sun4i_hdmi_bind(struct device *dev, struct device *master,
 					     &sun4i_hdmi_regmap_config);
 	if (IS_ERR(hdmi->regmap)) {
 		dev_err(dev, "Couldn't create HDMI encoder regmap\n");
-		return PTR_ERR(hdmi->regmap);
+		ret = PTR_ERR(hdmi->regmap);
+		goto err_disable_mod_clk;
 	}
 
 	ret = sun4i_tmds_create(hdmi);
