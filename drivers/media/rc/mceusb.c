@@ -182,6 +182,7 @@ enum mceusb_model_type {
 	MCE_GEN1,
 	MCE_GEN3,
 	MCE_GEN2_TX_INV,
+	MCE_GEN2_TX_INV_RX_GOOD,
 	POLARIS_EVK,
 	CX_HYBRID_TV,
 	MULTIFUNCTION,
@@ -230,6 +231,11 @@ static const struct mceusb_model mceusb_model[] = {
 		.mce_gen2 = 1,
 		.tx_mask_normal = 1,
 		.rx2 = 1,
+	},
+	[MCE_GEN2_TX_INV_RX_GOOD] = {
+		.mce_gen2 = 1,
+		.tx_mask_normal = 1,
+		.rx2 = 2,
 	},
 	[MCE_GEN3] = {
 		.mce_gen3 = 1,
@@ -304,7 +310,7 @@ static const struct usb_device_id mceusb_dev_table[] = {
 	  .driver_info = MULTIFUNCTION },
 	/* SMK/Toshiba G83C0004D410 */
 	{ USB_DEVICE(VENDOR_SMK, 0x031d),
-	  .driver_info = MCE_GEN2_TX_INV },
+	  .driver_info = MCE_GEN2_TX_INV_RX_GOOD },
 	/* SMK eHome Infrared Transceiver (Sony VAIO) */
 	{ USB_DEVICE(VENDOR_SMK, 0x0322),
 	  .driver_info = MCE_GEN2_TX_INV },
