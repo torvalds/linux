@@ -13,7 +13,7 @@
 4	i386	write			sys_write
 5	i386	open			sys_open			compat_sys_open
 6	i386	close			sys_close
-7	i386	waitpid			sys_waitpid			compat_sys_x86_waitpid
+7	i386	waitpid			sys_waitpid
 8	i386	creat			sys_creat
 9	i386	link			sys_link
 10	i386	unlink			sys_unlink

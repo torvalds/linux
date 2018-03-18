@@ -35,9 +35,6 @@ asmlinkage long compat_sys_x86_fstatat(unsigned int, const char __user *,
 struct mmap_arg_struct32;
 asmlinkage long compat_sys_x86_mmap(struct mmap_arg_struct32 __user *);
 
-asmlinkage long compat_sys_x86_waitpid(compat_pid_t, unsigned int __user *,
-				       int);
-
 asmlinkage long compat_sys_x86_pread(unsigned int, char __user *, u32, u32,
 				     u32);
 asmlinkage long compat_sys_x86_pwrite(unsigned int, const char __user *, u32,

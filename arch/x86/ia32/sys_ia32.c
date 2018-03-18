@@ -169,12 +169,6 @@ COMPAT_SYSCALL_DEFINE1(x86_mmap, struct mmap_arg_struct32 __user *, arg)
 			       a.offset>>PAGE_SHIFT);
 }
 
-COMPAT_SYSCALL_DEFINE3(x86_waitpid, compat_pid_t, pid, unsigned int __user *,
-		       stat_addr, int, options)
-{
-	return compat_sys_wait4(pid, stat_addr, options, NULL);
-}
-
 /* warning: next two assume little endian */
 COMPAT_SYSCALL_DEFINE5(x86_pread, unsigned int, fd, char __user *, ubuf,
 		       u32, count, u32, poslo, u32, poshi)
