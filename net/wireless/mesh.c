@@ -170,9 +170,28 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		enum nl80211_bss_scan_width scan_width;
 		struct ieee80211_supported_band *sband =
 				rdev->wiphy.bands[setup->chandef.chan->band];
-		scan_width = cfg80211_chandef_to_scan_width(&setup->chandef);
-		setup->basic_rates = ieee80211_mandatory_rates(sband,
-							       scan_width);
+
+		if (setup->chandef.chan->band == NL80211_BAND_2GHZ) {
+			int i;
+
+			/*
+			 * Older versions selected the mandatory rates for
+			 * 2.4 GHz as well, but were broken in that only
+			 * 1 Mbps was regarded as a mandatory rate. Keep
+			 * using just 1 Mbps as the default basic rate for
+			 * mesh to be interoperable with older versions.
+			 */
+			for (i = 0; i < sband->n_bitrates; i++) {
+				if (sband->bitrates[i].bitrate == 10) {
+					setup->basic_rates = BIT(i);
+					break;
+				}
+			}
+		} else {
+			scan_width = cfg80211_chandef_to_scan_width(&setup->chandef);
+			setup->basic_rates = ieee80211_mandatory_rates(sband,
+								       scan_width);
+		}
 	}
 
 	err = cfg80211_chandef_dfs_required(&rdev->wiphy,

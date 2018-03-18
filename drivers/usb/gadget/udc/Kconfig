@@ -274,7 +274,6 @@ config USB_SNP_UDC_PLAT
 	tristate "Synopsys USB 2.0 Device controller"
 	depends on USB_GADGET && OF && HAS_DMA
 	depends on EXTCON || EXTCON=n
-	select USB_GADGET_DUALSPEED
 	select USB_SNP_CORE
 	default ARCH_BCM_IPROC
 	help

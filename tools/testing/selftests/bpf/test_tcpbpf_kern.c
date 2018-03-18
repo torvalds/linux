@@ -5,7 +5,6 @@
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
 #include <linux/ip.h>
-#include <linux/in6.h>
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/tcp.h>

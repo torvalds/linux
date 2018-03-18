@@ -47,7 +47,6 @@ static bool radeon_pm_in_vbl(struct radeon_device *rdev);
 static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
 static void radeon_pm_update_profile(struct radeon_device *rdev);
 static void radeon_pm_set_clocks(struct radeon_device *rdev);
-static void radeon_pm_compute_clocks_dpm(struct radeon_device *rdev);
 
 int radeon_pm_get_type_index(struct radeon_device *rdev,
 			     enum radeon_pm_state_type ps_type,
@@ -80,8 +79,6 @@ void radeon_pm_acpi_event_handler(struct radeon_device *rdev)
 				radeon_dpm_enable_bapm(rdev, rdev->pm.dpm.ac_power);
 		}
 		mutex_unlock(&rdev->pm.mutex);
-		/* allow new DPM state to be picked */
-		radeon_pm_compute_clocks_dpm(rdev);
 	} else if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
 		if (rdev->pm.profile == PM_PROFILE_AUTO) {
 			mutex_lock(&rdev->pm.mutex);
@@ -885,8 +882,7 @@ static struct radeon_ps *radeon_dpm_pick_power_state(struct radeon_device *rdev,
 		dpm_state = POWER_STATE_TYPE_INTERNAL_3DPERF;
 	/* balanced states don't exist at the moment */
 	if (dpm_state == POWER_STATE_TYPE_BALANCED)
-		dpm_state = rdev->pm.dpm.ac_power ?
-			POWER_STATE_TYPE_PERFORMANCE : POWER_STATE_TYPE_BATTERY;
+		dpm_state = POWER_STATE_TYPE_PERFORMANCE;
 
 restart_search:
 	/* Pick the best power state based on current conditions */

@@ -131,7 +131,7 @@ static int check_powernow(void)
 		return 0;
 	}
 
-	if ((c->x86_model == 6) && (c->x86_mask == 0)) {
+	if ((c->x86_model == 6) && (c->x86_stepping == 0)) {
 		pr_info("K7 660[A0] core detected, enabling errata workarounds\n");
 		have_a0 = 1;
 	}

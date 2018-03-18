@@ -1,0 +1,52 @@
+[
+  {,
+    "EventCode": "0xC7",
+    "EventName": "STALL_SB_FULL",
+    "BriefDescription": "Data Write operation that stalls the pipeline because the store buffer is full"
+  },
+  {,
+    "EventCode": "0xE0",
+    "EventName": "OTHER_IQ_DEP_STALL",
+    "BriefDescription": "Cycles that the DPU IQ is empty and that is not because of a recent micro-TLB miss, instruction cache miss or pre-decode error"
+  },
+  {,
+    "EventCode": "0xE1",
+    "EventName": "IC_DEP_STALL",
+    "BriefDescription": "Cycles the DPU IQ is empty and there is an instruction cache miss being processed"
+  },
+  {,
+    "EventCode": "0xE2",
+    "EventName": "IUTLB_DEP_STALL",
+    "BriefDescription": "Cycles the DPU IQ is empty and there is an instruction micro-TLB miss being processed"
+  },
+  {,
+    "EventCode": "0xE3",
+    "EventName": "DECODE_DEP_STALL",
+    "BriefDescription": "Cycles the DPU IQ is empty and there is a pre-decode error being processed"
+  },
+  {,
+    "EventCode": "0xE4",
+    "EventName": "OTHER_INTERLOCK_STALL",
+    "BriefDescription": "Cycles there is an interlock other than  Advanced SIMD/Floating-point instructions or load/store instruction"
+  },
+  {,
+    "EventCode": "0xE5",
+    "EventName": "AGU_DEP_STALL",
+    "BriefDescription": "Cycles there is an interlock for a load/store instruction waiting for data to calculate the address in the AGU"
+  },
+  {,
+    "EventCode": "0xE6",
+    "EventName": "SIMD_DEP_STALL",
+    "BriefDescription": "Cycles there is an interlock for an Advanced SIMD/Floating-point operation."
+  },
+  {,
+    "EventCode": "0xE7",
+    "EventName": "LD_DEP_STALL",
+    "BriefDescription": "Cycles there is a stall in the Wr stage because of a load miss"
+  },
+  {,
+    "EventCode": "0xE8",
+    "EventName": "ST_DEP_STALL",
+    "BriefDescription": "Cycles there is a stall in the Wr stage because of a store"
+  }
+]

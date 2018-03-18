@@ -40,8 +40,40 @@ struct qeth_ipaddr {
 			unsigned int pfxlen;
 		} a6;
 	} u;
-
 };
+
+static inline bool qeth_l3_addr_match_ip(struct qeth_ipaddr *a1,
+					 struct qeth_ipaddr *a2)
+{
+	if (a1->proto != a2->proto)
+		return false;
+	if (a1->proto == QETH_PROT_IPV6)
+		return ipv6_addr_equal(&a1->u.a6.addr, &a2->u.a6.addr);
+	return a1->u.a4.addr == a2->u.a4.addr;
+}
+
+static inline bool qeth_l3_addr_match_all(struct qeth_ipaddr *a1,
+					  struct qeth_ipaddr *a2)
+{
+	/* Assumes that the pair was obtained via qeth_l3_addr_find_by_ip(),
+	 * so 'proto' and 'addr' match for sure.
+	 *
+	 * For ucast:
+	 * -	'mac' is always 0.
+	 * -	'mask'/'pfxlen' for RXIP/VIPA is always 0. For NORMAL, matching
+	 *	values are required to avoid mixups in takeover eligibility.
+	 *
+	 * For mcast,
+	 * -	'mac' is mapped from the IP, and thus always matches.
+	 * -	'mask'/'pfxlen' is always 0.
+	 */
+	if (a1->type != a2->type)
+		return false;
+	if (a1->proto == QETH_PROT_IPV6)
+		return a1->u.a6.pfxlen == a2->u.a6.pfxlen;
+	return a1->u.a4.mask == a2->u.a4.mask;
+}
+
 static inline  u64 qeth_l3_ipaddr_hash(struct qeth_ipaddr *addr)
 {
 	u64  ret = 0;

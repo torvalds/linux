@@ -913,9 +913,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		stack[ctr].layer = lower.layer;
 		ctr++;
 
-		if (d.stop)
-			break;
-
 		/*
 		 * Following redirects can have security consequences: it's like
 		 * a symlink into the lower layer without the permission checks.
@@ -932,6 +929,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 					    dentry);
 			goto out_put;
 		}
+
+		if (d.stop)
+			break;
 
 		if (d.redirect && d.redirect[0] == '/' && poe != roe) {
 			poe = roe;
