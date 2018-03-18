@@ -178,7 +178,7 @@ static struct rockchip_pll_clock rk3228_pll_clks[] __initdata = {
 	[cpll] = PLL(pll_rk3036, PLL_CPLL, "cpll", mux_pll_p, 0, RK2928_PLL_CON(6),
 		     RK2928_MODE_CON, 8, 8, 0, NULL),
 	[gpll] = PLL(pll_rk3036, PLL_GPLL, "gpll", mux_pll_p, 0, RK2928_PLL_CON(9),
-		     RK2928_MODE_CON, 12, 9, ROCKCHIP_PLL_SYNC_RATE, rk3228_pll_rates),
+		     RK2928_MODE_CON, 12, 9, 0, rk3228_pll_rates),
 };
 
 #define MFLAGS CLK_MUX_HIWORD_MASK
