@@ -29,6 +29,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
+#include <sys/sendfile.h>
 
 #include <linux/netlink.h>
 #include <linux/socket.h>
@@ -67,10 +68,10 @@ static const struct option long_options[] = {
 	{"iov_count",	required_argument,	NULL, 'i' },
 	{"length",	required_argument,	NULL, 'l' },
 	{"test",	required_argument,	NULL, 't' },
-	{"txmsg",		no_argument,		&txmsg_pass,  1  },
-	{"txmsg_noisy",		no_argument,		&txmsg_noisy, 1  },
-	{"txmsg_redir",		no_argument,		&txmsg_redir, 1  },
-	{"txmsg_redir_noisy",	no_argument,		&txmsg_redir_noisy, 1},
+	{"txmsg",		no_argument,	&txmsg_pass,  1  },
+	{"txmsg_noisy",		no_argument,	&txmsg_noisy, 1  },
+	{"txmsg_redir",		no_argument,	&txmsg_redir, 1  },
+	{"txmsg_redir_noisy",	no_argument,	&txmsg_redir_noisy, 1},
 	{0, 0, NULL, 0 }
 };
 
@@ -204,6 +205,35 @@ struct msg_stats {
 	struct timespec end;
 };
 
+static int msg_loop_sendpage(int fd, int iov_length, int cnt,
+			     struct msg_stats *s)
+{
+	off_t offset = 0;
+	FILE *file;
+	int i, fp;
+
+	file = fopen(".sendpage_tst.tmp", "w+");
+	fseek(file, iov_length * cnt, SEEK_CUR);
+	fprintf(file, "A");
+	fseek(file, 0, SEEK_SET);
+
+	fp = fileno(file);
+	clock_gettime(CLOCK_MONOTONIC, &s->start);
+	for (i = 0; i < cnt; i++) {
+		int sent = sendfile(fd, fp, &offset, iov_length);
+
+		if (sent < 0) {
+			perror("send loop error:");
+			fclose(file);
+			return sent;
+		}
+		s->bytes_sent += sent;
+	}
+	clock_gettime(CLOCK_MONOTONIC, &s->end);
+	fclose(file);
+	return 0;
+}
+
 static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		    struct msg_stats *s, bool tx)
 {
@@ -309,7 +339,7 @@ static inline float recvdBps(struct msg_stats s)
 }
 
 static int sendmsg_test(int iov_count, int iov_buf, int cnt,
-			int verbose, bool base)
+			int verbose, bool base, bool sendpage)
 {
 	float sent_Bps = 0, recvd_Bps = 0;
 	int rx_fd, txpid, rxpid, err = 0;
@@ -325,6 +355,8 @@ static int sendmsg_test(int iov_count, int iov_buf, int cnt,
 
 	rxpid = fork();
 	if (rxpid == 0) {
+		if (sendpage)
+			iov_count = 1;
 		err = msg_loop(rx_fd, iov_count, iov_buf, cnt, &s, false);
 		if (err)
 			fprintf(stderr,
@@ -348,7 +380,11 @@ static int sendmsg_test(int iov_count, int iov_buf, int cnt,
 
 	txpid = fork();
 	if (txpid == 0) {
-		err = msg_loop(c1, iov_count, iov_buf, cnt, &s, true);
+		if (sendpage)
+			err = msg_loop_sendpage(c1, iov_buf, cnt, &s);
+		else
+			err = msg_loop(c1, iov_count, iov_buf, cnt, &s, true);
+
 		if (err)
 			fprintf(stderr,
 				"msg_loop_tx: iov_count %i iov_buf %i cnt %i err %i\n",
@@ -452,6 +488,8 @@ enum {
 	PING_PONG,
 	SENDMSG,
 	BASE,
+	BASE_SENDPAGE,
+	SENDPAGE,
 };
 
 int main(int argc, char **argv)
@@ -494,6 +532,10 @@ int main(int argc, char **argv)
 				test = SENDMSG;
 			} else if (strcmp(optarg, "base") == 0) {
 				test = BASE;
+			} else if (strcmp(optarg, "base_sendpage") == 0) {
+				test = BASE_SENDPAGE;
+			} else if (strcmp(optarg, "sendpage") == 0) {
+				test = SENDPAGE;
 			} else {
 				usage(argv);
 				return -1;
@@ -533,7 +575,7 @@ int main(int argc, char **argv)
 	}
 
 	/* If base test skip BPF setup */
-	if (test == BASE)
+	if (test == BASE || test == BASE_SENDPAGE)
 		goto run;
 
 	/* Attach programs to sockmap */
@@ -599,7 +641,7 @@ run:
 				err, strerror(errno));
 			return err;
 		}
-		if (test == SENDMSG)
+		if (txmsg_redir || txmsg_redir_noisy)
 			redir_fd = c2;
 		else
 			redir_fd = c1;
@@ -615,9 +657,17 @@ run:
 	if (test == PING_PONG)
 		err = forever_ping_pong(rate, verbose);
 	else if (test == SENDMSG)
-		err = sendmsg_test(iov_count, length, rate, verbose, false);
+		err = sendmsg_test(iov_count, length, rate,
+				   verbose, false, false);
+	else if (test == SENDPAGE)
+		err = sendmsg_test(iov_count, length, rate,
+				   verbose, false, true);
 	else if (test == BASE)
-		err = sendmsg_test(iov_count, length, rate, verbose, true);
+		err = sendmsg_test(iov_count, length, rate,
+				   verbose, true, false);
+	else if (test == BASE_SENDPAGE)
+		err = sendmsg_test(iov_count, length, rate,
+				   verbose, true, true);
 	else
 		fprintf(stderr, "unknown test\n");
 out:
