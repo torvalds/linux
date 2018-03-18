@@ -59,6 +59,7 @@ int txmsg_pass;
 int txmsg_noisy;
 int txmsg_redir;
 int txmsg_redir_noisy;
+int txmsg_apply;
 
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
@@ -73,6 +74,7 @@ static const struct option long_options[] = {
 	{"txmsg_noisy",		no_argument,	&txmsg_noisy, 1  },
 	{"txmsg_redir",		no_argument,	&txmsg_redir, 1  },
 	{"txmsg_redir_noisy",	no_argument,	&txmsg_redir_noisy, 1},
+	{"txmsg_apply",	required_argument,	NULL, 'a'},
 	{0, 0, NULL, 0 }
 };
 
@@ -546,7 +548,9 @@ int main(int argc, char **argv)
 	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
-		/* Cgroup configuration */
+		case 'a':
+			txmsg_apply = atoi(optarg);
+			break;
 		case 'c':
 			cg_fd = open(optarg, O_DIRECTORY, O_RDONLY);
 			if (cg_fd < 0) {
@@ -665,6 +669,8 @@ run:
 		tx_prog_fd = prog_fd[5];
 	else if (txmsg_redir_noisy)
 		tx_prog_fd = prog_fd[6];
+	else if (txmsg_apply)
+		tx_prog_fd = prog_fd[7];
 	else
 		tx_prog_fd = 0;
 
@@ -698,6 +704,17 @@ run:
 				"ERROR: bpf_map_update_elem (txmsg):  %d (%s\n",
 				err, strerror(errno));
 			return err;
+		}
+
+		if (txmsg_apply) {
+			err = bpf_map_update_elem(map_fd[3],
+						  &i, &txmsg_apply, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (apply_bytes):  %d (%s\n",
+					err, strerror(errno));
+				return err;
+			}
 		}
 	}
 	if (test == PING_PONG)
