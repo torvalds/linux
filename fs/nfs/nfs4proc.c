@@ -6621,20 +6621,24 @@ static int
 nfs4_wake_lock_waiter(wait_queue_entry_t *wait, unsigned int mode, int flags, void *key)
 {
 	int ret;
-	struct cb_notify_lock_args *cbnl = key;
 	struct nfs4_lock_waiter	*waiter	= wait->private;
-	struct nfs_lowner	*lowner = &cbnl->cbnl_owner,
-				*wowner = waiter->owner;
 
-	/* Only wake if the callback was for the same owner. */
-	if (lowner->id != wowner->id || lowner->s_dev != wowner->s_dev)
-		return 0;
+	/* NULL key means to wake up everyone */
+	if (key) {
+		struct cb_notify_lock_args	*cbnl = key;
+		struct nfs_lowner		*lowner = &cbnl->cbnl_owner,
+						*wowner = waiter->owner;
 
-	/* Make sure it's for the right inode */
-	if (nfs_compare_fh(NFS_FH(waiter->inode), &cbnl->cbnl_fh))
-		return 0;
+		/* Only wake if the callback was for the same owner. */
+		if (lowner->id != wowner->id || lowner->s_dev != wowner->s_dev)
+			return 0;
 
-	waiter->notified = true;
+		/* Make sure it's for the right inode */
+		if (nfs_compare_fh(NFS_FH(waiter->inode), &cbnl->cbnl_fh))
+			return 0;
+
+		waiter->notified = true;
+	}
 
 	/* override "private" so we can use default_wake_function */
 	wait->private = waiter->task;
@@ -8413,6 +8417,8 @@ static int nfs41_reclaim_complete_handle_errors(struct rpc_task *task, struct nf
 {
 	switch(task->tk_status) {
 	case 0:
+		wake_up_all(&clp->cl_lock_waitq);
+		/* Fallthrough */
 	case -NFS4ERR_COMPLETE_ALREADY:
 	case -NFS4ERR_WRONG_CRED: /* What to do here? */
 		break;
