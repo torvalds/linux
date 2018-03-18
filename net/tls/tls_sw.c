@@ -94,7 +94,7 @@ static int alloc_encrypted_sg(struct sock *sk, int len)
 	int rc = 0;
 
 	rc = sk_alloc_sg(sk, len,
-			 ctx->sg_encrypted_data,
+			 ctx->sg_encrypted_data, 0,
 			 &ctx->sg_encrypted_num_elem,
 			 &ctx->sg_encrypted_size, 0);
 
@@ -107,7 +107,7 @@ static int alloc_plaintext_sg(struct sock *sk, int len)
 	struct tls_sw_context *ctx = tls_sw_ctx(tls_ctx);
 	int rc = 0;
 
-	rc = sk_alloc_sg(sk, len, ctx->sg_plaintext_data,
+	rc = sk_alloc_sg(sk, len, ctx->sg_plaintext_data, 0,
 			 &ctx->sg_plaintext_num_elem, &ctx->sg_plaintext_size,
 			 tls_ctx->pending_open_record_frags);
 

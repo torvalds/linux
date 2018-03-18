@@ -2240,19 +2240,20 @@ bool sk_page_frag_refill(struct sock *sk, struct page_frag *pfrag)
 EXPORT_SYMBOL(sk_page_frag_refill);
 
 int sk_alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
-		int *sg_num_elem, unsigned int *sg_size,
+		int sg_start, int *sg_curr_index, unsigned int *sg_curr_size,
 		int first_coalesce)
 {
+	int sg_curr = *sg_curr_index, use = 0, rc = 0;
+	unsigned int size = *sg_curr_size;
 	struct page_frag *pfrag;
-	unsigned int size = *sg_size;
-	int num_elem = *sg_num_elem, use = 0, rc = 0;
 	struct scatterlist *sge;
-	unsigned int orig_offset;
 
 	len -= size;
 	pfrag = sk_page_frag(sk);
 
 	while (len > 0) {
+		unsigned int orig_offset;
+
 		if (!sk_page_frag_refill(sk, pfrag)) {
 			rc = -ENOMEM;
 			goto out;
@@ -2270,17 +2271,21 @@ int sk_alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
 		orig_offset = pfrag->offset;
 		pfrag->offset += use;
 
-		sge = sg + num_elem - 1;
-		if (num_elem > first_coalesce && sg_page(sg) == pfrag->page &&
+		sge = sg + sg_curr - 1;
+		if (sg_curr > first_coalesce && sg_page(sg) == pfrag->page &&
 		    sg->offset + sg->length == orig_offset) {
 			sg->length += use;
 		} else {
-			sge++;
+			sge = sg + sg_curr;
 			sg_unmark_end(sge);
 			sg_set_page(sge, pfrag->page, use, orig_offset);
 			get_page(pfrag->page);
-			++num_elem;
-			if (num_elem == MAX_SKB_FRAGS) {
+			sg_curr++;
+
+			if (sg_curr == MAX_SKB_FRAGS)
+				sg_curr = 0;
+
+			if (sg_curr == sg_start) {
 				rc = -ENOSPC;
 				break;
 			}
@@ -2289,8 +2294,8 @@ int sk_alloc_sg(struct sock *sk, int len, struct scatterlist *sg,
 		len -= use;
 	}
 out:
-	*sg_size = size;
-	*sg_num_elem = num_elem;
+	*sg_curr_size = size;
+	*sg_curr_index = sg_curr;
 	return rc;
 }
 EXPORT_SYMBOL(sk_alloc_sg);
