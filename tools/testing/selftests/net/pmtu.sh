@@ -421,7 +421,6 @@ test_pmtu_vti6_link_change_mtu() {
 
 	# Move to another device with different MTU, without passing MTU, check
 	# MTU is adjusted
-	echo "${ns_a} ip link set vti6_a type vti6 remote ${dummy6_1_addr} local ${dummy6_1_addr}" > /dev/kmsg
 	${ns_a} ip link set vti6_a type vti6 remote ${dummy6_1_addr} local ${dummy6_1_addr}
 	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ ${mtu} -ne $((3000 - 40)) ]; then
@@ -430,7 +429,6 @@ test_pmtu_vti6_link_change_mtu() {
 	fi
 
 	# Move it back, passing MTU, check MTU is not overridden
-	echo "${ns_a} ip link set vti6_a mtu 1280 type vti6 remote ${dummy6_0_addr} local ${dummy6_0_addr}" > /dev/kmsg
 	${ns_a} ip link set vti6_a mtu 1280 type vti6 remote ${dummy6_0_addr} local ${dummy6_0_addr}
 	mtu="$(link_get_mtu "${ns_a}" vti6_a)"
 	if [ ${mtu} -ne 1280 ]; then
