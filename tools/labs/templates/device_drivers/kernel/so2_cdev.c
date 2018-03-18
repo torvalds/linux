@@ -75,7 +75,7 @@ so2_cdev_release(struct inode *inode, struct file *file)
 		(struct so2_device_data *) file->private_data;
 
 	/* TODO 3/1: reset access variable to 0, use atomic_set */
-	atomic_inc(&data->access);
+	atomic_set(&data->access, 0);
 #endif
 	return 0;
 }
