@@ -236,4 +236,19 @@ int bpf_prog9(struct sk_msg_md *msg)
 	return SK_PASS;
 }
 
+SEC("sk_msg7")
+int bpf_prog10(struct sk_msg_md *msg)
+{
+	int *bytes, zero = 0;
+
+	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
+	if (bytes)
+		bpf_msg_apply_bytes(msg, *bytes);
+	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
+	if (bytes)
+		bpf_msg_cork_bytes(msg, *bytes);
+	return SK_DROP;
+}
+
+
 char _license[] SEC("license") = "GPL";

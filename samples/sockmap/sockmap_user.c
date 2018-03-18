@@ -59,6 +59,7 @@ int txmsg_pass;
 int txmsg_noisy;
 int txmsg_redir;
 int txmsg_redir_noisy;
+int txmsg_drop;
 int txmsg_apply;
 int txmsg_cork;
 
@@ -75,6 +76,7 @@ static const struct option long_options[] = {
 	{"txmsg_noisy",		no_argument,	&txmsg_noisy, 1  },
 	{"txmsg_redir",		no_argument,	&txmsg_redir, 1  },
 	{"txmsg_redir_noisy",	no_argument,	&txmsg_redir_noisy, 1},
+	{"txmsg_drop",		no_argument,	&txmsg_drop, 1 },
 	{"txmsg_apply",	required_argument,	NULL, 'a'},
 	{"txmsg_cork",	required_argument,	NULL, 'k'},
 	{0, 0, NULL, 0 }
@@ -210,9 +212,19 @@ struct msg_stats {
 	struct timespec end;
 };
 
+struct sockmap_options {
+	int verbose;
+	bool base;
+	bool sendpage;
+	bool data_test;
+	bool drop_expected;
+};
+
 static int msg_loop_sendpage(int fd, int iov_length, int cnt,
-			     struct msg_stats *s)
+			     struct msg_stats *s,
+			     struct sockmap_options *opt)
 {
+	bool drop = opt->drop_expected;
 	unsigned char k = 0;
 	FILE *file;
 	int i, fp;
@@ -229,12 +241,18 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 	for (i = 0; i < cnt; i++) {
 		int sent = sendfile(fd, fp, NULL, iov_length);
 
-		if (sent < 0) {
+		if (!drop && sent < 0) {
 			perror("send loop error:");
 			close(fp);
 			return sent;
+		} else if (drop && sent >= 0) {
+			printf("sendpage loop error expected: %i\n", sent);
+			close(fp);
+			return -EIO;
 		}
-		s->bytes_sent += sent;
+
+		if (sent > 0)
+			s->bytes_sent += sent;
 	}
 	clock_gettime(CLOCK_MONOTONIC, &s->end);
 	close(fp);
@@ -242,12 +260,15 @@ static int msg_loop_sendpage(int fd, int iov_length, int cnt,
 }
 
 static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
-		    struct msg_stats *s, bool tx, bool data_test)
+		    struct msg_stats *s, bool tx,
+		    struct sockmap_options *opt)
 {
 	struct msghdr msg = {0};
 	int err, i, flags = MSG_NOSIGNAL;
 	struct iovec *iov;
 	unsigned char k;
+	bool data_test = opt->data_test;
+	bool drop = opt->drop_expected;
 
 	iov = calloc(iov_count, sizeof(struct iovec));
 	if (!iov)
@@ -281,11 +302,16 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		for (i = 0; i < cnt; i++) {
 			int sent = sendmsg(fd, &msg, flags);
 
-			if (sent < 0) {
+			if (!drop && sent < 0) {
 				perror("send loop error:");
 				goto out_errno;
+			} else if (drop && sent >= 0) {
+				printf("send loop error expected: %i\n", sent);
+				errno = -EIO;
+				goto out_errno;
 			}
-			s->bytes_sent += sent;
+			if (sent > 0)
+				s->bytes_sent += sent;
 		}
 		clock_gettime(CLOCK_MONOTONIC, &s->end);
 	} else {
@@ -375,13 +401,6 @@ static inline float recvdBps(struct msg_stats s)
 	return s.bytes_recvd / (s.end.tv_sec - s.start.tv_sec);
 }
 
-struct sockmap_options {
-	int verbose;
-	bool base;
-	bool sendpage;
-	bool data_test;
-};
-
 static int sendmsg_test(int iov_count, int iov_buf, int cnt,
 			struct sockmap_options *opt)
 {
@@ -399,10 +418,13 @@ static int sendmsg_test(int iov_count, int iov_buf, int cnt,
 
 	rxpid = fork();
 	if (rxpid == 0) {
+		if (opt->drop_expected)
+			exit(1);
+
 		if (opt->sendpage)
 			iov_count = 1;
 		err = msg_loop(rx_fd, iov_count, iov_buf,
-			       cnt, &s, false, opt->data_test);
+			       cnt, &s, false, opt);
 		if (err)
 			fprintf(stderr,
 				"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
@@ -426,10 +448,10 @@ static int sendmsg_test(int iov_count, int iov_buf, int cnt,
 	txpid = fork();
 	if (txpid == 0) {
 		if (opt->sendpage)
-			err = msg_loop_sendpage(c1, iov_buf, cnt, &s);
+			err = msg_loop_sendpage(c1, iov_buf, cnt, &s, opt);
 		else
 			err = msg_loop(c1, iov_count, iov_buf,
-				       cnt, &s, true, opt->data_test);
+				       cnt, &s, true, opt);
 
 		if (err)
 			fprintf(stderr,
@@ -674,6 +696,9 @@ run:
 		tx_prog_fd = prog_fd[5];
 	else if (txmsg_redir_noisy)
 		tx_prog_fd = prog_fd[6];
+	else if (txmsg_drop)
+		tx_prog_fd = prog_fd[9];
+	/* apply and cork must be last */
 	else if (txmsg_apply)
 		tx_prog_fd = prog_fd[7];
 	else if (txmsg_cork)
@@ -700,6 +725,7 @@ run:
 				err, strerror(errno));
 			return err;
 		}
+
 		if (txmsg_redir || txmsg_redir_noisy)
 			redir_fd = c2;
 		else
@@ -736,6 +762,10 @@ run:
 		}
 
 	}
+
+	if (txmsg_drop)
+		options.drop_expected = true;
+
 	if (test == PING_PONG)
 		err = forever_ping_pong(rate, &options);
 	else if (test == SENDMSG) {
