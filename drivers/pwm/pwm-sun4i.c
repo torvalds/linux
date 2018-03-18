@@ -312,27 +312,17 @@ static const struct pwm_ops sun4i_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static const struct sun4i_pwm_data sun4i_pwm_data_a10 = {
+static const struct sun4i_pwm_data sun4i_pwm_dual_nobypass = {
 	.has_prescaler_bypass = false,
 	.npwm = 2,
 };
 
-static const struct sun4i_pwm_data sun4i_pwm_data_a10s = {
+static const struct sun4i_pwm_data sun4i_pwm_dual_bypass = {
 	.has_prescaler_bypass = true,
 	.npwm = 2,
 };
 
-static const struct sun4i_pwm_data sun4i_pwm_data_a13 = {
-	.has_prescaler_bypass = true,
-	.npwm = 1,
-};
-
-static const struct sun4i_pwm_data sun4i_pwm_data_a20 = {
-	.has_prescaler_bypass = true,
-	.npwm = 2,
-};
-
-static const struct sun4i_pwm_data sun4i_pwm_data_h3 = {
+static const struct sun4i_pwm_data sun4i_pwm_single_bypass = {
 	.has_prescaler_bypass = true,
 	.npwm = 1,
 };
@@ -340,19 +330,19 @@ static const struct sun4i_pwm_data sun4i_pwm_data_h3 = {
 static const struct of_device_id sun4i_pwm_dt_ids[] = {
 	{
 		.compatible = "allwinner,sun4i-a10-pwm",
-		.data = &sun4i_pwm_data_a10,
+		.data = &sun4i_pwm_dual_nobypass,
 	}, {
 		.compatible = "allwinner,sun5i-a10s-pwm",
-		.data = &sun4i_pwm_data_a10s,
+		.data = &sun4i_pwm_dual_bypass,
 	}, {
 		.compatible = "allwinner,sun5i-a13-pwm",
-		.data = &sun4i_pwm_data_a13,
+		.data = &sun4i_pwm_single_bypass,
 	}, {
 		.compatible = "allwinner,sun7i-a20-pwm",
-		.data = &sun4i_pwm_data_a20,
+		.data = &sun4i_pwm_dual_bypass,
 	}, {
 		.compatible = "allwinner,sun8i-h3-pwm",
-		.data = &sun4i_pwm_data_h3,
+		.data = &sun4i_pwm_single_bypass,
 	}, {
 		/* sentinel */
 	},
