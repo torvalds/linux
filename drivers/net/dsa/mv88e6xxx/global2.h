@@ -317,6 +317,11 @@ int mv88e6xxx_g2_setup(struct mv88e6xxx_chip *chip);
 int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip);
 void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip);
 
+int mv88e6xxx_g2_irq_mdio_setup(struct mv88e6xxx_chip *chip,
+				struct mii_bus *bus);
+void mv88e6xxx_g2_irq_mdio_free(struct mv88e6xxx_chip *chip,
+				struct mii_bus *bus);
+
 int mv88e6185_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 int mv88e6352_g2_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip);
 
@@ -447,6 +452,17 @@ static inline int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 }
 
 static inline void mv88e6xxx_g2_irq_free(struct mv88e6xxx_chip *chip)
+{
+}
+
+static inline int mv88e6xxx_g2_irq_mdio_setup(struct mv88e6xxx_chip *chip,
+					      struct mii_bus *bus)
+{
+	return 0;
+}
+
+static inline void mv88e6xxx_g2_irq_mdio_free(struct mv88e6xxx_chip *chip,
+					      struct mii_bus *bus)
 {
 }
 
