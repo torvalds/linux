@@ -73,7 +73,6 @@ static const u32 prescaler_table[] = {
 
 struct sun4i_pwm_data {
 	bool has_prescaler_bypass;
-	bool has_rdy;
 	unsigned int npwm;
 };
 
@@ -315,31 +314,26 @@ static const struct pwm_ops sun4i_pwm_ops = {
 
 static const struct sun4i_pwm_data sun4i_pwm_data_a10 = {
 	.has_prescaler_bypass = false,
-	.has_rdy = false,
 	.npwm = 2,
 };
 
 static const struct sun4i_pwm_data sun4i_pwm_data_a10s = {
 	.has_prescaler_bypass = true,
-	.has_rdy = true,
 	.npwm = 2,
 };
 
 static const struct sun4i_pwm_data sun4i_pwm_data_a13 = {
 	.has_prescaler_bypass = true,
-	.has_rdy = true,
 	.npwm = 1,
 };
 
 static const struct sun4i_pwm_data sun4i_pwm_data_a20 = {
 	.has_prescaler_bypass = true,
-	.has_rdy = true,
 	.npwm = 2,
 };
 
 static const struct sun4i_pwm_data sun4i_pwm_data_h3 = {
 	.has_prescaler_bypass = true,
-	.has_rdy = true,
 	.npwm = 1,
 };
 
