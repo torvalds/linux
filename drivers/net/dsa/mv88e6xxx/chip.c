@@ -849,7 +849,9 @@ static void mv88e6xxx_get_stats(struct mv88e6xxx_chip *chip, int port,
 
 	if (chip->info->ops->serdes_get_stats) {
 		data += count;
+		mutex_lock(&chip->reg_lock);
 		chip->info->ops->serdes_get_stats(chip, port, data);
+		mutex_unlock(&chip->reg_lock);
 	}
 }
 
