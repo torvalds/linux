@@ -70,14 +70,14 @@ int thread_fn(void *data)
 	for (i = 0; i < tp->sched; i++)
 		schedule();
 
-	/* TODO: use tp->down for down_interruptible */
+	/* ***: use tp->down for down_interruptible */
 	sema_init(&sem, 1);
 	for (i = 0; i < tp->up; i++) {
 		up(&sem);
 		do_work();
 		down_interruptible(&sem);
 	}
-	/* TODO: use to->unlock for mutex_unlock */
+	/* ***: use to->unlock for mutex_unlock */
 	mutex_init(&lock);
 	for (i = 0; i < tp->lock; i++) {
 		mutex_lock(&lock);
