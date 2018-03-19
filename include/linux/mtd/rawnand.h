@@ -429,6 +429,16 @@ struct nand_jedec_params {
 	__le16 crc;
 } __packed;
 
+/**
+ * struct nand_parameters - NAND generic parameters from the parameter page
+ * @model: Model name
+ * @supports_set_get_features: The NAND chip supports setting/getting features
+ */
+struct nand_parameters {
+	char model[100];
+	bool supports_set_get_features;
+};
+
 /* The maximum expected count of bytes in the NAND ID sequence */
 #define NAND_MAX_ID_LEN 8
 
@@ -1165,6 +1175,8 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  *			supported, 0 otherwise.
  * @jedec_params:	[INTERN] holds the JEDEC parameter page when JEDEC is
  *			supported, 0 otherwise.
+ * @parameters:		[INTERN] holds generic parameters under an easily
+ *			readable form.
  * @max_bb_per_die:	[INTERN] the max number of bad blocks each die of a
  *			this nand device will encounter their life times.
  * @blocks_per_die:	[INTERN] The number of PEBs in a die
@@ -1249,6 +1261,7 @@ struct nand_chip {
 		struct nand_onfi_params	onfi_params;
 		struct nand_jedec_params jedec_params;
 	};
+	struct nand_parameters parameters;
 	u16 max_bb_per_die;
 	u32 blocks_per_die;
 
