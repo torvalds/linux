@@ -496,6 +496,43 @@ static void at24_properties_to_pdata(struct device *dev,
 	}
 }
 
+static int at24_get_pdata(struct device *dev, struct at24_platform_data *pdata)
+{
+	struct device_node *of_node = dev->of_node;
+	const struct at24_chip_data *cdata;
+	const struct i2c_device_id *id;
+	struct at24_platform_data *pd;
+
+	pd = dev_get_platdata(dev);
+	if (pd) {
+		memcpy(pdata, pd, sizeof(*pdata));
+		return 0;
+	}
+
+	id = i2c_match_id(at24_ids, to_i2c_client(dev));
+
+	/*
+	 * The I2C core allows OF nodes compatibles to match against the
+	 * I2C device ID table as a fallback, so check not only if an OF
+	 * node is present but also if it matches an OF device ID entry.
+	 */
+	if (of_node && of_match_device(at24_of_match, dev))
+		cdata = of_device_get_match_data(dev);
+	else if (id)
+		cdata = (void *)&id->driver_data;
+	else
+		cdata = acpi_device_get_match_data(dev);
+
+	if (!cdata)
+		return -ENODEV;
+
+	pdata->byte_len = cdata->byte_len;
+	pdata->flags = cdata->flags;
+	at24_properties_to_pdata(dev, pdata);
+
+	return 0;
+}
+
 static unsigned int at24_get_offset_adj(u8 flags, unsigned int byte_len)
 {
 	if (flags & AT24_FLAG_MAC) {
@@ -523,10 +560,8 @@ static int at24_probe(struct i2c_client *client)
 {
 	struct regmap_config regmap_config = { };
 	struct nvmem_config nvmem_config = { };
-	const struct at24_chip_data *cd = NULL;
 	struct at24_platform_data pdata = { };
 	struct device *dev = &client->dev;
-	const struct i2c_device_id *id;
 	unsigned int i, num_addresses;
 	struct at24_data *at24;
 	size_t at24_size;
@@ -534,34 +569,9 @@ static int at24_probe(struct i2c_client *client)
 	u8 test_byte;
 	int err;
 
-	id = i2c_match_id(at24_ids, client);
-
-	if (dev->platform_data) {
-		pdata = *(struct at24_platform_data *)dev->platform_data;
-	} else {
-		/*
-		 * The I2C core allows OF nodes compatibles to match against the
-		 * I2C device ID table as a fallback, so check not only if an OF
-		 * node is present but also if it matches an OF device ID entry.
-		 */
-		if (dev->of_node && of_match_device(at24_of_match, dev)) {
-			cd = of_device_get_match_data(dev);
-		} else if (id) {
-			cd = (void *)id->driver_data;
-		} else {
-			const struct acpi_device_id *aid;
-
-			aid = acpi_match_device(at24_acpi_ids, dev);
-			if (aid)
-				cd = (void *)aid->driver_data;
-		}
-		if (!cd)
-			return -ENODEV;
-
-		pdata.byte_len = cd->byte_len;
-		pdata.flags = cd->flags;
-		at24_properties_to_pdata(dev, &pdata);
-	}
+	err = at24_get_pdata(dev, &pdata);
+	if (err)
+		return err;
 
 	if (!pdata.page_size) {
 		dev_err(dev, "page_size must not be 0!\n");
