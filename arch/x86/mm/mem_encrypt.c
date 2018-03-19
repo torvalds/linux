@@ -211,7 +211,7 @@ static void *sev_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		 * Since we will be clearing the encryption bit, check the
 		 * mask with it already cleared.
 		 */
-		addr = __sme_clr(phys_to_dma(dev, page_to_phys(page)));
+		addr = __phys_to_dma(dev, page_to_phys(page));
 		if ((addr + size) > dev->coherent_dma_mask) {
 			__free_pages(page, get_order(size));
 		} else {
