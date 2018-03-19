@@ -66,11 +66,25 @@ enum {
 	UVERBS_ATTR_SPEC_F_MIN_SZ	= 1U << 1,
 };
 
+/* Specification of a single attribute inside the ioctl message */
 struct uverbs_attr_spec {
-	enum uverbs_attr_type		type;
 	union {
-		u16				len;
+		/* Header shared by all following union members - to reduce space. */
 		struct {
+			enum uverbs_attr_type		type;
+			/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
+			u8				flags;
+		};
+		struct {
+			enum uverbs_attr_type		type;
+			/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
+			u8				flags;
+			u16				len;
+		} ptr;
+		struct {
+			enum uverbs_attr_type		type;
+			/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
+			u8				flags;
 			/*
 			 * higher bits mean the namespace and lower bits mean
 			 * the type id within the namespace.
@@ -79,8 +93,6 @@ struct uverbs_attr_spec {
 			u8			access;
 		} obj;
 	};
-	/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
-	u8				flags;
 };
 
 struct uverbs_attr_spec_hash {
@@ -167,10 +179,10 @@ struct uverbs_object_tree_def {
 #define UA_FLAGS(_flags)  .flags = _flags
 #define __UVERBS_ATTR0(_id, _len, _type, ...)                           \
 	((const struct uverbs_attr_def)				  \
-	 {.id = _id, .attr = {.type = _type, {.len = _len}, .flags = 0, } })
+	 {.id = _id, .attr = {{.ptr = {.type = _type, .len = _len, .flags = 0, } }, } })
 #define __UVERBS_ATTR1(_id, _len, _type, _flags)                        \
 	((const struct uverbs_attr_def)				  \
-	 {.id = _id, .attr = {.type = _type, {.len = _len}, _flags, } })
+	 {.id = _id, .attr = {{.ptr = {.type = _type, .len = _len, _flags } },} })
 #define __UVERBS_ATTR(_id, _len, _type, _flags, _n, ...)		\
 	__UVERBS_ATTR##_n(_id, _len, _type, _flags)
 /*
@@ -203,15 +215,13 @@ struct uverbs_object_tree_def {
 #define ___UVERBS_ATTR_OBJ0(_id, _obj_class, _obj_type, _access, ...)\
 	((const struct uverbs_attr_def)					\
 	{.id = _id,							\
-	 .attr = {.type = _obj_class,					\
-		  {.obj = {.obj_type = _obj_type, .access = _access } },\
-		  .flags = 0} })
+	 .attr = { {.obj = {.type = _obj_class, .obj_type = _obj_type,	\
+			    .access = _access, .flags = 0 } }, } })
 #define ___UVERBS_ATTR_OBJ1(_id, _obj_class, _obj_type, _access, _flags)\
 	((const struct uverbs_attr_def)					\
 	{.id = _id,							\
-	.attr = {.type = _obj_class,					\
-		 {.obj = {.obj_type = _obj_type, .access = _access} },	\
-		  _flags} })
+	.attr = { {.obj = {.type = _obj_class, .obj_type = _obj_type,	\
+			   .access = _access, _flags} }, } })
 #define ___UVERBS_ATTR_OBJ(_id, _obj_class, _obj_type, _access, _flags, \
 			   _n, ...)					\
 	___UVERBS_ATTR_OBJ##_n(_id, _obj_class, _obj_type, _access, _flags)

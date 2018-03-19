@@ -69,9 +69,9 @@ static int uverbs_process_attr(struct ib_device *ibdev,
 	switch (spec->type) {
 	case UVERBS_ATTR_TYPE_PTR_IN:
 	case UVERBS_ATTR_TYPE_PTR_OUT:
-		if (uattr->len < spec->len ||
+		if (uattr->len < spec->ptr.len ||
 		    (!(spec->flags & UVERBS_ATTR_SPEC_F_MIN_SZ) &&
-		     uattr->len > spec->len))
+		     uattr->len > spec->ptr.len))
 			return -EINVAL;
 
 		e->ptr_attr.data = uattr->data;
