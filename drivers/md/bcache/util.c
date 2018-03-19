@@ -82,10 +82,9 @@ STRTO_H(strtoll, long long)
 STRTO_H(strtoull, unsigned long long)
 
 /**
- * bch_hprint() - formats @v to human readable string for sysfs.
- *
- * @v - signed 64 bit integer
- * @buf - the (at least 8 byte) buffer to format the result into.
+ * bch_hprint - formats @v to human readable string for sysfs.
+ * @buf: the (at least 8 byte) buffer to format the result into.
+ * @v: signed 64 bit integer
  *
  * Returns the number of bytes used by format.
  */
@@ -225,13 +224,12 @@ void bch_time_stats_update(struct time_stats *stats, uint64_t start_time)
 }
 
 /**
- * bch_next_delay() - increment @d by the amount of work done, and return how
- * long to delay until the next time to do some work.
+ * bch_next_delay() - update ratelimiting statistics and calculate next delay
+ * @d: the struct bch_ratelimit to update
+ * @done: the amount of work done, in arbitrary units
  *
- * @d - the struct bch_ratelimit to update
- * @done - the amount of work done, in arbitrary units
- *
- * Returns the amount of time to delay by, in jiffies
+ * Increment @d by the amount of work done, and return how long to delay in
+ * jiffies until the next time to do some work.
  */
 uint64_t bch_next_delay(struct bch_ratelimit *d, uint64_t done)
 {
