@@ -16,6 +16,7 @@
  */
 
 #include <linux/dma-contiguous.h>
+#include <linux/dma-direct.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/mm.h>
@@ -123,7 +124,7 @@ static void *xtensa_dma_alloc(struct device *dev, size_t size,
 			      unsigned long attrs)
 {
 	unsigned long ret;
-	unsigned long uncached = 0;
+	unsigned long uncached;
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	struct page *page = NULL;
 
@@ -144,15 +145,27 @@ static void *xtensa_dma_alloc(struct device *dev, size_t size,
 	if (!page)
 		return NULL;
 
+	*handle = phys_to_dma(dev, page_to_phys(page));
+
+#ifdef CONFIG_MMU
+	if (PageHighMem(page)) {
+		void *p;
+
+		p = dma_common_contiguous_remap(page, size, VM_MAP,
+						pgprot_noncached(PAGE_KERNEL),
+						__builtin_return_address(0));
+		if (!p) {
+			if (!dma_release_from_contiguous(dev, page, count))
+				__free_pages(page, get_order(size));
+		}
+		return p;
+	}
+#endif
 	ret = (unsigned long)page_address(page);
-
-	/* We currently don't support coherent memory outside KSEG */
-
 	BUG_ON(ret < XCHAL_KSEG_CACHED_VADDR ||
 	       ret > XCHAL_KSEG_CACHED_VADDR + XCHAL_KSEG_SIZE - 1);
 
 	uncached = ret + XCHAL_KSEG_BYPASS_VADDR - XCHAL_KSEG_CACHED_VADDR;
-	*handle = virt_to_bus((void *)ret);
 	__invalidate_dcache_range(ret, size);
 
 	return (void *)uncached;
@@ -161,13 +174,20 @@ static void *xtensa_dma_alloc(struct device *dev, size_t size,
 static void xtensa_dma_free(struct device *dev, size_t size, void *vaddr,
 			    dma_addr_t dma_handle, unsigned long attrs)
 {
-	unsigned long addr = (unsigned long)vaddr +
-		XCHAL_KSEG_CACHED_VADDR - XCHAL_KSEG_BYPASS_VADDR;
-	struct page *page = virt_to_page(addr);
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	unsigned long addr = (unsigned long)vaddr;
+	struct page *page;
 
-	BUG_ON(addr < XCHAL_KSEG_CACHED_VADDR ||
-	       addr > XCHAL_KSEG_CACHED_VADDR + XCHAL_KSEG_SIZE - 1);
+	if (addr >= XCHAL_KSEG_BYPASS_VADDR &&
+	    addr - XCHAL_KSEG_BYPASS_VADDR < XCHAL_KSEG_SIZE) {
+		addr += XCHAL_KSEG_CACHED_VADDR - XCHAL_KSEG_BYPASS_VADDR;
+		page = virt_to_page(addr);
+	} else {
+#ifdef CONFIG_MMU
+		dma_common_free_remap(vaddr, size, VM_MAP);
+#endif
+		page = pfn_to_page(PHYS_PFN(dma_to_phys(dev, dma_handle)));
+	}
 
 	if (!dma_release_from_contiguous(dev, page, count))
 		__free_pages(page, get_order(size));

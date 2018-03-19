@@ -94,7 +94,7 @@ static struct irq_chip gicv2m_msi_irq_chip = {
 
 static struct msi_domain_info gicv2m_msi_domain_info = {
 	.flags	= (MSI_FLAG_USE_DEF_DOM_OPS | MSI_FLAG_USE_DEF_CHIP_OPS |
-		   MSI_FLAG_PCI_MSIX),
+		   MSI_FLAG_PCI_MSIX | MSI_FLAG_MULTI_PCI_MSI),
 	.chip	= &gicv2m_msi_irq_chip,
 };
 
@@ -155,18 +155,12 @@ static int gicv2m_irq_gic_domain_alloc(struct irq_domain *domain,
 	return 0;
 }
 
-static void gicv2m_unalloc_msi(struct v2m_data *v2m, unsigned int hwirq)
+static void gicv2m_unalloc_msi(struct v2m_data *v2m, unsigned int hwirq,
+			       int nr_irqs)
 {
-	int pos;
-
-	pos = hwirq - v2m->spi_start;
-	if (pos < 0 || pos >= v2m->nr_spis) {
-		pr_err("Failed to teardown msi. Invalid hwirq %d\n", hwirq);
-		return;
-	}
-
 	spin_lock(&v2m_lock);
-	__clear_bit(pos, v2m->bm);
+	bitmap_release_region(v2m->bm, hwirq - v2m->spi_start,
+			      get_count_order(nr_irqs));
 	spin_unlock(&v2m_lock);
 }
 
@@ -174,13 +168,13 @@ static int gicv2m_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				   unsigned int nr_irqs, void *args)
 {
 	struct v2m_data *v2m = NULL, *tmp;
-	int hwirq, offset, err = 0;
+	int hwirq, offset, i, err = 0;
 
 	spin_lock(&v2m_lock);
 	list_for_each_entry(tmp, &v2m_nodes, entry) {
-		offset = find_first_zero_bit(tmp->bm, tmp->nr_spis);
-		if (offset < tmp->nr_spis) {
-			__set_bit(offset, tmp->bm);
+		offset = bitmap_find_free_region(tmp->bm, tmp->nr_spis,
+						 get_count_order(nr_irqs));
+		if (offset >= 0) {
 			v2m = tmp;
 			break;
 		}
@@ -192,16 +186,21 @@ static int gicv2m_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 
 	hwirq = v2m->spi_start + offset;
 
-	err = gicv2m_irq_gic_domain_alloc(domain, virq, hwirq);
-	if (err) {
-		gicv2m_unalloc_msi(v2m, hwirq);
-		return err;
+	for (i = 0; i < nr_irqs; i++) {
+		err = gicv2m_irq_gic_domain_alloc(domain, virq + i, hwirq + i);
+		if (err)
+			goto fail;
+
+		irq_domain_set_hwirq_and_chip(domain, virq + i, hwirq + i,
+					      &gicv2m_irq_chip, v2m);
 	}
 
-	irq_domain_set_hwirq_and_chip(domain, virq, hwirq,
-				      &gicv2m_irq_chip, v2m);
-
 	return 0;
+
+fail:
+	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
+	gicv2m_unalloc_msi(v2m, hwirq, get_count_order(nr_irqs));
+	return err;
 }
 
 static void gicv2m_irq_domain_free(struct irq_domain *domain,
@@ -210,8 +209,7 @@ static void gicv2m_irq_domain_free(struct irq_domain *domain,
 	struct irq_data *d = irq_domain_get_irq_data(domain, virq);
 	struct v2m_data *v2m = irq_data_get_irq_chip_data(d);
 
-	BUG_ON(nr_irqs != 1);
-	gicv2m_unalloc_msi(v2m, d->hwirq);
+	gicv2m_unalloc_msi(v2m, d->hwirq, nr_irqs);
 	irq_domain_free_irqs_parent(domain, virq, nr_irqs);
 }
 

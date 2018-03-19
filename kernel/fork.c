@@ -592,7 +592,7 @@ static void check_mm(struct mm_struct *mm)
  * is dropped: either by a lazy thread or by
  * mmput. Free the page directory and the mm.
  */
-static void __mmdrop(struct mm_struct *mm)
+void __mmdrop(struct mm_struct *mm)
 {
 	BUG_ON(mm == &init_mm);
 	mm_free_pgd(mm);
@@ -603,18 +603,7 @@ static void __mmdrop(struct mm_struct *mm)
 	put_user_ns(mm->user_ns);
 	free_mm(mm);
 }
-
-void mmdrop(struct mm_struct *mm)
-{
-	/*
-	 * The implicit full barrier implied by atomic_dec_and_test() is
-	 * required by the membarrier system call before returning to
-	 * user-space, after storing to rq->curr.
-	 */
-	if (unlikely(atomic_dec_and_test(&mm->mm_count)))
-		__mmdrop(mm);
-}
-EXPORT_SYMBOL_GPL(mmdrop);
+EXPORT_SYMBOL_GPL(__mmdrop);
 
 static void mmdrop_async_fn(struct work_struct *work)
 {

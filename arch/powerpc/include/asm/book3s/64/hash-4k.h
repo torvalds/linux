@@ -63,7 +63,8 @@ static inline int hash__hugepd_ok(hugepd_t hpd)
  * keeping the prototype consistent across the two formats.
  */
 static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
-			unsigned int subpg_index, unsigned long hidx)
+					 unsigned int subpg_index, unsigned long hidx,
+					 int offset)
 {
 	return (hidx << H_PAGE_F_GIX_SHIFT) &
 		(H_PAGE_F_SECOND | H_PAGE_F_GIX);

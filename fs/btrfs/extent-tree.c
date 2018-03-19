@@ -2147,6 +2147,10 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 			u64 bytes;
 			struct request_queue *req_q;
 
+			if (!stripe->dev->bdev) {
+				ASSERT(btrfs_test_opt(fs_info, DEGRADED));
+				continue;
+			}
 			req_q = bdev_get_queue(stripe->dev->bdev);
 			if (!blk_queue_discard(req_q))
 				continue;
