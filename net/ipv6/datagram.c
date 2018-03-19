@@ -149,7 +149,7 @@ int __ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr,
 	struct in6_addr		*daddr, old_daddr;
 	__be32			fl6_flowlabel = 0;
 	__be32			old_fl6_flowlabel;
-	__be32			old_dport;
+	__be16			old_dport;
 	int			addr_type;
 	int			err;
 
