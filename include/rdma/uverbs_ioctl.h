@@ -361,6 +361,8 @@ static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_b
 					    idx & ~UVERBS_ID_NS_MASK);
 }
 
+#define IS_UVERBS_COPY_ERR(_ret)		((_ret) && (_ret) != -ENOENT)
+
 static inline const struct uverbs_attr *uverbs_attr_get(const struct uverbs_attr_bundle *attrs_bundle,
 							u16 idx)
 {
