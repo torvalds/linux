@@ -22,6 +22,19 @@ static int macronix_nand_init(struct nand_chip *chip)
 	if (nand_is_slc(chip))
 		chip->bbt_options |= NAND_BBT_SCAN2NDPAGE;
 
+	/*
+	 * MX30LF2G18AC chip does not support using SET/GET_FEATURES to change
+	 * the timings unlike what is declared in the parameter page. Unflag
+	 * this feature to avoid unnecessary downturns.
+	 */
+	if (chip->parameters.supports_set_get_features &&
+	    !strcmp("MX30LF2G18AC", chip->parameters.model)) {
+		bitmap_clear(chip->parameters.get_feature_list,
+			     ONFI_FEATURE_ADDR_TIMING_MODE, 1);
+		bitmap_clear(chip->parameters.set_feature_list,
+			     ONFI_FEATURE_ADDR_TIMING_MODE, 1);
+	}
+
 	return 0;
 }
 
