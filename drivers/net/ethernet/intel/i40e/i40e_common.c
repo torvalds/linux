@@ -2415,6 +2415,7 @@ i40e_status i40e_aq_get_switch_config(struct i40e_hw *hw,
  * i40e_aq_set_switch_config
  * @hw: pointer to the hardware structure
  * @flags: bit flag values to set
+ * @mode: cloud filter mode
  * @valid_flags: which bit flags to set
  * @mode: cloud filter mode
  * @cmd_details: pointer to command details structure or NULL
