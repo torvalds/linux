@@ -39,7 +39,7 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dcn10/dcn10_opp.h"
 #include "dce/dce_link_encoder.h"
-#include "dce/dce_stream_encoder.h"
+#include "dcn10/dcn10_stream_encoder.h"
 #include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
@@ -166,36 +166,22 @@ static const struct dce_abm_mask abm_mask = {
 
 #define stream_enc_regs(id)\
 [id] = {\
-	SE_DCN_REG_LIST(id),\
-	.TMDS_CNTL = 0,\
-	.AFMT_AVI_INFO0 = 0,\
-	.AFMT_AVI_INFO1 = 0,\
-	.AFMT_AVI_INFO2 = 0,\
-	.AFMT_AVI_INFO3 = 0,\
+	SE_DCN_REG_LIST(id)\
 }
 
-static const struct dce110_stream_enc_registers stream_enc_regs[] = {
+static const struct dcn10_stream_enc_registers stream_enc_regs[] = {
 	stream_enc_regs(0),
 	stream_enc_regs(1),
 	stream_enc_regs(2),
 	stream_enc_regs(3),
 };
 
-static const struct dce_stream_encoder_shift se_shift = {
+static const struct dcn10_stream_encoder_shift se_shift = {
 		SE_COMMON_MASK_SH_LIST_DCN10(__SHIFT)
 };
 
-static const struct dce_stream_encoder_mask se_mask = {
-		SE_COMMON_MASK_SH_LIST_DCN10(_MASK),
-		.AFMT_GENERIC0_UPDATE = 0,
-		.AFMT_GENERIC2_UPDATE = 0,
-		.DP_DYN_RANGE = 0,
-		.DP_YCBCR_RANGE = 0,
-		.HDMI_AVI_INFO_SEND = 0,
-		.HDMI_AVI_INFO_CONT = 0,
-		.HDMI_AVI_INFO_LINE = 0,
-		.DP_SEC_AVI_ENABLE = 0,
-		.AFMT_AVI_INFO_VERSION = 0
+static const struct dcn10_stream_encoder_mask se_mask = {
+		SE_COMMON_MASK_SH_LIST_DCN10(_MASK)
 };
 
 #define audio_regs(id)\
@@ -653,16 +639,16 @@ static struct stream_encoder *dcn10_stream_encoder_create(
 	enum engine_id eng_id,
 	struct dc_context *ctx)
 {
-	struct dce110_stream_encoder *enc110 =
-		kzalloc(sizeof(struct dce110_stream_encoder), GFP_KERNEL);
+	struct dcn10_stream_encoder *enc1 =
+		kzalloc(sizeof(struct dcn10_stream_encoder), GFP_KERNEL);
 
-	if (!enc110)
+	if (!enc1)
 		return NULL;
 
-	dce110_stream_encoder_construct(enc110, ctx, ctx->dc_bios, eng_id,
+	dcn10_stream_encoder_construct(enc1, ctx, ctx->dc_bios, eng_id,
 					&stream_enc_regs[eng_id],
 					&se_shift, &se_mask);
-	return &enc110->base;
+	return &enc1->base;
 }
 
 static const struct dce_hwseq_registers hwseq_reg = {
