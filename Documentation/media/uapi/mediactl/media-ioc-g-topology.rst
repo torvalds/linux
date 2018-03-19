@@ -205,7 +205,7 @@ desired arrays with the media graph elements.
 
        -  ``function``
 
-       -  Entity main function, see :ref:`media-entity-type` for details.
+       -  Entity main function, see :ref:`media-entity-functions` for details.
 
     -  .. row 4
 
