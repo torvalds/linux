@@ -333,13 +333,13 @@ asmlinkage long parisc_ftruncate64(unsigned int fd,
 asmlinkage ssize_t parisc_pread64(unsigned int fd, char __user *buf, size_t count,
 					unsigned int high, unsigned int low)
 {
-	return sys_pread64(fd, buf, count, (loff_t)high << 32 | low);
+	return ksys_pread64(fd, buf, count, (loff_t)high << 32 | low);
 }
 
 asmlinkage ssize_t parisc_pwrite64(unsigned int fd, const char __user *buf,
 			size_t count, unsigned int high, unsigned int low)
 {
-	return sys_pwrite64(fd, buf, count, (loff_t)high << 32 | low);
+	return ksys_pwrite64(fd, buf, count, (loff_t)high << 32 | low);
 }
 
 asmlinkage ssize_t parisc_readahead(int fd, unsigned int high, unsigned int low,

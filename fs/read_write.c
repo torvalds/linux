@@ -610,8 +610,8 @@ SYSCALL_DEFINE3(write, unsigned int, fd, const char __user *, buf,
 	return ksys_write(fd, buf, count);
 }
 
-SYSCALL_DEFINE4(pread64, unsigned int, fd, char __user *, buf,
-			size_t, count, loff_t, pos)
+ssize_t ksys_pread64(unsigned int fd, char __user *buf, size_t count,
+		     loff_t pos)
 {
 	struct fd f;
 	ssize_t ret = -EBADF;
@@ -630,8 +630,14 @@ SYSCALL_DEFINE4(pread64, unsigned int, fd, char __user *, buf,
 	return ret;
 }
 
-SYSCALL_DEFINE4(pwrite64, unsigned int, fd, const char __user *, buf,
-			 size_t, count, loff_t, pos)
+SYSCALL_DEFINE4(pread64, unsigned int, fd, char __user *, buf,
+			size_t, count, loff_t, pos)
+{
+	return ksys_pread64(fd, buf, count, pos);
+}
+
+ssize_t ksys_pwrite64(unsigned int fd, const char __user *buf,
+		      size_t count, loff_t pos)
 {
 	struct fd f;
 	ssize_t ret = -EBADF;
@@ -648,6 +654,12 @@ SYSCALL_DEFINE4(pwrite64, unsigned int, fd, const char __user *, buf,
 	}
 
 	return ret;
+}
+
+SYSCALL_DEFINE4(pwrite64, unsigned int, fd, const char __user *, buf,
+			 size_t, count, loff_t, pos)
+{
+	return ksys_pwrite64(fd, buf, count, pos);
 }
 
 static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
