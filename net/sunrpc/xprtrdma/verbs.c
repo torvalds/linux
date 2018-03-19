@@ -250,7 +250,6 @@ rpcrdma_conn_upcall(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		wait_for_completion(&ia->ri_remove_done);
 
 		ia->ri_id = NULL;
-		ia->ri_pd = NULL;
 		ia->ri_device = NULL;
 		/* Return 1 to ensure the core destroys the id. */
 		return 1;
@@ -447,7 +446,9 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 		ia->ri_id->qp = NULL;
 	}
 	ib_free_cq(ep->rep_attr.recv_cq);
+	ep->rep_attr.recv_cq = NULL;
 	ib_free_cq(ep->rep_attr.send_cq);
+	ep->rep_attr.send_cq = NULL;
 
 	/* The ULP is responsible for ensuring all DMA
 	 * mappings and MRs are gone.
@@ -460,6 +461,8 @@ rpcrdma_ia_remove(struct rpcrdma_ia *ia)
 		rpcrdma_dma_unmap_regbuf(req->rl_recvbuf);
 	}
 	rpcrdma_mrs_destroy(buf);
+	ib_dealloc_pd(ia->ri_pd);
+	ia->ri_pd = NULL;
 
 	/* Allow waiters to continue */
 	complete(&ia->ri_remove_done);
@@ -627,14 +630,16 @@ rpcrdma_ep_destroy(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia)
 {
 	cancel_delayed_work_sync(&ep->rep_connect_worker);
 
-	if (ia->ri_id->qp) {
+	if (ia->ri_id && ia->ri_id->qp) {
 		rpcrdma_ep_disconnect(ep, ia);
 		rdma_destroy_qp(ia->ri_id);
 		ia->ri_id->qp = NULL;
 	}
 
-	ib_free_cq(ep->rep_attr.recv_cq);
-	ib_free_cq(ep->rep_attr.send_cq);
+	if (ep->rep_attr.recv_cq)
+		ib_free_cq(ep->rep_attr.recv_cq);
+	if (ep->rep_attr.send_cq)
+		ib_free_cq(ep->rep_attr.send_cq);
 }
 
 /* Re-establish a connection after a device removal event.
