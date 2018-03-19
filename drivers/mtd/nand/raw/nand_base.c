@@ -349,7 +349,7 @@ static void nand_write_byte16(struct mtd_info *mtd, uint8_t byte)
 	 *    8-bits of the data bus. During address transfers, the host shall
 	 *    set the upper 8-bits of the data bus to 00h.
 	 *
-	 * One user of the write_byte callback is nand_onfi_set_features. The
+	 * One user of the write_byte callback is nand_set_features. The
 	 * four parameters are specified to be written to I/O[7:0], but this is
 	 * neither an address nor a command transfer. Let's assume a 0 on the
 	 * upper I/O lines is OK.
@@ -1231,9 +1231,9 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 			chip->onfi_timing_mode_default,
 		};
 
-		ret = chip->onfi_set_features(mtd, chip,
-				ONFI_FEATURE_ADDR_TIMING_MODE,
-				tmode_param);
+		ret = chip->set_features(mtd, chip,
+					 ONFI_FEATURE_ADDR_TIMING_MODE,
+					 tmode_param);
 		if (ret)
 			goto err;
 	}
@@ -4769,15 +4769,15 @@ static int nand_max_bad_blocks(struct mtd_info *mtd, loff_t ofs, size_t len)
 }
 
 /**
- * nand_default_onfi_set_features- [REPLACEABLE] set features for ONFI nand
+ * nand_default_set_features- [REPLACEABLE] set NAND chip features
  * @mtd: MTD device structure
  * @chip: nand chip info structure
  * @addr: feature address.
  * @subfeature_param: the subfeature parameters, a four bytes array.
  */
-static int nand_default_onfi_set_features(struct mtd_info *mtd,
-					  struct nand_chip *chip, int addr,
-					  uint8_t *subfeature_param)
+static int nand_default_set_features(struct mtd_info *mtd,
+				     struct nand_chip *chip, int addr,
+				     uint8_t *subfeature_param)
 {
 	if (!chip->onfi_version ||
 	    !(le16_to_cpu(chip->onfi_params.opt_cmd)
@@ -4788,15 +4788,15 @@ static int nand_default_onfi_set_features(struct mtd_info *mtd,
 }
 
 /**
- * nand_default_onfi_get_features- [REPLACEABLE] get features for ONFI nand
+ * nand_default_get_features- [REPLACEABLE] get NAND chip features
  * @mtd: MTD device structure
  * @chip: nand chip info structure
  * @addr: feature address.
  * @subfeature_param: the subfeature parameters, a four bytes array.
  */
-static int nand_default_onfi_get_features(struct mtd_info *mtd,
-					  struct nand_chip *chip, int addr,
-					  uint8_t *subfeature_param)
+static int nand_default_get_features(struct mtd_info *mtd,
+				     struct nand_chip *chip, int addr,
+				     uint8_t *subfeature_param)
 {
 	if (!chip->onfi_version ||
 	    !(le16_to_cpu(chip->onfi_params.opt_cmd)
@@ -4807,8 +4807,7 @@ static int nand_default_onfi_get_features(struct mtd_info *mtd,
 }
 
 /**
- * nand_onfi_get_set_features_notsupp - set/get features stub returning
- *					-ENOTSUPP
+ * nand_get_set_features_notsupp - set/get features stub returning -ENOTSUPP
  * @mtd: MTD device structure
  * @chip: nand chip info structure
  * @addr: feature address.
@@ -4817,13 +4816,12 @@ static int nand_default_onfi_get_features(struct mtd_info *mtd,
  * Should be used by NAND controller drivers that do not support the SET/GET
  * FEATURES operations.
  */
-int nand_onfi_get_set_features_notsupp(struct mtd_info *mtd,
-				       struct nand_chip *chip, int addr,
-				       u8 *subfeature_param)
+int nand_get_set_features_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
+				  int addr, u8 *subfeature_param)
 {
 	return -ENOTSUPP;
 }
-EXPORT_SYMBOL(nand_onfi_get_set_features_notsupp);
+EXPORT_SYMBOL(nand_get_set_features_notsupp);
 
 /**
  * nand_suspend - [MTD Interface] Suspend the NAND flash
@@ -4880,10 +4878,10 @@ static void nand_set_defaults(struct nand_chip *chip)
 		chip->select_chip = nand_select_chip;
 
 	/* set for ONFI nand */
-	if (!chip->onfi_set_features)
-		chip->onfi_set_features = nand_default_onfi_set_features;
-	if (!chip->onfi_get_features)
-		chip->onfi_get_features = nand_default_onfi_get_features;
+	if (!chip->set_features)
+		chip->set_features = nand_default_set_features;
+	if (!chip->get_features)
+		chip->get_features = nand_default_get_features;
 
 	/* If called twice, pointers that depend on busw may need to be reset */
 	if (!chip->read_byte || chip->read_byte == nand_read_byte)

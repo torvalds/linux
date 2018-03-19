@@ -1180,8 +1180,8 @@ static int flctl_probe(struct platform_device *pdev)
 	nand->read_buf = flctl_read_buf;
 	nand->select_chip = flctl_select_chip;
 	nand->cmdfunc = flctl_cmdfunc;
-	nand->onfi_set_features = nand_onfi_get_set_features_notsupp;
-	nand->onfi_get_features = nand_onfi_get_set_features_notsupp;
+	nand->set_features = nand_get_set_features_notsupp;
+	nand->get_features = nand_get_set_features_notsupp;
 
 	if (pdata->flcmncr_val & SEL_16BIT)
 		nand->options |= NAND_BUSWIDTH_16;

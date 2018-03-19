@@ -1170,8 +1170,8 @@ int nand_op_parser_exec_op(struct nand_chip *chip,
  * @blocks_per_die:	[INTERN] The number of PEBs in a die
  * @data_interface:	[INTERN] NAND interface timing information
  * @read_retries:	[INTERN] the number of read retry modes supported
- * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
- * @onfi_get_features:	[REPLACEABLE] get the features for ONFI nand
+ * @set_features:	[REPLACEABLE] set the NAND chip features
+ * @get_features:	[REPLACEABLE] get the NAND chip features
  * @setup_data_interface: [OPTIONAL] setup the data interface and timing. If
  *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
  *			  means the configuration should not be applied but
@@ -1212,10 +1212,10 @@ struct nand_chip {
 		       bool check_only);
 	int (*erase)(struct mtd_info *mtd, int page);
 	int (*scan_bbt)(struct mtd_info *mtd);
-	int (*onfi_set_features)(struct mtd_info *mtd, struct nand_chip *chip,
-			int feature_addr, uint8_t *subfeature_para);
-	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,
-			int feature_addr, uint8_t *subfeature_para);
+	int (*set_features)(struct mtd_info *mtd, struct nand_chip *chip,
+			    int feature_addr, uint8_t *subfeature_para);
+	int (*get_features)(struct mtd_info *mtd, struct nand_chip *chip,
+			    int feature_addr, uint8_t *subfeature_para);
 	int (*setup_read_retry)(struct mtd_info *mtd, int retry_mode);
 	int (*setup_data_interface)(struct mtd_info *mtd, int chipnr,
 				    const struct nand_data_interface *conf);
@@ -1630,9 +1630,8 @@ int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 			   int page);
 
 /* Stub used by drivers that do not support GET/SET FEATURES operations */
-int nand_onfi_get_set_features_notsupp(struct mtd_info *mtd,
-				       struct nand_chip *chip, int addr,
-				       u8 *subfeature_param);
+int nand_get_set_features_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
+				  int addr, u8 *subfeature_param);
 
 /* Default read_page_raw implementation */
 int nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,

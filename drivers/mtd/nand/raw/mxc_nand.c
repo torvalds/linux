@@ -1421,9 +1421,8 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 	}
 }
 
-static int mxc_nand_onfi_set_features(struct mtd_info *mtd,
-				      struct nand_chip *chip, int addr,
-				      u8 *subfeature_param)
+static int mxc_nand_set_features(struct mtd_info *mtd, struct nand_chip *chip,
+				 int addr, u8 *subfeature_param)
 {
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
@@ -1447,9 +1446,8 @@ static int mxc_nand_onfi_set_features(struct mtd_info *mtd,
 	return 0;
 }
 
-static int mxc_nand_onfi_get_features(struct mtd_info *mtd,
-				      struct nand_chip *chip, int addr,
-				      u8 *subfeature_param)
+static int mxc_nand_get_features(struct mtd_info *mtd, struct nand_chip *chip,
+				 int addr, u8 *subfeature_param)
 {
 	struct nand_chip *nand_chip = mtd_to_nand(mtd);
 	struct mxc_nand_host *host = nand_get_controller_data(nand_chip);
@@ -1752,8 +1750,8 @@ static int mxcnd_probe(struct platform_device *pdev)
 	this->read_word = mxc_nand_read_word;
 	this->write_buf = mxc_nand_write_buf;
 	this->read_buf = mxc_nand_read_buf;
-	this->onfi_set_features = mxc_nand_onfi_set_features;
-	this->onfi_get_features = mxc_nand_onfi_get_features;
+	this->set_features = mxc_nand_set_features;
+	this->get_features = mxc_nand_get_features;
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk))

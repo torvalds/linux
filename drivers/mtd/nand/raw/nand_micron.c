@@ -48,8 +48,8 @@ static int micron_nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	u8 feature[ONFI_SUBFEATURE_PARAM_LEN] = {retry_mode};
 
-	return chip->onfi_set_features(mtd, chip, ONFI_FEATURE_ADDR_READ_RETRY,
-				       feature);
+	return chip->set_features(mtd, chip, ONFI_FEATURE_ADDR_READ_RETRY,
+				  feature);
 }
 
 /*
@@ -108,8 +108,8 @@ static int micron_nand_on_die_ecc_setup(struct nand_chip *chip, bool enable)
 	if (enable)
 		feature[0] |= ONFI_FEATURE_ON_DIE_ECC_EN;
 
-	return chip->onfi_set_features(nand_to_mtd(chip), chip,
-				       ONFI_FEATURE_ON_DIE_ECC, feature);
+	return chip->set_features(nand_to_mtd(chip), chip,
+				  ONFI_FEATURE_ON_DIE_ECC, feature);
 }
 
 static int
@@ -219,8 +219,8 @@ static int micron_supports_on_die_ecc(struct nand_chip *chip)
 	if (ret)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
-	chip->onfi_get_features(nand_to_mtd(chip), chip,
-				ONFI_FEATURE_ON_DIE_ECC, feature);
+	chip->get_features(nand_to_mtd(chip), chip,
+			   ONFI_FEATURE_ON_DIE_ECC, feature);
 	if ((feature[0] & ONFI_FEATURE_ON_DIE_ECC_EN) == 0)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
@@ -228,8 +228,8 @@ static int micron_supports_on_die_ecc(struct nand_chip *chip)
 	if (ret)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
-	chip->onfi_get_features(nand_to_mtd(chip), chip,
-				ONFI_FEATURE_ON_DIE_ECC, feature);
+	chip->get_features(nand_to_mtd(chip), chip,
+			   ONFI_FEATURE_ON_DIE_ECC, feature);
 	if (feature[0] & ONFI_FEATURE_ON_DIE_ECC_EN)
 		return MICRON_ON_DIE_MANDATORY;
 
