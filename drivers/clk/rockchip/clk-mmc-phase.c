@@ -171,6 +171,7 @@ static int rockchip_mmc_clk_rate_notify(struct notifier_block *nb,
 					unsigned long event, void *data)
 {
 	struct rockchip_mmc_clock *mmc_clock = to_rockchip_mmc_clock(nb);
+	struct clk_notifier_data *ndata = data;
 
 	/*
 	 * rockchip_mmc_clk is mostly used by mmc controllers to sample
@@ -179,10 +180,14 @@ static int rockchip_mmc_clk_rate_notify(struct notifier_block *nb,
 	 * and may break the data sampling. So here we try to restore the phase
 	 * for that case.
 	 */
+	if (ndata->old_rate <= ndata->new_rate)
+		return NOTIFY_DONE;
+
 	if (event == PRE_RATE_CHANGE)
 		mmc_clock->cached_phase =
 			rockchip_mmc_get_phase(&mmc_clock->hw);
-	else if (event == POST_RATE_CHANGE)
+	else if (mmc_clock->cached_phase != -EINVAL &&
+		 event == POST_RATE_CHANGE)
 		rockchip_mmc_set_phase(&mmc_clock->hw, mmc_clock->cached_phase);
 
 	return NOTIFY_DONE;
