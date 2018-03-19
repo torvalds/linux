@@ -3779,12 +3779,8 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 }
 
 static const struct mlxsw_config_profile mlxsw_sp_config_profile = {
-	.used_max_vepa_channels		= 1,
-	.max_vepa_channels		= 0,
 	.used_max_mid			= 1,
 	.max_mid			= MLXSW_SP_MID_MAX,
-	.used_max_pgt			= 1,
-	.max_pgt			= 0,
 	.used_flood_tables		= 1,
 	.used_flood_mode		= 1,
 	.flood_mode			= 3,
