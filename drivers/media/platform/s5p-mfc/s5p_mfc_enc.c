@@ -1773,6 +1773,42 @@ static inline int vui_sar_idc(enum v4l2_mpeg_video_h264_vui_sar_idc sar)
 	return t[sar];
 }
 
+/*
+ * Update range of all HEVC quantization parameter controls that depend on the
+ * V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP, V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP controls.
+ */
+static void __enc_update_hevc_qp_ctrls_range(struct s5p_mfc_ctx *ctx,
+					     int min, int max)
+{
+	static const int __hevc_qp_ctrls[] = {
+		V4L2_CID_MPEG_VIDEO_HEVC_I_FRAME_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_P_FRAME_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_B_FRAME_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L0_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L1_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L2_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L3_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L4_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L5_QP,
+		V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L6_QP,
+	};
+	struct v4l2_ctrl *ctrl = NULL;
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(__hevc_qp_ctrls); i++) {
+		for (j = 0; j < ARRAY_SIZE(ctx->ctrls); j++) {
+			if (ctx->ctrls[j]->id == __hevc_qp_ctrls[i]) {
+				ctrl = ctx->ctrls[j];
+				break;
+			}
+		}
+		if (WARN_ON(!ctrl))
+			break;
+
+		__v4l2_ctrl_modify_range(ctrl, min, max, ctrl->step, min);
+	}
+}
+
 static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct s5p_mfc_ctx *ctx = ctrl_to_ctx(ctrl);
@@ -2038,9 +2074,13 @@ static int s5p_mfc_enc_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_MIN_QP:
 		p->codec.hevc.rc_min_qp = ctrl->val;
+		__enc_update_hevc_qp_ctrls_range(ctx, ctrl->val,
+						 p->codec.hevc.rc_max_qp);
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_MAX_QP:
 		p->codec.hevc.rc_max_qp = ctrl->val;
+		__enc_update_hevc_qp_ctrls_range(ctx, p->codec.hevc.rc_min_qp,
+						 ctrl->val);
 		break;
 	case V4L2_CID_MPEG_VIDEO_HEVC_LEVEL:
 		p->codec.hevc.level_v4l2 = ctrl->val;
