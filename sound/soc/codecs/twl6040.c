@@ -1158,7 +1158,6 @@ static const struct snd_soc_component_driver soc_component_dev_twl6040 = {
 	.remove			= twl6040_remove,
 	.read			= twl6040_read,
 	.write			= twl6040_write,
-	.remove			= twl6040_remove,
 	.set_bias_level		= twl6040_set_bias_level,
 	.controls		= twl6040_snd_controls,
 	.num_controls		= ARRAY_SIZE(twl6040_snd_controls),
