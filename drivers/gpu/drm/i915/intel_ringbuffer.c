@@ -1693,17 +1693,18 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 		need_wrap &= ~1;
 		GEM_BUG_ON(need_wrap > ring->space);
 		GEM_BUG_ON(ring->emit + need_wrap > ring->size);
+		GEM_BUG_ON(!IS_ALIGNED(need_wrap, sizeof(u64)));
 
 		/* Fill the tail with MI_NOOP */
-		memset(ring->vaddr + ring->emit, 0, need_wrap);
-		ring->emit = 0;
+		memset64(ring->vaddr + ring->emit, 0, need_wrap / sizeof(u64));
 		ring->space -= need_wrap;
+		ring->emit = 0;
 	}
 
 	GEM_BUG_ON(ring->emit > ring->size - bytes);
 	GEM_BUG_ON(ring->space < bytes);
 	cs = ring->vaddr + ring->emit;
-	GEM_DEBUG_EXEC(memset(cs, POISON_INUSE, bytes));
+	GEM_DEBUG_EXEC(memset32(cs, POISON_INUSE, bytes / sizeof(*cs)));
 	ring->emit += bytes;
 	ring->space -= bytes;
 
