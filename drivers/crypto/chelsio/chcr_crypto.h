@@ -340,5 +340,4 @@ void chcr_add_hash_src_ent(struct ahash_request *req, struct ulptx_sgl *ulptx,
 			   struct hash_wr_param *param);
 int chcr_hash_dma_map(struct device *dev, struct ahash_request *req);
 void chcr_hash_dma_unmap(struct device *dev, struct ahash_request *req);
-static int chcr_ahash_continue(struct ahash_request *req);
 #endif /* __CHCR_CRYPTO_H__ */
