@@ -80,12 +80,9 @@ void *dma_generic_alloc_coherent(struct device *dev, size_t size,
 				 dma_addr_t *dma_addr, gfp_t flag,
 				 unsigned long attrs)
 {
-	unsigned long dma_mask;
 	struct page *page;
 	unsigned int count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	dma_addr_t addr;
-
-	dma_mask = dma_alloc_coherent_mask(dev, flag);
 
 again:
 	page = NULL;
@@ -95,7 +92,7 @@ again:
 						 flag);
 		if (page) {
 			addr = phys_to_dma(dev, page_to_phys(page));
-			if (addr + size > dma_mask) {
+			if (addr + size > dev->coherent_dma_mask) {
 				dma_release_from_contiguous(dev, page, count);
 				page = NULL;
 			}
@@ -108,10 +105,11 @@ again:
 		return NULL;
 
 	addr = phys_to_dma(dev, page_to_phys(page));
-	if (addr + size > dma_mask) {
+	if (addr + size > dev->coherent_dma_mask) {
 		__free_pages(page, get_order(size));
 
-		if (dma_mask < DMA_BIT_MASK(32) && !(flag & GFP_DMA)) {
+		if (dev->coherent_dma_mask < DMA_BIT_MASK(32) &&
+		    !(flag & GFP_DMA)) {
 			flag = (flag & ~GFP_DMA32) | GFP_DMA;
 			goto again;
 		}

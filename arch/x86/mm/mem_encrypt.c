@@ -198,12 +198,10 @@ void __init sme_early_init(void)
 static void *sev_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		       gfp_t gfp, unsigned long attrs)
 {
-	unsigned long dma_mask;
 	unsigned int order;
 	struct page *page;
 	void *vaddr = NULL;
 
-	dma_mask = dma_alloc_coherent_mask(dev, gfp);
 	order = get_order(size);
 
 	/*
@@ -221,7 +219,7 @@ static void *sev_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		 * mask with it already cleared.
 		 */
 		addr = __sme_clr(phys_to_dma(dev, page_to_phys(page)));
-		if ((addr + size) > dma_mask) {
+		if ((addr + size) > dev->coherent_dma_mask) {
 			__free_pages(page, get_order(size));
 		} else {
 			vaddr = page_address(page);
