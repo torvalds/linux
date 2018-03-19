@@ -108,9 +108,6 @@ parameters may be changed at runtime by the command
 	st=		[HW,SCSI] SCSI tape parameters (buffers, etc.)
 			See Documentation/scsi/st.txt.
 
-	sym53c416=	[HW,SCSI]
-			See header of drivers/scsi/sym53c416.c.
-
 	tmscsim=	[HW,SCSI]
 			See comment before function dc390_setup() in
 			drivers/scsi/tmscsim.c.
