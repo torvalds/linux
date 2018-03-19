@@ -332,7 +332,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	val = EIP197_HIA_DSE_CFG_DIS_DEBUG;
 	val |= EIP197_HIA_DxE_CFG_MIN_DATA_SIZE(7) | EIP197_HIA_DxE_CFG_MAX_DATA_SIZE(8);
 	val |= EIP197_HIA_DxE_CFG_DATA_CACHE_CTRL(WR_CACHE_3BITS);
-	val |= EIP197_HIA_DSE_CFG_ALLWAYS_BUFFERABLE;
+	val |= EIP197_HIA_DSE_CFG_ALWAYS_BUFFERABLE;
 	/* FIXME: instability issues can occur for EIP97 but disabling it impact
 	 * performances.
 	 */
