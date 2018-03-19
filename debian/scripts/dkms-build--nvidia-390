@@ -1,0 +1,77 @@
+#!/bin/sh
+
+srcdir="$1"
+objects="$2"
+log="$3"
+shift 3
+
+dkms_dir="$1"
+abi_flavour="$2"
+sign="$3"
+pkgname="$4"
+pkgdir="$5"
+package="$6"
+shift 6
+
+build="$( dirname "$objects" )/build"
+
+# Copy over the objects ready for reconstruction.
+mkdir -p "$pkgdir/bits/scripts"
+cp -rp "$objects"/* "$pkgdir/bits"
+
+# Install the support files we need.
+cp "$srcdir/scripts/module-common.lds" "$pkgdir/bits/scripts"
+grep /usr/bin/ld.bfd "$log" | sed -e "s@$build/@@g" >"$pkgdir/bits/BUILD"
+grep /usr/bin/ld.bfd "$log" | sed -e "s@$build/@@g" \
+	-e 's/.*-o  *\([^ ]*\) .*/rm -f \1/g' >"$pkgdir/bits/CLEAN"
+
+# As the builds contain the absolute filenames as used.  Use RECONSTRUCT to
+# rebuild the .ko's, sign them, pull off the signatures and then finally clean
+# up again.
+(
+	cd "$pkgdir/bits" || exit 1
+	sh ./CLEAN
+	sh ./BUILD
+	for ko in *.ko
+	do
+		echo "cat '$ko' '$ko.sig' >'../$ko'" >>"$pkgdir/bits/BUILD"
+		echo "rm -f '../$ko'" >>"$pkgdir/bits/CLEAN"
+	done
+
+	if [ "$sign" = "--custom" ]; then
+		# We are building for and archive custom signing upload.  Keep everything.
+		:
+	elif [ "$sign" = "--lrm" ]; then
+		# We are in LRM build the package a copy in any signatures we can
+		# find for them.  These will be added after linking.
+
+		# Apply any local signatures.
+		base="/usr/lib/linux/$abi_flavour"
+		echo "II: adding signatures from $base ..."
+		cp "$base/signatures/$package/"*".ko.sig" "$pkgdir/bits"
+		sha256sum -c "$base/signatures/$package/SHA256SUMS" || exit 1
+		sh ./CLEAN
+	else
+		# We are in the main kernel, put the .kos together as we will
+		# on the users machine, sign them, and keep just the signature.
+		: >"SHA256SUMS"
+		for ko in *.ko
+		do
+			echo "detached-signature $ko"
+			$sign "$ko" "$ko.signed"
+			length=$( stat --format %s "$ko" )
+			dd if="$ko.signed" of="$ko.sig" bs=1 skip="$length" 2>/dev/null
+
+			rm -f "$ko.signed"
+			# Keep a checksum of the pre-signed object so we can check it is
+			# built correctly in LRM.
+			sha256sum -b "$ko" >>"SHA256SUMS"
+		done
+
+		# Clean out anything which not a signature.
+		mv "$pkgdir/bits/"*.sig "$pkgdir"
+		mv "$pkgdir/bits/SHA256SUMS" "$pkgdir"
+		find "$pkgdir" -name \*.sig -prune -o -name SHA256SUMS -prune -o -type f -print | xargs rm -f
+		find "$pkgdir" -depth -type d -print | xargs rmdir --ignore-fail-on-non-empty
+	fi
+) || exit "$?"
