@@ -304,10 +304,12 @@ rebuild_sys_tab:
 
 static void adpt_release(adpt_hba *pHba)
 {
-	scsi_remove_host(pHba->host);
+	struct Scsi_Host *shost = pHba->host;
+
+	scsi_remove_host(shost);
 //	adpt_i2o_quiesce_hba(pHba);
 	adpt_i2o_delete_hba(pHba);
-	scsi_host_put(pHba->host);
+	scsi_host_put(shost);
 }
 
 
