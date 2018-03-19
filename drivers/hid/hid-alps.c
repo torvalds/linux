@@ -219,6 +219,8 @@ static int t4_read_write_register(struct hid_device *hdev, u32 address,
 			goto exit_readbuf;
 		}
 
+		ret = -EINVAL;
+
 		if (*(u32 *)&readbuf[6] != address) {
 			dev_err(&hdev->dev, "read register address error (%x,%x)\n",
 			*(u32 *)&readbuf[6], address);
