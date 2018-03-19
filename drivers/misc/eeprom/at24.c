@@ -238,8 +238,6 @@ static const struct acpi_device_id at24_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, at24_acpi_ids);
 
-/*-------------------------------------------------------------------------*/
-
 /*
  * This routine supports chips which consume multiple I2C addresses. It
  * computes the addressing information to be used for a given r/w request.
@@ -714,8 +712,6 @@ static int at24_remove(struct i2c_client *client)
 
 	return 0;
 }
-
-/*-------------------------------------------------------------------------*/
 
 static struct i2c_driver at24_driver = {
 	.driver = {
