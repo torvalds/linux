@@ -733,7 +733,8 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 
 /**
  * eeh_handle_normal_event - Handle EEH events on a specific PE
- * @pe: EEH PE
+ * @pe: EEH PE - which should not be used after we return, as it may
+ * have been invalidated.
  *
  * Attempts to recover the given PE.  If recovery fails or the PE has failed
  * too many times, remove the PE.
@@ -750,10 +751,8 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
  * & devices under this slot, and then finally restarting the device
  * drivers (which cause a second set of hotplug events to go out to
  * userspace).
- *
- * Returns true if @pe should no longer be used, else false.
  */
-bool eeh_handle_normal_event(struct eeh_pe *pe)
+void eeh_handle_normal_event(struct eeh_pe *pe)
 {
 	struct pci_bus *frozen_bus;
 	struct eeh_dev *edev, *tmp;
@@ -765,8 +764,10 @@ bool eeh_handle_normal_event(struct eeh_pe *pe)
 	if (!frozen_bus) {
 		pr_err("%s: Cannot find PCI bus for PHB#%x-PE#%x\n",
 			__func__, pe->phb->global_number, pe->addr);
-		return false;
+		return;
 	}
+
+	eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
 
 	eeh_pe_update_time_stamp(pe);
 	pe->freeze_count++;
@@ -904,7 +905,7 @@ bool eeh_handle_normal_event(struct eeh_pe *pe)
 	pr_info("EEH: Notify device driver to resume\n");
 	eeh_pe_dev_traverse(pe, eeh_report_resume, NULL);
 
-	return false;
+	goto final;
 
 hard_fail:
 	/*
@@ -940,12 +941,12 @@ hard_fail:
 			pci_lock_rescan_remove();
 			pci_hp_remove_devices(frozen_bus);
 			pci_unlock_rescan_remove();
-
 			/* The passed PE should no longer be used */
-			return true;
+			return;
 		}
 	}
-	return false;
+final:
+	eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
 }
 
 /**
@@ -1018,15 +1019,7 @@ void eeh_handle_special_event(void)
 		 */
 		if (rc == EEH_NEXT_ERR_FROZEN_PE ||
 		    rc == EEH_NEXT_ERR_FENCED_PHB) {
-			/*
-			 * eeh_handle_normal_event() can make the PE stale if it
-			 * determines that the PE cannot possibly be recovered.
-			 * Don't modify the PE state if that's the case.
-			 */
-			if (eeh_handle_normal_event(pe))
-				continue;
-
-			eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
+			eeh_handle_normal_event(pe);
 		} else {
 			pci_lock_rescan_remove();
 			list_for_each_entry(hose, &hose_list, list_node) {
