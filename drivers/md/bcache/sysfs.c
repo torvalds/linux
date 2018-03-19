@@ -181,7 +181,7 @@ SHOW(__bch_cached_dev)
 	sysfs_hprint(dirty_data,
 		     bcache_dev_sectors_dirty(&dc->disk) << 9);
 
-	sysfs_hprint(stripe_size,	dc->disk.stripe_size << 9);
+	sysfs_hprint(stripe_size,	 ((uint64_t)dc->disk.stripe_size) << 9);
 	var_printf(partial_stripes_expensive,	"%u");
 
 	var_hprint(sequential_cutoff);
