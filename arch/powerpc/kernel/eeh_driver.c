@@ -738,9 +738,22 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
  * Attempts to recover the given PE.  If recovery fails or the PE has failed
  * too many times, remove the PE.
  *
+ * While PHB detects address or data parity errors on particular PCI
+ * slot, the associated PE will be frozen. Besides, DMA's occurring
+ * to wild addresses (which usually happen due to bugs in device
+ * drivers or in PCI adapter firmware) can cause EEH error. #SERR,
+ * #PERR or other misc PCI-related errors also can trigger EEH errors.
+ *
+ * Recovery process consists of unplugging the device driver (which
+ * generated hotplug events to userspace), then issuing a PCI #RST to
+ * the device, then reconfiguring the PCI config space for all bridges
+ * & devices under this slot, and then finally restarting the device
+ * drivers (which cause a second set of hotplug events to go out to
+ * userspace).
+ *
  * Returns true if @pe should no longer be used, else false.
  */
-static bool eeh_handle_normal_event(struct eeh_pe *pe)
+bool eeh_handle_normal_event(struct eeh_pe *pe)
 {
 	struct pci_bus *frozen_bus;
 	struct eeh_dev *edev, *tmp;
@@ -942,7 +955,7 @@ hard_fail:
  * specific PE.  Iterates through possible failures and handles them as
  * necessary.
  */
-static void eeh_handle_special_event(void)
+void eeh_handle_special_event(void)
 {
 	struct eeh_pe *pe, *phb_pe;
 	struct pci_bus *bus;
@@ -1048,29 +1061,4 @@ static void eeh_handle_special_event(void)
 		if (rc == EEH_NEXT_ERR_DEAD_IOC)
 			break;
 	} while (rc != EEH_NEXT_ERR_NONE);
-}
-
-/**
- * eeh_handle_event - Reset a PCI device after hard lockup.
- * @pe: EEH PE
- *
- * While PHB detects address or data parity errors on particular PCI
- * slot, the associated PE will be frozen. Besides, DMA's occurring
- * to wild addresses (which usually happen due to bugs in device
- * drivers or in PCI adapter firmware) can cause EEH error. #SERR,
- * #PERR or other misc PCI-related errors also can trigger EEH errors.
- *
- * Recovery process consists of unplugging the device driver (which
- * generated hotplug events to userspace), then issuing a PCI #RST to
- * the device, then reconfiguring the PCI config space for all bridges
- * & devices under this slot, and then finally restarting the device
- * drivers (which cause a second set of hotplug events to go out to
- * userspace).
- */
-void eeh_handle_event(struct eeh_pe *pe)
-{
-	if (pe)
-		eeh_handle_normal_event(pe);
-	else
-		eeh_handle_special_event();
 }

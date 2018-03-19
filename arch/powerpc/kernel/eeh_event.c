@@ -81,10 +81,10 @@ static int eeh_event_handler(void * dummy)
 				pr_info("EEH: Detected PCI bus error on "
 					"PHB#%x-PE#%x\n",
 					pe->phb->global_number, pe->addr);
-			eeh_handle_event(pe);
+			eeh_handle_normal_event(pe);
 			eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
 		} else {
-			eeh_handle_event(NULL);
+			eeh_handle_special_event();
 		}
 
 		kfree(event);
