@@ -362,9 +362,10 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 		if (ret != -ETIMEDOUT)
 			ret = -EIO;
 
-		DRM_WARN("INTEL_GUC_SEND: Action 0x%X failed;"
-			 " ret=%d status=0x%08X response=0x%08X\n",
-			 action[0], ret, status, I915_READ(SOFT_SCRATCH(15)));
+		DRM_DEBUG_DRIVER("INTEL_GUC_SEND: Action 0x%X failed;"
+				 " ret=%d status=0x%08X response=0x%08X\n",
+				 action[0], ret, status,
+				 I915_READ(SOFT_SCRATCH(15)));
 	}
 
 	intel_uncore_forcewake_put(dev_priv, guc->send_regs.fw_domains);

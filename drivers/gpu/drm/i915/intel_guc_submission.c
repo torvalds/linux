@@ -231,8 +231,8 @@ static int create_doorbell(struct intel_guc_client *client)
 	if (ret) {
 		__destroy_doorbell(client);
 		__update_doorbell_desc(client, GUC_DOORBELL_INVALID);
-		DRM_ERROR("Couldn't create client %u doorbell: %d\n",
-			  client->stage_id, ret);
+		DRM_DEBUG_DRIVER("Couldn't create client %u doorbell: %d\n",
+				 client->stage_id, ret);
 		return ret;
 	}
 
