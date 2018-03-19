@@ -232,6 +232,20 @@ enum phm_platform_caps {
 	PHM_PlatformCaps_UVDClientMCTuning,
 	PHM_PlatformCaps_ODNinACSupport,
 	PHM_PlatformCaps_ODNinDCSupport,
+	PHM_PlatformCaps_UMDPState,
+	PHM_PlatformCaps_AutoWattmanSupport,
+	PHM_PlatformCaps_AutoWattmanEnable_CCCState,
+	PHM_PlatformCaps_FreeSyncActive,
+	PHM_PlatformCaps_EnableShadowPstate,
+	PHM_PlatformCaps_customThermalManagement,
+	PHM_PlatformCaps_staticFanControl,
+	PHM_PlatformCaps_Virtual_System,
+	PHM_PlatformCaps_LowestUclkReservedForUlv,
+	PHM_PlatformCaps_EnableBoostState,
+	PHM_PlatformCaps_AVFSSupport,
+	PHM_PlatformCaps_ThermalPolicyDelay,
+	PHM_PlatformCaps_CustomFanControlSupport,
+	PHM_PlatformCaps_BAMACO,
 	PHM_PlatformCaps_Max
 };
 

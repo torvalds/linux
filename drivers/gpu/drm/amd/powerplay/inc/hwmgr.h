@@ -585,6 +585,27 @@ struct phm_ppt_v2_information {
 	uint8_t  uc_dcef_dpm_voltage_mode;
 };
 
+struct phm_ppt_v3_information
+{
+	uint8_t uc_thermal_controller_type;
+
+	uint16_t us_small_power_limit1;
+	uint16_t us_small_power_limit2;
+	uint16_t us_boost_power_limit;
+
+	uint16_t us_od_turbo_power_limit;
+	uint16_t us_od_powersave_power_limit;
+	uint16_t us_software_shutdown_temp;
+
+	uint32_t *power_saving_clock_max;
+	uint32_t *power_saving_clock_min;
+
+	uint32_t *od_settings_max;
+	uint32_t *od_settings_min;
+
+	void *smc_pptable;
+};
+
 struct phm_dynamic_state_info {
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_sclk;
 	struct phm_clock_voltage_dependency_table *vddci_dependency_on_mclk;
