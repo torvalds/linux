@@ -519,19 +519,22 @@ static unsigned int at24_get_offset_adj(u8 flags, unsigned int byte_len)
 	}
 }
 
-static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int at24_probe(struct i2c_client *client)
 {
 	struct regmap_config regmap_config = { };
 	struct nvmem_config nvmem_config = { };
 	const struct at24_chip_data *cd = NULL;
 	struct at24_platform_data pdata = { };
 	struct device *dev = &client->dev;
+	const struct i2c_device_id *id;
 	unsigned int i, num_addresses;
 	struct at24_data *at24;
 	size_t at24_size;
 	bool writable;
 	u8 test_byte;
 	int err;
+
+	id = i2c_match_id(at24_ids, client);
 
 	if (dev->platform_data) {
 		pdata = *(struct at24_platform_data *)dev->platform_data;
@@ -717,7 +720,7 @@ static struct i2c_driver at24_driver = {
 		.of_match_table = at24_of_match,
 		.acpi_match_table = ACPI_PTR(at24_acpi_ids),
 	},
-	.probe = at24_probe,
+	.probe_new = at24_probe,
 	.remove = at24_remove,
 	.id_table = at24_ids,
 };
