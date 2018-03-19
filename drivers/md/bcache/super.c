@@ -273,6 +273,7 @@ void bch_write_bdev_super(struct cached_dev *dc, struct closure *parent)
 	bio->bi_private = dc;
 
 	closure_get(cl);
+	/* I/O request sent to backing device */
 	__write_super(&dc->sb, bio);
 
 	closure_return_with_destructor(cl, bch_write_bdev_super_unlock);
