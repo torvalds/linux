@@ -142,7 +142,15 @@ desired arrays with the media graph elements.
        -  Entity main function, see :ref:`media-entity-functions` for details.
 
     *  -  __u32
-       -  ``reserved``\ [6]
+       -  ``flags``
+       -  Entity flags, see :ref:`media-entity-flag` for details.
+	  Only valid if ``MEDIA_V2_ENTITY_HAS_FLAGS(media_version)``
+	  returns true. The ``media_version`` is defined in struct
+	  :c:type:`media_device_info` and can be retrieved using
+	  :ref:`MEDIA_IOC_DEVICE_INFO`.
+
+    *  -  __u32
+       -  ``reserved``\ [5]
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
 
