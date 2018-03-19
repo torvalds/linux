@@ -930,20 +930,18 @@ hard_fail:
 	 * all removed devices correctly to avoid access
 	 * the their PCI config any more.
 	 */
-	if (frozen_bus) {
-		if (pe->type & EEH_PE_VF) {
-			eeh_pe_dev_traverse(pe, eeh_rmv_device, NULL);
-			eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
-		} else {
-			eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
-			eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
+	if (pe->type & EEH_PE_VF) {
+		eeh_pe_dev_traverse(pe, eeh_rmv_device, NULL);
+		eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
+	} else {
+		eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
+		eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
 
-			pci_lock_rescan_remove();
-			pci_hp_remove_devices(frozen_bus);
-			pci_unlock_rescan_remove();
-			/* The passed PE should no longer be used */
-			return;
-		}
+		pci_lock_rescan_remove();
+		pci_hp_remove_devices(frozen_bus);
+		pci_unlock_rescan_remove();
+		/* The passed PE should no longer be used */
+		return;
 	}
 final:
 	eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
