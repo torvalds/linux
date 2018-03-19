@@ -1848,9 +1848,22 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 
 static bool dp_active_dongle_validate_timing(
 		const struct dc_crtc_timing *timing,
-		const struct dc_dongle_caps *dongle_caps)
+		const struct dpcd_caps *dpcd_caps)
 {
 	unsigned int required_pix_clk = timing->pix_clk_khz;
+	const struct dc_dongle_caps *dongle_caps = &dpcd_caps->dongle_caps;
+
+	switch (dpcd_caps->dongle_type) {
+	case DISPLAY_DONGLE_DP_VGA_CONVERTER:
+	case DISPLAY_DONGLE_DP_DVI_CONVERTER:
+	case DISPLAY_DONGLE_DP_DVI_DONGLE:
+		if (timing->pixel_encoding == PIXEL_ENCODING_RGB)
+			return true;
+		else
+			return false;
+	default:
+		break;
+	}
 
 	if (dongle_caps->dongle_type != DISPLAY_DONGLE_DP_HDMI_CONVERTER ||
 		dongle_caps->extendedCapValid == false)
@@ -1916,7 +1929,7 @@ enum dc_status dc_link_validate_mode_timing(
 		const struct dc_crtc_timing *timing)
 {
 	uint32_t max_pix_clk = stream->sink->dongle_max_pix_clk;
-	struct dc_dongle_caps *dongle_caps = &link->dpcd_caps.dongle_caps;
+	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
 
 	/* A hack to avoid failing any modes for EDID override feature on
 	 * topology change such as lower quality cable for DP or different dongle
@@ -1929,7 +1942,7 @@ enum dc_status dc_link_validate_mode_timing(
 		return DC_EXCEED_DONGLE_CAP;
 
 	/* Active Dongle*/
-	if (!dp_active_dongle_validate_timing(timing, dongle_caps))
+	if (!dp_active_dongle_validate_timing(timing, dpcd_caps))
 		return DC_EXCEED_DONGLE_CAP;
 
 	switch (stream->signal) {
