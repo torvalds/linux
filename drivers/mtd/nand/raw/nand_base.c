@@ -1160,9 +1160,16 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	return status;
 }
 
-static bool nand_supports_set_get_features(struct nand_chip *chip)
+static bool nand_supports_get_features(struct nand_chip *chip, int addr)
 {
-	return chip->parameters.supports_set_get_features;
+	return (chip->parameters.supports_set_get_features &&
+		test_bit(addr, chip->parameters.get_feature_list));
+}
+
+static bool nand_supports_set_features(struct nand_chip *chip, int addr)
+{
+	return (chip->parameters.supports_set_get_features &&
+		test_bit(addr, chip->parameters.set_feature_list));
 }
 
 /**
@@ -1179,7 +1186,7 @@ int nand_get_features(struct nand_chip *chip, int addr,
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
-	if (!nand_supports_set_get_features(chip))
+	if (!nand_supports_get_features(chip, addr))
 		return -ENOTSUPP;
 
 	return chip->get_features(mtd, chip, addr, subfeature_param);
@@ -1200,7 +1207,7 @@ int nand_set_features(struct nand_chip *chip, int addr,
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
 
-	if (!nand_supports_set_get_features(chip))
+	if (!nand_supports_set_features(chip, addr))
 		return -ENOTSUPP;
 
 	return chip->set_features(mtd, chip, addr, subfeature_param);
@@ -1271,7 +1278,7 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 		return 0;
 
 	/* Change the mode on the chip side (if supported by the NAND chip) */
-	if (nand_supports_set_get_features(chip)) {
+	if (nand_supports_set_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE)) {
 		chip->select_chip(mtd, chipnr);
 		ret = nand_set_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE,
 					tmode_param);
@@ -1286,7 +1293,7 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 		return ret;
 
 	/* Check the mode has been accepted by the chip, if supported */
-	if (!nand_supports_set_get_features(chip))
+	if (!nand_supports_get_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE))
 		return 0;
 
 	memset(tmode_param, 0, ONFI_SUBFEATURE_PARAM_LEN);
@@ -5192,8 +5199,13 @@ static int nand_flash_detect_onfi(struct nand_chip *chip)
 	}
 
 	/* Save some parameters from the parameter page for future use */
-	if (le16_to_cpu(p->opt_cmd) & ONFI_OPT_CMD_SET_GET_FEATURES)
+	if (le16_to_cpu(p->opt_cmd) & ONFI_OPT_CMD_SET_GET_FEATURES) {
 		chip->parameters.supports_set_get_features = true;
+		bitmap_set(chip->parameters.get_feature_list,
+			   ONFI_FEATURE_ADDR_TIMING_MODE, 1);
+		bitmap_set(chip->parameters.set_feature_list,
+			   ONFI_FEATURE_ADDR_TIMING_MODE, 1);
+	}
 	chip->parameters.onfi.tPROG = le16_to_cpu(p->t_prog);
 	chip->parameters.onfi.tBERS = le16_to_cpu(p->t_bers);
 	chip->parameters.onfi.tR = le16_to_cpu(p->t_r);
