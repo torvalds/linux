@@ -954,6 +954,7 @@ static struct notifier_block can_netdev_notifier __read_mostly = {
 static struct pernet_operations can_pernet_ops __read_mostly = {
 	.init = can_pernet_init,
 	.exit = can_pernet_exit,
+	.async = true,
 };
 
 static __init int can_init(void)
