@@ -443,18 +443,16 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	gpiod_set_value_cansleep(at24->wp_gpio, 0);
 
 	while (count) {
-		int status;
-
-		status = at24_regmap_write(at24, buf, off, count);
-		if (status < 0) {
+		ret = at24_regmap_write(at24, buf, off, count);
+		if (ret < 0) {
 			gpiod_set_value_cansleep(at24->wp_gpio, 1);
 			mutex_unlock(&at24->lock);
 			pm_runtime_put(dev);
-			return status;
+			return ret;
 		}
-		buf += status;
-		off += status;
-		count -= status;
+		buf += ret;
+		off += ret;
+		count -= ret;
 	}
 
 	gpiod_set_value_cansleep(at24->wp_gpio, 1);
