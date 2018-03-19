@@ -450,17 +450,12 @@ ifdef builtin-target
 # makes them small and fast, but unable to be used by the linker.
 # scripts/link-vmlinux.sh builds an aggregate built-in.a with a symbol
 # table and index.
-cmd_make_builtin = rm -f $@; $(AR) rcSTP$(KBUILD_ARFLAGS)
-cmd_make_empty_builtin = rm -f $@; $(AR) rcSTP$(KBUILD_ARFLAGS)
-quiet_cmd_link_o_target = AR      $@
-
-# If the list of objects to link is empty, just create an empty built-in.a
-cmd_link_o_target = $(if $(strip $(real-obj-y)),\
-		      $(cmd_make_builtin) $@ $(filter $(real-obj-y), $^), \
-		      $(cmd_make_empty_builtin) $@)
+quiet_cmd_ar_builtin = AR      $@
+      cmd_ar_builtin = rm -f $@; \
+                     $(AR) rcSTP$(KBUILD_ARFLAGS) $@ $(filter $(real-obj-y), $^)
 
 $(builtin-target): $(real-obj-y) FORCE
-	$(call if_changed,link_o_target)
+	$(call if_changed,ar_builtin)
 
 targets += $(builtin-target)
 endif # builtin-target
