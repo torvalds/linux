@@ -4769,14 +4769,15 @@ static int nand_max_bad_blocks(struct mtd_info *mtd, loff_t ofs, size_t len)
 }
 
 /**
- * nand_onfi_set_features- [REPLACEABLE] set features for ONFI nand
+ * nand_default_onfi_set_features- [REPLACEABLE] set features for ONFI nand
  * @mtd: MTD device structure
  * @chip: nand chip info structure
  * @addr: feature address.
  * @subfeature_param: the subfeature parameters, a four bytes array.
  */
-static int nand_onfi_set_features(struct mtd_info *mtd, struct nand_chip *chip,
-			int addr, uint8_t *subfeature_param)
+static int nand_default_onfi_set_features(struct mtd_info *mtd,
+					  struct nand_chip *chip, int addr,
+					  uint8_t *subfeature_param)
 {
 	if (!chip->onfi_version ||
 	    !(le16_to_cpu(chip->onfi_params.opt_cmd)
@@ -4787,14 +4788,15 @@ static int nand_onfi_set_features(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /**
- * nand_onfi_get_features- [REPLACEABLE] get features for ONFI nand
+ * nand_default_onfi_get_features- [REPLACEABLE] get features for ONFI nand
  * @mtd: MTD device structure
  * @chip: nand chip info structure
  * @addr: feature address.
  * @subfeature_param: the subfeature parameters, a four bytes array.
  */
-static int nand_onfi_get_features(struct mtd_info *mtd, struct nand_chip *chip,
-			int addr, uint8_t *subfeature_param)
+static int nand_default_onfi_get_features(struct mtd_info *mtd,
+					  struct nand_chip *chip, int addr,
+					  uint8_t *subfeature_param)
 {
 	if (!chip->onfi_version ||
 	    !(le16_to_cpu(chip->onfi_params.opt_cmd)
@@ -4879,9 +4881,9 @@ static void nand_set_defaults(struct nand_chip *chip)
 
 	/* set for ONFI nand */
 	if (!chip->onfi_set_features)
-		chip->onfi_set_features = nand_onfi_set_features;
+		chip->onfi_set_features = nand_default_onfi_set_features;
 	if (!chip->onfi_get_features)
-		chip->onfi_get_features = nand_onfi_get_features;
+		chip->onfi_get_features = nand_default_onfi_get_features;
 
 	/* If called twice, pointers that depend on busw may need to be reset */
 	if (!chip->read_byte || chip->read_byte == nand_read_byte)
