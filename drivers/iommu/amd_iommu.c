@@ -28,6 +28,7 @@
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/iommu-helper.h>
 #include <linux/iommu.h>
 #include <linux/delay.h>
@@ -2193,7 +2194,7 @@ static int amd_iommu_add_device(struct device *dev)
 				dev_name(dev));
 
 		iommu_ignore_device(dev);
-		dev->dma_ops = &nommu_dma_ops;
+		dev->dma_ops = &dma_direct_ops;
 		goto out;
 	}
 	init_iommu_group(dev);
@@ -2680,7 +2681,7 @@ free_mem:
  */
 static int amd_iommu_dma_supported(struct device *dev, u64 mask)
 {
-	if (!x86_dma_supported(dev, mask))
+	if (!dma_direct_supported(dev, mask))
 		return 0;
 	return check_device(dev);
 }
@@ -2794,7 +2795,7 @@ int __init amd_iommu_init_dma_ops(void)
 	 * continue to be SWIOTLB.
 	 */
 	if (!swiotlb)
-		dma_ops = &nommu_dma_ops;
+		dma_ops = &dma_direct_ops;
 
 	if (amd_iommu_unmap_flush)
 		pr_info("AMD-Vi: IO/TLB flush on unmap enabled\n");

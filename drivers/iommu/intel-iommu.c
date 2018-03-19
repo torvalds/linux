@@ -45,6 +45,7 @@
 #include <linux/pci-ats.h>
 #include <linux/memblock.h>
 #include <linux/dma-contiguous.h>
+#include <linux/dma-direct.h>
 #include <linux/crash_dump.h>
 #include <asm/irq_remapping.h>
 #include <asm/cacheflush.h>
@@ -3871,7 +3872,7 @@ const struct dma_map_ops intel_dma_ops = {
 	.unmap_page = intel_unmap_page,
 	.mapping_error = intel_mapping_error,
 #ifdef CONFIG_X86
-	.dma_supported = x86_dma_supported,
+	.dma_supported = dma_direct_supported,
 #endif
 };
 

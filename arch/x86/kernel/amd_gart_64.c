@@ -501,8 +501,7 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
 		}
 		__free_pages(page, get_order(size));
 	} else
-		return dma_generic_alloc_coherent(dev, size, dma_addr, flag,
-						  attrs);
+		return dma_direct_alloc(dev, size, dma_addr, flag, attrs);
 
 	return NULL;
 }
@@ -513,7 +512,7 @@ gart_free_coherent(struct device *dev, size_t size, void *vaddr,
 		   dma_addr_t dma_addr, unsigned long attrs)
 {
 	gart_unmap_page(dev, dma_addr, size, DMA_BIDIRECTIONAL, 0);
-	dma_generic_free_coherent(dev, size, vaddr, dma_addr, attrs);
+	dma_direct_free(dev, size, vaddr, dma_addr, attrs);
 }
 
 static int gart_mapping_error(struct device *dev, dma_addr_t dma_addr)
@@ -705,7 +704,7 @@ static const struct dma_map_ops gart_dma_ops = {
 	.alloc				= gart_alloc_coherent,
 	.free				= gart_free_coherent,
 	.mapping_error			= gart_mapping_error,
-	.dma_supported			= x86_dma_supported,
+	.dma_supported			= dma_direct_supported,
 };
 
 static void gart_iommu_shutdown(void)

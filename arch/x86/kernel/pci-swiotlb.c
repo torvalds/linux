@@ -30,8 +30,7 @@ void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	 */
 	flags |= __GFP_NOWARN;
 
-	vaddr = dma_generic_alloc_coherent(hwdev, size, dma_handle, flags,
-					   attrs);
+	vaddr = dma_direct_alloc(hwdev, size, dma_handle, flags, attrs);
 	if (vaddr)
 		return vaddr;
 
@@ -45,7 +44,7 @@ void x86_swiotlb_free_coherent(struct device *dev, size_t size,
 	if (is_swiotlb_buffer(dma_to_phys(dev, dma_addr)))
 		swiotlb_free_coherent(dev, size, vaddr, dma_addr);
 	else
-		dma_generic_free_coherent(dev, size, vaddr, dma_addr, attrs);
+		dma_direct_free(dev, size, vaddr, dma_addr, attrs);
 }
 
 static const struct dma_map_ops x86_swiotlb_dma_ops = {

@@ -193,7 +193,7 @@ static const struct dma_map_ops sta2x11_dma_ops = {
 	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
 	.sync_sg_for_device = swiotlb_sync_sg_for_device,
 	.mapping_error = swiotlb_dma_mapping_error,
-	.dma_supported = x86_dma_supported,
+	.dma_supported = dma_direct_supported,
 };
 
 /* At setup time, we use our own ops if the device is a ConneXt one */

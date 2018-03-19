@@ -33,6 +33,7 @@
 #include <linux/string.h>
 #include <linux/crash_dump.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/bitmap.h>
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
@@ -493,7 +494,7 @@ static const struct dma_map_ops calgary_dma_ops = {
 	.map_page = calgary_map_page,
 	.unmap_page = calgary_unmap_page,
 	.mapping_error = calgary_mapping_error,
-	.dma_supported = x86_dma_supported,
+	.dma_supported = dma_direct_supported,
 };
 
 static inline void __iomem * busno_to_bbar(unsigned char num)
