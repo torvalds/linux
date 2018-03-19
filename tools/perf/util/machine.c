@@ -50,21 +50,13 @@ static void machine__threads_init(struct machine *machine)
 
 static int machine__set_mmap_name(struct machine *machine)
 {
-	if (machine__is_host(machine)) {
-		if (symbol_conf.vmlinux_name)
-			machine->mmap_name = strdup(symbol_conf.vmlinux_name);
-		else
-			machine->mmap_name = strdup("[kernel.kallsyms]");
-	} else if (machine__is_default_guest(machine)) {
-		if (symbol_conf.default_guest_vmlinux_name)
-			machine->mmap_name = strdup(symbol_conf.default_guest_vmlinux_name);
-		else
-			machine->mmap_name = strdup("[guest.kernel.kallsyms]");
-	} else {
-		if (asprintf(&machine->mmap_name, "[guest.kernel.kallsyms.%d]",
-			 machine->pid) < 0)
-			machine->mmap_name = NULL;
-	}
+	if (machine__is_host(machine))
+		machine->mmap_name = strdup("[kernel.kallsyms]");
+	else if (machine__is_default_guest(machine))
+		machine->mmap_name = strdup("[guest.kernel.kallsyms]");
+	else if (asprintf(&machine->mmap_name, "[guest.kernel.kallsyms.%d]",
+			  machine->pid) < 0)
+		machine->mmap_name = NULL;
 
 	return machine->mmap_name ? 0 : -ENOMEM;
 }
@@ -794,9 +786,15 @@ static struct dso *machine__get_kernel(struct machine *machine)
 	struct dso *kernel;
 
 	if (machine__is_host(machine)) {
+		if (symbol_conf.vmlinux_name)
+			vmlinux_name = symbol_conf.vmlinux_name;
+
 		kernel = machine__findnew_kernel(machine, vmlinux_name,
 						 "[kernel]", DSO_TYPE_KERNEL);
 	} else {
+		if (symbol_conf.default_guest_vmlinux_name)
+			vmlinux_name = symbol_conf.default_guest_vmlinux_name;
+
 		kernel = machine__findnew_kernel(machine, vmlinux_name,
 						 "[guest.kernel]",
 						 DSO_TYPE_GUEST_KERNEL);

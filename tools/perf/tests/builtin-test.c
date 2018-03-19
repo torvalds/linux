@@ -275,6 +275,10 @@ static struct test generic_tests[] = {
 		.func = test__unit_number__scnprint,
 	},
 	{
+		.desc = "mem2node",
+		.func = test__mem2node,
+	},
+	{
 		.func = NULL,
 	},
 };

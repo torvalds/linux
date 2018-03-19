@@ -67,6 +67,9 @@ Default is to monitor all CPUS.
 --vmlinux=<path>::
 	Path to vmlinux.  Required for annotation functionality.
 
+--ignore-vmlinux::
+	Ignore vmlinux files.
+
 -m <pages>::
 --mmap-pages=<pages>::
 	Number of mmap data pages (must be a power of two) or size

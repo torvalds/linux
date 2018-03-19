@@ -106,6 +106,7 @@ libperf-y += units.o
 libperf-y += time-utils.o
 libperf-y += expr-bison.o
 libperf-y += branch.o
+libperf-y += mem2node.o
 
 libperf-$(CONFIG_LIBBPF) += bpf-loader.o
 libperf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
