@@ -585,6 +585,7 @@ static int at24_probe(struct i2c_client *client)
 		dev_err(dev, "page_size must not be 0!\n");
 		return -EINVAL;
 	}
+
 	if (!is_power_of_2(pdata.page_size))
 		dev_warn(dev, "page_size looks suspicious (no power of 2)!\n");
 
@@ -686,7 +687,6 @@ static int at24_probe(struct i2c_client *client)
 	nvmem_config.size = pdata.byte_len;
 
 	at24->nvmem = nvmem_register(&nvmem_config);
-
 	if (IS_ERR(at24->nvmem)) {
 		err = PTR_ERR(at24->nvmem);
 		goto err_clients;
