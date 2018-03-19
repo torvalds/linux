@@ -62,8 +62,8 @@ enum uverbs_obj_access {
 
 enum {
 	UVERBS_ATTR_SPEC_F_MANDATORY	= 1U << 0,
-	/* Support extending attributes by length */
-	UVERBS_ATTR_SPEC_F_MIN_SZ	= 1U << 1,
+	/* Support extending attributes by length, validate all unknown size == zero  */
+	UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO = 1U << 1,
 };
 
 /* Specification of a single attribute inside the ioctl message */
@@ -79,7 +79,10 @@ struct uverbs_attr_spec {
 			enum uverbs_attr_type		type;
 			/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
 			u8				flags;
+			/* Current known size to kernel */
 			u16				len;
+			/* User isn't allowed to provide something < min_len */
+			u16				min_len;
 		} ptr;
 		struct {
 			enum uverbs_attr_type		type;
@@ -177,30 +180,41 @@ struct uverbs_object_tree_def {
 };
 
 #define UA_FLAGS(_flags)  .flags = _flags
-#define __UVERBS_ATTR0(_id, _len, _type, ...)                           \
+#define __UVERBS_ATTR0(_id, _type, _fld, _attr, ...)              \
 	((const struct uverbs_attr_def)				  \
-	 {.id = _id, .attr = {{.ptr = {.type = _type, .len = _len, .flags = 0, } }, } })
-#define __UVERBS_ATTR1(_id, _len, _type, _flags)                        \
+	 {.id = _id, .attr = {{._fld = {.type = _type, _attr, .flags = 0, } }, } })
+#define __UVERBS_ATTR1(_id, _type, _fld, _attr, _extra1, ...)      \
 	((const struct uverbs_attr_def)				  \
-	 {.id = _id, .attr = {{.ptr = {.type = _type, .len = _len, _flags } },} })
-#define __UVERBS_ATTR(_id, _len, _type, _flags, _n, ...)		\
-	__UVERBS_ATTR##_n(_id, _len, _type, _flags)
+	 {.id = _id, .attr = {{._fld = {.type = _type, _attr, _extra1 } },} })
+#define __UVERBS_ATTR2(_id, _type, _fld, _attr, _extra1, _extra2)    \
+	((const struct uverbs_attr_def)				  \
+	 {.id = _id, .attr = {{._fld = {.type = _type, _attr, _extra1, _extra2 } },} })
+#define __UVERBS_ATTR(_id, _type, _fld, _attr, _extra1, _extra2, _n, ...)	\
+	__UVERBS_ATTR##_n(_id, _type, _fld, _attr, _extra1, _extra2)
+
+#define UVERBS_ATTR_TYPE(_type)					\
+	.min_len = sizeof(_type), .len = sizeof(_type)
+#define UVERBS_ATTR_STRUCT(_type, _last)			\
+	.min_len = ((uintptr_t)(&((_type *)0)->_last + 1)), .len = sizeof(_type)
+#define UVERBS_ATTR_SIZE(_min_len, _len)			\
+	.min_len = _min_len, .len = _len
+
 /*
  * In new compiler, UVERBS_ATTR could be simplified by declaring it as
  * [_id] = {.type = _type, .len = _len, ##__VA_ARGS__}
  * But since we support older compilers too, we need the more complex code.
  */
-#define UVERBS_ATTR(_id, _len, _type, ...)				\
-	__UVERBS_ATTR(_id, _len, _type, ##__VA_ARGS__, 1, 0)
+#define UVERBS_ATTR(_id, _type, _fld, _attr, ...)			\
+	__UVERBS_ATTR(_id, _type, _fld, _attr, ##__VA_ARGS__, 2, 1, 0)
 #define UVERBS_ATTR_PTR_IN_SZ(_id, _len, ...)				\
-	UVERBS_ATTR(_id, _len, UVERBS_ATTR_TYPE_PTR_IN, ##__VA_ARGS__)
+	UVERBS_ATTR(_id, UVERBS_ATTR_TYPE_PTR_IN, ptr, _len, ##__VA_ARGS__)
 /* If sizeof(_type) <= sizeof(u64), this will be inlined rather than a pointer */
 #define UVERBS_ATTR_PTR_IN(_id, _type, ...)				\
-	UVERBS_ATTR_PTR_IN_SZ(_id, sizeof(_type), ##__VA_ARGS__)
+	UVERBS_ATTR_PTR_IN_SZ(_id, _type, ##__VA_ARGS__)
 #define UVERBS_ATTR_PTR_OUT_SZ(_id, _len, ...)				\
-	UVERBS_ATTR(_id, _len, UVERBS_ATTR_TYPE_PTR_OUT, ##__VA_ARGS__)
+	UVERBS_ATTR(_id, UVERBS_ATTR_TYPE_PTR_OUT, ptr, _len, ##__VA_ARGS__)
 #define UVERBS_ATTR_PTR_OUT(_id, _type, ...)				\
-	UVERBS_ATTR_PTR_OUT_SZ(_id, sizeof(_type), ##__VA_ARGS__)
+	UVERBS_ATTR_PTR_OUT_SZ(_id, _type, ##__VA_ARGS__)
 
 /*
  * In new compiler, UVERBS_ATTR_IDR (and FD) could be simplified by declaring
@@ -396,8 +410,8 @@ static inline int _uverbs_copy_from(void *to,
 
 	/*
 	 * Validation ensures attr->ptr_attr.len >= size. If the caller is
-	 * using UVERBS_ATTR_SPEC_F_MIN_SZ then it must call copy_from with
-	 * the right size.
+	 * using UVERBS_ATTR_SPEC_F_MIN_SZ_OR_ZERO then it must call
+	 * uverbs_copy_from_or_zero.
 	 */
 	if (unlikely(size < attr->ptr_attr.len))
 		return -EINVAL;
@@ -411,8 +425,36 @@ static inline int _uverbs_copy_from(void *to,
 	return 0;
 }
 
+static inline int _uverbs_copy_from_or_zero(void *to,
+					    const struct uverbs_attr_bundle *attrs_bundle,
+					    size_t idx,
+					    size_t size)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
+	size_t min_size;
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	min_size = min_t(size_t, size, attr->ptr_attr.len);
+
+	if (uverbs_attr_ptr_is_inline(attr))
+		memcpy(to, &attr->ptr_attr.data, min_size);
+	else if (copy_from_user(to, u64_to_user_ptr(attr->ptr_attr.data),
+				min_size))
+		return -EFAULT;
+
+	if (size > min_size)
+		memset(to + min_size, 0, size - min_size);
+
+	return 0;
+}
+
 #define uverbs_copy_from(to, attrs_bundle, idx)				      \
 	_uverbs_copy_from(to, attrs_bundle, idx, sizeof(*to))
+
+#define uverbs_copy_from_or_zero(to, attrs_bundle, idx)			      \
+	_uverbs_copy_from_or_zero(to, attrs_bundle, idx, sizeof(*to))
 
 /* =================================================
  *	 Definitions -> Specs infrastructure
