@@ -937,8 +937,7 @@ int ib_get_cached_subnet_prefix(struct ib_device *device,
 	unsigned long flags;
 	int p;
 
-	if (port_num < rdma_start_port(device) ||
-	    port_num > rdma_end_port(device))
+	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
 	p = port_num - rdma_start_port(device);
@@ -1048,7 +1047,7 @@ int ib_get_cached_port_state(struct ib_device   *device,
 	unsigned long flags;
 	int ret = 0;
 
-	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
+	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
 	read_lock_irqsave(&device->cache.lock, flags);
