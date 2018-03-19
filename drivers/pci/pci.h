@@ -123,6 +123,8 @@ struct pci_vpd {
 
 int pci_vpd_init(struct pci_dev *dev);
 void pci_vpd_release(struct pci_dev *dev);
+void pcie_vpd_create_sysfs_dev_files(struct pci_dev *dev);
+void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev);
 
 /* PCI /proc functions */
 #ifdef CONFIG_PROC_FS

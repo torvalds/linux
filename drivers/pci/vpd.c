@@ -378,6 +378,73 @@ void pci_vpd_release(struct pci_dev *dev)
 	kfree(dev->vpd);
 }
 
+static ssize_t read_vpd_attr(struct file *filp, struct kobject *kobj,
+			     struct bin_attribute *bin_attr, char *buf,
+			     loff_t off, size_t count)
+{
+	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
+
+	if (bin_attr->size > 0) {
+		if (off > bin_attr->size)
+			count = 0;
+		else if (count > bin_attr->size - off)
+			count = bin_attr->size - off;
+	}
+
+	return pci_read_vpd(dev, off, count, buf);
+}
+
+static ssize_t write_vpd_attr(struct file *filp, struct kobject *kobj,
+			      struct bin_attribute *bin_attr, char *buf,
+			      loff_t off, size_t count)
+{
+	struct pci_dev *dev = to_pci_dev(kobj_to_dev(kobj));
+
+	if (bin_attr->size > 0) {
+		if (off > bin_attr->size)
+			count = 0;
+		else if (count > bin_attr->size - off)
+			count = bin_attr->size - off;
+	}
+
+	return pci_write_vpd(dev, off, count, buf);
+}
+
+void pcie_vpd_create_sysfs_dev_files(struct pci_dev *dev)
+{
+	int retval;
+	struct bin_attribute *attr;
+
+	if (!dev->vpd)
+		return;
+
+	attr = kzalloc(sizeof(*attr), GFP_ATOMIC);
+	if (!attr)
+		return;
+
+	sysfs_bin_attr_init(attr);
+	attr->size = 0;
+	attr->attr.name = "vpd";
+	attr->attr.mode = S_IRUSR | S_IWUSR;
+	attr->read = read_vpd_attr;
+	attr->write = write_vpd_attr;
+	retval = sysfs_create_bin_file(&dev->dev.kobj, attr);
+	if (retval) {
+		kfree(attr);
+		return;
+	}
+
+	dev->vpd->attr = attr;
+}
+
+void pcie_vpd_remove_sysfs_dev_files(struct pci_dev *dev)
+{
+	if (dev->vpd && dev->vpd->attr) {
+		sysfs_remove_bin_file(&dev->dev.kobj, dev->vpd->attr);
+		kfree(dev->vpd->attr);
+	}
+}
+
 int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt)
 {
 	int i;
