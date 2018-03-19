@@ -523,6 +523,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct device *dev = &client->dev;
 	unsigned int i, num_addresses;
 	struct at24_data *at24;
+	size_t at24_size;
 	bool writable;
 	u8 test_byte;
 	int err;
@@ -576,8 +577,8 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	regmap_config.reg_bits = (pdata.flags & AT24_FLAG_ADDR16) ? 16 : 8;
 	regmap_config.disable_locking = true;
 
-	at24 = devm_kzalloc(dev, sizeof(struct at24_data) + num_addresses *
-			    sizeof(struct at24_client), GFP_KERNEL);
+	at24_size = sizeof(*at24) + num_addresses * sizeof(struct at24_client);
+	at24 = devm_kzalloc(dev, at24_size, GFP_KERNEL);
 	if (!at24)
 		return -ENOMEM;
 
