@@ -463,7 +463,8 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	return 0;
 }
 
-static void at24_get_pdata(struct device *dev, struct at24_platform_data *chip)
+static void at24_properties_to_pdata(struct device *dev,
+				     struct at24_platform_data *chip)
 {
 	int err;
 	u32 val;
@@ -550,7 +551,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		chip.byte_len = cd->byte_len;
 		chip.flags = cd->flags;
-		at24_get_pdata(&client->dev, &chip);
+		at24_properties_to_pdata(&client->dev, &chip);
 	}
 
 	if (!chip.page_size) {
