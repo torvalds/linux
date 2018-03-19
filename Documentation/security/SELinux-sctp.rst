@@ -116,11 +116,12 @@ statement as shown in the following example::
 SCTP Peer Labeling
 ===================
 An SCTP socket will only have one peer label assigned to it. This will be
-assigned during the establishment of the first association. Once the peer
-label has been assigned, any new associations will have the ``association``
-permission validated by checking the socket peer sid against the received
-packets peer sid to determine whether the association should be allowed or
-denied.
+assigned during the establishment of the first association. Any further
+associations on this socket will have their packet peer label compared to
+the sockets peer label, and only if they are different will the
+``association`` permission be validated. This is validated by checking the
+socket peer sid against the received packets peer sid to determine whether
+the association should be allowed or denied.
 
 NOTES:
    1) If peer labeling is not enabled, then the peer context will always be
