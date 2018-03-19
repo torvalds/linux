@@ -1232,7 +1232,10 @@ static void rk818_bat_not_first_pwron(struct rk818_battery *di)
 	di->is_initialized = is_rk818_bat_initialized(di);
 	di->is_ocv_calib = is_rk818_bat_ocv_valid(di);
 
-	if (di->is_halt) {
+	if (di->is_initialized) {
+		BAT_INFO("initialized yet..\n");
+		goto finish;
+	} else if (di->is_halt) {
 		BAT_INFO("system halt last time... cap: pre=%d, now=%d\n",
 			 pre_cap, now_cap);
 		if (now_cap < 0)
@@ -1240,9 +1243,6 @@ static void rk818_bat_not_first_pwron(struct rk818_battery *di)
 		rk818_bat_init_coulomb_cap(di, now_cap);
 		pre_cap = now_cap;
 		pre_soc = di->rsoc;
-		goto finish;
-	} else if (di->is_initialized) {
-		BAT_INFO("initialized yet..\n");
 		goto finish;
 	} else if (di->is_ocv_calib) {
 		ocv_vol = rk818_bat_get_ocv_voltage(di);
