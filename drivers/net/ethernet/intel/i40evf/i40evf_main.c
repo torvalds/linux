@@ -2791,14 +2791,7 @@ static int i40evf_configure_clsflower(struct i40evf_adapter *adapter,
 {
 	int tc = tc_classid_to_hwtc(adapter->netdev, cls_flower->classid);
 	struct i40evf_cloud_filter *filter = NULL;
-	int err = 0, count = 50;
-
-	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
-				&adapter->crit_section)) {
-		udelay(1);
-		if (--count == 0)
-			return -EINVAL;
-	}
+	int err = -EINVAL, count = 50;
 
 	if (tc < 0) {
 		dev_err(&adapter->pdev->dev, "Invalid traffic class\n");
@@ -2806,10 +2799,16 @@ static int i40evf_configure_clsflower(struct i40evf_adapter *adapter,
 	}
 
 	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
-	if (!filter) {
-		err = -ENOMEM;
-		goto clearout;
+	if (!filter)
+		return -ENOMEM;
+
+	while (test_and_set_bit(__I40EVF_IN_CRITICAL_TASK,
+				&adapter->crit_section)) {
+		if (--count == 0)
+			goto err;
+		udelay(1);
 	}
+
 	filter->cookie = cls_flower->cookie;
 
 	/* set the mask to all zeroes to begin with */
@@ -2834,7 +2833,7 @@ static int i40evf_configure_clsflower(struct i40evf_adapter *adapter,
 err:
 	if (err)
 		kfree(filter);
-clearout:
+
 	clear_bit(__I40EVF_IN_CRITICAL_TASK, &adapter->crit_section);
 	return err;
 }
