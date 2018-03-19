@@ -32,11 +32,13 @@ u64 uevent_seqnum;
 #ifdef CONFIG_UEVENT_HELPER
 char uevent_helper[UEVENT_HELPER_PATH_LEN] = CONFIG_UEVENT_HELPER_PATH;
 #endif
-#ifdef CONFIG_NET
+
 struct uevent_sock {
 	struct list_head list;
 	struct sock *sk;
 };
+
+#ifdef CONFIG_NET
 static LIST_HEAD(uevent_sock_list);
 #endif
 
@@ -621,6 +623,9 @@ static int uevent_net_init(struct net *net)
 		kfree(ue_sk);
 		return -ENODEV;
 	}
+
+	net->uevent_sock = ue_sk;
+
 	mutex_lock(&uevent_sock_mutex);
 	list_add_tail(&ue_sk->list, &uevent_sock_list);
 	mutex_unlock(&uevent_sock_mutex);
@@ -629,17 +634,9 @@ static int uevent_net_init(struct net *net)
 
 static void uevent_net_exit(struct net *net)
 {
-	struct uevent_sock *ue_sk;
+	struct uevent_sock *ue_sk = net->uevent_sock;
 
 	mutex_lock(&uevent_sock_mutex);
-	list_for_each_entry(ue_sk, &uevent_sock_list, list) {
-		if (sock_net(ue_sk->sk) == net)
-			goto found;
-	}
-	mutex_unlock(&uevent_sock_mutex);
-	return;
-
-found:
 	list_del(&ue_sk->list);
 	mutex_unlock(&uevent_sock_mutex);
 
