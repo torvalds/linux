@@ -63,8 +63,6 @@ struct at24_client {
 };
 
 struct at24_data {
-	struct at24_platform_data chip;
-
 	/*
 	 * Lock protects against activities from other Linux tasks,
 	 * but not from changes by other I2C masters.
@@ -74,6 +72,10 @@ struct at24_data {
 	unsigned int write_max;
 	unsigned int num_addresses;
 	unsigned int offset_adj;
+
+	u32 byte_len;
+	u16 page_size;
+	u8 flags;
 
 	struct nvmem_device *nvmem;
 
@@ -252,7 +254,7 @@ static struct at24_client *at24_translate_offset(struct at24_data *at24,
 {
 	unsigned int i;
 
-	if (at24->chip.flags & AT24_FLAG_ADDR16) {
+	if (at24->flags & AT24_FLAG_ADDR16) {
 		i = *offset >> 16;
 		*offset &= 0xffff;
 	} else {
@@ -279,8 +281,8 @@ static size_t at24_adjust_read_count(struct at24_data *at24,
 	 * the next slave address: truncate the count to the slave boundary,
 	 * so that the read never straddles slaves.
 	 */
-	if (at24->chip.flags & AT24_FLAG_NO_RDROL) {
-		bits = (at24->chip.flags & AT24_FLAG_ADDR16) ? 16 : 8;
+	if (at24->flags & AT24_FLAG_NO_RDROL) {
+		bits = (at24->flags & AT24_FLAG_ADDR16) ? 16 : 8;
 		remainder = BIT(bits) - offset;
 		if (count > remainder)
 			count = remainder;
@@ -339,7 +341,7 @@ static size_t at24_adjust_write_count(struct at24_data *at24,
 		count = at24->write_max;
 
 	/* Never roll over backwards, to the start of this page */
-	next_page = roundup(offset + 1, at24->chip.page_size);
+	next_page = roundup(offset + 1, at24->page_size);
 	if (offset + count > next_page)
 		count = next_page - offset;
 
@@ -384,7 +386,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	if (unlikely(!count))
 		return count;
 
-	if (off + count > at24->chip.byte_len)
+	if (off + count > at24->byte_len)
 		return -EINVAL;
 
 	ret = pm_runtime_get_sync(dev);
@@ -431,7 +433,7 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	if (unlikely(!count))
 		return -EINVAL;
 
-	if (off + count > at24->chip.byte_len)
+	if (off + count > at24->byte_len)
 		return -EINVAL;
 
 	ret = pm_runtime_get_sync(dev);
@@ -601,7 +603,9 @@ static int at24_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	mutex_init(&at24->lock);
-	at24->chip = pdata;
+	at24->byte_len = pdata.byte_len;
+	at24->page_size = pdata.page_size;
+	at24->flags = pdata.flags;
 	at24->num_addresses = num_addresses;
 	at24->offset_adj = at24_get_offset_adj(pdata.flags, pdata.byte_len);
 
