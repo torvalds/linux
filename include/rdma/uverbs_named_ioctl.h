@@ -56,4 +56,35 @@
 #define DECLARE_UVERBS_NAMED_OBJECT(id, ...)	\
 	DECLARE_UVERBS_OBJECT(UVERBS_OBJECT(id), id, ##__VA_ARGS__)
 
+#define _UVERBS_COMP_NAME(x, y, z) _UVERBS_NAME(_UVERBS_NAME(x, y), z)
+
+#define UVERBS_NO_OVERRIDE	NULL
+
+/* This declares a parsing tree with one object and one method. This is usually
+ * used for merging driver attributes to the common attributes. The driver has
+ * a chance to override the handler and type attrs of the original object.
+ * The __VA_ARGS__ just contains a list of attributes.
+ */
+#define ADD_UVERBS_ATTRIBUTES(_name, _object, _method, _type_attrs, _handler, ...) \
+static DECLARE_UVERBS_METHOD(_UVERBS_COMP_NAME(UVERBS_MODULE_NAME,	     \
+					       _method_, _name),	     \
+			     _method, _handler, ##__VA_ARGS__);		     \
+									     \
+static DECLARE_UVERBS_OBJECT(_UVERBS_COMP_NAME(UVERBS_MODULE_NAME,	     \
+					       _object_, _name),	     \
+			     _object, _type_attrs,			     \
+			     &_UVERBS_COMP_NAME(UVERBS_MODULE_NAME,	     \
+					       _method_, _name));	     \
+									     \
+static DECLARE_UVERBS_OBJECT_TREE(_name,				     \
+				  &_UVERBS_COMP_NAME(UVERBS_MODULE_NAME,     \
+						     _object_, _name))
+
+/* A very common use case is that the driver doesn't override the handler and
+ * type_attrs. Therefore, we provide a simplified macro for this common case.
+ */
+#define ADD_UVERBS_ATTRIBUTES_SIMPLE(_name, _object, _method, ...)	     \
+	ADD_UVERBS_ATTRIBUTES(_name, _object, _method, UVERBS_NO_OVERRIDE,   \
+			      UVERBS_NO_OVERRIDE, ##__VA_ARGS__)
+
 #endif
