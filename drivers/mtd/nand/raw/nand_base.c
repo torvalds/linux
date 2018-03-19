@@ -5226,8 +5226,9 @@ static int nand_flash_detect_onfi(struct nand_chip *chip)
 static int nand_flash_detect_jedec(struct nand_chip *chip)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	struct nand_jedec_params *p = &chip->jedec_params;
+	struct nand_jedec_params *p;
 	struct jedec_ecc_info *ecc;
+	int jedec_version = 0;
 	char id[5];
 	int i, val, ret;
 
@@ -5236,14 +5237,23 @@ static int nand_flash_detect_jedec(struct nand_chip *chip)
 	if (ret || strncmp(id, "JEDEC", sizeof(id)))
 		return 0;
 
+	/* JEDEC chip: allocate a buffer to hold its parameter page */
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
+
 	ret = nand_read_param_page_op(chip, 0x40, NULL, 0);
-	if (ret)
-		return 0;
+	if (ret) {
+		ret = 0;
+		goto free_jedec_param_page;
+	}
 
 	for (i = 0; i < 3; i++) {
 		ret = nand_read_data_op(chip, p, sizeof(*p), true);
-		if (ret)
-			return 0;
+		if (ret) {
+			ret = 0;
+			goto free_jedec_param_page;
+		}
 
 		if (onfi_crc16(ONFI_CRC_BASE, (uint8_t *)p, 510) ==
 				le16_to_cpu(p->crc))
@@ -5252,19 +5262,19 @@ static int nand_flash_detect_jedec(struct nand_chip *chip)
 
 	if (i == 3) {
 		pr_err("Could not find valid JEDEC parameter page; aborting\n");
-		return 0;
+		goto free_jedec_param_page;
 	}
 
 	/* Check version */
 	val = le16_to_cpu(p->revision);
 	if (val & (1 << 2))
-		chip->jedec_version = 10;
+		jedec_version = 10;
 	else if (val & (1 << 1))
-		chip->jedec_version = 1; /* vendor specific version */
+		jedec_version = 1; /* vendor specific version */
 
-	if (!chip->jedec_version) {
+	if (!jedec_version) {
 		pr_info("unsupported JEDEC version: %d\n", val);
-		return 0;
+		goto free_jedec_param_page;
 	}
 
 	sanitize_string(p->manufacturer, sizeof(p->manufacturer));
@@ -5285,7 +5295,7 @@ static int nand_flash_detect_jedec(struct nand_chip *chip)
 	chip->chipsize *= (uint64_t)mtd->erasesize * p->lun_count;
 	chip->bits_per_cell = p->bits_per_cell;
 
-	if (jedec_feature(chip) & JEDEC_FEATURE_16_BIT_BUS)
+	if (le16_to_cpu(p->features) & JEDEC_FEATURE_16_BIT_BUS)
 		chip->options |= NAND_BUSWIDTH_16;
 
 	/* ECC info */
@@ -5298,7 +5308,9 @@ static int nand_flash_detect_jedec(struct nand_chip *chip)
 		pr_warn("Invalid codeword size\n");
 	}
 
-	return 1;
+free_jedec_param_page:
+	kfree(p);
+	return ret;
 }
 
 /*
@@ -5604,7 +5616,10 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 			goto ident_done;
 
 		/* Check if the chip is JEDEC compliant */
-		if (nand_flash_detect_jedec(chip))
+		ret = nand_flash_detect_jedec(chip);
+		if (ret < 0)
+			return ret;
+		else if (ret)
 			goto ident_done;
 	}
 
