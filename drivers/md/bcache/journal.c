@@ -493,7 +493,7 @@ static void journal_reclaim(struct cache_set *c)
 	struct cache *ca;
 	uint64_t last_seq;
 	unsigned iter, n = 0;
-	atomic_t p;
+	atomic_t p __maybe_unused;
 
 	atomic_long_inc(&c->reclaim);
 
