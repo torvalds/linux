@@ -421,9 +421,15 @@ static int bch_writeback_thread(void *arg)
 	while (!kthread_should_stop()) {
 		down_write(&dc->writeback_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (!atomic_read(&dc->has_dirty) ||
-		    (!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) &&
-		     !dc->writeback_running)) {
+		/*
+		 * If the bache device is detaching, skip here and continue
+		 * to perform writeback. Otherwise, if no dirty data on cache,
+		 * or there is dirty data on cache but writeback is disabled,
+		 * the writeback thread should sleep here and wait for others
+		 * to wake up it.
+		 */
+		if (!test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags) &&
+		    (!atomic_read(&dc->has_dirty) || !dc->writeback_running)) {
 			up_write(&dc->writeback_lock);
 
 			if (kthread_should_stop()) {
@@ -444,6 +450,14 @@ static int bch_writeback_thread(void *arg)
 			cached_dev_put(dc);
 			SET_BDEV_STATE(&dc->sb, BDEV_STATE_CLEAN);
 			bch_write_bdev_super(dc, NULL);
+			/*
+			 * If bcache device is detaching via sysfs interface,
+			 * writeback thread should stop after there is no dirty
+			 * data on cache. BCACHE_DEV_DETACHING flag is set in
+			 * bch_cached_dev_detach().
+			 */
+			if (test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
+				break;
 		}
 
 		up_write(&dc->writeback_lock);
