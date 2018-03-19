@@ -54,8 +54,7 @@ struct dt_cpu_feature {
 };
 
 #define CPU_FTRS_BASE \
-	   (CPU_FTR_USE_TB | \
-	    CPU_FTR_LWSYNC | \
+	   (CPU_FTR_LWSYNC | \
 	    CPU_FTR_FPU_UNAVAILABLE |\
 	    CPU_FTR_NODSISRALIGN |\
 	    CPU_FTR_NOEXECUTE |\
