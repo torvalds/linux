@@ -1744,6 +1744,7 @@ static void bch_btree_gc(struct cache_set *c)
 
 	btree_gc_start(c);
 
+	/* if CACHE_SET_IO_DISABLE set, gc thread should stop too */
 	do {
 		ret = btree_root(gc_root, c, &op, &writes, &stats);
 		closure_sync(&writes);
@@ -1751,7 +1752,7 @@ static void bch_btree_gc(struct cache_set *c)
 
 		if (ret && ret != -EAGAIN)
 			pr_warn("gc failed!");
-	} while (ret);
+	} while (ret && !test_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
 	bch_btree_gc_finish(c);
 	wake_up_allocators(c);
@@ -1789,15 +1790,19 @@ static int bch_gc_thread(void *arg)
 
 	while (1) {
 		wait_event_interruptible(c->gc_wait,
-			   kthread_should_stop() || gc_should_run(c));
+			   kthread_should_stop() ||
+			   test_bit(CACHE_SET_IO_DISABLE, &c->flags) ||
+			   gc_should_run(c));
 
-		if (kthread_should_stop())
+		if (kthread_should_stop() ||
+		    test_bit(CACHE_SET_IO_DISABLE, &c->flags))
 			break;
 
 		set_gc_sectors(c);
 		bch_btree_gc(c);
 	}
 
+	wait_for_kthread_stop();
 	return 0;
 }
 

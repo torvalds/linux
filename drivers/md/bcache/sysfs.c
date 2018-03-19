@@ -95,6 +95,7 @@ read_attribute(partial_stripes_expensive);
 
 rw_attribute(synchronous);
 rw_attribute(journal_delay_ms);
+rw_attribute(io_disable);
 rw_attribute(discard);
 rw_attribute(running);
 rw_attribute(label);
@@ -591,6 +592,8 @@ SHOW(__bch_cache_set)
 	sysfs_printf(gc_always_rewrite,		"%i", c->gc_always_rewrite);
 	sysfs_printf(btree_shrinker_disabled,	"%i", c->shrinker_disabled);
 	sysfs_printf(copy_gc_enabled,		"%i", c->copy_gc_enabled);
+	sysfs_printf(io_disable,		"%i",
+		     test_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
 	if (attr == &sysfs_bset_tree_stats)
 		return bch_bset_print_stats(c, buf);
@@ -680,6 +683,20 @@ STORE(__bch_cache_set)
 	if (attr == &sysfs_io_error_halflife)
 		c->error_decay = strtoul_or_return(buf) / 88;
 
+	if (attr == &sysfs_io_disable) {
+		int v = strtoul_or_return(buf);
+
+		if (v) {
+			if (test_and_set_bit(CACHE_SET_IO_DISABLE,
+					     &c->flags))
+				pr_warn("CACHE_SET_IO_DISABLE already set");
+		} else {
+			if (!test_and_clear_bit(CACHE_SET_IO_DISABLE,
+						&c->flags))
+				pr_warn("CACHE_SET_IO_DISABLE already cleared");
+		}
+	}
+
 	sysfs_strtoul(journal_delay_ms,		c->journal_delay_ms);
 	sysfs_strtoul(verify,			c->verify);
 	sysfs_strtoul(key_merging_disabled,	c->key_merging_disabled);
@@ -765,6 +782,7 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_gc_always_rewrite,
 	&sysfs_btree_shrinker_disabled,
 	&sysfs_copy_gc_enabled,
+	&sysfs_io_disable,
 	NULL
 };
 KTYPE(bch_cache_set_internal);

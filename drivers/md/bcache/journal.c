@@ -62,7 +62,7 @@ reread:		left = ca->sb.bucket_size - offset;
 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		bch_bio_map(bio, data);
 
-		closure_bio_submit(bio, &cl);
+		closure_bio_submit(ca->set, bio, &cl);
 		closure_sync(&cl);
 
 		/* This function could be simpler now since we no longer write
@@ -674,7 +674,7 @@ static void journal_write_unlocked(struct closure *cl)
 	spin_unlock(&c->journal.lock);
 
 	while ((bio = bio_list_pop(&list)))
-		closure_bio_submit(bio, cl);
+		closure_bio_submit(c, bio, cl);
 
 	continue_at(cl, journal_write_done, NULL);
 }

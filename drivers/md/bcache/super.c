@@ -521,7 +521,7 @@ static void prio_io(struct cache *ca, uint64_t bucket, int op,
 	bio_set_op_attrs(bio, op, REQ_SYNC|REQ_META|op_flags);
 	bch_bio_map(bio, ca->disk_buckets);
 
-	closure_bio_submit(bio, &ca->prio);
+	closure_bio_submit(ca->set, bio, &ca->prio);
 	closure_sync(cl);
 }
 
@@ -1350,6 +1350,9 @@ bool bch_cache_set_error(struct cache_set *c, const char *fmt, ...)
 	    test_bit(CACHE_SET_STOPPING, &c->flags))
 		return false;
 
+	if (test_and_set_bit(CACHE_SET_IO_DISABLE, &c->flags))
+		pr_warn("CACHE_SET_IO_DISABLE already set");
+
 	/* XXX: we can be called from atomic context
 	acquire_console_sem();
 	*/
@@ -1585,6 +1588,7 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 	c->congested_read_threshold_us	= 2000;
 	c->congested_write_threshold_us	= 20000;
 	c->error_limit	= DEFAULT_IO_ERROR_LIMIT;
+	WARN_ON(test_and_clear_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
 	return c;
 err:

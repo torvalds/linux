@@ -114,6 +114,7 @@ static void update_writeback_rate(struct work_struct *work)
 	struct cached_dev *dc = container_of(to_delayed_work(work),
 					     struct cached_dev,
 					     writeback_rate_update);
+	struct cache_set *c = dc->disk.c;
 
 	/*
 	 * should check BCACHE_DEV_RATE_DW_RUNNING before calling
@@ -123,7 +124,12 @@ static void update_writeback_rate(struct work_struct *work)
 	/* paired with where BCACHE_DEV_RATE_DW_RUNNING is tested */
 	smp_mb();
 
-	if (!test_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags)) {
+	/*
+	 * CACHE_SET_IO_DISABLE might be set via sysfs interface,
+	 * check it here too.
+	 */
+	if (!test_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags) ||
+	    test_bit(CACHE_SET_IO_DISABLE, &c->flags)) {
 		clear_bit(BCACHE_DEV_RATE_DW_RUNNING, &dc->disk.flags);
 		/* paired with where BCACHE_DEV_RATE_DW_RUNNING is tested */
 		smp_mb();
@@ -138,7 +144,12 @@ static void update_writeback_rate(struct work_struct *work)
 
 	up_read(&dc->writeback_lock);
 
-	if (test_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags)) {
+	/*
+	 * CACHE_SET_IO_DISABLE might be set via sysfs interface,
+	 * check it here too.
+	 */
+	if (test_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags) &&
+	    !test_bit(CACHE_SET_IO_DISABLE, &c->flags)) {
 		schedule_delayed_work(&dc->writeback_rate_update,
 			      dc->writeback_rate_update_seconds * HZ);
 	}
@@ -278,7 +289,7 @@ static void write_dirty(struct closure *cl)
 		bio_set_dev(&io->bio, io->dc->bdev);
 		io->bio.bi_end_io	= dirty_endio;
 
-		closure_bio_submit(&io->bio, cl);
+		closure_bio_submit(io->dc->disk.c, &io->bio, cl);
 	}
 
 	atomic_set(&dc->writeback_sequence_next, next_sequence);
@@ -304,7 +315,7 @@ static void read_dirty_submit(struct closure *cl)
 {
 	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
 
-	closure_bio_submit(&io->bio, cl);
+	closure_bio_submit(io->dc->disk.c, &io->bio, cl);
 
 	continue_at(cl, write_dirty, io->dc->writeback_write_wq);
 }
@@ -330,7 +341,9 @@ static void read_dirty(struct cached_dev *dc)
 
 	next = bch_keybuf_next(&dc->writeback_keys);
 
-	while (!kthread_should_stop() && next) {
+	while (!kthread_should_stop() &&
+	       !test_bit(CACHE_SET_IO_DISABLE, &dc->disk.c->flags) &&
+	       next) {
 		size = 0;
 		nk = 0;
 
@@ -427,7 +440,9 @@ static void read_dirty(struct cached_dev *dc)
 			}
 		}
 
-		while (!kthread_should_stop() && delay) {
+		while (!kthread_should_stop() &&
+		       !test_bit(CACHE_SET_IO_DISABLE, &dc->disk.c->flags) &&
+		       delay) {
 			schedule_timeout_interruptible(delay);
 			delay = writeback_delay(dc, 0);
 		}
@@ -583,11 +598,13 @@ static bool refill_dirty(struct cached_dev *dc)
 static int bch_writeback_thread(void *arg)
 {
 	struct cached_dev *dc = arg;
+	struct cache_set *c = dc->disk.c;
 	bool searched_full_index;
 
 	bch_ratelimit_reset(&dc->writeback_rate);
 
-	while (!kthread_should_stop()) {
+	while (!kthread_should_stop() &&
+	       !test_bit(CACHE_SET_IO_DISABLE, &c->flags)) {
 		down_write(&dc->writeback_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
 		/*
@@ -601,7 +618,8 @@ static int bch_writeback_thread(void *arg)
 		    (!atomic_read(&dc->has_dirty) || !dc->writeback_running)) {
 			up_write(&dc->writeback_lock);
 
-			if (kthread_should_stop()) {
+			if (kthread_should_stop() ||
+			    test_bit(CACHE_SET_IO_DISABLE, &c->flags)) {
 				set_current_state(TASK_RUNNING);
 				break;
 			}
@@ -637,6 +655,7 @@ static int bch_writeback_thread(void *arg)
 
 			while (delay &&
 			       !kthread_should_stop() &&
+			       !test_bit(CACHE_SET_IO_DISABLE, &c->flags) &&
 			       !test_bit(BCACHE_DEV_DETACHING, &dc->disk.flags))
 				delay = schedule_timeout_interruptible(delay);
 
@@ -644,8 +663,8 @@ static int bch_writeback_thread(void *arg)
 		}
 	}
 
-	dc->writeback_thread = NULL;
 	cached_dev_put(dc);
+	wait_for_kthread_stop();
 
 	return 0;
 }

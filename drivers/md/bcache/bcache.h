@@ -188,6 +188,7 @@
 #include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 
 #include "bset.h"
 #include "util.h"
@@ -475,10 +476,15 @@ struct gc_stat {
  *
  * CACHE_SET_RUNNING means all cache devices have been registered and journal
  * replay is complete.
+ *
+ * CACHE_SET_IO_DISABLE is set when bcache is stopping the whold cache set, all
+ * external and internal I/O should be denied when this flag is set.
+ *
  */
 #define CACHE_SET_UNREGISTERING		0
 #define	CACHE_SET_STOPPING		1
 #define	CACHE_SET_RUNNING		2
+#define CACHE_SET_IO_DISABLE		3
 
 struct cache_set {
 	struct closure		cl;
@@ -866,6 +872,33 @@ static inline void wake_up_allocators(struct cache_set *c)
 
 	for_each_cache(ca, c, i)
 		wake_up_process(ca->alloc_thread);
+}
+
+static inline void closure_bio_submit(struct cache_set *c,
+				      struct bio *bio,
+				      struct closure *cl)
+{
+	closure_get(cl);
+	if (unlikely(test_bit(CACHE_SET_IO_DISABLE, &c->flags))) {
+		bio->bi_status = BLK_STS_IOERR;
+		bio_endio(bio);
+		return;
+	}
+	generic_make_request(bio);
+}
+
+/*
+ * Prevent the kthread exits directly, and make sure when kthread_stop()
+ * is called to stop a kthread, it is still alive. If a kthread might be
+ * stopped by CACHE_SET_IO_DISABLE bit set, wait_for_kthread_stop() is
+ * necessary before the kthread returns.
+ */
+static inline void wait_for_kthread_stop(void)
+{
+	while (!kthread_should_stop()) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule();
+	}
 }
 
 /* Forward declarations */
