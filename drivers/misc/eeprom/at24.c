@@ -553,9 +553,6 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		at24_get_pdata(&client->dev, &chip);
 	}
 
-	if (!is_power_of_2(chip.byte_len))
-		dev_warn(&client->dev,
-			"byte_len looks suspicious (no power of 2)!\n");
 	if (!chip.page_size) {
 		dev_err(&client->dev, "page_size must not be 0!\n");
 		return -EINVAL;
