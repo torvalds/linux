@@ -49,8 +49,7 @@ struct intel_guc_log {
 		struct workqueue_struct *flush_wq;
 		struct work_struct flush_work;
 		struct rchan *relay_chan;
-		/* To serialize the access to relay_chan */
-		struct mutex relay_lock;
+		struct mutex lock;
 	} runtime;
 	/* logging related stats */
 	u32 capture_miss_count;
