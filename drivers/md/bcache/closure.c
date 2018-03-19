@@ -157,7 +157,7 @@ void closure_debug_destroy(struct closure *cl)
 }
 EXPORT_SYMBOL(closure_debug_destroy);
 
-static struct dentry *debug;
+static struct dentry *closure_debug;
 
 static int debug_seq_show(struct seq_file *f, void *data)
 {
@@ -199,11 +199,12 @@ static const struct file_operations debug_ops = {
 	.release	= single_release
 };
 
-void __init closure_debug_init(void)
+int __init closure_debug_init(void)
 {
-	debug = debugfs_create_file("closures", 0400, NULL, NULL, &debug_ops);
+	closure_debug = debugfs_create_file("closures",
+				0400, bcache_debug, NULL, &debug_ops);
+	return IS_ERR_OR_NULL(closure_debug);
 }
-
 #endif
 
 MODULE_AUTHOR("Kent Overstreet <koverstreet@google.com>");
