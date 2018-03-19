@@ -276,9 +276,17 @@ static int xgpu_ai_mailbox_rcv_irq(struct amdgpu_device *adev,
 		/* see what event we get */
 		r = xgpu_ai_mailbox_rcv_msg(adev, IDH_FLR_NOTIFICATION);
 
-		/* only handle FLR_NOTIFY now */
-		if (!r)
-			schedule_work(&adev->virt.flr_work);
+		/* sometimes the interrupt is delayed to inject to VM, so under such case
+		 * the IDH_FLR_NOTIFICATION is overwritten by VF FLR from GIM side, thus
+		 * above recieve message could be failed, we should schedule the flr_work
+		 * anyway
+		 */
+		if (r) {
+			DRM_ERROR("FLR_NOTIFICATION is missed\n");
+			xgpu_ai_mailbox_send_ack(adev);
+		}
+
+		schedule_work(&adev->virt.flr_work);
 	}
 
 	return 0;

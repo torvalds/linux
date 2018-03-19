@@ -1552,6 +1552,21 @@ static int fusb302_pd_read_message(struct fusb302_chip *chip,
 	fusb302_log(chip, "PD message header: %x", msg->header);
 	fusb302_log(chip, "PD message len: %d", len);
 
+	/*
+	 * Check if we've read off a GoodCRC message. If so then indicate to
+	 * TCPM that the previous transmission has completed. Otherwise we pass
+	 * the received message over to TCPM for processing.
+	 *
+	 * We make this check here instead of basing the reporting decision on
+	 * the IRQ event type, as it's possible for the chip to report the
+	 * TX_SUCCESS and GCRCSENT events out of order on occasion, so we need
+	 * to check the message type to ensure correct reporting to TCPM.
+	 */
+	if ((!len) && (pd_header_type_le(msg->header) == PD_CTRL_GOOD_CRC))
+		tcpm_pd_transmit_complete(chip->tcpm_port, TCPC_TX_SUCCESS);
+	else
+		tcpm_pd_receive(chip->tcpm_port, msg);
+
 	return ret;
 }
 
@@ -1659,13 +1674,12 @@ static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 
 	if (interrupta & FUSB_REG_INTERRUPTA_TX_SUCCESS) {
 		fusb302_log(chip, "IRQ: PD tx success");
-		/* read out the received good CRC */
 		ret = fusb302_pd_read_message(chip, &pd_msg);
 		if (ret < 0) {
-			fusb302_log(chip, "cannot read in GCRC, ret=%d", ret);
+			fusb302_log(chip,
+				    "cannot read in PD message, ret=%d", ret);
 			goto done;
 		}
-		tcpm_pd_transmit_complete(chip->tcpm_port, TCPC_TX_SUCCESS);
 	}
 
 	if (interrupta & FUSB_REG_INTERRUPTA_HARDRESET) {
@@ -1686,7 +1700,6 @@ static irqreturn_t fusb302_irq_intn(int irq, void *dev_id)
 				    "cannot read in PD message, ret=%d", ret);
 			goto done;
 		}
-		tcpm_pd_receive(chip->tcpm_port, &pd_msg);
 	}
 done:
 	mutex_unlock(&chip->lock);

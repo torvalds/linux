@@ -61,9 +61,6 @@
 #define KBL_FW_MAJOR 9
 #define KBL_FW_MINOR 14
 
-#define GLK_FW_MAJOR 10
-#define GLK_FW_MINOR 56
-
 #define GUC_FW_PATH(platform, major, minor) \
        "i915/" __stringify(platform) "_guc_ver" __stringify(major) "_" __stringify(minor) ".bin"
 
@@ -75,8 +72,6 @@ MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
 
 #define I915_KBL_GUC_UCODE GUC_FW_PATH(kbl, KBL_FW_MAJOR, KBL_FW_MINOR)
 MODULE_FIRMWARE(I915_KBL_GUC_UCODE);
-
-#define I915_GLK_GUC_UCODE GUC_FW_PATH(glk, GLK_FW_MAJOR, GLK_FW_MINOR)
 
 
 static u32 get_gttype(struct drm_i915_private *dev_priv)
@@ -406,10 +401,6 @@ int intel_guc_select_fw(struct intel_guc *guc)
 		guc->fw.path = I915_KBL_GUC_UCODE;
 		guc->fw.major_ver_wanted = KBL_FW_MAJOR;
 		guc->fw.minor_ver_wanted = KBL_FW_MINOR;
-	} else if (IS_GEMINILAKE(dev_priv)) {
-		guc->fw.path = I915_GLK_GUC_UCODE;
-		guc->fw.major_ver_wanted = GLK_FW_MAJOR;
-		guc->fw.minor_ver_wanted = GLK_FW_MINOR;
 	} else {
 		DRM_ERROR("No GuC firmware known for platform with GuC!\n");
 		return -ENOENT;

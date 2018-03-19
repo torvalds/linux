@@ -437,6 +437,8 @@ static int dce_virtual_sw_fini(void *handle)
 	drm_kms_helper_poll_fini(adev->ddev);
 
 	drm_mode_config_cleanup(adev->ddev);
+	/* clear crtcs pointer to avoid dce irq finish routine access freed data */
+	memset(adev->mode_info.crtcs, 0, sizeof(adev->mode_info.crtcs[0]) * AMDGPU_MAX_CRTCS);
 	adev->mode_info.mode_config_initialized = false;
 	return 0;
 }
@@ -723,7 +725,7 @@ static void dce_virtual_set_crtc_vblank_interrupt_state(struct amdgpu_device *ad
 							int crtc,
 							enum amdgpu_interrupt_state state)
 {
-	if (crtc >= adev->mode_info.num_crtc) {
+	if (crtc >= adev->mode_info.num_crtc || !adev->mode_info.crtcs[crtc]) {
 		DRM_DEBUG("invalid crtc %d\n", crtc);
 		return;
 	}

@@ -1152,10 +1152,12 @@ int phy_suspend(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_suspend);
 
-int phy_resume(struct phy_device *phydev)
+int __phy_resume(struct phy_device *phydev)
 {
 	struct phy_driver *phydrv = to_phy_driver(phydev->mdio.dev.driver);
 	int ret = 0;
+
+	WARN_ON(!mutex_is_locked(&phydev->lock));
 
 	if (phydev->drv && phydrv->resume)
 		ret = phydrv->resume(phydev);
@@ -1164,6 +1166,18 @@ int phy_resume(struct phy_device *phydev)
 		return ret;
 
 	phydev->suspended = false;
+
+	return ret;
+}
+EXPORT_SYMBOL(__phy_resume);
+
+int phy_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	mutex_lock(&phydev->lock);
+	ret = __phy_resume(phydev);
+	mutex_unlock(&phydev->lock);
 
 	return ret;
 }
@@ -1639,12 +1653,8 @@ int genphy_resume(struct phy_device *phydev)
 {
 	int value;
 
-	mutex_lock(&phydev->lock);
-
 	value = phy_read(phydev, MII_BMCR);
 	phy_write(phydev, MII_BMCR, value & ~BMCR_PDOWN);
-
-	mutex_unlock(&phydev->lock);
 
 	return 0;
 }
