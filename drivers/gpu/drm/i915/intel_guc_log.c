@@ -461,26 +461,6 @@ static void guc_log_capture_logs(struct intel_guc_log *log)
 	intel_runtime_pm_put(dev_priv);
 }
 
-static void guc_flush_logs(struct intel_guc_log *log)
-{
-	struct intel_guc *guc = log_to_guc(log);
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-
-	/*
-	 * Before initiating the forceful flush, wait for any pending/ongoing
-	 * flush to complete otherwise forceful flush may not actually happen.
-	 */
-	flush_work(&log->runtime.flush_work);
-
-	/* Ask GuC to update the log buffer state */
-	intel_runtime_pm_get(dev_priv);
-	guc_log_flush(guc);
-	intel_runtime_pm_put(dev_priv);
-
-	/* GuC would have updated log buffer by now, so capture it */
-	guc_log_capture_logs(log);
-}
-
 int intel_guc_log_create(struct intel_guc_log *log)
 {
 	struct intel_guc *guc = log_to_guc(log);
@@ -635,7 +615,16 @@ err:
 
 void intel_guc_log_unregister(struct intel_guc_log *log)
 {
-	guc_flush_log_msg_disable(log_to_guc(log));
+	struct intel_guc *guc = log_to_guc(log);
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+
+	guc_flush_log_msg_disable(guc);
+
+	/*
+	 * Before initiating the forceful flush, wait for any pending/ongoing
+	 * flush to complete otherwise forceful flush may not actually happen.
+	 */
+	flush_work(&log->runtime.flush_work);
 
 	/*
 	 * Once logging is disabled, GuC won't generate logs & send an
@@ -643,7 +632,12 @@ void intel_guc_log_unregister(struct intel_guc_log *log)
 	 * which is yet to be captured. So request GuC to update the log
 	 * buffer state and then collect the left over logs.
 	 */
-	guc_flush_logs(log);
+	intel_runtime_pm_get(i915);
+	guc_log_flush(guc);
+	intel_runtime_pm_put(i915);
+
+	/* GuC would have updated log buffer by now, so capture it */
+	guc_log_capture_logs(log);
 
 	mutex_lock(&log->runtime.lock);
 
