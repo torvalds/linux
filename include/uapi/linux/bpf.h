@@ -133,6 +133,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_SOCK_OPS,
 	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_CGROUP_DEVICE,
+	BPF_PROG_TYPE_SK_MSG,
 };
 
 enum bpf_attach_type {
@@ -143,6 +144,7 @@ enum bpf_attach_type {
 	BPF_SK_SKB_STREAM_PARSER,
 	BPF_SK_SKB_STREAM_VERDICT,
 	BPF_CGROUP_DEVICE,
+	BPF_SK_MSG_VERDICT,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -718,6 +720,15 @@ union bpf_attr {
  * int bpf_override_return(pt_regs, rc)
  *	@pt_regs: pointer to struct pt_regs
  *	@rc: the return value to set
+ *
+ * int bpf_msg_redirect_map(map, key, flags)
+ *     Redirect msg to a sock in map using key as a lookup key for the
+ *     sock in map.
+ *     @map: pointer to sockmap
+ *     @key: key to lookup sock in map
+ *     @flags: reserved for future use
+ *     Return: SK_PASS
+ *
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -779,7 +790,11 @@ union bpf_attr {
 	FN(perf_prog_read_value),	\
 	FN(getsockopt),			\
 	FN(override_return),		\
-	FN(sock_ops_cb_flags_set),
+	FN(sock_ops_cb_flags_set),	\
+	FN(msg_redirect_map),		\
+	FN(msg_apply_bytes),		\
+	FN(msg_cork_bytes),		\
+	FN(msg_pull_data),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -940,6 +955,14 @@ struct xdp_md {
 enum sk_action {
 	SK_DROP = 0,
 	SK_PASS,
+};
+
+/* user accessible metadata for SK_MSG packet hook, new fields must
+ * be added to the end of this structure
+ */
+struct sk_msg_md {
+	void *data;
+	void *data_end;
 };
 
 #define BPF_TAG_SIZE	8

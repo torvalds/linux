@@ -1890,6 +1890,202 @@ static const struct bpf_func_proto bpf_sk_redirect_map_proto = {
 	.arg4_type      = ARG_ANYTHING,
 };
 
+BPF_CALL_4(bpf_msg_redirect_map, struct sk_msg_buff *, msg,
+	   struct bpf_map *, map, u32, key, u64, flags)
+{
+	/* If user passes invalid input drop the packet. */
+	if (unlikely(flags))
+		return SK_DROP;
+
+	msg->key = key;
+	msg->flags = flags;
+	msg->map = map;
+
+	return SK_PASS;
+}
+
+struct sock *do_msg_redirect_map(struct sk_msg_buff *msg)
+{
+	struct sock *sk = NULL;
+
+	if (msg->map) {
+		sk = __sock_map_lookup_elem(msg->map, msg->key);
+
+		msg->key = 0;
+		msg->map = NULL;
+	}
+
+	return sk;
+}
+
+static const struct bpf_func_proto bpf_msg_redirect_map_proto = {
+	.func           = bpf_msg_redirect_map,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type      = ARG_CONST_MAP_PTR,
+	.arg3_type      = ARG_ANYTHING,
+	.arg4_type      = ARG_ANYTHING,
+};
+
+BPF_CALL_2(bpf_msg_apply_bytes, struct sk_msg_buff *, msg, u32, bytes)
+{
+	msg->apply_bytes = bytes;
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_msg_apply_bytes_proto = {
+	.func           = bpf_msg_apply_bytes,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type      = ARG_ANYTHING,
+};
+
+BPF_CALL_2(bpf_msg_cork_bytes, struct sk_msg_buff *, msg, u32, bytes)
+{
+	msg->cork_bytes = bytes;
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_msg_cork_bytes_proto = {
+	.func           = bpf_msg_cork_bytes,
+	.gpl_only       = false,
+	.ret_type       = RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type      = ARG_ANYTHING,
+};
+
+BPF_CALL_4(bpf_msg_pull_data,
+	   struct sk_msg_buff *, msg, u32, start, u32, end, u64, flags)
+{
+	unsigned int len = 0, offset = 0, copy = 0;
+	struct scatterlist *sg = msg->sg_data;
+	int first_sg, last_sg, i, shift;
+	unsigned char *p, *to, *from;
+	int bytes = end - start;
+	struct page *page;
+
+	if (unlikely(flags || end <= start))
+		return -EINVAL;
+
+	/* First find the starting scatterlist element */
+	i = msg->sg_start;
+	do {
+		len = sg[i].length;
+		offset += len;
+		if (start < offset + len)
+			break;
+		i++;
+		if (i == MAX_SKB_FRAGS)
+			i = 0;
+	} while (i != msg->sg_end);
+
+	if (unlikely(start >= offset + len))
+		return -EINVAL;
+
+	if (!msg->sg_copy[i] && bytes <= len)
+		goto out;
+
+	first_sg = i;
+
+	/* At this point we need to linearize multiple scatterlist
+	 * elements or a single shared page. Either way we need to
+	 * copy into a linear buffer exclusively owned by BPF. Then
+	 * place the buffer in the scatterlist and fixup the original
+	 * entries by removing the entries now in the linear buffer
+	 * and shifting the remaining entries. For now we do not try
+	 * to copy partial entries to avoid complexity of running out
+	 * of sg_entry slots. The downside is reading a single byte
+	 * will copy the entire sg entry.
+	 */
+	do {
+		copy += sg[i].length;
+		i++;
+		if (i == MAX_SKB_FRAGS)
+			i = 0;
+		if (bytes < copy)
+			break;
+	} while (i != msg->sg_end);
+	last_sg = i;
+
+	if (unlikely(copy < end - start))
+		return -EINVAL;
+
+	page = alloc_pages(__GFP_NOWARN | GFP_ATOMIC, get_order(copy));
+	if (unlikely(!page))
+		return -ENOMEM;
+	p = page_address(page);
+	offset = 0;
+
+	i = first_sg;
+	do {
+		from = sg_virt(&sg[i]);
+		len = sg[i].length;
+		to = p + offset;
+
+		memcpy(to, from, len);
+		offset += len;
+		sg[i].length = 0;
+		put_page(sg_page(&sg[i]));
+
+		i++;
+		if (i == MAX_SKB_FRAGS)
+			i = 0;
+	} while (i != last_sg);
+
+	sg[first_sg].length = copy;
+	sg_set_page(&sg[first_sg], page, copy, 0);
+
+	/* To repair sg ring we need to shift entries. If we only
+	 * had a single entry though we can just replace it and
+	 * be done. Otherwise walk the ring and shift the entries.
+	 */
+	shift = last_sg - first_sg - 1;
+	if (!shift)
+		goto out;
+
+	i = first_sg + 1;
+	do {
+		int move_from;
+
+		if (i + shift >= MAX_SKB_FRAGS)
+			move_from = i + shift - MAX_SKB_FRAGS;
+		else
+			move_from = i + shift;
+
+		if (move_from == msg->sg_end)
+			break;
+
+		sg[i] = sg[move_from];
+		sg[move_from].length = 0;
+		sg[move_from].page_link = 0;
+		sg[move_from].offset = 0;
+
+		i++;
+		if (i == MAX_SKB_FRAGS)
+			i = 0;
+	} while (1);
+	msg->sg_end -= shift;
+	if (msg->sg_end < 0)
+		msg->sg_end += MAX_SKB_FRAGS;
+out:
+	msg->data = sg_virt(&sg[i]) + start - offset;
+	msg->data_end = msg->data + bytes;
+
+	return 0;
+}
+
+static const struct bpf_func_proto bpf_msg_pull_data_proto = {
+	.func		= bpf_msg_pull_data,
+	.gpl_only	= false,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_CTX,
+	.arg2_type	= ARG_ANYTHING,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_ANYTHING,
+};
+
 BPF_CALL_1(bpf_get_cgroup_classid, const struct sk_buff *, skb)
 {
 	return task_get_classid(skb);
@@ -2831,7 +3027,8 @@ bool bpf_helper_changes_pkt_data(void *func)
 	    func == bpf_l3_csum_replace ||
 	    func == bpf_l4_csum_replace ||
 	    func == bpf_xdp_adjust_head ||
-	    func == bpf_xdp_adjust_meta)
+	    func == bpf_xdp_adjust_meta ||
+	    func == bpf_msg_pull_data)
 		return true;
 
 	return false;
@@ -3591,6 +3788,22 @@ static const struct bpf_func_proto *
 	}
 }
 
+static const struct bpf_func_proto *sk_msg_func_proto(enum bpf_func_id func_id)
+{
+	switch (func_id) {
+	case BPF_FUNC_msg_redirect_map:
+		return &bpf_msg_redirect_map_proto;
+	case BPF_FUNC_msg_apply_bytes:
+		return &bpf_msg_apply_bytes_proto;
+	case BPF_FUNC_msg_cork_bytes:
+		return &bpf_msg_cork_bytes_proto;
+	case BPF_FUNC_msg_pull_data:
+		return &bpf_msg_pull_data_proto;
+	default:
+		return bpf_base_func_proto(func_id);
+	}
+}
+
 static const struct bpf_func_proto *sk_skb_func_proto(enum bpf_func_id func_id)
 {
 	switch (func_id) {
@@ -3978,6 +4191,32 @@ static bool sk_skb_is_valid_access(int off, int size,
 	}
 
 	return bpf_skb_is_valid_access(off, size, type, info);
+}
+
+static bool sk_msg_is_valid_access(int off, int size,
+				   enum bpf_access_type type,
+				   struct bpf_insn_access_aux *info)
+{
+	if (type == BPF_WRITE)
+		return false;
+
+	switch (off) {
+	case offsetof(struct sk_msg_md, data):
+		info->reg_type = PTR_TO_PACKET;
+		break;
+	case offsetof(struct sk_msg_md, data_end):
+		info->reg_type = PTR_TO_PACKET_END;
+		break;
+	}
+
+	if (off < 0 || off >= sizeof(struct sk_msg_md))
+		return false;
+	if (off % size != 0)
+		return false;
+	if (size != sizeof(__u64))
+		return false;
+
+	return true;
 }
 
 static u32 bpf_convert_ctx_access(enum bpf_access_type type,
@@ -4778,6 +5017,29 @@ static u32 sk_skb_convert_ctx_access(enum bpf_access_type type,
 	return insn - insn_buf;
 }
 
+static u32 sk_msg_convert_ctx_access(enum bpf_access_type type,
+				     const struct bpf_insn *si,
+				     struct bpf_insn *insn_buf,
+				     struct bpf_prog *prog, u32 *target_size)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	switch (si->off) {
+	case offsetof(struct sk_msg_md, data):
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_msg_buff, data),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, data));
+		break;
+	case offsetof(struct sk_msg_md, data_end):
+		*insn++ = BPF_LDX_MEM(BPF_FIELD_SIZEOF(struct sk_msg_buff, data_end),
+				      si->dst_reg, si->src_reg,
+				      offsetof(struct sk_msg_buff, data_end));
+		break;
+	}
+
+	return insn - insn_buf;
+}
+
 const struct bpf_verifier_ops sk_filter_verifier_ops = {
 	.get_func_proto		= sk_filter_func_proto,
 	.is_valid_access	= sk_filter_is_valid_access,
@@ -4866,6 +5128,15 @@ const struct bpf_verifier_ops sk_skb_verifier_ops = {
 };
 
 const struct bpf_prog_ops sk_skb_prog_ops = {
+};
+
+const struct bpf_verifier_ops sk_msg_verifier_ops = {
+	.get_func_proto		= sk_msg_func_proto,
+	.is_valid_access	= sk_msg_is_valid_access,
+	.convert_ctx_access	= sk_msg_convert_ctx_access,
+};
+
+const struct bpf_prog_ops sk_msg_prog_ops = {
 };
 
 int sk_detach_filter(struct sock *sk)

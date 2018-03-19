@@ -21,6 +21,7 @@ struct bpf_verifier_env;
 struct perf_event;
 struct bpf_prog;
 struct bpf_map;
+struct sock;
 
 /* map is generic key/value storage optionally accesible by eBPF programs */
 struct bpf_map_ops {
