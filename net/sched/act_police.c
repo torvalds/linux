@@ -194,7 +194,7 @@ failure:
 	qdisc_put_rtab(P_tab);
 	qdisc_put_rtab(R_tab);
 	if (ret == ACT_P_CREATED)
-		tcf_idr_cleanup(*a, est);
+		tcf_idr_release(*a, bind);
 	return err;
 }
 
