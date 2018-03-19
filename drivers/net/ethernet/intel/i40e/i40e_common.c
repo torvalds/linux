@@ -5553,7 +5553,7 @@ i40e_aq_add_cloud_filters(struct i40e_hw *hw, u16 seid,
  * function.
  *
  **/
-i40e_status
+enum i40e_status_code
 i40e_aq_add_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 			     struct i40e_aqc_cloud_filters_element_bb *filters,
 			     u8 filter_count)
@@ -5647,7 +5647,7 @@ i40e_aq_rem_cloud_filters(struct i40e_hw *hw, u16 seid,
  * function.
  *
  **/
-i40e_status
+enum i40e_status_code
 i40e_aq_rem_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 			     struct i40e_aqc_cloud_filters_element_bb *filters,
 			     u8 filter_count)
