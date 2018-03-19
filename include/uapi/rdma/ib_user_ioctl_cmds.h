@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
 /*
- * Copyright (c) 2017-2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,13 +30,54 @@
  * SOFTWARE.
  */
 
-#ifndef IB_USER_IOCTL_VERBS_H
-#define IB_USER_IOCTL_VERBS_H
+#ifndef IB_USER_IOCTL_CMDS_H
+#define IB_USER_IOCTL_CMDS_H
 
-#include <linux/types.h>
+#define UVERBS_ID_NS_MASK 0xF000
+#define UVERBS_ID_NS_SHIFT 12
 
-#ifndef RDMA_UAPI_PTR
-#define RDMA_UAPI_PTR(_type, _name)	_type __attribute__((aligned(8))) _name
-#endif
+#define UVERBS_UDATA_DRIVER_DATA_NS	1
+#define UVERBS_UDATA_DRIVER_DATA_FLAG	(1UL << UVERBS_ID_NS_SHIFT)
+
+enum uverbs_default_objects {
+	UVERBS_OBJECT_DEVICE, /* No instances of DEVICE are allowed */
+	UVERBS_OBJECT_PD,
+	UVERBS_OBJECT_COMP_CHANNEL,
+	UVERBS_OBJECT_CQ,
+	UVERBS_OBJECT_QP,
+	UVERBS_OBJECT_SRQ,
+	UVERBS_OBJECT_AH,
+	UVERBS_OBJECT_MR,
+	UVERBS_OBJECT_MW,
+	UVERBS_OBJECT_FLOW,
+	UVERBS_OBJECT_XRCD,
+	UVERBS_OBJECT_RWQ_IND_TBL,
+	UVERBS_OBJECT_WQ,
+};
+
+enum {
+	UVERBS_ATTR_UHW_IN = UVERBS_UDATA_DRIVER_DATA_FLAG,
+	UVERBS_ATTR_UHW_OUT,
+};
+
+enum uverbs_attrs_create_cq_cmd_attr_ids {
+	UVERBS_ATTR_CREATE_CQ_HANDLE,
+	UVERBS_ATTR_CREATE_CQ_CQE,
+	UVERBS_ATTR_CREATE_CQ_USER_HANDLE,
+	UVERBS_ATTR_CREATE_CQ_COMP_CHANNEL,
+	UVERBS_ATTR_CREATE_CQ_COMP_VECTOR,
+	UVERBS_ATTR_CREATE_CQ_FLAGS,
+	UVERBS_ATTR_CREATE_CQ_RESP_CQE,
+};
+
+enum uverbs_attrs_destroy_cq_cmd_attr_ids {
+	UVERBS_ATTR_DESTROY_CQ_HANDLE,
+	UVERBS_ATTR_DESTROY_CQ_RESP,
+};
+
+enum uverbs_methods_cq {
+	UVERBS_METHOD_CQ_CREATE,
+	UVERBS_METHOD_CQ_DESTROY,
+};
 
 #endif

@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
 /*
- * Copyright (c) 2017-2018, Mellanox Technologies inc.  All rights reserved.
+ * Copyright (c) 2018, Mellanox Technologies inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,13 +30,42 @@
  * SOFTWARE.
  */
 
-#ifndef IB_USER_IOCTL_VERBS_H
-#define IB_USER_IOCTL_VERBS_H
+#ifndef RDMA_USER_IOCTL_CMDS_H
+#define RDMA_USER_IOCTL_CMDS_H
 
 #include <linux/types.h>
+#include <linux/ioctl.h>
 
-#ifndef RDMA_UAPI_PTR
-#define RDMA_UAPI_PTR(_type, _name)	_type __attribute__((aligned(8))) _name
-#endif
+/* Documentation/ioctl/ioctl-number.txt */
+#define RDMA_IOCTL_MAGIC	0x1b
+#define RDMA_VERBS_IOCTL \
+	_IOWR(RDMA_IOCTL_MAGIC, 1, struct ib_uverbs_ioctl_hdr)
+
+enum {
+	/* User input */
+	UVERBS_ATTR_F_MANDATORY = 1U << 0,
+	/*
+	 * Valid output bit should be ignored and considered set in
+	 * mandatory fields. This bit is kernel output.
+	 */
+	UVERBS_ATTR_F_VALID_OUTPUT = 1U << 1,
+};
+
+struct ib_uverbs_attr {
+	__u16 attr_id;		/* command specific type attribute */
+	__u16 len;		/* only for pointers */
+	__u16 flags;		/* combination of UVERBS_ATTR_F_XXXX */
+	__u16 reserved;
+	__aligned_u64 data;	/* ptr to command, inline data or idr/fd */
+};
+
+struct ib_uverbs_ioctl_hdr {
+	__u16 length;
+	__u16 object_id;
+	__u16 method_id;
+	__u16 num_attrs;
+	__aligned_u64 reserved;
+	struct ib_uverbs_attr  attrs[0];
+};
 
 #endif

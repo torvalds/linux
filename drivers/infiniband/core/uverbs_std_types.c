@@ -216,9 +216,9 @@ static int uverbs_hot_unplug_completion_event_file(struct ib_uobject_file *uobj_
  * spec.
  */
 static const struct uverbs_attr_def uverbs_uhw_compat_in =
-	UVERBS_ATTR_PTR_IN_SZ(UVERBS_UHW_IN, 0, UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ));
+	UVERBS_ATTR_PTR_IN_SZ(UVERBS_ATTR_UHW_IN, 0, UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ));
 static const struct uverbs_attr_def uverbs_uhw_compat_out =
-	UVERBS_ATTR_PTR_OUT_SZ(UVERBS_UHW_OUT, 0, UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ));
+	UVERBS_ATTR_PTR_OUT_SZ(UVERBS_ATTR_UHW_OUT, 0, UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ));
 
 static void create_udata(struct uverbs_attr_bundle *ctx,
 			 struct ib_udata *udata)
@@ -229,9 +229,9 @@ static void create_udata(struct uverbs_attr_bundle *ctx,
 	 * Assume attr == 0 is input and attr == 1 is output.
 	 */
 	const struct uverbs_attr *uhw_in =
-		uverbs_attr_get(ctx, UVERBS_UHW_IN);
+		uverbs_attr_get(ctx, UVERBS_ATTR_UHW_IN);
 	const struct uverbs_attr *uhw_out =
-		uverbs_attr_get(ctx, UVERBS_UHW_OUT);
+		uverbs_attr_get(ctx, UVERBS_ATTR_UHW_OUT);
 
 	if (!IS_ERR(uhw_in)) {
 		udata->inlen = uhw_in->ptr_attr.len;
@@ -253,9 +253,9 @@ static void create_udata(struct uverbs_attr_bundle *ctx,
 	}
 }
 
-static int uverbs_create_cq_handler(struct ib_device *ib_dev,
-				    struct ib_uverbs_file *file,
-				    struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(struct ib_device *ib_dev,
+						   struct ib_uverbs_file *file,
+						   struct uverbs_attr_bundle *attrs)
 {
 	struct ib_ucontext *ucontext = file->ucontext;
 	struct ib_ucq_object           *obj;
@@ -271,19 +271,23 @@ static int uverbs_create_cq_handler(struct ib_device *ib_dev,
 	if (!(ib_dev->uverbs_cmd_mask & 1ULL << IB_USER_VERBS_CMD_CREATE_CQ))
 		return -EOPNOTSUPP;
 
-	ret = uverbs_copy_from(&attr.comp_vector, attrs, CREATE_CQ_COMP_VECTOR);
+	ret = uverbs_copy_from(&attr.comp_vector, attrs,
+			       UVERBS_ATTR_CREATE_CQ_COMP_VECTOR);
 	if (!ret)
-		ret = uverbs_copy_from(&attr.cqe, attrs, CREATE_CQ_CQE);
+		ret = uverbs_copy_from(&attr.cqe, attrs,
+				       UVERBS_ATTR_CREATE_CQ_CQE);
 	if (!ret)
-		ret = uverbs_copy_from(&user_handle, attrs, CREATE_CQ_USER_HANDLE);
+		ret = uverbs_copy_from(&user_handle, attrs,
+				       UVERBS_ATTR_CREATE_CQ_USER_HANDLE);
 	if (ret)
 		return ret;
 
 	/* Optional param, if it doesn't exist, we get -ENOENT and skip it */
-	if (uverbs_copy_from(&attr.flags, attrs, CREATE_CQ_FLAGS) == -EFAULT)
+	if (uverbs_copy_from(&attr.flags, attrs,
+			     UVERBS_ATTR_CREATE_CQ_FLAGS) == -EFAULT)
 		return -EFAULT;
 
-	ev_file_attr = uverbs_attr_get(attrs, CREATE_CQ_COMP_CHANNEL);
+	ev_file_attr = uverbs_attr_get(attrs, UVERBS_ATTR_CREATE_CQ_COMP_CHANNEL);
 	if (!IS_ERR(ev_file_attr)) {
 		ev_file_uobj = ev_file_attr->obj_attr.uobject;
 
@@ -298,7 +302,8 @@ static int uverbs_create_cq_handler(struct ib_device *ib_dev,
 		goto err_event_file;
 	}
 
-	obj = container_of(uverbs_attr_get(attrs, CREATE_CQ_HANDLE)->obj_attr.uobject,
+	obj = container_of(uverbs_attr_get(attrs,
+					   UVERBS_ATTR_CREATE_CQ_HANDLE)->obj_attr.uobject,
 			   typeof(*obj), uobject);
 	obj->uverbs_file	   = ucontext->ufile;
 	obj->comp_events_reported  = 0;
@@ -326,7 +331,7 @@ static int uverbs_create_cq_handler(struct ib_device *ib_dev,
 	cq->res.type = RDMA_RESTRACK_CQ;
 	rdma_restrack_add(&cq->res);
 
-	ret = uverbs_copy_to(attrs, CREATE_CQ_RESP_CQE, &cq->cqe,
+	ret = uverbs_copy_to(attrs, UVERBS_ATTR_CREATE_CQ_RESP_CQE, &cq->cqe,
 			     sizeof(cq->cqe));
 	if (ret)
 		goto err_cq;
@@ -341,30 +346,31 @@ err_event_file:
 	return ret;
 };
 
-static DECLARE_UVERBS_METHOD(
-	uverbs_method_cq_create, UVERBS_CQ_CREATE, uverbs_create_cq_handler,
-	&UVERBS_ATTR_IDR(CREATE_CQ_HANDLE, UVERBS_OBJECT_CQ, UVERBS_ACCESS_NEW,
+static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_CQ_CREATE,
+	&UVERBS_ATTR_IDR(UVERBS_ATTR_CREATE_CQ_HANDLE, UVERBS_OBJECT_CQ,
+			 UVERBS_ACCESS_NEW,
 			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_IN(CREATE_CQ_CQE, u32,
+	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_CREATE_CQ_CQE, u32,
 			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_IN(CREATE_CQ_USER_HANDLE, u64,
+	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_CREATE_CQ_USER_HANDLE, u64,
 			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_FD(CREATE_CQ_COMP_CHANNEL, UVERBS_OBJECT_COMP_CHANNEL,
+	&UVERBS_ATTR_FD(UVERBS_ATTR_CREATE_CQ_COMP_CHANNEL,
+			UVERBS_OBJECT_COMP_CHANNEL,
 			UVERBS_ACCESS_READ),
-	&UVERBS_ATTR_PTR_IN(CREATE_CQ_COMP_VECTOR, u32,
+	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_CREATE_CQ_COMP_VECTOR, u32,
 			    UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_IN(CREATE_CQ_FLAGS, u32),
-	&UVERBS_ATTR_PTR_OUT(CREATE_CQ_RESP_CQE, u32,
+	&UVERBS_ATTR_PTR_IN(UVERBS_ATTR_CREATE_CQ_FLAGS, u32),
+	&UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_CREATE_CQ_RESP_CQE, u32,
 			     UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
 	&uverbs_uhw_compat_in, &uverbs_uhw_compat_out);
 
-static int uverbs_destroy_cq_handler(struct ib_device *ib_dev,
-				     struct ib_uverbs_file *file,
-				     struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_CQ_DESTROY)(struct ib_device *ib_dev,
+						    struct ib_uverbs_file *file,
+						    struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_destroy_cq_resp resp;
 	struct ib_uobject *uobj =
-		uverbs_attr_get(attrs, DESTROY_CQ_HANDLE)->obj_attr.uobject;
+		uverbs_attr_get(attrs, UVERBS_ATTR_DESTROY_CQ_HANDLE)->obj_attr.uobject;
 	struct ib_ucq_object *obj = container_of(uobj, struct ib_ucq_object,
 						 uobject);
 	int ret;
@@ -379,81 +385,81 @@ static int uverbs_destroy_cq_handler(struct ib_device *ib_dev,
 	resp.comp_events_reported  = obj->comp_events_reported;
 	resp.async_events_reported = obj->async_events_reported;
 
-	return uverbs_copy_to(attrs, DESTROY_CQ_RESP, &resp, sizeof(resp));
+	return uverbs_copy_to(attrs, UVERBS_ATTR_DESTROY_CQ_RESP, &resp,
+			      sizeof(resp));
 }
 
-static DECLARE_UVERBS_METHOD(
-	uverbs_method_cq_destroy, UVERBS_CQ_DESTROY, uverbs_destroy_cq_handler,
-	&UVERBS_ATTR_IDR(DESTROY_CQ_HANDLE, UVERBS_OBJECT_CQ,
+static DECLARE_UVERBS_NAMED_METHOD(UVERBS_METHOD_CQ_DESTROY,
+	&UVERBS_ATTR_IDR(UVERBS_ATTR_DESTROY_CQ_HANDLE, UVERBS_OBJECT_CQ,
 			 UVERBS_ACCESS_DESTROY,
 			 UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)),
-	&UVERBS_ATTR_PTR_OUT(DESTROY_CQ_RESP, struct ib_uverbs_destroy_cq_resp,
+	&UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_DESTROY_CQ_RESP,
+			     struct ib_uverbs_destroy_cq_resp,
 			     UA_FLAGS(UVERBS_ATTR_SPEC_F_MANDATORY)));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_comp_channel,
-		      UVERBS_OBJECT_COMP_CHANNEL,
-		      &UVERBS_TYPE_ALLOC_FD(0,
-					      sizeof(struct ib_uverbs_completion_event_file),
-					      uverbs_hot_unplug_completion_event_file,
-					      &uverbs_event_fops,
-					      "[infinibandevent]", O_RDONLY));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_COMP_CHANNEL,
+			    &UVERBS_TYPE_ALLOC_FD(0,
+						  sizeof(struct ib_uverbs_completion_event_file),
+						  uverbs_hot_unplug_completion_event_file,
+						  &uverbs_event_fops,
+						  "[infinibandevent]", O_RDONLY));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_cq, UVERBS_OBJECT_CQ,
-		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_ucq_object), 0,
-						  uverbs_free_cq),
-		      &uverbs_method_cq_create,
-		      &uverbs_method_cq_destroy);
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_CQ,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_ucq_object), 0,
+						      uverbs_free_cq),
+			    &UVERBS_METHOD(UVERBS_METHOD_CQ_CREATE),
+			    &UVERBS_METHOD(UVERBS_METHOD_CQ_DESTROY)
+			   );
 
-DECLARE_UVERBS_OBJECT(uverbs_object_qp, UVERBS_OBJECT_QP,
-		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uqp_object), 0,
-						  uverbs_free_qp));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_QP,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uqp_object), 0,
+						      uverbs_free_qp));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_mw, UVERBS_OBJECT_MW,
-		      &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_mw));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_MW,
+			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_mw));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_mr, UVERBS_OBJECT_MR,
-		      /* 1 is used in order to free the MR after all the MWs */
-		      &UVERBS_TYPE_ALLOC_IDR(1, uverbs_free_mr));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_MR,
+			    /* 1 is used in order to free the MR after all the MWs */
+			    &UVERBS_TYPE_ALLOC_IDR(1, uverbs_free_mr));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_srq, UVERBS_OBJECT_SRQ,
-		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_usrq_object), 0,
-						  uverbs_free_srq));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_SRQ,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_usrq_object), 0,
+						      uverbs_free_srq));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_ah, UVERBS_OBJECT_AH,
-		      &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_ah));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_AH,
+			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_ah));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_flow, UVERBS_OBJECT_FLOW,
-		      &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_flow));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_FLOW,
+			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_flow));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_wq, UVERBS_OBJECT_WQ,
-		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uwq_object), 0,
-						  uverbs_free_wq));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_WQ,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uwq_object), 0,
+						      uverbs_free_wq));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_rwq_ind_table,
-		      UVERBS_OBJECT_RWQ_IND_TBL,
-		      &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_rwq_ind_tbl));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL,
+			    &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_rwq_ind_tbl));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_xrcd, UVERBS_OBJECT_XRCD,
-		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uxrcd_object), 0,
-						  uverbs_free_xrcd));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_XRCD,
+			    &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uxrcd_object), 0,
+						      uverbs_free_xrcd));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_pd, UVERBS_OBJECT_PD,
-		      /* 2 is used in order to free the PD after MRs */
-		      &UVERBS_TYPE_ALLOC_IDR(2, uverbs_free_pd));
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_PD,
+			    /* 2 is used in order to free the PD after MRs */
+			    &UVERBS_TYPE_ALLOC_IDR(2, uverbs_free_pd));
 
-DECLARE_UVERBS_OBJECT(uverbs_object_device, UVERBS_OBJECT_DEVICE, NULL);
+DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_DEVICE, NULL);
 
 DECLARE_UVERBS_OBJECT_TREE(uverbs_default_objects,
-			   &uverbs_object_device,
-			   &uverbs_object_pd,
-			   &uverbs_object_mr,
-			   &uverbs_object_comp_channel,
-			   &uverbs_object_cq,
-			   &uverbs_object_qp,
-			   &uverbs_object_ah,
-			   &uverbs_object_mw,
-			   &uverbs_object_srq,
-			   &uverbs_object_flow,
-			   &uverbs_object_wq,
-			   &uverbs_object_rwq_ind_table,
-			   &uverbs_object_xrcd);
+			   &UVERBS_OBJECT(UVERBS_OBJECT_DEVICE),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_PD),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_MR),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_COMP_CHANNEL),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_CQ),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_QP),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_AH),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_MW),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_SRQ),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_FLOW),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_WQ),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL),
+			   &UVERBS_OBJECT(UVERBS_OBJECT_XRCD));

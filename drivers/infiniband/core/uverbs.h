@@ -47,6 +47,9 @@
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
 
+#define UVERBS_MODULE_NAME ib_uverbs
+#include <rdma/uverbs_named_ioctl.h>
+
 static inline void
 ib_uverbs_init_udata(struct ib_udata *udata,
 		     const void __user *ibuf,
