@@ -516,6 +516,6 @@ COMPAT_SYSCALL_DEFINE6(s390_sync_file_range, int, fd, u32, offhigh, u32, offlow,
 COMPAT_SYSCALL_DEFINE6(s390_fallocate, int, fd, int, mode, u32, offhigh, u32, offlow,
 		       u32, lenhigh, u32, lenlow)
 {
-	return sys_fallocate(fd, mode, ((loff_t)offhigh << 32) + offlow,
-			     ((u64)lenhigh << 32) + lenlow);
+	return ksys_fallocate(fd, mode, ((loff_t)offhigh << 32) + offlow,
+			      ((u64)lenhigh << 32) + lenlow);
 }

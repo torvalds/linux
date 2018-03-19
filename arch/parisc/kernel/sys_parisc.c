@@ -367,8 +367,8 @@ asmlinkage long parisc_sync_file_range(int fd,
 asmlinkage long parisc_fallocate(int fd, int mode, u32 offhi, u32 offlo,
 				u32 lenhi, u32 lenlo)
 {
-        return sys_fallocate(fd, mode, ((u64)offhi << 32) | offlo,
-                             ((u64)lenhi << 32) | lenlo);
+	return ksys_fallocate(fd, mode, ((u64)offhi << 32) | offlo,
+			      ((u64)lenhi << 32) | lenlo);
 }
 
 long parisc_personality(unsigned long personality)
