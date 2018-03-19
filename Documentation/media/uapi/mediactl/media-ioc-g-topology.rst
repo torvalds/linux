@@ -176,7 +176,7 @@ desired arrays with the media graph elements.
     *  -  struct media_v2_intf_devnode
        -  ``devnode``
        -  Used only for device node interfaces. See
-	  :c:type:`media_v2_intf_devnode` for details..
+	  :c:type:`media_v2_intf_devnode` for details.
 
 
 .. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
@@ -218,7 +218,14 @@ desired arrays with the media graph elements.
        -  Pad flags, see :ref:`media-pad-flag` for more details.
 
     *  -  __u32
-       -  ``reserved``\ [5]
+       -  ``index``
+       -  Pad index, starts at 0. Only valid if ``MEDIA_V2_PAD_HAS_INDEX(media_version)``
+	  returns true. The ``media_version`` is defined in struct
+	  :c:type:`media_device_info` and can be retrieved using
+	  :ref:`MEDIA_IOC_DEVICE_INFO`.
+
+    *  -  __u32
+       -  ``reserved``\ [4]
        -  Reserved for future extensions. Drivers and applications must set
 	  this array to zero.
 
