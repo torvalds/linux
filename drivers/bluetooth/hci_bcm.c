@@ -922,12 +922,13 @@ static int bcm_get_resources(struct bcm_device *dev)
 
 	dev->clk = devm_clk_get(dev->dev, NULL);
 
-	dev->device_wakeup = devm_gpiod_get(dev->dev, "device-wakeup",
-					    GPIOD_OUT_LOW);
+	dev->device_wakeup = devm_gpiod_get_optional(dev->dev, "device-wakeup",
+						     GPIOD_OUT_LOW);
 	if (IS_ERR(dev->device_wakeup))
 		return PTR_ERR(dev->device_wakeup);
 
-	dev->shutdown = devm_gpiod_get(dev->dev, "shutdown", GPIOD_OUT_LOW);
+	dev->shutdown = devm_gpiod_get_optional(dev->dev, "shutdown",
+						GPIOD_OUT_LOW);
 	if (IS_ERR(dev->shutdown))
 		return PTR_ERR(dev->shutdown);
 

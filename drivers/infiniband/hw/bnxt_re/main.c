@@ -730,6 +730,13 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 					 struct bnxt_re_qp *qp)
 {
 	struct ib_event event;
+	unsigned int flags;
+
+	if (qp->qplib_qp.state == CMDQ_MODIFY_QP_NEW_STATE_ERR) {
+		flags = bnxt_re_lock_cqs(qp);
+		bnxt_qplib_add_flush_qp(&qp->qplib_qp);
+		bnxt_re_unlock_cqs(qp, flags);
+	}
 
 	memset(&event, 0, sizeof(event));
 	if (qp->qplib_qp.srq) {
@@ -1416,9 +1423,12 @@ static void bnxt_re_task(struct work_struct *work)
 	switch (re_work->event) {
 	case NETDEV_REGISTER:
 		rc = bnxt_re_ib_reg(rdev);
-		if (rc)
+		if (rc) {
 			dev_err(rdev_to_dev(rdev),
 				"Failed to register with IB: %#x", rc);
+			bnxt_re_remove_one(rdev);
+			bnxt_re_dev_unreg(rdev);
+		}
 		break;
 	case NETDEV_UP:
 		bnxt_re_dispatch_event(&rdev->ibdev, NULL, 1,
