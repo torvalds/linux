@@ -1400,6 +1400,43 @@ int pci_cfg_space_size(struct pci_dev *dev)
 	return PCI_CFG_SPACE_SIZE;
 }
 
+static u32 pci_class(struct pci_dev *dev)
+{
+	u32 class;
+
+#ifdef CONFIG_PCI_IOV
+	if (dev->is_virtfn)
+		return dev->physfn->sriov->class;
+#endif
+	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
+	return class;
+}
+
+static void pci_subsystem_ids(struct pci_dev *dev, u16 *vendor, u16 *device)
+{
+#ifdef CONFIG_PCI_IOV
+	if (dev->is_virtfn) {
+		*vendor = dev->physfn->sriov->subsystem_vendor;
+		*device = dev->physfn->sriov->subsystem_device;
+		return;
+	}
+#endif
+	pci_read_config_word(dev, PCI_SUBSYSTEM_VENDOR_ID, vendor);
+	pci_read_config_word(dev, PCI_SUBSYSTEM_ID, device);
+}
+
+static u8 pci_hdr_type(struct pci_dev *dev)
+{
+	u8 hdr_type;
+
+#ifdef CONFIG_PCI_IOV
+	if (dev->is_virtfn)
+		return dev->physfn->sriov->hdr_type;
+#endif
+	pci_read_config_byte(dev, PCI_HEADER_TYPE, &hdr_type);
+	return hdr_type;
+}
+
 #define LEGACY_IO_RESOURCE	(IORESOURCE_IO | IORESOURCE_PCI_FIXED)
 
 static void pci_msi_setup_pci_dev(struct pci_dev *dev)
@@ -1465,8 +1502,7 @@ int pci_setup_device(struct pci_dev *dev)
 	struct pci_bus_region region;
 	struct resource *res;
 
-	if (pci_read_config_byte(dev, PCI_HEADER_TYPE, &hdr_type))
-		return -EIO;
+	hdr_type = pci_hdr_type(dev);
 
 	dev->sysdata = dev->bus->sysdata;
 	dev->dev.parent = dev->bus->bridge;
@@ -1488,7 +1524,8 @@ int pci_setup_device(struct pci_dev *dev)
 		     dev->bus->number, PCI_SLOT(dev->devfn),
 		     PCI_FUNC(dev->devfn));
 
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
+	class = pci_class(dev);
+
 	dev->revision = class & 0xff;
 	dev->class = class >> 8;		    /* upper 3 bytes */
 
@@ -1528,8 +1565,8 @@ int pci_setup_device(struct pci_dev *dev)
 			goto bad;
 		pci_read_irq(dev);
 		pci_read_bases(dev, 6, PCI_ROM_ADDRESS);
-		pci_read_config_word(dev, PCI_SUBSYSTEM_VENDOR_ID, &dev->subsystem_vendor);
-		pci_read_config_word(dev, PCI_SUBSYSTEM_ID, &dev->subsystem_device);
+
+		pci_subsystem_ids(dev, &dev->subsystem_vendor, &dev->subsystem_device);
 
 		/*
 		 * Do the ugly legacy mode stuff here rather than broken chip
