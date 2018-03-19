@@ -171,7 +171,7 @@ static int t4_read_write_register(struct hid_device *hdev, u32 address,
 	int ret;
 	u16 check_sum;
 	u8 *input;
-	u8 *readbuf;
+	u8 *readbuf = NULL;
 
 	input = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 	if (!input)
@@ -204,8 +204,8 @@ static int t4_read_write_register(struct hid_device *hdev, u32 address,
 		goto exit;
 	}
 
-	readbuf = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 	if (read_flag) {
+		readbuf = kzalloc(T4_FEATURE_REPORT_LEN, GFP_KERNEL);
 		if (!readbuf) {
 			ret = -ENOMEM;
 			goto exit;
