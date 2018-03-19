@@ -216,8 +216,10 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 	 * LRs, and when reading back the VMCR on non-VHE systems.
 	 */
 	if (used_lrs || !has_vhe()) {
-		if (!cpu_if->vgic_sre)
-			dsb(st);
+		if (!cpu_if->vgic_sre) {
+			dsb(sy);
+			isb();
+		}
 	}
 
 	if (used_lrs) {
