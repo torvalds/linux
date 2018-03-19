@@ -222,17 +222,23 @@ static u32 get_core_family(struct drm_i915_private *dev_priv)
 	}
 }
 
-static u32 get_log_verbosity_flags(void)
+static u32 get_log_control_flags(void)
 {
-	if (i915_modparams.guc_log_level > 0) {
-		u32 verbosity = i915_modparams.guc_log_level - 1;
+	u32 level = i915_modparams.guc_log_level;
+	u32 flags = 0;
 
-		GEM_BUG_ON(verbosity > GUC_LOG_VERBOSITY_MAX);
-		return verbosity << GUC_LOG_VERBOSITY_SHIFT;
-	}
+	GEM_BUG_ON(level < 0);
 
-	GEM_BUG_ON(i915_modparams.enable_guc < 0);
-	return GUC_LOG_DISABLED;
+	if (!GUC_LOG_LEVEL_TO_ENABLED(level))
+		flags |= GUC_LOG_DEFAULT_DISABLED;
+
+	if (!GUC_LOG_LEVEL_TO_VERBOSE(level))
+		flags |= GUC_LOG_DISABLED;
+	else
+		flags |= GUC_LOG_LEVEL_TO_VERBOSITY(level) <<
+			 GUC_LOG_VERBOSITY_SHIFT;
+
+	return flags;
 }
 
 /*
@@ -267,7 +273,7 @@ void intel_guc_init_params(struct intel_guc *guc)
 
 	params[GUC_CTL_LOG_PARAMS] = guc->log.flags;
 
-	params[GUC_CTL_DEBUG] = get_log_verbosity_flags();
+	params[GUC_CTL_DEBUG] = get_log_control_flags();
 
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (USES_GUC_SUBMISSION(dev_priv)) {

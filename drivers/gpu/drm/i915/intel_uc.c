@@ -75,7 +75,8 @@ static int __get_default_guc_log_level(struct drm_i915_private *dev_priv)
 	if (HAS_GUC(dev_priv) && intel_uc_is_using_guc() &&
 	    (IS_ENABLED(CONFIG_DRM_I915_DEBUG) ||
 	     IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM)))
-		guc_log_level = 1 + GUC_LOG_VERBOSITY_MAX;
+		guc_log_level =
+			GUC_VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX);
 
 	/* Any platform specific fine-tuning can be done here */
 
@@ -142,17 +143,20 @@ static void sanitize_options_early(struct drm_i915_private *dev_priv)
 		i915_modparams.guc_log_level = 0;
 	}
 
-	if (i915_modparams.guc_log_level > 1 + GUC_LOG_VERBOSITY_MAX) {
+	if (i915_modparams.guc_log_level >
+	    GUC_VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX)) {
 		DRM_WARN("Incompatible option detected: %s=%d, %s!\n",
 			 "guc_log_level", i915_modparams.guc_log_level,
 			 "verbosity too high");
-		i915_modparams.guc_log_level = 1 + GUC_LOG_VERBOSITY_MAX;
+		i915_modparams.guc_log_level =
+			GUC_VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX);
 	}
 
-	DRM_DEBUG_DRIVER("guc_log_level=%d (enabled:%s verbosity:%d)\n",
+	DRM_DEBUG_DRIVER("guc_log_level=%d (enabled:%s, verbose:%s, verbosity:%d)\n",
 			 i915_modparams.guc_log_level,
 			 yesno(i915_modparams.guc_log_level),
-			 i915_modparams.guc_log_level - 1);
+			 yesno(GUC_LOG_LEVEL_TO_VERBOSE(i915_modparams.guc_log_level)),
+			 GUC_LOG_LEVEL_TO_VERBOSITY(i915_modparams.guc_log_level));
 
 	/* Make sure that sanitization was done */
 	GEM_BUG_ON(i915_modparams.enable_guc < 0);

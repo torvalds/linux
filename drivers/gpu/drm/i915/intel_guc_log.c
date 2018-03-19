@@ -57,12 +57,14 @@ static int guc_log_flush(struct intel_guc *guc)
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static int guc_log_control(struct intel_guc *guc, bool enable, u32 verbosity)
+static int guc_log_control(struct intel_guc *guc, bool enable,
+			   bool default_logging, u32 verbosity)
 {
 	union guc_log_control control_val = {
 		{
 			.logging_enabled = enable,
 			.verbosity = verbosity,
+			.default_logging = default_logging,
 		},
 	};
 	u32 action[] = {
@@ -499,13 +501,6 @@ int intel_guc_log_level_get(struct intel_guc_log *log)
 	return i915_modparams.guc_log_level;
 }
 
-#define GUC_LOG_LEVEL_DISABLED		0
-#define LOG_LEVEL_TO_ENABLED(x)		((x) > 0)
-#define LOG_LEVEL_TO_VERBOSITY(x) ({		\
-	typeof(x) _x = (x);			\
-	LOG_LEVEL_TO_ENABLED(_x) ? _x - 1 : 0;	\
-})
-#define VERBOSITY_TO_LOG_LEVEL(x)  ((x) + 1)
 int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
 {
 	struct intel_guc *guc = log_to_guc(log);
@@ -521,7 +516,7 @@ int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
 	 * as indication that logging should be disabled.
 	 */
 	if (val < GUC_LOG_LEVEL_DISABLED ||
-	    val > VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX))
+	    val > GUC_VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX))
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
@@ -532,8 +527,9 @@ int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
 	}
 
 	intel_runtime_pm_get(dev_priv);
-	ret = guc_log_control(guc, LOG_LEVEL_TO_ENABLED(val),
-			      LOG_LEVEL_TO_VERBOSITY(val));
+	ret = guc_log_control(guc, GUC_LOG_LEVEL_TO_VERBOSE(val),
+			      GUC_LOG_LEVEL_TO_ENABLED(val),
+			      GUC_LOG_LEVEL_TO_VERBOSITY(val));
 	intel_runtime_pm_put(dev_priv);
 	if (ret) {
 		DRM_DEBUG_DRIVER("guc_log_control action failed %d\n", ret);

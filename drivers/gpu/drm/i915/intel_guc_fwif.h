@@ -127,7 +127,7 @@
 #define   GUC_PROFILE_ENABLED		(1 << 7)
 #define   GUC_WQ_TRACK_ENABLED		(1 << 8)
 #define   GUC_ADS_ENABLED		(1 << 9)
-#define   GUC_DEBUG_RESERVED		(1 << 10)
+#define   GUC_LOG_DEFAULT_DISABLED	(1 << 10)
 #define   GUC_ADS_ADDR_SHIFT		11
 #define   GUC_ADS_ADDR_MASK		0xfffff800
 
@@ -539,7 +539,8 @@ union guc_log_control {
 		u32 logging_enabled:1;
 		u32 reserved1:3;
 		u32 verbosity:4;
-		u32 reserved2:24;
+		u32 default_logging:1;
+		u32 reserved2:23;
 	};
 	u32 value;
 } __packed;
