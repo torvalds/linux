@@ -484,7 +484,7 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
 	unsigned long align_mask;
 	struct page *page;
 
-	if (force_iommu && !(flag & GFP_DMA)) {
+	if (force_iommu && dev->coherent_dma_mask > DMA_BIT_MASK(24)) {
 		flag &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
 		page = alloc_pages(flag | __GFP_ZERO, get_order(size));
 		if (!page)
