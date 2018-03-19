@@ -69,7 +69,7 @@ static int __get_platform_enable_guc(struct drm_i915_private *dev_priv)
 
 static int __get_default_guc_log_level(struct drm_i915_private *dev_priv)
 {
-	int guc_log_level = 0; /* disabled */
+	int guc_log_level = 1; /* non-verbose */
 
 	/* Enable if we're running on platform with GuC and debug config */
 	if (HAS_GUC(dev_priv) && intel_uc_is_using_guc() &&
