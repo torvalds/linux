@@ -39,7 +39,7 @@ static inline uint64_t  bcache_flash_devs_sectors_dirty(struct cache_set *c)
 
 		if (!d || !UUID_FLASH_ONLY(&c->uuids[i]))
 			continue;
-	   ret += bcache_dev_sectors_dirty(d);
+		ret += bcache_dev_sectors_dirty(d);
 	}
 
 	mutex_unlock(&bch_register_lock);
