@@ -1153,6 +1153,62 @@ struct safexcel_alg_template safexcel_alg_sha224 = {
 	},
 };
 
+static int safexcel_hmac_sha224_setkey(struct crypto_ahash *tfm, const u8 *key,
+				       unsigned int keylen)
+{
+	return safexcel_hmac_alg_setkey(tfm, key, keylen, "safexcel-sha224",
+					SHA256_DIGEST_SIZE);
+}
+
+static int safexcel_hmac_sha224_init(struct ahash_request *areq)
+{
+	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
+
+	safexcel_sha224_init(areq);
+	req->digest = CONTEXT_CONTROL_DIGEST_HMAC;
+	return 0;
+}
+
+static int safexcel_hmac_sha224_digest(struct ahash_request *areq)
+{
+	int ret = safexcel_hmac_sha224_init(areq);
+
+	if (ret)
+		return ret;
+
+	return safexcel_ahash_finup(areq);
+}
+
+struct safexcel_alg_template safexcel_alg_hmac_sha224 = {
+	.type = SAFEXCEL_ALG_TYPE_AHASH,
+	.alg.ahash = {
+		.init = safexcel_hmac_sha224_init,
+		.update = safexcel_ahash_update,
+		.final = safexcel_ahash_final,
+		.finup = safexcel_ahash_finup,
+		.digest = safexcel_hmac_sha224_digest,
+		.setkey = safexcel_hmac_sha224_setkey,
+		.export = safexcel_ahash_export,
+		.import = safexcel_ahash_import,
+		.halg = {
+			.digestsize = SHA224_DIGEST_SIZE,
+			.statesize = sizeof(struct safexcel_ahash_export_state),
+			.base = {
+				.cra_name = "hmac(sha224)",
+				.cra_driver_name = "safexcel-hmac-sha224",
+				.cra_priority = 300,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					     CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA224_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct safexcel_ahash_ctx),
+				.cra_init = safexcel_ahash_cra_init,
+				.cra_exit = safexcel_ahash_cra_exit,
+				.cra_module = THIS_MODULE,
+			},
+		},
+	},
+};
+
 static int safexcel_hmac_sha256_setkey(struct crypto_ahash *tfm, const u8 *key,
 				     unsigned int keylen)
 {
