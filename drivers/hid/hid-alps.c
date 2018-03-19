@@ -223,20 +223,20 @@ static int t4_read_write_register(struct hid_device *hdev, u32 address,
 
 		if (*(u32 *)&readbuf[6] != address) {
 			dev_err(&hdev->dev, "read register address error (%x,%x)\n",
-			*(u32 *)&readbuf[6], address);
+				*(u32 *)&readbuf[6], address);
 			goto exit_readbuf;
 		}
 
 		if (*(u16 *)&readbuf[10] != 1) {
 			dev_err(&hdev->dev, "read register size error (%x)\n",
-			*(u16 *)&readbuf[10]);
+				*(u16 *)&readbuf[10]);
 			goto exit_readbuf;
 		}
 
 		check_sum = t4_calc_check_sum(readbuf, 6, 7);
 		if (*(u16 *)&readbuf[13] != check_sum) {
 			dev_err(&hdev->dev, "read register checksum error (%x,%x)\n",
-			*(u16 *)&readbuf[13], check_sum);
+				*(u16 *)&readbuf[13], check_sum);
 			goto exit_readbuf;
 		}
 
