@@ -1556,7 +1556,20 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 	}
 
 	spin_lock(&vm->status_lock);
-	list_del_init(&bo_va->base.vm_status);
+	if (bo && bo->tbo.resv == vm->root.base.bo->tbo.resv) {
+		unsigned mem_type = bo->tbo.mem.mem_type;
+
+		/* If the BO is not in its preferred location add it back to
+		 * the evicted list so that it gets validated again on the
+		 * next command submission.
+		 */
+		if (!(bo->preferred_domains & amdgpu_mem_type_to_domain(mem_type)))
+			list_add_tail(&bo_va->base.vm_status, &vm->evicted);
+		else
+			list_del_init(&bo_va->base.vm_status);
+	} else {
+		list_del_init(&bo_va->base.vm_status);
+	}
 	spin_unlock(&vm->status_lock);
 
 	list_splice_init(&bo_va->invalids, &bo_va->valids);
