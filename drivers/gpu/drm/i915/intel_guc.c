@@ -390,12 +390,9 @@ void intel_guc_to_host_event_handler(struct intel_guc *guc)
 	spin_unlock(&guc->irq_lock);
 
 	if (msg & (INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
-		   INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED)) {
+		   INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED))
 		queue_work(guc->log.relay.flush_wq,
 			   &guc->log.relay.flush_work);
-
-		guc->log.flush_interrupt_count++;
-	}
 }
 
 int intel_guc_sample_forcewake(struct intel_guc *guc)

@@ -52,10 +52,11 @@ struct intel_guc_log {
 		u32 full_count;
 	} relay;
 	/* logging related stats */
-	u32 flush_interrupt_count;
-	u32 prev_overflow_count[GUC_MAX_LOG_BUFFER];
-	u32 total_overflow_count[GUC_MAX_LOG_BUFFER];
-	u32 flush_count[GUC_MAX_LOG_BUFFER];
+	struct {
+		u32 sampled_overflow;
+		u32 overflow;
+		u32 flush;
+	} stats[GUC_MAX_LOG_BUFFER];
 };
 
 void intel_guc_log_init_early(struct intel_guc_log *log);
@@ -64,6 +65,7 @@ void intel_guc_log_destroy(struct intel_guc_log *log);
 
 int intel_guc_log_level_get(struct intel_guc_log *log);
 int intel_guc_log_level_set(struct intel_guc_log *log, u64 control_val);
+bool intel_guc_log_relay_enabled(const struct intel_guc_log *log);
 int intel_guc_log_relay_open(struct intel_guc_log *log);
 void intel_guc_log_relay_flush(struct intel_guc_log *log);
 void intel_guc_log_relay_close(struct intel_guc_log *log);

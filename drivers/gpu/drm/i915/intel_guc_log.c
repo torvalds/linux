@@ -195,18 +195,18 @@ static bool guc_check_log_buf_overflow(struct intel_guc_log *log,
 				       enum guc_log_buffer_type type,
 				       unsigned int full_cnt)
 {
-	unsigned int prev_full_cnt = log->prev_overflow_count[type];
+	unsigned int prev_full_cnt = log->stats[type].sampled_overflow;
 	bool overflow = false;
 
 	if (full_cnt != prev_full_cnt) {
 		overflow = true;
 
-		log->prev_overflow_count[type] = full_cnt;
-		log->total_overflow_count[type] += full_cnt - prev_full_cnt;
+		log->stats[type].overflow = full_cnt;
+		log->stats[type].sampled_overflow += full_cnt - prev_full_cnt;
 
 		if (full_cnt < prev_full_cnt) {
 			/* buffer_full_cnt is a 4 bit counter */
-			log->total_overflow_count[type] += 16;
+			log->stats[type].sampled_overflow += 16;
 		}
 		DRM_ERROR_RATELIMITED("GuC log buffer overflow\n");
 	}
@@ -241,7 +241,7 @@ static void guc_read_update_log_buffer(struct intel_guc_log *log)
 
 	mutex_lock(&log->relay.lock);
 
-	if (WARN_ON(!log->relay.buf_addr))
+	if (WARN_ON(!intel_guc_log_relay_enabled(log)))
 		goto out_unlock;
 
 	/* Get the pointer to shared GuC log buffer */
@@ -279,7 +279,7 @@ static void guc_read_update_log_buffer(struct intel_guc_log *log)
 		full_cnt = log_buf_state_local.buffer_full_cnt;
 
 		/* Bookkeeping stuff */
-		log->flush_count[type] += log_buf_state_local.flush_to_file;
+		log->stats[type].flush += log_buf_state_local.flush_to_file;
 		new_overflow = guc_check_log_buf_overflow(log, type, full_cnt);
 
 		/* Update the state of shared log buffer */
@@ -339,11 +339,6 @@ static void capture_logs_work(struct work_struct *work)
 		container_of(work, struct intel_guc_log, relay.flush_work);
 
 	guc_log_capture_logs(log);
-}
-
-static bool guc_log_relay_enabled(struct intel_guc_log *log)
-{
-	return log->relay.buf_addr;
 }
 
 static int guc_log_map(struct intel_guc_log *log)
@@ -553,13 +548,18 @@ out_unlock:
 	return ret;
 }
 
+bool intel_guc_log_relay_enabled(const struct intel_guc_log *log)
+{
+	return log->relay.buf_addr;
+}
+
 int intel_guc_log_relay_open(struct intel_guc_log *log)
 {
 	int ret;
 
 	mutex_lock(&log->relay.lock);
 
-	if (guc_log_relay_enabled(log)) {
+	if (intel_guc_log_relay_enabled(log)) {
 		ret = -EEXIST;
 		goto out_unlock;
 	}
@@ -628,7 +628,7 @@ void intel_guc_log_relay_close(struct intel_guc_log *log)
 	flush_work(&log->relay.flush_work);
 
 	mutex_lock(&log->relay.lock);
-	GEM_BUG_ON(!guc_log_relay_enabled(log));
+	GEM_BUG_ON(!intel_guc_log_relay_enabled(log));
 	guc_log_unmap(log);
 	guc_log_relay_destroy(log);
 	mutex_unlock(&log->relay.lock);

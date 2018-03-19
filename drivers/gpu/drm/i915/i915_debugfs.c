@@ -2325,30 +2325,45 @@ static int i915_guc_load_status_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static const char *
+stringify_guc_log_type(enum guc_log_buffer_type type)
+{
+	switch (type) {
+	case GUC_ISR_LOG_BUFFER:
+		return "ISR";
+	case GUC_DPC_LOG_BUFFER:
+		return "DPC";
+	case GUC_CRASH_DUMP_LOG_BUFFER:
+		return "CRASH";
+	default:
+		MISSING_CASE(type);
+	}
+
+	return "";
+}
+
 static void i915_guc_log_info(struct seq_file *m,
 			      struct drm_i915_private *dev_priv)
 {
-	struct intel_guc *guc = &dev_priv->guc;
+	struct intel_guc_log *log = &dev_priv->guc.log;
+	enum guc_log_buffer_type type;
+
+	if (!intel_guc_log_relay_enabled(log)) {
+		seq_puts(m, "GuC log relay disabled\n");
+		return;
+	}
 
 	seq_puts(m, "GuC logging stats:\n");
 
-	seq_printf(m, "\tISR:   flush count %10u, overflow count %10u\n",
-		   guc->log.flush_count[GUC_ISR_LOG_BUFFER],
-		   guc->log.total_overflow_count[GUC_ISR_LOG_BUFFER]);
-
-	seq_printf(m, "\tDPC:   flush count %10u, overflow count %10u\n",
-		   guc->log.flush_count[GUC_DPC_LOG_BUFFER],
-		   guc->log.total_overflow_count[GUC_DPC_LOG_BUFFER]);
-
-	seq_printf(m, "\tCRASH: flush count %10u, overflow count %10u\n",
-		   guc->log.flush_count[GUC_CRASH_DUMP_LOG_BUFFER],
-		   guc->log.total_overflow_count[GUC_CRASH_DUMP_LOG_BUFFER]);
-
-	seq_printf(m, "\tTotal flush interrupt count: %u\n",
-		   guc->log.flush_interrupt_count);
-
 	seq_printf(m, "\tRelay full count: %u\n",
-		   guc->log.relay.full_count);
+		   log->relay.full_count);
+
+	for (type = GUC_ISR_LOG_BUFFER; type < GUC_MAX_LOG_BUFFER; type++) {
+		seq_printf(m, "\t%s:\tflush count %10u, overflow count %10u\n",
+			   stringify_guc_log_type(type),
+			   log->stats[type].flush,
+			   log->stats[type].sampled_overflow);
+	}
 }
 
 static void i915_guc_client_info(struct seq_file *m,
