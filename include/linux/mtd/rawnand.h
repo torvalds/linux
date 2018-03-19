@@ -1629,6 +1629,9 @@ int nand_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page);
 int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 			   int page);
 
+/* Wrapper to use in order for controllers/vendors to GET/SET FEATURES */
+int nand_get_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
+int nand_set_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
 /* Stub used by drivers that do not support GET/SET FEATURES operations */
 int nand_get_set_features_notsupp(struct mtd_info *mtd, struct nand_chip *chip,
 				  int addr, u8 *subfeature_param);

@@ -1160,6 +1160,55 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	return status;
 }
 
+static bool nand_supports_set_get_features(struct nand_chip *chip)
+{
+	return (chip->onfi_version &&
+		(le16_to_cpu(chip->onfi_params.opt_cmd) &
+		 ONFI_OPT_CMD_SET_GET_FEATURES));
+}
+
+/**
+ * nand_get_features - wrapper to perform a GET_FEATURE
+ * @chip: NAND chip info structure
+ * @addr: feature address
+ * @subfeature_param: the subfeature parameters, a four bytes array
+ *
+ * Returns 0 for success, a negative error otherwise. Returns -ENOTSUPP if the
+ * operation cannot be handled.
+ */
+int nand_get_features(struct nand_chip *chip, int addr,
+		      u8 *subfeature_param)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
+	if (!nand_supports_set_get_features(chip))
+		return -ENOTSUPP;
+
+	return chip->get_features(mtd, chip, addr, subfeature_param);
+}
+EXPORT_SYMBOL_GPL(nand_get_features);
+
+/**
+ * nand_set_features - wrapper to perform a SET_FEATURE
+ * @chip: NAND chip info structure
+ * @addr: feature address
+ * @subfeature_param: the subfeature parameters, a four bytes array
+ *
+ * Returns 0 for success, a negative error otherwise. Returns -ENOTSUPP if the
+ * operation cannot be handled.
+ */
+int nand_set_features(struct nand_chip *chip, int addr,
+		      u8 *subfeature_param)
+{
+	struct mtd_info *mtd = nand_to_mtd(chip);
+
+	if (!nand_supports_set_get_features(chip))
+		return -ENOTSUPP;
+
+	return chip->set_features(mtd, chip, addr, subfeature_param);
+}
+EXPORT_SYMBOL_GPL(nand_set_features);
+
 /**
  * nand_reset_data_interface - Reset data interface and timings
  * @chip: The NAND chip
@@ -1215,32 +1264,22 @@ static int nand_reset_data_interface(struct nand_chip *chip, int chipnr)
 static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	u8 tmode_param[ONFI_SUBFEATURE_PARAM_LEN] = {
+		chip->onfi_timing_mode_default,
+	};
 	int ret;
 
 	if (!chip->setup_data_interface)
 		return 0;
 
-	/*
-	 * Ensure the timing mode has been changed on the chip side
-	 * before changing timings on the controller side.
-	 */
-	if (chip->onfi_version &&
-	    (le16_to_cpu(chip->onfi_params.opt_cmd) &
-	     ONFI_OPT_CMD_SET_GET_FEATURES)) {
-		u8 tmode_param[ONFI_SUBFEATURE_PARAM_LEN] = {
-			chip->onfi_timing_mode_default,
-		};
+	/* Change the mode on the chip side */
+	ret = nand_set_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE,
+				tmode_param);
+	if (ret)
+		return ret;
 
-		ret = chip->set_features(mtd, chip,
-					 ONFI_FEATURE_ADDR_TIMING_MODE,
-					 tmode_param);
-		if (ret)
-			goto err;
-	}
-
-	ret = chip->setup_data_interface(mtd, chipnr, &chip->data_interface);
-err:
-	return ret;
+	/* Change the mode on the controller side */
+	return chip->setup_data_interface(mtd, chipnr, &chip->data_interface);
 }
 
 /**
@@ -4779,11 +4818,6 @@ static int nand_default_set_features(struct mtd_info *mtd,
 				     struct nand_chip *chip, int addr,
 				     uint8_t *subfeature_param)
 {
-	if (!chip->onfi_version ||
-	    !(le16_to_cpu(chip->onfi_params.opt_cmd)
-	      & ONFI_OPT_CMD_SET_GET_FEATURES))
-		return -EINVAL;
-
 	return nand_set_features_op(chip, addr, subfeature_param);
 }
 
@@ -4798,11 +4832,6 @@ static int nand_default_get_features(struct mtd_info *mtd,
 				     struct nand_chip *chip, int addr,
 				     uint8_t *subfeature_param)
 {
-	if (!chip->onfi_version ||
-	    !(le16_to_cpu(chip->onfi_params.opt_cmd)
-	      & ONFI_OPT_CMD_SET_GET_FEATURES))
-		return -EINVAL;
-
 	return nand_get_features_op(chip, addr, subfeature_param);
 }
 

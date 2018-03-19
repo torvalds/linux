@@ -934,15 +934,13 @@ static int enable_edo_mode(struct gpmi_nand_data *this, int mode)
 
 	/* [1] send SET FEATURE command to NAND */
 	feature[0] = mode;
-	ret = nand->set_features(mtd, nand,
-				 ONFI_FEATURE_ADDR_TIMING_MODE, feature);
+	ret = nand_set_features(nand, ONFI_FEATURE_ADDR_TIMING_MODE, feature);
 	if (ret)
 		goto err_out;
 
 	/* [2] send GET FEATURE command to double-check the timing mode */
 	memset(feature, 0, ONFI_SUBFEATURE_PARAM_LEN);
-	ret = nand->get_features(mtd, nand,
-				 ONFI_FEATURE_ADDR_TIMING_MODE, feature);
+	ret = nand_get_features(nand, ONFI_FEATURE_ADDR_TIMING_MODE, feature);
 	if (ret || feature[0] != mode)
 		goto err_out;
 
