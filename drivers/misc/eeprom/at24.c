@@ -518,7 +518,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct regmap_config regmap_config = { };
 	struct nvmem_config nvmem_config = { };
 	const struct at24_chip_data *cd = NULL;
-	struct at24_platform_data chip = { 0 };
+	struct at24_platform_data chip = { };
 	unsigned int i, num_addresses;
 	struct at24_data *at24;
 	bool writable;
