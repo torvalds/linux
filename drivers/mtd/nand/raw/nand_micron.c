@@ -56,17 +56,14 @@ static int micron_nand_setup_read_retry(struct mtd_info *mtd, int retry_mode)
  */
 static int micron_nand_onfi_init(struct nand_chip *chip)
 {
-	struct nand_onfi_params *p = &chip->onfi_params;
-	struct nand_onfi_vendor_micron *micron = (void *)p->vendor;
+	struct nand_parameters *p = &chip->parameters;
+	struct nand_onfi_vendor_micron *micron = (void *)p->onfi.vendor;
 
-	if (!chip->onfi_version)
-		return 0;
+	if (chip->parameters.onfi.version && p->onfi.vendor_revision) {
+		chip->read_retries = micron->read_retry_options;
+		chip->setup_read_retry = micron_nand_setup_read_retry;
+	}
 
-	if (le16_to_cpu(p->vendor_revision) < 1)
-		return 0;
-
-	chip->read_retries = micron->read_retry_options;
-	chip->setup_read_retry = micron_nand_setup_read_retry;
 
 	return 0;
 }
@@ -207,7 +204,7 @@ static int micron_supports_on_die_ecc(struct nand_chip *chip)
 	u8 feature[ONFI_SUBFEATURE_PARAM_LEN] = { 0, };
 	int ret;
 
-	if (chip->onfi_version == 0)
+	if (!chip->parameters.onfi.version)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
 	if (chip->bits_per_cell != 1)
@@ -239,7 +236,7 @@ static int micron_supports_on_die_ecc(struct nand_chip *chip)
 	 * Some Micron NANDs have an on-die ECC of 4/512, some other
 	 * 8/512. We only support the former.
 	 */
-	if (chip->onfi_params.ecc_bits != 4)
+	if (chip->ecc_strength_ds != 4)
 		return MICRON_ON_DIE_UNSUPPORTED;
 
 	return MICRON_ON_DIE_SUPPORTED;

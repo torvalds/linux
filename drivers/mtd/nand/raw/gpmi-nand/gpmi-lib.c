@@ -971,7 +971,7 @@ int gpmi_extra_init(struct gpmi_nand_data *this)
 	struct nand_chip *chip = &this->nand;
 
 	/* Enable the asynchronous EDO feature. */
-	if (GPMI_IS_MX6(this) && chip->onfi_version) {
+	if (GPMI_IS_MX6(this) && chip->parameters.onfi.version) {
 		int mode = onfi_get_async_timing_mode(chip);
 
 		/* We only support the timing mode 4 and mode 5. */
