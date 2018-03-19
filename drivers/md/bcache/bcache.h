@@ -258,10 +258,11 @@ struct bcache_device {
 	struct gendisk		*disk;
 
 	unsigned long		flags;
-#define BCACHE_DEV_CLOSING	0
-#define BCACHE_DEV_DETACHING	1
-#define BCACHE_DEV_UNLINK_DONE	2
-
+#define BCACHE_DEV_CLOSING		0
+#define BCACHE_DEV_DETACHING		1
+#define BCACHE_DEV_UNLINK_DONE		2
+#define BCACHE_DEV_WB_RUNNING		3
+#define BCACHE_DEV_RATE_DW_RUNNING	4
 	unsigned		nr_stripes;
 	unsigned		stripe_size;
 	atomic_t		*stripe_sectors_dirty;

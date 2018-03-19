@@ -115,6 +115,21 @@ static void update_writeback_rate(struct work_struct *work)
 					     struct cached_dev,
 					     writeback_rate_update);
 
+	/*
+	 * should check BCACHE_DEV_RATE_DW_RUNNING before calling
+	 * cancel_delayed_work_sync().
+	 */
+	set_bit(BCACHE_DEV_RATE_DW_RUNNING, &dc->disk.flags);
+	/* paired with where BCACHE_DEV_RATE_DW_RUNNING is tested */
+	smp_mb();
+
+	if (!test_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags)) {
+		clear_bit(BCACHE_DEV_RATE_DW_RUNNING, &dc->disk.flags);
+		/* paired with where BCACHE_DEV_RATE_DW_RUNNING is tested */
+		smp_mb();
+		return;
+	}
+
 	down_read(&dc->writeback_lock);
 
 	if (atomic_read(&dc->has_dirty) &&
@@ -123,8 +138,18 @@ static void update_writeback_rate(struct work_struct *work)
 
 	up_read(&dc->writeback_lock);
 
-	schedule_delayed_work(&dc->writeback_rate_update,
+	if (test_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags)) {
+		schedule_delayed_work(&dc->writeback_rate_update,
 			      dc->writeback_rate_update_seconds * HZ);
+	}
+
+	/*
+	 * should check BCACHE_DEV_RATE_DW_RUNNING before calling
+	 * cancel_delayed_work_sync().
+	 */
+	clear_bit(BCACHE_DEV_RATE_DW_RUNNING, &dc->disk.flags);
+	/* paired with where BCACHE_DEV_RATE_DW_RUNNING is tested */
+	smp_mb();
 }
 
 static unsigned writeback_delay(struct cached_dev *dc, unsigned sectors)
@@ -675,6 +700,7 @@ void bch_cached_dev_writeback_init(struct cached_dev *dc)
 	dc->writeback_rate_p_term_inverse = 40;
 	dc->writeback_rate_i_term_inverse = 10000;
 
+	WARN_ON(test_and_clear_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags));
 	INIT_DELAYED_WORK(&dc->writeback_rate_update, update_writeback_rate);
 }
 
@@ -693,6 +719,7 @@ int bch_cached_dev_writeback_start(struct cached_dev *dc)
 		return PTR_ERR(dc->writeback_thread);
 	}
 
+	WARN_ON(test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags));
 	schedule_delayed_work(&dc->writeback_rate_update,
 			      dc->writeback_rate_update_seconds * HZ);
 

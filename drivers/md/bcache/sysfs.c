@@ -309,7 +309,8 @@ STORE(bch_cached_dev)
 		bch_writeback_queue(dc);
 
 	if (attr == &sysfs_writeback_percent)
-		schedule_delayed_work(&dc->writeback_rate_update,
+		if (!test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
+			schedule_delayed_work(&dc->writeback_rate_update,
 				      dc->writeback_rate_update_seconds * HZ);
 
 	mutex_unlock(&bch_register_lock);

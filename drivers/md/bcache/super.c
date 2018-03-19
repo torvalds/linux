@@ -899,6 +899,31 @@ void bch_cached_dev_run(struct cached_dev *dc)
 		pr_debug("error creating sysfs link");
 }
 
+/*
+ * If BCACHE_DEV_RATE_DW_RUNNING is set, it means routine of the delayed
+ * work dc->writeback_rate_update is running. Wait until the routine
+ * quits (BCACHE_DEV_RATE_DW_RUNNING is clear), then continue to
+ * cancel it. If BCACHE_DEV_RATE_DW_RUNNING is not clear after time_out
+ * seconds, give up waiting here and continue to cancel it too.
+ */
+static void cancel_writeback_rate_update_dwork(struct cached_dev *dc)
+{
+	int time_out = WRITEBACK_RATE_UPDATE_SECS_MAX * HZ;
+
+	do {
+		if (!test_bit(BCACHE_DEV_RATE_DW_RUNNING,
+			      &dc->disk.flags))
+			break;
+		time_out--;
+		schedule_timeout_interruptible(1);
+	} while (time_out > 0);
+
+	if (time_out == 0)
+		pr_warn("give up waiting for dc->writeback_write_update to quit");
+
+	cancel_delayed_work_sync(&dc->writeback_rate_update);
+}
+
 static void cached_dev_detach_finish(struct work_struct *w)
 {
 	struct cached_dev *dc = container_of(w, struct cached_dev, detach);
@@ -911,7 +936,9 @@ static void cached_dev_detach_finish(struct work_struct *w)
 
 	mutex_lock(&bch_register_lock);
 
-	cancel_delayed_work_sync(&dc->writeback_rate_update);
+	if (test_and_clear_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
+		cancel_writeback_rate_update_dwork(dc);
+
 	if (!IS_ERR_OR_NULL(dc->writeback_thread)) {
 		kthread_stop(dc->writeback_thread);
 		dc->writeback_thread = NULL;
@@ -954,6 +981,7 @@ void bch_cached_dev_detach(struct cached_dev *dc)
 	closure_get(&dc->disk.cl);
 
 	bch_writeback_queue(dc);
+
 	cached_dev_put(dc);
 }
 
@@ -1081,13 +1109,15 @@ static void cached_dev_free(struct closure *cl)
 {
 	struct cached_dev *dc = container_of(cl, struct cached_dev, disk.cl);
 
-	cancel_delayed_work_sync(&dc->writeback_rate_update);
+	mutex_lock(&bch_register_lock);
+
+	if (test_and_clear_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
+		cancel_writeback_rate_update_dwork(dc);
+
 	if (!IS_ERR_OR_NULL(dc->writeback_thread))
 		kthread_stop(dc->writeback_thread);
 	if (dc->writeback_write_wq)
 		destroy_workqueue(dc->writeback_write_wq);
-
-	mutex_lock(&bch_register_lock);
 
 	if (atomic_read(&dc->running))
 		bd_unlink_disk_holder(dc->bdev, dc->disk.disk);
