@@ -120,11 +120,11 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 				ctx->base.ctxr->data[i] = cpu_to_le32(req->processed / blocksize);
 		}
 	} else if (req->digest == CONTEXT_CONTROL_DIGEST_HMAC) {
-		cdesc->control_data.control0 |= CONTEXT_CONTROL_SIZE(10);
+		cdesc->control_data.control0 |= CONTEXT_CONTROL_SIZE(2 * req->state_sz / sizeof(u32));
 
-		memcpy(ctx->base.ctxr->data, ctx->ipad, digestsize);
-		memcpy(ctx->base.ctxr->data + digestsize / sizeof(u32),
-		       ctx->opad, digestsize);
+		memcpy(ctx->base.ctxr->data, ctx->ipad, req->state_sz);
+		memcpy(ctx->base.ctxr->data + req->state_sz / sizeof(u32),
+		       ctx->opad, req->state_sz);
 	}
 }
 
