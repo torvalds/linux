@@ -46,6 +46,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/uverbs_std_types.h>
 
 #define UVERBS_MODULE_NAME ib_uverbs
 #include <rdma/uverbs_named_ioctl.h>
@@ -249,6 +250,20 @@ struct ib_uverbs_flow_spec {
 		struct ib_uverbs_flow_spec_action_drop	drop;
 	};
 };
+
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_DEVICE);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_PD);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_MR);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_COMP_CHANNEL);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_CQ);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_QP);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_AH);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_MW);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_SRQ);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_WQ);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL);
+extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_XRCD);
 
 #define IB_UVERBS_DECLARE_CMD(name)					\
 	ssize_t ib_uverbs_##name(struct ib_uverbs_file *file,		\

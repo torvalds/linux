@@ -37,29 +37,10 @@
 #include <rdma/uverbs_ioctl.h>
 #include <rdma/ib_user_ioctl_verbs.h>
 
-#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
-
 #define UVERBS_OBJECT(id)	uverbs_object_##id
 
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_DEVICE);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_PD);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_MR);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_COMP_CHANNEL);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_CQ);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_QP);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_AH);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_MW);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_SRQ);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_WQ);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL);
-extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_XRCD);
-
-extern const struct uverbs_object_tree_def uverbs_default_objects;
-static inline const struct uverbs_object_tree_def *uverbs_default_get_objects(void)
-{
-	return &uverbs_default_objects;
-}
+#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
+const struct uverbs_object_tree_def *uverbs_default_get_objects(void);
 #else
 static inline const struct uverbs_object_tree_def *uverbs_default_get_objects(void)
 {
