@@ -1197,6 +1197,9 @@ static int cached_dev_init(struct cached_dev *dc, unsigned block_size)
 		max(dc->disk.disk->queue->backing_dev_info->ra_pages,
 		    q->backing_dev_info->ra_pages);
 
+	atomic_set(&dc->io_errors, 0);
+	dc->io_disable = false;
+	dc->error_limit = DEFAULT_CACHED_DEV_ERROR_LIMIT;
 	/* default to auto */
 	dc->stop_when_cache_set_failed = BCH_CACHED_DEV_STOP_AUTO;
 
@@ -1349,6 +1352,24 @@ int bch_flash_dev_create(struct cache_set *c, uint64_t size)
 	bch_uuid_write(c);
 
 	return flash_dev_run(c, u);
+}
+
+bool bch_cached_dev_error(struct cached_dev *dc)
+{
+	char name[BDEVNAME_SIZE];
+
+	if (!dc || test_bit(BCACHE_DEV_CLOSING, &dc->disk.flags))
+		return false;
+
+	dc->io_disable = true;
+	/* make others know io_disable is true earlier */
+	smp_mb();
+
+	pr_err("stop %s: too many IO errors on backing device %s\n",
+		dc->disk.disk->disk_name, bdevname(dc->bdev, name));
+
+	bcache_device_stop(&dc->disk);
+	return true;
 }
 
 /* Cache set */

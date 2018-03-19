@@ -141,7 +141,9 @@ SHOW(__bch_cached_dev)
 	var_print(writeback_delay);
 	var_print(writeback_percent);
 	sysfs_hprint(writeback_rate,	dc->writeback_rate.rate << 9);
-
+	sysfs_hprint(io_errors,		atomic_read(&dc->io_errors));
+	sysfs_printf(io_error_limit,	"%i", dc->error_limit);
+	sysfs_printf(io_disable,	"%i", dc->io_disable);
 	var_print(writeback_rate_update_seconds);
 	var_print(writeback_rate_i_term_inverse);
 	var_print(writeback_rate_p_term_inverse);
@@ -231,6 +233,14 @@ STORE(__cached_dev)
 			    1, WRITEBACK_RATE_UPDATE_SECS_MAX);
 	d_strtoul(writeback_rate_i_term_inverse);
 	d_strtoul_nonzero(writeback_rate_p_term_inverse);
+
+	sysfs_strtoul_clamp(io_error_limit, dc->error_limit, 0, INT_MAX);
+
+	if (attr == &sysfs_io_disable) {
+		int v = strtoul_or_return(buf);
+
+		dc->io_disable = v ? 1 : 0;
+	}
 
 	d_strtoi_h(sequential_cutoff);
 	d_strtoi_h(readahead);
@@ -352,6 +362,9 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_writeback_rate_i_term_inverse,
 	&sysfs_writeback_rate_p_term_inverse,
 	&sysfs_writeback_rate_debug,
+	&sysfs_errors,
+	&sysfs_io_error_limit,
+	&sysfs_io_disable,
 	&sysfs_dirty_data,
 	&sysfs_stripe_size,
 	&sysfs_partial_stripes_expensive,
