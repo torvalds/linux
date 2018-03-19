@@ -47,6 +47,14 @@ const char * const bch_cache_modes[] = {
 	NULL
 };
 
+/* Default is -1; we skip past it for stop_when_cache_set_failed */
+const char * const bch_stop_on_failure_modes[] = {
+	"default",
+	"auto",
+	"always",
+	NULL
+};
+
 static struct kobject *bcache_kobj;
 struct mutex bch_register_lock;
 LIST_HEAD(bch_cache_sets);
@@ -1188,6 +1196,9 @@ static int cached_dev_init(struct cached_dev *dc, unsigned block_size)
 		max(dc->disk.disk->queue->backing_dev_info->ra_pages,
 		    q->backing_dev_info->ra_pages);
 
+	/* default to auto */
+	dc->stop_when_cache_set_failed = BCH_CACHED_DEV_STOP_AUTO;
+
 	bch_cached_dev_request_init(dc);
 	bch_cached_dev_writeback_init(dc);
 	return 0;
@@ -1464,25 +1475,72 @@ static void cache_set_flush(struct closure *cl)
 	closure_return(cl);
 }
 
+/*
+ * This function is only called when CACHE_SET_IO_DISABLE is set, which means
+ * cache set is unregistering due to too many I/O errors. In this condition,
+ * the bcache device might be stopped, it depends on stop_when_cache_set_failed
+ * value and whether the broken cache has dirty data:
+ *
+ * dc->stop_when_cache_set_failed    dc->has_dirty   stop bcache device
+ *  BCH_CACHED_STOP_AUTO               0               NO
+ *  BCH_CACHED_STOP_AUTO               1               YES
+ *  BCH_CACHED_DEV_STOP_ALWAYS         0               YES
+ *  BCH_CACHED_DEV_STOP_ALWAYS         1               YES
+ *
+ * The expected behavior is, if stop_when_cache_set_failed is configured to
+ * "auto" via sysfs interface, the bcache device will not be stopped if the
+ * backing device is clean on the broken cache device.
+ */
+static void conditional_stop_bcache_device(struct cache_set *c,
+					   struct bcache_device *d,
+					   struct cached_dev *dc)
+{
+	if (dc->stop_when_cache_set_failed == BCH_CACHED_DEV_STOP_ALWAYS) {
+		pr_warn("stop_when_cache_set_failed of %s is \"always\", stop it for failed cache set %pU.",
+			d->disk->disk_name, c->sb.set_uuid);
+		bcache_device_stop(d);
+	} else if (atomic_read(&dc->has_dirty)) {
+		/*
+		 * dc->stop_when_cache_set_failed == BCH_CACHED_STOP_AUTO
+		 * and dc->has_dirty == 1
+		 */
+		pr_warn("stop_when_cache_set_failed of %s is \"auto\" and cache is dirty, stop it to avoid potential data corruption.",
+			d->disk->disk_name);
+			bcache_device_stop(d);
+	} else {
+		/*
+		 * dc->stop_when_cache_set_failed == BCH_CACHED_STOP_AUTO
+		 * and dc->has_dirty == 0
+		 */
+		pr_warn("stop_when_cache_set_failed of %s is \"auto\" and cache is clean, keep it alive.",
+			d->disk->disk_name);
+	}
+}
+
 static void __cache_set_unregister(struct closure *cl)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, caching);
 	struct cached_dev *dc;
+	struct bcache_device *d;
 	size_t i;
 
 	mutex_lock(&bch_register_lock);
 
-	for (i = 0; i < c->devices_max_used; i++)
-		if (c->devices[i]) {
-			if (!UUID_FLASH_ONLY(&c->uuids[i]) &&
-			    test_bit(CACHE_SET_UNREGISTERING, &c->flags)) {
-				dc = container_of(c->devices[i],
-						  struct cached_dev, disk);
-				bch_cached_dev_detach(dc);
-			} else {
-				bcache_device_stop(c->devices[i]);
-			}
+	for (i = 0; i < c->devices_max_used; i++) {
+		d = c->devices[i];
+		if (!d)
+			continue;
+
+		if (!UUID_FLASH_ONLY(&c->uuids[i]) &&
+		    test_bit(CACHE_SET_UNREGISTERING, &c->flags)) {
+			dc = container_of(d, struct cached_dev, disk);
+			bch_cached_dev_detach(dc);
+			if (test_bit(CACHE_SET_IO_DISABLE, &c->flags))
+				conditional_stop_bcache_device(c, d, dc);
+		} else {
+			bcache_device_stop(d);
 		}
+	}
 
 	mutex_unlock(&bch_register_lock);
 

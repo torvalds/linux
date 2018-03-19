@@ -78,6 +78,7 @@ rw_attribute(congested_write_threshold_us);
 rw_attribute(sequential_cutoff);
 rw_attribute(data_csum);
 rw_attribute(cache_mode);
+rw_attribute(stop_when_cache_set_failed);
 rw_attribute(writeback_metadata);
 rw_attribute(writeback_running);
 rw_attribute(writeback_percent);
@@ -125,6 +126,12 @@ SHOW(__bch_cached_dev)
 		return bch_snprint_string_list(buf, PAGE_SIZE,
 					       bch_cache_modes + 1,
 					       BDEV_CACHE_MODE(&dc->sb));
+
+	if (attr == &sysfs_stop_when_cache_set_failed)
+		return bch_snprint_string_list(buf, PAGE_SIZE,
+					       bch_stop_on_failure_modes + 1,
+					       dc->stop_when_cache_set_failed);
+
 
 	sysfs_printf(data_csum,		"%i", dc->disk.data_csum);
 	var_printf(verify,		"%i");
@@ -247,6 +254,15 @@ STORE(__cached_dev)
 		}
 	}
 
+	if (attr == &sysfs_stop_when_cache_set_failed) {
+		v = bch_read_string_list(buf, bch_stop_on_failure_modes + 1);
+
+		if (v < 0)
+			return v;
+
+		dc->stop_when_cache_set_failed = v;
+	}
+
 	if (attr == &sysfs_label) {
 		if (size > SB_LABEL_SIZE)
 			return -EINVAL;
@@ -326,6 +342,7 @@ static struct attribute *bch_cached_dev_files[] = {
 	&sysfs_data_csum,
 #endif
 	&sysfs_cache_mode,
+	&sysfs_stop_when_cache_set_failed,
 	&sysfs_writeback_metadata,
 	&sysfs_writeback_running,
 	&sysfs_writeback_delay,
