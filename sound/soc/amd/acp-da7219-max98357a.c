@@ -29,6 +29,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
+#include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -42,11 +43,13 @@
 #define DUAL_CHANNEL		2
 
 static struct snd_soc_jack cz_jack;
+struct clk *da7219_dai_clk;
 
 static int cz_da7219_init(struct snd_soc_pcm_runtime *rtd)
 {
 	int ret;
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_component *component = codec_dai->component;
 
@@ -66,6 +69,8 @@ static int cz_da7219_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
+	da7219_dai_clk = clk_get(codec->dev, "da7219-dai-clks");
+
 	ret = snd_soc_card_jack_new(card, "Headset Jack",
 				SND_JACK_HEADPHONE | SND_JACK_MICROPHONE |
 				SND_JACK_BTN_0 | SND_JACK_BTN_1 |
@@ -77,6 +82,28 @@ static int cz_da7219_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	da7219_aad_jack_det(component, &cz_jack);
+
+	return 0;
+}
+
+static int cz_da7219_hw_params(struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params)
+{
+	int ret = 0;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+
+	ret = clk_prepare_enable(da7219_dai_clk);
+	if (ret < 0) {
+		dev_err(rtd->dev, "can't enable master clock %d\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int cz_da7219_hw_free(struct snd_pcm_substream *substream)
+{
+	clk_disable_unprepare(da7219_dai_clk);
 
 	return 0;
 }
@@ -119,7 +146,19 @@ static int cz_fe_startup(struct snd_pcm_substream *substream)
 }
 
 static struct snd_soc_ops cz_da7219_cap_ops = {
+	.hw_params = cz_da7219_hw_params,
+	.hw_free = cz_da7219_hw_free,
 	.startup = cz_fe_startup,
+};
+
+static struct snd_soc_ops cz_max_play_ops = {
+	.hw_params = cz_da7219_hw_params,
+	.hw_free = cz_da7219_hw_free,
+};
+
+static struct snd_soc_ops cz_dmic_cap_ops = {
+	.hw_params = cz_da7219_hw_params,
+	.hw_free = cz_da7219_hw_free,
 };
 
 static struct snd_soc_dai_link cz_dai_7219_98357[] = {
@@ -147,6 +186,7 @@ static struct snd_soc_dai_link cz_dai_7219_98357[] = {
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_playback = 1,
+		.ops = &cz_max_play_ops,
 	},
 	{
 		.name = "dmic",
@@ -158,6 +198,7 @@ static struct snd_soc_dai_link cz_dai_7219_98357[] = {
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.dpcm_capture = 1,
+		.ops = &cz_dmic_cap_ops,
 	},
 };
 
