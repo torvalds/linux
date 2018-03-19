@@ -163,6 +163,10 @@ struct mlx5_ib_cqe_comp_caps {
 	__u32 supported_format; /* enum mlx5_ib_cqe_comp_res_format */
 };
 
+enum mlx5_ib_packet_pacing_cap_flags {
+	MLX5_IB_PP_SUPPORT_BURST	= 1 << 0,
+};
+
 struct mlx5_packet_pacing_caps {
 	__u32 qp_rate_limit_min;
 	__u32 qp_rate_limit_max; /* In kpbs */
@@ -172,7 +176,8 @@ struct mlx5_packet_pacing_caps {
 	 * supported_qpts |= 1 << IB_QPT_RAW_PACKET
 	 */
 	__u32 supported_qpts;
-	__u32 reserved;
+	__u8  cap_flags; /* enum mlx5_ib_packet_pacing_cap_flags */
+	__u8  reserved[3];
 };
 
 enum mlx5_ib_mpw_caps {
@@ -360,6 +365,18 @@ struct mlx5_ib_create_ah_resp {
 	__u32	response_length;
 	__u8	dmac[ETH_ALEN];
 	__u8	reserved[6];
+};
+
+struct mlx5_ib_burst_info {
+	__u32       max_burst_sz;
+	__u16       typical_pkt_sz;
+	__u16       reserved;
+};
+
+struct mlx5_ib_modify_qp {
+	__u32			   comp_mask;
+	struct mlx5_ib_burst_info  burst_info;
+	__u32			   reserved;
 };
 
 struct mlx5_ib_modify_qp_resp {

@@ -989,6 +989,10 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 				MLX5_CAP_QOS(mdev, packet_pacing_min_rate);
 			resp.packet_pacing_caps.supported_qpts |=
 				1 << IB_QPT_RAW_PACKET;
+			if (MLX5_CAP_QOS(mdev, packet_pacing_burst_bound) &&
+			    MLX5_CAP_QOS(mdev, packet_pacing_typical_size))
+				resp.packet_pacing_caps.cap_flags |=
+					MLX5_IB_PP_SUPPORT_BURST;
 		}
 		resp.response_length += sizeof(resp.packet_pacing_caps);
 	}
