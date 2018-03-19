@@ -156,10 +156,6 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 	safexcel_complete(priv, ring);
 	spin_unlock_bh(&priv->ring[ring].egress_lock);
 
-	if (sreq->finish)
-		memcpy(areq->result, sreq->state,
-		       crypto_ahash_digestsize(ahash));
-
 	if (sreq->nents) {
 		dma_unmap_sg(priv->dev, areq->src, sreq->nents, DMA_TO_DEVICE);
 		sreq->nents = 0;
@@ -176,6 +172,10 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 				 DMA_TO_DEVICE);
 		sreq->cache_dma = 0;
 	}
+
+	if (sreq->finish)
+		memcpy(areq->result, sreq->state,
+		       crypto_ahash_digestsize(ahash));
 
 	cache_len = sreq->len - sreq->processed;
 	if (cache_len)
