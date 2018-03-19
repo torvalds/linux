@@ -196,6 +196,7 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 				break;
 			}
 			config->gpios[i].gpio = gpio;
+			config->gpios[i].label = config->supply_name;
 			if (proplen > 0) {
 				of_property_read_u32_index(np, "gpios-states",
 							   i, &ret);
