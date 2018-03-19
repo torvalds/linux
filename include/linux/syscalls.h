@@ -982,6 +982,7 @@ static inline int ksys_fadvise64_64(int fd, loff_t offset, loff_t len,
 unsigned long ksys_mmap_pgoff(unsigned long addr, unsigned long len,
 			      unsigned long prot, unsigned long flags,
 			      unsigned long fd, unsigned long pgoff);
+ssize_t ksys_readahead(int fd, loff_t offset, size_t count);
 
 /*
  * The following kernel syscall equivalents are just wrappers to fs-internal

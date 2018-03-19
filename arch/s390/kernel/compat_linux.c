@@ -328,7 +328,7 @@ COMPAT_SYSCALL_DEFINE5(s390_pwrite64, unsigned int, fd, const char __user *, ubu
 
 COMPAT_SYSCALL_DEFINE4(s390_readahead, int, fd, u32, high, u32, low, s32, count)
 {
-	return sys_readahead(fd, (unsigned long)high << 32 | low, count);
+	return ksys_readahead(fd, (unsigned long)high << 32 | low, count);
 }
 
 struct stat64_emu31 {

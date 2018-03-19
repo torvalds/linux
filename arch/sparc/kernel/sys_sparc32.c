@@ -217,7 +217,7 @@ asmlinkage long compat_sys_readahead(int fd,
 				     unsigned long offlo,
 				     compat_size_t count)
 {
-	return sys_readahead(fd, (offhi << 32) | offlo, count);
+	return ksys_readahead(fd, (offhi << 32) | offlo, count);
 }
 
 long compat_sys_fadvise64(int fd,

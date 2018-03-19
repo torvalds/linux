@@ -88,7 +88,7 @@ compat_ssize_t compat_sys_pwrite64(unsigned int fd, const char __user *ubuf, com
 
 compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offhi, u32 offlo, u32 count)
 {
-	return sys_readahead(fd, ((loff_t)offhi << 32) | offlo, count);
+	return ksys_readahead(fd, ((loff_t)offhi << 32) | offlo, count);
 }
 
 asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,

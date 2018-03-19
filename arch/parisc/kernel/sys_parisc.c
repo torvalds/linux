@@ -345,7 +345,7 @@ asmlinkage ssize_t parisc_pwrite64(unsigned int fd, const char __user *buf,
 asmlinkage ssize_t parisc_readahead(int fd, unsigned int high, unsigned int low,
 		                    size_t count)
 {
-	return sys_readahead(fd, (loff_t)high << 32 | low, count);
+	return ksys_readahead(fd, (loff_t)high << 32 | low, count);
 }
 
 asmlinkage long parisc_fadvise64_64(int fd,

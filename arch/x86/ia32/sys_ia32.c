@@ -203,7 +203,7 @@ COMPAT_SYSCALL_DEFINE6(x86_fadvise64_64, int, fd, __u32, offset_low,
 COMPAT_SYSCALL_DEFINE4(x86_readahead, int, fd, unsigned int, off_lo,
 		       unsigned int, off_hi, size_t, count)
 {
-	return sys_readahead(fd, ((u64)off_hi << 32) | off_lo, count);
+	return ksys_readahead(fd, ((u64)off_hi << 32) | off_lo, count);
 }
 
 COMPAT_SYSCALL_DEFINE6(x86_sync_file_range, int, fd, unsigned int, off_low,
