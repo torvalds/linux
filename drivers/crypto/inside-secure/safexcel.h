@@ -633,5 +633,6 @@ extern struct safexcel_alg_template safexcel_alg_sha1;
 extern struct safexcel_alg_template safexcel_alg_sha224;
 extern struct safexcel_alg_template safexcel_alg_sha256;
 extern struct safexcel_alg_template safexcel_alg_hmac_sha1;
+extern struct safexcel_alg_template safexcel_alg_hmac_sha256;
 
 #endif

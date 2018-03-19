@@ -22,8 +22,8 @@ struct safexcel_ahash_ctx {
 
 	u32 alg;
 
-	u32 ipad[SHA1_DIGEST_SIZE / sizeof(u32)];
-	u32 opad[SHA1_DIGEST_SIZE / sizeof(u32)];
+	u32 ipad[SHA256_DIGEST_SIZE / sizeof(u32)];
+	u32 opad[SHA256_DIGEST_SIZE / sizeof(u32)];
 };
 
 struct safexcel_ahash_req {
@@ -963,20 +963,21 @@ free_ahash:
 	return ret;
 }
 
-static int safexcel_hmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
-				     unsigned int keylen)
+static int safexcel_hmac_alg_setkey(struct crypto_ahash *tfm, const u8 *key,
+				    unsigned int keylen, const char *alg,
+				    unsigned int state_sz)
 {
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct safexcel_ahash_export_state istate, ostate;
 	int ret, i;
 
-	ret = safexcel_hmac_setkey("safexcel-sha1", key, keylen, &istate, &ostate);
+	ret = safexcel_hmac_setkey(alg, key, keylen, &istate, &ostate);
 	if (ret)
 		return ret;
 
 	if (priv->version == EIP197 && ctx->base.ctxr) {
-		for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(u32); i++) {
+		for (i = 0; i < state_sz / sizeof(u32); i++) {
 			if (ctx->ipad[i] != le32_to_cpu(istate.state[i]) ||
 			    ctx->opad[i] != le32_to_cpu(ostate.state[i])) {
 				ctx->base.needs_inv = true;
@@ -985,10 +986,17 @@ static int safexcel_hmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
 		}
 	}
 
-	memcpy(ctx->ipad, &istate.state, SHA1_DIGEST_SIZE);
-	memcpy(ctx->opad, &ostate.state, SHA1_DIGEST_SIZE);
+	memcpy(ctx->ipad, &istate.state, state_sz);
+	memcpy(ctx->opad, &ostate.state, state_sz);
 
 	return 0;
+}
+
+static int safexcel_hmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
+				     unsigned int keylen)
+{
+	return safexcel_hmac_alg_setkey(tfm, key, keylen, "safexcel-sha1",
+					SHA1_DIGEST_SIZE);
 }
 
 struct safexcel_alg_template safexcel_alg_hmac_sha1 = {
@@ -1136,6 +1144,62 @@ struct safexcel_alg_template safexcel_alg_sha224 = {
 				.cra_flags = CRYPTO_ALG_ASYNC |
 					     CRYPTO_ALG_KERN_DRIVER_ONLY,
 				.cra_blocksize = SHA224_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct safexcel_ahash_ctx),
+				.cra_init = safexcel_ahash_cra_init,
+				.cra_exit = safexcel_ahash_cra_exit,
+				.cra_module = THIS_MODULE,
+			},
+		},
+	},
+};
+
+static int safexcel_hmac_sha256_setkey(struct crypto_ahash *tfm, const u8 *key,
+				     unsigned int keylen)
+{
+	return safexcel_hmac_alg_setkey(tfm, key, keylen, "safexcel-sha256",
+					SHA256_DIGEST_SIZE);
+}
+
+static int safexcel_hmac_sha256_init(struct ahash_request *areq)
+{
+	struct safexcel_ahash_req *req = ahash_request_ctx(areq);
+
+	safexcel_sha256_init(areq);
+	req->digest = CONTEXT_CONTROL_DIGEST_HMAC;
+	return 0;
+}
+
+static int safexcel_hmac_sha256_digest(struct ahash_request *areq)
+{
+	int ret = safexcel_hmac_sha256_init(areq);
+
+	if (ret)
+		return ret;
+
+	return safexcel_ahash_finup(areq);
+}
+
+struct safexcel_alg_template safexcel_alg_hmac_sha256 = {
+	.type = SAFEXCEL_ALG_TYPE_AHASH,
+	.alg.ahash = {
+		.init = safexcel_hmac_sha256_init,
+		.update = safexcel_ahash_update,
+		.final = safexcel_ahash_final,
+		.finup = safexcel_ahash_finup,
+		.digest = safexcel_hmac_sha256_digest,
+		.setkey = safexcel_hmac_sha256_setkey,
+		.export = safexcel_ahash_export,
+		.import = safexcel_ahash_import,
+		.halg = {
+			.digestsize = SHA256_DIGEST_SIZE,
+			.statesize = sizeof(struct safexcel_ahash_export_state),
+			.base = {
+				.cra_name = "hmac(sha256)",
+				.cra_driver_name = "safexcel-hmac-sha256",
+				.cra_priority = 300,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					     CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = SHA256_BLOCK_SIZE,
 				.cra_ctxsize = sizeof(struct safexcel_ahash_ctx),
 				.cra_init = safexcel_ahash_cra_init,
 				.cra_exit = safexcel_ahash_cra_exit,

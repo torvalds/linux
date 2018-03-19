@@ -354,7 +354,7 @@ static int safexcel_hw_init(struct safexcel_crypto_priv *priv)
 	val |= EIP197_PROTOCOL_ENCRYPT_ONLY | EIP197_PROTOCOL_HASH_ONLY;
 	val |= EIP197_ALG_AES_ECB | EIP197_ALG_AES_CBC;
 	val |= EIP197_ALG_SHA1 | EIP197_ALG_HMAC_SHA1;
-	val |= EIP197_ALG_SHA2;
+	val |= EIP197_ALG_SHA2 | EIP197_ALG_HMAC_SHA2;
 	writel(val, EIP197_PE(priv) + EIP197_PE_EIP96_FUNCTION_EN);
 
 	/* Command Descriptor Rings prepare */
@@ -768,6 +768,7 @@ static struct safexcel_alg_template *safexcel_algs[] = {
 	&safexcel_alg_sha224,
 	&safexcel_alg_sha256,
 	&safexcel_alg_hmac_sha1,
+	&safexcel_alg_hmac_sha256,
 };
 
 static int safexcel_register_algorithms(struct safexcel_crypto_priv *priv)
