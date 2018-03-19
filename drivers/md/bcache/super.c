@@ -778,6 +778,8 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 			      sector_t sectors)
 {
 	struct request_queue *q;
+	const size_t max_stripes = min_t(size_t, INT_MAX,
+					 SIZE_MAX / sizeof(atomic_t));
 	size_t n;
 	int idx;
 
@@ -786,9 +788,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned block_size,
 
 	d->nr_stripes = DIV_ROUND_UP_ULL(sectors, d->stripe_size);
 
-	if (!d->nr_stripes ||
-	    d->nr_stripes > INT_MAX ||
-	    d->nr_stripes > SIZE_MAX / sizeof(atomic_t)) {
+	if (!d->nr_stripes || d->nr_stripes > max_stripes) {
 		pr_err("nr_stripes too large or invalid: %u (start sector beyond end of disk?)",
 			(unsigned)d->nr_stripes);
 		return -ENOMEM;
