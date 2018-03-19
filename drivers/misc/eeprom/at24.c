@@ -395,17 +395,15 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	mutex_lock(&at24->lock);
 
 	while (count) {
-		int	status;
-
-		status = at24_regmap_read(at24, buf, off, count);
-		if (status < 0) {
+		ret = at24_regmap_read(at24, buf, off, count);
+		if (ret < 0) {
 			mutex_unlock(&at24->lock);
 			pm_runtime_put(dev);
-			return status;
+			return ret;
 		}
-		buf += status;
-		off += status;
-		count -= status;
+		buf += ret;
+		off += ret;
+		count -= ret;
 	}
 
 	mutex_unlock(&at24->lock);
