@@ -198,7 +198,7 @@ out:
 static int verify_dfa(struct aa_dfa *dfa)
 {
 	size_t i, state_count, trans_count;
-	int error = EPROTO;
+	int error = -EPROTO;
 
 	state_count = dfa->tables[YYTD_ID_BASE]->td_lolen;
 	trans_count = dfa->tables[YYTD_ID_NXT]->td_lolen;
