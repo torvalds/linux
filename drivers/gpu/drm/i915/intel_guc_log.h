@@ -87,4 +87,6 @@ int intel_guc_log_relay_open(struct intel_guc_log *log);
 void intel_guc_log_relay_flush(struct intel_guc_log *log);
 void intel_guc_log_relay_close(struct intel_guc_log *log);
 
+void intel_guc_log_handle_flush_event(struct intel_guc_log *log);
+
 #endif
