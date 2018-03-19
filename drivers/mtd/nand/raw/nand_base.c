@@ -1272,11 +1272,13 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 	if (!chip->setup_data_interface)
 		return 0;
 
-	/* Change the mode on the chip side */
-	ret = nand_set_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE,
-				tmode_param);
-	if (ret)
-		return ret;
+	/* Change the mode on the chip side (if supported by the NAND chip) */
+	if (nand_supports_set_get_features(chip)) {
+		ret = nand_set_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE,
+					tmode_param);
+		if (ret)
+			return ret;
+	}
 
 	/* Change the mode on the controller side */
 	return chip->setup_data_interface(mtd, chipnr, &chip->data_interface);
