@@ -338,7 +338,7 @@ static struct ib_ucontext *hns_roce_alloc_ucontext(struct ib_device *ib_dev,
 {
 	int ret = 0;
 	struct hns_roce_ucontext *context;
-	struct hns_roce_ib_alloc_ucontext_resp resp;
+	struct hns_roce_ib_alloc_ucontext_resp resp = {};
 	struct hns_roce_dev *hr_dev = to_hr_dev(ib_dev);
 
 	resp.qp_tab_size = hr_dev->caps.num_qps;
