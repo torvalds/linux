@@ -460,17 +460,35 @@ static int __maybe_unused alps_post_reset(struct hid_device *hdev)
 	case T4:
 		ret = t4_read_write_register(hdev, T4_PRM_FEED_CONFIG_1,
 			NULL, T4_I2C_ABS, false);
+		if (ret < 0) {
+			dev_err(&hdev->dev, "failed T4_PRM_FEED_CONFIG_1 (%d)\n",
+				ret);
+			goto exit;
+		}
+
 		ret = t4_read_write_register(hdev, T4_PRM_FEED_CONFIG_4,
 			NULL, T4_FEEDCFG4_ADVANCED_ABS_ENABLE, false);
+		if (ret < 0) {
+			dev_err(&hdev->dev, "failed T4_PRM_FEED_CONFIG_4 (%d)\n",
+				ret);
+			goto exit;
+		}
 		break;
 	case U1:
 		ret = u1_read_write_register(hdev,
 			ADDRESS_U1_DEV_CTRL_1, NULL,
 			U1_TP_ABS_MODE | U1_SP_ABS_MODE, false);
+		if (ret < 0) {
+			dev_err(&hdev->dev, "failed to change TP mode (%d)\n",
+				ret);
+			goto exit;
+		}
 		break;
 	default:
 		break;
 	}
+
+exit:
 	return ret;
 }
 
