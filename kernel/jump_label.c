@@ -373,7 +373,8 @@ static void __jump_label_update(struct static_key *key,
 			if (kernel_text_address(entry->code))
 				arch_jump_label_transform(entry, jump_label_type(entry));
 			else
-				WARN_ONCE(1, "can't patch jump_label at %pS", (void *)entry->code);
+				WARN_ONCE(1, "can't patch jump_label at %pS",
+					  (void *)(unsigned long)entry->code);
 		}
 	}
 }

@@ -439,6 +439,17 @@ static void sh_eth_modify(struct net_device *ndev, int enum_index, u32 clear,
 		     enum_index);
 }
 
+static void sh_eth_tsu_write(struct sh_eth_private *mdp, u32 data,
+			     int enum_index)
+{
+	iowrite32(data, mdp->tsu_addr + mdp->reg_offset[enum_index]);
+}
+
+static u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
+{
+	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
+}
+
 static bool sh_eth_is_gether(struct sh_eth_private *mdp)
 {
 	return mdp->reg_offset == sh_eth_offset_gigabit;

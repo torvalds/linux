@@ -139,7 +139,8 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	attr->max_pkey = le32_to_cpu(sb->max_pkeys);
 
 	attr->max_inline_data = le32_to_cpu(sb->max_inline_data);
-	attr->l2_db_size = (sb->l2_db_space_size + 1) * PAGE_SIZE;
+	attr->l2_db_size = (sb->l2_db_space_size + 1) *
+			    (0x01 << RCFW_DBR_BASE_PAGE_SHIFT);
 	attr->max_sgid = le32_to_cpu(sb->max_gid);
 
 	bnxt_qplib_query_version(rcfw, attr->fw_ver);
