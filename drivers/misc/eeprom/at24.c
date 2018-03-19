@@ -577,6 +577,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	regmap_config.val_bits = 8;
 	regmap_config.reg_bits = (chip.flags & AT24_FLAG_ADDR16) ? 16 : 8;
+	regmap_config.disable_locking = true;
 
 	at24 = devm_kzalloc(&client->dev, sizeof(struct at24_data) +
 		num_addresses * sizeof(struct at24_client), GFP_KERNEL);
