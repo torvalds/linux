@@ -119,17 +119,17 @@ modkern_cflags =                                          \
 		$(KBUILD_CFLAGS_KERNEL) $(CFLAGS_KERNEL))
 quiet_modtag := $(empty)   $(empty)
 
-$(real-objs-m)        : part-of-module := y
-$(real-objs-m:.o=.i)  : part-of-module := y
-$(real-objs-m:.o=.s)  : part-of-module := y
-$(real-objs-m:.o=.lst): part-of-module := y
+$(real-obj-m)        : part-of-module := y
+$(real-obj-m:.o=.i)  : part-of-module := y
+$(real-obj-m:.o=.s)  : part-of-module := y
+$(real-obj-m:.o=.lst): part-of-module := y
 
-$(real-objs-m)        : quiet_modtag := [M]
-$(real-objs-m:.o=.i)  : quiet_modtag := [M]
-$(real-objs-m:.o=.s)  : quiet_modtag := [M]
-$(real-objs-m:.o=.lst): quiet_modtag := [M]
+$(real-obj-m)        : quiet_modtag := [M]
+$(real-obj-m:.o=.i)  : quiet_modtag := [M]
+$(real-obj-m:.o=.s)  : quiet_modtag := [M]
+$(real-obj-m:.o=.lst): quiet_modtag := [M]
 
-$(obj-m)              : quiet_modtag := [M]
+$(obj-m)             : quiet_modtag := [M]
 
 quiet_cmd_cc_s_c = CC $(quiet_modtag)  $@
 cmd_cc_s_c       = $(CC) $(c_flags) $(DISABLE_LTO) -fverbose-asm -S -o $@ $<
@@ -333,8 +333,8 @@ $(obj)/%.lst: $(src)/%.c FORCE
 
 modkern_aflags := $(KBUILD_AFLAGS_KERNEL) $(AFLAGS_KERNEL)
 
-$(real-objs-m)      : modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
-$(real-objs-m:.o=.s): modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
+$(real-obj-m)      : modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
+$(real-obj-m:.o=.s): modkern_aflags := $(KBUILD_AFLAGS_MODULE) $(AFLAGS_MODULE)
 
 # .S file exports must have their C prototypes defined in asm/asm-prototypes.h
 # or a file that it includes, in order to get versioned symbols. We build a
@@ -412,7 +412,7 @@ endif
 $(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
 	$(call if_changed_rule,as_o_S)
 
-targets += $(real-objs-y) $(real-objs-m) $(lib-y)
+targets += $(real-obj-y) $(real-obj-m) $(lib-y)
 targets += $(extra-y) $(MAKECMDGOALS) $(always)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
