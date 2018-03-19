@@ -302,7 +302,7 @@ COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, compat_ulong_t, second,
 
 COMPAT_SYSCALL_DEFINE3(s390_truncate64, const char __user *, path, u32, high, u32, low)
 {
-	return sys_truncate(path, (unsigned long)high << 32 | low);
+	return ksys_truncate(path, (unsigned long)high << 32 | low);
 }
 
 COMPAT_SYSCALL_DEFINE3(s390_ftruncate64, unsigned int, fd, u32, high, u32, low)

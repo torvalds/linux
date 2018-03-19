@@ -94,7 +94,7 @@ compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offhi, u32 offlo, u32 co
 asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
 				unsigned long high, unsigned long low)
 {
-	return sys_truncate(path, (high << 32) | low);
+	return ksys_truncate(path, (high << 32) | low);
 }
 
 asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,

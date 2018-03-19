@@ -292,7 +292,7 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 asmlinkage long parisc_truncate64(const char __user * path,
 					unsigned int high, unsigned int low)
 {
-	return sys_truncate(path, (long)high << 32 | low);
+	return ksys_truncate(path, (long)high << 32 | low);
 }
 
 asmlinkage long parisc_ftruncate64(unsigned int fd,
@@ -305,7 +305,7 @@ asmlinkage long parisc_ftruncate64(unsigned int fd,
  * are identical on LP64 */
 asmlinkage long sys_truncate64(const char __user * path, unsigned long length)
 {
-	return sys_truncate(path, length);
+	return ksys_truncate(path, length);
 }
 asmlinkage long sys_ftruncate64(unsigned int fd, unsigned long length)
 {
@@ -320,7 +320,7 @@ asmlinkage long sys_fcntl64(unsigned int fd, unsigned int cmd, unsigned long arg
 asmlinkage long parisc_truncate64(const char __user * path,
 					unsigned int high, unsigned int low)
 {
-	return sys_truncate64(path, (loff_t)high << 32 | low);
+	return ksys_truncate(path, (loff_t)high << 32 | low);
 }
 
 asmlinkage long parisc_ftruncate64(unsigned int fd,

@@ -57,7 +57,7 @@ asmlinkage long sys32_truncate64(const char __user * path, unsigned long high, u
 	if ((int)high < 0)
 		return -EINVAL;
 	else
-		return sys_truncate(path, (high << 32) | low);
+		return ksys_truncate(path, (high << 32) | low);
 }
 
 asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low)
