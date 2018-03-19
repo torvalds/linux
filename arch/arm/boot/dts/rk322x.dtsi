@@ -580,13 +580,13 @@
 			<&cru PLL_CPLL>, <&cru ACLK_PERI>,
 			<&cru HCLK_PERI>, <&cru PCLK_PERI>,
 			<&cru ACLK_CPU>, <&cru HCLK_CPU>,
-			<&cru PCLK_CPU>;
+			<&cru PCLK_CPU>, <&cru ACLK_VOP>;
 		assigned-clock-rates =
 			<1200000000>, <816000000>,
 			<500000000>, <150000000>,
 			<150000000>, <75000000>,
 			<150000000>, <150000000>,
-			<75000000>;
+			<75000000>, <400000000>;
 	};
 
 	thermal_zones: thermal-zones {
