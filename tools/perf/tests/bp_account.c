@@ -103,7 +103,7 @@ static int bp_accounting(int wp_cnt, int share)
 static int detect_cnt(bool is_x)
 {
 	struct perf_event_attr attr;
-	void *addr = is_x ? test_function : (void *) &the_var;
+	void *addr = is_x ? (void *)test_function : (void *)&the_var;
 	int fd[100], cnt = 0, i;
 
 	while (1) {
