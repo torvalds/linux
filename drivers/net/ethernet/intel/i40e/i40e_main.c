@@ -10594,6 +10594,9 @@ static int i40e_restore_interrupt_scheme(struct i40e_pf *pf)
 	if (err)
 		goto err_unwind;
 
+	if (pf->flags & I40E_FLAG_IWARP_ENABLED)
+		i40e_client_update_msix_info(pf);
+
 	return 0;
 
 err_unwind:
@@ -14343,6 +14346,11 @@ static int __maybe_unused i40e_suspend(struct device *dev)
 	/* Ensure service task will not be running */
 	del_timer_sync(&pf->service_timer);
 	cancel_work_sync(&pf->service_task);
+
+	/* Client close must be called explicitly here because the timer
+	 * has been stopped.
+	 */
+	i40e_notify_client_of_netdev_close(pf->vsi[pf->lan_vsi], false);
 
 	if (pf->wol_en && (pf->hw_features & I40E_HW_WOL_MC_MAGIC_PKT_WAKE))
 		i40e_enable_mc_magic_wake(pf);
