@@ -693,8 +693,8 @@ static int at24_probe(struct i2c_client *client)
 	}
 
 	dev_info(dev, "%u byte %s EEPROM, %s, %u bytes/write\n",
-		pdata.byte_len, client->name,
-		writable ? "writable" : "read-only", at24->write_max);
+		 pdata.byte_len, client->name,
+		 writable ? "writable" : "read-only", at24->write_max);
 
 	/* export data to kernel code */
 	if (pdata.setup)
