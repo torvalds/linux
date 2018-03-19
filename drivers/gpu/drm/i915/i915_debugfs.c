@@ -2495,31 +2495,72 @@ static int i915_guc_log_dump(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_guc_log_control_get(void *data, u64 *val)
+static int i915_guc_log_level_get(void *data, u64 *val)
 {
 	struct drm_i915_private *dev_priv = data;
 
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	*val = intel_guc_log_control_get(&dev_priv->guc.log);
+	*val = intel_guc_log_level_get(&dev_priv->guc.log);
 
 	return 0;
 }
 
-static int i915_guc_log_control_set(void *data, u64 val)
+static int i915_guc_log_level_set(void *data, u64 val)
 {
 	struct drm_i915_private *dev_priv = data;
 
 	if (!USES_GUC(dev_priv))
 		return -ENODEV;
 
-	return intel_guc_log_control_set(&dev_priv->guc.log, val);
+	return intel_guc_log_level_set(&dev_priv->guc.log, val);
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_control_fops,
-			i915_guc_log_control_get, i915_guc_log_control_set,
+DEFINE_SIMPLE_ATTRIBUTE(i915_guc_log_level_fops,
+			i915_guc_log_level_get, i915_guc_log_level_set,
 			"%lld\n");
+
+static int i915_guc_log_relay_open(struct inode *inode, struct file *file)
+{
+	struct drm_i915_private *dev_priv = inode->i_private;
+
+	if (!USES_GUC(dev_priv))
+		return -ENODEV;
+
+	file->private_data = &dev_priv->guc.log;
+
+	return intel_guc_log_relay_open(&dev_priv->guc.log);
+}
+
+static ssize_t
+i915_guc_log_relay_write(struct file *filp,
+			 const char __user *ubuf,
+			 size_t cnt,
+			 loff_t *ppos)
+{
+	struct intel_guc_log *log = filp->private_data;
+
+	intel_guc_log_relay_flush(log);
+
+	return cnt;
+}
+
+static int i915_guc_log_relay_release(struct inode *inode, struct file *file)
+{
+	struct drm_i915_private *dev_priv = inode->i_private;
+
+	intel_guc_log_relay_close(&dev_priv->guc.log);
+
+	return 0;
+}
+
+static const struct file_operations i915_guc_log_relay_fops = {
+	.owner = THIS_MODULE,
+	.open = i915_guc_log_relay_open,
+	.write = i915_guc_log_relay_write,
+	.release = i915_guc_log_relay_release,
+};
 
 static const char *psr2_live_status(u32 val)
 {
@@ -4748,7 +4789,8 @@ static const struct i915_debugfs_files {
 	{"i915_dp_test_data", &i915_displayport_test_data_fops},
 	{"i915_dp_test_type", &i915_displayport_test_type_fops},
 	{"i915_dp_test_active", &i915_displayport_test_active_fops},
-	{"i915_guc_log_control", &i915_guc_log_control_fops},
+	{"i915_guc_log_level", &i915_guc_log_level_fops},
+	{"i915_guc_log_relay", &i915_guc_log_relay_fops},
 	{"i915_hpd_storm_ctl", &i915_hpd_storm_ctl_fops},
 	{"i915_ipc_status", &i915_ipc_status_fops},
 	{"i915_drrs_ctl", &i915_drrs_ctl_fops}
