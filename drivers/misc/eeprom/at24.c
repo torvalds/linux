@@ -263,6 +263,11 @@ static struct at24_client *at24_translate_offset(struct at24_data *at24,
 	return &at24->client[i];
 }
 
+static struct device *at24_base_client_dev(struct at24_data *at24)
+{
+	return &at24->client[0].client->dev;
+}
+
 static size_t at24_adjust_read_count(struct at24_data *at24,
 				      unsigned int offset, size_t count)
 {
@@ -374,7 +379,7 @@ static int at24_read(void *priv, unsigned int off, void *val, size_t count)
 	int ret;
 
 	at24 = priv;
-	dev = &at24->client[0].client->dev;
+	dev = at24_base_client_dev(at24);
 
 	if (unlikely(!count))
 		return count;
@@ -421,7 +426,7 @@ static int at24_write(void *priv, unsigned int off, void *val, size_t count)
 	int ret;
 
 	at24 = priv;
-	dev = &at24->client[0].client->dev;
+	dev = at24_base_client_dev(at24);
 
 	if (unlikely(!count))
 		return -EINVAL;
