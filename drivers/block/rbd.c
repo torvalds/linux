@@ -3479,7 +3479,7 @@ static void rbd_reregister_watch(struct work_struct *work)
 
 	ret = rbd_dev_refresh(rbd_dev);
 	if (ret)
-		rbd_warn(rbd_dev, "reregisteration refresh failed: %d", ret);
+		rbd_warn(rbd_dev, "reregistration refresh failed: %d", ret);
 }
 
 /*
