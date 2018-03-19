@@ -2028,7 +2028,7 @@ static void qlt_24xx_handle_abts(struct scsi_qla_host *vha,
 	sess = ha->tgt.tgt_ops->find_sess_by_s_id(vha, s_id);
 	if (!sess) {
 		ql_dbg(ql_dbg_tgt_mgt, vha, 0xf012,
-		    "qla_target(%d): task abort for non-existant session\n",
+		    "qla_target(%d): task abort for non-existent session\n",
 		    vha->vp_idx);
 		spin_unlock_irqrestore(&ha->tgt.sess_lock, flags);
 
