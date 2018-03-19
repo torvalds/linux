@@ -1062,7 +1062,7 @@
 		};
 
 		sor1: sor@15580000 {
-			compatible = "nvidia,tegra186-sor1";
+			compatible = "nvidia,tegra186-sor";
 			reg = <0x15580000 0x10000>;
 			interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA186_CLK_SOR1>,
