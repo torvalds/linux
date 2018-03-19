@@ -441,6 +441,10 @@
 		phy_flag: phy_flag@1d {
 			reg = <0x1d 0x1>;
 		};
+		tve_dac: tve_dac@1d {
+			reg = <0x1d 0x1>;
+			bits = <3 5>;
+		};
 	};
 
 	i2c0: i2c@11050000 {
@@ -913,6 +917,8 @@
 		rockchip,lumafilter2 = <0xf332d910>;
 		rockchip,daclevel = <0x15>;
 		rockchip,dac1level = <0x7>;
+		nvmem-cells = <&tve_dac>;
+		nvmem-cell-names = "tve_dac_adj";
 		status = "disabled";
 
 		ports {
