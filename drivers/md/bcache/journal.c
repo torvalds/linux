@@ -594,6 +594,7 @@ static void journal_write_done(struct closure *cl)
 }
 
 static void journal_write_unlock(struct closure *cl)
+	__releases(&c->journal.lock)
 {
 	struct cache_set *c = container_of(cl, struct cache_set, journal.io);
 
@@ -705,6 +706,7 @@ static void journal_try_write(struct cache_set *c)
 
 static struct journal_write *journal_wait_for_write(struct cache_set *c,
 						    unsigned nkeys)
+	__acquires(&c->journal.lock)
 {
 	size_t sectors;
 	struct closure cl;
