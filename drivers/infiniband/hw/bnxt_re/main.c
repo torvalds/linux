@@ -619,6 +619,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->get_hw_stats             = bnxt_re_ib_get_hw_stats;
 	ibdev->alloc_hw_stats           = bnxt_re_ib_alloc_hw_stats;
 
+	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
 	return ib_register_device(ibdev, NULL);
 }
 

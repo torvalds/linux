@@ -246,6 +246,9 @@ static long ib_uverbs_cmd_verbs(struct ib_device *ib_dev,
 	size_t ctx_size;
 	uintptr_t data[UVERBS_OPTIMIZE_USING_STACK_SZ / sizeof(uintptr_t)];
 
+	if (hdr->driver_id != ib_dev->driver_id)
+		return -EINVAL;
+
 	object_spec = uverbs_get_object(ib_dev, hdr->object_id);
 	if (!object_spec)
 		return -EPROTONOSUPPORT;
@@ -350,7 +353,7 @@ long ib_uverbs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			goto out;
 		}
 
-		if (hdr.reserved) {
+		if (hdr.reserved1 || hdr.reserved2) {
 			err = -EPROTONOSUPPORT;
 			goto out;
 		}

@@ -276,6 +276,7 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 		if (!dev->srq_tbl)
 			goto err_qp_free;
 	}
+	dev->ib_dev.driver_id = RDMA_DRIVER_VMW_PVRDMA;
 	spin_lock_init(&dev->srq_tbl_lock);
 
 	ret = ib_register_device(&dev->ib_dev, NULL);
