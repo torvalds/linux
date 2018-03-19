@@ -56,7 +56,9 @@ struct intel_guc {
 	struct drm_i915_gem_object *load_err_log;
 
 	/* intel_guc_recv interrupt related state */
+	spinlock_t irq_lock;
 	bool interrupts_enabled;
+	unsigned int msg_enabled_mask;
 
 	struct i915_vma *ads_vma;
 	struct i915_vma *stage_desc_pool;

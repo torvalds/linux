@@ -247,6 +247,8 @@ static int guc_enable_communication(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
+	gen9_enable_guc_interrupts(dev_priv);
+
 	if (HAS_GUC_CT(dev_priv))
 		return intel_guc_enable_ct(guc);
 
@@ -260,6 +262,8 @@ static void guc_disable_communication(struct intel_guc *guc)
 
 	if (HAS_GUC_CT(dev_priv))
 		intel_guc_disable_ct(guc);
+
+	gen9_disable_guc_interrupts(dev_priv);
 
 	guc->send = intel_guc_send_nop;
 }
@@ -413,12 +417,9 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	}
 
 	if (USES_GUC_SUBMISSION(dev_priv)) {
-		if (i915_modparams.guc_log_level)
-			gen9_enable_guc_interrupts(dev_priv);
-
 		ret = intel_guc_submission_enable(guc);
 		if (ret)
-			goto err_interrupts;
+			goto err_communication;
 	}
 
 	dev_info(dev_priv->drm.dev, "GuC firmware version %u.%u\n",
@@ -433,8 +434,6 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 	/*
 	 * We've failed to load the firmware :(
 	 */
-err_interrupts:
-	gen9_disable_guc_interrupts(dev_priv);
 err_communication:
 	guc_disable_communication(guc);
 err_log_capture:
@@ -464,9 +463,6 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 		intel_guc_submission_disable(guc);
 
 	guc_disable_communication(guc);
-
-	if (USES_GUC_SUBMISSION(dev_priv))
-		gen9_disable_guc_interrupts(dev_priv);
 }
 
 int intel_uc_suspend(struct drm_i915_private *i915)

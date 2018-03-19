@@ -67,6 +67,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 	intel_guc_log_init_early(&guc->log);
 
 	mutex_init(&guc->send_mutex);
+	spin_lock_init(&guc->irq_lock);
 	guc->send = intel_guc_send_nop;
 	guc->notify = gen8_guc_raise_irq;
 }
@@ -368,7 +369,7 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 void intel_guc_to_host_event_handler(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	u32 msg, flush;
+	u32 msg, val;
 
 	/*
 	 * Sample the log buffer flush related bits & clear them out now
@@ -381,24 +382,18 @@ void intel_guc_to_host_event_handler(struct intel_guc *guc)
 	 * could happen that GuC sets the bit for 2nd interrupt but Host
 	 * clears out the bit on handling the 1st interrupt.
 	 */
+	spin_lock(&guc->irq_lock);
+	val = I915_READ(SOFT_SCRATCH(15));
+	msg = val & guc->msg_enabled_mask;
+	I915_WRITE(SOFT_SCRATCH(15), val & ~msg);
+	spin_unlock(&guc->irq_lock);
 
-	msg = I915_READ(SOFT_SCRATCH(15));
-	flush = msg & (INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED |
-		       INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER);
-	if (flush) {
-		/* Clear the message bits that are handled */
-		I915_WRITE(SOFT_SCRATCH(15), msg & ~flush);
-
-		/* Handle flush interrupt in bottom half */
+	if (msg & (INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
+		   INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED)) {
 		queue_work(guc->log.runtime.flush_wq,
 			   &guc->log.runtime.flush_work);
 
 		guc->log.flush_interrupt_count++;
-	} else {
-		/*
-		 * Not clearing of unhandled event bits won't result in
-		 * re-triggering of the interrupt.
-		 */
 	}
 }
 

@@ -73,6 +73,22 @@ static int guc_log_control(struct intel_guc *guc, bool enable, u32 verbosity)
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
+static void guc_flush_log_msg_enable(struct intel_guc *guc)
+{
+	spin_lock_irq(&guc->irq_lock);
+	guc->msg_enabled_mask |= INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
+				 INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED;
+	spin_unlock_irq(&guc->irq_lock);
+}
+
+static void guc_flush_log_msg_disable(struct intel_guc *guc)
+{
+	spin_lock_irq(&guc->irq_lock);
+	guc->msg_enabled_mask &= ~(INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
+				   INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED);
+	spin_unlock_irq(&guc->irq_lock);
+}
+
 static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
 {
 	return container_of(log, struct intel_guc, log);
@@ -709,12 +725,7 @@ int intel_guc_log_register(struct intel_guc_log *log)
 	if (ret)
 		goto err_runtime;
 
-	/* GuC logging is currently the only user of Guc2Host interrupts */
-	mutex_lock(&i915->drm.struct_mutex);
-	intel_runtime_pm_get(i915);
-	gen9_enable_guc_interrupts(i915);
-	intel_runtime_pm_put(i915);
-	mutex_unlock(&i915->drm.struct_mutex);
+	guc_flush_log_msg_enable(guc);
 
 	return 0;
 
@@ -733,6 +744,8 @@ void intel_guc_log_unregister(struct intel_guc_log *log)
 	struct intel_guc *guc = log_to_guc(log);
 	struct drm_i915_private *i915 = guc_to_i915(guc);
 
+	guc_flush_log_msg_disable(guc);
+
 	/*
 	 * Once logging is disabled, GuC won't generate logs & send an
 	 * interrupt. But there could be some data in the log buffer
@@ -742,12 +755,6 @@ void intel_guc_log_unregister(struct intel_guc_log *log)
 	guc_flush_logs(log);
 
 	mutex_lock(&i915->drm.struct_mutex);
-
-	/* GuC logging is currently the only user of Guc2Host interrupts */
-	intel_runtime_pm_get(i915);
-	gen9_disable_guc_interrupts(i915);
-	intel_runtime_pm_put(i915);
-
 	guc_log_runtime_destroy(log);
 	mutex_unlock(&i915->drm.struct_mutex);
 
