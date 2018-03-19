@@ -564,6 +564,7 @@ static int at24_probe(struct i2c_client *client)
 	struct nvmem_config nvmem_config = { };
 	struct at24_platform_data pdata = { };
 	struct device *dev = &client->dev;
+	bool i2c_fn_i2c, i2c_fn_block;
 	unsigned int i, num_addresses;
 	struct at24_data *at24;
 	struct regmap *regmap;
@@ -572,13 +573,15 @@ static int at24_probe(struct i2c_client *client)
 	u8 test_byte;
 	int err;
 
+	i2c_fn_i2c = i2c_check_functionality(client->adapter, I2C_FUNC_I2C);
+	i2c_fn_block = i2c_check_functionality(client->adapter,
+					       I2C_FUNC_SMBUS_WRITE_I2C_BLOCK);
+
 	err = at24_get_pdata(dev, &pdata);
 	if (err)
 		return err;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C) &&
-	    !i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_WRITE_I2C_BLOCK))
+	if (!i2c_fn_i2c && !i2c_fn_block)
 		pdata.page_size = 1;
 
 	if (!pdata.page_size) {
@@ -631,8 +634,7 @@ static int at24_probe(struct i2c_client *client)
 	if (writable) {
 		at24->write_max = min_t(unsigned int,
 					pdata.page_size, at24_io_limit);
-		if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C) &&
-		    at24->write_max > I2C_SMBUS_BLOCK_MAX)
+		if (!i2c_fn_i2c && at24->write_max > I2C_SMBUS_BLOCK_MAX)
 			at24->write_max = I2C_SMBUS_BLOCK_MAX;
 	}
 
