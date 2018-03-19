@@ -456,8 +456,7 @@ quiet_cmd_link_o_target = AR      $@
 
 # If the list of objects to link is empty, just create an empty built-in.a
 cmd_link_o_target = $(if $(strip $(real-obj-y)),\
-		      $(cmd_make_builtin) $@ $(filter $(real-obj-y), $^) \
-		      $(cmd_secanalysis),\
+		      $(cmd_make_builtin) $@ $(filter $(real-obj-y), $^), \
 		      $(cmd_make_empty_builtin) $@)
 
 $(builtin-target): $(real-obj-y) FORCE
