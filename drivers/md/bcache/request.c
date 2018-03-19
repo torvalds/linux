@@ -986,6 +986,55 @@ static void cached_dev_nodata(struct closure *cl)
 	continue_at(cl, cached_dev_bio_complete, NULL);
 }
 
+struct detached_dev_io_private {
+	struct bcache_device	*d;
+	unsigned long		start_time;
+	bio_end_io_t		*bi_end_io;
+	void			*bi_private;
+};
+
+static void detached_dev_end_io(struct bio *bio)
+{
+	struct detached_dev_io_private *ddip;
+
+	ddip = bio->bi_private;
+	bio->bi_end_io = ddip->bi_end_io;
+	bio->bi_private = ddip->bi_private;
+
+	generic_end_io_acct(ddip->d->disk->queue,
+			    bio_data_dir(bio),
+			    &ddip->d->disk->part0, ddip->start_time);
+
+	kfree(ddip);
+
+	bio->bi_end_io(bio);
+}
+
+static void detached_dev_do_request(struct bcache_device *d, struct bio *bio)
+{
+	struct detached_dev_io_private *ddip;
+	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+
+	/*
+	 * no need to call closure_get(&dc->disk.cl),
+	 * because upper layer had already opened bcache device,
+	 * which would call closure_get(&dc->disk.cl)
+	 */
+	ddip = kzalloc(sizeof(struct detached_dev_io_private), GFP_NOIO);
+	ddip->d = d;
+	ddip->start_time = jiffies;
+	ddip->bi_end_io = bio->bi_end_io;
+	ddip->bi_private = bio->bi_private;
+	bio->bi_end_io = detached_dev_end_io;
+	bio->bi_private = ddip;
+
+	if ((bio_op(bio) == REQ_OP_DISCARD) &&
+	    !blk_queue_discard(bdev_get_queue(dc->bdev)))
+		bio->bi_end_io(bio);
+	else
+		generic_make_request(bio);
+}
+
 /* Cached devices - read & write stuff */
 
 static blk_qc_t cached_dev_make_request(struct request_queue *q,
@@ -1028,13 +1077,8 @@ static blk_qc_t cached_dev_make_request(struct request_queue *q,
 			else
 				cached_dev_read(dc, s);
 		}
-	} else {
-		if ((bio_op(bio) == REQ_OP_DISCARD) &&
-		    !blk_queue_discard(bdev_get_queue(dc->bdev)))
-			bio_endio(bio);
-		else
-			generic_make_request(bio);
-	}
+	} else
+		detached_dev_do_request(d, bio);
 
 	return BLK_QC_T_NONE;
 }
