@@ -2330,7 +2330,7 @@ static void i915_guc_log_info(struct seq_file *m,
 {
 	struct intel_guc *guc = &dev_priv->guc;
 
-	seq_puts(m, "\nGuC logging stats:\n");
+	seq_puts(m, "GuC logging stats:\n");
 
 	seq_printf(m, "\tISR:   flush count %10u, overflow count %10u\n",
 		   guc->log.flush_count[GUC_ISR_LOG_BUFFER],
@@ -2378,14 +2378,19 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	const struct intel_guc *guc = &dev_priv->guc;
 
-	if (!USES_GUC_SUBMISSION(dev_priv))
+	if (!USES_GUC(dev_priv))
 		return -ENODEV;
+
+	i915_guc_log_info(m, dev_priv);
+
+	if (!USES_GUC_SUBMISSION(dev_priv))
+		return 0;
 
 	GEM_BUG_ON(!guc->execbuf_client);
 
-	seq_printf(m, "Doorbell map:\n");
+	seq_printf(m, "\nDoorbell map:\n");
 	seq_printf(m, "\t%*pb\n", GUC_NUM_DOORBELLS, guc->doorbell_bitmap);
-	seq_printf(m, "Doorbell next cacheline: 0x%x\n\n", guc->db_cacheline);
+	seq_printf(m, "Doorbell next cacheline: 0x%x\n", guc->db_cacheline);
 
 	seq_printf(m, "\nGuC execbuf client @ %p:\n", guc->execbuf_client);
 	i915_guc_client_info(m, dev_priv, guc->execbuf_client);
@@ -2394,8 +2399,6 @@ static int i915_guc_info(struct seq_file *m, void *data)
 			   guc->preempt_client);
 		i915_guc_client_info(m, dev_priv, guc->preempt_client);
 	}
-
-	i915_guc_log_info(m, dev_priv);
 
 	/* Add more as required ... */
 
