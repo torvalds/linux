@@ -640,26 +640,6 @@ config SCSI_DMX3191D
 	  To compile this driver as a module, choose M here: the
 	  module will be called dmx3191d.
 
-config SCSI_FUTURE_DOMAIN
-	tristate "Future Domain 16xx SCSI/AHA-2920A support"
-	depends on (ISA || PCI) && SCSI
-	select CHECK_SIGNATURE
-	---help---
-	  This is support for Future Domain's 16-bit SCSI host adapters
-	  (TMC-1660/1680, TMC-1650/1670, TMC-3260, TMC-1610M/MER/MEX) and
-	  other adapters based on the Future Domain chipsets (Quantum
-	  ISA-200S, ISA-250MG; Adaptec AHA-2920A; and at least one IBM board).
-	  It is explained in section 3.7 of the SCSI-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  NOTE: Newer Adaptec AHA-2920C boards use the Adaptec AIC-7850 chip
-	  and should use the aic7xxx driver ("Adaptec AIC7xxx chipset SCSI
-	  controller support"). This Future Domain driver works with the older
-	  Adaptec AHA-2920A boards with a Future Domain chip on them.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called fdomain.
-
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
 	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API

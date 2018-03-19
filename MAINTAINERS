@@ -5842,12 +5842,6 @@ F:	tools/testing/selftests/futex/
 F:	tools/perf/bench/futex*
 F:	Documentation/*futex*
 
-FUTURE DOMAIN TMC-16x0 SCSI DRIVER (16-bit)
-M:	Rik Faith <faith@cs.unc.edu>
-L:	linux-scsi@vger.kernel.org
-S:	Odd Fixes (e.g., new signatures)
-F:	drivers/scsi/fdomain.*
-
 GCC PLUGINS
 M:	Kees Cook <keescook@chromium.org>
 R:	Emese Revfy <re.emese@gmail.com>
