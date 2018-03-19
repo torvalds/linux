@@ -3682,23 +3682,6 @@ static const u8 tegra186_sor_pre_emphasis[4][4][4] = {
 static const struct tegra_sor_soc tegra186_sor = {
 	.supports_edp = false,
 	.supports_lvds = false,
-	.supports_hdmi = false,
-	.supports_dp = true,
-
-	.regs = &tegra186_sor_regs,
-	.has_nvdisplay = true,
-
-	.xbar_cfg = tegra124_sor_xbar_cfg,
-	.lane_map = tegra124_sor_lane_map,
-	.voltage_swing = tegra186_sor_voltage_swing,
-	.pre_emphasis = tegra186_sor_pre_emphasis,
-	.post_cursor = tegra124_sor_post_cursor,
-	.tx_pu = tegra124_sor_tx_pu,
-};
-
-static const struct tegra_sor_soc tegra186_sor1 = {
-	.supports_edp = false,
-	.supports_lvds = false,
 	.supports_hdmi = true,
 	.supports_dp = true,
 
@@ -3747,7 +3730,6 @@ static const struct tegra_sor_soc tegra194_sor = {
 
 static const struct of_device_id tegra_sor_of_match[] = {
 	{ .compatible = "nvidia,tegra194-sor", .data = &tegra194_sor },
-	{ .compatible = "nvidia,tegra186-sor1", .data = &tegra186_sor1 },
 	{ .compatible = "nvidia,tegra186-sor", .data = &tegra186_sor },
 	{ .compatible = "nvidia,tegra210-sor1", .data = &tegra210_sor1 },
 	{ .compatible = "nvidia,tegra210-sor", .data = &tegra210_sor },
