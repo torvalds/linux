@@ -1523,9 +1523,9 @@ EXPORT_SYMBOL_GPL(setup_irq);
  * Internal function to unregister an irqaction - used to free
  * regular and special interrupts that are part of the architecture.
  */
-static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
+static struct irqaction *__free_irq(struct irq_desc *desc, void *dev_id)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned irq = desc->irq_data.irq;
 	struct irqaction *action, **action_ptr;
 	unsigned long flags;
 
@@ -1655,7 +1655,7 @@ void remove_irq(unsigned int irq, struct irqaction *act)
 	struct irq_desc *desc = irq_to_desc(irq);
 
 	if (desc && !WARN_ON(irq_settings_is_per_cpu_devid(desc)))
-		__free_irq(irq, act->dev_id);
+		__free_irq(desc, act->dev_id);
 }
 EXPORT_SYMBOL_GPL(remove_irq);
 
@@ -1689,7 +1689,7 @@ const void *free_irq(unsigned int irq, void *dev_id)
 		desc->affinity_notify = NULL;
 #endif
 
-	action = __free_irq(irq, dev_id);
+	action = __free_irq(desc, dev_id);
 
 	if (!action)
 		return NULL;
