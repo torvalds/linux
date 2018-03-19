@@ -1373,8 +1373,17 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 		return NULL;
 	}
 
-	if (!is_atomic)
-		mutex_lock(&pcpu_alloc_mutex);
+	if (!is_atomic) {
+		/*
+		 * pcpu_balance_workfn() allocates memory under this mutex,
+		 * and it may wait for memory reclaim. Allow current task
+		 * to become OOM victim, in case of memory pressure.
+		 */
+		if (gfp & __GFP_NOFAIL)
+			mutex_lock(&pcpu_alloc_mutex);
+		else if (mutex_lock_killable(&pcpu_alloc_mutex))
+			return NULL;
+	}
 
 	spin_lock_irqsave(&pcpu_lock, flags);
 
