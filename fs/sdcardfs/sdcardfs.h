@@ -669,7 +669,7 @@ static inline bool str_n_case_eq(const char *s1, const char *s2, size_t len)
 
 static inline bool qstr_case_eq(const struct qstr *q1, const struct qstr *q2)
 {
-	return q1->len == q2->len && str_case_eq(q1->name, q2->name);
+	return q1->len == q2->len && str_n_case_eq(q1->name, q2->name, q2->len);
 }
 
 #define QSTR_LITERAL(string) QSTR_INIT(string, sizeof(string)-1)
