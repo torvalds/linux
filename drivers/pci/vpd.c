@@ -14,6 +14,23 @@
 
 /* VPD access through PCI 2.2+ VPD capability */
 
+struct pci_vpd_ops {
+	ssize_t (*read)(struct pci_dev *dev, loff_t pos, size_t count, void *buf);
+	ssize_t (*write)(struct pci_dev *dev, loff_t pos, size_t count, const void *buf);
+	int (*set_size)(struct pci_dev *dev, size_t len);
+};
+
+struct pci_vpd {
+	const struct pci_vpd_ops *ops;
+	struct bin_attribute *attr;	/* Descriptor for sysfs VPD entry */
+	struct mutex	lock;
+	unsigned int	len;
+	u16		flag;
+	u8		cap;
+	unsigned int	busy:1;
+	unsigned int	valid:1;
+};
+
 /**
  * pci_read_vpd - Read one entry from Vital Product Data
  * @dev:	pci device struct
