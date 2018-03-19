@@ -58,7 +58,8 @@ static void safexcel_cipher_token(struct safexcel_cipher_ctx *ctx,
 
 	token[0].opcode = EIP197_TOKEN_OPCODE_DIRECTION;
 	token[0].packet_length = length;
-	token[0].stat = EIP197_TOKEN_STAT_LAST_PACKET;
+	token[0].stat = EIP197_TOKEN_STAT_LAST_PACKET |
+			EIP197_TOKEN_STAT_LAST_HASH;
 	token[0].instructions = EIP197_TOKEN_INS_LAST |
 				EIP197_TOKEN_INS_TYPE_CRYTO |
 				EIP197_TOKEN_INS_TYPE_OUTPUT;
