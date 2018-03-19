@@ -171,10 +171,10 @@ static void guc_move_to_next_buf(struct intel_guc_log *log)
 	smp_wmb();
 
 	/* All data has been written, so now move the offset of sub buffer. */
-	relay_reserve(log->runtime.relay_chan, log->vma->obj->base.size);
+	relay_reserve(log->relay.channel, log->vma->obj->base.size);
 
 	/* Switch to the next sub buffer */
-	relay_flush(log->runtime.relay_chan);
+	relay_flush(log->relay.channel);
 }
 
 static void *guc_get_write_buffer(struct intel_guc_log *log)
@@ -188,7 +188,7 @@ static void *guc_get_write_buffer(struct intel_guc_log *log)
 	 * done without using relay_reserve() along with relay_write(). So its
 	 * better to use relay_reserve() alone.
 	 */
-	return relay_reserve(log->runtime.relay_chan, 0);
+	return relay_reserve(log->relay.channel, 0);
 }
 
 static bool guc_check_log_buf_overflow(struct intel_guc_log *log,
@@ -239,13 +239,13 @@ static void guc_read_update_log_buffer(struct intel_guc_log *log)
 	void *src_data, *dst_data;
 	bool new_overflow;
 
-	mutex_lock(&log->runtime.lock);
+	mutex_lock(&log->relay.lock);
 
-	if (WARN_ON(!log->runtime.buf_addr))
+	if (WARN_ON(!log->relay.buf_addr))
 		goto out_unlock;
 
 	/* Get the pointer to shared GuC log buffer */
-	log_buf_state = src_data = log->runtime.buf_addr;
+	log_buf_state = src_data = log->relay.buf_addr;
 
 	/* Get the pointer to local buffer to store the logs */
 	log_buf_snapshot_state = dst_data = guc_get_write_buffer(log);
@@ -256,7 +256,7 @@ static void guc_read_update_log_buffer(struct intel_guc_log *log)
 		 * getting consumed by User at a slow rate.
 		 */
 		DRM_ERROR_RATELIMITED("no sub-buffer to capture logs\n");
-		log->capture_miss_count++;
+		log->relay.full_count++;
 
 		goto out_unlock;
 	}
@@ -330,20 +330,20 @@ static void guc_read_update_log_buffer(struct intel_guc_log *log)
 	guc_move_to_next_buf(log);
 
 out_unlock:
-	mutex_unlock(&log->runtime.lock);
+	mutex_unlock(&log->relay.lock);
 }
 
 static void capture_logs_work(struct work_struct *work)
 {
 	struct intel_guc_log *log =
-		container_of(work, struct intel_guc_log, runtime.flush_work);
+		container_of(work, struct intel_guc_log, relay.flush_work);
 
 	guc_log_capture_logs(log);
 }
 
-static bool guc_log_has_runtime(struct intel_guc_log *log)
+static bool guc_log_relay_enabled(struct intel_guc_log *log)
 {
-	return log->runtime.buf_addr;
+	return log->relay.buf_addr;
 }
 
 static int guc_log_map(struct intel_guc_log *log)
@@ -353,7 +353,7 @@ static int guc_log_map(struct intel_guc_log *log)
 	void *vaddr;
 	int ret;
 
-	lockdep_assert_held(&log->runtime.lock);
+	lockdep_assert_held(&log->relay.lock);
 
 	if (!log->vma)
 		return -ENODEV;
@@ -375,23 +375,23 @@ static int guc_log_map(struct intel_guc_log *log)
 		return PTR_ERR(vaddr);
 	}
 
-	log->runtime.buf_addr = vaddr;
+	log->relay.buf_addr = vaddr;
 
 	return 0;
 }
 
 static void guc_log_unmap(struct intel_guc_log *log)
 {
-	lockdep_assert_held(&log->runtime.lock);
+	lockdep_assert_held(&log->relay.lock);
 
 	i915_gem_object_unpin_map(log->vma->obj);
-	log->runtime.buf_addr = NULL;
+	log->relay.buf_addr = NULL;
 }
 
 void intel_guc_log_init_early(struct intel_guc_log *log)
 {
-	mutex_init(&log->runtime.lock);
-	INIT_WORK(&log->runtime.flush_work, capture_logs_work);
+	mutex_init(&log->relay.lock);
+	INIT_WORK(&log->relay.flush_work, capture_logs_work);
 }
 
 static int guc_log_relay_create(struct intel_guc_log *log)
@@ -402,7 +402,7 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	size_t n_subbufs, subbuf_size;
 	int ret;
 
-	lockdep_assert_held(&log->runtime.lock);
+	lockdep_assert_held(&log->relay.lock);
 
 	 /* Keep the size of sub buffers same as shared log buffer */
 	subbuf_size = GUC_LOG_SIZE;
@@ -427,17 +427,17 @@ static int guc_log_relay_create(struct intel_guc_log *log)
 	}
 
 	GEM_BUG_ON(guc_log_relay_chan->subbuf_size < subbuf_size);
-	log->runtime.relay_chan = guc_log_relay_chan;
+	log->relay.channel = guc_log_relay_chan;
 
 	return 0;
 }
 
 static void guc_log_relay_destroy(struct intel_guc_log *log)
 {
-	lockdep_assert_held(&log->runtime.lock);
+	lockdep_assert_held(&log->relay.lock);
 
-	relay_close(log->runtime.relay_chan);
-	log->runtime.relay_chan = NULL;
+	relay_close(log->relay.channel);
+	log->relay.channel = NULL;
 }
 
 static void guc_log_capture_logs(struct intel_guc_log *log)
@@ -557,9 +557,9 @@ int intel_guc_log_relay_open(struct intel_guc_log *log)
 {
 	int ret;
 
-	mutex_lock(&log->runtime.lock);
+	mutex_lock(&log->relay.lock);
 
-	if (guc_log_has_runtime(log)) {
+	if (guc_log_relay_enabled(log)) {
 		ret = -EEXIST;
 		goto out_unlock;
 	}
@@ -582,7 +582,7 @@ int intel_guc_log_relay_open(struct intel_guc_log *log)
 	if (ret)
 		goto out_relay;
 
-	mutex_unlock(&log->runtime.lock);
+	mutex_unlock(&log->relay.lock);
 
 	guc_flush_log_msg_enable(log_to_guc(log));
 
@@ -591,14 +591,14 @@ int intel_guc_log_relay_open(struct intel_guc_log *log)
 	 * the flush notification. This means that we need to unconditionally
 	 * flush on relay enabling, since GuC only notifies us once.
 	 */
-	queue_work(log->runtime.flush_wq, &log->runtime.flush_work);
+	queue_work(log->relay.flush_wq, &log->relay.flush_work);
 
 	return 0;
 
 out_relay:
 	guc_log_relay_destroy(log);
 out_unlock:
-	mutex_unlock(&log->runtime.lock);
+	mutex_unlock(&log->relay.lock);
 
 	return ret;
 }
@@ -612,7 +612,7 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 	 * Before initiating the forceful flush, wait for any pending/ongoing
 	 * flush to complete otherwise forceful flush may not actually happen.
 	 */
-	flush_work(&log->runtime.flush_work);
+	flush_work(&log->relay.flush_work);
 
 	intel_runtime_pm_get(i915);
 	guc_log_flush(guc);
@@ -625,11 +625,11 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 void intel_guc_log_relay_close(struct intel_guc_log *log)
 {
 	guc_flush_log_msg_disable(log_to_guc(log));
-	flush_work(&log->runtime.flush_work);
+	flush_work(&log->relay.flush_work);
 
-	mutex_lock(&log->runtime.lock);
-	GEM_BUG_ON(!guc_log_has_runtime(log));
+	mutex_lock(&log->relay.lock);
+	GEM_BUG_ON(!guc_log_relay_enabled(log));
 	guc_log_unmap(log);
 	guc_log_relay_destroy(log);
-	mutex_unlock(&log->runtime.lock);
+	mutex_unlock(&log->relay.lock);
 }

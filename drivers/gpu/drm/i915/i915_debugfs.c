@@ -2347,8 +2347,8 @@ static void i915_guc_log_info(struct seq_file *m,
 	seq_printf(m, "\tTotal flush interrupt count: %u\n",
 		   guc->log.flush_interrupt_count);
 
-	seq_printf(m, "\tCapture miss count: %u\n",
-		   guc->log.capture_miss_count);
+	seq_printf(m, "\tRelay full count: %u\n",
+		   guc->log.relay.full_count);
 }
 
 static void i915_guc_client_info(struct seq_file *m,

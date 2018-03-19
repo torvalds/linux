@@ -43,16 +43,15 @@ struct intel_guc;
 struct intel_guc_log {
 	u32 flags;
 	struct i915_vma *vma;
-	/* The runtime stuff gets created only when GuC logging gets enabled */
 	struct {
 		void *buf_addr;
 		struct workqueue_struct *flush_wq;
 		struct work_struct flush_work;
-		struct rchan *relay_chan;
+		struct rchan *channel;
 		struct mutex lock;
-	} runtime;
+		u32 full_count;
+	} relay;
 	/* logging related stats */
-	u32 capture_miss_count;
 	u32 flush_interrupt_count;
 	u32 prev_overflow_count[GUC_MAX_LOG_BUFFER];
 	u32 total_overflow_count[GUC_MAX_LOG_BUFFER];
