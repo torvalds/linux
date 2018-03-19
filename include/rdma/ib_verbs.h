@@ -3226,18 +3226,6 @@ static inline int ib_poll_cq(struct ib_cq *cq, int num_entries,
 }
 
 /**
- * ib_peek_cq - Returns the number of unreaped completions currently
- *   on the specified CQ.
- * @cq: The CQ to peek.
- * @wc_cnt: A minimum number of unreaped completions to check for.
- *
- * If the number of unreaped completions is greater than or equal to wc_cnt,
- * this function returns wc_cnt, otherwise, it returns the actual number of
- * unreaped completions.
- */
-int ib_peek_cq(struct ib_cq *cq, int wc_cnt);
-
-/**
  * ib_req_notify_cq - Request completion notification on a CQ.
  * @cq: The CQ to generate an event for.
  * @flags:
