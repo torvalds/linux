@@ -799,14 +799,17 @@ static int __adpt_reset(struct scsi_cmnd* cmd)
 {
 	adpt_hba* pHba;
 	int rcode;
+	char name[32];
+
 	pHba = (adpt_hba*)cmd->device->host->hostdata[0];
-	printk(KERN_WARNING"%s: Hba Reset: scsi id %d: tid: %d\n",pHba->name,cmd->device->channel,pHba->channel[cmd->device->channel].tid );
+	strncpy(name, pHba->name, sizeof(name));
+	printk(KERN_WARNING"%s: Hba Reset: scsi id %d: tid: %d\n", name, cmd->device->channel, pHba->channel[cmd->device->channel].tid);
 	rcode =  adpt_hba_reset(pHba);
 	if(rcode == 0){
-		printk(KERN_WARNING"%s: HBA reset complete\n",pHba->name);
+		printk(KERN_WARNING"%s: HBA reset complete\n", name);
 		return SUCCESS;
 	} else {
-		printk(KERN_WARNING"%s: HBA reset failed (%x)\n",pHba->name, rcode);
+		printk(KERN_WARNING"%s: HBA reset failed (%x)\n", name, rcode);
 		return FAILED;
 	}
 }
