@@ -1283,7 +1283,41 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 	}
 
 	/* Change the mode on the controller side */
-	return chip->setup_data_interface(mtd, chipnr, &chip->data_interface);
+	ret = chip->setup_data_interface(mtd, chipnr, &chip->data_interface);
+	if (ret)
+		return ret;
+
+	/* Check the mode has been accepted by the chip, if supported */
+	if (!nand_supports_set_get_features(chip))
+		return 0;
+
+	memset(tmode_param, 0, ONFI_SUBFEATURE_PARAM_LEN);
+	chip->select_chip(mtd, chipnr);
+	ret = nand_get_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE,
+				tmode_param);
+	chip->select_chip(mtd, -1);
+	if (ret)
+		goto err_reset_chip;
+
+	if (tmode_param[0] != chip->onfi_timing_mode_default) {
+		pr_warn("timing mode %d not acknowledged by the NAND chip\n",
+			chip->onfi_timing_mode_default);
+		goto err_reset_chip;
+	}
+
+	return 0;
+
+err_reset_chip:
+	/*
+	 * Fallback to mode 0 if the chip explicitly did not ack the chosen
+	 * timing mode.
+	 */
+	nand_reset_data_interface(chip, chipnr);
+	chip->select_chip(mtd, chipnr);
+	nand_reset_op(chip);
+	chip->select_chip(mtd, -1);
+
+	return ret;
 }
 
 /**
