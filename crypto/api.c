@@ -197,9 +197,16 @@ static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
 					    u32 mask)
 {
 	struct crypto_alg *alg;
+	u32 test = 0;
+
+	if (!((type | mask) & CRYPTO_ALG_TESTED))
+		test |= CRYPTO_ALG_TESTED;
 
 	down_read(&crypto_alg_sem);
-	alg = __crypto_alg_lookup(name, type, mask);
+	alg = __crypto_alg_lookup(name, type | test, mask | test);
+	if (!alg && test)
+		alg = __crypto_alg_lookup(name, type, mask) ?
+		      ERR_PTR(-ELIBBAD) : NULL;
 	up_read(&crypto_alg_sem);
 
 	return alg;
@@ -227,10 +234,12 @@ static struct crypto_alg *crypto_larval_lookup(const char *name, u32 type,
 		alg = crypto_alg_lookup(name, type, mask);
 	}
 
-	if (alg)
-		return crypto_is_larval(alg) ? crypto_larval_wait(alg) : alg;
+	if (!IS_ERR_OR_NULL(alg) && crypto_is_larval(alg))
+		alg = crypto_larval_wait(alg);
+	else if (!alg)
+		alg = crypto_larval_add(name, type, mask);
 
-	return crypto_larval_add(name, type, mask);
+	return alg;
 }
 
 int crypto_probing_notify(unsigned long val, void *v)
@@ -252,11 +261,6 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 	struct crypto_alg *alg;
 	struct crypto_alg *larval;
 	int ok;
-
-	if (!((type | mask) & CRYPTO_ALG_TESTED)) {
-		type |= CRYPTO_ALG_TESTED;
-		mask |= CRYPTO_ALG_TESTED;
-	}
 
 	/*
 	 * If the internal flag is set for a cipher, require a caller to
