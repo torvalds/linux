@@ -1303,24 +1303,20 @@ static bool nfs_file_has_buffered_writers(struct nfs_inode *nfsi)
 	return nfs_file_has_writers(nfsi) && nfs_file_io_is_buffered(nfsi);
 }
 
-static unsigned long nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
+static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 {
-	unsigned long ret = 0;
-
 	if ((fattr->valid & NFS_ATTR_FATTR_PRECHANGE)
 			&& (fattr->valid & NFS_ATTR_FATTR_CHANGE)
 			&& inode_eq_iversion_raw(inode, fattr->pre_change_attr)) {
 		inode_set_iversion_raw(inode, fattr->change_attr);
 		if (S_ISDIR(inode->i_mode))
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_DATA);
-		ret |= NFS_INO_INVALID_ATTR;
 	}
 	/* If we have atomic WCC data, we may update some attributes */
 	if ((fattr->valid & NFS_ATTR_FATTR_PRECTIME)
 			&& (fattr->valid & NFS_ATTR_FATTR_CTIME)
 			&& timespec_equal(&inode->i_ctime, &fattr->pre_ctime)) {
 		memcpy(&inode->i_ctime, &fattr->ctime, sizeof(inode->i_ctime));
-		ret |= NFS_INO_INVALID_ATTR;
 	}
 
 	if ((fattr->valid & NFS_ATTR_FATTR_PREMTIME)
@@ -1329,17 +1325,13 @@ static unsigned long nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr 
 		memcpy(&inode->i_mtime, &fattr->mtime, sizeof(inode->i_mtime));
 		if (S_ISDIR(inode->i_mode))
 			nfs_set_cache_invalid(inode, NFS_INO_INVALID_DATA);
-		ret |= NFS_INO_INVALID_ATTR;
 	}
 	if ((fattr->valid & NFS_ATTR_FATTR_PRESIZE)
 			&& (fattr->valid & NFS_ATTR_FATTR_SIZE)
 			&& i_size_read(inode) == nfs_size_to_loff_t(fattr->pre_size)
 			&& !nfs_have_writebacks(inode)) {
 		i_size_write(inode, nfs_size_to_loff_t(fattr->size));
-		ret |= NFS_INO_INVALID_ATTR;
 	}
-
-	return ret;
 }
 
 /**
@@ -1789,7 +1781,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			| NFS_INO_REVAL_PAGECACHE);
 
 	/* Do atomic weak cache consistency updates */
-	invalid |= nfs_wcc_update_inode(inode, fattr);
+	nfs_wcc_update_inode(inode, fattr);
 
 	if (pnfs_layoutcommit_outstanding(inode)) {
 		nfsi->cache_validity |= save_cache_validity & NFS_INO_INVALID_ATTR;
