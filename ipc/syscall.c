@@ -92,7 +92,7 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 	case SHMDT:
 		return sys_shmdt((char __user *)ptr);
 	case SHMGET:
-		return sys_shmget(first, second, third);
+		return ksys_shmget(first, second, third);
 	case SHMCTL:
 		return sys_shmctl(first, second,
 				   (struct shmid_ds __user *) ptr);
@@ -180,7 +180,7 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 	case SHMDT:
 		return sys_shmdt(compat_ptr(ptr));
 	case SHMGET:
-		return sys_shmget(first, (unsigned)second, third);
+		return ksys_shmget(first, (unsigned int)second, third);
 	case SHMCTL:
 		return compat_sys_shmctl(first, second, compat_ptr(ptr));
 	}
