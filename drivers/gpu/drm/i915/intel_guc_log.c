@@ -38,7 +38,7 @@ static void guc_log_capture_logs(struct intel_guc_log *log);
  * registers value.
  */
 
-static int guc_log_flush_complete(struct intel_guc *guc)
+static int guc_action_flush_log_complete(struct intel_guc *guc)
 {
 	u32 action[] = {
 		INTEL_GUC_ACTION_LOG_BUFFER_FILE_FLUSH_COMPLETE
@@ -47,7 +47,7 @@ static int guc_log_flush_complete(struct intel_guc *guc)
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static int guc_log_flush(struct intel_guc *guc)
+static int guc_action_flush_log(struct intel_guc *guc)
 {
 	u32 action[] = {
 		INTEL_GUC_ACTION_FORCE_LOG_BUFFER_FLUSH,
@@ -57,8 +57,8 @@ static int guc_log_flush(struct intel_guc *guc)
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static int guc_log_control(struct intel_guc *guc, bool enable,
-			   bool default_logging, u32 verbosity)
+static int guc_action_control_log(struct intel_guc *guc, bool enable,
+				  bool default_logging, u32 verbosity)
 {
 	union guc_log_control control_val = {
 		{
@@ -449,7 +449,7 @@ static void guc_log_capture_logs(struct intel_guc_log *log)
 	 * time, so get/put should be really quick.
 	 */
 	intel_runtime_pm_get(dev_priv);
-	guc_log_flush_complete(guc);
+	guc_action_flush_log_complete(guc);
 	intel_runtime_pm_put(dev_priv);
 }
 
@@ -526,9 +526,9 @@ int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
 	}
 
 	intel_runtime_pm_get(dev_priv);
-	ret = guc_log_control(guc, GUC_LOG_LEVEL_IS_VERBOSE(val),
-			      GUC_LOG_LEVEL_IS_ENABLED(val),
-			      GUC_LOG_LEVEL_TO_VERBOSITY(val));
+	ret = guc_action_control_log(guc, GUC_LOG_LEVEL_IS_VERBOSE(val),
+				     GUC_LOG_LEVEL_IS_ENABLED(val),
+				     GUC_LOG_LEVEL_TO_VERBOSITY(val));
 	intel_runtime_pm_put(dev_priv);
 	if (ret) {
 		DRM_DEBUG_DRIVER("guc_log_control action failed %d\n", ret);
@@ -610,7 +610,7 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 	flush_work(&log->relay.flush_work);
 
 	intel_runtime_pm_get(i915);
-	guc_log_flush(guc);
+	guc_action_flush_log(guc);
 	intel_runtime_pm_put(i915);
 
 	/* GuC would have updated log buffer by now, so capture it */
