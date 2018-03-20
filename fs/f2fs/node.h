@@ -44,6 +44,7 @@ enum {
 	HAS_FSYNCED_INODE,	/* is the inode fsynced before? */
 	HAS_LAST_FSYNC,		/* has the latest node fsync mark? */
 	IS_DIRTY,		/* this nat entry is dirty? */
+	IS_PREALLOC,		/* nat entry is preallocated */
 };
 
 /*

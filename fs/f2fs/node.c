@@ -193,8 +193,8 @@ static void __del_from_nat_cache(struct f2fs_nm_info *nm_i, struct nat_entry *e)
 	__free_nat_entry(e);
 }
 
-static void __set_nat_cache_dirty(struct f2fs_nm_info *nm_i,
-						struct nat_entry *ne)
+static struct nat_entry_set *__grab_nat_entry_set(struct f2fs_nm_info *nm_i,
+							struct nat_entry *ne)
 {
 	nid_t set = NAT_BLOCK_OFFSET(ne->ni.nid);
 	struct nat_entry_set *head;
@@ -209,15 +209,36 @@ static void __set_nat_cache_dirty(struct f2fs_nm_info *nm_i,
 		head->entry_cnt = 0;
 		f2fs_radix_tree_insert(&nm_i->nat_set_root, set, head);
 	}
+	return head;
+}
+
+static void __set_nat_cache_dirty(struct f2fs_nm_info *nm_i,
+						struct nat_entry *ne)
+{
+	struct nat_entry_set *head;
+	bool new_ne = nat_get_blkaddr(ne) == NEW_ADDR;
+
+	if (!new_ne)
+		head = __grab_nat_entry_set(nm_i, ne);
+
+	/*
+	 * update entry_cnt in below condition:
+	 * 1. update NEW_ADDR to valid block address;
+	 * 2. update old block address to new one;
+	 */
+	if (!new_ne && (get_nat_flag(ne, IS_PREALLOC) ||
+				!get_nat_flag(ne, IS_DIRTY)))
+		head->entry_cnt++;
+
+	set_nat_flag(ne, IS_PREALLOC, new_ne);
 
 	if (get_nat_flag(ne, IS_DIRTY))
 		goto refresh_list;
 
 	nm_i->dirty_nat_cnt++;
-	head->entry_cnt++;
 	set_nat_flag(ne, IS_DIRTY, true);
 refresh_list:
-	if (nat_get_blkaddr(ne) == NEW_ADDR)
+	if (new_ne)
 		list_del_init(&ne->list);
 	else
 		list_move_tail(&ne->list, &head->entry_list);
