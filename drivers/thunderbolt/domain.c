@@ -117,23 +117,151 @@ static const char * const tb_security_names[] = {
 	[TB_SECURITY_USER] = "user",
 	[TB_SECURITY_SECURE] = "secure",
 	[TB_SECURITY_DPONLY] = "dponly",
+	[TB_SECURITY_USBONLY] = "usbonly",
 };
+
+static ssize_t boot_acl_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct tb *tb = container_of(dev, struct tb, dev);
+	uuid_t *uuids;
+	ssize_t ret;
+	int i;
+
+	uuids = kcalloc(tb->nboot_acl, sizeof(uuid_t), GFP_KERNEL);
+	if (!uuids)
+		return -ENOMEM;
+
+	if (mutex_lock_interruptible(&tb->lock)) {
+		ret = -ERESTARTSYS;
+		goto out;
+	}
+	ret = tb->cm_ops->get_boot_acl(tb, uuids, tb->nboot_acl);
+	if (ret) {
+		mutex_unlock(&tb->lock);
+		goto out;
+	}
+	mutex_unlock(&tb->lock);
+
+	for (ret = 0, i = 0; i < tb->nboot_acl; i++) {
+		if (!uuid_is_null(&uuids[i]))
+			ret += snprintf(buf + ret, PAGE_SIZE - ret, "%pUb",
+					&uuids[i]);
+
+		ret += snprintf(buf + ret, PAGE_SIZE - ret, "%s",
+			       i < tb->nboot_acl - 1 ? "," : "\n");
+	}
+
+out:
+	kfree(uuids);
+	return ret;
+}
+
+static ssize_t boot_acl_store(struct device *dev, struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct tb *tb = container_of(dev, struct tb, dev);
+	char *str, *s, *uuid_str;
+	ssize_t ret = 0;
+	uuid_t *acl;
+	int i = 0;
+
+	/*
+	 * Make sure the value is not bigger than tb->nboot_acl * UUID
+	 * length + commas and optional "\n". Also the smallest allowable
+	 * string is tb->nboot_acl * ",".
+	 */
+	if (count > (UUID_STRING_LEN + 1) * tb->nboot_acl + 1)
+		return -EINVAL;
+	if (count < tb->nboot_acl - 1)
+		return -EINVAL;
+
+	str = kstrdup(buf, GFP_KERNEL);
+	if (!str)
+		return -ENOMEM;
+
+	acl = kcalloc(tb->nboot_acl, sizeof(uuid_t), GFP_KERNEL);
+	if (!acl) {
+		ret = -ENOMEM;
+		goto err_free_str;
+	}
+
+	uuid_str = strim(str);
+	while ((s = strsep(&uuid_str, ",")) != NULL && i < tb->nboot_acl) {
+		size_t len = strlen(s);
+
+		if (len) {
+			if (len != UUID_STRING_LEN) {
+				ret = -EINVAL;
+				goto err_free_acl;
+			}
+			ret = uuid_parse(s, &acl[i]);
+			if (ret)
+				goto err_free_acl;
+		}
+
+		i++;
+	}
+
+	if (s || i < tb->nboot_acl) {
+		ret = -EINVAL;
+		goto err_free_acl;
+	}
+
+	if (mutex_lock_interruptible(&tb->lock)) {
+		ret = -ERESTARTSYS;
+		goto err_free_acl;
+	}
+	ret = tb->cm_ops->set_boot_acl(tb, acl, tb->nboot_acl);
+	mutex_unlock(&tb->lock);
+
+err_free_acl:
+	kfree(acl);
+err_free_str:
+	kfree(str);
+
+	return ret ?: count;
+}
+static DEVICE_ATTR_RW(boot_acl);
 
 static ssize_t security_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
 	struct tb *tb = container_of(dev, struct tb, dev);
+	const char *name = "unknown";
 
-	return sprintf(buf, "%s\n", tb_security_names[tb->security_level]);
+	if (tb->security_level < ARRAY_SIZE(tb_security_names))
+		name = tb_security_names[tb->security_level];
+
+	return sprintf(buf, "%s\n", name);
 }
 static DEVICE_ATTR_RO(security);
 
 static struct attribute *domain_attrs[] = {
+	&dev_attr_boot_acl.attr,
 	&dev_attr_security.attr,
 	NULL,
 };
 
+static umode_t domain_attr_is_visible(struct kobject *kobj,
+				      struct attribute *attr, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct tb *tb = container_of(dev, struct tb, dev);
+
+	if (attr == &dev_attr_boot_acl.attr) {
+		if (tb->nboot_acl &&
+		    tb->cm_ops->get_boot_acl &&
+		    tb->cm_ops->set_boot_acl)
+			return attr->mode;
+		return 0;
+	}
+
+	return attr->mode;
+}
+
 static struct attribute_group domain_attr_group = {
+	.is_visible = domain_attr_is_visible,
 	.attrs = domain_attrs,
 };
 
