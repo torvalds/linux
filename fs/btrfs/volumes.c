@@ -2612,6 +2612,12 @@ error:
 	return ret;
 }
 
+/*
+ * Initialize a new device for device replace target from a given source dev
+ * and path.
+ *
+ * Return 0 and new device in @device_out, otherwise return < 0
+ */
 int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 				  const char *device_path,
 				  struct btrfs_device *srcdev,
@@ -2698,7 +2704,7 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 
 	*device_out = device;
-	return ret;
+	return 0;
 
 error:
 	blkdev_put(bdev, FMODE_EXCL);
