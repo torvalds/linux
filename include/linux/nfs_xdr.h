@@ -1590,7 +1590,7 @@ struct nfs_rpc_ops {
 			    unsigned int);
 	int	(*create)  (struct inode *, struct dentry *,
 			    struct iattr *, int);
-	int	(*remove)  (struct inode *, const struct qstr *);
+	int	(*remove)  (struct inode *, struct dentry *);
 	void	(*unlink_setup)  (struct rpc_message *, struct inode *dir);
 	void	(*unlink_rpc_prepare) (struct rpc_task *, struct nfs_unlinkdata *);
 	int	(*unlink_done) (struct rpc_task *, struct inode *);

@@ -4200,10 +4200,28 @@ static int _nfs4_proc_remove(struct inode *dir, const struct qstr *name)
 	return status;
 }
 
-static int nfs4_proc_remove(struct inode *dir, const struct qstr *name)
+static int nfs4_proc_remove(struct inode *dir, struct dentry *dentry)
+{
+	struct nfs4_exception exception = { };
+	struct inode *inode = d_inode(dentry);
+	int err;
+
+	if (inode)
+		nfs4_inode_return_delegation(inode);
+	do {
+		err = _nfs4_proc_remove(dir, &dentry->d_name);
+		trace_nfs4_remove(dir, &dentry->d_name, err);
+		err = nfs4_handle_exception(NFS_SERVER(dir), err,
+				&exception);
+	} while (exception.retry);
+	return err;
+}
+
+static int nfs4_proc_rmdir(struct inode *dir, const struct qstr *name)
 {
 	struct nfs4_exception exception = { };
 	int err;
+
 	do {
 		err = _nfs4_proc_remove(dir, name);
 		trace_nfs4_remove(dir, name, err);
@@ -9601,7 +9619,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.link		= nfs4_proc_link,
 	.symlink	= nfs4_proc_symlink,
 	.mkdir		= nfs4_proc_mkdir,
-	.rmdir		= nfs4_proc_remove,
+	.rmdir		= nfs4_proc_rmdir,
 	.readdir	= nfs4_proc_readdir,
 	.mknod		= nfs4_proc_mknod,
 	.statfs		= nfs4_proc_statfs,

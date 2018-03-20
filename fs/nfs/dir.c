@@ -1798,12 +1798,11 @@ static int nfs_safe_remove(struct dentry *dentry)
 
 	trace_nfs_remove_enter(dir, dentry);
 	if (inode != NULL) {
-		NFS_PROTO(inode)->return_delegation(inode);
-		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
+		error = NFS_PROTO(dir)->remove(dir, dentry);
 		if (error == 0)
 			nfs_drop_nlink(inode);
 	} else
-		error = NFS_PROTO(dir)->remove(dir, &dentry->d_name);
+		error = NFS_PROTO(dir)->remove(dir, dentry);
 	if (error == -ENOENT)
 		nfs_dentry_handle_enoent(dentry);
 	trace_nfs_remove_exit(dir, dentry, error);

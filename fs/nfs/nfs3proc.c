@@ -383,11 +383,11 @@ out:
 }
 
 static int
-nfs3_proc_remove(struct inode *dir, const struct qstr *name)
+nfs3_proc_remove(struct inode *dir, struct dentry *dentry)
 {
 	struct nfs_removeargs arg = {
 		.fh = NFS_FH(dir),
-		.name = *name,
+		.name = dentry->d_name,
 	};
 	struct nfs_removeres res;
 	struct rpc_message msg = {
@@ -397,7 +397,7 @@ nfs3_proc_remove(struct inode *dir, const struct qstr *name)
 	};
 	int status = -ENOMEM;
 
-	dprintk("NFS call  remove %s\n", name->name);
+	dprintk("NFS call  remove %pd2\n", dentry);
 	res.dir_attr = nfs_alloc_fattr();
 	if (res.dir_attr == NULL)
 		goto out;

@@ -300,11 +300,11 @@ out:
 }
   
 static int
-nfs_proc_remove(struct inode *dir, const struct qstr *name)
+nfs_proc_remove(struct inode *dir, struct dentry *dentry)
 {
 	struct nfs_removeargs arg = {
 		.fh = NFS_FH(dir),
-		.name = *name,
+		.name = dentry->d_name,
 	};
 	struct rpc_message msg = { 
 		.rpc_proc = &nfs_procedures[NFSPROC_REMOVE],
@@ -312,7 +312,7 @@ nfs_proc_remove(struct inode *dir, const struct qstr *name)
 	};
 	int			status;
 
-	dprintk("NFS call  remove %s\n", name->name);
+	dprintk("NFS call  remove %pd2\n",dentry);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_mark_for_revalidate(dir);
 
