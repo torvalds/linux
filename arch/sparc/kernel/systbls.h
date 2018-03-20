@@ -49,12 +49,12 @@ asmlinkage long sys_utrap_install(utrap_entry_t type,
 asmlinkage long sys_memory_ordering(unsigned long model);
 asmlinkage void sparc64_set_context(struct pt_regs *regs);
 asmlinkage void sparc64_get_context(struct pt_regs *regs);
-asmlinkage long sys32_truncate64(const char __user * path,
-				 unsigned long high,
-				 unsigned long low);
-asmlinkage long sys32_ftruncate64(unsigned int fd,
-				  unsigned long high,
-				  unsigned long low);
+asmlinkage long compat_sys_truncate64(const char __user * path,
+				 u32 high,
+				 u32 low);
+asmlinkage long compat_sys_ftruncate64(unsigned int fd,
+				  u32 high,
+				  u32 low);
 struct compat_stat64;
 asmlinkage long compat_sys_stat64(const char __user * filename,
 				  struct compat_stat64 __user *statbuf);

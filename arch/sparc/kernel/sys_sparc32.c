@@ -52,20 +52,14 @@
 
 #include "systbls.h"
 
-asmlinkage long sys32_truncate64(const char __user * path, unsigned long high, unsigned long low)
+COMPAT_SYSCALL_DEFINE3(truncate64, const char __user *, path, u32, high, u32, low)
 {
-	if ((int)high < 0)
-		return -EINVAL;
-	else
-		return sys_truncate(path, (high << 32) | low);
+	return sys_truncate(path, ((u64)high << 32) | low);
 }
 
-asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long high, unsigned long low)
+COMPAT_SYSCALL_DEFINE3(ftruncate64, unsigned int, fd, u32, high, u32, low)
 {
-	if ((int)high < 0)
-		return -EINVAL;
-	else
-		return sys_ftruncate(fd, (high << 32) | low);
+	return sys_ftruncate(fd, ((u64)high << 32) | low);
 }
 
 static int cp_compat_stat64(struct kstat *stat,
