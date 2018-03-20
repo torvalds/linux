@@ -565,6 +565,9 @@ generic_defconfig:
 # now that the boards have been converted to use the generic kernel they are
 # wrappers around the generic rules above.
 #
+legacy_defconfigs		+= ocelot_defconfig
+ocelot_defconfig-y		:= 32r2el_defconfig BOARDS=ocelot
+
 legacy_defconfigs		+= sead3_defconfig
 sead3_defconfig-y		:= 32r2el_defconfig BOARDS=sead-3
 
