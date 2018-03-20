@@ -29,6 +29,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
+#include <linux/property.h>
 #include <asm/unaligned.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -2922,47 +2923,52 @@ static void mxt_input_close(struct input_dev *dev)
 	mxt_stop(data);
 }
 
-#ifdef CONFIG_OF
-static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
+static const struct mxt_platform_data *
+mxt_parse_device_properties(struct i2c_client *client)
 {
+	static const char keymap_property[] = "linux,gpio-keymap";
 	struct mxt_platform_data *pdata;
-	struct device_node *np = client->dev.of_node;
 	u32 *keymap;
-	int proplen, ret;
-
-	if (!np)
-		return ERR_PTR(-ENOENT);
+	int n_keys;
+	int error;
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	if (of_find_property(np, "linux,gpio-keymap", &proplen)) {
-		pdata->t19_num_keys = proplen / sizeof(u32);
+	if (device_property_present(&client->dev, keymap_property)) {
+		n_keys = device_property_read_u32_array(&client->dev,
+							keymap_property,
+							NULL, 0);
+		if (n_keys <= 0) {
+			error = n_keys < 0 ? n_keys : -EINVAL;
+			dev_err(&client->dev,
+				"invalid/malformed '%s' property: %d\n",
+				keymap_property, error);
+			return ERR_PTR(error);
+		}
 
-		keymap = devm_kzalloc(&client->dev,
-				pdata->t19_num_keys * sizeof(keymap[0]),
-				GFP_KERNEL);
+		keymap = devm_kmalloc_array(&client->dev, n_keys, sizeof(u32),
+					    GFP_KERNEL);
 		if (!keymap)
 			return ERR_PTR(-ENOMEM);
 
-		ret = of_property_read_u32_array(np, "linux,gpio-keymap",
-						 keymap, pdata->t19_num_keys);
-		if (ret)
-			dev_warn(&client->dev,
-				 "Couldn't read linux,gpio-keymap: %d\n", ret);
+		error = device_property_read_u32_array(&client->dev,
+						       keymap_property,
+						       keymap, n_keys);
+		if (error) {
+			dev_err(&client->dev,
+				"failed to parse '%s' property: %d\n",
+				keymap_property, error);
+			return ERR_PTR(error);
+		}
 
 		pdata->t19_keymap = keymap;
+		pdata->t19_num_keys = n_keys;
 	}
 
 	return pdata;
 }
-#else
-static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
-{
-	return ERR_PTR(-ENOENT);
-}
-#endif
 
 #ifdef CONFIG_ACPI
 
@@ -3096,16 +3102,11 @@ mxt_get_platform_data(struct i2c_client *client)
 	if (pdata)
 		return pdata;
 
-	pdata = mxt_parse_dt(client);
-	if (!IS_ERR(pdata) || PTR_ERR(pdata) != -ENOENT)
-		return pdata;
-
 	pdata = mxt_parse_acpi(client);
 	if (!IS_ERR(pdata) || PTR_ERR(pdata) != -ENOENT)
 		return pdata;
 
-	dev_err(&client->dev, "No platform data specified\n");
-	return ERR_PTR(-EINVAL);
+	return mxt_parse_device_properties(client);
 }
 
 static const struct dmi_system_id chromebook_T9_suspend_dmi[] = {
