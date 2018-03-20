@@ -28,6 +28,7 @@ struct ins_operands {
 		u64	addr;
 		s64	offset;
 		bool	offset_avail;
+		bool	outside;
 	} target;
 	union {
 		struct {
