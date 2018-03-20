@@ -163,6 +163,9 @@
 /* Recommend using the newer ExProcessorMasks interface */
 #define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	(1 << 11)
 
+/* Recommend using enlightened VMCS */
+#define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED    (1 << 14)
+
 /*
  * Crash notification flag.
  */
@@ -478,6 +481,16 @@ struct hv_timer_message_payload {
 	__u32 reserved;
 	__u64 expiration_time;	/* When the timer expired */
 	__u64 delivery_time;	/* When the message was delivered */
+};
+
+/* Define virtual processor assist page structure. */
+struct hv_vp_assist_page {
+	__u32 apic_assist;
+	__u32 reserved;
+	__u64 vtl_control[2];
+	__u64 nested_enlightenments_control[2];
+	__u32 enlighten_vmentry;
+	__u64 current_nested_vmcs;
 };
 
 #define HV_STIMER_ENABLE		(1ULL << 0)
