@@ -4462,7 +4462,7 @@ do_balance:
 	 * Ownership of bctl and filesystem flag BTRFS_FS_EXCL_OP
 	 * goes to to btrfs_balance.  bctl is freed in __cancel_balance,
 	 * or, if restriper was paused all the way until unmount, in
-	 * free_fs_info.  The flag is cleared in __cancel_balance.
+	 * free_fs_info.  The flag should be cleared after __cancel_balance.
 	 */
 	need_unlock = false;
 

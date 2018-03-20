@@ -3780,8 +3780,6 @@ static void __cancel_balance(struct btrfs_fs_info *fs_info)
 	ret = del_balance_item(fs_info);
 	if (ret)
 		btrfs_handle_fs_error(fs_info, ret, NULL);
-
-	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 }
 
 /* Non-zero return value signifies invalidity */
@@ -3939,6 +3937,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 	if ((ret && ret != -ECANCELED && ret != -ENOSPC) ||
 	    balance_need_close(fs_info)) {
 		__cancel_balance(fs_info);
+		clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 	}
 
 	wake_up(&fs_info->balance_wait_q);
@@ -3947,10 +3946,10 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 out:
 	if (bctl->flags & BTRFS_BALANCE_RESUME)
 		__cancel_balance(fs_info);
-	else {
+	else
 		kfree(bctl);
-		clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
-	}
+	clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
+
 	return ret;
 }
 
@@ -4118,8 +4117,10 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 		mutex_lock(&fs_info->volume_mutex);
 		mutex_lock(&fs_info->balance_mutex);
 
-		if (fs_info->balance_ctl)
+		if (fs_info->balance_ctl) {
 			__cancel_balance(fs_info);
+			clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
+		}
 
 		mutex_unlock(&fs_info->volume_mutex);
 	}
