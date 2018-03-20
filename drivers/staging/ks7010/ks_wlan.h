@@ -192,7 +192,7 @@ struct sme_info {
 	int event_buff[SME_EVENT_BUFF_SIZE];
 	unsigned int qhead;
 	unsigned int qtail;
-#ifdef KS_WLAN_DEBUG
+#ifdef DEBUG
 	/* for debug */
 	unsigned int max_event_count;
 #endif

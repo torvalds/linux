@@ -2409,10 +2409,10 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, unsigned short event)
 	if (cnt_smeqbody(priv) < (SME_EVENT_BUFF_SIZE - 1)) {
 		priv->sme_i.event_buff[priv->sme_i.qtail] = event;
 		inc_smeqtail(priv);
-#ifdef KS_WLAN_DEBUG
+#ifdef DEBUG
 		if (priv->sme_i.max_event_count < cnt_smeqbody(priv))
 			priv->sme_i.max_event_count = cnt_smeqbody(priv);
-#endif /* KS_WLAN_DEBUG */
+#endif
 	} else {
 		/* in case of buffer overflow */
 		netdev_err(priv->net_dev, "sme queue buffer overflow\n");
@@ -2461,7 +2461,7 @@ int hostif_init(struct ks_wlan_private *priv)
 	priv->sme_i.sme_status = SME_IDLE;
 	priv->sme_i.qhead = 0;
 	priv->sme_i.qtail = 0;
-#ifdef KS_WLAN_DEBUG
+#ifdef DEBUG
 	priv->sme_i.max_event_count = 0;
 #endif
 	spin_lock_init(&priv->sme_i.sme_spin);

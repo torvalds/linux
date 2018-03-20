@@ -385,11 +385,10 @@ static void ks_wlan_hw_rx(struct ks_wlan_private *priv, uint16_t size)
 
 	/* length check */
 	if (size > 2046 || size == 0) {
-#ifdef KS_WLAN_DEBUG
-		if (KS_WLAN_DEBUG > 5)
-			print_hex_dump_bytes("INVALID DATA dump: ",
-					     DUMP_PREFIX_OFFSET,
-					     rx_buffer->data, 32);
+#ifdef DEBUG
+		print_hex_dump_bytes("INVALID DATA dump: ",
+				     DUMP_PREFIX_OFFSET,
+				     rx_buffer->data, 32);
 #endif
 		ret = ks7010_sdio_writeb(priv, READ_STATUS, REG_STATUS_IDLE);
 		if (ret)
