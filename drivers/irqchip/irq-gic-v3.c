@@ -532,7 +532,8 @@ static void gic_cpu_sys_reg_init(void)
 	int i, cpu = smp_processor_id();
 	u64 mpidr = cpu_logical_map(cpu);
 	u64 need_rss = MPIDR_RS(mpidr);
-	u32 val;
+	bool group0;
+	u32 val, pribits;
 
 	/*
 	 * Need to check that the SRE bit has actually been set. If
@@ -544,8 +545,28 @@ static void gic_cpu_sys_reg_init(void)
 	if (!gic_enable_sre())
 		pr_err("GIC: unable to set SRE (disabled at EL2), panic ahead\n");
 
+	pribits = gic_read_ctlr();
+	pribits &= ICC_CTLR_EL1_PRI_BITS_MASK;
+	pribits >>= ICC_CTLR_EL1_PRI_BITS_SHIFT;
+	pribits++;
+
+	/*
+	 * Let's find out if Group0 is under control of EL3 or not by
+	 * setting the highest possible, non-zero priority in PMR.
+	 *
+	 * If SCR_EL3.FIQ is set, the priority gets shifted down in
+	 * order for the CPU interface to set bit 7, and keep the
+	 * actual priority in the non-secure range. In the process, it
+	 * looses the least significant bit and the actual priority
+	 * becomes 0x80. Reading it back returns 0, indicating that
+	 * we're don't have access to Group0.
+	 */
+	write_gicreg(BIT(8 - pribits), ICC_PMR_EL1);
+	val = read_gicreg(ICC_PMR_EL1);
+	group0 = val != 0;
+
 	/* Set priority mask register */
-	gic_write_pmr(DEFAULT_PMR_VALUE);
+	write_gicreg(DEFAULT_PMR_VALUE, ICC_PMR_EL1);
 
 	/*
 	 * Some firmwares hand over to the kernel with the BPR changed from
@@ -563,11 +584,24 @@ static void gic_cpu_sys_reg_init(void)
 		gic_write_ctlr(ICC_CTLR_EL1_EOImode_drop_dir);
 	}
 
-	val = gic_read_ctlr();
-	val &= ICC_CTLR_EL1_PRI_BITS_MASK;
-	val >>= ICC_CTLR_EL1_PRI_BITS_SHIFT;
+	/* Always whack Group0 before Group1 */
+	if (group0) {
+		switch(pribits) {
+		case 8:
+		case 7:
+			write_gicreg(0, ICC_AP0R3_EL1);
+			write_gicreg(0, ICC_AP0R2_EL1);
+		case 6:
+			write_gicreg(0, ICC_AP0R1_EL1);
+		case 5:
+		case 4:
+			write_gicreg(0, ICC_AP0R0_EL1);
+		}
 
-	switch(val + 1) {
+		isb();
+	}
+
+	switch(pribits) {
 	case 8:
 	case 7:
 		write_gicreg(0, ICC_AP1R3_EL1);

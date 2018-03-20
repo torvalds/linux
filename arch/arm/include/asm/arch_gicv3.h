@@ -137,6 +137,7 @@ static inline u64 read_ ## a64(void)		\
 	return val; 				\
 }
 
+CPUIF_MAP(ICC_PMR, ICC_PMR_EL1)
 CPUIF_MAP(ICC_AP0R0, ICC_AP0R0_EL1)
 CPUIF_MAP(ICC_AP0R1, ICC_AP0R1_EL1)
 CPUIF_MAP(ICC_AP0R2, ICC_AP0R2_EL1)
@@ -204,11 +205,6 @@ static inline u32 gic_read_iar(void)
 	dsb(sy);
 
 	return irqstat;
-}
-
-static inline void gic_write_pmr(u32 val)
-{
-	write_sysreg(val, ICC_PMR);
 }
 
 static inline void gic_write_ctlr(u32 val)
