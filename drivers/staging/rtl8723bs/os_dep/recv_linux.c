@@ -43,6 +43,7 @@ void rtw_os_recv_resource_free(struct recv_priv *precvpriv)
 {
 	sint i;
 	union recv_frame *precvframe;
+
 	precvframe = (union recv_frame*) precvpriv->precv_frame_buf;
 
 	for (i = 0; i < NR_RECVFRAME; i++)
