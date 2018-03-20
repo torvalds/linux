@@ -263,7 +263,7 @@ static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
 	return security_msg_queue_associate(msq, msgflg);
 }
 
-SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
+long ksys_msgget(key_t key, int msgflg)
 {
 	struct ipc_namespace *ns;
 	static const struct ipc_ops msg_ops = {
@@ -278,6 +278,11 @@ SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
 	msg_params.flg = msgflg;
 
 	return ipcget(ns, &msg_ids(ns), &msg_ops, &msg_params);
+}
+
+SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
+{
+	return ksys_msgget(key, msgflg);
 }
 
 static inline unsigned long
