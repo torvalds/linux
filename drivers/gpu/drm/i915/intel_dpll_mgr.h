@@ -253,6 +253,11 @@ struct intel_shared_dpll {
 	 */
 	struct intel_shared_dpll_funcs funcs;
 
+	/**
+	 * @info: platform specific info
+	 */
+	const struct dpll_info *info;
+
 #define INTEL_DPLL_ALWAYS_ON	(1 << 0)
 	/**
 	 * @flags:
