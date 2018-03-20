@@ -887,6 +887,11 @@ MODULE_FIRMWARE(FIRMWARE_8168H_2);
 MODULE_FIRMWARE(FIRMWARE_8107E_1);
 MODULE_FIRMWARE(FIRMWARE_8107E_2);
 
+static inline struct device *tp_to_dev(struct rtl8169_private *tp)
+{
+	return &tp->pci_dev->dev;
+}
+
 static void rtl_lock_work(struct rtl8169_private *tp)
 {
 	mutex_lock(&tp->wk.mutex);
@@ -1609,17 +1614,19 @@ static void rtl_link_chg_patch(struct rtl8169_private *tp)
 static void rtl8169_check_link_status(struct net_device *dev,
 				      struct rtl8169_private *tp)
 {
+	struct device *d = tp_to_dev(tp);
+
 	if (tp->link_ok(tp)) {
 		rtl_link_chg_patch(tp);
 		/* This is to cancel a scheduled suspend if there's one. */
-		pm_request_resume(&tp->pci_dev->dev);
+		pm_request_resume(d);
 		netif_carrier_on(dev);
 		if (net_ratelimit())
 			netif_info(tp, ifup, dev, "link up\n");
 	} else {
 		netif_carrier_off(dev);
 		netif_info(tp, ifdown, dev, "link down\n");
-		pm_runtime_idle(&tp->pci_dev->dev);
+		pm_runtime_idle(d);
 	}
 }
 
@@ -1678,7 +1685,7 @@ static u32 __rtl8169_get_wol(struct rtl8169_private *tp)
 static void rtl8169_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = &tp->pci_dev->dev;
+	struct device *d = tp_to_dev(tp);
 
 	pm_runtime_get_noresume(d);
 
@@ -1781,7 +1788,7 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = &tp->pci_dev->dev;
+	struct device *d = tp_to_dev(tp);
 
 	pm_runtime_get_noresume(d);
 
@@ -1794,7 +1801,7 @@ static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 
 	rtl_unlock_work(tp);
 
-	device_set_wakeup_enable(&tp->pci_dev->dev, wol->wolopts);
+	device_set_wakeup_enable(d, wol->wolopts);
 
 	pm_runtime_put_noidle(d);
 
@@ -2234,7 +2241,7 @@ static void rtl8169_get_ethtool_stats(struct net_device *dev,
 				      struct ethtool_stats *stats, u64 *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = &tp->pci_dev->dev;
+	struct device *d = tp_to_dev(tp);
 	struct rtl8169_counters *counters = tp->counters;
 
 	ASSERT_RTNL();
@@ -4615,7 +4622,7 @@ static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
 static int rtl_set_mac_address(struct net_device *dev, void *p)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = &tp->pci_dev->dev;
+	struct device *d = tp_to_dev(tp);
 	int ret;
 
 	ret = eth_mac_addr(dev, p);
@@ -5261,7 +5268,7 @@ static void rtl_request_uncached_firmware(struct rtl8169_private *tp)
 	if (!rtl_fw)
 		goto err_warn;
 
-	rc = request_firmware(&rtl_fw->fw, name, &tp->pci_dev->dev);
+	rc = request_firmware(&rtl_fw->fw, name, tp_to_dev(tp));
 	if (rc < 0)
 		goto err_free;
 
@@ -6692,7 +6699,7 @@ static inline void rtl8169_make_unusable_by_asic(struct RxDesc *desc)
 static void rtl8169_free_rx_databuff(struct rtl8169_private *tp,
 				     void **data_buff, struct RxDesc *desc)
 {
-	dma_unmap_single(&tp->pci_dev->dev, le64_to_cpu(desc->addr), rx_buf_sz,
+	dma_unmap_single(tp_to_dev(tp), le64_to_cpu(desc->addr), rx_buf_sz,
 			 DMA_FROM_DEVICE);
 
 	kfree(*data_buff);
@@ -6727,7 +6734,7 @@ static struct sk_buff *rtl8169_alloc_rx_data(struct rtl8169_private *tp,
 {
 	void *data;
 	dma_addr_t mapping;
-	struct device *d = &tp->pci_dev->dev;
+	struct device *d = tp_to_dev(tp);
 	struct net_device *dev = tp->dev;
 	int node = dev->dev.parent ? dev_to_node(dev->dev.parent) : -1;
 
@@ -6839,7 +6846,7 @@ static void rtl8169_tx_clear_range(struct rtl8169_private *tp, u32 start,
 		if (len) {
 			struct sk_buff *skb = tx_skb->skb;
 
-			rtl8169_unmap_tx_skb(&tp->pci_dev->dev, tx_skb,
+			rtl8169_unmap_tx_skb(tp_to_dev(tp), tx_skb,
 					     tp->TxDescArray + entry);
 			if (skb) {
 				dev_consume_skb_any(skb);
@@ -6891,7 +6898,7 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 	struct skb_shared_info *info = skb_shinfo(skb);
 	unsigned int cur_frag, entry;
 	struct TxDesc *uninitialized_var(txd);
-	struct device *d = &tp->pci_dev->dev;
+	struct device *d = tp_to_dev(tp);
 
 	entry = tp->cur_tx;
 	for (cur_frag = 0; cur_frag < info->nr_frags; cur_frag++) {
@@ -7123,7 +7130,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	struct rtl8169_private *tp = netdev_priv(dev);
 	unsigned int entry = tp->cur_tx % NUM_TX_DESC;
 	struct TxDesc *txd = tp->TxDescArray + entry;
-	struct device *d = &tp->pci_dev->dev;
+	struct device *d = tp_to_dev(tp);
 	dma_addr_t mapping;
 	u32 status, len;
 	u32 opts[2];
@@ -7287,7 +7294,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
 		 */
 		dma_rmb();
 
-		rtl8169_unmap_tx_skb(&tp->pci_dev->dev, tx_skb,
+		rtl8169_unmap_tx_skb(tp_to_dev(tp), tx_skb,
 				     tp->TxDescArray + entry);
 		if (status & LastFrag) {
 			u64_stats_update_begin(&tp->tx_stats.syncp);
@@ -7348,7 +7355,7 @@ static struct sk_buff *rtl8169_try_rx_copy(void *data,
 					   dma_addr_t addr)
 {
 	struct sk_buff *skb;
-	struct device *d = &tp->pci_dev->dev;
+	struct device *d = tp_to_dev(tp);
 
 	data = rtl8169_align(data);
 	dma_sync_single_for_cpu(d, addr, pkt_size, DMA_FROM_DEVICE);
