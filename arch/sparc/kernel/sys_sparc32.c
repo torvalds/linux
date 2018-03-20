@@ -233,11 +233,12 @@ COMPAT_SYSCALL_DEFINE6(fadvise64_64, int, fd, u32, offhi, u32, offlo,
 				advice);
 }
 
-long sys32_sync_file_range(unsigned int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, unsigned int flags)
+COMPAT_SYSCALL_DEFINE6(sync_file_range, unsigned int, fd, u32, off_high, u32, off_low,
+			u32, nb_high, u32, nb_low, unsigned int, flags)
 {
 	return sys_sync_file_range(fd,
-				   (off_high << 32) | off_low,
-				   (nb_high << 32) | nb_low,
+				   ((u64)off_high << 32) | off_low,
+				   ((u64)nb_high << 32) | nb_low,
 				   flags);
 }
 

@@ -87,9 +87,9 @@ long compat_sys_fadvise64_64(int fd,
 			     unsigned offhi, unsigned offlo,
 			     unsigned lenhi, unsigned lenlo,
 			     int advice);
-long sys32_sync_file_range(unsigned int fd,
-			   unsigned long off_high, unsigned long off_low,
-			   unsigned long nb_high, unsigned long nb_low,
+long compat_sys_sync_file_range(unsigned int fd,
+			   unsigned off_high, unsigned off_low,
+			   unsigned nb_high, unsigned nb_low,
 			   unsigned int flags);
 asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
 				     u32 lenhi, u32 lenlo);
