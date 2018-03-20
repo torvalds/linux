@@ -58,6 +58,8 @@ struct rxe_global_route {
 struct rxe_av {
 	__u8			port_num;
 	__u8			network_type;
+	__u16			reserved1;
+	__u32			reserved2;
 	struct rxe_global_route	grh;
 	union {
 		struct sockaddr_in	_sockaddr_in;
@@ -92,10 +94,14 @@ struct rxe_send_wr {
 			__u32	remote_qkey;
 			__u16	pkey_index;
 		} ud;
+		/* reg is only used by the kernel and is not part of the uapi */
 		struct {
-			struct ib_mr *mr;
+			union {
+				struct ib_mr *mr;
+				__u64 reserved;
+			};
 			__u32        key;
-			int          access;
+			__u32        access;
 		} reg;
 	} wr;
 };
@@ -118,6 +124,7 @@ struct rxe_dma_info {
 	__u32			cur_sge;
 	__u32			num_sge;
 	__u32			sge_offset;
+	__u32			reserved;
 	union {
 		__u8		inline_data[0];
 		struct rxe_sge	sge[0];
@@ -162,6 +169,7 @@ struct rxe_create_qp_resp {
 struct rxe_create_srq_resp {
 	struct mminfo mi;
 	__u32 srq_num;
+	__u32 reserved;
 };
 
 struct rxe_modify_srq_cmd {
