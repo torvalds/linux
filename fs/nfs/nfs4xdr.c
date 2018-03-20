@@ -1052,9 +1052,7 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap,
 	int owner_namelen = 0;
 	int owner_grouplen = 0;
 	__be32 *p;
-	unsigned i;
 	uint32_t len = 0;
-	uint32_t bmval_len;
 	uint32_t bmval[3] = { 0 };
 
 	/*
@@ -1123,19 +1121,8 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap,
 		bmval[2] |= FATTR4_WORD2_SECURITY_LABEL;
 	}
 
-	if (bmval[2] != 0)
-		bmval_len = 3;
-	else if (bmval[1] != 0)
-		bmval_len = 2;
-	else
-		bmval_len = 1;
-
-	p = reserve_space(xdr, 4 + (bmval_len << 2) + 4 + len);
-
-	*p++ = cpu_to_be32(bmval_len);
-	for (i = 0; i < bmval_len; i++)
-		*p++ = cpu_to_be32(bmval[i]);
-	*p++ = cpu_to_be32(len);
+	xdr_encode_bitmap4(xdr, bmval, ARRAY_SIZE(bmval));
+	xdr_stream_encode_opaque_inline(xdr, (void **)&p, len);
 
 	if (bmval[0] & FATTR4_WORD0_SIZE)
 		p = xdr_encode_hyper(p, iap->ia_size);
