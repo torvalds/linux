@@ -79,16 +79,15 @@ int hw_atl_utils_initfw(struct aq_hw_s *self, const struct aq_fw_ops **fw_ops)
 
 static int hw_atl_utils_soft_reset_flb(struct aq_hw_s *self)
 {
+	u32 gsr, val;
 	int k = 0;
-	u32 gsr;
 
 	aq_hw_write_reg(self, 0x404, 0x40e1);
 	AQ_HW_SLEEP(50);
 
 	/* Cleanup SPI */
-	aq_hw_write_reg(self, 0x534, 0xA0);
-	aq_hw_write_reg(self, 0x100, 0x9F);
-	aq_hw_write_reg(self, 0x100, 0x809F);
+	val = aq_hw_read_reg(self, 0x53C);
+	aq_hw_write_reg(self, 0x53C, val | 0x10);
 
 	gsr = aq_hw_read_reg(self, HW_ATL_GLB_SOFT_RES_ADR);
 	aq_hw_write_reg(self, HW_ATL_GLB_SOFT_RES_ADR, (gsr & 0xBFFF) | 0x8000);
@@ -97,7 +96,14 @@ static int hw_atl_utils_soft_reset_flb(struct aq_hw_s *self)
 	aq_hw_write_reg(self, 0x404, 0x80e0);
 	aq_hw_write_reg(self, 0x32a8, 0x0);
 	aq_hw_write_reg(self, 0x520, 0x1);
+
+	/* Reset SPI again because of possible interrupted SPI burst */
+	val = aq_hw_read_reg(self, 0x53C);
+	aq_hw_write_reg(self, 0x53C, val | 0x10);
 	AQ_HW_SLEEP(10);
+	/* Clear SPI reset state */
+	aq_hw_write_reg(self, 0x53C, val & ~0x10);
+
 	aq_hw_write_reg(self, 0x404, 0x180e0);
 
 	for (k = 0; k < 1000; k++) {
@@ -147,7 +153,7 @@ static int hw_atl_utils_soft_reset_flb(struct aq_hw_s *self)
 
 static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 {
-	u32 gsr, rbl_status;
+	u32 gsr, val, rbl_status;
 	int k;
 
 	aq_hw_write_reg(self, 0x404, 0x40e1);
@@ -156,6 +162,10 @@ static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 
 	/* Alter RBL status */
 	aq_hw_write_reg(self, 0x388, 0xDEAD);
+
+	/* Cleanup SPI */
+	val = aq_hw_read_reg(self, 0x53C);
+	aq_hw_write_reg(self, 0x53C, val | 0x10);
 
 	/* Global software reset*/
 	hw_atl_rx_rx_reg_res_dis_set(self, 0U);
