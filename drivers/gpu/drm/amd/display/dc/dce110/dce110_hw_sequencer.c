@@ -849,6 +849,28 @@ void hwss_edp_power_control(
 
 	if (power_up != is_panel_powered_on(hwseq)) {
 		/* Send VBIOS command to prompt eDP panel power */
+		if (power_up) {
+			unsigned long long current_ts = dm_get_timestamp(ctx);
+			unsigned long long duration_in_ms =
+					dm_get_elapse_time_in_ns(
+							ctx,
+							current_ts,
+							link->link_trace.time_stamp.edp_poweroff) / 1000000;
+			unsigned long long wait_time_ms = 0;
+
+			/* max 500ms from LCDVDD off to on */
+			if (link->link_trace.time_stamp.edp_poweroff == 0)
+				wait_time_ms = 500;
+			else if (duration_in_ms < 500)
+				wait_time_ms = 500 - duration_in_ms;
+
+			if (wait_time_ms) {
+				msleep(wait_time_ms);
+				dm_output_to_console("%s: wait %lld ms to power on eDP.\n",
+						__func__, wait_time_ms);
+			}
+
+		}
 
 		DC_LOG_HW_RESUME_S3(
 				"%s: Panel Power action: %s\n",
@@ -862,8 +884,13 @@ void hwss_edp_power_control(
 		cntl.coherent = false;
 		cntl.lanes_number = LANE_COUNT_FOUR;
 		cntl.hpd_sel = link->link_enc->hpd_source;
-
 		bp_result = link_transmitter_control(ctx->dc_bios, &cntl);
+
+		if (!power_up)
+			/*save driver power off time stamp*/
+			link->link_trace.time_stamp.edp_poweroff = dm_get_timestamp(ctx);
+		else
+			link->link_trace.time_stamp.edp_poweron = dm_get_timestamp(ctx);
 
 		if (bp_result != BP_RESULT_OK)
 			DC_LOG_ERROR(
