@@ -419,7 +419,7 @@ static int seg6_build_state(struct nlattr *nla,
 
 	slwt = seg6_lwt_lwtunnel(newts);
 
-	err = dst_cache_init(&slwt->cache, GFP_KERNEL);
+	err = dst_cache_init(&slwt->cache, GFP_ATOMIC);
 	if (err) {
 		kfree(newts);
 		return err;
