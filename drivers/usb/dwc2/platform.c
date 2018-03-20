@@ -743,6 +743,7 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 	if (dwc2->op_state == OTG_STATE_A_HOST && dwc2_is_device_mode(dwc2)) {
 		spin_lock_irqsave(&dwc2->lock, flags);
 		dwc2_hcd_disconnect(dwc2, true);
+		dwc2->op_state = OTG_STATE_B_PERIPHERAL;
 		dwc2->lx_state = DWC2_L3;
 		if (!dwc2->driver)
 			dwc2_hsotg_core_init_disconnected(dwc2, false);
