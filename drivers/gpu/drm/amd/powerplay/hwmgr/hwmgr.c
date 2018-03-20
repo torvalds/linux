@@ -58,50 +58,6 @@ static int tonga_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static int topaz_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static int ci_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 
-static int phm_thermal_l2h_irq(void *private_data,
-		 unsigned src_id, const uint32_t *iv_entry)
-{
-	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct amdgpu_device *adev = hwmgr->adev;
-
-	pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
-			PCI_BUS_NUM(adev->pdev->devfn),
-			PCI_SLOT(adev->pdev->devfn),
-			PCI_FUNC(adev->pdev->devfn));
-	return 0;
-}
-
-static int phm_thermal_h2l_irq(void *private_data,
-		 unsigned src_id, const uint32_t *iv_entry)
-{
-	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct amdgpu_device *adev = hwmgr->adev;
-
-	pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
-			PCI_BUS_NUM(adev->pdev->devfn),
-			PCI_SLOT(adev->pdev->devfn),
-			PCI_FUNC(adev->pdev->devfn));
-	return 0;
-}
-
-static int phm_ctf_irq(void *private_data,
-		 unsigned src_id, const uint32_t *iv_entry)
-{
-	struct pp_hwmgr *hwmgr = (struct pp_hwmgr *)private_data;
-	struct amdgpu_device *adev = hwmgr->adev;
-
-	pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
-			PCI_BUS_NUM(adev->pdev->devfn),
-			PCI_SLOT(adev->pdev->devfn),
-			PCI_FUNC(adev->pdev->devfn));
-	return 0;
-}
-
-static const struct cgs_irq_src_funcs thermal_irq_src[3] = {
-	{ .handler = phm_thermal_l2h_irq },
-	{ .handler = phm_thermal_h2l_irq },
-	{ .handler = phm_ctf_irq }
-};
 
 static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
 {
@@ -250,7 +206,7 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	if (ret)
 		goto err2;
 
-	ret = phm_register_thermal_interrupt(hwmgr, &thermal_irq_src);
+	ret = phm_register_thermal_interrupt(hwmgr, NULL);
 	if (ret)
 		goto err2;
 

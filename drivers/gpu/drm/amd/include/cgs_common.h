@@ -290,7 +290,6 @@ struct cgs_os_ops; /* To be define in OS-specific CGS header */
 struct cgs_device
 {
 	const struct cgs_ops *ops;
-	const struct cgs_os_ops *os_ops;
 	/* to be embedded at the start of driver private structure */
 };
 

@@ -785,11 +785,6 @@ struct pp_hwmgr {
 	uint32_t workload_setting[Workload_Policy_Max];
 };
 
-struct cgs_irq_src_funcs {
-	cgs_irq_source_set_func_t set;
-	cgs_irq_handler_func_t handler;
-};
-
 extern int hwmgr_early_init(struct pp_hwmgr *hwmgr);
 extern int hwmgr_hw_init(struct pp_hwmgr *hwmgr);
 extern int hwmgr_hw_fini(struct pp_hwmgr *hwmgr);

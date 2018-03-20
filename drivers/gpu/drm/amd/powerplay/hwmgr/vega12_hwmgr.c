@@ -44,7 +44,6 @@
 #include "vega12_ppsmc.h"
 #include "pp_debug.h"
 #include "amd_pcie_helpers.h"
-#include "cgs_linux.h"
 #include "ppinterrupt.h"
 #include "pp_overdriver.h"
 #include "pp_thermal.h"
@@ -2509,51 +2508,6 @@ static int vega12_get_thermal_temperature_range(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int vega12_is_hardware_ctf_enabled(struct pp_hwmgr *hwmgr)
-{
-	uint32_t reg;
-
-	reg = soc15_get_register_offset(THM_HWID, 0,
-			mmTHM_TCON_THERM_TRIP_BASE_IDX,
-			mmTHM_TCON_THERM_TRIP);
-
-	return (((cgs_read_register(hwmgr->device, reg) &
-		THM_TCON_THERM_TRIP__THERM_TP_EN_MASK) >>
-		THM_TCON_THERM_TRIP__THERM_TP_EN__SHIFT) == 1);
-}
-
-static int vega12_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
-		const void *info)
-{
-	struct cgs_irq_src_funcs *irq_src =
-			(struct cgs_irq_src_funcs *)info;
-
-	if (hwmgr->thermal_controller.ucType ==
-			ATOM_VEGA12_PP_THERMALCONTROLLER_VEGA12) {
-		PP_ASSERT_WITH_CODE(!cgs_add_irq_source(hwmgr->device,
-				0xf, /* AMDGPU_IH_CLIENTID_THM */
-				0, 0, irq_src[0].set, irq_src[0].handler, hwmgr),
-				"Failed to register high thermal interrupt!",
-				return -EINVAL);
-		PP_ASSERT_WITH_CODE(!cgs_add_irq_source(hwmgr->device,
-				0xf, /* AMDGPU_IH_CLIENTID_THM */
-				1, 0, irq_src[1].set, irq_src[1].handler, hwmgr),
-				"Failed to register low thermal interrupt!",
-				return -EINVAL);
-	}
-
-	if (vega12_is_hardware_ctf_enabled(hwmgr))
-		/* Register CTF(GPIO_19) interrupt */
-		PP_ASSERT_WITH_CODE(!cgs_add_irq_source(hwmgr->device,
-				0x16, /* AMDGPU_IH_CLIENTID_ROM_SMUIO, */
-				83, 0, irq_src[2].set, irq_src[2].handler, hwmgr),
-				"Failed to register CTF thermal interrupt!",
-				return -EINVAL);
-
-	return 0;
-}
-
-
 static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.backend_init = vega12_hwmgr_backend_init,
 	.backend_fini = vega12_hwmgr_backend_fini,
@@ -2603,7 +2557,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 #endif
 	.notify_cac_buffer_info = vega12_notify_cac_buffer_info,
 	.get_thermal_temperature_range = vega12_get_thermal_temperature_range,
-	.register_internal_thermal_interrupt = vega12_register_thermal_interrupt,
+	.register_internal_thermal_interrupt = smu9_register_thermal_interrupt,
 	.start_thermal_controller = vega12_start_thermal_controller,
 };
 
