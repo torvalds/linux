@@ -1125,7 +1125,7 @@ done:
 }
 
 /*
- * Mapping V4L2 controls to UVC controls can be straighforward if done well.
+ * Mapping V4L2 controls to UVC controls can be straightforward if done well.
  * Most of the UVC controls exist in V4L2, and can be mapped directly. Some
  * must be grouped (for instance the Red Balance, Blue Balance and Do White
  * Balance V4L2 controls use the White Balance Component UVC control) or
