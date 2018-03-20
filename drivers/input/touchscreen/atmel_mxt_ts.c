@@ -324,6 +324,8 @@ struct mxt_data {
 
 	/* for config update handling */
 	struct completion crc_completion;
+
+	enum mxt_suspend_mode suspend_mode;
 };
 
 struct mxt_vb2_buffer {
@@ -2868,7 +2870,7 @@ static const struct attribute_group mxt_attr_group = {
 
 static void mxt_start(struct mxt_data *data)
 {
-	switch (data->pdata->suspend_mode) {
+	switch (data->suspend_mode) {
 	case MXT_SUSPEND_T9_CTRL:
 		mxt_soft_reset(data);
 
@@ -2886,12 +2888,11 @@ static void mxt_start(struct mxt_data *data)
 		mxt_t6_command(data, MXT_COMMAND_CALIBRATE, 1, false);
 		break;
 	}
-
 }
 
 static void mxt_stop(struct mxt_data *data)
 {
-	switch (data->pdata->suspend_mode) {
+	switch (data->suspend_mode) {
 	case MXT_SUSPEND_T9_CTRL:
 		/* Touch disable */
 		mxt_write_object(data,
@@ -2953,8 +2954,6 @@ static const struct mxt_platform_data *mxt_parse_dt(struct i2c_client *client)
 
 		pdata->t19_keymap = keymap;
 	}
-
-	pdata->suspend_mode = MXT_SUSPEND_DEEP_SLEEP;
 
 	return pdata;
 }
@@ -3109,6 +3108,21 @@ mxt_get_platform_data(struct i2c_client *client)
 	return ERR_PTR(-EINVAL);
 }
 
+static const struct dmi_system_id chromebook_T9_suspend_dmi[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Link"),
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Peppy"),
+		},
+	},
+	{ }
+};
+
 static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct mxt_data *data;
@@ -3134,6 +3148,9 @@ static int mxt_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	init_completion(&data->bl_completion);
 	init_completion(&data->reset_completion);
 	init_completion(&data->crc_completion);
+
+	data->suspend_mode = dmi_check_system(chromebook_T9_suspend_dmi) ?
+		MXT_SUSPEND_T9_CTRL : MXT_SUSPEND_DEEP_SLEEP;
 
 	data->reset_gpio = devm_gpiod_get_optional(&client->dev,
 						   "reset", GPIOD_OUT_LOW);
