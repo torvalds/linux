@@ -2460,8 +2460,8 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 	sp->type = SRB_ELS_DCMD;
 	sp->name = "ELS_DCMD";
 	sp->fcport = fcport;
-	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
 	elsio->timeout = qla2x00_els_dcmd_iocb_timeout;
+	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
 	sp->done = qla2x00_els_dcmd_sp_done;
 	sp->free = qla2x00_els_dcmd_sp_free;
 
@@ -2658,8 +2658,11 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	sp->type = SRB_ELS_DCMD;
 	sp->name = "ELS_DCMD";
 	sp->fcport = fcport;
-	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
+
 	elsio->timeout = qla2x00_els_dcmd2_iocb_timeout;
+	init_completion(&elsio->u.els_plogi.comp);
+	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
+
 	sp->done = qla2x00_els_dcmd2_sp_done;
 	sp->free = qla2x00_els_dcmd2_sp_free;
 
@@ -2696,7 +2699,6 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x0109,
 	    (uint8_t *)elsio->u.els_plogi.els_plogi_pyld, 0x70);
 
-	init_completion(&elsio->u.els_plogi.comp);
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		rval = QLA_FUNCTION_FAILED;
