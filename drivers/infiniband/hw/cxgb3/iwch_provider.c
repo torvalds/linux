@@ -440,7 +440,9 @@ static struct ib_pd *iwch_allocate_pd(struct ib_device *ibdev,
 	php->pdid = pdid;
 	php->rhp = rhp;
 	if (context) {
-		if (ib_copy_to_udata(udata, &php->pdid, sizeof (__u32))) {
+		struct iwch_alloc_pd_resp resp = {.pdid = php->pdid};
+
+		if (ib_copy_to_udata(udata, &resp, sizeof(resp))) {
 			iwch_deallocate_pd(&php->ibpd);
 			return ERR_PTR(-EFAULT);
 		}

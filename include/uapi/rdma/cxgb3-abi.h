@@ -74,4 +74,9 @@ struct iwch_create_qp_resp {
 struct iwch_reg_user_mr_resp {
 	__u32 pbl_addr;
 };
+
+struct iwch_alloc_pd_resp {
+	__u32 pdid;
+};
+
 #endif /* CXGB3_ABI_USER_H */
