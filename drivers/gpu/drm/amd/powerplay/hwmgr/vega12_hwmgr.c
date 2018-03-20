@@ -601,14 +601,6 @@ static int vega12_init_smc_table(struct pp_hwmgr *hwmgr)
 		data->vbios_boot_state.soc_clock = boot_up_values.ulSocClk;
 		data->vbios_boot_state.dcef_clock = boot_up_values.ulDCEFClk;
 		data->vbios_boot_state.uc_cooling_id = boot_up_values.ucCoolingID;
-		if (0 != boot_up_values.usVddc) {
-			smum_send_msg_to_smc_with_parameter(hwmgr,
-						PPSMC_MSG_SetFloorSocVoltage,
-						(boot_up_values.usVddc * 4));
-			data->vbios_boot_state.bsoc_vddc_lock = true;
-		} else {
-			data->vbios_boot_state.bsoc_vddc_lock = false;
-		}
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetMinDeepSleepDcefclk,
 			(uint32_t)(data->vbios_boot_state.dcef_clock / 100));
