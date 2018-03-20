@@ -11,7 +11,7 @@
 
 asmlinkage long sys_getpagesize(void);
 asmlinkage long sys_sparc_pipe(void);
-asmlinkage unsigned long c_sys_nis_syscall(struct pt_regs *regs);
+asmlinkage long sys_nis_syscall(void);
 asmlinkage long sys_getdomainname(char __user *name, int len);
 void do_rt_sigreturn(struct pt_regs *regs);
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,

@@ -480,10 +480,10 @@ SYSCALL_DEFINE5(64_mremap, unsigned long, addr,	unsigned long, old_len,
 	return sys_mremap(addr, old_len, new_len, flags, new_addr);
 }
 
-/* we come to here via sys_nis_syscall so it can setup the regs argument */
-asmlinkage unsigned long c_sys_nis_syscall(struct pt_regs *regs)
+SYSCALL_DEFINE0(nis_syscall)
 {
 	static int count;
+	struct pt_regs *regs = current_pt_regs();
 	
 	/* Don't make the system unusable, if someone goes stuck */
 	if (count++ > 5)

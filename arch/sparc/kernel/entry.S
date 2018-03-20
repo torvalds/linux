@@ -801,13 +801,6 @@ SUN_PI_(lda	[%l4] ASI_M_MMUREGS, %l5)	! read sfsr last
 	RESTORE_ALL
 
 	.align	4
-	.globl	sys_nis_syscall
-sys_nis_syscall:
-	mov	%o7, %l5
-	add	%sp, STACKFRAME_SZ, %o0		! pt_regs *regs arg
-	call	c_sys_nis_syscall
-	 mov	%l5, %o7
-
 sunos_execv:
 	.globl	sunos_execv
 	b	sys_execve

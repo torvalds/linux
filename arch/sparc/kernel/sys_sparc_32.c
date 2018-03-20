@@ -127,11 +127,10 @@ SYSCALL_DEFINE5(sparc_remap_file_pages, unsigned long, start, unsigned long, siz
 				    (pgoff >> (PAGE_SHIFT - 12)), flags);
 }
 
-/* we come to here via sys_nis_syscall so it can setup the regs argument */
-asmlinkage unsigned long
-c_sys_nis_syscall (struct pt_regs *regs)
+SYSCALL_DEFINE0(nis_syscall)
 {
 	static int count = 0;
+	struct pt_regs *regs = current_pt_regs();
 
 	if (count++ > 5)
 		return -ENOSYS;

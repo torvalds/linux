@@ -27,9 +27,6 @@ sys32_execveat:
 #endif
 
 	.align	32
-sys_nis_syscall:
-	ba,pt	%xcc, c_sys_nis_syscall
-	 add	%sp, PTREGS_OFF, %o0
 #ifdef CONFIG_COMPAT
 sys32_sigstack:
 	ba,pt	%xcc, do_sys32_sigstack
