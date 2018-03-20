@@ -939,3 +939,23 @@ err_exit:
 out:
 	return err;
 }
+
+void aq_nic_shutdown(struct aq_nic_s *self)
+{
+	int err = 0;
+
+	if (!self->ndev)
+		return;
+
+	rtnl_lock();
+
+	netif_device_detach(self->ndev);
+
+	err = aq_nic_stop(self);
+	if (err < 0)
+		goto err_exit;
+	aq_nic_deinit(self);
+
+err_exit:
+	rtnl_unlock();
+}
