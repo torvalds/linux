@@ -72,25 +72,23 @@ static int guc_action_control_log(struct intel_guc *guc, bool enable,
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }
 
-static void guc_flush_log_msg_enable(struct intel_guc *guc)
-{
-	spin_lock_irq(&guc->irq_lock);
-	guc->msg_enabled_mask |= INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
-				 INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED;
-	spin_unlock_irq(&guc->irq_lock);
-}
-
-static void guc_flush_log_msg_disable(struct intel_guc *guc)
-{
-	spin_lock_irq(&guc->irq_lock);
-	guc->msg_enabled_mask &= ~(INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
-				   INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED);
-	spin_unlock_irq(&guc->irq_lock);
-}
-
 static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
 {
 	return container_of(log, struct intel_guc, log);
+}
+
+static void guc_log_enable_flush_events(struct intel_guc_log *log)
+{
+	intel_guc_enable_msg(log_to_guc(log),
+			     INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
+			     INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED);
+}
+
+static void guc_log_disable_flush_events(struct intel_guc_log *log)
+{
+	intel_guc_disable_msg(log_to_guc(log),
+			      INTEL_GUC_RECV_MSG_FLUSH_LOG_BUFFER |
+			      INTEL_GUC_RECV_MSG_CRASH_DUMP_POSTED);
 }
 
 /*
@@ -576,7 +574,7 @@ int intel_guc_log_relay_open(struct intel_guc_log *log)
 
 	mutex_unlock(&log->relay.lock);
 
-	guc_flush_log_msg_enable(log_to_guc(log));
+	guc_log_enable_flush_events(log);
 
 	/*
 	 * When GuC is logging without us relaying to userspace, we're ignoring
@@ -616,7 +614,7 @@ void intel_guc_log_relay_flush(struct intel_guc_log *log)
 
 void intel_guc_log_relay_close(struct intel_guc_log *log)
 {
-	guc_flush_log_msg_disable(log_to_guc(log));
+	guc_log_disable_flush_events(log);
 	flush_work(&log->relay.flush_work);
 
 	mutex_lock(&log->relay.lock);

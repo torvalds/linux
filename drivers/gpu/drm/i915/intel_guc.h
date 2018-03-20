@@ -155,4 +155,18 @@ static inline int intel_guc_sanitize(struct intel_guc *guc)
 	return 0;
 }
 
+static inline void intel_guc_enable_msg(struct intel_guc *guc, u32 mask)
+{
+	spin_lock_irq(&guc->irq_lock);
+	guc->msg_enabled_mask |= mask;
+	spin_unlock_irq(&guc->irq_lock);
+}
+
+static inline void intel_guc_disable_msg(struct intel_guc *guc, u32 mask)
+{
+	spin_lock_irq(&guc->irq_lock);
+	guc->msg_enabled_mask &= ~mask;
+	spin_unlock_irq(&guc->irq_lock);
+}
+
 #endif
