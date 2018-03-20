@@ -17,6 +17,7 @@ static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 
 /* debug masks - set these bits in hw->debug_mask to control output */
 #define ICE_DBG_INIT		BIT_ULL(1)
+#define ICE_DBG_LINK		BIT_ULL(4)
 #define ICE_DBG_QCTX		BIT_ULL(6)
 #define ICE_DBG_NVM		BIT_ULL(7)
 #define ICE_DBG_LAN		BIT_ULL(8)

@@ -1428,6 +1428,39 @@ out:
 }
 
 /**
+ * ice_get_link_status - get status of the HW network link
+ * @pi: port information structure
+ * @link_up: pointer to bool (true/false = linkup/linkdown)
+ *
+ * Variable link_up is true if link is up, false if link is down.
+ * The variable link_up is invalid if status is non zero. As a
+ * result of this call, link status reporting becomes enabled
+ */
+enum ice_status ice_get_link_status(struct ice_port_info *pi, bool *link_up)
+{
+	struct ice_phy_info *phy_info;
+	enum ice_status status = 0;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+
+	phy_info = &pi->phy;
+
+	if (phy_info->get_link_info) {
+		status = ice_update_link_info(pi);
+
+		if (status)
+			ice_debug(pi->hw, ICE_DBG_LINK,
+				  "get link status error, status = %d\n",
+				  status);
+	}
+
+	*link_up = phy_info->link_info.link_info & ICE_AQ_LINK_UP;
+
+	return status;
+}
+
+/**
  * ice_aq_set_link_restart_an
  * @pi: pointer to the port information structure
  * @ena_link: if true: enable link, if false: disable link
@@ -1454,6 +1487,33 @@ ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 		cmd->cmd_flags &= ~ICE_AQC_RESTART_AN_LINK_ENABLE;
 
 	return ice_aq_send_cmd(pi->hw, &desc, NULL, 0, cd);
+}
+
+/**
+ * ice_aq_set_event_mask
+ * @hw: pointer to the hw struct
+ * @port_num: port number of the physical function
+ * @mask: event mask to be set
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set event mask (0x0613)
+ */
+enum ice_status
+ice_aq_set_event_mask(struct ice_hw *hw, u8 port_num, u16 mask,
+		      struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_event_mask *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.set_event_mask;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_event_mask);
+
+	cmd->lport_num = port_num;
+
+	cmd->event_mask = cpu_to_le16(mask);
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
 
 /**

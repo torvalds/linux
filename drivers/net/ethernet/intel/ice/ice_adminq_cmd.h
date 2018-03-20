@@ -1009,6 +1009,23 @@ struct ice_aqc_get_link_status_data {
 	__le64 reserved4;
 };
 
+/* Set event mask command (direct 0x0613) */
+struct ice_aqc_set_event_mask {
+	u8	lport_num;
+	u8	reserved[7];
+	__le16	event_mask;
+#define ICE_AQ_LINK_EVENT_UPDOWN		BIT(1)
+#define ICE_AQ_LINK_EVENT_MEDIA_NA		BIT(2)
+#define ICE_AQ_LINK_EVENT_LINK_FAULT		BIT(3)
+#define ICE_AQ_LINK_EVENT_PHY_TEMP_ALARM	BIT(4)
+#define ICE_AQ_LINK_EVENT_EXCESSIVE_ERRORS	BIT(5)
+#define ICE_AQ_LINK_EVENT_SIGNAL_DETECT		BIT(6)
+#define ICE_AQ_LINK_EVENT_AN_COMPLETED		BIT(7)
+#define ICE_AQ_LINK_EVENT_MODULE_QUAL_FAIL	BIT(8)
+#define ICE_AQ_LINK_EVENT_PORT_TX_SUSPENDED	BIT(9)
+	u8	reserved1[6];
+};
+
 /* NVM Read command (indirect 0x0701)
  * NVM Erase commands (direct 0x0702)
  * NVM Update commands (indirect 0x0703)
@@ -1215,6 +1232,7 @@ struct ice_aq_desc {
 		struct ice_aqc_dis_txqs dis_txqs;
 		struct ice_aqc_add_get_update_free_vsi vsi_cmd;
 		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
+		struct ice_aqc_set_event_mask set_event_mask;
 		struct ice_aqc_get_link_status get_link_status;
 	} params;
 };
@@ -1294,6 +1312,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_set_phy_cfg				= 0x0601,
 	ice_aqc_opc_restart_an				= 0x0605,
 	ice_aqc_opc_get_link_status			= 0x0607,
+	ice_aqc_opc_set_event_mask			= 0x0613,
 
 	/* NVM commands */
 	ice_aqc_opc_nvm_read				= 0x0701,

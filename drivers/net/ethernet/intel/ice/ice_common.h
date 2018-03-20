@@ -20,6 +20,8 @@ enum ice_status
 ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		  struct ice_rq_event_info *e, u16 *pending);
 enum ice_status
+ice_get_link_status(struct ice_port_info *pi, bool *link_up);
+enum ice_status
 ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		enum ice_aq_res_access_type access);
 void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res);
@@ -65,6 +67,9 @@ ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
 enum ice_status
 ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 		     struct ice_link_status *link, struct ice_sq_cd *cd);
+enum ice_status
+ice_aq_set_event_mask(struct ice_hw *hw, u8 port_num, u16 mask,
+		      struct ice_sq_cd *cd);
 enum ice_status
 ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 		u32 *q_teids, struct ice_sq_cd *cmd_details);

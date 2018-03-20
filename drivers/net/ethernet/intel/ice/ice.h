@@ -78,6 +78,11 @@ extern const char ice_drv_ver[];
 #define ICE_RX_DESC(R, i) (&(((union ice_32b_rx_flex_desc *)((R)->desc))[i]))
 #define ICE_TX_CTX_DESC(R, i) (&(((struct ice_tx_ctx_desc *)((R)->desc))[i]))
 
+/* Macro for each VSI in a PF */
+#define ice_for_each_vsi(pf, i) \
+	for ((i) = 0; (i) < (pf)->num_alloc_vsi; (i)++)
+
+/* Macros for each tx/rx ring in a VSI */
 #define ice_for_each_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_txq; (i)++)
 
@@ -109,7 +114,16 @@ struct ice_sw {
 
 enum ice_state {
 	__ICE_DOWN,
+	__ICE_NEEDS_RESTART,
+	__ICE_RESET_RECOVERY_PENDING,	/* set by driver when reset starts */
 	__ICE_PFR_REQ,			/* set by driver and peers */
+	__ICE_CORER_REQ,		/* set by driver and peers */
+	__ICE_GLOBR_REQ,		/* set by driver and peers */
+	__ICE_CORER_RECV,		/* set by OICR handler */
+	__ICE_GLOBR_RECV,		/* set by OICR handler */
+	__ICE_EMPR_RECV,		/* set by OICR handler */
+	__ICE_SUSPENDED,		/* set on module remove path */
+	__ICE_RESET_FAILED,		/* set by reset/rebuild */
 	__ICE_ADMINQ_EVENT_PENDING,
 	__ICE_CFG_BUSY,
 	__ICE_SERVICE_SCHED,
@@ -226,6 +240,11 @@ struct ice_pf {
 	u16 q_left_rx;		/* remaining num rx queues left unclaimed */
 	u16 next_vsi;		/* Next free slot in pf->vsi[] - 0-based! */
 	u16 num_alloc_vsi;
+	u16 corer_count;	/* Core reset count */
+	u16 globr_count;	/* Global reset count */
+	u16 empr_count;		/* EMP reset count */
+	u16 pfr_count;		/* PF reset count */
+
 	struct ice_hw_port_stats stats;
 	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
