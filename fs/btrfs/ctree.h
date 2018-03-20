@@ -89,9 +89,9 @@ struct btrfs_ordered_sum;
  */
 #define BTRFS_LINK_MAX 65535U
 
+/* four bytes for CRC32 */
 static const int btrfs_csum_sizes[] = { 4 };
 
-/* four bytes for CRC32 */
 #define BTRFS_EMPTY_DIR_SIZE 0
 
 /* ioprio of readahead is set to idle */
