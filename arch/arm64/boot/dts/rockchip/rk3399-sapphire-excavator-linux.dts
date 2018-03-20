@@ -76,19 +76,8 @@
 		};
 	};
 
-	hdmi_codec: hdmi-codec {
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,name = "HDMI-CODEC";
-
-		simple-audio-card,cpu {
-			sound-dai = <&i2s2>;
-		};
-
-		simple-audio-card,codec {
-			sound-dai = <&hdmi>;
-		};
+	hdmi_sound: hdmi-sound {
+		status = "okay";
 	};
 
 	gpio-keys {
@@ -390,11 +379,6 @@
 		rockchip,camera-module-mclk-name = "clk_cif_out";
 		rockchip,camera-module-mipi-dphy-index = <1>;
 	};
-};
-
-&i2s2 {
-	#sound-dai-cells = <0>;
-	status = "okay";
 };
 
 &pcie_phy {
