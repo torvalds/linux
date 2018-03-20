@@ -310,7 +310,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
  */
-SYSCALL_DEFINE1(sparc_pipe_real, struct pt_regs *, regs)
+SYSCALL_DEFINE0(sparc_pipe)
 {
 	int fd[2];
 	int error;
@@ -318,7 +318,7 @@ SYSCALL_DEFINE1(sparc_pipe_real, struct pt_regs *, regs)
 	error = do_pipe_flags(fd, 0);
 	if (error)
 		goto out;
-	regs->u_regs[UREG_I1] = fd[1];
+	current_pt_regs()->u_regs[UREG_I1] = fd[1];
 	error = fd[0];
 out:
 	return error;

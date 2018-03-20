@@ -73,7 +73,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way unix traditionally does this, though.
  */
-asmlinkage long sparc_pipe(struct pt_regs *regs)
+SYSCALL_DEFINE0(sparc_pipe)
 {
 	int fd[2];
 	int error;
@@ -81,7 +81,7 @@ asmlinkage long sparc_pipe(struct pt_regs *regs)
 	error = do_pipe_flags(fd, 0);
 	if (error)
 		goto out;
-	regs->u_regs[UREG_I1] = fd[1];
+	current_pt_regs()->u_regs[UREG_I1] = fd[1];
 	error = fd[0];
 out:
 	return error;

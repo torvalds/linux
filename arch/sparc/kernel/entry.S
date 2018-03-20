@@ -814,14 +814,6 @@ sunos_execv:
 	 clr	%i2
 
 	.align	4
-	.globl	sys_sparc_pipe
-sys_sparc_pipe:
-	mov	%o7, %l5
-	add	%sp, STACKFRAME_SZ, %o0		! pt_regs *regs arg
-	call	sparc_pipe
-	 mov	%l5, %o7
-
-	.align	4
 	.globl	sys_sigstack
 sys_sigstack:
 	mov	%o7, %l5
