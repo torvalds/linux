@@ -640,9 +640,9 @@ static inline int scl_vop_cal_lb_mode(int width, bool is_yuv)
 {
 	int lb_mode;
 
-	if (width > 2560)
+	if (!is_yuv && (width > 2560))
 		lb_mode = LB_RGB_3840X2;
-	else if (width > 1920)
+	else if (!is_yuv && (width > 1920))
 		lb_mode = LB_RGB_2560X4;
 	else if (!is_yuv)
 		lb_mode = LB_RGB_1920X5;
