@@ -2085,10 +2085,11 @@ static struct ice_vsi *
 ice_vsi_setup(struct ice_pf *pf, enum ice_vsi_type type,
 	      struct ice_port_info *pi)
 {
+	u16 max_txqs[ICE_MAX_TRAFFIC_CLASS] = { 0 };
 	struct device *dev = &pf->pdev->dev;
 	struct ice_vsi_ctx ctxt = { 0 };
 	struct ice_vsi *vsi;
-	int ret;
+	int ret, i;
 
 	vsi = ice_vsi_alloc(pf, type);
 	if (!vsi) {
@@ -2156,6 +2157,20 @@ ice_vsi_setup(struct ice_pf *pf, enum ice_vsi_type type,
 		 */
 		goto err_rings;
 	}
+
+	ice_vsi_set_tc_cfg(vsi);
+
+	/* configure VSI nodes based on number of queues and TC's */
+	for (i = 0; i < vsi->tc_cfg.numtc; i++)
+		max_txqs[i] = vsi->num_txq;
+
+	ret = ice_cfg_vsi_lan(vsi->port_info, vsi->vsi_num,
+			      vsi->tc_cfg.ena_tc, max_txqs);
+	if (ret) {
+		dev_info(&pf->pdev->dev, "Failed VSI lan queue config\n");
+		goto err_rings;
+	}
+
 	return vsi;
 
 err_rings:
@@ -2398,8 +2413,7 @@ static void ice_determine_q_usage(struct ice_pf *pf)
 	q_left_tx = pf->hw.func_caps.common_cap.num_txq;
 	q_left_rx = pf->hw.func_caps.common_cap.num_rxq;
 
-	/* initial support for only 1 tx queue */
-	pf->num_lan_tx = 1;
+	pf->num_lan_tx = min_t(int, q_left_tx, num_online_cpus());
 
 	/* only 1 rx queue unless RSS is enabled */
 	if (!test_bit(ICE_FLAG_RSS_ENA, pf->flags))

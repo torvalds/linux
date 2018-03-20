@@ -631,6 +631,25 @@ struct ice_aqc_get_topo {
 	__le32 addr_low;
 };
 
+/* Update TSE (indirect 0x0403)
+ * Get TSE (indirect 0x0404)
+ */
+struct ice_aqc_get_cfg_elem {
+	__le16 num_elem_req;	/* Used by commands */
+	__le16 num_elem_resp;	/* Used by responses */
+	__le32 reserved;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* This is the buffer for:
+ * Suspend Nodes (indirect 0x0409)
+ * Resume Nodes (indirect 0x040A)
+ */
+struct ice_aqc_suspend_resume_elem {
+	__le32 teid[1];
+};
+
 /* Add TSE (indirect 0x0401)
  * Delete TSE (indirect 0x040F)
  * Move TSE (indirect 0x0408)
@@ -689,6 +708,11 @@ struct ice_aqc_txsched_topo_grp_info_hdr {
 	__le32 parent_teid;
 	__le16 num_elems;
 	__le16 reserved2;
+};
+
+struct ice_aqc_add_elem {
+	struct ice_aqc_txsched_topo_grp_info_hdr hdr;
+	struct ice_aqc_txsched_elem_data generic[1];
 };
 
 struct ice_aqc_get_topo_elem {
@@ -1181,6 +1205,7 @@ struct ice_aq_desc {
 		struct ice_aqc_get_sw_cfg get_sw_conf;
 		struct ice_aqc_sw_rules sw_rules;
 		struct ice_aqc_get_topo get_topo;
+		struct ice_aqc_get_cfg_elem get_update_elem;
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_add_move_delete_elem add_move_delete_elem;
 		struct ice_aqc_nvm nvm;
@@ -1258,6 +1283,9 @@ enum ice_adminq_opc {
 
 	/* transmit scheduler commands */
 	ice_aqc_opc_get_dflt_topo			= 0x0400,
+	ice_aqc_opc_add_sched_elems			= 0x0401,
+	ice_aqc_opc_suspend_sched_elems			= 0x0409,
+	ice_aqc_opc_resume_sched_elems			= 0x040A,
 	ice_aqc_opc_delete_sched_elems			= 0x040F,
 	ice_aqc_opc_query_sched_res			= 0x0412,
 

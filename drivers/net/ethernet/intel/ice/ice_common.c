@@ -2089,3 +2089,57 @@ ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
 	mutex_unlock(&pi->sched_lock);
 	return status;
 }
+
+/**
+ * ice_cfg_vsi_qs - configure the new/exisiting VSI queues
+ * @pi: port information structure
+ * @vsi_id: VSI Id
+ * @tc_bitmap: TC bitmap
+ * @maxqs: max queues array per TC
+ * @owner: lan or rdma
+ *
+ * This function adds/updates the VSI queues per TC.
+ */
+static enum ice_status
+ice_cfg_vsi_qs(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
+	       u16 *maxqs, u8 owner)
+{
+	enum ice_status status = 0;
+	u8 i;
+
+	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
+		return ICE_ERR_CFG;
+
+	mutex_lock(&pi->sched_lock);
+
+	for (i = 0; i < ICE_MAX_TRAFFIC_CLASS; i++) {
+		/* configuration is possible only if TC node is present */
+		if (!ice_sched_get_tc_node(pi, i))
+			continue;
+
+		status = ice_sched_cfg_vsi(pi, vsi_id, i, maxqs[i], owner,
+					   ice_is_tc_ena(tc_bitmap, i));
+		if (status)
+			break;
+	}
+
+	mutex_unlock(&pi->sched_lock);
+	return status;
+}
+
+/**
+ * ice_cfg_vsi_lan - configure VSI lan queues
+ * @pi: port information structure
+ * @vsi_id: VSI Id
+ * @tc_bitmap: TC bitmap
+ * @max_lanqs: max lan queues array per TC
+ *
+ * This function adds/updates the VSI lan queues per TC.
+ */
+enum ice_status
+ice_cfg_vsi_lan(struct ice_port_info *pi, u16 vsi_id, u8 tc_bitmap,
+		u16 *max_lanqs)
+{
+	return ice_cfg_vsi_qs(pi, vsi_id, tc_bitmap, max_lanqs,
+			      ICE_SCHED_NODE_OWNER_LAN);
+}

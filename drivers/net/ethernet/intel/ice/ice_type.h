@@ -10,6 +10,11 @@
 #include "ice_controlq.h"
 #include "ice_lan_tx_rx.h"
 
+static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
+{
+	return test_bit(tc, (unsigned long *)&bitmap);
+}
+
 /* debug masks - set these bits in hw->debug_mask to control output */
 #define ICE_DBG_INIT		BIT_ULL(1)
 #define ICE_DBG_QCTX		BIT_ULL(6)
@@ -193,6 +198,8 @@ enum ice_agg_type {
 	ICE_AGG_TYPE_Q,
 	ICE_AGG_TYPE_QG
 };
+
+#define ICE_SCHED_DFLT_RL_PROF_ID	0
 
 /* vsi type list entry to locate corresponding vsi/ag nodes */
 struct ice_sched_vsi_info {

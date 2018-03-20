@@ -42,6 +42,7 @@ extern const char ice_drv_ver[];
 #define ICE_MIN_NUM_DESC	8
 #define ICE_MAX_NUM_DESC	8160
 #define ICE_REQ_DESC_MULTIPLE	32
+#define ICE_DFLT_TRAFFIC_CLASS	BIT(0)
 #define ICE_INT_NAME_STR_LEN	(IFNAMSIZ + 16)
 #define ICE_ETHTOOL_FWVER_LEN	32
 #define ICE_AQ_LEN		64
@@ -259,6 +260,12 @@ static inline void ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 		if (test_bit(__ICE_DOWN, vsi->state))
 			return;
 	wr32(hw, GLINT_DYN_CTL(vector), val);
+}
+
+static inline void ice_vsi_set_tc_cfg(struct ice_vsi *vsi)
+{
+	vsi->tc_cfg.ena_tc =  ICE_DFLT_TRAFFIC_CLASS;
+	vsi->tc_cfg.numtc = 1;
 }
 
 void ice_set_ethtool_ops(struct net_device *netdev);
