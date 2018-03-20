@@ -15,6 +15,10 @@
 			powerdown-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 			pwdn_active = <gc2145_PWRDN_ACTIVE>;
 			pwr_active = <PWR_ACTIVE_HIGH>;
+			rockchip,power_pmu_name1 = "vcc2v8_dvp";
+			rockchip,power_pmu_voltage1 = <2800000>;
+			rockchip,power_pmu_name2 = "vcc1v8_dvp";
+			rockchip,power_pmu_voltage2 = <1800000>;
 			mir = <0>;
 			flash_attach = <0>;
 			resolution = <gc2145_FULL_RESOLUTION>;
@@ -31,6 +35,10 @@
 			powerdown-gpios = <&gpio2 RK_PB6 GPIO_ACTIVE_HIGH>;
 			pwdn_active = <gc0312_PWRDN_ACTIVE>;
 			pwr_active = <PWR_ACTIVE_HIGH>;
+			rockchip,power_pmu_name1 = "vcc2v8_dvp";
+			rockchip,power_pmu_voltage1 = <2800000>;
+			rockchip,power_pmu_name2 = "vcc1v8_dvp";
+			rockchip,power_pmu_voltage2 = <1800000>;
 			mir = <0>;
 			flash_attach = <0>;
 			resolution = <gc0312_FULL_RESOLUTION>;
