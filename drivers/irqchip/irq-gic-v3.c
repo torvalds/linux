@@ -892,6 +892,8 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 	return 0;
 }
 
+#define GIC_IRQ_TYPE_PARTITION	(GIC_IRQ_TYPE_LPI + 1)
+
 static int gic_irq_domain_translate(struct irq_domain *d,
 				    struct irq_fwspec *fwspec,
 				    unsigned long *hwirq,
@@ -906,6 +908,7 @@ static int gic_irq_domain_translate(struct irq_domain *d,
 			*hwirq = fwspec->param[1] + 32;
 			break;
 		case 1:			/* PPI */
+		case GIC_IRQ_TYPE_PARTITION:
 			*hwirq = fwspec->param[1] + 16;
 			break;
 		case GIC_IRQ_TYPE_LPI:	/* LPI */
@@ -917,8 +920,12 @@ static int gic_irq_domain_translate(struct irq_domain *d,
 
 		*type = fwspec->param[2] & IRQ_TYPE_SENSE_MASK;
 
-		/* Make it clear that broken DTs are... broken */
-		WARN_ON(*type == IRQ_TYPE_NONE);
+		/*
+		 * Make it clear that broken DTs are... broken.
+		 * Partitionned PPIs are an unfortunate exception.
+		 */
+		WARN_ON(*type == IRQ_TYPE_NONE &&
+			fwspec->param[0] != GIC_IRQ_TYPE_PARTITION);
 		return 0;
 	}
 
@@ -1176,7 +1183,7 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 			.fwnode		= gic_data.fwnode,
 			.param_count	= 3,
 			.param		= {
-				[0]	= 1,
+				[0]	= GIC_IRQ_TYPE_PARTITION,
 				[1]	= i,
 				[2]	= IRQ_TYPE_NONE,
 			},
