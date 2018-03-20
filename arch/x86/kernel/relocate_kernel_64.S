@@ -11,6 +11,7 @@
 #include <asm/kexec.h>
 #include <asm/processor-flags.h>
 #include <asm/pgtable_types.h>
+#include <asm/nospec-branch.h>
 
 /*
  * Must be relocatable PIC code callable as a C function
@@ -194,6 +195,7 @@ identity_mapped:
 1:
 	popq	%rdx
 	leaq	PAGE_SIZE(%r10), %rsp
+	ANNOTATE_RETPOLINE_SAFE
 	call	*%rdx
 
 	/* get the re-entry point of the peer system */

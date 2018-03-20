@@ -32,6 +32,7 @@
 #include <asm/realmode.h>
 #include <asm/x86_init.h>
 #include <asm/efi.h>
+#include <asm/nospec-branch.h>
 
 /*
  * Power off function, if any
@@ -114,11 +115,11 @@ void __noreturn machine_real_restart(unsigned int type)
 
 	/* Jump to the identity-mapped low memory code */
 #ifdef CONFIG_X86_32
-	asm volatile("jmpl *%0" : :
+	asm volatile(ANNOTATE_RETPOLINE_SAFE "jmpl *%0" : :
 		     "rm" (real_mode_header->machine_real_restart_asm),
 		     "a" (type));
 #else
-	asm volatile("ljmpl *%0" : :
+	asm volatile(ANNOTATE_RETPOLINE_SAFE "ljmpl *%0" : :
 		     "m" (real_mode_header->machine_real_restart_asm),
 		     "D" (type));
 #endif
