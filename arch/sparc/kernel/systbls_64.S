@@ -32,7 +32,7 @@ sys_call_table32:
 /*50*/	.word sys_getegid16, sys_acct, sys_nis_syscall, sys_getgid, compat_sys_ioctl
 	.word sys_reboot, sys32_mmap2, sys_symlink, sys_readlink, sys32_execve
 /*60*/	.word sys_umask, sys_chroot, compat_sys_newfstat, compat_sys_fstat64, sys_getpagesize
-	.word sys_msync, sys_vfork, sys32_pread64, sys32_pwrite64, sys_geteuid
+	.word sys_msync, sys_vfork, compat_sys_pread64, compat_sys_pwrite64, sys_geteuid
 /*70*/	.word sys_getegid, sys_mmap, sys_setreuid, sys_munmap, sys_mprotect
 	.word sys_madvise, sys_vhangup, sys32_truncate64, sys_mincore, sys_getgroups16
 /*80*/	.word sys_setgroups16, sys_getpgrp, sys_setgroups, compat_sys_setitimer, sys32_ftruncate64

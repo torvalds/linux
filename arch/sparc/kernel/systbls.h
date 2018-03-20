@@ -65,16 +65,16 @@ asmlinkage long compat_sys_fstat64(unsigned int fd,
 asmlinkage long compat_sys_fstatat64(unsigned int dfd,
 				     const char __user *filename,
 				     struct compat_stat64 __user * statbuf, int flag);
-asmlinkage compat_ssize_t sys32_pread64(unsigned int fd,
+asmlinkage long compat_sys_pread64(unsigned int fd,
 					char __user *ubuf,
 					compat_size_t count,
-					unsigned long poshi,
-					unsigned long poslo);
-asmlinkage compat_ssize_t sys32_pwrite64(unsigned int fd,
+					u32 poshi,
+					u32 poslo);
+asmlinkage long compat_sys_pwrite64(unsigned int fd,
 					 char __user *ubuf,
 					 compat_size_t count,
-					 unsigned long poshi,
-					 unsigned long poslo);
+					 u32 poshi,
+					 u32 poslo);
 asmlinkage long compat_sys_readahead(int fd,
 				     unsigned offhi,
 				     unsigned offlo,

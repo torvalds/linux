@@ -194,22 +194,16 @@ COMPAT_SYSCALL_DEFINE5(rt_sigaction, int, sig,
         return ret;
 }
 
-asmlinkage compat_ssize_t sys32_pread64(unsigned int fd,
-					char __user *ubuf,
-					compat_size_t count,
-					unsigned long poshi,
-					unsigned long poslo)
+COMPAT_SYSCALL_DEFINE5(pread64, unsigned int, fd, char __user *, ubuf,
+			compat_size_t, count, u32, poshi, u32, poslo)
 {
-	return sys_pread64(fd, ubuf, count, (poshi << 32) | poslo);
+	return sys_pread64(fd, ubuf, count, ((u64)poshi << 32) | poslo);
 }
 
-asmlinkage compat_ssize_t sys32_pwrite64(unsigned int fd,
-					 char __user *ubuf,
-					 compat_size_t count,
-					 unsigned long poshi,
-					 unsigned long poslo)
+COMPAT_SYSCALL_DEFINE5(pwrite64, unsigned int, fd, char __user *, ubuf,
+			compat_size_t, count, u32, poshi, u32, poslo)
 {
-	return sys_pwrite64(fd, ubuf, count, (poshi << 32) | poslo);
+	return sys_pwrite64(fd, ubuf, count, ((u64)poshi << 32) | poslo);
 }
 
 COMPAT_SYSCALL_DEFINE4(readahead, int, fd, u32, offhi, u32, offlo,
