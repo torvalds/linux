@@ -3981,7 +3981,7 @@ static int decode_attr_owner(struct xdr_stream *xdr, uint32_t *bitmap,
 	bitmap[1] &= ~FATTR4_WORD1_OWNER;
 
 	if (owner_name != NULL) {
-		len = decode_nfs4_string(xdr, owner_name, GFP_NOWAIT);
+		len = decode_nfs4_string(xdr, owner_name, GFP_NOIO);
 		if (len <= 0)
 			goto out;
 		dprintk("%s: name=%s\n", __func__, owner_name->data);
@@ -4016,7 +4016,7 @@ static int decode_attr_group(struct xdr_stream *xdr, uint32_t *bitmap,
 	bitmap[1] &= ~FATTR4_WORD1_OWNER_GROUP;
 
 	if (group_name != NULL) {
-		len = decode_nfs4_string(xdr, group_name, GFP_NOWAIT);
+		len = decode_nfs4_string(xdr, group_name, GFP_NOIO);
 		if (len <= 0)
 			goto out;
 		dprintk("%s: name=%s\n", __func__, group_name->data);
