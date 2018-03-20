@@ -28,10 +28,19 @@ enum { CTB_SEND = 0, CTB_RECV = 1 };
 
 enum { CTB_OWNER_HOST = 0 };
 
+/**
+ * intel_guc_ct_init_early - Initialize CT state without requiring device access
+ * @ct: pointer to CT struct
+ */
 void intel_guc_ct_init_early(struct intel_guc_ct *ct)
 {
 	/* we're using static channel owners */
 	ct->host_channel.owner = CTB_OWNER_HOST;
+}
+
+static inline struct intel_guc *ct_to_guc(struct intel_guc_ct *ct)
+{
+	return container_of(ct, struct intel_guc, ct);
 }
 
 static inline const char *guc_ct_buffer_type_to_str(u32 type)
@@ -416,19 +425,21 @@ static int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len)
 }
 
 /**
- * Enable buffer based command transport
+ * intel_guc_ct_enable - Enable buffer based command transport.
+ * @ct: pointer to CT struct
+ *
  * Shall only be called for platforms with HAS_GUC_CT.
- * @guc:	the guc
- * return:	0 on success
- *		non-zero on failure
+ *
+ * Return: 0 on success, a negative errno code on failure.
  */
-int intel_guc_enable_ct(struct intel_guc *guc)
+int intel_guc_ct_enable(struct intel_guc_ct *ct)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_guc_ct_channel *ctch = &guc->ct.host_channel;
+	struct intel_guc *guc = ct_to_guc(ct);
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct intel_guc_ct_channel *ctch = &ct->host_channel;
 	int err;
 
-	GEM_BUG_ON(!HAS_GUC_CT(dev_priv));
+	GEM_BUG_ON(!HAS_GUC_CT(i915));
 
 	err = ctch_open(guc, ctch);
 	if (unlikely(err))
@@ -441,16 +452,18 @@ int intel_guc_enable_ct(struct intel_guc *guc)
 }
 
 /**
- * Disable buffer based command transport.
+ * intel_guc_ct_disable - Disable buffer based command transport.
+ * @ct: pointer to CT struct
+ *
  * Shall only be called for platforms with HAS_GUC_CT.
- * @guc: the guc
  */
-void intel_guc_disable_ct(struct intel_guc *guc)
+void intel_guc_ct_disable(struct intel_guc_ct *ct)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct intel_guc_ct_channel *ctch = &guc->ct.host_channel;
+	struct intel_guc *guc = ct_to_guc(ct);
+	struct drm_i915_private *i915 = guc_to_i915(guc);
+	struct intel_guc_ct_channel *ctch = &ct->host_channel;
 
-	GEM_BUG_ON(!HAS_GUC_CT(dev_priv));
+	GEM_BUG_ON(!HAS_GUC_CT(i915));
 
 	if (!ctch_is_open(ctch))
 		return;

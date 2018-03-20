@@ -78,9 +78,7 @@ struct intel_guc_ct {
 };
 
 void intel_guc_ct_init_early(struct intel_guc_ct *ct);
-
-/* XXX: move to intel_uc.h ? don't fit there either */
-int intel_guc_enable_ct(struct intel_guc *guc);
-void intel_guc_disable_ct(struct intel_guc *guc);
+int intel_guc_ct_enable(struct intel_guc_ct *ct);
+void intel_guc_ct_disable(struct intel_guc_ct *ct);
 
 #endif /* _INTEL_GUC_CT_H_ */

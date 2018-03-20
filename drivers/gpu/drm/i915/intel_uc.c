@@ -231,7 +231,7 @@ static int guc_enable_communication(struct intel_guc *guc)
 	gen9_enable_guc_interrupts(dev_priv);
 
 	if (HAS_GUC_CT(dev_priv))
-		return intel_guc_enable_ct(guc);
+		return intel_guc_ct_enable(&guc->ct);
 
 	guc->send = intel_guc_send_mmio;
 	return 0;
@@ -242,7 +242,7 @@ static void guc_disable_communication(struct intel_guc *guc)
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 
 	if (HAS_GUC_CT(dev_priv))
-		intel_guc_disable_ct(guc);
+		intel_guc_ct_disable(&guc->ct);
 
 	gen9_disable_guc_interrupts(dev_priv);
 
