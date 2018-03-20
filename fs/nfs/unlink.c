@@ -105,7 +105,7 @@ static void nfs_do_call_unlink(struct nfs_unlinkdata *data)
 	data->args.fh = NFS_FH(dir);
 	nfs_fattr_init(data->res.dir_attr);
 
-	NFS_PROTO(dir)->unlink_setup(&msg, dir);
+	NFS_PROTO(dir)->unlink_setup(&msg, data->dentry);
 
 	task_setup_data.rpc_client = NFS_CLIENT(dir);
 	task = rpc_run_task(&task_setup_data);

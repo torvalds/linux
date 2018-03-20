@@ -321,7 +321,7 @@ nfs_proc_remove(struct inode *dir, struct dentry *dentry)
 }
 
 static void
-nfs_proc_unlink_setup(struct rpc_message *msg, struct inode *dir)
+nfs_proc_unlink_setup(struct rpc_message *msg, struct dentry *dentry)
 {
 	msg->rpc_proc = &nfs_procedures[NFSPROC_REMOVE];
 }

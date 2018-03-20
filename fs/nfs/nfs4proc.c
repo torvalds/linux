@@ -4231,17 +4231,20 @@ static int nfs4_proc_rmdir(struct inode *dir, const struct qstr *name)
 	return err;
 }
 
-static void nfs4_proc_unlink_setup(struct rpc_message *msg, struct inode *dir)
+static void nfs4_proc_unlink_setup(struct rpc_message *msg, struct dentry *dentry)
 {
-	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs_removeargs *args = msg->rpc_argp;
 	struct nfs_removeres *res = msg->rpc_resp;
+	struct inode *inode = d_inode(dentry);
 
-	res->server = server;
+	res->server = NFS_SB(dentry->d_sb);
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_REMOVE];
 	nfs4_init_sequence(&args->seq_args, &res->seq_res, 1);
 
 	nfs_fattr_init(res->dir_attr);
+
+	if (inode)
+		nfs4_inode_return_delegation(inode);
 }
 
 static void nfs4_proc_unlink_rpc_prepare(struct rpc_task *task, struct nfs_unlinkdata *data)
