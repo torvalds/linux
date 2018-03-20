@@ -102,13 +102,13 @@ typedef struct siginfo {
 				short _addr_lsb; /* LSB of the reported address */
 				/* used when si_code=SEGV_BNDERR */
 				struct {
-					short _dummy_bnd;
+					void *_dummy_bnd;
 					void __user *_lower;
 					void __user *_upper;
 				} _addr_bnd;
 				/* used when si_code=SEGV_PKUERR */
 				struct {
-					short _dummy_pkey;
+					void *_dummy_pkey;
 					__u32 _pkey;
 				} _addr_pkey;
 			};
@@ -229,7 +229,8 @@ typedef struct siginfo {
 # define __FPE_INVASC	12	/* invalid ASCII digit */
 # define __FPE_INVDEC	13	/* invalid decimal digit */
 #endif
-#define NSIGFPE		13
+#define FPE_FLTUNK	14	/* undiagnosed floating-point exception */
+#define NSIGFPE		14
 
 /*
  * SIGSEGV si_codes

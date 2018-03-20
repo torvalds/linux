@@ -229,13 +229,13 @@ typedef struct compat_siginfo {
 				short int _addr_lsb;	/* Valid LSB of the reported address. */
 				/* used when si_code=SEGV_BNDERR */
 				struct {
-					short _dummy_bnd;
+					compat_uptr_t _dummy_bnd;
 					compat_uptr_t _lower;
 					compat_uptr_t _upper;
 				} _addr_bnd;
 				/* used when si_code=SEGV_PKUERR */
 				struct {
-					short _dummy_pkey;
+					compat_uptr_t _dummy_pkey;
 					u32 _pkey;
 				} _addr_pkey;
 			};
