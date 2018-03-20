@@ -11,6 +11,7 @@
 #include <linux/platform_data/atmel_mxt_ts.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
@@ -42,7 +43,11 @@ enum i2c_adapter_type {
 struct i2c_peripheral {
 	struct i2c_board_info board_info;
 	unsigned short alt_addr;
+
 	const char *dmi_name;
+	unsigned long irqflags;
+	struct resource irq_resource;
+
 	enum i2c_adapter_type type;
 	u32 pci_devid;
 
@@ -215,10 +220,6 @@ static struct chromeos_laptop samsung_series_5 = {
 	},
 };
 
-static struct mxt_platform_data atmel_1664s_platform_data = {
-	.irqflags		= IRQF_TRIGGER_FALLING,
-};
-
 static int chromebook_pixel_tp_keys[] = {
 	KEY_RESERVED,
 	KEY_RESERVED,
@@ -229,7 +230,6 @@ static int chromebook_pixel_tp_keys[] = {
 };
 
 static struct mxt_platform_data chromebook_pixel_tp_platform_data = {
-	.irqflags		= IRQF_TRIGGER_FALLING,
 	.t19_num_keys		= ARRAY_SIZE(chromebook_pixel_tp_keys),
 	.t19_keymap		= chromebook_pixel_tp_keys,
 };
@@ -241,10 +241,10 @@ static struct chromeos_laptop chromebook_pixel = {
 			.board_info	= {
 				I2C_BOARD_INFO("atmel_mxt_ts",
 						ATMEL_TS_I2C_ADDR),
-				.platform_data	= &atmel_1664s_platform_data,
 				.flags		= I2C_CLIENT_WAKE,
 			},
 			.dmi_name	= "touchscreen",
+			.irqflags	= IRQF_TRIGGER_FALLING,
 			.type		= I2C_ADAPTER_PANEL,
 			.alt_addr	= ATMEL_TS_I2C_BL_ADDR,
 		},
@@ -258,6 +258,7 @@ static struct chromeos_laptop chromebook_pixel = {
 				.flags		= I2C_CLIENT_WAKE,
 			},
 			.dmi_name	= "trackpad",
+			.irqflags	= IRQF_TRIGGER_FALLING,
 			.type		= I2C_ADAPTER_VGADDC,
 			.alt_addr	= ATMEL_TP_I2C_BL_ADDR,
 		},
@@ -356,10 +357,10 @@ static struct chromeos_laptop acer_c720 = {
 			.board_info	= {
 				I2C_BOARD_INFO("atmel_mxt_ts",
 						ATMEL_TS_I2C_ADDR),
-				.platform_data	= &atmel_1664s_platform_data,
 				.flags		= I2C_CLIENT_WAKE,
 			},
 			.dmi_name	= "touchscreen",
+			.irqflags	= IRQF_TRIGGER_FALLING,
 			.type		= I2C_ADAPTER_DESIGNWARE,
 			.pci_devid	= PCI_DEVID(0, PCI_DEVFN(0x15, 0x2)),
 			.alt_addr	= ATMEL_TS_I2C_BL_ADDR,
@@ -558,6 +559,12 @@ chromeos_laptop_prepare(const struct dmi_system_id *id)
 		irq = chromeos_laptop_get_irq_from_dmi(i2c_dev->dmi_name);
 		if (irq < 0)
 			return ERR_PTR(irq);
+
+		i2c_dev->irq_resource  = (struct resource)
+			DEFINE_RES_NAMED(irq, 1, NULL,
+					 IORESOURCE_IRQ | i2c_dev->irqflags);
+		i2c_dev->board_info.resources = &i2c_dev->irq_resource;
+		i2c_dev->board_info.num_resources = 1;
 	}
 
 	return cros_laptop;
