@@ -1,3 +1,17 @@
+What:		/sys/bus/*/drivers/ufshcd/*/auto_hibern8
+Date:		March 2018
+Contact:	linux-scsi@vger.kernel.org
+Description:
+		This file contains the auto-hibernate idle timer setting of a
+		UFS host controller. A value of '0' means auto-hibernate is not
+		enabled. Otherwise the value is the number of microseconds of
+		idle time before the UFS host controller will autonomously put
+		the link into hibernate state. That will save power at the
+		expense of increased latency. Note that the hardware supports
+		10-bit values with a power-of-ten multiplier which allows a
+		maximum value of 102300000. Refer to the UFS Host Controller
+		Interface specification for more details.
+
 What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/device_type
 Date:		February 2018
 Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
