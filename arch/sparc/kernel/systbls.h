@@ -46,8 +46,7 @@ asmlinkage long sys_utrap_install(utrap_entry_t type,
 				  utrap_handler_t new_d,
 				  utrap_handler_t __user *old_p,
 				  utrap_handler_t __user *old_d);
-asmlinkage long sparc_memory_ordering(unsigned long model,
-				      struct pt_regs *regs);
+asmlinkage long sys_memory_ordering(unsigned long model);
 asmlinkage void sparc64_set_context(struct pt_regs *regs);
 asmlinkage void sparc64_get_context(struct pt_regs *regs);
 asmlinkage long sys32_truncate64(const char __user * path,

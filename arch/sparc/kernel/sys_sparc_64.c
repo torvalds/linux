@@ -606,9 +606,9 @@ SYSCALL_DEFINE5(utrap_install, utrap_entry_t, type,
 	return 0;
 }
 
-asmlinkage long sparc_memory_ordering(unsigned long model,
-				      struct pt_regs *regs)
+SYSCALL_DEFINE1(memory_ordering, unsigned long, model)
 {
+	struct pt_regs *regs = current_pt_regs();
 	if (model >= 3)
 		return -EINVAL;
 	regs->tstate = (regs->tstate & ~TSTATE_MM) | (model << 14);
