@@ -958,6 +958,35 @@ static void encode_uint64(struct xdr_stream *xdr, u64 n)
 	WARN_ON_ONCE(xdr_stream_encode_u64(xdr, n) < 0);
 }
 
+static ssize_t xdr_encode_bitmap4(struct xdr_stream *xdr,
+		const __u32 *bitmap, size_t len)
+{
+	ssize_t ret;
+
+	/* Trim empty words */
+	while (len > 0 && bitmap[len-1] == 0)
+		len--;
+	ret = xdr_stream_encode_uint32_array(xdr, bitmap, len);
+	if (WARN_ON_ONCE(ret < 0))
+		return ret;
+	return len;
+}
+
+static size_t mask_bitmap4(const __u32 *bitmap, const __u32 *mask,
+		__u32 *res, size_t len)
+{
+	size_t i;
+	__u32 tmp;
+
+	while (len > 0 && (bitmap[len-1] == 0 || mask[len-1] == 0))
+		len--;
+	for (i = len; i-- > 0;) {
+		tmp = bitmap[i] & mask[i];
+		res[i] = tmp;
+	}
+	return len;
+}
+
 static void encode_nfs4_seqid(struct xdr_stream *xdr,
 		const struct nfs_seqid *seqid)
 {
@@ -1200,85 +1229,45 @@ static void encode_create(struct xdr_stream *xdr, const struct nfs4_create_arg *
 			create->server, create->server->attr_bitmask);
 }
 
-static void encode_getattr_one(struct xdr_stream *xdr, uint32_t bitmap, struct compound_hdr *hdr)
+static void encode_getattr(struct xdr_stream *xdr,
+		const __u32 *bitmap, const __u32 *mask, size_t len,
+		struct compound_hdr *hdr)
 {
-	__be32 *p;
+	__u32 masked_bitmap[nfs4_fattr_bitmap_maxsz];
 
 	encode_op_hdr(xdr, OP_GETATTR, decode_getattr_maxsz, hdr);
-	p = reserve_space(xdr, 8);
-	*p++ = cpu_to_be32(1);
-	*p = cpu_to_be32(bitmap);
-}
-
-static void encode_getattr_two(struct xdr_stream *xdr, uint32_t bm0, uint32_t bm1, struct compound_hdr *hdr)
-{
-	__be32 *p;
-
-	encode_op_hdr(xdr, OP_GETATTR, decode_getattr_maxsz, hdr);
-	p = reserve_space(xdr, 12);
-	*p++ = cpu_to_be32(2);
-	*p++ = cpu_to_be32(bm0);
-	*p = cpu_to_be32(bm1);
-}
-
-static void
-encode_getattr_three(struct xdr_stream *xdr,
-		     uint32_t bm0, uint32_t bm1, uint32_t bm2,
-		     struct compound_hdr *hdr)
-{
-	__be32 *p;
-
-	encode_op_hdr(xdr, OP_GETATTR, decode_getattr_maxsz, hdr);
-	if (bm2) {
-		p = reserve_space(xdr, 16);
-		*p++ = cpu_to_be32(3);
-		*p++ = cpu_to_be32(bm0);
-		*p++ = cpu_to_be32(bm1);
-		*p = cpu_to_be32(bm2);
-	} else if (bm1) {
-		p = reserve_space(xdr, 12);
-		*p++ = cpu_to_be32(2);
-		*p++ = cpu_to_be32(bm0);
-		*p = cpu_to_be32(bm1);
-	} else {
-		p = reserve_space(xdr, 8);
-		*p++ = cpu_to_be32(1);
-		*p = cpu_to_be32(bm0);
+	if (mask) {
+		if (WARN_ON_ONCE(len > ARRAY_SIZE(masked_bitmap)))
+			len = ARRAY_SIZE(masked_bitmap);
+		len = mask_bitmap4(bitmap, mask, masked_bitmap, len);
+		bitmap = masked_bitmap;
 	}
+	xdr_encode_bitmap4(xdr, bitmap, len);
 }
 
 static void encode_getfattr(struct xdr_stream *xdr, const u32* bitmask, struct compound_hdr *hdr)
 {
-	encode_getattr_three(xdr, bitmask[0] & nfs4_fattr_bitmap[0],
-			   bitmask[1] & nfs4_fattr_bitmap[1],
-			   bitmask[2] & nfs4_fattr_bitmap[2],
-			   hdr);
+	encode_getattr(xdr, nfs4_fattr_bitmap, bitmask,
+			ARRAY_SIZE(nfs4_fattr_bitmap), hdr);
 }
 
 static void encode_getfattr_open(struct xdr_stream *xdr, const u32 *bitmask,
 				 const u32 *open_bitmap,
 				 struct compound_hdr *hdr)
 {
-	encode_getattr_three(xdr,
-			     bitmask[0] & open_bitmap[0],
-			     bitmask[1] & open_bitmap[1],
-			     bitmask[2] & open_bitmap[2],
-			     hdr);
+	encode_getattr(xdr, open_bitmap, bitmask, 3, hdr);
 }
 
 static void encode_fsinfo(struct xdr_stream *xdr, const u32* bitmask, struct compound_hdr *hdr)
 {
-	encode_getattr_three(xdr,
-			     bitmask[0] & nfs4_fsinfo_bitmap[0],
-			     bitmask[1] & nfs4_fsinfo_bitmap[1],
-			     bitmask[2] & nfs4_fsinfo_bitmap[2],
-			     hdr);
+	encode_getattr(xdr, nfs4_fsinfo_bitmap, bitmask,
+			ARRAY_SIZE(nfs4_fsinfo_bitmap), hdr);
 }
 
 static void encode_fs_locations(struct xdr_stream *xdr, const u32* bitmask, struct compound_hdr *hdr)
 {
-	encode_getattr_two(xdr, bitmask[0] & nfs4_fs_locations_bitmap[0],
-			   bitmask[1] & nfs4_fs_locations_bitmap[1], hdr);
+	encode_getattr(xdr, nfs4_fs_locations_bitmap, bitmask,
+			ARRAY_SIZE(nfs4_fs_locations_bitmap), hdr);
 }
 
 static void encode_getfh(struct xdr_stream *xdr, struct compound_hdr *hdr)
@@ -2559,13 +2548,17 @@ static void nfs4_xdr_enc_getacl(struct rpc_rqst *req, struct xdr_stream *xdr,
 	struct compound_hdr hdr = {
 		.minorversion = nfs4_xdr_minorversion(&args->seq_args),
 	};
+	const __u32 nfs4_acl_bitmap[1] = {
+		[0] = FATTR4_WORD0_ACL,
+	};
 	uint32_t replen;
 
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
 	replen = hdr.replen + op_decode_hdr_maxsz;
-	encode_getattr_two(xdr, FATTR4_WORD0_ACL, 0, &hdr);
+	encode_getattr(xdr, nfs4_acl_bitmap, NULL,
+			ARRAY_SIZE(nfs4_acl_bitmap), &hdr);
 
 	xdr_inline_pages(&req->rq_rcv_buf, replen << 2,
 		args->acl_pages, 0, args->acl_len);
@@ -2644,8 +2637,8 @@ static void nfs4_xdr_enc_pathconf(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
-	encode_getattr_one(xdr, args->bitmask[0] & nfs4_pathconf_bitmap[0],
-			   &hdr);
+	encode_getattr(xdr, nfs4_pathconf_bitmap, args->bitmask,
+			ARRAY_SIZE(nfs4_pathconf_bitmap), &hdr);
 	encode_nops(&hdr);
 }
 
@@ -2663,8 +2656,8 @@ static void nfs4_xdr_enc_statfs(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
-	encode_getattr_two(xdr, args->bitmask[0] & nfs4_statfs_bitmap[0],
-			   args->bitmask[1] & nfs4_statfs_bitmap[1], &hdr);
+	encode_getattr(xdr, nfs4_statfs_bitmap, args->bitmask,
+			ARRAY_SIZE(nfs4_statfs_bitmap), &hdr);
 	encode_nops(&hdr);
 }
 
@@ -2684,7 +2677,7 @@ static void nfs4_xdr_enc_server_caps(struct rpc_rqst *req,
 	encode_compound_hdr(xdr, req, &hdr);
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fhandle, &hdr);
-	encode_getattr_three(xdr, bitmask[0], bitmask[1], bitmask[2], &hdr);
+	encode_getattr(xdr, bitmask, NULL, 3, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -3218,32 +3211,25 @@ static int decode_ace(struct xdr_stream *xdr, void *ace)
 	return -EIO;
 }
 
-static int decode_attr_bitmap(struct xdr_stream *xdr, uint32_t *bitmap)
+static ssize_t
+decode_bitmap4(struct xdr_stream *xdr, uint32_t *bitmap, size_t sz)
 {
-	uint32_t bmlen;
-	__be32 *p;
+	ssize_t ret;
 
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		goto out_overflow;
-	bmlen = be32_to_cpup(p);
-
-	bitmap[0] = bitmap[1] = bitmap[2] = 0;
-	p = xdr_inline_decode(xdr, (bmlen << 2));
-	if (unlikely(!p))
-		goto out_overflow;
-	if (bmlen > 0) {
-		bitmap[0] = be32_to_cpup(p++);
-		if (bmlen > 1) {
-			bitmap[1] = be32_to_cpup(p++);
-			if (bmlen > 2)
-				bitmap[2] = be32_to_cpup(p);
-		}
-	}
-	return 0;
-out_overflow:
+	ret = xdr_stream_decode_uint32_array(xdr, bitmap, sz);
+	if (likely(ret >= 0))
+		return ret;
+	if (ret == -EMSGSIZE)
+		return sz;
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
+}
+
+static int decode_attr_bitmap(struct xdr_stream *xdr, uint32_t *bitmap)
+{
+	ssize_t ret;
+	ret = decode_bitmap4(xdr, bitmap, 3);
+	return ret < 0 ? ret : 0;
 }
 
 static int decode_attr_length(struct xdr_stream *xdr, uint32_t *attrlen, unsigned int *savep)
@@ -5471,21 +5457,13 @@ decode_savefh(struct xdr_stream *xdr)
 
 static int decode_setattr(struct xdr_stream *xdr)
 {
-	__be32 *p;
-	uint32_t bmlen;
 	int status;
 
 	status = decode_op_hdr(xdr, OP_SETATTR);
 	if (status)
 		return status;
-	p = xdr_inline_decode(xdr, 4);
-	if (unlikely(!p))
-		goto out_overflow;
-	bmlen = be32_to_cpup(p);
-	p = xdr_inline_decode(xdr, bmlen << 2);
-	if (likely(p))
+	if (decode_bitmap4(xdr, NULL, 0) >= 0)
 		return 0;
-out_overflow:
 	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }

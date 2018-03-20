@@ -387,6 +387,31 @@ xdr_stream_encode_opaque(struct xdr_stream *xdr, const void *ptr, size_t len)
 }
 
 /**
+ * xdr_stream_encode_uint32_array - Encode variable length array of integers
+ * @xdr: pointer to xdr_stream
+ * @array: array of integers
+ * @array_size: number of elements in @array
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_encode_uint32_array(struct xdr_stream *xdr,
+		const __u32 *array, size_t array_size)
+{
+	ssize_t ret = (array_size+1) * sizeof(__u32);
+	__be32 *p = xdr_reserve_space(xdr, ret);
+
+	if (unlikely(!p))
+		return -EMSGSIZE;
+	*p++ = cpu_to_be32(array_size);
+	for (; array_size > 0; p++, array++, array_size--)
+		*p = cpu_to_be32p(array);
+	return ret;
+}
+
+/**
  * xdr_stream_decode_u32 - Decode a 32-bit integer
  * @xdr: pointer to xdr_stream
  * @ptr: location to store integer
@@ -462,6 +487,44 @@ xdr_stream_decode_opaque_inline(struct xdr_stream *xdr, void **ptr, size_t maxle
 		*ptr = p;
 	}
 	return len;
+}
+
+/**
+ * xdr_stream_decode_uint32_array - Decode variable length array of integers
+ * @xdr: pointer to xdr_stream
+ * @array: location to store the integer array or NULL
+ * @array_size: number of elements to store
+ *
+ * Return values:
+ *   On success, returns number of elements stored in @array
+ *   %-EBADMSG on XDR buffer overflow
+ *   %-EMSGSIZE if the size of the array exceeds @array_size
+ */
+static inline ssize_t
+xdr_stream_decode_uint32_array(struct xdr_stream *xdr,
+		__u32 *array, size_t array_size)
+{
+	__be32 *p;
+	__u32 len;
+	ssize_t retval;
+
+	if (unlikely(xdr_stream_decode_u32(xdr, &len) < 0))
+		return -EBADMSG;
+	p = xdr_inline_decode(xdr, len * sizeof(*p));
+	if (unlikely(!p))
+		return -EBADMSG;
+	if (array == NULL)
+		return len;
+	if (len <= array_size) {
+		if (len < array_size)
+			memset(array+len, 0, (array_size-len)*sizeof(*array));
+		array_size = len;
+		retval = len;
+	} else
+		retval = -EMSGSIZE;
+	for (; array_size > 0; p++, array++, array_size--)
+		*array = be32_to_cpup(p);
+	return retval;
 }
 #endif /* __KERNEL__ */
 
