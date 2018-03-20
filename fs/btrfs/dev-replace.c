@@ -414,18 +414,13 @@ int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 	struct btrfs_device *tgt_device = NULL;
 	struct btrfs_device *src_device = NULL;
 
-	/* the disk copy procedure reuses the scrub code */
-	mutex_lock(&fs_info->volume_mutex);
 	ret = btrfs_find_device_by_devspec(fs_info, srcdevid,
 					    srcdev_name, &src_device);
-	if (ret) {
-		mutex_unlock(&fs_info->volume_mutex);
+	if (ret)
 		return ret;
-	}
 
 	ret = btrfs_init_dev_replace_tgtdev(fs_info, tgtdev_name,
 					    src_device, &tgt_device);
-	mutex_unlock(&fs_info->volume_mutex);
 	if (ret)
 		return ret;
 

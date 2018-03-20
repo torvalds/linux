@@ -2218,10 +2218,6 @@ int btrfs_find_device_missing_or_by_path(struct btrfs_fs_info *fs_info,
 		struct btrfs_device *tmp;
 
 		devices = &fs_info->fs_devices->devices;
-		/*
-		 * It is safe to read the devices since the volume_mutex
-		 * is held by the caller.
-		 */
 		list_for_each_entry(tmp, devices, dev_list) {
 			if (test_bit(BTRFS_DEV_STATE_IN_FS_METADATA,
 					&tmp->dev_state) && !tmp->bdev) {
