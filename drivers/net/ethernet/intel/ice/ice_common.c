@@ -282,6 +282,12 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		return status;
 
+	/* set these values to minimum allowed */
+	hw->itr_gran_200 = ICE_ITR_GRAN_MIN_200;
+	hw->itr_gran_100 = ICE_ITR_GRAN_MIN_100;
+	hw->itr_gran_50 = ICE_ITR_GRAN_MIN_50;
+	hw->itr_gran_25 = ICE_ITR_GRAN_MIN_25;
+
 	status = ice_init_all_ctrlq(hw);
 	if (status)
 		goto err_unroll_cqinit;

@@ -67,6 +67,14 @@ struct ice_sq_cd {
 
 #define ICE_CTL_Q_DETAILS(R, i) (&(((struct ice_sq_cd *)((R).cmd_buf))[i]))
 
+/* rq event information */
+struct ice_rq_event_info {
+	struct ice_aq_desc desc;
+	u16 msg_len;
+	u16 buf_len;
+	u8 *msg_buf;
+};
+
 /* Control Queue information */
 struct ice_ctl_q_info {
 	enum ice_ctl_q qtype;

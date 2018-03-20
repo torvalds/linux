@@ -261,6 +261,17 @@ struct ice_hw {
 	u8 fw_min_ver;		/* firmware minor version */
 	u8 fw_patch;		/* firmware patch version */
 	u32 fw_build;		/* firmware build number */
+
+	/* minimum allowed value for different speeds */
+#define ICE_ITR_GRAN_MIN_200	1
+#define ICE_ITR_GRAN_MIN_100	1
+#define ICE_ITR_GRAN_MIN_50	2
+#define ICE_ITR_GRAN_MIN_25	4
+	/* ITR granularity in 1 us */
+	u8 itr_gran_200;
+	u8 itr_gran_100;
+	u8 itr_gran_50;
+	u8 itr_gran_25;
 };
 
 /* Checksum and Shadow RAM pointers */

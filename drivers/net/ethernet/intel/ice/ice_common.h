@@ -17,6 +17,9 @@ enum ice_status ice_reset(struct ice_hw *hw, enum ice_reset_req req);
 enum ice_status ice_init_all_ctrlq(struct ice_hw *hw);
 void ice_shutdown_all_ctrlq(struct ice_hw *hw);
 enum ice_status
+ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
+		  struct ice_rq_event_info *e, u16 *pending);
+enum ice_status
 ice_acquire_res(struct ice_hw *hw, enum ice_aq_res_ids res,
 		enum ice_aq_res_access_type access);
 void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res);

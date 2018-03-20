@@ -963,3 +963,104 @@ void ice_fill_dflt_direct_cmd_desc(struct ice_aq_desc *desc, u16 opcode)
 	desc->opcode = cpu_to_le16(opcode);
 	desc->flags = cpu_to_le16(ICE_AQ_FLAG_SI);
 }
+
+/**
+ * ice_clean_rq_elem
+ * @hw: pointer to the hw struct
+ * @cq: pointer to the specific Control queue
+ * @e: event info from the receive descriptor, includes any buffers
+ * @pending: number of events that could be left to process
+ *
+ * This function cleans one Admin Receive Queue element and returns
+ * the contents through e.  It can also return how many events are
+ * left to process through 'pending'.
+ */
+enum ice_status
+ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
+		  struct ice_rq_event_info *e, u16 *pending)
+{
+	u16 ntc = cq->rq.next_to_clean;
+	enum ice_status ret_code = 0;
+	struct ice_aq_desc *desc;
+	struct ice_dma_mem *bi;
+	u16 desc_idx;
+	u16 datalen;
+	u16 flags;
+	u16 ntu;
+
+	/* pre-clean the event info */
+	memset(&e->desc, 0, sizeof(e->desc));
+
+	/* take the lock before we start messing with the ring */
+	mutex_lock(&cq->rq_lock);
+
+	if (!cq->rq.count) {
+		ice_debug(hw, ICE_DBG_AQ_MSG,
+			  "Control Receive queue not initialized.\n");
+		ret_code = ICE_ERR_AQ_EMPTY;
+		goto clean_rq_elem_err;
+	}
+
+	/* set next_to_use to head */
+	ntu = (u16)(rd32(hw, cq->rq.head) & cq->rq.head_mask);
+
+	if (ntu == ntc) {
+		/* nothing to do - shouldn't need to update ring's values */
+		ret_code = ICE_ERR_AQ_NO_WORK;
+		goto clean_rq_elem_out;
+	}
+
+	/* now clean the next descriptor */
+	desc = ICE_CTL_Q_DESC(cq->rq, ntc);
+	desc_idx = ntc;
+
+	flags = le16_to_cpu(desc->flags);
+	if (flags & ICE_AQ_FLAG_ERR) {
+		ret_code = ICE_ERR_AQ_ERROR;
+		cq->rq_last_status = (enum ice_aq_err)le16_to_cpu(desc->retval);
+		ice_debug(hw, ICE_DBG_AQ_MSG,
+			  "Control Receive Queue Event received with error 0x%x\n",
+			  cq->rq_last_status);
+	}
+	memcpy(&e->desc, desc, sizeof(e->desc));
+	datalen = le16_to_cpu(desc->datalen);
+	e->msg_len = min(datalen, e->buf_len);
+	if (e->msg_buf && e->msg_len)
+		memcpy(e->msg_buf, cq->rq.r.rq_bi[desc_idx].va, e->msg_len);
+
+	ice_debug(hw, ICE_DBG_AQ_MSG, "ARQ: desc and buffer:\n");
+
+	ice_debug_cq(hw, ICE_DBG_AQ_CMD, (void *)desc, e->msg_buf,
+		     cq->rq_buf_size);
+
+	/* Restore the original datalen and buffer address in the desc,
+	 * FW updates datalen to indicate the event message size
+	 */
+	bi = &cq->rq.r.rq_bi[ntc];
+	memset(desc, 0, sizeof(*desc));
+
+	desc->flags = cpu_to_le16(ICE_AQ_FLAG_BUF);
+	if (cq->rq_buf_size > ICE_AQ_LG_BUF)
+		desc->flags |= cpu_to_le16(ICE_AQ_FLAG_LB);
+	desc->datalen = cpu_to_le16(bi->size);
+	desc->params.generic.addr_high = cpu_to_le32(upper_32_bits(bi->pa));
+	desc->params.generic.addr_low = cpu_to_le32(lower_32_bits(bi->pa));
+
+	/* set tail = the last cleaned desc index. */
+	wr32(hw, cq->rq.tail, ntc);
+	/* ntc is updated to tail + 1 */
+	ntc++;
+	if (ntc == cq->num_rq_entries)
+		ntc = 0;
+	cq->rq.next_to_clean = ntc;
+	cq->rq.next_to_use = ntu;
+
+clean_rq_elem_out:
+	/* Set pending if needed, unlock and return */
+	if (pending)
+		*pending = (u16)((ntc > ntu ? cq->rq.count : 0) + (ntu - ntc));
+clean_rq_elem_err:
+	mutex_unlock(&cq->rq_lock);
+
+	return ret_code;
+}
