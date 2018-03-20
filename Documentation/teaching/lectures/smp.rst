@@ -46,7 +46,8 @@ results, free of race conditions.
 .. note:: We will use the terms core, CPU and processor as
           interchangeable for the purpose of this lecture.
 
-Race conditions can occur when:
+Race conditions can occur when the following two conditions happen
+simultaneously:
 
 .. slide:: Race conditions
    :inline-contents: True
@@ -147,19 +148,22 @@ In the example above, the minimal critical section is starting with
 the counter decrement and ending with checking the counter's value.
 
 Once the critical section has been identified race conditions can be
-avoided:
+avoided by using one of the following approaches:
 
 .. slide:: Avoiding race conditions
    :inline-contents: True
    :level: 2
 
-   * make the critical section **atomic** (so that preemption can not
-     occur in the critical section)
+   * make the critical section **atomic** (e.g. use atomic
+     instructions)
 
-   * **disable preemption** while the critical section is executing
+   * **disable preemption** during the critical section (e.g. disable
+     interrupts, bottom-half handlers, or thread preemption)
 
-   * **serialize the access** to the critical section (allow only one
-     running context in the critical section)
+   * **serialize the access** to the critical section (e.g. use spin
+     locks or mutexes to allow only one context or thread in the
+     critical section)
+
 
 
 Linux kernel concurrency sources
@@ -301,10 +305,16 @@ other exclusive operations. So, to implement atomic operations the
 programmer must retry the operation (both LDREX and STREX) until the
 exclusive monitor signals a success.
 
-As seen from the implementation details, atomic operations are
-expensive and they must be avoided when possible.
+Although they are often interpreted as "light" or "efficient"
+synchronization mechanisms (because they "don't require spinning or
+context switches", or because they "are implemented in hardware so
+they must be more efficient", or because they "are just instructions
+so they must have similar efficiency as other instructions"), as seen
+from the implementation details, atomic operations are actually
+expensive.
 
-Preemption (interrupts) disabling
+
+Disabling preemption (interrupts)
 =================================
 
 On single core systems and non preemptive kernels the only source of
@@ -565,27 +575,28 @@ critical section:
    .. ditaa::
 
       +-------+                     +-------+                  +-------+
-      | CPU 0 |<---------------+    | CPU 1 |	Invalidate     | CPU 0 |
+      | CPU 0 |<---------------+    | CPU 1 |   Invalidate     | CPU 0 |
       | cache |<-------------+ |    | cache |<---+ +---------->| cache |
-      +-------+	 Invalidate  | |    +-------+	 | |  	       +-------+
-			     | |   		 | |
-			     | |   	         +----------------------------+
-      spin_lock(&lock);	     | |   	 	   |			      |
-                             | |     READ lock	   |			      |
-                             | +---- WRITE lock ---+			      |
-			     |        	 	       	       	       	      |
+      +-------+  Invalidate  | |    +-------+    | |           +-------+
+                             | |                 | |
+                             | |                 +----------------------------+
+      spin_lock(&lock);      | |                   |                          |
+                             | |     READ lock     |                          |
+                             | +---- WRITE lock ---+                          |
+                             |                                                |
                              |                                 READ lock      |
-			     +-------------------------------- WRITE lock ----+
+                             +-------------------------------- WRITE lock ----+
 
          ...                            ...                       ...
       READ data                      READ lock                 READ lock
-          |			     	 |			   |
-	  |			     	 |			   |
-      	  |			       	 |			   |
-	  +------------------------------+-------------------------+
-					 |
-					 v
-				     cache miss
+          |                              |                         |
+          |                              |                         |
+          |                              |                         |
+          +------------------------------+-------------------------+
+                                         |
+                                         v
+
+                                    cache miss
 
 As it can be seen from the figure above due to the writes issued by
 the cores spinning on the lock we see frequent cache line invalidate
@@ -688,8 +699,8 @@ next lock in the list, if any.
 While a read spin optimized spin lock reduces most of the cache
 invalidation operations, the lock owner can still generate cache
 invalidate operations due to writes to data structures close to the
-lock. This in turn generates memory traffic on subsequent reads on the
-spinning cores.
+lock and thus part of the same cache line. This in turn generates
+memory traffic on subsequent reads on the spinning cores.
 
 Hence, queued spin locks scale much better for large number of cores
 as is the case for NUMA systems. And since they have similar fairness
@@ -940,9 +951,9 @@ operation:
       ...
 
 
-.. note:: We can use up to 7 of the low bits of the owner field can be
-          used for various flags since task struct is cached
-          aligned.
+.. note:: Because :c:type:`struct task_struct` is cached aligned the 7
+          lower bits of the owner field can be used for various flags,
+          such as :c:type:`MUTEX_FLAG_WAITERS`.
 
 
 Otherwise we take the slow path where we pick up first waiter from the
@@ -1019,14 +1030,14 @@ Here is an example of out of order compiler generated code:
 
 
 .. note:: When executing instructions out of order the processor makes
-          sure that data dependency is kept, e.g. it won't execute
+          sure that data dependency is observed, i.e. it won't execute
           instructions whose input depend on the output of a previous
           instruction that has not been executed.
 
 In most cases out of order execution is not an issue. However, in
 certain situations (e.g. communicating via shared memory between
-processors or processors and hardware) we must issue instructions
-before others even without data dependency between them.
+processors or between processors and hardware) we must issue some
+instructions before others even without data dependency between them.
 
 For this purpose we can use barriers to order memory operations:
 
@@ -1050,7 +1061,7 @@ Read Copy Update (RCU)
 ======================
 
 Read Copy Update is a special synchronization mechanism similar with
-read-write but with significant improvements over it (and some
+read-write locks but with significant improvements over it (and some
 limitations):
 
 .. slide:: Read Copy Update (RCU)
@@ -1083,11 +1094,11 @@ RCU splits removal updates to the data structures in two phases:
 
    * **Elimination**: free the element. This action is postponed until
      all existing readers finish traversal (quiescent cycle). New
-     readers won't affect the elimination delay.
+     readers won't affect the quiescent cycle.
 
 
-As an example, lets take a look on how deleting an element from a list
-using RCU is done:
+As an example, lets take a look on how to delete an element from a
+list using RCU:
 
 .. slide:: RCU List Delete
    :inline-contents: True
@@ -1107,7 +1118,13 @@ using RCU is done:
          ^           ^           ^            ^           ^           ^
          |           |           |            |           |           |
 
-          (3) Quiescent cycle over                 (2) Reclamation
+
+
+
+
+
+
+         (3) Quiescent cycle over                 (4) Reclamation
                +-----------+
       +-----+  |  +-----+  |  +-----+      +-----+                 +-----+
       |     |  |  |     |  |  |     |      |     |                 |     |
@@ -1121,7 +1138,7 @@ using RCU is done:
 In the first step it can be seen that while readers traverse the list
 all elements are referenced. In step two a writer removes
 element B. Reclamation is postponed since there are still readers that
-holding references to it. In step three a quiescent cycle just expired
+hold references to it. In step three a quiescent cycle just expired
 and it can be noticed that there are no more references to
 element B. Other elements still have references from readers that
 started the list traversal after the element was removed. In step 4 we
@@ -1129,7 +1146,8 @@ finally perform reclamation (free the element).
 
 
 Now that we covered how RCU functions at the high level, lets looks at
-the APIs for read
+the APIs for traversing the list as well as adding and removing an
+element to the list:
 
 
 .. slide:: RCU list APIs cheat sheet
@@ -1140,17 +1158,21 @@ the APIs for read
 
       /* list traversal */
       rcu_read_lock();
-      list_for_each_rcu(i, head) {
+      list_for_each_entry_rcu(i, head) {
         /* no sleeping, blocking calls or context switch allowed */
       }
       rcu_read_unlock();
 
 
       /* list element delete  */
-      spin_lock();
+      spin_lock(&lock);
       list_del_rcu(&node->list);
-      spin_unlock();
+      spin_unlock(&lock);
       synchronize_rcu();
       kfree(node);
 
+      /* list element add  */
+      spin_lock(&lock);
+      list_add_rcu(head, &node->list);
+      spin_unlock(&lock);
 
