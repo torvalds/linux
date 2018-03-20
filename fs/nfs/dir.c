@@ -1272,7 +1272,9 @@ static void nfs_drop_nlink(struct inode *inode)
 	/* drop the inode if we're reasonably sure this is the last link */
 	if (inode->i_nlink == 1)
 		clear_nlink(inode);
-	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR;
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_CHANGE
+		| NFS_INO_INVALID_CTIME
+		| NFS_INO_INVALID_OTHER;
 	spin_unlock(&inode->i_lock);
 }
 

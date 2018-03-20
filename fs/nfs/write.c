@@ -1562,8 +1562,11 @@ static int nfs_writeback_done(struct rpc_task *task,
 	}
 
 	/* Deal with the suid/sgid bit corner case */
-	if (nfs_should_remove_suid(inode))
-		nfs_mark_for_revalidate(inode);
+	if (nfs_should_remove_suid(inode)) {
+		spin_lock(&inode->i_lock);
+		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_OTHER;
+		spin_unlock(&inode->i_lock);
+	}
 	return 0;
 }
 
