@@ -1966,6 +1966,8 @@ static int hid_device_probe(struct device *dev)
 			}
 		}
 
+		/* reset the quirks that has been previously set */
+		hdev->quirks = hid_lookup_quirk(hdev);
 		hdev->driver = hdrv;
 		if (hdrv->probe) {
 			ret = hdrv->probe(hdev, id);

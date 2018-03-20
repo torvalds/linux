@@ -127,7 +127,6 @@ struct mt_device {
 	int left_button_state;	/* left button state */
 	unsigned last_slot_field;	/* the last field of a slot */
 	unsigned mt_report_id;	/* the report ID of the multitouch device */
-	unsigned long initial_quirks;	/* initial quirks state */
 	__s16 inputmode;	/* InputMode HID feature, -1 if non-existent */
 	__s16 inputmode_index;	/* InputMode HID feature index in the report */
 	__s16 maxcontact_report_id;	/* Maximum Contact Number HID feature,
@@ -1452,11 +1451,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (id->vendor == HID_ANY_ID && id->product == HID_ANY_ID)
 		td->serial_maybe = true;
 
-	/*
-	 * Store the initial quirk state
-	 */
-	td->initial_quirks = hdev->quirks;
-
 	/* This allows the driver to correctly support devices
 	 * that emit events over several HID messages.
 	 */
@@ -1526,7 +1520,6 @@ static void mt_remove(struct hid_device *hdev)
 
 	sysfs_remove_group(&hdev->dev.kobj, &mt_attribute_group);
 	hid_hw_stop(hdev);
-	hdev->quirks = td->initial_quirks;
 }
 
 /*
