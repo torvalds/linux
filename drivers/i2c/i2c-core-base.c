@@ -517,7 +517,7 @@ static unsigned short i2c_encode_flags_to_addr(struct i2c_client *client)
 
 /* This is a permissive address validity check, I2C address map constraints
  * are purposely not enforced, except for the general call address. */
-int i2c_check_addr_validity(unsigned addr, unsigned short flags)
+static int i2c_check_addr_validity(unsigned int addr, unsigned short flags)
 {
 	if (flags & I2C_CLIENT_TEN) {
 		/* 10-bit address, all values are valid */
