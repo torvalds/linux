@@ -19,7 +19,7 @@
 
 #ifdef PROC_DEBUG
 
-static struct proc_dir_entry *rtw_proc = NULL;
+static struct proc_dir_entry *rtw_proc;
 
 #define RTW_PROC_NAME "rtl8723bs"
 
