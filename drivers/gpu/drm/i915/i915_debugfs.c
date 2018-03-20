@@ -3285,7 +3285,8 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
 
-		seq_printf(m, "DPLL%i: %s, id: %i\n", i, pll->name, pll->id);
+		seq_printf(m, "DPLL%i: %s, id: %i\n", i, pll->info->name,
+			   pll->id);
 		seq_printf(m, " crtc_mask: 0x%08x, active: 0x%x, on: %s\n",
 			   pll->state.crtc_mask, pll->active_mask, yesno(pll->on));
 		seq_printf(m, " tracked hardware state:\n");

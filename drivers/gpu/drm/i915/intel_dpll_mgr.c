@@ -121,7 +121,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 	cur_state = pll->info->funcs->get_hw_state(dev_priv, pll, &hw_state);
 	I915_STATE_WARN(cur_state != state,
 	     "%s assertion failure (expected %s, current %s)\n",
-			pll->name, onoff(state), onoff(cur_state));
+			pll->info->name, onoff(state), onoff(cur_state));
 }
 
 /**
@@ -143,7 +143,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 	mutex_lock(&dev_priv->dpll_lock);
 	WARN_ON(!pll->state.crtc_mask);
 	if (!pll->active_mask) {
-		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
+		DRM_DEBUG_DRIVER("setting up %s\n", pll->info->name);
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
 
@@ -179,7 +179,7 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	pll->active_mask |= crtc_mask;
 
 	DRM_DEBUG_KMS("enable %s (active %x, on? %d) for crtc %d\n",
-		      pll->name, pll->active_mask, pll->on,
+		      pll->info->name, pll->active_mask, pll->on,
 		      crtc->base.base.id);
 
 	if (old_mask) {
@@ -189,7 +189,7 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	}
 	WARN_ON(pll->on);
 
-	DRM_DEBUG_KMS("enabling %s\n", pll->name);
+	DRM_DEBUG_KMS("enabling %s\n", pll->info->name);
 	pll->info->funcs->enable(dev_priv, pll);
 	pll->on = true;
 
@@ -221,7 +221,7 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 		goto out;
 
 	DRM_DEBUG_KMS("disable %s (active %x, on? %d) for crtc %d\n",
-		      pll->name, pll->active_mask, pll->on,
+		      pll->info->name, pll->active_mask, pll->on,
 		      crtc->base.base.id);
 
 	assert_shared_dpll_enabled(dev_priv, pll);
@@ -231,7 +231,7 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 	if (pll->active_mask)
 		goto out;
 
-	DRM_DEBUG_KMS("disabling %s\n", pll->name);
+	DRM_DEBUG_KMS("disabling %s\n", pll->info->name);
 	pll->info->funcs->disable(dev_priv, pll);
 	pll->on = false;
 
@@ -263,7 +263,8 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 			   &shared_dpll[i].hw_state,
 			   sizeof(crtc_state->dpll_hw_state)) == 0) {
 			DRM_DEBUG_KMS("[CRTC:%d:%s] sharing existing %s (crtc mask 0x%08x, active %x)\n",
-				      crtc->base.base.id, crtc->base.name, pll->name,
+				      crtc->base.base.id, crtc->base.name,
+				      pll->info->name,
 				      shared_dpll[i].crtc_mask,
 				      pll->active_mask);
 			return pll;
@@ -275,7 +276,8 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 		pll = &dev_priv->shared_dplls[i];
 		if (shared_dpll[i].crtc_mask == 0) {
 			DRM_DEBUG_KMS("[CRTC:%d:%s] allocated %s\n",
-				      crtc->base.base.id, crtc->base.name, pll->name);
+				      crtc->base.base.id, crtc->base.name,
+				      pll->info->name);
 			return pll;
 		}
 	}
@@ -298,7 +300,7 @@ intel_reference_shared_dpll(struct intel_shared_dpll *pll,
 			crtc_state->dpll_hw_state;
 
 	crtc_state->shared_dpll = pll;
-	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->name,
+	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->info->name,
 			 pipe_name(crtc->pipe));
 
 	shared_dpll[pll->id].crtc_mask |= 1 << crtc->pipe;
@@ -429,7 +431,8 @@ ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 		pll = &dev_priv->shared_dplls[i];
 
 		DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
-			      crtc->base.base.id, crtc->base.name, pll->name);
+			      crtc->base.base.id, crtc->base.name,
+			      pll->info->name);
 	} else {
 		pll = intel_find_shared_dpll(crtc, crtc_state,
 					     DPLL_ID_PCH_PLL_A,
@@ -1824,7 +1827,7 @@ bxt_get_dpll(struct intel_crtc *crtc,
 	pll = intel_get_shared_dpll_by_id(dev_priv, i);
 
 	DRM_DEBUG_KMS("[CRTC:%d:%s] using pre-allocated %s\n",
-		      crtc->base.base.id, crtc->base.name, pll->name);
+		      crtc->base.base.id, crtc->base.name, pll->info->name);
 
 	intel_reference_shared_dpll(pll, crtc_state);
 
@@ -2413,7 +2416,6 @@ void intel_shared_dpll_init(struct drm_device *dev)
 		dev_priv->shared_dplls[i].info = &dpll_info[i];
 
 		dev_priv->shared_dplls[i].id = dpll_info[i].id;
-		dev_priv->shared_dplls[i].name = dpll_info[i].name;
 		dev_priv->shared_dplls[i].flags = dpll_info[i].flags;
 	}
 

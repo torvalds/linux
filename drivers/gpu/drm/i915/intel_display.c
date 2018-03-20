@@ -11653,7 +11653,7 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 
 	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
 
-	DRM_DEBUG_KMS("%s\n", pll->name);
+	DRM_DEBUG_KMS("%s\n", pll->info->name);
 
 	active = pll->info->funcs->get_hw_state(dev_priv, pll, &dpll_hw_state);
 
@@ -15142,7 +15142,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		pll->active_mask = pll->state.crtc_mask;
 
 		DRM_DEBUG_KMS("%s hw state readout: crtc_mask 0x%08x, on %i\n",
-			      pll->name, pll->state.crtc_mask, pll->on);
+			      pll->info->name, pll->state.crtc_mask, pll->on);
 	}
 
 	for_each_intel_encoder(dev, encoder) {
@@ -15316,7 +15316,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 		if (!pll->on || pll->active_mask)
 			continue;
 
-		DRM_DEBUG_KMS("%s enabled but not in use, disabling\n", pll->name);
+		DRM_DEBUG_KMS("%s enabled but not in use, disabling\n",
+			      pll->info->name);
 
 		pll->info->funcs->disable(dev_priv, pll);
 		pll->on = false;

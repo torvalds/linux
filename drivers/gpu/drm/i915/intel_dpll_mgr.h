@@ -209,6 +209,9 @@ struct intel_shared_dpll_funcs {
  * struct dpll_info - display PLL platform specific info
  */
 struct dpll_info {
+	/**
+	 * @name: DPLL name; used for logging
+	 */
 	const char *name;
 	const int id;
 	/**
@@ -239,11 +242,6 @@ struct intel_shared_dpll {
 	 * @on: is the PLL actually active? Disabled during modeset
 	 */
 	bool on;
-
-	/**
-	 * @name: DPLL name; used for logging
-	 */
-	const char *name;
 
 	/**
 	 * @id: unique indentifier for this DPLL; should match the index in the
