@@ -1877,13 +1877,6 @@ static void intel_ddi_pll_init(struct drm_device *dev)
 	}
 }
 
-struct dpll_info {
-	const char *name;
-	const int id;
-	const struct intel_shared_dpll_funcs *funcs;
-	uint32_t flags;
-};
-
 struct intel_dpll_mgr {
 	const struct dpll_info *dpll_info;
 

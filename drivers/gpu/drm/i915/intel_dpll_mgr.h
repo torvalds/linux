@@ -206,6 +206,16 @@ struct intel_shared_dpll_funcs {
 };
 
 /**
+ * struct dpll_info - display PLL platform specific info
+ */
+struct dpll_info {
+	const char *name;
+	const int id;
+	const struct intel_shared_dpll_funcs *funcs;
+	uint32_t flags;
+};
+
+/**
  * struct intel_shared_dpll - display PLL with tracked state and users
  */
 struct intel_shared_dpll {
