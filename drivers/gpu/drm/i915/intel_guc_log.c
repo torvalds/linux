@@ -60,17 +60,14 @@ static int guc_action_flush_log(struct intel_guc *guc)
 static int guc_action_control_log(struct intel_guc *guc, bool enable,
 				  bool default_logging, u32 verbosity)
 {
-	union guc_log_control control_val = {
-		{
-			.logging_enabled = enable,
-			.verbosity = verbosity,
-			.default_logging = default_logging,
-		},
-	};
 	u32 action[] = {
 		INTEL_GUC_ACTION_UK_LOG_ENABLE_LOGGING,
-		control_val.value
+		(enable ? GUC_LOG_CONTROL_LOGGING_ENABLED : 0) |
+		(verbosity << GUC_LOG_CONTROL_VERBOSITY_SHIFT) |
+		(default_logging ? GUC_LOG_CONTROL_DEFAULT_LOGGING : 0)
 	};
+
+	GEM_BUG_ON(verbosity > GUC_LOG_VERBOSITY_MAX);
 
 	return intel_guc_send(guc, action, ARRAY_SIZE(action));
 }

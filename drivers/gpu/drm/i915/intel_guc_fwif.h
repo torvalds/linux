@@ -534,17 +534,6 @@ struct guc_log_buffer_state {
 	u32 version;
 } __packed;
 
-union guc_log_control {
-	struct {
-		u32 logging_enabled:1;
-		u32 reserved1:3;
-		u32 verbosity:4;
-		u32 default_logging:1;
-		u32 reserved2:23;
-	};
-	u32 value;
-} __packed;
-
 struct guc_ctx_report {
 	u32 report_return_status;
 	u32 reserved1[64];
@@ -602,6 +591,11 @@ enum intel_guc_report_status {
 	INTEL_GUC_REPORT_STATUS_ERROR = 0x2,
 	INTEL_GUC_REPORT_STATUS_COMPLETE = 0x4,
 };
+
+#define GUC_LOG_CONTROL_LOGGING_ENABLED	(1 << 0)
+#define GUC_LOG_CONTROL_VERBOSITY_SHIFT	4
+#define GUC_LOG_CONTROL_VERBOSITY_MASK	(0xF << GUC_LOG_CONTROL_VERBOSITY_SHIFT)
+#define GUC_LOG_CONTROL_DEFAULT_LOGGING	(1 << 8)
 
 /*
  * The GuC sends its response to a command by overwriting the
