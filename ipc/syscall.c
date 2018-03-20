@@ -59,11 +59,11 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 					   (struct ipc_kludge __user *) ptr,
 					   sizeof(tmp)))
 				return -EFAULT;
-			return sys_msgrcv(first, tmp.msgp, second,
+			return ksys_msgrcv(first, tmp.msgp, second,
 					   tmp.msgtyp, third);
 		}
 		default:
-			return sys_msgrcv(first,
+			return ksys_msgrcv(first,
 					   (struct msgbuf __user *) ptr,
 					   second, fifth, third);
 		}
@@ -156,10 +156,10 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 				return -EINVAL;
 			if (copy_from_user(&ipck, uptr, sizeof(ipck)))
 				return -EFAULT;
-			return compat_sys_msgrcv(first, ipck.msgp, second,
+			return compat_ksys_msgrcv(first, ipck.msgp, second,
 						 ipck.msgtyp, third);
 		}
-		return compat_sys_msgrcv(first, ptr, second, fifth, third);
+		return compat_ksys_msgrcv(first, ptr, second, fifth, third);
 	}
 	case MSGGET:
 		return ksys_msgget(first, second);

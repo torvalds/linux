@@ -1150,10 +1150,16 @@ out_unlock1:
 	return bufsz;
 }
 
+long ksys_msgrcv(int msqid, struct msgbuf __user *msgp, size_t msgsz,
+		 long msgtyp, int msgflg)
+{
+	return do_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg, do_msg_fill);
+}
+
 SYSCALL_DEFINE5(msgrcv, int, msqid, struct msgbuf __user *, msgp, size_t, msgsz,
 		long, msgtyp, int, msgflg)
 {
-	return do_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg, do_msg_fill);
+	return ksys_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1171,11 +1177,18 @@ static long compat_do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bu
 	return msgsz;
 }
 
-COMPAT_SYSCALL_DEFINE5(msgrcv, int, msqid, compat_uptr_t, msgp,
-		       compat_ssize_t, msgsz, compat_long_t, msgtyp, int, msgflg)
+long compat_ksys_msgrcv(int msqid, compat_uptr_t msgp, compat_ssize_t msgsz,
+			compat_long_t msgtyp, int msgflg)
 {
 	return do_msgrcv(msqid, compat_ptr(msgp), (ssize_t)msgsz, (long)msgtyp,
 			 msgflg, compat_do_msg_fill);
+}
+
+COMPAT_SYSCALL_DEFINE5(msgrcv, int, msqid, compat_uptr_t, msgp,
+		       compat_ssize_t, msgsz, compat_long_t, msgtyp,
+		       int, msgflg)
+{
+	return compat_ksys_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg);
 }
 #endif
 
