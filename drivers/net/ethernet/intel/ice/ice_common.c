@@ -7,6 +7,25 @@
 
 #define ICE_PF_RESET_WAIT_COUNT	200
 
+#define ICE_NIC_FLX_ENTRY(hw, mdid, idx) \
+	wr32((hw), GLFLXP_RXDID_FLX_WRD_##idx(ICE_RXDID_FLEX_NIC), \
+	     ((ICE_RX_OPC_MDID << \
+	       GLFLXP_RXDID_FLX_WRD_##idx##_RXDID_OPCODE_S) & \
+	      GLFLXP_RXDID_FLX_WRD_##idx##_RXDID_OPCODE_M) | \
+	     (((mdid) << GLFLXP_RXDID_FLX_WRD_##idx##_PROT_MDID_S) & \
+	      GLFLXP_RXDID_FLX_WRD_##idx##_PROT_MDID_M))
+
+#define ICE_NIC_FLX_FLG_ENTRY(hw, flg_0, flg_1, flg_2, flg_3, idx) \
+	wr32((hw), GLFLXP_RXDID_FLAGS(ICE_RXDID_FLEX_NIC, idx), \
+	     (((flg_0) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_S) & \
+	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_M) | \
+	     (((flg_1) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_1_S) & \
+	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_1_M) | \
+	     (((flg_2) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_2_S) & \
+	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_2_M) | \
+	     (((flg_3) << GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_3_S) & \
+	      GLFLXP_RXDID_FLAGS_FLEXIFLAG_4N_3_M))
+
 /**
  * ice_set_mac_type - Sets MAC type
  * @hw: pointer to the HW structure
@@ -259,6 +278,33 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 }
 
 /**
+ * ice_init_flex_parser - initialize rx flex parser
+ * @hw: pointer to the hardware structure
+ *
+ * Function to initialize flex descriptors
+ */
+static void ice_init_flex_parser(struct ice_hw *hw)
+{
+	u8 idx = 0;
+
+	ICE_NIC_FLX_ENTRY(hw, ICE_RX_MDID_HASH_LOW, 0);
+	ICE_NIC_FLX_ENTRY(hw, ICE_RX_MDID_HASH_HIGH, 1);
+	ICE_NIC_FLX_ENTRY(hw, ICE_RX_MDID_FLOW_ID_LOWER, 2);
+	ICE_NIC_FLX_ENTRY(hw, ICE_RX_MDID_FLOW_ID_HIGH, 3);
+	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_PKT_FRG, ICE_RXFLG_UDP_GRE,
+			      ICE_RXFLG_PKT_DSI, ICE_RXFLG_FIN, idx++);
+	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_SYN, ICE_RXFLG_RST,
+			      ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx++);
+	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI,
+			      ICE_RXFLG_EVLAN_x8100, ICE_RXFLG_EVLAN_x9100,
+			      idx++);
+	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_VLAN_x8100, ICE_RXFLG_TNL_VLAN,
+			      ICE_RXFLG_TNL_MAC, ICE_RXFLG_TNL0, idx++);
+	ICE_NIC_FLX_FLG_ENTRY(hw, ICE_RXFLG_TNL1, ICE_RXFLG_TNL2,
+			      ICE_RXFLG_PKT_DSI, ICE_RXFLG_PKT_DSI, idx);
+}
+
+/**
  * ice_init_fltr_mgmt_struct - initializes filter management list and locks
  * @hw: pointer to the hw struct
  */
@@ -431,6 +477,8 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_fltr_mgmt_struct;
 
+	ice_init_flex_parser(hw);
+
 	return 0;
 
 err_unroll_fltr_mgmt_struct:
@@ -596,6 +644,114 @@ enum ice_status ice_reset(struct ice_hw *hw, enum ice_reset_req req)
 	/* wait for the FW to be ready */
 	return ice_check_reset(hw);
 }
+
+/**
+ * ice_copy_rxq_ctx_to_hw
+ * @hw: pointer to the hardware structure
+ * @ice_rxq_ctx: pointer to the rxq context
+ * @rxq_index: the index of the rx queue
+ *
+ * Copies rxq context from dense structure to hw register space
+ */
+static enum ice_status
+ice_copy_rxq_ctx_to_hw(struct ice_hw *hw, u8 *ice_rxq_ctx, u32 rxq_index)
+{
+	u8 i;
+
+	if (!ice_rxq_ctx)
+		return ICE_ERR_BAD_PTR;
+
+	if (rxq_index > QRX_CTRL_MAX_INDEX)
+		return ICE_ERR_PARAM;
+
+	/* Copy each dword separately to hw */
+	for (i = 0; i < ICE_RXQ_CTX_SIZE_DWORDS; i++) {
+		wr32(hw, QRX_CONTEXT(i, rxq_index),
+		     *((u32 *)(ice_rxq_ctx + (i * sizeof(u32)))));
+
+		ice_debug(hw, ICE_DBG_QCTX, "qrxdata[%d]: %08X\n", i,
+			  *((u32 *)(ice_rxq_ctx + (i * sizeof(u32)))));
+	}
+
+	return 0;
+}
+
+/* LAN Rx Queue Context */
+static const struct ice_ctx_ele ice_rlan_ctx_info[] = {
+	/* Field		Width	LSB */
+	ICE_CTX_STORE(ice_rlan_ctx, head,		13,	0),
+	ICE_CTX_STORE(ice_rlan_ctx, cpuid,		8,	13),
+	ICE_CTX_STORE(ice_rlan_ctx, base,		57,	32),
+	ICE_CTX_STORE(ice_rlan_ctx, qlen,		13,	89),
+	ICE_CTX_STORE(ice_rlan_ctx, dbuf,		7,	102),
+	ICE_CTX_STORE(ice_rlan_ctx, hbuf,		5,	109),
+	ICE_CTX_STORE(ice_rlan_ctx, dtype,		2,	114),
+	ICE_CTX_STORE(ice_rlan_ctx, dsize,		1,	116),
+	ICE_CTX_STORE(ice_rlan_ctx, crcstrip,		1,	117),
+	ICE_CTX_STORE(ice_rlan_ctx, l2tsel,		1,	119),
+	ICE_CTX_STORE(ice_rlan_ctx, hsplit_0,		4,	120),
+	ICE_CTX_STORE(ice_rlan_ctx, hsplit_1,		2,	124),
+	ICE_CTX_STORE(ice_rlan_ctx, showiv,		1,	127),
+	ICE_CTX_STORE(ice_rlan_ctx, rxmax,		14,	174),
+	ICE_CTX_STORE(ice_rlan_ctx, tphrdesc_ena,	1,	193),
+	ICE_CTX_STORE(ice_rlan_ctx, tphwdesc_ena,	1,	194),
+	ICE_CTX_STORE(ice_rlan_ctx, tphdata_ena,	1,	195),
+	ICE_CTX_STORE(ice_rlan_ctx, tphhead_ena,	1,	196),
+	ICE_CTX_STORE(ice_rlan_ctx, lrxqthresh,		3,	198),
+	{ 0 }
+};
+
+/**
+ * ice_write_rxq_ctx
+ * @hw: pointer to the hardware structure
+ * @rlan_ctx: pointer to the rxq context
+ * @rxq_index: the index of the rx queue
+ *
+ * Converts rxq context from sparse to dense structure and then writes
+ * it to hw register space
+ */
+enum ice_status
+ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
+		  u32 rxq_index)
+{
+	u8 ctx_buf[ICE_RXQ_CTX_SZ] = { 0 };
+
+	ice_set_ctx((u8 *)rlan_ctx, ctx_buf, ice_rlan_ctx_info);
+	return ice_copy_rxq_ctx_to_hw(hw, ctx_buf, rxq_index);
+}
+
+/* LAN Tx Queue Context */
+const struct ice_ctx_ele ice_tlan_ctx_info[] = {
+				    /* Field			Width	LSB */
+	ICE_CTX_STORE(ice_tlan_ctx, base,			57,	0),
+	ICE_CTX_STORE(ice_tlan_ctx, port_num,			3,	57),
+	ICE_CTX_STORE(ice_tlan_ctx, cgd_num,			5,	60),
+	ICE_CTX_STORE(ice_tlan_ctx, pf_num,			3,	65),
+	ICE_CTX_STORE(ice_tlan_ctx, vmvf_num,			10,	68),
+	ICE_CTX_STORE(ice_tlan_ctx, vmvf_type,			2,	78),
+	ICE_CTX_STORE(ice_tlan_ctx, src_vsi,			10,	80),
+	ICE_CTX_STORE(ice_tlan_ctx, tsyn_ena,			1,	90),
+	ICE_CTX_STORE(ice_tlan_ctx, alt_vlan,			1,	92),
+	ICE_CTX_STORE(ice_tlan_ctx, cpuid,			8,	93),
+	ICE_CTX_STORE(ice_tlan_ctx, wb_mode,			1,	101),
+	ICE_CTX_STORE(ice_tlan_ctx, tphrd_desc,			1,	102),
+	ICE_CTX_STORE(ice_tlan_ctx, tphrd,			1,	103),
+	ICE_CTX_STORE(ice_tlan_ctx, tphwr_desc,			1,	104),
+	ICE_CTX_STORE(ice_tlan_ctx, cmpq_id,			9,	105),
+	ICE_CTX_STORE(ice_tlan_ctx, qnum_in_func,		14,	114),
+	ICE_CTX_STORE(ice_tlan_ctx, itr_notification_mode,	1,	128),
+	ICE_CTX_STORE(ice_tlan_ctx, adjust_prof_id,		6,	129),
+	ICE_CTX_STORE(ice_tlan_ctx, qlen,			13,	135),
+	ICE_CTX_STORE(ice_tlan_ctx, quanta_prof_idx,		4,	148),
+	ICE_CTX_STORE(ice_tlan_ctx, tso_ena,			1,	152),
+	ICE_CTX_STORE(ice_tlan_ctx, tso_qnum,			11,	153),
+	ICE_CTX_STORE(ice_tlan_ctx, legacy_int,			1,	164),
+	ICE_CTX_STORE(ice_tlan_ctx, drop_ena,			1,	165),
+	ICE_CTX_STORE(ice_tlan_ctx, cache_prof_idx,		2,	166),
+	ICE_CTX_STORE(ice_tlan_ctx, pkt_shaper_prof_idx,	3,	168),
+	ICE_CTX_STORE(ice_tlan_ctx, int_q_state,		110,	171),
+	{ 0 }
+};
 
 /**
  * ice_debug_cq
@@ -1103,4 +1259,450 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
 {
 	if (ice_check_sq_alive(hw, &hw->adminq))
 		ice_aq_clear_pxe_mode(hw);
+}
+
+/**
+ * ice_aq_add_lan_txq
+ * @hw: pointer to the hardware structure
+ * @num_qgrps: Number of added queue groups
+ * @qg_list: list of queue groups to be added
+ * @buf_size: size of buffer for indirect command
+ * @cd: pointer to command details structure or NULL
+ *
+ * Add Tx LAN queue (0x0C30)
+ *
+ * NOTE:
+ * Prior to calling add Tx LAN queue:
+ * Initialize the following as part of the Tx queue context:
+ * Completion queue ID if the queue uses Completion queue, Quanta profile,
+ * Cache profile and Packet shaper profile.
+ *
+ * After add Tx LAN queue AQ command is completed:
+ * Interrupts should be associated with specific queues,
+ * Association of Tx queue to Doorbell queue is not part of Add LAN Tx queue
+ * flow.
+ */
+static enum ice_status
+ice_aq_add_lan_txq(struct ice_hw *hw, u8 num_qgrps,
+		   struct ice_aqc_add_tx_qgrp *qg_list, u16 buf_size,
+		   struct ice_sq_cd *cd)
+{
+	u16 i, sum_header_size, sum_q_size = 0;
+	struct ice_aqc_add_tx_qgrp *list;
+	struct ice_aqc_add_txqs *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.add_txqs;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_add_txqs);
+
+	if (!qg_list)
+		return ICE_ERR_PARAM;
+
+	if (num_qgrps > ICE_LAN_TXQ_MAX_QGRPS)
+		return ICE_ERR_PARAM;
+
+	sum_header_size = num_qgrps *
+		(sizeof(*qg_list) - sizeof(*qg_list->txqs));
+
+	list = qg_list;
+	for (i = 0; i < num_qgrps; i++) {
+		struct ice_aqc_add_txqs_perq *q = list->txqs;
+
+		sum_q_size += list->num_txqs * sizeof(*q);
+		list = (struct ice_aqc_add_tx_qgrp *)(q + list->num_txqs);
+	}
+
+	if (buf_size != (sum_header_size + sum_q_size))
+		return ICE_ERR_PARAM;
+
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	cmd->num_qgrps = num_qgrps;
+
+	return ice_aq_send_cmd(hw, &desc, qg_list, buf_size, cd);
+}
+
+/**
+ * ice_aq_dis_lan_txq
+ * @hw: pointer to the hardware structure
+ * @num_qgrps: number of groups in the list
+ * @qg_list: the list of groups to disable
+ * @buf_size: the total size of the qg_list buffer in bytes
+ * @cd: pointer to command details structure or NULL
+ *
+ * Disable LAN Tx queue (0x0C31)
+ */
+static enum ice_status
+ice_aq_dis_lan_txq(struct ice_hw *hw, u8 num_qgrps,
+		   struct ice_aqc_dis_txq_item *qg_list, u16 buf_size,
+		   struct ice_sq_cd *cd)
+{
+	struct ice_aqc_dis_txqs *cmd;
+	struct ice_aq_desc desc;
+	u16 i, sz = 0;
+
+	cmd = &desc.params.dis_txqs;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_dis_txqs);
+
+	if (!qg_list)
+		return ICE_ERR_PARAM;
+
+	if (num_qgrps > ICE_LAN_TXQ_MAX_QGRPS)
+		return ICE_ERR_PARAM;
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	cmd->num_entries = num_qgrps;
+
+	for (i = 0; i < num_qgrps; ++i) {
+		/* Calculate the size taken up by the queue IDs in this group */
+		sz += qg_list[i].num_qs * sizeof(qg_list[i].q_id);
+
+		/* Add the size of the group header */
+		sz += sizeof(qg_list[i]) - sizeof(qg_list[i].q_id);
+
+		/* If the num of queues is even, add 2 bytes of padding */
+		if ((qg_list[i].num_qs % 2) == 0)
+			sz += 2;
+	}
+
+	if (buf_size != sz)
+		return ICE_ERR_PARAM;
+
+	return ice_aq_send_cmd(hw, &desc, qg_list, buf_size, cd);
+}
+
+/* End of FW Admin Queue command wrappers */
+
+/**
+ * ice_write_byte - write a byte to a packed context structure
+ * @src_ctx:  the context structure to read from
+ * @dest_ctx: the context to be written to
+ * @ce_info:  a description of the struct to be filled
+ */
+static void ice_write_byte(u8 *src_ctx, u8 *dest_ctx,
+			   const struct ice_ctx_ele *ce_info)
+{
+	u8 src_byte, dest_byte, mask;
+	u8 *from, *dest;
+	u16 shift_width;
+
+	/* copy from the next struct field */
+	from = src_ctx + ce_info->offset;
+
+	/* prepare the bits and mask */
+	shift_width = ce_info->lsb % 8;
+	mask = (u8)(BIT(ce_info->width) - 1);
+
+	src_byte = *from;
+	src_byte &= mask;
+
+	/* shift to correct alignment */
+	mask <<= shift_width;
+	src_byte <<= shift_width;
+
+	/* get the current bits from the target bit string */
+	dest = dest_ctx + (ce_info->lsb / 8);
+
+	memcpy(&dest_byte, dest, sizeof(dest_byte));
+
+	dest_byte &= ~mask;	/* get the bits not changing */
+	dest_byte |= src_byte;	/* add in the new bits */
+
+	/* put it all back */
+	memcpy(dest, &dest_byte, sizeof(dest_byte));
+}
+
+/**
+ * ice_write_word - write a word to a packed context structure
+ * @src_ctx:  the context structure to read from
+ * @dest_ctx: the context to be written to
+ * @ce_info:  a description of the struct to be filled
+ */
+static void ice_write_word(u8 *src_ctx, u8 *dest_ctx,
+			   const struct ice_ctx_ele *ce_info)
+{
+	u16 src_word, mask;
+	__le16 dest_word;
+	u8 *from, *dest;
+	u16 shift_width;
+
+	/* copy from the next struct field */
+	from = src_ctx + ce_info->offset;
+
+	/* prepare the bits and mask */
+	shift_width = ce_info->lsb % 8;
+	mask = BIT(ce_info->width) - 1;
+
+	/* don't swizzle the bits until after the mask because the mask bits
+	 * will be in a different bit position on big endian machines
+	 */
+	src_word = *(u16 *)from;
+	src_word &= mask;
+
+	/* shift to correct alignment */
+	mask <<= shift_width;
+	src_word <<= shift_width;
+
+	/* get the current bits from the target bit string */
+	dest = dest_ctx + (ce_info->lsb / 8);
+
+	memcpy(&dest_word, dest, sizeof(dest_word));
+
+	dest_word &= ~(cpu_to_le16(mask));	/* get the bits not changing */
+	dest_word |= cpu_to_le16(src_word);	/* add in the new bits */
+
+	/* put it all back */
+	memcpy(dest, &dest_word, sizeof(dest_word));
+}
+
+/**
+ * ice_write_dword - write a dword to a packed context structure
+ * @src_ctx:  the context structure to read from
+ * @dest_ctx: the context to be written to
+ * @ce_info:  a description of the struct to be filled
+ */
+static void ice_write_dword(u8 *src_ctx, u8 *dest_ctx,
+			    const struct ice_ctx_ele *ce_info)
+{
+	u32 src_dword, mask;
+	__le32 dest_dword;
+	u8 *from, *dest;
+	u16 shift_width;
+
+	/* copy from the next struct field */
+	from = src_ctx + ce_info->offset;
+
+	/* prepare the bits and mask */
+	shift_width = ce_info->lsb % 8;
+
+	/* if the field width is exactly 32 on an x86 machine, then the shift
+	 * operation will not work because the SHL instructions count is masked
+	 * to 5 bits so the shift will do nothing
+	 */
+	if (ce_info->width < 32)
+		mask = BIT(ce_info->width) - 1;
+	else
+		mask = (u32)~0;
+
+	/* don't swizzle the bits until after the mask because the mask bits
+	 * will be in a different bit position on big endian machines
+	 */
+	src_dword = *(u32 *)from;
+	src_dword &= mask;
+
+	/* shift to correct alignment */
+	mask <<= shift_width;
+	src_dword <<= shift_width;
+
+	/* get the current bits from the target bit string */
+	dest = dest_ctx + (ce_info->lsb / 8);
+
+	memcpy(&dest_dword, dest, sizeof(dest_dword));
+
+	dest_dword &= ~(cpu_to_le32(mask));	/* get the bits not changing */
+	dest_dword |= cpu_to_le32(src_dword);	/* add in the new bits */
+
+	/* put it all back */
+	memcpy(dest, &dest_dword, sizeof(dest_dword));
+}
+
+/**
+ * ice_write_qword - write a qword to a packed context structure
+ * @src_ctx:  the context structure to read from
+ * @dest_ctx: the context to be written to
+ * @ce_info:  a description of the struct to be filled
+ */
+static void ice_write_qword(u8 *src_ctx, u8 *dest_ctx,
+			    const struct ice_ctx_ele *ce_info)
+{
+	u64 src_qword, mask;
+	__le64 dest_qword;
+	u8 *from, *dest;
+	u16 shift_width;
+
+	/* copy from the next struct field */
+	from = src_ctx + ce_info->offset;
+
+	/* prepare the bits and mask */
+	shift_width = ce_info->lsb % 8;
+
+	/* if the field width is exactly 64 on an x86 machine, then the shift
+	 * operation will not work because the SHL instructions count is masked
+	 * to 6 bits so the shift will do nothing
+	 */
+	if (ce_info->width < 64)
+		mask = BIT_ULL(ce_info->width) - 1;
+	else
+		mask = (u64)~0;
+
+	/* don't swizzle the bits until after the mask because the mask bits
+	 * will be in a different bit position on big endian machines
+	 */
+	src_qword = *(u64 *)from;
+	src_qword &= mask;
+
+	/* shift to correct alignment */
+	mask <<= shift_width;
+	src_qword <<= shift_width;
+
+	/* get the current bits from the target bit string */
+	dest = dest_ctx + (ce_info->lsb / 8);
+
+	memcpy(&dest_qword, dest, sizeof(dest_qword));
+
+	dest_qword &= ~(cpu_to_le64(mask));	/* get the bits not changing */
+	dest_qword |= cpu_to_le64(src_qword);	/* add in the new bits */
+
+	/* put it all back */
+	memcpy(dest, &dest_qword, sizeof(dest_qword));
+}
+
+/**
+ * ice_set_ctx - set context bits in packed structure
+ * @src_ctx:  pointer to a generic non-packed context structure
+ * @dest_ctx: pointer to memory for the packed structure
+ * @ce_info:  a description of the structure to be transformed
+ */
+enum ice_status
+ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+{
+	int f;
+
+	for (f = 0; ce_info[f].width; f++) {
+		/* We have to deal with each element of the FW response
+		 * using the correct size so that we are correct regardless
+		 * of the endianness of the machine.
+		 */
+		switch (ce_info[f].size_of) {
+		case sizeof(u8):
+			ice_write_byte(src_ctx, dest_ctx, &ce_info[f]);
+			break;
+		case sizeof(u16):
+			ice_write_word(src_ctx, dest_ctx, &ce_info[f]);
+			break;
+		case sizeof(u32):
+			ice_write_dword(src_ctx, dest_ctx, &ce_info[f]);
+			break;
+		case sizeof(u64):
+			ice_write_qword(src_ctx, dest_ctx, &ce_info[f]);
+			break;
+		default:
+			return ICE_ERR_INVAL_SIZE;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * ice_ena_vsi_txq
+ * @pi: port information structure
+ * @vsi_id: VSI id
+ * @tc: tc number
+ * @num_qgrps: Number of added queue groups
+ * @buf: list of queue groups to be added
+ * @buf_size: size of buffer for indirect command
+ * @cd: pointer to command details structure or NULL
+ *
+ * This function adds one lan q
+ */
+enum ice_status
+ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_id, u8 tc, u8 num_qgrps,
+		struct ice_aqc_add_tx_qgrp *buf, u16 buf_size,
+		struct ice_sq_cd *cd)
+{
+	struct ice_aqc_txsched_elem_data node = { 0 };
+	struct ice_sched_node *parent;
+	enum ice_status status;
+	struct ice_hw *hw;
+
+	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
+		return ICE_ERR_CFG;
+
+	if (num_qgrps > 1 || buf->num_txqs > 1)
+		return ICE_ERR_MAX_LIMIT;
+
+	hw = pi->hw;
+
+	mutex_lock(&pi->sched_lock);
+
+	/* find a parent node */
+	parent = ice_sched_get_free_qparent(pi, vsi_id, tc,
+					    ICE_SCHED_NODE_OWNER_LAN);
+	if (!parent) {
+		status = ICE_ERR_PARAM;
+		goto ena_txq_exit;
+	}
+	buf->parent_teid = parent->info.node_teid;
+	node.parent_teid = parent->info.node_teid;
+	/* Mark that the values in the "generic" section as valid. The default
+	 * value in the "generic" section is zero. This means that :
+	 * - Scheduling mode is Bytes Per Second (BPS), indicated by Bit 0.
+	 * - 0 priority among siblings, indicated by Bit 1-3.
+	 * - WFQ, indicated by Bit 4.
+	 * - 0 Adjustment value is used in PSM credit update flow, indicated by
+	 * Bit 5-6.
+	 * - Bit 7 is reserved.
+	 * Without setting the generic section as valid in valid_sections, the
+	 * Admin Q command will fail with error code ICE_AQ_RC_EINVAL.
+	 */
+	buf->txqs[0].info.valid_sections = ICE_AQC_ELEM_VALID_GENERIC;
+
+	/* add the lan q */
+	status = ice_aq_add_lan_txq(hw, num_qgrps, buf, buf_size, cd);
+	if (status)
+		goto ena_txq_exit;
+
+	node.node_teid = buf->txqs[0].q_teid;
+	node.data.elem_type = ICE_AQC_ELEM_TYPE_LEAF;
+
+	/* add a leaf node into schduler tree q layer */
+	status = ice_sched_add_node(pi, hw->num_tx_sched_layers - 1, &node);
+
+ena_txq_exit:
+	mutex_unlock(&pi->sched_lock);
+	return status;
+}
+
+/**
+ * ice_dis_vsi_txq
+ * @pi: port information structure
+ * @num_queues: number of queues
+ * @q_ids: pointer to the q_id array
+ * @q_teids: pointer to queue node teids
+ * @cd: pointer to command details structure or NULL
+ *
+ * This function removes queues and their corresponding nodes in SW DB
+ */
+enum ice_status
+ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
+		u32 *q_teids, struct ice_sq_cd *cd)
+{
+	enum ice_status status = ICE_ERR_DOES_NOT_EXIST;
+	struct ice_aqc_dis_txq_item qg_list;
+	u16 i;
+
+	if (!pi || pi->port_state != ICE_SCHED_PORT_STATE_READY)
+		return ICE_ERR_CFG;
+
+	mutex_lock(&pi->sched_lock);
+
+	for (i = 0; i < num_queues; i++) {
+		struct ice_sched_node *node;
+
+		node = ice_sched_find_node_by_teid(pi->root, q_teids[i]);
+		if (!node)
+			continue;
+		qg_list.parent_teid = node->info.parent_teid;
+		qg_list.num_qs = 1;
+		qg_list.q_id[0] = cpu_to_le16(q_ids[i]);
+		status = ice_aq_dis_lan_txq(pi->hw, 1, &qg_list,
+					    sizeof(qg_list), cd);
+
+		if (status)
+			break;
+		ice_free_sched_node(pi, node);
+	}
+	mutex_unlock(&pi->sched_lock);
+	return status;
 }

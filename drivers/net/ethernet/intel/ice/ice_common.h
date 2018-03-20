@@ -30,9 +30,15 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 		struct ice_sq_cd *cd);
 void ice_clear_pxe_mode(struct ice_hw *hw);
 enum ice_status ice_get_caps(struct ice_hw *hw);
+enum ice_status
+ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
+		  u32 rxq_index);
 bool ice_check_sq_alive(struct ice_hw *hw, struct ice_ctl_q_info *cq);
 enum ice_status ice_aq_q_shutdown(struct ice_hw *hw, bool unloading);
 void ice_fill_dflt_direct_cmd_desc(struct ice_aq_desc *desc, u16 opcode);
+extern const struct ice_ctx_ele ice_tlan_ctx_info[];
+enum ice_status
+ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info);
 enum ice_status
 ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc,
 		void *buf, u16 buf_size, struct ice_sq_cd *cd);
@@ -41,4 +47,11 @@ enum ice_status ice_clear_pf_cfg(struct ice_hw *hw);
 enum ice_status
 ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 		     struct ice_link_status *link, struct ice_sq_cd *cd);
+enum ice_status
+ice_dis_vsi_txq(struct ice_port_info *pi, u8 num_queues, u16 *q_ids,
+		u32 *q_teids, struct ice_sq_cd *cmd_details);
+enum ice_status
+ice_ena_vsi_txq(struct ice_port_info *pi, u16 vsi_id, u8 tc, u8 num_qgrps,
+		struct ice_aqc_add_tx_qgrp *buf, u16 buf_size,
+		struct ice_sq_cd *cd);
 #endif /* _ICE_COMMON_H_ */

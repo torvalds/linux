@@ -11,8 +11,10 @@
 #include <linux/netdevice.h>
 #include <linux/compiler.h>
 #include <linux/etherdevice.h>
+#include <linux/skbuff.h>
 #include <linux/cpumask.h>
 #include <linux/if_vlan.h>
+#include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 #include <linux/aer.h>
@@ -43,6 +45,8 @@
 #define ICE_VSI_MAP_SCATTER	1
 #define ICE_MAX_SCATTER_TXQS	16
 #define ICE_MAX_SCATTER_RXQS	16
+#define ICE_Q_WAIT_RETRY_LIMIT	10
+#define ICE_Q_WAIT_MAX_RETRY	(5 * ICE_Q_WAIT_RETRY_LIMIT)
 #define ICE_RES_VALID_BIT	0x8000
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
 #define ICE_INVAL_Q_INDEX	0xffff
@@ -55,6 +59,14 @@
 #define ICE_UP_TABLE_TRANSLATE(val, i) \
 		(((val) << ICE_AQ_VSI_UP_TABLE_UP##i##_S) & \
 		  ICE_AQ_VSI_UP_TABLE_UP##i##_M)
+
+#define ICE_RX_DESC(R, i) (&(((union ice_32b_rx_flex_desc *)((R)->desc))[i]))
+
+#define ice_for_each_txq(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->num_txq; (i)++)
+
+#define ice_for_each_rxq(vsi, i) \
+	for ((i) = 0; (i) < (vsi)->num_rxq; (i)++)
 
 struct ice_tc_info {
 	u16 qoffset;
@@ -96,6 +108,9 @@ struct ice_vsi {
 	struct ice_ring **rx_rings;	 /* rx ring array */
 	struct ice_ring **tx_rings;	 /* tx ring array */
 	struct ice_q_vector **q_vectors; /* q_vector array */
+
+	irqreturn_t (*irq_handler)(int irq, void *data);
+
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
 	int num_q_vectors;
 	int base_vector;
@@ -106,7 +121,13 @@ struct ice_vsi {
 	/* Interrupt thresholds */
 	u16 work_lmt;
 
+	u16 max_frame;
+	u16 rx_buf_len;
+
 	struct ice_aqc_vsi_props info;	 /* VSI properties */
+
+	bool irqs_ready;
+	bool current_isup;		 /* Sync 'link up' logging */
 
 	/* queue information */
 	u8 tx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
@@ -128,9 +149,11 @@ struct ice_q_vector {
 	struct napi_struct napi;
 	struct ice_ring_container rx;
 	struct ice_ring_container tx;
+	struct irq_affinity_notify affinity_notify;
 	u16 v_idx;			/* index in the vsi->q_vector array. */
 	u8 num_ring_tx;			/* total number of tx rings in vector */
 	u8 num_ring_rx;			/* total number of rx rings in vector */
+	char name[ICE_INT_NAME_STR_LEN];
 } ____cacheline_internodealigned_in_smp;
 
 enum ice_pf_flags {
@@ -178,10 +201,14 @@ struct ice_netdev_priv {
 /**
  * ice_irq_dynamic_ena - Enable default interrupt generation settings
  * @hw: pointer to hw struct
+ * @vsi: pointer to vsi struct, can be NULL
+ * @q_vector: pointer to q_vector, can be NULL
  */
-static inline void ice_irq_dynamic_ena(struct ice_hw *hw)
+static inline void ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
+				       struct ice_q_vector *q_vector)
 {
-	u32 vector = ((struct ice_pf *)hw->back)->oicr_idx;
+	u32 vector = (vsi && q_vector) ? vsi->base_vector + q_vector->v_idx :
+					((struct ice_pf *)hw->back)->oicr_idx;
 	int itr = ICE_ITR_NONE;
 	u32 val;
 
@@ -190,7 +217,10 @@ static inline void ice_irq_dynamic_ena(struct ice_hw *hw)
 	 */
 	val = GLINT_DYN_CTL_INTENA_M | GLINT_DYN_CTL_CLEARPBA_M |
 	      (itr << GLINT_DYN_CTL_ITR_INDX_S);
-
+	if (vsi)
+		if (test_bit(__ICE_DOWN, vsi->state))
+			return;
 	wr32(hw, GLINT_DYN_CTL(vector), val);
 }
+
 #endif /* _ICE_H_ */

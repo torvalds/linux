@@ -968,6 +968,87 @@ struct ice_aqc_nvm {
 	__le32	addr_low;
 };
 
+/* Add TX LAN Queues (indirect 0x0C30) */
+struct ice_aqc_add_txqs {
+	u8 num_qgrps;
+	u8 reserved[3];
+	__le32 reserved1;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* This is the descriptor of each queue entry for the Add TX LAN Queues
+ * command (0x0C30). Only used within struct ice_aqc_add_tx_qgrp.
+ */
+struct ice_aqc_add_txqs_perq {
+	__le16 txq_id;
+	u8 rsvd[2];
+	__le32 q_teid;
+	u8 txq_ctx[22];
+	u8 rsvd2[2];
+	struct ice_aqc_txsched_elem info;
+};
+
+/* The format of the command buffer for Add TX LAN Queues (0x0C30)
+ * is an array of the following structs. Please note that the length of
+ * each struct ice_aqc_add_tx_qgrp is variable due
+ * to the variable number of queues in each group!
+ */
+struct ice_aqc_add_tx_qgrp {
+	__le32 parent_teid;
+	u8 num_txqs;
+	u8 rsvd[3];
+	struct ice_aqc_add_txqs_perq txqs[1];
+};
+
+/* Disable TX LAN Queues (indirect 0x0C31) */
+struct ice_aqc_dis_txqs {
+	u8 cmd_type;
+#define ICE_AQC_Q_DIS_CMD_S		0
+#define ICE_AQC_Q_DIS_CMD_M		(0x3 << ICE_AQC_Q_DIS_CMD_S)
+#define ICE_AQC_Q_DIS_CMD_NO_FUNC_RESET	(0 << ICE_AQC_Q_DIS_CMD_S)
+#define ICE_AQC_Q_DIS_CMD_VM_RESET	BIT(ICE_AQC_Q_DIS_CMD_S)
+#define ICE_AQC_Q_DIS_CMD_VF_RESET	(2 << ICE_AQC_Q_DIS_CMD_S)
+#define ICE_AQC_Q_DIS_CMD_PF_RESET	(3 << ICE_AQC_Q_DIS_CMD_S)
+#define ICE_AQC_Q_DIS_CMD_SUBSEQ_CALL	BIT(2)
+#define ICE_AQC_Q_DIS_CMD_FLUSH_PIPE	BIT(3)
+	u8 num_entries;
+	__le16 vmvf_and_timeout;
+#define ICE_AQC_Q_DIS_VMVF_NUM_S	0
+#define ICE_AQC_Q_DIS_VMVF_NUM_M	(0x3FF << ICE_AQC_Q_DIS_VMVF_NUM_S)
+#define ICE_AQC_Q_DIS_TIMEOUT_S		10
+#define ICE_AQC_Q_DIS_TIMEOUT_M		(0x3F << ICE_AQC_Q_DIS_TIMEOUT_S)
+	__le32 blocked_cgds;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* The buffer for Disable TX LAN Queues (indirect 0x0C31)
+ * contains the following structures, arrayed one after the
+ * other.
+ * Note: Since the q_id is 16 bits wide, if the
+ * number of queues is even, then 2 bytes of alignment MUST be
+ * added before the start of the next group, to allow correct
+ * alignment of the parent_teid field.
+ */
+struct ice_aqc_dis_txq_item {
+	__le32 parent_teid;
+	u8 num_qs;
+	u8 rsvd;
+	/* The length of the q_id array varies according to num_qs */
+	__le16 q_id[1];
+	/* This only applies from F8 onward */
+#define ICE_AQC_Q_DIS_BUF_ELEM_TYPE_S		15
+#define ICE_AQC_Q_DIS_BUF_ELEM_TYPE_LAN_Q	\
+			(0 << ICE_AQC_Q_DIS_BUF_ELEM_TYPE_S)
+#define ICE_AQC_Q_DIS_BUF_ELEM_TYPE_RDMA_QSET	\
+			(1 << ICE_AQC_Q_DIS_BUF_ELEM_TYPE_S)
+};
+
+struct ice_aqc_dis_txq {
+	struct ice_aqc_dis_txq_item qgrps[1];
+};
+
 /**
  * struct ice_aq_desc - Admin Queue (AQ) descriptor
  * @flags: ICE_AQ_FLAG_* flags
@@ -1008,6 +1089,8 @@ struct ice_aq_desc {
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_add_move_delete_elem add_move_delete_elem;
 		struct ice_aqc_nvm nvm;
+		struct ice_aqc_add_txqs add_txqs;
+		struct ice_aqc_dis_txqs dis_txqs;
 		struct ice_aqc_add_get_update_free_vsi vsi_cmd;
 		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
 		struct ice_aqc_get_link_status get_link_status;
@@ -1088,6 +1171,9 @@ enum ice_adminq_opc {
 	/* NVM commands */
 	ice_aqc_opc_nvm_read				= 0x0701,
 
+	/* TX queue handling commands/events */
+	ice_aqc_opc_add_txqs				= 0x0C30,
+	ice_aqc_opc_dis_txqs				= 0x0C31,
 };
 
 #endif /* _ICE_ADMINQ_CMD_H_ */

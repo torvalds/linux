@@ -5,6 +5,30 @@
 #define _ICE_TXRX_H_
 
 #define ICE_DFLT_IRQ_WORK	256
+#define ICE_RXBUF_2048		2048
+#define ICE_MAX_CHAINED_RX_BUFS	5
+#define ICE_MAX_TXQ_PER_TXQG	128
+
+#define ICE_DESC_UNUSED(R)	\
+	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
+	(R)->next_to_clean - (R)->next_to_use - 1)
+
+struct ice_tx_buf {
+	struct ice_tx_desc *next_to_watch;
+	struct sk_buff *skb;
+	unsigned int bytecount;
+	unsigned short gso_segs;
+	u32 tx_flags;
+	DEFINE_DMA_UNMAP_ADDR(dma);
+	DEFINE_DMA_UNMAP_LEN(len);
+};
+
+struct ice_rx_buf {
+	struct sk_buff *skb;
+	dma_addr_t dma;
+	struct page *page;
+	unsigned int page_offset;
+};
 
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
  * registers and QINT registers or more generally anywhere in the manual
@@ -18,33 +42,77 @@ enum ice_dyn_idx_t {
 	ICE_ITR_NONE = 3	/* ITR_NONE must not be used as an index */
 };
 
+/* Header split modes defined by DTYPE field of Rx RLAN context */
+enum ice_rx_dtype {
+	ICE_RX_DTYPE_NO_SPLIT		= 0,
+	ICE_RX_DTYPE_HEADER_SPLIT	= 1,
+	ICE_RX_DTYPE_SPLIT_ALWAYS	= 2,
+};
+
 /* indices into GLINT_ITR registers */
 #define ICE_RX_ITR	ICE_IDX_ITR0
+#define ICE_TX_ITR	ICE_IDX_ITR1
 #define ICE_ITR_DYNAMIC	0x8000  /* use top bit as a flag */
 #define ICE_ITR_8K	0x003E
 
 /* apply ITR HW granularity translation to program the HW registers */
 #define ITR_TO_REG(val, itr_gran) (((val) & ~ICE_ITR_DYNAMIC) >> (itr_gran))
 
+/* Legacy or Advanced Mode Queue */
+#define ICE_TX_ADVANCED	0
+#define ICE_TX_LEGACY	1
+
 /* descriptor ring, associated with a VSI */
 struct ice_ring {
 	struct ice_ring *next;		/* pointer to next ring in q_vector */
+	void *desc;			/* Descriptor ring memory */
 	struct device *dev;		/* Used for DMA mapping */
 	struct net_device *netdev;	/* netdev ring maps to */
 	struct ice_vsi *vsi;		/* Backreference to associated VSI */
 	struct ice_q_vector *q_vector;	/* Backreference to associated vector */
+	u8 __iomem *tail;
+	union {
+		struct ice_tx_buf *tx_buf;
+		struct ice_rx_buf *rx_buf;
+	};
 	u16 q_index;			/* Queue number of ring */
+	u32 txq_teid;			/* Added Tx queue TEID */
+
+	/* high bit set means dynamic, use accessor routines to read/write.
+	 * hardware supports 2us/1us resolution for the ITR registers.
+	 * these values always store the USER setting, and must be converted
+	 * before programming to a register.
+	 */
+	u16 rx_itr_setting;
+	u16 tx_itr_setting;
+
 	u16 count;			/* Number of descriptors */
 	u16 reg_idx;			/* HW register index of the ring */
+
+	/* used in interrupt processing */
+	u16 next_to_use;
+	u16 next_to_clean;
+
 	bool ring_active;		/* is ring online or not */
+	unsigned int size;		/* length of descriptor ring in bytes */
+	dma_addr_t dma;			/* physical address of ring */
 	struct rcu_head rcu;		/* to avoid race on free */
+	u16 next_to_alloc;
 } ____cacheline_internodealigned_in_smp;
+
+enum ice_latency_range {
+	ICE_LOWEST_LATENCY = 0,
+	ICE_LOW_LATENCY = 1,
+	ICE_BULK_LATENCY = 2,
+	ICE_ULTRA_LATENCY = 3,
+};
 
 struct ice_ring_container {
 	/* array of pointers to rings */
 	struct ice_ring *ring;
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_pkts;	/* total packets processed this int */
+	enum ice_latency_range latency_range;
 	u16 itr;
 };
 
@@ -52,4 +120,11 @@ struct ice_ring_container {
 #define ice_for_each_ring(pos, head) \
 	for (pos = (head).ring; pos; pos = pos->next)
 
+bool ice_alloc_rx_bufs(struct ice_ring *rxr, u16 cleaned_count);
+void ice_clean_tx_ring(struct ice_ring *tx_ring);
+void ice_clean_rx_ring(struct ice_ring *rx_ring);
+int ice_setup_tx_ring(struct ice_ring *tx_ring);
+int ice_setup_rx_ring(struct ice_ring *rx_ring);
+void ice_free_tx_ring(struct ice_ring *tx_ring);
+void ice_free_rx_ring(struct ice_ring *rx_ring);
 #endif /* _ICE_TXRX_H_ */

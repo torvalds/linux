@@ -6,6 +6,8 @@
 
 #include "ice_common.h"
 
+#define ICE_QGRP_LAYER_OFFSET	2
+
 struct ice_sched_agg_vsi_info {
 	struct list_head list_entry;
 	DECLARE_BITMAP(tc_bitmap, ICE_MAX_TRAFFIC_CLASS);
@@ -31,4 +33,7 @@ ice_sched_add_node(struct ice_port_info *pi, u8 layer,
 		   struct ice_aqc_txsched_elem_data *info);
 void ice_free_sched_node(struct ice_port_info *pi, struct ice_sched_node *node);
 struct ice_sched_node *ice_sched_get_tc_node(struct ice_port_info *pi, u8 tc);
+struct ice_sched_node *
+ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_id, u8 tc,
+			   u8 owner);
 #endif /* _ICE_SCHED_H_ */

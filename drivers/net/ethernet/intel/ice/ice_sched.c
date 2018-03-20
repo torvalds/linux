@@ -463,6 +463,18 @@ void ice_sched_cleanup_all(struct ice_hw *hw)
 }
 
 /**
+ * ice_sched_get_qgrp_layer - get the current queue group layer number
+ * @hw: pointer to the hw struct
+ *
+ * This function returns the current queue group layer number
+ */
+static u8 ice_sched_get_qgrp_layer(struct ice_hw *hw)
+{
+	/* It's always total layers - 1, the array is 0 relative so -2 */
+	return hw->num_tx_sched_layers - ICE_QGRP_LAYER_OFFSET;
+}
+
+/**
  * ice_rm_dflt_leaf_node - remove the default leaf node in the tree
  * @pi: port information structure
  *
@@ -665,4 +677,97 @@ enum ice_status ice_sched_query_res_alloc(struct ice_hw *hw)
 sched_query_out:
 	devm_kfree(ice_hw_to_dev(hw), buf);
 	return status;
+}
+
+/**
+ * ice_sched_get_vsi_info_entry - Get the vsi entry list for given vsi_id
+ * @pi: port information structure
+ * @vsi_id: vsi id
+ *
+ * This function retrieves the vsi list for the given vsi id
+ */
+static struct ice_sched_vsi_info *
+ice_sched_get_vsi_info_entry(struct ice_port_info *pi, u16 vsi_id)
+{
+	struct ice_sched_vsi_info *list_elem;
+
+	if (!pi)
+		return NULL;
+
+	list_for_each_entry(list_elem, &pi->vsi_info_list, list_entry)
+		if (list_elem->vsi_id == vsi_id)
+			return list_elem;
+	return NULL;
+}
+
+/**
+ * ice_sched_find_node_in_subtree - Find node in part of base node subtree
+ * @hw: pointer to the hw struct
+ * @base: pointer to the base node
+ * @node: pointer to the node to search
+ *
+ * This function checks whether a given node is part of the base node
+ * subtree or not
+ */
+static bool
+ice_sched_find_node_in_subtree(struct ice_hw *hw, struct ice_sched_node *base,
+			       struct ice_sched_node *node)
+{
+	u8 i;
+
+	for (i = 0; i < base->num_children; i++) {
+		struct ice_sched_node *child = base->children[i];
+
+		if (node == child)
+			return true;
+		if (child->tx_sched_layer > node->tx_sched_layer)
+			return false;
+		/* this recursion is intentional, and wouldn't
+		 * go more than 8 calls
+		 */
+		if (ice_sched_find_node_in_subtree(hw, child, node))
+			return true;
+	}
+	return false;
+}
+
+/**
+ * ice_sched_get_free_qparent - Get a free lan or rdma q group node
+ * @pi: port information structure
+ * @vsi_id: vsi id
+ * @tc: branch number
+ * @owner: lan or rdma
+ *
+ * This function retrieves a free lan or rdma q group node
+ */
+struct ice_sched_node *
+ice_sched_get_free_qparent(struct ice_port_info *pi, u16 vsi_id, u8 tc,
+			   u8 owner)
+{
+	struct ice_sched_node *vsi_node, *qgrp_node = NULL;
+	struct ice_sched_vsi_info *list_elem;
+	u16 max_children;
+	u8 qgrp_layer;
+
+	qgrp_layer = ice_sched_get_qgrp_layer(pi->hw);
+	max_children = le16_to_cpu(pi->hw->layer_info[qgrp_layer].max_children);
+	list_elem = ice_sched_get_vsi_info_entry(pi, vsi_id);
+	if (!list_elem)
+		goto lan_q_exit;
+	vsi_node = list_elem->vsi_node[tc];
+	/* validate invalid VSI id */
+	if (!vsi_node)
+		goto lan_q_exit;
+	/* get the first q group node from VSI sub-tree */
+	qgrp_node = ice_sched_get_first_node(pi->hw, vsi_node, qgrp_layer);
+	while (qgrp_node) {
+		/* make sure the qgroup node is part of the VSI subtree */
+		if (ice_sched_find_node_in_subtree(pi->hw, vsi_node, qgrp_node))
+			if (qgrp_node->num_children < max_children &&
+			    qgrp_node->owner == owner)
+				break;
+		qgrp_node = qgrp_node->sibling;
+	}
+lan_q_exit:
+	return qgrp_node;
 }
