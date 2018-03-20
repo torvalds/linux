@@ -354,6 +354,7 @@ struct cxgb4_lld_info {
 	void **iscsi_ppm;		     /* iscsi page pod manager */
 	int nodeid;			     /* device numa node id */
 	bool fr_nsmr_tpte_wr_support;	     /* FW supports FR_NSMR_TPTE_WR */
+	bool write_w_imm_support;         /* FW supports WRITE_WITH_IMMEDIATE */
 };
 
 struct cxgb4_uld_info {

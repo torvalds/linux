@@ -4519,6 +4519,12 @@ static int adap_init0(struct adapter *adap)
 			 "max_ordird_qp %d max_ird_adapter %d\n",
 			 adap->params.max_ordird_qp,
 			 adap->params.max_ird_adapter);
+
+		/* Enable write_with_immediate if FW supports it */
+		params[0] = FW_PARAM_DEV(RDMA_WRITE_WITH_IMM);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, params,
+				      val);
+		adap->params.write_w_imm_support = (ret == 0 && val[0] != 0);
 		adap->num_ofld_uld += 2;
 	}
 	if (caps_cmd.iscsicaps) {
