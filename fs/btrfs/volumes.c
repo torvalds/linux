@@ -167,12 +167,6 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
  * may be used to exclude some operations from running concurrently without any
  * modifications to the list (see write_all_supers)
  *
- * volume_mutex
- * ------------
- * coarse lock owned by a mounted filesystem; used to exclude some operations
- * that cannot run in parallel and affect the higher-level properties of the
- * filesystem like: device add/deleting/resize/replace, or balance
- *
  * balance_mutex
  * -------------
  * protects balance structures (status, state) and context accessed from
@@ -3206,9 +3200,8 @@ static void update_balance_args(struct btrfs_balance_control *bctl)
 }
 
 /*
- * Should be called with both balance and volume mutexes held to
- * serialize other volume operations (add_dev/rm_dev/resize) with
- * restriper.  Same goes for reset_balance_state.
+ * Should be called with balance mutex held to protect against checking the
+ * balance status or progress. Same goes for reset_balance_state.
  */
 static void set_balance_control(struct btrfs_balance_control *bctl)
 {
@@ -3785,7 +3778,7 @@ static inline int validate_convert_profile(struct btrfs_balance_args *bctl_arg,
 }
 
 /*
- * Should be called with both balance and volume mutexes held
+ * Should be called with balance mutexe held
  */
 int btrfs_balance(struct btrfs_balance_control *bctl,
 		  struct btrfs_ioctl_balance_args *bargs)
@@ -3951,16 +3944,12 @@ static int balance_kthread(void *data)
 	struct btrfs_fs_info *fs_info = data;
 	int ret = 0;
 
-	mutex_lock(&fs_info->volume_mutex);
 	mutex_lock(&fs_info->balance_mutex);
-
 	if (fs_info->balance_ctl) {
 		btrfs_info(fs_info, "continuing balance");
 		ret = btrfs_balance(fs_info->balance_ctl, NULL);
 	}
-
 	mutex_unlock(&fs_info->balance_mutex);
-	mutex_unlock(&fs_info->volume_mutex);
 
 	return ret;
 }
@@ -4054,13 +4043,9 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 		btrfs_warn(fs_info,
 	"cannot set exclusive op status to balance, resume manually");
 
-	mutex_lock(&fs_info->volume_mutex);
 	mutex_lock(&fs_info->balance_mutex);
-
 	set_balance_control(bctl);
-
 	mutex_unlock(&fs_info->balance_mutex);
-	mutex_unlock(&fs_info->volume_mutex);
 out:
 	btrfs_free_path(path);
 	return ret;
@@ -4117,17 +4102,17 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 			   atomic_read(&fs_info->balance_running) == 0);
 		mutex_lock(&fs_info->balance_mutex);
 	} else {
-		/* reset_balance_state needs volume_mutex */
 		mutex_unlock(&fs_info->balance_mutex);
-		mutex_lock(&fs_info->volume_mutex);
+		/*
+		 * Lock released to allow other waiters to continue, we'll
+		 * reexamine the status again.
+		 */
 		mutex_lock(&fs_info->balance_mutex);
 
 		if (fs_info->balance_ctl) {
 			reset_balance_state(fs_info);
 			clear_bit(BTRFS_FS_EXCL_OP, &fs_info->flags);
 		}
-
-		mutex_unlock(&fs_info->volume_mutex);
 	}
 
 	BUG_ON(fs_info->balance_ctl || atomic_read(&fs_info->balance_running));
