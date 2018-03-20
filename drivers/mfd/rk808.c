@@ -853,6 +853,22 @@ static struct syscore_ops rk808_syscore_ops = {
 	.shutdown = rk808_syscore_shutdown,
 };
 
+/*
+ * RK8xx PMICs would do real power off in syscore shutdown, if "pm_power_off"
+ * is not assigned(e.g. PSCI is not enabled), we have to provide a dummy
+ * callback for it, otherwise there comes a halt in Reboot system call:
+ *
+ * if ((cmd == LINUX_REBOOT_CMD_POWER_OFF) && !pm_power_off)
+ *		cmd = LINUX_REBOOT_CMD_HALT;
+ */
+static void rk808_pm_power_off_dummy(void)
+{
+	pr_info("Dummy power off for RK8xx PMICs, should never reach here!\n");
+
+	while (1)
+		;
+}
+
 static ssize_t rk8xx_dbg_store(struct device *dev,
 			       struct device_attribute *attr,
 			       const char *buf, size_t count)
@@ -1118,6 +1134,13 @@ static int rk808_probe(struct i2c_client *client,
 			pm_shutdown = pm_shutdown_fn;
 			register_syscore_ops(&rk808_syscore_ops);
 		}
+
+		/*
+		 * If not assigned(e.g. PSCI is not enable), we provide a
+		 * dummy for it to avoid halt in Reboot system call.
+		 */
+		if (!pm_power_off)
+			pm_power_off = rk808_pm_power_off_dummy;
 	}
 
 	rk8xx_kobj = kobject_create_and_add("rk8xx", NULL);
@@ -1183,6 +1206,8 @@ static int rk808_remove(struct i2c_client *client)
 	regmap_del_irq_chip(client->irq, rk808->irq_data);
 	mfd_remove_devices(&client->dev);
 
+	if (pm_power_off == rk808_pm_power_off_dummy)
+		pm_power_off = NULL;
 	if (pm_power_off_prepare == rk808_device_shutdown_prepare)
 		pm_power_off_prepare = NULL;
 	if (pm_shutdown)
