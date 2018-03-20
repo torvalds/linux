@@ -1752,7 +1752,8 @@ static int amdgpu_device_ip_fini(struct amdgpu_device *adev)
 			continue;
 
 		if (adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_UVD &&
-			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE) {
+			adev->ip_blocks[i].version->type != AMD_IP_BLOCK_TYPE_VCE &&
+			adev->ip_blocks[i].version->funcs->set_clockgating_state) {
 			/* ungate blocks before hw fini so that we can shutdown the blocks safely */
 			r = adev->ip_blocks[i].version->funcs->set_clockgating_state((void *)adev,
 										     AMD_CG_STATE_UNGATE);
