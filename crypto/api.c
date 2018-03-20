@@ -193,7 +193,8 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 	return alg;
 }
 
-struct crypto_alg *crypto_alg_lookup(const char *name, u32 type, u32 mask)
+static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
+					    u32 mask)
 {
 	struct crypto_alg *alg;
 
@@ -203,7 +204,6 @@ struct crypto_alg *crypto_alg_lookup(const char *name, u32 type, u32 mask)
 
 	return alg;
 }
-EXPORT_SYMBOL_GPL(crypto_alg_lookup);
 
 static struct crypto_alg *crypto_larval_lookup(const char *name, u32 type,
 					       u32 mask)
