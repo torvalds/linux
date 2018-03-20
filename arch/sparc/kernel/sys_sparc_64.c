@@ -523,8 +523,6 @@ asmlinkage void sparc_breakpoint(struct pt_regs *regs)
 	exception_exit(prev_state);
 }
 
-extern void check_pending(int signum);
-
 SYSCALL_DEFINE2(getdomainname, char __user *, name, int, len)
 {
         int nlen, err;
