@@ -2020,10 +2020,6 @@ int nfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		}
 	}
 
-	NFS_PROTO(old_inode)->return_delegation(old_inode);
-	if (new_inode != NULL)
-		NFS_PROTO(new_inode)->return_delegation(new_inode);
-
 	task = nfs_async_rename(old_dir, new_dir, old_dentry, new_dentry, NULL);
 	if (IS_ERR(task)) {
 		error = PTR_ERR(task);
