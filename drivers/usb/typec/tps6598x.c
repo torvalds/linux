@@ -393,30 +393,38 @@ static int tps6598x_probe(struct i2c_client *client)
 	if (ret < 0)
 		return ret;
 
+	tps->typec_cap.revision = USB_TYPEC_REV_1_2;
+	tps->typec_cap.pd_revision = 0x200;
+	tps->typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
+	tps->typec_cap.pr_set = tps6598x_pr_set;
+	tps->typec_cap.dr_set = tps6598x_dr_set;
+
 	switch (TPS_SYSCONF_PORTINFO(conf)) {
 	case TPS_PORTINFO_SINK_ACCESSORY:
 	case TPS_PORTINFO_SINK:
-		tps->typec_cap.type = TYPEC_PORT_UFP;
+		tps->typec_cap.type = TYPEC_PORT_SNK;
+		tps->typec_cap.data = TYPEC_PORT_UFP;
 		break;
 	case TPS_PORTINFO_DRP_UFP_DRD:
 	case TPS_PORTINFO_DRP_DFP_DRD:
-		tps->typec_cap.dr_set = tps6598x_dr_set;
-		/* fall through */
-	case TPS_PORTINFO_DRP_UFP:
-	case TPS_PORTINFO_DRP_DFP:
-		tps->typec_cap.pr_set = tps6598x_pr_set;
 		tps->typec_cap.type = TYPEC_PORT_DRP;
+		tps->typec_cap.data = TYPEC_PORT_DRD;
+		break;
+	case TPS_PORTINFO_DRP_UFP:
+		tps->typec_cap.type = TYPEC_PORT_DRP;
+		tps->typec_cap.data = TYPEC_PORT_UFP;
+		break;
+	case TPS_PORTINFO_DRP_DFP:
+		tps->typec_cap.type = TYPEC_PORT_DRP;
+		tps->typec_cap.data = TYPEC_PORT_DFP;
 		break;
 	case TPS_PORTINFO_SOURCE:
-		tps->typec_cap.type = TYPEC_PORT_DFP;
+		tps->typec_cap.type = TYPEC_PORT_SRC;
+		tps->typec_cap.data = TYPEC_PORT_DFP;
 		break;
 	default:
 		return -ENODEV;
 	}
-
-	tps->typec_cap.revision = USB_TYPEC_REV_1_2;
-	tps->typec_cap.pd_revision = 0x200;
-	tps->typec_cap.prefer_role = TYPEC_NO_PREFERRED_ROLE;
 
 	tps->port = typec_register_port(&client->dev, &tps->typec_cap);
 	if (IS_ERR(tps->port))

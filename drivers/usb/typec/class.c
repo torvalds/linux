@@ -282,10 +282,10 @@ typec_altmode_roles_show(struct device *dev, struct device_attribute *attr,
 	ssize_t ret;
 
 	switch (mode->roles) {
-	case TYPEC_PORT_DFP:
+	case TYPEC_PORT_SRC:
 		ret = sprintf(buf, "source\n");
 		break;
-	case TYPEC_PORT_UFP:
+	case TYPEC_PORT_SNK:
 		ret = sprintf(buf, "sink\n");
 		break;
 	case TYPEC_PORT_DRP:
@@ -797,14 +797,14 @@ static const char * const typec_data_roles[] = {
 };
 
 static const char * const typec_port_types[] = {
-	[TYPEC_PORT_DFP] = "source",
-	[TYPEC_PORT_UFP] = "sink",
+	[TYPEC_PORT_SRC] = "source",
+	[TYPEC_PORT_SNK] = "sink",
 	[TYPEC_PORT_DRP] = "dual",
 };
 
 static const char * const typec_port_types_drp[] = {
-	[TYPEC_PORT_DFP] = "dual [source] sink",
-	[TYPEC_PORT_UFP] = "dual source [sink]",
+	[TYPEC_PORT_SRC] = "dual [source] sink",
+	[TYPEC_PORT_SNK] = "dual source [sink]",
 	[TYPEC_PORT_DRP] = "[dual] source sink",
 };
 
@@ -875,9 +875,7 @@ static ssize_t data_role_store(struct device *dev,
 		return ret;
 
 	mutex_lock(&port->port_type_lock);
-	if (port->port_type != TYPEC_PORT_DRP) {
-		dev_dbg(dev, "port type fixed at \"%s\"",
-			     typec_port_types[port->port_type]);
+	if (port->cap->data != TYPEC_PORT_DRD) {
 		ret = -EOPNOTSUPP;
 		goto unlock_and_ret;
 	}
@@ -897,7 +895,7 @@ static ssize_t data_role_show(struct device *dev,
 {
 	struct typec_port *port = to_typec_port(dev);
 
-	if (port->cap->type == TYPEC_PORT_DRP)
+	if (port->cap->data == TYPEC_PORT_DRD)
 		return sprintf(buf, "%s\n", port->data_role == TYPEC_HOST ?
 			       "[host] device" : "host [device]");
 
@@ -1328,7 +1326,6 @@ struct typec_port *typec_register_port(struct device *parent,
 				       const struct typec_capability *cap)
 {
 	struct typec_port *port;
-	int role;
 	int ret;
 	int id;
 
@@ -1354,21 +1351,36 @@ struct typec_port *typec_register_port(struct device *parent,
 		goto err_mux;
 	}
 
-	if (cap->type == TYPEC_PORT_DFP)
-		role = TYPEC_SOURCE;
-	else if (cap->type == TYPEC_PORT_UFP)
-		role = TYPEC_SINK;
-	else
-		role = cap->prefer_role;
-
-	if (role == TYPEC_SOURCE) {
-		port->data_role = TYPEC_HOST;
+	switch (cap->type) {
+	case TYPEC_PORT_SRC:
 		port->pwr_role = TYPEC_SOURCE;
 		port->vconn_role = TYPEC_SOURCE;
-	} else {
-		port->data_role = TYPEC_DEVICE;
+		break;
+	case TYPEC_PORT_SNK:
 		port->pwr_role = TYPEC_SINK;
 		port->vconn_role = TYPEC_SINK;
+		break;
+	case TYPEC_PORT_DRP:
+		if (cap->prefer_role != TYPEC_NO_PREFERRED_ROLE)
+			port->pwr_role = cap->prefer_role;
+		else
+			port->pwr_role = TYPEC_SINK;
+		break;
+	}
+
+	switch (cap->data) {
+	case TYPEC_PORT_DFP:
+		port->data_role = TYPEC_HOST;
+		break;
+	case TYPEC_PORT_UFP:
+		port->data_role = TYPEC_DEVICE;
+		break;
+	case TYPEC_PORT_DRD:
+		if (cap->prefer_role == TYPEC_SOURCE)
+			port->data_role = TYPEC_HOST;
+		else
+			port->data_role = TYPEC_DEVICE;
+		break;
 	}
 
 	port->id = id;

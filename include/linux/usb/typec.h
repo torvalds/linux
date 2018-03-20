@@ -22,9 +22,15 @@ struct typec_port;
 struct fwnode_handle;
 
 enum typec_port_type {
+	TYPEC_PORT_SRC,
+	TYPEC_PORT_SNK,
+	TYPEC_PORT_DRP,
+};
+
+enum typec_port_data {
 	TYPEC_PORT_DFP,
 	TYPEC_PORT_UFP,
-	TYPEC_PORT_DRP,
+	TYPEC_PORT_DRD,
 };
 
 enum typec_plug_type {
@@ -186,10 +192,11 @@ struct typec_partner_desc {
 
 /*
  * struct typec_capability - USB Type-C Port Capabilities
- * @role: DFP (Host-only), UFP (Device-only) or DRP (Dual Role)
+ * @type: Supported power role of the port
+ * @data: Supported data role of the port
  * @revision: USB Type-C Specification release. Binary coded decimal
  * @pd_revision: USB Power Delivery Specification revision if supported
- * @prefer_role: Initial role preference
+ * @prefer_role: Initial role preference (DRP ports).
  * @accessory: Supported Accessory Modes
  * @sw: Cable plug orientation switch
  * @mux: Multiplexer switch for Alternate/Accessory Modes
@@ -205,6 +212,7 @@ struct typec_partner_desc {
  */
 struct typec_capability {
 	enum typec_port_type	type;
+	enum typec_port_data	data;
 	u16			revision; /* 0120H = "1.2" */
 	u16			pd_revision; /* 0300H = "3.0" */
 	int			prefer_role;
