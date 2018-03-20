@@ -183,6 +183,7 @@ struct mlx4_uverbs_ex_query_device_resp {
 	__u32			response_length;
 	__u64			hca_core_clock_offset;
 	__u32			max_inl_recv_sz;
+	__u32			reserved;
 	struct mlx4_ib_rss_caps	rss_caps;
 	struct mlx4_ib_tso_caps tso_caps;
 };
