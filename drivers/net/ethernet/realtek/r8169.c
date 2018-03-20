@@ -4616,12 +4616,11 @@ static int rtl_set_mac_address(struct net_device *dev, void *p)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	struct device *d = &tp->pci_dev->dev;
-	struct sockaddr *addr = p;
+	int ret;
 
-	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
-
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	ret = eth_mac_addr(dev, p);
+	if (ret)
+		return ret;
 
 	pm_runtime_get_noresume(d);
 
