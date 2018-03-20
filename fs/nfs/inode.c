@@ -1799,6 +1799,8 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 					| NFS_INO_INVALID_DATA
 					| NFS_INO_INVALID_ACCESS
 					| NFS_INO_INVALID_ACL;
+				/* Force revalidate of all attributes */
+				save_cache_validity |= NFS_INO_INVALID_ATTR;
 				if (S_ISDIR(inode->i_mode))
 					nfs_force_lookup_revalidate(inode);
 			}
@@ -1937,6 +1939,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 
 	/* Update attrtimeo value if we're out of the unstable period */
 	if (invalid & NFS_INO_INVALID_ATTR) {
+		invalid &= ~NFS_INO_INVALID_ATTR;
 		nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = now;
@@ -1956,10 +1959,6 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		if ((long)fattr->gencount - (long)nfsi->attr_gencount > 0)
 			nfsi->attr_gencount = fattr->gencount;
 	}
-
-	/* Don't declare attrcache up to date if there were no attrs! */
-	if (cache_revalidated)
-		invalid &= ~NFS_INO_INVALID_ATTR;
 
 	/* Don't invalidate the data if we were to blame */
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)
