@@ -721,12 +721,11 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	status = goldfish_cmd_locked(pipe, PIPE_CMD_OPEN);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (status < 0) {
-		pr_err("Could not tell host of new pipe! status=%d", status);
+		pr_err("Could not tell host of new pipe! status=%d\n", status);
 		goto err_cmd;
 	}
 	/* All is done, save the pipe into the file's private data field */
 	file->private_data = pipe;
-	pr_debug("%s on 0x%p\n", __func__, pipe);
 	return 0;
 
 err_cmd:
@@ -745,8 +744,6 @@ static int goldfish_pipe_release(struct inode *inode, struct file *filp)
 	unsigned long flags;
 	struct goldfish_pipe *pipe = filp->private_data;
 	struct goldfish_pipe_dev *dev = pipe->dev;
-
-	pr_debug("%s on 0x%p\n", __func__, pipe);
 
 	/* The guest is closing the channel, so tell the emulator right now */
 	(void)goldfish_cmd(pipe, PIPE_CMD_CLOSE);
