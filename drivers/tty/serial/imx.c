@@ -2262,7 +2262,7 @@ static int imx_uart_probe(struct platform_device *pdev)
 	uart_get_rs485_mode(&pdev->dev, &sport->port.rs485);
 
 	if (sport->port.rs485.flags & SER_RS485_ENABLED &&
-	    (!sport->have_rtscts || !sport->have_rtsgpio))
+	    (!sport->have_rtscts && !sport->have_rtsgpio))
 		dev_err(&pdev->dev, "no RTS control, disabling rs485\n");
 
 	imx_uart_rs485_config(&sport->port, &sport->port.rs485);

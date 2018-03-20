@@ -1888,6 +1888,14 @@ static void ixgbe_dma_sync_frag(struct ixgbe_ring *rx_ring,
 				     ixgbe_rx_pg_size(rx_ring),
 				     DMA_FROM_DEVICE,
 				     IXGBE_RX_DMA_ATTR);
+	} else if (ring_uses_build_skb(rx_ring)) {
+		unsigned long offset = (unsigned long)(skb->data) & ~PAGE_MASK;
+
+		dma_sync_single_range_for_cpu(rx_ring->dev,
+					      IXGBE_CB(skb)->dma,
+					      offset,
+					      skb_headlen(skb),
+					      DMA_FROM_DEVICE);
 	} else {
 		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[0];
 

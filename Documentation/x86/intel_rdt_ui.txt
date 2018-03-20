@@ -671,7 +671,7 @@ occupancy of the real time threads on these cores.
 # mkdir p1
 
 Move the cpus 4-7 over to p1
-# echo f0 > p0/cpus
+# echo f0 > p1/cpus
 
 View the llc occupancy snapshot
 
