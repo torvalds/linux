@@ -53,9 +53,11 @@
 #include <asm/mmu_context.h>
 #include <asm/microcode.h>
 #include <asm/nospec-branch.h>
+#include <asm/mshyperv.h>
 
 #include "trace.h"
 #include "pmu.h"
+#include "vmx_evmcs.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 #define __ex_clear(x, reg) \
@@ -1011,6 +1013,169 @@ static const u32 vmx_msr_index[] = {
 	MSR_EFER, MSR_TSC_AUX, MSR_STAR,
 };
 
+DEFINE_STATIC_KEY_FALSE(enable_evmcs);
+
+#define current_evmcs ((struct hv_enlightened_vmcs *)this_cpu_read(current_vmcs))
+
+#define KVM_EVMCS_VERSION 1
+
+#if IS_ENABLED(CONFIG_HYPERV)
+static bool __read_mostly enlightened_vmcs = true;
+module_param(enlightened_vmcs, bool, 0444);
+
+static inline void evmcs_write64(unsigned long field, u64 value)
+{
+	u16 clean_field;
+	int offset = get_evmcs_offset(field, &clean_field);
+
+	if (offset < 0)
+		return;
+
+	*(u64 *)((char *)current_evmcs + offset) = value;
+
+	current_evmcs->hv_clean_fields &= ~clean_field;
+}
+
+static inline void evmcs_write32(unsigned long field, u32 value)
+{
+	u16 clean_field;
+	int offset = get_evmcs_offset(field, &clean_field);
+
+	if (offset < 0)
+		return;
+
+	*(u32 *)((char *)current_evmcs + offset) = value;
+	current_evmcs->hv_clean_fields &= ~clean_field;
+}
+
+static inline void evmcs_write16(unsigned long field, u16 value)
+{
+	u16 clean_field;
+	int offset = get_evmcs_offset(field, &clean_field);
+
+	if (offset < 0)
+		return;
+
+	*(u16 *)((char *)current_evmcs + offset) = value;
+	current_evmcs->hv_clean_fields &= ~clean_field;
+}
+
+static inline u64 evmcs_read64(unsigned long field)
+{
+	int offset = get_evmcs_offset(field, NULL);
+
+	if (offset < 0)
+		return 0;
+
+	return *(u64 *)((char *)current_evmcs + offset);
+}
+
+static inline u32 evmcs_read32(unsigned long field)
+{
+	int offset = get_evmcs_offset(field, NULL);
+
+	if (offset < 0)
+		return 0;
+
+	return *(u32 *)((char *)current_evmcs + offset);
+}
+
+static inline u16 evmcs_read16(unsigned long field)
+{
+	int offset = get_evmcs_offset(field, NULL);
+
+	if (offset < 0)
+		return 0;
+
+	return *(u16 *)((char *)current_evmcs + offset);
+}
+
+static void evmcs_load(u64 phys_addr)
+{
+	struct hv_vp_assist_page *vp_ap =
+		hv_get_vp_assist_page(smp_processor_id());
+
+	vp_ap->current_nested_vmcs = phys_addr;
+	vp_ap->enlighten_vmentry = 1;
+}
+
+static void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
+{
+	/*
+	 * Enlightened VMCSv1 doesn't support these:
+	 *
+	 *	POSTED_INTR_NV                  = 0x00000002,
+	 *	GUEST_INTR_STATUS               = 0x00000810,
+	 *	APIC_ACCESS_ADDR		= 0x00002014,
+	 *	POSTED_INTR_DESC_ADDR           = 0x00002016,
+	 *	EOI_EXIT_BITMAP0                = 0x0000201c,
+	 *	EOI_EXIT_BITMAP1                = 0x0000201e,
+	 *	EOI_EXIT_BITMAP2                = 0x00002020,
+	 *	EOI_EXIT_BITMAP3                = 0x00002022,
+	 */
+	vmcs_conf->pin_based_exec_ctrl &= ~PIN_BASED_POSTED_INTR;
+	vmcs_conf->cpu_based_2nd_exec_ctrl &=
+		~SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY;
+	vmcs_conf->cpu_based_2nd_exec_ctrl &=
+		~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+	vmcs_conf->cpu_based_2nd_exec_ctrl &=
+		~SECONDARY_EXEC_APIC_REGISTER_VIRT;
+
+	/*
+	 *	GUEST_PML_INDEX			= 0x00000812,
+	 *	PML_ADDRESS			= 0x0000200e,
+	 */
+	vmcs_conf->cpu_based_2nd_exec_ctrl &= ~SECONDARY_EXEC_ENABLE_PML;
+
+	/*	VM_FUNCTION_CONTROL             = 0x00002018, */
+	vmcs_conf->cpu_based_2nd_exec_ctrl &= ~SECONDARY_EXEC_ENABLE_VMFUNC;
+
+	/*
+	 *	EPTP_LIST_ADDRESS               = 0x00002024,
+	 *	VMREAD_BITMAP                   = 0x00002026,
+	 *	VMWRITE_BITMAP                  = 0x00002028,
+	 */
+	vmcs_conf->cpu_based_2nd_exec_ctrl &= ~SECONDARY_EXEC_SHADOW_VMCS;
+
+	/*
+	 *	TSC_MULTIPLIER                  = 0x00002032,
+	 */
+	vmcs_conf->cpu_based_2nd_exec_ctrl &= ~SECONDARY_EXEC_TSC_SCALING;
+
+	/*
+	 *	PLE_GAP                         = 0x00004020,
+	 *	PLE_WINDOW                      = 0x00004022,
+	 */
+	vmcs_conf->cpu_based_2nd_exec_ctrl &= ~SECONDARY_EXEC_PAUSE_LOOP_EXITING;
+
+	/*
+	 *	VMX_PREEMPTION_TIMER_VALUE      = 0x0000482E,
+	 */
+	vmcs_conf->pin_based_exec_ctrl &= ~PIN_BASED_VMX_PREEMPTION_TIMER;
+
+	/*
+	 *      GUEST_IA32_PERF_GLOBAL_CTRL     = 0x00002808,
+	 *      HOST_IA32_PERF_GLOBAL_CTRL      = 0x00002c04,
+	 */
+	vmcs_conf->vmexit_ctrl &= ~VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
+	vmcs_conf->vmentry_ctrl &= ~VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+
+	/*
+	 * Currently unsupported in KVM:
+	 *	GUEST_IA32_RTIT_CTL		= 0x00002814,
+	 */
+}
+#else /* !IS_ENABLED(CONFIG_HYPERV) */
+static inline void evmcs_write64(unsigned long field, u64 value) {}
+static inline void evmcs_write32(unsigned long field, u32 value) {}
+static inline void evmcs_write16(unsigned long field, u16 value) {}
+static inline u64 evmcs_read64(unsigned long field) { return 0; }
+static inline u32 evmcs_read32(unsigned long field) { return 0; }
+static inline u16 evmcs_read16(unsigned long field) { return 0; }
+static inline void evmcs_load(u64 phys_addr) {}
+static inline void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf) {}
+#endif /* IS_ENABLED(CONFIG_HYPERV) */
+
 static inline bool is_exception_n(u32 intr_info, u8 vector)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
@@ -1499,6 +1664,9 @@ static void vmcs_load(struct vmcs *vmcs)
 	u64 phys_addr = __pa(vmcs);
 	u8 error;
 
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_load(phys_addr);
+
 	asm volatile (__ex(ASM_VMX_VMPTRLD_RAX) "; setna %0"
 			: "=qm"(error) : "a"(&phys_addr), "m"(phys_addr)
 			: "cc", "memory");
@@ -1672,18 +1840,24 @@ static __always_inline unsigned long __vmcs_readl(unsigned long field)
 static __always_inline u16 vmcs_read16(unsigned long field)
 {
 	vmcs_check16(field);
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_read16(field);
 	return __vmcs_readl(field);
 }
 
 static __always_inline u32 vmcs_read32(unsigned long field)
 {
 	vmcs_check32(field);
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_read32(field);
 	return __vmcs_readl(field);
 }
 
 static __always_inline u64 vmcs_read64(unsigned long field)
 {
 	vmcs_check64(field);
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_read64(field);
 #ifdef CONFIG_X86_64
 	return __vmcs_readl(field);
 #else
@@ -1694,6 +1868,8 @@ static __always_inline u64 vmcs_read64(unsigned long field)
 static __always_inline unsigned long vmcs_readl(unsigned long field)
 {
 	vmcs_checkl(field);
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_read64(field);
 	return __vmcs_readl(field);
 }
 
@@ -1717,18 +1893,27 @@ static __always_inline void __vmcs_writel(unsigned long field, unsigned long val
 static __always_inline void vmcs_write16(unsigned long field, u16 value)
 {
 	vmcs_check16(field);
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_write16(field, value);
+
 	__vmcs_writel(field, value);
 }
 
 static __always_inline void vmcs_write32(unsigned long field, u32 value)
 {
 	vmcs_check32(field);
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_write32(field, value);
+
 	__vmcs_writel(field, value);
 }
 
 static __always_inline void vmcs_write64(unsigned long field, u64 value)
 {
 	vmcs_check64(field);
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_write64(field, value);
+
 	__vmcs_writel(field, value);
 #ifndef CONFIG_X86_64
 	asm volatile ("");
@@ -1739,6 +1924,9 @@ static __always_inline void vmcs_write64(unsigned long field, u64 value)
 static __always_inline void vmcs_writel(unsigned long field, unsigned long value)
 {
 	vmcs_checkl(field);
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_write64(field, value);
+
 	__vmcs_writel(field, value);
 }
 
@@ -1746,6 +1934,9 @@ static __always_inline void vmcs_clear_bits(unsigned long field, u32 mask)
 {
         BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
 			 "vmcs_clear_bits does not support 64-bit fields");
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_write32(field, evmcs_read32(field) & ~mask);
+
 	__vmcs_writel(field, __vmcs_readl(field) & ~mask);
 }
 
@@ -1753,6 +1944,9 @@ static __always_inline void vmcs_set_bits(unsigned long field, u32 mask)
 {
         BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
 			 "vmcs_set_bits does not support 64-bit fields");
+	if (static_branch_unlikely(&enable_evmcs))
+		return evmcs_write32(field, evmcs_read32(field) | mask);
+
 	__vmcs_writel(field, __vmcs_readl(field) | mask);
 }
 
@@ -3664,6 +3858,14 @@ static int hardware_enable(void)
 	if (cr4_read_shadow() & X86_CR4_VMXE)
 		return -EBUSY;
 
+	/*
+	 * This can happen if we hot-added a CPU but failed to allocate
+	 * VP assist page for it.
+	 */
+	if (static_branch_unlikely(&enable_evmcs) &&
+	    !hv_get_vp_assist_page(cpu))
+		return -EFAULT;
+
 	INIT_LIST_HEAD(&per_cpu(loaded_vmcss_on_cpu, cpu));
 	INIT_LIST_HEAD(&per_cpu(blocked_vcpu_on_cpu, cpu));
 	spin_lock_init(&per_cpu(blocked_vcpu_on_cpu_lock, cpu));
@@ -3896,13 +4098,21 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	vmcs_conf->size = vmx_msr_high & 0x1fff;
 	vmcs_conf->order = get_order(vmcs_conf->size);
 	vmcs_conf->basic_cap = vmx_msr_high & ~0x1fff;
-	vmcs_conf->revision_id = vmx_msr_low;
+
+	/* KVM supports Enlightened VMCS v1 only */
+	if (static_branch_unlikely(&enable_evmcs))
+		vmcs_conf->revision_id = KVM_EVMCS_VERSION;
+	else
+		vmcs_conf->revision_id = vmx_msr_low;
 
 	vmcs_conf->pin_based_exec_ctrl = _pin_based_exec_control;
 	vmcs_conf->cpu_based_exec_ctrl = _cpu_based_exec_control;
 	vmcs_conf->cpu_based_2nd_exec_ctrl = _cpu_based_2nd_exec_control;
 	vmcs_conf->vmexit_ctrl         = _vmexit_control;
 	vmcs_conf->vmentry_ctrl        = _vmentry_control;
+
+	if (static_branch_unlikely(&enable_evmcs))
+		evmcs_sanitize_exec_ctrls(vmcs_conf);
 
 	cpu_has_load_ia32_efer =
 		allow_1_setting(MSR_IA32_VMX_ENTRY_CTLS,
@@ -8853,7 +9063,8 @@ static void dump_vmcs(void)
 	pr_err("DebugCtl = 0x%016llx  DebugExceptions = 0x%016lx\n",
 	       vmcs_read64(GUEST_IA32_DEBUGCTL),
 	       vmcs_readl(GUEST_PENDING_DBG_EXCEPTIONS));
-	if (vmentry_ctl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
+	if (cpu_has_load_perf_global_ctrl &&
+	    vmentry_ctl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
 		pr_err("PerfGlobCtl = 0x%016llx\n",
 		       vmcs_read64(GUEST_IA32_PERF_GLOBAL_CTRL));
 	if (vmentry_ctl & VM_ENTRY_LOAD_BNDCFGS)
@@ -8889,7 +9100,8 @@ static void dump_vmcs(void)
 		pr_err("EFER = 0x%016llx  PAT = 0x%016llx\n",
 		       vmcs_read64(HOST_IA32_EFER),
 		       vmcs_read64(HOST_IA32_PAT));
-	if (vmexit_ctl & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL)
+	if (cpu_has_load_perf_global_ctrl &&
+	    vmexit_ctl & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL)
 		pr_err("PerfGlobCtl = 0x%016llx\n",
 		       vmcs_read64(HOST_IA32_PERF_GLOBAL_CTRL));
 
@@ -9466,7 +9678,7 @@ static void vmx_arm_hv_timer(struct kvm_vcpu *vcpu)
 static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	unsigned long cr3, cr4;
+	unsigned long cr3, cr4, evmcs_rsp;
 
 	/* Record the guest's net vcpu time for enforced NMI injections. */
 	if (unlikely(!enable_vnmi &&
@@ -9532,6 +9744,10 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		native_wrmsrl(MSR_IA32_SPEC_CTRL, vmx->spec_ctrl);
 
 	vmx->__launched = vmx->loaded_vmcs->launched;
+
+	evmcs_rsp = static_branch_unlikely(&enable_evmcs) ?
+		(unsigned long)&current_evmcs->host_rsp : 0;
+
 	asm(
 		/* Store host registers */
 		"push %%" _ASM_DX "; push %%" _ASM_BP ";"
@@ -9540,15 +9756,21 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		"cmp %%" _ASM_SP ", %c[host_rsp](%0) \n\t"
 		"je 1f \n\t"
 		"mov %%" _ASM_SP ", %c[host_rsp](%0) \n\t"
+		/* Avoid VMWRITE when Enlightened VMCS is in use */
+		"test %%" _ASM_SI ", %%" _ASM_SI " \n\t"
+		"jz 2f \n\t"
+		"mov %%" _ASM_SP ", (%%" _ASM_SI ") \n\t"
+		"jmp 1f \n\t"
+		"2: \n\t"
 		__ex(ASM_VMX_VMWRITE_RSP_RDX) "\n\t"
 		"1: \n\t"
 		/* Reload cr2 if changed */
 		"mov %c[cr2](%0), %%" _ASM_AX " \n\t"
 		"mov %%cr2, %%" _ASM_DX " \n\t"
 		"cmp %%" _ASM_AX ", %%" _ASM_DX " \n\t"
-		"je 2f \n\t"
+		"je 3f \n\t"
 		"mov %%" _ASM_AX", %%cr2 \n\t"
-		"2: \n\t"
+		"3: \n\t"
 		/* Check if vmlaunch of vmresume is needed */
 		"cmpl $0, %c[launched](%0) \n\t"
 		/* Load guest registers.  Don't clobber flags. */
@@ -9617,7 +9839,7 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		".global vmx_return \n\t"
 		"vmx_return: " _ASM_PTR " 2b \n\t"
 		".popsection"
-	      : : "c"(vmx), "d"((unsigned long)HOST_RSP),
+	      : : "c"(vmx), "d"((unsigned long)HOST_RSP), "S"(evmcs_rsp),
 		[launched]"i"(offsetof(struct vcpu_vmx, __launched)),
 		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
 		[host_rsp]"i"(offsetof(struct vcpu_vmx, host_rsp)),
@@ -9642,10 +9864,10 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		[wordsize]"i"(sizeof(ulong))
 	      : "cc", "memory"
 #ifdef CONFIG_X86_64
-		, "rax", "rbx", "rdi", "rsi"
+		, "rax", "rbx", "rdi"
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 #else
-		, "eax", "ebx", "edi", "esi"
+		, "eax", "ebx", "edi"
 #endif
 	      );
 
@@ -9672,6 +9894,11 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 
 	/* Eliminate branch target predictions from guest mode */
 	vmexit_fill_RSB();
+
+	/* All fields are clean at this point */
+	if (static_branch_unlikely(&enable_evmcs))
+		current_evmcs->hv_clean_fields |=
+			HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL;
 
 	/* MSR_IA32_DEBUGCTLMSR is zeroed on vmexit. Restore it if needed */
 	if (vmx->host_debugctlmsr)
@@ -12540,7 +12767,38 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 
 static int __init vmx_init(void)
 {
-	int r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx),
+	int r;
+
+#if IS_ENABLED(CONFIG_HYPERV)
+	/*
+	 * Enlightened VMCS usage should be recommended and the host needs
+	 * to support eVMCS v1 or above. We can also disable eVMCS support
+	 * with module parameter.
+	 */
+	if (enlightened_vmcs &&
+	    ms_hyperv.hints & HV_X64_ENLIGHTENED_VMCS_RECOMMENDED &&
+	    (ms_hyperv.nested_features & HV_X64_ENLIGHTENED_VMCS_VERSION) >=
+	    KVM_EVMCS_VERSION) {
+		int cpu;
+
+		/* Check that we have assist pages on all online CPUs */
+		for_each_online_cpu(cpu) {
+			if (!hv_get_vp_assist_page(cpu)) {
+				enlightened_vmcs = false;
+				break;
+			}
+		}
+
+		if (enlightened_vmcs) {
+			pr_info("KVM: vmx: using Hyper-V Enlightened VMCS\n");
+			static_branch_enable(&enable_evmcs);
+		}
+	} else {
+		enlightened_vmcs = false;
+	}
+#endif
+
+	r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx),
                      __alignof__(struct vcpu_vmx), THIS_MODULE);
 	if (r)
 		return r;
@@ -12561,6 +12819,29 @@ static void __exit vmx_exit(void)
 #endif
 
 	kvm_exit();
+
+#if IS_ENABLED(CONFIG_HYPERV)
+	if (static_branch_unlikely(&enable_evmcs)) {
+		int cpu;
+		struct hv_vp_assist_page *vp_ap;
+		/*
+		 * Reset everything to support using non-enlightened VMCS
+		 * access later (e.g. when we reload the module with
+		 * enlightened_vmcs=0)
+		 */
+		for_each_online_cpu(cpu) {
+			vp_ap =	hv_get_vp_assist_page(cpu);
+
+			if (!vp_ap)
+				continue;
+
+			vp_ap->current_nested_vmcs = 0;
+			vp_ap->enlighten_vmentry = 0;
+		}
+
+		static_branch_disable(&enable_evmcs);
+	}
+#endif
 }
 
 module_init(vmx_init)
