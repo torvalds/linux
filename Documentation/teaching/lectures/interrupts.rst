@@ -172,7 +172,7 @@ Advanced Programmable Interrupt Controller
 With multicore systems, each core has a local APIC used to process interrupts
 from locally connected devices like timers or thermals sensors.
 
-I/O APIC is used to distributed IRQ from external devices to CPU cores.
+I/O APIC is used to distribute IRQ from external devices to CPU cores.
 
 After discussing the hardware, now let's see how the processor handles an interrupt.
 
@@ -389,15 +389,15 @@ Interrupt handler execution
       * change stack with the one associated with new privilege
       * save old stack information on the new stack
 
-   * save error code on stack in case of an abort
    * save EFLAGS, CS, EIP on stack
+   * save error code on stack in case of an abort
    * execute interrupt handler
 
 Returning from an interrupt
 ---------------------------
 
 IRET is used to from an interrupt handler. IRET is similar with RET except
-that IRET increments EIP by extra four bytes (because of the flags on stack)
+that IRET increments ESP by extra four bytes (because of the flags on stack)
 and moves the saved flags into EFLAGS register.
 
 .. slide:: Returning from an interrupt
