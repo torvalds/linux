@@ -6890,14 +6890,17 @@ static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
 {
 	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-	int min_freq = 15;
+	const int min_freq = 15;
+	const int scaling_factor = 180;
 	unsigned int gpu_freq;
 	unsigned int max_ia_freq, min_ring_freq;
 	unsigned int max_gpu_freq, min_gpu_freq;
-	int scaling_factor = 180;
 	struct cpufreq_policy *policy;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->pcu_lock));
+
+	if (rps->max_freq <= rps->min_freq)
+		return;
 
 	policy = cpufreq_cpu_get(0);
 	if (policy) {
@@ -6932,7 +6935,7 @@ static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
 	 * the PCU should use as a reference to determine the ring frequency.
 	 */
 	for (gpu_freq = max_gpu_freq; gpu_freq >= min_gpu_freq; gpu_freq--) {
-		int diff = max_gpu_freq - gpu_freq;
+		const int diff = max_gpu_freq - gpu_freq;
 		unsigned int ia_freq = 0, ring_freq = 0;
 
 		if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
