@@ -14,25 +14,9 @@ Required properties:
  - resets : a list of phandle + reset specifier pairs
  - reset-names : string reset name, must be:
 		 "uphy", "uphy-pipe", "uphy-tcphy"
- - extcon : extcon specifier for the Power Delivery
 
-Note, there are 2 type-c phys for RK3399, and they are almost identical, except
-these registers(description below), every register node contains 3 sections:
-offset, enable bit, write mask bit.
- - rockchip,typec-conn-dir : the register of type-c connector direction,
-   for type-c phy0, it must be <0xe580 0 16>;
-   for type-c phy1, it must be <0xe58c 0 16>;
- - rockchip,usb3tousb2-en : the register of type-c force usb3 to usb2 enable
-   control.
-   for type-c phy0, it must be <0xe580 3 19>;
-   for type-c phy1, it must be <0xe58c 3 19>;
- - rockchip,external-psm : the register of type-c phy external psm clock
-   selection.
-   for type-c phy0, it must be <0xe588 14 30>;
-   for type-c phy1, it must be <0xe594 14 30>;
- - rockchip,pipe-status : the register of type-c phy pipe status.
-   for type-c phy0, it must be <0xe5c0 0 0>;
-   for type-c phy1, it must be <0xe5c0 16 16>;
+Optional properties:
+ - extcon : extcon specifier for the Power Delivery
 
 Required nodes : a sub-node is required for each port the phy provides.
 		 The sub-node name is used to identify dp or usb3 port,
@@ -42,6 +26,13 @@ Required nodes : a sub-node is required for each port the phy provides.
 
 Required properties (port (child) node):
 - #phy-cells : must be 0, See ./phy-bindings.txt for details.
+
+Deprecated properties, do not use in new device tree sources, these
+properties are determined by the compatible value:
+ - rockchip,typec-conn-dir
+ - rockchip,usb3tousb2-en
+ - rockchip,external-psm
+ - rockchip,pipe-status
 
 Example:
 	tcphy0: phy@ff7c0000 {
@@ -58,10 +49,6 @@ Example:
 			 <&cru SRST_UPHY0_PIPE_L00>,
 			 <&cru SRST_P_UPHY0_TCPHY>;
 		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
-		rockchip,typec-conn-dir = <0xe580 0 16>;
-		rockchip,usb3tousb2-en = <0xe580 3 19>;
-		rockchip,external-psm = <0xe588 14 30>;
-		rockchip,pipe-status = <0xe5c0 0 0>;
 
 		tcphy0_dp: dp-port {
 			#phy-cells = <0>;
@@ -86,10 +73,6 @@ Example:
 			 <&cru SRST_UPHY1_PIPE_L00>,
 			 <&cru SRST_P_UPHY1_TCPHY>;
 		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
-		rockchip,typec-conn-dir = <0xe58c 0 16>;
-		rockchip,usb3tousb2-en = <0xe58c 3 19>;
-		rockchip,external-psm = <0xe594 14 30>;
-		rockchip,pipe-status = <0xe5c0 16 16>;
 
 		tcphy1_dp: dp-port {
 			#phy-cells = <0>;
