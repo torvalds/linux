@@ -229,10 +229,10 @@ static u32 get_log_control_flags(void)
 
 	GEM_BUG_ON(level < 0);
 
-	if (!GUC_LOG_LEVEL_TO_ENABLED(level))
+	if (!GUC_LOG_LEVEL_IS_ENABLED(level))
 		flags |= GUC_LOG_DEFAULT_DISABLED;
 
-	if (!GUC_LOG_LEVEL_TO_VERBOSE(level))
+	if (!GUC_LOG_LEVEL_IS_VERBOSE(level))
 		flags |= GUC_LOG_DISABLED;
 	else
 		flags |= GUC_LOG_LEVEL_TO_VERBOSITY(level) <<

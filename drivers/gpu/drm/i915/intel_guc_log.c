@@ -515,8 +515,7 @@ int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
 	 * GuC is recognizing log levels starting from 0 to max, we're using 0
 	 * as indication that logging should be disabled.
 	 */
-	if (val < GUC_LOG_LEVEL_DISABLED ||
-	    val > GUC_VERBOSITY_TO_LOG_LEVEL(GUC_LOG_VERBOSITY_MAX))
+	if (val < GUC_LOG_LEVEL_DISABLED || val > GUC_LOG_LEVEL_MAX)
 		return -EINVAL;
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
@@ -527,8 +526,8 @@ int intel_guc_log_level_set(struct intel_guc_log *log, u64 val)
 	}
 
 	intel_runtime_pm_get(dev_priv);
-	ret = guc_log_control(guc, GUC_LOG_LEVEL_TO_VERBOSE(val),
-			      GUC_LOG_LEVEL_TO_ENABLED(val),
+	ret = guc_log_control(guc, GUC_LOG_LEVEL_IS_VERBOSE(val),
+			      GUC_LOG_LEVEL_IS_ENABLED(val),
 			      GUC_LOG_LEVEL_TO_VERBOSITY(val));
 	intel_runtime_pm_put(dev_priv);
 	if (ret) {
