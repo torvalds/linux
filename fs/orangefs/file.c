@@ -42,70 +42,6 @@ static int flush_racache(struct inode *inode)
 }
 
 /*
- * Copy to client-core's address space from the buffers specified
- * by the iovec upto total_size bytes.
- * NOTE: the iovector can either contain addresses which
- *       can futher be kernel-space or user-space addresses.
- *       or it can pointers to struct page's
- */
-static int precopy_buffers(int buffer_index,
-			   struct iov_iter *iter,
-			   size_t total_size)
-{
-	int ret = 0;
-	/*
-	 * copy data from application/kernel by pulling it out
-	 * of the iovec.
-	 */
-
-
-	if (total_size) {
-		ret = orangefs_bufmap_copy_from_iovec(iter,
-						      buffer_index,
-						      total_size);
-		if (ret < 0)
-		gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
-			   __func__,
-			   (long)ret);
-	}
-
-	if (ret < 0)
-		gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
-			__func__,
-			(long)ret);
-	return ret;
-}
-
-/*
- * Copy from client-core's address space to the buffers specified
- * by the iovec upto total_size bytes.
- * NOTE: the iovector can either contain addresses which
- *       can futher be kernel-space or user-space addresses.
- *       or it can pointers to struct page's
- */
-static int postcopy_buffers(int buffer_index,
-			    struct iov_iter *iter,
-			    size_t total_size)
-{
-	int ret = 0;
-	/*
-	 * copy data to application/kernel by pushing it out to
-	 * the iovec. NOTE; target buffers can be addresses or
-	 * struct page pointers.
-	 */
-	if (total_size) {
-		ret = orangefs_bufmap_copy_to_iovec(iter,
-						    buffer_index,
-						    total_size);
-		if (ret < 0)
-			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
-				__func__,
-				(long)ret);
-	}
-	return ret;
-}
-
-/*
  * Post and wait for the I/O upcall to finish
  */
 static ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
@@ -157,14 +93,15 @@ populate_shared_memory:
 		     total_size);
 	/*
 	 * Stage 1: copy the buffers into client-core's address space
-	 * precopy_buffers only pertains to writes.
 	 */
-	if (type == ORANGEFS_IO_WRITE) {
-		ret = precopy_buffers(buffer_index,
-				      iter,
-				      total_size);
-		if (ret < 0)
+	if (type == ORANGEFS_IO_WRITE && total_size) {
+		ret = orangefs_bufmap_copy_from_iovec(iter, buffer_index,
+		    total_size);
+		if (ret < 0) {
+			gossip_err("%s: Failed to copy-in buffers. Please make sure that the pvfs2-client is running. %ld\n",
+			    __func__, (long)ret);
 			goto out;
+		}
 	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
@@ -260,14 +197,20 @@ populate_shared_memory:
 
 	/*
 	 * Stage 3: Post copy buffers from client-core's address space
-	 * postcopy_buffers only pertains to reads.
 	 */
-	if (type == ORANGEFS_IO_READ) {
-		ret = postcopy_buffers(buffer_index,
-				       iter,
-				       new_op->downcall.resp.io.amt_complete);
-		if (ret < 0)
+	if (type == ORANGEFS_IO_READ && new_op->downcall.resp.io.amt_complete) {
+		/*
+		 * NOTE: the iovector can either contain addresses which
+		 *       can futher be kernel-space or user-space addresses.
+		 *       or it can pointers to struct page's
+		 */
+		ret = orangefs_bufmap_copy_to_iovec(iter, buffer_index,
+		    new_op->downcall.resp.io.amt_complete);
+		if (ret < 0) {
+			gossip_err("%s: Failed to copy-out buffers. Please make sure that the pvfs2-client is running (%ld)\n",
+			    __func__, (long)ret);
 			goto out;
+		}
 	}
 	gossip_debug(GOSSIP_FILE_DEBUG,
 	    "%s(%pU): Amount %s, returned by the sys-io call:%d\n",
