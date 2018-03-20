@@ -7,8 +7,23 @@
 #define ICE_DFLT_IRQ_WORK	256
 #define ICE_RXBUF_2048		2048
 #define ICE_MAX_CHAINED_RX_BUFS	5
+#define ICE_MAX_BUF_TXD		8
+#define ICE_MIN_TX_LEN		17
+
+/* The size limit for a transmit buffer in a descriptor is (16K - 1).
+ * In order to align with the read requests we will align the value to
+ * the nearest 4K which represents our maximum read request size.
+ */
+#define ICE_MAX_READ_REQ_SIZE	4096
+#define ICE_MAX_DATA_PER_TXD	(16 * 1024 - 1)
+#define ICE_MAX_DATA_PER_TXD_ALIGNED \
+	(~(ICE_MAX_READ_REQ_SIZE - 1) & ICE_MAX_DATA_PER_TXD)
+
+#define ICE_RX_BUF_WRITE	16	/* Must be power of 2 */
 #define ICE_MAX_TXQ_PER_TXQG	128
 
+/* Tx Descriptors needed, worst case */
+#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 #define ICE_DESC_UNUSED(R)	\
 	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	(R)->next_to_clean - (R)->next_to_use - 1)
@@ -28,6 +43,24 @@ struct ice_rx_buf {
 	dma_addr_t dma;
 	struct page *page;
 	unsigned int page_offset;
+};
+
+struct ice_q_stats {
+	u64 pkts;
+	u64 bytes;
+};
+
+struct ice_txq_stats {
+	u64 restart_q;
+	u64 tx_busy;
+	u64 tx_linearize;
+};
+
+struct ice_rxq_stats {
+	u64 non_eop_descs;
+	u64 alloc_page_failed;
+	u64 alloc_buf_failed;
+	u64 page_reuse_count;
 };
 
 /* this enum matches hardware bits and is meant to be used by DYN_CTLN
@@ -94,6 +127,15 @@ struct ice_ring {
 	u16 next_to_clean;
 
 	bool ring_active;		/* is ring online or not */
+
+	/* stats structs */
+	struct ice_q_stats	stats;
+	struct u64_stats_sync syncp;
+	union {
+		struct ice_txq_stats tx_stats;
+		struct ice_rxq_stats rx_stats;
+	};
+
 	unsigned int size;		/* length of descriptor ring in bytes */
 	dma_addr_t dma;			/* physical address of ring */
 	struct rcu_head rcu;		/* to avoid race on free */
@@ -121,10 +163,13 @@ struct ice_ring_container {
 	for (pos = (head).ring; pos; pos = pos->next)
 
 bool ice_alloc_rx_bufs(struct ice_ring *rxr, u16 cleaned_count);
+netdev_tx_t ice_start_xmit(struct sk_buff *skb, struct net_device *netdev);
 void ice_clean_tx_ring(struct ice_ring *tx_ring);
 void ice_clean_rx_ring(struct ice_ring *rx_ring);
 int ice_setup_tx_ring(struct ice_ring *tx_ring);
 int ice_setup_rx_ring(struct ice_ring *rx_ring);
 void ice_free_tx_ring(struct ice_ring *tx_ring);
 void ice_free_rx_ring(struct ice_ring *rx_ring);
+int ice_napi_poll(struct napi_struct *napi, int budget);
+
 #endif /* _ICE_TXRX_H_ */

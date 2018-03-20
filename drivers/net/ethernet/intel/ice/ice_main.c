@@ -1259,6 +1259,23 @@ err_txrings:
 }
 
 /**
+ * ice_msix_clean_rings - MSIX mode Interrupt Handler
+ * @irq: interrupt number
+ * @data: pointer to a q_vector
+ */
+static irqreturn_t ice_msix_clean_rings(int __always_unused irq, void *data)
+{
+	struct ice_q_vector *q_vector = (struct ice_q_vector *)data;
+
+	if (!q_vector->tx.ring && !q_vector->rx.ring)
+		return IRQ_HANDLED;
+
+	napi_schedule(&q_vector->napi);
+
+	return IRQ_HANDLED;
+}
+
+/**
  * ice_vsi_alloc - Allocates the next available struct vsi in the PF
  * @pf: board private structure
  * @type: type of VSI
@@ -1298,6 +1315,8 @@ static struct ice_vsi *ice_vsi_alloc(struct ice_pf *pf, enum ice_vsi_type type)
 		if (ice_vsi_alloc_arrays(vsi, true))
 			goto err_rings;
 
+		/* Setup default MSIX irq handler for VSI */
+		vsi->irq_handler = ice_msix_clean_rings;
 		break;
 	default:
 		dev_warn(&pf->pdev->dev, "Unknown VSI type %d\n", vsi->type);
@@ -1741,6 +1760,9 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, int v_idx)
 	if (cpu_online(v_idx))
 		cpumask_set_cpu(v_idx, &q_vector->affinity_mask);
 
+	if (vsi->netdev)
+		netif_napi_add(vsi->netdev, &q_vector->napi, ice_napi_poll,
+			       NAPI_POLL_WEIGHT);
 	/* tie q_vector and vsi together */
 	vsi->q_vectors[v_idx] = q_vector;
 
@@ -2915,6 +2937,21 @@ static int ice_vsi_stop_tx_rx_rings(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_napi_enable_all - Enable NAPI for all q_vectors in the VSI
+ * @vsi: the VSI being configured
+ */
+static void ice_napi_enable_all(struct ice_vsi *vsi)
+{
+	int q_idx;
+
+	if (!vsi->netdev)
+		return;
+
+	for (q_idx = 0; q_idx < vsi->num_q_vectors; q_idx++)
+		napi_enable(&vsi->q_vectors[q_idx]->napi);
+}
+
+/**
  * ice_up_complete - Finish the last steps of bringing up a connection
  * @vsi: The VSI being configured
  *
@@ -2939,6 +2976,7 @@ static int ice_up_complete(struct ice_vsi *vsi)
 		return err;
 
 	clear_bit(__ICE_DOWN, vsi->state);
+	ice_napi_enable_all(vsi);
 	ice_vsi_ena_irq(vsi);
 
 	if (vsi->port_info &&
@@ -2952,6 +2990,21 @@ static int ice_up_complete(struct ice_vsi *vsi)
 	ice_service_task_schedule(pf);
 
 	return err;
+}
+
+/**
+ * ice_napi_disable_all - Disable NAPI for all q_vectors in the VSI
+ * @vsi: VSI having NAPI disabled
+ */
+static void ice_napi_disable_all(struct ice_vsi *vsi)
+{
+	int q_idx;
+
+	if (!vsi->netdev)
+		return;
+
+	for (q_idx = 0; q_idx < vsi->num_q_vectors; q_idx++)
+		napi_disable(&vsi->q_vectors[q_idx]->napi);
 }
 
 /**
@@ -2972,6 +3025,7 @@ static int ice_down(struct ice_vsi *vsi)
 
 	ice_vsi_dis_irq(vsi);
 	err = ice_vsi_stop_tx_rx_rings(vsi);
+	ice_napi_disable_all(vsi);
 
 	ice_for_each_txq(vsi, i)
 		ice_clean_tx_ring(vsi->tx_rings[i]);
@@ -3251,4 +3305,5 @@ static int ice_stop(struct net_device *netdev)
 static const struct net_device_ops ice_netdev_ops = {
 	.ndo_open = ice_open,
 	.ndo_stop = ice_stop,
+	.ndo_start_xmit = ice_start_xmit,
 };

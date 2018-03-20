@@ -131,6 +131,33 @@ enum ice_rx_flg64_bits {
 	ICE_RXFLG_RSVD		= 63
 };
 
+/* for ice_32byte_rx_flex_desc.ptype_flexi_flags0 member */
+#define ICE_RX_FLEX_DESC_PTYPE_M	(0x3FF) /* 10-bits */
+
+/* for ice_32byte_rx_flex_desc.pkt_length member */
+#define ICE_RX_FLX_DESC_PKT_LEN_M	(0x3FFF) /* 14-bits */
+
+enum ice_rx_flex_desc_status_error_0_bits {
+	/* Note: These are predefined bit offsets */
+	ICE_RX_FLEX_DESC_STATUS0_DD_S = 0,
+	ICE_RX_FLEX_DESC_STATUS0_EOF_S,
+	ICE_RX_FLEX_DESC_STATUS0_HBO_S,
+	ICE_RX_FLEX_DESC_STATUS0_L3L4P_S,
+	ICE_RX_FLEX_DESC_STATUS0_XSUM_IPE_S,
+	ICE_RX_FLEX_DESC_STATUS0_XSUM_L4E_S,
+	ICE_RX_FLEX_DESC_STATUS0_XSUM_EIPE_S,
+	ICE_RX_FLEX_DESC_STATUS0_XSUM_EUDPE_S,
+	ICE_RX_FLEX_DESC_STATUS0_LPBK_S,
+	ICE_RX_FLEX_DESC_STATUS0_IPV6EXADD_S,
+	ICE_RX_FLEX_DESC_STATUS0_RXE_S,
+	ICE_RX_FLEX_DESC_STATUS0_CRCP_S,
+	ICE_RX_FLEX_DESC_STATUS0_RSS_VALID_S,
+	ICE_RX_FLEX_DESC_STATUS0_L2TAG1P_S,
+	ICE_RX_FLEX_DESC_STATUS0_XTRMD0_VALID_S,
+	ICE_RX_FLEX_DESC_STATUS0_XTRMD1_VALID_S,
+	ICE_RX_FLEX_DESC_STATUS0_LAST /* this entry must be last!!! */
+};
+
 #define ICE_RXQ_CTX_SIZE_DWORDS		8
 #define ICE_RXQ_CTX_SZ			(ICE_RXQ_CTX_SIZE_DWORDS * sizeof(u32))
 
@@ -200,6 +227,25 @@ struct ice_tx_desc {
 	__le64 buf_addr; /* Address of descriptor's data buf */
 	__le64 cmd_type_offset_bsz;
 };
+
+enum ice_tx_desc_dtype_value {
+	ICE_TX_DESC_DTYPE_DATA		= 0x0,
+	ICE_TX_DESC_DTYPE_CTX		= 0x1,
+	/* DESC_DONE - HW has completed write-back of descriptor */
+	ICE_TX_DESC_DTYPE_DESC_DONE	= 0xF,
+};
+
+#define ICE_TXD_QW1_CMD_S	4
+#define ICE_TXD_QW1_CMD_M	(0xFFFUL << ICE_TXD_QW1_CMD_S)
+
+enum ice_tx_desc_cmd_bits {
+	ICE_TX_DESC_CMD_EOP			= 0x0001,
+	ICE_TX_DESC_CMD_RS			= 0x0002,
+};
+
+#define ICE_TXD_QW1_OFFSET_S	16
+#define ICE_TXD_QW1_TX_BUF_SZ_S	34
+#define ICE_TXD_QW1_L2TAG1_S	48
 
 #define ICE_LAN_TXQ_MAX_QGRPS	127
 #define ICE_LAN_TXQ_MAX_QDIS	1023
