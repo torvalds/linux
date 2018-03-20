@@ -4047,7 +4047,19 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 	btrfs_balance_sys(leaf, item, &disk_bargs);
 	btrfs_disk_balance_args_to_cpu(&bctl->sys, &disk_bargs);
 
-	WARN_ON(test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags));
+	/*
+	 * This should never happen, as the paused balance state is recovered
+	 * during mount without any chance of other exclusive ops to collide.
+	 *
+	 * This gives the exclusive op status to balance and keeps in paused
+	 * state until user intervention (cancel or umount). If the ownership
+	 * cannot be assigned, show a message but do not fail. The balance
+	 * is in a paused state and must have fs_info::balance_ctl properly
+	 * set up.
+	 */
+	if (test_and_set_bit(BTRFS_FS_EXCL_OP, &fs_info->flags))
+		btrfs_warn(fs_info,
+	"cannot set exclusive op status to balance, resume manually");
 
 	mutex_lock(&fs_info->volume_mutex);
 	mutex_lock(&fs_info->balance_mutex);
