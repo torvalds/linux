@@ -7,6 +7,7 @@
 /* Error Codes */
 enum ice_status {
 	ICE_ERR_PARAM				= -1,
+	ICE_ERR_NOT_IMPL			= -2,
 	ICE_ERR_NOT_READY			= -3,
 	ICE_ERR_INVAL_SIZE			= -6,
 	ICE_ERR_DEVICE_NOT_SUPPORTED		= -8,
@@ -15,6 +16,8 @@ enum ice_status {
 	ICE_ERR_NO_MEMORY			= -11,
 	ICE_ERR_CFG				= -12,
 	ICE_ERR_OUT_OF_RANGE			= -13,
+	ICE_ERR_ALREADY_EXISTS			= -14,
+	ICE_ERR_DOES_NOT_EXIST			= -15,
 	ICE_ERR_BUF_TOO_SHORT			= -52,
 	ICE_ERR_NVM_BLANK_MODE			= -53,
 	ICE_ERR_AQ_ERROR			= -100,

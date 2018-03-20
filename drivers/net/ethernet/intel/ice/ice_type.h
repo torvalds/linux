@@ -223,6 +223,22 @@ struct ice_port_info {
 	bool is_vf;
 };
 
+struct ice_switch_info {
+	/* Switch VSI lists to MAC/VLAN translation */
+	struct mutex mac_list_lock;		/* protect MAC list */
+	struct list_head mac_list_head;
+	struct mutex vlan_list_lock;		/* protect VLAN list */
+	struct list_head vlan_list_head;
+	struct mutex eth_m_list_lock;	/* protect ethtype list */
+	struct list_head eth_m_list_head;
+	struct mutex promisc_list_lock;	/* protect promisc mode list */
+	struct list_head promisc_list_head;
+	struct mutex mac_vlan_list_lock;	/* protect MAC-VLAN list */
+	struct list_head mac_vlan_list_head;
+
+	struct list_head vsi_list_map_head;
+};
+
 /* Port hardware description */
 struct ice_hw {
 	u8 __iomem *hw_addr;
@@ -248,10 +264,13 @@ struct ice_hw {
 	u8 max_cgds;
 	u8 sw_entry_point_layer;
 
+	bool evb_veb;		/* true for VEB, false for VEPA */
 	struct ice_bus_info bus;
 	struct ice_nvm_info nvm;
 	struct ice_hw_dev_caps dev_caps;	/* device capabilities */
 	struct ice_hw_func_caps func_caps;	/* function capabilities */
+
+	struct ice_switch_info *switch_info;	/* switch filter lists */
 
 	/* Control Queue info */
 	struct ice_ctl_q_info adminq;
@@ -276,6 +295,8 @@ struct ice_hw {
 	u8 itr_gran_100;
 	u8 itr_gran_50;
 	u8 itr_gran_25;
+	bool ucast_shared;	/* true if VSIs can share unicast addr */
+
 };
 
 /* Checksum and Shadow RAM pointers */

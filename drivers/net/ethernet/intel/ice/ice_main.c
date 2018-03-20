@@ -163,6 +163,57 @@ static int ice_free_res(struct ice_res_tracker *res, u16 index, u16 id)
 }
 
 /**
+ * ice_add_mac_to_list - Add a mac address filter entry to the list
+ * @vsi: the VSI to be forwarded to
+ * @add_list: pointer to the list which contains MAC filter entries
+ * @macaddr: the MAC address to be added.
+ *
+ * Adds mac address filter entry to the temp list
+ *
+ * Returns 0 on success or ENOMEM on failure.
+ */
+static int ice_add_mac_to_list(struct ice_vsi *vsi, struct list_head *add_list,
+			       const u8 *macaddr)
+{
+	struct ice_fltr_list_entry *tmp;
+	struct ice_pf *pf = vsi->back;
+
+	tmp = devm_kzalloc(&pf->pdev->dev, sizeof(*tmp), GFP_ATOMIC);
+	if (!tmp)
+		return -ENOMEM;
+
+	tmp->fltr_info.flag = ICE_FLTR_TX;
+	tmp->fltr_info.src = vsi->vsi_num;
+	tmp->fltr_info.lkup_type = ICE_SW_LKUP_MAC;
+	tmp->fltr_info.fltr_act = ICE_FWD_TO_VSI;
+	tmp->fltr_info.fwd_id.vsi_id = vsi->vsi_num;
+	ether_addr_copy(tmp->fltr_info.l_data.mac.mac_addr, macaddr);
+
+	INIT_LIST_HEAD(&tmp->list_entry);
+	list_add(&tmp->list_entry, add_list);
+
+	return 0;
+}
+
+/**
+ * ice_free_fltr_list - free filter lists helper
+ * @dev: pointer to the device struct
+ * @h: pointer to the list head to be freed
+ *
+ * Helper function to free filter lists previously created using
+ * ice_add_mac_to_list
+ */
+static void ice_free_fltr_list(struct device *dev, struct list_head *h)
+{
+	struct ice_fltr_list_entry *e, *tmp;
+
+	list_for_each_entry_safe(e, tmp, h, list_entry) {
+		list_del(&e->list_entry);
+		devm_kfree(dev, e);
+	}
+}
+
+/**
  * __ice_clean_ctrlq - helper function to clean controlq rings
  * @pf: ptr to struct ice_pf
  * @q_type: specific Control queue type
@@ -1519,6 +1570,8 @@ err_get_qs:
  */
 static int ice_setup_pf_sw(struct ice_pf *pf)
 {
+	LIST_HEAD(tmp_add_list);
+	u8 broadcast[ETH_ALEN];
 	struct ice_vsi *vsi;
 	int status = 0;
 
@@ -1528,7 +1581,37 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 		goto error_exit;
 	}
 
+	/* tmp_add_list contains a list of MAC addresses for which MAC
+	 * filters need to be programmed. Add the VSI's unicast MAC to
+	 * this list
+	 */
+	status = ice_add_mac_to_list(vsi, &tmp_add_list,
+				     vsi->port_info->mac.perm_addr);
+	if (status)
+		goto error_exit;
+
+	/* VSI needs to receive broadcast traffic, so add the broadcast
+	 * MAC address to the list.
+	 */
+	eth_broadcast_addr(broadcast);
+	status = ice_add_mac_to_list(vsi, &tmp_add_list, broadcast);
+	if (status)
+		goto error_exit;
+
+	/* program MAC filters for entries in tmp_add_list */
+	status = ice_add_mac(&pf->hw, &tmp_add_list);
+	if (status) {
+		dev_err(&pf->pdev->dev, "Could not add MAC filters\n");
+		status = -ENOMEM;
+		goto error_exit;
+	}
+
+	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
+	return status;
+
 error_exit:
+	ice_free_fltr_list(&pf->pdev->dev, &tmp_add_list);
+
 	if (vsi) {
 		ice_vsi_free_q_vectors(vsi);
 		if (vsi->netdev && vsi->netdev->reg_state == NETREG_REGISTERED)
@@ -1537,6 +1620,7 @@ error_exit:
 			free_netdev(vsi->netdev);
 			vsi->netdev = NULL;
 		}
+
 		ice_vsi_delete(vsi);
 		ice_vsi_put_qs(vsi);
 		pf->q_left_tx += vsi->alloc_txq;
@@ -1869,6 +1953,13 @@ static int ice_probe(struct pci_dev *pdev,
 			"probe failed due to setup pf switch:%d\n", err);
 		goto err_alloc_sw_unroll;
 	}
+
+	/* Driver is mostly up */
+	clear_bit(__ICE_DOWN, pf->state);
+
+	/* since everything is good, start the service timer */
+	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
+
 	return 0;
 
 err_alloc_sw_unroll:
@@ -2012,6 +2103,7 @@ static int ice_vsi_release(struct ice_vsi *vsi)
 	ice_free_res(vsi->back->irq_tracker, vsi->base_vector, vsi->idx);
 	pf->num_avail_msix += vsi->num_q_vectors;
 
+	ice_remove_vsi_fltr(&pf->hw, vsi->vsi_num);
 	ice_vsi_delete(vsi);
 	ice_vsi_free_q_vectors(vsi);
 	ice_vsi_clear_rings(vsi);

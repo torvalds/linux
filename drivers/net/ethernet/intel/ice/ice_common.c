@@ -259,6 +259,66 @@ ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
 }
 
 /**
+ * ice_init_fltr_mgmt_struct - initializes filter management list and locks
+ * @hw: pointer to the hw struct
+ */
+static enum ice_status ice_init_fltr_mgmt_struct(struct ice_hw *hw)
+{
+	struct ice_switch_info *sw;
+
+	hw->switch_info = devm_kzalloc(ice_hw_to_dev(hw),
+				       sizeof(*hw->switch_info), GFP_KERNEL);
+	sw = hw->switch_info;
+
+	if (!sw)
+		return ICE_ERR_NO_MEMORY;
+
+	INIT_LIST_HEAD(&sw->vsi_list_map_head);
+
+	mutex_init(&sw->mac_list_lock);
+	INIT_LIST_HEAD(&sw->mac_list_head);
+
+	mutex_init(&sw->vlan_list_lock);
+	INIT_LIST_HEAD(&sw->vlan_list_head);
+
+	mutex_init(&sw->eth_m_list_lock);
+	INIT_LIST_HEAD(&sw->eth_m_list_head);
+
+	mutex_init(&sw->promisc_list_lock);
+	INIT_LIST_HEAD(&sw->promisc_list_head);
+
+	mutex_init(&sw->mac_vlan_list_lock);
+	INIT_LIST_HEAD(&sw->mac_vlan_list_head);
+
+	return 0;
+}
+
+/**
+ * ice_cleanup_fltr_mgmt_struct - cleanup filter management list and locks
+ * @hw: pointer to the hw struct
+ */
+static void ice_cleanup_fltr_mgmt_struct(struct ice_hw *hw)
+{
+	struct ice_switch_info *sw = hw->switch_info;
+	struct ice_vsi_list_map_info *v_pos_map;
+	struct ice_vsi_list_map_info *v_tmp_map;
+
+	list_for_each_entry_safe(v_pos_map, v_tmp_map, &sw->vsi_list_map_head,
+				 list_entry) {
+		list_del(&v_pos_map->list_entry);
+		devm_kfree(ice_hw_to_dev(hw), v_pos_map);
+	}
+
+	mutex_destroy(&sw->mac_list_lock);
+	mutex_destroy(&sw->vlan_list_lock);
+	mutex_destroy(&sw->eth_m_list_lock);
+	mutex_destroy(&sw->promisc_list_lock);
+	mutex_destroy(&sw->mac_vlan_list_lock);
+
+	devm_kfree(ice_hw_to_dev(hw), sw);
+}
+
+/**
  * ice_init_hw - main hardware initialization routine
  * @hw: pointer to the hardware structure
  */
@@ -321,6 +381,8 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_alloc;
 
+	hw->evb_veb = true;
+
 	/* Query the allocated resources for tx scheduler */
 	status = ice_sched_query_res_alloc(hw);
 	if (status) {
@@ -352,21 +414,27 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_sched;
 
+	status = ice_init_fltr_mgmt_struct(hw);
+	if (status)
+		goto err_unroll_sched;
+
 	/* Get port MAC information */
 	mac_buf_len = sizeof(struct ice_aqc_manage_mac_read_resp);
 	mac_buf = devm_kzalloc(ice_hw_to_dev(hw), mac_buf_len, GFP_KERNEL);
 
 	if (!mac_buf)
-		goto err_unroll_sched;
+		goto err_unroll_fltr_mgmt_struct;
 
 	status = ice_aq_manage_mac_read(hw, mac_buf, mac_buf_len, NULL);
 	devm_kfree(ice_hw_to_dev(hw), mac_buf);
 
 	if (status)
-		goto err_unroll_sched;
+		goto err_unroll_fltr_mgmt_struct;
 
 	return 0;
 
+err_unroll_fltr_mgmt_struct:
+	ice_cleanup_fltr_mgmt_struct(hw);
 err_unroll_sched:
 	ice_sched_cleanup_all(hw);
 err_unroll_alloc:
@@ -389,6 +457,8 @@ void ice_deinit_hw(struct ice_hw *hw)
 		devm_kfree(ice_hw_to_dev(hw), hw->port_info);
 		hw->port_info = NULL;
 	}
+
+	ice_cleanup_fltr_mgmt_struct(hw);
 }
 
 /**

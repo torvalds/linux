@@ -8,6 +8,7 @@
  * descriptor format.  It is shared between Firmware and Software.
  */
 
+#define ICE_MAX_VSI			768
 #define ICE_AQC_TOPO_MAX_LEVEL_NUM	0x9
 #define ICE_AQ_SET_MAC_FRAME_SIZE_MAX	9728
 
@@ -189,6 +190,46 @@ struct ice_aqc_get_sw_cfg_resp_elem {
  */
 struct ice_aqc_get_sw_cfg_resp {
 	struct ice_aqc_get_sw_cfg_resp_elem elements[1];
+};
+
+/* These resource type defines are used for all switch resource
+ * commands where a resource type is required, such as:
+ * Get Resource Allocation command (indirect 0x0204)
+ * Allocate Resources command (indirect 0x0208)
+ * Free Resources command (indirect 0x0209)
+ * Get Allocated Resource Descriptors Command (indirect 0x020A)
+ */
+#define ICE_AQC_RES_TYPE_VSI_LIST_REP			0x03
+#define ICE_AQC_RES_TYPE_VSI_LIST_PRUNE			0x04
+
+/* Allocate Resources command (indirect 0x0208)
+ * Free Resources command (indirect 0x0209)
+ */
+struct ice_aqc_alloc_free_res_cmd {
+	__le16 num_entries; /* Number of Resource entries */
+	u8 reserved[6];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Resource descriptor */
+struct ice_aqc_res_elem {
+	union {
+		__le16 sw_resp;
+		__le16 flu_resp;
+	} e;
+};
+
+/* Buffer for Allocate/Free Resources commands */
+struct ice_aqc_alloc_free_res_elem {
+	__le16 res_type; /* Types defined above cmd 0x0204 */
+#define ICE_AQC_RES_TYPE_SHARED_S	7
+#define ICE_AQC_RES_TYPE_SHARED_M	(0x1 << ICE_AQC_RES_TYPE_SHARED_S)
+#define ICE_AQC_RES_TYPE_VSI_PRUNE_LIST_S	8
+#define ICE_AQC_RES_TYPE_VSI_PRUNE_LIST_M	\
+				(0xF << ICE_AQC_RES_TYPE_VSI_PRUNE_LIST_S)
+	__le16 num_elems;
+	struct ice_aqc_res_elem elem[1];
 };
 
 /* Add VSI (indirect 0x0210)
@@ -382,6 +423,202 @@ struct ice_aqc_vsi_props {
 #define ICE_AQ_VSI_PASID_ID_M		(0xFFFFF << ICE_AQ_VSI_PASID_ID_S)
 #define ICE_AQ_VSI_PASID_ID_VALID	BIT(31)
 	u8 reserved[24];
+};
+
+/* Add/Update/Remove/Get switch rules (indirect 0x02A0, 0x02A1, 0x02A2, 0x02A3)
+ */
+struct ice_aqc_sw_rules {
+	/* ops: add switch rules, referring the number of rules.
+	 * ops: update switch rules, referring the number of filters
+	 * ops: remove switch rules, referring the entry index.
+	 * ops: get switch rules, referring to the number of filters.
+	 */
+	__le16 num_rules_fltr_entry_index;
+	u8 reserved[6];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Add/Update/Get/Remove lookup Rx/Tx command/response entry
+ * This structures describes the lookup rules and associated actions.  "index"
+ * is returned as part of a response to a successful Add command, and can be
+ * used to identify the rule for Update/Get/Remove commands.
+ */
+struct ice_sw_rule_lkup_rx_tx {
+	__le16 recipe_id;
+#define ICE_SW_RECIPE_LOGICAL_PORT_FWD		10
+	/* Source port for LOOKUP_RX and source VSI in case of LOOKUP_TX */
+	__le16 src;
+	__le32 act;
+
+	/* Bit 0:1 - Action type */
+#define ICE_SINGLE_ACT_TYPE_S	0x00
+#define ICE_SINGLE_ACT_TYPE_M	(0x3 << ICE_SINGLE_ACT_TYPE_S)
+
+	/* Bit 2 - Loop back enable
+	 * Bit 3 - LAN enable
+	 */
+#define ICE_SINGLE_ACT_LB_ENABLE	BIT(2)
+#define ICE_SINGLE_ACT_LAN_ENABLE	BIT(3)
+
+	/* Action type = 0 - Forward to VSI or VSI list */
+#define ICE_SINGLE_ACT_VSI_FORWARDING	0x0
+
+#define ICE_SINGLE_ACT_VSI_ID_S		4
+#define ICE_SINGLE_ACT_VSI_ID_M		(0x3FF << ICE_SINGLE_ACT_VSI_ID_S)
+#define ICE_SINGLE_ACT_VSI_LIST_ID_S	4
+#define ICE_SINGLE_ACT_VSI_LIST_ID_M	(0x3FF << ICE_SINGLE_ACT_VSI_LIST_ID_S)
+	/* This bit needs to be set if action is forward to VSI list */
+#define ICE_SINGLE_ACT_VSI_LIST		BIT(14)
+#define ICE_SINGLE_ACT_VALID_BIT	BIT(17)
+#define ICE_SINGLE_ACT_DROP		BIT(18)
+
+	/* Action type = 1 - Forward to Queue of Queue group */
+#define ICE_SINGLE_ACT_TO_Q		0x1
+#define ICE_SINGLE_ACT_Q_INDEX_S	4
+#define ICE_SINGLE_ACT_Q_INDEX_M	(0x7FF << ICE_SINGLE_ACT_Q_INDEX_S)
+#define ICE_SINGLE_ACT_Q_REGION_S	15
+#define ICE_SINGLE_ACT_Q_REGION_M	(0x7 << ICE_SINGLE_ACT_Q_REGION_S)
+#define ICE_SINGLE_ACT_Q_PRIORITY	BIT(18)
+
+	/* Action type = 2 - Prune */
+#define ICE_SINGLE_ACT_PRUNE		0x2
+#define ICE_SINGLE_ACT_EGRESS		BIT(15)
+#define ICE_SINGLE_ACT_INGRESS		BIT(16)
+#define ICE_SINGLE_ACT_PRUNET		BIT(17)
+	/* Bit 18 should be set to 0 for this action */
+
+	/* Action type = 2 - Pointer */
+#define ICE_SINGLE_ACT_PTR		0x2
+#define ICE_SINGLE_ACT_PTR_VAL_S	4
+#define ICE_SINGLE_ACT_PTR_VAL_M	(0x1FFF << ICE_SINGLE_ACT_PTR_VAL_S)
+	/* Bit 18 should be set to 1 */
+#define ICE_SINGLE_ACT_PTR_BIT		BIT(18)
+
+	/* Action type = 3 - Other actions. Last two bits
+	 * are other action identifier
+	 */
+#define ICE_SINGLE_ACT_OTHER_ACTS		0x3
+#define ICE_SINGLE_OTHER_ACT_IDENTIFIER_S	17
+#define ICE_SINGLE_OTHER_ACT_IDENTIFIER_M	\
+				(0x3 << \ ICE_SINGLE_OTHER_ACT_IDENTIFIER_S)
+
+	/* Bit 17:18 - Defines other actions */
+	/* Other action = 0 - Mirror VSI */
+#define ICE_SINGLE_OTHER_ACT_MIRROR		0
+#define ICE_SINGLE_ACT_MIRROR_VSI_ID_S	4
+#define ICE_SINGLE_ACT_MIRROR_VSI_ID_M	\
+				(0x3FF << ICE_SINGLE_ACT_MIRROR_VSI_ID_S)
+
+	/* Other action = 3 - Set Stat count */
+#define ICE_SINGLE_OTHER_ACT_STAT_COUNT		3
+#define ICE_SINGLE_ACT_STAT_COUNT_INDEX_S	4
+#define ICE_SINGLE_ACT_STAT_COUNT_INDEX_M	\
+				(0x7F << ICE_SINGLE_ACT_STAT_COUNT_INDEX_S)
+
+	__le16 index; /* The index of the rule in the lookup table */
+	/* Length and values of the header to be matched per recipe or
+	 * lookup-type
+	 */
+	__le16 hdr_len;
+	u8 hdr[1];
+} __packed;
+
+/* Add/Update/Remove large action command/response entry
+ * "index" is returned as part of a response to a successful Add command, and
+ * can be used to identify the action for Update/Get/Remove commands.
+ */
+struct ice_sw_rule_lg_act {
+	__le16 index; /* Index in large action table */
+	__le16 size;
+	__le32 act[1]; /* array of size for actions */
+	/* Max number of large actions */
+#define ICE_MAX_LG_ACT	4
+	/* Bit 0:1 - Action type */
+#define ICE_LG_ACT_TYPE_S	0
+#define ICE_LG_ACT_TYPE_M	(0x7 << ICE_LG_ACT_TYPE_S)
+
+	/* Action type = 0 - Forward to VSI or VSI list */
+#define ICE_LG_ACT_VSI_FORWARDING	0
+#define ICE_LG_ACT_VSI_ID_S		3
+#define ICE_LG_ACT_VSI_ID_M		(0x3FF << ICE_LG_ACT_VSI_ID_S)
+#define ICE_LG_ACT_VSI_LIST_ID_S	3
+#define ICE_LG_ACT_VSI_LIST_ID_M	(0x3FF << ICE_LG_ACT_VSI_LIST_ID_S)
+	/* This bit needs to be set if action is forward to VSI list */
+#define ICE_LG_ACT_VSI_LIST		BIT(13)
+
+#define ICE_LG_ACT_VALID_BIT		BIT(16)
+
+	/* Action type = 1 - Forward to Queue of Queue group */
+#define ICE_LG_ACT_TO_Q			0x1
+#define ICE_LG_ACT_Q_INDEX_S		3
+#define ICE_LG_ACT_Q_INDEX_M		(0x7FF << ICE_LG_ACT_Q_INDEX_S)
+#define ICE_LG_ACT_Q_REGION_S		14
+#define ICE_LG_ACT_Q_REGION_M		(0x7 << ICE_LG_ACT_Q_REGION_S)
+#define ICE_LG_ACT_Q_PRIORITY_SET	BIT(17)
+
+	/* Action type = 2 - Prune */
+#define ICE_LG_ACT_PRUNE		0x2
+#define ICE_LG_ACT_EGRESS		BIT(14)
+#define ICE_LG_ACT_INGRESS		BIT(15)
+#define ICE_LG_ACT_PRUNET		BIT(16)
+
+	/* Action type = 3 - Mirror VSI */
+#define ICE_LG_OTHER_ACT_MIRROR		0x3
+#define ICE_LG_ACT_MIRROR_VSI_ID_S	3
+#define ICE_LG_ACT_MIRROR_VSI_ID_M	(0x3FF << ICE_LG_ACT_MIRROR_VSI_ID_S)
+
+	/* Action type = 5 - Large Action */
+#define ICE_LG_ACT_GENERIC		0x5
+#define ICE_LG_ACT_GENERIC_VALUE_S	3
+#define ICE_LG_ACT_GENERIC_VALUE_M	(0xFFFF << ICE_LG_ACT_GENERIC_VALUE_S)
+#define ICE_LG_ACT_GENERIC_OFFSET_S	19
+#define ICE_LG_ACT_GENERIC_OFFSET_M	(0x7 << ICE_LG_ACT_GENERIC_OFFSET_S)
+#define ICE_LG_ACT_GENERIC_PRIORITY_S	22
+#define ICE_LG_ACT_GENERIC_PRIORITY_M	(0x7 << ICE_LG_ACT_GENERIC_PRIORITY_S)
+
+	/* Action = 7 - Set Stat count */
+#define ICE_LG_ACT_STAT_COUNT		0x7
+#define ICE_LG_ACT_STAT_COUNT_S		3
+#define ICE_LG_ACT_STAT_COUNT_M		(0x7F << ICE_LG_ACT_STAT_COUNT_S)
+};
+
+/* Add/Update/Remove VSI list command/response entry
+ * "index" is returned as part of a response to a successful Add command, and
+ * can be used to identify the VSI list for Update/Get/Remove commands.
+ */
+struct ice_sw_rule_vsi_list {
+	__le16 index; /* Index of VSI/Prune list */
+	__le16 number_vsi;
+	__le16 vsi[1]; /* Array of number_vsi VSI numbers */
+};
+
+/* Query VSI list command/response entry */
+struct ice_sw_rule_vsi_list_query {
+	__le16 index;
+	DECLARE_BITMAP(vsi_list, ICE_MAX_VSI);
+} __packed;
+
+/* Add switch rule response:
+ * Content of return buffer is same as the input buffer. The status field and
+ * LUT index are updated as part of the response
+ */
+struct ice_aqc_sw_rules_elem {
+	__le16 type; /* Switch rule type, one of T_... */
+#define ICE_AQC_SW_RULES_T_LKUP_RX		0x0
+#define ICE_AQC_SW_RULES_T_LKUP_TX		0x1
+#define ICE_AQC_SW_RULES_T_LG_ACT		0x2
+#define ICE_AQC_SW_RULES_T_VSI_LIST_SET		0x3
+#define ICE_AQC_SW_RULES_T_VSI_LIST_CLEAR	0x4
+#define ICE_AQC_SW_RULES_T_PRUNE_LIST_SET	0x5
+#define ICE_AQC_SW_RULES_T_PRUNE_LIST_CLEAR	0x6
+	__le16 status;
+	union {
+		struct ice_sw_rule_lkup_rx_tx lkup_tx_rx;
+		struct ice_sw_rule_lg_act lg_act;
+		struct ice_sw_rule_vsi_list vsi_list;
+		struct ice_sw_rule_vsi_list_query vsi_list_query;
+	} __packed pdata;
 };
 
 /* Get Default Topology (indirect 0x0400) */
@@ -766,11 +1003,13 @@ struct ice_aq_desc {
 		struct ice_aqc_list_caps get_cap;
 		struct ice_aqc_get_phy_caps get_phy;
 		struct ice_aqc_get_sw_cfg get_sw_conf;
+		struct ice_aqc_sw_rules sw_rules;
 		struct ice_aqc_get_topo get_topo;
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_add_move_delete_elem add_move_delete_elem;
 		struct ice_aqc_nvm nvm;
 		struct ice_aqc_add_get_update_free_vsi vsi_cmd;
+		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
 		struct ice_aqc_get_link_status get_link_status;
 	} params;
 };
@@ -821,10 +1060,20 @@ enum ice_adminq_opc {
 	/* internal switch commands */
 	ice_aqc_opc_get_sw_cfg				= 0x0200,
 
+	/* Alloc/Free/Get Resources */
+	ice_aqc_opc_alloc_res				= 0x0208,
+	ice_aqc_opc_free_res				= 0x0209,
+
 	/* VSI commands */
 	ice_aqc_opc_add_vsi				= 0x0210,
 	ice_aqc_opc_update_vsi				= 0x0211,
 	ice_aqc_opc_free_vsi				= 0x0213,
+
+	/* switch rules population commands */
+	ice_aqc_opc_add_sw_rules			= 0x02A0,
+	ice_aqc_opc_update_sw_rules			= 0x02A1,
+	ice_aqc_opc_remove_sw_rules			= 0x02A2,
+
 	ice_aqc_opc_clear_pf_cfg			= 0x02A4,
 
 	/* transmit scheduler commands */
