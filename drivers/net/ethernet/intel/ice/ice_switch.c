@@ -50,6 +50,121 @@ ice_aq_get_sw_cfg(struct ice_hw *hw, struct ice_aqc_get_sw_cfg_resp *buf,
 	return status;
 }
 
+/**
+ * ice_aq_add_vsi
+ * @hw: pointer to the hw struct
+ * @vsi_ctx: pointer to a VSI context struct
+ * @cd: pointer to command details structure or NULL
+ *
+ * Add a VSI context to the hardware (0x0210)
+ */
+enum ice_status
+ice_aq_add_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
+	       struct ice_sq_cd *cd)
+{
+	struct ice_aqc_add_update_free_vsi_resp *res;
+	struct ice_aqc_add_get_update_free_vsi *cmd;
+	enum ice_status status;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.vsi_cmd;
+	res = (struct ice_aqc_add_update_free_vsi_resp *)&desc.params.raw;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_add_vsi);
+
+	if (!vsi_ctx->alloc_from_pool)
+		cmd->vsi_num = cpu_to_le16(vsi_ctx->vsi_num |
+					   ICE_AQ_VSI_IS_VALID);
+
+	cmd->vsi_flags = cpu_to_le16(vsi_ctx->flags);
+
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	status = ice_aq_send_cmd(hw, &desc, &vsi_ctx->info,
+				 sizeof(vsi_ctx->info), cd);
+
+	if (!status) {
+		vsi_ctx->vsi_num = le16_to_cpu(res->vsi_num) & ICE_AQ_VSI_NUM_M;
+		vsi_ctx->vsis_allocd = le16_to_cpu(res->vsi_used);
+		vsi_ctx->vsis_unallocated = le16_to_cpu(res->vsi_free);
+	}
+
+	return status;
+}
+
+/**
+ * ice_aq_update_vsi
+ * @hw: pointer to the hw struct
+ * @vsi_ctx: pointer to a VSI context struct
+ * @cd: pointer to command details structure or NULL
+ *
+ * Update VSI context in the hardware (0x0211)
+ */
+enum ice_status
+ice_aq_update_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
+		  struct ice_sq_cd *cd)
+{
+	struct ice_aqc_add_update_free_vsi_resp *resp;
+	struct ice_aqc_add_get_update_free_vsi *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	cmd = &desc.params.vsi_cmd;
+	resp = (struct ice_aqc_add_update_free_vsi_resp *)&desc.params.raw;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_update_vsi);
+
+	cmd->vsi_num = cpu_to_le16(vsi_ctx->vsi_num | ICE_AQ_VSI_IS_VALID);
+
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+
+	status = ice_aq_send_cmd(hw, &desc, &vsi_ctx->info,
+				 sizeof(vsi_ctx->info), cd);
+
+	if (!status) {
+		vsi_ctx->vsis_allocd = le16_to_cpu(resp->vsi_used);
+		vsi_ctx->vsis_unallocated = le16_to_cpu(resp->vsi_free);
+	}
+
+	return status;
+}
+
+/**
+ * ice_aq_free_vsi
+ * @hw: pointer to the hw struct
+ * @vsi_ctx: pointer to a VSI context struct
+ * @keep_vsi_alloc: keep VSI allocation as part of this PF's resources
+ * @cd: pointer to command details structure or NULL
+ *
+ * Get VSI context info from hardware (0x0213)
+ */
+enum ice_status
+ice_aq_free_vsi(struct ice_hw *hw, struct ice_vsi_ctx *vsi_ctx,
+		bool keep_vsi_alloc, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_add_update_free_vsi_resp *resp;
+	struct ice_aqc_add_get_update_free_vsi *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	cmd = &desc.params.vsi_cmd;
+	resp = (struct ice_aqc_add_update_free_vsi_resp *)&desc.params.raw;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_free_vsi);
+
+	cmd->vsi_num = cpu_to_le16(vsi_ctx->vsi_num | ICE_AQ_VSI_IS_VALID);
+	if (keep_vsi_alloc)
+		cmd->cmd_flags = cpu_to_le16(ICE_AQ_VSI_KEEP_ALLOC);
+
+	status = ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+	if (!status) {
+		vsi_ctx->vsis_allocd = le16_to_cpu(resp->vsi_used);
+		vsi_ctx->vsis_unallocated = le16_to_cpu(resp->vsi_free);
+	}
+
+	return status;
+}
+
 /* ice_init_port_info - Initialize port_info with switch configuration data
  * @pi: pointer to port_info
  * @vsi_port_num: VSI number or port number

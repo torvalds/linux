@@ -11,6 +11,8 @@
 #include <linux/netdevice.h>
 #include <linux/compiler.h>
 #include <linux/etherdevice.h>
+#include <linux/cpumask.h>
+#include <linux/if_vlan.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 #include <linux/aer.h>
@@ -18,6 +20,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/bitmap.h>
+#include <linux/log2.h>
 #include <linux/if_bridge.h>
 #include "ice_devids.h"
 #include "ice_type.h"
@@ -27,16 +30,42 @@
 #include "ice_sched.h"
 
 #define ICE_BAR0		0
+#define ICE_DFLT_NUM_DESC	128
+#define ICE_REQ_DESC_MULTIPLE	32
 #define ICE_INT_NAME_STR_LEN	(IFNAMSIZ + 16)
 #define ICE_AQ_LEN		64
 #define ICE_MIN_MSIX		2
+#define ICE_NO_VSI		0xffff
 #define ICE_MAX_VSI_ALLOC	130
 #define ICE_MAX_TXQS		2048
 #define ICE_MAX_RXQS		2048
+#define ICE_VSI_MAP_CONTIG	0
+#define ICE_VSI_MAP_SCATTER	1
+#define ICE_MAX_SCATTER_TXQS	16
+#define ICE_MAX_SCATTER_RXQS	16
 #define ICE_RES_VALID_BIT	0x8000
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
+#define ICE_INVAL_Q_INDEX	0xffff
 
 #define ICE_DFLT_NETIF_M (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
+
+#define ICE_MAX_MTU	(ICE_AQ_SET_MAC_FRAME_SIZE_MAX - \
+			 ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN)
+
+#define ICE_UP_TABLE_TRANSLATE(val, i) \
+		(((val) << ICE_AQ_VSI_UP_TABLE_UP##i##_S) & \
+		  ICE_AQ_VSI_UP_TABLE_UP##i##_M)
+
+struct ice_tc_info {
+	u16 qoffset;
+	u16 qcount;
+};
+
+struct ice_tc_cfg {
+	u8 numtc; /* Total number of enabled TCs */
+	u8 ena_tc; /* TX map */
+	struct ice_tc_info tc_info[ICE_MAX_TRAFFIC_CLASS];
+};
 
 struct ice_res_tracker {
 	u16 num_entries;
@@ -61,8 +90,47 @@ enum ice_state {
 /* struct that defines a VSI, associated with a dev */
 struct ice_vsi {
 	struct net_device *netdev;
+	struct ice_sw *vsw;		 /* switch this VSI is on */
+	struct ice_pf *back;		 /* back pointer to PF */
 	struct ice_port_info *port_info; /* back pointer to port_info */
+	struct ice_ring **rx_rings;	 /* rx ring array */
+	struct ice_ring **tx_rings;	 /* tx ring array */
+	struct ice_q_vector **q_vectors; /* q_vector array */
+	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
+	int num_q_vectors;
+	int base_vector;
+	enum ice_vsi_type type;
 	u16 vsi_num;			 /* HW (absolute) index of this VSI */
+	u16 idx;			 /* software index in pf->vsi[] */
+
+	/* Interrupt thresholds */
+	u16 work_lmt;
+
+	struct ice_aqc_vsi_props info;	 /* VSI properties */
+
+	/* queue information */
+	u8 tx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
+	u8 rx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
+	u16 txq_map[ICE_MAX_TXQS];	 /* index in pf->avail_txqs */
+	u16 rxq_map[ICE_MAX_RXQS];	 /* index in pf->avail_rxqs */
+	u16 alloc_txq;			 /* Allocated Tx queues */
+	u16 num_txq;			 /* Used Tx queues */
+	u16 alloc_rxq;			 /* Allocated Rx queues */
+	u16 num_rxq;			 /* Used Rx queues */
+	u16 num_desc;
+	struct ice_tc_cfg tc_cfg;
+} ____cacheline_internodealigned_in_smp;
+
+/* struct that defines an interrupt vector */
+struct ice_q_vector {
+	struct ice_vsi *vsi;
+	cpumask_t affinity_mask;
+	struct napi_struct napi;
+	struct ice_ring_container rx;
+	struct ice_ring_container tx;
+	u16 v_idx;			/* index in the vsi->q_vector array. */
+	u8 num_ring_tx;			/* total number of tx rings in vector */
+	u8 num_ring_rx;			/* total number of rx rings in vector */
 } ____cacheline_internodealigned_in_smp;
 
 enum ice_pf_flags {
@@ -101,6 +169,10 @@ struct ice_pf {
 
 	struct ice_hw hw;
 	char int_name[ICE_INT_NAME_STR_LEN];
+};
+
+struct ice_netdev_priv {
+	struct ice_vsi *vsi;
 };
 
 /**

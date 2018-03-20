@@ -55,6 +55,10 @@ enum ice_media_type {
 	ICE_MEDIA_DA,
 };
 
+enum ice_vsi_type {
+	ICE_VSI_PF = 0,
+};
+
 struct ice_link_status {
 	/* Refer to ice_aq_phy_type for bits definition */
 	u64 phy_type_low;

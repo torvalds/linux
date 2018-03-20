@@ -9,6 +9,7 @@
  */
 
 #define ICE_AQC_TOPO_MAX_LEVEL_NUM	0x9
+#define ICE_AQ_SET_MAC_FRAME_SIZE_MAX	9728
 
 struct ice_aqc_generic {
 	__le32 param0;
@@ -188,6 +189,199 @@ struct ice_aqc_get_sw_cfg_resp_elem {
  */
 struct ice_aqc_get_sw_cfg_resp {
 	struct ice_aqc_get_sw_cfg_resp_elem elements[1];
+};
+
+/* Add VSI (indirect 0x0210)
+ * Update VSI (indirect 0x0211)
+ * Get VSI (indirect 0x0212)
+ * Free VSI (indirect 0x0213)
+ */
+struct ice_aqc_add_get_update_free_vsi {
+	__le16 vsi_num;
+#define ICE_AQ_VSI_NUM_S	0
+#define ICE_AQ_VSI_NUM_M	(0x03FF << ICE_AQ_VSI_NUM_S)
+#define ICE_AQ_VSI_IS_VALID	BIT(15)
+	__le16 cmd_flags;
+#define ICE_AQ_VSI_KEEP_ALLOC	0x1
+	u8 vf_id;
+	u8 reserved;
+	__le16 vsi_flags;
+#define ICE_AQ_VSI_TYPE_S	0
+#define ICE_AQ_VSI_TYPE_M	(0x3 << ICE_AQ_VSI_TYPE_S)
+#define ICE_AQ_VSI_TYPE_VF	0x0
+#define ICE_AQ_VSI_TYPE_VMDQ2	0x1
+#define ICE_AQ_VSI_TYPE_PF	0x2
+#define ICE_AQ_VSI_TYPE_EMP_MNG	0x3
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Response descriptor for:
+ * Add VSI (indirect 0x0210)
+ * Update VSI (indirect 0x0211)
+ * Free VSI (indirect 0x0213)
+ */
+struct ice_aqc_add_update_free_vsi_resp {
+	__le16 vsi_num;
+	__le16 ext_status;
+	__le16 vsi_used;
+	__le16 vsi_free;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+struct ice_aqc_vsi_props {
+	__le16 valid_sections;
+#define ICE_AQ_VSI_PROP_SW_VALID		BIT(0)
+#define ICE_AQ_VSI_PROP_SECURITY_VALID		BIT(1)
+#define ICE_AQ_VSI_PROP_VLAN_VALID		BIT(2)
+#define ICE_AQ_VSI_PROP_OUTER_TAG_VALID		BIT(3)
+#define ICE_AQ_VSI_PROP_INGRESS_UP_VALID	BIT(4)
+#define ICE_AQ_VSI_PROP_EGRESS_UP_VALID		BIT(5)
+#define ICE_AQ_VSI_PROP_RXQ_MAP_VALID		BIT(6)
+#define ICE_AQ_VSI_PROP_Q_OPT_VALID		BIT(7)
+#define ICE_AQ_VSI_PROP_OUTER_UP_VALID		BIT(8)
+#define ICE_AQ_VSI_PROP_FLOW_DIR_VALID		BIT(11)
+#define ICE_AQ_VSI_PROP_PASID_VALID		BIT(12)
+	/* switch section */
+	u8 sw_id;
+	u8 sw_flags;
+#define ICE_AQ_VSI_SW_FLAG_ALLOW_LB		BIT(5)
+#define ICE_AQ_VSI_SW_FLAG_LOCAL_LB		BIT(6)
+#define ICE_AQ_VSI_SW_FLAG_SRC_PRUNE		BIT(7)
+	u8 sw_flags2;
+#define ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_S	0
+#define ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_M	\
+				(0xF << ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_S)
+#define ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA	BIT(0)
+#define ICE_AQ_VSI_SW_FLAG_LAN_ENA		BIT(4)
+	u8 veb_stat_id;
+#define ICE_AQ_VSI_SW_VEB_STAT_ID_S		0
+#define ICE_AQ_VSI_SW_VEB_STAT_ID_M	(0x1F << ICE_AQ_VSI_SW_VEB_STAT_ID_S)
+#define ICE_AQ_VSI_SW_VEB_STAT_ID_VALID		BIT(5)
+	/* security section */
+	u8 sec_flags;
+#define ICE_AQ_VSI_SEC_FLAG_ALLOW_DEST_OVRD	BIT(0)
+#define ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF	BIT(2)
+#define ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S	4
+#define ICE_AQ_VSI_SEC_TX_PRUNE_ENA_M	(0xF << ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S)
+#define ICE_AQ_VSI_SEC_TX_VLAN_PRUNE_ENA	BIT(0)
+	u8 sec_reserved;
+	/* VLAN section */
+	__le16 pvid; /* VLANS include priority bits */
+	u8 pvlan_reserved[2];
+	u8 port_vlan_flags;
+#define ICE_AQ_VSI_PVLAN_MODE_S	0
+#define ICE_AQ_VSI_PVLAN_MODE_M	(0x3 << ICE_AQ_VSI_PVLAN_MODE_S)
+#define ICE_AQ_VSI_PVLAN_MODE_UNTAGGED	0x1
+#define ICE_AQ_VSI_PVLAN_MODE_TAGGED	0x2
+#define ICE_AQ_VSI_PVLAN_MODE_ALL	0x3
+#define ICE_AQ_VSI_PVLAN_INSERT_PVID	BIT(2)
+#define ICE_AQ_VSI_PVLAN_EMOD_S	3
+#define ICE_AQ_VSI_PVLAN_EMOD_M	(0x3 << ICE_AQ_VSI_PVLAN_EMOD_S)
+#define ICE_AQ_VSI_PVLAN_EMOD_STR_BOTH	(0x0 << ICE_AQ_VSI_PVLAN_EMOD_S)
+#define ICE_AQ_VSI_PVLAN_EMOD_STR_UP	(0x1 << ICE_AQ_VSI_PVLAN_EMOD_S)
+#define ICE_AQ_VSI_PVLAN_EMOD_STR	(0x2 << ICE_AQ_VSI_PVLAN_EMOD_S)
+#define ICE_AQ_VSI_PVLAN_EMOD_NOTHING	(0x3 << ICE_AQ_VSI_PVLAN_EMOD_S)
+	u8 pvlan_reserved2[3];
+	/* ingress egress up sections */
+	__le32 ingress_table; /* bitmap, 3 bits per up */
+#define ICE_AQ_VSI_UP_TABLE_UP0_S	0
+#define ICE_AQ_VSI_UP_TABLE_UP0_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP0_S)
+#define ICE_AQ_VSI_UP_TABLE_UP1_S	3
+#define ICE_AQ_VSI_UP_TABLE_UP1_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP1_S)
+#define ICE_AQ_VSI_UP_TABLE_UP2_S	6
+#define ICE_AQ_VSI_UP_TABLE_UP2_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP2_S)
+#define ICE_AQ_VSI_UP_TABLE_UP3_S	9
+#define ICE_AQ_VSI_UP_TABLE_UP3_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP3_S)
+#define ICE_AQ_VSI_UP_TABLE_UP4_S	12
+#define ICE_AQ_VSI_UP_TABLE_UP4_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP4_S)
+#define ICE_AQ_VSI_UP_TABLE_UP5_S	15
+#define ICE_AQ_VSI_UP_TABLE_UP5_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP5_S)
+#define ICE_AQ_VSI_UP_TABLE_UP6_S	18
+#define ICE_AQ_VSI_UP_TABLE_UP6_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP6_S)
+#define ICE_AQ_VSI_UP_TABLE_UP7_S	21
+#define ICE_AQ_VSI_UP_TABLE_UP7_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP7_S)
+	__le32 egress_table;   /* same defines as for ingress table */
+	/* outer tags section */
+	__le16 outer_tag;
+	u8 outer_tag_flags;
+#define ICE_AQ_VSI_OUTER_TAG_MODE_S	0
+#define ICE_AQ_VSI_OUTER_TAG_MODE_M	(0x3 << ICE_AQ_VSI_OUTER_TAG_MODE_S)
+#define ICE_AQ_VSI_OUTER_TAG_NOTHING	0x0
+#define ICE_AQ_VSI_OUTER_TAG_REMOVE	0x1
+#define ICE_AQ_VSI_OUTER_TAG_COPY	0x2
+#define ICE_AQ_VSI_OUTER_TAG_TYPE_S	2
+#define ICE_AQ_VSI_OUTER_TAG_TYPE_M	(0x3 << ICE_AQ_VSI_OUTER_TAG_TYPE_S)
+#define ICE_AQ_VSI_OUTER_TAG_NONE	0x0
+#define ICE_AQ_VSI_OUTER_TAG_STAG	0x1
+#define ICE_AQ_VSI_OUTER_TAG_VLAN_8100	0x2
+#define ICE_AQ_VSI_OUTER_TAG_VLAN_9100	0x3
+#define ICE_AQ_VSI_OUTER_TAG_INSERT	BIT(4)
+#define ICE_AQ_VSI_OUTER_TAG_ACCEPT_HOST BIT(6)
+	u8 outer_tag_reserved;
+	/* queue mapping section */
+	__le16 mapping_flags;
+#define ICE_AQ_VSI_Q_MAP_CONTIG	0x0
+#define ICE_AQ_VSI_Q_MAP_NONCONTIG	BIT(0)
+	__le16 q_mapping[16];
+#define ICE_AQ_VSI_Q_S		0
+#define ICE_AQ_VSI_Q_M		(0x7FF << ICE_AQ_VSI_Q_S)
+	__le16 tc_mapping[8];
+#define ICE_AQ_VSI_TC_Q_OFFSET_S	0
+#define ICE_AQ_VSI_TC_Q_OFFSET_M	(0x7FF << ICE_AQ_VSI_TC_Q_OFFSET_S)
+#define ICE_AQ_VSI_TC_Q_NUM_S		11
+#define ICE_AQ_VSI_TC_Q_NUM_M		(0xF << ICE_AQ_VSI_TC_Q_NUM_S)
+	/* queueing option section */
+	u8 q_opt_rss;
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_S	0
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_M	(0x3 << ICE_AQ_VSI_Q_OPT_RSS_LUT_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_VSI	0x0
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_PF	0x2
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_GBL	0x3
+#define ICE_AQ_VSI_Q_OPT_RSS_GBL_LUT_S	2
+#define ICE_AQ_VSI_Q_OPT_RSS_GBL_LUT_M	(0xF << ICE_AQ_VSI_Q_OPT_RSS_GBL_LUT_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_HASH_S	6
+#define ICE_AQ_VSI_Q_OPT_RSS_HASH_M	(0x3 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_TPLZ	(0x0 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_SYM_TPLZ	(0x1 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_XOR	(0x2 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_JHASH	(0x3 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+	u8 q_opt_tc;
+#define ICE_AQ_VSI_Q_OPT_TC_OVR_S	0
+#define ICE_AQ_VSI_Q_OPT_TC_OVR_M	(0x1F << ICE_AQ_VSI_Q_OPT_TC_OVR_S)
+#define ICE_AQ_VSI_Q_OPT_PROF_TC_OVR	BIT(7)
+	u8 q_opt_flags;
+#define ICE_AQ_VSI_Q_OPT_PE_FLTR_EN	BIT(0)
+	u8 q_opt_reserved[3];
+	/* outer up section */
+	__le32 outer_up_table; /* same structure and defines as ingress tbl */
+	/* section 10 */
+	__le16 sect_10_reserved;
+	/* flow director section */
+	__le16 fd_options;
+#define ICE_AQ_VSI_FD_ENABLE		BIT(0)
+#define ICE_AQ_VSI_FD_TX_AUTO_ENABLE	BIT(1)
+#define ICE_AQ_VSI_FD_PROG_ENABLE	BIT(3)
+	__le16 max_fd_fltr_dedicated;
+	__le16 max_fd_fltr_shared;
+	__le16 fd_def_q;
+#define ICE_AQ_VSI_FD_DEF_Q_S		0
+#define ICE_AQ_VSI_FD_DEF_Q_M		(0x7FF << ICE_AQ_VSI_FD_DEF_Q_S)
+#define ICE_AQ_VSI_FD_DEF_GRP_S	12
+#define ICE_AQ_VSI_FD_DEF_GRP_M	(0x7 << ICE_AQ_VSI_FD_DEF_GRP_S)
+	__le16 fd_report_opt;
+#define ICE_AQ_VSI_FD_REPORT_Q_S	0
+#define ICE_AQ_VSI_FD_REPORT_Q_M	(0x7FF << ICE_AQ_VSI_FD_REPORT_Q_S)
+#define ICE_AQ_VSI_FD_DEF_PRIORITY_S	12
+#define ICE_AQ_VSI_FD_DEF_PRIORITY_M	(0x7 << ICE_AQ_VSI_FD_DEF_PRIORITY_S)
+#define ICE_AQ_VSI_FD_DEF_DROP		BIT(15)
+	/* PASID section */
+	__le32 pasid_id;
+#define ICE_AQ_VSI_PASID_ID_S		0
+#define ICE_AQ_VSI_PASID_ID_M		(0xFFFFF << ICE_AQ_VSI_PASID_ID_S)
+#define ICE_AQ_VSI_PASID_ID_VALID	BIT(31)
+	u8 reserved[24];
 };
 
 /* Get Default Topology (indirect 0x0400) */
@@ -576,6 +770,7 @@ struct ice_aq_desc {
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_add_move_delete_elem add_move_delete_elem;
 		struct ice_aqc_nvm nvm;
+		struct ice_aqc_add_get_update_free_vsi vsi_cmd;
 		struct ice_aqc_get_link_status get_link_status;
 	} params;
 };
@@ -626,6 +821,10 @@ enum ice_adminq_opc {
 	/* internal switch commands */
 	ice_aqc_opc_get_sw_cfg				= 0x0200,
 
+	/* VSI commands */
+	ice_aqc_opc_add_vsi				= 0x0210,
+	ice_aqc_opc_update_vsi				= 0x0211,
+	ice_aqc_opc_free_vsi				= 0x0213,
 	ice_aqc_opc_clear_pf_cfg			= 0x02A4,
 
 	/* transmit scheduler commands */
