@@ -549,7 +549,7 @@ static int cs2000_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops cs2000_pm_ops = {
-	.resume_early	= cs2000_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(NULL, cs2000_resume)
 };
 
 static struct i2c_driver cs2000_driver = {
