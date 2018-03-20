@@ -2230,7 +2230,7 @@ void annotation__update_column_widths(struct annotation *notes)
 }
 
 static void annotation__calc_lines(struct annotation *notes, struct map *map,
-				  struct rb_root *root, u64 start)
+				  struct rb_root *root)
 {
 	struct annotation_line *al;
 	struct rb_root tmp_root = RB_ROOT;
@@ -2251,8 +2251,8 @@ static void annotation__calc_lines(struct annotation *notes, struct map *map,
 		if (percent_max <= 0.5)
 			continue;
 
-		al->path = get_srcline(map->dso, start + al->offset, NULL,
-				       false, true, start + al->offset);
+		al->path = get_srcline(map->dso, notes->start + al->offset, NULL,
+				       false, true, notes->start + al->offset);
 		insert_source_line(&tmp_root, al);
 	}
 
@@ -2263,9 +2263,8 @@ static void symbol__calc_lines(struct symbol *sym, struct map *map,
 			      struct rb_root *root)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	u64 start = map__rip_2objdump(map, sym->start);
 
-	annotation__calc_lines(notes, map, root, start);
+	annotation__calc_lines(notes, map, root);
 }
 
 int symbol__tty_annotate2(struct symbol *sym, struct map *map,
