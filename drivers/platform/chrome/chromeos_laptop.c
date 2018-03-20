@@ -8,13 +8,13 @@
 
 #include <linux/dmi.h>
 #include <linux/i2c.h>
-#include <linux/platform_data/atmel_mxt_ts.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #define ATMEL_TP_I2C_ADDR	0x4b
 #define ATMEL_TP_I2C_BL_ADDR	0x25
@@ -229,9 +229,9 @@ static int chromebook_pixel_tp_keys[] = {
 	BTN_LEFT
 };
 
-static struct mxt_platform_data chromebook_pixel_tp_platform_data = {
-	.t19_num_keys		= ARRAY_SIZE(chromebook_pixel_tp_keys),
-	.t19_keymap		= chromebook_pixel_tp_keys,
+static const struct property_entry chromebook_pixel_trackpad_props[] = {
+	PROPERTY_ENTRY_U32_ARRAY("linux,gpio-keymap", chromebook_pixel_tp_keys),
+	{ }
 };
 
 static struct chromeos_laptop chromebook_pixel = {
@@ -253,8 +253,8 @@ static struct chromeos_laptop chromebook_pixel = {
 			.board_info	= {
 				I2C_BOARD_INFO("atmel_mxt_tp",
 						ATMEL_TP_I2C_ADDR),
-				.platform_data	=
-					&chromebook_pixel_tp_platform_data,
+				.properties	=
+					chromebook_pixel_trackpad_props,
 				.flags		= I2C_CLIENT_WAKE,
 			},
 			.dmi_name	= "trackpad",
