@@ -34,7 +34,7 @@
 /* XXX Make this per-binary type, this way we can detect the type of
  * XXX a binary.  Every Sparc executable calls this very early on.
  */
-asmlinkage unsigned long sys_getpagesize(void)
+SYSCALL_DEFINE0(getpagesize)
 {
 	return PAGE_SIZE; /* Possibly older binaries want 8192 on sun4's? */
 }
@@ -98,9 +98,9 @@ int sparc_mmap_check(unsigned long addr, unsigned long len)
 
 /* Linux version of mmap */
 
-asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags, unsigned long fd,
-	unsigned long pgoff)
+SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
+	unsigned long, prot, unsigned long, flags, unsigned long, fd,
+	unsigned long, pgoff)
 {
 	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
 	   we have. */
@@ -108,9 +108,9 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			      pgoff >> (PAGE_SHIFT - 12));
 }
 
-asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags, unsigned long fd,
-	unsigned long off)
+SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+	unsigned long, prot, unsigned long, flags, unsigned long, fd,
+	unsigned long, off)
 {
 	/* no alignment check? */
 	return sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
@@ -202,7 +202,7 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig,
 	return ret;
 }
 
-asmlinkage long sys_getdomainname(char __user *name, int len)
+SYSCALL_DEFINE2(getdomainname, char __user *, name, int, len)
 {
  	int nlen, err;
  	

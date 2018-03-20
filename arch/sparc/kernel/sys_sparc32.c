@@ -98,8 +98,8 @@ static int cp_compat_stat64(struct kstat *stat,
 	return err;
 }
 
-asmlinkage long compat_sys_stat64(const char __user * filename,
-		struct compat_stat64 __user *statbuf)
+COMPAT_SYSCALL_DEFINE2(stat64, const char __user *, filename,
+		struct compat_stat64 __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_stat(filename, &stat);
@@ -109,8 +109,8 @@ asmlinkage long compat_sys_stat64(const char __user * filename,
 	return error;
 }
 
-asmlinkage long compat_sys_lstat64(const char __user * filename,
-		struct compat_stat64 __user *statbuf)
+COMPAT_SYSCALL_DEFINE2(lstat64, const char __user *, filename,
+		struct compat_stat64 __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_lstat(filename, &stat);
@@ -120,8 +120,8 @@ asmlinkage long compat_sys_lstat64(const char __user * filename,
 	return error;
 }
 
-asmlinkage long compat_sys_fstat64(unsigned int fd,
-		struct compat_stat64 __user * statbuf)
+COMPAT_SYSCALL_DEFINE2(fstat64, unsigned int, fd,
+		struct compat_stat64 __user *, statbuf)
 {
 	struct kstat stat;
 	int error = vfs_fstat(fd, &stat);
@@ -131,9 +131,9 @@ asmlinkage long compat_sys_fstat64(unsigned int fd,
 	return error;
 }
 
-asmlinkage long compat_sys_fstatat64(unsigned int dfd,
-		const char __user *filename,
-		struct compat_stat64 __user * statbuf, int flag)
+COMPAT_SYSCALL_DEFINE4(fstatat64, unsigned int, dfd,
+		const char __user *, filename,
+		struct compat_stat64 __user *, statbuf, int, flag)
 {
 	struct kstat stat;
 	int error;
@@ -241,8 +241,8 @@ long sys32_sync_file_range(unsigned int fd, unsigned long off_high, unsigned lon
 				   flags);
 }
 
-asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
-				     u32 lenhi, u32 lenlo)
+COMPAT_SYSCALL_DEFINE6(fallocate, int, fd, int, mode, u32, offhi, u32, offlo,
+				     u32, lenhi, u32, lenlo)
 {
 	return sys_fallocate(fd, mode, ((loff_t)offhi << 32) | offlo,
 			     ((loff_t)lenhi << 32) | lenlo);

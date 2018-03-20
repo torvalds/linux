@@ -9,7 +9,7 @@
 
 #include <asm/utrap.h>
 
-asmlinkage unsigned long sys_getpagesize(void);
+asmlinkage long sys_getpagesize(void);
 asmlinkage long sys_sparc_pipe(void);
 asmlinkage unsigned long c_sys_nis_syscall(struct pt_regs *regs);
 asmlinkage long sys_getdomainname(char __user *name, int len);

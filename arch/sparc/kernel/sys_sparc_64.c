@@ -39,7 +39,7 @@
 
 /* #define DEBUG_UNIMP_SYSCALL */
 
-asmlinkage unsigned long sys_getpagesize(void)
+SYSCALL_DEFINE0(getpagesize)
 {
 	return PAGE_SIZE;
 }
@@ -642,7 +642,7 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
 	return ret;
 }
 
-asmlinkage long sys_kern_features(void)
+SYSCALL_DEFINE0(kern_features)
 {
 	return KERN_FEATURE_MIXED_MODE_STACK;
 }
