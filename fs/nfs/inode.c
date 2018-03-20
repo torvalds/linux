@@ -1813,7 +1813,10 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			inode_set_iversion_raw(inode, fattr->change_attr);
 		}
 	} else {
-		nfsi->cache_validity |= save_cache_validity;
+		nfsi->cache_validity |= save_cache_validity &
+				(NFS_INO_INVALID_ATTR
+				| NFS_INO_REVAL_PAGECACHE
+				| NFS_INO_REVAL_FORCED);
 		cache_revalidated = false;
 	}
 
