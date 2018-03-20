@@ -212,30 +212,24 @@ asmlinkage compat_ssize_t sys32_pwrite64(unsigned int fd,
 	return sys_pwrite64(fd, ubuf, count, (poshi << 32) | poslo);
 }
 
-asmlinkage long compat_sys_readahead(int fd,
-				     unsigned long offhi,
-				     unsigned long offlo,
-				     compat_size_t count)
+COMPAT_SYSCALL_DEFINE4(readahead, int, fd, u32, offhi, u32, offlo,
+		     compat_size_t, count)
 {
-	return sys_readahead(fd, (offhi << 32) | offlo, count);
+	return sys_readahead(fd, ((u64)offhi << 32) | offlo, count);
 }
 
-long compat_sys_fadvise64(int fd,
-			  unsigned long offhi,
-			  unsigned long offlo,
-			  compat_size_t len, int advice)
+COMPAT_SYSCALL_DEFINE5(fadvise64, int, fd, u32, offhi, u32, offlo,
+			  compat_size_t, len, int, advice)
 {
-	return sys_fadvise64_64(fd, (offhi << 32) | offlo, len, advice);
+	return sys_fadvise64_64(fd, ((u64)offhi << 32) | offlo, len, advice);
 }
 
-long compat_sys_fadvise64_64(int fd,
-			     unsigned long offhi, unsigned long offlo,
-			     unsigned long lenhi, unsigned long lenlo,
-			     int advice)
+COMPAT_SYSCALL_DEFINE6(fadvise64_64, int, fd, u32, offhi, u32, offlo,
+			     u32, lenhi, u32, lenlo, int, advice)
 {
 	return sys_fadvise64_64(fd,
-				(offhi << 32) | offlo,
-				(lenhi << 32) | lenlo,
+				((u64)offhi << 32) | offlo,
+				((u64)lenhi << 32) | lenlo,
 				advice);
 }
 

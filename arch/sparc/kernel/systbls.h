@@ -77,16 +77,16 @@ asmlinkage compat_ssize_t sys32_pwrite64(unsigned int fd,
 					 unsigned long poshi,
 					 unsigned long poslo);
 asmlinkage long compat_sys_readahead(int fd,
-				     unsigned long offhi,
-				     unsigned long offlo,
+				     unsigned offhi,
+				     unsigned offlo,
 				     compat_size_t count);
 long compat_sys_fadvise64(int fd,
-			  unsigned long offhi,
-			  unsigned long offlo,
+			  unsigned offhi,
+			  unsigned offlo,
 			  compat_size_t len, int advice);
 long compat_sys_fadvise64_64(int fd,
-			     unsigned long offhi, unsigned long offlo,
-			     unsigned long lenhi, unsigned long lenlo,
+			     unsigned offhi, unsigned offlo,
+			     unsigned lenhi, unsigned lenlo,
 			     int advice);
 long sys32_sync_file_range(unsigned int fd,
 			   unsigned long off_high, unsigned long off_low,
