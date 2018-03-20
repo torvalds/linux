@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/compiler.h>
+#include <linux/etherdevice.h>
 #include <linux/pci.h>
 #include <linux/aer.h>
 #include <linux/delay.h>

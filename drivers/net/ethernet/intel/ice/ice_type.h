@@ -12,6 +12,7 @@
 /* debug masks - set these bits in hw->debug_mask to control output */
 #define ICE_DBG_INIT		BIT_ULL(1)
 #define ICE_DBG_NVM		BIT_ULL(7)
+#define ICE_DBG_LAN		BIT_ULL(8)
 #define ICE_DBG_SW		BIT_ULL(13)
 #define ICE_DBG_SCHED		BIT_ULL(14)
 #define ICE_DBG_RES		BIT_ULL(17)
@@ -30,10 +31,54 @@ enum ice_aq_res_access_type {
 	ICE_RES_WRITE
 };
 
+enum ice_fc_mode {
+	ICE_FC_NONE = 0,
+	ICE_FC_RX_PAUSE,
+	ICE_FC_TX_PAUSE,
+	ICE_FC_FULL,
+	ICE_FC_PFC,
+	ICE_FC_DFLT
+};
+
 /* Various MAC types */
 enum ice_mac_type {
 	ICE_MAC_UNKNOWN = 0,
 	ICE_MAC_GENERIC,
+};
+
+/* Media Types */
+enum ice_media_type {
+	ICE_MEDIA_UNKNOWN = 0,
+	ICE_MEDIA_FIBER,
+	ICE_MEDIA_BASET,
+	ICE_MEDIA_BACKPLANE,
+	ICE_MEDIA_DA,
+};
+
+struct ice_link_status {
+	/* Refer to ice_aq_phy_type for bits definition */
+	u64 phy_type_low;
+	u16 max_frame_size;
+	u16 link_speed;
+	bool lse_ena;	/* Link Status Event notification */
+	u8 link_info;
+	u8 an_info;
+	u8 ext_info;
+	u8 pacing;
+	u8 req_speeds;
+	/* Refer to #define from module_type[ICE_MODULE_TYPE_TOTAL_BYTE] of
+	 * ice_aqc_get_phy_caps structure
+	 */
+	u8 module_type[ICE_MODULE_TYPE_TOTAL_BYTE];
+};
+
+/* PHY info such as phy_type, etc... */
+struct ice_phy_info {
+	struct ice_link_status link_info;
+	struct ice_link_status link_info_old;
+	u64 phy_type_low;
+	enum ice_media_type media_type;
+	bool get_link_info;
 };
 
 /* Common HW capabilities for SW use */
@@ -68,6 +113,12 @@ struct ice_hw_dev_caps {
 	u32 num_vsi_allocd_to_host;	/* Excluding EMP VSI */
 };
 
+/* MAC info */
+struct ice_mac_info {
+	u8 lan_addr[ETH_ALEN];
+	u8 perm_addr[ETH_ALEN];
+};
+
 /* Various RESET request, These are not tied with HW reset types */
 enum ice_reset_req {
 	ICE_RESET_PFR	= 0,
@@ -81,6 +132,12 @@ struct ice_bus_info {
 	u8 func;
 };
 
+/* Flow control (FC) parameters */
+struct ice_fc_info {
+	enum ice_fc_mode current_mode;	/* FC mode in effect */
+	enum ice_fc_mode req_mode;	/* FC mode requested by caller */
+};
+
 /* NVM Information */
 struct ice_nvm_info {
 	u32 eetrack;              /* NVM data version */
@@ -92,6 +149,7 @@ struct ice_nvm_info {
 
 /* Max number of port to queue branches w.r.t topology */
 #define ICE_MAX_TRAFFIC_CLASS 8
+#define ICE_TXSCHED_MAX_BRANCHES ICE_MAX_TRAFFIC_CLASS
 
 struct ice_sched_node {
 	struct ice_sched_node *parent;
@@ -107,6 +165,9 @@ struct ice_sched_node {
 	u8 owner;
 #define ICE_SCHED_NODE_OWNER_LAN	0
 };
+
+/* Access Macros for Tx Sched Elements data */
+#define ICE_TXSCHED_GET_NODE_TEID(x) le32_to_cpu((x)->info.node_teid)
 
 /* The aggregator type determines if identifier is for a VSI group,
  * aggregator group, aggregator of queues, or queue group.
@@ -138,6 +199,7 @@ struct ice_sched_tx_policy {
 struct ice_port_info {
 	struct ice_sched_node *root;	/* Root Node per Port */
 	struct ice_hw *hw;		/* back pointer to hw instance */
+	u32 last_node_teid;		/* scheduler last node info */
 	u16 sw_id;			/* Initial switch ID belongs to port */
 	u16 pf_vf_num;
 	u8 port_state;
@@ -145,6 +207,9 @@ struct ice_port_info {
 #define ICE_SCHED_PORT_STATE_READY	0x1
 	u16 dflt_tx_vsi_num;
 	u16 dflt_rx_vsi_num;
+	struct ice_fc_info fc;
+	struct ice_mac_info mac;
+	struct ice_phy_info phy;
 	struct mutex sched_lock;	/* protect access to TXSched tree */
 	struct ice_sched_tx_policy sched_policy;
 	struct list_head vsi_info_list;

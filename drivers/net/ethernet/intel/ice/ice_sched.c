@@ -4,6 +4,141 @@
 #include "ice_sched.h"
 
 /**
+ * ice_sched_add_root_node - Insert the Tx scheduler root node in SW DB
+ * @pi: port information structure
+ * @info: Scheduler element information from firmware
+ *
+ * This function inserts the root node of the scheduling tree topology
+ * to the SW DB.
+ */
+static enum ice_status
+ice_sched_add_root_node(struct ice_port_info *pi,
+			struct ice_aqc_txsched_elem_data *info)
+{
+	struct ice_sched_node *root;
+	struct ice_hw *hw;
+	u16 max_children;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+
+	hw = pi->hw;
+
+	root = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*root), GFP_KERNEL);
+	if (!root)
+		return ICE_ERR_NO_MEMORY;
+
+	max_children = le16_to_cpu(hw->layer_info[0].max_children);
+	root->children = devm_kcalloc(ice_hw_to_dev(hw), max_children,
+				      sizeof(*root), GFP_KERNEL);
+	if (!root->children) {
+		devm_kfree(ice_hw_to_dev(hw), root);
+		return ICE_ERR_NO_MEMORY;
+	}
+
+	memcpy(&root->info, info, sizeof(*info));
+	pi->root = root;
+	return 0;
+}
+
+/**
+ * ice_sched_find_node_by_teid - Find the Tx scheduler node in SW DB
+ * @start_node: pointer to the starting ice_sched_node struct in a sub-tree
+ * @teid: node teid to search
+ *
+ * This function searches for a node matching the teid in the scheduling tree
+ * from the SW DB. The search is recursive and is restricted by the number of
+ * layers it has searched through; stopping at the max supported layer.
+ *
+ * This function needs to be called when holding the port_info->sched_lock
+ */
+struct ice_sched_node *
+ice_sched_find_node_by_teid(struct ice_sched_node *start_node, u32 teid)
+{
+	u16 i;
+
+	/* The TEID is same as that of the start_node */
+	if (ICE_TXSCHED_GET_NODE_TEID(start_node) == teid)
+		return start_node;
+
+	/* The node has no children or is at the max layer */
+	if (!start_node->num_children ||
+	    start_node->tx_sched_layer >= ICE_AQC_TOPO_MAX_LEVEL_NUM ||
+	    start_node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF)
+		return NULL;
+
+	/* Check if teid matches to any of the children nodes */
+	for (i = 0; i < start_node->num_children; i++)
+		if (ICE_TXSCHED_GET_NODE_TEID(start_node->children[i]) == teid)
+			return start_node->children[i];
+
+	/* Search within each child's sub-tree */
+	for (i = 0; i < start_node->num_children; i++) {
+		struct ice_sched_node *tmp;
+
+		tmp = ice_sched_find_node_by_teid(start_node->children[i],
+						  teid);
+		if (tmp)
+			return tmp;
+	}
+
+	return NULL;
+}
+
+/**
+ * ice_sched_add_node - Insert the Tx scheduler node in SW DB
+ * @pi: port information structure
+ * @layer: Scheduler layer of the node
+ * @info: Scheduler element information from firmware
+ *
+ * This function inserts a scheduler node to the SW DB.
+ */
+enum ice_status
+ice_sched_add_node(struct ice_port_info *pi, u8 layer,
+		   struct ice_aqc_txsched_elem_data *info)
+{
+	struct ice_sched_node *parent;
+	struct ice_sched_node *node;
+	struct ice_hw *hw;
+	u16 max_children;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+
+	hw = pi->hw;
+
+	/* A valid parent node should be there */
+	parent = ice_sched_find_node_by_teid(pi->root,
+					     le32_to_cpu(info->parent_teid));
+	if (!parent) {
+		ice_debug(hw, ICE_DBG_SCHED,
+			  "Parent Node not found for parent_teid=0x%x\n",
+			  le32_to_cpu(info->parent_teid));
+		return ICE_ERR_PARAM;
+	}
+
+	node = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return ICE_ERR_NO_MEMORY;
+	max_children = le16_to_cpu(hw->layer_info[layer].max_children);
+	if (max_children) {
+		node->children = devm_kcalloc(ice_hw_to_dev(hw), max_children,
+					      sizeof(*node), GFP_KERNEL);
+		if (!node->children) {
+			devm_kfree(ice_hw_to_dev(hw), node);
+			return ICE_ERR_NO_MEMORY;
+		}
+	}
+
+	node->in_use = true;
+	node->parent = parent;
+	node->tx_sched_layer = layer;
+	parent->children[parent->num_children++] = node;
+	memcpy(&node->info, info, sizeof(*info));
+	return 0;
+}
+
+/**
  * ice_aq_delete_sched_elems - delete scheduler elements
  * @hw: pointer to the hw struct
  * @grps_req: number of groups to delete
@@ -195,6 +330,36 @@ err_exit:
 }
 
 /**
+ * ice_aq_get_dflt_topo - gets default scheduler topology
+ * @hw: pointer to the hw struct
+ * @lport: logical port number
+ * @buf: pointer to buffer
+ * @buf_size: buffer size in bytes
+ * @num_branches: returns total number of queue to port branches
+ * @cd: pointer to command details structure or NULL
+ *
+ * Get default scheduler topology (0x400)
+ */
+static enum ice_status
+ice_aq_get_dflt_topo(struct ice_hw *hw, u8 lport,
+		     struct ice_aqc_get_topo_elem *buf, u16 buf_size,
+		     u8 *num_branches, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_get_topo *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	cmd = &desc.params.get_topo;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_dflt_topo);
+	cmd->port_num = lport;
+	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
+	if (!status && num_branches)
+		*num_branches = cmd->num_branches;
+
+	return status;
+}
+
+/**
  * ice_aq_query_sched_res - query scheduler resource
  * @hw: pointer to the hw struct
  * @buf_size: buffer size in bytes
@@ -295,6 +460,169 @@ void ice_sched_cleanup_all(struct ice_hw *hw)
 	hw->num_tx_sched_phys_layers = 0;
 	hw->flattened_layers = 0;
 	hw->max_cgds = 0;
+}
+
+/**
+ * ice_rm_dflt_leaf_node - remove the default leaf node in the tree
+ * @pi: port information structure
+ *
+ * This function removes the leaf node that was created by the FW
+ * during initialization
+ */
+static void
+ice_rm_dflt_leaf_node(struct ice_port_info *pi)
+{
+	struct ice_sched_node *node;
+
+	node = pi->root;
+	while (node) {
+		if (!node->num_children)
+			break;
+		node = node->children[0];
+	}
+	if (node && node->info.data.elem_type == ICE_AQC_ELEM_TYPE_LEAF) {
+		u32 teid = le32_to_cpu(node->info.node_teid);
+		enum ice_status status;
+
+		/* remove the default leaf node */
+		status = ice_sched_remove_elems(pi->hw, node->parent, 1, &teid);
+		if (!status)
+			ice_free_sched_node(pi, node);
+	}
+}
+
+/**
+ * ice_sched_rm_dflt_nodes - free the default nodes in the tree
+ * @pi: port information structure
+ *
+ * This function frees all the nodes except root and TC that were created by
+ * the FW during initialization
+ */
+static void
+ice_sched_rm_dflt_nodes(struct ice_port_info *pi)
+{
+	struct ice_sched_node *node;
+
+	ice_rm_dflt_leaf_node(pi);
+	/* remove the default nodes except TC and root nodes */
+	node = pi->root;
+	while (node) {
+		if (node->tx_sched_layer >= pi->hw->sw_entry_point_layer &&
+		    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_TC &&
+		    node->info.data.elem_type != ICE_AQC_ELEM_TYPE_ROOT_PORT) {
+			ice_free_sched_node(pi, node);
+			break;
+		}
+		if (!node->num_children)
+			break;
+		node = node->children[0];
+	}
+}
+
+/**
+ * ice_sched_init_port - Initialize scheduler by querying information from FW
+ * @pi: port info structure for the tree to cleanup
+ *
+ * This function is the initial call to find the total number of Tx scheduler
+ * resources, default topology created by firmware and storing the information
+ * in SW DB.
+ */
+enum ice_status ice_sched_init_port(struct ice_port_info *pi)
+{
+	struct ice_aqc_get_topo_elem *buf;
+	enum ice_status status;
+	struct ice_hw *hw;
+	u8 num_branches;
+	u16 num_elems;
+	u8 i, j;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+	hw = pi->hw;
+
+	/* Query the Default Topology from FW */
+	buf = devm_kcalloc(ice_hw_to_dev(hw), ICE_TXSCHED_MAX_BRANCHES,
+			   sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return ICE_ERR_NO_MEMORY;
+
+	/* Query default scheduling tree topology */
+	status = ice_aq_get_dflt_topo(hw, pi->lport, buf,
+				      sizeof(*buf) * ICE_TXSCHED_MAX_BRANCHES,
+				      &num_branches, NULL);
+	if (status)
+		goto err_init_port;
+
+	/* num_branches should be between 1-8 */
+	if (num_branches < 1 || num_branches > ICE_TXSCHED_MAX_BRANCHES) {
+		ice_debug(hw, ICE_DBG_SCHED, "num_branches unexpected %d\n",
+			  num_branches);
+		status = ICE_ERR_PARAM;
+		goto err_init_port;
+	}
+
+	/* get the number of elements on the default/first branch */
+	num_elems = le16_to_cpu(buf[0].hdr.num_elems);
+
+	/* num_elems should always be between 1-9 */
+	if (num_elems < 1 || num_elems > ICE_AQC_TOPO_MAX_LEVEL_NUM) {
+		ice_debug(hw, ICE_DBG_SCHED, "num_elems unexpected %d\n",
+			  num_elems);
+		status = ICE_ERR_PARAM;
+		goto err_init_port;
+	}
+
+	/* If the last node is a leaf node then the index of the Q group
+	 * layer is two less than the number of elements.
+	 */
+	if (num_elems > 2 && buf[0].generic[num_elems - 1].data.elem_type ==
+	    ICE_AQC_ELEM_TYPE_LEAF)
+		pi->last_node_teid =
+			le32_to_cpu(buf[0].generic[num_elems - 2].node_teid);
+	else
+		pi->last_node_teid =
+			le32_to_cpu(buf[0].generic[num_elems - 1].node_teid);
+
+	/* Insert the Tx Sched root node */
+	status = ice_sched_add_root_node(pi, &buf[0].generic[0]);
+	if (status)
+		goto err_init_port;
+
+	/* Parse the default tree and cache the information */
+	for (i = 0; i < num_branches; i++) {
+		num_elems = le16_to_cpu(buf[i].hdr.num_elems);
+
+		/* Skip root element as already inserted */
+		for (j = 1; j < num_elems; j++) {
+			/* update the sw entry point */
+			if (buf[0].generic[j].data.elem_type ==
+			    ICE_AQC_ELEM_TYPE_ENTRY_POINT)
+				hw->sw_entry_point_layer = j;
+
+			status = ice_sched_add_node(pi, j, &buf[i].generic[j]);
+			if (status)
+				goto err_init_port;
+		}
+	}
+
+	/* Remove the default nodes. */
+	if (pi->root)
+		ice_sched_rm_dflt_nodes(pi);
+
+	/* initialize the port for handling the scheduler tree */
+	pi->port_state = ICE_SCHED_PORT_STATE_READY;
+	mutex_init(&pi->sched_lock);
+	INIT_LIST_HEAD(&pi->agg_list);
+	INIT_LIST_HEAD(&pi->vsi_info_list);
+
+err_init_port:
+	if (status && pi->root) {
+		ice_free_sched_node(pi, pi->root);
+		pi->root = NULL;
+	}
+
+	devm_kfree(ice_hw_to_dev(hw), buf);
+	return status;
 }
 
 /**

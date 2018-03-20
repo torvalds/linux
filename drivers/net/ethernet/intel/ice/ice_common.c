@@ -37,12 +37,237 @@ enum ice_status ice_clear_pf_cfg(struct ice_hw *hw)
 }
 
 /**
+ * ice_aq_manage_mac_read - manage MAC address read command
+ * @hw: pointer to the hw struct
+ * @buf: a virtual buffer to hold the manage MAC read response
+ * @buf_size: Size of the virtual buffer
+ * @cd: pointer to command details structure or NULL
+ *
+ * This function is used to return per PF station MAC address (0x0107).
+ * NOTE: Upon successful completion of this command, MAC address information
+ * is returned in user specified buffer. Please interpret user specified
+ * buffer as "manage_mac_read" response.
+ * Response such as various MAC addresses are stored in HW struct (port.mac)
+ * ice_aq_discover_caps is expected to be called before this function is called.
+ */
+static enum ice_status
+ice_aq_manage_mac_read(struct ice_hw *hw, void *buf, u16 buf_size,
+		       struct ice_sq_cd *cd)
+{
+	struct ice_aqc_manage_mac_read_resp *resp;
+	struct ice_aqc_manage_mac_read *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+	u16 flags;
+
+	cmd = &desc.params.mac_read;
+
+	if (buf_size < sizeof(*resp))
+		return ICE_ERR_BUF_TOO_SHORT;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_manage_mac_read);
+
+	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
+	if (status)
+		return status;
+
+	resp = (struct ice_aqc_manage_mac_read_resp *)buf;
+	flags = le16_to_cpu(cmd->flags) & ICE_AQC_MAN_MAC_READ_M;
+
+	if (!(flags & ICE_AQC_MAN_MAC_LAN_ADDR_VALID)) {
+		ice_debug(hw, ICE_DBG_LAN, "got invalid MAC address\n");
+		return ICE_ERR_CFG;
+	}
+
+	ether_addr_copy(hw->port_info->mac.lan_addr, resp->mac_addr);
+	ether_addr_copy(hw->port_info->mac.perm_addr, resp->mac_addr);
+	return 0;
+}
+
+/**
+ * ice_aq_get_phy_caps - returns PHY capabilities
+ * @pi: port information structure
+ * @qual_mods: report qualified modules
+ * @report_mode: report mode capabilities
+ * @pcaps: structure for PHY capabilities to be filled
+ * @cd: pointer to command details structure or NULL
+ *
+ * Returns the various PHY capabilities supported on the Port (0x0600)
+ */
+static enum ice_status
+ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
+		    struct ice_aqc_get_phy_caps_data *pcaps,
+		    struct ice_sq_cd *cd)
+{
+	struct ice_aqc_get_phy_caps *cmd;
+	u16 pcaps_size = sizeof(*pcaps);
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	cmd = &desc.params.get_phy;
+
+	if (!pcaps || (report_mode & ~ICE_AQC_REPORT_MODE_M) || !pi)
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_phy_caps);
+
+	if (qual_mods)
+		cmd->param0 |= cpu_to_le16(ICE_AQC_GET_PHY_RQM);
+
+	cmd->param0 |= cpu_to_le16(report_mode);
+	status = ice_aq_send_cmd(pi->hw, &desc, pcaps, pcaps_size, cd);
+
+	if (!status && report_mode == ICE_AQC_REPORT_TOPO_CAP)
+		pi->phy.phy_type_low = le64_to_cpu(pcaps->phy_type_low);
+
+	return status;
+}
+
+/**
+ * ice_get_media_type - Gets media type
+ * @pi: port information structure
+ */
+static enum ice_media_type ice_get_media_type(struct ice_port_info *pi)
+{
+	struct ice_link_status *hw_link_info;
+
+	if (!pi)
+		return ICE_MEDIA_UNKNOWN;
+
+	hw_link_info = &pi->phy.link_info;
+
+	if (hw_link_info->phy_type_low) {
+		switch (hw_link_info->phy_type_low) {
+		case ICE_PHY_TYPE_LOW_1000BASE_SX:
+		case ICE_PHY_TYPE_LOW_1000BASE_LX:
+		case ICE_PHY_TYPE_LOW_10GBASE_SR:
+		case ICE_PHY_TYPE_LOW_10GBASE_LR:
+		case ICE_PHY_TYPE_LOW_10G_SFI_C2C:
+		case ICE_PHY_TYPE_LOW_25GBASE_SR:
+		case ICE_PHY_TYPE_LOW_25GBASE_LR:
+		case ICE_PHY_TYPE_LOW_25G_AUI_C2C:
+		case ICE_PHY_TYPE_LOW_40GBASE_SR4:
+		case ICE_PHY_TYPE_LOW_40GBASE_LR4:
+			return ICE_MEDIA_FIBER;
+		case ICE_PHY_TYPE_LOW_100BASE_TX:
+		case ICE_PHY_TYPE_LOW_1000BASE_T:
+		case ICE_PHY_TYPE_LOW_2500BASE_T:
+		case ICE_PHY_TYPE_LOW_5GBASE_T:
+		case ICE_PHY_TYPE_LOW_10GBASE_T:
+		case ICE_PHY_TYPE_LOW_25GBASE_T:
+			return ICE_MEDIA_BASET;
+		case ICE_PHY_TYPE_LOW_10G_SFI_DA:
+		case ICE_PHY_TYPE_LOW_25GBASE_CR:
+		case ICE_PHY_TYPE_LOW_25GBASE_CR_S:
+		case ICE_PHY_TYPE_LOW_25GBASE_CR1:
+		case ICE_PHY_TYPE_LOW_40GBASE_CR4:
+			return ICE_MEDIA_DA;
+		case ICE_PHY_TYPE_LOW_1000BASE_KX:
+		case ICE_PHY_TYPE_LOW_2500BASE_KX:
+		case ICE_PHY_TYPE_LOW_2500BASE_X:
+		case ICE_PHY_TYPE_LOW_5GBASE_KR:
+		case ICE_PHY_TYPE_LOW_10GBASE_KR_CR1:
+		case ICE_PHY_TYPE_LOW_25GBASE_KR:
+		case ICE_PHY_TYPE_LOW_25GBASE_KR1:
+		case ICE_PHY_TYPE_LOW_25GBASE_KR_S:
+		case ICE_PHY_TYPE_LOW_40GBASE_KR4:
+			return ICE_MEDIA_BACKPLANE;
+		}
+	}
+
+	return ICE_MEDIA_UNKNOWN;
+}
+
+/**
+ * ice_aq_get_link_info
+ * @pi: port information structure
+ * @ena_lse: enable/disable LinkStatusEvent reporting
+ * @link: pointer to link status structure - optional
+ * @cd: pointer to command details structure or NULL
+ *
+ * Get Link Status (0x607). Returns the link status of the adapter.
+ */
+enum ice_status
+ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
+		     struct ice_link_status *link, struct ice_sq_cd *cd)
+{
+	struct ice_link_status *hw_link_info_old, *hw_link_info;
+	struct ice_aqc_get_link_status_data link_data = { 0 };
+	struct ice_aqc_get_link_status *resp;
+	enum ice_media_type *hw_media_type;
+	struct ice_fc_info *hw_fc_info;
+	bool tx_pause, rx_pause;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+	u16 cmd_flags;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+	hw_link_info_old = &pi->phy.link_info_old;
+	hw_media_type = &pi->phy.media_type;
+	hw_link_info = &pi->phy.link_info;
+	hw_fc_info = &pi->fc;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_link_status);
+	cmd_flags = (ena_lse) ? ICE_AQ_LSE_ENA : ICE_AQ_LSE_DIS;
+	resp = &desc.params.get_link_status;
+	resp->cmd_flags = cpu_to_le16(cmd_flags);
+	resp->lport_num = pi->lport;
+
+	status = ice_aq_send_cmd(pi->hw, &desc, &link_data, sizeof(link_data),
+				 cd);
+
+	if (status)
+		return status;
+
+	/* save off old link status information */
+	*hw_link_info_old = *hw_link_info;
+
+	/* update current link status information */
+	hw_link_info->link_speed = le16_to_cpu(link_data.link_speed);
+	hw_link_info->phy_type_low = le64_to_cpu(link_data.phy_type_low);
+	*hw_media_type = ice_get_media_type(pi);
+	hw_link_info->link_info = link_data.link_info;
+	hw_link_info->an_info = link_data.an_info;
+	hw_link_info->ext_info = link_data.ext_info;
+	hw_link_info->max_frame_size = le16_to_cpu(link_data.max_frame_size);
+	hw_link_info->pacing = link_data.cfg & ICE_AQ_CFG_PACING_M;
+
+	/* update fc info */
+	tx_pause = !!(link_data.an_info & ICE_AQ_LINK_PAUSE_TX);
+	rx_pause = !!(link_data.an_info & ICE_AQ_LINK_PAUSE_RX);
+	if (tx_pause && rx_pause)
+		hw_fc_info->current_mode = ICE_FC_FULL;
+	else if (tx_pause)
+		hw_fc_info->current_mode = ICE_FC_TX_PAUSE;
+	else if (rx_pause)
+		hw_fc_info->current_mode = ICE_FC_RX_PAUSE;
+	else
+		hw_fc_info->current_mode = ICE_FC_NONE;
+
+	hw_link_info->lse_ena =
+		!!(resp->cmd_flags & cpu_to_le16(ICE_AQ_LSE_IS_ENABLED));
+
+	/* save link status information */
+	if (link)
+		*link = *hw_link_info;
+
+	/* flag cleared so calling functions don't call AQ again */
+	pi->phy.get_link_info = false;
+
+	return status;
+}
+
+/**
  * ice_init_hw - main hardware initialization routine
  * @hw: pointer to the hardware structure
  */
 enum ice_status ice_init_hw(struct ice_hw *hw)
 {
+	struct ice_aqc_get_phy_caps_data *pcaps;
 	enum ice_status status;
+	u16 mac_buf_len;
+	void *mac_buf;
 
 	/* Set MAC type based on DeviceID */
 	status = ice_set_mac_type(hw);
@@ -98,8 +323,46 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 		goto err_unroll_alloc;
 	}
 
+	/* Initialize port_info struct with scheduler data */
+	status = ice_sched_init_port(hw->port_info);
+	if (status)
+		goto err_unroll_sched;
+
+	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps) {
+		status = ICE_ERR_NO_MEMORY;
+		goto err_unroll_sched;
+	}
+
+	/* Initialize port_info struct with PHY capabilities */
+	status = ice_aq_get_phy_caps(hw->port_info, false,
+				     ICE_AQC_REPORT_TOPO_CAP, pcaps, NULL);
+	devm_kfree(ice_hw_to_dev(hw), pcaps);
+	if (status)
+		goto err_unroll_sched;
+
+	/* Initialize port_info struct with link information */
+	status = ice_aq_get_link_info(hw->port_info, false, NULL, NULL);
+	if (status)
+		goto err_unroll_sched;
+
+	/* Get port MAC information */
+	mac_buf_len = sizeof(struct ice_aqc_manage_mac_read_resp);
+	mac_buf = devm_kzalloc(ice_hw_to_dev(hw), mac_buf_len, GFP_KERNEL);
+
+	if (!mac_buf)
+		goto err_unroll_sched;
+
+	status = ice_aq_manage_mac_read(hw, mac_buf, mac_buf_len, NULL);
+	devm_kfree(ice_hw_to_dev(hw), mac_buf);
+
+	if (status)
+		goto err_unroll_sched;
+
 	return 0;
 
+err_unroll_sched:
+	ice_sched_cleanup_all(hw);
 err_unroll_alloc:
 	devm_kfree(ice_hw_to_dev(hw), hw->port_info);
 err_unroll_cqinit:
@@ -115,6 +378,7 @@ void ice_deinit_hw(struct ice_hw *hw)
 {
 	ice_sched_cleanup_all(hw);
 	ice_shutdown_all_ctrlq(hw);
+
 	if (hw->port_info) {
 		devm_kfree(ice_hw_to_dev(hw), hw->port_info);
 		hw->port_info = NULL;

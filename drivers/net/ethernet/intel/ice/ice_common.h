@@ -35,4 +35,7 @@ ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc,
 		void *buf, u16 buf_size, struct ice_sq_cd *cd);
 enum ice_status ice_aq_get_fw_ver(struct ice_hw *hw, struct ice_sq_cd *cd);
 enum ice_status ice_clear_pf_cfg(struct ice_hw *hw);
+enum ice_status
+ice_aq_get_link_info(struct ice_port_info *pi, bool ena_lse,
+		     struct ice_link_status *link, struct ice_sq_cd *cd);
 #endif /* _ICE_COMMON_H_ */

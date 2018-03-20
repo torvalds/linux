@@ -15,6 +15,7 @@ enum ice_status {
 	ICE_ERR_NO_MEMORY			= -11,
 	ICE_ERR_CFG				= -12,
 	ICE_ERR_OUT_OF_RANGE			= -13,
+	ICE_ERR_BUF_TOO_SHORT			= -52,
 	ICE_ERR_NVM_BLANK_MODE			= -53,
 	ICE_ERR_AQ_ERROR			= -100,
 	ICE_ERR_AQ_TIMEOUT			= -101,
