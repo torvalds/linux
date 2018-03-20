@@ -1519,8 +1519,7 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 			      u8 *p_status)
 {
 	struct mlxsw_pci *mlxsw_pci = bus_priv;
-	dma_addr_t in_mapaddr = mlxsw_pci->cmd.in_mbox.mapaddr;
-	dma_addr_t out_mapaddr = mlxsw_pci->cmd.out_mbox.mapaddr;
+	dma_addr_t in_mapaddr = 0, out_mapaddr = 0;
 	bool evreq = mlxsw_pci->cmd.nopoll;
 	unsigned long timeout = msecs_to_jiffies(MLXSW_PCI_CIR_TIMEOUT_MSECS);
 	bool *p_wait_done = &mlxsw_pci->cmd.wait_done;
@@ -1532,11 +1531,15 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 	if (err)
 		return err;
 
-	if (in_mbox)
+	if (in_mbox) {
 		memcpy(mlxsw_pci->cmd.in_mbox.buf, in_mbox, in_mbox_size);
+		in_mapaddr = mlxsw_pci->cmd.in_mbox.mapaddr;
+	}
 	mlxsw_pci_write32(mlxsw_pci, CIR_IN_PARAM_HI, upper_32_bits(in_mapaddr));
 	mlxsw_pci_write32(mlxsw_pci, CIR_IN_PARAM_LO, lower_32_bits(in_mapaddr));
 
+	if (out_mbox)
+		out_mapaddr = mlxsw_pci->cmd.out_mbox.mapaddr;
 	mlxsw_pci_write32(mlxsw_pci, CIR_OUT_PARAM_HI, upper_32_bits(out_mapaddr));
 	mlxsw_pci_write32(mlxsw_pci, CIR_OUT_PARAM_LO, lower_32_bits(out_mapaddr));
 
