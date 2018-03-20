@@ -6110,6 +6110,12 @@ static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
 	return init_rmode_tss(kvm);
 }
 
+static int vmx_set_identity_map_addr(struct kvm *kvm, u64 ident_addr)
+{
+	kvm->arch.ept_identity_map_addr = ident_addr;
+	return 0;
+}
+
 static bool rmode_exception(struct kvm_vcpu *vcpu, int vec)
 {
 	switch (vec) {
@@ -12510,6 +12516,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.deliver_posted_interrupt = vmx_deliver_posted_interrupt,
 
 	.set_tss_addr = vmx_set_tss_addr,
+	.set_identity_map_addr = vmx_set_identity_map_addr,
 	.get_tdp_level = get_ept_level,
 	.get_mt_mask = vmx_get_mt_mask,
 

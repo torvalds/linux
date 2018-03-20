@@ -3964,8 +3964,7 @@ static int kvm_vm_ioctl_set_tss_addr(struct kvm *kvm, unsigned long addr)
 static int kvm_vm_ioctl_set_identity_map_addr(struct kvm *kvm,
 					      u64 ident_addr)
 {
-	kvm->arch.ept_identity_map_addr = ident_addr;
-	return 0;
+	return kvm_x86_ops->set_identity_map_addr(kvm, ident_addr);
 }
 
 static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
