@@ -4055,7 +4055,6 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_accessargs args = {
 		.fh = NFS_FH(inode),
-		.bitmask = server->cache_consistency_bitmask,
 		.access = entry->mask,
 	};
 	struct nfs4_accessres res = {
@@ -4069,14 +4068,18 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 	};
 	int status = 0;
 
-	res.fattr = nfs_alloc_fattr();
-	if (res.fattr == NULL)
-		return -ENOMEM;
+	if (!nfs_have_delegated_attributes(inode)) {
+		res.fattr = nfs_alloc_fattr();
+		if (res.fattr == NULL)
+			return -ENOMEM;
+		args.bitmask = server->cache_consistency_bitmask;
+	}
 
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 	if (!status) {
 		nfs_access_set_mask(entry, res.access);
-		nfs_refresh_inode(inode, res.fattr);
+		if (res.fattr)
+			nfs_refresh_inode(inode, res.fattr);
 	}
 	nfs_free_fattr(res.fattr);
 	return status;
