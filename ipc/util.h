@@ -235,4 +235,17 @@ static inline int compat_ipc_parse_version(int *cmd)
 #endif
 }
 #endif
+
+/* for __ARCH_WANT_SYS_IPC */
+long ksys_semtimedop(int semid, struct sembuf __user *tsops,
+		     unsigned int nsops,
+		     const struct timespec __user *timeout);
+
+/* for CONFIG_ARCH_WANT_OLD_COMPAT_IPC */
+#ifdef CONFIG_COMPAT
+long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
+			    unsigned int nsops,
+			    const struct compat_timespec __user *timeout);
+#endif /* CONFIG_COMPAT */
+
 #endif

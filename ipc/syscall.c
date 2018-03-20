@@ -7,6 +7,9 @@
  */
 #include <linux/unistd.h>
 #include <linux/syscalls.h>
+#include <linux/security.h>
+#include <linux/ipc_namespace.h>
+#include "util.h"
 
 #ifdef __ARCH_WANT_SYS_IPC
 #include <linux/errno.h>
@@ -24,12 +27,12 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 
 	switch (call) {
 	case SEMOP:
-		return sys_semtimedop(first, (struct sembuf __user *)ptr,
-				      second, NULL);
+		return ksys_semtimedop(first, (struct sembuf __user *)ptr,
+				       second, NULL);
 	case SEMTIMEDOP:
-		return sys_semtimedop(first, (struct sembuf __user *)ptr,
-				      second,
-				      (const struct timespec __user *)fifth);
+		return ksys_semtimedop(first, (struct sembuf __user *)ptr,
+				       second,
+				       (const struct timespec __user *)fifth);
 
 	case SEMGET:
 		return sys_semget(first, second, third);
@@ -124,9 +127,9 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 	switch (call) {
 	case SEMOP:
 		/* struct sembuf is the same on 32 and 64bit :)) */
-		return sys_semtimedop(first, compat_ptr(ptr), second, NULL);
+		return ksys_semtimedop(first, compat_ptr(ptr), second, NULL);
 	case SEMTIMEDOP:
-		return compat_sys_semtimedop(first, compat_ptr(ptr), second,
+		return compat_ksys_semtimedop(first, compat_ptr(ptr), second,
 						compat_ptr(fifth));
 	case SEMGET:
 		return sys_semget(first, second, third);
