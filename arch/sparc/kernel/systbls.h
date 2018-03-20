@@ -23,7 +23,7 @@ asmlinkage void sparc_breakpoint(struct pt_regs *regs);
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 			  unsigned long prot, unsigned long flags,
 			  unsigned long fd, unsigned long pgoff);
-long sparc_remap_file_pages(unsigned long start, unsigned long size,
+long sys_sparc_remap_file_pages(unsigned long start, unsigned long size,
 			    unsigned long prot, unsigned long pgoff,
 			    unsigned long flags);
 

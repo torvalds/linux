@@ -116,9 +116,9 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 	return sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 }
 
-long sparc_remap_file_pages(unsigned long start, unsigned long size,
-			   unsigned long prot, unsigned long pgoff,
-			   unsigned long flags)
+SYSCALL_DEFINE5(sparc_remap_file_pages, unsigned long, start, unsigned long, size,
+			   unsigned long, prot, unsigned long, pgoff,
+			   unsigned long, flags)
 {
 	/* This works on an existing mmap so we don't need to validate
 	 * the range as that was done at the original mmap call.
