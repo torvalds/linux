@@ -1288,8 +1288,6 @@ static void nf_tables_chain_destroy(struct nft_chain *chain)
 		free_percpu(basechain->stats);
 		if (basechain->stats)
 			static_branch_dec(&nft_counters_enabled);
-		if (basechain->ops.dev != NULL)
-			dev_put(basechain->ops.dev);
 		kfree(chain->name);
 		kfree(basechain);
 	} else {
@@ -1356,7 +1354,7 @@ static int nft_chain_parse_hook(struct net *net,
 		}
 
 		nla_strlcpy(ifname, ha[NFTA_HOOK_DEV], IFNAMSIZ);
-		dev = dev_get_by_name(net, ifname);
+		dev = __dev_get_by_name(net, ifname);
 		if (!dev) {
 			module_put(type->owner);
 			return -ENOENT;
@@ -1373,8 +1371,6 @@ static int nft_chain_parse_hook(struct net *net,
 static void nft_chain_release_hook(struct nft_chain_hook *hook)
 {
 	module_put(hook->type->owner);
-	if (hook->dev != NULL)
-		dev_put(hook->dev);
 }
 
 static int nf_tables_addchain(struct nft_ctx *ctx, u8 family, u8 genmask,
@@ -4948,7 +4944,7 @@ static int nf_tables_parse_devices(const struct nft_ctx *ctx,
 		}
 
 		nla_strlcpy(ifname, tmp, IFNAMSIZ);
-		dev = dev_get_by_name(ctx->net, ifname);
+		dev = __dev_get_by_name(ctx->net, ifname);
 		if (!dev) {
 			err = -ENOENT;
 			goto err1;
@@ -5007,10 +5003,8 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 		return err;
 
 	ops = kzalloc(sizeof(struct nf_hook_ops) * n, GFP_KERNEL);
-	if (!ops) {
-		err = -ENOMEM;
-		goto err1;
-	}
+	if (!ops)
+		return -ENOMEM;
 
 	flowtable->hooknum	= hooknum;
 	flowtable->priority	= priority;
@@ -5027,11 +5021,6 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 		flowtable->dev_name[i]		= kstrdup(dev_array[i]->name,
 							  GFP_KERNEL);
 	}
-
-	err = 0;
-err1:
-	for (i = 0; i < n; i++)
-		dev_put(dev_array[i]);
 
 	return err;
 }
