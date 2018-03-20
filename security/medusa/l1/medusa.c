@@ -731,6 +731,8 @@ static void medusa_l1_msg_queue_free_security(struct msg_queue *msq)
 
 static int medusa_l1_msg_queue_associate(struct msg_queue *msq, int msqflg)
 {
+	if(medusa_ipc_associate(&msq->q_perm, msqflg) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
@@ -744,12 +746,16 @@ static int medusa_l1_msg_queue_msgctl(struct msg_queue *msq, int cmd)
 static int medusa_l1_msg_queue_msgsnd(struct msg_queue *msq, struct msg_msg *msg,
 				int msgflg)
 {
+	if(medusa_ipc_msgsnd(&msq->q_perm, msg, msgflg) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
 static int medusa_l1_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg,
 				struct task_struct *target, long type, int mode)
 {
+	if(medusa_ipc_msgrcv(&msq->q_perm, msg, target, type, mode) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
@@ -766,6 +772,8 @@ static void medusa_l1_shm_free_security(struct shmid_kernel *shp)
 
 static int medusa_l1_shm_associate(struct shmid_kernel *shp, int shmflg)
 {
+	if(medusa_ipc_associate(&shp->shm_perm, shmflg) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
@@ -779,6 +787,8 @@ static int medusa_l1_shm_shmctl(struct shmid_kernel *shp, int cmd)
 static int medusa_l1_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr,
 			 int shmflg)
 {
+	if(medusa_ipc_shmat(&shp->shm_perm, shmaddr, shmflg) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
@@ -795,14 +805,13 @@ static void medusa_l1_sem_free_security(struct sem_array *sma)
 
 static int medusa_l1_sem_associate(struct sem_array *sma, int semflg)
 {
-	//if(medusa_ipc_perm(&sma->sem_perm, semflg) == MED_NO)
-	//	return -EPERM;	
+	if(medusa_ipc_associate(&sma->sem_perm, semflg) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 
 static int medusa_l1_sem_semctl(struct sem_array *sma, int cmd)
 {
-	printk("semctl");
 	if(medusa_ipc_ctl(&sma->sem_perm, cmd) == MED_NO)
 		return -EPERM;	
 	return 0;
@@ -811,8 +820,8 @@ static int medusa_l1_sem_semctl(struct sem_array *sma, int cmd)
 static int medusa_l1_sem_semop(struct sem_array *sma, struct sembuf *sops,
 			 unsigned nsops, int alter)
 {
-/*	if(medusa_ipc_perm(&sma->sem_perm, alter) == MED_NO)
-		return -EPERM;	*/
+	if(medusa_ipc_semop(&sma->sem_perm, sops, nsops, alter) == MED_NO)
+		return -EPERM;	
 	return 0;
 }
 

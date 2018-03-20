@@ -1,3 +1,4 @@
+#include <linux/msg.h>
 #include "../../../ipc/util.h" //TODO
 #include "ipc_utils.h"
 #include "kobject_ipc_common.h"
