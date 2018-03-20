@@ -770,15 +770,6 @@ enum kvm_irqchip_mode {
 	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
 };
 
-struct kvm_sev_info {
-	bool active;		/* SEV enabled guest */
-	unsigned int asid;	/* ASID used for this guest */
-	unsigned int handle;	/* SEV firmware handle */
-	int fd;			/* SEV device fd */
-	unsigned long pages_locked; /* Number of pages locked */
-	struct list_head regions_list;  /* List of registered regions */
-};
-
 struct kvm_arch {
 	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
@@ -857,17 +848,8 @@ struct kvm_arch {
 
 	bool disabled_lapic_found;
 
-	/* Struct members for AVIC */
-	u32 avic_vm_id;
-	u32 ldr_mode;
-	struct page *avic_logical_id_table_page;
-	struct page *avic_physical_id_table_page;
-	struct hlist_node hnode;
-
 	bool x2apic_format;
 	bool x2apic_broadcast_quirk_disabled;
-
-	struct kvm_sev_info sev_info;
 };
 
 struct kvm_vm_stat {
