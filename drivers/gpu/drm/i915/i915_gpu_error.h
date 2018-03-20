@@ -269,6 +269,9 @@ struct i915_gpu_error {
 	/** Number of times an engine has been reset */
 	u32 reset_engine_count[I915_NUM_ENGINES];
 
+	/** Reason for the current *global* reset */
+	const char *reason;
+
 	/**
 	 * Waitqueue to signal when a hang is detected. Used to for waiters
 	 * to release the struct_mutex for the reset to procede.

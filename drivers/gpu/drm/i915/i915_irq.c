@@ -2877,15 +2877,10 @@ static irqreturn_t gen11_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-/**
- * i915_reset_device - do process context error handling work
- * @dev_priv: i915 device private
- *
- * Fire an error uevent so userspace can see that a hang or error
- * was detected.
- */
-static void i915_reset_device(struct drm_i915_private *dev_priv)
+static void i915_reset_device(struct drm_i915_private *dev_priv,
+			      const char *msg)
 {
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
 	struct kobject *kobj = &dev_priv->drm.primary->kdev->kobj;
 	char *error_event[] = { I915_ERROR_UEVENT "=1", NULL };
 	char *reset_event[] = { I915_RESET_UEVENT "=1", NULL };
@@ -2901,29 +2896,32 @@ static void i915_reset_device(struct drm_i915_private *dev_priv)
 	i915_wedge_on_timeout(&w, dev_priv, 5*HZ) {
 		intel_prepare_reset(dev_priv);
 
+		error->reason = msg;
+
 		/* Signal that locked waiters should reset the GPU */
-		set_bit(I915_RESET_HANDOFF, &dev_priv->gpu_error.flags);
-		wake_up_all(&dev_priv->gpu_error.wait_queue);
+		set_bit(I915_RESET_HANDOFF, &error->flags);
+		wake_up_all(&error->wait_queue);
 
 		/* Wait for anyone holding the lock to wakeup, without
 		 * blocking indefinitely on struct_mutex.
 		 */
 		do {
 			if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
-				i915_reset(dev_priv, 0);
+				i915_reset(dev_priv);
 				mutex_unlock(&dev_priv->drm.struct_mutex);
 			}
-		} while (wait_on_bit_timeout(&dev_priv->gpu_error.flags,
+		} while (wait_on_bit_timeout(&error->flags,
 					     I915_RESET_HANDOFF,
 					     TASK_UNINTERRUPTIBLE,
 					     1));
 
+		error->reason = NULL;
+
 		intel_finish_reset(dev_priv);
 	}
 
-	if (!test_bit(I915_WEDGED, &dev_priv->gpu_error.flags))
-		kobject_uevent_env(kobj,
-				   KOBJ_CHANGE, reset_done_event);
+	if (!test_bit(I915_WEDGED, &error->flags))
+		kobject_uevent_env(kobj, KOBJ_CHANGE, reset_done_event);
 }
 
 static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
@@ -2955,6 +2953,7 @@ static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
  * i915_handle_error - handle a gpu error
  * @dev_priv: i915 device private
  * @engine_mask: mask representing engines that are hung
+ * @flags: control flags
  * @fmt: Error message format string
  *
  * Do some basic checking of register state at error time and
@@ -2965,16 +2964,23 @@ static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
  */
 void i915_handle_error(struct drm_i915_private *dev_priv,
 		       u32 engine_mask,
+		       unsigned long flags,
 		       const char *fmt, ...)
 {
 	struct intel_engine_cs *engine;
 	unsigned int tmp;
-	va_list args;
 	char error_msg[80];
+	char *msg = NULL;
 
-	va_start(args, fmt);
-	vscnprintf(error_msg, sizeof(error_msg), fmt, args);
-	va_end(args);
+	if (fmt) {
+		va_list args;
+
+		va_start(args, fmt);
+		vscnprintf(error_msg, sizeof(error_msg), fmt, args);
+		va_end(args);
+
+		msg = error_msg;
+	}
 
 	/*
 	 * In most cases it's guaranteed that we get here with an RPM
@@ -2986,8 +2992,11 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	intel_runtime_pm_get(dev_priv);
 
 	engine_mask &= INTEL_INFO(dev_priv)->ring_mask;
-	i915_capture_error_state(dev_priv, engine_mask, error_msg);
-	i915_clear_error_registers(dev_priv);
+
+	if (flags & I915_ERROR_CAPTURE) {
+		i915_capture_error_state(dev_priv, engine_mask, msg);
+		i915_clear_error_registers(dev_priv);
+	}
 
 	/*
 	 * Try engine reset when available. We fall back to full reset if
@@ -3000,7 +3009,7 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 					     &dev_priv->gpu_error.flags))
 				continue;
 
-			if (i915_reset_engine(engine, 0) == 0)
+			if (i915_reset_engine(engine, msg) == 0)
 				engine_mask &= ~intel_engine_flag(engine);
 
 			clear_bit(I915_RESET_ENGINE + engine->id,
@@ -3030,7 +3039,7 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 				    TASK_UNINTERRUPTIBLE);
 	}
 
-	i915_reset_device(dev_priv);
+	i915_reset_device(dev_priv, msg);
 
 	for_each_engine(engine, dev_priv, tmp) {
 		clear_bit(I915_RESET_ENGINE + engine->id,

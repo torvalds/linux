@@ -433,7 +433,7 @@ static int igt_global_reset(void *arg)
 	mutex_lock(&i915->drm.struct_mutex);
 	reset_count = i915_reset_count(&i915->gpu_error);
 
-	i915_reset(i915, I915_RESET_QUIET);
+	i915_reset(i915);
 
 	if (i915_reset_count(&i915->gpu_error) == reset_count) {
 		pr_err("No GPU reset recorded!\n");
@@ -518,7 +518,7 @@ static int __igt_reset_engine(struct drm_i915_private *i915, bool active)
 			engine->hangcheck.seqno =
 				intel_engine_get_seqno(engine);
 
-			err = i915_reset_engine(engine, I915_RESET_QUIET);
+			err = i915_reset_engine(engine, NULL);
 			if (err) {
 				pr_err("i915_reset_engine failed\n");
 				break;
@@ -725,7 +725,7 @@ static int __igt_reset_engine_others(struct drm_i915_private *i915,
 			engine->hangcheck.seqno =
 				intel_engine_get_seqno(engine);
 
-			err = i915_reset_engine(engine, I915_RESET_QUIET);
+			err = i915_reset_engine(engine, NULL);
 			if (err) {
 				pr_err("i915_reset_engine(%s:%s) failed, err=%d\n",
 				       engine->name, active ? "active" : "idle", err);
@@ -865,7 +865,6 @@ static int igt_wait_reset(void *arg)
 		       __func__, rq->fence.seqno, hws_seqno(&h, rq));
 		intel_engine_dump(rq->engine, &p, "%s\n", rq->engine->name);
 
-		i915_reset(i915, 0);
 		i915_gem_set_wedged(i915);
 
 		err = -EIO;
@@ -962,7 +961,6 @@ static int igt_reset_queue(void *arg)
 				i915_request_put(rq);
 				i915_request_put(prev);
 
-				i915_reset(i915, 0);
 				i915_gem_set_wedged(i915);
 
 				err = -EIO;
@@ -971,7 +969,7 @@ static int igt_reset_queue(void *arg)
 
 			reset_count = fake_hangcheck(prev);
 
-			i915_reset(i915, I915_RESET_QUIET);
+			i915_reset(i915);
 
 			GEM_BUG_ON(test_bit(I915_RESET_HANDOFF,
 					    &i915->gpu_error.flags));
@@ -1069,7 +1067,6 @@ static int igt_handle_error(void *arg)
 		       __func__, rq->fence.seqno, hws_seqno(&h, rq));
 		intel_engine_dump(rq->engine, &p, "%s\n", rq->engine->name);
 
-		i915_reset(i915, 0);
 		i915_gem_set_wedged(i915);
 
 		err = -EIO;
@@ -1084,7 +1081,7 @@ static int igt_handle_error(void *arg)
 	engine->hangcheck.stalled = true;
 	engine->hangcheck.seqno = intel_engine_get_seqno(engine);
 
-	i915_handle_error(i915, intel_engine_flag(engine), "%s", __func__);
+	i915_handle_error(i915, intel_engine_flag(engine), 0, NULL);
 
 	xchg(&i915->gpu_error.first_error, error);
 

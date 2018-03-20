@@ -2700,10 +2700,8 @@ extern void i915_driver_unload(struct drm_device *dev);
 extern int intel_gpu_reset(struct drm_i915_private *dev_priv, u32 engine_mask);
 extern bool intel_has_gpu_reset(struct drm_i915_private *dev_priv);
 
-#define I915_RESET_QUIET BIT(0)
-extern void i915_reset(struct drm_i915_private *i915, unsigned int flags);
-extern int i915_reset_engine(struct intel_engine_cs *engine,
-			     unsigned int flags);
+extern void i915_reset(struct drm_i915_private *i915);
+extern int i915_reset_engine(struct intel_engine_cs *engine, const char *msg);
 
 extern bool intel_has_reset_engine(struct drm_i915_private *dev_priv);
 extern int intel_reset_guc(struct drm_i915_private *dev_priv);
@@ -2751,10 +2749,12 @@ static inline void i915_queue_hangcheck(struct drm_i915_private *dev_priv)
 			   &dev_priv->gpu_error.hangcheck_work, delay);
 }
 
-__printf(3, 4)
+__printf(4, 5)
 void i915_handle_error(struct drm_i915_private *dev_priv,
 		       u32 engine_mask,
+		       unsigned long flags,
 		       const char *fmt, ...);
+#define I915_ERROR_CAPTURE BIT(0)
 
 extern void intel_irq_init(struct drm_i915_private *dev_priv);
 extern void intel_irq_fini(struct drm_i915_private *dev_priv);
