@@ -114,7 +114,7 @@ enum intel_platform {
 	func(has_ipc);
 
 #define GEN_MAX_SLICES		(6) /* CNL upper bound */
-#define GEN_MAX_SUBSLICES	(7)
+#define GEN_MAX_SUBSLICES	(8) /* ICL upper bound */
 
 struct sseu_dev_info {
 	u8 slice_mask;
