@@ -967,7 +967,7 @@ static int rsi_probe(struct sdio_func *pfunction,
 				    rsi_sdio_rx_thread, "SDIO-RX-Thread");
 	if (status) {
 		rsi_dbg(ERR_ZONE, "%s: Unable to init rx thrd\n", __func__);
-		goto fail_free_adapter;
+		goto fail_kill_thread;
 	}
 	skb_queue_head_init(&sdev->rx_q.head);
 	sdev->rx_q.num_rx_pkts = 0;
@@ -977,7 +977,7 @@ static int rsi_probe(struct sdio_func *pfunction,
 		rsi_dbg(ERR_ZONE, "%s: Failed to request IRQ\n", __func__);
 		sdio_release_host(pfunction);
 		status = -EIO;
-		goto fail_kill_thread;
+		goto fail_claim_irq;
 	}
 	sdio_release_host(pfunction);
 	rsi_dbg(INIT_ZONE, "%s: Registered Interrupt handler\n", __func__);
@@ -985,7 +985,7 @@ static int rsi_probe(struct sdio_func *pfunction,
 	if (rsi_hal_device_init(adapter)) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in device init\n", __func__);
 		status = -EINVAL;
-		goto fail_kill_thread;
+		goto fail_dev_init;
 	}
 	rsi_dbg(INFO_ZONE, "===> RSI Device Init Done <===\n");
 
@@ -1002,10 +1002,13 @@ static int rsi_probe(struct sdio_func *pfunction,
 fail_dev_init:
 	sdio_claim_host(pfunction);
 	sdio_release_irq(pfunction);
+	sdio_release_host(pfunction);
+fail_claim_irq:
+	rsi_kill_thread(&sdev->rx_thread);
+fail_kill_thread:
+	sdio_claim_host(pfunction);
 	sdio_disable_func(pfunction);
 	sdio_release_host(pfunction);
-fail_kill_thread:
-	rsi_kill_thread(&sdev->rx_thread);
 fail_free_adapter:
 	rsi_91x_deinit(adapter);
 	rsi_dbg(ERR_ZONE, "%s: Failed in probe...Exiting\n", __func__);
