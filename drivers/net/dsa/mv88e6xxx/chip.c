@@ -4175,7 +4175,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	}
 
 	/* Has to be performed before the MDIO bus is created, because
-	 * the PHYs will link there interrupts to these interrupt
+	 * the PHYs will link their interrupts to these interrupt
 	 * controllers
 	 */
 	mutex_lock(&chip->reg_lock);
