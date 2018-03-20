@@ -380,7 +380,6 @@ static const struct attribute_group mt_attribute_group = {
 
 static void mt_get_feature(struct hid_device *hdev, struct hid_report *report)
 {
-	struct mt_device *td = hid_get_drvdata(hdev);
 	int ret, size = hid_report_len(report);
 	u8 *buf;
 
@@ -388,7 +387,7 @@ static void mt_get_feature(struct hid_device *hdev, struct hid_report *report)
 	 * Do not fetch the feature report if the device has been explicitly
 	 * marked as non-capable.
 	 */
-	if (td->initial_quirks & HID_QUIRK_NO_INIT_REPORTS)
+	if (hdev->quirks & HID_QUIRK_NO_INIT_REPORTS)
 		return;
 
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
@@ -1469,21 +1468,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 * device.
 	 */
 	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
-
-	/*
-	 * Some multitouch screens do not like to be polled for input
-	 * reports. Fortunately, the Win8 spec says that all touches
-	 * should be sent during each report, making the initialization
-	 * of input reports unnecessary. For Win7 devices, well, let's hope
-	 * they will still be happy (this is only be a problem if a touch
-	 * was already there while probing the device).
-	 *
-	 * In addition some touchpads do not behave well if we read
-	 * all feature reports from them. Instead we prevent
-	 * initial report fetching and then selectively fetch each
-	 * report we are interested in.
-	 */
-	hdev->quirks |= HID_QUIRK_NO_INIT_REPORTS;
 
 	timer_setup(&td->release_timer, mt_expired_timeout, 0);
 
