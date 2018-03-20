@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -245,14 +247,18 @@ void iwl_mvm_set_tx_cmd(struct iwl_mvm *mvm, struct sk_buff *skb,
 		iwl_mvm_bar_check_trigger(mvm, bar->ra, tx_cmd->tid_tspec,
 					  ssn);
 	} else {
-		tx_cmd->tid_tspec = IWL_TID_NON_QOS;
+		if (ieee80211_is_data(fc))
+			tx_cmd->tid_tspec = IWL_TID_NON_QOS;
+		else
+			tx_cmd->tid_tspec = IWL_MAX_TID_COUNT;
+
 		if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
 			tx_flags |= TX_CMD_FLG_SEQ_CTL;
 		else
 			tx_flags &= ~TX_CMD_FLG_SEQ_CTL;
 	}
 
-	/* Default to 0 (BE) when tid_spec is set to IWL_TID_NON_QOS */
+	/* Default to 0 (BE) when tid_spec is set to IWL_MAX_TID_COUNT */
 	if (tx_cmd->tid_tspec < IWL_MAX_TID_COUNT)
 		ac = tid_to_mac80211_ac[tx_cmd->tid_tspec];
 	else
@@ -1049,6 +1055,8 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			/* update the tx_cmd hdr as it was already copied */
 			tx_cmd->hdr->seq_ctrl = hdr->seq_ctrl;
 		}
+	} else if (ieee80211_is_data(fc) && !ieee80211_is_data_qos(fc)) {
+		tid = IWL_TID_NON_QOS;
 	}
 
 	txq_id = mvmsta->tid_data[tid].txq_id;
@@ -1525,7 +1533,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		iwl_mvm_tx_airtime(mvm, mvmsta,
 				   le16_to_cpu(tx_resp->wireless_media_time));
 
-		if (tid != IWL_TID_NON_QOS && tid != IWL_MGMT_TID) {
+		if (sta->wme && tid != IWL_MGMT_TID) {
 			struct iwl_mvm_tid_data *tid_data =
 				&mvmsta->tid_data[tid];
 			bool send_eosp_ndp = false;
@@ -1645,12 +1653,10 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	struct iwl_mvm_sta *mvmsta;
 	int queue = SEQ_TO_QUEUE(sequence);
+	struct ieee80211_sta *sta;
 
 	if (WARN_ON_ONCE(queue < IWL_MVM_DQA_MIN_DATA_QUEUE &&
 			 (queue != IWL_MVM_DQA_BSS_CLIENT_QUEUE)))
-		return;
-
-	if (WARN_ON_ONCE(tid == IWL_TID_NON_QOS))
 		return;
 
 	iwl_mvm_rx_tx_cmd_agg_dbg(mvm, pkt);
@@ -1658,6 +1664,12 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 	rcu_read_lock();
 
 	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, sta_id);
+
+	sta = rcu_dereference(mvm->fw_id_to_mac_id[sta_id]);
+	if (WARN_ON_ONCE(!sta || !sta->wme)) {
+		rcu_read_unlock();
+		return;
+	}
 
 	if (!WARN_ON_ONCE(!mvmsta)) {
 		mvmsta->tid_data[tid].rate_n_flags =

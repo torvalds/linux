@@ -186,7 +186,7 @@ enum iwl_tx_cmd_sec_ctrl {
 /*
  * TID for non QoS frames - to be written in tid_tspec
  */
-#define IWL_TID_NON_QOS	IWL_MAX_TID_COUNT
+#define IWL_TID_NON_QOS	0
 
 /*
  * Limits on the retransmissions - to be written in {data,rts}_retry_limit
