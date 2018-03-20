@@ -4112,6 +4112,7 @@ static int ip6_route_multipath_add(struct fib6_config *cfg,
 				r_cfg.fc_encap_type = nla_get_u16(nla);
 		}
 
+		r_cfg.fc_flags |= (rtnh->rtnh_flags & RTNH_F_ONLINK);
 		rt = ip6_route_info_create(&r_cfg, extack);
 		if (IS_ERR(rt)) {
 			err = PTR_ERR(rt);
