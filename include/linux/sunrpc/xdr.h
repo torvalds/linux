@@ -319,6 +319,31 @@ xdr_stream_encode_u64(struct xdr_stream *xdr, __u64 n)
 }
 
 /**
+ * xdr_stream_encode_opaque_inline - Encode opaque xdr data
+ * @xdr: pointer to xdr_stream
+ * @ptr: pointer to void pointer
+ * @len: size of object
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_encode_opaque_inline(struct xdr_stream *xdr, void **ptr, size_t len)
+{
+	size_t count = sizeof(__u32) + xdr_align_size(len);
+	__be32 *p = xdr_reserve_space(xdr, count);
+
+	if (unlikely(!p)) {
+		*ptr = NULL;
+		return -EMSGSIZE;
+	}
+	xdr_encode_opaque(p, NULL, len);
+	*ptr = ++p;
+	return count;
+}
+
+/**
  * xdr_stream_encode_opaque_fixed - Encode fixed length opaque xdr data
  * @xdr: pointer to xdr_stream
  * @ptr: pointer to opaque data object
