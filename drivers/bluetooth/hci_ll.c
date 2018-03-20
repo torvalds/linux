@@ -82,10 +82,6 @@ enum hcill_states_e {
 	HCILL_AWAKE_TO_ASLEEP
 };
 
-struct hcill_cmd {
-	u8 cmd;
-} __packed;
-
 struct ll_device {
 	struct hci_uart hu;
 	struct serdev_device *serdev;
@@ -113,7 +109,6 @@ static int send_hcill_cmd(u8 cmd, struct hci_uart *hu)
 	int err = 0;
 	struct sk_buff *skb = NULL;
 	struct ll_struct *ll = hu->priv;
-	struct hcill_cmd *hcill_packet;
 
 	BT_DBG("hu %p cmd 0x%x", hu, cmd);
 
@@ -126,8 +121,7 @@ static int send_hcill_cmd(u8 cmd, struct hci_uart *hu)
 	}
 
 	/* prepare packet */
-	hcill_packet = skb_put(skb, 1);
-	hcill_packet->cmd = cmd;
+	skb_put_u8(skb, cmd);
 
 	/* send packet */
 	skb_queue_tail(&ll->txq, skb);
