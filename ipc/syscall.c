@@ -70,7 +70,8 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 	case MSGGET:
 		return ksys_msgget((key_t) first, second);
 	case MSGCTL:
-		return sys_msgctl(first, second, (struct msqid_ds __user *)ptr);
+		return ksys_msgctl(first, second,
+				   (struct msqid_ds __user *)ptr);
 
 	case SHMAT:
 		switch (version) {
@@ -163,7 +164,7 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 	case MSGGET:
 		return ksys_msgget(first, second);
 	case MSGCTL:
-		return compat_sys_msgctl(first, second, compat_ptr(ptr));
+		return compat_ksys_msgctl(first, second, compat_ptr(ptr));
 
 	case SHMAT: {
 		int err;
