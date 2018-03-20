@@ -42,7 +42,7 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 			return -EINVAL;
 		if (get_user(arg, (unsigned long __user *) ptr))
 			return -EFAULT;
-		return sys_semctl(first, second, third, arg);
+		return ksys_semctl(first, second, third, arg);
 	}
 
 	case MSGSND:
@@ -138,7 +138,7 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 			return -EINVAL;
 		if (get_user(pad, (u32 __user *) compat_ptr(ptr)))
 			return -EFAULT;
-		return compat_sys_semctl(first, second, third, pad);
+		return compat_ksys_semctl(first, second, third, pad);
 
 	case MSGSND:
 		return compat_sys_msgsnd(first, ptr, second, third);

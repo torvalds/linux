@@ -241,12 +241,14 @@ long ksys_semtimedop(int semid, struct sembuf __user *tsops,
 		     unsigned int nsops,
 		     const struct timespec __user *timeout);
 long ksys_semget(key_t key, int nsems, int semflg);
+long ksys_semctl(int semid, int semnum, int cmd, unsigned long arg);
 
 /* for CONFIG_ARCH_WANT_OLD_COMPAT_IPC */
 #ifdef CONFIG_COMPAT
 long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
 			    unsigned int nsops,
 			    const struct compat_timespec __user *timeout);
+long compat_ksys_semctl(int semid, int semnum, int cmd, int arg);
 #endif /* CONFIG_COMPAT */
 
 #endif
