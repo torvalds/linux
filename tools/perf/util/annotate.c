@@ -202,9 +202,10 @@ bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2)
 	return arch->ins_is_fused(arch, ins1, ins2);
 }
 
-static int call__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
+static int call__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms)
 {
 	char *endptr, *tok, *name;
+	struct map *map = ms->map;
 	struct addr_map_symbol target = {
 		.map = map,
 	};
@@ -272,7 +273,7 @@ bool ins__is_call(const struct ins *ins)
 	return ins->ops == &call_ops || ins->ops == &s390_call_ops;
 }
 
-static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map *map __maybe_unused)
+static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map_symbol *ms __maybe_unused)
 {
 	const char *s = strchr(ops->raw, '+');
 	const char *c = strchr(ops->raw, ',');
@@ -365,7 +366,7 @@ static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
 	return 0;
 }
 
-static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map *map)
+static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms)
 {
 	ops->locked.ops = zalloc(sizeof(*ops->locked.ops));
 	if (ops->locked.ops == NULL)
@@ -380,7 +381,7 @@ static int lock__parse(struct arch *arch, struct ins_operands *ops, struct map *
 		goto out_free_ops;
 
 	if (ops->locked.ins.ops->parse &&
-	    ops->locked.ins.ops->parse(arch, ops->locked.ops, map) < 0)
+	    ops->locked.ins.ops->parse(arch, ops->locked.ops, ms) < 0)
 		goto out_free_ops;
 
 	return 0;
@@ -423,7 +424,7 @@ static struct ins_ops lock_ops = {
 	.scnprintf = lock__scnprintf,
 };
 
-static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map *map __maybe_unused)
+static int mov__parse(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms __maybe_unused)
 {
 	char *s = strchr(ops->raw, ','), *target, *comment, prev;
 
@@ -484,7 +485,7 @@ static struct ins_ops mov_ops = {
 	.scnprintf = mov__scnprintf,
 };
 
-static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map *map __maybe_unused)
+static int dec__parse(struct arch *arch __maybe_unused, struct ins_operands *ops, struct map_symbol *ms __maybe_unused)
 {
 	char *target, *comment, *s, prev;
 
@@ -923,14 +924,14 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, struct perf_sample *samp
 	return symbol__inc_addr_samples(he->ms.sym, he->ms.map, evidx, ip, sample);
 }
 
-static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, struct map *map)
+static void disasm_line__init_ins(struct disasm_line *dl, struct arch *arch, struct map_symbol *ms)
 {
 	dl->ins.ops = ins__find(arch, dl->ins.name);
 
 	if (!dl->ins.ops)
 		return;
 
-	if (dl->ins.ops->parse && dl->ins.ops->parse(arch, &dl->ops, map) < 0)
+	if (dl->ins.ops->parse && dl->ins.ops->parse(arch, &dl->ops, ms) < 0)
 		dl->ins.ops = NULL;
 }
 
@@ -967,7 +968,7 @@ out_free_name:
 struct annotate_args {
 	size_t			 privsize;
 	struct arch		*arch;
-	struct map		*map;
+	struct map_symbol	 ms;
 	struct perf_evsel	*evsel;
 	s64			 offset;
 	char			*line;
@@ -1049,7 +1050,7 @@ static struct disasm_line *disasm_line__new(struct annotate_args *args)
 			if (disasm_line__parse(dl->al.line, &dl->ins.name, &dl->ops.raw) < 0)
 				goto out_free_line;
 
-			disasm_line__init_ins(dl, args->arch, args->map);
+			disasm_line__init_ins(dl, args->arch, &args->ms);
 		}
 	}
 
@@ -1307,7 +1308,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 				      struct annotate_args *args,
 				      int *line_nr)
 {
-	struct map *map = args->map;
+	struct map *map = args->ms.map;
 	struct annotation *notes = symbol__annotation(sym);
 	struct disasm_line *dl;
 	char *line = NULL, *parsed_line, *tmp, *tmp2;
@@ -1354,6 +1355,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 	args->offset  = offset;
 	args->line    = parsed_line;
 	args->line_nr = *line_nr;
+	args->ms.sym  = sym;
 
 	dl = disasm_line__new(args);
 	free(line);
@@ -1506,7 +1508,7 @@ fallback:
 
 static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 {
-	struct map *map = args->map;
+	struct map *map = args->ms.map;
 	struct dso *dso = map->dso;
 	char *command;
 	FILE *file;
@@ -1705,7 +1707,6 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 {
 	struct annotate_args args = {
 		.privsize	= privsize,
-		.map		= map,
 		.evsel		= evsel,
 	};
 	struct perf_env *env = perf_evsel__env(evsel);
@@ -1730,6 +1731,9 @@ int symbol__annotate(struct symbol *sym, struct map *map,
 			return err;
 		}
 	}
+
+	args.ms.map = map;
+	args.ms.sym = sym;
 
 	return symbol__disassemble(sym, &args);
 }
