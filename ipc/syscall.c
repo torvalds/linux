@@ -90,7 +90,7 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 			return -EINVAL;
 		}
 	case SHMDT:
-		return sys_shmdt((char __user *)ptr);
+		return ksys_shmdt((char __user *)ptr);
 	case SHMGET:
 		return ksys_shmget(first, second, third);
 	case SHMCTL:
@@ -178,7 +178,7 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 		return put_user(raddr, (compat_ulong_t __user *)compat_ptr(third));
 	}
 	case SHMDT:
-		return sys_shmdt(compat_ptr(ptr));
+		return ksys_shmdt(compat_ptr(ptr));
 	case SHMGET:
 		return ksys_shmget(first, (unsigned int)second, third);
 	case SHMCTL:

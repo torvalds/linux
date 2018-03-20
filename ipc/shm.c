@@ -1481,7 +1481,7 @@ COMPAT_SYSCALL_DEFINE3(shmat, int, shmid, compat_uptr_t, shmaddr, int, shmflg)
  * detach and kill segment if marked destroyed.
  * The work is done in shm_close.
  */
-SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
+long ksys_shmdt(char __user *shmaddr)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
@@ -1586,6 +1586,11 @@ SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
 
 	up_write(&mm->mmap_sem);
 	return retval;
+}
+
+SYSCALL_DEFINE1(shmdt, char __user *, shmaddr)
+{
+	return ksys_shmdt(shmaddr);
 }
 
 #ifdef CONFIG_PROC_FS
