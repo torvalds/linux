@@ -613,11 +613,6 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		goto out;
 	}
 
-	/*
-	 * Return any delegations if we're going to change ACLs
-	 */
-	if ((attr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0)
-		NFS_PROTO(inode)->return_delegation(inode);
 	error = NFS_PROTO(inode)->setattr(dentry, fattr, attr);
 	if (error == 0)
 		error = nfs_refresh_inode(inode, fattr);

@@ -3875,6 +3875,10 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	if (IS_ERR(label))
 		return PTR_ERR(label);
 
+	/* Return any delegations if we're going to change ACLs */
+	if ((sattr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0)
+		nfs4_inode_return_delegation(inode);
+
 	status = nfs4_do_setattr(inode, cred, fattr, sattr, ctx, NULL, label);
 	if (status == 0) {
 		nfs_setattr_update_inode(inode, sattr, fattr);
