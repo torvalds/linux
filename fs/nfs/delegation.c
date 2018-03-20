@@ -19,6 +19,7 @@
 #include <linux/nfs_xdr.h>
 
 #include "nfs4_fs.h"
+#include "nfs4session.h"
 #include "delegation.h"
 #include "internal.h"
 #include "nfs4trace.h"
@@ -545,6 +546,22 @@ int nfs4_inode_return_delegation(struct inode *inode)
 	if (delegation != NULL)
 		err = nfs_end_delegation_return(inode, delegation, 1);
 	return err;
+}
+
+/**
+ * nfs4_inode_make_writeable
+ * @inode: pointer to inode
+ *
+ * Make the inode writeable by returning the delegation if necessary
+ *
+ * Returns zero on success, or a negative errno value.
+ */
+int nfs4_inode_make_writeable(struct inode *inode)
+{
+	if (!nfs4_has_session(NFS_SERVER(inode)->nfs_client) ||
+	    !nfs4_check_delegation(inode, FMODE_WRITE))
+		return nfs4_inode_return_delegation(inode);
+	return 0;
 }
 
 static void nfs_mark_return_if_closed_delegation(struct nfs_server *server,

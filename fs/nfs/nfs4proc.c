@@ -3877,7 +3877,7 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 
 	/* Return any delegations if we're going to change ACLs */
 	if ((sattr->ia_valid & (ATTR_MODE|ATTR_UID|ATTR_GID)) != 0)
-		nfs4_inode_return_delegation(inode);
+		nfs4_inode_make_writeable(inode);
 
 	status = nfs4_do_setattr(inode, cred, fattr, sattr, ctx, NULL, label);
 	if (status == 0) {
@@ -4210,8 +4210,12 @@ static int nfs4_proc_remove(struct inode *dir, struct dentry *dentry)
 	struct inode *inode = d_inode(dentry);
 	int err;
 
-	if (inode)
-		nfs4_inode_return_delegation(inode);
+	if (inode) {
+		if (inode->i_nlink == 1)
+			nfs4_inode_return_delegation(inode);
+		else
+			nfs4_inode_make_writeable(inode);
+	}
 	do {
 		err = _nfs4_proc_remove(dir, &dentry->d_name);
 		trace_nfs4_remove(dir, &dentry->d_name, err);
@@ -4284,7 +4288,7 @@ static void nfs4_proc_rename_setup(struct rpc_message *msg,
 	struct inode *new_inode = d_inode(new_dentry);
 
 	if (old_inode)
-		nfs4_inode_return_delegation(old_inode);
+		nfs4_inode_make_writeable(old_inode);
 	if (new_inode)
 		nfs4_inode_return_delegation(new_inode);
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_RENAME];
@@ -4350,7 +4354,7 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 	}
 	arg.bitmask = nfs4_bitmask(server, res.label);
 
-	nfs4_inode_return_delegation(inode);
+	nfs4_inode_make_writeable(inode);
 
 	status = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 	if (!status) {
@@ -5345,7 +5349,7 @@ static int __nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t bufl
 	i = buf_to_pages_noslab(buf, buflen, arg.acl_pages);
 	if (i < 0)
 		return i;
-	nfs4_inode_return_delegation(inode);
+	nfs4_inode_make_writeable(inode);
 	ret = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 
 	/*
