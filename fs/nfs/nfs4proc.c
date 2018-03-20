@@ -4318,6 +4318,8 @@ static int _nfs4_proc_link(struct inode *inode, struct inode *dir, const struct 
 	}
 	arg.bitmask = nfs4_bitmask(server, res.label);
 
+	nfs4_inode_return_delegation(inode);
+
 	status = nfs4_call_sync(server->client, server, &msg, &arg.seq_args, &res.seq_res, 1);
 	if (!status) {
 		update_changeattr(dir, &res.cinfo, res.fattr->time_start);
