@@ -2009,9 +2009,9 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.coupled_pm = false,
 	.has_nvdisplay = false,
 	.num_primary_formats = ARRAY_SIZE(tegra124_primary_formats),
-	.primary_formats = tegra114_primary_formats,
+	.primary_formats = tegra124_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra124_overlay_formats),
-	.overlay_formats = tegra114_overlay_formats,
+	.overlay_formats = tegra124_overlay_formats,
 };
 
 static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
