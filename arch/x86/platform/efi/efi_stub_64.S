@@ -12,6 +12,7 @@
 #include <asm/msr.h>
 #include <asm/processor-flags.h>
 #include <asm/page_types.h>
+#include <asm/nospec-branch.h>
 
 #define SAVE_XMM			\
 	mov %rsp, %rax;			\
@@ -50,6 +51,7 @@ ENTRY(efi_call)
 	mov %r8, %r9
 	mov %rcx, %r8
 	mov %rsi, %rcx
+	ANNOTATE_RETPOLINE_SAFE /* FRBS */
 	call *%rdi
 	addq $48, %rsp
 	RESTORE_XMM
