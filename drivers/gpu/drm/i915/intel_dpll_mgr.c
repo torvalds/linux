@@ -2433,8 +2433,6 @@ void intel_shared_dpll_init(struct drm_device *dev)
 	for (i = 0; dpll_info[i].id >= 0; i++) {
 		WARN_ON(i != dpll_info[i].id);
 		dev_priv->shared_dplls[i].info = &dpll_info[i];
-
-		dev_priv->shared_dplls[i].flags = dpll_info[i].flags;
 	}
 
 	dev_priv->dpll_mgr = dpll_mgr;

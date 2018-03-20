@@ -222,6 +222,14 @@ struct dpll_info {
 	 * @funcs: platform specific hooks
 	 */
 	const struct intel_shared_dpll_funcs *funcs;
+#define INTEL_DPLL_ALWAYS_ON	(1 << 0)
+	/**
+	 * @flags:
+	 *
+	 * INTEL_DPLL_ALWAYS_ON
+	 *     Inform the state checker that the DPLL is kept enabled even if
+	 *     not in use by any CRTC.
+	 */
 	uint32_t flags;
 };
 
@@ -251,16 +259,6 @@ struct intel_shared_dpll {
 	 * @info: platform specific info
 	 */
 	const struct dpll_info *info;
-
-#define INTEL_DPLL_ALWAYS_ON	(1 << 0)
-	/**
-	 * @flags:
-	 *
-	 * INTEL_DPLL_ALWAYS_ON
-	 *     Inform the state checker that the DPLL is kept enabled even if
-	 *     not in use by any CRTC.
-	 */
-	uint32_t flags;
 };
 
 #define SKL_DPLL0 0

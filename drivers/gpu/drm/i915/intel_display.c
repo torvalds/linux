@@ -11657,7 +11657,7 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 
 	active = pll->info->funcs->get_hw_state(dev_priv, pll, &dpll_hw_state);
 
-	if (!(pll->flags & INTEL_DPLL_ALWAYS_ON)) {
+	if (!(pll->info->flags & INTEL_DPLL_ALWAYS_ON)) {
 		I915_STATE_WARN(!pll->on && pll->active_mask,
 		     "pll in active use but not on in sw tracking\n");
 		I915_STATE_WARN(pll->on && !pll->active_mask,
