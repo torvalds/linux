@@ -9918,9 +9918,39 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	return 0;
 }
 
+/* link_block_group will queue up kobjects to add when we're reclaim-safe */
+void btrfs_add_raid_kobjects(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_space_info *space_info;
+	struct raid_kobject *rkobj;
+	LIST_HEAD(list);
+	int index;
+	int ret = 0;
+
+	spin_lock(&fs_info->pending_raid_kobjs_lock);
+	list_splice_init(&fs_info->pending_raid_kobjs, &list);
+	spin_unlock(&fs_info->pending_raid_kobjs_lock);
+
+	list_for_each_entry(rkobj, &list, list) {
+		space_info = __find_space_info(fs_info, rkobj->flags);
+		index = btrfs_bg_flags_to_raid_index(rkobj->flags);
+
+		ret = kobject_add(&rkobj->kobj, &space_info->kobj,
+				  "%s", get_raid_name(index));
+		if (ret) {
+			kobject_put(&rkobj->kobj);
+			break;
+		}
+	}
+	if (ret)
+		btrfs_warn(fs_info,
+			   "failed to add kobject for block cache, ignoring");
+}
+
 static void link_block_group(struct btrfs_block_group_cache *cache)
 {
 	struct btrfs_space_info *space_info = cache->space_info;
+	struct btrfs_fs_info *fs_info = cache->fs_info;
 	int index = btrfs_bg_flags_to_raid_index(cache->flags);
 	bool first = false;
 
@@ -9931,27 +9961,20 @@ static void link_block_group(struct btrfs_block_group_cache *cache)
 	up_write(&space_info->groups_sem);
 
 	if (first) {
-		struct raid_kobject *rkobj;
-		int ret;
-
-		rkobj = kzalloc(sizeof(*rkobj), GFP_NOFS);
-		if (!rkobj)
-			goto out_err;
-		rkobj->raid_type = index;
-		kobject_init(&rkobj->kobj, &btrfs_raid_ktype);
-		ret = kobject_add(&rkobj->kobj, &space_info->kobj,
-				  "%s", get_raid_name(index));
-		if (ret) {
-			kobject_put(&rkobj->kobj);
-			goto out_err;
+		struct raid_kobject *rkobj = kzalloc(sizeof(*rkobj), GFP_NOFS);
+		if (!rkobj) {
+			btrfs_warn(cache->fs_info,
+				"couldn't alloc memory for raid level kobject");
+			return;
 		}
+		rkobj->flags = cache->flags;
+		kobject_init(&rkobj->kobj, &btrfs_raid_ktype);
+
+		spin_lock(&fs_info->pending_raid_kobjs_lock);
+		list_add_tail(&rkobj->list, &fs_info->pending_raid_kobjs);
+		spin_unlock(&fs_info->pending_raid_kobjs_lock);
 		space_info->block_group_kobjs[index] = &rkobj->kobj;
 	}
-
-	return;
-out_err:
-	btrfs_warn(cache->fs_info,
-		   "failed to add kobject for block cache, ignoring");
 }
 
 static struct btrfs_block_group_cache *
@@ -10167,6 +10190,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 			inc_block_group_ro(cache, 1);
 	}
 
+	btrfs_add_raid_kobjects(info);
 	init_global_block_rsv(info);
 	ret = 0;
 error:
