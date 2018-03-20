@@ -711,12 +711,13 @@ pi433_tx_thread(void *data)
 		while ((repetitions > 0) && (size > position)) {
 			if ((size - position) > device->free_in_fifo) {
 				/* msg to big for fifo - take a part */
-				int temp = device->free_in_fifo;
+				int write_size = device->free_in_fifo;
+
 				device->free_in_fifo = 0;
 				rf69_write_fifo(spi,
 						&device->buffer[position],
-						temp);
-				position += temp;
+						write_size);
+				position += write_size;
 			} else {
 				/* msg fits into fifo - take all */
 				device->free_in_fifo -= size;
