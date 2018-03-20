@@ -262,6 +262,7 @@ struct pvrdma_sq_wqe_hdr {
 			__u32 length;
 			__u32 access_flags;
 			__u32 rkey;
+			__u32 reserved;
 		} fast_reg;
 		struct {
 			__u32 remote_qpn;

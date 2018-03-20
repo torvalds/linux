@@ -78,12 +78,14 @@ struct rxe_send_wr {
 		struct {
 			__u64	remote_addr;
 			__u32	rkey;
+			__u32	reserved;
 		} rdma;
 		struct {
 			__u64	remote_addr;
 			__u64	compare_add;
 			__u64	swap;
 			__u32	rkey;
+			__u32	reserved;
 		} atomic;
 		struct {
 			__u32	remote_qpn;
