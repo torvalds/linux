@@ -1908,9 +1908,9 @@ struct intel_dpll_mgr {
 };
 
 static const struct dpll_info pch_plls[] = {
-	{ "PCH DPLL A", DPLL_ID_PCH_PLL_A, &ibx_pch_dpll_funcs, 0 },
-	{ "PCH DPLL B", DPLL_ID_PCH_PLL_B, &ibx_pch_dpll_funcs, 0 },
-	{ NULL, -1, NULL, 0 },
+	{ "PCH DPLL A", &ibx_pch_dpll_funcs, DPLL_ID_PCH_PLL_A, 0 },
+	{ "PCH DPLL B", &ibx_pch_dpll_funcs, DPLL_ID_PCH_PLL_B, 0 },
+	{ },
 };
 
 static const struct intel_dpll_mgr pch_pll_mgr = {
@@ -1920,13 +1920,13 @@ static const struct intel_dpll_mgr pch_pll_mgr = {
 };
 
 static const struct dpll_info hsw_plls[] = {
-	{ "WRPLL 1",    DPLL_ID_WRPLL1,     &hsw_ddi_wrpll_funcs, 0 },
-	{ "WRPLL 2",    DPLL_ID_WRPLL2,     &hsw_ddi_wrpll_funcs, 0 },
-	{ "SPLL",       DPLL_ID_SPLL,       &hsw_ddi_spll_funcs,  0 },
-	{ "LCPLL 810",  DPLL_ID_LCPLL_810,  &hsw_ddi_lcpll_funcs, INTEL_DPLL_ALWAYS_ON },
-	{ "LCPLL 1350", DPLL_ID_LCPLL_1350, &hsw_ddi_lcpll_funcs, INTEL_DPLL_ALWAYS_ON },
-	{ "LCPLL 2700", DPLL_ID_LCPLL_2700, &hsw_ddi_lcpll_funcs, INTEL_DPLL_ALWAYS_ON },
-	{ NULL, -1, NULL, },
+	{ "WRPLL 1",    &hsw_ddi_wrpll_funcs, DPLL_ID_WRPLL1,     0 },
+	{ "WRPLL 2",    &hsw_ddi_wrpll_funcs, DPLL_ID_WRPLL2,     0 },
+	{ "SPLL",       &hsw_ddi_spll_funcs,  DPLL_ID_SPLL,       0 },
+	{ "LCPLL 810",  &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_810,  INTEL_DPLL_ALWAYS_ON },
+	{ "LCPLL 1350", &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_1350, INTEL_DPLL_ALWAYS_ON },
+	{ "LCPLL 2700", &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_2700, INTEL_DPLL_ALWAYS_ON },
+	{ },
 };
 
 static const struct intel_dpll_mgr hsw_pll_mgr = {
@@ -1936,11 +1936,11 @@ static const struct intel_dpll_mgr hsw_pll_mgr = {
 };
 
 static const struct dpll_info skl_plls[] = {
-	{ "DPLL 0", DPLL_ID_SKL_DPLL0, &skl_ddi_dpll0_funcs, INTEL_DPLL_ALWAYS_ON },
-	{ "DPLL 1", DPLL_ID_SKL_DPLL1, &skl_ddi_pll_funcs,   0 },
-	{ "DPLL 2", DPLL_ID_SKL_DPLL2, &skl_ddi_pll_funcs,   0 },
-	{ "DPLL 3", DPLL_ID_SKL_DPLL3, &skl_ddi_pll_funcs,   0 },
-	{ NULL, -1, NULL, },
+	{ "DPLL 0", &skl_ddi_dpll0_funcs, DPLL_ID_SKL_DPLL0, INTEL_DPLL_ALWAYS_ON },
+	{ "DPLL 1", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL1, 0 },
+	{ "DPLL 2", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL2, 0 },
+	{ "DPLL 3", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL3, 0 },
+	{ },
 };
 
 static const struct intel_dpll_mgr skl_pll_mgr = {
@@ -1950,10 +1950,10 @@ static const struct intel_dpll_mgr skl_pll_mgr = {
 };
 
 static const struct dpll_info bxt_plls[] = {
-	{ "PORT PLL A", DPLL_ID_SKL_DPLL0, &bxt_ddi_pll_funcs, 0 },
-	{ "PORT PLL B", DPLL_ID_SKL_DPLL1, &bxt_ddi_pll_funcs, 0 },
-	{ "PORT PLL C", DPLL_ID_SKL_DPLL2, &bxt_ddi_pll_funcs, 0 },
-	{ NULL, -1, NULL, },
+	{ "PORT PLL A", &bxt_ddi_pll_funcs, DPLL_ID_SKL_DPLL0, 0 },
+	{ "PORT PLL B", &bxt_ddi_pll_funcs, DPLL_ID_SKL_DPLL1, 0 },
+	{ "PORT PLL C", &bxt_ddi_pll_funcs, DPLL_ID_SKL_DPLL2, 0 },
+	{ },
 };
 
 static const struct intel_dpll_mgr bxt_pll_mgr = {
@@ -2387,10 +2387,10 @@ static const struct intel_shared_dpll_funcs cnl_ddi_pll_funcs = {
 };
 
 static const struct dpll_info cnl_plls[] = {
-	{ "DPLL 0", DPLL_ID_SKL_DPLL0, &cnl_ddi_pll_funcs, 0 },
-	{ "DPLL 1", DPLL_ID_SKL_DPLL1, &cnl_ddi_pll_funcs, 0 },
-	{ "DPLL 2", DPLL_ID_SKL_DPLL2, &cnl_ddi_pll_funcs, 0 },
-	{ NULL, -1, NULL, },
+	{ "DPLL 0", &cnl_ddi_pll_funcs, DPLL_ID_SKL_DPLL0, 0 },
+	{ "DPLL 1", &cnl_ddi_pll_funcs, DPLL_ID_SKL_DPLL1, 0 },
+	{ "DPLL 2", &cnl_ddi_pll_funcs, DPLL_ID_SKL_DPLL2, 0 },
+	{ },
 };
 
 static const struct intel_dpll_mgr cnl_pll_mgr = {
@@ -2430,7 +2430,7 @@ void intel_shared_dpll_init(struct drm_device *dev)
 
 	dpll_info = dpll_mgr->dpll_info;
 
-	for (i = 0; dpll_info[i].id >= 0; i++) {
+	for (i = 0; dpll_info[i].name; i++) {
 		WARN_ON(i != dpll_info[i].id);
 		dev_priv->shared_dplls[i].info = &dpll_info[i];
 	}

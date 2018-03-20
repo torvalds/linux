@@ -213,15 +213,18 @@ struct dpll_info {
 	 * @name: DPLL name; used for logging
 	 */
 	const char *name;
-	/**
-	 * @id: unique indentifier for this DPLL; should match the index in the
-	 * dev_priv->shared_dplls array
-	 */
-	const int id;
+
 	/**
 	 * @funcs: platform specific hooks
 	 */
 	const struct intel_shared_dpll_funcs *funcs;
+
+	/**
+	 * @id: unique indentifier for this DPLL; should match the index in the
+	 * dev_priv->shared_dplls array
+	 */
+	enum intel_dpll_id id;
+
 #define INTEL_DPLL_ALWAYS_ON	(1 << 0)
 	/**
 	 * @flags:
