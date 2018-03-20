@@ -192,10 +192,6 @@ struct sme_info {
 	int event_buff[SME_EVENT_BUFF_SIZE];
 	unsigned int qhead;
 	unsigned int qtail;
-#ifdef DEBUG
-	/* for debug */
-	unsigned int max_event_count;
-#endif
 	spinlock_t sme_spin;
 	unsigned long sme_flag;
 };
