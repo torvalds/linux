@@ -270,10 +270,15 @@ struct rdma_ucm_event_resp {
 	__u32 id;
 	__u32 event;
 	__u32 status;
+	/*
+	 * NOTE: This union is not aligned to 8 bytes so none of the union
+	 * members may contain a u64 or anything with higher alignment than 4.
+	 */
 	union {
 		struct rdma_ucm_conn_param conn;
 		struct rdma_ucm_ud_param   ud;
 	} param;
+	__u32 reserved;
 };
 
 /* Option levels */
