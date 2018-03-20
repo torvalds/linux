@@ -147,6 +147,8 @@ static int hw_atl_utils_soft_reset_flb(struct aq_hw_s *self)
 		aq_pr_err("FW kickstart failed\n");
 		return -EIO;
 	}
+	/* Old FW requires fixed delay after init */
+	AQ_HW_SLEEP(15);
 
 	return 0;
 }
@@ -214,6 +216,8 @@ static int hw_atl_utils_soft_reset_rbl(struct aq_hw_s *self)
 		aq_pr_err("FW kickstart failed\n");
 		return -EIO;
 	}
+	/* Old FW requires fixed delay after init */
+	AQ_HW_SLEEP(15);
 
 	return 0;
 }
