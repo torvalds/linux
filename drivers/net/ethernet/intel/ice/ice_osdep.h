@@ -15,6 +15,7 @@
 #define wr64(a, reg, value)	writeq((value), ((a)->hw_addr + (reg)))
 #define rd64(a, reg)		readq((a)->hw_addr + (reg))
 
+#define ice_flush(a)		rd32((a), GLGEN_STAT)
 #define ICE_M(m, s)		((m) << (s))
 
 struct ice_dma_mem {

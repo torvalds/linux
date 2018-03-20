@@ -27,6 +27,18 @@ MODULE_PARM_DESC(debug, "netif level (0=none,...,16=all)");
 #endif /* !CONFIG_DYNAMIC_DEBUG */
 
 /**
+ * ice_set_ctrlq_len - helper function to set controlq length
+ * @hw: pointer to the hw instance
+ */
+static void ice_set_ctrlq_len(struct ice_hw *hw)
+{
+	hw->adminq.num_rq_entries = ICE_AQ_LEN;
+	hw->adminq.num_sq_entries = ICE_AQ_LEN;
+	hw->adminq.rq_buf_size = ICE_AQ_MAX_BUF_LEN;
+	hw->adminq.sq_buf_size = ICE_AQ_MAX_BUF_LEN;
+}
+
+/**
  * ice_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in ice_pci_tbl
@@ -81,6 +93,8 @@ static int ice_probe(struct pci_dev *pdev,
 	hw->subsystem_device_id = pdev->subsystem_device;
 	hw->bus.device = PCI_SLOT(pdev->devfn);
 	hw->bus.func = PCI_FUNC(pdev->devfn);
+	ice_set_ctrlq_len(hw);
+
 	pf->msg_enable = netif_msg_init(debug, ICE_DFLT_NETIF_M);
 
 #ifndef CONFIG_DYNAMIC_DEBUG
@@ -88,7 +102,22 @@ static int ice_probe(struct pci_dev *pdev,
 		hw->debug_mask = debug;
 #endif
 
+	err = ice_init_hw(hw);
+	if (err) {
+		dev_err(&pdev->dev, "ice_init_hw failed: %d\n", err);
+		err = -EIO;
+		goto err_exit_unroll;
+	}
+
+	dev_info(&pdev->dev, "firmware %d.%d.%05d api %d.%d\n",
+		 hw->fw_maj_ver, hw->fw_min_ver, hw->fw_build,
+		 hw->api_maj_ver, hw->api_min_ver);
+
 	return 0;
+
+err_exit_unroll:
+	pci_disable_pcie_error_reporting(pdev);
+	return err;
 }
 
 /**
@@ -103,6 +132,8 @@ static void ice_remove(struct pci_dev *pdev)
 		return;
 
 	set_bit(__ICE_DOWN, pf->state);
+
+	ice_deinit_hw(&pf->hw);
 	pci_disable_pcie_error_reporting(pdev);
 }
 

@@ -6,6 +6,9 @@
 
 #include "ice_adminq_cmd.h"
 
+/* Maximum buffer lengths for all control queue types */
+#define ICE_AQ_MAX_BUF_LEN 4096
+
 #define ICE_CTL_Q_DESC(R, i) \
 	(&(((struct ice_aq_desc *)((R).desc_buf.va))[i]))
 

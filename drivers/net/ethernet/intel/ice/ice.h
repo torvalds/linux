@@ -16,8 +16,10 @@
 #include <linux/bitmap.h>
 #include "ice_devids.h"
 #include "ice_type.h"
+#include "ice_common.h"
 
 #define ICE_BAR0		0
+#define ICE_AQ_LEN		64
 
 #define ICE_DFLT_NETIF_M (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
