@@ -46,7 +46,7 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 	}
 
 	case MSGSND:
-		return sys_msgsnd(first, (struct msgbuf __user *) ptr,
+		return ksys_msgsnd(first, (struct msgbuf __user *) ptr,
 				  second, third);
 	case MSGRCV:
 		switch (version) {
@@ -142,7 +142,7 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 		return compat_ksys_semctl(first, second, third, pad);
 
 	case MSGSND:
-		return compat_sys_msgsnd(first, ptr, second, third);
+		return compat_ksys_msgsnd(first, ptr, second, third);
 
 	case MSGRCV: {
 		void __user *uptr = compat_ptr(ptr);
