@@ -960,6 +960,8 @@ struct adapter {
 
 	/* HMA */
 	struct hma_data hma;
+
+	struct srq_data *srq;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be
