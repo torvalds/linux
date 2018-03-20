@@ -63,6 +63,7 @@ int main(void)
 	OFFSET(__SF_SIE_CONTROL, stack_frame, empty1[0]);
 	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[1]);
 	OFFSET(__SF_SIE_REASON, stack_frame, empty1[2]);
+	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[3]);
 	BLANK();
 	/* timeval/timezone offsets for use by vdso */
 	OFFSET(__VDSO_UPD_COUNT, vdso_data, tb_update_count);
