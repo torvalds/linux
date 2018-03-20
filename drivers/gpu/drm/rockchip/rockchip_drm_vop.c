@@ -3094,6 +3094,7 @@ static void vop_tv_config_update(struct drm_crtc *crtc,
 	VOP_CTRL_SET(vop, bcsh_sat_con, saturation * contrast / 0x100);
 	VOP_CTRL_SET(vop, bcsh_sin_hue, sin_hue);
 	VOP_CTRL_SET(vop, bcsh_cos_hue, cos_hue);
+	VOP_CTRL_SET(vop, bcsh_out_mode, BCSH_OUT_MODE_NORMAL_VIDEO);
 	VOP_CTRL_SET(vop, bcsh_en, s->bcsh_en);
 }
 

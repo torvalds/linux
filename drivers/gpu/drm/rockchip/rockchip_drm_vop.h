@@ -30,6 +30,13 @@
 #define AFBDC_FMT_U8U8U8U8	0x5
 #define AFBDC_FMT_U8U8U8	0x4
 
+enum bcsh_out_mode {
+	BCSH_OUT_MODE_BLACK,
+	BCSH_OUT_MODE_BLUE,
+	BCSH_OUT_MODE_COLOR_BAR,
+	BCSH_OUT_MODE_NORMAL_VIDEO,
+};
+
 enum cabc_stage_mode {
 	LAST_FRAME_PWM_VAL	= 0x0,
 	CUR_FRAME_PWM_VAL	= 0x1,
