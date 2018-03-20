@@ -483,6 +483,56 @@ static void vega12_init_dpm_state(struct vega12_dpm_state *dpm_state)
 	dpm_state->hard_max_level = 0xff;
 }
 
+static int vega12_get_number_dpm_level(struct pp_hwmgr *hwmgr,
+		PPCLK_e clkID, uint32_t *num_dpm_level)
+{
+	int result;
+	/*
+	 * SMU expects the Clock ID to be in the top 16 bits.
+	 * Lower 16 bits specify the level however 0xFF is a
+	 * special argument the returns the total number of levels
+	 */
+	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
+		PPSMC_MSG_GetDpmFreqByIndex, (clkID << 16 | 0xFF)) == 0,
+		"[GetNumberDpmLevel] Failed to get DPM levels from SMU for CLKID!",
+		return -EINVAL);
+
+	result = vega12_read_arg_from_smc(hwmgr, num_dpm_level);
+
+	PP_ASSERT_WITH_CODE(*num_dpm_level < MAX_REGULAR_DPM_NUMBER,
+		"[GetNumberDPMLevel] Number of DPM levels is greater than limit",
+		return -EINVAL);
+
+	PP_ASSERT_WITH_CODE(*num_dpm_level != 0,
+		"[GetNumberDPMLevel] Number of CLK Levels is zero!",
+		return -EINVAL);
+
+	return result;
+}
+
+static int vega12_get_dpm_frequency_by_index(struct pp_hwmgr *hwmgr,
+		PPCLK_e clkID, uint32_t index, uint32_t *clock)
+{
+	int result;
+
+	/*
+	 *SMU expects the Clock ID to be in the top 16 bits.
+	 *Lower 16 bits specify the level
+	 */
+	PP_ASSERT_WITH_CODE(smum_send_msg_to_smc_with_parameter(hwmgr,
+		PPSMC_MSG_GetDpmFreqByIndex, (clkID << 16 | index)) == 0,
+		"[GetDpmFrequencyByIndex] Failed to get dpm frequency from SMU!",
+		return -EINVAL);
+
+	result = vega12_read_arg_from_smc(hwmgr, clock);
+
+	PP_ASSERT_WITH_CODE(*clock != 0,
+		"[GetDPMFrequencyByIndex] Failed to get dpm frequency by index.!",
+		return -EINVAL);
+
+	return result;
+}
+
 /*
  * This function is to initialize all DPM state tables
  * for SMU based on the dependency table.
@@ -493,43 +543,214 @@ static void vega12_init_dpm_state(struct vega12_dpm_state *dpm_state)
  */
 static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 {
+	uint32_t num_levels, i, clock;
+
 	struct vega12_hwmgr *data =
 			(struct vega12_hwmgr *)(hwmgr->backend);
+
 	struct vega12_single_dpm_table *dpm_table;
 
 	memset(&data->dpm_table, 0, sizeof(data->dpm_table));
 
-	/* Initialize Sclk DPM table based on allow Sclk values */
+	/* Initialize Sclk DPM and SOC DPM table based on allow Sclk values */
 	dpm_table = &(data->dpm_table.soc_table);
+
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr, PPCLK_SOCCLK,
+		&num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for SOCCLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+			PPCLK_SOCCLK, i, &clock) == 0,
+			"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for SOCCLK!",
+			return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
 	dpm_table = &(data->dpm_table.gfx_table);
-	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
-	/* Initialize Mclk DPM table based on allow Mclk values */
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr, PPCLK_GFXCLK,
+		&num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for GFXCLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+			PPCLK_GFXCLK, i, &clock) == 0,
+			"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for GFXCLK!",
+			return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
+	vega12_init_dpm_state(&(dpm_table->dpm_state));
+    /* Initialize Mclk DPM table based on allow Mclk values */
 	dpm_table = &(data->dpm_table.mem_table);
+
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr, PPCLK_UCLK,
+		&num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for UCLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+			PPCLK_UCLK, i, &clock) == 0,
+			"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for UCLK!",
+			return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
 	dpm_table = &(data->dpm_table.eclk_table);
+
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr, PPCLK_ECLK,
+		&num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for ECLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+		PPCLK_ECLK, i, &clock) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for ECLK!",
+		return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
 	dpm_table = &(data->dpm_table.vclk_table);
+
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr, PPCLK_VCLK,
+		&num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for VCLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+			PPCLK_VCLK, i, &clock) == 0,
+			"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for VCLK!",
+			return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
 	dpm_table = &(data->dpm_table.dclk_table);
+
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr, PPCLK_DCLK,
+		&num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for DCLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+			PPCLK_DCLK, i, &clock) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for DCLK!",
+		return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
 	/* Assume there is no headless Vega12 for now */
 	dpm_table = &(data->dpm_table.dcef_table);
+
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr,
+		PPCLK_DCEFCLK, &num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for DCEFCLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+			PPCLK_DCEFCLK, i, &clock) == 0,
+			"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for DCEFCLK!",
+			return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
 	dpm_table = &(data->dpm_table.pixel_table);
+
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr,
+		PPCLK_PIXCLK, &num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for PIXCLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+			PPCLK_PIXCLK, i, &clock) == 0,
+			"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for PIXCLK!",
+			return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
 	dpm_table = &(data->dpm_table.display_table);
+
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr,
+		PPCLK_DISPCLK, &num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for DISPCLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+			PPCLK_DISPCLK, i, &clock) == 0,
+			"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for DISPCLK!",
+			return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
 	dpm_table = &(data->dpm_table.phy_table);
+
+	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr,
+		PPCLK_PHYCLK, &num_levels) == 0,
+		"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for PHYCLK!",
+		return -EINVAL);
+
+	dpm_table->count = num_levels;
+
+	for (i = 0; i < num_levels; i++) {
+		PP_ASSERT_WITH_CODE(vega12_get_dpm_frequency_by_index(hwmgr,
+			PPCLK_PHYCLK, i, &clock) == 0,
+			"[SetupDefaultDPMTables] Failed to get DPM levels from SMU for PHYCLK!",
+			return -EINVAL);
+
+		dpm_table->dpm_levels[i].value = clock;
+	}
+
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
 
 	/* save a copy of the default DPM table */
@@ -585,11 +806,6 @@ static int vega12_init_smc_table(struct pp_hwmgr *hwmgr)
 	struct pp_atomfwctrl_bios_boot_up_values boot_up_values;
 	struct phm_ppt_v3_information *pptable_information =
 		(struct phm_ppt_v3_information *)hwmgr->pptable;
-
-	result = vega12_setup_default_dpm_tables(hwmgr);
-	PP_ASSERT_WITH_CODE(!result,
-			"Failed to setup default DPM tables!",
-			return result);
 
 	result = pp_atomfwctrl_get_vbios_bootup_values(hwmgr, &boot_up_values);
 	if (!result) {
@@ -731,6 +947,10 @@ static int vega12_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 			"Failed to power control set level!",
 			return result);
 
+	result = vega12_setup_default_dpm_tables(hwmgr);
+	PP_ASSERT_WITH_CODE(!result,
+			"Failed to setup default DPM tables!",
+			return result);
 	return result;
 }
 
@@ -1633,33 +1853,25 @@ static int vega12_get_sclks(struct pp_hwmgr *hwmgr,
 		struct pp_clock_levels_with_latency *clocks)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
+	uint32_t ucount;
 	int i;
-	uint32_t min, max, increments;
+	struct vega12_single_dpm_table *dpm_table;
 
 	if (!data->smu_features[GNLD_DPM_GFXCLK].enabled)
 		return -1;
 
-	PP_ASSERT_WITH_CODE(
-		vega12_get_clock_ranges(hwmgr, &min, PPCLK_GFXCLK, false) == 0,
-		"[GetSclks]: fail to get min PPCLK_GFXCLK\n",
-		return -1);
-	PP_ASSERT_WITH_CODE(
-		vega12_get_clock_ranges(hwmgr, &max, PPCLK_GFXCLK, true) == 0,
-		"[GetSclks]: fail to get max PPCLK_GFXCLK\n",
-		return -1);
+	dpm_table = &(data->dpm_table.gfx_table);
+	ucount = (dpm_table->count > VG12_PSUEDO_NUM_GFXCLK_DPM_LEVELS) ?
+		VG12_PSUEDO_NUM_GFXCLK_DPM_LEVELS : dpm_table->count;
 
-	clocks->data[0].clocks_in_khz = min * 100;
-	increments = (max - min) / (VG12_PSUEDO_NUM_GFXCLK_DPM_LEVELS - 1);
+	for (i = 0; i < ucount; i++) {
+		clocks->data[i].clocks_in_khz =
+			dpm_table->dpm_levels[i].value * 100;
 
-	for (i = 1; i < (VG12_PSUEDO_NUM_GFXCLK_DPM_LEVELS - 1); i++) {
-		if ((min + (increments * i)) != 0) {
-			clocks->data[i].clocks_in_khz =
-				(min + increments * i) * 100;
-			clocks->data[i].latency_in_us = 0;
-		}
+		clocks->data[i].latency_in_us = 0;
 	}
-	clocks->data[i].clocks_in_khz = max * 100;
-	clocks->num_levels = i + 1;
+
+	clocks->num_levels = ucount;
 
 	return 0;
 }
@@ -1674,44 +1886,26 @@ static int vega12_get_memclocks(struct pp_hwmgr *hwmgr,
 		struct pp_clock_levels_with_latency *clocks)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
-	uint32_t min, max, increments;
+	uint32_t ucount;
 	int i;
-
+	struct vega12_single_dpm_table *dpm_table;
 	if (!data->smu_features[GNLD_DPM_UCLK].enabled)
 		return -1;
 
-	PP_ASSERT_WITH_CODE(
-		vega12_get_clock_ranges(hwmgr, &min, PPCLK_UCLK, false) == 0,
-		"[GetMclks]: fail to get min PPCLK_UCLK\n",
-		return -1);
-	PP_ASSERT_WITH_CODE(
-		vega12_get_clock_ranges(hwmgr, &max, PPCLK_UCLK, true) == 0,
-		"[GetMclks]: fail to get max PPCLK_UCLK\n",
-		return -1);
+	dpm_table = &(data->dpm_table.mem_table);
+	ucount = (dpm_table->count > VG12_PSUEDO_NUM_UCLK_DPM_LEVELS) ?
+		VG12_PSUEDO_NUM_UCLK_DPM_LEVELS : dpm_table->count;
 
-	clocks->data[0].clocks_in_khz = min * 100;
-	clocks->data[0].latency_in_us =
-		data->mclk_latency_table.entries[0].latency =
-		vega12_get_mem_latency(hwmgr, min);
+	for (i = 0; i < ucount; i++) {
+		clocks->data[i].clocks_in_khz =
+			dpm_table->dpm_levels[i].value * 100;
 
-	increments = (max - min) / (VG12_PSUEDO_NUM_UCLK_DPM_LEVELS - 1);
-
-	for (i = 1; i < (VG12_PSUEDO_NUM_UCLK_DPM_LEVELS - 1); i++) {
-		if ((min + (increments * i)) != 0) {
-			clocks->data[i].clocks_in_khz =
-				(min + (increments * i)) * 100;
-			clocks->data[i].latency_in_us =
-				data->mclk_latency_table.entries[i].latency =
-				vega12_get_mem_latency(hwmgr, min + increments * i);
-		}
+		clocks->data[i].latency_in_us =
+			data->mclk_latency_table.entries[i].latency =
+			vega12_get_mem_latency(hwmgr, dpm_table->dpm_levels[i].value);
 	}
 
-	clocks->data[i].clocks_in_khz = max * 100;
-	clocks->data[i].latency_in_us =
-		data->mclk_latency_table.entries[i].latency =
-		vega12_get_mem_latency(hwmgr, max);
-
-	clocks->num_levels = data->mclk_latency_table.count = i + 1;
+	clocks->num_levels = data->mclk_latency_table.count = ucount;
 
 	return 0;
 }
@@ -1720,33 +1914,26 @@ static int vega12_get_dcefclocks(struct pp_hwmgr *hwmgr,
 		struct pp_clock_levels_with_latency *clocks)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
+	uint32_t ucount;
 	int i;
-	uint32_t min, max, increments;
+	struct vega12_single_dpm_table *dpm_table;
 
 	if (!data->smu_features[GNLD_DPM_DCEFCLK].enabled)
 		return -1;
 
-	PP_ASSERT_WITH_CODE(
-		vega12_get_clock_ranges(hwmgr, &min, PPCLK_DCEFCLK, false) == 0,
-		"[GetDcfclocks]: fail to get min PPCLK_DCEFCLK\n",
-		return -1);
-	PP_ASSERT_WITH_CODE(
-		vega12_get_clock_ranges(hwmgr, &max, PPCLK_DCEFCLK, true) == 0,
-		"[GetDcfclocks]: fail to get max PPCLK_DCEFCLK\n",
-		return -1);
 
-	clocks->data[0].clocks_in_khz = min * 100;
-	increments = (max - min) / (VG12_PSUEDO_NUM_DCEFCLK_DPM_LEVELS - 1);
+	dpm_table = &(data->dpm_table.dcef_table);
+	ucount = (dpm_table->count > VG12_PSUEDO_NUM_DCEFCLK_DPM_LEVELS) ?
+		VG12_PSUEDO_NUM_DCEFCLK_DPM_LEVELS : dpm_table->count;
 
-	for (i = 1; i < (VG12_PSUEDO_NUM_DCEFCLK_DPM_LEVELS - 1); i++) {
-		if ((min + (increments * i)) != 0) {
-			clocks->data[i].clocks_in_khz =
-				(min + increments * i) * 100;
-			clocks->data[i].latency_in_us = 0;
-		}
+	for (i = 0; i < ucount; i++) {
+		clocks->data[i].clocks_in_khz =
+			dpm_table->dpm_levels[i].value * 100;
+
+		clocks->data[i].latency_in_us = 0;
 	}
-	clocks->data[i].clocks_in_khz = max * 100;
-	clocks->num_levels = i + 1;
+
+	clocks->num_levels = ucount;
 
 	return 0;
 }
@@ -1755,34 +1942,26 @@ static int vega12_get_socclocks(struct pp_hwmgr *hwmgr,
 		struct pp_clock_levels_with_latency *clocks)
 {
 	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
+	uint32_t ucount;
 	int i;
-	uint32_t min, max, increments;
+	struct vega12_single_dpm_table *dpm_table;
 
 	if (!data->smu_features[GNLD_DPM_SOCCLK].enabled)
 		return -1;
 
-	PP_ASSERT_WITH_CODE(
-		vega12_get_clock_ranges(hwmgr, &min, PPCLK_SOCCLK, false) == 0,
-		"[GetSocclks]: fail to get min PPCLK_SOCCLK\n",
-		return -1);
-	PP_ASSERT_WITH_CODE(
-		vega12_get_clock_ranges(hwmgr, &max, PPCLK_SOCCLK, true) == 0,
-		"[GetSocclks]: fail to get max PPCLK_SOCCLK\n",
-		return -1);
 
-	clocks->data[0].clocks_in_khz = min * 100;
-	increments = (max - min) / (VG12_PSUEDO_NUM_SOCCLK_DPM_LEVELS - 1);
+	dpm_table = &(data->dpm_table.soc_table);
+	ucount = (dpm_table->count > VG12_PSUEDO_NUM_SOCCLK_DPM_LEVELS) ?
+		VG12_PSUEDO_NUM_SOCCLK_DPM_LEVELS : dpm_table->count;
 
-	for (i = 1; i < (VG12_PSUEDO_NUM_SOCCLK_DPM_LEVELS - 1); i++) {
-		if ((min + (increments * i)) != 0) {
-			clocks->data[i].clocks_in_khz =
-				(min + increments * i) * 100;
-			clocks->data[i].latency_in_us = 0;
-		}
+	for (i = 0; i < ucount; i++) {
+		clocks->data[i].clocks_in_khz =
+			dpm_table->dpm_levels[i].value * 100;
+
+		clocks->data[i].latency_in_us = 0;
 	}
 
-	clocks->data[i].clocks_in_khz = max * 100;
-	clocks->num_levels = i + 1;
+	clocks->num_levels = ucount;
 
 	return 0;
 
@@ -2373,6 +2552,7 @@ static int vega12_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
 
 	return 0;
 }
+
 
 static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.backend_init = vega12_hwmgr_backend_init,
