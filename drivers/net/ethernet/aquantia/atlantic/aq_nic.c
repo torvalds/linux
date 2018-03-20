@@ -247,6 +247,8 @@ void aq_nic_ndev_init(struct aq_nic_s *self)
 	self->ndev->hw_features |= aq_hw_caps->hw_features;
 	self->ndev->features = aq_hw_caps->hw_features;
 	self->ndev->priv_flags = aq_hw_caps->hw_priv_flags;
+	self->ndev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
+
 	self->ndev->mtu = aq_nic_cfg->mtu - ETH_HLEN;
 	self->ndev->max_mtu = aq_hw_caps->mtu - ETH_FCS_LEN - ETH_HLEN;
 
