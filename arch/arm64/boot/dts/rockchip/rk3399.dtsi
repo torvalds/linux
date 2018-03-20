@@ -312,6 +312,8 @@
 		reg = <0x0 0xfe320000 0x0 0x4000>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH 0>;
 		max-frequency = <150000000>;
+		assigned-clocks = <&cru HCLK_SD>;
+		assigned-clock-rates = <200000000>;
 		clocks = <&cru HCLK_SDMMC>, <&cru SCLK_SDMMC>,
 			 <&cru SCLK_SDMMC_DRV>, <&cru SCLK_SDMMC_SAMPLE>;
 		clock-names = "biu", "ciu", "ciu-drive", "ciu-sample";
@@ -461,8 +463,8 @@
 		compatible = "rockchip,rk3399-cdn-dp";
 		reg = <0x0 0xfec00000 0x0 0x100000>;
 		interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH 0>;
-		assigned-clocks = <&cru SCLK_DP_CORE>;
-		assigned-clock-rates = <100000000>;
+		assigned-clocks = <&cru SCLK_DP_CORE>, <&cru SCLK_SPDIF_REC_DPTX>;
+		assigned-clock-rates = <100000000>, <200000000>;
 		clocks = <&cru SCLK_DP_CORE>, <&cru PCLK_DP_CTRL>,
 			 <&cru SCLK_SPDIF_REC_DPTX>, <&cru PCLK_VIO_GRF>;
 		clock-names = "core-clk", "pclk", "spdif", "grf";
@@ -1323,7 +1325,9 @@
 			<&cru ACLK_PERILP0>, <&cru HCLK_PERILP0>,
 			<&cru PCLK_PERILP0>, <&cru ACLK_CCI>,
 			<&cru HCLK_PERILP1>, <&cru PCLK_PERILP1>,
-			<&cru ACLK_VIO>;
+			<&cru ACLK_VIO>, <&cru ACLK_HDCP>,
+			<&cru ACLK_GIC_PRE>,
+			<&cru PCLK_DDR>;
 		assigned-clock-rates =
 			 <594000000>,  <800000000>,
 			<1000000000>,
@@ -1332,7 +1336,9 @@
 			 <100000000>,  <100000000>,
 			  <50000000>, <600000000>,
 			 <100000000>,   <50000000>,
-			 <400000000>;
+			 <400000000>, <400000000>,
+			 <200000000>,
+			 <200000000>;
 	};
 
 	grf: syscon@ff770000 {
