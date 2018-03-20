@@ -269,7 +269,7 @@ static struct btrfs_fs_devices *alloc_fs_devices(const u8 *fsid)
 	return fs_devs;
 }
 
-static void free_device(struct btrfs_device *device)
+void btrfs_free_device(struct btrfs_device *device)
 {
 	rcu_string_free(device->name);
 	bio_put(device->flush_bio);
@@ -284,7 +284,7 @@ static void free_fs_devices(struct btrfs_fs_devices *fs_devices)
 		device = list_entry(fs_devices->devices.next,
 				    struct btrfs_device, dev_list);
 		list_del(&device->dev_list);
-		free_device(device);
+		btrfs_free_device(device);
 	}
 	kfree(fs_devices);
 }
@@ -317,7 +317,7 @@ void __exit btrfs_cleanup_fs_uuids(void)
 /*
  * Returns a pointer to a new btrfs_device on success; ERR_PTR() on error.
  * Returned struct is not linked onto any lists and must be destroyed using
- * free_device.
+ * btrfs_free_device.
  */
 static struct btrfs_device *__alloc_device(void)
 {
@@ -672,7 +672,7 @@ static void btrfs_free_stale_devices(const char *path,
 			} else {
 				fs_devs->num_devices--;
 				list_del(&dev->dev_list);
-				free_device(dev);
+				btrfs_free_device(dev);
 			}
 		}
 	}
@@ -787,7 +787,7 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 
 		name = rcu_string_strdup(path, GFP_NOFS);
 		if (!name) {
-			free_device(device);
+			btrfs_free_device(device);
 			return ERR_PTR(-ENOMEM);
 		}
 		rcu_assign_pointer(device->name, name);
@@ -900,7 +900,7 @@ static struct btrfs_fs_devices *clone_fs_devices(struct btrfs_fs_devices *orig)
 			name = rcu_string_strdup(orig_dev->name->str,
 					GFP_KERNEL);
 			if (!name) {
-				free_device(device);
+				btrfs_free_device(device);
 				goto error;
 			}
 			rcu_assign_pointer(device->name, name);
@@ -972,7 +972,7 @@ again:
 		}
 		list_del_init(&device->dev_list);
 		fs_devices->num_devices--;
-		free_device(device);
+		btrfs_free_device(device);
 	}
 
 	if (fs_devices->seed) {
@@ -990,7 +990,7 @@ static void free_device_rcu(struct rcu_head *head)
 	struct btrfs_device *device;
 
 	device = container_of(head, struct btrfs_device, rcu);
-	free_device(device);
+	btrfs_free_device(device);
 }
 
 static void btrfs_close_bdev(struct btrfs_device *device)
@@ -2602,7 +2602,7 @@ error_trans:
 	if (trans)
 		btrfs_end_transaction(trans);
 error_free_device:
-	free_device(device);
+	btrfs_free_device(device);
 error:
 	blkdev_put(bdev, FMODE_EXCL);
 	if (seeding_dev && !unlocked) {
@@ -2673,7 +2673,7 @@ int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 
 	name = rcu_string_strdup(device_path, GFP_KERNEL);
 	if (!name) {
-		free_device(device);
+		btrfs_free_device(device);
 		ret = -ENOMEM;
 		goto error;
 	}
@@ -6448,7 +6448,7 @@ static struct btrfs_device *add_missing_dev(struct btrfs_fs_devices *fs_devices,
  *
  * Return: a pointer to a new &struct btrfs_device on success; ERR_PTR()
  * on error.  Returned struct is not linked onto any lists and must be
- * destroyed with free_device.
+ * destroyed with btrfs_free_device.
  */
 struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 					const u64 *devid,
@@ -6471,7 +6471,7 @@ struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 
 		ret = find_next_devid(fs_info, &tmp);
 		if (ret) {
-			free_device(dev);
+			btrfs_free_device(dev);
 			return ERR_PTR(ret);
 		}
 	}
