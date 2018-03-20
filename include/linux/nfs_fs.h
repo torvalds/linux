@@ -198,14 +198,14 @@ struct nfs_inode {
 /*
  * Cache validity bit flags
  */
-#define NFS_INO_INVALID_ATTR	0x0001		/* cached attrs are invalid */
-#define NFS_INO_INVALID_DATA	0x0002		/* cached data is invalid */
-#define NFS_INO_INVALID_ATIME	0x0004		/* cached atime is invalid */
-#define NFS_INO_INVALID_ACCESS	0x0008		/* cached access cred invalid */
-#define NFS_INO_INVALID_ACL	0x0010		/* cached acls are invalid */
-#define NFS_INO_REVAL_PAGECACHE	0x0020		/* must revalidate pagecache */
-#define NFS_INO_REVAL_FORCED	0x0040		/* force revalidation ignoring a delegation */
-#define NFS_INO_INVALID_LABEL	0x0080		/* cached label is invalid */
+#define NFS_INO_INVALID_ATTR	BIT(0)		/* cached attrs are invalid */
+#define NFS_INO_INVALID_DATA	BIT(1)		/* cached data is invalid */
+#define NFS_INO_INVALID_ATIME	BIT(2)		/* cached atime is invalid */
+#define NFS_INO_INVALID_ACCESS	BIT(3)		/* cached access cred invalid */
+#define NFS_INO_INVALID_ACL	BIT(4)		/* cached acls are invalid */
+#define NFS_INO_REVAL_PAGECACHE	BIT(5)		/* must revalidate pagecache */
+#define NFS_INO_REVAL_FORCED	BIT(6)		/* force revalidation ignoring a delegation */
+#define NFS_INO_INVALID_LABEL	BIT(7)		/* cached label is invalid */
 
 /*
  * Bit offsets in flags field
