@@ -16,7 +16,9 @@
 #include <linux/bitmap.h>
 #include "ice_devids.h"
 #include "ice_type.h"
+#include "ice_switch.h"
 #include "ice_common.h"
+#include "ice_sched.h"
 
 #define ICE_BAR0		0
 #define ICE_AQ_LEN		64

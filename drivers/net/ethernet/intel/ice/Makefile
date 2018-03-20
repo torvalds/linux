@@ -10,4 +10,6 @@ obj-$(CONFIG_ICE) += ice.o
 ice-y := ice_main.o	\
 	 ice_controlq.o	\
 	 ice_common.o	\
-	 ice_nvm.o
+	 ice_nvm.o	\
+	 ice_switch.o	\
+	 ice_sched.o

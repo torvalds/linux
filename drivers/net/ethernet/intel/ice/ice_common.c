@@ -2,6 +2,7 @@
 /* Copyright (c) 2018, Intel Corporation. */
 
 #include "ice_common.h"
+#include "ice_sched.h"
 #include "ice_adminq_cmd.h"
 
 #define ICE_PF_RESET_WAIT_COUNT	200
@@ -70,8 +71,37 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 	if (status)
 		goto err_unroll_cqinit;
 
+	status = ice_get_caps(hw);
+	if (status)
+		goto err_unroll_cqinit;
+
+	hw->port_info = devm_kzalloc(ice_hw_to_dev(hw),
+				     sizeof(*hw->port_info), GFP_KERNEL);
+	if (!hw->port_info) {
+		status = ICE_ERR_NO_MEMORY;
+		goto err_unroll_cqinit;
+	}
+
+	/* set the back pointer to hw */
+	hw->port_info->hw = hw;
+
+	/* Initialize port_info struct with switch configuration data */
+	status = ice_get_initial_sw_cfg(hw);
+	if (status)
+		goto err_unroll_alloc;
+
+	/* Query the allocated resources for tx scheduler */
+	status = ice_sched_query_res_alloc(hw);
+	if (status) {
+		ice_debug(hw, ICE_DBG_SCHED,
+			  "Failed to get scheduler allocated resources\n");
+		goto err_unroll_alloc;
+	}
+
 	return 0;
 
+err_unroll_alloc:
+	devm_kfree(ice_hw_to_dev(hw), hw->port_info);
 err_unroll_cqinit:
 	ice_shutdown_all_ctrlq(hw);
 	return status;
@@ -83,7 +113,12 @@ err_unroll_cqinit:
  */
 void ice_deinit_hw(struct ice_hw *hw)
 {
+	ice_sched_cleanup_all(hw);
 	ice_shutdown_all_ctrlq(hw);
+	if (hw->port_info) {
+		devm_kfree(ice_hw_to_dev(hw), hw->port_info);
+		hw->port_info = NULL;
+	}
 }
 
 /**
@@ -503,6 +538,202 @@ void ice_release_res(struct ice_hw *hw, enum ice_aq_res_ids res)
 		status = ice_aq_release_res(hw, res, 0, NULL);
 		total_delay++;
 	}
+}
+
+/**
+ * ice_parse_caps - parse function/device capabilities
+ * @hw: pointer to the hw struct
+ * @buf: pointer to a buffer containing function/device capability records
+ * @cap_count: number of capability records in the list
+ * @opc: type of capabilities list to parse
+ *
+ * Helper function to parse function(0x000a)/device(0x000b) capabilities list.
+ */
+static void
+ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
+	       enum ice_adminq_opc opc)
+{
+	struct ice_aqc_list_caps_elem *cap_resp;
+	struct ice_hw_func_caps *func_p = NULL;
+	struct ice_hw_dev_caps *dev_p = NULL;
+	struct ice_hw_common_caps *caps;
+	u32 i;
+
+	if (!buf)
+		return;
+
+	cap_resp = (struct ice_aqc_list_caps_elem *)buf;
+
+	if (opc == ice_aqc_opc_list_dev_caps) {
+		dev_p = &hw->dev_caps;
+		caps = &dev_p->common_cap;
+	} else if (opc == ice_aqc_opc_list_func_caps) {
+		func_p = &hw->func_caps;
+		caps = &func_p->common_cap;
+	} else {
+		ice_debug(hw, ICE_DBG_INIT, "wrong opcode\n");
+		return;
+	}
+
+	for (i = 0; caps && i < cap_count; i++, cap_resp++) {
+		u32 logical_id = le32_to_cpu(cap_resp->logical_id);
+		u32 phys_id = le32_to_cpu(cap_resp->phys_id);
+		u32 number = le32_to_cpu(cap_resp->number);
+		u16 cap = le16_to_cpu(cap_resp->cap);
+
+		switch (cap) {
+		case ICE_AQC_CAPS_VSI:
+			if (dev_p) {
+				dev_p->num_vsi_allocd_to_host = number;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: Dev.VSI cnt = %d\n",
+					  dev_p->num_vsi_allocd_to_host);
+			} else if (func_p) {
+				func_p->guaranteed_num_vsi = number;
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: Func.VSI cnt = %d\n",
+					  func_p->guaranteed_num_vsi);
+			}
+			break;
+		case ICE_AQC_CAPS_RSS:
+			caps->rss_table_size = number;
+			caps->rss_table_entry_width = logical_id;
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: RSS table size = %d\n",
+				  caps->rss_table_size);
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: RSS table width = %d\n",
+				  caps->rss_table_entry_width);
+			break;
+		case ICE_AQC_CAPS_RXQS:
+			caps->num_rxq = number;
+			caps->rxq_first_id = phys_id;
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: Num Rx Qs = %d\n", caps->num_rxq);
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: Rx first queue ID = %d\n",
+				  caps->rxq_first_id);
+			break;
+		case ICE_AQC_CAPS_TXQS:
+			caps->num_txq = number;
+			caps->txq_first_id = phys_id;
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: Num Tx Qs = %d\n", caps->num_txq);
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: Tx first queue ID = %d\n",
+				  caps->txq_first_id);
+			break;
+		case ICE_AQC_CAPS_MSIX:
+			caps->num_msix_vectors = number;
+			caps->msix_vector_first_id = phys_id;
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: MSIX vector count = %d\n",
+				  caps->num_msix_vectors);
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: MSIX first vector index = %d\n",
+				  caps->msix_vector_first_id);
+			break;
+		case ICE_AQC_CAPS_MAX_MTU:
+			caps->max_mtu = number;
+			if (dev_p)
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: Dev.MaxMTU = %d\n",
+					  caps->max_mtu);
+			else if (func_p)
+				ice_debug(hw, ICE_DBG_INIT,
+					  "HW caps: func.MaxMTU = %d\n",
+					  caps->max_mtu);
+			break;
+		default:
+			ice_debug(hw, ICE_DBG_INIT,
+				  "HW caps: Unknown capability[%d]: 0x%x\n", i,
+				  cap);
+			break;
+		}
+	}
+}
+
+/**
+ * ice_aq_discover_caps - query function/device capabilities
+ * @hw: pointer to the hw struct
+ * @buf: a virtual buffer to hold the capabilities
+ * @buf_size: Size of the virtual buffer
+ * @data_size: Size of the returned data, or buf size needed if AQ err==ENOMEM
+ * @opc: capabilities type to discover - pass in the command opcode
+ * @cd: pointer to command details structure or NULL
+ *
+ * Get the function(0x000a)/device(0x000b) capabilities description from
+ * the firmware.
+ */
+static enum ice_status
+ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u16 *data_size,
+		     enum ice_adminq_opc opc, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_list_caps *cmd;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+
+	cmd = &desc.params.get_cap;
+
+	if (opc != ice_aqc_opc_list_func_caps &&
+	    opc != ice_aqc_opc_list_dev_caps)
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, opc);
+
+	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
+	if (!status)
+		ice_parse_caps(hw, buf, le32_to_cpu(cmd->count), opc);
+	*data_size = le16_to_cpu(desc.datalen);
+
+	return status;
+}
+
+/**
+ * ice_get_caps - get info about the HW
+ * @hw: pointer to the hardware structure
+ */
+enum ice_status ice_get_caps(struct ice_hw *hw)
+{
+	enum ice_status status;
+	u16 data_size = 0;
+	u16 cbuf_len;
+	u8 retries;
+
+	/* The driver doesn't know how many capabilities the device will return
+	 * so the buffer size required isn't known ahead of time. The driver
+	 * starts with cbuf_len and if this turns out to be insufficient, the
+	 * device returns ICE_AQ_RC_ENOMEM and also the buffer size it needs.
+	 * The driver then allocates the buffer of this size and retries the
+	 * operation. So it follows that the retry count is 2.
+	 */
+#define ICE_GET_CAP_BUF_COUNT	40
+#define ICE_GET_CAP_RETRY_COUNT	2
+
+	cbuf_len = ICE_GET_CAP_BUF_COUNT *
+		sizeof(struct ice_aqc_list_caps_elem);
+
+	retries = ICE_GET_CAP_RETRY_COUNT;
+
+	do {
+		void *cbuf;
+
+		cbuf = devm_kzalloc(ice_hw_to_dev(hw), cbuf_len, GFP_KERNEL);
+		if (!cbuf)
+			return ICE_ERR_NO_MEMORY;
+
+		status = ice_aq_discover_caps(hw, cbuf, cbuf_len, &data_size,
+					      ice_aqc_opc_list_func_caps, NULL);
+		devm_kfree(ice_hw_to_dev(hw), cbuf);
+
+		if (!status || hw->adminq.sq_last_status != ICE_AQ_RC_ENOMEM)
+			break;
+
+		/* If ENOMEM is returned, try again with bigger buffer */
+		cbuf_len = data_size;
+	} while (--retries);
+
+	return status;
 }
 
 /**
