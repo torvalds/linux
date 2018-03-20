@@ -1563,7 +1563,7 @@ nvmet_fc_ls_disconnect(struct nvmet_fc_tgtport *tgtport,
 
 static void nvmet_fc_fcp_nvme_cmd_done(struct nvmet_req *nvme_req);
 
-static struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops;
+static const struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops;
 
 static void
 nvmet_fc_xmt_ls_rsp_done(struct nvmefc_tgt_ls_req *lsreq)
@@ -2518,7 +2518,7 @@ nvmet_fc_remove_port(struct nvmet_port *port)
 	/* nothing to do */
 }
 
-static struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops = {
+static const struct nvmet_fabrics_ops nvmet_fc_tgt_fcp_ops = {
 	.owner			= THIS_MODULE,
 	.type			= NVMF_TRTYPE_FC,
 	.msdbd			= 1,
