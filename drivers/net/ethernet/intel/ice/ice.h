@@ -13,12 +13,14 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/cpumask.h>
+#include <linux/rtnetlink.h>
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 #include <linux/aer.h>
 #include <linux/interrupt.h>
+#include <linux/ethtool.h>
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/bitmap.h>
@@ -34,10 +36,14 @@
 #include "ice_common.h"
 #include "ice_sched.h"
 
+extern const char ice_drv_ver[];
 #define ICE_BAR0		0
 #define ICE_DFLT_NUM_DESC	128
+#define ICE_MIN_NUM_DESC	8
+#define ICE_MAX_NUM_DESC	8160
 #define ICE_REQ_DESC_MULTIPLE	32
 #define ICE_INT_NAME_STR_LEN	(IFNAMSIZ + 16)
+#define ICE_ETHTOOL_FWVER_LEN	32
 #define ICE_AQ_LEN		64
 #define ICE_MIN_MSIX		2
 #define ICE_NO_VSI		0xffff
@@ -55,6 +61,8 @@
 #define ICE_RES_VALID_BIT	0x8000
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
 #define ICE_INVAL_Q_INDEX	0xffff
+
+#define ICE_VSIQF_HKEY_ARRAY_SIZE	((VSIQF_HKEY_MAX_INDEX + 1) *	4)
 
 #define ICE_DFLT_NETIF_M (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
@@ -102,6 +110,7 @@ enum ice_state {
 	__ICE_DOWN,
 	__ICE_PFR_REQ,			/* set by driver and peers */
 	__ICE_ADMINQ_EVENT_PENDING,
+	__ICE_CFG_BUSY,
 	__ICE_SERVICE_SCHED,
 	__ICE_STATE_NBITS		/* must be last */
 };
@@ -118,8 +127,13 @@ struct ice_vsi {
 
 	irqreturn_t (*irq_handler)(int irq, void *data);
 
+	u64 tx_linearize;
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+	u32 tx_restart;
+	u32 tx_busy;
+	u32 rx_buf_failed;
+	u32 rx_page_failed;
 	int num_q_vectors;
 	int base_vector;
 	enum ice_vsi_type type;
@@ -141,8 +155,14 @@ struct ice_vsi {
 
 	struct ice_aqc_vsi_props info;	 /* VSI properties */
 
+	/* VSI stats */
+	struct rtnl_link_stats64 net_stats;
+	struct ice_eth_stats eth_stats;
+	struct ice_eth_stats eth_stats_prev;
+
 	bool irqs_ready;
 	bool current_isup;		 /* Sync 'link up' logging */
+	bool stat_offsets_loaded;
 
 	/* queue information */
 	u8 tx_mapping_mode;		 /* ICE_MAP_MODE_[CONTIG|SCATTER] */
@@ -205,8 +225,10 @@ struct ice_pf {
 	u16 q_left_rx;		/* remaining num rx queues left unclaimed */
 	u16 next_vsi;		/* Next free slot in pf->vsi[] - 0-based! */
 	u16 num_alloc_vsi;
-
+	struct ice_hw_port_stats stats;
+	struct ice_hw_port_stats stats_prev;
 	struct ice_hw hw;
+	bool stat_prev_loaded;	/* has previous stats been loaded */
 	char int_name[ICE_INT_NAME_STR_LEN];
 };
 
@@ -239,8 +261,12 @@ static inline void ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 	wr32(hw, GLINT_DYN_CTL(vector), val);
 }
 
+void ice_set_ethtool_ops(struct net_device *netdev);
+int ice_up(struct ice_vsi *vsi);
+int ice_down(struct ice_vsi *vsi);
 int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
 void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
+void ice_print_link_msg(struct ice_vsi *vsi, bool isup);
 
 #endif /* _ICE_H_ */

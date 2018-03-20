@@ -859,6 +859,45 @@ struct ice_aqc_get_phy_caps_data {
 	} qual_modules[ICE_AQC_QUAL_MOD_COUNT_MAX];
 };
 
+/* Set PHY capabilities (direct 0x0601)
+ * NOTE: This command must be followed by setup link and restart auto-neg
+ */
+struct ice_aqc_set_phy_cfg {
+	u8 lport_num;
+	u8 reserved[7];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+/* Set PHY config command data structure */
+struct ice_aqc_set_phy_cfg_data {
+	__le64 phy_type_low; /* Use values from ICE_PHY_TYPE_LOW_* */
+	__le64 rsvd0;
+	u8 caps;
+#define ICE_AQ_PHY_ENA_TX_PAUSE_ABILITY		BIT(0)
+#define ICE_AQ_PHY_ENA_RX_PAUSE_ABILITY		BIT(1)
+#define ICE_AQ_PHY_ENA_LOW_POWER		BIT(2)
+#define ICE_AQ_PHY_ENA_LINK			BIT(3)
+#define ICE_AQ_PHY_ENA_ATOMIC_LINK		BIT(5)
+	u8 low_power_ctrl;
+	__le16 eee_cap; /* Value from ice_aqc_get_phy_caps */
+	__le16 eeer_value;
+	u8 link_fec_opt; /* Use defines from ice_aqc_get_phy_caps */
+	u8 rsvd1;
+};
+
+/* Restart AN command data structure (direct 0x0605)
+ * Also used for response, with only the lport_num field present.
+ */
+struct ice_aqc_restart_an {
+	u8 lport_num;
+	u8 reserved;
+	u8 cmd_flags;
+#define ICE_AQC_RESTART_AN_LINK_RESTART	BIT(1)
+#define ICE_AQC_RESTART_AN_LINK_ENABLE	BIT(2)
+	u8 reserved2[13];
+};
+
 /* Get link status (indirect 0x0607), also used for Link Status Event */
 struct ice_aqc_get_link_status {
 	u8 lport_num;
@@ -1137,6 +1176,8 @@ struct ice_aq_desc {
 		struct ice_aqc_clear_pxe clear_pxe;
 		struct ice_aqc_list_caps get_cap;
 		struct ice_aqc_get_phy_caps get_phy;
+		struct ice_aqc_set_phy_cfg set_phy;
+		struct ice_aqc_restart_an restart_an;
 		struct ice_aqc_get_sw_cfg get_sw_conf;
 		struct ice_aqc_sw_rules sw_rules;
 		struct ice_aqc_get_topo get_topo;
@@ -1222,6 +1263,8 @@ enum ice_adminq_opc {
 
 	/* PHY commands */
 	ice_aqc_opc_get_phy_caps			= 0x0600,
+	ice_aqc_opc_set_phy_cfg				= 0x0601,
+	ice_aqc_opc_restart_an				= 0x0605,
 	ice_aqc_opc_get_link_status			= 0x0607,
 
 	/* NVM commands */

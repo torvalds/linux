@@ -20,6 +20,7 @@
 #define ICE_DBG_RES		BIT_ULL(17)
 #define ICE_DBG_AQ_MSG		BIT_ULL(24)
 #define ICE_DBG_AQ_CMD		BIT_ULL(27)
+#define ICE_DBG_USER		BIT_ULL(31)
 
 enum ice_aq_res_ids {
 	ICE_NVM_RES_ID = 1,
@@ -40,6 +41,13 @@ enum ice_fc_mode {
 	ICE_FC_FULL,
 	ICE_FC_PFC,
 	ICE_FC_DFLT
+};
+
+enum ice_set_fc_aq_failures {
+	ICE_SET_FC_AQ_FAIL_NONE = 0,
+	ICE_SET_FC_AQ_FAIL_GET,
+	ICE_SET_FC_AQ_FAIL_SET,
+	ICE_SET_FC_AQ_FAIL_UPDATE
 };
 
 /* Various MAC types */
@@ -301,10 +309,72 @@ struct ice_hw {
 
 };
 
+/* Statistics collected by each port, VSI, VEB, and S-channel */
+struct ice_eth_stats {
+	u64 rx_bytes;			/* gorc */
+	u64 rx_unicast;			/* uprc */
+	u64 rx_multicast;		/* mprc */
+	u64 rx_broadcast;		/* bprc */
+	u64 rx_discards;		/* rdpc */
+	u64 rx_unknown_protocol;	/* rupp */
+	u64 tx_bytes;			/* gotc */
+	u64 tx_unicast;			/* uptc */
+	u64 tx_multicast;		/* mptc */
+	u64 tx_broadcast;		/* bptc */
+	u64 tx_discards;		/* tdpc */
+	u64 tx_errors;			/* tepc */
+};
+
+/* Statistics collected by the MAC */
+struct ice_hw_port_stats {
+	/* eth stats collected by the port */
+	struct ice_eth_stats eth;
+	/* additional port specific stats */
+	u64 tx_dropped_link_down;	/* tdold */
+	u64 crc_errors;			/* crcerrs */
+	u64 illegal_bytes;		/* illerrc */
+	u64 error_bytes;		/* errbc */
+	u64 mac_local_faults;		/* mlfc */
+	u64 mac_remote_faults;		/* mrfc */
+	u64 rx_len_errors;		/* rlec */
+	u64 link_xon_rx;		/* lxonrxc */
+	u64 link_xoff_rx;		/* lxoffrxc */
+	u64 link_xon_tx;		/* lxontxc */
+	u64 link_xoff_tx;		/* lxofftxc */
+	u64 rx_size_64;			/* prc64 */
+	u64 rx_size_127;		/* prc127 */
+	u64 rx_size_255;		/* prc255 */
+	u64 rx_size_511;		/* prc511 */
+	u64 rx_size_1023;		/* prc1023 */
+	u64 rx_size_1522;		/* prc1522 */
+	u64 rx_size_big;		/* prc9522 */
+	u64 rx_undersize;		/* ruc */
+	u64 rx_fragments;		/* rfc */
+	u64 rx_oversize;		/* roc */
+	u64 rx_jabber;			/* rjc */
+	u64 tx_size_64;			/* ptc64 */
+	u64 tx_size_127;		/* ptc127 */
+	u64 tx_size_255;		/* ptc255 */
+	u64 tx_size_511;		/* ptc511 */
+	u64 tx_size_1023;		/* ptc1023 */
+	u64 tx_size_1522;		/* ptc1522 */
+	u64 tx_size_big;		/* ptc9522 */
+};
+
 /* Checksum and Shadow RAM pointers */
 #define ICE_SR_NVM_DEV_STARTER_VER	0x18
 #define ICE_SR_NVM_EETRACK_LO		0x2D
 #define ICE_SR_NVM_EETRACK_HI		0x2E
+#define ICE_NVM_VER_LO_SHIFT		0
+#define ICE_NVM_VER_LO_MASK		(0xff << ICE_NVM_VER_LO_SHIFT)
+#define ICE_NVM_VER_HI_SHIFT		12
+#define ICE_NVM_VER_HI_MASK		(0xf << ICE_NVM_VER_HI_SHIFT)
+#define ICE_OEM_VER_PATCH_SHIFT		0
+#define ICE_OEM_VER_PATCH_MASK		(0xff << ICE_OEM_VER_PATCH_SHIFT)
+#define ICE_OEM_VER_BUILD_SHIFT		8
+#define ICE_OEM_VER_BUILD_MASK		(0xffff << ICE_OEM_VER_BUILD_SHIFT)
+#define ICE_OEM_VER_SHIFT		24
+#define ICE_OEM_VER_MASK		(0xff << ICE_OEM_VER_SHIFT)
 #define ICE_SR_SECTOR_SIZE_IN_WORDS	0x800
 #define ICE_SR_WORDS_IN_1KB		512
 

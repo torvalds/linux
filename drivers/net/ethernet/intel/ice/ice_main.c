@@ -9,7 +9,7 @@
 
 #define DRV_VERSION	"ice-0.0.1-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
-static const char ice_drv_ver[] = DRV_VERSION;
+const char ice_drv_ver[] = DRV_VERSION;
 static const char ice_driver_string[] = DRV_SUMMARY;
 static const char ice_copyright[] = "Copyright (c) 2018, Intel Corporation.";
 
@@ -30,6 +30,8 @@ static struct workqueue_struct *ice_wq;
 static const struct net_device_ops ice_netdev_ops;
 
 static int ice_vsi_release(struct ice_vsi *vsi);
+static void ice_update_vsi_stats(struct ice_vsi *vsi);
+static void ice_update_pf_stats(struct ice_pf *pf);
 
 /**
  * ice_get_free_slot - get the next non-NULL location index in array
@@ -215,11 +217,40 @@ static void ice_free_fltr_list(struct device *dev, struct list_head *h)
 }
 
 /**
+ * ice_watchdog_subtask - periodic tasks not using event driven scheduling
+ * @pf: board private structure
+ */
+static void ice_watchdog_subtask(struct ice_pf *pf)
+{
+	int i;
+
+	/* if interface is down do nothing */
+	if (test_bit(__ICE_DOWN, pf->state) ||
+	    test_bit(__ICE_CFG_BUSY, pf->state))
+		return;
+
+	/* make sure we don't do these things too often */
+	if (time_before(jiffies,
+			pf->serv_tmr_prev + pf->serv_tmr_period))
+		return;
+
+	pf->serv_tmr_prev = jiffies;
+
+	/* Update the stats for active netdevs so the network stack
+	 * can look at updated numbers whenever it cares to
+	 */
+	ice_update_pf_stats(pf);
+	for (i = 0; i < pf->num_alloc_vsi; i++)
+		if (pf->vsi[i] && pf->vsi[i]->netdev)
+			ice_update_vsi_stats(pf->vsi[i]);
+}
+
+/**
  * ice_print_link_msg - print link up or down message
  * @vsi: the VSI whose link status is being queried
  * @isup: boolean for if the link is now up or down
  */
-static void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
+void ice_print_link_msg(struct ice_vsi *vsi, bool isup)
 {
 	const char *speed;
 	const char *fc;
@@ -452,6 +483,7 @@ static void ice_service_task(struct work_struct *work)
 	unsigned long start_time = jiffies;
 
 	/* subtasks */
+	ice_watchdog_subtask(pf);
 	ice_clean_adminq_subtask(pf);
 
 	/* Clear __ICE_SERVICE_SCHED flag to allow scheduling next event */
@@ -1762,6 +1794,8 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 
 	/* setup watchdog timeout value to be 5 second */
 	netdev->watchdog_timeo = 5 * HZ;
+
+	ice_set_ethtool_ops(netdev);
 
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = ICE_MAX_MTU;
@@ -3460,6 +3494,434 @@ static int ice_up_complete(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_up - Bring the connection back up after being down
+ * @vsi: VSI being configured
+ */
+int ice_up(struct ice_vsi *vsi)
+{
+	int err;
+
+	err = ice_vsi_cfg(vsi);
+	if (!err)
+		err = ice_up_complete(vsi);
+
+	return err;
+}
+
+/**
+ * ice_fetch_u64_stats_per_ring - get packets and bytes stats per ring
+ * @ring: Tx or Rx ring to read stats from
+ * @pkts: packets stats counter
+ * @bytes: bytes stats counter
+ *
+ * This function fetches stats from the ring considering the atomic operations
+ * that needs to be performed to read u64 values in 32 bit machine.
+ */
+static void ice_fetch_u64_stats_per_ring(struct ice_ring *ring, u64 *pkts,
+					 u64 *bytes)
+{
+	unsigned int start;
+	*pkts = 0;
+	*bytes = 0;
+
+	if (!ring)
+		return;
+	do {
+		start = u64_stats_fetch_begin_irq(&ring->syncp);
+		*pkts = ring->stats.pkts;
+		*bytes = ring->stats.bytes;
+	} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
+}
+
+/**
+ * ice_stat_update40 - read 40 bit stat from the chip and update stat values
+ * @hw: ptr to the hardware info
+ * @hireg: high 32 bit HW register to read from
+ * @loreg: low 32 bit HW register to read from
+ * @prev_stat_loaded: bool to specify if previous stats are loaded
+ * @prev_stat: ptr to previous loaded stat value
+ * @cur_stat: ptr to current stat value
+ */
+static void ice_stat_update40(struct ice_hw *hw, u32 hireg, u32 loreg,
+			      bool prev_stat_loaded, u64 *prev_stat,
+			      u64 *cur_stat)
+{
+	u64 new_data;
+
+	new_data = rd32(hw, loreg);
+	new_data |= ((u64)(rd32(hw, hireg) & 0xFFFF)) << 32;
+
+	/* device stats are not reset at PFR, they likely will not be zeroed
+	 * when the driver starts. So save the first values read and use them as
+	 * offsets to be subtracted from the raw values in order to report stats
+	 * that count from zero.
+	 */
+	if (!prev_stat_loaded)
+		*prev_stat = new_data;
+	if (likely(new_data >= *prev_stat))
+		*cur_stat = new_data - *prev_stat;
+	else
+		/* to manage the potential roll-over */
+		*cur_stat = (new_data + BIT_ULL(40)) - *prev_stat;
+	*cur_stat &= 0xFFFFFFFFFFULL;
+}
+
+/**
+ * ice_stat_update32 - read 32 bit stat from the chip and update stat values
+ * @hw: ptr to the hardware info
+ * @reg: HW register to read from
+ * @prev_stat_loaded: bool to specify if previous stats are loaded
+ * @prev_stat: ptr to previous loaded stat value
+ * @cur_stat: ptr to current stat value
+ */
+static void ice_stat_update32(struct ice_hw *hw, u32 reg, bool prev_stat_loaded,
+			      u64 *prev_stat, u64 *cur_stat)
+{
+	u32 new_data;
+
+	new_data = rd32(hw, reg);
+
+	/* device stats are not reset at PFR, they likely will not be zeroed
+	 * when the driver starts. So save the first values read and use them as
+	 * offsets to be subtracted from the raw values in order to report stats
+	 * that count from zero.
+	 */
+	if (!prev_stat_loaded)
+		*prev_stat = new_data;
+	if (likely(new_data >= *prev_stat))
+		*cur_stat = new_data - *prev_stat;
+	else
+		/* to manage the potential roll-over */
+		*cur_stat = (new_data + BIT_ULL(32)) - *prev_stat;
+}
+
+/**
+ * ice_update_eth_stats - Update VSI-specific ethernet statistics counters
+ * @vsi: the VSI to be updated
+ */
+static void ice_update_eth_stats(struct ice_vsi *vsi)
+{
+	struct ice_eth_stats *prev_es, *cur_es;
+	struct ice_hw *hw = &vsi->back->hw;
+	u16 vsi_num = vsi->vsi_num;    /* HW absolute index of a VSI */
+
+	prev_es = &vsi->eth_stats_prev;
+	cur_es = &vsi->eth_stats;
+
+	ice_stat_update40(hw, GLV_GORCH(vsi_num), GLV_GORCL(vsi_num),
+			  vsi->stat_offsets_loaded, &prev_es->rx_bytes,
+			  &cur_es->rx_bytes);
+
+	ice_stat_update40(hw, GLV_UPRCH(vsi_num), GLV_UPRCL(vsi_num),
+			  vsi->stat_offsets_loaded, &prev_es->rx_unicast,
+			  &cur_es->rx_unicast);
+
+	ice_stat_update40(hw, GLV_MPRCH(vsi_num), GLV_MPRCL(vsi_num),
+			  vsi->stat_offsets_loaded, &prev_es->rx_multicast,
+			  &cur_es->rx_multicast);
+
+	ice_stat_update40(hw, GLV_BPRCH(vsi_num), GLV_BPRCL(vsi_num),
+			  vsi->stat_offsets_loaded, &prev_es->rx_broadcast,
+			  &cur_es->rx_broadcast);
+
+	ice_stat_update32(hw, GLV_RDPC(vsi_num), vsi->stat_offsets_loaded,
+			  &prev_es->rx_discards, &cur_es->rx_discards);
+
+	ice_stat_update40(hw, GLV_GOTCH(vsi_num), GLV_GOTCL(vsi_num),
+			  vsi->stat_offsets_loaded, &prev_es->tx_bytes,
+			  &cur_es->tx_bytes);
+
+	ice_stat_update40(hw, GLV_UPTCH(vsi_num), GLV_UPTCL(vsi_num),
+			  vsi->stat_offsets_loaded, &prev_es->tx_unicast,
+			  &cur_es->tx_unicast);
+
+	ice_stat_update40(hw, GLV_MPTCH(vsi_num), GLV_MPTCL(vsi_num),
+			  vsi->stat_offsets_loaded, &prev_es->tx_multicast,
+			  &cur_es->tx_multicast);
+
+	ice_stat_update40(hw, GLV_BPTCH(vsi_num), GLV_BPTCL(vsi_num),
+			  vsi->stat_offsets_loaded, &prev_es->tx_broadcast,
+			  &cur_es->tx_broadcast);
+
+	ice_stat_update32(hw, GLV_TEPC(vsi_num), vsi->stat_offsets_loaded,
+			  &prev_es->tx_errors, &cur_es->tx_errors);
+
+	vsi->stat_offsets_loaded = true;
+}
+
+/**
+ * ice_update_vsi_ring_stats - Update VSI stats counters
+ * @vsi: the VSI to be updated
+ */
+static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
+{
+	struct rtnl_link_stats64 *vsi_stats = &vsi->net_stats;
+	struct ice_ring *ring;
+	u64 pkts, bytes;
+	int i;
+
+	/* reset netdev stats */
+	vsi_stats->tx_packets = 0;
+	vsi_stats->tx_bytes = 0;
+	vsi_stats->rx_packets = 0;
+	vsi_stats->rx_bytes = 0;
+
+	/* reset non-netdev (extended) stats */
+	vsi->tx_restart = 0;
+	vsi->tx_busy = 0;
+	vsi->tx_linearize = 0;
+	vsi->rx_buf_failed = 0;
+	vsi->rx_page_failed = 0;
+
+	rcu_read_lock();
+
+	/* update Tx rings counters */
+	ice_for_each_txq(vsi, i) {
+		ring = READ_ONCE(vsi->tx_rings[i]);
+		ice_fetch_u64_stats_per_ring(ring, &pkts, &bytes);
+		vsi_stats->tx_packets += pkts;
+		vsi_stats->tx_bytes += bytes;
+		vsi->tx_restart += ring->tx_stats.restart_q;
+		vsi->tx_busy += ring->tx_stats.tx_busy;
+		vsi->tx_linearize += ring->tx_stats.tx_linearize;
+	}
+
+	/* update Rx rings counters */
+	ice_for_each_rxq(vsi, i) {
+		ring = READ_ONCE(vsi->rx_rings[i]);
+		ice_fetch_u64_stats_per_ring(ring, &pkts, &bytes);
+		vsi_stats->rx_packets += pkts;
+		vsi_stats->rx_bytes += bytes;
+		vsi->rx_buf_failed += ring->rx_stats.alloc_buf_failed;
+		vsi->rx_page_failed += ring->rx_stats.alloc_page_failed;
+	}
+
+	rcu_read_unlock();
+}
+
+/**
+ * ice_update_vsi_stats - Update VSI stats counters
+ * @vsi: the VSI to be updated
+ */
+static void ice_update_vsi_stats(struct ice_vsi *vsi)
+{
+	struct rtnl_link_stats64 *cur_ns = &vsi->net_stats;
+	struct ice_eth_stats *cur_es = &vsi->eth_stats;
+	struct ice_pf *pf = vsi->back;
+
+	if (test_bit(__ICE_DOWN, vsi->state) ||
+	    test_bit(__ICE_CFG_BUSY, pf->state))
+		return;
+
+	/* get stats as recorded by Tx/Rx rings */
+	ice_update_vsi_ring_stats(vsi);
+
+	/* get VSI stats as recorded by the hardware */
+	ice_update_eth_stats(vsi);
+
+	cur_ns->tx_errors = cur_es->tx_errors;
+	cur_ns->rx_dropped = cur_es->rx_discards;
+	cur_ns->tx_dropped = cur_es->tx_discards;
+	cur_ns->multicast = cur_es->rx_multicast;
+
+	/* update some more netdev stats if this is main VSI */
+	if (vsi->type == ICE_VSI_PF) {
+		cur_ns->rx_crc_errors = pf->stats.crc_errors;
+		cur_ns->rx_errors = pf->stats.crc_errors +
+				    pf->stats.illegal_bytes;
+		cur_ns->rx_length_errors = pf->stats.rx_len_errors;
+	}
+}
+
+/**
+ * ice_update_pf_stats - Update PF port stats counters
+ * @pf: PF whose stats needs to be updated
+ */
+static void ice_update_pf_stats(struct ice_pf *pf)
+{
+	struct ice_hw_port_stats *prev_ps, *cur_ps;
+	struct ice_hw *hw = &pf->hw;
+	u8 pf_id;
+
+	prev_ps = &pf->stats_prev;
+	cur_ps = &pf->stats;
+	pf_id = hw->pf_id;
+
+	ice_stat_update40(hw, GLPRT_GORCH(pf_id), GLPRT_GORCL(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->eth.rx_bytes,
+			  &cur_ps->eth.rx_bytes);
+
+	ice_stat_update40(hw, GLPRT_UPRCH(pf_id), GLPRT_UPRCL(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->eth.rx_unicast,
+			  &cur_ps->eth.rx_unicast);
+
+	ice_stat_update40(hw, GLPRT_MPRCH(pf_id), GLPRT_MPRCL(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->eth.rx_multicast,
+			  &cur_ps->eth.rx_multicast);
+
+	ice_stat_update40(hw, GLPRT_BPRCH(pf_id), GLPRT_BPRCL(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->eth.rx_broadcast,
+			  &cur_ps->eth.rx_broadcast);
+
+	ice_stat_update40(hw, GLPRT_GOTCH(pf_id), GLPRT_GOTCL(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->eth.tx_bytes,
+			  &cur_ps->eth.tx_bytes);
+
+	ice_stat_update40(hw, GLPRT_UPTCH(pf_id), GLPRT_UPTCL(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->eth.tx_unicast,
+			  &cur_ps->eth.tx_unicast);
+
+	ice_stat_update40(hw, GLPRT_MPTCH(pf_id), GLPRT_MPTCL(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->eth.tx_multicast,
+			  &cur_ps->eth.tx_multicast);
+
+	ice_stat_update40(hw, GLPRT_BPTCH(pf_id), GLPRT_BPTCL(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->eth.tx_broadcast,
+			  &cur_ps->eth.tx_broadcast);
+
+	ice_stat_update32(hw, GLPRT_TDOLD(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->tx_dropped_link_down,
+			  &cur_ps->tx_dropped_link_down);
+
+	ice_stat_update40(hw, GLPRT_PRC64H(pf_id), GLPRT_PRC64L(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->rx_size_64,
+			  &cur_ps->rx_size_64);
+
+	ice_stat_update40(hw, GLPRT_PRC127H(pf_id), GLPRT_PRC127L(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->rx_size_127,
+			  &cur_ps->rx_size_127);
+
+	ice_stat_update40(hw, GLPRT_PRC255H(pf_id), GLPRT_PRC255L(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->rx_size_255,
+			  &cur_ps->rx_size_255);
+
+	ice_stat_update40(hw, GLPRT_PRC511H(pf_id), GLPRT_PRC511L(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->rx_size_511,
+			  &cur_ps->rx_size_511);
+
+	ice_stat_update40(hw, GLPRT_PRC1023H(pf_id),
+			  GLPRT_PRC1023L(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->rx_size_1023, &cur_ps->rx_size_1023);
+
+	ice_stat_update40(hw, GLPRT_PRC1522H(pf_id),
+			  GLPRT_PRC1522L(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->rx_size_1522, &cur_ps->rx_size_1522);
+
+	ice_stat_update40(hw, GLPRT_PRC9522H(pf_id),
+			  GLPRT_PRC9522L(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->rx_size_big, &cur_ps->rx_size_big);
+
+	ice_stat_update40(hw, GLPRT_PTC64H(pf_id), GLPRT_PTC64L(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->tx_size_64,
+			  &cur_ps->tx_size_64);
+
+	ice_stat_update40(hw, GLPRT_PTC127H(pf_id), GLPRT_PTC127L(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->tx_size_127,
+			  &cur_ps->tx_size_127);
+
+	ice_stat_update40(hw, GLPRT_PTC255H(pf_id), GLPRT_PTC255L(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->tx_size_255,
+			  &cur_ps->tx_size_255);
+
+	ice_stat_update40(hw, GLPRT_PTC511H(pf_id), GLPRT_PTC511L(pf_id),
+			  pf->stat_prev_loaded, &prev_ps->tx_size_511,
+			  &cur_ps->tx_size_511);
+
+	ice_stat_update40(hw, GLPRT_PTC1023H(pf_id),
+			  GLPRT_PTC1023L(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->tx_size_1023, &cur_ps->tx_size_1023);
+
+	ice_stat_update40(hw, GLPRT_PTC1522H(pf_id),
+			  GLPRT_PTC1522L(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->tx_size_1522, &cur_ps->tx_size_1522);
+
+	ice_stat_update40(hw, GLPRT_PTC9522H(pf_id),
+			  GLPRT_PTC9522L(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->tx_size_big, &cur_ps->tx_size_big);
+
+	ice_stat_update32(hw, GLPRT_LXONRXC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->link_xon_rx, &cur_ps->link_xon_rx);
+
+	ice_stat_update32(hw, GLPRT_LXOFFRXC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->link_xoff_rx, &cur_ps->link_xoff_rx);
+
+	ice_stat_update32(hw, GLPRT_LXONTXC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->link_xon_tx, &cur_ps->link_xon_tx);
+
+	ice_stat_update32(hw, GLPRT_LXOFFTXC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->link_xoff_tx, &cur_ps->link_xoff_tx);
+
+	ice_stat_update32(hw, GLPRT_CRCERRS(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->crc_errors, &cur_ps->crc_errors);
+
+	ice_stat_update32(hw, GLPRT_ILLERRC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->illegal_bytes, &cur_ps->illegal_bytes);
+
+	ice_stat_update32(hw, GLPRT_MLFC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->mac_local_faults,
+			  &cur_ps->mac_local_faults);
+
+	ice_stat_update32(hw, GLPRT_MRFC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->mac_remote_faults,
+			  &cur_ps->mac_remote_faults);
+
+	ice_stat_update32(hw, GLPRT_RLEC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->rx_len_errors, &cur_ps->rx_len_errors);
+
+	ice_stat_update32(hw, GLPRT_RUC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->rx_undersize, &cur_ps->rx_undersize);
+
+	ice_stat_update32(hw, GLPRT_RFC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->rx_fragments, &cur_ps->rx_fragments);
+
+	ice_stat_update32(hw, GLPRT_ROC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->rx_oversize, &cur_ps->rx_oversize);
+
+	ice_stat_update32(hw, GLPRT_RJC(pf_id), pf->stat_prev_loaded,
+			  &prev_ps->rx_jabber, &cur_ps->rx_jabber);
+
+	pf->stat_prev_loaded = true;
+}
+
+/**
+ * ice_get_stats64 - get statistics for network device structure
+ * @netdev: network interface device structure
+ * @stats: main device statistics structure
+ */
+static
+void ice_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct rtnl_link_stats64 *vsi_stats;
+	struct ice_vsi *vsi = np->vsi;
+
+	vsi_stats = &vsi->net_stats;
+
+	if (test_bit(__ICE_DOWN, vsi->state) || !vsi->num_txq || !vsi->num_rxq)
+		return;
+	/* netdev packet/byte stats come from ring counter. These are obtained
+	 * by summing up ring counters (done by ice_update_vsi_ring_stats).
+	 */
+	ice_update_vsi_ring_stats(vsi);
+	stats->tx_packets = vsi_stats->tx_packets;
+	stats->tx_bytes = vsi_stats->tx_bytes;
+	stats->rx_packets = vsi_stats->rx_packets;
+	stats->rx_bytes = vsi_stats->rx_bytes;
+
+	/* The rest of the stats can be read from the hardware but instead we
+	 * just return values that the watchdog task has already obtained from
+	 * the hardware.
+	 */
+	stats->multicast = vsi_stats->multicast;
+	stats->tx_errors = vsi_stats->tx_errors;
+	stats->tx_dropped = vsi_stats->tx_dropped;
+	stats->rx_errors = vsi_stats->rx_errors;
+	stats->rx_dropped = vsi_stats->rx_dropped;
+	stats->rx_crc_errors = vsi_stats->rx_crc_errors;
+	stats->rx_length_errors = vsi_stats->rx_length_errors;
+}
+
+/**
  * ice_napi_disable_all - Disable NAPI for all q_vectors in the VSI
  * @vsi: VSI having NAPI disabled
  */
@@ -3478,7 +3940,7 @@ static void ice_napi_disable_all(struct ice_vsi *vsi)
  * ice_down - Shutdown the connection
  * @vsi: The VSI being stopped
  */
-static int ice_down(struct ice_vsi *vsi)
+int ice_down(struct ice_vsi *vsi)
 {
 	int i, err;
 
@@ -3878,6 +4340,7 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_open = ice_open,
 	.ndo_stop = ice_stop,
 	.ndo_start_xmit = ice_start_xmit,
+	.ndo_get_stats64 = ice_get_stats64,
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
 	.ndo_set_features = ice_set_features,

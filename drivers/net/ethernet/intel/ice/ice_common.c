@@ -1262,6 +1262,201 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
 }
 
 /**
+ * ice_aq_set_phy_cfg
+ * @hw: pointer to the hw struct
+ * @lport: logical port number
+ * @cfg: structure with PHY configuration data to be set
+ * @cd: pointer to command details structure or NULL
+ *
+ * Set the various PHY configuration parameters supported on the Port.
+ * One or more of the Set PHY config parameters may be ignored in an MFP
+ * mode as the PF may not have the privilege to set some of the PHY Config
+ * parameters. This status will be indicated by the command response (0x0601).
+ */
+static enum ice_status
+ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
+		   struct ice_aqc_set_phy_cfg_data *cfg, struct ice_sq_cd *cd)
+{
+	struct ice_aqc_set_phy_cfg *cmd;
+	struct ice_aq_desc desc;
+
+	if (!cfg)
+		return ICE_ERR_PARAM;
+
+	cmd = &desc.params.set_phy;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_phy_cfg);
+	cmd->lport_num = lport;
+
+	return ice_aq_send_cmd(hw, &desc, cfg, sizeof(*cfg), cd);
+}
+
+/**
+ * ice_update_link_info - update status of the HW network link
+ * @pi: port info structure of the interested logical port
+ */
+static enum ice_status
+ice_update_link_info(struct ice_port_info *pi)
+{
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	struct ice_phy_info *phy_info;
+	enum ice_status status;
+	struct ice_hw *hw;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+
+	hw = pi->hw;
+
+	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return ICE_ERR_NO_MEMORY;
+
+	phy_info = &pi->phy;
+	status = ice_aq_get_link_info(pi, true, NULL, NULL);
+	if (status)
+		goto out;
+
+	if (phy_info->link_info.link_info & ICE_AQ_MEDIA_AVAILABLE) {
+		status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG,
+					     pcaps, NULL);
+		if (status)
+			goto out;
+
+		memcpy(phy_info->link_info.module_type, &pcaps->module_type,
+		       sizeof(phy_info->link_info.module_type));
+	}
+out:
+	devm_kfree(ice_hw_to_dev(hw), pcaps);
+	return status;
+}
+
+/**
+ * ice_set_fc
+ * @pi: port information structure
+ * @aq_failures: pointer to status code, specific to ice_set_fc routine
+ * @atomic_restart: enable automatic link update
+ *
+ * Set the requested flow control mode.
+ */
+enum ice_status
+ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool atomic_restart)
+{
+	struct ice_aqc_set_phy_cfg_data cfg = { 0 };
+	struct ice_aqc_get_phy_caps_data *pcaps;
+	enum ice_status status;
+	u8 pause_mask = 0x0;
+	struct ice_hw *hw;
+
+	if (!pi)
+		return ICE_ERR_PARAM;
+	hw = pi->hw;
+	*aq_failures = ICE_SET_FC_AQ_FAIL_NONE;
+
+	switch (pi->fc.req_mode) {
+	case ICE_FC_FULL:
+		pause_mask |= ICE_AQC_PHY_EN_TX_LINK_PAUSE;
+		pause_mask |= ICE_AQC_PHY_EN_RX_LINK_PAUSE;
+		break;
+	case ICE_FC_RX_PAUSE:
+		pause_mask |= ICE_AQC_PHY_EN_RX_LINK_PAUSE;
+		break;
+	case ICE_FC_TX_PAUSE:
+		pause_mask |= ICE_AQC_PHY_EN_TX_LINK_PAUSE;
+		break;
+	default:
+		break;
+	}
+
+	pcaps = devm_kzalloc(ice_hw_to_dev(hw), sizeof(*pcaps), GFP_KERNEL);
+	if (!pcaps)
+		return ICE_ERR_NO_MEMORY;
+
+	/* Get the current phy config */
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_SW_CFG, pcaps,
+				     NULL);
+	if (status) {
+		*aq_failures = ICE_SET_FC_AQ_FAIL_GET;
+		goto out;
+	}
+
+	/* clear the old pause settings */
+	cfg.caps = pcaps->caps & ~(ICE_AQC_PHY_EN_TX_LINK_PAUSE |
+				   ICE_AQC_PHY_EN_RX_LINK_PAUSE);
+	/* set the new capabilities */
+	cfg.caps |= pause_mask;
+	/* If the capabilities have changed, then set the new config */
+	if (cfg.caps != pcaps->caps) {
+		int retry_count, retry_max = 10;
+
+		/* Auto restart link so settings take effect */
+		if (atomic_restart)
+			cfg.caps |= ICE_AQ_PHY_ENA_ATOMIC_LINK;
+		/* Copy over all the old settings */
+		cfg.phy_type_low = pcaps->phy_type_low;
+		cfg.low_power_ctrl = pcaps->low_power_ctrl;
+		cfg.eee_cap = pcaps->eee_cap;
+		cfg.eeer_value = pcaps->eeer_value;
+		cfg.link_fec_opt = pcaps->link_fec_options;
+
+		status = ice_aq_set_phy_cfg(hw, pi->lport, &cfg, NULL);
+		if (status) {
+			*aq_failures = ICE_SET_FC_AQ_FAIL_SET;
+			goto out;
+		}
+
+		/* Update the link info
+		 * It sometimes takes a really long time for link to
+		 * come back from the atomic reset. Thus, we wait a
+		 * little bit.
+		 */
+		for (retry_count = 0; retry_count < retry_max; retry_count++) {
+			status = ice_update_link_info(pi);
+
+			if (!status)
+				break;
+
+			mdelay(100);
+		}
+
+		if (status)
+			*aq_failures = ICE_SET_FC_AQ_FAIL_UPDATE;
+	}
+
+out:
+	devm_kfree(ice_hw_to_dev(hw), pcaps);
+	return status;
+}
+
+/**
+ * ice_aq_set_link_restart_an
+ * @pi: pointer to the port information structure
+ * @ena_link: if true: enable link, if false: disable link
+ * @cd: pointer to command details structure or NULL
+ *
+ * Sets up the link and restarts the Auto-Negotiation over the link.
+ */
+enum ice_status
+ice_aq_set_link_restart_an(struct ice_port_info *pi, bool ena_link,
+			   struct ice_sq_cd *cd)
+{
+	struct ice_aqc_restart_an *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.restart_an;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_restart_an);
+
+	cmd->cmd_flags = ICE_AQC_RESTART_AN_LINK_RESTART;
+	cmd->lport_num = pi->lport;
+	if (ena_link)
+		cmd->cmd_flags |= ICE_AQC_RESTART_AN_LINK_ENABLE;
+	else
+		cmd->cmd_flags &= ~ICE_AQC_RESTART_AN_LINK_ENABLE;
+
+	return ice_aq_send_cmd(pi->hw, &desc, NULL, 0, cd);
+}
+
+/**
  * __ice_aq_get_set_rss_lut
  * @hw: pointer to the hardware structure
  * @vsi_id: VSI FW index
