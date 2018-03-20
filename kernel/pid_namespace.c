@@ -23,55 +23,39 @@
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
 
-struct pid_cache {
-	int nr_ids;
-	char name[16];
-	struct kmem_cache *cachep;
-	struct list_head list;
-};
-
-static LIST_HEAD(pid_caches_lh);
 static DEFINE_MUTEX(pid_caches_mutex);
 static struct kmem_cache *pid_ns_cachep;
+/* MAX_PID_NS_LEVEL is needed for limiting size of 'struct pid' */
+#define MAX_PID_NS_LEVEL 32
+/* Write once array, filled from the beginning. */
+static struct kmem_cache *pid_cache[MAX_PID_NS_LEVEL];
 
 /*
  * creates the kmem cache to allocate pids from.
- * @nr_ids: the number of numerical ids this pid will have to carry
+ * @level: pid namespace level
  */
 
-static struct kmem_cache *create_pid_cachep(int nr_ids)
+static struct kmem_cache *create_pid_cachep(unsigned int level)
 {
-	struct pid_cache *pcache;
-	struct kmem_cache *cachep;
+	/* Level 0 is init_pid_ns.pid_cachep */
+	struct kmem_cache **pkc = &pid_cache[level - 1];
+	struct kmem_cache *kc;
+	char name[4 + 10 + 1];
+	unsigned int len;
 
+	kc = READ_ONCE(*pkc);
+	if (kc)
+		return kc;
+
+	snprintf(name, sizeof(name), "pid_%u", level + 1);
+	len = sizeof(struct pid) + level * sizeof(struct upid);
 	mutex_lock(&pid_caches_mutex);
-	list_for_each_entry(pcache, &pid_caches_lh, list)
-		if (pcache->nr_ids == nr_ids)
-			goto out;
-
-	pcache = kmalloc(sizeof(struct pid_cache), GFP_KERNEL);
-	if (pcache == NULL)
-		goto err_alloc;
-
-	snprintf(pcache->name, sizeof(pcache->name), "pid_%d", nr_ids);
-	cachep = kmem_cache_create(pcache->name,
-			sizeof(struct pid) + (nr_ids - 1) * sizeof(struct upid),
-			0, SLAB_HWCACHE_ALIGN, NULL);
-	if (cachep == NULL)
-		goto err_cachep;
-
-	pcache->nr_ids = nr_ids;
-	pcache->cachep = cachep;
-	list_add(&pcache->list, &pid_caches_lh);
-out:
+	/* Name collision forces to do allocation under mutex. */
+	if (!*pkc)
+		*pkc = kmem_cache_create(name, len, 0, SLAB_HWCACHE_ALIGN, 0);
 	mutex_unlock(&pid_caches_mutex);
-	return pcache->cachep;
-
-err_cachep:
-	kfree(pcache);
-err_alloc:
-	mutex_unlock(&pid_caches_mutex);
-	return NULL;
+	/* current can fail, but someone else can succeed. */
+	return READ_ONCE(*pkc);
 }
 
 static void proc_cleanup_work(struct work_struct *work)
@@ -79,9 +63,6 @@ static void proc_cleanup_work(struct work_struct *work)
 	struct pid_namespace *ns = container_of(work, struct pid_namespace, proc_work);
 	pid_ns_release_proc(ns);
 }
-
-/* MAX_PID_NS_LEVEL is needed for limiting size of 'struct pid' */
-#define MAX_PID_NS_LEVEL 32
 
 static struct ucounts *inc_pid_namespaces(struct user_namespace *ns)
 {
@@ -119,7 +100,7 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 
 	idr_init(&ns->idr);
 
-	ns->pid_cachep = create_pid_cachep(level + 1);
+	ns->pid_cachep = create_pid_cachep(level);
 	if (ns->pid_cachep == NULL)
 		goto out_free_idr;
 
