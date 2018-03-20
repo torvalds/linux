@@ -1717,6 +1717,16 @@ static void __unregister_enc_region_locked(struct kvm *kvm,
 	kfree(region);
 }
 
+static struct kvm *svm_vm_alloc(void)
+{
+	return kzalloc(sizeof(struct kvm), GFP_KERNEL);
+}
+
+static void svm_vm_free(struct kvm *kvm)
+{
+	kfree(kvm);
+}
+
 static void sev_vm_destroy(struct kvm *kvm)
 {
 	struct kvm_sev_info *sev = &kvm->arch.sev_info;
@@ -6881,6 +6891,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.vcpu_free = svm_free_vcpu,
 	.vcpu_reset = svm_vcpu_reset,
 
+	.vm_alloc = svm_vm_alloc,
+	.vm_free = svm_vm_free,
 	.vm_init = avic_vm_init,
 	.vm_destroy = svm_vm_destroy,
 

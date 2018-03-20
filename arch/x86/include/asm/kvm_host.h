@@ -948,6 +948,8 @@ struct kvm_x86_ops {
 	bool (*cpu_has_high_real_mode_segbase)(void);
 	void (*cpuid_update)(struct kvm_vcpu *vcpu);
 
+	struct kvm *(*vm_alloc)(void);
+	void (*vm_free)(struct kvm *);
 	int (*vm_init)(struct kvm *kvm);
 	void (*vm_destroy)(struct kvm *kvm);
 
@@ -1120,6 +1122,17 @@ struct kvm_arch_async_pf {
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;
+
+#define __KVM_HAVE_ARCH_VM_ALLOC
+static inline struct kvm *kvm_arch_alloc_vm(void)
+{
+	return kvm_x86_ops->vm_alloc();
+}
+
+static inline void kvm_arch_free_vm(struct kvm *kvm)
+{
+	return kvm_x86_ops->vm_free(kvm);
+}
 
 int kvm_mmu_module_init(void);
 void kvm_mmu_module_exit(void);
