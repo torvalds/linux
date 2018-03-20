@@ -200,7 +200,10 @@ bool nfs_check_cache_invalid(struct inode *inode, unsigned long flags)
 static void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
+	bool have_delegation = nfs_have_delegated_attributes(inode);
 
+	if (have_delegation)
+		flags &= ~(NFS_INO_INVALID_CHANGE|NFS_INO_REVAL_PAGECACHE);
 	if (inode->i_mapping->nrpages == 0)
 		flags &= ~NFS_INO_INVALID_DATA;
 	nfsi->cache_validity |= flags;
