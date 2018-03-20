@@ -1007,8 +1007,6 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			goto out_free_oe;
 
 		OVL_I(inode)->redirect = upperredirect;
-		if (index)
-			ovl_set_flag(OVL_INDEX, inode);
 	}
 
 	revert_creds(old_cred);
