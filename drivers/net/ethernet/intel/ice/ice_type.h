@@ -10,6 +10,9 @@
 #include "ice_controlq.h"
 #include "ice_lan_tx_rx.h"
 
+#define ICE_BYTES_PER_WORD	2
+#define ICE_BYTES_PER_DWORD	4
+
 static inline bool ice_is_tc_ena(u8 bitmap, u8 tc)
 {
 	return test_bit(tc, (unsigned long *)&bitmap);
@@ -227,7 +230,9 @@ struct ice_port_info {
 	u8 port_state;
 #define ICE_SCHED_PORT_STATE_INIT	0x0
 #define ICE_SCHED_PORT_STATE_READY	0x1
+	u16 dflt_tx_vsi_rule_id;
 	u16 dflt_tx_vsi_num;
+	u16 dflt_rx_vsi_rule_id;
 	u16 dflt_rx_vsi_num;
 	struct ice_fc_info fc;
 	struct ice_mac_info mac;

@@ -58,6 +58,9 @@ enum ice_status
 ice_aq_send_cmd(struct ice_hw *hw, struct ice_aq_desc *desc,
 		void *buf, u16 buf_size, struct ice_sq_cd *cd);
 enum ice_status ice_aq_get_fw_ver(struct ice_hw *hw, struct ice_sq_cd *cd);
+enum ice_status
+ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
+			struct ice_sq_cd *cd);
 enum ice_status ice_clear_pf_cfg(struct ice_hw *hw);
 enum ice_status
 ice_set_fc(struct ice_port_info *pi, u8 *aq_failures, bool atomic_restart);

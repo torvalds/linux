@@ -135,6 +135,24 @@ struct ice_aqc_manage_mac_read_resp {
 	u8 mac_addr[ETH_ALEN];
 };
 
+/* Manage MAC address, write command - direct (0x0108) */
+struct ice_aqc_manage_mac_write {
+	u8 port_num;
+	u8 flags;
+#define ICE_AQC_MAN_MAC_WR_MC_MAG_EN		BIT(0)
+#define ICE_AQC_MAN_MAC_WR_WOL_LAA_PFR_KEEP	BIT(1)
+#define ICE_AQC_MAN_MAC_WR_S		6
+#define ICE_AQC_MAN_MAC_WR_M		(3 << ICE_AQC_MAN_MAC_WR_S)
+#define ICE_AQC_MAN_MAC_UPDATE_LAA	0
+#define ICE_AQC_MAN_MAC_UPDATE_LAA_WOL	(BIT(0) << ICE_AQC_MAN_MAC_WR_S)
+	/* High 16 bits of MAC address in big endian order */
+	__be16 sah;
+	/* Low 32 bits of MAC address in big endian order */
+	__be32 sal;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
 /* Clear PXE Command and response (direct 0x0110) */
 struct ice_aqc_clear_pxe {
 	u8 rx_cnt;
@@ -1214,6 +1232,7 @@ struct ice_aq_desc {
 		struct ice_aqc_q_shutdown q_shutdown;
 		struct ice_aqc_req_res res_owner;
 		struct ice_aqc_manage_mac_read mac_read;
+		struct ice_aqc_manage_mac_write mac_write;
 		struct ice_aqc_clear_pxe clear_pxe;
 		struct ice_aqc_list_caps get_cap;
 		struct ice_aqc_get_phy_caps get_phy;
@@ -1258,6 +1277,7 @@ enum ice_aq_err {
 	ICE_AQ_RC_ENOMEM	= 9,  /* Out of memory */
 	ICE_AQ_RC_EBUSY		= 12, /* Device or resource busy */
 	ICE_AQ_RC_EEXIST	= 13, /* object already exists */
+	ICE_AQ_RC_ENOSPC	= 16, /* No space left or allocation failure */
 };
 
 /* Admin Queue command opcodes */
@@ -1276,6 +1296,7 @@ enum ice_adminq_opc {
 
 	/* manage MAC address */
 	ice_aqc_opc_manage_mac_read			= 0x0107,
+	ice_aqc_opc_manage_mac_write			= 0x0108,
 
 	/* PXE */
 	ice_aqc_opc_clear_pxe_mode			= 0x0110,

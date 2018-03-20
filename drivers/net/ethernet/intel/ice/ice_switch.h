@@ -155,5 +155,7 @@ enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_id);
 enum ice_status ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
 enum ice_status ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
+enum ice_status
+ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_id, bool set, u8 direction);
 
 #endif /* _ICE_SWITCH_H_ */

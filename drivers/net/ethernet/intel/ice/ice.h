@@ -125,9 +125,18 @@ enum ice_state {
 	__ICE_SUSPENDED,		/* set on module remove path */
 	__ICE_RESET_FAILED,		/* set by reset/rebuild */
 	__ICE_ADMINQ_EVENT_PENDING,
+	__ICE_FLTR_OVERFLOW_PROMISC,
 	__ICE_CFG_BUSY,
 	__ICE_SERVICE_SCHED,
 	__ICE_STATE_NBITS		/* must be last */
+};
+
+enum ice_vsi_flags {
+	ICE_VSI_FLAG_UMAC_FLTR_CHANGED,
+	ICE_VSI_FLAG_MMAC_FLTR_CHANGED,
+	ICE_VSI_FLAG_VLAN_FLTR_CHANGED,
+	ICE_VSI_FLAG_PROMISC_CHANGED,
+	ICE_VSI_FLAG_NBITS		/* must be last */
 };
 
 /* struct that defines a VSI, associated with a dev */
@@ -144,7 +153,9 @@ struct ice_vsi {
 
 	u64 tx_linearize;
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
+	DECLARE_BITMAP(flags, ICE_VSI_FLAG_NBITS);
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+	unsigned int current_netdev_flags;
 	u32 tx_restart;
 	u32 tx_busy;
 	u32 rx_buf_failed;
@@ -174,6 +185,9 @@ struct ice_vsi {
 	struct rtnl_link_stats64 net_stats;
 	struct ice_eth_stats eth_stats;
 	struct ice_eth_stats eth_stats_prev;
+
+	struct list_head tmp_sync_list;		/* MAC filters to be synced */
+	struct list_head tmp_unsync_list;	/* MAC filters to be unsynced */
 
 	bool irqs_ready;
 	bool current_isup;		 /* Sync 'link up' logging */

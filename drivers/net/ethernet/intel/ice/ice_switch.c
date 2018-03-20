@@ -1627,6 +1627,83 @@ ice_remove_mac_exit:
 }
 
 /**
+ * ice_cfg_dflt_vsi - add filter rule to set/unset given VSI as default
+ * VSI for the switch (represented by swid)
+ * @hw: pointer to the hardware structure
+ * @vsi_id: number of VSI to set as default
+ * @set: true to add the above mentioned switch rule, false to remove it
+ * @direction: ICE_FLTR_RX or ICE_FLTR_TX
+ */
+enum ice_status
+ice_cfg_dflt_vsi(struct ice_hw *hw, u16 vsi_id, bool set, u8 direction)
+{
+	struct ice_aqc_sw_rules_elem *s_rule;
+	struct ice_fltr_info f_info;
+	enum ice_adminq_opc opcode;
+	enum ice_status status;
+	u16 s_rule_size;
+
+	s_rule_size = set ? ICE_SW_RULE_RX_TX_ETH_HDR_SIZE :
+			    ICE_SW_RULE_RX_TX_NO_HDR_SIZE;
+	s_rule = devm_kzalloc(ice_hw_to_dev(hw), s_rule_size, GFP_KERNEL);
+	if (!s_rule)
+		return ICE_ERR_NO_MEMORY;
+
+	memset(&f_info, 0, sizeof(f_info));
+
+	f_info.lkup_type = ICE_SW_LKUP_DFLT;
+	f_info.flag = direction;
+	f_info.fltr_act = ICE_FWD_TO_VSI;
+	f_info.fwd_id.vsi_id = vsi_id;
+
+	if (f_info.flag & ICE_FLTR_RX) {
+		f_info.src = hw->port_info->lport;
+		if (!set)
+			f_info.fltr_rule_id =
+				hw->port_info->dflt_rx_vsi_rule_id;
+	} else if (f_info.flag & ICE_FLTR_TX) {
+		f_info.src = vsi_id;
+		if (!set)
+			f_info.fltr_rule_id =
+				hw->port_info->dflt_tx_vsi_rule_id;
+	}
+
+	if (set)
+		opcode = ice_aqc_opc_add_sw_rules;
+	else
+		opcode = ice_aqc_opc_remove_sw_rules;
+
+	ice_fill_sw_rule(hw, &f_info, s_rule, opcode);
+
+	status = ice_aq_sw_rules(hw, s_rule, s_rule_size, 1, opcode, NULL);
+	if (status || !(f_info.flag & ICE_FLTR_TX_RX))
+		goto out;
+	if (set) {
+		u16 index = le16_to_cpu(s_rule->pdata.lkup_tx_rx.index);
+
+		if (f_info.flag & ICE_FLTR_TX) {
+			hw->port_info->dflt_tx_vsi_num = vsi_id;
+			hw->port_info->dflt_tx_vsi_rule_id = index;
+		} else if (f_info.flag & ICE_FLTR_RX) {
+			hw->port_info->dflt_rx_vsi_num = vsi_id;
+			hw->port_info->dflt_rx_vsi_rule_id = index;
+		}
+	} else {
+		if (f_info.flag & ICE_FLTR_TX) {
+			hw->port_info->dflt_tx_vsi_num = ICE_DFLT_VSI_INVAL;
+			hw->port_info->dflt_tx_vsi_rule_id = ICE_INVAL_ACT;
+		} else if (f_info.flag & ICE_FLTR_RX) {
+			hw->port_info->dflt_rx_vsi_num = ICE_DFLT_VSI_INVAL;
+			hw->port_info->dflt_rx_vsi_rule_id = ICE_INVAL_ACT;
+		}
+	}
+
+out:
+	devm_kfree(ice_hw_to_dev(hw), s_rule);
+	return status;
+}
+
+/**
  * ice_remove_vlan_internal - Remove one VLAN based filter rule
  * @hw: pointer to the hardware structure
  * @f_entry: filter entry containing one VLAN information

@@ -1233,6 +1233,34 @@ enum ice_status ice_get_caps(struct ice_hw *hw)
 }
 
 /**
+ * ice_aq_manage_mac_write - manage MAC address write command
+ * @hw: pointer to the hw struct
+ * @mac_addr: MAC address to be written as LAA/LAA+WoL/Port address
+ * @flags: flags to control write behavior
+ * @cd: pointer to command details structure or NULL
+ *
+ * This function is used to write MAC address to the NVM (0x0108).
+ */
+enum ice_status
+ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
+			struct ice_sq_cd *cd)
+{
+	struct ice_aqc_manage_mac_write *cmd;
+	struct ice_aq_desc desc;
+
+	cmd = &desc.params.mac_write;
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_manage_mac_write);
+
+	cmd->flags = flags;
+
+	/* Prep values for flags, sah, sal */
+	cmd->sah = htons(*((u16 *)mac_addr));
+	cmd->sal = htonl(*((u32 *)(mac_addr + 2)));
+
+	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
+}
+
+/**
  * ice_aq_clear_pxe_mode
  * @hw: pointer to the hw struct
  *

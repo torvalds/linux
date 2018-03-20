@@ -7,7 +7,7 @@
 
 #include "ice.h"
 
-#define DRV_VERSION	"ice-0.0.1-k"
+#define DRV_VERSION	"ice-0.7.0-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
 const char ice_drv_ver[] = DRV_VERSION;
 static const char ice_driver_string[] = DRV_SUMMARY;
@@ -201,6 +201,48 @@ static int ice_add_mac_to_list(struct ice_vsi *vsi, struct list_head *add_list,
 }
 
 /**
+ * ice_add_mac_to_sync_list - creates list of mac addresses to be synced
+ * @netdev: the net device on which the sync is happening
+ * @addr: mac address to sync
+ *
+ * This is a callback function which is called by the in kernel device sync
+ * functions (like __dev_uc_sync, __dev_mc_sync, etc). This function only
+ * populates the tmp_sync_list, which is later used by ice_add_mac to add the
+ * mac filters from the hardware.
+ */
+static int ice_add_mac_to_sync_list(struct net_device *netdev, const u8 *addr)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+
+	if (ice_add_mac_to_list(vsi, &vsi->tmp_sync_list, addr))
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
+ * ice_add_mac_to_unsync_list - creates list of mac addresses to be unsynced
+ * @netdev: the net device on which the unsync is happening
+ * @addr: mac address to unsync
+ *
+ * This is a callback function which is called by the in kernel device unsync
+ * functions (like __dev_uc_unsync, __dev_mc_unsync, etc). This function only
+ * populates the tmp_unsync_list, which is later used by ice_remove_mac to
+ * delete the mac filters from the hardware.
+ */
+static int ice_add_mac_to_unsync_list(struct net_device *netdev, const u8 *addr)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+
+	if (ice_add_mac_to_list(vsi, &vsi->tmp_unsync_list, addr))
+		return -EINVAL;
+
+	return 0;
+}
+
+/**
  * ice_free_fltr_list - free filter lists helper
  * @dev: pointer to the device struct
  * @h: pointer to the list head to be freed
@@ -216,6 +258,183 @@ static void ice_free_fltr_list(struct device *dev, struct list_head *h)
 		list_del(&e->list_entry);
 		devm_kfree(dev, e);
 	}
+}
+
+/**
+ * ice_vsi_fltr_changed - check if filter state changed
+ * @vsi: VSI to be checked
+ *
+ * returns true if filter state has changed, false otherwise.
+ */
+static bool ice_vsi_fltr_changed(struct ice_vsi *vsi)
+{
+	return test_bit(ICE_VSI_FLAG_UMAC_FLTR_CHANGED, vsi->flags) ||
+	       test_bit(ICE_VSI_FLAG_MMAC_FLTR_CHANGED, vsi->flags) ||
+	       test_bit(ICE_VSI_FLAG_VLAN_FLTR_CHANGED, vsi->flags);
+}
+
+/**
+ * ice_vsi_sync_fltr - Update the VSI filter list to the HW
+ * @vsi: ptr to the VSI
+ *
+ * Push any outstanding VSI filter changes through the AdminQ.
+ */
+static int ice_vsi_sync_fltr(struct ice_vsi *vsi)
+{
+	struct device *dev = &vsi->back->pdev->dev;
+	struct net_device *netdev = vsi->netdev;
+	bool promisc_forced_on = false;
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	enum ice_status status = 0;
+	u32 changed_flags = 0;
+	int err = 0;
+
+	if (!vsi->netdev)
+		return -EINVAL;
+
+	while (test_and_set_bit(__ICE_CFG_BUSY, vsi->state))
+		usleep_range(1000, 2000);
+
+	changed_flags = vsi->current_netdev_flags ^ vsi->netdev->flags;
+	vsi->current_netdev_flags = vsi->netdev->flags;
+
+	INIT_LIST_HEAD(&vsi->tmp_sync_list);
+	INIT_LIST_HEAD(&vsi->tmp_unsync_list);
+
+	if (ice_vsi_fltr_changed(vsi)) {
+		clear_bit(ICE_VSI_FLAG_UMAC_FLTR_CHANGED, vsi->flags);
+		clear_bit(ICE_VSI_FLAG_MMAC_FLTR_CHANGED, vsi->flags);
+		clear_bit(ICE_VSI_FLAG_VLAN_FLTR_CHANGED, vsi->flags);
+
+		/* grab the netdev's addr_list_lock */
+		netif_addr_lock_bh(netdev);
+		__dev_uc_sync(netdev, ice_add_mac_to_sync_list,
+			      ice_add_mac_to_unsync_list);
+		__dev_mc_sync(netdev, ice_add_mac_to_sync_list,
+			      ice_add_mac_to_unsync_list);
+		/* our temp lists are populated. release lock */
+		netif_addr_unlock_bh(netdev);
+	}
+
+	/* Remove mac addresses in the unsync list */
+	status = ice_remove_mac(hw, &vsi->tmp_unsync_list);
+	ice_free_fltr_list(dev, &vsi->tmp_unsync_list);
+	if (status) {
+		netdev_err(netdev, "Failed to delete MAC filters\n");
+		/* if we failed because of alloc failures, just bail */
+		if (status == ICE_ERR_NO_MEMORY) {
+			err = -ENOMEM;
+			goto out;
+		}
+	}
+
+	/* Add mac addresses in the sync list */
+	status = ice_add_mac(hw, &vsi->tmp_sync_list);
+	ice_free_fltr_list(dev, &vsi->tmp_sync_list);
+	if (status) {
+		netdev_err(netdev, "Failed to add MAC filters\n");
+		/* If there is no more space for new umac filters, vsi
+		 * should go into promiscuous mode. There should be some
+		 * space reserved for promiscuous filters.
+		 */
+		if (hw->adminq.sq_last_status == ICE_AQ_RC_ENOSPC &&
+		    !test_and_set_bit(__ICE_FLTR_OVERFLOW_PROMISC,
+				      vsi->state)) {
+			promisc_forced_on = true;
+			netdev_warn(netdev,
+				    "Reached MAC filter limit, forcing promisc mode on VSI %d\n",
+				    vsi->vsi_num);
+		} else {
+			err = -EIO;
+			goto out;
+		}
+	}
+	/* check for changes in promiscuous modes */
+	if (changed_flags & IFF_ALLMULTI)
+		netdev_warn(netdev, "Unsupported configuration\n");
+
+	if (((changed_flags & IFF_PROMISC) || promisc_forced_on) ||
+	    test_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags)) {
+		clear_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags);
+		if (vsi->current_netdev_flags & IFF_PROMISC) {
+			/* Apply TX filter rule to get traffic from VMs */
+			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, true,
+						  ICE_FLTR_TX);
+			if (status) {
+				netdev_err(netdev, "Error setting default VSI %i tx rule\n",
+					   vsi->vsi_num);
+				vsi->current_netdev_flags &= ~IFF_PROMISC;
+				err = -EIO;
+				goto out_promisc;
+			}
+			/* Apply RX filter rule to get traffic from wire */
+			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, true,
+						  ICE_FLTR_RX);
+			if (status) {
+				netdev_err(netdev, "Error setting default VSI %i rx rule\n",
+					   vsi->vsi_num);
+				vsi->current_netdev_flags &= ~IFF_PROMISC;
+				err = -EIO;
+				goto out_promisc;
+			}
+		} else {
+			/* Clear TX filter rule to stop traffic from VMs */
+			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, false,
+						  ICE_FLTR_TX);
+			if (status) {
+				netdev_err(netdev, "Error clearing default VSI %i tx rule\n",
+					   vsi->vsi_num);
+				vsi->current_netdev_flags |= IFF_PROMISC;
+				err = -EIO;
+				goto out_promisc;
+			}
+			/* Clear filter RX to remove traffic from wire */
+			status = ice_cfg_dflt_vsi(hw, vsi->vsi_num, false,
+						  ICE_FLTR_RX);
+			if (status) {
+				netdev_err(netdev, "Error clearing default VSI %i rx rule\n",
+					   vsi->vsi_num);
+				vsi->current_netdev_flags |= IFF_PROMISC;
+				err = -EIO;
+				goto out_promisc;
+			}
+		}
+	}
+	goto exit;
+
+out_promisc:
+	set_bit(ICE_VSI_FLAG_PROMISC_CHANGED, vsi->flags);
+	goto exit;
+out:
+	/* if something went wrong then set the changed flag so we try again */
+	set_bit(ICE_VSI_FLAG_UMAC_FLTR_CHANGED, vsi->flags);
+	set_bit(ICE_VSI_FLAG_MMAC_FLTR_CHANGED, vsi->flags);
+exit:
+	clear_bit(__ICE_CFG_BUSY, vsi->state);
+	return err;
+}
+
+/**
+ * ice_sync_fltr_subtask - Sync the VSI filter list with HW
+ * @pf: board private structure
+ */
+static void ice_sync_fltr_subtask(struct ice_pf *pf)
+{
+	int v;
+
+	if (!pf || !(test_bit(ICE_FLAG_FLTR_SYNC, pf->flags)))
+		return;
+
+	clear_bit(ICE_FLAG_FLTR_SYNC, pf->flags);
+
+	for (v = 0; v < pf->num_alloc_vsi; v++)
+		if (pf->vsi[v] && ice_vsi_fltr_changed(pf->vsi[v]) &&
+		    ice_vsi_sync_fltr(pf->vsi[v])) {
+			/* come back and try again later */
+			set_bit(ICE_FLAG_FLTR_SYNC, pf->flags);
+			break;
+		}
 }
 
 /**
@@ -780,6 +999,7 @@ static void ice_service_task(struct work_struct *work)
 		return;
 	}
 
+	ice_sync_fltr_subtask(pf);
 	ice_watchdog_subtask(pf);
 	ice_clean_adminq_subtask(pf);
 
@@ -2491,6 +2711,7 @@ err_vectors:
 	ice_vsi_free_q_vectors(vsi);
 err_rings:
 	if (vsi->netdev) {
+		vsi->current_netdev_flags = 0;
 		unregister_netdev(vsi->netdev);
 		free_netdev(vsi->netdev);
 		vsi->netdev = NULL;
@@ -3301,6 +3522,197 @@ static void __exit ice_module_exit(void)
 module_exit(ice_module_exit);
 
 /**
+ * ice_set_mac_address - NDO callback to set mac address
+ * @netdev: network interface device structure
+ * @pi: pointer to an address structure
+ *
+ * Returns 0 on success, negative on failure
+ */
+static int ice_set_mac_address(struct net_device *netdev, void *pi)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	struct ice_hw *hw = &pf->hw;
+	struct sockaddr *addr = pi;
+	enum ice_status status;
+	LIST_HEAD(a_mac_list);
+	LIST_HEAD(r_mac_list);
+	u8 flags = 0;
+	int err;
+	u8 *mac;
+
+	mac = (u8 *)addr->sa_data;
+
+	if (!is_valid_ether_addr(mac))
+		return -EADDRNOTAVAIL;
+
+	if (ether_addr_equal(netdev->dev_addr, mac)) {
+		netdev_warn(netdev, "already using mac %pM\n", mac);
+		return 0;
+	}
+
+	if (test_bit(__ICE_DOWN, pf->state) ||
+	    ice_is_reset_recovery_pending(pf->state)) {
+		netdev_err(netdev, "can't set mac %pM. device not ready\n",
+			   mac);
+		return -EBUSY;
+	}
+
+	/* When we change the mac address we also have to change the mac address
+	 * based filter rules that were created previously for the old mac
+	 * address. So first, we remove the old filter rule using ice_remove_mac
+	 * and then create a new filter rule using ice_add_mac. Note that for
+	 * both these operations, we first need to form a "list" of mac
+	 * addresses (even though in this case, we have only 1 mac address to be
+	 * added/removed) and this done using ice_add_mac_to_list. Depending on
+	 * the ensuing operation this "list" of mac addresses is either to be
+	 * added or removed from the filter.
+	 */
+	err = ice_add_mac_to_list(vsi, &r_mac_list, netdev->dev_addr);
+	if (err) {
+		err = -EADDRNOTAVAIL;
+		goto free_lists;
+	}
+
+	status = ice_remove_mac(hw, &r_mac_list);
+	if (status) {
+		err = -EADDRNOTAVAIL;
+		goto free_lists;
+	}
+
+	err = ice_add_mac_to_list(vsi, &a_mac_list, mac);
+	if (err) {
+		err = -EADDRNOTAVAIL;
+		goto free_lists;
+	}
+
+	status = ice_add_mac(hw, &a_mac_list);
+	if (status) {
+		err = -EADDRNOTAVAIL;
+		goto free_lists;
+	}
+
+free_lists:
+	/* free list entries */
+	ice_free_fltr_list(&pf->pdev->dev, &r_mac_list);
+	ice_free_fltr_list(&pf->pdev->dev, &a_mac_list);
+
+	if (err) {
+		netdev_err(netdev, "can't set mac %pM. filter update failed\n",
+			   mac);
+		return err;
+	}
+
+	/* change the netdev's mac address */
+	memcpy(netdev->dev_addr, mac, netdev->addr_len);
+	netdev_dbg(vsi->netdev, "updated mac address to %pM\n",
+		   netdev->dev_addr);
+
+	/* write new mac address to the firmware */
+	flags = ICE_AQC_MAN_MAC_UPDATE_LAA_WOL;
+	status = ice_aq_manage_mac_write(hw, mac, flags, NULL);
+	if (status) {
+		netdev_err(netdev, "can't set mac %pM. write to firmware failed.\n",
+			   mac);
+	}
+	return 0;
+}
+
+/**
+ * ice_set_rx_mode - NDO callback to set the netdev filters
+ * @netdev: network interface device structure
+ */
+static void ice_set_rx_mode(struct net_device *netdev)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+
+	if (!vsi)
+		return;
+
+	/* Set the flags to synchronize filters
+	 * ndo_set_rx_mode may be triggered even without a change in netdev
+	 * flags
+	 */
+	set_bit(ICE_VSI_FLAG_UMAC_FLTR_CHANGED, vsi->flags);
+	set_bit(ICE_VSI_FLAG_MMAC_FLTR_CHANGED, vsi->flags);
+	set_bit(ICE_FLAG_FLTR_SYNC, vsi->back->flags);
+
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	ice_service_task_schedule(vsi->back);
+}
+
+/**
+ * ice_fdb_add - add an entry to the hardware database
+ * @ndm: the input from the stack
+ * @tb: pointer to array of nladdr (unused)
+ * @dev: the net device pointer
+ * @addr: the MAC address entry being added
+ * @vid: VLAN id
+ * @flags: instructions from stack about fdb operation
+ */
+static int ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
+		       struct net_device *dev, const unsigned char *addr,
+		       u16 vid, u16 flags)
+{
+	int err;
+
+	if (vid) {
+		netdev_err(dev, "VLANs aren't supported yet for dev_uc|mc_add()\n");
+		return -EINVAL;
+	}
+	if (ndm->ndm_state && !(ndm->ndm_state & NUD_PERMANENT)) {
+		netdev_err(dev, "FDB only supports static addresses\n");
+		return -EINVAL;
+	}
+
+	if (is_unicast_ether_addr(addr) || is_link_local_ether_addr(addr))
+		err = dev_uc_add_excl(dev, addr);
+	else if (is_multicast_ether_addr(addr))
+		err = dev_mc_add_excl(dev, addr);
+	else
+		err = -EINVAL;
+
+	/* Only return duplicate errors if NLM_F_EXCL is set */
+	if (err == -EEXIST && !(flags & NLM_F_EXCL))
+		err = 0;
+
+	return err;
+}
+
+/**
+ * ice_fdb_del - delete an entry from the hardware database
+ * @ndm: the input from the stack
+ * @tb: pointer to array of nladdr (unused)
+ * @dev: the net device pointer
+ * @addr: the MAC address entry being added
+ * @vid: VLAN id
+ */
+static int ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
+		       struct net_device *dev, const unsigned char *addr,
+		       __always_unused u16 vid)
+{
+	int err;
+
+	if (ndm->ndm_state & NUD_PERMANENT) {
+		netdev_err(dev, "FDB only supports static addresses\n");
+		return -EINVAL;
+	}
+
+	if (is_unicast_ether_addr(addr))
+		err = dev_uc_del(dev, addr);
+	else if (is_multicast_ether_addr(addr))
+		err = dev_mc_del(dev, addr);
+	else
+		err = -EINVAL;
+
+	return err;
+}
+
+/**
  * ice_vsi_manage_vlan_insertion - Manage VLAN insertion for the VSI for Tx
  * @vsi: the vsi being changed
  */
@@ -3689,6 +4101,8 @@ static int ice_vsi_cfg_rxqs(struct ice_vsi *vsi)
 static int ice_vsi_cfg(struct ice_vsi *vsi)
 {
 	int err;
+
+	ice_set_rx_mode(vsi->netdev);
 
 	err = ice_restore_vlan(vsi);
 	if (err)
@@ -4379,6 +4793,30 @@ void ice_get_stats64(struct net_device *netdev, struct rtnl_link_stats64 *stats)
 	stats->rx_length_errors = vsi_stats->rx_length_errors;
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+/**
+ * ice_netpoll - polling "interrupt" handler
+ * @netdev: network interface device structure
+ *
+ * Used by netconsole to send skbs without having to re-enable interrupts.
+ * This is not called in the normal interrupt path.
+ */
+static void ice_netpoll(struct net_device *netdev)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	int i;
+
+	if (test_bit(__ICE_DOWN, vsi->state) ||
+	    !test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
+		return;
+
+	for (i = 0; i < vsi->num_q_vectors; i++)
+		ice_msix_clean_rings(0, vsi->q_vectors[i]);
+}
+#endif /* CONFIG_NET_POLL_CONTROLLER */
+
 /**
  * ice_napi_disable_all - Disable NAPI for all q_vectors in the VSI
  * @vsi: VSI having NAPI disabled
@@ -4787,6 +5225,73 @@ clear_recovery:
 }
 
 /**
+ * ice_change_mtu - NDO callback to change the MTU
+ * @netdev: network interface device structure
+ * @new_mtu: new value for maximum frame size
+ *
+ * Returns 0 on success, negative on failure
+ */
+static int ice_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct ice_netdev_priv *np = netdev_priv(netdev);
+	struct ice_vsi *vsi = np->vsi;
+	struct ice_pf *pf = vsi->back;
+	u8 count = 0;
+
+	if (new_mtu == netdev->mtu) {
+		netdev_warn(netdev, "mtu is already %d\n", netdev->mtu);
+		return 0;
+	}
+
+	if (new_mtu < netdev->min_mtu) {
+		netdev_err(netdev, "new mtu invalid. min_mtu is %d\n",
+			   netdev->min_mtu);
+		return -EINVAL;
+	} else if (new_mtu > netdev->max_mtu) {
+		netdev_err(netdev, "new mtu invalid. max_mtu is %d\n",
+			   netdev->min_mtu);
+		return -EINVAL;
+	}
+	/* if a reset is in progress, wait for some time for it to complete */
+	do {
+		if (ice_is_reset_recovery_pending(pf->state)) {
+			count++;
+			usleep_range(1000, 2000);
+		} else {
+			break;
+		}
+
+	} while (count < 100);
+
+	if (count == 100) {
+		netdev_err(netdev, "can't change mtu. Device is busy\n");
+		return -EBUSY;
+	}
+
+	netdev->mtu = new_mtu;
+
+	/* if VSI is up, bring it down and then back up */
+	if (!test_and_set_bit(__ICE_DOWN, vsi->state)) {
+		int err;
+
+		err = ice_down(vsi);
+		if (err) {
+			netdev_err(netdev, "change mtu if_up err %d\n", err);
+			return err;
+		}
+
+		err = ice_up(vsi);
+		if (err) {
+			netdev_err(netdev, "change mtu if_up err %d\n", err);
+			return err;
+		}
+	}
+
+	netdev_dbg(netdev, "changed mtu to %d\n", new_mtu);
+	return 0;
+}
+
+/**
  * ice_set_rss - Set RSS keys and lut
  * @vsi: Pointer to VSI structure
  * @seed: RSS hash seed
@@ -4919,12 +5424,72 @@ static int ice_stop(struct net_device *netdev)
 	return 0;
 }
 
+/**
+ * ice_features_check - Validate encapsulated packet conforms to limits
+ * @skb: skb buffer
+ * @netdev: This port's netdev
+ * @features: Offload features that the stack believes apply
+ */
+static netdev_features_t
+ice_features_check(struct sk_buff *skb,
+		   struct net_device __always_unused *netdev,
+		   netdev_features_t features)
+{
+	size_t len;
+
+	/* No point in doing any of this if neither checksum nor GSO are
+	 * being requested for this frame.  We can rule out both by just
+	 * checking for CHECKSUM_PARTIAL
+	 */
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return features;
+
+	/* We cannot support GSO if the MSS is going to be less than
+	 * 64 bytes.  If it is then we need to drop support for GSO.
+	 */
+	if (skb_is_gso(skb) && (skb_shinfo(skb)->gso_size < 64))
+		features &= ~NETIF_F_GSO_MASK;
+
+	len = skb_network_header(skb) - skb->data;
+	if (len & ~(ICE_TXD_MACLEN_MAX))
+		goto out_rm_features;
+
+	len = skb_transport_header(skb) - skb_network_header(skb);
+	if (len & ~(ICE_TXD_IPLEN_MAX))
+		goto out_rm_features;
+
+	if (skb->encapsulation) {
+		len = skb_inner_network_header(skb) - skb_transport_header(skb);
+		if (len & ~(ICE_TXD_L4LEN_MAX))
+			goto out_rm_features;
+
+		len = skb_inner_transport_header(skb) -
+		      skb_inner_network_header(skb);
+		if (len & ~(ICE_TXD_IPLEN_MAX))
+			goto out_rm_features;
+	}
+
+	return features;
+out_rm_features:
+	return features & ~(NETIF_F_CSUM_MASK | NETIF_F_GSO_MASK);
+}
+
 static const struct net_device_ops ice_netdev_ops = {
 	.ndo_open = ice_open,
 	.ndo_stop = ice_stop,
 	.ndo_start_xmit = ice_start_xmit,
+	.ndo_features_check = ice_features_check,
+	.ndo_set_rx_mode = ice_set_rx_mode,
+	.ndo_set_mac_address = ice_set_mac_address,
+	.ndo_validate_addr = eth_validate_addr,
+	.ndo_change_mtu = ice_change_mtu,
 	.ndo_get_stats64 = ice_get_stats64,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller = ice_netpoll,
+#endif /* CONFIG_NET_POLL_CONTROLLER */
 	.ndo_vlan_rx_add_vid = ice_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = ice_vlan_rx_kill_vid,
 	.ndo_set_features = ice_set_features,
+	.ndo_fdb_add = ice_fdb_add,
+	.ndo_fdb_del = ice_fdb_del,
 };
