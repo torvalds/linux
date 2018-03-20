@@ -20,7 +20,11 @@ MODULE_VERSION(DRV_VERSION);
 
 static int debug = -1;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "netif message level (0=none,...,0x7FFF=all)");
+#ifndef CONFIG_DYNAMIC_DEBUG
+MODULE_PARM_DESC(debug, "netif level (0=none,...,16=all), hw debug_mask (0x8XXXXXXX)");
+#else
+MODULE_PARM_DESC(debug, "netif level (0=none,...,16=all)");
+#endif /* !CONFIG_DYNAMIC_DEBUG */
 
 /**
  * ice_probe - Device initialization routine
@@ -78,6 +82,11 @@ static int ice_probe(struct pci_dev *pdev,
 	hw->bus.device = PCI_SLOT(pdev->devfn);
 	hw->bus.func = PCI_FUNC(pdev->devfn);
 	pf->msg_enable = netif_msg_init(debug, ICE_DFLT_NETIF_M);
+
+#ifndef CONFIG_DYNAMIC_DEBUG
+	if (debug < -1)
+		hw->debug_mask = debug;
+#endif
 
 	return 0;
 }

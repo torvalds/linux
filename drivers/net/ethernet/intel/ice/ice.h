@@ -12,6 +12,7 @@
 #include <linux/compiler.h>
 #include <linux/pci.h>
 #include <linux/aer.h>
+#include <linux/delay.h>
 #include <linux/bitmap.h>
 #include "ice_devids.h"
 #include "ice_type.h"

@@ -7,4 +7,6 @@
 
 obj-$(CONFIG_ICE) += ice.o
 
-ice-y := ice_main.o
+ice-y := ice_main.o	\
+	 ice_controlq.o	\
+	 ice_common.o
