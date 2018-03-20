@@ -330,9 +330,9 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 
 flushed:
 	if (wc->status != IB_WC_WR_FLUSH_ERR)
-		pr_warn("svcrdma: receive: %s (%u/0x%x)\n",
-			ib_wc_status_msg(wc->status),
-			wc->status, wc->vendor_err);
+		pr_err("svcrdma: Recv: %s (%u/0x%x)\n",
+		       ib_wc_status_msg(wc->status),
+		       wc->status, wc->vendor_err);
 	set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
 	svc_rdma_put_context(ctxt, 1);
 
