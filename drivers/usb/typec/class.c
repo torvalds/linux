@@ -11,6 +11,7 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/usb/typec.h>
+#include <linux/usb/typec_mux.h>
 
 struct typec_mode {
 	int				index;
@@ -70,6 +71,10 @@ struct typec_port {
 	enum typec_port_type		port_type;
 	struct mutex			port_type_lock;
 
+	enum typec_orientation		orientation;
+	struct typec_switch		*sw;
+	struct typec_mux		*mux;
+
 	const struct typec_capability	*cap;
 };
 
@@ -92,6 +97,7 @@ static const struct device_type typec_port_dev_type;
 static DEFINE_IDA(typec_index_ida);
 static struct class *typec_class;
 
+/* ------------------------------------------------------------------------- */
 /* Common attributes */
 
 static const char * const typec_accessory_modes[] = {
@@ -1137,6 +1143,8 @@ static void typec_release(struct device *dev)
 	struct typec_port *port = to_typec_port(dev);
 
 	ida_simple_remove(&typec_index_ida, port->id);
+	typec_switch_put(port->sw);
+	typec_mux_put(port->mux);
 	kfree(port);
 }
 
@@ -1246,6 +1254,47 @@ void typec_set_pwr_opmode(struct typec_port *port,
 }
 EXPORT_SYMBOL_GPL(typec_set_pwr_opmode);
 
+/* ------------------------------------------ */
+/* API for Multiplexer/DeMultiplexer Switches */
+
+/**
+ * typec_set_orientation - Set USB Type-C cable plug orientation
+ * @port: USB Type-C Port
+ * @orientation: USB Type-C cable plug orientation
+ *
+ * Set cable plug orientation for @port.
+ */
+int typec_set_orientation(struct typec_port *port,
+			  enum typec_orientation orientation)
+{
+	int ret;
+
+	if (port->sw) {
+		ret = port->sw->set(port->sw, orientation);
+		if (ret)
+			return ret;
+	}
+
+	port->orientation = orientation;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(typec_set_orientation);
+
+/**
+ * typec_set_mode - Set mode of operation for USB Type-C connector
+ * @port: USB Type-C port for the connector
+ * @mode: Operation mode for the connector
+ *
+ * Set mode @mode for @port. This function will configure the muxes needed to
+ * enter @mode.
+ */
+int typec_set_mode(struct typec_port *port, int mode)
+{
+	return port->mux ? port->mux->set(port->mux, mode) : 0;
+}
+EXPORT_SYMBOL_GPL(typec_set_mode);
+
 /* --------------------------------------- */
 
 /**
@@ -1293,6 +1342,18 @@ struct typec_port *typec_register_port(struct device *parent,
 		return ERR_PTR(id);
 	}
 
+	port->sw = typec_switch_get(cap->fwnode ? &port->dev : parent);
+	if (IS_ERR(port->sw)) {
+		ret = PTR_ERR(port->sw);
+		goto err_switch;
+	}
+
+	port->mux = typec_mux_get(cap->fwnode ? &port->dev : parent);
+	if (IS_ERR(port->mux)) {
+		ret = PTR_ERR(port->mux);
+		goto err_mux;
+	}
+
 	if (cap->type == TYPEC_PORT_DFP)
 		role = TYPEC_SOURCE;
 	else if (cap->type == TYPEC_PORT_UFP)
@@ -1330,6 +1391,15 @@ struct typec_port *typec_register_port(struct device *parent,
 	}
 
 	return port;
+
+err_mux:
+	typec_switch_put(port->sw);
+
+err_switch:
+	ida_simple_remove(&typec_index_ida, port->id);
+	kfree(port);
+
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(typec_register_port);
 
