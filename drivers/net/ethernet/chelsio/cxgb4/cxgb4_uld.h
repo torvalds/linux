@@ -355,6 +355,7 @@ struct cxgb4_lld_info {
 	int nodeid;			     /* device numa node id */
 	bool fr_nsmr_tpte_wr_support;	     /* FW supports FR_NSMR_TPTE_WR */
 	bool write_w_imm_support;         /* FW supports WRITE_WITH_IMMEDIATE */
+	bool write_cmpl_support;             /* FW supports WRITE_CMPL WR */
 };
 
 struct cxgb4_uld_info {

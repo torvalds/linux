@@ -4525,6 +4525,12 @@ static int adap_init0(struct adapter *adap)
 		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, params,
 				      val);
 		adap->params.write_w_imm_support = (ret == 0 && val[0] != 0);
+
+		/* Enable write_cmpl if FW supports it */
+		params[0] = FW_PARAM_DEV(RI_WRITE_CMPL_WR);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1, params,
+				      val);
+		adap->params.write_cmpl_support = (ret == 0 && val[0] != 0);
 		adap->num_ofld_uld += 2;
 	}
 	if (caps_cmd.iscsicaps) {
