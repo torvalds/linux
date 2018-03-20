@@ -196,6 +196,14 @@ module_param(ple_window_max, int, S_IRUGO);
 
 extern const ulong vmx_return;
 
+struct kvm_vmx {
+	struct kvm kvm;
+
+	unsigned int tss_addr;
+	bool ept_identity_pagetable_done;
+	gpa_t ept_identity_map_addr;
+};
+
 #define NR_AUTOLOAD_MSRS 8
 
 struct vmcs {
@@ -697,6 +705,11 @@ enum segment_cache_field {
 
 	SEG_FIELD_NR = 4
 };
+
+static inline struct kvm_vmx *to_kvm_vmx(struct kvm *kvm)
+{
+	return container_of(kvm, struct kvm_vmx, kvm);
+}
 
 static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
 {
@@ -4219,6 +4232,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct kvm_vmx *kvm_vmx = to_kvm_vmx(vcpu->kvm);
 
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_TR], VCPU_SREG_TR);
 	vmx_get_segment(vcpu, &vmx->rmode.segs[VCPU_SREG_ES], VCPU_SREG_ES);
@@ -4234,13 +4248,13 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	 * Very old userspace does not call KVM_SET_TSS_ADDR before entering
 	 * vcpu. Warn the user that an update is overdue.
 	 */
-	if (!vcpu->kvm->arch.tss_addr)
+	if (!kvm_vmx->tss_addr)
 		printk_once(KERN_WARNING "kvm: KVM_SET_TSS_ADDR need to be "
 			     "called before entering vcpu\n");
 
 	vmx_segment_cache_clear(vmx);
 
-	vmcs_writel(GUEST_TR_BASE, vcpu->kvm->arch.tss_addr);
+	vmcs_writel(GUEST_TR_BASE, kvm_vmx->tss_addr);
 	vmcs_write32(GUEST_TR_LIMIT, RMODE_TSS_SIZE - 1);
 	vmcs_write32(GUEST_TR_AR_BYTES, 0x008b);
 
@@ -4530,7 +4544,7 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 		    is_guest_mode(vcpu))
 			guest_cr3 = kvm_read_cr3(vcpu);
 		else
-			guest_cr3 = vcpu->kvm->arch.ept_identity_map_addr;
+			guest_cr3 = to_kvm_vmx(vcpu->kvm)->ept_identity_map_addr;
 		ept_load_pdptrs(vcpu);
 	}
 
@@ -4971,7 +4985,7 @@ static int init_rmode_tss(struct kvm *kvm)
 	int idx, r;
 
 	idx = srcu_read_lock(&kvm->srcu);
-	fn = kvm->arch.tss_addr >> PAGE_SHIFT;
+	fn = to_kvm_vmx(kvm)->tss_addr >> PAGE_SHIFT;
 	r = kvm_clear_guest_page(kvm, fn, 0, PAGE_SIZE);
 	if (r < 0)
 		goto out;
@@ -4997,22 +5011,23 @@ out:
 
 static int init_rmode_identity_map(struct kvm *kvm)
 {
+	struct kvm_vmx *kvm_vmx = to_kvm_vmx(kvm);
 	int i, idx, r = 0;
 	kvm_pfn_t identity_map_pfn;
 	u32 tmp;
 
-	/* Protect kvm->arch.ept_identity_pagetable_done. */
+	/* Protect kvm_vmx->ept_identity_pagetable_done. */
 	mutex_lock(&kvm->slots_lock);
 
-	if (likely(kvm->arch.ept_identity_pagetable_done))
+	if (likely(kvm_vmx->ept_identity_pagetable_done))
 		goto out2;
 
-	if (!kvm->arch.ept_identity_map_addr)
-		kvm->arch.ept_identity_map_addr = VMX_EPT_IDENTITY_PAGETABLE_ADDR;
-	identity_map_pfn = kvm->arch.ept_identity_map_addr >> PAGE_SHIFT;
+	if (!kvm_vmx->ept_identity_map_addr)
+		kvm_vmx->ept_identity_map_addr = VMX_EPT_IDENTITY_PAGETABLE_ADDR;
+	identity_map_pfn = kvm_vmx->ept_identity_map_addr >> PAGE_SHIFT;
 
 	r = __x86_set_memory_region(kvm, IDENTITY_PAGETABLE_PRIVATE_MEMSLOT,
-				    kvm->arch.ept_identity_map_addr, PAGE_SIZE);
+				    kvm_vmx->ept_identity_map_addr, PAGE_SIZE);
 	if (r < 0)
 		goto out2;
 
@@ -5029,7 +5044,7 @@ static int init_rmode_identity_map(struct kvm *kvm)
 		if (r < 0)
 			goto out;
 	}
-	kvm->arch.ept_identity_pagetable_done = true;
+	kvm_vmx->ept_identity_pagetable_done = true;
 
 out:
 	srcu_read_unlock(&kvm->srcu, idx);
@@ -6106,13 +6121,13 @@ static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
 				    PAGE_SIZE * 3);
 	if (ret)
 		return ret;
-	kvm->arch.tss_addr = addr;
+	to_kvm_vmx(kvm)->tss_addr = addr;
 	return init_rmode_tss(kvm);
 }
 
 static int vmx_set_identity_map_addr(struct kvm *kvm, u64 ident_addr)
 {
-	kvm->arch.ept_identity_map_addr = ident_addr;
+	to_kvm_vmx(kvm)->ept_identity_map_addr = ident_addr;
 	return 0;
 }
 
@@ -9771,12 +9786,13 @@ STACK_FRAME_NON_STANDARD(vmx_vcpu_run);
 
 static struct kvm *vmx_vm_alloc(void)
 {
-	return kzalloc(sizeof(struct kvm), GFP_KERNEL);
+	struct kvm_vmx *kvm_vmx = kzalloc(sizeof(struct kvm_vmx), GFP_KERNEL);
+	return &kvm_vmx->kvm;
 }
 
 static void vmx_vm_free(struct kvm *kvm)
 {
-	kfree(kvm);
+	kfree(to_kvm_vmx(kvm));
 }
 
 static void vmx_switch_vmcs(struct kvm_vcpu *vcpu, struct loaded_vmcs *vmcs)

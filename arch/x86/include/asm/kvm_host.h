@@ -808,7 +808,6 @@ struct kvm_arch {
 	struct mutex apic_map_lock;
 	struct kvm_apic_map *apic_map;
 
-	unsigned int tss_addr;
 	bool apic_access_page_done;
 
 	gpa_t wall_clock;
@@ -816,9 +815,6 @@ struct kvm_arch {
 	bool mwait_in_guest;
 	bool hlt_in_guest;
 	bool pause_in_guest;
-
-	bool ept_identity_pagetable_done;
-	gpa_t ept_identity_map_addr;
 
 	unsigned long irq_sources_bitmap;
 	s64 kvmclock_offset;
