@@ -6,7 +6,7 @@
 #include <linux/atomic.h>
 #include <linux/nmi.h>
 #include <asm/io.h>
-#include <asm/hyperv.h>
+#include <asm/hyperv-tlfs.h>
 #include <asm/nospec-branch.h>
 
 /*

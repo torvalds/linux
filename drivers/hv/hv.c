@@ -29,7 +29,6 @@
 #include <linux/version.h>
 #include <linux/interrupt.h>
 #include <linux/clockchips.h>
-#include <asm/hyperv.h>
 #include <asm/mshyperv.h>
 #include "hyperv_vmbus.h"
 

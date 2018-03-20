@@ -1,6 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-#ifndef _ASM_X86_HYPERV_H
-#define _ASM_X86_HYPERV_H
+
+/*
+ * This file contains definitions from Hyper-V Hypervisor Top-Level Functional
+ * Specification (TLFS):
+ * https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/tlfs
+ */
+
+#ifndef _ASM_X86_HYPERV_TLFS_H
+#define _ASM_X86_HYPERV_TLFS_H
 
 #include <linux/types.h>
 
