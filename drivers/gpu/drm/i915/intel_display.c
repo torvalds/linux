@@ -8763,8 +8763,8 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 			intel_get_shared_dpll_by_id(dev_priv, pll_id);
 		pll = pipe_config->shared_dpll;
 
-		WARN_ON(!pll->funcs.get_hw_state(dev_priv, pll,
-						 &pipe_config->dpll_hw_state));
+		WARN_ON(!pll->info->funcs->get_hw_state(dev_priv, pll,
+						&pipe_config->dpll_hw_state));
 
 		tmp = pipe_config->dpll_hw_state.dpll;
 		pipe_config->pixel_multiplier =
@@ -9240,8 +9240,8 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 
 	pll = pipe_config->shared_dpll;
 	if (pll) {
-		WARN_ON(!pll->funcs.get_hw_state(dev_priv, pll,
-						 &pipe_config->dpll_hw_state));
+		WARN_ON(!pll->info->funcs->get_hw_state(dev_priv, pll,
+						&pipe_config->dpll_hw_state));
 	}
 
 	/*
@@ -11655,7 +11655,7 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 
 	DRM_DEBUG_KMS("%s\n", pll->name);
 
-	active = pll->funcs.get_hw_state(dev_priv, pll, &dpll_hw_state);
+	active = pll->info->funcs->get_hw_state(dev_priv, pll, &dpll_hw_state);
 
 	if (!(pll->flags & INTEL_DPLL_ALWAYS_ON)) {
 		I915_STATE_WARN(!pll->on && pll->active_mask,
@@ -15128,8 +15128,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
 		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
 
-		pll->on = pll->funcs.get_hw_state(dev_priv, pll,
-						  &pll->state.hw_state);
+		pll->on = pll->info->funcs->get_hw_state(dev_priv, pll,
+							&pll->state.hw_state);
 		pll->state.crtc_mask = 0;
 		for_each_intel_crtc(dev, crtc) {
 			struct intel_crtc_state *crtc_state =
@@ -15318,7 +15318,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 
 		DRM_DEBUG_KMS("%s enabled but not in use, disabling\n", pll->name);
 
-		pll->funcs.disable(dev_priv, pll);
+		pll->info->funcs->disable(dev_priv, pll);
 		pll->on = false;
 	}
 

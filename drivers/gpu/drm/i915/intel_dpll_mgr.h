@@ -211,6 +211,9 @@ struct intel_shared_dpll_funcs {
 struct dpll_info {
 	const char *name;
 	const int id;
+	/**
+	 * @funcs: platform specific hooks
+	 */
 	const struct intel_shared_dpll_funcs *funcs;
 	uint32_t flags;
 };
@@ -247,11 +250,6 @@ struct intel_shared_dpll {
 	 * dev_priv->shared_dplls array
 	 */
 	enum intel_dpll_id id;
-
-	/**
-	 * @funcs: platform specific hooks
-	 */
-	struct intel_shared_dpll_funcs funcs;
 
 	/**
 	 * @info: platform specific info

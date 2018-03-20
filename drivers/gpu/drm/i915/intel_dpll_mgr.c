@@ -118,7 +118,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 	if (WARN(!pll, "asserting DPLL %s with no DPLL\n", onoff(state)))
 		return;
 
-	cur_state = pll->funcs.get_hw_state(dev_priv, pll, &hw_state);
+	cur_state = pll->info->funcs->get_hw_state(dev_priv, pll, &hw_state);
 	I915_STATE_WARN(cur_state != state,
 	     "%s assertion failure (expected %s, current %s)\n",
 			pll->name, onoff(state), onoff(cur_state));
@@ -147,7 +147,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
 
-		pll->funcs.prepare(dev_priv, pll);
+		pll->info->funcs->prepare(dev_priv, pll);
 	}
 	mutex_unlock(&dev_priv->dpll_lock);
 }
@@ -190,7 +190,7 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	WARN_ON(pll->on);
 
 	DRM_DEBUG_KMS("enabling %s\n", pll->name);
-	pll->funcs.enable(dev_priv, pll);
+	pll->info->funcs->enable(dev_priv, pll);
 	pll->on = true;
 
 out:
@@ -232,7 +232,7 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc)
 		goto out;
 
 	DRM_DEBUG_KMS("disabling %s\n", pll->name);
-	pll->funcs.disable(dev_priv, pll);
+	pll->info->funcs->disable(dev_priv, pll);
 	pll->on = false;
 
 out:
@@ -2414,7 +2414,6 @@ void intel_shared_dpll_init(struct drm_device *dev)
 
 		dev_priv->shared_dplls[i].id = dpll_info[i].id;
 		dev_priv->shared_dplls[i].name = dpll_info[i].name;
-		dev_priv->shared_dplls[i].funcs = *dpll_info[i].funcs;
 		dev_priv->shared_dplls[i].flags = dpll_info[i].flags;
 	}
 
