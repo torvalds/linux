@@ -40,7 +40,7 @@
 /* user kernel communication data structures. */
 
 struct qedr_alloc_ucontext_resp {
-	__u64 db_pa;
+	__aligned_u64 db_pa;
 	__u32 db_size;
 
 	__u32 max_send_wr;
@@ -57,7 +57,7 @@ struct qedr_alloc_ucontext_resp {
 };
 
 struct qedr_alloc_pd_ureq {
-	__u64 rsvd1;
+	__aligned_u64 rsvd1;
 };
 
 struct qedr_alloc_pd_uresp {
@@ -66,8 +66,8 @@ struct qedr_alloc_pd_uresp {
 };
 
 struct qedr_create_cq_ureq {
-	__u64 addr;
-	__u64 len;
+	__aligned_u64 addr;
+	__aligned_u64 len;
 };
 
 struct qedr_create_cq_uresp {
@@ -82,17 +82,17 @@ struct qedr_create_qp_ureq {
 
 	/* SQ */
 	/* user space virtual address of SQ buffer */
-	__u64 sq_addr;
+	__aligned_u64 sq_addr;
 
 	/* length of SQ buffer */
-	__u64 sq_len;
+	__aligned_u64 sq_len;
 
 	/* RQ */
 	/* user space virtual address of RQ buffer */
-	__u64 rq_addr;
+	__aligned_u64 rq_addr;
 
 	/* length of RQ buffer */
-	__u64 rq_len;
+	__aligned_u64 rq_len;
 };
 
 struct qedr_create_qp_uresp {

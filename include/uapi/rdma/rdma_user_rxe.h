@@ -68,7 +68,7 @@ struct rxe_av {
 };
 
 struct rxe_send_wr {
-	__u64			wr_id;
+	__aligned_u64		wr_id;
 	__u32			num_sge;
 	__u32			opcode;
 	__u32			send_flags;
@@ -78,14 +78,14 @@ struct rxe_send_wr {
 	} ex;
 	union {
 		struct {
-			__u64	remote_addr;
+			__aligned_u64 remote_addr;
 			__u32	rkey;
 			__u32	reserved;
 		} rdma;
 		struct {
-			__u64	remote_addr;
-			__u64	compare_add;
-			__u64	swap;
+			__aligned_u64 remote_addr;
+			__aligned_u64 compare_add;
+			__aligned_u64 swap;
 			__u32	rkey;
 			__u32	reserved;
 		} atomic;
@@ -98,7 +98,7 @@ struct rxe_send_wr {
 		struct {
 			union {
 				struct ib_mr *mr;
-				__u64 reserved;
+				__aligned_u64 reserved;
 			};
 			__u32        key;
 			__u32        access;
@@ -107,13 +107,13 @@ struct rxe_send_wr {
 };
 
 struct rxe_sge {
-	__u64	addr;
+	__aligned_u64 addr;
 	__u32	length;
 	__u32	lkey;
 };
 
 struct mminfo {
-	__u64			offset;
+	__aligned_u64  		offset;
 	__u32			size;
 	__u32			pad;
 };
@@ -136,7 +136,7 @@ struct rxe_send_wqe {
 	struct rxe_av		av;
 	__u32			status;
 	__u32			state;
-	__u64			iova;
+	__aligned_u64		iova;
 	__u32			mask;
 	__u32			first_psn;
 	__u32			last_psn;
@@ -147,7 +147,7 @@ struct rxe_send_wqe {
 };
 
 struct rxe_recv_wqe {
-	__u64			wr_id;
+	__aligned_u64		wr_id;
 	__u32			num_sge;
 	__u32			padding;
 	struct rxe_dma_info	dma;
@@ -173,7 +173,7 @@ struct rxe_create_srq_resp {
 };
 
 struct rxe_modify_srq_cmd {
-	__u64 mmap_info_addr;
+	__aligned_u64 mmap_info_addr;
 };
 
 #endif /* RDMA_USER_RXE_H */

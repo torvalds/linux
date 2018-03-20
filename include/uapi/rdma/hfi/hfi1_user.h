@@ -177,8 +177,8 @@ struct hfi1_sdma_comp_entry {
  * Device status and notifications from driver to user-space.
  */
 struct hfi1_status {
-	__u64 dev;      /* device/hw status bits */
-	__u64 port;     /* port state and status bits */
+	__aligned_u64 dev;      /* device/hw status bits */
+	__aligned_u64 port;     /* port state and status bits */
 	char freezemsg[0];
 };
 

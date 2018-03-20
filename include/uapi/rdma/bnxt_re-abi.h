@@ -65,8 +65,8 @@ struct bnxt_re_pd_resp {
 } __attribute__((packed, aligned(4)));
 
 struct bnxt_re_cq_req {
-	__u64 cq_va;
-	__u64 cq_handle;
+	__aligned_u64 cq_va;
+	__aligned_u64 cq_handle;
 };
 
 struct bnxt_re_cq_resp {
@@ -77,9 +77,9 @@ struct bnxt_re_cq_resp {
 };
 
 struct bnxt_re_qp_req {
-	__u64 qpsva;
-	__u64 qprva;
-	__u64 qp_handle;
+	__aligned_u64 qpsva;
+	__aligned_u64 qprva;
+	__aligned_u64 qp_handle;
 };
 
 struct bnxt_re_qp_resp {
@@ -88,8 +88,8 @@ struct bnxt_re_qp_resp {
 };
 
 struct bnxt_re_srq_req {
-	__u64 srqva;
-	__u64 srq_handle;
+	__aligned_u64 srqva;
+	__aligned_u64 srq_handle;
 };
 
 struct bnxt_re_srq_resp {
