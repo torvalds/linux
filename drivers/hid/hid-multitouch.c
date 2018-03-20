@@ -184,6 +184,7 @@ static void mt_post_parse(struct mt_device *td);
 #define MT_CLS_ASUS				0x010b
 #define MT_CLS_VTL				0x0110
 #define MT_CLS_GOOGLE				0x0111
+#define MT_CLS_RAZER_BLADE_STEALTH		0x0112
 
 #define MT_DEFAULT_MAXCONTACT	10
 #define MT_MAX_MAXCONTACT	250
@@ -325,6 +326,13 @@ static struct mt_class mt_classes[] = {
 			MT_QUIRK_CONTACT_CNT_ACCURATE |
 			MT_QUIRK_SLOT_IS_CONTACTID |
 			MT_QUIRK_HOVERING
+	},
+	{ .name = MT_CLS_RAZER_BLADE_STEALTH,
+		.quirks = MT_QUIRK_ALWAYS_VALID |
+			MT_QUIRK_IGNORE_DUPLICATES |
+			MT_QUIRK_HOVERING |
+			MT_QUIRK_CONTACT_CNT_ACCURATE |
+			MT_QUIRK_WIN8_PTP_BUTTONS,
 	},
 	{ }
 };
@@ -1790,6 +1798,11 @@ static const struct hid_device_id mt_devices[] = {
 	{ .driver_data = MT_CLS_CONFIDENCE_CONTACT_ID,
 		MT_USB_DEVICE(USB_VENDOR_ID_QUANTA,
 			USB_DEVICE_ID_QUANTA_OPTICAL_TOUCH_3001) },
+
+	/* Razer touchpads */
+	{ .driver_data = MT_CLS_RAZER_BLADE_STEALTH,
+		HID_DEVICE(BUS_I2C, HID_GROUP_MULTITOUCH_WIN_8,
+			USB_VENDOR_ID_SYNAPTICS, 0x8323) },
 
 	/* Stantum panels */
 	{ .driver_data = MT_CLS_CONFIDENCE,
