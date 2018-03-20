@@ -1018,12 +1018,12 @@ static int rk_sensor_pwrseq(struct device *dev,int powerup_sequence, int on, int
 
 	debug_printk( "/$$$$$$$$$$$$$$$$$$$$$$//n Here I am: %s:%i-------%s()\n", __FILE__, __LINE__,__FUNCTION__);
 
-	for (i=0; i<8; i++) {
+	for (i = 0; i < SENSOR_PWRSEQ_CNT; i++) {
 
 		if (on == 1)
 			powerup_type = SENSOR_PWRSEQ_GET(powerup_sequence, i);
 		else
-			powerup_type = SENSOR_PWRSEQ_GET(powerup_sequence, 7 - i);
+			powerup_type = SENSOR_PWRSEQ_GET(powerup_sequence, SENSOR_PWRSEQ_CNT - 1 - i);
 
 		switch (powerup_type)
 		{

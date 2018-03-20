@@ -326,9 +326,10 @@
 #define SENSOR_PWRSEQ_PWRDN         0x06
 #define SENSOR_PWRSEQ_CLKIN         0x07
 #define SENSOR_PWRSEQ_END           0x0F
+#define SENSOR_PWRSEQ_CNT           0x07
 
-#define SENSOR_PWRSEQ_SET(type, idx)    (type << (idx * 4))
-#define SENSOR_PWRSEQ_GET(seq, idx)     ((seq >> (idx * 4)) & 0x0f)
+#define SENSOR_PWRSEQ_SET(type, idx)    (type << ((idx) * 4))
+#define SENSOR_PWRSEQ_GET(seq, idx)     ((seq >> ((idx) * 4)) & 0x0f)
 
 #define sensor_PWRSEQ_DEFAULT		\
 	(SENSOR_PWRSEQ_SET(SENSOR_PWRSEQ_PWR, 0) |\
