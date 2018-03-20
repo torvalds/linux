@@ -35,7 +35,7 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 				       (const struct timespec __user *)fifth);
 
 	case SEMGET:
-		return sys_semget(first, second, third);
+		return ksys_semget(first, second, third);
 	case SEMCTL: {
 		unsigned long arg;
 		if (!ptr)
@@ -132,7 +132,7 @@ COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
 		return compat_ksys_semtimedop(first, compat_ptr(ptr), second,
 						compat_ptr(fifth));
 	case SEMGET:
-		return sys_semget(first, second, third);
+		return ksys_semget(first, second, third);
 	case SEMCTL:
 		if (!ptr)
 			return -EINVAL;

@@ -240,6 +240,7 @@ static inline int compat_ipc_parse_version(int *cmd)
 long ksys_semtimedop(int semid, struct sembuf __user *tsops,
 		     unsigned int nsops,
 		     const struct timespec __user *timeout);
+long ksys_semget(key_t key, int nsems, int semflg);
 
 /* for CONFIG_ARCH_WANT_OLD_COMPAT_IPC */
 #ifdef CONFIG_COMPAT
