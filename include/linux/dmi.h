@@ -106,6 +106,7 @@ extern void dmi_scan_machine(void);
 extern void dmi_memdev_walk(void);
 extern void dmi_set_dump_stack_arch_desc(void);
 extern bool dmi_get_date(int field, int *yearp, int *monthp, int *dayp);
+extern int dmi_get_bios_year(void);
 extern int dmi_name_in_vendors(const char *str);
 extern int dmi_name_in_serial(const char *str);
 extern int dmi_available;
@@ -133,6 +134,7 @@ static inline bool dmi_get_date(int field, int *yearp, int *monthp, int *dayp)
 		*dayp = 0;
 	return false;
 }
+static inline int dmi_get_bios_year(void) { return -ENXIO; }
 static inline int dmi_name_in_vendors(const char *s) { return 0; }
 static inline int dmi_name_in_serial(const char *s) { return 0; }
 #define dmi_available 0
@@ -146,14 +148,5 @@ static inline const struct dmi_system_id *
 	dmi_first_match(const struct dmi_system_id *list) { return NULL; }
 
 #endif
-
-static inline int dmi_get_bios_year(void)
-{
-	int year;
-
-	dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL);
-
-	return year;
-}
 
 #endif	/* __DMI_H__ */
