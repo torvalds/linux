@@ -70,8 +70,8 @@
 		regulator-always-on;
 	};
 
-	/* HS USB Host PHY on PORT 1 */
-	hsusb1_phy: hsusb1_phy {
+	/* HS USB host TLL nop-phy on port 2 for w3glte */
+	hsusb2_phy: usb-phy@2 {
 		compatible = "usb-nop-xceiv";
 		#phy-cells = <0>;
 	};
@@ -580,7 +580,7 @@
 };
 
 &usbhsehci {
-	phys = <&hsusb1_phy>;
+	phys = <&hsusb2_phy>;
 };
 
 &usbhshost {
