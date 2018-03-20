@@ -4606,11 +4606,7 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 		return -ENOSPC;
 
 	space_info = __find_space_info(fs_info, flags);
-	if (!space_info) {
-		ret = create_space_info(fs_info, flags, &space_info);
-		if (ret)
-			return ret;
-	}
+	ASSERT(space_info);
 
 again:
 	spin_lock(&space_info->lock);
@@ -10265,15 +10261,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	 * with its ->space_info set.
 	 */
 	cache->space_info = __find_space_info(fs_info, cache->flags);
-	if (!cache->space_info) {
-		ret = create_space_info(fs_info, cache->flags,
-				       &cache->space_info);
-		if (ret) {
-			btrfs_remove_free_space_cache(cache);
-			btrfs_put_block_group(cache);
-			return ret;
-		}
-	}
+	ASSERT(cache->space_info);
 
 	ret = btrfs_add_block_group_cache(fs_info, cache);
 	if (ret) {
