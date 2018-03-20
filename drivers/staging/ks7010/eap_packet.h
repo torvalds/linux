@@ -3,12 +3,9 @@
 #define EAP_PACKET_H
 
 #include <linux/compiler.h>
+#include <uapi/linux/if_ether.h>
 
 #define WBIT(n) (1 << (n))
-
-#ifndef ETH_ALEN
-#define ETH_ALEN 6
-#endif
 
 #define ETHER_HDR_SIZE 20
 
@@ -20,9 +17,6 @@ struct ether_hdr {
 	unsigned char h_command;
 	unsigned char h_vendor_id[3];
 	__be16 h_proto;	/* packet type ID field */
-#define ETHER_PROTOCOL_TYPE_EAP		0x888e
-#define ETHER_PROTOCOL_TYPE_IP		0x0800
-#define ETHER_PROTOCOL_TYPE_ARP		0x0806
 	/* followed by length octets of data */
 } __packed;
 

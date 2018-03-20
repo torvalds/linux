@@ -1152,7 +1152,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	eth_proto = ntohs(eth_hdr->h_proto);
 
 	/* for MIC FAILURE REPORT check */
-	if (eth_proto == ETHER_PROTOCOL_TYPE_EAP &&
+	if (eth_proto == ETH_P_PAE &&
 	    priv->wpa.mic_failure.failure > 0) {
 		aa1x_hdr = (struct ieee802_1x_hdr *)(eth_hdr + 1);
 		if (aa1x_hdr->type == IEEE802_1X_TYPE_EAPOL_KEY) {
@@ -1162,7 +1162,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	}
 
 	if (priv->wpa.rsn_enabled && priv->wpa.key[0].key_len) {
-		if (eth_proto == ETHER_PROTOCOL_TYPE_EAP &&
+		if (eth_proto == ETH_P_PAE &&
 		    priv->wpa.key[1].key_len == 0 &&
 		    priv->wpa.key[2].key_len == 0 &&
 		    priv->wpa.key[3].key_len == 0) {
@@ -1189,7 +1189,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 			}
 		}
 	} else {
-		if (eth_proto == ETHER_PROTOCOL_TYPE_EAP)
+		if (eth_proto == ETH_P_PAE)
 			pp->auth_type = cpu_to_le16((uint16_t)TYPE_AUTH);
 		else
 			pp->auth_type = cpu_to_le16((uint16_t)TYPE_DATA);
@@ -1206,7 +1206,7 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 			       send_packet_complete, skb);
 
 	/* MIC FAILURE REPORT check */
-	if (eth_proto == ETHER_PROTOCOL_TYPE_EAP &&
+	if (eth_proto == ETH_P_PAE &&
 	    priv->wpa.mic_failure.failure > 0) {
 		if (keyinfo & WPA_KEY_INFO_ERROR &&
 		    keyinfo & WPA_KEY_INFO_REQUEST) {
