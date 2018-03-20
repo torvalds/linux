@@ -46,6 +46,7 @@
  * exchange is properly mapped during a transfer.
  */
 
+#include <linux/printk.h>
 #include "goldfish_pipe.h"
 
 
@@ -440,7 +441,7 @@ static ssize_t goldfish_pipe_read_write(struct file *filp,
 			 * err.
 			 */
 			if (status != PIPE_ERROR_AGAIN)
-				pr_info_ratelimited(
+				pr_err_ratelimited(
 					"goldfish_pipe: backend error %d on %s\n",
 					status, is_write ? "write" : "read");
 			break;
@@ -694,6 +695,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	pipe->command_buffer =
 		(struct goldfish_pipe_command *)__get_free_page(GFP_KERNEL);
 	if (!pipe->command_buffer) {
+		pr_err("Could not alloc pipe command buffer!\n");
 		status = -ENOMEM;
 		goto err_pipe;
 	}
@@ -702,6 +704,7 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 
 	id = get_free_pipe_id_locked(dev);
 	if (id < 0) {
+		pr_err("Could not get free pipe id!\n");
 		status = id;
 		goto err_id_locked;
 	}
@@ -718,10 +721,12 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 	status = goldfish_cmd_locked(pipe, PIPE_CMD_OPEN);
 	spin_unlock_irqrestore(&dev->lock, flags);
 	if (status < 0) {
+		pr_err("Could not tell host of new pipe! status=%d", status);
 		goto err_cmd;
 	}
 	/* All is done, save the pipe into the file's private data field */
 	file->private_data = pipe;
+	pr_debug("%s on 0x%p\n", __func__, pipe);
 	return 0;
 
 err_cmd:
@@ -740,6 +745,8 @@ static int goldfish_pipe_release(struct inode *inode, struct file *filp)
 	unsigned long flags;
 	struct goldfish_pipe *pipe = filp->private_data;
 	struct goldfish_pipe_dev *dev = pipe->dev;
+
+	pr_debug("%s on 0x%p\n", __func__, pipe);
 
 	/* The guest is closing the channel, so tell the emulator right now */
 	(void)goldfish_cmd(pipe, PIPE_CMD_CLOSE);

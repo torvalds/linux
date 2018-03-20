@@ -77,14 +77,6 @@
 
 #define MAX_PAGES_TO_GRAB 32
 
-#define DEBUG 0
-
-#if DEBUG
-#define DPRINT(...) { printk(KERN_ERR __VA_ARGS__); }
-#else
-#define DPRINT(...)
-#endif
-
 /* This data type models a given pipe instance */
 struct goldfish_pipe {
 	struct goldfish_pipe_dev *dev;
@@ -276,17 +268,17 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		ret = get_user_pages_fast(first_page, requested_pages,
 				!is_write, pages);
 
-		DPRINT("%s: requested pages: %d %d %p\n", __FUNCTION__,
-			ret, requested_pages, first_page);
+		pr_debug("%s: requested pages: %d %ld %p\n", __func__, ret,
+			requested_pages, (void*)first_page);
 		if (ret == 0) {
-			DPRINT("%s: error: (requested pages == 0) (wanted %d)\n",
-					__FUNCTION__, requested_pages);
+			pr_err("%s: error: (requested pages == 0) (wanted %ld)\n",
+					__func__, requested_pages);
 			mutex_unlock(&pipe->lock);
 			return ret;
 		}
 		if (ret < 0) {
-			DPRINT("%s: (requested pages < 0) %d \n",
-				 	__FUNCTION__, requested_pages);
+			pr_err("%s: (requested pages < 0) %ld \n",
+				 	__func__, requested_pages);
 			mutex_unlock(&pipe->lock);
 			return ret;
 		}
@@ -301,8 +293,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 				xaddr_prev = xaddr_i;
 				num_contiguous_pages++;
 			} else {
-				DPRINT("%s: discontinuous page boundary: %d pages instead\n",
-						__FUNCTION__, page_i);
+				pr_err("%s: discontinuous page boundary: %d pages instead\n",
+						__func__, page_i);
 				break;
 			}
 		}
@@ -353,8 +345,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 			 * ABI relies on this behavior.
 			 */
 			if (status != PIPE_ERROR_AGAIN)
-				pr_info_ratelimited("goldfish_pipe: backend returned error %d on %s\n",
-						status, is_write ? "write" : "read");
+				pr_err_ratelimited("goldfish_pipe: backend returned error %d on %s\n",
+					status, is_write ? "write" : "read");
 			ret = 0;
 			break;
 		}
@@ -524,7 +516,8 @@ static int goldfish_pipe_open(struct inode *inode, struct file *file)
 
 	pipe->dev = dev;
 	mutex_init(&pipe->lock);
-	DPRINT("%s: call. pipe_dev pipe_dev=0x%lx new_pipe_addr=0x%lx file=0x%lx\n", __FUNCTION__, pipe_dev, pipe, file);
+	pr_debug("%s: call. pipe_dev dev=%p new_pipe_addr=%p file=%p\n",
+		__func__, dev, pipe, file);
 	/* spin lock init, write head of list, i guess */
 	init_waitqueue_head(&pipe->wake_queue);
 
@@ -548,7 +541,7 @@ static int goldfish_pipe_release(struct inode *inode, struct file *filp)
 {
 	struct goldfish_pipe *pipe = filp->private_data;
 
-	DPRINT("%s: call. pipe=0x%lx file=0x%lx\n", __FUNCTION__, pipe, filp);
+	pr_debug("%s: call. pipe=%p file=%p\n", __func__, pipe, filp);
 	/* The guest is closing the channel, so tell the emulator right now */
 	goldfish_cmd(pipe, CMD_CLOSE);
 	kfree(pipe);
