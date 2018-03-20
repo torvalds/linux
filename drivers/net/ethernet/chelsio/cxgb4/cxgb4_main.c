@@ -75,6 +75,7 @@
 #include "t4fw_api.h"
 #include "t4fw_version.h"
 #include "cxgb4_dcb.h"
+#include "srq.h"
 #include "cxgb4_debugfs.h"
 #include "clip_tbl.h"
 #include "l2t.h"
@@ -586,6 +587,10 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 		const struct cpl_abort_rpl_rss *p = (void *)rsp;
 
 		hash_del_filter_rpl(q->adap, p);
+	} else if (opcode == CPL_SRQ_TABLE_RPL) {
+		const struct cpl_srq_table_rpl *p = (void *)rsp;
+
+		do_srq_table_rpl(q->adap, p);
 	} else
 		dev_err(q->adap->pdev_dev,
 			"unexpected CPL %#x on FW event queue\n", opcode);
@@ -4467,6 +4472,20 @@ static int adap_init0(struct adapter *adap)
 		adap->vres.pbl.start = val[4];
 		adap->vres.pbl.size = val[5] - val[4] + 1;
 
+		params[0] = FW_PARAM_PFVF(SRQ_START);
+		params[1] = FW_PARAM_PFVF(SRQ_END);
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 2,
+				      params, val);
+		if (!ret) {
+			adap->vres.srq.start = val[0];
+			adap->vres.srq.size = val[1] - val[0] + 1;
+		}
+		if (adap->vres.srq.size) {
+			adap->srq = t4_init_srq(adap->vres.srq.size);
+			if (!adap->srq)
+				dev_warn(&adap->pdev->dev, "could not allocate SRQ, continuing\n");
+		}
+
 		params[0] = FW_PARAM_PFVF(SQRQ_START);
 		params[1] = FW_PARAM_PFVF(SQRQ_END);
 		params[2] = FW_PARAM_PFVF(CQ_START);
@@ -5135,6 +5154,7 @@ static void free_some_resources(struct adapter *adapter)
 
 	kvfree(adapter->smt);
 	kvfree(adapter->l2t);
+	kvfree(adapter->srq);
 	t4_cleanup_sched(adapter);
 	kvfree(adapter->tids.tid_tab);
 	cxgb4_cleanup_tc_flower(adapter);
