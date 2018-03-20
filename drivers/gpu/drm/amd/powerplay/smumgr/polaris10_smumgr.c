@@ -172,10 +172,12 @@ static int polaris10_setup_graphics_level_structure(struct pp_hwmgr *hwmgr)
 }
 
 
-static int
-polaris10_avfs_event_mgr(struct pp_hwmgr *hwmgr)
+static int polaris10_avfs_event_mgr(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
+
+	if (!hwmgr->avfs_supported)
+		return 0;
 
 	PP_ASSERT_WITH_CODE(0 == polaris10_setup_graphics_level_structure(hwmgr),
 		"[AVFS][Polaris10_AVFSEventMgr] Could not Copy Graphics Level table over to SMU",

@@ -263,6 +263,9 @@ static int fiji_setup_graphics_level_structure(struct pp_hwmgr *hwmgr)
 
 static int fiji_avfs_event_mgr(struct pp_hwmgr *hwmgr)
 {
+	if (!hwmgr->avfs_supported)
+		return 0;
+
 	PP_ASSERT_WITH_CODE(0 == fiji_setup_graphics_level_structure(hwmgr),
 			"[AVFS][fiji_avfs_event_mgr] Could not Copy Graphics Level"
 			" table over to SMU",
