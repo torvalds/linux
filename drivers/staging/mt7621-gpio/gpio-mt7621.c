@@ -339,7 +339,6 @@ static struct platform_driver mediatek_gpio_driver = {
 	.probe = mediatek_gpio_probe,
 	.driver = {
 		.name = "mt7621_gpio",
-		.owner = THIS_MODULE,
 		.of_match_table = mediatek_gpio_match,
 	},
 };
