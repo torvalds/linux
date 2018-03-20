@@ -568,6 +568,10 @@ void netvsc_device_remove(struct hv_device *device)
 
 	RCU_INIT_POINTER(net_device_ctx->nvdev, NULL);
 
+	/* And disassociate NAPI context from device */
+	for (i = 0; i < net_device->num_chn; i++)
+		netif_napi_del(&net_device->chan_table[i].napi);
+
 	/*
 	 * At this point, no one should be accessing net_device
 	 * except in here
@@ -578,10 +582,6 @@ void netvsc_device_remove(struct hv_device *device)
 	vmbus_close(device->channel);
 
 	netvsc_teardown_gpadl(device, net_device);
-
-	/* And dissassociate NAPI context from device */
-	for (i = 0; i < net_device->num_chn; i++)
-		netif_napi_del(&net_device->chan_table[i].napi);
 
 	/* Release all resources */
 	free_netvsc_device_rcu(net_device);
