@@ -1569,8 +1569,7 @@ static int rsnd_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops rsnd_pm_ops = {
-	.suspend		= rsnd_suspend,
-	.resume			= rsnd_resume,
+	SET_SYSTEM_SLEEP_PM_OPS(rsnd_suspend, rsnd_resume)
 };
 
 static struct platform_driver rsnd_driver = {
