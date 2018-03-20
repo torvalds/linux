@@ -291,19 +291,19 @@ intel_reference_shared_dpll(struct intel_shared_dpll *pll,
 {
 	struct intel_shared_dpll_state *shared_dpll;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	enum intel_dpll_id i = pll->id;
+	const enum intel_dpll_id id = pll->info->id;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
 
-	if (shared_dpll[i].crtc_mask == 0)
-		shared_dpll[i].hw_state =
+	if (shared_dpll[id].crtc_mask == 0)
+		shared_dpll[id].hw_state =
 			crtc_state->dpll_hw_state;
 
 	crtc_state->shared_dpll = pll;
 	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->info->name,
 			 pipe_name(crtc->pipe));
 
-	shared_dpll[pll->id].crtc_mask |= 1 << crtc->pipe;
+	shared_dpll[id].crtc_mask |= 1 << crtc->pipe;
 }
 
 /**
@@ -343,15 +343,16 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 				      struct intel_shared_dpll *pll,
 				      struct intel_dpll_hw_state *hw_state)
 {
+	const enum intel_dpll_id id = pll->info->id;
 	uint32_t val;
 
 	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
 		return false;
 
-	val = I915_READ(PCH_DPLL(pll->id));
+	val = I915_READ(PCH_DPLL(id));
 	hw_state->dpll = val;
-	hw_state->fp0 = I915_READ(PCH_FP0(pll->id));
-	hw_state->fp1 = I915_READ(PCH_FP1(pll->id));
+	hw_state->fp0 = I915_READ(PCH_FP0(id));
+	hw_state->fp1 = I915_READ(PCH_FP1(id));
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
 
@@ -361,8 +362,10 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 static void ibx_pch_dpll_prepare(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll)
 {
-	I915_WRITE(PCH_FP0(pll->id), pll->state.hw_state.fp0);
-	I915_WRITE(PCH_FP1(pll->id), pll->state.hw_state.fp1);
+	const enum intel_dpll_id id = pll->info->id;
+
+	I915_WRITE(PCH_FP0(id), pll->state.hw_state.fp0);
+	I915_WRITE(PCH_FP1(id), pll->state.hw_state.fp1);
 }
 
 static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
@@ -381,13 +384,15 @@ static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
+	const enum intel_dpll_id id = pll->info->id;
+
 	/* PCH refclock must be enabled first */
 	ibx_assert_pch_refclk_enabled(dev_priv);
 
-	I915_WRITE(PCH_DPLL(pll->id), pll->state.hw_state.dpll);
+	I915_WRITE(PCH_DPLL(id), pll->state.hw_state.dpll);
 
 	/* Wait for the clocks to stabilize. */
-	POSTING_READ(PCH_DPLL(pll->id));
+	POSTING_READ(PCH_DPLL(id));
 	udelay(150);
 
 	/* The pixel multiplier can only be updated once the
@@ -395,14 +400,15 @@ static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 	 *
 	 * So write it again.
 	 */
-	I915_WRITE(PCH_DPLL(pll->id), pll->state.hw_state.dpll);
-	POSTING_READ(PCH_DPLL(pll->id));
+	I915_WRITE(PCH_DPLL(id), pll->state.hw_state.dpll);
+	POSTING_READ(PCH_DPLL(id));
 	udelay(200);
 }
 
 static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 				 struct intel_shared_dpll *pll)
 {
+	const enum intel_dpll_id id = pll->info->id;
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_crtc *crtc;
 
@@ -412,8 +418,8 @@ static void ibx_pch_dpll_disable(struct drm_i915_private *dev_priv,
 			assert_pch_transcoder_disabled(dev_priv, crtc->pipe);
 	}
 
-	I915_WRITE(PCH_DPLL(pll->id), 0);
-	POSTING_READ(PCH_DPLL(pll->id));
+	I915_WRITE(PCH_DPLL(id), 0);
+	POSTING_READ(PCH_DPLL(id));
 	udelay(200);
 }
 
@@ -469,8 +475,10 @@ static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
 static void hsw_ddi_wrpll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
-	I915_WRITE(WRPLL_CTL(pll->id), pll->state.hw_state.wrpll);
-	POSTING_READ(WRPLL_CTL(pll->id));
+	const enum intel_dpll_id id = pll->info->id;
+
+	I915_WRITE(WRPLL_CTL(id), pll->state.hw_state.wrpll);
+	POSTING_READ(WRPLL_CTL(id));
 	udelay(20);
 }
 
@@ -485,11 +493,12 @@ static void hsw_ddi_spll_enable(struct drm_i915_private *dev_priv,
 static void hsw_ddi_wrpll_disable(struct drm_i915_private *dev_priv,
 				  struct intel_shared_dpll *pll)
 {
+	const enum intel_dpll_id id = pll->info->id;
 	uint32_t val;
 
-	val = I915_READ(WRPLL_CTL(pll->id));
-	I915_WRITE(WRPLL_CTL(pll->id), val & ~WRPLL_PLL_ENABLE);
-	POSTING_READ(WRPLL_CTL(pll->id));
+	val = I915_READ(WRPLL_CTL(id));
+	I915_WRITE(WRPLL_CTL(id), val & ~WRPLL_PLL_ENABLE);
+	POSTING_READ(WRPLL_CTL(id));
 }
 
 static void hsw_ddi_spll_disable(struct drm_i915_private *dev_priv,
@@ -506,12 +515,13 @@ static bool hsw_ddi_wrpll_get_hw_state(struct drm_i915_private *dev_priv,
 				       struct intel_shared_dpll *pll,
 				       struct intel_dpll_hw_state *hw_state)
 {
+	const enum intel_dpll_id id = pll->info->id;
 	uint32_t val;
 
 	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
 		return false;
 
-	val = I915_READ(WRPLL_CTL(pll->id));
+	val = I915_READ(WRPLL_CTL(id));
 	hw_state->wrpll = val;
 
 	intel_display_power_put(dev_priv, POWER_DOMAIN_PLLS);
@@ -917,13 +927,15 @@ static const struct skl_dpll_regs skl_dpll_regs[4] = {
 static void skl_ddi_pll_write_ctrl1(struct drm_i915_private *dev_priv,
 				    struct intel_shared_dpll *pll)
 {
+	const enum intel_dpll_id id = pll->info->id;
 	uint32_t val;
 
 	val = I915_READ(DPLL_CTRL1);
 
-	val &= ~(DPLL_CTRL1_HDMI_MODE(pll->id) | DPLL_CTRL1_SSC(pll->id) |
-		 DPLL_CTRL1_LINK_RATE_MASK(pll->id));
-	val |= pll->state.hw_state.ctrl1 << (pll->id * 6);
+	val &= ~(DPLL_CTRL1_HDMI_MODE(id) |
+		 DPLL_CTRL1_SSC(id) |
+		 DPLL_CTRL1_LINK_RATE_MASK(id));
+	val |= pll->state.hw_state.ctrl1 << (id * 6);
 
 	I915_WRITE(DPLL_CTRL1, val);
 	POSTING_READ(DPLL_CTRL1);
@@ -933,24 +945,25 @@ static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
+	const enum intel_dpll_id id = pll->info->id;
 
 	skl_ddi_pll_write_ctrl1(dev_priv, pll);
 
-	I915_WRITE(regs[pll->id].cfgcr1, pll->state.hw_state.cfgcr1);
-	I915_WRITE(regs[pll->id].cfgcr2, pll->state.hw_state.cfgcr2);
-	POSTING_READ(regs[pll->id].cfgcr1);
-	POSTING_READ(regs[pll->id].cfgcr2);
+	I915_WRITE(regs[id].cfgcr1, pll->state.hw_state.cfgcr1);
+	I915_WRITE(regs[id].cfgcr2, pll->state.hw_state.cfgcr2);
+	POSTING_READ(regs[id].cfgcr1);
+	POSTING_READ(regs[id].cfgcr2);
 
 	/* the enable bit is always bit 31 */
-	I915_WRITE(regs[pll->id].ctl,
-		   I915_READ(regs[pll->id].ctl) | LCPLL_PLL_ENABLE);
+	I915_WRITE(regs[id].ctl,
+		   I915_READ(regs[id].ctl) | LCPLL_PLL_ENABLE);
 
 	if (intel_wait_for_register(dev_priv,
 				    DPLL_STATUS,
-				    DPLL_LOCK(pll->id),
-				    DPLL_LOCK(pll->id),
+				    DPLL_LOCK(id),
+				    DPLL_LOCK(id),
 				    5))
-		DRM_ERROR("DPLL %d not locked\n", pll->id);
+		DRM_ERROR("DPLL %d not locked\n", id);
 }
 
 static void skl_ddi_dpll0_enable(struct drm_i915_private *dev_priv,
@@ -963,11 +976,12 @@ static void skl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
+	const enum intel_dpll_id id = pll->info->id;
 
 	/* the enable bit is always bit 31 */
-	I915_WRITE(regs[pll->id].ctl,
-		   I915_READ(regs[pll->id].ctl) & ~LCPLL_PLL_ENABLE);
-	POSTING_READ(regs[pll->id].ctl);
+	I915_WRITE(regs[id].ctl,
+		   I915_READ(regs[id].ctl) & ~LCPLL_PLL_ENABLE);
+	POSTING_READ(regs[id].ctl);
 }
 
 static void skl_ddi_dpll0_disable(struct drm_i915_private *dev_priv,
@@ -981,6 +995,7 @@ static bool skl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	uint32_t val;
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
+	const enum intel_dpll_id id = pll->info->id;
 	bool ret;
 
 	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
@@ -988,17 +1003,17 @@ static bool skl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 
 	ret = false;
 
-	val = I915_READ(regs[pll->id].ctl);
+	val = I915_READ(regs[id].ctl);
 	if (!(val & LCPLL_PLL_ENABLE))
 		goto out;
 
 	val = I915_READ(DPLL_CTRL1);
-	hw_state->ctrl1 = (val >> (pll->id * 6)) & 0x3f;
+	hw_state->ctrl1 = (val >> (id * 6)) & 0x3f;
 
 	/* avoid reading back stale values if HDMI mode is not enabled */
-	if (val & DPLL_CTRL1_HDMI_MODE(pll->id)) {
-		hw_state->cfgcr1 = I915_READ(regs[pll->id].cfgcr1);
-		hw_state->cfgcr2 = I915_READ(regs[pll->id].cfgcr2);
+	if (val & DPLL_CTRL1_HDMI_MODE(id)) {
+		hw_state->cfgcr1 = I915_READ(regs[id].cfgcr1);
+		hw_state->cfgcr2 = I915_READ(regs[id].cfgcr2);
 	}
 	ret = true;
 
@@ -1014,6 +1029,7 @@ static bool skl_ddi_dpll0_get_hw_state(struct drm_i915_private *dev_priv,
 {
 	uint32_t val;
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
+	const enum intel_dpll_id id = pll->info->id;
 	bool ret;
 
 	if (!intel_display_power_get_if_enabled(dev_priv, POWER_DOMAIN_PLLS))
@@ -1022,12 +1038,12 @@ static bool skl_ddi_dpll0_get_hw_state(struct drm_i915_private *dev_priv,
 	ret = false;
 
 	/* DPLL0 is always enabled since it drives CDCLK */
-	val = I915_READ(regs[pll->id].ctl);
+	val = I915_READ(regs[id].ctl);
 	if (WARN_ON(!(val & LCPLL_PLL_ENABLE)))
 		goto out;
 
 	val = I915_READ(DPLL_CTRL1);
-	hw_state->ctrl1 = (val >> (pll->id * 6)) & 0x3f;
+	hw_state->ctrl1 = (val >> (id * 6)) & 0x3f;
 
 	ret = true;
 
@@ -1427,7 +1443,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
 	uint32_t temp;
-	enum port port = (enum port)pll->id;	/* 1:1 port->PLL mapping */
+	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
 	enum dpio_phy phy;
 	enum dpio_channel ch;
 
@@ -1546,7 +1562,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 static void bxt_ddi_pll_disable(struct drm_i915_private *dev_priv,
 					struct intel_shared_dpll *pll)
 {
-	enum port port = (enum port)pll->id;	/* 1:1 port->PLL mapping */
+	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
 	uint32_t temp;
 
 	temp = I915_READ(BXT_PORT_PLL_ENABLE(port));
@@ -1569,7 +1585,7 @@ static bool bxt_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 					struct intel_shared_dpll *pll,
 					struct intel_dpll_hw_state *hw_state)
 {
-	enum port port = (enum port)pll->id;	/* 1:1 port->PLL mapping */
+	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
 	uint32_t val;
 	bool ret;
 	enum dpio_phy phy;
@@ -1949,38 +1965,39 @@ static const struct intel_dpll_mgr bxt_pll_mgr = {
 static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
+	const enum intel_dpll_id id = pll->info->id;
 	uint32_t val;
 
 	/* 1. Enable DPLL power in DPLL_ENABLE. */
-	val = I915_READ(CNL_DPLL_ENABLE(pll->id));
+	val = I915_READ(CNL_DPLL_ENABLE(id));
 	val |= PLL_POWER_ENABLE;
-	I915_WRITE(CNL_DPLL_ENABLE(pll->id), val);
+	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 2. Wait for DPLL power state enabled in DPLL_ENABLE. */
 	if (intel_wait_for_register(dev_priv,
-				    CNL_DPLL_ENABLE(pll->id),
+				    CNL_DPLL_ENABLE(id),
 				    PLL_POWER_STATE,
 				    PLL_POWER_STATE,
 				    5))
-		DRM_ERROR("PLL %d Power not enabled\n", pll->id);
+		DRM_ERROR("PLL %d Power not enabled\n", id);
 
 	/*
 	 * 3. Configure DPLL_CFGCR0 to set SSC enable/disable,
 	 * select DP mode, and set DP link rate.
 	 */
 	val = pll->state.hw_state.cfgcr0;
-	I915_WRITE(CNL_DPLL_CFGCR0(pll->id), val);
+	I915_WRITE(CNL_DPLL_CFGCR0(id), val);
 
 	/* 4. Reab back to ensure writes completed */
-	POSTING_READ(CNL_DPLL_CFGCR0(pll->id));
+	POSTING_READ(CNL_DPLL_CFGCR0(id));
 
 	/* 3. Configure DPLL_CFGCR0 */
 	/* Avoid touch CFGCR1 if HDMI mode is not enabled */
 	if (pll->state.hw_state.cfgcr0 & DPLL_CFGCR0_HDMI_MODE) {
 		val = pll->state.hw_state.cfgcr1;
-		I915_WRITE(CNL_DPLL_CFGCR1(pll->id), val);
+		I915_WRITE(CNL_DPLL_CFGCR1(id), val);
 		/* 4. Reab back to ensure writes completed */
-		POSTING_READ(CNL_DPLL_CFGCR1(pll->id));
+		POSTING_READ(CNL_DPLL_CFGCR1(id));
 	}
 
 	/*
@@ -1993,17 +2010,17 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	 */
 
 	/* 6. Enable DPLL in DPLL_ENABLE. */
-	val = I915_READ(CNL_DPLL_ENABLE(pll->id));
+	val = I915_READ(CNL_DPLL_ENABLE(id));
 	val |= PLL_ENABLE;
-	I915_WRITE(CNL_DPLL_ENABLE(pll->id), val);
+	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 7. Wait for PLL lock status in DPLL_ENABLE. */
 	if (intel_wait_for_register(dev_priv,
-				    CNL_DPLL_ENABLE(pll->id),
+				    CNL_DPLL_ENABLE(id),
 				    PLL_LOCK,
 				    PLL_LOCK,
 				    5))
-		DRM_ERROR("PLL %d not locked\n", pll->id);
+		DRM_ERROR("PLL %d not locked\n", id);
 
 	/*
 	 * 8. If the frequency will result in a change to the voltage
@@ -2023,6 +2040,7 @@ static void cnl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
+	const enum intel_dpll_id id = pll->info->id;
 	uint32_t val;
 
 	/*
@@ -2040,17 +2058,17 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	 */
 
 	/* 3. Disable DPLL through DPLL_ENABLE. */
-	val = I915_READ(CNL_DPLL_ENABLE(pll->id));
+	val = I915_READ(CNL_DPLL_ENABLE(id));
 	val &= ~PLL_ENABLE;
-	I915_WRITE(CNL_DPLL_ENABLE(pll->id), val);
+	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 4. Wait for PLL not locked status in DPLL_ENABLE. */
 	if (intel_wait_for_register(dev_priv,
-				    CNL_DPLL_ENABLE(pll->id),
+				    CNL_DPLL_ENABLE(id),
 				    PLL_LOCK,
 				    0,
 				    5))
-		DRM_ERROR("PLL %d locked\n", pll->id);
+		DRM_ERROR("PLL %d locked\n", id);
 
 	/*
 	 * 5. If the frequency will result in a change to the voltage
@@ -2062,23 +2080,24 @@ static void cnl_ddi_pll_disable(struct drm_i915_private *dev_priv,
 	 */
 
 	/* 6. Disable DPLL power in DPLL_ENABLE. */
-	val = I915_READ(CNL_DPLL_ENABLE(pll->id));
+	val = I915_READ(CNL_DPLL_ENABLE(id));
 	val &= ~PLL_POWER_ENABLE;
-	I915_WRITE(CNL_DPLL_ENABLE(pll->id), val);
+	I915_WRITE(CNL_DPLL_ENABLE(id), val);
 
 	/* 7. Wait for DPLL power state disabled in DPLL_ENABLE. */
 	if (intel_wait_for_register(dev_priv,
-				    CNL_DPLL_ENABLE(pll->id),
+				    CNL_DPLL_ENABLE(id),
 				    PLL_POWER_STATE,
 				    0,
 				    5))
-		DRM_ERROR("PLL %d Power not disabled\n", pll->id);
+		DRM_ERROR("PLL %d Power not disabled\n", id);
 }
 
 static bool cnl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 				     struct intel_shared_dpll *pll,
 				     struct intel_dpll_hw_state *hw_state)
 {
+	const enum intel_dpll_id id = pll->info->id;
 	uint32_t val;
 	bool ret;
 
@@ -2087,16 +2106,16 @@ static bool cnl_ddi_pll_get_hw_state(struct drm_i915_private *dev_priv,
 
 	ret = false;
 
-	val = I915_READ(CNL_DPLL_ENABLE(pll->id));
+	val = I915_READ(CNL_DPLL_ENABLE(id));
 	if (!(val & PLL_ENABLE))
 		goto out;
 
-	val = I915_READ(CNL_DPLL_CFGCR0(pll->id));
+	val = I915_READ(CNL_DPLL_CFGCR0(id));
 	hw_state->cfgcr0 = val;
 
 	/* avoid reading back stale values if HDMI mode is not enabled */
 	if (val & DPLL_CFGCR0_HDMI_MODE) {
-		hw_state->cfgcr1 = I915_READ(CNL_DPLL_CFGCR1(pll->id));
+		hw_state->cfgcr1 = I915_READ(CNL_DPLL_CFGCR1(id));
 	}
 	ret = true;
 
@@ -2415,7 +2434,6 @@ void intel_shared_dpll_init(struct drm_device *dev)
 		WARN_ON(i != dpll_info[i].id);
 		dev_priv->shared_dplls[i].info = &dpll_info[i];
 
-		dev_priv->shared_dplls[i].id = dpll_info[i].id;
 		dev_priv->shared_dplls[i].flags = dpll_info[i].flags;
 	}
 
@@ -2476,7 +2494,7 @@ void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
 	struct intel_shared_dpll_state *shared_dpll_state;
 
 	shared_dpll_state = intel_atomic_get_shared_dpll_state(state);
-	shared_dpll_state[dpll->id].crtc_mask &= ~(1 << crtc->pipe);
+	shared_dpll_state[dpll->info->id].crtc_mask &= ~(1 << crtc->pipe);
 }
 
 /**

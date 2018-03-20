@@ -994,7 +994,7 @@ static void intel_wait_ddi_buf_idle(struct drm_i915_private *dev_priv,
 
 static uint32_t hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
 {
-	switch (pll->id) {
+	switch (pll->info->id) {
 	case DPLL_ID_WRPLL1:
 		return PORT_CLK_SEL_WRPLL1;
 	case DPLL_ID_WRPLL2:
@@ -1008,7 +1008,7 @@ static uint32_t hsw_pll_to_ddi_pll_sel(const struct intel_shared_dpll *pll)
 	case DPLL_ID_LCPLL_2700:
 		return PORT_CLK_SEL_LCPLL_2700;
 	default:
-		MISSING_CASE(pll->id);
+		MISSING_CASE(pll->info->id);
 		return PORT_CLK_SEL_NONE;
 	}
 }
@@ -2250,7 +2250,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 		/* Configure DPCLKA_CFGCR0 to map the DPLL to the DDI. */
 		val = I915_READ(DPCLKA_CFGCR0);
 		val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
-		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->id, port);
+		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
 		I915_WRITE(DPCLKA_CFGCR0, val);
 
 		/*
@@ -2267,7 +2267,7 @@ static void intel_ddi_clk_select(struct intel_encoder *encoder,
 
 		val &= ~(DPLL_CTRL2_DDI_CLK_OFF(port) |
 			 DPLL_CTRL2_DDI_CLK_SEL_MASK(port));
-		val |= (DPLL_CTRL2_DDI_CLK_SEL(pll->id, port) |
+		val |= (DPLL_CTRL2_DDI_CLK_SEL(pll->info->id, port) |
 			DPLL_CTRL2_DDI_SEL_OVERRIDE(port));
 
 		I915_WRITE(DPLL_CTRL2, val);
