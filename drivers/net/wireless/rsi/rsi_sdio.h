@@ -46,6 +46,8 @@ enum sdio_interrupt_type {
 #define PKT_BUFF_AVAILABLE                      1
 #define FW_ASSERT_IND                           2
 
+#define RSI_MASTER_REG_BUF_SIZE			12
+
 #define RSI_DEVICE_BUFFER_STATUS_REGISTER       0xf3
 #define RSI_FN1_INT_REGISTER                    0xf9
 #define RSI_SD_REQUEST_MASTER                   0x10000
