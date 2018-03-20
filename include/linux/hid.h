@@ -338,7 +338,7 @@ struct hid_item {
 #define HID_QUIRK_BADPAD			BIT(5)
 #define HID_QUIRK_MULTI_INPUT			BIT(6)
 #define HID_QUIRK_HIDINPUT_FORCE		BIT(7)
-#define HID_QUIRK_NO_EMPTY_INPUT		BIT(8)
+/* BIT(8) reserved for backward compatibility, was HID_QUIRK_NO_EMPTY_INPUT */
 /* BIT(9) reserved for backward compatibility, was NO_INIT_INPUT_REPORTS */
 #define HID_QUIRK_ALWAYS_POLL			BIT(10)
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		BIT(16)

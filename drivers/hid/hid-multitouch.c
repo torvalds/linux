@@ -1469,7 +1469,6 @@ static int mt_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	 * device.
 	 */
 	hdev->quirks |= HID_QUIRK_MULTI_INPUT;
-	hdev->quirks |= HID_QUIRK_NO_EMPTY_INPUT;
 
 	/*
 	 * Some multitouch screens do not like to be polled for input
