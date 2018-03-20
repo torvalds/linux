@@ -253,6 +253,12 @@ xdr_stream_remaining(const struct xdr_stream *xdr)
 	return xdr->nwords << 2;
 }
 
+ssize_t xdr_stream_decode_opaque(struct xdr_stream *xdr, void *ptr,
+		size_t size);
+ssize_t xdr_stream_decode_opaque_dup(struct xdr_stream *xdr, void **ptr,
+		size_t maxlen, gfp_t gfp_flags);
+ssize_t xdr_stream_decode_string(struct xdr_stream *xdr, char *str,
+		size_t size);
 ssize_t xdr_stream_decode_string_dup(struct xdr_stream *xdr, char **str,
 		size_t maxlen, gfp_t gfp_flags);
 /**
