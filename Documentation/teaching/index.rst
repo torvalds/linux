@@ -38,6 +38,7 @@ then point your browser at **Documentation/output/labs/index.html**.
    lectures/intro.rst
    lectures/syscalls.rst
    lectures/interrupts.rst
+   lectures/smp.rst
    labs/vm.rst
    labs/exercises.rst
    labs/introduction.rst
