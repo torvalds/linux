@@ -739,6 +739,9 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 {
 	int i;
 
+	if (!dev->cache.wq)
+		return 0;
+
 	dev->cache.stopped = 1;
 	flush_workqueue(dev->cache.wq);
 
