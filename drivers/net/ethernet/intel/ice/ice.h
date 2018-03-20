@@ -23,7 +23,10 @@
 #include <linux/delay.h>
 #include <linux/bitmap.h>
 #include <linux/log2.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
 #include <linux/if_bridge.h>
+#include <net/ipv6.h>
 #include "ice_devids.h"
 #include "ice_type.h"
 #include "ice_txrx.h"
@@ -47,6 +50,8 @@
 #define ICE_MAX_SCATTER_RXQS	16
 #define ICE_Q_WAIT_RETRY_LIMIT	10
 #define ICE_Q_WAIT_MAX_RETRY	(5 * ICE_Q_WAIT_RETRY_LIMIT)
+#define ICE_MAX_LG_RSS_QS	256
+#define ICE_MAX_SMALL_RSS_QS	8
 #define ICE_RES_VALID_BIT	0x8000
 #define ICE_RES_MISC_VEC_ID	(ICE_RES_VALID_BIT - 1)
 #define ICE_INVAL_Q_INDEX	0xffff
@@ -62,6 +67,7 @@
 
 #define ICE_TX_DESC(R, i) (&(((struct ice_tx_desc *)((R)->desc))[i]))
 #define ICE_RX_DESC(R, i) (&(((union ice_32b_rx_flex_desc *)((R)->desc))[i]))
+#define ICE_TX_CTX_DESC(R, i) (&(((struct ice_tx_ctx_desc *)((R)->desc))[i]))
 
 #define ice_for_each_txq(vsi, i) \
 	for ((i) = 0; (i) < (vsi)->num_txq; (i)++)
@@ -113,6 +119,7 @@ struct ice_vsi {
 	irqreturn_t (*irq_handler)(int irq, void *data);
 
 	DECLARE_BITMAP(state, __ICE_STATE_NBITS);
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	int num_q_vectors;
 	int base_vector;
 	enum ice_vsi_type type;
@@ -121,6 +128,13 @@ struct ice_vsi {
 
 	/* Interrupt thresholds */
 	u16 work_lmt;
+
+	/* RSS config */
+	u16 rss_table_size;	/* HW RSS table size */
+	u16 rss_size;		/* Allocated RSS queues */
+	u8 *rss_hkey_user;	/* User configured hash keys */
+	u8 *rss_lut_user;	/* User configured lookup table entries */
+	u8 rss_lut_type;	/* used to configure Get/Set RSS LUT AQ call */
 
 	u16 max_frame;
 	u16 rx_buf_len;
@@ -181,6 +195,7 @@ struct ice_pf {
 	struct mutex avail_q_mutex;	/* protects access to avail_[rx|tx]qs */
 	struct mutex sw_mutex;		/* lock for protecting VSI alloc flow */
 	u32 msg_enable;
+	u32 hw_csum_rx_error;
 	u32 oicr_idx;		/* Other interrupt cause vector index */
 	u32 num_lan_msix;	/* Total MSIX vectors for base driver */
 	u32 num_avail_msix;	/* remaining MSIX vectors left unclaimed */
@@ -223,5 +238,9 @@ static inline void ice_irq_dynamic_ena(struct ice_hw *hw, struct ice_vsi *vsi,
 			return;
 	wr32(hw, GLINT_DYN_CTL(vector), val);
 }
+
+int ice_set_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
+int ice_get_rss(struct ice_vsi *vsi, u8 *seed, u8 *lut, u16 lut_size);
+void ice_fill_rss_lut(u8 *lut, u16 rss_table_size, u16 rss_size);
 
 #endif /* _ICE_H_ */

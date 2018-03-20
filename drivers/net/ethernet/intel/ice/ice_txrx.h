@@ -28,6 +28,12 @@
 	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	(R)->next_to_clean - (R)->next_to_use - 1)
 
+#define ICE_TX_FLAGS_TSO	BIT(0)
+#define ICE_TX_FLAGS_HW_VLAN	BIT(1)
+#define ICE_TX_FLAGS_SW_VLAN	BIT(2)
+#define ICE_TX_FLAGS_VLAN_M	0xffff0000
+#define ICE_TX_FLAGS_VLAN_S	16
+
 struct ice_tx_buf {
 	struct ice_tx_desc *next_to_watch;
 	struct sk_buff *skb;
@@ -36,6 +42,17 @@ struct ice_tx_buf {
 	u32 tx_flags;
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
+};
+
+struct ice_tx_offload_params {
+	u8 header_len;
+	u32 td_cmd;
+	u32 td_offset;
+	u32 td_l2tag1;
+	u16 cd_l2tag2;
+	u32 cd_tunnel_params;
+	u64 cd_qw1;
+	struct ice_ring *tx_ring;
 };
 
 struct ice_rx_buf {

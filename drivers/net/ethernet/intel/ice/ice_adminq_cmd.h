@@ -968,6 +968,60 @@ struct ice_aqc_nvm {
 	__le32	addr_low;
 };
 
+/* Get/Set RSS key (indirect 0x0B04/0x0B02) */
+struct ice_aqc_get_set_rss_key {
+#define ICE_AQC_GSET_RSS_KEY_VSI_VALID	BIT(15)
+#define ICE_AQC_GSET_RSS_KEY_VSI_ID_S	0
+#define ICE_AQC_GSET_RSS_KEY_VSI_ID_M	(0x3FF << ICE_AQC_GSET_RSS_KEY_VSI_ID_S)
+	__le16 vsi_id;
+	u8 reserved[6];
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
+#define ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE	0x28
+#define ICE_AQC_GET_SET_RSS_KEY_DATA_HASH_KEY_SIZE	0xC
+
+struct ice_aqc_get_set_rss_keys {
+	u8 standard_rss_key[ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE];
+	u8 extended_hash_key[ICE_AQC_GET_SET_RSS_KEY_DATA_HASH_KEY_SIZE];
+};
+
+/* Get/Set RSS LUT (indirect 0x0B05/0x0B03) */
+struct  ice_aqc_get_set_rss_lut {
+#define ICE_AQC_GSET_RSS_LUT_VSI_VALID	BIT(15)
+#define ICE_AQC_GSET_RSS_LUT_VSI_ID_S	0
+#define ICE_AQC_GSET_RSS_LUT_VSI_ID_M	(0x1FF << ICE_AQC_GSET_RSS_LUT_VSI_ID_S)
+	__le16 vsi_id;
+#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_S	0
+#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_M	\
+				(0x3 << ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_S)
+
+#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_VSI	 0
+#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF	 1
+#define ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_GLOBAL	 2
+
+#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_S	 2
+#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_M	 \
+				(0x3 << ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_S)
+
+#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_128	 128
+#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_128_FLAG 0
+#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_512	 512
+#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_512_FLAG 1
+#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_2K	 2048
+#define ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_2K_FLAG	 2
+
+#define ICE_AQC_GSET_RSS_LUT_GLOBAL_IDX_S	 4
+#define ICE_AQC_GSET_RSS_LUT_GLOBAL_IDX_M	 \
+				(0xF << ICE_AQC_GSET_RSS_LUT_GLOBAL_IDX_S)
+
+	__le16 flags;
+	__le32 reserved;
+	__le32 addr_high;
+	__le32 addr_low;
+};
+
 /* Add TX LAN Queues (indirect 0x0C30) */
 struct ice_aqc_add_txqs {
 	u8 num_qgrps;
@@ -1089,6 +1143,8 @@ struct ice_aq_desc {
 		struct ice_aqc_query_txsched_res query_sched_res;
 		struct ice_aqc_add_move_delete_elem add_move_delete_elem;
 		struct ice_aqc_nvm nvm;
+		struct ice_aqc_get_set_rss_lut get_set_rss_lut;
+		struct ice_aqc_get_set_rss_key get_set_rss_key;
 		struct ice_aqc_add_txqs add_txqs;
 		struct ice_aqc_dis_txqs dis_txqs;
 		struct ice_aqc_add_get_update_free_vsi vsi_cmd;
@@ -1170,6 +1226,12 @@ enum ice_adminq_opc {
 
 	/* NVM commands */
 	ice_aqc_opc_nvm_read				= 0x0701,
+
+	/* RSS commands */
+	ice_aqc_opc_set_rss_key				= 0x0B02,
+	ice_aqc_opc_set_rss_lut				= 0x0B03,
+	ice_aqc_opc_get_rss_key				= 0x0B04,
+	ice_aqc_opc_get_rss_lut				= 0x0B05,
 
 	/* TX queue handling commands/events */
 	ice_aqc_opc_add_txqs				= 0x0C30,

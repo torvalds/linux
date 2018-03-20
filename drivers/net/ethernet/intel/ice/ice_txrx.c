@@ -797,6 +797,134 @@ static bool ice_is_non_eop(struct ice_ring *rx_ring,
 }
 
 /**
+ * ice_ptype_to_htype - get a hash type
+ * @ptype: the ptype value from the descriptor
+ *
+ * Returns a hash type to be used by skb_set_hash
+ */
+static enum pkt_hash_types ice_ptype_to_htype(u8 __always_unused ptype)
+{
+	return PKT_HASH_TYPE_NONE;
+}
+
+/**
+ * ice_rx_hash - set the hash value in the skb
+ * @rx_ring: descriptor ring
+ * @rx_desc: specific descriptor
+ * @skb: pointer to current skb
+ * @rx_ptype: the ptype value from the descriptor
+ */
+static void
+ice_rx_hash(struct ice_ring *rx_ring, union ice_32b_rx_flex_desc *rx_desc,
+	    struct sk_buff *skb, u8 rx_ptype)
+{
+	struct ice_32b_rx_flex_desc_nic *nic_mdid;
+	u32 hash;
+
+	if (!(rx_ring->netdev->features & NETIF_F_RXHASH))
+		return;
+
+	if (rx_desc->wb.rxdid != ICE_RXDID_FLEX_NIC)
+		return;
+
+	nic_mdid = (struct ice_32b_rx_flex_desc_nic *)rx_desc;
+	hash = le32_to_cpu(nic_mdid->rss_hash);
+	skb_set_hash(skb, hash, ice_ptype_to_htype(rx_ptype));
+}
+
+/**
+ * ice_rx_csum - Indicate in skb if checksum is good
+ * @vsi: the VSI we care about
+ * @skb: skb currently being received and modified
+ * @rx_desc: the receive descriptor
+ * @ptype: the packet type decoded by hardware
+ *
+ * skb->protocol must be set before this function is called
+ */
+static void ice_rx_csum(struct ice_vsi *vsi, struct sk_buff *skb,
+			union ice_32b_rx_flex_desc *rx_desc, u8 ptype)
+{
+	struct ice_rx_ptype_decoded decoded;
+	u32 rx_error, rx_status;
+	bool ipv4, ipv6;
+
+	rx_status = le16_to_cpu(rx_desc->wb.status_error0);
+	rx_error = rx_status;
+
+	decoded = ice_decode_rx_desc_ptype(ptype);
+
+	/* Start with CHECKSUM_NONE and by default csum_level = 0 */
+	skb->ip_summed = CHECKSUM_NONE;
+	skb_checksum_none_assert(skb);
+
+	/* check if Rx checksum is enabled */
+	if (!(vsi->netdev->features & NETIF_F_RXCSUM))
+		return;
+
+	/* check if HW has decoded the packet and checksum */
+	if (!(rx_status & BIT(ICE_RX_FLEX_DESC_STATUS0_L3L4P_S)))
+		return;
+
+	if (!(decoded.known && decoded.outer_ip))
+		return;
+
+	ipv4 = (decoded.outer_ip == ICE_RX_PTYPE_OUTER_IP) &&
+	       (decoded.outer_ip_ver == ICE_RX_PTYPE_OUTER_IPV4);
+	ipv6 = (decoded.outer_ip == ICE_RX_PTYPE_OUTER_IP) &&
+	       (decoded.outer_ip_ver == ICE_RX_PTYPE_OUTER_IPV6);
+
+	if (ipv4 && (rx_error & (BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_IPE_S) |
+				 BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_EIPE_S))))
+		goto checksum_fail;
+	else if (ipv6 && (rx_status &
+		 (BIT(ICE_RX_FLEX_DESC_STATUS0_IPV6EXADD_S))))
+		goto checksum_fail;
+
+	/* check for L4 errors and handle packets that were not able to be
+	 * checksummed due to arrival speed
+	 */
+	if (rx_error & BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_L4E_S))
+		goto checksum_fail;
+
+	/* Only report checksum unnecessary for TCP, UDP, or SCTP */
+	switch (decoded.inner_prot) {
+	case ICE_RX_PTYPE_INNER_PROT_TCP:
+	case ICE_RX_PTYPE_INNER_PROT_UDP:
+	case ICE_RX_PTYPE_INNER_PROT_SCTP:
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	default:
+		break;
+	}
+	return;
+
+checksum_fail:
+	vsi->back->hw_csum_rx_error++;
+}
+
+/**
+ * ice_process_skb_fields - Populate skb header fields from Rx descriptor
+ * @rx_ring: rx descriptor ring packet is being transacted on
+ * @rx_desc: pointer to the EOP Rx descriptor
+ * @skb: pointer to current skb being populated
+ * @ptype: the packet type decoded by hardware
+ *
+ * This function checks the ring, descriptor, and packet information in
+ * order to populate the hash, checksum, VLAN, protocol, and
+ * other fields within the skb.
+ */
+static void ice_process_skb_fields(struct ice_ring *rx_ring,
+				   union ice_32b_rx_flex_desc *rx_desc,
+				   struct sk_buff *skb, u8 ptype)
+{
+	ice_rx_hash(rx_ring, rx_desc, skb, ptype);
+
+	/* modifies the skb - consumes the enet header */
+	skb->protocol = eth_type_trans(skb, rx_ring->netdev);
+
+	ice_rx_csum(rx_ring->vsi, skb, rx_desc, ptype);
+}
+
+/**
  * ice_receive_skb - Send a completed packet up the stack
  * @rx_ring: rx ring in play
  * @skb: packet to send up
@@ -839,6 +967,7 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 		struct sk_buff *skb;
 		u16 stat_err_bits;
 		u16 vlan_tag = 0;
+		u8 rx_ptype;
 
 		/* return some buffers to hardware, one at a time is too slow */
 		if (cleaned_count >= ICE_RX_BUF_WRITE) {
@@ -882,6 +1011,9 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 			continue;
 		}
 
+		rx_ptype = le16_to_cpu(rx_desc->wb.ptype_flex_flags0) &
+			ICE_RX_FLEX_DESC_PTYPE_M;
+
 		stat_err_bits = BIT(ICE_RX_FLEX_DESC_STATUS0_L2TAG1P_S);
 		if (ice_test_staterr(rx_desc, stat_err_bits))
 			vlan_tag = le16_to_cpu(rx_desc->wb.l2tag1);
@@ -896,6 +1028,9 @@ static int ice_clean_rx_irq(struct ice_ring *rx_ring, int budget)
 
 		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += skb->len;
+
+		/* populate checksum, VLAN, and protocol */
+		ice_process_skb_fields(rx_ring, rx_desc, skb, rx_ptype);
 
 		/* send completed skb up the stack */
 		ice_receive_skb(rx_ring, skb, vlan_tag);
@@ -1026,14 +1161,17 @@ static int ice_maybe_stop_tx(struct ice_ring *tx_ring, unsigned int size)
  * ice_tx_map - Build the Tx descriptor
  * @tx_ring: ring to send buffer on
  * @first: first buffer info buffer to use
+ * @off: pointer to struct that holds offload parameters
  *
  * This function loops over the skb data pointed to by *first
  * and gets a physical address for each memory location and programs
  * it and the length into the transmit descriptor.
  */
-static void ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first)
+static void
+ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
+	   struct ice_tx_offload_params *off)
 {
-	u64 td_offset = 0, td_tag = 0, td_cmd = 0;
+	u64 td_offset, td_tag, td_cmd;
 	u16 i = tx_ring->next_to_use;
 	struct skb_frag_struct *frag;
 	unsigned int data_len, size;
@@ -1042,12 +1180,21 @@ static void ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first)
 	struct sk_buff *skb;
 	dma_addr_t dma;
 
+	td_tag = off->td_l2tag1;
+	td_cmd = off->td_cmd;
+	td_offset = off->td_offset;
 	skb = first->skb;
 
 	data_len = skb->data_len;
 	size = skb_headlen(skb);
 
 	tx_desc = ICE_TX_DESC(tx_ring, i);
+
+	if (first->tx_flags & ICE_TX_FLAGS_HW_VLAN) {
+		td_cmd |= (u64)ICE_TX_DESC_CMD_IL2TAG1;
+		td_tag = (first->tx_flags & ICE_TX_FLAGS_VLAN_M) >>
+			  ICE_TX_FLAGS_VLAN_S;
+	}
 
 	dma = dma_map_single(tx_ring->dev, skb->data, size, DMA_TO_DEVICE);
 
@@ -1167,6 +1314,223 @@ dma_error:
 	}
 
 	tx_ring->next_to_use = i;
+}
+
+/**
+ * ice_tx_csum - Enable Tx checksum offloads
+ * @first: pointer to the first descriptor
+ * @off: pointer to struct that holds offload parameters
+ *
+ * Returns 0 or error (negative) if checksum offload can't happen, 1 otherwise.
+ */
+static
+int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
+{
+	u32 l4_len = 0, l3_len = 0, l2_len = 0;
+	struct sk_buff *skb = first->skb;
+	union {
+		struct iphdr *v4;
+		struct ipv6hdr *v6;
+		unsigned char *hdr;
+	} ip;
+	union {
+		struct tcphdr *tcp;
+		unsigned char *hdr;
+	} l4;
+	__be16 frag_off, protocol;
+	unsigned char *exthdr;
+	u32 offset, cmd = 0;
+	u8 l4_proto = 0;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
+	ip.hdr = skb_network_header(skb);
+	l4.hdr = skb_transport_header(skb);
+
+	/* compute outer L2 header size */
+	l2_len = ip.hdr - skb->data;
+	offset = (l2_len / 2) << ICE_TX_DESC_LEN_MACLEN_S;
+
+	if (skb->encapsulation)
+		return -1;
+
+	/* Enable IP checksum offloads */
+	protocol = vlan_get_protocol(skb);
+	if (protocol == htons(ETH_P_IP)) {
+		l4_proto = ip.v4->protocol;
+		/* the stack computes the IP header already, the only time we
+		 * need the hardware to recompute it is in the case of TSO.
+		 */
+		if (first->tx_flags & ICE_TX_FLAGS_TSO)
+			cmd |= ICE_TX_DESC_CMD_IIPT_IPV4_CSUM;
+		else
+			cmd |= ICE_TX_DESC_CMD_IIPT_IPV4;
+
+	} else if (protocol == htons(ETH_P_IPV6)) {
+		cmd |= ICE_TX_DESC_CMD_IIPT_IPV6;
+		exthdr = ip.hdr + sizeof(*ip.v6);
+		l4_proto = ip.v6->nexthdr;
+		if (l4.hdr != exthdr)
+			ipv6_skip_exthdr(skb, exthdr - skb->data, &l4_proto,
+					 &frag_off);
+	} else {
+		return -1;
+	}
+
+	/* compute inner L3 header size */
+	l3_len = l4.hdr - ip.hdr;
+	offset |= (l3_len / 4) << ICE_TX_DESC_LEN_IPLEN_S;
+
+	/* Enable L4 checksum offloads */
+	switch (l4_proto) {
+	case IPPROTO_TCP:
+		/* enable checksum offloads */
+		cmd |= ICE_TX_DESC_CMD_L4T_EOFT_TCP;
+		l4_len = l4.tcp->doff;
+		offset |= l4_len << ICE_TX_DESC_LEN_L4_LEN_S;
+		break;
+	case IPPROTO_UDP:
+		/* enable UDP checksum offload */
+		cmd |= ICE_TX_DESC_CMD_L4T_EOFT_UDP;
+		l4_len = (sizeof(struct udphdr) >> 2);
+		offset |= l4_len << ICE_TX_DESC_LEN_L4_LEN_S;
+		break;
+	case IPPROTO_SCTP:
+	default:
+		if (first->tx_flags & ICE_TX_FLAGS_TSO)
+			return -1;
+		skb_checksum_help(skb);
+		return 0;
+	}
+
+	off->td_cmd |= cmd;
+	off->td_offset |= offset;
+	return 1;
+}
+
+/**
+ * ice_tx_prepare_vlan_flags - prepare generic TX VLAN tagging flags for HW
+ * @tx_ring: ring to send buffer on
+ * @first: pointer to struct ice_tx_buf
+ *
+ * Checks the skb and set up correspondingly several generic transmit flags
+ * related to VLAN tagging for the HW, such as VLAN, DCB, etc.
+ *
+ * Returns error code indicate the frame should be dropped upon error and the
+ * otherwise returns 0 to indicate the flags has been set properly.
+ */
+static int
+ice_tx_prepare_vlan_flags(struct ice_ring *tx_ring, struct ice_tx_buf *first)
+{
+	struct sk_buff *skb = first->skb;
+	__be16 protocol = skb->protocol;
+
+	if (protocol == htons(ETH_P_8021Q) &&
+	    !(tx_ring->netdev->features & NETIF_F_HW_VLAN_CTAG_TX)) {
+		/* when HW VLAN acceleration is turned off by the user the
+		 * stack sets the protocol to 8021q so that the driver
+		 * can take any steps required to support the SW only
+		 * VLAN handling. In our case the driver doesn't need
+		 * to take any further steps so just set the protocol
+		 * to the encapsulated ethertype.
+		 */
+		skb->protocol = vlan_get_protocol(skb);
+		goto out;
+	}
+
+	/* if we have a HW VLAN tag being added, default to the HW one */
+	if (skb_vlan_tag_present(skb)) {
+		first->tx_flags |= skb_vlan_tag_get(skb) << ICE_TX_FLAGS_VLAN_S;
+		first->tx_flags |= ICE_TX_FLAGS_HW_VLAN;
+	} else if (protocol == htons(ETH_P_8021Q)) {
+		struct vlan_hdr *vhdr, _vhdr;
+
+		/* for SW VLAN, check the next protocol and store the tag */
+		vhdr = (struct vlan_hdr *)skb_header_pointer(skb, ETH_HLEN,
+							     sizeof(_vhdr),
+							     &_vhdr);
+		if (!vhdr)
+			return -EINVAL;
+
+		first->tx_flags |= ntohs(vhdr->h_vlan_TCI) <<
+				   ICE_TX_FLAGS_VLAN_S;
+		first->tx_flags |= ICE_TX_FLAGS_SW_VLAN;
+	}
+
+out:
+	return 0;
+}
+
+/**
+ * ice_tso - computes mss and TSO length to prepare for TSO
+ * @first: pointer to struct ice_tx_buf
+ * @off: pointer to struct that holds offload parameters
+ *
+ * Returns 0 or error (negative) if TSO can't happen, 1 otherwise.
+ */
+static
+int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
+{
+	struct sk_buff *skb = first->skb;
+	union {
+		struct iphdr *v4;
+		struct ipv6hdr *v6;
+		unsigned char *hdr;
+	} ip;
+	union {
+		struct tcphdr *tcp;
+		unsigned char *hdr;
+	} l4;
+	u64 cd_mss, cd_tso_len;
+	u32 paylen, l4_start;
+	int err;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
+		return 0;
+
+	if (!skb_is_gso(skb))
+		return 0;
+
+	err = skb_cow_head(skb, 0);
+	if (err < 0)
+		return err;
+
+	ip.hdr = skb_network_header(skb);
+	l4.hdr = skb_transport_header(skb);
+
+	/* initialize outer IP header fields */
+	if (ip.v4->version == 4) {
+		ip.v4->tot_len = 0;
+		ip.v4->check = 0;
+	} else {
+		ip.v6->payload_len = 0;
+	}
+
+	/* determine offset of transport header */
+	l4_start = l4.hdr - skb->data;
+
+	/* remove payload length from checksum */
+	paylen = skb->len - l4_start;
+	csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
+
+	/* compute length of segmentation header */
+	off->header_len = (l4.tcp->doff * 4) + l4_start;
+
+	/* update gso_segs and bytecount */
+	first->gso_segs = skb_shinfo(skb)->gso_segs;
+	first->bytecount = (first->gso_segs - 1) * off->header_len;
+
+	cd_tso_len = skb->len - off->header_len;
+	cd_mss = skb_shinfo(skb)->gso_size;
+
+	/* record cdesc_qw1 with TSO parameters */
+	off->cd_qw1 |= ICE_TX_DESC_DTYPE_CTX |
+			 (ICE_TX_CTX_DESC_TSO << ICE_TXD_CTX_QW1_CMD_S) |
+			 (cd_tso_len << ICE_TXD_CTX_QW1_TSO_LEN_S) |
+			 (cd_mss << ICE_TXD_CTX_QW1_MSS_S);
+	first->tx_flags |= ICE_TX_FLAGS_TSO;
+	return 1;
 }
 
 /**
@@ -1322,8 +1686,10 @@ static bool ice_chk_linearize(struct sk_buff *skb, unsigned int count)
 static netdev_tx_t
 ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 {
+	struct ice_tx_offload_params offload = { 0 };
 	struct ice_tx_buf *first;
 	unsigned int count;
+	int tso, csum;
 
 	count = ice_xmit_desc_count(skb);
 	if (ice_chk_linearize(skb, count)) {
@@ -1344,13 +1710,46 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 		return NETDEV_TX_BUSY;
 	}
 
+	offload.tx_ring = tx_ring;
+
 	/* record the location of the first descriptor for this packet */
 	first = &tx_ring->tx_buf[tx_ring->next_to_use];
 	first->skb = skb;
 	first->bytecount = max_t(unsigned int, skb->len, ETH_ZLEN);
 	first->gso_segs = 1;
+	first->tx_flags = 0;
 
-	ice_tx_map(tx_ring, first);
+	/* prepare the VLAN tagging flags for Tx */
+	if (ice_tx_prepare_vlan_flags(tx_ring, first))
+		goto out_drop;
+
+	/* set up TSO offload */
+	tso = ice_tso(first, &offload);
+	if (tso < 0)
+		goto out_drop;
+
+	/* always set up Tx checksum offload */
+	csum = ice_tx_csum(first, &offload);
+	if (csum < 0)
+		goto out_drop;
+
+	if (tso || offload.cd_tunnel_params) {
+		struct ice_tx_ctx_desc *cdesc;
+		int i = tx_ring->next_to_use;
+
+		/* grab the next descriptor */
+		cdesc = ICE_TX_CTX_DESC(tx_ring, i);
+		i++;
+		tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
+
+		/* setup context descriptor */
+		cdesc->tunneling_params = cpu_to_le32(offload.cd_tunnel_params);
+		cdesc->l2tag2 = cpu_to_le16(offload.cd_l2tag2);
+		cdesc->rsvd = cpu_to_le16(0);
+		cdesc->qw1 = cpu_to_le64(offload.cd_qw1);
+	}
+
+	ice_tx_map(tx_ring, first, &offload);
 	return NETDEV_TX_OK;
 
 out_drop:

@@ -8,6 +8,7 @@
 
 #define ICE_SW_CFG_MAX_BUF_LEN 2048
 #define ICE_DFLT_VSI_INVAL 0xff
+#define ICE_VSI_INVAL_ID 0xffff
 
 /* VSI context structure for add/get/update/free operations */
 struct ice_vsi_ctx {
@@ -152,4 +153,7 @@ enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw);
 enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_lst);
 enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_lst);
 void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_id);
+enum ice_status ice_add_vlan(struct ice_hw *hw, struct list_head *m_list);
+enum ice_status ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list);
+
 #endif /* _ICE_SWITCH_H_ */

@@ -40,6 +40,65 @@ union ice_32byte_rx_desc {
 	} wb; /* writeback */
 };
 
+struct ice_rx_ptype_decoded {
+	u32 ptype:10;
+	u32 known:1;
+	u32 outer_ip:1;
+	u32 outer_ip_ver:2;
+	u32 outer_frag:1;
+	u32 tunnel_type:3;
+	u32 tunnel_end_prot:2;
+	u32 tunnel_end_frag:1;
+	u32 inner_prot:4;
+	u32 payload_layer:3;
+};
+
+enum ice_rx_ptype_outer_ip {
+	ICE_RX_PTYPE_OUTER_L2	= 0,
+	ICE_RX_PTYPE_OUTER_IP	= 1,
+};
+
+enum ice_rx_ptype_outer_ip_ver {
+	ICE_RX_PTYPE_OUTER_NONE	= 0,
+	ICE_RX_PTYPE_OUTER_IPV4	= 1,
+	ICE_RX_PTYPE_OUTER_IPV6	= 2,
+};
+
+enum ice_rx_ptype_outer_fragmented {
+	ICE_RX_PTYPE_NOT_FRAG	= 0,
+	ICE_RX_PTYPE_FRAG	= 1,
+};
+
+enum ice_rx_ptype_tunnel_type {
+	ICE_RX_PTYPE_TUNNEL_NONE		= 0,
+	ICE_RX_PTYPE_TUNNEL_IP_IP		= 1,
+	ICE_RX_PTYPE_TUNNEL_IP_GRENAT		= 2,
+	ICE_RX_PTYPE_TUNNEL_IP_GRENAT_MAC	= 3,
+	ICE_RX_PTYPE_TUNNEL_IP_GRENAT_MAC_VLAN	= 4,
+};
+
+enum ice_rx_ptype_tunnel_end_prot {
+	ICE_RX_PTYPE_TUNNEL_END_NONE	= 0,
+	ICE_RX_PTYPE_TUNNEL_END_IPV4	= 1,
+	ICE_RX_PTYPE_TUNNEL_END_IPV6	= 2,
+};
+
+enum ice_rx_ptype_inner_prot {
+	ICE_RX_PTYPE_INNER_PROT_NONE		= 0,
+	ICE_RX_PTYPE_INNER_PROT_UDP		= 1,
+	ICE_RX_PTYPE_INNER_PROT_TCP		= 2,
+	ICE_RX_PTYPE_INNER_PROT_SCTP		= 3,
+	ICE_RX_PTYPE_INNER_PROT_ICMP		= 4,
+	ICE_RX_PTYPE_INNER_PROT_TIMESYNC	= 5,
+};
+
+enum ice_rx_ptype_payload_layer {
+	ICE_RX_PTYPE_PAYLOAD_LAYER_NONE	= 0,
+	ICE_RX_PTYPE_PAYLOAD_LAYER_PAY2	= 1,
+	ICE_RX_PTYPE_PAYLOAD_LAYER_PAY3	= 2,
+	ICE_RX_PTYPE_PAYLOAD_LAYER_PAY4	= 3,
+};
+
 /* RX Flex Descriptor
  * This descriptor is used instead of the legacy version descriptor when
  * ice_rlan_ctx.adv_desc is set
@@ -86,6 +145,41 @@ union ice_32b_rx_flex_desc {
 			__le32 ts_high;
 		} flex_ts;
 	} wb; /* writeback */
+};
+
+/* Rx Flex Descriptor NIC Profile
+ * This descriptor corresponds to RxDID 2 which contains
+ * metadata fields for RSS, flow id and timestamp info
+ */
+struct ice_32b_rx_flex_desc_nic {
+	/* Qword 0 */
+	u8 rxdid;
+	u8 mir_id_umb_cast;
+	__le16 ptype_flexi_flags0;
+	__le16 pkt_len;
+	__le16 hdr_len_sph_flex_flags1;
+
+	/* Qword 1 */
+	__le16 status_error0;
+	__le16 l2tag1;
+	__le32 rss_hash;
+
+	/* Qword 2 */
+	__le16 status_error1;
+	u8 flexi_flags2;
+	u8 ts_low;
+	__le16 l2tag2_1st;
+	__le16 l2tag2_2nd;
+
+	/* Qword 3 */
+	__le32 flow_id;
+	union {
+		struct {
+			__le16 vlan_id;
+			__le16 flow_id_ipv6;
+		} flex;
+		__le32 ts_high;
+	} flex_ts;
 };
 
 /* Receive Flex Descriptor profile IDs: There are a total
@@ -241,11 +335,55 @@ enum ice_tx_desc_dtype_value {
 enum ice_tx_desc_cmd_bits {
 	ICE_TX_DESC_CMD_EOP			= 0x0001,
 	ICE_TX_DESC_CMD_RS			= 0x0002,
+	ICE_TX_DESC_CMD_IL2TAG1			= 0x0008,
+	ICE_TX_DESC_CMD_IIPT_IPV6		= 0x0020, /* 2 BITS */
+	ICE_TX_DESC_CMD_IIPT_IPV4		= 0x0040, /* 2 BITS */
+	ICE_TX_DESC_CMD_IIPT_IPV4_CSUM		= 0x0060, /* 2 BITS */
+	ICE_TX_DESC_CMD_L4T_EOFT_TCP		= 0x0100, /* 2 BITS */
+	ICE_TX_DESC_CMD_L4T_EOFT_UDP		= 0x0300, /* 2 BITS */
 };
 
 #define ICE_TXD_QW1_OFFSET_S	16
+#define ICE_TXD_QW1_OFFSET_M	(0x3FFFFULL << ICE_TXD_QW1_OFFSET_S)
+
+enum ice_tx_desc_len_fields {
+	/* Note: These are predefined bit offsets */
+	ICE_TX_DESC_LEN_MACLEN_S	= 0, /* 7 BITS */
+	ICE_TX_DESC_LEN_IPLEN_S	= 7, /* 7 BITS */
+	ICE_TX_DESC_LEN_L4_LEN_S	= 14 /* 4 BITS */
+};
+
 #define ICE_TXD_QW1_TX_BUF_SZ_S	34
 #define ICE_TXD_QW1_L2TAG1_S	48
+
+/* Context descriptors */
+struct ice_tx_ctx_desc {
+	__le32 tunneling_params;
+	__le16 l2tag2;
+	__le16 rsvd;
+	__le64 qw1;
+};
+
+#define ICE_TXD_CTX_QW1_CMD_S	4
+#define ICE_TXD_CTX_QW1_CMD_M	(0x7FUL << ICE_TXD_CTX_QW1_CMD_S)
+
+#define ICE_TXD_CTX_QW1_TSO_LEN_S	30
+#define ICE_TXD_CTX_QW1_TSO_LEN_M	\
+			(0x3FFFFULL << ICE_TXD_CTX_QW1_TSO_LEN_S)
+
+#define ICE_TXD_CTX_QW1_MSS_S	50
+
+enum ice_tx_ctx_desc_cmd_bits {
+	ICE_TX_CTX_DESC_TSO		= 0x01,
+	ICE_TX_CTX_DESC_TSYN		= 0x02,
+	ICE_TX_CTX_DESC_IL2TAG2		= 0x04,
+	ICE_TX_CTX_DESC_IL2TAG2_IL2H	= 0x08,
+	ICE_TX_CTX_DESC_SWTCH_NOTAG	= 0x00,
+	ICE_TX_CTX_DESC_SWTCH_UPLINK	= 0x10,
+	ICE_TX_CTX_DESC_SWTCH_LOCAL	= 0x20,
+	ICE_TX_CTX_DESC_SWTCH_VSI	= 0x30,
+	ICE_TX_CTX_DESC_RESERVED	= 0x40
+};
 
 #define ICE_LAN_TXQ_MAX_QGRPS	127
 #define ICE_LAN_TXQ_MAX_QDIS	1023
@@ -289,4 +427,35 @@ struct ice_tlan_ctx {
 	u8  pkt_shaper_prof_idx;
 	u8  int_q_state;	/* width not needed - internal do not write */
 };
+
+/* macro to make the table lines short */
+#define ICE_PTT(PTYPE, OUTER_IP, OUTER_IP_VER, OUTER_FRAG, T, TE, TEF, I, PL)\
+	{	PTYPE, \
+		1, \
+		ICE_RX_PTYPE_OUTER_##OUTER_IP, \
+		ICE_RX_PTYPE_OUTER_##OUTER_IP_VER, \
+		ICE_RX_PTYPE_##OUTER_FRAG, \
+		ICE_RX_PTYPE_TUNNEL_##T, \
+		ICE_RX_PTYPE_TUNNEL_END_##TE, \
+		ICE_RX_PTYPE_##TEF, \
+		ICE_RX_PTYPE_INNER_PROT_##I, \
+		ICE_RX_PTYPE_PAYLOAD_LAYER_##PL }
+
+#define ICE_PTT_UNUSED_ENTRY(PTYPE) { PTYPE, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+
+/* shorter macros makes the table fit but are terse */
+#define ICE_RX_PTYPE_NOF		ICE_RX_PTYPE_NOT_FRAG
+
+/* Lookup table mapping the HW PTYPE to the bit field for decoding */
+static const struct ice_rx_ptype_decoded ice_ptype_lkup[] = {
+	/* L2 Packet types */
+	ICE_PTT_UNUSED_ENTRY(0),
+	ICE_PTT(1, L2, NONE, NOF, NONE, NONE, NOF, NONE, PAY2),
+	ICE_PTT(2, L2, NONE, NOF, NONE, NONE, NOF, NONE, NONE),
+};
+
+static inline struct ice_rx_ptype_decoded ice_decode_rx_desc_ptype(u16 ptype)
+{
+	return ice_ptype_lkup[ptype];
+}
 #endif /* _ICE_LAN_TX_RX_H_ */

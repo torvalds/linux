@@ -1262,6 +1262,194 @@ void ice_clear_pxe_mode(struct ice_hw *hw)
 }
 
 /**
+ * __ice_aq_get_set_rss_lut
+ * @hw: pointer to the hardware structure
+ * @vsi_id: VSI FW index
+ * @lut_type: LUT table type
+ * @lut: pointer to the LUT buffer provided by the caller
+ * @lut_size: size of the LUT buffer
+ * @glob_lut_idx: global LUT index
+ * @set: set true to set the table, false to get the table
+ *
+ * Internal function to get (0x0B05) or set (0x0B03) RSS look up table
+ */
+static enum ice_status
+__ice_aq_get_set_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
+			 u16 lut_size, u8 glob_lut_idx, bool set)
+{
+	struct ice_aqc_get_set_rss_lut *cmd_resp;
+	struct ice_aq_desc desc;
+	enum ice_status status;
+	u16 flags = 0;
+
+	cmd_resp = &desc.params.get_set_rss_lut;
+
+	if (set) {
+		ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_rss_lut);
+		desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	} else {
+		ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_rss_lut);
+	}
+
+	cmd_resp->vsi_id = cpu_to_le16(((vsi_id <<
+					 ICE_AQC_GSET_RSS_LUT_VSI_ID_S) &
+					ICE_AQC_GSET_RSS_LUT_VSI_ID_M) |
+				       ICE_AQC_GSET_RSS_LUT_VSI_VALID);
+
+	switch (lut_type) {
+	case ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_VSI:
+	case ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF:
+	case ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_GLOBAL:
+		flags |= ((lut_type << ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_S) &
+			  ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_M);
+		break;
+	default:
+		status = ICE_ERR_PARAM;
+		goto ice_aq_get_set_rss_lut_exit;
+	}
+
+	if (lut_type == ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_GLOBAL) {
+		flags |= ((glob_lut_idx << ICE_AQC_GSET_RSS_LUT_GLOBAL_IDX_S) &
+			  ICE_AQC_GSET_RSS_LUT_GLOBAL_IDX_M);
+
+		if (!set)
+			goto ice_aq_get_set_rss_lut_send;
+	} else if (lut_type == ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF) {
+		if (!set)
+			goto ice_aq_get_set_rss_lut_send;
+	} else {
+		goto ice_aq_get_set_rss_lut_send;
+	}
+
+	/* LUT size is only valid for Global and PF table types */
+	if (lut_size == ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_128) {
+		flags |= (ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_128_FLAG <<
+			  ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_S) &
+			 ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_M;
+	} else if (lut_size == ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_512) {
+		flags |= (ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_512_FLAG <<
+			  ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_S) &
+			 ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_M;
+	} else if ((lut_size == ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_2K) &&
+		   (lut_type == ICE_AQC_GSET_RSS_LUT_TABLE_TYPE_PF)) {
+		flags |= (ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_2K_FLAG <<
+			  ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_S) &
+			 ICE_AQC_GSET_RSS_LUT_TABLE_SIZE_M;
+	} else {
+		status = ICE_ERR_PARAM;
+		goto ice_aq_get_set_rss_lut_exit;
+	}
+
+ice_aq_get_set_rss_lut_send:
+	cmd_resp->flags = cpu_to_le16(flags);
+	status = ice_aq_send_cmd(hw, &desc, lut, lut_size, NULL);
+
+ice_aq_get_set_rss_lut_exit:
+	return status;
+}
+
+/**
+ * ice_aq_get_rss_lut
+ * @hw: pointer to the hardware structure
+ * @vsi_id: VSI FW index
+ * @lut_type: LUT table type
+ * @lut: pointer to the LUT buffer provided by the caller
+ * @lut_size: size of the LUT buffer
+ *
+ * get the RSS lookup table, PF or VSI type
+ */
+enum ice_status
+ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
+		   u16 lut_size)
+{
+	return __ice_aq_get_set_rss_lut(hw, vsi_id, lut_type, lut, lut_size, 0,
+					false);
+}
+
+/**
+ * ice_aq_set_rss_lut
+ * @hw: pointer to the hardware structure
+ * @vsi_id: VSI FW index
+ * @lut_type: LUT table type
+ * @lut: pointer to the LUT buffer provided by the caller
+ * @lut_size: size of the LUT buffer
+ *
+ * set the RSS lookup table, PF or VSI type
+ */
+enum ice_status
+ice_aq_set_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
+		   u16 lut_size)
+{
+	return __ice_aq_get_set_rss_lut(hw, vsi_id, lut_type, lut, lut_size, 0,
+					true);
+}
+
+/**
+ * __ice_aq_get_set_rss_key
+ * @hw: pointer to the hw struct
+ * @vsi_id: VSI FW index
+ * @key: pointer to key info struct
+ * @set: set true to set the key, false to get the key
+ *
+ * get (0x0B04) or set (0x0B02) the RSS key per VSI
+ */
+static enum
+ice_status __ice_aq_get_set_rss_key(struct ice_hw *hw, u16 vsi_id,
+				    struct ice_aqc_get_set_rss_keys *key,
+				    bool set)
+{
+	struct ice_aqc_get_set_rss_key *cmd_resp;
+	u16 key_size = sizeof(*key);
+	struct ice_aq_desc desc;
+
+	cmd_resp = &desc.params.get_set_rss_key;
+
+	if (set) {
+		ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_set_rss_key);
+		desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	} else {
+		ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_get_rss_key);
+	}
+
+	cmd_resp->vsi_id = cpu_to_le16(((vsi_id <<
+					 ICE_AQC_GSET_RSS_KEY_VSI_ID_S) &
+					ICE_AQC_GSET_RSS_KEY_VSI_ID_M) |
+				       ICE_AQC_GSET_RSS_KEY_VSI_VALID);
+
+	return ice_aq_send_cmd(hw, &desc, key, key_size, NULL);
+}
+
+/**
+ * ice_aq_get_rss_key
+ * @hw: pointer to the hw struct
+ * @vsi_id: VSI FW index
+ * @key: pointer to key info struct
+ *
+ * get the RSS key per VSI
+ */
+enum ice_status
+ice_aq_get_rss_key(struct ice_hw *hw, u16 vsi_id,
+		   struct ice_aqc_get_set_rss_keys *key)
+{
+	return __ice_aq_get_set_rss_key(hw, vsi_id, key, false);
+}
+
+/**
+ * ice_aq_set_rss_key
+ * @hw: pointer to the hw struct
+ * @vsi_id: VSI FW index
+ * @keys: pointer to key info struct
+ *
+ * set the RSS key per VSI
+ */
+enum ice_status
+ice_aq_set_rss_key(struct ice_hw *hw, u16 vsi_id,
+		   struct ice_aqc_get_set_rss_keys *keys)
+{
+	return __ice_aq_get_set_rss_key(hw, vsi_id, keys, true);
+}
+
+/**
  * ice_aq_add_lan_txq
  * @hw: pointer to the hardware structure
  * @num_qgrps: Number of added queue groups

@@ -1218,6 +1218,117 @@ ice_add_mac_exit:
 }
 
 /**
+ * ice_find_vlan_entry
+ * @hw: pointer to the hardware structure
+ * @vlan_id: VLAN id to search for
+ *
+ * Helper function to search for a VLAN entry using a given VLAN id
+ * Returns pointer to the entry if found.
+ */
+static struct ice_fltr_mgmt_list_entry *
+ice_find_vlan_entry(struct ice_hw *hw, u16 vlan_id)
+{
+	struct ice_fltr_mgmt_list_entry *vlan_list_itr, *vlan_ret = NULL;
+	struct ice_switch_info *sw = hw->switch_info;
+
+	mutex_lock(&sw->vlan_list_lock);
+	list_for_each_entry(vlan_list_itr, &sw->vlan_list_head, list_entry)
+		if (vlan_list_itr->fltr_info.l_data.vlan.vlan_id == vlan_id) {
+			vlan_ret = vlan_list_itr;
+			break;
+		}
+
+	mutex_unlock(&sw->vlan_list_lock);
+	return vlan_ret;
+}
+
+/**
+ * ice_add_vlan_internal - Add one VLAN based filter rule
+ * @hw: pointer to the hardware structure
+ * @f_entry: filter entry containing one VLAN information
+ */
+static enum ice_status
+ice_add_vlan_internal(struct ice_hw *hw, struct ice_fltr_list_entry *f_entry)
+{
+	struct ice_fltr_info *new_fltr, *cur_fltr;
+	struct ice_fltr_mgmt_list_entry *v_list_itr;
+	u16 vlan_id;
+
+	new_fltr = &f_entry->fltr_info;
+	/* VLAN id should only be 12 bits */
+	if (new_fltr->l_data.vlan.vlan_id > ICE_MAX_VLAN_ID)
+		return ICE_ERR_PARAM;
+
+	vlan_id = new_fltr->l_data.vlan.vlan_id;
+	v_list_itr = ice_find_vlan_entry(hw, vlan_id);
+	if (!v_list_itr) {
+		u16 vsi_id = ICE_VSI_INVAL_ID;
+		enum ice_status status;
+		u16 vsi_list_id = 0;
+
+		if (new_fltr->fltr_act == ICE_FWD_TO_VSI) {
+			enum ice_sw_lkup_type lkup_type = new_fltr->lkup_type;
+
+			/* All VLAN pruning rules use a VSI list.
+			 * Convert the action to forwarding to a VSI list.
+			 */
+			vsi_id = new_fltr->fwd_id.vsi_id;
+			status = ice_create_vsi_list_rule(hw, &vsi_id, 1,
+							  &vsi_list_id,
+							  lkup_type);
+			if (status)
+				return status;
+			new_fltr->fltr_act = ICE_FWD_TO_VSI_LIST;
+			new_fltr->fwd_id.vsi_list_id = vsi_list_id;
+		}
+
+		status = ice_create_pkt_fwd_rule(hw, f_entry);
+		if (!status && vsi_id != ICE_VSI_INVAL_ID) {
+			v_list_itr = ice_find_vlan_entry(hw, vlan_id);
+			if (!v_list_itr)
+				return ICE_ERR_DOES_NOT_EXIST;
+			v_list_itr->vsi_list_info =
+				ice_create_vsi_list_map(hw, &vsi_id, 1,
+							vsi_list_id);
+		}
+
+		return status;
+	}
+
+	cur_fltr = &v_list_itr->fltr_info;
+	return ice_handle_vsi_list_mgmt(hw, v_list_itr, cur_fltr, new_fltr);
+}
+
+/**
+ * ice_add_vlan - Add VLAN based filter rule
+ * @hw: pointer to the hardware structure
+ * @v_list: list of VLAN entries and forwarding information
+ */
+enum ice_status
+ice_add_vlan(struct ice_hw *hw, struct list_head *v_list)
+{
+	struct ice_fltr_list_entry *v_list_itr;
+
+	if (!v_list || !hw)
+		return ICE_ERR_PARAM;
+
+	list_for_each_entry(v_list_itr, v_list, list_entry) {
+		enum ice_status status;
+
+		if (v_list_itr->fltr_info.lkup_type != ICE_SW_LKUP_VLAN)
+			return ICE_ERR_PARAM;
+
+		status = ice_add_vlan_internal(hw, v_list_itr);
+		if (status) {
+			v_list_itr->status = ICE_FLTR_STATUS_FW_FAIL;
+			return status;
+		}
+		v_list_itr->status = ICE_FLTR_STATUS_FW_SUCCESS;
+	}
+	return 0;
+}
+
+/**
  * ice_remove_vsi_list_rule
  * @hw: pointer to the hardware structure
  * @vsi_list_id: VSI list id generated as part of allocate resource
@@ -1516,6 +1627,54 @@ ice_remove_mac_exit:
 }
 
 /**
+ * ice_remove_vlan_internal - Remove one VLAN based filter rule
+ * @hw: pointer to the hardware structure
+ * @f_entry: filter entry containing one VLAN information
+ */
+static enum ice_status
+ice_remove_vlan_internal(struct ice_hw *hw,
+			 struct ice_fltr_list_entry *f_entry)
+{
+	struct ice_fltr_info *new_fltr;
+	struct ice_fltr_mgmt_list_entry *v_list_elem;
+	u16 vsi_id;
+
+	new_fltr = &f_entry->fltr_info;
+
+	v_list_elem = ice_find_vlan_entry(hw, new_fltr->l_data.vlan.vlan_id);
+	if (!v_list_elem)
+		return ICE_ERR_PARAM;
+
+	vsi_id = f_entry->fltr_info.fwd_id.vsi_id;
+	return ice_handle_rem_vsi_list_mgmt(hw, vsi_id, v_list_elem);
+}
+
+/**
+ * ice_remove_vlan - Remove VLAN based filter rule
+ * @hw: pointer to the hardware structure
+ * @v_list: list of VLAN entries and forwarding information
+ */
+enum ice_status
+ice_remove_vlan(struct ice_hw *hw, struct list_head *v_list)
+{
+	struct ice_fltr_list_entry *v_list_itr;
+	enum ice_status status = 0;
+
+	if (!v_list || !hw)
+		return ICE_ERR_PARAM;
+
+	list_for_each_entry(v_list_itr, v_list, list_entry) {
+		status = ice_remove_vlan_internal(hw, v_list_itr);
+		if (status) {
+			v_list_itr->status = ICE_FLTR_STATUS_FW_FAIL;
+			return status;
+		}
+		v_list_itr->status = ICE_FLTR_STATUS_FW_SUCCESS;
+	}
+	return status;
+}
+
+/**
  * ice_add_to_vsi_fltr_list - Add VSI filters to the list
  * @hw: pointer to the hardware structure
  * @vsi_id: ID of VSI to remove filters from
@@ -1600,6 +1759,16 @@ ice_remove_vsi_lkup_fltr(struct ice_hw *hw, u16 vsi_id,
 		}
 		break;
 	case ICE_SW_LKUP_VLAN:
+		mutex_lock(&sw->vlan_list_lock);
+		status = ice_add_to_vsi_fltr_list(hw, vsi_id,
+						  &sw->vlan_list_head,
+						  &remove_list_head);
+		mutex_unlock(&sw->vlan_list_lock);
+		if (!status) {
+			ice_remove_vlan(hw, &remove_list_head);
+			goto free_fltr_list;
+		}
+		break;
 	case ICE_SW_LKUP_MAC_VLAN:
 	case ICE_SW_LKUP_ETHERTYPE:
 	case ICE_SW_LKUP_ETHERTYPE_MAC:

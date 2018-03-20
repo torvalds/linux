@@ -33,6 +33,19 @@ enum ice_status ice_get_caps(struct ice_hw *hw);
 enum ice_status
 ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
 		  u32 rxq_index);
+
+enum ice_status
+ice_aq_get_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
+		   u16 lut_size);
+enum ice_status
+ice_aq_set_rss_lut(struct ice_hw *hw, u16 vsi_id, u8 lut_type, u8 *lut,
+		   u16 lut_size);
+enum ice_status
+ice_aq_get_rss_key(struct ice_hw *hw, u16 vsi_id,
+		   struct ice_aqc_get_set_rss_keys *keys);
+enum ice_status
+ice_aq_set_rss_key(struct ice_hw *hw, u16 vsi_id,
+		   struct ice_aqc_get_set_rss_keys *keys);
 bool ice_check_sq_alive(struct ice_hw *hw, struct ice_ctl_q_info *cq);
 enum ice_status ice_aq_q_shutdown(struct ice_hw *hw, bool unloading);
 void ice_fill_dflt_direct_cmd_desc(struct ice_aq_desc *desc, u16 opcode);
