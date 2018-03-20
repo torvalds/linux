@@ -413,7 +413,6 @@
 			};
 
 			vcc2v8_dvp: LDO_REG7 {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
@@ -426,7 +425,6 @@
 			};
 
 			vcc1v8_dvp: LDO_REG8 {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
@@ -439,7 +437,6 @@
 			};
 
 			vdd1v5_dvp: LDO_REG9 {
-				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <1500000>;
 				regulator-max-microvolt = <1500000>;
