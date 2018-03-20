@@ -428,7 +428,7 @@ static int ttusb_dec_audio_pes2ts_cb(void *priv, unsigned char *data)
 	struct ttusb_dec *dec = priv;
 
 	dec->audio_filter->feed->cb.ts(data, 188, NULL, 0,
-				       &dec->audio_filter->feed->feed.ts);
+				       &dec->audio_filter->feed->feed.ts, NULL);
 
 	return 0;
 }
@@ -438,7 +438,7 @@ static int ttusb_dec_video_pes2ts_cb(void *priv, unsigned char *data)
 	struct ttusb_dec *dec = priv;
 
 	dec->video_filter->feed->cb.ts(data, 188, NULL, 0,
-				       &dec->video_filter->feed->feed.ts);
+				       &dec->video_filter->feed->feed.ts, NULL);
 
 	return 0;
 }
@@ -490,7 +490,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 
 		if (output_pva) {
 			dec->video_filter->feed->cb.ts(pva, length, NULL, 0,
-				&dec->video_filter->feed->feed.ts);
+				&dec->video_filter->feed->feed.ts, NULL);
 			return;
 		}
 
@@ -551,7 +551,7 @@ static void ttusb_dec_process_pva(struct ttusb_dec *dec, u8 *pva, int length)
 	case 0x02:		/* MainAudioStream */
 		if (output_pva) {
 			dec->audio_filter->feed->cb.ts(pva, length, NULL, 0,
-				&dec->audio_filter->feed->feed.ts);
+				&dec->audio_filter->feed->feed.ts, NULL);
 			return;
 		}
 
@@ -589,7 +589,7 @@ static void ttusb_dec_process_filter(struct ttusb_dec *dec, u8 *packet,
 
 	if (filter)
 		filter->feed->cb.sec(&packet[2], length - 2, NULL, 0,
-				     &filter->filter);
+				     &filter->filter, NULL);
 }
 
 static void ttusb_dec_process_packet(struct ttusb_dec *dec)

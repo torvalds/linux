@@ -350,6 +350,7 @@ void arch_crash_save_vmcoreinfo(void)
 {
 	VMCOREINFO_NUMBER(phys_base);
 	VMCOREINFO_SYMBOL(init_top_pgt);
+	VMCOREINFO_NUMBER(pgtable_l5_enabled);
 
 #ifdef CONFIG_NUMA
 	VMCOREINFO_SYMBOL(node_data);
@@ -542,6 +543,7 @@ int arch_kexec_apply_relocations_add(const Elf64_Ehdr *ehdr,
 				goto overflow;
 			break;
 		case R_X86_64_PC32:
+		case R_X86_64_PLT32:
 			value -= (u64)address;
 			*(u32 *)location = value;
 			break;

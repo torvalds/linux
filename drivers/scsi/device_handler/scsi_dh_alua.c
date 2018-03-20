@@ -876,6 +876,11 @@ static void alua_rtpg_work(struct work_struct *work)
 
 /**
  * alua_rtpg_queue() - cause RTPG to be submitted asynchronously
+ * @pg: ALUA port group associated with @sdev.
+ * @sdev: SCSI device for which to submit an RTPG.
+ * @qdata: Information about the callback to invoke after the RTPG.
+ * @force: Whether or not to submit an RTPG if a work item that will submit an
+ *         RTPG already has been scheduled.
  *
  * Returns true if and only if alua_rtpg_work() will be called asynchronously.
  * That function is responsible for calling @qdata->fn().

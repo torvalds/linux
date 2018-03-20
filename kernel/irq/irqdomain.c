@@ -1726,25 +1726,14 @@ static int irq_domain_debug_show(struct seq_file *m, void *p)
 	irq_domain_debug_show_one(m, d, 0);
 	return 0;
 }
-
-static int irq_domain_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, irq_domain_debug_show, inode->i_private);
-}
-
-static const struct file_operations dfs_domain_ops = {
-	.open		= irq_domain_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(irq_domain_debug);
 
 static void debugfs_add_domain_dir(struct irq_domain *d)
 {
 	if (!d->name || !domain_dir || d->debugfs_file)
 		return;
 	d->debugfs_file = debugfs_create_file(d->name, 0444, domain_dir, d,
-					      &dfs_domain_ops);
+					      &irq_domain_debug_fops);
 }
 
 static void debugfs_remove_domain_dir(struct irq_domain *d)
@@ -1760,7 +1749,8 @@ void __init irq_domain_debugfs_init(struct dentry *root)
 	if (!domain_dir)
 		return;
 
-	debugfs_create_file("default", 0444, domain_dir, NULL, &dfs_domain_ops);
+	debugfs_create_file("default", 0444, domain_dir, NULL,
+			    &irq_domain_debug_fops);
 	mutex_lock(&irq_domain_mutex);
 	list_for_each_entry(d, &irq_domain_list, link)
 		debugfs_add_domain_dir(d);
