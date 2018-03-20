@@ -3427,7 +3427,7 @@ static const struct mv88e6xxx_info mv88e6xxx_table[] = {
 	[MV88E6141] = {
 		.prod_num = MV88E6XXX_PORT_SWITCH_ID_PROD_6141,
 		.family = MV88E6XXX_FAMILY_6341,
-		.name = "Marvell 88E6341",
+		.name = "Marvell 88E6141",
 		.num_databases = 4096,
 		.num_ports = 6,
 		.num_internal_phys = 5,
@@ -4175,7 +4175,7 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	}
 
 	/* Has to be performed before the MDIO bus is created, because
-	 * the PHYs will link there interrupts to these interrupt
+	 * the PHYs will link their interrupts to these interrupt
 	 * controllers
 	 */
 	mutex_lock(&chip->reg_lock);

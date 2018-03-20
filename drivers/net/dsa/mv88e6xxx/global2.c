@@ -1090,7 +1090,7 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 
 	err = request_threaded_irq(chip->device_irq, NULL,
 				   mv88e6xxx_g2_irq_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-g1", chip);
+				   IRQF_ONESHOT, "mv88e6xxx-g2", chip);
 	if (err)
 		goto out;
 
