@@ -217,7 +217,7 @@ bool dce110_vblank_set(
 			core_dc->current_state->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
 
 	if (enable) {
-		if (!tg->funcs->arm_vert_intr(tg, 2)) {
+		if (!tg || !tg->funcs->arm_vert_intr(tg, 2)) {
 			DC_ERROR("Failed to get VBLANK!\n");
 			return false;
 		}

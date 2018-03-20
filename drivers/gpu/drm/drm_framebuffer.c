@@ -121,6 +121,10 @@ int drm_mode_addfb(struct drm_device *dev,
 	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
 	r.handles[0] = or->handle;
 
+	if (r.pixel_format == DRM_FORMAT_XRGB2101010 &&
+	    dev->driver->driver_features & DRIVER_PREFER_XBGR_30BPP)
+		r.pixel_format = DRM_FORMAT_XBGR2101010;
+
 	ret = drm_mode_addfb2(dev, &r, file_priv);
 	if (ret)
 		return ret;
