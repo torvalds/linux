@@ -510,7 +510,7 @@ static void mtk_hsdma_tx(struct mtk_hsdam_engine *hsdma)
 		if (chan->desc) {
 			mtk_hsdma_start_transfer(hsdma, chan);
 		} else
-			dev_dbg(hsdma->ddev.dev,"chan 0 no desc to issue\n");
+			dev_dbg(hsdma->ddev.dev, "chan 0 no desc to issue\n");
 	}
 }
 
