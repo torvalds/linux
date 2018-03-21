@@ -909,7 +909,7 @@ static int gdma_dma_remove(struct platform_device *pdev)
 	struct gdma_dma_dev *dma_dev = platform_get_drvdata(pdev);
 
 	tasklet_kill(&dma_dev->task);
-        of_dma_controller_free(pdev->dev.of_node);
+	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&dma_dev->ddev);
 
 	return 0;
