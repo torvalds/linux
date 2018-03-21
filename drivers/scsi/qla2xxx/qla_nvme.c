@@ -181,22 +181,30 @@ static void qla_nvme_sp_done(void *ptr, int res)
 	return;
 }
 
-static void qla_nvme_ls_abort(struct nvme_fc_local_port *lport,
-    struct nvme_fc_remote_port *rport, struct nvmefc_ls_req *fd)
+static void qla_nvme_abort_work(struct work_struct *work)
 {
-	struct nvme_private *priv = fd->private;
-	struct qla_nvme_rport *qla_rport = rport->private;
-	fc_port_t *fcport = qla_rport->fcport;
+	struct nvme_private *priv =
+		container_of(work, struct nvme_private, abort_work);
 	srb_t *sp = priv->sp;
-	int rval;
+	fc_port_t *fcport = sp->fcport;
 	struct qla_hw_data *ha = fcport->vha->hw;
+	int rval;
 
 	rval = ha->isp_ops->abort_command(sp);
 
 	ql_dbg(ql_dbg_io, fcport->vha, 0x212b,
-	    "%s: %s LS command for sp=%p on fcport=%p rval=%x\n", __func__,
+	    "%s: %s command for sp=%p on fcport=%p rval=%x\n", __func__,
 	    (rval != QLA_SUCCESS) ? "Failed to abort" : "Aborted",
 	    sp, fcport, rval);
+}
+
+static void qla_nvme_ls_abort(struct nvme_fc_local_port *lport,
+    struct nvme_fc_remote_port *rport, struct nvmefc_ls_req *fd)
+{
+	struct nvme_private *priv = fd->private;
+
+	INIT_WORK(&priv->abort_work, qla_nvme_abort_work);
+	schedule_work(&priv->abort_work);
 }
 
 static void qla_nvme_ls_complete(struct work_struct *work)
@@ -264,18 +272,9 @@ static void qla_nvme_fcp_abort(struct nvme_fc_local_port *lport,
     struct nvmefc_fcp_req *fd)
 {
 	struct nvme_private *priv = fd->private;
-	srb_t *sp = priv->sp;
-	int rval;
-	struct qla_nvme_rport *qla_rport = rport->private;
-	fc_port_t *fcport = qla_rport->fcport;
-	struct qla_hw_data *ha = fcport->vha->hw;
 
-	rval = ha->isp_ops->abort_command(sp);
-
-	ql_dbg(ql_dbg_io, fcport->vha, 0x2127,
-	    "%s: %s command for sp=%p on fcport=%p rval=%x\n", __func__,
-	    (rval != QLA_SUCCESS) ? "Failed to abort" : "Aborted",
-	    sp, fcport, rval);
+	INIT_WORK(&priv->abort_work, qla_nvme_abort_work);
+	schedule_work(&priv->abort_work);
 }
 
 static void qla_nvme_poll(struct nvme_fc_local_port *lport, void *hw_queue_handle)
@@ -650,6 +649,7 @@ void qla_nvme_delete(struct scsi_qla_host *vha)
 		ql_log(ql_log_info, fcport->vha, 0x2114, "%s: fcport=%p\n",
 		    __func__, fcport);
 
+		nvme_fc_set_remoteport_devloss(fcport->nvme_remote_port, 0);
 		init_completion(&fcport->nvme_del_done);
 		nvme_fc_unregister_remoteport(fcport->nvme_remote_port);
 		wait_for_completion(&fcport->nvme_del_done);

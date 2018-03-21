@@ -31,6 +31,7 @@ struct nvme_private {
 	struct srb	*sp;
 	struct nvmefc_ls_req *fd;
 	struct work_struct ls_work;
+	struct work_struct abort_work;
 	int comp_status;
 };
 
