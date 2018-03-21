@@ -226,10 +226,11 @@ static const struct tsl2x7x_settings tsl2x7x_default_settings = {
 	.prox_config = 0,
 	.als_gain_trim = 1000,
 	.als_cal_target = 150,
+	.als_persistence = 1,
 	.als_interrupt_en = false,
 	.als_thresh_low = 200,
 	.als_thresh_high = 256,
-	.persistence = 255,
+	.prox_persistence = 1,
 	.prox_interrupt_en = false,
 	.prox_thres_low  = 0,
 	.prox_thres_high = 512,
@@ -621,7 +622,9 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 		(chip->settings.als_thresh_high) & 0xFF;
 	chip->tsl2x7x_config[TSL2X7X_ALS_MAXTHRESHHI] =
 		(chip->settings.als_thresh_high >> 8) & 0xFF;
-	chip->tsl2x7x_config[TSL2X7X_PERSISTENCE] = chip->settings.persistence;
+	chip->tsl2x7x_config[TSL2X7X_PERSISTENCE] =
+		(chip->settings.prox_persistence & 0xFF) << 4 |
+		(chip->settings.als_persistence & 0xFF);
 
 	chip->tsl2x7x_config[TSL2X7X_PRX_COUNT] =
 			chip->settings.prox_pulse_count;
@@ -1043,15 +1046,10 @@ static int tsl2x7x_write_event_value(struct iio_dev *indio_dev,
 
 		filter_delay = DIV_ROUND_UP((val * 1000) + val2, z);
 
-		if (chan->type == IIO_INTENSITY) {
-			chip->settings.persistence &= 0xF0;
-			chip->settings.persistence |=
-				(filter_delay & 0x0F);
-		} else {
-			chip->settings.persistence &= 0x0F;
-			chip->settings.persistence |=
-				((filter_delay << 4) & 0xF0);
-		}
+		if (chan->type == IIO_INTENSITY)
+			chip->settings.als_persistence = filter_delay;
+		else
+			chip->settings.prox_persistence = filter_delay;
 		ret = 0;
 		break;
 	default:
@@ -1108,10 +1106,10 @@ static int tsl2x7x_read_event_value(struct iio_dev *indio_dev,
 	case IIO_EV_INFO_PERIOD:
 		if (chan->type == IIO_INTENSITY) {
 			time = chip->settings.als_time;
-			mult = chip->settings.persistence & 0x0F;
+			mult = chip->settings.als_persistence;
 		} else {
 			time = chip->settings.prx_time;
-			mult = (chip->settings.persistence & 0xF0) >> 4;
+			mult = chip->settings.prox_persistence;
 		}
 
 		/* Determine integration time */

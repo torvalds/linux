@@ -50,11 +50,13 @@ struct tsl2x7x_lux {
  *  @prox_config:           Prox configuration filters.
  *  @als_cal_target:        Known external ALS reading for
  *                          calibration.
- *  @persistence:           H/W Filters, Number of 'out of limits'
- *                          ADC readings PRX/ALS.
+ *  @als_persistence:       H/W Filters, Number of 'out of limits'
+ *                          ALS readings.
  *  @als_interrupt_en:      Enable/Disable ALS interrupts
  *  @als_thresh_low:        CH0 'low' count to trigger interrupt.
  *  @als_thresh_high:       CH0 'high' count to trigger interrupt.
+ *  @prox_persistence:      H/W Filters, Number of 'out of limits'
+ *                          proximity readings.
  *  @prox_interrupt_en:     Enable/Disable proximity interrupts
  *  @prox_thres_low:        Low threshold proximity detection.
  *  @prox_thres_high:       High threshold proximity detection
@@ -70,10 +72,11 @@ struct tsl2x7x_settings {
 	int prox_gain;
 	int prox_config;
 	int als_cal_target;
-	u8  persistence;
+	u8 als_persistence;
 	bool als_interrupt_en;
 	int als_thresh_low;
 	int als_thresh_high;
+	u8 prox_persistence;
 	bool prox_interrupt_en;
 	int prox_thres_low;
 	int prox_thres_high;
