@@ -226,10 +226,11 @@ static const struct tsl2x7x_settings tsl2x7x_default_settings = {
 	.prox_config = 0,
 	.als_gain_trim = 1000,
 	.als_cal_target = 150,
+	.als_interrupt_en = false,
 	.als_thresh_low = 200,
 	.als_thresh_high = 256,
 	.persistence = 255,
-	.interrupts_en = 0,
+	.prox_interrupt_en = false,
 	.prox_thres_low  = 0,
 	.prox_thres_high = 512,
 	.prox_max_samples_cal = 30,
@@ -686,37 +687,22 @@ static int tsl2x7x_chip_on(struct iio_dev *indio_dev)
 	/* Power-on settling time */
 	usleep_range(3000, 3500);
 
-	/*
-	 * NOW enable the ADC
-	 * initialize the desired mode of operation
-	 */
-	ret = tsl2x7x_write_control_reg(chip,
-					TSL2X7X_CNTL_PWR_ON |
-					TSL2X7X_CNTL_ADC_ENBL |
-					TSL2X7X_CNTL_PROX_DET_ENBL);
+	reg_val = TSL2X7X_CNTL_PWR_ON | TSL2X7X_CNTL_ADC_ENBL |
+		  TSL2X7X_CNTL_PROX_DET_ENBL;
+	if (chip->settings.als_interrupt_en)
+		reg_val |= TSL2X7X_CNTL_ALS_INT_ENBL;
+	if (chip->settings.prox_interrupt_en)
+		reg_val |= TSL2X7X_CNTL_PROX_INT_ENBL;
+
+	ret = tsl2x7x_write_control_reg(chip, reg_val);
+	if (ret < 0)
+		return ret;
+
+	ret = tsl2x7x_clear_interrupts(chip, TSL2X7X_CMD_PROXALS_INT_CLR);
 	if (ret < 0)
 		return ret;
 
 	chip->tsl2x7x_chip_status = TSL2X7X_CHIP_WORKING;
-
-	if (chip->settings.interrupts_en != 0) {
-		dev_info(&chip->client->dev, "Setting Up Interrupt(s)\n");
-
-		reg_val = TSL2X7X_CNTL_PWR_ON | TSL2X7X_CNTL_ADC_ENBL;
-		if (chip->settings.interrupts_en == 0x20 ||
-		    chip->settings.interrupts_en == 0x30)
-			reg_val |= TSL2X7X_CNTL_PROX_DET_ENBL;
-
-		reg_val |= chip->settings.interrupts_en;
-		ret = tsl2x7x_write_control_reg(chip, reg_val);
-		if (ret < 0)
-			return ret;
-
-		ret = tsl2x7x_clear_interrupts(chip,
-					       TSL2X7X_CMD_PROXALS_INT_CLR);
-		if (ret < 0)
-			return ret;
-	}
 
 	return ret;
 }
@@ -978,14 +964,11 @@ static int tsl2x7x_read_interrupt_config(struct iio_dev *indio_dev,
 					 enum iio_event_direction dir)
 {
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	int ret;
 
 	if (chan->type == IIO_INTENSITY)
-		ret = !!(chip->settings.interrupts_en & 0x10);
+		return chip->settings.als_interrupt_en;
 	else
-		ret = !!(chip->settings.interrupts_en & 0x20);
-
-	return ret;
+		return chip->settings.prox_interrupt_en;
 }
 
 static int tsl2x7x_write_interrupt_config(struct iio_dev *indio_dev,
@@ -997,17 +980,10 @@ static int tsl2x7x_write_interrupt_config(struct iio_dev *indio_dev,
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	int ret;
 
-	if (chan->type == IIO_INTENSITY) {
-		if (val)
-			chip->settings.interrupts_en |= 0x10;
-		else
-			chip->settings.interrupts_en &= 0x20;
-	} else {
-		if (val)
-			chip->settings.interrupts_en |= 0x20;
-		else
-			chip->settings.interrupts_en &= 0x10;
-	}
+	if (chan->type == IIO_INTENSITY)
+		chip->settings.als_interrupt_en = val ? true : false;
+	else
+		chip->settings.prox_interrupt_en = val ? true : false;
 
 	ret = tsl2x7x_invoke_change(indio_dev);
 	if (ret < 0)
