@@ -875,6 +875,11 @@ EXPORT_SYMBOL(drm_atomic_helper_check_planes);
  * functions depend upon an updated adjusted_mode.clock to e.g. properly compute
  * watermarks.
  *
+ * Note that zpos normalization will add all enable planes to the state which
+ * might not desired for some drivers.
+ * For example enable/disable of a cursor plane which have fixed zpos value
+ * would trigger all other enabled planes to be forced to the state change.
+ *
  * RETURNS:
  * Zero for success or -errno
  */
@@ -886,6 +891,12 @@ int drm_atomic_helper_check(struct drm_device *dev,
 	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)
 		return ret;
+
+	if (dev->mode_config.normalize_zpos) {
+		ret = drm_atomic_normalize_zpos(dev, state);
+		if (ret)
+			return ret;
+	}
 
 	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)

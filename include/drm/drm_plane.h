@@ -51,8 +51,8 @@ struct drm_modeset_acquire_ctx;
  *	plane with a lower ID.
  * @normalized_zpos: normalized value of zpos: unique, range from 0 to N-1
  *	where N is the number of active planes for given crtc. Note that
- *	the driver must call drm_atomic_normalize_zpos() to update this before
- *	it can be trusted.
+ *	the driver must set drm_mode_config.normalize_zpos or call
+ *	drm_atomic_normalize_zpos() to update this before it can be trusted.
  * @src: clipped source coordinates of the plane (in 16.16)
  * @dst: clipped destination coordinates of the plane
  * @state: backpointer to global drm_atomic_state
