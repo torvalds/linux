@@ -39,5 +39,47 @@ struct medusa_l1_ipc_s {
 
 #define ipc_security(ipcp) ((struct medusa_l1_ipc_s*)ipcp->security)
 
+struct medusa_ipc_perm {
+	bool        deleted;
+	int     id;
+	key_t       key;
+	kuid_t      uid;
+ 	kgid_t      gid;
+	kuid_t      cuid;
+	kgid_t      cgid;
+	umode_t     mode;
+	unsigned long   seq;
+};
+
+#define MEDUSA_IPC_VARS \
+	struct medusa_ipc_perm ipc_perm
+
+#define COPY_WRITE_IPC_VARS(from, to) \
+	do { \
+		(to)->uid = (from)->uid; \
+		(to)->gid = (from)->gid; \
+		(to)->mode = (from)->mode; \
+	} while(0);
+
+#define COPY_READ_IPC_VARS(from, to) \
+	do { \
+		(to)->deleted = (from)->deleted; \
+		(to)->id = (from)->id; \
+		(to)->key = (from)->key; \
+		(to)->cuid = (from)->cuid; \
+		(to)->cgid = (from)->cgid; \
+		(to)->seq = (from)->seq; \
+	} while(0);
+
+#define MED_ATTR_IPC(kobj) \
+	MED_ATTR_RO(kobj, ipc_perm.deleted, "deleted", MED_UNSIGNED), \
+	MED_ATTR_RO(kobj, ipc_perm.id, "id", MED_SIGNED), \
+	MED_ATTR_RO(kobj, ipc_perm.key, "key", MED_SIGNED), \
+	MED_ATTR(kobj, ipc_perm.uid, "uid", MED_SIGNED), \
+	MED_ATTR(kobj, ipc_perm.gid, "gid", MED_SIGNED), \
+	MED_ATTR_RO(kobj, ipc_perm.cuid, "cuid", MED_SIGNED), \
+	MED_ATTR_RO(kobj, ipc_perm.cgid, "cgid", MED_SIGNED), \
+	MED_ATTR(kobj, ipc_perm.mode, "mode", MED_SIGNED), \
+	MED_ATTR_RO(kobj, ipc_perm.seq, "seq", MED_SIGNED)
 #endif
 

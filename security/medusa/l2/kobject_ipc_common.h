@@ -11,10 +11,8 @@
  */
 struct ipc_sem_kobject {	
 	unsigned int ipc_class;
-	int id;
-	kuid_t uid;
-	kgid_t gid;
 	int sem_nsems;
+	MEDUSA_IPC_VARS;
 	MEDUSA_OBJECT_VARS;
 };
 extern MED_DECLARE_KCLASSOF(ipc_sem_kobject);
@@ -24,9 +22,7 @@ extern MED_DECLARE_KCLASSOF(ipc_sem_kobject);
  */
 struct ipc_shm_kobject {	
 	unsigned int ipc_class;
-	int id;
-	kuid_t uid;
-	kgid_t gid;
+	MEDUSA_IPC_VARS;
 	MEDUSA_OBJECT_VARS;
 };
 extern MED_DECLARE_KCLASSOF(ipc_shm_kobject);
@@ -36,9 +32,7 @@ extern MED_DECLARE_KCLASSOF(ipc_shm_kobject);
  */
 struct ipc_msg_kobject {	
 	unsigned int ipc_class;
-	int id;
-	kuid_t uid;
-	kgid_t gid;
+	MEDUSA_IPC_VARS;
 	MEDUSA_OBJECT_VARS;
 };
 extern MED_DECLARE_KCLASSOF(ipc_msg_kobject);
