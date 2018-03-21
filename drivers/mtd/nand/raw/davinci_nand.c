@@ -826,13 +826,16 @@ static int nand_davinci_probe(struct platform_device *pdev)
 	else
 		ret = mtd_device_register(mtd, NULL, 0);
 	if (ret < 0)
-		goto err;
+		goto err_cleanup_nand;
 
 	val = davinci_nand_readl(info, NRCSR_OFFSET);
 	dev_info(&pdev->dev, "controller rev. %d.%d\n",
 	       (val >> 8) & 0xff, val & 0xff);
 
 	return 0;
+
+err_cleanup_nand:
+	nand_cleanup(&info->chip);
 
 err:
 	clk_disable_unprepare(info->clk);
