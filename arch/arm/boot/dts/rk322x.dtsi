@@ -438,8 +438,9 @@
 		cpu_leakage: cpu_leakage@17 {
 			reg = <0x17 0x1>;
 		};
-		phy_flag: phy_flag@1d {
+		hdmi_phy_flag: hdmi_phy_flag@1d {
 			reg = <0x1d 0x1>;
+			bits = <1 1>;
 		};
 		tve_dac: tve_dac@1d {
 			reg = <0x1d 0x1>;
@@ -678,7 +679,7 @@
 		clock-names = "sysclk", "refclk";
 		#clock-cells = <0>;
 		clock-output-names = "hdmiphy_phy";
-		nvmem-cells = <&phy_flag>;
+		nvmem-cells = <&hdmi_phy_flag>;
 		nvmem-cell-names = "hdmi_phy_flag";
 		status = "disabled";
 	};
