@@ -119,30 +119,10 @@ err:
 	return ret;
 }
 
-static int sti_atomic_check(struct drm_device *dev,
-			    struct drm_atomic_state *state)
-{
-	int ret;
-
-	ret = drm_atomic_helper_check_modeset(dev, state);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_normalize_zpos(dev, state);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_helper_check_planes(dev, state);
-	if (ret)
-		return ret;
-
-	return ret;
-}
-
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
 	.output_poll_changed = drm_fb_helper_output_poll_changed,
-	.atomic_check = sti_atomic_check,
+	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
@@ -160,6 +140,8 @@ static void sti_mode_config_init(struct drm_device *dev)
 	dev->mode_config.max_height = STI_MAX_FB_HEIGHT;
 
 	dev->mode_config.funcs = &sti_mode_config_funcs;
+
+	dev->mode_config.normalize_zpos = true;
 }
 
 DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
