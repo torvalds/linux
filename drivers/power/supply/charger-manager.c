@@ -1700,8 +1700,9 @@ static int charger_manager_probe(struct platform_device *pdev)
 		power_supply_put(psy);
 	}
 
-	if (desc->polling_interval_ms == 0 ||
-	    msecs_to_jiffies(desc->polling_interval_ms) <= CM_JIFFIES_SMALL) {
+	if (cm->desc->polling_mode != CM_POLL_DISABLE &&
+	    (desc->polling_interval_ms == 0 ||
+	     msecs_to_jiffies(desc->polling_interval_ms) <= CM_JIFFIES_SMALL)) {
 		dev_err(&pdev->dev, "polling_interval_ms is too small\n");
 		return -EINVAL;
 	}
