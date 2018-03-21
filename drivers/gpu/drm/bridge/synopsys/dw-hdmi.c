@@ -3609,7 +3609,8 @@ int dw_hdmi_bind(struct device *dev, struct device *master,
 		 hdmi->phy.name);
 
 	ret = hdmi_readb(hdmi, HDMI_PHY_STAT0);
-	if ((ret & HDMI_PHY_TX_PHY_LOCK) && (ret & HDMI_PHY_HPD)) {
+	if ((ret & HDMI_PHY_TX_PHY_LOCK) && (ret & HDMI_PHY_HPD) &&
+	    hdmi_readb(hdmi, HDMI_FC_EXCTRLDUR)) {
 		hdmi->mc_clkdis = hdmi_readb(hdmi, HDMI_MC_CLKDIS);
 		hdmi->disabled = false;
 		hdmi->bridge_is_on = true;
