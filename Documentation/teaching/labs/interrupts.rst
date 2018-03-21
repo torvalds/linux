@@ -166,12 +166,12 @@ are different port access functions depending on their size. The
 following port access functions are defined in asm/io.h:
 
 
-* *unsigned inb(int port)*, read one byte (8 bits) from port
-* *void outb(unsigned char byte, int port)*, write one byte (8 bits) to port
-* *unsigned inw(int port)*, read two bytes (16-bit) ports
-* *void outw(unsigned short word, int port)* writes two bytes (16-bits) to port
+* *unsigned inb(int port)*, reads one byte (8 bits) from port
+* *void outb(unsigned char byte, int port)*, writes one byte (8 bits) to port
+* *unsigned inw(int port)*, reads two bytes (16-bit) ports
+* *void outw(unsigned short word, int port)*, writes two bytes (16-bits) to port
 * *unsigned inl (int port)*, reads four bytes (32-bits) from port
-* *void outl(unsigned long word, int port)* write four bytes (32-bits) to port
+* *void outl(unsigned long word, int port)*, writes four bytes (32-bits) to port
 
 The port argument specifies the address of the port where the reads or
 writes are done, and its type is platform dependent (may be unsigned
@@ -179,7 +179,7 @@ long or unsigned short).
 
 Some devices may have problems when the processor is trying to
 transfer data too fast to and from the device. To avoid this issue we
-may need to insert a delay after an I/O operation and there functions
+may need to insert a delay after an I/O operation and there are functions
 you can use that introduce this delay. Their names are similar to
 those described above, with the exception that it ends in _p: inb_p,
 outb_p, etc.
@@ -367,7 +367,7 @@ following operations will be executed:
    free_irq (MY_IRQ, my_data);
 
 
-During the initialization functiom (c:func:`init_module`), or in the
+During the initialization function (c:func:`init_module`), or in the
 function that opens the device, interrupts must be activated for the
 device. This operation is dependent on the device, but most often
 involves setting a bit from the control register.
@@ -502,7 +502,7 @@ If we want to disable interrupts at the interrupt controller level
 (not recommended because disabling a particular interrupt is slower,
 we can not disable shared interrupts) we can do this with
 :c:func:`disable_irq`, :c:func:`disable_irq_nosync`, and
-:c:func:`enable_irq`. Using these functions disabled the interrupts on
+:c:func:`enable_irq`. Using these functions will disable the interrupts on
 all processors. Calls can be nested: if disable_irq is called twice,
 it will require as many calls enable_irq to enable it. The difference
 between disable_irq and disable_irq_nosync is that the first one will
@@ -574,7 +574,7 @@ as follows:
 
 
 The *my_access function* above runs in process context. To
-synchronize access to the share data, we disable the interrupts and
+synchronize access to the shared data, we disable the interrupts and
 use the spinlock *lock*, i.e. the :c:func:`spin_lock_irqsave` and
 :c:func:`spin_unlock_irqrestore` functions.
 
@@ -846,7 +846,7 @@ following in the interrupt handling:
 * copy the ASCII characters corresponding to the keystrokes and store
   them in the buffer of the device
 
-Follow the sectios marked **TODO 3** in the skeleton.
+Follow the sections marked **TODO 3** in the skeleton.
 
 Reading the data register
 .........................
@@ -863,7 +863,7 @@ Then print information about the keystrokes int the following format:
 
 .. code-block:: c
 
-   pr_info("IRQ:% d, scancode = 0x% x (% u,% c) \ n"
+   pr_info("IRQ:% d, scancode = 0x%x (%u,%c)\n"
 	   irq_no, scancode, scancode, scancode);
 
 
@@ -976,14 +976,14 @@ character.
 	  the value returned by the get_ascii() function.
 
 
-Store characters to the buffer
-..............................
+4. Store characters to the buffer
+-----------------------------
 
 We want to collect the pressed characters (not the other keys) into
 circular a buffer that can be consumed from user space. For this step
 follow the sections marked with **TODO 4** in the skeleton.
 
-Implement :c:func:`get_char` in a similar with  :c:func:`put_char`.
+Implement :c:func:`get_char` in a similar way to :c:func:`put_char`.
 
 Update the interrupt handler to add a pressed ASCII character to the
 end of the device buffer. If the buffer is full, the character will be
@@ -1024,8 +1024,8 @@ minor are defined as ``KBD_MAJOR`` and ``KBD_MINOR``:
    cat /dev/kbd
 
 
-Reset the buffer
-................
+5. Reset the buffer
+-----------------------------
 
 Reset the buffer if the device is written to. For this step follow the
 sections marked with **TODO 5** in the skeleton.
