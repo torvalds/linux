@@ -3464,7 +3464,6 @@ struct qla_qpair {
 	struct work_struct q_work;
 	struct list_head qp_list_elem; /* vha->qp_list */
 	struct list_head hints_list;
-	struct list_head nvme_done_list;
 	uint16_t cpuid;
 	struct qla_tgt_counters tgt_counters;
 };

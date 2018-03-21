@@ -149,16 +149,6 @@ static void qla_nvme_sp_ls_done(void *ptr, int res)
 	qla2x00_rel_sp(sp);
 }
 
-void qla_nvme_cmpl_io(struct srb_iocb *nvme)
-{
-	srb_t *sp;
-	struct nvmefc_fcp_req *fd = nvme->u.nvme.desc;
-
-	sp = container_of(nvme, srb_t, u.iocb_cmd);
-	fd->done(fd);
-	qla2xxx_rel_qpair_sp(sp->qpair, sp);
-}
-
 static void qla_nvme_sp_done(void *ptr, int res)
 {
 	srb_t *sp = ptr;
@@ -177,7 +167,8 @@ static void qla_nvme_sp_done(void *ptr, int res)
 		fd->status = NVME_SC_INTERNAL;
 
 	fd->rcv_rsplen = nvme->u.nvme.rsp_pyld_len;
-	list_add_tail(&nvme->u.nvme.entry, &sp->qpair->nvme_done_list);
+	fd->done(fd);
+	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 
 	return;
 }

@@ -778,18 +778,12 @@ static void qla_do_work(struct work_struct *work)
 	struct qla_qpair *qpair = container_of(work, struct qla_qpair, q_work);
 	struct scsi_qla_host *vha;
 	struct qla_hw_data *ha = qpair->hw;
-	struct srb_iocb	*nvme, *nxt_nvme;
 
 	spin_lock_irqsave(&qpair->qp_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	qla24xx_process_response_queue(vha, qpair->rsp);
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
 
-	list_for_each_entry_safe(nvme, nxt_nvme, &qpair->nvme_done_list,
-		    u.nvme.entry) {
-		list_del_init(&nvme->u.nvme.entry);
-		qla_nvme_cmpl_io(nvme);
-	}
 }
 
 /* create response queue */
