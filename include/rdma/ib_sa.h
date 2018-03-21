@@ -163,7 +163,15 @@ struct sa_path_rec_ib {
 	u8           raw_traffic;
 };
 
+/**
+ * struct sa_path_rec_roce - RoCE specific portion of the path record entry
+ * @route_resolved:	When set, it indicates that this route is already
+ *			resolved for this path record entry.
+ * @dmac:		Destination mac address for the given DGID entry
+ *			of the path record entry.
+ */
 struct sa_path_rec_roce {
+	bool	route_resolved;
 	u8           dmac[ETH_ALEN];
 	/* ignored in IB */
 	int	     ifindex;

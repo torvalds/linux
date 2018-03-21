@@ -2506,6 +2506,7 @@ cma_iboe_set_path_rec_l2_fields(struct rdma_id_private *id_priv)
 		gid_type = ib_network_to_gid_type(addr->dev_addr.network);
 	route->path_rec->rec_type = sa_conv_gid_to_pathrec_type(gid_type);
 
+	route->path_rec->roce.route_resolved = true;
 	sa_path_set_ndev(route->path_rec, addr->dev_addr.net);
 	sa_path_set_ifindex(route->path_rec, ndev->ifindex);
 	sa_path_set_dmac(route->path_rec, addr->dev_addr.dst_dev_addr);

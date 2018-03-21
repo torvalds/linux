@@ -1543,6 +1543,8 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 		cm_req_get_primary_local_ack_timeout(req_msg);
 	primary_path->packet_life_time -= (primary_path->packet_life_time > 0);
 	primary_path->service_id = req_msg->service_id;
+	if (sa_path_is_roce(primary_path))
+		primary_path->roce.route_resolved = false;
 
 	if (cm_req_has_alt_path(req_msg)) {
 		alt_path->dgid = req_msg->alt_local_gid;
@@ -1562,6 +1564,9 @@ static void cm_format_paths_from_req(struct cm_req_msg *req_msg,
 			cm_req_get_alt_local_ack_timeout(req_msg);
 		alt_path->packet_life_time -= (alt_path->packet_life_time > 0);
 		alt_path->service_id = req_msg->service_id;
+
+		if (sa_path_is_roce(alt_path))
+			alt_path->roce.route_resolved = false;
 	}
 	cm_format_path_lid_from_req(req_msg, primary_path, alt_path);
 }
