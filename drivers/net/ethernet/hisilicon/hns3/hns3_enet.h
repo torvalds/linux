@@ -499,6 +499,7 @@ struct hns3_enet_tqp_vector {
 
 	/* when 0 should adjust interrupt coalesce parameter */
 	u8 int_adapt_down;
+	unsigned long last_jiffies;
 } ____cacheline_internodealigned_in_smp;
 
 enum hns3_udp_tnl_type {

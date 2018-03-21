@@ -2406,15 +2406,15 @@ out:
 
 static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 {
-#define HNS3_RX_ULTRA_PACKET_RATE 40000
+	struct hns3_enet_tqp_vector *tqp_vector =
+					ring_group->ring->tqp_vector;
 	enum hns3_flow_level_range new_flow_level;
-	struct hns3_enet_tqp_vector *tqp_vector;
-	int packets_per_secs;
-	int bytes_per_usecs;
+	int packets_per_msecs;
+	int bytes_per_msecs;
+	u32 time_passed_ms;
 	u16 new_int_gl;
-	int usecs;
 
-	if (!ring_group->coal.int_gl)
+	if (!ring_group->coal.int_gl || !tqp_vector->last_jiffies)
 		return false;
 
 	if (ring_group->total_packets == 0) {
@@ -2431,33 +2431,44 @@ static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 	 */
 	new_flow_level = ring_group->coal.flow_level;
 	new_int_gl = ring_group->coal.int_gl;
-	tqp_vector = ring_group->ring->tqp_vector;
-	usecs = (ring_group->coal.int_gl << 1);
-	bytes_per_usecs = ring_group->total_bytes / usecs;
-	/* 1000000 microseconds */
-	packets_per_secs = ring_group->total_packets * 1000000 / usecs;
+	time_passed_ms =
+		jiffies_to_msecs(jiffies - tqp_vector->last_jiffies);
+
+	if (!time_passed_ms)
+		return false;
+
+	do_div(ring_group->total_packets, time_passed_ms);
+	packets_per_msecs = ring_group->total_packets;
+
+	do_div(ring_group->total_bytes, time_passed_ms);
+	bytes_per_msecs = ring_group->total_bytes;
+
+#define HNS3_RX_LOW_BYTE_RATE 10000
+#define HNS3_RX_MID_BYTE_RATE 20000
 
 	switch (new_flow_level) {
 	case HNS3_FLOW_LOW:
-		if (bytes_per_usecs > 10)
+		if (bytes_per_msecs > HNS3_RX_LOW_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_MID;
 		break;
 	case HNS3_FLOW_MID:
-		if (bytes_per_usecs > 20)
+		if (bytes_per_msecs > HNS3_RX_MID_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_HIGH;
-		else if (bytes_per_usecs <= 10)
+		else if (bytes_per_msecs <= HNS3_RX_LOW_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_LOW;
 		break;
 	case HNS3_FLOW_HIGH:
 	case HNS3_FLOW_ULTRA:
 	default:
-		if (bytes_per_usecs <= 20)
+		if (bytes_per_msecs <= HNS3_RX_MID_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_MID;
 		break;
 	}
 
-	if ((packets_per_secs > HNS3_RX_ULTRA_PACKET_RATE) &&
-	    (&tqp_vector->rx_group == ring_group))
+#define HNS3_RX_ULTRA_PACKET_RATE 40
+
+	if (packets_per_msecs > HNS3_RX_ULTRA_PACKET_RATE &&
+	    &tqp_vector->rx_group == ring_group)
 		new_flow_level = HNS3_FLOW_ULTRA;
 
 	switch (new_flow_level) {
@@ -2512,6 +2523,7 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 						       tx_group->coal.int_gl);
 	}
 
+	tqp_vector->last_jiffies = jiffies;
 	tqp_vector->int_adapt_down = HNS3_INT_ADAPT_DOWN_START;
 }
 
