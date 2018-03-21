@@ -9,11 +9,6 @@ some of the ones we want:
   requests to the firmware, which are transmitted across VCHIQ.  vcdbg
   is really useful for debugging firmware interactions.
 
-  - bcm2835-camera (https://github.com/raspberrypi/linux/tree/rpi-4.4.y/drivers/media/platform/bcm2835)
-
-  This driver will let us get images from the camera using the MMAL
-  protocol over VCHI.
-
   - VCSM (https://github.com/raspberrypi/linux/tree/rpi-4.4.y/drivers/char/broadcom/vc_sm)
 
   This driver is used for talking about regions of VC memory across
