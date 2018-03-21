@@ -8,6 +8,7 @@
 #include <linux/highmem.h>
 #include <linux/umh.h>
 #include <linux/sysctl.h>
+#include <linux/vmalloc.h>
 
 #include "fallback.h"
 #include "firmware.h"
