@@ -86,37 +86,6 @@ struct smu_features {
 	uint64_t smu_feature_bitmap;
 };
 
-struct vega12_performance_level {
-	uint32_t  soc_clock;
-	uint32_t  gfx_clock;
-	uint32_t  mem_clock;
-};
-
-struct vega12_bacos {
-	uint32_t                       baco_flags;
-	/* struct vega12_performance_level  performance_level; */
-};
-
-struct vega12_uvd_clocks {
-	uint32_t  vclk;
-	uint32_t  dclk;
-};
-
-struct vega12_vce_clocks {
-	uint32_t  evclk;
-	uint32_t  ecclk;
-};
-
-struct vega12_power_state {
-	uint32_t                  magic;
-	struct vega12_uvd_clocks    uvd_clks;
-	struct vega12_vce_clocks    vce_clks;
-	uint16_t                  performance_level_count;
-	bool                      dc_compatible;
-	uint32_t                  sclk_threshold;
-	struct vega12_performance_level  performance_levels[VEGA12_MAX_HARDWARE_POWERLEVELS];
-};
-
 struct vega12_dpm_level {
 	bool		enabled;
 	uint32_t	value;
@@ -350,7 +319,6 @@ struct vega12_hwmgr {
 
 	uint32_t                           active_auto_throttle_sources;
 	uint32_t                           water_marks_bitmap;
-	struct vega12_bacos                bacos;
 
 	struct vega12_odn_dpm_table       odn_dpm_table;
 	struct vega12_odn_fan_table       odn_fan_table;

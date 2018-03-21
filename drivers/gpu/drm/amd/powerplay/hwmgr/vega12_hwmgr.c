@@ -48,7 +48,6 @@
 #include "pp_overdriver.h"
 #include "pp_thermal.h"
 
-static const ULONG PhwVega12_Magic = (ULONG)(PHM_VIslands_Magic);
 
 static int vega12_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask);
@@ -56,26 +55,6 @@ static int vega12_get_clock_ranges(struct pp_hwmgr *hwmgr,
 		uint32_t *clock,
 		PPCLK_e clock_select,
 		bool max);
-
-struct vega12_power_state *cast_phw_vega12_power_state(
-				  struct pp_hw_power_state *hw_ps)
-{
-	PP_ASSERT_WITH_CODE((PhwVega12_Magic == hw_ps->magic),
-				"Invalid Powerstate Type!",
-				 return NULL;);
-
-	return (struct vega12_power_state *)hw_ps;
-}
-
-const struct vega12_power_state *cast_const_phw_vega12_power_state(
-				 const struct pp_hw_power_state *hw_ps)
-{
-	PP_ASSERT_WITH_CODE((PhwVega12_Magic == hw_ps->magic),
-				"Invalid Powerstate Type!",
-				 return NULL;);
-
-	return (const struct vega12_power_state *)hw_ps;
-}
 
 static void vega12_set_default_registry_data(struct pp_hwmgr *hwmgr)
 {
@@ -590,7 +569,7 @@ static int vega12_setup_default_dpm_tables(struct pp_hwmgr *hwmgr)
 	}
 
 	vega12_init_dpm_state(&(dpm_table->dpm_state));
-    /* Initialize Mclk DPM table based on allow Mclk values */
+	/* Initialize Mclk DPM table based on allow Mclk values */
 	dpm_table = &(data->dpm_table.mem_table);
 
 	PP_ASSERT_WITH_CODE(vega12_get_number_dpm_level(hwmgr, PPCLK_UCLK,
@@ -953,259 +932,9 @@ static int vega12_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int vega12_get_power_state_size(struct pp_hwmgr *hwmgr)
-{
-	return sizeof(struct vega12_power_state);
-}
-
-static int vega12_get_number_of_pp_table_entries(struct pp_hwmgr *hwmgr)
-{
-	return 0;
-}
-
 static int vega12_patch_boot_state(struct pp_hwmgr *hwmgr,
 	     struct pp_hw_power_state *hw_ps)
 {
-	return 0;
-}
-
-static int vega12_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
-				struct pp_power_state  *request_ps,
-			const struct pp_power_state *current_ps)
-{
-	struct vega12_power_state *vega12_ps =
-				cast_phw_vega12_power_state(&request_ps->hardware);
-	uint32_t sclk;
-	uint32_t mclk;
-	struct PP_Clocks minimum_clocks = {0};
-	bool disable_mclk_switching;
-	bool disable_mclk_switching_for_frame_lock;
-	bool disable_mclk_switching_for_vr;
-	bool force_mclk_high;
-	struct cgs_display_info info = {0};
-	const struct phm_clock_and_voltage_limits *max_limits;
-	uint32_t i;
-	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
-	struct phm_ppt_v2_information *table_info =
-			(struct phm_ppt_v2_information *)(hwmgr->pptable);
-	int32_t count;
-	uint32_t stable_pstate_sclk_dpm_percentage;
-	uint32_t stable_pstate_sclk = 0, stable_pstate_mclk = 0;
-	uint32_t latency;
-
-	data->battery_state = (PP_StateUILabel_Battery ==
-			request_ps->classification.ui_label);
-
-	if (vega12_ps->performance_level_count != 2)
-		pr_info("VI should always have 2 performance levels");
-
-	max_limits = (PP_PowerSource_AC == hwmgr->power_source) ?
-			&(hwmgr->dyn_state.max_clock_voltage_on_ac) :
-			&(hwmgr->dyn_state.max_clock_voltage_on_dc);
-
-	/* Cap clock DPM tables at DC MAX if it is in DC. */
-	if (PP_PowerSource_DC == hwmgr->power_source) {
-		for (i = 0; i < vega12_ps->performance_level_count; i++) {
-			if (vega12_ps->performance_levels[i].mem_clock >
-				max_limits->mclk)
-				vega12_ps->performance_levels[i].mem_clock =
-						max_limits->mclk;
-			if (vega12_ps->performance_levels[i].gfx_clock >
-				max_limits->sclk)
-				vega12_ps->performance_levels[i].gfx_clock =
-						max_limits->sclk;
-		}
-	}
-
-	cgs_get_active_displays_info(hwmgr->device, &info);
-
-	/* result = PHM_CheckVBlankTime(hwmgr, &vblankTooShort);*/
-	minimum_clocks.engineClock = hwmgr->display_config.min_core_set_clock;
-	minimum_clocks.memoryClock = hwmgr->display_config.min_mem_set_clock;
-
-	if (PP_CAP(PHM_PlatformCaps_StablePState)) {
-		PP_ASSERT_WITH_CODE(
-			data->registry_data.stable_pstate_sclk_dpm_percentage >= 1 &&
-			data->registry_data.stable_pstate_sclk_dpm_percentage <= 100,
-			"percent sclk value must range from 1% to 100%, setting default value",
-			stable_pstate_sclk_dpm_percentage = 75);
-
-		max_limits = &(hwmgr->dyn_state.max_clock_voltage_on_ac);
-		stable_pstate_sclk = (max_limits->sclk *
-				stable_pstate_sclk_dpm_percentage) / 100;
-
-		for (count = table_info->vdd_dep_on_sclk->count - 1;
-				count >= 0; count--) {
-			if (stable_pstate_sclk >=
-					table_info->vdd_dep_on_sclk->entries[count].clk) {
-				stable_pstate_sclk =
-						table_info->vdd_dep_on_sclk->entries[count].clk;
-				break;
-			}
-		}
-
-		if (count < 0)
-			stable_pstate_sclk = table_info->vdd_dep_on_sclk->entries[0].clk;
-
-		stable_pstate_mclk = max_limits->mclk;
-
-		minimum_clocks.engineClock = stable_pstate_sclk;
-		minimum_clocks.memoryClock = stable_pstate_mclk;
-	}
-
-	disable_mclk_switching_for_frame_lock = phm_cap_enabled(
-				    hwmgr->platform_descriptor.platformCaps,
-				    PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
-	disable_mclk_switching_for_vr = PP_CAP(PHM_PlatformCaps_DisableMclkSwitchForVR);
-	force_mclk_high = PP_CAP(PHM_PlatformCaps_ForceMclkHigh);
-
-	if (info.display_count == 0)
-		disable_mclk_switching = false;
-	else
-		disable_mclk_switching = (info.display_count > 1) ||
-			disable_mclk_switching_for_frame_lock ||
-			disable_mclk_switching_for_vr ||
-			force_mclk_high;
-
-	sclk = vega12_ps->performance_levels[0].gfx_clock;
-	mclk = vega12_ps->performance_levels[0].mem_clock;
-
-	if (sclk < minimum_clocks.engineClock)
-		sclk = (minimum_clocks.engineClock > max_limits->sclk) ?
-				max_limits->sclk : minimum_clocks.engineClock;
-
-	if (mclk < minimum_clocks.memoryClock)
-		mclk = (minimum_clocks.memoryClock > max_limits->mclk) ?
-				max_limits->mclk : minimum_clocks.memoryClock;
-
-	vega12_ps->performance_levels[0].gfx_clock = sclk;
-	vega12_ps->performance_levels[0].mem_clock = mclk;
-
-	if (vega12_ps->performance_levels[1].gfx_clock <
-			vega12_ps->performance_levels[0].gfx_clock)
-		vega12_ps->performance_levels[0].gfx_clock =
-				vega12_ps->performance_levels[1].gfx_clock;
-
-	if (disable_mclk_switching) {
-		/* Set Mclk the max of level 0 and level 1 */
-		if (mclk < vega12_ps->performance_levels[1].mem_clock)
-			mclk = vega12_ps->performance_levels[1].mem_clock;
-		/* Find the lowest MCLK frequency that is within
-		 * the tolerable latency defined in DAL
-		 */
-		latency = 0;
-		for (i = 0; i < data->mclk_latency_table.count; i++) {
-			if ((data->mclk_latency_table.entries[i].latency <= latency) &&
-				(data->mclk_latency_table.entries[i].frequency >=
-						vega12_ps->performance_levels[0].mem_clock) &&
-				(data->mclk_latency_table.entries[i].frequency <=
-						vega12_ps->performance_levels[1].mem_clock))
-				mclk = data->mclk_latency_table.entries[i].frequency;
-		}
-		vega12_ps->performance_levels[0].mem_clock = mclk;
-	} else {
-		if (vega12_ps->performance_levels[1].mem_clock <
-				vega12_ps->performance_levels[0].mem_clock)
-			vega12_ps->performance_levels[0].mem_clock =
-					vega12_ps->performance_levels[1].mem_clock;
-	}
-
-	if (PP_CAP(PHM_PlatformCaps_StablePState)) {
-		for (i = 0; i < vega12_ps->performance_level_count; i++) {
-			vega12_ps->performance_levels[i].gfx_clock = stable_pstate_sclk;
-			vega12_ps->performance_levels[i].mem_clock = stable_pstate_mclk;
-		}
-	}
-
-	return 0;
-}
-
-static int vega12_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, const void *input)
-{
-	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
-	struct PP_Clocks min_clocks = {0};
-	struct cgs_display_info info = {0};
-
-	data->need_update_dpm_table = 0;
-
-	min_clocks.engineClockInSR = hwmgr->display_config.min_core_set_clock_in_sr;
-	if (data->display_timing.min_clock_in_sr != min_clocks.engineClockInSR &&
-			(min_clocks.engineClockInSR >= VEGA12_MINIMUM_ENGINE_CLOCK ||
-			 data->display_timing.min_clock_in_sr >= VEGA12_MINIMUM_ENGINE_CLOCK))
-		data->need_update_dpm_table |= DPMTABLE_UPDATE_SCLK;
-
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	if (data->display_timing.num_existing_displays != info.display_count)
-		data->need_update_dpm_table |= DPMTABLE_UPDATE_MCLK;
-
-	return 0;
-}
-
-static int vega12_trim_single_dpm_states(struct pp_hwmgr *hwmgr,
-		struct vega12_single_dpm_table *dpm_table,
-		uint32_t low_limit, uint32_t high_limit)
-{
-	uint32_t i;
-
-	for (i = 0; i < dpm_table->count; i++) {
-		if ((dpm_table->dpm_levels[i].value < low_limit) ||
-		    (dpm_table->dpm_levels[i].value > high_limit))
-			dpm_table->dpm_levels[i].enabled = false;
-		else
-			dpm_table->dpm_levels[i].enabled = true;
-	}
-	return 0;
-}
-
-static int vega12_trim_single_dpm_states_with_mask(struct pp_hwmgr *hwmgr,
-		struct vega12_single_dpm_table *dpm_table,
-		uint32_t low_limit, uint32_t high_limit,
-		uint32_t disable_dpm_mask)
-{
-	uint32_t i;
-
-	for (i = 0; i < dpm_table->count; i++) {
-		if ((dpm_table->dpm_levels[i].value < low_limit) ||
-		    (dpm_table->dpm_levels[i].value > high_limit))
-			dpm_table->dpm_levels[i].enabled = false;
-		else if ((!((1 << i) & disable_dpm_mask)) &&
-				!(low_limit == high_limit))
-			dpm_table->dpm_levels[i].enabled = false;
-		else
-			dpm_table->dpm_levels[i].enabled = true;
-	}
-	return 0;
-}
-
-static int vega12_trim_dpm_states(struct pp_hwmgr *hwmgr,
-		const struct vega12_power_state *vega12_ps)
-{
-	struct vega12_hwmgr *data =
-			(struct vega12_hwmgr *)(hwmgr->backend);
-	uint32_t high_limit_count;
-
-	PP_ASSERT_WITH_CODE((vega12_ps->performance_level_count >= 1),
-			"power state did not have any performance level",
-			return -1);
-
-	high_limit_count = (vega12_ps->performance_level_count == 1) ? 0 : 1;
-
-	vega12_trim_single_dpm_states(hwmgr,
-			&(data->dpm_table.soc_table),
-			vega12_ps->performance_levels[0].soc_clock,
-			vega12_ps->performance_levels[high_limit_count].soc_clock);
-
-	vega12_trim_single_dpm_states_with_mask(hwmgr,
-			&(data->dpm_table.gfx_table),
-			vega12_ps->performance_levels[0].gfx_clock,
-			vega12_ps->performance_levels[high_limit_count].gfx_clock,
-			data->disable_dpm_mask);
-
-	vega12_trim_single_dpm_states(hwmgr,
-			&(data->dpm_table.mem_table),
-			vega12_ps->performance_levels[0].mem_clock,
-			vega12_ps->performance_levels[high_limit_count].mem_clock);
-
 	return 0;
 }
 
@@ -1250,45 +979,6 @@ static int vega12_upload_dpm_max_level(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int vega12_generate_dpm_level_enable_mask(
-		struct pp_hwmgr *hwmgr, const void *input)
-{
-	struct vega12_hwmgr *data =
-			(struct vega12_hwmgr *)(hwmgr->backend);
-	const struct phm_set_power_state_input *states =
-			(const struct phm_set_power_state_input *)input;
-	const struct vega12_power_state *vega12_ps =
-			cast_const_phw_vega12_power_state(states->pnew_state);
-	int i;
-
-	PP_ASSERT_WITH_CODE(!vega12_trim_dpm_states(hwmgr, vega12_ps),
-			"Attempt to Trim DPM States Failed!",
-			return -1);
-
-	data->smc_state_table.gfx_boot_level =
-			vega12_find_lowest_dpm_level(&(data->dpm_table.gfx_table));
-	data->smc_state_table.gfx_max_level =
-			vega12_find_highest_dpm_level(&(data->dpm_table.gfx_table));
-	data->smc_state_table.mem_boot_level =
-			vega12_find_lowest_dpm_level(&(data->dpm_table.mem_table));
-	data->smc_state_table.mem_max_level =
-			vega12_find_highest_dpm_level(&(data->dpm_table.mem_table));
-
-	PP_ASSERT_WITH_CODE(!vega12_upload_dpm_min_level(hwmgr),
-			"Attempt to upload DPM Bootup Levels Failed!",
-			return -1);
-	PP_ASSERT_WITH_CODE(!vega12_upload_dpm_max_level(hwmgr),
-			"Attempt to upload DPM Max Levels Failed!",
-			return -1);
-	for (i = data->smc_state_table.gfx_boot_level; i < data->smc_state_table.gfx_max_level; i++)
-		data->dpm_table.gfx_table.dpm_levels[i].enabled = true;
-
-
-	for (i = data->smc_state_table.mem_boot_level; i < data->smc_state_table.mem_max_level; i++)
-		data->dpm_table.mem_table.dpm_levels[i].enabled = true;
-
-	return 0;
-}
 
 int vega12_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
@@ -1303,45 +993,6 @@ int vega12_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 				return -1);
 		data->smu_features[GNLD_DPM_VCE].enabled = enable;
 	}
-
-	return 0;
-}
-
-static int vega12_update_sclk_threshold(struct pp_hwmgr *hwmgr)
-{
-	return 0;
-}
-
-static int vega12_set_power_state_tasks(struct pp_hwmgr *hwmgr,
-		const void *input)
-{
-	int tmp_result, result = 0;
-	struct vega12_hwmgr *data =
-			(struct vega12_hwmgr *)(hwmgr->backend);
-	PPTable_t *pp_table = &(data->smc_state_table.pp_table);
-
-	tmp_result = vega12_find_dpm_states_clocks_in_dpm_table(hwmgr, input);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to find DPM states clocks in DPM table!",
-			result = tmp_result);
-
-	tmp_result = vega12_generate_dpm_level_enable_mask(hwmgr, input);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to generate DPM level enabled mask!",
-			result = tmp_result);
-
-	tmp_result = vega12_update_sclk_threshold(hwmgr);
-	PP_ASSERT_WITH_CODE(!tmp_result,
-			"Failed to update SCLK threshold!",
-			result = tmp_result);
-
-	result = vega12_copy_table_to_smc(hwmgr,
-			(uint8_t *)pp_table, TABLE_PPTABLE);
-	PP_ASSERT_WITH_CODE(!result,
-			"Failed to upload PPtable!", return result);
-
-	data->apply_optimized_settings = false;
-	data->apply_overdrive_next_settings_mask = 0;
 
 	return 0;
 }
@@ -2217,50 +1868,6 @@ static void vega12_power_gate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 	vega12_enable_disable_uvd_dpm(hwmgr, !bgate);
 }
 
-static inline bool vega12_are_power_levels_equal(
-				const struct vega12_performance_level *pl1,
-				const struct vega12_performance_level *pl2)
-{
-	return ((pl1->soc_clock == pl2->soc_clock) &&
-			(pl1->gfx_clock == pl2->gfx_clock) &&
-			(pl1->mem_clock == pl2->mem_clock));
-}
-
-static int vega12_check_states_equal(struct pp_hwmgr *hwmgr,
-				const struct pp_hw_power_state *pstate1,
-			const struct pp_hw_power_state *pstate2, bool *equal)
-{
-	const struct vega12_power_state *psa;
-	const struct vega12_power_state *psb;
-	int i;
-
-	if (pstate1 == NULL || pstate2 == NULL || equal == NULL)
-		return -EINVAL;
-
-	psa = cast_const_phw_vega12_power_state(pstate1);
-	psb = cast_const_phw_vega12_power_state(pstate2);
-	/* If the two states don't even have the same number of performance levels they cannot be the same state. */
-	if (psa->performance_level_count != psb->performance_level_count) {
-		*equal = false;
-		return 0;
-	}
-
-	for (i = 0; i < psa->performance_level_count; i++) {
-		if (!vega12_are_power_levels_equal(&(psa->performance_levels[i]), &(psb->performance_levels[i]))) {
-			/* If we have found even one performance level pair that is different the states are different. */
-			*equal = false;
-			return 0;
-		}
-	}
-
-	/* If all performance levels are the same try to use the UVD clocks to break the tie.*/
-	*equal = ((psa->uvd_clks.vclk == psb->uvd_clks.vclk) && (psa->uvd_clks.dclk == psb->uvd_clks.dclk));
-	*equal &= ((psa->vce_clks.evclk == psb->vce_clks.evclk) && (psa->vce_clks.ecclk == psb->vce_clks.ecclk));
-	*equal &= (psa->sclk_threshold == psb->sclk_threshold);
-
-	return 0;
-}
-
 static bool
 vega12_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr)
 {
@@ -2337,37 +1944,6 @@ static void vega12_find_min_clock_index(struct pp_hwmgr *hwmgr,
 static int vega12_set_power_profile_state(struct pp_hwmgr *hwmgr,
 		struct amd_pp_profile *request)
 {
-	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
-	uint32_t sclk_idx = ~0, mclk_idx = ~0;
-
-	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_AUTO)
-		return -EINVAL;
-
-	vega12_find_min_clock_index(hwmgr, &sclk_idx, &mclk_idx,
-			request->min_sclk, request->min_mclk);
-
-	if (sclk_idx != ~0) {
-		if (!data->registry_data.sclk_dpm_key_disabled)
-			PP_ASSERT_WITH_CODE(
-					!smum_send_msg_to_smc_with_parameter(
-					hwmgr,
-					PPSMC_MSG_SetSoftMinGfxclkByIndex,
-					sclk_idx),
-					"Failed to set soft min sclk index!",
-					return -EINVAL);
-	}
-
-	if (mclk_idx != ~0) {
-		if (!data->registry_data.mclk_dpm_key_disabled)
-			PP_ASSERT_WITH_CODE(
-					!smum_send_msg_to_smc_with_parameter(
-					hwmgr,
-					PPSMC_MSG_SetSoftMinUclkByIndex,
-					mclk_idx),
-					"Failed to set soft min mclk index!",
-					return -EINVAL);
-	}
-
 	return 0;
 }
 
@@ -2389,28 +1965,6 @@ static int vega12_get_sclk_od(struct pp_hwmgr *hwmgr)
 
 static int vega12_set_sclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 {
-	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
-	struct vega12_single_dpm_table *golden_sclk_table =
-			&(data->golden_dpm_table.gfx_table);
-	struct pp_power_state *ps;
-	struct vega12_power_state *vega12_ps;
-
-	ps = hwmgr->request_ps;
-
-	if (ps == NULL)
-		return -EINVAL;
-
-	vega12_ps = cast_phw_vega12_power_state(&ps->hardware);
-
-	vega12_ps->performance_levels[vega12_ps->performance_level_count - 1].gfx_clock =
-		golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value * value / 100 +
-		golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
-
-	if (vega12_ps->performance_levels[vega12_ps->performance_level_count - 1].gfx_clock >
-			hwmgr->platform_descriptor.overdriveLimit.engineClock)
-		vega12_ps->performance_levels[vega12_ps->performance_level_count - 1].gfx_clock =
-			hwmgr->platform_descriptor.overdriveLimit.engineClock;
-
 	return 0;
 }
 
@@ -2435,34 +1989,6 @@ static int vega12_get_mclk_od(struct pp_hwmgr *hwmgr)
 
 static int vega12_set_mclk_od(struct pp_hwmgr *hwmgr, uint32_t value)
 {
-	struct vega12_hwmgr *data = (struct vega12_hwmgr *)(hwmgr->backend);
-	struct vega12_single_dpm_table *golden_mclk_table =
-			&(data->golden_dpm_table.mem_table);
-	struct pp_power_state  *ps;
-	struct vega12_power_state  *vega12_ps;
-
-	ps = hwmgr->request_ps;
-
-	if (ps == NULL)
-		return -EINVAL;
-
-	vega12_ps = cast_phw_vega12_power_state(&ps->hardware);
-
-	vega12_ps->performance_levels
-	[vega12_ps->performance_level_count - 1].mem_clock =
-			golden_mclk_table->dpm_levels
-			[golden_mclk_table->count - 1].value *
-			value / 100 +
-			golden_mclk_table->dpm_levels
-			[golden_mclk_table->count - 1].value;
-
-	if (vega12_ps->performance_levels
-			[vega12_ps->performance_level_count - 1].mem_clock >
-			hwmgr->platform_descriptor.overdriveLimit.memoryClock)
-		vega12_ps->performance_levels
-		[vega12_ps->performance_level_count - 1].mem_clock =
-				hwmgr->platform_descriptor.overdriveLimit.memoryClock;
-
 	return 0;
 }
 #endif
@@ -2514,12 +2040,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.asic_setup = vega12_setup_asic_task,
 	.dynamic_state_management_enable = vega12_enable_dpm_tasks,
 	.dynamic_state_management_disable = vega12_disable_dpm_tasks,
-	.get_num_of_pp_table_entries =
-			vega12_get_number_of_pp_table_entries,
-	.get_power_state_size = vega12_get_power_state_size,
 	.patch_boot_state = vega12_patch_boot_state,
-	.apply_state_adjust_rules = vega12_apply_state_adjust_rules,
-	.power_state_set = vega12_set_power_state_tasks,
 	.get_sclk = vega12_dpm_get_sclk,
 	.get_mclk = vega12_dpm_get_mclk,
 	.notify_smc_display_config_after_ps_adjustment =
@@ -2543,7 +2064,6 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 	.display_config_changed = vega12_display_configuration_changed_task,
 	.powergate_uvd = vega12_power_gate_uvd,
 	.powergate_vce = vega12_power_gate_vce,
-	.check_states_equal = vega12_check_states_equal,
 	.check_smc_update_required_for_display_configuration =
 			vega12_check_smc_update_required_for_display_configuration,
 	.power_off_asic = vega12_power_off_asic,
