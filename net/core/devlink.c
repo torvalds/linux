@@ -3174,7 +3174,6 @@ EXPORT_SYMBOL_GPL(devlink_dpipe_table_unregister);
  */
 int devlink_resource_register(struct devlink *devlink,
 			      const char *resource_name,
-			      bool top_hierarchy,
 			      u64 resource_size,
 			      u64 resource_id,
 			      u64 parent_resource_id,
@@ -3183,7 +3182,10 @@ int devlink_resource_register(struct devlink *devlink,
 {
 	struct devlink_resource *resource;
 	struct list_head *resource_list;
+	bool top_hierarchy;
 	int err = 0;
+
+	top_hierarchy = parent_resource_id == DEVLINK_RESOURCE_ID_PARENT_TOP;
 
 	mutex_lock(&devlink->lock);
 	resource = devlink_resource_find(devlink, NULL, resource_id);

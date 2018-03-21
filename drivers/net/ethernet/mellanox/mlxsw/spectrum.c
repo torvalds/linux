@@ -3876,8 +3876,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 
 	kvd_size = MLXSW_CORE_RES_GET(mlxsw_core, KVD_SIZE);
 	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD,
-					true, kvd_size,
-					MLXSW_SP_RESOURCE_KVD,
+					kvd_size, MLXSW_SP_RESOURCE_KVD,
 					DEVLINK_RESOURCE_ID_PARENT_TOP,
 					&kvd_size_params,
 					NULL);
@@ -3886,7 +3885,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 
 	linear_size = profile->kvd_linear_size;
 	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_LINEAR,
-					false, linear_size,
+					linear_size,
 					MLXSW_SP_RESOURCE_KVD_LINEAR,
 					MLXSW_SP_RESOURCE_KVD,
 					&linear_size_params,
@@ -3904,7 +3903,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 		       profile->kvd_hash_single_parts;
 	double_size = rounddown(double_size, profile->kvd_hash_granularity);
 	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_HASH_DOUBLE,
-					false, double_size,
+					double_size,
 					MLXSW_SP_RESOURCE_KVD_HASH_DOUBLE,
 					MLXSW_SP_RESOURCE_KVD,
 					&hash_double_size_params,
@@ -3914,7 +3913,7 @@ static int mlxsw_sp_resources_register(struct mlxsw_core *mlxsw_core)
 
 	single_size = kvd_size - double_size - linear_size;
 	err = devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_KVD_HASH_SINGLE,
-					false, single_size,
+					single_size,
 					MLXSW_SP_RESOURCE_KVD_HASH_SINGLE,
 					MLXSW_SP_RESOURCE_KVD,
 					&hash_single_size_params,

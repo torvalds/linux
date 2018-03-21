@@ -406,7 +406,6 @@ extern struct devlink_dpipe_header devlink_dpipe_header_ipv6;
 
 int devlink_resource_register(struct devlink *devlink,
 			      const char *resource_name,
-			      bool top_hierarchy,
 			      u64 resource_size,
 			      u64 resource_id,
 			      u64 parent_resource_id,
