@@ -288,6 +288,7 @@
 #define DP_PSR_SUPPORT                      0x070   /* XXX 1.2? */
 # define DP_PSR_IS_SUPPORTED                1
 # define DP_PSR2_IS_SUPPORTED		    2	    /* eDP 1.4 */
+# define DP_PSR2_WITH_Y_COORD_IS_SUPPORTED  3	    /* eDP 1.4a */
 
 #define DP_PSR_CAPS                         0x071   /* XXX 1.2? */
 # define DP_PSR_NO_TRAIN_ON_EXIT            1

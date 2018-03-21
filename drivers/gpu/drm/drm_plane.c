@@ -104,7 +104,7 @@ static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane
 	if (IS_ERR(blob))
 		return -1;
 
-	blob_data = (struct drm_format_modifier_blob *)blob->data;
+	blob_data = blob->data;
 	blob_data->version = FORMAT_BLOB_CURRENT;
 	blob_data->count_formats = plane->format_count;
 	blob_data->formats_offset = sizeof(struct drm_format_modifier_blob);

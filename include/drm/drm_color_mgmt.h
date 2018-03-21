@@ -38,6 +38,18 @@ void drm_crtc_enable_color_mgmt(struct drm_crtc *crtc,
 int drm_mode_crtc_set_gamma_size(struct drm_crtc *crtc,
 				 int gamma_size);
 
+/**
+ * drm_color_lut_size - calculate the number of entries in the LUT
+ * @blob: blob containing the LUT
+ *
+ * Returns:
+ * The number of entries in the color LUT stored in @blob.
+ */
+static inline int drm_color_lut_size(const struct drm_property_blob *blob)
+{
+	return blob->length / sizeof(struct drm_color_lut);
+}
+
 enum drm_color_encoding {
 	DRM_COLOR_YCBCR_BT601,
 	DRM_COLOR_YCBCR_BT709,

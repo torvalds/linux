@@ -179,7 +179,7 @@ enum ili9322_input {
 	ILI9322_INPUT_UNKNOWN = 0xc,
 };
 
-const char *ili9322_inputs[] = {
+static const char * const ili9322_inputs[] = {
 	"8 bit serial RGB through",
 	"8 bit serial RGB aligned",
 	"8 bit serial RGB dummy 320x240",
@@ -340,7 +340,7 @@ static bool ili9322_writeable_reg(struct device *dev, unsigned int reg)
 	return true;
 }
 
-const struct regmap_config ili9322_regmap_config = {
+static const struct regmap_config ili9322_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x44,

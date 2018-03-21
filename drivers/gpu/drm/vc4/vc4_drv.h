@@ -310,6 +310,66 @@ to_vc4_plane(struct drm_plane *plane)
 	return (struct vc4_plane *)plane;
 }
 
+enum vc4_scaling_mode {
+	VC4_SCALING_NONE,
+	VC4_SCALING_TPZ,
+	VC4_SCALING_PPF,
+};
+
+struct vc4_plane_state {
+	struct drm_plane_state base;
+	/* System memory copy of the display list for this element, computed
+	 * at atomic_check time.
+	 */
+	u32 *dlist;
+	u32 dlist_size; /* Number of dwords allocated for the display list */
+	u32 dlist_count; /* Number of used dwords in the display list. */
+
+	/* Offset in the dlist to various words, for pageflip or
+	 * cursor updates.
+	 */
+	u32 pos0_offset;
+	u32 pos2_offset;
+	u32 ptr0_offset;
+
+	/* Offset where the plane's dlist was last stored in the
+	 * hardware at vc4_crtc_atomic_flush() time.
+	 */
+	u32 __iomem *hw_dlist;
+
+	/* Clipped coordinates of the plane on the display. */
+	int crtc_x, crtc_y, crtc_w, crtc_h;
+	/* Clipped area being scanned from in the FB. */
+	u32 src_x, src_y;
+
+	u32 src_w[2], src_h[2];
+
+	/* Scaling selection for the RGB/Y plane and the Cb/Cr planes. */
+	enum vc4_scaling_mode x_scaling[2], y_scaling[2];
+	bool is_unity;
+	bool is_yuv;
+
+	/* Offset to start scanning out from the start of the plane's
+	 * BO.
+	 */
+	u32 offsets[3];
+
+	/* Our allocation in LBM for temporary storage during scaling. */
+	struct drm_mm_node lbm;
+
+	/* Set when the plane has per-pixel alpha content or does not cover
+	 * the entire screen. This is a hint to the CRTC that it might need
+	 * to enable background color fill.
+	 */
+	bool needs_bg_fill;
+};
+
+static inline struct vc4_plane_state *
+to_vc4_plane_state(struct drm_plane_state *state)
+{
+	return (struct vc4_plane_state *)state;
+}
+
 enum vc4_encoder_type {
 	VC4_ENCODER_TYPE_NONE,
 	VC4_ENCODER_TYPE_HDMI,

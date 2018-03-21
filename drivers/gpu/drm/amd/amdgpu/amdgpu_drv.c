@@ -738,7 +738,6 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 	drm_kms_helper_poll_disable(drm_dev);
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
 
 	ret = amdgpu_device_suspend(drm_dev, false, false);
 	pci_save_state(pdev);
@@ -775,7 +774,6 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 
 	ret = amdgpu_device_resume(drm_dev, false, false);
 	drm_kms_helper_poll_enable(drm_dev);
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	return 0;
 }
