@@ -1214,9 +1214,13 @@ static int flctl_probe(struct platform_device *pdev)
 		goto err_chip;
 
 	ret = mtd_device_register(flctl_mtd, pdata->parts, pdata->nr_parts);
+	if (ret)
+		goto cleanup_nand;
 
 	return 0;
 
+cleanup_nand:
+	nand_cleanup(nand);
 err_chip:
 	flctl_release_dma(flctl);
 	pm_runtime_disable(&pdev->dev);
