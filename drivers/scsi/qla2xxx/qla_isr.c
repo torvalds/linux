@@ -1910,7 +1910,7 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	} else  {
 		switch (le16_to_cpu(sts->comp_status)) {
 			case CS_COMPLETE:
-				ret = 0;
+				ret = QLA_SUCCESS;
 			break;
 
 			case CS_ABORTED:
@@ -1922,7 +1922,8 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 				"NVME-%s ERR Handling - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
 				sp->name, sp->handle, sts->comp_status,
 				le32_to_cpu(sts->residual_len), sts->ox_id);
-				fd->transferred_length = fd->payload_length;
+				fd->transferred_length = 0;
+				iocb->u.nvme.rsp_pyld_len = 0;
 				ret = QLA_ABORTED;
 			break;
 

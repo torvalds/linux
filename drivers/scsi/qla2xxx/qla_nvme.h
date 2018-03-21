@@ -14,6 +14,9 @@
 
 #include "qla_def.h"
 
+/* default dev loss time (seconds) before transport tears down ctrl */
+#define NVME_FC_DEV_LOSS_TMO  30
+
 #define NVME_ATIO_CMD_OFF 32
 #define NVME_FIRST_PACKET_CMDLEN (64 - NVME_ATIO_CMD_OFF)
 #define Q2T_NVME_NUM_TAGS 2048
@@ -31,8 +34,7 @@ struct nvme_private {
 	int comp_status;
 };
 
-struct nvme_rport {
-	struct nvme_fc_port_info req;
+struct qla_nvme_rport {
 	struct list_head list;
 	struct fc_port *fcport;
 };

@@ -5517,6 +5517,14 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha)
 			break;
 		}
 
+		if (fcport->fc4f_nvme) {
+			if (fcport->disc_state == DSC_DELETE_PEND) {
+				fcport->disc_state = DSC_GNL;
+				vha->fcport_count--;
+				fcport->login_succ = 0;
+			}
+		}
+
 		if (found) {
 			spin_unlock_irqrestore(&vha->hw->tgt.sess_lock, flags);
 			continue;
