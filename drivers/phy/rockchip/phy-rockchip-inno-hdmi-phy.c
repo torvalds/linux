@@ -707,7 +707,7 @@ static void inno_hdmi_phy_rk3228_init(struct inno_hdmi_phy *inno)
 	efuse_buf = nvmem_cell_read(cell, &len);
 	nvmem_cell_put(cell);
 	if (len == 1)
-		inno->efuse_flag = (efuse_buf[0] & BIT(1)) ? true : false;
+		inno->efuse_flag = efuse_buf[0] ? true : false;
 	kfree(efuse_buf);
 }
 
