@@ -3200,21 +3200,6 @@ static void update_balance_args(struct btrfs_balance_control *bctl)
 }
 
 /*
- * Should be called with balance mutex held to protect against checking the
- * balance status or progress. Same goes for reset_balance_state.
- */
-static void set_balance_control(struct btrfs_balance_control *bctl)
-{
-	struct btrfs_fs_info *fs_info = bctl->fs_info;
-
-	BUG_ON(fs_info->balance_ctl);
-
-	spin_lock(&fs_info->balance_lock);
-	fs_info->balance_ctl = bctl;
-	spin_unlock(&fs_info->balance_lock);
-}
-
-/*
  * Clear the balance status in fs_info and delete the balance item from disk.
  */
 static void reset_balance_state(struct btrfs_fs_info *fs_info)
@@ -3899,7 +3884,10 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 
 	if (!(bctl->flags & BTRFS_BALANCE_RESUME)) {
 		BUG_ON(ret == -EEXIST);
-		set_balance_control(bctl);
+		BUG_ON(fs_info->balance_ctl);
+		spin_lock(&fs_info->balance_lock);
+		fs_info->balance_ctl = bctl;
+		spin_unlock(&fs_info->balance_lock);
 	} else {
 		BUG_ON(ret != -EEXIST);
 		spin_lock(&fs_info->balance_lock);
@@ -4045,7 +4033,10 @@ int btrfs_recover_balance(struct btrfs_fs_info *fs_info)
 	"cannot set exclusive op status to balance, resume manually");
 
 	mutex_lock(&fs_info->balance_mutex);
-	set_balance_control(bctl);
+	BUG_ON(fs_info->balance_ctl);
+	spin_lock(&fs_info->balance_lock);
+	fs_info->balance_ctl = bctl;
+	spin_unlock(&fs_info->balance_lock);
 	mutex_unlock(&fs_info->balance_mutex);
 out:
 	btrfs_free_path(path);
