@@ -490,6 +490,9 @@ static void imx_sata_disable(struct ahci_host_priv *hpriv)
 				   IMX6Q_GPR13_SATA_MPLL_CLK_EN,
 				   !IMX6Q_GPR13_SATA_MPLL_CLK_EN);
 		break;
+
+	default:
+		break;
 	}
 
 	clk_disable_unprepare(imxpriv->sata_ref_clk);
