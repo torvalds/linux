@@ -134,8 +134,7 @@ struct gdma_dma_dev {
 	struct gdma_dmaengine_chan chan[];
 };
 
-struct gdma_data
-{
+struct gdma_data {
 	int chancnt;
 	u32 done_int_reg;
 	void (*init)(struct gdma_dma_dev *dma_dev);
