@@ -117,6 +117,8 @@ static int pp_sw_init(void *handle)
 
 		ret = hwmgr->smumgr_funcs->smu_init(hwmgr);
 
+		phm_register_irq_handlers(hwmgr);
+
 		pr_debug("amdgpu: powerplay sw initialized\n");
 	}
 

@@ -206,10 +206,6 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	if (ret)
 		goto err2;
 
-	ret = phm_register_irq_handlers(hwmgr);
-	if (ret)
-		goto err2;
-
 	return 0;
 err2:
 	if (hwmgr->hwmgr_func->backend_fini)
