@@ -462,6 +462,8 @@ enum hns3_link_mode_bits {
 #define HNS3_INT_RL_MAX			0x00EC
 #define HNS3_INT_RL_ENABLE_MASK		0x40
 
+#define HNS3_INT_ADAPT_DOWN_START	100
+
 struct hns3_enet_coalesce {
 	u16 int_gl;
 	u8 gl_adapt_enable;
