@@ -126,4 +126,7 @@ extern int __ucmpdi2(u64, u64);
 void _mcount(void);
 unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip);
 
+void pnv_power9_force_smt4_catch(void);
+void pnv_power9_force_smt4_release(void);
+
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */
