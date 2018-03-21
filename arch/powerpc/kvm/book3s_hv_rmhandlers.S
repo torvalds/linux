@@ -3101,6 +3101,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 kvmppc_save_tm:
 	mflr	r0
 	std	r0, PPC_LR_STKOFF(r1)
+	stdu	r1, -PPC_MIN_STKFRM(r1)
 
 	/* Turn on TM. */
 	mfmsr	r8
@@ -3120,8 +3121,16 @@ BEGIN_FTR_SECTION
 	mfspr	r6, SPRN_TEXASR
 	std	r6, VCPU_ORIG_TEXASR(r9)
 
-	rldicl. r8, r8, 64 - MSR_TS_S_LG, 62
+	lbz	r0, HSTATE_FAKE_SUSPEND(r13) /* Were we fake suspended? */
+	cmpwi	r0, 0
 	beq	3f
+	rldicl. r8, r8, 64 - MSR_TS_S_LG, 62 /* Did we actually hrfid? */
+	beq	4f
+BEGIN_FTR_SECTION_NESTED(96)
+	bl	pnv_power9_force_smt4_catch
+END_FTR_SECTION_NESTED(CPU_FTR_P9_TM_XER_SO_BUG, CPU_FTR_P9_TM_XER_SO_BUG, 96)
+	nop
+3:
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 
 	/* Clear the MSR RI since r1, r13 are all going to be foobar. */
@@ -3138,7 +3147,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 
 	/* If doing TM emulation on POWER9 DD2.2, check for fake suspend mode */
 BEGIN_FTR_SECTION
-3:
 	lbz	r9, HSTATE_FAKE_SUSPEND(r13)
 	cmpwi	r9, 0
 	beq	2f
@@ -3150,13 +3158,18 @@ BEGIN_FTR_SECTION
 	/* Reload stack pointer and TOC. */
 	ld	r1, HSTATE_HOST_R1(r13)
 	ld	r2, PACATOC(r13)
+	/* Set MSR RI now we have r1 and r13 back. */
 	li	r5, MSR_RI
 	mtmsrd	r5, 1
 	HMT_MEDIUM
 	ld	r6, HSTATE_DSCR(r13)
 	mtspr	SPRN_DSCR, r6
-	li	r0, 0
-	stb	r0, HSTATE_FAKE_SUSPEND(r13)
+BEGIN_FTR_SECTION_NESTED(96)
+	bl	pnv_power9_force_smt4_release
+END_FTR_SECTION_NESTED(CPU_FTR_P9_TM_XER_SO_BUG, CPU_FTR_P9_TM_XER_SO_BUG, 96)
+	nop
+
+4:
 	mfspr	r3, SPRN_PSSCR
 	/* PSSCR_FAKE_SUSPEND is a write-only bit, but clear it anyway */
 	li	r0, PSSCR_FAKE_SUSPEND
@@ -3244,6 +3257,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	std	r6, VCPU_TFIAR(r9)
 	std	r7, VCPU_TEXASR(r9)
 
+	addi	r1, r1, PPC_MIN_STKFRM
 	ld	r0, PPC_LR_STKOFF(r1)
 	mtlr	r0
 	blr
@@ -3278,6 +3292,8 @@ kvmppc_restore_tm:
 	mtspr	SPRN_TFIAR, r6
 	mtspr	SPRN_TEXASR, r7
 
+	li	r0, 0
+	stb	r0, HSTATE_FAKE_SUSPEND(r13)
 	ld	r5, VCPU_MSR(r4)
 	rldicl. r5, r5, 64 - MSR_TS_S_LG, 62
 	beqlr		/* TM not active in guest */
