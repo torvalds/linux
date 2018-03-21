@@ -43,6 +43,42 @@ struct bpf_map_def SEC("maps") sock_map = {
 	.max_entries = 20,
 };
 
+struct bpf_map_def SEC("maps") sock_map_txmsg = {
+	.type = BPF_MAP_TYPE_SOCKMAP,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 20,
+};
+
+struct bpf_map_def SEC("maps") sock_map_redir = {
+	.type = BPF_MAP_TYPE_SOCKMAP,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 1,
+};
+
+struct bpf_map_def SEC("maps") sock_apply_bytes = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 1
+};
+
+struct bpf_map_def SEC("maps") sock_cork_bytes = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 1
+};
+
+struct bpf_map_def SEC("maps") sock_pull_bytes = {
+	.type = BPF_MAP_TYPE_ARRAY,
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.max_entries = 2
+};
+
+
 SEC("sk_skb1")
 int bpf_prog1(struct __sk_buff *skb)
 {
@@ -105,4 +141,165 @@ int bpf_sockmap(struct bpf_sock_ops *skops)
 
 	return 0;
 }
+
+SEC("sk_msg1")
+int bpf_prog4(struct sk_msg_md *msg)
+{
+	int *bytes, zero = 0, one = 1;
+	int *start, *end;
+
+	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
+	if (bytes)
+		bpf_msg_apply_bytes(msg, *bytes);
+	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
+	if (bytes)
+		bpf_msg_cork_bytes(msg, *bytes);
+	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
+	if (start && end)
+		bpf_msg_pull_data(msg, *start, *end, 0);
+	return SK_PASS;
+}
+
+SEC("sk_msg2")
+int bpf_prog5(struct sk_msg_md *msg)
+{
+	int err1 = -1, err2 = -1, zero = 0, one = 1;
+	int *bytes, *start, *end, len1, len2;
+
+	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
+	if (bytes)
+		err1 = bpf_msg_apply_bytes(msg, *bytes);
+	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
+	if (bytes)
+		err2 = bpf_msg_cork_bytes(msg, *bytes);
+	len1 = (__u64)msg->data_end - (__u64)msg->data;
+	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
+	if (start && end) {
+		int err;
+
+		bpf_printk("sk_msg2: pull(%i:%i)\n",
+			   start ? *start : 0, end ? *end : 0);
+		err = bpf_msg_pull_data(msg, *start, *end, 0);
+		if (err)
+			bpf_printk("sk_msg2: pull_data err %i\n",
+				   err);
+		len2 = (__u64)msg->data_end - (__u64)msg->data;
+		bpf_printk("sk_msg2: length update %i->%i\n",
+			   len1, len2);
+	}
+	bpf_printk("sk_msg2: data length %i err1 %i err2 %i\n",
+		   len1, err1, err2);
+	return SK_PASS;
+}
+
+SEC("sk_msg3")
+int bpf_prog6(struct sk_msg_md *msg)
+{
+	int *bytes, zero = 0, one = 1;
+	int *start, *end;
+
+	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
+	if (bytes)
+		bpf_msg_apply_bytes(msg, *bytes);
+	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
+	if (bytes)
+		bpf_msg_cork_bytes(msg, *bytes);
+	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
+	if (start && end)
+		bpf_msg_pull_data(msg, *start, *end, 0);
+	return bpf_msg_redirect_map(msg, &sock_map_redir, zero, 0);
+}
+
+SEC("sk_msg4")
+int bpf_prog7(struct sk_msg_md *msg)
+{
+	int err1 = 0, err2 = 0, zero = 0, one = 1;
+	int *bytes, *start, *end, len1, len2;
+
+	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
+	if (bytes)
+		err1 = bpf_msg_apply_bytes(msg, *bytes);
+	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
+	if (bytes)
+		err2 = bpf_msg_cork_bytes(msg, *bytes);
+	len1 = (__u64)msg->data_end - (__u64)msg->data;
+	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
+	if (start && end) {
+		int err;
+
+		bpf_printk("sk_msg2: pull(%i:%i)\n",
+			   start ? *start : 0, end ? *end : 0);
+		err = bpf_msg_pull_data(msg, *start, *end, 0);
+		if (err)
+			bpf_printk("sk_msg2: pull_data err %i\n",
+				   err);
+		len2 = (__u64)msg->data_end - (__u64)msg->data;
+		bpf_printk("sk_msg2: length update %i->%i\n",
+			   len1, len2);
+	}
+	bpf_printk("sk_msg3: redirect(%iB) err1=%i err2=%i\n",
+		   len1, err1, err2);
+	return bpf_msg_redirect_map(msg, &sock_map_redir, zero, 0);
+}
+
+SEC("sk_msg5")
+int bpf_prog8(struct sk_msg_md *msg)
+{
+	void *data_end = (void *)(long) msg->data_end;
+	void *data = (void *)(long) msg->data;
+	int ret = 0, *bytes, zero = 0;
+
+	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
+	if (bytes) {
+		ret = bpf_msg_apply_bytes(msg, *bytes);
+		if (ret)
+			return SK_DROP;
+	} else {
+		return SK_DROP;
+	}
+	return SK_PASS;
+}
+SEC("sk_msg6")
+int bpf_prog9(struct sk_msg_md *msg)
+{
+	void *data_end = (void *)(long) msg->data_end;
+	void *data = (void *)(long) msg->data;
+	int ret = 0, *bytes, zero = 0;
+
+	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
+	if (bytes) {
+		if (((__u64)data_end - (__u64)data) >= *bytes)
+			return SK_PASS;
+		ret = bpf_msg_cork_bytes(msg, *bytes);
+		if (ret)
+			return SK_DROP;
+	}
+	return SK_PASS;
+}
+
+SEC("sk_msg7")
+int bpf_prog10(struct sk_msg_md *msg)
+{
+	int *bytes, zero = 0, one = 1;
+	int *start, *end;
+
+	bytes = bpf_map_lookup_elem(&sock_apply_bytes, &zero);
+	if (bytes)
+		bpf_msg_apply_bytes(msg, *bytes);
+	bytes = bpf_map_lookup_elem(&sock_cork_bytes, &zero);
+	if (bytes)
+		bpf_msg_cork_bytes(msg, *bytes);
+	start = bpf_map_lookup_elem(&sock_pull_bytes, &zero);
+	end = bpf_map_lookup_elem(&sock_pull_bytes, &one);
+	if (start && end)
+		bpf_msg_pull_data(msg, *start, *end, 0);
+
+	return SK_DROP;
+}
+
+
 char _license[] SEC("license") = "GPL";

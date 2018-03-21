@@ -29,6 +29,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
+#include <sys/sendfile.h>
 
 #include <linux/netlink.h>
 #include <linux/socket.h>
@@ -54,6 +55,16 @@ void running_handler(int a);
 /* global sockets */
 int s1, s2, c1, c2, p1, p2;
 
+int txmsg_pass;
+int txmsg_noisy;
+int txmsg_redir;
+int txmsg_redir_noisy;
+int txmsg_drop;
+int txmsg_apply;
+int txmsg_cork;
+int txmsg_start;
+int txmsg_end;
+
 static const struct option long_options[] = {
 	{"help",	no_argument,		NULL, 'h' },
 	{"cgroup",	required_argument,	NULL, 'c' },
@@ -62,6 +73,16 @@ static const struct option long_options[] = {
 	{"iov_count",	required_argument,	NULL, 'i' },
 	{"length",	required_argument,	NULL, 'l' },
 	{"test",	required_argument,	NULL, 't' },
+	{"data_test",   no_argument,		NULL, 'd' },
+	{"txmsg",		no_argument,	&txmsg_pass,  1  },
+	{"txmsg_noisy",		no_argument,	&txmsg_noisy, 1  },
+	{"txmsg_redir",		no_argument,	&txmsg_redir, 1  },
+	{"txmsg_redir_noisy",	no_argument,	&txmsg_redir_noisy, 1},
+	{"txmsg_drop",		no_argument,	&txmsg_drop, 1 },
+	{"txmsg_apply",	required_argument,	NULL, 'a'},
+	{"txmsg_cork",	required_argument,	NULL, 'k'},
+	{"txmsg_start", required_argument,	NULL, 's'},
+	{"txmsg_end",	required_argument,	NULL, 'e'},
 	{0, 0, NULL, 0 }
 };
 
@@ -195,19 +216,71 @@ struct msg_stats {
 	struct timespec end;
 };
 
+struct sockmap_options {
+	int verbose;
+	bool base;
+	bool sendpage;
+	bool data_test;
+	bool drop_expected;
+};
+
+static int msg_loop_sendpage(int fd, int iov_length, int cnt,
+			     struct msg_stats *s,
+			     struct sockmap_options *opt)
+{
+	bool drop = opt->drop_expected;
+	unsigned char k = 0;
+	FILE *file;
+	int i, fp;
+
+	file = fopen(".sendpage_tst.tmp", "w+");
+	for (i = 0; i < iov_length * cnt; i++, k++)
+		fwrite(&k, sizeof(char), 1, file);
+	fflush(file);
+	fseek(file, 0, SEEK_SET);
+	fclose(file);
+
+	fp = open(".sendpage_tst.tmp", O_RDONLY);
+	clock_gettime(CLOCK_MONOTONIC, &s->start);
+	for (i = 0; i < cnt; i++) {
+		int sent = sendfile(fd, fp, NULL, iov_length);
+
+		if (!drop && sent < 0) {
+			perror("send loop error:");
+			close(fp);
+			return sent;
+		} else if (drop && sent >= 0) {
+			printf("sendpage loop error expected: %i\n", sent);
+			close(fp);
+			return -EIO;
+		}
+
+		if (sent > 0)
+			s->bytes_sent += sent;
+	}
+	clock_gettime(CLOCK_MONOTONIC, &s->end);
+	close(fp);
+	return 0;
+}
+
 static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
-		    struct msg_stats *s, bool tx)
+		    struct msg_stats *s, bool tx,
+		    struct sockmap_options *opt)
 {
 	struct msghdr msg = {0};
 	int err, i, flags = MSG_NOSIGNAL;
 	struct iovec *iov;
+	unsigned char k;
+	bool data_test = opt->data_test;
+	bool drop = opt->drop_expected;
 
 	iov = calloc(iov_count, sizeof(struct iovec));
 	if (!iov)
 		return errno;
 
+	k = 0;
 	for (i = 0; i < iov_count; i++) {
-		char *d = calloc(iov_length, sizeof(char));
+		unsigned char *d = calloc(iov_length, sizeof(char));
 
 		if (!d) {
 			fprintf(stderr, "iov_count %i/%i OOM\n", i, iov_count);
@@ -215,21 +288,34 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 		}
 		iov[i].iov_base = d;
 		iov[i].iov_len = iov_length;
+
+		if (data_test && tx) {
+			int j;
+
+			for (j = 0; j < iov_length; j++)
+				d[j] = k++;
+		}
 	}
 
 	msg.msg_iov = iov;
 	msg.msg_iovlen = iov_count;
+	k = 0;
 
 	if (tx) {
 		clock_gettime(CLOCK_MONOTONIC, &s->start);
 		for (i = 0; i < cnt; i++) {
 			int sent = sendmsg(fd, &msg, flags);
 
-			if (sent < 0) {
+			if (!drop && sent < 0) {
 				perror("send loop error:");
 				goto out_errno;
+			} else if (drop && sent >= 0) {
+				printf("send loop error expected: %i\n", sent);
+				errno = -EIO;
+				goto out_errno;
 			}
-			s->bytes_sent += sent;
+			if (sent > 0)
+				s->bytes_sent += sent;
 		}
 		clock_gettime(CLOCK_MONOTONIC, &s->end);
 	} else {
@@ -272,6 +358,26 @@ static int msg_loop(int fd, int iov_count, int iov_length, int cnt,
 			}
 
 			s->bytes_recvd += recv;
+
+			if (data_test) {
+				int j;
+
+				for (i = 0; i < msg.msg_iovlen; i++) {
+					unsigned char *d = iov[i].iov_base;
+
+					for (j = 0;
+					     j < iov[i].iov_len && recv; j++) {
+						if (d[j] != k++) {
+							errno = -EIO;
+							fprintf(stderr,
+								"detected data corruption @iov[%i]:%i %02x != %02x, %02x ?= %02x\n",
+								i, j, d[j], k - 1, d[j+1], k + 1);
+							goto out_errno;
+						}
+						recv--;
+					}
+				}
+			}
 		}
 		clock_gettime(CLOCK_MONOTONIC, &s->end);
 	}
@@ -300,7 +406,7 @@ static inline float recvdBps(struct msg_stats s)
 }
 
 static int sendmsg_test(int iov_count, int iov_buf, int cnt,
-			int verbose, bool base)
+			struct sockmap_options *opt)
 {
 	float sent_Bps = 0, recvd_Bps = 0;
 	int rx_fd, txpid, rxpid, err = 0;
@@ -309,14 +415,20 @@ static int sendmsg_test(int iov_count, int iov_buf, int cnt,
 
 	errno = 0;
 
-	if (base)
+	if (opt->base)
 		rx_fd = p1;
 	else
 		rx_fd = p2;
 
 	rxpid = fork();
 	if (rxpid == 0) {
-		err = msg_loop(rx_fd, iov_count, iov_buf, cnt, &s, false);
+		if (opt->drop_expected)
+			exit(1);
+
+		if (opt->sendpage)
+			iov_count = 1;
+		err = msg_loop(rx_fd, iov_count, iov_buf,
+			       cnt, &s, false, opt);
 		if (err)
 			fprintf(stderr,
 				"msg_loop_rx: iov_count %i iov_buf %i cnt %i err %i\n",
@@ -339,7 +451,12 @@ static int sendmsg_test(int iov_count, int iov_buf, int cnt,
 
 	txpid = fork();
 	if (txpid == 0) {
-		err = msg_loop(c1, iov_count, iov_buf, cnt, &s, true);
+		if (opt->sendpage)
+			err = msg_loop_sendpage(c1, iov_buf, cnt, &s, opt);
+		else
+			err = msg_loop(c1, iov_count, iov_buf,
+				       cnt, &s, true, opt);
+
 		if (err)
 			fprintf(stderr,
 				"msg_loop_tx: iov_count %i iov_buf %i cnt %i err %i\n",
@@ -364,7 +481,7 @@ static int sendmsg_test(int iov_count, int iov_buf, int cnt,
 	return err;
 }
 
-static int forever_ping_pong(int rate, int verbose)
+static int forever_ping_pong(int rate, struct sockmap_options *opt)
 {
 	struct timeval timeout;
 	char buf[1024] = {0};
@@ -429,7 +546,7 @@ static int forever_ping_pong(int rate, int verbose)
 		if (rate)
 			sleep(rate);
 
-		if (verbose) {
+		if (opt->verbose) {
 			printf(".");
 			fflush(stdout);
 
@@ -443,20 +560,34 @@ enum {
 	PING_PONG,
 	SENDMSG,
 	BASE,
+	BASE_SENDPAGE,
+	SENDPAGE,
 };
 
 int main(int argc, char **argv)
 {
-	int iov_count = 1, length = 1024, rate = 1, verbose = 0;
+	int iov_count = 1, length = 1024, rate = 1, tx_prog_fd;
 	struct rlimit r = {10 * 1024 * 1024, RLIM_INFINITY};
 	int opt, longindex, err, cg_fd = 0;
+	struct sockmap_options options = {0};
 	int test = PING_PONG;
 	char filename[256];
 
-	while ((opt = getopt_long(argc, argv, "hvc:r:i:l:t:",
+	while ((opt = getopt_long(argc, argv, ":dhvc:r:i:l:t:",
 				  long_options, &longindex)) != -1) {
 		switch (opt) {
-		/* Cgroup configuration */
+		case 's':
+			txmsg_start = atoi(optarg);
+			break;
+		case 'e':
+			txmsg_end = atoi(optarg);
+			break;
+		case 'a':
+			txmsg_apply = atoi(optarg);
+			break;
+		case 'k':
+			txmsg_cork = atoi(optarg);
+			break;
 		case 'c':
 			cg_fd = open(optarg, O_DIRECTORY, O_RDONLY);
 			if (cg_fd < 0) {
@@ -470,13 +601,16 @@ int main(int argc, char **argv)
 			rate = atoi(optarg);
 			break;
 		case 'v':
-			verbose = 1;
+			options.verbose = 1;
 			break;
 		case 'i':
 			iov_count = atoi(optarg);
 			break;
 		case 'l':
 			length = atoi(optarg);
+			break;
+		case 'd':
+			options.data_test = true;
 			break;
 		case 't':
 			if (strcmp(optarg, "ping") == 0) {
@@ -485,10 +619,16 @@ int main(int argc, char **argv)
 				test = SENDMSG;
 			} else if (strcmp(optarg, "base") == 0) {
 				test = BASE;
+			} else if (strcmp(optarg, "base_sendpage") == 0) {
+				test = BASE_SENDPAGE;
+			} else if (strcmp(optarg, "sendpage") == 0) {
+				test = SENDPAGE;
 			} else {
 				usage(argv);
 				return -1;
 			}
+			break;
+		case 0:
 			break;
 		case 'h':
 		default:
@@ -515,15 +655,15 @@ int main(int argc, char **argv)
 	/* catch SIGINT */
 	signal(SIGINT, running_handler);
 
-	/* If base test skip BPF setup */
-	if (test == BASE)
-		goto run;
-
 	if (load_bpf_file(filename)) {
 		fprintf(stderr, "load_bpf_file: (%s) %s\n",
 			filename, strerror(errno));
 		return 1;
 	}
+
+	/* If base test skip BPF setup */
+	if (test == BASE || test == BASE_SENDPAGE)
+		goto run;
 
 	/* Attach programs to sockmap */
 	err = bpf_prog_attach(prog_fd[0], map_fd[0],
@@ -557,13 +697,126 @@ run:
 		goto out;
 	}
 
-	if (test == PING_PONG)
-		err = forever_ping_pong(rate, verbose);
-	else if (test == SENDMSG)
-		err = sendmsg_test(iov_count, length, rate, verbose, false);
-	else if (test == BASE)
-		err = sendmsg_test(iov_count, length, rate, verbose, true);
+	/* Attach txmsg program to sockmap */
+	if (txmsg_pass)
+		tx_prog_fd = prog_fd[3];
+	else if (txmsg_noisy)
+		tx_prog_fd = prog_fd[4];
+	else if (txmsg_redir)
+		tx_prog_fd = prog_fd[5];
+	else if (txmsg_redir_noisy)
+		tx_prog_fd = prog_fd[6];
+	else if (txmsg_drop)
+		tx_prog_fd = prog_fd[9];
+	/* apply and cork must be last */
+	else if (txmsg_apply)
+		tx_prog_fd = prog_fd[7];
+	else if (txmsg_cork)
+		tx_prog_fd = prog_fd[8];
 	else
+		tx_prog_fd = 0;
+
+	if (tx_prog_fd) {
+		int redir_fd, i = 0;
+
+		err = bpf_prog_attach(tx_prog_fd,
+				      map_fd[1], BPF_SK_MSG_VERDICT, 0);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_prog_attach (txmsg): %d (%s)\n",
+				err, strerror(errno));
+			return err;
+		}
+
+		err = bpf_map_update_elem(map_fd[1], &i, &c1, BPF_ANY);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_map_update_elem (txmsg):  %d (%s\n",
+				err, strerror(errno));
+			return err;
+		}
+
+		if (txmsg_redir || txmsg_redir_noisy)
+			redir_fd = c2;
+		else
+			redir_fd = c1;
+
+		err = bpf_map_update_elem(map_fd[2], &i, &redir_fd, BPF_ANY);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_map_update_elem (txmsg):  %d (%s\n",
+				err, strerror(errno));
+			return err;
+		}
+
+		if (txmsg_apply) {
+			err = bpf_map_update_elem(map_fd[3],
+						  &i, &txmsg_apply, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (apply_bytes):  %d (%s\n",
+					err, strerror(errno));
+				return err;
+			}
+		}
+
+		if (txmsg_cork) {
+			err = bpf_map_update_elem(map_fd[4],
+						  &i, &txmsg_cork, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (cork_bytes):  %d (%s\n",
+					err, strerror(errno));
+				return err;
+			}
+		}
+
+		if (txmsg_start) {
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_start, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (txmsg_start):  %d (%s)\n",
+					err, strerror(errno));
+				return err;
+			}
+		}
+
+		if (txmsg_end) {
+			i = 1;
+			err = bpf_map_update_elem(map_fd[5],
+						  &i, &txmsg_end, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (txmsg_end):  %d (%s)\n",
+					err, strerror(errno));
+				return err;
+			}
+		}
+	}
+
+	if (txmsg_drop)
+		options.drop_expected = true;
+
+	if (test == PING_PONG)
+		err = forever_ping_pong(rate, &options);
+	else if (test == SENDMSG) {
+		options.base = false;
+		options.sendpage = false;
+		err = sendmsg_test(iov_count, length, rate, &options);
+	} else if (test == SENDPAGE) {
+		options.base = false;
+		options.sendpage = true;
+		err = sendmsg_test(iov_count, length, rate, &options);
+	} else if (test == BASE) {
+		options.base = true;
+		options.sendpage = false;
+		err = sendmsg_test(iov_count, length, rate, &options);
+	} else if (test == BASE_SENDPAGE) {
+		options.base = true;
+		options.sendpage = true;
+		err = sendmsg_test(iov_count, length, rate, &options);
+	} else
 		fprintf(stderr, "unknown test\n");
 out:
 	bpf_prog_detach2(prog_fd[2], cg_fd, BPF_CGROUP_SOCK_OPS);

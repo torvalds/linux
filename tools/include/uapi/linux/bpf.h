@@ -133,6 +133,7 @@ enum bpf_prog_type {
 	BPF_PROG_TYPE_SOCK_OPS,
 	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_CGROUP_DEVICE,
+	BPF_PROG_TYPE_SK_MSG,
 };
 
 enum bpf_attach_type {
@@ -143,6 +144,7 @@ enum bpf_attach_type {
 	BPF_SK_SKB_STREAM_PARSER,
 	BPF_SK_SKB_STREAM_VERDICT,
 	BPF_CGROUP_DEVICE,
+	BPF_SK_MSG_VERDICT,
 	__MAX_BPF_ATTACH_TYPE
 };
 
@@ -230,6 +232,28 @@ enum bpf_attach_type {
 /* Flags for accessing BPF object */
 #define BPF_F_RDONLY		(1U << 3)
 #define BPF_F_WRONLY		(1U << 4)
+
+/* Flag for stack_map, store build_id+offset instead of pointer */
+#define BPF_F_STACK_BUILD_ID	(1U << 5)
+
+enum bpf_stack_build_id_status {
+	/* user space need an empty entry to identify end of a trace */
+	BPF_STACK_BUILD_ID_EMPTY = 0,
+	/* with valid build_id and offset */
+	BPF_STACK_BUILD_ID_VALID = 1,
+	/* couldn't get build_id, fallback to ip */
+	BPF_STACK_BUILD_ID_IP = 2,
+};
+
+#define BPF_BUILD_ID_SIZE 20
+struct bpf_stack_build_id {
+	__s32		status;
+	unsigned char	build_id[BPF_BUILD_ID_SIZE];
+	union {
+		__u64	offset;
+		__u64	ip;
+	};
+};
 
 union bpf_attr {
 	struct { /* anonymous struct used by BPF_MAP_CREATE command */
@@ -696,6 +720,15 @@ union bpf_attr {
  * int bpf_override_return(pt_regs, rc)
  *	@pt_regs: pointer to struct pt_regs
  *	@rc: the return value to set
+ *
+ * int bpf_msg_redirect_map(map, key, flags)
+ *     Redirect msg to a sock in map using key as a lookup key for the
+ *     sock in map.
+ *     @map: pointer to sockmap
+ *     @key: key to lookup sock in map
+ *     @flags: reserved for future use
+ *     Return: SK_PASS
+ *
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -757,7 +790,11 @@ union bpf_attr {
 	FN(perf_prog_read_value),	\
 	FN(getsockopt),			\
 	FN(override_return),		\
-	FN(sock_ops_cb_flags_set),
+	FN(sock_ops_cb_flags_set),	\
+	FN(msg_redirect_map),		\
+	FN(msg_apply_bytes),		\
+	FN(msg_cork_bytes),		\
+	FN(msg_pull_data),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -917,6 +954,14 @@ struct xdp_md {
 enum sk_action {
 	SK_DROP = 0,
 	SK_PASS,
+};
+
+/* user accessible metadata for SK_MSG packet hook, new fields must
+ * be added to the end of this structure
+ */
+struct sk_msg_md {
+	void *data;
+	void *data_end;
 };
 
 #define BPF_TAG_SIZE	8
