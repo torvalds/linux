@@ -2046,7 +2046,7 @@ static void intel_vgpu_destroy_all_ppgtt_mm(struct intel_vgpu *vgpu)
 	}
 
 	if (GEM_WARN_ON(!list_empty(&vgpu->gtt.ppgtt_mm_list_head)))
-		gvt_err("vgpu ppgtt mm is not fully destoried\n");
+		gvt_err("vgpu ppgtt mm is not fully destroyed\n");
 
 	if (GEM_WARN_ON(!radix_tree_empty(&vgpu->gtt.spt_tree))) {
 		gvt_err("Why we still has spt not freed?\n");
@@ -2288,6 +2288,28 @@ void intel_gvt_clean_gtt(struct intel_gvt *gvt)
 
 	if (enable_out_of_sync)
 		clean_spt_oos(gvt);
+}
+
+/**
+ * intel_vgpu_invalidate_ppgtt - invalidate PPGTT instances
+ * @vgpu: a vGPU
+ *
+ * This function is called when invalidate all PPGTT instances of a vGPU.
+ *
+ */
+void intel_vgpu_invalidate_ppgtt(struct intel_vgpu *vgpu)
+{
+	struct list_head *pos, *n;
+	struct intel_vgpu_mm *mm;
+
+	list_for_each_safe(pos, n, &vgpu->gtt.ppgtt_mm_list_head) {
+		mm = container_of(pos, struct intel_vgpu_mm, ppgtt_mm.list);
+		if (mm->type == INTEL_GVT_MM_PPGTT) {
+			list_del_init(&mm->ppgtt_mm.lru_list);
+			if (mm->ppgtt_mm.shadowed)
+				invalidate_ppgtt_mm(mm);
+		}
+	}
 }
 
 /**

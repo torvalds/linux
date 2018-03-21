@@ -184,7 +184,7 @@ static struct gvt_dma *__gvt_cache_find_gfn(struct intel_vgpu *vgpu, gfn_t gfn)
 	return NULL;
 }
 
-static void __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
+static int __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 		dma_addr_t dma_addr)
 {
 	struct gvt_dma *new, *itr;
@@ -192,7 +192,7 @@ static void __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 
 	new = kzalloc(sizeof(struct gvt_dma), GFP_KERNEL);
 	if (!new)
-		return;
+		return -ENOMEM;
 
 	new->vgpu = vgpu;
 	new->gfn = gfn;
@@ -229,6 +229,7 @@ static void __gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn,
 	rb_insert_color(&new->dma_addr_node, &vgpu->vdev.dma_addr_cache);
 
 	vgpu->vdev.nr_cache_entries++;
+	return 0;
 }
 
 static void __gvt_cache_remove_entry(struct intel_vgpu *vgpu,
@@ -1586,11 +1587,12 @@ int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
 	entry = __gvt_cache_find_gfn(info->vgpu, gfn);
 	if (!entry) {
 		ret = gvt_dma_map_page(vgpu, gfn, dma_addr);
-		if (ret) {
-			mutex_unlock(&info->vgpu->vdev.cache_lock);
-			return ret;
-		}
-		__gvt_cache_add(info->vgpu, gfn, *dma_addr);
+		if (ret)
+			goto err_unlock;
+
+		ret = __gvt_cache_add(info->vgpu, gfn, *dma_addr);
+		if (ret)
+			goto err_unmap;
 	} else {
 		kref_get(&entry->ref);
 		*dma_addr = entry->dma_addr;
@@ -1598,6 +1600,12 @@ int kvmgt_dma_map_guest_page(unsigned long handle, unsigned long gfn,
 
 	mutex_unlock(&info->vgpu->vdev.cache_lock);
 	return 0;
+
+err_unmap:
+	gvt_dma_unmap_page(vgpu, gfn, *dma_addr);
+err_unlock:
+	mutex_unlock(&info->vgpu->vdev.cache_lock);
+	return ret;
 }
 
 static void __gvt_dma_release(struct kref *ref)
