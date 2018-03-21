@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/io.h>
 
-#define HCLGE_CMDQ_TX_TIMEOUT		1000
+#define HCLGE_CMDQ_TX_TIMEOUT		30000
 
 struct hclge_dev;
 struct hclge_desc {
