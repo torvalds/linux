@@ -1,5 +1,8 @@
+.. _z3fold:
+
+======
 z3fold
-------
+======
 
 z3fold is a special purpose allocator for storing compressed pages.
 It is designed to store up to three compressed pages per physical page.
@@ -7,6 +10,7 @@ It is a zbud derivative which allows for higher compression
 ratio keeping the simplicity and determinism of its predecessor.
 
 The main differences between z3fold and zbud are:
+
 * unlike zbud, z3fold allows for up to PAGE_SIZE allocations
 * z3fold can hold up to 3 compressed pages in its page
 * z3fold doesn't export any API itself and is thus intended to be used
