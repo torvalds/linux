@@ -1763,7 +1763,7 @@ static int tsl2x7x_probe(struct i2c_client *clientp,
 		ret = devm_request_threaded_irq(&clientp->dev, clientp->irq,
 						NULL,
 						&tsl2x7x_event_handler,
-						IRQF_TRIGGER_RISING |
+						IRQF_TRIGGER_FALLING |
 						IRQF_ONESHOT,
 						"TSL2X7X_event",
 						indio_dev);
