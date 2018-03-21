@@ -581,8 +581,7 @@ static const struct amdgpu_irq_src_funcs smu9_irq_funcs = {
 	.process = phm_irq_process,
 };
 
-int smu9_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
-		const void *info)
+int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_irq_src *source =
 		kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);

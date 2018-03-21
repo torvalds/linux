@@ -77,8 +77,7 @@ int phm_irq_process(struct amdgpu_device *adev,
 			   struct amdgpu_irq_src *source,
 			   struct amdgpu_iv_entry *entry);
 
-int smu9_register_thermal_interrupt(struct pp_hwmgr *hwmgr,
-		const void *info);
+int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr);
 
 #define PHM_FIELD_SHIFT(reg, field) reg##__##field##__SHIFT
 #define PHM_FIELD_MASK(reg, field) reg##__##field##_MASK

@@ -287,8 +287,7 @@ struct pp_hwmgr_func {
 	int (*get_fan_speed_rpm)(struct pp_hwmgr *hwmgr, uint32_t *speed);
 	int (*reset_fan_speed_to_default)(struct pp_hwmgr *hwmgr);
 	int (*uninitialize_thermal_controller)(struct pp_hwmgr *hwmgr);
-	int (*register_internal_thermal_interrupt)(struct pp_hwmgr *hwmgr,
-					const void *thermal_interrupt_info);
+	int (*register_irq_handlers)(struct pp_hwmgr *hwmgr);
 	bool (*check_smc_update_required_for_display_configuration)(struct pp_hwmgr *hwmgr);
 	int (*check_states_equal)(struct pp_hwmgr *hwmgr,
 					const struct pp_hw_power_state *pstate1,

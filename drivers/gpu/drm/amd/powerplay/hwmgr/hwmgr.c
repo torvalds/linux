@@ -206,7 +206,7 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	if (ret)
 		goto err2;
 
-	ret = phm_register_thermal_interrupt(hwmgr, NULL);
+	ret = phm_register_irq_handlers(hwmgr);
 	if (ret)
 		goto err2;
 

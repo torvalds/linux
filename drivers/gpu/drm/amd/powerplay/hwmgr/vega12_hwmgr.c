@@ -2557,7 +2557,7 @@ static const struct pp_hwmgr_func vega12_hwmgr_funcs = {
 #endif
 	.notify_cac_buffer_info = vega12_notify_cac_buffer_info,
 	.get_thermal_temperature_range = vega12_get_thermal_temperature_range,
-	.register_internal_thermal_interrupt = smu9_register_thermal_interrupt,
+	.register_irq_handlers = smu9_register_irq_handlers,
 	.start_thermal_controller = vega12_start_thermal_controller,
 };
 

@@ -417,7 +417,7 @@ extern int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 extern int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level);
 extern int phm_display_configuration_changed(struct pp_hwmgr *hwmgr);
 extern int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
-extern int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info);
+extern int phm_register_irq_handlers(struct pp_hwmgr *hwmgr);
 extern int phm_start_thermal_controller(struct pp_hwmgr *hwmgr);
 extern int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr);
 extern bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr);

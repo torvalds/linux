@@ -3998,8 +3998,7 @@ static int smu7_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 			PPSMC_MSG_SetFanRpmMax, us_max_fan_rpm);
 }
 
-static int smu7_register_internal_thermal_interrupt(struct pp_hwmgr *hwmgr,
-					const void *thermal_interrupt_info)
+static int smu7_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
 	return 0;
 }
@@ -4984,7 +4983,7 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_fan_speed_rpm = smu7_fan_ctrl_get_fan_speed_rpm,
 	.set_fan_speed_rpm = smu7_fan_ctrl_set_fan_speed_rpm,
 	.uninitialize_thermal_controller = smu7_thermal_ctrl_uninitialize_thermal_controller,
-	.register_internal_thermal_interrupt = smu7_register_internal_thermal_interrupt,
+	.register_irq_handlers = smu7_register_irq_handlers,
 	.check_smc_update_required_for_display_configuration = smu7_check_smc_update_required_for_display_configuration,
 	.check_states_equal = smu7_check_states_equal,
 	.set_fan_control_mode = smu7_set_fan_control_mode,
