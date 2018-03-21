@@ -84,7 +84,9 @@
 
 static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
+#ifdef CONFIG_SMP
 static unsigned long *stale_map[NR_CPUS];
+#endif
 static struct mm_struct **context_mm;
 static DEFINE_RAW_SPINLOCK(context_lock);
 
@@ -165,7 +167,9 @@ static unsigned int steal_context_smp(unsigned int id)
 static unsigned int steal_all_contexts(void)
 {
 	struct mm_struct *mm;
+#ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
+#endif
 	unsigned int id;
 
 	for (id = FIRST_CONTEXT; id <= LAST_CONTEXT; id++) {
@@ -183,7 +187,9 @@ static unsigned int steal_all_contexts(void)
 			mm->context.active = 0;
 #endif
 		}
+#ifdef CONFIG_SMP
 		__clear_bit(id, stale_map[cpu]);
+#endif
 	}
 
 	/* Flush the TLB for all contexts (not to be used on SMP) */
@@ -202,7 +208,9 @@ static unsigned int steal_all_contexts(void)
 static unsigned int steal_context_up(unsigned int id)
 {
 	struct mm_struct *mm;
+#ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
+#endif
 
 	/* Pick up the victim mm */
 	mm = context_mm[id];
@@ -216,7 +224,9 @@ static unsigned int steal_context_up(unsigned int id)
 	mm->context.id = MMU_NO_CONTEXT;
 
 	/* XXX This clear should ultimately be part of local_flush_tlb_mm */
+#ifdef CONFIG_SMP
 	__clear_bit(id, stale_map[cpu]);
+#endif
 
 	return id;
 }
@@ -255,7 +265,10 @@ static void context_check_map(void) { }
 void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 			struct task_struct *tsk)
 {
-	unsigned int i, id, cpu = smp_processor_id();
+	unsigned int id;
+#ifdef CONFIG_SMP
+	unsigned int i, cpu = smp_processor_id();
+#endif
 	unsigned long *map;
 
 	/* No lockless fast path .. yet */
@@ -329,6 +342,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	/* If that context got marked stale on this CPU, then flush the
 	 * local TLB for it and unmark it before we use it
 	 */
+#ifdef CONFIG_SMP
 	if (test_bit(id, stale_map[cpu])) {
 		pr_hardcont(" | stale flush %d [%d..%d]",
 			    id, cpu_first_thread_sibling(cpu),
@@ -343,6 +357,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 				__clear_bit(id, stale_map[i]);
 		}
 	}
+#endif
 
 	/* Flick the MMU and release lock */
 	pr_hardcont(" -> %d\n", id);
@@ -448,9 +463,7 @@ void __init mmu_context_init(void)
 	 */
 	context_map = memblock_virt_alloc(CTX_MAP_SIZE, 0);
 	context_mm = memblock_virt_alloc(sizeof(void *) * (LAST_CONTEXT + 1), 0);
-#ifndef CONFIG_SMP
-	stale_map[0] = memblock_virt_alloc(CTX_MAP_SIZE, 0);
-#else
+#ifdef CONFIG_SMP
 	stale_map[boot_cpuid] = memblock_virt_alloc(CTX_MAP_SIZE, 0);
 
 	cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
