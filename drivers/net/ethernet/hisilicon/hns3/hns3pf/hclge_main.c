@@ -1026,6 +1026,45 @@ static int hclge_parse_speed(int speed_cmd, int *speed)
 	return 0;
 }
 
+static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
+					u8 speed_ability)
+{
+	unsigned long *supported = hdev->hw.mac.supported;
+
+	if (speed_ability & HCLGE_SUPPORT_1G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+			supported);
+
+	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+			supported);
+
+	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+			supported);
+
+	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+			supported);
+
+	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+			supported);
+
+	set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, supported);
+	set_bit(ETHTOOL_LINK_MODE_Pause_BIT, supported);
+}
+
+static void hclge_parse_link_mode(struct hclge_dev *hdev, u8 speed_ability)
+{
+	u8 media_type = hdev->hw.mac.media_type;
+
+	if (media_type != HNAE3_MEDIA_TYPE_FIBER)
+		return;
+
+	hclge_parse_fiber_link_mode(hdev, speed_ability);
+}
+
 static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 {
 	struct hclge_cfg_param_cmd *req;
@@ -1074,6 +1113,10 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 
 	req = (struct hclge_cfg_param_cmd *)desc[1].data;
 	cfg->numa_node_map = __le32_to_cpu(req->param[0]);
+
+	cfg->speed_ability = hnae_get_field(__le32_to_cpu(req->param[1]),
+					    HCLGE_CFG_SPEED_ABILITY_M,
+					    HCLGE_CFG_SPEED_ABILITY_S);
 }
 
 /* hclge_get_cfg: query the static parameter from flash
@@ -1161,6 +1204,8 @@ static int hclge_configure(struct hclge_dev *hdev)
 		dev_err(&hdev->pdev->dev, "Get wrong speed ret=%d.\n", ret);
 		return ret;
 	}
+
+	hclge_parse_link_mode(hdev, cfg.speed_ability);
 
 	if ((hdev->tc_max > HNAE3_MAX_TC) ||
 	    (hdev->tc_max < 1)) {
@@ -6061,6 +6106,42 @@ static int hclge_update_led_status(struct hclge_dev *hdev)
 					HCLGE_LED_NO_CHANGE);
 }
 
+static void hclge_get_link_mode(struct hnae3_handle *handle,
+				unsigned long *supported,
+				unsigned long *advertising)
+{
+	unsigned int size = BITS_TO_LONGS(__ETHTOOL_LINK_MODE_MASK_NBITS);
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	unsigned int idx = 0;
+
+	for (; idx < size; idx++) {
+		supported[idx] = hdev->hw.mac.supported[idx];
+		advertising[idx] = hdev->hw.mac.advertising[idx];
+	}
+}
+
+static void hclge_get_port_type(struct hnae3_handle *handle,
+				u8 *port_type)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u8 media_type = hdev->hw.mac.media_type;
+
+	switch (media_type) {
+	case HNAE3_MEDIA_TYPE_FIBER:
+		*port_type = PORT_FIBRE;
+		break;
+	case HNAE3_MEDIA_TYPE_COPPER:
+		*port_type = PORT_TP;
+		break;
+	case HNAE3_MEDIA_TYPE_UNKNOWN:
+	default:
+		*port_type = PORT_OTHER;
+		break;
+	}
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -6116,6 +6197,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_regs_len = hclge_get_regs_len,
 	.get_regs = hclge_get_regs,
 	.set_led_id = hclge_set_led_id,
+	.get_link_mode = hclge_get_link_mode,
+	.get_port_type = hclge_get_port_type,
 };
 
 static struct hnae3_ae_algo ae_algo = {

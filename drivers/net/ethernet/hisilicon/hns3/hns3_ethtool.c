@@ -74,19 +74,6 @@ struct hns3_link_mode_mapping {
 	u32 ethtool_link_mode;
 };
 
-static const struct hns3_link_mode_mapping hns3_lm_map[] = {
-	{HNS3_LM_FIBRE_BIT, ETHTOOL_LINK_MODE_FIBRE_BIT},
-	{HNS3_LM_AUTONEG_BIT, ETHTOOL_LINK_MODE_Autoneg_BIT},
-	{HNS3_LM_TP_BIT, ETHTOOL_LINK_MODE_TP_BIT},
-	{HNS3_LM_PAUSE_BIT, ETHTOOL_LINK_MODE_Pause_BIT},
-	{HNS3_LM_BACKPLANE_BIT, ETHTOOL_LINK_MODE_Backplane_BIT},
-	{HNS3_LM_10BASET_HALF_BIT, ETHTOOL_LINK_MODE_10baseT_Half_BIT},
-	{HNS3_LM_10BASET_FULL_BIT, ETHTOOL_LINK_MODE_10baseT_Full_BIT},
-	{HNS3_LM_100BASET_HALF_BIT, ETHTOOL_LINK_MODE_100baseT_Half_BIT},
-	{HNS3_LM_100BASET_FULL_BIT, ETHTOOL_LINK_MODE_100baseT_Full_BIT},
-	{HNS3_LM_1000BASET_FULL_BIT, ETHTOOL_LINK_MODE_1000baseT_Full_BIT},
-};
-
 static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
@@ -365,24 +352,6 @@ static void hns3_self_test(struct net_device *ndev,
 		dev_open(ndev);
 }
 
-static void hns3_driv_to_eth_caps(u32 caps, struct ethtool_link_ksettings *cmd,
-				  bool is_advertised)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hns3_lm_map); i++) {
-		if (!(caps & hns3_lm_map[i].hns3_link_mode))
-			continue;
-
-		if (is_advertised)
-			__set_bit(hns3_lm_map[i].ethtool_link_mode,
-				  cmd->link_modes.advertising);
-		else
-			__set_bit(hns3_lm_map[i].ethtool_link_mode,
-				  cmd->link_modes.supported);
-	}
-}
-
 static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
@@ -594,9 +563,6 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	u32 flowctrl_adv = 0;
-	u32 supported_caps;
-	u32 advertised_caps;
-	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
 	u8 link_stat;
 
 	if (!h->ae_algo || !h->ae_algo->ops)
@@ -619,62 +585,16 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 
-	/* 2.media_type get from bios parameter block */
-	if (h->ae_algo->ops->get_media_type) {
-		h->ae_algo->ops->get_media_type(h, &media_type);
+	/* 2.get link mode and port type*/
+	if (h->ae_algo->ops->get_link_mode)
+		h->ae_algo->ops->get_link_mode(h,
+					       cmd->link_modes.supported,
+					       cmd->link_modes.advertising);
 
-		switch (media_type) {
-		case HNAE3_MEDIA_TYPE_FIBER:
-			cmd->base.port = PORT_FIBRE;
-			supported_caps = HNS3_LM_FIBRE_BIT |
-					 HNS3_LM_AUTONEG_BIT |
-					 HNS3_LM_PAUSE_BIT |
-					 HNS3_LM_1000BASET_FULL_BIT;
-
-			advertised_caps = supported_caps;
-			break;
-		case HNAE3_MEDIA_TYPE_COPPER:
-			cmd->base.port = PORT_TP;
-			supported_caps = HNS3_LM_TP_BIT |
-					 HNS3_LM_AUTONEG_BIT |
-					 HNS3_LM_PAUSE_BIT |
-					 HNS3_LM_1000BASET_FULL_BIT |
-					 HNS3_LM_100BASET_FULL_BIT |
-					 HNS3_LM_100BASET_HALF_BIT |
-					 HNS3_LM_10BASET_FULL_BIT |
-					 HNS3_LM_10BASET_HALF_BIT;
-			advertised_caps = supported_caps;
-			break;
-		case HNAE3_MEDIA_TYPE_BACKPLANE:
-			cmd->base.port = PORT_NONE;
-			supported_caps = HNS3_LM_BACKPLANE_BIT |
-					 HNS3_LM_PAUSE_BIT |
-					 HNS3_LM_AUTONEG_BIT |
-					 HNS3_LM_1000BASET_FULL_BIT |
-					 HNS3_LM_100BASET_FULL_BIT |
-					 HNS3_LM_100BASET_HALF_BIT |
-					 HNS3_LM_10BASET_FULL_BIT |
-					 HNS3_LM_10BASET_HALF_BIT;
-
-			advertised_caps = supported_caps;
-			break;
-		case HNAE3_MEDIA_TYPE_UNKNOWN:
-		default:
-			cmd->base.port = PORT_OTHER;
-			supported_caps = 0;
-			advertised_caps = 0;
-			break;
-		}
-
-		if (!cmd->base.autoneg)
-			advertised_caps &= ~HNS3_LM_AUTONEG_BIT;
-
-		advertised_caps &= ~HNS3_LM_PAUSE_BIT;
-
-		/* now, map driver link modes to ethtool link modes */
-		hns3_driv_to_eth_caps(supported_caps, cmd, false);
-		hns3_driv_to_eth_caps(advertised_caps, cmd, true);
-	}
+	cmd->base.port = PORT_NONE;
+	if (h->ae_algo->ops->get_port_type)
+		h->ae_algo->ops->get_port_type(h,
+					       &cmd->base.port);
 
 	/* 3.mdix_ctrl&mdix get from phy reg */
 	if (h->ae_algo->ops->get_mdix_mode)

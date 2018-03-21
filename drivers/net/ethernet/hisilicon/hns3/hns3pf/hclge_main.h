@@ -106,6 +106,12 @@
 #define HCLGE_MAC_MIN_FRAME		64
 #define HCLGE_MAC_MAX_FRAME		9728
 
+#define HCLGE_SUPPORT_1G_BIT		BIT(0)
+#define HCLGE_SUPPORT_10G_BIT		BIT(1)
+#define HCLGE_SUPPORT_25G_BIT		BIT(2)
+#define HCLGE_SUPPORT_50G_BIT		BIT(3)
+#define HCLGE_SUPPORT_100G_BIT		BIT(4)
+
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
 	HCLGE_STATE_DOWN,
@@ -170,6 +176,8 @@ struct hclge_mac {
 	struct phy_device *phydev;
 	struct mii_bus *mdio_bus;
 	phy_interface_t phy_if;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 };
 
 struct hclge_hw {
@@ -236,6 +244,7 @@ struct hclge_cfg {
 	u8 mac_addr[ETH_ALEN];
 	u8 default_speed;
 	u32 numa_node_map;
+	u8 speed_ability;
 };
 
 struct hclge_tm_info {
