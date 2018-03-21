@@ -806,6 +806,7 @@ struct drm_amdgpu_info_firmware {
 #define AMDGPU_VRAM_TYPE_GDDR5 5
 #define AMDGPU_VRAM_TYPE_HBM   6
 #define AMDGPU_VRAM_TYPE_DDR3  7
+#define AMDGPU_VRAM_TYPE_DDR4  8
 
 struct drm_amdgpu_info_device {
 	/** PCI Device ID */

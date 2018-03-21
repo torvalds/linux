@@ -176,8 +176,7 @@ static struct ttm_backend_func bochs_tt_backend_func = {
 	.destroy = &bochs_ttm_backend_destroy,
 };
 
-static struct ttm_tt *bochs_ttm_tt_create(struct ttm_bo_device *bdev,
-					  unsigned long size,
+static struct ttm_tt *bochs_ttm_tt_create(struct ttm_buffer_object *bo,
 					  uint32_t page_flags)
 {
 	struct ttm_tt *tt;
@@ -186,7 +185,7 @@ static struct ttm_tt *bochs_ttm_tt_create(struct ttm_bo_device *bdev,
 	if (tt == NULL)
 		return NULL;
 	tt->func = &bochs_tt_backend_func;
-	if (ttm_tt_init(tt, bdev, size, page_flags)) {
+	if (ttm_tt_init(tt, bo, page_flags)) {
 		kfree(tt);
 		return NULL;
 	}

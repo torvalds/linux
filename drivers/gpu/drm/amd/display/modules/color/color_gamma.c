@@ -1267,7 +1267,8 @@ bool  mod_color_calculate_curve(enum dc_transfer_func_predefined trans,
 	bool ret = false;
 	struct pwl_float_data_ex *rgb_regamma = NULL;
 
-	if (trans == TRANSFER_FUNCTION_UNITY) {
+	if (trans == TRANSFER_FUNCTION_UNITY ||
+		trans == TRANSFER_FUNCTION_LINEAR) {
 		points->end_exponent = 0;
 		points->x_point_at_y1_red = 1;
 		points->x_point_at_y1_green = 1;
@@ -1337,7 +1338,8 @@ bool  mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 	bool ret = false;
 	struct pwl_float_data_ex *rgb_degamma = NULL;
 
-	if (trans == TRANSFER_FUNCTION_UNITY) {
+	if (trans == TRANSFER_FUNCTION_UNITY ||
+		trans == TRANSFER_FUNCTION_LINEAR) {
 
 		for (i = 0; i <= MAX_HW_POINTS ; i++) {
 			points->red[i]    = coordinates_x[i].x;

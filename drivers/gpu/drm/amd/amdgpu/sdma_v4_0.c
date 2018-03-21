@@ -31,8 +31,6 @@
 #include "sdma0/sdma0_4_0_sh_mask.h"
 #include "sdma1/sdma1_4_0_offset.h"
 #include "sdma1/sdma1_4_0_sh_mask.h"
-#include "mmhub/mmhub_1_0_offset.h"
-#include "mmhub/mmhub_1_0_sh_mask.h"
 #include "hdp/hdp_4_0_offset.h"
 #include "sdma0/sdma0_4_1_default.h"
 
@@ -1172,13 +1170,13 @@ static int sdma_v4_0_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_SDMA0, 224,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA0, 224,
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_SDMA1, 224,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA1, 224,
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
@@ -1333,7 +1331,7 @@ static int sdma_v4_0_process_trap_irq(struct amdgpu_device *adev,
 {
 	DRM_DEBUG("IH: SDMA trap\n");
 	switch (entry->client_id) {
-	case AMDGPU_IH_CLIENTID_SDMA0:
+	case SOC15_IH_CLIENTID_SDMA0:
 		switch (entry->ring_id) {
 		case 0:
 			amdgpu_fence_process(&adev->sdma.instance[0].ring);
@@ -1349,7 +1347,7 @@ static int sdma_v4_0_process_trap_irq(struct amdgpu_device *adev,
 			break;
 		}
 		break;
-	case AMDGPU_IH_CLIENTID_SDMA1:
+	case SOC15_IH_CLIENTID_SDMA1:
 		switch (entry->ring_id) {
 		case 0:
 			amdgpu_fence_process(&adev->sdma.instance[1].ring);
@@ -1399,7 +1397,7 @@ static void sdma_v4_0_update_medium_grain_clock_gating(
 		if (def != data)
 			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CLK_CTRL), data);
 
-		if (adev->asic_type == CHIP_VEGA10) {
+		if (adev->sdma.num_instances > 1) {
 			def = data = RREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_CLK_CTRL));
 			data &= ~(SDMA1_CLK_CTRL__SOFT_OVERRIDE7_MASK |
 				  SDMA1_CLK_CTRL__SOFT_OVERRIDE6_MASK |
@@ -1427,7 +1425,7 @@ static void sdma_v4_0_update_medium_grain_clock_gating(
 		if (def != data)
 			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CLK_CTRL), data);
 
-		if (adev->asic_type == CHIP_VEGA10) {
+		if (adev->sdma.num_instances > 1) {
 			def = data = RREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_CLK_CTRL));
 			data |= (SDMA1_CLK_CTRL__SOFT_OVERRIDE7_MASK |
 				 SDMA1_CLK_CTRL__SOFT_OVERRIDE6_MASK |
@@ -1458,7 +1456,7 @@ static void sdma_v4_0_update_medium_grain_light_sleep(
 			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL), data);
 
 		/* 1-not override: enable sdma1 mem light sleep */
-		if (adev->asic_type == CHIP_VEGA10) {
+		if (adev->sdma.num_instances > 1) {
 			def = data = RREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_POWER_CNTL));
 			data |= SDMA1_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 			if (def != data)
@@ -1472,7 +1470,7 @@ static void sdma_v4_0_update_medium_grain_light_sleep(
 			WREG32(SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL), data);
 
 		/* 0-override:disable sdma1 mem light sleep */
-		if (adev->asic_type == CHIP_VEGA10) {
+		if (adev->sdma.num_instances > 1) {
 			def = data = RREG32(SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_POWER_CNTL));
 			data &= ~SDMA1_POWER_CNTL__MEM_POWER_OVERRIDE_MASK;
 			if (def != data)

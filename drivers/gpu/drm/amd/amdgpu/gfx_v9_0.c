@@ -1261,23 +1261,23 @@ static int gfx_v9_0_sw_init(void *handle)
 	adev->gfx.mec.num_queue_per_pipe = 8;
 
 	/* KIQ event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_GRBM_CP, 178, &adev->gfx.kiq.irq);
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, 178, &adev->gfx.kiq.irq);
 	if (r)
 		return r;
 
 	/* EOP Event */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_GRBM_CP, 181, &adev->gfx.eop_irq);
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, 181, &adev->gfx.eop_irq);
 	if (r)
 		return r;
 
 	/* Privileged reg */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_GRBM_CP, 184,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, 184,
 			      &adev->gfx.priv_reg_irq);
 	if (r)
 		return r;
 
 	/* Privileged inst */
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_GRBM_CP, 185,
+	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, 185,
 			      &adev->gfx.priv_inst_irq);
 	if (r)
 		return r;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,16 +21,23 @@
  *
  */
 
-#ifndef _CZ_CLOCK_POWER_GATING_H_
-#define _CZ_CLOCK_POWER_GATING_H_
+#ifndef SMU10_INC_H
+#define SMU10_INC_H
 
-#include "cz_hwmgr.h"
-#include "pp_asicblocks.h"
 
-extern int cz_phm_set_asic_block_gating(struct pp_hwmgr *hwmgr, enum PHM_AsicBlock block, enum PHM_ClockGateSetting gating);
-extern const struct phm_master_table_header cz_phm_enable_clock_power_gatings_master;
-extern void cz_dpm_powergate_vce(struct pp_hwmgr *hwmgr, bool bgate);
-extern void cz_dpm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate);
-extern int cz_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable);
-extern int cz_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable);
-#endif /* _CZ_CLOCK_POWER_GATING_H_ */
+#include "asic_reg/mp/mp_10_0_default.h"
+#include "asic_reg/mp/mp_10_0_offset.h"
+#include "asic_reg/mp/mp_10_0_sh_mask.h"
+
+#include "asic_reg/nbio/nbio_7_0_default.h"
+#include "asic_reg/nbio/nbio_7_0_offset.h"
+#include "asic_reg/nbio/nbio_7_0_sh_mask.h"
+
+#include "asic_reg/thm/thm_10_0_default.h"
+#include "asic_reg/thm/thm_10_0_offset.h"
+#include "asic_reg/thm/thm_10_0_sh_mask.h"
+
+
+#define ixDDI_PHY_GEN_STATUS                       0x3FCE8
+
+#endif

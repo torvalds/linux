@@ -737,10 +737,14 @@ static bool is_panel_backlight_on(struct dce_hwseq *hws)
 
 static bool is_panel_powered_on(struct dce_hwseq *hws)
 {
-	uint32_t value;
+	uint32_t pwr_seq_state, dig_on, dig_on_ovrd;
 
-	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &value);
-	return value == 1;
+
+	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &pwr_seq_state);
+
+	REG_GET_2(LVTMA_PWRSEQ_CNTL, LVTMA_DIGON, &dig_on, LVTMA_DIGON_OVRD, &dig_on_ovrd);
+
+	return (pwr_seq_state == 1) || (dig_on == 1 && dig_on_ovrd == 1);
 }
 
 static enum bp_result link_transmitter_control(
@@ -1002,8 +1006,10 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
 
-	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 		link->dc->hwss.edp_backlight_control(link, true);
+		stream->bl_pwm_level = 0;
+	}
 }
 void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 {
@@ -1128,7 +1134,7 @@ static void build_audio_output(
 static void get_surface_visual_confirm_color(const struct pipe_ctx *pipe_ctx,
 		struct tg_color *color)
 {
-	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->pipe_idx) / 4;
+	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->stream_res.tg->inst) / 4;
 
 	switch (pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB8888:
@@ -2106,9 +2112,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 			return status;
 	}
 
-	/* pplib is notified if disp_num changed */
-	dc->hwss.set_bandwidth(dc, context, true);
-
 	/* to save power */
 	apply_min_clocks(dc, context, &clocks_state, false);
 
@@ -2936,15 +2939,18 @@ void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_cursor_attributes *attributes = &pipe_ctx->stream->cursor_attributes;
 
-	if (pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes)
+	if (pipe_ctx->plane_res.ipp &&
+	    pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes)
 		pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
 				pipe_ctx->plane_res.ipp, attributes);
 
-	if (pipe_ctx->plane_res.mi->funcs->set_cursor_attributes)
+	if (pipe_ctx->plane_res.mi &&
+	    pipe_ctx->plane_res.mi->funcs->set_cursor_attributes)
 		pipe_ctx->plane_res.mi->funcs->set_cursor_attributes(
 				pipe_ctx->plane_res.mi, attributes);
 
-	if (pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes)
+	if (pipe_ctx->plane_res.xfm &&
+	    pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes)
 		pipe_ctx->plane_res.xfm->funcs->set_cursor_attributes(
 				pipe_ctx->plane_res.xfm, attributes);
 }

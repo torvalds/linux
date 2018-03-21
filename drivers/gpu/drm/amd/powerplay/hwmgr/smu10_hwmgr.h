@@ -21,17 +21,17 @@
  *
  */
 
-#ifndef RAVEN_HWMGR_H
-#define RAVEN_HWMGR_H
+#ifndef SMU10_HWMGR_H
+#define SMU10_HWMGR_H
 
 #include "hwmgr.h"
-#include "rv_inc.h"
+#include "smu10_inc.h"
 #include "smu10_driver_if.h"
 #include "rv_ppsmc.h"
 
 
-#define RAVEN_MAX_HARDWARE_POWERLEVELS               8
-#define PHMRAVEN_DYNCLK_NUMBER_OF_TREND_COEFFICIENTS   15
+#define SMU10_MAX_HARDWARE_POWERLEVELS               8
+#define SMU10_DYNCLK_NUMBER_OF_TREND_COEFFICIENTS   15
 
 #define DPMFlags_SCLK_Enabled                     0x00000001
 #define DPMFlags_UVD_Enabled                      0x00000002
@@ -47,10 +47,10 @@
 
 #define SMU_PHYID_SHIFT      8
 
-#define RAVEN_PCIE_POWERGATING_TARGET_GFX            0
-#define RAVEN_PCIE_POWERGATING_TARGET_DDI            1
-#define RAVEN_PCIE_POWERGATING_TARGET_PLLCASCADE     2
-#define RAVEN_PCIE_POWERGATING_TARGET_PHY            3
+#define SMU10_PCIE_POWERGATING_TARGET_GFX            0
+#define SMU10_PCIE_POWERGATING_TARGET_DDI            1
+#define SMU10_PCIE_POWERGATING_TARGET_PLLCASCADE     2
+#define SMU10_PCIE_POWERGATING_TARGET_PHY            3
 
 enum VQ_TYPE {
 	CLOCK_TYPE_DCLK = 0L,
@@ -65,14 +65,14 @@ enum VQ_TYPE {
 #define SUSTAINABLE_CU_MASK    0xff000000
 #define SUSTAINABLE_CU_SHIFT   24
 
-struct rv_dpm_entry {
+struct smu10_dpm_entry {
 	uint32_t soft_min_clk;
 	uint32_t hard_min_clk;
 	uint32_t soft_max_clk;
 	uint32_t hard_max_clk;
 };
 
-struct rv_power_level {
+struct smu10_power_level {
 	uint32_t engine_clock;
 	uint8_t vddc_index;
 	uint8_t ds_divider_index;
@@ -86,14 +86,14 @@ struct rv_power_level {
 	uint8_t rsv[3];
 };
 
-/*used for the nbpsFlags field in rv_power state*/
-#define RAVEN_POWERSTATE_FLAGS_NBPS_FORCEHIGH (1<<0)
-#define RAVEN_POWERSTATE_FLAGS_NBPS_LOCKTOHIGH (1<<1)
-#define RAVEN_POWERSTATE_FLAGS_NBPS_LOCKTOLOW (1<<2)
+/*used for the nbpsFlags field in smu10_power state*/
+#define SMU10_POWERSTATE_FLAGS_NBPS_FORCEHIGH (1<<0)
+#define SMU10_POWERSTATE_FLAGS_NBPS_LOCKTOHIGH (1<<1)
+#define SMU10_POWERSTATE_FLAGS_NBPS_LOCKTOLOW (1<<2)
 
-#define RAVEN_POWERSTATE_FLAGS_BAPM_DISABLE    (1<<0)
+#define SMU10_POWERSTATE_FLAGS_BAPM_DISABLE    (1<<0)
 
-struct rv_uvd_clocks {
+struct smu10_uvd_clocks {
 	uint32_t vclk;
 	uint32_t dclk;
 	uint32_t vclk_low_divider;
@@ -118,16 +118,16 @@ struct pp_disable_nbpslo_flags {
 };
 
 
-enum rv_pstate_previous_action {
+enum smu10_pstate_previous_action {
 	DO_NOTHING = 1,
 	FORCE_HIGH,
 	CANCEL_FORCE_HIGH
 };
 
-struct rv_power_state {
+struct smu10_power_state {
 	unsigned int magic;
 	uint32_t level;
-	struct rv_uvd_clocks uvd_clocks;
+	struct smu10_uvd_clocks uvd_clocks;
 	uint32_t evclk;
 	uint32_t ecclk;
 	uint32_t samclk;
@@ -141,79 +141,79 @@ struct rv_power_state {
 	uint8_t dpm_x_nbps_low;
 	uint8_t dpm_x_nbps_high;
 
-	enum rv_pstate_previous_action action;
+	enum smu10_pstate_previous_action action;
 
-	struct rv_power_level levels[RAVEN_MAX_HARDWARE_POWERLEVELS];
+	struct smu10_power_level levels[SMU10_MAX_HARDWARE_POWERLEVELS];
 	struct pp_disable_nbpslo_flags nbpslo_flags;
 };
 
-#define RAVEN_NUM_NBPSTATES        4
-#define RAVEN_NUM_NBPMEMORYCLOCK   2
+#define SMU10_NUM_NBPSTATES        4
+#define SMU10_NUM_NBPMEMORYCLOCK   2
 
 
-struct rv_display_phy_info_entry {
+struct smu10_display_phy_info_entry {
 	uint8_t                   phy_present;
 	uint8_t                   active_lane_mapping;
 	uint8_t                   display_config_type;
 	uint8_t                   active_num_of_lanes;
 };
 
-#define RAVEN_MAX_DISPLAYPHY_IDS       10
+#define SMU10_MAX_DISPLAYPHY_IDS       10
 
-struct rv_display_phy_info {
+struct smu10_display_phy_info {
 	bool                         display_phy_access_initialized;
-	struct rv_display_phy_info_entry  entries[RAVEN_MAX_DISPLAYPHY_IDS];
+	struct smu10_display_phy_info_entry  entries[SMU10_MAX_DISPLAYPHY_IDS];
 };
 
 #define MAX_DISPLAY_CLOCK_LEVEL 8
 
-struct rv_system_info{
+struct smu10_system_info{
 	uint8_t                      htc_tmp_lmt;
 	uint8_t                      htc_hyst_lmt;
 };
 
 #define MAX_REGULAR_DPM_NUMBER 8
 
-struct rv_mclk_latency_entries {
+struct smu10_mclk_latency_entries {
 	uint32_t  frequency;
 	uint32_t  latency;
 };
 
-struct rv_mclk_latency_table {
+struct smu10_mclk_latency_table {
 	uint32_t  count;
-	struct rv_mclk_latency_entries  entries[MAX_REGULAR_DPM_NUMBER];
+	struct smu10_mclk_latency_entries  entries[MAX_REGULAR_DPM_NUMBER];
 };
 
-struct rv_clock_voltage_dependency_record {
+struct smu10_clock_voltage_dependency_record {
 	uint32_t clk;
 	uint32_t vol;
 };
 
 
-struct rv_voltage_dependency_table {
+struct smu10_voltage_dependency_table {
 	uint32_t count;
-	struct rv_clock_voltage_dependency_record entries[1];
+	struct smu10_clock_voltage_dependency_record entries[1];
 };
 
-struct rv_clock_voltage_information {
-	struct rv_voltage_dependency_table    *vdd_dep_on_dcefclk;
-	struct rv_voltage_dependency_table    *vdd_dep_on_socclk;
-	struct rv_voltage_dependency_table    *vdd_dep_on_fclk;
-	struct rv_voltage_dependency_table    *vdd_dep_on_mclk;
-	struct rv_voltage_dependency_table    *vdd_dep_on_dispclk;
-	struct rv_voltage_dependency_table    *vdd_dep_on_dppclk;
-	struct rv_voltage_dependency_table    *vdd_dep_on_phyclk;
+struct smu10_clock_voltage_information {
+	struct smu10_voltage_dependency_table    *vdd_dep_on_dcefclk;
+	struct smu10_voltage_dependency_table    *vdd_dep_on_socclk;
+	struct smu10_voltage_dependency_table    *vdd_dep_on_fclk;
+	struct smu10_voltage_dependency_table    *vdd_dep_on_mclk;
+	struct smu10_voltage_dependency_table    *vdd_dep_on_dispclk;
+	struct smu10_voltage_dependency_table    *vdd_dep_on_dppclk;
+	struct smu10_voltage_dependency_table    *vdd_dep_on_phyclk;
 };
 
-struct rv_hwmgr {
+struct smu10_hwmgr {
 	uint32_t disable_driver_thermal_policy;
 	uint32_t thermal_auto_throttling_treshold;
-	struct rv_system_info sys_info;
-	struct rv_mclk_latency_table mclk_latency_table;
+	struct smu10_system_info sys_info;
+	struct smu10_mclk_latency_table mclk_latency_table;
 
 	uint32_t ddi_power_gating_disabled;
 
-	struct rv_display_phy_info_entry            display_phy_info;
+	struct smu10_display_phy_info_entry            display_phy_info;
 	uint32_t dce_slow_sclk_threshold;
 
 	bool disp_clk_bypass;
@@ -255,10 +255,10 @@ struct rv_hwmgr {
 	uint32_t fps_low_threshold;
 
 	uint32_t dpm_flags;
-	struct rv_dpm_entry sclk_dpm;
-	struct rv_dpm_entry uvd_dpm;
-	struct rv_dpm_entry vce_dpm;
-	struct rv_dpm_entry acp_dpm;
+	struct smu10_dpm_entry sclk_dpm;
+	struct smu10_dpm_entry uvd_dpm;
+	struct smu10_dpm_entry vce_dpm;
+	struct smu10_dpm_entry acp_dpm;
 	bool acp_power_up_no_dsp;
 
 	uint32_t max_sclk_level;
@@ -291,7 +291,7 @@ struct rv_hwmgr {
 
 	bool                           gfx_off_controled_by_driver;
 	Watermarks_t                      water_marks_table;
-	struct rv_clock_voltage_information   clock_vol_info;
+	struct smu10_clock_voltage_information   clock_vol_info;
 	DpmClocks_t                       clock_table;
 
 	uint32_t active_process_mask;
@@ -302,21 +302,21 @@ struct rv_hwmgr {
 
 struct pp_hwmgr;
 
-int rv_init_function_pointers(struct pp_hwmgr *hwmgr);
+int smu10_init_function_pointers(struct pp_hwmgr *hwmgr);
 
-/* UMD PState Raven Msg Parameters in MHz */
-#define RAVEN_UMD_PSTATE_GFXCLK                 700
-#define RAVEN_UMD_PSTATE_SOCCLK                 626
-#define RAVEN_UMD_PSTATE_FCLK                   933
-#define RAVEN_UMD_PSTATE_VCE                    0x03C00320
+/* UMD PState SMU10 Msg Parameters in MHz */
+#define SMU10_UMD_PSTATE_GFXCLK                 700
+#define SMU10_UMD_PSTATE_SOCCLK                 626
+#define SMU10_UMD_PSTATE_FCLK                   933
+#define SMU10_UMD_PSTATE_VCE                    0x03C00320
 
-#define RAVEN_UMD_PSTATE_PEAK_GFXCLK            1100
-#define RAVEN_UMD_PSTATE_PEAK_SOCCLK            757
-#define RAVEN_UMD_PSTATE_PEAK_FCLK              1200
+#define SMU10_UMD_PSTATE_PEAK_GFXCLK            1100
+#define SMU10_UMD_PSTATE_PEAK_SOCCLK            757
+#define SMU10_UMD_PSTATE_PEAK_FCLK              1200
 
-#define RAVEN_UMD_PSTATE_MIN_GFXCLK             200
-#define RAVEN_UMD_PSTATE_MIN_FCLK               400
-#define RAVEN_UMD_PSTATE_MIN_SOCCLK             200
-#define RAVEN_UMD_PSTATE_MIN_VCE                0x0190012C
+#define SMU10_UMD_PSTATE_MIN_GFXCLK             200
+#define SMU10_UMD_PSTATE_MIN_FCLK               400
+#define SMU10_UMD_PSTATE_MIN_SOCCLK             200
+#define SMU10_UMD_PSTATE_MIN_VCE                0x0190012C
 
 #endif

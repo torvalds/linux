@@ -983,8 +983,6 @@ bool dcn_validate_bandwidth(
 			context->bw.dcn.calc_clk.fclk_khz = (int)(bw_consumed * 1000000 / 32);
 		}
 
-		context->bw.dcn.calc_clk.dram_ccm_us = (int)(v->dram_clock_change_margin);
-		context->bw.dcn.calc_clk.min_active_dram_ccm_us = (int)(v->min_active_dram_clock_change_margin);
 		context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
 		context->bw.dcn.calc_clk.dcfclk_khz = (int)(v->dcfclk * 1000);
 
@@ -998,7 +996,26 @@ bool dcn_validate_bandwidth(
 					dc->debug.min_disp_clk_khz;
 		}
 
-		context->bw.dcn.calc_clk.max_dppclk_khz = context->bw.dcn.calc_clk.dispclk_khz / v->dispclk_dppclk_ratio;
+		context->bw.dcn.calc_clk.dppclk_khz = context->bw.dcn.calc_clk.dispclk_khz / v->dispclk_dppclk_ratio;
+
+		switch (v->voltage_level) {
+		case 0:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vmin0p65 * 1000);
+			break;
+		case 1:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vmid0p72 * 1000);
+			break;
+		case 2:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vnom0p8 * 1000);
+			break;
+		default:
+			context->bw.dcn.calc_clk.max_supported_dppclk_khz =
+					(int)(dc->dcn_soc->max_dppclk_vmax0p9 * 1000);
+			break;
+		}
 
 		for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];

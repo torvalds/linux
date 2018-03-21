@@ -692,8 +692,18 @@ struct crtc_trigger_info {
 	enum trigger_delay delay;
 };
 
-struct dc_crtc_timing {
+enum vrr_state {
+	VRR_STATE_OFF = 0,
+	VRR_STATE_VARIABLE,
+	VRR_STATE_FIXED,
+};
 
+struct dc_crtc_timing_adjust {
+	uint32_t v_total_min;
+	uint32_t v_total_max;
+};
+
+struct dc_crtc_timing {
 	uint32_t h_total;
 	uint32_t h_border_left;
 	uint32_t h_addressable;

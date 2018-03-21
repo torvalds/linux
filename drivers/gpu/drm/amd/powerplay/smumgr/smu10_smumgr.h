@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2017 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,17 +20,31 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#ifndef _PP_INSTANCE_H_
-#define _PP_INSTANCE_H_
 
-struct pp_hwmgr;
+#ifndef PP_SMU10_SMUMANAGER_H
+#define PP_SMU10_SMUMANAGER_H
 
-struct pp_instance {
-	void *parent; /* e.g. amdgpu_device */
-	void *device; /* e.g. cgs_device */
-	bool pm_en;
-	struct pp_hwmgr *hwmgr;
-	struct mutex pp_lock;
+#include "rv_ppsmc.h"
+#include "smu10_driver_if.h"
+
+#define MAX_SMU_TABLE 2
+
+struct smu_table_entry {
+	uint32_t version;
+	uint32_t size;
+	uint32_t table_id;
+	uint64_t mc_addr;
+	void *table;
+	struct amdgpu_bo *handle;
 };
+
+struct smu_table_array {
+	struct smu_table_entry entry[MAX_SMU_TABLE];
+};
+
+struct smu10_smumgr {
+	struct smu_table_array            smu_tables;
+};
+
 
 #endif

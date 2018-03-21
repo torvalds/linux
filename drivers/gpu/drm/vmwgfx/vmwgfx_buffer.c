@@ -693,8 +693,8 @@ static struct ttm_backend_func vmw_ttm_func = {
 	.destroy = vmw_ttm_destroy,
 };
 
-static struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
-				 unsigned long size, uint32_t page_flags)
+static struct ttm_tt *vmw_ttm_tt_create(struct ttm_buffer_object *bo,
+					uint32_t page_flags)
 {
 	struct vmw_ttm_tt *vmw_be;
 	int ret;
@@ -704,13 +704,13 @@ static struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 
 	vmw_be->dma_ttm.ttm.func = &vmw_ttm_func;
-	vmw_be->dev_priv = container_of(bdev, struct vmw_private, bdev);
+	vmw_be->dev_priv = container_of(bo->bdev, struct vmw_private, bdev);
 	vmw_be->mob = NULL;
 
 	if (vmw_be->dev_priv->map_mode == vmw_dma_alloc_coherent)
-		ret = ttm_dma_tt_init(&vmw_be->dma_ttm, bdev, size, page_flags);
+		ret = ttm_dma_tt_init(&vmw_be->dma_ttm, bo, page_flags);
 	else
-		ret = ttm_tt_init(&vmw_be->dma_ttm.ttm, bdev, size, page_flags);
+		ret = ttm_tt_init(&vmw_be->dma_ttm.ttm, bo, page_flags);
 	if (unlikely(ret != 0))
 		goto out_no_init;
 

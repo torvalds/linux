@@ -32,7 +32,7 @@
 #include "amdgpu_vce.h"
 #include "atom.h"
 #include "amd_pcie.h"
-#include "amdgpu_powerplay.h"
+#include "si_dpm.h"
 #include "sid.h"
 #include "si_ih.h"
 #include "gfx_v6_0.h"
@@ -1983,7 +1983,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
@@ -1997,7 +1997,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
@@ -2011,7 +2011,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &si_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v6_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &si_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &si_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		amdgpu_device_ip_block_add(adev, &gfx_v6_0_ip_block);

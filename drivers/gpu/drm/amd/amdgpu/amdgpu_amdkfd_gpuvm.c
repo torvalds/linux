@@ -997,8 +997,8 @@ int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
 	pr_debug("\tcreate BO VA 0x%llx size 0x%llx domain %s\n",
 			va, size, domain_string(alloc_domain));
 
-	ret = amdgpu_bo_create(adev, size, byte_align, false,
-				alloc_domain, alloc_flags, NULL, NULL, &bo);
+	ret = amdgpu_bo_create(adev, size, byte_align,
+				alloc_domain, alloc_flags, ttm_bo_type_device, NULL, &bo);
 	if (ret) {
 		pr_debug("Failed to create BO on domain %s. ret %d\n",
 				domain_string(alloc_domain), ret);

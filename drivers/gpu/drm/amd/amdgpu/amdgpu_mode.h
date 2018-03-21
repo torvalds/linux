@@ -350,6 +350,7 @@ struct amdgpu_mode_info {
 	u16 firmware_flags;
 	/* pointer to backlight encoder */
 	struct amdgpu_encoder *bl_encoder;
+	u8 bl_level; /* saved backlight level */
 	struct amdgpu_audio	audio; /* audio stuff */
 	int			num_crtc; /* number of crtcs */
 	int			num_hpd; /* number of hpd pins */
@@ -550,14 +551,6 @@ struct amdgpu_connector {
 	/* we need to mind the EDID between detect
 	   and get modes due to analog/digital/tvencoder */
 	struct edid *edid;
-	/* number of modes generated from EDID at 'dc_sink' */
-	int num_modes;
-	/* The 'old' sink - before an HPD.
-	 * The 'current' sink is in dc_link->sink. */
-	struct dc_sink *dc_sink;
-	struct dc_link *dc_link;
-	struct dc_sink *dc_em_sink;
-	const struct dc_stream *stream;
 	void *con_priv;
 	bool dac_load_detect;
 	bool detected_by_load; /* if the connection status was determined by load */
@@ -568,27 +561,6 @@ struct amdgpu_connector {
 	enum amdgpu_connector_audio audio;
 	enum amdgpu_connector_dither dither;
 	unsigned pixelclock_for_modeset;
-
-	struct drm_dp_mst_topology_mgr mst_mgr;
-	struct amdgpu_dm_dp_aux dm_dp_aux;
-	struct drm_dp_mst_port *port;
-	struct amdgpu_connector *mst_port;
-	struct amdgpu_encoder *mst_encoder;
-	struct semaphore mst_sem;
-
-	/* TODO see if we can merge with ddc_bus or make a dm_connector */
-	struct amdgpu_i2c_adapter *i2c;
-
-	/* Monitor range limits */
-	int min_vfreq ;
-	int max_vfreq ;
-	int pixel_clock_mhz;
-
-	/*freesync caps*/
-	struct mod_freesync_caps caps;
-
-	struct mutex hpd_lock;
-
 };
 
 /* TODO: start to use this struct and remove same field from base one */

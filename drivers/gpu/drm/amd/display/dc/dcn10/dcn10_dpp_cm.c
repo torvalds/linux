@@ -804,3 +804,12 @@ void dpp1_program_input_lut(
 	REG_UPDATE(CM_IGAM_CONTROL, CM_IGAM_LUT_MODE, rama_occupied ? 3 : 2);
 	REG_GET(CM_IGAM_CONTROL, CM_IGAM_LUT_MODE, &ram_num);
 }
+
+void dpp1_set_hdr_multiplier(
+		struct dpp *dpp_base,
+		uint32_t multiplier)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	REG_UPDATE(CM_HDR_MULT_COEF, CM_HDR_MULT_COEF, multiplier);
+}

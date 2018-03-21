@@ -42,6 +42,7 @@
 #include "dmcu.h"
 #include "dpp.h"
 #include "timing_generator.h"
+#include "abm.h"
 #include "virtual/virtual_link_encoder.h"
 
 #include "link_hwss.h"
@@ -802,6 +803,8 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		dc->hwss.enable_accelerated_mode(dc, context);
 
+	dc->hwss.set_bandwidth(dc, context, false);
+
 	/* re-program planes for existing stream, in case we need to
 	 * free up plane resource for later use
 	 */
@@ -869,6 +872,9 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	}
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
+
+	/* pplib is notified if disp_num changed */
+	dc->hwss.set_bandwidth(dc, context, true);
 
 	dc_release_state(dc->current_state);
 
@@ -1103,9 +1109,6 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 
 	if (u->plane_info->input_tf != u->surface->input_tf)
 		update_flags->bits.input_tf_change = 1;
-
-	if (u->plane_info->sdr_white_level != u->surface->sdr_white_level)
-		update_flags->bits.output_tf_change = 1;
 
 	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror)
 		update_flags->bits.horizontal_mirror_change = 1;
@@ -1361,6 +1364,17 @@ static void commit_planes_for_stream(struct dc *dc,
 
 			dc->hwss.apply_ctx_for_surface(
 					dc, pipe_ctx->stream, stream_status->plane_count, context);
+
+			if (stream_update && stream_update->abm_level && pipe_ctx->stream_res.abm) {
+				if (pipe_ctx->stream_res.tg->funcs->is_blanked) {
+					// if otg funcs defined check if blanked before programming
+					if (!pipe_ctx->stream_res.tg->funcs->is_blanked(pipe_ctx->stream_res.tg))
+						pipe_ctx->stream_res.abm->funcs->set_abm_level(
+								pipe_ctx->stream_res.abm, stream->abm_level);
+				} else
+					pipe_ctx->stream_res.abm->funcs->set_abm_level(
+							pipe_ctx->stream_res.abm, stream->abm_level);
+			}
 		}
 	}
 

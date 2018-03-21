@@ -28,7 +28,6 @@
 #include <linux/types.h>
 #include <drm/amdgpu_drm.h>
 #include "smumgr.h"
-#include "cgs_common.h"
 
 MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
 MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");
@@ -197,6 +196,14 @@ int smum_update_dpm_settings(struct pp_hwmgr *hwmgr, void *profile_setting)
 {
 	if (hwmgr->smumgr_funcs->update_dpm_settings)
 		return hwmgr->smumgr_funcs->update_dpm_settings(hwmgr, profile_setting);
+
+	return -EINVAL;
+}
+
+int smum_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw)
+{
+	if (hwmgr->smumgr_funcs->smc_table_manager)
+		return hwmgr->smumgr_funcs->smc_table_manager(hwmgr, table, table_id, rw);
 
 	return -EINVAL;
 }

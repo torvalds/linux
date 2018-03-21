@@ -291,19 +291,19 @@ static struct ttm_backend_func qxl_backend_func = {
 	.destroy = &qxl_ttm_backend_destroy,
 };
 
-static struct ttm_tt *qxl_ttm_tt_create(struct ttm_bo_device *bdev,
-					unsigned long size, uint32_t page_flags)
+static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
+					uint32_t page_flags)
 {
 	struct qxl_device *qdev;
 	struct qxl_ttm_tt *gtt;
 
-	qdev = qxl_get_qdev(bdev);
+	qdev = qxl_get_qdev(bo->bdev);
 	gtt = kzalloc(sizeof(struct qxl_ttm_tt), GFP_KERNEL);
 	if (gtt == NULL)
 		return NULL;
 	gtt->ttm.ttm.func = &qxl_backend_func;
 	gtt->qdev = qdev;
-	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags)) {
+	if (ttm_dma_tt_init(&gtt->ttm, bo, page_flags)) {
 		kfree(gtt);
 		return NULL;
 	}

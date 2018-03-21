@@ -132,6 +132,9 @@ struct dpp_funcs {
 			const struct dc_cursor_mi_param *param,
 			uint32_t width
 			);
+	void (*dpp_set_hdr_multiplier)(
+			struct dpp *dpp_base,
+			uint32_t multiplier);
 
 	void (*dpp_dppclk_control)(
 			struct dpp *dpp_base,

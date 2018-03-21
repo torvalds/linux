@@ -71,7 +71,6 @@
 #include "uvd_v5_0.h"
 #include "uvd_v6_0.h"
 #include "vce_v3_0.h"
-#include "amdgpu_powerplay.h"
 #if defined(CONFIG_DRM_AMD_ACP)
 #include "amdgpu_acp.h"
 #endif
@@ -1097,11 +1096,6 @@ static int vi_common_early_init(void *handle)
 		xgpu_vi_mailbox_set_irq_funcs(adev);
 	}
 
-	/* vi use smc load by default */
-	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
-
-	amdgpu_device_get_pcie_info(adev);
-
 	return 0;
 }
 
@@ -1516,7 +1510,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v7_4_ip_block);
 		amdgpu_device_ip_block_add(adev, &iceland_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		amdgpu_device_ip_block_add(adev, &gfx_v8_0_ip_block);
@@ -1526,7 +1520,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_5_ip_block);
 		amdgpu_device_ip_block_add(adev, &tonga_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
@@ -1546,7 +1540,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &tonga_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
@@ -1568,7 +1562,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_1_ip_block);
 		amdgpu_device_ip_block_add(adev, &tonga_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
@@ -1586,7 +1580,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cz_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
@@ -1607,7 +1601,7 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v8_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &cz_ih_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)

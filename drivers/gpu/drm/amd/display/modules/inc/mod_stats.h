@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Advanced Micro Devices, Inc.
+ * Copyright 2016 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,29 +19,47 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
-#ifndef PP_ASICBLOCKS_H
-#define PP_ASICBLOCKS_H
 
+#ifndef MODULES_INC_MOD_STATS_H_
+#define MODULES_INC_MOD_STATS_H_
 
-enum PHM_AsicBlock {
-	PHM_AsicBlock_GFX,
-	PHM_AsicBlock_UVD_MVC,
-	PHM_AsicBlock_UVD,
-	PHM_AsicBlock_UVD_HD,
-	PHM_AsicBlock_UVD_SD,
-	PHM_AsicBlock_Count
+#include "dm_services.h"
+
+struct mod_stats {
+	int dummy;
 };
 
-enum PHM_ClockGateSetting {
-	PHM_ClockGateSetting_StaticOn,
-	PHM_ClockGateSetting_StaticOff,
-	PHM_ClockGateSetting_Dynamic
+struct mod_stats_caps {
+	bool dummy;
 };
 
-struct phm_asic_blocks {
-	bool gfx : 1;
-	bool uvd : 1;
-};
+struct mod_stats *mod_stats_create(struct dc *dc);
 
-#endif
+void mod_stats_destroy(struct mod_stats *mod_stats);
+
+bool mod_stats_init(struct mod_stats *mod_stats);
+
+void mod_stats_dump(struct mod_stats *mod_stats);
+
+void mod_stats_reset_data(struct mod_stats *mod_stats);
+
+void mod_stats_update_flip(struct mod_stats *mod_stats,
+		unsigned long timestamp_in_ns);
+
+void mod_stats_update_vupdate(struct mod_stats *mod_stats,
+		unsigned long timestamp_in_ns);
+
+void mod_stats_update_freesync(struct mod_stats *mod_stats,
+		unsigned int v_total_min,
+		unsigned int v_total_max,
+		unsigned int event_triggers,
+		unsigned int window_min,
+		unsigned int window_max,
+		unsigned int lfc_mid_point_in_us,
+		unsigned int inserted_frames,
+		unsigned int inserted_frame_duration_in_us);
+
+#endif /* MODULES_INC_MOD_STATS_H_ */

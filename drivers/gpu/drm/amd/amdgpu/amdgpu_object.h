@@ -203,12 +203,11 @@ static inline bool amdgpu_bo_explicit_sync(struct amdgpu_bo *bo)
 	return bo->flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
 }
 
-int amdgpu_bo_create(struct amdgpu_device *adev,
-			    unsigned long size, int byte_align,
-			    bool kernel, u32 domain, u64 flags,
-			    struct sg_table *sg,
-			    struct reservation_object *resv,
-			    struct amdgpu_bo **bo_ptr);
+int amdgpu_bo_create(struct amdgpu_device *adev, unsigned long size,
+		     int byte_align, u32 domain,
+		     u64 flags, enum ttm_bo_type type,
+		     struct reservation_object *resv,
+		     struct amdgpu_bo **bo_ptr);
 int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
 			      unsigned long size, int align,
 			      u32 domain, struct amdgpu_bo **bo_ptr,

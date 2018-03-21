@@ -1154,7 +1154,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	umode_t effective_mode = attr->mode;
 
 	/* handle non-powerplay limitations */
-	if (!adev->powerplay.cgs_device) {
+	if (!adev->powerplay.pp_handle) {
 		/* Skip fan attributes if fan is not present */
 		if (adev->pm.no_fan &&
 		    (attr == &sensor_dev_attr_pwm1.dev_attr.attr ||

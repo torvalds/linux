@@ -796,7 +796,7 @@ static enum bp_result set_dce_clock_v2_1(
  ******************************************************************************
  *****************************************************************************/
 
-static unsigned int get_smu_clock_info_v3_1(struct bios_parser *bp);
+static unsigned int get_smu_clock_info_v3_1(struct bios_parser *bp, uint8_t id);
 
 static void init_get_smu_clock_info(struct bios_parser *bp)
 {
@@ -805,12 +805,13 @@ static void init_get_smu_clock_info(struct bios_parser *bp)
 
 }
 
-static unsigned int get_smu_clock_info_v3_1(struct bios_parser *bp)
+static unsigned int get_smu_clock_info_v3_1(struct bios_parser *bp, uint8_t id)
 {
 	struct atom_get_smu_clock_info_parameters_v3_1 smu_input = {0};
 	struct atom_get_smu_clock_info_output_parameters_v3_1 smu_output;
 
 	smu_input.command = GET_SMU_CLOCK_INFO_V3_1_GET_PLLVCO_FREQ;
+	smu_input.syspll_id = id;
 
 	/* Get Specific Clock */
 	if (EXEC_BIOS_CMD_TABLE(getsmuclockinfo, smu_input)) {

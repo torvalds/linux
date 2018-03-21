@@ -193,8 +193,7 @@ static struct ttm_backend_func vbox_tt_backend_func = {
 	.destroy = &vbox_ttm_backend_destroy,
 };
 
-static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
-					 unsigned long size,
+static struct ttm_tt *vbox_ttm_tt_create(struct ttm_buffer_object *bo,
 					 u32 page_flags)
 {
 	struct ttm_tt *tt;
@@ -204,7 +203,7 @@ static struct ttm_tt *vbox_ttm_tt_create(struct ttm_bo_device *bdev,
 		return NULL;
 
 	tt->func = &vbox_tt_backend_func;
-	if (ttm_tt_init(tt, bdev, size, page_flags)) {
+	if (ttm_tt_init(tt, bo, page_flags)) {
 		kfree(tt);
 		return NULL;
 	}

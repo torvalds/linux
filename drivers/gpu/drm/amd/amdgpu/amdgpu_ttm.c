@@ -204,6 +204,12 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 		.flags = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM
 	};
 
+	if (bo->type == ttm_bo_type_sg) {
+		placement->num_placement = 0;
+		placement->num_busy_placement = 0;
+		return;
+	}
+
 	if (!amdgpu_ttm_bo_is_amdgpu_bo(bo)) {
 		placement->placement = &placements;
 		placement->busy_placement = &placements;
@@ -982,20 +988,20 @@ static struct ttm_backend_func amdgpu_backend_func = {
 	.destroy = &amdgpu_ttm_backend_destroy,
 };
 
-static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_bo_device *bdev,
-				    unsigned long size, uint32_t page_flags)
+static struct ttm_tt *amdgpu_ttm_tt_create(struct ttm_buffer_object *bo,
+					   uint32_t page_flags)
 {
 	struct amdgpu_device *adev;
 	struct amdgpu_ttm_tt *gtt;
 
-	adev = amdgpu_ttm_adev(bdev);
+	adev = amdgpu_ttm_adev(bo->bdev);
 
 	gtt = kzalloc(sizeof(struct amdgpu_ttm_tt), GFP_KERNEL);
 	if (gtt == NULL) {
 		return NULL;
 	}
 	gtt->ttm.ttm.func = &amdgpu_backend_func;
-	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags)) {
+	if (ttm_sg_tt_init(&gtt->ttm, bo, page_flags)) {
 		kfree(gtt);
 		return NULL;
 	}
@@ -1021,7 +1027,8 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm,
 
 	if (slave && ttm->sg) {
 		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
-						 gtt->ttm.dma_address, ttm->num_pages);
+						 gtt->ttm.dma_address,
+						 ttm->num_pages);
 		ttm->state = tt_unbound;
 		return 0;
 	}
@@ -1335,11 +1342,12 @@ static int amdgpu_ttm_fw_reserve_vram_init(struct amdgpu_device *adev)
 	if (adev->fw_vram_usage.size > 0 &&
 		adev->fw_vram_usage.size <= vram_size) {
 
-		r = amdgpu_bo_create(adev, adev->fw_vram_usage.size,
-			PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
-			AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS, NULL, NULL,
-			&adev->fw_vram_usage.reserved_bo);
+		r = amdgpu_bo_create(adev, adev->fw_vram_usage.size, PAGE_SIZE,
+				     AMDGPU_GEM_DOMAIN_VRAM,
+				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
+				     ttm_bo_type_kernel, NULL,
+				     &adev->fw_vram_usage.reserved_bo);
 		if (r)
 			goto error_create;
 

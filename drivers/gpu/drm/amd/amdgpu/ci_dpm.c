@@ -65,6 +65,8 @@ MODULE_FIRMWARE("radeon/hawaii_k_smc.bin");
 #define VOLTAGE_VID_OFFSET_SCALE1    625
 #define VOLTAGE_VID_OFFSET_SCALE2    100
 
+static const struct amd_pm_funcs ci_dpm_funcs;
+
 static const struct ci_pt_defaults defaults_hawaii_xt =
 {
 	1, 0xF, 0xFD, 0x19, 5, 0x14, 0, 0xB0000,
@@ -6241,6 +6243,7 @@ static int ci_dpm_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	adev->powerplay.pp_funcs = &ci_dpm_funcs;
 	ci_dpm_set_irq_funcs(adev);
 
 	return 0;
@@ -6760,7 +6763,7 @@ static int ci_dpm_read_sensor(void *handle, int idx,
 	}
 }
 
-const struct amd_ip_funcs ci_dpm_ip_funcs = {
+static const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.name = "ci_dpm",
 	.early_init = ci_dpm_early_init,
 	.late_init = ci_dpm_late_init,
@@ -6777,7 +6780,16 @@ const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.set_powergating_state = ci_dpm_set_powergating_state,
 };
 
-const struct amd_pm_funcs ci_dpm_funcs = {
+const struct amdgpu_ip_block_version ci_smu_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 7,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &ci_dpm_ip_funcs,
+};
+
+static const struct amd_pm_funcs ci_dpm_funcs = {
 	.pre_set_power_state = &ci_dpm_pre_set_power_state,
 	.set_power_state = &ci_dpm_set_power_state,
 	.post_set_power_state = &ci_dpm_post_set_power_state,

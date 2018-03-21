@@ -229,8 +229,10 @@ static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->smu_backend = tonga_priv;
 
-	if (smu7_init(hwmgr))
+	if (smu7_init(hwmgr)) {
+		kfree(tonga_priv);
 		return -EINVAL;
+	}
 
 	return 0;
 }

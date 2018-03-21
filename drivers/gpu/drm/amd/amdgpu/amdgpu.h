@@ -441,7 +441,7 @@ struct amdgpu_sa_bo {
 void amdgpu_gem_force_release(struct amdgpu_device *adev);
 int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 			     int alignment, u32 initial_domain,
-			     u64 flags, bool kernel,
+			     u64 flags, enum ttm_bo_type type,
 			     struct reservation_object *resv,
 			     struct drm_gem_object **obj);
 
@@ -1081,8 +1081,6 @@ struct amdgpu_wb {
 int amdgpu_device_wb_get(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb);
 
-void amdgpu_device_get_pcie_info(struct amdgpu_device *adev);
-
 /*
  * SDMA
  */
@@ -1395,9 +1393,7 @@ enum amd_hw_ip_block_type {
 #define HWIP_MAX_INSTANCE	6
 
 struct amd_powerplay {
-	struct cgs_device *cgs_device;
 	void *pp_handle;
-	const struct amd_ip_funcs *ip_funcs;
 	const struct amd_pm_funcs *pp_funcs;
 };
 
@@ -1632,6 +1628,9 @@ uint32_t amdgpu_mm_rreg(struct amdgpu_device *adev, uint32_t reg,
 			uint32_t acc_flags);
 void amdgpu_mm_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v,
 		    uint32_t acc_flags);
+void amdgpu_mm_wreg8(struct amdgpu_device *adev, uint32_t offset, uint8_t value);
+uint8_t amdgpu_mm_rreg8(struct amdgpu_device *adev, uint32_t offset);
+
 u32 amdgpu_io_rreg(struct amdgpu_device *adev, u32 reg);
 void amdgpu_io_wreg(struct amdgpu_device *adev, u32 reg, u32 v);
 
@@ -1654,6 +1653,9 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 
 #define RREG32_NO_KIQ(reg) amdgpu_mm_rreg(adev, (reg), AMDGPU_REGS_NO_KIQ)
 #define WREG32_NO_KIQ(reg, v) amdgpu_mm_wreg(adev, (reg), (v), AMDGPU_REGS_NO_KIQ)
+
+#define RREG8(reg) amdgpu_mm_rreg8(adev, (reg))
+#define WREG8(reg, v) amdgpu_mm_wreg8(adev, (reg), (v))
 
 #define RREG32(reg) amdgpu_mm_rreg(adev, (reg), 0)
 #define RREG32_IDX(reg) amdgpu_mm_rreg(adev, (reg), AMDGPU_REGS_IDX)
