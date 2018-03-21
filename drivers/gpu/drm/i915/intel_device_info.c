@@ -83,11 +83,11 @@ static void sseu_dump(const struct sseu_dev_info *sseu, struct drm_printer *p)
 {
 	int s;
 
-	drm_printf(p, "slice mask: %04x\n", sseu->slice_mask);
-	drm_printf(p, "slice total: %u\n", hweight8(sseu->slice_mask));
+	drm_printf(p, "slice total: %u, mask=%04x\n",
+		   hweight8(sseu->slice_mask), sseu->slice_mask);
 	drm_printf(p, "subslice total: %u\n", sseu_subslice_total(sseu));
-	for (s = 0; s < ARRAY_SIZE(sseu->subslice_mask); s++) {
-		drm_printf(p, "slice%d %u subslices mask=%04x\n",
+	for (s = 0; s < sseu->max_slices; s++) {
+		drm_printf(p, "slice%d: %u subslices, mask=%04x\n",
 			   s, hweight8(sseu->subslice_mask[s]),
 			   sseu->subslice_mask[s]);
 	}
