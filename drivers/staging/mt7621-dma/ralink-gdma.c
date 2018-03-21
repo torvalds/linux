@@ -595,11 +595,10 @@ static struct dma_async_tx_descriptor *gdma_dma_prep_dma_memcpy(
 	for (i = 0; i < num_periods; i++) {
 		desc->sg[i].src_addr = src;
 		desc->sg[i].dst_addr = dest;
-		if (len > xfer_count) {
+		if (len > xfer_count)
 			desc->sg[i].len = xfer_count;
-		} else {
+		else
 			desc->sg[i].len = len;
-		}
 		src += desc->sg[i].len;
 		dest += desc->sg[i].len;
 		len -= desc->sg[i].len;
