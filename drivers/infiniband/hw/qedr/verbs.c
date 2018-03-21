@@ -1903,18 +1903,23 @@ int qedr_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		SET_FIELD(qp_params.modify_flags,
 			  QED_ROCE_MODIFY_QP_VALID_ACK_TIMEOUT, 1);
 
-		qp_params.ack_timeout = attr->timeout;
-		if (attr->timeout) {
-			u32 temp;
-
-			temp = 4096 * (1UL << attr->timeout) / 1000 / 1000;
-			/* FW requires [msec] */
-			qp_params.ack_timeout = temp;
-		} else {
-			/* Infinite */
+		/* The received timeout value is an exponent used like this:
+		 *    "12.7.34 LOCAL ACK TIMEOUT
+		 *    Value representing the transport (ACK) timeout for use by
+		 *    the remote, expressed as: 4.096 * 2^timeout [usec]"
+		 * The FW expects timeout in msec so we need to divide the usec
+		 * result by 1000. We'll approximate 1000~2^10, and 4.096 ~ 2^2,
+		 * so we get: 2^2 * 2^timeout / 2^10 = 2^(timeout - 8).
+		 * The value of zero means infinite so we use a 'max_t' to make
+		 * sure that sub 1 msec values will be configured as 1 msec.
+		 */
+		if (attr->timeout)
+			qp_params.ack_timeout =
+					1 << max_t(int, attr->timeout - 8, 0);
+		else
 			qp_params.ack_timeout = 0;
-		}
 	}
+
 	if (attr_mask & IB_QP_RETRY_CNT) {
 		SET_FIELD(qp_params.modify_flags,
 			  QED_ROCE_MODIFY_QP_VALID_RETRY_CNT, 1);
