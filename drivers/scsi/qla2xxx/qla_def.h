@@ -4281,8 +4281,6 @@ typedef struct scsi_qla_host {
 	struct		nvme_fc_local_port *nvme_local_port;
 	struct completion nvme_del_done;
 	struct list_head nvme_rport_list;
-	atomic_t 	nvme_active_aen_cnt;
-	uint16_t	nvme_last_rptd_aen;
 
 	uint16_t	fcoe_vlan_id;
 	uint16_t	fcoe_fcf_idx;

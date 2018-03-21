@@ -767,7 +767,6 @@ skip_rio:
 
 	case MBA_LIP_OCCURRED:		/* Loop Initialization Procedure */
 		ha->flags.lip_ae = 1;
-		ha->flags.n2n_ae = 0;
 
 		ql_dbg(ql_dbg_async, vha, 0x5009,
 		    "LIP occurred (%x).\n", mb[1]);
@@ -811,7 +810,6 @@ skip_rio:
 
 	case MBA_LOOP_DOWN:		/* Loop Down Event */
 		SAVE_TOPO(ha);
-		ha->flags.n2n_ae = 0;
 		ha->flags.lip_ae = 0;
 		ha->current_topology = 0;
 
@@ -885,7 +883,6 @@ skip_rio:
 	/* case MBA_DCBX_COMPLETE: */
 	case MBA_POINT_TO_POINT:	/* Point-to-Point */
 		ha->flags.lip_ae = 0;
-		ha->flags.n2n_ae = 1;
 
 		if (IS_QLA2100(ha))
 			break;
