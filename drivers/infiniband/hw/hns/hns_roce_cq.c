@@ -355,6 +355,18 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 			goto err_cq;
 		}
 
+		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
+		    (udata->outlen >= sizeof(resp))) {
+			ret = hns_roce_db_map_user(to_hr_ucontext(context),
+						   ucmd.db_addr, &hr_cq->db);
+			if (ret) {
+				dev_err(dev, "cq record doorbell map failed!\n");
+				goto err_mtt;
+			}
+			hr_cq->db_en = 1;
+			resp.cap_flags |= HNS_ROCE_SUPPORT_CQ_RECORD_DB;
+		}
+
 		/* Get user space parameters */
 		uar = &to_hr_ucontext(context)->uar;
 	} else {
@@ -385,17 +397,7 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 				hr_cq, vector);
 	if (ret) {
 		dev_err(dev, "Creat CQ .Failed to cq_alloc.\n");
-		goto err_mtt;
-	}
-
-	if (context && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-	    (udata->outlen >= sizeof(resp))) {
-		ret = hns_roce_db_map_user(to_hr_ucontext(context),
-					   ucmd.db_addr, &hr_cq->db);
-		if (ret) {
-			dev_err(dev, "cq record doorbell map failed!\n");
-			goto err_cqc;
-		}
+		goto err_dbmap;
 	}
 
 	/*
@@ -414,27 +416,21 @@ struct ib_cq *hns_roce_ib_create_cq(struct ib_device *ib_dev,
 
 	if (context) {
 		resp.cqn = hr_cq->cqn;
-		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-					(udata->outlen >= sizeof(resp))) {
-			hr_cq->db_en = 1;
-			resp.cap_flags |= HNS_ROCE_SUPPORT_CQ_RECORD_DB;
-		}
-
 		ret = ib_copy_to_udata(udata, &resp, sizeof(resp));
 		if (ret)
-			goto err_dbmap;
+			goto err_cqc;
 	}
 
 	return &hr_cq->ib_cq;
+
+err_cqc:
+	hns_roce_free_cq(hr_dev, hr_cq);
 
 err_dbmap:
 	if (context && (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 	    (udata->outlen >= sizeof(resp)))
 		hns_roce_db_unmap_user(to_hr_ucontext(context),
 				       &hr_cq->db);
-
-err_cqc:
-	hns_roce_free_cq(hr_dev, hr_cq);
 
 err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->hr_buf.hr_mtt);
