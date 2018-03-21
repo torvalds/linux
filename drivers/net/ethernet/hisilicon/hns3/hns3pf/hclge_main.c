@@ -4772,11 +4772,9 @@ static int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 	return hclge_set_vlan_rx_offload_cfg(vport);
 }
 
-static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
+static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
 {
-	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_config_max_frm_size_cmd *req;
-	struct hclge_dev *hdev = vport->back;
 	struct hclge_desc desc;
 	int max_frm_size;
 	int ret;
@@ -4803,6 +4801,27 @@ static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 	hdev->mps = max_frm_size;
 
 	return 0;
+}
+
+static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
+	ret = hclge_set_mac_mtu(hdev, new_mtu);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Change mtu fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_buffer_alloc(hdev);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"Allocate buffer fail, ret =%d\n", ret);
+
+	return ret;
 }
 
 static int hclge_send_reset_tqp_cmd(struct hclge_dev *hdev, u16 queue_id,
@@ -5392,11 +5411,6 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
 		return ret;
 	}
-	ret = hclge_buffer_alloc(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Buffer allocate fail, ret =%d\n", ret);
-		return  ret;
-	}
 
 	ret = hclge_config_tso(hdev, HCLGE_TSO_MSS_MIN, HCLGE_TSO_MSS_MAX);
 	if (ret) {
@@ -5500,12 +5514,6 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_mac_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
-		return ret;
-	}
-
-	ret = hclge_buffer_alloc(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Buffer allocate fail, ret =%d\n", ret);
 		return ret;
 	}
 
