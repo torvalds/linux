@@ -4926,6 +4926,43 @@ void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 	}
 }
 
+void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id)
+{
+	struct hclge_dev *hdev = vport->back;
+	int reset_try_times = 0;
+	int reset_status;
+	u16 queue_gid;
+	int ret;
+
+	queue_gid = hclge_covert_handle_qid_global(&vport->nic, queue_id);
+
+	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, true);
+	if (ret) {
+		dev_warn(&hdev->pdev->dev,
+			 "Send reset tqp cmd fail, ret = %d\n", ret);
+		return;
+	}
+
+	reset_try_times = 0;
+	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
+		/* Wait for tqp hw reset */
+		msleep(20);
+		reset_status = hclge_get_reset_status(hdev, queue_gid);
+		if (reset_status)
+			break;
+	}
+
+	if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
+		dev_warn(&hdev->pdev->dev, "Reset TQP fail\n");
+		return;
+	}
+
+	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, false);
+	if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "Deassert the soft reset fail, ret = %d\n", ret);
+}
+
 static u32 hclge_get_fw_version(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);

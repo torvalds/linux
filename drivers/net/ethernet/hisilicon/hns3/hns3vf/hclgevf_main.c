@@ -817,11 +817,17 @@ static void hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	u8 msg_data[2];
+	int ret;
 
 	memcpy(&msg_data[0], &queue_id, sizeof(queue_id));
 
-	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_QUEUE_RESET, 0, msg_data, 2, false,
-			     NULL, 0);
+	/* disable vf queue before send queue reset msg to PF */
+	ret = hclgevf_tqp_enable(hdev, queue_id, 0, false);
+	if (ret)
+		return;
+
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_QUEUE_RESET, 0, msg_data,
+			     2, true, NULL, 0);
 }
 
 static u32 hclgevf_get_fw_version(struct hnae3_handle *handle)

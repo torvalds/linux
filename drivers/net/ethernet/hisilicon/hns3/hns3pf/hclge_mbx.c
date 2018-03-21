@@ -322,14 +322,17 @@ static int hclge_get_link_info(struct hclge_vport *vport,
 				  HCLGE_MBX_LINK_STAT_CHANGE, dest_vfid);
 }
 
-static void hclge_reset_vf_queue(struct hclge_vport *vport,
-				 struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+static void hclge_mbx_reset_vf_queue(struct hclge_vport *vport,
+				     struct hclge_mbx_vf_to_pf_cmd *mbx_req)
 {
 	u16 queue_id;
 
 	memcpy(&queue_id, &mbx_req->msg[2], sizeof(queue_id));
 
-	hclge_reset_tqp(&vport->nic, queue_id);
+	hclge_reset_vf_queue(vport, queue_id);
+
+	/* send response msg to VF after queue reset complete*/
+	hclge_gen_resp_to_vf(vport, mbx_req, 0, NULL, 0);
 }
 
 void hclge_mbx_handler(struct hclge_dev *hdev)
@@ -407,7 +410,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 					ret);
 			break;
 		case HCLGE_MBX_QUEUE_RESET:
-			hclge_reset_vf_queue(vport, req);
+			hclge_mbx_reset_vf_queue(vport, req);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,
