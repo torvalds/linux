@@ -113,8 +113,6 @@ static int qla_nvme_alloc_queue(struct nvme_fc_local_port *lport,
 		return 0;
 	}
 
-	ql_log(ql_log_warn, vha, 0xffff,
-	    "allocating q for idx=%x w/o cpu mask\n", qidx);
 	qpair = qla2xxx_create_qpair(vha, 5, vha->vp_idx, true);
 	if (qpair == NULL) {
 		ql_log(ql_log_warn, vha, 0x2122,
@@ -313,7 +311,6 @@ static int qla2x00_start_nvme_mq(srb_t *sp)
 	uint16_t	avail_dsds;
 	uint32_t	*cur_dsd;
 	struct req_que *req = NULL;
-	struct rsp_que *rsp = NULL;
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_qpair *qpair = sp->qpair;
@@ -322,14 +319,12 @@ static int qla2x00_start_nvme_mq(srb_t *sp)
 	struct nvmefc_fcp_req *fd = nvme->u.nvme.desc;
 	uint32_t        rval = QLA_SUCCESS;
 
+	/* Setup qpair pointers */
+	req = qpair->req;
 	tot_dsds = fd->sg_cnt;
 
 	/* Acquire qpair specific lock */
 	spin_lock_irqsave(&qpair->qp_lock, flags);
-
-	/* Setup qpair pointers */
-	req = qpair->req;
-	rsp = qpair->rsp;
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
@@ -365,7 +360,7 @@ static int qla2x00_start_nvme_mq(srb_t *sp)
 		struct nvme_fc_cmd_iu *cmd = fd->cmdaddr;
 		if (cmd->sqe.common.opcode == nvme_admin_async_event) {
 			nvme->u.nvme.aen_op = 1;
-			atomic_inc(&vha->hw->nvme_active_aen_cnt);
+			atomic_inc(&ha->nvme_active_aen_cnt);
 		}
 	}
 
