@@ -4083,13 +4083,20 @@ int btrfs_pause_balance(struct btrfs_fs_info *fs_info)
 
 int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 {
-	if (sb_rdonly(fs_info->sb))
-		return -EROFS;
-
 	mutex_lock(&fs_info->balance_mutex);
 	if (!fs_info->balance_ctl) {
 		mutex_unlock(&fs_info->balance_mutex);
 		return -ENOTCONN;
+	}
+
+	/*
+	 * A paused balance with the item stored on disk can be resumed at
+	 * mount time if the mount is read-write. Otherwise it's still paused
+	 * and we must not allow cancelling as it deletes the item.
+	 */
+	if (sb_rdonly(fs_info->sb)) {
+		mutex_unlock(&fs_info->balance_mutex);
+		return -EROFS;
 	}
 
 	atomic_inc(&fs_info->balance_cancel_req);
