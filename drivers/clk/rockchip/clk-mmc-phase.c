@@ -223,8 +223,10 @@ struct clk *rockchip_clk_register_mmc(const char *name,
 	mmc_clock->shift = shift;
 
 	clk = clk_register(NULL, &mmc_clock->hw);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
 		goto err_register;
+	}
 
 	mmc_clock->clk_rate_change_nb.notifier_call =
 				&rockchip_mmc_clk_rate_notify;
@@ -237,5 +239,5 @@ err_notifier:
 	clk_unregister(clk);
 err_register:
 	kfree(mmc_clock);
-	return clk;
+	return ERR_PTR(ret);
 }
