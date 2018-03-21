@@ -878,7 +878,7 @@ int ib_query_gid(struct ib_device *device,
 		 u8 port_num, int index, union ib_gid *gid,
 		 struct ib_gid_attr *attr)
 {
-	if (rdma_cap_roce_gid_table(device, port_num))
+	if (rdma_protocol_roce(device, port_num))
 		return ib_get_cached_gid(device, port_num, index, gid, attr);
 
 	if (attr)
