@@ -1,6 +1,10 @@
+.. _numa:
+
 Started Nov 1999 by Kanoj Sarcar <kanoj@sgi.com>
 
+=============
 What is NUMA?
+=============
 
 This question can be answered from a couple of perspectives:  the
 hardware view and the Linux software view.
