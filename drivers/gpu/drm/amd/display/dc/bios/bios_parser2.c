@@ -44,7 +44,7 @@
 
 #include "bios_parser_common.h"
 #define LAST_RECORD_TYPE 0xff
-
+#define SMU9_SYSPLL0_ID  0
 
 struct i2c_id_config_access {
 	uint8_t bfI2C_LineMux:4;
@@ -1220,7 +1220,7 @@ static unsigned int bios_parser_get_smu_clock_info(
 	if (!bp->cmd_tbl.get_smu_clock_info)
 		return BP_RESULT_FAILURE;
 
-	return bp->cmd_tbl.get_smu_clock_info(bp);
+	return bp->cmd_tbl.get_smu_clock_info(bp, 0);
 }
 
 static enum bp_result bios_parser_program_crtc_timing(
@@ -1278,6 +1278,12 @@ static bool bios_parser_is_accelerated_mode(
 	struct dc_bios *dcb)
 {
 	return bios_is_accelerated_mode(dcb);
+}
+
+static uint32_t bios_parser_get_vga_enabled_displays(
+	struct dc_bios *bios)
+{
+	return bios_get_vga_enabled_displays(bios);
 }
 
 
@@ -1370,7 +1376,7 @@ static enum bp_result get_firmware_info_v3_1(
 	if (bp->cmd_tbl.get_smu_clock_info != NULL) {
 		/* VBIOS gives in 10KHz */
 		info->smu_gpu_pll_output_freq =
-				bp->cmd_tbl.get_smu_clock_info(bp) * 10;
+				bp->cmd_tbl.get_smu_clock_info(bp, SMU9_SYSPLL0_ID) * 10;
 	}
 
 	return BP_RESULT_OK;
@@ -1800,6 +1806,7 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 
 	.is_accelerated_mode = bios_parser_is_accelerated_mode,
+	.get_vga_enabled_displays = bios_parser_get_vga_enabled_displays,
 
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 

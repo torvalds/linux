@@ -57,7 +57,6 @@
 #include "uvd_v7_0.h"
 #include "vce_v4_0.h"
 #include "vcn_v1_0.h"
-#include "amdgpu_powerplay.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
 
@@ -417,12 +416,7 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 
 	pci_save_state(adev->pdev);
 
-	for (i = 0; i < AMDGPU_MAX_IP_NUM; i++) {
-		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_PSP){
-			adev->ip_blocks[i].version->funcs->soft_reset((void *)adev);
-			break;
-		}
-	}
+	psp_gpu_reset(adev);
 
 	pci_restore_state(adev->pdev);
 
@@ -536,10 +530,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
-		if (amdgpu_fw_load_type == 2 || amdgpu_fw_load_type == -1)
-			amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
+		amdgpu_device_ip_block_add(adev, &psp_v3_1_ip_block);
 		if (!amdgpu_sriov_vf(adev))
-			amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
@@ -558,7 +551,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
 		amdgpu_device_ip_block_add(adev, &psp_v10_0_ip_block);
-		amdgpu_device_ip_block_add(adev, &amdgpu_pp_ip_block);
+		amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
@@ -583,6 +576,21 @@ static uint32_t soc15_get_rev_id(struct amdgpu_device *adev)
 	return adev->nbio_funcs->get_rev_id(adev);
 }
 
+static void soc15_flush_hdp(struct amdgpu_device *adev, struct amdgpu_ring *ring)
+{
+	adev->nbio_funcs->hdp_flush(adev, ring);
+}
+
+static void soc15_invalidate_hdp(struct amdgpu_device *adev,
+				 struct amdgpu_ring *ring)
+{
+	if (!ring || !ring->funcs->emit_wreg)
+		WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_READ_CACHE_INVALIDATE, 1);
+	else
+		amdgpu_ring_emit_wreg(ring, SOC15_REG_OFFSET(
+			HDP, 0, mmHDP_READ_CACHE_INVALIDATE), 1);
+}
+
 static const struct amdgpu_asic_funcs soc15_asic_funcs =
 {
 	.read_disabled_bios = &soc15_read_disabled_bios,
@@ -594,6 +602,8 @@ static const struct amdgpu_asic_funcs soc15_asic_funcs =
 	.set_uvd_clocks = &soc15_set_uvd_clocks,
 	.set_vce_clocks = &soc15_set_vce_clocks,
 	.get_config_memsize = &soc15_get_config_memsize,
+	.flush_hdp = &soc15_flush_hdp,
+	.invalidate_hdp = &soc15_invalidate_hdp,
 };
 
 static int soc15_common_early_init(void *handle)
@@ -679,10 +689,6 @@ static int soc15_common_early_init(void *handle)
 		amdgpu_virt_init_setting(adev);
 		xgpu_ai_mailbox_set_irq_funcs(adev);
 	}
-
-	adev->firmware.load_type = amdgpu_ucode_get_load_type(adev, amdgpu_fw_load_type);
-
-	amdgpu_device_get_pcie_info(adev);
 
 	return 0;
 }

@@ -994,10 +994,8 @@ int tilcdc_crtc_create(struct drm_device *dev)
 	int ret;
 
 	tilcdc_crtc = devm_kzalloc(dev->dev, sizeof(*tilcdc_crtc), GFP_KERNEL);
-	if (!tilcdc_crtc) {
-		dev_err(dev->dev, "allocation failed\n");
+	if (!tilcdc_crtc)
 		return -ENOMEM;
-	}
 
 	init_completion(&tilcdc_crtc->palette_loaded);
 	tilcdc_crtc->palette_base = dmam_alloc_coherent(dev->dev,

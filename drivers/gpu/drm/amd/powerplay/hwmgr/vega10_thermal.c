@@ -31,14 +31,8 @@
 
 static int vega10_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
-				PPSMC_MSG_GetCurrentRpm),
-			"Attempt to get current RPM from SMC Failed!",
-			return -1);
-	PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr,
-			current_rpm),
-			"Attempt to read current RPM from SMC Failed!",
-			return -1);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentRpm);
+	vega10_read_arg_from_smc(hwmgr, current_rpm);
 	return 0;
 }
 
@@ -386,9 +380,9 @@ int vega10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *range)
 {
-	uint32_t low = VEGA10_THERMAL_MINIMUM_ALERT_TEMP *
+	int low = VEGA10_THERMAL_MINIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	uint32_t high = VEGA10_THERMAL_MAXIMUM_ALERT_TEMP *
+	int high = VEGA10_THERMAL_MAXIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	uint32_t val, reg;
 
@@ -409,7 +403,9 @@ static int vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
-	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
+	val &= (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK) &
+			(~THM_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK) &
+			(~THM_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK);
 
 	cgs_write_register(hwmgr->device, reg, val);
 

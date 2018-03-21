@@ -570,7 +570,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 		base &= ~7;
 	}
 	work->base = base;
-	work->target_vblank = target - drm_crtc_vblank_count(crtc) +
+	work->target_vblank = target - (uint32_t)drm_crtc_vblank_count(crtc) +
 		dev->driver->get_vblank_counter(dev, work->crtc_id);
 
 	/* We borrow the event spin lock for protecting flip_work */

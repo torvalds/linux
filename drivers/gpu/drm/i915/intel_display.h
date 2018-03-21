@@ -139,6 +139,17 @@ enum dpio_phy {
 
 #define I915_NUM_PHYS_VLV 2
 
+enum aux_ch {
+	AUX_CH_A,
+	AUX_CH_B,
+	AUX_CH_C,
+	AUX_CH_D,
+	_AUX_CH_E, /* does not exist */
+	AUX_CH_F,
+};
+
+#define aux_ch_name(a) ((a) + 'A')
+
 enum intel_display_power_domain {
 	POWER_DOMAIN_PIPE_A,
 	POWER_DOMAIN_PIPE_B,
@@ -175,6 +186,7 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_AUX_C,
 	POWER_DOMAIN_AUX_D,
 	POWER_DOMAIN_AUX_F,
+	POWER_DOMAIN_AUX_IO_A,
 	POWER_DOMAIN_GMBUS,
 	POWER_DOMAIN_MODESET,
 	POWER_DOMAIN_GT_IRQ,

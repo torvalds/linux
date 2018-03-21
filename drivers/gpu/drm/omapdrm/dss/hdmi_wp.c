@@ -168,7 +168,7 @@ void hdmi_wp_video_config_timing(struct hdmi_wp_data *wp,
 {
 	u32 timing_h = 0;
 	u32 timing_v = 0;
-	unsigned hsync_len_offset = 1;
+	unsigned int hsync_len_offset = 1;
 
 	DSSDBG("Enter hdmi_wp_video_config_timing\n");
 

@@ -71,9 +71,9 @@
 #include "i915_gem_fence_reg.h"
 #include "i915_gem_object.h"
 #include "i915_gem_gtt.h"
-#include "i915_gem_request.h"
 #include "i915_gem_timeline.h"
 
+#include "i915_request.h"
 #include "i915_vma.h"
 
 #include "intel_gvt.h"
@@ -83,8 +83,8 @@
 
 #define DRIVER_NAME		"i915"
 #define DRIVER_DESC		"Intel Graphics"
-#define DRIVER_DATE		"20180207"
-#define DRIVER_TIMESTAMP	1517988364
+#define DRIVER_DATE		"20180308"
+#define DRIVER_TIMESTAMP	1520513379
 
 /* Use I915_STATE_WARN(x) and I915_STATE_WARN_ON() (rather than WARN() and
  * WARN_ON()) for hw state sanity checks to check for unexpected conditions
@@ -472,6 +472,7 @@ struct i915_gpu_state {
 	u32 reset_count;
 	u32 suspend_count;
 	struct intel_device_info device_info;
+	struct intel_driver_caps driver_caps;
 	struct i915_params params;
 
 	struct i915_error_uc {
@@ -666,6 +667,7 @@ struct intel_fbc {
 	 */
 	struct intel_fbc_state_cache {
 		struct i915_vma *vma;
+		unsigned long flags;
 
 		struct {
 			unsigned int mode_flags;
@@ -704,6 +706,7 @@ struct intel_fbc {
 	 */
 	struct intel_fbc_reg_params {
 		struct i915_vma *vma;
+		unsigned long flags;
 
 		struct {
 			enum pipe pipe;
@@ -722,7 +725,7 @@ struct intel_fbc {
 
 	struct intel_fbc_work {
 		bool scheduled;
-		u32 scheduled_vblank;
+		u64 scheduled_vblank;
 		struct work_struct work;
 	} work;
 
@@ -946,6 +949,8 @@ struct intel_rps {
 
 struct intel_rc6 {
 	bool enabled;
+	u64 prev_hw_residency[4];
+	u64 cur_residency[4];
 };
 
 struct intel_llc_pstate {
@@ -1092,6 +1097,11 @@ struct i915_gem_mm {
 	struct llist_head free_list;
 	struct work_struct free_work;
 	spinlock_t free_lock;
+	/**
+	 * Count of objects pending destructions. Used to skip needlessly
+	 * waiting on an RCU barrier if no objects are waiting to be freed.
+	 */
+	atomic_t free_count;
 
 	/**
 	 * Small stash of WC pages
@@ -1221,7 +1231,7 @@ struct i915_gpu_error {
 	 *
 	 * #I915_WEDGED - If reset fails and we can no longer use the GPU,
 	 * we set the #I915_WEDGED bit. Prior to command submission, e.g.
-	 * i915_gem_request_alloc(), this bit is checked and the sequence
+	 * i915_request_alloc(), this bit is checked and the sequence
 	 * aborted (with -EIO reported to userspace) if set.
 	 */
 	unsigned long flags;
@@ -1356,6 +1366,7 @@ struct intel_vbt_data {
 		u32 size;
 		u8 *data;
 		const u8 *sequence[MIPI_SEQ_MAX];
+		u8 *deassert_seq; /* Used by fixup_mipi_sequences() */
 	} dsi;
 
 	int crt_ddc_pin;
@@ -1815,6 +1826,7 @@ struct drm_i915_private {
 	struct kmem_cache *priorities;
 
 	const struct intel_device_info info;
+	struct intel_driver_caps caps;
 
 	/**
 	 * Data Stolen Memory - aka "i915 stolen memory" gives us the start and
@@ -2091,6 +2103,7 @@ struct drm_i915_private {
 		 */
 		struct ida hw_ida;
 #define MAX_CONTEXT_HW_ID (1<<21) /* exclusive */
+#define GEN11_MAX_CONTEXT_HW_ID (1<<11) /* exclusive */
 	} contexts;
 
 	u32 fdi_rx_config;
@@ -2419,12 +2432,16 @@ enum hdmi_force_audio {
  * We have one bit per pipe and per scanout plane type.
  */
 #define INTEL_FRONTBUFFER_BITS_PER_PIPE 8
-#define INTEL_FRONTBUFFER(pipe, plane_id) \
-	(1 << ((plane_id) + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+#define INTEL_FRONTBUFFER(pipe, plane_id) ({ \
+	BUILD_BUG_ON(INTEL_FRONTBUFFER_BITS_PER_PIPE * I915_MAX_PIPES > 32); \
+	BUILD_BUG_ON(I915_MAX_PLANES > INTEL_FRONTBUFFER_BITS_PER_PIPE); \
+	BIT((plane_id) + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)); \
+})
 #define INTEL_FRONTBUFFER_OVERLAY(pipe) \
-	(1 << (INTEL_FRONTBUFFER_BITS_PER_PIPE - 1 + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+	BIT(INTEL_FRONTBUFFER_BITS_PER_PIPE - 1 + INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))
 #define INTEL_FRONTBUFFER_ALL_MASK(pipe) \
-	(0xff << (INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe)))
+	GENMASK(INTEL_FRONTBUFFER_BITS_PER_PIPE * ((pipe) + 1) - 1, \
+		INTEL_FRONTBUFFER_BITS_PER_PIPE * (pipe))
 
 /*
  * Optimised SGL iterator for GEM objects
@@ -2730,6 +2747,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define BLT_RING	ENGINE_MASK(BCS)
 #define VEBOX_RING	ENGINE_MASK(VECS)
 #define BSD2_RING	ENGINE_MASK(VCS2)
+#define BSD3_RING	ENGINE_MASK(VCS3)
+#define BSD4_RING	ENGINE_MASK(VCS4)
+#define VEBOX2_RING	ENGINE_MASK(VECS2)
 #define ALL_ENGINES	(~0)
 
 #define HAS_ENGINE(dev_priv, id) \
@@ -2752,6 +2772,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define HAS_LOGICAL_RING_CONTEXTS(dev_priv) \
 		((dev_priv)->info.has_logical_ring_contexts)
+#define HAS_LOGICAL_RING_ELSQ(dev_priv) \
+		((dev_priv)->info.has_logical_ring_elsq)
 #define HAS_LOGICAL_RING_PREEMPTION(dev_priv) \
 		((dev_priv)->info.has_logical_ring_preemption)
 
@@ -2772,9 +2794,10 @@ intel_info(const struct drm_i915_private *dev_priv)
 /* Early gen2 have a totally busted CS tlb and require pinned batches. */
 #define HAS_BROKEN_CS_TLB(dev_priv)	(IS_I830(dev_priv) || IS_I845G(dev_priv))
 
-/* WaRsDisableCoarsePowerGating:skl,bxt */
+/* WaRsDisableCoarsePowerGating:skl,cnl */
 #define NEEDS_WaRsDisableCoarsePowerGating(dev_priv) \
-	(IS_SKL_GT3(dev_priv) || IS_SKL_GT4(dev_priv))
+	(IS_CANNONLAKE(dev_priv) || \
+	 IS_SKL_GT3(dev_priv) || IS_SKL_GT4(dev_priv))
 
 /*
  * dp aux and gmbus irq on gen4 seems to be able to generate legacy interrupts
@@ -2799,7 +2822,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 
 #define HAS_FW_BLC(dev_priv) 	(INTEL_GEN(dev_priv) > 2)
 #define HAS_FBC(dev_priv)	((dev_priv)->info.has_fbc)
-#define HAS_CUR_FBC(dev_priv)	(!HAS_GMCH_DISPLAY(dev_priv) && INTEL_INFO(dev_priv)->gen >= 7)
+#define HAS_CUR_FBC(dev_priv)	(!HAS_GMCH_DISPLAY(dev_priv) && INTEL_GEN(dev_priv) >= 7)
 
 #define HAS_IPS(dev_priv)	(IS_HSW_ULT(dev_priv) || IS_BROADWELL(dev_priv))
 
@@ -2862,19 +2885,20 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define INTEL_PCH_QEMU_DEVICE_ID_TYPE		0x2900 /* qemu q35 has 2918 */
 
 #define INTEL_PCH_TYPE(dev_priv) ((dev_priv)->pch_type)
+#define INTEL_PCH_ID(dev_priv) ((dev_priv)->pch_id)
 #define HAS_PCH_ICP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_ICP)
 #define HAS_PCH_CNP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_CNP)
 #define HAS_PCH_CNP_LP(dev_priv) \
-	((dev_priv)->pch_id == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE)
+	(INTEL_PCH_ID(dev_priv) == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE)
 #define HAS_PCH_KBP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_KBP)
 #define HAS_PCH_SPT(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_SPT)
 #define HAS_PCH_LPT(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_LPT)
 #define HAS_PCH_LPT_LP(dev_priv) \
-	((dev_priv)->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE || \
-	 (dev_priv)->pch_id == INTEL_PCH_WPT_LP_DEVICE_ID_TYPE)
+	(INTEL_PCH_ID(dev_priv) == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE || \
+	 INTEL_PCH_ID(dev_priv) == INTEL_PCH_WPT_LP_DEVICE_ID_TYPE)
 #define HAS_PCH_LPT_H(dev_priv) \
-	((dev_priv)->pch_id == INTEL_PCH_LPT_DEVICE_ID_TYPE || \
-	 (dev_priv)->pch_id == INTEL_PCH_WPT_DEVICE_ID_TYPE)
+	(INTEL_PCH_ID(dev_priv) == INTEL_PCH_LPT_DEVICE_ID_TYPE || \
+	 INTEL_PCH_ID(dev_priv) == INTEL_PCH_WPT_DEVICE_ID_TYPE)
 #define HAS_PCH_CPT(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_CPT)
 #define HAS_PCH_IBX(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_IBX)
 #define HAS_PCH_NOP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_NOP)
@@ -3081,10 +3105,10 @@ int i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 int i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
-int i915_gem_execbuffer(struct drm_device *dev, void *data,
-			struct drm_file *file_priv);
-int i915_gem_execbuffer2(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
+int i915_gem_execbuffer_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+int i915_gem_execbuffer2_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file_priv);
 int i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
@@ -3128,6 +3152,9 @@ void i915_gem_free_object(struct drm_gem_object *obj);
 
 static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 {
+	if (!atomic_read(&i915->mm.free_count))
+		return;
+
 	/* A single pass should suffice to release all the freed objects (along
 	 * most call paths) , but be a little more paranoid in that freeing
 	 * the objects does take a little amount of time, during which the rcu
@@ -3309,7 +3336,7 @@ i915_gem_obj_finish_shmem_access(struct drm_i915_gem_object *obj)
 
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 void i915_vma_move_to_active(struct i915_vma *vma,
-			     struct drm_i915_gem_request *req,
+			     struct i915_request *rq,
 			     unsigned int flags);
 int i915_gem_dumb_create(struct drm_file *file_priv,
 			 struct drm_device *dev,
@@ -3324,10 +3351,8 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 
 int __must_check i915_gem_set_global_seqno(struct drm_device *dev, u32 seqno);
 
-struct drm_i915_gem_request *
+struct i915_request *
 i915_gem_find_active_request(struct intel_engine_cs *engine);
-
-void i915_gem_retire_requests(struct drm_i915_private *dev_priv);
 
 static inline bool i915_reset_backoff(struct i915_gpu_error *error)
 {
@@ -3360,7 +3385,7 @@ static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
 	return READ_ONCE(error->reset_engine_count[engine->id]);
 }
 
-struct drm_i915_gem_request *
+struct i915_request *
 i915_gem_reset_prepare_engine(struct intel_engine_cs *engine);
 int i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
 void i915_gem_reset(struct drm_i915_private *dev_priv);
@@ -3369,7 +3394,7 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 bool i915_gem_unset_wedged(struct drm_i915_private *dev_priv);
 void i915_gem_reset_engine(struct intel_engine_cs *engine,
-			   struct drm_i915_gem_request *request);
+			   struct i915_request *request);
 
 void i915_gem_init_mmio(struct drm_i915_private *i915);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
@@ -3399,7 +3424,8 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write);
 struct i915_vma * __must_check
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 				     u32 alignment,
-				     const struct i915_ggtt_view *view);
+				     const struct i915_ggtt_view *view,
+				     unsigned int flags);
 void i915_gem_object_unpin_from_display_plane(struct i915_vma *vma);
 int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 				int align);
@@ -3675,6 +3701,7 @@ extern void intel_i2c_reset(struct drm_i915_private *dev_priv);
 
 /* intel_bios.c */
 void intel_bios_init(struct drm_i915_private *dev_priv);
+void intel_bios_cleanup(struct drm_i915_private *dev_priv);
 bool intel_bios_is_valid_vbt(const void *buf, size_t size);
 bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv);
 bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin);
@@ -3986,9 +4013,9 @@ wait_remaining_ms_from_jiffies(unsigned long timestamp_jiffies, int to_wait_ms)
 }
 
 static inline bool
-__i915_request_irq_complete(const struct drm_i915_gem_request *req)
+__i915_request_irq_complete(const struct i915_request *rq)
 {
-	struct intel_engine_cs *engine = req->engine;
+	struct intel_engine_cs *engine = rq->engine;
 	u32 seqno;
 
 	/* Note that the engine may have wrapped around the seqno, and
@@ -3997,7 +4024,7 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 	 * this by kicking all the waiters before resetting the seqno
 	 * in hardware, and also signal the fence.
 	 */
-	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &req->fence.flags))
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &rq->fence.flags))
 		return true;
 
 	/* The request was dequeued before we were awoken. We check after
@@ -4006,14 +4033,14 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 	 * the request execution are sufficient to ensure that a check
 	 * after reading the value from hw matches this request.
 	 */
-	seqno = i915_gem_request_global_seqno(req);
+	seqno = i915_request_global_seqno(rq);
 	if (!seqno)
 		return false;
 
 	/* Before we do the heavier coherent read of the seqno,
 	 * check the value (hopefully) in the CPU cacheline.
 	 */
-	if (__i915_gem_request_completed(req, seqno))
+	if (__i915_request_completed(rq, seqno))
 		return true;
 
 	/* Ensure our read of the seqno is coherent so that we
@@ -4062,7 +4089,7 @@ __i915_request_irq_complete(const struct drm_i915_gem_request *req)
 			wake_up_process(b->irq_wait->tsk);
 		spin_unlock_irq(&b->irq_lock);
 
-		if (__i915_gem_request_completed(req, seqno))
+		if (__i915_request_completed(rq, seqno))
 			return true;
 	}
 

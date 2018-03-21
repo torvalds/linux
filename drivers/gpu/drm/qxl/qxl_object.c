@@ -109,7 +109,7 @@ int qxl_bo_create(struct qxl_device *qdev,
 	qxl_ttm_placement_from_domain(bo, domain, pinned);
 
 	r = ttm_bo_init(&qdev->mman.bdev, &bo->tbo, size, type,
-			&bo->placement, 0, !kernel, NULL, size,
+			&bo->placement, 0, !kernel, size,
 			NULL, NULL, &qxl_ttm_bo_destroy);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)

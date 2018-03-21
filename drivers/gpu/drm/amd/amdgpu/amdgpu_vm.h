@@ -28,6 +28,7 @@
 #include <linux/kfifo.h>
 #include <linux/rbtree.h>
 #include <drm/gpu_scheduler.h>
+#include <drm/drm_file.h>
 
 #include "amdgpu_sync.h"
 #include "amdgpu_ring.h"
@@ -99,7 +100,7 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_MMHUB				1
 
 /* hardcode that limit for now */
-#define AMDGPU_VA_RESERVED_SIZE			(8ULL << 20)
+#define AMDGPU_VA_RESERVED_SIZE			(1ULL << 20)
 
 /* VA hole for 48bit addresses on Vega10 */
 #define AMDGPU_VA_HOLE_START			0x0000800000000000ULL

@@ -27,9 +27,10 @@
 #define __DISPLAY_RQ_DLG_CALC_H__
 
 #include "dml_common_defs.h"
-#include "display_rq_dlg_helpers.h"
 
 struct display_mode_lib;
+
+#include "display_rq_dlg_helpers.h"
 
 void dml1_extract_rq_regs(
 		struct display_mode_lib *mode_lib,

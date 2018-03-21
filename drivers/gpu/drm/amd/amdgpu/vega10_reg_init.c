@@ -24,7 +24,8 @@
 #include "soc15.h"
 
 #include "soc15_common.h"
-#include "soc15ip.h"
+#include "soc15_hw_ip.h"
+#include "vega10_ip_offset.h"
 
 int vega10_reg_base_init(struct amdgpu_device *adev)
 {

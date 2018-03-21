@@ -369,8 +369,8 @@ static int smu7_populate_single_firmware_entry(struct pp_hwmgr *hwmgr,
 	if (!result) {
 		entry->version = info.fw_version;
 		entry->id = (uint16_t)fw_type;
-		entry->image_addr_high = smu_upper_32_bits(info.mc_addr);
-		entry->image_addr_low = smu_lower_32_bits(info.mc_addr);
+		entry->image_addr_high = upper_32_bits(info.mc_addr);
+		entry->image_addr_low = lower_32_bits(info.mc_addr);
 		entry->meta_data_addr_high = 0;
 		entry->meta_data_addr_low = 0;
 
@@ -412,10 +412,10 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 		if (!cgs_is_virtualization_enabled(hwmgr->device)) {
 			smu7_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_HI,
-						smu_data->smu_buffer.mc_addr_high);
+						upper_32_bits(smu_data->smu_buffer.mc_addr));
 			smu7_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_LO,
-						smu_data->smu_buffer.mc_addr_low);
+						lower_32_bits(smu_data->smu_buffer.mc_addr));
 		}
 		fw_to_load = UCODE_ID_RLC_G_MASK
 			   + UCODE_ID_SDMA0_MASK
@@ -472,8 +472,8 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 				UCODE_ID_MEC_STORAGE, &toc->entry[toc->num_entries++]),
 				"Failed to Get Firmware Entry.", return -EINVAL);
 
-	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, smu_data->header_buffer.mc_addr_high);
-	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, smu_data->header_buffer.mc_addr_low);
+	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, upper_32_bits(smu_data->header_buffer.mc_addr));
+	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, lower_32_bits(smu_data->header_buffer.mc_addr));
 
 	if (smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load))
 		pr_err("Fail to Request SMU Load uCode");
@@ -585,9 +585,8 @@ int smu7_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 int smu7_init(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_smumgr *smu_data;
-	uint8_t *internal_buf;
 	uint64_t mc_addr = 0;
-
+	int r;
 	/* Allocate memory for backend private data */
 	smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	smu_data->header_buffer.data_size =
@@ -595,52 +594,42 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 
 /* Allocate FW image data structure and header buffer and
  * send the header buffer address to SMU */
-	smu_allocate_memory(hwmgr->device,
+	r = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 		smu_data->header_buffer.data_size,
-		CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 		PAGE_SIZE,
+		AMDGPU_GEM_DOMAIN_VRAM,
+		&smu_data->header_buffer.handle,
 		&mc_addr,
-		&smu_data->header_buffer.kaddr,
-		&smu_data->header_buffer.handle);
+		&smu_data->header_buffer.kaddr);
+
+	if (r)
+		return -EINVAL;
 
 	smu_data->header = smu_data->header_buffer.kaddr;
-	smu_data->header_buffer.mc_addr_high = smu_upper_32_bits(mc_addr);
-	smu_data->header_buffer.mc_addr_low = smu_lower_32_bits(mc_addr);
-
-	PP_ASSERT_WITH_CODE((NULL != smu_data->header),
-		"Out of memory.",
-		kfree(hwmgr->smu_backend);
-		cgs_free_gpu_mem(hwmgr->device,
-		(cgs_handle_t)smu_data->header_buffer.handle);
-		return -EINVAL);
+	smu_data->header_buffer.mc_addr = mc_addr;
 
 	if (cgs_is_virtualization_enabled(hwmgr->device))
 		return 0;
 
 	smu_data->smu_buffer.data_size = 200*4096;
-	smu_allocate_memory(hwmgr->device,
+	r = amdgpu_bo_create_kernel((struct amdgpu_device *)hwmgr->adev,
 		smu_data->smu_buffer.data_size,
-		CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,
 		PAGE_SIZE,
+		AMDGPU_GEM_DOMAIN_VRAM,
+		&smu_data->smu_buffer.handle,
 		&mc_addr,
-		&smu_data->smu_buffer.kaddr,
-		&smu_data->smu_buffer.handle);
+		&smu_data->smu_buffer.kaddr);
 
-	internal_buf = smu_data->smu_buffer.kaddr;
-	smu_data->smu_buffer.mc_addr_high = smu_upper_32_bits(mc_addr);
-	smu_data->smu_buffer.mc_addr_low = smu_lower_32_bits(mc_addr);
-
-	PP_ASSERT_WITH_CODE((NULL != internal_buf),
-		"Out of memory.",
-		kfree(hwmgr->smu_backend);
-		cgs_free_gpu_mem(hwmgr->device,
-		(cgs_handle_t)smu_data->smu_buffer.handle);
-		return -EINVAL);
+	if (r) {
+		amdgpu_bo_free_kernel(&smu_data->header_buffer.handle,
+					&smu_data->header_buffer.mc_addr,
+					&smu_data->header_buffer.kaddr);
+		return -EINVAL;
+	}
+	smu_data->smu_buffer.mc_addr = mc_addr;
 
 	if (smum_is_hw_avfs_present(hwmgr))
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_BOOT;
-	else
-		smu_data->avfs.avfs_btc_status = AVFS_BTC_NOTSUPPORTED;
+		hwmgr->avfs_supported = true;
 
 	return 0;
 }
@@ -650,9 +639,14 @@ int smu7_smu_fini(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
-	smu_free_memory(hwmgr->device, (void *) smu_data->header_buffer.handle);
+	amdgpu_bo_free_kernel(&smu_data->header_buffer.handle,
+					&smu_data->header_buffer.mc_addr,
+					&smu_data->header_buffer.kaddr);
+
 	if (!cgs_is_virtualization_enabled(hwmgr->device))
-		smu_free_memory(hwmgr->device, (void *) smu_data->smu_buffer.handle);
+		amdgpu_bo_free_kernel(&smu_data->smu_buffer.handle,
+					&smu_data->smu_buffer.mc_addr,
+					&smu_data->smu_buffer.kaddr);
 
 	kfree(hwmgr->smu_backend);
 	hwmgr->smu_backend = NULL;

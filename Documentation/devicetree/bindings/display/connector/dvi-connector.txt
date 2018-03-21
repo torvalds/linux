@@ -10,6 +10,7 @@ Optional properties:
 - analog: the connector has DVI analog pins
 - digital: the connector has DVI digital pins
 - dual-link: the connector has pins for DVI dual-link
+- hpd-gpios: HPD GPIO number
 
 Required nodes:
 - Video port for DVI input

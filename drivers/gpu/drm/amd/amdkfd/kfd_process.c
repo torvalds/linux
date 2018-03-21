@@ -34,17 +34,18 @@
 struct mm_struct;
 
 #include "kfd_priv.h"
+#include "kfd_device_queue_manager.h"
 #include "kfd_dbgmgr.h"
+#include "kfd_iommu.h"
 
 /*
  * List of struct kfd_process (field kfd_process).
  * Unique/indexed by mm_struct*
  */
-#define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
-static DEFINE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
+DEFINE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
 static DEFINE_MUTEX(kfd_processes_mutex);
 
-DEFINE_STATIC_SRCU(kfd_processes_srcu);
+DEFINE_SRCU(kfd_processes_srcu);
 
 static struct workqueue_struct *kfd_process_wq;
 
@@ -53,6 +54,9 @@ static void kfd_process_ref_release(struct kref *ref);
 static struct kfd_process *create_process(const struct task_struct *thread,
 					struct file *filep);
 static int kfd_process_init_cwsr(struct kfd_process *p, struct file *filep);
+
+static void evict_process_worker(struct work_struct *work);
+static void restore_process_worker(struct work_struct *work);
 
 
 void kfd_process_create_wq(void)
@@ -154,6 +158,10 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 		pr_debug("Releasing pdd (topology id %d) for process (pasid %d)\n",
 				pdd->dev->id, p->pasid);
 
+		if (pdd->vm)
+			pdd->dev->kfd2kgd->destroy_process_vm(
+				pdd->dev->kgd, pdd->vm);
+
 		list_del(&pdd->per_device_list);
 
 		if (pdd->qpd.cwsr_kaddr)
@@ -173,16 +181,11 @@ static void kfd_process_wq_release(struct work_struct *work)
 {
 	struct kfd_process *p = container_of(work, struct kfd_process,
 					     release_work);
-	struct kfd_process_device *pdd;
 
-	pr_debug("Releasing process (pasid %d) in workqueue\n", p->pasid);
-
-	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
-		if (pdd->bound == PDD_BOUND)
-			amd_iommu_unbind_pasid(pdd->dev->pdev, p->pasid);
-	}
+	kfd_iommu_unbind_process(p);
 
 	kfd_process_destroy_pdds(p);
+	dma_fence_put(p->ef);
 
 	kfd_event_free_process(p);
 
@@ -229,6 +232,9 @@ static void kfd_process_notifier_release(struct mmu_notifier *mn,
 	hash_del_rcu(&p->kfd_processes);
 	mutex_unlock(&kfd_processes_mutex);
 	synchronize_srcu(&kfd_processes_srcu);
+
+	cancel_delayed_work_sync(&p->eviction_work);
+	cancel_delayed_work_sync(&p->restore_work);
 
 	mutex_lock(&p->mutex);
 
@@ -351,6 +357,10 @@ static struct kfd_process *create_process(const struct task_struct *thread,
 	if (err != 0)
 		goto err_init_apertures;
 
+	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
+	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
+	process->last_restore_timestamp = get_jiffies_64();
+
 	err = kfd_process_init_cwsr(process, filep);
 	if (err)
 		goto err_init_cwsr;
@@ -402,12 +412,24 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	INIT_LIST_HEAD(&pdd->qpd.priv_queue_list);
 	pdd->qpd.dqm = dev->dqm;
 	pdd->qpd.pqm = &p->pqm;
+	pdd->qpd.evicted = 0;
 	pdd->process = p;
 	pdd->bound = PDD_UNBOUND;
 	pdd->already_dequeued = false;
 	list_add(&pdd->per_device_list, &p->per_device_data);
 
+	/* Create the GPUVM context for this specific device */
+	if (dev->kfd2kgd->create_process_vm(dev->kgd, &pdd->vm,
+					    &p->kgd_process_info, &p->ef)) {
+		pr_err("Failed to create process VM object\n");
+		goto err_create_pdd;
+	}
 	return pdd;
+
+err_create_pdd:
+	list_del(&pdd->per_device_list);
+	kfree(pdd);
+	return NULL;
 }
 
 /*
@@ -429,131 +451,11 @@ struct kfd_process_device *kfd_bind_process_to_device(struct kfd_dev *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (pdd->bound == PDD_BOUND) {
-		return pdd;
-	} else if (unlikely(pdd->bound == PDD_BOUND_SUSPENDED)) {
-		pr_err("Binding PDD_BOUND_SUSPENDED pdd is unexpected!\n");
-		return ERR_PTR(-EINVAL);
-	}
-
-	err = amd_iommu_bind_pasid(dev->pdev, p->pasid, p->lead_thread);
-	if (err < 0)
+	err = kfd_iommu_bind_process_to_device(pdd);
+	if (err)
 		return ERR_PTR(err);
 
-	pdd->bound = PDD_BOUND;
-
 	return pdd;
-}
-
-/*
- * Bind processes do the device that have been temporarily unbound
- * (PDD_BOUND_SUSPENDED) in kfd_unbind_processes_from_device.
- */
-int kfd_bind_processes_to_device(struct kfd_dev *dev)
-{
-	struct kfd_process_device *pdd;
-	struct kfd_process *p;
-	unsigned int temp;
-	int err = 0;
-
-	int idx = srcu_read_lock(&kfd_processes_srcu);
-
-	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
-		mutex_lock(&p->mutex);
-		pdd = kfd_get_process_device_data(dev, p);
-
-		if (WARN_ON(!pdd) || pdd->bound != PDD_BOUND_SUSPENDED) {
-			mutex_unlock(&p->mutex);
-			continue;
-		}
-
-		err = amd_iommu_bind_pasid(dev->pdev, p->pasid,
-				p->lead_thread);
-		if (err < 0) {
-			pr_err("Unexpected pasid %d binding failure\n",
-					p->pasid);
-			mutex_unlock(&p->mutex);
-			break;
-		}
-
-		pdd->bound = PDD_BOUND;
-		mutex_unlock(&p->mutex);
-	}
-
-	srcu_read_unlock(&kfd_processes_srcu, idx);
-
-	return err;
-}
-
-/*
- * Mark currently bound processes as PDD_BOUND_SUSPENDED. These
- * processes will be restored to PDD_BOUND state in
- * kfd_bind_processes_to_device.
- */
-void kfd_unbind_processes_from_device(struct kfd_dev *dev)
-{
-	struct kfd_process_device *pdd;
-	struct kfd_process *p;
-	unsigned int temp;
-
-	int idx = srcu_read_lock(&kfd_processes_srcu);
-
-	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
-		mutex_lock(&p->mutex);
-		pdd = kfd_get_process_device_data(dev, p);
-
-		if (WARN_ON(!pdd)) {
-			mutex_unlock(&p->mutex);
-			continue;
-		}
-
-		if (pdd->bound == PDD_BOUND)
-			pdd->bound = PDD_BOUND_SUSPENDED;
-		mutex_unlock(&p->mutex);
-	}
-
-	srcu_read_unlock(&kfd_processes_srcu, idx);
-}
-
-void kfd_process_iommu_unbind_callback(struct kfd_dev *dev, unsigned int pasid)
-{
-	struct kfd_process *p;
-	struct kfd_process_device *pdd;
-
-	/*
-	 * Look for the process that matches the pasid. If there is no such
-	 * process, we either released it in amdkfd's own notifier, or there
-	 * is a bug. Unfortunately, there is no way to tell...
-	 */
-	p = kfd_lookup_process_by_pasid(pasid);
-	if (!p)
-		return;
-
-	pr_debug("Unbinding process %d from IOMMU\n", pasid);
-
-	mutex_lock(kfd_get_dbgmgr_mutex());
-
-	if (dev->dbgmgr && dev->dbgmgr->pasid == p->pasid) {
-		if (!kfd_dbgmgr_unregister(dev->dbgmgr, p)) {
-			kfd_dbgmgr_destroy(dev->dbgmgr);
-			dev->dbgmgr = NULL;
-		}
-	}
-
-	mutex_unlock(kfd_get_dbgmgr_mutex());
-
-	mutex_lock(&p->mutex);
-
-	pdd = kfd_get_process_device_data(dev, p);
-	if (pdd)
-		/* For GPU relying on IOMMU, we need to dequeue here
-		 * when PASID is still bound.
-		 */
-		kfd_process_dequeue_from_device(pdd);
-
-	mutex_unlock(&p->mutex);
-
-	kfd_unref_process(p);
 }
 
 struct kfd_process_device *kfd_get_first_process_device_data(
@@ -599,6 +501,208 @@ struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid)
 	return ret_p;
 }
 
+/* This increments the process->ref counter. */
+struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm)
+{
+	struct kfd_process *p;
+
+	int idx = srcu_read_lock(&kfd_processes_srcu);
+
+	p = find_process_by_mm(mm);
+	if (p)
+		kref_get(&p->ref);
+
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+
+	return p;
+}
+
+/* process_evict_queues - Evict all user queues of a process
+ *
+ * Eviction is reference-counted per process-device. This means multiple
+ * evictions from different sources can be nested safely.
+ */
+static int process_evict_queues(struct kfd_process *p)
+{
+	struct kfd_process_device *pdd;
+	int r = 0;
+	unsigned int n_evicted = 0;
+
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
+		r = pdd->dev->dqm->ops.evict_process_queues(pdd->dev->dqm,
+							    &pdd->qpd);
+		if (r) {
+			pr_err("Failed to evict process queues\n");
+			goto fail;
+		}
+		n_evicted++;
+	}
+
+	return r;
+
+fail:
+	/* To keep state consistent, roll back partial eviction by
+	 * restoring queues
+	 */
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
+		if (n_evicted == 0)
+			break;
+		if (pdd->dev->dqm->ops.restore_process_queues(pdd->dev->dqm,
+							      &pdd->qpd))
+			pr_err("Failed to restore queues\n");
+
+		n_evicted--;
+	}
+
+	return r;
+}
+
+/* process_restore_queues - Restore all user queues of a process */
+static  int process_restore_queues(struct kfd_process *p)
+{
+	struct kfd_process_device *pdd;
+	int r, ret = 0;
+
+	list_for_each_entry(pdd, &p->per_device_data, per_device_list) {
+		r = pdd->dev->dqm->ops.restore_process_queues(pdd->dev->dqm,
+							      &pdd->qpd);
+		if (r) {
+			pr_err("Failed to restore process queues\n");
+			if (!ret)
+				ret = r;
+		}
+	}
+
+	return ret;
+}
+
+static void evict_process_worker(struct work_struct *work)
+{
+	int ret;
+	struct kfd_process *p;
+	struct delayed_work *dwork;
+
+	dwork = to_delayed_work(work);
+
+	/* Process termination destroys this worker thread. So during the
+	 * lifetime of this thread, kfd_process p will be valid
+	 */
+	p = container_of(dwork, struct kfd_process, eviction_work);
+	WARN_ONCE(p->last_eviction_seqno != p->ef->seqno,
+		  "Eviction fence mismatch\n");
+
+	/* Narrow window of overlap between restore and evict work
+	 * item is possible. Once amdgpu_amdkfd_gpuvm_restore_process_bos
+	 * unreserves KFD BOs, it is possible to evicted again. But
+	 * restore has few more steps of finish. So lets wait for any
+	 * previous restore work to complete
+	 */
+	flush_delayed_work(&p->restore_work);
+
+	pr_debug("Started evicting pasid %d\n", p->pasid);
+	ret = process_evict_queues(p);
+	if (!ret) {
+		dma_fence_signal(p->ef);
+		dma_fence_put(p->ef);
+		p->ef = NULL;
+		schedule_delayed_work(&p->restore_work,
+				msecs_to_jiffies(PROCESS_RESTORE_TIME_MS));
+
+		pr_debug("Finished evicting pasid %d\n", p->pasid);
+	} else
+		pr_err("Failed to evict queues of pasid %d\n", p->pasid);
+}
+
+static void restore_process_worker(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+	struct kfd_process *p;
+	struct kfd_process_device *pdd;
+	int ret = 0;
+
+	dwork = to_delayed_work(work);
+
+	/* Process termination destroys this worker thread. So during the
+	 * lifetime of this thread, kfd_process p will be valid
+	 */
+	p = container_of(dwork, struct kfd_process, restore_work);
+
+	/* Call restore_process_bos on the first KGD device. This function
+	 * takes care of restoring the whole process including other devices.
+	 * Restore can fail if enough memory is not available. If so,
+	 * reschedule again.
+	 */
+	pdd = list_first_entry(&p->per_device_data,
+			       struct kfd_process_device,
+			       per_device_list);
+
+	pr_debug("Started restoring pasid %d\n", p->pasid);
+
+	/* Setting last_restore_timestamp before successful restoration.
+	 * Otherwise this would have to be set by KGD (restore_process_bos)
+	 * before KFD BOs are unreserved. If not, the process can be evicted
+	 * again before the timestamp is set.
+	 * If restore fails, the timestamp will be set again in the next
+	 * attempt. This would mean that the minimum GPU quanta would be
+	 * PROCESS_ACTIVE_TIME_MS - (time to execute the following two
+	 * functions)
+	 */
+
+	p->last_restore_timestamp = get_jiffies_64();
+	ret = pdd->dev->kfd2kgd->restore_process_bos(p->kgd_process_info,
+						     &p->ef);
+	if (ret) {
+		pr_debug("Failed to restore BOs of pasid %d, retry after %d ms\n",
+			 p->pasid, PROCESS_BACK_OFF_TIME_MS);
+		ret = schedule_delayed_work(&p->restore_work,
+				msecs_to_jiffies(PROCESS_BACK_OFF_TIME_MS));
+		WARN(!ret, "reschedule restore work failed\n");
+		return;
+	}
+
+	ret = process_restore_queues(p);
+	if (!ret)
+		pr_debug("Finished restoring pasid %d\n", p->pasid);
+	else
+		pr_err("Failed to restore queues of pasid %d\n", p->pasid);
+}
+
+void kfd_suspend_all_processes(void)
+{
+	struct kfd_process *p;
+	unsigned int temp;
+	int idx = srcu_read_lock(&kfd_processes_srcu);
+
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		cancel_delayed_work_sync(&p->eviction_work);
+		cancel_delayed_work_sync(&p->restore_work);
+
+		if (process_evict_queues(p))
+			pr_err("Failed to suspend process %d\n", p->pasid);
+		dma_fence_signal(p->ef);
+		dma_fence_put(p->ef);
+		p->ef = NULL;
+	}
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+}
+
+int kfd_resume_all_processes(void)
+{
+	struct kfd_process *p;
+	unsigned int temp;
+	int ret = 0, idx = srcu_read_lock(&kfd_processes_srcu);
+
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		if (!schedule_delayed_work(&p->restore_work, 0)) {
+			pr_err("Restore process %d failed during resume\n",
+			       p->pasid);
+			ret = -EFAULT;
+		}
+	}
+	srcu_read_unlock(&kfd_processes_srcu, idx);
+	return ret;
+}
+
 int kfd_reserved_mem_mmap(struct kfd_process *process,
 			  struct vm_area_struct *vma)
 {
@@ -631,6 +735,22 @@ int kfd_reserved_mem_mmap(struct kfd_process *process,
 	return remap_pfn_range(vma, vma->vm_start,
 			       PFN_DOWN(__pa(qpd->cwsr_kaddr)),
 			       KFD_CWSR_TBA_TMA_SIZE, vma->vm_page_prot);
+}
+
+void kfd_flush_tlb(struct kfd_process_device *pdd)
+{
+	struct kfd_dev *dev = pdd->dev;
+	const struct kfd2kgd_calls *f2g = dev->kfd2kgd;
+
+	if (dev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS) {
+		/* Nothing to flush until a VMID is assigned, which
+		 * only happens when the first queue is created.
+		 */
+		if (pdd->qpd.vmid)
+			f2g->invalidate_tlbs_vmid(dev->kgd, pdd->qpd.vmid);
+	} else {
+		f2g->invalidate_tlbs(dev->kgd, pdd->process->pasid);
+	}
 }
 
 #if defined(CONFIG_DEBUG_FS)

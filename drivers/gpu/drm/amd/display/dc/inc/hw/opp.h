@@ -297,6 +297,10 @@ struct opp_funcs {
 		bool enable,
 		const struct dc_crtc_timing *timing);
 
+	void (*opp_pipe_clock_control)(
+			struct output_pixel_processor *opp,
+			bool enable);
+
 };
 
 #endif

@@ -358,6 +358,17 @@ struct phm_clocks {
 	uint32_t clock[MAX_NUM_CLOCKS];
 };
 
+#define DPMTABLE_OD_UPDATE_SCLK     0x00000001
+#define DPMTABLE_OD_UPDATE_MCLK     0x00000002
+#define DPMTABLE_UPDATE_SCLK        0x00000004
+#define DPMTABLE_UPDATE_MCLK        0x00000008
+#define DPMTABLE_OD_UPDATE_VDDC     0x00000010
+
+/* To determine if sclk and mclk are in overdrive state */
+#define SCLK_OVERDRIVE_ENABLED           0x00000001
+#define MCLK_OVERDRIVE_ENABLED           0x00000002
+#define VDDC_OVERDRIVE_ENABLED           0x00000010
+
 struct phm_odn_performance_level {
 	uint32_t clock;
 	uint32_t vddc;
@@ -368,9 +379,9 @@ struct phm_odn_clock_levels {
 	uint32_t size;
 	uint32_t options;
 	uint32_t flags;
-	uint32_t number_of_performance_levels;
-	/* variable-sized array, specify by ulNumberOfPerformanceLevels. */
-	struct phm_odn_performance_level performance_level_entries[8];
+	uint32_t num_of_pl;
+	/* variable-sized array, specify by num_of_pl. */
+	struct phm_odn_performance_level entries[8];
 };
 
 extern int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr);
@@ -393,7 +404,7 @@ extern int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_leve
 extern int phm_display_configuration_changed(struct pp_hwmgr *hwmgr);
 extern int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr);
 extern int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info);
-extern int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *temperature_range);
+extern int phm_start_thermal_controller(struct pp_hwmgr *hwmgr);
 extern int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr);
 extern bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hwmgr);
 
@@ -437,6 +448,5 @@ extern int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 
 extern int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks);
 extern int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr);
-extern int phm_reset_power_profile_state(struct pp_hwmgr *hwmgr);
 #endif /* _HARDWARE_MANAGER_H_ */
 

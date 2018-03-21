@@ -310,9 +310,9 @@ int smu7_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int smu7_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		uint32_t low_temp, uint32_t high_temp)
 {
-	uint32_t low = SMU7_THERMAL_MINIMUM_ALERT_TEMP *
+	int low = SMU7_THERMAL_MINIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	uint32_t high = SMU7_THERMAL_MAXIMUM_ALERT_TEMP *
+	int high = SMU7_THERMAL_MAXIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 
 	if (low < low_temp)

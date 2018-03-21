@@ -300,9 +300,6 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 		container_of(work, struct amdgpu_device, vce.idle_work.work);
 	unsigned i, count = 0;
 
-	if (amdgpu_sriov_vf(adev))
-		return;
-
 	for (i = 0; i < adev->vce.num_rings; i++)
 		count += amdgpu_fence_count_emitted(&adev->vce.ring[i]);
 
@@ -362,7 +359,8 @@ void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring)
  */
 void amdgpu_vce_ring_end_use(struct amdgpu_ring *ring)
 {
-	schedule_delayed_work(&ring->adev->vce.idle_work, VCE_IDLE_TIMEOUT);
+	if (!amdgpu_sriov_vf(ring->adev))
+		schedule_delayed_work(&ring->adev->vce.idle_work, VCE_IDLE_TIMEOUT);
 }
 
 /**

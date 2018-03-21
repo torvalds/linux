@@ -361,7 +361,7 @@ int intel_uc_init_hw(struct drm_i915_private *dev_priv)
 			goto err_out;
 
 		if (USES_HUC(dev_priv)) {
-			ret = intel_huc_init_hw(huc);
+			ret = intel_huc_fw_upload(huc);
 			if (ret)
 				goto err_out;
 		}
@@ -444,4 +444,49 @@ void intel_uc_fini_hw(struct drm_i915_private *dev_priv)
 
 	if (USES_GUC_SUBMISSION(dev_priv))
 		gen9_disable_guc_interrupts(dev_priv);
+}
+
+int intel_uc_suspend(struct drm_i915_private *i915)
+{
+	struct intel_guc *guc = &i915->guc;
+	int err;
+
+	if (!USES_GUC(i915))
+		return 0;
+
+	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return 0;
+
+	err = intel_guc_suspend(guc);
+	if (err) {
+		DRM_DEBUG_DRIVER("Failed to suspend GuC, err=%d", err);
+		return err;
+	}
+
+	gen9_disable_guc_interrupts(i915);
+
+	return 0;
+}
+
+int intel_uc_resume(struct drm_i915_private *i915)
+{
+	struct intel_guc *guc = &i915->guc;
+	int err;
+
+	if (!USES_GUC(i915))
+		return 0;
+
+	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
+		return 0;
+
+	if (i915_modparams.guc_log_level)
+		gen9_enable_guc_interrupts(i915);
+
+	err = intel_guc_resume(guc);
+	if (err) {
+		DRM_DEBUG_DRIVER("Failed to resume GuC, err=%d", err);
+		return err;
+	}
+
+	return 0;
 }

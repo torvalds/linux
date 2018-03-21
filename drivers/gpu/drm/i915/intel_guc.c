@@ -370,7 +370,7 @@ int intel_guc_sample_forcewake(struct intel_guc *guc)
 	u32 action[2];
 
 	action[0] = INTEL_GUC_ACTION_SAMPLE_FORCEWAKE;
-	/* WaRsDisableCoarsePowerGating:skl,bxt */
+	/* WaRsDisableCoarsePowerGating:skl,cnl */
 	if (!HAS_RC6(dev_priv) || NEEDS_WaRsDisableCoarsePowerGating(dev_priv))
 		action[1] = 0;
 	else
@@ -403,22 +403,15 @@ int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset)
 
 /**
  * intel_guc_suspend() - notify GuC entering suspend state
- * @dev_priv:	i915 device private
+ * @guc:	the guc
  */
-int intel_guc_suspend(struct drm_i915_private *dev_priv)
+int intel_guc_suspend(struct intel_guc *guc)
 {
-	struct intel_guc *guc = &dev_priv->guc;
-	u32 data[3];
-
-	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return 0;
-
-	gen9_disable_guc_interrupts(dev_priv);
-
-	data[0] = INTEL_GUC_ACTION_ENTER_S_STATE;
-	/* any value greater than GUC_POWER_D0 */
-	data[1] = GUC_POWER_D1;
-	data[2] = guc_ggtt_offset(guc->shared_data);
+	u32 data[] = {
+		INTEL_GUC_ACTION_ENTER_S_STATE,
+		GUC_POWER_D1, /* any value greater than GUC_POWER_D0 */
+		guc_ggtt_offset(guc->shared_data)
+	};
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }
@@ -448,22 +441,15 @@ int intel_guc_reset_engine(struct intel_guc *guc,
 
 /**
  * intel_guc_resume() - notify GuC resuming from suspend state
- * @dev_priv:	i915 device private
+ * @guc:	the guc
  */
-int intel_guc_resume(struct drm_i915_private *dev_priv)
+int intel_guc_resume(struct intel_guc *guc)
 {
-	struct intel_guc *guc = &dev_priv->guc;
-	u32 data[3];
-
-	if (guc->fw.load_status != INTEL_UC_FIRMWARE_SUCCESS)
-		return 0;
-
-	if (i915_modparams.guc_log_level)
-		gen9_enable_guc_interrupts(dev_priv);
-
-	data[0] = INTEL_GUC_ACTION_EXIT_S_STATE;
-	data[1] = GUC_POWER_D0;
-	data[2] = guc_ggtt_offset(guc->shared_data);
+	u32 data[] = {
+		INTEL_GUC_ACTION_EXIT_S_STATE,
+		GUC_POWER_D0,
+		guc_ggtt_offset(guc->shared_data)
+	};
 
 	return intel_guc_send(guc, data, ARRAY_SIZE(data));
 }

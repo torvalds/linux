@@ -1245,7 +1245,7 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 			return -ENOMEM;
 
 		ret = ttm_bo_create(&dev_priv->bdev, size, ttm_bo_type_device,
-				    &vmw_mob_ne_placement, 0, false, NULL,
+				    &vmw_mob_ne_placement, 0, false,
 				    &man->cmd_space);
 		if (ret)
 			return ret;

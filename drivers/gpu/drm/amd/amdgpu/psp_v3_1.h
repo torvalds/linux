@@ -32,26 +32,6 @@ enum { PSP_BINARY_ALIGNMENT = 64 };
 enum { PSP_BOOTLOADER_1_MEG_ALIGNMENT = 0x100000 };
 enum { PSP_BOOTLOADER_8_MEM_ALIGNMENT = 0x800000 };
 
-extern int psp_v3_1_init_microcode(struct psp_context *psp);
-extern int psp_v3_1_bootloader_load_sysdrv(struct psp_context *psp);
-extern int psp_v3_1_bootloader_load_sos(struct psp_context *psp);
-extern int psp_v3_1_prep_cmd_buf(struct amdgpu_firmware_info *ucode,
-				 struct psp_gfx_cmd_resp *cmd);
-extern int psp_v3_1_ring_init(struct psp_context *psp,
-			      enum psp_ring_type ring_type);
-extern int psp_v3_1_ring_create(struct psp_context *psp,
-				enum psp_ring_type ring_type);
-extern int psp_v3_1_ring_stop(struct psp_context *psp,
-				enum psp_ring_type ring_type);
-extern int psp_v3_1_ring_destroy(struct psp_context *psp,
-				enum psp_ring_type ring_type);
-extern int psp_v3_1_cmd_submit(struct psp_context *psp,
-			       struct amdgpu_firmware_info *ucode,
-			       uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr,
-			       int index);
-extern bool psp_v3_1_compare_sram_data(struct psp_context *psp,
-				       struct amdgpu_firmware_info *ucode,
-				       enum AMDGPU_UCODE_ID ucode_type);
-extern bool psp_v3_1_smu_reload_quirk(struct psp_context *psp);
-extern int psp_v3_1_mode1_reset(struct psp_context *psp);
+void psp_v3_1_set_psp_funcs(struct psp_context *psp);
+
 #endif

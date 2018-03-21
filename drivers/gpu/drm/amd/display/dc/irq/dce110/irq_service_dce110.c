@@ -36,27 +36,25 @@
 
 #include "dc.h"
 #include "core_types.h"
-static bool hpd_ack(
-	struct irq_service *irq_service,
-	const struct irq_source_info *info)
+#define DC_LOGGER \
+	irq_service->ctx->logger
+
+static bool hpd_ack(struct irq_service *irq_service,
+		    const struct irq_source_info *info)
 {
 	uint32_t addr = info->status_reg;
 	uint32_t value = dm_read_reg(irq_service->ctx, addr);
-	uint32_t current_status =
-		get_reg_field_value(
-			value,
-			DC_HPD_INT_STATUS,
-			DC_HPD_SENSE_DELAYED);
+	uint32_t current_status = get_reg_field_value(value,
+						      DC_HPD_INT_STATUS,
+						      DC_HPD_SENSE_DELAYED);
 
 	dal_irq_service_ack_generic(irq_service, info);
 
 	value = dm_read_reg(irq_service->ctx, info->enable_reg);
 
-	set_reg_field_value(
-		value,
-		current_status ? 0 : 1,
-		DC_HPD_INT_CONTROL,
-		DC_HPD_INT_POLARITY);
+	set_reg_field_value(value, current_status ? 0 : 1,
+			    DC_HPD_INT_CONTROL,
+			    DC_HPD_INT_POLARITY);
 
 	dm_write_reg(irq_service->ctx, info->enable_reg, value);
 
@@ -176,48 +174,41 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 #define dc_underflow_int_entry(reg_num) \
 	[DC_IRQ_SOURCE_DC ## reg_num ## UNDERFLOW] = dummy_irq_entry()
 
-bool dal_irq_service_dummy_set(
-	struct irq_service *irq_service,
-	const struct irq_source_info *info,
-	bool enable)
+bool dal_irq_service_dummy_set(struct irq_service *irq_service,
+			       const struct irq_source_info *info,
+			       bool enable)
 {
-	dm_logger_write(
-		irq_service->ctx->logger, LOG_ERROR,
-		"%s: called for non-implemented irq source\n",
-		__func__);
+	DC_LOG_ERROR("%s: called for non-implemented irq source\n",
+		     __func__);
 	return false;
 }
 
-bool dal_irq_service_dummy_ack(
-	struct irq_service *irq_service,
-	const struct irq_source_info *info)
+bool dal_irq_service_dummy_ack(struct irq_service *irq_service,
+			       const struct irq_source_info *info)
 {
-	dm_logger_write(
-		irq_service->ctx->logger, LOG_ERROR,
-		"%s: called for non-implemented irq source\n",
-		__func__);
+	DC_LOG_ERROR("%s: called for non-implemented irq source\n",
+		     __func__);
 	return false;
 }
 
 
-bool dce110_vblank_set(
-		struct irq_service *irq_service,
-		const struct irq_source_info *info,
-		bool enable)
+bool dce110_vblank_set(struct irq_service *irq_service,
+		       const struct irq_source_info *info,
+		       bool enable)
 {
 	struct dc_context *dc_ctx = irq_service->ctx;
 	struct dc *core_dc = irq_service->ctx->dc;
-	enum dc_irq_source dal_irq_src = dc_interrupt_to_irq_source(
-										irq_service->ctx->dc,
-										info->src_id,
-										info->ext_id);
+	enum dc_irq_source dal_irq_src =
+			dc_interrupt_to_irq_source(irq_service->ctx->dc,
+						   info->src_id,
+						   info->ext_id);
 	uint8_t pipe_offset = dal_irq_src - IRQ_TYPE_VBLANK;
 
 	struct timing_generator *tg =
 			core_dc->current_state->res_ctx.pipe_ctx[pipe_offset].stream_res.tg;
 
 	if (enable) {
-		if (!tg->funcs->arm_vert_intr(tg, 2)) {
+		if (!tg || !tg->funcs->arm_vert_intr(tg, 2)) {
 			DC_ERROR("Failed to get VBLANK!\n");
 			return false;
 		}
@@ -225,7 +216,6 @@ bool dce110_vblank_set(
 
 	dal_irq_service_set_generic(irq_service, info, enable);
 	return true;
-
 }
 
 static const struct irq_source_info_funcs dummy_irq_info_funcs = {
@@ -406,9 +396,8 @@ static const struct irq_service_funcs irq_service_funcs_dce110 = {
 		.to_dal_irq_source = to_dal_irq_source_dce110
 };
 
-static void construct(
-	struct irq_service *irq_service,
-	struct irq_service_init_data *init_data)
+static void construct(struct irq_service *irq_service,
+		      struct irq_service_init_data *init_data)
 {
 	dal_irq_service_construct(irq_service, init_data);
 
@@ -416,8 +405,8 @@ static void construct(
 	irq_service->funcs = &irq_service_funcs_dce110;
 }
 
-struct irq_service *dal_irq_service_dce110_create(
-	struct irq_service_init_data *init_data)
+struct irq_service *
+dal_irq_service_dce110_create(struct irq_service_init_data *init_data)
 {
 	struct irq_service *irq_service = kzalloc(sizeof(*irq_service),
 						  GFP_KERNEL);
