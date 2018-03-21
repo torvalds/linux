@@ -119,6 +119,7 @@ struct nfsd4_create {
 	} u;
 	u32		cr_bmval[3];        /* request */
 	struct iattr	cr_iattr;           /* request */
+	int		cr_umask;           /* request */
 	struct nfsd4_change_info  cr_cinfo; /* response */
 	struct nfs4_acl *cr_acl;
 	struct xdr_netobj cr_label;
@@ -230,6 +231,7 @@ struct nfsd4_open {
 	u32		op_why_no_deleg;    /* response - DELEG_NONE_EXT only */
 	u32		op_create;     	    /* request */
 	u32		op_createmode;      /* request */
+	int		op_umask;           /* request */
 	u32		op_bmval[3];        /* request */
 	struct iattr	op_iattr;           /* UNCHECKED4, GUARDED4, EXCLUSIVE4_1 */
 	nfs4_verifier	op_verf __attribute__((aligned(32)));
