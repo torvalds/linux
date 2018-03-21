@@ -569,9 +569,13 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 		return -EOPNOTSUPP;
 
 	/* 1.auto_neg & speed & duplex from cmd */
-	if (netdev->phydev)
+	if (netdev->phydev) {
 		phy_ethtool_ksettings_get(netdev->phydev, cmd);
-	else if (h->ae_algo->ops->get_ksettings_an_result)
+
+		return 0;
+	}
+
+	if (h->ae_algo->ops->get_ksettings_an_result)
 		h->ae_algo->ops->get_ksettings_an_result(h,
 							 &cmd->base.autoneg,
 							 &cmd->base.speed,
