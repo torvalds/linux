@@ -393,7 +393,7 @@ static const struct snd_pcm_ops atmel_pcm_ops = {
 	.mmap		= atmel_pcm_mmap,
 };
 
-static struct snd_soc_platform_driver atmel_soc_platform = {
+static struct snd_soc_component_driver atmel_soc_platform = {
 	.ops		= &atmel_pcm_ops,
 	.pcm_new	= atmel_pcm_new,
 	.pcm_free	= atmel_pcm_free,
@@ -401,13 +401,13 @@ static struct snd_soc_platform_driver atmel_soc_platform = {
 
 int atmel_pcm_pdc_platform_register(struct device *dev)
 {
-	return snd_soc_register_platform(dev, &atmel_soc_platform);
+	return devm_snd_soc_register_component(dev, &atmel_soc_platform,
+					       NULL, 0);
 }
 EXPORT_SYMBOL(atmel_pcm_pdc_platform_register);
 
 void atmel_pcm_pdc_platform_unregister(struct device *dev)
 {
-	snd_soc_unregister_platform(dev);
 }
 EXPORT_SYMBOL(atmel_pcm_pdc_platform_unregister);
 

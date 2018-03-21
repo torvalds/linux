@@ -23,6 +23,8 @@
 #include <sound/soc.h>
 #include "txx9aclc.h"
 
+#define DRV_NAME "txx9aclc"
+
 static struct txx9aclc_soc_device {
 	struct txx9aclc_dmadata dmadata[2];
 } txx9aclc_soc_device;
@@ -53,6 +55,7 @@ static int txx9aclc_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct txx9aclc_dmadata *dmadata = runtime->private_data;
 	int ret;
 
@@ -60,13 +63,13 @@ static int txx9aclc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(rtd->platform->dev,
+	dev_dbg(component->dev,
 		"runtime->dma_area = %#lx dma_addr = %#lx dma_bytes = %zd "
 		"runtime->min_align %ld\n",
 		(unsigned long)runtime->dma_area,
 		(unsigned long)runtime->dma_addr, runtime->dma_bytes,
 		runtime->min_align);
-	dev_dbg(rtd->platform->dev,
+	dev_dbg(component->dev,
 		"periods %d period_bytes %d stream %d\n",
 		params_periods(params), params_period_bytes(params),
 		substream->stream);
@@ -287,7 +290,8 @@ static int txx9aclc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct snd_card *card = rtd->card->snd_card;
 	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
-	struct platform_device *pdev = to_platform_device(rtd->platform->dev);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct platform_device *pdev = to_platform_device(component->dev);
 	struct txx9aclc_soc_device *dev;
 	struct resource *r;
 	int i;
@@ -371,15 +375,15 @@ static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
 	return 0;
 }
 
-static int txx9aclc_pcm_probe(struct snd_soc_platform *platform)
+static int txx9aclc_pcm_probe(struct snd_soc_component *component)
 {
-	snd_soc_platform_set_drvdata(platform, &txx9aclc_soc_device);
+	snd_soc_component_set_drvdata(component, &txx9aclc_soc_device);
 	return 0;
 }
 
-static int txx9aclc_pcm_remove(struct snd_soc_platform *platform)
+static void txx9aclc_pcm_remove(struct snd_soc_component *component)
 {
-	struct txx9aclc_soc_device *dev = snd_soc_platform_get_drvdata(platform);
+	struct txx9aclc_soc_device *dev = snd_soc_component_get_drvdata(component);
 	struct txx9aclc_plat_drvdata *drvdata = txx9aclc_drvdata;
 	void __iomem *base = drvdata->base;
 	int i;
@@ -400,10 +404,10 @@ static int txx9aclc_pcm_remove(struct snd_soc_platform *platform)
 		}
 		dev->dmadata[i].dma_chan = NULL;
 	}
-	return 0;
 }
 
-static const struct snd_soc_platform_driver txx9aclc_soc_platform = {
+static const struct snd_soc_component_driver txx9aclc_soc_component = {
+	.name		= DRV_NAME,
 	.probe		= txx9aclc_pcm_probe,
 	.remove		= txx9aclc_pcm_remove,
 	.ops		= &txx9aclc_pcm_ops,
@@ -412,8 +416,8 @@ static const struct snd_soc_platform_driver txx9aclc_soc_platform = {
 
 static int txx9aclc_soc_platform_probe(struct platform_device *pdev)
 {
-	return devm_snd_soc_register_platform(&pdev->dev,
-					      &txx9aclc_soc_platform);
+	return devm_snd_soc_register_component(&pdev->dev,
+					&txx9aclc_soc_component, NULL, 0);
 }
 
 static struct platform_driver txx9aclc_pcm_driver = {

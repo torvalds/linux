@@ -84,7 +84,7 @@ static int pxa2xx_soc_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-static const struct snd_soc_platform_driver pxa2xx_soc_platform = {
+static const struct snd_soc_component_driver pxa2xx_soc_platform = {
 	.ops		= &pxa2xx_pcm_ops,
 	.pcm_new	= pxa2xx_soc_pcm_new,
 	.pcm_free	= pxa2xx_pcm_free_dma_buffers,
@@ -92,7 +92,8 @@ static const struct snd_soc_platform_driver pxa2xx_soc_platform = {
 
 static int pxa2xx_soc_platform_probe(struct platform_device *pdev)
 {
-	return devm_snd_soc_register_platform(&pdev->dev, &pxa2xx_soc_platform);
+	return devm_snd_soc_register_component(&pdev->dev, &pxa2xx_soc_platform,
+					       NULL, 0);
 }
 
 #ifdef CONFIG_OF

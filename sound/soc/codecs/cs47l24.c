@@ -33,6 +33,8 @@
 #include "wm_adsp.h"
 #include "cs47l24.h"
 
+#define DRV_NAME "cs47l24-codec"
+
 struct cs47l24_priv {
 	struct arizona_priv core;
 	struct arizona_fll fll[2];
@@ -1069,7 +1071,8 @@ static struct snd_soc_dai_driver cs47l24_dai[] = {
 static int cs47l24_open(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct cs47l24_priv *priv = snd_soc_platform_get_drvdata(rtd->platform);
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct cs47l24_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->core.arizona;
 	int n_adsp;
 
@@ -1177,6 +1180,16 @@ static unsigned int cs47l24_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_4L,
 };
 
+static struct snd_compr_ops cs47l24_compr_ops = {
+	.open		= cs47l24_open,
+	.free		= wm_adsp_compr_free,
+	.set_params	= wm_adsp_compr_set_params,
+	.get_caps	= wm_adsp_compr_get_caps,
+	.trigger	= wm_adsp_compr_trigger,
+	.pointer	= wm_adsp_compr_pointer,
+	.copy		= wm_adsp_compr_copy,
+};
+
 static const struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
 	.probe = cs47l24_codec_probe,
 	.remove = cs47l24_codec_remove,
@@ -1187,6 +1200,8 @@ static const struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
 	.set_pll = cs47l24_set_fll,
 
 	.component_driver = {
+		.name			= DRV_NAME,
+		.compr_ops		= &cs47l24_compr_ops,
 		.controls		= cs47l24_snd_controls,
 		.num_controls		= ARRAY_SIZE(cs47l24_snd_controls),
 		.dapm_widgets		= cs47l24_dapm_widgets,
@@ -1194,20 +1209,6 @@ static const struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
 		.dapm_routes		= cs47l24_dapm_routes,
 		.num_dapm_routes	= ARRAY_SIZE(cs47l24_dapm_routes),
 	},
-};
-
-static const struct snd_compr_ops cs47l24_compr_ops = {
-	.open = cs47l24_open,
-	.free = wm_adsp_compr_free,
-	.set_params = wm_adsp_compr_set_params,
-	.get_caps = wm_adsp_compr_get_caps,
-	.trigger = wm_adsp_compr_trigger,
-	.pointer = wm_adsp_compr_pointer,
-	.copy = wm_adsp_compr_copy,
-};
-
-static const struct snd_soc_platform_driver cs47l24_compr_platform = {
-	.compr_ops = &cs47l24_compr_ops,
 };
 
 static int cs47l24_probe(struct platform_device *pdev)
@@ -1298,23 +1299,15 @@ static int cs47l24_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_dsp_irq;
 
-	ret = snd_soc_register_platform(&pdev->dev, &cs47l24_compr_platform);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
-		goto err_spk_irqs;
-	}
-
 	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_cs47l24,
 				      cs47l24_dai, ARRAY_SIZE(cs47l24_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
-		goto err_platform;
+		goto err_spk_irqs;
 	}
 
 	return ret;
 
-err_platform:
-	snd_soc_unregister_platform(&pdev->dev);
 err_spk_irqs:
 	arizona_free_spk_irqs(arizona);
 err_dsp_irq:
@@ -1328,7 +1321,6 @@ static int cs47l24_remove(struct platform_device *pdev)
 	struct cs47l24_priv *cs47l24 = platform_get_drvdata(pdev);
 	struct arizona *arizona = cs47l24->core.arizona;
 
-	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 

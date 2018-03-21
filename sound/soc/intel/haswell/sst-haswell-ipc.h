@@ -22,6 +22,8 @@
 #include <linux/platform_device.h>
 #include <sound/asound.h>
 
+#define DRV_NAME "haswell-dai"
+
 #define SST_HSW_NO_CHANNELS		4
 #define SST_HSW_MAX_DX_REGIONS		14
 #define SST_HSW_DX_CONTEXT_SIZE        (640 * 1024)
