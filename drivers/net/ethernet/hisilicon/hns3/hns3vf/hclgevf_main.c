@@ -1468,6 +1468,13 @@ static void hclgevf_get_tqps_and_rss_info(struct hnae3_handle *handle,
 	*max_rss_size = hdev->rss_size_max;
 }
 
+static int hclgevf_get_status(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return hdev->hw.mac.link;
+}
+
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
@@ -1500,6 +1507,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.set_vlan_filter = hclgevf_set_vlan_filter,
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
+	.get_status = hclgevf_get_status,
 };
 
 static struct hnae3_ae_algo ae_algovf = {

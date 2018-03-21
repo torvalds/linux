@@ -1053,6 +1053,7 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_channels = hns3_get_channels,
 	.get_coalesce = hns3_get_coalesce,
 	.set_coalesce = hns3_set_coalesce,
+	.get_link = hns3_get_link,
 };
 
 static const struct ethtool_ops hns3_ethtool_ops = {
