@@ -1226,6 +1226,7 @@ static void power_pmu_disable(struct pmu *pmu)
 		 */
 		write_mmcr0(cpuhw, val);
 		mb();
+		isync();
 
 		/*
 		 * Disable instruction sampling if it was enabled
@@ -1234,12 +1235,26 @@ static void power_pmu_disable(struct pmu *pmu)
 			mtspr(SPRN_MMCRA,
 			      cpuhw->mmcr[2] & ~MMCRA_SAMPLE_ENABLE);
 			mb();
+			isync();
 		}
 
 		cpuhw->disabled = 1;
 		cpuhw->n_added = 0;
 
 		ebb_switch_out(mmcr0);
+
+#ifdef CONFIG_PPC64
+		/*
+		 * These are readable by userspace, may contain kernel
+		 * addresses and are not switched by context switch, so clear
+		 * them now to avoid leaking anything to userspace in general
+		 * including to another process.
+		 */
+		if (ppmu->flags & PPMU_ARCH_207S) {
+			mtspr(SPRN_SDAR, 0);
+			mtspr(SPRN_SIAR, 0);
+		}
+#endif
 	}
 
 	local_irq_restore(flags);
