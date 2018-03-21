@@ -190,7 +190,7 @@ static void vga_set_80x60(void)
 	vga_set_vertical_end(60*8);
 }
 
-static int vga_set_mode(struct mode_info *mode)
+static int __attribute__((optimize("no-jump-tables"))) vga_set_mode(struct mode_info *mode)
 {
 	/* Set the basic mode */
 	vga_set_basic_mode();
