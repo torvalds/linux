@@ -977,7 +977,7 @@ character.
 
 
 4. Store characters to the buffer
------------------------------
+---------------------------------
 
 We want to collect the pressed characters (not the other keys) into
 circular a buffer that can be consumed from user space. For this step
@@ -1025,7 +1025,7 @@ minor are defined as ``KBD_MAJOR`` and ``KBD_MINOR``:
 
 
 5. Reset the buffer
------------------------------
+-------------------
 
 Reset the buffer if the device is written to. For this step follow the
 sections marked with **TODO 5** in the skeleton.
