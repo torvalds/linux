@@ -3998,8 +3998,35 @@ static int smu7_set_max_fan_rpm_output(struct pp_hwmgr *hwmgr, uint16_t us_max_f
 			PPSMC_MSG_SetFanRpmMax, us_max_fan_rpm);
 }
 
+static const struct amdgpu_irq_src_funcs smu7_irq_funcs = {
+	.process = phm_irq_process,
+};
+
 static int smu7_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_irq_src *source =
+		kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
+
+	if (!source)
+		return -ENOMEM;
+
+	source->funcs = &smu7_irq_funcs;
+
+	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
+			AMDGPU_IH_CLIENTID_LEGACY,
+			230,
+			source);
+	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
+			AMDGPU_IH_CLIENTID_LEGACY,
+			231,
+			source);
+
+	/* Register CTF(GPIO_19) interrupt */
+	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
+			AMDGPU_IH_CLIENTID_LEGACY,
+			83,
+			source);
+
 	return 0;
 }
 
