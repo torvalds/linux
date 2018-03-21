@@ -122,7 +122,7 @@ static inline long long atomic64_read(const atomic64_t *v)
 	long long r;
 	alternative_atomic64(read, "=&A" (r), "c" (v) : "memory");
 	return r;
- }
+}
 
 /**
  * atomic64_add_return - add and return

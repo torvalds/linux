@@ -559,7 +559,7 @@ static const struct lock_manager_operations lease_manager_ops = {
  * Initialize a lease, use the default lock manager operations
  */
 static int lease_init(struct file *filp, long type, struct file_lock *fl)
- {
+{
 	if (assign_type(fl, type) != 0)
 		return -EINVAL;
 
