@@ -945,7 +945,7 @@ static inline int may_follow_link(struct nameidata *nd)
 	if (nd->flags & LOOKUP_RCU)
 		return -ECHILD;
 
-	audit_log_link_denied("follow_link", &nd->stack[0].link);
+	audit_log_link_denied("follow_link");
 	return -EACCES;
 }
 
@@ -1011,7 +1011,7 @@ static int may_linkat(struct path *link)
 	if (safe_hardlink_source(inode) || inode_owner_or_capable(inode))
 		return 0;
 
-	audit_log_link_denied("linkat", link);
+	audit_log_link_denied("linkat");
 	return -EPERM;
 }
 
