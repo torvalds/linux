@@ -880,7 +880,6 @@ qla24xx_async_prli(struct scsi_qla_host *vha, fc_port_t *fcport)
 		return rval;
 
 	if (fcport->fw_login_state == DSC_LS_PLOGI_PEND ||
-	    fcport->fw_login_state == DSC_LS_PLOGI_COMP ||
 	    fcport->fw_login_state == DSC_LS_PRLI_PEND)
 		return rval;
 
@@ -1236,6 +1235,11 @@ int qla24xx_fcport_handle_login(struct scsi_qla_host *vha, fc_port_t *fcport)
 		    __func__, __LINE__, fcport->port_name);
 		data[0] = data[1] = 0;
 		qla2x00_post_async_adisc_work(vha, fcport, data);
+		break;
+
+	case DSC_LOGIN_PEND:
+		if (fcport->fw_login_state == DSC_LS_PLOGI_COMP)
+			qla24xx_post_prli_work(vha, fcport);
 		break;
 
 	default:
@@ -1640,6 +1644,13 @@ qla24xx_handle_prli_done_event(struct scsi_qla_host *vha, struct event_arg *ea)
 		qla24xx_post_gpdb_work(vha, ea->fcport, 0);
 		break;
 	default:
+		if ((ea->iop[0] == LSC_SCODE_ELS_REJECT) &&
+		    (ea->iop[1] == 0x50000)) {   /* reson 5=busy expl:0x0 */
+			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
+			ea->fcport->fw_login_state = DSC_LS_PLOGI_COMP;
+			break;
+		}
+
 		if (ea->fcport->n2n_flag) {
 			ql_dbg(ql_dbg_disc, vha, 0x2118,
 				"%s %d %8phC post fc4 prli\n",

@@ -1025,9 +1025,12 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 		 * FW supports nvme and driver load parameter requested nvme.
 		 * BIT 26 of fw_attributes indicates NVMe support.
 		 */
-		if ((ha->fw_attributes_h & 0x400) && ql2xnvmeenable)
+		if ((ha->fw_attributes_h & 0x400) && ql2xnvmeenable) {
 			vha->flags.nvme_enabled = 1;
-
+			ql_log(ql_log_info, vha, 0xd302,
+			    "%s: FC-NVMe is Enabled (0x%x)\n",
+			     __func__, ha->fw_attributes_h);
+		}
 	}
 
 	if (IS_QLA27XX(ha)) {
