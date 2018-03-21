@@ -551,3 +551,7 @@
 &rkvdec_mmu {
 	status = "okay";
 };
+
+&rk_rga {
+	status = "okay";
+};
