@@ -344,8 +344,6 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 	struct tsl2x7x_lux *p;
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
 	int i, ret;
-	u32 ch0lux = 0;
-	u32 ch1lux = 0;
 
 	mutex_lock(&chip->als_mutex);
 
@@ -414,15 +412,6 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 				   tsl2x7x_als_gain[chip->settings.als_gain]) -
 		      DIV_ROUND_UP(ch1 * p->ch1,
 				   tsl2x7x_als_gain[chip->settings.als_gain]);
-	}
-
-	/* note: lux is 31 bit max at this point */
-	if (ch1lux > ch0lux) {
-		dev_dbg(&chip->client->dev,
-			"%s: ch1lux > ch0lux; returning last value\n",
-			__func__);
-		ret = chip->als_cur_info.lux;
-		goto out_unlock;
 	}
 
 	/* adjust for active time scale */
