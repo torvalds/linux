@@ -1475,92 +1475,18 @@ pio_fallback:
 	return sunxi_nfc_hw_ecc_write_page(mtd, chip, buf, oob_required, page);
 }
 
-static int sunxi_nfc_hw_syndrome_ecc_read_page(struct mtd_info *mtd,
-					       struct nand_chip *chip,
-					       uint8_t *buf, int oob_required,
-					       int page)
-{
-	struct nand_ecc_ctrl *ecc = &chip->ecc;
-	unsigned int max_bitflips = 0;
-	int ret, i, cur_off = 0;
-	bool raw_mode = false;
-
-	nand_read_page_op(chip, page, 0, NULL, 0);
-
-	sunxi_nfc_hw_ecc_enable(mtd);
-
-	for (i = 0; i < ecc->steps; i++) {
-		int data_off = i * (ecc->size + ecc->bytes + 4);
-		int oob_off = data_off + ecc->size;
-		u8 *data = buf + (i * ecc->size);
-		u8 *oob = chip->oob_poi + (i * (ecc->bytes + 4));
-
-		ret = sunxi_nfc_hw_ecc_read_chunk(mtd, data, data_off, oob,
-						  oob_off, &cur_off,
-						  &max_bitflips, !i,
-						  oob_required,
-						  page);
-		if (ret < 0)
-			return ret;
-		else if (ret)
-			raw_mode = true;
-	}
-
-	if (oob_required)
-		sunxi_nfc_hw_ecc_read_extra_oob(mtd, chip->oob_poi, &cur_off,
-						!raw_mode, page);
-
-	sunxi_nfc_hw_ecc_disable(mtd);
-
-	return max_bitflips;
-}
-
-static int sunxi_nfc_hw_syndrome_ecc_write_page(struct mtd_info *mtd,
-						struct nand_chip *chip,
-						const uint8_t *buf,
-						int oob_required, int page)
-{
-	struct nand_ecc_ctrl *ecc = &chip->ecc;
-	int ret, i, cur_off = 0;
-
-	nand_prog_page_begin_op(chip, page, 0, NULL, 0);
-
-	sunxi_nfc_hw_ecc_enable(mtd);
-
-	for (i = 0; i < ecc->steps; i++) {
-		int data_off = i * (ecc->size + ecc->bytes + 4);
-		int oob_off = data_off + ecc->size;
-		const u8 *data = buf + (i * ecc->size);
-		const u8 *oob = chip->oob_poi + (i * (ecc->bytes + 4));
-
-		ret = sunxi_nfc_hw_ecc_write_chunk(mtd, data, data_off,
-						   oob, oob_off, &cur_off,
-						   false, page);
-		if (ret)
-			return ret;
-	}
-
-	if (oob_required || (chip->options & NAND_NEED_SCRAMBLING))
-		sunxi_nfc_hw_ecc_write_extra_oob(mtd, chip->oob_poi,
-						 &cur_off, page);
-
-	sunxi_nfc_hw_ecc_disable(mtd);
-
-	return nand_prog_page_end_op(chip);
-}
-
-static int sunxi_nfc_hw_common_ecc_read_oob(struct mtd_info *mtd,
-					    struct nand_chip *chip,
-					    int page)
+static int sunxi_nfc_hw_ecc_read_oob(struct mtd_info *mtd,
+				     struct nand_chip *chip,
+				     int page)
 {
 	chip->pagebuf = -1;
 
 	return chip->ecc.read_page(mtd, chip, chip->data_buf, 1, page);
 }
 
-static int sunxi_nfc_hw_common_ecc_write_oob(struct mtd_info *mtd,
-					     struct nand_chip *chip,
-					     int page)
+static int sunxi_nfc_hw_ecc_write_oob(struct mtd_info *mtd,
+				      struct nand_chip *chip,
+				      int page)
 {
 	int ret;
 
@@ -1801,9 +1727,14 @@ static const struct mtd_ooblayout_ops sunxi_nand_ooblayout_ops = {
 	.free = sunxi_nand_ooblayout_free,
 };
 
-static int sunxi_nand_hw_common_ecc_ctrl_init(struct mtd_info *mtd,
-					      struct nand_ecc_ctrl *ecc,
-					      struct device_node *np)
+static void sunxi_nand_hw_ecc_ctrl_cleanup(struct nand_ecc_ctrl *ecc)
+{
+	kfree(ecc->priv);
+}
+
+static int sunxi_nand_hw_ecc_ctrl_init(struct mtd_info *mtd,
+				       struct nand_ecc_ctrl *ecc,
+				       struct device_node *np)
 {
 	static const u8 strengths[] = { 16, 24, 28, 32, 40, 48, 56, 60, 64 };
 	struct nand_chip *nand = mtd_to_nand(mtd);
@@ -1889,36 +1820,10 @@ static int sunxi_nand_hw_common_ecc_ctrl_init(struct mtd_info *mtd,
 		goto err;
 	}
 
-	ecc->read_oob = sunxi_nfc_hw_common_ecc_read_oob;
-	ecc->write_oob = sunxi_nfc_hw_common_ecc_write_oob;
+	ecc->read_oob = sunxi_nfc_hw_ecc_read_oob;
+	ecc->write_oob = sunxi_nfc_hw_ecc_write_oob;
 	mtd_set_ooblayout(mtd, &sunxi_nand_ooblayout_ops);
 	ecc->priv = data;
-
-	return 0;
-
-err:
-	kfree(data);
-
-	return ret;
-}
-
-static void sunxi_nand_hw_common_ecc_ctrl_cleanup(struct nand_ecc_ctrl *ecc)
-{
-	kfree(ecc->priv);
-}
-
-static int sunxi_nand_hw_ecc_ctrl_init(struct mtd_info *mtd,
-				       struct nand_ecc_ctrl *ecc,
-				       struct device_node *np)
-{
-	struct nand_chip *nand = mtd_to_nand(mtd);
-	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
-	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
-	int ret;
-
-	ret = sunxi_nand_hw_common_ecc_ctrl_init(mtd, ecc, np);
-	if (ret)
-		return ret;
 
 	if (nfc->dmac) {
 		ecc->read_page = sunxi_nfc_hw_ecc_read_page_dma;
@@ -1937,33 +1842,18 @@ static int sunxi_nand_hw_ecc_ctrl_init(struct mtd_info *mtd,
 	ecc->write_oob_raw = nand_write_oob_std;
 
 	return 0;
-}
 
-static int sunxi_nand_hw_syndrome_ecc_ctrl_init(struct mtd_info *mtd,
-						struct nand_ecc_ctrl *ecc,
-						struct device_node *np)
-{
-	int ret;
+err:
+	kfree(data);
 
-	ret = sunxi_nand_hw_common_ecc_ctrl_init(mtd, ecc, np);
-	if (ret)
-		return ret;
-
-	ecc->prepad = 4;
-	ecc->read_page = sunxi_nfc_hw_syndrome_ecc_read_page;
-	ecc->write_page = sunxi_nfc_hw_syndrome_ecc_write_page;
-	ecc->read_oob_raw = nand_read_oob_syndrome;
-	ecc->write_oob_raw = nand_write_oob_syndrome;
-
-	return 0;
+	return ret;
 }
 
 static void sunxi_nand_ecc_cleanup(struct nand_ecc_ctrl *ecc)
 {
 	switch (ecc->mode) {
 	case NAND_ECC_HW:
-	case NAND_ECC_HW_SYNDROME:
-		sunxi_nand_hw_common_ecc_ctrl_cleanup(ecc);
+		sunxi_nand_hw_ecc_ctrl_cleanup(ecc);
 		break;
 	case NAND_ECC_NONE:
 	default:
@@ -1988,11 +1878,6 @@ static int sunxi_nand_ecc_init(struct mtd_info *mtd, struct nand_ecc_ctrl *ecc,
 	switch (ecc->mode) {
 	case NAND_ECC_HW:
 		ret = sunxi_nand_hw_ecc_ctrl_init(mtd, ecc, np);
-		if (ret)
-			return ret;
-		break;
-	case NAND_ECC_HW_SYNDROME:
-		ret = sunxi_nand_hw_syndrome_ecc_ctrl_init(mtd, ecc, np);
 		if (ret)
 			return ret;
 		break;
