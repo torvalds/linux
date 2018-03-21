@@ -2872,6 +2872,14 @@ static inline void mlxsw_reg_pmtu_pack(char *payload, u8 local_port,
 
 MLXSW_REG_DEFINE(ptys, MLXSW_REG_PTYS_ID, MLXSW_REG_PTYS_LEN);
 
+/* an_disable_admin
+ * Auto negotiation disable administrative configuration
+ * 0 - Device doesn't support AN disable.
+ * 1 - Device supports AN disable.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ptys, an_disable_admin, 0x00, 30, 1);
+
 /* reg_ptys_local_port
  * Local port number.
  * Access: Index
@@ -3000,12 +3008,13 @@ MLXSW_ITEM32(reg, ptys, ib_proto_oper, 0x28, 0, 16);
 MLXSW_ITEM32(reg, ptys, eth_proto_lp_advertise, 0x30, 0, 32);
 
 static inline void mlxsw_reg_ptys_eth_pack(char *payload, u8 local_port,
-					   u32 proto_admin)
+					   u32 proto_admin, bool autoneg)
 {
 	MLXSW_REG_ZERO(ptys, payload);
 	mlxsw_reg_ptys_local_port_set(payload, local_port);
 	mlxsw_reg_ptys_proto_mask_set(payload, MLXSW_REG_PTYS_PROTO_MASK_ETH);
 	mlxsw_reg_ptys_eth_proto_admin_set(payload, proto_admin);
+	mlxsw_reg_ptys_an_disable_admin_set(payload, !autoneg);
 }
 
 static inline void mlxsw_reg_ptys_eth_unpack(char *payload,
