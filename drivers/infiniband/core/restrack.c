@@ -17,9 +17,52 @@ void rdma_restrack_init(struct rdma_restrack_root *res)
 	init_rwsem(&res->rwsem);
 }
 
+static const char *type2str(enum rdma_restrack_type type)
+{
+	static const char * const names[RDMA_RESTRACK_MAX] = {
+		[RDMA_RESTRACK_PD] = "PD",
+		[RDMA_RESTRACK_CQ] = "CQ",
+		[RDMA_RESTRACK_QP] = "QP",
+		[RDMA_RESTRACK_CM_ID] = "CM_ID",
+		[RDMA_RESTRACK_MR] = "MR",
+	};
+
+	return names[type];
+};
+
 void rdma_restrack_clean(struct rdma_restrack_root *res)
 {
-	WARN_ON_ONCE(!hash_empty(res->hash));
+	struct rdma_restrack_entry *e;
+	char buf[TASK_COMM_LEN];
+	struct ib_device *dev;
+	const char *owner;
+	int bkt;
+
+	if (hash_empty(res->hash))
+		return;
+
+	dev = container_of(res, struct ib_device, res);
+	pr_err("restrack: %s", CUT_HERE);
+	pr_err("restrack: BUG: RESTRACK detected leak of resources on %s\n",
+	       dev->name);
+	hash_for_each(res->hash, bkt, e, node) {
+		if (rdma_is_kernel_res(e)) {
+			owner = e->kern_name;
+		} else {
+			/*
+			 * There is no need to call get_task_struct here,
+			 * because we can be here only if there are more
+			 * get_task_struct() call than put_task_struct().
+			 */
+			get_task_comm(buf, e->task);
+			owner = buf;
+		}
+
+		pr_err("restrack: %s %s object allocated by %s is not freed\n",
+		       rdma_is_kernel_res(e) ? "Kernel" : "User",
+		       type2str(e->type), owner);
+	}
+	pr_err("restrack: %s", CUT_HERE);
 }
 
 int rdma_restrack_count(struct rdma_restrack_root *res,

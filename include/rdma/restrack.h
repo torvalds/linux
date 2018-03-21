@@ -155,7 +155,7 @@ static inline bool rdma_is_kernel_res(struct rdma_restrack_entry *res)
 int __must_check rdma_restrack_get(struct rdma_restrack_entry *res);
 
 /**
- * rdma_restrack_put() - relase resource
+ * rdma_restrack_put() - release resource
  * @res:  resource entry
  */
 int rdma_restrack_put(struct rdma_restrack_entry *res);
