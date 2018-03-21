@@ -19,8 +19,11 @@
 *v0.0.1: this driver is compatible with generic_sensor
 *v0.0.3:
 *        add sensor_focus_af_const_pause_usr_cb;
+*v0.0.4:
+*	camera: rockchip: change the full size of gc2415 fps to 20fps
+*	for the test of cts/vts
 */
-static int version = KERNEL_VERSION(0, 0, 3);
+static int version = KERNEL_VERSION(0, 0, 4);
 module_param(version, int, S_IRUGO);
 
 static int debug;
@@ -869,7 +872,7 @@ static struct rk_sensor_reg sensor_fullres_lowfps_data[] = {
 	//SENSORDB("GC2145_Sensor_2M"},
 	{0xfe, 0x00},
 	{0xfd, 0x00},
-	{0xfa, 0x11},
+	{0xfa, 0x00},
 	//// crop window
 	{0xfe, 0x00},
 	{0x90, 0x01},
@@ -903,7 +906,7 @@ static struct rk_sensor_reg sensor_fullres_lowfps_data[] = {
 	{0x08, 0x80},
 	{0x0a, 0x82},
 	{0xfe, 0x01},
-	{0x21, 0x15},
+	{0x21, 0x04},
 	{0xfe, 0x00},
 	{0x20, 0x15},		//if 0xfa=11,then 0x21=15;else if 0xfa=00,then 0x21=04
 	{0xfe, 0x00},
