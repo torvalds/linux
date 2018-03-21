@@ -774,10 +774,14 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, mtd);
 
 	mtd->name = "cafe_nand";
-	mtd_device_parse_register(mtd, part_probes, NULL, NULL, 0);
+	err = mtd_device_parse_register(mtd, part_probes, NULL, NULL, 0);
+	if (err)
+		goto out_cleanup_nand;
 
 	goto out;
 
+ out_cleanup_nand:
+	nand_cleanup(&cafe->nand);
  out_free_dma:
 	dma_free_coherent(&cafe->pdev->dev, 2112, cafe->dmabuf, cafe->dmaaddr);
  out_irq:
