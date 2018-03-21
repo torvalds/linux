@@ -230,12 +230,9 @@ mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb, struct 
 }
 
 static inline u16
-mlx5e_txwqe_build_eseg_gso(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-			   struct mlx5_wqe_eth_seg *eseg, unsigned int *num_bytes)
+mlx5e_tx_get_gso_ihs(struct mlx5e_txqsq *sq, struct sk_buff *skb)
 {
 	u16 ihs;
-
-	eseg->mss    = cpu_to_be16(skb_shinfo(skb)->gso_size);
 
 	if (skb->encapsulation) {
 		ihs = skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb);
@@ -247,7 +244,6 @@ mlx5e_txwqe_build_eseg_gso(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		sq->stats.tso_bytes += skb->len - ihs;
 	}
 
-	*num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
 	return ihs;
 }
 
@@ -300,17 +296,34 @@ dma_unmap_wqe_err:
 	return -ENOMEM;
 }
 
+static inline void mlx5e_fill_sq_edge(struct mlx5e_txqsq *sq,
+				      struct mlx5_wq_cyc *wq,
+				      u16 pi)
+{
+	struct mlx5e_tx_wqe_info *edge_wi, *wi = &sq->db.wqe_info[pi];
+	u8 nnops = mlx5_wq_cyc_get_size(wq) - pi;
+
+	edge_wi = wi + nnops;
+
+	/* fill sq edge with nops to avoid wqe wrap around */
+	for (; wi < edge_wi; wi++) {
+		wi->skb        = NULL;
+		wi->num_wqebbs = 1;
+		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+	}
+	sq->stats.nop += nnops;
+}
+
 static inline void
 mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
-		     u8 opcode, u16 ds_cnt, u32 num_bytes, u8 num_dma,
+		     u8 opcode, u16 ds_cnt, u8 num_wqebbs, u32 num_bytes, u8 num_dma,
 		     struct mlx5e_tx_wqe_info *wi, struct mlx5_wqe_ctrl_seg *cseg)
 {
 	struct mlx5_wq_cyc *wq = &sq->wq;
-	u16 pi;
 
 	wi->num_bytes = num_bytes;
 	wi->num_dma = num_dma;
-	wi->num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
+	wi->num_wqebbs = num_wqebbs;
 	wi->skb = skb;
 
 	cseg->opmod_idx_opcode = cpu_to_be32((sq->pc << 8) | opcode);
@@ -329,58 +342,85 @@ mlx5e_txwqe_complete(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	if (!skb->xmit_more || netif_xmit_stopped(sq->txq))
 		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, cseg);
-
-	/* fill sq edge with nops to avoid wqe wrap around */
-	while ((pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc)) > sq->edge) {
-		sq->db.wqe_info[pi].skb = NULL;
-		mlx5e_post_nop(wq, sq->sqn, &sq->pc);
-		sq->stats.nop++;
-	}
 }
+
+#define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
 netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5e_tx_wqe *wqe, u16 pi)
 {
-	struct mlx5e_tx_wqe_info *wi   = &sq->db.wqe_info[pi];
-
-	struct mlx5_wqe_ctrl_seg *cseg = &wqe->ctrl;
-	struct mlx5_wqe_eth_seg  *eseg = &wqe->eth;
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	struct mlx5_wqe_ctrl_seg *cseg;
+	struct mlx5_wqe_eth_seg  *eseg;
+	struct mlx5_wqe_data_seg *dseg;
+	struct mlx5e_tx_wqe_info *wi;
 
 	unsigned char *skb_data = skb->data;
 	unsigned int skb_len = skb->len;
-	u8  opcode = MLX5_OPCODE_SEND;
-	unsigned int num_bytes;
+	u16 ds_cnt, ds_cnt_inl = 0;
+	u8 num_wqebbs, opcode;
+	u16 headlen, ihs;
+	u32 num_bytes;
 	int num_dma;
-	u16 headlen;
-	u16 ds_cnt;
-	u16 ihs;
+	__be16 mss;
 
-	mlx5e_txwqe_build_eseg_csum(sq, skb, eseg);
-
+	/* Calc ihs and ds cnt, no writes to wqe yet */
+	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
 	if (skb_is_gso(skb)) {
-		opcode = MLX5_OPCODE_LSO;
-		ihs = mlx5e_txwqe_build_eseg_gso(sq, skb, eseg, &num_bytes);
+		opcode    = MLX5_OPCODE_LSO;
+		mss       = cpu_to_be16(skb_shinfo(skb)->gso_size);
+		ihs       = mlx5e_tx_get_gso_ihs(sq, skb);
+		num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
 		sq->stats.packets += skb_shinfo(skb)->gso_segs;
 	} else {
-		ihs = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
+		opcode    = MLX5_OPCODE_SEND;
+		mss       = 0;
+		ihs       = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
 		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
 		sq->stats.packets++;
 	}
-	sq->stats.bytes += num_bytes;
+
+	sq->stats.bytes     += num_bytes;
 	sq->stats.xmit_more += skb->xmit_more;
 
-	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
+	headlen = skb_len - ihs - skb->data_len;
+	ds_cnt += !!headlen;
+	ds_cnt += skb_shinfo(skb)->nr_frags;
+
+	if (ihs) {
+		ihs += !!skb_vlan_tag_present(skb) * VLAN_HLEN;
+
+		ds_cnt_inl = DIV_ROUND_UP(ihs - INL_HDR_START_SZ, MLX5_SEND_WQE_DS);
+		ds_cnt += ds_cnt_inl;
+	}
+
+	num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
+	if (unlikely(pi + num_wqebbs > mlx5_wq_cyc_get_size(wq))) {
+		mlx5e_fill_sq_edge(sq, wq, pi);
+		mlx5e_sq_fetch_wqe(sq, &wqe, &pi);
+	}
+
+	/* fill wqe */
+	wi   = &sq->db.wqe_info[pi];
+	cseg = &wqe->ctrl;
+	eseg = &wqe->eth;
+	dseg =  wqe->data;
+
+	mlx5e_txwqe_build_eseg_csum(sq, skb, eseg);
+
+	eseg->mss = mss;
+
 	if (ihs) {
 		if (skb_vlan_tag_present(skb)) {
-			mlx5e_insert_vlan(eseg->inline_hdr.start, skb, ihs, &skb_data, &skb_len);
-			ihs += VLAN_HLEN;
+			mlx5e_insert_vlan(eseg->inline_hdr.start, skb,
+					  ihs - VLAN_HLEN, &skb_data, &skb_len);
 			sq->stats.added_vlan_packets++;
 		} else {
 			memcpy(eseg->inline_hdr.start, skb_data, ihs);
 			mlx5e_tx_skb_pull_inline(&skb_data, &skb_len, ihs);
 		}
 		eseg->inline_hdr.sz = cpu_to_be16(ihs);
-		ds_cnt += DIV_ROUND_UP(ihs - sizeof(eseg->inline_hdr.start), MLX5_SEND_WQE_DS);
+		dseg += ds_cnt_inl;
 	} else if (skb_vlan_tag_present(skb)) {
 		eseg->insert.type = cpu_to_be16(MLX5_ETH_WQE_INSERT_VLAN);
 		if (skb->vlan_proto == cpu_to_be16(ETH_P_8021AD))
@@ -389,14 +429,12 @@ netdev_tx_t mlx5e_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		sq->stats.added_vlan_packets++;
 	}
 
-	headlen = skb_len - skb->data_len;
-	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb_data, headlen,
-					  (struct mlx5_wqe_data_seg *)cseg + ds_cnt);
+	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb_data, headlen, dseg);
 	if (unlikely(num_dma < 0))
 		goto err_drop;
 
-	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt + num_dma,
-			     num_bytes, num_dma, wi, cseg);
+	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt, num_wqebbs, num_bytes,
+			     num_dma, wi, cseg);
 
 	return NETDEV_TX_OK;
 
@@ -581,18 +619,6 @@ void mlx5e_free_txqsq_descs(struct mlx5e_txqsq *sq)
 }
 
 #ifdef CONFIG_MLX5_CORE_IPOIB
-
-struct mlx5_wqe_eth_pad {
-	u8 rsvd0[16];
-};
-
-struct mlx5i_tx_wqe {
-	struct mlx5_wqe_ctrl_seg     ctrl;
-	struct mlx5_wqe_datagram_seg datagram;
-	struct mlx5_wqe_eth_pad      pad;
-	struct mlx5_wqe_eth_seg      eth;
-};
-
 static inline void
 mlx5i_txwqe_build_datagram(struct mlx5_av *av, u32 dqpn, u32 dqkey,
 			   struct mlx5_wqe_datagram_seg *dseg)
@@ -605,59 +631,85 @@ mlx5i_txwqe_build_datagram(struct mlx5_av *av, u32 dqpn, u32 dqkey,
 netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5_av *av, u32 dqpn, u32 dqkey)
 {
-	struct mlx5_wq_cyc       *wq   = &sq->wq;
-	u16                       pi   = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	struct mlx5i_tx_wqe      *wqe  = mlx5_wq_cyc_get_wqe(wq, pi);
-	struct mlx5e_tx_wqe_info *wi   = &sq->db.wqe_info[pi];
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	struct mlx5i_tx_wqe *wqe;
 
-	struct mlx5_wqe_ctrl_seg     *cseg = &wqe->ctrl;
-	struct mlx5_wqe_datagram_seg *datagram = &wqe->datagram;
-	struct mlx5_wqe_eth_seg      *eseg = &wqe->eth;
+	struct mlx5_wqe_datagram_seg *datagram;
+	struct mlx5_wqe_ctrl_seg *cseg;
+	struct mlx5_wqe_eth_seg  *eseg;
+	struct mlx5_wqe_data_seg *dseg;
+	struct mlx5e_tx_wqe_info *wi;
 
 	unsigned char *skb_data = skb->data;
 	unsigned int skb_len = skb->len;
-	u8  opcode = MLX5_OPCODE_SEND;
-	unsigned int num_bytes;
+	u16 ds_cnt, ds_cnt_inl = 0;
+	u8 num_wqebbs, opcode;
+	u16 headlen, ihs, pi;
+	u32 num_bytes;
 	int num_dma;
-	u16 headlen;
-	u16 ds_cnt;
-	u16 ihs;
+	__be16 mss;
 
-	memset(wqe, 0, sizeof(*wqe));
+	mlx5i_sq_fetch_wqe(sq, &wqe, &pi);
+
+	/* Calc ihs and ds cnt, no writes to wqe yet */
+	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
+	if (skb_is_gso(skb)) {
+		opcode    = MLX5_OPCODE_LSO;
+		mss       = cpu_to_be16(skb_shinfo(skb)->gso_size);
+		ihs       = mlx5e_tx_get_gso_ihs(sq, skb);
+		num_bytes = skb->len + (skb_shinfo(skb)->gso_segs - 1) * ihs;
+		sq->stats.packets += skb_shinfo(skb)->gso_segs;
+	} else {
+		opcode    = MLX5_OPCODE_SEND;
+		mss       = 0;
+		ihs       = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
+		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
+		sq->stats.packets++;
+	}
+
+	sq->stats.bytes     += num_bytes;
+	sq->stats.xmit_more += skb->xmit_more;
+
+	headlen = skb_len - ihs - skb->data_len;
+	ds_cnt += !!headlen;
+	ds_cnt += skb_shinfo(skb)->nr_frags;
+
+	if (ihs) {
+		ds_cnt_inl = DIV_ROUND_UP(ihs - INL_HDR_START_SZ, MLX5_SEND_WQE_DS);
+		ds_cnt += ds_cnt_inl;
+	}
+
+	num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS);
+	if (unlikely(pi + num_wqebbs > mlx5_wq_cyc_get_size(wq))) {
+		mlx5e_fill_sq_edge(sq, wq, pi);
+		mlx5i_sq_fetch_wqe(sq, &wqe, &pi);
+	}
+
+	/* fill wqe */
+	wi       = &sq->db.wqe_info[pi];
+	cseg     = &wqe->ctrl;
+	datagram = &wqe->datagram;
+	eseg     = &wqe->eth;
+	dseg     =  wqe->data;
 
 	mlx5i_txwqe_build_datagram(av, dqpn, dqkey, datagram);
 
 	mlx5e_txwqe_build_eseg_csum(sq, skb, eseg);
 
-	if (skb_is_gso(skb)) {
-		opcode = MLX5_OPCODE_LSO;
-		ihs = mlx5e_txwqe_build_eseg_gso(sq, skb, eseg, &num_bytes);
-		sq->stats.packets += skb_shinfo(skb)->gso_segs;
-	} else {
-		ihs = mlx5e_calc_min_inline(sq->min_inline_mode, skb);
-		num_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
-		sq->stats.packets++;
-	}
+	eseg->mss = mss;
 
-	sq->stats.bytes += num_bytes;
-	sq->stats.xmit_more += skb->xmit_more;
-
-	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
 	if (ihs) {
 		memcpy(eseg->inline_hdr.start, skb_data, ihs);
-		mlx5e_tx_skb_pull_inline(&skb_data, &skb_len, ihs);
 		eseg->inline_hdr.sz = cpu_to_be16(ihs);
-		ds_cnt += DIV_ROUND_UP(ihs - sizeof(eseg->inline_hdr.start), MLX5_SEND_WQE_DS);
+		dseg += ds_cnt_inl;
 	}
 
-	headlen = skb_len - skb->data_len;
-	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb_data, headlen,
-					  (struct mlx5_wqe_data_seg *)cseg + ds_cnt);
+	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb_data, headlen, dseg);
 	if (unlikely(num_dma < 0))
 		goto err_drop;
 
-	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt + num_dma,
-			     num_bytes, num_dma, wi, cseg);
+	mlx5e_txwqe_complete(sq, skb, opcode, ds_cnt, num_wqebbs, num_bytes,
+			     num_dma, wi, cseg);
 
 	return NETDEV_TX_OK;
 
@@ -667,5 +719,4 @@ err_drop:
 
 	return NETDEV_TX_OK;
 }
-
 #endif

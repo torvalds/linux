@@ -93,6 +93,29 @@ const struct mlx5e_profile *mlx5i_pkey_get_profile(void);
 /* Extract mlx5e_priv from IPoIB netdev */
 #define mlx5i_epriv(netdev) ((void *)(((struct mlx5i_priv *)netdev_priv(netdev))->mlx5e_priv))
 
+struct mlx5_wqe_eth_pad {
+	u8 rsvd0[16];
+};
+
+struct mlx5i_tx_wqe {
+	struct mlx5_wqe_ctrl_seg     ctrl;
+	struct mlx5_wqe_datagram_seg datagram;
+	struct mlx5_wqe_eth_pad      pad;
+	struct mlx5_wqe_eth_seg      eth;
+	struct mlx5_wqe_data_seg     data[0];
+};
+
+static inline void mlx5i_sq_fetch_wqe(struct mlx5e_txqsq *sq,
+				      struct mlx5i_tx_wqe **wqe,
+				      u16 *pi)
+{
+	struct mlx5_wq_cyc *wq = &sq->wq;
+
+	*pi  = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	*wqe = mlx5_wq_cyc_get_wqe(wq, *pi);
+	memset(*wqe, 0, sizeof(**wqe));
+}
+
 netdev_tx_t mlx5i_sq_xmit(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 			  struct mlx5_av *av, u32 dqpn, u32 dqkey);
 void mlx5i_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
