@@ -240,6 +240,11 @@ struct vmw_display_unit {
 	int set_gui_y;
 };
 
+struct vmw_validation_ctx {
+	struct vmw_resource *res;
+	struct vmw_dma_buffer *buf;
+};
+
 #define vmw_crtc_to_du(x) \
 	container_of(x, struct vmw_display_unit, crtc)
 #define vmw_connector_to_du(x) \
@@ -296,9 +301,10 @@ void vmw_kms_helper_buffer_finish(struct vmw_private *dev_priv,
 				  struct drm_vmw_fence_rep __user *
 				  user_fence_rep);
 int vmw_kms_helper_resource_prepare(struct vmw_resource *res,
-				    bool interruptible);
-void vmw_kms_helper_resource_revert(struct vmw_resource *res);
-void vmw_kms_helper_resource_finish(struct vmw_resource *res,
+				    bool interruptible,
+				    struct vmw_validation_ctx *ctx);
+void vmw_kms_helper_resource_revert(struct vmw_validation_ctx *ctx);
+void vmw_kms_helper_resource_finish(struct vmw_validation_ctx *ctx,
 				    struct vmw_fence_obj **out_fence);
 int vmw_kms_readback(struct vmw_private *dev_priv,
 		     struct drm_file *file_priv,
