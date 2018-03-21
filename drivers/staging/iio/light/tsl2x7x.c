@@ -3,6 +3,7 @@
  * and proximity detection (prox) within the TAOS TSL2X7X family of devices.
  *
  * Copyright (c) 2012, TAOS Corporation.
+ * Copyright (c) 2017-2018 Brian Masney <masneyb@onstation.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1744,6 +1745,7 @@ static struct i2c_driver tsl2x7x_driver = {
 
 module_i2c_driver(tsl2x7x_driver);
 
-MODULE_AUTHOR("J. August Brenner<jbrenner@taosinc.com>");
+MODULE_AUTHOR("J. August Brenner <Jon.Brenner@ams.com>");
+MODULE_AUTHOR("Brian Masney <masneyb@onstation.org>");
 MODULE_DESCRIPTION("TAOS tsl2x7x ambient and proximity light sensor driver");
 MODULE_LICENSE("GPL");
