@@ -643,6 +643,8 @@ static SUNXI_CCU_M_WITH_MUX_GATE(hdmi_clk, "hdmi", hdmi_parents, 0xb00,
 				 BIT(31),	/* gate */
 				 0);
 
+static SUNXI_CCU_GATE(hdmi_slow_clk, "hdmi-slow", "osc24M", 0xb04, BIT(31), 0);
+
 static const char * const hdmi_cec_parents[] = { "osc32k", "pll-periph0-2x" };
 static const struct ccu_mux_fixed_prediv hdmi_cec_predivs[] = {
 	{ .index = 1, .div = 36621 },
@@ -876,6 +878,7 @@ static struct ccu_common *sun50i_h6_ccu_clks[] = {
 	&pcie_aux_clk.common,
 	&bus_pcie_clk.common,
 	&hdmi_clk.common,
+	&hdmi_slow_clk.common,
 	&hdmi_cec_clk.common,
 	&bus_hdmi_clk.common,
 	&bus_tcon_top_clk.common,
@@ -1017,6 +1020,7 @@ static struct clk_hw_onecell_data sun50i_h6_hw_clks = {
 		[CLK_PCIE_AUX]		= &pcie_aux_clk.common.hw,
 		[CLK_BUS_PCIE]		= &bus_pcie_clk.common.hw,
 		[CLK_HDMI]		= &hdmi_clk.common.hw,
+		[CLK_HDMI_SLOW]		= &hdmi_slow_clk.common.hw,
 		[CLK_HDMI_CEC]		= &hdmi_cec_clk.common.hw,
 		[CLK_BUS_HDMI]		= &bus_hdmi_clk.common.hw,
 		[CLK_BUS_TCON_TOP]	= &bus_tcon_top_clk.common.hw,
