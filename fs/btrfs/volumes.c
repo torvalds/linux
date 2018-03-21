@@ -3907,13 +3907,14 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		spin_unlock(&fs_info->balance_lock);
 	}
 
-	atomic_inc(&fs_info->balance_running);
+	ASSERT(!test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags));
+	set_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags);
 	mutex_unlock(&fs_info->balance_mutex);
 
 	ret = __btrfs_balance(fs_info);
 
 	mutex_lock(&fs_info->balance_mutex);
-	atomic_dec(&fs_info->balance_running);
+	clear_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags);
 
 	if (bargs) {
 		memset(bargs, 0, sizeof(*bargs));
@@ -4061,16 +4062,16 @@ int btrfs_pause_balance(struct btrfs_fs_info *fs_info)
 		return -ENOTCONN;
 	}
 
-	if (atomic_read(&fs_info->balance_running)) {
+	if (test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags)) {
 		atomic_inc(&fs_info->balance_pause_req);
 		mutex_unlock(&fs_info->balance_mutex);
 
 		wait_event(fs_info->balance_wait_q,
-			   atomic_read(&fs_info->balance_running) == 0);
+			   !test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags));
 
 		mutex_lock(&fs_info->balance_mutex);
 		/* we are good with balance_ctl ripped off from under us */
-		BUG_ON(atomic_read(&fs_info->balance_running));
+		BUG_ON(test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags));
 		atomic_dec(&fs_info->balance_pause_req);
 	} else {
 		ret = -ENOTCONN;
@@ -4096,10 +4097,10 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 	 * if we are running just wait and return, balance item is
 	 * deleted in btrfs_balance in this case
 	 */
-	if (atomic_read(&fs_info->balance_running)) {
+	if (test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags)) {
 		mutex_unlock(&fs_info->balance_mutex);
 		wait_event(fs_info->balance_wait_q,
-			   atomic_read(&fs_info->balance_running) == 0);
+			   !test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags));
 		mutex_lock(&fs_info->balance_mutex);
 	} else {
 		mutex_unlock(&fs_info->balance_mutex);
@@ -4115,7 +4116,8 @@ int btrfs_cancel_balance(struct btrfs_fs_info *fs_info)
 		}
 	}
 
-	BUG_ON(fs_info->balance_ctl || atomic_read(&fs_info->balance_running));
+	BUG_ON(fs_info->balance_ctl ||
+		test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags));
 	atomic_dec(&fs_info->balance_cancel_req);
 	mutex_unlock(&fs_info->balance_mutex);
 	return 0;

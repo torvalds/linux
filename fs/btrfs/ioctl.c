@@ -4312,7 +4312,7 @@ void update_ioctl_balance_args(struct btrfs_fs_info *fs_info, int lock,
 
 	bargs->flags = bctl->flags;
 
-	if (atomic_read(&fs_info->balance_running))
+	if (test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags))
 		bargs->state |= BTRFS_BALANCE_STATE_RUNNING;
 	if (atomic_read(&fs_info->balance_pause_req))
 		bargs->state |= BTRFS_BALANCE_STATE_PAUSE_REQ;
@@ -4364,7 +4364,7 @@ again:
 	mutex_lock(&fs_info->balance_mutex);
 	if (fs_info->balance_ctl) {
 		/* this is either (2) or (3) */
-		if (!atomic_read(&fs_info->balance_running)) {
+		if (!test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags)) {
 			mutex_unlock(&fs_info->balance_mutex);
 			/*
 			 * Lock released to allow other waiters to continue,
@@ -4373,7 +4373,7 @@ again:
 			mutex_lock(&fs_info->balance_mutex);
 
 			if (fs_info->balance_ctl &&
-			    !atomic_read(&fs_info->balance_running)) {
+			    !test_bit(BTRFS_FS_BALANCE_RUNNING, &fs_info->flags)) {
 				/* this is (3) */
 				need_unlock = false;
 				goto locked;
