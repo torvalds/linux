@@ -3,7 +3,7 @@
  *
  * This code provides the generic "frontend" layer to call a matching
  * "backend" driver implementation of frontswap.  See
- * Documentation/vm/frontswap.txt for more information.
+ * Documentation/vm/frontswap.rst for more information.
  *
  * Copyright (C) 2009-2012 Oracle Corp.  All rights reserved.
  * Author: Dan Magenheimer

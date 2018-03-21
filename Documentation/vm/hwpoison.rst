@@ -155,7 +155,7 @@ Testing
 	value).  This allows stress testing of many kinds of
 	pages. The page_flags are the same as in /proc/kpageflags. The
 	flag bits are defined in include/linux/kernel-page-flags.h and
-	documented in Documentation/vm/pagemap.txt
+	documented in Documentation/vm/pagemap.rst
 
 * Architecture specific MCE injector
 

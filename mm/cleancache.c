@@ -3,7 +3,7 @@
  *
  * This code provides the generic "frontend" layer to call a matching
  * "backend" driver implementation of cleancache.  See
- * Documentation/vm/cleancache.txt for more information.
+ * Documentation/vm/cleancache.rst for more information.
  *
  * Copyright (C) 2009-2010 Oracle Corp. All rights reserved.
  * Author: Dan Magenheimer

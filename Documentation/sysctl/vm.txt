@@ -516,7 +516,7 @@ nr_hugepages
 
 Change the minimum size of the hugepage pool.
 
-See Documentation/vm/hugetlbpage.txt
+See Documentation/vm/hugetlbpage.rst
 
 ==============================================================
 
@@ -525,7 +525,7 @@ nr_overcommit_hugepages
 Change the maximum size of the hugepage pool. The maximum is
 nr_hugepages + nr_overcommit_hugepages.
 
-See Documentation/vm/hugetlbpage.txt
+See Documentation/vm/hugetlbpage.rst
 
 ==============================================================
 
@@ -668,7 +668,7 @@ and don't use much of it.
 
 The default value is 0.
 
-See Documentation/vm/overcommit-accounting and
+See Documentation/vm/overcommit-accounting.rst and
 mm/mmap.c::__vm_enough_memory() for more information.
 
 ==============================================================

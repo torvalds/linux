@@ -45,7 +45,7 @@ struct vmem_altmap {
  * must be treated as an opaque object, rather than a "normal" struct page.
  *
  * A more complete discussion of unaddressable memory may be found in
- * include/linux/hmm.h and Documentation/vm/hmm.txt.
+ * include/linux/hmm.h and Documentation/vm/hmm.rst.
  *
  * MEMORY_DEVICE_PUBLIC:
  * Device memory that is cache coherent from device and CPU point of view. This
@@ -67,7 +67,7 @@ enum memory_type {
  *   page_free()
  *
  * Additional notes about MEMORY_DEVICE_PRIVATE may be found in
- * include/linux/hmm.h and Documentation/vm/hmm.txt. There is also a brief
+ * include/linux/hmm.h and Documentation/vm/hmm.rst. There is also a brief
  * explanation in include/linux/memory_hotplug.h.
  *
  * The page_fault() callback must migrate page back, from device memory to

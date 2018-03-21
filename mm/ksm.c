@@ -1049,7 +1049,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		 * No need to notify as we are downgrading page table to read
 		 * only not changing it to point to a new page.
 		 *
-		 * See Documentation/vm/mmu_notifier.txt
+		 * See Documentation/vm/mmu_notifier.rst
 		 */
 		entry = ptep_clear_flush(vma, pvmw.address, pvmw.pte);
 		/*
@@ -1138,7 +1138,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	 * No need to notify as we are replacing a read only page with another
 	 * read only page with the same content.
 	 *
-	 * See Documentation/vm/mmu_notifier.txt
+	 * See Documentation/vm/mmu_notifier.rst
 	 */
 	ptep_clear_flush(vma, addr, ptep);
 	set_pte_at_notify(mm, addr, ptep, newpte);

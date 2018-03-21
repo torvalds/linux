@@ -65,7 +65,7 @@ workload one should:
     are not reclaimable, he or she can filter them out using
     ``/proc/kpageflags``.
 
-See Documentation/vm/pagemap.txt for more information about
+See Documentation/vm/pagemap.rst for more information about
 ``/proc/pid/pagemap``, ``/proc/kpageflags``, and ``/proc/kpagecgroup``.
 
 .. _impl_details:
