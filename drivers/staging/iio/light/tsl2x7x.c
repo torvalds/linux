@@ -149,13 +149,6 @@ struct tsl2x7x_als_info {
 	u16 lux;
 };
 
-struct tsl2x7x_prox_stat {
-	int min;
-	int max;
-	int mean;
-	unsigned long stddev;
-};
-
 struct tsl2x7x_chip_info {
 	int chan_table_elements;
 	struct iio_chan_spec		channel[4];
@@ -771,106 +764,36 @@ unlock:
 	return ret;
 }
 
-static void tsl2x7x_prox_calculate(int *data, int length,
-				   struct tsl2x7x_prox_stat *stat)
-{
-	int i;
-	int sample_sum;
-	int tmp;
-
-	if (!length)
-		length = 1;
-
-	sample_sum = 0;
-	stat->min = INT_MAX;
-	stat->max = INT_MIN;
-	for (i = 0; i < length; i++) {
-		sample_sum += data[i];
-		stat->min = min(stat->min, data[i]);
-		stat->max = max(stat->max, data[i]);
-	}
-
-	stat->mean = sample_sum / length;
-	sample_sum = 0;
-	for (i = 0; i < length; i++) {
-		tmp = data[i] - stat->mean;
-		sample_sum += tmp * tmp;
-	}
-	stat->stddev = int_sqrt((long)sample_sum / length);
-}
-
-/**
- * tsl2x7x_prox_cal() - Calculates std. and sets thresholds.
- * @indio_dev:	pointer to IIO device
- *
- * Calculates a standard deviation based on the samples,
- * and sets the threshold accordingly.
- */
 static int tsl2x7x_prox_cal(struct iio_dev *indio_dev)
 {
-	int prox_history[MAX_SAMPLES_CAL + 1];
-	int i, ret;
-	struct tsl2x7x_prox_stat prox_stat_data[2];
-	struct tsl2x7x_prox_stat *cal;
 	struct tsl2X7X_chip *chip = iio_priv(indio_dev);
-	u8 tmp_irq_settings;
-	u8 current_state = chip->tsl2x7x_chip_status;
+	int prox_history[MAX_SAMPLES_CAL + 1];
+	int i, ret, mean, max, sample_sum;
 
-	if (chip->settings.prox_max_samples_cal > MAX_SAMPLES_CAL) {
-		dev_err(&chip->client->dev,
-			"max prox samples cal is too big: %d\n",
-			chip->settings.prox_max_samples_cal);
-		chip->settings.prox_max_samples_cal = MAX_SAMPLES_CAL;
-	}
+	if (chip->settings.prox_max_samples_cal < 1 ||
+	    chip->settings.prox_max_samples_cal > MAX_SAMPLES_CAL)
+		return -EINVAL;
 
-	/* have to stop to change settings */
-	ret = tsl2x7x_chip_off(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	/* Enable proximity detection save just in case prox not wanted yet*/
-	tmp_irq_settings = chip->settings.interrupts_en;
-	chip->settings.interrupts_en |= TSL2X7X_CNTL_PROX_INT_ENBL;
-
-	/*turn on device if not already on*/
-	ret = tsl2x7x_chip_on(indio_dev);
-	if (ret < 0)
-		return ret;
-
-	/*gather the samples*/
 	for (i = 0; i < chip->settings.prox_max_samples_cal; i++) {
 		usleep_range(15000, 17500);
 		ret = tsl2x7x_get_prox(indio_dev);
 		if (ret < 0)
 			return ret;
+
 		prox_history[i] = chip->prox_data;
-		dev_info(&chip->client->dev, "2 i=%d prox data= %d\n",
-			 i, chip->prox_data);
 	}
 
-	ret = tsl2x7x_chip_off(indio_dev);
-	if (ret < 0)
-		return ret;
-	cal = &prox_stat_data[PROX_STAT_CAL];
-	tsl2x7x_prox_calculate(prox_history,
-			       chip->settings.prox_max_samples_cal, cal);
-	chip->settings.prox_thres_high = (cal->max << 1) - cal->mean;
-
-	dev_info(&chip->client->dev, " cal min=%d mean=%d max=%d\n",
-		 cal->min, cal->mean, cal->max);
-	dev_info(&chip->client->dev,
-		 "%s proximity threshold set to %d\n",
-		 chip->client->name, chip->settings.prox_thres_high);
-
-	/* back to the way they were */
-	chip->settings.interrupts_en = tmp_irq_settings;
-	if (current_state == TSL2X7X_CHIP_WORKING) {
-		ret = tsl2x7x_chip_on(indio_dev);
-		if (ret < 0)
-			return ret;
+	sample_sum = 0;
+	max = INT_MIN;
+	for (i = 0; i < chip->settings.prox_max_samples_cal; i++) {
+		sample_sum += prox_history[i];
+		max = max(max, prox_history[i]);
 	}
+	mean = sample_sum / chip->settings.prox_max_samples_cal;
 
-	return 0;
+	chip->settings.prox_thres_high = (max << 1) - mean;
+
+	return tsl2x7x_invoke_change(indio_dev);
 }
 
 static ssize_t
