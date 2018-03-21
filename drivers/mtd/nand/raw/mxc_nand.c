@@ -1911,15 +1911,18 @@ static int mxcnd_probe(struct platform_device *pdev)
 		goto escan;
 
 	/* Register the partitions */
-	mtd_device_parse_register(mtd, part_probes,
-			NULL,
-			host->pdata.parts,
-			host->pdata.nr_parts);
+	err = mtd_device_parse_register(mtd, part_probes, NULL,
+					host->pdata.parts,
+					host->pdata.nr_parts);
+	if (err)
+		goto cleanup_nand;
 
 	platform_set_drvdata(pdev, host);
 
 	return 0;
 
+cleanup_nand:
+	nand_cleanup(this);
 escan:
 	if (host->clk_act)
 		clk_disable_unprepare(host->clk);
