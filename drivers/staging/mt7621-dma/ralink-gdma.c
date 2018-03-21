@@ -569,7 +569,7 @@ free_desc:
 	return NULL;
 }
 
-static struct dma_async_tx_descriptor * gdma_dma_prep_dma_memcpy(
+static struct dma_async_tx_descriptor *gdma_dma_prep_dma_memcpy(
 		struct dma_chan *c, dma_addr_t dest, dma_addr_t src,
 		size_t len, unsigned long flags)
 {
