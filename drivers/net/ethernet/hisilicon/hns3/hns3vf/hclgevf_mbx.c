@@ -133,6 +133,8 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 	struct hclgevf_cmq_ring *crq;
 	struct hclgevf_desc *desc;
 	u16 link_status, flag;
+	u32 speed;
+	u8 duplex;
 	u8 *temp;
 	int i;
 
@@ -164,9 +166,12 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			break;
 		case HCLGE_MBX_LINK_STAT_CHANGE:
 			link_status = le16_to_cpu(req->msg[1]);
+			memcpy(&speed, &req->msg[2], sizeof(speed));
+			duplex = (u8)le16_to_cpu(req->msg[4]);
 
 			/* update upper layer with new link link status */
 			hclgevf_update_link_status(hdev, link_status);
+			hclgevf_update_speed_duplex(hdev, speed, duplex);
 
 			break;
 		default:

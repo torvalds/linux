@@ -1475,6 +1475,27 @@ static int hclgevf_get_status(struct hnae3_handle *handle)
 	return hdev->hw.mac.link;
 }
 
+static void hclgevf_get_ksettings_an_result(struct hnae3_handle *handle,
+					    u8 *auto_neg, u32 *speed,
+					    u8 *duplex)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	if (speed)
+		*speed = hdev->hw.mac.speed;
+	if (duplex)
+		*duplex = hdev->hw.mac.duplex;
+	if (auto_neg)
+		*auto_neg = AUTONEG_DISABLE;
+}
+
+void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
+				 u8 duplex)
+{
+	hdev->hw.mac.speed = speed;
+	hdev->hw.mac.duplex = duplex;
+}
+
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
@@ -1508,6 +1529,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
 	.get_status = hclgevf_get_status,
+	.get_ksettings_an_result = hclgevf_get_ksettings_an_result,
 };
 
 static struct hnae3_ae_algo ae_algovf = {
