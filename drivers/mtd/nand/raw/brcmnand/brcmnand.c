@@ -2297,7 +2297,11 @@ static int brcmnand_init_cs(struct brcmnand_host *host, struct device_node *dn)
 	if (ret)
 		return ret;
 
-	return mtd_device_register(mtd, NULL, 0);
+	ret = mtd_device_register(mtd, NULL, 0);
+	if (ret)
+		nand_cleanup(chip);
+
+	return ret;
 }
 
 static void brcmnand_save_restore_cs_config(struct brcmnand_host *host,
