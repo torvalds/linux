@@ -3959,12 +3959,12 @@ int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info)
 {
 	struct task_struct *tsk;
 
-	spin_lock(&fs_info->balance_lock);
+	mutex_lock(&fs_info->balance_mutex);
 	if (!fs_info->balance_ctl) {
-		spin_unlock(&fs_info->balance_lock);
+		mutex_unlock(&fs_info->balance_mutex);
 		return 0;
 	}
-	spin_unlock(&fs_info->balance_lock);
+	mutex_unlock(&fs_info->balance_mutex);
 
 	if (btrfs_test_opt(fs_info, SKIP_BALANCE)) {
 		btrfs_info(fs_info, "force skipping balance");
