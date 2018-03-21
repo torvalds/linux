@@ -115,5 +115,14 @@ msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
 	return ERR_PTR(-ENODEV);
 }
 #endif
+#ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
+struct msm_dsi_pll *msm_dsi_pll_10nm_init(struct platform_device *pdev, int id);
+#else
+static inline struct msm_dsi_pll *
+msm_dsi_pll_10nm_init(struct platform_device *pdev, int id)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 #endif /* __DSI_PLL_H__ */
 

@@ -228,7 +228,7 @@ static void mdp5_vid_encoder_disable(struct drm_encoder *encoder)
 	spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intfn), 0);
 	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
-	mdp5_ctl_commit(ctl, pipeline, mdp_ctl_flush_mask_encoder(intf));
+	mdp5_ctl_commit(ctl, pipeline, mdp_ctl_flush_mask_encoder(intf), true);
 
 	/*
 	 * Wait for a vsync so we know the ENABLE=0 latched before
@@ -262,7 +262,7 @@ static void mdp5_vid_encoder_enable(struct drm_encoder *encoder)
 	spin_lock_irqsave(&mdp5_encoder->intf_lock, flags);
 	mdp5_write(mdp5_kms, REG_MDP5_INTF_TIMING_ENGINE_EN(intfn), 1);
 	spin_unlock_irqrestore(&mdp5_encoder->intf_lock, flags);
-	mdp5_ctl_commit(ctl, pipeline, mdp_ctl_flush_mask_encoder(intf));
+	mdp5_ctl_commit(ctl, pipeline, mdp_ctl_flush_mask_encoder(intf), true);
 
 	mdp5_ctl_set_encoder_state(ctl, pipeline, true);
 
@@ -319,6 +319,7 @@ static int mdp5_encoder_atomic_check(struct drm_encoder *encoder,
 
 	mdp5_cstate->ctl = ctl;
 	mdp5_cstate->pipeline.intf = intf;
+	mdp5_cstate->defer_start = true;
 
 	return 0;
 }

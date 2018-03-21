@@ -20,7 +20,7 @@
 
 #include "msm_drv.h"
 #include "msm_kms.h"
-#include "mdp/mdp_kms.h"
+#include "disp/mdp_kms.h"
 #include "mdp5_cfg.h"	/* must be included before mdp5.xml.h */
 #include "mdp5.xml.h"
 #include "mdp5_pipe.h"
@@ -133,6 +133,14 @@ struct mdp5_crtc_state {
 	u32 pp_done_irqmask;
 
 	bool cmd_mode;
+
+	/* should we not write CTL[n].START register on flush?  If the
+	 * encoder has changed this is set to true, since encoder->enable()
+	 * is called after crtc state is committed, but we only want to
+	 * write the CTL[n].START register once.  This lets us defer
+	 * writing CTL[n].START until encoder->enable()
+	 */
+	bool defer_start;
 };
 #define to_mdp5_crtc_state(x) \
 		container_of(x, struct mdp5_crtc_state, base)

@@ -97,9 +97,13 @@ static u32 crtc_flush(struct drm_crtc *crtc, u32 flush_mask)
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct mdp5_ctl *ctl = mdp5_cstate->ctl;
 	struct mdp5_pipeline *pipeline = &mdp5_cstate->pipeline;
+	bool start = !mdp5_cstate->defer_start;
+
+	mdp5_cstate->defer_start = false;
 
 	DBG("%s: flush=%08x", crtc->name, flush_mask);
-	return mdp5_ctl_commit(ctl, pipeline, flush_mask);
+
+	return mdp5_ctl_commit(ctl, pipeline, flush_mask, start);
 }
 
 /*
@@ -170,7 +174,7 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	struct msm_kms *kms = &mdp5_kms->base.base;
 
 	msm_gem_put_iova(val, kms->aspace);
-	drm_gem_object_unreference_unlocked(val);
+	drm_gem_object_put_unlocked(val);
 }
 
 static void mdp5_crtc_destroy(struct drm_crtc *crtc)
@@ -947,12 +951,17 @@ mdp5_crtc_atomic_print_state(struct drm_printer *p,
 	if (WARN_ON(!pipeline))
 		return;
 
+	if (mdp5_cstate->ctl)
+		drm_printf(p, "\tctl=%d\n", mdp5_ctl_get_ctl_id(mdp5_cstate->ctl));
+
 	drm_printf(p, "\thwmixer=%s\n", pipeline->mixer ?
 			pipeline->mixer->name : "(null)");
 
 	if (mdp5_kms->caps & MDP_CAP_SRC_SPLIT)
 		drm_printf(p, "\tright hwmixer=%s\n", pipeline->r_mixer ?
 			   pipeline->r_mixer->name : "(null)");
+
+	drm_printf(p, "\tcmd_mode=%d\n", mdp5_cstate->cmd_mode);
 }
 
 static void mdp5_crtc_reset(struct drm_crtc *crtc)

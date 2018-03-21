@@ -30,61 +30,75 @@ static const struct adreno_info gpulist[] = {
 		.rev   = ADRENO_REV(3, 0, 5, ANY_ID),
 		.revn  = 305,
 		.name  = "A305",
-		.pm4fw = "a300_pm4.fw",
-		.pfpfw = "a300_pfp.fw",
+		.fw = {
+			[ADRENO_FW_PM4] = "a300_pm4.fw",
+			[ADRENO_FW_PFP] = "a300_pfp.fw",
+		},
 		.gmem  = SZ_256K,
 		.init  = a3xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(3, 0, 6, 0),
 		.revn  = 307,        /* because a305c is revn==306 */
 		.name  = "A306",
-		.pm4fw = "a300_pm4.fw",
-		.pfpfw = "a300_pfp.fw",
+		.fw = {
+			[ADRENO_FW_PM4] = "a300_pm4.fw",
+			[ADRENO_FW_PFP] = "a300_pfp.fw",
+		},
 		.gmem  = SZ_128K,
 		.init  = a3xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(3, 2, ANY_ID, ANY_ID),
 		.revn  = 320,
 		.name  = "A320",
-		.pm4fw = "a300_pm4.fw",
-		.pfpfw = "a300_pfp.fw",
+		.fw = {
+			[ADRENO_FW_PM4] = "a300_pm4.fw",
+			[ADRENO_FW_PFP] = "a300_pfp.fw",
+		},
 		.gmem  = SZ_512K,
 		.init  = a3xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(3, 3, 0, ANY_ID),
 		.revn  = 330,
 		.name  = "A330",
-		.pm4fw = "a330_pm4.fw",
-		.pfpfw = "a330_pfp.fw",
+		.fw = {
+			[ADRENO_FW_PM4] = "a330_pm4.fw",
+			[ADRENO_FW_PFP] = "a330_pfp.fw",
+		},
 		.gmem  = SZ_1M,
 		.init  = a3xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(4, 2, 0, ANY_ID),
 		.revn  = 420,
 		.name  = "A420",
-		.pm4fw = "a420_pm4.fw",
-		.pfpfw = "a420_pfp.fw",
+		.fw = {
+			[ADRENO_FW_PM4] = "a420_pm4.fw",
+			[ADRENO_FW_PFP] = "a420_pfp.fw",
+		},
 		.gmem  = (SZ_1M + SZ_512K),
 		.init  = a4xx_gpu_init,
 	}, {
 		.rev   = ADRENO_REV(4, 3, 0, ANY_ID),
 		.revn  = 430,
 		.name  = "A430",
-		.pm4fw = "a420_pm4.fw",
-		.pfpfw = "a420_pfp.fw",
+		.fw = {
+			[ADRENO_FW_PM4] = "a420_pm4.fw",
+			[ADRENO_FW_PFP] = "a420_pfp.fw",
+		},
 		.gmem  = (SZ_1M + SZ_512K),
 		.init  = a4xx_gpu_init,
 	}, {
 		.rev = ADRENO_REV(5, 3, 0, 2),
 		.revn = 530,
 		.name = "A530",
-		.pm4fw = "a530_pm4.fw",
-		.pfpfw = "a530_pfp.fw",
+		.fw = {
+			[ADRENO_FW_PM4] = "a530_pm4.fw",
+			[ADRENO_FW_PFP] = "a530_pfp.fw",
+			[ADRENO_FW_GPMU] = "a530v3_gpmu.fw2",
+		},
 		.gmem = SZ_1M,
 		.quirks = ADRENO_QUIRK_TWO_PASS_USE_WFI |
 			ADRENO_QUIRK_FAULT_DETECT_MASK,
 		.init = a5xx_gpu_init,
-		.gpmufw = "a530v3_gpmu.fw2",
 		.zapfw = "a530_zap.mdt",
 	},
 };
@@ -149,6 +163,14 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 		dev_err(dev->dev, "gpu hw init failed: %d\n", ret);
 		return NULL;
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	if (gpu->funcs->debugfs_init) {
+		gpu->funcs->debugfs_init(gpu, dev->primary);
+		gpu->funcs->debugfs_init(gpu, dev->render);
+		gpu->funcs->debugfs_init(gpu, dev->control);
+	}
+#endif
 
 	return gpu;
 }
