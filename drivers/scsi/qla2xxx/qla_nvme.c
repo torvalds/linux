@@ -36,6 +36,7 @@ int qla_nvme_register_remote(struct scsi_qla_host *vha, struct fc_port *fcport)
 		return 0;
 
 	INIT_WORK(&fcport->nvme_del_work, qla_nvme_unregister_remote_port);
+	fcport->nvme_flag &= ~NVME_FLAG_RESETTING;
 
 	memset(&req, 0, sizeof(struct nvme_fc_port_info));
 	req.port_name = wwn_to_u64(fcport->port_name);
@@ -193,9 +194,9 @@ static void qla_nvme_abort_work(struct work_struct *work)
 	rval = ha->isp_ops->abort_command(sp);
 
 	ql_dbg(ql_dbg_io, fcport->vha, 0x212b,
-	    "%s: %s command for sp=%p on fcport=%p rval=%x\n", __func__,
-	    (rval != QLA_SUCCESS) ? "Failed to abort" : "Aborted",
-	    sp, fcport, rval);
+	    "%s: %s command for sp=%p, handle=%x on fcport=%p rval=%x\n",
+	    __func__, (rval != QLA_SUCCESS) ? "Failed to abort" : "Aborted",
+	    sp, sp->handle, fcport, rval);
 }
 
 static void qla_nvme_ls_abort(struct nvme_fc_local_port *lport,
@@ -327,7 +328,7 @@ static int qla2x00_start_nvme_mq(srb_t *sp)
 	}
 
 	if (index == req->num_outstanding_cmds) {
-		rval = -1;
+		rval = -EBUSY;
 		goto queuing_error;
 	}
 	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
@@ -341,7 +342,7 @@ static int qla2x00_start_nvme_mq(srb_t *sp)
 			req->cnt = req->length - (req->ring_index - cnt);
 
 		if (req->cnt < (req_cnt + 2)){
-			rval = -1;
+			rval = -EBUSY;
 			goto queuing_error;
 		}
 	}
@@ -476,14 +477,15 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	fc_port_t *fcport;
 	struct srb_iocb *nvme;
 	struct scsi_qla_host *vha;
-	int rval = QLA_FUNCTION_FAILED;
+	int rval = -ENODEV;
 	srb_t *sp;
 	struct qla_qpair *qpair = hw_queue_handle;
 	struct nvme_private *priv;
 	struct qla_nvme_rport *qla_rport = rport->private;
 
-	if (!fd) {
-		ql_log(ql_log_warn, NULL, 0x2134, "NO NVMe FCP request\n");
+	if (!fd || !qpair) {
+		ql_log(ql_log_warn, NULL, 0x2134,
+		    "NO NVMe request or Queue Handle\n");
 		return rval;
 	}
 
@@ -495,13 +497,21 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	}
 
 	vha = fcport->vha;
-	if (!qpair)
+
+	/*
+	 * If we know the dev is going away while the transport is still sending
+	 * IO's return busy back to stall the IO Q.  This happens when the
+	 * link goes away and fw hasn't notified us yet, but IO's are being
+	 * returned. If the dev comes back quickly we won't exhaust the IO
+	 * retry count at the core.
+	 */
+	if (fcport->nvme_flag & NVME_FLAG_RESETTING)
 		return -EBUSY;
 
 	/* Alloc SRB structure */
 	sp = qla2xxx_get_qpair_sp(qpair, fcport, GFP_ATOMIC);
 	if (!sp)
-		return -EIO;
+		return -EBUSY;
 
 	atomic_set(&sp->ref_count, 1);
 	init_waitqueue_head(&sp->nvme_ls_waitq);
@@ -519,7 +529,6 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 		    "qla2x00_start_nvme_mq failed = %d\n", rval);
 		atomic_dec(&sp->ref_count);
 		wake_up(&sp->nvme_ls_waitq);
-		return -EIO;
 	}
 
 	return rval;

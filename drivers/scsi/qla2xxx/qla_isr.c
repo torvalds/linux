@@ -1910,9 +1910,11 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 				ret = QLA_SUCCESS;
 			break;
 
-			case CS_ABORTED:
 			case CS_RESET:
 			case CS_PORT_UNAVAILABLE:
+				fcport->nvme_flag |= NVME_FLAG_RESETTING;
+				/* fall through */
+			case CS_ABORTED:
 			case CS_PORT_LOGGED_OUT:
 			case CS_PORT_BUSY:
 				ql_log(ql_log_warn, fcport->vha, 0x5060,

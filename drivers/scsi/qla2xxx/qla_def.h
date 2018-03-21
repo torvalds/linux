@@ -2356,6 +2356,7 @@ typedef struct fc_port {
 	uint8_t nvme_flag;
 #define NVME_FLAG_REGISTERED 4
 #define NVME_FLAG_DELETING 2
+#define NVME_FLAG_RESETTING 1
 
 	struct fc_port *conflict;
 	unsigned char logout_completed;
