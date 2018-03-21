@@ -833,6 +833,7 @@ static int smu7_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_sclk_table;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_mclk_table;
+	struct phm_odn_performance_level *entries;
 
 	if (table_info == NULL)
 		return -EINVAL;
@@ -842,11 +843,11 @@ static int smu7_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 
 	odn_table->odn_core_clock_dpm_levels.num_of_pl =
 						data->golden_dpm_table.sclk_table.count;
+	entries = odn_table->odn_core_clock_dpm_levels.entries;
 	for (i=0; i<data->golden_dpm_table.sclk_table.count; i++) {
-		odn_table->odn_core_clock_dpm_levels.entries[i].clock =
-					data->golden_dpm_table.sclk_table.dpm_levels[i].value;
-		odn_table->odn_core_clock_dpm_levels.entries[i].enabled = true;
-		odn_table->odn_core_clock_dpm_levels.entries[i].vddc = dep_sclk_table->entries[i].vddc;
+		entries[i].clock = data->golden_dpm_table.sclk_table.dpm_levels[i].value;
+		entries[i].enabled = true;
+		entries[i].vddc = dep_sclk_table->entries[i].vddc;
 	}
 
 	smu7_get_voltage_dependency_table(dep_sclk_table,
@@ -854,11 +855,11 @@ static int smu7_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 
 	odn_table->odn_memory_clock_dpm_levels.num_of_pl =
 						data->golden_dpm_table.mclk_table.count;
-	for (i=0; i<data->golden_dpm_table.sclk_table.count; i++) {
-		odn_table->odn_memory_clock_dpm_levels.entries[i].clock =
-					data->golden_dpm_table.mclk_table.dpm_levels[i].value;
-		odn_table->odn_memory_clock_dpm_levels.entries[i].enabled = true;
-		odn_table->odn_memory_clock_dpm_levels.entries[i].vddc = dep_mclk_table->entries[i].vddc;
+	entries = odn_table->odn_memory_clock_dpm_levels.entries;
+	for (i=0; i<data->golden_dpm_table.mclk_table.count; i++) {
+		entries[i].clock = data->golden_dpm_table.mclk_table.dpm_levels[i].value;
+		entries[i].enabled = true;
+		entries[i].vddc = dep_mclk_table->entries[i].vddc;
 	}
 
 	smu7_get_voltage_dependency_table(dep_mclk_table,
@@ -4728,7 +4729,7 @@ static void smu7_check_dpm_table_updated(struct pp_hwmgr *hwmgr)
 		}
 	}
 
-	for (i=0; i<data->dpm_table.sclk_table.count; i++) {
+	for (i=0; i<data->dpm_table.mclk_table.count; i++) {
 		if (odn_table->odn_memory_clock_dpm_levels.entries[i].clock !=
 					data->dpm_table.mclk_table.dpm_levels[i].value) {
 			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
