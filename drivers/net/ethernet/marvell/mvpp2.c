@@ -4632,7 +4632,7 @@ static int mvpp2_swf_bm_pool_init(struct mvpp2_port *port)
 	if (!port->pool_short) {
 		port->pool_short =
 			mvpp2_bm_pool_use(port, short_log_pool,
-					  mvpp2_pools[long_log_pool].pkt_size);
+					  mvpp2_pools[short_log_pool].pkt_size);
 		if (!port->pool_short)
 			return -ENOMEM;
 
