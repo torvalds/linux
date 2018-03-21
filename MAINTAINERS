@@ -10930,7 +10930,7 @@ F:	include/linux/pktcdvd.h
 F:	include/uapi/linux/pktcdvd.h
 
 PKUNITY SOC DRIVERS
-M:	Guan Xuetao <gxt@mprc.pku.edu.cn>
+M:	Guan Xuetao <gxt@pku.edu.cn>
 W:	http://mprc.pku.edu.cn/~guanxuetao/linux
 S:	Maintained
 T:	git git://github.com/gxt/linux.git
@@ -14154,7 +14154,7 @@ F:	include/linux/uwb.h
 F:	include/linux/uwb/
 
 UNICORE32 ARCHITECTURE:
-M:	Guan Xuetao <gxt@mprc.pku.edu.cn>
+M:	Guan Xuetao <gxt@pku.edu.cn>
 W:	http://mprc.pku.edu.cn/~guanxuetao/linux
 S:	Maintained
 T:	git git://github.com/gxt/linux.git
