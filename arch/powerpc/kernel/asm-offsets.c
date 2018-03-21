@@ -568,6 +568,7 @@ int main(void)
 	OFFSET(VCPU_TFHAR, kvm_vcpu, arch.tfhar);
 	OFFSET(VCPU_TFIAR, kvm_vcpu, arch.tfiar);
 	OFFSET(VCPU_TEXASR, kvm_vcpu, arch.texasr);
+	OFFSET(VCPU_ORIG_TEXASR, kvm_vcpu, arch.orig_texasr);
 	OFFSET(VCPU_GPR_TM, kvm_vcpu, arch.gpr_tm);
 	OFFSET(VCPU_FPRS_TM, kvm_vcpu, arch.fp_tm.fpr);
 	OFFSET(VCPU_VRS_TM, kvm_vcpu, arch.vr_tm.vr);
@@ -650,6 +651,7 @@ int main(void)
 	HSTATE_FIELD(HSTATE_HOST_IPI, host_ipi);
 	HSTATE_FIELD(HSTATE_PTID, ptid);
 	HSTATE_FIELD(HSTATE_TID, tid);
+	HSTATE_FIELD(HSTATE_FAKE_SUSPEND, fake_suspend);
 	HSTATE_FIELD(HSTATE_MMCR0, host_mmcr[0]);
 	HSTATE_FIELD(HSTATE_MMCR1, host_mmcr[1]);
 	HSTATE_FIELD(HSTATE_MMCRA, host_mmcr[2]);

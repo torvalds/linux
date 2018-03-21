@@ -1273,7 +1273,7 @@ EXC_REAL_BEGIN(denorm_exception_hv, 0x1500, 0x100)
 	bne+	denorm_assist
 #endif
 
-	KVMTEST_PR(0x1500)
+	KVMTEST_HV(0x1500)
 	EXCEPTION_PROLOG_PSERIES_1(denorm_common, EXC_HV)
 EXC_REAL_END(denorm_exception_hv, 0x1500, 0x100)
 
@@ -1285,7 +1285,7 @@ EXC_VIRT_END(denorm_exception, 0x5500, 0x100)
 EXC_VIRT_NONE(0x5500, 0x100)
 #endif
 
-TRAMP_KVM_SKIP(PACA_EXGEN, 0x1500)
+TRAMP_KVM_HV(PACA_EXGEN, 0x1500)
 
 #ifdef CONFIG_PPC_DENORMALISATION
 TRAMP_REAL_BEGIN(denorm_assist)

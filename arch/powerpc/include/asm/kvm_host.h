@@ -610,6 +610,7 @@ struct kvm_vcpu_arch {
 	u64 tfhar;
 	u64 texasr;
 	u64 tfiar;
+	u64 orig_texasr;
 
 	u32 cr_tm;
 	u64 xer_tm;
