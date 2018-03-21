@@ -532,11 +532,13 @@ static ssize_t persistence_domain_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct nd_region *nd_region = to_nd_region(dev);
-	unsigned long flags = nd_region->flags;
 
-	return sprintf(buf, "%s%s\n",
-			flags & BIT(ND_REGION_PERSIST_CACHE) ? "cpu_cache " : "",
-			flags & BIT(ND_REGION_PERSIST_MEMCTRL) ? "memory_controller " : "");
+	if (test_bit(ND_REGION_PERSIST_CACHE, &nd_region->flags))
+		return sprintf(buf, "cpu_cache\n");
+	else if (test_bit(ND_REGION_PERSIST_MEMCTRL, &nd_region->flags))
+		return sprintf(buf, "memory_controller\n");
+	else
+		return sprintf(buf, "\n");
 }
 static DEVICE_ATTR_RO(persistence_domain);
 
