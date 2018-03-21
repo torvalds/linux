@@ -175,10 +175,10 @@ static int hdmi_cec_adap_enable(struct cec_adapter *adap, bool enable)
 		REG_FLD_MOD(core->base, HDMI_CORE_SYS_INTR_UNMASK4, 0, 3, 3);
 		hdmi_wp_clear_irqenable(core->wp, HDMI_IRQ_CORE);
 		hdmi_wp_set_irqstatus(core->wp, HDMI_IRQ_CORE);
-		hdmi4_core_disable(NULL);
+		hdmi4_core_disable(core);
 		return 0;
 	}
-	err = hdmi4_core_enable(NULL);
+	err = hdmi4_core_enable(core);
 	if (err)
 		return err;
 
