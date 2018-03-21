@@ -308,7 +308,7 @@ int smu7_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 * @exception PP_Result_BadInput if the input data is not valid.
 */
 static int smu7_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
-		uint32_t low_temp, uint32_t high_temp)
+		int low_temp, int high_temp)
 {
 	int low = SMU7_THERMAL_MINIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
