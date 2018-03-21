@@ -387,10 +387,6 @@ static int tsl2x7x_get_lux(struct iio_dev *indio_dev)
 		buf[i] = ret;
 	}
 
-	ret = tsl2x7x_clear_interrupts(chip, TSL2X7X_CMD_ALS_INT_CLR);
-	if (ret < 0)
-		goto out_unlock;
-
 	/* extract ALS/lux data */
 	ch0 = le16_to_cpup((const __le16 *)&buf[0]);
 	ch1 = le16_to_cpup((const __le16 *)&buf[2]);
