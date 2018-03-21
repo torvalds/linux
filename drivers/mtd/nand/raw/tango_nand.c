@@ -591,8 +591,10 @@ static int chip_init(struct device *dev, struct device_node *np)
 	tchip->bb_cfg = BB_CFG(mtd->writesize, BBM_SIZE);
 
 	err = mtd_device_register(mtd, NULL, 0);
-	if (err)
+	if (err) {
+		nand_cleanup(chip);
 		return err;
+	}
 
 	nfc->chips[cs] = tchip;
 
