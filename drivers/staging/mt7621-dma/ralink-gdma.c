@@ -689,8 +689,11 @@ static enum dma_status gdma_dma_tx_status(struct dma_chan *c,
 				((chan->next_sg - 1) * desc->sg[0].len);
 		else
 			state->residue = desc->residue;
-	} else if ((vdesc = vchan_find_desc(&chan->vchan, cookie)))
-		state->residue = to_gdma_dma_desc(vdesc)->residue;
+	} else {
+		vdesc = vchan_find_desc(&chan->vchan, cookie);
+		if (vdesc)
+			state->residue = to_gdma_dma_desc(vdesc)->residue;
+	}
 	spin_unlock_irqrestore(&chan->vchan.lock, flags);
 
 	dev_dbg(c->device->dev, "tx residue %d bytes\n", state->residue);
