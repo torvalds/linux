@@ -62,7 +62,6 @@ static unsigned long *context_map;
 static unsigned long *stale_map[NR_CPUS];
 static struct mm_struct **context_mm;
 static DEFINE_RAW_SPINLOCK(context_lock);
-static bool no_selective_tlbil;
 
 #define CTX_MAP_SIZE	\
 	(sizeof(unsigned long) * (last_context / BITS_PER_LONG + 1))
@@ -279,7 +278,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 			goto stolen;
 		}
 #endif /* CONFIG_SMP */
-		if (no_selective_tlbil)
+		if (IS_ENABLED(CONFIG_PPC_8xx))
 			id = steal_all_contexts();
 		else
 			id = steal_context_up(id);
@@ -440,16 +439,12 @@ void __init mmu_context_init(void)
 	 * present if needed.
 	 *      -- BenH
 	 */
-	if (mmu_has_feature(MMU_FTR_TYPE_8xx)) {
+	if (mmu_has_feature(MMU_FTR_TYPE_8xx))
 		last_context = 16;
-		no_selective_tlbil = true;
-	} else if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
+	else if (mmu_has_feature(MMU_FTR_TYPE_47x))
 		last_context = 65535;
-		no_selective_tlbil = false;
-	} else {
+	else
 		last_context = 255;
-		no_selective_tlbil = false;
-	}
 
 #ifdef DEBUG_CLAMP_LAST_CONTEXT
 	last_context = DEBUG_CLAMP_LAST_CONTEXT;
