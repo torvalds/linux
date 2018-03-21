@@ -524,4 +524,12 @@ static inline void ioport_unmap(void __iomem *p)
 {
 }
 
+#define readb_relaxed(addr)	readb(addr)
+#define readw_relaxed(addr)	readw(addr)
+#define readl_relaxed(addr)	readl(addr)
+
+#define writeb_relaxed(b, addr)	writeb(b, addr)
+#define writew_relaxed(b, addr)	writew(b, addr)
+#define writel_relaxed(b, addr)	writel(b, addr)
+
 #endif /* _IO_H */
