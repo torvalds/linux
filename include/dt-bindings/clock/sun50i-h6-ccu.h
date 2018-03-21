@@ -107,18 +107,19 @@
 #define CLK_PCIE_AUX		121
 #define CLK_BUS_PCIE		122
 #define CLK_HDMI		123
-#define CLK_HDMI_CEC		124
-#define CLK_BUS_HDMI		125
-#define CLK_BUS_TCON_TOP	126
-#define CLK_TCON_LCD0		127
-#define CLK_BUS_TCON_LCD0	128
-#define CLK_TCON_TV0		129
-#define CLK_BUS_TCON_TV0	130
-#define CLK_CSI_CCI		131
-#define CLK_CSI_TOP		132
-#define CLK_CSI_MCLK		133
-#define CLK_BUS_CSI		134
-#define CLK_HDCP		135
-#define CLK_BUS_HDCP		136
+#define CLK_HDMI_SLOW		124
+#define CLK_HDMI_CEC		125
+#define CLK_BUS_HDMI		126
+#define CLK_BUS_TCON_TOP	127
+#define CLK_TCON_LCD0		128
+#define CLK_BUS_TCON_LCD0	129
+#define CLK_TCON_TV0		130
+#define CLK_BUS_TCON_TV0	131
+#define CLK_CSI_CCI		132
+#define CLK_CSI_TOP		133
+#define CLK_CSI_MCLK		134
+#define CLK_BUS_CSI		135
+#define CLK_HDCP		136
+#define CLK_BUS_HDCP		137
 
 #endif /* _DT_BINDINGS_CLK_SUN50I_H6_H_ */
