@@ -3918,7 +3918,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 
 	if (bargs) {
 		memset(bargs, 0, sizeof(*bargs));
-		update_ioctl_balance_args(fs_info, 0, bargs);
+		btrfs_update_ioctl_balance_args(fs_info, bargs);
 	}
 
 	if ((ret && ret != -ECANCELED && ret != -ENOSPC) ||

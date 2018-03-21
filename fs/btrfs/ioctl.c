@@ -4305,7 +4305,7 @@ out_loi:
 	return ret;
 }
 
-void update_ioctl_balance_args(struct btrfs_fs_info *fs_info, int lock,
+void btrfs_update_ioctl_balance_args(struct btrfs_fs_info *fs_info,
 			       struct btrfs_ioctl_balance_args *bargs)
 {
 	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
@@ -4323,13 +4323,9 @@ void update_ioctl_balance_args(struct btrfs_fs_info *fs_info, int lock,
 	memcpy(&bargs->meta, &bctl->meta, sizeof(bargs->meta));
 	memcpy(&bargs->sys, &bctl->sys, sizeof(bargs->sys));
 
-	if (lock) {
-		spin_lock(&fs_info->balance_lock);
-		memcpy(&bargs->stat, &bctl->stat, sizeof(bargs->stat));
-		spin_unlock(&fs_info->balance_lock);
-	} else {
-		memcpy(&bargs->stat, &bctl->stat, sizeof(bargs->stat));
-	}
+	spin_lock(&fs_info->balance_lock);
+	memcpy(&bargs->stat, &bctl->stat, sizeof(bargs->stat));
+	spin_unlock(&fs_info->balance_lock);
 }
 
 static long btrfs_ioctl_balance(struct file *file, void __user *arg)
@@ -4515,7 +4511,7 @@ static long btrfs_ioctl_balance_progress(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
-	update_ioctl_balance_args(fs_info, 1, bargs);
+	btrfs_update_ioctl_balance_args(fs_info, bargs);
 
 	if (copy_to_user(arg, bargs, sizeof(*bargs)))
 		ret = -EFAULT;
