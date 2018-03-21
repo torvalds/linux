@@ -2122,8 +2122,10 @@ static void tipc_sk_filter_rcv(struct sock *sk, struct sk_buff *skb,
 		    (!sk_conn && msg_connected(hdr)) ||
 		    (!grp && msg_in_group(hdr)))
 			err = TIPC_ERR_NO_PORT;
-		else if (sk_rmem_alloc_get(sk) + skb->truesize >= limit)
+		else if (sk_rmem_alloc_get(sk) + skb->truesize >= limit) {
+			atomic_inc(&sk->sk_drops);
 			err = TIPC_ERR_OVERLOAD;
+		}
 
 		if (unlikely(err)) {
 			tipc_skb_reject(net, err, skb, xmitq);
@@ -2202,6 +2204,7 @@ static void tipc_sk_enqueue(struct sk_buff_head *inputq, struct sock *sk,
 
 		/* Overload => reject message back to sender */
 		onode = tipc_own_addr(sock_net(sk));
+		atomic_inc(&sk->sk_drops);
 		if (tipc_msg_reverse(onode, &skb, TIPC_ERR_OVERLOAD))
 			__skb_queue_tail(xmitq, skb);
 		break;
@@ -3293,7 +3296,9 @@ int tipc_sk_fill_sock_diag(struct sk_buff *skb, struct tipc_sock *tsk,
 	if (nla_put_u32(skb, TIPC_NLA_SOCK_STAT_RCVQ,
 			skb_queue_len(&sk->sk_receive_queue)) ||
 	    nla_put_u32(skb, TIPC_NLA_SOCK_STAT_SENDQ,
-			skb_queue_len(&sk->sk_write_queue)))
+			skb_queue_len(&sk->sk_write_queue)) ||
+	    nla_put_u32(skb, TIPC_NLA_SOCK_STAT_DROP,
+			atomic_read(&sk->sk_drops)))
 		goto stat_msg_cancel;
 
 	if (tsk->cong_link_cnt &&
