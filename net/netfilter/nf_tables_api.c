@@ -4932,8 +4932,6 @@ nf_tables_flowtable_lookup_byhandle(const struct nft_table *table,
        return ERR_PTR(-ENOENT);
 }
 
-#define NFT_FLOWTABLE_DEVICE_MAX	8
-
 static int nf_tables_parse_devices(const struct nft_ctx *ctx,
 				   const struct nlattr *attr,
 				   struct net_device *dev_array[], int *len)
@@ -5006,7 +5004,7 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 	err = nf_tables_parse_devices(ctx, tb[NFTA_FLOWTABLE_HOOK_DEVS],
 				      dev_array, &n);
 	if (err < 0)
-		goto err1;
+		return err;
 
 	ops = kzalloc(sizeof(struct nf_hook_ops) * n, GFP_KERNEL);
 	if (!ops) {
@@ -5026,6 +5024,8 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 		flowtable->ops[i].priv		= &flowtable->data.rhashtable;
 		flowtable->ops[i].hook		= flowtable->data.type->hook;
 		flowtable->ops[i].dev		= dev_array[i];
+		flowtable->dev_name[i]		= kstrdup(dev_array[i]->name,
+							  GFP_KERNEL);
 	}
 
 	err = 0;
@@ -5203,8 +5203,10 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 err5:
 	i = flowtable->ops_len;
 err4:
-	for (k = i - 1; k >= 0; k--)
+	for (k = i - 1; k >= 0; k--) {
+		kfree(flowtable->dev_name[k]);
 		nf_unregister_net_hook(net, &flowtable->ops[k]);
+	}
 
 	kfree(flowtable->ops);
 err3:
@@ -5294,9 +5296,9 @@ static int nf_tables_fill_flowtable_info(struct sk_buff *skb, struct net *net,
 		goto nla_put_failure;
 
 	for (i = 0; i < flowtable->ops_len; i++) {
-		if (flowtable->ops[i].dev &&
+		if (flowtable->dev_name[i][0] &&
 		    nla_put_string(skb, NFTA_DEVICE_NAME,
-				   flowtable->ops[i].dev->name))
+				   flowtable->dev_name[i]))
 			goto nla_put_failure;
 	}
 	nla_nest_end(skb, nest_devs);
@@ -5538,6 +5540,7 @@ static void nft_flowtable_event(unsigned long event, struct net_device *dev,
 			continue;
 
 		nf_unregister_net_hook(dev_net(dev), &flowtable->ops[i]);
+		flowtable->dev_name[i][0] = '\0';
 		flowtable->ops[i].dev = NULL;
 		break;
 	}
