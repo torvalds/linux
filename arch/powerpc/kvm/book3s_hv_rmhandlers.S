@@ -3117,10 +3117,6 @@ kvmppc_save_tm:
 	li	r3, TM_CAUSE_KVM_RESCHED
 
 BEGIN_FTR_SECTION
-	/* Emulation of the treclaim instruction needs TEXASR before treclaim */
-	mfspr	r6, SPRN_TEXASR
-	std	r6, VCPU_ORIG_TEXASR(r9)
-
 	lbz	r0, HSTATE_FAKE_SUSPEND(r13) /* Were we fake suspended? */
 	cmpwi	r0, 0
 	beq	3f
@@ -3130,7 +3126,12 @@ BEGIN_FTR_SECTION_NESTED(96)
 	bl	pnv_power9_force_smt4_catch
 END_FTR_SECTION_NESTED(CPU_FTR_P9_TM_XER_SO_BUG, CPU_FTR_P9_TM_XER_SO_BUG, 96)
 	nop
+	b	6f
 3:
+	/* Emulation of the treclaim instruction needs TEXASR before treclaim */
+	mfspr	r6, SPRN_TEXASR
+	std	r6, VCPU_ORIG_TEXASR(r9)
+6:
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 
 	/* Clear the MSR RI since r1, r13 are all going to be foobar. */
@@ -3176,7 +3177,8 @@ END_FTR_SECTION_NESTED(CPU_FTR_P9_TM_XER_SO_BUG, CPU_FTR_P9_TM_XER_SO_BUG, 96)
 	andc	r3, r3, r0
 	mtspr	SPRN_PSSCR, r3
 	ld	r9, HSTATE_KVM_VCPU(r13)
-	b	1f
+	/* Don't save TEXASR, use value from last exit in real suspend state */
+	b	11f
 2:
 END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 
@@ -3250,12 +3252,13 @@ END_FTR_SECTION_IFSET(CPU_FTR_P9_TM_HV_ASSIST)
 	 * change these outside of a transaction, so they must always be
 	 * context switched.
 	 */
+	mfspr	r7, SPRN_TEXASR
+	std	r7, VCPU_TEXASR(r9)
+11:
 	mfspr	r5, SPRN_TFHAR
 	mfspr	r6, SPRN_TFIAR
-	mfspr	r7, SPRN_TEXASR
 	std	r5, VCPU_TFHAR(r9)
 	std	r6, VCPU_TFIAR(r9)
-	std	r7, VCPU_TEXASR(r9)
 
 	addi	r1, r1, PPC_MIN_STKFRM
 	ld	r0, PPC_LR_STKOFF(r1)
