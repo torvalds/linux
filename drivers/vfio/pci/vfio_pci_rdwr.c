@@ -21,6 +21,24 @@
 
 #include "vfio_pci_private.h"
 
+#ifdef __LITTLE_ENDIAN
+#define vfio_ioread64	ioread64
+#define vfio_iowrite64	iowrite64
+#define vfio_ioread32	ioread32
+#define vfio_iowrite32	iowrite32
+#define vfio_ioread16	ioread16
+#define vfio_iowrite16	iowrite16
+#else
+#define vfio_ioread64	ioread64be
+#define vfio_iowrite64	iowrite64be
+#define vfio_ioread32	ioread32be
+#define vfio_iowrite32	iowrite32be
+#define vfio_ioread16	ioread16be
+#define vfio_iowrite16	iowrite16be
+#endif
+#define vfio_ioread8	ioread8
+#define vfio_iowrite8	iowrite8
+
 /*
  * Read or write from an __iomem region (MMIO or I/O port) with an excluded
  * range which is inaccessible.  The excluded range drops writes and fills
@@ -44,15 +62,15 @@ static ssize_t do_io_rw(void __iomem *io, char __user *buf,
 			fillable = 0;
 
 		if (fillable >= 4 && !(off % 4)) {
-			__le32 val;
+			u32 val;
 
 			if (iswrite) {
 				if (copy_from_user(&val, buf, 4))
 					return -EFAULT;
 
-				iowrite32(le32_to_cpu(val), io + off);
+				vfio_iowrite32(val, io + off);
 			} else {
-				val = cpu_to_le32(ioread32(io + off));
+				val = vfio_ioread32(io + off);
 
 				if (copy_to_user(buf, &val, 4))
 					return -EFAULT;
@@ -60,15 +78,15 @@ static ssize_t do_io_rw(void __iomem *io, char __user *buf,
 
 			filled = 4;
 		} else if (fillable >= 2 && !(off % 2)) {
-			__le16 val;
+			u16 val;
 
 			if (iswrite) {
 				if (copy_from_user(&val, buf, 2))
 					return -EFAULT;
 
-				iowrite16(le16_to_cpu(val), io + off);
+				vfio_iowrite16(val, io + off);
 			} else {
-				val = cpu_to_le16(ioread16(io + off));
+				val = vfio_ioread16(io + off);
 
 				if (copy_to_user(buf, &val, 2))
 					return -EFAULT;
@@ -82,9 +100,9 @@ static ssize_t do_io_rw(void __iomem *io, char __user *buf,
 				if (copy_from_user(&val, buf, 1))
 					return -EFAULT;
 
-				iowrite8(val, io + off);
+				vfio_iowrite8(val, io + off);
 			} else {
-				val = ioread8(io + off);
+				val = vfio_ioread8(io + off);
 
 				if (copy_to_user(buf, &val, 1))
 					return -EFAULT;
