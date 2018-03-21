@@ -240,7 +240,7 @@ lnet_accept(struct socket *sock, __u32 magic)
 			return -EPROTO;
 		}
 
-		if (magic == LNET_PROTO_TCP_MAGIC)
+		if (lnet_accept_magic(magic, LNET_PROTO_TCP_MAGIC))
 			str = "'old' socknal/tcpnal";
 		else
 			str = "unrecognised";
