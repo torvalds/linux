@@ -191,13 +191,13 @@ static inline u32 mtk_hsdma_read(struct mtk_hsdam_engine *hsdma, u32 reg)
 }
 
 static inline void mtk_hsdma_write(struct mtk_hsdam_engine *hsdma,
-		unsigned reg, u32 val)
+				   unsigned reg, u32 val)
 {
 	writel(val, hsdma->base + reg);
 }
 
 static void mtk_hsdma_reset_chan(struct mtk_hsdam_engine *hsdma,
-		struct mtk_hsdma_chan *chan)
+				 struct mtk_hsdma_chan *chan)
 {
 	chan->tx_idx = 0;
 	chan->rx_idx = HSDMA_DESCS_NUM - 1;
@@ -235,7 +235,7 @@ static void hsdma_dump_reg(struct mtk_hsdam_engine *hsdma)
 }
 
 static void hsdma_dump_desc(struct mtk_hsdam_engine *hsdma,
-		struct mtk_hsdma_chan *chan)
+			    struct mtk_hsdma_chan *chan)
 {
 	struct hsdma_desc *tx_desc;
 	struct hsdma_desc *rx_desc;
@@ -256,7 +256,7 @@ static void hsdma_dump_desc(struct mtk_hsdam_engine *hsdma,
 }
 
 static void mtk_hsdma_reset(struct mtk_hsdam_engine *hsdma,
-		struct mtk_hsdma_chan *chan)
+			    struct mtk_hsdma_chan *chan)
 {
 	int i;
 
@@ -319,7 +319,7 @@ static int mtk_hsdma_terminate_all(struct dma_chan *c)
 }
 
 static int mtk_hsdma_start_transfer(struct mtk_hsdam_engine *hsdma,
-		struct mtk_hsdma_chan *chan)
+				    struct mtk_hsdma_chan *chan)
 {
 	dma_addr_t src, dst;
 	size_t len, tlen;
@@ -404,7 +404,7 @@ static int gdma_next_desc(struct mtk_hsdma_chan *chan)
 }
 
 static void mtk_hsdma_chan_done(struct mtk_hsdam_engine *hsdma,
-		struct mtk_hsdma_chan *chan)
+				struct mtk_hsdma_chan *chan)
 {
 	struct mtk_hsdma_desc *desc;
 	int chan_issued;
@@ -439,7 +439,7 @@ static irqreturn_t mtk_hsdma_irq(int irq, void *devid)
 		tasklet_schedule(&hsdma->task);
 	else
 		dev_dbg(hsdma->ddev.dev, "unhandle irq status %08x\n",
-				status);
+			status);
 	/* clean intr bits */
 	mtk_hsdma_write(hsdma, HSDMA_REG_INT_STATUS, status);
 
@@ -486,7 +486,8 @@ static struct dma_async_tx_descriptor *mtk_hsdma_prep_dma_memcpy(
 }
 
 static enum dma_status mtk_hsdma_tx_status(struct dma_chan *c,
-		dma_cookie_t cookie, struct dma_tx_state *state)
+					   dma_cookie_t cookie,
+					   struct dma_tx_state *state)
 {
 	return dma_cookie_status(c, cookie, state);
 }
@@ -546,7 +547,7 @@ static void mtk_hsdma_tasklet(unsigned long arg)
 }
 
 static int mtk_hsdam_alloc_desc(struct mtk_hsdam_engine *hsdma,
-		struct mtk_hsdma_chan *chan)
+				struct mtk_hsdma_chan *chan)
 {
 	int i;
 
@@ -568,7 +569,7 @@ no_mem:
 }
 
 static void mtk_hsdam_free_desc(struct mtk_hsdam_engine *hsdma,
-		struct mtk_hsdma_chan *chan)
+				struct mtk_hsdma_chan *chan)
 {
 	if (chan->tx_ring) {
 		dma_free_coherent(hsdma->ddev.dev,
@@ -610,8 +611,8 @@ static int mtk_hsdma_init(struct mtk_hsdam_engine *hsdma)
 	/* hardware info */
 	reg = mtk_hsdma_read(hsdma, HSDMA_REG_INFO);
 	dev_info(hsdma->ddev.dev, "rx: %d, tx: %d\n",
-			(reg >> HSDMA_INFO_RX_SHIFT) & HSDMA_INFO_RX_MASK,
-			(reg >> HSDMA_INFO_TX_SHIFT) & HSDMA_INFO_TX_MASK);
+		 (reg >> HSDMA_INFO_RX_SHIFT) & HSDMA_INFO_RX_MASK,
+		 (reg >> HSDMA_INFO_TX_SHIFT) & HSDMA_INFO_TX_MASK);
 
 	hsdma_dump_reg(hsdma);
 
@@ -685,7 +686,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	ret = devm_request_irq(&pdev->dev, irq, mtk_hsdma_irq,
-			0, dev_name(&pdev->dev), hsdma);
+			       0, dev_name(&pdev->dev), hsdma);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request irq\n");
 		return ret;
@@ -725,7 +726,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	}
 
 	ret = of_dma_controller_register(pdev->dev.of_node,
-			of_dma_xlate_by_chan_id, hsdma);
+					 of_dma_xlate_by_chan_id, hsdma);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register of dma controller\n");
 		goto err_unregister;
