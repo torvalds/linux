@@ -1,4 +1,11 @@
-Overview:
+.. _zswap:
+
+=====
+zswap
+=====
+
+Overview
+========
 
 Zswap is a lightweight compressed cache for swap pages. It takes pages that are
 in the process of being swapped out and attempts to compress them into a
@@ -7,32 +14,34 @@ for potentially reduced swap I/O.  This trade-off can also result in a
 significant performance improvement if reads from the compressed cache are
 faster than reads from a swap device.
 
-NOTE: Zswap is a new feature as of v3.11 and interacts heavily with memory
-reclaim.  This interaction has not been fully explored on the large set of
-potential configurations and workloads that exist.  For this reason, zswap
-is a work in progress and should be considered experimental.
+.. note::
+   Zswap is a new feature as of v3.11 and interacts heavily with memory
+   reclaim.  This interaction has not been fully explored on the large set of
+   potential configurations and workloads that exist.  For this reason, zswap
+   is a work in progress and should be considered experimental.
 
-Some potential benefits:
+   Some potential benefits:
+
 * Desktop/laptop users with limited RAM capacities can mitigate the
-    performance impact of swapping.
+  performance impact of swapping.
 * Overcommitted guests that share a common I/O resource can
-    dramatically reduce their swap I/O pressure, avoiding heavy handed I/O
-    throttling by the hypervisor. This allows more work to get done with less
-    impact to the guest workload and guests sharing the I/O subsystem
+  dramatically reduce their swap I/O pressure, avoiding heavy handed I/O
+  throttling by the hypervisor. This allows more work to get done with less
+  impact to the guest workload and guests sharing the I/O subsystem
 * Users with SSDs as swap devices can extend the life of the device by
-    drastically reducing life-shortening writes.
+  drastically reducing life-shortening writes.
 
 Zswap evicts pages from compressed cache on an LRU basis to the backing swap
 device when the compressed pool reaches its size limit.  This requirement had
 been identified in prior community discussions.
 
 Zswap is disabled by default but can be enabled at boot time by setting
-the "enabled" attribute to 1 at boot time. ie: zswap.enabled=1.  Zswap
+the ``enabled`` attribute to 1 at boot time. ie: ``zswap.enabled=1``.  Zswap
 can also be enabled and disabled at runtime using the sysfs interface.
 An example command to enable zswap at runtime, assuming sysfs is mounted
-at /sys, is:
+at ``/sys``, is::
 
-echo 1 > /sys/module/zswap/parameters/enabled
+	echo 1 > /sys/module/zswap/parameters/enabled
 
 When zswap is disabled at runtime it will stop storing pages that are
 being swapped out.  However, it will _not_ immediately write out or fault
@@ -43,7 +52,8 @@ pages out of the compressed pool, a swapoff on the swap device(s) will
 fault back into memory all swapped out pages, including those in the
 compressed pool.
 
-Design:
+Design
+======
 
 Zswap receives pages for compression through the Frontswap API and is able to
 evict pages from its own compressed pool on an LRU basis and write them back to
@@ -53,12 +63,12 @@ Zswap makes use of zpool for the managing the compressed memory pool.  Each
 allocation in zpool is not directly accessible by address.  Rather, a handle is
 returned by the allocation routine and that handle must be mapped before being
 accessed.  The compressed memory pool grows on demand and shrinks as compressed
-pages are freed.  The pool is not preallocated.  By default, a zpool of type
-zbud is created, but it can be selected at boot time by setting the "zpool"
-attribute, e.g. zswap.zpool=zbud.  It can also be changed at runtime using the
-sysfs "zpool" attribute, e.g.
+pages are freed.  The pool is not preallocated.  By default, a zpool
+of type zbud is created, but it can be selected at boot time by
+setting the ``zpool`` attribute, e.g. ``zswap.zpool=zbud``. It can
+also be changed at runtime using the sysfs ``zpool`` attribute, e.g.::
 
-echo zbud > /sys/module/zswap/parameters/zpool
+	echo zbud > /sys/module/zswap/parameters/zpool
 
 The zbud type zpool allocates exactly 1 page to store 2 compressed pages, which
 means the compression ratio will always be 2:1 or worse (because of half-full
@@ -83,14 +93,16 @@ via frontswap, to free the compressed entry.
 
 Zswap seeks to be simple in its policies.  Sysfs attributes allow for one user
 controlled policy:
+
 * max_pool_percent - The maximum percentage of memory that the compressed
-    pool can occupy.
+  pool can occupy.
 
-The default compressor is lzo, but it can be selected at boot time by setting
-the “compressor” attribute, e.g. zswap.compressor=lzo.  It can also be changed
-at runtime using the sysfs "compressor" attribute, e.g.
+The default compressor is lzo, but it can be selected at boot time by
+setting the ``compressor`` attribute, e.g. ``zswap.compressor=lzo``.
+It can also be changed at runtime using the sysfs "compressor"
+attribute, e.g.::
 
-echo lzo > /sys/module/zswap/parameters/compressor
+	echo lzo > /sys/module/zswap/parameters/compressor
 
 When the zpool and/or compressor parameter is changed at runtime, any existing
 compressed pages are not modified; they are left in their own zpool.  When a
@@ -106,11 +118,12 @@ compressed length of the page is set to zero and the pattern or same-filled
 value is stored.
 
 Same-value filled pages identification feature is enabled by default and can be
-disabled at boot time by setting the "same_filled_pages_enabled" attribute to 0,
-e.g. zswap.same_filled_pages_enabled=0. It can also be enabled and disabled at
-runtime using the sysfs "same_filled_pages_enabled" attribute, e.g.
+disabled at boot time by setting the ``same_filled_pages_enabled`` attribute
+to 0, e.g. ``zswap.same_filled_pages_enabled=0``. It can also be enabled and
+disabled at runtime using the sysfs ``same_filled_pages_enabled``
+attribute, e.g.::
 
-echo 1 > /sys/module/zswap/parameters/same_filled_pages_enabled
+	echo 1 > /sys/module/zswap/parameters/same_filled_pages_enabled
 
 When zswap same-filled page identification is disabled at runtime, it will stop
 checking for the same-value filled pages during store operation. However, the
