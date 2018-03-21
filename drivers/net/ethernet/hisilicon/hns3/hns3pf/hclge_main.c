@@ -55,6 +55,8 @@ static const struct pci_device_id ae_algo_pci_tbl[] = {
 	{0, }
 };
 
+MODULE_DEVICE_TABLE(pci, ae_algo_pci_tbl);
+
 static const char hns3_nic_test_strs[][ETH_GSTRING_LEN] = {
 	"Mac    Loopback test",
 	"Serdes Loopback test",

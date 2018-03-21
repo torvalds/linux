@@ -18,6 +18,8 @@ static const struct pci_device_id ae_algovf_pci_tbl[] = {
 	{0, }
 };
 
+MODULE_DEVICE_TABLE(pci, ae_algovf_pci_tbl);
+
 static inline struct hclgevf_dev *hclgevf_ae_get_hdev(
 	struct hnae3_handle *handle)
 {
