@@ -593,6 +593,13 @@ static umode_t region_visible(struct kobject *kobj, struct attribute *a, int n)
 			return 0;
 	}
 
+	if (a == &dev_attr_persistence_domain.attr) {
+		if ((nd_region->flags & (BIT(ND_REGION_PERSIST_CACHE)
+					| BIT(ND_REGION_PERSIST_MEMCTRL))) == 0)
+			return 0;
+		return a->mode;
+	}
+
 	if (a != &dev_attr_set_cookie.attr
 			&& a != &dev_attr_available_size.attr)
 		return a->mode;
