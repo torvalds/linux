@@ -32,7 +32,6 @@ struct rk_i2s_pins {
 
 struct rk_i2s_dev {
 	struct device *dev;
-	struct mutex lock; /* txctrl/rxctrl lock */
 
 	struct clk *hclk;
 	struct clk *mclk;
@@ -96,7 +95,6 @@ static void rockchip_snd_txctrl(struct rk_i2s_dev *i2s, int on)
 	unsigned int val = 0;
 	int retry = 10;
 
-	mutex_lock(&i2s->lock);
 	if (on) {
 		regmap_update_bits(i2s->regmap, I2S_DMACR,
 				   I2S_DMACR_TDE_ENABLE, I2S_DMACR_TDE_ENABLE);
@@ -131,14 +129,12 @@ static void rockchip_snd_txctrl(struct rk_i2s_dev *i2s, int on)
 				regmap_read(i2s->regmap, I2S_CLR, &val);
 				retry--;
 				if (!retry) {
-					dev_warn(i2s->dev, "%s: fail to clear\n",
-						 __func__);
+					dev_warn(i2s->dev, "fail to clear\n");
 					break;
 				}
 			}
 		}
 	}
-	mutex_unlock(&i2s->lock);
 }
 
 static void rockchip_snd_rxctrl(struct rk_i2s_dev *i2s, int on)
@@ -146,7 +142,6 @@ static void rockchip_snd_rxctrl(struct rk_i2s_dev *i2s, int on)
 	unsigned int val = 0;
 	int retry = 10;
 
-	mutex_lock(&i2s->lock);
 	if (on) {
 		regmap_update_bits(i2s->regmap, I2S_DMACR,
 				   I2S_DMACR_RDE_ENABLE, I2S_DMACR_RDE_ENABLE);
@@ -181,14 +176,12 @@ static void rockchip_snd_rxctrl(struct rk_i2s_dev *i2s, int on)
 				regmap_read(i2s->regmap, I2S_CLR, &val);
 				retry--;
 				if (!retry) {
-					dev_warn(i2s->dev, "%s: fail to clear\n",
-						 __func__);
+					dev_warn(i2s->dev, "fail to clear\n");
 					break;
 				}
 			}
 		}
 	}
-	mutex_unlock(&i2s->lock);
 }
 
 static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
@@ -607,8 +600,6 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	}
 
 	i2s->dev = &pdev->dev;
-
-	mutex_init(&i2s->lock);
 
 	i2s->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
 	if (!IS_ERR(i2s->grf)) {
