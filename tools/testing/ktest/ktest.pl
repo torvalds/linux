@@ -59,6 +59,7 @@ my %default = (
     "GRUB_REBOOT"		=> "grub2-reboot",
     "SYSLINUX"			=> "extlinux",
     "SYSLINUX_PATH"		=> "/boot/extlinux",
+    "CONNECT_TIMEOUT"		=> 25,
 
 # required, and we will ask users if they don't have them but we keep the default
 # value something that is common.
@@ -163,6 +164,7 @@ my $store_failures;
 my $store_successes;
 my $test_name;
 my $timeout;
+my $connect_timeout;
 my $booted_timeout;
 my $detect_triplefault;
 my $console;
@@ -296,6 +298,7 @@ my %option_map = (
     "STORE_SUCCESSES"		=> \$store_successes,
     "TEST_NAME"			=> \$test_name,
     "TIMEOUT"			=> \$timeout,
+    "CONNECT_TIMEOUT"		=> \$connect_timeout,
     "BOOTED_TIMEOUT"		=> \$booted_timeout,
     "CONSOLE"			=> \$console,
     "CLOSE_CONSOLE_SIGNAL"	=> \$close_console_signal,
@@ -1328,8 +1331,8 @@ sub reboot {
     my ($time) = @_;
     my $powercycle = 0;
 
-    # test if the machine can be connected to within 5 seconds
-    my $stat = run_ssh("echo check machine status", 5);
+    # test if the machine can be connected to within a few seconds
+    my $stat = run_ssh("echo check machine status", $connect_timeout);
     if (!$stat) {
 	doprint("power cycle\n");
 	$powercycle = 1;
