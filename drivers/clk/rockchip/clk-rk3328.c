@@ -810,24 +810,24 @@ static struct rockchip_clk_branch rk3328_clk_branches[] __initdata = {
 	GATE(0, "pclk_phy_niu", "pclk_phy_pre", 0, RK3328_CLKGATE_CON(15), 15, GFLAGS),
 
 	/* PD_MMC */
-	MMC(SCLK_SDMMC_DRV, "sdmmc_drv", "sclk_sdmmc",
+	MMC(SCLK_SDMMC_DRV, "sdmmc_drv", "clk_sdmmc",
 	    RK3328_SDMMC_CON0, 1),
-	MMC(SCLK_SDMMC_SAMPLE, "sdmmc_sample", "sclk_sdmmc",
+	MMC(SCLK_SDMMC_SAMPLE, "sdmmc_sample", "clk_sdmmc",
 	    RK3328_SDMMC_CON1, 1),
 
-	MMC(SCLK_SDIO_DRV, "sdio_drv", "sclk_sdio",
+	MMC(SCLK_SDIO_DRV, "sdio_drv", "clk_sdio",
 	    RK3328_SDIO_CON0, 1),
-	MMC(SCLK_SDIO_SAMPLE, "sdio_sample", "sclk_sdio",
+	MMC(SCLK_SDIO_SAMPLE, "sdio_sample", "clk_sdio",
 	    RK3328_SDIO_CON1, 1),
 
-	MMC(SCLK_EMMC_DRV, "emmc_drv", "sclk_emmc",
+	MMC(SCLK_EMMC_DRV, "emmc_drv", "clk_emmc",
 	    RK3328_EMMC_CON0, 1),
-	MMC(SCLK_EMMC_SAMPLE, "emmc_sample", "sclk_emmc",
+	MMC(SCLK_EMMC_SAMPLE, "emmc_sample", "clk_emmc",
 	    RK3328_EMMC_CON1, 1),
 
-	MMC(SCLK_SDMMC_EXT_DRV, "sdmmc_ext_drv", "sclk_sdmmc_ext",
+	MMC(SCLK_SDMMC_EXT_DRV, "sdmmc_ext_drv", "clk_sdmmc_ext",
 	    RK3328_SDMMC_EXT_CON0, 1),
-	MMC(SCLK_SDMMC_EXT_SAMPLE, "sdmmc_ext_sample", "sclk_sdmmc_ext",
+	MMC(SCLK_SDMMC_EXT_SAMPLE, "sdmmc_ext_sample", "clk_sdmmc_ext",
 	    RK3328_SDMMC_EXT_CON1, 1),
 };
 
