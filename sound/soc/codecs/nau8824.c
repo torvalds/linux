@@ -489,8 +489,12 @@ static int system_clock_control(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct nau8824 *nau8824 = snd_soc_component_get_drvdata(component);
+	struct regmap *regmap = nau8824->regmap;
+	unsigned int value;
+	bool clk_fll, error;
 
 	if (SND_SOC_DAPM_EVENT_OFF(event)) {
+		dev_dbg(nau8824->dev, "system clock control : POWER OFF\n");
 		/* Set clock source to disable or internal clock before the
 		 * playback or capture end. Codec needs clock for Jack
 		 * detection and button press if jack inserted; otherwise,
@@ -502,7 +506,40 @@ static int system_clock_control(struct snd_soc_dapm_widget *w,
 		} else {
 			nau8824_config_sysclk(nau8824, NAU8824_CLK_DIS, 0);
 		}
+	} else {
+		dev_dbg(nau8824->dev, "system clock control : POWER ON\n");
+		/* Check the clock source setting is proper or not
+		 * no matter the source is from FLL or MCLK.
+		 */
+		regmap_read(regmap, NAU8824_REG_FLL1, &value);
+		clk_fll = value & NAU8824_FLL_RATIO_MASK;
+		/* It's error to use internal clock when playback */
+		regmap_read(regmap, NAU8824_REG_FLL6, &value);
+		error = value & NAU8824_DCO_EN;
+		if (!error) {
+			/* Check error depending on source is FLL or MCLK. */
+			regmap_read(regmap, NAU8824_REG_CLK_DIVIDER, &value);
+			if (clk_fll)
+				error = !(value & NAU8824_CLK_SRC_VCO);
+			else
+				error = value & NAU8824_CLK_SRC_VCO;
+		}
+		/* Recover the clock source setting if error. */
+		if (error) {
+			if (clk_fll) {
+				regmap_update_bits(regmap,
+					NAU8824_REG_FLL6, NAU8824_DCO_EN, 0);
+				regmap_update_bits(regmap,
+					NAU8824_REG_CLK_DIVIDER,
+					NAU8824_CLK_SRC_MASK,
+					NAU8824_CLK_SRC_VCO);
+			} else {
+				nau8824_config_sysclk(nau8824,
+					NAU8824_CLK_MCLK, 0);
+			}
+		}
 	}
+
 	return 0;
 }
 
@@ -591,7 +628,8 @@ static const struct snd_kcontrol_new nau8824_dacr_mux =
 
 static const struct snd_soc_dapm_widget nau8824_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("System Clock", SND_SOC_NOPM, 0, 0,
-			system_clock_control, SND_SOC_DAPM_POST_PMD),
+		system_clock_control, SND_SOC_DAPM_POST_PMD |
+		SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_INPUT("HSMIC1"),
 	SND_SOC_DAPM_INPUT("HSMIC2"),
