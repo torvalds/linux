@@ -1515,6 +1515,9 @@ sub close_console {
     doprint "kill child process $pid\n";
     kill $close_console_signal, $pid;
 
+    doprint "wait for child process $pid to exit\n";
+    waitpid($pid, 0);
+
     print "closing!\n";
     close($fp);
 
