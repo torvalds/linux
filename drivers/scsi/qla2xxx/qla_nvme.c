@@ -280,7 +280,7 @@ static void qla_nvme_poll(struct nvme_fc_local_port *lport, void *hw_queue_handl
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);
 }
 
-static int qla2x00_start_nvme_mq(srb_t *sp)
+static inline int qla2x00_start_nvme_mq(srb_t *sp)
 {
 	unsigned long   flags;
 	uint32_t        *clr_ptr;
