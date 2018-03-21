@@ -124,13 +124,11 @@ struct s3c2410_nand_info;
  * @chip: The NAND chip information.
  * @set: The platform information supplied for this set of NAND chips.
  * @info: Link back to the hardware information.
- * @scan_res: The result from calling nand_scan_ident().
 */
 struct s3c2410_nand_mtd {
 	struct nand_chip		chip;
 	struct s3c2410_nand_set		*set;
 	struct s3c2410_nand_info	*info;
-	int				scan_res;
 };
 
 enum s3c_cpu_type {
@@ -1163,17 +1161,19 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 		mtd->dev.parent = &pdev->dev;
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
-		nmtd->scan_res = nand_scan_ident(mtd,
-						 (sets) ? sets->nr_chips : 1,
-						 NULL);
+		err = nand_scan_ident(mtd, (sets) ? sets->nr_chips : 1, NULL);
+		if (err)
+			goto exit_error;
 
-		if (nmtd->scan_res == 0) {
-			err = s3c2410_nand_update_chip(info, nmtd);
-			if (err < 0)
-				goto exit_error;
-			nand_scan_tail(mtd);
-			s3c2410_nand_add_partition(info, nmtd, sets);
-		}
+		err = s3c2410_nand_update_chip(info, nmtd);
+		if (err < 0)
+			goto exit_error;
+
+		err = nand_scan_tail(mtd);
+		if (err)
+			goto exit_error;
+
+		s3c2410_nand_add_partition(info, nmtd, sets);
 
 		if (sets != NULL)
 			sets++;
