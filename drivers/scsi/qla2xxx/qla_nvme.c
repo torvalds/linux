@@ -489,6 +489,9 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 
 	vha = fcport->vha;
 
+	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags))
+		return rval;
+
 	/*
 	 * If we know the dev is going away while the transport is still sending
 	 * IO's return busy back to stall the IO Q.  This happens when the
@@ -597,14 +600,18 @@ static int qla_nvme_wait_on_command(srb_t *sp)
 	return ret;
 }
 
-void qla_nvme_abort(struct qla_hw_data *ha, struct srb *sp)
+void qla_nvme_abort(struct qla_hw_data *ha, struct srb *sp, int res)
 {
 	int rval;
 
-	rval = ha->isp_ops->abort_command(sp);
-	if (!rval && !qla_nvme_wait_on_command(sp))
-		ql_log(ql_log_warn, NULL, 0x2112,
-		    "nvme_wait_on_comand timed out waiting on sp=%p\n", sp);
+	if (!test_bit(ABORT_ISP_ACTIVE, &sp->vha->dpc_flags)) {
+		rval = ha->isp_ops->abort_command(sp);
+		if (!rval && !qla_nvme_wait_on_command(sp))
+			ql_log(ql_log_warn, NULL, 0x2112,
+			    "timed out waiting on sp=%p\n", sp);
+	} else {
+		sp->done(sp, res);
+	}
 }
 
 static void qla_nvme_unregister_remote_port(struct work_struct *work)

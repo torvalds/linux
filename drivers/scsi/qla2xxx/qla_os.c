@@ -1734,7 +1734,7 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 					sp_get(sp);
 					spin_unlock_irqrestore(qp->qp_lock_ptr,
 					    flags);
-					qla_nvme_abort(ha, sp);
+					qla_nvme_abort(ha, sp, res);
 					spin_lock_irqsave(qp->qp_lock_ptr,
 					    flags);
 				} else if (GET_CMD_SP(sp) &&
