@@ -3898,29 +3898,6 @@ static int pqi_validate_device_capability(struct pqi_ctrl_info *ctrl_info)
 	return 0;
 }
 
-static int pqi_delete_operational_queue(struct pqi_ctrl_info *ctrl_info,
-	bool inbound_queue, u16 queue_id)
-{
-	struct pqi_general_admin_request request;
-	struct pqi_general_admin_response response;
-
-	memset(&request, 0, sizeof(request));
-	request.header.iu_type = PQI_REQUEST_IU_GENERAL_ADMIN;
-	put_unaligned_le16(PQI_GENERAL_ADMIN_IU_LENGTH,
-		&request.header.iu_length);
-	if (inbound_queue)
-		request.function_code =
-			PQI_GENERAL_ADMIN_FUNCTION_DELETE_IQ;
-	else
-		request.function_code =
-			PQI_GENERAL_ADMIN_FUNCTION_DELETE_OQ;
-	put_unaligned_le16(queue_id,
-		&request.data.delete_operational_queue.queue_id);
-
-	return pqi_submit_admin_request_synchronous(ctrl_info, &request,
-		&response);
-}
-
 static int pqi_create_event_queue(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
@@ -4038,7 +4015,7 @@ static int pqi_create_queue_group(struct pqi_ctrl_info *ctrl_info,
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
 			"error creating inbound AIO queue\n");
-		goto delete_inbound_queue_raid;
+		return rc;
 	}
 
 	queue_group->iq_pi[AIO_PATH] = ctrl_info->iomem_base +
@@ -4066,7 +4043,7 @@ static int pqi_create_queue_group(struct pqi_ctrl_info *ctrl_info,
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
 			"error changing queue property\n");
-		goto delete_inbound_queue_aio;
+		return rc;
 	}
 
 	/*
@@ -4096,7 +4073,7 @@ static int pqi_create_queue_group(struct pqi_ctrl_info *ctrl_info,
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
 			"error creating outbound queue\n");
-		goto delete_inbound_queue_aio;
+		return rc;
 	}
 
 	queue_group->oq_ci = ctrl_info->iomem_base +
@@ -4105,16 +4082,6 @@ static int pqi_create_queue_group(struct pqi_ctrl_info *ctrl_info,
 			&response.data.create_operational_oq.oq_ci_offset);
 
 	return 0;
-
-delete_inbound_queue_aio:
-	pqi_delete_operational_queue(ctrl_info, true,
-		queue_group->iq_id[AIO_PATH]);
-
-delete_inbound_queue_raid:
-	pqi_delete_operational_queue(ctrl_info, true,
-		queue_group->iq_id[RAID_PATH]);
-
-	return rc;
 }
 
 static int pqi_create_queues(struct pqi_ctrl_info *ctrl_info)
