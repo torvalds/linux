@@ -10,6 +10,8 @@
 #ifndef __HNS3_ENET_H
 #define __HNS3_ENET_H
 
+#include <linux/if_vlan.h>
+
 #include "hnae3.h"
 
 extern const char hns3_driver_version[];
@@ -539,6 +541,7 @@ struct hns3_nic_priv {
 	struct notifier_block notifier_block;
 	/* Vxlan/Geneve information */
 	struct hns3_udp_tunnel udp_tnl[HNS3_UDP_TNL_MAX];
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 };
 
 union l3_hdr_info {

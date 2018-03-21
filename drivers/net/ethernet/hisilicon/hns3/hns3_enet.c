@@ -1404,10 +1404,14 @@ static int hns3_vlan_rx_add_vid(struct net_device *netdev,
 				__be16 proto, u16 vid)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
 		ret = h->ae_algo->ops->set_vlan_filter(h, proto, vid, false);
+
+	if (!ret)
+		set_bit(vid, priv->active_vlans);
 
 	return ret;
 }
@@ -1416,12 +1420,30 @@ static int hns3_vlan_rx_kill_vid(struct net_device *netdev,
 				 __be16 proto, u16 vid)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
 		ret = h->ae_algo->ops->set_vlan_filter(h, proto, vid, true);
 
+	if (!ret)
+		clear_bit(vid, priv->active_vlans);
+
 	return ret;
+}
+
+static void hns3_restore_vlan(struct net_device *netdev)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	u16 vid;
+	int ret;
+
+	for_each_set_bit(vid, priv->active_vlans, VLAN_N_VID) {
+		ret = hns3_vlan_rx_add_vid(netdev, htons(ETH_P_8021Q), vid);
+		if (ret)
+			netdev_warn(netdev, "Restore vlan: %d filter, ret:%d\n",
+				    vid, ret);
+	}
 }
 
 static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
@@ -3340,6 +3362,10 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	hns3_init_mac_addr(netdev);
 	hns3_nic_set_rx_mode(netdev);
 	hns3_recover_hw_addr(netdev);
+
+	/* Hardware table is only clear when pf resets */
+	if (!(handle->flags & HNAE3_SUPPORT_VF))
+		hns3_restore_vlan(netdev);
 
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);
