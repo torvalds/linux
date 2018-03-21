@@ -532,6 +532,14 @@ static int at24_get_pdata(struct device *dev, struct at24_platform_data *pdata)
 	return 0;
 }
 
+static void at24_remove_dummy_clients(struct at24_data *at24)
+{
+	int i;
+
+	for (i = 1; i < at24->num_addresses; i++)
+		i2c_unregister_device(at24->client[i].client);
+}
+
 static unsigned int at24_get_offset_adj(u8 flags, unsigned int byte_len)
 {
 	if (flags & AT24_FLAG_MAC) {
@@ -702,10 +710,7 @@ static int at24_probe(struct i2c_client *client)
 	return 0;
 
 err_clients:
-	for (i = 1; i < num_addresses; i++)
-		if (at24->client[i].client)
-			i2c_unregister_device(at24->client[i].client);
-
+	at24_remove_dummy_clients(at24);
 	pm_runtime_disable(dev);
 
 	return err;
@@ -714,13 +719,10 @@ err_clients:
 static int at24_remove(struct i2c_client *client)
 {
 	struct at24_data *at24;
-	int i;
 
 	at24 = i2c_get_clientdata(client);
 
-	for (i = 1; i < at24->num_addresses; i++)
-		i2c_unregister_device(at24->client[i].client);
-
+	at24_remove_dummy_clients(at24);
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 
