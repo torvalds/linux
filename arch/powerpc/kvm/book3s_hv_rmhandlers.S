@@ -1557,6 +1557,24 @@ mc_cont:
 	ptesync
 3:	stw	r5,VCPU_SLB_MAX(r9)
 
+	/* load host SLB entries */
+BEGIN_MMU_FTR_SECTION
+	b	0f
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
+	ld	r8,PACA_SLBSHADOWPTR(r13)
+
+	.rept	SLB_NUM_BOLTED
+	li	r3, SLBSHADOW_SAVEAREA
+	LDX_BE	r5, r8, r3
+	addi	r3, r3, 8
+	LDX_BE	r6, r8, r3
+	andis.	r7,r5,SLB_ESID_V@h
+	beq	1f
+	slbmte	r6,r5
+1:	addi	r8,r8,16
+	.endr
+0:
+
 guest_bypass:
 	stw	r12, STACK_SLOT_TRAP(r1)
 	mr 	r3, r12
@@ -2018,23 +2036,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPCR,r8
 	isync
 48:
-	/* load host SLB entries */
-BEGIN_MMU_FTR_SECTION
-	b	0f
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_RADIX)
-	ld	r8,PACA_SLBSHADOWPTR(r13)
-
-	.rept	SLB_NUM_BOLTED
-	li	r3, SLBSHADOW_SAVEAREA
-	LDX_BE	r5, r8, r3
-	addi	r3, r3, 8
-	LDX_BE	r6, r8, r3
-	andis.	r7,r5,SLB_ESID_V@h
-	beq	1f
-	slbmte	r6,r5
-1:	addi	r8,r8,16
-	.endr
-0:
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	/* Finish timing, if we have a vcpu */
 	ld	r4, HSTATE_KVM_VCPU(r13)
