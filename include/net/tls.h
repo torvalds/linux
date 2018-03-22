@@ -81,6 +81,16 @@ enum {
 	TLS_PENDING_CLOSED_RECORD
 };
 
+struct cipher_context {
+	u16 prepend_size;
+	u16 tag_size;
+	u16 overhead_size;
+	u16 iv_size;
+	char *iv;
+	u16 rec_seq_size;
+	char *rec_seq;
+};
+
 struct tls_context {
 	union {
 		struct tls_crypto_info crypto_send;
@@ -91,13 +101,7 @@ struct tls_context {
 
 	u8 tx_conf:2;
 
-	u16 prepend_size;
-	u16 tag_size;
-	u16 overhead_size;
-	u16 iv_size;
-	char *iv;
-	u16 rec_seq_size;
-	char *rec_seq;
+	struct cipher_context tx;
 
 	struct scatterlist *partially_sent_record;
 	u16 partially_sent_offset;
@@ -190,7 +194,7 @@ static inline bool tls_bigint_increment(unsigned char *seq, int len)
 }
 
 static inline void tls_advance_record_sn(struct sock *sk,
-					 struct tls_context *ctx)
+					 struct cipher_context *ctx)
 {
 	if (tls_bigint_increment(ctx->rec_seq, ctx->rec_seq_size))
 		tls_err_abort(sk);
@@ -203,9 +207,9 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 			     size_t plaintext_len,
 			     unsigned char record_type)
 {
-	size_t pkt_len, iv_size = ctx->iv_size;
+	size_t pkt_len, iv_size = ctx->tx.iv_size;
 
-	pkt_len = plaintext_len + iv_size + ctx->tag_size;
+	pkt_len = plaintext_len + iv_size + ctx->tx.tag_size;
 
 	/* we cover nonce explicit here as well, so buf should be of
 	 * size KTLS_DTLS_HEADER_SIZE + KTLS_DTLS_NONCE_EXPLICIT_SIZE
@@ -217,7 +221,7 @@ static inline void tls_fill_prepend(struct tls_context *ctx,
 	buf[3] = pkt_len >> 8;
 	buf[4] = pkt_len & 0xFF;
 	memcpy(buf + TLS_NONCE_OFFSET,
-	       ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv_size);
+	       ctx->tx.iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE, iv_size);
 }
 
 static inline void tls_make_aad(char *buf,
