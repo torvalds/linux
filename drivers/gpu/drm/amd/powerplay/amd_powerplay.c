@@ -25,6 +25,7 @@
 #include <linux/kernel.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/firmware.h>
 #include "amd_shared.h"
 #include "amd_powerplay.h"
 #include "power_state.h"
@@ -107,8 +108,11 @@ static int pp_sw_fini(void *handle)
 
 	hwmgr_sw_fini(hwmgr);
 
-	if (adev->firmware.load_type == AMDGPU_FW_LOAD_SMU)
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_SMU) {
+		release_firmware(adev->pm.fw);
+		adev->pm.fw = NULL;
 		amdgpu_ucode_fini_bo(adev);
+	}
 
 	return 0;
 }

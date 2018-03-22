@@ -650,6 +650,5 @@ int smu7_smu_fini(struct pp_hwmgr *hwmgr)
 
 	kfree(hwmgr->smu_backend);
 	hwmgr->smu_backend = NULL;
-	cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);
 	return 0;
 }
