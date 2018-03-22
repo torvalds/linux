@@ -492,10 +492,20 @@ static u32 timeline_get_seqno(struct intel_timeline *tl)
 	return ++tl->seqno;
 }
 
+static void move_to_timeline(struct i915_request *request,
+			     struct intel_timeline *timeline)
+{
+	GEM_BUG_ON(request->timeline == request->engine->timeline);
+	lockdep_assert_held(&request->engine->timeline->lock);
+
+	spin_lock(&request->timeline->lock);
+	list_move_tail(&request->link, &timeline->requests);
+	spin_unlock(&request->timeline->lock);
+}
+
 void __i915_request_submit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
-	struct intel_timeline *timeline;
 	u32 seqno;
 
 	GEM_TRACE("%s fence %llx:%d -> global_seqno %d\n",
@@ -506,12 +516,9 @@ void __i915_request_submit(struct i915_request *request)
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline->lock);
 
-	/* Transfer from per-context onto the global per-engine timeline */
-	timeline = engine->timeline;
-	GEM_BUG_ON(timeline == request->timeline);
 	GEM_BUG_ON(request->global_seqno);
 
-	seqno = timeline_get_seqno(timeline);
+	seqno = timeline_get_seqno(engine->timeline);
 	GEM_BUG_ON(!seqno);
 	GEM_BUG_ON(i915_seqno_passed(intel_engine_get_seqno(engine), seqno));
 
@@ -525,9 +532,8 @@ void __i915_request_submit(struct i915_request *request)
 	engine->emit_breadcrumb(request,
 				request->ring->vaddr + request->postfix);
 
-	spin_lock(&request->timeline->lock);
-	list_move_tail(&request->link, &timeline->requests);
-	spin_unlock(&request->timeline->lock);
+	/* Transfer from per-context onto the global per-engine timeline */
+	move_to_timeline(request, engine->timeline);
 
 	trace_i915_request_execute(request);
 
@@ -550,7 +556,6 @@ void i915_request_submit(struct i915_request *request)
 void __i915_request_unsubmit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
-	struct intel_timeline *timeline;
 
 	GEM_TRACE("%s fence %llx:%d <- global_seqno %d\n",
 		  request->engine->name,
@@ -578,12 +583,7 @@ void __i915_request_unsubmit(struct i915_request *request)
 	spin_unlock(&request->lock);
 
 	/* Transfer back from the global per-engine timeline to per-context */
-	timeline = request->timeline;
-	GEM_BUG_ON(timeline == engine->timeline);
-
-	spin_lock(&timeline->lock);
-	list_move(&request->link, &timeline->requests);
-	spin_unlock(&timeline->lock);
+	move_to_timeline(request, request->timeline);
 
 	/*
 	 * We don't need to wake_up any waiters on request->execute, they
