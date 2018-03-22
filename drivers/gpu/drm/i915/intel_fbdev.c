@@ -640,7 +640,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		if (!crtc->state->active)
 			continue;
 
-		WARN(!crtc->primary->fb,
+		WARN(!crtc->primary->state->fb,
 		     "re-used BIOS config but lost an fb on crtc %d\n",
 		     crtc->base.id);
 	}
