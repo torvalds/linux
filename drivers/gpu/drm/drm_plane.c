@@ -792,7 +792,11 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 			fb = NULL;
 		}
 	} else {
-		fb = plane->fb;
+		if (plane->state)
+			fb = plane->state->fb;
+		else
+			fb = plane->fb;
+
 		if (fb)
 			drm_framebuffer_get(fb);
 	}
@@ -934,7 +938,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_mode_crtc_page_flip_target *page_flip = data;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	struct drm_framebuffer *fb = NULL;
+	struct drm_framebuffer *fb = NULL, *old_fb;
 	struct drm_pending_vblank_event *e = NULL;
 	u32 target_vblank = page_flip->sequence;
 	struct drm_modeset_acquire_ctx ctx;
@@ -1012,7 +1016,12 @@ retry:
 	if (ret)
 		goto out;
 
-	if (plane->fb == NULL) {
+	if (plane->state)
+		old_fb = plane->state->fb;
+	else
+		old_fb = plane->fb;
+
+	if (old_fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
 		 * due to a hotplug event, that userspace has not
 		 * yet discovered.
@@ -1027,7 +1036,7 @@ retry:
 		goto out;
 	}
 
-	if (crtc->state) {
+	if (plane->state) {
 		const struct drm_plane_state *state = plane->state;
 
 		ret = drm_framebuffer_check_src_coords(state->src_x,
@@ -1042,7 +1051,7 @@ retry:
 	if (ret)
 		goto out;
 
-	if (plane->fb->format != fb->format) {
+	if (old_fb->format != fb->format) {
 		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
 		ret = -EINVAL;
 		goto out;

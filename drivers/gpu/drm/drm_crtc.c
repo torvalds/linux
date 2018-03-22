@@ -597,13 +597,20 @@ retry:
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
 		if (crtc_req->fb_id == -1) {
-			if (!plane->fb) {
+			struct drm_framebuffer *old_fb;
+
+			if (plane->state)
+				old_fb = plane->state->fb;
+			else
+				old_fb = plane->fb;
+
+			if (!old_fb) {
 				DRM_DEBUG_KMS("CRTC doesn't have current FB\n");
 				ret = -EINVAL;
 				goto out;
 			}
 
-			fb = plane->fb;
+			fb = old_fb;
 			/* Make refcounting symmetric with the lookup path. */
 			drm_framebuffer_get(fb);
 		} else {
