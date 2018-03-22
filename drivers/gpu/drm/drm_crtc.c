@@ -434,13 +434,13 @@ int drm_mode_getcrtc(struct drm_device *dev,
 		if (crtc->state->enable) {
 			drm_mode_convert_to_umode(&crtc_resp->mode, &crtc->state->mode);
 			crtc_resp->mode_valid = 1;
-
 		} else {
 			crtc_resp->mode_valid = 0;
 		}
 	} else {
 		crtc_resp->x = crtc->x;
 		crtc_resp->y = crtc->y;
+
 		if (crtc->enabled) {
 			drm_mode_convert_to_umode(&crtc_resp->mode, &crtc->mode);
 			crtc_resp->mode_valid = 1;
@@ -592,6 +592,7 @@ retry:
 	ret = drm_modeset_lock_all_ctx(crtc->dev, &ctx);
 	if (ret)
 		goto out;
+
 	if (crtc_req->mode_valid) {
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
@@ -601,6 +602,7 @@ retry:
 				ret = -EINVAL;
 				goto out;
 			}
+
 			fb = plane->fb;
 			/* Make refcounting symmetric with the lookup path. */
 			drm_framebuffer_get(fb);

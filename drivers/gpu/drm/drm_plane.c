@@ -785,6 +785,7 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				DRM_DEBUG_KMS("failed to wrap cursor buffer in drm framebuffer\n");
 				return PTR_ERR(fb);
 			}
+
 			fb->hot_x = req->hot_x;
 			fb->hot_y = req->hot_y;
 		} else {
@@ -1035,7 +1036,8 @@ retry:
 						       state->src_h,
 						       fb);
 	} else {
-		ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
+		ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y,
+					      &crtc->mode, fb);
 	}
 	if (ret)
 		goto out;
@@ -1052,10 +1054,12 @@ retry:
 			ret = -ENOMEM;
 			goto out;
 		}
+
 		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 		e->event.base.length = sizeof(e->event);
 		e->event.vbl.user_data = page_flip->user_data;
 		e->event.vbl.crtc_id = crtc->base.id;
+
 		ret = drm_event_reserve_init(dev, file_priv, &e->base, &e->event.base);
 		if (ret) {
 			kfree(e);
