@@ -501,7 +501,7 @@ void __i915_request_submit(struct i915_request *request)
 	GEM_TRACE("%s fence %llx:%d -> global_seqno %d\n",
 		  request->engine->name,
 		  request->fence.context, request->fence.seqno,
-		  engine->timeline->seqno);
+		  engine->timeline->seqno + 1);
 
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline->lock);
