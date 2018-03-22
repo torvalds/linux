@@ -618,7 +618,7 @@ static void wait_for_xmitr(struct uart_port *port)
 	u32 val;
 
 	readl_poll_timeout_atomic(port->membase + UART_STAT, val,
-				  (val & STAT_TX_EMP), 1, 10000);
+				  (val & STAT_TX_RDY(port)), 1, 10000);
 }
 
 static void mvebu_uart_console_putchar(struct uart_port *port, int ch)
