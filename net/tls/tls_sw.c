@@ -226,23 +226,24 @@ static int tls_sw_push_pending_record(struct sock *sk, int flags)
 }
 
 static int zerocopy_from_iter(struct sock *sk, struct iov_iter *from,
-			      int length)
+			      int length, int *pages_used,
+			      unsigned int *size_used,
+			      struct scatterlist *to, int to_max_pages,
+			      bool charge)
 {
-	struct tls_context *tls_ctx = tls_get_ctx(sk);
-	struct tls_sw_context *ctx = tls_sw_ctx(tls_ctx);
 	struct page *pages[MAX_SKB_FRAGS];
 
 	size_t offset;
 	ssize_t copied, use;
 	int i = 0;
-	unsigned int size = ctx->sg_plaintext_size;
-	int num_elem = ctx->sg_plaintext_num_elem;
+	unsigned int size = *size_used;
+	int num_elem = *pages_used;
 	int rc = 0;
 	int maxpages;
 
 	while (length > 0) {
 		i = 0;
-		maxpages = ARRAY_SIZE(ctx->sg_plaintext_data) - num_elem;
+		maxpages = to_max_pages - num_elem;
 		if (maxpages == 0) {
 			rc = -EFAULT;
 			goto out;
@@ -262,10 +263,11 @@ static int zerocopy_from_iter(struct sock *sk, struct iov_iter *from,
 		while (copied) {
 			use = min_t(int, copied, PAGE_SIZE - offset);
 
-			sg_set_page(&ctx->sg_plaintext_data[num_elem],
+			sg_set_page(&to[num_elem],
 				    pages[i], use, offset);
-			sg_unmark_end(&ctx->sg_plaintext_data[num_elem]);
-			sk_mem_charge(sk, use);
+			sg_unmark_end(&to[num_elem]);
+			if (charge)
+				sk_mem_charge(sk, use);
 
 			offset = 0;
 			copied -= use;
@@ -276,8 +278,9 @@ static int zerocopy_from_iter(struct sock *sk, struct iov_iter *from,
 	}
 
 out:
-	ctx->sg_plaintext_size = size;
-	ctx->sg_plaintext_num_elem = num_elem;
+	*size_used = size;
+	*pages_used = num_elem;
+
 	return rc;
 }
 
@@ -374,7 +377,11 @@ alloc_encrypted:
 
 		if (full_record || eor) {
 			ret = zerocopy_from_iter(sk, &msg->msg_iter,
-						 try_to_copy);
+				try_to_copy, &ctx->sg_plaintext_num_elem,
+				&ctx->sg_plaintext_size,
+				ctx->sg_plaintext_data,
+				ARRAY_SIZE(ctx->sg_plaintext_data),
+				true);
 			if (ret)
 				goto fallback_to_reg_send;
 
