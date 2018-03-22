@@ -170,6 +170,7 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			}
 			break;
 		case HCLGE_MBX_LINK_STAT_CHANGE:
+		case HCLGE_MBX_ASSERTING_RESET:
 			/* set this mbx event as pending. This is required as we
 			 * might loose interrupt event when mbx task is busy
 			 * handling. This shall be cleared when mbx task just
@@ -240,6 +241,17 @@ void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
 			/* update upper layer with new link link status */
 			hclgevf_update_link_status(hdev, link_status);
 			hclgevf_update_speed_duplex(hdev, speed, duplex);
+
+			break;
+		case HCLGE_MBX_ASSERTING_RESET:
+			/* PF has asserted reset hence VF should go in pending
+			 * state and poll for the hardware reset status till it
+			 * has been completely reset. After this stack should
+			 * eventually be re-initialized.
+			 */
+			hdev->nic.reset_level = HNAE3_VF_RESET;
+			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
+			hclgevf_reset_task_schedule(hdev);
 
 			break;
 		default:
