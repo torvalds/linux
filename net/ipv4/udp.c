@@ -2842,7 +2842,8 @@ static int __net_init udp_sysctl_init(struct net *net)
 }
 
 static struct pernet_operations __net_initdata udp_sysctl_ops = {
-	.init       = udp_sysctl_init,
+	.init	= udp_sysctl_init,
+	.async	= true,
 };
 
 void __init udp_init(void)
