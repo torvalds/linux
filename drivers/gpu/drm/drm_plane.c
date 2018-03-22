@@ -1084,8 +1084,7 @@ retry:
 		plane->old_fb = NULL;
 	} else {
 		plane->fb = fb;
-		/* Unref only the old framebuffer. */
-		fb = NULL;
+		drm_framebuffer_get(fb);
 	}
 
 out:
