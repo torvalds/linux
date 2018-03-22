@@ -52,6 +52,7 @@ enum {
 	CPL_L2T_WRITE_REQ     = 0x12,
 	CPL_SMT_WRITE_REQ     = 0x14,
 	CPL_TID_RELEASE       = 0x1A,
+	CPL_SRQ_TABLE_REQ     = 0x1C,
 	CPL_TX_DATA_ISO	      = 0x1F,
 
 	CPL_CLOSE_LISTSRV_RPL = 0x20,
@@ -102,6 +103,7 @@ enum {
 	CPL_FW4_MSG           = 0xC0,
 	CPL_FW4_PLD           = 0xC1,
 	CPL_FW4_ACK           = 0xC3,
+	CPL_SRQ_TABLE_RPL     = 0xCC,
 
 	CPL_RX_PHYS_DSGL      = 0xD0,
 
@@ -136,6 +138,8 @@ enum CPL_error {
 	CPL_ERR_KEEPALV_NEG_ADVICE = 37,
 	CPL_ERR_ABORT_FAILED       = 42,
 	CPL_ERR_IWARP_FLM          = 50,
+	CPL_CONTAINS_READ_RPL      = 60,
+	CPL_CONTAINS_WRITE_RPL     = 61,
 };
 
 enum {
@@ -198,6 +202,7 @@ union opcode_tid {
 /* partitioning of TID fields that also carry a queue id */
 #define TID_TID_S    0
 #define TID_TID_M    0x3fff
+#define TID_TID_V(x) ((x) << TID_TID_S)
 #define TID_TID_G(x) (((x) >> TID_TID_S) & TID_TID_M)
 
 #define TID_QID_S    14
@@ -743,6 +748,22 @@ struct cpl_abort_req_rss {
 	u8 status;
 };
 
+struct cpl_abort_req_rss6 {
+	WR_HDR;
+	union opcode_tid ot;
+	__u32 srqidx_status;
+};
+
+#define ABORT_RSS_STATUS_S    0
+#define ABORT_RSS_STATUS_M    0xff
+#define ABORT_RSS_STATUS_V(x) ((x) << ABORT_RSS_STATUS_S)
+#define ABORT_RSS_STATUS_G(x) (((x) >> ABORT_RSS_STATUS_S) & ABORT_RSS_STATUS_M)
+
+#define ABORT_RSS_SRQIDX_S    8
+#define ABORT_RSS_SRQIDX_M    0xffffff
+#define ABORT_RSS_SRQIDX_V(x) ((x) << ABORT_RSS_SRQIDX_S)
+#define ABORT_RSS_SRQIDX_G(x) (((x) >> ABORT_RSS_SRQIDX_S) & ABORT_RSS_SRQIDX_M)
+
 struct cpl_abort_req {
 	WR_HDR;
 	union opcode_tid ot;
@@ -756,6 +777,11 @@ struct cpl_abort_rpl_rss {
 	union opcode_tid ot;
 	u8 rsvd[3];
 	u8 status;
+};
+
+struct cpl_abort_rpl_rss6 {
+	union opcode_tid ot;
+	__u32 srqidx_status;
 };
 
 struct cpl_abort_rpl {
@@ -2112,4 +2138,49 @@ enum {
 	X_CPL_RX_MPS_PKT_TYPE_QFC   = 1 << 2,
 	X_CPL_RX_MPS_PKT_TYPE_PTP   = 1 << 3
 };
+
+struct cpl_srq_table_req {
+	WR_HDR;
+	union opcode_tid ot;
+	__u8 status;
+	__u8 rsvd[2];
+	__u8 idx;
+	__be64 rsvd_pdid;
+	__be32 qlen_qbase;
+	__be16 cur_msn;
+	__be16 max_msn;
+};
+
+struct cpl_srq_table_rpl {
+	union opcode_tid ot;
+	__u8 status;
+	__u8 rsvd[2];
+	__u8 idx;
+	__be64 rsvd_pdid;
+	__be32 qlen_qbase;
+	__be16 cur_msn;
+	__be16 max_msn;
+};
+
+/* cpl_srq_table_{req,rpl}.params fields */
+#define SRQT_QLEN_S   28
+#define SRQT_QLEN_M   0xF
+#define SRQT_QLEN_V(x) ((x) << SRQT_QLEN_S)
+#define SRQT_QLEN_G(x) (((x) >> SRQT_QLEN_S) & SRQT_QLEN_M)
+
+#define SRQT_QBASE_S    0
+#define SRQT_QBASE_M   0x3FFFFFF
+#define SRQT_QBASE_V(x) ((x) << SRQT_QBASE_S)
+#define SRQT_QBASE_G(x) (((x) >> SRQT_QBASE_S) & SRQT_QBASE_M)
+
+#define SRQT_PDID_S    0
+#define SRQT_PDID_M   0xFF
+#define SRQT_PDID_V(x) ((x) << SRQT_PDID_S)
+#define SRQT_PDID_G(x) (((x) >> SRQT_PDID_S) & SRQT_PDID_M)
+
+#define SRQT_IDX_S    0
+#define SRQT_IDX_M    0xF
+#define SRQT_IDX_V(x) ((x) << SRQT_IDX_S)
+#define SRQT_IDX_G(x) (((x) >> SRQT_IDX_S) & SRQT_IDX_M)
+
 #endif  /* __T4_MSG_H */

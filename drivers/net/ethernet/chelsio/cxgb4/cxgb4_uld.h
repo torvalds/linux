@@ -284,6 +284,7 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range iscsi;
 	struct cxgb4_range stag;
 	struct cxgb4_range rq;
+	struct cxgb4_range srq;
 	struct cxgb4_range pbl;
 	struct cxgb4_range qp;
 	struct cxgb4_range cq;
@@ -353,6 +354,8 @@ struct cxgb4_lld_info {
 	void **iscsi_ppm;		     /* iscsi page pod manager */
 	int nodeid;			     /* device numa node id */
 	bool fr_nsmr_tpte_wr_support;	     /* FW supports FR_NSMR_TPTE_WR */
+	bool write_w_imm_support;         /* FW supports WRITE_WITH_IMMEDIATE */
+	bool write_cmpl_support;             /* FW supports WRITE_CMPL WR */
 };
 
 struct cxgb4_uld_info {
