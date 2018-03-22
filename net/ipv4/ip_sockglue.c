@@ -322,20 +322,6 @@ int ip_cmsg_send(struct sock *sk, struct msghdr *msg, struct ipcm_cookie *ipc,
 	return 0;
 }
 
-
-/* Special input handler for packets caught by router alert option.
-   They are selected only by protocol field, and then processed likely
-   local ones; but only if someone wants them! Otherwise, router
-   not running rsvpd will kill RSVP.
-
-   It is user level problem, what it will make with them.
-   I have no idea, how it will masquearde or NAT them (it is joke, joke :-)),
-   but receiver should be enough clever f.e. to forward mtrace requests,
-   sent to multicast group to reach destination designated router.
- */
-struct ip_ra_chain __rcu *ip_ra_chain;
-
-
 static void ip_ra_destroy_rcu(struct rcu_head *head)
 {
 	struct ip_ra_chain *ra = container_of(head, struct ip_ra_chain, rcu);
@@ -349,23 +335,28 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 {
 	struct ip_ra_chain *ra, *new_ra;
 	struct ip_ra_chain __rcu **rap;
+	struct net *net = sock_net(sk);
 
 	if (sk->sk_type != SOCK_RAW || inet_sk(sk)->inet_num == IPPROTO_RAW)
 		return -EINVAL;
 
 	new_ra = on ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
 
-	for (rap = &ip_ra_chain;
-	     (ra = rtnl_dereference(*rap)) != NULL;
+	mutex_lock(&net->ipv4.ra_mutex);
+	for (rap = &net->ipv4.ra_chain;
+	     (ra = rcu_dereference_protected(*rap,
+			lockdep_is_held(&net->ipv4.ra_mutex))) != NULL;
 	     rap = &ra->next) {
 		if (ra->sk == sk) {
 			if (on) {
+				mutex_unlock(&net->ipv4.ra_mutex);
 				kfree(new_ra);
 				return -EADDRINUSE;
 			}
 			/* dont let ip_call_ra_chain() use sk again */
 			ra->sk = NULL;
 			RCU_INIT_POINTER(*rap, ra->next);
+			mutex_unlock(&net->ipv4.ra_mutex);
 
 			if (ra->destructor)
 				ra->destructor(sk);
@@ -379,14 +370,17 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 			return 0;
 		}
 	}
-	if (!new_ra)
+	if (!new_ra) {
+		mutex_unlock(&net->ipv4.ra_mutex);
 		return -ENOBUFS;
+	}
 	new_ra->sk = sk;
 	new_ra->destructor = destructor;
 
 	RCU_INIT_POINTER(new_ra->next, ra);
 	rcu_assign_pointer(*rap, new_ra);
 	sock_hold(sk);
+	mutex_unlock(&net->ipv4.ra_mutex);
 
 	return 0;
 }
@@ -586,7 +580,6 @@ static bool setsockopt_needs_rtnl(int optname)
 	case MCAST_LEAVE_GROUP:
 	case MCAST_LEAVE_SOURCE_GROUP:
 	case MCAST_UNBLOCK_SOURCE:
-	case IP_ROUTER_ALERT:
 		return true;
 	}
 	return false;
@@ -639,6 +632,8 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 
 	/* If optlen==0, it is equivalent to val == 0 */
 
+	if (optname == IP_ROUTER_ALERT)
+		return ip_ra_control(sk, val ? 1 : 0, NULL);
 	if (ip_mroute_opt(optname))
 		return ip_mroute_setsockopt(sk, optname, optval, optlen);
 
@@ -1148,9 +1143,6 @@ mc_msf_out:
 		if (val != 0 && val != 1)
 			goto e_inval;
 		inet->mc_all = val;
-		break;
-	case IP_ROUTER_ALERT:
-		err = ip_ra_control(sk, val ? 1 : 0, NULL);
 		break;
 
 	case IP_FREEBIND:
