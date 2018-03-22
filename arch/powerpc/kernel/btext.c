@@ -170,7 +170,7 @@ void btext_map(void)
 	boot_text_mapped = 1;
 }
 
-int btext_initialize(struct device_node *np)
+static int btext_initialize(struct device_node *np)
 {
 	unsigned int width, height, depth, pitch;
 	unsigned long address = 0;
