@@ -37,7 +37,7 @@
 #include <linux/types.h>
 
 #ifndef RDMA_UAPI_PTR
-#define RDMA_UAPI_PTR(_type, _name)	_type __attribute__((aligned(8))) _name
+#define RDMA_UAPI_PTR(_type, _name)	__aligned_u64 _name
 #endif
 
 #endif
