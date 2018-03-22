@@ -1143,13 +1143,13 @@ static void gen_twopix(struct tpg_data *tpg,
 	case V4L2_PIX_FMT_NV24:
 		buf[0][offset] = r_y_h;
 		buf[1][2 * offset] = g_u_s;
-		buf[1][2 * offset + 1] = b_v;
+		buf[1][(2 * offset + 1) % 8] = b_v;
 		break;
 
 	case V4L2_PIX_FMT_NV42:
 		buf[0][offset] = r_y_h;
 		buf[1][2 * offset] = b_v;
-		buf[1][2 * offset + 1] = g_u_s;
+		buf[1][(2 * offset + 1) %8] = g_u_s;
 		break;
 
 	case V4L2_PIX_FMT_YUYV:
