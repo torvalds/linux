@@ -1015,6 +1015,11 @@
 				rockchip,pins =
 					<4 RK_PA7 1 &pcfg_pull_none>;
 			};
+
+			uart4_rts_gpio: uart4-rts-gpio {
+				rockchip,pins =
+					<4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
 		};
 
 		spi0 {
