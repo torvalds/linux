@@ -38,28 +38,16 @@
 struct brcmf_firmware_mapping {
 	u32 chipid;
 	u32 revmask;
-	const char *fw;
-	const char *nvram;
+	const char *fw_base;
 };
 
-#define BRCMF_FW_NVRAM_DEF(fw_nvram_name, fw, nvram) \
-static const char BRCM_ ## fw_nvram_name ## _FIRMWARE_NAME[] = \
-	BRCMF_FW_DEFAULT_PATH fw; \
-static const char BRCM_ ## fw_nvram_name ## _NVRAM_NAME[] = \
-	BRCMF_FW_DEFAULT_PATH nvram; \
-MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH fw);
-
-#define BRCMF_FW_DEF(fw_name, fw) \
-static const char BRCM_ ## fw_name ## _FIRMWARE_NAME[] = \
-	BRCMF_FW_DEFAULT_PATH fw; \
-MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH fw) \
-
-#define BRCMF_FW_NVRAM_ENTRY(chipid, mask, name) \
-	{ chipid, mask, \
-	  BRCM_ ## name ## _FIRMWARE_NAME, BRCM_ ## name ## _NVRAM_NAME }
+#define BRCMF_FW_DEF(fw_name, fw_base) \
+static const char BRCM_ ## fw_name ## _FIRMWARE_BASENAME[] = \
+	BRCMF_FW_DEFAULT_PATH fw_base; \
+MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH fw_base ".bin")
 
 #define BRCMF_FW_ENTRY(chipid, mask, name) \
-	{ chipid, mask, BRCM_ ## name ## _FIRMWARE_NAME, NULL }
+	{ chipid, mask, BRCM_ ## name ## _FIRMWARE_BASENAME }
 
 int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
 			      struct brcmf_firmware_mapping mapping_table[],

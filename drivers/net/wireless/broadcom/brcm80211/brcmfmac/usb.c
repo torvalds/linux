@@ -46,11 +46,11 @@
 #define BRCMF_USB_CBCTL_READ		1
 #define BRCMF_USB_MAX_PKT_SIZE		1600
 
-BRCMF_FW_DEF(43143, "brcmfmac43143.bin");
-BRCMF_FW_DEF(43236B, "brcmfmac43236b.bin");
-BRCMF_FW_DEF(43242A, "brcmfmac43242a.bin");
-BRCMF_FW_DEF(43569, "brcmfmac43569.bin");
-BRCMF_FW_DEF(4373, "brcmfmac4373.bin");
+BRCMF_FW_DEF(43143, "brcmfmac43143");
+BRCMF_FW_DEF(43236B, "brcmfmac43236b");
+BRCMF_FW_DEF(43242A, "brcmfmac43242a");
+BRCMF_FW_DEF(43569, "brcmfmac43569");
+BRCMF_FW_DEF(4373, "brcmfmac4373");
 
 static struct brcmf_firmware_mapping brcmf_usb_fwnames[] = {
 	BRCMF_FW_ENTRY(BRCM_CC_43143_CHIP_ID, 0xFFFFFFFF, 43143),

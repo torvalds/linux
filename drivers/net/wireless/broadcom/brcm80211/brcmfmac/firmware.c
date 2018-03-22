@@ -563,6 +563,13 @@ int brcmf_fw_get_firmwares(struct device *dev, u16 flags,
 					   0);
 }
 
+static void brcmf_fw_get_full_name(char fw_name[BRCMF_FW_NAME_LEN],
+				   const char *fw_base, const char *extension)
+{
+	strlcat(fw_name, fw_base, BRCMF_FW_NAME_LEN);
+	strlcat(fw_name, extension, BRCMF_FW_NAME_LEN);
+}
+
 int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
 			      struct brcmf_firmware_mapping mapping_table[],
 			      u32 table_size, char fw_name[BRCMF_FW_NAME_LEN],
@@ -587,25 +594,31 @@ int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
 
 	/* check if firmware path is provided by module parameter */
 	if (brcmf_mp_global.firmware_path[0] != '\0') {
-		strlcpy(fw_name, brcmf_mp_global.firmware_path,
-			BRCMF_FW_NAME_LEN);
-		if ((nvram_name) && (mapping_table[i].nvram))
+		if (fw_name)
+			strlcpy(fw_name, brcmf_mp_global.firmware_path,
+				BRCMF_FW_NAME_LEN);
+		if (nvram_name)
 			strlcpy(nvram_name, brcmf_mp_global.firmware_path,
 				BRCMF_FW_NAME_LEN);
 
 		end = brcmf_mp_global.firmware_path[
 				strlen(brcmf_mp_global.firmware_path) - 1];
 		if (end != '/') {
-			strlcat(fw_name, "/", BRCMF_FW_NAME_LEN);
-			if ((nvram_name) && (mapping_table[i].nvram))
+			if (fw_name)
+				strlcat(fw_name, "/", BRCMF_FW_NAME_LEN);
+			if (nvram_name)
 				strlcat(nvram_name, "/", BRCMF_FW_NAME_LEN);
 		}
 	}
-	strlcat(fw_name, mapping_table[i].fw, BRCMF_FW_NAME_LEN);
-	if ((nvram_name) && (mapping_table[i].nvram))
-		strlcat(nvram_name, mapping_table[i].nvram, BRCMF_FW_NAME_LEN);
 
-	brcmf_info("using %s for chip %s\n", fw_name, chipname);
+	brcmf_info("using %s for chip %s\n",
+		   mapping_table[i].fw_base, chipname);
+	if (fw_name)
+		brcmf_fw_get_full_name(fw_name,
+				       mapping_table[i].fw_base, ".bin");
+	if (nvram_name)
+		brcmf_fw_get_full_name(nvram_name,
+				       mapping_table[i].fw_base, ".txt");
 
 	return 0;
 }
