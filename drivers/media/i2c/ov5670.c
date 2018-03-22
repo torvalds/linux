@@ -1853,8 +1853,8 @@ static int ov5670_read_reg(struct ov5670 *ov5670, u16 reg, unsigned int len,
 	struct i2c_client *client = v4l2_get_subdevdata(&ov5670->sd);
 	struct i2c_msg msgs[2];
 	u8 *data_be_p;
-	u32 data_be = 0;
-	u16 reg_addr_be = cpu_to_be16(reg);
+	__be32 data_be = 0;
+	__be16 reg_addr_be = cpu_to_be16(reg);
 	int ret;
 
 	if (len > 4)
@@ -1891,6 +1891,7 @@ static int ov5670_write_reg(struct ov5670 *ov5670, u16 reg, unsigned int len,
 	int val_i;
 	u8 buf[6];
 	u8 *val_p;
+	__be32 tmp;
 
 	if (len > 4)
 		return -EINVAL;
@@ -1898,8 +1899,8 @@ static int ov5670_write_reg(struct ov5670 *ov5670, u16 reg, unsigned int len,
 	buf[0] = reg >> 8;
 	buf[1] = reg & 0xff;
 
-	val = cpu_to_be32(val);
-	val_p = (u8 *)&val;
+	tmp = cpu_to_be32(val);
+	val_p = (u8 *)&tmp;
 	buf_i = 2;
 	val_i = 4 - len;
 
