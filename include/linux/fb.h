@@ -121,7 +121,7 @@ struct fb_cursor_user {
 };
 
 struct fb_of_properties {
-	bool clear_on_probe;
+	bool no_clear_on_probe;
 	__u8 rotate;
 };
 

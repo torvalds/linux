@@ -1,6 +1,6 @@
 General framebuffer properties:
 
 Optional properties for framebuffers:
- - clear-on-probe	: clear the framebuffer during probe (bool)
+ - no-clear-on-probe	: Do not clear the framebuffer during probe (bool)
  - rotate		: rotate a framebuffer over 0, 1, 2 and 3 (or 0, 90,
 			  180 and 270) degree's (integer)

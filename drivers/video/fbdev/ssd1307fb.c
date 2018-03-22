@@ -534,7 +534,8 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 		return ret;
 
 	/* Clear the screen */
-	ssd1307fb_update_display(par);
+	if (!par->no_clear_on_probe)
+		ssd1307fb_update_display(par);
 
 	return 0;
 }
