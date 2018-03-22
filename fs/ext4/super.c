@@ -101,15 +101,13 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
  *   i_data_sem (rw)
  *
  * truncate:
- * sb_start_write -> i_mutex -> EXT4_STATE_DIOREAD_LOCK (w) -> i_mmap_sem (w) ->
- *   i_mmap_rwsem (w) -> page lock
- * sb_start_write -> i_mutex -> EXT4_STATE_DIOREAD_LOCK (w) -> i_mmap_sem (w) ->
- *   transaction start -> i_data_sem (rw)
+ * sb_start_write -> i_mutex -> i_mmap_sem (w) -> i_mmap_rwsem (w) -> page lock
+ * sb_start_write -> i_mutex -> i_mmap_sem (w) -> transaction start ->
+ *   i_data_sem (rw)
  *
  * direct IO:
- * sb_start_write -> i_mutex -> EXT4_STATE_DIOREAD_LOCK (r) -> mmap_sem
- * sb_start_write -> i_mutex -> EXT4_STATE_DIOREAD_LOCK (r) ->
- *   transaction start -> i_data_sem (rw)
+ * sb_start_write -> i_mutex -> mmap_sem
+ * sb_start_write -> i_mutex -> transaction start -> i_data_sem (rw)
  *
  * writepages:
  * transaction start -> page lock(s) -> i_data_sem (rw)
