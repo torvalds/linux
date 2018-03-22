@@ -4301,6 +4301,7 @@ static int regulator_suspend_late(struct device *dev)
 	return class_for_each_device(&regulator_class, NULL, &state,
 				     _regulator_suspend_late);
 }
+
 static int _regulator_resume_early(struct device *dev, void *data)
 {
 	int ret = 0;
