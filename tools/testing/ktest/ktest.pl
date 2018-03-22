@@ -3114,10 +3114,14 @@ sub run_config_bisect_test {
 
 sub config_bisect_end {
     my ($good, $bad) = @_;
+    my $diffexec = "diff -u";
 
+    if (-f "$builddir/scripts/diffconfig") {
+	$diffexec = "$builddir/scripts/diffconfig";
+    }
     doprint "\n\n***************************************\n";
     doprint "No more config bisecting possible.\n";
-    doprint `diff -u $good $bad`;
+    run_command "$diffexec $good $bad", 1;
     doprint "***************************************\n\n";
 }
 
