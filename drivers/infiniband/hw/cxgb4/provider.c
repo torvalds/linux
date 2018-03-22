@@ -533,6 +533,24 @@ static void get_dev_fw_str(struct ib_device *dev, char *str)
 		 FW_HDR_FW_VER_BUILD_G(c4iw_dev->rdev.lldi.fw_vers));
 }
 
+static struct net_device *get_netdev(struct ib_device *dev, u8 port)
+{
+	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev, ibdev);
+	struct c4iw_rdev *rdev = &c4iw_dev->rdev;
+	struct net_device *ndev;
+
+	if (!port || port > rdev->lldi.nports)
+		return NULL;
+
+	rcu_read_lock();
+	ndev = rdev->lldi.ports[port - 1];
+	if (ndev)
+		dev_hold(ndev);
+	rcu_read_unlock();
+
+	return ndev;
+}
+
 void c4iw_register_device(struct work_struct *work)
 {
 	int ret;
@@ -611,6 +629,7 @@ void c4iw_register_device(struct work_struct *work)
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 	dev->ibdev.get_port_immutable = c4iw_port_immutable;
 	dev->ibdev.get_dev_fw_str = get_dev_fw_str;
+	dev->ibdev.get_netdev = get_netdev;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm) {
