@@ -4,9 +4,7 @@
 
 /* Package definitions */
 #define PINCTRL_AB8500	0
-#define PINCTRL_AB8540	1
-#define PINCTRL_AB9540	2
-#define PINCTRL_AB8505	3
+#define PINCTRL_AB8505	1
 
 /* pins alternate function */
 enum abx500_pin_func {
@@ -96,17 +94,6 @@ struct alternate_functions {
 	u8 altc_val;
 };
 
-/**
- * struct pullud - specific pull up/down feature
- * @first_pin:		The pin number of the first pins which support
- *			specific pull up/down
- * @last_pin:		The pin number of the last pins
- */
-struct pullud {
-	unsigned first_pin;
-	unsigned last_pin;
-};
-
 #define GPIO_IRQ_CLUSTER(a, b, c)	\
 {					\
 	.start = a,			\
@@ -162,8 +149,6 @@ struct abx500_pinrange {
  * @ngroups:		The number of entries in @groups.
  * @alternate_functions: array describing pins which supports alternate and
  *			how to set it.
- * @pullud:		array describing pins which supports pull up/down
- *			specific registers.
  * @gpio_irq_cluster:	An array of GPIO interrupt capable for this SoC
  * @ngpio_irq_cluster:	The number of GPIO inetrrupt capable for this SoC
  * @irq_gpio_rising_offset: Interrupt offset used as base to compute specific
@@ -184,7 +169,6 @@ struct abx500_pinctrl_soc_data {
 	const struct abx500_pingroup *groups;
 	unsigned ngroups;
 	struct alternate_functions *alternate_functions;
-	struct pullud *pullud;
 	struct abx500_gpio_irq_cluster *gpio_irq_cluster;
 	unsigned ngpio_irq_cluster;
 	int irq_gpio_rising_offset;
@@ -200,32 +184,6 @@ void abx500_pinctrl_ab8500_init(struct abx500_pinctrl_soc_data **soc);
 
 static inline void
 abx500_pinctrl_ab8500_init(struct abx500_pinctrl_soc_data **soc)
-{
-}
-
-#endif
-
-#ifdef CONFIG_PINCTRL_AB8540
-
-void abx500_pinctrl_ab8540_init(struct abx500_pinctrl_soc_data **soc);
-
-#else
-
-static inline void
-abx500_pinctrl_ab8540_init(struct abx500_pinctrl_soc_data **soc)
-{
-}
-
-#endif
-
-#ifdef CONFIG_PINCTRL_AB9540
-
-void abx500_pinctrl_ab9540_init(struct abx500_pinctrl_soc_data **soc);
-
-#else
-
-static inline void
-abx500_pinctrl_ab9540_init(struct abx500_pinctrl_soc_data **soc)
 {
 }
 
