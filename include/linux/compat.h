@@ -49,6 +49,7 @@
 	COMPAT_SYSCALL_DEFINEx(6, _##name, __VA_ARGS__)
 
 #define COMPAT_SYSCALL_DEFINEx(x, name, ...)				\
+	asmlinkage long compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
 	asmlinkage long compat_sys##name(__MAP(x,__SC_DECL,__VA_ARGS__))\
 		__attribute__((alias(__stringify(compat_SyS##name))));  \
 	static inline long C_SYSC##name(__MAP(x,__SC_DECL,__VA_ARGS__));\
@@ -507,8 +508,8 @@ int __compat_save_altstack(compat_stack_t __user *, unsigned long);
 
 /*
  * These syscall function prototypes are kept in the same order as
- * include/uapi/asm-generic/unistd.h. Architecture specific entries go below,
- * followed by deprecated or obsolete system calls.
+ * include/uapi/asm-generic/unistd.h. Deprecated or obsolete system calls
+ * go below.
  *
  * Please note that these prototypes here are only provided for information
  * purposes, for static analysis, and for linking from the syscall table.
@@ -880,18 +881,6 @@ asmlinkage long compat_sys_pwritev64v2(unsigned long fd,
 		const struct compat_iovec __user *vec,
 		unsigned long vlen, loff_t pos, rwf_t flags);
 #endif
-
-
-/*
- * Architecture-specific system calls
- */
-
-/* fs/quota/compat.c -- x86 only */
-asmlinkage long compat_sys_quotactl32(unsigned int cmd,
-		const char __user *special, qid_t id, void __user *addr);
-
-/* arch_prctl -- x86 */
-asmlinkage long compat_sys_arch_prctl(int option, unsigned long arg2);
 
 
 /*

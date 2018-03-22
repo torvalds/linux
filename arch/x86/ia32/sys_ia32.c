@@ -47,7 +47,7 @@
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
 #include <asm/vgtod.h>
-#include <asm/sys_ia32.h>
+#include <asm/ia32.h>
 
 #define AA(__x)		((unsigned long)(__x))
 
