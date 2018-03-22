@@ -243,12 +243,6 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	int res = -EINVAL;
 	char *errstr = "";
 
-	if (!tipc_own_id(net)) {
-		errstr = "not supported in standalone mode";
-		res = -ENOPROTOOPT;
-		goto rejected;
-	}
-
 	if (!bearer_name_validate(name, &b_names)) {
 		errstr = "illegal name";
 		goto rejected;
@@ -381,15 +375,27 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b)
 int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 			 struct nlattr *attr[])
 {
+	char *dev_name = strchr((const char *)b->name, ':') + 1;
+	int hwaddr_len = b->media->hwaddr_len;
+	u8 node_id[NODE_ID_LEN] = {0,};
 	struct net_device *dev;
-	char *driver_name = strchr((const char *)b->name, ':') + 1;
 
 	/* Find device with specified name */
-	dev = dev_get_by_name(net, driver_name);
+	dev = dev_get_by_name(net, dev_name);
 	if (!dev)
 		return -ENODEV;
 	if (tipc_mtu_bad(dev, 0)) {
 		dev_put(dev);
+		return -EINVAL;
+	}
+
+	/* Autoconfigure own node identity if needed */
+	if (!tipc_own_id(net) && hwaddr_len <= NODE_ID_LEN) {
+		memcpy(node_id, dev->dev_addr, hwaddr_len);
+		tipc_net_init(net, node_id, 0);
+	}
+	if (!tipc_own_id(net)) {
+		pr_warn("Failed to obtain node identity\n");
 		return -EINVAL;
 	}
 
@@ -400,7 +406,7 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 	b->pt.func = tipc_l2_rcv_msg;
 	dev_add_pack(&b->pt);
 	memset(&b->bcast_addr, 0, sizeof(b->bcast_addr));
-	memcpy(b->bcast_addr.value, dev->broadcast, b->media->hwaddr_len);
+	memcpy(b->bcast_addr.value, dev->broadcast, hwaddr_len);
 	b->bcast_addr.media_id = b->media->type_id;
 	b->bcast_addr.broadcast = TIPC_BROADCAST_SUPPORT;
 	b->mtu = dev->mtu;
