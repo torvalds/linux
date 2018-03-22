@@ -926,9 +926,8 @@ static int brcmf_chip_recognition(struct brcmf_chip_priv *ci)
 
 	brcmf_chip_name(ci->pub.chip, ci->pub.chiprev,
 			ci->pub.name, sizeof(ci->pub.name));
-	brcmf_dbg(INFO, "found %s chip: BCM%s, rev=%d\n",
-		  socitype == SOCI_SB ? "SB" : "AXI", ci->pub.name,
-		  ci->pub.chiprev);
+	brcmf_dbg(INFO, "found %s chip: %s\n",
+		  socitype == SOCI_SB ? "SB" : "AXI", ci->pub.name);
 
 	if (socitype == SOCI_SB) {
 		if (ci->pub.chip != BRCM_CC_4329_CHIP_ID) {

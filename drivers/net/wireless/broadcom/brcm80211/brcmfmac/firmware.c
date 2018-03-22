@@ -25,6 +25,7 @@
 #include "firmware.h"
 #include "core.h"
 #include "common.h"
+#include "chip.h"
 
 #define BRCMF_FW_MAX_NVRAM_SIZE			64000
 #define BRCMF_FW_NVRAM_DEVPATH_LEN		19	/* devpath0=pcie/1/4/ */
@@ -567,6 +568,7 @@ int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
 			      u32 table_size, char fw_name[BRCMF_FW_NAME_LEN],
 			      char nvram_name[BRCMF_FW_NAME_LEN])
 {
+	char chipname[12];
 	u32 i;
 	char end;
 
@@ -580,6 +582,8 @@ int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
 		brcmf_err("Unknown chipid %d [%d]\n", chip, chiprev);
 		return -ENODEV;
 	}
+
+	brcmf_chip_name(chip, chiprev, chipname, sizeof(chipname));
 
 	/* check if firmware path is provided by module parameter */
 	if (brcmf_mp_global.firmware_path[0] != '\0') {
@@ -601,8 +605,7 @@ int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
 	if ((nvram_name) && (mapping_table[i].nvram))
 		strlcat(nvram_name, mapping_table[i].nvram, BRCMF_FW_NAME_LEN);
 
-	brcmf_info("using %s for chip %#08x(%d) rev %#08x\n",
-		   fw_name, chip, chip, chiprev);
+	brcmf_info("using %s for chip %s\n", fw_name, chipname);
 
 	return 0;
 }
