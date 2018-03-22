@@ -2848,3 +2848,51 @@ int vmw_kms_set_config(struct drm_mode_set *set,
 
 	return drm_atomic_helper_set_config(set, ctx);
 }
+
+
+/**
+ * vmw_kms_suspend - Save modesetting state and turn modesetting off.
+ *
+ * @dev: Pointer to the drm device
+ * Return: 0 on success. Negative error code on failure.
+ */
+int vmw_kms_suspend(struct drm_device *dev)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+
+	dev_priv->suspend_state = drm_atomic_helper_suspend(dev);
+	if (IS_ERR(dev_priv->suspend_state)) {
+		int ret = PTR_ERR(dev_priv->suspend_state);
+
+		DRM_ERROR("Failed kms suspend: %d\n", ret);
+		dev_priv->suspend_state = NULL;
+
+		return ret;
+	}
+
+	return 0;
+}
+
+
+/**
+ * vmw_kms_resume - Re-enable modesetting and restore state
+ *
+ * @dev: Pointer to the drm device
+ * Return: 0 on success. Negative error code on failure.
+ *
+ * State is resumed from a previous vmw_kms_suspend(). It's illegal
+ * to call this function without a previous vmw_kms_suspend().
+ */
+int vmw_kms_resume(struct drm_device *dev)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	int ret;
+
+	if (WARN_ON(!dev_priv->suspend_state))
+		return 0;
+
+	ret = drm_atomic_helper_resume(dev, dev_priv->suspend_state);
+	dev_priv->suspend_state = NULL;
+
+	return ret;
+}

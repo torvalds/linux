@@ -161,10 +161,17 @@ static int vmw_fb_blank(int blank, struct fb_info *info)
 	return 0;
 }
 
-/*
- * Dirty code
+/**
+ * vmw_fb_dirty_flush - flush dirty regions to the kms framebuffer
+ *
+ * @work: The struct work_struct associated with this task.
+ *
+ * This function flushes the dirty regions of the vmalloc framebuffer to the
+ * kms framebuffer, and if the kms framebuffer is visible, also updated the
+ * corresponding displays. Note that this function runs even if the kms
+ * framebuffer is not bound to a crtc and thus not visible, but it's turned
+ * off during hibernation using the par->dirty.active bool.
  */
-
 static void vmw_fb_dirty_flush(struct work_struct *work)
 {
 	struct vmw_fb_par *par = container_of(work, struct vmw_fb_par,
@@ -852,12 +859,6 @@ int vmw_fb_off(struct vmw_private *vmw_priv)
 	flush_delayed_work(&info->deferred_work);
 	flush_delayed_work(&par->local_work);
 
-	mutex_lock(&par->bo_mutex);
-	drm_modeset_lock_all(vmw_priv->dev);
-	(void) vmw_fb_kms_detach(par, true, false);
-	drm_modeset_unlock_all(vmw_priv->dev);
-	mutex_unlock(&par->bo_mutex);
-
 	return 0;
 }
 
@@ -873,10 +874,24 @@ int vmw_fb_on(struct vmw_private *vmw_priv)
 	info = vmw_priv->fb_info;
 	par = info->par;
 
-	vmw_fb_set_par(info);
 	spin_lock_irqsave(&par->dirty.lock, flags);
 	par->dirty.active = true;
 	spin_unlock_irqrestore(&par->dirty.lock, flags);
  
 	return 0;
+}
+
+/**
+ * vmw_fb_refresh - Refresh fb display
+ *
+ * @vmw_priv: Pointer to device private
+ *
+ * Call into kms to show the fbdev display(s).
+ */
+void vmw_fb_refresh(struct vmw_private *vmw_priv)
+{
+	if (!vmw_priv->fb_info)
+		return;
+
+	vmw_fb_set_par(vmw_priv->fb_info);
 }

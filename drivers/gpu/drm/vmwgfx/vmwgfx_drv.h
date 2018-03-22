@@ -425,6 +425,7 @@ struct vmw_private {
 	struct vmw_framebuffer *implicit_fb;
 	struct mutex global_kms_state_mutex;
 	spinlock_t cursor_lock;
+	struct drm_atomic_state *suspend_state;
 
 	/*
 	 * Context and surface management.
@@ -498,6 +499,7 @@ struct vmw_private {
 	struct notifier_block pm_nb;
 	bool suspended;
 	bool refuse_hibernation;
+	bool suspend_locked;
 
 	struct mutex release_mutex;
 	atomic_t num_fifo_resources;
@@ -909,6 +911,7 @@ int vmw_fb_init(struct vmw_private *vmw_priv);
 int vmw_fb_close(struct vmw_private *dev_priv);
 int vmw_fb_off(struct vmw_private *vmw_priv);
 int vmw_fb_on(struct vmw_private *vmw_priv);
+void vmw_fb_refresh(struct vmw_private *vmw_priv);
 
 /**
  * Kernel modesetting - vmwgfx_kms.c
@@ -945,6 +948,8 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 void vmw_kms_legacy_hotspot_clear(struct vmw_private *dev_priv);
+int vmw_kms_suspend(struct drm_device *dev);
+int vmw_kms_resume(struct drm_device *dev);
 
 int vmw_dumb_create(struct drm_file *file_priv,
 		    struct drm_device *dev,
