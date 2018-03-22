@@ -630,7 +630,7 @@ static int nwl_pcie_enable_msi(struct nwl_pcie *pcie)
 	 * For high range MSI interrupts: disable, clear any pending,
 	 * and enable
 	 */
-	nwl_bridge_writel(pcie, (u32)~MSGF_MSI_SR_HI_MASK, MSGF_MSI_MASK_HI);
+	nwl_bridge_writel(pcie, 0, MSGF_MSI_MASK_HI);
 
 	nwl_bridge_writel(pcie, nwl_bridge_readl(pcie,  MSGF_MSI_STATUS_HI) &
 			  MSGF_MSI_SR_HI_MASK, MSGF_MSI_STATUS_HI);
@@ -641,7 +641,7 @@ static int nwl_pcie_enable_msi(struct nwl_pcie *pcie)
 	 * For low range MSI interrupts: disable, clear any pending,
 	 * and enable
 	 */
-	nwl_bridge_writel(pcie, (u32)~MSGF_MSI_SR_LO_MASK, MSGF_MSI_MASK_LO);
+	nwl_bridge_writel(pcie, 0, MSGF_MSI_MASK_LO);
 
 	nwl_bridge_writel(pcie, nwl_bridge_readl(pcie, MSGF_MSI_STATUS_LO) &
 			  MSGF_MSI_SR_LO_MASK, MSGF_MSI_STATUS_LO);
