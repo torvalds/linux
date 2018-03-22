@@ -770,12 +770,12 @@ static void vpu_service_session_clear(struct vpu_subdev_data *data,
 }
 
 #if VCODEC_CLOCK_ENABLE
-static void set_div_clk(struct clk *clock, int divide)
+static unsigned long get_div_rate(struct clk *clock, int divide)
 {
 	struct clk *parent = clk_get_parent(clock);
 	unsigned long rate = clk_get_rate(parent);
 
-	clk_set_rate(clock, (rate / divide) + 1);
+	return (rate / divide) + 1;
 }
 #endif
 
@@ -2110,19 +2110,27 @@ static void vcodec_power_on_rk312x(struct vpu_service_info *pservice)
 
 static void vcodec_power_on_rk322x(struct vpu_service_info *pservice)
 {
+	struct devfreq_dev_status *stat;
 	unsigned long rate = 300 * MHZ;
-
-	vcodec_power_on_default(pservice);
 
 	if (pservice->dev_id == VCODEC_DEVICE_ID_RKVDEC)
 		rate = 500 * MHZ;
 
-	if (pservice->aclk_vcodec)
-		clk_set_rate(pservice->aclk_vcodec,  rate);
-	if (pservice->clk_core)
-		clk_set_rate(pservice->clk_core,  300 * MHZ);
-	if (pservice->clk_cabac)
+	if (pservice->devfreq) {
+		stat = &pservice->devfreq->last_status;
+		stat->busy_time = 1;
+		stat->total_time = 1;
+		rkvdec_dvfs_set_clk(pservice,
+				    rate,
+				    300 * MHZ,
+				    300 * MHZ);
+	} else {
+		clk_set_rate(pservice->aclk_vcodec, rate);
+		clk_set_rate(pservice->clk_core, 300 * MHZ);
 		clk_set_rate(pservice->clk_cabac, 300 * MHZ);
+	}
+
+	vcodec_power_on_default(pservice);
 }
 
 static void vcodec_power_on_rk3328(struct vpu_service_info *pservice)
@@ -2163,14 +2171,26 @@ static void vcodec_power_off_default(struct vpu_service_info *pservice)
 
 static void vcodec_power_off_rk322x(struct vpu_service_info *pservice)
 {
+	struct devfreq_dev_status *stat;
+
 	vcodec_power_off_default(pservice);
 
-	if (pservice->aclk_vcodec)
-		set_div_clk(pservice->aclk_vcodec, 32);
-	if (pservice->clk_core)
-		set_div_clk(pservice->clk_core, 32);
-	if (pservice->clk_cabac)
-		set_div_clk(pservice->clk_cabac, 32);
+	if (pservice->devfreq) {
+		stat = &pservice->devfreq->last_status;
+		stat->busy_time = 0;
+		stat->total_time = 1;
+		rkvdec_dvfs_set_clk(pservice,
+				    get_div_rate(pservice->aclk_vcodec, 32),
+				    get_div_rate(pservice->clk_core, 32),
+				    get_div_rate(pservice->clk_cabac, 32));
+	} else {
+		clk_set_rate(pservice->aclk_vcodec,
+			     get_div_rate(pservice->aclk_vcodec, 32));
+		clk_set_rate(pservice->clk_core,
+			     get_div_rate(pservice->clk_core, 32));
+		clk_set_rate(pservice->clk_cabac,
+			     get_div_rate(pservice->clk_cabac, 32));
+	}
 }
 
 static void vcodec_power_off_rk3328(struct vpu_service_info *pservice)
@@ -2274,18 +2294,15 @@ static void rkvdec_set_clk(struct vpu_service_info *pservice,
 			   unsigned long cabac_rate,
 			   unsigned int event)
 {
-	static unsigned long vcodec_old_rate = RK3328_VCODEC_RATE_ON;
-	static unsigned long core_old_rate = RK3328_CODE_RATE_ON;
-	static unsigned long cabac_old_rate = RK3328_CABAC_RATE_ON;
 	static unsigned int div;
 
 	mutex_lock(&pservice->set_clk_lock);
 
 	switch (event) {
 	case EVENT_POWER_ON:
-		clk_set_rate(pservice->aclk_vcodec, vcodec_old_rate);
-		clk_set_rate(pservice->clk_core, core_old_rate);
-		clk_set_rate(pservice->clk_cabac, cabac_old_rate);
+		clk_set_rate(pservice->aclk_vcodec, pservice->vcodec_rate);
+		clk_set_rate(pservice->clk_core, pservice->core_rate);
+		clk_set_rate(pservice->clk_cabac, pservice->cabac_rate);
 		div = 0;
 		break;
 	case EVENT_POWER_OFF:
@@ -2304,21 +2321,21 @@ static void rkvdec_set_clk(struct vpu_service_info *pservice,
 			clk_set_rate(pservice->clk_core, vcodec_rate / div);
 			clk_set_rate(pservice->clk_cabac, vcodec_rate / div);
 		}
-		vcodec_old_rate = vcodec_rate;
-		core_old_rate = core_rate;
-		cabac_old_rate = cabac_rate;
+		pservice->vcodec_rate = vcodec_rate;
+		pservice->core_rate = core_rate;
+		pservice->cabac_rate = cabac_rate;
 		break;
 	case EVENT_THERMAL:
-		div = vcodec_old_rate / vcodec_rate;
+		div = pservice->vcodec_rate / vcodec_rate;
 		if (div > 4)
 			div = 4;
 		if (div) {
 			clk_set_rate(pservice->aclk_vcodec,
-				     vcodec_old_rate / div);
+				     pservice->vcodec_rate / div);
 			clk_set_rate(pservice->clk_core,
-				     core_old_rate / div);
+				     pservice->core_rate / div);
 			clk_set_rate(pservice->clk_cabac,
-				     cabac_old_rate / div);
+				     pservice->cabac_rate / div);
 		}
 		break;
 	}
@@ -2367,11 +2384,18 @@ static void vcodec_set_freq_rk322x(struct vpu_service_info *pservice,
 	 * vpu/vpu2 still only need to set aclk
 	 */
 	if (pservice->dev_id == VCODEC_DEVICE_ID_RKVDEC) {
-		clk_set_rate(pservice->clk_core,  300 * MHZ);
-		clk_set_rate(pservice->clk_cabac, 300 * MHZ);
-		clk_set_rate(pservice->aclk_vcodec, 500 * MHZ);
+		rkvdec_set_clk(pservice,
+			       500 * MHZ,
+			       300 * MHZ,
+			       300 * MHZ,
+			       EVENT_ADJUST);
 	} else {
-		clk_set_rate(pservice->aclk_vcodec, 300 * MHZ);
+		rkvdec_set_clk(pservice,
+			       300 * MHZ,
+			       300 * MHZ,
+			       300 * MHZ,
+			       EVENT_ADJUST);
+
 	}
 }
 
@@ -2509,9 +2533,11 @@ static void vcodec_reduce_freq_rk322x(struct vpu_service_info *pservice)
 	if (list_empty(&pservice->running)) {
 		unsigned long rate = clk_get_rate(pservice->aclk_vcodec);
 
-		if (pservice->aclk_vcodec)
-			set_div_clk(pservice->aclk_vcodec, 32);
-
+		rkvdec_set_clk(pservice,
+			       get_div_rate(pservice->aclk_vcodec, 32),
+			       get_div_rate(pservice->clk_core, 32),
+			       get_div_rate(pservice->clk_cabac, 32),
+			       EVENT_ADJUST);
 		atomic_set(&pservice->freq_status, rate / 32);
 	}
 }
