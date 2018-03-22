@@ -3655,7 +3655,7 @@ static int hub_reset_resume(struct usb_interface *intf)
  */
 void usb_root_hub_lost_power(struct usb_device *rhdev)
 {
-	dev_warn(&rhdev->dev, "root hub lost power or was reset\n");
+	dev_notice(&rhdev->dev, "root hub lost power or was reset\n");
 	rhdev->reset_resume = 1;
 }
 EXPORT_SYMBOL_GPL(usb_root_hub_lost_power);
