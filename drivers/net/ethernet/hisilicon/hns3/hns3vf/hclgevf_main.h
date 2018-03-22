@@ -52,6 +52,8 @@ enum hclgevf_states {
 	HCLGEVF_STATE_DISABLED,
 	/* task states */
 	HCLGEVF_STATE_SERVICE_SCHED,
+	HCLGEVF_STATE_RST_SERVICE_SCHED,
+	HCLGEVF_STATE_RST_HANDLING,
 	HCLGEVF_STATE_MBX_SERVICE_SCHED,
 	HCLGEVF_STATE_MBX_HANDLING,
 };
@@ -146,6 +148,7 @@ struct hclgevf_dev {
 
 	struct timer_list service_timer;
 	struct work_struct service_task;
+	struct work_struct rst_service_task;
 	struct work_struct mbx_service_task;
 
 	struct hclgevf_tqp *htqp;
@@ -165,4 +168,5 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev);
 void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state);
 void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
 				 u8 duplex);
+void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev);
 #endif

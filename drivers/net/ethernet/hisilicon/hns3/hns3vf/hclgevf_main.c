@@ -867,6 +867,15 @@ static void hclgevf_get_misc_vector(struct hclgevf_dev *hdev)
 	hdev->num_msi_used += 1;
 }
 
+void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev)
+{
+	if (!test_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state) &&
+	    !test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) {
+		set_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state);
+		schedule_work(&hdev->rst_service_task);
+	}
+}
+
 static void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
 {
 	if (!test_and_set_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state))
@@ -887,6 +896,24 @@ static void hclgevf_service_timer(struct timer_list *t)
 	mod_timer(&hdev->service_timer, jiffies + 5 * HZ);
 
 	hclgevf_task_schedule(hdev);
+}
+
+static void hclgevf_reset_service_task(struct work_struct *work)
+{
+	struct hclgevf_dev *hdev =
+		container_of(work, struct hclgevf_dev, rst_service_task);
+
+	if (test_and_set_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state))
+		return;
+
+	clear_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state);
+
+	/* body of the reset service task will constitute of hclge device
+	 * reset state handling. This code shall be added subsequently in
+	 * next patches.
+	 */
+
+	clear_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
 }
 
 static void hclgevf_mailbox_service_task(struct work_struct *work)
@@ -1097,6 +1124,8 @@ static void hclgevf_state_init(struct hclgevf_dev *hdev)
 	INIT_WORK(&hdev->service_task, hclgevf_service_task);
 	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
 
+	INIT_WORK(&hdev->rst_service_task, hclgevf_reset_service_task);
+
 	mutex_init(&hdev->mbx_resp.mbx_mutex);
 
 	/* bring the device down */
@@ -1113,6 +1142,8 @@ static void hclgevf_state_uninit(struct hclgevf_dev *hdev)
 		cancel_work_sync(&hdev->service_task);
 	if (hdev->mbx_service_task.func)
 		cancel_work_sync(&hdev->mbx_service_task);
+	if (hdev->rst_service_task.func)
+		cancel_work_sync(&hdev->rst_service_task);
 
 	mutex_destroy(&hdev->mbx_resp.mbx_mutex);
 }
