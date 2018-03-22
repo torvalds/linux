@@ -471,7 +471,7 @@ static int __drm_mode_set_config_internal(struct drm_mode_set *set,
 
 	ret = crtc->funcs->set_config(set, ctx);
 	if (ret == 0) {
-		crtc->primary->crtc = crtc;
+		crtc->primary->crtc = fb ? crtc : NULL;
 		crtc->primary->fb = fb;
 	}
 
