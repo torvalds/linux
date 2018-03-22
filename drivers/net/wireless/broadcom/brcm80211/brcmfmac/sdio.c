@@ -4155,6 +4155,28 @@ fail:
 	device_release_driver(dev);
 }
 
+static struct brcmf_fw_request *
+brcmf_sdio_prepare_fw_request(struct brcmf_sdio *bus)
+{
+	struct brcmf_fw_request *fwreq;
+	struct brcmf_fw_name fwnames[] = {
+		{ ".bin", bus->sdiodev->fw_name },
+		{ ".txt", bus->sdiodev->nvram_name },
+	};
+
+	fwreq = brcmf_fw_alloc_request(bus->ci->chip, bus->ci->chiprev,
+				       brcmf_sdio_fwnames,
+				       ARRAY_SIZE(brcmf_sdio_fwnames),
+				       fwnames, ARRAY_SIZE(fwnames));
+	if (!fwreq)
+		return NULL;
+
+	fwreq->items[BRCMF_SDIO_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->items[BRCMF_SDIO_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
+
+	return fwreq;
+}
+
 struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
@@ -4243,25 +4265,11 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 
 	brcmf_dbg(INFO, "completed!!\n");
 
-	ret = brcmf_fw_map_chip_to_name(bus->ci->chip, bus->ci->chiprev,
-					brcmf_sdio_fwnames,
-					ARRAY_SIZE(brcmf_sdio_fwnames),
-					sdiodev->fw_name, sdiodev->nvram_name);
-	if (ret)
-		goto fail;
-
-	fwreq = kzalloc(sizeof(fwreq) + 2 * sizeof(struct brcmf_fw_item),
-			GFP_KERNEL);
+	fwreq = brcmf_sdio_prepare_fw_request(bus);
 	if (!fwreq) {
 		ret = -ENOMEM;
 		goto fail;
 	}
-
-	fwreq->items[BRCMF_SDIO_FW_CODE].path = sdiodev->fw_name;
-	fwreq->items[BRCMF_SDIO_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
-	fwreq->items[BRCMF_SDIO_FW_NVRAM].path = sdiodev->nvram_name;
-	fwreq->items[BRCMF_SDIO_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
-	fwreq->n_items = 2;
 
 	ret = brcmf_fw_get_firmwares(sdiodev->dev, fwreq,
 				     brcmf_sdio_firmware_callback);

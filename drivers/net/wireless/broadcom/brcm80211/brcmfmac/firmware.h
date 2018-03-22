@@ -77,6 +77,17 @@ struct brcmf_fw_request {
 	struct brcmf_fw_item items[0];
 };
 
+struct brcmf_fw_name {
+	const char *extension;
+	char *path;
+};
+
+struct brcmf_fw_request *
+brcmf_fw_alloc_request(u32 chip, u32 chiprev,
+		       struct brcmf_firmware_mapping mapping_table[],
+		       u32 table_size, struct brcmf_fw_name *fwnames,
+		       u32 n_fwnames);
+
 /*
  * Request firmware(s) asynchronously. When the asynchronous request
  * fails it will not use the callback, but call device_release_driver()

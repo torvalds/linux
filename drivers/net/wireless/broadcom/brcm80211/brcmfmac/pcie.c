@@ -1735,6 +1735,31 @@ fail:
 	device_release_driver(dev);
 }
 
+static struct brcmf_fw_request *
+brcmf_pcie_prepare_fw_request(struct brcmf_pciedev_info *devinfo)
+{
+	struct brcmf_fw_request *fwreq;
+	struct brcmf_fw_name fwnames[] = {
+		{ ".bin", devinfo->fw_name },
+		{ ".txt", devinfo->nvram_name },
+	};
+
+	fwreq = brcmf_fw_alloc_request(devinfo->ci->chip, devinfo->ci->chiprev,
+				       brcmf_pcie_fwnames,
+				       ARRAY_SIZE(brcmf_pcie_fwnames),
+				       fwnames, ARRAY_SIZE(fwnames));
+	if (!fwreq)
+		return NULL;
+
+	fwreq->items[BRCMF_PCIE_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->items[BRCMF_PCIE_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
+	fwreq->items[BRCMF_PCIE_FW_NVRAM].flags = BRCMF_FW_REQF_OPTIONAL;
+	fwreq->domain_nr = pci_domain_nr(devinfo->pdev->bus);
+	fwreq->bus_nr = devinfo->pdev->bus->number;
+
+	return fwreq;
+}
+
 static int
 brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -1743,13 +1768,8 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct brcmf_pciedev_info *devinfo;
 	struct brcmf_pciedev *pcie_bus_dev;
 	struct brcmf_bus *bus;
-	u16 domain_nr;
-	u16 bus_nr;
 
-	domain_nr = pci_domain_nr(pdev->bus) + 1;
-	bus_nr = pdev->bus->number;
-	brcmf_dbg(PCIE, "Enter %x:%x (%d/%d)\n", pdev->vendor, pdev->device,
-		  domain_nr, bus_nr);
+	brcmf_dbg(PCIE, "Enter %x:%x\n", pdev->vendor, pdev->device);
 
 	ret = -ENOMEM;
 	devinfo = kzalloc(sizeof(*devinfo), GFP_KERNEL);
@@ -1803,33 +1823,19 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	bus->wowl_supported = pci_pme_capable(pdev, PCI_D3hot);
 	dev_set_drvdata(&pdev->dev, bus);
 
-	ret = brcmf_fw_map_chip_to_name(devinfo->ci->chip, devinfo->ci->chiprev,
-					brcmf_pcie_fwnames,
-					ARRAY_SIZE(brcmf_pcie_fwnames),
-					devinfo->fw_name, devinfo->nvram_name);
-	if (ret)
-		goto fail_bus;
-
-	fwreq = kzalloc(sizeof(*fwreq) + 2 * sizeof(struct brcmf_fw_item),
-			GFP_KERNEL);
+	fwreq = brcmf_pcie_prepare_fw_request(devinfo);
 	if (!fwreq) {
 		ret = -ENOMEM;
 		goto fail_bus;
 	}
 
-	fwreq->items[BRCMF_PCIE_FW_CODE].path = devinfo->fw_name;
-	fwreq->items[BRCMF_PCIE_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
-	fwreq->items[BRCMF_PCIE_FW_NVRAM].path = devinfo->nvram_name;
-	fwreq->items[BRCMF_PCIE_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
-	fwreq->items[BRCMF_PCIE_FW_NVRAM].flags = BRCMF_FW_REQF_OPTIONAL;
-	fwreq->n_items = 2;
-	fwreq->domain_nr = domain_nr;
-	fwreq->bus_nr = bus_nr;
 	ret = brcmf_fw_get_firmwares(bus->dev, fwreq, brcmf_pcie_setup);
-	if (ret == 0)
-		return 0;
+	if (ret < 0) {
+		kfree(fwreq);
+		goto fail_bus;
+	}
+	return 0;
 
-	kfree(fwreq);
 fail_bus:
 	kfree(bus->msgbuf);
 	kfree(bus);

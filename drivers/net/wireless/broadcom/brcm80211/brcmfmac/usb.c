@@ -1200,6 +1200,27 @@ error:
 	device_release_driver(dev);
 }
 
+static struct brcmf_fw_request *
+brcmf_usb_prepare_fw_request(struct brcmf_usbdev_info *devinfo)
+{
+	struct brcmf_fw_request *fwreq;
+	struct brcmf_fw_name fwnames[] = {
+		{ ".bin", devinfo->fw_name },
+	};
+
+	fwreq = brcmf_fw_alloc_request(devinfo->bus_pub.devid,
+				       devinfo->bus_pub.chiprev,
+				       brcmf_usb_fwnames,
+				       ARRAY_SIZE(brcmf_usb_fwnames),
+				       fwnames, ARRAY_SIZE(fwnames));
+	if (!fwreq)
+		return NULL;
+
+	fwreq->items[BRCMF_USB_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
+
+	return fwreq;
+}
+
 static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 {
 	struct brcmf_bus *bus = NULL;
@@ -1249,23 +1270,11 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	bus->chip = bus_pub->devid;
 	bus->chiprev = bus_pub->chiprev;
 
-	ret = brcmf_fw_map_chip_to_name(bus_pub->devid, bus_pub->chiprev,
-					brcmf_usb_fwnames,
-					ARRAY_SIZE(brcmf_usb_fwnames),
-					devinfo->fw_name, NULL);
-	if (ret)
-		goto fail;
-
-	fwreq = kzalloc(sizeof(*fwreq) + sizeof(struct brcmf_fw_item),
-			GFP_KERNEL);
+	fwreq = brcmf_usb_prepare_fw_request(devinfo);
 	if (!fwreq) {
 		ret = -ENOMEM;
 		goto fail;
 	}
-
-	fwreq->items[BRCMF_USB_FW_CODE].path = devinfo->fw_name;
-	fwreq->items[BRCMF_USB_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
-	fwreq->n_items = 1;
 
 	/* request firmware here */
 	ret = brcmf_fw_get_firmwares(dev, fwreq, brcmf_usb_probe_phase2);
@@ -1469,14 +1478,9 @@ static int brcmf_usb_reset_resume(struct usb_interface *intf)
 
 	brcmf_dbg(USB, "Enter\n");
 
-	fwreq = kzalloc(sizeof(*fwreq) + sizeof(struct brcmf_fw_item),
-			GFP_KERNEL);
+	fwreq = brcmf_usb_prepare_fw_request(devinfo);
 	if (!fwreq)
 		return -ENOMEM;
-
-	fwreq->items[BRCMF_USB_FW_CODE].path = devinfo->fw_name;
-	fwreq->items[BRCMF_USB_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
-	fwreq->n_items = 1;
 
 	ret = brcmf_fw_get_firmwares(&usb->dev, fwreq, brcmf_usb_probe_phase2);
 	if (ret < 0)
