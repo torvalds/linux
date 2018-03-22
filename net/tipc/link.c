@@ -434,7 +434,7 @@ char *tipc_link_name(struct tipc_link *l)
  */
 bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 		      int tolerance, char net_plane, u32 mtu, int priority,
-		      int window, u32 session, u32 ownnode, u32 peer,
+		      int window, u32 session, u32 self, u32 peer,
 		      u16 peer_caps,
 		      struct tipc_link *bc_sndlink,
 		      struct tipc_link *bc_rcvlink,
@@ -451,9 +451,7 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 	l->session = session;
 
 	/* Note: peer i/f name is completed by reset/activate message */
-	sprintf(l->name, "%u.%u.%u:%s-%u.%u.%u:unknown",
-		tipc_zone(ownnode), tipc_cluster(ownnode), tipc_node(ownnode),
-		if_name, tipc_zone(peer), tipc_cluster(peer), tipc_node(peer));
+	sprintf(l->name, "%x:%s-%x:unknown", self, if_name, peer);
 	strcpy(l->if_name, if_name);
 	l->addr = peer;
 	l->peer_caps = peer_caps;

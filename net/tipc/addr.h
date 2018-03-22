@@ -50,11 +50,6 @@ static inline u32 tipc_own_addr(struct net *net)
 	return tn->own_addr;
 }
 
-static inline u32 tipc_zone_mask(u32 addr)
-{
-	return addr & TIPC_ZONE_MASK;
-}
-
 static inline u32 tipc_cluster_mask(u32 addr)
 {
 	return addr & TIPC_ZONE_CLUSTER_MASK;
@@ -71,14 +66,8 @@ static inline int tipc_scope2node(struct net *net, int sc)
 }
 
 u32 tipc_own_addr(struct net *net);
-int in_own_cluster(struct net *net, u32 addr);
-int in_own_cluster_exact(struct net *net, u32 addr);
 int in_own_node(struct net *net, u32 addr);
-u32 addr_domain(struct net *net, u32 sc);
-int tipc_addr_domain_valid(u32);
-int tipc_addr_node_valid(u32 addr);
 int tipc_in_scope(u32 domain, u32 addr);
-int tipc_addr_scope(u32 domain);
 char *tipc_addr_string_fill(char *string, u32 addr);
 
 #endif

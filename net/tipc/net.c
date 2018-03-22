@@ -121,7 +121,7 @@ int tipc_net_start(struct net *net, u32 addr)
 			     TIPC_CLUSTER_SCOPE, 0, tn->own_addr);
 
 	pr_info("Started in network mode\n");
-	pr_info("Own node address %s, network identity %u\n",
+	pr_info("Own node address %s, cluster identity %u\n",
 		tipc_addr_string_fill(addr_string, tn->own_addr),
 		tn->net_id);
 	return 0;
@@ -238,7 +238,7 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 			return -EPERM;
 
 		addr = nla_get_u32(attrs[TIPC_NLA_NET_ADDR]);
-		if (!tipc_addr_node_valid(addr))
+		if (!addr)
 			return -EINVAL;
 
 		tipc_net_start(net, addr);

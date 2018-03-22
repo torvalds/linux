@@ -39,21 +39,6 @@
 #include "core.h"
 
 /**
- * in_own_cluster - test for cluster inclusion; <0.0.0> always matches
- */
-int in_own_cluster(struct net *net, u32 addr)
-{
-	return in_own_cluster_exact(net, addr) || !addr;
-}
-
-int in_own_cluster_exact(struct net *net, u32 addr)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-
-	return !((addr ^ tn->own_addr) >> 12);
-}
-
-/**
  * in_own_node - test for node inclusion; <0.0.0> always matches
  */
 int in_own_node(struct net *net, u32 addr)
@@ -63,46 +48,13 @@ int in_own_node(struct net *net, u32 addr)
 	return (addr == tn->own_addr) || !addr;
 }
 
-/**
- * tipc_addr_domain_valid - validates a network domain address
- *
- * Accepts <Z.C.N>, <Z.C.0>, <Z.0.0>, and <0.0.0>,
- * where Z, C, and N are non-zero.
- *
- * Returns 1 if domain address is valid, otherwise 0
- */
-int tipc_addr_domain_valid(u32 addr)
-{
-	u32 n = tipc_node(addr);
-	u32 c = tipc_cluster(addr);
-	u32 z = tipc_zone(addr);
-
-	if (n && (!z || !c))
-		return 0;
-	if (c && !z)
-		return 0;
-	return 1;
-}
-
-/**
- * tipc_addr_node_valid - validates a proposed network address for this node
- *
- * Accepts <Z.C.N>, where Z, C, and N are non-zero.
- *
- * Returns 1 if address can be used, otherwise 0
- */
-int tipc_addr_node_valid(u32 addr)
-{
-	return tipc_addr_domain_valid(addr) && tipc_node(addr);
-}
-
 int tipc_in_scope(u32 domain, u32 addr)
 {
 	if (!domain || (domain == addr))
 		return 1;
 	if (domain == tipc_cluster_mask(addr)) /* domain <Z.C.0> */
 		return 1;
-	if (domain == tipc_zone_mask(addr)) /* domain <Z.0.0> */
+	if (domain == (addr & TIPC_ZONE_MASK)) /* domain <Z.0.0> */
 		return 1;
 	return 0;
 }

@@ -161,18 +161,17 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 		return;
 	if (net_id != tn->net_id)
 		return;
-	if (!tipc_addr_domain_valid(dst))
-		return;
-	if (!tipc_addr_node_valid(src))
-		return;
 	if (in_own_node(net, src)) {
 		disc_dupl_alert(b, self, &maddr);
 		return;
 	}
-	if (!tipc_in_scope(dst, self))
-		return;
-	if (!tipc_in_scope(b->domain, src))
-		return;
+	/* Domain filter only works if both peers use legacy address format */
+	if (b->domain) {
+		if (!tipc_in_scope(dst, self))
+			return;
+		if (!tipc_in_scope(b->domain, src))
+			return;
+	}
 	tipc_node_check_dest(net, src, b, caps, signature,
 			     &maddr, &respond, &dupl_addr);
 	if (dupl_addr)

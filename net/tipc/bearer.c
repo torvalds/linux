@@ -240,7 +240,6 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	struct tipc_bearer *b;
 	struct tipc_media *m;
 	struct sk_buff *skb;
-	char addr_string[16];
 	int bearer_id = 0;
 	int res = -EINVAL;
 	char *errstr = "";
@@ -253,21 +252,6 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 
 	if (!bearer_name_validate(name, &b_names)) {
 		errstr = "illegal name";
-		goto rejected;
-	}
-
-	if (tipc_addr_domain_valid(disc_domain) && disc_domain != self) {
-		if (tipc_in_scope(disc_domain, self)) {
-			/* Accept any node in own cluster */
-			disc_domain = self & TIPC_ZONE_CLUSTER_MASK;
-			res = 0;
-		} else if (in_own_cluster_exact(net, disc_domain)) {
-			/* Accept specified node in own cluster */
-			res = 0;
-		}
-	}
-	if (res) {
-		errstr = "illegal discovery domain";
 		goto rejected;
 	}
 
@@ -354,12 +338,11 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 		return -ENOMEM;
 	}
 
-	tipc_addr_string_fill(addr_string, disc_domain);
-	pr_info("Enabled bearer <%s>, discovery scope %s, priority %u\n",
-		name, addr_string, prio);
+	pr_info("Enabled bearer <%s>, priority %u\n", name, prio);
+
 	return res;
 rejected:
-	pr_warn("Bearer <%s> rejected, %s\n", name, errstr);
+	pr_warn("Enabling of bearer <%s> rejected, %s\n", name, errstr);
 	return res;
 }
 
@@ -865,12 +848,10 @@ int __tipc_nl_bearer_enable(struct sk_buff *skb, struct genl_info *info)
 	char *bearer;
 	struct nlattr *attrs[TIPC_NLA_BEARER_MAX + 1];
 	struct net *net = sock_net(skb->sk);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	u32 domain;
+	u32 domain = 0;
 	u32 prio;
 
 	prio = TIPC_MEDIA_LINK_PRI;
-	domain = tn->own_addr & TIPC_ZONE_CLUSTER_MASK;
 
 	if (!info->attrs[TIPC_NLA_BEARER])
 		return -EINVAL;

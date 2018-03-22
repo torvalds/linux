@@ -233,9 +233,6 @@ static struct tipc_node *tipc_node_find(struct net *net, u32 addr)
 	struct tipc_node *node;
 	unsigned int thash = tipc_hashfn(addr);
 
-	if (unlikely(!in_own_cluster_exact(net, addr)))
-		return NULL;
-
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(node, &tn->node_htable[thash], hash) {
 		if (node->addr != addr)
@@ -836,10 +833,9 @@ void tipc_node_check_dest(struct net *net, u32 onode,
 
 	/* Now create new link if not already existing */
 	if (!l) {
-		if (n->link_cnt == 2) {
-			pr_warn("Cannot establish 3rd link to %x\n", n->addr);
+		if (n->link_cnt == 2)
 			goto exit;
-		}
+
 		if_name = strchr(b->name, ':') + 1;
 		if (!tipc_link_create(net, if_name, b->identity, b->tolerance,
 				      b->net_plane, b->mtu, b->priority,
