@@ -1010,10 +1010,13 @@ void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev)
 	}
 }
 
-static void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
+void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
 {
-	if (!test_and_set_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state))
+	if (!test_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state) &&
+	    !test_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state)) {
+		set_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
 		schedule_work(&hdev->mbx_service_task);
+	}
 }
 
 static void hclgevf_task_schedule(struct hclgevf_dev *hdev)
@@ -1025,6 +1028,10 @@ static void hclgevf_task_schedule(struct hclgevf_dev *hdev)
 
 static void hclgevf_deferred_task_schedule(struct hclgevf_dev *hdev)
 {
+	/* if we have any pending mailbox event then schedule the mbx task */
+	if (hdev->mbx_event_pending)
+		hclgevf_mbx_task_schedule(hdev);
+
 	if (test_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state))
 		hclgevf_reset_task_schedule(hdev);
 }
@@ -1118,7 +1125,7 @@ static void hclgevf_mailbox_service_task(struct work_struct *work)
 
 	clear_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
 
-	hclgevf_mbx_handler(hdev);
+	hclgevf_mbx_async_handler(hdev);
 
 	clear_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state);
 }
@@ -1178,8 +1185,7 @@ static irqreturn_t hclgevf_misc_irq_handle(int irq, void *data)
 	if (!hclgevf_check_event_cause(hdev, &clearval))
 		goto skip_sched;
 
-	/* schedule the VF mailbox service task, if not already scheduled */
-	hclgevf_mbx_task_schedule(hdev);
+	hclgevf_mbx_handler(hdev);
 
 	hclgevf_clear_event_cause(hdev, clearval);
 

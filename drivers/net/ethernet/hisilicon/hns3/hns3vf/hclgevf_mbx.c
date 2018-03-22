@@ -132,9 +132,8 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 	struct hclge_mbx_pf_to_vf_cmd *req;
 	struct hclgevf_cmq_ring *crq;
 	struct hclgevf_desc *desc;
-	u16 link_status, flag;
-	u32 speed;
-	u8 duplex;
+	u16 *msg_q;
+	u16 flag;
 	u8 *temp;
 	int i;
 
@@ -146,6 +145,12 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 		desc = &crq->desc[crq->next_to_use];
 		req = (struct hclge_mbx_pf_to_vf_cmd *)desc->data;
 
+		/* synchronous messages are time critical and need preferential
+		 * treatment. Therefore, we need to acknowledge all the sync
+		 * responses as quickly as possible so that waiting tasks do not
+		 * timeout and simultaneously queue the async messages for later
+		 * prcessing in context of mailbox task i.e. the slow path.
+		 */
 		switch (req->msg[0]) {
 		case HCLGE_MBX_PF_VF_RESP:
 			if (resp->received_resp)
@@ -165,13 +170,30 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			}
 			break;
 		case HCLGE_MBX_LINK_STAT_CHANGE:
-			link_status = le16_to_cpu(req->msg[1]);
-			memcpy(&speed, &req->msg[2], sizeof(speed));
-			duplex = (u8)le16_to_cpu(req->msg[4]);
+			/* set this mbx event as pending. This is required as we
+			 * might loose interrupt event when mbx task is busy
+			 * handling. This shall be cleared when mbx task just
+			 * enters handling state.
+			 */
+			hdev->mbx_event_pending = true;
 
-			/* update upper layer with new link link status */
-			hclgevf_update_link_status(hdev, link_status);
-			hclgevf_update_speed_duplex(hdev, speed, duplex);
+			/* we will drop the async msg if we find ARQ as full
+			 * and continue with next message
+			 */
+			if (hdev->arq.count >= HCLGE_MBX_MAX_ARQ_MSG_NUM) {
+				dev_warn(&hdev->pdev->dev,
+					 "Async Q full, dropping msg(%d)\n",
+					 req->msg[1]);
+				break;
+			}
+
+			/* tail the async message in arq */
+			msg_q = hdev->arq.msg_q[hdev->arq.tail];
+			memcpy(&msg_q[0], req->msg, HCLGE_MBX_MAX_ARQ_MSG_SIZE);
+			hclge_mbx_tail_ptr_move_arq(hdev->arq);
+			hdev->arq.count++;
+
+			hclgevf_mbx_task_schedule(hdev);
 
 			break;
 		default:
@@ -188,4 +210,47 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 	/* Write back CMDQ_RQ header pointer, M7 need this pointer */
 	hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CRQ_HEAD_REG,
 			  crq->next_to_use);
+}
+
+void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
+{
+	u16 link_status;
+	u16 *msg_q;
+	u8 duplex;
+	u32 speed;
+	u32 tail;
+
+	/* we can safely clear it now as we are at start of the async message
+	 * processing
+	 */
+	hdev->mbx_event_pending = false;
+
+	tail = hdev->arq.tail;
+
+	/* process all the async queue messages */
+	while (tail != hdev->arq.head) {
+		msg_q = hdev->arq.msg_q[hdev->arq.head];
+
+		switch (msg_q[0]) {
+		case HCLGE_MBX_LINK_STAT_CHANGE:
+			link_status = le16_to_cpu(msg_q[1]);
+			memcpy(&speed, &msg_q[2], sizeof(speed));
+			duplex = (u8)le16_to_cpu(msg_q[4]);
+
+			/* update upper layer with new link link status */
+			hclgevf_update_link_status(hdev, link_status);
+			hclgevf_update_speed_duplex(hdev, speed, duplex);
+
+			break;
+		default:
+			dev_err(&hdev->pdev->dev,
+				"fetched unsupported(%d) message from arq\n",
+				msg_q[0]);
+			break;
+		}
+
+		hclge_mbx_head_ptr_move_arq(hdev->arq);
+		hdev->arq.count--;
+		msg_q = hdev->arq.msg_q[hdev->arq.head];
+	}
 }

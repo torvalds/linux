@@ -152,7 +152,9 @@ struct hclgevf_dev {
 	int *vector_irq;
 
 	bool accept_mta_mc; /* whether to accept mta filter multicast */
+	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
+	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */
 
 	struct timer_list service_timer;
 	struct work_struct service_task;
@@ -187,8 +189,11 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 			 const u8 *msg_data, u8 msg_len, bool need_resp,
 			 u8 *resp_data, u16 resp_len);
 void hclgevf_mbx_handler(struct hclgevf_dev *hdev);
+void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev);
+
 void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state);
 void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
 				 u8 duplex);
 void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev);
+void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev);
 #endif
