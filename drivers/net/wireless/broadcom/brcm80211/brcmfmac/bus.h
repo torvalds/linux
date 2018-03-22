@@ -140,6 +140,7 @@ struct brcmf_bus_stats {
  * @always_use_fws_queue: bus wants use queue also when fwsignal is inactive.
  * @wowl_supported: is wowl supported by bus driver.
  * @chiprev: revision of the dongle chip.
+ * @msgbuf: msgbuf protocol parameters provided by bus layer.
  */
 struct brcmf_bus {
 	union {
