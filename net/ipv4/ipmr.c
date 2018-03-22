@@ -1399,7 +1399,7 @@ static void mrtsock_destruct(struct sock *sk)
 	struct net *net = sock_net(sk);
 	struct mr_table *mrt;
 
-	ASSERT_RTNL();
+	rtnl_lock();
 	ipmr_for_each_table(mrt, net) {
 		if (sk == rtnl_dereference(mrt->mroute_sk)) {
 			IPV4_DEVCONF_ALL(net, MC_FORWARDING)--;
@@ -1411,6 +1411,7 @@ static void mrtsock_destruct(struct sock *sk)
 			mroute_clean_tables(mrt, false);
 		}
 	}
+	rtnl_unlock();
 }
 
 /* Socket options and virtual interface manipulation. The whole
@@ -1475,8 +1476,13 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 		if (sk != rcu_access_pointer(mrt->mroute_sk)) {
 			ret = -EACCES;
 		} else {
+			/* We need to unlock here because mrtsock_destruct takes
+			 * care of rtnl itself and we can't change that due to
+			 * the IP_ROUTER_ALERT setsockopt which runs without it.
+			 */
+			rtnl_unlock();
 			ret = ip_ra_control(sk, 0, NULL);
-			goto out_unlock;
+			goto out;
 		}
 		break;
 	case MRT_ADD_VIF:
@@ -1588,6 +1594,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval,
 	}
 out_unlock:
 	rtnl_unlock();
+out:
 	return ret;
 }
 
