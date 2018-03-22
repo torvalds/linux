@@ -38,7 +38,7 @@ static void __iomem *mediatek_gpio_membase;
 static int mediatek_gpio_irq;
 static struct irq_domain *mediatek_gpio_irq_domain;
 
-struct mtk_gc {
+static struct mtk_gc {
 	struct gpio_chip chip;
 	spinlock_t lock;
 	int bank;
