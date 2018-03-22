@@ -31,8 +31,6 @@
 #include "amdgpu.h"
 #include "hwmgr.h"
 
-static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_task task_id,
-		enum amd_pm_state_type *user_state);
 
 static const struct amd_pm_funcs pp_dpm_funcs;
 
@@ -146,10 +144,12 @@ static int pp_late_init(void *handle)
 	struct amdgpu_device *adev = handle;
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
 
-	if (hwmgr && hwmgr->pm_en)
-		pp_dpm_dispatch_tasks(hwmgr,
+	if (hwmgr && hwmgr->pm_en) {
+		mutex_lock(&hwmgr->smu_lock);
+		hwmgr_handle_task(hwmgr,
 					AMD_PP_TASK_COMPLETE_INIT, NULL);
-
+		mutex_unlock(&hwmgr->smu_lock);
+	}
 	return 0;
 }
 
@@ -620,7 +620,7 @@ static int amd_powerplay_reset(void *handle)
 static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 {
 	struct pp_hwmgr *hwmgr = handle;
-	int ret = 0;
+	int ret = -ENOMEM;
 
 	if (!hwmgr || !hwmgr->pm_en)
 		return -EINVAL;
@@ -630,28 +630,28 @@ static int pp_dpm_set_pp_table(void *handle, const char *buf, size_t size)
 		hwmgr->hardcode_pp_table = kmemdup(hwmgr->soft_pp_table,
 						   hwmgr->soft_pp_table_size,
 						   GFP_KERNEL);
-		if (!hwmgr->hardcode_pp_table) {
-			mutex_unlock(&hwmgr->smu_lock);
-			return -ENOMEM;
-		}
+		if (!hwmgr->hardcode_pp_table)
+			goto err;
 	}
 
 	memcpy(hwmgr->hardcode_pp_table, buf, size);
 
 	hwmgr->soft_pp_table = hwmgr->hardcode_pp_table;
-	mutex_unlock(&hwmgr->smu_lock);
 
 	ret = amd_powerplay_reset(handle);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (hwmgr->hwmgr_func->avfs_control) {
 		ret = hwmgr->hwmgr_func->avfs_control(hwmgr, false);
 		if (ret)
-			return ret;
+			goto err;
 	}
-
+	mutex_unlock(&hwmgr->smu_lock);
 	return 0;
+err:
+	mutex_unlock(&hwmgr->smu_lock);
+	return ret;
 }
 
 static int pp_dpm_force_clock_level(void *handle,
