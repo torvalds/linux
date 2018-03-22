@@ -188,7 +188,8 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	int ret;
 
 	if (qdisc_pkt_len(skb) > q->max_size) {
-		if (skb_is_gso(skb) && skb_gso_mac_seglen(skb) <= q->max_size)
+		if (skb_is_gso(skb) &&
+		    skb_gso_validate_mac_len(skb, q->max_size))
 			return tbf_segment(skb, sch, to_free);
 		return qdisc_drop(skb, sch, to_free);
 	}

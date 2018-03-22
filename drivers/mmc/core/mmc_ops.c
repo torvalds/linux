@@ -848,7 +848,6 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 		return 1;
 	}
 
-	mmc_claim_host(card->host);
 	err = mmc_send_status(card, &status);
 	if (err) {
 		pr_err("%s: Get card status fail\n", mmc_hostname(card->host));
@@ -890,7 +889,6 @@ int mmc_interrupt_hpi(struct mmc_card *card)
 	} while (!err);
 
 out:
-	mmc_release_host(card->host);
 	return err;
 }
 
@@ -932,9 +930,7 @@ static int mmc_read_bkops_status(struct mmc_card *card)
 	int err;
 	u8 *ext_csd;
 
-	mmc_claim_host(card->host);
 	err = mmc_get_ext_csd(card, &ext_csd);
-	mmc_release_host(card->host);
 	if (err)
 		return err;
 

@@ -2921,6 +2921,11 @@ static int dce_v10_0_hw_fini(void *handle)
 
 static int dce_v10_0_suspend(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->mode_info.bl_level =
+		amdgpu_atombios_encoder_get_backlight_level_from_reg(adev);
+
 	return dce_v10_0_hw_fini(handle);
 }
 
@@ -2928,6 +2933,9 @@ static int dce_v10_0_resume(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
+
+	amdgpu_atombios_encoder_set_backlight_level_to_reg(adev,
+							   adev->mode_info.bl_level);
 
 	ret = dce_v10_0_hw_init(handle);
 
