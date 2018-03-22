@@ -2424,12 +2424,14 @@ static void intel_enable_ddi_hdmi(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	struct drm_connector *connector = conn_state->connector;
 	enum port port = encoder->port;
 
-	intel_hdmi_handle_sink_scrambling(encoder,
-					  conn_state->connector,
-					  crtc_state->hdmi_high_tmds_clock_ratio,
-					  crtc_state->hdmi_scrambling);
+	if (!intel_hdmi_handle_sink_scrambling(encoder, connector,
+					       crtc_state->hdmi_high_tmds_clock_ratio,
+					       crtc_state->hdmi_scrambling))
+		DRM_ERROR("[CONNECTOR:%d:%s] Failed to configure sink scrambling/TMDS bit clock ratio\n",
+			  connector->base.id, connector->name);
 
 	/* Display WA #1143: skl,kbl,cfl */
 	if (IS_GEN9_BC(dev_priv)) {
@@ -2520,13 +2522,16 @@ static void intel_disable_ddi_hdmi(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *old_crtc_state,
 				   const struct drm_connector_state *old_conn_state)
 {
+	struct drm_connector *connector = old_conn_state->connector;
+
 	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder,
 					  old_crtc_state, old_conn_state);
 
-	intel_hdmi_handle_sink_scrambling(encoder,
-					  old_conn_state->connector,
-					  false, false);
+	if (!intel_hdmi_handle_sink_scrambling(encoder, connector,
+					       false, false))
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Failed to reset sink scrambling/TMDS bit clock ratio\n",
+			      connector->base.id, connector->name);
 }
 
 static void intel_disable_ddi(struct intel_encoder *encoder,
