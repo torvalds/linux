@@ -814,10 +814,8 @@ static int davinci_pll_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base)) {
-		dev_err(dev, "ioremap failed\n");
+	if (IS_ERR(base))
 		return PTR_ERR(base);
-	}
 
 	return pll_init(dev, base);
 }
