@@ -730,7 +730,7 @@ int mlxsw_sp_span_mirror_add(struct mlxsw_sp_port *from,
 {
 	struct mlxsw_sp *mlxsw_sp = from->mlxsw_sp;
 	const struct mlxsw_sp_span_entry_ops *ops;
-	struct mlxsw_sp_span_parms sparms = {0};
+	struct mlxsw_sp_span_parms sparms = {NULL};
 	struct mlxsw_sp_span_entry *span_entry;
 	int err;
 
@@ -787,7 +787,7 @@ void mlxsw_sp_span_respin(struct mlxsw_sp *mlxsw_sp)
 	ASSERT_RTNL();
 	for (i = 0; i < mlxsw_sp->span.entries_count; i++) {
 		struct mlxsw_sp_span_entry *curr = &mlxsw_sp->span.entries[i];
-		struct mlxsw_sp_span_parms sparms = {0};
+		struct mlxsw_sp_span_parms sparms = {NULL};
 
 		if (!curr->ref_count)
 			continue;
