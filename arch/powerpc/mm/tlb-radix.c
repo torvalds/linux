@@ -706,7 +706,7 @@ void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
 {
-	unsigned int pid = mm->context.id;
+	unsigned long pid = mm->context.id;
 
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		return;
