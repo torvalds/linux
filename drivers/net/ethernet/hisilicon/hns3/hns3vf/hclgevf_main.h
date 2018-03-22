@@ -169,6 +169,20 @@ struct hclgevf_dev {
 	u32 flag;
 };
 
+static inline bool hclgevf_dev_ongoing_reset(struct hclgevf_dev *hdev)
+{
+	return (hdev &&
+		(test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) &&
+		(hdev->nic.reset_level == HNAE3_VF_RESET));
+}
+
+static inline bool hclgevf_dev_ongoing_full_reset(struct hclgevf_dev *hdev)
+{
+	return (hdev &&
+		(test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) &&
+		(hdev->nic.reset_level == HNAE3_VF_FULL_RESET));
+}
+
 int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 			 const u8 *msg_data, u8 msg_len, bool need_resp,
 			 u8 *resp_data, u16 resp_len);
