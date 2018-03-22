@@ -230,88 +230,90 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
  * tipc_enable_bearer - enable bearer with the given name
  */
 static int tipc_enable_bearer(struct net *net, const char *name,
-			      u32 disc_domain, u32 priority,
+			      u32 disc_domain, u32 prio,
 			      struct nlattr *attr[])
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
+	struct tipc_bearer_names b_names;
+	u32 self = tipc_own_addr(net);
+	int with_this_prio = 1;
 	struct tipc_bearer *b;
 	struct tipc_media *m;
-	struct tipc_bearer_names b_names;
 	struct sk_buff *skb;
 	char addr_string[16];
-	u32 bearer_id;
-	u32 with_this_prio;
-	u32 i;
+	int bearer_id = 0;
 	int res = -EINVAL;
+	char *errstr = "";
 
-	if (!tn->own_addr) {
-		pr_warn("Bearer <%s> rejected, not supported in standalone mode\n",
-			name);
-		return -ENOPROTOOPT;
+	if (!self) {
+		errstr = "not supported in standalone mode";
+		res = -ENOPROTOOPT;
+		goto rejected;
 	}
+
 	if (!bearer_name_validate(name, &b_names)) {
-		pr_warn("Bearer <%s> rejected, illegal name\n", name);
-		return -EINVAL;
+		errstr = "illegal name";
+		goto rejected;
 	}
-	if (tipc_addr_domain_valid(disc_domain) &&
-	    (disc_domain != tn->own_addr)) {
-		if (tipc_in_scope(disc_domain, tn->own_addr)) {
-			disc_domain = tn->own_addr & TIPC_ZONE_CLUSTER_MASK;
-			res = 0;   /* accept any node in own cluster */
-		} else if (in_own_cluster_exact(net, disc_domain))
-			res = 0;   /* accept specified node in own cluster */
+
+	if (tipc_addr_domain_valid(disc_domain) && disc_domain != self) {
+		if (tipc_in_scope(disc_domain, self)) {
+			/* Accept any node in own cluster */
+			disc_domain = self & TIPC_ZONE_CLUSTER_MASK;
+			res = 0;
+		} else if (in_own_cluster_exact(net, disc_domain)) {
+			/* Accept specified node in own cluster */
+			res = 0;
+		}
 	}
 	if (res) {
-		pr_warn("Bearer <%s> rejected, illegal discovery domain\n",
-			name);
-		return -EINVAL;
+		errstr = "illegal discovery domain";
+		goto rejected;
 	}
-	if ((priority > TIPC_MAX_LINK_PRI) &&
-	    (priority != TIPC_MEDIA_LINK_PRI)) {
-		pr_warn("Bearer <%s> rejected, illegal priority\n", name);
-		return -EINVAL;
+
+	if (prio > TIPC_MAX_LINK_PRI && prio != TIPC_MEDIA_LINK_PRI) {
+		errstr = "illegal priority";
+		goto rejected;
 	}
 
 	m = tipc_media_find(b_names.media_name);
 	if (!m) {
-		pr_warn("Bearer <%s> rejected, media <%s> not registered\n",
-			name, b_names.media_name);
-		return -EINVAL;
+		errstr = "media not registered";
+		goto rejected;
 	}
 
-	if (priority == TIPC_MEDIA_LINK_PRI)
-		priority = m->priority;
+	if (prio == TIPC_MEDIA_LINK_PRI)
+		prio = m->priority;
 
-restart:
-	bearer_id = MAX_BEARERS;
-	with_this_prio = 1;
-	for (i = MAX_BEARERS; i-- != 0; ) {
-		b = rtnl_dereference(tn->bearer_list[i]);
-		if (!b) {
-			bearer_id = i;
-			continue;
-		}
+	/* Check new bearer vs existing ones and find free bearer id if any */
+	while (bearer_id < MAX_BEARERS) {
+		b = rtnl_dereference(tn->bearer_list[bearer_id]);
+		if (!b)
+			break;
 		if (!strcmp(name, b->name)) {
-			pr_warn("Bearer <%s> rejected, already enabled\n",
-				name);
-			return -EINVAL;
+			errstr = "already enabled";
+			goto rejected;
 		}
-		if ((b->priority == priority) &&
-		    (++with_this_prio > 2)) {
-			if (priority-- == 0) {
-				pr_warn("Bearer <%s> rejected, duplicate priority\n",
-					name);
-				return -EINVAL;
-			}
-			pr_warn("Bearer <%s> priority adjustment required %u->%u\n",
-				name, priority + 1, priority);
-			goto restart;
+		bearer_id++;
+		if (b->priority != prio)
+			continue;
+		if (++with_this_prio <= 2)
+			continue;
+		pr_warn("Bearer <%s>: already 2 bearers with priority %u\n",
+			name, prio);
+		if (prio == TIPC_MIN_LINK_PRI) {
+			errstr = "cannot adjust to lower";
+			goto rejected;
 		}
+		pr_warn("Bearer <%s>: trying with adjusted priority\n", name);
+		prio--;
+		bearer_id = 0;
+		with_this_prio = 1;
 	}
+
 	if (bearer_id >= MAX_BEARERS) {
-		pr_warn("Bearer <%s> rejected, bearer limit reached (%u)\n",
-			name, MAX_BEARERS);
-		return -EINVAL;
+		errstr = "max 3 bearers permitted";
+		goto rejected;
 	}
 
 	b = kzalloc(sizeof(*b), GFP_ATOMIC);
@@ -322,10 +324,9 @@ restart:
 	b->media = m;
 	res = m->enable_media(net, b, attr);
 	if (res) {
-		pr_warn("Bearer <%s> rejected, enable failure (%d)\n",
-			name, -res);
 		kfree(b);
-		return -EINVAL;
+		errstr = "failed to enable media";
+		goto rejected;
 	}
 
 	b->identity = bearer_id;
@@ -333,15 +334,15 @@ restart:
 	b->window = m->window;
 	b->domain = disc_domain;
 	b->net_plane = bearer_id + 'A';
-	b->priority = priority;
+	b->priority = prio;
 	test_and_set_bit_lock(0, &b->up);
 
 	res = tipc_disc_create(net, b, &b->bcast_addr, &skb);
 	if (res) {
 		bearer_disable(net, b);
-		pr_warn("Bearer <%s> rejected, discovery object creation failed\n",
-			name);
-		return -EINVAL;
+		kfree(b);
+		errstr = "failed to create discoverer";
+		goto rejected;
 	}
 
 	rcu_assign_pointer(tn->bearer_list[bearer_id], b);
@@ -353,9 +354,12 @@ restart:
 		return -ENOMEM;
 	}
 
-	pr_info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
-		name,
-		tipc_addr_string_fill(addr_string, disc_domain), priority);
+	tipc_addr_string_fill(addr_string, disc_domain);
+	pr_info("Enabled bearer <%s>, discovery scope %s, priority %u\n",
+		name, addr_string, prio);
+	return res;
+rejected:
+	pr_warn("Bearer <%s> rejected, %s\n", name, errstr);
 	return res;
 }
 
