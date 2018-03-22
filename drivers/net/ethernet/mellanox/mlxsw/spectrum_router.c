@@ -1380,6 +1380,33 @@ mlxsw_sp_ipip_entry_ol_up_event(struct mlxsw_sp *mlxsw_sp,
 						  decap_fib_entry);
 }
 
+static int
+mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
+			struct mlxsw_sp_vr *ul_vr, bool enable)
+{
+	struct mlxsw_sp_rif_ipip_lb_config lb_cf = lb_rif->lb_config;
+	struct mlxsw_sp_rif *rif = &lb_rif->common;
+	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
+	char ritr_pl[MLXSW_REG_RITR_LEN];
+	u32 saddr4;
+
+	switch (lb_cf.ul_protocol) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		saddr4 = be32_to_cpu(lb_cf.saddr.addr4);
+		mlxsw_reg_ritr_pack(ritr_pl, enable, MLXSW_REG_RITR_LOOPBACK_IF,
+				    rif->rif_index, rif->vr_id, rif->dev->mtu);
+		mlxsw_reg_ritr_loopback_ipip4_pack(ritr_pl, lb_cf.lb_ipipt,
+			    MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET,
+			    ul_vr->id, saddr4, lb_cf.okey);
+		break;
+
+	case MLXSW_SP_L3_PROTO_IPV6:
+		return -EAFNOSUPPORT;
+	}
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
+}
+
 static void mlxsw_sp_netdevice_ipip_ol_up_event(struct mlxsw_sp *mlxsw_sp,
 						struct net_device *ol_dev)
 {
@@ -6841,33 +6868,6 @@ mlxsw_sp_rif_ipip_lb_setup(struct mlxsw_sp_rif *rif,
 				 common);
 	rif_lb = mlxsw_sp_rif_ipip_lb_rif(rif);
 	rif_lb->lb_config = params_lb->lb_config;
-}
-
-static int
-mlxsw_sp_rif_ipip_lb_op(struct mlxsw_sp_rif_ipip_lb *lb_rif,
-			struct mlxsw_sp_vr *ul_vr, bool enable)
-{
-	struct mlxsw_sp_rif_ipip_lb_config lb_cf = lb_rif->lb_config;
-	struct mlxsw_sp_rif *rif = &lb_rif->common;
-	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
-	char ritr_pl[MLXSW_REG_RITR_LEN];
-	u32 saddr4;
-
-	switch (lb_cf.ul_protocol) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		saddr4 = be32_to_cpu(lb_cf.saddr.addr4);
-		mlxsw_reg_ritr_pack(ritr_pl, enable, MLXSW_REG_RITR_LOOPBACK_IF,
-				    rif->rif_index, rif->vr_id, rif->dev->mtu);
-		mlxsw_reg_ritr_loopback_ipip4_pack(ritr_pl, lb_cf.lb_ipipt,
-			    MLXSW_REG_RITR_LOOPBACK_IPIP_OPTIONS_GRE_KEY_PRESET,
-			    ul_vr->id, saddr4, lb_cf.okey);
-		break;
-
-	case MLXSW_SP_L3_PROTO_IPV6:
-		return -EAFNOSUPPORT;
-	}
-
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
 }
 
 static int
