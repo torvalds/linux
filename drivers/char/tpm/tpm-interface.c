@@ -564,6 +564,8 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 	ssize_t ret;
 	const size_t save_size = min(space ? sizeof(save) : TPM_HEADER_SIZE,
 				     bufsiz);
+	/* the command code is where the return code will be */
+	u32 cc = be32_to_cpu(header->return_code);
 
 	/*
 	 * Subtlety here: if we have a space, the handles will be
@@ -577,11 +579,21 @@ ssize_t tpm_transmit(struct tpm_chip *chip, struct tpm_space *space,
 		if (ret < 0)
 			break;
 		rc = be32_to_cpu(header->return_code);
-		if (rc != TPM2_RC_RETRY)
+		if (rc != TPM2_RC_RETRY && rc != TPM2_RC_TESTING)
+			break;
+		/*
+		 * return immediately if self test returns test
+		 * still running to shorten boot time.
+		 */
+		if (rc == TPM2_RC_TESTING && cc == TPM2_CC_SELF_TEST)
 			break;
 		delay_msec *= 2;
 		if (delay_msec > TPM2_DURATION_LONG) {
-			dev_err(&chip->dev, "TPM is in retry loop\n");
+			if (rc == TPM2_RC_RETRY)
+				dev_err(&chip->dev, "in retry loop\n");
+			else
+				dev_err(&chip->dev,
+					"self test is still running\n");
 			break;
 		}
 		tpm_msleep(delay_msec);
