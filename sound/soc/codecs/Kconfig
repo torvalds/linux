@@ -137,6 +137,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_RT5660 if I2C
 	select SND_SOC_RT5663 if I2C
 	select SND_SOC_RT5665 if I2C
+	select SND_SOC_RT5668 if I2C
 	select SND_SOC_RT5670 if I2C
 	select SND_SOC_RT5677 if I2C && SPI_MASTER
 	select SND_SOC_SGTL5000 if I2C
@@ -771,6 +772,7 @@ config SND_SOC_RL6231
 	default y if SND_SOC_RT5660=y
 	default y if SND_SOC_RT5663=y
 	default y if SND_SOC_RT5665=y
+	default y if SND_SOC_RT5668=y
 	default y if SND_SOC_RT5670=y
 	default y if SND_SOC_RT5677=y
 	default y if SND_SOC_RT1305=y
@@ -783,6 +785,7 @@ config SND_SOC_RL6231
 	default m if SND_SOC_RT5660=m
 	default m if SND_SOC_RT5663=m
 	default m if SND_SOC_RT5665=m
+	default m if SND_SOC_RT5668=m
 	default m if SND_SOC_RT5670=m
 	default m if SND_SOC_RT5677=m
 	default m if SND_SOC_RT1305=m
@@ -848,6 +851,9 @@ config SND_SOC_RT5663
 	tristate
 
 config SND_SOC_RT5665
+	tristate
+
+config SND_SOC_RT5668
 	tristate
 
 config SND_SOC_RT5670
