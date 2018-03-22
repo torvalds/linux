@@ -92,6 +92,8 @@ struct vmw_dma_buffer {
 	s32 pin_count;
 	/* Not ref-counted.  Protected by binding_mutex */
 	struct vmw_resource *dx_query_ctx;
+	/* Protected by reservation */
+	struct ttm_bo_kmap_obj map;
 };
 
 /**
@@ -673,6 +675,7 @@ extern void vmw_resource_move_notify(struct ttm_buffer_object *bo,
 				     struct ttm_mem_reg *mem);
 extern void vmw_query_move_notify(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem);
+extern void vmw_resource_swap_notify(struct ttm_buffer_object *bo);
 extern int vmw_query_readback_all(struct vmw_dma_buffer *dx_query_mob);
 extern void vmw_fence_single_bo(struct ttm_buffer_object *bo,
 				struct vmw_fence_obj *fence);
@@ -701,6 +704,8 @@ extern int vmw_dmabuf_unpin(struct vmw_private *vmw_priv,
 extern void vmw_bo_get_guest_ptr(const struct ttm_buffer_object *buf,
 				 SVGAGuestPtr *ptr);
 extern void vmw_bo_pin_reserved(struct vmw_dma_buffer *bo, bool pin);
+extern void *vmw_dma_buffer_map_and_cache(struct vmw_dma_buffer *vbo);
+extern void vmw_dma_buffer_unmap(struct vmw_dma_buffer *vbo);
 
 /**
  * Misc Ioctl functionality - vmwgfx_ioctl.c
