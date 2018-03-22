@@ -310,6 +310,8 @@ static struct iommu_dev_data *find_dev_data(u16 devid)
 
 	if (dev_data == NULL) {
 		dev_data = alloc_dev_data(devid);
+		if (!dev_data)
+			return NULL;
 
 		if (translation_pre_enabled(iommu))
 			dev_data->defer_attach = true;
