@@ -139,6 +139,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 	struct tipc_net *tn = tipc_net(net);
 	struct tipc_msg *hdr = buf_msg(skb);
 	u16 caps = msg_node_capabilities(hdr);
+	bool legacy = tn->legacy_addr_format;
 	u32 signature = msg_node_sig(hdr);
 	u32 dst = msg_dest_domain(hdr);
 	u32 net_id = msg_bc_netid(hdr);
@@ -165,13 +166,11 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 		disc_dupl_alert(b, self, &maddr);
 		return;
 	}
-	/* Domain filter only works if both peers use legacy address format */
-	if (b->domain) {
-		if (!tipc_in_scope(dst, self))
-			return;
-		if (!tipc_in_scope(b->domain, src))
-			return;
-	}
+	if (!tipc_in_scope(legacy, dst, self))
+		return;
+	if (!tipc_in_scope(legacy, b->domain, src))
+		return;
+
 	tipc_node_check_dest(net, src, b, caps, signature,
 			     &maddr, &respond, &dupl_addr);
 	if (dupl_addr)

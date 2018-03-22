@@ -240,7 +240,7 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 		addr = nla_get_u32(attrs[TIPC_NLA_NET_ADDR]);
 		if (!addr)
 			return -EINVAL;
-
+		tn->legacy_addr_format = true;
 		tipc_net_start(net, addr);
 	}
 

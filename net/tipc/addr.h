@@ -67,7 +67,7 @@ static inline int tipc_scope2node(struct net *net, int sc)
 
 u32 tipc_own_addr(struct net *net);
 int in_own_node(struct net *net, u32 addr);
-int tipc_in_scope(u32 domain, u32 addr);
+bool tipc_in_scope(bool legacy_format, u32 domain, u32 addr);
 char *tipc_addr_string_fill(char *string, u32 addr);
 
 #endif

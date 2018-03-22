@@ -499,7 +499,9 @@ struct publication *tipc_nametbl_remove_publ(struct net *net, u32 type,
 u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance,
 			   u32 *destnode)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
+	bool legacy = tn->legacy_addr_format;
+	u32 self = tipc_own_addr(net);
 	struct sub_seq *sseq;
 	struct name_info *info;
 	struct publication *publ;
@@ -507,7 +509,7 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance,
 	u32 port = 0;
 	u32 node = 0;
 
-	if (!tipc_in_scope(*destnode, tn->own_addr))
+	if (!tipc_in_scope(legacy, *destnode, self))
 		return 0;
 
 	rcu_read_lock();
@@ -521,7 +523,7 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance,
 	info = sseq->info;
 
 	/* Closest-First Algorithm */
-	if (likely(!*destnode)) {
+	if (legacy && !*destnode) {
 		if (!list_empty(&info->local_publ)) {
 			publ = list_first_entry(&info->local_publ,
 						struct publication,

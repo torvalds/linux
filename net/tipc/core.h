@@ -1,7 +1,7 @@
 /*
  * net/tipc/core.h: Include file for TIPC global declarations
  *
- * Copyright (c) 2005-2006, 2013 Ericsson AB
+ * Copyright (c) 2005-2006, 2013-2018 Ericsson AB
  * Copyright (c) 2005-2007, 2010-2013, Wind River Systems
  * All rights reserved.
  *
@@ -81,6 +81,7 @@ struct tipc_net {
 	u32 own_addr;
 	int net_id;
 	int random;
+	bool legacy_addr_format;
 
 	/* Node table and node list */
 	spinlock_t node_list_lock;

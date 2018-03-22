@@ -48,15 +48,17 @@ int in_own_node(struct net *net, u32 addr)
 	return (addr == tn->own_addr) || !addr;
 }
 
-int tipc_in_scope(u32 domain, u32 addr)
+bool tipc_in_scope(bool legacy_format, u32 domain, u32 addr)
 {
 	if (!domain || (domain == addr))
-		return 1;
+		return true;
+	if (!legacy_format)
+		return false;
 	if (domain == tipc_cluster_mask(addr)) /* domain <Z.C.0> */
-		return 1;
+		return true;
 	if (domain == (addr & TIPC_ZONE_MASK)) /* domain <Z.0.0> */
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 char *tipc_addr_string_fill(char *string, u32 addr)
