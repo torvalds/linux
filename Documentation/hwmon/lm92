@@ -11,7 +11,7 @@ Supported chips:
     Addresses scanned: none, force parameter needed
     Datasheet: http://www.national.com/pf/LM/LM76.html
   * Maxim MAX6633/MAX6634/MAX6635
-    Prefix: 'lm92'
+    Prefix: 'max6635'
     Addresses scanned: none, force parameter needed
     Datasheet: http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3074
 

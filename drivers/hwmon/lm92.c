@@ -52,6 +52,7 @@
  */
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
+enum chips { lm92, max6635 };
 
 /* The LM92 registers */
 #define LM92_REG_CONFIG			0x01 /* 8-bit, RW */
@@ -329,8 +330,8 @@ static int lm92_probe(struct i2c_client *new_client,
  */
 
 static const struct i2c_device_id lm92_id[] = {
-	{ "lm92", 0 },
-	/* max6635 could be added here */
+	{ "lm92", lm92 },
+	{ "max6635", max6635 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm92_id);
