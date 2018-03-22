@@ -913,11 +913,6 @@ static int afu_properties_look_ok(struct cxl_afu *afu)
 		return -EINVAL;
 	}
 
-	if (afu->crs_len < 0) {
-		dev_err(&afu->dev, "Unexpected configuration record size value\n");
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
