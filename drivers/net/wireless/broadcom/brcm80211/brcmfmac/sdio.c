@@ -4031,20 +4031,30 @@ static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
 	.get_fwname = brcmf_sdio_get_fwname,
 };
 
+#define BRCMF_SDIO_FW_CODE	0
+#define BRCMF_SDIO_FW_NVRAM	1
+
 static void brcmf_sdio_firmware_callback(struct device *dev, int err,
-					 const struct firmware *code,
-					 void *nvram, u32 nvram_len)
+					 struct brcmf_fw_request *fwreq)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiod = bus_if->bus_priv.sdio;
 	struct brcmf_sdio *bus = sdiod->bus;
 	struct brcmf_core *core = bus->sdio_core;
+	const struct firmware *code;
+	void *nvram;
+	u32 nvram_len;
 	u8 saveclk;
 
 	brcmf_dbg(TRACE, "Enter: dev=%s, err=%d\n", dev_name(dev), err);
 
 	if (err)
 		goto fail;
+
+	code = fwreq->items[BRCMF_SDIO_FW_CODE].binary;
+	nvram = fwreq->items[BRCMF_SDIO_FW_NVRAM].nv_data.data;
+	nvram_len = fwreq->items[BRCMF_SDIO_FW_NVRAM].nv_data.len;
+	kfree(fwreq);
 
 	/* try to download image and nvram to the dongle */
 	bus->alp_only = true;
@@ -4150,6 +4160,7 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	int ret;
 	struct brcmf_sdio *bus;
 	struct workqueue_struct *wq;
+	struct brcmf_fw_request *fwreq;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -4239,11 +4250,24 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	if (ret)
 		goto fail;
 
-	ret = brcmf_fw_get_firmwares(sdiodev->dev, BRCMF_FW_REQUEST_NVRAM,
-				     sdiodev->fw_name, sdiodev->nvram_name,
+	fwreq = kzalloc(sizeof(fwreq) + 2 * sizeof(struct brcmf_fw_item),
+			GFP_KERNEL);
+	if (!fwreq) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	fwreq->items[BRCMF_SDIO_FW_CODE].path = sdiodev->fw_name;
+	fwreq->items[BRCMF_SDIO_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->items[BRCMF_SDIO_FW_NVRAM].path = sdiodev->nvram_name;
+	fwreq->items[BRCMF_SDIO_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
+	fwreq->n_items = 2;
+
+	ret = brcmf_fw_get_firmwares(sdiodev->dev, fwreq,
 				     brcmf_sdio_firmware_callback);
 	if (ret != 0) {
 		brcmf_err("async firmware request failed: %d\n", ret);
+		kfree(fwreq);
 		goto fail;
 	}
 

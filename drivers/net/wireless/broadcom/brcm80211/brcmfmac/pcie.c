@@ -1651,15 +1651,19 @@ static const struct brcmf_buscore_ops brcmf_pcie_buscore_ops = {
 	.write32 = brcmf_pcie_buscore_write32,
 };
 
+#define BRCMF_PCIE_FW_CODE	0
+#define BRCMF_PCIE_FW_NVRAM	1
+
 static void brcmf_pcie_setup(struct device *dev, int ret,
-			     const struct firmware *fw,
-			     void *nvram, u32 nvram_len)
+			     struct brcmf_fw_request *fwreq)
 {
+	const struct firmware *fw;
+	void *nvram;
 	struct brcmf_bus *bus;
 	struct brcmf_pciedev *pcie_bus_dev;
 	struct brcmf_pciedev_info *devinfo;
 	struct brcmf_commonring **flowrings;
-	u32 i;
+	u32 i, nvram_len;
 
 	/* check firmware loading result */
 	if (ret)
@@ -1669,6 +1673,11 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	pcie_bus_dev = bus->bus_priv.pcie;
 	devinfo = pcie_bus_dev->devinfo;
 	brcmf_pcie_attach(devinfo);
+
+	fw = fwreq->items[BRCMF_PCIE_FW_CODE].binary;
+	nvram = fwreq->items[BRCMF_PCIE_FW_NVRAM].nv_data.data;
+	nvram_len = fwreq->items[BRCMF_PCIE_FW_NVRAM].nv_data.len;
+	kfree(fwreq);
 
 	/* Some of the firmwares have the size of the memory of the device
 	 * defined inside the firmware. This is because part of the memory in
@@ -1730,6 +1739,7 @@ static int
 brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int ret;
+	struct brcmf_fw_request *fwreq;
 	struct brcmf_pciedev_info *devinfo;
 	struct brcmf_pciedev *pcie_bus_dev;
 	struct brcmf_bus *bus;
@@ -1800,12 +1810,26 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		goto fail_bus;
 
-	ret = brcmf_fw_get_firmwares_pcie(bus->dev, BRCMF_FW_REQUEST_NVRAM |
-						    BRCMF_FW_REQ_NV_OPTIONAL,
-					  devinfo->fw_name, devinfo->nvram_name,
-					  brcmf_pcie_setup, domain_nr, bus_nr);
+	fwreq = kzalloc(sizeof(*fwreq) + 2 * sizeof(struct brcmf_fw_item),
+			GFP_KERNEL);
+	if (!fwreq) {
+		ret = -ENOMEM;
+		goto fail_bus;
+	}
+
+	fwreq->items[BRCMF_PCIE_FW_CODE].path = devinfo->fw_name;
+	fwreq->items[BRCMF_PCIE_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->items[BRCMF_PCIE_FW_NVRAM].path = devinfo->nvram_name;
+	fwreq->items[BRCMF_PCIE_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
+	fwreq->items[BRCMF_PCIE_FW_NVRAM].flags = BRCMF_FW_REQF_OPTIONAL;
+	fwreq->n_items = 2;
+	fwreq->domain_nr = domain_nr;
+	fwreq->bus_nr = bus_nr;
+	ret = brcmf_fw_get_firmwares(bus->dev, fwreq, brcmf_pcie_setup);
 	if (ret == 0)
 		return 0;
+
+	kfree(fwreq);
 fail_bus:
 	kfree(bus->msgbuf);
 	kfree(bus);

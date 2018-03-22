@@ -16,10 +16,7 @@
 #ifndef BRCMFMAC_FIRMWARE_H
 #define BRCMFMAC_FIRMWARE_H
 
-#define BRCMF_FW_REQUEST		0x000F
-#define  BRCMF_FW_REQUEST_NVRAM		0x0001
-#define BRCMF_FW_REQ_FLAGS		0x00F0
-#define  BRCMF_FW_REQ_NV_OPTIONAL	0x0010
+#define BRCMF_FW_REQF_OPTIONAL		0x0001
 
 #define	BRCMF_FW_NAME_LEN		320
 
@@ -54,21 +51,39 @@ int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
 			      u32 table_size, char fw_name[BRCMF_FW_NAME_LEN],
 			      char nvram_name[BRCMF_FW_NAME_LEN]);
 void brcmf_fw_nvram_free(void *nvram);
+
+enum brcmf_fw_type {
+	BRCMF_FW_TYPE_BINARY,
+	BRCMF_FW_TYPE_NVRAM
+};
+
+struct brcmf_fw_item {
+	const char *path;
+	enum brcmf_fw_type type;
+	u16 flags;
+	union {
+		const struct firmware *binary;
+		struct {
+			void *data;
+			u32 len;
+		} nv_data;
+	};
+};
+
+struct brcmf_fw_request {
+	u16 domain_nr;
+	u16 bus_nr;
+	u32 n_items;
+	struct brcmf_fw_item items[0];
+};
+
 /*
  * Request firmware(s) asynchronously. When the asynchronous request
  * fails it will not use the callback, but call device_release_driver()
  * instead which will call the driver .remove() callback.
  */
-int brcmf_fw_get_firmwares_pcie(struct device *dev, u16 flags,
-				const char *code, const char *nvram,
-				void (*fw_cb)(struct device *dev, int err,
-					      const struct firmware *fw,
-					      void *nvram_image, u32 nvram_len),
-				u16 domain_nr, u16 bus_nr);
-int brcmf_fw_get_firmwares(struct device *dev, u16 flags,
-			   const char *code, const char *nvram,
+int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 			   void (*fw_cb)(struct device *dev, int err,
-					 const struct firmware *fw,
-					 void *nvram_image, u32 nvram_len));
+					 struct brcmf_fw_request *req));
 
 #endif /* BRCMFMAC_FIRMWARE_H */

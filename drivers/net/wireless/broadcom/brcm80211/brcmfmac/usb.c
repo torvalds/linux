@@ -1155,17 +1155,22 @@ static const struct brcmf_bus_ops brcmf_usb_bus_ops = {
 	.get_fwname = brcmf_usb_get_fwname,
 };
 
+#define BRCMF_USB_FW_CODE	0
+
 static void brcmf_usb_probe_phase2(struct device *dev, int ret,
-				   const struct firmware *fw,
-				   void *nvram, u32 nvlen)
+				   struct brcmf_fw_request *fwreq)
 {
 	struct brcmf_bus *bus = dev_get_drvdata(dev);
 	struct brcmf_usbdev_info *devinfo = bus->bus_priv.usb->devinfo;
+	const struct firmware *fw;
 
 	if (ret)
 		goto error;
 
 	brcmf_dbg(USB, "Start fw downloading\n");
+
+	fw = fwreq->items[BRCMF_USB_FW_CODE].binary;
+	kfree(fwreq);
 
 	ret = check_file(fw->data);
 	if (ret < 0) {
@@ -1200,6 +1205,7 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	struct brcmf_bus *bus = NULL;
 	struct brcmf_usbdev *bus_pub = NULL;
 	struct device *dev = devinfo->dev;
+	struct brcmf_fw_request *fwreq;
 	int ret;
 
 	brcmf_dbg(USB, "Enter\n");
@@ -1250,11 +1256,22 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 	if (ret)
 		goto fail;
 
+	fwreq = kzalloc(sizeof(*fwreq) + sizeof(struct brcmf_fw_item),
+			GFP_KERNEL);
+	if (!fwreq) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	fwreq->items[BRCMF_USB_FW_CODE].path = devinfo->fw_name;
+	fwreq->items[BRCMF_USB_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->n_items = 1;
+
 	/* request firmware here */
-	ret = brcmf_fw_get_firmwares(dev, 0, devinfo->fw_name, NULL,
-				     brcmf_usb_probe_phase2);
+	ret = brcmf_fw_get_firmwares(dev, fwreq, brcmf_usb_probe_phase2);
 	if (ret) {
 		brcmf_err("firmware request failed: %d\n", ret);
+		kfree(fwreq);
 		goto fail;
 	}
 
@@ -1447,11 +1464,25 @@ static int brcmf_usb_reset_resume(struct usb_interface *intf)
 {
 	struct usb_device *usb = interface_to_usbdev(intf);
 	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(&usb->dev);
+	struct brcmf_fw_request *fwreq;
+	int ret;
 
 	brcmf_dbg(USB, "Enter\n");
 
-	return brcmf_fw_get_firmwares(&usb->dev, 0, devinfo->fw_name, NULL,
-				      brcmf_usb_probe_phase2);
+	fwreq = kzalloc(sizeof(*fwreq) + sizeof(struct brcmf_fw_item),
+			GFP_KERNEL);
+	if (!fwreq)
+		return -ENOMEM;
+
+	fwreq->items[BRCMF_USB_FW_CODE].path = devinfo->fw_name;
+	fwreq->items[BRCMF_USB_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->n_items = 1;
+
+	ret = brcmf_fw_get_firmwares(&usb->dev, fwreq, brcmf_usb_probe_phase2);
+	if (ret < 0)
+		kfree(fwreq);
+
+	return ret;
 }
 
 #define BRCMF_USB_DEVICE(dev_id)	\
