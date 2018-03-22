@@ -372,6 +372,9 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 			if (dst->dest_attr.type ==
 			    MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE) {
 				id = dst->dest_attr.ft->id;
+			} else if (dst->dest_attr.type ==
+				   MLX5_FLOW_DESTINATION_TYPE_VPORT) {
+				id = dst->dest_attr.vport_num;
 			} else {
 				id = dst->dest_attr.tir_num;
 			}
