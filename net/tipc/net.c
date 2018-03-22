@@ -112,10 +112,8 @@ int tipc_net_init(struct net *net, u8 *node_id, u32 addr)
 	}
 	pr_info("Started in network mode\n");
 
-	if (node_id) {
+	if (node_id)
 		tipc_set_node_id(net, node_id);
-		tipc_net_finalize(net, tipc_own_addr(net));
-	}
 	if (addr)
 		tipc_net_finalize(net, addr);
 	return 0;

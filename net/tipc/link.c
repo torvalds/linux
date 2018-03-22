@@ -434,15 +434,16 @@ char *tipc_link_name(struct tipc_link *l)
  */
 bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 		      int tolerance, char net_plane, u32 mtu, int priority,
-		      int window, u32 session, u32 self, u32 peer,
-		      u16 peer_caps,
+		      int window, u32 session, u32 self,
+		      u32 peer, u8 *peer_id, u16 peer_caps,
 		      struct tipc_link *bc_sndlink,
 		      struct tipc_link *bc_rcvlink,
 		      struct sk_buff_head *inputq,
 		      struct sk_buff_head *namedq,
 		      struct tipc_link **link)
 {
-	char *self_str = tipc_own_id_string(net);
+	char peer_str[NODE_ID_STR_LEN] = {0,};
+	char self_str[NODE_ID_STR_LEN] = {0,};
 	struct tipc_link *l;
 
 	l = kzalloc(sizeof(*l), GFP_ATOMIC);
@@ -451,11 +452,18 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 	*link = l;
 	l->session = session;
 
-	/* Note: peer i/f name is completed by reset/activate message */
-	if (strlen(self_str) > 16)
-		sprintf(l->name, "%x:%s-%x:unknown", self, if_name, peer);
-	else
-		sprintf(l->name, "%s:%s-%x:unknown", self_str, if_name, peer);
+	/* Set link name for unicast links only */
+	if (peer_id) {
+		tipc_nodeid2string(self_str, tipc_own_id(net));
+		if (strlen(self_str) > 16)
+			sprintf(self_str, "%x", self);
+		tipc_nodeid2string(peer_str, peer_id);
+		if (strlen(peer_str) > 16)
+			sprintf(peer_str, "%x", peer);
+	}
+	/* Peer i/f name will be completed by reset/activate message */
+	sprintf(l->name, "%s:%s-%s:unknown", self_str, if_name, peer_str);
+
 	strcpy(l->if_name, if_name);
 	l->addr = peer;
 	l->peer_caps = peer_caps;
@@ -503,7 +511,7 @@ bool tipc_link_bc_create(struct net *net, u32 ownnode, u32 peer,
 	struct tipc_link *l;
 
 	if (!tipc_link_create(net, "", MAX_BEARERS, 0, 'Z', mtu, 0, window,
-			      0, ownnode, peer, peer_caps, bc_sndlink,
+			      0, ownnode, peer, NULL, peer_caps, bc_sndlink,
 			      NULL, inputq, namedq, link))
 		return false;
 

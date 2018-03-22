@@ -82,6 +82,8 @@ extern int sysctl_tipc_named_timeout __read_mostly;
 struct tipc_net {
 	u8  node_id[NODE_ID_LEN];
 	u32 node_addr;
+	u32 trial_addr;
+	unsigned long addr_trial_end;
 	char node_id_string[NODE_ID_STR_LEN];
 	int net_id;
 	int random;

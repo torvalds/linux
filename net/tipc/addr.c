@@ -59,7 +59,7 @@ void tipc_set_node_id(struct net *net, u8 *id)
 
 	memcpy(tn->node_id, id, NODE_ID_LEN);
 	tipc_nodeid2string(tn->node_id_string, id);
-	tn->node_addr = tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3];
+	tn->trial_addr = tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3];
 	pr_info("Own node identity %s, cluster identity %u\n",
 		tipc_own_id_string(net), tn->net_id);
 }
@@ -74,6 +74,7 @@ void tipc_set_node_addr(struct net *net, u32 addr)
 		sprintf(node_id, "%x", addr);
 		tipc_set_node_id(net, node_id);
 	}
+	tn->trial_addr = addr;
 	pr_info("32-bit node address hash set to %x\n", addr);
 }
 

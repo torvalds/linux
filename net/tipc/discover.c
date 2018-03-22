@@ -1,7 +1,7 @@
 /*
  * net/tipc/discover.c
  *
- * Copyright (c) 2003-2006, 2014-2015, Ericsson AB
+ * Copyright (c) 2003-2006, 2014-2018, Ericsson AB
  * Copyright (c) 2005-2006, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -78,34 +78,40 @@ struct tipc_discoverer {
  * @b: ptr to bearer issuing message
  */
 static void tipc_disc_init_msg(struct net *net, struct sk_buff *skb,
-			       u32 mtyp, struct tipc_bearer *b)
+			       u32 mtyp,  struct tipc_bearer *b)
 {
 	struct tipc_net *tn = tipc_net(net);
-	u32 self = tipc_own_addr(net);
 	u32 dest_domain = b->domain;
 	struct tipc_msg *hdr;
 
 	hdr = buf_msg(skb);
-	tipc_msg_init(self, hdr, LINK_CONFIG, mtyp,
+	tipc_msg_init(tn->trial_addr, hdr, LINK_CONFIG, mtyp,
 		      MAX_H_SIZE, dest_domain);
+	msg_set_size(hdr, MAX_H_SIZE + NODE_ID_LEN);
 	msg_set_non_seq(hdr, 1);
 	msg_set_node_sig(hdr, tn->random);
 	msg_set_node_capabilities(hdr, TIPC_NODE_CAPABILITIES);
 	msg_set_dest_domain(hdr, dest_domain);
 	msg_set_bc_netid(hdr, tn->net_id);
 	b->media->addr2msg(msg_media_addr(hdr), &b->addr);
+	msg_set_node_id(hdr, tipc_own_id(net));
 }
 
-static void tipc_disc_msg_xmit(struct net *net, u32 mtyp, u32 dst, u32 src,
+static void tipc_disc_msg_xmit(struct net *net, u32 mtyp, u32 dst,
+			       u32 src, u32 sugg_addr,
 			       struct tipc_media_addr *maddr,
 			       struct tipc_bearer *b)
 {
+	struct tipc_msg *hdr;
 	struct sk_buff *skb;
 
-	skb = tipc_buf_acquire(MAX_H_SIZE, GFP_ATOMIC);
+	skb = tipc_buf_acquire(MAX_H_SIZE + NODE_ID_LEN, GFP_ATOMIC);
 	if (!skb)
 		return;
+	hdr = buf_msg(skb);
 	tipc_disc_init_msg(net, skb, mtyp, b);
+	msg_set_sugg_node_addr(hdr, sugg_addr);
+	msg_set_dest_domain(hdr, dst);
 	tipc_bearer_xmit_skb(net, b->identity, skb, maddr);
 }
 
@@ -126,6 +132,52 @@ static void disc_dupl_alert(struct tipc_bearer *b, u32 node_addr,
 		media_addr_str, b->name);
 }
 
+/* tipc_disc_addr_trial(): - handle an address uniqueness trial from peer
+ */
+bool tipc_disc_addr_trial_msg(struct tipc_discoverer *d,
+			      struct tipc_media_addr *maddr,
+			      struct tipc_bearer *b,
+			      u32 dst, u32 src,
+			      u32 sugg_addr,
+			      u8 *peer_id,
+			      int mtyp)
+{
+	struct net *net = d->net;
+	struct tipc_net *tn = tipc_net(net);
+	bool trial = time_before(jiffies, tn->addr_trial_end);
+	u32 self = tipc_own_addr(net);
+
+	if (mtyp == DSC_TRIAL_FAIL_MSG) {
+		if (!trial)
+			return true;
+
+		/* Ignore if somebody else already gave new suggestion */
+		if (dst != tn->trial_addr)
+			return true;
+
+		/* Otherwise update trial address and restart trial period */
+		tn->trial_addr = sugg_addr;
+		msg_set_prevnode(buf_msg(d->skb), sugg_addr);
+		tn->addr_trial_end = jiffies + msecs_to_jiffies(1000);
+		return true;
+	}
+
+	/* Apply trial address if we just left trial period */
+	if (!trial && !self) {
+		tipc_net_finalize(net, tn->trial_addr);
+		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
+	}
+
+	if (mtyp != DSC_TRIAL_MSG)
+		return false;
+
+	sugg_addr = tipc_node_try_addr(net, peer_id, src);
+	if (sugg_addr)
+		tipc_disc_msg_xmit(net, DSC_TRIAL_FAIL_MSG, src,
+				   self, sugg_addr, maddr, b);
+	return true;
+}
+
 /**
  * tipc_disc_rcv - handle incoming discovery message (request or response)
  * @net: applicable net namespace
@@ -139,16 +191,26 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 	struct tipc_msg *hdr = buf_msg(skb);
 	u16 caps = msg_node_capabilities(hdr);
 	bool legacy = tn->legacy_addr_format;
+	u32 sugg = msg_sugg_node_addr(hdr);
 	u32 signature = msg_node_sig(hdr);
+	u8 peer_id[NODE_ID_LEN] = {0,};
 	u32 dst = msg_dest_domain(hdr);
 	u32 net_id = msg_bc_netid(hdr);
-	u32 self = tipc_own_addr(net);
 	struct tipc_media_addr maddr;
 	u32 src = msg_prevnode(hdr);
 	u32 mtyp = msg_type(hdr);
 	bool dupl_addr = false;
 	bool respond = false;
+	u32 self;
 	int err;
+
+	skb_linearize(skb);
+	hdr = buf_msg(skb);
+
+	if (caps & TIPC_NODE_ID128)
+		memcpy(peer_id, msg_node_id(hdr), NODE_ID_LEN);
+	else
+		sprintf(peer_id, "%x", src);
 
 	err = b->media->msg2addr(b, &maddr, msg_media_addr(hdr));
 	kfree_skb(skb);
@@ -161,6 +223,12 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 		return;
 	if (net_id != tn->net_id)
 		return;
+	if (tipc_disc_addr_trial_msg(b->disc, &maddr, b, dst,
+				     src, sugg, peer_id, mtyp))
+		return;
+	self = tipc_own_addr(net);
+
+	/* Message from somebody using this node's address */
 	if (in_own_node(net, src)) {
 		disc_dupl_alert(b, self, &maddr);
 		return;
@@ -169,8 +237,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 		return;
 	if (!tipc_in_scope(legacy, b->domain, src))
 		return;
-
-	tipc_node_check_dest(net, src, b, caps, signature,
+	tipc_node_check_dest(net, src, peer_id, b, caps, signature,
 			     &maddr, &respond, &dupl_addr);
 	if (dupl_addr)
 		disc_dupl_alert(b, src, &maddr);
@@ -178,7 +245,7 @@ void tipc_disc_rcv(struct net *net, struct sk_buff *skb,
 		return;
 	if (mtyp != DSC_REQ_MSG)
 		return;
-	tipc_disc_msg_xmit(net, DSC_RESP_MSG, src, self, &maddr, b);
+	tipc_disc_msg_xmit(net, DSC_RESP_MSG, src, self, 0, &maddr, b);
 }
 
 /* tipc_disc_add_dest - increment set of discovered nodes
@@ -216,9 +283,11 @@ void tipc_disc_remove_dest(struct tipc_discoverer *d)
 static void tipc_disc_timeout(struct timer_list *t)
 {
 	struct tipc_discoverer *d = from_timer(d, t, timer);
+	struct tipc_net *tn = tipc_net(d->net);
+	u32 self = tipc_own_addr(d->net);
 	struct tipc_media_addr maddr;
 	struct sk_buff *skb = NULL;
-	struct net *net;
+	struct net *net = d->net;
 	u32 bearer_id;
 
 	spin_lock_bh(&d->lock);
@@ -228,16 +297,29 @@ static void tipc_disc_timeout(struct timer_list *t)
 		d->timer_intv = TIPC_DISC_INACTIVE;
 		goto exit;
 	}
+
+	/* Did we just leave the address trial period ? */
+	if (!self && !time_before(jiffies, tn->addr_trial_end)) {
+		self = tn->trial_addr;
+		tipc_net_finalize(net, self);
+		msg_set_prevnode(buf_msg(d->skb), self);
+		msg_set_type(buf_msg(d->skb), DSC_REQ_MSG);
+	}
+
 	/* Adjust timeout interval according to discovery phase */
-	d->timer_intv *= 2;
-	if (d->num_nodes && d->timer_intv > TIPC_DISC_SLOW)
-		d->timer_intv = TIPC_DISC_SLOW;
-	else if (!d->num_nodes && d->timer_intv > TIPC_DISC_FAST)
-		d->timer_intv = TIPC_DISC_FAST;
+	if (time_before(jiffies, tn->addr_trial_end)) {
+		d->timer_intv = TIPC_DISC_INIT;
+	} else {
+		d->timer_intv *= 2;
+		if (d->num_nodes && d->timer_intv > TIPC_DISC_SLOW)
+			d->timer_intv = TIPC_DISC_SLOW;
+		else if (!d->num_nodes && d->timer_intv > TIPC_DISC_FAST)
+			d->timer_intv = TIPC_DISC_FAST;
+	}
+
 	mod_timer(&d->timer, jiffies + d->timer_intv);
 	memcpy(&maddr, &d->dest, sizeof(maddr));
 	skb = skb_clone(d->skb, GFP_ATOMIC);
-	net = d->net;
 	bearer_id = d->bearer_id;
 exit:
 	spin_unlock_bh(&d->lock);
@@ -257,18 +339,24 @@ exit:
 int tipc_disc_create(struct net *net, struct tipc_bearer *b,
 		     struct tipc_media_addr *dest, struct sk_buff **skb)
 {
+	struct tipc_net *tn = tipc_net(net);
 	struct tipc_discoverer *d;
 
 	d = kmalloc(sizeof(*d), GFP_ATOMIC);
 	if (!d)
 		return -ENOMEM;
-	d->skb = tipc_buf_acquire(MAX_H_SIZE, GFP_ATOMIC);
+	d->skb = tipc_buf_acquire(MAX_H_SIZE + NODE_ID_LEN, GFP_ATOMIC);
 	if (!d->skb) {
 		kfree(d);
 		return -ENOMEM;
 	}
-
 	tipc_disc_init_msg(net, d->skb, DSC_REQ_MSG, b);
+
+	/* Do we need an address trial period first ? */
+	if (!tipc_own_addr(net)) {
+		tn->addr_trial_end = jiffies + msecs_to_jiffies(1000);
+		msg_set_type(buf_msg(d->skb), DSC_TRIAL_MSG);
+	}
 	memcpy(&d->dest, dest, sizeof(*dest));
 	d->net = net;
 	d->bearer_id = b->identity;

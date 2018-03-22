@@ -235,7 +235,6 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 {
 	struct tipc_net *tn = tipc_net(net);
 	struct tipc_bearer_names b_names;
-	u32 self = tipc_own_addr(net);
 	int with_this_prio = 1;
 	struct tipc_bearer *b;
 	struct tipc_media *m;
@@ -244,7 +243,7 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 	int res = -EINVAL;
 	char *errstr = "";
 
-	if (!self) {
+	if (!tipc_own_id(net)) {
 		errstr = "not supported in standalone mode";
 		res = -ENOPROTOOPT;
 		goto rejected;
