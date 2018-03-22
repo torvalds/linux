@@ -46,10 +46,6 @@ MODULE_FIRMWARE(BRCMF_FW_DEFAULT_PATH fw_base ".bin")
 #define BRCMF_FW_ENTRY(chipid, mask, name) \
 	{ chipid, mask, BRCM_ ## name ## _FIRMWARE_BASENAME }
 
-int brcmf_fw_map_chip_to_name(u32 chip, u32 chiprev,
-			      struct brcmf_firmware_mapping mapping_table[],
-			      u32 table_size, char fw_name[BRCMF_FW_NAME_LEN],
-			      char nvram_name[BRCMF_FW_NAME_LEN]);
 void brcmf_fw_nvram_free(void *nvram);
 
 enum brcmf_fw_type {
