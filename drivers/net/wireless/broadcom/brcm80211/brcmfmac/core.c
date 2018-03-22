@@ -943,7 +943,7 @@ static int brcmf_revinfo_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int brcmf_bus_started(struct brcmf_pub *drvr)
+static int brcmf_bus_started(struct brcmf_pub *drvr, struct cfg80211_ops *ops)
 {
 	int ret = -1;
 	struct brcmf_bus *bus_if = drvr->bus_if;
@@ -982,7 +982,7 @@ static int brcmf_bus_started(struct brcmf_pub *drvr)
 
 	brcmf_proto_add_if(drvr, ifp);
 
-	drvr->config = brcmf_cfg80211_attach(drvr, bus_if->dev,
+	drvr->config = brcmf_cfg80211_attach(drvr, ops,
 					     drvr->settings->p2p_enable);
 	if (drvr->config == NULL) {
 		ret = -ENOMEM;
@@ -1037,16 +1037,25 @@ fail:
 
 int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 {
+	struct wiphy *wiphy;
+	struct cfg80211_ops *ops;
 	struct brcmf_pub *drvr = NULL;
 	int ret = 0;
 	int i;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	/* Allocate primary brcmf_info */
-	drvr = kzalloc(sizeof(*drvr), GFP_ATOMIC);
-	if (!drvr)
+	ops = brcmf_cfg80211_get_ops();
+	if (!ops)
 		return -ENOMEM;
+
+	wiphy = wiphy_new(ops, sizeof(*drvr));
+	if (!wiphy)
+		return -ENOMEM;
+
+	set_wiphy_dev(wiphy, dev);
+	drvr = wiphy_priv(wiphy);
+	drvr->wiphy = wiphy;
 
 	for (i = 0; i < ARRAY_SIZE(drvr->if2bss); i++)
 		drvr->if2bss[i] = BRCMF_BSSIDX_INVALID;
@@ -1076,15 +1085,18 @@ int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 	/* attach firmware event handler */
 	brcmf_fweh_attach(drvr);
 
-	ret = brcmf_bus_started(drvr);
+	ret = brcmf_bus_started(drvr, ops);
 	if (ret != 0) {
 		brcmf_err("dongle is not responding: err=%d\n", ret);
 		goto fail;
 	}
+
+	drvr->config->ops = ops;
 	return 0;
 
 fail:
 	brcmf_detach(dev);
+	kfree(ops);
 
 	return ret;
 }
@@ -1142,6 +1154,7 @@ void brcmf_detach(struct device *dev)
 		brcmf_remove_interface(drvr->iflist[i], false);
 
 	brcmf_cfg80211_detach(drvr->config);
+	drvr->config = NULL;
 
 	brcmf_bus_stop(drvr->bus_if);
 
@@ -1149,7 +1162,7 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_debug_detach(drvr);
 	bus_if->drvr = NULL;
-	kfree(drvr);
+	wiphy_free(drvr->wiphy);
 }
 
 s32 brcmf_iovar_data_set(struct device *dev, char *name, void *data, u32 len)

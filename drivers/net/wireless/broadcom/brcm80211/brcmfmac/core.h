@@ -107,6 +107,7 @@ struct brcmf_pub {
 	/* Linkage ponters */
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *proto;
+	struct wiphy *wiphy;
 	struct brcmf_cfg80211_info *config;
 
 	/* Internal brcmf items */

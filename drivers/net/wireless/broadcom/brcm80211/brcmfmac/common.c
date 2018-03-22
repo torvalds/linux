@@ -248,6 +248,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		brcmf_err("Retreiving cur_etheraddr failed, %d\n", err);
 		goto done;
 	}
+	memcpy(ifp->drvr->wiphy->perm_addr, ifp->drvr->mac, ETH_ALEN);
 	memcpy(ifp->drvr->mac, ifp->mac_addr, sizeof(ifp->drvr->mac));
 
 	bus = ifp->drvr->bus_if;
@@ -275,6 +276,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		ri->chippkg = le32_to_cpu(revinfo.chippkg);
 		ri->nvramrev = le32_to_cpu(revinfo.nvramrev);
 
+		/* use revinfo if not known yet */
 		if (!bus->chip) {
 			bus->chip = le32_to_cpu(revinfo.chipnum);
 			bus->chiprev = le32_to_cpu(revinfo.chiprev);
