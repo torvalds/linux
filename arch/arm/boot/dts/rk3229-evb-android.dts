@@ -547,6 +547,7 @@
 };
 
 &rkvdec {
+	vcodec-supply = <&vdd_log>;
 	status = "okay";
 };
 

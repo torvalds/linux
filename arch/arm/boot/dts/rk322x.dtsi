@@ -465,6 +465,9 @@
 		cpu_leakage: cpu_leakage@17 {
 			reg = <0x17 0x1>;
 		};
+		logic_leakage: logic-leakage@19 {
+			reg = <0x19 0x1>;
+		};
 		hdmi_phy_flag: hdmi_phy_flag@1d {
 			reg = <0x1d 0x1>;
 			bits = <1 1>;
@@ -666,6 +669,12 @@
 					<&dmc THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 					contribution = <1024>;
 				};
+				map3 {
+					trip = <&target>;
+					cooling-device =
+					<&rkvdec THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+					contribution = <1024>;
+				};
 			};
 		};
 	};
@@ -819,10 +828,50 @@
 		reset-names = "video_a", "video_h", "niu_a", "niu_h",
 			"video_cabac", "video_core";
 		power-domains = <&power RK3228_PD_RKVDEC>;
+		operating-points-v2 = <&rkvdec_opp_table>;
+		#cooling-cells = <2>;
 		rockchip,grf = <&grf>;
 		iommus = <&rkvdec_mmu>;
 		allocator = <1>;
 		status = "disabled";
+
+		vcodec_power_model: vcodec_power_model {
+			compatible = "vcodec_power_model";
+			dynamic-power-coefficient = <120>;
+			static-power-coefficient = <200>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "soc-thermal";
+		};
+	};
+
+	rkvdec_opp_table: rkvdec-opp-table {
+		compatible = "operating-points-v2";
+
+		rockchip,leakage-voltage-sel = <
+			1   5    0
+			6   254  1
+		>;
+		nvmem-cells = <&logic_leakage>;
+		nvmem-cell-names = "rkvdec_leakage";
+
+		opp-100000000 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <1050000>;
+			opp-microvolt-L0 = <1050000>;
+			opp-microvolt-L1 = <1000000>;
+		};
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <1050000>;
+			opp-microvolt-L0 = <1050000>;
+			opp-microvolt-L1 = <1000000>;
+		};
+		opp-500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1050000>;
+			opp-microvolt-L0 = <1050000>;
+			opp-microvolt-L1 = <1000000>;
+		};
 	};
 
 	rkvdec_mmu: iommu@20030480 {
