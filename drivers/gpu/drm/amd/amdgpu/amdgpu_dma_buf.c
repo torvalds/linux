@@ -514,6 +514,7 @@ amdgpu_dma_buf_move_notify(struct dma_buf_attachment *attach)
 }
 
 static const struct dma_buf_attach_ops amdgpu_dma_buf_attach_ops = {
+	.allow_peer2peer = true,
 	.move_notify = amdgpu_dma_buf_move_notify
 };
 
