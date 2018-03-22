@@ -165,9 +165,15 @@ static void dw_mci_exynos_set_clksel_timing(struct dw_mci *host, u32 timing)
 static int dw_mci_exynos_runtime_resume(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
+	int ret;
+
+	ret = dw_mci_runtime_resume(dev);
+	if (ret)
+		return ret;
 
 	dw_mci_exynos_config_smu(host);
-	return dw_mci_runtime_resume(dev);
+
+	return ret;
 }
 
 /**
