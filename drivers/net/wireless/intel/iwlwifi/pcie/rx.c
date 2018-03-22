@@ -901,6 +901,8 @@ static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 	}
 	def_rxq = trans_pcie->rxq;
 
+	cancel_work_sync(&rba->rx_alloc);
+
 	spin_lock(&rba->lock);
 	atomic_set(&rba->req_pending, 0);
 	atomic_set(&rba->req_ready, 0);
