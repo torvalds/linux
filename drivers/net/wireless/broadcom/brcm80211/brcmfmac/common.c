@@ -30,6 +30,7 @@
 #include "common.h"
 #include "of.h"
 #include "firmware.h"
+#include "chip.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
@@ -127,14 +128,13 @@ static int brcmf_c_download(struct brcmf_if *ifp, u16 flag,
 static int brcmf_c_get_clm_name(struct brcmf_if *ifp, u8 *clm_name)
 {
 	struct brcmf_bus *bus = ifp->drvr->bus_if;
-	struct brcmf_rev_info *ri = &ifp->drvr->revinfo;
 	u8 fw_name[BRCMF_FW_NAME_LEN];
 	u8 *ptr;
 	size_t len;
 	s32 err;
 
 	memset(fw_name, 0, BRCMF_FW_NAME_LEN);
-	err = brcmf_bus_get_fwname(bus, ri->chipnum, ri->chiprev, fw_name);
+	err = brcmf_bus_get_fwname(bus, bus->chip, bus->chiprev, fw_name);
 	if (err) {
 		brcmf_err("get firmware name failed (%d)\n", err);
 		goto done;
@@ -234,6 +234,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 {
 	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
 	u8 buf[BRCMF_DCMD_SMLEN];
+	struct brcmf_bus *bus;
 	struct brcmf_rev_info_le revinfo;
 	struct brcmf_rev_info *ri;
 	char *clmver;
@@ -249,16 +250,18 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	}
 	memcpy(ifp->drvr->mac, ifp->mac_addr, sizeof(ifp->drvr->mac));
 
+	bus = ifp->drvr->bus_if;
+	ri = &ifp->drvr->revinfo;
+
 	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_REVINFO,
 				     &revinfo, sizeof(revinfo));
-	ri = &ifp->drvr->revinfo;
 	if (err < 0) {
 		brcmf_err("retrieving revision info failed, %d\n", err);
+		strlcpy(ri->chipname, "UNKNOWN", sizeof(ri->chipname));
 	} else {
 		ri->vendorid = le32_to_cpu(revinfo.vendorid);
 		ri->deviceid = le32_to_cpu(revinfo.deviceid);
 		ri->radiorev = le32_to_cpu(revinfo.radiorev);
-		ri->chiprev = le32_to_cpu(revinfo.chiprev);
 		ri->corerev = le32_to_cpu(revinfo.corerev);
 		ri->boardid = le32_to_cpu(revinfo.boardid);
 		ri->boardvendor = le32_to_cpu(revinfo.boardvendor);
@@ -266,14 +269,22 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 		ri->driverrev = le32_to_cpu(revinfo.driverrev);
 		ri->ucoderev = le32_to_cpu(revinfo.ucoderev);
 		ri->bus = le32_to_cpu(revinfo.bus);
-		ri->chipnum = le32_to_cpu(revinfo.chipnum);
 		ri->phytype = le32_to_cpu(revinfo.phytype);
 		ri->phyrev = le32_to_cpu(revinfo.phyrev);
 		ri->anarev = le32_to_cpu(revinfo.anarev);
 		ri->chippkg = le32_to_cpu(revinfo.chippkg);
 		ri->nvramrev = le32_to_cpu(revinfo.nvramrev);
+
+		if (!bus->chip) {
+			bus->chip = le32_to_cpu(revinfo.chipnum);
+			bus->chiprev = le32_to_cpu(revinfo.chiprev);
+		}
 	}
 	ri->result = err;
+
+	if (bus->chip)
+		brcmf_chip_name(bus->chip, bus->chiprev,
+				ri->chipname, sizeof(ri->chipname));
 
 	/* Do any CLM downloading */
 	err = brcmf_c_process_clm_blob(ifp);
@@ -295,7 +306,7 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	strsep(&ptr, "\n");
 
 	/* Print fw version info */
-	brcmf_info("Firmware version = %s\n", buf);
+	brcmf_info("Firmware: %s %s\n", ri->chipname, buf);
 
 	/* locate firmware version number for ethtool */
 	ptr = strrchr(buf, ' ') + 1;

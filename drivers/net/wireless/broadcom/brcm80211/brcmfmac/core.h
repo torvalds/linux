@@ -87,7 +87,6 @@ struct brcmf_rev_info {
 	u32 vendorid;
 	u32 deviceid;
 	u32 radiorev;
-	u32 chiprev;
 	u32 corerev;
 	u32 boardid;
 	u32 boardvendor;
@@ -95,7 +94,7 @@ struct brcmf_rev_info {
 	u32 driverrev;
 	u32 ucoderev;
 	u32 bus;
-	u32 chipnum;
+	char chipname[12];
 	u32 phytype;
 	u32 phyrev;
 	u32 anarev;
