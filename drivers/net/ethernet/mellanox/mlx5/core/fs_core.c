@@ -1404,7 +1404,7 @@ static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 {
 	if (d1->type == d2->type) {
 		if ((d1->type == MLX5_FLOW_DESTINATION_TYPE_VPORT &&
-		     d1->vport_num == d2->vport_num) ||
+		     d1->vport.num == d2->vport.num) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
 		     d1->ft == d2->ft) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_TIR &&

@@ -1148,8 +1148,9 @@ enum mlx5_flow_destination_type {
 struct mlx5_ifc_dest_format_struct_bits {
 	u8         destination_type[0x8];
 	u8         destination_id[0x18];
-
-	u8         reserved_at_20[0x20];
+	u8         destination_eswitch_owner_vhca_id_valid[0x1];
+	u8         reserved_at_21[0xf];
+	u8         destination_eswitch_owner_vhca_id[0x10];
 };
 
 struct mlx5_ifc_flow_counter_list_bits {
