@@ -106,6 +106,7 @@ int sysfs_create_link_nowarn(struct kobject *kobj, struct kobject *target,
 {
 	return sysfs_do_create_link(kobj, target, name, 0);
 }
+EXPORT_SYMBOL_GPL(sysfs_create_link_nowarn);
 
 /**
  *	sysfs_delete_link - remove symlink in object's directory.

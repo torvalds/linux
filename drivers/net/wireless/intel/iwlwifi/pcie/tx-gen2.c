@@ -147,7 +147,7 @@ static void iwl_pcie_gen2_tfd_unmap(struct iwl_trans *trans,
 	/* Sanity check on number of chunks */
 	num_tbs = iwl_pcie_gen2_get_num_tbs(trans, tfd);
 
-	if (num_tbs >= trans_pcie->max_tbs) {
+	if (num_tbs > trans_pcie->max_tbs) {
 		IWL_ERR(trans, "Too many chunks: %i\n", num_tbs);
 		return;
 	}

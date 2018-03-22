@@ -194,7 +194,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		ds->ports[i].dn = cd->port_dn[i];
 		ds->ports[i].cpu_dp = dst->cpu_dp;
 
-		if (dsa_is_user_port(ds, i))
+		if (!dsa_is_user_port(ds, i))
 			continue;
 
 		ret = dsa_slave_create(&ds->ports[i]);
