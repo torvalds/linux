@@ -260,8 +260,11 @@ static void wedge_me(struct work_struct *work)
 {
 	struct wedge_me *w = container_of(work, typeof(*w), work.work);
 
-	pr_err("%pS timed out, cancelling all further testing.\n",
-	       w->symbol);
+	pr_err("%pS timed out, cancelling all further testing.\n", w->symbol);
+
+	GEM_TRACE("%pS timed out.\n", w->symbol);
+	GEM_TRACE_DUMP();
+
 	i915_gem_set_wedged(w->i915);
 }
 
@@ -621,9 +624,19 @@ static int active_engine(void *data)
 		mutex_unlock(&engine->i915->drm.struct_mutex);
 
 		if (old) {
-			i915_request_wait(old, 0, MAX_SCHEDULE_TIMEOUT);
+			if (i915_request_wait(old, 0, HZ) < 0) {
+				GEM_TRACE("%s timed out.\n", engine->name);
+				GEM_TRACE_DUMP();
+
+				i915_gem_set_wedged(engine->i915);
+				i915_request_put(old);
+				err = -EIO;
+				break;
+			}
 			i915_request_put(old);
 		}
+
+		cond_resched();
 	}
 
 	for (count = 0; count < ARRAY_SIZE(rq); count++)
@@ -1125,6 +1138,10 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 	saved_hangcheck = fetch_and_zero(&i915_modparams.enable_hangcheck);
 
 	err = i915_subtests(tests, i915);
+
+	mutex_lock(&i915->drm.struct_mutex);
+	flush_test(i915, I915_WAIT_LOCKED);
+	mutex_unlock(&i915->drm.struct_mutex);
 
 	i915_modparams.enable_hangcheck = saved_hangcheck;
 	intel_runtime_pm_put(i915);
