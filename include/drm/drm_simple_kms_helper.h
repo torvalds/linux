@@ -64,7 +64,8 @@ struct drm_simple_display_pipe_funcs {
 	 * This hook is optional.
 	 */
 	void (*enable)(struct drm_simple_display_pipe *pipe,
-		       struct drm_crtc_state *crtc_state);
+		       struct drm_crtc_state *crtc_state,
+		       struct drm_plane_state *plane_state);
 	/**
 	 * @disable:
 	 *

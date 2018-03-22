@@ -37,7 +37,8 @@
 #define ST7735R_MV	BIT(5)
 
 static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
-				      struct drm_crtc_state *crtc_state)
+				      struct drm_crtc_state *crtc_state,
+				      struct drm_plane_state *plane_state)
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);

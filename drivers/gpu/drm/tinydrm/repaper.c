@@ -659,7 +659,8 @@ static void power_off(struct repaper_epd *epd)
 }
 
 static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
-				struct drm_crtc_state *crtc_state)
+				struct drm_crtc_state *crtc_state,
+				struct drm_plane_state *plane_state)
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct repaper_epd *epd = epd_from_tinydrm(tdev);

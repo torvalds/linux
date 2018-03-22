@@ -49,7 +49,8 @@
 #define ILI9341_MADCTL_MY	BIT(7)
 
 static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
-			    struct drm_crtc_state *crtc_state)
+			    struct drm_crtc_state *crtc_state,
+			    struct drm_plane_state *plane_state)
 {
 	struct tinydrm_device *tdev = pipe_to_tinydrm(pipe);
 	struct mipi_dbi *mipi = mipi_dbi_from_tinydrm(tdev);

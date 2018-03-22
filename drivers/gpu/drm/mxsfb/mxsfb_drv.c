@@ -99,7 +99,8 @@ static const struct drm_mode_config_funcs mxsfb_mode_config_funcs = {
 };
 
 static void mxsfb_pipe_enable(struct drm_simple_display_pipe *pipe,
-			      struct drm_crtc_state *crtc_state)
+			      struct drm_crtc_state *crtc_state,
+			      struct drm_plane_state *plane_state)
 {
 	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
 
