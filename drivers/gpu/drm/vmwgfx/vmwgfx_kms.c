@@ -385,9 +385,9 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	hotspot_x = du->hotspot_x;
 	hotspot_y = du->hotspot_y;
 
-	if (plane->fb) {
-		hotspot_x += plane->fb->hot_x;
-		hotspot_y += plane->fb->hot_y;
+	if (plane->state->fb) {
+		hotspot_x += plane->state->fb->hot_x;
+		hotspot_y += plane->state->fb->hot_y;
 	}
 
 	du->cursor_surface = vps->surf;
