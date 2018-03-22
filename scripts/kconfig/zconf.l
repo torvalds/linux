@@ -325,23 +325,25 @@ void zconf_nextfile(const char *name)
 	buf->parent = current_buf;
 	current_buf = buf;
 
-	for (iter = current_file->parent; iter; iter = iter->parent ) {
-		if (!strcmp(current_file->name,iter->name) ) {
+	file->parent = current_file;
+
+	for (iter = current_file; iter; iter = iter->parent) {
+		if (!strcmp(iter->name, file->name)) {
 			fprintf(stderr,
 				"Recursive inclusion detected.\n"
 				"Inclusion path:\n"
-				"  current file : %s\n", zconf_curname());
-			iter = current_file;
+				"  current file : %s\n", file->name);
+			iter = file;
 			do {
 				iter = iter->parent;
 				fprintf(stderr, "  included from: %s:%d\n",
 					iter->name, iter->lineno - 1);
-			} while (strcmp(iter->name, current_file->name));
+			} while (strcmp(iter->name, file->name));
 			exit(1);
 		}
 	}
+
 	file->lineno = 1;
-	file->parent = current_file;
 	current_file = file;
 }
 
