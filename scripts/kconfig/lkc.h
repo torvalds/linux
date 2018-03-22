@@ -68,6 +68,7 @@ struct kconf_id {
 	enum symbol_type stype;
 };
 
+extern int yylineno;
 void zconfdump(FILE *out);
 void zconf_starthelp(void);
 FILE *zconf_fopen(const char *name);
