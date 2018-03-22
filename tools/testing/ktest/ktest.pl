@@ -1692,6 +1692,7 @@ sub run_command {
     my $end_time;
     my $dolog = 0;
     my $dord = 0;
+    my $dostdout = 0;
     my $pid;
 
     $command =~ s/\$SSH_USER/$ssh_user/g;
@@ -1710,9 +1711,15 @@ sub run_command {
     }
 
     if (defined($redirect)) {
-	open (RD, ">$redirect") or
-	    dodie "failed to write to redirect $redirect";
-	$dord = 1;
+	if ($redirect eq 1) {
+	    $dostdout = 1;
+	    # Have the output of the command on its own line
+	    doprint "\n";
+	} else {
+	    open (RD, ">$redirect") or
+		dodie "failed to write to redirect $redirect";
+	    $dord = 1;
+	}
     }
 
     my $hit_timeout = 0;
@@ -1734,6 +1741,7 @@ sub run_command {
 	}
 	print LOG $line if ($dolog);
 	print RD $line if ($dord);
+	print $line if ($dostdout);
     }
 
     waitpid($pid, 0);
@@ -3118,7 +3126,7 @@ sub run_config_bisect {
     my $cmd;
     my $ret;
 
-    run_command "$builddir/tools/testing/ktest/config-bisect.pl -b $outputdir $good $bad $last_result";
+    run_command "$builddir/tools/testing/ktest/config-bisect.pl -b $outputdir $good $bad $last_result", 1;
 
     # config-bisect returns:
     #   0 if there is more to bisect
