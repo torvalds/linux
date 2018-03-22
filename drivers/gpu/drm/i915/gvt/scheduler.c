@@ -97,7 +97,7 @@ static void sr_oa_regs(struct intel_vgpu_workload *workload,
 		i915_mmio_reg_offset(EU_PERF_CNTL6),
 	};
 
-	if (!workload || !reg_state || workload->ring_id != RCS)
+	if (workload->ring_id != RCS)
 		return;
 
 	if (save) {
