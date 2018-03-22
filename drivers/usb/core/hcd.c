@@ -2757,7 +2757,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		}
 	}
 
-	if (!hcd->skip_phy_initialization) {
+	if (!hcd->skip_phy_initialization && usb_hcd_is_primary_hcd(hcd)) {
 		hcd->phy_roothub = usb_phy_roothub_init(hcd->self.sysdev);
 		if (IS_ERR(hcd->phy_roothub)) {
 			retval = PTR_ERR(hcd->phy_roothub);
