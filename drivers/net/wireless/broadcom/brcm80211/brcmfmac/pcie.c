@@ -1350,23 +1350,24 @@ static int brcmf_pcie_get_memdump(struct device *dev, void *data, size_t len)
 	return 0;
 }
 
-static int brcmf_pcie_get_fwname(struct device *dev, u32 chip, u32 chiprev,
-				 u8 *fw_name)
+static
+int brcmf_pcie_get_fwname(struct device *dev, const char *ext, u8 *fw_name)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pciedev *buspub = bus_if->bus_priv.pcie;
-	struct brcmf_pciedev_info *devinfo = buspub->devinfo;
-	int ret = 0;
+	struct brcmf_fw_request *fwreq;
+	struct brcmf_fw_name fwnames[] = {
+		{ ext, fw_name },
+	};
 
-	if (devinfo->fw_name[0] != '\0')
-		strlcpy(fw_name, devinfo->fw_name, BRCMF_FW_NAME_LEN);
-	else
-		ret = brcmf_fw_map_chip_to_name(chip, chiprev,
-						brcmf_pcie_fwnames,
-						ARRAY_SIZE(brcmf_pcie_fwnames),
-						fw_name, NULL);
+	fwreq = brcmf_fw_alloc_request(bus_if->chip, bus_if->chiprev,
+				       brcmf_pcie_fwnames,
+				       ARRAY_SIZE(brcmf_pcie_fwnames),
+				       fwnames, ARRAY_SIZE(fwnames));
+	if (!fwreq)
+		return -ENOMEM;
 
-	return ret;
+	kfree(fwreq);
+	return 0;
 }
 
 static const struct brcmf_bus_ops brcmf_pcie_bus_ops = {

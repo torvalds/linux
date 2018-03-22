@@ -4000,22 +4000,24 @@ brcmf_sdio_watchdog(struct timer_list *t)
 	}
 }
 
-static int brcmf_sdio_get_fwname(struct device *dev, u32 chip, u32 chiprev,
-				 u8 *fw_name)
+static
+int brcmf_sdio_get_fwname(struct device *dev, const char *ext, u8 *fw_name)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
-	int ret = 0;
+	struct brcmf_fw_request *fwreq;
+	struct brcmf_fw_name fwnames[] = {
+		{ ext, fw_name },
+	};
 
-	if (sdiodev->fw_name[0] != '\0')
-		strlcpy(fw_name, sdiodev->fw_name, BRCMF_FW_NAME_LEN);
-	else
-		ret = brcmf_fw_map_chip_to_name(chip, chiprev,
-						brcmf_sdio_fwnames,
-						ARRAY_SIZE(brcmf_sdio_fwnames),
-						fw_name, NULL);
+	fwreq = brcmf_fw_alloc_request(bus_if->chip, bus_if->chiprev,
+				       brcmf_sdio_fwnames,
+				       ARRAY_SIZE(brcmf_sdio_fwnames),
+				       fwnames, ARRAY_SIZE(fwnames));
+	if (!fwreq)
+		return -ENOMEM;
 
-	return ret;
+	kfree(fwreq);
+	return 0;
 }
 
 static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {

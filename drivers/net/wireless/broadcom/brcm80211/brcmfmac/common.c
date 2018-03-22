@@ -125,42 +125,9 @@ static int brcmf_c_download(struct brcmf_if *ifp, u16 flag,
 	return err;
 }
 
-static int brcmf_c_get_clm_name(struct brcmf_if *ifp, u8 *clm_name)
-{
-	struct brcmf_bus *bus = ifp->drvr->bus_if;
-	u8 fw_name[BRCMF_FW_NAME_LEN];
-	u8 *ptr;
-	size_t len;
-	s32 err;
-
-	memset(fw_name, 0, BRCMF_FW_NAME_LEN);
-	err = brcmf_bus_get_fwname(bus, bus->chip, bus->chiprev, fw_name);
-	if (err) {
-		brcmf_err("get firmware name failed (%d)\n", err);
-		goto done;
-	}
-
-	/* generate CLM blob file name */
-	ptr = strrchr(fw_name, '.');
-	if (!ptr) {
-		err = -ENOENT;
-		goto done;
-	}
-
-	len = ptr - fw_name + 1;
-	if (len + strlen(".clm_blob") > BRCMF_FW_NAME_LEN) {
-		err = -E2BIG;
-	} else {
-		strlcpy(clm_name, fw_name, len);
-		strlcat(clm_name, ".clm_blob", BRCMF_FW_NAME_LEN);
-	}
-done:
-	return err;
-}
-
 static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 {
-	struct device *dev = ifp->drvr->bus_if->dev;
+	struct brcmf_bus *bus = ifp->drvr->bus_if;
 	struct brcmf_dload_data_le *chunk_buf;
 	const struct firmware *clm = NULL;
 	u8 clm_name[BRCMF_FW_NAME_LEN];
@@ -173,16 +140,16 @@ static int brcmf_c_process_clm_blob(struct brcmf_if *ifp)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	memset(clm_name, 0, BRCMF_FW_NAME_LEN);
-	err = brcmf_c_get_clm_name(ifp, clm_name);
+	memset(clm_name, 0, sizeof(clm_name));
+	err = brcmf_bus_get_fwname(bus, ".clm_blob", clm_name);
 	if (err) {
 		brcmf_err("get CLM blob file name failed (%d)\n", err);
 		return err;
 	}
 
-	err = request_firmware(&clm, clm_name, dev);
+	err = request_firmware(&clm, clm_name, bus->dev);
 	if (err) {
-		brcmf_info("no clm_blob available(err=%d), device may have limited channels available\n",
+		brcmf_info("no clm_blob available (err=%d), device may have limited channels available\n",
 			   err);
 		return 0;
 	}

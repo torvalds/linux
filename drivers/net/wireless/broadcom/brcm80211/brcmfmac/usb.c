@@ -1128,21 +1128,24 @@ static void brcmf_usb_wowl_config(struct device *dev, bool enabled)
 		device_set_wakeup_enable(devinfo->dev, false);
 }
 
-static int brcmf_usb_get_fwname(struct device *dev, u32 chip, u32 chiprev,
-				u8 *fw_name)
+static
+int brcmf_usb_get_fwname(struct device *dev, const char *ext, u8 *fw_name)
 {
-	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(dev);
-	int ret = 0;
+	struct brcmf_bus *bus = dev_get_drvdata(dev);
+	struct brcmf_fw_request *fwreq;
+	struct brcmf_fw_name fwnames[] = {
+		{ ext, fw_name },
+	};
 
-	if (devinfo->fw_name[0] != '\0')
-		strlcpy(fw_name, devinfo->fw_name, BRCMF_FW_NAME_LEN);
-	else
-		ret = brcmf_fw_map_chip_to_name(chip, chiprev,
-						brcmf_usb_fwnames,
-						ARRAY_SIZE(brcmf_usb_fwnames),
-						fw_name, NULL);
+	fwreq = brcmf_fw_alloc_request(bus->chip, bus->chiprev,
+				       brcmf_usb_fwnames,
+				       ARRAY_SIZE(brcmf_usb_fwnames),
+				       fwnames, ARRAY_SIZE(fwnames));
+	if (!fwreq)
+		return -ENOMEM;
 
-	return ret;
+	kfree(fwreq);
+	return 0;
 }
 
 static const struct brcmf_bus_ops brcmf_usb_bus_ops = {
