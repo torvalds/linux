@@ -2011,9 +2011,9 @@ enum v4l2_mpeg_video_hevc_hier_coding_type -
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{11.0cm}|p{10.0cm}|
+.. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -2026,7 +2026,7 @@ enum v4l2_mpeg_video_hevc_hier_coding_type -
 
 .. raw:: latex
 
-    \end{adjustbox}
+    \normalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_LAYER (integer)``
@@ -2080,9 +2080,9 @@ enum v4l2_mpeg_video_hevc_profile -
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{11.0cm}|p{10.0cm}|
+.. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -2097,7 +2097,7 @@ enum v4l2_mpeg_video_hevc_profile -
 
 .. raw:: latex
 
-    \end{adjustbox}
+    \normalsize
 
 
 .. _v4l2-hevc-level:
@@ -2110,9 +2110,9 @@ enum v4l2_mpeg_video_hevc_level -
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{11.0cm}|p{10.0cm}|
+.. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -2147,7 +2147,7 @@ enum v4l2_mpeg_video_hevc_level -
 
 .. raw:: latex
 
-    \end{adjustbox}
+    \normalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_FRAME_RATE_RESOLUTION (integer)``
@@ -2169,9 +2169,9 @@ enum v4l2_mpeg_video_hevc_tier -
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{11.0cm}|p{10.0cm}|
+.. tabularcolumns:: |p{9.0cm}|p{8.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -2184,7 +2184,7 @@ enum v4l2_mpeg_video_hevc_tier -
 
 .. raw:: latex
 
-    \end{adjustbox}
+    \normalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_MAX_PARTITION_DEPTH (integer)``
@@ -2200,9 +2200,9 @@ enum v4l2_mpeg_video_hevc_loop_filter_mode -
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{11.0cm}|p{10.0cm}|
+.. tabularcolumns:: |p{10.7cm}|p{6.3cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -2217,7 +2217,7 @@ enum v4l2_mpeg_video_hevc_loop_filter_mode -
 
 .. raw:: latex
 
-    \end{adjustbox}
+    \normalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_LF_BETA_OFFSET_DIV2 (integer)``
@@ -2238,9 +2238,9 @@ enum v4l2_mpeg_video_hevc_hier_refresh_type -
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{11.0cm}|p{10.0cm}|
+.. tabularcolumns:: |p{8.0cm}|p{9.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -2255,7 +2255,7 @@ enum v4l2_mpeg_video_hevc_hier_refresh_type -
 
 .. raw:: latex
 
-    \end{adjustbox}
+    \normalsize
 
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_REFRESH_PERIOD (integer)``
@@ -2318,9 +2318,9 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
 
 .. raw:: latex
 
-    \begin{adjustbox}{width=\columnwidth}
+    \footnotesize
 
-.. tabularcolumns:: |p{11.0cm}|p{10.0cm}|
+.. tabularcolumns:: |p{6.0cm}|p{11.0cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -2337,7 +2337,7 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
 
 .. raw:: latex
 
-    \end{adjustbox}
+    \normalsize
 
 ``V4L2_CID_MPEG_VIDEO_HEVC_HIER_CODING_L0_BR (integer)``
     Indicates bit rate for hierarchical coding layer 0 for HEVC encoder.
