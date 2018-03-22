@@ -83,8 +83,7 @@
 static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 
 /* List of all available dev_data structures */
-static LIST_HEAD(dev_data_list);
-static DEFINE_SPINLOCK(dev_data_list_lock);
+static LLIST_HEAD(dev_data_list);
 
 LIST_HEAD(ioapic_map);
 LIST_HEAD(hpet_map);
@@ -203,40 +202,33 @@ static struct dma_ops_domain* to_dma_ops_domain(struct protection_domain *domain
 static struct iommu_dev_data *alloc_dev_data(u16 devid)
 {
 	struct iommu_dev_data *dev_data;
-	unsigned long flags;
 
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data)
 		return NULL;
 
 	dev_data->devid = devid;
-
-	spin_lock_irqsave(&dev_data_list_lock, flags);
-	list_add_tail(&dev_data->dev_data_list, &dev_data_list);
-	spin_unlock_irqrestore(&dev_data_list_lock, flags);
-
 	ratelimit_default_init(&dev_data->rs);
 
+	llist_add(&dev_data->dev_data_list, &dev_data_list);
 	return dev_data;
 }
 
 static struct iommu_dev_data *search_dev_data(u16 devid)
 {
 	struct iommu_dev_data *dev_data;
-	unsigned long flags;
+	struct llist_node *node;
 
-	spin_lock_irqsave(&dev_data_list_lock, flags);
-	list_for_each_entry(dev_data, &dev_data_list, dev_data_list) {
+	if (llist_empty(&dev_data_list))
+		return NULL;
+
+	node = dev_data_list.first;
+	llist_for_each_entry(dev_data, node, dev_data_list) {
 		if (dev_data->devid == devid)
-			goto out_unlock;
+			return dev_data;
 	}
 
-	dev_data = NULL;
-
-out_unlock:
-	spin_unlock_irqrestore(&dev_data_list_lock, flags);
-
-	return dev_data;
+	return NULL;
 }
 
 static int __last_alias(struct pci_dev *pdev, u16 alias, void *data)
