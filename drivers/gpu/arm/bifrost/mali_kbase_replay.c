@@ -664,8 +664,8 @@ static void kbasep_replay_create_atom(struct kbase_context *kctx,
 	atom->prio = prio;
 	atom->atom_number = atom_nr;
 
-	base_jd_atom_dep_set(&atom->pre_dep[0], 0 , BASE_JD_DEP_TYPE_INVALID);
-	base_jd_atom_dep_set(&atom->pre_dep[1], 0 , BASE_JD_DEP_TYPE_INVALID);
+	base_jd_atom_dep_set(&atom->pre_dep[0], 0, BASE_JD_DEP_TYPE_INVALID);
+	base_jd_atom_dep_set(&atom->pre_dep[1], 0, BASE_JD_DEP_TYPE_INVALID);
 
 	atom->udata.blob[0] = 0;
 	atom->udata.blob[1] = 0;
@@ -713,7 +713,8 @@ static int kbasep_replay_create_atoms(struct kbase_context *kctx,
 	kbasep_replay_create_atom(kctx, t_atom, t_atom_nr, prio);
 	kbasep_replay_create_atom(kctx, f_atom, f_atom_nr, prio);
 
-	base_jd_atom_dep_set(&f_atom->pre_dep[0], t_atom_nr , BASE_JD_DEP_TYPE_DATA);
+	base_jd_atom_dep_set(&f_atom->pre_dep[0], t_atom_nr,
+			     BASE_JD_DEP_TYPE_DATA);
 
 	return 0;
 }

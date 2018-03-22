@@ -245,12 +245,13 @@ unsigned long kbase_get_unmapped_area(struct file *filp,
 
 	if (!kbase_ctx_flag(kctx, KCTX_COMPAT)) {
 
-		if (kbase_hw_has_feature(kctx->kbdev,
-						BASE_HW_FEATURE_33BIT_VA)) {
-			high_limit = kctx->same_va_end << PAGE_SHIFT;
-		} else {
-			high_limit = min_t(unsigned long, mm->mmap_base,
-					(kctx->same_va_end << PAGE_SHIFT));
+		high_limit = min_t(unsigned long, mm->mmap_base,
+				(kctx->same_va_end << PAGE_SHIFT));
+
+		/* If there's enough (> 33 bits) of GPU VA space, align
+		 * to 2MB boundaries.
+		 */
+		if (kctx->kbdev->gpu_props.mmu.va_bits > 33) {
 			if (len >= SZ_2M) {
 				align_offset = SZ_2M;
 				align_mask = SZ_2M - 1;

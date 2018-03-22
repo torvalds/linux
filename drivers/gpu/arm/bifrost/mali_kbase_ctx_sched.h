@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,8 @@
 
 #include <mali_kbase.h>
 
-/* The Context Scheduler manages address space assignment and reference
+/**
+ * The Context Scheduler manages address space assignment and reference
  * counting to kbase_context. The interface has been designed to minimise
  * interactions between the Job Scheduler and Power Management/MMU to support
  * the existing Job Scheduler interface.
@@ -39,34 +40,29 @@
  * code.
  */
 
-/* base_ctx_sched_init - Initialise the context scheduler
+/**
+ * kbase_ctx_sched_init - Initialise the context scheduler
+ * @kbdev: The device for which the context scheduler needs to be initialised
  *
- * @kbdev: The device for which the context scheduler needs to be
- *         initialised
+ * This must be called during device initialisation. The number of hardware
+ * address spaces must already be established before calling this function.
  *
  * Return: 0 for success, otherwise failure
- *
- * This must be called during device initilisation. The number of hardware
- * address spaces must already be established before calling this function.
  */
 int kbase_ctx_sched_init(struct kbase_device *kbdev);
 
-/* base_ctx_sched_term - Terminate the context scheduler
- *
- * @kbdev: The device for which the context scheduler needs to be
- *         terminated
+/**
+ * kbase_ctx_sched_term - Terminate the context scheduler
+ * @kbdev: The device for which the context scheduler needs to be terminated
  *
  * This must be called during device termination after all contexts have been
  * destroyed.
  */
 void kbase_ctx_sched_term(struct kbase_device *kbdev);
 
-/* kbase_ctx_sched_retain_ctx - Retain a reference to the @ref kbase_context
- *
+/**
+ * kbase_ctx_sched_retain_ctx - Retain a reference to the @ref kbase_context
  * @kctx: The context to which to retain a reference
- *
- * Return: The address space that the context has been assigned to or
- *         KBASEP_AS_NR_INVALID if no address space was available.
  *
  * This function should be called whenever an address space should be assigned
  * to a context and programmed onto the MMU. It should typically be called
@@ -77,11 +73,14 @@ void kbase_ctx_sched_term(struct kbase_device *kbdev);
  *
  * The kbase_device::mmu_hw_mutex and kbase_device::hwaccess_lock locks must be
  * held whilst calling this function.
+ *
+ * Return: The address space that the context has been assigned to or
+ *         KBASEP_AS_NR_INVALID if no address space was available.
  */
 int kbase_ctx_sched_retain_ctx(struct kbase_context *kctx);
 
-/* kbase_ctx_sched_retain_ctx_refcount
- *
+/**
+ * kbase_ctx_sched_retain_ctx_refcount
  * @kctx: The context to which to retain a reference
  *
  * This function only retains a reference to the context. It must be called
@@ -95,8 +94,8 @@ int kbase_ctx_sched_retain_ctx(struct kbase_context *kctx);
  */
 void kbase_ctx_sched_retain_ctx_refcount(struct kbase_context *kctx);
 
-/* kbase_ctx_sched_release_ctx - Release a reference to the @ref kbase_context
- *
+/**
+ * kbase_ctx_sched_release_ctx - Release a reference to the @ref kbase_context
  * @kctx: The context from which to release a reference
  *
  * This function should be called whenever an address space could be unassigned
@@ -108,8 +107,8 @@ void kbase_ctx_sched_retain_ctx_refcount(struct kbase_context *kctx);
  */
 void kbase_ctx_sched_release_ctx(struct kbase_context *kctx);
 
-/* kbase_ctx_sched_remove_ctx - Unassign previously assigned address space
- *
+/**
+ * kbase_ctx_sched_remove_ctx - Unassign previously assigned address space
  * @kctx: The context to be removed
  *
  * This function should be called when a context is being destroyed. The
@@ -121,8 +120,8 @@ void kbase_ctx_sched_release_ctx(struct kbase_context *kctx);
  */
 void kbase_ctx_sched_remove_ctx(struct kbase_context *kctx);
 
-/* kbase_ctx_sched_restore_all_as - Reprogram all address spaces
- *
+/**
+ * kbase_ctx_sched_restore_all_as - Reprogram all address spaces
  * @kbdev: The device for which address spaces to be reprogrammed
  *
  * This function shall reprogram all address spaces previously assigned to

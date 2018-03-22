@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,8 +27,17 @@
 
 struct devfreq;
 
+/**
+ * struct kbase_ipa_model - Object describing a particular IPA model.
+ * @kbdev:                    pointer to kbase device
+ * @model_data:               opaque pointer to model specific data, accessed
+ *                            only by model specific methods.
+ * @ops:                      pointer to object containing model specific methods.
+ * @params:                   head of the list of debugfs params added for model
+ * @missing_dt_node_warning:  flag to limit the matching power model DT not found
+ *                            warning to once.
+ */
 struct kbase_ipa_model {
-	struct list_head link;
 	struct kbase_device *kbdev;
 	void *model_data;
 	struct kbase_ipa_model_ops *ops;
@@ -116,22 +125,72 @@ struct kbase_ipa_model_ops {
 	bool do_utilization_scaling_in_framework;
 };
 
-/* Models can be registered only in the platform's platform_init_func call */
-int kbase_ipa_model_ops_register(struct kbase_device *kbdev,
-			     struct kbase_ipa_model_ops *new_model_ops);
-struct kbase_ipa_model *kbase_ipa_get_model(struct kbase_device *kbdev,
-					    const char *name);
-
+/**
+ * kbase_ipa_init - Initialize the IPA feature
+ * @kbdev:      pointer to kbase device
+ *
+ * simple IPA power model is initialized as a fallback model and if that
+ * initialization fails then IPA is not used.
+ * The device tree is read for the name of ipa model to be used, by using the
+ * property string "ipa-model". If that ipa model is supported then it is
+ * initialized but if the initialization fails then simple power model is used.
+ *
+ * Return: 0 on success, negative -errno on error
+ */
 int kbase_ipa_init(struct kbase_device *kbdev);
+
+/**
+ * kbase_ipa_term - Terminate the IPA feature
+ * @kbdev:      pointer to kbase device
+ *
+ * Both simple IPA power model and model retrieved from device tree are
+ * terminated.
+ */
 void kbase_ipa_term(struct kbase_device *kbdev);
-void kbase_ipa_model_use_fallback_locked(struct kbase_device *kbdev);
-void kbase_ipa_model_use_configured_locked(struct kbase_device *kbdev);
+
+/**
+ * kbase_ipa_model_recalculate - Recalculate the model coefficients
+ * @model:      pointer to the IPA model object, already initialized
+ *
+ * It shall be called immediately after the model has been initialized
+ * or when the model parameter has changed, so that any coefficients
+ * derived from parameters can be recalculated.
+ * Its a wrapper for the module specific recalculate() method.
+ *
+ * Return: 0 on success, negative -errno on error
+ */
 int kbase_ipa_model_recalculate(struct kbase_ipa_model *model);
+
+/**
+ * kbase_ipa_init_model - Initilaize the particular IPA model
+ * @kbdev:      pointer to the IPA model object, already initialized
+ * @ops:        pointer to object containing model specific methods.
+ *
+ * Initialize the model corresponding to the @ops pointer passed.
+ * The init() method specified in @ops would be called.
+ *
+ * Return: pointer to kbase_ipa_model on success, NULL on error
+ */
 struct kbase_ipa_model *kbase_ipa_init_model(struct kbase_device *kbdev,
 					     struct kbase_ipa_model_ops *ops);
+/**
+ * kbase_ipa_term_model - Terminate the particular IPA model
+ * @model:      pointer to the IPA model object, already initialized
+ *
+ * Terminate the model, using the term() method.
+ * Module specific parameters would be freed.
+ */
 void kbase_ipa_term_model(struct kbase_ipa_model *model);
 
+/* Switch to the fallback model */
+void kbase_ipa_model_use_fallback_locked(struct kbase_device *kbdev);
+
+/* Switch to the model retrieved from device tree */
+void kbase_ipa_model_use_configured_locked(struct kbase_device *kbdev);
+
 extern struct kbase_ipa_model_ops kbase_g71_ipa_model_ops;
+extern struct kbase_ipa_model_ops kbase_g72_ipa_model_ops;
+extern struct kbase_ipa_model_ops kbase_tnox_ipa_model_ops;
 
 #if MALI_UNIT_TEST
 /**

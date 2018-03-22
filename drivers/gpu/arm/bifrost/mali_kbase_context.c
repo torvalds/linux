@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -32,15 +32,6 @@
 #include <mali_kbase_dma_fence.h>
 #include <mali_kbase_ctx_sched.h>
 
-/**
- * kbase_create_context() - Create a kernel base context.
- * @kbdev: Kbase device
- * @is_compat: Force creation of a 32-bit context
- *
- * Allocate and init a kernel base context.
- *
- * Return: new kbase context
- */
 struct kbase_context *
 kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 {
@@ -175,9 +166,8 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 
 	mutex_init(&kctx->vinstr_cli_lock);
 
-	setup_timer(&kctx->soft_job_timeout,
-		    kbasep_soft_job_timeout_worker,
-		    (uintptr_t)kctx);
+	kbase_timer_setup(&kctx->soft_job_timeout,
+			  kbasep_soft_job_timeout_worker);
 
 	return kctx;
 
@@ -225,13 +215,6 @@ static void kbase_reg_pending_dtor(struct kbase_va_region *reg)
 	kfree(reg);
 }
 
-/**
- * kbase_destroy_context - Destroy a kernel base context.
- * @kctx: Context to destroy
- *
- * Calls kbase_destroy_os_context() to free OS specific structures.
- * Will release all outstanding regions.
- */
 void kbase_destroy_context(struct kbase_context *kctx)
 {
 	struct kbase_device *kbdev;
@@ -251,6 +234,8 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	/* A suspend won't happen here, because we're in a syscall from a userspace
 	 * thread. */
 	kbase_pm_context_active(kbdev);
+
+	kbase_mem_pool_mark_dying(&kctx->mem_pool);
 
 	kbase_jd_zap_context(kctx);
 
@@ -328,13 +313,6 @@ void kbase_destroy_context(struct kbase_context *kctx)
 }
 KBASE_EXPORT_SYMBOL(kbase_destroy_context);
 
-/**
- * kbase_context_set_create_flags - Set creation flags on a context
- * @kctx: Kbase context
- * @flags: Flags to set
- *
- * Return: 0 on success
- */
 int kbase_context_set_create_flags(struct kbase_context *kctx, u32 flags)
 {
 	int err = 0;

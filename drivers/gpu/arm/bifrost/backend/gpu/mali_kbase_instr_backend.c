@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -68,7 +68,7 @@ static void kbasep_instr_hwcnt_cacheclean(struct kbase_device *kbdev)
 
 int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 					struct kbase_context *kctx,
-					struct kbase_uk_hwcnt_setup *setup)
+					struct kbase_ioctl_hwcnt_enable *enable)
 {
 	unsigned long flags, pm_flags;
 	int err = -EINVAL;
@@ -81,7 +81,7 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 							KBASE_PM_CORE_SHADER);
 
 	/* alignment failure */
-	if ((setup->dump_buffer == 0ULL) || (setup->dump_buffer & (2048 - 1)))
+	if ((enable->dump_buffer == 0ULL) || (enable->dump_buffer & (2048 - 1)))
 		goto out_err;
 
 	/* Override core availability policy to ensure all cores are available
@@ -110,7 +110,7 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 	/* In use, this context is the owner */
 	kbdev->hwcnt.kctx = kctx;
 	/* Remember the dump address so we can reprogram it later */
-	kbdev->hwcnt.addr = setup->dump_buffer;
+	kbdev->hwcnt.addr = enable->dump_buffer;
 
 	/* Request the clean */
 	kbdev->hwcnt.backend.state = KBASE_INSTR_STATE_REQUEST_CLEAN;
@@ -150,15 +150,15 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 			prfcnt_config | PRFCNT_CONFIG_MODE_OFF, kctx);
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_BASE_LO),
-					setup->dump_buffer & 0xFFFFFFFF, kctx);
+					enable->dump_buffer & 0xFFFFFFFF, kctx);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_BASE_HI),
-					setup->dump_buffer >> 32,        kctx);
+					enable->dump_buffer >> 32,        kctx);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_JM_EN),
-					setup->jm_bm,                    kctx);
+					enable->jm_bm,                    kctx);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_SHADER_EN),
-					setup->shader_bm,                kctx);
+					enable->shader_bm,                kctx);
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_MMU_L2_EN),
-					setup->mmu_l2_bm,                kctx);
+					enable->mmu_l2_bm,                kctx);
 	/* Due to PRLAM-8186 we need to disable the Tiler before we enable the
 	 * HW counter dump. */
 	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8186))
@@ -166,7 +166,7 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 									kctx);
 	else
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_TILER_EN),
-							setup->tiler_bm, kctx);
+							enable->tiler_bm, kctx);
 
 	kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_CONFIG),
 			prfcnt_config | PRFCNT_CONFIG_MODE_MANUAL, kctx);
@@ -175,7 +175,7 @@ int kbase_instr_hwcnt_enable_internal(struct kbase_device *kbdev,
 	 */
 	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8186))
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(PRFCNT_TILER_EN),
-							setup->tiler_bm, kctx);
+							enable->tiler_bm, kctx);
 
 	spin_lock_irqsave(&kbdev->hwcnt.lock, flags);
 

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -94,10 +94,15 @@ int kbase_pm_context_active_handle_suspend(struct kbase_device *kbdev, enum kbas
 	if (old_count == 0)
 		kbase_timeline_pm_handle_event(kbdev, KBASE_TIMELINE_PM_EVENT_GPU_ACTIVE);
 
-	if (c == 1)
+	if (c == 1) {
 		/* First context active: Power on the GPU and any cores requested by
 		 * the policy */
 		kbase_hwaccess_pm_gpu_active(kbdev);
+	}
+#if defined(CONFIG_DEVFREQ_THERMAL) && defined(CONFIG_MALI_BIFROST_DEVFREQ)
+	if (kbdev->ipa.gpu_active_callback)
+		kbdev->ipa.gpu_active_callback(kbdev->ipa.model_data);
+#endif
 
 	mutex_unlock(&kbdev->pm.lock);
 	mutex_unlock(&js_devdata->runpool_mutex);
@@ -145,6 +150,21 @@ void kbase_pm_context_idle(struct kbase_device *kbdev)
 		 * waiting */
 		wake_up(&kbdev->pm.zero_active_count_wait);
 	}
+
+#if defined(CONFIG_DEVFREQ_THERMAL) && defined(CONFIG_MALI_BIFROST_DEVFREQ)
+	/* IPA may be using vinstr, in which case there may be one PM reference
+	 * still held when all other contexts have left the GPU. Inform IPA that
+	 * the GPU is now idle so that vinstr can drop it's reference.
+	 *
+	 * If the GPU was only briefly active then it might have gone idle
+	 * before vinstr has taken a PM reference, meaning that active_count is
+	 * zero. We still need to inform IPA in this case, so that vinstr can
+	 * drop the PM reference and avoid keeping the GPU powered
+	 * unnecessarily.
+	 */
+	if (c <= 1 && kbdev->ipa.gpu_idle_callback)
+		kbdev->ipa.gpu_idle_callback(kbdev->ipa.model_data);
+#endif
 
 	mutex_unlock(&kbdev->pm.lock);
 	mutex_unlock(&js_devdata->runpool_mutex);

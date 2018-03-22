@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -381,6 +381,9 @@ bool kbase_reset_gpu_active(struct kbase_device *kbdev);
 void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
 				struct kbase_jd_atom *target_katom);
 
+/* Object containing callbacks for enabling/disabling protected mode, used
+ * on GPU which supports protected mode switching natively.
+ */
 extern struct protected_mode_ops kbase_native_protected_ops;
 
 #endif /* _KBASE_HWACCESS_JM_H_ */

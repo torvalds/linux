@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016, 2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -111,18 +111,6 @@ struct kbase_backend_data {
 	struct hrtimer reset_timer;
 
 	bool timeouts_updated;
-};
-
-/**
- * struct kbase_jd_atom_backend - GPU backend specific katom data
- */
-struct kbase_jd_atom_backend {
-};
-
-/**
- * struct kbase_context_backend - GPU backend specific context data
- */
-struct kbase_context_backend {
 };
 
 #endif /* _KBASE_HWACCESS_GPU_DEFS_H_ */

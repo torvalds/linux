@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -124,7 +124,8 @@ int kbase_gpu_gwt_stop(struct kbase_context *kctx)
 }
 
 
-int list_cmp_function(void *priv, struct list_head *a, struct list_head *b)
+static int list_cmp_function(void *priv, struct list_head *a,
+				struct list_head *b)
 {
 	struct kbasep_gwt_list_element *elementA = container_of(a,
 				struct kbasep_gwt_list_element, link);
@@ -133,30 +134,27 @@ int list_cmp_function(void *priv, struct list_head *a, struct list_head *b)
 
 	CSTD_UNUSED(priv);
 
-	if (elementA->handle > elementB->handle)
+	if (elementA->page_addr > elementB->page_addr)
 		return 1;
-	else if ((elementA->handle == elementB->handle) &&
-			(elementA->offset > elementB->offset))
-		return 1;
-	else
-		return -1;
+	return -1;
 }
 
-void kbase_gpu_gwt_collate(struct kbase_context *kctx,
+static void kbase_gpu_gwt_collate(struct kbase_context *kctx,
 		struct list_head *snapshot_list)
 {
 	struct kbasep_gwt_list_element *pos, *n;
 	struct kbasep_gwt_list_element *collated = NULL;
 
-	/* sort the list */
+	/* Sort the list */
 	list_sort(NULL, snapshot_list, list_cmp_function);
 
-	/* Combine contiguous areas from same region */
+	/* Combine contiguous areas. */
 	list_for_each_entry_safe(pos, n, snapshot_list, link) {
-		if (NULL == collated ||
-				collated->handle != pos->handle ||
-				collated->offset + collated->num_pages !=
-						pos->offset) {
+		if (collated == NULL ||	collated->region !=
+					pos->region ||
+					(collated->page_addr +
+					(collated->num_pages * PAGE_SIZE)) !=
+					pos->page_addr) {
 			/* This is the first time through, a new region or
 			 * is not contiguous - start collating to this element
 			 */
@@ -176,10 +174,8 @@ int kbase_gpu_gwt_dump(struct kbase_context *kctx,
 {
 	const u32 ubuf_size = gwt_dump->in.len;
 	u32 ubuf_count = 0;
-	__user void *user_handles = (__user void *)
-			(uintptr_t)gwt_dump->in.handle_buffer;
-	__user void *user_offsets = (__user void *)
-			(uintptr_t)gwt_dump->in.offset_buffer;
+	__user void *user_addr = (__user void *)
+			(uintptr_t)gwt_dump->in.addr_buffer;
 	__user void *user_sizes = (__user void *)
 			(uintptr_t)gwt_dump->in.size_buffer;
 
@@ -191,8 +187,7 @@ int kbase_gpu_gwt_dump(struct kbase_context *kctx,
 		return -EPERM;
 	}
 
-	if (!gwt_dump->in.len || !gwt_dump->in.handle_buffer
-			|| !gwt_dump->in.offset_buffer
+	if (!gwt_dump->in.len || !gwt_dump->in.addr_buffer
 			|| !gwt_dump->in.size_buffer) {
 		kbase_gpu_vm_unlock(kctx);
 		/* We don't have any valid user space buffer to copy the
@@ -219,8 +214,7 @@ int kbase_gpu_gwt_dump(struct kbase_context *kctx,
 	}
 
 	while ((!list_empty(&kctx->gwt_snapshot_list))) {
-		u64 handle_buffer[32];
-		u64 offset_buffer[32];
+		u64 addr_buffer[32];
 		u64 num_page_buffer[32];
 		u32 count = 0;
 		int err;
@@ -228,30 +222,20 @@ int kbase_gpu_gwt_dump(struct kbase_context *kctx,
 
 		list_for_each_entry_safe(dump_info, n,
 				&kctx->gwt_snapshot_list, link) {
-			handle_buffer[count] = dump_info->handle;
-			offset_buffer[count] = dump_info->offset;
+			addr_buffer[count] = dump_info->page_addr;
 			num_page_buffer[count] = dump_info->num_pages;
 			count++;
 			list_del(&dump_info->link);
 			kfree(dump_info);
-			if (ARRAY_SIZE(handle_buffer) == count ||
+			if (ARRAY_SIZE(addr_buffer) == count ||
 					ubuf_size == (ubuf_count + count))
 				break;
 		}
 
 		if (count) {
-			err = copy_to_user((user_handles +
-						(ubuf_count * sizeof(u64))),
-					(void *)handle_buffer,
-					count * sizeof(u64));
-			if (err) {
-				dev_err(kctx->kbdev->dev, "Copy to user failure\n");
-				kbase_gpu_vm_unlock(kctx);
-				return err;
-			}
-			err = copy_to_user((user_offsets +
-						(ubuf_count * sizeof(u64))),
-					(void *)offset_buffer,
+			err = copy_to_user((user_addr +
+					(ubuf_count * sizeof(u64))),
+					(void *)addr_buffer,
 					count * sizeof(u64));
 			if (err) {
 				dev_err(kctx->kbdev->dev, "Copy to user failure\n");
@@ -259,7 +243,7 @@ int kbase_gpu_gwt_dump(struct kbase_context *kctx,
 				return err;
 			}
 			err = copy_to_user((user_sizes +
-						(ubuf_count * sizeof(u64))),
+					(ubuf_count * sizeof(u64))),
 					(void *)num_page_buffer,
 					count * sizeof(u64));
 			if (err) {

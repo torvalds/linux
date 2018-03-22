@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -21,6 +21,7 @@
  */
 
 #include "mali_kbase_ipa_vinstr_common.h"
+#include "mali_kbase_ipa_debugfs.h"
 
 #if MALI_UNIT_TEST
 static ktime_t dummy_time;
@@ -31,11 +32,11 @@ static ktime_t dummy_time;
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 3, 0)
-#define ktime_get() (ACCESS_ONCE(dummy_time))
+#define ktime_get() (READ_ONCE(dummy_time))
 
 void kbase_ipa_set_dummy_time(ktime_t t)
 {
-	ACCESS_ONCE(dummy_time) = t;
+	WRITE_ONCE(dummy_time, t);
 }
 KBASE_EXPORT_TEST_API(kbase_ipa_set_dummy_time);
 #else
@@ -119,10 +120,46 @@ s64 kbase_ipa_single_counter(
 	return div_s64(multiplied, 1000000);
 }
 
+/**
+ * kbase_ipa_gpu_active - Inform IPA that GPU is now active
+ * @model_data: Pointer to model data
+ *
+ * This function may cause vinstr to become active.
+ */
+static void kbase_ipa_gpu_active(struct kbase_ipa_model_vinstr_data *model_data)
+{
+	struct kbase_device *kbdev = model_data->kbdev;
+
+	lockdep_assert_held(&kbdev->pm.lock);
+
+	if (!kbdev->ipa.vinstr_active) {
+		kbdev->ipa.vinstr_active = true;
+		kbase_vinstr_resume_client(model_data->vinstr_cli);
+	}
+}
+
+/**
+ * kbase_ipa_gpu_idle - Inform IPA that GPU is now idle
+ * @model_data: Pointer to model data
+ *
+ * This function may cause vinstr to become idle.
+ */
+static void kbase_ipa_gpu_idle(struct kbase_ipa_model_vinstr_data *model_data)
+{
+	struct kbase_device *kbdev = model_data->kbdev;
+
+	lockdep_assert_held(&kbdev->pm.lock);
+
+	if (kbdev->ipa.vinstr_active) {
+		kbase_vinstr_suspend_client(model_data->vinstr_cli);
+		kbdev->ipa.vinstr_active = false;
+	}
+}
+
 int kbase_ipa_attach_vinstr(struct kbase_ipa_model_vinstr_data *model_data)
 {
 	struct kbase_device *kbdev = model_data->kbdev;
-	struct kbase_uk_hwcnt_reader_setup setup;
+	struct kbase_ioctl_hwcnt_reader_setup setup;
 	size_t dump_size;
 
 	dump_size = kbase_vinstr_dump_size(kbdev);
@@ -148,13 +185,30 @@ int kbase_ipa_attach_vinstr(struct kbase_ipa_model_vinstr_data *model_data)
 	model_data->last_sample_read_time = ktime_get();
 	kbase_vinstr_hwc_clear(model_data->vinstr_cli);
 
+	kbdev->ipa.gpu_active_callback = kbase_ipa_gpu_active;
+	kbdev->ipa.gpu_idle_callback = kbase_ipa_gpu_idle;
+	kbdev->ipa.model_data = model_data;
+	kbdev->ipa.vinstr_active = false;
+	/* Suspend vinstr, to ensure that the GPU is powered off until there is
+	 * something to execute.
+	 */
+	kbase_vinstr_suspend_client(model_data->vinstr_cli);
+
 	return 0;
 }
 
 void kbase_ipa_detach_vinstr(struct kbase_ipa_model_vinstr_data *model_data)
 {
+	struct kbase_device *kbdev = model_data->kbdev;
+
+	kbdev->ipa.gpu_active_callback = NULL;
+	kbdev->ipa.gpu_idle_callback = NULL;
+	kbdev->ipa.model_data = NULL;
+	kbdev->ipa.vinstr_active = false;
+
 	if (model_data->vinstr_cli)
 		kbase_vinstr_detach_client(model_data->vinstr_cli);
+
 	model_data->vinstr_cli = NULL;
 	kfree(model_data->vinstr_buffer);
 	model_data->vinstr_buffer = NULL;
@@ -165,6 +219,7 @@ int kbase_ipa_vinstr_dynamic_coeff(struct kbase_ipa_model *model, u32 *coeffp,
 {
 	struct kbase_ipa_model_vinstr_data *model_data =
 			(struct kbase_ipa_model_vinstr_data *)model->model_data;
+	struct kbase_device *kbdev = model_data->kbdev;
 	s64 energy = 0;
 	size_t i;
 	ktime_t now = ktime_get();
@@ -175,6 +230,9 @@ int kbase_ipa_vinstr_dynamic_coeff(struct kbase_ipa_model *model, u32 *coeffp,
 	u64 coeff = 0;
 	u64 num_cycles;
 	int err = 0;
+
+	if (!kbdev->ipa.vinstr_active)
+		goto err0; /* GPU powered off - no counters to collect */
 
 	err = kbase_vinstr_hwc_dump(model_data->vinstr_cli,
 				    BASE_HWCNT_READER_EVENT_MANUAL);
@@ -231,4 +289,59 @@ err0:
 	/* Clamp to a sensible range - 2^16 gives about 14W at 400MHz/750mV */
 	*coeffp = clamp(coeff, (u64) 0, (u64) 1 << 16);
 	return err;
+}
+
+int kbase_ipa_vinstr_common_model_init(struct kbase_ipa_model *model,
+				 const struct kbase_ipa_group *ipa_groups_def,
+							size_t ipa_group_size)
+{
+	int err = 0;
+	size_t i;
+	struct kbase_ipa_model_vinstr_data *model_data;
+
+	model_data = kzalloc(sizeof(*model_data), GFP_KERNEL);
+	if (!model_data)
+		return -ENOMEM;
+
+	model_data->kbdev = model->kbdev;
+	model_data->groups_def = ipa_groups_def;
+	model_data->groups_def_num = ipa_group_size;
+
+	model->model_data = (void *) model_data;
+
+	for (i = 0; i < model_data->groups_def_num; ++i) {
+		const struct kbase_ipa_group *group = &model_data->groups_def[i];
+
+		model_data->group_values[i] = group->default_value;
+		err = kbase_ipa_model_add_param_s32(model, group->name,
+					&model_data->group_values[i],
+					1, false);
+		if (err)
+			goto exit;
+	}
+
+	model_data->scaling_factor = 5;
+	err = kbase_ipa_model_add_param_s32(model, "scale",
+					    &model_data->scaling_factor,
+					    1, false);
+	if (err)
+		goto exit;
+
+	err = kbase_ipa_attach_vinstr(model_data);
+
+exit:
+	if (err) {
+		kbase_ipa_model_param_free_all(model);
+		kfree(model_data);
+	}
+	return err;
+}
+
+void kbase_ipa_vinstr_common_model_term(struct kbase_ipa_model *model)
+{
+	struct kbase_ipa_model_vinstr_data *model_data =
+			(struct kbase_ipa_model_vinstr_data *)model->model_data;
+
+	kbase_ipa_detach_vinstr(model_data);
+	kfree(model_data);
 }

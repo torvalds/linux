@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -139,8 +139,11 @@ static inline bool kbase_fence_out_is_ours(struct kbase_jd_atom *katom)
 static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom,
 					 int status)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
-	katom->dma_fence.fence->error = status;
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE && \
+	  KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE)
+	fence_set_error(katom->dma_fence.fence, status);
+#elif (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE)
+	dma_fence_set_error(katom->dma_fence.fence, status);
 #else
 	katom->dma_fence.fence->status = status;
 #endif

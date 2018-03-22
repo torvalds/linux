@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -70,7 +70,7 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
  */
 static int kbasep_gpu_memory_debugfs_open(struct inode *in, struct file *file)
 {
-	return single_open(file, kbasep_gpu_memory_seq_show , NULL);
+	return single_open(file, kbasep_gpu_memory_seq_show, NULL);
 }
 
 static const struct file_operations kbasep_gpu_memory_debugfs_fops = {

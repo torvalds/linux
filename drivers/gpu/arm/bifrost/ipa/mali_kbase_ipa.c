@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -38,10 +38,14 @@
 
 #define KBASE_IPA_FALLBACK_MODEL_NAME "mali-simple-power-model"
 #define KBASE_IPA_G71_MODEL_NAME      "mali-g71-power-model"
+#define KBASE_IPA_G72_MODEL_NAME      "mali-g72-power-model"
+#define KBASE_IPA_TNOX_MODEL_NAME     "mali-tnox-power-model"
 
 static struct kbase_ipa_model_ops *kbase_ipa_all_model_ops[] = {
 	&kbase_simple_ipa_model_ops,
-	&kbase_g71_ipa_model_ops
+	&kbase_g71_ipa_model_ops,
+	&kbase_g72_ipa_model_ops,
+	&kbase_tnox_ipa_model_ops
 };
 
 int kbase_ipa_model_recalculate(struct kbase_ipa_model *model)
@@ -98,6 +102,15 @@ const char *kbase_ipa_model_name_from_id(u32 gpu_id)
 		switch (GPU_ID2_MODEL_MATCH_VALUE(prod_id)) {
 		case GPU_ID2_PRODUCT_TMIX:
 			return KBASE_IPA_G71_MODEL_NAME;
+		case GPU_ID2_PRODUCT_THEX:
+			return KBASE_IPA_G72_MODEL_NAME;
+		case GPU_ID2_PRODUCT_TNOX:
+			return KBASE_IPA_TNOX_MODEL_NAME;
+		case GPU_ID2_PRODUCT_TGOX:
+			if ((gpu_id & GPU_ID2_VERSION_MAJOR) ==
+					(0 << GPU_ID2_VERSION_MAJOR_SHIFT))
+				/* TGOX r0 shares a power model with TNOX */
+				return KBASE_IPA_TNOX_MODEL_NAME;
 		default:
 			return KBASE_IPA_FALLBACK_MODEL_NAME;
 		}

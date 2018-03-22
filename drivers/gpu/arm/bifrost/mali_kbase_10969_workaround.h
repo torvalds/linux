@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2014 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2014, 2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,6 +23,15 @@
 #ifndef _KBASE_10969_WORKAROUND_
 #define _KBASE_10969_WORKAROUND_
 
+/**
+ * kbasep_10969_workaround_clamp_coordinates - Apply the WA to clamp the restart indices
+ * @katom: atom representing the fragment job for which the WA has to be applied
+ *
+ * This workaround is used to solve an HW issue with single iterator GPUs.
+ * If a fragment job is soft-stopped on the edge of its bounding box, it can happen
+ * that the restart index is out of bounds and the rerun causes a tile range
+ * fault. If this happens we try to clamp the restart index to a correct value.
+ */
 int kbasep_10969_workaround_clamp_coordinates(struct kbase_jd_atom *katom);
 
 #endif /* _KBASE_10969_WORKAROUND_ */

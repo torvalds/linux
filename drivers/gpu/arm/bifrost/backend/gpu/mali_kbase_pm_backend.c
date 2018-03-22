@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -252,7 +252,10 @@ static void kbase_pm_gpu_poweroff_wait_wq(struct work_struct *data)
 
 			/* Turn off clock now that fault have been handled. We
 			 * dropped locks so poweron_required may have changed -
-			 * power back on if this is the case.*/
+			 * power back on if this is the case (effectively only
+			 * re-enabling of the interrupts would be done in this
+			 * case, as the clocks to GPU were not withdrawn yet).
+			 */
 			if (backend->poweron_required)
 				kbase_pm_clock_on(kbdev, false);
 			else

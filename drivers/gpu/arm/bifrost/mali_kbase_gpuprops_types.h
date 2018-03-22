@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -38,7 +38,7 @@
 struct kbase_gpuprops_regdump {
 	u32 gpu_id;
 	u32 l2_features;
-	u32 suspend_size; /* API 8.2+ */
+	u32 core_features;
 	u32 tiler_features;
 	u32 mem_features;
 	u32 mmu_features;
@@ -48,6 +48,7 @@ struct kbase_gpuprops_regdump {
 	u32 thread_max_workgroup_size;
 	u32 thread_max_barrier_size;
 	u32 thread_features;
+	u32 thread_tls_alloc;
 	u32 texture_features[BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS];
 	u32 js_features[GPU_MAX_JOB_SLOTS];
 	u32 shader_present_lo;

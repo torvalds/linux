@@ -224,23 +224,15 @@ static void kbase_gpu_mmu_handle_write_fault(struct kbase_context *kctx,
 		return;
 	}
 
-	/* Capture handle and offset of the faulting write location
+	/* Capture addresses of faulting write location
 	 * for job dumping if write tracking is enabled.
 	 */
 	if (kctx->gwt_enabled) {
 		u64 page_addr = faulting_as->fault_addr & PAGE_MASK;
-		u64 offset = (page_addr >> PAGE_SHIFT) - region->start_pfn;
-		u64 handle = region->start_pfn << PAGE_SHIFT;
 		bool found = false;
-
-		if (KBASE_MEM_TYPE_IMPORTED_UMM == region->cpu_alloc->type)
-			handle |= BIT(0);
-
 		/* Check if this write was already handled. */
 		list_for_each_entry(pos, &kctx->gwt_current_list, link) {
-			if (handle == pos->handle &&
-					offset >= pos->offset &&
-					offset < pos->offset + pos->num_pages) {
+			if (page_addr == pos->page_addr) {
 				found = true;
 				break;
 			}
@@ -249,8 +241,8 @@ static void kbase_gpu_mmu_handle_write_fault(struct kbase_context *kctx,
 		if (!found) {
 			pos = kmalloc(sizeof(*pos), GFP_KERNEL);
 			if (pos) {
-				pos->handle = handle;
-				pos->offset = offset;
+				pos->region = region;
+				pos->page_addr = page_addr;
 				pos->num_pages = 1;
 				list_add(&pos->link, &kctx->gwt_current_list);
 			} else {
@@ -318,6 +310,10 @@ void page_fault_worker(struct work_struct *data)
 	struct kbase_va_region *region;
 	int err;
 	bool grown = false;
+	size_t min_pool_size;
+	struct kbase_mem_pool *pool;
+	int pages_to_grow;
+	struct tagged_addr *gpu_pages, *cpu_pages;
 
 	faulting_as = container_of(data, struct kbase_as, work_pagefault);
 	fault_pfn = faulting_as->fault_addr >> PAGE_SHIFT;
@@ -336,8 +332,7 @@ void page_fault_worker(struct work_struct *data)
 
 	KBASE_DEBUG_ASSERT(kctx->kbdev == kbdev);
 
-	if (unlikely(faulting_as->protected_mode))
-	{
+	if (unlikely(faulting_as->protected_mode)) {
 		kbase_mmu_report_fault_and_kill(kctx, faulting_as,
 				"Protected mode fault");
 		kbase_mmu_hw_clear_fault(kbdev, faulting_as, kctx,
@@ -403,6 +398,7 @@ void page_fault_worker(struct work_struct *data)
 		goto fault_done;
 	}
 
+page_fault_retry:
 	/* so we have a translation fault, let's see if it is for growable
 	 * memory */
 	kbase_gpu_vm_lock(kctx);
@@ -496,20 +492,59 @@ void page_fault_worker(struct work_struct *data)
 		goto fault_done;
 	}
 
-	if (kbase_alloc_phy_pages_helper(region->gpu_alloc, new_pages) == 0) {
-		if (region->gpu_alloc != region->cpu_alloc) {
-			if (kbase_alloc_phy_pages_helper(
-					region->cpu_alloc, new_pages) == 0) {
-				grown = true;
-			} else {
-				kbase_free_phy_pages_helper(region->gpu_alloc,
-						new_pages);
-			}
-		} else {
-			grown = true;
-		}
+#ifdef CONFIG_MALI_2MB_ALLOC
+	if (new_pages >= (SZ_2M / SZ_4K)) {
+		pool = &kctx->lp_mem_pool;
+		/* Round up to number of 2 MB pages required */
+		min_pool_size = new_pages + ((SZ_2M / SZ_4K) - 1);
+		min_pool_size /= (SZ_2M / SZ_4K);
+	} else {
+#endif
+		pool = &kctx->mem_pool;
+		min_pool_size = new_pages;
+#ifdef CONFIG_MALI_2MB_ALLOC
 	}
+#endif
 
+	if (region->gpu_alloc != region->cpu_alloc)
+		min_pool_size *= 2;
+
+	pages_to_grow = 0;
+
+	mutex_lock(&kctx->mem_partials_lock);
+	kbase_mem_pool_lock(pool);
+	/* We can not allocate memory from the kernel with the vm_lock held, so
+	 * check that there is enough memory in the pool. If not then calculate
+	 * how much it has to grow by, grow the pool when the vm_lock is
+	 * dropped, and retry the allocation.
+	 */
+	if (kbase_mem_pool_size(pool) >= min_pool_size) {
+		gpu_pages = kbase_alloc_phy_pages_helper_locked(
+				region->gpu_alloc, pool, new_pages);
+
+		if (gpu_pages) {
+			if (region->gpu_alloc != region->cpu_alloc) {
+				cpu_pages = kbase_alloc_phy_pages_helper_locked(
+						region->cpu_alloc, pool,
+						new_pages);
+
+				if (cpu_pages) {
+					grown = true;
+				} else {
+					kbase_free_phy_pages_helper_locked(
+							region->gpu_alloc,
+							pool, gpu_pages,
+							new_pages);
+				}
+			} else {
+				grown = true;
+			}
+		}
+	} else {
+		pages_to_grow = min_pool_size - kbase_mem_pool_size(pool);
+	}
+	kbase_mem_pool_unlock(pool);
+	mutex_unlock(&kctx->mem_partials_lock);
 
 	if (grown) {
 		u64 pfn_offset;
@@ -587,12 +622,13 @@ void page_fault_worker(struct work_struct *data)
 
 			pos = kmalloc(sizeof(*pos), GFP_KERNEL);
 			if (pos) {
-				pos->handle = region->start_pfn << PAGE_SHIFT;
-				pos->offset = pfn_offset;
+				pos->region = region;
+				pos->page_addr = (region->start_pfn +
+							pfn_offset) <<
+							 PAGE_SHIFT;
 				pos->num_pages = new_pages;
 				list_add(&pos->link,
 					&kctx->gwt_current_list);
-
 			} else {
 				dev_warn(kbdev->dev, "kmalloc failure");
 			}
@@ -600,10 +636,23 @@ void page_fault_worker(struct work_struct *data)
 #endif
 		kbase_gpu_vm_unlock(kctx);
 	} else {
-		/* failed to extend, handle as a normal PF */
+		int ret = -ENOMEM;
+
 		kbase_gpu_vm_unlock(kctx);
-		kbase_mmu_report_fault_and_kill(kctx, faulting_as,
-				"Page allocation failure");
+
+		/* If the memory pool was insufficient then grow it and retry.
+		 * Otherwise fail the allocation.
+		 */
+		if (pages_to_grow > 0)
+			ret = kbase_mem_pool_grow(pool, pages_to_grow);
+
+		if (ret < 0) {
+			/* failed to extend, handle as a normal PF */
+			kbase_mmu_report_fault_and_kill(kctx, faulting_as,
+					"Page allocation failure");
+		} else {
+			goto page_fault_retry;
+		}
 	}
 
 fault_done:
@@ -1767,8 +1816,7 @@ void bus_fault_worker(struct work_struct *data)
 		return;
 	}
 
-	if (unlikely(faulting_as->protected_mode))
-	{
+	if (unlikely(faulting_as->protected_mode)) {
 		kbase_mmu_report_fault_and_kill(kctx, faulting_as,
 				"Permission failure");
 		kbase_mmu_hw_clear_fault(kbdev, faulting_as, kctx,

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2013, 2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2013, 2015, 2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -38,5 +38,29 @@
  *                  false otherwise
  */
 bool kbasep_list_member_of(const struct list_head *base, struct list_head *entry);
+
+
+static inline void kbase_timer_setup(struct timer_list *timer,
+				     void (*callback)(struct timer_list *timer))
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 14, 0)
+	setup_timer(timer, (void (*)(unsigned long)) callback,
+			(unsigned long) timer);
+#else
+	timer_setup(timer, callback, 0);
+#endif
+}
+
+#ifndef WRITE_ONCE
+	#ifdef ASSIGN_ONCE
+		#define WRITE_ONCE(x, val) ASSIGN_ONCE(val, x)
+	#else
+		#define WRITE_ONCE(x, val) (ACCESS_ONCE(x) = (val))
+	#endif
+#endif
+
+#ifndef READ_ONCE
+	#define READ_ONCE(x) ACCESS_ONCE(x)
+#endif
 
 #endif				/* _KBASE_UTILITY_H */

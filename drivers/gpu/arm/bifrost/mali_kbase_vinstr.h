@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,35 +24,13 @@
 #define _KBASE_VINSTR_H_
 
 #include <mali_kbase_hwcnt_reader.h>
+#include <mali_kbase_ioctl.h>
 
 /*****************************************************************************/
 
 struct kbase_vinstr_context;
 struct kbase_vinstr_client;
 
-struct kbase_uk_hwcnt_setup {
-	/* IN */
-	u64 dump_buffer;
-	u32 jm_bm;
-	u32 shader_bm;
-	u32 tiler_bm;
-	u32 unused_1; /* keep for backwards compatibility */
-	u32 mmu_l2_bm;
-	u32 padding;
-	/* OUT */
-};
-
-struct kbase_uk_hwcnt_reader_setup {
-	/* IN */
-	u32 buffer_count;
-	u32 jm_bm;
-	u32 shader_bm;
-	u32 tiler_bm;
-	u32 mmu_l2_bm;
-
-	/* OUT */
-	s32 fd;
-};
 /*****************************************************************************/
 
 /**
@@ -74,24 +52,24 @@ void kbase_vinstr_term(struct kbase_vinstr_context *vinstr_ctx);
  * @vinstr_ctx: vinstr context
  * @setup:      reader's configuration
  *
- * Return: zero on success
+ * Return: file descriptor on success and a (negative) error code otherwise
  */
 int kbase_vinstr_hwcnt_reader_setup(
 		struct kbase_vinstr_context        *vinstr_ctx,
-		struct kbase_uk_hwcnt_reader_setup *setup);
+		struct kbase_ioctl_hwcnt_reader_setup *setup);
 
 /**
  * kbase_vinstr_legacy_hwc_setup - configure hw counters for dumping
  * @vinstr_ctx: vinstr context
  * @cli:        pointer where to store pointer to new vinstr client structure
- * @setup:      hwc configuration
+ * @enable:      hwc configuration
  *
  * Return: zero on success
  */
 int kbase_vinstr_legacy_hwc_setup(
 		struct kbase_vinstr_context *vinstr_ctx,
 		struct kbase_vinstr_client  **cli,
-		struct kbase_uk_hwcnt_setup *setup);
+		struct kbase_ioctl_hwcnt_enable *enable);
 
 /**
  * kbase_vinstr_hwcnt_kernel_setup - configure hw counters for kernel side
@@ -100,13 +78,13 @@ int kbase_vinstr_legacy_hwc_setup(
  * @setup:         reader's configuration
  * @kernel_buffer: pointer to dump buffer
  *
- * setup->buffer_count and setup->fd are not used for kernel side clients.
+ * setup->buffer_count is not used for kernel side clients.
  *
  * Return: pointer to client structure, or NULL on failure
  */
 struct kbase_vinstr_client *kbase_vinstr_hwcnt_kernel_setup(
 		struct kbase_vinstr_context *vinstr_ctx,
-		struct kbase_uk_hwcnt_reader_setup *setup,
+		struct kbase_ioctl_hwcnt_reader_setup *setup,
 		void *kernel_buffer);
 
 /**
@@ -156,6 +134,16 @@ int kbase_vinstr_try_suspend(struct kbase_vinstr_context *vinstr_ctx);
 void kbase_vinstr_suspend(struct kbase_vinstr_context *vinstr_ctx);
 
 /**
+ * kbase_vinstr_wait_for_ready - waits for the vinstr context to get ready
+ * @vinstr_ctx: vinstr context
+ *
+ * Function waits for the vinstr to become ready for dumping. It can be in the
+ * resuming state after the client was attached but the client currently expects
+ * that vinstr is ready for dumping immediately post attach.
+ */
+void kbase_vinstr_wait_for_ready(struct kbase_vinstr_context *vinstr_ctx);
+
+/**
  * kbase_vinstr_resume - resumes operation of a given vinstr context
  * @vinstr_ctx: vinstr context
  *
@@ -177,6 +165,18 @@ size_t kbase_vinstr_dump_size(struct kbase_device *kbdev);
  * @cli: pointer to vinstr client
  */
 void kbase_vinstr_detach_client(struct kbase_vinstr_client *cli);
+
+/**
+ * kbase_vinstr_suspend_client - Suspend vinstr client
+ * @client: pointer to vinstr client
+ */
+void kbase_vinstr_suspend_client(struct kbase_vinstr_client *client);
+
+/**
+ * kbase_vinstr_resume_client - Resume vinstr client
+ * @client: pointer to vinstr client
+ */
+void kbase_vinstr_resume_client(struct kbase_vinstr_client *client);
 
 #endif /* _KBASE_VINSTR_H_ */
 

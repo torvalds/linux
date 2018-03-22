@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -375,12 +375,12 @@ static void kbase_fence_debug_timeout(struct kbase_jd_atom *katom)
 }
 #endif /* CONFIG_MALI_BIFROST_FENCE_DEBUG */
 
-void kbasep_soft_job_timeout_worker(unsigned long data)
+void kbasep_soft_job_timeout_worker(struct timer_list *timer)
 {
-	struct kbase_context *kctx = (struct kbase_context *)data;
+	struct kbase_context *kctx = container_of(timer, struct kbase_context,
+			soft_job_timeout);
 	u32 timeout_ms = (u32)atomic_read(
 			&kctx->kbdev->js_data.soft_job_timeout_ms);
-	struct timer_list *timer = &kctx->soft_job_timeout;
 	ktime_t cur_time = ktime_get();
 	bool restarting = false;
 	unsigned long lflags;
@@ -771,9 +771,11 @@ static int kbase_mem_copy_from_extres(struct kbase_context *kctx,
 	u64 offset = buf_data->offset;
 	size_t extres_size = buf_data->nr_extres_pages*PAGE_SIZE;
 	size_t to_copy = min(extres_size, buf_data->size);
-	size_t dma_to_copy;
 	struct kbase_mem_phy_alloc *gpu_alloc = buf_data->gpu_alloc;
 	int ret = 0;
+#ifdef CONFIG_DMA_SHARED_BUFFER
+	size_t dma_to_copy;
+#endif
 
 	KBASE_DEBUG_ASSERT(pages != NULL);
 
@@ -913,6 +915,33 @@ static int kbase_jit_allocate_prepare(struct kbase_jd_atom *katom)
 	if ((info->gpu_alloc_addr & 0x7) != 0) {
 		ret = -EINVAL;
 		goto free_info;
+	}
+
+	if (kctx->jit_version == 1) {
+		/* Old JIT didn't have usage_id, max_allocations, bin_id
+		 * or padding, so force them to zero
+		 */
+		info->usage_id = 0;
+		info->max_allocations = 0;
+		info->bin_id = 0;
+		info->flags = 0;
+		memset(info->padding, 0, sizeof(info->padding));
+	} else {
+		int i;
+
+		/* Check padding is all zeroed */
+		for (i = 0; i < sizeof(info->padding); i++) {
+			if (info->padding[i] != 0) {
+				ret = -EINVAL;
+				goto free_info;
+			}
+		}
+
+		/* No bit other than TILER_ALIGN_TOP shall be set */
+		if (info->flags & ~BASE_JIT_ALLOC_MEM_TILER_ALIGN_TOP) {
+			ret = -EINVAL;
+			goto free_info;
+		}
 	}
 
 	katom->softjob_data = info;
@@ -1271,6 +1300,8 @@ static void kbase_ext_res_finish(struct kbase_jd_atom *katom)
 
 int kbase_process_soft_job(struct kbase_jd_atom *katom)
 {
+	KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTJOB_START(katom);
+
 	switch (katom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) {
 	case BASE_JD_REQ_SOFT_DUMP_CPU_GPU_TIME:
 		return kbase_dump_cpu_gpu_time(katom);
@@ -1434,6 +1465,7 @@ int kbase_prepare_soft_job(struct kbase_jd_atom *katom)
 
 void kbase_finish_soft_job(struct kbase_jd_atom *katom)
 {
+	KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTJOB_END(katom);
 	switch (katom->core_req & BASE_JD_REQ_SOFT_JOB_TYPE) {
 	case BASE_JD_REQ_SOFT_DUMP_CPU_GPU_TIME:
 		/* Nothing to do */

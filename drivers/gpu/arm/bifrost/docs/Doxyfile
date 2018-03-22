@@ -38,7 +38,7 @@
 # directories like "/usr/src/myproject". Separate the files or directories
 # with spaces.
 
-INPUT                  += ../../kernel/drivers/gpu/arm/midgard/ 
+INPUT                  += ../../kernel/drivers/gpu/arm/midgard/
 
 ##############################################################################
 # Everything below here is optional, and in most cases not required

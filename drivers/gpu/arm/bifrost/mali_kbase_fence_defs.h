@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -44,7 +44,12 @@
 #define dma_fence_is_signaled(a) fence_is_signaled(a)
 #define dma_fence_add_callback(a, b, c) fence_add_callback(a, b, c)
 #define dma_fence_remove_callback(a, b) fence_remove_callback(a, b)
+
+#if (KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE)
+#define dma_fence_get_status(a) (fence_is_signaled(a) ? (a)->error ?: 1 : 0)
+#else
 #define dma_fence_get_status(a) (fence_is_signaled(a) ? (a)->status ?: 1 : 0)
+#endif
 
 #else
 

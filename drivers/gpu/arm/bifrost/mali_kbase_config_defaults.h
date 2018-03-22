@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -156,12 +156,12 @@ enum {
  */
 #define DEFAULT_UMP_GPU_DEVICE_SHIFT UMP_DEVICE_Z_SHIFT
 
-/*
+/**
  * Default period for DVFS sampling
  */
 #define DEFAULT_PM_DVFS_PERIOD 100 /* 100ms */
 
-/*
+/**
  * Power Management poweroff tick granuality. This is in nanoseconds to
  * allow HR timer support.
  *
@@ -171,22 +171,22 @@ enum {
  */
 #define DEFAULT_PM_GPU_POWEROFF_TICK_NS (400000) /* 400us */
 
-/*
+/**
  * Power Manager number of ticks before shader cores are powered off
  */
 #define DEFAULT_PM_POWEROFF_TICK_SHADER (2) /* 400-800us */
 
-/*
+/**
  * Power Manager number of ticks before GPU is powered off
  */
 #define DEFAULT_PM_POWEROFF_TICK_GPU (2) /* 400-800us */
 
-/*
+/**
  * Default scheduling tick granuality
  */
 #define DEFAULT_JS_SCHEDULING_PERIOD_NS    (100000000u) /* 100ms */
 
-/*
+/**
  * Default minimum number of scheduling ticks before jobs are soft-stopped.
  *
  * This defines the time-slice for a job (which may be different from that of a
@@ -194,60 +194,60 @@ enum {
  */
 #define DEFAULT_JS_SOFT_STOP_TICKS       (1) /* 100ms-200ms */
 
-/*
+/**
  * Default minimum number of scheduling ticks before CL jobs are soft-stopped.
  */
 #define DEFAULT_JS_SOFT_STOP_TICKS_CL    (1) /* 100ms-200ms */
 
-/*
+/**
  * Default minimum number of scheduling ticks before jobs are hard-stopped
  */
 #define DEFAULT_JS_HARD_STOP_TICKS_SS    (50) /* 5s */
 #define DEFAULT_JS_HARD_STOP_TICKS_SS_8408  (300) /* 30s */
 
-/*
+/**
  * Default minimum number of scheduling ticks before CL jobs are hard-stopped.
  */
 #define DEFAULT_JS_HARD_STOP_TICKS_CL    (50) /* 5s */
 
-/*
+/**
  * Default minimum number of scheduling ticks before jobs are hard-stopped
  * during dumping
  */
 #define DEFAULT_JS_HARD_STOP_TICKS_DUMPING   (15000) /* 1500s */
 
-/*
+/**
  * Default timeout for some software jobs, after which the software event wait
  * jobs will be cancelled.
  */
 #define DEFAULT_JS_SOFT_JOB_TIMEOUT (3000) /* 3s */
 
-/*
+/**
  * Default minimum number of scheduling ticks before the GPU is reset to clear a
  * "stuck" job
  */
 #define DEFAULT_JS_RESET_TICKS_SS           (55) /* 5.5s */
 #define DEFAULT_JS_RESET_TICKS_SS_8408     (450) /* 45s */
 
-/*
+/**
  * Default minimum number of scheduling ticks before the GPU is reset to clear a
  * "stuck" CL job.
  */
 #define DEFAULT_JS_RESET_TICKS_CL        (55) /* 5.5s */
 
-/*
+/**
  * Default minimum number of scheduling ticks before the GPU is reset to clear a
  * "stuck" job during dumping.
  */
 #define DEFAULT_JS_RESET_TICKS_DUMPING   (15020) /* 1502s */
 
-/*
+/**
  * Default number of milliseconds given for other jobs on the GPU to be
  * soft-stopped when the GPU needs to be reset.
  */
 #define DEFAULT_RESET_TIMEOUT_MS (3000) /* 3s */
 
-/*
+/**
  * Default timeslice that a context is scheduled in for, in nanoseconds.
  *
  * When a context has used up this amount of time across its jobs, it is
@@ -258,7 +258,7 @@ enum {
  */
 #define DEFAULT_JS_CTX_TIMESLICE_NS (50000000) /* 50ms */
 
-/*
+/**
  * Perform GPU power down using only platform specific code, skipping DDK power
  * management.
  *
@@ -272,7 +272,7 @@ enum {
  */
 #define PLATFORM_POWER_DOWN_ONLY (0)
 
-/*
+/**
  * Maximum frequency (in kHz) that the GPU can be clocked. For some platforms
  * this isn't available, so we simply define a dummy value here. If devfreq
  * is enabled the value will be read from there, otherwise this should be

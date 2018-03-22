@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -61,8 +61,8 @@
 #include "mali_kbase_mem_lowlevel.h"
 #include "mali_kbase_trace_timeline.h"
 #include "mali_kbase_js.h"
-#include "mali_kbase_mem.h"
 #include "mali_kbase_utility.h"
+#include "mali_kbase_mem.h"
 #include "mali_kbase_gpu_memory_debugfs.h"
 #include "mali_kbase_mem_profile_debugfs.h"
 #include "mali_kbase_debug_job_fault.h"
@@ -110,10 +110,6 @@ struct kbase_device *kbase_find_device(int minor);
 void kbase_release_device(struct kbase_device *kbdev);
 
 void kbase_set_profiling_control(struct kbase_device *kbdev, u32 control, u32 value);
-
-struct kbase_context *
-kbase_create_context(struct kbase_device *kbdev, bool is_compat);
-void kbase_destroy_context(struct kbase_context *kctx);
 
 
 /**
@@ -258,7 +254,7 @@ int kbase_soft_event_update(struct kbase_context *kctx,
 
 bool kbase_replay_process(struct kbase_jd_atom *katom);
 
-void kbasep_soft_job_timeout_worker(unsigned long data);
+void kbasep_soft_job_timeout_worker(struct timer_list *timer);
 void kbasep_complete_triggered_soft_events(struct kbase_context *kctx, u64 evt);
 
 /* api used internally for register access. Contains validation and tracing */

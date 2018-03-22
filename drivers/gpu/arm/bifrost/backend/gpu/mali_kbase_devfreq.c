@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -92,15 +92,21 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 
 	freq = *target_freq;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 	rcu_read_lock();
+#endif
 	opp = devfreq_recommended_opp(dev, &freq, flags);
-	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+	voltage = dev_pm_opp_get_voltage(opp);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+	rcu_read_unlock();
+#endif
+	if (IS_ERR_OR_NULL(opp)) {
 		dev_err(dev, "Failed to get opp (%ld)\n", PTR_ERR(opp));
 		return PTR_ERR(opp);
 	}
-	voltage = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
+	dev_pm_opp_put(opp);
+#endif
 
 	nominal_freq = freq;
 	/*
@@ -201,20 +207,24 @@ static int kbase_devfreq_init_freq_table(struct kbase_device *kbdev,
 	unsigned long freq;
 	struct dev_pm_opp *opp;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 	rcu_read_lock();
+#endif
 	count = dev_pm_opp_get_opp_count(kbdev->dev);
-	if (count < 0) {
-		rcu_read_unlock();
-		return count;
-	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 	rcu_read_unlock();
+#endif
+	if (count < 0)
+		return count;
 
 	dp->freq_table = kmalloc_array(count, sizeof(dp->freq_table[0]),
 				GFP_KERNEL);
 	if (!dp->freq_table)
 		return -ENOMEM;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 	rcu_read_lock();
+#endif
 	for (i = 0, freq = ULONG_MAX; i < count; i++, freq--) {
 		opp = dev_pm_opp_find_freq_floor(kbdev->dev, &freq);
 		if (IS_ERR(opp))
@@ -225,7 +235,9 @@ static int kbase_devfreq_init_freq_table(struct kbase_device *kbdev,
 
 		dp->freq_table[i] = freq;
 	}
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 	rcu_read_unlock();
+#endif
 
 	if (count != i)
 		dev_warn(kbdev->dev, "Unable to enumerate all OPPs (%d!=%d\n",
@@ -368,7 +380,7 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	kbdev->devfreq = devfreq_add_device(kbdev->dev, dp,
 				"simple_ondemand", NULL);
 	if (IS_ERR(kbdev->devfreq)) {
-		kbase_devfreq_term_freq_table(kbdev);
+		kfree(dp->freq_table);
 		return PTR_ERR(kbdev->devfreq);
 	}
 

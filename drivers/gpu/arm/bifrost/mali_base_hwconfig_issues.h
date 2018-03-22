@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1135,6 +1135,13 @@ static const enum base_hw_issue base_hw_issues_model_tNOx[] = {
 };
 
 static const enum base_hw_issue base_hw_issues_tGOx_r0p0[] = {
+	BASE_HW_ISSUE_9435,
+	BASE_HW_ISSUE_TMIX_8133,
+	BASE_HW_ISSUE_TSIX_1116,
+	BASE_HW_ISSUE_END
+};
+
+static const enum base_hw_issue base_hw_issues_tGOx_r1p0[] = {
 	BASE_HW_ISSUE_9435,
 	BASE_HW_ISSUE_TMIX_8133,
 	BASE_HW_ISSUE_TSIX_1116,

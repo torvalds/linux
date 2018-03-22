@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -245,9 +245,6 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 
 	KBASE_TRACE_ADD(kbdev, JM_IRQ, NULL, NULL, 0, done);
 
-	memset(&kbdev->slot_submit_count_irq[0], 0,
-					sizeof(kbdev->slot_submit_count_irq));
-
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
 	while (done) {
@@ -312,7 +309,7 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 							completion_code));
 				}
 
-				kbase_gpu_irq_evict(kbdev, i);
+				kbase_gpu_irq_evict(kbdev, i, completion_code);
 			}
 
 			kbase_reg_write(kbdev, JOB_CONTROL_REG(JOB_IRQ_CLEAR),
@@ -745,7 +742,9 @@ void kbase_job_slot_ctx_priority_check_locked(struct kbase_context *kctx,
 		if (!katom)
 			continue;
 
-		if (katom->kctx != kctx)
+		if ((kbdev->js_ctx_scheduling_mode ==
+			KBASE_JS_PROCESS_LOCAL_PRIORITY_MODE) &&
+				(katom->kctx != kctx))
 			continue;
 
 		if (katom->sched_priority > priority) {

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -222,9 +222,9 @@ static const char * const hardware_counters_mali_tSIx[] = {
 	"TSIx_BEATS_RD_TEX",
 	"TSIx_BEATS_RD_TEX_EXT",
 	"TSIx_BEATS_RD_OTHER",
-	"TSIx_BEATS_WR_LSC",
+	"TSIx_BEATS_WR_LSC_OTHER",
 	"TSIx_BEATS_WR_TIB",
-	"",
+	"TSIx_BEATS_WR_LSC_WB",
 
 	/* Performance counters for the Memory System */
 	"",

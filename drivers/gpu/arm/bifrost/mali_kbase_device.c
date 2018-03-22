@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -253,10 +253,6 @@ int kbase_device_init(struct kbase_device * const kbdev)
 		kbdev->mmu_mode = kbase_mmu_mode_get_aarch64();
 	else
 		kbdev->mmu_mode = kbase_mmu_mode_get_lpae();
-
-#ifdef CONFIG_MALI_BIFROST_DEBUG
-	init_waitqueue_head(&kbdev->driver_inactive_wait);
-#endif /* CONFIG_MALI_BIFROST_DEBUG */
 
 	return 0;
 term_trace:

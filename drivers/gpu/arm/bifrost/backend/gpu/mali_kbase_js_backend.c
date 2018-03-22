@@ -147,16 +147,17 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 
 				/* Job is Soft-Stoppable */
 				if (ticks == soft_stop_ticks) {
-					int disjoint_threshold =
-		KBASE_DISJOINT_STATE_INTERLEAVED_CONTEXT_COUNT_THRESHOLD;
-					u32 softstop_flags = 0u;
 					/* Job has been scheduled for at least
 					 * js_devdata->soft_stop_ticks ticks.
 					 * Soft stop the slot so we can run
 					 * other jobs.
 					 */
-					dev_dbg(kbdev->dev, "Soft-stop");
 #if !KBASE_DISABLE_SCHEDULING_SOFT_STOPS
+					int disjoint_threshold =
+		KBASE_DISJOINT_STATE_INTERLEAVED_CONTEXT_COUNT_THRESHOLD;
+					u32 softstop_flags = 0u;
+
+					dev_dbg(kbdev->dev, "Soft-stop");
 					/* nr_user_contexts_running is updated
 					 * with the runpool_mutex, but we can't
 					 * take that here.

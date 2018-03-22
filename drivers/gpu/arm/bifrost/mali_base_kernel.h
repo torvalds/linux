@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -317,8 +317,10 @@ struct base_mem_import_user_buffer {
  *
  * This is the same as the maximum limit for a Buffer Descriptor's chunk size
  */
+#define BASE_MEM_TILER_ALIGN_TOP_EXTENT_MAX_PAGES_LOG2 \
+		(21u - (LOCAL_PAGE_SHIFT))
 #define BASE_MEM_TILER_ALIGN_TOP_EXTENT_MAX_PAGES \
-		((2ull * 1024ull * 1024ull) >> (LOCAL_PAGE_SHIFT))
+		(1ull << (BASE_MEM_TILER_ALIGN_TOP_EXTENT_MAX_PAGES_LOG2))
 
 /* Bit mask of cookies used for for memory allocation setup */
 #define KBASE_COOKIE_MASK  ~1UL /* bit 0 is reserved */
@@ -434,6 +436,13 @@ struct base_mem_aliasing_info {
 };
 
 /**
+ * Similar to BASE_MEM_TILER_ALIGN_TOP, memory starting from the end of the
+ * initial commit is aligned to 'extent' pages, where 'extent' must be a power
+ * of 2 and no more than BASE_MEM_TILER_ALIGN_TOP_EXTENT_MAX_PAGES
+ */
+#define BASE_JIT_ALLOC_MEM_TILER_ALIGN_TOP  (1 << 0)
+
+/**
  * struct base_jit_alloc_info - Structure which describes a JIT allocation
  *                              request.
  * @gpu_alloc_addr:             The GPU virtual address to write the JIT
@@ -446,6 +455,18 @@ struct base_mem_aliasing_info {
  * @id:                         Unique ID provided by the caller, this is used
  *                              to pair allocation and free requests.
  *                              Zero is not a valid value.
+ * @bin_id:                     The JIT allocation bin, used in conjunction with
+ *                              @max_allocations to limit the number of each
+ *                              type of JIT allocation.
+ * @max_allocations:            The maximum number of allocations allowed within
+ *                              the bin specified by @bin_id. Should be the same
+ *                              for all JIT allocations within the same bin.
+ * @flags:                      flags specifying the special requirements for
+ *                              the JIT allocation.
+ * @padding:                    Expansion space - should be initialised to zero
+ * @usage_id:                   A hint about which allocation should be reused.
+ *                              The kernel should attempt to use a previous
+ *                              allocation with the same usage_id
  */
 struct base_jit_alloc_info {
 	u64 gpu_alloc_addr;
@@ -453,6 +474,11 @@ struct base_jit_alloc_info {
 	u64 commit_pages;
 	u64 extent;
 	u8 id;
+	u8 bin_id;
+	u8 max_allocations;
+	u8 flags;
+	u8 padding[2];
+	u16 usage_id;
 };
 
 /**
@@ -1412,6 +1438,11 @@ struct mali_base_gpu_core_props {
 	 * client will not be expecting to allocate anywhere near this value.
 	 */
 	u64 gpu_available_memory_size;
+
+	/**
+	 * The number of execution engines.
+	 */
+	u8 num_exec_engines;
 };
 
 /**
@@ -1442,7 +1473,10 @@ struct mali_base_gpu_thread_props {
 	u8  max_task_queue;         /* Max. tasks [1..255] which may be sent to a core before it becomes blocked. */
 	u8  max_thread_group_split; /* Max. allowed value [1..15] of the Thread Group Split field. */
 	u8  impl_tech;              /* 0 = Not specified, 1 = Silicon, 2 = FPGA, 3 = SW Model/Emulation */
-	u8  padding[7];
+	u8  padding[3];
+	u32 tls_alloc;              /* Number of threads per core that TLS must
+				     * be allocated for
+				     */
 };
 
 /**
@@ -1524,7 +1558,7 @@ struct gpu_raw_gpu_props {
 	u64 stack_present;
 
 	u32 l2_features;
-	u32 suspend_size; /* API 8.2+ */
+	u32 core_features;
 	u32 mem_features;
 	u32 mmu_features;
 
@@ -1547,6 +1581,8 @@ struct gpu_raw_gpu_props {
 	 * available modes as exposed in the coherency_features register.
 	 */
 	u32 coherency_mode;
+
+	u32 thread_tls_alloc;
 };
 
 /**
@@ -1582,36 +1618,40 @@ typedef struct base_gpu_props {
  */
 
 /**
- * \enum base_context_create_flags
- *
  * Flags to pass to ::base_context_init.
  * Flags can be ORed together to enable multiple things.
  *
  * These share the same space as BASEP_CONTEXT_FLAG_*, and so must
  * not collide with them.
  */
-enum base_context_create_flags {
-	/** No flags set */
-	BASE_CONTEXT_CREATE_FLAG_NONE = 0,
+typedef u32 base_context_create_flags;
 
-	/** Base context is embedded in a cctx object (flag used for CINSTR software counter macros) */
-	BASE_CONTEXT_CCTX_EMBEDDED = (1u << 0),
+/** No flags set */
+#define BASE_CONTEXT_CREATE_FLAG_NONE ((base_context_create_flags)0)
 
-	/** Base context is a 'System Monitor' context for Hardware counters.
-	 *
-	 * One important side effect of this is that job submission is disabled. */
-	BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED = (1u << 1)
-};
+/** Base context is embedded in a cctx object (flag used for CINSTR
+ * software counter macros)
+ */
+#define BASE_CONTEXT_CCTX_EMBEDDED ((base_context_create_flags)1 << 0)
+
+/** Base context is a 'System Monitor' context for Hardware counters.
+ *
+ * One important side effect of this is that job submission is disabled.
+ */
+#define BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED \
+	((base_context_create_flags)1 << 1)
 
 /**
- * Bitpattern describing the ::base_context_create_flags that can be passed to base_context_init()
+ * Bitpattern describing the ::base_context_create_flags that can be
+ * passed to base_context_init()
  */
 #define BASE_CONTEXT_CREATE_ALLOWED_FLAGS \
 	(((u32)BASE_CONTEXT_CCTX_EMBEDDED) | \
 	  ((u32)BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED))
 
 /**
- * Bitpattern describing the ::base_context_create_flags that can be passed to the kernel
+ * Bitpattern describing the ::base_context_create_flags that can be
+ * passed to the kernel
  */
 #define BASE_CONTEXT_CREATE_KERNEL_FLAGS \
 	((u32)BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED)

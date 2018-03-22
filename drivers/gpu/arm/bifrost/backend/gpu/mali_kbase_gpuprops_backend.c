@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -41,8 +41,8 @@ void kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 
 	regdump->l2_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(L2_FEATURES), NULL);
-	regdump->suspend_size = kbase_reg_read(kbdev,
-				GPU_CONTROL_REG(SUSPEND_SIZE), NULL);
+	regdump->core_features = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(CORE_FEATURES), NULL);
 	regdump->tiler_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(TILER_FEATURES), NULL);
 	regdump->mem_features = kbase_reg_read(kbdev,
@@ -71,6 +71,8 @@ void kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 				GPU_CONTROL_REG(THREAD_MAX_BARRIER_SIZE), NULL);
 	regdump->thread_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(THREAD_FEATURES), NULL);
+	regdump->thread_tls_alloc = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(THREAD_TLS_ALLOC), NULL);
 
 	regdump->shader_present_lo = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(SHADER_PRESENT_LO), NULL);

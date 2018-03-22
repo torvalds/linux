@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016, 2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,7 +25,35 @@
 
 #include <linux/atomic.h>
 
+/**
+ * kbase_create_context() - Create a kernel base context.
+ * @kbdev: Kbase device
+ * @is_compat: Force creation of a 32-bit context
+ *
+ * Allocate and init a kernel base context.
+ *
+ * Return: new kbase context
+ */
+struct kbase_context *
+kbase_create_context(struct kbase_device *kbdev, bool is_compat);
 
+/**
+ * kbase_destroy_context - Destroy a kernel base context.
+ * @kctx: Context to destroy
+ *
+ * Calls kbase_destroy_os_context() to free OS specific structures.
+ * Will release all outstanding regions.
+ */
+void kbase_destroy_context(struct kbase_context *kctx);
+
+/**
+ * kbase_context_set_create_flags - Set creation flags on a context
+ * @kctx: Kbase context
+ * @flags: Flags to set, which shall be one of the flags of
+ *         BASE_CONTEXT_CREATE_KERNEL_FLAGS.
+ *
+ * Return: 0 on success, -EINVAL otherwise when an invalid flag is specified.
+ */
 int kbase_context_set_create_flags(struct kbase_context *kctx, u32 flags);
 
 /**

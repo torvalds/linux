@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2016-2017 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2016-2018 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -25,9 +25,8 @@ bifrost_kbase-y += \
 
 bifrost_kbase-$(CONFIG_DEBUG_FS) += ipa/mali_kbase_ipa_debugfs.o
 
-ifneq ($(wildcard $(src)/ipa/mali_kbase_ipa_vinstr_g71.c),)
+ifneq ($(wildcard $(src)/ipa/mali_kbase_ipa_vinstr_common.c),)
   bifrost_kbase-y += \
-	ipa/mali_kbase_ipa_vinstr_g71.o \
+	ipa/mali_kbase_ipa_vinstr_g7x.o \
 	ipa/mali_kbase_ipa_vinstr_common.o
-
 endif

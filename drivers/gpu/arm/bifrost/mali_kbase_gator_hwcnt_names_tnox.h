@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2016-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -222,9 +222,9 @@ static const char * const hardware_counters_mali_tNOx[] = {
 	"TNOx_BEATS_RD_TEX",
 	"TNOx_BEATS_RD_TEX_EXT",
 	"TNOx_BEATS_RD_OTHER",
-	"TNOx_BEATS_WR_LSC_WB",
-	"TNOx_BEATS_WR_TIB",
 	"TNOx_BEATS_WR_LSC_OTHER",
+	"TNOx_BEATS_WR_TIB",
+	"TNOx_BEATS_WR_LSC_WB",
 
 	/* Performance counters for the Memory System */
 	"",

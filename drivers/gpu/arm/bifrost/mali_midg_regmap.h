@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -34,8 +34,7 @@
 #define GPU_CONTROL_REG(r)      (GPU_CONTROL_BASE + (r))
 #define GPU_ID                  0x000	/* (RO) GPU and revision identifier */
 #define L2_FEATURES             0x004	/* (RO) Level 2 cache features */
-#define SUSPEND_SIZE            0x008   /* (RO) Fixed-function suspend buffer
-						size */
+#define CORE_FEATURES           0x008	/* (RO) Shader Core Features */
 #define TILER_FEATURES          0x00C	/* (RO) Tiler Features */
 #define MEM_FEATURES            0x010	/* (RO) Memory system features */
 #define MMU_FEATURES            0x014	/* (RO) MMU features */
@@ -93,6 +92,9 @@
 #define THREAD_MAX_WORKGROUP_SIZE 0x0A4	/* (RO) Maximum workgroup size */
 #define THREAD_MAX_BARRIER_SIZE 0x0A8	/* (RO) Maximum threads waiting at a barrier */
 #define THREAD_FEATURES         0x0AC	/* (RO) Thread features */
+#define THREAD_TLS_ALLOC        0x310   /* (RO) Number of threads per core that
+					 * TLS must be allocated for
+					 */
 
 #define TEXTURE_FEATURES_0      0x0B0	/* (RO) Support flags for indexed texture formats 0..31 */
 #define TEXTURE_FEATURES_1      0x0B4	/* (RO) Support flags for indexed texture formats 32..63 */

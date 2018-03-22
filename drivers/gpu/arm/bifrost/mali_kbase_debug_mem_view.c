@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -224,7 +224,7 @@ static int debug_mem_open(struct inode *i, struct file *file)
 	}
 
 	ret = debug_mem_zone_open(&kctx->reg_rbtree_exec, mem_data);
-	if (0 != ret) {
+	if (ret != 0) {
 		kbase_gpu_vm_unlock(kctx);
 		goto out;
 	}

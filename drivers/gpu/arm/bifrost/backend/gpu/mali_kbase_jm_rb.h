@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -33,15 +33,17 @@
 /**
  * kbase_gpu_irq_evict - Evict an atom from a NEXT slot
  *
- * @kbdev:         Device pointer
- * @js:            Job slot to evict from
+ * @kbdev:           Device pointer
+ * @js:              Job slot to evict from
+ * @completion_code: Event code from job that was run.
  *
  * Evict the atom in the NEXT slot for the specified job slot. This function is
  * called from the job complete IRQ handler when the previous job has failed.
  *
  * Return: true if job evicted from NEXT registers, false otherwise
  */
-bool kbase_gpu_irq_evict(struct kbase_device *kbdev, int js);
+bool kbase_gpu_irq_evict(struct kbase_device *kbdev, int js,
+				u32 completion_code);
 
 /**
  * kbase_gpu_complete_hw - Complete an atom on job slot js

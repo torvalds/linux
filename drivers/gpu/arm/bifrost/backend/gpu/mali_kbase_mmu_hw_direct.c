@@ -185,8 +185,7 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 		/* Mark the fault protected or not */
 		as->protected_mode = kbdev->protected_mode;
 
-		if (kbdev->protected_mode && as->fault_addr)
-		{
+		if (kbdev->protected_mode && as->fault_addr) {
 			/* check if address reporting is allowed */
 			validate_protected_page_fault(kbdev, kctx);
 		}

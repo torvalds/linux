@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -1247,7 +1247,8 @@ void kbase_backend_run_atom(struct kbase_device *kbdev,
 #define HAS_DEP(katom) (katom->pre_dep || katom->atom_flags & \
 	(KBASE_KATOM_FLAG_X_DEP_BLOCKED | KBASE_KATOM_FLAG_FAIL_BLOCKER))
 
-bool kbase_gpu_irq_evict(struct kbase_device *kbdev, int js)
+bool kbase_gpu_irq_evict(struct kbase_device *kbdev, int js,
+				u32 completion_code)
 {
 	struct kbase_jd_atom *katom;
 	struct kbase_jd_atom *next_katom;
@@ -1268,14 +1269,16 @@ bool kbase_gpu_irq_evict(struct kbase_device *kbdev, int js)
 				JS_COMMAND_NOP, NULL);
 		next_katom->gpu_rb_state = KBASE_ATOM_GPU_RB_READY;
 
-		KBASE_TLSTREAM_TL_NRET_ATOM_LPU(katom,
+		if (completion_code == BASE_JD_EVENT_STOPPED) {
+			KBASE_TLSTREAM_TL_NRET_ATOM_LPU(katom,
 				&kbdev->gpu_props.props.raw_props.js_features
 					[katom->slot_nr]);
-		KBASE_TLSTREAM_TL_NRET_ATOM_AS(katom, &kbdev->as
+			KBASE_TLSTREAM_TL_NRET_ATOM_AS(katom, &kbdev->as
 					[katom->kctx->as_nr]);
-		KBASE_TLSTREAM_TL_NRET_CTX_LPU(katom->kctx,
+			KBASE_TLSTREAM_TL_NRET_CTX_LPU(katom->kctx,
 				&kbdev->gpu_props.props.raw_props.js_features
 					[katom->slot_nr]);
+		}
 
 		return true;
 	}
@@ -1515,8 +1518,7 @@ void kbase_backend_reset(struct kbase_device *kbdev, ktime_t *end_timestamp)
 			if (!katom)
 				break;
 			if (katom->protected_state.exit ==
-					KBASE_ATOM_EXIT_PROTECTED_RESET_WAIT)
-			{
+			    KBASE_ATOM_EXIT_PROTECTED_RESET_WAIT) {
 				KBASE_TLSTREAM_AUX_PROTECTED_LEAVE_END(kbdev);
 
 				kbase_vinstr_resume(kbdev->vinstr_ctx);
@@ -1683,7 +1685,7 @@ bool kbase_backend_soft_hard_stop_slot(struct kbase_device *kbdev,
 			katom_idx0->kctx->blocked_js[js][prio_idx0] = true;
 		} else {
 			/* katom_idx0 is on GPU */
-			if (katom_idx1 && katom_idx1->gpu_rb_state ==
+			if (katom_idx1_valid && katom_idx1->gpu_rb_state ==
 						KBASE_ATOM_GPU_RB_SUBMITTED) {
 				/* katom_idx0 and katom_idx1 are on GPU */
 

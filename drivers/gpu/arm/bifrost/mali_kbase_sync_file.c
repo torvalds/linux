@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -166,7 +166,9 @@ static void kbase_fence_wait_callback(struct dma_fence *fence,
 	struct kbase_context *kctx = katom->kctx;
 
 	/* Cancel atom if fence is erroneous */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+#if (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE || \
+	 (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE && \
+	  KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE))
 	if (dma_fence_is_signaled(kcb->fence) && kcb->fence->error)
 #else
 	if (dma_fence_is_signaled(kcb->fence) && kcb->fence->status < 0)
@@ -282,7 +284,9 @@ static void kbase_sync_fence_info_get(struct dma_fence *fence,
 	 * 1 : signaled
 	 */
 	if (dma_fence_is_signaled(fence)) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0))
+#if (KERNEL_VERSION(4, 11, 0) <= LINUX_VERSION_CODE || \
+	 (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE && \
+	  KERNEL_VERSION(4, 9, 68) <= LINUX_VERSION_CODE))
 		int status = fence->error;
 #else
 		int status = fence->status;

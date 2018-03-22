@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2018 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,7 +31,6 @@
 enum base_hw_feature {
 	BASE_HW_FEATURE_JOBCHAIN_DISAMBIGUATION,
 	BASE_HW_FEATURE_PWRON_DURING_PWROFF_TRANS,
-	BASE_HW_FEATURE_33BIT_VA,
 	BASE_HW_FEATURE_XAFFINITY,
 	BASE_HW_FEATURE_OUT_OF_ORDER_EXEC,
 	BASE_HW_FEATURE_MRT,
@@ -85,7 +84,6 @@ static const enum base_hw_feature base_hw_features_t62x[] = {
 };
 
 static const enum base_hw_feature base_hw_features_t72x[] = {
-	BASE_HW_FEATURE_33BIT_VA,
 	BASE_HW_FEATURE_32_BIT_UNIFORM_ADDRESS,
 	BASE_HW_FEATURE_ATTR_AUTO_TYPE_INFERRAL,
 	BASE_HW_FEATURE_INTERPIPE_REG_ALIASING,
@@ -139,7 +137,6 @@ static const enum base_hw_feature base_hw_features_tFxx[] = {
 };
 
 static const enum base_hw_feature base_hw_features_t83x[] = {
-	BASE_HW_FEATURE_33BIT_VA,
 	BASE_HW_FEATURE_JOBCHAIN_DISAMBIGUATION,
 	BASE_HW_FEATURE_PWRON_DURING_PWROFF_TRANS,
 	BASE_HW_FEATURE_XAFFINITY,
@@ -162,7 +159,6 @@ static const enum base_hw_feature base_hw_features_t83x[] = {
 };
 
 static const enum base_hw_feature base_hw_features_t82x[] = {
-	BASE_HW_FEATURE_33BIT_VA,
 	BASE_HW_FEATURE_JOBCHAIN_DISAMBIGUATION,
 	BASE_HW_FEATURE_PWRON_DURING_PWROFF_TRANS,
 	BASE_HW_FEATURE_XAFFINITY,
@@ -238,7 +234,6 @@ static const enum base_hw_feature base_hw_features_tHEx[] = {
 };
 
 static const enum base_hw_feature base_hw_features_tSIx[] = {
-	BASE_HW_FEATURE_33BIT_VA,
 	BASE_HW_FEATURE_JOBCHAIN_DISAMBIGUATION,
 	BASE_HW_FEATURE_PWRON_DURING_PWROFF_TRANS,
 	BASE_HW_FEATURE_XAFFINITY,
@@ -266,7 +261,6 @@ static const enum base_hw_feature base_hw_features_tSIx[] = {
 };
 
 static const enum base_hw_feature base_hw_features_tDVx[] = {
-	BASE_HW_FEATURE_33BIT_VA,
 	BASE_HW_FEATURE_JOBCHAIN_DISAMBIGUATION,
 	BASE_HW_FEATURE_PWRON_DURING_PWROFF_TRANS,
 	BASE_HW_FEATURE_XAFFINITY,

@@ -1,0 +1,150 @@
+#
+# (C) COPYRIGHT 2013-2018 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+# SPDX-License-Identifier: GPL-2.0
+#
+#
+
+* ARM Mali Midgard devices
+
+
+Required properties:
+
+- compatible : Should be mali<chip>, replacing digits with x from the back,
+until malit<Major>xx, ending with arm,mali-midgard, the latter not optional.
+- reg : Physical base address of the device and length of the register area.
+- interrupts : Contains the three IRQ lines required by T-6xx devices
+- interrupt-names : Contains the names of IRQ resources in the order they were
+provided in the interrupts property. Must contain: "JOB, "MMU", "GPU".
+
+Optional:
+
+- clocks : Phandle to clock for the Mali T-6xx device.
+- clock-names : Shall be "clk_mali".
+- mali-supply : Phandle to regulator for the Mali device. Refer to
+Documentation/devicetree/bindings/regulator/regulator.txt for details.
+- operating-points-v2 : Refer to Documentation/devicetree/bindings/power/opp.txt
+for details.
+- jm_config : For T860/T880. Sets job manager configuration. An array containing:
+	- 1 to override the TIMESTAMP value, 0 otherwise.
+	- 1 to override clock gate, forcing them to be always on, 0 otherwise.
+	- 1 to enable job throttle, limiting the number of cores that can be started
+	  simultaneously, 0 otherwise.
+	- Value between 0 and 63 (including). If job throttle is enabled, this is one
+	  less than the number of cores that can be started simultaneously.
+- power_model : Sets the power model parameters. Three power models are currently
+  defined which include "mali-simple-power-model", "mali-g71-power-model" and
+	  "mali-g72-power-model".
+	- mali-simple-power-model: this model derives the GPU power usage based
+	  on the GPU voltage scaled by the system temperature. Note: it was
+	  designed for the Juno platform, and may not be suitable for others.
+		- compatible: Should be "arm,mali-simple-power-model"
+		- dynamic-coefficient: Coefficient, in pW/(Hz V^2), which is
+		  multiplied by v^2*f to calculate the dynamic power consumption.
+		- static-coefficient: Coefficient, in uW/V^3, which is
+		  multiplied by v^3 to calculate the static power consumption.
+		- ts: An array containing coefficients for the temperature
+		  scaling factor. This is used to scale the static power by a
+		  factor of tsf/1000000,
+		  where tsf = ts[3]*T^3 + ts[2]*T^2 + ts[1]*T + ts[0],
+		  and T = temperature in degrees.
+		- thermal-zone: A string identifying the thermal zone used for
+		  the GPU
+		- temp-poll-interval-ms: the interval at which the system
+		  temperature is polled
+	- mali-g71-power-model / mali-g72-power-model: these models derive
+	  the GPU power usage based on performance counters, so they are more
+	  accurate.
+		- compatible: Should be "arm,mali-g71-power-model" /
+		  "arm,mali-g72-power-model"
+		- scale: the dynamic power calculated by the power model is
+		  scaled by a factor of "scale"/1000. This value should be
+		  chosen to match a particular implementation.
+	* Note: when IPA is used, two separate power models (simple and counter-based)
+	  are used at different points so care should be taken to configure
+	  both power models in the device tree (specifically dynamic-coefficient,
+	  static-coefficient and scale) to best match the platform.
+- system-coherency : Sets the coherency protocol to be used for coherent
+		     accesses made from the GPU.
+		     If not set then no coherency is used.
+	- 0  : ACE-Lite
+	- 1  : ACE
+	- 31 : No coherency
+- ipa-model : Sets the IPA model to be used for power management. GPU probe will fail if the
+	      model is not found in the registered models list. If no model is specified here,
+	      a gpu-id based model is picked if available, otherwise the default model is used.
+	- mali-simple-power-model: Default model used on mali
+- protected-mode-switcher : Phandle to device implemented protected mode switching functionality.
+Refer to Documentation/devicetree/bindings/arm/smc-protected-mode-switcher.txt for one implementation.
+
+Example for a Mali GPU:
+
+gpu@0xfc010000 {
+	compatible = "arm,malit602", "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
+	reg = <0xfc010000 0x4000>;
+	interrupts = <0 36 4>, <0 37 4>, <0 38 4>;
+	interrupt-names = "JOB", "MMU", "GPU";
+
+	clocks = <&pclk_mali>;
+	clock-names = "clk_mali";
+	mali-supply = <&vdd_mali>;
+	operating-points-v2 = <&gpu_opp_table>;
+	power_model@0 {
+		compatible = "arm,mali-simple-power-model";
+		static-coefficient = <2427750>;
+		dynamic-coefficient = <4687>;
+		ts = <20000 2000 (-20) 2>;
+		thermal-zone = "gpu";
+	};
+	power_model@1 {
+		compatible = "arm,mali-g71-power-model";
+		scale = <5>;
+	};
+};
+
+gpu_opp_table: opp_table0 {
+	compatible = "operating-points-v2";
+
+	opp@533000000 {
+		opp-hz = /bits/ 64 <533000000>;
+		opp-microvolt = <1250000>;
+	};
+	opp@450000000 {
+		opp-hz = /bits/ 64 <450000000>;
+		opp-microvolt = <1150000>;
+	};
+	opp@400000000 {
+		opp-hz = /bits/ 64 <400000000>;
+		opp-microvolt = <1125000>;
+	};
+	opp@350000000 {
+		opp-hz = /bits/ 64 <350000000>;
+		opp-microvolt = <1075000>;
+	};
+	opp@266000000 {
+		opp-hz = /bits/ 64 <266000000>;
+		opp-microvolt = <1025000>;
+	};
+	opp@160000000 {
+		opp-hz = /bits/ 64 <160000000>;
+		opp-microvolt = <925000>;
+	};
+	opp@100000000 {
+		opp-hz = /bits/ 64 <100000000>;
+		opp-microvolt = <912500>;
+	};
+};

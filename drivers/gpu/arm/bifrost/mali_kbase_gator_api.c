@@ -158,7 +158,7 @@ KBASE_EXPORT_SYMBOL(kbase_gator_hwcnt_term_names);
 struct kbase_gator_hwcnt_handles *kbase_gator_hwcnt_init(struct kbase_gator_hwcnt_info *in_out_info)
 {
 	struct kbase_gator_hwcnt_handles *hand;
-	struct kbase_uk_hwcnt_reader_setup setup;
+	struct kbase_ioctl_hwcnt_reader_setup setup;
 	uint32_t dump_size = 0, i = 0;
 
 	if (!in_out_info)

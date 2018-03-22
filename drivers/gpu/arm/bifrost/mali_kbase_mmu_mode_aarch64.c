@@ -21,7 +21,6 @@
  */
 
 
-
 #include "mali_kbase.h"
 #include "mali_midg_regmap.h"
 #include "mali_kbase_defs.h"
@@ -48,28 +47,24 @@
  */
 static inline void page_table_entry_set(u64 *pte, u64 phy)
 {
+#if KERNEL_VERSION(3, 18, 13) <= LINUX_VERSION_CODE
+	WRITE_ONCE(*pte, phy);
+#else
 #ifdef CONFIG_64BIT
+	barrier();
 	*pte = phy;
+	barrier();
 #elif defined(CONFIG_ARM)
-	/*
-	 * In order to prevent the compiler keeping cached copies of
-	 * memory, we have to explicitly say that we have updated memory.
-	 *
-	 * Note: We could manually move the data ourselves into R0 and
-	 * R1 by specifying register variables that are explicitly
-	 * given registers assignments, the down side of this is that
-	 * we have to assume cpu endianness.  To avoid this we can use
-	 * the ldrd to read the data from memory into R0 and R1 which
-	 * will respect the cpu endianness, we then use strd to make
-	 * the 64 bit assignment to the page table entry.
-	 */
-	asm volatile("ldrd r0, r1, [%[ptemp]]\n\t"
-			"strd r0, r1, [%[pte]]\n\t"
-			: "=m" (*pte)
-			: [ptemp] "r" (&phy), [pte] "r" (pte), "m" (phy)
-			: "r0", "r1");
+	barrier();
+	asm volatile("ldrd r0, [%1]\n\t"
+		     "strd r0, %0\n\t"
+		     : "=m" (*pte)
+		     : "r" (&phy)
+		     : "r0", "r1");
+	barrier();
 #else
 #error "64-bit atomic write must be implemented for your architecture"
+#endif
 #endif
 }
 
