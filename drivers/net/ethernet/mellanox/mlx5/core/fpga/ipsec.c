@@ -1061,8 +1061,9 @@ static int fpga_ipsec_fs_create_fte(struct mlx5_core_dev *dev,
 
 	rule->ctx = mlx5_fpga_ipsec_fs_create_sa_ctx(dev, fte, is_egress);
 	if (IS_ERR(rule->ctx)) {
+		int err = PTR_ERR(rule->ctx);
 		kfree(rule);
-		return PTR_ERR(rule->ctx);
+		return err;
 	}
 
 	rule->fte = fte;
