@@ -322,9 +322,6 @@ int ip_cmsg_send(struct sock *sk, struct msghdr *msg, struct ipcm_cookie *ipc,
 	return 0;
 }
 
-static DEFINE_SPINLOCK(ip_ra_lock);
-
-
 static void ip_ra_destroy_rcu(struct rcu_head *head)
 {
 	struct ip_ra_chain *ra = container_of(head, struct ip_ra_chain, rcu);
@@ -345,21 +342,21 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 
 	new_ra = on ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
 
-	spin_lock_bh(&ip_ra_lock);
+	mutex_lock(&net->ipv4.ra_mutex);
 	for (rap = &net->ipv4.ra_chain;
 	     (ra = rcu_dereference_protected(*rap,
-			lockdep_is_held(&ip_ra_lock))) != NULL;
+			lockdep_is_held(&net->ipv4.ra_mutex))) != NULL;
 	     rap = &ra->next) {
 		if (ra->sk == sk) {
 			if (on) {
-				spin_unlock_bh(&ip_ra_lock);
+				mutex_unlock(&net->ipv4.ra_mutex);
 				kfree(new_ra);
 				return -EADDRINUSE;
 			}
 			/* dont let ip_call_ra_chain() use sk again */
 			ra->sk = NULL;
 			RCU_INIT_POINTER(*rap, ra->next);
-			spin_unlock_bh(&ip_ra_lock);
+			mutex_unlock(&net->ipv4.ra_mutex);
 
 			if (ra->destructor)
 				ra->destructor(sk);
@@ -374,7 +371,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 		}
 	}
 	if (!new_ra) {
-		spin_unlock_bh(&ip_ra_lock);
+		mutex_unlock(&net->ipv4.ra_mutex);
 		return -ENOBUFS;
 	}
 	new_ra->sk = sk;
@@ -383,7 +380,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 	RCU_INIT_POINTER(new_ra->next, ra);
 	rcu_assign_pointer(*rap, new_ra);
 	sock_hold(sk);
-	spin_unlock_bh(&ip_ra_lock);
+	mutex_unlock(&net->ipv4.ra_mutex);
 
 	return 0;
 }
