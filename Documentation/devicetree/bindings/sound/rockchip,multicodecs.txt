@@ -1,0 +1,15 @@
+ROCKCHIP multicodecs audio
+
+Required properties:
+- compatible: "rockchip,multicodecs-card"
+- rockchip,cpu: The phandle of the Rockchip I2S/PDM controller that's
+  connected to the CODEC
+- rockchip,codec: The phandle of audio codecs
+
+Example:
+
+sound {
+	compatible = "rockchip,multicodecs-card";
+	rockchip,cpu = <&i2s0_8ch>;
+	rockchip,codec = <&codec>, <&vad>;
+};
