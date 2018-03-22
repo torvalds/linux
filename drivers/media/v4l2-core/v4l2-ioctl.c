@@ -2833,14 +2833,15 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 	size_t  array_size = 0;
 	void __user *user_ptr = NULL;
 	void	**kernel_ptr = NULL;
+	size_t	size = _IOC_SIZE(cmd);
 
 	/*  Copy arguments into temp kernel buffer  */
 	if (_IOC_DIR(cmd) != _IOC_NONE) {
-		if (_IOC_SIZE(cmd) <= sizeof(sbuf)) {
+		if (size <= sizeof(sbuf)) {
 			parg = sbuf;
 		} else {
 			/* too big to allocate from stack */
-			mbuf = kvmalloc(_IOC_SIZE(cmd), GFP_KERNEL);
+			mbuf = kvmalloc(size, GFP_KERNEL);
 			if (NULL == mbuf)
 				return -ENOMEM;
 			parg = mbuf;
@@ -2848,7 +2849,7 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 
 		err = -EFAULT;
 		if (_IOC_DIR(cmd) & _IOC_WRITE) {
-			unsigned int n = _IOC_SIZE(cmd);
+			unsigned int n = size;
 
 			/*
 			 * In some cases, only a few fields are used as input,
@@ -2869,11 +2870,11 @@ video_usercopy(struct file *file, unsigned int cmd, unsigned long arg,
 				goto out;
 
 			/* zero out anything we don't copy from userspace */
-			if (n < _IOC_SIZE(cmd))
-				memset((u8 *)parg + n, 0, _IOC_SIZE(cmd) - n);
+			if (n < size)
+				memset((u8 *)parg + n, 0, size - n);
 		} else {
 			/* read-only ioctl */
-			memset(parg, 0, _IOC_SIZE(cmd));
+			memset(parg, 0, size);
 		}
 	}
 
@@ -2931,7 +2932,7 @@ out_array_args:
 	switch (_IOC_DIR(cmd)) {
 	case _IOC_READ:
 	case (_IOC_WRITE | _IOC_READ):
-		if (copy_to_user((void __user *)arg, parg, _IOC_SIZE(cmd)))
+		if (copy_to_user((void __user *)arg, parg, size))
 			err = -EFAULT;
 		break;
 	}
