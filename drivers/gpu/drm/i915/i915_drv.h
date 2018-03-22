@@ -2119,7 +2119,7 @@ struct drm_i915_private {
 	u32 bxt_phy_grc;
 
 	u32 suspend_count;
-	bool suspended_to_idle;
+	bool power_domains_suspended;
 	struct i915_suspend_saved_registers regfile;
 	struct vlv_s0ix_state vlv_s0ix_state;
 
