@@ -214,6 +214,7 @@ static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector,
 	/* Default: disable RL */
 	h->kinfo.int_rl_setting = 0;
 
+	tqp_vector->int_adapt_down = HNS3_INT_ADAPT_DOWN_START;
 	tqp_vector->rx_group.coal.flow_level = HNS3_FLOW_LOW;
 	tqp_vector->tx_group.coal.flow_level = HNS3_FLOW_LOW;
 }
@@ -1404,10 +1405,14 @@ static int hns3_vlan_rx_add_vid(struct net_device *netdev,
 				__be16 proto, u16 vid)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
 		ret = h->ae_algo->ops->set_vlan_filter(h, proto, vid, false);
+
+	if (!ret)
+		set_bit(vid, priv->active_vlans);
 
 	return ret;
 }
@@ -1416,12 +1421,30 @@ static int hns3_vlan_rx_kill_vid(struct net_device *netdev,
 				 __be16 proto, u16 vid)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret = -EIO;
 
 	if (h->ae_algo->ops->set_vlan_filter)
 		ret = h->ae_algo->ops->set_vlan_filter(h, proto, vid, true);
 
+	if (!ret)
+		clear_bit(vid, priv->active_vlans);
+
 	return ret;
+}
+
+static void hns3_restore_vlan(struct net_device *netdev)
+{
+	struct hns3_nic_priv *priv = netdev_priv(netdev);
+	u16 vid;
+	int ret;
+
+	for_each_set_bit(vid, priv->active_vlans, VLAN_N_VID) {
+		ret = hns3_vlan_rx_add_vid(netdev, htons(ETH_P_8021Q), vid);
+		if (ret)
+			netdev_warn(netdev, "Restore vlan: %d filter, ret:%d\n",
+				    vid, ret);
+	}
 }
 
 static int hns3_ndo_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan,
@@ -2383,15 +2406,15 @@ out:
 
 static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 {
-#define HNS3_RX_ULTRA_PACKET_RATE 40000
+	struct hns3_enet_tqp_vector *tqp_vector =
+					ring_group->ring->tqp_vector;
 	enum hns3_flow_level_range new_flow_level;
-	struct hns3_enet_tqp_vector *tqp_vector;
-	int packets_per_secs;
-	int bytes_per_usecs;
+	int packets_per_msecs;
+	int bytes_per_msecs;
+	u32 time_passed_ms;
 	u16 new_int_gl;
-	int usecs;
 
-	if (!ring_group->coal.int_gl)
+	if (!ring_group->coal.int_gl || !tqp_vector->last_jiffies)
 		return false;
 
 	if (ring_group->total_packets == 0) {
@@ -2408,33 +2431,44 @@ static bool hns3_get_new_int_gl(struct hns3_enet_ring_group *ring_group)
 	 */
 	new_flow_level = ring_group->coal.flow_level;
 	new_int_gl = ring_group->coal.int_gl;
-	tqp_vector = ring_group->ring->tqp_vector;
-	usecs = (ring_group->coal.int_gl << 1);
-	bytes_per_usecs = ring_group->total_bytes / usecs;
-	/* 1000000 microseconds */
-	packets_per_secs = ring_group->total_packets * 1000000 / usecs;
+	time_passed_ms =
+		jiffies_to_msecs(jiffies - tqp_vector->last_jiffies);
+
+	if (!time_passed_ms)
+		return false;
+
+	do_div(ring_group->total_packets, time_passed_ms);
+	packets_per_msecs = ring_group->total_packets;
+
+	do_div(ring_group->total_bytes, time_passed_ms);
+	bytes_per_msecs = ring_group->total_bytes;
+
+#define HNS3_RX_LOW_BYTE_RATE 10000
+#define HNS3_RX_MID_BYTE_RATE 20000
 
 	switch (new_flow_level) {
 	case HNS3_FLOW_LOW:
-		if (bytes_per_usecs > 10)
+		if (bytes_per_msecs > HNS3_RX_LOW_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_MID;
 		break;
 	case HNS3_FLOW_MID:
-		if (bytes_per_usecs > 20)
+		if (bytes_per_msecs > HNS3_RX_MID_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_HIGH;
-		else if (bytes_per_usecs <= 10)
+		else if (bytes_per_msecs <= HNS3_RX_LOW_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_LOW;
 		break;
 	case HNS3_FLOW_HIGH:
 	case HNS3_FLOW_ULTRA:
 	default:
-		if (bytes_per_usecs <= 20)
+		if (bytes_per_msecs <= HNS3_RX_MID_BYTE_RATE)
 			new_flow_level = HNS3_FLOW_MID;
 		break;
 	}
 
-	if ((packets_per_secs > HNS3_RX_ULTRA_PACKET_RATE) &&
-	    (&tqp_vector->rx_group == ring_group))
+#define HNS3_RX_ULTRA_PACKET_RATE 40
+
+	if (packets_per_msecs > HNS3_RX_ULTRA_PACKET_RATE &&
+	    &tqp_vector->rx_group == ring_group)
 		new_flow_level = HNS3_FLOW_ULTRA;
 
 	switch (new_flow_level) {
@@ -2470,6 +2504,11 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 	struct hns3_enet_ring_group *tx_group = &tqp_vector->tx_group;
 	bool rx_update, tx_update;
 
+	if (tqp_vector->int_adapt_down > 0) {
+		tqp_vector->int_adapt_down--;
+		return;
+	}
+
 	if (rx_group->coal.gl_adapt_enable) {
 		rx_update = hns3_get_new_int_gl(rx_group);
 		if (rx_update)
@@ -2483,6 +2522,9 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 			hns3_set_vector_coalesce_tx_gl(tqp_vector,
 						       tx_group->coal.int_gl);
 	}
+
+	tqp_vector->last_jiffies = jiffies;
+	tqp_vector->int_adapt_down = HNS3_INT_ADAPT_DOWN_START;
 }
 
 static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
@@ -3340,6 +3382,10 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	hns3_init_mac_addr(netdev);
 	hns3_nic_set_rx_mode(netdev);
 	hns3_recover_hw_addr(netdev);
+
+	/* Hardware table is only clear when pf resets */
+	if (!(handle->flags & HNAE3_SUPPORT_VF))
+		hns3_restore_vlan(netdev);
 
 	/* Carrier off reporting is important to ethtool even BEFORE open */
 	netif_carrier_off(netdev);

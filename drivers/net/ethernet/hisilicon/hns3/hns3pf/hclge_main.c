@@ -55,6 +55,8 @@ static const struct pci_device_id ae_algo_pci_tbl[] = {
 	{0, }
 };
 
+MODULE_DEVICE_TABLE(pci, ae_algo_pci_tbl);
+
 static const char hns3_nic_test_strs[][ETH_GSTRING_LEN] = {
 	"Mac    Loopback test",
 	"Serdes Loopback test",
@@ -1024,6 +1026,45 @@ static int hclge_parse_speed(int speed_cmd, int *speed)
 	return 0;
 }
 
+static void hclge_parse_fiber_link_mode(struct hclge_dev *hdev,
+					u8 speed_ability)
+{
+	unsigned long *supported = hdev->hw.mac.supported;
+
+	if (speed_ability & HCLGE_SUPPORT_1G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+			supported);
+
+	if (speed_ability & HCLGE_SUPPORT_10G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
+			supported);
+
+	if (speed_ability & HCLGE_SUPPORT_25G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
+			supported);
+
+	if (speed_ability & HCLGE_SUPPORT_50G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
+			supported);
+
+	if (speed_ability & HCLGE_SUPPORT_100G_BIT)
+		set_bit(ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
+			supported);
+
+	set_bit(ETHTOOL_LINK_MODE_FIBRE_BIT, supported);
+	set_bit(ETHTOOL_LINK_MODE_Pause_BIT, supported);
+}
+
+static void hclge_parse_link_mode(struct hclge_dev *hdev, u8 speed_ability)
+{
+	u8 media_type = hdev->hw.mac.media_type;
+
+	if (media_type != HNAE3_MEDIA_TYPE_FIBER)
+		return;
+
+	hclge_parse_fiber_link_mode(hdev, speed_ability);
+}
+
 static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 {
 	struct hclge_cfg_param_cmd *req;
@@ -1072,6 +1113,10 @@ static void hclge_parse_cfg(struct hclge_cfg *cfg, struct hclge_desc *desc)
 
 	req = (struct hclge_cfg_param_cmd *)desc[1].data;
 	cfg->numa_node_map = __le32_to_cpu(req->param[0]);
+
+	cfg->speed_ability = hnae_get_field(__le32_to_cpu(req->param[1]),
+					    HCLGE_CFG_SPEED_ABILITY_M,
+					    HCLGE_CFG_SPEED_ABILITY_S);
 }
 
 /* hclge_get_cfg: query the static parameter from flash
@@ -1159,6 +1204,8 @@ static int hclge_configure(struct hclge_dev *hdev)
 		dev_err(&hdev->pdev->dev, "Get wrong speed ret=%d.\n", ret);
 		return ret;
 	}
+
+	hclge_parse_link_mode(hdev, cfg.speed_ability);
 
 	if ((hdev->tc_max > HNAE3_MAX_TC) ||
 	    (hdev->tc_max < 1)) {
@@ -4772,11 +4819,9 @@ static int hclge_en_hw_strip_rxvtag(struct hnae3_handle *handle, bool enable)
 	return hclge_set_vlan_rx_offload_cfg(vport);
 }
 
-static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
+static int hclge_set_mac_mtu(struct hclge_dev *hdev, int new_mtu)
 {
-	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_config_max_frm_size_cmd *req;
-	struct hclge_dev *hdev = vport->back;
 	struct hclge_desc desc;
 	int max_frm_size;
 	int ret;
@@ -4803,6 +4848,27 @@ static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
 	hdev->mps = max_frm_size;
 
 	return 0;
+}
+
+static int hclge_set_mtu(struct hnae3_handle *handle, int new_mtu)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
+	ret = hclge_set_mac_mtu(hdev, new_mtu);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"Change mtu fail, ret =%d\n", ret);
+		return ret;
+	}
+
+	ret = hclge_buffer_alloc(hdev);
+	if (ret)
+		dev_err(&hdev->pdev->dev,
+			"Allocate buffer fail, ret =%d\n", ret);
+
+	return ret;
 }
 
 static int hclge_send_reset_tqp_cmd(struct hclge_dev *hdev, u16 queue_id,
@@ -4905,6 +4971,43 @@ void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 			 "Deassert the soft reset fail, ret = %d\n", ret);
 		return;
 	}
+}
+
+void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id)
+{
+	struct hclge_dev *hdev = vport->back;
+	int reset_try_times = 0;
+	int reset_status;
+	u16 queue_gid;
+	int ret;
+
+	queue_gid = hclge_covert_handle_qid_global(&vport->nic, queue_id);
+
+	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, true);
+	if (ret) {
+		dev_warn(&hdev->pdev->dev,
+			 "Send reset tqp cmd fail, ret = %d\n", ret);
+		return;
+	}
+
+	reset_try_times = 0;
+	while (reset_try_times++ < HCLGE_TQP_RESET_TRY_TIMES) {
+		/* Wait for tqp hw reset */
+		msleep(20);
+		reset_status = hclge_get_reset_status(hdev, queue_gid);
+		if (reset_status)
+			break;
+	}
+
+	if (reset_try_times >= HCLGE_TQP_RESET_TRY_TIMES) {
+		dev_warn(&hdev->pdev->dev, "Reset TQP fail\n");
+		return;
+	}
+
+	ret = hclge_send_reset_tqp_cmd(hdev, queue_gid, false);
+	if (ret)
+		dev_warn(&hdev->pdev->dev,
+			 "Deassert the soft reset fail, ret = %d\n", ret);
 }
 
 static u32 hclge_get_fw_version(struct hnae3_handle *handle)
@@ -5392,11 +5495,6 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
 		return ret;
 	}
-	ret = hclge_buffer_alloc(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Buffer allocate fail, ret =%d\n", ret);
-		return  ret;
-	}
 
 	ret = hclge_config_tso(hdev, HCLGE_TSO_MSS_MIN, HCLGE_TSO_MSS_MAX);
 	if (ret) {
@@ -5500,12 +5598,6 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_mac_init(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Mac init error, ret = %d\n", ret);
-		return ret;
-	}
-
-	ret = hclge_buffer_alloc(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Buffer allocate fail, ret =%d\n", ret);
 		return ret;
 	}
 
@@ -6014,6 +6106,42 @@ static int hclge_update_led_status(struct hclge_dev *hdev)
 					HCLGE_LED_NO_CHANGE);
 }
 
+static void hclge_get_link_mode(struct hnae3_handle *handle,
+				unsigned long *supported,
+				unsigned long *advertising)
+{
+	unsigned int size = BITS_TO_LONGS(__ETHTOOL_LINK_MODE_MASK_NBITS);
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	unsigned int idx = 0;
+
+	for (; idx < size; idx++) {
+		supported[idx] = hdev->hw.mac.supported[idx];
+		advertising[idx] = hdev->hw.mac.advertising[idx];
+	}
+}
+
+static void hclge_get_port_type(struct hnae3_handle *handle,
+				u8 *port_type)
+{
+	struct hclge_vport *vport = hclge_get_vport(handle);
+	struct hclge_dev *hdev = vport->back;
+	u8 media_type = hdev->hw.mac.media_type;
+
+	switch (media_type) {
+	case HNAE3_MEDIA_TYPE_FIBER:
+		*port_type = PORT_FIBRE;
+		break;
+	case HNAE3_MEDIA_TYPE_COPPER:
+		*port_type = PORT_TP;
+		break;
+	case HNAE3_MEDIA_TYPE_UNKNOWN:
+	default:
+		*port_type = PORT_OTHER;
+		break;
+	}
+}
+
 static const struct hnae3_ae_ops hclge_ops = {
 	.init_ae_dev = hclge_init_ae_dev,
 	.uninit_ae_dev = hclge_uninit_ae_dev,
@@ -6069,6 +6197,8 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.get_regs_len = hclge_get_regs_len,
 	.get_regs = hclge_get_regs,
 	.set_led_id = hclge_set_led_id,
+	.get_link_mode = hclge_get_link_mode,
+	.get_port_type = hclge_get_port_type,
 };
 
 static struct hnae3_ae_algo ae_algo = {

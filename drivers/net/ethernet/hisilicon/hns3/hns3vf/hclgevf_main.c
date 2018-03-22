@@ -18,6 +18,8 @@ static const struct pci_device_id ae_algovf_pci_tbl[] = {
 	{0, }
 };
 
+MODULE_DEVICE_TABLE(pci, ae_algovf_pci_tbl);
+
 static inline struct hclgevf_dev *hclgevf_ae_get_hdev(
 	struct hnae3_handle *handle)
 {
@@ -817,11 +819,17 @@ static void hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	u8 msg_data[2];
+	int ret;
 
 	memcpy(&msg_data[0], &queue_id, sizeof(queue_id));
 
-	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_QUEUE_RESET, 0, msg_data, 2, false,
-			     NULL, 0);
+	/* disable vf queue before send queue reset msg to PF */
+	ret = hclgevf_tqp_enable(hdev, queue_id, 0, false);
+	if (ret)
+		return;
+
+	hclgevf_send_mbx_msg(hdev, HCLGE_MBX_QUEUE_RESET, 0, msg_data,
+			     2, true, NULL, 0);
 }
 
 static u32 hclgevf_get_fw_version(struct hnae3_handle *handle)
@@ -1460,6 +1468,34 @@ static void hclgevf_get_tqps_and_rss_info(struct hnae3_handle *handle,
 	*max_rss_size = hdev->rss_size_max;
 }
 
+static int hclgevf_get_status(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	return hdev->hw.mac.link;
+}
+
+static void hclgevf_get_ksettings_an_result(struct hnae3_handle *handle,
+					    u8 *auto_neg, u32 *speed,
+					    u8 *duplex)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	if (speed)
+		*speed = hdev->hw.mac.speed;
+	if (duplex)
+		*duplex = hdev->hw.mac.duplex;
+	if (auto_neg)
+		*auto_neg = AUTONEG_DISABLE;
+}
+
+void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
+				 u8 duplex)
+{
+	hdev->hw.mac.speed = speed;
+	hdev->hw.mac.duplex = duplex;
+}
+
 static const struct hnae3_ae_ops hclgevf_ops = {
 	.init_ae_dev = hclgevf_init_ae_dev,
 	.uninit_ae_dev = hclgevf_uninit_ae_dev,
@@ -1492,6 +1528,8 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.set_vlan_filter = hclgevf_set_vlan_filter,
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
+	.get_status = hclgevf_get_status,
+	.get_ksettings_an_result = hclgevf_get_ksettings_an_result,
 };
 
 static struct hnae3_ae_algo ae_algovf = {

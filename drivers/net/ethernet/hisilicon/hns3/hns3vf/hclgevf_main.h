@@ -61,6 +61,8 @@ enum hclgevf_states {
 struct hclgevf_mac {
 	u8 mac_addr[ETH_ALEN];
 	int link;
+	u8 duplex;
+	u32 speed;
 };
 
 struct hclgevf_hw {
@@ -161,4 +163,6 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 			 u8 *resp_data, u16 resp_len);
 void hclgevf_mbx_handler(struct hclgevf_dev *hdev);
 void hclgevf_update_link_status(struct hclgevf_dev *hdev, int link_state);
+void hclgevf_update_speed_duplex(struct hclgevf_dev *hdev, u32 speed,
+				 u8 duplex);
 #endif

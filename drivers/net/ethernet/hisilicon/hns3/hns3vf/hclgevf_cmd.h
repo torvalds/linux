@@ -7,7 +7,7 @@
 #include <linux/types.h>
 #include "hnae3.h"
 
-#define HCLGEVF_CMDQ_TX_TIMEOUT		200
+#define HCLGEVF_CMDQ_TX_TIMEOUT		30000
 #define HCLGEVF_CMDQ_RX_INVLD_B		0
 #define HCLGEVF_CMDQ_RX_OUTVLD_B	1
 

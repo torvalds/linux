@@ -411,6 +411,10 @@ struct hnae3_ae_ops {
 				 u32 *flowctrl_adv);
 	int (*set_led_id)(struct hnae3_handle *handle,
 			  enum ethtool_phys_id_state status);
+	void (*get_link_mode)(struct hnae3_handle *handle,
+			      unsigned long *supported,
+			      unsigned long *advertising);
+	void (*get_port_type)(struct hnae3_handle *handle, u8 *port_type);
 };
 
 struct hnae3_dcb_ops {
