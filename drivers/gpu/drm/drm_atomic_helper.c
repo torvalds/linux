@@ -3118,8 +3118,13 @@ int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_state *state,
 
 	state->acquire_ctx = ctx;
 
-	for_each_new_plane_in_state(state, plane, new_plane_state, i)
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		WARN_ON(plane->crtc != new_plane_state->crtc);
+		WARN_ON(plane->fb != new_plane_state->fb);
+		WARN_ON(plane->old_fb);
+
 		state->planes[i].old_state = plane->state;
+	}
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i)
 		state->crtcs[i].old_state = crtc->state;
