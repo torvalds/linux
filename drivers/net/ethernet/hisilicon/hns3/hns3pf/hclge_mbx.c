@@ -79,7 +79,7 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	return status;
 }
 
-int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
+static int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
 {
 	u8 msg_data[2];
 	u8 dest_vfid;
