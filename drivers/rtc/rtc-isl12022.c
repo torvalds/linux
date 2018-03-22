@@ -201,7 +201,7 @@ static int isl12022_rtc_set_time(struct device *dev, struct rtc_time *tm)
 				return ret;
 		}
 
-		isl12022->write_enabled = 1;
+		isl12022->write_enabled = true;
 	}
 
 	/* hours, minutes and seconds */
