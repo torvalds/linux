@@ -75,8 +75,7 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
-	int ret = 1;
-	bool enabled;
+	int ret = -EINVAL;;
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (smum_is_dpm_running(hwmgr)) {
@@ -87,17 +86,12 @@ int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 	if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
 		ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
 
-	enabled = ret == 0;
-
-	cgs_notify_dpm_enabled(hwmgr->device, enabled);
-
 	return ret;
 }
 
 int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
-	int ret = -1;
-	bool enabled;
+	int ret = -EINVAL;
 
 	PHM_FUNC_CHECK(hwmgr);
 
@@ -108,10 +102,6 @@ int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 
 	if (hwmgr->hwmgr_func->dynamic_state_management_disable)
 		ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
-
-	enabled = ret == 0 ? false : true;
-
-	cgs_notify_dpm_enabled(hwmgr->device, enabled);
 
 	return ret;
 }

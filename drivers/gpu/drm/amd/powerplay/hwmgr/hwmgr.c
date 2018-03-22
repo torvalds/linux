@@ -76,7 +76,7 @@ static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr == NULL)
+	if (!hwmgr)
 		return -EINVAL;
 
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
@@ -170,17 +170,51 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+int hwmgr_sw_init(struct pp_hwmgr *hwmgr)
+{
+	if (!hwmgr|| !hwmgr->smumgr_funcs || !hwmgr->smumgr_funcs->smu_init)
+		return -EINVAL;
+
+	phm_register_irq_handlers(hwmgr);
+
+	return hwmgr->smumgr_funcs->smu_init(hwmgr);
+}
+
+
+int hwmgr_sw_fini(struct pp_hwmgr *hwmgr)
+{
+	if (hwmgr && hwmgr->smumgr_funcs && hwmgr->smumgr_funcs->smu_fini)
+		hwmgr->smumgr_funcs->smu_fini(hwmgr);
+
+	return 0;
+}
+
 int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	if (hwmgr == NULL)
+	if (!hwmgr || !hwmgr->smumgr_funcs)
 		return -EINVAL;
 
-	if (hwmgr->pptable_func == NULL ||
-	    hwmgr->pptable_func->pptable_init == NULL ||
-	    hwmgr->hwmgr_func->backend_init == NULL)
-		return -EINVAL;
+	if (hwmgr->smumgr_funcs->start_smu) {
+		ret = hwmgr->smumgr_funcs->start_smu(hwmgr);
+		if (ret) {
+			pr_err("smc start failed\n");
+			return -EINVAL;
+		}
+	}
+
+	if (!hwmgr->pm_en)
+		return 0;
+
+	if (!hwmgr->pptable_func ||
+	    !hwmgr->pptable_func->pptable_init ||
+	    !hwmgr->hwmgr_func->backend_init) {
+		hwmgr->pm_en = false;
+		((struct amdgpu_device *)hwmgr->adev)->pm.dpm_enabled = false;
+		pr_info("dpm not supported \n");
+		return 0;
+	}
 
 	ret = hwmgr->pptable_func->pptable_init(hwmgr);
 	if (ret)
@@ -214,14 +248,13 @@ err1:
 	if (hwmgr->pptable_func->pptable_fini)
 		hwmgr->pptable_func->pptable_fini(hwmgr);
 err:
-	pr_err("amdgpu: powerplay initialization failed\n");
 	return ret;
 }
 
 int hwmgr_hw_fini(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr == NULL)
-		return -EINVAL;
+	if (!hwmgr || !hwmgr->pm_en)
+		return 0;
 
 	phm_stop_thermal_controller(hwmgr);
 	psm_set_boot_states(hwmgr);
@@ -236,12 +269,12 @@ int hwmgr_hw_fini(struct pp_hwmgr *hwmgr)
 	return psm_fini_power_state_table(hwmgr);
 }
 
-int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr)
+int hwmgr_suspend(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	if (hwmgr == NULL)
-		return -EINVAL;
+	if (!hwmgr || !hwmgr->pm_en)
+		return 0;
 
 	phm_disable_smc_firmware_ctf(hwmgr);
 	ret = psm_set_boot_states(hwmgr);
@@ -255,12 +288,22 @@ int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr)
 	return ret;
 }
 
-int hwmgr_hw_resume(struct pp_hwmgr *hwmgr)
+int hwmgr_resume(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	if (hwmgr == NULL)
+	if (!hwmgr)
 		return -EINVAL;
+
+	if (hwmgr->smumgr_funcs && hwmgr->smumgr_funcs->start_smu) {
+		if (hwmgr->smumgr_funcs->start_smu(hwmgr)) {
+			pr_err("smc start failed\n");
+			return -EINVAL;
+		}
+	}
+
+	if (!hwmgr->pm_en)
+		return 0;
 
 	ret = phm_setup_asic(hwmgr);
 	if (ret)
@@ -270,9 +313,6 @@ int hwmgr_hw_resume(struct pp_hwmgr *hwmgr)
 	if (ret)
 		return ret;
 	ret = phm_start_thermal_controller(hwmgr);
-	if (ret)
-		return ret;
-
 	ret |= psm_set_performance_states(hwmgr);
 	if (ret)
 		return ret;

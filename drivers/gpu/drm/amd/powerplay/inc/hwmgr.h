@@ -782,10 +782,13 @@ struct pp_hwmgr {
 };
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr);
+int hwmgr_sw_init(struct pp_hwmgr *hwmgr);
+int hwmgr_sw_fini(struct pp_hwmgr *hwmgr);
 int hwmgr_hw_init(struct pp_hwmgr *hwmgr);
 int hwmgr_hw_fini(struct pp_hwmgr *hwmgr);
-int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr);
-int hwmgr_hw_resume(struct pp_hwmgr *hwmgr);
+int hwmgr_suspend(struct pp_hwmgr *hwmgr);
+int hwmgr_resume(struct pp_hwmgr *hwmgr);
+
 int hwmgr_handle_task(struct pp_hwmgr *hwmgr,
 				enum amd_pp_task task_id,
 				enum amd_pm_state_type *user_state);
