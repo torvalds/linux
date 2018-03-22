@@ -72,13 +72,17 @@ struct tipc_monitor;
 #define NODE_HTABLE_SIZE       512
 #define MAX_BEARERS	         3
 #define TIPC_DEF_MON_THRESHOLD  32
+#define NODE_ID_LEN             16
+#define NODE_ID_STR_LEN        (NODE_ID_LEN * 2 + 1)
 
 extern unsigned int tipc_net_id __read_mostly;
 extern int sysctl_tipc_rmem[3] __read_mostly;
 extern int sysctl_tipc_named_timeout __read_mostly;
 
 struct tipc_net {
-	u32 own_addr;
+	u8  node_id[NODE_ID_LEN];
+	u32 node_addr;
+	char node_id_string[NODE_ID_STR_LEN];
 	int net_id;
 	int random;
 	bool legacy_addr_format;

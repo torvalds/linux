@@ -118,13 +118,11 @@ static void tipc_disc_msg_xmit(struct net *net, u32 mtyp, u32 dst, u32 src,
 static void disc_dupl_alert(struct tipc_bearer *b, u32 node_addr,
 			    struct tipc_media_addr *media_addr)
 {
-	char node_addr_str[16];
 	char media_addr_str[64];
 
-	tipc_addr_string_fill(node_addr_str, node_addr);
 	tipc_media_addr_printf(media_addr_str, sizeof(media_addr_str),
 			       media_addr);
-	pr_warn("Duplicate %s using %s seen on <%s>\n", node_addr_str,
+	pr_warn("Duplicate %x using %s seen on <%s>\n", node_addr,
 		media_addr_str, b->name);
 }
 

@@ -883,11 +883,9 @@ void tipc_node_delete_links(struct net *net, int bearer_id)
 
 static void tipc_node_reset_links(struct tipc_node *n)
 {
-	char addr_string[16];
 	int i;
 
-	pr_warn("Resetting all links to %s\n",
-		tipc_addr_string_fill(addr_string, n->addr));
+	pr_warn("Resetting all links to %x\n", n->addr);
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		tipc_node_link_down(n, i, false);
@@ -1074,15 +1072,13 @@ illegal_evt:
 static void node_lost_contact(struct tipc_node *n,
 			      struct sk_buff_head *inputq)
 {
-	char addr_string[16];
 	struct tipc_sock_conn *conn, *safe;
 	struct tipc_link *l;
 	struct list_head *conns = &n->conn_sks;
 	struct sk_buff *skb;
 	uint i;
 
-	pr_debug("Lost contact with %s\n",
-		 tipc_addr_string_fill(addr_string, n->addr));
+	pr_debug("Lost contact with %x\n", n->addr);
 
 	/* Clean up broadcast state */
 	tipc_bcast_remove_peer(n->net, n->bc_entry.link);

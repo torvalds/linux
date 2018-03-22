@@ -104,27 +104,31 @@
  *     - A local spin_lock protecting the queue of subscriber events.
 */
 
-int tipc_net_start(struct net *net, u32 addr)
+int tipc_net_init(struct net *net, u8 *node_id, u32 addr)
 {
-	struct tipc_net *tn = tipc_net(net);
-	char addr_string[16];
+	if (tipc_own_id(net)) {
+		pr_info("Cannot configure node identity twice\n");
+		return -1;
+	}
+	pr_info("Started in network mode\n");
 
-	tn->own_addr = addr;
+	if (node_id) {
+		tipc_set_node_id(net, node_id);
+		tipc_net_finalize(net, tipc_own_addr(net));
+	}
+	if (addr)
+		tipc_net_finalize(net, addr);
+	return 0;
+}
 
-	/* Ensure that the new address is visible before we reinit. */
+void tipc_net_finalize(struct net *net, u32 addr)
+{
+	tipc_set_node_addr(net, addr);
 	smp_mb();
-
 	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
-
 	tipc_nametbl_publish(net, TIPC_CFG_SRV, addr, addr,
 			     TIPC_CLUSTER_SCOPE, 0, addr);
-
-	pr_info("Started in network mode\n");
-	pr_info("Own node address %s, cluster identity %u\n",
-		tipc_addr_string_fill(addr_string, addr),
-		tn->net_id);
-	return 0;
 }
 
 void tipc_net_stop(struct net *net)
@@ -146,8 +150,10 @@ void tipc_net_stop(struct net *net)
 static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	void *hdr;
+	u64 *w0 = (u64 *)&tn->node_id[0];
+	u64 *w1 = (u64 *)&tn->node_id[8];
 	struct nlattr *attrs;
+	void *hdr;
 
 	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  NLM_F_MULTI, TIPC_NL_NET_GET);
@@ -160,7 +166,10 @@ static int __tipc_nl_add_net(struct net *net, struct tipc_nl_msg *msg)
 
 	if (nla_put_u32(msg->skb, TIPC_NLA_NET_ID, tn->net_id))
 		goto attr_msg_full;
-
+	if (nla_put_u64_64bit(msg->skb, TIPC_NLA_NET_NODEID, *w0, 0))
+		goto attr_msg_full;
+	if (nla_put_u64_64bit(msg->skb, TIPC_NLA_NET_NODEID_W1, *w1, 0))
+		goto attr_msg_full;
 	nla_nest_end(msg->skb, attrs);
 	genlmsg_end(msg->skb, hdr);
 
@@ -212,6 +221,7 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 	err = nla_parse_nested(attrs, TIPC_NLA_NET_MAX,
 			       info->attrs[TIPC_NLA_NET], tipc_nl_net_policy,
 			       info->extack);
+
 	if (err)
 		return err;
 
@@ -236,9 +246,18 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 		if (!addr)
 			return -EINVAL;
 		tn->legacy_addr_format = true;
-		tipc_net_start(net, addr);
+		tipc_net_init(net, NULL, addr);
 	}
 
+	if (attrs[TIPC_NLA_NET_NODEID]) {
+		u8 node_id[NODE_ID_LEN];
+		u64 *w0 = (u64 *)&node_id[0];
+		u64 *w1 = (u64 *)&node_id[8];
+
+		*w0 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID]);
+		*w1 = nla_get_u64(attrs[TIPC_NLA_NET_NODEID_W1]);
+		tipc_net_init(net, node_id, 0);
+	}
 	return 0;
 }
 

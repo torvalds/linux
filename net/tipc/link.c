@@ -442,6 +442,7 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 		      struct sk_buff_head *namedq,
 		      struct tipc_link **link)
 {
+	char *self_str = tipc_own_id_string(net);
 	struct tipc_link *l;
 
 	l = kzalloc(sizeof(*l), GFP_ATOMIC);
@@ -451,7 +452,10 @@ bool tipc_link_create(struct net *net, char *if_name, int bearer_id,
 	l->session = session;
 
 	/* Note: peer i/f name is completed by reset/activate message */
-	sprintf(l->name, "%x:%s-%x:unknown", self, if_name, peer);
+	if (strlen(self_str) > 16)
+		sprintf(l->name, "%x:%s-%x:unknown", self, if_name, peer);
+	else
+		sprintf(l->name, "%s:%s-%x:unknown", self_str, if_name, peer);
 	strcpy(l->if_name, if_name);
 	l->addr = peer;
 	l->peer_caps = peer_caps;

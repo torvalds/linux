@@ -318,7 +318,6 @@ void tipc_named_process_backlog(struct net *net)
 {
 	struct distr_queue_item *e, *tmp;
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	char addr[16];
 	unsigned long now = get_jiffies_64();
 
 	list_for_each_entry_safe(e, tmp, &tn->dist_queue, next) {
@@ -326,12 +325,11 @@ void tipc_named_process_backlog(struct net *net)
 			if (!tipc_update_nametbl(net, &e->i, e->node, e->dtype))
 				continue;
 		} else {
-			tipc_addr_string_fill(addr, e->node);
-			pr_warn_ratelimited("Dropping name table update (%d) of {%u, %u, %u} from %s key=%u\n",
+			pr_warn_ratelimited("Dropping name table update (%d) of {%u, %u, %u} from %x key=%u\n",
 					    e->dtype, ntohl(e->i.type),
 					    ntohl(e->i.lower),
 					    ntohl(e->i.upper),
-					    addr, ntohl(e->i.key));
+					    e->node, ntohl(e->i.key));
 		}
 		list_del(&e->next);
 		kfree(e);

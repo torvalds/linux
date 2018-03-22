@@ -1,7 +1,7 @@
 /*
  * net/tipc/addr.c: TIPC address utility routines
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2018, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -34,17 +34,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/kernel.h>
 #include "addr.h"
 #include "core.h"
-
-/**
- * in_own_node - test for node inclusion; <0.0.0> always matches
- */
-int in_own_node(struct net *net, u32 addr)
-{
-	return addr == tipc_own_addr(net) || !addr;
-}
 
 bool tipc_in_scope(bool legacy_format, u32 domain, u32 addr)
 {
@@ -61,9 +52,71 @@ bool tipc_in_scope(bool legacy_format, u32 domain, u32 addr)
 	return false;
 }
 
-char *tipc_addr_string_fill(char *string, u32 addr)
+void tipc_set_node_id(struct net *net, u8 *id)
 {
-	snprintf(string, 16, "<%u.%u.%u>",
-		 tipc_zone(addr), tipc_cluster(addr), tipc_node(addr));
-	return string;
+	struct tipc_net *tn = tipc_net(net);
+	u32 *tmp = (u32 *)id;
+
+	memcpy(tn->node_id, id, NODE_ID_LEN);
+	tipc_nodeid2string(tn->node_id_string, id);
+	tn->node_addr = tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3];
+	pr_info("Own node identity %s, cluster identity %u\n",
+		tipc_own_id_string(net), tn->net_id);
+}
+
+void tipc_set_node_addr(struct net *net, u32 addr)
+{
+	struct tipc_net *tn = tipc_net(net);
+	u8 node_id[NODE_ID_LEN] = {0,};
+
+	tn->node_addr = addr;
+	if (!tipc_own_id(net)) {
+		sprintf(node_id, "%x", addr);
+		tipc_set_node_id(net, node_id);
+	}
+	pr_info("32-bit node address hash set to %x\n", addr);
+}
+
+char *tipc_nodeid2string(char *str, u8 *id)
+{
+	int i;
+	u8 c;
+
+	/* Already a string ? */
+	for (i = 0; i < NODE_ID_LEN; i++) {
+		c = id[i];
+		if (c >= '0' && c <= '9')
+			continue;
+		if (c >= 'A' && c <= 'Z')
+			continue;
+		if (c >= 'a' && c <= 'z')
+			continue;
+		if (c == '.')
+			continue;
+		if (c == ':')
+			continue;
+		if (c == '_')
+			continue;
+		if (c == '-')
+			continue;
+		if (c == '@')
+			continue;
+		if (c != 0)
+			break;
+	}
+	if (i == NODE_ID_LEN) {
+		memcpy(str, id, NODE_ID_LEN);
+		str[NODE_ID_LEN] = 0;
+		return str;
+	}
+
+	/* Translate to hex string */
+	for (i = 0; i < NODE_ID_LEN; i++)
+		sprintf(&str[2 * i], "%02x", id[i]);
+
+	/* Strip off trailing zeroes */
+	for (i = NODE_ID_STR_LEN - 2; str[i] == '0'; i--)
+		str[i] = 0;
+
+	return str;
 }
