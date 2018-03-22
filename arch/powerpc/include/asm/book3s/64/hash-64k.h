@@ -38,15 +38,13 @@
 /* PTE flags to conserve for HPTE identification */
 #define _PAGE_HPTEFLAGS (H_PAGE_BUSY | H_PAGE_HASHPTE | H_PAGE_COMBO)
 /*
- * we support 16 fragments per PTE page of 64K size.
- */
-#define H_PTE_FRAG_NR	16
-/*
  * We use a 2K PTE page fragment and another 2K for storing
  * real_pte_t hash index
+ * 8 bytes per each pte entry and another 8 bytes for storing
+ * slot details.
  */
-#define H_PTE_FRAG_SIZE_SHIFT  12
-#define PTE_FRAG_SIZE (1UL << PTE_FRAG_SIZE_SHIFT)
+#define H_PTE_FRAG_SIZE_SHIFT  (H_PTE_INDEX_SIZE + 3 + 1)
+#define H_PTE_FRAG_NR	(PAGE_SIZE >> H_PTE_FRAG_SIZE_SHIFT)
 
 #ifndef __ASSEMBLY__
 #include <asm/errno.h>

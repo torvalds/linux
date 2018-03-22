@@ -638,12 +638,8 @@ void __init radix__early_init_mmu(void)
 #ifdef CONFIG_PCI
 	pci_io_base = ISA_IO_BASE;
 #endif
-
-	/*
-	 * For now radix also use the same frag size
-	 */
-	__pte_frag_nr = H_PTE_FRAG_NR;
-	__pte_frag_size_shift = H_PTE_FRAG_SIZE_SHIFT;
+	__pte_frag_nr = RADIX_PTE_FRAG_NR;
+	__pte_frag_size_shift = RADIX_PTE_FRAG_SIZE_SHIFT;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		radix_init_native();
