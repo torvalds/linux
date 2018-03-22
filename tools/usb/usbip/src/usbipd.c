@@ -175,10 +175,21 @@ static int send_reply_devlist(int connfd)
 	struct list_head *j;
 	int rc, i;
 
+	/*
+	 * Exclude devices that are already exported to a client from
+	 * the exportable device list to avoid:
+	 *	- import requests for devices that are exported only to
+	 *	  fail the request.
+	 *	- revealing devices that are imported by a client to
+	 *	  another client.
+	 */
+
 	reply.ndev = 0;
 	/* number of exported devices */
 	list_for_each(j, &driver->edev_list) {
-		reply.ndev += 1;
+		edev = list_entry(j, struct usbip_exported_device, node);
+		if (edev->status != SDEV_ST_USED)
+			reply.ndev += 1;
 	}
 	info("exportable devices: %d", reply.ndev);
 
@@ -197,6 +208,9 @@ static int send_reply_devlist(int connfd)
 
 	list_for_each(j, &driver->edev_list) {
 		edev = list_entry(j, struct usbip_exported_device, node);
+		if (edev->status == SDEV_ST_USED)
+			continue;
+
 		dump_usb_device(&edev->udev);
 		memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
 		usbip_net_pack_usb_device(1, &pdu_udev);
