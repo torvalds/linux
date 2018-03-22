@@ -124,6 +124,11 @@ struct hclgevf_dev {
 	struct hclgevf_rss_cfg rss_cfg;
 	unsigned long state;
 
+#define HCLGEVF_RESET_REQUESTED		0
+#define HCLGEVF_RESET_PENDING		1
+	unsigned long reset_state;	/* requested, pending */
+	u32 reset_attempts;
+
 	u32 fw_version;
 	u16 num_tqps;		/* num task queue pairs of this PF */
 

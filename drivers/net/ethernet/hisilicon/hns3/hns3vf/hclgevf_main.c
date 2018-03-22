@@ -840,7 +840,9 @@ static void hclgevf_reset_event(struct hnae3_handle *handle)
 
 	handle->reset_level = HNAE3_VF_RESET;
 
-	/* request VF reset here. Code added later */
+	/* reset of this VF requested */
+	set_bit(HCLGEVF_RESET_REQUESTED, &hdev->reset_state);
+	hclgevf_reset_task_schedule(hdev);
 
 	handle->last_reset_time = jiffies;
 }
@@ -889,6 +891,12 @@ static void hclgevf_task_schedule(struct hclgevf_dev *hdev)
 		schedule_work(&hdev->service_task);
 }
 
+static void hclgevf_deferred_task_schedule(struct hclgevf_dev *hdev)
+{
+	if (test_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state))
+		hclgevf_reset_task_schedule(hdev);
+}
+
 static void hclgevf_service_timer(struct timer_list *t)
 {
 	struct hclgevf_dev *hdev = from_timer(hdev, t, service_timer);
@@ -908,10 +916,57 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 
 	clear_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state);
 
-	/* body of the reset service task will constitute of hclge device
-	 * reset state handling. This code shall be added subsequently in
-	 * next patches.
-	 */
+	if (test_and_clear_bit(HCLGEVF_RESET_PENDING,
+			       &hdev->reset_state)) {
+		/* PF has initmated that it is about to reset the hardware.
+		 * We now have to poll & check if harware has actually completed
+		 * the reset sequence. On hardware reset completion, VF needs to
+		 * reset the client and ae device.
+		 */
+		hdev->reset_attempts = 0;
+
+		/* code to check/wait for hardware reset completion and the
+		 * further initiating software stack reset would be added here
+		 */
+
+	} else if (test_and_clear_bit(HCLGEVF_RESET_REQUESTED,
+				      &hdev->reset_state)) {
+		/* we could be here when either of below happens:
+		 * 1. reset was initiated due to watchdog timeout due to
+		 *    a. IMP was earlier reset and our TX got choked down and
+		 *       which resulted in watchdog reacting and inducing VF
+		 *       reset. This also means our cmdq would be unreliable.
+		 *    b. problem in TX due to other lower layer(example link
+		 *       layer not functioning properly etc.)
+		 * 2. VF reset might have been initiated due to some config
+		 *    change.
+		 *
+		 * NOTE: Theres no clear way to detect above cases than to react
+		 * to the response of PF for this reset request. PF will ack the
+		 * 1b and 2. cases but we will not get any intimation about 1a
+		 * from PF as cmdq would be in unreliable state i.e. mailbox
+		 * communication between PF and VF would be broken.
+		 */
+
+		/* if we are never geting into pending state it means either:
+		 * 1. PF is not receiving our request which could be due to IMP
+		 *    reset
+		 * 2. PF is screwed
+		 * We cannot do much for 2. but to check first we can try reset
+		 * our PCIe + stack and see if it alleviates the problem.
+		 */
+		if (hdev->reset_attempts > 3) {
+			/* prepare for full reset of stack + pcie interface */
+			hdev->nic.reset_level = HNAE3_VF_FULL_RESET;
+
+			/* "defer" schedule the reset task again */
+			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
+		} else {
+			hdev->reset_attempts++;
+
+			/* request PF for resetting this VF via mailbox */
+		}
+	}
 
 	clear_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
 }
@@ -942,6 +997,8 @@ static void hclgevf_service_task(struct work_struct *work)
 	 * about such updates in future so we might remove this later
 	 */
 	hclgevf_request_link_info(hdev);
+
+	hclgevf_deferred_task_schedule(hdev);
 
 	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
 }
