@@ -45,7 +45,7 @@
 
 static inline u32 tipc_own_addr(struct net *net)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
 
 	return tn->own_addr;
 }

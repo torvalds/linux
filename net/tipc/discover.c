@@ -81,11 +81,12 @@ static void tipc_disc_init_msg(struct net *net, struct sk_buff *skb,
 			       u32 mtyp, struct tipc_bearer *b)
 {
 	struct tipc_net *tn = tipc_net(net);
+	u32 self = tipc_own_addr(net);
 	u32 dest_domain = b->domain;
 	struct tipc_msg *hdr;
 
 	hdr = buf_msg(skb);
-	tipc_msg_init(tn->own_addr, hdr, LINK_CONFIG, mtyp,
+	tipc_msg_init(self, hdr, LINK_CONFIG, mtyp,
 		      MAX_H_SIZE, dest_domain);
 	msg_set_non_seq(hdr, 1);
 	msg_set_node_sig(hdr, tn->random);

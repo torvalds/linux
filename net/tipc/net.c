@@ -106,7 +106,7 @@
 
 int tipc_net_start(struct net *net, u32 addr)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	struct tipc_net *tn = tipc_net(net);
 	char addr_string[16];
 
 	tn->own_addr = addr;
@@ -117,25 +117,24 @@ int tipc_net_start(struct net *net, u32 addr)
 	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
 
-	tipc_nametbl_publish(net, TIPC_CFG_SRV, tn->own_addr, tn->own_addr,
-			     TIPC_CLUSTER_SCOPE, 0, tn->own_addr);
+	tipc_nametbl_publish(net, TIPC_CFG_SRV, addr, addr,
+			     TIPC_CLUSTER_SCOPE, 0, addr);
 
 	pr_info("Started in network mode\n");
 	pr_info("Own node address %s, cluster identity %u\n",
-		tipc_addr_string_fill(addr_string, tn->own_addr),
+		tipc_addr_string_fill(addr_string, addr),
 		tn->net_id);
 	return 0;
 }
 
 void tipc_net_stop(struct net *net)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
+	u32 self = tipc_own_addr(net);
 
-	if (!tn->own_addr)
+	if (!self)
 		return;
 
-	tipc_nametbl_withdraw(net, TIPC_CFG_SRV, tn->own_addr, 0,
-			      tn->own_addr);
+	tipc_nametbl_withdraw(net, TIPC_CFG_SRV, self, 0, self);
 	rtnl_lock();
 	tipc_bearer_stop(net);
 	tipc_node_stop(net);
@@ -202,9 +201,9 @@ out:
 
 int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 {
-	struct net *net = sock_net(skb->sk);
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct nlattr *attrs[TIPC_NLA_NET_MAX + 1];
+	struct net *net = sock_net(skb->sk);
+	struct tipc_net *tn = tipc_net(net);
 	int err;
 
 	if (!info->attrs[TIPC_NLA_NET])
@@ -216,12 +215,12 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		return err;
 
+	/* Can't change net id once TIPC has joined a network */
+	if (tipc_own_addr(net))
+		return -EPERM;
+
 	if (attrs[TIPC_NLA_NET_ID]) {
 		u32 val;
-
-		/* Can't change net id once TIPC has joined a network */
-		if (tn->own_addr)
-			return -EPERM;
 
 		val = nla_get_u32(attrs[TIPC_NLA_NET_ID]);
 		if (val < 1 || val > 9999)
@@ -232,10 +231,6 @@ int __tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 
 	if (attrs[TIPC_NLA_NET_ADDR]) {
 		u32 addr;
-
-		/* Can't change net addr once TIPC has joined a network */
-		if (tn->own_addr)
-			return -EPERM;
 
 		addr = nla_get_u32(attrs[TIPC_NLA_NET_ADDR]);
 		if (!addr)

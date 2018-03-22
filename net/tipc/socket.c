@@ -289,10 +289,9 @@ static bool tipc_sk_type_connectionless(struct sock *sk)
 static bool tsk_peer_msg(struct tipc_sock *tsk, struct tipc_msg *msg)
 {
 	struct sock *sk = &tsk->sk;
-	struct tipc_net *tn = net_generic(sock_net(sk), tipc_net_id);
+	u32 self = tipc_own_addr(sock_net(sk));
 	u32 peer_port = tsk_peer_port(tsk);
-	u32 orig_node;
-	u32 peer_node;
+	u32 orig_node, peer_node;
 
 	if (unlikely(!tipc_sk_connected(sk)))
 		return false;
@@ -306,10 +305,10 @@ static bool tsk_peer_msg(struct tipc_sock *tsk, struct tipc_msg *msg)
 	if (likely(orig_node == peer_node))
 		return true;
 
-	if (!orig_node && (peer_node == tn->own_addr))
+	if (!orig_node && peer_node == self)
 		return true;
 
-	if (!peer_node && (orig_node == tn->own_addr))
+	if (!peer_node && orig_node == self)
 		return true;
 
 	return false;
@@ -461,8 +460,8 @@ static int tipc_sk_create(struct net *net, struct socket *sock,
 	/* Ensure tsk is visible before we read own_addr. */
 	smp_mb();
 
-	tipc_msg_init(tn->own_addr, msg, TIPC_LOW_IMPORTANCE, TIPC_NAMED_MSG,
-		      NAMED_H_SIZE, 0);
+	tipc_msg_init(tipc_own_addr(net), msg, TIPC_LOW_IMPORTANCE,
+		      TIPC_NAMED_MSG, NAMED_H_SIZE, 0);
 
 	msg_set_origport(msg, tsk->portid);
 	timer_setup(&sk->sk_timer, tipc_sk_timeout, 0);
@@ -671,7 +670,6 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
 	struct sockaddr_tipc *addr = (struct sockaddr_tipc *)uaddr;
 	struct sock *sk = sock->sk;
 	struct tipc_sock *tsk = tipc_sk(sk);
-	struct tipc_net *tn = net_generic(sock_net(sock->sk), tipc_net_id);
 
 	memset(addr, 0, sizeof(*addr));
 	if (peer) {
@@ -682,7 +680,7 @@ static int tipc_getname(struct socket *sock, struct sockaddr *uaddr,
 		addr->addr.id.node = tsk_peer_node(tsk);
 	} else {
 		addr->addr.id.ref = tsk->portid;
-		addr->addr.id.node = tn->own_addr;
+		addr->addr.id.node = tipc_own_addr(sock_net(sk));
 	}
 
 	addr->addrtype = TIPC_ADDR_ID;
@@ -2667,8 +2665,8 @@ void tipc_sk_reinit(struct net *net)
 		while ((tsk = rhashtable_walk_next(&iter)) && !IS_ERR(tsk)) {
 			spin_lock_bh(&tsk->sk.sk_lock.slock);
 			msg = &tsk->phdr;
-			msg_set_prevnode(msg, tn->own_addr);
-			msg_set_orignode(msg, tn->own_addr);
+			msg_set_prevnode(msg, tipc_own_addr(net));
+			msg_set_orignode(msg, tipc_own_addr(net));
 			spin_unlock_bh(&tsk->sk.sk_lock.slock);
 		}
 
@@ -3167,11 +3165,10 @@ static int __tipc_nl_add_sk_info(struct sk_buff *skb, struct tipc_sock
 			  *tsk)
 {
 	struct net *net = sock_net(skb->sk);
-	struct tipc_net *tn = tipc_net(net);
 	struct sock *sk = &tsk->sk;
 
 	if (nla_put_u32(skb, TIPC_NLA_SOCK_REF, tsk->portid) ||
-	    nla_put_u32(skb, TIPC_NLA_SOCK_ADDR, tn->own_addr))
+	    nla_put_u32(skb, TIPC_NLA_SOCK_ADDR, tipc_own_addr(net)))
 		return -EMSGSIZE;
 
 	if (tipc_sk_connected(sk)) {

@@ -540,7 +540,7 @@ u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance,
 	}
 
 	/* Round-Robin Algorithm */
-	else if (*destnode == tn->own_addr) {
+	else if (*destnode == tipc_own_addr(net)) {
 		if (list_empty(&info->local_publ))
 			goto no_match;
 		publ = list_first_entry(&info->local_publ, struct publication,
@@ -713,7 +713,7 @@ struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
 	}
 
 	publ = tipc_nametbl_insert_publ(net, type, lower, upper, scope,
-					tn->own_addr, port_ref, key);
+					tipc_own_addr(net), port_ref, key);
 	if (likely(publ)) {
 		tn->nametbl->local_publ_count++;
 		buf = tipc_named_publish(net, publ);
@@ -738,7 +738,7 @@ int tipc_nametbl_withdraw(struct net *net, u32 type, u32 lower, u32 port,
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 
 	spin_lock_bh(&tn->nametbl_lock);
-	publ = tipc_nametbl_remove_publ(net, type, lower, tn->own_addr,
+	publ = tipc_nametbl_remove_publ(net, type, lower, tipc_own_addr(net),
 					port, key);
 	if (likely(publ)) {
 		tn->nametbl->local_publ_count--;
