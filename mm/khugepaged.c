@@ -965,7 +965,9 @@ static void collapse_huge_page(struct mm_struct *mm,
 		goto out_nolock;
 	}
 
-	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp, &memcg, true))) {
+	/* Do not oom kill for khugepaged charges */
+	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp | __GFP_NORETRY,
+					   &memcg, true))) {
 		result = SCAN_CGROUP_CHARGE_FAIL;
 		goto out_nolock;
 	}
@@ -1324,7 +1326,9 @@ static void collapse_shmem(struct mm_struct *mm,
 		goto out;
 	}
 
-	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp, &memcg, true))) {
+	/* Do not oom kill for khugepaged charges */
+	if (unlikely(mem_cgroup_try_charge(new_page, mm, gfp | __GFP_NORETRY,
+					   &memcg, true))) {
 		result = SCAN_CGROUP_CHARGE_FAIL;
 		goto out;
 	}
