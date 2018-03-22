@@ -214,7 +214,7 @@ static int tls_push_record(struct sock *sk, int flags,
 	/* Only pass through MSG_DONTWAIT and MSG_NOSIGNAL flags */
 	rc = tls_push_sg(sk, tls_ctx, ctx->sg_encrypted_data, 0, flags);
 	if (rc < 0 && rc != -EAGAIN)
-		tls_err_abort(sk);
+		tls_err_abort(sk, EBADMSG);
 
 	tls_advance_record_sn(sk, &tls_ctx->tx);
 	return rc;

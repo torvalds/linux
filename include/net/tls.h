@@ -174,9 +174,9 @@ static inline bool tls_is_pending_open_record(struct tls_context *tls_ctx)
 	return tls_ctx->pending_open_record_frags;
 }
 
-static inline void tls_err_abort(struct sock *sk)
+static inline void tls_err_abort(struct sock *sk, int err)
 {
-	sk->sk_err = EBADMSG;
+	sk->sk_err = err;
 	sk->sk_error_report(sk);
 }
 
@@ -197,7 +197,7 @@ static inline void tls_advance_record_sn(struct sock *sk,
 					 struct cipher_context *ctx)
 {
 	if (tls_bigint_increment(ctx->rec_seq, ctx->rec_seq_size))
-		tls_err_abort(sk);
+		tls_err_abort(sk, EBADMSG);
 	tls_bigint_increment(ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,
 			     ctx->iv_size);
 }
