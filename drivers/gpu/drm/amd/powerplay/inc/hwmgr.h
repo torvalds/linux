@@ -718,6 +718,7 @@ struct pp_hwmgr {
 	uint32_t chip_family;
 	uint32_t chip_id;
 	uint32_t smu_version;
+	bool not_vf;
 	bool pm_en;
 	struct mutex smu_lock;
 

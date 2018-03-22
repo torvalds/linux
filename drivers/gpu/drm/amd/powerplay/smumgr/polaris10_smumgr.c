@@ -295,8 +295,7 @@ static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!(smu7_is_smc_ram_running(hwmgr)
-		|| cgs_is_virtualization_enabled(hwmgr->device))) {
+	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->not_vf) {
 		smu_data->protected_mode = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_MODE));
 		smu_data->smu7_data.security_hard_key = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
 

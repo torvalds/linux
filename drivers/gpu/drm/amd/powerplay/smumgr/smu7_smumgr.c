@@ -375,7 +375,7 @@ static int smu7_populate_single_firmware_entry(struct pp_hwmgr *hwmgr,
 		entry->meta_data_addr_low = 0;
 
 		/* digest need be excluded out */
-		if (cgs_is_virtualization_enabled(hwmgr->device))
+		if (!hwmgr->not_vf)
 			info.image_size -= 20;
 		entry->data_size_byte = info.image_size;
 		entry->num_register_entries = 0;
@@ -409,7 +409,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 					0x0);
 
 	if (hwmgr->chip_id > CHIP_TOPAZ) { /* add support for Topaz */
-		if (!cgs_is_virtualization_enabled(hwmgr->device)) {
+		if (hwmgr->not_vf) {
 			smu7_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_HI,
 						upper_32_bits(smu_data->smu_buffer.mc_addr));
@@ -467,7 +467,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
 				UCODE_ID_SDMA1, &toc->entry[toc->num_entries++]),
 				"Failed to Get Firmware Entry.", return -EINVAL);
-	if (cgs_is_virtualization_enabled(hwmgr->device))
+	if (!hwmgr->not_vf)
 		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
 				UCODE_ID_MEC_STORAGE, &toc->entry[toc->num_entries++]),
 				"Failed to Get Firmware Entry.", return -EINVAL);
@@ -608,7 +608,7 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 	smu_data->header = smu_data->header_buffer.kaddr;
 	smu_data->header_buffer.mc_addr = mc_addr;
 
-	if (cgs_is_virtualization_enabled(hwmgr->device))
+	if (!hwmgr->not_vf)
 		return 0;
 
 	smu_data->smu_buffer.data_size = 200*4096;
@@ -643,7 +643,7 @@ int smu7_smu_fini(struct pp_hwmgr *hwmgr)
 					&smu_data->header_buffer.mc_addr,
 					&smu_data->header_buffer.kaddr);
 
-	if (!cgs_is_virtualization_enabled(hwmgr->device))
+	if (hwmgr->not_vf)
 		amdgpu_bo_free_kernel(&smu_data->smu_buffer.handle,
 					&smu_data->smu_buffer.mc_addr,
 					&smu_data->smu_buffer.kaddr);
