@@ -301,6 +301,8 @@ static void vmw_print_capabilities(uint32_t capabilities)
 		DRM_INFO("  Guest Backed Resources.\n");
 	if (capabilities & SVGA_CAP_DX)
 		DRM_INFO("  DX Features.\n");
+	if (capabilities & SVGA_CAP_HP_CMD_QUEUE)
+		DRM_INFO("  HP Command Queue.\n");
 }
 
 /**
