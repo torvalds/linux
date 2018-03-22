@@ -824,8 +824,6 @@ and our driver.
 
 .. note:: More details about the format of the */proc/interrupts* can
 	  be found in the `Interrupt statistics`_ section.
-
-Add a message in the interrupt handling routine to check if it is
 called. Compile and reload the module into the kernel. Check that the
 interrupt handling routine is called when you press the keyboard on
 the virtual machine. Also note that when you use the serial port no
@@ -863,7 +861,7 @@ Then print information about the keystrokes int the following format:
 
 .. code-block:: c
 
-   pr_info("IRQ:% d, scancode = 0x%x (%u,%c)\n"
+   pr_info("IRQ:% d, scancode = 0x%x (%u,%c)\n",
 	   irq_no, scancode, scancode, scancode);
 
 
