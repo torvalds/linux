@@ -143,6 +143,13 @@
 		status = "disabled";
 	};
 
+	mac_clkin: external-mac-clock {
+		compatible = "fixed-clock";
+		clock-frequency = <50000000>;
+		clock-output-names = "mac_clkin";
+		#clock-cells = <0>;
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";

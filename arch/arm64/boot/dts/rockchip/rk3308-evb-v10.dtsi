@@ -177,6 +177,13 @@
 		regulator-max-microvolt = <1800000>;
 	};
 
+	vcc_phy: vcc-phy-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_phy";
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	vbus_host: vbus-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -223,6 +230,19 @@
 
 &fiq_debugger {
 	status = "okay";
+};
+
+&mac {
+	phy-supply = <&vcc_phy>;
+	assigned-clocks = <&cru SCLK_MAC>;
+	assigned-clock-parents = <&mac_clkin>;
+	clock_in_out = "input";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmii_pins &mac_refclk>;
+	snps,reset-gpio = <&gpio0 RK_PB2 GPIO_ACTIVE_LOW>;
+	snps,reset-active-low;
+	snps,reset-delays-us = <0 50000 50000>;
+	status = "disable";
 };
 
 &io_domains {
