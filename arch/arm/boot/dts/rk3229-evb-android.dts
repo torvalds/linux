@@ -156,6 +156,7 @@
 		regulator-name = "vdd_arm";
 		regulator-min-microvolt = <950000>;
 		regulator-max-microvolt = <1400000>;
+		regulator-settling-time-up-us = <250>;
 		regulator-always-on;
 		regulator-boot-on;
 	};
@@ -168,6 +169,7 @@
 		regulator-name = "vdd_log";
 		regulator-min-microvolt = <1000000>;
 		regulator-max-microvolt = <1300000>;
+		regulator-settling-time-up-us = <250>;
 		regulator-always-on;
 		regulator-boot-on;
 	};
