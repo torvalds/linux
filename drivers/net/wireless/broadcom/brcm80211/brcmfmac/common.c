@@ -524,9 +524,6 @@ static int __init brcmfmac_module_init(void)
 {
 	int err;
 
-	/* Initialize debug system first */
-	brcmf_debugfs_init();
-
 	/* Get the platform data (if available) for our devices */
 	err = platform_driver_probe(&brcmf_pd, brcmf_common_pd_probe);
 	if (err == -ENODEV)
@@ -538,7 +535,6 @@ static int __init brcmfmac_module_init(void)
 	/* Continue the initialization by registering the different busses */
 	err = brcmf_core_init();
 	if (err) {
-		brcmf_debugfs_exit();
 		if (brcmfmac_pdata)
 			platform_driver_unregister(&brcmf_pd);
 	}
@@ -551,7 +547,6 @@ static void __exit brcmfmac_module_exit(void)
 	brcmf_core_exit();
 	if (brcmfmac_pdata)
 		platform_driver_unregister(&brcmf_pd);
-	brcmf_debugfs_exit();
 }
 
 module_init(brcmfmac_module_init);
