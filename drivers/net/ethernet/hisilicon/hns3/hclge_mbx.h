@@ -11,6 +11,7 @@
 
 enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_RESET = 0x01,		/* (VF -> PF) assert reset */
+	HCLGE_MBX_ASSERTING_RESET,	/* (PF -> VF) PF is asserting reset*/
 	HCLGE_MBX_SET_UNICAST,		/* (VF -> PF) set UC addr */
 	HCLGE_MBX_SET_MULTICAST,	/* (VF -> PF) set MC addr */
 	HCLGE_MBX_SET_VLAN,		/* (VF -> PF) set VLAN */
@@ -85,6 +86,21 @@ struct hclge_mbx_pf_to_vf_cmd {
 	u16 msg[8];
 };
 
+/* used by VF to store the received Async responses from PF */
+struct hclgevf_mbx_arq_ring {
+#define HCLGE_MBX_MAX_ARQ_MSG_SIZE	8
+#define HCLGE_MBX_MAX_ARQ_MSG_NUM	1024
+	struct hclgevf_dev *hdev;
+	u32 head;
+	u32 tail;
+	u32 count;
+	u16 msg_q[HCLGE_MBX_MAX_ARQ_MSG_NUM][HCLGE_MBX_MAX_ARQ_MSG_SIZE];
+};
+
 #define hclge_mbx_ring_ptr_move_crq(crq) \
 	(crq->next_to_use = (crq->next_to_use + 1) % crq->desc_num)
+#define hclge_mbx_tail_ptr_move_arq(arq) \
+	(arq.tail = (arq.tail + 1) % HCLGE_MBX_MAX_ARQ_MSG_SIZE)
+#define hclge_mbx_head_ptr_move_arq(arq) \
+		(arq.head = (arq.head + 1) % HCLGE_MBX_MAX_ARQ_MSG_SIZE)
 #endif

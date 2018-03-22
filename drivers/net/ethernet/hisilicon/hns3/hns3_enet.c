@@ -320,7 +320,7 @@ static int hns3_nic_net_open(struct net_device *netdev)
 		return ret;
 	}
 
-	priv->last_reset_time = jiffies;
+	priv->ae_handle->last_reset_time = jiffies;
 	return 0;
 }
 
@@ -1543,7 +1543,6 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 static void hns3_nic_net_timeout(struct net_device *ndev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
-	unsigned long last_reset_time = priv->last_reset_time;
 	struct hnae3_handle *h = priv->ae_handle;
 
 	if (!hns3_get_tx_timeo_queue_info(ndev))
@@ -1551,24 +1550,12 @@ static void hns3_nic_net_timeout(struct net_device *ndev)
 
 	priv->tx_timeout_count++;
 
-	/* This timeout is far away enough from last timeout,
-	 * if timeout again,set the reset type to PF reset
-	 */
-	if (time_after(jiffies, (last_reset_time + 20 * HZ)))
-		priv->reset_level = HNAE3_FUNC_RESET;
-
-	/* Don't do any new action before the next timeout */
-	else if (time_before(jiffies, (last_reset_time + ndev->watchdog_timeo)))
+	if (time_before(jiffies, (h->last_reset_time + ndev->watchdog_timeo)))
 		return;
 
-	priv->last_reset_time = jiffies;
-
+	/* request the reset */
 	if (h->ae_algo->ops->reset_event)
-		h->ae_algo->ops->reset_event(h, priv->reset_level);
-
-	priv->reset_level++;
-	if (priv->reset_level > HNAE3_GLOBAL_RESET)
-		priv->reset_level = HNAE3_GLOBAL_RESET;
+		h->ae_algo->ops->reset_event(h);
 }
 
 static const struct net_device_ops hns3_nic_netdev_ops = {
@@ -3122,8 +3109,8 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	priv->dev = &pdev->dev;
 	priv->netdev = netdev;
 	priv->ae_handle = handle;
-	priv->last_reset_time = jiffies;
-	priv->reset_level = HNAE3_FUNC_RESET;
+	priv->ae_handle->reset_level = HNAE3_NONE_RESET;
+	priv->ae_handle->last_reset_time = jiffies;
 	priv->tx_timeout_count = 0;
 
 	handle->kinfo.netdev = netdev;
@@ -3355,7 +3342,6 @@ static int hns3_reset_notify_down_enet(struct hnae3_handle *handle)
 static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 {
 	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
-	struct hns3_nic_priv *priv = netdev_priv(kinfo->netdev);
 	int ret = 0;
 
 	if (netif_running(kinfo->netdev)) {
@@ -3365,8 +3351,7 @@ static int hns3_reset_notify_up_enet(struct hnae3_handle *handle)
 				   "hns net up fail, ret=%d!\n", ret);
 			return ret;
 		}
-
-		priv->last_reset_time = jiffies;
+		handle->last_reset_time = jiffies;
 	}
 
 	return ret;
@@ -3378,7 +3363,6 @@ static int hns3_reset_notify_init_enet(struct hnae3_handle *handle)
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	int ret;
 
-	priv->reset_level = 1;
 	hns3_init_mac_addr(netdev);
 	hns3_nic_set_rx_mode(netdev);
 	hns3_recover_hw_addr(netdev);

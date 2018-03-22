@@ -118,6 +118,8 @@ enum hnae3_reset_notify_type {
 };
 
 enum hnae3_reset_type {
+	HNAE3_VF_RESET,
+	HNAE3_VF_FULL_RESET,
 	HNAE3_FUNC_RESET,
 	HNAE3_CORE_RESET,
 	HNAE3_GLOBAL_RESET,
@@ -400,8 +402,7 @@ struct hnae3_ae_ops {
 	int (*set_vf_vlan_filter)(struct hnae3_handle *handle, int vfid,
 				  u16 vlan, u8 qos, __be16 proto);
 	int (*enable_hw_strip_rxvtag)(struct hnae3_handle *handle, bool enable);
-	void (*reset_event)(struct hnae3_handle *handle,
-			    enum hnae3_reset_type reset);
+	void (*reset_event)(struct hnae3_handle *handle);
 	void (*get_channels)(struct hnae3_handle *handle,
 			     struct ethtool_channels *ch);
 	void (*get_tqps_and_rss_info)(struct hnae3_handle *h,
@@ -494,6 +495,9 @@ struct hnae3_handle {
 	void *priv;
 	struct hnae3_ae_algo *ae_algo;  /* the class who provides this handle */
 	u64 flags; /* Indicate the capabilities for this handle*/
+
+	unsigned long last_reset_time;
+	enum hnae3_reset_type reset_level;
 
 	union {
 		struct net_device *netdev; /* first member */

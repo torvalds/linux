@@ -2,6 +2,7 @@
 // Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include <linux/etherdevice.h>
+#include <net/rtnetlink.h>
 #include "hclgevf_cmd.h"
 #include "hclgevf_main.h"
 #include "hclge_mbx.h"
@@ -9,6 +10,8 @@
 
 #define HCLGEVF_NAME	"hclgevf"
 
+static int hclgevf_init_hdev(struct hclgevf_dev *hdev);
+static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev);
 static struct hnae3_ae_algo ae_algovf;
 
 static const struct pci_device_id ae_algovf_pci_tbl[] = {
@@ -208,6 +211,12 @@ static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 	struct hclgevf_tqp *tqp;
 	int i;
 
+	/* if this is on going reset then we need to re-allocate the TPQs
+	 * since we cannot assume we would get same number of TPQs back from PF
+	 */
+	if (hclgevf_dev_ongoing_reset(hdev))
+		devm_kfree(&hdev->pdev->dev, hdev->htqp);
+
 	hdev->htqp = devm_kcalloc(&hdev->pdev->dev, hdev->num_tqps,
 				  sizeof(struct hclgevf_tqp), GFP_KERNEL);
 	if (!hdev->htqp)
@@ -250,6 +259,12 @@ static int hclgevf_knic_setup(struct hclgevf_dev *hdev)
 		= min_t(u16, hdev->rss_size_max, new_tqps / kinfo->num_tc);
 	new_tqps = kinfo->rss_size * kinfo->num_tc;
 	kinfo->num_tqps = min(new_tqps, hdev->num_tqps);
+
+	/* if this is on going reset then we need to re-allocate the hnae queues
+	 * as well since number of TPQs from PF might have changed.
+	 */
+	if (hclgevf_dev_ongoing_reset(hdev))
+		devm_kfree(&hdev->pdev->dev, kinfo->tqp);
 
 	kinfo->tqp = devm_kcalloc(&hdev->pdev->dev, kinfo->num_tqps,
 				  sizeof(struct hnae3_queue *), GFP_KERNEL);
@@ -832,6 +847,138 @@ static void hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 			     2, true, NULL, 0);
 }
 
+static int hclgevf_notify_client(struct hclgevf_dev *hdev,
+				 enum hnae3_reset_notify_type type)
+{
+	struct hnae3_client *client = hdev->nic_client;
+	struct hnae3_handle *handle = &hdev->nic;
+
+	if (!client->ops->reset_notify)
+		return -EOPNOTSUPP;
+
+	return client->ops->reset_notify(handle, type);
+}
+
+static int hclgevf_reset_wait(struct hclgevf_dev *hdev)
+{
+#define HCLGEVF_RESET_WAIT_MS	500
+#define HCLGEVF_RESET_WAIT_CNT	20
+	u32 val, cnt = 0;
+
+	/* wait to check the hardware reset completion status */
+	val = hclgevf_read_dev(&hdev->hw, HCLGEVF_FUN_RST_ING);
+	while (hnae_get_bit(val, HCLGEVF_FUN_RST_ING_B) &&
+			    (cnt < HCLGEVF_RESET_WAIT_CNT)) {
+		msleep(HCLGEVF_RESET_WAIT_MS);
+		val = hclgevf_read_dev(&hdev->hw, HCLGEVF_FUN_RST_ING);
+		cnt++;
+	}
+
+	/* hardware completion status should be available by this time */
+	if (cnt >= HCLGEVF_RESET_WAIT_CNT) {
+		dev_warn(&hdev->pdev->dev,
+			 "could'nt get reset done status from h/w, timeout!\n");
+		return -EBUSY;
+	}
+
+	/* we will wait a bit more to let reset of the stack to complete. This
+	 * might happen in case reset assertion was made by PF. Yes, this also
+	 * means we might end up waiting bit more even for VF reset.
+	 */
+	msleep(5000);
+
+	return 0;
+}
+
+static int hclgevf_reset_stack(struct hclgevf_dev *hdev)
+{
+	int ret;
+
+	/* uninitialize the nic client */
+	hclgevf_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+
+	/* re-initialize the hclge device */
+	ret = hclgevf_init_hdev(hdev);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"hclge device re-init failed, VF is disabled!\n");
+		return ret;
+	}
+
+	/* bring up the nic client again */
+	hclgevf_notify_client(hdev, HNAE3_INIT_CLIENT);
+
+	return 0;
+}
+
+static int hclgevf_reset(struct hclgevf_dev *hdev)
+{
+	int ret;
+
+	rtnl_lock();
+
+	/* bring down the nic to stop any ongoing TX/RX */
+	hclgevf_notify_client(hdev, HNAE3_DOWN_CLIENT);
+
+	/* check if VF could successfully fetch the hardware reset completion
+	 * status from the hardware
+	 */
+	ret = hclgevf_reset_wait(hdev);
+	if (ret) {
+		/* can't do much in this situation, will disable VF */
+		dev_err(&hdev->pdev->dev,
+			"VF failed(=%d) to fetch H/W reset completion status\n",
+			ret);
+
+		dev_warn(&hdev->pdev->dev, "VF reset failed, disabling VF!\n");
+		hclgevf_notify_client(hdev, HNAE3_UNINIT_CLIENT);
+
+		rtnl_unlock();
+		return ret;
+	}
+
+	/* now, re-initialize the nic client and ae device*/
+	ret = hclgevf_reset_stack(hdev);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "failed to reset VF stack\n");
+
+	/* bring up the nic to enable TX/RX again */
+	hclgevf_notify_client(hdev, HNAE3_UP_CLIENT);
+
+	rtnl_unlock();
+
+	return ret;
+}
+
+static int hclgevf_do_reset(struct hclgevf_dev *hdev)
+{
+	int status;
+	u8 respmsg;
+
+	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_RESET, 0, NULL,
+				      0, false, &respmsg, sizeof(u8));
+	if (status)
+		dev_err(&hdev->pdev->dev,
+			"VF reset request to PF failed(=%d)\n", status);
+
+	return status;
+}
+
+static void hclgevf_reset_event(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	dev_info(&hdev->pdev->dev, "received reset request from VF enet\n");
+
+	handle->reset_level = HNAE3_VF_RESET;
+
+	/* reset of this VF requested */
+	set_bit(HCLGEVF_RESET_REQUESTED, &hdev->reset_state);
+	hclgevf_reset_task_schedule(hdev);
+
+	handle->last_reset_time = jiffies;
+}
+
 static u32 hclgevf_get_fw_version(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
@@ -854,10 +1001,22 @@ static void hclgevf_get_misc_vector(struct hclgevf_dev *hdev)
 	hdev->num_msi_used += 1;
 }
 
-static void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
+void hclgevf_reset_task_schedule(struct hclgevf_dev *hdev)
 {
-	if (!test_and_set_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state))
+	if (!test_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state) &&
+	    !test_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state)) {
+		set_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state);
+		schedule_work(&hdev->rst_service_task);
+	}
+}
+
+void hclgevf_mbx_task_schedule(struct hclgevf_dev *hdev)
+{
+	if (!test_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state) &&
+	    !test_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state)) {
+		set_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
 		schedule_work(&hdev->mbx_service_task);
+	}
 }
 
 static void hclgevf_task_schedule(struct hclgevf_dev *hdev)
@@ -867,6 +1026,16 @@ static void hclgevf_task_schedule(struct hclgevf_dev *hdev)
 		schedule_work(&hdev->service_task);
 }
 
+static void hclgevf_deferred_task_schedule(struct hclgevf_dev *hdev)
+{
+	/* if we have any pending mailbox event then schedule the mbx task */
+	if (hdev->mbx_event_pending)
+		hclgevf_mbx_task_schedule(hdev);
+
+	if (test_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state))
+		hclgevf_reset_task_schedule(hdev);
+}
+
 static void hclgevf_service_timer(struct timer_list *t)
 {
 	struct hclgevf_dev *hdev = from_timer(hdev, t, service_timer);
@@ -874,6 +1043,75 @@ static void hclgevf_service_timer(struct timer_list *t)
 	mod_timer(&hdev->service_timer, jiffies + 5 * HZ);
 
 	hclgevf_task_schedule(hdev);
+}
+
+static void hclgevf_reset_service_task(struct work_struct *work)
+{
+	struct hclgevf_dev *hdev =
+		container_of(work, struct hclgevf_dev, rst_service_task);
+	int ret;
+
+	if (test_and_set_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state))
+		return;
+
+	clear_bit(HCLGEVF_STATE_RST_SERVICE_SCHED, &hdev->state);
+
+	if (test_and_clear_bit(HCLGEVF_RESET_PENDING,
+			       &hdev->reset_state)) {
+		/* PF has initmated that it is about to reset the hardware.
+		 * We now have to poll & check if harware has actually completed
+		 * the reset sequence. On hardware reset completion, VF needs to
+		 * reset the client and ae device.
+		 */
+		hdev->reset_attempts = 0;
+
+		ret = hclgevf_reset(hdev);
+		if (ret)
+			dev_err(&hdev->pdev->dev, "VF stack reset failed.\n");
+	} else if (test_and_clear_bit(HCLGEVF_RESET_REQUESTED,
+				      &hdev->reset_state)) {
+		/* we could be here when either of below happens:
+		 * 1. reset was initiated due to watchdog timeout due to
+		 *    a. IMP was earlier reset and our TX got choked down and
+		 *       which resulted in watchdog reacting and inducing VF
+		 *       reset. This also means our cmdq would be unreliable.
+		 *    b. problem in TX due to other lower layer(example link
+		 *       layer not functioning properly etc.)
+		 * 2. VF reset might have been initiated due to some config
+		 *    change.
+		 *
+		 * NOTE: Theres no clear way to detect above cases than to react
+		 * to the response of PF for this reset request. PF will ack the
+		 * 1b and 2. cases but we will not get any intimation about 1a
+		 * from PF as cmdq would be in unreliable state i.e. mailbox
+		 * communication between PF and VF would be broken.
+		 */
+
+		/* if we are never geting into pending state it means either:
+		 * 1. PF is not receiving our request which could be due to IMP
+		 *    reset
+		 * 2. PF is screwed
+		 * We cannot do much for 2. but to check first we can try reset
+		 * our PCIe + stack and see if it alleviates the problem.
+		 */
+		if (hdev->reset_attempts > 3) {
+			/* prepare for full reset of stack + pcie interface */
+			hdev->nic.reset_level = HNAE3_VF_FULL_RESET;
+
+			/* "defer" schedule the reset task again */
+			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
+		} else {
+			hdev->reset_attempts++;
+
+			/* request PF for resetting this VF via mailbox */
+			ret = hclgevf_do_reset(hdev);
+			if (ret)
+				dev_warn(&hdev->pdev->dev,
+					 "VF rst fail, stack will call\n");
+		}
+	}
+
+	clear_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state);
 }
 
 static void hclgevf_mailbox_service_task(struct work_struct *work)
@@ -887,7 +1125,7 @@ static void hclgevf_mailbox_service_task(struct work_struct *work)
 
 	clear_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
 
-	hclgevf_mbx_handler(hdev);
+	hclgevf_mbx_async_handler(hdev);
 
 	clear_bit(HCLGEVF_STATE_MBX_HANDLING, &hdev->state);
 }
@@ -902,6 +1140,8 @@ static void hclgevf_service_task(struct work_struct *work)
 	 * about such updates in future so we might remove this later
 	 */
 	hclgevf_request_link_info(hdev);
+
+	hclgevf_deferred_task_schedule(hdev);
 
 	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
 }
@@ -945,8 +1185,7 @@ static irqreturn_t hclgevf_misc_irq_handle(int irq, void *data)
 	if (!hclgevf_check_event_cause(hdev, &clearval))
 		goto skip_sched;
 
-	/* schedule the VF mailbox service task, if not already scheduled */
-	hclgevf_mbx_task_schedule(hdev);
+	hclgevf_mbx_handler(hdev);
 
 	hclgevf_clear_event_cause(hdev, clearval);
 
@@ -966,6 +1205,22 @@ static int hclgevf_configure(struct hclgevf_dev *hdev)
 		return ret;
 	/* get tc configuration from PF */
 	return hclgevf_get_tc_info(hdev);
+}
+
+static int hclgevf_alloc_hdev(struct hnae3_ae_dev *ae_dev)
+{
+	struct pci_dev *pdev = ae_dev->pdev;
+	struct hclgevf_dev *hdev = ae_dev->priv;
+
+	hdev = devm_kzalloc(&pdev->dev, sizeof(*hdev), GFP_KERNEL);
+	if (!hdev)
+		return -ENOMEM;
+
+	hdev->pdev = pdev;
+	hdev->ae_dev = ae_dev;
+	ae_dev->priv = hdev;
+
+	return 0;
 }
 
 static int hclgevf_init_roce_base_info(struct hclgevf_dev *hdev)
@@ -1073,6 +1328,10 @@ static void hclgevf_ae_stop(struct hnae3_handle *handle)
 
 static void hclgevf_state_init(struct hclgevf_dev *hdev)
 {
+	/* if this is on going reset then skip this initialization */
+	if (hclgevf_dev_ongoing_reset(hdev))
+		return;
+
 	/* setup tasks for the MBX */
 	INIT_WORK(&hdev->mbx_service_task, hclgevf_mailbox_service_task);
 	clear_bit(HCLGEVF_STATE_MBX_SERVICE_SCHED, &hdev->state);
@@ -1083,6 +1342,8 @@ static void hclgevf_state_init(struct hclgevf_dev *hdev)
 
 	INIT_WORK(&hdev->service_task, hclgevf_service_task);
 	clear_bit(HCLGEVF_STATE_SERVICE_SCHED, &hdev->state);
+
+	INIT_WORK(&hdev->rst_service_task, hclgevf_reset_service_task);
 
 	mutex_init(&hdev->mbx_resp.mbx_mutex);
 
@@ -1100,6 +1361,8 @@ static void hclgevf_state_uninit(struct hclgevf_dev *hdev)
 		cancel_work_sync(&hdev->service_task);
 	if (hdev->mbx_service_task.func)
 		cancel_work_sync(&hdev->mbx_service_task);
+	if (hdev->rst_service_task.func)
+		cancel_work_sync(&hdev->rst_service_task);
 
 	mutex_destroy(&hdev->mbx_resp.mbx_mutex);
 }
@@ -1109,6 +1372,10 @@ static int hclgevf_init_msi(struct hclgevf_dev *hdev)
 	struct pci_dev *pdev = hdev->pdev;
 	int vectors;
 	int i;
+
+	/* if this is on going reset then skip this initialization */
+	if (hclgevf_dev_ongoing_reset(hdev))
+		return 0;
 
 	hdev->num_msi = HCLGEVF_MAX_VF_VECTOR_NUM;
 
@@ -1159,6 +1426,10 @@ static void hclgevf_uninit_msi(struct hclgevf_dev *hdev)
 static int hclgevf_misc_irq_init(struct hclgevf_dev *hdev)
 {
 	int ret = 0;
+
+	/* if this is on going reset then skip this initialization */
+	if (hclgevf_dev_ongoing_reset(hdev))
+		return 0;
 
 	hclgevf_get_misc_vector(hdev);
 
@@ -1270,6 +1541,14 @@ static int hclgevf_pci_init(struct hclgevf_dev *hdev)
 	struct hclgevf_hw *hw;
 	int ret;
 
+	/* check if we need to skip initialization of pci. This will happen if
+	 * device is undergoing VF reset. Otherwise, we would need to
+	 * re-initialize pci interface again i.e. when device is not going
+	 * through *any* reset or actually undergoing full reset.
+	 */
+	if (hclgevf_dev_ongoing_reset(hdev))
+		return 0;
+
 	ret = pci_enable_device(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable PCI device\n");
@@ -1321,19 +1600,16 @@ static void hclgevf_pci_uninit(struct hclgevf_dev *hdev)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static int hclgevf_init_ae_dev(struct hnae3_ae_dev *ae_dev)
+static int hclgevf_init_hdev(struct hclgevf_dev *hdev)
 {
-	struct pci_dev *pdev = ae_dev->pdev;
-	struct hclgevf_dev *hdev;
+	struct pci_dev *pdev = hdev->pdev;
 	int ret;
 
-	hdev = devm_kzalloc(&pdev->dev, sizeof(*hdev), GFP_KERNEL);
-	if (!hdev)
-		return -ENOMEM;
-
-	hdev->pdev = pdev;
-	hdev->ae_dev = ae_dev;
-	ae_dev->priv = hdev;
+	/* check if device is on-going full reset(i.e. pcie as well) */
+	if (hclgevf_dev_ongoing_full_reset(hdev)) {
+		dev_warn(&pdev->dev, "device is going full reset\n");
+		hclgevf_uninit_hdev(hdev);
+	}
 
 	ret = hclgevf_pci_init(hdev);
 	if (ret) {
@@ -1418,15 +1694,38 @@ err_irq_init:
 	return ret;
 }
 
-static void hclgevf_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
+static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 {
-	struct hclgevf_dev *hdev = ae_dev->priv;
-
 	hclgevf_cmd_uninit(hdev);
 	hclgevf_misc_irq_uninit(hdev);
 	hclgevf_state_uninit(hdev);
 	hclgevf_uninit_msi(hdev);
 	hclgevf_pci_uninit(hdev);
+}
+
+static int hclgevf_init_ae_dev(struct hnae3_ae_dev *ae_dev)
+{
+	struct pci_dev *pdev = ae_dev->pdev;
+	int ret;
+
+	ret = hclgevf_alloc_hdev(ae_dev);
+	if (ret) {
+		dev_err(&pdev->dev, "hclge device allocation failed\n");
+		return ret;
+	}
+
+	ret = hclgevf_init_hdev(ae_dev->priv);
+	if (ret)
+		dev_err(&pdev->dev, "hclge device initialization failed\n");
+
+	return ret;
+}
+
+static void hclgevf_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
+{
+	struct hclgevf_dev *hdev = ae_dev->priv;
+
+	hclgevf_uninit_hdev(hdev);
 	ae_dev->priv = NULL;
 }
 
@@ -1526,6 +1825,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_tc_size = hclgevf_get_tc_size,
 	.get_fw_version = hclgevf_get_fw_version,
 	.set_vlan_filter = hclgevf_set_vlan_filter,
+	.reset_event = hclgevf_reset_event,
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
 	.get_status = hclgevf_get_status,
