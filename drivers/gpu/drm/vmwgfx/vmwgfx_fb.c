@@ -187,7 +187,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	struct vmw_dma_buffer *vbo = par->vmw_bo;
 	void *virtual;
 
-	if (vmw_priv->suspended)
+	if (!READ_ONCE(par->dirty.active))
 		return;
 
 	mutex_lock(&par->bo_mutex);

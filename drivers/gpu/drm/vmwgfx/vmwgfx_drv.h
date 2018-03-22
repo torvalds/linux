@@ -497,7 +497,6 @@ struct vmw_private {
 	struct vmw_master *active_master;
 	struct vmw_master fbdev_master;
 	struct notifier_block pm_nb;
-	bool suspended;
 	bool refuse_hibernation;
 	bool suspend_locked;
 
