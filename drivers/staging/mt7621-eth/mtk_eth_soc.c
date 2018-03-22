@@ -2096,7 +2096,7 @@ static int mtk_probe(struct platform_device *pdev)
 	sysclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sysclk)) {
 		dev_err(&pdev->dev,
-			"the clock is not defined in the devictree\n");
+			"the clock is not defined in the devicetree\n");
 		return -ENXIO;
 	}
 	eth->sysclk = clk_get_rate(sysclk);
