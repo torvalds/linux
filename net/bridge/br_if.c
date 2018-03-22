@@ -424,8 +424,18 @@ int br_del_bridge(struct net *net, const char *name)
 	return ret;
 }
 
+static bool min_mtu(int a, int b)
+{
+	return a < b ? 1 : 0;
+}
+
+static bool max_mtu(int a, int b)
+{
+	return a > b ? 1 : 0;
+}
+
 /* MTU of the bridge pseudo-device: ETH_DATA_LEN or the minimum of the ports */
-int br_min_mtu(const struct net_bridge *br)
+static int __br_mtu(const struct net_bridge *br, bool (compare_fn)(int, int))
 {
 	const struct net_bridge_port *p;
 	int mtu = 0;
@@ -436,11 +446,19 @@ int br_min_mtu(const struct net_bridge *br)
 		mtu = ETH_DATA_LEN;
 	else {
 		list_for_each_entry(p, &br->port_list, list) {
-			if (!mtu  || p->dev->mtu < mtu)
+			if (!mtu || compare_fn(p->dev->mtu, mtu))
 				mtu = p->dev->mtu;
 		}
 	}
 	return mtu;
+}
+
+int br_mtu(const struct net_bridge *br)
+{
+	if (br->vlan_enabled)
+		return __br_mtu(br, max_mtu);
+	else
+		return __br_mtu(br, min_mtu);
 }
 
 static void br_set_gso_limits(struct net_bridge *br)
@@ -594,7 +612,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	if (changed_addr)
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, br->dev);
 
-	dev_set_mtu(br->dev, br_min_mtu(br));
+	dev_set_mtu(br->dev, br_mtu(br));
 	br_set_gso_limits(br);
 
 	kobject_uevent(&p->kobj, KOBJ_ADD);
@@ -641,7 +659,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	 */
 	del_nbp(p);
 
-	dev_set_mtu(br->dev, br_min_mtu(br));
+	dev_set_mtu(br->dev, br_mtu(br));
 	br_set_gso_limits(br);
 
 	spin_lock_bh(&br->lock);

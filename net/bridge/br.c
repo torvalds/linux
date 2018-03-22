@@ -52,7 +52,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 
 	switch (event) {
 	case NETDEV_CHANGEMTU:
-		dev_set_mtu(br->dev, br_min_mtu(br));
+		dev_set_mtu(br->dev, br_mtu(br));
 		break;
 
 	case NETDEV_CHANGEADDR:
