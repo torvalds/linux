@@ -1767,6 +1767,10 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(CURBASE(PIPE_B), D_ALL);
 	MMIO_D(CURBASE(PIPE_C), D_ALL);
 
+	MMIO_D(CUR_FBC_CTL(PIPE_A), D_ALL);
+	MMIO_D(CUR_FBC_CTL(PIPE_B), D_ALL);
+	MMIO_D(CUR_FBC_CTL(PIPE_C), D_ALL);
+
 	MMIO_D(_MMIO(0x700ac), D_ALL);
 	MMIO_D(_MMIO(0x710ac), D_ALL);
 	MMIO_D(_MMIO(0x720ac), D_ALL);
@@ -2228,6 +2232,7 @@ static int init_generic_mmio_info(struct intel_gvt *gvt)
 
 	MMIO_D(HSW_AUD_CFG(PIPE_A), D_ALL);
 	MMIO_D(HSW_AUD_PIN_ELD_CP_VLD, D_ALL);
+	MMIO_D(HSW_AUD_MISC_CTRL(PIPE_A), D_ALL);
 
 	MMIO_DH(_MMIO(_TRANS_DDI_FUNC_CTL_A), D_ALL, NULL, NULL);
 	MMIO_DH(_MMIO(_TRANS_DDI_FUNC_CTL_B), D_ALL, NULL, NULL);
@@ -2559,6 +2564,7 @@ static int init_broadwell_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(WM_MISC, D_BDW);
 	MMIO_D(_MMIO(BDW_EDP_PSR_BASE), D_BDW);
 
+	MMIO_D(_MMIO(0x6671c), D_BDW_PLUS);
 	MMIO_D(_MMIO(0x66c00), D_BDW_PLUS);
 	MMIO_D(_MMIO(0x66c04), D_BDW_PLUS);
 
@@ -2787,6 +2793,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(0x70380), D_SKL_PLUS);
 	MMIO_D(_MMIO(0x71380), D_SKL_PLUS);
 	MMIO_D(_MMIO(0x72380), D_SKL_PLUS);
+	MMIO_D(_MMIO(0x7239c), D_SKL_PLUS);
 	MMIO_D(_MMIO(0x7039c), D_SKL_PLUS);
 
 	MMIO_D(_MMIO(0x8f074), D_SKL | D_KBL);
@@ -2801,7 +2808,9 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_F(_MMIO(0xc800), 0x7f8, F_CMD_ACCESS, 0, 0, D_SKL | D_KBL, NULL, NULL);
 	MMIO_F(_MMIO(0xb020), 0x80, F_CMD_ACCESS, 0, 0, D_SKL | D_KBL, NULL, NULL);
 
+	MMIO_D(RPM_CONFIG0, D_SKL_PLUS);
 	MMIO_D(_MMIO(0xd08), D_SKL_PLUS);
+	MMIO_D(RC6_LOCATION, D_SKL_PLUS);
 	MMIO_DFH(_MMIO(0x20e0), D_SKL_PLUS, F_MODE_MASK, NULL, NULL);
 	MMIO_DFH(_MMIO(0x20ec), D_SKL_PLUS, F_MODE_MASK | F_CMD_ACCESS, NULL, NULL);
 
