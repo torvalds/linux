@@ -35,7 +35,7 @@ asmlinkage long sys_get_thread_area(struct user_desc __user *);
 #ifdef CONFIG_X86_32
 
 /* kernel/signal.c */
-asmlinkage unsigned long sys_sigreturn(void);
+asmlinkage long sys_sigreturn(void);
 
 /* kernel/vm86_32.c */
 struct vm86_struct;
