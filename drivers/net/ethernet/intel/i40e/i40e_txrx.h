@@ -510,6 +510,8 @@ u32 i40e_get_tx_pending(struct i40e_ring *ring, bool in_sw);
 void i40e_detect_recover_hung(struct i40e_vsi *vsi);
 int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
 bool __i40e_chk_linearize(struct sk_buff *skb);
+int i40e_xdp_xmit(struct net_device *dev, struct xdp_buff *xdp);
+void i40e_xdp_flush(struct net_device *dev);
 
 /**
  * i40e_get_head - Retrieve head from head writeback
