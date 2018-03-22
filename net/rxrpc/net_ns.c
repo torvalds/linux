@@ -106,4 +106,5 @@ struct pernet_operations rxrpc_net_ops = {
 	.exit	= rxrpc_exit_net,
 	.id	= &rxrpc_net_id,
 	.size	= sizeof(struct rxrpc_net),
+	.async	= true,
 };
