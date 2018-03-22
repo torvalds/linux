@@ -99,7 +99,7 @@ struct tls_context {
 
 	void *priv_ctx;
 
-	u8 tx_conf:2;
+	u8 conf:2;
 
 	struct cipher_context tx;
 

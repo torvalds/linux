@@ -52,7 +52,7 @@ enum {
 };
 
 enum {
-	TLS_BASE_TX,
+	TLS_BASE,
 	TLS_SW_TX,
 	TLS_NUM_CONFIG,
 };
@@ -65,7 +65,7 @@ static inline void update_sk_prot(struct sock *sk, struct tls_context *ctx)
 {
 	int ip_ver = sk->sk_family == AF_INET6 ? TLSV6 : TLSV4;
 
-	sk->sk_prot = &tls_prots[ip_ver][ctx->tx_conf];
+	sk->sk_prot = &tls_prots[ip_ver][ctx->conf];
 }
 
 int wait_on_pending_writer(struct sock *sk, long *timeo)
@@ -238,7 +238,7 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	lock_sock(sk);
 	sk_proto_close = ctx->sk_proto_close;
 
-	if (ctx->tx_conf == TLS_BASE_TX) {
+	if (ctx->conf == TLS_BASE) {
 		kfree(ctx);
 		goto skip_tx_cleanup;
 	}
@@ -262,7 +262,7 @@ static void tls_sk_proto_close(struct sock *sk, long timeout)
 	kfree(ctx->tx.rec_seq);
 	kfree(ctx->tx.iv);
 
-	if (ctx->tx_conf == TLS_SW_TX)
+	if (ctx->conf == TLS_SW_TX)
 		tls_sw_free_tx_resources(sk);
 
 skip_tx_cleanup:
@@ -371,7 +371,7 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 	struct tls_crypto_info *crypto_info;
 	struct tls_context *ctx = tls_get_ctx(sk);
 	int rc = 0;
-	int tx_conf;
+	int conf;
 
 	if (!optval || (optlen < sizeof(*crypto_info))) {
 		rc = -EINVAL;
@@ -418,11 +418,11 @@ static int do_tls_setsockopt_tx(struct sock *sk, char __user *optval,
 
 	/* currently SW is default, we will have ethtool in future */
 	rc = tls_set_sw_offload(sk, ctx);
-	tx_conf = TLS_SW_TX;
+	conf = TLS_SW_TX;
 	if (rc)
 		goto err_crypto_info;
 
-	ctx->tx_conf = tx_conf;
+	ctx->conf = conf;
 	update_sk_prot(sk, ctx);
 	ctx->sk_write_space = sk->sk_write_space;
 	sk->sk_write_space = tls_write_space;
@@ -465,12 +465,12 @@ static int tls_setsockopt(struct sock *sk, int level, int optname,
 
 static void build_protos(struct proto *prot, struct proto *base)
 {
-	prot[TLS_BASE_TX] = *base;
-	prot[TLS_BASE_TX].setsockopt	= tls_setsockopt;
-	prot[TLS_BASE_TX].getsockopt	= tls_getsockopt;
-	prot[TLS_BASE_TX].close		= tls_sk_proto_close;
+	prot[TLS_BASE] = *base;
+	prot[TLS_BASE].setsockopt	= tls_setsockopt;
+	prot[TLS_BASE].getsockopt	= tls_getsockopt;
+	prot[TLS_BASE].close		= tls_sk_proto_close;
 
-	prot[TLS_SW_TX] = prot[TLS_BASE_TX];
+	prot[TLS_SW_TX] = prot[TLS_BASE];
 	prot[TLS_SW_TX].sendmsg		= tls_sw_sendmsg;
 	prot[TLS_SW_TX].sendpage	= tls_sw_sendpage;
 }
@@ -513,7 +513,7 @@ static int tls_init(struct sock *sk)
 		mutex_unlock(&tcpv6_prot_mutex);
 	}
 
-	ctx->tx_conf = TLS_BASE_TX;
+	ctx->conf = TLS_BASE;
 	update_sk_prot(sk, ctx);
 out:
 	return rc;
