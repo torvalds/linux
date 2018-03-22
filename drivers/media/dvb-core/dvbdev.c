@@ -953,6 +953,8 @@ struct i2c_client *dvb_module_probe(const char *module_name,
 	struct i2c_board_info *board_info;
 
 	board_info = kzalloc(sizeof(*board_info), GFP_KERNEL);
+	if (!board_info)
+		return NULL;
 
 	if (name)
 		strlcpy(board_info->type, name, I2C_NAME_SIZE);
