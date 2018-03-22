@@ -582,8 +582,9 @@ qla25xx_delete_req_que(struct scsi_qla_host *vha, struct req_que *req)
 		ret = qla25xx_init_req_que(vha, req);
 		if (ret != QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
+
+		qla25xx_free_req_que(vha, req);
 	}
-	qla25xx_free_req_que(vha, req);
 
 	return ret;
 }
@@ -598,8 +599,9 @@ qla25xx_delete_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 		ret = qla25xx_init_rsp_que(vha, rsp);
 		if (ret != QLA_SUCCESS)
 			return QLA_FUNCTION_FAILED;
+
+		qla25xx_free_rsp_que(vha, rsp);
 	}
-	qla25xx_free_rsp_que(vha, rsp);
 
 	return ret;
 }
