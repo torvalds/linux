@@ -65,6 +65,7 @@ struct page_pool;
 #define MLX5E_HW2SW_MTU(params, hwmtu) ((hwmtu) - ((params)->hard_mtu))
 #define MLX5E_SW2HW_MTU(params, swmtu) ((swmtu) + ((params)->hard_mtu))
 
+#define MLX5E_MAX_PRIORITY      8
 #define MLX5E_MAX_DSCP          64
 #define MLX5E_MAX_NUM_TC	8
 
@@ -275,6 +276,10 @@ struct mlx5e_dcbx {
 	/* The only setting that cannot be read from FW */
 	u8                         tc_tsa[IEEE_8021QAZ_MAX_TCS];
 	u8                         cap;
+
+	/* Buffer configuration */
+	u32                        cable_len;
+	u32                        xoff;
 };
 
 struct mlx5e_dcbx_dp {
