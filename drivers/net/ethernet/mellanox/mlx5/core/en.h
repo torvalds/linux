@@ -278,6 +278,7 @@ struct mlx5e_dcbx {
 	u8                         cap;
 
 	/* Buffer configuration */
+	bool                       manual_buffer;
 	u32                        cable_len;
 	u32                        xoff;
 };
