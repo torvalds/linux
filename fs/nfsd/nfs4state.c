@@ -935,10 +935,10 @@ nfs4_delegation_exists(struct nfs4_client *clp, struct nfs4_file *fp)
 	list_for_each_entry(searchdp, &fp->fi_delegations, dl_perfile) {
 		searchclp = searchdp->dl_stid.sc_client;
 		if (clp == searchclp) {
-			return -EAGAIN;
+			return true;
 		}
 	}
-	return 0;
+	return false;
 }
 
 /**
@@ -2958,7 +2958,7 @@ out_no_session:
 static bool nfsd4_compound_in_session(struct nfsd4_session *session, struct nfs4_sessionid *sid)
 {
 	if (!session)
-		return 0;
+		return false;
 	return !memcmp(sid, &session->se_sessionid, sizeof(*sid));
 }
 
