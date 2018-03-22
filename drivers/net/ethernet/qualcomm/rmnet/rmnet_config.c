@@ -339,6 +339,35 @@ static size_t rmnet_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(struct ifla_rmnet_flags));
 }
 
+static int rmnet_fill_info(struct sk_buff *skb, const struct net_device *dev)
+{
+	struct rmnet_priv *priv = netdev_priv(dev);
+	struct net_device *real_dev;
+	struct ifla_rmnet_flags f;
+	struct rmnet_port *port;
+
+	real_dev = priv->real_dev;
+
+	if (!rmnet_is_real_dev_registered(real_dev))
+		return -ENODEV;
+
+	if (nla_put_u16(skb, IFLA_RMNET_MUX_ID, priv->mux_id))
+		goto nla_put_failure;
+
+	port = rmnet_get_port_rtnl(real_dev);
+
+	f.flags = port->data_format;
+	f.mask  = ~0;
+
+	if (nla_put(skb, IFLA_RMNET_FLAGS, sizeof(f), &f))
+		goto nla_put_failure;
+
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
 struct rtnl_link_ops rmnet_link_ops __read_mostly = {
 	.kind		= "rmnet",
 	.maxtype	= __IFLA_RMNET_MAX,
@@ -350,6 +379,7 @@ struct rtnl_link_ops rmnet_link_ops __read_mostly = {
 	.get_size	= rmnet_get_size,
 	.changelink     = rmnet_changelink,
 	.policy		= rmnet_policy,
+	.fill_info	= rmnet_fill_info,
 };
 
 /* Needs either rcu_read_lock() or rtnl lock */
