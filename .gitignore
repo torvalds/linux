@@ -42,6 +42,7 @@ Module.symvers
 #
 # Top-level generic files
 #
+/boot.img
 /kernel.img
 /resource.img
 /tags
