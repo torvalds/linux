@@ -322,18 +322,6 @@ int ip_cmsg_send(struct sock *sk, struct msghdr *msg, struct ipcm_cookie *ipc,
 	return 0;
 }
 
-
-/* Special input handler for packets caught by router alert option.
-   They are selected only by protocol field, and then processed likely
-   local ones; but only if someone wants them! Otherwise, router
-   not running rsvpd will kill RSVP.
-
-   It is user level problem, what it will make with them.
-   I have no idea, how it will masquearde or NAT them (it is joke, joke :-)),
-   but receiver should be enough clever f.e. to forward mtrace requests,
-   sent to multicast group to reach destination designated router.
- */
-struct ip_ra_chain __rcu *ip_ra_chain;
 static DEFINE_SPINLOCK(ip_ra_lock);
 
 
@@ -350,6 +338,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 {
 	struct ip_ra_chain *ra, *new_ra;
 	struct ip_ra_chain __rcu **rap;
+	struct net *net = sock_net(sk);
 
 	if (sk->sk_type != SOCK_RAW || inet_sk(sk)->inet_num == IPPROTO_RAW)
 		return -EINVAL;
@@ -357,7 +346,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 	new_ra = on ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
 
 	spin_lock_bh(&ip_ra_lock);
-	for (rap = &ip_ra_chain;
+	for (rap = &net->ipv4.ra_chain;
 	     (ra = rcu_dereference_protected(*rap,
 			lockdep_is_held(&ip_ra_lock))) != NULL;
 	     rap = &ra->next) {
