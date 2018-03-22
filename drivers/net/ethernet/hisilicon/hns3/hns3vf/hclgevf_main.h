@@ -34,6 +34,9 @@
 #define HCLGEVF_VECTOR0_RX_CMDQ_INT_B	1
 
 #define HCLGEVF_TQP_RESET_TRY_TIMES	10
+/* Reset related Registers */
+#define HCLGEVF_FUN_RST_ING		0x20C00
+#define HCLGEVF_FUN_RST_ING_B		0
 
 #define HCLGEVF_RSS_IND_TBL_SIZE		512
 #define HCLGEVF_RSS_SET_BITMAP_MSK	0xffff
