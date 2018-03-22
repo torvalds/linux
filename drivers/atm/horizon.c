@@ -2182,10 +2182,10 @@ static int hrz_open (struct atm_vcc *atm_vcc)
   
   // Part of the job is done by atm_pcr_goal which gives us a PCR
   // specification which says: EITHER grab the maximum available PCR
-  // (and perhaps a lower bound which we musn't pass), OR grab this
+  // (and perhaps a lower bound which we mustn't pass), OR grab this
   // amount, rounding down if you have to (and perhaps a lower bound
-  // which we musn't pass) OR grab this amount, rounding up if you
-  // have to (and perhaps an upper bound which we musn't pass). If any
+  // which we mustn't pass) OR grab this amount, rounding up if you
+  // have to (and perhaps an upper bound which we mustn't pass). If any
   // bounds ARE passed we fail. Note that rounding is only rounding to
   // match device limitations, we do not round down to satisfy
   // bandwidth availability even if this would not violate any given

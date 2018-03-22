@@ -206,7 +206,7 @@ static int stm32h7_adc_clk_sel(struct platform_device *pdev,
 	if (priv->aclk) {
 		/*
 		 * Asynchronous clock modes (e.g. ckmode == 0)
-		 * From spec: PLL output musn't exceed max rate
+		 * From spec: PLL output mustn't exceed max rate
 		 */
 		rate = clk_get_rate(priv->aclk);
 		if (!rate) {

@@ -90,7 +90,7 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
 	/*
 	 * When a freshly created task is scheduled once, changes its state to
 	 * TASK_UNINTERRUPTIBLE without having ever been switched out once, it
-	 * musn't be checked.
+	 * mustn't be checked.
 	 */
 	if (unlikely(!switch_count))
 		return;
