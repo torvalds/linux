@@ -125,6 +125,14 @@
 				pinctrl: pinctrl {
 					compatible = "aspeed,g4-pinctrl";
 				};
+
+			};
+
+			rng: hwrng@78 {
+				compatible = "timeriomem_rng";
+				reg = <0x78 0x4>;
+				period = <1>;
+				quality = <100>;
 			};
 
 			adc: adc@1e6e9000 {
