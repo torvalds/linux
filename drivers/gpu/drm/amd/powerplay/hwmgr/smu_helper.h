@@ -27,6 +27,9 @@ struct pp_atomctrl_voltage_table;
 struct pp_hwmgr;
 struct phm_ppt_v1_voltage_lookup_table;
 
+uint8_t convert_to_vid(uint16_t vddc);
+uint16_t convert_to_vddc(uint8_t vid);
+
 extern int phm_wait_for_register_unequal(struct pp_hwmgr *hwmgr,
 					uint32_t index,
 					uint32_t value, uint32_t mask);
