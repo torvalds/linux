@@ -84,6 +84,7 @@ enum octeon_tag_type {
 #define OPCODE_NIC_IF_CFG              0x09
 #define OPCODE_NIC_VF_DRV_NOTICE       0x0A
 #define OPCODE_NIC_INTRMOD_PARAMS      0x0B
+#define OPCODE_NIC_SET_TRUSTED_VF	0x13
 #define OPCODE_NIC_SYNC_OCTEON_TIME	0x14
 #define VF_DRV_LOADED                  1
 #define VF_DRV_REMOVED                -1
@@ -916,6 +917,12 @@ union oct_nic_if_cfg {
 		u64 base_queue:16;
 #endif
 	} s;
+};
+
+struct lio_trusted_vf {
+	uint64_t active: 1;
+	uint64_t id : 8;
+	uint64_t reserved: 55;
 };
 
 struct lio_time {

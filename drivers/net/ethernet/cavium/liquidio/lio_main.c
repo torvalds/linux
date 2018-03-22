@@ -91,6 +91,11 @@ static int octeon_console_debug_enabled(u32 console)
  */
 #define LIO_SYNC_OCTEON_TIME_INTERVAL_MS 60000
 
+struct lio_trusted_vf_ctx {
+	struct completion complete;
+	int status;
+};
+
 struct liquidio_rx_ctl_context {
 	int octeon_id;
 
@@ -3265,7 +3270,117 @@ static int liquidio_get_vf_config(struct net_device *netdev, int vfidx,
 	ether_addr_copy(&ivi->mac[0], macaddr);
 	ivi->vlan = oct->sriov_info.vf_vlantci[vfidx] & VLAN_VID_MASK;
 	ivi->qos = oct->sriov_info.vf_vlantci[vfidx] >> VLAN_PRIO_SHIFT;
+	if (oct->sriov_info.trusted_vf.active &&
+	    oct->sriov_info.trusted_vf.id == vfidx)
+		ivi->trusted = true;
+	else
+		ivi->trusted = false;
 	ivi->linkstate = oct->sriov_info.vf_linkstate[vfidx];
+	return 0;
+}
+
+static void trusted_vf_callback(struct octeon_device *oct_dev,
+				u32 status, void *ptr)
+{
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)ptr;
+	struct lio_trusted_vf_ctx *ctx;
+
+	ctx = (struct lio_trusted_vf_ctx *)sc->ctxptr;
+	ctx->status = status;
+
+	complete(&ctx->complete);
+}
+
+static int liquidio_send_vf_trust_cmd(struct lio *lio, int vfidx, bool trusted)
+{
+	struct octeon_device *oct = lio->oct_dev;
+	struct lio_trusted_vf_ctx *ctx;
+	struct octeon_soft_command *sc;
+	int ctx_size, retval;
+
+	ctx_size = sizeof(struct lio_trusted_vf_ctx);
+	sc = octeon_alloc_soft_command(oct, 0, 0, ctx_size);
+
+	ctx  = (struct lio_trusted_vf_ctx *)sc->ctxptr;
+	init_completion(&ctx->complete);
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	/* vfidx is 0 based, but vf_num (param1) is 1 based */
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_SET_TRUSTED_VF, 0, vfidx + 1,
+				    trusted);
+
+	sc->callback = trusted_vf_callback;
+	sc->callback_arg = sc;
+	sc->wait_time = 1000;
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
+		retval = -1;
+	} else {
+		/* Wait for response or timeout */
+		if (wait_for_completion_timeout(&ctx->complete,
+						msecs_to_jiffies(2000)))
+			retval = ctx->status;
+		else
+			retval = -1;
+	}
+
+	octeon_free_soft_command(oct, sc);
+
+	return retval;
+}
+
+static int liquidio_set_vf_trust(struct net_device *netdev, int vfidx,
+				 bool setting)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	if (strcmp(oct->fw_info.liquidio_firmware_version, "1.7.1") < 0) {
+		/* trusted vf is not supported by firmware older than 1.7.1 */
+		return -EOPNOTSUPP;
+	}
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced) {
+		netif_info(lio, drv, lio->netdev, "Invalid vfidx %d\n", vfidx);
+		return -EINVAL;
+	}
+
+	if (setting) {
+		/* Set */
+
+		if (oct->sriov_info.trusted_vf.active &&
+		    oct->sriov_info.trusted_vf.id == vfidx)
+			return 0;
+
+		if (oct->sriov_info.trusted_vf.active) {
+			netif_info(lio, drv, lio->netdev, "More than one trusted VF is not allowed\n");
+			return -EPERM;
+		}
+	} else {
+		/* Clear */
+
+		if (!oct->sriov_info.trusted_vf.active)
+			return 0;
+	}
+
+	if (!liquidio_send_vf_trust_cmd(lio, vfidx, setting)) {
+		if (setting) {
+			oct->sriov_info.trusted_vf.id = vfidx;
+			oct->sriov_info.trusted_vf.active = true;
+		} else {
+			oct->sriov_info.trusted_vf.active = false;
+		}
+
+		netif_info(lio, drv, lio->netdev, "VF %u is %strusted\n", vfidx,
+			   setting ? "" : "not ");
+	} else {
+		netif_info(lio, drv, lio->netdev, "Failed to set VF trusted\n");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -3399,6 +3514,7 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_set_vf_mac		= liquidio_set_vf_mac,
 	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
 	.ndo_get_vf_config	= liquidio_get_vf_config,
+	.ndo_set_vf_trust	= liquidio_set_vf_trust,
 	.ndo_set_vf_link_state  = liquidio_set_vf_link_state,
 };
 
