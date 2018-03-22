@@ -131,9 +131,20 @@
 	cpu0-supply = <&buck1_reg>;
 };
 
+&exynos_usbphy {
+	status = "okay";
+};
+
 &fimd {
 	pinctrl-0 = <&lcd_en &lcd_clk &lcd_data24 &pwm0_out>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&hsotg {
+	vusb_d-supply = <&ldo3_reg>;
+	vusb_a-supply = <&ldo8_reg>;
+	dr_mode = "peripheral";
 	status = "okay";
 };
 
