@@ -2749,7 +2749,7 @@ static int hclge_reset_wait(struct hclge_dev *hdev)
 	return 0;
 }
 
-static int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
+int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id)
 {
 	struct hclge_desc desc;
 	struct hclge_reset_cmd *req = (struct hclge_reset_cmd *)desc.data;

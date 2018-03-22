@@ -79,6 +79,18 @@ static int hclge_send_mbx_msg(struct hclge_vport *vport, u8 *msg, u16 msg_len,
 	return status;
 }
 
+int hclge_inform_reset_assert_to_vf(struct hclge_vport *vport)
+{
+	u8 msg_data[2];
+	u8 dest_vfid;
+
+	dest_vfid = (u8)vport->vport_id;
+
+	/* send this requested info to VF */
+	return hclge_send_mbx_msg(vport, msg_data, sizeof(u8),
+				  HCLGE_MBX_ASSERTING_RESET, dest_vfid);
+}
+
 static void hclge_free_vector_ring_chain(struct hnae3_ring_chain_node *head)
 {
 	struct hnae3_ring_chain_node *chain_tmp, *chain;
@@ -339,6 +351,33 @@ static void hclge_mbx_reset_vf_queue(struct hclge_vport *vport,
 	hclge_gen_resp_to_vf(vport, mbx_req, 0, NULL, 0);
 }
 
+static void hclge_reset_vf(struct hclge_vport *vport,
+			   struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	struct hclge_dev *hdev = vport->back;
+	int ret;
+
+	dev_warn(&hdev->pdev->dev, "PF received VF reset request from VF %d!",
+		 mbx_req->mbx_src_vfid);
+
+	/* Acknowledge VF that PF is now about to assert the reset for the VF.
+	 * On receiving this message VF will get into pending state and will
+	 * start polling for the hardware reset completion status.
+	 */
+	ret = hclge_inform_reset_assert_to_vf(vport);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"PF fail(%d) to inform VF(%d)of reset, reset failed!\n",
+			ret, vport->vport_id);
+		return;
+	}
+
+	dev_warn(&hdev->pdev->dev, "PF is now resetting VF %d.\n",
+		 mbx_req->mbx_src_vfid);
+	/* reset this virtual function */
+	hclge_func_reset_cmd(hdev, mbx_req->mbx_src_vfid);
+}
+
 void hclge_mbx_handler(struct hclge_dev *hdev)
 {
 	struct hclge_cmq_ring *crq = &hdev->hw.cmq.crq;
@@ -415,6 +454,9 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			break;
 		case HCLGE_MBX_QUEUE_RESET:
 			hclge_mbx_reset_vf_queue(vport, req);
+			break;
+		case HCLGE_MBX_RESET:
+			hclge_reset_vf(vport, req);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,
