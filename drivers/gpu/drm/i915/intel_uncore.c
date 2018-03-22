@@ -2116,8 +2116,10 @@ int intel_gpu_reset(struct drm_i915_private *dev_priv, unsigned engine_mask)
 		i915_stop_engines(dev_priv, engine_mask);
 
 		ret = -ENODEV;
-		if (reset)
+		if (reset) {
+			GEM_TRACE("engine_mask=%x\n", engine_mask);
 			ret = reset(dev_priv, engine_mask);
+		}
 		if (ret != -ETIMEDOUT)
 			break;
 

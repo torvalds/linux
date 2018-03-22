@@ -805,6 +805,10 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	spin_unlock(&engine->timeline->lock);
 
+	/* Mark all CS interrupts as complete */
+	smp_store_mb(execlists->active, 0);
+	synchronize_hardirq(engine->i915->drm.irq);
+
 	/*
 	 * The port is checked prior to scheduling a tasklet, but
 	 * just in case we have suspended the tasklet to do the
@@ -812,9 +816,6 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	 * is no work to do by clearing the irq_posted bit.
 	 */
 	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-
-	/* Mark all CS interrupts as complete */
-	execlists->active = 0;
 
 	local_irq_restore(flags);
 }
