@@ -44,8 +44,176 @@
 			248 249 250 251 252 253 254 255>;
 		default-brightness-level = <200>;
 	};
+
+	panel: panel {
+		compatible = "simple-panel";
+		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+		enable-delay-ms = <20>;
+		reset-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_LOW>;
+		reset-value = <0>;
+		reset-delay-ms = <10>;
+		prepare-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+		disable-delay-ms = <20>;
+		//spi-sdo-gpios = <&gpio3 RK_PD2 GPIO_ACTIVE_HIGH>;
+		spi-sdi-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+		spi-scl-gpios = <&gpio1 RK_PD0 GPIO_ACTIVE_HIGH>;
+		spi-cs-gpios = <&gpio1 RK_PD1 GPIO_ACTIVE_HIGH>;
+		width-mm = <217>;
+		height-mm = <136>;
+		rockchip,data-mapping = "vesa";
+		rockchip,data-width = <24>;
+		rockchip,output = "rgb";
+		status = "okay";
+		rockchip,cmd-type = "spi";
+
+		// type:0 is cmd, 1 is data
+		panel-init-sequence = [
+			//type delay num val1 val2 val3
+			  00   00  01  e0
+			  01   00  01  00
+			  01   00  01  07
+			  01   00  01  0f
+			  01   00  01  0d
+			  01   00  01  1b
+			  01   00  01  0a
+			  01   00  01  3c
+			  01   00  01  78
+			  01   00  01  4a
+			  01   00  01  07
+			  01   00  01  0e
+			  01   00  01  09
+			  01   00  01  1b
+			  01   00  01  1e
+			  01   00  01  0f
+			  00   00  01  e1
+			  01   00  01  00
+			  01   00  01  22
+			  01   00  01  24
+			  01   00  01  06
+			  01   00  01  12
+			  01   00  01  07
+			  01   00  01  36
+			  01   00  01  47
+			  01   00  01  47
+			  01   00  01  06
+			  01   00  01  0a
+			  01   00  01  07
+			  01   00  01  30
+			  01   00  01  37
+			  01   00  01  0f
+
+			  00   00  01  c0
+			  01   00  01  10
+			  01   00  01  10
+
+			  00   00  01  c1
+			  01   00  01  41
+
+			  00   00  01  c5
+			  01   00  01  00
+			  01   00  01  22
+			  01   00  01  80
+
+			  00   00  01  36
+			  01   00  01  48
+
+			  00   00  01  3a  //interface mode control
+			  01   00  01  66
+
+			  00   00  01  b0  //interface mode control
+			  01   00  01  00
+
+			  00   00  01  b1  //frame rate 70hz
+			  01   00  01  b0
+			  01   00  01  11
+			  00   00  01  b4
+			  01   00  01  02
+			  00   00  01  B6  //RGB/MCU Interface Control
+			  01   00  01  32  //02 mcu, 32 rgb
+			  01   00  01  02
+
+			  00   00  01  b7
+			  01   00  01  c6
+
+			  00   00  01  be
+			  01   00  01  00
+			  01   00  01  04
+
+			  00   00  01  e9
+			  01   00  01  00
+
+			  00   00  01  f7
+			  01   00  01  a9
+			  01   00  01  51
+			  01   00  01  2c
+			  01   00  01  82
+
+			  00   78  01  11
+			  00   00  01  29
+		];
+
+		panel-exit-sequence = [
+			//type delay num val1 val2 val3
+			00   0a  01  28
+			00   78  01  10
+		];
+
+		display-timings {
+			native-mode = <&kd050fwfba002_timing>;
+
+			kd050fwfba002_timing: timing0 {
+				clock-frequency = <12000000>;
+				hactive = <320>;
+				vactive = <480>;
+				hback-porch = <10>;
+				hfront-porch = <5>;
+				vback-porch = <10>;
+				vfront-porch = <5>;
+				hsync-len = <10>;
+				vsync-len = <10>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_panel>;
+			};
+		};
+	};
+};
+
+&display_subsystem {
+	status = "ok";
 };
 
 &pwm1 {
 	status = "okay";
+};
+
+&rgb {
+	status = "okay";
+
+	ports {
+		rgb_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			rgb_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_rgb>;
+			};
+		};
+	};
+};
+
+&vop {
+	status = "ok";
 };
