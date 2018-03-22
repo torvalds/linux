@@ -532,8 +532,6 @@ struct hns3_nic_priv {
 	/* The most recently read link state */
 	int link;
 	u64 tx_timeout_count;
-	enum hnae3_reset_type reset_level;
-	unsigned long last_reset_time;
 
 	unsigned long state;
 

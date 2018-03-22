@@ -832,6 +832,19 @@ static void hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 			     2, true, NULL, 0);
 }
 
+static void hclgevf_reset_event(struct hnae3_handle *handle)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+
+	dev_info(&hdev->pdev->dev, "received reset request from VF enet\n");
+
+	handle->reset_level = HNAE3_VF_RESET;
+
+	/* request VF reset here. Code added later */
+
+	handle->last_reset_time = jiffies;
+}
+
 static u32 hclgevf_get_fw_version(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
@@ -1526,6 +1539,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.get_tc_size = hclgevf_get_tc_size,
 	.get_fw_version = hclgevf_get_fw_version,
 	.set_vlan_filter = hclgevf_set_vlan_filter,
+	.reset_event = hclgevf_reset_event,
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
 	.get_status = hclgevf_get_status,

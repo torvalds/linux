@@ -2845,27 +2845,31 @@ static void hclge_reset(struct hclge_dev *hdev)
 	hclge_notify_client(hdev, HNAE3_UP_CLIENT);
 }
 
-static void hclge_reset_event(struct hnae3_handle *handle,
-			      enum hnae3_reset_type reset)
+static void hclge_reset_event(struct hnae3_handle *handle)
 {
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 
-	dev_info(&hdev->pdev->dev,
-		 "Receive reset event , reset_type is %d", reset);
+	/* check if this is a new reset request and we are not here just because
+	 * last reset attempt did not succeed and watchdog hit us again. We will
+	 * know this if last reset request did not occur very recently (watchdog
+	 * timer = 5*HZ, let us check after sufficiently large time, say 4*5*Hz)
+	 * In case of new request we reset the "reset level" to PF reset.
+	 */
+	if (time_after(jiffies, (handle->last_reset_time + 4 * 5 * HZ)))
+		handle->reset_level = HNAE3_FUNC_RESET;
 
-	switch (reset) {
-	case HNAE3_FUNC_RESET:
-	case HNAE3_CORE_RESET:
-	case HNAE3_GLOBAL_RESET:
-		/* request reset & schedule reset task */
-		set_bit(reset, &hdev->reset_request);
-		hclge_reset_task_schedule(hdev);
-		break;
-	default:
-		dev_warn(&hdev->pdev->dev, "Unsupported reset event:%d", reset);
-		break;
-	}
+	dev_info(&hdev->pdev->dev, "received reset event , reset type is %d",
+		 handle->reset_level);
+
+	/* request reset & schedule reset task */
+	set_bit(handle->reset_level, &hdev->reset_request);
+	hclge_reset_task_schedule(hdev);
+
+	if (handle->reset_level < HNAE3_GLOBAL_RESET)
+		handle->reset_level++;
+
+	handle->last_reset_time = jiffies;
 }
 
 static void hclge_reset_subtask(struct hclge_dev *hdev)
