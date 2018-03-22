@@ -628,13 +628,6 @@ int brcmf_fw_get_firmwares(struct device *dev, struct brcmf_fw_request *req,
 	return 0;
 }
 
-static void brcmf_fw_get_full_name(char fw_name[BRCMF_FW_NAME_LEN],
-				   const char *fw_base, const char *extension)
-{
-	strlcat(fw_name, fw_base, BRCMF_FW_NAME_LEN);
-	strlcat(fw_name, extension, BRCMF_FW_NAME_LEN);
-}
-
 struct brcmf_fw_request *
 brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 		       struct brcmf_firmware_mapping mapping_table[],
@@ -685,9 +678,10 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 					BRCMF_FW_NAME_LEN);
 			}
 		}
-		brcmf_fw_get_full_name(fwnames[j].path,
-				       mapping_table[i].fw_base,
-				       fwnames[j].extension);
+		strlcat(fwnames[j].path, mapping_table[i].fw_base,
+			BRCMF_FW_NAME_LEN);
+		strlcat(fwnames[j].path, fwnames[j].extension,
+			BRCMF_FW_NAME_LEN);
 		fwreq->items[j].path = fwnames[j].path;
 	}
 
