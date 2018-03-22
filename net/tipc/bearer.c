@@ -210,7 +210,7 @@ void tipc_bearer_add_dest(struct net *net, u32 bearer_id, u32 dest)
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
 	if (b)
-		tipc_disc_add_dest(b->link_req);
+		tipc_disc_add_dest(b->disc);
 	rcu_read_unlock();
 }
 
@@ -222,7 +222,7 @@ void tipc_bearer_remove_dest(struct net *net, u32 bearer_id, u32 dest)
 	rcu_read_lock();
 	b = rcu_dereference_rtnl(tn->bearer_list[bearer_id]);
 	if (b)
-		tipc_disc_remove_dest(b->link_req);
+		tipc_disc_remove_dest(b->disc);
 	rcu_read_unlock();
 }
 
@@ -389,8 +389,8 @@ static void bearer_disable(struct net *net, struct tipc_bearer *b)
 	tipc_node_delete_links(net, bearer_id);
 	b->media->disable_media(b);
 	RCU_INIT_POINTER(b->media_ptr, NULL);
-	if (b->link_req)
-		tipc_disc_delete(b->link_req);
+	if (b->disc)
+		tipc_disc_delete(b->disc);
 	RCU_INIT_POINTER(tn->bearer_list[bearer_id], NULL);
 	kfree_rcu(b, rcu);
 	tipc_mon_delete(net, bearer_id);
