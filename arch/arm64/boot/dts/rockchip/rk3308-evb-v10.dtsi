@@ -53,16 +53,6 @@
 		};
 	};
 
-	fiq_debugger: fiq-debugger {
-		compatible = "rockchip,fiq-debugger";
-		rockchip,serial-id = <2>;
-		rockchip,wake-irq = <0>;
-		rockchip,irq-mode-enable = <1>;
-		rockchip,baudrate = <1500000>;  /* Only 115200 and 1500000 */
-		interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH 0>;
-		status = "okay";
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 		autorepeat;
@@ -202,6 +192,10 @@
 	disable-wp;
 	non-removable;
 	num-slots = <1>;
+	status = "okay";
+};
+
+&fiq_debugger {
 	status = "okay";
 };
 
