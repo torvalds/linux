@@ -298,8 +298,8 @@ static void qed_init_qm_params(struct qed_hwfn *p_hwfn)
 	qm_info->start_vport = (u8) RESC_START(p_hwfn, QED_VPORT);
 
 	/* rate limiting and weighted fair queueing are always enabled */
-	qm_info->vport_rl_en = 1;
-	qm_info->vport_wfq_en = 1;
+	qm_info->vport_rl_en = true;
+	qm_info->vport_wfq_en = true;
 
 	/* TC config is different for AH 4 port */
 	four_port = p_hwfn->cdev->num_ports_in_engine == MAX_NUM_PORTS_K2;
@@ -1276,9 +1276,9 @@ static int qed_hw_init_common(struct qed_hwfn *p_hwfn,
 
 	if (p_hwfn->mcp_info) {
 		if (p_hwfn->mcp_info->func_info.bandwidth_max)
-			qm_info->pf_rl_en = 1;
+			qm_info->pf_rl_en = true;
 		if (p_hwfn->mcp_info->func_info.bandwidth_min)
-			qm_info->pf_wfq_en = 1;
+			qm_info->pf_wfq_en = true;
 	}
 
 	memset(&params, 0, sizeof(params));
@@ -1630,7 +1630,7 @@ static int qed_vf_start(struct qed_hwfn *p_hwfn,
 		qed_vf_pf_tunnel_param_update(p_hwfn, p_params->p_tunn);
 	}
 
-	p_hwfn->b_int_enabled = 1;
+	p_hwfn->b_int_enabled = true;
 
 	return 0;
 }
