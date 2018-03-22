@@ -32,6 +32,13 @@ config PINCTRL_MT8127
 	select PINCTRL_MTK
 
 # For ARMv8 SoCs
+config PINCTRL_MT2712
+	bool "MediaTek MT2712 pin control"
+	depends on OF
+	depends on ARM64 || COMPILE_TEST
+	default ARM64 && ARCH_MEDIATEK
+	select PINCTRL_MTK
+
 config PINCTRL_MT7622
 	bool "MediaTek MT7622 pin control"
 	depends on OF
