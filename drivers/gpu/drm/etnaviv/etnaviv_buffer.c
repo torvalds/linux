@@ -215,6 +215,24 @@ u16 etnaviv_buffer_config_mmuv2(struct etnaviv_gpu *gpu, u32 mtlb_addr, u32 safe
 	return buffer->user_size / 8;
 }
 
+u16 etnaviv_buffer_config_pta(struct etnaviv_gpu *gpu)
+{
+	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
+
+	lockdep_assert_held(&gpu->lock);
+
+	buffer->user_size = 0;
+
+	CMD_LOAD_STATE(buffer, VIVS_MMUv2_PTA_CONFIG,
+		       VIVS_MMUv2_PTA_CONFIG_INDEX(0));
+
+	CMD_END(buffer);
+
+	buffer->user_size = ALIGN(buffer->user_size, 8);
+
+	return buffer->user_size / 8;
+}
+
 void etnaviv_buffer_end(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_cmdbuf *buffer = &gpu->buffer;
