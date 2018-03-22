@@ -832,6 +832,20 @@ static void hclgevf_reset_tqp(struct hnae3_handle *handle, u16 queue_id)
 			     2, true, NULL, 0);
 }
 
+static int hclgevf_do_reset(struct hclgevf_dev *hdev)
+{
+	int status;
+	u8 respmsg;
+
+	status = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_RESET, 0, NULL,
+				      0, false, &respmsg, sizeof(u8));
+	if (status)
+		dev_err(&hdev->pdev->dev,
+			"VF reset request to PF failed(=%d)\n", status);
+
+	return status;
+}
+
 static void hclgevf_reset_event(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
@@ -910,6 +924,7 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 {
 	struct hclgevf_dev *hdev =
 		container_of(work, struct hclgevf_dev, rst_service_task);
+	int ret;
 
 	if (test_and_set_bit(HCLGEVF_STATE_RST_HANDLING, &hdev->state))
 		return;
@@ -965,6 +980,10 @@ static void hclgevf_reset_service_task(struct work_struct *work)
 			hdev->reset_attempts++;
 
 			/* request PF for resetting this VF via mailbox */
+			ret = hclgevf_do_reset(hdev);
+			if (ret)
+				dev_warn(&hdev->pdev->dev,
+					 "VF rst fail, stack will call\n");
 		}
 	}
 
