@@ -2,7 +2,7 @@ Rockchip rk timer
 
 Required properties:
 - compatible: shall be one of:
-  "rockchip,rk3288-timer" - for rk3036, rk3188, rk322x, rk3288, rk3368
+  "rockchip,rk3288-timer" - for px30, rk3036, rk3188, rk322x, rk3288, rk3368
   "rockchip,rk3399-timer" - for rk3399
 - reg: base address of the timer register starting with TIMERS CONTROL register
 - interrupts: should contain the interrupts for Timer0
