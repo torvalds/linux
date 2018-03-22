@@ -967,6 +967,20 @@ void tick_nohz_irq_exit(void)
 }
 
 /**
+ * tick_nohz_idle_got_tick - Check whether or not the tick handler has run
+ */
+bool tick_nohz_idle_got_tick(void)
+{
+	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
+
+	if (ts->inidle > 1) {
+		ts->inidle = 1;
+		return true;
+	}
+	return false;
+}
+
+/**
  * tick_nohz_get_sleep_length - return the length of the current sleep
  *
  * Called from power state control code with interrupts disabled
@@ -1077,6 +1091,9 @@ static void tick_nohz_handler(struct clock_event_device *dev)
 	struct pt_regs *regs = get_irq_regs();
 	ktime_t now = ktime_get();
 
+	if (ts->inidle)
+		ts->inidle = 2;
+
 	dev->next_event = KTIME_MAX;
 
 	tick_sched_do_timer(now);
@@ -1173,6 +1190,9 @@ static enum hrtimer_restart tick_sched_timer(struct hrtimer *timer)
 		container_of(timer, struct tick_sched, sched_timer);
 	struct pt_regs *regs = get_irq_regs();
 	ktime_t now = ktime_get();
+
+	if (ts->inidle)
+		ts->inidle = 2;
 
 	tick_sched_do_timer(now);
 
