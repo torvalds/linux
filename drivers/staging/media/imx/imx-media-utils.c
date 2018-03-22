@@ -225,58 +225,63 @@ static void init_mbus_colorimetry(struct v4l2_mbus_framefmt *mbus,
 					      mbus->ycbcr_enc);
 }
 
+static const
+struct imx_media_pixfmt *__find_format(u32 fourcc,
+				       u32 code,
+				       bool allow_non_mbus,
+				       bool allow_bayer,
+				       const struct imx_media_pixfmt *array,
+				       u32 array_size)
+{
+	const struct imx_media_pixfmt *fmt;
+	int i, j;
+
+	for (i = 0; i < array_size; i++) {
+		fmt = &array[i];
+
+		if ((!allow_non_mbus && !fmt->codes[0]) ||
+		    (!allow_bayer && fmt->bayer))
+			continue;
+
+		if (fourcc && fmt->fourcc == fourcc)
+			return fmt;
+
+		if (!code)
+			continue;
+
+		for (j = 0; fmt->codes[j]; j++) {
+			if (code == fmt->codes[j])
+				return fmt;
+		}
+	}
+	return NULL;
+}
+
 static const struct imx_media_pixfmt *find_format(u32 fourcc,
 						  u32 code,
 						  enum codespace_sel cs_sel,
 						  bool allow_non_mbus,
 						  bool allow_bayer)
 {
-	const struct imx_media_pixfmt *array, *fmt, *ret = NULL;
-	u32 array_size;
-	int i, j;
+	const struct imx_media_pixfmt *ret;
 
 	switch (cs_sel) {
 	case CS_SEL_YUV:
-		array_size = NUM_YUV_FORMATS;
-		array = yuv_formats;
-		break;
+		return __find_format(fourcc, code, allow_non_mbus, allow_bayer,
+				     yuv_formats, NUM_YUV_FORMATS);
 	case CS_SEL_RGB:
-		array_size = NUM_RGB_FORMATS;
-		array = rgb_formats;
-		break;
+		return __find_format(fourcc, code, allow_non_mbus, allow_bayer,
+				     rgb_formats, NUM_RGB_FORMATS);
 	case CS_SEL_ANY:
-		array_size = NUM_YUV_FORMATS + NUM_RGB_FORMATS;
-		array = yuv_formats;
-		break;
+		ret = __find_format(fourcc, code, allow_non_mbus, allow_bayer,
+				    yuv_formats, NUM_YUV_FORMATS);
+		if (ret)
+			return ret;
+		return __find_format(fourcc, code, allow_non_mbus, allow_bayer,
+				     rgb_formats, NUM_RGB_FORMATS);
 	default:
 		return NULL;
 	}
-
-	for (i = 0; i < array_size; i++) {
-		if (cs_sel == CS_SEL_ANY && i >= NUM_YUV_FORMATS)
-			fmt = &rgb_formats[i - NUM_YUV_FORMATS];
-		else
-			fmt = &array[i];
-
-		if ((!allow_non_mbus && fmt->codes[0] == 0) ||
-		    (!allow_bayer && fmt->bayer))
-			continue;
-
-		if (fourcc && fmt->fourcc == fourcc) {
-			ret = fmt;
-			goto out;
-		}
-
-		for (j = 0; code && fmt->codes[j]; j++) {
-			if (code == fmt->codes[j]) {
-				ret = fmt;
-				goto out;
-			}
-		}
-	}
-
-out:
-	return ret;
 }
 
 static int enum_format(u32 *fourcc, u32 *code, u32 index,
