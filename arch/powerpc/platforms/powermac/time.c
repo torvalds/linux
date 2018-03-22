@@ -34,6 +34,8 @@
 #include <asm/nvram.h>
 #include <asm/smu.h>
 
+#include "pmac.h"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -249,7 +251,7 @@ int pmac_set_rtc_time(struct rtc_time *tm)
  * Calibrate the decrementer register using VIA timer 1.
  * This is used both on powermacs and CHRP machines.
  */
-int __init via_calibrate_decr(void)
+static int __init via_calibrate_decr(void)
 {
 	struct device_node *vias;
 	volatile unsigned char __iomem *via;
