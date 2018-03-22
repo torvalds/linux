@@ -294,7 +294,7 @@ enum cif_isp10_pix_fmt {
 	/* RGB */
 	CIF_RGB565			= 0x20010000,
 	CIF_RGB666			= 0x20012000,
-	CIF_RGB888			= 0x20018000,
+	CIF_RGB888			= 0x20020000,
 
 	/* RAW Bayer */
 	CIF_BAYER_SBGGR8		= 0x30008000,

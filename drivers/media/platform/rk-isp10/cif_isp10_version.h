@@ -91,8 +91,11 @@
  *3. support VIDIOC_G_PARM command.
  *4. support VIDIOC_G_PARM command.
  *5. add pix.bytesperline and pix.sizeimage in VIDIOC_G_FMT command.
+ *
+ *v0.1.0xd
+ *1. Support RGB24(xRGB8888) format of SP Path.
  */
 
-#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xc)
+#define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xd)
 
 #endif
