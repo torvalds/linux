@@ -1009,6 +1009,7 @@ void iwl_pcie_enable_rx_wake(struct iwl_trans *trans, bool enable);
 void iwl_pcie_rx_allocator_work(struct work_struct *data);
 
 /* common functions that are used by gen2 transport */
+int iwl_pcie_gen2_apm_init(struct iwl_trans *trans);
 void iwl_pcie_apm_config(struct iwl_trans *trans);
 int iwl_pcie_prepare_card_hw(struct iwl_trans *trans);
 void iwl_pcie_synchronize_irqs(struct iwl_trans *trans);

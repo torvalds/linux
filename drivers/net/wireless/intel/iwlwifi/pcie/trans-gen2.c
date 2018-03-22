@@ -61,7 +61,7 @@
  * (e.g. after platform boot, or shutdown via iwl_pcie_apm_stop())
  * NOTE:  This does not load uCode nor start the embedded processor
  */
-static int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
+int iwl_pcie_gen2_apm_init(struct iwl_trans *trans)
 {
 	int ret = 0;
 
