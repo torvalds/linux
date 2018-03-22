@@ -597,6 +597,15 @@ static void process_one_req(struct work_struct *_work)
 	list_del(&req->list);
 	mutex_unlock(&lock);
 
+	/*
+	 * Although the work will normally have been canceled by the
+	 * workqueue, it can still be requeued as long as it is on the
+	 * req_list, so it could have been requeued before we grabbed &lock.
+	 * We need to cancel it after it is removed from req_list to really be
+	 * sure it is safe to free.
+	 */
+	cancel_delayed_work(&req->work);
+
 	req->callback(req->status, (struct sockaddr *)&req->src_addr,
 		req->addr, req->context);
 	put_client(req->client);
