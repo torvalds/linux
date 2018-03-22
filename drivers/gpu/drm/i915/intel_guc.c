@@ -494,35 +494,37 @@ int intel_guc_resume(struct intel_guc *guc)
 /**
  * DOC: GuC Address Space
  *
- * The layout of GuC address space is shown as below:
+ * The layout of GuC address space is shown below:
  *
- *    +==============> +====================+ <== GUC_GGTT_TOP
- *    ^                |                    |
- *    |                |                    |
- *    |                |        DRAM        |
- *    |                |       Memory       |
- *    |                |                    |
- *   GuC               |                    |
- * Address  +========> +====================+ <== WOPCM Top
- *  Space   ^          |   HW contexts RSVD |
- *    |     |          |        WOPCM       |
- *    |     |     +==> +--------------------+ <== GuC WOPCM Top
- *    |    GuC    ^    |                    |
- *    |    GGTT   |    |                    |
- *    |    Pin   GuC   |        GuC         |
- *    |    Bias WOPCM  |       WOPCM        |
- *    |     |    Size  |                    |
- *    |     |     |    |                    |
- *    v     v     v    |                    |
- *    +=====+=====+==> +====================+ <== GuC WOPCM Base
- *                     |   Non-GuC WOPCM    |
- *                     |   (HuC/Reserved)   |
- *                     +====================+ <== WOPCM Base
+ * ::
  *
- * The lower part [0, GuC ggtt_pin_bias) is mapped to WOPCM which consists of
- * GuC WOPCM and WOPCM reserved for other usage (e.g.RC6 context). The value of
- * the GuC ggtt_pin_bias is determined by the actually GuC WOPCM size which is
- * set in GUC_WOPCM_SIZE register.
+ *     +==============> +====================+ <== GUC_GGTT_TOP
+ *     ^                |                    |
+ *     |                |                    |
+ *     |                |        DRAM        |
+ *     |                |       Memory       |
+ *     |                |                    |
+ *    GuC               |                    |
+ *  Address  +========> +====================+ <== WOPCM Top
+ *   Space   ^          |   HW contexts RSVD |
+ *     |     |          |        WOPCM       |
+ *     |     |     +==> +--------------------+ <== GuC WOPCM Top
+ *     |    GuC    ^    |                    |
+ *     |    GGTT   |    |                    |
+ *     |    Pin   GuC   |        GuC         |
+ *     |    Bias WOPCM  |       WOPCM        |
+ *     |     |    Size  |                    |
+ *     |     |     |    |                    |
+ *     v     v     v    |                    |
+ *     +=====+=====+==> +====================+ <== GuC WOPCM Base
+ *                      |   Non-GuC WOPCM    |
+ *                      |   (HuC/Reserved)   |
+ *                      +====================+ <== WOPCM Base
+ *
+ * The lower part of GuC Address Space [0, ggtt_pin_bias) is mapped to WOPCM
+ * while upper part of GuC Address Space [ggtt_pin_bias, GUC_GGTT_TOP) is mapped
+ * to DRAM. The value of the GuC ggtt_pin_bias is determined by WOPCM size and
+ * actual GuC WOPCM size.
  */
 
 /**

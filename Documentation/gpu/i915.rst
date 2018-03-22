@@ -335,6 +335,15 @@ objects, which has the goal to make space in gpu virtual address spaces.
 .. kernel-doc:: drivers/gpu/drm/i915/i915_gem_shrinker.c
    :internal:
 
+WOPCM
+=====
+
+WOPCM Layout
+------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_wopcm.c
+   :doc: WOPCM Layout
+
 GuC
 ===
 
@@ -358,6 +367,12 @@ GuC Firmware Layout
 
 .. kernel-doc:: drivers/gpu/drm/i915/intel_guc_fwif.h
    :doc: GuC Firmware Layout
+
+GuC Address Space
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_guc.c
+   :doc: GuC Address Space
 
 Tracing
 =======

@@ -11,28 +11,30 @@
  * DOC: WOPCM Layout
  *
  * The layout of the WOPCM will be fixed after writing to GuC WOPCM size and
- * offset registers whose are calculated are determined by size of HuC/GuC
- * firmware size and set of hw requirements/restrictions as shown below:
+ * offset registers whose values are calculated and determined by HuC/GuC
+ * firmware size and set of hardware requirements/restrictions as shown below:
  *
- *   +=========> +====================+ <== WOPCM Top
- *   ^           |  HW contexts RSVD  |
- *   |     +===> +====================+ <== GuC WOPCM Top
- *   |     ^     |                    |
- *   |     |     |                    |
- *   |     |     |                    |
- *   |    GuC    |                    |
- *   |   WOPCM   |                    |
- *   |    Size   +--------------------+
- * WOPCM   |     |    GuC FW RSVD     |
- *   |     |     +--------------------+
- *   |     |     |   GuC Stack RSVD   |
- *   |     |     +------------------- +
- *   |     v     |   GuC WOPCM RSVD   |
- *   |     +===> +====================+ <== GuC WOPCM base
- *   |           |     WOPCM RSVD     |
- *   |           +------------------- + <== HuC Firmware Top
- *   v           |      HuC FW        |
- *   +=========> +====================+ <== WOPCM Base
+ * ::
+ *
+ *    +=========> +====================+ <== WOPCM Top
+ *    ^           |  HW contexts RSVD  |
+ *    |     +===> +====================+ <== GuC WOPCM Top
+ *    |     ^     |                    |
+ *    |     |     |                    |
+ *    |     |     |                    |
+ *    |    GuC    |                    |
+ *    |   WOPCM   |                    |
+ *    |    Size   +--------------------+
+ *  WOPCM   |     |    GuC FW RSVD     |
+ *    |     |     +--------------------+
+ *    |     |     |   GuC Stack RSVD   |
+ *    |     |     +------------------- +
+ *    |     v     |   GuC WOPCM RSVD   |
+ *    |     +===> +====================+ <== GuC WOPCM base
+ *    |           |     WOPCM RSVD     |
+ *    |           +------------------- + <== HuC Firmware Top
+ *    v           |      HuC FW        |
+ *    +=========> +====================+ <== WOPCM Base
  *
  * GuC accessible WOPCM starts at GuC WOPCM base and ends at GuC WOPCM top.
  * The top part of the WOPCM is reserved for hardware contexts (e.g. RC6
