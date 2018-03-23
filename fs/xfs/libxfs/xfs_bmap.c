@@ -1244,8 +1244,9 @@ xfs_iread_extents(
 			xfs_warn(ip->i_mount,
 				"corrupt dinode %Lu, (btree extents).",
 				(unsigned long long) ip->i_ino);
-			XFS_CORRUPTION_ERROR(__func__,
-				XFS_ERRLEVEL_LOW, ip->i_mount, block);
+			xfs_inode_verifier_error(ip, -EFSCORRUPTED,
+					__func__, block, sizeof(*block),
+					__this_address);
 			error = -EFSCORRUPTED;
 			goto out_brelse;
 		}

@@ -195,8 +195,9 @@ xfs_iformat_local(
 	"corrupt inode %Lu (bad size %d for local fork, size = %d).",
 			(unsigned long long) ip->i_ino, size,
 			XFS_DFORK_SIZE(dip, ip->i_mount, whichfork));
-		XFS_CORRUPTION_ERROR("xfs_iformat_local", XFS_ERRLEVEL_LOW,
-				     ip->i_mount, dip);
+		xfs_inode_verifier_error(ip, -EFSCORRUPTED,
+				"xfs_iformat_local", dip, sizeof(*dip),
+				__this_address);
 		return -EFSCORRUPTED;
 	}
 
@@ -231,8 +232,9 @@ xfs_iformat_extents(
 	if (unlikely(size < 0 || size > XFS_DFORK_SIZE(dip, mp, whichfork))) {
 		xfs_warn(ip->i_mount, "corrupt inode %Lu ((a)extents = %d).",
 			(unsigned long long) ip->i_ino, nex);
-		XFS_CORRUPTION_ERROR("xfs_iformat_extents(1)", XFS_ERRLEVEL_LOW,
-				     mp, dip);
+		xfs_inode_verifier_error(ip, -EFSCORRUPTED,
+				"xfs_iformat_extents(1)", dip, sizeof(*dip),
+				__this_address);
 		return -EFSCORRUPTED;
 	}
 
@@ -309,8 +311,9 @@ xfs_iformat_btree(
 		     level == 0 || level > XFS_BTREE_MAXLEVELS) {
 		xfs_warn(mp, "corrupt inode %Lu (btree).",
 					(unsigned long long) ip->i_ino);
-		XFS_CORRUPTION_ERROR("xfs_iformat_btree", XFS_ERRLEVEL_LOW,
-					 mp, dip);
+		xfs_inode_verifier_error(ip, -EFSCORRUPTED,
+				"xfs_iformat_btree", dfp, size,
+				__this_address);
 		return -EFSCORRUPTED;
 	}
 
