@@ -288,7 +288,7 @@ static int cros_ec_create_console_log(struct cros_ec_debugfs *debug_info)
 	init_waitqueue_head(&debug_info->log_wq);
 
 	if (!debugfs_create_file("console_log",
-				 S_IFREG | S_IRUGO,
+				 S_IFREG | 0444,
 				 debug_info->dir,
 				 debug_info,
 				 &cros_ec_console_log_fops))
@@ -341,7 +341,7 @@ static int cros_ec_create_panicinfo(struct cros_ec_debugfs *debug_info)
 	debug_info->panicinfo_blob.size = ret;
 
 	if (!debugfs_create_blob("panicinfo",
-				 S_IFREG | S_IRUGO,
+				 S_IFREG | 0444,
 				 debug_info->dir,
 				 &debug_info->panicinfo_blob)) {
 		ret = -ENOMEM;
