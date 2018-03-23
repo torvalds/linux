@@ -117,7 +117,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 	struct tc_vlan *parm;
 	struct tcf_vlan *v;
 	int action;
-	__be16 push_vid = 0;
+	u16 push_vid = 0;
 	__be16 push_proto = 0;
 	u8 push_prio = 0;
 	bool exists = false;
