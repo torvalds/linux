@@ -209,7 +209,7 @@ hostprogs-y := conf nconf mconf kxgettext qconf gconf
 
 targets		+= zconf.tab.c zconf.lex.c
 clean-files	:= qconf.moc .tmp_qtcheck .tmp_gtkcheck
-clean-files	+= zconf.tab.c zconf.lex.c gconf.glade.h
+clean-files	+= gconf.glade.h
 clean-files     += config.pot linux.pot
 
 # Check that we have the required ncurses stuff installed for lxdialog (menuconfig)
