@@ -648,8 +648,8 @@ static void s2255_fillbuff(struct s2255_vc *vc,
 		pr_err("s2255: =======no frame\n");
 		return;
 	}
-	dprintk(dev, 2, "s2255fill at : Buffer 0x%08lx size= %d\n",
-		(unsigned long)vbuf, pos);
+	dprintk(dev, 2, "s2255fill at : Buffer %p size= %d\n",
+		vbuf, pos);
 }
 
 
