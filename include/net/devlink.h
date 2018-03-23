@@ -559,7 +559,6 @@ devlink_dpipe_match_put(struct sk_buff *skb,
 static inline int
 devlink_resource_register(struct devlink *devlink,
 			  const char *resource_name,
-			  bool top_hierarchy,
 			  u64 resource_size,
 			  u64 resource_id,
 			  u64 parent_resource_id,
