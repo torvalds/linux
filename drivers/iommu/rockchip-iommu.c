@@ -1193,6 +1193,8 @@ static int rk_iommu_probe(struct platform_device *pdev)
 
 	iommu_device_set_ops(&iommu->iommu, &rk_iommu_ops);
 	err = iommu_device_register(&iommu->iommu);
+	if (err)
+		iommu_device_sysfs_remove(&iommu->iommu);
 
 	return err;
 }
