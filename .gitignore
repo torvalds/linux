@@ -22,6 +22,7 @@
 *.gz
 *.i
 *.ko
+*.lex.c
 *.ll
 *.lst
 *.lz4
@@ -37,6 +38,7 @@
 *.so.dbg
 *.su
 *.symtypes
+*.tab.[ch]
 *.tar
 *.xz
 Module.symvers
