@@ -277,7 +277,8 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 			memcpy(ap->rsn_ie.body, bp + 2, ap->rsn_ie.size);
 			break;
 		case WLAN_EID_VENDOR_SPECIFIC: /* WPA */
-			if (memcmp(bp + 2, CIPHER_ID_WPA_WEP40, 4) == 0) { /* WPA OUI check */
+			/* WPA OUI check */
+			if (memcmp(bp + 2, CIPHER_ID_WPA_WEP40, 4) == 0) {
 				ap->wpa_ie.id = *bp;
 				if (*(bp + 1) <= RSN_IE_BODY_MAX)
 					ap->wpa_ie.size = *(bp + 1);
@@ -469,13 +470,16 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 		netdev_dbg(priv->net_dev, "NETBEUI/NetBIOS rx_ind_size=%d\n",
 			   rx_ind_size);
 
-		skb_put_data(skb, priv->rxp, 12);	/* 8802/FDDI MAC copy */
+		/* 8802/FDDI MAC copy */
+		skb_put_data(skb, priv->rxp, 12);
 
-		temp[0] = (((rx_ind_size - 12) >> 8) & 0xff);	/* NETBEUI size add */
+		/* NETBEUI size add */
+		temp[0] = (((rx_ind_size - 12) >> 8) & 0xff);
 		temp[1] = ((rx_ind_size - 12) & 0xff);
 		skb_put_data(skb, temp, 2);
 
-		skb_put_data(skb, priv->rxp + 12, rx_ind_size - 14);	/* copy after Type */
+		/* copy after Type */
+		skb_put_data(skb, priv->rxp + 12, rx_ind_size - 14);
 
 		aa1x_hdr = (struct ieee802_1x_hdr *)(priv->rxp + 14);
 		break;
@@ -1090,8 +1094,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 		return 0;
 	}
 
-	/* for PowerSave */
-	if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {	/* power save wakeup */
+	/* power save wakeup */
+	if (atomic_read(&priv->psstatus.status) == PS_SNOOZE) {
 		if (!netif_queue_stopped(priv->net_dev))
 			netif_stop_queue(priv->net_dev);
 	}
@@ -1163,11 +1167,12 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 	}
 
 	if (priv->wpa.rsn_enabled && priv->wpa.key[0].key_len) {
+		/* no encryption */
 		if (eth_proto == ETH_P_PAE &&
 		    priv->wpa.key[1].key_len == 0 &&
 		    priv->wpa.key[2].key_len == 0 &&
 		    priv->wpa.key[3].key_len == 0) {
-			pp->auth_type = cpu_to_le16((uint16_t)TYPE_AUTH);	/* no encryption */
+			pp->auth_type = cpu_to_le16((uint16_t)TYPE_AUTH);
 		} else {
 			if (priv->wpa.pairwise_suite == IW_AUTH_CIPHER_TKIP) {
 				MichaelMICFunction(&michael_mic,
