@@ -301,18 +301,10 @@ static int polaris10_start_smu(struct pp_hwmgr *hwmgr)
 		smu_data->smu7_data.security_hard_key = (uint8_t) (PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC, SMU_FIRMWARE, SMU_SEL));
 
 		/* Check if SMU is running in protected mode */
-		if (smu_data->protected_mode == 0) {
+		if (smu_data->protected_mode == 0)
 			result = polaris10_start_smu_in_non_protection_mode(hwmgr);
-		} else {
+		else
 			result = polaris10_start_smu_in_protection_mode(hwmgr);
-
-			/* If failed, try with different security Key. */
-			if (result != 0) {
-				smu_data->smu7_data.security_hard_key ^= 1;
-				cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);
-				result = polaris10_start_smu_in_protection_mode(hwmgr);
-			}
-		}
 
 		if (result != 0)
 			PP_ASSERT_WITH_CODE(0, "Failed to load SMU ucode.", return result);
