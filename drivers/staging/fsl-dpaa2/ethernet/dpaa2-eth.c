@@ -2317,11 +2317,6 @@ static int poll_link_state(void *arg)
 	return 0;
 }
 
-static irqreturn_t dpni_irq0_handler(int irq_num, void *arg)
-{
-	return IRQ_WAKE_THREAD;
-}
-
 static irqreturn_t dpni_irq0_handler_thread(int irq_num, void *arg)
 {
 	u32 status = ~0;
@@ -2356,8 +2351,7 @@ static int setup_irqs(struct fsl_mc_device *ls_dev)
 
 	irq = ls_dev->irqs[0];
 	err = devm_request_threaded_irq(&ls_dev->dev, irq->msi_desc->irq,
-					dpni_irq0_handler,
-					dpni_irq0_handler_thread,
+					NULL, dpni_irq0_handler_thread,
 					IRQF_NO_SUSPEND | IRQF_ONESHOT,
 					dev_name(&ls_dev->dev), &ls_dev->dev);
 	if (err < 0) {
