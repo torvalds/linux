@@ -380,13 +380,17 @@ int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 	enum amdgpu_mn_type type =
 		bo->kfd_bo ? AMDGPU_MN_TYPE_HSA : AMDGPU_MN_TYPE_GFX;
 	struct amdgpu_mn *rmn;
-	struct amdgpu_mn_node *node = NULL;
+	struct amdgpu_mn_node *node = NULL, *new_node;
 	struct list_head bos;
 	struct interval_tree_node *it;
 
 	rmn = amdgpu_mn_get(adev, type);
 	if (IS_ERR(rmn))
 		return PTR_ERR(rmn);
+
+	new_node = kmalloc(sizeof(*new_node), GFP_KERNEL);
+	if (!new_node)
+		return -ENOMEM;
 
 	INIT_LIST_HEAD(&bos);
 
@@ -401,13 +405,10 @@ int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 		list_splice(&node->bos, &bos);
 	}
 
-	if (!node) {
-		node = kmalloc(sizeof(struct amdgpu_mn_node), GFP_KERNEL);
-		if (!node) {
-			up_write(&rmn->lock);
-			return -ENOMEM;
-		}
-	}
+	if (!node)
+		node = new_node;
+	else
+		kfree(new_node);
 
 	bo->mn = rmn;
 
