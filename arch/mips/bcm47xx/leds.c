@@ -538,7 +538,7 @@ bcm47xx_leds_simpletech_simpleshare[] __initconst = {
  * Init
  **************************************************/
 
-static struct gpio_led_platform_data bcm47xx_leds_pdata;
+static struct gpio_led_platform_data bcm47xx_leds_pdata __initdata;
 
 #define bcm47xx_set_pdata(dev_leds) do {				\
 	bcm47xx_leds_pdata.leds = dev_leds;				\
