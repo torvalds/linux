@@ -3247,17 +3247,15 @@ static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	return 0;
 }
 
-static inline int external_ai_queue_in_use(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_cmd *cmd)
+static inline int external_ai_queue_in_use(struct comedi_device *dev)
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 
-	if (s->busy)
+	if (dev->read_subdev->busy)
 		return 0;
 	if (board->layout == LAYOUT_4020)
 		return 0;
-	else if (use_internal_queue_6xxx(cmd))
+	else if (use_internal_queue_6xxx(&dev->read_subdev->async->cmd))
 		return 0;
 	return 1;
 }
@@ -3291,7 +3289,7 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (external_ai_queue_in_use(dev, s, cmd)) {
+	if (external_ai_queue_in_use(dev)) {
 		warn_external_queue(dev);
 		return -EBUSY;
 	}
