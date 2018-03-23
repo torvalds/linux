@@ -1135,7 +1135,8 @@ static int check_alu_op(struct verifier_env *env, struct bpf_insn *insn)
 				regs[insn->dst_reg].type = UNKNOWN_VALUE;
 				regs[insn->dst_reg].map_ptr = NULL;
 			}
-		} else {
+		} else if (BPF_CLASS(insn->code) == BPF_ALU64 ||
+			   insn->imm >= 0) {
 			/* case: R = imm
 			 * remember the value we stored into this reg
 			 */
