@@ -2352,6 +2352,7 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	u32 buf;
 	int ret = 0;
 	unsigned long timeout;
+	u8 sig;
 
 	ret = lan78xx_read_reg(dev, HW_CFG, &buf);
 	buf |= HW_CFG_LRST_;
@@ -2451,6 +2452,15 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	/* LAN7801 only has RGMII mode */
 	if (dev->chipid == ID_REV_CHIP_ID_7801_)
 		buf &= ~MAC_CR_GMII_EN_;
+
+	if (dev->chipid == ID_REV_CHIP_ID_7800_) {
+		ret = lan78xx_read_raw_eeprom(dev, 0, 1, &sig);
+		if (!ret && sig != EEPROM_INDICATOR) {
+			/* Implies there is no external eeprom. Set mac speed */
+			netdev_info(dev->net, "No External EEPROM. Setting MAC Speed\n");
+			buf |= MAC_CR_AUTO_DUPLEX_ | MAC_CR_AUTO_SPEED_;
+		}
+	}
 	ret = lan78xx_write_reg(dev, MAC_CR, buf);
 
 	ret = lan78xx_read_reg(dev, MAC_TX, &buf);
