@@ -2695,13 +2695,17 @@ static int cxgb4_mgmt_get_vf_config(struct net_device *dev,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
+	struct vf_info *vfinfo;
 
 	if (vf >= adap->num_vfs)
 		return -EINVAL;
+	vfinfo = &adap->vfinfo[vf];
+
 	ivi->vf = vf;
-	ivi->max_tx_rate = adap->vfinfo[vf].tx_rate;
+	ivi->max_tx_rate = vfinfo->tx_rate;
 	ivi->min_tx_rate = 0;
-	ether_addr_copy(ivi->mac, adap->vfinfo[vf].vf_mac_addr);
+	ether_addr_copy(ivi->mac, vfinfo->vf_mac_addr);
+	ivi->vlan = vfinfo->vlan;
 	return 0;
 }
 
