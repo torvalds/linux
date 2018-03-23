@@ -11629,7 +11629,7 @@ static void vmcs12_save_pending_event(struct kvm_vcpu *vcpu,
 	} else if (vcpu->arch.nmi_injected) {
 		vmcs12->idt_vectoring_info_field =
 			INTR_TYPE_NMI_INTR | INTR_INFO_VALID_MASK | NMI_VECTOR;
-	} else if (vcpu->arch.interrupt.pending) {
+	} else if (vcpu->arch.interrupt.injected) {
 		nr = vcpu->arch.interrupt.nr;
 		idt_vectoring = nr | VECTORING_INFO_VALID_MASK;
 

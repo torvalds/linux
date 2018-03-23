@@ -3312,7 +3312,7 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 	events->exception.error_code = vcpu->arch.exception.error_code;
 
 	events->interrupt.injected =
-		vcpu->arch.interrupt.pending && !vcpu->arch.interrupt.soft;
+		vcpu->arch.interrupt.injected && !vcpu->arch.interrupt.soft;
 	events->interrupt.nr = vcpu->arch.interrupt.nr;
 	events->interrupt.soft = 0;
 	events->interrupt.shadow = kvm_x86_ops->get_interrupt_shadow(vcpu);
@@ -3365,7 +3365,7 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 	vcpu->arch.exception.has_error_code = events->exception.has_error_code;
 	vcpu->arch.exception.error_code = events->exception.error_code;
 
-	vcpu->arch.interrupt.pending = events->interrupt.injected;
+	vcpu->arch.interrupt.injected = events->interrupt.injected;
 	vcpu->arch.interrupt.nr = events->interrupt.nr;
 	vcpu->arch.interrupt.soft = events->interrupt.soft;
 	if (events->flags & KVM_VCPUEVENT_VALID_SHADOW)
@@ -6767,7 +6767,7 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 			return 0;
 		}
 
-		if (vcpu->arch.interrupt.pending) {
+		if (vcpu->arch.interrupt.injected) {
 			kvm_x86_ops->set_irq(vcpu);
 			return 0;
 		}
@@ -7818,7 +7818,7 @@ static void __get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 
 	memset(sregs->interrupt_bitmap, 0, sizeof sregs->interrupt_bitmap);
 
-	if (vcpu->arch.interrupt.pending && !vcpu->arch.interrupt.soft)
+	if (vcpu->arch.interrupt.injected && !vcpu->arch.interrupt.soft)
 		set_bit(vcpu->arch.interrupt.nr,
 			(unsigned long *)sregs->interrupt_bitmap);
 }

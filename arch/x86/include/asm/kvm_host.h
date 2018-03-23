@@ -574,7 +574,7 @@ struct kvm_vcpu_arch {
 	} exception;
 
 	struct kvm_queued_interrupt {
-		bool pending;
+		bool injected;
 		bool soft;
 		u8 nr;
 	} interrupt;
