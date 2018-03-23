@@ -1351,6 +1351,7 @@ static inline bool walk_done(struct gfs2_sbd *sdp,
 static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
+	u64 maxsize = sdp->sd_heightsize[ip->i_height];
 	struct metapath mp = {};
 	struct buffer_head *dibh, *bh;
 	struct gfs2_holder rd_gh;
@@ -1366,6 +1367,14 @@ static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 	u64 prev_bnr = 0;
 	__be64 *start, *end;
 
+	if (offset >= maxsize) {
+		/*
+		 * The starting point lies beyond the allocated meta-data;
+		 * there are no blocks do deallocate.
+		 */
+		return 0;
+	}
+
 	/*
 	 * The start position of the hole is defined by lblock, start_list, and
 	 * start_aligned.  The end position of the hole is defined by lend,
@@ -1379,7 +1388,6 @@ static int punch_hole(struct gfs2_inode *ip, u64 offset, u64 length)
 	 */
 
 	if (length) {
-		u64 maxsize = sdp->sd_heightsize[ip->i_height];
 		u64 end_offset = offset + length;
 		u64 lend;
 
