@@ -68,14 +68,14 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
 static struct sk_buff *named_prepare_buf(struct net *net, u32 type, u32 size,
 					 u32 dest)
 {
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE + size, GFP_ATOMIC);
+	u32 self = tipc_own_addr(net);
 	struct tipc_msg *msg;
 
 	if (buf != NULL) {
 		msg = buf_msg(buf);
-		tipc_msg_init(tn->own_addr, msg, NAME_DISTRIBUTOR, type,
-			      INT_H_SIZE, dest);
+		tipc_msg_init(self, msg, NAME_DISTRIBUTOR,
+			      type, INT_H_SIZE, dest);
 		msg_set_size(msg, INT_H_SIZE + size);
 	}
 	return buf;
@@ -318,7 +318,6 @@ void tipc_named_process_backlog(struct net *net)
 {
 	struct distr_queue_item *e, *tmp;
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
-	char addr[16];
 	unsigned long now = get_jiffies_64();
 
 	list_for_each_entry_safe(e, tmp, &tn->dist_queue, next) {
@@ -326,12 +325,11 @@ void tipc_named_process_backlog(struct net *net)
 			if (!tipc_update_nametbl(net, &e->i, e->node, e->dtype))
 				continue;
 		} else {
-			tipc_addr_string_fill(addr, e->node);
-			pr_warn_ratelimited("Dropping name table update (%d) of {%u, %u, %u} from %s key=%u\n",
+			pr_warn_ratelimited("Dropping name table update (%d) of {%u, %u, %u} from %x key=%u\n",
 					    e->dtype, ntohl(e->i.type),
 					    ntohl(e->i.lower),
 					    ntohl(e->i.upper),
-					    addr, ntohl(e->i.key));
+					    e->node, ntohl(e->i.key));
 		}
 		list_del(&e->next);
 		kfree(e);
@@ -382,13 +380,14 @@ void tipc_named_reinit(struct net *net)
 	struct name_table *nt = tipc_name_table(net);
 	struct tipc_net *tn = tipc_net(net);
 	struct publication *publ;
+	u32 self = tipc_own_addr(net);
 
 	spin_lock_bh(&tn->nametbl_lock);
 
 	list_for_each_entry_rcu(publ, &nt->node_scope, binding_node)
-		publ->node = tn->own_addr;
+		publ->node = self;
 	list_for_each_entry_rcu(publ, &nt->cluster_scope, binding_node)
-		publ->node = tn->own_addr;
+		publ->node = self;
 
 	spin_unlock_bh(&tn->nametbl_lock);
 }

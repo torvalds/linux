@@ -49,17 +49,19 @@ enum {
 	TIPC_BCAST_STATE_NACK = (1 << 2),
 	TIPC_BLOCK_FLOWCTL    = (1 << 3),
 	TIPC_BCAST_RCAST      = (1 << 4),
-	TIPC_MCAST_GROUPS     = (1 << 5)
+	TIPC_NODE_ID128       = (1 << 5)
 };
 
 #define TIPC_NODE_CAPABILITIES (TIPC_BCAST_SYNCH | \
 				TIPC_BCAST_STATE_NACK | \
 				TIPC_BCAST_RCAST | \
-				TIPC_BLOCK_FLOWCTL)
+				TIPC_BLOCK_FLOWCTL | \
+				TIPC_NODE_ID128)
 #define INVALID_BEARER_ID -1
 
 void tipc_node_stop(struct net *net);
-void tipc_node_check_dest(struct net *net, u32 onode,
+u32 tipc_node_try_addr(struct net *net, u8 *id, u32 addr);
+void tipc_node_check_dest(struct net *net, u32 onode, u8 *peer_id128,
 			  struct tipc_bearer *bearer,
 			  u16 capabilities, u32 signature,
 			  struct tipc_media_addr *maddr,
