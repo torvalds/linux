@@ -369,6 +369,9 @@ struct hostif_ps_adhoc_set_confirm_t {
 	__le16 result_code;
 } __packed;
 
+#define AUTH_TYPE_OPEN_SYSTEM 0
+#define AUTH_TYPE_SHARED_KEY  1
+
 /**
  * struct hostif_infrastructure_set_request_t
  * @capability: bit5  : preamble
@@ -382,8 +385,6 @@ struct hostif_infrastructure_set_request_t {
 	struct ssid_t ssid;
 	__le16 beacon_lost_count;
 	__le16 auth_type;
-#define AUTH_TYPE_OPEN_SYSTEM 0
-#define AUTH_TYPE_SHARED_KEY  1
 	struct channel_list_t channel_list;
 } __packed;
 
@@ -400,8 +401,6 @@ struct hostif_infrastructure_set2_request_t {
 	struct ssid_t ssid;
 	__le16 beacon_lost_count;
 	__le16 auth_type;
-#define AUTH_TYPE_OPEN_SYSTEM 0
-#define AUTH_TYPE_SHARED_KEY  1
 	struct channel_list_t channel_list;
 	u8 bssid[ETH_ALEN];
 } __packed;
