@@ -6758,8 +6758,18 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
 	}
 
 	/*
-	 * Exceptions must be injected immediately, or the exception
-	 * frame will have the address of the NMI or interrupt handler.
+	 * Do not inject an NMI or interrupt if there is a pending
+	 * exception.  Exceptions and interrupts are recognized at
+	 * instruction boundaries, i.e. the start of an instruction.
+	 * Trap-like exceptions, e.g. #DB, have higher priority than
+	 * NMIs and interrupts, i.e. traps are recognized before an
+	 * NMI/interrupt that's pending on the same instruction.
+	 * Fault-like exceptions, e.g. #GP and #PF, are the lowest
+	 * priority, but are only generated (pended) during instruction
+	 * execution, i.e. a pending fault-like exception means the
+	 * fault occurred on the *previous* instruction and must be
+	 * serviced prior to recognizing any new events in order to
+	 * fully complete the previous instruction.
 	 */
 	if (!vcpu->arch.exception.pending) {
 		if (vcpu->arch.nmi_injected) {
