@@ -332,11 +332,10 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 	 *
 	 * Actual navigation will come next, with further understanding of how
 	 * the symbol searching and disassembly should be done.
-
+	 */
 	if (map_groups__find_ams(&target) == 0 &&
 	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
 		ops->target.sym = target.sym;
-	 */
 
 	if (s++ != NULL) {
 		ops->target.offset = strtoull(s, NULL, 16);
@@ -355,6 +354,9 @@ static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 
 	if (!ops->target.addr || ops->target.offset < 0)
 		return ins__raw_scnprintf(ins, bf, size, ops);
+
+	if (ops->target.outside && ops->target.sym != NULL)
+		return scnprintf(bf, size, "%-6s %s", ins->name, ops->target.sym->name);
 
 	if (c != NULL) {
 		const char *c2 = strchr(c + 1, ',');

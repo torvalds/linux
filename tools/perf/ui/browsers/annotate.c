@@ -384,6 +384,15 @@ static int sym_title(struct symbol *sym, struct map *map, char *title,
 	return snprintf(title, sz, "%s  %s", sym->name, map->dso->long_name);
 }
 
+/*
+ * This can be called from external jumps, i.e. jumps from one functon
+ * to another, like from the kernel's entry_SYSCALL_64 function to the
+ * swapgs_restore_regs_and_return_to_usermode() function.
+ *
+ * So all we check here is that dl->ops.target.sym is set, if it is, just
+ * go to that function and when exiting from its disassembly, come back
+ * to the calling function.
+ */
 static bool annotate_browser__callq(struct annotate_browser *browser,
 				    struct perf_evsel *evsel,
 				    struct hist_browser_timer *hbt)
@@ -392,9 +401,6 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	struct disasm_line *dl = disasm_line(browser->selection);
 	struct annotation *notes;
 	char title[SYM_TITLE_MAX_SIZE];
-
-	if (!ins__is_call(&dl->ins))
-		return false;
 
 	if (!dl->ops.target.sym) {
 		ui_helpline__puts("The called function was not found.");
@@ -436,7 +442,9 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 	return NULL;
 }
 
-static bool annotate_browser__jump(struct annotate_browser *browser)
+static bool annotate_browser__jump(struct annotate_browser *browser,
+				   struct perf_evsel *evsel,
+				   struct hist_browser_timer *hbt)
 {
 	struct disasm_line *dl = disasm_line(browser->selection);
 	u64 offset;
@@ -444,6 +452,11 @@ static bool annotate_browser__jump(struct annotate_browser *browser)
 
 	if (!ins__is_jump(&dl->ins))
 		return false;
+
+	if (dl->ops.target.outside) {
+		annotate_browser__callq(browser, evsel, hbt);
+		return true;
+	}
 
 	offset = dl->ops.target.offset;
 	dl = annotate_browser__find_offset(browser, offset, &idx);
@@ -731,7 +744,7 @@ show_help:
 				goto show_sup_ins;
 			else if (ins__is_ret(&dl->ins))
 				goto out;
-			else if (!(annotate_browser__jump(browser) ||
+			else if (!(annotate_browser__jump(browser, evsel, hbt) ||
 				     annotate_browser__callq(browser, evsel, hbt))) {
 show_sup_ins:
 				ui_helpline__puts("Actions are only available for function call/return & jump/branch instructions.");
