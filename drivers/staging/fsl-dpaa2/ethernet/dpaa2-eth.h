@@ -142,7 +142,7 @@ struct dpaa2_fas {
 	u8 ppid;
 	__le16 ifpid;
 	__le32 status;
-} __packed;
+};
 
 /* Frame annotation status word is located in the first 8 bytes
  * of the buffer's hardware annoatation area
