@@ -9936,14 +9936,6 @@ static void __noclone vmx_vcpu_run(struct kvm_vcpu *vcpu)
 			__write_pkru(vmx->host_pkru);
 	}
 
-	/*
-	 * the KVM_REQ_EVENT optimization bit is only on for one entry, and if
-	 * we did not inject a still-pending event to L1 now because of
-	 * nested_run_pending, we need to re-enable this bit.
-	 */
-	if (vmx->nested.nested_run_pending)
-		kvm_make_request(KVM_REQ_EVENT, vcpu);
-
 	vmx->nested.nested_run_pending = 0;
 	vmx->idt_vectoring_info = 0;
 
