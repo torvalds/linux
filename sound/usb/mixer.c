@@ -879,26 +879,27 @@ static int check_input_term(struct mixer_build *state, int id,
 
 /* feature unit control information */
 struct usb_feature_control_info {
+	int control;
 	const char *name;
 	int type;	/* data type for uac1 */
 	int type_uac2;	/* data type for uac2 if different from uac1, else -1 */
 };
 
 static struct usb_feature_control_info audio_feature_info[] = {
-	{ "Mute",			USB_MIXER_INV_BOOLEAN, -1 },
-	{ "Volume",			USB_MIXER_S16, -1 },
-	{ "Tone Control - Bass",	USB_MIXER_S8, -1 },
-	{ "Tone Control - Mid",		USB_MIXER_S8, -1 },
-	{ "Tone Control - Treble",	USB_MIXER_S8, -1 },
-	{ "Graphic Equalizer",		USB_MIXER_S8, -1 }, /* FIXME: not implemeted yet */
-	{ "Auto Gain Control",		USB_MIXER_BOOLEAN, -1 },
-	{ "Delay Control",		USB_MIXER_U16, USB_MIXER_U32 },
-	{ "Bass Boost",			USB_MIXER_BOOLEAN, -1 },
-	{ "Loudness",			USB_MIXER_BOOLEAN, -1 },
+	{ UAC_FU_MUTE,			"Mute",			USB_MIXER_INV_BOOLEAN, -1 },
+	{ UAC_FU_VOLUME,		"Volume",		USB_MIXER_S16, -1 },
+	{ UAC_FU_BASS,			"Tone Control - Bass",	USB_MIXER_S8, -1 },
+	{ UAC_FU_MID,			"Tone Control - Mid",	USB_MIXER_S8, -1 },
+	{ UAC_FU_TREBLE,		"Tone Control - Treble", USB_MIXER_S8, -1 },
+	{ UAC_FU_GRAPHIC_EQUALIZER,	"Graphic Equalizer",	USB_MIXER_S8, -1 }, /* FIXME: not implemented yet */
+	{ UAC_FU_AUTOMATIC_GAIN,	"Auto Gain Control",	USB_MIXER_BOOLEAN, -1 },
+	{ UAC_FU_DELAY,			"Delay Control",	USB_MIXER_U16, USB_MIXER_U32 },
+	{ UAC_FU_BASS_BOOST,		"Bass Boost",		USB_MIXER_BOOLEAN, -1 },
+	{ UAC_FU_LOUDNESS,		"Loudness",		USB_MIXER_BOOLEAN, -1 },
 	/* UAC2 specific */
-	{ "Input Gain Control",		USB_MIXER_S16, -1 },
-	{ "Input Gain Pad Control",	USB_MIXER_S16, -1 },
-	{ "Phase Inverter Control",	USB_MIXER_BOOLEAN, -1 },
+	{ UAC2_FU_INPUT_GAIN,		"Input Gain Control",	USB_MIXER_S16, -1 },
+	{ UAC2_FU_INPUT_GAIN_PAD,	"Input Gain Pad Control", USB_MIXER_S16, -1 },
+	{ UAC2_FU_PHASE_INVERTER,	 "Phase Inverter Control", USB_MIXER_BOOLEAN, -1 },
 };
 
 /* private_free callback */
@@ -1293,6 +1294,17 @@ static void check_no_speaker_on_headset(struct snd_kcontrol *kctl,
 	strlcpy(kctl->id.name, "Headphone", sizeof(kctl->id.name));
 }
 
+static struct usb_feature_control_info *get_feature_control_info(int control)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(audio_feature_info); ++i) {
+		if (audio_feature_info[i].control == control)
+			return &audio_feature_info[i];
+	}
+	return NULL;
+}
+
 static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 			      unsigned int ctl_mask, int control,
 			      struct usb_audio_term *iterm, int unitid,
@@ -1307,8 +1319,6 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 	struct usb_mixer_elem_info *cval;
 	const struct usbmix_name_map *map;
 	unsigned int range;
-
-	control++; /* change from zero-based to 1-based value */
 
 	if (control == UAC_FU_GRAPHIC_EQUALIZER) {
 		/* FIXME: not supported yet */
@@ -1325,7 +1335,10 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 	snd_usb_mixer_elem_init_std(&cval->head, state->mixer, unitid);
 	cval->control = control;
 	cval->cmask = ctl_mask;
-	ctl_info = &audio_feature_info[control-1];
+
+	ctl_info = get_feature_control_info(control);
+	if (!ctl_info)
+		return;
 	if (state->mixer->protocol == UAC_VERSION_1)
 		cval->val_type = ctl_info->type;
 	else /* UAC_VERSION_2 */
@@ -1475,7 +1488,7 @@ static int parse_clock_source_unit(struct mixer_build *state, int unitid,
 	 * clock source validity. If that isn't readable, just bail out.
 	 */
 	if (!uac_v2v3_control_is_readable(hdr->bmControls,
-				      ilog2(UAC2_CS_CONTROL_CLOCK_VALID)))
+				      UAC2_CS_CONTROL_CLOCK_VALID))
 		return 0;
 
 	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
@@ -1491,7 +1504,7 @@ static int parse_clock_source_unit(struct mixer_build *state, int unitid,
 	cval->control = UAC2_CS_CONTROL_CLOCK_VALID;
 
 	if (uac_v2v3_control_is_writeable(hdr->bmControls,
-				      ilog2(UAC2_CS_CONTROL_CLOCK_VALID)))
+				      UAC2_CS_CONTROL_CLOCK_VALID))
 		kctl = snd_ctl_new1(&usb_feature_unit_ctl, cval);
 	else {
 		cval->master_readonly = 1;
@@ -1625,6 +1638,8 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 		/* check all control types */
 		for (i = 0; i < 10; i++) {
 			unsigned int ch_bits = 0;
+			int control = audio_feature_info[i].control;
+
 			for (j = 0; j < channels; j++) {
 				unsigned int mask;
 
@@ -1640,25 +1655,26 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 			 * (for ease of programming).
 			 */
 			if (ch_bits & 1)
-				build_feature_ctl(state, _ftr, ch_bits, i,
+				build_feature_ctl(state, _ftr, ch_bits, control,
 						  &iterm, unitid, 0);
 			if (master_bits & (1 << i))
-				build_feature_ctl(state, _ftr, 0, i, &iterm,
-						  unitid, 0);
+				build_feature_ctl(state, _ftr, 0, control,
+						  &iterm, unitid, 0);
 		}
 	} else { /* UAC_VERSION_2/3 */
 		for (i = 0; i < ARRAY_SIZE(audio_feature_info); i++) {
 			unsigned int ch_bits = 0;
 			unsigned int ch_read_only = 0;
+			int control = audio_feature_info[i].control;
 
 			for (j = 0; j < channels; j++) {
 				unsigned int mask;
 
 				mask = snd_usb_combine_bytes(bmaControls +
 							     csize * (j+1), csize);
-				if (uac_v2v3_control_is_readable(mask, i)) {
+				if (uac_v2v3_control_is_readable(mask, control)) {
 					ch_bits |= (1 << j);
-					if (!uac_v2v3_control_is_writeable(mask, i))
+					if (!uac_v2v3_control_is_writeable(mask, control))
 						ch_read_only |= (1 << j);
 				}
 			}
@@ -1677,11 +1693,12 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid,
 			 * (for ease of programming).
 			 */
 			if (ch_bits & 1)
-				build_feature_ctl(state, _ftr, ch_bits, i,
+				build_feature_ctl(state, _ftr, ch_bits, control,
 						  &iterm, unitid, ch_read_only);
-			if (uac_v2v3_control_is_readable(master_bits, i))
+			if (uac_v2v3_control_is_readable(master_bits, control))
 				build_feature_ctl(state, _ftr, 0, i, &iterm, unitid,
-						  !uac_v2v3_control_is_writeable(master_bits, i));
+						  !uac_v2v3_control_is_writeable(master_bits,
+										 control));
 		}
 	}
 
