@@ -275,9 +275,8 @@ static int guc_fw_xfer(struct intel_uc_fw *guc_fw, struct i915_vma *vma)
  * Called from intel_uc_init_hw() during driver load, resume from sleep and
  * after a GPU reset.
  *
- * The firmware image should have already been fetched into memory by the
- * earlier call to intel_uc_init_fw(), so here we need to only check that
- * fetch succeeded, and then transfer the image to the h/w.
+ * The firmware image should have already been fetched into memory, so only
+ * check that fetch succeeded, and then transfer the image to the h/w.
  *
  * Return:	non-zero code on error
  */

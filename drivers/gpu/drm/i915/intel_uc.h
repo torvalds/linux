@@ -29,9 +29,8 @@
 #include "i915_params.h"
 
 void intel_uc_init_early(struct drm_i915_private *dev_priv);
+void intel_uc_cleanup_early(struct drm_i915_private *dev_priv);
 void intel_uc_init_mmio(struct drm_i915_private *dev_priv);
-void intel_uc_init_fw(struct drm_i915_private *dev_priv);
-void intel_uc_fini_fw(struct drm_i915_private *dev_priv);
 int intel_uc_init_misc(struct drm_i915_private *dev_priv);
 void intel_uc_fini_misc(struct drm_i915_private *dev_priv);
 void intel_uc_sanitize(struct drm_i915_private *dev_priv);

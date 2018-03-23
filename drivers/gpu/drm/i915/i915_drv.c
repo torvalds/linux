@@ -692,11 +692,9 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_irq;
 
-	intel_uc_init_fw(dev_priv);
-
 	ret = i915_gem_init(dev_priv);
 	if (ret)
-		goto cleanup_uc;
+		goto cleanup_irq;
 
 	intel_setup_overlay(dev_priv);
 
@@ -716,8 +714,6 @@ cleanup_gem:
 	if (i915_gem_suspend(dev_priv))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 	i915_gem_fini(dev_priv);
-cleanup_uc:
-	intel_uc_fini_fw(dev_priv);
 cleanup_irq:
 	drm_irq_uninstall(dev);
 	intel_teardown_gmbus(dev_priv);
@@ -962,6 +958,7 @@ err_engines:
 static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
 	intel_irq_fini(dev_priv);
+	intel_uc_cleanup_early(dev_priv);
 	i915_gem_cleanup_early(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 	i915_engines_cleanup(dev_priv);
@@ -1457,7 +1454,6 @@ void i915_driver_unload(struct drm_device *dev)
 	i915_reset_error_state(dev_priv);
 
 	i915_gem_fini(dev_priv);
-	intel_uc_fini_fw(dev_priv);
 	intel_fbc_cleanup_cfb(dev_priv);
 
 	intel_power_domains_fini(dev_priv);

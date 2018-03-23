@@ -162,36 +162,35 @@ static void sanitize_options_early(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(i915_modparams.guc_log_level < 0);
 }
 
-void intel_uc_init_early(struct drm_i915_private *dev_priv)
+void intel_uc_init_early(struct drm_i915_private *i915)
 {
-	intel_guc_init_early(&dev_priv->guc);
-	intel_huc_init_early(&dev_priv->huc);
+	struct intel_guc *guc = &i915->guc;
+	struct intel_huc *huc = &i915->huc;
 
-	sanitize_options_early(dev_priv);
+	intel_guc_init_early(guc);
+	intel_huc_init_early(huc);
+
+	sanitize_options_early(i915);
+
+	if (USES_GUC(i915))
+		intel_uc_fw_fetch(i915, &guc->fw);
+
+	if (USES_HUC(i915))
+		intel_uc_fw_fetch(i915, &huc->fw);
 }
 
-void intel_uc_init_fw(struct drm_i915_private *dev_priv)
+void intel_uc_cleanup_early(struct drm_i915_private *i915)
 {
-	if (!USES_GUC(dev_priv))
-		return;
+	struct intel_guc *guc = &i915->guc;
+	struct intel_huc *huc = &i915->huc;
 
-	if (USES_HUC(dev_priv))
-		intel_uc_fw_fetch(dev_priv, &dev_priv->huc.fw);
+	if (USES_HUC(i915))
+		intel_uc_fw_fini(&huc->fw);
 
-	intel_uc_fw_fetch(dev_priv, &dev_priv->guc.fw);
-}
+	if (USES_GUC(i915))
+		intel_uc_fw_fini(&guc->fw);
 
-void intel_uc_fini_fw(struct drm_i915_private *dev_priv)
-{
-	if (!USES_GUC(dev_priv))
-		return;
-
-	intel_uc_fw_fini(&dev_priv->guc.fw);
-
-	if (USES_HUC(dev_priv))
-		intel_uc_fw_fini(&dev_priv->huc.fw);
-
-	guc_free_load_err_log(&dev_priv->guc);
+	guc_free_load_err_log(guc);
 }
 
 /**
