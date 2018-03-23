@@ -429,7 +429,7 @@ retry:
 		if (bo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) {
 			bo->flags &= ~AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 			goto retry;
-		} else if (domains != bo->preferred_domains) {
+		} else if (domains != bo->allowed_domains) {
 			domains = bo->allowed_domains;
 			goto retry;
 		}
