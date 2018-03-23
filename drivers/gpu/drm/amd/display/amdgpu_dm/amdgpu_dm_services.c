@@ -37,8 +37,10 @@
 
 unsigned long long dm_get_timestamp(struct dc_context *ctx)
 {
-	/* TODO: return actual timestamp */
-	return 0;
+	struct timespec64 time;
+
+	getrawmonotonic64(&time);
+	return timespec64_to_ns(&time);
 }
 
 void dm_perf_trace_timestamp(const char *func_name, unsigned int line)
