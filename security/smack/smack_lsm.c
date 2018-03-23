@@ -3077,9 +3077,9 @@ static int smack_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr,
  *
  * Returns a pointer to the smack value
  */
-static struct smack_known *smack_of_sem(struct sem_array *sma)
+static struct smack_known *smack_of_sem(struct kern_ipc_perm *sma)
 {
-	return (struct smack_known *)sma->sem_perm.security;
+	return (struct smack_known *)sma->security;
 }
 
 /**
@@ -3088,9 +3088,9 @@ static struct smack_known *smack_of_sem(struct sem_array *sma)
  *
  * Returns 0
  */
-static int smack_sem_alloc_security(struct sem_array *sma)
+static int smack_sem_alloc_security(struct kern_ipc_perm *sma)
 {
-	struct kern_ipc_perm *isp = &sma->sem_perm;
+	struct kern_ipc_perm *isp = sma;
 	struct smack_known *skp = smk_of_current();
 
 	isp->security = skp;
@@ -3103,9 +3103,9 @@ static int smack_sem_alloc_security(struct sem_array *sma)
  *
  * Clears the blob pointer
  */
-static void smack_sem_free_security(struct sem_array *sma)
+static void smack_sem_free_security(struct kern_ipc_perm *sma)
 {
-	struct kern_ipc_perm *isp = &sma->sem_perm;
+	struct kern_ipc_perm *isp = sma;
 
 	isp->security = NULL;
 }
@@ -3117,7 +3117,7 @@ static void smack_sem_free_security(struct sem_array *sma)
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smk_curacc_sem(struct sem_array *sma, int access)
+static int smk_curacc_sem(struct kern_ipc_perm *sma, int access)
 {
 	struct smack_known *ssp = smack_of_sem(sma);
 	struct smk_audit_info ad;
@@ -3125,7 +3125,7 @@ static int smk_curacc_sem(struct sem_array *sma, int access)
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IPC);
-	ad.a.u.ipc_id = sma->sem_perm.id;
+	ad.a.u.ipc_id = sma->id;
 #endif
 	rc = smk_curacc(ssp, access, &ad);
 	rc = smk_bu_current("sem", ssp, access, rc);
@@ -3139,7 +3139,7 @@ static int smk_curacc_sem(struct sem_array *sma, int access)
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_sem_associate(struct sem_array *sma, int semflg)
+static int smack_sem_associate(struct kern_ipc_perm *sma, int semflg)
 {
 	int may;
 
@@ -3154,7 +3154,7 @@ static int smack_sem_associate(struct sem_array *sma, int semflg)
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_sem_semctl(struct sem_array *sma, int cmd)
+static int smack_sem_semctl(struct kern_ipc_perm *sma, int cmd)
 {
 	int may;
 
@@ -3198,7 +3198,7 @@ static int smack_sem_semctl(struct sem_array *sma, int cmd)
  *
  * Returns 0 if access is allowed, error code otherwise
  */
-static int smack_sem_semop(struct sem_array *sma, struct sembuf *sops,
+static int smack_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 			   unsigned nsops, int alter)
 {
 	return smk_curacc_sem(sma, MAY_READWRITE);

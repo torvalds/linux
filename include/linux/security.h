@@ -36,7 +36,6 @@ struct linux_binprm;
 struct cred;
 struct rlimit;
 struct siginfo;
-struct sem_array;
 struct sembuf;
 struct kern_ipc_perm;
 struct audit_context;
@@ -368,11 +367,11 @@ void security_shm_free(struct shmid_kernel *shp);
 int security_shm_associate(struct shmid_kernel *shp, int shmflg);
 int security_shm_shmctl(struct shmid_kernel *shp, int cmd);
 int security_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr, int shmflg);
-int security_sem_alloc(struct sem_array *sma);
-void security_sem_free(struct sem_array *sma);
-int security_sem_associate(struct sem_array *sma, int semflg);
-int security_sem_semctl(struct sem_array *sma, int cmd);
-int security_sem_semop(struct sem_array *sma, struct sembuf *sops,
+int security_sem_alloc(struct kern_ipc_perm *sma);
+void security_sem_free(struct kern_ipc_perm *sma);
+int security_sem_associate(struct kern_ipc_perm *sma, int semflg);
+int security_sem_semctl(struct kern_ipc_perm *sma, int cmd);
+int security_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 			unsigned nsops, int alter);
 void security_d_instantiate(struct dentry *dentry, struct inode *inode);
 int security_getprocattr(struct task_struct *p, char *name, char **value);
@@ -1103,25 +1102,25 @@ static inline int security_shm_shmat(struct shmid_kernel *shp,
 	return 0;
 }
 
-static inline int security_sem_alloc(struct sem_array *sma)
+static inline int security_sem_alloc(struct kern_ipc_perm *sma)
 {
 	return 0;
 }
 
-static inline void security_sem_free(struct sem_array *sma)
+static inline void security_sem_free(struct kern_ipc_perm *sma)
 { }
 
-static inline int security_sem_associate(struct sem_array *sma, int semflg)
+static inline int security_sem_associate(struct kern_ipc_perm *sma, int semflg)
 {
 	return 0;
 }
 
-static inline int security_sem_semctl(struct sem_array *sma, int cmd)
+static inline int security_sem_semctl(struct kern_ipc_perm *sma, int cmd)
 {
 	return 0;
 }
 
-static inline int security_sem_semop(struct sem_array *sma,
+static inline int security_sem_semop(struct kern_ipc_perm *sma,
 				     struct sembuf *sops, unsigned nsops,
 				     int alter)
 {
