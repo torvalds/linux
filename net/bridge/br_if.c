@@ -455,7 +455,7 @@ static int __br_mtu(const struct net_bridge *br, bool (compare_fn)(int, int))
 
 int br_mtu(const struct net_bridge *br)
 {
-	if (br->vlan_enabled)
+	if (br_vlan_enabled(br->dev))
 		return __br_mtu(br, max_mtu);
 	else
 		return __br_mtu(br, min_mtu);
