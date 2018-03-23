@@ -296,14 +296,6 @@ bool tcf_idr_check(struct tc_action_net *tn, u32 index, struct tc_action **a,
 }
 EXPORT_SYMBOL(tcf_idr_check);
 
-void tcf_idr_cleanup(struct tc_action *a, struct nlattr *est)
-{
-	if (est)
-		gen_kill_estimator(&a->tcfa_rate_est);
-	free_tcf(a);
-}
-EXPORT_SYMBOL(tcf_idr_cleanup);
-
 int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
 		   struct tc_action **a, const struct tc_action_ops *ops,
 		   int bind, bool cpustats)
