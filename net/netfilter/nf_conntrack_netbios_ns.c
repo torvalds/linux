@@ -33,7 +33,7 @@ MODULE_ALIAS("ip_conntrack_netbios_ns");
 MODULE_ALIAS_NFCT_HELPER("netbios_ns");
 
 static unsigned int timeout __read_mostly = 3;
-module_param(timeout, uint, S_IRUSR);
+module_param(timeout, uint, 0400);
 MODULE_PARM_DESC(timeout, "timeout for master connection/replies in seconds");
 
 static struct nf_conntrack_expect_policy exp_policy = {

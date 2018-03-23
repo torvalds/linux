@@ -32,7 +32,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(PF_RXRPC);
 
 unsigned int rxrpc_debug; // = RXRPC_DEBUG_KPROTO;
-module_param_named(debug, rxrpc_debug, uint, S_IWUSR | S_IRUGO);
+module_param_named(debug, rxrpc_debug, uint, 0644);
 MODULE_PARM_DESC(debug, "RxRPC debugging mask");
 
 static struct proto rxrpc_proto;

@@ -450,17 +450,17 @@ int __net_init sctp_proc_init(struct net *net)
 	net->sctp.proc_net_sctp = proc_net_mkdir(net, "sctp", net->proc_net);
 	if (!net->sctp.proc_net_sctp)
 		return -ENOMEM;
-	if (!proc_create("snmp", S_IRUGO, net->sctp.proc_net_sctp,
-			&sctp_snmp_seq_fops))
+	if (!proc_create("snmp", 0444, net->sctp.proc_net_sctp,
+			 &sctp_snmp_seq_fops))
 		goto cleanup;
-	if (!proc_create("eps", S_IRUGO, net->sctp.proc_net_sctp,
-			&sctp_eps_seq_fops))
+	if (!proc_create("eps", 0444, net->sctp.proc_net_sctp,
+			 &sctp_eps_seq_fops))
 		goto cleanup;
-	if (!proc_create("assocs", S_IRUGO, net->sctp.proc_net_sctp,
-			&sctp_assocs_seq_fops))
+	if (!proc_create("assocs", 0444, net->sctp.proc_net_sctp,
+			 &sctp_assocs_seq_fops))
 		goto cleanup;
-	if (!proc_create("remaddr", S_IRUGO, net->sctp.proc_net_sctp,
-			&sctp_remaddr_seq_fops))
+	if (!proc_create("remaddr", 0444, net->sctp.proc_net_sctp,
+			 &sctp_remaddr_seq_fops))
 		goto cleanup;
 	return 0;
 

@@ -1567,12 +1567,12 @@ static int __init rose_proto_init(void)
 
 	rose_add_loopback_neigh();
 
-	proc_create("rose", S_IRUGO, init_net.proc_net, &rose_info_fops);
-	proc_create("rose_neigh", S_IRUGO, init_net.proc_net,
+	proc_create("rose", 0444, init_net.proc_net, &rose_info_fops);
+	proc_create("rose_neigh", 0444, init_net.proc_net,
 		    &rose_neigh_fops);
-	proc_create("rose_nodes", S_IRUGO, init_net.proc_net,
+	proc_create("rose_nodes", 0444, init_net.proc_net,
 		    &rose_nodes_fops);
-	proc_create("rose_routes", S_IRUGO, init_net.proc_net,
+	proc_create("rose_routes", 0444, init_net.proc_net,
 		    &rose_routes_fops);
 out:
 	return rc;

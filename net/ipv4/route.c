@@ -379,12 +379,12 @@ static int __net_init ip_rt_do_proc_init(struct net *net)
 {
 	struct proc_dir_entry *pde;
 
-	pde = proc_create("rt_cache", S_IRUGO, net->proc_net,
+	pde = proc_create("rt_cache", 0444, net->proc_net,
 			  &rt_cache_seq_fops);
 	if (!pde)
 		goto err1;
 
-	pde = proc_create("rt_cache", S_IRUGO,
+	pde = proc_create("rt_cache", 0444,
 			  net->proc_net_stat, &rt_cpu_seq_fops);
 	if (!pde)
 		goto err2;

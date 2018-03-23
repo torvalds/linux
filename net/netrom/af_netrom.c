@@ -1450,9 +1450,9 @@ static int __init nr_proto_init(void)
 
 	nr_loopback_init();
 
-	proc_create("nr", S_IRUGO, init_net.proc_net, &nr_info_fops);
-	proc_create("nr_neigh", S_IRUGO, init_net.proc_net, &nr_neigh_fops);
-	proc_create("nr_nodes", S_IRUGO, init_net.proc_net, &nr_nodes_fops);
+	proc_create("nr", 0444, init_net.proc_net, &nr_info_fops);
+	proc_create("nr_neigh", 0444, init_net.proc_net, &nr_neigh_fops);
+	proc_create("nr_nodes", 0444, init_net.proc_net, &nr_nodes_fops);
 out:
 	return rc;
 fail:

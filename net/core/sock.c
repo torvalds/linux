@@ -3455,7 +3455,7 @@ static const struct file_operations proto_seq_fops = {
 
 static __net_init int proto_init_net(struct net *net)
 {
-	if (!proc_create("protocols", S_IRUGO, net->proc_net, &proto_seq_fops))
+	if (!proc_create("protocols", 0444, net->proc_net, &proto_seq_fops))
 		return -ENOMEM;
 
 	return 0;

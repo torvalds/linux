@@ -544,7 +544,7 @@ static const struct file_operations ac6_seq_fops = {
 
 int __net_init ac6_proc_init(struct net *net)
 {
-	if (!proc_create("anycast6", S_IRUGO, net->proc_net, &ac6_seq_fops))
+	if (!proc_create("anycast6", 0444, net->proc_net, &ac6_seq_fops))
 		return -ENOMEM;
 
 	return 0;

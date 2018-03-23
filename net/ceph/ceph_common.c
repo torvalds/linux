@@ -54,7 +54,7 @@ static const struct kernel_param_ops param_ops_supported_features = {
 	.get = param_get_supported_features,
 };
 module_param_cb(supported_features, &param_ops_supported_features, NULL,
-		S_IRUGO);
+		0444);
 
 const char *ceph_msg_type_name(int type)
 {

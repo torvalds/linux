@@ -26,7 +26,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS_NFCT_HELPER("snmp");
 
 static unsigned int timeout __read_mostly = 30;
-module_param(timeout, uint, S_IRUSR);
+module_param(timeout, uint, 0400);
 MODULE_PARM_DESC(timeout, "timeout for master connection/replies in seconds");
 
 int (*nf_nat_snmp_hook)(struct sk_buff *skb,
