@@ -54,7 +54,7 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <linux/netfilter/nf_conntrack_snmp.h>
-#include "nf_nat_snmp_basic-asn1.h"
+#include "nf_nat_snmp_basic.asn1.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("James Morris <jmorris@intercode.com.au>");
