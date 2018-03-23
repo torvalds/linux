@@ -2312,43 +2312,46 @@ struct netdev_lag_lower_state_info {
 
 #include <linux/notifier.h>
 
-/* netdevice notifier chain. Please remember to update the rtnetlink
- * notification exclusion list in rtnetlink_event() when adding new
- * types.
+/* netdevice notifier chain. Please remember to update netdev_cmd_to_name()
+ * and the rtnetlink notification exclusion list in rtnetlink_event() when
+ * adding new types.
  */
-#define NETDEV_UP	0x0001	/* For now you can't veto a device up/down */
-#define NETDEV_DOWN	0x0002
-#define NETDEV_REBOOT	0x0003	/* Tell a protocol stack a network interface
+enum netdev_cmd {
+	NETDEV_UP	= 1,	/* For now you can't veto a device up/down */
+	NETDEV_DOWN,
+	NETDEV_REBOOT,		/* Tell a protocol stack a network interface
 				   detected a hardware crash and restarted
 				   - we can use this eg to kick tcp sessions
 				   once done */
-#define NETDEV_CHANGE	0x0004	/* Notify device state change */
-#define NETDEV_REGISTER 0x0005
-#define NETDEV_UNREGISTER	0x0006
-#define NETDEV_CHANGEMTU	0x0007 /* notify after mtu change happened */
-#define NETDEV_CHANGEADDR	0x0008
-#define NETDEV_GOING_DOWN	0x0009
-#define NETDEV_CHANGENAME	0x000A
-#define NETDEV_FEAT_CHANGE	0x000B
-#define NETDEV_BONDING_FAILOVER 0x000C
-#define NETDEV_PRE_UP		0x000D
-#define NETDEV_PRE_TYPE_CHANGE	0x000E
-#define NETDEV_POST_TYPE_CHANGE	0x000F
-#define NETDEV_POST_INIT	0x0010
-#define NETDEV_UNREGISTER_FINAL 0x0011
-#define NETDEV_RELEASE		0x0012
-#define NETDEV_NOTIFY_PEERS	0x0013
-#define NETDEV_JOIN		0x0014
-#define NETDEV_CHANGEUPPER	0x0015
-#define NETDEV_RESEND_IGMP	0x0016
-#define NETDEV_PRECHANGEMTU	0x0017 /* notify before mtu change happened */
-#define NETDEV_CHANGEINFODATA	0x0018
-#define NETDEV_BONDING_INFO	0x0019
-#define NETDEV_PRECHANGEUPPER	0x001A
-#define NETDEV_CHANGELOWERSTATE	0x001B
-#define NETDEV_UDP_TUNNEL_PUSH_INFO	0x001C
-#define NETDEV_UDP_TUNNEL_DROP_INFO	0x001D
-#define NETDEV_CHANGE_TX_QUEUE_LEN	0x001E
+	NETDEV_CHANGE,		/* Notify device state change */
+	NETDEV_REGISTER,
+	NETDEV_UNREGISTER,
+	NETDEV_CHANGEMTU,	/* notify after mtu change happened */
+	NETDEV_CHANGEADDR,
+	NETDEV_GOING_DOWN,
+	NETDEV_CHANGENAME,
+	NETDEV_FEAT_CHANGE,
+	NETDEV_BONDING_FAILOVER,
+	NETDEV_PRE_UP,
+	NETDEV_PRE_TYPE_CHANGE,
+	NETDEV_POST_TYPE_CHANGE,
+	NETDEV_POST_INIT,
+	NETDEV_UNREGISTER_FINAL,
+	NETDEV_RELEASE,
+	NETDEV_NOTIFY_PEERS,
+	NETDEV_JOIN,
+	NETDEV_CHANGEUPPER,
+	NETDEV_RESEND_IGMP,
+	NETDEV_PRECHANGEMTU,	/* notify before mtu change happened */
+	NETDEV_CHANGEINFODATA,
+	NETDEV_BONDING_INFO,
+	NETDEV_PRECHANGEUPPER,
+	NETDEV_CHANGELOWERSTATE,
+	NETDEV_UDP_TUNNEL_PUSH_INFO,
+	NETDEV_UDP_TUNNEL_DROP_INFO,
+	NETDEV_CHANGE_TX_QUEUE_LEN,
+};
+const char *netdev_cmd_to_name(enum netdev_cmd cmd);
 
 int register_netdevice_notifier(struct notifier_block *nb);
 int unregister_netdevice_notifier(struct notifier_block *nb);

@@ -97,20 +97,7 @@ void usnic_ib_log_vf(struct usnic_ib_vf *vf)
 /* Start of netdev section */
 static inline const char *usnic_ib_netdev_event_to_string(unsigned long event)
 {
-	const char *event2str[] = {"NETDEV_NONE", "NETDEV_UP", "NETDEV_DOWN",
-		"NETDEV_REBOOT", "NETDEV_CHANGE",
-		"NETDEV_REGISTER", "NETDEV_UNREGISTER", "NETDEV_CHANGEMTU",
-		"NETDEV_CHANGEADDR", "NETDEV_GOING_DOWN", "NETDEV_FEAT_CHANGE",
-		"NETDEV_BONDING_FAILOVER", "NETDEV_PRE_UP",
-		"NETDEV_PRE_TYPE_CHANGE", "NETDEV_POST_TYPE_CHANGE",
-		"NETDEV_POST_INT", "NETDEV_UNREGISTER_FINAL", "NETDEV_RELEASE",
-		"NETDEV_NOTIFY_PEERS", "NETDEV_JOIN"
-	};
-
-	if (event >= ARRAY_SIZE(event2str))
-		return "UNKNOWN_NETDEV_EVENT";
-	else
-		return event2str[event];
+	return netdev_cmd_to_name(event);
 }
 
 static void usnic_ib_qp_grp_modify_active_to_err(struct usnic_ib_dev *us_ibdev)

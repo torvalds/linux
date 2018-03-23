@@ -1571,6 +1571,26 @@ static void dev_disable_gro_hw(struct net_device *dev)
 		netdev_WARN(dev, "failed to disable GRO_HW!\n");
 }
 
+const char *netdev_cmd_to_name(enum netdev_cmd cmd)
+{
+#define N(val) 						\
+	case NETDEV_##val:				\
+		return "NETDEV_" __stringify(val);
+	switch (cmd) {
+	N(UP) N(DOWN) N(REBOOT) N(CHANGE) N(REGISTER) N(UNREGISTER)
+	N(CHANGEMTU) N(CHANGEADDR) N(GOING_DOWN) N(CHANGENAME) N(FEAT_CHANGE)
+	N(BONDING_FAILOVER) N(PRE_UP) N(PRE_TYPE_CHANGE) N(POST_TYPE_CHANGE)
+	N(POST_INIT) N(RELEASE) N(NOTIFY_PEERS) N(JOIN) N(CHANGEUPPER)
+	N(RESEND_IGMP) N(PRECHANGEMTU) N(CHANGEINFODATA) N(BONDING_INFO)
+	N(PRECHANGEUPPER) N(CHANGELOWERSTATE) N(UDP_TUNNEL_PUSH_INFO)
+	N(UDP_TUNNEL_DROP_INFO) N(CHANGE_TX_QUEUE_LEN)
+	N(UNREGISTER_FINAL)
+	};
+#undef N
+	return "UNKNOWN_NETDEV_EVENT";
+}
+EXPORT_SYMBOL_GPL(netdev_cmd_to_name);
+
 static int call_netdevice_notifier(struct notifier_block *nb, unsigned long val,
 				   struct net_device *dev)
 {
