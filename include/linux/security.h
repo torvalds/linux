@@ -49,7 +49,6 @@ struct qstr;
 struct iattr;
 struct fown_struct;
 struct file_operations;
-struct shmid_kernel;
 struct msg_msg;
 struct msg_queue;
 struct xattr;
@@ -362,11 +361,11 @@ int security_msg_queue_msgsnd(struct msg_queue *msq,
 			      struct msg_msg *msg, int msqflg);
 int security_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg,
 			      struct task_struct *target, long type, int mode);
-int security_shm_alloc(struct shmid_kernel *shp);
-void security_shm_free(struct shmid_kernel *shp);
-int security_shm_associate(struct shmid_kernel *shp, int shmflg);
-int security_shm_shmctl(struct shmid_kernel *shp, int cmd);
-int security_shm_shmat(struct shmid_kernel *shp, char __user *shmaddr, int shmflg);
+int security_shm_alloc(struct kern_ipc_perm *shp);
+void security_shm_free(struct kern_ipc_perm *shp);
+int security_shm_associate(struct kern_ipc_perm *shp, int shmflg);
+int security_shm_shmctl(struct kern_ipc_perm *shp, int cmd);
+int security_shm_shmat(struct kern_ipc_perm *shp, char __user *shmaddr, int shmflg);
 int security_sem_alloc(struct kern_ipc_perm *sma);
 void security_sem_free(struct kern_ipc_perm *sma);
 int security_sem_associate(struct kern_ipc_perm *sma, int semflg);
@@ -1077,26 +1076,26 @@ static inline int security_msg_queue_msgrcv(struct msg_queue *msq,
 	return 0;
 }
 
-static inline int security_shm_alloc(struct shmid_kernel *shp)
+static inline int security_shm_alloc(struct kern_ipc_perm *shp)
 {
 	return 0;
 }
 
-static inline void security_shm_free(struct shmid_kernel *shp)
+static inline void security_shm_free(struct kern_ipc_perm *shp)
 { }
 
-static inline int security_shm_associate(struct shmid_kernel *shp,
+static inline int security_shm_associate(struct kern_ipc_perm *shp,
 					 int shmflg)
 {
 	return 0;
 }
 
-static inline int security_shm_shmctl(struct shmid_kernel *shp, int cmd)
+static inline int security_shm_shmctl(struct kern_ipc_perm *shp, int cmd)
 {
 	return 0;
 }
 
-static inline int security_shm_shmat(struct shmid_kernel *shp,
+static inline int security_shm_shmat(struct kern_ipc_perm *shp,
 				     char __user *shmaddr, int shmflg)
 {
 	return 0;
