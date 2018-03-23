@@ -36,9 +36,12 @@
 struct vgic_state_iter {
 	int nr_cpus;
 	int nr_spis;
+	int nr_lpis;
 	int dist_id;
 	int vcpu_id;
 	int intid;
+	int lpi_idx;
+	u32 *lpi_array;
 };
 
 static void iter_next(struct vgic_state_iter *iter)
@@ -52,6 +55,12 @@ static void iter_next(struct vgic_state_iter *iter)
 	if (iter->intid == VGIC_NR_PRIVATE_IRQS &&
 	    ++iter->vcpu_id < iter->nr_cpus)
 		iter->intid = 0;
+
+	if (iter->intid >= (iter->nr_spis + VGIC_NR_PRIVATE_IRQS)) {
+		if (iter->lpi_idx < iter->nr_lpis)
+			iter->intid = iter->lpi_array[iter->lpi_idx];
+		iter->lpi_idx++;
+	}
 }
 
 static void iter_init(struct kvm *kvm, struct vgic_state_iter *iter,
@@ -63,6 +72,11 @@ static void iter_init(struct kvm *kvm, struct vgic_state_iter *iter,
 
 	iter->nr_cpus = nr_cpus;
 	iter->nr_spis = kvm->arch.vgic.nr_spis;
+	if (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+		iter->nr_lpis = vgic_copy_lpi_list(kvm, NULL, &iter->lpi_array);
+		if (iter->nr_lpis < 0)
+			iter->nr_lpis = 0;
+	}
 
 	/* Fast forward to the right position if needed */
 	while (pos--)
@@ -73,7 +87,8 @@ static bool end_of_vgic(struct vgic_state_iter *iter)
 {
 	return iter->dist_id > 0 &&
 		iter->vcpu_id == iter->nr_cpus &&
-		(iter->intid - VGIC_NR_PRIVATE_IRQS) == iter->nr_spis;
+		iter->intid >= (iter->nr_spis + VGIC_NR_PRIVATE_IRQS) &&
+		iter->lpi_idx > iter->nr_lpis;
 }
 
 static void *vgic_debug_start(struct seq_file *s, loff_t *pos)
@@ -130,6 +145,7 @@ static void vgic_debug_stop(struct seq_file *s, void *v)
 
 	mutex_lock(&kvm->lock);
 	iter = kvm->arch.vgic.iter;
+	kfree(iter->lpi_array);
 	kfree(iter);
 	kvm->arch.vgic.iter = NULL;
 	mutex_unlock(&kvm->lock);
@@ -137,12 +153,14 @@ static void vgic_debug_stop(struct seq_file *s, void *v)
 
 static void print_dist_state(struct seq_file *s, struct vgic_dist *dist)
 {
+	bool v3 = dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3;
+
 	seq_printf(s, "Distributor\n");
 	seq_printf(s, "===========\n");
-	seq_printf(s, "vgic_model:\t%s\n",
-		   (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) ?
-		   "GICv3" : "GICv2");
+	seq_printf(s, "vgic_model:\t%s\n", v3 ? "GICv3" : "GICv2");
 	seq_printf(s, "nr_spis:\t%d\n", dist->nr_spis);
+	if (v3)
+		seq_printf(s, "nr_lpis:\t%d\n", dist->lpi_list_count);
 	seq_printf(s, "enabled:\t%d\n", dist->enabled);
 	seq_printf(s, "\n");
 
@@ -174,8 +192,10 @@ static void print_irq_state(struct seq_file *s, struct vgic_irq *irq,
 		type = "SGI";
 	else if (irq->intid < VGIC_NR_PRIVATE_IRQS)
 		type = "PPI";
-	else
+	else if (irq->intid < VGIC_MAX_SPI)
 		type = "SPI";
+	else
+		type = "LPI";
 
 	if (irq->intid ==0 || irq->intid == VGIC_NR_PRIVATE_IRQS)
 		print_header(s, irq, vcpu);
@@ -202,7 +222,6 @@ static void print_irq_state(struct seq_file *s, struct vgic_irq *irq,
 			irq->source,
 			irq->priority,
 			(irq->vcpu) ? irq->vcpu->vcpu_id : -1);
-
 }
 
 static int vgic_debug_show(struct seq_file *s, void *v)
@@ -221,17 +240,20 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 	if (!kvm->arch.vgic.initialized)
 		return 0;
 
-	if (iter->vcpu_id < iter->nr_cpus) {
+	if (iter->vcpu_id < iter->nr_cpus)
 		vcpu = kvm_get_vcpu(kvm, iter->vcpu_id);
-		irq = &vcpu->arch.vgic_cpu.private_irqs[iter->intid];
-	} else {
-		irq = &kvm->arch.vgic.spis[iter->intid - VGIC_NR_PRIVATE_IRQS];
+
+	irq = vgic_get_irq(kvm, vcpu, iter->intid);
+	if (!irq) {
+		seq_printf(s, "       LPI %4d freed\n", iter->intid);
+		return 0;
 	}
 
 	spin_lock_irqsave(&irq->irq_lock, flags);
 	print_irq_state(s, irq, vcpu);
 	spin_unlock_irqrestore(&irq->irq_lock, flags);
 
+	vgic_put_irq(kvm, irq);
 	return 0;
 }
 

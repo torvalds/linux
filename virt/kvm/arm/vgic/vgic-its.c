@@ -318,9 +318,9 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
  * enumerate those LPIs without holding any lock.
  * Returns their number and puts the kmalloc'ed array into intid_ptr.
  */
-static int vgic_copy_lpi_list(struct kvm_vcpu *vcpu, u32 **intid_ptr)
+int vgic_copy_lpi_list(struct kvm *kvm, struct kvm_vcpu *vcpu, u32 **intid_ptr)
 {
-	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct vgic_irq *irq;
 	unsigned long flags;
 	u32 *intids;
@@ -343,7 +343,7 @@ static int vgic_copy_lpi_list(struct kvm_vcpu *vcpu, u32 **intid_ptr)
 		if (i == irq_count)
 			break;
 		/* We don't need to "get" the IRQ, as we hold the list lock. */
-		if (irq->target_vcpu != vcpu)
+		if (vcpu && irq->target_vcpu != vcpu)
 			continue;
 		intids[i++] = irq->intid;
 	}
@@ -435,7 +435,7 @@ static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 	unsigned long flags;
 	u8 pendmask;
 
-	nr_irqs = vgic_copy_lpi_list(vcpu, &intids);
+	nr_irqs = vgic_copy_lpi_list(vcpu->kvm, vcpu, &intids);
 	if (nr_irqs < 0)
 		return nr_irqs;
 
@@ -1160,7 +1160,7 @@ static int vgic_its_cmd_handle_invall(struct kvm *kvm, struct vgic_its *its,
 
 	vcpu = kvm_get_vcpu(kvm, collection->target_addr);
 
-	irq_count = vgic_copy_lpi_list(vcpu, &intids);
+	irq_count = vgic_copy_lpi_list(kvm, vcpu, &intids);
 	if (irq_count < 0)
 		return irq_count;
 
@@ -1208,7 +1208,7 @@ static int vgic_its_cmd_handle_movall(struct kvm *kvm, struct vgic_its *its,
 	vcpu1 = kvm_get_vcpu(kvm, target1_addr);
 	vcpu2 = kvm_get_vcpu(kvm, target2_addr);
 
-	irq_count = vgic_copy_lpi_list(vcpu1, &intids);
+	irq_count = vgic_copy_lpi_list(kvm, vcpu1, &intids);
 	if (irq_count < 0)
 		return irq_count;
 
