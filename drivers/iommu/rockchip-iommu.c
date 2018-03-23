@@ -824,7 +824,7 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 
 	ret = rk_iommu_force_reset(iommu);
 	if (ret)
-		return ret;
+		goto out_disable_stall;
 
 	iommu->domain = domain;
 
@@ -837,7 +837,7 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 
 	ret = rk_iommu_enable_paging(iommu);
 	if (ret)
-		return ret;
+		goto out_disable_stall;
 
 	spin_lock_irqsave(&rk_domain->iommus_lock, flags);
 	list_add_tail(&iommu->node, &rk_domain->iommus);
@@ -845,9 +845,9 @@ static int rk_iommu_attach_device(struct iommu_domain *domain,
 
 	dev_dbg(dev, "Attached to iommu domain\n");
 
+out_disable_stall:
 	rk_iommu_disable_stall(iommu);
-
-	return 0;
+	return ret;
 }
 
 static void rk_iommu_detach_device(struct iommu_domain *domain,
