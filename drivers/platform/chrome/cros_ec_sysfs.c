@@ -258,21 +258,102 @@ exit:
 	return ret;
 }
 
+/* Keyboard wake angle control */
+static ssize_t kb_wake_angle_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
+	struct ec_response_motion_sense *resp;
+	struct ec_params_motion_sense *param;
+	struct cros_ec_command *msg;
+	int ret;
+
+	msg = kmalloc(sizeof(*msg) + EC_HOST_PARAM_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	param = (struct ec_params_motion_sense *)msg->data;
+	msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
+	msg->version = 2;
+	param->cmd = MOTIONSENSE_CMD_KB_WAKE_ANGLE;
+	param->kb_wake_angle.data = EC_MOTION_SENSE_NO_VALUE;
+	msg->outsize = sizeof(*param);
+	msg->insize = sizeof(*resp);
+
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+	if (ret < 0)
+		goto exit;
+
+	resp = (struct ec_response_motion_sense *)msg->data;
+	ret = scnprintf(buf, PAGE_SIZE, "%d\n", resp->kb_wake_angle.ret);
+exit:
+	kfree(msg);
+	return ret;
+}
+
+static ssize_t kb_wake_angle_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
+	struct ec_params_motion_sense *param;
+	struct cros_ec_command *msg;
+	u16 angle;
+	int ret;
+
+	ret = kstrtou16(buf, 0, &angle);
+	if (ret)
+		return ret;
+
+	msg = kmalloc(sizeof(*msg) + EC_HOST_PARAM_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	param = (struct ec_params_motion_sense *)msg->data;
+	msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
+	msg->version = 2;
+	param->cmd = MOTIONSENSE_CMD_KB_WAKE_ANGLE;
+	param->kb_wake_angle.data = angle;
+	msg->outsize = sizeof(*param);
+	msg->insize = sizeof(struct ec_response_motion_sense);
+
+	ret = cros_ec_cmd_xfer_status(ec->ec_dev, msg);
+	kfree(msg);
+	if (ret < 0)
+		return ret;
+	return count;
+}
+
 /* Module initialization */
 
 static DEVICE_ATTR_RW(reboot);
 static DEVICE_ATTR_RO(version);
 static DEVICE_ATTR_RO(flashinfo);
+static DEVICE_ATTR_RW(kb_wake_angle);
 
 static struct attribute *__ec_attrs[] = {
+	&dev_attr_kb_wake_angle.attr,
 	&dev_attr_reboot.attr,
 	&dev_attr_version.attr,
 	&dev_attr_flashinfo.attr,
 	NULL,
 };
 
+static umode_t cros_ec_ctrl_visible(struct kobject *kobj,
+				    struct attribute *a, int n)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
+
+	if (a == &dev_attr_kb_wake_angle.attr && !ec->has_kb_wake_angle)
+		return 0;
+
+	return a->mode;
+}
+
 struct attribute_group cros_ec_attr_group = {
 	.attrs = __ec_attrs,
+	.is_visible = cros_ec_ctrl_visible,
 };
 EXPORT_SYMBOL(cros_ec_attr_group);
 
