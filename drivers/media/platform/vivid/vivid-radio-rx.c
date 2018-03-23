@@ -247,7 +247,7 @@ int vivid_radio_rx_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 	vt->rangehigh = FM_FREQ_RANGE_HIGH;
 	sig_qual = dev->radio_rx_sig_qual;
 	vt->signal = abs(sig_qual) > delta ? 0 :
-		     0xffff - (abs(sig_qual) * 0xffff) / delta;
+		     0xffff - ((unsigned)abs(sig_qual) * 0xffff) / delta;
 	vt->afc = sig_qual > delta ? 0 : sig_qual;
 	if (abs(sig_qual) > delta)
 		vt->rxsubchans = 0;
