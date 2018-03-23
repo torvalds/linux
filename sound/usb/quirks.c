@@ -1151,48 +1151,18 @@ bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 
 /* ITF-USB DSD based DACs need a vendor cmd to switch
  * between PCM and native DSD mode
- * (2 altsets version)
  */
-static bool is_itf_usb_dsd_2alts_dac(struct snd_usb_audio *chip)
+static bool is_itf_usb_dsd_dac(unsigned int id)
 {
-	char *product = chip->dev->product; /* DAC product name */
-
-	switch (chip->usb_id) {
+	switch (id) {
 	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
 	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
 	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
 	case USB_ID(0x1852, 0x5065): /* Luxman DA-06 */
-		return true;
-	case USB_ID(0x0644, 0x8043):
-		/* TEAC UD-501 */
-		if (product && strcmp("UD-501", product)) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-	return false;
-}
-
-/* ITF-USB DSD based DACs need a vendor cmd to switch
- * between PCM and native DSD mode
- * (3 altsets version)
- */
-static bool is_itf_usb_dsd_3alts_dac(struct snd_usb_audio *chip)
-{
-	char *product = chip->dev->product; /* DAC product name */
-
-	switch (chip->usb_id) {
+	case USB_ID(0x0644, 0x8043): /* TEAC UD-501/UD-501V2/UD-503/NT-503 */
 	case USB_ID(0x0644, 0x8044): /* Esoteric D-05X */
 	case USB_ID(0x0644, 0x804a): /* TEAC UD-301 */
 		return true;
-	case USB_ID(0x0644, 0x8043):
-		/* TEAC UD-501V2/UD-503/NT-503 */
-		if (product && !strcmp("UD-501", product)) {
-			return true;
-		} else {
-			return false;
-		}
 	}
 	return false;
 }
@@ -1203,7 +1173,7 @@ int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 	struct usb_device *dev = subs->dev;
 	int err;
 
-	if (is_itf_usb_dsd_2alts_dac(subs->stream->chip)) {
+	if (is_itf_usb_dsd_dac(subs->stream->chip->usb_id)) {
 		/* First switch to alt set 0, otherwise the mode switch cmd
 		 * will not be accepted by the DAC
 		 */
@@ -1213,37 +1183,26 @@ int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 
 		mdelay(20); /* Delay needed after setting the interface */
 
-		switch (fmt->altsetting) {
-		case 2: /* DSD mode requested */
-		case 1: /* PCM mode requested */
-			err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), 0,
-					      USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
-					      fmt->altsetting - 1, 1, NULL, 0);
-			if (err < 0)
-				return err;
-			break;
-		}
-		mdelay(20);
-	} else if (is_itf_usb_dsd_3alts_dac(subs->stream->chip)) {
 		/* Vendor mode switch cmd is required. */
-		switch (fmt->altsetting) {
-		case 3: /* DSD mode (DSD_U32) requested */
+		if (fmt->formats & SNDRV_PCM_FMTBIT_DSD_U32_BE) {
+			/* DSD mode (DSD_U32) requested */
 			err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), 0,
 					      USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
 					      1, 1, NULL, 0);
 			if (err < 0)
 				return err;
-			break;
 
-		case 2: /* PCM or DOP mode (S32) requested */
-		case 1: /* PCM mode (S16) requested */
+		} else {
+			/* PCM or DOP mode (S32) requested */
+			/* PCM mode (S16) requested */
 			err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), 0,
 					      USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
 					      0, 1, NULL, 0);
 			if (err < 0)
 				return err;
-			break;
+
 		}
+		mdelay(20);
 	}
 	return 0;
 }
@@ -1323,7 +1282,7 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 	/* ITF-USB DSD based DACs functionality need a delay
 	 * after each class compliant request
 	 */
-	if (is_itf_usb_dsd_2alts_dac(chip)
+	if (is_itf_usb_dsd_dac(chip->usb_id)
 	    && (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		mdelay(20);
 
@@ -1349,6 +1308,8 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 					struct audioformat *fp,
 					unsigned int sample_bytes)
 {
+	struct usb_interface *iface;
+
 	/* Playback Designs */
 	if (USB_ID_VENDOR(chip->usb_id) == 0x23ba) {
 		switch (fp->altsetting) {
@@ -1410,15 +1371,16 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 		break;
 	}
 
-	/* ITF-USB DSD based DACs (2 altsets version) */
-	if (is_itf_usb_dsd_2alts_dac(chip)) {
-		if (fp->altsetting == 2)
-			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
-	}
+	/* ITF-USB DSD based DACs */
+	if (is_itf_usb_dsd_dac(chip->usb_id)) {
+		iface = usb_ifnum_to_if(chip->dev, fp->iface);
 
-	/* ITF-USB DSD based DACs (3 altsets version) */
-	if (is_itf_usb_dsd_3alts_dac(chip)) {
-		if (fp->altsetting == 3)
+		/* Altsetting 2 support native DSD if the num of altsets is
+		 * three (0-2),
+		 * Altsetting 3 support native DSD if the num of altsets is
+		 * four (0-3).
+		 */
+		if (fp->altsetting == iface->num_altsetting - 1)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 	}
 
