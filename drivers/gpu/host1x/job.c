@@ -196,10 +196,10 @@ unpin:
 
 static int do_relocs(struct host1x_job *job, struct host1x_job_gather *g)
 {
-	int i = 0;
 	u32 last_page = ~0;
 	void *cmdbuf_page_addr = NULL;
 	struct host1x_bo *cmdbuf = g->bo;
+	unsigned int i;
 
 	/* pin & patch the relocs for one gather */
 	for (i = 0; i < job->num_relocs; i++) {
@@ -451,7 +451,7 @@ static inline int copy_gathers(struct host1x_job *job, struct device *dev)
 	struct host1x_firewall fw;
 	size_t size = 0;
 	size_t offset = 0;
-	int i;
+	unsigned int i;
 
 	fw.job = job;
 	fw.dev = dev;

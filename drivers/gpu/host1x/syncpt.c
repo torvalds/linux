@@ -57,8 +57,8 @@ static struct host1x_syncpt *host1x_syncpt_alloc(struct host1x *host,
 						 struct host1x_client *client,
 						 unsigned long flags)
 {
-	int i;
 	struct host1x_syncpt *sp = host->syncpt;
+	unsigned int i;
 	char *name;
 
 	mutex_lock(&host->syncpt_mutex);

@@ -144,7 +144,7 @@ static const action_handler action_handlers[HOST1X_INTR_ACTION_COUNT] = {
 static void run_handlers(struct list_head completed[HOST1X_INTR_ACTION_COUNT])
 {
 	struct list_head *head = completed;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < HOST1X_INTR_ACTION_COUNT; ++i, ++head) {
 		action_handler handler = action_handlers[i];
