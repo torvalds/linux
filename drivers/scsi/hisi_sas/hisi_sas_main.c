@@ -78,22 +78,23 @@ u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis, int direction)
 	case ATA_CMD_STANDBYNOW1:
 	case ATA_CMD_ZAC_MGMT_OUT:
 		return HISI_SAS_SATA_PROTOCOL_NONDATA;
+
+	case ATA_CMD_SET_MAX:
+		switch (fis->features) {
+		case ATA_SET_MAX_PASSWD:
+		case ATA_SET_MAX_LOCK:
+			return HISI_SAS_SATA_PROTOCOL_PIO;
+
+		case ATA_SET_MAX_PASSWD_DMA:
+		case ATA_SET_MAX_UNLOCK_DMA:
+			return HISI_SAS_SATA_PROTOCOL_DMA;
+
+		default:
+			return HISI_SAS_SATA_PROTOCOL_NONDATA;
+		}
+
 	default:
 	{
-		if (fis->command == ATA_CMD_SET_MAX) {
-			switch (fis->features) {
-			case ATA_SET_MAX_PASSWD:
-			case ATA_SET_MAX_LOCK:
-				return HISI_SAS_SATA_PROTOCOL_PIO;
-
-			case ATA_SET_MAX_PASSWD_DMA:
-			case ATA_SET_MAX_UNLOCK_DMA:
-				return HISI_SAS_SATA_PROTOCOL_DMA;
-
-			default:
-				return HISI_SAS_SATA_PROTOCOL_NONDATA;
-			}
-		}
 		if (direction == DMA_NONE)
 			return HISI_SAS_SATA_PROTOCOL_NONDATA;
 		return HISI_SAS_SATA_PROTOCOL_PIO;
