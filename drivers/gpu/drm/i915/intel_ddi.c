@@ -592,6 +592,26 @@ static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_e
 	{ 0x0, 0x00, 0x00 },	/* 350         0.0   */
 };
 
+struct icl_mg_phy_ddi_buf_trans {
+	u32 cri_txdeemph_override_5_0;
+	u32 cri_txdeemph_override_11_6;
+	u32 cri_txdeemph_override_17_12;
+};
+
+static const struct icl_mg_phy_ddi_buf_trans icl_mg_phy_ddi_translations[] = {
+				/* Voltage swing  pre-emphasis */
+	{ 0x0, 0x1B, 0x00 },	/* 0              0   */
+	{ 0x0, 0x23, 0x08 },	/* 0              1   */
+	{ 0x0, 0x2D, 0x12 },	/* 0              2   */
+	{ 0x0, 0x00, 0x00 },	/* 0              3   */
+	{ 0x0, 0x23, 0x00 },	/* 1              0   */
+	{ 0x0, 0x2B, 0x09 },	/* 1              1   */
+	{ 0x0, 0x2E, 0x11 },	/* 1              2   */
+	{ 0x0, 0x2F, 0x00 },	/* 2              0   */
+	{ 0x0, 0x33, 0x0C },	/* 2              1   */
+	{ 0x0, 0x00, 0x00 },	/* 3              0   */
+};
+
 static const struct ddi_buf_trans *
 bdw_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 {
