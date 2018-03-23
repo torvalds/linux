@@ -1121,9 +1121,6 @@ class Tui(object):
         self.screen.refresh()
 
     def _refresh_body(self, sleeptime):
-        def is_child_field(field):
-            return field.find('(') != -1
-
         def insert_child(sorted_items, child, values, parent):
             num = len(sorted_items)
             for i in range(0, num):
