@@ -38,8 +38,8 @@
 
 /* Accessor functions */
 
-static ssize_t show_ec_reboot(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+static ssize_t reboot_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
 {
 	int count = 0;
 
@@ -50,9 +50,9 @@ static ssize_t show_ec_reboot(struct device *dev,
 	return count;
 }
 
-static ssize_t store_ec_reboot(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t reboot_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	static const struct {
 		const char * const str;
@@ -123,8 +123,8 @@ exit:
 	return count;
 }
 
-static ssize_t show_ec_version(struct device *dev,
-			       struct device_attribute *attr, char *buf)
+static ssize_t version_show(struct device *dev,
+			    struct device_attribute *attr, char *buf)
 {
 	static const char * const image_names[] = {"unknown", "RO", "RW"};
 	struct ec_response_get_version *r_ver;
@@ -225,8 +225,8 @@ exit:
 	return count;
 }
 
-static ssize_t show_ec_flashinfo(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+static ssize_t flashinfo_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct ec_response_flash_info *resp;
 	struct cros_ec_command *msg;
@@ -260,9 +260,9 @@ exit:
 
 /* Module initialization */
 
-static DEVICE_ATTR(reboot, S_IWUSR | S_IRUGO, show_ec_reboot, store_ec_reboot);
-static DEVICE_ATTR(version, S_IRUGO, show_ec_version, NULL);
-static DEVICE_ATTR(flashinfo, S_IRUGO, show_ec_flashinfo, NULL);
+static DEVICE_ATTR_RW(reboot);
+static DEVICE_ATTR_RO(version);
+static DEVICE_ATTR_RO(flashinfo);
 
 static struct attribute *__ec_attrs[] = {
 	&dev_attr_reboot.attr,
