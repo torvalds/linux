@@ -252,6 +252,20 @@ static void dwc2_set_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 		p->g_tx_fifo_size[i] = depth_average;
 }
 
+static void dwc2_set_param_power_down(struct dwc2_hsotg *hsotg)
+{
+	int val;
+
+	if (hsotg->hw_params.hibernation)
+		val = 2;
+	else if (hsotg->hw_params.power_optimized)
+		val = 1;
+	else
+		val = 0;
+
+	hsotg->params.power_down = val;
+}
+
 /**
  * dwc2_set_default_params() - Set all core parameters to their
  * auto-detected default values.
@@ -266,21 +280,27 @@ static void dwc2_set_default_params(struct dwc2_hsotg *hsotg)
 	dwc2_set_param_phy_type(hsotg);
 	dwc2_set_param_speed(hsotg);
 	dwc2_set_param_phy_utmi_width(hsotg);
+	dwc2_set_param_power_down(hsotg);
 	p->phy_ulpi_ddr = false;
 	p->phy_ulpi_ext_vbus = false;
 
 	p->enable_dynamic_fifo = hw->enable_dynamic_fifo;
 	p->en_multiple_tx_fifo = hw->en_multiple_tx_fifo;
 	p->i2c_enable = hw->i2c_enable;
+	p->acg_enable = hw->acg_enable;
 	p->ulpi_fs_ls = false;
 	p->ts_dline = false;
 	p->reload_ctl = (hw->snpsid >= DWC2_CORE_REV_2_92a);
 	p->uframe_sched = true;
 	p->external_id_pin_ctl = false;
-	p->hibernation = false;
+	p->lpm = true;
+	p->lpm_clock_gating = true;
+	p->besl = true;
+	p->hird_threshold_en = true;
+	p->hird_threshold = 4;
 	p->max_packet_count = hw->max_packet_count;
 	p->max_transfer_size = hw->max_transfer_size;
-	p->ahbcfg = GAHBCFG_HBSTLEN_INCR4 << GAHBCFG_HBSTLEN_SHIFT;
+	p->ahbcfg = GAHBCFG_HBSTLEN_INCR << GAHBCFG_HBSTLEN_SHIFT;
 
 	if ((hsotg->dr_mode == USB_DR_MODE_HOST) ||
 	    (hsotg->dr_mode == USB_DR_MODE_OTG)) {
@@ -463,6 +483,38 @@ static void dwc2_check_param_phy_utmi_width(struct dwc2_hsotg *hsotg)
 		dwc2_set_param_phy_utmi_width(hsotg);
 }
 
+static void dwc2_check_param_power_down(struct dwc2_hsotg *hsotg)
+{
+	int param = hsotg->params.power_down;
+
+	switch (param) {
+	case DWC2_POWER_DOWN_PARAM_NONE:
+		break;
+	case DWC2_POWER_DOWN_PARAM_PARTIAL:
+		if (hsotg->hw_params.power_optimized)
+			break;
+		dev_dbg(hsotg->dev,
+			"Partial power down isn't supported by HW\n");
+		param = DWC2_POWER_DOWN_PARAM_NONE;
+		break;
+	case DWC2_POWER_DOWN_PARAM_HIBERNATION:
+		if (hsotg->hw_params.hibernation)
+			break;
+		dev_dbg(hsotg->dev,
+			"Hibernation isn't supported by HW\n");
+		param = DWC2_POWER_DOWN_PARAM_NONE;
+		break;
+	default:
+		dev_err(hsotg->dev,
+			"%s: Invalid parameter power_down=%d\n",
+			__func__, param);
+		param = DWC2_POWER_DOWN_PARAM_NONE;
+		break;
+	}
+
+	hsotg->params.power_down = param;
+}
+
 static void dwc2_check_param_tx_fifo_sizes(struct dwc2_hsotg *hsotg)
 {
 	int fifo_count;
@@ -523,10 +575,19 @@ static void dwc2_check_params(struct dwc2_hsotg *hsotg)
 	dwc2_check_param_phy_type(hsotg);
 	dwc2_check_param_speed(hsotg);
 	dwc2_check_param_phy_utmi_width(hsotg);
+	dwc2_check_param_power_down(hsotg);
 	CHECK_BOOL(enable_dynamic_fifo, hw->enable_dynamic_fifo);
 	CHECK_BOOL(en_multiple_tx_fifo, hw->en_multiple_tx_fifo);
 	CHECK_BOOL(i2c_enable, hw->i2c_enable);
+	CHECK_BOOL(acg_enable, hw->acg_enable);
 	CHECK_BOOL(reload_ctl, (hsotg->hw_params.snpsid > DWC2_CORE_REV_2_92a));
+	CHECK_BOOL(lpm, (hsotg->hw_params.snpsid >= DWC2_CORE_REV_2_80a));
+	CHECK_BOOL(lpm, hw->lpm_mode);
+	CHECK_BOOL(lpm_clock_gating, hsotg->params.lpm);
+	CHECK_BOOL(besl, hsotg->params.lpm);
+	CHECK_BOOL(besl, (hsotg->hw_params.snpsid >= DWC2_CORE_REV_3_00a));
+	CHECK_BOOL(hird_threshold_en, hsotg->params.lpm);
+	CHECK_RANGE(hird_threshold, 0, hsotg->params.besl ? 12 : 7, 0);
 	CHECK_RANGE(max_packet_count,
 		    15, hw->max_packet_count,
 		    hw->max_packet_count);
@@ -579,18 +640,14 @@ static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
 	struct dwc2_hw_params *hw = &hsotg->hw_params;
 	u32 gnptxfsiz;
 	u32 hptxfsiz;
-	bool forced;
 
 	if (hsotg->dr_mode == USB_DR_MODE_PERIPHERAL)
 		return;
 
-	forced = dwc2_force_mode_if_needed(hsotg, true);
+	dwc2_force_mode(hsotg, true);
 
 	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
 	hptxfsiz = dwc2_readl(hsotg->regs + HPTXFSIZ);
-
-	if (forced)
-		dwc2_clear_force_mode(hsotg);
 
 	hw->host_nperio_tx_fifo_size = (gnptxfsiz & FIFOSIZE_DEPTH_MASK) >>
 				       FIFOSIZE_DEPTH_SHIFT;
@@ -606,14 +663,13 @@ static void dwc2_get_host_hwparams(struct dwc2_hsotg *hsotg)
 static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 {
 	struct dwc2_hw_params *hw = &hsotg->hw_params;
-	bool forced;
 	u32 gnptxfsiz;
 	int fifo, fifo_count;
 
 	if (hsotg->dr_mode == USB_DR_MODE_HOST)
 		return;
 
-	forced = dwc2_force_mode_if_needed(hsotg, false);
+	dwc2_force_mode(hsotg, false);
 
 	gnptxfsiz = dwc2_readl(hsotg->regs + GNPTXFSIZ);
 
@@ -624,9 +680,6 @@ static void dwc2_get_dev_hwparams(struct dwc2_hsotg *hsotg)
 			(dwc2_readl(hsotg->regs + DPTXFSIZN(fifo)) &
 			 FIFOSIZE_DEPTH_MASK) >> FIFOSIZE_DEPTH_SHIFT;
 	}
-
-	if (forced)
-		dwc2_clear_force_mode(hsotg);
 
 	hw->dev_nperio_tx_fifo_size = (gnptxfsiz & FIFOSIZE_DEPTH_MASK) >>
 				       FIFOSIZE_DEPTH_SHIFT;
@@ -646,14 +699,13 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	/*
 	 * Attempt to ensure this device is really a DWC_otg Controller.
 	 * Read and verify the GSNPSID register contents. The value should be
-	 * 0x45f42xxx or 0x45f43xxx, which corresponds to either "OT2" or "OT3",
-	 * as in "OTG version 2.xx" or "OTG version 3.xx".
+	 * 0x45f4xxxx, 0x5531xxxx or 0x5532xxxx
 	 */
+
 	hw->snpsid = dwc2_readl(hsotg->regs + GSNPSID);
-	if ((hw->snpsid & 0xfffff000) != 0x4f542000 &&
-	    (hw->snpsid & 0xfffff000) != 0x4f543000 &&
-	    (hw->snpsid & 0xffff0000) != 0x55310000 &&
-	    (hw->snpsid & 0xffff0000) != 0x55320000) {
+	if ((hw->snpsid & GSNPSID_ID_MASK) != DWC2_OTG_ID &&
+	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_FS_IOT_ID &&
+	    (hw->snpsid & GSNPSID_ID_MASK) != DWC2_HS_IOT_ID) {
 		dev_err(hsotg->dev, "Bad value for GSNPSID: 0x%08x\n",
 			hw->snpsid);
 		return -ENODEV;
@@ -706,6 +758,7 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 	hw->i2c_enable = !!(hwcfg3 & GHWCFG3_I2C);
 	hw->total_fifo_size = (hwcfg3 & GHWCFG3_DFIFO_DEPTH_MASK) >>
 			      GHWCFG3_DFIFO_DEPTH_SHIFT;
+	hw->lpm_mode = !!(hwcfg3 & GHWCFG3_OTG_LPM_EN);
 
 	/* hwcfg4 */
 	hw->en_multiple_tx_fifo = !!(hwcfg4 & GHWCFG4_DED_FIFO_EN);
@@ -715,8 +768,10 @@ int dwc2_get_hwparams(struct dwc2_hsotg *hsotg)
 			     GHWCFG4_NUM_IN_EPS_SHIFT;
 	hw->dma_desc_enable = !!(hwcfg4 & GHWCFG4_DESC_DMA);
 	hw->power_optimized = !!(hwcfg4 & GHWCFG4_POWER_OPTIMIZ);
+	hw->hibernation = !!(hwcfg4 & GHWCFG4_HIBER);
 	hw->utmi_phy_data_width = (hwcfg4 & GHWCFG4_UTMI_PHY_DATA_WIDTH_MASK) >>
 				  GHWCFG4_UTMI_PHY_DATA_WIDTH_SHIFT;
+	hw->acg_enable = !!(hwcfg4 & GHWCFG4_ACG_SUPPORTED);
 
 	/* fifo sizes */
 	hw->rx_fifo_size = (grxfsiz & GRXFSIZ_DEPTH_MASK) >>

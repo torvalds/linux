@@ -718,7 +718,12 @@ static int params_show(struct seq_file *seq, void *v)
 	print_param_hex(seq, p, ahbcfg);
 	print_param(seq, p, uframe_sched);
 	print_param(seq, p, external_id_pin_ctl);
-	print_param(seq, p, hibernation);
+	print_param(seq, p, power_down);
+	print_param(seq, p, lpm);
+	print_param(seq, p, lpm_clock_gating);
+	print_param(seq, p, besl);
+	print_param(seq, p, hird_threshold_en);
+	print_param(seq, p, hird_threshold);
 	print_param(seq, p, host_dma);
 	print_param(seq, p, g_dma);
 	print_param(seq, p, g_dma_desc);

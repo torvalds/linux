@@ -151,7 +151,7 @@ static int ep_bd_list_alloc(struct bdc_ep *ep)
 		if (!bd_table)
 			goto fail;
 
-		bd_table->start_bd = dma_pool_alloc(bdc->bd_table_pool,
+		bd_table->start_bd = dma_pool_zalloc(bdc->bd_table_pool,
 							GFP_ATOMIC,
 							&dma);
 		if (!bd_table->start_bd) {
@@ -167,7 +167,6 @@ static int ep_bd_list_alloc(struct bdc_ep *ep)
 			(unsigned long long)bd_table->dma, prev_table);
 
 		ep->bd_list.bd_table_array[index] = bd_table;
-		memset(bd_table->start_bd, 0, bd_p_tab * sizeof(struct bdc_bd));
 		if (prev_table)
 			chain_table(prev_table, bd_table, bd_p_tab);
 
