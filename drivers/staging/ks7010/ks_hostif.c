@@ -1316,6 +1316,17 @@ static __le16 ks_wlan_cap(struct ks_wlan_private *priv)
 	return cpu_to_le16((uint16_t)capability);
 }
 
+static void init_request(struct ks_wlan_private *priv, struct hostif_request_t *req)
+{
+	req->phy_type = cpu_to_le16((uint16_t)(priv->reg.phy_type));
+	req->cts_mode = cpu_to_le16((uint16_t)(priv->reg.cts_mode));
+	req->scan_type = cpu_to_le16((uint16_t)(priv->reg.scan_type));
+	req->rate_set.size = priv->reg.rate_set.size;
+	req->capability = ks_wlan_cap(priv);
+	memcpy(&req->rate_set.body[0], &priv->reg.rate_set.body[0],
+	       priv->reg.rate_set.size);
+}
+
 static
 void hostif_ps_adhoc_set_request(struct ks_wlan_private *priv)
 {
@@ -1325,14 +1336,8 @@ void hostif_ps_adhoc_set_request(struct ks_wlan_private *priv)
 	if (!pp)
 		return;
 
-	pp->phy_type = cpu_to_le16((uint16_t)(priv->reg.phy_type));
-	pp->cts_mode = cpu_to_le16((uint16_t)(priv->reg.cts_mode));
-	pp->scan_type = cpu_to_le16((uint16_t)(priv->reg.scan_type));
+	init_request(priv, &pp->request);
 	pp->channel = cpu_to_le16((uint16_t)(priv->reg.channel));
-	pp->rate_set.size = priv->reg.rate_set.size;
-	pp->capability = ks_wlan_cap(priv);
-	memcpy(&pp->rate_set.body[0], &priv->reg.rate_set.body[0],
-	       priv->reg.rate_set.size);
 
 	/* send to device request */
 	ps_confirm_wait_inc(priv);
@@ -1348,16 +1353,9 @@ void hostif_infrastructure_set_request(struct ks_wlan_private *priv)
 	if (!pp)
 		return;
 
-	pp->phy_type = cpu_to_le16((uint16_t)(priv->reg.phy_type));
-	pp->cts_mode = cpu_to_le16((uint16_t)(priv->reg.cts_mode));
-	pp->scan_type = cpu_to_le16((uint16_t)(priv->reg.scan_type));
-
-	pp->rate_set.size = priv->reg.rate_set.size;
-	memcpy(&pp->rate_set.body[0], &priv->reg.rate_set.body[0],
-	       priv->reg.rate_set.size);
+	init_request(priv, &pp->request);
 	pp->ssid.size = priv->reg.ssid.size;
 	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
-	pp->capability = ks_wlan_cap(priv);
 	pp->beacon_lost_count =
 	    cpu_to_le16((uint16_t)(priv->reg.beacon_lost_count));
 	pp->auth_type = cpu_to_le16((uint16_t)(priv->reg.authenticate_type));
@@ -1395,16 +1393,9 @@ static void hostif_infrastructure_set2_request(struct ks_wlan_private *priv)
 	if (!pp)
 		return;
 
-	pp->phy_type = cpu_to_le16((uint16_t)(priv->reg.phy_type));
-	pp->cts_mode = cpu_to_le16((uint16_t)(priv->reg.cts_mode));
-	pp->scan_type = cpu_to_le16((uint16_t)(priv->reg.scan_type));
-
-	pp->rate_set.size = priv->reg.rate_set.size;
-	memcpy(&pp->rate_set.body[0], &priv->reg.rate_set.body[0],
-	       priv->reg.rate_set.size);
+	init_request(priv, &pp->request);
 	pp->ssid.size = priv->reg.ssid.size;
 	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
-	pp->capability = ks_wlan_cap(priv);
 	pp->beacon_lost_count =
 	    cpu_to_le16((uint16_t)(priv->reg.beacon_lost_count));
 	pp->auth_type = cpu_to_le16((uint16_t)(priv->reg.authenticate_type));
@@ -1445,16 +1436,10 @@ void hostif_adhoc_set_request(struct ks_wlan_private *priv)
 	if (!pp)
 		return;
 
-	pp->phy_type = cpu_to_le16((uint16_t)(priv->reg.phy_type));
-	pp->cts_mode = cpu_to_le16((uint16_t)(priv->reg.cts_mode));
-	pp->scan_type = cpu_to_le16((uint16_t)(priv->reg.scan_type));
+	init_request(priv, &pp->request);
 	pp->channel = cpu_to_le16((uint16_t)(priv->reg.channel));
-	pp->rate_set.size = priv->reg.rate_set.size;
-	memcpy(&pp->rate_set.body[0], &priv->reg.rate_set.body[0],
-	       priv->reg.rate_set.size);
 	pp->ssid.size = priv->reg.ssid.size;
 	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
-	pp->capability = ks_wlan_cap(priv);
 
 	/* send to device request */
 	ps_confirm_wait_inc(priv);
@@ -1470,15 +1455,9 @@ void hostif_adhoc_set2_request(struct ks_wlan_private *priv)
 	if (!pp)
 		return;
 
-	pp->phy_type = cpu_to_le16((uint16_t)(priv->reg.phy_type));
-	pp->cts_mode = cpu_to_le16((uint16_t)(priv->reg.cts_mode));
-	pp->scan_type = cpu_to_le16((uint16_t)(priv->reg.scan_type));
-	pp->rate_set.size = priv->reg.rate_set.size;
-	memcpy(&pp->rate_set.body[0], &priv->reg.rate_set.body[0],
-	       priv->reg.rate_set.size);
+	init_request(priv, &pp->request);
 	pp->ssid.size = priv->reg.ssid.size;
 	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
-	pp->capability = ks_wlan_cap(priv);
 
 	pp->channel_list.body[0] = priv->reg.channel;
 	pp->channel_list.size = 1;
