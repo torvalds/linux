@@ -777,7 +777,8 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 	ap_info = (struct ap_info_t *)(priv->rxp);
 
 	if (priv->scan_ind_count) {
-		for (i = 0; i < priv->aplist.size; i++) {	/* bssid check */
+		/* bssid check */
+		for (i = 0; i < priv->aplist.size; i++) {
 			if (memcmp(ap_info->bssid,
 				   priv->aplist.ap[i].bssid, ETH_ALEN) != 0)
 				continue;
