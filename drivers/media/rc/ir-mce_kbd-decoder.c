@@ -475,6 +475,7 @@ static struct ir_raw_handler mce_kbd_handler = {
 	.raw_register	= ir_mce_kbd_register,
 	.raw_unregister	= ir_mce_kbd_unregister,
 	.carrier	= 36000,
+	.min_timeout	= MCIR2_MAX_LEN + MCIR2_UNIT / 2,
 };
 
 static int __init ir_mce_kbd_decode_init(void)

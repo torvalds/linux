@@ -233,7 +233,36 @@ ir_raw_get_allowed_protocols(void)
 
 static int change_protocol(struct rc_dev *dev, u64 *rc_proto)
 {
-	/* the caller will update dev->enabled_protocols */
+	struct ir_raw_handler *handler;
+	u32 timeout = 0;
+
+	if (!dev->max_timeout)
+		return 0;
+
+	mutex_lock(&ir_raw_handler_lock);
+	list_for_each_entry(handler, &ir_raw_handler_list, list) {
+		if (handler->protocols & *rc_proto) {
+			if (timeout < handler->min_timeout)
+				timeout = handler->min_timeout;
+		}
+	}
+	mutex_unlock(&ir_raw_handler_lock);
+
+	if (timeout == 0)
+		timeout = IR_DEFAULT_TIMEOUT;
+	else
+		timeout += MS_TO_NS(10);
+
+	if (timeout < dev->min_timeout)
+		timeout = dev->min_timeout;
+	else if (timeout > dev->max_timeout)
+		timeout = dev->max_timeout;
+
+	if (dev->s_timeout)
+		dev->s_timeout(dev, timeout);
+	else
+		dev->timeout = timeout;
+
 	return 0;
 }
 
