@@ -1012,10 +1012,17 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	err = sysfs_create_link(&phydev->mdio.dev.kobj, &dev->dev.kobj,
 				"attached_dev");
 	if (!err) {
-		err = sysfs_create_link(&dev->dev.kobj, &phydev->mdio.dev.kobj,
-					"phydev");
-		if (err)
-			goto error;
+		err = sysfs_create_link_nowarn(&dev->dev.kobj,
+					       &phydev->mdio.dev.kobj,
+					       "phydev");
+		if (err) {
+			dev_err(&dev->dev, "could not add device link to %s err %d\n",
+				kobject_name(&phydev->mdio.dev.kobj),
+				err);
+			/* non-fatal - some net drivers can use one netdevice
+			 * with more then one phy
+			 */
+		}
 
 		phydev->sysfs_links = true;
 	}
@@ -1665,6 +1672,23 @@ int genphy_config_init(struct phy_device *phydev)
 	return 0;
 }
 EXPORT_SYMBOL(genphy_config_init);
+
+/* This is used for the phy device which doesn't support the MMD extended
+ * register access, but it does have side effect when we are trying to access
+ * the MMD register via indirect method.
+ */
+int genphy_read_mmd_unsupported(struct phy_device *phdev, int devad, u16 regnum)
+{
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(genphy_read_mmd_unsupported);
+
+int genphy_write_mmd_unsupported(struct phy_device *phdev, int devnum,
+				 u16 regnum, u16 val)
+{
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(genphy_write_mmd_unsupported);
 
 int genphy_suspend(struct phy_device *phydev)
 {

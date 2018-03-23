@@ -5423,6 +5423,7 @@ err:
 static void nf_tables_flowtable_destroy(struct nft_flowtable *flowtable)
 {
 	cancel_delayed_work_sync(&flowtable->data.gc_work);
+	kfree(flowtable->ops);
 	kfree(flowtable->name);
 	flowtable->data.type->free(&flowtable->data);
 	rhashtable_destroy(&flowtable->data.rhashtable);

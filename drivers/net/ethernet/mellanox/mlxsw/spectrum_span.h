@@ -51,6 +51,9 @@ struct mlxsw_sp_span_inspected_port {
 	struct list_head list;
 	enum mlxsw_sp_span_type type;
 	u8 local_port;
+
+	/* Whether this is a directly bound mirror (port-to-port) or an ACL. */
+	bool bound;
 };
 
 struct mlxsw_sp_span_parms {

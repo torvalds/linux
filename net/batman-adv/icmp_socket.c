@@ -24,6 +24,7 @@
 #include <linux/debugfs.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
+#include <linux/eventpoll.h>
 #include <linux/export.h>
 #include <linux/fcntl.h>
 #include <linux/fs.h>

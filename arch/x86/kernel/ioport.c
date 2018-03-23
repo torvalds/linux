@@ -23,7 +23,7 @@
 /*
  * this changes the io permissions bitmap in the current task.
  */
-asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
+SYSCALL_DEFINE3(ioperm, unsigned long, from, unsigned long, num, int, turn_on)
 {
 	struct thread_struct *t = &current->thread;
 	struct tss_struct *tss;

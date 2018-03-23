@@ -400,6 +400,10 @@
 #define E1000_ICR_RXDMT0        0x00000010 /* Rx desc min. threshold (0) */
 #define E1000_ICR_RXO           0x00000040 /* Receiver Overrun */
 #define E1000_ICR_RXT0          0x00000080 /* Rx timer intr (ring 0) */
+#define E1000_ICR_MDAC          0x00000200 /* MDIO Access Complete */
+#define E1000_ICR_SRPD          0x00010000 /* Small Receive Packet Detected */
+#define E1000_ICR_ACK           0x00020000 /* Receive ACK Frame Detected */
+#define E1000_ICR_MNG           0x00040000 /* Manageability Event Detected */
 #define E1000_ICR_ECCER         0x00400000 /* Uncorrectable ECC Error */
 /* If this bit asserted, the driver should claim the interrupt */
 #define E1000_ICR_INT_ASSERTED	0x80000000
@@ -407,7 +411,7 @@
 #define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
 #define E1000_ICR_TXQ0          0x00400000 /* Tx Queue 0 Interrupt */
 #define E1000_ICR_TXQ1          0x00800000 /* Tx Queue 1 Interrupt */
-#define E1000_ICR_OTHER         0x01000000 /* Other Interrupts */
+#define E1000_ICR_OTHER         0x01000000 /* Other Interrupt */
 
 /* PBA ECC Register */
 #define E1000_PBA_ECC_COUNTER_MASK  0xFFF00000 /* ECC counter mask */
@@ -431,12 +435,27 @@
 	E1000_IMS_RXSEQ  |    \
 	E1000_IMS_LSC)
 
+/* These are all of the events related to the OTHER interrupt.
+ */
+#define IMS_OTHER_MASK ( \
+	E1000_IMS_LSC  | \
+	E1000_IMS_RXO  | \
+	E1000_IMS_MDAC | \
+	E1000_IMS_SRPD | \
+	E1000_IMS_ACK  | \
+	E1000_IMS_MNG)
+
 /* Interrupt Mask Set */
 #define E1000_IMS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
 #define E1000_IMS_LSC       E1000_ICR_LSC       /* Link Status Change */
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* Rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* Rx desc min. threshold */
+#define E1000_IMS_RXO       E1000_ICR_RXO       /* Receiver Overrun */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* Rx timer intr */
+#define E1000_IMS_MDAC      E1000_ICR_MDAC      /* MDIO Access Complete */
+#define E1000_IMS_SRPD      E1000_ICR_SRPD      /* Small Receive Packet */
+#define E1000_IMS_ACK       E1000_ICR_ACK       /* Receive ACK Frame Detected */
+#define E1000_IMS_MNG       E1000_ICR_MNG       /* Manageability Event */
 #define E1000_IMS_ECCER     E1000_ICR_ECCER     /* Uncorrectable ECC Error */
 #define E1000_IMS_RXQ0      E1000_ICR_RXQ0      /* Rx Queue 0 Interrupt */
 #define E1000_IMS_RXQ1      E1000_ICR_RXQ1      /* Rx Queue 1 Interrupt */

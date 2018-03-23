@@ -28,16 +28,7 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/watchdog.h>
-#ifdef CONFIG_HPWDT_NMI_DECODING
-#include <linux/dmi.h>
-#include <linux/spinlock.h>
-#include <linux/nmi.h>
-#include <linux/kdebug.h>
-#include <linux/notifier.h>
-#include <asm/set_memory.h>
-#endif /* CONFIG_HPWDT_NMI_DECODING */
 #include <asm/nmi.h>
-#include <asm/frame.h>
 
 #define HPWDT_VERSION			"1.4.0"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
@@ -48,6 +39,9 @@
 static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
 static unsigned int reload;			/* the computed soft_margin */
 static bool nowayout = WATCHDOG_NOWAYOUT;
+#ifdef CONFIG_HPWDT_NMI_DECODING
+static unsigned int allow_kdump = 1;
+#endif
 static char expect_release;
 static unsigned long hpwdt_is_open;
 
@@ -63,373 +57,6 @@ static const struct pci_device_id hpwdt_devices[] = {
 };
 MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
-#ifdef CONFIG_HPWDT_NMI_DECODING
-#define PCI_BIOS32_SD_VALUE		0x5F32335F	/* "_32_" */
-#define CRU_BIOS_SIGNATURE_VALUE	0x55524324
-#define PCI_BIOS32_PARAGRAPH_LEN	16
-#define PCI_ROM_BASE1			0x000F0000
-#define ROM_SIZE			0x10000
-
-struct bios32_service_dir {
-	u32 signature;
-	u32 entry_point;
-	u8 revision;
-	u8 length;
-	u8 checksum;
-	u8 reserved[5];
-};
-
-/* type 212 */
-struct smbios_cru64_info {
-	u8 type;
-	u8 byte_length;
-	u16 handle;
-	u32 signature;
-	u64 physical_address;
-	u32 double_length;
-	u32 double_offset;
-};
-#define SMBIOS_CRU64_INFORMATION	212
-
-/* type 219 */
-struct smbios_proliant_info {
-	u8 type;
-	u8 byte_length;
-	u16 handle;
-	u32 power_features;
-	u32 omega_features;
-	u32 reserved;
-	u32 misc_features;
-};
-#define SMBIOS_ICRU_INFORMATION		219
-
-
-struct cmn_registers {
-	union {
-		struct {
-			u8 ral;
-			u8 rah;
-			u16 rea2;
-		};
-		u32 reax;
-	} u1;
-	union {
-		struct {
-			u8 rbl;
-			u8 rbh;
-			u8 reb2l;
-			u8 reb2h;
-		};
-		u32 rebx;
-	} u2;
-	union {
-		struct {
-			u8 rcl;
-			u8 rch;
-			u16 rec2;
-		};
-		u32 recx;
-	} u3;
-	union {
-		struct {
-			u8 rdl;
-			u8 rdh;
-			u16 red2;
-		};
-		u32 redx;
-	} u4;
-
-	u32 resi;
-	u32 redi;
-	u16 rds;
-	u16 res;
-	u32 reflags;
-}  __attribute__((packed));
-
-static unsigned int hpwdt_nmi_decoding;
-static unsigned int allow_kdump = 1;
-static unsigned int is_icru;
-static unsigned int is_uefi;
-static DEFINE_SPINLOCK(rom_lock);
-static void *cru_rom_addr;
-static struct cmn_registers cmn_regs;
-
-extern asmlinkage void asminline_call(struct cmn_registers *pi86Regs,
-						unsigned long *pRomEntry);
-
-#ifdef CONFIG_X86_32
-/* --32 Bit Bios------------------------------------------------------------ */
-
-#define HPWDT_ARCH	32
-
-asm(".text                          \n\t"
-    ".align 4                       \n\t"
-    ".globl asminline_call	    \n"
-    "asminline_call:                \n\t"
-    "pushl       %ebp               \n\t"
-    "movl        %esp, %ebp         \n\t"
-    "pusha                          \n\t"
-    "pushf                          \n\t"
-    "push        %es                \n\t"
-    "push        %ds                \n\t"
-    "pop         %es                \n\t"
-    "movl        8(%ebp),%eax       \n\t"
-    "movl        4(%eax),%ebx       \n\t"
-    "movl        8(%eax),%ecx       \n\t"
-    "movl        12(%eax),%edx      \n\t"
-    "movl        16(%eax),%esi      \n\t"
-    "movl        20(%eax),%edi      \n\t"
-    "movl        (%eax),%eax        \n\t"
-    "push        %cs                \n\t"
-    "call        *12(%ebp)          \n\t"
-    "pushf                          \n\t"
-    "pushl       %eax               \n\t"
-    "movl        8(%ebp),%eax       \n\t"
-    "movl        %ebx,4(%eax)       \n\t"
-    "movl        %ecx,8(%eax)       \n\t"
-    "movl        %edx,12(%eax)      \n\t"
-    "movl        %esi,16(%eax)      \n\t"
-    "movl        %edi,20(%eax)      \n\t"
-    "movw        %ds,24(%eax)       \n\t"
-    "movw        %es,26(%eax)       \n\t"
-    "popl        %ebx               \n\t"
-    "movl        %ebx,(%eax)        \n\t"
-    "popl        %ebx               \n\t"
-    "movl        %ebx,28(%eax)      \n\t"
-    "pop         %es                \n\t"
-    "popf                           \n\t"
-    "popa                           \n\t"
-    "leave                          \n\t"
-    "ret                            \n\t"
-    ".previous");
-
-
-/*
- *	cru_detect
- *
- *	Routine Description:
- *	This function uses the 32-bit BIOS Service Directory record to
- *	search for a $CRU record.
- *
- *	Return Value:
- *	0        :  SUCCESS
- *	<0       :  FAILURE
- */
-static int cru_detect(unsigned long map_entry,
-	unsigned long map_offset)
-{
-	void *bios32_map;
-	unsigned long *bios32_entrypoint;
-	unsigned long cru_physical_address;
-	unsigned long cru_length;
-	unsigned long physical_bios_base = 0;
-	unsigned long physical_bios_offset = 0;
-	int retval = -ENODEV;
-
-	bios32_map = ioremap(map_entry, (2 * PAGE_SIZE));
-
-	if (bios32_map == NULL)
-		return -ENODEV;
-
-	bios32_entrypoint = bios32_map + map_offset;
-
-	cmn_regs.u1.reax = CRU_BIOS_SIGNATURE_VALUE;
-
-	set_memory_x((unsigned long)bios32_map, 2);
-	asminline_call(&cmn_regs, bios32_entrypoint);
-
-	if (cmn_regs.u1.ral != 0) {
-		pr_warn("Call succeeded but with an error: 0x%x\n",
-			cmn_regs.u1.ral);
-	} else {
-		physical_bios_base = cmn_regs.u2.rebx;
-		physical_bios_offset = cmn_regs.u4.redx;
-		cru_length = cmn_regs.u3.recx;
-		cru_physical_address =
-			physical_bios_base + physical_bios_offset;
-
-		/* If the values look OK, then map it in. */
-		if ((physical_bios_base + physical_bios_offset)) {
-			cru_rom_addr =
-				ioremap(cru_physical_address, cru_length);
-			if (cru_rom_addr) {
-				set_memory_x((unsigned long)cru_rom_addr & PAGE_MASK,
-					(cru_length + PAGE_SIZE - 1) >> PAGE_SHIFT);
-				retval = 0;
-			}
-		}
-
-		pr_debug("CRU Base Address:   0x%lx\n", physical_bios_base);
-		pr_debug("CRU Offset Address: 0x%lx\n", physical_bios_offset);
-		pr_debug("CRU Length:         0x%lx\n", cru_length);
-		pr_debug("CRU Mapped Address: %p\n", &cru_rom_addr);
-	}
-	iounmap(bios32_map);
-	return retval;
-}
-
-/*
- *	bios_checksum
- */
-static int bios_checksum(const char __iomem *ptr, int len)
-{
-	char sum = 0;
-	int i;
-
-	/*
-	 * calculate checksum of size bytes. This should add up
-	 * to zero if we have a valid header.
-	 */
-	for (i = 0; i < len; i++)
-		sum += ptr[i];
-
-	return ((sum == 0) && (len > 0));
-}
-
-/*
- *	bios32_present
- *
- *	Routine Description:
- *	This function finds the 32-bit BIOS Service Directory
- *
- *	Return Value:
- *	0        :  SUCCESS
- *	<0       :  FAILURE
- */
-static int bios32_present(const char __iomem *p)
-{
-	struct bios32_service_dir *bios_32_ptr;
-	int length;
-	unsigned long map_entry, map_offset;
-
-	bios_32_ptr = (struct bios32_service_dir *) p;
-
-	/*
-	 * Search for signature by checking equal to the swizzled value
-	 * instead of calling another routine to perform a strcmp.
-	 */
-	if (bios_32_ptr->signature == PCI_BIOS32_SD_VALUE) {
-		length = bios_32_ptr->length * PCI_BIOS32_PARAGRAPH_LEN;
-		if (bios_checksum(p, length)) {
-			/*
-			 * According to the spec, we're looking for the
-			 * first 4KB-aligned address below the entrypoint
-			 * listed in the header. The Service Directory code
-			 * is guaranteed to occupy no more than 2 4KB pages.
-			 */
-			map_entry = bios_32_ptr->entry_point & ~(PAGE_SIZE - 1);
-			map_offset = bios_32_ptr->entry_point - map_entry;
-
-			return cru_detect(map_entry, map_offset);
-		}
-	}
-	return -ENODEV;
-}
-
-static int detect_cru_service(void)
-{
-	char __iomem *p, *q;
-	int rc = -1;
-
-	/*
-	 * Search from 0x0f0000 through 0x0fffff, inclusive.
-	 */
-	p = ioremap(PCI_ROM_BASE1, ROM_SIZE);
-	if (p == NULL)
-		return -ENOMEM;
-
-	for (q = p; q < p + ROM_SIZE; q += 16) {
-		rc = bios32_present(q);
-		if (!rc)
-			break;
-	}
-	iounmap(p);
-	return rc;
-}
-/* ------------------------------------------------------------------------- */
-#endif /* CONFIG_X86_32 */
-#ifdef CONFIG_X86_64
-/* --64 Bit Bios------------------------------------------------------------ */
-
-#define HPWDT_ARCH	64
-
-asm(".text                      \n\t"
-    ".align 4                   \n\t"
-    ".globl asminline_call	\n\t"
-    ".type asminline_call, @function \n\t"
-    "asminline_call:            \n\t"
-    FRAME_BEGIN
-    "pushq      %rax            \n\t"
-    "pushq      %rbx            \n\t"
-    "pushq      %rdx            \n\t"
-    "pushq      %r12            \n\t"
-    "pushq      %r9             \n\t"
-    "movq       %rsi, %r12      \n\t"
-    "movq       %rdi, %r9       \n\t"
-    "movl       4(%r9),%ebx     \n\t"
-    "movl       8(%r9),%ecx     \n\t"
-    "movl       12(%r9),%edx    \n\t"
-    "movl       16(%r9),%esi    \n\t"
-    "movl       20(%r9),%edi    \n\t"
-    "movl       (%r9),%eax      \n\t"
-    "call       *%r12           \n\t"
-    "pushfq                     \n\t"
-    "popq        %r12           \n\t"
-    "movl       %eax, (%r9)     \n\t"
-    "movl       %ebx, 4(%r9)    \n\t"
-    "movl       %ecx, 8(%r9)    \n\t"
-    "movl       %edx, 12(%r9)   \n\t"
-    "movl       %esi, 16(%r9)   \n\t"
-    "movl       %edi, 20(%r9)   \n\t"
-    "movq       %r12, %rax      \n\t"
-    "movl       %eax, 28(%r9)   \n\t"
-    "popq       %r9             \n\t"
-    "popq       %r12            \n\t"
-    "popq       %rdx            \n\t"
-    "popq       %rbx            \n\t"
-    "popq       %rax            \n\t"
-    FRAME_END
-    "ret                        \n\t"
-    ".previous");
-
-/*
- *	dmi_find_cru
- *
- *	Routine Description:
- *	This function checks whether or not a SMBIOS/DMI record is
- *	the 64bit CRU info or not
- */
-static void dmi_find_cru(const struct dmi_header *dm, void *dummy)
-{
-	struct smbios_cru64_info *smbios_cru64_ptr;
-	unsigned long cru_physical_address;
-
-	if (dm->type == SMBIOS_CRU64_INFORMATION) {
-		smbios_cru64_ptr = (struct smbios_cru64_info *) dm;
-		if (smbios_cru64_ptr->signature == CRU_BIOS_SIGNATURE_VALUE) {
-			cru_physical_address =
-				smbios_cru64_ptr->physical_address +
-				smbios_cru64_ptr->double_offset;
-			cru_rom_addr = ioremap(cru_physical_address,
-				smbios_cru64_ptr->double_length);
-			set_memory_x((unsigned long)cru_rom_addr & PAGE_MASK,
-				smbios_cru64_ptr->double_length >> PAGE_SHIFT);
-		}
-	}
-}
-
-static int detect_cru_service(void)
-{
-	cru_rom_addr = NULL;
-
-	dmi_walk(dmi_find_cru, NULL);
-
-	/* if cru_rom_addr has been set then we found a CRU service */
-	return ((cru_rom_addr != NULL) ? 0 : -ENODEV);
-}
-/* ------------------------------------------------------------------------- */
-#endif /* CONFIG_X86_64 */
-#endif /* CONFIG_HPWDT_NMI_DECODING */
 
 /*
  *	Watchdog operations
@@ -486,30 +113,12 @@ static int hpwdt_my_nmi(void)
  */
 static int hpwdt_pretimeout(unsigned int ulReason, struct pt_regs *regs)
 {
-	unsigned long rom_pl;
-	static int die_nmi_called;
-
-	if (!hpwdt_nmi_decoding)
-		return NMI_DONE;
-
 	if ((ulReason == NMI_UNKNOWN) && !hpwdt_my_nmi())
 		return NMI_DONE;
-
-	spin_lock_irqsave(&rom_lock, rom_pl);
-	if (!die_nmi_called && !is_icru && !is_uefi)
-		asminline_call(&cmn_regs, cru_rom_addr);
-	die_nmi_called = 1;
-	spin_unlock_irqrestore(&rom_lock, rom_pl);
 
 	if (allow_kdump)
 		hpwdt_stop();
 
-	if (!is_icru && !is_uefi) {
-		if (cmn_regs.u1.ral == 0) {
-			nmi_panic(regs, "An NMI occurred, but unable to determine source.\n");
-			return NMI_HANDLED;
-		}
-	}
 	nmi_panic(regs, "An NMI occurred. Depending on your system the reason "
 		"for the NMI is logged in any one of the following "
 		"resources:\n"
@@ -675,84 +284,11 @@ static struct miscdevice hpwdt_miscdev = {
  *	Init & Exit
  */
 
-#ifdef CONFIG_HPWDT_NMI_DECODING
-#ifdef CONFIG_X86_LOCAL_APIC
-static void hpwdt_check_nmi_decoding(struct pci_dev *dev)
-{
-	/*
-	 * If nmi_watchdog is turned off then we can turn on
-	 * our nmi decoding capability.
-	 */
-	hpwdt_nmi_decoding = 1;
-}
-#else
-static void hpwdt_check_nmi_decoding(struct pci_dev *dev)
-{
-	dev_warn(&dev->dev, "NMI decoding is disabled. "
-		"Your kernel does not support a NMI Watchdog.\n");
-}
-#endif /* CONFIG_X86_LOCAL_APIC */
-
-/*
- *	dmi_find_icru
- *
- *	Routine Description:
- *	This function checks whether or not we are on an iCRU-based server.
- *	This check is independent of architecture and needs to be made for
- *	any ProLiant system.
- */
-static void dmi_find_icru(const struct dmi_header *dm, void *dummy)
-{
-	struct smbios_proliant_info *smbios_proliant_ptr;
-
-	if (dm->type == SMBIOS_ICRU_INFORMATION) {
-		smbios_proliant_ptr = (struct smbios_proliant_info *) dm;
-		if (smbios_proliant_ptr->misc_features & 0x01)
-			is_icru = 1;
-		if (smbios_proliant_ptr->misc_features & 0x1400)
-			is_uefi = 1;
-	}
-}
 
 static int hpwdt_init_nmi_decoding(struct pci_dev *dev)
 {
+#ifdef CONFIG_HPWDT_NMI_DECODING
 	int retval;
-
-	/*
-	 * On typical CRU-based systems we need to map that service in
-	 * the BIOS. For 32 bit Operating Systems we need to go through
-	 * the 32 Bit BIOS Service Directory. For 64 bit Operating
-	 * Systems we get that service through SMBIOS.
-	 *
-	 * On systems that support the new iCRU service all we need to
-	 * do is call dmi_walk to get the supported flag value and skip
-	 * the old cru detect code.
-	 */
-	dmi_walk(dmi_find_icru, NULL);
-	if (!is_icru && !is_uefi) {
-
-		/*
-		* We need to map the ROM to get the CRU service.
-		* For 32 bit Operating Systems we need to go through the 32 Bit
-		* BIOS Service Directory
-		* For 64 bit Operating Systems we get that service through SMBIOS.
-		*/
-		retval = detect_cru_service();
-		if (retval < 0) {
-			dev_warn(&dev->dev,
-				"Unable to detect the %d Bit CRU Service.\n",
-				HPWDT_ARCH);
-			return retval;
-		}
-
-		/*
-		* We know this is the only CRU call we need to make so lets keep as
-		* few instructions as possible once the NMI comes in.
-		*/
-		cmn_regs.u1.rah = 0x0D;
-		cmn_regs.u1.ral = 0x02;
-	}
-
 	/*
 	 * Only one function can register for NMI_UNKNOWN
 	 */
@@ -780,43 +316,24 @@ error:
 	dev_warn(&dev->dev,
 		"Unable to register a die notifier (err=%d).\n",
 		retval);
-	if (cru_rom_addr)
-		iounmap(cru_rom_addr);
 	return retval;
-}
-
-static void hpwdt_exit_nmi_decoding(void)
-{
-	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
-	unregister_nmi_handler(NMI_SERR, "hpwdt");
-	unregister_nmi_handler(NMI_IO_CHECK, "hpwdt");
-	if (cru_rom_addr)
-		iounmap(cru_rom_addr);
-}
-#else /* !CONFIG_HPWDT_NMI_DECODING */
-static void hpwdt_check_nmi_decoding(struct pci_dev *dev)
-{
-}
-
-static int hpwdt_init_nmi_decoding(struct pci_dev *dev)
-{
+#endif	/* CONFIG_HPWDT_NMI_DECODING */
 	return 0;
 }
 
 static void hpwdt_exit_nmi_decoding(void)
 {
+#ifdef CONFIG_HPWDT_NMI_DECODING
+	unregister_nmi_handler(NMI_UNKNOWN, "hpwdt");
+	unregister_nmi_handler(NMI_SERR, "hpwdt");
+	unregister_nmi_handler(NMI_IO_CHECK, "hpwdt");
+#endif
 }
-#endif /* CONFIG_HPWDT_NMI_DECODING */
 
 static int hpwdt_init_one(struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	int retval;
-
-	/*
-	 * Check if we can do NMI decoding or not
-	 */
-	hpwdt_check_nmi_decoding(dev);
 
 	/*
 	 * First let's find out if we are on an iLO2+ server. We will
@@ -922,6 +439,6 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 #ifdef CONFIG_HPWDT_NMI_DECODING
 module_param(allow_kdump, int, 0);
 MODULE_PARM_DESC(allow_kdump, "Start a kernel dump after NMI occurs");
-#endif /* !CONFIG_HPWDT_NMI_DECODING */
+#endif /* CONFIG_HPWDT_NMI_DECODING */
 
 module_pci_driver(hpwdt_driver);

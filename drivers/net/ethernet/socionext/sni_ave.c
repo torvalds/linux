@@ -1295,7 +1295,7 @@ static int ave_open(struct net_device *ndev)
 	val |= AVE_IIRQC_EN0 | (AVE_INTM_COUNT << 16);
 	writel(val, priv->base + AVE_IIRQC);
 
-	val = AVE_GI_RXIINT | AVE_GI_RXOVF | AVE_GI_TX;
+	val = AVE_GI_RXIINT | AVE_GI_RXOVF | AVE_GI_TX | AVE_GI_RXDROP;
 	ave_irq_restore(ndev, val);
 
 	napi_enable(&priv->napi_rx);
