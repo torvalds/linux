@@ -538,6 +538,17 @@ $(call multi_depend, $(multi-used-m), .o, -objs -y -m)
 targets += $(multi-used-m)
 targets := $(filter-out $(PHONY), $(targets))
 
+# Add intermediate targets:
+# When building objects with specific suffix patterns, add intermediate
+# targets that the final targets are derived from.
+intermediate_targets = $(foreach sfx, $(2), \
+				$(patsubst %$(strip $(1)),%$(sfx), \
+					$(filter %$(strip $(1)), $(targets))))
+# %.lex.o <- %.lex.c <- %.l
+# %.tab.o <- %.tab.[ch] <- %.y
+targets += $(call intermediate_targets, .lex.o, .lex.c) \
+	   $(call intermediate_targets, .tab.o, .tab.c .tab.h)
+
 # Descending
 # ---------------------------------------------------------------------------
 

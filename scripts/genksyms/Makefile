@@ -36,5 +36,3 @@ HOSTCFLAGS_lex.lex.o := -I$(src)
 
 # dependencies on generated files need to be listed explicitly
 $(obj)/lex.lex.o: $(obj)/parse.tab.h
-
-targets := lex.lex.c parse.tab.c parse.tab.h

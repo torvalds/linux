@@ -207,7 +207,7 @@ gconf-objs	:= gconf.o zconf.tab.o
 
 hostprogs-y := conf nconf mconf kxgettext qconf gconf
 
-targets		+= zconf.tab.c zconf.lex.c
+targets		+= zconf.lex.c
 clean-files	:= qconf.moc .tmp_qtcheck .tmp_gtkcheck
 clean-files	+= gconf.glade.h
 clean-files     += config.pot linux.pot
