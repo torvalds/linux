@@ -209,14 +209,14 @@ static ssize_t cec_error_inj_write(struct file *file,
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 	p = buf;
-	while (p && *p && count >= 0) {
+	while (p && *p) {
 		p = skip_spaces(p);
 		line = strsep(&p, "\n");
 		if (!*line || *line == '#')
 			continue;
 		if (!adap->ops->error_inj_parse_line(adap, line)) {
-			count = -EINVAL;
-			break;
+			kfree(buf);
+			return -EINVAL;
 		}
 	}
 	kfree(buf);
