@@ -674,7 +674,7 @@ struct amdkfd_ioctl_desc {
 	const char *name;
 };
 
-void kfd_process_create_wq(void);
+int kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
 struct kfd_process *kfd_create_process(struct file *filep);
 struct kfd_process *kfd_get_process(const struct task_struct *);
