@@ -572,10 +572,7 @@ xfs_iread(
 		/* initialise the on-disk inode core */
 		memset(&ip->i_d, 0, sizeof(ip->i_d));
 		VFS_I(ip)->i_generation = prandom_u32();
-		if (xfs_sb_version_hascrc(&mp->m_sb))
-			ip->i_d.di_version = 3;
-		else
-			ip->i_d.di_version = 2;
+		ip->i_d.di_version = 3;
 		return 0;
 	}
 
