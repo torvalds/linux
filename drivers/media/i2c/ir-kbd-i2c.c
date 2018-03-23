@@ -583,7 +583,7 @@ static int zilog_ir_format(struct rc_dev *rcdev, unsigned int *txbuf,
 		/* first copy any leading non-repeating */
 		int leading = c - rep * 3;
 
-		if (leading + rep >= ARRAY_SIZE(code_block->codes) - 3) {
+		if (leading >= ARRAY_SIZE(code_block->codes) - 3 - rep) {
 			dev_warn(&rcdev->dev, "IR too long, cannot transmit\n");
 			return -EINVAL;
 		}
