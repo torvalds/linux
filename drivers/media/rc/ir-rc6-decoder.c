@@ -394,6 +394,7 @@ static struct ir_raw_handler rc6_handler = {
 	.decode		= ir_rc6_decode,
 	.encode		= ir_rc6_encode,
 	.carrier	= 36000,
+	.min_timeout	= RC6_SUFFIX_SPACE,
 };
 
 static int __init ir_rc6_decode_init(void)

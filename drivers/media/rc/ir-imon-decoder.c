@@ -170,6 +170,7 @@ static struct ir_raw_handler imon_handler = {
 	.decode		= ir_imon_decode,
 	.encode		= ir_imon_encode,
 	.carrier	= 38000,
+	.min_timeout	= IMON_UNIT * IMON_BITS * 2,
 };
 
 static int __init ir_imon_decode_init(void)
