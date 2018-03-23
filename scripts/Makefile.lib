@@ -184,7 +184,6 @@ endef
 quiet_cmd_flex = LEX     $@
       cmd_flex = $(LEX) -o$@ -L $<
 
-.PRECIOUS: $(obj)/%.lex.c
 $(obj)/%.lex.c: $(src)/%.l FORCE
 	$(call if_changed,flex)
 
@@ -193,14 +192,12 @@ $(obj)/%.lex.c: $(src)/%.l FORCE
 quiet_cmd_bison = YACC    $@
       cmd_bison = $(YACC) -o$@ -t -l $<
 
-.PRECIOUS: $(obj)/%.tab.c
 $(obj)/%.tab.c: $(src)/%.y FORCE
 	$(call if_changed,bison)
 
 quiet_cmd_bison_h = YACC    $@
       cmd_bison_h = bison -o/dev/null --defines=$@ -t -l $<
 
-.PRECIOUS: $(obj)/%.tab.h
 $(obj)/%.tab.h: $(src)/%.y FORCE
 	$(call if_changed,bison_h)
 

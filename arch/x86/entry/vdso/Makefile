@@ -42,9 +42,7 @@ vdso_img_cfiles := $(vdso_img-y:%=vdso-image-%.c)
 vdso_img_sodbg := $(vdso_img-y:%=vdso%.so.dbg)
 obj-y += $(vdso_img_objs)
 targets += $(vdso_img_cfiles)
-targets += $(vdso_img_sodbg)
-.SECONDARY: $(vdso_img-y:%=$(obj)/vdso-image-%.c) \
-	$(vdso_img-y:%=$(obj)/vdso%.so)
+targets += $(vdso_img_sodbg) $(vdso_img-y:%=vdso%.so)
 
 export CPPFLAGS_vdso.lds += -P -C
 

@@ -30,7 +30,3 @@ DTC_FLAGS_testcases += -@
 
 # suppress warnings about intentional errors
 DTC_FLAGS_testcases += -Wno-interrupts_property
-
-.PRECIOUS: \
-	$(obj)/%.dtb.S \
-	$(obj)/%.dtb
