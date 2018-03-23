@@ -2406,8 +2406,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (vm->use_cpu_for_update)
 		flags |= AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED;
 	else
-		flags |= (AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
-				AMDGPU_GEM_CREATE_SHADOW);
+		flags |= AMDGPU_GEM_CREATE_SHADOW;
 
 	size = amdgpu_vm_bo_size(adev, adev->vm_manager.root_level);
 	r = amdgpu_bo_create(adev, size, align, AMDGPU_GEM_DOMAIN_VRAM, flags,
