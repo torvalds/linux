@@ -741,6 +741,7 @@ enum {
 	Opt_read_write,
 	Opt_lock_on_read,
 	Opt_exclusive,
+	Opt_notrim,
 	Opt_err
 };
 
@@ -755,6 +756,7 @@ static match_table_t rbd_opts_tokens = {
 	{Opt_read_write, "rw"},		/* Alternate spelling */
 	{Opt_lock_on_read, "lock_on_read"},
 	{Opt_exclusive, "exclusive"},
+	{Opt_notrim, "notrim"},
 	{Opt_err, NULL}
 };
 
@@ -764,6 +766,7 @@ struct rbd_options {
 	bool	read_only;
 	bool	lock_on_read;
 	bool	exclusive;
+	bool	trim;
 };
 
 #define RBD_QUEUE_DEPTH_DEFAULT	BLKDEV_MAX_RQ
@@ -771,6 +774,7 @@ struct rbd_options {
 #define RBD_READ_ONLY_DEFAULT	false
 #define RBD_LOCK_ON_READ_DEFAULT false
 #define RBD_EXCLUSIVE_DEFAULT	false
+#define RBD_TRIM_DEFAULT	true
 
 static int parse_rbd_opts_token(char *c, void *private)
 {
@@ -819,6 +823,9 @@ static int parse_rbd_opts_token(char *c, void *private)
 		break;
 	case Opt_exclusive:
 		rbd_opts->exclusive = true;
+		break;
+	case Opt_notrim:
+		rbd_opts->trim = false;
 		break;
 	default:
 		/* libceph prints "bad option" msg */
@@ -3976,11 +3983,12 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	blk_queue_io_min(q, objset_bytes);
 	blk_queue_io_opt(q, objset_bytes);
 
-	/* enable the discard support */
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
-	q->limits.discard_granularity = objset_bytes;
-	blk_queue_max_discard_sectors(q, objset_bytes >> SECTOR_SHIFT);
-	blk_queue_max_write_zeroes_sectors(q, objset_bytes >> SECTOR_SHIFT);
+	if (rbd_dev->opts->trim) {
+		blk_queue_flag_set(QUEUE_FLAG_DISCARD, q);
+		q->limits.discard_granularity = objset_bytes;
+		blk_queue_max_discard_sectors(q, objset_bytes >> SECTOR_SHIFT);
+		blk_queue_max_write_zeroes_sectors(q, objset_bytes >> SECTOR_SHIFT);
+	}
 
 	if (!ceph_test_opt(rbd_dev->rbd_client->client, NOCRC))
 		q->backing_dev_info->capabilities |= BDI_CAP_STABLE_WRITES;
@@ -5207,6 +5215,7 @@ static int rbd_add_parse_args(const char *buf,
 	rbd_opts->lock_timeout = RBD_LOCK_TIMEOUT_DEFAULT;
 	rbd_opts->lock_on_read = RBD_LOCK_ON_READ_DEFAULT;
 	rbd_opts->exclusive = RBD_EXCLUSIVE_DEFAULT;
+	rbd_opts->trim = RBD_TRIM_DEFAULT;
 
 	copts = ceph_parse_options(options, mon_addrs,
 					mon_addrs + mon_addrs_size - 1,
