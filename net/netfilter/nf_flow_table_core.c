@@ -84,7 +84,7 @@ flow_offload_alloc(struct nf_conn *ct, struct nf_flow_route *route)
 
 	if (ct->status & IPS_SRC_NAT)
 		flow->flags |= FLOW_OFFLOAD_SNAT;
-	else if (ct->status & IPS_DST_NAT)
+	if (ct->status & IPS_DST_NAT)
 		flow->flags |= FLOW_OFFLOAD_DNAT;
 
 	return flow;
