@@ -895,49 +895,49 @@
 			lcdc_ctl: lcdc-ctl {
 				rockchip,pins =
 					/* dclk */
-					<1 RK_PA0 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PA0 RK_FUNC_1 &pcfg_pull_none>,
 					/* hsync */
-					<1 RK_PA1 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PA1 RK_FUNC_1 &pcfg_pull_none>,
 					/* vsync */
-					<1 RK_PA2 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PA2 RK_FUNC_1 &pcfg_pull_none>,
 					/* den */
-					<1 RK_PA3 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PA3 RK_FUNC_1 &pcfg_pull_none>,
 					/* d0 */
-					<1 RK_PA4 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PA4 RK_FUNC_1 &pcfg_pull_none>,
 					/* d1 */
-					<1 RK_PA5 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PA5 RK_FUNC_1 &pcfg_pull_none>,
 					/* d2 */
-					<1 RK_PA6 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PA6 RK_FUNC_1 &pcfg_pull_none>,
 					/* d3 */
-					<1 RK_PA7 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PA7 RK_FUNC_1 &pcfg_pull_none>,
 					/* d4 */
-					<1 RK_PB0 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,
 					/* d5 */
-					<1 RK_PB1 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,
 					/* d6 */
-					<1 RK_PB2 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PB2 RK_FUNC_1 &pcfg_pull_none>,
 					/* d7 */
-					<1 RK_PB3 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PB3 RK_FUNC_1 &pcfg_pull_none>,
 					/* d8 */
-					<1 RK_PB4 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PB4 RK_FUNC_1 &pcfg_pull_none>,
 					/* d9 */
-					<1 RK_PB5 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PB5 RK_FUNC_1 &pcfg_pull_none>,
 					/* d10 */
-					<1 RK_PB6 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PB6 RK_FUNC_1 &pcfg_pull_none>,
 					/* d11 */
-					<1 RK_PB7 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PB7 RK_FUNC_1 &pcfg_pull_none>,
 					/* d12 */
-					<1 RK_PC0 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PC0 RK_FUNC_1 &pcfg_pull_none>,
 					/* d13 */
-					<1 RK_PC1 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PC1 RK_FUNC_1 &pcfg_pull_none>,
 					/* d14 */
-					<1 RK_PC2 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PC2 RK_FUNC_1 &pcfg_pull_none>,
 					/* d15 */
-					<1 RK_PC3 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PC3 RK_FUNC_1 &pcfg_pull_none>,
 					/* d16 */
-					<1 RK_PC4 RK_FUNC_2 &pcfg_pull_none>,
+					<1 RK_PC4 RK_FUNC_1 &pcfg_pull_none>,
 					/* d17 */
-					<1 RK_PC5 RK_FUNC_2 &pcfg_pull_none>;
+					<1 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 
