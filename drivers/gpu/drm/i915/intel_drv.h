@@ -548,6 +548,10 @@ struct intel_initial_plane_config {
 #define SKL_MAX_DST_W 4096
 #define SKL_MIN_DST_H 8
 #define SKL_MAX_DST_H 4096
+#define ICL_MAX_SRC_W 5120
+#define ICL_MAX_SRC_H 4096
+#define ICL_MAX_DST_W 5120
+#define ICL_MAX_DST_H 4096
 
 struct intel_scaler {
 	int in_use;
