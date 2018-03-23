@@ -15,10 +15,13 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 
-static int nf_flow_tcp_state_check(struct flow_offload *flow,
-				   struct sk_buff *skb, unsigned int thoff)
+static int nf_flow_state_check(struct flow_offload *flow, int proto,
+			       struct sk_buff *skb, unsigned int thoff)
 {
 	struct tcphdr *tcph;
+
+	if (proto != IPPROTO_TCP)
+		return 0;
 
 	if (!pskb_may_pull(skb, thoff + sizeof(*tcph)))
 		return -1;
@@ -248,7 +251,7 @@ nf_flow_offload_ip_hook(void *priv, struct sk_buff *skb,
 		return NF_DROP;
 
 	thoff = ip_hdr(skb)->ihl * 4;
-	if (nf_flow_tcp_state_check(flow, skb, thoff))
+	if (nf_flow_state_check(flow, ip_hdr(skb)->protocol, skb, thoff))
 		return NF_ACCEPT;
 
 	if (flow->flags & (FLOW_OFFLOAD_SNAT | FLOW_OFFLOAD_DNAT) &&
@@ -460,7 +463,8 @@ nf_flow_offload_ipv6_hook(void *priv, struct sk_buff *skb,
 	if (unlikely(nf_flow_exceeds_mtu(skb, flow->tuplehash[dir].tuple.mtu)))
 		return NF_ACCEPT;
 
-	if (nf_flow_tcp_state_check(flow, skb, sizeof(*ip6h)))
+	if (nf_flow_state_check(flow, ipv6_hdr(skb)->nexthdr, skb,
+				sizeof(*ip6h)))
 		return NF_ACCEPT;
 
 	if (skb_try_make_writable(skb, sizeof(*ip6h)))
