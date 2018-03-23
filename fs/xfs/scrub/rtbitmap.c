@@ -116,8 +116,7 @@ xfs_scrub_xref_is_used_rt_space(
 	if (!xfs_scrub_should_check_xref(sc, &error, NULL))
 		goto out_unlock;
 	if (is_free)
-		xfs_scrub_ino_xref_set_corrupt(sc, sc->mp->m_rbmip->i_ino,
-				NULL);
+		xfs_scrub_ino_xref_set_corrupt(sc, sc->mp->m_rbmip->i_ino);
 out_unlock:
 	xfs_iunlock(sc->mp->m_rbmip, XFS_ILOCK_SHARED | XFS_ILOCK_RTBITMAP);
 }

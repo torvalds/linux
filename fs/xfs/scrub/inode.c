@@ -98,7 +98,6 @@ out:
 STATIC void
 xfs_scrub_inode_extsize(
 	struct xfs_scrub_context	*sc,
-	struct xfs_buf			*bp,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino,
 	uint16_t			mode,
@@ -149,7 +148,7 @@ xfs_scrub_inode_extsize(
 
 	return;
 bad:
-	xfs_scrub_ino_set_corrupt(sc, ino, bp);
+	xfs_scrub_ino_set_corrupt(sc, ino);
 }
 
 /*
@@ -161,7 +160,6 @@ bad:
 STATIC void
 xfs_scrub_inode_cowextsize(
 	struct xfs_scrub_context	*sc,
-	struct xfs_buf			*bp,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino,
 	uint16_t			mode,
@@ -205,14 +203,13 @@ xfs_scrub_inode_cowextsize(
 
 	return;
 bad:
-	xfs_scrub_ino_set_corrupt(sc, ino, bp);
+	xfs_scrub_ino_set_corrupt(sc, ino);
 }
 
 /* Make sure the di_flags make sense for the inode. */
 STATIC void
 xfs_scrub_inode_flags(
 	struct xfs_scrub_context	*sc,
-	struct xfs_buf			*bp,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino,
 	uint16_t			mode,
@@ -251,14 +248,13 @@ xfs_scrub_inode_flags(
 
 	return;
 bad:
-	xfs_scrub_ino_set_corrupt(sc, ino, bp);
+	xfs_scrub_ino_set_corrupt(sc, ino);
 }
 
 /* Make sure the di_flags2 make sense for the inode. */
 STATIC void
 xfs_scrub_inode_flags2(
 	struct xfs_scrub_context	*sc,
-	struct xfs_buf			*bp,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino,
 	uint16_t			mode,
@@ -295,14 +291,13 @@ xfs_scrub_inode_flags2(
 
 	return;
 bad:
-	xfs_scrub_ino_set_corrupt(sc, ino, bp);
+	xfs_scrub_ino_set_corrupt(sc, ino);
 }
 
 /* Scrub all the ondisk inode fields. */
 STATIC void
 xfs_scrub_dinode(
 	struct xfs_scrub_context	*sc,
-	struct xfs_buf			*bp,
 	struct xfs_dinode		*dip,
 	xfs_ino_t			ino)
 {
@@ -333,7 +328,7 @@ xfs_scrub_dinode(
 		/* mode is recognized */
 		break;
 	default:
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	}
 
@@ -344,22 +339,22 @@ xfs_scrub_dinode(
 		 * We autoconvert v1 inodes into v2 inodes on writeout,
 		 * so just mark this inode for preening.
 		 */
-		xfs_scrub_ino_set_preen(sc, ino, bp);
+		xfs_scrub_ino_set_preen(sc, ino);
 		break;
 	case 2:
 	case 3:
 		if (dip->di_onlink != 0)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 
 		if (dip->di_mode == 0 && sc->ip)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 
 		if (dip->di_projid_hi != 0 &&
 		    !xfs_sb_version_hasprojid32bit(&mp->m_sb))
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	default:
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 		return;
 	}
 
@@ -369,40 +364,40 @@ xfs_scrub_dinode(
 	 */
 	if (dip->di_uid == cpu_to_be32(-1U) ||
 	    dip->di_gid == cpu_to_be32(-1U))
-		xfs_scrub_ino_set_warning(sc, ino, bp);
+		xfs_scrub_ino_set_warning(sc, ino);
 
 	/* di_format */
 	switch (dip->di_format) {
 	case XFS_DINODE_FMT_DEV:
 		if (!S_ISCHR(mode) && !S_ISBLK(mode) &&
 		    !S_ISFIFO(mode) && !S_ISSOCK(mode))
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	case XFS_DINODE_FMT_LOCAL:
 		if (!S_ISDIR(mode) && !S_ISLNK(mode))
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	case XFS_DINODE_FMT_EXTENTS:
 		if (!S_ISREG(mode) && !S_ISDIR(mode) && !S_ISLNK(mode))
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		if (!S_ISREG(mode) && !S_ISDIR(mode))
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	case XFS_DINODE_FMT_UUID:
 	default:
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	}
 
 	/* di_[amc]time.nsec */
 	if (be32_to_cpu(dip->di_atime.t_nsec) >= NSEC_PER_SEC)
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 	if (be32_to_cpu(dip->di_mtime.t_nsec) >= NSEC_PER_SEC)
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 	if (be32_to_cpu(dip->di_ctime.t_nsec) >= NSEC_PER_SEC)
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 
 	/*
 	 * di_size.  xfs_dinode_verify checks for things that screw up
@@ -411,19 +406,19 @@ xfs_scrub_dinode(
 	 */
 	isize = be64_to_cpu(dip->di_size);
 	if (isize & (1ULL << 63))
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 
 	/* Devices, fifos, and sockets must have zero size */
 	if (!S_ISDIR(mode) && !S_ISREG(mode) && !S_ISLNK(mode) && isize != 0)
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 
 	/* Directories can't be larger than the data section size (32G) */
 	if (S_ISDIR(mode) && (isize == 0 || isize >= XFS_DIR2_SPACE_SIZE))
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 
 	/* Symlinks can't be larger than SYMLINK_MAXLEN */
 	if (S_ISLNK(mode) && (isize == 0 || isize >= XFS_SYMLINK_MAXLEN))
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 
 	/*
 	 * Warn if the running kernel can't handle the kinds of offsets
@@ -432,7 +427,7 @@ xfs_scrub_dinode(
 	 * overly large offsets, flag the inode for admin review.
 	 */
 	if (isize >= mp->m_super->s_maxbytes)
-		xfs_scrub_ino_set_warning(sc, ino, bp);
+		xfs_scrub_ino_set_warning(sc, ino);
 
 	/* di_nblocks */
 	if (flags2 & XFS_DIFLAG2_REFLINK) {
@@ -447,15 +442,15 @@ xfs_scrub_dinode(
 		 */
 		if (be64_to_cpu(dip->di_nblocks) >=
 		    mp->m_sb.sb_dblocks + mp->m_sb.sb_rblocks)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 	} else {
 		if (be64_to_cpu(dip->di_nblocks) >= mp->m_sb.sb_dblocks)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 	}
 
-	xfs_scrub_inode_flags(sc, bp, dip, ino, mode, flags);
+	xfs_scrub_inode_flags(sc, dip, ino, mode, flags);
 
-	xfs_scrub_inode_extsize(sc, bp, dip, ino, mode, flags);
+	xfs_scrub_inode_extsize(sc, dip, ino, mode, flags);
 
 	/* di_nextents */
 	nextents = be32_to_cpu(dip->di_nextents);
@@ -463,31 +458,31 @@ xfs_scrub_dinode(
 	switch (dip->di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
 		if (nextents > fork_recs)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		if (nextents <= fork_recs)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	default:
 		if (nextents != 0)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	}
 
 	/* di_forkoff */
 	if (XFS_DFORK_APTR(dip) >= (char *)dip + mp->m_sb.sb_inodesize)
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 	if (dip->di_anextents != 0 && dip->di_forkoff == 0)
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 	if (dip->di_forkoff == 0 && dip->di_aformat != XFS_DINODE_FMT_EXTENTS)
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 
 	/* di_aformat */
 	if (dip->di_aformat != XFS_DINODE_FMT_LOCAL &&
 	    dip->di_aformat != XFS_DINODE_FMT_EXTENTS &&
 	    dip->di_aformat != XFS_DINODE_FMT_BTREE)
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 
 	/* di_anextents */
 	nextents = be16_to_cpu(dip->di_anextents);
@@ -495,22 +490,22 @@ xfs_scrub_dinode(
 	switch (dip->di_aformat) {
 	case XFS_DINODE_FMT_EXTENTS:
 		if (nextents > fork_recs)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	case XFS_DINODE_FMT_BTREE:
 		if (nextents <= fork_recs)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 		break;
 	default:
 		if (nextents != 0)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
+			xfs_scrub_ino_set_corrupt(sc, ino);
 	}
 
 	if (dip->di_version >= 3) {
 		if (be32_to_cpu(dip->di_crtime.t_nsec) >= NSEC_PER_SEC)
-			xfs_scrub_ino_set_corrupt(sc, ino, bp);
-		xfs_scrub_inode_flags2(sc, bp, dip, ino, mode, flags, flags2);
-		xfs_scrub_inode_cowextsize(sc, bp, dip, ino, mode, flags,
+			xfs_scrub_ino_set_corrupt(sc, ino);
+		xfs_scrub_inode_flags2(sc, dip, ino, mode, flags, flags2);
+		xfs_scrub_inode_cowextsize(sc, dip, ino, mode, flags,
 				flags2);
 	}
 }
@@ -579,18 +574,18 @@ xfs_scrub_inode_xref_bmap(
 	if (!xfs_scrub_should_check_xref(sc, &error, NULL))
 		return;
 	if (nextents < be32_to_cpu(dip->di_nextents))
-		xfs_scrub_ino_xref_set_corrupt(sc, sc->ip->i_ino, NULL);
+		xfs_scrub_ino_xref_set_corrupt(sc, sc->ip->i_ino);
 
 	error = xfs_bmap_count_blocks(sc->tp, sc->ip, XFS_ATTR_FORK,
 			&nextents, &acount);
 	if (!xfs_scrub_should_check_xref(sc, &error, NULL))
 		return;
 	if (nextents != be16_to_cpu(dip->di_anextents))
-		xfs_scrub_ino_xref_set_corrupt(sc, sc->ip->i_ino, NULL);
+		xfs_scrub_ino_xref_set_corrupt(sc, sc->ip->i_ino);
 
 	/* Check nblocks against the inode. */
 	if (count + acount != be64_to_cpu(dip->di_nblocks))
-		xfs_scrub_ino_xref_set_corrupt(sc, sc->ip->i_ino, NULL);
+		xfs_scrub_ino_xref_set_corrupt(sc, sc->ip->i_ino);
 }
 
 /* Cross-reference with the other btrees. */
@@ -634,8 +629,7 @@ xfs_scrub_inode_xref(
 static void
 xfs_scrub_inode_check_reflink_iflag(
 	struct xfs_scrub_context	*sc,
-	xfs_ino_t			ino,
-	struct xfs_buf			*bp)
+	xfs_ino_t			ino)
 {
 	struct xfs_mount		*mp = sc->mp;
 	bool				has_shared;
@@ -650,9 +644,9 @@ xfs_scrub_inode_check_reflink_iflag(
 			XFS_INO_TO_AGBNO(mp, ino), &error))
 		return;
 	if (xfs_is_reflink_inode(sc->ip) && !has_shared)
-		xfs_scrub_ino_set_preen(sc, ino, bp);
+		xfs_scrub_ino_set_preen(sc, ino);
 	else if (!xfs_is_reflink_inode(sc->ip) && has_shared)
-		xfs_scrub_ino_set_corrupt(sc, ino, bp);
+		xfs_scrub_ino_set_corrupt(sc, ino);
 }
 
 /* Scrub an inode. */
@@ -669,13 +663,13 @@ xfs_scrub_inode(
 	 * and a NULL inode, so flag the corruption error and return.
 	 */
 	if (!sc->ip) {
-		xfs_scrub_ino_set_corrupt(sc, sc->sm->sm_ino, NULL);
+		xfs_scrub_ino_set_corrupt(sc, sc->sm->sm_ino);
 		return 0;
 	}
 
 	/* Scrub the inode core. */
 	xfs_inode_to_disk(sc->ip, &di, 0);
-	xfs_scrub_dinode(sc, NULL, &di, sc->ip->i_ino);
+	xfs_scrub_dinode(sc, &di, sc->ip->i_ino);
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
 
@@ -685,7 +679,7 @@ xfs_scrub_inode(
 	 * we scrubbed the dinode.
 	 */
 	if (S_ISREG(VFS_I(sc->ip)->i_mode))
-		xfs_scrub_inode_check_reflink_iflag(sc, sc->ip->i_ino, NULL);
+		xfs_scrub_inode_check_reflink_iflag(sc, sc->ip->i_ino);
 
 	xfs_scrub_inode_xref(sc, sc->ip->i_ino, &di);
 out:

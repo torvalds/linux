@@ -621,7 +621,7 @@ xfs_scrub_bmap(
 			goto out;
 		/* No CoW forks on non-reflink inodes/filesystems. */
 		if (!xfs_is_reflink_inode(ip)) {
-			xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino, NULL);
+			xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
 			goto out;
 		}
 		break;
@@ -630,7 +630,7 @@ xfs_scrub_bmap(
 			goto out_check_rmap;
 		if (!xfs_sb_version_hasattr(&mp->m_sb) &&
 		    !xfs_sb_version_hasattr2(&mp->m_sb))
-			xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino, NULL);
+			xfs_scrub_ino_set_corrupt(sc, sc->ip->i_ino);
 		break;
 	default:
 		ASSERT(whichfork == XFS_DATA_FORK);
