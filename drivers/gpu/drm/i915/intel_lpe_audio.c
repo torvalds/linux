@@ -169,7 +169,7 @@ static int lpe_audio_irq_init(struct drm_i915_private *dev_priv)
 				handle_simple_irq,
 				"hdmi_lpe_audio_irq_handler");
 
-	return irq_set_chip_data(irq, dev_priv);
+	return 0;
 }
 
 static bool lpe_audio_detect(struct drm_i915_private *dev_priv)
