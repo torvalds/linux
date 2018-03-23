@@ -5681,11 +5681,6 @@ int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip)
 	kvm_rip_write(vcpu, ctxt->eip);
 	kvm_set_rflags(vcpu, ctxt->eflags);
 
-	if (irq == NMI_VECTOR)
-		vcpu->arch.nmi_pending = 0;
-	else
-		vcpu->arch.interrupt.pending = false;
-
 	return EMULATE_DONE;
 }
 EXPORT_SYMBOL_GPL(kvm_inject_realmode_interrupt);
