@@ -168,7 +168,7 @@
 		system-status-freq = <
 			/*system status         freq(KHz)*/
 			SYS_STATUS_NORMAL       600000
-			SYS_STATUS_VIDEO_4K	600000
+			SYS_STATUS_VIDEO_4K	666000
 			SYS_STATUS_VIDEO_4K_10B 786000
 		>;
 		dram_freq = <786000000>;
@@ -199,6 +199,10 @@
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1050000>;
+		};
+		opp-666000000 {
+			opp-hz = /bits/ 64 <666000000>;
+			opp-microvolt = <1100000>;
 		};
 		opp-700000000 {
 			opp-hz = /bits/ 64 <700000000>;
