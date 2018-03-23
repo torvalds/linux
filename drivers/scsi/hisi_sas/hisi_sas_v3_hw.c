@@ -1731,15 +1731,19 @@ static void cq_tasklet_v3_hw(unsigned long val)
 
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v3_hdr *complete_hdr;
+		struct device *dev = hisi_hba->dev;
 		int iptt;
 
 		complete_hdr = &complete_queue[rd_point];
 
 		iptt = (complete_hdr->dw1) & CMPLT_HDR_IPTT_MSK;
-		slot = &hisi_hba->slot_info[iptt];
-		slot->cmplt_queue_slot = rd_point;
-		slot->cmplt_queue = queue;
-		slot_complete_v3_hw(hisi_hba, slot);
+		if (likely(iptt < HISI_SAS_COMMAND_ENTRIES_V3_HW)) {
+			slot = &hisi_hba->slot_info[iptt];
+			slot->cmplt_queue_slot = rd_point;
+			slot->cmplt_queue = queue;
+			slot_complete_v3_hw(hisi_hba, slot);
+		} else
+			dev_err(dev, "IPTT %d is invalid, discard it.\n", iptt);
 
 		if (++rd_point >= HISI_SAS_QUEUE_SLOTS)
 			rd_point = 0;
