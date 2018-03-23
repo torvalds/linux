@@ -124,6 +124,9 @@ static int quirks_param_set(const char *val, const struct kernel_param *kp)
 			case 'm':
 				flags |= USB_QUIRK_DISCONNECT_SUSPEND;
 				break;
+			case 'n':
+				flags |= USB_QUIRK_DELAY_CTRL_MSG;
+				break;
 			/* Ignore unrecognized flag characters */
 			}
 		}

@@ -4421,7 +4421,9 @@
 					calculation);
 				m = USB_QUIRK_DISCONNECT_SUSPEND (Device needs
 					to be disconnected before suspend to
-					prevent spurious wakeup)
+					prevent spurious wakeup);
+				n = USB_QUIRK_DELAY_CTRL_MSG (Device needs a
+					pause after every control message);
 			Example: quirks=0781:5580:bk,0a5c:5834:gij
 
 	usbhid.mousepoll=
