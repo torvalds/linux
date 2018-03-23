@@ -409,16 +409,16 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	AMDGPU_DOORBELL64_GFX_RING0               = 0x8b,
 
 	/*
-	 * Other graphics doorbells can be allocated here: from 0x8c to 0xef
+	 * Other graphics doorbells can be allocated here: from 0x8c to 0xdf
 	 * Graphics voltage island aperture 1
-	 * default non-graphics QWORD index is 0xF0 - 0xFF inclusive
+	 * default non-graphics QWORD index is 0xe0 - 0xFF inclusive
 	 */
 
-	/* sDMA engines */
-	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xF0,
-	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xF1,
-	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xF2,
-	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xF3,
+	/* sDMA engines  reserved from 0xe0 -oxef  */
+	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xE0,
+	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xE1,
+	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xE8,
+	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE1     = 0xE9,
 
 	/* Interrupt handler */
 	AMDGPU_DOORBELL64_IH                      = 0xF4,  /* For legacy interrupt ring buffer */

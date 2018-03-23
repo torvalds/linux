@@ -146,10 +146,10 @@ struct kgd2kfd_shared_resources {
 	 * is reserved: (D & reserved_doorbell_mask) == reserved_doorbell_val
 	 *
 	 * KFD currently uses 1024 (= 0x3ff) doorbells per process. If
-	 * doorbells 0x0f0-0x0f7 and 0x2f-0x2f7 are reserved, that means
-	 * mask would be set to 0x1f8 and val set to 0x0f0.
+	 * doorbells 0x0e0-0x0ff and 0x2e0-0x2ff are reserved, that means
+	 * mask would be set to 0x1e0 and val set to 0x0e0.
 	 */
-	unsigned int sdma_doorbell[2][2];
+	unsigned int sdma_doorbell[2][8];
 	unsigned int reserved_doorbell_mask;
 	unsigned int reserved_doorbell_val;
 
