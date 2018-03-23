@@ -30,24 +30,25 @@ struct of_phandle_args;
  * struct reset_control_lookup - represents a single lookup entry
  *
  * @list: internal list of all reset lookup entries
- * @rcdev: reset controller device controlling this reset line
+ * @provider: name of the reset controller device controlling this reset line
  * @index: ID of the reset controller in the reset controller device
  * @dev_id: name of the device associated with this reset line
  * @con_id name of the reset line (can be NULL)
  */
 struct reset_control_lookup {
 	struct list_head list;
-	struct reset_controller_dev *rcdev;
+	const char *provider;
 	unsigned int index;
 	const char *dev_id;
 	const char *con_id;
 };
 
-#define RESET_LOOKUP(_dev_id, _con_id, _index)				\
+#define RESET_LOOKUP(_provider, _index, _dev_id, _con_id)		\
 	{								\
+		.provider = _provider,					\
+		.index = _index,					\
 		.dev_id = _dev_id,					\
 		.con_id = _con_id,					\
-		.index = _index,					\
 	}
 
 /**
@@ -57,6 +58,7 @@ struct reset_control_lookup {
  * @owner: kernel module of the reset controller driver
  * @list: internal list of reset controller devices
  * @reset_control_head: head of internal list of requested reset controls
+ * @dev: corresponding driver model device struct
  * @of_node: corresponding device tree node as phandle target
  * @of_reset_n_cells: number of cells in reset line specifiers
  * @of_xlate: translation function to translate from specifier as found in the
@@ -68,6 +70,7 @@ struct reset_controller_dev {
 	struct module *owner;
 	struct list_head list;
 	struct list_head reset_control_head;
+	struct device *dev;
 	struct device_node *of_node;
 	int of_reset_n_cells;
 	int (*of_xlate)(struct reset_controller_dev *rcdev,
@@ -82,8 +85,7 @@ struct device;
 int devm_reset_controller_register(struct device *dev,
 				   struct reset_controller_dev *rcdev);
 
-void reset_controller_add_lookup(struct reset_controller_dev *rcdev,
-				 struct reset_control_lookup *lookup,
+void reset_controller_add_lookup(struct reset_control_lookup *lookup,
 				 unsigned int num_entries);
 
 #endif
