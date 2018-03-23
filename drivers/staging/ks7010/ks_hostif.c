@@ -1345,11 +1345,11 @@ void hostif_ps_adhoc_set_request(struct ks_wlan_private *priv)
 }
 
 static
-void hostif_infrastructure_set_request(struct ks_wlan_private *priv)
+void hostif_infrastructure_set_request(struct ks_wlan_private *priv, int event)
 {
 	struct hostif_infrastructure_set_request_t *pp;
 
-	pp = hostif_generic_request(sizeof(*pp), HIF_INFRA_SET_REQ);
+	pp = hostif_generic_request(sizeof(*pp), event);
 	if (!pp)
 		return;
 
@@ -1379,48 +1379,6 @@ void hostif_infrastructure_set_request(struct ks_wlan_private *priv)
 		pp->channel_list.body[13] = 14;
 		pp->channel_list.size = 14;
 	}
-
-	/* send to device request */
-	ps_confirm_wait_inc(priv);
-	ks_wlan_hw_tx(priv, pp, hif_align_size(sizeof(*pp)), NULL, NULL);
-}
-
-static void hostif_infrastructure_set2_request(struct ks_wlan_private *priv)
-{
-	struct hostif_infrastructure_set2_request_t *pp;
-
-	pp = hostif_generic_request(sizeof(*pp), HIF_INFRA_SET2_REQ);
-	if (!pp)
-		return;
-
-	init_request(priv, &pp->request);
-	pp->ssid.size = priv->reg.ssid.size;
-	memcpy(&pp->ssid.body[0], &priv->reg.ssid.body[0], priv->reg.ssid.size);
-	pp->beacon_lost_count =
-	    cpu_to_le16((uint16_t)(priv->reg.beacon_lost_count));
-	pp->auth_type = cpu_to_le16((uint16_t)(priv->reg.authenticate_type));
-
-	pp->channel_list.body[0] = 1;
-	pp->channel_list.body[1] = 8;
-	pp->channel_list.body[2] = 2;
-	pp->channel_list.body[3] = 9;
-	pp->channel_list.body[4] = 3;
-	pp->channel_list.body[5] = 10;
-	pp->channel_list.body[6] = 4;
-	pp->channel_list.body[7] = 11;
-	pp->channel_list.body[8] = 5;
-	pp->channel_list.body[9] = 12;
-	pp->channel_list.body[10] = 6;
-	pp->channel_list.body[11] = 13;
-	pp->channel_list.body[12] = 7;
-	if (priv->reg.phy_type == D_11G_ONLY_MODE) {
-		pp->channel_list.size = 13;
-	} else {
-		pp->channel_list.body[13] = 14;
-		pp->channel_list.size = 14;
-	}
-
-	memcpy(pp->bssid, priv->reg.bssid, ETH_ALEN);
 
 	/* send to device request */
 	ps_confirm_wait_inc(priv);
@@ -1974,9 +1932,9 @@ void hostif_sme_mode_setup(struct ks_wlan_private *priv)
 	case MODE_INFRASTRUCTURE:
 		/* Infrastructure mode */
 		if (!is_valid_ether_addr((u8 *)priv->reg.bssid)) {
-			hostif_infrastructure_set_request(priv);
+			hostif_infrastructure_set_request(priv, HIF_INFRA_SET_REQ);
 		} else {
-			hostif_infrastructure_set2_request(priv);
+			hostif_infrastructure_set_request(priv, HIF_INFRA_SET2_REQ);
 			netdev_dbg(priv->net_dev,
 				   "Infra bssid = %pM\n", priv->reg.bssid);
 		}

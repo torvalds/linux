@@ -386,22 +386,6 @@ struct hostif_infrastructure_set_request_t {
 	__le16 beacon_lost_count;
 	__le16 auth_type;
 	struct channel_list_t channel_list;
-} __packed;
-
-/**
- * struct hostif_infrastructure_set2_request_t
- * @capability: bit5  : preamble
- *              bit6  : pbcc - Not supported always 0
- *              bit10 : ShortSlotTime
- *              bit13 : DSSS-OFDM - Not supported always 0
- */
-struct hostif_infrastructure_set2_request_t {
-	struct hostif_hdr header;
-	struct hostif_request_t request;
-	struct ssid_t ssid;
-	__le16 beacon_lost_count;
-	__le16 auth_type;
-	struct channel_list_t channel_list;
 	u8 bssid[ETH_ALEN];
 } __packed;
 
