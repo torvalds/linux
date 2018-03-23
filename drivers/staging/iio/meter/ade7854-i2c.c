@@ -31,7 +31,7 @@ static int ade7854_i2c_write_reg_8(struct device *dev,
 	ret = i2c_master_send(st->i2c, st->tx, 3);
 	mutex_unlock(&st->buf_lock);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static int ade7854_i2c_write_reg_16(struct device *dev,
@@ -51,7 +51,7 @@ static int ade7854_i2c_write_reg_16(struct device *dev,
 	ret = i2c_master_send(st->i2c, st->tx, 4);
 	mutex_unlock(&st->buf_lock);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static int ade7854_i2c_write_reg_24(struct device *dev,
@@ -72,7 +72,7 @@ static int ade7854_i2c_write_reg_24(struct device *dev,
 	ret = i2c_master_send(st->i2c, st->tx, 5);
 	mutex_unlock(&st->buf_lock);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static int ade7854_i2c_write_reg_32(struct device *dev,
@@ -94,7 +94,7 @@ static int ade7854_i2c_write_reg_32(struct device *dev,
 	ret = i2c_master_send(st->i2c, st->tx, 6);
 	mutex_unlock(&st->buf_lock);
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static int ade7854_i2c_read_reg_8(struct device *dev,
@@ -110,11 +110,11 @@ static int ade7854_i2c_read_reg_8(struct device *dev,
 	st->tx[1] = reg_address & 0xFF;
 
 	ret = i2c_master_send(st->i2c, st->tx, 2);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	ret = i2c_master_recv(st->i2c, st->rx, 1);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	*val = st->rx[0];
@@ -136,11 +136,11 @@ static int ade7854_i2c_read_reg_16(struct device *dev,
 	st->tx[1] = reg_address & 0xFF;
 
 	ret = i2c_master_send(st->i2c, st->tx, 2);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	ret = i2c_master_recv(st->i2c, st->rx, 2);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	*val = (st->rx[0] << 8) | st->rx[1];
@@ -162,11 +162,11 @@ static int ade7854_i2c_read_reg_24(struct device *dev,
 	st->tx[1] = reg_address & 0xFF;
 
 	ret = i2c_master_send(st->i2c, st->tx, 2);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	ret = i2c_master_recv(st->i2c, st->rx, 3);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	*val = (st->rx[0] << 16) | (st->rx[1] << 8) | st->rx[2];
@@ -188,11 +188,11 @@ static int ade7854_i2c_read_reg_32(struct device *dev,
 	st->tx[1] = reg_address & 0xFF;
 
 	ret = i2c_master_send(st->i2c, st->tx, 2);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	ret = i2c_master_recv(st->i2c, st->rx, 3);
-	if (ret)
+	if (ret < 0)
 		goto out;
 
 	*val = (st->rx[0] << 24) | (st->rx[1] << 16) |
