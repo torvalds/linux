@@ -1418,6 +1418,13 @@ bo_reserve_failed:
 	return ret;
 }
 
+int amdgpu_amdkfd_evict_userptr(struct kgd_mem *mem,
+				struct mm_struct *mm)
+{
+	/* TODO */
+	return 0;
+}
+
 /** amdgpu_amdkfd_gpuvm_restore_process_bos - Restore all BOs for the given
  *   KFD process identified by process_info
  *
