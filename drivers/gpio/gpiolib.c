@@ -337,6 +337,20 @@ static int gpiochip_set_desc_names(struct gpio_chip *gc)
 	return 0;
 }
 
+static unsigned long *gpiochip_allocate_mask(struct gpio_chip *chip)
+{
+	unsigned long *p;
+
+	p = kcalloc(BITS_TO_LONGS(chip->ngpio), sizeof(long), GFP_KERNEL);
+	if (!p)
+		return NULL;
+
+	/* Assume by default all GPIOs are valid */
+	bitmap_fill(p, chip->ngpio);
+
+	return p;
+}
+
 /*
  * GPIO line handle management
  */
@@ -1506,13 +1520,9 @@ static int gpiochip_irqchip_init_valid_mask(struct gpio_chip *gpiochip)
 	if (!gpiochip->irq.need_valid_mask)
 		return 0;
 
-	gpiochip->irq.valid_mask = kcalloc(BITS_TO_LONGS(gpiochip->ngpio),
-					   sizeof(long), GFP_KERNEL);
+	gpiochip->irq.valid_mask = gpiochip_allocate_mask(gpiochip);
 	if (!gpiochip->irq.valid_mask)
 		return -ENOMEM;
-
-	/* Assume by default all GPIOs are valid */
-	bitmap_fill(gpiochip->irq.valid_mask, gpiochip->ngpio);
 
 	return 0;
 }
