@@ -115,13 +115,15 @@ xfs_inode_buf_verify(
 				return;
 			}
 
-			xfs_verifier_error(bp, -EFSCORRUPTED, __this_address);
 #ifdef DEBUG
 			xfs_alert(mp,
 				"bad inode magic/vsn daddr %lld #%d (magic=%x)",
 				(unsigned long long)bp->b_bn, i,
 				be16_to_cpu(dip->di_magic));
 #endif
+			xfs_buf_verifier_error(bp, -EFSCORRUPTED,
+					__func__, dip, sizeof(*dip),
+					NULL);
 		}
 	}
 	xfs_inobp_check(mp, bp);
