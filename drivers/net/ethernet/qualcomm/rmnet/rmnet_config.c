@@ -312,6 +312,8 @@ static int rmnet_changelink(struct net_device *dev, struct nlattr *tb[],
 	if (data[IFLA_RMNET_MUX_ID]) {
 		mux_id = nla_get_u16(data[IFLA_RMNET_MUX_ID]);
 		ep = rmnet_get_endpoint(port, priv->mux_id);
+		if (!ep)
+			return -ENODEV;
 
 		hlist_del_init_rcu(&ep->hlnode);
 		hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
