@@ -1135,7 +1135,7 @@ static void clean_one_tx_pool(struct ibmvnic_adapter *adapter,
 	u64 tx_entries;
 	int i;
 
-	if (!tx_pool && !tx_pool->tx_buff)
+	if (!tx_pool || !tx_pool->tx_buff)
 		return;
 
 	tx_entries = tx_pool->num_buffers;
