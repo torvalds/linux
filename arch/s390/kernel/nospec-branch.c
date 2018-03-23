@@ -10,10 +10,17 @@ static int __init nobp_setup_early(char *str)
 	rc = kstrtobool(str, &enabled);
 	if (rc)
 		return rc;
-	if (enabled && test_facility(82))
+	if (enabled && test_facility(82)) {
+		/*
+		 * The user explicitely requested nobp=1, enable it and
+		 * disable the expoline support.
+		 */
 		__set_facility(82, S390_lowcore.alt_stfle_fac_list);
-	else
+		if (IS_ENABLED(CONFIG_EXPOLINE))
+			nospec_disable = 1;
+	} else {
 		__clear_facility(82, S390_lowcore.alt_stfle_fac_list);
+	}
 	return 0;
 }
 early_param("nobp", nobp_setup_early);
@@ -27,31 +34,46 @@ early_param("nospec", nospec_setup_early);
 
 #ifdef CONFIG_EXPOLINE
 
-int nospec_call_disable = IS_ENABLED(CONFIG_EXPOLINE_OFF);
-int nospec_return_disable = !IS_ENABLED(CONFIG_EXPOLINE_FULL);
+int nospec_disable = IS_ENABLED(CONFIG_EXPOLINE_OFF);
 
 static int __init nospectre_v2_setup_early(char *str)
 {
-	nospec_call_disable = 1;
-	nospec_return_disable = 1;
+	nospec_disable = 1;
 	return 0;
 }
 early_param("nospectre_v2", nospectre_v2_setup_early);
 
+static int __init spectre_v2_auto_early(void)
+{
+	if (IS_ENABLED(CC_USING_EXPOLINE)) {
+		/*
+		 * The kernel has been compiled with expolines.
+		 * Keep expolines enabled and disable nobp.
+		 */
+		nospec_disable = 0;
+		__clear_facility(82, S390_lowcore.alt_stfle_fac_list);
+	}
+	/*
+	 * If the kernel has not been compiled with expolines the
+	 * nobp setting decides what is done, this depends on the
+	 * CONFIG_KERNEL_NP option and the nobp/nospec parameters.
+	 */
+	return 0;
+}
+#ifdef CONFIG_EXPOLINE_AUTO
+early_initcall(spectre_v2_auto_early);
+#endif
+
 static int __init spectre_v2_setup_early(char *str)
 {
 	if (str && !strncmp(str, "on", 2)) {
-		nospec_call_disable = 0;
-		nospec_return_disable = 0;
+		nospec_disable = 0;
+		__clear_facility(82, S390_lowcore.alt_stfle_fac_list);
 	}
-	if (str && !strncmp(str, "off", 3)) {
-		nospec_call_disable = 1;
-		nospec_return_disable = 1;
-	}
-	if (str && !strncmp(str, "auto", 4)) {
-		nospec_call_disable = 0;
-		nospec_return_disable = 1;
-	}
+	if (str && !strncmp(str, "off", 3))
+		nospec_disable = 1;
+	if (str && !strncmp(str, "auto", 4))
+		spectre_v2_auto_early();
 	return 0;
 }
 early_param("spectre_v2", spectre_v2_setup_early);
@@ -104,15 +126,9 @@ static void __init_or_module __nospec_revert(s32 *start, s32 *end)
 	}
 }
 
-void __init_or_module nospec_call_revert(s32 *start, s32 *end)
+void __init_or_module nospec_revert(s32 *start, s32 *end)
 {
-	if (nospec_call_disable)
-		__nospec_revert(start, end);
-}
-
-void __init_or_module nospec_return_revert(s32 *start, s32 *end)
-{
-	if (nospec_return_disable)
+	if (nospec_disable)
 		__nospec_revert(start, end);
 }
 
@@ -120,8 +136,8 @@ extern s32 __nospec_call_start[], __nospec_call_end[];
 extern s32 __nospec_return_start[], __nospec_return_end[];
 void __init nospec_init_branches(void)
 {
-	nospec_call_revert(__nospec_call_start, __nospec_call_end);
-	nospec_return_revert(__nospec_return_start, __nospec_return_end);
+	nospec_revert(__nospec_call_start, __nospec_call_end);
+	nospec_revert(__nospec_return_start, __nospec_return_end);
 }
 
 #endif /* CONFIG_EXPOLINE */
