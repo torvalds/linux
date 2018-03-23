@@ -137,7 +137,6 @@ struct hisi_sas_phy {
 	struct asd_sas_phy	sas_phy;
 	struct sas_identify	identify;
 	u64		port_id; /* from hw */
-	u64		dev_sas_addr;
 	u64		frame_rcvd_size;
 	u8		frame_rcvd[32];
 	u8		phy_attached;
@@ -174,7 +173,6 @@ struct hisi_sas_device {
 	struct completion *completion;
 	struct hisi_sas_dq	*dq;
 	struct list_head	list;
-	u64 attached_phy;
 	enum sas_device_type	dev_type;
 	int device_id;
 	int sata_idx;
@@ -440,7 +438,6 @@ extern struct scsi_transport_template *hisi_sas_stt;
 extern struct scsi_host_template *hisi_sas_sht;
 
 extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
-extern void hisi_sas_init_add(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost);
 extern void hisi_sas_free(struct hisi_hba *hisi_hba);
 extern u8 hisi_sas_get_ata_protocol(struct host_to_dev_fis *fis,

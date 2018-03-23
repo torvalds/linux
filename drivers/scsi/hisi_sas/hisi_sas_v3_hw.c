@@ -2134,8 +2134,6 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		sha->sas_port[i] = &hisi_hba->port[i].sas_port;
 	}
 
-	hisi_sas_init_add(hisi_hba);
-
 	rc = scsi_add_host(shost, dev);
 	if (rc)
 		goto err_out_ha;
