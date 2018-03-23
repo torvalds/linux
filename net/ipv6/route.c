@@ -1626,11 +1626,10 @@ static void rt6_age_examine_exception(struct rt6_exception_bucket *bucket,
 		struct neighbour *neigh;
 		__u8 neigh_flags = 0;
 
-		neigh = dst_neigh_lookup(&rt->dst, &rt->rt6i_gateway);
-		if (neigh) {
+		neigh = __ipv6_neigh_lookup_noref(rt->dst.dev, &rt->rt6i_gateway);
+		if (neigh)
 			neigh_flags = neigh->flags;
-			neigh_release(neigh);
-		}
+
 		if (!(neigh_flags & NTF_ROUTER)) {
 			RT6_TRACE("purging route %p via non-router but gateway\n",
 				  rt);
@@ -1654,7 +1653,8 @@ void rt6_age_exceptions(struct rt6_info *rt,
 	if (!rcu_access_pointer(rt->rt6i_exception_bucket))
 		return;
 
-	spin_lock_bh(&rt6_exception_lock);
+	rcu_read_lock_bh();
+	spin_lock(&rt6_exception_lock);
 	bucket = rcu_dereference_protected(rt->rt6i_exception_bucket,
 				    lockdep_is_held(&rt6_exception_lock));
 
@@ -1668,7 +1668,8 @@ void rt6_age_exceptions(struct rt6_info *rt,
 			bucket++;
 		}
 	}
-	spin_unlock_bh(&rt6_exception_lock);
+	spin_unlock(&rt6_exception_lock);
+	rcu_read_unlock_bh();
 }
 
 struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
