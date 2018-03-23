@@ -1575,13 +1575,13 @@ union security_list_options {
 	int (*msg_msg_alloc_security)(struct msg_msg *msg);
 	void (*msg_msg_free_security)(struct msg_msg *msg);
 
-	int (*msg_queue_alloc_security)(struct msg_queue *msq);
-	void (*msg_queue_free_security)(struct msg_queue *msq);
-	int (*msg_queue_associate)(struct msg_queue *msq, int msqflg);
-	int (*msg_queue_msgctl)(struct msg_queue *msq, int cmd);
-	int (*msg_queue_msgsnd)(struct msg_queue *msq, struct msg_msg *msg,
+	int (*msg_queue_alloc_security)(struct kern_ipc_perm *msq);
+	void (*msg_queue_free_security)(struct kern_ipc_perm *msq);
+	int (*msg_queue_associate)(struct kern_ipc_perm *msq, int msqflg);
+	int (*msg_queue_msgctl)(struct kern_ipc_perm *msq, int cmd);
+	int (*msg_queue_msgsnd)(struct kern_ipc_perm *msq, struct msg_msg *msg,
 				int msqflg);
-	int (*msg_queue_msgrcv)(struct msg_queue *msq, struct msg_msg *msg,
+	int (*msg_queue_msgrcv)(struct kern_ipc_perm *msq, struct msg_msg *msg,
 				struct task_struct *target, long type,
 				int mode);
 

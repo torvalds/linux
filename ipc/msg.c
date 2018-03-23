@@ -101,7 +101,7 @@ static void msg_rcu_free(struct rcu_head *head)
 	struct kern_ipc_perm *p = container_of(head, struct kern_ipc_perm, rcu);
 	struct msg_queue *msq = container_of(p, struct msg_queue, q_perm);
 
-	security_msg_queue_free(msq);
+	security_msg_queue_free(&msq->q_perm);
 	kvfree(msq);
 }
 
@@ -127,7 +127,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	msq->q_perm.key = key;
 
 	msq->q_perm.security = NULL;
-	retval = security_msg_queue_alloc(msq);
+	retval = security_msg_queue_alloc(&msq->q_perm);
 	if (retval) {
 		kvfree(msq);
 		return retval;
@@ -258,9 +258,7 @@ static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
  */
 static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
 {
-	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
-
-	return security_msg_queue_associate(msq, msgflg);
+	return security_msg_queue_associate(ipcp, msgflg);
 }
 
 SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
@@ -380,7 +378,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 
 	msq = container_of(ipcp, struct msg_queue, q_perm);
 
-	err = security_msg_queue_msgctl(msq, cmd);
+	err = security_msg_queue_msgctl(&msq->q_perm, cmd);
 	if (err)
 		goto out_unlock1;
 
@@ -502,7 +500,7 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 	if (ipcperms(ns, &msq->q_perm, S_IRUGO))
 		goto out_unlock;
 
-	err = security_msg_queue_msgctl(msq, cmd);
+	err = security_msg_queue_msgctl(&msq->q_perm, cmd);
 	if (err)
 		goto out_unlock;
 
@@ -718,7 +716,7 @@ static inline int pipelined_send(struct msg_queue *msq, struct msg_msg *msg,
 
 	list_for_each_entry_safe(msr, t, &msq->q_receivers, r_list) {
 		if (testmsg(msg, msr->r_msgtype, msr->r_mode) &&
-		    !security_msg_queue_msgrcv(msq, msg, msr->r_tsk,
+		    !security_msg_queue_msgrcv(&msq->q_perm, msg, msr->r_tsk,
 					       msr->r_msgtype, msr->r_mode)) {
 
 			list_del(&msr->r_list);
@@ -784,7 +782,7 @@ static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 			goto out_unlock0;
 		}
 
-		err = security_msg_queue_msgsnd(msq, msg, msgflg);
+		err = security_msg_queue_msgsnd(&msq->q_perm, msg, msgflg);
 		if (err)
 			goto out_unlock0;
 
@@ -960,7 +958,7 @@ static struct msg_msg *find_msg(struct msg_queue *msq, long *msgtyp, int mode)
 
 	list_for_each_entry(msg, &msq->q_messages, m_list) {
 		if (testmsg(msg, *msgtyp, mode) &&
-		    !security_msg_queue_msgrcv(msq, msg, current,
+		    !security_msg_queue_msgrcv(&msq->q_perm, msg, current,
 					       *msgtyp, mode)) {
 			if (mode == SEARCH_LESSEQUAL && msg->m_type != 1) {
 				*msgtyp = msg->m_type - 1;

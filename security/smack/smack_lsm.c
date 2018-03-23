@@ -3210,9 +3210,9 @@ static int smack_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
  *
  * Returns 0
  */
-static int smack_msg_queue_alloc_security(struct msg_queue *msq)
+static int smack_msg_queue_alloc_security(struct kern_ipc_perm *msq)
 {
-	struct kern_ipc_perm *kisp = &msq->q_perm;
+	struct kern_ipc_perm *kisp = msq;
 	struct smack_known *skp = smk_of_current();
 
 	kisp->security = skp;
@@ -3225,9 +3225,9 @@ static int smack_msg_queue_alloc_security(struct msg_queue *msq)
  *
  * Clears the blob pointer
  */
-static void smack_msg_queue_free_security(struct msg_queue *msq)
+static void smack_msg_queue_free_security(struct kern_ipc_perm *msq)
 {
-	struct kern_ipc_perm *kisp = &msq->q_perm;
+	struct kern_ipc_perm *kisp = msq;
 
 	kisp->security = NULL;
 }
@@ -3238,9 +3238,9 @@ static void smack_msg_queue_free_security(struct msg_queue *msq)
  *
  * Returns a pointer to the smack label entry
  */
-static struct smack_known *smack_of_msq(struct msg_queue *msq)
+static struct smack_known *smack_of_msq(struct kern_ipc_perm *msq)
 {
-	return (struct smack_known *)msq->q_perm.security;
+	return (struct smack_known *)msq->security;
 }
 
 /**
@@ -3250,7 +3250,7 @@ static struct smack_known *smack_of_msq(struct msg_queue *msq)
  *
  * return 0 if current has access, error otherwise
  */
-static int smk_curacc_msq(struct msg_queue *msq, int access)
+static int smk_curacc_msq(struct kern_ipc_perm *msq, int access)
 {
 	struct smack_known *msp = smack_of_msq(msq);
 	struct smk_audit_info ad;
@@ -3258,7 +3258,7 @@ static int smk_curacc_msq(struct msg_queue *msq, int access)
 
 #ifdef CONFIG_AUDIT
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_IPC);
-	ad.a.u.ipc_id = msq->q_perm.id;
+	ad.a.u.ipc_id = msq->id;
 #endif
 	rc = smk_curacc(msp, access, &ad);
 	rc = smk_bu_current("msq", msp, access, rc);
@@ -3272,7 +3272,7 @@ static int smk_curacc_msq(struct msg_queue *msq, int access)
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_msg_queue_associate(struct msg_queue *msq, int msqflg)
+static int smack_msg_queue_associate(struct kern_ipc_perm *msq, int msqflg)
 {
 	int may;
 
@@ -3287,7 +3287,7 @@ static int smack_msg_queue_associate(struct msg_queue *msq, int msqflg)
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_msg_queue_msgctl(struct msg_queue *msq, int cmd)
+static int smack_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd)
 {
 	int may;
 
@@ -3321,7 +3321,7 @@ static int smack_msg_queue_msgctl(struct msg_queue *msq, int cmd)
  *
  * Returns 0 if current has the requested access, error code otherwise
  */
-static int smack_msg_queue_msgsnd(struct msg_queue *msq, struct msg_msg *msg,
+static int smack_msg_queue_msgsnd(struct kern_ipc_perm *msq, struct msg_msg *msg,
 				  int msqflg)
 {
 	int may;
@@ -3340,7 +3340,7 @@ static int smack_msg_queue_msgsnd(struct msg_queue *msq, struct msg_msg *msg,
  *
  * Returns 0 if current has read and write access, error code otherwise
  */
-static int smack_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg,
+static int smack_msg_queue_msgrcv(struct kern_ipc_perm *msq, struct msg_msg *msg,
 			struct task_struct *target, long type, int mode)
 {
 	return smk_curacc_msq(msq, MAY_READWRITE);

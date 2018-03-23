@@ -50,7 +50,6 @@ struct iattr;
 struct fown_struct;
 struct file_operations;
 struct msg_msg;
-struct msg_queue;
 struct xattr;
 struct xfrm_sec_ctx;
 struct mm_struct;
@@ -353,13 +352,13 @@ int security_ipc_permission(struct kern_ipc_perm *ipcp, short flag);
 void security_ipc_getsecid(struct kern_ipc_perm *ipcp, u32 *secid);
 int security_msg_msg_alloc(struct msg_msg *msg);
 void security_msg_msg_free(struct msg_msg *msg);
-int security_msg_queue_alloc(struct msg_queue *msq);
-void security_msg_queue_free(struct msg_queue *msq);
-int security_msg_queue_associate(struct msg_queue *msq, int msqflg);
-int security_msg_queue_msgctl(struct msg_queue *msq, int cmd);
-int security_msg_queue_msgsnd(struct msg_queue *msq,
+int security_msg_queue_alloc(struct kern_ipc_perm *msq);
+void security_msg_queue_free(struct kern_ipc_perm *msq);
+int security_msg_queue_associate(struct kern_ipc_perm *msq, int msqflg);
+int security_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd);
+int security_msg_queue_msgsnd(struct kern_ipc_perm *msq,
 			      struct msg_msg *msg, int msqflg);
-int security_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg,
+int security_msg_queue_msgrcv(struct kern_ipc_perm *msq, struct msg_msg *msg,
 			      struct task_struct *target, long type, int mode);
 int security_shm_alloc(struct kern_ipc_perm *shp);
 void security_shm_free(struct kern_ipc_perm *shp);
@@ -1043,32 +1042,32 @@ static inline int security_msg_msg_alloc(struct msg_msg *msg)
 static inline void security_msg_msg_free(struct msg_msg *msg)
 { }
 
-static inline int security_msg_queue_alloc(struct msg_queue *msq)
+static inline int security_msg_queue_alloc(struct kern_ipc_perm *msq)
 {
 	return 0;
 }
 
-static inline void security_msg_queue_free(struct msg_queue *msq)
+static inline void security_msg_queue_free(struct kern_ipc_perm *msq)
 { }
 
-static inline int security_msg_queue_associate(struct msg_queue *msq,
+static inline int security_msg_queue_associate(struct kern_ipc_perm *msq,
 					       int msqflg)
 {
 	return 0;
 }
 
-static inline int security_msg_queue_msgctl(struct msg_queue *msq, int cmd)
+static inline int security_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd)
 {
 	return 0;
 }
 
-static inline int security_msg_queue_msgsnd(struct msg_queue *msq,
+static inline int security_msg_queue_msgsnd(struct kern_ipc_perm *msq,
 					    struct msg_msg *msg, int msqflg)
 {
 	return 0;
 }
 
-static inline int security_msg_queue_msgrcv(struct msg_queue *msq,
+static inline int security_msg_queue_msgrcv(struct kern_ipc_perm *msq,
 					    struct msg_msg *msg,
 					    struct task_struct *target,
 					    long type, int mode)

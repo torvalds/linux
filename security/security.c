@@ -1163,33 +1163,33 @@ void security_msg_msg_free(struct msg_msg *msg)
 	call_void_hook(msg_msg_free_security, msg);
 }
 
-int security_msg_queue_alloc(struct msg_queue *msq)
+int security_msg_queue_alloc(struct kern_ipc_perm *msq)
 {
 	return call_int_hook(msg_queue_alloc_security, 0, msq);
 }
 
-void security_msg_queue_free(struct msg_queue *msq)
+void security_msg_queue_free(struct kern_ipc_perm *msq)
 {
 	call_void_hook(msg_queue_free_security, msq);
 }
 
-int security_msg_queue_associate(struct msg_queue *msq, int msqflg)
+int security_msg_queue_associate(struct kern_ipc_perm *msq, int msqflg)
 {
 	return call_int_hook(msg_queue_associate, 0, msq, msqflg);
 }
 
-int security_msg_queue_msgctl(struct msg_queue *msq, int cmd)
+int security_msg_queue_msgctl(struct kern_ipc_perm *msq, int cmd)
 {
 	return call_int_hook(msg_queue_msgctl, 0, msq, cmd);
 }
 
-int security_msg_queue_msgsnd(struct msg_queue *msq,
+int security_msg_queue_msgsnd(struct kern_ipc_perm *msq,
 			       struct msg_msg *msg, int msqflg)
 {
 	return call_int_hook(msg_queue_msgsnd, 0, msq, msg, msqflg);
 }
 
-int security_msg_queue_msgrcv(struct msg_queue *msq, struct msg_msg *msg,
+int security_msg_queue_msgrcv(struct kern_ipc_perm *msq, struct msg_msg *msg,
 			       struct task_struct *target, long type, int mode)
 {
 	return call_int_hook(msg_queue_msgrcv, 0, msq, msg, target, type, mode);
