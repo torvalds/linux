@@ -787,7 +787,7 @@ static int soc_camera_mmap(struct file *file, struct vm_area_struct *vma)
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	int err;
 
-	dev_dbg(icd->pdev, "mmap called, vma=0x%08lx\n", (unsigned long)vma);
+	dev_dbg(icd->pdev, "mmap called, vma=%p\n", vma);
 
 	if (icd->streamer != file)
 		return -EBUSY;
