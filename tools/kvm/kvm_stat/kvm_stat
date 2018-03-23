@@ -1134,12 +1134,14 @@ class Tui(object):
         def get_sorted_events(self, stats):
             """ separate parent and child events """
             if self._sorting == SORT_DEFAULT:
-                def sortkey((_k, v)):
+                def sortkey(pair):
                     # sort by (delta value, overall value)
+                    v = pair[1]
                     return (v.delta, v.value)
             else:
-                def sortkey((_k, v)):
+                def sortkey(pair):
                     # sort by overall value
+                    v = pair[1]
                     return v.value
 
             childs = []
