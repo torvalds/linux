@@ -51,7 +51,7 @@ MODULE_PARM_DESC(txglomsz, "Maximum tx packet chain size [SDIO]");
 
 /* Debug level configuration. See debug.h for bits, sysfs modifiable */
 int brcmf_msg_level;
-module_param_named(debug, brcmf_msg_level, int, S_IRUSR | S_IWUSR);
+module_param_named(debug, brcmf_msg_level, int, 0600);
 MODULE_PARM_DESC(debug, "Level of debug output");
 
 static int brcmf_p2p_enable;
@@ -64,7 +64,7 @@ MODULE_PARM_DESC(feature_disable, "Disable features");
 
 static char brcmf_firmware_path[BRCMF_FW_ALTPATH_LEN];
 module_param_string(alternative_fw_path, brcmf_firmware_path,
-		    BRCMF_FW_ALTPATH_LEN, S_IRUSR);
+		    BRCMF_FW_ALTPATH_LEN, 0400);
 MODULE_PARM_DESC(alternative_fw_path, "Alternative firmware path");
 
 static int brcmf_fcmode;
@@ -72,7 +72,7 @@ module_param_named(fcmode, brcmf_fcmode, int, 0);
 MODULE_PARM_DESC(fcmode, "Mode of firmware signalled flow control");
 
 static int brcmf_roamoff;
-module_param_named(roamoff, brcmf_roamoff, int, S_IRUSR);
+module_param_named(roamoff, brcmf_roamoff, int, 0400);
 MODULE_PARM_DESC(roamoff, "Do not use internal roaming engine");
 
 #ifdef DEBUG

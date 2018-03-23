@@ -108,7 +108,7 @@ MODULE_DEVICE_TABLE(bcma, brcms_coreid_table);
  * flags are specified by the BRCM_DL_* macros in
  * drivers/net/wireless/brcm80211/include/defs.h.
  */
-module_param_named(debug, brcm_msg_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, brcm_msg_level, uint, 0644);
 #endif
 
 static struct ieee80211_channel brcms_2ghz_chantable[] = {

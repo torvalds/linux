@@ -187,7 +187,7 @@ int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 			    struct dentry *dbgfs_dir)
 {
 	INIT_DELAYED_WORK(&fwrt->timestamp.wk, iwl_fw_timestamp_marker_wk);
-	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, S_IWUSR);
+	FWRT_DEBUGFS_ADD_FILE(timestamp_marker, dbgfs_dir, 0200);
 	return 0;
 err:
 	IWL_ERR(fwrt, "Can't create the fwrt debugfs directory\n");
