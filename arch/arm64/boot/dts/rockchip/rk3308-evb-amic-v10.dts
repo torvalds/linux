@@ -12,4 +12,29 @@
 / {
 	model = "Rockchip RK3308 evb analog mic board";
 	compatible = "rockchip,rk3308-evb-amic-v10", "rockchip,rk3308";
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,rk3308-acodec";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s_8ch_2>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&acodec>;
+		};
+	};
+};
+
+&acodec {
+	status = "okay";
+
+	#sound-dai-cells = <0>;
+};
+
+&i2s_8ch_2 {
+	status = "okay";
+
+	#sound-dai-cells = <0>;
 };
