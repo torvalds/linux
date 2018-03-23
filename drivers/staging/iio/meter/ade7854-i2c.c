@@ -65,9 +65,10 @@ unlock:
 	return ret < 0 ? ret : 0;
 }
 
-static int ade7854_i2c_read_reg_8(struct device *dev,
-				  u16 reg_address,
-				  u8 *val)
+static int ade7854_i2c_read_reg(struct device *dev,
+				u16 reg_address,
+				u32 *val,
+				int bits)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7854_state *st = iio_priv(indio_dev);
@@ -79,95 +80,62 @@ static int ade7854_i2c_read_reg_8(struct device *dev,
 
 	ret = i2c_master_send(st->i2c, st->tx, 2);
 	if (ret < 0)
-		goto out;
+		goto unlock;
 
-	ret = i2c_master_recv(st->i2c, st->rx, 1);
+	ret = i2c_master_recv(st->i2c, st->rx, bits);
 	if (ret < 0)
-		goto out;
+		goto unlock;
 
-	*val = st->rx[0];
-out:
+	switch (bits) {
+	case 8:
+		*val = st->rx[0];
+		break;
+	case 16:
+		*val = (st->rx[0] << 8) | st->rx[1];
+		break;
+	case 24:
+		*val = (st->rx[0] << 16) | (st->rx[1] << 8) | st->rx[2];
+		break;
+	case 32:
+		*val = (st->rx[0] << 24) | (st->rx[1] << 16) |
+			(st->rx[2] << 8) | st->rx[3];
+		break;
+	default:
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+unlock:
 	mutex_unlock(&st->buf_lock);
 	return ret;
+}
+
+static int ade7854_i2c_read_reg_8(struct device *dev,
+				  u16 reg_address,
+				  u8 *val)
+{
+	return ade7854_i2c_read_reg(dev, reg_address, (u32 *)val, 8);
 }
 
 static int ade7854_i2c_read_reg_16(struct device *dev,
 				   u16 reg_address,
 				   u16 *val)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ade7854_state *st = iio_priv(indio_dev);
-	int ret;
-
-	mutex_lock(&st->buf_lock);
-	st->tx[0] = (reg_address >> 8) & 0xFF;
-	st->tx[1] = reg_address & 0xFF;
-
-	ret = i2c_master_send(st->i2c, st->tx, 2);
-	if (ret < 0)
-		goto out;
-
-	ret = i2c_master_recv(st->i2c, st->rx, 2);
-	if (ret < 0)
-		goto out;
-
-	*val = (st->rx[0] << 8) | st->rx[1];
-out:
-	mutex_unlock(&st->buf_lock);
-	return ret;
+	return ade7854_i2c_read_reg(dev, reg_address, (u32 *)val, 16);
 }
 
 static int ade7854_i2c_read_reg_24(struct device *dev,
 				   u16 reg_address,
 				   u32 *val)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ade7854_state *st = iio_priv(indio_dev);
-	int ret;
-
-	mutex_lock(&st->buf_lock);
-	st->tx[0] = (reg_address >> 8) & 0xFF;
-	st->tx[1] = reg_address & 0xFF;
-
-	ret = i2c_master_send(st->i2c, st->tx, 2);
-	if (ret < 0)
-		goto out;
-
-	ret = i2c_master_recv(st->i2c, st->rx, 3);
-	if (ret < 0)
-		goto out;
-
-	*val = (st->rx[0] << 16) | (st->rx[1] << 8) | st->rx[2];
-out:
-	mutex_unlock(&st->buf_lock);
-	return ret;
+	return ade7854_i2c_read_reg(dev, reg_address, (u32 *)val, 24);
 }
 
 static int ade7854_i2c_read_reg_32(struct device *dev,
 				   u16 reg_address,
 				   u32 *val)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	struct ade7854_state *st = iio_priv(indio_dev);
-	int ret;
-
-	mutex_lock(&st->buf_lock);
-	st->tx[0] = (reg_address >> 8) & 0xFF;
-	st->tx[1] = reg_address & 0xFF;
-
-	ret = i2c_master_send(st->i2c, st->tx, 2);
-	if (ret < 0)
-		goto out;
-
-	ret = i2c_master_recv(st->i2c, st->rx, 4);
-	if (ret < 0)
-		goto out;
-
-	*val = (st->rx[0] << 24) | (st->rx[1] << 16) |
-		(st->rx[2] << 8) | st->rx[3];
-out:
-	mutex_unlock(&st->buf_lock);
-	return ret;
+	return ade7854_i2c_read_reg(dev, reg_address, (u32 *)val, 32);
 }
 
 static int ade7854_i2c_probe(struct i2c_client *client,
