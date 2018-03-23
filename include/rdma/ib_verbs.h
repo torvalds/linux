@@ -2122,8 +2122,8 @@ struct ib_device {
 	 * net device of device @device at port @port_num or NULL if such
 	 * a net device doesn't exist. The vendor driver should call dev_hold
 	 * on this net device. The HW vendor's device driver must guarantee
-	 * that this function returns NULL before the net device reaches
-	 * NETDEV_UNREGISTER_FINAL state.
+	 * that this function returns NULL before the net device has finished
+	 * NETDEV_UNREGISTER state.
 	 */
 	struct net_device	  *(*get_netdev)(struct ib_device *device,
 						 u8 port_num);
