@@ -3251,7 +3251,7 @@ static inline int external_ai_queue_in_use(struct comedi_device *dev)
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 
-	if (dev->read_subdev->busy)
+	if (!dev->read_subdev->busy)
 		return 0;
 	if (board->layout == LAYOUT_4020)
 		return 0;
