@@ -216,6 +216,15 @@ int get_current_ap(struct ks_wlan_private *priv, struct link_ap_info_t *ap_info)
 	return 0;
 }
 
+static u8 read_ie(unsigned char *bp, u8 max, u8 *body)
+{
+	u8 size = (*(bp + 1) <= max) ? *(bp + 1) : max;
+
+	memcpy(body, bp + 2, size);
+	return size;
+}
+
+
 static
 int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 		       struct local_ap_t *ap)
@@ -245,11 +254,8 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 	while (bsize > offset) {
 		switch (*bp) { /* Information Element ID */
 		case WLAN_EID_SSID:
-			if (*(bp + 1) <= IEEE80211_MAX_SSID_LEN)
-				ap->ssid.size = *(bp + 1);
-			else
-				ap->ssid.size = IEEE80211_MAX_SSID_LEN;
-			memcpy(ap->ssid.body, bp + 2, ap->ssid.size);
+			ap->ssid.size = read_ie(bp, IEEE80211_MAX_SSID_LEN,
+						ap->ssid.body);
 			break;
 		case WLAN_EID_SUPP_RATES:
 		case WLAN_EID_EXT_SUPP_RATES:
@@ -270,22 +276,15 @@ int get_ap_information(struct ks_wlan_private *priv, struct ap_info_t *ap_info,
 			break;
 		case WLAN_EID_RSN:
 			ap->rsn_ie.id = *bp;
-			if (*(bp + 1) <= RSN_IE_BODY_MAX)
-				ap->rsn_ie.size = *(bp + 1);
-			else
-				ap->rsn_ie.size = RSN_IE_BODY_MAX;
-			memcpy(ap->rsn_ie.body, bp + 2, ap->rsn_ie.size);
+			ap->rsn_ie.size = read_ie(bp, RSN_IE_BODY_MAX,
+						  ap->rsn_ie.body);
 			break;
 		case WLAN_EID_VENDOR_SPECIFIC: /* WPA */
 			/* WPA OUI check */
 			if (memcmp(bp + 2, CIPHER_ID_WPA_WEP40, 4) == 0) {
 				ap->wpa_ie.id = *bp;
-				if (*(bp + 1) <= RSN_IE_BODY_MAX)
-					ap->wpa_ie.size = *(bp + 1);
-				else
-					ap->wpa_ie.size = RSN_IE_BODY_MAX;
-				memcpy(ap->wpa_ie.body, bp + 2,
-				       ap->wpa_ie.size);
+				ap->wpa_ie.size = read_ie(bp, RSN_IE_BODY_MAX,
+							  ap->wpa_ie.body);
 			}
 			break;
 
