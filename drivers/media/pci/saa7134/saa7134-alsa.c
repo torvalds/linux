@@ -273,9 +273,8 @@ static int saa7134_alsa_dma_init(struct saa7134_dev *dev, int nr_pages)
 		return -ENOMEM;
 	}
 
-	pr_debug("vmalloc is at addr 0x%08lx, size=%d\n",
-				(unsigned long)dma->vaddr,
-				nr_pages << PAGE_SHIFT);
+	pr_debug("vmalloc is at addr %p, size=%d\n",
+		 dma->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(dma->vaddr, 0, nr_pages << PAGE_SHIFT);
 	dma->nr_pages = nr_pages;
