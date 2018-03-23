@@ -808,7 +808,7 @@ struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm)
  * Eviction is reference-counted per process-device. This means multiple
  * evictions from different sources can be nested safely.
  */
-static int process_evict_queues(struct kfd_process *p)
+int kfd_process_evict_queues(struct kfd_process *p)
 {
 	struct kfd_process_device *pdd;
 	int r = 0;
@@ -844,7 +844,7 @@ fail:
 }
 
 /* process_restore_queues - Restore all user queues of a process */
-static  int process_restore_queues(struct kfd_process *p)
+int kfd_process_restore_queues(struct kfd_process *p)
 {
 	struct kfd_process_device *pdd;
 	int r, ret = 0;
@@ -886,7 +886,7 @@ static void evict_process_worker(struct work_struct *work)
 	flush_delayed_work(&p->restore_work);
 
 	pr_debug("Started evicting pasid %d\n", p->pasid);
-	ret = process_evict_queues(p);
+	ret = kfd_process_evict_queues(p);
 	if (!ret) {
 		dma_fence_signal(p->ef);
 		dma_fence_put(p->ef);
@@ -946,7 +946,7 @@ static void restore_process_worker(struct work_struct *work)
 		return;
 	}
 
-	ret = process_restore_queues(p);
+	ret = kfd_process_restore_queues(p);
 	if (!ret)
 		pr_debug("Finished restoring pasid %d\n", p->pasid);
 	else
@@ -963,7 +963,7 @@ void kfd_suspend_all_processes(void)
 		cancel_delayed_work_sync(&p->eviction_work);
 		cancel_delayed_work_sync(&p->restore_work);
 
-		if (process_evict_queues(p))
+		if (kfd_process_evict_queues(p))
 			pr_err("Failed to suspend process %d\n", p->pasid);
 		dma_fence_signal(p->ef);
 		dma_fence_put(p->ef);

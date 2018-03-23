@@ -382,6 +382,10 @@ struct kfd2kgd_calls {
  *
  * @resume: Notifies amdkfd about a resume action done to a kgd device
  *
+ * @quiesce_mm: Quiesce all user queue access to specified MM address space
+ *
+ * @resume_mm: Resume user queue access to specified MM address space
+ *
  * @schedule_evict_and_restore_process: Schedules work queue that will prepare
  * for safe eviction of KFD BOs that belong to the specified process.
  *
@@ -399,6 +403,8 @@ struct kgd2kfd_calls {
 	void (*interrupt)(struct kfd_dev *kfd, const void *ih_ring_entry);
 	void (*suspend)(struct kfd_dev *kfd);
 	int (*resume)(struct kfd_dev *kfd);
+	int (*quiesce_mm)(struct mm_struct *mm);
+	int (*resume_mm)(struct mm_struct *mm);
 	int (*schedule_evict_and_restore_process)(struct mm_struct *mm,
 			struct dma_fence *fence);
 };

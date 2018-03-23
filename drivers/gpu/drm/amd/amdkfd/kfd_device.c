@@ -541,6 +541,44 @@ void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
 	spin_unlock(&kfd->interrupt_lock);
 }
 
+int kgd2kfd_quiesce_mm(struct mm_struct *mm)
+{
+	struct kfd_process *p;
+	int r;
+
+	/* Because we are called from arbitrary context (workqueue) as opposed
+	 * to process context, kfd_process could attempt to exit while we are
+	 * running so the lookup function increments the process ref count.
+	 */
+	p = kfd_lookup_process_by_mm(mm);
+	if (!p)
+		return -ESRCH;
+
+	r = kfd_process_evict_queues(p);
+
+	kfd_unref_process(p);
+	return r;
+}
+
+int kgd2kfd_resume_mm(struct mm_struct *mm)
+{
+	struct kfd_process *p;
+	int r;
+
+	/* Because we are called from arbitrary context (workqueue) as opposed
+	 * to process context, kfd_process could attempt to exit while we are
+	 * running so the lookup function increments the process ref count.
+	 */
+	p = kfd_lookup_process_by_mm(mm);
+	if (!p)
+		return -ESRCH;
+
+	r = kfd_process_restore_queues(p);
+
+	kfd_unref_process(p);
+	return r;
+}
+
 /** kgd2kfd_schedule_evict_and_restore_process - Schedules work queue that will
  *   prepare for safe eviction of KFD BOs that belong to the specified
  *   process.
