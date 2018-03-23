@@ -2459,10 +2459,10 @@ slot_complete_v2_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 			slot_err_v2_hw(hisi_hba, task, slot, 2);
 
 		if (ts->stat != SAS_DATA_UNDERRUN)
-			dev_info(dev, "erroneous completion iptt=%d task=%p "
+			dev_info(dev, "erroneous completion iptt=%d task=%p dev id=%d "
 				"CQ hdr: 0x%x 0x%x 0x%x 0x%x "
 				"Error info: 0x%x 0x%x 0x%x 0x%x\n",
-				slot->idx, task,
+				slot->idx, task, sas_dev->device_id,
 				complete_hdr->dw0, complete_hdr->dw1,
 				complete_hdr->act, complete_hdr->dw3,
 				error_info[0], error_info[1],
