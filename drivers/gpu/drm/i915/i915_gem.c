@@ -5502,8 +5502,7 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 	INIT_WORK(&i915->mm.free_work, __i915_gem_free_work);
 }
 
-int
-i915_gem_load_init(struct drm_i915_private *dev_priv)
+int i915_gem_init_early(struct drm_i915_private *dev_priv)
 {
 	int err = -ENOMEM;
 
@@ -5578,7 +5577,7 @@ err_out:
 	return err;
 }
 
-void i915_gem_load_cleanup(struct drm_i915_private *dev_priv)
+void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 {
 	i915_gem_drain_freed_objects(dev_priv);
 	GEM_BUG_ON(!llist_empty(&dev_priv->mm.free_list));

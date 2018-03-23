@@ -919,17 +919,21 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	mutex_init(&dev_priv->wm.wm_mutex);
 	mutex_init(&dev_priv->pps_mutex);
 
-	intel_wopcm_init_early(&dev_priv->wopcm);
-	intel_uc_init_early(dev_priv);
 	i915_memcpy_init_early(dev_priv);
 
 	ret = i915_workqueues_init(dev_priv);
 	if (ret < 0)
 		goto err_engines;
 
+	ret = i915_gem_init_early(dev_priv);
+	if (ret < 0)
+		goto err_workqueues;
+
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(dev_priv);
 
+	intel_wopcm_init_early(&dev_priv->wopcm);
+	intel_uc_init_early(dev_priv);
 	intel_pm_setup(dev_priv);
 	intel_init_dpio(dev_priv);
 	intel_power_domains_init(dev_priv);
@@ -938,18 +942,13 @@ static int i915_driver_init_early(struct drm_i915_private *dev_priv,
 	intel_init_display_hooks(dev_priv);
 	intel_init_clock_gating_hooks(dev_priv);
 	intel_init_audio_hooks(dev_priv);
-	ret = i915_gem_load_init(dev_priv);
-	if (ret < 0)
-		goto err_irq;
-
 	intel_display_crc_init(dev_priv);
 
 	intel_detect_preproduction_hw(dev_priv);
 
 	return 0;
 
-err_irq:
-	intel_irq_fini(dev_priv);
+err_workqueues:
 	i915_workqueues_cleanup(dev_priv);
 err_engines:
 	i915_engines_cleanup(dev_priv);
@@ -962,8 +961,8 @@ err_engines:
  */
 static void i915_driver_cleanup_early(struct drm_i915_private *dev_priv)
 {
-	i915_gem_load_cleanup(dev_priv);
 	intel_irq_fini(dev_priv);
+	i915_gem_cleanup_early(dev_priv);
 	i915_workqueues_cleanup(dev_priv);
 	i915_engines_cleanup(dev_priv);
 }
