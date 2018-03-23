@@ -904,10 +904,12 @@ static int aead_setkey(struct crypto_aead *authenc,
 	ctx->dma_key = dma_map_single(dev, ctx->key, ctx->keylen,
 				      DMA_TO_DEVICE);
 
+	memzero_explicit(&keys, sizeof(keys));
 	return 0;
 
 badkey:
 	crypto_aead_set_flags(authenc, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
 
