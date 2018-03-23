@@ -1173,7 +1173,7 @@ static int uvc_ioctl_enum_framesizes(struct file *file, void *fh,
 	struct uvc_fh *handle = fh;
 	struct uvc_streaming *stream = handle->stream;
 	struct uvc_format *format = NULL;
-	struct uvc_frame *frame;
+	struct uvc_frame *frame = NULL;
 	unsigned int index;
 	unsigned int i;
 
@@ -1189,7 +1189,7 @@ static int uvc_ioctl_enum_framesizes(struct file *file, void *fh,
 
 	/* Skip duplicate frame sizes */
 	for (i = 0, index = 0; i < format->nframes; i++) {
-		if (i && frame->wWidth == format->frame[i].wWidth &&
+		if (frame && frame->wWidth == format->frame[i].wWidth &&
 		    frame->wHeight == format->frame[i].wHeight)
 			continue;
 		frame = &format->frame[i];
