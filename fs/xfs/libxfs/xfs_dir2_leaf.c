@@ -877,9 +877,13 @@ xfs_dir2_leaf_addname(
 	/*
 	 * Mark the initial part of our freespace in use for the new entry.
 	 */
-	xfs_dir2_data_use_free(args, dbp, dup,
-		(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr), length,
-		&needlog, &needscan);
+	error = xfs_dir2_data_use_free(args, dbp, dup,
+			(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr),
+			length, &needlog, &needscan);
+	if (error) {
+		xfs_trans_brelse(tp, lbp);
+		return error;
+	}
 	/*
 	 * Initialize our new entry (at last).
 	 */

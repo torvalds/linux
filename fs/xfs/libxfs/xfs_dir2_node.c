@@ -1729,6 +1729,7 @@ xfs_dir2_node_addname_int(
 	__be16			*bests;
 	struct xfs_dir3_icfree_hdr freehdr;
 	struct xfs_dir2_data_free *bf;
+	xfs_dir2_data_aoff_t	aoff;
 
 	dp = args->dp;
 	mp = dp->i_mount;
@@ -2023,9 +2024,13 @@ xfs_dir2_node_addname_int(
 	/*
 	 * Mark the first part of the unused space, inuse for us.
 	 */
-	xfs_dir2_data_use_free(args, dbp, dup,
-		(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr), length,
-		&needlog, &needscan);
+	aoff = (xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr);
+	error = xfs_dir2_data_use_free(args, dbp, dup, aoff, length,
+			&needlog, &needscan);
+	if (error) {
+		xfs_trans_brelse(tp, dbp);
+		return error;
+	}
 	/*
 	 * Fill in the new entry and log it.
 	 */
