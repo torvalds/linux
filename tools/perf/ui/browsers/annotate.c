@@ -155,7 +155,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	if (strstr(sym->name, "@plt"))
 		return;
 
-	if (!disasm_line__is_valid_jump(cursor, sym))
+	if (!disasm_line__is_valid_local_jump(cursor, sym))
 		return;
 
 	/*

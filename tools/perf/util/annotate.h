@@ -117,12 +117,20 @@ static inline struct disasm_line *disasm_line(struct annotation_line *al)
 	return al ? container_of(al, struct disasm_line, al) : NULL;
 }
 
-static inline bool disasm_line__has_offset(const struct disasm_line *dl)
+/*
+ * Is this offset in the same function as the line it is used?
+ * asm functions jump to other functions, for instance.
+ */
+static inline bool disasm_line__has_local_offset(const struct disasm_line *dl)
 {
-	return dl->ops.target.offset_avail;
+	return dl->ops.target.offset_avail && !dl->ops.target.outside;
 }
 
-bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sym);
+/*
+ * Can we draw an arrow from the jump to its target, for instance? I.e.
+ * is the jump and its target in the same function?
+ */
+bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym);
 
 void disasm_line__free(struct disasm_line *dl);
 struct annotation_line *

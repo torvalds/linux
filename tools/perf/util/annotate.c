@@ -1409,7 +1409,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, FILE *file,
 	if (dl == NULL)
 		return -1;
 
-	if (!disasm_line__has_offset(dl)) {
+	if (!disasm_line__has_local_offset(dl)) {
 		dl->ops.target.offset = dl->ops.target.addr -
 					map__rip_2objdump(map, sym->start);
 		dl->ops.target.offset_avail = true;
@@ -2176,11 +2176,10 @@ size_t disasm__fprintf(struct list_head *head, FILE *fp)
 	return printed;
 }
 
-
-bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sym)
+bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym)
 {
 	if (!dl || !dl->ins.ops || !ins__is_jump(&dl->ins) ||
-	    !disasm_line__has_offset(dl) || dl->ops.target.offset < 0 ||
+	    !disasm_line__has_local_offset(dl) || dl->ops.target.offset < 0 ||
 	    dl->ops.target.offset >= (s64)symbol__size(sym))
 		return false;
 
@@ -2201,7 +2200,7 @@ void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 
 		dl = disasm_line(al);
 
-		if (!disasm_line__is_valid_jump(dl, sym))
+		if (!disasm_line__is_valid_local_jump(dl, sym))
 			continue;
 
 		al = notes->offsets[dl->ops.target.offset];
