@@ -1072,7 +1072,6 @@ static int tegra_dsi_exit(struct host1x_client *client)
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
 
 	tegra_output_exit(&dsi->output);
-	regulator_disable(dsi->vdd);
 
 	return 0;
 }
