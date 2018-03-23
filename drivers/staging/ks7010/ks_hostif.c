@@ -783,8 +783,9 @@ void hostif_scan_indication(struct ks_wlan_private *priv)
 	if (priv->scan_ind_count) {
 		/* bssid check */
 		for (i = 0; i < priv->aplist.size; i++) {
-			if (memcmp(ap_info->bssid,
-				   priv->aplist.ap[i].bssid, ETH_ALEN) != 0)
+			u8 *bssid = priv->aplist.ap[i].bssid;
+
+			if (ether_addr_equal(ap_info->bssid, bssid))
 				continue;
 
 			if (ap_info->frame_type == IEEE80211_STYPE_PROBE_RESP)
