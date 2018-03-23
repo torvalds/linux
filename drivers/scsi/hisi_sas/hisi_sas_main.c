@@ -1822,12 +1822,10 @@ int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost)
 		goto err_out;
 
 	s = HISI_SAS_MAX_ITCT_ENTRIES * sizeof(struct hisi_sas_itct);
-	hisi_hba->itct = dma_alloc_coherent(dev, s, &hisi_hba->itct_dma,
+	hisi_hba->itct = dma_zalloc_coherent(dev, s, &hisi_hba->itct_dma,
 					    GFP_KERNEL);
 	if (!hisi_hba->itct)
 		goto err_out;
-
-	memset(hisi_hba->itct, 0, s);
 
 	hisi_hba->slot_info = devm_kcalloc(dev, max_command_entries,
 					   sizeof(struct hisi_sas_slot),
