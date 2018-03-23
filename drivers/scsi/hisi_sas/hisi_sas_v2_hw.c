@@ -3295,6 +3295,7 @@ static irqreturn_t sata_int_v2_hw(int irq_no, void *p)
 	sas_phy->oob_mode = SATA_OOB_MODE;
 	/* Make up some unique SAS address */
 	attached_sas_addr[0] = 0x50;
+	attached_sas_addr[6] = hisi_hba->shost->host_no;
 	attached_sas_addr[7] = phy_no;
 	memcpy(sas_phy->attached_sas_addr, attached_sas_addr, SAS_ADDR_SIZE);
 	memcpy(sas_phy->frame_rcvd, fis, sizeof(struct dev_to_host_fis));
