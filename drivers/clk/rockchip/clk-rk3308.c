@@ -954,6 +954,14 @@ static void __init rk3308_clk_init(struct device_node *np)
 	else
 		rockchip_clk_add_lookup(ctx, clk, ACLK_DMAC1);
 
+	/* watchdog pclk is controlled by sgrf. */
+	clk = clk_register_fixed_factor(NULL, "pclk_wdt", "pclk_bus", 0, 1, 1);
+	if (IS_ERR(clk))
+		pr_warn("%s: could not register clock pclk_wdt: %ld\n",
+			__func__, PTR_ERR(clk));
+	else
+		rockchip_clk_add_lookup(ctx, clk, PCLK_WDT);
+
 	rockchip_clk_register_plls(ctx, rk3308_pll_clks,
 				   ARRAY_SIZE(rk3308_pll_clks),
 				   RK3308_GRF_SOC_STATUS0);

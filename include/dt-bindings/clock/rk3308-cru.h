@@ -178,7 +178,7 @@
 #define PCLK_TSADC		211
 #define PCLK_TIMER		212
 #define PCLK_OTP_NS		213
-#define PCLK_WDT_NS		214
+#define PCLK_WDT		214
 #define PCLK_GPIO0		215
 #define PCLK_GPIO1		216
 #define PCLK_GPIO2		217
