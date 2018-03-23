@@ -493,6 +493,105 @@ static const struct cnl_ddi_buf_trans cnl_ddi_translations_edp_1_05V[] = {
 	{ 0x2, 0x7F, 0x3F, 0x00, 0x00 },	/* 400   400      0.0   */
 };
 
+struct icl_combo_phy_ddi_buf_trans {
+	u32 dw2_swing_select;
+	u32 dw2_swing_scalar;
+	u32 dw4_scaling;
+};
+
+/* Voltage Swing Programming for VccIO 0.85V for DP */
+static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hdmi_0_85V[] = {
+				/* Voltage mV  db    */
+	{ 0x2, 0x98, 0x0018 },	/* 400         0.0   */
+	{ 0x2, 0x98, 0x3015 },	/* 400         3.5   */
+	{ 0x2, 0x98, 0x6012 },	/* 400         6.0   */
+	{ 0x2, 0x98, 0x900F },	/* 400         9.5   */
+	{ 0xB, 0x70, 0x0018 },	/* 600         0.0   */
+	{ 0xB, 0x70, 0x3015 },	/* 600         3.5   */
+	{ 0xB, 0x70, 0x6012 },	/* 600         6.0   */
+	{ 0x5, 0x00, 0x0018 },	/* 800         0.0   */
+	{ 0x5, 0x00, 0x3015 },	/* 800         3.5   */
+	{ 0x6, 0x98, 0x0018 },	/* 1200        0.0   */
+};
+
+/* FIXME - After table is updated in Bspec */
+/* Voltage Swing Programming for VccIO 0.85V for eDP */
+static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_edp_0_85V[] = {
+				/* Voltage mV  db    */
+	{ 0x0, 0x00, 0x00 },	/* 200         0.0   */
+	{ 0x0, 0x00, 0x00 },	/* 200         1.5   */
+	{ 0x0, 0x00, 0x00 },	/* 200         4.0   */
+	{ 0x0, 0x00, 0x00 },	/* 200         6.0   */
+	{ 0x0, 0x00, 0x00 },	/* 250         0.0   */
+	{ 0x0, 0x00, 0x00 },	/* 250         1.5   */
+	{ 0x0, 0x00, 0x00 },	/* 250         4.0   */
+	{ 0x0, 0x00, 0x00 },	/* 300         0.0   */
+	{ 0x0, 0x00, 0x00 },	/* 300         1.5   */
+	{ 0x0, 0x00, 0x00 },	/* 350         0.0   */
+};
+
+/* Voltage Swing Programming for VccIO 0.95V for DP */
+static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hdmi_0_95V[] = {
+				/* Voltage mV  db    */
+	{ 0x2, 0x98, 0x0018 },	/* 400         0.0   */
+	{ 0x2, 0x98, 0x3015 },	/* 400         3.5   */
+	{ 0x2, 0x98, 0x6012 },	/* 400         6.0   */
+	{ 0x2, 0x98, 0x900F },	/* 400         9.5   */
+	{ 0x4, 0x98, 0x0018 },	/* 600         0.0   */
+	{ 0x4, 0x98, 0x3015 },	/* 600         3.5   */
+	{ 0x4, 0x98, 0x6012 },	/* 600         6.0   */
+	{ 0x5, 0x76, 0x0018 },	/* 800         0.0   */
+	{ 0x5, 0x76, 0x3015 },	/* 800         3.5   */
+	{ 0x6, 0x98, 0x0018 },	/* 1200        0.0   */
+};
+
+/* FIXME - After table is updated in Bspec */
+/* Voltage Swing Programming for VccIO 0.95V for eDP */
+static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_edp_0_95V[] = {
+				/* Voltage mV  db    */
+	{ 0x0, 0x00, 0x00 },	/* 200         0.0   */
+	{ 0x0, 0x00, 0x00 },	/* 200         1.5   */
+	{ 0x0, 0x00, 0x00 },	/* 200         4.0   */
+	{ 0x0, 0x00, 0x00 },	/* 200         6.0   */
+	{ 0x0, 0x00, 0x00 },	/* 250         0.0   */
+	{ 0x0, 0x00, 0x00 },	/* 250         1.5   */
+	{ 0x0, 0x00, 0x00 },	/* 250         4.0   */
+	{ 0x0, 0x00, 0x00 },	/* 300         0.0   */
+	{ 0x0, 0x00, 0x00 },	/* 300         1.5   */
+	{ 0x0, 0x00, 0x00 },	/* 350         0.0   */
+};
+
+/* Voltage Swing Programming for VccIO 1.05V for DP */
+static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_dp_hdmi_1_05V[] = {
+				/* Voltage mV  db    */
+	{ 0x2, 0x98, 0x0018 },	/* 400         0.0   */
+	{ 0x2, 0x98, 0x3015 },	/* 400         3.5   */
+	{ 0x2, 0x98, 0x6012 },	/* 400         6.0   */
+	{ 0x2, 0x98, 0x900F },	/* 400         9.5   */
+	{ 0x4, 0x98, 0x0018 },	/* 600         0.0   */
+	{ 0x4, 0x98, 0x3015 },	/* 600         3.5   */
+	{ 0x4, 0x98, 0x6012 },	/* 600         6.0   */
+	{ 0x5, 0x71, 0x0018 },	/* 800         0.0   */
+	{ 0x5, 0x71, 0x3015 },	/* 800         3.5   */
+	{ 0x6, 0x98, 0x0018 },	/* 1200        0.0   */
+};
+
+/* FIXME - After table is updated in Bspec */
+/* Voltage Swing Programming for VccIO 1.05V for eDP */
+static const struct icl_combo_phy_ddi_buf_trans icl_combo_phy_ddi_translations_edp_1_05V[] = {
+				/* Voltage mV  db    */
+	{ 0x0, 0x00, 0x00 },	/* 200         0.0   */
+	{ 0x0, 0x00, 0x00 },	/* 200         1.5   */
+	{ 0x0, 0x00, 0x00 },	/* 200         4.0   */
+	{ 0x0, 0x00, 0x00 },	/* 200         6.0   */
+	{ 0x0, 0x00, 0x00 },	/* 250         0.0   */
+	{ 0x0, 0x00, 0x00 },	/* 250         1.5   */
+	{ 0x0, 0x00, 0x00 },	/* 250         4.0   */
+	{ 0x0, 0x00, 0x00 },	/* 300         0.0   */
+	{ 0x0, 0x00, 0x00 },	/* 300         1.5   */
+	{ 0x0, 0x00, 0x00 },	/* 350         0.0   */
+};
+
 static const struct ddi_buf_trans *
 bdw_get_buf_trans_edp(struct drm_i915_private *dev_priv, int *n_entries)
 {
