@@ -1615,7 +1615,7 @@ def assign_globals():
     global PATH_DEBUGFS_TRACING
 
     debugfs = ''
-    for line in file('/proc/mounts'):
+    for line in open('/proc/mounts'):
         if line.split(' ')[0] == 'debugfs':
             debugfs = line.split(' ')[1]
             break
