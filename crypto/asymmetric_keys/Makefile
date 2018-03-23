@@ -29,9 +29,6 @@ $(obj)/x509_cert_parser.o: \
 $(obj)/x509-asn1.o: $(obj)/x509-asn1.c $(obj)/x509-asn1.h
 $(obj)/x509_akid-asn1.o: $(obj)/x509_akid-asn1.c $(obj)/x509_akid-asn1.h
 
-clean-files	+= x509-asn1.c x509-asn1.h
-clean-files	+= x509_akid-asn1.c x509_akid-asn1.h
-
 #
 # PKCS#7 message handling
 #
@@ -44,8 +41,6 @@ pkcs7_message-y := \
 
 $(obj)/pkcs7_parser.o: $(obj)/pkcs7-asn1.h
 $(obj)/pkcs7-asn1.o: $(obj)/pkcs7-asn1.c $(obj)/pkcs7-asn1.h
-
-clean-files	+= pkcs7-asn1.c pkcs7-asn1.h
 
 #
 # PKCS#7 parser testing key
@@ -66,5 +61,3 @@ verify_signed_pefile-y := \
 
 $(obj)/mscode_parser.o: $(obj)/mscode-asn1.h $(obj)/mscode-asn1.h
 $(obj)/mscode-asn1.o: $(obj)/mscode-asn1.c $(obj)/mscode-asn1.h
-
-clean-files	+= mscode-asn1.c mscode-asn1.h
