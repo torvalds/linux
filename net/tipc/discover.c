@@ -134,13 +134,13 @@ static void disc_dupl_alert(struct tipc_bearer *b, u32 node_addr,
 
 /* tipc_disc_addr_trial(): - handle an address uniqueness trial from peer
  */
-bool tipc_disc_addr_trial_msg(struct tipc_discoverer *d,
-			      struct tipc_media_addr *maddr,
-			      struct tipc_bearer *b,
-			      u32 dst, u32 src,
-			      u32 sugg_addr,
-			      u8 *peer_id,
-			      int mtyp)
+static bool tipc_disc_addr_trial_msg(struct tipc_discoverer *d,
+				     struct tipc_media_addr *maddr,
+				     struct tipc_bearer *b,
+				     u32 dst, u32 src,
+				     u32 sugg_addr,
+				     u8 *peer_id,
+				     int mtyp)
 {
 	struct net *net = d->net;
 	struct tipc_net *tn = tipc_net(net);
