@@ -191,7 +191,7 @@ static int ade7854_i2c_read_reg_32(struct device *dev,
 	if (ret < 0)
 		goto out;
 
-	ret = i2c_master_recv(st->i2c, st->rx, 3);
+	ret = i2c_master_recv(st->i2c, st->rx, 4);
 	if (ret < 0)
 		goto out;
 
