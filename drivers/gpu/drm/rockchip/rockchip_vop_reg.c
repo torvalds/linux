@@ -1102,6 +1102,7 @@ static const struct vop_ctrl rk3036_ctrl_data = {
 	.dsp_blank = VOP_REG(RK3036_DSP_CTRL1, 0x1, 24),
 	.dclk_pol = VOP_REG(RK3036_DSP_CTRL0, 0x1, 7),
 	.pin_pol = VOP_REG(RK3036_DSP_CTRL0, 0x7, 4),
+	.dither_down = VOP_REG(RK3036_DSP_CTRL0, 0x3, 10),
 	.dsp_layer_sel = VOP_REG(RK3036_DSP_CTRL0, 0x1, 8),
 	.htotal_pw = VOP_REG(RK3036_DSP_HTOTAL_HS_END, 0x1fff1fff, 0),
 	.hact_st_end = VOP_REG(RK3036_DSP_HACT_ST_END, 0x1fff1fff, 0),
