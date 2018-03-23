@@ -406,7 +406,7 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 	swa->skb = skb;
 	swa->scl = scl;
 	swa->num_sg = num_sg;
-	swa->num_dma_bufs = num_dma_bufs;
+	swa->sgt_size = sgt_buf_size;
 
 	/* Separately map the SGT buffer */
 	addr = dma_map_single(dev, sgt_buf, sgt_buf_size, DMA_BIDIRECTIONAL);
@@ -489,9 +489,6 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 	dma_addr_t fd_addr;
 	struct sk_buff **skbh, *skb;
 	unsigned char *buffer_start;
-	int unmap_size;
-	struct scatterlist *scl;
-	int num_sg, num_dma_bufs;
 	struct dpaa2_eth_swa *swa;
 	u8 fd_format = dpaa2_fd_get_format(fd);
 
@@ -510,18 +507,14 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 	} else if (fd_format == dpaa2_fd_sg) {
 		swa = (struct dpaa2_eth_swa *)skbh;
 		skb = swa->skb;
-		scl = swa->scl;
-		num_sg = swa->num_sg;
-		num_dma_bufs = swa->num_dma_bufs;
 
 		/* Unmap the scatterlist */
-		dma_unmap_sg(dev, scl, num_sg, DMA_BIDIRECTIONAL);
-		kfree(scl);
+		dma_unmap_sg(dev, swa->scl, swa->num_sg, DMA_BIDIRECTIONAL);
+		kfree(swa->scl);
 
 		/* Unmap the SGT buffer */
-		unmap_size = priv->tx_data_offset +
-		       sizeof(struct dpaa2_sg_entry) * (1 + num_dma_bufs);
-		dma_unmap_single(dev, fd_addr, unmap_size, DMA_BIDIRECTIONAL);
+		dma_unmap_single(dev, fd_addr, swa->sgt_size,
+				 DMA_BIDIRECTIONAL);
 	} else {
 		netdev_dbg(priv->net_dev, "Invalid FD format\n");
 		return;
