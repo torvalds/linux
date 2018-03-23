@@ -349,9 +349,9 @@ int hostif_data_indication_wpa(struct ks_wlan_private *priv,
 					   (uint8_t *)priv->rxp,
 					   (int)priv->rx_size,
 					   (uint8_t)0,	/* priority */
-					   (uint8_t *)michael_mic.Result);
+					   (uint8_t *)michael_mic.result);
 		}
-		if (memcmp(michael_mic.Result, recv_mic, 8) != 0) {
+		if (memcmp(michael_mic.result, recv_mic, 8) != 0) {
 			now = jiffies;
 			mic_failure = &priv->wpa.mic_failure;
 			/* MIC FAILURE */
@@ -1180,8 +1180,8 @@ int hostif_data_request(struct ks_wlan_private *priv, struct sk_buff *skb)
 						   (uint8_t *)&pp->data[0],
 						   (int)skb_len,
 						   (uint8_t)0,	/* priority */
-						   (uint8_t *)michael_mic.Result);
-				memcpy(p, michael_mic.Result, 8);
+						   (uint8_t *)michael_mic.result);
+				memcpy(p, michael_mic.result, 8);
 				length += 8;
 				skb_len += 8;
 				p += 8;

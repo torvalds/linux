@@ -30,17 +30,17 @@ do {								\
 // Reset the state to the empty message.
 #define MichaelClear(A)			\
 do {					\
-	A->L = A->K0;			\
-	A->R = A->K1;			\
-	A->nBytesInM = 0;		\
+	A->l = A->k0;			\
+	A->r = A->k1;			\
+	A->m_bytes = 0;		\
 } while (0)
 
 static
 void MichaelInitializeFunction(struct michael_mic_t *Mic, uint8_t *key)
 {
 	// Set the key
-	Mic->K0 = getUInt32(key, 0);
-	Mic->K1 = getUInt32(key, 4);
+	Mic->k0 = getUInt32(key, 0);
+	Mic->k1 = getUInt32(key, 4);
 
 	//clear();
 	MichaelClear(Mic);
@@ -63,61 +63,61 @@ void MichaelAppend(struct michael_mic_t *Mic, uint8_t *src, int nBytes)
 {
 	int addlen;
 
-	if (Mic->nBytesInM) {
-		addlen = 4 - Mic->nBytesInM;
+	if (Mic->m_bytes) {
+		addlen = 4 - Mic->m_bytes;
 		if (addlen > nBytes)
 			addlen = nBytes;
-		memcpy(&Mic->M[Mic->nBytesInM], src, addlen);
-		Mic->nBytesInM += addlen;
+		memcpy(&Mic->m[Mic->m_bytes], src, addlen);
+		Mic->m_bytes += addlen;
 		src += addlen;
 		nBytes -= addlen;
 
-		if (Mic->nBytesInM < 4)
+		if (Mic->m_bytes < 4)
 			return;
 
-		Mic->L ^= getUInt32(Mic->M, 0);
-		MichaelBlockFunction(Mic->L, Mic->R);
-		Mic->nBytesInM = 0;
+		Mic->l ^= getUInt32(Mic->m, 0);
+		MichaelBlockFunction(Mic->l, Mic->r);
+		Mic->m_bytes = 0;
 	}
 
 	while (nBytes >= 4) {
-		Mic->L ^= getUInt32(src, 0);
-		MichaelBlockFunction(Mic->L, Mic->R);
+		Mic->l ^= getUInt32(src, 0);
+		MichaelBlockFunction(Mic->l, Mic->r);
 		src += 4;
 		nBytes -= 4;
 	}
 
 	if (nBytes > 0) {
-		Mic->nBytesInM = nBytes;
-		memcpy(Mic->M, src, nBytes);
+		Mic->m_bytes = nBytes;
+		memcpy(Mic->m, src, nBytes);
 	}
 }
 
 static
 void MichaelGetMIC(struct michael_mic_t *Mic, uint8_t *dst)
 {
-	u8 *data = Mic->M;
+	u8 *data = Mic->m;
 
-	switch (Mic->nBytesInM) {
+	switch (Mic->m_bytes) {
 	case 0:
-		Mic->L ^= 0x5a;
+		Mic->l ^= 0x5a;
 		break;
 	case 1:
-		Mic->L ^= data[0] | 0x5a00;
+		Mic->l ^= data[0] | 0x5a00;
 		break;
 	case 2:
-		Mic->L ^= data[0] | (data[1] << 8) | 0x5a0000;
+		Mic->l ^= data[0] | (data[1] << 8) | 0x5a0000;
 		break;
 	case 3:
-		Mic->L ^= data[0] | (data[1] << 8) | (data[2] << 16) |
+		Mic->l ^= data[0] | (data[1] << 8) | (data[2] << 16) |
 		    0x5a000000;
 		break;
 	}
-	MichaelBlockFunction(Mic->L, Mic->R);
-	MichaelBlockFunction(Mic->L, Mic->R);
+	MichaelBlockFunction(Mic->l, Mic->r);
+	MichaelBlockFunction(Mic->l, Mic->r);
 	// The appendByte function has already computed the result.
-	putUInt32(dst, 0, Mic->L);
-	putUInt32(dst, 4, Mic->R);
+	putUInt32(dst, 0, Mic->l);
+	putUInt32(dst, 4, Mic->r);
 
 	// Reset to the empty message.
 	MichaelClear(Mic);

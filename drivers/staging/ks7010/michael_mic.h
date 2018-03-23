@@ -11,13 +11,13 @@
 
 /* MichaelMIC routine define */
 struct michael_mic_t {
-	u32 K0;	// Key
-	u32 K1;	// Key
-	u32 L;	// Current state
-	u32 R;	// Current state
-	u8 M[4];	// Message accumulator (single word)
-	int nBytesInM;	// # bytes in M
-	u8 Result[8];
+	u32 k0;	// Key
+	u32 k1;	// Key
+	u32 l;	// Current state
+	u32 r;	// Current state
+	u8 m[4];	// Message accumulator (single word)
+	int m_bytes;	// # bytes in M
+	u8 result[8];
 };
 
 void MichaelMICFunction(struct michael_mic_t *Mic, u8 *Key,
