@@ -280,7 +280,6 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 	struct addr_map_symbol target = {
 		.map = map,
 	};
-	const char *s = strchr(ops->raw, '+');
 	const char *c = strchr(ops->raw, ',');
 	u64 start, end;
 	/*
@@ -337,8 +336,8 @@ static int jump__parse(struct arch *arch __maybe_unused, struct ins_operands *op
 	    map__rip_2objdump(target.map, map->map_ip(target.map, target.addr)) == ops->target.addr)
 		ops->target.sym = target.sym;
 
-	if (s++ != NULL) {
-		ops->target.offset = strtoull(s, NULL, 16);
+	if (!ops->target.outside) {
+		ops->target.offset = target.addr - start;
 		ops->target.offset_avail = true;
 	} else {
 		ops->target.offset_avail = false;
