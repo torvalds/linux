@@ -8604,6 +8604,25 @@ static int t4_get_flash_params(struct adapter *adap)
 		}
 		break;
 	}
+	case 0x9d: { /* ISSI -- Integrated Silicon Solution, Inc. */
+		/* This Density -> Size decoding table is taken from ISSI
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x16: /* 32 MB */
+			size = 1 << 25;
+			break;
+		case 0x17: /* 64MB */
+			size = 1 << 26;
+			break;
+		default:
+			dev_err(adap->pdev_dev, "ISSI Flash Part has bad size, ID = %#x, Density code = %#x\n",
+				flashid, density);
+			return -EINVAL;
+		}
+		break;
+	}
 	case 0xc2: { /* Macronix */
 		/* This Density -> Size decoding table is taken from Macronix
 		 * Data Sheets.
