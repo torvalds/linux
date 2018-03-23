@@ -93,7 +93,7 @@ static unsigned long cpg_z_clk_recalc_rate(struct clk_hw *hw,
 	unsigned int mult;
 	u32 val;
 
-	val = clk_readl(zclk->reg) & zclk->mask;
+	val = readl(zclk->reg) & zclk->mask;
 	mult = 32 - (val >> __ffs(zclk->mask));
 
 	/* Factor of 2 is for fixed divider */
@@ -125,20 +125,20 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	mult = DIV_ROUND_CLOSEST_ULL(rate * 32ULL * 2, parent_rate);
 	mult = clamp(mult, 1U, 32U);
 
-	if (clk_readl(zclk->kick_reg) & CPG_FRQCRB_KICK)
+	if (readl(zclk->kick_reg) & CPG_FRQCRB_KICK)
 		return -EBUSY;
 
-	val = clk_readl(zclk->reg) & ~zclk->mask;
+	val = readl(zclk->reg) & ~zclk->mask;
 	val |= ((32 - mult) << __ffs(zclk->mask)) & zclk->mask;
-	clk_writel(val, zclk->reg);
+	writel(val, zclk->reg);
 
 	/*
 	 * Set KICK bit in FRQCRB to update hardware setting and wait for
 	 * clock change completion.
 	 */
-	kick = clk_readl(zclk->kick_reg);
+	kick = readl(zclk->kick_reg);
 	kick |= CPG_FRQCRB_KICK;
-	clk_writel(kick, zclk->kick_reg);
+	writel(kick, zclk->kick_reg);
 
 	/*
 	 * Note: There is no HW information about the worst case latency.
@@ -150,7 +150,7 @@ static int cpg_z_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	 * "super" safe value.
 	 */
 	for (i = 1000; i; i--) {
-		if (!(clk_readl(zclk->kick_reg) & CPG_FRQCRB_KICK))
+		if (!(readl(zclk->kick_reg) & CPG_FRQCRB_KICK))
 			return 0;
 
 		cpu_relax();
