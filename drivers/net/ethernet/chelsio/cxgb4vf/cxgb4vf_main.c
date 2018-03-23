@@ -2402,11 +2402,11 @@ struct cxgb4vf_debugfs_entry {
 };
 
 static struct cxgb4vf_debugfs_entry debugfs_files[] = {
-	{ "mboxlog",    S_IRUGO, &mboxlog_fops },
-	{ "sge_qinfo",  S_IRUGO, &sge_qinfo_debugfs_fops },
-	{ "sge_qstats", S_IRUGO, &sge_qstats_proc_fops },
-	{ "resources",  S_IRUGO, &resources_proc_fops },
-	{ "interfaces", S_IRUGO, &interfaces_proc_fops },
+	{ "mboxlog",    0444, &mboxlog_fops },
+	{ "sge_qinfo",  0444, &sge_qinfo_debugfs_fops },
+	{ "sge_qstats", 0444, &sge_qstats_proc_fops },
+	{ "resources",  0444, &resources_proc_fops },
+	{ "interfaces", 0444, &interfaces_proc_fops },
 };
 
 /*

@@ -2903,8 +2903,7 @@ static ssize_t ehea_show_port_id(struct device *dev,
 	return sprintf(buf, "%d", port->logical_port_id);
 }
 
-static DEVICE_ATTR(log_port_id, S_IRUSR | S_IRGRP | S_IROTH, ehea_show_port_id,
-		   NULL);
+static DEVICE_ATTR(log_port_id, 0444, ehea_show_port_id, NULL);
 
 static void logical_port_release(struct device *dev)
 {
@@ -3235,8 +3234,8 @@ static ssize_t ehea_remove_port(struct device *dev,
 	return (ssize_t) count;
 }
 
-static DEVICE_ATTR(probe_port, S_IWUSR, NULL, ehea_probe_port);
-static DEVICE_ATTR(remove_port, S_IWUSR, NULL, ehea_remove_port);
+static DEVICE_ATTR(probe_port, 0200, NULL, ehea_probe_port);
+static DEVICE_ATTR(remove_port, 0200, NULL, ehea_remove_port);
 
 static int ehea_create_device_sysfs(struct platform_device *dev)
 {

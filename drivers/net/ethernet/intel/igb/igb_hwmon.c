@@ -148,7 +148,7 @@ static int igb_add_hwmon_attr(struct igb_adapter *adapter,
 		&adapter->hw.mac.thermal_sensor_data.sensor[offset];
 	igb_attr->hw = &adapter->hw;
 	igb_attr->dev_attr.store = NULL;
-	igb_attr->dev_attr.attr.mode = S_IRUGO;
+	igb_attr->dev_attr.attr.mode = 0444;
 	igb_attr->dev_attr.attr.name = igb_attr->name;
 	sysfs_attr_init(&igb_attr->dev_attr.attr);
 

@@ -57,36 +57,36 @@
 /* Module parameters */
 #define TX_TIMEO	5000
 static int watchdog = TX_TIMEO;
-module_param(watchdog, int, S_IRUGO | S_IWUSR);
+module_param(watchdog, int, 0644);
 MODULE_PARM_DESC(watchdog, "Transmit timeout in milliseconds (default 5s)");
 
 static int debug = -1;
-module_param(debug, int, S_IRUGO | S_IWUSR);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
 
 static int phyaddr = -1;
-module_param(phyaddr, int, S_IRUGO);
+module_param(phyaddr, int, 0444);
 MODULE_PARM_DESC(phyaddr, "Physical device address");
 
 #define STMMAC_TX_THRESH	(DMA_TX_SIZE / 4)
 #define STMMAC_RX_THRESH	(DMA_RX_SIZE / 4)
 
 static int flow_ctrl = FLOW_OFF;
-module_param(flow_ctrl, int, S_IRUGO | S_IWUSR);
+module_param(flow_ctrl, int, 0644);
 MODULE_PARM_DESC(flow_ctrl, "Flow control ability [on/off]");
 
 static int pause = PAUSE_TIME;
-module_param(pause, int, S_IRUGO | S_IWUSR);
+module_param(pause, int, 0644);
 MODULE_PARM_DESC(pause, "Flow Control Pause Time");
 
 #define TC_DEFAULT 64
 static int tc = TC_DEFAULT;
-module_param(tc, int, S_IRUGO | S_IWUSR);
+module_param(tc, int, 0644);
 MODULE_PARM_DESC(tc, "DMA threshold control value");
 
 #define	DEFAULT_BUFSIZE	1536
 static int buf_sz = DEFAULT_BUFSIZE;
-module_param(buf_sz, int, S_IRUGO | S_IWUSR);
+module_param(buf_sz, int, 0644);
 MODULE_PARM_DESC(buf_sz, "DMA buffer size");
 
 #define	STMMAC_RX_COPYBREAK	256
@@ -97,7 +97,7 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 
 #define STMMAC_DEFAULT_LPI_TIMER	1000
 static int eee_timer = STMMAC_DEFAULT_LPI_TIMER;
-module_param(eee_timer, int, S_IRUGO | S_IWUSR);
+module_param(eee_timer, int, 0644);
 MODULE_PARM_DESC(eee_timer, "LPI tx expiration time in msec");
 #define STMMAC_LPI_T(x) (jiffies + msecs_to_jiffies(x))
 
@@ -105,7 +105,7 @@ MODULE_PARM_DESC(eee_timer, "LPI tx expiration time in msec");
  * but allow user to force to use the chain instead of the ring
  */
 static unsigned int chain_mode;
-module_param(chain_mode, int, S_IRUGO);
+module_param(chain_mode, int, 0444);
 MODULE_PARM_DESC(chain_mode, "To use chain instead of ring mode");
 
 static irqreturn_t stmmac_interrupt(int irq, void *dev_id);
@@ -4001,7 +4001,7 @@ static int stmmac_init_fs(struct net_device *dev)
 
 	/* Entry to report DMA RX/TX rings */
 	priv->dbgfs_rings_status =
-		debugfs_create_file("descriptors_status", S_IRUGO,
+		debugfs_create_file("descriptors_status", 0444,
 				    priv->dbgfs_dir, dev,
 				    &stmmac_rings_status_fops);
 
@@ -4013,9 +4013,9 @@ static int stmmac_init_fs(struct net_device *dev)
 	}
 
 	/* Entry to report the DMA HW features */
-	priv->dbgfs_dma_cap = debugfs_create_file("dma_cap", S_IRUGO,
-					    priv->dbgfs_dir,
-					    dev, &stmmac_dma_cap_fops);
+	priv->dbgfs_dma_cap = debugfs_create_file("dma_cap", 0444,
+						  priv->dbgfs_dir,
+						  dev, &stmmac_dma_cap_fops);
 
 	if (!priv->dbgfs_dma_cap || IS_ERR(priv->dbgfs_dma_cap)) {
 		netdev_err(priv->dev, "ERROR creating stmmac MMC debugfs file\n");

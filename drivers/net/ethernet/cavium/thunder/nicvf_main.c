@@ -63,7 +63,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug message level bitmap");
 
 static int cpi_alg = CPI_ALG_NONE;
-module_param(cpi_alg, int, S_IRUGO);
+module_param(cpi_alg, int, 0444);
 MODULE_PARM_DESC(cpi_alg,
 		 "PFC algorithm (0=none, 1=VLAN, 2=VLAN16, 3=IP Diffserv)");
 

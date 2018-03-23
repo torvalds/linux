@@ -4655,8 +4655,8 @@ MODULE_DESCRIPTION("Marvell NETA Ethernet Driver - www.marvell.com");
 MODULE_AUTHOR("Rami Rosen <rosenr@marvell.com>, Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
 MODULE_LICENSE("GPL");
 
-module_param(rxq_number, int, S_IRUGO);
-module_param(txq_number, int, S_IRUGO);
+module_param(rxq_number, int, 0444);
+module_param(txq_number, int, 0444);
 
-module_param(rxq_def, int, S_IRUGO);
-module_param(rx_copybreak, int, S_IRUGO | S_IWUSR);
+module_param(rxq_def, int, 0444);
+module_param(rx_copybreak, int, 0644);

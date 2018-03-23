@@ -2829,9 +2829,9 @@ netxen_show_bridged_mode(struct device *dev,
 }
 
 static const struct device_attribute dev_attr_bridged_mode = {
-       .attr = {.name = "bridged_mode", .mode = (S_IRUGO | S_IWUSR)},
-       .show = netxen_show_bridged_mode,
-       .store = netxen_store_bridged_mode,
+	.attr = { .name = "bridged_mode", .mode = 0644 },
+	.show = netxen_show_bridged_mode,
+	.store = netxen_store_bridged_mode,
 };
 
 static ssize_t
@@ -2861,7 +2861,7 @@ netxen_show_diag_mode(struct device *dev,
 }
 
 static const struct device_attribute dev_attr_diag_mode = {
-	.attr = {.name = "diag_mode", .mode = (S_IRUGO | S_IWUSR)},
+	.attr = { .name = "diag_mode", .mode = 0644 },
 	.show = netxen_show_diag_mode,
 	.store = netxen_store_diag_mode,
 };
@@ -3006,14 +3006,14 @@ static ssize_t netxen_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 
 
 static const struct bin_attribute bin_attr_crb = {
-	.attr = {.name = "crb", .mode = (S_IRUGO | S_IWUSR)},
+	.attr = { .name = "crb", .mode = 0644 },
 	.size = 0,
 	.read = netxen_sysfs_read_crb,
 	.write = netxen_sysfs_write_crb,
 };
 
 static const struct bin_attribute bin_attr_mem = {
-	.attr = {.name = "mem", .mode = (S_IRUGO | S_IWUSR)},
+	.attr = { .name = "mem", .mode = 0644 },
 	.size = 0,
 	.read = netxen_sysfs_read_mem,
 	.write = netxen_sysfs_write_mem,
@@ -3142,7 +3142,7 @@ out:
 }
 
 static const struct bin_attribute bin_attr_dimm = {
-	.attr = { .name = "dimm", .mode = (S_IRUGO | S_IWUSR) },
+	.attr = { .name = "dimm", .mode = 0644 },
 	.size = sizeof(struct netxen_dimm_cfg),
 	.read = netxen_sysfs_read_dimm,
 };

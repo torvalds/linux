@@ -2993,10 +2993,10 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 
 	sprintf(info->dev_name, "mlx4_port%d", port);
 	info->port_attr.attr.name = info->dev_name;
-	if (mlx4_is_mfunc(dev))
-		info->port_attr.attr.mode = S_IRUGO;
-	else {
-		info->port_attr.attr.mode = S_IRUGO | S_IWUSR;
+	if (mlx4_is_mfunc(dev)) {
+		info->port_attr.attr.mode = 0444;
+	} else {
+		info->port_attr.attr.mode = 0644;
 		info->port_attr.store     = set_port_type;
 	}
 	info->port_attr.show      = show_port_type;
@@ -3011,10 +3011,10 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 
 	sprintf(info->dev_mtu_name, "mlx4_port%d_mtu", port);
 	info->port_mtu_attr.attr.name = info->dev_mtu_name;
-	if (mlx4_is_mfunc(dev))
-		info->port_mtu_attr.attr.mode = S_IRUGO;
-	else {
-		info->port_mtu_attr.attr.mode = S_IRUGO | S_IWUSR;
+	if (mlx4_is_mfunc(dev)) {
+		info->port_mtu_attr.attr.mode = 0444;
+	} else {
+		info->port_mtu_attr.attr.mode = 0644;
 		info->port_mtu_attr.store     = set_port_ib_mtu;
 	}
 	info->port_mtu_attr.show      = show_port_ib_mtu;
