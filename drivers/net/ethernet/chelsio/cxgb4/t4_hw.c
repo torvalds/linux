@@ -4066,8 +4066,6 @@ int t4_link_l1cfg(struct adapter *adapter, unsigned int mbox,
 	unsigned int fw_mdi = FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO);
 	fw_port_cap32_t fw_fc, cc_fec, fw_fec, rcap;
 
-	lc->link_ok = 0;
-
 	/* Convert driver coding of Pause Frame Flow Control settings into the
 	 * Firmware's API.
 	 */
