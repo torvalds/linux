@@ -1155,24 +1155,27 @@ bool snd_usb_get_sample_rate_quirk(struct snd_usb_audio *chip)
 	return false;
 }
 
-/* Marantz/Denon USB DACs need a vendor cmd to switch
+/* ITF-USB DSD based DACs need a vendor cmd to switch
  * between PCM and native DSD mode
+ * (2 altsets version)
  */
-static bool is_marantz_denon_dac(unsigned int id)
+static bool is_itf_usb_dsd_2alts_dac(unsigned int id)
 {
 	switch (id) {
 	case USB_ID(0x154e, 0x1003): /* Denon DA-300USB */
 	case USB_ID(0x154e, 0x3005): /* Marantz HD-DAC1 */
 	case USB_ID(0x154e, 0x3006): /* Marantz SA-14S1 */
+	case USB_ID(0x1852, 0x5065): /* Luxman DA-06 */
 		return true;
 	}
 	return false;
 }
 
-/* TEAC UD-501/UD-503/NT-503 USB DACs need a vendor cmd to switch
- * between PCM/DOP and native DSD mode
+/* ITF-USB DSD based DACs need a vendor cmd to switch
+ * between PCM and native DSD mode
+ * (3 altsets version)
  */
-static bool is_teac_dsd_dac(unsigned int id)
+static bool is_itf_usb_dsd_3alts_dac(unsigned int id)
 {
 	switch (id) {
 	case USB_ID(0x0644, 0x8043): /* TEAC UD-501/UD-503/NT-503 */
@@ -1189,7 +1192,7 @@ int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 	struct usb_device *dev = subs->dev;
 	int err;
 
-	if (is_marantz_denon_dac(subs->stream->chip->usb_id)) {
+	if (is_itf_usb_dsd_2alts_dac(subs->stream->chip->usb_id)) {
 		/* First switch to alt set 0, otherwise the mode switch cmd
 		 * will not be accepted by the DAC
 		 */
@@ -1210,7 +1213,7 @@ int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 			break;
 		}
 		mdelay(20);
-	} else if (is_teac_dsd_dac(subs->stream->chip->usb_id)) {
+	} else if (is_itf_usb_dsd_3alts_dac(subs->stream->chip->usb_id)) {
 		/* Vendor mode switch cmd is required. */
 		switch (fmt->altsetting) {
 		case 3: /* DSD mode (DSD_U32) requested */
@@ -1306,10 +1309,10 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		mdelay(20);
 
-	/* Marantz/Denon devices with USB DAC functionality need a delay
+	/* ITF-USB DSD based DACs functionality need a delay
 	 * after each class compliant request
 	 */
-	if (is_marantz_denon_dac(chip->usb_id)
+	if (is_itf_usb_dsd_2alts_dac(chip->usb_id)
 	    && (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
 		mdelay(20);
 
@@ -1396,14 +1399,14 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 		break;
 	}
 
-	/* Denon/Marantz devices with USB DAC functionality */
-	if (is_marantz_denon_dac(chip->usb_id)) {
+	/* ITF-USB DSD based DACs (2 altsets version) */
+	if (is_itf_usb_dsd_2alts_dac(chip->usb_id)) {
 		if (fp->altsetting == 2)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 	}
 
-	/* TEAC devices with USB DAC functionality */
-	if (is_teac_dsd_dac(chip->usb_id)) {
+	/* ITF-USB DSD based DACs (3 altsets version) */
+	if (is_itf_usb_dsd_3alts_dac(chip->usb_id)) {
 		if (fp->altsetting == 3)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 	}
