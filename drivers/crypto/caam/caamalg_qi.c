@@ -278,9 +278,11 @@ skip_split_key:
 		}
 	}
 
+	memzero_explicit(&keys, sizeof(keys));
 	return ret;
 badkey:
 	crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
 
