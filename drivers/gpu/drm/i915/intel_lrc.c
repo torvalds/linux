@@ -740,6 +740,57 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 	}
 }
 
+static void clear_gtiir(struct intel_engine_cs *engine)
+{
+	static const u8 gtiir[] = {
+		[RCS]  = 0,
+		[BCS]  = 0,
+		[VCS]  = 1,
+		[VCS2] = 1,
+		[VECS] = 3,
+	};
+	struct drm_i915_private *dev_priv = engine->i915;
+	int i;
+
+	/* TODO: correctly reset irqs for gen11 */
+	if (WARN_ON_ONCE(INTEL_GEN(engine->i915) >= 11))
+		return;
+
+	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
+
+	/*
+	 * Clear any pending interrupt state.
+	 *
+	 * We do it twice out of paranoia that some of the IIR are
+	 * double buffered, and so if we only reset it once there may
+	 * still be an interrupt pending.
+	 */
+	for (i = 0; i < 2; i++) {
+		I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
+			   engine->irq_keep_mask);
+		POSTING_READ(GEN8_GT_IIR(gtiir[engine->id]));
+	}
+	GEM_BUG_ON(I915_READ(GEN8_GT_IIR(gtiir[engine->id])) &
+		   engine->irq_keep_mask);
+}
+
+static void reset_irq(struct intel_engine_cs *engine)
+{
+	/* Mark all CS interrupts as complete */
+	smp_store_mb(engine->execlists.active, 0);
+	synchronize_hardirq(engine->i915->drm.irq);
+
+	clear_gtiir(engine);
+
+	/*
+	 * The port is checked prior to scheduling a tasklet, but
+	 * just in case we have suspended the tasklet to do the
+	 * wedging make sure that when it wakes, it decides there
+	 * is no work to do by clearing the irq_posted bit.
+	 */
+	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
+}
+
 static void execlists_cancel_requests(struct intel_engine_cs *engine)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -767,6 +818,7 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 
 	/* Cancel the requests on the HW and clear the ELSP tracker. */
 	execlists_cancel_port_requests(execlists);
+	reset_irq(engine);
 
 	spin_lock(&engine->timeline->lock);
 
@@ -804,18 +856,6 @@ static void execlists_cancel_requests(struct intel_engine_cs *engine)
 	GEM_BUG_ON(port_isset(execlists->port));
 
 	spin_unlock(&engine->timeline->lock);
-
-	/* Mark all CS interrupts as complete */
-	smp_store_mb(execlists->active, 0);
-	synchronize_hardirq(engine->i915->drm.irq);
-
-	/*
-	 * The port is checked prior to scheduling a tasklet, but
-	 * just in case we have suspended the tasklet to do the
-	 * wedging make sure that when it wakes, it decides there
-	 * is no work to do by clearing the irq_posted bit.
-	 */
-	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 
 	local_irq_restore(flags);
 }
@@ -1566,14 +1606,6 @@ static int intel_init_workaround_bb(struct intel_engine_cs *engine)
 	return ret;
 }
 
-static u8 gtiir[] = {
-	[RCS] = 0,
-	[BCS] = 0,
-	[VCS] = 1,
-	[VCS2] = 1,
-	[VECS] = 3,
-};
-
 static void enable_execlists(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
@@ -1657,35 +1689,6 @@ static int gen9_init_render_ring(struct intel_engine_cs *engine)
 	return init_workarounds_ring(engine);
 }
 
-static void reset_irq(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	int i;
-
-	/* TODO: correctly reset irqs for gen11 */
-	if (WARN_ON_ONCE(INTEL_GEN(engine->i915) >= 11))
-		return;
-
-	GEM_BUG_ON(engine->id >= ARRAY_SIZE(gtiir));
-
-	/*
-	 * Clear any pending interrupt state.
-	 *
-	 * We do it twice out of paranoia that some of the IIR are double
-	 * buffered, and if we only reset it once there may still be
-	 * an interrupt pending.
-	 */
-	for (i = 0; i < 2; i++) {
-		I915_WRITE(GEN8_GT_IIR(gtiir[engine->id]),
-			   engine->irq_keep_mask);
-		POSTING_READ(GEN8_GT_IIR(gtiir[engine->id]));
-	}
-	GEM_BUG_ON(I915_READ(GEN8_GT_IIR(gtiir[engine->id])) &
-		   engine->irq_keep_mask);
-
-	clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
-}
-
 static void reset_common_ring(struct intel_engine_cs *engine,
 			      struct i915_request *request)
 {
@@ -1699,8 +1702,6 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	/* See execlists_cancel_requests() for the irq/spinlock split. */
 	local_irq_save(flags);
 
-	reset_irq(engine);
-
 	/*
 	 * Catch up with any missed context-switch interrupts.
 	 *
@@ -1711,14 +1712,12 @@ static void reset_common_ring(struct intel_engine_cs *engine,
 	 * requests were completed.
 	 */
 	execlists_cancel_port_requests(execlists);
+	reset_irq(engine);
 
 	/* Push back any incomplete requests for replay after the reset. */
 	spin_lock(&engine->timeline->lock);
 	__unwind_incomplete_requests(engine);
 	spin_unlock(&engine->timeline->lock);
-
-	/* Mark all CS interrupts as complete */
-	execlists->active = 0;
 
 	local_irq_restore(flags);
 
