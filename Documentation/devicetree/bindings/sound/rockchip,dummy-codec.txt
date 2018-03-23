@@ -1,0 +1,11 @@
+* Rockchip Dummy Codec
+
+Required properties:
+
+- compatible: "rockchip,dummy-codec"
+
+Example for rk3308 dummy codec:
+
+dummy_codec: dummy-codec {
+	compatible = "rockchip,dummy-codec";
+};
