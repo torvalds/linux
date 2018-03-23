@@ -930,16 +930,16 @@ static void vega10_didt_set_mask(struct pp_hwmgr *hwmgr, const bool enable)
 
 static int vega10_enable_cac_driving_se_didt_config(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	int result;
 	uint32_t num_se = 0, count, data;
-	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
 	num_se = adev->gfx.config.max_shader_engines;
 
-	cgs_enter_safe_mode(hwmgr->device, true);
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
-	cgs_lock_grbm_idx(hwmgr->device, true);
+	mutex_lock(&adev->grbm_idx_mutex);
 	reg = soc15_get_register_offset(GC_HWID, 0, mmGRBM_GFX_INDEX_BASE_IDX, mmGRBM_GFX_INDEX);
 	for (count = 0; count < num_se; count++) {
 		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | ( count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
@@ -959,38 +959,40 @@ static int vega10_enable_cac_driving_se_didt_config(struct pp_hwmgr *hwmgr)
 			break;
 	}
 	cgs_write_register(hwmgr->device, reg, 0xE0000000);
-	cgs_lock_grbm_idx(hwmgr->device, false);
+	mutex_unlock(&adev->grbm_idx_mutex);
 
 	vega10_didt_set_mask(hwmgr, true);
 
-	cgs_enter_safe_mode(hwmgr->device, false);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 
 	return 0;
 }
 
 static int vega10_disable_cac_driving_se_didt_config(struct pp_hwmgr *hwmgr)
 {
-	cgs_enter_safe_mode(hwmgr->device, true);
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	cgs_enter_safe_mode(hwmgr->device, false);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 
 	return 0;
 }
 
 static int vega10_enable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	int result;
 	uint32_t num_se = 0, count, data;
-	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
 	num_se = adev->gfx.config.max_shader_engines;
 
-	cgs_enter_safe_mode(hwmgr->device, true);
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
-	cgs_lock_grbm_idx(hwmgr->device, true);
+	mutex_lock(&adev->grbm_idx_mutex);
 	reg = soc15_get_register_offset(GC_HWID, 0, mmGRBM_GFX_INDEX_BASE_IDX, mmGRBM_GFX_INDEX);
 	for (count = 0; count < num_se; count++) {
 		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | ( count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
@@ -1004,11 +1006,11 @@ static int vega10_enable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 			break;
 	}
 	cgs_write_register(hwmgr->device, reg, 0xE0000000);
-	cgs_lock_grbm_idx(hwmgr->device, false);
+	mutex_unlock(&adev->grbm_idx_mutex);
 
 	vega10_didt_set_mask(hwmgr, true);
 
-	cgs_enter_safe_mode(hwmgr->device, false);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 
 	vega10_program_gc_didt_config_registers(hwmgr, GCDiDtDroopCtrlConfig_vega10);
 	if (PP_CAP(PHM_PlatformCaps_GCEDC))
@@ -1022,13 +1024,14 @@ static int vega10_enable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t data;
 
-	cgs_enter_safe_mode(hwmgr->device, true);
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	cgs_enter_safe_mode(hwmgr->device, false);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 
 	if (PP_CAP(PHM_PlatformCaps_GCEDC)) {
 		data = 0x00000000;
@@ -1043,16 +1046,16 @@ static int vega10_disable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 
 static int vega10_enable_se_edc_config(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	int result;
 	uint32_t num_se = 0, count, data;
-	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
 	num_se = adev->gfx.config.max_shader_engines;
 
-	cgs_enter_safe_mode(hwmgr->device, true);
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
-	cgs_lock_grbm_idx(hwmgr->device, true);
+	mutex_lock(&adev->grbm_idx_mutex);
 	reg = soc15_get_register_offset(GC_HWID, 0, mmGRBM_GFX_INDEX_BASE_IDX, mmGRBM_GFX_INDEX);
 	for (count = 0; count < num_se; count++) {
 		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | ( count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
@@ -1068,41 +1071,43 @@ static int vega10_enable_se_edc_config(struct pp_hwmgr *hwmgr)
 			break;
 	}
 	cgs_write_register(hwmgr->device, reg, 0xE0000000);
-	cgs_lock_grbm_idx(hwmgr->device, false);
+	mutex_unlock(&adev->grbm_idx_mutex);
 
 	vega10_didt_set_mask(hwmgr, true);
 
-	cgs_enter_safe_mode(hwmgr->device, false);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 
 	return 0;
 }
 
 static int vega10_disable_se_edc_config(struct pp_hwmgr *hwmgr)
 {
-	cgs_enter_safe_mode(hwmgr->device, true);
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	cgs_enter_safe_mode(hwmgr->device, false);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 
 	return 0;
 }
 
 static int vega10_enable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	int result;
 	uint32_t num_se = 0;
 	uint32_t count, data;
-	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 
 	num_se = adev->gfx.config.max_shader_engines;
 
-	cgs_enter_safe_mode(hwmgr->device, true);
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	vega10_program_gc_didt_config_registers(hwmgr, AvfsPSMResetConfig_vega10);
 
-	cgs_lock_grbm_idx(hwmgr->device, true);
+	mutex_lock(&adev->grbm_idx_mutex);
 	reg = soc15_get_register_offset(GC_HWID, 0, mmGRBM_GFX_INDEX_BASE_IDX, mmGRBM_GFX_INDEX);
 	for (count = 0; count < num_se; count++) {
 		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | ( count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
@@ -1116,11 +1121,11 @@ static int vega10_enable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 			break;
 	}
 	cgs_write_register(hwmgr->device, reg, 0xE0000000);
-	cgs_lock_grbm_idx(hwmgr->device, false);
+	mutex_unlock(&adev->grbm_idx_mutex);
 
 	vega10_didt_set_mask(hwmgr, true);
 
-	cgs_enter_safe_mode(hwmgr->device, false);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 
 	vega10_program_gc_didt_config_registers(hwmgr, PSMGCEDCDroopCtrlConfig_vega10);
 
@@ -1137,13 +1142,14 @@ static int vega10_enable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t data;
 
-	cgs_enter_safe_mode(hwmgr->device, true);
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	cgs_enter_safe_mode(hwmgr->device, false);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 
 	if (PP_CAP(PHM_PlatformCaps_GCEDC)) {
 		data = 0x00000000;
@@ -1158,15 +1164,16 @@ static int vega10_disable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 
 static int vega10_enable_se_edc_force_stall_config(struct pp_hwmgr *hwmgr)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t reg;
 	int result;
 
-	cgs_enter_safe_mode(hwmgr->device, true);
+	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
-	cgs_lock_grbm_idx(hwmgr->device, true);
+	mutex_lock(&adev->grbm_idx_mutex);
 	reg = soc15_get_register_offset(GC_HWID, 0, mmGRBM_GFX_INDEX_BASE_IDX, mmGRBM_GFX_INDEX);
 	cgs_write_register(hwmgr->device, reg, 0xE0000000);
-	cgs_lock_grbm_idx(hwmgr->device, false);
+	mutex_unlock(&adev->grbm_idx_mutex);
 
 	result = vega10_program_didt_config_registers(hwmgr, SEEDCForceStallPatternConfig_Vega10, VEGA10_CONFIGREG_DIDT);
 	result |= vega10_program_didt_config_registers(hwmgr, SEEDCCtrlForceStallConfig_Vega10, VEGA10_CONFIGREG_DIDT);
@@ -1175,7 +1182,7 @@ static int vega10_enable_se_edc_force_stall_config(struct pp_hwmgr *hwmgr)
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	cgs_enter_safe_mode(hwmgr->device, false);
+	adev->gfx.rlc.funcs->exit_safe_mode(adev);
 
 	return 0;
 }
