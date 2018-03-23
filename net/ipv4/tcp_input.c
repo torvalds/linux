@@ -6256,6 +6256,9 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 	if (want_cookie && !tmp_opt.saw_tstamp)
 		tcp_clear_options(&tmp_opt);
 
+	if (IS_ENABLED(CONFIG_SMC) && want_cookie)
+		tmp_opt.smc_ok = 0;
+
 	tmp_opt.tstamp_ok = tmp_opt.saw_tstamp;
 	tcp_openreq_init(req, &tmp_opt, skb, sk);
 	inet_rsk(req)->no_srccheck = inet_sk(sk)->transparent;
