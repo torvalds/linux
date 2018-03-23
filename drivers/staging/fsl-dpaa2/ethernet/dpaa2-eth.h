@@ -285,7 +285,6 @@ struct dpaa2_eth_channel {
 	struct fsl_mc_device *dpcon;
 	int dpcon_id;
 	int ch_id;
-	int dpio_id;
 	struct napi_struct napi;
 	struct dpaa2_io *dpio;
 	struct dpaa2_io_store *store;
