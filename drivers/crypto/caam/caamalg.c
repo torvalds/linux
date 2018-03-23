@@ -570,9 +570,11 @@ static int aead_setkey(struct crypto_aead *aead,
 
 skip_split_key:
 	ctx->cdata.keylen = keys.enckeylen;
+	memzero_explicit(&keys, sizeof(keys));
 	return aead_set_sh_desc(aead);
 badkey:
 	crypto_aead_set_flags(aead, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
 
