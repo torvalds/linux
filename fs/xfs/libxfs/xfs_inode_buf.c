@@ -651,3 +651,108 @@ xfs_iread(
 	xfs_trans_brelse(tp, bp);
 	return error;
 }
+
+/*
+ * Validate di_extsize hint.
+ *
+ * The rules are documented at xfs_ioctl_setattr_check_extsize().
+ * These functions must be kept in sync with each other.
+ */
+xfs_failaddr_t
+xfs_inode_validate_extsize(
+	struct xfs_mount		*mp,
+	uint32_t			extsize,
+	uint16_t			mode,
+	uint16_t			flags)
+{
+	bool				rt_flag;
+	bool				hint_flag;
+	bool				inherit_flag;
+	uint32_t			extsize_bytes;
+	uint32_t			blocksize_bytes;
+
+	rt_flag = (flags & XFS_DIFLAG_REALTIME);
+	hint_flag = (flags & XFS_DIFLAG_EXTSIZE);
+	inherit_flag = (flags & XFS_DIFLAG_EXTSZINHERIT);
+	extsize_bytes = XFS_FSB_TO_B(mp, extsize);
+
+	if (rt_flag)
+		blocksize_bytes = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
+	else
+		blocksize_bytes = mp->m_sb.sb_blocksize;
+
+	if ((hint_flag || inherit_flag) && !(S_ISDIR(mode) || S_ISREG(mode)))
+		return __this_address;
+
+	if (hint_flag && !S_ISREG(mode))
+		return __this_address;
+
+	if (inherit_flag && !S_ISDIR(mode))
+		return __this_address;
+
+	if ((hint_flag || inherit_flag) && extsize == 0)
+		return __this_address;
+
+	if (!(hint_flag || inherit_flag) && extsize != 0)
+		return __this_address;
+
+	if (extsize_bytes % blocksize_bytes)
+		return __this_address;
+
+	if (extsize > MAXEXTLEN)
+		return __this_address;
+
+	if (!rt_flag && extsize > mp->m_sb.sb_agblocks / 2)
+		return __this_address;
+
+	return NULL;
+}
+
+/*
+ * Validate di_cowextsize hint.
+ *
+ * The rules are documented at xfs_ioctl_setattr_check_cowextsize().
+ * These functions must be kept in sync with each other.
+ */
+xfs_failaddr_t
+xfs_inode_validate_cowextsize(
+	struct xfs_mount		*mp,
+	uint32_t			cowextsize,
+	uint16_t			mode,
+	uint16_t			flags,
+	uint64_t			flags2)
+{
+	bool				rt_flag;
+	bool				hint_flag;
+	uint32_t			cowextsize_bytes;
+
+	rt_flag = (flags & XFS_DIFLAG_REALTIME);
+	hint_flag = (flags2 & XFS_DIFLAG2_COWEXTSIZE);
+	cowextsize_bytes = XFS_FSB_TO_B(mp, cowextsize);
+
+	if (hint_flag && !xfs_sb_version_hasreflink(&mp->m_sb))
+		return __this_address;
+
+	if (hint_flag && !(S_ISDIR(mode) || S_ISREG(mode)))
+		return __this_address;
+
+	if (hint_flag && cowextsize == 0)
+		return __this_address;
+
+	if (!hint_flag && cowextsize != 0)
+		return __this_address;
+
+	if (hint_flag && rt_flag)
+		return __this_address;
+
+	if (cowextsize_bytes % mp->m_sb.sb_blocksize)
+		return __this_address;
+
+	if (cowextsize > MAXEXTLEN)
+		return __this_address;
+
+	if (cowextsize > mp->m_sb.sb_agblocks / 2)
+		return __this_address;
+
+	return NULL;
+}

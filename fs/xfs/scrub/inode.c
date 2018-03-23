@@ -89,12 +89,7 @@ out:
 
 /* Inode core */
 
-/*
- * Validate di_extsize hint.
- *
- * The rules are documented at xfs_ioctl_setattr_check_extsize().
- * These functions must be kept in sync with each other.
- */
+/* Validate di_extsize hint. */
 STATIC void
 xfs_scrub_inode_extsize(
 	struct xfs_scrub_context	*sc,
@@ -103,52 +98,12 @@ xfs_scrub_inode_extsize(
 	uint16_t			mode,
 	uint16_t			flags)
 {
-	struct xfs_mount		*mp = sc->mp;
-	bool				rt_flag;
-	bool				hint_flag;
-	bool				inherit_flag;
-	uint32_t			extsize;
-	uint32_t			extsize_bytes;
-	uint32_t			blocksize_bytes;
+	xfs_failaddr_t			fa;
 
-	rt_flag = (flags & XFS_DIFLAG_REALTIME);
-	hint_flag = (flags & XFS_DIFLAG_EXTSIZE);
-	inherit_flag = (flags & XFS_DIFLAG_EXTSZINHERIT);
-	extsize = be32_to_cpu(dip->di_extsize);
-	extsize_bytes = XFS_FSB_TO_B(sc->mp, extsize);
-
-	if (rt_flag)
-		blocksize_bytes = mp->m_sb.sb_rextsize << mp->m_sb.sb_blocklog;
-	else
-		blocksize_bytes = mp->m_sb.sb_blocksize;
-
-	if ((hint_flag || inherit_flag) && !(S_ISDIR(mode) || S_ISREG(mode)))
-		goto bad;
-
-	if (hint_flag && !S_ISREG(mode))
-		goto bad;
-
-	if (inherit_flag && !S_ISDIR(mode))
-		goto bad;
-
-	if ((hint_flag || inherit_flag) && extsize == 0)
-		goto bad;
-
-	if (!(hint_flag || inherit_flag) && extsize != 0)
-		goto bad;
-
-	if (extsize_bytes % blocksize_bytes)
-		goto bad;
-
-	if (extsize > MAXEXTLEN)
-		goto bad;
-
-	if (!rt_flag && extsize > mp->m_sb.sb_agblocks / 2)
-		goto bad;
-
-	return;
-bad:
-	xfs_scrub_ino_set_corrupt(sc, ino);
+	fa = xfs_inode_validate_extsize(sc->mp, be32_to_cpu(dip->di_extsize),
+			mode, flags);
+	if (fa)
+		xfs_scrub_ino_set_corrupt(sc, ino);
 }
 
 /*
@@ -166,44 +121,13 @@ xfs_scrub_inode_cowextsize(
 	uint16_t			flags,
 	uint64_t			flags2)
 {
-	struct xfs_mount		*mp = sc->mp;
-	bool				rt_flag;
-	bool				hint_flag;
-	uint32_t			extsize;
-	uint32_t			extsize_bytes;
+	xfs_failaddr_t			fa;
 
-	rt_flag = (flags & XFS_DIFLAG_REALTIME);
-	hint_flag = (flags2 & XFS_DIFLAG2_COWEXTSIZE);
-	extsize = be32_to_cpu(dip->di_cowextsize);
-	extsize_bytes = XFS_FSB_TO_B(sc->mp, extsize);
-
-	if (hint_flag && !xfs_sb_version_hasreflink(&mp->m_sb))
-		goto bad;
-
-	if (hint_flag && !(S_ISDIR(mode) || S_ISREG(mode)))
-		goto bad;
-
-	if (hint_flag && extsize == 0)
-		goto bad;
-
-	if (!hint_flag && extsize != 0)
-		goto bad;
-
-	if (hint_flag && rt_flag)
-		goto bad;
-
-	if (extsize_bytes % mp->m_sb.sb_blocksize)
-		goto bad;
-
-	if (extsize > MAXEXTLEN)
-		goto bad;
-
-	if (extsize > mp->m_sb.sb_agblocks / 2)
-		goto bad;
-
-	return;
-bad:
-	xfs_scrub_ino_set_corrupt(sc, ino);
+	fa = xfs_inode_validate_cowextsize(sc->mp,
+			be32_to_cpu(dip->di_cowextsize), mode, flags,
+			flags2);
+	if (fa)
+		xfs_scrub_ino_set_corrupt(sc, ino);
 }
 
 /* Make sure the di_flags make sense for the inode. */
