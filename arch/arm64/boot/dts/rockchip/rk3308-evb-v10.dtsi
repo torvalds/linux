@@ -15,7 +15,21 @@
 		bootargs = "earlycon=uart8250,mmio32,0xff0c0000 swiotlb=1 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=squashfs rootwait";
 	};
 
-	adc-keys {
+	adc-keys0 {
+		compatible = "adc-keys";
+		io-channels = <&saradc 0>;
+		io-channel-names = "buttons";
+		poll-interval = <100>;
+		keyup-threshold-microvolt = <1800000>;
+
+		func-key {
+			linux,code = <KEY_FN>;
+			label = "function";
+			press-threshold-microvolt = <18000>;
+		};
+	};
+
+	adc-keys1 {
 		compatible = "adc-keys";
 		io-channels = <&saradc 1>;
 		io-channel-names = "buttons";
