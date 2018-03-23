@@ -26,6 +26,10 @@ struct tinydrm_device {
 	struct drm_simple_display_pipe pipe;
 	struct mutex dirty_lock;
 	const struct drm_framebuffer_funcs *fb_funcs;
+	int (*fb_dirty)(struct drm_framebuffer *framebuffer,
+			struct drm_file *file_priv, unsigned flags,
+			unsigned color, struct drm_clip_rect *clips,
+			unsigned num_clips);
 };
 
 static inline struct tinydrm_device *

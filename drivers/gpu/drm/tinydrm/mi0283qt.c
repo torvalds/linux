@@ -127,7 +127,7 @@ static void mi0283qt_enable(struct drm_simple_display_pipe *pipe,
 	msleep(100);
 
 out_enable:
-	mipi_dbi_enable_flush(mipi);
+	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
 }
 
 static const struct drm_simple_display_pipe_funcs mi0283qt_pipe_funcs = {

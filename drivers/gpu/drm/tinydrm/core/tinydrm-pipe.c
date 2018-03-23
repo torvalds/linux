@@ -125,9 +125,8 @@ void tinydrm_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_crtc *crtc = &tdev->pipe.crtc;
 
 	if (fb && (fb != old_state->fb)) {
-		pipe->plane.fb = fb;
-		if (fb->funcs->dirty)
-			fb->funcs->dirty(fb, NULL, 0, 0, NULL, 0);
+		if (tdev->fb_dirty)
+			tdev->fb_dirty(fb, NULL, 0, 0, NULL, 0);
 	}
 
 	if (crtc->state->event) {

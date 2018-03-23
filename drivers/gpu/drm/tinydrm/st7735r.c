@@ -99,7 +99,7 @@ static void jd_t18003_t01_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(20);
 
-	mipi_dbi_enable_flush(mipi);
+	mipi_dbi_enable_flush(mipi, crtc_state, plane_state);
 }
 
 static const struct drm_simple_display_pipe_funcs jd_t18003_t01_pipe_funcs = {
