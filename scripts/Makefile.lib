@@ -184,14 +184,8 @@ endef
 quiet_cmd_flex = LEX     $@
       cmd_flex = $(LEX) -o$@ -L $<
 
-ifdef REGENERATE_PARSERS
-.PRECIOUS: $(src)/%.lex.c_shipped
-$(src)/%.lex.c_shipped: $(src)/%.l
-	$(call cmd,flex)
-endif
-
 .PRECIOUS: $(obj)/%.lex.c
-$(filter %.lex.c,$(targets)): $(obj)/%.lex.c: $(src)/%.l FORCE
+$(obj)/%.lex.c: $(src)/%.l FORCE
 	$(call if_changed,flex)
 
 # YACC
@@ -199,27 +193,15 @@ $(filter %.lex.c,$(targets)): $(obj)/%.lex.c: $(src)/%.l FORCE
 quiet_cmd_bison = YACC    $@
       cmd_bison = $(YACC) -o$@ -t -l $<
 
-ifdef REGENERATE_PARSERS
-.PRECIOUS: $(src)/%.tab.c_shipped
-$(src)/%.tab.c_shipped: $(src)/%.y
-	$(call cmd,bison)
-endif
-
 .PRECIOUS: $(obj)/%.tab.c
-$(filter %.tab.c,$(targets)): $(obj)/%.tab.c: $(src)/%.y FORCE
+$(obj)/%.tab.c: $(src)/%.y FORCE
 	$(call if_changed,bison)
 
 quiet_cmd_bison_h = YACC    $@
       cmd_bison_h = bison -o/dev/null --defines=$@ -t -l $<
 
-ifdef REGENERATE_PARSERS
-.PRECIOUS: $(src)/%.tab.h_shipped
-$(src)/%.tab.h_shipped: $(src)/%.y
-	$(call cmd,bison_h)
-endif
-
 .PRECIOUS: $(obj)/%.tab.h
-$(filter %.tab.h,$(targets)): $(obj)/%.tab.h: $(src)/%.y FORCE
+$(obj)/%.tab.h: $(src)/%.y FORCE
 	$(call if_changed,bison_h)
 
 # Shipped files
