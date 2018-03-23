@@ -3456,6 +3456,7 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	if (IS_ERR(base_hash)) {
 		pr_err("chcr : Base driver cannot be loaded\n");
 		aeadctx->enckey_len = 0;
+		memzero_explicit(&keys, sizeof(keys));
 		return -EINVAL;
 	}
 	{
@@ -3507,10 +3508,12 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 		actx->auth_mode = param.auth_mode;
 		chcr_free_shash(base_hash);
 
+		memzero_explicit(&keys, sizeof(keys));
 		return 0;
 	}
 out:
 	aeadctx->enckey_len = 0;
+	memzero_explicit(&keys, sizeof(keys));
 	if (!IS_ERR(base_hash))
 		chcr_free_shash(base_hash);
 	return -EINVAL;
@@ -3573,9 +3576,11 @@ static int chcr_aead_digest_null_setkey(struct crypto_aead *authenc,
 	aeadctx->key_ctx_hdr = FILL_KEY_CTX_HDR(ck_size, CHCR_KEYCTX_NO_KEY, 0,
 						0, key_ctx_len >> 4);
 	actx->auth_mode = CHCR_SCMD_AUTH_MODE_NOP;
+	memzero_explicit(&keys, sizeof(keys));
 	return 0;
 out:
 	aeadctx->enckey_len = 0;
+	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
 
