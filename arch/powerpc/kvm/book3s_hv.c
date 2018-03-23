@@ -1206,6 +1206,19 @@ static int kvmppc_handle_exit_hv(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			r = RESUME_GUEST;
 		}
 		break;
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	case BOOK3S_INTERRUPT_HV_SOFTPATCH:
+		/*
+		 * This occurs for various TM-related instructions that
+		 * we need to emulate on POWER9 DD2.2.  We have already
+		 * handled the cases where the guest was in real-suspend
+		 * mode and was transitioning to transactional state.
+		 */
+		r = kvmhv_p9_tm_emulation(vcpu);
+		break;
+#endif
+
 	case BOOK3S_INTERRUPT_HV_RM_HARD:
 		r = RESUME_PASSTHROUGH;
 		break;
@@ -1978,7 +1991,9 @@ static struct kvm_vcpu *kvmppc_core_vcpu_create_hv(struct kvm *kvm,
 	 * turn off the HFSCR bit, which causes those instructions to trap.
 	 */
 	vcpu->arch.hfscr = mfspr(SPRN_HFSCR);
-	if (!cpu_has_feature(CPU_FTR_TM))
+	if (cpu_has_feature(CPU_FTR_P9_TM_HV_ASSIST))
+		vcpu->arch.hfscr |= HFSCR_TM;
+	else if (!cpu_has_feature(CPU_FTR_TM_COMP))
 		vcpu->arch.hfscr &= ~HFSCR_TM;
 	if (cpu_has_feature(CPU_FTR_ARCH_300))
 		vcpu->arch.hfscr &= ~HFSCR_MSGP;
@@ -2242,6 +2257,7 @@ static void kvmppc_start_thread(struct kvm_vcpu *vcpu, struct kvmppc_vcore *vc)
 	tpaca = &paca[cpu];
 	tpaca->kvm_hstate.kvm_vcpu = vcpu;
 	tpaca->kvm_hstate.ptid = cpu - vc->pcpu;
+	tpaca->kvm_hstate.fake_suspend = 0;
 	/* Order stores to hstate.kvm_vcpu etc. before store to kvm_vcore */
 	smp_wmb();
 	tpaca->kvm_hstate.kvm_vcore = vc;

@@ -108,6 +108,8 @@
 
 /* book3s_hv */
 
+#define BOOK3S_INTERRUPT_HV_SOFTPATCH	0x1500
+
 /*
  * Special trap used to indicate to host that this is a
  * passthrough interrupt that could not be handled

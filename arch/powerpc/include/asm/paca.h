@@ -32,6 +32,7 @@
 #include <asm/accounting.h>
 #include <asm/hmi.h>
 #include <asm/cpuidle.h>
+#include <asm/atomic.h>
 
 register struct paca_struct *local_paca asm("r13");
 
@@ -177,6 +178,8 @@ struct paca_struct {
 	u8 thread_mask;
 	/* Mask to denote subcore sibling threads */
 	u8 subcore_sibling_mask;
+	/* Flag to request this thread not to stop */
+	atomic_t dont_stop;
 	/*
 	 * Pointer to an array which contains pointer
 	 * to the sibling threads' paca.
