@@ -3738,7 +3738,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 		speed = "unknown";
 	}
 
-	dev_err(&intf->dev,
+	dev_info(&intf->dev,
 		"New device %s %s @ %s Mbps (%04x:%04x, interface %d, class %d)\n",
 		udev->manufacturer ? udev->manufacturer : "",
 		udev->product ? udev->product : "",
@@ -3773,7 +3773,7 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	dev->dev_next = NULL;
 
 	if (has_vendor_audio) {
-		dev_err(&intf->dev,
+		dev_info(&intf->dev,
 			"Audio interface %i found (Vendor Class)\n", ifnum);
 		dev->usb_audio_type = EM28XX_USB_AUDIO_VENDOR;
 	}
@@ -3792,12 +3792,12 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	}
 
 	if (has_video)
-		dev_err(&intf->dev, "Video interface %i found:%s%s\n",
+		dev_info(&intf->dev, "Video interface %i found:%s%s\n",
 			ifnum,
 			dev->analog_ep_bulk ? " bulk" : "",
 			dev->analog_ep_isoc ? " isoc" : "");
 	if (has_dvb)
-		dev_err(&intf->dev, "DVB interface %i found:%s%s\n",
+		dev_info(&intf->dev, "DVB interface %i found:%s%s\n",
 			ifnum,
 			dev->dvb_ep_bulk ? " bulk" : "",
 			dev->dvb_ep_isoc ? " isoc" : "");
@@ -3839,13 +3839,13 @@ static int em28xx_usb_probe(struct usb_interface *intf,
 	if (has_video) {
 		if (!dev->analog_ep_isoc || (try_bulk && dev->analog_ep_bulk))
 			dev->analog_xfer_bulk = 1;
-		dev_err(&intf->dev, "analog set to %s mode.\n",
+		dev_info(&intf->dev, "analog set to %s mode.\n",
 			dev->analog_xfer_bulk ? "bulk" : "isoc");
 	}
 	if (has_dvb) {
 		if (!dev->dvb_ep_isoc || (try_bulk && dev->dvb_ep_bulk))
 			dev->dvb_xfer_bulk = 1;
-		dev_err(&intf->dev, "dvb set to %s mode.\n",
+		dev_info(&intf->dev, "dvb set to %s mode.\n",
 			dev->dvb_xfer_bulk ? "bulk" : "isoc");
 	}
 
