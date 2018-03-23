@@ -1749,9 +1749,9 @@ enum i915_power_well_id {
 #define ICL_PORT_TX_DW2_LN0(port)	_MMIO_PORT(port, \
 						   _ICL_PORT_TX_DW2_LN0_A, \
 						   _ICL_PORT_TX_DW2_LN0_B)
-#define   SWING_SEL_UPPER(x)		((x >> 3) << 15)
+#define   SWING_SEL_UPPER(x)		(((x) >> 3) << 15)
 #define   SWING_SEL_UPPER_MASK		(1 << 15)
-#define   SWING_SEL_LOWER(x)		((x & 0x7) << 11)
+#define   SWING_SEL_LOWER(x)		(((x) & 0x7) << 11)
 #define   SWING_SEL_LOWER_MASK		(0x7 << 11)
 #define   RCOMP_SCALAR(x)		((x) << 0)
 #define   RCOMP_SCALAR_MASK		(0xFF << 0)
