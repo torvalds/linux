@@ -1401,5 +1401,12 @@
 					<1 RK_PB4 3 &pcfg_pull_none>;
 			};
 		};
+
+		rtc {
+			rtc_32k: rtc-32k {
+				rockchip,pins =
+					<0 RK_PC3 1 &pcfg_pull_none>;
+			};
+		};
 	};
 };
