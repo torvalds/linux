@@ -54,7 +54,7 @@ struct ks_wlan_parameter {
 #define BEACON_LOST_COUNT_MAX 65535
 	u32 beacon_lost_count;	/*  Beacon Lost Count */
 	u32 rts;	/*  RTS Threashold */
-	u32 fragment;	/*  Fragmentation Threashold */
+	u32 fragment;	/*  Fragmentation Threshold */
 	u32 privacy_invoked;
 	u32 wep_index;
 	struct {

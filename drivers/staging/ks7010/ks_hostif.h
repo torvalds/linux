@@ -59,7 +59,7 @@
 
 /*
  * HOST-MAC I/F data structure
- * Byte alignmet Little Endian
+ * Byte alignment Little Endian
  */
 
 struct hostif_hdr {
