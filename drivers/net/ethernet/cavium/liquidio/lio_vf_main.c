@@ -1604,8 +1604,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	lio = GET_LIO(netdev);
 	oct = lio->oct_dev;
 
-	q_idx = skb->queue_mapping;
-	q_idx = (q_idx % (lio->linfo.num_txpciq));
+	q_idx = skb_iq(lio, skb);
 	tag = q_idx;
 	iq_no = lio->linfo.txpciq[q_idx].s.q_no;
 
