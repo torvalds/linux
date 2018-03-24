@@ -39,12 +39,6 @@
 #define CB_MAX_CHANNEL_5G       42
 #define CB_MAX_CHANNEL          (CB_MAX_CHANNEL_24G + CB_MAX_CHANNEL_5G)
 
-typedef enum _CARD_STATUS_TYPE {
-	CARD_STATUS_MEDIA_CONNECT,
-	CARD_STATUS_MEDIA_DISCONNECT,
-	CARD_STATUS_PMKID
-} CARD_STATUS_TYPE, *PCARD_STATUS_TYPE;
-
 struct vnt_private;
 
 void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type);
