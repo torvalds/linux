@@ -514,6 +514,7 @@ struct sh_eth_cpu_data {
 	unsigned rmiimode:1;	/* EtherC has RMIIMODE register */
 	unsigned rtrate:1;	/* EtherC has RTRATE register */
 	unsigned magic:1;	/* EtherC has ECMR.MPDE and ECSR.MPD */
+	unsigned no_tx_cntrs:1;	/* EtherC DOES NOT have TX error counters */
 	unsigned dual_port:1;	/* Dual EtherC/E-DMAC */
 };
 

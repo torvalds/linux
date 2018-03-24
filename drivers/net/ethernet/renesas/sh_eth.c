@@ -455,11 +455,6 @@ static bool sh_eth_is_gether(struct sh_eth_private *mdp)
 	return mdp->reg_offset == sh_eth_offset_gigabit;
 }
 
-static bool sh_eth_is_rz_fast_ether(struct sh_eth_private *mdp)
-{
-	return mdp->reg_offset == sh_eth_offset_fast_rz;
-}
-
 static void sh_eth_select_mii(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -614,6 +609,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 	.xdfar_rw	= 1,
 	.hw_checksum	= 1,
 	.tsu		= 1,
+	.no_tx_cntrs	= 1,
 };
 
 static void sh_eth_chip_reset_r8a7740(struct net_device *ndev)
@@ -2534,7 +2530,7 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
-	if (sh_eth_is_rz_fast_ether(mdp))
+	if (mdp->cd->no_tx_cntrs)
 		return &ndev->stats;
 
 	if (!mdp->is_opened)
