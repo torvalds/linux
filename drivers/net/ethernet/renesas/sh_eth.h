@@ -469,6 +469,9 @@ struct sh_eth_rxdesc {
 
 /* This structure is used by each CPU dependency handling. */
 struct sh_eth_cpu_data {
+	/* mandatory functions */
+	int (*soft_reset)(struct net_device *ndev);
+
 	/* optional functions */
 	void (*chip_reset)(struct net_device *ndev);
 	void (*set_duplex)(struct net_device *ndev);
