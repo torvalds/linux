@@ -18,7 +18,6 @@
     - Adjust clock frequency
 
   + Ancillary clock features
-    - One short or periodic alarms, with signal delivery to user program
     - Time stamp external events
     - Period output signals configurable from user space
     - Synchronization of the Linux system time via the PPS subsystem
@@ -48,9 +47,7 @@
    User space programs may control the clock using standardized
    ioctls. A program may query, enable, configure, and disable the
    ancillary clock features. User space can receive time stamped
-   events via blocking read() and poll(). One shot and periodic
-   signals may be configured via the POSIX timer_settime() system
-   call.
+   events via blocking read() and poll().
 
 ** Writing clock drivers
 
