@@ -567,14 +567,6 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 /*
  * Called with sem_ids.rwsem and ipcp locked.
  */
-static inline int sem_security(struct kern_ipc_perm *ipcp, int semflg)
-{
-	return security_sem_associate(ipcp, semflg);
-}
-
-/*
- * Called with sem_ids.rwsem and ipcp locked.
- */
 static inline int sem_more_checks(struct kern_ipc_perm *ipcp,
 				struct ipc_params *params)
 {
@@ -592,7 +584,7 @@ SYSCALL_DEFINE3(semget, key_t, key, int, nsems, int, semflg)
 	struct ipc_namespace *ns;
 	static const struct ipc_ops sem_ops = {
 		.getnew = newary,
-		.associate = sem_security,
+		.associate = security_sem_associate,
 		.more_checks = sem_more_checks,
 	};
 	struct ipc_params sem_params;
