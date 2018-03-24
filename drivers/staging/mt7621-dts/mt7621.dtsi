@@ -142,7 +142,7 @@
 		mc: mc@1fbf8000 {
 			    compatible = "mtk,mt7621-mc";
 			    reg = <0x1fbf8000 0x8000>;
- 		};
+		};
 
 		uartlite: uartlite@c00 {
 			compatible = "ns16550a";
