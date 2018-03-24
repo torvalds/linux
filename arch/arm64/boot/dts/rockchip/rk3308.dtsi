@@ -148,6 +148,12 @@
 			status = "disabled";
 		};
 
+		pmu_pvtm: pmu-pvtm {
+			compatible = "rockchip,rk3308-pmu-pvtm";
+			clocks = <&cru SCLK_PVTM_PMU>;
+			clock-names = "pmu";
+		};
+
 		reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x500>;
@@ -155,6 +161,19 @@
 			mode-loader = <BOOT_BL_DOWNLOAD>;
 			mode-normal = <BOOT_NORMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
+		};
+	};
+
+	core_grf: syscon@ff00c000 {
+		compatible = "syscon", "simple-mfd";
+		reg = <0x0 0xff00c000 0x0 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		pvtm: pvtm {
+			compatible = "rockchip,rk3308-pvtm";
+			clocks = <&cru SCLK_PVTM_CORE>;
+			clock-names = "core";
 		};
 	};
 
