@@ -450,11 +450,6 @@ static u32 sh_eth_tsu_read(struct sh_eth_private *mdp, int enum_index)
 	return ioread32(mdp->tsu_addr + mdp->reg_offset[enum_index]);
 }
 
-static bool sh_eth_is_gether(struct sh_eth_private *mdp)
-{
-	return mdp->reg_offset == sh_eth_offset_gigabit;
-}
-
 static void sh_eth_select_mii(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -661,6 +656,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.tsu		= 1,
 	.select_mii	= 1,
 	.magic		= 1,
+	.cexcr		= 1,
 };
 
 /* There is CPU dependent code */
@@ -918,6 +914,7 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 	.no_ade		= 1,
 	.xdfar_rw	= 1,
 	.tsu		= 1,
+	.cexcr		= 1,
 	.dual_port	= 1,
 };
 
@@ -959,6 +956,7 @@ static struct sh_eth_cpu_data sh7734_data = {
 	.hw_checksum	= 1,
 	.select_mii	= 1,
 	.magic		= 1,
+	.cexcr		= 1,
 };
 
 /* SH7763 */
@@ -997,6 +995,7 @@ static struct sh_eth_cpu_data sh7763_data = {
 	.tsu		= 1,
 	.irq_flags	= IRQF_SHARED,
 	.magic		= 1,
+	.cexcr		= 1,
 	.dual_port	= 1,
 };
 
@@ -2540,7 +2539,7 @@ static struct net_device_stats *sh_eth_get_stats(struct net_device *ndev)
 	sh_eth_update_stat(ndev, &ndev->stats.collisions, CDCR);
 	sh_eth_update_stat(ndev, &ndev->stats.tx_carrier_errors, LCCR);
 
-	if (sh_eth_is_gether(mdp)) {
+	if (mdp->cd->cexcr) {
 		sh_eth_update_stat(ndev, &ndev->stats.tx_carrier_errors,
 				   CERCR);
 		sh_eth_update_stat(ndev, &ndev->stats.tx_carrier_errors,
