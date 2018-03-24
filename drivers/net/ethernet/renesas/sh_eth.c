@@ -611,6 +611,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
+	.xdfar_rw	= 1,
 	.hw_checksum	= 1,
 	.tsu		= 1,
 };
@@ -659,6 +660,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
+	.xdfar_rw	= 1,
 	.hw_checksum	= 1,
 	.tsu		= 1,
 	.select_mii	= 1,
@@ -918,6 +920,7 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
+	.xdfar_rw	= 1,
 	.tsu		= 1,
 	.dual_port	= 1,
 };
@@ -955,6 +958,7 @@ static struct sh_eth_cpu_data sh7734_data = {
 	.hw_swap	= 1,
 	.no_trimd	= 1,
 	.no_ade		= 1,
+	.xdfar_rw	= 1,
 	.tsu		= 1,
 	.hw_checksum	= 1,
 	.select_mii	= 1,
@@ -993,6 +997,7 @@ static struct sh_eth_cpu_data sh7763_data = {
 	.hw_swap	= 1,
 	.no_trimd	= 1,
 	.no_ade		= 1,
+	.xdfar_rw	= 1,
 	.tsu		= 1,
 	.irq_flags	= IRQF_SHARED,
 	.magic		= 1,
@@ -1301,8 +1306,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		/* Rx descriptor address set */
 		if (i == 0) {
 			sh_eth_write(ndev, mdp->rx_desc_dma, RDLAR);
-			if (sh_eth_is_gether(mdp) ||
-			    sh_eth_is_rz_fast_ether(mdp))
+			if (mdp->cd->xdfar_rw)
 				sh_eth_write(ndev, mdp->rx_desc_dma, RDFAR);
 		}
 	}
@@ -1324,8 +1328,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		if (i == 0) {
 			/* Tx descriptor address set */
 			sh_eth_write(ndev, mdp->tx_desc_dma, TDLAR);
-			if (sh_eth_is_gether(mdp) ||
-			    sh_eth_is_rz_fast_ether(mdp))
+			if (mdp->cd->xdfar_rw)
 				sh_eth_write(ndev, mdp->tx_desc_dma, TDFAR);
 		}
 	}
