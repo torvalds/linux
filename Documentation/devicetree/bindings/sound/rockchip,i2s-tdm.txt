@@ -1,0 +1,42 @@
+* Rockchip I2S/TDM controller
+
+Required properties:
+
+- compatible: should be one of the following
+   - "rockchip,rk3308-i2s-tdm": for rk3308
+- reg: physical base address of the controller and length of memory mapped
+  region.
+- interrupts: should contain the I2S interrupt.
+- dmas: DMA specifiers for tx and rx dma. See the DMA client binding,
+	Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: should include "tx" and "rx".
+- clocks: a list of phandle + clock-specifer pairs, one for each entry in clock-names.
+- clock-names: clock names.
+- rockchip,bclk-fs: configure the bclk fs.
+
+Example for rk3308 I2S/TDM controller:
+
+i2s_8ch_0: i2s@ff300000 {
+	compatible = "rockchip,rk3308-i2s-tdm";
+	reg = <0x0 0xff300000 0x0 0x1000>;
+	interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&cru SCLK_I2S0_8CH_TX>, <&cru SCLK_I2S0_8CH_RX>, <&cru HCLK_I2S0_8CH>;
+	clock-names = "mclk_tx", "mclk_rx", "hclk";
+	dmas = <&dmac1 0>, <&dmac1 1>;
+	dma-names = "tx", "rx";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s_8ch_0_sclktx
+		     &i2s_8ch_0_sclkrx
+		     &i2s_8ch_0_lrcktx
+		     &i2s_8ch_0_lrckrx
+		     &i2s_8ch_0_sdi0
+		     &i2s_8ch_0_sdi1
+		     &i2s_8ch_0_sdi2
+		     &i2s_8ch_0_sdi3
+		     &i2s_8ch_0_sdo0
+		     &i2s_8ch_0_sdo1
+		     &i2s_8ch_0_sdo2
+		     &i2s_8ch_0_sdo3
+		     &i2s_8ch_0_mclk>;
+	status = "disabled";
+};
