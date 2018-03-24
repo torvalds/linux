@@ -731,7 +731,6 @@ xfs_sb_mount_common(
 	struct xfs_sb	*sbp)
 {
 	mp->m_agfrotor = mp->m_agirotor = 0;
-	spin_lock_init(&mp->m_agirotor_lock);
 	mp->m_maxagi = mp->m_sb.sb_agcount;
 	mp->m_blkbit_log = sbp->sb_blocklog + XFS_NBBYLOG;
 	mp->m_blkbb_log = sbp->sb_blocklog - BBSHIFT;
