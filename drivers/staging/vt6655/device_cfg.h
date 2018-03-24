@@ -16,13 +16,6 @@
 
 #include <linux/types.h>
 
-typedef
-struct _version {
-	unsigned char   major;
-	unsigned char   minor;
-	unsigned char   build;
-} version_t, *pversion_t;
-
 #define VID_TABLE_SIZE      64
 #define MCAST_TABLE_SIZE    64
 #define MCAM_SIZE           32
