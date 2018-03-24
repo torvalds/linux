@@ -281,6 +281,7 @@ static int panel_simple_spi_send_cmds(struct panel_simple *panel,
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DRM_MIPI_DSI)
 static int panel_simple_dsi_send_cmds(struct panel_simple *panel,
 				      struct panel_cmds *cmds)
 {
@@ -321,6 +322,13 @@ static int panel_simple_dsi_send_cmds(struct panel_simple *panel,
 
 	return 0;
 }
+#else
+static inline int panel_simple_dsi_send_cmds(struct panel_simple *panel,
+					     struct panel_cmds *cmds)
+{
+	return -EINVAL;
+}
+#endif
 
 static int panel_simple_get_cmds(struct panel_simple *panel)
 {
