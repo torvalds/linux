@@ -45,8 +45,4 @@
 
 #define PKT_BUF_SZ          2390
 
-typedef enum  _chip_type {
-	VT3253 = 1
-} CHIP_TYPE, *PCHIP_TYPE;
-
 #endif
