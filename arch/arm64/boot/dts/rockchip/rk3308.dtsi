@@ -988,6 +988,109 @@
 		status = "disabled";
 	};
 
+	i2s_8ch_0: i2s@ff300000 {
+		compatible = "rockchip,rk3308-i2s-tdm";
+		reg = <0x0 0xff300000 0x0 0x1000>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S0_8CH_TX>, <&cru SCLK_I2S0_8CH_RX>, <&cru HCLK_I2S0_8CH>,
+			 <&cru SCLK_I2S0_8CH_TX_SRC>,
+			 <&cru SCLK_I2S0_8CH_RX_SRC>,
+			 <&cru PLL_VPLL0>,
+			 <&cru PLL_VPLL1>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk",
+			      "mclk_tx_src", "mclk_rx_src",
+			      "mclk_root0", "mclk_root1";
+		dmas = <&dmac1 0>, <&dmac1 1>;
+		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S0_8CH_TX_M>, <&cru SRST_I2S0_8CH_RX_M>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
+		rockchip,mclk-calibrate;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_0_sclktx
+			     &i2s_8ch_0_sclkrx
+			     &i2s_8ch_0_lrcktx
+			     &i2s_8ch_0_lrckrx
+			     &i2s_8ch_0_sdi0
+			     &i2s_8ch_0_sdi1
+			     &i2s_8ch_0_sdi2
+			     &i2s_8ch_0_sdi3
+			     &i2s_8ch_0_sdo0
+			     &i2s_8ch_0_sdo1
+			     &i2s_8ch_0_sdo2
+			     &i2s_8ch_0_sdo3
+			     &i2s_8ch_0_mclk>;
+		status = "disabled";
+	};
+
+	i2s_8ch_1: i2s@ff310000 {
+		compatible = "rockchip,rk3308-i2s-tdm";
+		reg = <0x0 0xff310000 0x0 0x1000>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S1_8CH_TX>, <&cru SCLK_I2S1_8CH_RX>, <&cru HCLK_I2S1_8CH>,
+			 <&cru SCLK_I2S1_8CH_TX_SRC>,
+			 <&cru SCLK_I2S1_8CH_RX_SRC>,
+			 <&cru PLL_VPLL0>,
+			 <&cru PLL_VPLL1>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk",
+			      "mclk_tx_src", "mclk_rx_src",
+			      "mclk_root0", "mclk_root1";
+		dmas = <&dmac1 2>, <&dmac1 3>;
+		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S1_8CH_TX_M>, <&cru SRST_I2S1_8CH_RX_M>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
+		rockchip,mclk-calibrate;
+		rockchip,io-multiplex;
+		status = "disabled";
+	};
+
+	i2s_8ch_2: i2s@ff320000 {
+		compatible = "rockchip,rk3308-i2s-tdm";
+		reg = <0x0 0xff320000 0x0 0x1000>;
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S2_8CH_TX>, <&cru SCLK_I2S2_8CH_RX>, <&cru HCLK_I2S2_8CH>,
+			 <&cru SCLK_I2S2_8CH_TX_SRC>,
+			 <&cru SCLK_I2S2_8CH_RX_SRC>,
+			 <&cru PLL_VPLL0>,
+			 <&cru PLL_VPLL1>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk",
+			      "mclk_tx_src", "mclk_rx_src",
+			      "mclk_root0", "mclk_root1";
+		dmas = <&dmac1 4>, <&dmac1 5>;
+		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S2_8CH_TX_M>, <&cru SRST_I2S2_8CH_RX_M>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
+		rockchip,mclk-calibrate;
+		status = "disabled";
+	};
+
+	i2s_8ch_3: i2s@ff330000 {
+		compatible = "rockchip,rk3308-i2s-tdm";
+		reg = <0x0 0xff330000 0x0 0x1000>;
+		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S3_8CH_TX>, <&cru SCLK_I2S3_8CH_RX>, <&cru HCLK_I2S3_8CH>,
+			 <&cru SCLK_I2S3_8CH_TX_SRC>,
+			 <&cru SCLK_I2S3_8CH_RX_SRC>,
+			 <&cru PLL_VPLL0>,
+			 <&cru PLL_VPLL1>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk",
+			      "mclk_tx_src", "mclk_rx_src",
+			      "mclk_root0", "mclk_root1";
+		dmas = <&dmac1 7>;
+		dma-names = "rx";
+		resets = <&cru SRST_I2S3_8CH_TX_M>, <&cru SRST_I2S3_8CH_RX_M>;
+		reset-names = "tx-m", "rx-m";
+		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
+		rockchip,mclk-calibrate;
+		status = "disabled";
+	};
+
 	i2s_2ch_0: i2s@ff350000 {
 		compatible = "rockchip,rk3308-i2s", "rockchip,rk3066-i2s";
 		reg = <0x0 0xff350000 0x0 0x1000>;
@@ -998,6 +1101,7 @@
 		dma-names = "tx", "rx";
 		resets = <&cru SRST_I2S0_2CH_M>, <&cru SRST_I2S0_2CH_H>;
 		reset-names = "reset-m", "reset-h";
+		rockchip,clk-trcm = <1>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_2ch_0_sclk
 			     &i2s_2ch_0_lrck
@@ -1019,6 +1123,24 @@
 		status = "disabled";
 	};
 
+	pdm_8ch: pdm@ff380000 {
+		compatible = "rockchip,rk3308-pdm", "rockchip,pdm";
+		reg = <0x0 0xff380000 0x0 0x1000>;
+		clocks = <&cru SCLK_PDM>, <&cru HCLK_PDM>;
+		clock-names = "pdm_clk", "pdm_hclk";
+		dmas = <&dmac1 12>;
+		dma-names = "rx";
+		resets = <&cru SRST_PDM_M>;
+		reset-names = "pdm-m";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pdm_m2_clk
+			     &pdm_m2_sdi0
+			     &pdm_m2_sdi1
+			     &pdm_m2_sdi2
+			     &pdm_m2_sdi3>;
+		status = "disabled";
+	};
+
 	spdif_tx: spdif-tx@ff3a0000 {
 		compatible = "rockchip,rk3308-spdif", "rockchip,rk3066-spdif";
 		reg = <0x0 0xff3a0000 0x0 0x1000>;
@@ -1029,6 +1151,35 @@
 		dma-names = "tx";
 		pinctrl-names = "default";
 		pinctrl-0 = <&spdif_out>;
+		status = "disabled";
+	};
+
+	spdif_rx: spdif-rx@ff3b0000 {
+		compatible = "rockchip,rk3308-spdifrx";
+		reg = <0x0 0xff3b0000 0x0 0x1000>;
+		interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SPDIF_RX>, <&cru HCLK_SPDIFRX>;
+		clock-names = "mclk", "hclk";
+		dmas = <&dmac1 14>;
+		dma-names = "rx";
+		resets = <&cru SRST_SPDIFRX_M>;
+		reset-names = "spdifrx-m";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdif_in>;
+		status = "disabled";
+	};
+
+	vad: vad@ff3c0000 {
+		compatible = "rockchip,rk3308-vad";
+		reg = <0x0 0xff3c0000 0x0 0x10000>;
+		reg-names = "vad";
+		clocks = <&cru HCLK_VAD>;
+		clock-names = "hclk";
+		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
+		rockchip,audio-sram = <&vad_sram>;
+		rockchip,audio-src = <0>;
+		rockchip,det-channel = <0>;
+		rockchip,mode = <0>;
 		status = "disabled";
 	};
 
