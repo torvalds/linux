@@ -12,4 +12,27 @@
 / {
 	model = "Rockchip RK3308 evb digital-i2s mic board";
 	compatible = "rockchip,rk3308-evb-dmic-i2s-v10", "rockchip,rk3308";
+
+	i2s-dmic-array {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,i2s-dmic-array";
+		simple-audio-card,mclk-fs = <256>;
+		simple-audio-card,cpu {
+			sound-dai = <&i2s_8ch_0>;
+		};
+		simple-audio-card,codec {
+			sound-dai = <&dummy_codec>;
+		};
+	};
+};
+
+&dummy_codec {
+	status = "okay";
+	#sound-dai-cells = <0>;
+};
+
+&i2s_8ch_0 {
+	status = "okay";
+	#sound-dai-cells = <0>;
 };
