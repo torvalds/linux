@@ -510,7 +510,7 @@ static inline int wait_for_pending_requests(struct octeon_device *oct)
  * \brief Stop Tx queues
  * @param netdev network device
  */
-static inline void txqs_stop(struct net_device *netdev)
+static inline void stop_txqs(struct net_device *netdev)
 {
 	int i;
 

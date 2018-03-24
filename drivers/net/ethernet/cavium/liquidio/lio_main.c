@@ -786,7 +786,7 @@ static inline void update_link_status(struct net_device *netdev,
 		} else {
 			dev_dbg(&oct->pci_dev->dev, "%s: link_off", __func__);
 			netif_carrier_off(netdev);
-			txqs_stop(netdev);
+			stop_txqs(netdev);
 		}
 		if (lio->linfo.link.s.mtu != current_max_mtu) {
 			netif_info(lio, probe, lio->netdev, "Max MTU changed from %d to %d\n",
