@@ -106,13 +106,14 @@ config ASUS_LAPTOP
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
 #
-# If the DELL_SMBIOS_SMM feature is enabled, the DELL_SMBIOS driver
-# becomes dependent on the DCDBAS driver. The "depends" line prevents a
-# configuration where DELL_SMBIOS=y while DCDBAS=m.
+# The DELL_SMBIOS driver depends on ACPI_WMI and/or DCDBAS if those
+# backends are selected. The "depends" line prevents a configuration
+# where DELL_SMBIOS=y while either of those dependencies =m.
 #
 config DELL_SMBIOS
 	tristate "Dell SMBIOS driver"
 	depends on DCDBAS || DCDBAS=n
+	depends on ACPI_WMI || ACPI_WMI=n
 	---help---
 	This provides support for the Dell SMBIOS calling interface.
 	If you have a Dell computer you should enable this option.
