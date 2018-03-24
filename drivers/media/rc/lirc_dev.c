@@ -583,7 +583,7 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	case LIRC_SET_REC_TIMEOUT_REPORTS:
-		if (!dev->timeout)
+		if (dev->driver_type != RC_DRIVER_IR_RAW)
 			ret = -ENOTTY;
 		else
 			fh->send_timeout_reports = !!val;
