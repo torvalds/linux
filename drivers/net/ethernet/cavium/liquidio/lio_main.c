@@ -1692,16 +1692,6 @@ static int octeon_pci_os_setup(struct octeon_device *oct)
 	return 0;
 }
 
-static inline int skb_iq(struct lio *lio, struct sk_buff *skb)
-{
-	int q = 0;
-
-	if (netif_is_multiqueue(lio->netdev))
-		q = skb->queue_mapping % lio->linfo.num_txpciq;
-
-	return q;
-}
-
 /**
  * \brief Check Tx queue state for a given network buffer
  * @param lio per-network private data
