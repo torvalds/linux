@@ -105,31 +105,45 @@ config ASUS_LAPTOP
 
 	  If you have an ACPI-compatible ASUS laptop, say Y or M here.
 
+#
+# The DELL_SMBIOS driver depends on ACPI_WMI and/or DCDBAS if those
+# backends are selected. The "depends" line prevents a configuration
+# where DELL_SMBIOS=y while either of those dependencies =m.
+#
 config DELL_SMBIOS
-	tristate
+	tristate "Dell SMBIOS driver"
+	depends on DCDBAS || DCDBAS=n
+	depends on ACPI_WMI || ACPI_WMI=n
+	---help---
+	This provides support for the Dell SMBIOS calling interface.
+	If you have a Dell computer you should enable this option.
+
+	Be sure to select at least one backend for it to work properly.
 
 config DELL_SMBIOS_WMI
-	tristate "Dell SMBIOS calling interface (WMI implementation)"
+	bool "Dell SMBIOS driver WMI backend"
+	default y
 	depends on ACPI_WMI
 	select DELL_WMI_DESCRIPTOR
-	select DELL_SMBIOS
+	depends on DELL_SMBIOS
 	---help---
 	This provides an implementation for the Dell SMBIOS calling interface
 	communicated over ACPI-WMI.
 
-	If you have a Dell computer from >2007 you should say Y or M here.
+	If you have a Dell computer from >2007 you should say Y here.
 	If you aren't sure and this module doesn't work for your computer
 	it just won't load.
 
 config DELL_SMBIOS_SMM
-	tristate "Dell SMBIOS calling interface (SMM implementation)"
+	bool "Dell SMBIOS driver SMM backend"
+	default y
 	depends on DCDBAS
-	select DELL_SMBIOS
+	depends on DELL_SMBIOS
 	---help---
 	This provides an implementation for the Dell SMBIOS calling interface
 	communicated over SMI/SMM.
 
-	If you have a Dell computer from <=2017 you should say Y or M here.
+	If you have a Dell computer from <=2017 you should say Y here.
 	If you aren't sure and this module doesn't work for your computer
 	it just won't load.
 

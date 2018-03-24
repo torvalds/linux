@@ -34,9 +34,9 @@
 #define wmb()		RISCV_FENCE(ow,ow)
 
 /* These barriers do not need to enforce ordering on devices, just memory. */
-#define smp_mb()	RISCV_FENCE(rw,rw)
-#define smp_rmb()	RISCV_FENCE(r,r)
-#define smp_wmb()	RISCV_FENCE(w,w)
+#define __smp_mb()	RISCV_FENCE(rw,rw)
+#define __smp_rmb()	RISCV_FENCE(r,r)
+#define __smp_wmb()	RISCV_FENCE(w,w)
 
 /*
  * This is a very specific barrier: it's currently only used in two places in

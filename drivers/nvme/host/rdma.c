@@ -1051,7 +1051,7 @@ static void nvme_rdma_unmap_data(struct nvme_rdma_queue *queue,
 	struct nvme_rdma_device *dev = queue->device;
 	struct ib_device *ibdev = dev->dev;
 
-	if (!blk_rq_bytes(rq))
+	if (!blk_rq_payload_bytes(rq))
 		return;
 
 	if (req->mr) {
@@ -1166,7 +1166,7 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 
 	c->common.flags |= NVME_CMD_SGL_METABUF;
 
-	if (!blk_rq_bytes(rq))
+	if (!blk_rq_payload_bytes(rq))
 		return nvme_rdma_set_sg_null(c);
 
 	req->sg_table.sgl = req->first_sgl;

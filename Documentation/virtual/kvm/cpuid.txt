@@ -58,6 +58,10 @@ KVM_FEATURE_PV_TLB_FLUSH           ||     9 || guest checks this feature bit
                                    ||       || before enabling paravirtualized
                                    ||       || tlb flush.
 ------------------------------------------------------------------------------
+KVM_FEATURE_ASYNC_PF_VMEXIT        ||    10 || paravirtualized async PF VM exit
+                                   ||       || can be enabled by setting bit 2
+                                   ||       || when writing to msr 0x4b564d02
+------------------------------------------------------------------------------
 KVM_FEATURE_CLOCKSOURCE_STABLE_BIT ||    24 || host will warn if no guest-side
                                    ||       || per-cpu warps are expected in
                                    ||       || kvmclock.
