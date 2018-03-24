@@ -1144,7 +1144,7 @@ static int liquidio_open(struct net_device *netdev)
 	lio->intf_open = 1;
 
 	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
-	txqs_start(netdev);
+	start_txqs(netdev);
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);

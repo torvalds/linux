@@ -2091,7 +2091,7 @@ static int liquidio_open(struct net_device *netdev)
 			return -1;
 	}
 
-	txqs_start(netdev);
+	start_txqs(netdev);
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);

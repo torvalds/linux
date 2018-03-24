@@ -542,7 +542,7 @@ static inline void wake_txqs(struct net_device *netdev)
  * \brief Start Tx queues
  * @param netdev network device
  */
-static inline void txqs_start(struct net_device *netdev)
+static inline void start_txqs(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 	int i;
