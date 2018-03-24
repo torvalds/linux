@@ -638,7 +638,7 @@ static u32 hns3_get_rss_key_size(struct net_device *netdev)
 
 	if (!h->ae_algo || !h->ae_algo->ops ||
 	    !h->ae_algo->ops->get_rss_key_size)
-		return -EOPNOTSUPP;
+		return 0;
 
 	return h->ae_algo->ops->get_rss_key_size(h);
 }
