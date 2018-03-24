@@ -1,6 +1,15 @@
 #
-# Phy drivers for Qualcomm platforms
+# Phy drivers for Qualcomm and Atheros platforms
 #
+config PHY_ATH79_USB
+	tristate "Atheros AR71XX/9XXX USB PHY driver"
+	depends on OF && (ATH79 || COMPILE_TEST)
+	default y if USB_EHCI_HCD_PLATFORM || USB_OHCI_HCD_PLATFORM
+	select RESET_CONTROLLER
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB PHY on Atheros AR71XX/9XXX SoCs.
+
 config PHY_QCOM_APQ8064_SATA
 	tristate "Qualcomm APQ8064 SATA SerDes/PHY driver"
 	depends on ARCH_QCOM
