@@ -549,4 +549,21 @@ static inline void txqs_wake(struct net_device *netdev)
 		netif_wake_queue(netdev);
 	}
 }
+
+/**
+ * \brief Start Tx queues
+ * @param netdev network device
+ */
+static inline void txqs_start(struct net_device *netdev)
+{
+	if (netif_is_multiqueue(netdev)) {
+		int i;
+
+		for (i = 0; i < netdev->num_tx_queues; i++)
+			netif_start_subqueue(netdev, i);
+	} else {
+		netif_start_queue(netdev);
+	}
+}
+
 #endif

@@ -514,22 +514,6 @@ static void liquidio_deinit_pci(void)
 }
 
 /**
- * \brief Start Tx queues
- * @param netdev network device
- */
-static inline void txqs_start(struct net_device *netdev)
-{
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_start_subqueue(netdev, i);
-	} else {
-		netif_start_queue(netdev);
-	}
-}
-
-/**
  * \brief Stop Tx queue
  * @param netdev network device
  */

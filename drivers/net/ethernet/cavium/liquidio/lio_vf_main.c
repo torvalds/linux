@@ -285,22 +285,6 @@ static struct pci_driver liquidio_vf_pci_driver = {
 };
 
 /**
- * \brief Start Tx queues
- * @param netdev network device
- */
-static void txqs_start(struct net_device *netdev)
-{
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_start_subqueue(netdev, i);
-	} else {
-		netif_start_queue(netdev);
-	}
-}
-
-/**
  * \brief Start Tx queue
  * @param netdev network device
  */
