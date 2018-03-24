@@ -325,9 +325,8 @@ err:
 static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
-	struct ipc_namespace *ns = data;
+	struct ipc_namespace *ns = sb->s_fs_info;
 
-	sb->s_fs_info = ns;
 	sb->s_iflags |= SB_I_NOEXEC | SB_I_NODEV;
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
@@ -344,44 +343,18 @@ static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static struct file_system_type mqueue_fs_type;
-/*
- * Return value is pinned only by reference in ->mq_mnt; it will
- * live until ipcns dies.  Caller does not need to drop it.
- */
-static struct vfsmount *mq_internal_mount(void)
-{
-	struct ipc_namespace *ns = current->nsproxy->ipc_ns;
-	struct vfsmount *m = ns->mq_mnt;
-	if (m)
-		return m;
-	m = kern_mount_data(&mqueue_fs_type, ns);
-	spin_lock(&mq_lock);
-	if (unlikely(ns->mq_mnt)) {
-		spin_unlock(&mq_lock);
-		if (!IS_ERR(m))
-			kern_unmount(m);
-		return ns->mq_mnt;
-	}
-	if (!IS_ERR(m))
-		ns->mq_mnt = m;
-	spin_unlock(&mq_lock);
-	return m;
-}
-
 static struct dentry *mqueue_mount(struct file_system_type *fs_type,
 			 int flags, const char *dev_name,
 			 void *data)
 {
-	struct vfsmount *m;
-	if (flags & SB_KERNMOUNT)
-		return mount_nodev(fs_type, flags, data, mqueue_fill_super);
-	m = mq_internal_mount();
-	if (IS_ERR(m))
-		return ERR_CAST(m);
-	atomic_inc(&m->mnt_sb->s_active);
-	down_write(&m->mnt_sb->s_umount);
-	return dget(m->mnt_root);
+	struct ipc_namespace *ns;
+	if (flags & SB_KERNMOUNT) {
+		ns = data;
+		data = NULL;
+	} else {
+		ns = current->nsproxy->ipc_ns;
+	}
+	return mount_ns(fs_type, flags, data, ns, ns->user_ns, mqueue_fill_super);
 }
 
 static void init_once(void *foo)
@@ -771,15 +744,12 @@ static int prepare_open(struct dentry *dentry, int oflag, int ro,
 static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 		      struct mq_attr *attr)
 {
-	struct vfsmount *mnt = mq_internal_mount();
-	struct dentry *root;
+	struct vfsmount *mnt = current->nsproxy->ipc_ns->mq_mnt;
+	struct dentry *root = mnt->mnt_root;
 	struct filename *name;
 	struct path path;
 	int fd, error;
 	int ro;
-
-	if (IS_ERR(mnt))
-		return PTR_ERR(mnt);
 
 	audit_mq_open(oflag, mode, attr);
 
@@ -791,7 +761,6 @@ static int do_mq_open(const char __user *u_name, int oflag, umode_t mode,
 		goto out_putname;
 
 	ro = mnt_want_write(mnt);	/* we'll drop it in any case */
-	root = mnt->mnt_root;
 	inode_lock(d_inode(root));
 	path.dentry = lookup_one_len(name->name, root, strlen(name->name));
 	if (IS_ERR(path.dentry)) {
@@ -839,9 +808,6 @@ SYSCALL_DEFINE1(mq_unlink, const char __user *, u_name)
 	struct inode *inode = NULL;
 	struct ipc_namespace *ipc_ns = current->nsproxy->ipc_ns;
 	struct vfsmount *mnt = ipc_ns->mq_mnt;
-
-	if (!mnt)
-		return -ENOENT;
 
 	name = getname(u_name);
 	if (IS_ERR(name))
@@ -1569,26 +1535,28 @@ int mq_init_ns(struct ipc_namespace *ns)
 	ns->mq_msgsize_max   = DFLT_MSGSIZEMAX;
 	ns->mq_msg_default   = DFLT_MSG;
 	ns->mq_msgsize_default  = DFLT_MSGSIZE;
-	ns->mq_mnt = NULL;
 
+	ns->mq_mnt = kern_mount_data(&mqueue_fs_type, ns);
+	if (IS_ERR(ns->mq_mnt)) {
+		int err = PTR_ERR(ns->mq_mnt);
+		ns->mq_mnt = NULL;
+		return err;
+	}
 	return 0;
 }
 
 void mq_clear_sbinfo(struct ipc_namespace *ns)
 {
-	if (ns->mq_mnt)
-		ns->mq_mnt->mnt_sb->s_fs_info = NULL;
+	ns->mq_mnt->mnt_sb->s_fs_info = NULL;
 }
 
 void mq_put_mnt(struct ipc_namespace *ns)
 {
-	if (ns->mq_mnt)
-		kern_unmount(ns->mq_mnt);
+	kern_unmount(ns->mq_mnt);
 }
 
 static int __init init_mqueue_fs(void)
 {
-	struct vfsmount *m;
 	int error;
 
 	mqueue_inode_cachep = kmem_cache_create("mqueue_inode_cache",
@@ -1610,10 +1578,6 @@ static int __init init_mqueue_fs(void)
 	if (error)
 		goto out_filesystem;
 
-	m = kern_mount_data(&mqueue_fs_type, &init_ipc_ns);
-	if (IS_ERR(m))
-		goto out_filesystem;
-	init_ipc_ns.mq_mnt = m;
 	return 0;
 
 out_filesystem:
