@@ -520,10 +520,7 @@ static void liquidio_deinit_pci(void)
  */
 static inline void wake_q(struct net_device *netdev, int q)
 {
-	if (netif_is_multiqueue(netdev))
-		netif_wake_subqueue(netdev, q);
-	else
-		netif_wake_queue(netdev);
+	netif_wake_subqueue(netdev, q);
 }
 
 /**
@@ -533,10 +530,7 @@ static inline void wake_q(struct net_device *netdev, int q)
  */
 static inline void stop_q(struct net_device *netdev, int q)
 {
-	if (netif_is_multiqueue(netdev))
-		netif_stop_subqueue(netdev, q);
-	else
-		netif_stop_queue(netdev);
+	netif_stop_subqueue(netdev, q);
 }
 
 /**
@@ -546,33 +540,24 @@ static inline void stop_q(struct net_device *netdev, int q)
  */
 static inline int check_txq_status(struct lio *lio)
 {
+	int numqs = lio->netdev->num_tx_queues;
 	int ret_val = 0;
+	int q, iq;
 
-	if (netif_is_multiqueue(lio->netdev)) {
-		int numqs = lio->netdev->num_tx_queues;
-		int q, iq = 0;
-
-		/* check each sub-queue state */
-		for (q = 0; q < numqs; q++) {
-			iq = lio->linfo.txpciq[q %
-				lio->oct_dev->num_iqs].s.q_no;
-			if (octnet_iq_is_full(lio->oct_dev, iq))
-				continue;
-			if (__netif_subqueue_stopped(lio->netdev, q)) {
-				wake_q(lio->netdev, q);
-				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq,
-							  tx_restart, 1);
-				ret_val++;
-			}
+	/* check each sub-queue state */
+	for (q = 0; q < numqs; q++) {
+		iq = lio->linfo.txpciq[q %
+			lio->oct_dev->num_iqs].s.q_no;
+		if (octnet_iq_is_full(lio->oct_dev, iq))
+			continue;
+		if (__netif_subqueue_stopped(lio->netdev, q)) {
+			wake_q(lio->netdev, q);
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq,
+						  tx_restart, 1);
+			ret_val++;
 		}
-	} else {
-		if (octnet_iq_is_full(lio->oct_dev, lio->txq))
-			return 0;
-		wake_q(lio->netdev, lio->txq);
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
-					  tx_restart, 1);
-		ret_val = 1;
 	}
+
 	return ret_val;
 }
 
@@ -1676,15 +1661,10 @@ static int octeon_pci_os_setup(struct octeon_device *oct)
  */
 static inline int check_txq_state(struct lio *lio, struct sk_buff *skb)
 {
-	int q = 0, iq = 0;
+	int q, iq;
 
-	if (netif_is_multiqueue(lio->netdev)) {
-		q = skb->queue_mapping;
-		iq = lio->linfo.txpciq[(q % lio->oct_dev->num_iqs)].s.q_no;
-	} else {
-		iq = lio->txq;
-		q = iq;
-	}
+	q = skb->queue_mapping;
+	iq = lio->linfo.txpciq[(q % lio->oct_dev->num_iqs)].s.q_no;
 
 	if (octnet_iq_is_full(lio->oct_dev, iq))
 		return 0;
@@ -2573,14 +2553,10 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	lio = GET_LIO(netdev);
 	oct = lio->oct_dev;
 
-	if (netif_is_multiqueue(netdev)) {
-		q_idx = skb->queue_mapping;
-		q_idx = (q_idx % (lio->linfo.num_txpciq));
-		tag = q_idx;
-		iq_no = lio->linfo.txpciq[q_idx].s.q_no;
-	} else {
-		iq_no = lio->txq;
-	}
+	q_idx = skb->queue_mapping;
+	q_idx = (q_idx % (lio->linfo.num_txpciq));
+	tag = q_idx;
+	iq_no = lio->linfo.txpciq[q_idx].s.q_no;
 
 	stats = &oct->instr_queue[iq_no]->stats;
 
@@ -2611,23 +2587,14 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	ndata.q_no = iq_no;
 
-	if (netif_is_multiqueue(netdev)) {
-		if (octnet_iq_is_full(oct, ndata.q_no)) {
-			/* defer sending if queue is full */
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   ndata.q_no);
-			stats->tx_iq_busy++;
-			return NETDEV_TX_BUSY;
-		}
-	} else {
-		if (octnet_iq_is_full(oct, lio->txq)) {
-			/* defer sending if queue is full */
-			stats->tx_iq_busy++;
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   lio->txq);
-			return NETDEV_TX_BUSY;
-		}
+	if (octnet_iq_is_full(oct, ndata.q_no)) {
+		/* defer sending if queue is full */
+		netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
+			   ndata.q_no);
+		stats->tx_iq_busy++;
+		return NETDEV_TX_BUSY;
 	}
+
 	/* pr_info(" XMIT - valid Qs: %d, 1st Q no: %d, cpu:  %d, q_no:%d\n",
 	 *	lio->linfo.num_txpciq, lio->txq, cpu, ndata.q_no);
 	 */

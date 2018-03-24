@@ -291,10 +291,7 @@ static struct pci_driver liquidio_vf_pci_driver = {
  */
 static void wake_q(struct net_device *netdev, int q)
 {
-	if (netif_is_multiqueue(netdev))
-		netif_wake_subqueue(netdev, q);
-	else
-		netif_wake_queue(netdev);
+	netif_wake_subqueue(netdev, q);
 }
 
 /**
@@ -304,10 +301,7 @@ static void wake_q(struct net_device *netdev, int q)
  */
 static void stop_q(struct net_device *netdev, int q)
 {
-	if (netif_is_multiqueue(netdev))
-		netif_stop_subqueue(netdev, q);
-	else
-		netif_stop_queue(netdev);
+	netif_stop_subqueue(netdev, q);
 }
 
 /**
@@ -986,15 +980,10 @@ static int octeon_pci_os_setup(struct octeon_device *oct)
  */
 static int check_txq_state(struct lio *lio, struct sk_buff *skb)
 {
-	int q = 0, iq = 0;
+	int q, iq;
 
-	if (netif_is_multiqueue(lio->netdev)) {
-		q = skb->queue_mapping;
-		iq = lio->linfo.txpciq[q % lio->oct_dev->num_iqs].s.q_no;
-	} else {
-		iq = lio->txq;
-		q = iq;
-	}
+	q = skb->queue_mapping;
+	iq = lio->linfo.txpciq[q % lio->oct_dev->num_iqs].s.q_no;
 
 	if (octnet_iq_is_full(lio->oct_dev, iq))
 		return 0;
@@ -1635,14 +1624,10 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	lio = GET_LIO(netdev);
 	oct = lio->oct_dev;
 
-	if (netif_is_multiqueue(netdev)) {
-		q_idx = skb->queue_mapping;
-		q_idx = (q_idx % (lio->linfo.num_txpciq));
-		tag = q_idx;
-		iq_no = lio->linfo.txpciq[q_idx].s.q_no;
-	} else {
-		iq_no = lio->txq;
-	}
+	q_idx = skb->queue_mapping;
+	q_idx = (q_idx % (lio->linfo.num_txpciq));
+	tag = q_idx;
+	iq_no = lio->linfo.txpciq[q_idx].s.q_no;
 
 	stats = &oct->instr_queue[iq_no]->stats;
 
@@ -1671,22 +1656,12 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	ndata.q_no = iq_no;
 
-	if (netif_is_multiqueue(netdev)) {
-		if (octnet_iq_is_full(oct, ndata.q_no)) {
-			/* defer sending if queue is full */
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   ndata.q_no);
-			stats->tx_iq_busy++;
-			return NETDEV_TX_BUSY;
-		}
-	} else {
-		if (octnet_iq_is_full(oct, lio->txq)) {
-			/* defer sending if queue is full */
-			stats->tx_iq_busy++;
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   ndata.q_no);
-			return NETDEV_TX_BUSY;
-		}
+	if (octnet_iq_is_full(oct, ndata.q_no)) {
+		/* defer sending if queue is full */
+		netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
+			   ndata.q_no);
+		stats->tx_iq_busy++;
+		return NETDEV_TX_BUSY;
 	}
 
 	ndata.datasize = skb->len;

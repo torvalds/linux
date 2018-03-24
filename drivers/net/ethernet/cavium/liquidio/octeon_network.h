@@ -512,14 +512,10 @@ static inline int wait_for_pending_requests(struct octeon_device *oct)
  */
 static inline void txqs_stop(struct net_device *netdev)
 {
-	if (netif_is_multiqueue(netdev)) {
-		int i;
+	int i;
 
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_stop_subqueue(netdev, i);
-	} else {
-		netif_stop_queue(netdev);
-	}
+	for (i = 0; i < netdev->num_tx_queues; i++)
+		netif_stop_subqueue(netdev, i);
 }
 
 /**
@@ -529,24 +525,16 @@ static inline void txqs_stop(struct net_device *netdev)
 static inline void txqs_wake(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
+	int i, qno;
 
-	if (netif_is_multiqueue(netdev)) {
-		int i;
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs].s.q_no;
 
-		for (i = 0; i < netdev->num_tx_queues; i++) {
-			int qno = lio->linfo.txpciq[i %
-				lio->oct_dev->num_iqs].s.q_no;
-
-			if (__netif_subqueue_stopped(netdev, i)) {
-				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
-							  tx_restart, 1);
-				netif_wake_subqueue(netdev, i);
-			}
+		if (__netif_subqueue_stopped(netdev, i)) {
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
+						  tx_restart, 1);
+			netif_wake_subqueue(netdev, i);
 		}
-	} else {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
-					  tx_restart, 1);
-		netif_wake_queue(netdev);
 	}
 }
 
@@ -557,27 +545,17 @@ static inline void txqs_wake(struct net_device *netdev)
 static inline void txqs_start(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
+	int i;
 
 	if (lio->linfo.link.s.link_up) {
-		if (netif_is_multiqueue(netdev)) {
-			int i;
-
-			for (i = 0; i < netdev->num_tx_queues; i++)
-				netif_start_subqueue(netdev, i);
-		} else {
-			netif_start_queue(netdev);
-		}
+		for (i = 0; i < netdev->num_tx_queues; i++)
+			netif_start_subqueue(netdev, i);
 	}
 }
 
 static inline int skb_iq(struct lio *lio, struct sk_buff *skb)
 {
-	int q = 0;
-
-	if (netif_is_multiqueue(lio->netdev))
-		q = skb->queue_mapping % lio->linfo.num_txpciq;
-
-	return q;
+	return skb->queue_mapping % lio->linfo.num_txpciq;
 }
 
 #endif
