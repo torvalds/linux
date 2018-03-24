@@ -295,16 +295,6 @@ static void wake_q(struct net_device *netdev, int q)
 }
 
 /**
- * \brief Stop a queue
- * @param netdev network device
- * @param q which queue to stop
- */
-static void stop_q(struct net_device *netdev, int q)
-{
-	netif_stop_subqueue(netdev, q);
-}
-
-/**
  * Remove the node at the head of the list. The list would be empty at
  * the end of this call if there are no more nodes in the list.
  */
@@ -1803,7 +1793,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (status == IQ_SEND_STOP) {
 		dev_err(&oct->pci_dev->dev, "Rcvd IQ_SEND_STOP signal; stopping IQ-%d\n",
 			iq_no);
-		stop_q(netdev, q_idx);
+		netif_stop_subqueue(netdev, q_idx);
 	}
 
 	netif_trans_update(netdev);

@@ -524,16 +524,6 @@ static inline void wake_q(struct net_device *netdev, int q)
 }
 
 /**
- * \brief Stop a queue
- * @param netdev network device
- * @param q which queue to stop
- */
-static inline void stop_q(struct net_device *netdev, int q)
-{
-	netif_stop_subqueue(netdev, q);
-}
-
-/**
  * \brief Check Tx queue status, and take appropriate action
  * @param lio per-network private data
  * @returns 0 if full, number of queues woken up otherwise
@@ -2750,7 +2740,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	netif_info(lio, tx_queued, lio->netdev, "Transmit queued successfully\n");
 
 	if (status == IQ_SEND_STOP)
-		stop_q(netdev, q_idx);
+		netif_stop_subqueue(netdev, q_idx);
 
 	netif_trans_update(netdev);
 
