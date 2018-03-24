@@ -1212,9 +1212,6 @@ struct batadv_priv_mcast {
 	/** @bridged: whether the soft interface has a bridge on top */
 	bool bridged;
 
-	/** @num_disabled: number of nodes that have no mcast tvlv */
-	atomic_t num_disabled;
-
 	/**
 	 * @num_want_all_unsnoopables: number of nodes wanting unsnoopable IP
 	 *  traffic
