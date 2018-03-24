@@ -678,6 +678,9 @@
 		rockchip,grf = <&grf>;
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+
+		assigned-clocks = <&cru SCLK_RTC32K>;
+		assigned-clock-rates = <32768>;
 	};
 
 	acodec: acodec@ff560000 {
