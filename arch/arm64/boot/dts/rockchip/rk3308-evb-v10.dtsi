@@ -163,14 +163,11 @@
 
 	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
-		clocks = <&cru SCLK_RTC32K>;
-		clock-names = "ext_clock";
 		uart_rts_gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
 		pinctrl-0 = <&uart4_rts>;
 		pinctrl-1 = <&uart4_rts_gpio>;
-		BT,reset_gpio    = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
-		BT,wake_gpio     = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
+		BT,power_gpio    = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
 		BT,wake_host_irq = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
@@ -387,6 +384,12 @@
 	u2phy_otg: otg-port {
 		status = "okay";
 	};
+};
+
+&uart4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart4_xfer &uart4_cts>;
+	status = "okay";
 };
 
 &usb20_otg {
