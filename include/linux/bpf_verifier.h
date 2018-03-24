@@ -153,7 +153,7 @@ struct bpf_insn_aux_data {
 
 #define BPF_VERIFIER_TMP_LOG_SIZE	1024
 
-struct bpf_verifer_log {
+struct bpf_verifier_log {
 	u32 level;
 	char kbuf[BPF_VERIFIER_TMP_LOG_SIZE];
 	char __user *ubuf;
@@ -161,7 +161,7 @@ struct bpf_verifer_log {
 	u32 len_total;
 };
 
-static inline bool bpf_verifier_log_full(const struct bpf_verifer_log *log)
+static inline bool bpf_verifier_log_full(const struct bpf_verifier_log *log)
 {
 	return log->len_used >= log->len_total - 1;
 }
@@ -185,7 +185,7 @@ struct bpf_verifier_env {
 	bool allow_ptr_leaks;
 	bool seen_direct_write;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
-	struct bpf_verifer_log log;
+	struct bpf_verifier_log log;
 	u32 subprog_starts[BPF_MAX_SUBPROGS];
 	/* computes the stack depth of each bpf function */
 	u16 subprog_stack_depth[BPF_MAX_SUBPROGS + 1];
