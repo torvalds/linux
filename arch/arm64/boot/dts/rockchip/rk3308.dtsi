@@ -563,35 +563,119 @@
 		};
 	};
 
-	i2s0: i2s@ff300000 {
-		compatible = "rockchip,rk3308-i2s", "rockchip,rk3066-i2s";
-		reg = <0x0 0xff300000 0x0 0x10000>;
+	i2s_8ch_0: i2s@ff300000 {
+		compatible = "rockchip,rk3308-i2s-tdm";
+		reg = <0x0 0xff300000 0x0 0x1000>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S0_8CH_TX>, <&cru SCLK_I2S0_8CH_RX>, <&cru HCLK_I2S0_8CH>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		dmas = <&dmac1 0>, <&dmac1 1>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_0_sclktx
+			     &i2s_8ch_0_sclkrx
+			     &i2s_8ch_0_lrcktx
+			     &i2s_8ch_0_lrckrx
+			     &i2s_8ch_0_sdi0
+			     &i2s_8ch_0_sdi1
+			     &i2s_8ch_0_sdi2
+			     &i2s_8ch_0_sdi3
+			     &i2s_8ch_0_sdo0
+			     &i2s_8ch_0_sdo1
+			     &i2s_8ch_0_sdo2
+			     &i2s_8ch_0_sdo3
+			     &i2s_8ch_0_mclk>;
+		status = "disabled";
 	};
 
-	i2s1: i2s@ff310000 {
-		compatible = "rockchip,rk3308-i2s", "rockchip,rk3066-i2s";
-		reg = <0x0 0xff100000 0x0 0x10000>;
+	i2s_8ch_1: i2s@ff310000 {
+		compatible = "rockchip,rk3308-i2s-tdm";
+		reg = <0x0 0xff310000 0x0 0x1000>;
+		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S1_8CH_TX>, <&cru SCLK_I2S1_8CH_RX>, <&cru HCLK_I2S1_8CH>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		dmas = <&dmac1 2>, <&dmac1 3>;
+		dma-names = "tx", "rx";
+		status = "disabled";
 	};
 
-	i2s2: i2s@ff320000 {
-		compatible = "rockchip,rk3308-i2s", "rockchip,rk3066-i2s";
-		reg = <0x0 0xff320000 0x0 0x10000>;
+	i2s_8ch_2: i2s@ff320000 {
+		compatible = "rockchip,rk3308-i2s-tdm";
+		reg = <0x0 0xff320000 0x0 0x1000>;
+		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S2_8CH_TX>, <&cru SCLK_I2S2_8CH_RX>, <&cru HCLK_I2S2_8CH>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		dmas = <&dmac1 4>, <&dmac1 5>;
+		dma-names = "tx", "rx";
+		status = "disabled";
 	};
 
-	i2s3: i2s@ff330000 {
+	i2s_8ch_3: i2s@ff330000 {
+		compatible = "rockchip,rk3308-i2s-tdm";
+		reg = <0x0 0xff330000 0x0 0x1000>;
+		interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S3_8CH_TX>, <&cru SCLK_I2S3_8CH_RX>, <&cru HCLK_I2S3_8CH>;
+		clock-names = "mclk_tx", "mclk_rx", "hclk";
+		dmas = <&dmac1 7>;
+		dma-names = "rx";
+		status = "disabled";
+	};
+
+	i2s_2ch_0: i2s@ff350000 {
 		compatible = "rockchip,rk3308-i2s", "rockchip,rk3066-i2s";
-		reg = <0x0 0xff330000 0x0 0x10000>;
+		reg = <0x0 0xff350000 0x0 0x1000>;
+		interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S0_2CH>, <&cru HCLK_I2S0_2CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		dmas = <&dmac1 8>, <&dmac1 9>;
+		dma-names = "tx", "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_2ch_0_sclk
+			     &i2s_2ch_0_lrck
+			     &i2s_2ch_0_sdi
+			     &i2s_2ch_0_sdo>;
+		status = "disabled";
+	};
+
+	i2s_2ch_1: i2s@ff360000 {
+		compatible = "rockchip,rk3308-i2s", "rockchip,rk3066-i2s";
+		reg = <0x0 0xff360000 0x0 0x1000>;
+		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S1_2CH>, <&cru HCLK_I2S1_2CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		dmas = <&dmac1 11>;
+		dma-names = "rx";
+		status = "disabled";
+	};
+
+	pdm_8ch: pdm@ff380000 {
+		compatible = "rockchip,rk3308-pdm", "rockchip,pdm";
+		reg = <0x0 0xff380000 0x0 0x1000>;
+		clocks = <&cru SCLK_PDM>, <&cru HCLK_PDM>;
+		clock-names = "pdm_clk", "pdm_hclk";
+		dmas = <&dmac1 12>;
+		dma-names = "rx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pdm_m2_clk
+			     &pdm_m2_sdi0
+			     &pdm_m2_sdi1
+			     &pdm_m2_sdi2
+			     &pdm_m2_sdi3>;
+		status = "disabled";
 	};
 
 	vad: vad@ff3c0000 {
 		compatible = "rockchip,rk3308-vad", "rockchip,vad";
 		reg = <0x0 0xff3c0000 0x0 0x10000>, <0x0 0xfff88000 0x0 0x38000>;
 		reg-names = "vad", "vad-memory";
+		clocks = <&cru HCLK_VAD>;
+		clock-names = "hclk";
 		interrupts = <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>;
 		rockchip,audio-src = <0>;
 		rockchip,audio-chnl-num = <8>;
 		rockchip,audio-chnl = <0>;
 		rockchip,mode = <0>;
+		status = "disabled";
 	};
 
 	usb20_otg: usb@ff400000 {
@@ -925,6 +1009,204 @@
 			};
 		};
 
+		i2s_2ch_0 {
+			i2s_2ch_0_mclk: i2s-2ch-0-mclk {
+				rockchip,pins =
+					<4 RK_PB4 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_2ch_0_sclk: i2s-2ch-0-sclk {
+				rockchip,pins =
+					<4 RK_PB5 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_2ch_0_lrck: i2s-2ch-0-lrck {
+				rockchip,pins =
+					<4 RK_PB6 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_2ch_0_sdo: i2s-2ch-0-sdo {
+				rockchip,pins =
+					<4 RK_PB7 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_2ch_0_sdi: i2s-2ch-0-sdi {
+				rockchip,pins =
+					<4 RK_PC0 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2s_8ch_0 {
+			i2s_8ch_0_mclk: i2s-8ch-0-mclk {
+				rockchip,pins =
+					<2 RK_PA4 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sclktx: i2s-8ch-0-sclktx {
+				rockchip,pins =
+					<2 RK_PA5 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sclkrx: i2s-8ch-0-sclkrx {
+				rockchip,pins =
+					<2 RK_PA6 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_lrcktx: i2s-8ch-0-lrcktx {
+				rockchip,pins =
+					<2 RK_PA7 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_lrckrx: i2s-8ch-0-lrckrx {
+				rockchip,pins =
+					<2 RK_PB0 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sdo0: i2s-8ch-0-sdo0 {
+				rockchip,pins =
+					<2 RK_PB1 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sdo1: i2s-8ch-0-sdo1 {
+				rockchip,pins =
+					<2 RK_PB2 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sdo2: i2s-8ch-0-sdo2 {
+				rockchip,pins =
+					<2 RK_PB3 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sdo3: i2s-8ch-0-sdo3 {
+				rockchip,pins =
+					<2 RK_PB4 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sdi0: i2s-8ch-0-sdi0 {
+				rockchip,pins =
+					<2 RK_PB5 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sdi1: i2s-8ch-0-sdi1 {
+				rockchip,pins =
+					<2 RK_PB6 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sdi2: i2s-8ch-0-sdi2 {
+				rockchip,pins =
+					<2 RK_PB7 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_0_sdi3: i2s-8ch-0-sdi3 {
+				rockchip,pins =
+					<2 RK_PC0 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		i2s_8ch_1_m0 {
+			i2s_8ch_1_m0_mclk: i2s-8ch-1-m0-mclk {
+				rockchip,pins =
+					<1 RK_PA2 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m0_sclktx: i2s-8ch-1-m0-sclktx {
+				rockchip,pins =
+					<1 RK_PA3 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m0_sclkrx: i2s-8ch-1-m0-sclkrx {
+				rockchip,pins =
+					<1 RK_PA4 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m0_lrcktx: i2s-8ch-1-m0-lrcktx {
+				rockchip,pins =
+					<1 RK_PA5 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m0_lrckrx: i2s-8ch-1-m0-lrckrx {
+				rockchip,pins =
+					<1 RK_PA6 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m0_sdo0: i2s-8ch-1-m0-sdo0 {
+				rockchip,pins =
+					<1 RK_PA7 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m0_sdo1_sdi3: i2s-8ch-1-m0-sdo1-sdi3 {
+				rockchip,pins =
+					<1 RK_PB0 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m0_sdo2_sdi2: i2s-8ch-1-m0-sdo2-sdi2 {
+				rockchip,pins =
+					<1 RK_PB1 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m0_sdo3_sdi1: i2s-8ch-1-m0-sdo3_sdi1 {
+				rockchip,pins =
+					<1 RK_PB2 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m0_sdi0: i2s-8ch-1-m0-sdi0 {
+				rockchip,pins =
+					<1 RK_PB3 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
+		i2s_8ch_1_m1 {
+			i2s_8ch_1_m1_mclk: i2s-8ch-1-m1-mclk {
+				rockchip,pins =
+					<1 RK_PB4 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m1_sclktx: i2s-8ch-1-m1-sclktx {
+				rockchip,pins =
+					<1 RK_PB5 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m1_sclkrx: i2s-8ch-1-m1-sclkrx {
+				rockchip,pins =
+					<1 RK_PB6 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m1_lrcktx: i2s-8ch-1-m1-lrcktx {
+				rockchip,pins =
+					<1 RK_PB7 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m1_lrckrx: i2s-8ch-1-m1-lrckrx {
+				rockchip,pins =
+					<1 RK_PC0 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m1_sdo0: i2s-8ch-1-m1-sdo0 {
+				rockchip,pins =
+					<1 RK_PC1 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m1_sdo1_sdi3: i2s-8ch-1-m1-sdo1-sdi3 {
+				rockchip,pins =
+					<1 RK_PC2 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m1_sdo2_sdi2: i2s-8ch-1-m1-sdo2-sdi2 {
+				rockchip,pins =
+					<1 RK_PC3 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m1_sdo3_sdi1: i2s-8ch-1-m1-sdo3_sdi1 {
+				rockchip,pins =
+					<1 RK_PC4 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			i2s_8ch_1_m1_sdi0: i2s-8ch-1-m1-sdi0 {
+				rockchip,pins =
+					<1 RK_PC5 RK_FUNC_2 &pcfg_pull_none>;
+			};
+		};
+
 		lcdc {
 			lcdc_ctl: lcdc-ctl {
 				rockchip,pins =
@@ -972,6 +1254,87 @@
 					<1 RK_PC4 RK_FUNC_1 &pcfg_pull_none>,
 					/* d17 */
 					<1 RK_PC5 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		pdm_m0 {
+			pdm_m0_clk: pdm-m0-clk {
+				rockchip,pins =
+					<1 RK_PA4 RK_FUNC_3 &pcfg_pull_none>;
+			};
+
+			pdm_m0_sdi0: pdm-m0-sdi0 {
+				rockchip,pins =
+					<1 RK_PB3 RK_FUNC_3 &pcfg_pull_none>;
+			};
+
+			pdm_m0_sdi1: pdm-m0-sdi1 {
+				rockchip,pins =
+					<1 RK_PB2 RK_FUNC_3 &pcfg_pull_none>;
+			};
+
+			pdm_m0_sdi2: pdm-m0-sdi2 {
+				rockchip,pins =
+					<1 RK_PB1 RK_FUNC_3 &pcfg_pull_none>;
+			};
+
+			pdm_m0_sdi3: pdm-m0-sdi3 {
+				rockchip,pins =
+					<1 RK_PB0 RK_FUNC_3 &pcfg_pull_none>;
+			};
+		};
+
+		pdm_m1 {
+			pdm_m1_clk: pdm-m1-clk {
+				rockchip,pins =
+					<1 RK_PB6 RK_FUNC_4 &pcfg_pull_none>;
+			};
+
+			pdm_m1_sdi0: pdm-m1-sdi0 {
+				rockchip,pins =
+					<1 RK_PC5 RK_FUNC_4 &pcfg_pull_none>;
+			};
+
+			pdm_m1_sdi1: pdm-m1-sdi1 {
+				rockchip,pins =
+					<1 RK_PC4 RK_FUNC_4 &pcfg_pull_none>;
+			};
+
+			pdm_m1_sdi2: pdm-m1-sdi2 {
+				rockchip,pins =
+					<1 RK_PC3 RK_FUNC_4 &pcfg_pull_none>;
+			};
+
+			pdm_m1_sdi3: pdm-m1-sdi3 {
+				rockchip,pins =
+					<1 RK_PC2 RK_FUNC_4 &pcfg_pull_none>;
+			};
+		};
+
+		pdm_m2 {
+			pdm_m2_clk: pdm-m2-clk {
+				rockchip,pins =
+					<2 RK_PA6 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			pdm_m2_sdi0: pdm-m2-sdi0 {
+				rockchip,pins =
+					<2 RK_PB5 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			pdm_m2_sdi1: pdm-m2-sdi1 {
+				rockchip,pins =
+					<2 RK_PB6 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			pdm_m2_sdi2: pdm-m2-sdi2 {
+				rockchip,pins =
+					<2 RK_PB7 RK_FUNC_2 &pcfg_pull_none>;
+			};
+
+			pdm_m2_sdi3: pdm-m2-sdi3 {
+				rockchip,pins =
+					<2 RK_PC0 RK_FUNC_2 &pcfg_pull_none>;
 			};
 		};
 
