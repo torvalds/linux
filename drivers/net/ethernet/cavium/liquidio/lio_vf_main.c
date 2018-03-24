@@ -285,16 +285,6 @@ static struct pci_driver liquidio_vf_pci_driver = {
 };
 
 /**
- * \brief Wake a queue
- * @param netdev network device
- * @param q which queue to wake
- */
-static void wake_q(struct net_device *netdev, int q)
-{
-	netif_wake_subqueue(netdev, q);
-}
-
-/**
  * Remove the node at the head of the list. The list would be empty at
  * the end of this call if there are no more nodes in the list.
  */
@@ -980,7 +970,7 @@ static int check_txq_state(struct lio *lio, struct sk_buff *skb)
 
 	if (__netif_subqueue_stopped(lio->netdev, q)) {
 		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq, tx_restart, 1);
-		wake_q(lio->netdev, q);
+		netif_wake_subqueue(lio->netdev, q);
 	}
 
 	return 1;

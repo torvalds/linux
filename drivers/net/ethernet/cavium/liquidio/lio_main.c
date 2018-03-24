@@ -514,16 +514,6 @@ static void liquidio_deinit_pci(void)
 }
 
 /**
- * \brief Wake a queue
- * @param netdev network device
- * @param q which queue to wake
- */
-static inline void wake_q(struct net_device *netdev, int q)
-{
-	netif_wake_subqueue(netdev, q);
-}
-
-/**
  * \brief Check Tx queue status, and take appropriate action
  * @param lio per-network private data
  * @returns 0 if full, number of queues woken up otherwise
@@ -541,7 +531,7 @@ static inline int check_txq_status(struct lio *lio)
 		if (octnet_iq_is_full(lio->oct_dev, iq))
 			continue;
 		if (__netif_subqueue_stopped(lio->netdev, q)) {
-			wake_q(lio->netdev, q);
+			netif_wake_subqueue(lio->netdev, q);
 			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq,
 						  tx_restart, 1);
 			ret_val++;
@@ -1661,7 +1651,7 @@ static inline int check_txq_state(struct lio *lio, struct sk_buff *skb)
 
 	if (__netif_subqueue_stopped(lio->netdev, q)) {
 		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq, tx_restart, 1);
-		wake_q(lio->netdev, q);
+		netif_wake_subqueue(lio->netdev, q);
 	}
 	return 1;
 }
