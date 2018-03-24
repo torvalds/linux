@@ -782,7 +782,7 @@ static inline void update_link_status(struct net_device *netdev,
 		if (lio->linfo.link.s.link_up) {
 			dev_dbg(&oct->pci_dev->dev, "%s: link_up", __func__);
 			netif_carrier_on(netdev);
-			txqs_wake(netdev);
+			wake_txqs(netdev);
 		} else {
 			dev_dbg(&oct->pci_dev->dev, "%s: link_off", __func__);
 			netif_carrier_off(netdev);
@@ -2768,7 +2768,7 @@ static void liquidio_tx_timeout(struct net_device *netdev)
 		   "Transmit timeout tx_dropped:%ld, waking up queues now!!\n",
 		   netdev->stats.tx_dropped);
 	netif_trans_update(netdev);
-	txqs_wake(netdev);
+	wake_txqs(netdev);
 }
 
 static int liquidio_vlan_rx_add_vid(struct net_device *netdev,
