@@ -3466,8 +3466,6 @@ static void hclge_rss_init_cfg(struct hclge_dev *hdev)
 	struct hclge_vport *vport = hdev->vport;
 	int i;
 
-	netdev_rss_key_fill(vport->rss_hash_key, HCLGE_RSS_KEY_SIZE);
-
 	for (i = 0; i < hdev->num_vmdq_vport + 1; i++) {
 		vport[i].rss_tuple_sets.ipv4_tcp_en =
 			HCLGE_RSS_INPUT_TUPLE_OTHER;
@@ -3487,6 +3485,8 @@ static void hclge_rss_init_cfg(struct hclge_dev *hdev)
 			HCLGE_RSS_INPUT_TUPLE_OTHER;
 
 		vport[i].rss_algo = HCLGE_RSS_HASH_ALGO_TOEPLITZ;
+
+		netdev_rss_key_fill(vport[i].rss_hash_key, HCLGE_RSS_KEY_SIZE);
 	}
 
 	hclge_rss_indir_init_cfg(hdev);
