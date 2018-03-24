@@ -556,13 +556,17 @@ static inline void txqs_wake(struct net_device *netdev)
  */
 static inline void txqs_start(struct net_device *netdev)
 {
-	if (netif_is_multiqueue(netdev)) {
-		int i;
+	struct lio *lio = GET_LIO(netdev);
 
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_start_subqueue(netdev, i);
-	} else {
-		netif_start_queue(netdev);
+	if (lio->linfo.link.s.link_up) {
+		if (netif_is_multiqueue(netdev)) {
+			int i;
+
+			for (i = 0; i < netdev->num_tx_queues; i++)
+				netif_start_subqueue(netdev, i);
+		} else {
+			netif_start_queue(netdev);
+		}
 	}
 }
 

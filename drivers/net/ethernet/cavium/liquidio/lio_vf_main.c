@@ -285,20 +285,6 @@ static struct pci_driver liquidio_vf_pci_driver = {
 };
 
 /**
- * \brief Start Tx queue
- * @param netdev network device
- */
-static void start_txq(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-
-	if (lio->linfo.link.s.link_up) {
-		txqs_start(netdev);
-		return;
-	}
-}
-
-/**
  * \brief Wake a queue
  * @param netdev network device
  * @param q which queue to wake
@@ -1189,7 +1175,7 @@ static int liquidio_open(struct net_device *netdev)
 	lio->intf_open = 1;
 
 	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
-	start_txq(netdev);
+	txqs_start(netdev);
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);

@@ -514,20 +514,6 @@ static void liquidio_deinit_pci(void)
 }
 
 /**
- * \brief Start Tx queue
- * @param netdev network device
- */
-static void start_txq(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-
-	if (lio->linfo.link.s.link_up) {
-		txqs_start(netdev);
-		return;
-	}
-}
-
-/**
  * \brief Wake a queue
  * @param netdev network device
  * @param q which queue to wake
@@ -2145,7 +2131,7 @@ static int liquidio_open(struct net_device *netdev)
 			return -1;
 	}
 
-	start_txq(netdev);
+	txqs_start(netdev);
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
