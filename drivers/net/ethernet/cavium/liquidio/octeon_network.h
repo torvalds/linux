@@ -522,4 +522,31 @@ static inline void txqs_stop(struct net_device *netdev)
 	}
 }
 
+/**
+ * \brief Wake Tx queues
+ * @param netdev network device
+ */
+static inline void txqs_wake(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+
+	if (netif_is_multiqueue(netdev)) {
+		int i;
+
+		for (i = 0; i < netdev->num_tx_queues; i++) {
+			int qno = lio->linfo.txpciq[i %
+				lio->oct_dev->num_iqs].s.q_no;
+
+			if (__netif_subqueue_stopped(netdev, i)) {
+				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
+							  tx_restart, 1);
+				netif_wake_subqueue(netdev, i);
+			}
+		}
+	} else {
+		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
+					  tx_restart, 1);
+		netif_wake_queue(netdev);
+	}
+}
 #endif
