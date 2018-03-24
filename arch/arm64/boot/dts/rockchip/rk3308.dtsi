@@ -491,8 +491,8 @@
 		dmac0: dma-controller@ff2c0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0xff2c0000 0x0 0x4000>;
-			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH 0>,
-				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
 			clocks = <&cru ACLK_DMAC0>;
 			clock-names = "apb_pclk";
@@ -502,8 +502,8 @@
 		dmac1: dma-controller@ff2d0000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x0 0xff2d0000 0x0 0x4000>;
-			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH 0>,
-				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH 0>;
+			interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
 			clocks = <&cru ACLK_DMAC1>;
 			clock-names = "apb_pclk";
