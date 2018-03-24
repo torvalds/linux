@@ -479,6 +479,7 @@ struct sh_eth_cpu_data {
 
 	/* mandatory initialize value */
 	int register_type;
+	u32 edtrr_trns;
 	u32 eesipr_value;
 
 	/* optional initialize value */

@@ -584,6 +584,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 
 	.register_type	= SH_ETH_REG_FAST_RZ,
 
+	.edtrr_trns	= EDTRR_TRNS_GETHER,
 	.ecsr_value	= ECSR_ICD,
 	.ecsipr_value	= ECSIPR_ICDIP,
 	.eesipr_value	= EESIPR_TWB1IP | EESIPR_TWBIP | EESIPR_TC1IP |
@@ -631,6 +632,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
 
 	.register_type	= SH_ETH_REG_GIGABIT,
 
+	.edtrr_trns	= EDTRR_TRNS_GETHER,
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
 	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ECIIP |
@@ -687,6 +689,7 @@ static struct sh_eth_cpu_data rcar_gen1_data = {
 
 	.register_type	= SH_ETH_REG_FAST_RCAR,
 
+	.edtrr_trns	= EDTRR_TRNS_ETHER,
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
 	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ADEIP | EESIPR_ECIIP |
@@ -716,6 +719,7 @@ static struct sh_eth_cpu_data rcar_gen2_data = {
 
 	.register_type	= SH_ETH_REG_FAST_RCAR,
 
+	.edtrr_trns	= EDTRR_TRNS_ETHER,
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP |
 			  ECSIPR_MPDIP,
@@ -765,6 +769,7 @@ static struct sh_eth_cpu_data sh7724_data = {
 
 	.register_type	= SH_ETH_REG_FAST_SH4,
 
+	.edtrr_trns	= EDTRR_TRNS_ETHER,
 	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
 	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
 	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ADEIP | EESIPR_ECIIP |
@@ -809,6 +814,7 @@ static struct sh_eth_cpu_data sh7757_data = {
 
 	.register_type	= SH_ETH_REG_FAST_SH4,
 
+	.edtrr_trns	= EDTRR_TRNS_ETHER,
 	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ECIIP |
 			  EESIPR_FTCIP | EESIPR_TDEIP | EESIPR_TFUFIP |
 			  EESIPR_FRIP | EESIPR_RDEIP | EESIPR_RFOFIP |
@@ -884,6 +890,7 @@ static struct sh_eth_cpu_data sh7757_data_giga = {
 
 	.register_type	= SH_ETH_REG_GIGABIT,
 
+	.edtrr_trns	= EDTRR_TRNS_GETHER,
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
 	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ECIIP |
@@ -925,6 +932,7 @@ static struct sh_eth_cpu_data sh7734_data = {
 
 	.register_type	= SH_ETH_REG_GIGABIT,
 
+	.edtrr_trns	= EDTRR_TRNS_GETHER,
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
 	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ECIIP |
@@ -963,6 +971,7 @@ static struct sh_eth_cpu_data sh7763_data = {
 
 	.register_type	= SH_ETH_REG_GIGABIT,
 
+	.edtrr_trns	= EDTRR_TRNS_GETHER,
 	.ecsr_value	= ECSR_ICD | ECSR_MPD,
 	.ecsipr_value	= ECSIPR_LCHNGIP | ECSIPR_ICDIP | ECSIPR_MPDIP,
 	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ECIIP |
@@ -995,6 +1004,7 @@ static struct sh_eth_cpu_data sh7619_data = {
 
 	.register_type	= SH_ETH_REG_FAST_SH3_SH2,
 
+	.edtrr_trns	= EDTRR_TRNS_ETHER,
 	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ECIIP |
 			  EESIPR_FTCIP | EESIPR_TDEIP | EESIPR_TFUFIP |
 			  EESIPR_FRIP | EESIPR_RDEIP | EESIPR_RFOFIP |
@@ -1015,6 +1025,7 @@ static struct sh_eth_cpu_data sh771x_data = {
 
 	.register_type	= SH_ETH_REG_FAST_SH3_SH2,
 
+	.edtrr_trns	= EDTRR_TRNS_ETHER,
 	.eesipr_value	= EESIPR_RFCOFIP | EESIPR_ECIIP |
 			  EESIPR_FTCIP | EESIPR_TDEIP | EESIPR_TFUFIP |
 			  EESIPR_FRIP | EESIPR_RDEIP | EESIPR_RFOFIP |
@@ -1092,14 +1103,6 @@ static void read_mac_address(struct net_device *ndev, unsigned char *mac)
 		ndev->dev_addr[4] = (malr >>  8) & 0xFF;
 		ndev->dev_addr[5] = (malr >>  0) & 0xFF;
 	}
-}
-
-static u32 sh_eth_get_edtrr_trns(struct sh_eth_private *mdp)
-{
-	if (sh_eth_is_gether(mdp) || sh_eth_is_rz_fast_ether(mdp))
-		return EDTRR_TRNS_GETHER;
-	else
-		return EDTRR_TRNS_ETHER;
 }
 
 struct bb_info {
@@ -1741,9 +1744,9 @@ static void sh_eth_error(struct net_device *ndev, u32 intr_status)
 		sh_eth_tx_free(ndev, true);
 
 		/* SH7712 BUG */
-		if (edtrr ^ sh_eth_get_edtrr_trns(mdp)) {
+		if (edtrr ^ mdp->cd->edtrr_trns) {
 			/* tx dma start */
-			sh_eth_write(ndev, sh_eth_get_edtrr_trns(mdp), EDTRR);
+			sh_eth_write(ndev, mdp->cd->edtrr_trns, EDTRR);
 		}
 		/* wakeup */
 		netif_wake_queue(ndev);
@@ -2502,8 +2505,8 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	mdp->cur_tx++;
 
-	if (!(sh_eth_read(ndev, EDTRR) & sh_eth_get_edtrr_trns(mdp)))
-		sh_eth_write(ndev, sh_eth_get_edtrr_trns(mdp), EDTRR);
+	if (!(sh_eth_read(ndev, EDTRR) & mdp->cd->edtrr_trns))
+		sh_eth_write(ndev, mdp->cd->edtrr_trns, EDTRR);
 
 	return NETDEV_TX_OK;
 }
