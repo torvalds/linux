@@ -1006,6 +1006,13 @@ static struct rockchip_mux_route_data rk3228_mux_route_data[] = {
 
 static struct rockchip_mux_route_data rk3308_mux_route_data[] = {
 	{
+		/* rtc_clk */
+		.bank_num = 0,
+		.pin = 19,
+		.func = 1,
+		.route_offset = 0x314,
+		.route_val = BIT(16 + 0) | BIT(0),
+	}, {
 		/* uart2_rxm0 */
 		.bank_num = 1,
 		.pin = 22,
