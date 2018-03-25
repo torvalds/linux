@@ -1070,12 +1070,12 @@ static void ib_cache_update(struct ib_device *device,
 	int                        i;
 	int                        ret;
 	struct ib_gid_table	  *table;
-	bool			   use_roce_gid_table =
-					rdma_cap_roce_gid_table(device, port);
+	bool			   use_roce_gid_table;
 
 	if (!rdma_is_port_valid(device, port))
 		return;
 
+	use_roce_gid_table = rdma_protocol_roce(device, port);
 	table = device->cache.ports[port - rdma_start_port(device)].gid;
 
 	tprops = kmalloc(sizeof *tprops, GFP_KERNEL);
