@@ -1268,9 +1268,6 @@ static enum surface_update_type check_update_surfaces_for_stream(
 		if (stream_update->out_transfer_func)
 			return UPDATE_TYPE_FULL;
 
-		if (stream_update->hdr_static_metadata)
-			return UPDATE_TYPE_FULL;
-
 		if (stream_update->abm_level)
 			return UPDATE_TYPE_FULL;
 	}
