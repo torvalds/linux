@@ -322,11 +322,13 @@ again:
 			scancode = data->body & 0xffff;
 			dev_dbg(&dev->dev, "keyboard data 0x%08x\n",
 				data->body);
-			if (dev->timeout)
-				delay = usecs_to_jiffies(dev->timeout / 1000);
-			else
-				delay = msecs_to_jiffies(100);
-			mod_timer(&data->rx_timeout, jiffies + delay);
+			if (scancode) {
+				delay = nsecs_to_jiffies(dev->timeout) +
+					msecs_to_jiffies(100);
+				mod_timer(&data->rx_timeout, jiffies + delay);
+			} else {
+				del_timer(&data->rx_timeout);
+			}
 			/* Pass data to keyboard buffer parser */
 			ir_mce_kbd_process_keyboard_data(dev, scancode);
 			lsc.rc_proto = RC_PROTO_MCIR2_KBD;
