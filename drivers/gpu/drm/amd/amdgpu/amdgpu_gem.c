@@ -780,6 +780,8 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
 	struct seq_file *m = data;
 
+	struct dma_buf_attachment *attachment;
+	struct dma_buf *dma_buf;
 	unsigned domain;
 	const char *placement;
 	unsigned pin_count;
@@ -808,6 +810,15 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	pin_count = READ_ONCE(bo->pin_count);
 	if (pin_count)
 		seq_printf(m, " pin count %d", pin_count);
+
+	dma_buf = READ_ONCE(bo->gem_base.dma_buf);
+	attachment = READ_ONCE(bo->gem_base.import_attach);
+
+	if (attachment)
+		seq_printf(m, " imported from %p", dma_buf);
+	else if (dma_buf)
+		seq_printf(m, " exported as %p", dma_buf);
+
 	seq_printf(m, "\n");
 
 	return 0;
