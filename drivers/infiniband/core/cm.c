@@ -3175,6 +3175,13 @@ static int cm_lap_handler(struct cm_work *work)
 	struct ib_mad_send_buf *msg = NULL;
 	int ret;
 
+	/* Currently Alternate path messages are not supported for
+	 * RoCE link layer.
+	 */
+	if (rdma_protocol_roce(work->port->cm_dev->ib_device,
+			       work->port->port_num))
+		return -EINVAL;
+
 	/* todo: verify LAP request and send reject APR if invalid. */
 	lap_msg = (struct cm_lap_msg *)work->mad_recv_wc->recv_buf.mad;
 	cm_id_priv = cm_acquire_id(lap_msg->remote_comm_id,
@@ -3323,6 +3330,13 @@ static int cm_apr_handler(struct cm_work *work)
 	struct cm_id_private *cm_id_priv;
 	struct cm_apr_msg *apr_msg;
 	int ret;
+
+	/* Currently Alternate path messages are not supported for
+	 * RoCE link layer.
+	 */
+	if (rdma_protocol_roce(work->port->cm_dev->ib_device,
+			       work->port->port_num))
+		return -EINVAL;
 
 	apr_msg = (struct cm_apr_msg *)work->mad_recv_wc->recv_buf.mad;
 	cm_id_priv = cm_acquire_id(apr_msg->remote_comm_id,
