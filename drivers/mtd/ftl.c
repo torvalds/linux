@@ -393,8 +393,8 @@ static int prepare_xfer(partition_t *part, int i)
     }
 
     /* Write the BAM stub */
-    nbam = (part->BlocksPerUnit * sizeof(uint32_t) +
-	    le32_to_cpu(part->header.BAMOffset) + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    nbam = DIV_ROUND_UP(part->BlocksPerUnit * sizeof(uint32_t) +
+			le32_to_cpu(part->header.BAMOffset), SECTOR_SIZE);
 
     offset = xfer->Offset + le32_to_cpu(part->header.BAMOffset);
     ctl = cpu_to_le32(BLOCK_CONTROL);
