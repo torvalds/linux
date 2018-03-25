@@ -55,6 +55,9 @@ OPTIONS
 --vmlinux=<file>::
         vmlinux pathname.
 
+--ignore-vmlinux::
+	Ignore vmlinux files.
+
 -m::
 --modules::
         Load module symbols. WARNING: use only with -k and LIVE kernel.
@@ -68,6 +71,8 @@ OPTIONS
         Don't shorten the displayed pathnames.
 
 --stdio:: Use the stdio interface.
+
+--stdio2:: Use the stdio2 interface, non-interactive, uses the TUI formatting.
 
 --stdio-color=<mode>::
 	'always', 'never' or 'auto', allowing configuring color output
