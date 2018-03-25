@@ -361,9 +361,6 @@ struct dc_hdr_static_metadata {
 	uint32_t max_luminance;
 	uint32_t maximum_content_light_level;
 	uint32_t maximum_frame_average_light_level;
-
-	bool hdr_supported;
-	bool is_hdr;
 };
 
 enum dc_transfer_func_type {
