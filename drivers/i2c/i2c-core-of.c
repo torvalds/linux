@@ -55,7 +55,7 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	}
 
 	info.addr = addr;
-	info.of_node = of_node_get(node);
+	info.of_node = node;
 
 	if (of_property_read_bool(node, "host-notify"))
 		info.flags |= I2C_CLIENT_HOST_NOTIFY;
@@ -66,7 +66,6 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	client = i2c_new_device(adap, &info);
 	if (!client) {
 		dev_err(&adap->dev, "of_i2c: Failure registering %pOF\n", node);
-		of_node_put(node);
 		return ERR_PTR(-EINVAL);
 	}
 	return client;
