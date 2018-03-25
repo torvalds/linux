@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2015 Intel Corporation.
+  Copyright(c) 1999 - 2018 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -82,6 +82,7 @@ static struct ixgbe_stats ixgbevf_gstrings_stats[] = {
 
 #define IXGBEVF_QUEUE_STATS_LEN ( \
 	(((struct ixgbevf_adapter *)netdev_priv(netdev))->num_tx_queues + \
+	 ((struct ixgbevf_adapter *)netdev_priv(netdev))->num_xdp_queues + \
 	 ((struct ixgbevf_adapter *)netdev_priv(netdev))->num_rx_queues) * \
 	 (sizeof(struct ixgbevf_stats) / sizeof(u64)))
 #define IXGBEVF_GLOBAL_STATS_LEN ARRAY_SIZE(ixgbevf_gstrings_stats)
@@ -269,7 +270,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbevf_ring *tx_ring = NULL, *rx_ring = NULL;
 	u32 new_rx_count, new_tx_count;
-	int i, err = 0;
+	int i, j, err = 0;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
@@ -293,15 +294,19 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	if (!netif_running(adapter->netdev)) {
 		for (i = 0; i < adapter->num_tx_queues; i++)
 			adapter->tx_ring[i]->count = new_tx_count;
+		for (i = 0; i < adapter->num_xdp_queues; i++)
+			adapter->xdp_ring[i]->count = new_tx_count;
 		for (i = 0; i < adapter->num_rx_queues; i++)
 			adapter->rx_ring[i]->count = new_rx_count;
 		adapter->tx_ring_count = new_tx_count;
+		adapter->xdp_ring_count = new_tx_count;
 		adapter->rx_ring_count = new_rx_count;
 		goto clear_reset;
 	}
 
 	if (new_tx_count != adapter->tx_ring_count) {
-		tx_ring = vmalloc(adapter->num_tx_queues * sizeof(*tx_ring));
+		tx_ring = vmalloc((adapter->num_tx_queues +
+				   adapter->num_xdp_queues) * sizeof(*tx_ring));
 		if (!tx_ring) {
 			err = -ENOMEM;
 			goto clear_reset;
@@ -310,6 +315,24 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 		for (i = 0; i < adapter->num_tx_queues; i++) {
 			/* clone ring and setup updated count */
 			tx_ring[i] = *adapter->tx_ring[i];
+			tx_ring[i].count = new_tx_count;
+			err = ixgbevf_setup_tx_resources(&tx_ring[i]);
+			if (err) {
+				while (i) {
+					i--;
+					ixgbevf_free_tx_resources(&tx_ring[i]);
+				}
+
+				vfree(tx_ring);
+				tx_ring = NULL;
+
+				goto clear_reset;
+			}
+		}
+
+		for (j = 0; j < adapter->num_xdp_queues; i++, j++) {
+			/* clone ring and setup updated count */
+			tx_ring[i] = *adapter->xdp_ring[j];
 			tx_ring[i].count = new_tx_count;
 			err = ixgbevf_setup_tx_resources(&tx_ring[i]);
 			if (err) {
@@ -336,8 +359,13 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			/* clone ring and setup updated count */
 			rx_ring[i] = *adapter->rx_ring[i];
+
+			/* Clear copied XDP RX-queue info */
+			memset(&rx_ring[i].xdp_rxq, 0,
+			       sizeof(rx_ring[i].xdp_rxq));
+
 			rx_ring[i].count = new_rx_count;
-			err = ixgbevf_setup_rx_resources(&rx_ring[i]);
+			err = ixgbevf_setup_rx_resources(adapter, &rx_ring[i]);
 			if (err) {
 				while (i) {
 					i--;
@@ -363,6 +391,12 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 		}
 		adapter->tx_ring_count = new_tx_count;
 
+		for (j = 0; j < adapter->num_xdp_queues; i++, j++) {
+			ixgbevf_free_tx_resources(adapter->xdp_ring[j]);
+			*adapter->xdp_ring[j] = tx_ring[i];
+		}
+		adapter->xdp_ring_count = new_tx_count;
+
 		vfree(tx_ring);
 		tx_ring = NULL;
 	}
@@ -385,7 +419,8 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 clear_reset:
 	/* free Tx resources if Rx error is encountered */
 	if (tx_ring) {
-		for (i = 0; i < adapter->num_tx_queues; i++)
+		for (i = 0;
+		     i < adapter->num_tx_queues + adapter->num_xdp_queues; i++)
 			ixgbevf_free_tx_resources(&tx_ring[i]);
 		vfree(tx_ring);
 	}
@@ -457,6 +492,23 @@ static void ixgbevf_get_ethtool_stats(struct net_device *netdev,
 		i += 2;
 	}
 
+	/* populate XDP queue data */
+	for (j = 0; j < adapter->num_xdp_queues; j++) {
+		ring = adapter->xdp_ring[j];
+		if (!ring) {
+			data[i++] = 0;
+			data[i++] = 0;
+			continue;
+		}
+
+		do {
+			start = u64_stats_fetch_begin_irq(&ring->syncp);
+			data[i] = ring->stats.packets;
+			data[i + 1] = ring->stats.bytes;
+		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
+		i += 2;
+	}
+
 	/* populate Rx queue data */
 	for (j = 0; j < adapter->num_rx_queues; j++) {
 		ring = adapter->rx_ring[j];
@@ -498,6 +550,12 @@ static void ixgbevf_get_strings(struct net_device *netdev, u32 stringset,
 			sprintf(p, "tx_queue_%u_packets", i);
 			p += ETH_GSTRING_LEN;
 			sprintf(p, "tx_queue_%u_bytes", i);
+			p += ETH_GSTRING_LEN;
+		}
+		for (i = 0; i < adapter->num_xdp_queues; i++) {
+			sprintf(p, "xdp_queue_%u_packets", i);
+			p += ETH_GSTRING_LEN;
+			sprintf(p, "xdp_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
 		}
 		for (i = 0; i < adapter->num_rx_queues; i++) {

@@ -2,7 +2,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2015 Intel Corporation.
+  Copyright(c) 1999 - 2018 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -35,6 +35,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/u64_stats_sync.h>
+#include <net/xdp.h>
 
 #include "vf.h"
 
@@ -51,7 +52,11 @@
 struct ixgbevf_tx_buffer {
 	union ixgbe_adv_tx_desc *next_to_watch;
 	unsigned long time_stamp;
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		/* XDP uses address ptr on irq_clean */
+		void *data;
+	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
 	__be16 protocol;
@@ -94,12 +99,21 @@ enum ixgbevf_ring_state_t {
 	__IXGBEVF_RX_BUILD_SKB_ENABLED,
 	__IXGBEVF_TX_DETECT_HANG,
 	__IXGBEVF_HANG_CHECK_ARMED,
+	__IXGBEVF_TX_XDP_RING,
 };
+
+#define ring_is_xdp(ring) \
+		test_bit(__IXGBEVF_TX_XDP_RING, &(ring)->state)
+#define set_ring_xdp(ring) \
+		set_bit(__IXGBEVF_TX_XDP_RING, &(ring)->state)
+#define clear_ring_xdp(ring) \
+		clear_bit(__IXGBEVF_TX_XDP_RING, &(ring)->state)
 
 struct ixgbevf_ring {
 	struct ixgbevf_ring *next;
 	struct ixgbevf_q_vector *q_vector;	/* backpointer to q_vector */
 	struct net_device *netdev;
+	struct bpf_prog *xdp_prog;
 	struct device *dev;
 	void *desc;			/* descriptor ring memory */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
@@ -120,7 +134,7 @@ struct ixgbevf_ring {
 		struct ixgbevf_tx_queue_stats tx_stats;
 		struct ixgbevf_rx_queue_stats rx_stats;
 	};
-
+	struct xdp_rxq_info xdp_rxq;
 	u64 hw_csum_rx_error;
 	u8 __iomem *tail;
 	struct sk_buff *skb;
@@ -137,6 +151,7 @@ struct ixgbevf_ring {
 
 #define MAX_RX_QUEUES IXGBE_VF_MAX_RX_QUEUES
 #define MAX_TX_QUEUES IXGBE_VF_MAX_TX_QUEUES
+#define MAX_XDP_QUEUES IXGBE_VF_MAX_TX_QUEUES
 #define IXGBEVF_MAX_RSS_QUEUES		2
 #define IXGBEVF_82599_RETA_SIZE		128	/* 128 entries */
 #define IXGBEVF_X550_VFRETA_SIZE	64	/* 64 entries */
@@ -337,6 +352,10 @@ struct ixgbevf_adapter {
 	u32 eims_enable_mask;
 	u32 eims_other;
 
+	/* XDP */
+	int num_xdp_queues;
+	struct ixgbevf_ring *xdp_ring[MAX_XDP_QUEUES];
+
 	/* TX */
 	int num_tx_queues;
 	struct ixgbevf_ring *tx_ring[MAX_TX_QUEUES]; /* One per active queue */
@@ -357,6 +376,7 @@ struct ixgbevf_adapter {
 
 	/* OS defined structs */
 	struct net_device *netdev;
+	struct bpf_prog *xdp_prog;
 	struct pci_dev *pdev;
 
 	/* structs defined in ixgbe_vf.h */
@@ -370,6 +390,7 @@ struct ixgbevf_adapter {
 	unsigned long state;
 	u64 tx_busy;
 	unsigned int tx_ring_count;
+	unsigned int xdp_ring_count;
 	unsigned int rx_ring_count;
 
 	u8 __iomem *io_addr; /* Mainly for iounmap use */
@@ -443,7 +464,8 @@ void ixgbevf_down(struct ixgbevf_adapter *adapter);
 void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter);
 void ixgbevf_reset(struct ixgbevf_adapter *adapter);
 void ixgbevf_set_ethtool_ops(struct net_device *netdev);
-int ixgbevf_setup_rx_resources(struct ixgbevf_ring *);
+int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *adapter,
+			       struct ixgbevf_ring *rx_ring);
 int ixgbevf_setup_tx_resources(struct ixgbevf_ring *);
 void ixgbevf_free_rx_resources(struct ixgbevf_ring *);
 void ixgbevf_free_tx_resources(struct ixgbevf_ring *);
