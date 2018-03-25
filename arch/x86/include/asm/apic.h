@@ -304,12 +304,6 @@ struct apic {
 	u32	irq_delivery_mode;
 	u32	irq_dest_mode;
 
-	/* Functions and data related to vector allocation */
-	void	(*vector_allocation_domain)(int cpu, struct cpumask *retmask,
-					    const struct cpumask *mask);
-	int	(*cpu_mask_to_apicid)(const struct cpumask *cpumask,
-				      struct irq_data *irqdata,
-				      unsigned int *apicid);
 	u32	(*calc_dest_apicid)(unsigned int cpu);
 
 	/* ICR related functions */
@@ -499,17 +493,7 @@ extern void default_setup_apic_routing(void);
 extern u32 apic_default_calc_apicid(unsigned int cpu);
 extern u32 apic_flat_calc_apicid(unsigned int cpu);
 
-extern int flat_cpu_mask_to_apicid(const struct cpumask *cpumask,
-				   struct irq_data *irqdata,
-				   unsigned int *apicid);
-extern int default_cpu_mask_to_apicid(const struct cpumask *cpumask,
-				      struct irq_data *irqdata,
-				      unsigned int *apicid);
 extern bool default_check_apicid_used(physid_mask_t *map, int apicid);
-extern void flat_vector_allocation_domain(int cpu, struct cpumask *retmask,
-				   const struct cpumask *mask);
-extern void default_vector_allocation_domain(int cpu, struct cpumask *retmask,
-				      const struct cpumask *mask);
 extern void default_ioapic_phys_id_map(physid_mask_t *phys_map, physid_mask_t *retmap);
 extern int default_cpu_present_to_apicid(int mps_cpu);
 extern int default_check_phys_apicid_present(int phys_apicid);
