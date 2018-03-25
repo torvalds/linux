@@ -3276,6 +3276,8 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				       PCIE_LINK_STATE_CLKPM);
 	}
 
+	trans_pcie->def_rx_queue = 0;
+
 	if (cfg->use_tfh) {
 		addr_size = 64;
 		trans_pcie->max_tbs = IWL_TFH_NUM_TBS;

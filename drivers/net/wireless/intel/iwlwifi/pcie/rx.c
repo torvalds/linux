@@ -1271,7 +1271,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		index = SEQ_TO_INDEX(sequence);
 		cmd_index = iwl_pcie_get_cmd_index(txq, index);
 
-		if (rxq->id == 0)
+		if (rxq->id == trans_pcie->def_rx_queue)
 			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
 				       &rxcb);
 		else

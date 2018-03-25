@@ -456,6 +456,7 @@ struct iwl_self_init_dram {
  * @ucode_write_complete: indicates that the ucode has been copied.
  * @ucode_write_waitq: wait queue for uCode load
  * @cmd_queue - command queue number
+ * @def_rx_queue - default rx queue number
  * @rx_buf_size: Rx buffer size
  * @bc_table_dword: true if the BC table expects DWORD (as opposed to bytes)
  * @scd_set_active: should the transport configure the SCD for HCMD queue
@@ -536,6 +537,7 @@ struct iwl_trans_pcie {
 	u8 page_offs, dev_cmd_offs;
 
 	u8 cmd_queue;
+	u8 def_rx_queue;
 	u8 cmd_fifo;
 	unsigned int cmd_q_wdg_timeout;
 	u8 n_no_reclaim_cmds;
