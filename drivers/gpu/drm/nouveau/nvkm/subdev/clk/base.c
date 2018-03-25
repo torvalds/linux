@@ -134,7 +134,7 @@ nvkm_cstate_find_best(struct nvkm_clk *clk, struct nvkm_pstate *pstate,
 			       nvkm_volt_map(volt, volt->max2_id, clk->temp));
 
 	for (cstate = start; &cstate->head != &pstate->list;
-	     cstate = list_entry(cstate->head.prev, typeof(*cstate), head)) {
+	     cstate = list_prev_entry(cstate, head)) {
 		if (nvkm_cstate_valid(clk, cstate, max_volt, clk->temp))
 			break;
 	}
