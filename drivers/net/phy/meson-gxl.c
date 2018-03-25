@@ -25,27 +25,53 @@
 
 static int meson_gxl_config_init(struct phy_device *phydev)
 {
+	int ret;
+
 	/* Enable Analog and DSP register Bank access by */
-	phy_write(phydev, 0x14, 0x0000);
-	phy_write(phydev, 0x14, 0x0400);
-	phy_write(phydev, 0x14, 0x0000);
-	phy_write(phydev, 0x14, 0x0400);
+	ret = phy_write(phydev, 0x14, 0x0000);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, 0x14, 0x0400);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, 0x14, 0x0000);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, 0x14, 0x0400);
+	if (ret)
+		return ret;
 
 	/* Write Analog register 23 */
-	phy_write(phydev, 0x17, 0x8E0D);
-	phy_write(phydev, 0x14, 0x4417);
+	ret = phy_write(phydev, 0x17, 0x8E0D);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, 0x14, 0x4417);
+	if (ret)
+		return ret;
 
 	/* Enable fractional PLL */
-	phy_write(phydev, 0x17, 0x0005);
-	phy_write(phydev, 0x14, 0x5C1B);
+	ret = phy_write(phydev, 0x17, 0x0005);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, 0x14, 0x5C1B);
+	if (ret)
+		return ret;
 
 	/* Program fraction FR_PLL_DIV1 */
-	phy_write(phydev, 0x17, 0x029A);
-	phy_write(phydev, 0x14, 0x5C1D);
+	ret = phy_write(phydev, 0x17, 0x029A);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, 0x14, 0x5C1D);
+	if (ret)
+		return ret;
 
 	/* Program fraction FR_PLL_DIV1 */
-	phy_write(phydev, 0x17, 0xAAAA);
-	phy_write(phydev, 0x14, 0x5C1C);
+	ret = phy_write(phydev, 0x17, 0xAAAA);
+	if (ret)
+		return ret;
+	ret = phy_write(phydev, 0x14, 0x5C1C);
+	if (ret)
+		return ret;
 
 	return 0;
 }
