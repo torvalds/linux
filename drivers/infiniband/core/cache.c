@@ -893,7 +893,7 @@ int ib_find_gid_by_filter(struct ib_device *device,
 			  void *context, u16 *index)
 {
 	/* Only RoCE GID table supports filter function */
-	if (!rdma_cap_roce_gid_table(device, port_num) && filter)
+	if (!rdma_protocol_roce(device, port_num) && filter)
 		return -EPROTONOSUPPORT;
 
 	return ib_cache_gid_find_by_filter(device, gid,
