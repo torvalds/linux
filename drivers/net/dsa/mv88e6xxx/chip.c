@@ -425,7 +425,7 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 
 	err = request_threaded_irq(chip->irq, NULL,
 				   mv88e6xxx_g1_irq_thread_fn,
-				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
+				   IRQF_ONESHOT,
 				   dev_name(chip->dev), chip);
 	if (err)
 		mv88e6xxx_g1_irq_free_common(chip);
