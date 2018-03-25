@@ -2591,7 +2591,8 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	wmb();
 
 	txdata->tx_db.data.prod += 2;
-	barrier();
+	/* make sure descriptor update is observed by the HW */
+	wmb();
 	DOORBELL(bp, txdata->cid, txdata->tx_db.raw);
 
 	mmiowb();
