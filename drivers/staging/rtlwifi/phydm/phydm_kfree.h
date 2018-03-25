@@ -24,7 +24,7 @@
  *****************************************************************************/
 
 #ifndef __PHYDMKFREE_H__
-#define __PHYDKFREE_H__
+#define __PHYDMKFREE_H__
 
 #define KFREE_VERSION "1.0"
 
