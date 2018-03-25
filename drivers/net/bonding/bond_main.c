@@ -1565,7 +1565,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	if (res) {
 		netdev_err(bond_dev, "Couldn't add bond vlan ids to %s\n",
 			   slave_dev->name);
-		goto err_close;
+		goto err_hwaddr_unsync;
 	}
 
 	prev_slave = bond_last_slave(bond);
@@ -1755,9 +1755,6 @@ err_unregister:
 	netdev_rx_handler_unregister(slave_dev);
 
 err_detach:
-	if (!bond_uses_primary(bond))
-		bond_hw_addr_flush(bond_dev, slave_dev);
-
 	vlan_vids_del_by_dev(slave_dev, bond_dev);
 	if (rcu_access_pointer(bond->primary_slave) == new_slave)
 		RCU_INIT_POINTER(bond->primary_slave, NULL);
@@ -1770,6 +1767,10 @@ err_detach:
 	/* either primary_slave or curr_active_slave might've changed */
 	synchronize_rcu();
 	slave_disable_netpoll(new_slave);
+
+err_hwaddr_unsync:
+	if (!bond_uses_primary(bond))
+		bond_hw_addr_flush(bond_dev, slave_dev);
 
 err_close:
 	slave_dev->priv_flags &= ~IFF_BONDING;
