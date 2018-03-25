@@ -901,6 +901,9 @@ extern const struct of_device_id
 *i2c_of_match_device(const struct of_device_id *matches,
 		     struct i2c_client *client);
 
+int of_i2c_get_board_info(struct device *dev, struct device_node *node,
+			  struct i2c_board_info *info);
+
 #else
 
 static inline struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
@@ -923,6 +926,13 @@ static inline const struct of_device_id
 		     struct i2c_client *client)
 {
 	return NULL;
+}
+
+static inline int of_i2c_get_board_info(struct device *dev,
+					struct device_node *node,
+					struct i2c_board_info *info)
+{
+	return -ENOTSUPP;
 }
 
 #endif /* CONFIG_OF */
