@@ -717,10 +717,6 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->adapter = adap;
 
 	client->dev.platform_data = info->platform_data;
-
-	if (info->archdata)
-		client->dev.archdata = *info->archdata;
-
 	client->flags = info->flags;
 	client->addr = info->addr;
 

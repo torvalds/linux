@@ -27,7 +27,6 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 {
 	struct i2c_client *client;
 	struct i2c_board_info info = {};
-	struct dev_archdata dev_ad = {};
 	u32 addr;
 	int ret;
 
@@ -56,7 +55,6 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	}
 
 	info.addr = addr;
-	info.archdata = &dev_ad;
 	info.of_node = of_node_get(node);
 
 	if (of_property_read_bool(node, "host-notify"))
