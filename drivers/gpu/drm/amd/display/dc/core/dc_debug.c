@@ -155,7 +155,6 @@ void pre_surface_trace(
 				"plane_state->tiling_info.gfx8.pipe_config = %d;\n"
 				"plane_state->tiling_info.gfx8.array_mode = %d;\n"
 				"plane_state->color_space = %d;\n"
-				"plane_state->input_tf = %d;\n"
 				"plane_state->dcc.enable = %d;\n"
 				"plane_state->format = %d;\n"
 				"plane_state->rotation = %d;\n"
@@ -163,7 +162,6 @@ void pre_surface_trace(
 				plane_state->tiling_info.gfx8.pipe_config,
 				plane_state->tiling_info.gfx8.array_mode,
 				plane_state->color_space,
-				plane_state->input_tf,
 				plane_state->dcc.enable,
 				plane_state->format,
 				plane_state->rotation,
@@ -203,7 +201,6 @@ void update_surface_trace(
 		if (update->plane_info) {
 			SURFACE_TRACE(
 					"plane_info->color_space = %d;\n"
-					"plane_info->input_tf = %d;\n"
 					"plane_info->format = %d;\n"
 					"plane_info->plane_size.grph.surface_pitch = %d;\n"
 					"plane_info->plane_size.grph.surface_size.height = %d;\n"
@@ -213,7 +210,6 @@ void update_surface_trace(
 					"plane_info->rotation = %d;\n"
 					"plane_info->stereo_format = %d;\n",
 					update->plane_info->color_space,
-					update->plane_info->input_tf,
 					update->plane_info->format,
 					update->plane_info->plane_size.grph.surface_pitch,
 					update->plane_info->plane_size.grph.surface_size.height,

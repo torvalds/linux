@@ -1018,9 +1018,6 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 	if (u->plane_info->color_space != u->surface->color_space)
 		update_flags->bits.color_space_change = 1;
 
-	if (u->plane_info->input_tf != u->surface->input_tf)
-		update_flags->bits.input_tf_change = 1;
-
 	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror)
 		update_flags->bits.horizontal_mirror_change = 1;
 

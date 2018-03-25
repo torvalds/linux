@@ -4034,7 +4034,6 @@ static bool commit_planes_to_stream(
 		flip_addr[i].address = plane_states[i]->address;
 		flip_addr[i].flip_immediate = plane_states[i]->flip_immediate;
 		plane_info[i].color_space = plane_states[i]->color_space;
-		plane_info[i].input_tf = plane_states[i]->input_tf;
 		plane_info[i].format = plane_states[i]->format;
 		plane_info[i].plane_size = plane_states[i]->plane_size;
 		plane_info[i].rotation = plane_states[i]->rotation;
