@@ -65,6 +65,7 @@ char *mlxsw_afa_block_first_set(struct mlxsw_afa_block *block);
 u32 mlxsw_afa_block_first_set_kvdl_index(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_continue(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_jump(struct mlxsw_afa_block *block, u16 group_id);
+int mlxsw_afa_block_terminate(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_append_drop(struct mlxsw_afa_block *block);
 int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id);
 int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,

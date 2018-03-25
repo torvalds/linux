@@ -297,6 +297,10 @@ int tegra_plane_format_get_alpha(unsigned int opaque, unsigned int *alpha)
 	case WIN_COLOR_DEPTH_B8G8R8X8:
 		*alpha = WIN_COLOR_DEPTH_B8G8R8A8;
 		return 0;
+
+	case WIN_COLOR_DEPTH_B5G6R5:
+		*alpha = opaque;
+		return 0;
 	}
 
 	return -EINVAL;
@@ -330,9 +334,6 @@ void tegra_plane_check_dependent(struct tegra_plane *tegra,
 	unsigned int zpos[2];
 	unsigned int i;
 
-	for (i = 0; i < 3; i++)
-		state->dependent[i] = false;
-
 	for (i = 0; i < 2; i++)
 		zpos[i] = 0;
 
@@ -345,6 +346,8 @@ void tegra_plane_check_dependent(struct tegra_plane *tegra,
 			continue;
 
 		index = tegra_plane_get_overlap_index(tegra, p);
+
+		state->dependent[index] = false;
 
 		/*
 		 * If any of the other planes is on top of this plane and uses

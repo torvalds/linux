@@ -243,7 +243,7 @@ static void bnxt_qplib_service_nq(unsigned long data)
 	u32 sw_cons, raw_cons;
 	u16 type;
 	int budget = nq->budget;
-	u64 q_handle;
+	uintptr_t q_handle;
 
 	/* Service the NQ until empty */
 	raw_cons = hwq->cons;
@@ -526,7 +526,7 @@ int bnxt_qplib_create_srq(struct bnxt_qplib_res *res,
 
 	/* Configure the request */
 	req.dpi = cpu_to_le32(srq->dpi->dpi);
-	req.srq_handle = cpu_to_le64(srq);
+	req.srq_handle = cpu_to_le64((uintptr_t)srq);
 
 	req.srq_size = cpu_to_le16((u16)srq->hwq.max_elements);
 	pbl = &srq->hwq.pbl[PBL_LVL_0];
