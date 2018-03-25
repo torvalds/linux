@@ -377,20 +377,12 @@ static void lio_update_txq_status(struct octeon_device *oct, int iq_num)
 		return;
 
 	lio = GET_LIO(netdev);
-	if (netif_is_multiqueue(netdev)) {
-		if (__netif_subqueue_stopped(netdev, iq->q_index) &&
-		    lio->linfo.link.s.link_up &&
-		    (!octnet_iq_is_full(oct, iq_num))) {
-			netif_wake_subqueue(netdev, iq->q_index);
-			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq_num,
-						  tx_restart, 1);
-		}
-	} else if (netif_queue_stopped(netdev) &&
-		   lio->linfo.link.s.link_up &&
-		   (!octnet_iq_is_full(oct, lio->txq))) {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
+	if (__netif_subqueue_stopped(netdev, iq->q_index) &&
+	    lio->linfo.link.s.link_up &&
+	    (!octnet_iq_is_full(oct, iq_num))) {
+		netif_wake_subqueue(netdev, iq->q_index);
+		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq_num,
 					  tx_restart, 1);
-		netif_wake_queue(netdev);
 	}
 }
 

@@ -285,105 +285,6 @@ static struct pci_driver liquidio_vf_pci_driver = {
 };
 
 /**
- * \brief Stop Tx queues
- * @param netdev network device
- */
-static void txqs_stop(struct net_device *netdev)
-{
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_stop_subqueue(netdev, i);
-	} else {
-		netif_stop_queue(netdev);
-	}
-}
-
-/**
- * \brief Start Tx queues
- * @param netdev network device
- */
-static void txqs_start(struct net_device *netdev)
-{
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_start_subqueue(netdev, i);
-	} else {
-		netif_start_queue(netdev);
-	}
-}
-
-/**
- * \brief Wake Tx queues
- * @param netdev network device
- */
-static void txqs_wake(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++) {
-			int qno = lio->linfo.txpciq[i % lio->oct_dev->num_iqs]
-				      .s.q_no;
-			if (__netif_subqueue_stopped(netdev, i)) {
-				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
-							  tx_restart, 1);
-				netif_wake_subqueue(netdev, i);
-			}
-		}
-	} else {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
-					  tx_restart, 1);
-		netif_wake_queue(netdev);
-	}
-}
-
-/**
- * \brief Start Tx queue
- * @param netdev network device
- */
-static void start_txq(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-
-	if (lio->linfo.link.s.link_up) {
-		txqs_start(netdev);
-		return;
-	}
-}
-
-/**
- * \brief Wake a queue
- * @param netdev network device
- * @param q which queue to wake
- */
-static void wake_q(struct net_device *netdev, int q)
-{
-	if (netif_is_multiqueue(netdev))
-		netif_wake_subqueue(netdev, q);
-	else
-		netif_wake_queue(netdev);
-}
-
-/**
- * \brief Stop a queue
- * @param netdev network device
- * @param q which queue to stop
- */
-static void stop_q(struct net_device *netdev, int q)
-{
-	if (netif_is_multiqueue(netdev))
-		netif_stop_subqueue(netdev, q);
-	else
-		netif_stop_queue(netdev);
-}
-
-/**
  * Remove the node at the head of the list. The list would be empty at
  * the end of this call if there are no more nodes in the list.
  */
@@ -614,10 +515,10 @@ static void update_link_status(struct net_device *netdev,
 
 		if (lio->linfo.link.s.link_up) {
 			netif_carrier_on(netdev);
-			txqs_wake(netdev);
+			wake_txqs(netdev);
 		} else {
 			netif_carrier_off(netdev);
-			txqs_stop(netdev);
+			stop_txqs(netdev);
 		}
 
 		if (lio->linfo.link.s.mtu != current_max_mtu) {
@@ -1052,16 +953,6 @@ static int octeon_pci_os_setup(struct octeon_device *oct)
 	return 0;
 }
 
-static int skb_iq(struct lio *lio, struct sk_buff *skb)
-{
-	int q = 0;
-
-	if (netif_is_multiqueue(lio->netdev))
-		q = skb->queue_mapping % lio->linfo.num_txpciq;
-
-	return q;
-}
-
 /**
  * \brief Check Tx queue state for a given network buffer
  * @param lio per-network private data
@@ -1069,22 +960,17 @@ static int skb_iq(struct lio *lio, struct sk_buff *skb)
  */
 static int check_txq_state(struct lio *lio, struct sk_buff *skb)
 {
-	int q = 0, iq = 0;
+	int q, iq;
 
-	if (netif_is_multiqueue(lio->netdev)) {
-		q = skb->queue_mapping;
-		iq = lio->linfo.txpciq[q % lio->oct_dev->num_iqs].s.q_no;
-	} else {
-		iq = lio->txq;
-		q = iq;
-	}
+	q = skb->queue_mapping;
+	iq = lio->linfo.txpciq[q % lio->oct_dev->num_iqs].s.q_no;
 
 	if (octnet_iq_is_full(lio->oct_dev, iq))
 		return 0;
 
 	if (__netif_subqueue_stopped(lio->netdev, q)) {
 		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq, tx_restart, 1);
-		wake_q(lio->netdev, q);
+		netif_wake_subqueue(lio->netdev, q);
 	}
 
 	return 1;
@@ -1258,7 +1144,7 @@ static int liquidio_open(struct net_device *netdev)
 	lio->intf_open = 1;
 
 	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
-	start_txq(netdev);
+	start_txqs(netdev);
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
@@ -1300,7 +1186,7 @@ static int liquidio_stop(struct net_device *netdev)
 
 	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
 
-	txqs_stop(netdev);
+	stop_txqs(netdev);
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
 
@@ -1718,14 +1604,9 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	lio = GET_LIO(netdev);
 	oct = lio->oct_dev;
 
-	if (netif_is_multiqueue(netdev)) {
-		q_idx = skb->queue_mapping;
-		q_idx = (q_idx % (lio->linfo.num_txpciq));
-		tag = q_idx;
-		iq_no = lio->linfo.txpciq[q_idx].s.q_no;
-	} else {
-		iq_no = lio->txq;
-	}
+	q_idx = skb_iq(lio, skb);
+	tag = q_idx;
+	iq_no = lio->linfo.txpciq[q_idx].s.q_no;
 
 	stats = &oct->instr_queue[iq_no]->stats;
 
@@ -1754,22 +1635,12 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	ndata.q_no = iq_no;
 
-	if (netif_is_multiqueue(netdev)) {
-		if (octnet_iq_is_full(oct, ndata.q_no)) {
-			/* defer sending if queue is full */
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   ndata.q_no);
-			stats->tx_iq_busy++;
-			return NETDEV_TX_BUSY;
-		}
-	} else {
-		if (octnet_iq_is_full(oct, lio->txq)) {
-			/* defer sending if queue is full */
-			stats->tx_iq_busy++;
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   ndata.q_no);
-			return NETDEV_TX_BUSY;
-		}
+	if (octnet_iq_is_full(oct, ndata.q_no)) {
+		/* defer sending if queue is full */
+		netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
+			   ndata.q_no);
+		stats->tx_iq_busy++;
+		return NETDEV_TX_BUSY;
 	}
 
 	ndata.datasize = skb->len;
@@ -1911,7 +1782,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (status == IQ_SEND_STOP) {
 		dev_err(&oct->pci_dev->dev, "Rcvd IQ_SEND_STOP signal; stopping IQ-%d\n",
 			iq_no);
-		stop_q(netdev, q_idx);
+		netif_stop_subqueue(netdev, q_idx);
 	}
 
 	netif_trans_update(netdev);
@@ -1951,7 +1822,7 @@ static void liquidio_tx_timeout(struct net_device *netdev)
 		   "Transmit timeout tx_dropped:%ld, waking up queues now!!\n",
 		   netdev->stats.tx_dropped);
 	netif_trans_update(netdev);
-	txqs_wake(netdev);
+	wake_txqs(netdev);
 }
 
 static int
