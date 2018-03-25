@@ -3,6 +3,7 @@
 #define _ASM_M68K_VGA_H
 
 #include <asm/raw_io.h>
+#include <asm/kmap.h>
 
 /*
  * FIXME

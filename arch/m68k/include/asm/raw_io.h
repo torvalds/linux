@@ -13,20 +13,6 @@
 
 #include <asm/byteorder.h>
 
-
-/* Values for nocacheflag and cmode */
-#define IOMAP_FULL_CACHING		0
-#define IOMAP_NOCACHE_SER		1
-#define IOMAP_NOCACHE_NONSER		2
-#define IOMAP_WRITETHROUGH		3
-
-extern void iounmap(void __iomem *addr);
-
-extern void __iomem *__ioremap(unsigned long physaddr, unsigned long size,
-		       int cacheflag);
-extern void __iounmap(void *addr, unsigned long size);
-
-
 /* ++roman: The assignments to temp. vars avoid that gcc sometimes generates
  * two accesses to memory, which may be undesirable for some devices.
  */

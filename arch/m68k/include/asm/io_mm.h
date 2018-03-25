@@ -26,6 +26,7 @@
 #include <linux/compiler.h>
 #include <asm/raw_io.h>
 #include <asm/virtconvert.h>
+#include <asm/kmap.h>
 
 #include <asm-generic/iomap.h>
 
@@ -461,39 +462,6 @@ static inline void isa_delay(void)
 
 #define mmiowb()
 
-static inline void __iomem *ioremap(unsigned long physaddr, unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
-}
-static inline void __iomem *ioremap_nocache(unsigned long physaddr, unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_NOCACHE_SER);
-}
-#define ioremap_uc ioremap_nocache
-static inline void __iomem *ioremap_wt(unsigned long physaddr,
-					 unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_WRITETHROUGH);
-}
-static inline void __iomem *ioremap_fullcache(unsigned long physaddr,
-				      unsigned long size)
-{
-	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
-}
-
-static inline void memset_io(volatile void __iomem *addr, unsigned char val, int count)
-{
-	__builtin_memset((void __force *) addr, val, count);
-}
-static inline void memcpy_fromio(void *dst, const volatile void __iomem *src, int count)
-{
-	__builtin_memcpy(dst, (void __force *) src, count);
-}
-static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int count)
-{
-	__builtin_memcpy((void __force *) dst, src, count);
-}
-
 #ifndef CONFIG_SUN3
 #define IO_SPACE_LIMIT 0xffff
 #else
@@ -514,15 +482,6 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src, int 
  * Convert a virtual cached pointer to an uncached pointer
  */
 #define xlate_dev_kmem_ptr(p)	p
-
-static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
-{
-	return (void __iomem *) port;
-}
-
-static inline void ioport_unmap(void __iomem *p)
-{
-}
 
 #define readb_relaxed(addr)	readb(addr)
 #define readw_relaxed(addr)	readw(addr)
