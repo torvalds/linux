@@ -687,7 +687,8 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	}
 	if (!tipc_own_id(net)) {
 		pr_warn("Failed to set node id, please configure manually\n");
-		return -EINVAL;
+		err = -EINVAL;
+		goto err;
 	}
 
 	b->bcast_addr.media_id = TIPC_MEDIA_TYPE_UDP;
