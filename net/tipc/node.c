@@ -333,8 +333,8 @@ static void tipc_node_write_unlock(struct tipc_node *n)
 	}
 }
 
-struct tipc_node *tipc_node_create(struct net *net, u32 addr,
-				   u8 *peer_id, u16 capabilities)
+static struct tipc_node *tipc_node_create(struct net *net, u32 addr,
+					  u8 *peer_id, u16 capabilities)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
 	struct tipc_node *n, *temp_node;
