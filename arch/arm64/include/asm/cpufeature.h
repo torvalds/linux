@@ -211,6 +211,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
 
 #define SCOPE_SYSTEM				ARM64_CPUCAP_SCOPE_SYSTEM
 #define SCOPE_LOCAL_CPU				ARM64_CPUCAP_SCOPE_LOCAL_CPU
+#define SCOPE_ALL				ARM64_CPUCAP_SCOPE_MASK
 
 /*
  * Is it permitted for a late CPU to have this capability when system
