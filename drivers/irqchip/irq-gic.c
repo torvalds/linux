@@ -121,7 +121,7 @@ static DEFINE_RAW_SPINLOCK(cpu_map_lock);
 #define NR_GIC_CPU_IF 8
 static u8 gic_cpu_map[NR_GIC_CPU_IF] __read_mostly;
 
-static struct static_key supports_deactivate = STATIC_KEY_INIT_TRUE;
+static DEFINE_STATIC_KEY_TRUE(supports_deactivate_key);
 
 static struct gic_chip_data gic_data[CONFIG_ARM_GIC_MAX_NR] __read_mostly;
 
@@ -361,7 +361,7 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 		irqnr = irqstat & GICC_IAR_INT_ID_MASK;
 
 		if (likely(irqnr > 15 && irqnr < 1020)) {
-			if (static_key_true(&supports_deactivate))
+			if (static_branch_likely(&supports_deactivate_key))
 				writel_relaxed(irqstat, cpu_base + GIC_CPU_EOI);
 			isb();
 			handle_domain_irq(gic->domain, irqnr, regs);
@@ -369,7 +369,7 @@ static void __exception_irq_entry gic_handle_irq(struct pt_regs *regs)
 		}
 		if (irqnr < 16) {
 			writel_relaxed(irqstat, cpu_base + GIC_CPU_EOI);
-			if (static_key_true(&supports_deactivate))
+			if (static_branch_likely(&supports_deactivate_key))
 				writel_relaxed(irqstat, cpu_base + GIC_CPU_DEACTIVATE);
 #ifdef CONFIG_SMP
 			/*
@@ -466,7 +466,7 @@ static void gic_cpu_if_up(struct gic_chip_data *gic)
 	u32 mode = 0;
 	int i;
 
-	if (gic == &gic_data[0] && static_key_true(&supports_deactivate))
+	if (gic == &gic_data[0] && static_branch_likely(&supports_deactivate_key))
 		mode = GIC_CPU_CTRL_EOImodeNS;
 
 	if (gic_check_gicv2(cpu_base))
@@ -1219,11 +1219,11 @@ static int __init __gic_init_bases(struct gic_chip_data *gic,
 					  "irqchip/arm/gic:starting",
 					  gic_starting_cpu, NULL);
 		set_handle_irq(gic_handle_irq);
-		if (static_key_true(&supports_deactivate))
+		if (static_branch_likely(&supports_deactivate_key))
 			pr_info("GIC: Using split EOI/Deactivate mode\n");
 	}
 
-	if (static_key_true(&supports_deactivate) && gic == &gic_data[0]) {
+	if (static_branch_likely(&supports_deactivate_key) && gic == &gic_data[0]) {
 		name = kasprintf(GFP_KERNEL, "GICv2");
 		gic_init_chip(gic, NULL, name, true);
 	} else {
@@ -1250,7 +1250,7 @@ void __init gic_init(unsigned int gic_nr, int irq_start,
 	 * Non-DT/ACPI systems won't run a hypervisor, so let's not
 	 * bother with these...
 	 */
-	static_key_slow_dec(&supports_deactivate);
+	static_branch_disable(&supports_deactivate_key);
 
 	gic = &gic_data[gic_nr];
 	gic->raw_dist_base = dist_base;
@@ -1430,7 +1430,7 @@ static void __init gic_of_setup_kvm_info(struct device_node *node)
 	if (ret)
 		return;
 
-	if (static_key_true(&supports_deactivate))
+	if (static_branch_likely(&supports_deactivate_key))
 		gic_set_kvm_info(&gic_v2_kvm_info);
 }
 
@@ -1457,7 +1457,7 @@ gic_of_init(struct device_node *node, struct device_node *parent)
 	 * or the CPU interface is too small.
 	 */
 	if (gic_cnt == 0 && !gic_check_eoimode(node, &gic->raw_cpu_base))
-		static_key_slow_dec(&supports_deactivate);
+		static_branch_disable(&supports_deactivate_key);
 
 	ret = __gic_init_bases(gic, -1, &node->fwnode);
 	if (ret) {
@@ -1638,7 +1638,7 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 	 * interface will always be the right size.
 	 */
 	if (!is_hyp_mode_available())
-		static_key_slow_dec(&supports_deactivate);
+		static_branch_disable(&supports_deactivate_key);
 
 	/*
 	 * Initialize GIC instance zero (no multi-GIC support).
@@ -1663,7 +1663,7 @@ static int __init gic_v2_acpi_init(struct acpi_subtable_header *header,
 	if (IS_ENABLED(CONFIG_ARM_GIC_V2M))
 		gicv2m_init(NULL, gic_data[0].domain);
 
-	if (static_key_true(&supports_deactivate))
+	if (static_branch_likely(&supports_deactivate_key))
 		gic_acpi_setup_kvm_info();
 
 	return 0;

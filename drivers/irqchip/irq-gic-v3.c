@@ -61,7 +61,7 @@ struct gic_chip_data {
 };
 
 static struct gic_chip_data gic_data __read_mostly;
-static struct static_key supports_deactivate = STATIC_KEY_INIT_TRUE;
+static DEFINE_STATIC_KEY_TRUE(supports_deactivate_key);
 
 static struct gic_kvm_info gic_v3_kvm_info;
 static DEFINE_PER_CPU(bool, has_rss);
@@ -354,7 +354,7 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 		if (likely(irqnr > 15 && irqnr < 1020) || irqnr >= 8192) {
 			int err;
 
-			if (static_key_true(&supports_deactivate))
+			if (static_branch_likely(&supports_deactivate_key))
 				gic_write_eoir(irqnr);
 			else
 				isb();
@@ -362,7 +362,7 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 			err = handle_domain_irq(gic_data.domain, irqnr, regs);
 			if (err) {
 				WARN_ONCE(true, "Unexpected interrupt received!\n");
-				if (static_key_true(&supports_deactivate)) {
+				if (static_branch_likely(&supports_deactivate_key)) {
 					if (irqnr < 8192)
 						gic_write_dir(irqnr);
 				} else {
@@ -373,7 +373,7 @@ static asmlinkage void __exception_irq_entry gic_handle_irq(struct pt_regs *regs
 		}
 		if (irqnr < 16) {
 			gic_write_eoir(irqnr);
-			if (static_key_true(&supports_deactivate))
+			if (static_branch_likely(&supports_deactivate_key))
 				gic_write_dir(irqnr);
 #ifdef CONFIG_SMP
 			/*
@@ -576,7 +576,7 @@ static void gic_cpu_sys_reg_init(void)
 	 */
 	gic_write_bpr1(0);
 
-	if (static_key_true(&supports_deactivate)) {
+	if (static_branch_likely(&supports_deactivate_key)) {
 		/* EOI drops priority only (mode 1) */
 		gic_write_ctlr(ICC_CTLR_EL1_EOImode_drop);
 	} else {
@@ -884,7 +884,7 @@ static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 {
 	struct irq_chip *chip = &gic_chip;
 
-	if (static_key_true(&supports_deactivate))
+	if (static_branch_likely(&supports_deactivate_key))
 		chip = &gic_eoimode1_chip;
 
 	/* SGIs are private to the core kernel */
@@ -1075,9 +1075,9 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	int err;
 
 	if (!is_hyp_mode_available())
-		static_key_slow_dec(&supports_deactivate);
+		static_branch_disable(&supports_deactivate_key);
 
-	if (static_key_true(&supports_deactivate))
+	if (static_branch_likely(&supports_deactivate_key))
 		pr_info("GIC: Using split EOI/Deactivate mode\n");
 
 	gic_data.fwnode = handle;
@@ -1312,7 +1312,7 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 
 	gic_populate_ppi_partitions(node);
 
-	if (static_key_true(&supports_deactivate))
+	if (static_branch_likely(&supports_deactivate_key))
 		gic_of_setup_kvm_info(node);
 	return 0;
 
@@ -1614,7 +1614,7 @@ gic_acpi_init(struct acpi_subtable_header *header, const unsigned long end)
 
 	acpi_set_irq_model(ACPI_IRQ_MODEL_GIC, domain_handle);
 
-	if (static_key_true(&supports_deactivate))
+	if (static_branch_likely(&supports_deactivate_key))
 		gic_acpi_setup_kvm_info();
 
 	return 0;
