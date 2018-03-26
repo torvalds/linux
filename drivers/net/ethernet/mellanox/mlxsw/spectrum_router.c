@@ -5391,7 +5391,9 @@ static int mlxsw_sp_router_fibmr_add(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(vr))
 		return PTR_ERR(vr);
 
-	return mlxsw_sp_mr_route4_add(vr->mr4_table, men_info->mfc, replace);
+	return mlxsw_sp_mr_route4_add(vr->mr4_table,
+				      (struct mfc_cache *) men_info->mfc,
+				      replace);
 }
 
 static void mlxsw_sp_router_fibmr_del(struct mlxsw_sp *mlxsw_sp,
@@ -5406,7 +5408,8 @@ static void mlxsw_sp_router_fibmr_del(struct mlxsw_sp *mlxsw_sp,
 	if (WARN_ON(!vr))
 		return;
 
-	mlxsw_sp_mr_route4_del(vr->mr4_table, men_info->mfc);
+	mlxsw_sp_mr_route4_del(vr->mr4_table,
+			       (struct mfc_cache *) men_info->mfc);
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
 
@@ -5682,11 +5685,11 @@ static void mlxsw_sp_router_fibmr_event_work(struct work_struct *work)
 						replace);
 		if (err)
 			mlxsw_sp_router_fib_abort(mlxsw_sp);
-		ipmr_cache_put(fib_work->men_info.mfc);
+		ipmr_cache_put((struct mfc_cache *) fib_work->men_info.mfc);
 		break;
 	case FIB_EVENT_ENTRY_DEL:
 		mlxsw_sp_router_fibmr_del(mlxsw_sp, &fib_work->men_info);
-		ipmr_cache_put(fib_work->men_info.mfc);
+		ipmr_cache_put((struct mfc_cache *) fib_work->men_info.mfc);
 		break;
 	case FIB_EVENT_VIF_ADD:
 		err = mlxsw_sp_router_fibmr_vif_add(mlxsw_sp,
@@ -5766,7 +5769,7 @@ mlxsw_sp_router_fibmr_event(struct mlxsw_sp_fib_event_work *fib_work,
 	case FIB_EVENT_ENTRY_ADD: /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
 		memcpy(&fib_work->men_info, info, sizeof(fib_work->men_info));
-		ipmr_cache_hold(fib_work->men_info.mfc);
+		ipmr_cache_hold((struct mfc_cache *) fib_work->men_info.mfc);
 		break;
 	case FIB_EVENT_VIF_ADD: /* fall through */
 	case FIB_EVENT_VIF_DEL:

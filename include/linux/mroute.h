@@ -80,12 +80,6 @@ struct mfc_cache {
 	};
 };
 
-struct mfc_entry_notifier_info {
-	struct fib_notifier_info info;
-	struct mfc_cache *mfc;
-	u32 tb_id;
-};
-
 struct rtmsg;
 int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		   __be32 saddr, __be32 daddr,

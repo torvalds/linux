@@ -669,34 +669,16 @@ static int call_ipmr_mfc_entry_notifier(struct notifier_block *nb,
 					enum fib_event_type event_type,
 					struct mfc_cache *mfc, u32 tb_id)
 {
-	struct mfc_entry_notifier_info info = {
-		.info = {
-			.family = RTNL_FAMILY_IPMR,
-			.net = net,
-		},
-		.mfc = mfc,
-		.tb_id = tb_id
-	};
-
-	return call_fib_notifier(nb, net, event_type, &info.info);
+	return mr_call_mfc_notifier(nb, net, RTNL_FAMILY_IPMR,
+				    event_type, &mfc->_c, tb_id);
 }
 
 static int call_ipmr_mfc_entry_notifiers(struct net *net,
 					 enum fib_event_type event_type,
 					 struct mfc_cache *mfc, u32 tb_id)
 {
-	struct mfc_entry_notifier_info info = {
-		.info = {
-			.family = RTNL_FAMILY_IPMR,
-			.net = net,
-		},
-		.mfc = mfc,
-		.tb_id = tb_id
-	};
-
-	ASSERT_RTNL();
-	net->ipv4.ipmr_seq++;
-	return call_fib_notifiers(net, event_type, &info.info);
+	return mr_call_mfc_notifiers(net, RTNL_FAMILY_IPMR, event_type,
+				     &mfc->_c, tb_id, &net->ipv4.ipmr_seq);
 }
 
 /**

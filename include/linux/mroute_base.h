@@ -152,6 +152,50 @@ struct mr_mfc {
 	struct rcu_head	rcu;
 };
 
+struct mfc_entry_notifier_info {
+	struct fib_notifier_info info;
+	struct mr_mfc *mfc;
+	u32 tb_id;
+};
+
+static inline int mr_call_mfc_notifier(struct notifier_block *nb,
+				       struct net *net,
+				       unsigned short family,
+				       enum fib_event_type event_type,
+				       struct mr_mfc *mfc, u32 tb_id)
+{
+	struct mfc_entry_notifier_info info = {
+		.info = {
+			.family = family,
+			.net = net,
+		},
+		.mfc = mfc,
+		.tb_id = tb_id
+	};
+
+	return call_fib_notifier(nb, net, event_type, &info.info);
+}
+
+static inline int mr_call_mfc_notifiers(struct net *net,
+					unsigned short family,
+					enum fib_event_type event_type,
+					struct mr_mfc *mfc, u32 tb_id,
+					unsigned int *ipmr_seq)
+{
+	struct mfc_entry_notifier_info info = {
+		.info = {
+			.family = family,
+			.net = net,
+		},
+		.mfc = mfc,
+		.tb_id = tb_id
+	};
+
+	ASSERT_RTNL();
+	(*ipmr_seq)++;
+	return call_fib_notifiers(net, event_type, &info.info);
+}
+
 struct mr_table;
 
 /**
