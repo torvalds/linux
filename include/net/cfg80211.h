@@ -1454,6 +1454,8 @@ struct mesh_config {
  * @userspace_handles_dfs: whether user space controls DFS operation, i.e.
  *	changes the channel when a radar is detected. This is required
  *	to operate on DFS channels.
+ * @control_port_over_nl80211: TRUE if userspace expects to exchange control
+ *	port frames over NL80211 instead of the network interface.
  *
  * These parameters are fixed when the mesh is created.
  */
@@ -1476,6 +1478,7 @@ struct mesh_setup {
 	u32 basic_rates;
 	struct cfg80211_bitrate_mask beacon_rate;
 	bool userspace_handles_dfs;
+	bool control_port_over_nl80211;
 };
 
 /**
