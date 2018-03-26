@@ -8,6 +8,7 @@
 #include <net/net_namespace.h>
 #include <uapi/linux/mroute6.h>
 #include <linux/mroute_base.h>
+#include <net/fib_rules.h>
 
 #ifdef CONFIG_IPV6_MROUTE
 static inline int ip6_mroute_opt(int opt)
@@ -60,6 +61,15 @@ static inline int ip6_mr_init(void)
 static inline void ip6_mr_cleanup(void)
 {
 	return;
+}
+#endif
+
+#ifdef CONFIG_IPV6_MROUTE_MULTIPLE_TABLES
+bool ip6mr_rule_default(const struct fib_rule *rule);
+#else
+static inline bool ip6mr_rule_default(const struct fib_rule *rule)
+{
+	return true;
 }
 #endif
 

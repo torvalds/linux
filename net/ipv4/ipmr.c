@@ -644,80 +644,22 @@ static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)
 }
 #endif
 
-static int call_ipmr_vif_entry_notifier(struct notifier_block *nb,
-					struct net *net,
-					enum fib_event_type event_type,
-					struct vif_device *vif,
-					vifi_t vif_index, u32 tb_id)
-{
-	struct vif_entry_notifier_info info = {
-		.info = {
-			.family = RTNL_FAMILY_IPMR,
-			.net = net,
-		},
-		.dev = vif->dev,
-		.vif_index = vif_index,
-		.vif_flags = vif->flags,
-		.tb_id = tb_id,
-	};
-
-	return call_fib_notifier(nb, net, event_type, &info.info);
-}
-
 static int call_ipmr_vif_entry_notifiers(struct net *net,
 					 enum fib_event_type event_type,
 					 struct vif_device *vif,
 					 vifi_t vif_index, u32 tb_id)
 {
-	struct vif_entry_notifier_info info = {
-		.info = {
-			.family = RTNL_FAMILY_IPMR,
-			.net = net,
-		},
-		.dev = vif->dev,
-		.vif_index = vif_index,
-		.vif_flags = vif->flags,
-		.tb_id = tb_id,
-	};
-
-	ASSERT_RTNL();
-	net->ipv4.ipmr_seq++;
-	return call_fib_notifiers(net, event_type, &info.info);
-}
-
-static int call_ipmr_mfc_entry_notifier(struct notifier_block *nb,
-					struct net *net,
-					enum fib_event_type event_type,
-					struct mfc_cache *mfc, u32 tb_id)
-{
-	struct mfc_entry_notifier_info info = {
-		.info = {
-			.family = RTNL_FAMILY_IPMR,
-			.net = net,
-		},
-		.mfc = mfc,
-		.tb_id = tb_id
-	};
-
-	return call_fib_notifier(nb, net, event_type, &info.info);
+	return mr_call_vif_notifiers(net, RTNL_FAMILY_IPMR, event_type,
+				     vif, vif_index, tb_id,
+				     &net->ipv4.ipmr_seq);
 }
 
 static int call_ipmr_mfc_entry_notifiers(struct net *net,
 					 enum fib_event_type event_type,
 					 struct mfc_cache *mfc, u32 tb_id)
 {
-	struct mfc_entry_notifier_info info = {
-		.info = {
-			.family = RTNL_FAMILY_IPMR,
-			.net = net,
-		},
-		.mfc = mfc,
-		.tb_id = tb_id
-	};
-
-	ASSERT_RTNL();
-	net->ipv4.ipmr_seq++;
-	return call_fib_notifiers(net, event_type, &info.info);
+	return mr_call_mfc_notifiers(net, RTNL_FAMILY_IPMR, event_type,
+				     &mfc->_c, tb_id, &net->ipv4.ipmr_seq);
 }
 
 /**
@@ -790,11 +732,10 @@ static void ipmr_cache_free_rcu(struct rcu_head *head)
 	kmem_cache_free(mrt_cachep, (struct mfc_cache *)c);
 }
 
-void ipmr_cache_free(struct mfc_cache *c)
+static void ipmr_cache_free(struct mfc_cache *c)
 {
 	call_rcu(&c->_c.rcu, ipmr_cache_free_rcu);
 }
-EXPORT_SYMBOL(ipmr_cache_free);
 
 /* Destroy an unresolved cache entry, killing queued skbs
  * and reporting error to netlink readers.
@@ -1045,6 +986,7 @@ static struct mfc_cache *ipmr_cache_alloc(void)
 	if (c) {
 		c->_c.mfc_un.res.last_assert = jiffies - MFC_ASSERT_THRESH - 1;
 		c->_c.mfc_un.res.minvif = MAXVIFS;
+		c->_c.free = ipmr_cache_free_rcu;
 		refcount_set(&c->_c.mfc_un.res.refcount, 1);
 	}
 	return c;
@@ -1264,7 +1206,7 @@ static int ipmr_mfc_delete(struct mr_table *mrt, struct mfcctl *mfc, int parent)
 	list_del_rcu(&c->_c.list);
 	call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, c, mrt->id);
 	mroute_netlink_event(mrt, c, RTM_DELROUTE);
-	ipmr_cache_put(c);
+	mr_cache_put(&c->_c);
 
 	return 0;
 }
@@ -1376,7 +1318,7 @@ static void mroute_clean_tables(struct mr_table *mrt, bool all)
 		call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, cache,
 					      mrt->id);
 		mroute_netlink_event(mrt, cache, RTM_DELROUTE);
-		ipmr_cache_put(cache);
+		mr_cache_put(c);
 	}
 
 	if (atomic_read(&mrt->cache_resolve_queue_len) != 0) {
@@ -2989,38 +2931,8 @@ static unsigned int ipmr_seq_read(struct net *net)
 
 static int ipmr_dump(struct net *net, struct notifier_block *nb)
 {
-	struct mr_table *mrt;
-	int err;
-
-	err = ipmr_rules_dump(net, nb);
-	if (err)
-		return err;
-
-	ipmr_for_each_table(mrt, net) {
-		struct vif_device *v = &mrt->vif_table[0];
-		struct mr_mfc *mfc;
-		int vifi;
-
-		/* Notifiy on table VIF entries */
-		read_lock(&mrt_lock);
-		for (vifi = 0; vifi < mrt->maxvif; vifi++, v++) {
-			if (!v->dev)
-				continue;
-
-			call_ipmr_vif_entry_notifier(nb, net, FIB_EVENT_VIF_ADD,
-						     v, vifi, mrt->id);
-		}
-		read_unlock(&mrt_lock);
-
-		/* Notify on table MFC entries */
-		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list)
-			call_ipmr_mfc_entry_notifier(nb, net,
-						     FIB_EVENT_ENTRY_ADD,
-						     (struct mfc_cache *)mfc,
-						     mrt->id);
-	}
-
-	return 0;
+	return mr_dump(net, nb, RTNL_FAMILY_IPMR, ipmr_rules_dump,
+		       ipmr_mr_table_iter, &mrt_lock);
 }
 
 static const struct fib_notifier_ops ipmr_notifier_ops_template = {

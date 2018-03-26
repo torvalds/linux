@@ -4225,6 +4225,12 @@ MLXSW_ITEM32(reg, ritr, ipv6, 0x00, 28, 1);
  */
 MLXSW_ITEM32(reg, ritr, ipv4_mc, 0x00, 27, 1);
 
+/* reg_ritr_ipv6_mc
+ * IPv6 multicast routing enable.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ipv6_mc, 0x00, 26, 1);
+
 enum mlxsw_reg_ritr_if_type {
 	/* VLAN interface. */
 	MLXSW_REG_RITR_VLAN_IF,
@@ -4289,6 +4295,14 @@ MLXSW_ITEM32(reg, ritr, ipv6_fe, 0x04, 28, 1);
  * Access: RW
  */
 MLXSW_ITEM32(reg, ritr, ipv4_mc_fe, 0x04, 27, 1);
+
+/* reg_ritr_ipv6_mc_fe
+ * IPv6 Multicast Forwarding Enable.
+ * When disabled, forwarding is blocked but local traffic (traps and IP to me)
+ * will be enabled.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ipv6_mc_fe, 0x04, 26, 1);
 
 /* reg_ritr_lb_en
  * Loop-back filter enable for unicast packets.
@@ -4513,12 +4527,14 @@ static inline void mlxsw_reg_ritr_pack(char *payload, bool enable,
 	mlxsw_reg_ritr_ipv4_set(payload, 1);
 	mlxsw_reg_ritr_ipv6_set(payload, 1);
 	mlxsw_reg_ritr_ipv4_mc_set(payload, 1);
+	mlxsw_reg_ritr_ipv6_mc_set(payload, 1);
 	mlxsw_reg_ritr_type_set(payload, type);
 	mlxsw_reg_ritr_op_set(payload, op);
 	mlxsw_reg_ritr_rif_set(payload, rif);
 	mlxsw_reg_ritr_ipv4_fe_set(payload, 1);
 	mlxsw_reg_ritr_ipv6_fe_set(payload, 1);
 	mlxsw_reg_ritr_ipv4_mc_fe_set(payload, 1);
+	mlxsw_reg_ritr_ipv6_mc_fe_set(payload, 1);
 	mlxsw_reg_ritr_lb_en_set(payload, 1);
 	mlxsw_reg_ritr_virtual_router_set(payload, vr_id);
 	mlxsw_reg_ritr_mtu_set(payload, mtu);
@@ -6302,30 +6318,34 @@ MLXSW_ITEM32(reg, rmft2, irif_mask, 0x08, 24, 1);
  */
 MLXSW_ITEM32(reg, rmft2, irif, 0x08, 0, 16);
 
-/* reg_rmft2_dip4
- * Destination IPv4 address
+/* reg_rmft2_dip{4,6}
+ * Destination IPv4/6 address
  * Access: RW
  */
+MLXSW_ITEM_BUF(reg, rmft2, dip6, 0x10, 16);
 MLXSW_ITEM32(reg, rmft2, dip4, 0x1C, 0, 32);
 
-/* reg_rmft2_dip4_mask
+/* reg_rmft2_dip{4,6}_mask
  * A bit that is set directs the TCAM to compare the corresponding bit in key. A
  * bit that is clear directs the TCAM to ignore the corresponding bit in key.
  * Access: RW
  */
+MLXSW_ITEM_BUF(reg, rmft2, dip6_mask, 0x20, 16);
 MLXSW_ITEM32(reg, rmft2, dip4_mask, 0x2C, 0, 32);
 
-/* reg_rmft2_sip4
- * Source IPv4 address
+/* reg_rmft2_sip{4,6}
+ * Source IPv4/6 address
  * Access: RW
  */
+MLXSW_ITEM_BUF(reg, rmft2, sip6, 0x30, 16);
 MLXSW_ITEM32(reg, rmft2, sip4, 0x3C, 0, 32);
 
-/* reg_rmft2_sip4_mask
+/* reg_rmft2_sip{4,6}_mask
  * A bit that is set directs the TCAM to compare the corresponding bit in key. A
  * bit that is clear directs the TCAM to ignore the corresponding bit in key.
  * Access: RW
  */
+MLXSW_ITEM_BUF(reg, rmft2, sip6_mask, 0x40, 16);
 MLXSW_ITEM32(reg, rmft2, sip4_mask, 0x4C, 0, 32);
 
 /* reg_rmft2_flexible_action_set
@@ -6343,26 +6363,52 @@ MLXSW_ITEM_BUF(reg, rmft2, flexible_action_set, 0x80,
 	       MLXSW_REG_FLEX_ACTION_SET_LEN);
 
 static inline void
-mlxsw_reg_rmft2_ipv4_pack(char *payload, bool v, u16 offset, u16 virtual_router,
-			  enum mlxsw_reg_rmft2_irif_mask irif_mask, u16 irif,
-			  u32 dip4, u32 dip4_mask, u32 sip4, u32 sip4_mask,
-			  const char *flexible_action_set)
+mlxsw_reg_rmft2_common_pack(char *payload, bool v, u16 offset,
+			    u16 virtual_router,
+			    enum mlxsw_reg_rmft2_irif_mask irif_mask, u16 irif,
+			    const char *flex_action_set)
 {
 	MLXSW_REG_ZERO(rmft2, payload);
 	mlxsw_reg_rmft2_v_set(payload, v);
-	mlxsw_reg_rmft2_type_set(payload, MLXSW_REG_RMFT2_TYPE_IPV4);
 	mlxsw_reg_rmft2_op_set(payload, MLXSW_REG_RMFT2_OP_READ_WRITE);
 	mlxsw_reg_rmft2_offset_set(payload, offset);
 	mlxsw_reg_rmft2_virtual_router_set(payload, virtual_router);
 	mlxsw_reg_rmft2_irif_mask_set(payload, irif_mask);
 	mlxsw_reg_rmft2_irif_set(payload, irif);
+	if (flex_action_set)
+		mlxsw_reg_rmft2_flexible_action_set_memcpy_to(payload,
+							      flex_action_set);
+}
+
+static inline void
+mlxsw_reg_rmft2_ipv4_pack(char *payload, bool v, u16 offset, u16 virtual_router,
+			  enum mlxsw_reg_rmft2_irif_mask irif_mask, u16 irif,
+			  u32 dip4, u32 dip4_mask, u32 sip4, u32 sip4_mask,
+			  const char *flexible_action_set)
+{
+	mlxsw_reg_rmft2_common_pack(payload, v, offset, virtual_router,
+				    irif_mask, irif, flexible_action_set);
+	mlxsw_reg_rmft2_type_set(payload, MLXSW_REG_RMFT2_TYPE_IPV4);
 	mlxsw_reg_rmft2_dip4_set(payload, dip4);
 	mlxsw_reg_rmft2_dip4_mask_set(payload, dip4_mask);
 	mlxsw_reg_rmft2_sip4_set(payload, sip4);
 	mlxsw_reg_rmft2_sip4_mask_set(payload, sip4_mask);
-	if (flexible_action_set)
-		mlxsw_reg_rmft2_flexible_action_set_memcpy_to(payload,
-							      flexible_action_set);
+}
+
+static inline void
+mlxsw_reg_rmft2_ipv6_pack(char *payload, bool v, u16 offset, u16 virtual_router,
+			  enum mlxsw_reg_rmft2_irif_mask irif_mask, u16 irif,
+			  struct in6_addr dip6, struct in6_addr dip6_mask,
+			  struct in6_addr sip6, struct in6_addr sip6_mask,
+			  const char *flexible_action_set)
+{
+	mlxsw_reg_rmft2_common_pack(payload, v, offset, virtual_router,
+				    irif_mask, irif, flexible_action_set);
+	mlxsw_reg_rmft2_type_set(payload, MLXSW_REG_RMFT2_TYPE_IPV6);
+	mlxsw_reg_rmft2_dip6_memcpy_to(payload, (void *)&dip6);
+	mlxsw_reg_rmft2_dip6_mask_memcpy_to(payload, (void *)&dip6_mask);
+	mlxsw_reg_rmft2_sip6_memcpy_to(payload, (void *)&sip6);
+	mlxsw_reg_rmft2_sip6_mask_memcpy_to(payload, (void *)&sip6_mask);
 }
 
 /* MFCR - Management Fan Control Register

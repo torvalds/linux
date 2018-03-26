@@ -55,14 +55,6 @@ static inline bool ipmr_rule_default(const struct fib_rule *rule)
 }
 #endif
 
-struct vif_entry_notifier_info {
-	struct fib_notifier_info info;
-	struct net_device *dev;
-	vifi_t vif_index;
-	unsigned short vif_flags;
-	u32 tb_id;
-};
-
 #define VIFF_STATIC 0x8000
 
 struct mfc_cache_cmp_arg {
@@ -88,33 +80,8 @@ struct mfc_cache {
 	};
 };
 
-struct mfc_entry_notifier_info {
-	struct fib_notifier_info info;
-	struct mfc_cache *mfc;
-	u32 tb_id;
-};
-
 struct rtmsg;
 int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		   __be32 saddr, __be32 daddr,
 		   struct rtmsg *rtm, u32 portid);
-
-#ifdef CONFIG_IP_MROUTE
-void ipmr_cache_free(struct mfc_cache *mfc_cache);
-#else
-static inline void ipmr_cache_free(struct mfc_cache *mfc_cache)
-{
-}
-#endif
-
-static inline void ipmr_cache_put(struct mfc_cache *c)
-{
-	if (refcount_dec_and_test(&c->_c.mfc_un.res.refcount))
-		ipmr_cache_free(c);
-}
-static inline void ipmr_cache_hold(struct mfc_cache *c)
-{
-	refcount_inc(&c->_c.mfc_un.res.refcount);
-}
-
 #endif

@@ -467,7 +467,7 @@ struct mlxsw_sp_vr {
 	unsigned int rif_count;
 	struct mlxsw_sp_fib *fib4;
 	struct mlxsw_sp_fib *fib6;
-	struct mlxsw_sp_mr_table *mr4_table;
+	struct mlxsw_sp_mr_table *mr_table[MLXSW_SP_L3_PROTO_MAX];
 };
 
 static const struct rhashtable_params mlxsw_sp_fib_ht_params;
@@ -711,7 +711,9 @@ static void mlxsw_sp_lpm_fini(struct mlxsw_sp *mlxsw_sp)
 
 static bool mlxsw_sp_vr_is_used(const struct mlxsw_sp_vr *vr)
 {
-	return !!vr->fib4 || !!vr->fib6 || !!vr->mr4_table;
+	return !!vr->fib4 || !!vr->fib6 ||
+	       !!vr->mr_table[MLXSW_SP_L3_PROTO_IPV4] ||
+	       !!vr->mr_table[MLXSW_SP_L3_PROTO_IPV6];
 }
 
 static struct mlxsw_sp_vr *mlxsw_sp_vr_find_unused(struct mlxsw_sp *mlxsw_sp)
@@ -789,7 +791,7 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_create(struct mlxsw_sp *mlxsw_sp,
 					      u32 tb_id,
 					      struct netlink_ext_ack *extack)
 {
-	struct mlxsw_sp_mr_table *mr4_table;
+	struct mlxsw_sp_mr_table *mr4_table, *mr6_table;
 	struct mlxsw_sp_fib *fib4;
 	struct mlxsw_sp_fib *fib6;
 	struct mlxsw_sp_vr *vr;
@@ -812,15 +814,25 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_create(struct mlxsw_sp *mlxsw_sp,
 					     MLXSW_SP_L3_PROTO_IPV4);
 	if (IS_ERR(mr4_table)) {
 		err = PTR_ERR(mr4_table);
-		goto err_mr_table_create;
+		goto err_mr4_table_create;
 	}
+	mr6_table = mlxsw_sp_mr_table_create(mlxsw_sp, vr->id,
+					     MLXSW_SP_L3_PROTO_IPV6);
+	if (IS_ERR(mr6_table)) {
+		err = PTR_ERR(mr6_table);
+		goto err_mr6_table_create;
+	}
+
 	vr->fib4 = fib4;
 	vr->fib6 = fib6;
-	vr->mr4_table = mr4_table;
+	vr->mr_table[MLXSW_SP_L3_PROTO_IPV4] = mr4_table;
+	vr->mr_table[MLXSW_SP_L3_PROTO_IPV6] = mr6_table;
 	vr->tb_id = tb_id;
 	return vr;
 
-err_mr_table_create:
+err_mr6_table_create:
+	mlxsw_sp_mr_table_destroy(mr4_table);
+err_mr4_table_create:
 	mlxsw_sp_fib_destroy(mlxsw_sp, fib6);
 err_fib6_create:
 	mlxsw_sp_fib_destroy(mlxsw_sp, fib4);
@@ -830,8 +842,10 @@ err_fib6_create:
 static void mlxsw_sp_vr_destroy(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_vr *vr)
 {
-	mlxsw_sp_mr_table_destroy(vr->mr4_table);
-	vr->mr4_table = NULL;
+	mlxsw_sp_mr_table_destroy(vr->mr_table[MLXSW_SP_L3_PROTO_IPV6]);
+	vr->mr_table[MLXSW_SP_L3_PROTO_IPV6] = NULL;
+	mlxsw_sp_mr_table_destroy(vr->mr_table[MLXSW_SP_L3_PROTO_IPV4]);
+	vr->mr_table[MLXSW_SP_L3_PROTO_IPV4] = NULL;
 	mlxsw_sp_fib_destroy(mlxsw_sp, vr->fib6);
 	vr->fib6 = NULL;
 	mlxsw_sp_fib_destroy(mlxsw_sp, vr->fib4);
@@ -854,7 +868,8 @@ static void mlxsw_sp_vr_put(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr)
 {
 	if (!vr->rif_count && list_empty(&vr->fib4->node_list) &&
 	    list_empty(&vr->fib6->node_list) &&
-	    mlxsw_sp_mr_table_empty(vr->mr4_table))
+	    mlxsw_sp_mr_table_empty(vr->mr_table[MLXSW_SP_L3_PROTO_IPV4]) &&
+	    mlxsw_sp_mr_table_empty(vr->mr_table[MLXSW_SP_L3_PROTO_IPV6]))
 		mlxsw_sp_vr_destroy(mlxsw_sp, vr);
 }
 
@@ -5378,10 +5393,20 @@ static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
+static struct mlxsw_sp_mr_table *
+mlxsw_sp_router_fibmr_family_to_table(struct mlxsw_sp_vr *vr, int family)
+{
+	if (family == RTNL_FAMILY_IPMR)
+		return vr->mr_table[MLXSW_SP_L3_PROTO_IPV4];
+	else
+		return vr->mr_table[MLXSW_SP_L3_PROTO_IPV6];
+}
+
 static int mlxsw_sp_router_fibmr_add(struct mlxsw_sp *mlxsw_sp,
 				     struct mfc_entry_notifier_info *men_info,
 				     bool replace)
 {
+	struct mlxsw_sp_mr_table *mrt;
 	struct mlxsw_sp_vr *vr;
 
 	if (mlxsw_sp->router->aborted)
@@ -5391,12 +5416,14 @@ static int mlxsw_sp_router_fibmr_add(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(vr))
 		return PTR_ERR(vr);
 
-	return mlxsw_sp_mr_route4_add(vr->mr4_table, men_info->mfc, replace);
+	mrt = mlxsw_sp_router_fibmr_family_to_table(vr, men_info->info.family);
+	return mlxsw_sp_mr_route_add(mrt, men_info->mfc, replace);
 }
 
 static void mlxsw_sp_router_fibmr_del(struct mlxsw_sp *mlxsw_sp,
 				      struct mfc_entry_notifier_info *men_info)
 {
+	struct mlxsw_sp_mr_table *mrt;
 	struct mlxsw_sp_vr *vr;
 
 	if (mlxsw_sp->router->aborted)
@@ -5406,7 +5433,8 @@ static void mlxsw_sp_router_fibmr_del(struct mlxsw_sp *mlxsw_sp,
 	if (WARN_ON(!vr))
 		return;
 
-	mlxsw_sp_mr_route4_del(vr->mr4_table, men_info->mfc);
+	mrt = mlxsw_sp_router_fibmr_family_to_table(vr, men_info->info.family);
+	mlxsw_sp_mr_route_del(mrt, men_info->mfc);
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
 
@@ -5414,6 +5442,7 @@ static int
 mlxsw_sp_router_fibmr_vif_add(struct mlxsw_sp *mlxsw_sp,
 			      struct vif_entry_notifier_info *ven_info)
 {
+	struct mlxsw_sp_mr_table *mrt;
 	struct mlxsw_sp_rif *rif;
 	struct mlxsw_sp_vr *vr;
 
@@ -5424,8 +5453,9 @@ mlxsw_sp_router_fibmr_vif_add(struct mlxsw_sp *mlxsw_sp,
 	if (IS_ERR(vr))
 		return PTR_ERR(vr);
 
+	mrt = mlxsw_sp_router_fibmr_family_to_table(vr, ven_info->info.family);
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, ven_info->dev);
-	return mlxsw_sp_mr_vif_add(vr->mr4_table, ven_info->dev,
+	return mlxsw_sp_mr_vif_add(mrt, ven_info->dev,
 				   ven_info->vif_index,
 				   ven_info->vif_flags, rif);
 }
@@ -5434,6 +5464,7 @@ static void
 mlxsw_sp_router_fibmr_vif_del(struct mlxsw_sp *mlxsw_sp,
 			      struct vif_entry_notifier_info *ven_info)
 {
+	struct mlxsw_sp_mr_table *mrt;
 	struct mlxsw_sp_vr *vr;
 
 	if (mlxsw_sp->router->aborted)
@@ -5443,7 +5474,8 @@ mlxsw_sp_router_fibmr_vif_del(struct mlxsw_sp *mlxsw_sp,
 	if (WARN_ON(!vr))
 		return;
 
-	mlxsw_sp_mr_vif_del(vr->mr4_table, ven_info->vif_index);
+	mrt = mlxsw_sp_router_fibmr_family_to_table(vr, ven_info->info.family);
+	mlxsw_sp_mr_vif_del(mrt, ven_info->vif_index);
 	mlxsw_sp_vr_put(mlxsw_sp, vr);
 }
 
@@ -5535,7 +5567,7 @@ static void mlxsw_sp_vr_fib_flush(struct mlxsw_sp *mlxsw_sp,
 
 static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp)
 {
-	int i;
+	int i, j;
 
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
 		struct mlxsw_sp_vr *vr = &mlxsw_sp->router->vrs[i];
@@ -5543,7 +5575,8 @@ static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp)
 		if (!mlxsw_sp_vr_is_used(vr))
 			continue;
 
-		mlxsw_sp_mr_table_flush(vr->mr4_table);
+		for (j = 0; j < MLXSW_SP_L3_PROTO_MAX; j++)
+			mlxsw_sp_mr_table_flush(vr->mr_table[j]);
 		mlxsw_sp_vr_fib_flush(mlxsw_sp, vr, MLXSW_SP_L3_PROTO_IPV4);
 
 		/* If virtual router was only used for IPv4, then it's no
@@ -5682,11 +5715,11 @@ static void mlxsw_sp_router_fibmr_event_work(struct work_struct *work)
 						replace);
 		if (err)
 			mlxsw_sp_router_fib_abort(mlxsw_sp);
-		ipmr_cache_put(fib_work->men_info.mfc);
+		mr_cache_put(fib_work->men_info.mfc);
 		break;
 	case FIB_EVENT_ENTRY_DEL:
 		mlxsw_sp_router_fibmr_del(mlxsw_sp, &fib_work->men_info);
-		ipmr_cache_put(fib_work->men_info.mfc);
+		mr_cache_put(fib_work->men_info.mfc);
 		break;
 	case FIB_EVENT_VIF_ADD:
 		err = mlxsw_sp_router_fibmr_vif_add(mlxsw_sp,
@@ -5766,7 +5799,7 @@ mlxsw_sp_router_fibmr_event(struct mlxsw_sp_fib_event_work *fib_work,
 	case FIB_EVENT_ENTRY_ADD: /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
 		memcpy(&fib_work->men_info, info, sizeof(fib_work->men_info));
-		ipmr_cache_hold(fib_work->men_info.mfc);
+		mr_cache_hold(fib_work->men_info.mfc);
 		break;
 	case FIB_EVENT_VIF_ADD: /* fall through */
 	case FIB_EVENT_VIF_DEL:
@@ -5808,6 +5841,10 @@ static int mlxsw_sp_router_fib_rule_event(unsigned long event,
 		if (!ipmr_rule_default(rule) && !rule->l3mdev)
 			err = -1;
 		break;
+	case RTNL_FAMILY_IP6MR:
+		if (!ip6mr_rule_default(rule) && !rule->l3mdev)
+			err = -1;
+		break;
 	}
 
 	if (err < 0)
@@ -5827,7 +5864,8 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 
 	if (!net_eq(info->net, &init_net) ||
 	    (info->family != AF_INET && info->family != AF_INET6 &&
-	     info->family != RTNL_FAMILY_IPMR))
+	     info->family != RTNL_FAMILY_IPMR &&
+	     info->family != RTNL_FAMILY_IP6MR))
 		return NOTIFY_DONE;
 
 	router = container_of(nb, struct mlxsw_sp_router, fib_nb);
@@ -5857,6 +5895,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 		INIT_WORK(&fib_work->work, mlxsw_sp_router_fib6_event_work);
 		mlxsw_sp_router_fib6_event(fib_work, info);
 		break;
+	case RTNL_FAMILY_IP6MR:
 	case RTNL_FAMILY_IPMR:
 		INIT_WORK(&fib_work->work, mlxsw_sp_router_fibmr_event_work);
 		mlxsw_sp_router_fibmr_event(fib_work, info);
@@ -6038,7 +6077,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_rif *rif;
 	struct mlxsw_sp_vr *vr;
 	u16 rif_index;
-	int err;
+	int i, err;
 
 	type = mlxsw_sp_dev_rif_type(mlxsw_sp, params->dev);
 	ops = mlxsw_sp->router->rif_ops_arr[type];
@@ -6078,9 +6117,11 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_configure;
 
-	err = mlxsw_sp_mr_rif_add(vr->mr4_table, rif);
-	if (err)
-		goto err_mr_rif_add;
+	for (i = 0; i < MLXSW_SP_L3_PROTO_MAX; i++) {
+		err = mlxsw_sp_mr_rif_add(vr->mr_table[i], rif);
+		if (err)
+			goto err_mr_rif_add;
+	}
 
 	mlxsw_sp_rif_counters_alloc(rif);
 	mlxsw_sp->router->rifs[rif_index] = rif;
@@ -6088,6 +6129,8 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	return rif;
 
 err_mr_rif_add:
+	for (i--; i >= 0; i--)
+		mlxsw_sp_mr_rif_del(vr->mr_table[i], rif);
 	ops->deconfigure(rif);
 err_configure:
 	if (fid)
@@ -6107,13 +6150,15 @@ void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	struct mlxsw_sp *mlxsw_sp = rif->mlxsw_sp;
 	struct mlxsw_sp_fid *fid = rif->fid;
 	struct mlxsw_sp_vr *vr;
+	int i;
 
 	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, rif);
 	vr = &mlxsw_sp->router->vrs[rif->vr_id];
 
 	mlxsw_sp->router->rifs[rif->rif_index] = NULL;
 	mlxsw_sp_rif_counters_free(rif);
-	mlxsw_sp_mr_rif_del(vr->mr4_table, rif);
+	for (i = 0; i < MLXSW_SP_L3_PROTO_MAX; i++)
+		mlxsw_sp_mr_rif_del(vr->mr_table[i], rif);
 	ops->deconfigure(rif);
 	if (fid)
 		/* Loopback RIFs are not associated with a FID. */
@@ -6520,13 +6565,16 @@ int mlxsw_sp_netdevice_router_port_event(struct net_device *dev)
 
 	if (rif->mtu != dev->mtu) {
 		struct mlxsw_sp_vr *vr;
+		int i;
 
 		/* The RIF is relevant only to its mr_table instance, as unlike
 		 * unicast routing, in multicast routing a RIF cannot be shared
 		 * between several multicast routing tables.
 		 */
 		vr = &mlxsw_sp->router->vrs[rif->vr_id];
-		mlxsw_sp_mr_rif_mtu_update(vr->mr4_table, rif, dev->mtu);
+		for (i = 0; i < MLXSW_SP_L3_PROTO_MAX; i++)
+			mlxsw_sp_mr_rif_mtu_update(vr->mr_table[i],
+						   rif, dev->mtu);
 	}
 
 	ether_addr_copy(rif->addr, dev->dev_addr);
