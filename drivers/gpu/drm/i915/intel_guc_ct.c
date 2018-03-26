@@ -88,7 +88,7 @@ static int guc_action_register_ct_buffer(struct intel_guc *guc,
 	int err;
 
 	/* Can't use generic send(), CT registration must go over MMIO */
-	err = intel_guc_send_mmio(guc, action, ARRAY_SIZE(action));
+	err = intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
 	if (err)
 		DRM_ERROR("CT: register %s buffer failed; err=%d\n",
 			  guc_ct_buffer_type_to_str(type), err);
@@ -107,7 +107,7 @@ static int guc_action_deregister_ct_buffer(struct intel_guc *guc,
 	int err;
 
 	/* Can't use generic send(), CT deregistration must go over MMIO */
-	err = intel_guc_send_mmio(guc, action, ARRAY_SIZE(action));
+	err = intel_guc_send_mmio(guc, action, ARRAY_SIZE(action), NULL, 0);
 	if (err)
 		DRM_ERROR("CT: deregister %s buffer failed; owner=%d err=%d\n",
 			  guc_ct_buffer_type_to_str(type), owner, err);
@@ -408,7 +408,8 @@ static int ctch_send(struct intel_guc *guc,
 /*
  * Command Transport (CT) buffer based GuC send function.
  */
-static int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len)
+static int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len,
+			     u32 *response_buf, u32 response_buf_size)
 {
 	struct intel_guc_ct_channel *ctch = &guc->ct.host_channel;
 	u32 status = ~0; /* undefined */
