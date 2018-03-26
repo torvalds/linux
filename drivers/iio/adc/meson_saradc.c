@@ -935,6 +935,11 @@ static const struct meson_sar_adc_data meson_sar_adc_gxm_data = {
 	.name = "meson-gxm-saradc",
 };
 
+static const struct meson_sar_adc_data meson_sar_adc_axg_data = {
+	.param = &meson_sar_adc_gxl_param,
+	.name = "meson-axg-saradc",
+};
+
 static const struct of_device_id meson_sar_adc_of_match[] = {
 	{
 		.compatible = "amlogic,meson8-saradc",
@@ -953,6 +958,9 @@ static const struct of_device_id meson_sar_adc_of_match[] = {
 	}, {
 		.compatible = "amlogic,meson-gxm-saradc",
 		.data = &meson_sar_adc_gxm_data,
+	}, {
+		.compatible = "amlogic,meson-axg-saradc",
+		.data = &meson_sar_adc_axg_data,
 	},
 	{},
 };
