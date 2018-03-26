@@ -268,6 +268,13 @@ static unsigned int ip6mr_rules_seq_read(struct net *net)
 {
 	return fib_rules_seq_read(net, RTNL_FAMILY_IP6MR);
 }
+
+bool ip6mr_rule_default(const struct fib_rule *rule)
+{
+	return fib_rule_matchall(rule) && rule->action == FR_ACT_TO_TBL &&
+	       rule->table == RT6_TABLE_DFLT && !rule->l3mdev;
+}
+EXPORT_SYMBOL(ip6mr_rule_default);
 #else
 #define ip6mr_for_each_table(mrt, net) \
 	for (mrt = net->ipv6.mrt6; mrt; mrt = NULL)
