@@ -33,6 +33,7 @@
  */
 
 #include <linux/rhashtable.h>
+#include <net/ipv6.h>
 
 #include "spectrum_mr.h"
 #include "spectrum_router.h"
@@ -840,10 +841,59 @@ static bool mlxsw_sp_mr_vif4_is_regular(const struct mlxsw_sp_mr_vif *vif)
 	return !(vif->vif_flags & (VIFF_TUNNEL | VIFF_REGISTER));
 }
 
+static bool
+mlxsw_sp_mr_route6_validate(const struct mlxsw_sp_mr_table *mr_table,
+			    const struct mr_mfc *c)
+{
+	struct mfc6_cache *mfc = (struct mfc6_cache *) c;
+
+	/* If the route is a (*,*) route, abort, as these kind of routes are
+	 * used for proxy routes.
+	 */
+	if (ipv6_addr_any(&mfc->mf6c_origin) &&
+	    ipv6_addr_any(&mfc->mf6c_mcastgrp)) {
+		dev_warn(mr_table->mlxsw_sp->bus_info->dev,
+			 "Offloading proxy routes is not supported.\n");
+		return false;
+	}
+	return true;
+}
+
+static void mlxsw_sp_mr_route6_key(struct mlxsw_sp_mr_table *mr_table,
+				   struct mlxsw_sp_mr_route_key *key,
+				   struct mr_mfc *c)
+{
+	const struct mfc6_cache *mfc = (struct mfc6_cache *) c;
+
+	memset(key, 0, sizeof(*key));
+	key->vrid = mr_table->vr_id;
+	key->proto = MLXSW_SP_L3_PROTO_IPV6;
+	key->group.addr6 = mfc->mf6c_mcastgrp;
+	memset(&key->group_mask.addr6, 0xff, sizeof(key->group_mask.addr6));
+	key->source.addr6 = mfc->mf6c_origin;
+	if (!ipv6_addr_any(&mfc->mf6c_origin))
+		memset(&key->source_mask.addr6, 0xff,
+		       sizeof(key->source_mask.addr6));
+}
+
+static bool mlxsw_sp_mr_route6_starg(const struct mlxsw_sp_mr_table *mr_table,
+				     const struct mlxsw_sp_mr_route *mr_route)
+{
+	return ipv6_addr_any(&mr_route->key.source_mask.addr6);
+}
+
+static bool mlxsw_sp_mr_vif6_is_regular(const struct mlxsw_sp_mr_vif *vif)
+{
+	return !(vif->vif_flags & MIFF_REGISTER);
+}
+
 static struct
 mlxsw_sp_mr_vif_ops mlxsw_sp_mr_vif_ops_arr[] = {
 	{
 		.is_regular = mlxsw_sp_mr_vif4_is_regular,
+	},
+	{
+		.is_regular = mlxsw_sp_mr_vif6_is_regular,
 	},
 };
 
@@ -854,6 +904,12 @@ mlxsw_sp_mr_table_ops mlxsw_sp_mr_table_ops_arr[] = {
 		.key_create = mlxsw_sp_mr_route4_key,
 		.is_route_starg = mlxsw_sp_mr_route4_starg,
 	},
+	{
+		.is_route_valid = mlxsw_sp_mr_route6_validate,
+		.key_create = mlxsw_sp_mr_route6_key,
+		.is_route_starg = mlxsw_sp_mr_route6_starg,
+	},
+
 };
 
 struct mlxsw_sp_mr_table *mlxsw_sp_mr_table_create(struct mlxsw_sp *mlxsw_sp,
