@@ -971,6 +971,7 @@ static void cxlflash_remove(struct pci_dev *pdev)
 	case INIT_STATE_AFU:
 		term_afu(cfg);
 	case INIT_STATE_PCI:
+		cfg->ops->destroy_afu(cfg->afu_cookie);
 		pci_disable_device(pdev);
 	case INIT_STATE_NONE:
 		free_mem(cfg);
@@ -3689,14 +3690,18 @@ static int cxlflash_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, cfg);
 
-	cfg->afu_cookie = cfg->ops->create_afu(pdev);
-
 	rc = init_pci(cfg);
 	if (rc) {
 		dev_err(dev, "%s: init_pci failed rc=%d\n", __func__, rc);
 		goto out_remove;
 	}
 	cfg->init_state = INIT_STATE_PCI;
+
+	cfg->afu_cookie = cfg->ops->create_afu(pdev);
+	if (unlikely(!cfg->afu_cookie)) {
+		dev_err(dev, "%s: create_afu failed\n", __func__);
+		goto out_remove;
+	}
 
 	rc = init_afu(cfg);
 	if (rc && !wq_has_sleeper(&cfg->reset_waitq)) {

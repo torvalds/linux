@@ -36,6 +36,7 @@ struct cxlflash_backend_ops {
 	int (*allocate_afu_irqs)(void *ctx_cookie, int num);
 	void (*free_afu_irqs)(void *ctx_cookie);
 	void * (*create_afu)(struct pci_dev *dev);
+	void (*destroy_afu)(void *afu_cookie);
 	struct file * (*get_fd)(void *ctx_cookie, struct file_operations *fops,
 				int *fd);
 	void * (*fops_get_context)(struct file *file);

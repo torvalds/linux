@@ -110,6 +110,11 @@ static void *cxlflash_create_afu(struct pci_dev *dev)
 	return cxl_pci_to_afu(dev);
 }
 
+static void cxlflash_destroy_afu(void *afu)
+{
+	/* Dummy fop for cxl */
+}
+
 static struct file *cxlflash_get_fd(void *ctx_cookie,
 				    struct file_operations *fops, int *fd)
 {
@@ -160,6 +165,7 @@ const struct cxlflash_backend_ops cxlflash_cxl_ops = {
 	.allocate_afu_irqs	= cxlflash_allocate_afu_irqs,
 	.free_afu_irqs		= cxlflash_free_afu_irqs,
 	.create_afu		= cxlflash_create_afu,
+	.destroy_afu		= cxlflash_destroy_afu,
 	.get_fd			= cxlflash_get_fd,
 	.fops_get_context	= cxlflash_fops_get_context,
 	.start_work		= cxlflash_start_work,
