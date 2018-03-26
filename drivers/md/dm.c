@@ -1477,6 +1477,23 @@ static int __send_write_zeroes(struct clone_info *ci, struct dm_target *ti)
 	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios, NULL);
 }
 
+static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
+				  int *result)
+{
+	struct bio *bio = ci->bio;
+
+	if (bio_op(bio) == REQ_OP_DISCARD)
+		*result = __send_discard(ci, ti);
+	else if (bio_op(bio) == REQ_OP_WRITE_SAME)
+		*result = __send_write_same(ci, ti);
+	else if (bio_op(bio) == REQ_OP_WRITE_ZEROES)
+		*result = __send_write_zeroes(ci, ti);
+	else
+		return false;
+
+	return true;
+}
+
 /*
  * Select the correct strategy for processing a non-flush bio.
  */
@@ -1491,12 +1508,8 @@ static int __split_and_process_non_flush(struct clone_info *ci)
 	if (!dm_target_is_valid(ti))
 		return -EIO;
 
-	if (unlikely(bio_op(bio) == REQ_OP_DISCARD))
-		return __send_discard(ci, ti);
-	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_SAME))
-		return __send_write_same(ci, ti);
-	else if (unlikely(bio_op(bio) == REQ_OP_WRITE_ZEROES))
-		return __send_write_zeroes(ci, ti);
+	if (unlikely(__process_abnormal_io(ci, ti, &r)))
+		return r;
 
 	if (bio_op(bio) == REQ_OP_ZONE_REPORT)
 		len = ci->sector_count;
@@ -1617,9 +1630,12 @@ static blk_qc_t __process_bio(struct mapped_device *md,
 			goto out;
 		}
 
-		tio = alloc_tio(&ci, ti, 0, GFP_NOIO);
 		ci.bio = bio;
 		ci.sector_count = bio_sectors(bio);
+		if (unlikely(__process_abnormal_io(&ci, ti, &error)))
+			goto out;
+
+		tio = alloc_tio(&ci, ti, 0, GFP_NOIO);
 		ret = __clone_and_map_simple_bio(&ci, tio, NULL);
 	}
 out:
