@@ -122,14 +122,14 @@
 		  0x2 0x0 0x0 0x7fb00000 0x00000100>;
 	status = "okay";
 
-	nand@0 {
+	nand@0,0 {
 		compatible = "fsl,ifc-nand";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0x0 0x0 0x10000>;
 	};
 
-	cpld: board-control@200000000 {
+	cpld: board-control@2,0 {
 		compatible = "fsl,ls1046ardb-cpld";
 		reg = <0x2 0x0 0x0000100>;
 	};
