@@ -168,7 +168,8 @@ static int btrfs_ioctl_getflags(struct file *file, void __user *arg)
 	return 0;
 }
 
-static int check_flags(unsigned int flags)
+/* Check if @flags are a supported and valid set of FS_*_FL flags */
+static int check_fsflags(unsigned int flags)
 {
 	if (flags & ~(FS_IMMUTABLE_FL | FS_APPEND_FL | \
 		      FS_NOATIME_FL | FS_NODUMP_FL | \
@@ -205,7 +206,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	if (copy_from_user(&flags, arg, sizeof(flags)))
 		return -EFAULT;
 
-	ret = check_flags(flags);
+	ret = check_fsflags(flags);
 	if (ret)
 		return ret;
 
