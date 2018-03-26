@@ -106,7 +106,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 		       int no_time_update);
 
 /* Mask out flags that are inappropriate for the given type of inode. */
-static inline __u32 btrfs_mask_flags(umode_t mode, __u32 flags)
+static unsigned int btrfs_mask_flags(umode_t mode, unsigned int flags)
 {
 	if (S_ISDIR(mode))
 		return flags;
