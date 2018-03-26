@@ -2871,10 +2871,15 @@ void write_data_page(struct dnode_of_data *dn, struct f2fs_io_info *fio)
 int rewrite_data_page(struct f2fs_io_info *fio)
 {
 	int err;
+	struct f2fs_sb_info *sbi = fio->sbi;
 
 	fio->new_blkaddr = fio->old_blkaddr;
 	/* i/o temperature is needed for passing down write hints */
 	__get_segment_type(fio);
+
+	f2fs_bug_on(sbi, !IS_DATASEG(get_seg_entry(sbi,
+			GET_SEGNO(sbi, fio->new_blkaddr))->type));
+
 	stat_inc_inplace_blocks(fio->sbi);
 
 	err = f2fs_submit_page_bio(fio);
