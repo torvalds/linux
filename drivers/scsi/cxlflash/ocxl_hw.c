@@ -422,8 +422,18 @@ static int ocxlflash_config_fn(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 			__func__, rc);
 		goto out;
 	}
+
+	rc = ocxl_config_set_TL(pdev, fcfg->dvsec_tl_pos);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: ocxl_config_set_TL failed rc=%d\n",
+			__func__, rc);
+		goto err;
+	}
 out:
 	return rc;
+err:
+	ocxl_link_release(pdev, afu->link_token);
+	goto out;
 }
 
 /**
