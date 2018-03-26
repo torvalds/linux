@@ -1043,7 +1043,7 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 
 		I915_WRITE(GEN7_OASTATUS2,
 			   ((head & GEN7_OASTATUS2_HEAD_MASK) |
-			    OA_MEM_SELECT_GGTT));
+			    GEN7_OASTATUS2_MEM_SELECT_GGTT));
 		dev_priv->perf.oa.oa_buffer.head = head;
 
 		spin_unlock_irqrestore(&dev_priv->perf.oa.oa_buffer.ptr_lock, flags);
@@ -1333,7 +1333,8 @@ static void gen7_init_oa_buffer(struct drm_i915_private *dev_priv)
 	/* Pre-DevBDW: OABUFFER must be set with counters off,
 	 * before OASTATUS1, but after OASTATUS2
 	 */
-	I915_WRITE(GEN7_OASTATUS2, gtt_offset | OA_MEM_SELECT_GGTT); /* head */
+	I915_WRITE(GEN7_OASTATUS2,
+		   gtt_offset | GEN7_OASTATUS2_MEM_SELECT_GGTT); /* head */
 	dev_priv->perf.oa.oa_buffer.head = gtt_offset;
 
 	I915_WRITE(GEN7_OABUFFER, gtt_offset);
@@ -1393,7 +1394,7 @@ static void gen8_init_oa_buffer(struct drm_i915_private *dev_priv)
 	 *  bit."
 	 */
 	I915_WRITE(GEN8_OABUFFER, gtt_offset |
-		   OABUFFER_SIZE_16M | OA_MEM_SELECT_GGTT);
+		   OABUFFER_SIZE_16M | GEN8_OABUFFER_MEM_SELECT_GGTT);
 	I915_WRITE(GEN8_OATAILPTR, gtt_offset & GEN8_OATAILPTR_MASK);
 
 	/* Mark that we need updated tail pointers to read from... */

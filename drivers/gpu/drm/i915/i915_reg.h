@@ -536,6 +536,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define GEN8_OABUFFER_UDW _MMIO(0x23b4)
 #define GEN8_OABUFFER _MMIO(0x2b14)
+#define  GEN8_OABUFFER_MEM_SELECT_GGTT      (1 << 0)  /* 0: PPGTT, 1: GGTT */
 
 #define GEN7_OASTATUS1 _MMIO(0x2364)
 #define  GEN7_OASTATUS1_TAIL_MASK	    0xffffffc0
@@ -544,7 +545,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define  GEN7_OASTATUS1_REPORT_LOST	    (1<<0)
 
 #define GEN7_OASTATUS2 _MMIO(0x2368)
-#define GEN7_OASTATUS2_HEAD_MASK    0xffffffc0
+#define  GEN7_OASTATUS2_HEAD_MASK           0xffffffc0
+#define  GEN7_OASTATUS2_MEM_SELECT_GGTT     (1 << 0) /* 0: PPGTT, 1: GGTT */
 
 #define GEN8_OASTATUS _MMIO(0x2b08)
 #define  GEN8_OASTATUS_OVERRUN_STATUS	    (1<<3)
@@ -565,8 +567,6 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define OABUFFER_SIZE_4M    (5<<3)
 #define OABUFFER_SIZE_8M    (6<<3)
 #define OABUFFER_SIZE_16M   (7<<3)
-
-#define OA_MEM_SELECT_GGTT  (1<<0)
 
 /*
  * Flexible, Aggregate EU Counter Registers.
