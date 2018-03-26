@@ -18,6 +18,80 @@
 #include "ocxl_hw.h"
 
 /**
+ * ocxlflash_set_master() - sets the context as master
+ * @ctx_cookie:	Adapter context to set as master.
+ */
+static void ocxlflash_set_master(void *ctx_cookie)
+{
+	struct ocxlflash_context *ctx = ctx_cookie;
+
+	ctx->master = true;
+}
+
+/**
+ * ocxlflash_get_context() - obtains the context associated with the host
+ * @pdev:	PCI device associated with the host.
+ * @afu_cookie:	Hardware AFU associated with the host.
+ *
+ * Return: returns the pointer to host adapter context
+ */
+static void *ocxlflash_get_context(struct pci_dev *pdev, void *afu_cookie)
+{
+	struct ocxl_hw_afu *afu = afu_cookie;
+
+	return afu->ocxl_ctx;
+}
+
+/**
+ * ocxlflash_dev_context_init() - allocate and initialize an adapter context
+ * @pdev:	PCI device associated with the host.
+ * @afu_cookie:	Hardware AFU associated with the host.
+ *
+ * Return: returns the adapter context on success, ERR_PTR on failure
+ */
+static void *ocxlflash_dev_context_init(struct pci_dev *pdev, void *afu_cookie)
+{
+	struct ocxl_hw_afu *afu = afu_cookie;
+	struct device *dev = afu->dev;
+	struct ocxlflash_context *ctx;
+	int rc;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (unlikely(!ctx)) {
+		dev_err(dev, "%s: Context allocation failed\n", __func__);
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	ctx->master = false;
+	ctx->hw_afu = afu;
+out:
+	return ctx;
+err:
+	ctx = ERR_PTR(rc);
+	goto out;
+}
+
+/**
+ * ocxlflash_release_context() - releases an adapter context
+ * @ctx_cookie:	Adapter context to be released.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_release_context(void *ctx_cookie)
+{
+	struct ocxlflash_context *ctx = ctx_cookie;
+	int rc = 0;
+
+	if (!ctx)
+		goto out;
+
+	kfree(ctx);
+out:
+	return rc;
+}
+
+/**
  * ocxlflash_destroy_afu() - destroy the AFU structure
  * @afu_cookie:	AFU to be freed.
  */
@@ -28,6 +102,7 @@ static void ocxlflash_destroy_afu(void *afu_cookie)
 	if (!afu)
 		return;
 
+	ocxlflash_release_context(afu->ocxl_ctx);
 	kfree(afu);
 }
 
@@ -134,6 +209,7 @@ out:
 static void *ocxlflash_create_afu(struct pci_dev *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct ocxlflash_context *ctx;
 	struct ocxl_hw_afu *afu;
 	int rc;
 
@@ -159,6 +235,16 @@ static void *ocxlflash_create_afu(struct pci_dev *pdev)
 			__func__, rc);
 		goto err1;
 	}
+
+	ctx = ocxlflash_dev_context_init(pdev, afu);
+	if (IS_ERR(ctx)) {
+		rc = PTR_ERR(ctx);
+		dev_err(dev, "%s: ocxlflash_dev_context_init failed rc=%d\n",
+			__func__, rc);
+		goto err1;
+	}
+
+	afu->ocxl_ctx = ctx;
 out:
 	return afu;
 err1:
@@ -170,6 +256,10 @@ err1:
 /* Backend ops to ocxlflash services */
 const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.module			= THIS_MODULE,
+	.set_master		= ocxlflash_set_master,
+	.get_context		= ocxlflash_get_context,
+	.dev_context_init	= ocxlflash_dev_context_init,
+	.release_context	= ocxlflash_release_context,
 	.create_afu		= ocxlflash_create_afu,
 	.destroy_afu		= ocxlflash_destroy_afu,
 };

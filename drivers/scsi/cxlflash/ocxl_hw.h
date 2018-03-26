@@ -14,6 +14,7 @@
 
 /* OCXL hardware AFU associated with the host */
 struct ocxl_hw_afu {
+	struct ocxlflash_context *ocxl_ctx; /* Host context */
 	struct pci_dev *pdev;		/* PCI device */
 	struct device *dev;		/* Generic device */
 
@@ -27,4 +28,9 @@ struct ocxl_hw_afu {
 
 	int max_pasid;			/* Maximum number of contexts */
 	bool is_present;		/* Function has AFUs defined */
+};
+
+struct ocxlflash_context {
+	struct ocxl_hw_afu *hw_afu;	/* HW AFU back pointer */
+	bool master;			/* Whether this is a master context */
 };
