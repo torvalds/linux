@@ -24,11 +24,12 @@ static inline void paravirt_activate_mm(struct mm_struct *prev,
 #endif	/* !CONFIG_PARAVIRT */
 
 #ifdef CONFIG_PERF_EVENTS
-extern struct static_key rdpmc_always_available;
+
+DECLARE_STATIC_KEY_FALSE(rdpmc_always_available_key);
 
 static inline void load_mm_cr4(struct mm_struct *mm)
 {
-	if (static_key_false(&rdpmc_always_available) ||
+	if (static_branch_unlikely(&rdpmc_always_available_key) ||
 	    atomic_read(&mm->context.perf_rdpmc_allowed))
 		cr4_set_bits(X86_CR4_PCE);
 	else
