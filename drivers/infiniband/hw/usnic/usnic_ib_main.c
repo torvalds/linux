@@ -95,24 +95,6 @@ void usnic_ib_log_vf(struct usnic_ib_vf *vf)
 }
 
 /* Start of netdev section */
-static inline const char *usnic_ib_netdev_event_to_string(unsigned long event)
-{
-	const char *event2str[] = {"NETDEV_NONE", "NETDEV_UP", "NETDEV_DOWN",
-		"NETDEV_REBOOT", "NETDEV_CHANGE",
-		"NETDEV_REGISTER", "NETDEV_UNREGISTER", "NETDEV_CHANGEMTU",
-		"NETDEV_CHANGEADDR", "NETDEV_GOING_DOWN", "NETDEV_FEAT_CHANGE",
-		"NETDEV_BONDING_FAILOVER", "NETDEV_PRE_UP",
-		"NETDEV_PRE_TYPE_CHANGE", "NETDEV_POST_TYPE_CHANGE",
-		"NETDEV_POST_INT", "NETDEV_UNREGISTER_FINAL", "NETDEV_RELEASE",
-		"NETDEV_NOTIFY_PEERS", "NETDEV_JOIN"
-	};
-
-	if (event >= ARRAY_SIZE(event2str))
-		return "UNKNOWN_NETDEV_EVENT";
-	else
-		return event2str[event];
-}
-
 static void usnic_ib_qp_grp_modify_active_to_err(struct usnic_ib_dev *us_ibdev)
 {
 	struct usnic_ib_ucontext *ctx;
@@ -185,7 +167,7 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 			ib_dispatch_event(&ib_event);
 		} else {
 			usnic_dbg("Ignoring %s on %s\n",
-					usnic_ib_netdev_event_to_string(event),
+					netdev_cmd_to_name(event),
 					us_ibdev->ib_dev.name);
 		}
 		break;
@@ -222,7 +204,7 @@ static void usnic_ib_handle_usdev_event(struct usnic_ib_dev *us_ibdev,
 		break;
 	default:
 		usnic_dbg("Ignoring event %s on %s",
-				usnic_ib_netdev_event_to_string(event),
+				netdev_cmd_to_name(event),
 				us_ibdev->ib_dev.name);
 	}
 	mutex_unlock(&us_ibdev->usdev_lock);
@@ -264,7 +246,7 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 	switch (event) {
 	case NETDEV_DOWN:
 		usnic_info("%s via ip notifiers",
-				usnic_ib_netdev_event_to_string(event));
+				netdev_cmd_to_name(event));
 		usnic_fwd_del_ipaddr(us_ibdev->ufdev);
 		usnic_ib_qp_grp_modify_active_to_err(us_ibdev);
 		ib_event.event = IB_EVENT_GID_CHANGE;
@@ -275,7 +257,7 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 	case NETDEV_UP:
 		usnic_fwd_add_ipaddr(us_ibdev->ufdev, ifa->ifa_address);
 		usnic_info("%s via ip notifiers: ip %pI4",
-				usnic_ib_netdev_event_to_string(event),
+				netdev_cmd_to_name(event),
 				&us_ibdev->ufdev->inaddr);
 		ib_event.event = IB_EVENT_GID_CHANGE;
 		ib_event.device = &us_ibdev->ib_dev;
@@ -284,7 +266,7 @@ static int usnic_ib_handle_inet_event(struct usnic_ib_dev *us_ibdev,
 		break;
 	default:
 		usnic_info("Ignoring event %s on %s",
-				usnic_ib_netdev_event_to_string(event),
+				netdev_cmd_to_name(event),
 				us_ibdev->ib_dev.name);
 	}
 	mutex_unlock(&us_ibdev->usdev_lock);
