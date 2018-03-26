@@ -59,6 +59,10 @@ static ssize_t opal_nvram_write(char *buf, size_t count, loff_t *index)
 		if (rc == OPAL_BUSY_EVENT)
 			opal_poll_events(NULL);
 	}
+
+	if (rc)
+		return -EIO;
+
 	*index += count;
 	return count;
 }
