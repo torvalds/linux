@@ -1921,7 +1921,6 @@ static s32 handle_get_inactive_time(struct wilc_vif *vif,
 				    struct sta_inactive_t *hif_sta_inactive)
 {
 	s32 result = 0;
-	u8 *stamac;
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
@@ -1932,11 +1931,11 @@ static s32 handle_get_inactive_time(struct wilc_vif *vif,
 	if (!wid.val)
 		return -ENOMEM;
 
-	stamac = wid.val;
-	ether_addr_copy(stamac, hif_sta_inactive->mac);
+	ether_addr_copy(wid.val, hif_sta_inactive->mac);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
+	kfree(wid.val);
 
 	if (result) {
 		netdev_err(vif->ndev, "Failed to SET inactive time\n");
@@ -2237,6 +2236,7 @@ static int handle_remain_on_chan(struct wilc_vif *vif,
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
+	kfree(wid.val);
 	if (result != 0)
 		netdev_err(vif->ndev, "Failed to set remain on channel\n");
 
@@ -2281,6 +2281,7 @@ static int handle_register_frame(struct wilc_vif *vif,
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
+	kfree(wid.val);
 	if (result) {
 		netdev_err(vif->ndev, "Failed to frame register\n");
 		result = -EINVAL;
@@ -2312,6 +2313,7 @@ static u32 handle_listen_state_expired(struct wilc_vif *vif,
 
 		result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 					      wilc_get_vif_idx(vif));
+		kfree(wid.val);
 		if (result != 0) {
 			netdev_err(vif->ndev, "Failed to set remain channel\n");
 			goto _done_;
