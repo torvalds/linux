@@ -446,20 +446,6 @@ static inline void mce_gather_info(struct mce *m, struct pt_regs *regs)
 		if (mca_cfg.rip_msr)
 			m->ip = mce_rdmsrl(mca_cfg.rip_msr);
 	}
-
-	/*
-	 * Error handlers should save the values in MCA_ADDR, MCA_MISC0, and
-	 * MCA_SYND even if MCA_STATUS[AddrV], MCA_STATUS[MiscV], and
-	 * MCA_STATUS[SyndV] are zero.
-	 */
-	if (m->cpuvendor == X86_VENDOR_AMD) {
-		u64 status = MCI_STATUS_ADDRV | MCI_STATUS_MISCV;
-
-		if (mce_flags.smca)
-			status |= MCI_STATUS_SYNDV;
-
-		m->status |= status;
-	}
 }
 
 int mce_available(struct cpuinfo_x86 *c)
