@@ -2853,8 +2853,7 @@ config CRASH_DUMP
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded"
-	default "0xffffffff84000000" if 64BIT
-	default "0x84000000" if 32BIT
+	default "0xffffffff84000000"
 	depends on CRASH_DUMP
 	help
 	  This gives the CKSEG0 or KSEG0 address where the kernel is loaded.
