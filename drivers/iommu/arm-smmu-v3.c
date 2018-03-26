@@ -91,6 +91,7 @@
 #define IDR5_OAS_42_BIT			3
 #define IDR5_OAS_44_BIT			4
 #define IDR5_OAS_48_BIT			5
+#define IDR5_OAS_52_BIT			6
 
 #define ARM_SMMU_CR0			0x20
 #define CR0_CMDQEN			(1 << 3)
@@ -147,7 +148,7 @@
 
 #define ARM_SMMU_STRTAB_BASE		0x80
 #define STRTAB_BASE_RA			(1UL << 62)
-#define STRTAB_BASE_ADDR_MASK		GENMASK_ULL(47, 6)
+#define STRTAB_BASE_ADDR_MASK		GENMASK_ULL(51, 6)
 
 #define ARM_SMMU_STRTAB_BASE_CFG	0x88
 #define STRTAB_BASE_CFG_FMT		GENMASK(17, 16)
@@ -175,7 +176,7 @@
 #define ARM_SMMU_PRIQ_IRQ_CFG2		0xdc
 
 /* Common MSI config fields */
-#define MSI_CFG0_ADDR_MASK		GENMASK_ULL(47, 2)
+#define MSI_CFG0_ADDR_MASK		GENMASK_ULL(51, 2)
 #define MSI_CFG2_SH			GENMASK(5, 4)
 #define MSI_CFG2_MEMATTR		GENMASK(3, 0)
 
@@ -194,7 +195,7 @@
 					 Q_IDX(q, p) * (q)->ent_dwords)
 
 #define Q_BASE_RWA			(1UL << 62)
-#define Q_BASE_ADDR_MASK		GENMASK_ULL(47, 5)
+#define Q_BASE_ADDR_MASK		GENMASK_ULL(51, 5)
 #define Q_BASE_LOG2SIZE			GENMASK(4, 0)
 
 /*
@@ -209,7 +210,7 @@
 
 #define STRTAB_L1_DESC_DWORDS		1
 #define STRTAB_L1_DESC_SPAN		GENMASK_ULL(4, 0)
-#define STRTAB_L1_DESC_L2PTR_MASK	GENMASK_ULL(47, 6)
+#define STRTAB_L1_DESC_L2PTR_MASK	GENMASK_ULL(51, 6)
 
 #define STRTAB_STE_DWORDS		8
 #define STRTAB_STE_0_V			(1UL << 0)
@@ -221,7 +222,7 @@
 
 #define STRTAB_STE_0_S1FMT		GENMASK_ULL(5, 4)
 #define STRTAB_STE_0_S1FMT_LINEAR	0
-#define STRTAB_STE_0_S1CTXPTR_MASK	GENMASK_ULL(47, 6)
+#define STRTAB_STE_0_S1CTXPTR_MASK	GENMASK_ULL(51, 6)
 #define STRTAB_STE_0_S1CDMAX		GENMASK_ULL(63, 59)
 
 #define STRTAB_STE_1_S1C_CACHE_NC	0UL
@@ -253,7 +254,7 @@
 #define STRTAB_STE_2_S2PTW		(1UL << 54)
 #define STRTAB_STE_2_S2R		(1UL << 58)
 
-#define STRTAB_STE_3_S2TTB_MASK		GENMASK_ULL(47, 4)
+#define STRTAB_STE_3_S2TTB_MASK		GENMASK_ULL(51, 4)
 
 /* Context descriptor (stage-1 only) */
 #define CTXDESC_CD_DWORDS		8
@@ -287,7 +288,7 @@
 #define CTXDESC_CD_0_ASET		(1UL << 47)
 #define CTXDESC_CD_0_ASID		GENMASK_ULL(63, 48)
 
-#define CTXDESC_CD_1_TTB0_MASK		GENMASK_ULL(47, 4)
+#define CTXDESC_CD_1_TTB0_MASK		GENMASK_ULL(51, 4)
 
 /* Convert between AArch64 (CPU) TCR format and SMMU CD format */
 #define ARM_SMMU_TCR2CD(tcr, fld)	FIELD_PREP(CTXDESC_CD_0_TCR_##fld, \
@@ -317,7 +318,7 @@
 #define CMDQ_TLBI_0_ASID		GENMASK_ULL(63, 48)
 #define CMDQ_TLBI_1_LEAF		(1UL << 0)
 #define CMDQ_TLBI_1_VA_MASK		GENMASK_ULL(63, 12)
-#define CMDQ_TLBI_1_IPA_MASK		GENMASK_ULL(47, 12)
+#define CMDQ_TLBI_1_IPA_MASK		GENMASK_ULL(51, 12)
 
 #define CMDQ_PRI_0_SSID			GENMASK_ULL(31, 12)
 #define CMDQ_PRI_0_SID			GENMASK_ULL(63, 32)
@@ -331,7 +332,7 @@
 #define CMDQ_SYNC_0_MSH			GENMASK_ULL(23, 22)
 #define CMDQ_SYNC_0_MSIATTR		GENMASK_ULL(27, 24)
 #define CMDQ_SYNC_0_MSIDATA		GENMASK_ULL(63, 32)
-#define CMDQ_SYNC_1_MSIADDR_MASK	GENMASK_ULL(47, 2)
+#define CMDQ_SYNC_1_MSIADDR_MASK	GENMASK_ULL(51, 2)
 
 /* Event queue */
 #define EVTQ_ENT_DWORDS			4
@@ -1622,7 +1623,7 @@ static int arm_smmu_domain_finalise(struct iommu_domain *domain)
 		return -ENOMEM;
 
 	domain->pgsize_bitmap = pgtbl_cfg.pgsize_bitmap;
-	domain->geometry.aperture_end = (1UL << ias) - 1;
+	domain->geometry.aperture_end = (1UL << pgtbl_cfg.ias) - 1;
 	domain->geometry.force_aperture = true;
 
 	ret = finalise_stage_fn(smmu_domain, &pgtbl_cfg);
@@ -2644,11 +2645,6 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	if (reg & IDR5_GRAN4K)
 		smmu->pgsize_bitmap |= SZ_4K | SZ_2M | SZ_1G;
 
-	if (arm_smmu_ops.pgsize_bitmap == -1UL)
-		arm_smmu_ops.pgsize_bitmap = smmu->pgsize_bitmap;
-	else
-		arm_smmu_ops.pgsize_bitmap |= smmu->pgsize_bitmap;
-
 	/* Output address size */
 	switch (FIELD_GET(IDR5_OAS, reg)) {
 	case IDR5_OAS_32_BIT:
@@ -2666,6 +2662,10 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	case IDR5_OAS_44_BIT:
 		smmu->oas = 44;
 		break;
+	case IDR5_OAS_52_BIT:
+		smmu->oas = 52;
+		smmu->pgsize_bitmap |= 1ULL << 42; /* 4TB */
+		break;
 	default:
 		dev_info(smmu->dev,
 			"unknown output address size. Truncating to 48-bit\n");
@@ -2673,6 +2673,11 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	case IDR5_OAS_48_BIT:
 		smmu->oas = 48;
 	}
+
+	if (arm_smmu_ops.pgsize_bitmap == -1UL)
+		arm_smmu_ops.pgsize_bitmap = smmu->pgsize_bitmap;
+	else
+		arm_smmu_ops.pgsize_bitmap |= smmu->pgsize_bitmap;
 
 	/* Set the DMA mask for our table walker */
 	if (dma_set_mask_and_coherent(smmu->dev, DMA_BIT_MASK(smmu->oas)))
