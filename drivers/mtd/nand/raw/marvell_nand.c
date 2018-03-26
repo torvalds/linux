@@ -307,7 +307,7 @@ struct marvell_nfc_caps {
  * @controller:		Base controller structure
  * @dev:		Parent device (used to print error messages)
  * @regs:		NAND controller registers
- * @ecc_clk:		ECC block clock, two times the NAND controller clock
+ * @core_clk:		Core clock
  * @reg_clk:		Regiters clock
  * @complete:		Completion object to wait for NAND controller events
  * @assigned_cs:	Bitmask describing already assigned CS lines
@@ -321,7 +321,7 @@ struct marvell_nfc {
 	struct nand_hw_control controller;
 	struct device *dev;
 	void __iomem *regs;
-	struct clk *ecc_clk;
+	struct clk *core_clk;
 	struct clk *reg_clk;
 	struct completion complete;
 	unsigned long assigned_cs;
@@ -2193,7 +2193,7 @@ static int marvell_nfc_setup_data_interface(struct mtd_info *mtd, int chipnr,
 	struct nand_chip *chip = mtd_to_nand(mtd);
 	struct marvell_nand_chip *marvell_nand = to_marvell_nand(chip);
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
-	unsigned int period_ns = 1000000000 / clk_get_rate(nfc->ecc_clk) * 2;
+	unsigned int period_ns = 1000000000 / clk_get_rate(nfc->core_clk) * 2;
 	const struct nand_sdr_timings *sdr;
 	struct marvell_nfc_timings nfc_tmg;
 	int read_delay;
@@ -2759,16 +2759,16 @@ static int marvell_nfc_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	nfc->ecc_clk = devm_clk_get(&pdev->dev, "core");
+	nfc->core_clk = devm_clk_get(&pdev->dev, "core");
 
 	/* Managed the legacy case (when the first clock was not named) */
-	if (nfc->ecc_clk == ERR_PTR(-ENOENT))
-		nfc->ecc_clk = devm_clk_get(&pdev->dev, NULL);
+	if (nfc->core_clk == ERR_PTR(-ENOENT))
+		nfc->core_clk = devm_clk_get(&pdev->dev, NULL);
 
-	if (IS_ERR(nfc->ecc_clk))
-		return PTR_ERR(nfc->ecc_clk);
+	if (IS_ERR(nfc->core_clk))
+		return PTR_ERR(nfc->core_clk);
 
-	ret = clk_prepare_enable(nfc->ecc_clk);
+	ret = clk_prepare_enable(nfc->core_clk);
 	if (ret)
 		return ret;
 
@@ -2777,10 +2777,10 @@ static int marvell_nfc_probe(struct platform_device *pdev)
 		if (!IS_ERR(nfc->reg_clk)) {
 			ret = clk_prepare_enable(nfc->reg_clk);
 			if (ret)
-				goto unprepare_ecc_clk;
+				goto unprepare_core_clk;
 		} else {
 			ret = PTR_ERR(nfc->reg_clk);
-			goto unprepare_ecc_clk;
+			goto unprepare_core_clk;
 		}
 	}
 
@@ -2818,8 +2818,8 @@ static int marvell_nfc_probe(struct platform_device *pdev)
 
 unprepare_reg_clk:
 	clk_disable_unprepare(nfc->reg_clk);
-unprepare_ecc_clk:
-	clk_disable_unprepare(nfc->ecc_clk);
+unprepare_core_clk:
+	clk_disable_unprepare(nfc->core_clk);
 
 	return ret;
 }
@@ -2836,7 +2836,7 @@ static int marvell_nfc_remove(struct platform_device *pdev)
 	}
 
 	clk_disable_unprepare(nfc->reg_clk);
-	clk_disable_unprepare(nfc->ecc_clk);
+	clk_disable_unprepare(nfc->core_clk);
 
 	return 0;
 }
