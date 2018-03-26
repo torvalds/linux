@@ -163,6 +163,16 @@ err1:
 static void __iomem *ocxlflash_psa_map(void *ctx_cookie)
 {
 	struct ocxlflash_context *ctx = ctx_cookie;
+	struct device *dev = ctx->hw_afu->dev;
+
+	mutex_lock(&ctx->state_mutex);
+	if (ctx->state != STARTED) {
+		dev_err(dev, "%s: Context not started, state=%d\n", __func__,
+			ctx->state);
+		mutex_unlock(&ctx->state_mutex);
+		return NULL;
+	}
+	mutex_unlock(&ctx->state_mutex);
 
 	return ioremap(ctx->psn_phys, ctx->psn_size);
 }
@@ -343,6 +353,14 @@ static int start_context(struct ocxlflash_context *ctx)
 	int rc = 0;
 	u32 pid;
 
+	mutex_lock(&ctx->state_mutex);
+	if (ctx->state != OPENED) {
+		dev_err(dev, "%s: Context state invalid, state=%d\n",
+			__func__, ctx->state);
+		rc = -EINVAL;
+		goto out;
+	}
+
 	if (master) {
 		ctx->psn_size = acfg->global_mmio_size;
 		ctx->psn_phys = afu->gmmio_phys;
@@ -366,7 +384,10 @@ static int start_context(struct ocxlflash_context *ctx)
 			__func__, rc);
 		goto out;
 	}
+
+	ctx->state = STARTED;
 out:
+	mutex_unlock(&ctx->state_mutex);
 	return rc;
 }
 
@@ -396,7 +417,15 @@ static int ocxlflash_stop_context(void *ctx_cookie)
 	struct ocxl_afu_config *acfg = &afu->acfg;
 	struct pci_dev *pdev = afu->pdev;
 	struct device *dev = afu->dev;
-	int rc;
+	enum ocxlflash_ctx_state state;
+	int rc = 0;
+
+	mutex_lock(&ctx->state_mutex);
+	state = ctx->state;
+	ctx->state = CLOSED;
+	mutex_unlock(&ctx->state_mutex);
+	if (state != STARTED)
+		goto out;
 
 	rc = ocxl_config_terminate_pasid(pdev, acfg->dvsec_afu_control_pos,
 					 ctx->pe);
@@ -474,7 +503,9 @@ static void *ocxlflash_dev_context_init(struct pci_dev *pdev, void *afu_cookie)
 
 	spin_lock_init(&ctx->slock);
 	init_waitqueue_head(&ctx->wq);
+	mutex_init(&ctx->state_mutex);
 
+	ctx->state = OPENED;
 	ctx->pe = rc;
 	ctx->master = false;
 	ctx->mapping = NULL;
@@ -499,10 +530,22 @@ err1:
 static int ocxlflash_release_context(void *ctx_cookie)
 {
 	struct ocxlflash_context *ctx = ctx_cookie;
+	struct device *dev;
 	int rc = 0;
 
 	if (!ctx)
 		goto out;
+
+	dev = ctx->hw_afu->dev;
+	mutex_lock(&ctx->state_mutex);
+	if (ctx->state >= STARTED) {
+		dev_err(dev, "%s: Context in use, state=%d\n", __func__,
+			ctx->state);
+		mutex_unlock(&ctx->state_mutex);
+		rc = -EBUSY;
+		goto out;
+	}
+	mutex_unlock(&ctx->state_mutex);
 
 	idr_remove(&ctx->hw_afu->idr, ctx->pe);
 	ocxlflash_release_mapping(ctx);
@@ -947,7 +990,7 @@ static unsigned int afu_poll(struct file *file, struct poll_table_struct *poll)
 	spin_lock_irqsave(&ctx->slock, lock_flags);
 	if (ctx_event_pending(ctx))
 		mask |= POLLIN | POLLRDNORM;
-	else
+	else if (ctx->state == CLOSED)
 		mask |= POLLERR;
 	spin_unlock_irqrestore(&ctx->slock, lock_flags);
 
@@ -990,7 +1033,7 @@ static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
 	for (;;) {
 		prepare_to_wait(&ctx->wq, &event_wait, TASK_INTERRUPTIBLE);
 
-		if (ctx_event_pending(ctx))
+		if (ctx_event_pending(ctx) || (ctx->state == CLOSED))
 			break;
 
 		if (file->f_flags & O_NONBLOCK) {
@@ -1076,11 +1119,21 @@ static int ocxlflash_mmap_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct ocxlflash_context *ctx = vma->vm_file->private_data;
+	struct device *dev = ctx->hw_afu->dev;
 	u64 mmio_area, offset;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
 	if (offset >= ctx->psn_size)
 		return VM_FAULT_SIGBUS;
+
+	mutex_lock(&ctx->state_mutex);
+	if (ctx->state != STARTED) {
+		dev_err(dev, "%s: Context not started, state=%d\n",
+			__func__, ctx->state);
+		mutex_unlock(&ctx->state_mutex);
+		return VM_FAULT_SIGBUS;
+	}
+	mutex_unlock(&ctx->state_mutex);
 
 	mmio_area = ctx->psn_phys;
 	mmio_area += offset;

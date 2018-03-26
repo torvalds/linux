@@ -46,6 +46,12 @@ struct ocxl_hw_afu {
 	bool is_present;		/* Function has AFUs defined */
 };
 
+enum ocxlflash_ctx_state {
+	CLOSED,
+	OPENED,
+	STARTED
+};
+
 struct ocxlflash_context {
 	struct ocxl_hw_afu *hw_afu;	/* HW AFU back pointer */
 	struct address_space *mapping;	/* Mapping for pseudo filesystem */
@@ -57,6 +63,8 @@ struct ocxlflash_context {
 
 	spinlock_t slock;		/* Protects irq/fault/event updates */
 	wait_queue_head_t wq;		/* Wait queue for poll and interrupts */
+	struct mutex state_mutex;	/* Mutex to update context state */
+	enum ocxlflash_ctx_state state;	/* Context state */
 
 	struct ocxlflash_irqs *irqs;	/* Pointer to array of structures */
 	int num_irqs;			/* Number of interrupts */
