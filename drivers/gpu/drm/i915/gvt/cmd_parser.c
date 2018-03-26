@@ -1079,6 +1079,7 @@ static int cmd_handler_mi_user_interrupt(struct parser_exec_state *s)
 {
 	set_bit(cmd_interrupt_events[s->ring_id].mi_user_interrupt,
 			s->workload->pending_events);
+	patch_value(s, cmd_ptr(s, 0), MI_NOOP);
 	return 0;
 }
 
