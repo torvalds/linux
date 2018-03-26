@@ -1859,12 +1859,15 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 		ptr = I915_READ(RING_CONTEXT_STATUS_PTR(engine));
 		read = GEN8_CSB_READ_PTR(ptr);
 		write = GEN8_CSB_WRITE_PTR(ptr);
-		drm_printf(m, "\tExeclist CSB read %d [%d cached], write %d [%d from hws], interrupt posted? %s\n",
+		drm_printf(m, "\tExeclist CSB read %d [%d cached], write %d [%d from hws], interrupt posted? %s, tasklet queued? %s (%s)\n",
 			   read, execlists->csb_head,
 			   write,
 			   intel_read_status_page(engine, intel_hws_csb_write_index(engine->i915)),
 			   yesno(test_bit(ENGINE_IRQ_EXECLIST,
-					  &engine->irq_posted)));
+					  &engine->irq_posted)),
+			   yesno(test_bit(TASKLET_STATE_SCHED,
+					  &engine->execlists.tasklet.state)),
+			   enableddisabled(!atomic_read(&engine->execlists.tasklet.count)));
 		if (read >= GEN8_CSB_ENTRIES)
 			read = 0;
 		if (write >= GEN8_CSB_ENTRIES)
