@@ -2533,11 +2533,13 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 		dwc3_endpoint_transfer_complete(dwc, dep, event);
 		break;
 	case DWC3_DEPEVT_XFERNOTREADY:
-		if (usb_endpoint_xfer_isoc(dep->endpoint.desc))
-			dwc3_gadget_start_isoc(dwc, dep, event);
-		else
-			__dwc3_gadget_kick_transfer(dep);
+		if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
+			dev_err(dwc->dev, "XferNotReady for non-Isoc %s\n",
+					dep->name);
+			return;
+		}
 
+		dwc3_gadget_start_isoc(dwc, dep, event);
 		break;
 	case DWC3_DEPEVT_STREAMEVT:
 		if (!usb_endpoint_xfer_bulk(dep->endpoint.desc)) {
