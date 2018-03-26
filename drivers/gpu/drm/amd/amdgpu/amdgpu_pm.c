@@ -1109,6 +1109,46 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 	return count;
 }
 
+
+/**
+ * DOC: hwmon
+ *
+ * The amdgpu driver exposes the following sensor interfaces:
+ * - GPU temperature (via the on-die sensor)
+ * - GPU voltage
+ * - Northbridge voltage (APUs only)
+ * - GPU power
+ * - GPU fan
+ *
+ * hwmon interfaces for GPU temperature:
+ * - temp1_input: the on die GPU temperature in millidegrees Celsius
+ * - temp1_crit: temperature critical max value in millidegrees Celsius
+ * - temp1_crit_hyst: temperature hysteresis for critical limit in millidegrees Celsius
+ *
+ * hwmon interfaces for GPU voltage:
+ * - in0_input: the voltage on the GPU in millivolts
+ * - in1_input: the voltage on the Northbridge in millivolts
+ *
+ * hwmon interfaces for GPU power:
+ * - power1_average: average power used by the GPU in microWatts
+ * - power1_cap_min: minimum cap supported in microWatts
+ * - power1_cap_max: maximum cap supported in microWatts
+ * - power1_cap: selected power cap in microWatts
+ *
+ * hwmon interfaces for GPU fan:
+ * - pwm1: pulse width modulation fan level (0-255)
+ * - pwm1_enable: pulse width modulation fan control method
+ *                0: no fan speed control
+ *                1: manual fan speed control using pwm interface
+ *                2: automatic fan speed control
+ * - pwm1_min: pulse width modulation fan control minimum level (0)
+ * - pwm1_max: pulse width modulation fan control maximum level (255)
+ * - fan1_input: fan speed in RPM
+ *
+ * You can use hwmon tools like sensors to view this information on your system.
+ *
+ */
+
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, amdgpu_hwmon_show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, amdgpu_hwmon_show_temp_thresh, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO, amdgpu_hwmon_show_temp_thresh, NULL, 1);
