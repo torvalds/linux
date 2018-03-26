@@ -2679,9 +2679,9 @@ ia_css_debug_pipe_graph_dump_frame(
 	}
 	dtrace_dot(
 		"node [shape = box, "
-		"fixedsize=true, width=2, height=0.7]; \"0x%08lx\" "
+		"fixedsize=true, width=2, height=0.7]; \"%p\" "
 		"[label = \"%s\\n%d(%d) x %d, %dbpp\\n%s\"];",
-		HOST_ADDRESS(frame),
+		frame,
 		debug_frame_format2str(frame->info.format),
 		frame->info.res.width,
 		frame->info.padded_width,
@@ -2691,16 +2691,16 @@ ia_css_debug_pipe_graph_dump_frame(
 
 	if (in_frame) {
 		dtrace_dot(
-			"\"0x%08lx\"->\"%s(pipe%d)\" "
+			"\"%p\"->\"%s(pipe%d)\" "
 			"[label = %s_frame];",
-			HOST_ADDRESS(frame),
+			frame,
 			blob_name, id, frame_name);
 	} else {
 		dtrace_dot(
-			"\"%s(pipe%d)\"->\"0x%08lx\" "
+			"\"%s(pipe%d)\"->\"%p\" "
 			"[label = %s_frame];",
 			blob_name, id,
-			HOST_ADDRESS(frame),
+			frame,
 			frame_name);
 	}
 }
@@ -3011,9 +3011,9 @@ ia_css_debug_pipe_graph_dump_sp_raw_copy(
 
 	snprintf(ring_buffer, sizeof(ring_buffer),
 		"node [shape = box, "
-		"fixedsize=true, width=2, height=0.7]; \"0x%08lx\" "
+		"fixedsize=true, width=2, height=0.7]; \"%p\" "
 		"[label = \"%s\\n%d(%d) x %d\\nRingbuffer\"];",
-		HOST_ADDRESS(out_frame),
+		out_frame,
 		debug_frame_format2str(out_frame->info.format),
 		out_frame->info.res.width,
 		out_frame->info.padded_width,
@@ -3022,9 +3022,9 @@ ia_css_debug_pipe_graph_dump_sp_raw_copy(
 	dtrace_dot(ring_buffer);
 
 	dtrace_dot(
-		"\"%s(pipe%d)\"->\"0x%08lx\" "
+		"\"%s(pipe%d)\"->\"%p\" "
 		"[label = out_frame];",
-		"sp_raw_copy", 1, HOST_ADDRESS(out_frame));
+		"sp_raw_copy", 1, out_frame);
 
 	snprintf(dot_id_input_bin, sizeof(dot_id_input_bin), "%s(pipe%d)", "sp_raw_copy", 1);
 }
