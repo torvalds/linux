@@ -258,23 +258,30 @@ struct sisl_host_map {
 				 * exit since there is no way to tell which
 				 * command caused the error.
 				 */
-#define SISL_ISTATUS_PERM_ERR_CMDROOM    0x0010ULL	/* b59, user error */
-#define SISL_ISTATUS_PERM_ERR_RCB_READ   0x0008ULL	/* b60, user error */
-#define SISL_ISTATUS_PERM_ERR_SA_WRITE   0x0004ULL	/* b61, user error */
-#define SISL_ISTATUS_PERM_ERR_RRQ_WRITE  0x0002ULL	/* b62, user error */
+#define SISL_ISTATUS_PERM_ERR_LISN_3_EA		0x0400ULL /* b53, user error */
+#define SISL_ISTATUS_PERM_ERR_LISN_2_EA		0x0200ULL /* b54, user error */
+#define SISL_ISTATUS_PERM_ERR_LISN_1_EA		0x0100ULL /* b55, user error */
+#define SISL_ISTATUS_PERM_ERR_LISN_3_PASID	0x0080ULL /* b56, user error */
+#define SISL_ISTATUS_PERM_ERR_LISN_2_PASID	0x0040ULL /* b57, user error */
+#define SISL_ISTATUS_PERM_ERR_LISN_1_PASID	0x0020ULL /* b58, user error */
+#define SISL_ISTATUS_PERM_ERR_CMDROOM		0x0010ULL /* b59, user error */
+#define SISL_ISTATUS_PERM_ERR_RCB_READ		0x0008ULL /* b60, user error */
+#define SISL_ISTATUS_PERM_ERR_SA_WRITE		0x0004ULL /* b61, user error */
+#define SISL_ISTATUS_PERM_ERR_RRQ_WRITE		0x0002ULL /* b62, user error */
 	/* Page in wait accessing RCB/IOASA/RRQ is reported in b63.
 	 * Same error in data/LXT/RHT access is reported via IOASA.
 	 */
-#define SISL_ISTATUS_TEMP_ERR_PAGEIN     0x0001ULL	/* b63, can be generated
-							 * only when AFU auto
-							 * retry is disabled.
-							 * If user can determine
-							 * the command that
-							 * caused the error, it
-							 * can be retried.
-							 */
-#define SISL_ISTATUS_UNMASK  (0x001FULL)	/* 1 means unmasked */
-#define SISL_ISTATUS_MASK    ~(SISL_ISTATUS_UNMASK)	/* 1 means masked */
+#define SISL_ISTATUS_TEMP_ERR_PAGEIN		0x0001ULL /* b63, can only be
+							   * generated when AFU
+							   * auto retry is
+							   * disabled. If user
+							   * can determine the
+							   * command that caused
+							   * the error, it can
+							   * be retried.
+							   */
+#define SISL_ISTATUS_UNMASK	(0x07FFULL)		/* 1 means unmasked */
+#define SISL_ISTATUS_MASK	~(SISL_ISTATUS_UNMASK)	/* 1 means masked */
 
 	__be64 intr_clear;
 	__be64 intr_mask;
