@@ -145,8 +145,8 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	data->base = devm_ioremap_nocache(dev, res->start, resource_size(res));
-	if (IS_ERR(data->base))
-		return PTR_ERR(data->base);
+	if (!data->base)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(allow_userspace_ctrl_ids); i++)
 		if (acpi_dev_present(allow_userspace_ctrl_ids[i].hid, "1",
