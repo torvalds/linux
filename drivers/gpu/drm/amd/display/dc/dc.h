@@ -333,19 +333,6 @@ enum {
 	TRANSFER_FUNC_POINTS = 1025
 };
 
-enum color_transfer_func {
-	transfer_func_unknown,
-	transfer_func_srgb,
-	transfer_func_bt709,
-	transfer_func_pq2084,
-	transfer_func_pq2084_interim,
-	transfer_func_linear_0_1,
-	transfer_func_linear_0_125,
-	transfer_func_dolbyvision,
-	transfer_func_gamma_22,
-	transfer_func_gamma_26
-};
-
 struct dc_hdr_static_metadata {
 	/* display chromaticities and white point in units of 0.00001 */
 	unsigned int chromaticity_green_x;
@@ -692,6 +679,7 @@ struct dc_cursor {
 	struct dc_plane_address address;
 	struct dc_cursor_attributes attributes;
 };
+
 
 /*******************************************************************************
  * Interrupt interfaces
