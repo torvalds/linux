@@ -287,6 +287,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_CONTROL_PORT] = { .type = NLA_FLAG },
 	[NL80211_ATTR_CONTROL_PORT_ETHERTYPE] = { .type = NLA_U16 },
 	[NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT] = { .type = NLA_FLAG },
+	[NL80211_ATTR_CONTROL_PORT_OVER_NL80211] = { .type = NLA_FLAG },
 	[NL80211_ATTR_PRIVACY] = { .type = NLA_FLAG },
 	[NL80211_ATTR_CIPHER_SUITE_GROUP] = { .type = NLA_U32 },
 	[NL80211_ATTR_WPA_VERSIONS] = { .type = NLA_U32 },
@@ -8211,6 +8212,22 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static int validate_pae_over_nl80211(struct cfg80211_registered_device *rdev,
+				     struct genl_info *info)
+{
+	if (!info->attrs[NL80211_ATTR_SOCKET_OWNER]) {
+		GENL_SET_ERR_MSG(info, "SOCKET_OWNER not set");
+		return -EINVAL;
+	}
+
+	if (!rdev->ops->tx_control_port ||
+	    !wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211))
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
 static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
 				   struct genl_info *info,
 				   struct cfg80211_crypto_settings *settings,
@@ -8233,6 +8250,15 @@ static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
 			settings->control_port_no_encrypt = true;
 	} else
 		settings->control_port_ethertype = cpu_to_be16(ETH_P_PAE);
+
+	if (info->attrs[NL80211_ATTR_CONTROL_PORT_OVER_NL80211]) {
+		int r = validate_pae_over_nl80211(rdev, info);
+
+		if (r < 0)
+			return r;
+
+		settings->control_port_over_nl80211 = true;
+	}
 
 	if (info->attrs[NL80211_ATTR_CIPHER_SUITES_PAIRWISE]) {
 		void *data;
