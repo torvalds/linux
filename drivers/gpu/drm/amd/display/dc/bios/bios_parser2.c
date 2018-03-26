@@ -1321,6 +1321,7 @@ static enum bp_result bios_parser_get_firmware_info(
 		case 3:
 			switch (revision.minor) {
 			case 1:
+			case 2:
 				result = get_firmware_info_v3_1(bp, info);
 				break;
 			default:

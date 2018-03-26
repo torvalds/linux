@@ -117,6 +117,8 @@ static int pp_sw_init(void *handle)
 
 		ret = hwmgr->smumgr_funcs->smu_init(hwmgr);
 
+		phm_register_irq_handlers(hwmgr);
+
 		pr_debug("amdgpu: powerplay sw initialized\n");
 	}
 
@@ -286,6 +288,12 @@ static int pp_resume(void *handle)
 	return hwmgr_hw_resume(hwmgr);
 }
 
+static int pp_set_clockgating_state(void *handle,
+					  enum amd_clockgating_state state)
+{
+	return 0;
+}
+
 static const struct amd_ip_funcs pp_ip_funcs = {
 	.name = "powerplay",
 	.early_init = pp_early_init,
@@ -300,7 +308,7 @@ static const struct amd_ip_funcs pp_ip_funcs = {
 	.is_idle = pp_is_idle,
 	.wait_for_idle = pp_wait_for_idle,
 	.soft_reset = pp_sw_reset,
-	.set_clockgating_state = NULL,
+	.set_clockgating_state = pp_set_clockgating_state,
 	.set_powergating_state = pp_set_powergating_state,
 };
 
@@ -732,7 +740,7 @@ static int amd_powerplay_reset(void *handle)
 	if (ret)
 		return ret;
 
-	ret = pp_hw_fini(hwmgr);
+	ret = hwmgr_hw_fini(hwmgr);
 	if (ret)
 		return ret;
 

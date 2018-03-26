@@ -534,3 +534,77 @@ int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 }
 
 
+int phm_irq_process(struct amdgpu_device *adev,
+			   struct amdgpu_irq_src *source,
+			   struct amdgpu_iv_entry *entry)
+{
+	uint32_t client_id = entry->client_id;
+	uint32_t src_id = entry->src_id;
+
+	if (client_id == AMDGPU_IH_CLIENTID_LEGACY) {
+		if (src_id == 230)
+			pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
+						PCI_BUS_NUM(adev->pdev->devfn),
+						PCI_SLOT(adev->pdev->devfn),
+						PCI_FUNC(adev->pdev->devfn));
+		else if (src_id == 231)
+			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
+					PCI_BUS_NUM(adev->pdev->devfn),
+					PCI_SLOT(adev->pdev->devfn),
+					PCI_FUNC(adev->pdev->devfn));
+		else if (src_id == 83)
+			pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
+					PCI_BUS_NUM(adev->pdev->devfn),
+					PCI_SLOT(adev->pdev->devfn),
+					PCI_FUNC(adev->pdev->devfn));
+	} else if (client_id == SOC15_IH_CLIENTID_THM) {
+		if (src_id == 0)
+			pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
+						PCI_BUS_NUM(adev->pdev->devfn),
+						PCI_SLOT(adev->pdev->devfn),
+						PCI_FUNC(adev->pdev->devfn));
+		else
+			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
+					PCI_BUS_NUM(adev->pdev->devfn),
+					PCI_SLOT(adev->pdev->devfn),
+					PCI_FUNC(adev->pdev->devfn));
+	} else if (client_id == SOC15_IH_CLIENTID_ROM_SMUIO)
+		pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
+				PCI_BUS_NUM(adev->pdev->devfn),
+				PCI_SLOT(adev->pdev->devfn),
+				PCI_FUNC(adev->pdev->devfn));
+
+	return 0;
+}
+
+static const struct amdgpu_irq_src_funcs smu9_irq_funcs = {
+	.process = phm_irq_process,
+};
+
+int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr)
+{
+	struct amdgpu_irq_src *source =
+		kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
+
+	if (!source)
+		return -ENOMEM;
+
+	source->funcs = &smu9_irq_funcs;
+
+	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
+			SOC15_IH_CLIENTID_THM,
+			0,
+			source);
+	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
+			SOC15_IH_CLIENTID_THM,
+			1,
+			source);
+
+	/* Register CTF(GPIO_19) interrupt */
+	amdgpu_irq_add_id((struct amdgpu_device *)(hwmgr->adev),
+			SOC15_IH_CLIENTID_ROM_SMUIO,
+			83,
+			source);
+
+	return 0;
+}

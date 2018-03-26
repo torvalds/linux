@@ -40,6 +40,8 @@
 
 MODULE_FIRMWARE("amdgpu/vega10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/vega10_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/vega12_sdma.bin");
+MODULE_FIRMWARE("amdgpu/vega12_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/raven_sdma.bin");
 
 #define SDMA0_POWER_CNTL__ON_OFF_CONDITION_HOLD_TIME_MASK  0x000000F8L
@@ -84,6 +86,13 @@ static const struct soc15_reg_golden golden_settings_sdma_vg10[] = {
 	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_GB_ADDR_CONFIG_READ, 0x0018773f, 0x00104002)
 };
 
+static const struct soc15_reg_golden golden_settings_sdma_vg12[] = {
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG, 0x0018773f, 0x00104001),
+	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG_READ, 0x0018773f, 0x00104001),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_GB_ADDR_CONFIG, 0x0018773f, 0x00104001),
+	SOC15_REG_GOLDEN_VALUE(SDMA1, 0, mmSDMA1_GB_ADDR_CONFIG_READ, 0x0018773f, 0x00104001)
+};
+
 static const struct soc15_reg_golden golden_settings_sdma_4_1[] =
 {
 	SOC15_REG_GOLDEN_VALUE(SDMA0, 0, mmSDMA0_CHICKEN_BITS, 0xfe931f07, 0x02831d07),
@@ -121,6 +130,14 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 		soc15_program_register_sequence(adev,
 						 golden_settings_sdma_vg10,
 						 ARRAY_SIZE(golden_settings_sdma_vg10));
+		break;
+	case CHIP_VEGA12:
+		soc15_program_register_sequence(adev,
+						golden_settings_sdma_4,
+						ARRAY_SIZE(golden_settings_sdma_4));
+		soc15_program_register_sequence(adev,
+						golden_settings_sdma_vg12,
+						ARRAY_SIZE(golden_settings_sdma_vg12));
 		break;
 	case CHIP_RAVEN:
 		soc15_program_register_sequence(adev,
@@ -161,6 +178,9 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		chip_name = "vega10";
+		break;
+	case CHIP_VEGA12:
+		chip_name = "vega12";
 		break;
 	case CHIP_RAVEN:
 		chip_name = "raven";
@@ -1489,6 +1509,7 @@ static int sdma_v4_0_set_clockgating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
+	case CHIP_VEGA12:
 	case CHIP_RAVEN:
 		sdma_v4_0_update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
@@ -1618,7 +1639,7 @@ static void sdma_v4_0_set_irq_funcs(struct amdgpu_device *adev)
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer
  *
- * Copy GPU buffers using the DMA engine (VEGA10).
+ * Copy GPU buffers using the DMA engine (VEGA10/12).
  * Used by the amdgpu ttm implementation to move pages if
  * registered as the asic copy callback.
  */
@@ -1645,7 +1666,7 @@ static void sdma_v4_0_emit_copy_buffer(struct amdgpu_ib *ib,
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer
  *
- * Fill GPU buffers using the DMA engine (VEGA10).
+ * Fill GPU buffers using the DMA engine (VEGA10/12).
  */
 static void sdma_v4_0_emit_fill_buffer(struct amdgpu_ib *ib,
 				       uint32_t src_data,

@@ -55,6 +55,7 @@
 #define FIRMWARE_POLARIS12         "amdgpu/polaris12_vce.bin"
 
 #define FIRMWARE_VEGA10		"amdgpu/vega10_vce.bin"
+#define FIRMWARE_VEGA12		"amdgpu/vega12_vce.bin"
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
@@ -72,6 +73,7 @@ MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 MODULE_FIRMWARE(FIRMWARE_POLARIS12);
 
 MODULE_FIRMWARE(FIRMWARE_VEGA10);
+MODULE_FIRMWARE(FIRMWARE_VEGA12);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 
@@ -127,11 +129,14 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	case CHIP_POLARIS11:
 		fw_name = FIRMWARE_POLARIS11;
 		break;
+	case CHIP_POLARIS12:
+		fw_name = FIRMWARE_POLARIS12;
+		break;
 	case CHIP_VEGA10:
 		fw_name = FIRMWARE_VEGA10;
 		break;
-	case CHIP_POLARIS12:
-		fw_name = FIRMWARE_POLARIS12;
+	case CHIP_VEGA12:
+		fw_name = FIRMWARE_VEGA12;
 		break;
 
 	default:

@@ -39,9 +39,6 @@ struct pp_atomctrl_voltage_table;
 
 #define VOLTAGE_SCALE 4
 
-uint8_t convert_to_vid(uint16_t vddc);
-uint16_t convert_to_vddc(uint8_t vid);
-
 enum DISPLAY_GAP {
 	DISPLAY_GAP_VBLANK_OR_WM = 0,   /* Wait for vblank or MCHG watermark. */
 	DISPLAY_GAP_VBLANK       = 1,   /* Wait for vblank. */
@@ -287,8 +284,7 @@ struct pp_hwmgr_func {
 	int (*get_fan_speed_rpm)(struct pp_hwmgr *hwmgr, uint32_t *speed);
 	int (*reset_fan_speed_to_default)(struct pp_hwmgr *hwmgr);
 	int (*uninitialize_thermal_controller)(struct pp_hwmgr *hwmgr);
-	int (*register_internal_thermal_interrupt)(struct pp_hwmgr *hwmgr,
-					const void *thermal_interrupt_info);
+	int (*register_irq_handlers)(struct pp_hwmgr *hwmgr);
 	bool (*check_smc_update_required_for_display_configuration)(struct pp_hwmgr *hwmgr);
 	int (*check_states_equal)(struct pp_hwmgr *hwmgr,
 					const struct pp_hw_power_state *pstate1,
@@ -585,6 +581,27 @@ struct phm_ppt_v2_information {
 	uint8_t  uc_dcef_dpm_voltage_mode;
 };
 
+struct phm_ppt_v3_information
+{
+	uint8_t uc_thermal_controller_type;
+
+	uint16_t us_small_power_limit1;
+	uint16_t us_small_power_limit2;
+	uint16_t us_boost_power_limit;
+
+	uint16_t us_od_turbo_power_limit;
+	uint16_t us_od_powersave_power_limit;
+	uint16_t us_software_shutdown_temp;
+
+	uint32_t *power_saving_clock_max;
+	uint32_t *power_saving_clock_min;
+
+	uint32_t *od_settings_max;
+	uint32_t *od_settings_min;
+
+	void *smc_pptable;
+};
+
 struct phm_dynamic_state_info {
 	struct phm_clock_voltage_dependency_table *vddc_dependency_on_sclk;
 	struct phm_clock_voltage_dependency_table *vddci_dependency_on_mclk;
@@ -764,17 +781,12 @@ struct pp_hwmgr {
 	uint32_t workload_setting[Workload_Policy_Max];
 };
 
-struct cgs_irq_src_funcs {
-	cgs_irq_source_set_func_t set;
-	cgs_irq_handler_func_t handler;
-};
-
-extern int hwmgr_early_init(struct pp_hwmgr *hwmgr);
-extern int hwmgr_hw_init(struct pp_hwmgr *hwmgr);
-extern int hwmgr_hw_fini(struct pp_hwmgr *hwmgr);
-extern int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr);
-extern int hwmgr_hw_resume(struct pp_hwmgr *hwmgr);
-extern int hwmgr_handle_task(struct pp_hwmgr *hwmgr,
+int hwmgr_early_init(struct pp_hwmgr *hwmgr);
+int hwmgr_hw_init(struct pp_hwmgr *hwmgr);
+int hwmgr_hw_fini(struct pp_hwmgr *hwmgr);
+int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr);
+int hwmgr_hw_resume(struct pp_hwmgr *hwmgr);
+int hwmgr_handle_task(struct pp_hwmgr *hwmgr,
 				enum amd_pp_task task_id,
 				enum amd_pm_state_type *user_state);
 
