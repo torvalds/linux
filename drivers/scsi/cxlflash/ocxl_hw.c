@@ -189,7 +189,7 @@ static int ocxlflash_process_element(void *ctx_cookie)
  * start_context() - local routine to start a context
  * @ctx:	Adapter context to be started.
  *
- * Assign the context specific MMIO space.
+ * Assign the context specific MMIO space, add and enable the PE.
  *
  * Return: 0 on success, -errno on failure
  */
@@ -197,7 +197,10 @@ static int start_context(struct ocxlflash_context *ctx)
 {
 	struct ocxl_hw_afu *afu = ctx->hw_afu;
 	struct ocxl_afu_config *acfg = &afu->acfg;
+	void *link_token = afu->link_token;
+	struct device *dev = afu->dev;
 	bool master = ctx->master;
+	int rc = 0;
 
 	if (master) {
 		ctx->psn_size = acfg->global_mmio_size;
@@ -207,7 +210,16 @@ static int start_context(struct ocxlflash_context *ctx)
 		ctx->psn_phys = afu->ppmmio_phys + (ctx->pe * ctx->psn_size);
 	}
 
-	return 0;
+
+	/* pid, tid, amr and mm are zeroes/NULL for a kernel context */
+	rc = ocxl_link_add_pe(link_token, ctx->pe, 0, 0, 0, NULL, NULL, NULL);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: ocxl_link_add_pe failed rc=%d\n",
+			__func__, rc);
+		goto out;
+	}
+out:
+	return rc;
 }
 
 /**
@@ -221,6 +233,41 @@ static int ocxlflash_start_context(void *ctx_cookie)
 	struct ocxlflash_context *ctx = ctx_cookie;
 
 	return start_context(ctx);
+}
+
+/**
+ * ocxlflash_stop_context() - stop a context
+ * @ctx_cookie:	Adapter context to be stopped.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_stop_context(void *ctx_cookie)
+{
+	struct ocxlflash_context *ctx = ctx_cookie;
+	struct ocxl_hw_afu *afu = ctx->hw_afu;
+	struct ocxl_afu_config *acfg = &afu->acfg;
+	struct pci_dev *pdev = afu->pdev;
+	struct device *dev = afu->dev;
+	int rc;
+
+	rc = ocxl_config_terminate_pasid(pdev, acfg->dvsec_afu_control_pos,
+					 ctx->pe);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: ocxl_config_terminate_pasid failed rc=%d\n",
+			__func__, rc);
+		/* If EBUSY, PE could be referenced in future by the AFU */
+		if (rc == -EBUSY)
+			goto out;
+	}
+
+	rc = ocxl_link_remove_pe(afu->link_token, ctx->pe);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: ocxl_link_remove_pe failed rc=%d\n",
+			__func__, rc);
+		goto out;
+	}
+out:
+	return rc;
 }
 
 /**
@@ -696,6 +743,7 @@ const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.psa_unmap		= ocxlflash_psa_unmap,
 	.process_element	= ocxlflash_process_element,
 	.start_context		= ocxlflash_start_context,
+	.stop_context		= ocxlflash_stop_context,
 	.set_master		= ocxlflash_set_master,
 	.get_context		= ocxlflash_get_context,
 	.dev_context_init	= ocxlflash_dev_context_init,
