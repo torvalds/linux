@@ -147,6 +147,15 @@ static inline bool is_midr_in_range(u32 midr, struct midr_range const *range)
 				 range->rv_min, range->rv_max);
 }
 
+static inline bool
+is_midr_in_range_list(u32 midr, struct midr_range const *ranges)
+{
+	while (ranges->model)
+		if (is_midr_in_range(midr, ranges++))
+			return true;
+	return false;
+}
+
 /*
  * The CPU ID never changes at run time, so we might as well tell the
  * compiler that it's constant.  Use this function to read the CPU ID
