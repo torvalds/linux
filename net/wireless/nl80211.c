@@ -8705,6 +8705,15 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 	ibss.control_port =
 		nla_get_flag(info->attrs[NL80211_ATTR_CONTROL_PORT]);
 
+	if (info->attrs[NL80211_ATTR_CONTROL_PORT_OVER_NL80211]) {
+		int r = validate_pae_over_nl80211(rdev, info);
+
+		if (r < 0)
+			return r;
+
+		ibss.control_port_over_nl80211 = true;
+	}
+
 	ibss.userspace_handles_dfs =
 		nla_get_flag(info->attrs[NL80211_ATTR_HANDLE_DFS]);
 
