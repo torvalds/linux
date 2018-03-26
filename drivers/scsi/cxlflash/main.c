@@ -1756,6 +1756,8 @@ static int init_global(struct cxlflash_cfg *cfg)
 	u64 wwpn[MAX_FC_PORTS];	/* wwpn of AFU ports */
 	int i = 0, num_ports = 0;
 	int rc = 0;
+	int j;
+	void *ctx;
 	u64 reg;
 
 	rc = read_vpd(cfg, &wwpn[0]);
@@ -1814,6 +1816,25 @@ static int init_global(struct cxlflash_cfg *cfg)
 		 * offline/online transitions and a PLOGI
 		 */
 		msleep(100);
+	}
+
+	if (afu_is_ocxl_lisn(afu)) {
+		/* Set up the LISN effective address for each master */
+		for (i = 0; i < afu->num_hwqs; i++) {
+			hwq = get_hwq(afu, i);
+			ctx = hwq->ctx_cookie;
+
+			for (j = 0; j < hwq->num_irqs; j++) {
+				reg = cfg->ops->get_irq_objhndl(ctx, j);
+				writeq_be(reg, &hwq->ctrl_map->lisn_ea[j]);
+			}
+
+			reg = hwq->ctx_hndl;
+			writeq_be(SISL_LISN_PASID(reg, reg),
+				  &hwq->ctrl_map->lisn_pasid[0]);
+			writeq_be(SISL_LISN_PASID(0UL, reg),
+				  &hwq->ctrl_map->lisn_pasid[1]);
+		}
 	}
 
 	/* Set up master's own CTX_CAP to allow real mode, host translation */
