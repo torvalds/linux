@@ -264,7 +264,7 @@ void dpp1_cnv_setup (
 		struct dpp *dpp_base,
 		enum surface_pixel_format format,
 		enum expansion_mode mode,
-		struct csc_transform input_csc_color_matrix,
+		struct dc_csc_transform input_csc_color_matrix,
 		enum dc_color_space input_color_space)
 {
 	uint32_t pixel_format;

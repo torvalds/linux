@@ -61,7 +61,7 @@ struct dc_stream_state {
 	struct dc_info_packet hdr_static_metadata;
 	struct dc_transfer_func *out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
-	struct csc_transform csc_color_matrix;
+	struct dc_csc_transform csc_color_matrix;
 
 	enum dc_color_space output_color_space;
 	enum dc_dither_option dither_option;
