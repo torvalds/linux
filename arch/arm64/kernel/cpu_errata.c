@@ -280,6 +280,38 @@ qcom_enable_link_stack_sanitization(const struct arm64_cpu_capabilities *entry)
 	.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,			\
 	CAP_MIDR_RANGE_LIST(midr_list)
 
+/*
+ * Generic helper for handling capabilties with multiple (match,enable) pairs
+ * of call backs, sharing the same capability bit.
+ * Iterate over each entry to see if at least one matches.
+ */
+static bool multi_entry_cap_matches(const struct arm64_cpu_capabilities *entry,
+				    int scope)
+{
+	const struct arm64_cpu_capabilities *caps;
+
+	for (caps = entry->match_list; caps->matches; caps++)
+		if (caps->matches(caps, scope))
+			return true;
+
+	return false;
+}
+
+/*
+ * Take appropriate action for all matching entries in the shared capability
+ * entry.
+ */
+static void
+multi_entry_cap_cpu_enable(const struct arm64_cpu_capabilities *entry)
+{
+	const struct arm64_cpu_capabilities *caps;
+
+	for (caps = entry->match_list; caps->matches; caps++)
+		if (caps->matches(caps, SCOPE_LOCAL_CPU) &&
+		    caps->cpu_enable)
+			caps->cpu_enable(caps);
+}
+
 #ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 
 /*
@@ -299,6 +331,18 @@ static const struct midr_range arm64_bp_harden_smccc_cpus[] = {
 static const struct midr_range qcom_bp_harden_cpus[] = {
 	MIDR_ALL_VERSIONS(MIDR_QCOM_FALKOR_V1),
 	MIDR_ALL_VERSIONS(MIDR_QCOM_FALKOR),
+	{},
+};
+
+static const struct arm64_cpu_capabilities arm64_bp_harden_list[] = {
+	{
+		CAP_MIDR_RANGE_LIST(arm64_bp_harden_smccc_cpus),
+		.cpu_enable = enable_smccc_arch_workaround_1,
+	},
+	{
+		CAP_MIDR_RANGE_LIST(qcom_bp_harden_cpus),
+		.cpu_enable = qcom_enable_link_stack_sanitization,
+	},
 	{},
 };
 
@@ -447,13 +491,10 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 #ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 	{
 		.capability = ARM64_HARDEN_BRANCH_PREDICTOR,
-		ERRATA_MIDR_RANGE_LIST(arm64_bp_harden_smccc_cpus),
-		.cpu_enable = enable_smccc_arch_workaround_1,
-	},
-	{
-		.capability = ARM64_HARDEN_BRANCH_PREDICTOR,
-		ERRATA_MIDR_RANGE_LIST(qcom_bp_harden_cpus),
-		.cpu_enable = qcom_enable_link_stack_sanitization,
+		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
+		.matches = multi_entry_cap_matches,
+		.cpu_enable = multi_entry_cap_cpu_enable,
+		.match_list = arm64_bp_harden_list,
 	},
 	{
 		.capability = ARM64_HARDEN_BP_POST_GUEST_EXIT,

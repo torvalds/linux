@@ -323,6 +323,18 @@ struct arm64_cpu_capabilities {
 			bool sign;
 			unsigned long hwcap;
 		};
+		/*
+		 * A list of "matches/cpu_enable" pair for the same
+		 * "capability" of the same "type" as described by the parent.
+		 * Only matches(), cpu_enable() and fields relevant to these
+		 * methods are significant in the list. The cpu_enable is
+		 * invoked only if the corresponding entry "matches()".
+		 * However, if a cpu_enable() method is associated
+		 * with multiple matches(), care should be taken that either
+		 * the match criteria are mutually exclusive, or that the
+		 * method is robust against being called multiple times.
+		 */
+		const struct arm64_cpu_capabilities *match_list;
 	};
 };
 
