@@ -2933,6 +2933,19 @@ static void populate_initial_data(
 				data->bytes_per_pixel[num_displays + 4] = 4;
 				break;
 			}
+		} else if (pipe[i].stream->dst.width != 0 &&
+					pipe[i].stream->dst.height != 0 &&
+					pipe[i].stream->src.width != 0 &&
+					pipe[i].stream->src.height != 0) {
+			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->src.width);
+			data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
+			data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->src.height);
+			data->h_taps[num_displays + 4] = pipe[i].stream->src.width == pipe[i].stream->dst.width ? bw_int_to_fixed(1) : bw_int_to_fixed(2);
+			data->v_taps[num_displays + 4] = pipe[i].stream->src.height == pipe[i].stream->dst.height ? bw_int_to_fixed(1) : bw_int_to_fixed(2);
+			data->h_scale_ratio[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->src.width, pipe[i].stream->dst.width);
+			data->v_scale_ratio[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->src.height, pipe[i].stream->dst.height);
+			data->rotation_angle[num_displays + 4] = bw_int_to_fixed(0);
+			data->bytes_per_pixel[num_displays + 4] = 4;
 		} else {
 			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.h_addressable);
 			data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
