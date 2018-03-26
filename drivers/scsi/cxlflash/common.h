@@ -273,6 +273,11 @@ static inline bool afu_has_cap(struct afu *afu, u64 cap)
 	return afu_cap & cap;
 }
 
+static inline bool afu_is_ocxl_lisn(struct afu *afu)
+{
+	return afu_has_cap(afu, SISL_INTVER_CAP_OCXL_LISN);
+}
+
 static inline bool afu_is_afu_debug(struct afu *afu)
 {
 	return afu_has_cap(afu, SISL_INTVER_CAP_AFU_DEBUG);

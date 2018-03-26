@@ -310,6 +310,10 @@ struct sisl_ctrl_map {
 #define SISL_CTX_CAP_WRITE_CMD         0x0000000000000002ULL /* afu_rc 0x21 */
 #define SISL_CTX_CAP_READ_CMD          0x0000000000000001ULL /* afu_rc 0x21 */
 	__be64 mbox_r;
+	__be64 lisn_pasid[2];
+	/* pasid _a arg must be ULL */
+#define SISL_LISN_PASID(_a, _b)	(((_a) << 32) | (_b))
+	__be64 lisn_ea[3];
 };
 
 /* single copy global regs */
@@ -416,6 +420,7 @@ struct sisl_global_regs {
 #define SISL_INTVER_CAP_RESERVED_CMD_MODE_B	0x100000000000ULL
 #define SISL_INTVER_CAP_LUN_PROVISION		0x080000000000ULL
 #define SISL_INTVER_CAP_AFU_DEBUG		0x040000000000ULL
+#define SISL_INTVER_CAP_OCXL_LISN		0x020000000000ULL
 };
 
 #define CXLFLASH_NUM_FC_PORTS_PER_BANK	2	/* fixed # of ports per bank */
