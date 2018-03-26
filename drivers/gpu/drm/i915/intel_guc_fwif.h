@@ -560,7 +560,68 @@ struct guc_shared_ctx_data {
 	struct guc_ctx_report preempt_ctx_report[GUC_MAX_ENGINES_NUM];
 } __packed;
 
-/* This Action will be programmed in C180 - SOFT_SCRATCH_O_REG */
+/**
+ * DOC: MMIO based communication
+ *
+ * The MMIO based communication between Host and GuC uses software scratch
+ * registers, where first register holds data treated as message header,
+ * and other registers are used to hold message payload.
+ *
+ * For Gen9+, GuC uses software scratch registers 0xC180-0xC1B8
+ *
+ *      +-----------+---------+---------+---------+
+ *      |  MMIO[0]  | MMIO[1] |   ...   | MMIO[n] |
+ *      +-----------+---------+---------+---------+
+ *      | header    |      optional payload       |
+ *      +======+====+=========+=========+=========+
+ *      | 31:28|type|         |         |         |
+ *      +------+----+         |         |         |
+ *      | 27:16|data|         |         |         |
+ *      +------+----+         |         |         |
+ *      |  15:0|code|         |         |         |
+ *      +------+----+---------+---------+---------+
+ *
+ * The message header consists of:
+ *
+ * - **type**, indicates message type
+ * - **code**, indicates message code, is specific for **type**
+ * - **data**, indicates message data, optional, depends on **code**
+ *
+ * The following message **types** are supported:
+ *
+ * - **REQUEST**, indicates Host-to-GuC request, requested GuC action code
+ *   must be priovided in **code** field. Optional action specific parameters
+ *   can be provided in remaining payload registers or **data** field.
+ *
+ * - **RESPONSE**, indicates GuC-to-Host response from earlier GuC request,
+ *   action response status will be provided in **code** field. Optional
+ *   response data can be returned in remaining payload registers or **data**
+ *   field.
+ */
+
+#define INTEL_GUC_MSG_TYPE_SHIFT	28
+#define INTEL_GUC_MSG_TYPE_MASK		(0xF << INTEL_GUC_MSG_TYPE_SHIFT)
+#define INTEL_GUC_MSG_DATA_SHIFT	16
+#define INTEL_GUC_MSG_DATA_MASK		(0xFFF << INTEL_GUC_MSG_DATA_SHIFT)
+#define INTEL_GUC_MSG_CODE_SHIFT	0
+#define INTEL_GUC_MSG_CODE_MASK		(0xFFFF << INTEL_GUC_MSG_CODE_SHIFT)
+
+#define __INTEL_GUC_MSG_GET(T, m) \
+	(((m) & INTEL_GUC_MSG_ ## T ## _MASK) >> INTEL_GUC_MSG_ ## T ## _SHIFT)
+#define INTEL_GUC_MSG_TO_TYPE(m)	__INTEL_GUC_MSG_GET(TYPE, m)
+#define INTEL_GUC_MSG_TO_DATA(m)	__INTEL_GUC_MSG_GET(DATA, m)
+#define INTEL_GUC_MSG_TO_CODE(m)	__INTEL_GUC_MSG_GET(CODE, m)
+
+enum intel_guc_msg_type {
+	INTEL_GUC_MSG_TYPE_REQUEST = 0x0,
+	INTEL_GUC_MSG_TYPE_RESPONSE = 0xF,
+};
+
+#define __INTEL_GUC_MSG_TYPE_IS(T, m) \
+	(INTEL_GUC_MSG_TO_TYPE(m) == INTEL_GUC_MSG_TYPE_ ## T)
+#define INTEL_GUC_MSG_IS_REQUEST(m)	__INTEL_GUC_MSG_TYPE_IS(REQUEST, m)
+#define INTEL_GUC_MSG_IS_RESPONSE(m)	__INTEL_GUC_MSG_TYPE_IS(RESPONSE, m)
+
 enum intel_guc_action {
 	INTEL_GUC_ACTION_DEFAULT = 0x0,
 	INTEL_GUC_ACTION_REQUEST_PREEMPTION = 0x2,
@@ -597,23 +658,16 @@ enum intel_guc_report_status {
 #define GUC_LOG_CONTROL_VERBOSITY_MASK	(0xF << GUC_LOG_CONTROL_VERBOSITY_SHIFT)
 #define GUC_LOG_CONTROL_DEFAULT_LOGGING	(1 << 8)
 
-/*
- * The GuC sends its response to a command by overwriting the
- * command in SS0. The response is distinguishable from a command
- * by the fact that all the MASK bits are set. The remaining bits
- * give more detail.
- */
-#define	INTEL_GUC_RECV_MASK	((u32)0xF0000000)
-#define	INTEL_GUC_RECV_IS_RESPONSE(x)	((u32)(x) >= INTEL_GUC_RECV_MASK)
-#define	INTEL_GUC_RECV_STATUS(x)	(INTEL_GUC_RECV_MASK | (x))
-
-/* GUC will return status back to SOFT_SCRATCH_O_REG */
-enum intel_guc_status {
-	INTEL_GUC_STATUS_SUCCESS = INTEL_GUC_RECV_STATUS(0x0),
-	INTEL_GUC_STATUS_ALLOCATE_DOORBELL_FAIL = INTEL_GUC_RECV_STATUS(0x10),
-	INTEL_GUC_STATUS_DEALLOCATE_DOORBELL_FAIL = INTEL_GUC_RECV_STATUS(0x20),
-	INTEL_GUC_STATUS_GENERIC_FAIL = INTEL_GUC_RECV_STATUS(0x0000F000)
+enum intel_guc_response_status {
+	INTEL_GUC_RESPONSE_STATUS_SUCCESS = 0x0,
+	INTEL_GUC_RESPONSE_STATUS_GENERIC_FAIL = 0xF000,
 };
+
+#define INTEL_GUC_MSG_IS_RESPONSE_SUCCESS(m) \
+	 (typecheck(u32, (m)) && \
+	  ((m) & (INTEL_GUC_MSG_TYPE_MASK | INTEL_GUC_MSG_CODE_MASK)) == \
+	  ((INTEL_GUC_MSG_TYPE_RESPONSE << INTEL_GUC_MSG_TYPE_SHIFT) | \
+	   (INTEL_GUC_RESPONSE_STATUS_SUCCESS << INTEL_GUC_MSG_CODE_SHIFT)))
 
 /* This action will be programmed in C1BC - SOFT_SCRATCH_15_REG */
 enum intel_guc_recv_message {

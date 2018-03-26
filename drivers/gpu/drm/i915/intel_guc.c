@@ -329,6 +329,9 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 	GEM_BUG_ON(!len);
 	GEM_BUG_ON(len > guc->send_regs.count);
 
+	/* We expect only action code */
+	GEM_BUG_ON(*action & ~INTEL_GUC_MSG_CODE_MASK);
+
 	/* If CT is available, we expect to use MMIO only during init/fini */
 	GEM_BUG_ON(HAS_GUC_CT(dev_priv) &&
 		*action != INTEL_GUC_ACTION_REGISTER_COMMAND_TRANSPORT_BUFFER &&
@@ -350,18 +353,15 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len)
 	 */
 	ret = __intel_wait_for_register_fw(dev_priv,
 					   guc_send_reg(guc, 0),
-					   INTEL_GUC_RECV_MASK,
-					   INTEL_GUC_RECV_MASK,
+					   INTEL_GUC_MSG_TYPE_MASK,
+					   INTEL_GUC_MSG_TYPE_RESPONSE <<
+					   INTEL_GUC_MSG_TYPE_SHIFT,
 					   10, 10, &status);
-	if (status != INTEL_GUC_STATUS_SUCCESS) {
-		/*
-		 * Either the GuC explicitly returned an error (which
-		 * we convert to -EIO here) or no response at all was
-		 * received within the timeout limit (-ETIMEDOUT)
-		 */
-		if (ret != -ETIMEDOUT)
-			ret = -EIO;
+	/* If GuC explicitly returned an error, convert it to -EIO */
+	if (!ret && !INTEL_GUC_MSG_IS_RESPONSE_SUCCESS(status))
+		ret = -EIO;
 
+	if (ret) {
 		DRM_DEBUG_DRIVER("INTEL_GUC_SEND: Action 0x%X failed;"
 				 " ret=%d status=0x%08X response=0x%08X\n",
 				 action[0], ret, status,

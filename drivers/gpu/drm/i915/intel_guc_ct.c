@@ -398,7 +398,7 @@ static int ctch_send(struct intel_guc *guc,
 	err = wait_for_response(desc, fence, status);
 	if (unlikely(err))
 		return err;
-	if (*status != INTEL_GUC_STATUS_SUCCESS)
+	if (!INTEL_GUC_MSG_IS_RESPONSE_SUCCESS(*status))
 		return -EIO;
 	return 0;
 }
