@@ -8044,7 +8044,6 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 	}
 
 	if (mode == IA_CSS_CAPTURE_MODE_PRIMARY) {
-		unsigned int frm;
 		struct ia_css_frame *local_in_frame = NULL;
 		struct ia_css_frame *local_out_frame = NULL;
 
