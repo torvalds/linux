@@ -284,6 +284,7 @@ struct sisl_host_map {
 	__be64 cmd_room;
 	__be64 ctx_ctrl;	/* least significant byte or b56:63 is LISN# */
 #define SISL_CTX_CTRL_UNMAP_SECTOR	0x8000000000000000ULL /* b0 */
+#define SISL_CTX_CTRL_LISN_MASK		(0xFFULL)
 	__be64 mbox_w;		/* restricted use */
 	__be64 sq_start;	/* Submission Queue (R/W): write sequence and */
 	__be64 sq_end;		/* inclusion semantics are the same as RRQ    */
