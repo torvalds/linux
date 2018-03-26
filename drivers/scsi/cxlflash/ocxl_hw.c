@@ -151,6 +151,19 @@ err1:
 }
 
 /**
+ * ocxlflash_process_element() - get process element of the adapter context
+ * @ctx_cookie:	Adapter context associated with the process element.
+ *
+ * Return: process element of the adapter context
+ */
+static int ocxlflash_process_element(void *ctx_cookie)
+{
+	struct ocxlflash_context *ctx = ctx_cookie;
+
+	return ctx->pe;
+}
+
+/**
  * ocxlflash_set_master() - sets the context as master
  * @ctx_cookie:	Adapter context to set as master.
  */
@@ -469,9 +482,21 @@ err1:
 	goto out;
 }
 
+/**
+ * ocxlflash_fops_get_context() - get the context associated with the file
+ * @file:	File associated with the adapter context.
+ *
+ * Return: pointer to the context
+ */
+static void *ocxlflash_fops_get_context(struct file *file)
+{
+	return file->private_data;
+}
+
 /* Backend ops to ocxlflash services */
 const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.module			= THIS_MODULE,
+	.process_element	= ocxlflash_process_element,
 	.set_master		= ocxlflash_set_master,
 	.get_context		= ocxlflash_get_context,
 	.dev_context_init	= ocxlflash_dev_context_init,
@@ -479,4 +504,5 @@ const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.create_afu		= ocxlflash_create_afu,
 	.destroy_afu		= ocxlflash_destroy_afu,
 	.get_fd			= ocxlflash_get_fd,
+	.fops_get_context	= ocxlflash_fops_get_context,
 };
