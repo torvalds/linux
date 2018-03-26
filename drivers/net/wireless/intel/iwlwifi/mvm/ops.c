@@ -1605,25 +1605,23 @@ out:
 static void iwl_mvm_d0i3_exit_work(struct work_struct *wk)
 {
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, d0i3_exit_work);
-	struct iwl_host_cmd get_status_cmd = {
-		.id = WOWLAN_GET_STATUSES,
-		.flags = CMD_HIGH_PRIO | CMD_WANT_SKB,
-	};
 	struct iwl_mvm_d0i3_exit_work_iter_data iter_data = {
 		.mvm = mvm,
 	};
 
 	struct iwl_wowlan_status *status;
-	int ret;
 	u32 wakeup_reasons = 0;
 	__le16 *qos_seq = NULL;
 
 	mutex_lock(&mvm->mutex);
-	ret = iwl_mvm_send_cmd(mvm, &get_status_cmd);
-	if (ret)
-		goto out;
 
-	status = (void *)get_status_cmd.resp_pkt->data;
+	status = iwl_mvm_send_wowlan_get_status(mvm);
+	if (IS_ERR_OR_NULL(status)) {
+		/* set to NULL so we don't need to check before kfree'ing */
+		status = NULL;
+		goto out;
+	}
+
 	wakeup_reasons = le32_to_cpu(status->wakeup_reasons);
 	qos_seq = status->qos_seq_ctr;
 
@@ -1642,8 +1640,7 @@ out:
 		       wakeup_reasons);
 
 	/* qos_seq might point inside resp_pkt, so free it only now */
-	if (get_status_cmd.resp_pkt)
-		iwl_free_resp(&get_status_cmd);
+	kfree(status);
 
 	/* the FW might have updated the regdomain */
 	iwl_mvm_update_changed_regdom(mvm);

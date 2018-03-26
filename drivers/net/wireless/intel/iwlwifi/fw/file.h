@@ -276,6 +276,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_OCE			= (__force iwl_ucode_tlv_api_t)33,
 	IWL_UCODE_TLV_API_NEW_BEACON_TEMPLATE	= (__force iwl_ucode_tlv_api_t)34,
 	IWL_UCODE_TLV_API_NEW_RX_STATS		= (__force iwl_ucode_tlv_api_t)35,
+	IWL_UCODE_TLV_API_WOWLAN_KEY_MATERIAL	= (__force iwl_ucode_tlv_api_t)36,
 	IWL_UCODE_TLV_API_QUOTA_LOW_LATENCY	= (__force iwl_ucode_tlv_api_t)38,
 	IWL_UCODE_TLV_API_DEPRECATE_TTAK	= (__force iwl_ucode_tlv_api_t)41,
 	IWL_UCODE_TLV_API_ADAPTIVE_DWELL_V2	= (__force iwl_ucode_tlv_api_t)42,

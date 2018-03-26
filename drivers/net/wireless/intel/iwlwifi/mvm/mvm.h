@@ -1733,6 +1733,7 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, int idx);
 extern const struct file_operations iwl_dbgfs_d3_test_ops;
+struct iwl_wowlan_status *iwl_mvm_send_wowlan_get_status(struct iwl_mvm *mvm);
 #ifdef CONFIG_PM
 int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 				     struct ieee80211_vif *vif,
