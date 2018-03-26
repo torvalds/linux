@@ -324,6 +324,20 @@ static void ocxlflash_perst_reloads_same_image(void *afu_cookie, bool image)
 }
 
 /**
+ * ocxlflash_read_adapter_vpd() - reads the adapter VPD
+ * @pdev:	PCI device associated with the host.
+ * @buf:	Buffer to get the VPD data.
+ * @count:	Size of buffer (maximum bytes that can be read).
+ *
+ * Return: size of VPD on success, -errno on failure
+ */
+static ssize_t ocxlflash_read_adapter_vpd(struct pci_dev *pdev, void *buf,
+					  size_t count)
+{
+	return pci_read_vpd(pdev, 0, count, buf);
+}
+
+/**
  * ocxlflash_unconfig_afu() - unconfigure the AFU
  * @afu: AFU associated with the host.
  */
@@ -658,6 +672,7 @@ const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.dev_context_init	= ocxlflash_dev_context_init,
 	.release_context	= ocxlflash_release_context,
 	.perst_reloads_same_image = ocxlflash_perst_reloads_same_image,
+	.read_adapter_vpd	= ocxlflash_read_adapter_vpd,
 	.create_afu		= ocxlflash_create_afu,
 	.destroy_afu		= ocxlflash_destroy_afu,
 	.get_fd			= ocxlflash_get_fd,
