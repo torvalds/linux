@@ -732,6 +732,7 @@ static struct rbd_client *rbd_client_find(struct ceph_options *ceph_opts)
  */
 enum {
 	Opt_queue_depth,
+	Opt_lock_timeout,
 	Opt_last_int,
 	/* int args above */
 	Opt_last_string,
@@ -745,6 +746,7 @@ enum {
 
 static match_table_t rbd_opts_tokens = {
 	{Opt_queue_depth, "queue_depth=%d"},
+	{Opt_lock_timeout, "lock_timeout=%d"},
 	/* int args above */
 	/* string args above */
 	{Opt_read_only, "read_only"},
@@ -758,12 +760,14 @@ static match_table_t rbd_opts_tokens = {
 
 struct rbd_options {
 	int	queue_depth;
+	unsigned long	lock_timeout;
 	bool	read_only;
 	bool	lock_on_read;
 	bool	exclusive;
 };
 
 #define RBD_QUEUE_DEPTH_DEFAULT	BLKDEV_MAX_RQ
+#define RBD_LOCK_TIMEOUT_DEFAULT 0  /* no timeout */
 #define RBD_READ_ONLY_DEFAULT	false
 #define RBD_LOCK_ON_READ_DEFAULT false
 #define RBD_EXCLUSIVE_DEFAULT	false
@@ -795,6 +799,14 @@ static int parse_rbd_opts_token(char *c, void *private)
 			return -EINVAL;
 		}
 		rbd_opts->queue_depth = intval;
+		break;
+	case Opt_lock_timeout:
+		/* 0 is "wait forever" (i.e. infinite timeout) */
+		if (intval < 0 || intval > INT_MAX / 1000) {
+			pr_err("lock_timeout out of range\n");
+			return -EINVAL;
+		}
+		rbd_opts->lock_timeout = msecs_to_jiffies(intval * 1000);
 		break;
 	case Opt_read_only:
 		rbd_opts->read_only = true;
@@ -3536,6 +3548,7 @@ static int rbd_obj_method_sync(struct rbd_device *rbd_dev,
 static int rbd_wait_state_locked(struct rbd_device *rbd_dev, bool may_acquire)
 {
 	DEFINE_WAIT(wait);
+	unsigned long timeout;
 	int ret = 0;
 
 	if (test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags))
@@ -3559,10 +3572,16 @@ static int rbd_wait_state_locked(struct rbd_device *rbd_dev, bool may_acquire)
 		prepare_to_wait_exclusive(&rbd_dev->lock_waitq, &wait,
 					  TASK_UNINTERRUPTIBLE);
 		up_read(&rbd_dev->lock_rwsem);
-		schedule();
+		timeout = schedule_timeout(ceph_timeout_jiffies(
+						rbd_dev->opts->lock_timeout));
 		down_read(&rbd_dev->lock_rwsem);
 		if (test_bit(RBD_DEV_FLAG_BLACKLISTED, &rbd_dev->flags)) {
 			ret = -EBLACKLISTED;
+			break;
+		}
+		if (!timeout) {
+			rbd_warn(rbd_dev, "timed out waiting for lock");
+			ret = -ETIMEDOUT;
 			break;
 		}
 	} while (rbd_dev->lock_state != RBD_LOCK_STATE_LOCKED);
@@ -5186,6 +5205,7 @@ static int rbd_add_parse_args(const char *buf,
 
 	rbd_opts->read_only = RBD_READ_ONLY_DEFAULT;
 	rbd_opts->queue_depth = RBD_QUEUE_DEPTH_DEFAULT;
+	rbd_opts->lock_timeout = RBD_LOCK_TIMEOUT_DEFAULT;
 	rbd_opts->lock_on_read = RBD_LOCK_ON_READ_DEFAULT;
 	rbd_opts->exclusive = RBD_EXCLUSIVE_DEFAULT;
 
