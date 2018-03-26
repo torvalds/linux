@@ -1658,9 +1658,6 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 {
-	struct drm_device *ddev = adev->ddev;
-	struct drm_crtc *crtc;
-	struct amdgpu_crtc *amdgpu_crtc;
 	int i = 0;
 
 	if (!adev->pm.dpm_enabled)
@@ -1675,22 +1672,26 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 			amdgpu_fence_wait_empty(ring);
 	}
 
+	if (!amdgpu_device_has_dc_support(adev)) {
+		mutex_lock(&adev->pm.mutex);
+		amdgpu_dpm_get_active_displays(adev);
+		adev->pm.pm_display_cfg.num_display = adev->pm.dpm.new_active_crtcs;
+		adev->pm.pm_display_cfg.vrefresh = amdgpu_dpm_get_vrefresh(adev);
+		adev->pm.pm_display_cfg.min_vblank_time = amdgpu_dpm_get_vblank_time(adev);
+		/* we have issues with mclk switching with refresh rates over 120 hz on the non-DC code. */
+		if (adev->pm.pm_display_cfg.vrefresh > 120)
+			adev->pm.pm_display_cfg.min_vblank_time = 0;
+		if (adev->powerplay.pp_funcs->display_configuration_change)
+			adev->powerplay.pp_funcs->display_configuration_change(
+							adev->powerplay.pp_handle,
+							&adev->pm.pm_display_cfg);
+		mutex_unlock(&adev->pm.mutex);
+	}
+
 	if (adev->powerplay.pp_funcs->dispatch_tasks) {
 		amdgpu_dpm_dispatch_task(adev, AMD_PP_TASK_DISPLAY_CONFIG_CHANGE, NULL);
 	} else {
 		mutex_lock(&adev->pm.mutex);
-		adev->pm.dpm.new_active_crtcs = 0;
-		adev->pm.dpm.new_active_crtc_count = 0;
-		if (adev->mode_info.num_crtc && adev->mode_info.mode_config_initialized) {
-			list_for_each_entry(crtc,
-					    &ddev->mode_config.crtc_list, head) {
-				amdgpu_crtc = to_amdgpu_crtc(crtc);
-				if (amdgpu_crtc->enabled) {
-					adev->pm.dpm.new_active_crtcs |= (1 << amdgpu_crtc->crtc_id);
-					adev->pm.dpm.new_active_crtc_count++;
-				}
-			}
-		}
 		/* update battery/ac status */
 		if (power_supply_is_system_supplied() > 0)
 			adev->pm.dpm.ac_power = true;

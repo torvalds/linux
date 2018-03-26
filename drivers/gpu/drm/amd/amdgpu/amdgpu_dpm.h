@@ -482,6 +482,7 @@ void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 				struct amdgpu_ps *rps);
 u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev);
 u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev);
+void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev);
 bool amdgpu_is_uvd_state(u32 class, u32 class2);
 void amdgpu_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
 			      u32 *p, u32 *u);
