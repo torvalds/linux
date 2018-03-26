@@ -12,6 +12,13 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define OCXL_MAX_IRQS	4	/* Max interrupts per process */
+
+struct ocxlflash_irqs {
+	int hwirq;
+	u64 ptrig;
+};
+
 /* OCXL hardware AFU associated with the host */
 struct ocxl_hw_afu {
 	struct ocxlflash_context *ocxl_ctx; /* Host context */
@@ -45,4 +52,7 @@ struct ocxlflash_context {
 
 	phys_addr_t psn_phys;		/* Process mapping */
 	u64 psn_size;			/* Process mapping size */
+
+	struct ocxlflash_irqs *irqs;	/* Pointer to array of structures */
+	int num_irqs;			/* Number of interrupts */
 };

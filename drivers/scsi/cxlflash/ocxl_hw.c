@@ -385,6 +385,108 @@ static ssize_t ocxlflash_read_adapter_vpd(struct pci_dev *pdev, void *buf,
 }
 
 /**
+ * free_afu_irqs() - internal service to free interrupts
+ * @ctx:	Adapter context.
+ */
+static void free_afu_irqs(struct ocxlflash_context *ctx)
+{
+	struct ocxl_hw_afu *afu = ctx->hw_afu;
+	struct device *dev = afu->dev;
+	int i;
+
+	if (!ctx->irqs) {
+		dev_err(dev, "%s: Interrupts not allocated\n", __func__);
+		return;
+	}
+
+	for (i = ctx->num_irqs; i >= 0; i--)
+		ocxl_link_free_irq(afu->link_token, ctx->irqs[i].hwirq);
+
+	kfree(ctx->irqs);
+	ctx->irqs = NULL;
+}
+
+/**
+ * alloc_afu_irqs() - internal service to allocate interrupts
+ * @ctx:	Context associated with the request.
+ * @num:	Number of interrupts requested.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int alloc_afu_irqs(struct ocxlflash_context *ctx, int num)
+{
+	struct ocxl_hw_afu *afu = ctx->hw_afu;
+	struct device *dev = afu->dev;
+	struct ocxlflash_irqs *irqs;
+	u64 addr;
+	int rc = 0;
+	int hwirq;
+	int i;
+
+	if (ctx->irqs) {
+		dev_err(dev, "%s: Interrupts already allocated\n", __func__);
+		rc = -EEXIST;
+		goto out;
+	}
+
+	if (num > OCXL_MAX_IRQS) {
+		dev_err(dev, "%s: Too many interrupts num=%d\n", __func__, num);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	irqs = kcalloc(num, sizeof(*irqs), GFP_KERNEL);
+	if (unlikely(!irqs)) {
+		dev_err(dev, "%s: Context irqs allocation failed\n", __func__);
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	for (i = 0; i < num; i++) {
+		rc = ocxl_link_irq_alloc(afu->link_token, &hwirq, &addr);
+		if (unlikely(rc)) {
+			dev_err(dev, "%s: ocxl_link_irq_alloc failed rc=%d\n",
+				__func__, rc);
+			goto err;
+		}
+
+		irqs[i].hwirq = hwirq;
+		irqs[i].ptrig = addr;
+	}
+
+	ctx->irqs = irqs;
+	ctx->num_irqs = num;
+out:
+	return rc;
+err:
+	for (i = i-1; i >= 0; i--)
+		ocxl_link_free_irq(afu->link_token, irqs[i].hwirq);
+	kfree(irqs);
+	goto out;
+}
+
+/**
+ * ocxlflash_allocate_afu_irqs() - allocates the requested number of interrupts
+ * @ctx_cookie:	Context associated with the request.
+ * @num:	Number of interrupts requested.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_allocate_afu_irqs(void *ctx_cookie, int num)
+{
+	return alloc_afu_irqs(ctx_cookie, num);
+}
+
+/**
+ * ocxlflash_free_afu_irqs() - frees the interrupts of an adapter context
+ * @ctx_cookie:	Adapter context.
+ */
+static void ocxlflash_free_afu_irqs(void *ctx_cookie)
+{
+	free_afu_irqs(ctx_cookie);
+}
+
+/**
  * ocxlflash_unconfig_afu() - unconfigure the AFU
  * @afu: AFU associated with the host.
  */
@@ -750,6 +852,8 @@ const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.release_context	= ocxlflash_release_context,
 	.perst_reloads_same_image = ocxlflash_perst_reloads_same_image,
 	.read_adapter_vpd	= ocxlflash_read_adapter_vpd,
+	.allocate_afu_irqs	= ocxlflash_allocate_afu_irqs,
+	.free_afu_irqs		= ocxlflash_free_afu_irqs,
 	.create_afu		= ocxlflash_create_afu,
 	.destroy_afu		= ocxlflash_destroy_afu,
 	.get_fd			= ocxlflash_get_fd,
