@@ -323,8 +323,8 @@ static void mlxsw_sp_mr_route_erase(struct mlxsw_sp_mr_table *mr_table,
 }
 
 static struct mlxsw_sp_mr_route *
-mlxsw_sp_mr_route4_create(struct mlxsw_sp_mr_table *mr_table,
-			  struct mfc_cache *mfc)
+mlxsw_sp_mr_route_create(struct mlxsw_sp_mr_table *mr_table,
+			 struct mr_mfc *mfc)
 {
 	struct mlxsw_sp_mr_route_vif_entry *rve, *tmp;
 	struct mlxsw_sp_mr_route *mr_route;
@@ -339,13 +339,13 @@ mlxsw_sp_mr_route4_create(struct mlxsw_sp_mr_table *mr_table,
 
 	/* Find min_mtu and link iVIF and eVIFs */
 	mr_route->min_mtu = ETH_MAX_MTU;
-	mr_cache_hold(&mfc->_c);
-	mr_route->mfc = &mfc->_c;
+	mr_cache_hold(mfc);
+	mr_route->mfc = mfc;
 	mr_table->ops->key_create(mr_table, &mr_route->key, mr_route->mfc);
 
 	mr_route->mr_table = mr_table;
 	for (i = 0; i < MAXVIFS; i++) {
-		if (mfc->_c.mfc_un.res.ttls[i] != 255) {
+		if (mfc->mfc_un.res.ttls[i] != 255) {
 			err = mlxsw_sp_mr_route_evif_link(mr_route,
 							  &mr_table->vifs[i]);
 			if (err)
@@ -356,42 +356,28 @@ mlxsw_sp_mr_route4_create(struct mlxsw_sp_mr_table *mr_table,
 		}
 	}
 	mlxsw_sp_mr_route_ivif_link(mr_route,
-				    &mr_table->vifs[mfc->_c.mfc_parent]);
+				    &mr_table->vifs[mfc->mfc_parent]);
 
 	mr_route->route_action = mlxsw_sp_mr_route_action(mr_route);
 	return mr_route;
 err:
-	mr_cache_put(&mfc->_c);
+	mr_cache_put(mfc);
 	list_for_each_entry_safe(rve, tmp, &mr_route->evif_list, route_node)
 		mlxsw_sp_mr_route_evif_unlink(rve);
 	kfree(mr_route);
 	return ERR_PTR(err);
 }
 
-static void mlxsw_sp_mr_route4_destroy(struct mlxsw_sp_mr_table *mr_table,
-				       struct mlxsw_sp_mr_route *mr_route)
+static void mlxsw_sp_mr_route_destroy(struct mlxsw_sp_mr_table *mr_table,
+				      struct mlxsw_sp_mr_route *mr_route)
 {
 	struct mlxsw_sp_mr_route_vif_entry *rve, *tmp;
 
 	mlxsw_sp_mr_route_ivif_unlink(mr_route);
-	mr_cache_put((struct mr_mfc *)mr_route->mfc);
+	mr_cache_put(mr_route->mfc);
 	list_for_each_entry_safe(rve, tmp, &mr_route->evif_list, route_node)
 		mlxsw_sp_mr_route_evif_unlink(rve);
 	kfree(mr_route);
-}
-
-static void mlxsw_sp_mr_route_destroy(struct mlxsw_sp_mr_table *mr_table,
-				      struct mlxsw_sp_mr_route *mr_route)
-{
-	switch (mr_table->proto) {
-	case MLXSW_SP_L3_PROTO_IPV4:
-		mlxsw_sp_mr_route4_destroy(mr_table, mr_route);
-		break;
-	case MLXSW_SP_L3_PROTO_IPV6:
-		/* fall through */
-	default:
-		WARN_ON_ONCE(1);
-	}
 }
 
 static void mlxsw_sp_mr_mfc_offload_set(struct mlxsw_sp_mr_route *mr_route,
@@ -422,18 +408,18 @@ static void __mlxsw_sp_mr_route_del(struct mlxsw_sp_mr_table *mr_table,
 	mlxsw_sp_mr_route_destroy(mr_table, mr_route);
 }
 
-int mlxsw_sp_mr_route4_add(struct mlxsw_sp_mr_table *mr_table,
-			   struct mfc_cache *mfc, bool replace)
+int mlxsw_sp_mr_route_add(struct mlxsw_sp_mr_table *mr_table,
+			  struct mr_mfc *mfc, bool replace)
 {
 	struct mlxsw_sp_mr_route *mr_orig_route = NULL;
 	struct mlxsw_sp_mr_route *mr_route;
 	int err;
 
-	if (!mr_table->ops->is_route_valid(mr_table, &mfc->_c))
+	if (!mr_table->ops->is_route_valid(mr_table, mfc))
 		return -EINVAL;
 
 	/* Create a new route */
-	mr_route = mlxsw_sp_mr_route4_create(mr_table, mfc);
+	mr_route = mlxsw_sp_mr_route_create(mr_table, mfc);
 	if (IS_ERR(mr_route))
 		return PTR_ERR(mr_route);
 
@@ -478,7 +464,7 @@ int mlxsw_sp_mr_route4_add(struct mlxsw_sp_mr_table *mr_table,
 				       &mr_orig_route->ht_node,
 				       mlxsw_sp_mr_route_ht_params);
 		list_del(&mr_orig_route->node);
-		mlxsw_sp_mr_route4_destroy(mr_table, mr_orig_route);
+		mlxsw_sp_mr_route_destroy(mr_table, mr_orig_route);
 	}
 
 	mlxsw_sp_mr_mfc_offload_update(mr_route);
@@ -491,17 +477,17 @@ err_rhashtable_insert:
 	list_del(&mr_route->node);
 err_no_orig_route:
 err_duplicate_route:
-	mlxsw_sp_mr_route4_destroy(mr_table, mr_route);
+	mlxsw_sp_mr_route_destroy(mr_table, mr_route);
 	return err;
 }
 
-void mlxsw_sp_mr_route4_del(struct mlxsw_sp_mr_table *mr_table,
-			    struct mfc_cache *mfc)
+void mlxsw_sp_mr_route_del(struct mlxsw_sp_mr_table *mr_table,
+			   struct mr_mfc *mfc)
 {
 	struct mlxsw_sp_mr_route *mr_route;
 	struct mlxsw_sp_mr_route_key key;
 
-	mr_table->ops->key_create(mr_table, &key, &mfc->_c);
+	mr_table->ops->key_create(mr_table, &key, mfc);
 	mr_route = rhashtable_lookup_fast(&mr_table->route_ht, &key,
 					  mlxsw_sp_mr_route_ht_params);
 	if (mr_route)

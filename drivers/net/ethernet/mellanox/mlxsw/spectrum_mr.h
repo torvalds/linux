@@ -109,10 +109,10 @@ struct mlxsw_sp_mr_table;
 int mlxsw_sp_mr_init(struct mlxsw_sp *mlxsw_sp,
 		     const struct mlxsw_sp_mr_ops *mr_ops);
 void mlxsw_sp_mr_fini(struct mlxsw_sp *mlxsw_sp);
-int mlxsw_sp_mr_route4_add(struct mlxsw_sp_mr_table *mr_table,
-			   struct mfc_cache *mfc, bool replace);
-void mlxsw_sp_mr_route4_del(struct mlxsw_sp_mr_table *mr_table,
-			    struct mfc_cache *mfc);
+int mlxsw_sp_mr_route_add(struct mlxsw_sp_mr_table *mr_table,
+			  struct mr_mfc *mfc, bool replace);
+void mlxsw_sp_mr_route_del(struct mlxsw_sp_mr_table *mr_table,
+			   struct mr_mfc *mfc);
 int mlxsw_sp_mr_vif_add(struct mlxsw_sp_mr_table *mr_table,
 			struct net_device *dev, vifi_t vif_index,
 			unsigned long vif_flags,
