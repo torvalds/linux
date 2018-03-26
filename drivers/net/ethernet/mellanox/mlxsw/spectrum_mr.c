@@ -848,6 +848,7 @@ struct mlxsw_sp_mr_table *mlxsw_sp_mr_table_create(struct mlxsw_sp *mlxsw_sp,
 		.prio = MLXSW_SP_MR_ROUTE_PRIO_CATCHALL,
 		.key = {
 			.vrid = vr_id,
+			.proto = proto,
 		},
 		.value = {
 			.route_action = MLXSW_SP_MR_ROUTE_ACTION_TRAP,
