@@ -50,8 +50,7 @@ static inline u8 get_byte(struct ks_wlan_private *priv)
 	return data;
 }
 
-static
-inline u16 get_WORD(struct ks_wlan_private *priv)
+static inline u16 get_word(struct ks_wlan_private *priv)
 {
 	u16 data;
 
@@ -406,8 +405,8 @@ void hostif_data_indication(struct ks_wlan_private *priv)
 		return;
 	}
 
-	auth_type = get_WORD(priv);	/* AuthType */
-	get_WORD(priv);	/* Reserve Area */
+	auth_type = get_word(priv);	/* AuthType */
+	get_word(priv);	/* Reserve Area */
 
 	eth_hdr = (struct ether_hdr *)(priv->rxp);
 	eth_proto = ntohs(eth_hdr->h_proto);
@@ -510,8 +509,8 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 
 	mib_status = get_DWORD(priv);	/* MIB status */
 	mib_attribute = get_DWORD(priv);	/* MIB atttibute */
-	mib_val_size = get_WORD(priv);	/* MIB value size */
-	mib_val_type = get_WORD(priv);	/* MIB value type */
+	mib_val_size = get_word(priv);	/* MIB value size */
+	mib_val_type = get_word(priv);	/* MIB value type */
 
 	if (mib_status) {
 		/* in case of error */
@@ -724,7 +723,7 @@ void hostif_connect_indication(struct ks_wlan_private *priv)
 	struct net_device *netdev = priv->net_dev;
 	union iwreq_data wrqu0;
 
-	connect_code = get_WORD(priv);
+	connect_code = get_word(priv);
 
 	switch (connect_code) {
 	case RESULT_CONNECT:	/* connect */
@@ -850,7 +849,7 @@ void hostif_infrastructure_set_confirm(struct ks_wlan_private *priv)
 {
 	u16 result_code;
 
-	result_code = get_WORD(priv);
+	result_code = get_word(priv);
 	priv->infra_status = 1;	/* infrastructure mode set */
 	hostif_sme_enqueue(priv, SME_MODE_SET_CONFIRM);
 }
@@ -975,7 +974,7 @@ void hostif_event_check(struct ks_wlan_private *priv)
 {
 	unsigned short event;
 
-	event = get_WORD(priv);	/* get event */
+	event = get_word(priv);	/* get event */
 	switch (event) {
 	case HIF_DATA_IND:
 		hostif_data_indication(priv);
@@ -1606,7 +1605,7 @@ void hostif_receive(struct ks_wlan_private *priv, unsigned char *p,
 	priv->rxp = p;
 	priv->rx_size = size;
 
-	if (get_WORD(priv) == priv->rx_size) {	/* length check !! */
+	if (get_word(priv) == priv->rx_size) {	/* length check !! */
 		hostif_event_check(priv);	/* event check */
 	}
 }
