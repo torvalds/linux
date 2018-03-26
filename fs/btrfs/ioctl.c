@@ -105,9 +105,10 @@ static unsigned int btrfs_mask_fsflags_for_type(struct inode *inode,
 }
 
 /*
- * Export inode flags to the format expected by the FS_IOC_GETFLAGS ioctl.
+ * Export internal inode flags to the format expected by the FS_IOC_GETFLAGS
+ * ioctl.
  */
-static unsigned int btrfs_flags_to_ioctl(unsigned int flags)
+static unsigned int btrfs_inode_flags_to_fsflags(unsigned int flags)
 {
 	unsigned int iflags = 0;
 
@@ -161,7 +162,7 @@ void btrfs_sync_inode_flags_to_i_flags(struct inode *inode)
 static int btrfs_ioctl_getflags(struct file *file, void __user *arg)
 {
 	struct btrfs_inode *ip = BTRFS_I(file_inode(file));
-	unsigned int flags = btrfs_flags_to_ioctl(ip->flags);
+	unsigned int flags = btrfs_inode_flags_to_fsflags(ip->flags);
 
 	if (copy_to_user(arg, &flags, sizeof(flags)))
 		return -EFAULT;
@@ -221,7 +222,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	mode = inode->i_mode;
 
 	flags = btrfs_mask_fsflags_for_type(inode, flags);
-	oldflags = btrfs_flags_to_ioctl(ip->flags);
+	oldflags = btrfs_inode_flags_to_fsflags(ip->flags);
 	if ((flags ^ oldflags) & (FS_APPEND_FL | FS_IMMUTABLE_FL)) {
 		if (!capable(CAP_LINUX_IMMUTABLE)) {
 			ret = -EPERM;
