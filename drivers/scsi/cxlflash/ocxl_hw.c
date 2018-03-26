@@ -79,6 +79,37 @@ out:
 }
 
 /**
+ * ocxlflash_config_afu() - configure the host AFU
+ * @pdev:	PCI device associated with the host.
+ * @afu:	AFU associated with the host.
+ *
+ * Must be called _after_ host function configuration.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_config_afu(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
+{
+	struct ocxl_afu_config *acfg = &afu->acfg;
+	struct ocxl_fn_config *fcfg = &afu->fcfg;
+	struct device *dev = &pdev->dev;
+	int rc = 0;
+
+	/* This HW AFU function does not have any AFUs defined */
+	if (!afu->is_present)
+		goto out;
+
+	/* Read AFU config at index 0 */
+	rc = ocxl_config_read_afu(pdev, fcfg, acfg, 0);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: ocxl_config_read_afu failed rc=%d\n",
+			__func__, rc);
+		goto out;
+	}
+out:
+	return rc;
+}
+
+/**
  * ocxlflash_create_afu() - create the AFU for OCXL
  * @pdev:	PCI device associated with the host.
  *
@@ -102,6 +133,13 @@ static void *ocxlflash_create_afu(struct pci_dev *pdev)
 	rc = ocxlflash_config_fn(pdev, afu);
 	if (unlikely(rc)) {
 		dev_err(dev, "%s: Function configuration failed rc=%d\n",
+			__func__, rc);
+		goto err1;
+	}
+
+	rc = ocxlflash_config_afu(pdev, afu);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: AFU configuration failed rc=%d\n",
 			__func__, rc);
 		goto err1;
 	}
