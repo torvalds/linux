@@ -5722,6 +5722,28 @@ void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 
 
 /**
+ * cfg80211_rx_control_port - notification about a received control port frame
+ * @dev: The device the frame matched to
+ * @buf: control port frame
+ * @len: length of the frame data
+ * @addr: The peer from which the frame was received
+ * @proto: frame protocol, typically PAE or Pre-authentication
+ * @unencrypted: Whether the frame was received unencrypted
+ *
+ * This function is used to inform userspace about a received control port
+ * frame.  It should only be used if userspace indicated it wants to receive
+ * control port frames over nl80211.
+ *
+ * The frame is the data portion of the 802.3 or 802.11 data frame with all
+ * network layer headers removed (e.g. the raw EAPoL frame).
+ *
+ * Return: %true if the frame was passed to userspace
+ */
+bool cfg80211_rx_control_port(struct net_device *dev,
+			      const u8 *buf, size_t len,
+			      const u8 *addr, u16 proto, bool unencrypted);
+
+/**
  * cfg80211_cqm_rssi_notify - connection quality monitoring rssi event
  * @dev: network device
  * @rssi_event: the triggered RSSI event

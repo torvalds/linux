@@ -2600,6 +2600,27 @@ TRACE_EVENT(cfg80211_mgmt_tx_status,
 		  WDEV_PR_ARG, __entry->cookie, BOOL_TO_STR(__entry->ack))
 );
 
+TRACE_EVENT(cfg80211_rx_control_port,
+	TP_PROTO(struct net_device *netdev, const u8 *buf, size_t len,
+		 const u8 *addr, u16 proto, bool unencrypted),
+	TP_ARGS(netdev, buf, len, addr, proto, unencrypted),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(addr)
+		__field(u16, proto)
+		__field(bool, unencrypted)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(addr, addr);
+		__entry->proto = proto;
+		__entry->unencrypted = unencrypted;
+	),
+	TP_printk(NETDEV_PR_FMT ", " MAC_PR_FMT " proto: 0x%x, unencrypted: %s",
+		  NETDEV_PR_ARG, MAC_PR_ARG(addr),
+		  __entry->proto, BOOL_TO_STR(__entry->unencrypted))
+);
+
 TRACE_EVENT(cfg80211_cqm_rssi_notify,
 	TP_PROTO(struct net_device *netdev,
 		 enum nl80211_cqm_rssi_threshold_event rssi_event,
