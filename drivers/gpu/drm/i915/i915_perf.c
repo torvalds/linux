@@ -209,6 +209,7 @@
 #include "i915_oa_cflgt2.h"
 #include "i915_oa_cflgt3.h"
 #include "i915_oa_cnl.h"
+#include "i915_oa_icl.h"
 
 /* HW requires this to be a power of two, between 128k and 16M, though driver
  * is currently generally designed assuming the largest 16M size is used such
@@ -1840,7 +1841,7 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
 	 * be read back from automatically triggered reports, as part of the
 	 * RPT_ID field.
 	 */
-	if (IS_GEN9(dev_priv) || IS_GEN10(dev_priv)) {
+	if (IS_GEN(dev_priv, 9, 11)) {
 		I915_WRITE(GEN8_OA_DEBUG,
 			   _MASKED_BIT_ENABLE(GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
 					      GEN9_OA_DEBUG_INCLUDE_CLK_RATIO));
@@ -2935,6 +2936,8 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 			i915_perf_load_test_config_cflgt3(dev_priv);
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		i915_perf_load_test_config_cnl(dev_priv);
+	} else if (IS_ICELAKE(dev_priv)) {
+		i915_perf_load_test_config_icl(dev_priv);
 	}
 
 	if (dev_priv->perf.oa.test_config.id == 0)
@@ -3467,7 +3470,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 
 				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
 			}
-		} else if (IS_GEN10(dev_priv)) {
+		} else if (IS_GEN(dev_priv, 10, 11)) {
 			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			dev_priv->perf.oa.ops.is_valid_mux_reg =
