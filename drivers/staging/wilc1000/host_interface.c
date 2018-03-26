@@ -3721,8 +3721,10 @@ int wilc_add_station(struct wilc_vif *vif, struct add_sta_param *sta_param)
 	}
 
 	result = wilc_enqueue_cmd(&msg);
-	if (result)
+	if (result) {
 		netdev_err(vif->ndev, "wilc_mq_send fail\n");
+		kfree(add_sta_info->rates);
+	}
 	return result;
 }
 
@@ -3805,8 +3807,10 @@ int wilc_edit_station(struct wilc_vif *vif,
 	}
 
 	result = wilc_enqueue_cmd(&msg);
-	if (result)
+	if (result) {
 		netdev_err(vif->ndev, "wilc_mq_send fail\n");
+		kfree(add_sta_info->rates);
+	}
 
 	return result;
 }
