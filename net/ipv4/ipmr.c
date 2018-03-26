@@ -732,11 +732,10 @@ static void ipmr_cache_free_rcu(struct rcu_head *head)
 	kmem_cache_free(mrt_cachep, (struct mfc_cache *)c);
 }
 
-void ipmr_cache_free(struct mfc_cache *c)
+static void ipmr_cache_free(struct mfc_cache *c)
 {
 	call_rcu(&c->_c.rcu, ipmr_cache_free_rcu);
 }
-EXPORT_SYMBOL(ipmr_cache_free);
 
 /* Destroy an unresolved cache entry, killing queued skbs
  * and reporting error to netlink readers.
@@ -987,6 +986,7 @@ static struct mfc_cache *ipmr_cache_alloc(void)
 	if (c) {
 		c->_c.mfc_un.res.last_assert = jiffies - MFC_ASSERT_THRESH - 1;
 		c->_c.mfc_un.res.minvif = MAXVIFS;
+		c->_c.free = ipmr_cache_free_rcu;
 		refcount_set(&c->_c.mfc_un.res.refcount, 1);
 	}
 	return c;
@@ -1206,7 +1206,7 @@ static int ipmr_mfc_delete(struct mr_table *mrt, struct mfcctl *mfc, int parent)
 	list_del_rcu(&c->_c.list);
 	call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, c, mrt->id);
 	mroute_netlink_event(mrt, c, RTM_DELROUTE);
-	ipmr_cache_put(c);
+	mr_cache_put(&c->_c);
 
 	return 0;
 }
@@ -1318,7 +1318,7 @@ static void mroute_clean_tables(struct mr_table *mrt, bool all)
 		call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_DEL, cache,
 					      mrt->id);
 		mroute_netlink_event(mrt, cache, RTM_DELROUTE);
-		ipmr_cache_put(cache);
+		mr_cache_put(c);
 	}
 
 	if (atomic_read(&mrt->cache_resolve_queue_len) != 0) {

@@ -360,7 +360,7 @@ mlxsw_sp_mr_route4_create(struct mlxsw_sp_mr_table *mr_table,
 
 	/* Find min_mtu and link iVIF and eVIFs */
 	mr_route->min_mtu = ETH_MAX_MTU;
-	ipmr_cache_hold(mfc);
+	mr_cache_hold(&mfc->_c);
 	mr_route->mfc4 = mfc;
 	mr_route->mr_table = mr_table;
 	for (i = 0; i < MAXVIFS; i++) {
@@ -380,7 +380,7 @@ mlxsw_sp_mr_route4_create(struct mlxsw_sp_mr_table *mr_table,
 	mr_route->route_action = mlxsw_sp_mr_route_action(mr_route);
 	return mr_route;
 err:
-	ipmr_cache_put(mfc);
+	mr_cache_put(&mfc->_c);
 	list_for_each_entry_safe(rve, tmp, &mr_route->evif_list, route_node)
 		mlxsw_sp_mr_route_evif_unlink(rve);
 	kfree(mr_route);
@@ -393,7 +393,7 @@ static void mlxsw_sp_mr_route4_destroy(struct mlxsw_sp_mr_table *mr_table,
 	struct mlxsw_sp_mr_route_vif_entry *rve, *tmp;
 
 	mlxsw_sp_mr_route_ivif_unlink(mr_route);
-	ipmr_cache_put(mr_route->mfc4);
+	mr_cache_put((struct mr_mfc *)mr_route->mfc4);
 	list_for_each_entry_safe(rve, tmp, &mr_route->evif_list, route_node)
 		mlxsw_sp_mr_route_evif_unlink(rve);
 	kfree(mr_route);

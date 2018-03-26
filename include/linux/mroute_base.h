@@ -125,6 +125,7 @@ enum {
  * @refcount: reference count for this entry
  * @list: global entry list
  * @rcu: used for entry destruction
+ * @free: Operation used for freeing an entry under RCU
  */
 struct mr_mfc {
 	struct rhlist_head mnode;
@@ -150,7 +151,19 @@ struct mr_mfc {
 	} mfc_un;
 	struct list_head list;
 	struct rcu_head	rcu;
+	void (*free)(struct rcu_head *head);
 };
+
+static inline void mr_cache_put(struct mr_mfc *c)
+{
+	if (refcount_dec_and_test(&c->mfc_un.res.refcount))
+		call_rcu(&c->rcu, c->free);
+}
+
+static inline void mr_cache_hold(struct mr_mfc *c)
+{
+	refcount_inc(&c->mfc_un.res.refcount);
+}
 
 struct mfc_entry_notifier_info {
 	struct fib_notifier_info info;
