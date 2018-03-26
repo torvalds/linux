@@ -23,6 +23,7 @@ struct cxlflash_backend_ops {
 	int (*map_afu_irq)(void *ctx_cookie, int num, irq_handler_t handler,
 			   void *cookie, char *name);
 	void (*unmap_afu_irq)(void *ctx_cookie, int num, void *cookie);
+	u64 (*get_irq_objhndl)(void *ctx_cookie, int irq);
 	int (*start_context)(void *ctx_cookie);
 	int (*stop_context)(void *ctx_cookie);
 	int (*afu_reset)(void *ctx_cookie);

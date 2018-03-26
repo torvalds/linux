@@ -49,6 +49,12 @@ static void cxlflash_unmap_afu_irq(void *ctx_cookie, int num, void *cookie)
 	cxl_unmap_afu_irq(ctx_cookie, num, cookie);
 }
 
+static u64 cxlflash_get_irq_objhndl(void *ctx_cookie, int irq)
+{
+	/* Dummy fop for cxl */
+	return 0;
+}
+
 static int cxlflash_start_context(void *ctx_cookie)
 {
 	return cxl_start_context(ctx_cookie, 0, NULL);
@@ -153,6 +159,7 @@ const struct cxlflash_backend_ops cxlflash_cxl_ops = {
 	.process_element	= cxlflash_process_element,
 	.map_afu_irq		= cxlflash_map_afu_irq,
 	.unmap_afu_irq		= cxlflash_unmap_afu_irq,
+	.get_irq_objhndl	= cxlflash_get_irq_objhndl,
 	.start_context		= cxlflash_start_context,
 	.stop_context		= cxlflash_stop_context,
 	.afu_reset		= cxlflash_afu_reset,

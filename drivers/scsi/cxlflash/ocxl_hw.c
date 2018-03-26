@@ -308,6 +308,23 @@ static void ocxlflash_unmap_afu_irq(void *ctx_cookie, int num, void *cookie)
 }
 
 /**
+ * ocxlflash_get_irq_objhndl() - get the object handle for an interrupt
+ * @ctx_cookie:	Context associated with the interrupt.
+ * @irq:	Interrupt number.
+ *
+ * Return: effective address of the mapped region
+ */
+static u64 ocxlflash_get_irq_objhndl(void *ctx_cookie, int irq)
+{
+	struct ocxlflash_context *ctx = ctx_cookie;
+
+	if (irq < 0 || irq >= ctx->num_irqs)
+		return 0;
+
+	return (__force u64)ctx->irqs[irq].vtrig;
+}
+
+/**
  * start_context() - local routine to start a context
  * @ctx:	Adapter context to be started.
  *
@@ -1301,6 +1318,7 @@ const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.process_element	= ocxlflash_process_element,
 	.map_afu_irq		= ocxlflash_map_afu_irq,
 	.unmap_afu_irq		= ocxlflash_unmap_afu_irq,
+	.get_irq_objhndl	= ocxlflash_get_irq_objhndl,
 	.start_context		= ocxlflash_start_context,
 	.stop_context		= ocxlflash_stop_context,
 	.set_master		= ocxlflash_set_master,
