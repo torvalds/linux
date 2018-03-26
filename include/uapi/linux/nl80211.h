@@ -1966,6 +1966,8 @@ enum nl80211_commands {
  *	torn down when the socket is closed.
  *	If set during %NL80211_CMD_JOIN_MESH the mesh setup will be
  *	automatically torn down when the socket is closed.
+ *	If set during %NL80211_CMD_START_AP the AP will be automatically
+ *	disabled when the socket is closed.
  *
  * @NL80211_ATTR_TDLS_INITIATOR: flag attribute indicating the current end is
  *	the TDLS link initiator.
