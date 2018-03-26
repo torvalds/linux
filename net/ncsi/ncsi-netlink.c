@@ -190,6 +190,10 @@ static int ncsi_pkg_info_nl(struct sk_buff *msg, struct genl_info *info)
 	package_id = nla_get_u32(info->attrs[NCSI_ATTR_PACKAGE_ID]);
 
 	attr = nla_nest_start(skb, NCSI_ATTR_PACKAGE_LIST);
+	if (!attr) {
+		kfree_skb(skb);
+		return -EMSGSIZE;
+	}
 	rc = ncsi_write_package_info(skb, ndp, package_id);
 
 	if (rc) {
