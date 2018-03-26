@@ -4002,6 +4002,36 @@ fill_holes:
 			break;
 		*last_extent = extent_end;
 	}
+
+	/*
+	 * Check if there is a hole between the last extent found in our leaf
+	 * and the first extent in the next leaf. If there is one, we need to
+	 * log an explicit hole so that at replay time we can punch the hole.
+	 */
+	if (ret == 0 &&
+	    key.objectid == btrfs_ino(inode) &&
+	    key.type == BTRFS_EXTENT_DATA_KEY &&
+	    i == btrfs_header_nritems(src_path->nodes[0])) {
+		ret = btrfs_next_leaf(inode->root, src_path);
+		need_find_last_extent = true;
+		if (ret > 0) {
+			ret = 0;
+		} else if (ret == 0) {
+			btrfs_item_key_to_cpu(src_path->nodes[0], &key,
+					      src_path->slots[0]);
+			if (key.objectid == btrfs_ino(inode) &&
+			    key.type == BTRFS_EXTENT_DATA_KEY &&
+			    *last_extent < key.offset) {
+				const u64 len = key.offset - *last_extent;
+
+				ret = btrfs_insert_file_extent(trans, log,
+							       btrfs_ino(inode),
+							       *last_extent, 0,
+							       0, len, 0, len,
+							       0, 0, 0);
+			}
+		}
+	}
 	/*
 	 * Need to let the callers know we dropped the path so they should
 	 * re-search.
