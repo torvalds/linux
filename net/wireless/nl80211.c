@@ -8679,9 +8679,14 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 	ibss.userspace_handles_dfs =
 		nla_get_flag(info->attrs[NL80211_ATTR_HANDLE_DFS]);
 
-	err = cfg80211_join_ibss(rdev, dev, &ibss, connkeys);
+	wdev_lock(dev->ieee80211_ptr);
+	err = __cfg80211_join_ibss(rdev, dev, &ibss, connkeys);
 	if (err)
 		kzfree(connkeys);
+	else if (info->attrs[NL80211_ATTR_SOCKET_OWNER])
+		dev->ieee80211_ptr->conn_owner_nlportid = info->snd_portid;
+	wdev_unlock(dev->ieee80211_ptr);
+
 	return err;
 }
 
