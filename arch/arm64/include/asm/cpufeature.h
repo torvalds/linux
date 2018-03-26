@@ -108,7 +108,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *    value of a field in CPU ID feature register or checking the cpu
  *    model. The capability provides a call back ( @matches() ) to
  *    perform the check. Scope defines how the checks should be performed.
- *    There are two cases:
+ *    There are three cases:
  *
  *     a) SCOPE_LOCAL_CPU: check all the CPUs and "detect" if at least one
  *        matches. This implies, we have to run the check on all the
@@ -121,6 +121,11 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *        capability relies on a field in one of the CPU ID feature
  *        registers, we use the sanitised value of the register from the
  *        CPU feature infrastructure to make the decision.
+ *		Or
+ *     c) SCOPE_BOOT_CPU: Check only on the primary boot CPU to detect the
+ *        feature. This category is for features that are "finalised"
+ *        (or used) by the kernel very early even before the SMP cpus
+ *        are brought up.
  *
  *    The process of detection is usually denoted by "update" capability
  *    state in the code.
@@ -140,6 +145,11 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *    CPUs are treated "late CPUs" for capabilities determined by the boot
  *    CPU.
  *
+ *    At the moment there are two passes of finalising the capabilities.
+ *      a) Boot CPU scope capabilities - Finalised by primary boot CPU via
+ *         setup_boot_cpu_capabilities().
+ *      b) Everything except (a) - Run via setup_system_capabilities().
+ *
  * 3) Verification: When a CPU is brought online (e.g, by user or by the
  *    kernel), the kernel should make sure that it is safe to use the CPU,
  *    by verifying that the CPU is compliant with the state of the
@@ -148,12 +158,21 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  *	secondary_start_kernel()-> check_local_cpu_capabilities()
  *
  *    As explained in (2) above, capabilities could be finalised at
- *    different points in the execution. Each CPU is verified against the
- *    "finalised" capabilities and if there is a conflict, the kernel takes
- *    an action, based on the severity (e.g, a CPU could be prevented from
- *    booting or cause a kernel panic). The CPU is allowed to "affect" the
- *    state of the capability, if it has not been finalised already.
- *    See section 5 for more details on conflicts.
+ *    different points in the execution. Each newly booted CPU is verified
+ *    against the capabilities that have been finalised by the time it
+ *    boots.
+ *
+ *	a) SCOPE_BOOT_CPU : All CPUs are verified against the capability
+ *	except for the primary boot CPU.
+ *
+ *	b) SCOPE_LOCAL_CPU, SCOPE_SYSTEM: All CPUs hotplugged on by the
+ *	user after the kernel boot are verified against the capability.
+ *
+ *    If there is a conflict, the kernel takes an action, based on the
+ *    severity (e.g, a CPU could be prevented from booting or cause a
+ *    kernel panic). The CPU is allowed to "affect" the state of the
+ *    capability, if it has not been finalised already. See section 5
+ *    for more details on conflicts.
  *
  * 4) Action: As mentioned in (2), the kernel can take an action for each
  *    detected capability, on all CPUs on the system. Appropriate actions
@@ -202,15 +221,26 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  */
 
 
-/* Decide how the capability is detected. On a local CPU vs System wide */
+/*
+ * Decide how the capability is detected.
+ * On any local CPU vs System wide vs the primary boot CPU
+ */
 #define ARM64_CPUCAP_SCOPE_LOCAL_CPU		((u16)BIT(0))
 #define ARM64_CPUCAP_SCOPE_SYSTEM		((u16)BIT(1))
+/*
+ * The capabilitiy is detected on the Boot CPU and is used by kernel
+ * during early boot. i.e, the capability should be "detected" and
+ * "enabled" as early as possibly on all booting CPUs.
+ */
+#define ARM64_CPUCAP_SCOPE_BOOT_CPU		((u16)BIT(2))
 #define ARM64_CPUCAP_SCOPE_MASK			\
 	(ARM64_CPUCAP_SCOPE_SYSTEM	|	\
-	 ARM64_CPUCAP_SCOPE_LOCAL_CPU)
+	 ARM64_CPUCAP_SCOPE_LOCAL_CPU	|	\
+	 ARM64_CPUCAP_SCOPE_BOOT_CPU)
 
 #define SCOPE_SYSTEM				ARM64_CPUCAP_SCOPE_SYSTEM
 #define SCOPE_LOCAL_CPU				ARM64_CPUCAP_SCOPE_LOCAL_CPU
+#define SCOPE_BOOT_CPU				ARM64_CPUCAP_SCOPE_BOOT_CPU
 #define SCOPE_ALL				ARM64_CPUCAP_SCOPE_MASK
 
 /*
