@@ -349,8 +349,8 @@ out:
 /* Look for any peeled off association from the endpoint that matches the
  * given peer address.
  */
-int sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
-				const union sctp_addr *paddr)
+bool sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
+				 const union sctp_addr *paddr)
 {
 	struct sctp_sockaddr_entry *addr;
 	struct sctp_bind_addr *bp;
@@ -362,10 +362,10 @@ int sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
 	 */
 	list_for_each_entry(addr, &bp->address_list, list) {
 		if (sctp_has_association(net, &addr->a, paddr))
-			return 1;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /* Do delayed input processing.  This is scheduled by sctp_rcv().

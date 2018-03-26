@@ -1341,12 +1341,12 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 	const struct sctp_endpoint *ep,
 	const union sctp_addr *paddr,
 	struct sctp_transport **);
-int sctp_endpoint_is_peeled_off(struct sctp_endpoint *,
-				const union sctp_addr *);
+bool sctp_endpoint_is_peeled_off(struct sctp_endpoint *ep,
+				 const union sctp_addr *paddr);
 struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *,
 					struct net *, const union sctp_addr *);
-int sctp_has_association(struct net *net, const union sctp_addr *laddr,
-			 const union sctp_addr *paddr);
+bool sctp_has_association(struct net *net, const union sctp_addr *laddr,
+			  const union sctp_addr *paddr);
 
 int sctp_verify_init(struct net *net, const struct sctp_endpoint *ep,
 		     const struct sctp_association *asoc,
