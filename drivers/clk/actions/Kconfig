@@ -1,0 +1,4 @@
+config CLK_ACTIONS
+	bool "Clock driver for Actions Semi SoCs"
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	default ARCH_ACTIONS
