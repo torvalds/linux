@@ -39,7 +39,7 @@ int __kfifo_alloc(struct __kfifo *fifo, unsigned int size,
 		size_t esize, gfp_t gfp_mask)
 {
 	/*
-	 * round down to the next power of 2, since our 'let the indices
+	 * round up to the next power of 2, since our 'let the indices
 	 * wrap' technique works only in this case.
 	 */
 	size = roundup_pow_of_two(size);
