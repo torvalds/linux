@@ -273,6 +273,24 @@ static u32 ctch_get_next_fence(struct intel_guc_ct_channel *ctch)
 	return ++ctch->next_fence;
 }
 
+/**
+ * DOC: CTB Host to GuC request
+ *
+ * Format of the CTB Host to GuC request message is as follows::
+ *
+ *      +------------+---------+---------+---------+---------+
+ *      |   msg[0]   |   [1]   |   [2]   |   ...   |  [n-1]  |
+ *      +------------+---------+---------+---------+---------+
+ *      |   MESSAGE  |       MESSAGE PAYLOAD                 |
+ *      +   HEADER   +---------+---------+---------+---------+
+ *      |            |    0    |    1    |   ...   |    n    |
+ *      +============+=========+=========+=========+=========+
+ *      |  len >= 1  |  FENCE  |     request specific data   |
+ *      +------+-----+---------+---------+---------+---------+
+ *
+ *                   ^-----------------len-------------------^
+ */
+
 static int ctb_write(struct intel_guc_ct_buffer *ctb,
 		     const u32 *action,
 		     u32 len /* in dwords */,
@@ -305,7 +323,8 @@ static int ctb_write(struct intel_guc_ct_buffer *ctb,
 	if (unlikely(used + len + 1 >= size))
 		return -ENOSPC;
 
-	/* Write the message. The format is the following:
+	/*
+	 * Write the message. The format is the following:
 	 * DW0: header (including action code)
 	 * DW1: fence
 	 * DW2+: action data
@@ -427,6 +446,167 @@ static int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len,
 	return ret;
 }
 
+static inline unsigned int ct_header_get_len(u32 header)
+{
+	return (header >> GUC_CT_MSG_LEN_SHIFT) & GUC_CT_MSG_LEN_MASK;
+}
+
+static inline unsigned int ct_header_get_action(u32 header)
+{
+	return (header >> GUC_CT_MSG_ACTION_SHIFT) & GUC_CT_MSG_ACTION_MASK;
+}
+
+static inline bool ct_header_is_response(u32 header)
+{
+	return ct_header_get_action(header) == INTEL_GUC_ACTION_DEFAULT;
+}
+
+static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
+{
+	struct guc_ct_buffer_desc *desc = ctb->desc;
+	u32 head = desc->head / 4;	/* in dwords */
+	u32 tail = desc->tail / 4;	/* in dwords */
+	u32 size = desc->size / 4;	/* in dwords */
+	u32 *cmds = ctb->cmds;
+	s32 available;			/* in dwords */
+	unsigned int len;
+	unsigned int i;
+
+	GEM_BUG_ON(desc->size % 4);
+	GEM_BUG_ON(desc->head % 4);
+	GEM_BUG_ON(desc->tail % 4);
+	GEM_BUG_ON(tail >= size);
+	GEM_BUG_ON(head >= size);
+
+	/* tail == head condition indicates empty */
+	available = tail - head;
+	if (unlikely(available == 0))
+		return -ENODATA;
+
+	/* beware of buffer wrap case */
+	if (unlikely(available < 0))
+		available += size;
+	GEM_BUG_ON(available < 0);
+
+	data[0] = cmds[head];
+	head = (head + 1) % size;
+
+	/* message len with header */
+	len = ct_header_get_len(data[0]) + 1;
+	if (unlikely(len > (u32)available)) {
+		DRM_ERROR("CT: incomplete message %*phn %*phn %*phn\n",
+			  4, data,
+			  4 * (head + available - 1 > size ?
+			       size - head : available - 1), &cmds[head],
+			  4 * (head + available - 1 > size ?
+			       available - 1 - size + head : 0), &cmds[0]);
+		return -EPROTO;
+	}
+
+	for (i = 1; i < len; i++) {
+		data[i] = cmds[head];
+		head = (head + 1) % size;
+	}
+
+	desc->head = head * 4;
+	return 0;
+}
+
+/**
+ * DOC: CTB GuC to Host response
+ *
+ * Format of the CTB GuC to Host response message is as follows::
+ *
+ *      +------------+---------+---------+---------+---------+---------+
+ *      |   msg[0]   |   [1]   |   [2]   |   [3]   |   ...   |  [n-1]  |
+ *      +------------+---------+---------+---------+---------+---------+
+ *      |   MESSAGE  |       MESSAGE PAYLOAD                           |
+ *      +   HEADER   +---------+---------+---------+---------+---------+
+ *      |            |    0    |    1    |    2    |   ...   |    n    |
+ *      +============+=========+=========+=========+=========+=========+
+ *      |  len >= 2  |  FENCE  |  STATUS |   response specific data    |
+ *      +------+-----+---------+---------+---------+---------+---------+
+ *
+ *                   ^-----------------------len-----------------------^
+ */
+
+static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
+{
+	u32 header = msg[0];
+	u32 len = ct_header_get_len(header);
+	u32 msglen = len + 1; /* total message length including header */
+	u32 fence;
+	u32 status;
+
+	GEM_BUG_ON(!ct_header_is_response(header));
+
+	/* Response payload shall at least include fence and status */
+	if (unlikely(len < 2)) {
+		DRM_ERROR("CT: corrupted response %*phn\n", 4 * msglen, msg);
+		return -EPROTO;
+	}
+
+	fence = msg[1];
+	status = msg[2];
+
+	/* Format of the status follows RESPONSE message */
+	if (unlikely(!INTEL_GUC_MSG_IS_RESPONSE(status))) {
+		DRM_ERROR("CT: corrupted response %*phn\n", 4 * msglen, msg);
+		return -EPROTO;
+	}
+
+	/* XXX */
+	return 0;
+}
+
+static int ct_handle_request(struct intel_guc_ct *ct, const u32 *msg)
+{
+	u32 header = msg[0];
+
+	GEM_BUG_ON(ct_header_is_response(header));
+
+	/* XXX */
+	return 0;
+}
+
+static void ct_process_host_channel(struct intel_guc_ct *ct)
+{
+	struct intel_guc_ct_channel *ctch = &ct->host_channel;
+	struct intel_guc_ct_buffer *ctb = &ctch->ctbs[CTB_RECV];
+	u32 msg[GUC_CT_MSG_LEN_MASK + 1]; /* one extra dw for the header */
+	int err = 0;
+
+	if (!ctch_is_open(ctch))
+		return;
+
+	do {
+		err = ctb_read(ctb, msg);
+		if (err)
+			break;
+
+		if (ct_header_is_response(msg[0]))
+			err = ct_handle_response(ct, msg);
+		else
+			err = ct_handle_request(ct, msg);
+	} while (!err);
+
+	if (GEM_WARN_ON(err == -EPROTO)) {
+		DRM_ERROR("CT: corrupted message detected!\n");
+		ctb->desc->is_in_error = 1;
+	}
+}
+
+/*
+ * When we're communicating with the GuC over CT, GuC uses events
+ * to notify us about new messages being posted on the RECV buffer.
+ */
+static void intel_guc_to_host_event_handler_ct(struct intel_guc *guc)
+{
+	struct intel_guc_ct *ct = &guc->ct;
+
+	ct_process_host_channel(ct);
+}
+
 /**
  * intel_guc_ct_enable - Enable buffer based command transport.
  * @ct: pointer to CT struct
@@ -450,6 +630,7 @@ int intel_guc_ct_enable(struct intel_guc_ct *ct)
 
 	/* Switch into cmd transport buffer based send() */
 	guc->send = intel_guc_send_ct;
+	guc->handler = intel_guc_to_host_event_handler_ct;
 	DRM_INFO("CT: %s\n", enableddisabled(true));
 	return 0;
 }
@@ -475,5 +656,6 @@ void intel_guc_ct_disable(struct intel_guc_ct *ct)
 
 	/* Disable send */
 	guc->send = intel_guc_send_nop;
+	guc->handler = intel_guc_to_host_event_handler_nop;
 	DRM_INFO("CT: %s\n", enableddisabled(false));
 }
