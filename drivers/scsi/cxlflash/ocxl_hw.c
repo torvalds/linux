@@ -186,6 +186,124 @@ static int ocxlflash_process_element(void *ctx_cookie)
 }
 
 /**
+ * afu_map_irq() - map the interrupt of the adapter context
+ * @flags:	Flags.
+ * @ctx:	Adapter context.
+ * @num:	Per-context AFU interrupt number.
+ * @handler:	Interrupt handler to register.
+ * @cookie:	Interrupt handler private data.
+ * @name:	Name of the interrupt.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int afu_map_irq(u64 flags, struct ocxlflash_context *ctx, int num,
+		       irq_handler_t handler, void *cookie, char *name)
+{
+	struct ocxl_hw_afu *afu = ctx->hw_afu;
+	struct device *dev = afu->dev;
+	struct ocxlflash_irqs *irq;
+	void __iomem *vtrig;
+	u32 virq;
+	int rc = 0;
+
+	if (num < 0 || num >= ctx->num_irqs) {
+		dev_err(dev, "%s: Interrupt %d not allocated\n", __func__, num);
+		rc = -ENOENT;
+		goto out;
+	}
+
+	irq = &ctx->irqs[num];
+	virq = irq_create_mapping(NULL, irq->hwirq);
+	if (unlikely(!virq)) {
+		dev_err(dev, "%s: irq_create_mapping failed\n", __func__);
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = request_irq(virq, handler, 0, name, cookie);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: request_irq failed rc=%d\n", __func__, rc);
+		goto err1;
+	}
+
+	vtrig = ioremap(irq->ptrig, PAGE_SIZE);
+	if (unlikely(!vtrig)) {
+		dev_err(dev, "%s: Trigger page mapping failed\n", __func__);
+		rc = -ENOMEM;
+		goto err2;
+	}
+
+	irq->virq = virq;
+	irq->vtrig = vtrig;
+out:
+	return rc;
+err2:
+	free_irq(virq, cookie);
+err1:
+	irq_dispose_mapping(virq);
+	goto out;
+}
+
+/**
+ * ocxlflash_map_afu_irq() - map the interrupt of the adapter context
+ * @ctx_cookie:	Adapter context.
+ * @num:	Per-context AFU interrupt number.
+ * @handler:	Interrupt handler to register.
+ * @cookie:	Interrupt handler private data.
+ * @name:	Name of the interrupt.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_map_afu_irq(void *ctx_cookie, int num,
+				 irq_handler_t handler, void *cookie,
+				 char *name)
+{
+	return afu_map_irq(0, ctx_cookie, num, handler, cookie, name);
+}
+
+/**
+ * afu_unmap_irq() - unmap the interrupt
+ * @flags:	Flags.
+ * @ctx:	Adapter context.
+ * @num:	Per-context AFU interrupt number.
+ * @cookie:	Interrupt handler private data.
+ */
+static void afu_unmap_irq(u64 flags, struct ocxlflash_context *ctx, int num,
+			  void *cookie)
+{
+	struct ocxl_hw_afu *afu = ctx->hw_afu;
+	struct device *dev = afu->dev;
+	struct ocxlflash_irqs *irq;
+
+	if (num < 0 || num >= ctx->num_irqs) {
+		dev_err(dev, "%s: Interrupt %d not allocated\n", __func__, num);
+		return;
+	}
+
+	irq = &ctx->irqs[num];
+	if (irq->vtrig)
+		iounmap(irq->vtrig);
+
+	if (irq_find_mapping(NULL, irq->hwirq)) {
+		free_irq(irq->virq, cookie);
+		irq_dispose_mapping(irq->virq);
+	}
+
+	memset(irq, 0, sizeof(*irq));
+}
+
+/**
+ * ocxlflash_unmap_afu_irq() - unmap the interrupt
+ * @ctx_cookie:	Adapter context.
+ * @num:	Per-context AFU interrupt number.
+ * @cookie:	Interrupt handler private data.
+ */
+static void ocxlflash_unmap_afu_irq(void *ctx_cookie, int num, void *cookie)
+{
+	return afu_unmap_irq(0, ctx_cookie, num, cookie);
+}
+
+/**
  * start_context() - local routine to start a context
  * @ctx:	Adapter context to be started.
  *
@@ -844,6 +962,8 @@ const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.psa_map		= ocxlflash_psa_map,
 	.psa_unmap		= ocxlflash_psa_unmap,
 	.process_element	= ocxlflash_process_element,
+	.map_afu_irq		= ocxlflash_map_afu_irq,
+	.unmap_afu_irq		= ocxlflash_unmap_afu_irq,
 	.start_context		= ocxlflash_start_context,
 	.stop_context		= ocxlflash_stop_context,
 	.set_master		= ocxlflash_set_master,
