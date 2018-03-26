@@ -621,7 +621,10 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
 	mtlr	r10
 
-	beq-	8f		/* if bad address, make full stack frame */
+	/*
+	 * Large address, check whether we have to allocate new contexts.
+	 */
+	beq-	8f
 
 	bne-	cr5,2f		/* if unrecoverable exception, oops */
 
@@ -685,7 +688,7 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 	mr	r3,r12
 	mfspr	r11,SPRN_SRR0
 	mfspr	r12,SPRN_SRR1
-	LOAD_HANDLER(r10,bad_addr_slb)
+	LOAD_HANDLER(r10, large_addr_slb)
 	mtspr	SPRN_SRR0,r10
 	ld	r10,PACAKMSR(r13)
 	mtspr	SPRN_SRR1,r10
@@ -700,7 +703,7 @@ EXC_COMMON_BEGIN(unrecov_slb)
 	bl	unrecoverable_exception
 	b	1b
 
-EXC_COMMON_BEGIN(bad_addr_slb)
+EXC_COMMON_BEGIN(large_addr_slb)
 	EXCEPTION_PROLOG_COMMON(0x380, PACA_EXSLB)
 	RECONCILE_IRQ_STATE(r10, r11)
 	ld	r3, PACA_EXSLB+EX_DAR(r13)
@@ -710,7 +713,7 @@ EXC_COMMON_BEGIN(bad_addr_slb)
 	std	r10, _TRAP(r1)
 2:	bl	save_nvgprs
 	addi	r3, r1, STACK_FRAME_OVERHEAD
-	bl	slb_miss_bad_addr
+	bl	slb_miss_large_addr
 	b	ret_from_except
 
 EXC_REAL_BEGIN(hardware_interrupt, 0x500, 0x100)

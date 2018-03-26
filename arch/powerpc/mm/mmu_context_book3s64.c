@@ -179,6 +179,19 @@ void __destroy_context(int context_id)
 }
 EXPORT_SYMBOL_GPL(__destroy_context);
 
+static void destroy_contexts(mm_context_t *ctx)
+{
+	int index, context_id;
+
+	spin_lock(&mmu_context_lock);
+	for (index = 0; index < ARRAY_SIZE(ctx->extended_id); index++) {
+		context_id = ctx->extended_id[index];
+		if (context_id)
+			ida_remove(&mmu_context_ida, context_id);
+	}
+	spin_unlock(&mmu_context_lock);
+}
+
 #ifdef CONFIG_PPC_64K_PAGES
 static void destroy_pagetable_page(struct mm_struct *mm)
 {
@@ -217,7 +230,7 @@ void destroy_context(struct mm_struct *mm)
 	else
 		subpage_prot_free(mm);
 	destroy_pagetable_page(mm);
-	__destroy_context(mm->context.id);
+	destroy_contexts(&mm->context);
 	mm->context.id = MMU_NO_CONTEXT;
 }
 

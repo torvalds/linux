@@ -91,7 +91,18 @@ struct slice_mask {
 };
 
 typedef struct {
-	mm_context_id_t id;
+	union {
+		/*
+		 * We use id as the PIDR content for radix. On hash we can use
+		 * more than one id. The extended ids are used when we start
+		 * having address above 512TB. We allocate one extended id
+		 * for each 512TB. The new id is then used with the 49 bit
+		 * EA to build a new VA. We always use ESID_BITS_1T_MASK bits
+		 * from EA and new context ids to build the new VAs.
+		 */
+		mm_context_id_t id;
+		mm_context_id_t extended_id[TASK_SIZE_USER64/TASK_CONTEXT_SIZE];
+	};
 	u16 user_psize;		/* page size index */
 
 	/* Number of bits in the mm_cpumask */
@@ -195,6 +206,26 @@ extern void radix_init_pseries(void);
 #else
 static inline void radix_init_pseries(void) { };
 #endif
+
+static inline int get_ea_context(mm_context_t *ctx, unsigned long ea)
+{
+	int index = ea >> MAX_EA_BITS_PER_CONTEXT;
+
+	if (likely(index < ARRAY_SIZE(ctx->extended_id)))
+		return ctx->extended_id[index];
+
+	/* should never happen */
+	WARN_ON(1);
+	return 0;
+}
+
+static inline unsigned long get_user_vsid(mm_context_t *ctx,
+					  unsigned long ea, int ssize)
+{
+	unsigned long context = get_ea_context(ctx, ea);
+
+	return get_vsid(context, ea, ssize);
+}
 
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */

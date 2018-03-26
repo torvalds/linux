@@ -648,6 +648,15 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	slice_print_mask(" mask", &potential_mask);
 
  convert:
+	/*
+	 * Try to allocate the context before we do slice convert
+	 * so that we handle the context allocation failure gracefully.
+	 */
+	if (need_extra_context(mm, newaddr)) {
+		if (alloc_extended_context(mm, newaddr) < 0)
+			return -ENOMEM;
+	}
+
 	slice_andnot_mask(&potential_mask, &potential_mask, &good_mask);
 	if (compat_maskp && !fixed)
 		slice_andnot_mask(&potential_mask, &potential_mask, compat_maskp);
@@ -658,10 +667,14 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 		if (psize > MMU_PAGE_BASE)
 			on_each_cpu(slice_flush_segments, mm, 1);
 	}
-
-return_addr:
 	return newaddr;
 
+return_addr:
+	if (need_extra_context(mm, newaddr)) {
+		if (alloc_extended_context(mm, newaddr) < 0)
+			return -ENOMEM;
+	}
+	return newaddr;
 }
 EXPORT_SYMBOL_GPL(slice_get_unmapped_area);
 

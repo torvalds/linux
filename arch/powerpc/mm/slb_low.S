@@ -75,10 +75,15 @@ ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_68_BIT_VA)
  */
 _GLOBAL(slb_allocate)
 	/*
-	 * check for bad kernel/user address
-	 * (ea & ~REGION_MASK) >= PGTABLE_RANGE
+	 * Check if the address falls within the range of the first context, or
+	 * if we may need to handle multi context. For the first context we
+	 * allocate the slb entry via the fast path below. For large address we
+	 * branch out to C-code and see if additional contexts have been
+	 * allocated.
+	 * The test here is:
+	 *   (ea & ~REGION_MASK) >= (1ull << MAX_EA_BITS_PER_CONTEXT)
 	 */
-	rldicr. r9,r3,4,(63 - H_PGTABLE_EADDR_SIZE - 4)
+	rldicr. r9,r3,4,(63 - MAX_EA_BITS_PER_CONTEXT - 4)
 	bne-	8f
 
 	srdi	r9,r3,60		/* get region */
