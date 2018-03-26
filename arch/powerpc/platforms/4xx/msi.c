@@ -241,7 +241,8 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 	if (!msi_irqs)
 		return -ENODEV;
 
-	if (ppc4xx_setup_pcieh_hw(dev, res, msi))
+	err = ppc4xx_setup_pcieh_hw(dev, res, msi);
+	if (err)
 		goto error_out;
 
 	err = ppc4xx_msi_init_allocator(dev, msi);
