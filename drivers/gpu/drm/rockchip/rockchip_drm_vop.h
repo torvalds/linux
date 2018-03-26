@@ -148,8 +148,11 @@ struct vop_ctrl {
 	struct vop_reg mipi_pin_pol;
 	struct vop_reg dp_dclk_pol;
 	struct vop_reg dp_pin_pol;
-	struct vop_reg dither_up;
-	struct vop_reg dither_down;
+	struct vop_reg dither_down_sel;
+	struct vop_reg dither_down_mode;
+	struct vop_reg dither_down_en;
+	struct vop_reg pre_dither_down_en;
+	struct vop_reg dither_up_en;
 
 	struct vop_reg sw_dac_sel;
 	struct vop_reg tve_sw_mode;
@@ -592,11 +595,6 @@ enum dither_down_mode_sel {
 	DITHER_DOWN_ALLEGRO = 0x0,
 	DITHER_DOWN_FRC = 0x1
 };
-
-#define PRE_DITHER_DOWN_EN(x)	((x) << 0)
-#define DITHER_DOWN_EN(x)	((x) << 1)
-#define DITHER_DOWN_MODE(x)	((x) << 2)
-#define DITHER_DOWN_MODE_SEL(x)	((x) << 3)
 
 enum vop_pol {
 	HSYNC_POSITIVE = 0,
