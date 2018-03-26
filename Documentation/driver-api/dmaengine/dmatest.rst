@@ -99,10 +99,11 @@ Example of output::
     % dmesg | tail -n 1
     dmatest: result dma0chan0-copy0: #1: No errors with src_off=0x7bf dst_off=0x8ad len=0x3fea (0)
 
-The message format is unified across the different types of errors. A number in
-the parens represents additional information, e.g. error code, error counter,
-or status. A test thread also emits a summary line at completion listing the
-number of tests executed, number that failed, and a result code.
+The message format is unified across the different types of errors. A
+number in the parentheses represents additional information, e.g. error
+code, error counter, or status. A test thread also emits a summary line at
+completion listing the number of tests executed, number that failed, and a
+result code.
 
 Example::
 
