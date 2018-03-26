@@ -487,7 +487,29 @@ static int orangefs_lock(struct file *filp, int cmd, struct file_lock *fl)
 
 static int orangefs_flush(struct file *file, fl_owner_t id)
 {
-	return vfs_fsync(file, 0);
+	/*
+	 * This is vfs_fsync_range(file, 0, LLONG_MAX, 0) without the
+	 * service_operation in orangefs_fsync.
+	 *
+	 * Do not send fsync to OrangeFS server on a close.  Do send fsync
+	 * on an explicit fsync call.  This duplicates historical OrangeFS
+	 * behavior.
+	 */
+	struct inode *inode = file->f_mapping->host;
+	int r;
+
+	if (inode->i_state & I_DIRTY_TIME) {
+		spin_lock(&inode->i_lock);
+		inode->i_state &= ~I_DIRTY_TIME;
+		spin_unlock(&inode->i_lock);
+		mark_inode_dirty_sync(inode);
+	}
+
+	r = filemap_write_and_wait_range(file->f_mapping, 0, LLONG_MAX);
+	if (r > 0)
+		return 0;
+	else
+		return r;
 }
 
 /** ORANGEFS implementation of VFS file operations */
