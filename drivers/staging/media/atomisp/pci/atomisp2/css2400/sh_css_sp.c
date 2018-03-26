@@ -71,7 +71,7 @@
 struct sh_css_sp_group		sh_css_sp_group;
 struct sh_css_sp_stage		sh_css_sp_stage;
 struct sh_css_isp_stage		sh_css_isp_stage;
-struct sh_css_sp_output		sh_css_sp_output;
+static struct sh_css_sp_output		sh_css_sp_output;
 static struct sh_css_sp_per_frame_data per_frame_data;
 
 /* true if SP supports frame loop and host2sp_commands */
@@ -117,9 +117,9 @@ copy_isp_stage_to_sp_stage(void)
 	*/
 	sh_css_sp_stage.enable.sdis = sh_css_isp_stage.binary_info.enable.dis;
 	sh_css_sp_stage.enable.s3a = sh_css_isp_stage.binary_info.enable.s3a;
-#ifdef ISP2401	
+#ifdef ISP2401
 	sh_css_sp_stage.enable.lace_stats = sh_css_isp_stage.binary_info.enable.lace_stats;
-#endif	
+#endif
 }
 
 void
@@ -1441,8 +1441,6 @@ sh_css_update_host2sp_offline_frame(
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int offset;
 
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
-
 	assert(frame_num < NUM_CONTINUOUS_FRAMES);
 
 	/* Write new frame data into SP DMEM */
@@ -1472,8 +1470,6 @@ sh_css_update_host2sp_mipi_frame(
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int offset;
 
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
-
 	/* MIPI buffers are dedicated to port, so now there are more of them. */
 	assert(frame_num < (N_CSI_PORTS * NUM_MIPI_FRAMES_PER_STREAM));
 
@@ -1499,8 +1495,6 @@ sh_css_update_host2sp_mipi_metadata(
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int o;
 
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
-
 	/* MIPI buffers are dedicated to port, so now there are more of them. */
 	assert(frame_num < (N_CSI_PORTS * NUM_MIPI_FRAMES_PER_STREAM));
 
@@ -1519,8 +1513,6 @@ sh_css_update_host2sp_num_mipi_frames(unsigned num_frames)
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int offset;
 
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
-
 	/* Write new frame data into SP DMEM */
 	HIVE_ADDR_host_sp_com = sh_css_sp_fw.info.sp.host_sp_com;
 	offset = (unsigned int)offsetof(struct host_sp_communication, host2sp_num_mipi_frames)
@@ -1537,8 +1529,6 @@ sh_css_update_host2sp_cont_num_raw_frames(unsigned num_frames, bool set_avail)
 	unsigned int HIVE_ADDR_host_sp_com;
 	unsigned int extra_num_frames, avail_num_frames;
 	unsigned int offset, offset_extra;
-
-	(void)HIVE_ADDR_host_sp_com; /* Suppres warnings in CRUN */
 
 	/* Write new frame data into SP DMEM */
 	fw = &sh_css_sp_fw;

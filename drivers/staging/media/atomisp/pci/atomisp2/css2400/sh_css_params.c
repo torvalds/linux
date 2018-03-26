@@ -3805,7 +3805,6 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 
 		enum sh_css_queue_id queue_id;
 
-		(void)stage;
 		pipe = curr_pipe->stream->pipes[i];
 		pipeline = ia_css_pipe_get_pipeline(pipe);
 		pipe_num = ia_css_pipe_get_pipe_num(pipe);

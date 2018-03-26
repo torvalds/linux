@@ -8082,7 +8082,6 @@ create_host_regular_capture_pipeline(struct ia_css_pipe *pipe)
 				return err;
 			}
 		}
-		(void)frm;
 		/* If we use copy iso primary,
 		   the input must be yuv iso raw */
 		current_stage->args.copy_vf =
