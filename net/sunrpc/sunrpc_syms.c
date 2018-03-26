@@ -79,6 +79,7 @@ static struct pernet_operations sunrpc_net_ops = {
 	.exit = sunrpc_exit_net,
 	.id = &sunrpc_net_id,
 	.size = sizeof(struct sunrpc_net),
+	.async = true,
 };
 
 static int __init

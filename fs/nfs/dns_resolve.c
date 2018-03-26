@@ -410,6 +410,7 @@ static void nfs4_dns_net_exit(struct net *net)
 static struct pernet_operations nfs4_dns_resolver_ops = {
 	.init = nfs4_dns_net_init,
 	.exit = nfs4_dns_net_exit,
+	.async = true,
 };
 
 static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,

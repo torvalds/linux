@@ -261,6 +261,7 @@ static void nfs4blocklayout_net_exit(struct net *net)
 static struct pernet_operations nfs4blocklayout_net_ops = {
 	.init = nfs4blocklayout_net_init,
 	.exit = nfs4blocklayout_net_exit,
+	.async = true,
 };
 
 int __init bl_init_pipefs(void)
