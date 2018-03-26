@@ -342,12 +342,18 @@ static void ocxlflash_unconfig_afu(struct ocxl_hw_afu *afu)
 static void ocxlflash_destroy_afu(void *afu_cookie)
 {
 	struct ocxl_hw_afu *afu = afu_cookie;
+	int pos;
 
 	if (!afu)
 		return;
 
 	ocxlflash_release_context(afu->ocxl_ctx);
 	idr_destroy(&afu->idr);
+
+	/* Disable the AFU */
+	pos = afu->acfg.dvsec_afu_control_pos;
+	ocxl_config_set_afu_state(afu->pdev, pos, 0);
+
 	ocxlflash_unconfig_afu(afu);
 	kfree(afu);
 }
@@ -499,6 +505,9 @@ static int ocxlflash_config_afu(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 			__func__, rc);
 		goto out;
 	}
+
+	/* Enable the AFU */
+	ocxl_config_set_afu_state(pdev, acfg->dvsec_afu_control_pos, 1);
 out:
 	return rc;
 }
