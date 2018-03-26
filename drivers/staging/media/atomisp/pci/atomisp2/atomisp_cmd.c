@@ -437,7 +437,7 @@ static void atomisp_reset_event(struct atomisp_sub_device *asd)
 }
 
 
-static void print_csi_rx_errors(enum ia_css_csi2_port port,
+static void print_csi_rx_errors(enum mipi_port_id port,
 				struct atomisp_device *isp)
 {
 	u32 infos = 0;
@@ -481,7 +481,7 @@ static void clear_irq_reg(struct atomisp_device *isp)
 }
 
 static struct atomisp_sub_device *
-__get_asd_from_port(struct atomisp_device *isp, mipi_port_ID_t port)
+__get_asd_from_port(struct atomisp_device *isp, enum mipi_port_id port)
 {
 	int i;
 
@@ -570,9 +570,9 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 	    (irq_infos & CSS_IRQ_INFO_IF_ERROR)) {
 		/* handle mipi receiver error */
 		u32 rx_infos;
-		enum ia_css_csi2_port port;
+		enum mipi_port_id port;
 
-		for (port = IA_CSS_CSI2_PORT0; port <= IA_CSS_CSI2_PORT2;
+		for (port = MIPI_PORT0_ID; port <= MIPI_PORT2_ID;
 		     port++) {
 			print_csi_rx_errors(port, isp);
 			atomisp_css_rx_get_irq_info(port, &rx_infos);
@@ -5028,7 +5028,7 @@ atomisp_try_fmt_file(struct atomisp_device *isp, struct v4l2_format *f)
 	return 0;
 }
 
-mipi_port_ID_t __get_mipi_port(struct atomisp_device *isp,
+enum mipi_port_id __get_mipi_port(struct atomisp_device *isp,
 				enum atomisp_camera_port port)
 {
 	switch (port) {

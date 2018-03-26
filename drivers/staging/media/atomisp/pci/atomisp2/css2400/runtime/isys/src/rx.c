@@ -36,7 +36,7 @@ more details.
 #include "sh_css_internal.h"
 
 #if !defined(USE_INPUT_SYSTEM_VERSION_2401)
-void ia_css_isys_rx_enable_all_interrupts(mipi_port_ID_t port)
+void ia_css_isys_rx_enable_all_interrupts(enum mipi_port_id port)
 {
 	hrt_data bits = receiver_port_reg_load(RX0_ID,
 				port,
@@ -80,22 +80,22 @@ void ia_css_isys_rx_enable_all_interrupts(mipi_port_ID_t port)
  * initializers in Windows. Without that there is no easy way to guarantee
  * that the array values would be in the correct order.
  * */
-mipi_port_ID_t ia_css_isys_port_to_mipi_port(enum ia_css_csi2_port api_port)
+enum mipi_port_id ia_css_isys_port_to_mipi_port(enum mipi_port_id api_port)
 {
 	/* In this module the validity of the inptu variable should
 	 * have been checked already, so we do not check for erroneous
 	 * values. */
-	mipi_port_ID_t port = MIPI_PORT0_ID;
+	enum mipi_port_id port = MIPI_PORT0_ID;
 
-	if (api_port == IA_CSS_CSI2_PORT1)
+	if (api_port == MIPI_PORT1_ID)
 		port = MIPI_PORT1_ID;
-	else if (api_port == IA_CSS_CSI2_PORT2)
+	else if (api_port == MIPI_PORT2_ID)
 		port = MIPI_PORT2_ID;
 
 	return port;
 }
 
-unsigned int ia_css_isys_rx_get_interrupt_reg(mipi_port_ID_t port)
+unsigned int ia_css_isys_rx_get_interrupt_reg(enum mipi_port_id port)
 {
 	return receiver_port_reg_load(RX0_ID,
 				      port,
@@ -104,17 +104,17 @@ unsigned int ia_css_isys_rx_get_interrupt_reg(mipi_port_ID_t port)
 
 void ia_css_rx_get_irq_info(unsigned int *irq_infos)
 {
-	ia_css_rx_port_get_irq_info(IA_CSS_CSI2_PORT1, irq_infos);
+	ia_css_rx_port_get_irq_info(MIPI_PORT1_ID, irq_infos);
 }
 
-void ia_css_rx_port_get_irq_info(enum ia_css_csi2_port api_port,
+void ia_css_rx_port_get_irq_info(enum mipi_port_id api_port,
 				 unsigned int *irq_infos)
 {
-	mipi_port_ID_t port = ia_css_isys_port_to_mipi_port(api_port);
+	enum mipi_port_id port = ia_css_isys_port_to_mipi_port(api_port);
 	ia_css_isys_rx_get_irq_info(port, irq_infos);
 }
 
-void ia_css_isys_rx_get_irq_info(mipi_port_ID_t port,
+void ia_css_isys_rx_get_irq_info(enum mipi_port_id port,
 				 unsigned int *irq_infos)
 {
 	unsigned int bits;
@@ -169,16 +169,16 @@ unsigned int ia_css_isys_rx_translate_irq_infos(unsigned int bits)
 
 void ia_css_rx_clear_irq_info(unsigned int irq_infos)
 {
-	ia_css_rx_port_clear_irq_info(IA_CSS_CSI2_PORT1, irq_infos);
+	ia_css_rx_port_clear_irq_info(MIPI_PORT1_ID, irq_infos);
 }
 
-void ia_css_rx_port_clear_irq_info(enum ia_css_csi2_port api_port, unsigned int irq_infos)
+void ia_css_rx_port_clear_irq_info(enum mipi_port_id api_port, unsigned int irq_infos)
 {
-	mipi_port_ID_t port = ia_css_isys_port_to_mipi_port(api_port);
+	enum mipi_port_id port = ia_css_isys_port_to_mipi_port(api_port);
 	ia_css_isys_rx_clear_irq_info(port, irq_infos);
 }
 
-void ia_css_isys_rx_clear_irq_info(mipi_port_ID_t port, unsigned int irq_infos)
+void ia_css_isys_rx_clear_irq_info(enum mipi_port_id port, unsigned int irq_infos)
 {
 	hrt_data bits = receiver_port_reg_load(RX0_ID,
 				port,
@@ -492,7 +492,7 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 #if defined(HAS_RX_VERSION_2)
 	bool port_enabled[N_MIPI_PORT_ID];
 	bool any_port_enabled = false;
-	mipi_port_ID_t port;
+	enum mipi_port_id port;
 
 	if ((config == NULL)
 		|| (config->mode >= N_RX_MODE)
@@ -500,7 +500,7 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 		assert(0);
 		return;
 	}
-	for (port = (mipi_port_ID_t) 0; port < N_MIPI_PORT_ID; port++) {
+	for (port = (enum mipi_port_id) 0; port < N_MIPI_PORT_ID; port++) {
 		if (is_receiver_port_enabled(RX0_ID, port))
 			any_port_enabled = true;
 	}
@@ -595,8 +595,8 @@ void ia_css_isys_rx_configure(const rx_cfg_t *config,
 
 void ia_css_isys_rx_disable(void)
 {
-	mipi_port_ID_t port;
-	for (port = (mipi_port_ID_t) 0; port < N_MIPI_PORT_ID; port++) {
+	enum mipi_port_id port;
+	for (port = (enum mipi_port_id) 0; port < N_MIPI_PORT_ID; port++) {
 		receiver_port_reg_store(RX0_ID, port,
 					_HRT_CSS_RECEIVER_DEVICE_READY_REG_IDX,
 					false);

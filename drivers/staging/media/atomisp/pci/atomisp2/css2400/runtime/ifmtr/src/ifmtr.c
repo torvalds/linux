@@ -118,7 +118,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 
 	/* Determine which input formatter config set is targeted. */
 	/* Index is equal to the CSI-2 port used. */
-	enum ia_css_csi2_port port;
+	enum mipi_port_id port;
 
 	if (binary) {
 		cropped_height = binary->in_frame_info.res.height;
@@ -141,7 +141,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	if (config->mode == IA_CSS_INPUT_MODE_SENSOR
 	    || config->mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR) {
 		port = config->source.port.port;
-		if_config_index = (uint8_t) (port - IA_CSS_CSI2_PORT0);
+		if_config_index = (uint8_t) (port - MIPI_PORT0_ID);
 	} else if (config->mode == IA_CSS_INPUT_MODE_MEMORY) {
 		if_config_index = SH_CSS_IF_CONFIG_NOT_NEEDED;
 	} else {

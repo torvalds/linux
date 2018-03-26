@@ -1020,7 +1020,7 @@ int atomisp_css_irq_translate(struct atomisp_device *isp,
 	return 0;
 }
 
-void atomisp_css_rx_get_irq_info(enum ia_css_csi2_port port,
+void atomisp_css_rx_get_irq_info(enum mipi_port_id port,
 					unsigned int *infos)
 {
 #ifndef ISP2401_NEW_INPUT_SYSTEM
@@ -1030,7 +1030,7 @@ void atomisp_css_rx_get_irq_info(enum ia_css_csi2_port port,
 #endif
 }
 
-void atomisp_css_rx_clear_irq_info(enum ia_css_csi2_port port,
+void atomisp_css_rx_clear_irq_info(enum mipi_port_id port,
 					unsigned int infos)
 {
 #ifndef ISP2401_NEW_INPUT_SYSTEM
@@ -2118,7 +2118,7 @@ void atomisp_css_enable_cvf(struct atomisp_sub_device *asd,
 
 int atomisp_css_input_configure_port(
 		struct atomisp_sub_device *asd,
-		mipi_port_ID_t port,
+		enum mipi_port_id port,
 		unsigned int num_lanes,
 		unsigned int timeout,
 		unsigned int mipi_freq,

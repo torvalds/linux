@@ -239,7 +239,7 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 
 #if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
 enum ia_css_err
-ia_css_mipi_frame_enable_check_on_size(const enum ia_css_csi2_port port,
+ia_css_mipi_frame_enable_check_on_size(const enum mipi_port_id port,
 				const unsigned int	size_mem_words)
 {
 	uint32_t idx;

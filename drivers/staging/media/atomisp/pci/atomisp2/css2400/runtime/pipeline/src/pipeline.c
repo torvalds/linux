@@ -161,9 +161,9 @@ void ia_css_pipeline_start(enum ia_css_pipe_id pipe_id,
 #endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
 #ifndef ISP2401
-				, (mipi_port_ID_t) 0
+				, (enum mipi_port_id) 0
 #else
-				(mipi_port_ID_t) 0,
+				(enum mipi_port_id) 0,
 #endif
 #endif
 #ifndef ISP2401

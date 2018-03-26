@@ -742,11 +742,11 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_id(
 		break;
 	case IA_CSS_INPUT_MODE_BUFFERED_SENSOR:
 
-		if (stream_cfg->source.port.port == IA_CSS_CSI2_PORT0) {
+		if (stream_cfg->source.port.port == MIPI_PORT0_ID) {
 			isys_stream_descr->input_port_id = INPUT_SYSTEM_CSI_PORT0_ID;
-		} else if (stream_cfg->source.port.port == IA_CSS_CSI2_PORT1) {
+		} else if (stream_cfg->source.port.port == MIPI_PORT1_ID) {
 			isys_stream_descr->input_port_id = INPUT_SYSTEM_CSI_PORT1_ID;
-		} else if (stream_cfg->source.port.port == IA_CSS_CSI2_PORT2) {
+		} else if (stream_cfg->source.port.port == MIPI_PORT2_ID) {
 			isys_stream_descr->input_port_id = INPUT_SYSTEM_CSI_PORT2_ID;
 		}
 
@@ -1195,7 +1195,7 @@ static inline struct ia_css_pipe *stream_get_target_pipe(
 
 static enum ia_css_err stream_csi_rx_helper(
 	struct ia_css_stream *stream,
-	enum ia_css_err (*func)(enum ia_css_csi2_port, uint32_t))
+	enum ia_css_err (*func)(enum mipi_port_id, uint32_t))
 {
 	enum ia_css_err retval = IA_CSS_ERR_INTERNAL_ERROR;
 	uint32_t sp_thread_id, stream_id;
@@ -1454,7 +1454,7 @@ static void start_pipe(
 				&me->stream->info.metadata_info
 #if !defined(HAS_NO_INPUT_SYSTEM)
 				,(input_mode==IA_CSS_INPUT_MODE_MEMORY) ?
-					(mipi_port_ID_t)0 :
+					(enum mipi_port_id)0 :
 					me->stream->config.source.port.port
 #endif
 #ifdef ISP2401
@@ -1497,7 +1497,7 @@ static void
 enable_interrupts(enum ia_css_irq_type irq_type)
 {
 #ifdef USE_INPUT_SYSTEM_VERSION_2
-	mipi_port_ID_t port;
+	enum mipi_port_id port;
 #endif
 	bool enable_pulse = irq_type != IA_CSS_IRQ_TYPE_EDGE;
 	IA_CSS_ENTER_PRIVATE("");
@@ -4074,9 +4074,9 @@ preview_start(struct ia_css_pipe *pipe)
 #endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
 #ifndef ISP2401
-			, (mipi_port_ID_t)0
+			, (enum mipi_port_id)0
 #else
-			(mipi_port_ID_t)0,
+			(enum mipi_port_id)0,
 #endif
 #endif
 #ifndef ISP2401
@@ -4106,9 +4106,9 @@ preview_start(struct ia_css_pipe *pipe)
 #endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
 #ifndef ISP2401
-			, (mipi_port_ID_t) 0
+			, (enum mipi_port_id) 0
 #else
-			(mipi_port_ID_t) 0,
+			(enum mipi_port_id) 0,
 #endif
 #endif
 #ifndef ISP2401
@@ -4673,7 +4673,7 @@ ia_css_dequeue_psys_event(struct ia_css_event *event)
 	event->type = convert_event_sp_to_host_domain[payload[0]];
 	/* Some sane default values since not all events use all fields. */
 	event->pipe = NULL;
-	event->port = IA_CSS_CSI2_PORT0;
+	event->port = MIPI_PORT0_ID;
 	event->exp_id = 0;
 	event->fw_warning = IA_CSS_FW_WARNING_NONE;
 	event->fw_handle = 0;
@@ -4719,7 +4719,7 @@ ia_css_dequeue_psys_event(struct ia_css_event *event)
 		}
 	}
 	if (event->type == IA_CSS_EVENT_TYPE_PORT_EOF) {
-		event->port = (enum ia_css_csi2_port)payload[1];
+		event->port = (enum mipi_port_id)payload[1];
 		event->exp_id = payload[3];
 	} else if (event->type == IA_CSS_EVENT_TYPE_FW_WARNING) {
 		event->fw_warning = (enum ia_css_fw_warning)payload[1];
@@ -5949,9 +5949,9 @@ static enum ia_css_err video_start(struct ia_css_pipe *pipe)
 #endif
 #if !defined(HAS_NO_INPUT_SYSTEM)
 #ifndef ISP2401
-			, (mipi_port_ID_t)0
+			, (enum mipi_port_id)0
 #else
-			(mipi_port_ID_t)0,
+			(enum mipi_port_id)0,
 #endif
 #endif
 #ifndef ISP2401
@@ -9173,7 +9173,7 @@ ia_css_stream_configure_rx(struct ia_css_stream *stream)
 	else if (config->num_lanes != 0)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 
-	if (config->port > IA_CSS_CSI2_PORT2)
+	if (config->port > MIPI_PORT2_ID)
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	stream->csi_rx_config.port =
 		ia_css_isys_port_to_mipi_port(config->port);
