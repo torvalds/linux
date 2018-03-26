@@ -56,6 +56,8 @@ struct ocxlflash_context {
 	u64 psn_size;			/* Process mapping size */
 
 	spinlock_t slock;		/* Protects irq/fault/event updates */
+	wait_queue_head_t wq;		/* Wait queue for poll and interrupts */
+
 	struct ocxlflash_irqs *irqs;	/* Pointer to array of structures */
 	int num_irqs;			/* Number of interrupts */
 	bool pending_irq;		/* Pending interrupt on the context */
