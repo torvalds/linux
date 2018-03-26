@@ -12535,6 +12535,68 @@ static int nl80211_external_auth(struct sk_buff *skb, struct genl_info *info)
 	return rdev_external_auth(rdev, dev, &params);
 }
 
+static int nl80211_tx_control_port(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	const u8 *buf;
+	size_t len;
+	u8 *dest;
+	u16 proto;
+	bool noencrypt;
+	int err;
+
+	if (!wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211))
+		return -EOPNOTSUPP;
+
+	if (!rdev->ops->tx_control_port)
+		return -EOPNOTSUPP;
+
+	if (!info->attrs[NL80211_ATTR_FRAME] ||
+	    !info->attrs[NL80211_ATTR_MAC] ||
+	    !info->attrs[NL80211_ATTR_CONTROL_PORT_ETHERTYPE]) {
+		GENL_SET_ERR_MSG(info, "Frame, MAC or ethertype missing");
+		return -EINVAL;
+	}
+
+	wdev_lock(wdev);
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_P2P_GO:
+	case NL80211_IFTYPE_MESH_POINT:
+		break;
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		if (wdev->current_bss)
+			break;
+		err = -ENOTCONN;
+		goto out;
+	default:
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	wdev_unlock(wdev);
+
+	buf = nla_data(info->attrs[NL80211_ATTR_FRAME]);
+	len = nla_len(info->attrs[NL80211_ATTR_FRAME]);
+	dest = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	proto = nla_get_u16(info->attrs[NL80211_ATTR_CONTROL_PORT_ETHERTYPE]);
+	noencrypt =
+		nla_get_flag(info->attrs[NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT]);
+
+	return rdev_tx_control_port(rdev, dev, buf, len,
+				    dest, cpu_to_be16(proto), noencrypt);
+
+ out:
+	wdev_unlock(wdev);
+	return err;
+}
+
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
@@ -13438,7 +13500,14 @@ static const struct genl_ops nl80211_ops[] = {
 		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
-
+	{
+		.cmd = NL80211_CMD_CONTROL_PORT_FRAME,
+		.doit = nl80211_tx_control_port,
+		.policy = nl80211_policy,
+		.flags = GENL_UNS_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
+				  NL80211_FLAG_NEED_RTNL,
+	},
 };
 
 static struct genl_family nl80211_fam __ro_after_init = {

@@ -5024,6 +5024,8 @@ enum nl80211_feature_flags {
  *	channel change triggered by radar detection event.
  *	No need to start CAC from user-space, no need to react to
  *	"radar detected" event.
+ * @NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211: Driver supports sending and
+ *	receiving control port frames over nl80211 instead of the netdevice.
  *
  * @NUM_NL80211_EXT_FEATURES: number of extended features.
  * @MAX_NL80211_EXT_FEATURES: highest extended feature index.
@@ -5055,6 +5057,7 @@ enum nl80211_ext_feature_index {
 	NL80211_EXT_FEATURE_LOW_POWER_SCAN,
 	NL80211_EXT_FEATURE_HIGH_ACCURACY_SCAN,
 	NL80211_EXT_FEATURE_DFS_OFFLOAD,
+	NL80211_EXT_FEATURE_CONTROL_PORT_OVER_NL80211,
 
 	/* add new features before the definition below */
 	NUM_NL80211_EXT_FEATURES,

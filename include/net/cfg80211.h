@@ -2961,6 +2961,9 @@ struct cfg80211_external_auth_params {
  *
  * @external_auth: indicates result of offloaded authentication processing from
  *     user space
+ *
+ * @tx_control_port: TX a control port frame (EAPoL).  The noencrypt parameter
+ *	tells the driver that the frame should not be encrypted.
  */
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
@@ -3256,6 +3259,12 @@ struct cfg80211_ops {
 			   const u8 *aa);
 	int     (*external_auth)(struct wiphy *wiphy, struct net_device *dev,
 				 struct cfg80211_external_auth_params *params);
+
+	int	(*tx_control_port)(struct wiphy *wiphy,
+				   struct net_device *dev,
+				   const u8 *buf, size_t len,
+				   const u8 *dest, const __be16 proto,
+				   const bool noencrypt);
 };
 
 /*
