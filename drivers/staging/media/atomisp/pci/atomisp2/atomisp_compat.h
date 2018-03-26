@@ -182,8 +182,6 @@ void atomisp_css_mmu_invalidate_cache(void);
 
 void atomisp_css_mmu_invalidate_tlb(void);
 
-void atomisp_css_mmu_set_page_table_base_index(unsigned long base_index);
-
 int atomisp_css_start(struct atomisp_sub_device *asd,
 		      enum atomisp_css_pipe_id pipe_id, bool in_reset);
 

@@ -1159,10 +1159,6 @@ void atomisp_css_mmu_invalidate_tlb(void)
 	ia_css_mmu_invalidate_cache();
 }
 
-void atomisp_css_mmu_set_page_table_base_index(unsigned long base_index)
-{
-}
-
 /*
  * Check whether currently running MIPI buffer size fulfill
  * the requirement of the stream to be run
