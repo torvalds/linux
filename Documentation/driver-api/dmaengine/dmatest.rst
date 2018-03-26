@@ -6,6 +6,11 @@ Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 
 This small document introduces how to test DMA drivers using dmatest module.
 
+.. note::
+  The test suite works only on the channels that have at least one
+  capability of the following: DMA_MEMCPY (memory-to-memory), DMA_MEMSET
+  (const-to-memory or memory-to-memory, when emulated), DMA_XOR, DMA_PQ.
+
 Part 1 - How to build the test module
 =====================================
 
