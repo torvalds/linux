@@ -22,6 +22,7 @@
 
 #include <linux/acpi.h>
 #include <linux/acpi_iort.h>
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/dma-iommu.h>
@@ -44,18 +45,15 @@
 
 /* MMIO registers */
 #define ARM_SMMU_IDR0			0x0
-#define IDR0_ST_LVL_SHIFT		27
-#define IDR0_ST_LVL_MASK		0x3
-#define IDR0_ST_LVL_2LVL		(1 << IDR0_ST_LVL_SHIFT)
-#define IDR0_STALL_MODEL_SHIFT		24
-#define IDR0_STALL_MODEL_MASK		0x3
-#define IDR0_STALL_MODEL_STALL		(0 << IDR0_STALL_MODEL_SHIFT)
-#define IDR0_STALL_MODEL_FORCE		(2 << IDR0_STALL_MODEL_SHIFT)
-#define IDR0_TTENDIAN_SHIFT		21
-#define IDR0_TTENDIAN_MASK		0x3
-#define IDR0_TTENDIAN_LE		(2 << IDR0_TTENDIAN_SHIFT)
-#define IDR0_TTENDIAN_BE		(3 << IDR0_TTENDIAN_SHIFT)
-#define IDR0_TTENDIAN_MIXED		(0 << IDR0_TTENDIAN_SHIFT)
+#define IDR0_ST_LVL			GENMASK(28, 27)
+#define IDR0_ST_LVL_2LVL		1
+#define IDR0_STALL_MODEL		GENMASK(25, 24)
+#define IDR0_STALL_MODEL_STALL		0
+#define IDR0_STALL_MODEL_FORCE		2
+#define IDR0_TTENDIAN			GENMASK(22, 21)
+#define IDR0_TTENDIAN_MIXED		0
+#define IDR0_TTENDIAN_LE		2
+#define IDR0_TTENDIAN_BE		3
 #define IDR0_CD2L			(1 << 19)
 #define IDR0_VMID16			(1 << 18)
 #define IDR0_PRI			(1 << 16)
@@ -65,10 +63,9 @@
 #define IDR0_ATS			(1 << 10)
 #define IDR0_HYP			(1 << 9)
 #define IDR0_COHACC			(1 << 4)
-#define IDR0_TTF_SHIFT			2
-#define IDR0_TTF_MASK			0x3
-#define IDR0_TTF_AARCH64		(2 << IDR0_TTF_SHIFT)
-#define IDR0_TTF_AARCH32_64		(3 << IDR0_TTF_SHIFT)
+#define IDR0_TTF			GENMASK(3, 2)
+#define IDR0_TTF_AARCH64		2
+#define IDR0_TTF_AARCH32_64		3
 #define IDR0_S1P			(1 << 1)
 #define IDR0_S2P			(1 << 0)
 
@@ -76,31 +73,24 @@
 #define IDR1_TABLES_PRESET		(1 << 30)
 #define IDR1_QUEUES_PRESET		(1 << 29)
 #define IDR1_REL			(1 << 28)
-#define IDR1_CMDQ_SHIFT			21
-#define IDR1_CMDQ_MASK			0x1f
-#define IDR1_EVTQ_SHIFT			16
-#define IDR1_EVTQ_MASK			0x1f
-#define IDR1_PRIQ_SHIFT			11
-#define IDR1_PRIQ_MASK			0x1f
-#define IDR1_SSID_SHIFT			6
-#define IDR1_SSID_MASK			0x1f
-#define IDR1_SID_SHIFT			0
-#define IDR1_SID_MASK			0x3f
+#define IDR1_CMDQS			GENMASK(25, 21)
+#define IDR1_EVTQS			GENMASK(20, 16)
+#define IDR1_PRIQS			GENMASK(15, 11)
+#define IDR1_SSIDSIZE			GENMASK(10, 6)
+#define IDR1_SIDSIZE			GENMASK(5, 0)
 
 #define ARM_SMMU_IDR5			0x14
-#define IDR5_STALL_MAX_SHIFT		16
-#define IDR5_STALL_MAX_MASK		0xffff
+#define IDR5_STALL_MAX			GENMASK(31, 16)
 #define IDR5_GRAN64K			(1 << 6)
 #define IDR5_GRAN16K			(1 << 5)
 #define IDR5_GRAN4K			(1 << 4)
-#define IDR5_OAS_SHIFT			0
-#define IDR5_OAS_MASK			0x7
-#define IDR5_OAS_32_BIT			(0 << IDR5_OAS_SHIFT)
-#define IDR5_OAS_36_BIT			(1 << IDR5_OAS_SHIFT)
-#define IDR5_OAS_40_BIT			(2 << IDR5_OAS_SHIFT)
-#define IDR5_OAS_42_BIT			(3 << IDR5_OAS_SHIFT)
-#define IDR5_OAS_44_BIT			(4 << IDR5_OAS_SHIFT)
-#define IDR5_OAS_48_BIT			(5 << IDR5_OAS_SHIFT)
+#define IDR5_OAS			GENMASK(2, 0)
+#define IDR5_OAS_32_BIT			0
+#define IDR5_OAS_36_BIT			1
+#define IDR5_OAS_40_BIT			2
+#define IDR5_OAS_42_BIT			3
+#define IDR5_OAS_44_BIT			4
+#define IDR5_OAS_48_BIT			5
 
 #define ARM_SMMU_CR0			0x20
 #define CR0_CMDQEN			(1 << 3)
@@ -111,18 +101,16 @@
 #define ARM_SMMU_CR0ACK			0x24
 
 #define ARM_SMMU_CR1			0x28
-#define CR1_SH_NSH			0
-#define CR1_SH_OSH			2
-#define CR1_SH_ISH			3
+#define CR1_TABLE_SH			GENMASK(11, 10)
+#define CR1_TABLE_OC			GENMASK(9, 8)
+#define CR1_TABLE_IC			GENMASK(7, 6)
+#define CR1_QUEUE_SH			GENMASK(5, 4)
+#define CR1_QUEUE_OC			GENMASK(3, 2)
+#define CR1_QUEUE_IC			GENMASK(1, 0)
+/* CR1 cacheability fields don't quite follow the usual TCR-style encoding */
 #define CR1_CACHE_NC			0
 #define CR1_CACHE_WB			1
 #define CR1_CACHE_WT			2
-#define CR1_TABLE_SH_SHIFT		10
-#define CR1_TABLE_OC_SHIFT		8
-#define CR1_TABLE_IC_SHIFT		6
-#define CR1_QUEUE_SH_SHIFT		4
-#define CR1_QUEUE_OC_SHIFT		2
-#define CR1_QUEUE_IC_SHIFT		0
 
 #define ARM_SMMU_CR2			0x2c
 #define CR2_PTM				(1 << 2)
@@ -130,8 +118,8 @@
 #define CR2_E2H				(1 << 0)
 
 #define ARM_SMMU_GBPA			0x44
-#define GBPA_ABORT			(1 << 20)
 #define GBPA_UPDATE			(1 << 31)
+#define GBPA_ABORT			(1 << 20)
 
 #define ARM_SMMU_IRQ_CTRL		0x50
 #define IRQ_CTRL_EVTQ_IRQEN		(1 << 2)
@@ -162,14 +150,11 @@
 #define STRTAB_BASE_ADDR_MASK		GENMASK_ULL(47, 6)
 
 #define ARM_SMMU_STRTAB_BASE_CFG	0x88
-#define STRTAB_BASE_CFG_LOG2SIZE_SHIFT	0
-#define STRTAB_BASE_CFG_LOG2SIZE_MASK	0x3f
-#define STRTAB_BASE_CFG_SPLIT_SHIFT	6
-#define STRTAB_BASE_CFG_SPLIT_MASK	0x1f
-#define STRTAB_BASE_CFG_FMT_SHIFT	16
-#define STRTAB_BASE_CFG_FMT_MASK	0x3
-#define STRTAB_BASE_CFG_FMT_LINEAR	(0 << STRTAB_BASE_CFG_FMT_SHIFT)
-#define STRTAB_BASE_CFG_FMT_2LVL	(1 << STRTAB_BASE_CFG_FMT_SHIFT)
+#define STRTAB_BASE_CFG_FMT		GENMASK(17, 16)
+#define STRTAB_BASE_CFG_FMT_LINEAR	0
+#define STRTAB_BASE_CFG_FMT_2LVL	1
+#define STRTAB_BASE_CFG_SPLIT		GENMASK(10, 6)
+#define STRTAB_BASE_CFG_LOG2SIZE	GENMASK(5, 0)
 
 #define ARM_SMMU_CMDQ_BASE		0x90
 #define ARM_SMMU_CMDQ_PROD		0x98
@@ -191,12 +176,14 @@
 
 /* Common MSI config fields */
 #define MSI_CFG0_ADDR_MASK		GENMASK_ULL(47, 2)
-#define MSI_CFG2_SH_SHIFT		4
-#define MSI_CFG2_SH_NSH			(0UL << MSI_CFG2_SH_SHIFT)
-#define MSI_CFG2_SH_OSH			(2UL << MSI_CFG2_SH_SHIFT)
-#define MSI_CFG2_SH_ISH			(3UL << MSI_CFG2_SH_SHIFT)
-#define MSI_CFG2_MEMATTR_SHIFT		0
-#define MSI_CFG2_MEMATTR_DEVICE_nGnRE	(0x1 << MSI_CFG2_MEMATTR_SHIFT)
+#define MSI_CFG2_SH			GENMASK(5, 4)
+#define MSI_CFG2_MEMATTR		GENMASK(3, 0)
+
+/* Common memory attribute values */
+#define ARM_SMMU_SH_NSH			0
+#define ARM_SMMU_SH_OSH			2
+#define ARM_SMMU_SH_ISH			3
+#define ARM_SMMU_MEMATTR_DEVICE_nGnRE	0x1
 
 #define Q_IDX(q, p)			((p) & ((1 << (q)->max_n_shift) - 1))
 #define Q_WRP(q, p)			((p) & (1 << (q)->max_n_shift))
@@ -207,8 +194,7 @@
 
 #define Q_BASE_RWA			(1UL << 62)
 #define Q_BASE_ADDR_MASK		GENMASK_ULL(47, 5)
-#define Q_BASE_LOG2SIZE_SHIFT		0
-#define Q_BASE_LOG2SIZE_MASK		0x1fUL
+#define Q_BASE_LOG2SIZE			GENMASK(4, 0)
 
 /*
  * Stream table.
@@ -333,8 +319,7 @@
 #define CMDQ_ENT_DWORDS			2
 #define CMDQ_MAX_SZ_SHIFT		8
 
-#define CMDQ_ERR_SHIFT			24
-#define CMDQ_ERR_MASK			0x7f
+#define CMDQ_CONS_ERR			GENMASK(30, 24)
 #define CMDQ_ERR_CERROR_NONE_IDX	0
 #define CMDQ_ERR_CERROR_ILL_IDX		1
 #define CMDQ_ERR_CERROR_ABT_IDX		2
@@ -910,7 +895,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 	u64 cmd[CMDQ_ENT_DWORDS];
 	struct arm_smmu_queue *q = &smmu->cmdq.q;
 	u32 cons = readl_relaxed(q->cons_reg);
-	u32 idx = cons >> CMDQ_ERR_SHIFT & CMDQ_ERR_MASK;
+	u32 idx = FIELD_GET(CMDQ_CONS_ERR, cons);
 	struct arm_smmu_cmdq_ent cmd_sync = {
 		.opcode = CMDQ_OP_CMD_SYNC,
 	};
@@ -2093,8 +2078,7 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 
 	q->q_base  = Q_BASE_RWA;
 	q->q_base |= q->base_dma & Q_BASE_ADDR_MASK;
-	q->q_base |= (q->max_n_shift & Q_BASE_LOG2SIZE_MASK)
-		     << Q_BASE_LOG2SIZE_SHIFT;
+	q->q_base |= FIELD_PREP(Q_BASE_LOG2SIZE, q->max_n_shift);
 
 	q->prod = q->cons = 0;
 	return 0;
@@ -2176,11 +2160,9 @@ static int arm_smmu_init_strtab_2lvl(struct arm_smmu_device *smmu)
 	cfg->strtab = strtab;
 
 	/* Configure strtab_base_cfg for 2 levels */
-	reg  = STRTAB_BASE_CFG_FMT_2LVL;
-	reg |= (size & STRTAB_BASE_CFG_LOG2SIZE_MASK)
-		<< STRTAB_BASE_CFG_LOG2SIZE_SHIFT;
-	reg |= (STRTAB_SPLIT & STRTAB_BASE_CFG_SPLIT_MASK)
-		<< STRTAB_BASE_CFG_SPLIT_SHIFT;
+	reg  = FIELD_PREP(STRTAB_BASE_CFG_FMT, STRTAB_BASE_CFG_FMT_2LVL);
+	reg |= FIELD_PREP(STRTAB_BASE_CFG_LOG2SIZE, size);
+	reg |= FIELD_PREP(STRTAB_BASE_CFG_SPLIT, STRTAB_SPLIT);
 	cfg->strtab_base_cfg = reg;
 
 	return arm_smmu_init_l1_strtab(smmu);
@@ -2206,9 +2188,8 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
 	cfg->num_l1_ents = 1 << smmu->sid_bits;
 
 	/* Configure strtab_base_cfg for a linear table covering all SIDs */
-	reg  = STRTAB_BASE_CFG_FMT_LINEAR;
-	reg |= (smmu->sid_bits & STRTAB_BASE_CFG_LOG2SIZE_MASK)
-		<< STRTAB_BASE_CFG_LOG2SIZE_SHIFT;
+	reg  = FIELD_PREP(STRTAB_BASE_CFG_FMT, STRTAB_BASE_CFG_FMT_LINEAR);
+	reg |= FIELD_PREP(STRTAB_BASE_CFG_LOG2SIZE, smmu->sid_bits);
 	cfg->strtab_base_cfg = reg;
 
 	arm_smmu_init_bypass_stes(strtab, cfg->num_l1_ents);
@@ -2296,7 +2277,7 @@ static void arm_smmu_write_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
 
 	writeq_relaxed(doorbell, smmu->base + cfg[0]);
 	writel_relaxed(msg->data, smmu->base + cfg[1]);
-	writel_relaxed(MSI_CFG2_MEMATTR_DEVICE_nGnRE, smmu->base + cfg[2]);
+	writel_relaxed(ARM_SMMU_MEMATTR_DEVICE_nGnRE, smmu->base + cfg[2]);
 }
 
 static void arm_smmu_setup_msis(struct arm_smmu_device *smmu)
@@ -2463,12 +2444,12 @@ static int arm_smmu_device_reset(struct arm_smmu_device *smmu, bool bypass)
 		return ret;
 
 	/* CR1 (table and queue memory attributes) */
-	reg = (CR1_SH_ISH << CR1_TABLE_SH_SHIFT) |
-	      (CR1_CACHE_WB << CR1_TABLE_OC_SHIFT) |
-	      (CR1_CACHE_WB << CR1_TABLE_IC_SHIFT) |
-	      (CR1_SH_ISH << CR1_QUEUE_SH_SHIFT) |
-	      (CR1_CACHE_WB << CR1_QUEUE_OC_SHIFT) |
-	      (CR1_CACHE_WB << CR1_QUEUE_IC_SHIFT);
+	reg = FIELD_PREP(CR1_TABLE_SH, ARM_SMMU_SH_ISH) |
+	      FIELD_PREP(CR1_TABLE_OC, CR1_CACHE_WB) |
+	      FIELD_PREP(CR1_TABLE_IC, CR1_CACHE_WB) |
+	      FIELD_PREP(CR1_QUEUE_SH, ARM_SMMU_SH_ISH) |
+	      FIELD_PREP(CR1_QUEUE_OC, CR1_CACHE_WB) |
+	      FIELD_PREP(CR1_QUEUE_IC, CR1_CACHE_WB);
 	writel_relaxed(reg, smmu->base + ARM_SMMU_CR1);
 
 	/* CR2 (random crap) */
@@ -2578,7 +2559,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	reg = readl_relaxed(smmu->base + ARM_SMMU_IDR0);
 
 	/* 2-level structures */
-	if ((reg & IDR0_ST_LVL_MASK << IDR0_ST_LVL_SHIFT) == IDR0_ST_LVL_2LVL)
+	if (FIELD_GET(IDR0_ST_LVL, reg) == IDR0_ST_LVL_2LVL)
 		smmu->features |= ARM_SMMU_FEAT_2_LVL_STRTAB;
 
 	if (reg & IDR0_CD2L)
@@ -2589,7 +2570,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	 * We currently require the same endianness as the CPU, but this
 	 * could be changed later by adding a new IO_PGTABLE_QUIRK.
 	 */
-	switch (reg & IDR0_TTENDIAN_MASK << IDR0_TTENDIAN_SHIFT) {
+	switch (FIELD_GET(IDR0_TTENDIAN, reg)) {
 	case IDR0_TTENDIAN_MIXED:
 		smmu->features |= ARM_SMMU_FEAT_TT_LE | ARM_SMMU_FEAT_TT_BE;
 		break;
@@ -2631,7 +2612,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 		dev_warn(smmu->dev, "IDR0.COHACC overridden by FW configuration (%s)\n",
 			 coherent ? "true" : "false");
 
-	switch (reg & IDR0_STALL_MODEL_MASK << IDR0_STALL_MODEL_SHIFT) {
+	switch (FIELD_GET(IDR0_STALL_MODEL, reg)) {
 	case IDR0_STALL_MODEL_FORCE:
 		smmu->features |= ARM_SMMU_FEAT_STALL_FORCE;
 		/* Fallthrough */
@@ -2651,7 +2632,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	}
 
 	/* We only support the AArch64 table format at present */
-	switch (reg & IDR0_TTF_MASK << IDR0_TTF_SHIFT) {
+	switch (FIELD_GET(IDR0_TTF, reg)) {
 	case IDR0_TTF_AARCH32_64:
 		smmu->ias = 40;
 		/* Fallthrough */
@@ -2674,22 +2655,22 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	}
 
 	/* Queue sizes, capped at 4k */
-	smmu->cmdq.q.max_n_shift = min((u32)CMDQ_MAX_SZ_SHIFT,
-				       reg >> IDR1_CMDQ_SHIFT & IDR1_CMDQ_MASK);
+	smmu->cmdq.q.max_n_shift = min_t(u32, CMDQ_MAX_SZ_SHIFT,
+					 FIELD_GET(IDR1_CMDQS, reg));
 	if (!smmu->cmdq.q.max_n_shift) {
 		/* Odd alignment restrictions on the base, so ignore for now */
 		dev_err(smmu->dev, "unit-length command queue not supported\n");
 		return -ENXIO;
 	}
 
-	smmu->evtq.q.max_n_shift = min((u32)EVTQ_MAX_SZ_SHIFT,
-				       reg >> IDR1_EVTQ_SHIFT & IDR1_EVTQ_MASK);
-	smmu->priq.q.max_n_shift = min((u32)PRIQ_MAX_SZ_SHIFT,
-				       reg >> IDR1_PRIQ_SHIFT & IDR1_PRIQ_MASK);
+	smmu->evtq.q.max_n_shift = min_t(u32, EVTQ_MAX_SZ_SHIFT,
+					 FIELD_GET(IDR1_EVTQS, reg));
+	smmu->priq.q.max_n_shift = min_t(u32, PRIQ_MAX_SZ_SHIFT,
+					 FIELD_GET(IDR1_PRIQS, reg));
 
 	/* SID/SSID sizes */
-	smmu->ssid_bits = reg >> IDR1_SSID_SHIFT & IDR1_SSID_MASK;
-	smmu->sid_bits = reg >> IDR1_SID_SHIFT & IDR1_SID_MASK;
+	smmu->ssid_bits = FIELD_GET(IDR1_SSIDSIZE, reg);
+	smmu->sid_bits = FIELD_GET(IDR1_SIDSIZE, reg);
 
 	/*
 	 * If the SMMU supports fewer bits than would fill a single L2 stream
@@ -2702,8 +2683,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	reg = readl_relaxed(smmu->base + ARM_SMMU_IDR5);
 
 	/* Maximum number of outstanding stalls */
-	smmu->evtq.max_stalls = reg >> IDR5_STALL_MAX_SHIFT
-				& IDR5_STALL_MAX_MASK;
+	smmu->evtq.max_stalls = FIELD_GET(IDR5_STALL_MAX, reg);
 
 	/* Page sizes */
 	if (reg & IDR5_GRAN64K)
@@ -2719,7 +2699,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 		arm_smmu_ops.pgsize_bitmap |= smmu->pgsize_bitmap;
 
 	/* Output address size */
-	switch (reg & IDR5_OAS_MASK << IDR5_OAS_SHIFT) {
+	switch (FIELD_GET(IDR5_OAS, reg)) {
 	case IDR5_OAS_32_BIT:
 		smmu->oas = 32;
 		break;
