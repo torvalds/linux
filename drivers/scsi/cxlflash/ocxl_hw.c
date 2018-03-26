@@ -1267,6 +1267,30 @@ err:
 		afu_unmap_irq(0, ctx, i, ctx);
 	free_afu_irqs(ctx);
 	goto out;
+};
+
+/**
+ * ocxlflash_fd_mmap() - mmap handler for adapter file descriptor
+ * @file:	File installed with adapter file descriptor.
+ * @vma:	VM area associated with mapping.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_fd_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	return afu_mmap(file, vma);
+}
+
+/**
+ * ocxlflash_fd_release() - release the context associated with the file
+ * @inode:	File inode pointer.
+ * @file:	File associated with the adapter context.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_fd_release(struct inode *inode, struct file *file)
+{
+	return afu_release(inode, file);
 }
 
 /* Backend ops to ocxlflash services */
@@ -1292,4 +1316,6 @@ const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.get_fd			= ocxlflash_get_fd,
 	.fops_get_context	= ocxlflash_fops_get_context,
 	.start_work		= ocxlflash_start_work,
+	.fd_mmap		= ocxlflash_fd_mmap,
+	.fd_release		= ocxlflash_fd_release,
 };
