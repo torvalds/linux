@@ -151,6 +151,28 @@ err1:
 }
 
 /**
+ * ocxlflash_psa_map() - map the process specific MMIO space
+ * @ctx_cookie:	Adapter context for which the mapping needs to be done.
+ *
+ * Return: MMIO pointer of the mapped region
+ */
+static void __iomem *ocxlflash_psa_map(void *ctx_cookie)
+{
+	struct ocxlflash_context *ctx = ctx_cookie;
+
+	return ioremap(ctx->psn_phys, ctx->psn_size);
+}
+
+/**
+ * ocxlflash_psa_unmap() - unmap the process specific MMIO space
+ * @addr:	MMIO pointer to unmap.
+ */
+static void ocxlflash_psa_unmap(void __iomem *addr)
+{
+	iounmap(addr);
+}
+
+/**
  * ocxlflash_process_element() - get process element of the adapter context
  * @ctx_cookie:	Adapter context associated with the process element.
  *
@@ -618,6 +640,8 @@ static void *ocxlflash_fops_get_context(struct file *file)
 /* Backend ops to ocxlflash services */
 const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.module			= THIS_MODULE,
+	.psa_map		= ocxlflash_psa_map,
+	.psa_unmap		= ocxlflash_psa_unmap,
 	.process_element	= ocxlflash_process_element,
 	.start_context		= ocxlflash_start_context,
 	.set_master		= ocxlflash_set_master,
