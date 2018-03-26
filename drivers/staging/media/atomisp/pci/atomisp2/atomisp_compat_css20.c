@@ -1159,27 +1159,6 @@ void atomisp_css_mmu_invalidate_tlb(void)
 	ia_css_mmu_invalidate_cache();
 }
 
-/*
- * Check whether currently running MIPI buffer size fulfill
- * the requirement of the stream to be run
- */
-bool __need_realloc_mipi_buffer(struct atomisp_device *isp)
-{
-	unsigned int i;
-
-	for (i = 0; i < isp->num_of_streams; i++) {
-		struct atomisp_sub_device *asd = &isp->asd[i];
-
-		if (asd->streaming !=
-				ATOMISP_DEVICE_STREAMING_ENABLED)
-			continue;
-		if (asd->mipi_frame_size < isp->mipi_frame_size)
-			return true;
-	}
-
-	return false;
-}
-
 int atomisp_css_start(struct atomisp_sub_device *asd,
 			enum atomisp_css_pipe_id pipe_id, bool in_reset)
 {
