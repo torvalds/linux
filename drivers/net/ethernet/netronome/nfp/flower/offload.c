@@ -48,6 +48,10 @@
 	(TCPHDR_FIN | TCPHDR_SYN | TCPHDR_RST | \
 	 TCPHDR_PSH | TCPHDR_URG)
 
+#define NFP_FLOWER_SUPPORTED_CTLFLAGS \
+	(FLOW_DIS_IS_FRAGMENT | \
+	 FLOW_DIS_FIRST_FRAG)
+
 #define NFP_FLOWER_WHITELIST_DISSECTOR \
 	(BIT(FLOW_DISSECTOR_KEY_CONTROL) | \
 	 BIT(FLOW_DISSECTOR_KEY_BASIC) | \
@@ -320,6 +324,17 @@ nfp_flower_calculate_key_layers(struct nfp_app *app,
 			key_layer |= NFP_FLOWER_LAYER_IPV4;
 			key_size += sizeof(struct nfp_flower_ipv4);
 		}
+	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_dissector_key_control *key_ctl;
+
+		key_ctl = skb_flow_dissector_target(flow->dissector,
+						    FLOW_DISSECTOR_KEY_CONTROL,
+						    flow->key);
+
+		if (key_ctl->flags & ~NFP_FLOWER_SUPPORTED_CTLFLAGS)
+			return -EOPNOTSUPP;
 	}
 
 	ret_key_ls->key_layer = key_layer;
