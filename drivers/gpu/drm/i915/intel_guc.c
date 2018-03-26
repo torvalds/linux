@@ -368,11 +368,20 @@ int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 				 " ret=%d status=0x%08X response=0x%08X\n",
 				 action[0], ret, status,
 				 I915_READ(SOFT_SCRATCH(15)));
-	} else {
-		/* Use data from the GuC response as our return value */
-		ret = INTEL_GUC_MSG_TO_DATA(status);
+		goto out;
 	}
 
+	if (response_buf) {
+		int count = min(response_buf_size, guc->send_regs.count - 1);
+
+		for (i = 0; i < count; i++)
+			response_buf[i] = I915_READ(guc_send_reg(guc, i + 1));
+	}
+
+	/* Use data from the GuC response as our return value */
+	ret = INTEL_GUC_MSG_TO_DATA(status);
+
+out:
 	intel_uncore_forcewake_put(dev_priv, guc->send_regs.fw_domains);
 	mutex_unlock(&guc->send_mutex);
 
