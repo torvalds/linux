@@ -1013,8 +1013,26 @@ static void cmos_check_wkalrm(struct device *dev)
 {
 	struct cmos_rtc *cmos = dev_get_drvdata(dev);
 	struct rtc_wkalrm current_alarm;
+	time64_t t_now;
 	time64_t t_current_expires;
 	time64_t t_saved_expires;
+	struct rtc_time now;
+
+	/* Check if we have RTC Alarm armed */
+	if (!(cmos->suspend_ctrl & RTC_AIE))
+		return;
+
+	cmos_read_time(dev, &now);
+	t_now = rtc_tm_to_time64(&now);
+
+	/*
+	 * ACPI RTC wake event is cleared after resume from STR,
+	 * ACK the rtc irq here
+	 */
+	if (t_now >= cmos->alarm_expires && use_acpi_alarm) {
+		cmos_interrupt(0, (void *)cmos->rtc);
+		return;
+	}
 
 	cmos_read_alarm(dev, &current_alarm);
 	t_current_expires = rtc_tm_to_time64(&current_alarm.time);
