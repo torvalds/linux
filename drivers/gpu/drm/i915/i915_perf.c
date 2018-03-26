@@ -1886,6 +1886,13 @@ static void gen10_disable_metric_set(struct drm_i915_private *dev_priv)
 
 static void gen7_oa_enable(struct drm_i915_private *dev_priv)
 {
+	struct i915_gem_context *ctx =
+			dev_priv->perf.oa.exclusive_stream->ctx;
+	u32 ctx_id = dev_priv->perf.oa.specific_ctx_id;
+	bool periodic = dev_priv->perf.oa.periodic;
+	u32 period_exponent = dev_priv->perf.oa.period_exponent;
+	u32 report_format = dev_priv->perf.oa.oa_buffer.format;
+
 	/*
 	 * Reset buf pointers so we don't forward reports from before now.
 	 *
@@ -1897,25 +1904,14 @@ static void gen7_oa_enable(struct drm_i915_private *dev_priv)
 	 */
 	gen7_init_oa_buffer(dev_priv);
 
-	if (dev_priv->perf.oa.exclusive_stream->enabled) {
-		struct i915_gem_context *ctx =
-			dev_priv->perf.oa.exclusive_stream->ctx;
-		u32 ctx_id = dev_priv->perf.oa.specific_ctx_id;
-
-		bool periodic = dev_priv->perf.oa.periodic;
-		u32 period_exponent = dev_priv->perf.oa.period_exponent;
-		u32 report_format = dev_priv->perf.oa.oa_buffer.format;
-
-		I915_WRITE(GEN7_OACONTROL,
-			   (ctx_id & GEN7_OACONTROL_CTX_MASK) |
-			   (period_exponent <<
-			    GEN7_OACONTROL_TIMER_PERIOD_SHIFT) |
-			   (periodic ? GEN7_OACONTROL_TIMER_ENABLE : 0) |
-			   (report_format << GEN7_OACONTROL_FORMAT_SHIFT) |
-			   (ctx ? GEN7_OACONTROL_PER_CTX_ENABLE : 0) |
-			   GEN7_OACONTROL_ENABLE);
-	} else
-		I915_WRITE(GEN7_OACONTROL, 0);
+	I915_WRITE(GEN7_OACONTROL,
+		   (ctx_id & GEN7_OACONTROL_CTX_MASK) |
+		   (period_exponent <<
+		    GEN7_OACONTROL_TIMER_PERIOD_SHIFT) |
+		   (periodic ? GEN7_OACONTROL_TIMER_ENABLE : 0) |
+		   (report_format << GEN7_OACONTROL_FORMAT_SHIFT) |
+		   (ctx ? GEN7_OACONTROL_PER_CTX_ENABLE : 0) |
+		   GEN7_OACONTROL_ENABLE);
 }
 
 static void gen8_oa_enable(struct drm_i915_private *dev_priv)
