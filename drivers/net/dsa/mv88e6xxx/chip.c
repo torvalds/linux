@@ -425,7 +425,7 @@ static int mv88e6xxx_g1_irq_setup(struct mv88e6xxx_chip *chip)
 
 	err = request_threaded_irq(chip->irq, NULL,
 				   mv88e6xxx_g1_irq_thread_fn,
-				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
+				   IRQF_ONESHOT,
 				   dev_name(chip->dev), chip);
 	if (err)
 		mv88e6xxx_g1_irq_free_common(chip);
@@ -467,6 +467,8 @@ static int mv88e6xxx_irq_poll_setup(struct mv88e6xxx_chip *chip)
 
 static void mv88e6xxx_irq_poll_free(struct mv88e6xxx_chip *chip)
 {
+	mv88e6xxx_g1_irq_free_common(chip);
+
 	kthread_cancel_delayed_work_sync(&chip->irq_poll_work);
 	kthread_destroy_worker(chip->kworker);
 }
