@@ -298,5 +298,4 @@ static struct platform_driver mtk_pwm_driver = {
 module_platform_driver(mtk_pwm_driver);
 
 MODULE_AUTHOR("John Crispin <blogic@openwrt.org>");
-MODULE_ALIAS("platform:mtk-pwm");
 MODULE_LICENSE("GPL");
