@@ -946,9 +946,9 @@ static void cxlflash_remove(struct pci_dev *pdev)
 		return;
 	}
 
-	/* If a Task Management Function is active, wait for it to complete
-	 * before continuing with remove.
-	 */
+	/* Yield to running recovery threads before continuing with remove */
+	wait_event(cfg->reset_waitq, cfg->state != STATE_RESET &&
+				     cfg->state != STATE_PROBING);
 	spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
 	if (cfg->tmf_active)
 		wait_event_interruptible_lock_irq(cfg->tmf_waitq,
