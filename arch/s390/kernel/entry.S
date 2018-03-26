@@ -11,6 +11,7 @@
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <asm/alternative-asm.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/ctl_reg.h>
@@ -162,65 +163,22 @@ _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 	.endm
 
 	.macro BPOFF
-	.pushsection .altinstr_replacement, "ax"
-660:	.long	0xb2e8c000
-	.popsection
-661:	.long	0x47000000
-	.pushsection .altinstructions, "a"
-	.long 661b - .
-	.long 660b - .
-	.word 82
-	.byte 4
-	.byte 4
-	.popsection
+	ALTERNATIVE "", ".long 0xb2e8c000", 82
 	.endm
 
 	.macro BPON
-	.pushsection .altinstr_replacement, "ax"
-662:	.long	0xb2e8d000
-	.popsection
-663:	.long	0x47000000
-	.pushsection .altinstructions, "a"
-	.long 663b - .
-	.long 662b - .
-	.word 82
-	.byte 4
-	.byte 4
-	.popsection
+	ALTERNATIVE "", ".long 0xb2e8d000", 82
 	.endm
 
 	.macro BPENTER tif_ptr,tif_mask
-	.pushsection .altinstr_replacement, "ax"
-662:	.word	0xc004, 0x0000, 0x0000	# 6 byte nop
-	.word	0xc004, 0x0000, 0x0000	# 6 byte nop
-	.popsection
-664:	TSTMSK	\tif_ptr,\tif_mask
-	jz	. + 8
-	.long	0xb2e8d000
-	.pushsection .altinstructions, "a"
-	.long 664b - .
-	.long 662b - .
-	.word 82
-	.byte 12
-	.byte 12
-	.popsection
+	ALTERNATIVE "TSTMSK \tif_ptr,\tif_mask; jz .+8; .long 0xb2e8d000", \
+		    "", 82
 	.endm
 
 	.macro BPEXIT tif_ptr,tif_mask
 	TSTMSK	\tif_ptr,\tif_mask
-	.pushsection .altinstr_replacement, "ax"
-662:	jnz	. + 8
-	.long	0xb2e8d000
-	.popsection
-664:	jz	. + 8
-	.long	0xb2e8c000
-	.pushsection .altinstructions, "a"
-	.long 664b - .
-	.long 662b - .
-	.word 82
-	.byte 8
-	.byte 8
-	.popsection
+	ALTERNATIVE "jz .+8;  .long 0xb2e8c000", \
+		    "jnz .+8; .long 0xb2e8d000", 82
 	.endm
 
 #ifdef CONFIG_EXPOLINE
