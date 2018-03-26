@@ -147,11 +147,11 @@ struct dm_buffer {
 	struct list_head lru_list;
 	sector_t block;
 	void *data;
-	enum data_mode data_mode;
+	unsigned char data_mode;		/* DATA_MODE_* */
 	unsigned char list_mode;		/* LIST_* */
-	unsigned hold_count;
 	blk_status_t read_error;
 	blk_status_t write_error;
+	unsigned hold_count;
 	unsigned long state;
 	unsigned long last_accessed;
 	unsigned dirty_start;
@@ -303,7 +303,7 @@ static void __remove(struct dm_bufio_client *c, struct dm_buffer *b)
 
 /*----------------------------------------------------------------*/
 
-static void adjust_total_allocated(enum data_mode data_mode, long diff)
+static void adjust_total_allocated(unsigned char data_mode, long diff)
 {
 	static unsigned long * const class_ptr[DATA_MODE_LIMIT] = {
 		&dm_bufio_allocated_kmem_cache,
@@ -368,7 +368,7 @@ static void __cache_size_refresh(void)
  * space.
  */
 static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
-			       enum data_mode *data_mode)
+			       unsigned char *data_mode)
 {
 	if (unlikely(c->slab_cache != NULL)) {
 		*data_mode = DATA_MODE_SLAB;
@@ -408,7 +408,7 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
  * Free buffer's data.
  */
 static void free_buffer_data(struct dm_bufio_client *c,
-			     void *data, enum data_mode data_mode)
+			     void *data, unsigned char data_mode)
 {
 	switch (data_mode) {
 	case DATA_MODE_SLAB:
