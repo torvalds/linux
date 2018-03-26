@@ -693,9 +693,11 @@ static int gmin_get_config_var(struct device *dev, const char *var,
 	for (i = 0; i < sizeof(var8) && var8[i]; i++)
 		var16[i] = var8[i];
 
+#ifdef CONFIG_64BIT
 	/* To avoid owerflows when calling the efivar API */
 	if (*out_len > ULONG_MAX)
 		return -EINVAL;
+#endif
 
 	/* Not sure this API usage is kosher; efivar_entry_get()'s
 	 * implementation simply uses VariableName and VendorGuid from
