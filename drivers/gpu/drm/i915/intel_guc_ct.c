@@ -24,6 +24,12 @@
 #include "i915_drv.h"
 #include "intel_guc_ct.h"
 
+#ifdef CONFIG_DRM_I915_DEBUG_GUC
+#define CT_DEBUG_DRIVER(...)	DRM_DEBUG_DRIVER(__VA_ARGS__)
+#else
+#define CT_DEBUG_DRIVER(...)	do { } while (0)
+#endif
+
 struct ct_request {
 	struct list_head link;
 	u32 fence;
@@ -78,8 +84,8 @@ static inline const char *guc_ct_buffer_type_to_str(u32 type)
 static void guc_ct_buffer_desc_init(struct guc_ct_buffer_desc *desc,
 				    u32 cmds_addr, u32 size, u32 owner)
 {
-	DRM_DEBUG_DRIVER("CT: desc %p init addr=%#x size=%u owner=%u\n",
-			 desc, cmds_addr, size, owner);
+	CT_DEBUG_DRIVER("CT: desc %p init addr=%#x size=%u owner=%u\n",
+			desc, cmds_addr, size, owner);
 	memset(desc, 0, sizeof(*desc));
 	desc->addr = cmds_addr;
 	desc->size = size;
@@ -88,8 +94,8 @@ static void guc_ct_buffer_desc_init(struct guc_ct_buffer_desc *desc,
 
 static void guc_ct_buffer_desc_reset(struct guc_ct_buffer_desc *desc)
 {
-	DRM_DEBUG_DRIVER("CT: desc %p reset head=%u tail=%u\n",
-			 desc, desc->head, desc->tail);
+	CT_DEBUG_DRIVER("CT: desc %p reset head=%u tail=%u\n",
+			desc, desc->head, desc->tail);
 	desc->head = 0;
 	desc->tail = 0;
 	desc->is_in_error = 0;
@@ -185,8 +191,8 @@ static int ctch_init(struct intel_guc *guc,
 		err = PTR_ERR(blob);
 		goto err_vma;
 	}
-	DRM_DEBUG_DRIVER("CT: vma base=%#x\n",
-			 intel_guc_ggtt_offset(guc, ctch->vma));
+	CT_DEBUG_DRIVER("CT: vma base=%#x\n",
+			intel_guc_ggtt_offset(guc, ctch->vma));
 
 	/* store pointers to desc and cmds */
 	for (i = 0; i < ARRAY_SIZE(ctch->ctbs); i++) {
@@ -200,8 +206,8 @@ static int ctch_init(struct intel_guc *guc,
 err_vma:
 	i915_vma_unpin_and_release(&ctch->vma);
 err_out:
-	DRM_DEBUG_DRIVER("CT: channel %d initialization failed; err=%d\n",
-			 ctch->owner, err);
+	CT_DEBUG_DRIVER("CT: channel %d initialization failed; err=%d\n",
+			ctch->owner, err);
 	return err;
 }
 
@@ -221,8 +227,8 @@ static int ctch_open(struct intel_guc *guc,
 	int err;
 	int i;
 
-	DRM_DEBUG_DRIVER("CT: channel %d reopen=%s\n",
-			 ctch->owner, yesno(ctch_is_open(ctch)));
+	CT_DEBUG_DRIVER("CT: channel %d reopen=%s\n",
+			ctch->owner, yesno(ctch_is_open(ctch)));
 
 	if (!ctch->vma) {
 		err = ctch_init(guc, ctch);
@@ -354,6 +360,10 @@ static int ctb_write(struct intel_guc_ct_buffer *ctb,
 		 (GUC_CT_MSG_WRITE_FENCE_TO_DESC) |
 		 (want_response ? GUC_CT_MSG_SEND_STATUS : 0) |
 		 (action[0] << GUC_CT_MSG_ACTION_SHIFT);
+
+	CT_DEBUG_DRIVER("CT: writing %*phn %*phn %*phn\n",
+			4, &header, 4, &fence,
+			4 * (len - 1), &action[1]);
 
 	cmds[tail] = header;
 	tail = (tail + 1) % size;
@@ -545,6 +555,9 @@ static int intel_guc_send_ct(struct intel_guc *guc, const u32 *action, u32 len,
 	if (unlikely(ret < 0)) {
 		DRM_ERROR("CT: send action %#X failed; err=%d status=%#X\n",
 			  action[0], ret, status);
+	} else if (unlikely(ret)) {
+		CT_DEBUG_DRIVER("CT: send action %#x returned %d (%#x)\n",
+				action[0], ret, ret);
 	}
 
 	mutex_unlock(&guc->send_mutex);
@@ -591,6 +604,7 @@ static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
 	/* beware of buffer wrap case */
 	if (unlikely(available < 0))
 		available += size;
+	CT_DEBUG_DRIVER("CT: available %d (%u:%u)\n", available, head, tail);
 	GEM_BUG_ON(available < 0);
 
 	data[0] = cmds[head];
@@ -612,6 +626,7 @@ static int ctb_read(struct intel_guc_ct_buffer *ctb, u32 *data)
 		data[i] = cmds[head];
 		head = (head + 1) % size;
 	}
+	CT_DEBUG_DRIVER("CT: received %*phn\n", 4 * len, data);
 
 	desc->head = head * 4;
 	return 0;
@@ -665,11 +680,13 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 		return -EPROTO;
 	}
 
+	CT_DEBUG_DRIVER("CT: response fence %u status %#x\n", fence, status);
+
 	spin_lock(&ct->lock);
 	list_for_each_entry(req, &ct->pending_requests, link) {
 		if (unlikely(fence != req->fence)) {
-			DRM_DEBUG_DRIVER("CT: request %u awaits response\n",
-					 req->fence);
+			CT_DEBUG_DRIVER("CT: request %u awaits response\n",
+					req->fence);
 			continue;
 		}
 		if (unlikely(datalen > req->response_len)) {
@@ -695,6 +712,8 @@ static void ct_process_request(struct intel_guc_ct *ct,
 			       u32 action, u32 len, const u32 *payload)
 {
 	struct intel_guc *guc = ct_to_guc(ct);
+
+	CT_DEBUG_DRIVER("CT: request %x %*phn\n", action, 4 * len, payload);
 
 	switch (action) {
 	case INTEL_GUC_ACTION_DEFAULT:

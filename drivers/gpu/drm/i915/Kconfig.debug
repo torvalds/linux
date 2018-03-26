@@ -90,6 +90,18 @@ config DRM_I915_SW_FENCE_CHECK_DAG
 
           If in doubt, say "N".
 
+config DRM_I915_DEBUG_GUC
+        bool "Enable additional driver debugging for GuC"
+        depends on DRM_I915
+        default n
+        help
+          Choose this option to turn on extra driver debugging that may affect
+          performance but will help resolve GuC related issues.
+
+          Recommended for driver developers only.
+
+          If in doubt, say "N".
+
 config DRM_I915_SELFTEST
 	bool "Enable selftests upon driver load"
 	depends on DRM_I915
