@@ -392,4 +392,16 @@ config BT_QCOMSMD
 	  Say Y here to compile support for HCI over Qualcomm SMD into the
 	  kernel or say M to compile as a module.
 
+config BT_HCIRSI
+	tristate "Redpine HCI support"
+	default n
+	select RSI_COEX
+	help
+	  Redpine BT driver.
+	  This driver handles BT traffic from upper layers and pass
+	  to the RSI_91x coex module for further scheduling to device
+
+	  Say Y here to compile support for HCI over Redpine into the
+	  kernel or say M to compile as a module.
+
 endmenu

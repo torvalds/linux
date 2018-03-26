@@ -549,6 +549,40 @@ mt76x2_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta, bool set)
 	return 0;
 }
 
+static int mt76x2_set_antenna(struct ieee80211_hw *hw, u32 tx_ant,
+			      u32 rx_ant)
+{
+	struct mt76x2_dev *dev = hw->priv;
+
+	if (!tx_ant || tx_ant > 3 || tx_ant != rx_ant)
+		return -EINVAL;
+
+	mutex_lock(&dev->mutex);
+
+	dev->chainmask = (tx_ant == 3) ? 0x202 : 0x101;
+	dev->mt76.antenna_mask = tx_ant;
+
+	mt76_set_stream_caps(&dev->mt76, true);
+	mt76x2_phy_set_antenna(dev);
+
+	mutex_unlock(&dev->mutex);
+
+	return 0;
+}
+
+static int mt76x2_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant,
+			      u32 *rx_ant)
+{
+	struct mt76x2_dev *dev = hw->priv;
+
+	mutex_lock(&dev->mutex);
+	*tx_ant = dev->mt76.antenna_mask;
+	*rx_ant = dev->mt76.antenna_mask;
+	mutex_unlock(&dev->mutex);
+
+	return 0;
+}
+
 const struct ieee80211_ops mt76x2_ops = {
 	.tx = mt76x2_tx,
 	.start = mt76x2_start,
@@ -573,5 +607,7 @@ const struct ieee80211_ops mt76x2_ops = {
 	.set_coverage_class = mt76x2_set_coverage_class,
 	.get_survey = mt76_get_survey,
 	.set_tim = mt76x2_set_tim,
+	.set_antenna = mt76x2_set_antenna,
+	.get_antenna = mt76x2_get_antenna,
 };
 

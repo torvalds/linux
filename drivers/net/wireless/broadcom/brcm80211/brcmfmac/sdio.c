@@ -1706,8 +1706,7 @@ brcmf_sdio_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 	u8 *buf = NULL, *rbuf;
 	int sdret;
 
-	brcmf_dbg(TRACE, "Enter\n");
-
+	brcmf_dbg(SDIO, "Enter\n");
 	if (bus->rxblen)
 		buf = vzalloc(bus->rxblen);
 	if (!buf)
@@ -1810,7 +1809,7 @@ static uint brcmf_sdio_readframes(struct brcmf_sdio *bus, uint maxframes)
 	struct brcmf_sdio_hdrinfo *rd = &bus->cur_read, rd_new;
 	u8 head_read = 0;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(SDIO, "Enter\n");
 
 	/* Not finished unless we encounter no more frames indication */
 	bus->rxpending = true;
@@ -2345,7 +2344,7 @@ static int brcmf_sdio_tx_ctrlframe(struct brcmf_sdio *bus, u8 *frame, u16 len)
 	struct brcmf_sdio_hdrinfo hd_info = {0};
 	int ret;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(SDIO, "Enter\n");
 
 	/* Back the pointer to make room for bus header */
 	frame -= bus->tx_hdrlen;
@@ -2521,7 +2520,7 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 	uint framecnt;			/* Temporary counter of tx/rx frames */
 	int err = 0;
 
-	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(SDIO, "Enter\n");
 
 	sdio_claim_host(bus->sdiodev->func1);
 
@@ -2606,7 +2605,7 @@ static void brcmf_sdio_dpc(struct brcmf_sdio *bus)
 
 	/* Would be active due to wake-wlan in gSPI */
 	if (intstatus & I_CHIPACTIVE) {
-		brcmf_dbg(INFO, "Dongle reports CHIPACTIVE\n");
+		brcmf_dbg(SDIO, "Dongle reports CHIPACTIVE\n");
 		intstatus &= ~I_CHIPACTIVE;
 	}
 
@@ -3411,6 +3410,20 @@ static int brcmf_sdio_bus_preinit(struct device *dev)
 	u32 value;
 	int err;
 
+	/* maxctl provided by common layer */
+	if (WARN_ON(!bus_if->maxctl))
+		return -EINVAL;
+
+	/* Allocate control receive buffer */
+	bus_if->maxctl += bus->roundup;
+	value = roundup((bus_if->maxctl + SDPCM_HDRLEN), ALIGNMENT);
+	value += bus->head_align;
+	bus->rxbuf = kmalloc(value, GFP_ATOMIC);
+	if (bus->rxbuf)
+		bus->rxblen = value;
+
+	brcmf_sdio_debugfs_create(bus);
+
 	/* the commands below use the terms tx and rx from
 	 * a device perspective, ie. bus:txglom affects the
 	 * bus transfers from device to host.
@@ -4026,9 +4039,8 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 					 void *nvram, u32 nvram_len)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
-	struct brcmf_sdio *bus = sdiodev->bus;
-	struct brcmf_sdio_dev *sdiod = bus->sdiodev;
+	struct brcmf_sdio_dev *sdiod = bus_if->bus_priv.sdio;
+	struct brcmf_sdio *bus = sdiod->bus;
 	struct brcmf_core *core = bus->sdio_core;
 	u8 saveclk;
 
@@ -4036,9 +4048,6 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 
 	if (err)
 		goto fail;
-
-	if (!bus_if->drvr)
-		return;
 
 	/* try to download image and nvram to the dongle */
 	bus->alp_only = true;
@@ -4051,7 +4060,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	bus->sdcnt.tickcnt = 0;
 	brcmf_sdio_wd_timer(bus, true);
 
-	sdio_claim_host(sdiodev->func1);
+	sdio_claim_host(sdiod->func1);
 
 	/* Make sure backplane clock is on, needed to generate F2 interrupt */
 	brcmf_sdio_clkctl(bus, CLK_AVAIL, false);
@@ -4059,9 +4068,9 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 		goto release;
 
 	/* Force clocks on backplane to be sure F2 interrupt propagates */
-	saveclk = brcmf_sdiod_readb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR, &err);
+	saveclk = brcmf_sdiod_readb(sdiod, SBSDIO_FUNC1_CHIPCLKCSR, &err);
 	if (!err) {
-		brcmf_sdiod_writeb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
+		brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_CHIPCLKCSR,
 				   (saveclk | SBSDIO_FORCE_HT), &err);
 	}
 	if (err) {
@@ -4073,7 +4082,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	brcmf_sdiod_writel(sdiod, core->base + SD_REG(tosbmailboxdata),
 			   SDPCM_PROT_VERSION << SMB_DATA_VERSION_SHIFT, NULL);
 
-	err = sdio_enable_func(sdiodev->func2);
+	err = sdio_enable_func(sdiod->func2);
 
 	brcmf_dbg(INFO, "enable F2: err=%d\n", err);
 
@@ -4085,10 +4094,10 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 				   bus->hostintmask, NULL);
 
 
-		brcmf_sdiod_writeb(sdiodev, SBSDIO_WATERMARK, 8, &err);
+		brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK, 8, &err);
 	} else {
 		/* Disable F2 again */
-		sdio_disable_func(sdiodev->func2);
+		sdio_disable_func(sdiod->func2);
 		goto release;
 	}
 
@@ -4096,7 +4105,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 		brcmf_sdio_sr_init(bus);
 	} else {
 		/* Restore previous clock setting */
-		brcmf_sdiod_writeb(sdiodev, SBSDIO_FUNC1_CHIPCLKCSR,
+		brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_CHIPCLKCSR,
 				   saveclk, &err);
 	}
 
@@ -4104,7 +4113,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 		/* Allow full data communication using DPC from now on. */
 		brcmf_sdiod_change_state(bus->sdiodev, BRCMF_SDIOD_DATA);
 
-		err = brcmf_sdiod_intr_register(sdiodev);
+		err = brcmf_sdiod_intr_register(sdiod);
 		if (err != 0)
 			brcmf_err("intr register failed:%d\n", err);
 	}
@@ -4113,20 +4122,29 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 	if (err != 0)
 		brcmf_sdio_clkctl(bus, CLK_NONE, false);
 
-	sdio_release_host(sdiodev->func1);
+	sdio_release_host(sdiod->func1);
 
-	err = brcmf_bus_started(dev);
+	/* Assign bus interface call back */
+	sdiod->bus_if->dev = sdiod->dev;
+	sdiod->bus_if->ops = &brcmf_sdio_bus_ops;
+	sdiod->bus_if->chip = bus->ci->chip;
+	sdiod->bus_if->chiprev = bus->ci->chiprev;
+
+	/* Attach to the common layer, reserve hdr space */
+	err = brcmf_attach(sdiod->dev, sdiod->settings);
 	if (err != 0) {
-		brcmf_err("dongle is not responding\n");
+		brcmf_err("brcmf_attach failed\n");
 		goto fail;
 	}
+
+	/* ready */
 	return;
 
 release:
-	sdio_release_host(sdiodev->func1);
+	sdio_release_host(sdiod->func1);
 fail:
 	brcmf_dbg(TRACE, "failed: dev=%s, err=%d\n", dev_name(dev), err);
-	device_release_driver(&sdiodev->func2->dev);
+	device_release_driver(&sdiod->func2->dev);
 	device_release_driver(dev);
 }
 
@@ -4188,38 +4206,12 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	bus->dpc_triggered = false;
 	bus->dpc_running = false;
 
-	/* Assign bus interface call back */
-	bus->sdiodev->bus_if->dev = bus->sdiodev->dev;
-	bus->sdiodev->bus_if->ops = &brcmf_sdio_bus_ops;
-	bus->sdiodev->bus_if->chip = bus->ci->chip;
-	bus->sdiodev->bus_if->chiprev = bus->ci->chiprev;
-
 	/* default sdio bus header length for tx packet */
 	bus->tx_hdrlen = SDPCM_HWHDR_LEN + SDPCM_SWHDR_LEN;
-
-	/* Attach to the common layer, reserve hdr space */
-	ret = brcmf_attach(bus->sdiodev->dev, bus->sdiodev->settings);
-	if (ret != 0) {
-		brcmf_err("brcmf_attach failed\n");
-		goto fail;
-	}
 
 	/* Query the F2 block size, set roundup accordingly */
 	bus->blocksize = bus->sdiodev->func2->cur_blksize;
 	bus->roundup = min(max_roundup, bus->blocksize);
-
-	/* Allocate buffers */
-	if (bus->sdiodev->bus_if->maxctl) {
-		bus->sdiodev->bus_if->maxctl += bus->roundup;
-		bus->rxblen =
-		    roundup((bus->sdiodev->bus_if->maxctl + SDPCM_HDRLEN),
-			    ALIGNMENT) + bus->head_align;
-		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
-		if (!(bus->rxbuf)) {
-			brcmf_err("rxbuf allocation failed\n");
-			goto fail;
-		}
-	}
 
 	sdio_claim_host(bus->sdiodev->func1);
 
@@ -4241,7 +4233,6 @@ struct brcmf_sdio *brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 	/* SR state */
 	bus->sr_enabled = false;
 
-	brcmf_sdio_debugfs_create(bus);
 	brcmf_dbg(INFO, "completed!!\n");
 
 	ret = brcmf_fw_map_chip_to_name(bus->ci->chip, bus->ci->chiprev,

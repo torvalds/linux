@@ -1581,24 +1581,6 @@ static void brcmf_pcie_release_resource(struct brcmf_pciedev_info *devinfo)
 }
 
 
-static int brcmf_pcie_attach_bus(struct brcmf_pciedev_info *devinfo)
-{
-	int ret;
-
-	/* Attach to the common driver interface */
-	ret = brcmf_attach(&devinfo->pdev->dev, devinfo->settings);
-	if (ret) {
-		brcmf_err("brcmf_attach failed\n");
-	} else {
-		ret = brcmf_bus_started(&devinfo->pdev->dev);
-		if (ret)
-			brcmf_err("dongle is not responding\n");
-	}
-
-	return ret;
-}
-
-
 static u32 brcmf_pcie_buscore_prep_addr(const struct pci_dev *pdev, u32 addr)
 {
 	u32 ret_addr;
@@ -1735,7 +1717,7 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	init_waitqueue_head(&devinfo->mbdata_resp_wait);
 
 	brcmf_pcie_intr_enable(devinfo);
-	if (brcmf_pcie_attach_bus(devinfo) == 0)
+	if (brcmf_attach(&devinfo->pdev->dev, devinfo->settings) == 0)
 		return;
 
 	brcmf_pcie_bus_console_read(devinfo);

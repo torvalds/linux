@@ -517,6 +517,18 @@ enum mwifiex_iface_work_flags {
 	MWIFIEX_IFACE_WORK_CARD_RESET,
 };
 
+struct mwifiex_band_config {
+	u8 chan_band:2;
+	u8 chan_width:2;
+	u8 chan2_offset:2;
+	u8 scan_mode:2;
+} __packed;
+
+struct mwifiex_channel_band {
+	struct mwifiex_band_config band_config;
+	u8 channel;
+};
+
 struct mwifiex_private {
 	struct mwifiex_adapter *adapter;
 	u8 bss_type;
@@ -1280,6 +1292,19 @@ mwifiex_copy_rates(u8 *dest, u32 pos, u8 *src, int len)
 	return pos;
 }
 
+/* This function return interface number with the same bss_type.
+ */
+static inline u8
+mwifiex_get_intf_num(struct mwifiex_adapter *adapter, u8 bss_type)
+{
+	u8 i, num = 0;
+
+	for (i = 0; i < adapter->priv_num; i++)
+		if (adapter->priv[i] && adapter->priv[i]->bss_type == bss_type)
+			num++;
+	return num;
+}
+
 /*
  * This function returns the correct private structure pointer based
  * upon the BSS type and BSS number.
@@ -1544,7 +1569,7 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 					struct mwifiex_bssdescriptor *bss_desc);
 
 u8 mwifiex_chan_type_to_sec_chan_offset(enum nl80211_channel_type chan_type);
-u8 mwifiex_sec_chan_offset_to_chan_type(u8 second_chan_offset);
+u8 mwifiex_get_chan_type(struct mwifiex_private *priv);
 
 struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					      const char *name,
@@ -1670,6 +1695,8 @@ void mwifiex_queue_main_work(struct mwifiex_adapter *adapter);
 int mwifiex_get_wakeup_reason(struct mwifiex_private *priv, u16 action,
 			      int cmd_type,
 			      struct mwifiex_ds_wakeup_reason *wakeup_reason);
+int mwifiex_get_chan_info(struct mwifiex_private *priv,
+			  struct mwifiex_channel_band *channel_band);
 int mwifiex_ret_wakeup_reason(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp,
 			      struct host_cmd_ds_wakeup_reason *wakeup_reason);

@@ -914,55 +914,6 @@ static int brcmf_inet6addr_changed(struct notifier_block *nb,
 }
 #endif
 
-int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
-{
-	struct brcmf_pub *drvr = NULL;
-	int ret = 0;
-	int i;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	/* Allocate primary brcmf_info */
-	drvr = kzalloc(sizeof(struct brcmf_pub), GFP_ATOMIC);
-	if (!drvr)
-		return -ENOMEM;
-
-	for (i = 0; i < ARRAY_SIZE(drvr->if2bss); i++)
-		drvr->if2bss[i] = BRCMF_BSSIDX_INVALID;
-
-	mutex_init(&drvr->proto_block);
-
-	/* Link to bus module */
-	drvr->hdrlen = 0;
-	drvr->bus_if = dev_get_drvdata(dev);
-	drvr->bus_if->drvr = drvr;
-	drvr->settings = settings;
-
-	/* attach debug facilities */
-	brcmf_debug_attach(drvr);
-
-	/* Attach and link in the protocol */
-	ret = brcmf_proto_attach(drvr);
-	if (ret != 0) {
-		brcmf_err("brcmf_prot_attach failed\n");
-		goto fail;
-	}
-
-	/* Attach to events important for core code */
-	brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
-			    brcmf_psm_watchdog_notify);
-
-	/* attach firmware event handler */
-	brcmf_fweh_attach(drvr);
-
-	return ret;
-
-fail:
-	brcmf_detach(dev);
-
-	return ret;
-}
-
 static int brcmf_revinfo_read(struct seq_file *s, void *data)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(s->private);
@@ -993,11 +944,10 @@ static int brcmf_revinfo_read(struct seq_file *s, void *data)
 	return 0;
 }
 
-int brcmf_bus_started(struct device *dev)
+static int brcmf_bus_started(struct brcmf_pub *drvr)
 {
 	int ret = -1;
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pub *drvr = bus_if->drvr;
+	struct brcmf_bus *bus_if = drvr->bus_if;
 	struct brcmf_if *ifp;
 	struct brcmf_if *p2p_ifp;
 
@@ -1012,6 +962,11 @@ int brcmf_bus_started(struct device *dev)
 
 	/* signal bus ready */
 	brcmf_bus_change_state(bus_if, BRCMF_BUS_UP);
+
+	/* do bus specific preinit here */
+	ret = brcmf_bus_preinit(bus_if);
+	if (ret < 0)
+		goto fail;
 
 	/* Bus is ready, do any initialization */
 	ret = brcmf_c_preinit_dcmds(ifp);
@@ -1084,6 +1039,60 @@ fail:
 	drvr->iflist[1] = NULL;
 	if (drvr->settings->ignore_probe_fail)
 		ret = 0;
+
+	return ret;
+}
+
+int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
+{
+	struct brcmf_pub *drvr = NULL;
+	int ret = 0;
+	int i;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	/* Allocate primary brcmf_info */
+	drvr = kzalloc(sizeof(*drvr), GFP_ATOMIC);
+	if (!drvr)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(drvr->if2bss); i++)
+		drvr->if2bss[i] = BRCMF_BSSIDX_INVALID;
+
+	mutex_init(&drvr->proto_block);
+
+	/* Link to bus module */
+	drvr->hdrlen = 0;
+	drvr->bus_if = dev_get_drvdata(dev);
+	drvr->bus_if->drvr = drvr;
+	drvr->settings = settings;
+
+	/* attach debug facilities */
+	brcmf_debug_attach(drvr);
+
+	/* Attach and link in the protocol */
+	ret = brcmf_proto_attach(drvr);
+	if (ret != 0) {
+		brcmf_err("brcmf_prot_attach failed\n");
+		goto fail;
+	}
+
+	/* Attach to events important for core code */
+	brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
+			    brcmf_psm_watchdog_notify);
+
+	/* attach firmware event handler */
+	brcmf_fweh_attach(drvr);
+
+	ret = brcmf_bus_started(drvr);
+	if (ret != 0) {
+		brcmf_err("dongle is not responding: err=%d\n", ret);
+		goto fail;
+	}
+	return 0;
+
+fail:
+	brcmf_detach(dev);
 
 	return ret;
 }
@@ -1185,6 +1194,12 @@ void brcmf_bus_change_state(struct brcmf_bus *bus, enum brcmf_bus_state state)
 	int ifidx;
 
 	brcmf_dbg(TRACE, "%d -> %d\n", bus->state, state);
+
+	if (!drvr) {
+		brcmf_dbg(INFO, "ignoring transition, bus not attached yet\n");
+		return;
+	}
+
 	bus->state = state;
 
 	if (state == BRCMF_BUS_UP) {

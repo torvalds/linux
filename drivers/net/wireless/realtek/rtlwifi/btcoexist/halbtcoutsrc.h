@@ -691,6 +691,8 @@ void exhalbtc_lps_leave(struct btc_coexist *btcoexist);
 void exhalbtc_low_wifi_traffic_notify(struct btc_coexist *btcoexist);
 void exhalbtc_set_single_ant_path(struct btc_coexist *btcoexist,
 				  u8 single_ant_path);
+void halbtc_send_wifi_port_id_cmd(void *bt_context);
+void halbtc_set_default_port_id_cmd(void *bt_context);
 
 /* The following are used by wifi_only case */
 enum wifionly_chip_interface {

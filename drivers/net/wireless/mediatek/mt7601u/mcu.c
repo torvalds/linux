@@ -58,8 +58,7 @@ static inline void trace_mt_mcu_msg_send_cs(struct mt7601u_dev *dev,
 	trace_mt_mcu_msg_send(dev, skb, csum, need_resp);
 }
 
-static struct sk_buff *
-mt7601u_mcu_msg_alloc(struct mt7601u_dev *dev, const void *data, int len)
+static struct sk_buff *mt7601u_mcu_msg_alloc(const void *data, int len)
 {
 	struct sk_buff *skb;
 
@@ -171,7 +170,7 @@ static int mt7601u_mcu_function_select(struct mt7601u_dev *dev,
 		.value = cpu_to_le32(val),
 	};
 
-	skb = mt7601u_mcu_msg_alloc(dev, &msg, sizeof(msg));
+	skb = mt7601u_mcu_msg_alloc(&msg, sizeof(msg));
 	if (!skb)
 		return -ENOMEM;
 	return mt7601u_mcu_msg_send(dev, skb, CMD_FUN_SET_OP, func == 5);
@@ -208,7 +207,7 @@ mt7601u_mcu_calibrate(struct mt7601u_dev *dev, enum mcu_calibrate cal, u32 val)
 		.value = cpu_to_le32(val),
 	};
 
-	skb = mt7601u_mcu_msg_alloc(dev, &msg, sizeof(msg));
+	skb = mt7601u_mcu_msg_alloc(&msg, sizeof(msg));
 	if (!skb)
 		return -ENOMEM;
 	return mt7601u_mcu_msg_send(dev, skb, CMD_CALIBRATION_OP, true);
