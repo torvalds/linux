@@ -2746,7 +2746,8 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 			props->ctx_handle = value;
 			break;
 		case DRM_I915_PERF_PROP_SAMPLE_OA:
-			props->sample_flags |= SAMPLE_OA_REPORT;
+			if (value)
+				props->sample_flags |= SAMPLE_OA_REPORT;
 			break;
 		case DRM_I915_PERF_PROP_OA_METRICS_SET:
 			if (value == 0) {
