@@ -207,54 +207,46 @@
 #define STRTAB_SPLIT			8
 
 #define STRTAB_L1_DESC_DWORDS		1
-#define STRTAB_L1_DESC_SPAN_SHIFT	0
-#define STRTAB_L1_DESC_SPAN_MASK	0x1fUL
+#define STRTAB_L1_DESC_SPAN		GENMASK_ULL(4, 0)
 #define STRTAB_L1_DESC_L2PTR_MASK	GENMASK_ULL(47, 6)
 
 #define STRTAB_STE_DWORDS		8
 #define STRTAB_STE_0_V			(1UL << 0)
-#define STRTAB_STE_0_CFG_SHIFT		1
-#define STRTAB_STE_0_CFG_MASK		0x7UL
-#define STRTAB_STE_0_CFG_ABORT		(0UL << STRTAB_STE_0_CFG_SHIFT)
-#define STRTAB_STE_0_CFG_BYPASS		(4UL << STRTAB_STE_0_CFG_SHIFT)
-#define STRTAB_STE_0_CFG_S1_TRANS	(5UL << STRTAB_STE_0_CFG_SHIFT)
-#define STRTAB_STE_0_CFG_S2_TRANS	(6UL << STRTAB_STE_0_CFG_SHIFT)
+#define STRTAB_STE_0_CFG		GENMASK_ULL(3, 1)
+#define STRTAB_STE_0_CFG_ABORT		0
+#define STRTAB_STE_0_CFG_BYPASS		4
+#define STRTAB_STE_0_CFG_S1_TRANS	5
+#define STRTAB_STE_0_CFG_S2_TRANS	6
 
-#define STRTAB_STE_0_S1FMT_SHIFT	4
-#define STRTAB_STE_0_S1FMT_LINEAR	(0UL << STRTAB_STE_0_S1FMT_SHIFT)
+#define STRTAB_STE_0_S1FMT		GENMASK_ULL(5, 4)
+#define STRTAB_STE_0_S1FMT_LINEAR	0
 #define STRTAB_STE_0_S1CTXPTR_MASK	GENMASK_ULL(47, 6)
-#define STRTAB_STE_0_S1CDMAX_SHIFT	59
-#define STRTAB_STE_0_S1CDMAX_MASK	0x1fUL
+#define STRTAB_STE_0_S1CDMAX		GENMASK_ULL(63, 59)
 
 #define STRTAB_STE_1_S1C_CACHE_NC	0UL
 #define STRTAB_STE_1_S1C_CACHE_WBRA	1UL
 #define STRTAB_STE_1_S1C_CACHE_WT	2UL
 #define STRTAB_STE_1_S1C_CACHE_WB	3UL
-#define STRTAB_STE_1_S1C_SH_NSH		0UL
-#define STRTAB_STE_1_S1C_SH_OSH		2UL
-#define STRTAB_STE_1_S1C_SH_ISH		3UL
-#define STRTAB_STE_1_S1CIR_SHIFT	2
-#define STRTAB_STE_1_S1COR_SHIFT	4
-#define STRTAB_STE_1_S1CSH_SHIFT	6
+#define STRTAB_STE_1_S1CIR		GENMASK_ULL(3, 2)
+#define STRTAB_STE_1_S1COR		GENMASK_ULL(5, 4)
+#define STRTAB_STE_1_S1CSH		GENMASK_ULL(7, 6)
 
 #define STRTAB_STE_1_S1STALLD		(1UL << 27)
 
+#define STRTAB_STE_1_EATS		GENMASK_ULL(29, 28)
 #define STRTAB_STE_1_EATS_ABT		0UL
 #define STRTAB_STE_1_EATS_TRANS		1UL
 #define STRTAB_STE_1_EATS_S1CHK		2UL
-#define STRTAB_STE_1_EATS_SHIFT		28
 
+#define STRTAB_STE_1_STRW		GENMASK_ULL(31, 30)
 #define STRTAB_STE_1_STRW_NSEL1		0UL
 #define STRTAB_STE_1_STRW_EL2		2UL
-#define STRTAB_STE_1_STRW_SHIFT		30
 
+#define STRTAB_STE_1_SHCFG		GENMASK_ULL(45, 44)
 #define STRTAB_STE_1_SHCFG_INCOMING	1UL
-#define STRTAB_STE_1_SHCFG_SHIFT	44
 
-#define STRTAB_STE_2_S2VMID_SHIFT	0
-#define STRTAB_STE_2_S2VMID_MASK	0xffffUL
-#define STRTAB_STE_2_VTCR_SHIFT		32
-#define STRTAB_STE_2_VTCR_MASK		0x7ffffUL
+#define STRTAB_STE_2_S2VMID		GENMASK_ULL(15, 0)
+#define STRTAB_STE_2_VTCR		GENMASK_ULL(50, 32)
 #define STRTAB_STE_2_S2AA64		(1UL << 51)
 #define STRTAB_STE_2_S2ENDI		(1UL << 52)
 #define STRTAB_STE_2_S2PTW		(1UL << 54)
@@ -264,56 +256,41 @@
 
 /* Context descriptor (stage-1 only) */
 #define CTXDESC_CD_DWORDS		8
-#define CTXDESC_CD_0_TCR_T0SZ_SHIFT	0
-#define ARM64_TCR_T0SZ_SHIFT		0
-#define ARM64_TCR_T0SZ_MASK		0x1fUL
-#define CTXDESC_CD_0_TCR_TG0_SHIFT	6
-#define ARM64_TCR_TG0_SHIFT		14
-#define ARM64_TCR_TG0_MASK		0x3UL
-#define CTXDESC_CD_0_TCR_IRGN0_SHIFT	8
-#define ARM64_TCR_IRGN0_SHIFT		8
-#define ARM64_TCR_IRGN0_MASK		0x3UL
-#define CTXDESC_CD_0_TCR_ORGN0_SHIFT	10
-#define ARM64_TCR_ORGN0_SHIFT		10
-#define ARM64_TCR_ORGN0_MASK		0x3UL
-#define CTXDESC_CD_0_TCR_SH0_SHIFT	12
-#define ARM64_TCR_SH0_SHIFT		12
-#define ARM64_TCR_SH0_MASK		0x3UL
-#define CTXDESC_CD_0_TCR_EPD0_SHIFT	14
-#define ARM64_TCR_EPD0_SHIFT		7
-#define ARM64_TCR_EPD0_MASK		0x1UL
-#define CTXDESC_CD_0_TCR_EPD1_SHIFT	30
-#define ARM64_TCR_EPD1_SHIFT		23
-#define ARM64_TCR_EPD1_MASK		0x1UL
+#define CTXDESC_CD_0_TCR_T0SZ		GENMASK_ULL(5, 0)
+#define ARM64_TCR_T0SZ			GENMASK_ULL(5, 0)
+#define CTXDESC_CD_0_TCR_TG0		GENMASK_ULL(7, 6)
+#define ARM64_TCR_TG0			GENMASK_ULL(15, 14)
+#define CTXDESC_CD_0_TCR_IRGN0		GENMASK_ULL(9, 8)
+#define ARM64_TCR_IRGN0			GENMASK_ULL(9, 8)
+#define CTXDESC_CD_0_TCR_ORGN0		GENMASK_ULL(11, 10)
+#define ARM64_TCR_ORGN0			GENMASK_ULL(11, 10)
+#define CTXDESC_CD_0_TCR_SH0		GENMASK_ULL(13, 12)
+#define ARM64_TCR_SH0			GENMASK_ULL(13, 12)
+#define CTXDESC_CD_0_TCR_EPD0		(1ULL << 14)
+#define ARM64_TCR_EPD0			(1ULL << 7)
+#define CTXDESC_CD_0_TCR_EPD1		(1ULL << 30)
+#define ARM64_TCR_EPD1			(1ULL << 23)
 
 #define CTXDESC_CD_0_ENDI		(1UL << 15)
 #define CTXDESC_CD_0_V			(1UL << 31)
 
-#define CTXDESC_CD_0_TCR_IPS_SHIFT	32
-#define ARM64_TCR_IPS_SHIFT		32
-#define ARM64_TCR_IPS_MASK		0x7UL
-#define CTXDESC_CD_0_TCR_TBI0_SHIFT	38
-#define ARM64_TCR_TBI0_SHIFT		37
-#define ARM64_TCR_TBI0_MASK		0x1UL
+#define CTXDESC_CD_0_TCR_IPS		GENMASK_ULL(34, 32)
+#define ARM64_TCR_IPS			GENMASK_ULL(34, 32)
+#define CTXDESC_CD_0_TCR_TBI0		(1ULL << 38)
+#define ARM64_TCR_TBI0			(1ULL << 37)
 
 #define CTXDESC_CD_0_AA64		(1UL << 41)
 #define CTXDESC_CD_0_S			(1UL << 44)
 #define CTXDESC_CD_0_R			(1UL << 45)
 #define CTXDESC_CD_0_A			(1UL << 46)
-#define CTXDESC_CD_0_ASET_SHIFT		47
-#define CTXDESC_CD_0_ASET_SHARED	(0UL << CTXDESC_CD_0_ASET_SHIFT)
-#define CTXDESC_CD_0_ASET_PRIVATE	(1UL << CTXDESC_CD_0_ASET_SHIFT)
-#define CTXDESC_CD_0_ASID_SHIFT		48
-#define CTXDESC_CD_0_ASID_MASK		0xffffUL
+#define CTXDESC_CD_0_ASET		(1UL << 47)
+#define CTXDESC_CD_0_ASID		GENMASK_ULL(63, 48)
 
 #define CTXDESC_CD_1_TTB0_MASK		GENMASK_ULL(47, 4)
 
-#define CTXDESC_CD_3_MAIR_SHIFT		0
-
 /* Convert between AArch64 (CPU) TCR format and SMMU CD format */
-#define ARM_SMMU_TCR2CD(tcr, fld)					\
-	(((tcr) >> ARM64_TCR_##fld##_SHIFT & ARM64_TCR_##fld##_MASK)	\
-	 << CTXDESC_CD_0_TCR_##fld##_SHIFT)
+#define ARM_SMMU_TCR2CD(tcr, fld)	FIELD_PREP(CTXDESC_CD_0_TCR_##fld, \
+					FIELD_GET(ARM64_TCR_##fld, tcr))
 
 /* Command queue */
 #define CMDQ_ENT_DWORDS			2
@@ -1060,8 +1037,8 @@ static void arm_smmu_write_ctx_desc(struct arm_smmu_device *smmu,
 #ifdef __BIG_ENDIAN
 	      CTXDESC_CD_0_ENDI |
 #endif
-	      CTXDESC_CD_0_R | CTXDESC_CD_0_A | CTXDESC_CD_0_ASET_PRIVATE |
-	      CTXDESC_CD_0_AA64 | (u64)cfg->cd.asid << CTXDESC_CD_0_ASID_SHIFT |
+	      CTXDESC_CD_0_R | CTXDESC_CD_0_A | CTXDESC_CD_0_ASET |
+	      CTXDESC_CD_0_AA64 | FIELD_PREP(CTXDESC_CD_0_ASID, cfg->cd.asid) |
 	      CTXDESC_CD_0_V;
 
 	/* STALL_MODEL==0b10 && CD.S==0 is ILLEGAL */
@@ -1073,7 +1050,7 @@ static void arm_smmu_write_ctx_desc(struct arm_smmu_device *smmu,
 	val = cfg->cd.ttbr & CTXDESC_CD_1_TTB0_MASK;
 	cfg->cdptr[1] = cpu_to_le64(val);
 
-	cfg->cdptr[3] = cpu_to_le64(cfg->cd.mair << CTXDESC_CD_3_MAIR_SHIFT);
+	cfg->cdptr[3] = cpu_to_le64(cfg->cd.mair);
 }
 
 /* Stream table manipulation functions */
@@ -1082,8 +1059,7 @@ arm_smmu_write_strtab_l1_desc(__le64 *dst, struct arm_smmu_strtab_l1_desc *desc)
 {
 	u64 val = 0;
 
-	val |= (desc->span & STRTAB_L1_DESC_SPAN_MASK)
-		<< STRTAB_L1_DESC_SPAN_SHIFT;
+	val |= FIELD_PREP(STRTAB_L1_DESC_SPAN, desc->span);
 	val |= desc->l2ptr_dma & STRTAB_L1_DESC_L2PTR_MASK;
 
 	*dst = cpu_to_le64(val);
@@ -1132,10 +1108,7 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 	};
 
 	if (val & STRTAB_STE_0_V) {
-		u64 cfg;
-
-		cfg = val & STRTAB_STE_0_CFG_MASK << STRTAB_STE_0_CFG_SHIFT;
-		switch (cfg) {
+		switch (FIELD_GET(STRTAB_STE_0_CFG, val)) {
 		case STRTAB_STE_0_CFG_BYPASS:
 			break;
 		case STRTAB_STE_0_CFG_S1_TRANS:
@@ -1156,13 +1129,13 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 	/* Bypass/fault */
 	if (!ste->assigned || !(ste->s1_cfg || ste->s2_cfg)) {
 		if (!ste->assigned && disable_bypass)
-			val |= STRTAB_STE_0_CFG_ABORT;
+			val |= FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_ABORT);
 		else
-			val |= STRTAB_STE_0_CFG_BYPASS;
+			val |= FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_BYPASS);
 
 		dst[0] = cpu_to_le64(val);
-		dst[1] = cpu_to_le64(STRTAB_STE_1_SHCFG_INCOMING
-			 << STRTAB_STE_1_SHCFG_SHIFT);
+		dst[1] = cpu_to_le64(FIELD_PREP(STRTAB_STE_1_SHCFG,
+						STRTAB_STE_1_SHCFG_INCOMING));
 		dst[2] = 0; /* Nuke the VMID */
 		/*
 		 * The SMMU can perform negative caching, so we must sync
@@ -1176,40 +1149,36 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 	if (ste->s1_cfg) {
 		BUG_ON(ste_live);
 		dst[1] = cpu_to_le64(
-			 STRTAB_STE_1_S1C_CACHE_WBRA
-			 << STRTAB_STE_1_S1CIR_SHIFT |
-			 STRTAB_STE_1_S1C_CACHE_WBRA
-			 << STRTAB_STE_1_S1COR_SHIFT |
-			 STRTAB_STE_1_S1C_SH_ISH << STRTAB_STE_1_S1CSH_SHIFT |
+			 FIELD_PREP(STRTAB_STE_1_S1CIR, STRTAB_STE_1_S1C_CACHE_WBRA) |
+			 FIELD_PREP(STRTAB_STE_1_S1COR, STRTAB_STE_1_S1C_CACHE_WBRA) |
+			 FIELD_PREP(STRTAB_STE_1_S1CSH, ARM_SMMU_SH_ISH) |
 #ifdef CONFIG_PCI_ATS
-			 STRTAB_STE_1_EATS_TRANS << STRTAB_STE_1_EATS_SHIFT |
+			 FIELD_PREP(STRTAB_STE_1_EATS, STRTAB_STE_1_EATS_TRANS) |
 #endif
-			 STRTAB_STE_1_STRW_NSEL1 << STRTAB_STE_1_STRW_SHIFT);
+			 FIELD_PREP(STRTAB_STE_1_STRW, STRTAB_STE_1_STRW_NSEL1));
 
 		if (smmu->features & ARM_SMMU_FEAT_STALLS &&
 		   !(smmu->features & ARM_SMMU_FEAT_STALL_FORCE))
 			dst[1] |= cpu_to_le64(STRTAB_STE_1_S1STALLD);
 
 		val |= (ste->s1_cfg->cdptr_dma & STRTAB_STE_0_S1CTXPTR_MASK) |
-			STRTAB_STE_0_CFG_S1_TRANS;
+			FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_S1_TRANS);
 	}
 
 	if (ste->s2_cfg) {
 		BUG_ON(ste_live);
 		dst[2] = cpu_to_le64(
-			 ste->s2_cfg->vmid << STRTAB_STE_2_S2VMID_SHIFT |
-			 (ste->s2_cfg->vtcr & STRTAB_STE_2_VTCR_MASK)
-			  << STRTAB_STE_2_VTCR_SHIFT |
+			 FIELD_PREP(STRTAB_STE_2_S2VMID, ste->s2_cfg->vmid) |
+			 FIELD_PREP(STRTAB_STE_2_VTCR, ste->s2_cfg->vtcr) |
 #ifdef __BIG_ENDIAN
 			 STRTAB_STE_2_S2ENDI |
 #endif
 			 STRTAB_STE_2_S2PTW | STRTAB_STE_2_S2AA64 |
 			 STRTAB_STE_2_S2R);
 
-		dst[3] = cpu_to_le64(ste->s2_cfg->vttbr &
-			 STRTAB_STE_3_S2TTB_MASK);
+		dst[3] = cpu_to_le64(ste->s2_cfg->vttbr & STRTAB_STE_3_S2TTB_MASK);
 
-		val |= STRTAB_STE_0_CFG_S2_TRANS;
+		val |= FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_S2_TRANS);
 	}
 
 	arm_smmu_sync_ste_for_sid(smmu, sid);
