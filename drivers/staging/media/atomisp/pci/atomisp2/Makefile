@@ -59,17 +59,14 @@ atomisp-objs += \
 	css2400/isp/kernels/bnr/bnr_1.0/ia_css_bnr.host.o \
 	css2400/isp/kernels/bnr/bnr2_2/ia_css_bnr2_2.host.o \
 	css2400/isp/kernels/dpc2/ia_css_dpc2.host.o \
-	css2400/isp/kernels/dpc2/ia_css_dpc2_default.host.o \
 	css2400/isp/kernels/fc/fc_1.0/ia_css_formats.host.o \
 	css2400/isp/kernels/ctc/ctc_1.0/ia_css_ctc.host.o \
 	css2400/isp/kernels/ctc/ctc_1.0/ia_css_ctc_table.host.o \
 	css2400/isp/kernels/ctc/ctc2/ia_css_ctc2.host.o \
 	css2400/isp/kernels/ctc/ctc1_5/ia_css_ctc1_5.host.o \
 	css2400/isp/kernels/bh/bh_2/ia_css_bh.host.o \
-	css2400/isp/kernels/bnlm/ia_css_bnlm_default.host.o \
 	css2400/isp/kernels/bnlm/ia_css_bnlm.host.o \
 	css2400/isp/kernels/tdf/tdf_1.0/ia_css_tdf.host.o \
-	css2400/isp/kernels/tdf/tdf_1.0/ia_css_tdf_default.host.o \
 	css2400/isp/kernels/dvs/dvs_1.0/ia_css_dvs.host.o \
 	css2400/isp/kernels/anr/anr_1.0/ia_css_anr.host.o \
 	css2400/isp/kernels/anr/anr_2/ia_css_anr2_table.host.o \
@@ -96,7 +93,6 @@ atomisp-objs += \
 	css2400/isp/kernels/ob/ob2/ia_css_ob2.host.o \
 	css2400/isp/kernels/iterator/iterator_1.0/ia_css_iterator.host.o \
 	css2400/isp/kernels/wb/wb_1.0/ia_css_wb.host.o \
-	css2400/isp/kernels/eed1_8/ia_css_eed1_8_default.host.o \
 	css2400/isp/kernels/eed1_8/ia_css_eed1_8.host.o \
 	css2400/isp/kernels/sc/sc_1.0/ia_css_sc.host.o \
 	css2400/isp/kernels/ipu2_io_ls/bayer_io_ls/ia_css_bayer_io.host.o \
