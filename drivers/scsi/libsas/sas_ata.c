@@ -577,6 +577,11 @@ int sas_ata_init(struct domain_device *found_dev)
 		ata_sas_port_destroy(ap);
 		return rc;
 	}
+	rc = ata_sas_tport_add(found_dev->sata_dev.ata_host.dev, ap);
+	if (rc) {
+		ata_sas_port_destroy(ap);
+		return rc;
+	}
 	found_dev->sata_dev.ap = ap;
 
 	return 0;

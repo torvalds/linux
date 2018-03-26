@@ -5051,6 +5051,18 @@ int ata_sas_port_init(struct ata_port *ap)
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_init);
 
+int ata_sas_tport_add(struct device *parent, struct ata_port *ap)
+{
+	return ata_tport_add(parent, ap);
+}
+EXPORT_SYMBOL_GPL(ata_sas_tport_add);
+
+void ata_sas_tport_delete(struct ata_port *ap)
+{
+	ata_tport_delete(ap);
+}
+EXPORT_SYMBOL_GPL(ata_sas_tport_delete);
+
 /**
  *	ata_sas_port_destroy - Destroy a SATA port allocated by ata_sas_port_alloc
  *	@ap: SATA port to destroy
