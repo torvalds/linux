@@ -59,8 +59,7 @@ static inline u16 get_word(struct ks_wlan_private *priv)
 	return data;
 }
 
-static
-inline u32 get_DWORD(struct ks_wlan_private *priv)
+static inline u32 get_dword(struct ks_wlan_private *priv)
 {
 	u32 data;
 
@@ -507,8 +506,8 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 	u16 mib_val_size;
 	u16 mib_val_type;
 
-	mib_status = get_DWORD(priv);	/* MIB status */
-	mib_attribute = get_DWORD(priv);	/* MIB atttibute */
+	mib_status = get_dword(priv);	/* MIB status */
+	mib_attribute = get_dword(priv);	/* MIB atttibute */
 	mib_val_size = get_word(priv);	/* MIB value size */
 	mib_val_type = get_word(priv);	/* MIB value type */
 
@@ -580,8 +579,8 @@ void hostif_mib_set_confirm(struct ks_wlan_private *priv)
 	u32 mib_status;	/* +04 MIB Status */
 	u32 mib_attribute;	/* +08 MIB attribute */
 
-	mib_status = get_DWORD(priv);	/* MIB Status */
-	mib_attribute = get_DWORD(priv);	/* MIB attribute */
+	mib_status = get_dword(priv);	/* MIB Status */
+	mib_attribute = get_dword(priv);	/* MIB attribute */
 
 	if (mib_status) {
 		/* in case of error */
@@ -910,7 +909,7 @@ void hostif_bss_scan_confirm(struct ks_wlan_private *priv)
 	struct net_device *dev = priv->net_dev;
 	union iwreq_data wrqu;
 
-	result_code = get_DWORD(priv);
+	result_code = get_dword(priv);
 	netdev_dbg(priv->net_dev, "result=%d :: scan_ind_count=%d\n", result_code,
 		   priv->scan_ind_count);
 
@@ -936,10 +935,10 @@ void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 	signal = get_byte(priv);
 	noise = get_byte(priv);
 	link_speed = get_byte(priv);
-	transmitted_frame_count = get_DWORD(priv);
-	received_fragment_count = get_DWORD(priv);
-	failed_count = get_DWORD(priv);
-	fcs_error_count = get_DWORD(priv);
+	transmitted_frame_count = get_dword(priv);
+	received_fragment_count = get_dword(priv);
+	failed_count = get_dword(priv);
+	fcs_error_count = get_dword(priv);
 
 	netdev_dbg(priv->net_dev, "phyinfo confirm rssi=%d signal=%d\n",
 		   rssi, signal);
