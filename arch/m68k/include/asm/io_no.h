@@ -7,23 +7,23 @@
  * functions have always worked in CPU native endian. We need to define
  * that behavior here first before we include asm-generic/io.h.
  */
-#define readb(addr) \
+#define __raw_readb(addr) \
     ({ unsigned char __v = (*(volatile unsigned char *) (addr)); __v; })
-#define readw(addr) \
+#define __raw_readw(addr) \
     ({ unsigned short __v = (*(volatile unsigned short *) (addr)); __v; })
-#define readl(addr) \
+#define __raw_readl(addr) \
     ({ unsigned int __v = (*(volatile unsigned int *) (addr)); __v; })
 
-#define writeb(b,addr) (void)((*(volatile unsigned char *) (addr)) = (b))
-#define writew(b,addr) (void)((*(volatile unsigned short *) (addr)) = (b))
-#define writel(b,addr) (void)((*(volatile unsigned int *) (addr)) = (b))
+#define __raw_writeb(b, addr) (void)((*(volatile unsigned char *) (addr)) = (b))
+#define __raw_writew(b, addr) (void)((*(volatile unsigned short *) (addr)) = (b))
+#define __raw_writel(b, addr) (void)((*(volatile unsigned int *) (addr)) = (b))
 
-#define __raw_readb readb
-#define __raw_readw readw
-#define __raw_readl readl
-#define __raw_writeb writeb
-#define __raw_writew writew
-#define __raw_writel writel
+#define readb __raw_readb
+#define readw __raw_readw
+#define readl __raw_readl
+#define writeb __raw_writeb
+#define writew __raw_writew
+#define writel __raw_writel
 
 #include <asm/virtconvert.h>
 #include <asm-generic/io.h>
