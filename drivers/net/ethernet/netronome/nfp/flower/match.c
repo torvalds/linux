@@ -190,6 +190,18 @@ nfp_flower_compile_ip_ext(struct nfp_flower_ip_ext *frame,
 		if (tcp_flags & TCPHDR_URG)
 			frame->flags |= NFP_FL_TCP_FLAG_URG;
 	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_dissector_key_control *key;
+
+		key = skb_flow_dissector_target(flow->dissector,
+						FLOW_DISSECTOR_KEY_CONTROL,
+						target);
+		if (key->flags & FLOW_DIS_IS_FRAGMENT)
+			frame->flags |= NFP_FL_IP_FRAGMENTED;
+		if (key->flags & FLOW_DIS_FIRST_FRAG)
+			frame->flags |= NFP_FL_IP_FRAG_FIRST;
+	}
 }
 
 static void

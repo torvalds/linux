@@ -61,6 +61,9 @@
 #define NFP_FLOWER_MASK_MPLS_BOS	BIT(8)
 #define NFP_FLOWER_MASK_MPLS_Q		BIT(0)
 
+#define NFP_FL_IP_FRAG_FIRST		BIT(7)
+#define NFP_FL_IP_FRAGMENTED		BIT(6)
+
 /* Compressed HW representation of TCP Flags */
 #define NFP_FL_TCP_FLAG_URG		BIT(4)
 #define NFP_FL_TCP_FLAG_PSH		BIT(3)
