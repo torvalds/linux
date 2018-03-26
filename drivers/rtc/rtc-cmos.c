@@ -43,6 +43,8 @@
 #include <linux/of_platform.h>
 #ifdef CONFIG_X86
 #include <asm/i8259.h>
+#include <asm/processor.h>
+#include <linux/dmi.h>
 #endif
 
 /* this is for "generic access to PC-style RTC" using CMOS_READ/CMOS_WRITE */
@@ -1174,6 +1176,28 @@ static void rtc_wake_off(struct device *dev)
 	acpi_disable_event(ACPI_EVENT_RTC, 0);
 }
 
+#ifdef CONFIG_X86
+/* Enable use_acpi_alarm mode for Intel platforms no earlier than 2015 */
+static void use_acpi_alarm_quirks(void)
+{
+	int year;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+		return;
+
+	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
+		return;
+
+	if (!is_hpet_enabled())
+		return;
+
+	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year >= 2015)
+		use_acpi_alarm = true;
+}
+#else
+static inline void use_acpi_alarm_quirks(void) { }
+#endif
+
 /* Every ACPI platform has a mc146818 compatible "cmos rtc".  Here we find
  * its device node and pass extra config data.  This helps its driver use
  * capabilities that the now-obsolete mc146818 didn't have, and informs it
@@ -1185,6 +1209,8 @@ static void cmos_wake_setup(struct device *dev)
 {
 	if (acpi_disabled)
 		return;
+
+	use_acpi_alarm_quirks();
 
 	rtc_wake_setup(dev);
 	acpi_rtc_info.wake_on = rtc_wake_on;
