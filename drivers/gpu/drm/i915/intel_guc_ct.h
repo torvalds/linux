@@ -81,6 +81,12 @@ struct intel_guc_ct {
 
 	/** @pending_requests: list of requests waiting for response */
 	struct list_head pending_requests;
+
+	/** @incoming_requests: list of incoming requests */
+	struct list_head incoming_requests;
+
+	/** @worker: worker for handling incoming requests */
+	struct work_struct worker;
 };
 
 void intel_guc_ct_init_early(struct intel_guc_ct *ct);

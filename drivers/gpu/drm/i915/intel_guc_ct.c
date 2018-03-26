@@ -32,9 +32,16 @@ struct ct_request {
 	u32 *response_buf;
 };
 
+struct ct_incoming_request {
+	struct list_head link;
+	u32 msg[];
+};
+
 enum { CTB_SEND = 0, CTB_RECV = 1 };
 
 enum { CTB_OWNER_HOST = 0 };
+
+static void ct_incoming_request_worker_func(struct work_struct *w);
 
 /**
  * intel_guc_ct_init_early - Initialize CT state without requiring device access
@@ -47,6 +54,8 @@ void intel_guc_ct_init_early(struct intel_guc_ct *ct)
 
 	spin_lock_init(&ct->lock);
 	INIT_LIST_HEAD(&ct->pending_requests);
+	INIT_LIST_HEAD(&ct->incoming_requests);
+	INIT_WORK(&ct->worker, ct_incoming_request_worker_func);
 }
 
 static inline struct intel_guc *ct_to_guc(struct intel_guc_ct *ct)
@@ -682,13 +691,97 @@ static int ct_handle_response(struct intel_guc_ct *ct, const u32 *msg)
 	return 0;
 }
 
+static void ct_process_request(struct intel_guc_ct *ct,
+			       u32 action, u32 len, const u32 *payload)
+{
+	switch (action) {
+	default:
+		DRM_ERROR("CT: unexpected request %x %*phn\n",
+			  action, 4 * len, payload);
+		break;
+	}
+}
+
+static bool ct_process_incoming_requests(struct intel_guc_ct *ct)
+{
+	unsigned long flags;
+	struct ct_incoming_request *request;
+	u32 header;
+	u32 *payload;
+	bool done;
+
+	spin_lock_irqsave(&ct->lock, flags);
+	request = list_first_entry_or_null(&ct->incoming_requests,
+					   struct ct_incoming_request, link);
+	if (request)
+		list_del(&request->link);
+	done = !!list_empty(&ct->incoming_requests);
+	spin_unlock_irqrestore(&ct->lock, flags);
+
+	if (!request)
+		return true;
+
+	header = request->msg[0];
+	payload = &request->msg[1];
+	ct_process_request(ct,
+			   ct_header_get_action(header),
+			   ct_header_get_len(header),
+			   payload);
+
+	kfree(request);
+	return done;
+}
+
+static void ct_incoming_request_worker_func(struct work_struct *w)
+{
+	struct intel_guc_ct *ct = container_of(w, struct intel_guc_ct, worker);
+	bool done;
+
+	done = ct_process_incoming_requests(ct);
+	if (!done)
+		queue_work(system_unbound_wq, &ct->worker);
+}
+
+/**
+ * DOC: CTB GuC to Host request
+ *
+ * Format of the CTB GuC to Host request message is as follows::
+ *
+ *      +------------+---------+---------+---------+---------+---------+
+ *      |   msg[0]   |   [1]   |   [2]   |   [3]   |   ...   |  [n-1]  |
+ *      +------------+---------+---------+---------+---------+---------+
+ *      |   MESSAGE  |       MESSAGE PAYLOAD                           |
+ *      +   HEADER   +---------+---------+---------+---------+---------+
+ *      |            |    0    |    1    |    2    |   ...   |    n    |
+ *      +============+=========+=========+=========+=========+=========+
+ *      |     len    |            request specific data                |
+ *      +------+-----+---------+---------+---------+---------+---------+
+ *
+ *                   ^-----------------------len-----------------------^
+ */
+
 static int ct_handle_request(struct intel_guc_ct *ct, const u32 *msg)
 {
 	u32 header = msg[0];
+	u32 len = ct_header_get_len(header);
+	u32 msglen = len + 1; /* total message length including header */
+	struct ct_incoming_request *request;
+	unsigned long flags;
 
 	GEM_BUG_ON(ct_header_is_response(header));
 
-	/* XXX */
+	request = kmalloc(sizeof(*request) + 4 * msglen, GFP_ATOMIC);
+	if (unlikely(!request)) {
+		DRM_ERROR("CT: dropping request %*phn\n", 4 * msglen, msg);
+		return 0; /* XXX: -ENOMEM ? */
+	}
+	memcpy(request->msg, msg, 4 * msglen);
+
+	spin_lock_irqsave(&ct->lock, flags);
+	list_add_tail(&request->link, &ct->incoming_requests);
+	spin_unlock_irqrestore(&ct->lock, flags);
+
+	queue_work(system_unbound_wq, &ct->worker);
 	return 0;
 }
 
