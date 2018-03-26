@@ -2519,16 +2519,6 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 	}
 
 	switch (event->endpoint_event) {
-	case DWC3_DEPEVT_XFERCOMPLETE:
-		dep->resource_index = 0;
-
-		if (usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
-			dev_err(dwc->dev, "XferComplete for Isochronous endpoint\n");
-			return;
-		}
-
-		dwc3_endpoint_transfer_complete(dwc, dep, event);
-		break;
 	case DWC3_DEPEVT_XFERINPROGRESS:
 		dwc3_endpoint_transfer_complete(dwc, dep, event);
 		break;
@@ -2556,6 +2546,7 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 			wake_up(&dep->wait_end_transfer);
 		}
 		break;
+	case DWC3_DEPEVT_XFERCOMPLETE:
 	case DWC3_DEPEVT_RXTXFIFOEVT:
 		break;
 	}
