@@ -118,6 +118,9 @@ static int ocxlflash_config_afu(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 	dev_dbg(dev, "%s: acTag base=%d enabled=%d\n", __func__, base, count);
 	afu->afu_actag_base = base;
 	afu->afu_actag_enabled = count;
+	afu->max_pasid = 1 << acfg->pasid_supported_log;
+
+	ocxl_config_set_afu_pasid(pdev, pos, 0, acfg->pasid_supported_log);
 out:
 	return rc;
 }
