@@ -26,29 +26,11 @@
 
 #include "dc_bios_types.h"
 #include "dcn10_stream_encoder.h"
-
 #include "reg_helper.h"
+#include "hw_shared.h"
+
 #define DC_LOGGER \
 		enc1->base.ctx->logger
-enum DP_PIXEL_ENCODING {
-DP_PIXEL_ENCODING_RGB444                 = 0x00000000,
-DP_PIXEL_ENCODING_YCBCR422               = 0x00000001,
-DP_PIXEL_ENCODING_YCBCR444               = 0x00000002,
-DP_PIXEL_ENCODING_RGB_WIDE_GAMUT         = 0x00000003,
-DP_PIXEL_ENCODING_Y_ONLY                 = 0x00000004,
-DP_PIXEL_ENCODING_YCBCR420               = 0x00000005,
-DP_PIXEL_ENCODING_RESERVED               = 0x00000006,
-};
-
-
-enum DP_COMPONENT_DEPTH {
-DP_COMPONENT_DEPTH_6BPC                  = 0x00000000,
-DP_COMPONENT_DEPTH_8BPC                  = 0x00000001,
-DP_COMPONENT_DEPTH_10BPC                 = 0x00000002,
-DP_COMPONENT_DEPTH_12BPC                 = 0x00000003,
-DP_COMPONENT_DEPTH_16BPC                 = 0x00000004,
-DP_COMPONENT_DEPTH_RESERVED              = 0x00000005,
-};
 
 
 #define REG(reg)\
@@ -70,7 +52,7 @@ enum {
 #define CTX \
 	enc1->base.ctx
 
-static void enc1_update_generic_info_packet(
+void enc1_update_generic_info_packet(
 	struct dcn10_stream_encoder *enc1,
 	uint32_t packet_index,
 	const struct dc_info_packet *info_packet)
@@ -260,7 +242,7 @@ static void enc1_update_hdmi_info_packet(
 }
 
 /* setup stream encoder in dp mode */
-static void enc1_stream_encoder_dp_set_stream_attribute(
+void enc1_stream_encoder_dp_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	enum dc_color_space output_color_space)
@@ -284,11 +266,11 @@ static void enc1_stream_encoder_dp_set_stream_attribute(
 	switch (crtc_timing->pixel_encoding) {
 	case PIXEL_ENCODING_YCBCR422:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_YCBCR422);
+				DP_PIXEL_ENCODING_TYPE_YCBCR422);
 		break;
 	case PIXEL_ENCODING_YCBCR444:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_YCBCR444);
+				DP_PIXEL_ENCODING_TYPE_YCBCR444);
 
 		if (crtc_timing->flags.Y_ONLY)
 			if (crtc_timing->display_color_depth != COLOR_DEPTH_666)
@@ -297,7 +279,7 @@ static void enc1_stream_encoder_dp_set_stream_attribute(
 				 * 8, 10, 12, 16 bits
 				 */
 				REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-						DP_PIXEL_ENCODING_Y_ONLY);
+						DP_PIXEL_ENCODING_TYPE_Y_ONLY);
 		/* Note: DP_MSA_MISC1 bit 7 is the indicator
 		 * of Y-only mode.
 		 * This bit is set in HW if register
@@ -306,12 +288,12 @@ static void enc1_stream_encoder_dp_set_stream_attribute(
 		break;
 	case PIXEL_ENCODING_YCBCR420:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_YCBCR420);
+				DP_PIXEL_ENCODING_TYPE_YCBCR420);
 		REG_UPDATE(DP_VID_TIMING, DP_VID_N_MUL, 1);
 		break;
 	default:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_RGB444);
+				DP_PIXEL_ENCODING_TYPE_RGB444);
 		break;
 	}
 
@@ -326,20 +308,20 @@ static void enc1_stream_encoder_dp_set_stream_attribute(
 		break;
 	case COLOR_DEPTH_888:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_8BPC);
+				DP_COMPONENT_PIXEL_DEPTH_8BPC);
 		break;
 	case COLOR_DEPTH_101010:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_10BPC);
+				DP_COMPONENT_PIXEL_DEPTH_10BPC);
 
 		break;
 	case COLOR_DEPTH_121212:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_12BPC);
+				DP_COMPONENT_PIXEL_DEPTH_12BPC);
 		break;
 	default:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_6BPC);
+				DP_COMPONENT_PIXEL_DEPTH_6BPC);
 		break;
 	}
 
@@ -485,7 +467,7 @@ static void enc1_stream_encoder_set_stream_attribute_helper(
 }
 
 /* setup stream encoder in hdmi mode */
-static void enc1_stream_encoder_hdmi_set_stream_attribute(
+void enc1_stream_encoder_hdmi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	int actual_pix_clk_khz,
@@ -591,7 +573,7 @@ static void enc1_stream_encoder_hdmi_set_stream_attribute(
 }
 
 /* setup stream encoder in dvi mode */
-static void enc1_stream_encoder_dvi_set_stream_attribute(
+void enc1_stream_encoder_dvi_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	bool is_dual_link)
@@ -616,7 +598,7 @@ static void enc1_stream_encoder_dvi_set_stream_attribute(
 	enc1_stream_encoder_set_stream_attribute_helper(enc1, crtc_timing);
 }
 
-static void enc1_stream_encoder_set_mst_bandwidth(
+void enc1_stream_encoder_set_mst_bandwidth(
 	struct stream_encoder *enc,
 	struct fixed31_32 avg_time_slots_per_mtp)
 {
@@ -699,7 +681,7 @@ static void enc1_stream_encoder_stop_hdmi_info_packets(
 		HDMI_GENERIC1_SEND, 0);
 }
 
-static void enc1_stream_encoder_update_dp_info_packets(
+void enc1_stream_encoder_update_dp_info_packets(
 	struct stream_encoder *enc,
 	const struct encoder_info_frame *info_frame)
 {
@@ -742,7 +724,7 @@ static void enc1_stream_encoder_update_dp_info_packets(
 		REG_UPDATE(DP_SEC_CNTL, DP_SEC_STREAM_ENABLE, 1);
 }
 
-static void enc1_stream_encoder_stop_dp_info_packets(
+void enc1_stream_encoder_stop_dp_info_packets(
 	struct stream_encoder *enc)
 {
 	/* stop generic packets on DP */
@@ -770,7 +752,7 @@ static void enc1_stream_encoder_stop_dp_info_packets(
 
 }
 
-static void enc1_stream_encoder_dp_blank(
+void enc1_stream_encoder_dp_blank(
 	struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
@@ -823,7 +805,7 @@ static void enc1_stream_encoder_dp_blank(
 }
 
 /* output video stream to link encoder */
-static void enc1_stream_encoder_dp_unblank(
+void enc1_stream_encoder_dp_unblank(
 	struct stream_encoder *enc,
 	const struct encoder_unblank_param *param)
 {
@@ -885,7 +867,7 @@ static void enc1_stream_encoder_dp_unblank(
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, true);
 }
 
-static void enc1_stream_encoder_set_avmute(
+void enc1_stream_encoder_set_avmute(
 	struct stream_encoder *enc,
 	bool enable)
 {
@@ -1442,7 +1424,7 @@ void enc1_se_hdmi_audio_disable(
 }
 
 
-static void enc1_setup_stereo_sync(
+void enc1_setup_stereo_sync(
 	struct stream_encoder *enc,
 	int tg_inst, bool enable)
 {

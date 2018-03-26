@@ -26,27 +26,10 @@
 #include "dc_bios_types.h"
 #include "dce_stream_encoder.h"
 #include "reg_helper.h"
+#include "hw_shared.h"
+
 #define DC_LOGGER \
 		enc110->base.ctx->logger
-enum DP_PIXEL_ENCODING {
-DP_PIXEL_ENCODING_RGB444                 = 0x00000000,
-DP_PIXEL_ENCODING_YCBCR422               = 0x00000001,
-DP_PIXEL_ENCODING_YCBCR444               = 0x00000002,
-DP_PIXEL_ENCODING_RGB_WIDE_GAMUT         = 0x00000003,
-DP_PIXEL_ENCODING_Y_ONLY                 = 0x00000004,
-DP_PIXEL_ENCODING_YCBCR420               = 0x00000005,
-DP_PIXEL_ENCODING_RESERVED               = 0x00000006,
-};
-
-
-enum DP_COMPONENT_DEPTH {
-DP_COMPONENT_DEPTH_6BPC                  = 0x00000000,
-DP_COMPONENT_DEPTH_8BPC                  = 0x00000001,
-DP_COMPONENT_DEPTH_10BPC                 = 0x00000002,
-DP_COMPONENT_DEPTH_12BPC                 = 0x00000003,
-DP_COMPONENT_DEPTH_16BPC                 = 0x00000004,
-DP_COMPONENT_DEPTH_RESERVED              = 0x00000005,
-};
 
 
 #define REG(reg)\
@@ -314,11 +297,11 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 	switch (crtc_timing->pixel_encoding) {
 	case PIXEL_ENCODING_YCBCR422:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_YCBCR422);
+				DP_PIXEL_ENCODING_TYPE_YCBCR422);
 		break;
 	case PIXEL_ENCODING_YCBCR444:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_YCBCR444);
+				DP_PIXEL_ENCODING_TYPE_YCBCR444);
 
 		if (crtc_timing->flags.Y_ONLY)
 			if (crtc_timing->display_color_depth != COLOR_DEPTH_666)
@@ -326,7 +309,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 				 * Color depth of Y-only could be
 				 * 8, 10, 12, 16 bits */
 				REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-						DP_PIXEL_ENCODING_Y_ONLY);
+						DP_PIXEL_ENCODING_TYPE_Y_ONLY);
 		/* Note: DP_MSA_MISC1 bit 7 is the indicator
 		 * of Y-only mode.
 		 * This bit is set in HW if register
@@ -334,7 +317,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		break;
 	case PIXEL_ENCODING_YCBCR420:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_YCBCR420);
+				DP_PIXEL_ENCODING_TYPE_YCBCR420);
 		if (enc110->se_mask->DP_VID_M_DOUBLE_VALUE_EN)
 			REG_UPDATE(DP_VID_TIMING, DP_VID_M_DOUBLE_VALUE_EN, 1);
 
@@ -345,7 +328,7 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		break;
 	default:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_PIXEL_ENCODING,
-				DP_PIXEL_ENCODING_RGB444);
+				DP_PIXEL_ENCODING_TYPE_RGB444);
 		break;
 	}
 
@@ -363,20 +346,20 @@ static void dce110_stream_encoder_dp_set_stream_attribute(
 		break;
 	case COLOR_DEPTH_888:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_8BPC);
+				DP_COMPONENT_PIXEL_DEPTH_8BPC);
 		break;
 	case COLOR_DEPTH_101010:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_10BPC);
+				DP_COMPONENT_PIXEL_DEPTH_10BPC);
 
 		break;
 	case COLOR_DEPTH_121212:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_12BPC);
+				DP_COMPONENT_PIXEL_DEPTH_12BPC);
 		break;
 	default:
 		REG_UPDATE(DP_PIXEL_FORMAT, DP_COMPONENT_DEPTH,
-				DP_COMPONENT_DEPTH_6BPC);
+				DP_COMPONENT_PIXEL_DEPTH_6BPC);
 		break;
 	}
 
