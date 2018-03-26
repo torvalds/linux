@@ -321,3 +321,45 @@ done:
 	return skb->len;
 }
 EXPORT_SYMBOL(mr_rtm_dumproute);
+
+int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
+	    int (*rules_dump)(struct net *net,
+			      struct notifier_block *nb),
+	    struct mr_table *(*mr_iter)(struct net *net,
+					struct mr_table *mrt),
+	    rwlock_t *mrt_lock)
+{
+	struct mr_table *mrt;
+	int err;
+
+	err = rules_dump(net, nb);
+	if (err)
+		return err;
+
+	for (mrt = mr_iter(net, NULL); mrt; mrt = mr_iter(net, mrt)) {
+		struct vif_device *v = &mrt->vif_table[0];
+		struct mr_mfc *mfc;
+		int vifi;
+
+		/* Notifiy on table VIF entries */
+		read_lock(mrt_lock);
+		for (vifi = 0; vifi < mrt->maxvif; vifi++, v++) {
+			if (!v->dev)
+				continue;
+
+			mr_call_vif_notifier(nb, net, family,
+					     FIB_EVENT_VIF_ADD,
+					     v, vifi, mrt->id);
+		}
+		read_unlock(mrt_lock);
+
+		/* Notify on table MFC entries */
+		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list)
+			mr_call_mfc_notifier(nb, net, family,
+					     FIB_EVENT_ENTRY_ADD,
+					     mfc, mrt->id);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(mr_dump);

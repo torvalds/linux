@@ -277,6 +277,13 @@ int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 				 u32 portid, u32 seq, struct mr_mfc *c,
 				 int cmd, int flags),
 		     spinlock_t *lock);
+
+int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
+	    int (*rules_dump)(struct net *net,
+			      struct notifier_block *nb),
+	    struct mr_table *(*mr_iter)(struct net *net,
+					struct mr_table *mrt),
+	    rwlock_t *mrt_lock);
 #else
 static inline void vif_device_init(struct vif_device *v,
 				   struct net_device *dev,
@@ -330,6 +337,17 @@ mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 			     u32 portid, u32 seq, struct mr_mfc *c,
 			     int cmd, int flags),
 		 spinlock_t *lock)
+{
+	return -EINVAL;
+}
+
+static inline int mr_dump(struct net *net, struct notifier_block *nb,
+			  unsigned short family,
+			  int (*rules_dump)(struct net *net,
+					    struct notifier_block *nb),
+			  struct mr_table *(*mr_iter)(struct net *net,
+						      struct mr_table *mrt),
+			  rwlock_t *mrt_lock)
 {
 	return -EINVAL;
 }

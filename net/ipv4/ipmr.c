@@ -644,16 +644,6 @@ static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)
 }
 #endif
 
-static int call_ipmr_vif_entry_notifier(struct notifier_block *nb,
-					struct net *net,
-					enum fib_event_type event_type,
-					struct vif_device *vif,
-					vifi_t vif_index, u32 tb_id)
-{
-	return mr_call_vif_notifier(nb, net, RTNL_FAMILY_IPMR, event_type,
-				    vif, vif_index, tb_id);
-}
-
 static int call_ipmr_vif_entry_notifiers(struct net *net,
 					 enum fib_event_type event_type,
 					 struct vif_device *vif,
@@ -662,15 +652,6 @@ static int call_ipmr_vif_entry_notifiers(struct net *net,
 	return mr_call_vif_notifiers(net, RTNL_FAMILY_IPMR, event_type,
 				     vif, vif_index, tb_id,
 				     &net->ipv4.ipmr_seq);
-}
-
-static int call_ipmr_mfc_entry_notifier(struct notifier_block *nb,
-					struct net *net,
-					enum fib_event_type event_type,
-					struct mfc_cache *mfc, u32 tb_id)
-{
-	return mr_call_mfc_notifier(nb, net, RTNL_FAMILY_IPMR,
-				    event_type, &mfc->_c, tb_id);
 }
 
 static int call_ipmr_mfc_entry_notifiers(struct net *net,
@@ -2950,38 +2931,8 @@ static unsigned int ipmr_seq_read(struct net *net)
 
 static int ipmr_dump(struct net *net, struct notifier_block *nb)
 {
-	struct mr_table *mrt;
-	int err;
-
-	err = ipmr_rules_dump(net, nb);
-	if (err)
-		return err;
-
-	ipmr_for_each_table(mrt, net) {
-		struct vif_device *v = &mrt->vif_table[0];
-		struct mr_mfc *mfc;
-		int vifi;
-
-		/* Notifiy on table VIF entries */
-		read_lock(&mrt_lock);
-		for (vifi = 0; vifi < mrt->maxvif; vifi++, v++) {
-			if (!v->dev)
-				continue;
-
-			call_ipmr_vif_entry_notifier(nb, net, FIB_EVENT_VIF_ADD,
-						     v, vifi, mrt->id);
-		}
-		read_unlock(&mrt_lock);
-
-		/* Notify on table MFC entries */
-		list_for_each_entry_rcu(mfc, &mrt->mfc_cache_list, list)
-			call_ipmr_mfc_entry_notifier(nb, net,
-						     FIB_EVENT_ENTRY_ADD,
-						     (struct mfc_cache *)mfc,
-						     mrt->id);
-	}
-
-	return 0;
+	return mr_dump(net, nb, RTNL_FAMILY_IPMR, ipmr_rules_dump,
+		       ipmr_mr_table_iter, &mrt_lock);
 }
 
 static const struct fib_notifier_ops ipmr_notifier_ops_template = {
