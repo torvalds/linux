@@ -69,18 +69,18 @@ static DEFINE_IDR(i2c_adapter_idr);
 
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
-static struct static_key i2c_trace_msg = STATIC_KEY_INIT_FALSE;
+static DEFINE_STATIC_KEY_FALSE(i2c_trace_msg_key);
 static bool is_registered;
 
 int i2c_transfer_trace_reg(void)
 {
-	static_key_slow_inc(&i2c_trace_msg);
+	static_branch_inc(&i2c_trace_msg_key);
 	return 0;
 }
 
 void i2c_transfer_trace_unreg(void)
 {
-	static_key_slow_dec(&i2c_trace_msg);
+	static_branch_dec(&i2c_trace_msg_key);
 }
 
 const struct i2c_device_id *i2c_match_id(const struct i2c_device_id *id,
@@ -1848,11 +1848,12 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	if (adap->quirks && i2c_check_for_quirks(adap, msgs, num))
 		return -EOPNOTSUPP;
 
-	/* i2c_trace_msg gets enabled when tracepoint i2c_transfer gets
+	/*
+	 * i2c_trace_msg_key gets enabled when tracepoint i2c_transfer gets
 	 * enabled.  This is an efficient way of keeping the for-loop from
 	 * being executed when not needed.
 	 */
-	if (static_key_false(&i2c_trace_msg)) {
+	if (static_branch_unlikely(&i2c_trace_msg_key)) {
 		int i;
 		for (i = 0; i < num; i++)
 			if (msgs[i].flags & I2C_M_RD)
@@ -1871,7 +1872,7 @@ int __i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			break;
 	}
 
-	if (static_key_false(&i2c_trace_msg)) {
+	if (static_branch_unlikely(&i2c_trace_msg_key)) {
 		int i;
 		for (i = 0; i < ret; i++)
 			if (msgs[i].flags & I2C_M_RD)
