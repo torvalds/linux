@@ -468,6 +468,22 @@ out:
 }
 
 /**
+ * ocxlflash_afu_reset() - reset the AFU
+ * @ctx_cookie:	Adapter context.
+ */
+static int ocxlflash_afu_reset(void *ctx_cookie)
+{
+	struct ocxlflash_context *ctx = ctx_cookie;
+	struct device *dev = ctx->hw_afu->dev;
+
+	/* Pending implementation from OCXL transport services */
+	dev_err_once(dev, "%s: afu_reset() fop not supported\n", __func__);
+
+	/* Silently return success until it is implemented */
+	return 0;
+}
+
+/**
  * ocxlflash_set_master() - sets the context as master
  * @ctx_cookie:	Adapter context to set as master.
  */
@@ -1401,6 +1417,7 @@ const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.get_irq_objhndl	= ocxlflash_get_irq_objhndl,
 	.start_context		= ocxlflash_start_context,
 	.stop_context		= ocxlflash_stop_context,
+	.afu_reset		= ocxlflash_afu_reset,
 	.set_master		= ocxlflash_set_master,
 	.get_context		= ocxlflash_get_context,
 	.dev_context_init	= ocxlflash_dev_context_init,
