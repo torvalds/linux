@@ -23,6 +23,11 @@ my %evals;
 
 #default opts
 my %default = (
+    "MAILER"				=> "sendmail",  # default mailer
+    "EMAIL_ON_ERROR"		=> 1,
+    "EMAIL_WHEN_FINISHED"	=> 1,
+    "EMAIL_WHEN_CANCELED"	=> 0,
+    "EMAIL_WHEN_STARTED"	=> 0,
     "NUM_TESTS"			=> 1,
     "TEST_TYPE"			=> "build",
     "BUILD_TYPE"		=> "randconfig",
@@ -211,6 +216,15 @@ my $test_time;
 my $pwd;
 my $dirname = $FindBin::Bin;
 
+my $mailto;
+my $mailer;
+my $email_on_error;
+my $email_when_finished;
+my $email_when_started;
+my $email_when_canceled;
+
+my $script_start_time = localtime();
+
 # set when a test is something other that just building or install
 # which would require more options.
 my $buildonly = 1;
@@ -236,6 +250,12 @@ my $no_reboot = 1;
 my $reboot_success = 0;
 
 my %option_map = (
+    "MAILTO"				=> \$mailto,
+    "MAILER"				=> \$mailer,
+    "EMAIL_ON_ERROR"		=> \$email_on_error,
+    "EMAIL_WHEN_FINISHED"	=> \$email_when_finished,
+    "EMAIL_WHEN_STARTED"	=> \$email_when_started,
+    "EMAIL_WHEN_CANCELED"	=> \$email_when_canceled,
     "MACHINE"			=> \$machine,
     "SSH_USER"			=> \$ssh_user,
     "TMP_DIR"			=> \$tmpdir,
@@ -1428,6 +1448,11 @@ sub dodie {
 
     if (defined($opt{"LOG_FILE"})) {
 	print " See $opt{LOG_FILE} for more info.\n";
+    }
+
+    if ($email_on_error) {
+        send_email("KTEST: critical failure for your [$test_type] test",
+                "Your test started at $script_start_time has failed with:\n@_\n");
     }
 
     if ($monitor_cnt) {
@@ -4099,6 +4124,26 @@ sub set_test_option {
     return eval_option($name, $option, $i);
 }
 
+sub _mailx_send {
+    my ($subject, $message) = @_;
+    system("$mailer -s \'$subject\' $mailto <<< \'$message\'");
+}
+
+sub _sendmail_send {
+    my ($subject, $message) = @_;
+    system("echo -e \"Subject: $subject\n\n$message\" | sendmail -t $mailto");
+}
+
+sub send_email {
+    if (defined($mailto) && defined($mailer)) {
+        if ($mailer eq "mail" || $mailer eq "mailx"){ _mailx_send(@_);}
+        elsif ($mailer eq "sendmail" ) { _sendmail_send(@_);}
+        else { doprint "\nYour mailer: $mailer is not supported.\n" }
+    } else {
+        print "No email sent: email or mailer not specified in config.\n"
+    }
+}
+
 # First we need to do is the builds
 for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
@@ -4139,9 +4184,15 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $start_minconfig_defined = 1;
 
     # The first test may override the PRE_KTEST option
-    if (defined($pre_ktest) && $i == 1) {
-	doprint "\n";
-	run_command $pre_ktest;
+    if ($i == 1) {
+        if (defined($pre_ktest)) {
+            doprint "\n";
+            run_command $pre_ktest;
+        }
+        if ($email_when_started) {
+            send_email("KTEST: Your [$test_type] test was started",
+                "Your test was started on $script_start_time");
+        }
     }
 
     # Any test can override the POST_KTEST option
@@ -4305,4 +4356,8 @@ if ($opt{"POWEROFF_ON_SUCCESS"}) {
 
 doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
 
+if ($email_when_finished) {
+    send_email("KTEST: Your [$test_type] test has finished!",
+            "$successes of $opt{NUM_TESTS} tests started at $script_start_time were successful!");
+}
 exit 0;
