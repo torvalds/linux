@@ -184,6 +184,7 @@
 #define ARM_SMMU_SH_OSH			2
 #define ARM_SMMU_SH_ISH			3
 #define ARM_SMMU_MEMATTR_DEVICE_nGnRE	0x1
+#define ARM_SMMU_MEMATTR_OIWB		0xf
 
 #define Q_IDX(q, p)			((p) & ((1 << (q)->max_n_shift) - 1))
 #define Q_WRP(q, p)			((p) & (1 << (q)->max_n_shift))
@@ -301,64 +302,49 @@
 #define CMDQ_ERR_CERROR_ILL_IDX		1
 #define CMDQ_ERR_CERROR_ABT_IDX		2
 
-#define CMDQ_0_OP_SHIFT			0
-#define CMDQ_0_OP_MASK			0xffUL
+#define CMDQ_0_OP			GENMASK_ULL(7, 0)
 #define CMDQ_0_SSV			(1UL << 11)
 
-#define CMDQ_PREFETCH_0_SID_SHIFT	32
-#define CMDQ_PREFETCH_1_SIZE_SHIFT	0
+#define CMDQ_PREFETCH_0_SID		GENMASK_ULL(63, 32)
+#define CMDQ_PREFETCH_1_SIZE		GENMASK_ULL(4, 0)
 #define CMDQ_PREFETCH_1_ADDR_MASK	GENMASK_ULL(63, 12)
 
-#define CMDQ_CFGI_0_SID_SHIFT		32
-#define CMDQ_CFGI_0_SID_MASK		0xffffffffUL
+#define CMDQ_CFGI_0_SID			GENMASK_ULL(63, 32)
 #define CMDQ_CFGI_1_LEAF		(1UL << 0)
-#define CMDQ_CFGI_1_RANGE_SHIFT		0
-#define CMDQ_CFGI_1_RANGE_MASK		0x1fUL
+#define CMDQ_CFGI_1_RANGE		GENMASK_ULL(4, 0)
 
-#define CMDQ_TLBI_0_VMID_SHIFT		32
-#define CMDQ_TLBI_0_ASID_SHIFT		48
+#define CMDQ_TLBI_0_VMID		GENMASK_ULL(47, 32)
+#define CMDQ_TLBI_0_ASID		GENMASK_ULL(63, 48)
 #define CMDQ_TLBI_1_LEAF		(1UL << 0)
 #define CMDQ_TLBI_1_VA_MASK		GENMASK_ULL(63, 12)
 #define CMDQ_TLBI_1_IPA_MASK		GENMASK_ULL(47, 12)
 
-#define CMDQ_PRI_0_SSID_SHIFT		12
-#define CMDQ_PRI_0_SSID_MASK		0xfffffUL
-#define CMDQ_PRI_0_SID_SHIFT		32
-#define CMDQ_PRI_0_SID_MASK		0xffffffffUL
-#define CMDQ_PRI_1_GRPID_SHIFT		0
-#define CMDQ_PRI_1_GRPID_MASK		0x1ffUL
-#define CMDQ_PRI_1_RESP_SHIFT		12
-#define CMDQ_PRI_1_RESP_DENY		(0UL << CMDQ_PRI_1_RESP_SHIFT)
-#define CMDQ_PRI_1_RESP_FAIL		(1UL << CMDQ_PRI_1_RESP_SHIFT)
-#define CMDQ_PRI_1_RESP_SUCC		(2UL << CMDQ_PRI_1_RESP_SHIFT)
+#define CMDQ_PRI_0_SSID			GENMASK_ULL(31, 12)
+#define CMDQ_PRI_0_SID			GENMASK_ULL(63, 32)
+#define CMDQ_PRI_1_GRPID		GENMASK_ULL(8, 0)
+#define CMDQ_PRI_1_RESP			GENMASK_ULL(13, 12)
 
-#define CMDQ_SYNC_0_CS_SHIFT		12
-#define CMDQ_SYNC_0_CS_NONE		(0UL << CMDQ_SYNC_0_CS_SHIFT)
-#define CMDQ_SYNC_0_CS_IRQ		(1UL << CMDQ_SYNC_0_CS_SHIFT)
-#define CMDQ_SYNC_0_CS_SEV		(2UL << CMDQ_SYNC_0_CS_SHIFT)
-#define CMDQ_SYNC_0_MSH_SHIFT		22
-#define CMDQ_SYNC_0_MSH_ISH		(3UL << CMDQ_SYNC_0_MSH_SHIFT)
-#define CMDQ_SYNC_0_MSIATTR_SHIFT	24
-#define CMDQ_SYNC_0_MSIATTR_OIWB	(0xfUL << CMDQ_SYNC_0_MSIATTR_SHIFT)
-#define CMDQ_SYNC_0_MSIDATA_SHIFT	32
-#define CMDQ_SYNC_0_MSIDATA_MASK	0xffffffffUL
+#define CMDQ_SYNC_0_CS			GENMASK_ULL(13, 12)
+#define CMDQ_SYNC_0_CS_NONE		0
+#define CMDQ_SYNC_0_CS_IRQ		1
+#define CMDQ_SYNC_0_CS_SEV		2
+#define CMDQ_SYNC_0_MSH			GENMASK_ULL(23, 22)
+#define CMDQ_SYNC_0_MSIATTR		GENMASK_ULL(27, 24)
+#define CMDQ_SYNC_0_MSIDATA		GENMASK_ULL(63, 32)
 #define CMDQ_SYNC_1_MSIADDR_MASK	GENMASK_ULL(47, 2)
 
 /* Event queue */
 #define EVTQ_ENT_DWORDS			4
 #define EVTQ_MAX_SZ_SHIFT		7
 
-#define EVTQ_0_ID_SHIFT			0
-#define EVTQ_0_ID_MASK			0xffUL
+#define EVTQ_0_ID			GENMASK_ULL(7, 0)
 
 /* PRI queue */
 #define PRIQ_ENT_DWORDS			2
 #define PRIQ_MAX_SZ_SHIFT		8
 
-#define PRIQ_0_SID_SHIFT		0
-#define PRIQ_0_SID_MASK			0xffffffffUL
-#define PRIQ_0_SSID_SHIFT		32
-#define PRIQ_0_SSID_MASK		0xfffffUL
+#define PRIQ_0_SID			GENMASK_ULL(31, 0)
+#define PRIQ_0_SSID			GENMASK_ULL(51, 32)
 #define PRIQ_0_PERM_PRIV		(1UL << 58)
 #define PRIQ_0_PERM_EXEC		(1UL << 59)
 #define PRIQ_0_PERM_READ		(1UL << 60)
@@ -366,8 +352,7 @@
 #define PRIQ_0_PRG_LAST			(1UL << 62)
 #define PRIQ_0_SSID_V			(1UL << 63)
 
-#define PRIQ_1_PRG_IDX_SHIFT		0
-#define PRIQ_1_PRG_IDX_MASK		0x1ffUL
+#define PRIQ_1_PRG_IDX			GENMASK_ULL(8, 0)
 #define PRIQ_1_ADDR_MASK		GENMASK_ULL(63, 12)
 
 /* High-level queue structures */
@@ -384,9 +369,9 @@ MODULE_PARM_DESC(disable_bypass,
 	"Disable bypass streams such that incoming transactions from devices that are not attached to an iommu domain will report an abort back to the device and will not be allowed to pass through the SMMU.");
 
 enum pri_resp {
-	PRI_RESP_DENY,
-	PRI_RESP_FAIL,
-	PRI_RESP_SUCC,
+	PRI_RESP_DENY = 0,
+	PRI_RESP_FAIL = 1,
+	PRI_RESP_SUCC = 2,
 };
 
 enum arm_smmu_msi_index {
@@ -790,67 +775,64 @@ static int queue_remove_raw(struct arm_smmu_queue *q, u64 *ent)
 static int arm_smmu_cmdq_build_cmd(u64 *cmd, struct arm_smmu_cmdq_ent *ent)
 {
 	memset(cmd, 0, CMDQ_ENT_DWORDS << 3);
-	cmd[0] |= (ent->opcode & CMDQ_0_OP_MASK) << CMDQ_0_OP_SHIFT;
+	cmd[0] |= FIELD_PREP(CMDQ_0_OP, ent->opcode);
 
 	switch (ent->opcode) {
 	case CMDQ_OP_TLBI_EL2_ALL:
 	case CMDQ_OP_TLBI_NSNH_ALL:
 		break;
 	case CMDQ_OP_PREFETCH_CFG:
-		cmd[0] |= (u64)ent->prefetch.sid << CMDQ_PREFETCH_0_SID_SHIFT;
-		cmd[1] |= ent->prefetch.size << CMDQ_PREFETCH_1_SIZE_SHIFT;
+		cmd[0] |= FIELD_PREP(CMDQ_PREFETCH_0_SID, ent->prefetch.sid);
+		cmd[1] |= FIELD_PREP(CMDQ_PREFETCH_1_SIZE, ent->prefetch.size);
 		cmd[1] |= ent->prefetch.addr & CMDQ_PREFETCH_1_ADDR_MASK;
 		break;
 	case CMDQ_OP_CFGI_STE:
-		cmd[0] |= (u64)ent->cfgi.sid << CMDQ_CFGI_0_SID_SHIFT;
-		cmd[1] |= ent->cfgi.leaf ? CMDQ_CFGI_1_LEAF : 0;
+		cmd[0] |= FIELD_PREP(CMDQ_CFGI_0_SID, ent->cfgi.sid);
+		cmd[1] |= FIELD_PREP(CMDQ_CFGI_1_LEAF, ent->cfgi.leaf);
 		break;
 	case CMDQ_OP_CFGI_ALL:
 		/* Cover the entire SID range */
-		cmd[1] |= CMDQ_CFGI_1_RANGE_MASK << CMDQ_CFGI_1_RANGE_SHIFT;
+		cmd[1] |= FIELD_PREP(CMDQ_CFGI_1_RANGE, 31);
 		break;
 	case CMDQ_OP_TLBI_NH_VA:
-		cmd[0] |= (u64)ent->tlbi.asid << CMDQ_TLBI_0_ASID_SHIFT;
-		cmd[1] |= ent->tlbi.leaf ? CMDQ_TLBI_1_LEAF : 0;
+		cmd[0] |= FIELD_PREP(CMDQ_TLBI_0_ASID, ent->tlbi.asid);
+		cmd[1] |= FIELD_PREP(CMDQ_TLBI_1_LEAF, ent->tlbi.leaf);
 		cmd[1] |= ent->tlbi.addr & CMDQ_TLBI_1_VA_MASK;
 		break;
 	case CMDQ_OP_TLBI_S2_IPA:
-		cmd[0] |= (u64)ent->tlbi.vmid << CMDQ_TLBI_0_VMID_SHIFT;
-		cmd[1] |= ent->tlbi.leaf ? CMDQ_TLBI_1_LEAF : 0;
+		cmd[0] |= FIELD_PREP(CMDQ_TLBI_0_VMID, ent->tlbi.vmid);
+		cmd[1] |= FIELD_PREP(CMDQ_TLBI_1_LEAF, ent->tlbi.leaf);
 		cmd[1] |= ent->tlbi.addr & CMDQ_TLBI_1_IPA_MASK;
 		break;
 	case CMDQ_OP_TLBI_NH_ASID:
-		cmd[0] |= (u64)ent->tlbi.asid << CMDQ_TLBI_0_ASID_SHIFT;
+		cmd[0] |= FIELD_PREP(CMDQ_TLBI_0_ASID, ent->tlbi.asid);
 		/* Fallthrough */
 	case CMDQ_OP_TLBI_S12_VMALL:
-		cmd[0] |= (u64)ent->tlbi.vmid << CMDQ_TLBI_0_VMID_SHIFT;
+		cmd[0] |= FIELD_PREP(CMDQ_TLBI_0_VMID, ent->tlbi.vmid);
 		break;
 	case CMDQ_OP_PRI_RESP:
-		cmd[0] |= ent->substream_valid ? CMDQ_0_SSV : 0;
-		cmd[0] |= ent->pri.ssid << CMDQ_PRI_0_SSID_SHIFT;
-		cmd[0] |= (u64)ent->pri.sid << CMDQ_PRI_0_SID_SHIFT;
-		cmd[1] |= ent->pri.grpid << CMDQ_PRI_1_GRPID_SHIFT;
+		cmd[0] |= FIELD_PREP(CMDQ_0_SSV, ent->substream_valid);
+		cmd[0] |= FIELD_PREP(CMDQ_PRI_0_SSID, ent->pri.ssid);
+		cmd[0] |= FIELD_PREP(CMDQ_PRI_0_SID, ent->pri.sid);
+		cmd[1] |= FIELD_PREP(CMDQ_PRI_1_GRPID, ent->pri.grpid);
 		switch (ent->pri.resp) {
 		case PRI_RESP_DENY:
-			cmd[1] |= CMDQ_PRI_1_RESP_DENY;
-			break;
 		case PRI_RESP_FAIL:
-			cmd[1] |= CMDQ_PRI_1_RESP_FAIL;
-			break;
 		case PRI_RESP_SUCC:
-			cmd[1] |= CMDQ_PRI_1_RESP_SUCC;
 			break;
 		default:
 			return -EINVAL;
 		}
+		cmd[1] |= FIELD_PREP(CMDQ_PRI_1_RESP, ent->pri.resp);
 		break;
 	case CMDQ_OP_CMD_SYNC:
 		if (ent->sync.msiaddr)
-			cmd[0] |= CMDQ_SYNC_0_CS_IRQ;
+			cmd[0] |= FIELD_PREP(CMDQ_SYNC_0_CS, CMDQ_SYNC_0_CS_IRQ);
 		else
-			cmd[0] |= CMDQ_SYNC_0_CS_SEV;
-		cmd[0] |= CMDQ_SYNC_0_MSH_ISH | CMDQ_SYNC_0_MSIATTR_OIWB;
-		cmd[0] |= (u64)ent->sync.msidata << CMDQ_SYNC_0_MSIDATA_SHIFT;
+			cmd[0] |= FIELD_PREP(CMDQ_SYNC_0_CS, CMDQ_SYNC_0_CS_SEV);
+		cmd[0] |= FIELD_PREP(CMDQ_SYNC_0_MSH, ARM_SMMU_SH_ISH);
+		cmd[0] |= FIELD_PREP(CMDQ_SYNC_0_MSIATTR, ARM_SMMU_MEMATTR_OIWB);
+		cmd[0] |= FIELD_PREP(CMDQ_SYNC_0_MSIDATA, ent->sync.msidata);
 		cmd[1] |= ent->sync.msiaddr & CMDQ_SYNC_1_MSIADDR_MASK;
 		break;
 	default:
@@ -1239,7 +1221,7 @@ static irqreturn_t arm_smmu_evtq_thread(int irq, void *dev)
 
 	do {
 		while (!queue_remove_raw(q, evt)) {
-			u8 id = evt[0] >> EVTQ_0_ID_SHIFT & EVTQ_0_ID_MASK;
+			u8 id = FIELD_GET(EVTQ_0_ID, evt[0]);
 
 			dev_info(smmu->dev, "event 0x%02x received:\n", id);
 			for (i = 0; i < ARRAY_SIZE(evt); ++i)
@@ -1267,11 +1249,11 @@ static void arm_smmu_handle_ppr(struct arm_smmu_device *smmu, u64 *evt)
 	u16 grpid;
 	bool ssv, last;
 
-	sid = evt[0] >> PRIQ_0_SID_SHIFT & PRIQ_0_SID_MASK;
-	ssv = evt[0] & PRIQ_0_SSID_V;
-	ssid = ssv ? evt[0] >> PRIQ_0_SSID_SHIFT & PRIQ_0_SSID_MASK : 0;
-	last = evt[0] & PRIQ_0_PRG_LAST;
-	grpid = evt[1] >> PRIQ_1_PRG_IDX_SHIFT & PRIQ_1_PRG_IDX_MASK;
+	sid = FIELD_GET(PRIQ_0_SID, evt[0]);
+	ssv = FIELD_GET(PRIQ_0_SSID_V, evt[0]);
+	ssid = ssv ? FIELD_GET(PRIQ_0_SSID, evt[0]) : 0;
+	last = FIELD_GET(PRIQ_0_PRG_LAST, evt[0]);
+	grpid = FIELD_GET(PRIQ_1_PRG_IDX, evt[1]);
 
 	dev_info(smmu->dev, "unexpected PRI request received:\n");
 	dev_info(smmu->dev,
