@@ -2853,7 +2853,7 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		    const u8 *rx_mic, const u8 *tx_mic, u8 mode,
 		    u8 cipher_mode)
 {
-	int result = 0;
+	int result;
 	struct host_if_msg msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	u8 key_len = gtk_key_len;
@@ -2892,8 +2892,10 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 	msg.body.key_info.attr.wpa.key = kmemdup(rx_gtk,
 						 key_len,
 						 GFP_KERNEL);
-	if (!msg.body.key_info.attr.wpa.key)
+	if (!msg.body.key_info.attr.wpa.key) {
+		kfree(msg.body.key_info.attr.wpa.seq);
 		return -ENOMEM;
+	}
 
 	if (rx_mic)
 		memcpy(msg.body.key_info.attr.wpa.key + 16, rx_mic,
@@ -2908,12 +2910,15 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 	msg.body.key_info.attr.wpa.seq_len = key_rsc_len;
 
 	result = wilc_enqueue_cmd(&msg);
-	if (result)
+	if (result) {
 		netdev_err(vif->ndev, "RX GTK\n");
-	else
-		wait_for_completion(&hif_drv->comp_test_key_block);
+		kfree(msg.body.key_info.attr.wpa.seq);
+		kfree(msg.body.key_info.attr.wpa.key);
+		return result;
+	}
 
-	return result;
+	wait_for_completion(&hif_drv->comp_test_key_block);
+	return 0;
 }
 
 int wilc_set_pmkid_info(struct wilc_vif *vif,
