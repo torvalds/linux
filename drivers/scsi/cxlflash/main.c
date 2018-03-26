@@ -1911,7 +1911,7 @@ static enum undo_level init_intr(struct cxlflash_cfg *cfg,
 	int rc = 0;
 	enum undo_level level = UNDO_NOOP;
 	bool is_primary_hwq = (hwq->index == PRIMARY_HWQ);
-	int num_irqs = is_primary_hwq ? 3 : 2;
+	int num_irqs = hwq->num_irqs;
 
 	rc = cfg->ops->allocate_afu_irqs(ctx, num_irqs);
 	if (unlikely(rc)) {
@@ -1965,16 +1965,20 @@ static int init_mc(struct cxlflash_cfg *cfg, u32 index)
 	struct device *dev = &cfg->dev->dev;
 	struct hwq *hwq = get_hwq(cfg->afu, index);
 	int rc = 0;
+	int num_irqs;
 	enum undo_level level;
 
 	hwq->afu = cfg->afu;
 	hwq->index = index;
 	INIT_LIST_HEAD(&hwq->pending_cmds);
 
-	if (index == PRIMARY_HWQ)
+	if (index == PRIMARY_HWQ) {
 		ctx = cfg->ops->get_context(cfg->dev, cfg->afu_cookie);
-	else
+		num_irqs = 3;
+	} else {
 		ctx = cfg->ops->dev_context_init(cfg->dev, cfg->afu_cookie);
+		num_irqs = 2;
+	}
 	if (IS_ERR_OR_NULL(ctx)) {
 		rc = -ENOMEM;
 		goto err1;
@@ -1982,6 +1986,7 @@ static int init_mc(struct cxlflash_cfg *cfg, u32 index)
 
 	WARN_ON(hwq->ctx_cookie);
 	hwq->ctx_cookie = ctx;
+	hwq->num_irqs = num_irqs;
 
 	/* Set it up as a master with the CXL */
 	cfg->ops->set_master(ctx);

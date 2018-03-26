@@ -211,6 +211,7 @@ struct hwq {
 	struct sisl_ctrl_map __iomem *ctrl_map;		/* MC control map */
 	ctx_hndl_t ctx_hndl;	/* master's context handle */
 	u32 index;		/* Index of this hwq */
+	int num_irqs;		/* Number of interrupts requested for context */
 	struct list_head pending_cmds;	/* Commands pending completion */
 
 	atomic_t hsq_credits;
