@@ -1871,7 +1871,6 @@ static void gen8_disable_metric_set(struct drm_i915_private *dev_priv)
 
 	I915_WRITE(GDT_CHICKEN_BITS, (I915_READ(GDT_CHICKEN_BITS) &
 				      ~GT_NOA_ENABLE));
-
 }
 
 static void gen10_disable_metric_set(struct drm_i915_private *dev_priv)
