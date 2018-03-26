@@ -58,6 +58,8 @@ _CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE_PRIMARY | \
 		   _CIF_ASCE_SECONDARY | _CIF_FPU)
 _PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 
+_LPP_OFFSET	= __LC_LPP
+
 #define BASED(name) name-cleanup_critical(%r13)
 
 	.macro	TRACE_IRQS_ON
@@ -281,10 +283,8 @@ ENTRY(__switch_to)
 	aghi	%r3,__TASK_pid
 	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
-	jz	0f
-	.insn	s,0xb2800000,__LC_LPP		# set program parameter
-0:	BR_R1USE_R14
+	ALTERNATIVE "", ".insn s,0xb2800000,_LPP_OFFSET", 40
+	BR_R1USE_R14
 
 .L__critical_start:
 
@@ -1243,10 +1243,8 @@ ENTRY(mcck_int_handler)
 # PSW restart interrupt handler
 #
 ENTRY(restart_int_handler)
-	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_LPP
-	jz	0f
-	.insn	s,0xb2800000,__LC_LPP
-0:	stg	%r15,__LC_SAVE_AREA_RESTART
+	ALTERNATIVE "", ".insn s,0xb2800000,_LPP_OFFSET", 40
+	stg	%r15,__LC_SAVE_AREA_RESTART
 	lg	%r15,__LC_RESTART_STACK
 	aghi	%r15,-__PT_SIZE			# create pt_regs on stack
 	xc	0(__PT_SIZE,%r15),0(%r15)
