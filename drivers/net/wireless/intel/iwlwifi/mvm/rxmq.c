@@ -227,11 +227,23 @@ static void iwl_mvm_get_signal_strength(struct iwl_mvm *mvm,
 }
 
 static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
-			     struct ieee80211_rx_status *stats,
-			     struct iwl_rx_mpdu_desc *desc, u32 pkt_flags,
-			     int queue, u8 *crypt_len)
+			     struct ieee80211_rx_status *stats, u16 phy_info,
+			     struct iwl_rx_mpdu_desc *desc,
+			     u32 pkt_flags, int queue, u8 *crypt_len)
 {
 	u16 status = le16_to_cpu(desc->status);
+
+	/*
+	 * Drop UNKNOWN frames in aggregation, unless in monitor mode
+	 * (where we don't have the keys).
+	 * We limit this to aggregation because in TKIP this is a valid
+	 * scenario, since we may not have the (correct) TTAK (phase 1
+	 * key) in the firmware.
+	 */
+	if (phy_info & IWL_RX_MPDU_PHY_AMPDU &&
+	    (status & IWL_RX_MPDU_STATUS_SEC_MASK) ==
+	    IWL_RX_MPDU_STATUS_SEC_UNKNOWN && !mvm->monitor_on)
+		return -1;
 
 	if (!ieee80211_has_protected(hdr->frame_control) ||
 	    (status & IWL_RX_MPDU_STATUS_SEC_MASK) ==
@@ -870,7 +882,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
 
-	if (iwl_mvm_rx_crypto(mvm, hdr, rx_status, desc,
+	if (iwl_mvm_rx_crypto(mvm, hdr, rx_status, phy_info, desc,
 			      le32_to_cpu(pkt->len_n_flags), queue,
 			      &crypt_len)) {
 		kfree_skb(skb);
