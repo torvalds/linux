@@ -90,12 +90,11 @@ struct sh_css_queues {
 
 #endif
 
-struct sh_css_queues  css_queues;
-
-
 /*******************************************************
 *** Static variables
 ********************************************************/
+static struct sh_css_queues css_queues;
+
 static int buffer_type_to_queue_id_map[SH_CSS_MAX_SP_THREADS][IA_CSS_NUM_DYNAMIC_BUFFER_TYPE];
 static bool queue_availability[SH_CSS_MAX_SP_THREADS][SH_CSS_MAX_NUM_QUEUES];
 
@@ -266,7 +265,7 @@ static ia_css_queue_t *bufq_get_qhandle(
 	case sh_css_sp2host_isys_event_queue:
 		q = &css_queues.sp2host_isys_event_queue_handle;
 		break;
-#endif		
+#endif
 	case sh_css_host2sp_tag_cmd_queue:
 		q = &css_queues.host2sp_tag_cmd_queue_handle;
 		break;

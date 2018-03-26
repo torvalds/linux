@@ -110,7 +110,7 @@
 #define FPNTBL_BYTES(binary) \
 	(sizeof(char) * (binary)->in_frame_info.res.height * \
 	 (binary)->in_frame_info.padded_width)
-	 
+
 #ifndef ISP2401
 
 #define SCTBL_BYTES(binary) \
@@ -2891,8 +2891,8 @@ ia_css_metadata_free_multiple(unsigned int num_bufs, struct ia_css_metadata **bu
 	}
 }
 
-unsigned g_param_buffer_dequeue_count = 0;
-unsigned g_param_buffer_enqueue_count = 0;
+static unsigned g_param_buffer_dequeue_count = 0;
+static unsigned g_param_buffer_enqueue_count = 0;
 
 enum ia_css_err
 ia_css_stream_isp_parameters_init(struct ia_css_stream *stream)

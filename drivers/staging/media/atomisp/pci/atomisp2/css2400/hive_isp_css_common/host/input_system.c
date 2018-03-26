@@ -29,7 +29,7 @@
 #define ZERO (0x0)
 #define ONE  (1U)
 
-const ib_buffer_t   IB_BUFFER_NULL = {0 ,0, 0 };
+static const ib_buffer_t   IB_BUFFER_NULL = {0 ,0, 0 };
 
 static input_system_error_t input_system_configure_channel(
 	const channel_cfg_t		channel);
@@ -644,7 +644,7 @@ static inline void rx_channel_get_state(
 }
 
 // MW: "2400" in the name is not good, but this is to avoid a naming conflict
-input_system_cfg2400_t config;
+static input_system_cfg2400_t config;
 
 static void receiver_rst(
 	const rx_ID_t				ID)
