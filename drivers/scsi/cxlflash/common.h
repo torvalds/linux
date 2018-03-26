@@ -224,6 +224,7 @@ struct hwq {
 	u64 *hrrq_end;
 	u64 *hrrq_curr;
 	bool toggle;
+	bool hrrq_online;
 
 	s64 room;
 

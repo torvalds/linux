@@ -801,6 +801,10 @@ static void term_mc(struct cxlflash_cfg *cfg, u32 index)
 		WARN_ON(cfg->ops->release_context(hwq->ctx_cookie));
 	hwq->ctx_cookie = NULL;
 
+	spin_lock_irqsave(&hwq->hrrq_slock, lock_flags);
+	hwq->hrrq_online = false;
+	spin_unlock_irqrestore(&hwq->hrrq_slock, lock_flags);
+
 	spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
 	flush_pending_cmds(hwq);
 	spin_unlock_irqrestore(&hwq->hsq_slock, lock_flags);
@@ -1475,6 +1479,12 @@ static irqreturn_t cxlflash_rrq_irq(int irq, void *data)
 
 	spin_lock_irqsave(&hwq->hrrq_slock, hrrq_flags);
 
+	/* Silently drop spurious interrupts when queue is not online */
+	if (!hwq->hrrq_online) {
+		spin_unlock_irqrestore(&hwq->hrrq_slock, hrrq_flags);
+		return IRQ_HANDLED;
+	}
+
 	if (afu_is_irqpoll_enabled(afu)) {
 		irq_poll_sched(&hwq->irqpoll);
 		spin_unlock_irqrestore(&hwq->hrrq_slock, hrrq_flags);
@@ -1781,6 +1791,7 @@ static int init_global(struct cxlflash_cfg *cfg)
 
 		writeq_be((u64) hwq->hrrq_start, &hmap->rrq_start);
 		writeq_be((u64) hwq->hrrq_end, &hmap->rrq_end);
+		hwq->hrrq_online = true;
 
 		if (afu_is_sq_cmd_mode(afu)) {
 			writeq_be((u64)hwq->hsq_start, &hmap->sq_start);
