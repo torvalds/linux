@@ -4225,6 +4225,12 @@ MLXSW_ITEM32(reg, ritr, ipv6, 0x00, 28, 1);
  */
 MLXSW_ITEM32(reg, ritr, ipv4_mc, 0x00, 27, 1);
 
+/* reg_ritr_ipv6_mc
+ * IPv6 multicast routing enable.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ipv6_mc, 0x00, 26, 1);
+
 enum mlxsw_reg_ritr_if_type {
 	/* VLAN interface. */
 	MLXSW_REG_RITR_VLAN_IF,
@@ -4289,6 +4295,14 @@ MLXSW_ITEM32(reg, ritr, ipv6_fe, 0x04, 28, 1);
  * Access: RW
  */
 MLXSW_ITEM32(reg, ritr, ipv4_mc_fe, 0x04, 27, 1);
+
+/* reg_ritr_ipv6_mc_fe
+ * IPv6 Multicast Forwarding Enable.
+ * When disabled, forwarding is blocked but local traffic (traps and IP to me)
+ * will be enabled.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, ritr, ipv6_mc_fe, 0x04, 26, 1);
 
 /* reg_ritr_lb_en
  * Loop-back filter enable for unicast packets.
@@ -4513,12 +4527,14 @@ static inline void mlxsw_reg_ritr_pack(char *payload, bool enable,
 	mlxsw_reg_ritr_ipv4_set(payload, 1);
 	mlxsw_reg_ritr_ipv6_set(payload, 1);
 	mlxsw_reg_ritr_ipv4_mc_set(payload, 1);
+	mlxsw_reg_ritr_ipv6_mc_set(payload, 1);
 	mlxsw_reg_ritr_type_set(payload, type);
 	mlxsw_reg_ritr_op_set(payload, op);
 	mlxsw_reg_ritr_rif_set(payload, rif);
 	mlxsw_reg_ritr_ipv4_fe_set(payload, 1);
 	mlxsw_reg_ritr_ipv6_fe_set(payload, 1);
 	mlxsw_reg_ritr_ipv4_mc_fe_set(payload, 1);
+	mlxsw_reg_ritr_ipv6_mc_fe_set(payload, 1);
 	mlxsw_reg_ritr_lb_en_set(payload, 1);
 	mlxsw_reg_ritr_virtual_router_set(payload, vr_id);
 	mlxsw_reg_ritr_mtu_set(payload, mtu);
