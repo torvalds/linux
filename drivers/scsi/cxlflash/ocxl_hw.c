@@ -415,8 +415,25 @@ static int ocxlflash_config_fn(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 	ocxl_config_set_actag(pdev, fcfg->dvsec_function_pos, base, enabled);
 	dev_dbg(dev, "%s: Function acTag range base=%u enabled=%u\n",
 		__func__, base, enabled);
+
+	rc = ocxl_link_setup(pdev, 0, &afu->link_token);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: ocxl_link_setup failed rc=%d\n",
+			__func__, rc);
+		goto out;
+	}
 out:
 	return rc;
+}
+
+/**
+ * ocxlflash_unconfig_fn() - unconfigure the host function
+ * @pdev:	PCI device associated with the host.
+ * @afu:	AFU associated with the host.
+ */
+static void ocxlflash_unconfig_fn(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
+{
+	ocxl_link_release(pdev, afu->link_token);
 }
 
 /**
@@ -560,7 +577,7 @@ static void *ocxlflash_create_afu(struct pci_dev *pdev)
 	if (unlikely(rc)) {
 		dev_err(dev, "%s: AFU configuration failed rc=%d\n",
 			__func__, rc);
-		goto err1;
+		goto err2;
 	}
 
 	ctx = ocxlflash_dev_context_init(pdev, afu);
@@ -568,14 +585,16 @@ static void *ocxlflash_create_afu(struct pci_dev *pdev)
 		rc = PTR_ERR(ctx);
 		dev_err(dev, "%s: ocxlflash_dev_context_init failed rc=%d\n",
 			__func__, rc);
-		goto err2;
+		goto err3;
 	}
 
 	afu->ocxl_ctx = ctx;
 out:
 	return afu;
-err2:
+err3:
 	ocxlflash_unconfig_afu(afu);
+err2:
+	ocxlflash_unconfig_fn(pdev, afu);
 err1:
 	idr_destroy(&afu->idr);
 	kfree(afu);
