@@ -24,6 +24,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/thp.h>
 
+#if H_PGTABLE_RANGE > (USER_VSID_RANGE * (TASK_SIZE_USER64 / TASK_CONTEXT_SIZE))
+#warning Limited user VSID range means pagetable space is wasted
+#endif
+
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*
  * vmemmap is the starting address of the virtual address space where

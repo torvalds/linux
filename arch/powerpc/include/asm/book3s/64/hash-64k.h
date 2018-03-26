@@ -4,7 +4,7 @@
 
 #define H_PTE_INDEX_SIZE  8
 #define H_PMD_INDEX_SIZE  10
-#define H_PUD_INDEX_SIZE  7
+#define H_PUD_INDEX_SIZE  10
 #define H_PGD_INDEX_SIZE  8
 
 /*

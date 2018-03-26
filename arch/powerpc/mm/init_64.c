@@ -68,12 +68,6 @@
 
 #include "mmu_decl.h"
 
-#ifdef CONFIG_PPC_BOOK3S_64
-#if H_PGTABLE_RANGE > USER_VSID_RANGE
-#warning Limited user VSID range means pagetable space is wasted
-#endif
-#endif /* CONFIG_PPC_BOOK3S_64 */
-
 phys_addr_t memstart_addr = ~0;
 EXPORT_SYMBOL_GPL(memstart_addr);
 phys_addr_t kernstart_addr;
