@@ -1082,7 +1082,7 @@ sh_css_config_input_network(struct ia_css_stream *stream)
 
 	/* get the SP thread id */
 	rc = ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &sp_thread_id);
-	if (rc != true)
+	if (!rc)
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	/* get the target input terminal */
 	sp_pipeline_input_terminal = &(sh_css_sp_group.pipe_io[sp_thread_id].input);
@@ -1108,7 +1108,7 @@ sh_css_config_input_network(struct ia_css_stream *stream)
 					&(isys_stream_descr));
 		}
 
-		if (rc != true)
+		if (!rc)
 			return IA_CSS_ERR_INTERNAL_ERROR;
 
 		isys_stream_id = ia_css_isys_generate_stream_id(sp_thread_id, i);
@@ -1118,7 +1118,7 @@ sh_css_config_input_network(struct ia_css_stream *stream)
 				&(isys_stream_descr),
 				&(sp_pipeline_input_terminal->context.virtual_input_system_stream[i]),
 				isys_stream_id);
-		if (rc != true)
+		if (!rc)
 			return IA_CSS_ERR_INTERNAL_ERROR;
 
 		/* calculate the configuration of the virtual Input System (2401) */
@@ -1126,7 +1126,7 @@ sh_css_config_input_network(struct ia_css_stream *stream)
 				&(sp_pipeline_input_terminal->context.virtual_input_system_stream[i]),
 				&(isys_stream_descr),
 				&(sp_pipeline_input_terminal->ctrl.virtual_input_system_stream_cfg[i]));
-		if (rc != true) {
+		if (!rc) {
 			ia_css_isys_stream_destroy(&(sp_pipeline_input_terminal->context.virtual_input_system_stream[i]));
 			return IA_CSS_ERR_INTERNAL_ERROR;
 		}
@@ -2562,7 +2562,7 @@ ia_css_uninit(void)
 	ifmtr_set_if_blocking_mode_reset = true;
 #endif
 
-	if (fw_explicitly_loaded == false) {
+	if (!fw_explicitly_loaded) {
 		ia_css_unload_firmware();
 	}
 	ia_css_spctrl_unload_fw(SP0_ID);
@@ -7739,7 +7739,7 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe)
 
 		for (i = 0, j = 0; i < num_stage; i++) {
 			assert(j < num_output_stage);
-			if (pipe->pipe_settings.yuvpp.is_output_stage[i] == true) {
+			if (pipe->pipe_settings.yuvpp.is_output_stage[i]) {
 				tmp_out_frame = out_frame[j];
 				tmp_vf_frame = vf_frame[j];
 			} else {
@@ -7758,7 +7758,7 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe)
 			}
 			/* we use output port 1 as internal output port */
 			tmp_in_frame = yuv_scaler_stage->args.out_frame[1];
-			if (pipe->pipe_settings.yuvpp.is_output_stage[i] == true) {
+			if (pipe->pipe_settings.yuvpp.is_output_stage[i]) {
 				if (tmp_vf_frame && (tmp_vf_frame->info.res.width != 0)) {
 					in_frame = yuv_scaler_stage->args.out_vf_frame;
 					err = add_vf_pp_stage(pipe, in_frame, tmp_vf_frame, &vf_pp_binary[j],
@@ -8321,8 +8321,6 @@ sh_css_pipe_get_output_frame_info(struct ia_css_pipe *pipe,
 				  struct ia_css_frame_info *info,
 				  unsigned int idx)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
-
 	assert(pipe != NULL);
 	assert(info != NULL);
 
@@ -8347,7 +8345,7 @@ sh_css_pipe_get_output_frame_info(struct ia_css_pipe *pipe,
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 						"sh_css_pipe_get_output_frame_info() leave:\n");
-	return err;
+	return IA_CSS_SUCCESS;
 }
 
 #if !defined(HAS_NO_INPUT_SYSTEM)
@@ -10218,8 +10216,6 @@ ia_css_stream_get_3a_binary(const struct ia_css_stream *stream)
 enum ia_css_err
 ia_css_stream_set_output_padded_width(struct ia_css_stream *stream, unsigned int output_padded_width)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
-
 	struct ia_css_pipe *pipe;
 
 	assert(stream != NULL);
@@ -10232,7 +10228,7 @@ ia_css_stream_set_output_padded_width(struct ia_css_stream *stream, unsigned int
 	pipe->config.output_info[IA_CSS_PIPE_OUTPUT_STAGE_0].padded_width = output_padded_width;
 	pipe->output_info[IA_CSS_PIPE_OUTPUT_STAGE_0].padded_width = output_padded_width;
 
-	return err;
+	return IA_CSS_SUCCESS;
 }
 
 static struct ia_css_binary *
@@ -10734,7 +10730,7 @@ ia_css_pipe_set_qos_ext_state(struct ia_css_pipe *pipe, uint32_t fw_handle, bool
 				(uint8_t) IA_CSS_PSYS_SW_EVENT_STAGE_ENABLE_DISABLE,
 				(uint8_t) thread_id,
 				(uint8_t) stage->stage_num,
-				(enable == true) ? 1 : 0);
+				enable ? 1 : 0);
 			if (err == IA_CSS_SUCCESS) {
 				if(enable)
 					SH_CSS_QOS_STAGE_ENABLE(&(sh_css_sp_group.pipe[thread_id]),stage->stage_num);
@@ -11059,7 +11055,7 @@ static struct sh_css_hmm_buffer_record
 
 	buffer_record = &hmm_buffer_record[0];
 	for (i = 0; i < MAX_HMM_BUFFER_NUM; i++) {
-		if (buffer_record->in_use == false) {
+		if (!buffer_record->in_use) {
 			buffer_record->in_use = true;
 			buffer_record->type = type;
 			buffer_record->h_vbuf = h_vbuf;
@@ -11083,7 +11079,7 @@ static struct sh_css_hmm_buffer_record
 
 	buffer_record = &hmm_buffer_record[0];
 	for (i = 0; i < MAX_HMM_BUFFER_NUM; i++) {
-		if ((buffer_record->in_use == true) &&
+		if ((buffer_record->in_use) &&
 		    (buffer_record->type == type) &&
 		    (buffer_record->h_vbuf != NULL) &&
 		    (buffer_record->h_vbuf->vptr == ddr_buffer_addr)) {
@@ -11093,7 +11089,7 @@ static struct sh_css_hmm_buffer_record
 		buffer_record++;
 	}
 
-	if (found_record == true)
+	if (found_record)
 		return buffer_record;
 	else
 		return NULL;

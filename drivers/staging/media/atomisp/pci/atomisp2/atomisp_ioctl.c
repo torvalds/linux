@@ -2731,7 +2731,7 @@ static int atomisp_s_parm_file(struct file *file, void *fh,
 	}
 
 	rt_mutex_lock(&isp->mutex);
-	isp->sw_contex.file_input = 1;
+	isp->sw_contex.file_input = true;
 	rt_mutex_unlock(&isp->mutex);
 
 	return 0;

@@ -574,7 +574,7 @@ static void pipeline_map_num_to_sp_thread(unsigned int pipe_num)
 
 		But the below is more descriptive.
 	*/
-	assert(found_sp_thread != false);
+	assert(found_sp_thread);
 }
 
 static void pipeline_unmap_num_to_sp_thread(unsigned int pipe_num)

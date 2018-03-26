@@ -207,7 +207,7 @@ static void map_buffer_type_to_queue_id(
 	}
 
 	for (i = SH_CSS_QUEUE_C_ID; i < SH_CSS_MAX_NUM_QUEUES; i++) {
-		if (queue_availability[thread_id][i] == true) {
+		if (queue_availability[thread_id][i]) {
 			queue_availability[thread_id][i] = false;
 			buffer_type_to_queue_id_map[thread_id][buf_type] = i;
 			break;

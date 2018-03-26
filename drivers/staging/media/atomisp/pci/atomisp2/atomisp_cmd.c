@@ -515,7 +515,7 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 
 	spin_lock_irqsave(&isp->lock, flags);
 	if (isp->sw_contex.power_state != ATOM_ISP_POWER_UP ||
-	    isp->css_initialized == false) {
+	    !isp->css_initialized) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		return IRQ_HANDLED;
 	}
@@ -4603,7 +4603,7 @@ int atomisp_fixed_pattern(struct atomisp_sub_device *asd, int flag,
 	}
 
 	if (*value == 0) {
-		asd->params.fpn_en = 0;
+		asd->params.fpn_en = false;
 		return 0;
 	}
 
@@ -5524,7 +5524,7 @@ static void atomisp_get_dis_envelop(struct atomisp_sub_device *asd,
 
 	/* if subdev type is SOC camera,we do not need to set DVS */
 	if (isp->inputs[asd->input_curr].type == SOC_CAMERA)
-		asd->params.video_dis_en = 0;
+		asd->params.video_dis_en = false;
 
 	if (asd->params.video_dis_en &&
 	    asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
@@ -5624,7 +5624,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 			ffmt = req_ffmt;
 			dev_warn(isp->dev,
 			  "can not enable video dis due to sensor limitation.");
-			asd->params.video_dis_en = 0;
+			asd->params.video_dis_en = false;
 		}
 	}
 	dev_dbg(isp->dev, "sensor width: %d, height: %d\n",
@@ -5649,7 +5649,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 	    (ffmt->width < req_ffmt->width || ffmt->height < req_ffmt->height)) {
 		dev_warn(isp->dev,
 			 "can not enable video dis due to sensor limitation.");
-		asd->params.video_dis_en = 0;
+		asd->params.video_dis_en = false;
 	}
 
 	atomisp_subdev_set_ffmt(&asd->subdev, fh.pad,
@@ -6152,7 +6152,7 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 
 	if (!user_shading_table->enable) {
 		atomisp_css_set_shading_table(asd, NULL);
-		asd->params.sc_en = 0;
+		asd->params.sc_en = false;
 		return 0;
 	}
 
@@ -6190,7 +6190,7 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 	free_table = asd->params.css_param.shading_table;
 	asd->params.css_param.shading_table = shading_table;
 	atomisp_css_set_shading_table(asd, shading_table);
-	asd->params.sc_en = 1;
+	asd->params.sc_en = true;
 
 out:
 	if (free_table != NULL)
