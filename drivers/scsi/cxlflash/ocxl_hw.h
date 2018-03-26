@@ -22,6 +22,8 @@ struct ocxl_hw_afu {
 
 	int fn_actag_base;		/* Function acTag base */
 	int fn_actag_enabled;		/* Function acTag number enabled */
+	int afu_actag_base;		/* AFU acTag base */
+	int afu_actag_enabled;		/* AFU acTag number enabled */
 
 	bool is_present;		/* Function has AFUs defined */
 };

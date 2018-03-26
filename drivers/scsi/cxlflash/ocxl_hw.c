@@ -92,6 +92,9 @@ static int ocxlflash_config_afu(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 	struct ocxl_afu_config *acfg = &afu->acfg;
 	struct ocxl_fn_config *fcfg = &afu->fcfg;
 	struct device *dev = &pdev->dev;
+	int count;
+	int base;
+	int pos;
 	int rc = 0;
 
 	/* This HW AFU function does not have any AFUs defined */
@@ -105,6 +108,16 @@ static int ocxlflash_config_afu(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 			__func__, rc);
 		goto out;
 	}
+
+	/* Only one AFU per function is supported, so actag_base is same */
+	base = afu->fn_actag_base;
+	count = min_t(int, acfg->actag_supported, afu->fn_actag_enabled);
+	pos = acfg->dvsec_afu_control_pos;
+
+	ocxl_config_set_afu_actag(pdev, pos, base, count);
+	dev_dbg(dev, "%s: acTag base=%d enabled=%d\n", __func__, base, count);
+	afu->afu_actag_base = base;
+	afu->afu_actag_enabled = count;
 out:
 	return rc;
 }
