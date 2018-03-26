@@ -2479,17 +2479,6 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3 *dwc,
 
 		dwc->u1u2 = 0;
 	}
-
-	/*
-	 * Our endpoint might get disabled by another thread during
-	 * dwc3_gadget_giveback(). If that happens, we're just gonna return 1
-	 * early on so DWC3_EP_BUSY flag gets cleared
-	 */
-	if (!dep->endpoint.desc)
-		return;
-
-	if (!usb_endpoint_xfer_isoc(dep->endpoint.desc))
-		__dwc3_gadget_kick_transfer(dep);
 }
 
 static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
