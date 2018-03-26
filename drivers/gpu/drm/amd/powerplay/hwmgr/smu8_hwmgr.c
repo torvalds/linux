@@ -314,8 +314,7 @@ static int smu8_get_system_info_data(struct pp_hwmgr *hwmgr)
 	uint8_t frev, crev;
 	uint16_t size;
 
-	info = (ATOM_INTEGRATED_SYSTEM_INFO_V1_9 *) cgs_atom_get_data_table(
-			hwmgr->device,
+	info = (ATOM_INTEGRATED_SYSTEM_INFO_V1_9 *)smu_atom_get_data_table(hwmgr->adev,
 			GetIndexIntoMasterTable(DATA, IntegratedSystemInfo),
 			&size, &frev, &crev);
 

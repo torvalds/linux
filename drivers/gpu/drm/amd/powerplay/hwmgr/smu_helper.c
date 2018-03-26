@@ -24,6 +24,7 @@
 #include "pp_debug.h"
 #include "ppatomctrl.h"
 #include "ppsmc.h"
+#include "atom.h"
 
 uint8_t convert_to_vid(uint16_t vddc)
 {
@@ -607,4 +608,19 @@ int smu9_register_irq_handlers(struct pp_hwmgr *hwmgr)
 			source);
 
 	return 0;
+}
+
+void *smu_atom_get_data_table(void *dev, uint32_t table, uint16_t *size,
+						uint8_t *frev, uint8_t *crev)
+{
+	struct amdgpu_device *adev = dev;
+	uint16_t data_start;
+
+	if (amdgpu_atom_parse_data_header(
+		    adev->mode_info.atom_context, table, size,
+		    frev, crev, &data_start))
+		return (uint8_t *)adev->mode_info.atom_context->bios +
+			data_start;
+
+	return NULL;
 }

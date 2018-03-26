@@ -2957,8 +2957,7 @@ static int smu7_dpm_patch_boot_state(struct pp_hwmgr *hwmgr,
 	/* First retrieve the Boot clocks and VDDC from the firmware info table.
 	 * We assume here that fw_info is unchanged if this call fails.
 	 */
-	fw_info = (ATOM_FIRMWARE_INFO_V2_2 *)cgs_atom_get_data_table(
-			hwmgr->device, index,
+	fw_info = (ATOM_FIRMWARE_INFO_V2_2 *)smu_atom_get_data_table(hwmgr->adev, index,
 			&size, &frev, &crev);
 	if (!fw_info)
 		/* During a test, there is no firmware info table. */

@@ -337,7 +337,7 @@ static bool fiji_is_hw_avfs_present(struct pp_hwmgr *hwmgr)
 	if (!hwmgr->not_vf)
 		return false;
 
-	if (!atomctrl_read_efuse(hwmgr->device, AVFS_EN_LSB, AVFS_EN_MSB,
+	if (!atomctrl_read_efuse(hwmgr, AVFS_EN_LSB, AVFS_EN_MSB,
 			mask, &efuse)) {
 		if (efuse)
 			return true;

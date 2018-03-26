@@ -23,7 +23,7 @@
 #include "pp_debug.h"
 #include <linux/module.h>
 #include <linux/slab.h>
-
+#include "atom.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
 #include "cgs_common.h"
@@ -128,7 +128,6 @@ static int atomctrl_set_mc_reg_address_table(
 	return 0;
 }
 
-
 int atomctrl_initialize_mc_reg_table(
 		struct pp_hwmgr *hwmgr,
 		uint8_t module_index,
@@ -141,7 +140,7 @@ int atomctrl_initialize_mc_reg_table(
 	u16 size;
 
 	vram_info = (ATOM_VRAM_INFO_HEADER_V2_1 *)
-		cgs_atom_get_data_table(hwmgr->device,
+		smu_atom_get_data_table(hwmgr->adev,
 				GetIndexIntoMasterTable(DATA, VRAM_Info), &size, &frev, &crev);
 
 	if (module_index >= vram_info->ucNumOfVRAMModule) {
@@ -174,6 +173,8 @@ int atomctrl_set_engine_dram_timings_rv770(
 		uint32_t engine_clock,
 		uint32_t memory_clock)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
+
 	SET_ENGINE_CLOCK_PS_ALLOCATION engine_clock_parameters;
 
 	/* They are both in 10KHz Units. */
@@ -184,9 +185,10 @@ int atomctrl_set_engine_dram_timings_rv770(
 	/* in 10 khz units.*/
 	engine_clock_parameters.sReserved.ulClock =
 		cpu_to_le32(memory_clock & SET_CLOCK_FREQ_MASK);
-	return cgs_atom_exec_cmd_table(hwmgr->device,
+
+	return amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, DynamicMemorySettings),
-			&engine_clock_parameters);
+			(uint32_t *)&engine_clock_parameters);
 }
 
 /**
@@ -203,7 +205,7 @@ static ATOM_VOLTAGE_OBJECT_INFO *get_voltage_info_table(void *device)
 	union voltage_object_info *voltage_info;
 
 	voltage_info = (union voltage_object_info *)
-		cgs_atom_get_data_table(device, index,
+		smu_atom_get_data_table(device, index,
 			&size, &frev, &crev);
 
 	if (voltage_info != NULL)
@@ -247,16 +249,16 @@ int atomctrl_get_memory_pll_dividers_si(
 		pp_atomctrl_memory_clock_param *mpll_param,
 		bool strobe_mode)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_1 mpll_parameters;
 	int result;
 
 	mpll_parameters.ulClock = cpu_to_le32(clock_value);
 	mpll_parameters.ucInputFlag = (uint8_t)((strobe_mode) ? 1 : 0);
 
-	result = cgs_atom_exec_cmd_table
-		(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 		 GetIndexIntoMasterTable(COMMAND, ComputeMemoryClockParam),
-		 &mpll_parameters);
+		(uint32_t *)&mpll_parameters);
 
 	if (0 == result) {
 		mpll_param->mpll_fb_divider.clk_frac =
@@ -295,14 +297,15 @@ int atomctrl_get_memory_pll_dividers_si(
 int atomctrl_get_memory_pll_dividers_vi(struct pp_hwmgr *hwmgr,
 		uint32_t clock_value, pp_atomctrl_memory_clock_param *mpll_param)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_2 mpll_parameters;
 	int result;
 
 	mpll_parameters.ulClock.ulClock = cpu_to_le32(clock_value);
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ComputeMemoryClockParam),
-			&mpll_parameters);
+			(uint32_t *)&mpll_parameters);
 
 	if (!result)
 		mpll_param->mpll_post_divider =
@@ -315,15 +318,15 @@ int atomctrl_get_engine_pll_dividers_kong(struct pp_hwmgr *hwmgr,
 					  uint32_t clock_value,
 					  pp_atomctrl_clock_dividers_kong *dividers)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V4 pll_parameters;
 	int result;
 
 	pll_parameters.ulClock = cpu_to_le32(clock_value);
 
-	result = cgs_atom_exec_cmd_table
-		(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 		 GetIndexIntoMasterTable(COMMAND, ComputeMemoryEnginePLL),
-		 &pll_parameters);
+		(uint32_t *)&pll_parameters);
 
 	if (0 == result) {
 		dividers->pll_post_divider = pll_parameters.ucPostDiv;
@@ -338,16 +341,16 @@ int atomctrl_get_engine_pll_dividers_vi(
 		uint32_t clock_value,
 		pp_atomctrl_clock_dividers_vi *dividers)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	COMPUTE_GPU_CLOCK_OUTPUT_PARAMETERS_V1_6 pll_patameters;
 	int result;
 
 	pll_patameters.ulClock.ulClock = cpu_to_le32(clock_value);
 	pll_patameters.ulClock.ucPostDiv = COMPUTE_GPUCLK_INPUT_FLAG_SCLK;
 
-	result = cgs_atom_exec_cmd_table
-		(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 		 GetIndexIntoMasterTable(COMMAND, ComputeMemoryEnginePLL),
-		 &pll_patameters);
+		(uint32_t *)&pll_patameters);
 
 	if (0 == result) {
 		dividers->pll_post_divider =
@@ -375,16 +378,16 @@ int atomctrl_get_engine_pll_dividers_ai(struct pp_hwmgr *hwmgr,
 		uint32_t clock_value,
 		pp_atomctrl_clock_dividers_ai *dividers)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	COMPUTE_GPU_CLOCK_OUTPUT_PARAMETERS_V1_7 pll_patameters;
 	int result;
 
 	pll_patameters.ulClock.ulClock = cpu_to_le32(clock_value);
 	pll_patameters.ulClock.ucPostDiv = COMPUTE_GPUCLK_INPUT_FLAG_SCLK;
 
-	result = cgs_atom_exec_cmd_table
-		(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 		 GetIndexIntoMasterTable(COMMAND, ComputeMemoryEnginePLL),
-		 &pll_patameters);
+		(uint32_t *)&pll_patameters);
 
 	if (0 == result) {
 		dividers->usSclk_fcw_frac     = le16_to_cpu(pll_patameters.usSclk_fcw_frac);
@@ -407,6 +410,7 @@ int atomctrl_get_dfs_pll_dividers_vi(
 		uint32_t clock_value,
 		pp_atomctrl_clock_dividers_vi *dividers)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	COMPUTE_GPU_CLOCK_OUTPUT_PARAMETERS_V1_6 pll_patameters;
 	int result;
 
@@ -414,10 +418,9 @@ int atomctrl_get_dfs_pll_dividers_vi(
 	pll_patameters.ulClock.ucPostDiv =
 		COMPUTE_GPUCLK_INPUT_FLAG_DEFAULT_GPUCLK;
 
-	result = cgs_atom_exec_cmd_table
-		(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 		 GetIndexIntoMasterTable(COMMAND, ComputeMemoryEnginePLL),
-		 &pll_patameters);
+		(uint32_t *)&pll_patameters);
 
 	if (0 == result) {
 		dividers->pll_post_divider =
@@ -452,7 +455,7 @@ uint32_t atomctrl_get_reference_clock(struct pp_hwmgr *hwmgr)
 	uint32_t clock;
 
 	fw_info = (ATOM_FIRMWARE_INFO *)
-		cgs_atom_get_data_table(hwmgr->device,
+		smu_atom_get_data_table(hwmgr->adev,
 			GetIndexIntoMasterTable(DATA, FirmwareInfo),
 			&size, &frev, &crev);
 
@@ -476,7 +479,7 @@ bool atomctrl_is_voltage_controlled_by_gpio_v3(
 		uint8_t voltage_mode)
 {
 	ATOM_VOLTAGE_OBJECT_INFO_V3_1 *voltage_info =
-		(ATOM_VOLTAGE_OBJECT_INFO_V3_1 *)get_voltage_info_table(hwmgr->device);
+		(ATOM_VOLTAGE_OBJECT_INFO_V3_1 *)get_voltage_info_table(hwmgr->adev);
 	bool ret;
 
 	PP_ASSERT_WITH_CODE((NULL != voltage_info),
@@ -495,7 +498,7 @@ int atomctrl_get_voltage_table_v3(
 		pp_atomctrl_voltage_table *voltage_table)
 {
 	ATOM_VOLTAGE_OBJECT_INFO_V3_1 *voltage_info =
-		(ATOM_VOLTAGE_OBJECT_INFO_V3_1 *)get_voltage_info_table(hwmgr->device);
+		(ATOM_VOLTAGE_OBJECT_INFO_V3_1 *)get_voltage_info_table(hwmgr->adev);
 	const ATOM_VOLTAGE_OBJECT_V3 *voltage_object;
 	unsigned int i;
 
@@ -572,7 +575,7 @@ static ATOM_GPIO_PIN_LUT *get_gpio_lookup_table(void *device)
 	void *table_address;
 
 	table_address = (ATOM_GPIO_PIN_LUT *)
-		cgs_atom_get_data_table(device,
+		smu_atom_get_data_table(device,
 				GetIndexIntoMasterTable(DATA, GPIO_Pin_LUT),
 				&size, &frev, &crev);
 
@@ -592,7 +595,7 @@ bool atomctrl_get_pp_assign_pin(
 {
 	bool bRet = false;
 	ATOM_GPIO_PIN_LUT *gpio_lookup_table =
-		get_gpio_lookup_table(hwmgr->device);
+		get_gpio_lookup_table(hwmgr->adev);
 
 	PP_ASSERT_WITH_CODE((NULL != gpio_lookup_table),
 			"Could not find GPIO lookup Table in BIOS.", return false);
@@ -613,7 +616,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 		bool debug)
 {
 	ATOM_ASIC_PROFILING_INFO_V3_4 *getASICProfilingInfo;
-
+	struct amdgpu_device *adev = hwmgr->adev;
 	EFUSE_LINEAR_FUNC_PARAM sRO_fuse;
 	EFUSE_LINEAR_FUNC_PARAM sCACm_fuse;
 	EFUSE_LINEAR_FUNC_PARAM sCACb_fuse;
@@ -640,7 +643,7 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 	int result;
 
 	getASICProfilingInfo = (ATOM_ASIC_PROFILING_INFO_V3_4 *)
-			cgs_atom_get_data_table(hwmgr->device,
+			smu_atom_get_data_table(hwmgr->adev,
 					GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo),
 					NULL, NULL, NULL);
 
@@ -706,9 +709,9 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 
 	sOutput_FuseValues.sEfuse = sInput_FuseValues;
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
-			&sOutput_FuseValues);
+			(uint32_t *)&sOutput_FuseValues);
 
 	if (result)
 		return result;
@@ -727,9 +730,9 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 
 	sOutput_FuseValues.sEfuse = sInput_FuseValues;
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
-			&sOutput_FuseValues);
+			(uint32_t *)&sOutput_FuseValues);
 
 	if (result)
 		return result;
@@ -747,9 +750,9 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 	sInput_FuseValues.ucBitLength = sCACb_fuse.ucEfuseLength;
 	sOutput_FuseValues.sEfuse = sInput_FuseValues;
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
-			&sOutput_FuseValues);
+			(uint32_t *)&sOutput_FuseValues);
 
 	if (result)
 		return result;
@@ -768,9 +771,9 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 
 	sOutput_FuseValues.sEfuse = sInput_FuseValues;
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
-			&sOutput_FuseValues);
+			(uint32_t *)&sOutput_FuseValues);
 
 	if (result)
 		return result;
@@ -790,9 +793,9 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 
 	sOutput_FuseValues.sEfuse = sInput_FuseValues;
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
-			&sOutput_FuseValues);
+			(uint32_t *)&sOutput_FuseValues);
 	if (result)
 		return result;
 
@@ -811,9 +814,9 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 	sInput_FuseValues.ucBitLength = sKv_b_fuse.ucEfuseLength;
 	sOutput_FuseValues.sEfuse = sInput_FuseValues;
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
-			&sOutput_FuseValues);
+			(uint32_t *)&sOutput_FuseValues);
 
 	if (result)
 		return result;
@@ -842,9 +845,9 @@ int atomctrl_calculate_voltage_evv_on_sclk(
 
 	sOutput_FuseValues.sEfuse = sInput_FuseValues;
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
-			&sOutput_FuseValues);
+			(uint32_t *)&sOutput_FuseValues);
 
 	if (result)
 		return result;
@@ -1053,8 +1056,9 @@ int atomctrl_get_voltage_evv_on_sclk(
 		uint32_t sclk, uint16_t virtual_voltage_Id,
 		uint16_t *voltage)
 {
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 	GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2 get_voltage_info_param_space;
+	int result;
 
 	get_voltage_info_param_space.ucVoltageType   =
 		voltage_type;
@@ -1065,9 +1069,9 @@ int atomctrl_get_voltage_evv_on_sclk(
 	get_voltage_info_param_space.ulSCLKFreq      =
 		cpu_to_le32(sclk);
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, GetVoltageInfo),
-			&get_voltage_info_param_space);
+			(uint32_t *)&get_voltage_info_param_space);
 
 	if (0 != result)
 		return result;
@@ -1088,9 +1092,10 @@ int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr,
 			     uint16_t virtual_voltage_id,
 			     uint16_t *voltage)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
+	GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2 get_voltage_info_param_space;
 	int result;
 	int entry_id;
-	GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_2 get_voltage_info_param_space;
 
 	/* search for leakage voltage ID 0xff01 ~ 0xff08 and sckl */
 	for (entry_id = 0; entry_id < hwmgr->dyn_state.vddc_dependency_on_sclk->count; entry_id++) {
@@ -1111,9 +1116,9 @@ int atomctrl_get_voltage_evv(struct pp_hwmgr *hwmgr,
 	get_voltage_info_param_space.ulSCLKFreq =
 		cpu_to_le32(hwmgr->dyn_state.vddc_dependency_on_sclk->entries[entry_id].clk);
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, GetVoltageInfo),
-			&get_voltage_info_param_space);
+			(uint32_t *)&get_voltage_info_param_space);
 
 	if (0 != result)
 		return result;
@@ -1135,7 +1140,7 @@ uint32_t atomctrl_get_mpll_reference_clock(struct pp_hwmgr *hwmgr)
 	u16 size;
 
 	fw_info = (ATOM_COMMON_TABLE_HEADER *)
-		cgs_atom_get_data_table(hwmgr->device,
+		smu_atom_get_data_table(hwmgr->adev,
 				GetIndexIntoMasterTable(DATA, FirmwareInfo),
 				&size, &frev, &crev);
 
@@ -1167,7 +1172,7 @@ static ATOM_ASIC_INTERNAL_SS_INFO *asic_internal_ss_get_ss_table(void *device)
 	u16 size;
 
 	table = (ATOM_ASIC_INTERNAL_SS_INFO *)
-		cgs_atom_get_data_table(device,
+		smu_atom_get_data_table(device,
 			GetIndexIntoMasterTable(DATA, ASIC_InternalSS_Info),
 			&size, &frev, &crev);
 
@@ -1188,7 +1193,7 @@ static int asic_internal_ss_get_ss_asignment(struct pp_hwmgr *hwmgr,
 
 	memset(ssEntry, 0x00, sizeof(pp_atomctrl_internal_ss_info));
 
-	table = asic_internal_ss_get_ss_table(hwmgr->device);
+	table = asic_internal_ss_get_ss_table(hwmgr->adev);
 
 	if (NULL == table)
 		return -1;
@@ -1260,9 +1265,10 @@ int atomctrl_get_engine_clock_spread_spectrum(
 			ASIC_INTERNAL_ENGINE_SS, engine_clock, ssInfo);
 }
 
-int atomctrl_read_efuse(void *device, uint16_t start_index,
+int atomctrl_read_efuse(struct pp_hwmgr *hwmgr, uint16_t start_index,
 		uint16_t end_index, uint32_t mask, uint32_t *efuse)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	int result;
 	READ_EFUSE_VALUE_PARAMETER efuse_param;
 
@@ -1272,9 +1278,9 @@ int atomctrl_read_efuse(void *device, uint16_t start_index,
 	efuse_param.sEfuse.ucBitLength  = (uint8_t)
 			((end_index - start_index) + 1);
 
-	result = cgs_atom_exec_cmd_table(device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, ReadEfuseValue),
-			&efuse_param);
+			(uint32_t *)&efuse_param);
 	if (!result)
 		*efuse = le32_to_cpu(efuse_param.ulEfuseValue) & mask;
 
@@ -1284,6 +1290,7 @@ int atomctrl_read_efuse(void *device, uint16_t start_index,
 int atomctrl_set_ac_timing_ai(struct pp_hwmgr *hwmgr, uint32_t memory_clock,
 			      uint8_t level)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	DYNAMICE_MEMORY_SETTINGS_PARAMETER_V2_1 memory_clock_parameters;
 	int result;
 
@@ -1293,10 +1300,9 @@ int atomctrl_set_ac_timing_ai(struct pp_hwmgr *hwmgr, uint32_t memory_clock,
 		ADJUST_MC_SETTING_PARAM;
 	memory_clock_parameters.asDPMMCReg.ucMclkDPMState = level;
 
-	result = cgs_atom_exec_cmd_table
-		(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 		 GetIndexIntoMasterTable(COMMAND, DynamicMemorySettings),
-		 &memory_clock_parameters);
+		(uint32_t *)&memory_clock_parameters);
 
 	return result;
 }
@@ -1304,7 +1310,7 @@ int atomctrl_set_ac_timing_ai(struct pp_hwmgr *hwmgr, uint32_t memory_clock,
 int atomctrl_get_voltage_evv_on_sclk_ai(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint32_t sclk, uint16_t virtual_voltage_Id, uint32_t *voltage)
 {
-
+	struct amdgpu_device *adev = hwmgr->adev;
 	int result;
 	GET_VOLTAGE_INFO_INPUT_PARAMETER_V1_3 get_voltage_info_param_space;
 
@@ -1313,9 +1319,9 @@ int atomctrl_get_voltage_evv_on_sclk_ai(struct pp_hwmgr *hwmgr, uint8_t voltage_
 	get_voltage_info_param_space.usVoltageLevel = cpu_to_le16(virtual_voltage_Id);
 	get_voltage_info_param_space.ulSCLKFreq = cpu_to_le32(sclk);
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, GetVoltageInfo),
-			&get_voltage_info_param_space);
+			(uint32_t *)&get_voltage_info_param_space);
 
 	if (0 != result)
 		return result;
@@ -1334,7 +1340,7 @@ int atomctrl_get_smc_sclk_range_table(struct pp_hwmgr *hwmgr, struct pp_atom_ctr
 	u16 size;
 
 	ATOM_SMU_INFO_V2_1 *psmu_info =
-		(ATOM_SMU_INFO_V2_1 *)cgs_atom_get_data_table(hwmgr->device,
+		(ATOM_SMU_INFO_V2_1 *)smu_atom_get_data_table(hwmgr->adev,
 			GetIndexIntoMasterTable(DATA, SMU_Info),
 			&size, &frev, &crev);
 
@@ -1362,7 +1368,7 @@ int atomctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 
 	profile = (ATOM_ASIC_PROFILING_INFO_V3_6 *)
-			cgs_atom_get_data_table(hwmgr->device,
+			smu_atom_get_data_table(hwmgr->adev,
 					GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo),
 					NULL, NULL, NULL);
 	if (!profile)
@@ -1402,7 +1408,7 @@ int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint16_t *load_line)
 {
 	ATOM_VOLTAGE_OBJECT_INFO_V3_1 *voltage_info =
-		(ATOM_VOLTAGE_OBJECT_INFO_V3_1 *)get_voltage_info_table(hwmgr->device);
+		(ATOM_VOLTAGE_OBJECT_INFO_V3_1 *)get_voltage_info_table(hwmgr->adev);
 
 	const ATOM_VOLTAGE_OBJECT_V3 *voltage_object;
 
@@ -1421,16 +1427,17 @@ int  atomctrl_get_svi2_info(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 
 int atomctrl_get_leakage_id_from_efuse(struct pp_hwmgr *hwmgr, uint16_t *virtual_voltage_id)
 {
-	int result;
+	struct amdgpu_device *adev = hwmgr->adev;
 	SET_VOLTAGE_PS_ALLOCATION allocation;
 	SET_VOLTAGE_PARAMETERS_V1_3 *voltage_parameters =
 			(SET_VOLTAGE_PARAMETERS_V1_3 *)&allocation.sASICSetVoltage;
+	int result;
 
 	voltage_parameters->ucVoltageMode = ATOM_GET_LEAKAGE_ID;
 
-	result = cgs_atom_exec_cmd_table(hwmgr->device,
+	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, SetVoltage),
-			voltage_parameters);
+			(uint32_t *)voltage_parameters);
 
 	*virtual_voltage_id = voltage_parameters->usVoltageLevel;
 
@@ -1453,7 +1460,7 @@ int atomctrl_get_leakage_vddc_base_on_leakage(struct pp_hwmgr *hwmgr,
 	ix = GetIndexIntoMasterTable(DATA, ASIC_ProfilingInfo);
 
 	profile = (ATOM_ASIC_PROFILING_INFO_V2_1 *)
-			cgs_atom_get_data_table(hwmgr->device,
+			smu_atom_get_data_table(hwmgr->adev,
 					ix,
 					NULL, NULL, NULL);
 	if (!profile)

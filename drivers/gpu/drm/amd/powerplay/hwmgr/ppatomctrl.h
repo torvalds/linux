@@ -298,7 +298,7 @@ extern int atomctrl_get_memory_pll_dividers_vi(struct pp_hwmgr *hwmgr,
 extern int atomctrl_get_engine_pll_dividers_kong(struct pp_hwmgr *hwmgr,
 						 uint32_t clock_value,
 						 pp_atomctrl_clock_dividers_kong *dividers);
-extern int atomctrl_read_efuse(void *device, uint16_t start_index,
+extern int atomctrl_read_efuse(struct pp_hwmgr *hwmgr, uint16_t start_index,
 		uint16_t end_index, uint32_t mask, uint32_t *efuse);
 extern int atomctrl_calculate_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 		uint32_t sclk, uint16_t virtual_voltage_Id, uint16_t *voltage, uint16_t dpm_level, bool debug);
