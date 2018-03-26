@@ -3429,6 +3429,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	if (opt_dentry->d_parent == opt_dentry) {
 		switch (sbp->s_magic) {
 		case CGROUP_SUPER_MAGIC:
+		case CGROUP2_SUPER_MAGIC:
 			/*
 			 * The cgroup filesystem is never mounted,
 			 * so there's no opportunity to set the mount
@@ -3472,6 +3473,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	switch (sbp->s_magic) {
 	case SMACK_MAGIC:
 	case CGROUP_SUPER_MAGIC:
+	case CGROUP2_SUPER_MAGIC:
 		/*
 		 * Casey says that it's a little embarrassing
 		 * that the smack file system doesn't do
