@@ -2357,50 +2357,79 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, unsigned short event)
 	tasklet_schedule(&priv->sme_task);
 }
 
-int hostif_init(struct ks_wlan_private *priv)
+static inline void hostif_aplist_init(struct ks_wlan_private *priv)
 {
-	int i;
-
+	size_t size = LOCAL_APLIST_MAX * sizeof(struct local_ap_t);
 	priv->aplist.size = 0;
-	for (i = 0; i < LOCAL_APLIST_MAX; i++)
-		memset(&priv->aplist.ap[i], 0, sizeof(struct local_ap_t));
+	memset(&priv->aplist.ap[0], 0, size);
+}
+
+static inline void hostif_status_init(struct ks_wlan_private *priv)
+{
 	priv->infra_status = 0;
 	priv->current_rate = 4;
 	priv->connect_status = DISCONNECT_STATUS;
+}
 
-	spin_lock_init(&priv->multicast_spin);
-
-	spin_lock_init(&priv->dev_read_lock);
-	init_waitqueue_head(&priv->devread_wait);
-	priv->dev_count = 0;
-	atomic_set(&priv->event_count, 0);
-	atomic_set(&priv->rec_count, 0);
-
-	/* for power save */
-	atomic_set(&priv->psstatus.status, PS_NONE);
-	atomic_set(&priv->psstatus.confirm_wait, 0);
-	atomic_set(&priv->psstatus.snooze_guard, 0);
-	init_completion(&priv->psstatus.wakeup_wait);
-	INIT_WORK(&priv->wakeup_work, ks_wlan_hw_wakeup_task);
-
-	/* WPA */
-	memset(&priv->wpa, 0, sizeof(priv->wpa));
-	priv->wpa.rsn_enabled = 0;
-	priv->wpa.mic_failure.failure = 0;
-	priv->wpa.mic_failure.last_failure_time = 0;
-	priv->wpa.mic_failure.stop = 0;
-	memset(&priv->pmklist, 0, sizeof(priv->pmklist));
-	INIT_LIST_HEAD(&priv->pmklist.head);
-	for (i = 0; i < PMK_LIST_MAX; i++)
-		INIT_LIST_HEAD(&priv->pmklist.pmk[i].list);
-
+static inline void hostif_sme_init(struct ks_wlan_private *priv)
+{
 	priv->sme_i.sme_status = SME_IDLE;
 	priv->sme_i.qhead = 0;
 	priv->sme_i.qtail = 0;
 	spin_lock_init(&priv->sme_i.sme_spin);
 	priv->sme_i.sme_flag = 0;
-
 	tasklet_init(&priv->sme_task, hostif_sme_task, (unsigned long)priv);
+}
+
+static inline void hostif_wpa_init(struct ks_wlan_private *priv)
+{
+	memset(&priv->wpa, 0, sizeof(priv->wpa));
+	priv->wpa.rsn_enabled = 0;
+	priv->wpa.mic_failure.failure = 0;
+	priv->wpa.mic_failure.last_failure_time = 0;
+	priv->wpa.mic_failure.stop = 0;
+}
+
+static inline void hostif_power_save_init(struct ks_wlan_private *priv)
+{
+	atomic_set(&priv->psstatus.status, PS_NONE);
+	atomic_set(&priv->psstatus.confirm_wait, 0);
+	atomic_set(&priv->psstatus.snooze_guard, 0);
+	init_completion(&priv->psstatus.wakeup_wait);
+	INIT_WORK(&priv->wakeup_work, ks_wlan_hw_wakeup_task);
+}
+
+static inline void hostif_pmklist_init(struct ks_wlan_private *priv)
+{
+	int i;
+
+	memset(&priv->pmklist, 0, sizeof(priv->pmklist));
+	INIT_LIST_HEAD(&priv->pmklist.head);
+	for (i = 0; i < PMK_LIST_MAX; i++)
+		INIT_LIST_HEAD(&priv->pmklist.pmk[i].list);
+}
+
+static inline void hostif_counters_init(struct ks_wlan_private *priv)
+{
+	priv->dev_count = 0;
+	atomic_set(&priv->event_count, 0);
+	atomic_set(&priv->rec_count, 0);
+}
+
+int hostif_init(struct ks_wlan_private *priv)
+{
+	hostif_aplist_init(priv);
+	hostif_status_init(priv);
+
+	spin_lock_init(&priv->multicast_spin);
+	spin_lock_init(&priv->dev_read_lock);
+	init_waitqueue_head(&priv->devread_wait);
+
+	hostif_counters_init(priv);
+	hostif_power_save_init(priv);
+	hostif_wpa_init(priv);
+	hostif_pmklist_init(priv);
+	hostif_sme_init(priv);
 
 	return 0;
 }
