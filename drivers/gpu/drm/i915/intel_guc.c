@@ -69,6 +69,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 	mutex_init(&guc->send_mutex);
 	spin_lock_init(&guc->irq_lock);
 	guc->send = intel_guc_send_nop;
+	guc->handler = intel_guc_to_host_event_handler_nop;
 	guc->notify = gen8_guc_raise_irq;
 }
 
@@ -317,6 +318,11 @@ int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
 	return -ENODEV;
 }
 
+void intel_guc_to_host_event_handler_nop(struct intel_guc *guc)
+{
+	WARN(1, "Unexpected event: no suitable handler\n");
+}
+
 /*
  * This function implements the MMIO based host to GuC interface.
  */
@@ -388,7 +394,7 @@ out:
 	return ret;
 }
 
-void intel_guc_to_host_event_handler(struct intel_guc *guc)
+void intel_guc_to_host_event_handler_mmio(struct intel_guc *guc)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
 	u32 msg, val;

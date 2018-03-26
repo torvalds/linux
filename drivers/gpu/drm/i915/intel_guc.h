@@ -91,6 +91,9 @@ struct intel_guc {
 	int (*send)(struct intel_guc *guc, const u32 *data, u32 len,
 		    u32 *response_buf, u32 response_buf_size);
 
+	/* GuC's FW specific event handler function */
+	void (*handler)(struct intel_guc *guc);
+
 	/* GuC's FW specific notify function */
 	void (*notify)(struct intel_guc *guc);
 };
@@ -111,6 +114,11 @@ intel_guc_send_and_receive(struct intel_guc *guc, const u32 *action, u32 len,
 static inline void intel_guc_notify(struct intel_guc *guc)
 {
 	guc->notify(guc);
+}
+
+static inline void intel_guc_to_host_event_handler(struct intel_guc *guc)
+{
+	guc->handler(guc);
 }
 
 /* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
@@ -153,6 +161,8 @@ int intel_guc_send_nop(struct intel_guc *guc, const u32 *action, u32 len,
 int intel_guc_send_mmio(struct intel_guc *guc, const u32 *action, u32 len,
 			u32 *response_buf, u32 response_buf_size);
 void intel_guc_to_host_event_handler(struct intel_guc *guc);
+void intel_guc_to_host_event_handler_nop(struct intel_guc *guc);
+void intel_guc_to_host_event_handler_mmio(struct intel_guc *guc);
 int intel_guc_sample_forcewake(struct intel_guc *guc);
 int intel_guc_auth_huc(struct intel_guc *guc, u32 rsa_offset);
 int intel_guc_suspend(struct intel_guc *guc);
