@@ -88,7 +88,7 @@ unsigned int atomisp_css_debug_get_dtrace_level(void)
 	return ia_css_debug_trace_level;
 }
 
-void atomisp_css2_hw_store_8(hrt_address addr, uint8_t data)
+static void atomisp_css2_hw_store_8(hrt_address addr, uint8_t data)
 {
 	unsigned long flags;
 
@@ -126,7 +126,7 @@ static uint8_t atomisp_css2_hw_load_8(hrt_address addr)
 	return ret;
 }
 
-uint16_t atomisp_css2_hw_load_16(hrt_address addr)
+static uint16_t atomisp_css2_hw_load_16(hrt_address addr)
 {
 	unsigned long flags;
 	uint16_t ret;
@@ -136,7 +136,8 @@ uint16_t atomisp_css2_hw_load_16(hrt_address addr)
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
-uint32_t atomisp_css2_hw_load_32(hrt_address addr)
+
+static uint32_t atomisp_css2_hw_load_32(hrt_address addr)
 {
 	unsigned long flags;
 	uint32_t ret;
@@ -2865,8 +2866,8 @@ stream_err:
 	return -EINVAL;
 }
 
-unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd,
-					uint16_t source_pad)
+static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd,
+					   uint16_t source_pad)
 {
 	struct atomisp_device *isp = asd->isp;
 	/*

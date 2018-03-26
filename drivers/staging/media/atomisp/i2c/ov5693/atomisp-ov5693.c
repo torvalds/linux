@@ -955,7 +955,7 @@ static int ad5823_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
 	return ret;
 }
 
-int ad5823_t_focus_abs(struct v4l2_subdev *sd, s32 value)
+static int ad5823_t_focus_abs(struct v4l2_subdev *sd, s32 value)
 {
 	value = min(value, AD5823_MAX_FOCUS_POS);
 	return ad5823_t_focus_vcm(sd, value);
@@ -1136,7 +1136,7 @@ static const struct v4l2_ctrl_ops ctrl_ops = {
 	.g_volatile_ctrl = ov5693_g_volatile_ctrl
 };
 
-struct v4l2_ctrl_config ov5693_controls[] = {
+static const struct v4l2_ctrl_config ov5693_controls[] = {
 	{
 	 .ops = &ctrl_ops,
 	 .id = V4L2_CID_EXPOSURE_ABSOLUTE,

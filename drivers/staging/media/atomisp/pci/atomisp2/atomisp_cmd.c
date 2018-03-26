@@ -5162,22 +5162,22 @@ static int __enable_continuous_mode(struct atomisp_sub_device *asd,
 	return atomisp_update_run_mode(asd);
 }
 
-int configure_pp_input_nop(struct atomisp_sub_device *asd,
-			   unsigned int width, unsigned int height)
+static int configure_pp_input_nop(struct atomisp_sub_device *asd,
+				  unsigned int width, unsigned int height)
 {
 	return 0;
 }
 
-int configure_output_nop(struct atomisp_sub_device *asd,
-			 unsigned int width, unsigned int height,
-			 unsigned int min_width,
-			 enum atomisp_css_frame_format sh_fmt)
+static int configure_output_nop(struct atomisp_sub_device *asd,
+				unsigned int width, unsigned int height,
+				unsigned int min_width,
+				enum atomisp_css_frame_format sh_fmt)
 {
 	return 0;
 }
 
-int get_frame_info_nop(struct atomisp_sub_device *asd,
-		       struct atomisp_css_frame_info *finfo)
+static int get_frame_info_nop(struct atomisp_sub_device *asd,
+			      struct atomisp_css_frame_info *finfo)
 {
 	return 0;
 }
@@ -6627,7 +6627,7 @@ int atomisp_inject_a_fake_event(struct atomisp_sub_device *asd, int *event)
 	return 0;
 }
 
-int atomisp_get_pipe_id(struct atomisp_video_pipe *pipe)
+static int atomisp_get_pipe_id(struct atomisp_video_pipe *pipe)
 {
 	struct atomisp_sub_device *asd = pipe->asd;
 
