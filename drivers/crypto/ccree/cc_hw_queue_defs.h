@@ -124,13 +124,6 @@ enum cc_flow_mode {
 	FLOW_MODE_END = S32_MAX,
 };
 
-enum cc_tunnel_op {
-	TUNNEL_OP_INVALID = -1,
-	TUNNEL_OFF = 0,
-	TUNNEL_ON = 1,
-	TUNNEL_OP_END = S32_MAX,
-};
-
 enum cc_setup_op {
 	SETUP_LOAD_NOP		= 0,
 	SETUP_LOAD_STATE0	= 1,
@@ -143,6 +136,13 @@ enum cc_setup_op {
 	SETUP_WRITE_STATE2	= 10,
 	SETUP_WRITE_STATE3	= 11,
 	SETUP_OP_END = S32_MAX,
+};
+
+enum cc_hash_conf_pad {
+	HASH_PADDING_DISABLED = 0,
+	HASH_PADDING_ENABLED = 1,
+	HASH_DIGEST_RESULT_LITTLE_ENDIAN = 2,
+	HASH_CONFIG1_PADDING_RESERVE32 = S32_MAX,
 };
 
 enum cc_aes_mac_selector {
@@ -177,20 +177,6 @@ enum cc_hw_aes_key_size {
 	AES_192_KEY = 1,
 	AES_256_KEY = 2,
 	END_OF_AES_KEYS = S32_MAX,
-};
-
-enum cc_hw_des_key_size {
-	DES_ONE_KEY = 0,
-	DES_TWO_KEYS = 1,
-	DES_THREE_KEYS = 2,
-	END_OF_DES_KEYS = S32_MAX,
-};
-
-enum cc_hash_conf_pad {
-	HASH_PADDING_DISABLED = 0,
-	HASH_PADDING_ENABLED = 1,
-	HASH_DIGEST_RESULT_LITTLE_ENDIAN = 2,
-	HASH_CONFIG1_PADDING_RESERVE32 = S32_MAX,
 };
 
 enum cc_hash_cipher_pad {
