@@ -2248,10 +2248,10 @@ static void dwc3_gadget_free_endpoints(struct dwc3 *dwc)
 
 /* -------------------------------------------------------------------------- */
 
-static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
-		struct dwc3_request *req, struct dwc3_trb *trb,
-		const struct dwc3_event_depevt *event, int status,
-		int chain)
+static int dwc3_gadget_ep_reclaim_completed_trbs(struct dwc3 *dwc,
+		struct dwc3_ep *dep, struct dwc3_request *req,
+		struct dwc3_trb *trb, const struct dwc3_event_depevt *event,
+		int status, int chain)
 {
 	unsigned int		count;
 	unsigned int		s_pkt = 0;
@@ -2336,8 +2336,9 @@ static int __dwc3_cleanup_done_trbs(struct dwc3 *dwc, struct dwc3_ep *dep,
 	return 0;
 }
 
-static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
-		const struct dwc3_event_depevt *event, int status)
+static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3 *dwc,
+		struct dwc3_ep *dep, const struct dwc3_event_depevt *event,
+		int status)
 {
 	struct dwc3_request	*req, *n;
 	struct dwc3_trb		*trb;
@@ -2365,21 +2366,22 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 				req->sg = sg_next(s);
 				req->num_pending_sgs--;
 
-				ret = __dwc3_cleanup_done_trbs(dwc, dep, req, trb,
-						event, status, chain);
+				ret = dwc3_gadget_ep_reclaim_completed_trbs(dwc,
+						dep, req, trb, event, status,
+						chain);
 				if (ret)
 					break;
 			}
 		} else {
 			trb = &dep->trb_pool[dep->trb_dequeue];
-			ret = __dwc3_cleanup_done_trbs(dwc, dep, req, trb,
-					event, status, chain);
+			ret = dwc3_gadget_ep_reclaim_completed_trbs(dwc, dep,
+					req, trb, event, status, chain);
 		}
 
 		if (req->unaligned || req->zero) {
 			trb = &dep->trb_pool[dep->trb_dequeue];
-			ret = __dwc3_cleanup_done_trbs(dwc, dep, req, trb,
-					event, status, false);
+			ret = dwc3_gadget_ep_reclaim_completed_trbs(dwc, dep,
+					req, trb, event, status, false);
 			req->unaligned = false;
 			req->zero = false;
 		}
@@ -2450,7 +2452,8 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3 *dwc,
 	if (event->status & DEPEVT_STATUS_BUSERR)
 		status = -ECONNRESET;
 
-	clean_busy = dwc3_cleanup_done_reqs(dwc, dep, event, status);
+	clean_busy = dwc3_gadget_ep_cleanup_completed_requests(dwc, dep, event,
+			status);
 	if (clean_busy && (!dep->endpoint.desc ||
 				usb_endpoint_xfer_isoc(dep->endpoint.desc)))
 		dep->flags &= ~DWC3_EP_BUSY;
