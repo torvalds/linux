@@ -473,6 +473,7 @@ static int send_tmf(struct cxlflash_cfg *cfg, struct scsi_device *sdev,
 	struct afu_cmd *cmd = NULL;
 	struct device *dev = &cfg->dev->dev;
 	struct hwq *hwq = get_hwq(afu, PRIMARY_HWQ);
+	bool needs_deletion = false;
 	char *buf = NULL;
 	ulong lock_flags;
 	int rc = 0;
@@ -527,6 +528,7 @@ static int send_tmf(struct cxlflash_cfg *cfg, struct scsi_device *sdev,
 	if (!to) {
 		dev_err(dev, "%s: TMF timed out\n", __func__);
 		rc = -ETIMEDOUT;
+		needs_deletion = true;
 	} else if (cmd->cmd_aborted) {
 		dev_err(dev, "%s: TMF aborted\n", __func__);
 		rc = -EAGAIN;
@@ -537,6 +539,12 @@ static int send_tmf(struct cxlflash_cfg *cfg, struct scsi_device *sdev,
 	}
 	cfg->tmf_active = false;
 	spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
+
+	if (needs_deletion) {
+		spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
+		list_del(&cmd->list);
+		spin_unlock_irqrestore(&hwq->hsq_slock, lock_flags);
+	}
 out:
 	kfree(buf);
 	return rc;
@@ -2284,6 +2292,7 @@ static int send_afu_cmd(struct afu *afu, struct sisl_ioarcb *rcb)
 	struct device *dev = &cfg->dev->dev;
 	struct afu_cmd *cmd = NULL;
 	struct hwq *hwq = get_hwq(afu, PRIMARY_HWQ);
+	ulong lock_flags;
 	char *buf = NULL;
 	int rc = 0;
 	int nretry = 0;
@@ -2329,6 +2338,11 @@ retry:
 	case -ETIMEDOUT:
 		rc = afu->context_reset(hwq);
 		if (rc) {
+			/* Delete the command from pending_cmds list */
+			spin_lock_irqsave(&hwq->hsq_slock, lock_flags);
+			list_del(&cmd->list);
+			spin_unlock_irqrestore(&hwq->hsq_slock, lock_flags);
+
 			cxlflash_schedule_async_reset(cfg);
 			break;
 		}
