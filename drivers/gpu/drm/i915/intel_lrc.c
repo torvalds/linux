@@ -1060,12 +1060,16 @@ static void queue_request(struct intel_engine_cs *engine,
 	list_add_tail(&pt->link, &lookup_priolist(engine, pt, prio)->requests);
 }
 
+static void __submit_queue(struct intel_engine_cs *engine, int prio)
+{
+	engine->execlists.queue_priority = prio;
+	tasklet_hi_schedule(&engine->execlists.tasklet);
+}
+
 static void submit_queue(struct intel_engine_cs *engine, int prio)
 {
-	if (prio > engine->execlists.queue_priority) {
-		engine->execlists.queue_priority = prio;
-		tasklet_hi_schedule(&engine->execlists.tasklet);
-	}
+	if (prio > engine->execlists.queue_priority)
+		__submit_queue(engine, prio);
 }
 
 static void execlists_submit_request(struct i915_request *request)
@@ -1198,7 +1202,10 @@ static void execlists_schedule(struct i915_request *request, int prio)
 			__list_del_entry(&pt->link);
 			queue_request(engine, pt, prio);
 		}
-		submit_queue(engine, prio);
+
+		if (prio > engine->execlists.queue_priority &&
+		    i915_sw_fence_done(&pt_to_request(pt)->submit))
+			__submit_queue(engine, prio);
 	}
 
 	spin_unlock_irq(&engine->timeline->lock);
