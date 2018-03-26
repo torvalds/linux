@@ -16,4 +16,8 @@
 struct ocxl_hw_afu {
 	struct pci_dev *pdev;		/* PCI device */
 	struct device *dev;		/* Generic device */
+
+	struct ocxl_fn_config fcfg;	/* DVSEC config of the function */
+
+	bool is_present;		/* Function has AFUs defined */
 };
