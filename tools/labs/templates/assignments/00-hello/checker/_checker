@@ -1,10 +1,8 @@
 #!/bin/sh
 
-[ $# -ne 1 ] && { echo "Usage: $0 path-hello-world.ko"; exit 1; }
-
 /bin/dmesg -c > /dev/null 2>&1
 /sbin/rmmod hello-world > /dev/null 2>&1
-/sbin/insmod $1
+/sbin/insmod hello-world.ko
 /bin/dmesg | grep 'Hello, World!' > /dev/null 2>&1
 if test $? -eq 0; then
     echo "Test PASSED."
