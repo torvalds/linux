@@ -307,6 +307,7 @@ static const struct of_device_id mtk_rtc_match[] = {
 	{ .compatible = "mediatek,soc-rtc" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mtk_rtc_match);
 
 static int mtk_rtc_probe(struct platform_device *pdev)
 {
