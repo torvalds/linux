@@ -42,6 +42,7 @@ static int ocxlflash_config_fn(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 {
 	struct ocxl_fn_config *fcfg = &afu->fcfg;
 	struct device *dev = &pdev->dev;
+	u16 base, enabled, supported;
 	int rc = 0;
 
 	/* Read DVSEC config of the function */
@@ -59,6 +60,20 @@ static int ocxlflash_config_fn(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 			dev_warn(dev, "%s: Unexpected AFU index value %d\n",
 				 __func__, fcfg->max_afu_index);
 	}
+
+	rc = ocxl_config_get_actag_info(pdev, &base, &enabled, &supported);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: ocxl_config_get_actag_info failed rc=%d\n",
+			__func__, rc);
+		goto out;
+	}
+
+	afu->fn_actag_base = base;
+	afu->fn_actag_enabled = enabled;
+
+	ocxl_config_set_actag(pdev, fcfg->dvsec_function_pos, base, enabled);
+	dev_dbg(dev, "%s: Function acTag range base=%u enabled=%u\n",
+		__func__, base, enabled);
 out:
 	return rc;
 }
