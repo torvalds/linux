@@ -83,7 +83,9 @@ extern void sve_save_state(void *state, u32 *pfpsr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,
 			   unsigned long vq_minus_1);
 extern unsigned int sve_get_vl(void);
-extern int sve_kernel_enable(void *);
+
+struct arm64_cpu_capabilities;
+extern void sve_kernel_enable(const struct arm64_cpu_capabilities *__unused);
 
 extern int __ro_after_init sve_max_vl;
 
