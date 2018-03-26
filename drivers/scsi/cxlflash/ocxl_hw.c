@@ -12,6 +12,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/idr.h>
+
 #include <misc/ocxl.h>
 
 #include "backend.h"
@@ -60,14 +62,25 @@ static void *ocxlflash_dev_context_init(struct pci_dev *pdev, void *afu_cookie)
 	if (unlikely(!ctx)) {
 		dev_err(dev, "%s: Context allocation failed\n", __func__);
 		rc = -ENOMEM;
-		goto err;
+		goto err1;
 	}
 
+	idr_preload(GFP_KERNEL);
+	rc = idr_alloc(&afu->idr, ctx, 0, afu->max_pasid, GFP_NOWAIT);
+	idr_preload_end();
+	if (unlikely(rc < 0)) {
+		dev_err(dev, "%s: idr_alloc failed rc=%d\n", __func__, rc);
+		goto err2;
+	}
+
+	ctx->pe = rc;
 	ctx->master = false;
 	ctx->hw_afu = afu;
 out:
 	return ctx;
-err:
+err2:
+	kfree(ctx);
+err1:
 	ctx = ERR_PTR(rc);
 	goto out;
 }
@@ -86,6 +99,7 @@ static int ocxlflash_release_context(void *ctx_cookie)
 	if (!ctx)
 		goto out;
 
+	idr_remove(&ctx->hw_afu->idr, ctx->pe);
 	kfree(ctx);
 out:
 	return rc;
@@ -103,6 +117,7 @@ static void ocxlflash_destroy_afu(void *afu_cookie)
 		return;
 
 	ocxlflash_release_context(afu->ocxl_ctx);
+	idr_destroy(&afu->idr);
 	kfree(afu);
 }
 
@@ -221,6 +236,7 @@ static void *ocxlflash_create_afu(struct pci_dev *pdev)
 
 	afu->pdev = pdev;
 	afu->dev = dev;
+	idr_init(&afu->idr);
 
 	rc = ocxlflash_config_fn(pdev, afu);
 	if (unlikely(rc)) {
@@ -248,6 +264,7 @@ static void *ocxlflash_create_afu(struct pci_dev *pdev)
 out:
 	return afu;
 err1:
+	idr_destroy(&afu->idr);
 	kfree(afu);
 	afu = NULL;
 	goto out;
