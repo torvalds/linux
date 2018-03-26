@@ -1358,16 +1358,15 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 
 				if (conn_info.status == SUCCESSFUL_STATUSCODE &&
 				    connect_resp_info->ies) {
-					conn_info.resp_ies_len = connect_resp_info->ies_len;
-					conn_info.resp_ies = kmalloc(connect_resp_info->ies_len, GFP_KERNEL);
-					memcpy(conn_info.resp_ies, connect_resp_info->ies,
-					       connect_resp_info->ies_len);
+					conn_info.resp_ies = kmemdup(connect_resp_info->ies,
+								     connect_resp_info->ies_len,
+								     GFP_KERNEL);
+					if (conn_info.resp_ies)
+						conn_info.resp_ies_len = connect_resp_info->ies_len;
 				}
 
-				if (connect_resp_info) {
-					kfree(connect_resp_info->ies);
-					kfree(connect_resp_info);
-				}
+				kfree(connect_resp_info->ies);
+				kfree(connect_resp_info);
 			}
 		}
 	}
@@ -1393,11 +1392,11 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	}
 
 	if (hif_drv->usr_conn_req.ies) {
-		conn_info.req_ies_len = hif_drv->usr_conn_req.ies_len;
-		conn_info.req_ies = kmalloc(hif_drv->usr_conn_req.ies_len,
+		conn_info.req_ies = kmemdup(conn_info.req_ies,
+					    hif_drv->usr_conn_req.ies_len,
 					    GFP_KERNEL);
-		memcpy(conn_info.req_ies, hif_drv->usr_conn_req.ies,
-		       hif_drv->usr_conn_req.ies_len);
+		if (conn_info.req_ies)
+			conn_info.req_ies_len = hif_drv->usr_conn_req.ies_len;
 	}
 
 	del_timer(&hif_drv->connect_timer);
@@ -1475,17 +1474,25 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 	u8 mac_status_additional_info;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
+	if (!rcvd_info->buffer) {
+		netdev_err(vif->ndev, "Received buffer is NULL\n");
+		return -EINVAL;
+	}
+
 	if (!hif_drv) {
 		netdev_err(vif->ndev, "Driver handler is NULL\n");
+		kfree(rcvd_info->buffer);
+		rcvd_info->buffer = NULL;
 		return -ENODEV;
 	}
 
 	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
 	    hif_drv->hif_state == HOST_IF_CONNECTED ||
 	    hif_drv->usr_scan_req.scan_result) {
-		if (!rcvd_info->buffer ||
-		    !hif_drv->usr_conn_req.conn_result) {
+		if (!hif_drv->usr_conn_req.conn_result) {
 			netdev_err(vif->ndev, "driver is null\n");
+			kfree(rcvd_info->buffer);
+			rcvd_info->buffer = NULL;
 			return -EINVAL;
 		}
 
@@ -1493,6 +1500,8 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 
 		if ('I' != msg_type) {
 			netdev_err(vif->ndev, "Received Message incorrect.\n");
+			kfree(rcvd_info->buffer);
+			rcvd_info->buffer = NULL;
 			return -EFAULT;
 		}
 
@@ -3539,12 +3548,17 @@ void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length)
 	msg.vif = vif;
 
 	msg.body.async_info.len = length;
-	msg.body.async_info.buffer = kmalloc(length, GFP_KERNEL);
-	memcpy(msg.body.async_info.buffer, buffer, length);
+	msg.body.async_info.buffer = kmemdup(buffer, length, GFP_KERNEL);
+	if (!msg.body.async_info.buffer) {
+		mutex_unlock(&hif_deinit_lock);
+		return;
+	}
 
 	result = wilc_enqueue_cmd(&msg);
-	if (result)
+	if (result) {
 		netdev_err(vif->ndev, "synchronous info (%d)\n", result);
+		kfree(msg.body.async_info.buffer);
+	}
 
 	mutex_unlock(&hif_deinit_lock);
 }
