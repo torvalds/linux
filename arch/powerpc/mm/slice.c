@@ -574,7 +574,8 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 		 */
 		if (slice_check_range_fits(mm, &good_mask, addr, len)) {
 			slice_dbg(" fits good !\n");
-			return addr;
+			newaddr = addr;
+			goto return_addr;
 		}
 	} else {
 		/* Now let's see if we can find something in the existing
@@ -587,7 +588,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 			 * we thus return directly
 			 */
 			slice_dbg(" found area at 0x%lx\n", newaddr);
-			return newaddr;
+			goto return_addr;
 		}
 	}
 	/*
@@ -601,6 +602,7 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	if (addr != 0 || fixed) {
 		if (slice_check_range_fits(mm, &potential_mask, addr, len)) {
 			slice_dbg(" fits potential !\n");
+			newaddr = addr;
 			goto convert;
 		}
 	}
@@ -615,34 +617,34 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 	 * anywhere in the good area.
 	 */
 	if (addr) {
-		addr = slice_find_area(mm, len, &good_mask,
-				       psize, topdown, high_limit);
-		if (addr != -ENOMEM) {
-			slice_dbg(" found area at 0x%lx\n", addr);
-			return addr;
+		newaddr = slice_find_area(mm, len, &good_mask,
+					  psize, topdown, high_limit);
+		if (newaddr != -ENOMEM) {
+			slice_dbg(" found area at 0x%lx\n", newaddr);
+			goto return_addr;
 		}
 	}
 
 	/* Now let's see if we can find something in the existing slices
 	 * for that size plus free slices
 	 */
-	addr = slice_find_area(mm, len, &potential_mask,
-			       psize, topdown, high_limit);
+	newaddr = slice_find_area(mm, len, &potential_mask,
+				  psize, topdown, high_limit);
 
 #ifdef CONFIG_PPC_64K_PAGES
-	if (addr == -ENOMEM && psize == MMU_PAGE_64K) {
+	if (newaddr == -ENOMEM && psize == MMU_PAGE_64K) {
 		/* retry the search with 4k-page slices included */
 		slice_or_mask(&potential_mask, &potential_mask, compat_maskp);
-		addr = slice_find_area(mm, len, &potential_mask,
-				       psize, topdown, high_limit);
+		newaddr = slice_find_area(mm, len, &potential_mask,
+					  psize, topdown, high_limit);
 	}
 #endif
 
-	if (addr == -ENOMEM)
+	if (newaddr == -ENOMEM)
 		return -ENOMEM;
 
-	slice_range_to_mask(addr, len, &potential_mask);
-	slice_dbg(" found potential area at 0x%lx\n", addr);
+	slice_range_to_mask(newaddr, len, &potential_mask);
+	slice_dbg(" found potential area at 0x%lx\n", newaddr);
 	slice_print_mask(" mask", &potential_mask);
 
  convert:
@@ -656,7 +658,9 @@ unsigned long slice_get_unmapped_area(unsigned long addr, unsigned long len,
 		if (psize > MMU_PAGE_BASE)
 			on_each_cpu(slice_flush_segments, mm, 1);
 	}
-	return addr;
+
+return_addr:
+	return newaddr;
 
 }
 EXPORT_SYMBOL_GPL(slice_get_unmapped_area);
