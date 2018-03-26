@@ -57,10 +57,9 @@
 #define DM_BUFIO_INLINE_VECS		16
 
 /*
- * Don't try to use kmem_cache_alloc for blocks larger than this.
+ * Don't try to use alloc_pages for blocks larger than this.
  * For explanation, see alloc_buffer_data below.
  */
-#define DM_BUFIO_BLOCK_SIZE_SLAB_LIMIT	(PAGE_SIZE >> 1)
 #define DM_BUFIO_BLOCK_SIZE_GFP_LIMIT	(PAGE_SIZE << (MAX_ORDER - 1))
 
 /*
@@ -101,11 +100,11 @@ struct dm_bufio_client {
 	unsigned block_size;
 	unsigned char sectors_per_block_bits;
 	unsigned char pages_per_block_bits;
-	unsigned char blocks_per_page_bits;
 	unsigned aux_size;
 	void (*alloc_callback)(struct dm_buffer *);
 	void (*write_callback)(struct dm_buffer *);
 
+	struct kmem_cache *slab_cache;
 	struct dm_io_client *dm_io;
 
 	struct list_head reserved_buffers;
@@ -171,19 +170,6 @@ struct dm_buffer {
 };
 
 /*----------------------------------------------------------------*/
-
-static struct kmem_cache *dm_bufio_caches[PAGE_SHIFT - SECTOR_SHIFT];
-
-static inline int dm_bufio_cache_index(struct dm_bufio_client *c)
-{
-	unsigned ret = c->blocks_per_page_bits - 1;
-
-	BUG_ON(ret >= ARRAY_SIZE(dm_bufio_caches));
-
-	return ret;
-}
-
-#define DM_BUFIO_CACHE(c)	(dm_bufio_caches[dm_bufio_cache_index(c)])
 
 #define dm_bufio_in_request()	(!!current->bio_list)
 
@@ -384,9 +370,9 @@ static void __cache_size_refresh(void)
 static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
 			       enum data_mode *data_mode)
 {
-	if (c->block_size <= DM_BUFIO_BLOCK_SIZE_SLAB_LIMIT) {
+	if (unlikely(c->slab_cache != NULL)) {
 		*data_mode = DATA_MODE_SLAB;
-		return kmem_cache_alloc(DM_BUFIO_CACHE(c), gfp_mask);
+		return kmem_cache_alloc(c->slab_cache, gfp_mask);
 	}
 
 	if (c->block_size <= DM_BUFIO_BLOCK_SIZE_GFP_LIMIT &&
@@ -426,7 +412,7 @@ static void free_buffer_data(struct dm_bufio_client *c,
 {
 	switch (data_mode) {
 	case DATA_MODE_SLAB:
-		kmem_cache_free(DM_BUFIO_CACHE(c), data);
+		kmem_cache_free(c->slab_cache, data);
 		break;
 
 	case DATA_MODE_GET_FREE_PAGES:
@@ -1672,8 +1658,6 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	c->sectors_per_block_bits = __ffs(block_size) - SECTOR_SHIFT;
 	c->pages_per_block_bits = (__ffs(block_size) >= PAGE_SHIFT) ?
 				  __ffs(block_size) - PAGE_SHIFT : 0;
-	c->blocks_per_page_bits = (__ffs(block_size) < PAGE_SHIFT ?
-				  PAGE_SHIFT - __ffs(block_size) : 0);
 
 	c->aux_size = aux_size;
 	c->alloc_callback = alloc_callback;
@@ -1699,20 +1683,15 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 		goto bad_dm_io;
 	}
 
-	mutex_lock(&dm_bufio_clients_lock);
-	if (c->blocks_per_page_bits) {
-		if (!DM_BUFIO_CACHE(c)) {
-			char name[26];
-			snprintf(name, sizeof name, "dm_bufio_cache-%u", c->block_size);
-			DM_BUFIO_CACHE(c) = kmem_cache_create(name, c->block_size, c->block_size, 0, NULL);
-			if (!DM_BUFIO_CACHE(c)) {
-				r = -ENOMEM;
-				mutex_unlock(&dm_bufio_clients_lock);
-				goto bad;
-			}
+	if (block_size < PAGE_SIZE) {
+		char name[26];
+		snprintf(name, sizeof name, "dm_bufio_cache-%u", c->block_size);
+		c->slab_cache = kmem_cache_create(name, c->block_size, c->block_size, 0, NULL);
+		if (!c->slab_cache) {
+			r = -ENOMEM;
+			goto bad;
 		}
 	}
-	mutex_unlock(&dm_bufio_clients_lock);
 
 	while (c->need_reserved_buffers) {
 		struct dm_buffer *b = alloc_buffer(c, GFP_KERNEL);
@@ -1747,6 +1726,7 @@ bad:
 		list_del(&b->lru_list);
 		free_buffer(b);
 	}
+	kmem_cache_destroy(c->slab_cache);
 	dm_io_client_destroy(c->dm_io);
 bad_dm_io:
 	mutex_destroy(&c->lock);
@@ -1793,6 +1773,7 @@ void dm_bufio_client_destroy(struct dm_bufio_client *c)
 	for (i = 0; i < LIST_SIZE; i++)
 		BUG_ON(c->n_buffers[i]);
 
+	kmem_cache_destroy(c->slab_cache);
 	dm_io_client_destroy(c->dm_io);
 	mutex_destroy(&c->lock);
 	kfree(c);
@@ -1896,8 +1877,6 @@ static int __init dm_bufio_init(void)
 	dm_bufio_allocated_vmalloc = 0;
 	dm_bufio_current_allocated = 0;
 
-	memset(&dm_bufio_caches, 0, sizeof dm_bufio_caches);
-
 	mem = (__u64)mult_frac(totalram_pages - totalhigh_pages,
 			       DM_BUFIO_MEMORY_PERCENT, 100) << PAGE_SHIFT;
 
@@ -1932,13 +1911,9 @@ static int __init dm_bufio_init(void)
 static void __exit dm_bufio_exit(void)
 {
 	int bug = 0;
-	int i;
 
 	cancel_delayed_work_sync(&dm_bufio_work);
 	destroy_workqueue(dm_bufio_wq);
-
-	for (i = 0; i < ARRAY_SIZE(dm_bufio_caches); i++)
-		kmem_cache_destroy(dm_bufio_caches[i]);
 
 	if (dm_bufio_client_count) {
 		DMCRIT("%s: dm_bufio_client_count leaked: %d",
