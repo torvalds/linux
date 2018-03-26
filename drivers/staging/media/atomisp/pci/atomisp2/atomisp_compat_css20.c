@@ -1784,7 +1784,7 @@ void atomisp_css_isys_set_valid(struct atomisp_sub_device *asd,
 
 void atomisp_css_isys_set_format(struct atomisp_sub_device *asd,
 				 enum atomisp_input_stream_id stream_id,
-				 enum atomisp_css_stream_format format,
+				 enum atomisp_input_format format,
 				 int isys_stream)
 {
 
@@ -1796,7 +1796,7 @@ void atomisp_css_isys_set_format(struct atomisp_sub_device *asd,
 
 void atomisp_css_input_set_format(struct atomisp_sub_device *asd,
 					enum atomisp_input_stream_id stream_id,
-					enum atomisp_css_stream_format format)
+					enum atomisp_input_format format)
 {
 
 	struct ia_css_stream_config *s_config =
@@ -1835,7 +1835,7 @@ int atomisp_css_set_default_isys_config(struct atomisp_sub_device *asd,
 
 int atomisp_css_isys_two_stream_cfg(struct atomisp_sub_device *asd,
 				    enum atomisp_input_stream_id stream_id,
-				    enum atomisp_css_stream_format input_format)
+				    enum atomisp_input_format input_format)
 {
 	struct ia_css_stream_config *s_config =
 		&asd->stream_env[stream_id].stream_config;
@@ -1849,9 +1849,9 @@ int atomisp_css_isys_two_stream_cfg(struct atomisp_sub_device *asd,
 	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_1].linked_isys_stream_id
 		= IA_CSS_STREAM_ISYS_STREAM_0;
 	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_0].format =
-		IA_CSS_STREAM_FORMAT_USER_DEF1;
+		ATOMISP_INPUT_FORMAT_USER_DEF1;
 	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_1].format =
-		IA_CSS_STREAM_FORMAT_USER_DEF2;
+		ATOMISP_INPUT_FORMAT_USER_DEF2;
 	s_config->isys_config[IA_CSS_STREAM_ISYS_STREAM_1].valid = true;
 	return 0;
 }
@@ -1859,7 +1859,7 @@ int atomisp_css_isys_two_stream_cfg(struct atomisp_sub_device *asd,
 void atomisp_css_isys_two_stream_cfg_update_stream1(
 				    struct atomisp_sub_device *asd,
 				    enum atomisp_input_stream_id stream_id,
-				    enum atomisp_css_stream_format input_format,
+				    enum atomisp_input_format input_format,
 				    unsigned int width, unsigned int height)
 {
 	struct ia_css_stream_config *s_config =
@@ -1877,7 +1877,7 @@ void atomisp_css_isys_two_stream_cfg_update_stream1(
 void atomisp_css_isys_two_stream_cfg_update_stream2(
 				    struct atomisp_sub_device *asd,
 				    enum atomisp_input_stream_id stream_id,
-				    enum atomisp_css_stream_format input_format,
+				    enum atomisp_input_format input_format,
 				    unsigned int width, unsigned int height)
 {
 	struct ia_css_stream_config *s_config =
@@ -2122,7 +2122,7 @@ int atomisp_css_input_configure_port(
 		unsigned int num_lanes,
 		unsigned int timeout,
 		unsigned int mipi_freq,
-		enum atomisp_css_stream_format metadata_format,
+		enum atomisp_input_format metadata_format,
 		unsigned int metadata_width,
 		unsigned int metadata_height)
 {

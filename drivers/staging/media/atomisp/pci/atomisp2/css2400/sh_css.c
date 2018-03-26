@@ -462,46 +462,46 @@ verify_copy_out_frame_format(struct ia_css_pipe *pipe)
 	assert(pipe->stream != NULL);
 
 	switch (pipe->stream->config.input_config.format) {
-	case IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY:
-	case IA_CSS_STREAM_FORMAT_YUV420_8:
+	case ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY:
+	case ATOMISP_INPUT_FORMAT_YUV420_8:
 		for (i=0; i<ARRAY_SIZE(yuv420_copy_formats) && !found; i++)
 			found = (out_fmt == yuv420_copy_formats[i]);
 		break;
-	case IA_CSS_STREAM_FORMAT_YUV420_10:
-	case IA_CSS_STREAM_FORMAT_YUV420_16:
+	case ATOMISP_INPUT_FORMAT_YUV420_10:
+	case ATOMISP_INPUT_FORMAT_YUV420_16:
 		found = (out_fmt == IA_CSS_FRAME_FORMAT_YUV420_16);
 		break;
-	case IA_CSS_STREAM_FORMAT_YUV422_8:
+	case ATOMISP_INPUT_FORMAT_YUV422_8:
 		for (i=0; i<ARRAY_SIZE(yuv422_copy_formats) && !found; i++)
 			found = (out_fmt == yuv422_copy_formats[i]);
 		break;
-	case IA_CSS_STREAM_FORMAT_YUV422_10:
-	case IA_CSS_STREAM_FORMAT_YUV422_16:
+	case ATOMISP_INPUT_FORMAT_YUV422_10:
+	case ATOMISP_INPUT_FORMAT_YUV422_16:
 		found = (out_fmt == IA_CSS_FRAME_FORMAT_YUV422_16 ||
 			 out_fmt == IA_CSS_FRAME_FORMAT_YUV420_16);
 		break;
-	case IA_CSS_STREAM_FORMAT_RGB_444:
-	case IA_CSS_STREAM_FORMAT_RGB_555:
-	case IA_CSS_STREAM_FORMAT_RGB_565:
+	case ATOMISP_INPUT_FORMAT_RGB_444:
+	case ATOMISP_INPUT_FORMAT_RGB_555:
+	case ATOMISP_INPUT_FORMAT_RGB_565:
 		found = (out_fmt == IA_CSS_FRAME_FORMAT_RGBA888 ||
 			 out_fmt == IA_CSS_FRAME_FORMAT_RGB565);
 		break;
-	case IA_CSS_STREAM_FORMAT_RGB_666:
-	case IA_CSS_STREAM_FORMAT_RGB_888:
+	case ATOMISP_INPUT_FORMAT_RGB_666:
+	case ATOMISP_INPUT_FORMAT_RGB_888:
 		found = (out_fmt == IA_CSS_FRAME_FORMAT_RGBA888 ||
 			 out_fmt == IA_CSS_FRAME_FORMAT_YUV420);
 		break;
-	case IA_CSS_STREAM_FORMAT_RAW_6:
-	case IA_CSS_STREAM_FORMAT_RAW_7:
-	case IA_CSS_STREAM_FORMAT_RAW_8:
-	case IA_CSS_STREAM_FORMAT_RAW_10:
-	case IA_CSS_STREAM_FORMAT_RAW_12:
-	case IA_CSS_STREAM_FORMAT_RAW_14:
-	case IA_CSS_STREAM_FORMAT_RAW_16:
+	case ATOMISP_INPUT_FORMAT_RAW_6:
+	case ATOMISP_INPUT_FORMAT_RAW_7:
+	case ATOMISP_INPUT_FORMAT_RAW_8:
+	case ATOMISP_INPUT_FORMAT_RAW_10:
+	case ATOMISP_INPUT_FORMAT_RAW_12:
+	case ATOMISP_INPUT_FORMAT_RAW_14:
+	case ATOMISP_INPUT_FORMAT_RAW_16:
 		found = (out_fmt == IA_CSS_FRAME_FORMAT_RAW) ||
 			(out_fmt == IA_CSS_FRAME_FORMAT_RAW_PACKED);
 		break;
-	case IA_CSS_STREAM_FORMAT_BINARY_8:
+	case ATOMISP_INPUT_FORMAT_BINARY_8:
 		found = (out_fmt == IA_CSS_FRAME_FORMAT_BINARY_8);
 		break;
 	default:
@@ -586,13 +586,13 @@ sh_css_config_input_network(struct ia_css_stream *stream)
 }
 #elif !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2401)
 static unsigned int csi2_protocol_calculate_max_subpixels_per_line(
-		enum ia_css_stream_format	format,
+		enum atomisp_input_format	format,
 		unsigned int			pixels_per_line)
 {
 	unsigned int rval;
 
 	switch (format) {
-	case IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY:
+	case ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY:
 		/*
 		 * The frame format layout is shown below.
 		 *
@@ -611,9 +611,9 @@ static unsigned int csi2_protocol_calculate_max_subpixels_per_line(
 		 */
 		rval = pixels_per_line * 2;
 		break;
-	case IA_CSS_STREAM_FORMAT_YUV420_8:
-	case IA_CSS_STREAM_FORMAT_YUV420_10:
-	case IA_CSS_STREAM_FORMAT_YUV420_16:
+	case ATOMISP_INPUT_FORMAT_YUV420_8:
+	case ATOMISP_INPUT_FORMAT_YUV420_10:
+	case ATOMISP_INPUT_FORMAT_YUV420_16:
 		/*
 		 * The frame format layout is shown below.
 		 *
@@ -630,9 +630,9 @@ static unsigned int csi2_protocol_calculate_max_subpixels_per_line(
 		 */
 		rval = pixels_per_line * 2;
 		break;
-	case IA_CSS_STREAM_FORMAT_YUV422_8:
-	case IA_CSS_STREAM_FORMAT_YUV422_10:
-	case IA_CSS_STREAM_FORMAT_YUV422_16:
+	case ATOMISP_INPUT_FORMAT_YUV422_8:
+	case ATOMISP_INPUT_FORMAT_YUV422_10:
+	case ATOMISP_INPUT_FORMAT_YUV422_16:
 		/*
 		 * The frame format layout is shown below.
 		 *
@@ -649,11 +649,11 @@ static unsigned int csi2_protocol_calculate_max_subpixels_per_line(
 		 */
 		rval = pixels_per_line * 2;
 		break;
-	case IA_CSS_STREAM_FORMAT_RGB_444:
-	case IA_CSS_STREAM_FORMAT_RGB_555:
-	case IA_CSS_STREAM_FORMAT_RGB_565:
-	case IA_CSS_STREAM_FORMAT_RGB_666:
-	case IA_CSS_STREAM_FORMAT_RGB_888:
+	case ATOMISP_INPUT_FORMAT_RGB_444:
+	case ATOMISP_INPUT_FORMAT_RGB_555:
+	case ATOMISP_INPUT_FORMAT_RGB_565:
+	case ATOMISP_INPUT_FORMAT_RGB_666:
+	case ATOMISP_INPUT_FORMAT_RGB_888:
 		/*
 		 * The frame format layout is shown below.
 		 *
@@ -670,22 +670,22 @@ static unsigned int csi2_protocol_calculate_max_subpixels_per_line(
 		 */
 		rval = pixels_per_line * 4;
 		break;
-	case IA_CSS_STREAM_FORMAT_RAW_6:
-	case IA_CSS_STREAM_FORMAT_RAW_7:
-	case IA_CSS_STREAM_FORMAT_RAW_8:
-	case IA_CSS_STREAM_FORMAT_RAW_10:
-	case IA_CSS_STREAM_FORMAT_RAW_12:
-	case IA_CSS_STREAM_FORMAT_RAW_14:
-	case IA_CSS_STREAM_FORMAT_RAW_16:
-	case IA_CSS_STREAM_FORMAT_BINARY_8:
-	case IA_CSS_STREAM_FORMAT_USER_DEF1:
-	case IA_CSS_STREAM_FORMAT_USER_DEF2:
-	case IA_CSS_STREAM_FORMAT_USER_DEF3:
-	case IA_CSS_STREAM_FORMAT_USER_DEF4:
-	case IA_CSS_STREAM_FORMAT_USER_DEF5:
-	case IA_CSS_STREAM_FORMAT_USER_DEF6:
-	case IA_CSS_STREAM_FORMAT_USER_DEF7:
-	case IA_CSS_STREAM_FORMAT_USER_DEF8:
+	case ATOMISP_INPUT_FORMAT_RAW_6:
+	case ATOMISP_INPUT_FORMAT_RAW_7:
+	case ATOMISP_INPUT_FORMAT_RAW_8:
+	case ATOMISP_INPUT_FORMAT_RAW_10:
+	case ATOMISP_INPUT_FORMAT_RAW_12:
+	case ATOMISP_INPUT_FORMAT_RAW_14:
+	case ATOMISP_INPUT_FORMAT_RAW_16:
+	case ATOMISP_INPUT_FORMAT_BINARY_8:
+	case ATOMISP_INPUT_FORMAT_USER_DEF1:
+	case ATOMISP_INPUT_FORMAT_USER_DEF2:
+	case ATOMISP_INPUT_FORMAT_USER_DEF3:
+	case ATOMISP_INPUT_FORMAT_USER_DEF4:
+	case ATOMISP_INPUT_FORMAT_USER_DEF5:
+	case ATOMISP_INPUT_FORMAT_USER_DEF6:
+	case ATOMISP_INPUT_FORMAT_USER_DEF7:
+	case ATOMISP_INPUT_FORMAT_USER_DEF8:
 		/*
 		 * The frame format layout is shown below.
 		 *
@@ -927,7 +927,7 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_resolution(
 	unsigned int max_subpixels_per_line;
 	unsigned int lines_per_frame;
 	unsigned int align_req_in_bytes;
-	enum ia_css_stream_format fmt_type;
+	enum atomisp_input_format fmt_type;
 
 	fmt_type = stream_cfg->isys_config[isys_stream_idx].format;
 	if ((stream_cfg->mode == IA_CSS_INPUT_MODE_SENSOR ||
@@ -936,11 +936,11 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_resolution(
 
 		if (stream_cfg->source.port.compression.uncompressed_bits_per_pixel ==
 			UNCOMPRESSED_BITS_PER_PIXEL_10) {
-				fmt_type = IA_CSS_STREAM_FORMAT_RAW_10;
+				fmt_type = ATOMISP_INPUT_FORMAT_RAW_10;
 		}
 		else if (stream_cfg->source.port.compression.uncompressed_bits_per_pixel ==
 			UNCOMPRESSED_BITS_PER_PIXEL_12) {
-				fmt_type = IA_CSS_STREAM_FORMAT_RAW_12;
+				fmt_type = ATOMISP_INPUT_FORMAT_RAW_12;
 		}
 		else
 			return false;
@@ -1391,7 +1391,7 @@ start_copy_on_sp(struct ia_css_pipe *pipe,
 		ia_css_isys_rx_disable();
 #endif
 
-	if (pipe->stream->config.input_config.format != IA_CSS_STREAM_FORMAT_BINARY_8)
+	if (pipe->stream->config.input_config.format != ATOMISP_INPUT_FORMAT_BINARY_8)
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	sh_css_sp_start_binary_copy(ia_css_pipe_get_pipe_num(pipe), out_frame, pipe->stream->config.pixels_per_clock == 2);
 
@@ -6784,7 +6784,7 @@ static bool copy_on_sp(struct ia_css_pipe *pipe)
 
 	rval &= (pipe->config.default_capture_config.mode == IA_CSS_CAPTURE_MODE_RAW);
 
-	rval &= ((pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_BINARY_8) ||
+	rval &= ((pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_BINARY_8) ||
 		(pipe->config.mode == IA_CSS_PIPE_MODE_COPY));
 
 	return rval;
@@ -6817,7 +6817,7 @@ static enum ia_css_err load_capture_binaries(
 		return err;
 	}
 	if (copy_on_sp(pipe) &&
-	    pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_BINARY_8) {
+	    pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_BINARY_8) {
 		ia_css_frame_info_init(
 			&pipe->output_info[0],
 			JPEG_BYTES,
@@ -6915,7 +6915,7 @@ need_yuv_scaler_stage(const struct ia_css_pipe *pipe)
 
 	/* TODO: make generic function */
 	need_format_conversion =
-		((pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY) &&
+		((pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY) &&
 		(pipe->output_info[0].format != IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8));
 
 	in_res = pipe->config.input_effective_res;
@@ -7304,7 +7304,7 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 	/*
 	 * NOTES
 	 * - Why does the "yuvpp" pipe needs "isp_copy_binary" (i.e. ISP Copy) when
-	 *   its input is "IA_CSS_STREAM_FORMAT_YUV422_8"?
+	 *   its input is "ATOMISP_INPUT_FORMAT_YUV422_8"?
 	 *
 	 *   In most use cases, the first stage in the "yuvpp" pipe is the "yuv_scale_
 	 *   binary". However, the "yuv_scale_binary" does NOT support the input-frame
@@ -7319,7 +7319,7 @@ load_yuvpp_binaries(struct ia_css_pipe *pipe)
 	 *   "yuv_scale_binary".
 	 */
 	need_isp_copy_binary =
-		(pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV422_8);
+		(pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_YUV422_8);
 #else  /* !USE_INPUT_SYSTEM_VERSION_2401 */
 	need_isp_copy_binary = true;
 #endif /*  USE_INPUT_SYSTEM_VERSION_2401 */
@@ -7627,11 +7627,11 @@ create_host_yuvpp_pipeline(struct ia_css_pipe *pipe)
 		 * Bayer-Quad RAW.
 		 */
 		int in_frame_format;
-		if (pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV420_8_LEGACY) {
+		if (pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY) {
 			in_frame_format = IA_CSS_FRAME_FORMAT_CSI_MIPI_LEGACY_YUV420_8;
-		} else if (pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_YUV422_8) {
+		} else if (pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_YUV422_8) {
 			/*
-			 * When the sensor output frame format is "IA_CSS_STREAM_FORMAT_YUV422_8",
+			 * When the sensor output frame format is "ATOMISP_INPUT_FORMAT_YUV422_8",
 			 * the "isp_copy_var" binary is selected as the first stage in the yuvpp
 			 * pipe.
 			 *
@@ -7812,7 +7812,7 @@ create_host_copy_pipeline(struct ia_css_pipe *pipe,
 	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 
 	if (copy_on_sp(pipe) &&
-	    pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_BINARY_8) {
+	    pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_BINARY_8) {
 		ia_css_frame_info_init(
 			&out_frame->info,
 			JPEG_BYTES,
@@ -8327,7 +8327,7 @@ sh_css_pipe_get_output_frame_info(struct ia_css_pipe *pipe,
 
 	*info = pipe->output_info[idx];
 	if (copy_on_sp(pipe) &&
-	    pipe->stream->config.input_config.format == IA_CSS_STREAM_FORMAT_BINARY_8) {
+	    pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_BINARY_8) {
 		ia_css_frame_info_init(
 			info,
 			JPEG_BYTES,
@@ -8388,7 +8388,7 @@ ia_css_stream_send_input_line(const struct ia_css_stream *stream,
 
 void
 ia_css_stream_send_input_embedded_line(const struct ia_css_stream *stream,
-		enum ia_css_stream_format format,
+		enum atomisp_input_format format,
 		const unsigned short *data,
 		unsigned int width)
 {
@@ -9359,7 +9359,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2)
 	/* We don't support metadata for JPEG stream, since they both use str2mem */
-	if (stream_config->input_config.format == IA_CSS_STREAM_FORMAT_BINARY_8 &&
+	if (stream_config->input_config.format == ATOMISP_INPUT_FORMAT_BINARY_8 &&
 	    stream_config->metadata_config.resolution.height > 0) {
 		err = IA_CSS_ERR_INVALID_ARGUMENTS;
 		IA_CSS_LEAVE_ERR(err);
@@ -10138,7 +10138,7 @@ ia_css_temp_pipe_to_pipe_id(const struct ia_css_pipe *pipe, enum ia_css_pipe_id 
 	return IA_CSS_SUCCESS;
 }
 
-enum ia_css_stream_format
+enum atomisp_input_format
 ia_css_stream_get_format(const struct ia_css_stream *stream)
 {
 	return stream->config.input_config.format;

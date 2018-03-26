@@ -754,7 +754,7 @@ sh_css_sp_write_frame_pointers(const struct sh_css_binary_args *args)
 
 static void
 sh_css_sp_init_group(bool two_ppc,
-		     enum ia_css_stream_format input_format,
+		     enum atomisp_input_format input_format,
 		     bool no_isp_sync,
 		     uint8_t if_config_index)
 {
@@ -1117,7 +1117,7 @@ sp_init_stage(struct ia_css_pipeline_stage *stage,
 			out_infos[0] = &args->out_frame[0]->info;
 		info = &firmware->info.isp;
 		ia_css_binary_fill_info(info, false, false,
-			    IA_CSS_STREAM_FORMAT_RAW_10,
+			    ATOMISP_INPUT_FORMAT_RAW_10,
 			    args->in_frame  ? &args->in_frame->info  : NULL,
 			    NULL,
 				out_infos,

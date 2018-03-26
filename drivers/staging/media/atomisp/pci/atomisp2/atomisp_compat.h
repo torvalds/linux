@@ -253,7 +253,7 @@ void atomisp_css_isys_set_valid(struct atomisp_sub_device *asd,
 
 void atomisp_css_isys_set_format(struct atomisp_sub_device *asd,
 				 enum atomisp_input_stream_id stream_id,
-				 enum atomisp_css_stream_format format,
+				 enum atomisp_input_format format,
 				 int isys_stream);
 
 int atomisp_css_set_default_isys_config(struct atomisp_sub_device *asd,
@@ -262,18 +262,18 @@ int atomisp_css_set_default_isys_config(struct atomisp_sub_device *asd,
 
 int atomisp_css_isys_two_stream_cfg(struct atomisp_sub_device *asd,
 				    enum atomisp_input_stream_id stream_id,
-				    enum atomisp_css_stream_format input_format);
+				    enum atomisp_input_format input_format);
 
 void atomisp_css_isys_two_stream_cfg_update_stream1(
 				    struct atomisp_sub_device *asd,
 				    enum atomisp_input_stream_id stream_id,
-				    enum atomisp_css_stream_format input_format,
+				    enum atomisp_input_format input_format,
 				    unsigned int width, unsigned int height);
 
 void atomisp_css_isys_two_stream_cfg_update_stream2(
 				    struct atomisp_sub_device *asd,
 				    enum atomisp_input_stream_id stream_id,
-				    enum atomisp_css_stream_format input_format,
+				    enum atomisp_input_format input_format,
 				    unsigned int width, unsigned int height);
 
 int atomisp_css_input_set_resolution(struct atomisp_sub_device *asd,
@@ -290,7 +290,7 @@ void atomisp_css_input_set_bayer_order(struct atomisp_sub_device *asd,
 
 void atomisp_css_input_set_format(struct atomisp_sub_device *asd,
 				enum atomisp_input_stream_id stream_id,
-				enum atomisp_css_stream_format format);
+				enum atomisp_input_format format);
 
 int atomisp_css_input_set_effective_resolution(
 					struct atomisp_sub_device *asd,
@@ -336,7 +336,7 @@ int atomisp_css_input_configure_port(struct atomisp_sub_device *asd,
 				unsigned int num_lanes,
 				unsigned int timeout,
 				unsigned int mipi_freq,
-				enum atomisp_css_stream_format metadata_format,
+				enum atomisp_input_format metadata_format,
 				unsigned int metadata_width,
 				unsigned int metadata_height);
 

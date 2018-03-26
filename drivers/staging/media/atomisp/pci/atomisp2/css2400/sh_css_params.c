@@ -1741,7 +1741,7 @@ ia_css_process_zoom_and_motion(
 				out_infos[0] = &args->out_frame[0]->info;
 			info = &stage->firmware->info.isp;
 			ia_css_binary_fill_info(info, false, false,
-				IA_CSS_STREAM_FORMAT_RAW_10,
+				ATOMISP_INPUT_FORMAT_RAW_10,
 				args->in_frame  ? &args->in_frame->info  : NULL,
 				NULL,
 				out_infos,
