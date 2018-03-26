@@ -804,13 +804,6 @@ static const struct dmi_system_id bcm_active_low_irq_dmi_table[] = {
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "ThinkPad 8"),
 		},
 	},
-	{
-		.ident = "MINIX Z83-4",
-		.matches = {
-			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "MINIX"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
-		},
-	},
 	{ }
 };
 
