@@ -40,8 +40,7 @@ static inline unsigned int cnt_smeqbody(struct ks_wlan_private *priv)
 
 #define KS_WLAN_MEM_FLAG (GFP_ATOMIC)
 
-static
-inline u8 get_BYTE(struct ks_wlan_private *priv)
+static inline u8 get_byte(struct ks_wlan_private *priv)
 {
 	u8 data;
 
@@ -56,8 +55,8 @@ inline u16 get_WORD(struct ks_wlan_private *priv)
 {
 	u16 data;
 
-	data = (get_BYTE(priv) & 0xff);
-	data |= ((get_BYTE(priv) << 8) & 0xff00);
+	data = (get_byte(priv) & 0xff);
+	data |= ((get_byte(priv) << 8) & 0xff00);
 	return data;
 }
 
@@ -66,10 +65,10 @@ inline u32 get_DWORD(struct ks_wlan_private *priv)
 {
 	u32 data;
 
-	data = (get_BYTE(priv) & 0xff);
-	data |= ((get_BYTE(priv) << 8) & 0x0000ff00);
-	data |= ((get_BYTE(priv) << 16) & 0x00ff0000);
-	data |= ((get_BYTE(priv) << 24) & 0xff000000);
+	data = (get_byte(priv) & 0xff);
+	data |= ((get_byte(priv) << 8) & 0x0000ff00);
+	data |= ((get_byte(priv) << 16) & 0x00ff0000);
+	data |= ((get_byte(priv) << 24) & 0xff000000);
 	return data;
 }
 
@@ -934,10 +933,10 @@ void hostif_phy_information_confirm(struct ks_wlan_private *priv)
 	unsigned int transmitted_frame_count, received_fragment_count;
 	unsigned int failed_count, fcs_error_count;
 
-	rssi = get_BYTE(priv);
-	signal = get_BYTE(priv);
-	noise = get_BYTE(priv);
-	link_speed = get_BYTE(priv);
+	rssi = get_byte(priv);
+	signal = get_byte(priv);
+	noise = get_byte(priv);
+	link_speed = get_byte(priv);
 	transmitted_frame_count = get_DWORD(priv);
 	received_fragment_count = get_DWORD(priv);
 	failed_count = get_DWORD(priv);
