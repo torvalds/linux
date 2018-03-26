@@ -1436,7 +1436,7 @@ static irqreturn_t rockchip_usb2phy_id_irq(int irq, void *data)
 {
 	struct rockchip_usb2phy_port *rport = data;
 	struct rockchip_usb2phy *rphy = dev_get_drvdata(rport->phy->dev.parent);
-	bool cable_vbus_state;
+	bool cable_vbus_state = false;
 
 	if (!property_enabled(rphy, &rport->port_cfg->idfall_det_st) &&
 	    !property_enabled(rphy, &rport->port_cfg->idrise_det_st))
