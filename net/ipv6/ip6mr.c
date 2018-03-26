@@ -258,6 +258,16 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 	fib_rules_unregister(net->ipv6.mr6_rules_ops);
 	rtnl_unlock();
 }
+
+static int ip6mr_rules_dump(struct net *net, struct notifier_block *nb)
+{
+	return fib_rules_dump(net, nb, RTNL_FAMILY_IP6MR);
+}
+
+static unsigned int ip6mr_rules_seq_read(struct net *net)
+{
+	return fib_rules_seq_read(net, RTNL_FAMILY_IP6MR);
+}
 #else
 #define ip6mr_for_each_table(mrt, net) \
 	for (mrt = net->ipv6.mrt6; mrt; mrt = NULL)
@@ -294,6 +304,16 @@ static void __net_exit ip6mr_rules_exit(struct net *net)
 	ip6mr_free_table(net->ipv6.mrt6);
 	net->ipv6.mrt6 = NULL;
 	rtnl_unlock();
+}
+
+static int ip6mr_rules_dump(struct net *net, struct notifier_block *nb)
+{
+	return 0;
+}
+
+static unsigned int ip6mr_rules_seq_read(struct net *net)
+{
+	return 0;
 }
 #endif
 
@@ -653,10 +673,25 @@ failure:
 }
 #endif
 
-/*
- *	Delete a VIF entry
- */
+static int call_ip6mr_vif_entry_notifiers(struct net *net,
+					  enum fib_event_type event_type,
+					  struct vif_device *vif,
+					  mifi_t vif_index, u32 tb_id)
+{
+	return mr_call_vif_notifiers(net, RTNL_FAMILY_IP6MR, event_type,
+				     vif, vif_index, tb_id,
+				     &net->ipv6.ipmr_seq);
+}
 
+static int call_ip6mr_mfc_entry_notifiers(struct net *net,
+					  enum fib_event_type event_type,
+					  struct mfc6_cache *mfc, u32 tb_id)
+{
+	return mr_call_mfc_notifiers(net, RTNL_FAMILY_IP6MR, event_type,
+				     &mfc->_c, tb_id, &net->ipv6.ipmr_seq);
+}
+
+/* Delete a VIF entry */
 static int mif6_delete(struct mr_table *mrt, int vifi, int notify,
 		       struct list_head *head)
 {
@@ -668,6 +703,11 @@ static int mif6_delete(struct mr_table *mrt, int vifi, int notify,
 		return -EADDRNOTAVAIL;
 
 	v = &mrt->vif_table[vifi];
+
+	if (VIF_EXISTS(mrt, vifi))
+		call_ip6mr_vif_entry_notifiers(read_pnet(&mrt->net),
+					       FIB_EVENT_VIF_DEL, v, vifi,
+					       mrt->id);
 
 	write_lock_bh(&mrt_lock);
 	dev = v->dev;
@@ -887,6 +927,8 @@ static int mif6_add(struct net *net, struct mr_table *mrt,
 	if (vifi + 1 > mrt->maxvif)
 		mrt->maxvif = vifi + 1;
 	write_unlock_bh(&mrt_lock);
+	call_ip6mr_vif_entry_notifiers(net, FIB_EVENT_VIF_ADD,
+				       v, vifi, mrt->id);
 	return 0;
 }
 
@@ -1175,6 +1217,8 @@ static int ip6mr_mfc_delete(struct mr_table *mrt, struct mf6cctl *mfc,
 	rhltable_remove(&mrt->mfc_hash, &c->_c.mnode, ip6mr_rht_params);
 	list_del_rcu(&c->_c.list);
 
+	call_ip6mr_mfc_entry_notifiers(read_pnet(&mrt->net),
+				       FIB_EVENT_ENTRY_DEL, c, mrt->id);
 	mr6_netlink_event(mrt, c, RTM_DELROUTE);
 	ip6mr_cache_free(c);
 	return 0;
@@ -1203,21 +1247,63 @@ static int ip6mr_device_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
+static unsigned int ip6mr_seq_read(struct net *net)
+{
+	ASSERT_RTNL();
+
+	return net->ipv6.ipmr_seq + ip6mr_rules_seq_read(net);
+}
+
+static int ip6mr_dump(struct net *net, struct notifier_block *nb)
+{
+	return mr_dump(net, nb, RTNL_FAMILY_IP6MR, ip6mr_rules_dump,
+		       ip6mr_mr_table_iter, &mrt_lock);
+}
+
 static struct notifier_block ip6_mr_notifier = {
 	.notifier_call = ip6mr_device_event
 };
 
-/*
- *	Setup for IP multicast routing
- */
+static const struct fib_notifier_ops ip6mr_notifier_ops_template = {
+	.family		= RTNL_FAMILY_IP6MR,
+	.fib_seq_read	= ip6mr_seq_read,
+	.fib_dump	= ip6mr_dump,
+	.owner		= THIS_MODULE,
+};
 
+static int __net_init ip6mr_notifier_init(struct net *net)
+{
+	struct fib_notifier_ops *ops;
+
+	net->ipv6.ipmr_seq = 0;
+
+	ops = fib_notifier_ops_register(&ip6mr_notifier_ops_template, net);
+	if (IS_ERR(ops))
+		return PTR_ERR(ops);
+
+	net->ipv6.ip6mr_notifier_ops = ops;
+
+	return 0;
+}
+
+static void __net_exit ip6mr_notifier_exit(struct net *net)
+{
+	fib_notifier_ops_unregister(net->ipv6.ip6mr_notifier_ops);
+	net->ipv6.ip6mr_notifier_ops = NULL;
+}
+
+/* Setup for IP multicast routing */
 static int __net_init ip6mr_net_init(struct net *net)
 {
 	int err;
 
+	err = ip6mr_notifier_init(net);
+	if (err)
+		return err;
+
 	err = ip6mr_rules_init(net);
 	if (err < 0)
-		goto fail;
+		goto ip6mr_rules_fail;
 
 #ifdef CONFIG_PROC_FS
 	err = -ENOMEM;
@@ -1235,7 +1321,8 @@ proc_cache_fail:
 proc_vif_fail:
 	ip6mr_rules_exit(net);
 #endif
-fail:
+ip6mr_rules_fail:
+	ip6mr_notifier_exit(net);
 	return err;
 }
 
@@ -1246,6 +1333,7 @@ static void __net_exit ip6mr_net_exit(struct net *net)
 	remove_proc_entry("ip6_mr_vif", net->proc_net);
 #endif
 	ip6mr_rules_exit(net);
+	ip6mr_notifier_exit(net);
 }
 
 static struct pernet_operations ip6mr_net_ops = {
@@ -1337,6 +1425,8 @@ static int ip6mr_mfc_add(struct net *net, struct mr_table *mrt,
 		if (!mrtsock)
 			c->_c.mfc_flags |= MFC_STATIC;
 		write_unlock_bh(&mrt_lock);
+		call_ip6mr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE,
+					       c, mrt->id);
 		mr6_netlink_event(mrt, c, RTM_NEWROUTE);
 		return 0;
 	}
@@ -1388,6 +1478,8 @@ static int ip6mr_mfc_add(struct net *net, struct mr_table *mrt,
 		ip6mr_cache_resolve(net, mrt, uc, c);
 		ip6mr_cache_free(uc);
 	}
+	call_ip6mr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_ADD,
+				       c, mrt->id);
 	mr6_netlink_event(mrt, c, RTM_NEWROUTE);
 	return 0;
 }
@@ -1424,6 +1516,10 @@ static void mroute_clean_tables(struct mr_table *mrt, bool all)
 		spin_lock_bh(&mfc_unres_lock);
 		list_for_each_entry_safe(c, tmp, &mrt->mfc_unres_queue, list) {
 			list_del(&c->list);
+			call_ip6mr_mfc_entry_notifiers(read_pnet(&mrt->net),
+						       FIB_EVENT_ENTRY_DEL,
+						       (struct mfc6_cache *)c,
+						       mrt->id);
 			mr6_netlink_event(mrt, (struct mfc6_cache *)c,
 					  RTM_DELROUTE);
 			ip6mr_destroy_unres(mrt, (struct mfc6_cache *)c);
