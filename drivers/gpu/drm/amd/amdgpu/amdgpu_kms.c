@@ -704,7 +704,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		struct pp_gpu_power query = {0};
 		int query_size = sizeof(query);
 
-		if (amdgpu_dpm == 0)
+		if (!adev->pm.dpm_enabled)
 			return -ENOENT;
 
 		switch (info->sensor_info.type) {

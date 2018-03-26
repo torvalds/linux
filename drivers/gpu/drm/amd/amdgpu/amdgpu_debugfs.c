@@ -428,7 +428,7 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 	if (size & 3 || *pos & 0x3)
 		return -EINVAL;
 
-	if (amdgpu_dpm == 0)
+	if (!adev->pm.dpm_enabled)
 		return -EINVAL;
 
 	/* convert offset to sensor number */

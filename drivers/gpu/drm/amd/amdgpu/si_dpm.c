@@ -7580,7 +7580,7 @@ static int si_dpm_late_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_dpm)
+	if (!adev->pm.dpm_enabled)
 		return 0;
 
 	ret = si_set_temperature_range(adev);

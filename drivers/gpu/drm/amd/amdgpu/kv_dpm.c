@@ -2974,7 +2974,7 @@ static int kv_dpm_late_init(void *handle)
 	/* powerdown unused blocks for now */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_dpm)
+	if (!adev->pm.dpm_enabled)
 		return 0;
 
 	kv_dpm_powergate_acp(adev, true);

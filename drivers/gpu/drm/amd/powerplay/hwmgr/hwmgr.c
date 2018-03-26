@@ -211,7 +211,6 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	    !hwmgr->pptable_func->pptable_init ||
 	    !hwmgr->hwmgr_func->backend_init) {
 		hwmgr->pm_en = false;
-		((struct amdgpu_device *)hwmgr->adev)->pm.dpm_enabled = false;
 		pr_info("dpm not supported \n");
 		return 0;
 	}
@@ -239,6 +238,8 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	ret |= psm_set_performance_states(hwmgr);
 	if (ret)
 		goto err2;
+
+	((struct amdgpu_device *)hwmgr->adev)->pm.dpm_enabled = true;
 
 	return 0;
 err2:

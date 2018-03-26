@@ -6255,7 +6255,7 @@ static int ci_dpm_late_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_dpm)
+	if (!adev->pm.dpm_enabled)
 		return 0;
 
 	/* init the sysfs and debugfs files late */

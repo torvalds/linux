@@ -688,7 +688,7 @@ static int uvd_v4_2_set_powergating_state(void *handle,
 
 	if (state == AMD_PG_STATE_GATE) {
 		uvd_v4_2_stop(adev);
-		if (adev->pg_flags & AMD_PG_SUPPORT_UVD && amdgpu_dpm == 0) {
+		if (adev->pg_flags & AMD_PG_SUPPORT_UVD && !adev->pm.dpm_enabled) {
 			if (!(RREG32_SMC(ixCURRENT_PG_STATUS) &
 				CURRENT_PG_STATUS__UVD_PG_STATUS_MASK)) {
 				WREG32(mmUVD_PGFSM_CONFIG, (UVD_PGFSM_CONFIG__UVD_PGFSM_FSM_ADDR_MASK   |
@@ -699,7 +699,7 @@ static int uvd_v4_2_set_powergating_state(void *handle,
 		}
 		return 0;
 	} else {
-		if (adev->pg_flags & AMD_PG_SUPPORT_UVD && amdgpu_dpm == 0) {
+		if (adev->pg_flags & AMD_PG_SUPPORT_UVD && !adev->pm.dpm_enabled) {
 			if (RREG32_SMC(ixCURRENT_PG_STATUS) &
 				CURRENT_PG_STATUS__UVD_PG_STATUS_MASK) {
 				WREG32(mmUVD_PGFSM_CONFIG, (UVD_PGFSM_CONFIG__UVD_PGFSM_FSM_ADDR_MASK   |
