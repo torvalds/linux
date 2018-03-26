@@ -93,11 +93,12 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 		       int no_time_update);
 
 /* Mask out flags that are inappropriate for the given type of inode. */
-static unsigned int btrfs_mask_flags(umode_t mode, unsigned int flags)
+static unsigned int btrfs_mask_fsflags_for_type(struct inode *inode,
+		unsigned int flags)
 {
-	if (S_ISDIR(mode))
+	if (S_ISDIR(inode->i_mode))
 		return flags;
-	else if (S_ISREG(mode))
+	else if (S_ISREG(inode->i_mode))
 		return flags & ~FS_DIRSYNC_FL;
 	else
 		return flags & (FS_NODUMP_FL | FS_NOATIME_FL);
@@ -218,7 +219,7 @@ static int btrfs_ioctl_setflags(struct file *file, void __user *arg)
 	i_oldflags = inode->i_flags;
 	mode = inode->i_mode;
 
-	flags = btrfs_mask_flags(inode->i_mode, flags);
+	flags = btrfs_mask_fsflags_for_type(inode, flags);
 	oldflags = btrfs_flags_to_ioctl(ip->flags);
 	if ((flags ^ oldflags) & (FS_APPEND_FL | FS_IMMUTABLE_FL)) {
 		if (!capable(CAP_LINUX_IMMUTABLE)) {
