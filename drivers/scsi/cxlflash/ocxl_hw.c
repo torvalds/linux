@@ -17,8 +17,11 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/poll.h>
+#include <linux/sched/signal.h>
 
 #include <misc/ocxl.h>
+
+#include <uapi/misc/cxl.h>
 
 #include "backend.h"
 #include "ocxl_hw.h"
@@ -937,9 +940,99 @@ static unsigned int afu_poll(struct file *file, struct poll_table_struct *poll)
 	return mask;
 }
 
+/**
+ * afu_read() - perform a read on the context for any event
+ * @file:	File associated with the adapter context.
+ * @buf:	Buffer to receive the data.
+ * @count:	Size of buffer (maximum bytes that can be read).
+ * @off:	Offset.
+ *
+ * Return: size of the data read on success, -errno on failure
+ */
+static ssize_t afu_read(struct file *file, char __user *buf, size_t count,
+			loff_t *off)
+{
+	struct ocxlflash_context *ctx = file->private_data;
+	struct device *dev = ctx->hw_afu->dev;
+	struct cxl_event event;
+	ulong lock_flags;
+	ssize_t esize;
+	ssize_t rc;
+	int bit;
+	DEFINE_WAIT(event_wait);
+
+	if (*off != 0) {
+		dev_err(dev, "%s: Non-zero offset not supported, off=%lld\n",
+			__func__, *off);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	spin_lock_irqsave(&ctx->slock, lock_flags);
+
+	for (;;) {
+		prepare_to_wait(&ctx->wq, &event_wait, TASK_INTERRUPTIBLE);
+
+		if (ctx_event_pending(ctx))
+			break;
+
+		if (file->f_flags & O_NONBLOCK) {
+			dev_err(dev, "%s: File cannot be blocked on I/O\n",
+				__func__);
+			rc = -EAGAIN;
+			goto err;
+		}
+
+		if (signal_pending(current)) {
+			dev_err(dev, "%s: Signal pending on the process\n",
+				__func__);
+			rc = -ERESTARTSYS;
+			goto err;
+		}
+
+		spin_unlock_irqrestore(&ctx->slock, lock_flags);
+		schedule();
+		spin_lock_irqsave(&ctx->slock, lock_flags);
+	}
+
+	finish_wait(&ctx->wq, &event_wait);
+
+	memset(&event, 0, sizeof(event));
+	event.header.process_element = ctx->pe;
+	event.header.size = sizeof(struct cxl_event_header);
+	if (ctx->pending_irq) {
+		esize = sizeof(struct cxl_event_afu_interrupt);
+		event.header.size += esize;
+		event.header.type = CXL_EVENT_AFU_INTERRUPT;
+
+		bit = find_first_bit(&ctx->irq_bitmap, ctx->num_irqs);
+		clear_bit(bit, &ctx->irq_bitmap);
+		event.irq.irq = bit + 1;
+		if (bitmap_empty(&ctx->irq_bitmap, ctx->num_irqs))
+			ctx->pending_irq = false;
+	}
+
+	spin_unlock_irqrestore(&ctx->slock, lock_flags);
+
+	if (copy_to_user(buf, &event, event.header.size)) {
+		dev_err(dev, "%s: copy_to_user failed\n", __func__);
+		rc = -EFAULT;
+		goto out;
+	}
+
+	rc = event.header.size;
+out:
+	return rc;
+err:
+	finish_wait(&ctx->wq, &event_wait);
+	spin_unlock_irqrestore(&ctx->slock, lock_flags);
+	goto out;
+}
+
 static const struct file_operations ocxl_afu_fops = {
 	.owner		= THIS_MODULE,
 	.poll		= afu_poll,
+	.read		= afu_read,
 };
 
 #define PATCH_FOPS(NAME)						\
@@ -985,6 +1078,7 @@ static struct file *ocxlflash_get_fd(void *ctx_cookie,
 	/* Patch the file ops that are not defined */
 	if (fops) {
 		PATCH_FOPS(poll);
+		PATCH_FOPS(read);
 	} else /* Use default ops */
 		fops = (struct file_operations *)&ocxl_afu_fops;
 
