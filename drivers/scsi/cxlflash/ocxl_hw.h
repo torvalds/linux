@@ -55,6 +55,9 @@ struct ocxlflash_context {
 	phys_addr_t psn_phys;		/* Process mapping */
 	u64 psn_size;			/* Process mapping size */
 
+	spinlock_t slock;		/* Protects irq/fault/event updates */
 	struct ocxlflash_irqs *irqs;	/* Pointer to array of structures */
 	int num_irqs;			/* Number of interrupts */
+	bool pending_irq;		/* Pending interrupt on the context */
+	ulong irq_bitmap;		/* Bits indicating pending irq num */
 };
