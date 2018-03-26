@@ -27,6 +27,10 @@ struct ocxl_hw_afu {
 	int afu_actag_base;		/* AFU acTag base */
 	int afu_actag_enabled;		/* AFU acTag number enabled */
 
+	phys_addr_t ppmmio_phys;	/* Per process MMIO space */
+	phys_addr_t gmmio_phys;		/* Global AFU MMIO space */
+	void __iomem *gmmio_virt;	/* Global MMIO map */
+
 	struct idr idr;			/* IDR to manage contexts */
 	int max_pasid;			/* Maximum number of contexts */
 	bool is_present;		/* Function has AFUs defined */

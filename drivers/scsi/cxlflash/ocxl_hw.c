@@ -264,6 +264,18 @@ static void ocxlflash_perst_reloads_same_image(void *afu_cookie, bool image)
 }
 
 /**
+ * ocxlflash_unconfig_afu() - unconfigure the AFU
+ * @afu: AFU associated with the host.
+ */
+static void ocxlflash_unconfig_afu(struct ocxl_hw_afu *afu)
+{
+	if (afu->gmmio_virt) {
+		iounmap(afu->gmmio_virt);
+		afu->gmmio_virt = NULL;
+	}
+}
+
+/**
  * ocxlflash_destroy_afu() - destroy the AFU structure
  * @afu_cookie:	AFU to be freed.
  */
@@ -276,6 +288,7 @@ static void ocxlflash_destroy_afu(void *afu_cookie)
 
 	ocxlflash_release_context(afu->ocxl_ctx);
 	idr_destroy(&afu->idr);
+	ocxlflash_unconfig_afu(afu);
 	kfree(afu);
 }
 
@@ -327,6 +340,56 @@ out:
 }
 
 /**
+ * ocxlflash_map_mmio() - map the AFU MMIO space
+ * @afu: AFU associated with the host.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_map_mmio(struct ocxl_hw_afu *afu)
+{
+	struct ocxl_afu_config *acfg = &afu->acfg;
+	struct pci_dev *pdev = afu->pdev;
+	struct device *dev = afu->dev;
+	phys_addr_t gmmio, ppmmio;
+	int rc = 0;
+
+	rc = pci_request_region(pdev, acfg->global_mmio_bar, "ocxlflash");
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: pci_request_region for global failed rc=%d\n",
+			__func__, rc);
+		goto out;
+	}
+	gmmio = pci_resource_start(pdev, acfg->global_mmio_bar);
+	gmmio += acfg->global_mmio_offset;
+
+	rc = pci_request_region(pdev, acfg->pp_mmio_bar, "ocxlflash");
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: pci_request_region for pp bar failed rc=%d\n",
+			__func__, rc);
+		goto err1;
+	}
+	ppmmio = pci_resource_start(pdev, acfg->pp_mmio_bar);
+	ppmmio += acfg->pp_mmio_offset;
+
+	afu->gmmio_virt = ioremap(gmmio, acfg->global_mmio_size);
+	if (unlikely(!afu->gmmio_virt)) {
+		dev_err(dev, "%s: MMIO mapping failed\n", __func__);
+		rc = -ENOMEM;
+		goto err2;
+	}
+
+	afu->gmmio_phys = gmmio;
+	afu->ppmmio_phys = ppmmio;
+out:
+	return rc;
+err2:
+	pci_release_region(pdev, acfg->pp_mmio_bar);
+err1:
+	pci_release_region(pdev, acfg->global_mmio_bar);
+	goto out;
+}
+
+/**
  * ocxlflash_config_afu() - configure the host AFU
  * @pdev:	PCI device associated with the host.
  * @afu:	AFU associated with the host.
@@ -369,6 +432,13 @@ static int ocxlflash_config_afu(struct pci_dev *pdev, struct ocxl_hw_afu *afu)
 	afu->max_pasid = 1 << acfg->pasid_supported_log;
 
 	ocxl_config_set_afu_pasid(pdev, pos, 0, acfg->pasid_supported_log);
+
+	rc = ocxlflash_map_mmio(afu);
+	if (unlikely(rc)) {
+		dev_err(dev, "%s: ocxlflash_map_mmio failed rc=%d\n",
+			__func__, rc);
+		goto out;
+	}
 out:
 	return rc;
 }
@@ -415,12 +485,14 @@ static void *ocxlflash_create_afu(struct pci_dev *pdev)
 		rc = PTR_ERR(ctx);
 		dev_err(dev, "%s: ocxlflash_dev_context_init failed rc=%d\n",
 			__func__, rc);
-		goto err1;
+		goto err2;
 	}
 
 	afu->ocxl_ctx = ctx;
 out:
 	return afu;
+err2:
+	ocxlflash_unconfig_afu(afu);
 err1:
 	idr_destroy(&afu->idr);
 	kfree(afu);
