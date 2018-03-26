@@ -164,6 +164,44 @@ static int ocxlflash_process_element(void *ctx_cookie)
 }
 
 /**
+ * start_context() - local routine to start a context
+ * @ctx:	Adapter context to be started.
+ *
+ * Assign the context specific MMIO space.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int start_context(struct ocxlflash_context *ctx)
+{
+	struct ocxl_hw_afu *afu = ctx->hw_afu;
+	struct ocxl_afu_config *acfg = &afu->acfg;
+	bool master = ctx->master;
+
+	if (master) {
+		ctx->psn_size = acfg->global_mmio_size;
+		ctx->psn_phys = afu->gmmio_phys;
+	} else {
+		ctx->psn_size = acfg->pp_mmio_stride;
+		ctx->psn_phys = afu->ppmmio_phys + (ctx->pe * ctx->psn_size);
+	}
+
+	return 0;
+}
+
+/**
+ * ocxlflash_start_context() - start a kernel context
+ * @ctx_cookie:	Adapter context to be started.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_start_context(void *ctx_cookie)
+{
+	struct ocxlflash_context *ctx = ctx_cookie;
+
+	return start_context(ctx);
+}
+
+/**
  * ocxlflash_set_master() - sets the context as master
  * @ctx_cookie:	Adapter context to set as master.
  */
@@ -581,6 +619,7 @@ static void *ocxlflash_fops_get_context(struct file *file)
 const struct cxlflash_backend_ops cxlflash_ocxl_ops = {
 	.module			= THIS_MODULE,
 	.process_element	= ocxlflash_process_element,
+	.start_context		= ocxlflash_start_context,
 	.set_master		= ocxlflash_set_master,
 	.get_context		= ocxlflash_get_context,
 	.dev_context_init	= ocxlflash_dev_context_init,

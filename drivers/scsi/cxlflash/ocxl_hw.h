@@ -41,4 +41,7 @@ struct ocxlflash_context {
 	struct address_space *mapping;	/* Mapping for pseudo filesystem */
 	bool master;			/* Whether this is a master context */
 	int pe;				/* Process element */
+
+	phys_addr_t psn_phys;		/* Process mapping */
+	u64 psn_size;			/* Process mapping size */
 };
