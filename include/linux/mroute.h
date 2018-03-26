@@ -55,14 +55,6 @@ static inline bool ipmr_rule_default(const struct fib_rule *rule)
 }
 #endif
 
-struct vif_entry_notifier_info {
-	struct fib_notifier_info info;
-	struct net_device *dev;
-	vifi_t vif_index;
-	unsigned short vif_flags;
-	u32 tb_id;
-};
-
 #define VIFF_STATIC 0x8000
 
 struct mfc_cache_cmp_arg {

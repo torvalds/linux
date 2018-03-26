@@ -650,18 +650,8 @@ static int call_ipmr_vif_entry_notifier(struct notifier_block *nb,
 					struct vif_device *vif,
 					vifi_t vif_index, u32 tb_id)
 {
-	struct vif_entry_notifier_info info = {
-		.info = {
-			.family = RTNL_FAMILY_IPMR,
-			.net = net,
-		},
-		.dev = vif->dev,
-		.vif_index = vif_index,
-		.vif_flags = vif->flags,
-		.tb_id = tb_id,
-	};
-
-	return call_fib_notifier(nb, net, event_type, &info.info);
+	return mr_call_vif_notifier(nb, net, RTNL_FAMILY_IPMR, event_type,
+				    vif, vif_index, tb_id);
 }
 
 static int call_ipmr_vif_entry_notifiers(struct net *net,
@@ -669,20 +659,9 @@ static int call_ipmr_vif_entry_notifiers(struct net *net,
 					 struct vif_device *vif,
 					 vifi_t vif_index, u32 tb_id)
 {
-	struct vif_entry_notifier_info info = {
-		.info = {
-			.family = RTNL_FAMILY_IPMR,
-			.net = net,
-		},
-		.dev = vif->dev,
-		.vif_index = vif_index,
-		.vif_flags = vif->flags,
-		.tb_id = tb_id,
-	};
-
-	ASSERT_RTNL();
-	net->ipv4.ipmr_seq++;
-	return call_fib_notifiers(net, event_type, &info.info);
+	return mr_call_vif_notifiers(net, RTNL_FAMILY_IPMR, event_type,
+				     vif, vif_index, tb_id,
+				     &net->ipv4.ipmr_seq);
 }
 
 static int call_ipmr_mfc_entry_notifier(struct notifier_block *nb,

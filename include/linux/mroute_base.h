@@ -6,6 +6,7 @@
 #include <linux/spinlock.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <net/fib_notifier.h>
 
 /**
  * struct vif_device - interface representor for multicast routing
@@ -35,6 +36,58 @@ struct vif_device {
 	struct netdev_phys_item_id dev_parent_id;
 	__be32 local, remote;
 };
+
+struct vif_entry_notifier_info {
+	struct fib_notifier_info info;
+	struct net_device *dev;
+	unsigned short vif_index;
+	unsigned short vif_flags;
+	u32 tb_id;
+};
+
+static inline int mr_call_vif_notifier(struct notifier_block *nb,
+				       struct net *net,
+				       unsigned short family,
+				       enum fib_event_type event_type,
+				       struct vif_device *vif,
+				       unsigned short vif_index, u32 tb_id)
+{
+	struct vif_entry_notifier_info info = {
+		.info = {
+			.family = family,
+			.net = net,
+		},
+		.dev = vif->dev,
+		.vif_index = vif_index,
+		.vif_flags = vif->flags,
+		.tb_id = tb_id,
+	};
+
+	return call_fib_notifier(nb, net, event_type, &info.info);
+}
+
+static inline int mr_call_vif_notifiers(struct net *net,
+					unsigned short family,
+					enum fib_event_type event_type,
+					struct vif_device *vif,
+					unsigned short vif_index, u32 tb_id,
+					unsigned int *ipmr_seq)
+{
+	struct vif_entry_notifier_info info = {
+		.info = {
+			.family = family,
+			.net = net,
+		},
+		.dev = vif->dev,
+		.vif_index = vif_index,
+		.vif_flags = vif->flags,
+		.tb_id = tb_id,
+	};
+
+	ASSERT_RTNL();
+	(*ipmr_seq)++;
+	return call_fib_notifiers(net, event_type, &info.info);
+}
 
 #ifndef MAXVIFS
 /* This one is nasty; value is defined in uapi using different symbols for
