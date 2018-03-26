@@ -252,7 +252,7 @@ static const struct net_device_ops wilc_wfi_netdev_ops = {
  *  @brief      WILC_WFI_init_mon_interface
  *  @details
  *  @param[in]
- *  @return     int : Return 0 on Success
+ *  @return     Pointer to net_device
  *  @author	mdaftedar
  *  @date	12 JUL 2012
  *  @version	1.0
@@ -260,7 +260,6 @@ static const struct net_device_ops wilc_wfi_netdev_ops = {
 struct net_device *WILC_WFI_init_mon_interface(const char *name,
 					       struct net_device *real_dev)
 {
-	u32 ret = 0;
 	struct WILC_WFI_mon_priv *priv;
 
 	/*If monitor interface is already initialized, return it*/
@@ -275,8 +274,7 @@ struct net_device *WILC_WFI_init_mon_interface(const char *name,
 	wilc_wfi_mon->name[IFNAMSIZ - 1] = 0;
 	wilc_wfi_mon->netdev_ops = &wilc_wfi_netdev_ops;
 
-	ret = register_netdevice(wilc_wfi_mon);
-	if (ret) {
+	if (register_netdevice(wilc_wfi_mon)) {
 		netdev_err(real_dev, "register_netdevice failed\n");
 		return NULL;
 	}
