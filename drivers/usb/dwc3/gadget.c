@@ -2441,20 +2441,17 @@ static int dwc3_cleanup_done_reqs(struct dwc3 *dwc, struct dwc3_ep *dep,
 	return 1;
 }
 
-static void dwc3_endpoint_transfer_complete(struct dwc3 *dwc,
+static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3 *dwc,
 		struct dwc3_ep *dep, const struct dwc3_event_depevt *event)
 {
 	unsigned		status = 0;
 	int			clean_busy;
-	u32			is_xfer_complete;
-
-	is_xfer_complete = (event->endpoint_event == DWC3_DEPEVT_XFERCOMPLETE);
 
 	if (event->status & DEPEVT_STATUS_BUSERR)
 		status = -ECONNRESET;
 
 	clean_busy = dwc3_cleanup_done_reqs(dwc, dep, event, status);
-	if (clean_busy && (!dep->endpoint.desc || is_xfer_complete ||
+	if (clean_busy && (!dep->endpoint.desc ||
 				usb_endpoint_xfer_isoc(dep->endpoint.desc)))
 		dep->flags &= ~DWC3_EP_BUSY;
 
@@ -2520,7 +2517,7 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 
 	switch (event->endpoint_event) {
 	case DWC3_DEPEVT_XFERINPROGRESS:
-		dwc3_endpoint_transfer_complete(dwc, dep, event);
+		dwc3_gadget_endpoint_transfer_in_progress(dwc, dep, event);
 		break;
 	case DWC3_DEPEVT_XFERNOTREADY:
 		if (!usb_endpoint_xfer_isoc(dep->endpoint.desc)) {
