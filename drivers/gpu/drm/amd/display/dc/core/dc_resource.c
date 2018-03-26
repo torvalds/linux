@@ -844,6 +844,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
 
+	if (pipe_ctx->stream->timing.flags.INTERLACE)
+		pipe_ctx->stream->dst.height *= 2;
+
 	calculate_scaling_ratios(pipe_ctx);
 
 	calculate_viewport(pipe_ctx);
@@ -864,6 +867,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable + timing->h_border_left + timing->h_border_right;
 	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
+	if (pipe_ctx->stream->timing.flags.INTERLACE)
+		pipe_ctx->plane_res.scl_data.v_active *= 2;
 
 
 	/* Taps calculations */
@@ -908,6 +913,9 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 				plane_state->dst_rect.width,
 				plane_state->dst_rect.x,
 				plane_state->dst_rect.y);
+
+	if (pipe_ctx->stream->timing.flags.INTERLACE)
+		pipe_ctx->stream->dst.height /= 2;
 
 	return res;
 }
