@@ -1029,10 +1029,80 @@ err:
 	goto out;
 }
 
+/**
+ * afu_release() - release and free the context
+ * @inode:	File inode pointer.
+ * @file:	File associated with the context.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int afu_release(struct inode *inode, struct file *file)
+{
+	struct ocxlflash_context *ctx = file->private_data;
+	int i;
+
+	/* Unmap and free the interrupts associated with the context */
+	for (i = ctx->num_irqs; i >= 0; i--)
+		afu_unmap_irq(0, ctx, i, ctx);
+	free_afu_irqs(ctx);
+
+	return ocxlflash_release_context(ctx);
+}
+
+/**
+ * ocxlflash_mmap_fault() - mmap fault handler
+ * @vmf:	VM fault associated with current fault.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int ocxlflash_mmap_fault(struct vm_fault *vmf)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct ocxlflash_context *ctx = vma->vm_file->private_data;
+	u64 mmio_area, offset;
+
+	offset = vmf->pgoff << PAGE_SHIFT;
+	if (offset >= ctx->psn_size)
+		return VM_FAULT_SIGBUS;
+
+	mmio_area = ctx->psn_phys;
+	mmio_area += offset;
+
+	vm_insert_pfn(vma, vmf->address, mmio_area >> PAGE_SHIFT);
+	return VM_FAULT_NOPAGE;
+}
+
+static const struct vm_operations_struct ocxlflash_vmops = {
+	.fault = ocxlflash_mmap_fault,
+};
+
+/**
+ * afu_mmap() - map the fault handler operations
+ * @file:	File associated with the context.
+ * @vma:	VM area associated with mapping.
+ *
+ * Return: 0 on success, -errno on failure
+ */
+static int afu_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct ocxlflash_context *ctx = file->private_data;
+
+	if ((vma_pages(vma) + vma->vm_pgoff) >
+	    (ctx->psn_size >> PAGE_SHIFT))
+		return -EINVAL;
+
+	vma->vm_flags |= VM_IO | VM_PFNMAP;
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	vma->vm_ops = &ocxlflash_vmops;
+	return 0;
+}
+
 static const struct file_operations ocxl_afu_fops = {
 	.owner		= THIS_MODULE,
 	.poll		= afu_poll,
 	.read		= afu_read,
+	.release	= afu_release,
+	.mmap		= afu_mmap,
 };
 
 #define PATCH_FOPS(NAME)						\
@@ -1079,6 +1149,8 @@ static struct file *ocxlflash_get_fd(void *ctx_cookie,
 	if (fops) {
 		PATCH_FOPS(poll);
 		PATCH_FOPS(read);
+		PATCH_FOPS(release);
+		PATCH_FOPS(mmap);
 	} else /* Use default ops */
 		fops = (struct file_operations *)&ocxl_afu_fops;
 
