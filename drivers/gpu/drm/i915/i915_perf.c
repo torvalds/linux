@@ -2096,13 +2096,17 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	if (stream->ctx) {
 		ret = oa_get_render_ctx_id(stream);
-		if (ret)
+		if (ret) {
+			DRM_DEBUG("Invalid context id to filter with\n");
 			return ret;
+		}
 	}
 
 	ret = get_oa_config(dev_priv, props->metrics_set, &stream->oa_config);
-	if (ret)
+	if (ret) {
+		DRM_DEBUG("Invalid OA config id=%i\n", props->metrics_set);
 		goto err_config;
+	}
 
 	/* PRM - observability performance counters:
 	 *
@@ -2129,8 +2133,10 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 
 	ret = dev_priv->perf.oa.ops.enable_metric_set(dev_priv,
 						      stream->oa_config);
-	if (ret)
+	if (ret) {
+		DRM_DEBUG("Unable to enable metric set\n");
 		goto err_enable;
+	}
 
 	stream->ops = &i915_oa_stream_ops;
 
@@ -3292,6 +3298,8 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 
 	mutex_unlock(&dev_priv->perf.metrics_lock);
 
+	DRM_DEBUG("Added config %s id=%i\n", oa_config->uuid, oa_config->id);
+
 	return oa_config->id;
 
 sysfs_err:
@@ -3348,6 +3356,9 @@ int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 			   &oa_config->sysfs_metric);
 
 	idr_remove(&dev_priv->perf.metrics_idr, *arg);
+
+	DRM_DEBUG("Removed config %s id=%i\n", oa_config->uuid, oa_config->id);
+
 	put_oa_config(dev_priv, oa_config);
 
 config_err:
