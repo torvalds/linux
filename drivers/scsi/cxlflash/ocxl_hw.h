@@ -70,4 +70,8 @@ struct ocxlflash_context {
 	int num_irqs;			/* Number of interrupts */
 	bool pending_irq;		/* Pending interrupt on the context */
 	ulong irq_bitmap;		/* Bits indicating pending irq num */
+
+	u64 fault_addr;			/* Address that triggered the fault */
+	u64 fault_dsisr;		/* Value of dsisr register at fault */
+	bool pending_fault;		/* Pending translation fault */
 };
