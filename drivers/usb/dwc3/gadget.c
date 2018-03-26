@@ -840,7 +840,7 @@ static int dwc3_gadget_ep_disable(struct usb_ep *ep)
 }
 
 static struct usb_request *dwc3_gadget_ep_alloc_request(struct usb_ep *ep,
-	gfp_t gfp_flags)
+		gfp_t gfp_flags)
 {
 	struct dwc3_request		*req;
 	struct dwc3_ep			*dep = to_dwc3_ep(ep);
@@ -852,8 +852,6 @@ static struct usb_request *dwc3_gadget_ep_alloc_request(struct usb_ep *ep,
 	req->epnum	= dep->number;
 	req->dep	= dep;
 
-	dep->allocated_requests++;
-
 	trace_dwc3_alloc_request(req);
 
 	return &req->request;
@@ -863,9 +861,7 @@ static void dwc3_gadget_ep_free_request(struct usb_ep *ep,
 		struct usb_request *request)
 {
 	struct dwc3_request		*req = to_dwc3_request(request);
-	struct dwc3_ep			*dep = to_dwc3_ep(ep);
 
-	dep->allocated_requests--;
 	trace_dwc3_free_request(req);
 	kfree(req);
 }
@@ -1005,7 +1001,6 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		dwc3_gadget_move_started_request(req);
 		req->trb = trb;
 		req->trb_dma = dwc3_trb_dma_offset(dep, trb);
-		dep->queued_requests++;
 	}
 
 	__dwc3_prepare_one_trb(dep, trb, dma, length, chain, node,
@@ -1258,7 +1253,6 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 		 */
 		if (req->trb)
 			memset(req->trb, 0, sizeof(struct dwc3_trb));
-		dep->queued_requests--;
 		dwc3_gadget_del_and_unmap_request(dep, req, ret);
 		return ret;
 	}
@@ -1488,7 +1482,7 @@ static int dwc3_gadget_ep_dequeue(struct usb_ep *ep,
 
 out1:
 	/* giveback the request */
-	dep->queued_requests--;
+
 	dwc3_gadget_giveback(dep, req, -ECONNRESET);
 
 out0:
@@ -2248,7 +2242,7 @@ static void dwc3_gadget_free_endpoints(struct dwc3 *dwc)
 
 /* -------------------------------------------------------------------------- */
 
-static int dwc3_gadget_ep_reclaim_completed_trbs(struct dwc3 *dwc,
+static int dwc3_gadget_ep_reclaim_completed_trb(struct dwc3 *dwc,
 		struct dwc3_ep *dep, struct dwc3_request *req,
 		struct dwc3_trb *trb, const struct dwc3_event_depevt *event,
 		int status, int chain)
@@ -2258,9 +2252,6 @@ static int dwc3_gadget_ep_reclaim_completed_trbs(struct dwc3 *dwc,
 	unsigned int		trb_status;
 
 	dwc3_ep_inc_deq(dep);
-
-	if (req->trb == trb)
-		dep->queued_requests--;
 
 	trace_dwc3_complete_trb(dep, trb);
 
@@ -2366,7 +2357,7 @@ static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3 *dwc,
 				req->sg = sg_next(s);
 				req->num_pending_sgs--;
 
-				ret = dwc3_gadget_ep_reclaim_completed_trbs(dwc,
+				ret = dwc3_gadget_ep_reclaim_completed_trb(dwc,
 						dep, req, trb, event, status,
 						chain);
 				if (ret)
@@ -2374,13 +2365,13 @@ static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3 *dwc,
 			}
 		} else {
 			trb = &dep->trb_pool[dep->trb_dequeue];
-			ret = dwc3_gadget_ep_reclaim_completed_trbs(dwc, dep,
+			ret = dwc3_gadget_ep_reclaim_completed_trb(dwc, dep,
 					req, trb, event, status, chain);
 		}
 
 		if (req->unaligned || req->zero) {
 			trb = &dep->trb_pool[dep->trb_dequeue];
-			ret = dwc3_gadget_ep_reclaim_completed_trbs(dwc, dep,
+			ret = dwc3_gadget_ep_reclaim_completed_trb(dwc, dep,
 					req, trb, event, status, false);
 			req->unaligned = false;
 			req->zero = false;

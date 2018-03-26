@@ -230,17 +230,14 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 	TP_fast_assign(
 		__assign_str(name, dep->name);
 		__entry->trb = trb;
-		__entry->allocated = dep->allocated_requests;
-		__entry->queued = dep->queued_requests;
 		__entry->bpl = trb->bpl;
 		__entry->bph = trb->bph;
 		__entry->size = trb->size;
 		__entry->ctrl = trb->ctrl;
 		__entry->type = usb_endpoint_type(dep->endpoint.desc);
 	),
-	TP_printk("%s: %d/%d trb %p buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
-		__get_str(name), __entry->queued, __entry->allocated,
-		__entry->trb, __entry->bph, __entry->bpl,
+	TP_printk("%s: trb %p buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
+		__get_str(name), __entry->trb, __entry->bph, __entry->bpl,
 		({char *s;
 		int pcm = ((__entry->size >> 24) & 3) + 1;
 		switch (__entry->type) {
