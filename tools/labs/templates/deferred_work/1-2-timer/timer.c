@@ -17,7 +17,7 @@ MODULE_LICENSE("GPL");
 
 static struct timer_list timer;
 
-static void timer_handler(unsigned long var)
+static void timer_handler(struct timer_list *timer)
 {
 	/* TODO 1/4: print a message */
 	static size_t nseconds;
@@ -26,7 +26,7 @@ static void timer_handler(unsigned long var)
 	pr_info("[timer_handler] nseconds = %d\n", nseconds);
 
 	/* TODO 2: rechedule timer */
-	mod_timer(&timer, jiffies + TIMER_TIMEOUT * HZ);
+	mod_timer(timer, jiffies + TIMER_TIMEOUT * HZ);
 }
 
 static int __init timer_init(void)
@@ -34,7 +34,7 @@ static int __init timer_init(void)
 	pr_info("[timer_init] Init module\n");
 
 	/* TODO 1: initialize timer */
-	setup_timer(&timer, timer_handler, 0);
+	timer_setup(&timer, timer_handler, 0);
 
 	/* TODO 1: schedule timer for the first time */
 	mod_timer(&timer, jiffies + TIMER_TIMEOUT * HZ);
