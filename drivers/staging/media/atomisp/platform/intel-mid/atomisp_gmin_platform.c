@@ -441,7 +441,7 @@ static int gmin_v1p2_ctrl(struct v4l2_subdev *subdev, int on)
 {
 	struct gmin_subdev *gs = find_gmin_subdev(subdev);
 
-	if (gs && gs->v1p2_on == on)
+	if (!gs || gs->v1p2_on == on)
 		return 0;
 	gs->v1p2_on = on;
 
@@ -475,7 +475,7 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 		}
 	}
 
-	if (gs && gs->v1p8_on == on)
+	if (!gs || gs->v1p8_on == on)
 		return 0;
 	gs->v1p8_on = on;
 
@@ -511,7 +511,7 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 		}
 	}
 
-	if (gs && gs->v2p8_on == on)
+	if (!gs || gs->v2p8_on == on)
 		return 0;
 	gs->v2p8_on = on;
 
