@@ -86,10 +86,10 @@ static void work_handler(struct work_struct *work)
 /* TODO 3: undef ALLOC_IO_DIRECT*/
 #undef ALLOC_IO_DIRECT
 
-static void timer_handler(unsigned long var)
+static void timer_handler(struct timer_list *tl)
 {
 	/* TODO 1/44: implement timer handler */
-	struct my_device_data *my_data = (struct my_device_data *) var;
+	struct my_device_data *my_data = from_timer(my_data, tl, timer);
 
 	pr_info("[timer_handler] pid = %d, comm = %s\n",
 		current->pid, current->comm);
@@ -226,7 +226,7 @@ static int deferred_init(void)
 	cdev_add(&dev.cdev, MKDEV(MY_MAJOR, MY_MINOR), 1);
 
 	/* TODO 1: Initialize timer. */
-	setup_timer(&dev.timer, timer_handler, (unsigned long) &dev);
+	timer_setup(&dev.timer, timer_handler, 0);
 
 	return 0;
 }
