@@ -5396,13 +5396,10 @@ static int __mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp,
 static struct mlxsw_sp_mr_table *
 mlxsw_sp_router_fibmr_family_to_table(struct mlxsw_sp_vr *vr, int family)
 {
-	switch (family) {
-	case RTNL_FAMILY_IPMR:
+	if (family == RTNL_FAMILY_IPMR)
 		return vr->mr_table[MLXSW_SP_L3_PROTO_IPV4];
-	default:
-		WARN_ON(1);
-		return vr->mr_table[MLXSW_SP_L3_PROTO_IPV4];
-	}
+	else
+		return vr->mr_table[MLXSW_SP_L3_PROTO_IPV6];
 }
 
 static int mlxsw_sp_router_fibmr_add(struct mlxsw_sp *mlxsw_sp,
@@ -5844,6 +5841,10 @@ static int mlxsw_sp_router_fib_rule_event(unsigned long event,
 		if (!ipmr_rule_default(rule) && !rule->l3mdev)
 			err = -1;
 		break;
+	case RTNL_FAMILY_IP6MR:
+		if (!ip6mr_rule_default(rule) && !rule->l3mdev)
+			err = -1;
+		break;
 	}
 
 	if (err < 0)
@@ -5863,7 +5864,8 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 
 	if (!net_eq(info->net, &init_net) ||
 	    (info->family != AF_INET && info->family != AF_INET6 &&
-	     info->family != RTNL_FAMILY_IPMR))
+	     info->family != RTNL_FAMILY_IPMR &&
+	     info->family != RTNL_FAMILY_IP6MR))
 		return NOTIFY_DONE;
 
 	router = container_of(nb, struct mlxsw_sp_router, fib_nb);
@@ -5893,6 +5895,7 @@ static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
 		INIT_WORK(&fib_work->work, mlxsw_sp_router_fib6_event_work);
 		mlxsw_sp_router_fib6_event(fib_work, info);
 		break;
+	case RTNL_FAMILY_IP6MR:
 	case RTNL_FAMILY_IPMR:
 		INIT_WORK(&fib_work->work, mlxsw_sp_router_fibmr_event_work);
 		mlxsw_sp_router_fibmr_event(fib_work, info);
