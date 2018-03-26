@@ -370,6 +370,24 @@ static int check_xflags(unsigned int flags)
 	return 0;
 }
 
+/*
+ * Set the xflags from the internal inode flags. The remaining items of fsxattr
+ * are zeroed.
+ */
+static int btrfs_ioctl_fsgetxattr(struct file *file, void __user *arg)
+{
+	struct btrfs_inode *binode = BTRFS_I(file_inode(file));
+	struct fsxattr fa;
+
+	memset(&fa, 0, sizeof(fa));
+	fa.fsx_xflags = btrfs_inode_flags_to_xflags(binode->flags);
+
+	if (copy_to_user(arg, &fa, sizeof(fa)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int btrfs_ioctl_getversion(struct file *file, int __user *arg)
 {
 	struct inode *inode = file_inode(file);
@@ -5409,6 +5427,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_get_features(file, argp);
 	case BTRFS_IOC_SET_FEATURES:
 		return btrfs_ioctl_set_features(file, argp);
+	case FS_IOC_FSGETXATTR:
+		return btrfs_ioctl_fsgetxattr(file, argp);
 	}
 
 	return -ENOTTY;
