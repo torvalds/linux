@@ -13,6 +13,7 @@
  */
 
 extern const struct cxlflash_backend_ops cxlflash_cxl_ops;
+extern const struct cxlflash_backend_ops cxlflash_ocxl_ops;
 
 struct cxlflash_backend_ops {
 	struct module *module;
