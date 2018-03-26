@@ -254,13 +254,6 @@ static u32 inactive_time;
 static u8 del_beacon;
 static u32 clients_count;
 
-static u8 *join_req;
-static u8 *info_element;
-static u8 mode_11i;
-static u8 auth_type;
-static u32 join_req_size;
-static u32 info_element_size;
-static struct wilc_vif *join_req_vif;
 #define REAL_JOIN_REQ 0
 #define FLUSHED_JOIN_REQ 1
 #define FLUSHED_BYTE_POS 79
@@ -1007,20 +1000,11 @@ static s32 handle_connect(struct wilc_vif *vif,
 	wid_list[wid_cnt].size = hif_drv->usr_conn_req.ies_len;
 	wid_cnt++;
 
-	if (memcmp("DIRECT-", conn_attr->ssid, 7)) {
-		info_element_size = hif_drv->usr_conn_req.ies_len;
-		info_element = kmalloc(info_element_size, GFP_KERNEL);
-		memcpy(info_element, hif_drv->usr_conn_req.ies,
-		       info_element_size);
-	}
 	wid_list[wid_cnt].id = (u16)WID_11I_MODE;
 	wid_list[wid_cnt].type = WID_CHAR;
 	wid_list[wid_cnt].size = sizeof(char);
 	wid_list[wid_cnt].val = (s8 *)&hif_drv->usr_conn_req.security;
 	wid_cnt++;
-
-	if (memcmp("DIRECT-", conn_attr->ssid, 7))
-		mode_11i = hif_drv->usr_conn_req.security;
 
 	wid_list[wid_cnt].id = (u16)WID_AUTH_TYPE;
 	wid_list[wid_cnt].type = WID_CHAR;
@@ -1028,18 +1012,11 @@ static s32 handle_connect(struct wilc_vif *vif,
 	wid_list[wid_cnt].val = (s8 *)&hif_drv->usr_conn_req.auth_type;
 	wid_cnt++;
 
-	if (memcmp("DIRECT-", conn_attr->ssid, 7))
-		auth_type = (u8)hif_drv->usr_conn_req.auth_type;
-
 	wid_list[wid_cnt].id = (u16)WID_JOIN_REQ_EXTENDED;
 	wid_list[wid_cnt].type = WID_STR;
 	wid_list[wid_cnt].size = 112;
 	wid_list[wid_cnt].val = kmalloc(wid_list[wid_cnt].size, GFP_KERNEL);
 
-	if (memcmp("DIRECT-", conn_attr->ssid, 7)) {
-		join_req_size = wid_list[wid_cnt].size;
-		join_req = kmalloc(join_req_size, GFP_KERNEL);
-	}
 	if (!wid_list[wid_cnt].val) {
 		result = -EFAULT;
 		goto error;
@@ -1131,11 +1108,6 @@ static s32 handle_connect(struct wilc_vif *vif,
 
 	cur_byte = wid_list[wid_cnt].val;
 	wid_cnt++;
-
-	if (memcmp("DIRECT-", conn_attr->ssid, 7)) {
-		memcpy(join_req, cur_byte, join_req_size);
-		join_req_vif = vif;
-	}
 
 	if (conn_attr->bssid)
 		memcpy(wilc_connected_ssid,
@@ -1265,16 +1237,6 @@ static s32 handle_connect_timeout(struct wilc_vif *vif)
 	hif_drv->usr_conn_req.ies = NULL;
 
 	eth_zero_addr(wilc_connected_ssid);
-
-	if (join_req && join_req_vif == vif) {
-		kfree(join_req);
-		join_req = NULL;
-	}
-
-	if (info_element && join_req_vif == vif) {
-		kfree(info_element);
-		info_element = NULL;
-	}
 
 	return result;
 }
@@ -1531,17 +1493,6 @@ static s32 handle_rcvd_gnrl_async_info(struct wilc_vif *vif,
 			hif_drv->usr_conn_req.ies_len = 0;
 			kfree(hif_drv->usr_conn_req.ies);
 			hif_drv->usr_conn_req.ies = NULL;
-
-			if (join_req && join_req_vif == vif) {
-				kfree(join_req);
-				join_req = NULL;
-			}
-
-			if (info_element && join_req_vif == vif) {
-				kfree(info_element);
-				info_element = NULL;
-			}
-
 			hif_drv->hif_state = HOST_IF_IDLE;
 			scan_while_connected = false;
 
@@ -1877,16 +1828,6 @@ static void handle_disconnect(struct wilc_vif *vif)
 	conn_req->ies_len = 0;
 	kfree(conn_req->ies);
 	conn_req->ies = NULL;
-
-	if (join_req && join_req_vif == vif) {
-		kfree(join_req);
-		join_req = NULL;
-	}
-
-	if (info_element && join_req_vif == vif) {
-		kfree(info_element);
-		info_element = NULL;
-	}
 
 out:
 
