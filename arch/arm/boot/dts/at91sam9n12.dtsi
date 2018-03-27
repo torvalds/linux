@@ -641,8 +641,8 @@
 				uart1 {
 					pinctrl_uart1: uart1-0 {
 						atmel,pins =
-							<AT91_PIOC 16 AT91_PERIPH_C AT91_PINCTRL_PULL_UP	/* PC17 periph C with pullup */
-							 AT91_PIOC 17 AT91_PERIPH_C AT91_PINCTRL_NONE>;	/* PC16 periph C */
+							<AT91_PIOC 16 AT91_PERIPH_C AT91_PINCTRL_NONE
+							 AT91_PIOC 17 AT91_PERIPH_C AT91_PINCTRL_PULL_UP>;
 					};
 				};
 
