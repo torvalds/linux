@@ -88,6 +88,7 @@
 #define H_P8		-61
 #define H_P9		-62
 #define H_TOO_BIG	-64
+#define H_UNSUPPORTED	-67
 #define H_OVERLAP	-68
 #define H_INTERRUPT	-69
 #define H_BAD_DATA	-70

@@ -2563,8 +2563,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	li	r3,0
 	blr
 
+2:
+BEGIN_FTR_SECTION
+	/* POWER9 with disabled DAWR */
+	li	r3, H_UNSUPPORTED
+	blr
+END_FTR_SECTION_IFCLR(CPU_FTR_DAWR)
 	/* Emulate H_SET_DABR/X on P8 for the sake of compat mode guests */
-2:	rlwimi	r5, r4, 5, DAWRX_DR | DAWRX_DW
+	rlwimi	r5, r4, 5, DAWRX_DR | DAWRX_DW
 	rlwimi	r5, r4, 2, DAWRX_WT
 	clrrdi	r4, r4, 3
 	std	r4, VCPU_DAWR(r3)
