@@ -454,10 +454,11 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 			desc = execlists_update_context(rq);
 			GEM_DEBUG_EXEC(port[n].context_id = upper_32_bits(desc));
 
-			GEM_TRACE("%s in[%d]:  ctx=%d.%d, seqno=%x, prio=%d\n",
+			GEM_TRACE("%s in[%d]:  ctx=%d.%d, seqno=%d (current %d), prio=%d\n",
 				  engine->name, n,
 				  port[n].context_id, count,
 				  rq->global_seqno,
+				  intel_engine_get_seqno(engine),
 				  rq_prio(rq));
 		} else {
 			GEM_BUG_ON(!n);
@@ -999,10 +1000,11 @@ static void execlists_submission_tasklet(unsigned long data)
 							EXECLISTS_ACTIVE_USER));
 
 			rq = port_unpack(port, &count);
-			GEM_TRACE("%s out[0]: ctx=%d.%d, seqno=%x, prio=%d\n",
+			GEM_TRACE("%s out[0]: ctx=%d.%d, seqno=%d (current %d), prio=%d\n",
 				  engine->name,
 				  port->context_id, count,
 				  rq ? rq->global_seqno : 0,
+				  intel_engine_get_seqno(engine),
 				  rq ? rq_prio(rq) : 0);
 
 			/* Check the context/desc id for this event matches */

@@ -214,8 +214,11 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 		struct i915_gem_timeline *timeline;
 		struct intel_timeline *tl = engine->timeline;
 
-		GEM_TRACE("%s seqno %d -> %d\n",
-			  engine->name, tl->seqno, seqno);
+		GEM_TRACE("%s seqno %d (current %d) -> %d\n",
+			  engine->name,
+			  tl->seqno,
+			  intel_engine_get_seqno(engine),
+			  seqno);
 
 		if (!i915_seqno_passed(seqno, tl->seqno)) {
 			/* Flush any waiters before we reuse the seqno */
@@ -386,10 +389,11 @@ static void i915_request_retire(struct i915_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	struct i915_gem_active *active, *next;
 
-	GEM_TRACE("%s(%d) fence %llx:%d, global_seqno %d\n",
-		  engine->name, intel_engine_get_seqno(engine),
+	GEM_TRACE("%s fence %llx:%d, global_seqno %d, current %d\n",
+		  engine->name,
 		  request->fence.context, request->fence.seqno,
-		  request->global_seqno);
+		  request->global_seqno,
+		  intel_engine_get_seqno(engine));
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	GEM_BUG_ON(!i915_sw_fence_signaled(&request->submit));
@@ -508,10 +512,11 @@ void __i915_request_submit(struct i915_request *request)
 	struct intel_engine_cs *engine = request->engine;
 	u32 seqno;
 
-	GEM_TRACE("%s fence %llx:%d -> global_seqno %d\n",
-		  request->engine->name,
+	GEM_TRACE("%s fence %llx:%d -> global_seqno %d, current %d\n",
+		  engine->name,
 		  request->fence.context, request->fence.seqno,
-		  engine->timeline->seqno + 1);
+		  engine->timeline->seqno + 1,
+		  intel_engine_get_seqno(engine));
 
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline->lock);
@@ -557,10 +562,11 @@ void __i915_request_unsubmit(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 
-	GEM_TRACE("%s fence %llx:%d <- global_seqno %d\n",
-		  request->engine->name,
+	GEM_TRACE("%s fence %llx:%d <- global_seqno %d, current %d\n",
+		  engine->name,
 		  request->fence.context, request->fence.seqno,
-		  request->global_seqno);
+		  request->global_seqno,
+		  intel_engine_get_seqno(engine));
 
 	GEM_BUG_ON(!irqs_disabled());
 	lockdep_assert_held(&engine->timeline->lock);
