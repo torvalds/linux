@@ -126,7 +126,7 @@ static const struct rockchip_cpuclk_reg_data rk3308_cpuclk_data = {
 	.mux_core_mask = 0x3,
 };
 
-PNAME(mux_pll_p)		= { "xin24m", "clk_rtc32k" };
+PNAME(mux_pll_p)		= { "xin24m" };
 PNAME(mux_usb480m_p)		= { "xin24m", "usb480m_phy", "clk_rtc32k" };
 PNAME(mux_armclk_p)		= { "apll_core", "vpll0_core", "vpll1_core" };
 PNAME(mux_dpll_vpll0_p)		= { "dpll", "vpll0" };
@@ -184,16 +184,16 @@ PNAME(mux_spdif_rx_src_p)	= { "clk_spdif_rx_div", "clk_spdif_rx_div50" };
 PNAME(mux_spdif_rx_p)		= { "clk_spdif_rx_src", "clk_spdif_rx_frac" };
 
 static struct rockchip_pll_clock rk3308_pll_clks[] __initdata = {
-	[apll] = PLL(pll_rk3036, PLL_APLL, "apll", mux_pll_p,
+	[apll] = PLL(pll_rk3328, PLL_APLL, "apll", mux_pll_p,
 		     0, RK3308_PLL_CON(0),
 		     RK3308_MODE_CON, 0, 0, 0, rk3308_pll_rates),
-	[dpll] = PLL(pll_rk3036, PLL_DPLL, "dpll", mux_pll_p,
+	[dpll] = PLL(pll_rk3328, PLL_DPLL, "dpll", mux_pll_p,
 		     0, RK3308_PLL_CON(8),
 		     RK3308_MODE_CON, 2, 1, 0, NULL),
-	[vpll0] = PLL(pll_rk3036, PLL_VPLL0, "vpll0", mux_pll_p,
+	[vpll0] = PLL(pll_rk3328, PLL_VPLL0, "vpll0", mux_pll_p,
 		     0, RK3308_PLL_CON(16),
 		     RK3308_MODE_CON, 4, 2, 0, rk3308_pll_rates),
-	[vpll1] = PLL(pll_rk3036, PLL_VPLL1, "vpll1", mux_pll_p,
+	[vpll1] = PLL(pll_rk3328, PLL_VPLL1, "vpll1", mux_pll_p,
 		     0, RK3308_PLL_CON(24),
 		     RK3308_MODE_CON, 6, 3, 0, rk3308_pll_rates),
 };
