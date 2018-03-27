@@ -821,13 +821,11 @@ xdp_drop_no_cnt:
 		skb_record_rx_queue(skb, cq_ring);
 
 		if (likely(dev->features & NETIF_F_RXCSUM)) {
-			if (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_TCP |
-						      MLX4_CQE_STATUS_UDP)) {
+			if ((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_TCP |
+						       MLX4_CQE_STATUS_UDP)) &&
+			    (cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
+			    cqe->checksum == cpu_to_be16(0xffff)) {
 				bool l2_tunnel;
-
-				if (!((cqe->status & cpu_to_be16(MLX4_CQE_STATUS_IPOK)) &&
-				      cqe->checksum == cpu_to_be16(0xffff)))
-					goto csum_none;
 
 				l2_tunnel = (dev->hw_enc_features & NETIF_F_RXCSUM) &&
 					(cqe->vlan_my_qpn & cpu_to_be32(MLX4_CQE_L2_TUNNEL));
