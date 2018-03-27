@@ -735,6 +735,7 @@ static void lirc_release_device(struct device *ld)
 
 int ir_lirc_register(struct rc_dev *dev)
 {
+	const char *rx_type, *tx_type;
 	int err, minor;
 
 	minor = ida_simple_get(&lirc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
@@ -759,8 +760,25 @@ int ir_lirc_register(struct rc_dev *dev)
 
 	get_device(&dev->dev);
 
-	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d",
-		 dev->driver_name, minor);
+	switch (dev->driver_type) {
+	case RC_DRIVER_SCANCODE:
+		rx_type = "scancode";
+		break;
+	case RC_DRIVER_IR_RAW:
+		rx_type = "raw IR";
+		break;
+	default:
+		rx_type = "no";
+		break;
+	}
+
+	if (dev->tx_ir)
+		tx_type = "raw IR";
+	else
+		tx_type = "no";
+
+	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d, %s receiver, %s transmitter",
+		 dev->driver_name, minor, rx_type, tx_type);
 
 	return 0;
 
