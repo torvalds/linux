@@ -2139,21 +2139,17 @@ static int rtw_wx_set_auth(struct net_device *dev,
 	int ret = 0;
 
 	switch (param->flags & IW_AUTH_INDEX) {
-
 	case IW_AUTH_WPA_VERSION:
 		break;
 	case IW_AUTH_CIPHER_PAIRWISE:
-
 		break;
 	case IW_AUTH_CIPHER_GROUP:
-
 		break;
 	case IW_AUTH_KEY_MGMT:
 		/*
 		 *  ??? does not use these parameters
 		 */
 		break;
-
 	case IW_AUTH_TKIP_COUNTERMEASURES:
         {
 		if (param->value) {
@@ -2194,9 +2190,7 @@ static int rtw_wx_set_auth(struct net_device *dev,
 
 			break;
 		}
-
 	case IW_AUTH_80211_AUTH_ALG:
-
 		/*
 		 *  It's the starting point of a link layer connection using wpa_supplicant
 		*/
@@ -2208,11 +2202,8 @@ static int rtw_wx_set_auth(struct net_device *dev,
 			rtw_free_assoc_resources(padapter, 1);
 		}
 
-
 		ret = wpa_set_auth_algs(dev, (u32)param->value);
-
 		break;
-
 	case IW_AUTH_WPA_ENABLED:
 		break;
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
@@ -2222,6 +2213,7 @@ static int rtw_wx_set_auth(struct net_device *dev,
 	default:
 		return -EOPNOTSUPP;
 	}
+
 	return ret;
 }
 
