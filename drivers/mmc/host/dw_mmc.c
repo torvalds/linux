@@ -1131,6 +1131,8 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 	if (host->state == STATE_WAITING_CMD11_DONE)
 		sdmmc_cmd_bits |= SDMMC_CMD_VOLT_SWITCH;
 
+	slot->mmc->actual_clock = 0;
+
 	if (!clock) {
 		mci_writel(host, CLKENA, 0);
 		mci_send_cmd(slot, sdmmc_cmd_bits, 0);
@@ -1176,6 +1178,9 @@ static void dw_mci_setup_bus(struct dw_mci_slot *slot, bool force_clkinit)
 
 		/* keep the clock with reflecting clock dividor */
 		slot->__clk_old = clock << div;
+		slot->mmc->actual_clock = div ? ((host->bus_hz / div) >> 1) :
+						host->bus_hz;
+
 	}
 
 	host->current_speed = clock;
