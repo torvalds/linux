@@ -1275,7 +1275,7 @@ static int __dwc3_gadget_get_frame(struct dwc3 *dwc)
 	return DWC3_DSTS_SOFFN(reg);
 }
 
-static void __dwc3_gadget_start_isoc(struct dwc3_ep *dep, u32 cur_uf)
+static void __dwc3_gadget_start_isoc(struct dwc3_ep *dep)
 {
 	if (list_empty(&dep->pending_list)) {
 		dev_info(dep->dwc->dev, "%s: ran out of requests\n",
@@ -1288,7 +1288,7 @@ static void __dwc3_gadget_start_isoc(struct dwc3_ep *dep, u32 cur_uf)
 	 * Schedule the first trb for one interval in the future or at
 	 * least 4 microframes.
 	 */
-	dep->frame_number = cur_uf + max_t(u32, 4, dep->interval);
+	dep->frame_number += max_t(u32, 4, dep->interval);
 	__dwc3_gadget_kick_transfer(dep);
 }
 
@@ -1331,10 +1331,7 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 				dwc3_stop_active_transfer(dep, true);
 				dep->flags = DWC3_EP_ENABLED;
 			} else {
-				u32 cur_uf;
-
-				cur_uf = __dwc3_gadget_get_frame(dwc);
-				__dwc3_gadget_start_isoc(dep, cur_uf);
+				__dwc3_gadget_start_isoc(dep);
 				dep->flags &= ~DWC3_EP_PENDING_REQUEST;
 			}
 			return 0;
@@ -2469,8 +2466,9 @@ static void dwc3_gadget_endpoint_transfer_not_ready(struct dwc3_ep *dep,
 
 	mask = ~(dep->interval - 1);
 	cur_uf = event->parameters & mask;
+	dep->frame_number = cur_uf;
 
-	__dwc3_gadget_start_isoc(dep, cur_uf);
+	__dwc3_gadget_start_isoc(dep);
 }
 
 static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
