@@ -40,6 +40,7 @@ static const struct proto_ops rxrpc_rpc_ops;
 
 /* current debugging ID */
 atomic_t rxrpc_debug_id;
+EXPORT_SYMBOL(rxrpc_debug_id);
 
 /* count of skbs currently in use */
 atomic_t rxrpc_n_tx_skbs, rxrpc_n_rx_skbs;
@@ -267,6 +268,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * @gfp: The allocation constraints
  * @notify_rx: Where to send notifications instead of socket queue
  * @upgrade: Request service upgrade for call
+ * @debug_id: The debug ID for tracing to be assigned to the call
  *
  * Allow a kernel service to begin a call on the nominated socket.  This just
  * sets up all the internal tracking structures and allocates connection and
@@ -282,7 +284,8 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   s64 tx_total_len,
 					   gfp_t gfp,
 					   rxrpc_notify_rx_t notify_rx,
-					   bool upgrade)
+					   bool upgrade,
+					   unsigned int debug_id)
 {
 	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call_params p;
@@ -314,7 +317,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	cp.exclusive		= false;
 	cp.upgrade		= upgrade;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, &p, gfp);
+	call = rxrpc_new_client_call(rx, &cp, srx, &p, gfp, debug_id);
 	/* The socket has been unlocked. */
 	if (!IS_ERR(call)) {
 		call->notify_rx = notify_rx;

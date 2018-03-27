@@ -160,7 +160,8 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 			lockdep_is_held(&conn->channel_lock));
 		if (call) {
 			if (compl == RXRPC_CALL_LOCALLY_ABORTED)
-				trace_rxrpc_abort("CON", call->cid,
+				trace_rxrpc_abort(call->debug_id,
+						  "CON", call->cid,
 						  call->call_id, 0,
 						  abort_code, error);
 			if (rxrpc_set_call_completion(call, compl,

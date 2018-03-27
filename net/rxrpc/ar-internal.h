@@ -691,7 +691,6 @@ struct rxrpc_send_params {
  * af_rxrpc.c
  */
 extern atomic_t rxrpc_n_tx_skbs, rxrpc_n_rx_skbs;
-extern atomic_t rxrpc_debug_id;
 extern struct workqueue_struct *rxrpc_workqueue;
 
 /*
@@ -732,11 +731,12 @@ extern unsigned int rxrpc_max_call_lifetime;
 extern struct kmem_cache *rxrpc_call_jar;
 
 struct rxrpc_call *rxrpc_find_call_by_user_ID(struct rxrpc_sock *, unsigned long);
-struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *, gfp_t);
+struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *, gfp_t, unsigned int);
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *,
 					 struct rxrpc_conn_parameters *,
 					 struct sockaddr_rxrpc *,
-					 struct rxrpc_call_params *, gfp_t);
+					 struct rxrpc_call_params *, gfp_t,
+					 unsigned int);
 int rxrpc_retry_client_call(struct rxrpc_sock *,
 			    struct rxrpc_call *,
 			    struct rxrpc_conn_parameters *,
@@ -822,7 +822,7 @@ static inline bool __rxrpc_abort_call(const char *why, struct rxrpc_call *call,
 				      rxrpc_seq_t seq,
 				      u32 abort_code, int error)
 {
-	trace_rxrpc_abort(why, call->cid, call->call_id, seq,
+	trace_rxrpc_abort(call->debug_id, why, call->cid, call->call_id, seq,
 			  abort_code, error);
 	return __rxrpc_set_call_completion(call, RXRPC_CALL_LOCALLY_ABORTED,
 					   abort_code, error);
