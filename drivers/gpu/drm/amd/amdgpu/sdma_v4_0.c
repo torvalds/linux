@@ -1611,6 +1611,7 @@ static const struct amdgpu_ring_funcs sdma_v4_0_ring_funcs = {
 	.pad_ib = sdma_v4_0_ring_pad_ib,
 	.emit_wreg = sdma_v4_0_ring_emit_wreg,
 	.emit_reg_wait = sdma_v4_0_ring_emit_reg_wait,
+	.emit_reg_write_reg_wait = amdgpu_ring_emit_reg_write_reg_wait_helper,
 };
 
 static void sdma_v4_0_set_ring_funcs(struct amdgpu_device *adev)
