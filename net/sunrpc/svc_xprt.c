@@ -848,7 +848,6 @@ out_release:
 	rqstp->rq_res.len = 0;
 	svc_xprt_release(rqstp);
 out:
-	trace_svc_recv(rqstp, err);
 	return err;
 }
 EXPORT_SYMBOL_GPL(svc_recv);

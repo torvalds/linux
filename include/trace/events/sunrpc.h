@@ -485,28 +485,28 @@ TRACE_EVENT(xs_tcp_data_recv,
 		{ (1UL << RQ_BUSY),		"RQ_BUSY"})
 
 TRACE_EVENT(svc_recv,
-	TP_PROTO(struct svc_rqst *rqst, int status),
+	TP_PROTO(struct svc_rqst *rqst, int len),
 
-	TP_ARGS(rqst, status),
+	TP_ARGS(rqst, len),
 
 	TP_STRUCT__entry(
 		__field(u32, xid)
-		__field(int, status)
+		__field(int, len)
 		__field(unsigned long, flags)
 		__dynamic_array(unsigned char, addr, rqst->rq_addrlen)
 	),
 
 	TP_fast_assign(
-		__entry->xid = status > 0 ? be32_to_cpu(rqst->rq_xid) : 0;
-		__entry->status = status;
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->len = len;
 		__entry->flags = rqst->rq_flags;
 		memcpy(__get_dynamic_array(addr),
 			&rqst->rq_addr, rqst->rq_addrlen);
 	),
 
-	TP_printk("addr=%pIScp xid=0x%08x status=%d flags=%s",
+	TP_printk("addr=%pIScp xid=0x%08x len=%d flags=%s",
 			(struct sockaddr *)__get_dynamic_array(addr),
-			__entry->xid, __entry->status,
+			__entry->xid, __entry->len,
 			show_rqstp_flags(__entry->flags))
 );
 
