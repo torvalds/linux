@@ -382,25 +382,21 @@ void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 	int cpu;
 
 	if (!svc_xprt_has_something_to_do(xprt))
-		goto out;
+		return;
 
 	/* Mark transport as busy. It will remain in this state until
 	 * the provider calls svc_xprt_received. We update XPT_BUSY
 	 * atomically because it also guards against trying to enqueue
 	 * the transport twice.
 	 */
-	if (test_and_set_bit(XPT_BUSY, &xprt->xpt_flags)) {
-		/* Don't enqueue transport while already enqueued */
-		dprintk("svc: transport %p busy, not enqueued\n", xprt);
-		goto out;
-	}
+	if (test_and_set_bit(XPT_BUSY, &xprt->xpt_flags))
+		return;
 
 	cpu = get_cpu();
 	pool = svc_pool_for_cpu(xprt->xpt_server, cpu);
 
 	atomic_long_inc(&pool->sp_stats.packets);
 
-	dprintk("svc: transport %p put into queue\n", xprt);
 	spin_lock_bh(&pool->sp_lock);
 	list_add_tail(&xprt->xpt_ready, &pool->sp_sockets);
 	pool->sp_stats.sockets_queued++;
@@ -420,7 +416,6 @@ void svc_xprt_do_enqueue(struct svc_xprt *xprt)
 out_unlock:
 	rcu_read_unlock();
 	put_cpu();
-out:
 	trace_svc_xprt_do_enqueue(xprt, rqstp);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_do_enqueue);
