@@ -114,6 +114,6 @@ static inline void console_init(void)
 { }
 #endif
 
-unsigned long get_sev_encryption_mask(void);
+void set_sev_encryption_mask(void);
 
 #endif
