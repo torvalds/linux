@@ -323,6 +323,10 @@ struct pernet_operations {
 	 * have to keep in mind all other pernet_operations and
 	 * to introduce a locking, if they share common resources.
 	 *
+	 * The only time they are called with exclusive lock is
+	 * from register_pernet_subsys(), unregister_pernet_subsys()
+	 * register_pernet_device() and unregister_pernet_device().
+	 *
 	 * Exit methods using blocking RCU primitives, such as
 	 * synchronize_rcu(), should be implemented via exit_batch.
 	 * Then, destruction of a group of net requires single

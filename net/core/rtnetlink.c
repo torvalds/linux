@@ -459,7 +459,7 @@ static void rtnl_lock_unregistering_all(void)
  */
 void rtnl_link_unregister(struct rtnl_link_ops *ops)
 {
-	/* Close the race with cleanup_net() */
+	/* Close the race with setup_net() and cleanup_net() */
 	down_write(&pernet_ops_rwsem);
 	rtnl_lock_unregistering_all();
 	__rtnl_link_unregister(ops);

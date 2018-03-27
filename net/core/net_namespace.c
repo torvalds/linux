@@ -43,6 +43,8 @@ static bool init_net_initialized;
 /*
  * pernet_ops_rwsem: protects: pernet_list, net_generic_ids,
  * init_net_initialized and first_device pointer.
+ * This is internal net namespace object. Please, don't use it
+ * outside.
  */
 DECLARE_RWSEM(pernet_ops_rwsem);
 
