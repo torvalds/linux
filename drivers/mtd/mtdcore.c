@@ -673,14 +673,13 @@ static void mtd_set_dev_defaults(struct mtd_info *mtd)
  * 'parse_mtd_partitions()') and MTD device and partitions registering. It
  * basically follows the most common pattern found in many MTD drivers:
  *
- * * It first tries to probe partitions on MTD device @mtd using parsers
+ * * If the MTD_PARTITIONED_MASTER option is set, then the device as a whole is
+ *   registered first.
+ * * Then It tries to probe partitions on MTD device @mtd using parsers
  *   specified in @types (if @types is %NULL, then the default list of parsers
  *   is used, see 'parse_mtd_partitions()' for more information). If none are
  *   found this functions tries to fallback to information specified in
  *   @parts/@nr_parts.
- * * If any partitioning info was found, this function registers the found
- *   partitions. If the MTD_PARTITIONED_MASTER option is set, then the device
- *   as a whole is registered first.
  * * If no partitions were found this function just registers the MTD device
  *   @mtd and exits.
  *
