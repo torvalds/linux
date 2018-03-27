@@ -1024,27 +1024,27 @@ __be32 nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct raparms	*ra;
 	__be32 err;
 
-	trace_read_start(rqstp, fhp, offset, vlen);
+	trace_read_start(rqstp, fhp, offset, *count);
 	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, &file);
 	if (err)
 		return err;
 
 	ra = nfsd_init_raparms(file);
 
-	trace_read_opened(rqstp, fhp, offset, vlen);
+	trace_read_opened(rqstp, fhp, offset, *count);
 
 	if (file->f_op->splice_read && test_bit(RQ_SPLICE_OK, &rqstp->rq_flags))
 		err = nfsd_splice_read(rqstp, file, offset, count);
 	else
 		err = nfsd_readv(file, offset, vec, vlen, count);
 
-	trace_read_io_done(rqstp, fhp, offset, vlen);
+	trace_read_io_done(rqstp, fhp, offset, *count);
 
 	if (ra)
 		nfsd_put_raparams(file, ra);
 	fput(file);
 
-	trace_read_done(rqstp, fhp, offset, vlen);
+	trace_read_done(rqstp, fhp, offset, *count);
 
 	return err;
 }
@@ -1061,18 +1061,18 @@ nfsd_write(struct svc_rqst *rqstp, struct svc_fh *fhp, loff_t offset,
 	struct file *file = NULL;
 	__be32 err = 0;
 
-	trace_write_start(rqstp, fhp, offset, vlen);
+	trace_write_start(rqstp, fhp, offset, *cnt);
 
 	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_WRITE, &file);
 	if (err)
 		goto out;
 
-	trace_write_opened(rqstp, fhp, offset, vlen);
+	trace_write_opened(rqstp, fhp, offset, *cnt);
 	err = nfsd_vfs_write(rqstp, fhp, file, offset, vec, vlen, cnt, stable);
-	trace_write_io_done(rqstp, fhp, offset, vlen);
+	trace_write_io_done(rqstp, fhp, offset, *cnt);
 	fput(file);
 out:
-	trace_write_done(rqstp, fhp, offset, vlen);
+	trace_write_done(rqstp, fhp, offset, *cnt);
 	return err;
 }
 
