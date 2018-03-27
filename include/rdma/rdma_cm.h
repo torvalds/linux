@@ -65,7 +65,6 @@ enum rdma_cm_event_type {
 const char *__attribute_const__ rdma_event_msg(enum rdma_cm_event_type event);
 
 enum rdma_port_space {
-	RDMA_PS_SDP   = 0x0001,
 	RDMA_PS_IPOIB = 0x0002,
 	RDMA_PS_IB    = 0x013F,
 	RDMA_PS_TCP   = 0x0106,
