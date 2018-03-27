@@ -3572,15 +3572,15 @@ enum wiphy_opmode_flag {
 /**
  * struct sta_opmode_info - Station's ht/vht operation mode information
  * @changed: contains value from &enum wiphy_opmode_flag
- * @smps_mode: New SMPS mode of a station
- * @bw: new max bandwidth value of a station
+ * @smps_mode: New SMPS mode value from &enum nl80211_smps_mode of a station
+ * @bw: new max bandwidth value from &enum nl80211_chan_width of a station
  * @rx_nss: new rx_nss value of a station
  */
 
 struct sta_opmode_info {
 	u32 changed;
-	u8 smps_mode;
-	u8 bw;
+	enum nl80211_smps_mode smps_mode;
+	enum nl80211_chan_width bw;
 	u8 rx_nss;
 };
 
