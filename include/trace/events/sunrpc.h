@@ -508,6 +508,32 @@ TRACE_EVENT(svc_recv,
 			show_rqstp_flags(__entry->flags))
 );
 
+TRACE_EVENT(svc_process,
+	TP_PROTO(const struct svc_rqst *rqst, const char *name),
+
+	TP_ARGS(rqst, name),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(u32, vers)
+		__field(u32, proc)
+		__string(service, name)
+		__string(addr, rqst->rq_xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->vers = rqst->rq_vers;
+		__entry->proc = rqst->rq_proc;
+		__assign_str(service, name);
+		__assign_str(addr, rqst->rq_xprt->xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s xid=0x%08x service=%s vers=%u proc=%u",
+			__get_str(addr), __entry->xid,
+			__get_str(service), __entry->vers, __entry->proc)
+);
+
 DECLARE_EVENT_CLASS(svc_rqst_event,
 
 	TP_PROTO(struct svc_rqst *rqst),
@@ -563,10 +589,6 @@ DECLARE_EVENT_CLASS(svc_rqst_status,
 		  __get_str(addr), __entry->xid,
 		  __entry->status, show_rqstp_flags(__entry->flags))
 );
-
-DEFINE_EVENT(svc_rqst_status, svc_process,
-	TP_PROTO(struct svc_rqst *rqst, int status),
-	TP_ARGS(rqst, status));
 
 DEFINE_EVENT(svc_rqst_status, svc_send,
 	TP_PROTO(struct svc_rqst *rqst, int status),
