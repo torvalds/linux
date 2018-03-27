@@ -360,6 +360,31 @@ static void sdma_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
 
 }
 
+static void sdma_v4_0_wait_reg_mem(struct amdgpu_ring *ring,
+				   int mem_space, int hdp,
+				   uint32_t addr0, uint32_t addr1,
+				   uint32_t ref, uint32_t mask,
+				   uint32_t inv)
+{
+	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_POLL_REGMEM) |
+			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(hdp) |
+			  SDMA_PKT_POLL_REGMEM_HEADER_MEM_POLL(mem_space) |
+			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3)); /* == */
+	if (mem_space) {
+		/* memory */
+		amdgpu_ring_write(ring, addr0);
+		amdgpu_ring_write(ring, addr1);
+	} else {
+		/* registers */
+		amdgpu_ring_write(ring, addr0 << 2);
+		amdgpu_ring_write(ring, addr1 << 2);
+	}
+	amdgpu_ring_write(ring, ref); /* reference */
+	amdgpu_ring_write(ring, mask); /* mask */
+	amdgpu_ring_write(ring, SDMA_PKT_POLL_REGMEM_DW5_RETRY_COUNT(0xfff) |
+			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(inv)); /* retry count, poll interval */
+}
+
 /**
  * sdma_v4_0_ring_emit_hdp_flush - emit an hdp flush on the DMA ring
  *
@@ -378,15 +403,10 @@ static void sdma_v4_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	else
 		ref_and_mask = nbio_hf_reg->ref_and_mask_sdma1;
 
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_POLL_REGMEM) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(1) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3)); /* == */
-	amdgpu_ring_write(ring, (adev->nbio_funcs->get_hdp_flush_done_offset(adev)) << 2);
-	amdgpu_ring_write(ring, (adev->nbio_funcs->get_hdp_flush_req_offset(adev)) << 2);
-	amdgpu_ring_write(ring, ref_and_mask); /* reference */
-	amdgpu_ring_write(ring, ref_and_mask); /* mask */
-	amdgpu_ring_write(ring, SDMA_PKT_POLL_REGMEM_DW5_RETRY_COUNT(0xfff) |
-			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(10)); /* retry count, poll interval */
+	sdma_v4_0_wait_reg_mem(ring, 0, 1,
+			       adev->nbio_funcs->get_hdp_flush_done_offset(adev),
+			       adev->nbio_funcs->get_hdp_flush_req_offset(adev),
+			       ref_and_mask, ref_and_mask, 10);
 }
 
 /**
@@ -1114,16 +1134,10 @@ static void sdma_v4_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 	uint64_t addr = ring->fence_drv.gpu_addr;
 
 	/* wait for idle */
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_POLL_REGMEM) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(0) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3) | /* equal */
-			  SDMA_PKT_POLL_REGMEM_HEADER_MEM_POLL(1));
-	amdgpu_ring_write(ring, addr & 0xfffffffc);
-	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
-	amdgpu_ring_write(ring, seq); /* reference */
-	amdgpu_ring_write(ring, 0xffffffff); /* mask */
-	amdgpu_ring_write(ring, SDMA_PKT_POLL_REGMEM_DW5_RETRY_COUNT(0xfff) |
-			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(4)); /* retry count, poll interval */
+	sdma_v4_0_wait_reg_mem(ring, 1, 0,
+			       addr & 0xfffffffc,
+			       upper_32_bits(addr) & 0xffffffff,
+			       seq, 0xffffffff, 4);
 }
 
 
@@ -1154,15 +1168,7 @@ static void sdma_v4_0_ring_emit_wreg(struct amdgpu_ring *ring,
 static void sdma_v4_0_ring_emit_reg_wait(struct amdgpu_ring *ring, uint32_t reg,
 					 uint32_t val, uint32_t mask)
 {
-	amdgpu_ring_write(ring, SDMA_PKT_HEADER_OP(SDMA_OP_POLL_REGMEM) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_HDP_FLUSH(0) |
-			  SDMA_PKT_POLL_REGMEM_HEADER_FUNC(3)); /* equal */
-	amdgpu_ring_write(ring, reg << 2);
-	amdgpu_ring_write(ring, 0);
-	amdgpu_ring_write(ring, val); /* reference */
-	amdgpu_ring_write(ring, mask); /* mask */
-	amdgpu_ring_write(ring, SDMA_PKT_POLL_REGMEM_DW5_RETRY_COUNT(0xfff) |
-			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(10));
+	sdma_v4_0_wait_reg_mem(ring, 0, 0, reg, 0, val, mask, 10);
 }
 
 static int sdma_v4_0_early_init(void *handle)
