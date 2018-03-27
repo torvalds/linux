@@ -1359,6 +1359,10 @@ static u32 mvpp2_read(struct mvpp2 *priv, u32 offset)
 	return readl(priv->swth_base[0] + offset);
 }
 
+static u32 mvpp2_read_relaxed(struct mvpp2 *priv, u32 offset)
+{
+	return readl_relaxed(priv->swth_base[0] + offset);
+}
 /* These accessors should be used to access:
  *
  * - per-CPU registers, where each CPU has its own copy of the
@@ -1405,6 +1409,18 @@ static u32 mvpp2_percpu_read(struct mvpp2 *priv, int cpu,
 			     u32 offset)
 {
 	return readl(priv->swth_base[cpu] + offset);
+}
+
+static void mvpp2_percpu_write_relaxed(struct mvpp2 *priv, int cpu,
+				       u32 offset, u32 data)
+{
+	writel_relaxed(data, priv->swth_base[cpu] + offset);
+}
+
+static u32 mvpp2_percpu_read_relaxed(struct mvpp2 *priv, int cpu,
+				     u32 offset)
+{
+	return readl_relaxed(priv->swth_base[cpu] + offset);
 }
 
 static dma_addr_t mvpp2_txdesc_dma_addr_get(struct mvpp2_port *port,
@@ -4442,8 +4458,8 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 				<< MVPP22_BM_ADDR_HIGH_VIRT_RLS_SHIFT) &
 				MVPP22_BM_ADDR_HIGH_VIRT_RLS_MASK;
 
-		mvpp2_percpu_write(port->priv, cpu,
-				   MVPP22_BM_ADDR_HIGH_RLS_REG, val);
+		mvpp2_percpu_write_relaxed(port->priv, cpu,
+					   MVPP22_BM_ADDR_HIGH_RLS_REG, val);
 	}
 
 	/* MVPP2_BM_VIRT_RLS_REG is not interpreted by HW, and simply
@@ -4451,10 +4467,10 @@ static inline void mvpp2_bm_pool_put(struct mvpp2_port *port, int pool,
 	 * descriptor. Instead of storing the virtual address, we
 	 * store the physical address
 	 */
-	mvpp2_percpu_write(port->priv, cpu,
-			   MVPP2_BM_VIRT_RLS_REG, buf_phys_addr);
-	mvpp2_percpu_write(port->priv, cpu,
-			   MVPP2_BM_PHY_RLS_REG(pool), buf_dma_addr);
+	mvpp2_percpu_write_relaxed(port->priv, cpu,
+				   MVPP2_BM_VIRT_RLS_REG, buf_phys_addr);
+	mvpp2_percpu_write_relaxed(port->priv, cpu,
+				   MVPP2_BM_PHY_RLS_REG(pool), buf_dma_addr);
 
 	put_cpu();
 }
@@ -5546,7 +5562,8 @@ static int mvpp2_aggr_desc_num_check(struct mvpp2 *priv,
 	if ((aggr_txq->count + num) > MVPP2_AGGR_TXQ_SIZE) {
 		/* Update number of occupied aggregated Tx descriptors */
 		int cpu = smp_processor_id();
-		u32 val = mvpp2_read(priv, MVPP2_AGGR_TXQ_STATUS_REG(cpu));
+		u32 val = mvpp2_read_relaxed(priv,
+					     MVPP2_AGGR_TXQ_STATUS_REG(cpu));
 
 		aggr_txq->count = val & MVPP2_AGGR_TXQ_PENDING_MASK;
 	}
@@ -5570,9 +5587,9 @@ static int mvpp2_txq_alloc_reserved_desc(struct mvpp2 *priv,
 	int cpu = smp_processor_id();
 
 	val = (txq->id << MVPP2_TXQ_RSVD_REQ_Q_OFFSET) | num;
-	mvpp2_percpu_write(priv, cpu, MVPP2_TXQ_RSVD_REQ_REG, val);
+	mvpp2_percpu_write_relaxed(priv, cpu, MVPP2_TXQ_RSVD_REQ_REG, val);
 
-	val = mvpp2_percpu_read(priv, cpu, MVPP2_TXQ_RSVD_RSLT_REG);
+	val = mvpp2_percpu_read_relaxed(priv, cpu, MVPP2_TXQ_RSVD_RSLT_REG);
 
 	return val & MVPP2_TXQ_RSVD_RSLT_MASK;
 }
@@ -5677,8 +5694,8 @@ static inline int mvpp2_txq_sent_desc_proc(struct mvpp2_port *port,
 	u32 val;
 
 	/* Reading status reg resets transmitted descriptor counter */
-	val = mvpp2_percpu_read(port->priv, smp_processor_id(),
-				MVPP2_TXQ_SENT_REG(txq->id));
+	val = mvpp2_percpu_read_relaxed(port->priv, smp_processor_id(),
+					MVPP2_TXQ_SENT_REG(txq->id));
 
 	return (val & MVPP2_TRANSMITTED_COUNT_MASK) >>
 		MVPP2_TRANSMITTED_COUNT_OFFSET;
@@ -7044,8 +7061,8 @@ static int mvpp2_poll(struct napi_struct *napi, int budget)
 	 *
 	 * Each CPU has its own Rx/Tx cause register
 	 */
-	cause_rx_tx = mvpp2_percpu_read(port->priv, qv->sw_thread_id,
-					MVPP2_ISR_RX_TX_CAUSE_REG(port->id));
+	cause_rx_tx = mvpp2_percpu_read_relaxed(port->priv, qv->sw_thread_id,
+						MVPP2_ISR_RX_TX_CAUSE_REG(port->id));
 
 	cause_misc = cause_rx_tx & MVPP2_CAUSE_MISC_SUM_MASK;
 	if (cause_misc) {
