@@ -2417,12 +2417,24 @@ static int dwc3_gadget_ep_cleanup_completed_requests(struct dwc3_ep *dep,
 	return 1;
 }
 
+static void dwc3_gadget_endpoint_frame_from_event(struct dwc3_ep *dep,
+		const struct dwc3_event_depevt *event)
+{
+	u32 cur_uf, mask;
+
+	mask = ~(dep->interval - 1);
+	cur_uf = event->parameters & mask;
+	dep->frame_number = cur_uf;
+}
+
 static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event)
 {
 	struct dwc3		*dwc = dep->dwc;
 	unsigned		status = 0;
 	int			clean_busy;
+
+	dwc3_gadget_endpoint_frame_from_event(dep, event);
 
 	if (event->status & DEPEVT_STATUS_BUSERR)
 		status = -ECONNRESET;
@@ -2462,12 +2474,7 @@ static void dwc3_gadget_endpoint_transfer_in_progress(struct dwc3_ep *dep,
 static void dwc3_gadget_endpoint_transfer_not_ready(struct dwc3_ep *dep,
 		const struct dwc3_event_depevt *event)
 {
-	u32 cur_uf, mask;
-
-	mask = ~(dep->interval - 1);
-	cur_uf = event->parameters & mask;
-	dep->frame_number = cur_uf;
-
+	dwc3_gadget_endpoint_frame_from_event(dep, event);
 	__dwc3_gadget_start_isoc(dep);
 }
 
