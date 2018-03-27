@@ -74,6 +74,11 @@ enum {
 #define CLKF_CORE			(1 << 9)
 #define CLKF_J_TYPE			(1 << 10)
 
+/* CLKCTRL flags */
+#define CLKF_SW_SUP			BIT(5)
+#define CLKF_HW_SUP			BIT(6)
+#define CLKF_NO_IDLEST			BIT(7)
+
 #define CLK(dev, con, ck)		\
 	{				\
 		.lk = {			\
@@ -182,10 +187,6 @@ extern const struct omap_clkctrl_data am4_clkctrl_data[];
 extern const struct omap_clkctrl_data am438x_clkctrl_data[];
 extern const struct omap_clkctrl_data dm814_clkctrl_data[];
 extern const struct omap_clkctrl_data dm816_clkctrl_data[];
-
-#define CLKF_SW_SUP	BIT(0)
-#define CLKF_HW_SUP	BIT(1)
-#define CLKF_NO_IDLEST	BIT(2)
 
 typedef void (*ti_of_clk_init_cb_t)(void *, struct device_node *);
 
