@@ -400,7 +400,6 @@ static void __net_exit xfrm6_net_exit(struct net *net)
 static struct pernet_operations xfrm6_net_ops = {
 	.init	= xfrm6_net_init,
 	.exit	= xfrm6_net_exit,
-	.async	= true,
 };
 
 int __init xfrm6_init(void)

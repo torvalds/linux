@@ -103,7 +103,6 @@ static void __net_exit defrag6_net_exit(struct net *net)
 
 static struct pernet_operations defrag6_net_ops = {
 	.exit = defrag6_net_exit,
-	.async = true,
 };
 
 static int __init nf_defrag_init(void)

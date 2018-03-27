@@ -395,7 +395,6 @@ static void __net_exit seg6_net_exit(struct net *net)
 static struct pernet_operations ip6_segments_ops = {
 	.init = seg6_net_init,
 	.exit = seg6_net_exit,
-	.async = true,
 };
 
 static const struct genl_ops seg6_genl_ops[] = {

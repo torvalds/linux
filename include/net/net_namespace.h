@@ -60,9 +60,10 @@ struct net {
 
 	struct list_head	list;		/* list of network namespaces */
 	struct list_head	exit_list;	/* To linked to call pernet exit
-						 * methods on dead net (net_sem
-						 * read locked), or to unregister
-						 * pernet ops (net_sem wr locked).
+						 * methods on dead net (
+						 * pernet_ops_rwsem read locked),
+						 * or to unregister pernet ops
+						 * (pernet_ops_rwsem write locked).
 						 */
 	struct llist_node	cleanup_list;	/* namespaces on death row */
 
@@ -95,8 +96,9 @@ struct net {
 	/* core fib_rules */
 	struct list_head	rules_ops;
 
-	struct list_head	fib_notifier_ops;  /* protected by net_sem */
-
+	struct list_head	fib_notifier_ops;  /* Populated by
+						    * register_pernet_subsys()
+						    */
 	struct net_device       *loopback_dev;          /* The loopback */
 	struct netns_core	core;
 	struct netns_mib	mib;
@@ -321,6 +323,10 @@ struct pernet_operations {
 	 * have to keep in mind all other pernet_operations and
 	 * to introduce a locking, if they share common resources.
 	 *
+	 * The only time they are called with exclusive lock is
+	 * from register_pernet_subsys(), unregister_pernet_subsys()
+	 * register_pernet_device() and unregister_pernet_device().
+	 *
 	 * Exit methods using blocking RCU primitives, such as
 	 * synchronize_rcu(), should be implemented via exit_batch.
 	 * Then, destruction of a group of net requires single
@@ -333,12 +339,6 @@ struct pernet_operations {
 	void (*exit_batch)(struct list_head *net_exit_list);
 	unsigned int *id;
 	size_t size;
-	/*
-	 * Indicates above methods are allowed to be executed in parallel
-	 * with methods of any other pernet_operations, i.e. they are not
-	 * need write locked net_sem.
-	 */
-	bool async;
 };
 
 /*

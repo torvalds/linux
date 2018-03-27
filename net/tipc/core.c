@@ -109,7 +109,6 @@ static struct pernet_operations tipc_net_ops = {
 	.exit = tipc_exit_net,
 	.id   = &tipc_net_id,
 	.size = sizeof(struct tipc_net),
-	.async = true,
 };
 
 static int __init tipc_init(void)

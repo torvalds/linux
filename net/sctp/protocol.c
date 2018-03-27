@@ -1283,7 +1283,6 @@ static void __net_exit sctp_defaults_exit(struct net *net)
 static struct pernet_operations sctp_defaults_ops = {
 	.init = sctp_defaults_init,
 	.exit = sctp_defaults_exit,
-	.async = true,
 };
 
 static int __net_init sctp_ctrlsock_init(struct net *net)
@@ -1307,7 +1306,6 @@ static void __net_init sctp_ctrlsock_exit(struct net *net)
 static struct pernet_operations sctp_ctrlsock_ops = {
 	.init = sctp_ctrlsock_init,
 	.exit = sctp_ctrlsock_exit,
-	.async = true,
 };
 
 /* Initialize the universe into something sensible.  */

@@ -678,7 +678,6 @@ static struct pernet_operations csum_net_ops = {
 	.exit_batch = csum_exit_net,
 	.id   = &csum_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 MODULE_DESCRIPTION("Checksum updating actions");

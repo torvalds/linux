@@ -249,7 +249,6 @@ static struct pernet_operations sample_net_ops = {
 	.exit_batch = sample_exit_net,
 	.id   = &sample_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 static int __init sample_init_module(void)

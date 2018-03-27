@@ -345,7 +345,6 @@ static void __net_exit cfg802154_pernet_exit(struct net *net)
 
 static struct pernet_operations cfg802154_pernet_ops = {
 	.exit = cfg802154_pernet_exit,
-	.async = true,
 };
 
 static int __init wpan_phy_class_init(void)

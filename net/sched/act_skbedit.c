@@ -253,7 +253,6 @@ static struct pernet_operations skbedit_net_ops = {
 	.exit_batch = skbedit_exit_net,
 	.id   = &skbedit_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 MODULE_AUTHOR("Alexander Duyck, <alexander.h.duyck@intel.com>");

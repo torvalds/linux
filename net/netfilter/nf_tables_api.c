@@ -6597,7 +6597,6 @@ static void __net_exit nf_tables_exit_net(struct net *net)
 static struct pernet_operations nf_tables_net_ops = {
 	.init	= nf_tables_init_net,
 	.exit	= nf_tables_exit_net,
-	.async	= true,
 };
 
 static int __init nf_tables_module_init(void)

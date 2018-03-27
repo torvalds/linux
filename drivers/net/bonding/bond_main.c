@@ -4791,7 +4791,6 @@ static struct pernet_operations bond_net_ops = {
 	.exit = bond_net_exit,
 	.id   = &bond_net_id,
 	.size = sizeof(struct bond_net),
-	.async = true,
 };
 
 static int __init bonding_init(void)

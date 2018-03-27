@@ -399,7 +399,6 @@ static struct pernet_operations ipv4_net_ops = {
 	.exit = ipv4_net_exit,
 	.id = &conntrack4_net_id,
 	.size = sizeof(struct conntrack4_net),
-	.async = true,
 };
 
 static int __init nf_conntrack_l3proto_ipv4_init(void)

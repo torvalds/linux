@@ -87,7 +87,6 @@ static void __net_exit ip6table_filter_net_exit(struct net *net)
 static struct pernet_operations ip6table_filter_net_ops = {
 	.init = ip6table_filter_net_init,
 	.exit = ip6table_filter_net_exit,
-	.async = true,
 };
 
 static int __init ip6table_filter_init(void)

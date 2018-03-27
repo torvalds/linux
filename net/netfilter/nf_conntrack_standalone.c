@@ -705,7 +705,6 @@ static void nf_conntrack_pernet_exit(struct list_head *net_exit_list)
 static struct pernet_operations nf_conntrack_net_ops = {
 	.init		= nf_conntrack_pernet_init,
 	.exit_batch	= nf_conntrack_pernet_exit,
-	.async		= true,
 };
 
 static int __init nf_conntrack_standalone_init(void)

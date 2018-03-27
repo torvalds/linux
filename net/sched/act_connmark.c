@@ -222,7 +222,6 @@ static struct pernet_operations connmark_net_ops = {
 	.exit_batch = connmark_exit_net,
 	.id   = &connmark_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 static int __init connmark_init_module(void)

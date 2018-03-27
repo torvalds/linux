@@ -998,7 +998,6 @@ static void __net_exit icmpv6_sk_exit(struct net *net)
 static struct pernet_operations icmpv6_sk_ops = {
 	.init = icmpv6_sk_init,
 	.exit = icmpv6_sk_exit,
-	.async = true,
 };
 
 int __init icmpv6_init(void)

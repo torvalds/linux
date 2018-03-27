@@ -1325,7 +1325,6 @@ static struct pernet_operations gtp_net_ops = {
 	.exit	= gtp_net_exit,
 	.id	= &gtp_net_id,
 	.size	= sizeof(struct gtp_net),
-	.async	= true,
 };
 
 static int __init gtp_init(void)

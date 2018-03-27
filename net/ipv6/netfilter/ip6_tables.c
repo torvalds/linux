@@ -1928,7 +1928,6 @@ static void __net_exit ip6_tables_net_exit(struct net *net)
 static struct pernet_operations ip6_tables_net_ops = {
 	.init = ip6_tables_net_init,
 	.exit = ip6_tables_net_exit,
-	.async = true,
 };
 
 static int __init ip6_tables_init(void)

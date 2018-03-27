@@ -3028,7 +3028,6 @@ static void __net_exit igmp_net_exit(struct net *net)
 static struct pernet_operations igmp_net_ops = {
 	.init = igmp_net_init,
 	.exit = igmp_net_exit,
-	.async = true,
 };
 #endif
 

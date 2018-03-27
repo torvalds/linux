@@ -2133,7 +2133,6 @@ static void __net_exit psched_net_exit(struct net *net)
 static struct pernet_operations psched_net_ops = {
 	.init = psched_net_init,
 	.exit = psched_net_exit,
-	.async = true,
 };
 
 static int __init pktsched_init(void)

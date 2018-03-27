@@ -367,7 +367,6 @@ static void __net_exit xfrm4_net_exit(struct net *net)
 static struct pernet_operations __net_initdata xfrm4_net_ops = {
 	.init	= xfrm4_net_init,
 	.exit	= xfrm4_net_exit,
-	.async	= true,
 };
 
 static void __init xfrm4_policy_init(void)

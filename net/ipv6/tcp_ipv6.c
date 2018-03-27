@@ -2007,7 +2007,6 @@ static struct pernet_operations tcpv6_net_ops = {
 	.init	    = tcpv6_net_init,
 	.exit	    = tcpv6_net_exit,
 	.exit_batch = tcpv6_net_exit_batch,
-	.async	    = true,
 };
 
 int __init tcpv6_init(void)

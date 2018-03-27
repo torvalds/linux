@@ -1040,7 +1040,6 @@ static struct pernet_operations ipvlan_net_ops = {
 	.id = &ipvlan_netid,
 	.size = sizeof(struct ipvlan_netns),
 	.exit = ipvlan_ns_exit,
-	.async = true,
 };
 
 static int __init ipvlan_init_module(void)

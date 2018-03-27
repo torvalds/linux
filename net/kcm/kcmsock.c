@@ -2028,7 +2028,6 @@ static struct pernet_operations kcm_net_ops = {
 	.exit = kcm_exit_net,
 	.id   = &kcm_net_id,
 	.size = sizeof(struct kcm_net),
-	.async = true,
 };
 
 static int __init kcm_init(void)

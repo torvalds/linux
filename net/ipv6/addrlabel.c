@@ -344,7 +344,6 @@ static void __net_exit ip6addrlbl_net_exit(struct net *net)
 static struct pernet_operations ipv6_addr_label_ops = {
 	.init = ip6addrlbl_net_init,
 	.exit = ip6addrlbl_net_exit,
-	.async = true,
 };
 
 int __init ipv6_addr_label_init(void)

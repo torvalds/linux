@@ -4554,7 +4554,6 @@ static struct pernet_operations cma_pernet_operations = {
 	.exit = cma_exit_net,
 	.id = &cma_pernet_id,
 	.size = sizeof(struct cma_pernet),
-	.async = true,
 };
 
 static int __init cma_init(void)

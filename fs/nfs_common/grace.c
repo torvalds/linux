@@ -118,7 +118,6 @@ static struct pernet_operations grace_net_ops = {
 	.exit = grace_exit_net,
 	.id   = &grace_net_id,
 	.size = sizeof(struct list_head),
-	.async = true,
 };
 
 static int __init

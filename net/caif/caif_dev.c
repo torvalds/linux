@@ -544,7 +544,6 @@ static struct pernet_operations caif_net_ops = {
 	.exit = caif_exit_net,
 	.id   = &caif_net_id,
 	.size = sizeof(struct caif_net),
-	.async = true,
 };
 
 /* Initialize Caif devices list */

@@ -549,7 +549,6 @@ static __net_exit void ip_proc_exit_net(struct net *net)
 static __net_initdata struct pernet_operations ip_proc_ops = {
 	.init = ip_proc_init_net,
 	.exit = ip_proc_exit_net,
-	.async = true,
 };
 
 int __init ip_misc_proc_init(void)

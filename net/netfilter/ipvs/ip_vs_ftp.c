@@ -479,7 +479,6 @@ static void __ip_vs_ftp_exit(struct net *net)
 static struct pernet_operations ip_vs_ftp_ops = {
 	.init = __ip_vs_ftp_init,
 	.exit = __ip_vs_ftp_exit,
-	.async = true,
 };
 
 static int __init ip_vs_ftp_init(void)

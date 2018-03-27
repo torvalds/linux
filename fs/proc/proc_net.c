@@ -237,7 +237,6 @@ static __net_exit void proc_net_ns_exit(struct net *net)
 static struct pernet_operations __net_initdata proc_net_ns_ops = {
 	.init = proc_net_ns_init,
 	.exit = proc_net_ns_exit,
-	.async = true,
 };
 
 int __init proc_net_init(void)

@@ -401,7 +401,6 @@ static struct pernet_operations ipv6_net_ops = {
 	.exit = ipv6_net_exit,
 	.id = &conntrack6_net_id,
 	.size = sizeof(struct conntrack6_net),
-	.async = true,
 };
 
 static int __init nf_conntrack_l3proto_ipv6_init(void)

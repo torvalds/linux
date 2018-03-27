@@ -353,7 +353,6 @@ static struct pernet_operations xfrm6_tunnel_net_ops = {
 	.exit	= xfrm6_tunnel_net_exit,
 	.id	= &xfrm6_tunnel_net_id,
 	.size	= sizeof(struct xfrm6_tunnel_net),
-	.async	= true,
 };
 
 static int __init xfrm6_tunnel_init(void)

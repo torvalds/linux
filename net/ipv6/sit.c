@@ -1888,7 +1888,6 @@ static struct pernet_operations sit_net_ops = {
 	.exit_batch = sit_exit_batch_net,
 	.id   = &sit_net_id,
 	.size = sizeof(struct sit_net),
-	.async = true,
 };
 
 static void __exit sit_cleanup(void)

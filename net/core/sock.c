@@ -3175,7 +3175,6 @@ static void __net_exit sock_inuse_exit_net(struct net *net)
 static struct pernet_operations net_inuse_ops = {
 	.init = sock_inuse_init_net,
 	.exit = sock_inuse_exit_net,
-	.async = true,
 };
 
 static __init int net_inuse_init(void)
@@ -3470,7 +3469,6 @@ static __net_exit void proto_exit_net(struct net *net)
 static __net_initdata struct pernet_operations proto_net_ops = {
 	.init = proto_init_net,
 	.exit = proto_exit_net,
-	.async = true,
 };
 
 static int __init proto_init(void)

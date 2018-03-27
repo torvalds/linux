@@ -65,7 +65,6 @@ static void __net_exit arptable_filter_net_exit(struct net *net)
 
 static struct pernet_operations arptable_filter_net_ops = {
 	.exit = arptable_filter_net_exit,
-	.async = true,
 };
 
 static int __init arptable_filter_init(void)

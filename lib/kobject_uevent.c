@@ -724,7 +724,6 @@ static void uevent_net_exit(struct net *net)
 static struct pernet_operations uevent_net_ops = {
 	.init	= uevent_net_init,
 	.exit	= uevent_net_exit,
-	.async  = true,
 };
 
 static int __init kobject_uevent_init(void)

@@ -278,7 +278,6 @@ static void __net_exit ipv6_sysctl_net_exit(struct net *net)
 static struct pernet_operations ipv6_sysctl_net_ops = {
 	.init = ipv6_sysctl_net_init,
 	.exit = ipv6_sysctl_net_exit,
-	.async = true,
 };
 
 static struct ctl_table_header *ip6_header;

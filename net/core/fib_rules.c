@@ -1130,7 +1130,6 @@ static void __net_exit fib_rules_net_exit(struct net *net)
 static struct pernet_operations fib_rules_net_ops = {
 	.init = fib_rules_net_init,
 	.exit = fib_rules_net_exit,
-	.async = true,
 };
 
 static int __init fib_rules_init(void)

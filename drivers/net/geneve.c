@@ -1694,7 +1694,6 @@ static struct pernet_operations geneve_net_ops = {
 	.exit_batch = geneve_exit_batch_net,
 	.id   = &geneve_net_id,
 	.size = sizeof(struct geneve_net),
-	.async = true,
 };
 
 static int __init geneve_init_module(void)

@@ -40,12 +40,13 @@ struct net init_net = {
 EXPORT_SYMBOL(init_net);
 
 static bool init_net_initialized;
-static unsigned nr_sync_pernet_ops;
 /*
- * net_sem: protects: pernet_list, net_generic_ids, nr_sync_pernet_ops,
+ * pernet_ops_rwsem: protects: pernet_list, net_generic_ids,
  * init_net_initialized and first_device pointer.
+ * This is internal net namespace object. Please, don't use it
+ * outside.
  */
-DECLARE_RWSEM(net_sem);
+DECLARE_RWSEM(pernet_ops_rwsem);
 
 #define MIN_PERNET_OPS_ID	\
 	((sizeof(struct net_generic) + sizeof(void *) - 1) / sizeof(void *))
@@ -73,7 +74,7 @@ static int net_assign_generic(struct net *net, unsigned int id, void *data)
 	BUG_ON(id < MIN_PERNET_OPS_ID);
 
 	old_ng = rcu_dereference_protected(net->gen,
-					   lockdep_is_held(&net_sem));
+					   lockdep_is_held(&pernet_ops_rwsem));
 	if (old_ng->s.len > id) {
 		old_ng->ptr[id] = data;
 		return 0;
@@ -290,7 +291,7 @@ struct net *get_net_ns_by_id(struct net *net, int id)
  */
 static __net_init int setup_net(struct net *net, struct user_namespace *user_ns)
 {
-	/* Must be called with net_sem held */
+	/* Must be called with pernet_ops_rwsem held */
 	const struct pernet_operations *ops, *saved_ops;
 	int error = 0;
 	LIST_HEAD(net_exit_list);
@@ -339,7 +340,6 @@ static int __net_init net_defaults_init_net(struct net *net)
 
 static struct pernet_operations net_defaults_ops = {
 	.init = net_defaults_init_net,
-	.async = true,
 };
 
 static __init int net_defaults_init(void)
@@ -406,7 +406,6 @@ struct net *copy_net_ns(unsigned long flags,
 {
 	struct ucounts *ucounts;
 	struct net *net;
-	unsigned write;
 	int rv;
 
 	if (!(flags & CLONE_NEWNET))
@@ -424,25 +423,14 @@ struct net *copy_net_ns(unsigned long flags,
 	refcount_set(&net->passive, 1);
 	net->ucounts = ucounts;
 	get_user_ns(user_ns);
-again:
-	write = READ_ONCE(nr_sync_pernet_ops);
-	if (write)
-		rv = down_write_killable(&net_sem);
-	else
-		rv = down_read_killable(&net_sem);
+
+	rv = down_read_killable(&pernet_ops_rwsem);
 	if (rv < 0)
 		goto put_userns;
 
-	if (!write && unlikely(READ_ONCE(nr_sync_pernet_ops))) {
-		up_read(&net_sem);
-		goto again;
-	}
 	rv = setup_net(net, user_ns);
 
-	if (write)
-		up_write(&net_sem);
-	else
-		up_read(&net_sem);
+	up_read(&pernet_ops_rwsem);
 
 	if (rv < 0) {
 put_userns:
@@ -490,21 +478,11 @@ static void cleanup_net(struct work_struct *work)
 	struct net *net, *tmp, *last;
 	struct llist_node *net_kill_list;
 	LIST_HEAD(net_exit_list);
-	unsigned write;
 
 	/* Atomically snapshot the list of namespaces to cleanup */
 	net_kill_list = llist_del_all(&cleanup_list);
-again:
-	write = READ_ONCE(nr_sync_pernet_ops);
-	if (write)
-		down_write(&net_sem);
-	else
-		down_read(&net_sem);
 
-	if (!write && unlikely(READ_ONCE(nr_sync_pernet_ops))) {
-		up_read(&net_sem);
-		goto again;
-	}
+	down_read(&pernet_ops_rwsem);
 
 	/* Don't let anyone else find us. */
 	rtnl_lock();
@@ -543,10 +521,7 @@ again:
 	list_for_each_entry_reverse(ops, &pernet_list, list)
 		ops_free_list(ops, &net_exit_list);
 
-	if (write)
-		up_write(&net_sem);
-	else
-		up_read(&net_sem);
+	up_read(&pernet_ops_rwsem);
 
 	/* Ensure there are no outstanding rcu callbacks using this
 	 * network namespace.
@@ -573,8 +548,8 @@ again:
  */
 void net_ns_barrier(void)
 {
-	down_write(&net_sem);
-	up_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
+	up_write(&pernet_ops_rwsem);
 }
 EXPORT_SYMBOL(net_ns_barrier);
 
@@ -654,7 +629,6 @@ static __net_exit void net_ns_net_exit(struct net *net)
 static struct pernet_operations __net_initdata net_ns_ops = {
 	.init = net_ns_net_init,
 	.exit = net_ns_net_exit,
-	.async = true,
 };
 
 static const struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {
@@ -897,12 +871,12 @@ static int __init net_ns_init(void)
 
 	rcu_assign_pointer(init_net.gen, ng);
 
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	if (setup_net(&init_net, &init_user_ns))
 		panic("Could not setup the initial network namespace");
 
 	init_net_initialized = true;
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 
 	register_pernet_subsys(&net_ns_ops);
 
@@ -1006,9 +980,6 @@ again:
 		rcu_barrier();
 		if (ops->id)
 			ida_remove(&net_generic_ids, *ops->id);
-	} else if (!ops->async) {
-		pr_info_once("Pernet operations %ps are sync.\n", ops);
-		nr_sync_pernet_ops++;
 	}
 
 	return error;
@@ -1016,8 +987,6 @@ again:
 
 static void unregister_pernet_operations(struct pernet_operations *ops)
 {
-	if (!ops->async)
-		BUG_ON(nr_sync_pernet_ops-- == 0);
 	__unregister_pernet_operations(ops);
 	rcu_barrier();
 	if (ops->id)
@@ -1046,9 +1015,9 @@ static void unregister_pernet_operations(struct pernet_operations *ops)
 int register_pernet_subsys(struct pernet_operations *ops)
 {
 	int error;
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	error =  register_pernet_operations(first_device, ops);
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 	return error;
 }
 EXPORT_SYMBOL_GPL(register_pernet_subsys);
@@ -1064,9 +1033,9 @@ EXPORT_SYMBOL_GPL(register_pernet_subsys);
  */
 void unregister_pernet_subsys(struct pernet_operations *ops)
 {
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	unregister_pernet_operations(ops);
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_subsys);
 
@@ -1092,11 +1061,11 @@ EXPORT_SYMBOL_GPL(unregister_pernet_subsys);
 int register_pernet_device(struct pernet_operations *ops)
 {
 	int error;
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	error = register_pernet_operations(&pernet_list, ops);
 	if (!error && (first_device == &pernet_list))
 		first_device = &ops->list;
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 	return error;
 }
 EXPORT_SYMBOL_GPL(register_pernet_device);
@@ -1112,11 +1081,11 @@ EXPORT_SYMBOL_GPL(register_pernet_device);
  */
 void unregister_pernet_device(struct pernet_operations *ops)
 {
-	down_write(&net_sem);
+	down_write(&pernet_ops_rwsem);
 	if (&ops->list == first_device)
 		first_device = first_device->next;
 	unregister_pernet_operations(ops);
-	up_write(&net_sem);
+	up_write(&pernet_ops_rwsem);
 }
 EXPORT_SYMBOL_GPL(unregister_pernet_device);
 

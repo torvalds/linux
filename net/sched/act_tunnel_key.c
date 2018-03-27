@@ -339,7 +339,6 @@ static struct pernet_operations tunnel_key_net_ops = {
 	.exit_batch = tunnel_key_exit_net,
 	.id   = &tunnel_key_net_id,
 	.size = sizeof(struct tc_action_net),
-	.async = true,
 };
 
 static int __init tunnel_key_init_module(void)

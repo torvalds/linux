@@ -1332,7 +1332,6 @@ static void __net_exit raw6_exit_net(struct net *net)
 static struct pernet_operations raw6_net_ops = {
 	.init = raw6_init_net,
 	.exit = raw6_exit_net,
-	.async = true,
 };
 
 int __init raw6_proc_init(void)

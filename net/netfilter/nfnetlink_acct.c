@@ -515,7 +515,6 @@ static void __net_exit nfnl_acct_net_exit(struct net *net)
 static struct pernet_operations nfnl_acct_ops = {
         .init   = nfnl_acct_net_init,
         .exit   = nfnl_acct_net_exit,
-	.async	= true,
 };
 
 static int __init nfnl_acct_init(void)

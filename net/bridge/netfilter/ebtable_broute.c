@@ -77,7 +77,6 @@ static void __net_exit broute_net_exit(struct net *net)
 static struct pernet_operations broute_net_ops = {
 	.init = broute_net_init,
 	.exit = broute_net_exit,
-	.async = true,
 };
 
 static int __init ebtable_broute_init(void)

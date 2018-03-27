@@ -566,7 +566,6 @@ static void __net_exit nfnetlink_net_exit_batch(struct list_head *net_exit_list)
 static struct pernet_operations nfnetlink_net_ops = {
 	.init		= nfnetlink_net_init,
 	.exit_batch	= nfnetlink_net_exit_batch,
-	.async		= true,
 };
 
 static int __init nfnetlink_init(void)

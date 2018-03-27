@@ -709,7 +709,6 @@ static struct pernet_operations lockd_net_ops = {
 	.exit = lockd_exit_net,
 	.id = &lockd_net_id,
 	.size = sizeof(struct lockd_net),
-	.async = true,
 };
 
 

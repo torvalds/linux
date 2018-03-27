@@ -5083,7 +5083,6 @@ static void __net_exit ip6_route_net_exit_late(struct net *net)
 static struct pernet_operations ip6_route_net_ops = {
 	.init = ip6_route_net_init,
 	.exit = ip6_route_net_exit,
-	.async = true,
 };
 
 static int __net_init ipv6_inetpeer_init(struct net *net)
@@ -5109,13 +5108,11 @@ static void __net_exit ipv6_inetpeer_exit(struct net *net)
 static struct pernet_operations ipv6_inetpeer_ops = {
 	.init	=	ipv6_inetpeer_init,
 	.exit	=	ipv6_inetpeer_exit,
-	.async	=	true,
 };
 
 static struct pernet_operations ip6_route_net_late_ops = {
 	.init = ip6_route_net_init_late,
 	.exit = ip6_route_net_exit_late,
-	.async = true,
 };
 
 static struct notifier_block ip6_route_dev_notifier = {

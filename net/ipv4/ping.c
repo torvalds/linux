@@ -1204,7 +1204,6 @@ static void __net_exit ping_v4_proc_exit_net(struct net *net)
 static struct pernet_operations ping_v4_net_ops = {
 	.init = ping_v4_proc_init_net,
 	.exit = ping_v4_proc_exit_net,
-	.async = true,
 };
 
 int __init ping_proc_init(void)
