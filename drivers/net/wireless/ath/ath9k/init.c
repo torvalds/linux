@@ -257,6 +257,11 @@ static void ath9k_reg_notifier(struct wiphy *wiphy,
 
 	ath_reg_notifier_apply(wiphy, request, reg);
 
+	/* synchronize DFS detector if regulatory domain changed */
+	if (sc->dfs_detector != NULL)
+		sc->dfs_detector->set_dfs_domain(sc->dfs_detector,
+						 request->dfs_region);
+
 	/* Set tx power */
 	if (!ah->curchan)
 		return;
@@ -267,10 +272,6 @@ static void ath9k_reg_notifier(struct wiphy *wiphy,
 	ath9k_cmn_update_txpow(ah, sc->cur_chan->cur_txpower,
 			       sc->cur_chan->txpower,
 			       &sc->cur_chan->cur_txpower);
-	/* synchronize DFS detector if regulatory domain changed */
-	if (sc->dfs_detector != NULL)
-		sc->dfs_detector->set_dfs_domain(sc->dfs_detector,
-						 request->dfs_region);
 	ath9k_ps_restore(sc);
 }
 
