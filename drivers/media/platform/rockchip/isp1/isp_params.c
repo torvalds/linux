@@ -243,7 +243,7 @@ __lsc_correct_matrix_config(struct rkisp1_isp_params_vdev *params_vdev,
 		 * 17 sectors with 2 values in one DWORD = 9
 		 * DWORDs (2nd value of last DWORD unused)
 		 */
-		for (j = 0; j < (CIF_ISP_LSC_SECTORS_MAX + 1); j += 2) {
+		for (j = 0; j < (CIF_ISP_LSC_SECTORS_MAX); j += 2) {
 			data = CIF_ISP_LSC_TABLE_DATA(
 					pconfig->r_data_tbl[i + j],
 					pconfig->r_data_tbl[i + j + 1]);
@@ -268,8 +268,30 @@ __lsc_correct_matrix_config(struct rkisp1_isp_params_vdev *params_vdev,
 			rkisp1_iowrite32(params_vdev, data,
 					 CIF_ISP_LSC_B_TABLE_DATA);
 		}
-	}
+		data = CIF_ISP_LSC_TABLE_DATA(
+				pconfig->r_data_tbl[i + CIF_ISP_LSC_SECTORS_MAX],
+				0);
+		rkisp1_iowrite32(params_vdev, data,
+				 CIF_ISP_LSC_R_TABLE_DATA);
 
+		data = CIF_ISP_LSC_TABLE_DATA(
+				pconfig->gr_data_tbl[i + CIF_ISP_LSC_SECTORS_MAX],
+				0);
+		rkisp1_iowrite32(params_vdev, data,
+				 CIF_ISP_LSC_GR_TABLE_DATA);
+
+		data = CIF_ISP_LSC_TABLE_DATA(
+				pconfig->gb_data_tbl[i + CIF_ISP_LSC_SECTORS_MAX],
+				0);
+		rkisp1_iowrite32(params_vdev, data,
+				 CIF_ISP_LSC_GB_TABLE_DATA);
+
+		data = CIF_ISP_LSC_TABLE_DATA(
+				pconfig->b_data_tbl[i + CIF_ISP_LSC_SECTORS_MAX],
+				0);
+		rkisp1_iowrite32(params_vdev, data,
+				 CIF_ISP_LSC_B_TABLE_DATA);
+	}
 	isp_lsc_table_sel = (isp_lsc_status & CIF_ISP_LSC_ACTIVE_TABLE) ?
 				CIF_ISP_LSC_TABLE_0 : CIF_ISP_LSC_TABLE_1;
 	rkisp1_iowrite32(params_vdev, isp_lsc_table_sel, CIF_ISP_LSC_TABLE_SEL);
