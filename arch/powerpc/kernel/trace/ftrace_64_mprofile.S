@@ -17,7 +17,6 @@
 #include <asm/bug.h>
 #include <asm/ptrace.h>
 
-#ifdef CONFIG_DYNAMIC_FTRACE
 /*
  *
  * ftrace_caller()/ftrace_regs_caller() is the function that replaces _mcount()
@@ -310,8 +309,6 @@ livepatch_handler:
 	/* Return to original caller of live patched function */
 	blr
 #endif /* CONFIG_LIVEPATCH */
-
-#endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 _GLOBAL(ftrace_graph_caller)

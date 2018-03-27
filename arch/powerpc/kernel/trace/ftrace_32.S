@@ -14,7 +14,6 @@
 #include <asm/ftrace.h>
 #include <asm/export.h>
 
-#ifdef CONFIG_DYNAMIC_FTRACE
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
 	/*
@@ -47,26 +46,7 @@ _GLOBAL(ftrace_graph_stub)
 	MCOUNT_RESTORE_FRAME
 	/* old link register ends up in ctr reg */
 	bctr
-#else
-_GLOBAL(mcount)
-_GLOBAL(_mcount)
 
-	MCOUNT_SAVE_FRAME
-
-	subi	r3, r3, MCOUNT_INSN_SIZE
-	LOAD_REG_ADDR(r5, ftrace_trace_function)
-	lwz	r5,0(r5)
-
-	mtctr	r5
-	bctrl
-	nop
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	b	ftrace_graph_caller
-#endif
-	MCOUNT_RESTORE_FRAME
-	bctr
-#endif
 EXPORT_SYMBOL(_mcount)
 
 _GLOBAL(ftrace_stub)

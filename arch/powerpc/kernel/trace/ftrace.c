@@ -662,7 +662,6 @@ int __init ftrace_dyn_arch_init(void)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
-#ifdef CONFIG_DYNAMIC_FTRACE
 extern void ftrace_graph_call(void);
 extern void ftrace_graph_stub(void);
 
@@ -691,7 +690,6 @@ int ftrace_disable_ftrace_graph_caller(void)
 
 	return ftrace_modify_code(ip, old, new);
 }
-#endif /* CONFIG_DYNAMIC_FTRACE */
 
 /*
  * Hook the return address and push it in the stack of return addrs
