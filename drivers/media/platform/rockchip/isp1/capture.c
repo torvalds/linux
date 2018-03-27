@@ -1576,12 +1576,10 @@ static int rkisp1_s_selection(struct file *file, void *prv,
 	if (sel->flags != 0)
 		return -EINVAL;
 
-	if (sel->target == V4L2_SEL_TGT_CROP) {
-		*dcrop = *rkisp1_update_crop(stream, &sel->r, input_win);
-		v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
-			 "stream %d crop(%d,%d)/%dx%d\n", stream->id,
-			 dcrop->left, dcrop->top, dcrop->width, dcrop->height);
-	}
+	*dcrop = *rkisp1_update_crop(stream, &sel->r, input_win);
+	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
+		 "stream %d crop(%d,%d)/%dx%d\n", stream->id,
+		 dcrop->left, dcrop->top, dcrop->width, dcrop->height);
 
 	return 0;
 }
@@ -1661,7 +1659,6 @@ static int rkisp1_register_stream_vdev(struct rkisp1_stream *stream)
 	vdev->vfl_dir = VFL_DIR_RX;
 	node->pad.flags = MEDIA_PAD_FL_SINK;
 
-	dev->alloc_ctx = vb2_dma_contig_init_ctx(v4l2_dev->dev);
 	rkisp_init_vb2_queue(&node->buf_queue, stream,
 			     V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
 	vdev->queue = &node->buf_queue;
