@@ -90,8 +90,8 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 {
 	struct adapter *padapter = precvframe->u.hdr.adapter;
 	struct rx_pkt_attrib *pattrib = &precvframe->u.hdr.attrib;
-	struct hal_com_data *pHalData = GET_HAL_DATA(padapter);
-	PODM_PHY_INFO_T pPHYInfo = (PODM_PHY_INFO_T)(&pattrib->phy_info);
+	struct hal_com_data *p_hal_data = GET_HAL_DATA(padapter);
+	PODM_PHY_INFO_T p_phy_info = (PODM_PHY_INFO_T)(&pattrib->phy_info);
 
 	u8 *wlanhdr;
 	ODM_PACKET_INFO_T pkt_info;
@@ -128,11 +128,11 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 	pkt_info.DataRate = pattrib->data_rate;
 
 	/* rtl8723b_query_rx_phy_status(precvframe, pphy_status); */
-	/* spin_lock_bh(&pHalData->odm_stainfo_lock); */
-	ODM_PhyStatusQuery(&pHalData->odmpriv, pPHYInfo, (u8 *)pphy_status, &(pkt_info));
+	/* spin_lock_bh(&p_hal_data->odm_stainfo_lock); */
+	ODM_PhyStatusQuery(&p_hal_data->odmpriv, p_phy_info, (u8 *)pphy_status, &(pkt_info));
 	if (psta)
 		psta->rssi = pattrib->phy_info.RecvSignalPower;
-	/* spin_unlock_bh(&pHalData->odm_stainfo_lock); */
+	/* spin_unlock_bh(&p_hal_data->odm_stainfo_lock); */
 	precvframe->u.hdr.psta = NULL;
 	if (
 		pkt_info.bPacketMatchBSSID &&
@@ -152,7 +152,7 @@ static void update_recvframe_phyinfo(union recv_frame *precvframe,
 
 static void rtl8723bs_c2h_packet_handler(struct adapter *padapter, u8 *pbuf, u16 length)
 {
-	u8 *tmpBuf = NULL;
+	u8 *tmp = NULL;
 	u8 res = false;
 
 	if (length == 0)
@@ -160,16 +160,16 @@ static void rtl8723bs_c2h_packet_handler(struct adapter *padapter, u8 *pbuf, u16
 
 	/* DBG_871X("+%s() length =%d\n", __func__, length); */
 
-	tmpBuf = rtw_zmalloc(length);
-	if (tmpBuf == NULL)
+	tmp = rtw_zmalloc(length);
+	if (tmp == NULL)
 		return;
 
-	memcpy(tmpBuf, pbuf, length);
+	memcpy(tmp, pbuf, length);
 
-	res = rtw_c2h_packet_wk_cmd(padapter, tmpBuf, length);
+	res = rtw_c2h_packet_wk_cmd(padapter, tmp, length);
 
 	if (res == false)
-		kfree(tmpBuf);
+		kfree(tmp);
 
 	/* DBG_871X("-%s res(%d)\n", __func__, res); */
 
@@ -179,7 +179,7 @@ static void rtl8723bs_c2h_packet_handler(struct adapter *padapter, u8 *pbuf, u16
 static void rtl8723bs_recv_tasklet(void *priv)
 {
 	struct adapter *padapter;
-	struct hal_com_data *pHalData;
+	struct hal_com_data *p_hal_data;
 	struct recv_priv *precvpriv;
 	struct recv_buf *precvbuf;
 	union recv_frame *precvframe;
@@ -191,7 +191,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 
 
 	padapter = priv;
-	pHalData = GET_HAL_DATA(padapter);
+	p_hal_data = GET_HAL_DATA(padapter);
 	precvpriv = &padapter->recvpriv;
 
 	do {
@@ -219,7 +219,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 			pattrib = &precvframe->u.hdr.attrib;
 
 			/*  fix Hardware RX data error, drop whole recv_buffer */
-			if ((!(pHalData->ReceiveConfig & RCR_ACRC32)) && pattrib->crc_err) {
+			if ((!(p_hal_data->ReceiveConfig & RCR_ACRC32)) && pattrib->crc_err) {
 				DBG_8192C("%s()-%d: RX Warning! rx CRC ERROR !!\n", __func__, __LINE__);
 				rtw_free_recvframe(precvframe, &precvpriv->free_recv_queue);
 				break;
@@ -300,14 +300,14 @@ static void rtl8723bs_recv_tasklet(void *priv)
 				recvframe_put(precvframe, skb_len);
 				/* recvframe_pull(precvframe, drvinfo_sz + RXDESC_SIZE); */
 
-				if (pHalData->ReceiveConfig & RCR_APPFCS)
+				if (p_hal_data->ReceiveConfig & RCR_APPFCS)
 					recvframe_pull_tail(precvframe, IEEE80211_FCS_LEN);
 
 				/*  move to drv info position */
 				ptr += RXDESC_SIZE;
 
 				/*  update drv info */
-				if (pHalData->ReceiveConfig & RCR_APP_BA_SSN) {
+				if (p_hal_data->ReceiveConfig & RCR_APP_BA_SSN) {
 					/* rtl8723s_update_bassn(padapter, pdrvinfo); */
 					ptr += 4;
 				}
