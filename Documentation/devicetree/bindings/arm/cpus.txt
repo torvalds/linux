@@ -198,6 +198,7 @@ described below.
 			    "actions,s500-smp"
 			    "allwinner,sun6i-a31"
 			    "allwinner,sun8i-a23"
+			    "allwinner,sun9i-a80-smp"
 			    "amlogic,meson8-smp"
 			    "amlogic,meson8b-smp"
 			    "arm,realview-smp"
