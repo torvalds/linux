@@ -1553,6 +1553,9 @@ static void try_set_reg(struct vpu_subdev_data *data)
 {
 	struct vpu_service_info *pservice = data->pservice;
 	int reset_request = atomic_read(&pservice->reset_request);
+	struct vpu_reg *reg_codec = pservice->reg_codec;
+	struct vpu_reg *reg_pproc = pservice->reg_pproc;
+	bool change_able = (!reg_codec) && (!reg_pproc);
 
 	vpu_debug_enter();
 
@@ -1562,7 +1565,7 @@ static void try_set_reg(struct vpu_subdev_data *data)
 		return;
 	}
 
-	if (reset_request) {
+	if (change_able && reset_request) {
 		vpu_service_power_on(data, pservice);
 		mutex_lock(&pservice->reset_lock);
 		vpu_reset(data);
@@ -1570,10 +1573,7 @@ static void try_set_reg(struct vpu_subdev_data *data)
 	}
 
 	if (!list_empty(&pservice->waiting)) {
-		struct vpu_reg *reg_codec = pservice->reg_codec;
-		struct vpu_reg *reg_pproc = pservice->reg_pproc;
 		int can_set = 0;
-		bool change_able = (reg_codec == NULL) && (reg_pproc == NULL);
 		struct vpu_reg *reg = list_entry(pservice->waiting.next,
 				struct vpu_reg, status_link);
 
