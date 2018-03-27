@@ -43,7 +43,7 @@ Example:
 			  0x1 0x0 0x0 0xffa00000 0x00010000
 			  0x3 0x0 0x0 0xffb00000 0x00020000>;
 
-		flash@0 {
+		flash@0,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "cfi-flash";
@@ -58,7 +58,7 @@ Example:
 			};
 		};
 
-		flash@100000000 {
+		flash@1,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,ifc-nand";
@@ -73,7 +73,7 @@ Example:
 			};
 		};
 
-		cpld@@300000000 {
+		cpld@3,0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "fsl,p1010rdb-cpld";

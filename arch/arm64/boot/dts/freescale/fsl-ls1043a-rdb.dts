@@ -97,7 +97,7 @@
 		  0x1 0x0 0x0 0x7e800000 0x00010000
 		  0x2 0x0 0x0 0x7fb00000 0x00000100>;
 
-		nor@0 {
+		nor@0,0 {
 			compatible = "cfi-flash";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -106,14 +106,14 @@
 			device-width = <1>;
 		};
 
-		nand@100000000 {
+		nand@1,0 {
 			compatible = "fsl,ifc-nand";
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x1 0x0 0x10000>;
 		};
 
-		cpld: board-control@200000000 {
+		cpld: board-control@2,0 {
 			compatible = "fsl,ls1043ardb-cpld";
 			reg = <0x2 0x0 0x0000100>;
 		};

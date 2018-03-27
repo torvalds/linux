@@ -58,7 +58,7 @@
 		  0x2 0x0 0x5 0x30000000 0x00010000
 		  0x3 0x0 0x5 0x20000000 0x00010000>;
 
-	nor@0 {
+	nor@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "cfi-flash";
@@ -67,12 +67,12 @@
 		device-width = <1>;
 	};
 
-	nand@200000000 {
+	nand@2,0 {
 	     compatible = "fsl,ifc-nand";
 	     reg = <0x2 0x0 0x10000>;
 	};
 
-	cpld@300000000 {
+	cpld@3,0 {
 	     reg = <0x3 0x0 0x10000>;
 	     compatible = "fsl,ls2080aqds-fpga", "fsl,fpga-qixis";
 	};

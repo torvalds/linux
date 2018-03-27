@@ -99,12 +99,12 @@
 		  2 0 0x5 0x20000000 0x00010000>;
 	status = "okay";
 
-	nand@0 {
+	nand@0,0 {
 		compatible = "fsl,ifc-nand";
 		reg = <0x0 0x0 0x10000>;
 	};
 
-	fpga: board-control@200000000 {
+	fpga: board-control@2,0 {
 		compatible = "fsl,ls1088ardb-fpga", "fsl,fpga-qixis";
 		reg = <0x2 0x0 0x0000100>;
 	};

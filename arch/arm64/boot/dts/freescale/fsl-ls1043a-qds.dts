@@ -84,19 +84,19 @@
 		  0x2 0x0 0x0 0x7fb00000 0x00000100>;
 	status = "okay";
 
-	nor@0 {
+	nor@0,0 {
 		compatible = "cfi-flash";
 		reg = <0x0 0x0 0x8000000>;
 		bank-width = <2>;
 		device-width = <1>;
 	};
 
-	nand@100000000 {
+	nand@1,0 {
 		compatible = "fsl,ifc-nand";
 		reg = <0x1 0x0 0x10000>;
 	};
 
-	fpga: board-control@200000000 {
+	fpga: board-control@2,0 {
 		compatible = "fsl,ls1043aqds-fpga", "fsl,fpga-qixis";
 		reg = <0x2 0x0 0x0000100>;
 	};
