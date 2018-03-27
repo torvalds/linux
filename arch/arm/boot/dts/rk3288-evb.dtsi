@@ -363,9 +363,7 @@
 
 &sdio0 {
 	status = "okay";
-
-	clock-frequency = <50000000>;
-	clock-freq-min-max = <200000 50000000>;
+	max-frequency = <150000000>;
 
 	bus-width = <4>;
 	cap-sd-highspeed;
