@@ -454,13 +454,9 @@ static struct svc_xprt *svc_xprt_dequeue(struct svc_pool *pool)
 					struct svc_xprt, xpt_ready);
 		list_del_init(&xprt->xpt_ready);
 		svc_xprt_get(xprt);
-
-		dprintk("svc: transport %p dequeued, inuse=%d\n",
-			xprt, kref_read(&xprt->xpt_ref));
 	}
 	spin_unlock_bh(&pool->sp_lock);
 out:
-	trace_svc_xprt_dequeue(xprt);
 	return xprt;
 }
 
@@ -734,6 +730,7 @@ out_found:
 		rqstp->rq_chandle.thread_wait = 5*HZ;
 	else
 		rqstp->rq_chandle.thread_wait = 1*HZ;
+	trace_svc_xprt_dequeue(rqstp->rq_xprt);
 	return rqstp->rq_xprt;
 }
 
