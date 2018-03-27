@@ -985,11 +985,19 @@ static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
 		struct dwc3_request *req, unsigned chain, unsigned node)
 {
 	struct dwc3_trb		*trb;
-	unsigned		length = req->request.length;
+	unsigned int		length;
+	dma_addr_t		dma;
 	unsigned		stream_id = req->request.stream_id;
 	unsigned		short_not_ok = req->request.short_not_ok;
 	unsigned		no_interrupt = req->request.no_interrupt;
-	dma_addr_t		dma = req->request.dma;
+
+	if (req->request.num_sgs > 0) {
+		length = sg_dma_len(req->start_sg);
+		dma = sg_dma_address(req->start_sg);
+	} else {
+		length = req->request.length;
+		dma = req->request.dma;
+	}
 
 	trb = &dep->trb_pool[dep->trb_enqueue];
 
@@ -1055,7 +1063,7 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
 static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 		struct dwc3_request *req)
 {
-	struct scatterlist *sg = req->sg;
+	struct scatterlist *sg = req->start_sg;
 	struct scatterlist *s;
 	int		i;
 
@@ -1087,6 +1095,16 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 		} else {
 			dwc3_prepare_one_trb(dep, req, chain, i);
 		}
+
+		/*
+		 * There can be a situation where all sgs in sglist are not
+		 * queued because of insufficient trb number. To handle this
+		 * case, update start_sg to next sg to be queued, so that
+		 * we have free trbs we can continue queuing from where we
+		 * previously stopped
+		 */
+		if (chain)
+			req->start_sg = sg_next(s);
 
 		if (!dwc3_calc_trbs_left(dep))
 			break;
@@ -1178,6 +1196,7 @@ static void dwc3_prepare_trbs(struct dwc3_ep *dep)
 			return;
 
 		req->sg			= req->request.sg;
+		req->start_sg		= req->sg;
 		req->num_pending_sgs	= req->request.num_mapped_sgs;
 
 		if (req->num_pending_sgs > 0)
