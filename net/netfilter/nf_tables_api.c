@@ -6584,6 +6584,8 @@ static int __init nf_tables_module_init(void)
 {
 	int err;
 
+	nft_chain_filter_init();
+
 	info = kmalloc(sizeof(struct nft_expr_info) * NFT_RULE_MAXEXPRS,
 		       GFP_KERNEL);
 	if (info == NULL) {
@@ -6618,6 +6620,7 @@ static void __exit nf_tables_module_exit(void)
 	rcu_barrier();
 	nf_tables_core_module_exit();
 	kfree(info);
+	nft_chain_filter_fini();
 }
 
 module_init(nf_tables_module_init);
