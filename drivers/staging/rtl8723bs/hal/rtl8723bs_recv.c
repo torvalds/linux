@@ -259,7 +259,7 @@ static void rtl8723bs_recv_tasklet(void *priv)
 
 	do {
 		precvbuf = rtw_dequeue_recvbuf(recv_buf_queue);
-		if (NULL == precvbuf)
+		if (!precvbuf)
 			break;
 
 		ptr = precvbuf->pdata;
