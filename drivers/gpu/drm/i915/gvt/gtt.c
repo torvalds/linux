@@ -530,6 +530,16 @@ static void ggtt_set_guest_entry(struct intel_vgpu_mm *mm,
 			   false, 0, mm->vgpu);
 }
 
+static void ggtt_get_host_entry(struct intel_vgpu_mm *mm,
+		struct intel_gvt_gtt_entry *entry, unsigned long index)
+{
+	struct intel_gvt_gtt_pte_ops *pte_ops = mm->vgpu->gvt->gtt.pte_ops;
+
+	GEM_BUG_ON(mm->type != INTEL_GVT_MM_GGTT);
+
+	pte_ops->get_entry(NULL, entry, index, false, 0, mm->vgpu);
+}
+
 static void ggtt_set_host_entry(struct intel_vgpu_mm *mm,
 		struct intel_gvt_gtt_entry *entry, unsigned long index)
 {
@@ -1818,6 +1828,18 @@ int intel_vgpu_emulate_ggtt_mmio_read(struct intel_vgpu *vgpu, unsigned int off,
 	return ret;
 }
 
+static void ggtt_invalidate_pte(struct intel_vgpu *vgpu,
+		struct intel_gvt_gtt_entry *entry)
+{
+	struct intel_gvt_gtt_pte_ops *pte_ops = vgpu->gvt->gtt.pte_ops;
+	unsigned long pfn;
+
+	pfn = pte_ops->get_pfn(entry);
+	if (pfn != vgpu->gvt->gtt.scratch_mfn)
+		intel_gvt_hypervisor_dma_unmap_guest_page(vgpu,
+						pfn << PAGE_SHIFT);
+}
+
 static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	void *p_data, unsigned int bytes)
 {
@@ -1844,10 +1866,10 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 
 	memcpy((void *)&e.val64 + (off & (info->gtt_entry_size - 1)), p_data,
 			bytes);
-	m = e;
 
 	if (ops->test_present(&e)) {
 		gfn = ops->get_pfn(&e);
+		m = e;
 
 		/* one PTE update may be issued in multiple writes and the
 		 * first write may not construct a valid gfn
@@ -1868,8 +1890,12 @@ static int emulate_ggtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 			ops->set_pfn(&m, gvt->gtt.scratch_mfn);
 		} else
 			ops->set_pfn(&m, dma_addr >> PAGE_SHIFT);
-	} else
+	} else {
+		ggtt_get_host_entry(ggtt_mm, &m, g_gtt_index);
+		ggtt_invalidate_pte(vgpu, &m);
 		ops->set_pfn(&m, gvt->gtt.scratch_mfn);
+		ops->clear_present(&m);
+	}
 
 out:
 	ggtt_set_host_entry(ggtt_mm, &m, g_gtt_index);
