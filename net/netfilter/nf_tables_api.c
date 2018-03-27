@@ -859,22 +859,18 @@ static void nf_tables_table_destroy(struct nft_ctx *ctx)
 	kfree(ctx->table);
 }
 
-int nft_register_chain_type(const struct nft_chain_type *ctype)
+void nft_register_chain_type(const struct nft_chain_type *ctype)
 {
-	int err = 0;
-
 	if (WARN_ON(ctype->family >= NFPROTO_NUMPROTO))
-		return -EINVAL;
+		return;
 
 	nfnl_lock(NFNL_SUBSYS_NFTABLES);
-	if (chain_type[ctype->family][ctype->type] != NULL) {
-		err = -EBUSY;
-		goto out;
+	if (WARN_ON(chain_type[ctype->family][ctype->type] != NULL)) {
+		nfnl_unlock(NFNL_SUBSYS_NFTABLES);
+		return;
 	}
 	chain_type[ctype->family][ctype->type] = ctype;
-out:
 	nfnl_unlock(NFNL_SUBSYS_NFTABLES);
-	return err;
 }
 EXPORT_SYMBOL_GPL(nft_register_chain_type);
 

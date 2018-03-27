@@ -112,9 +112,7 @@ static int __init nf_tables_netdev_init(void)
 {
 	int ret;
 
-	ret = nft_register_chain_type(&nft_filter_chain_netdev);
-	if (ret)
-		return ret;
+	nft_register_chain_type(&nft_filter_chain_netdev);
 
 	ret = register_netdevice_notifier(&nf_tables_netdev_notifier);
 	if (ret)

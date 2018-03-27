@@ -84,11 +84,7 @@ static const struct nft_chain_type nft_chain_nat_ipv6 = {
 
 static int __init nft_chain_nat_ipv6_init(void)
 {
-	int err;
-
-	err = nft_register_chain_type(&nft_chain_nat_ipv6);
-	if (err < 0)
-		return err;
+	nft_register_chain_type(&nft_chain_nat_ipv6);
 
 	return 0;
 }

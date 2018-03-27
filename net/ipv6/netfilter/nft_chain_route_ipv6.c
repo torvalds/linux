@@ -73,7 +73,9 @@ static const struct nft_chain_type nft_chain_route_ipv6 = {
 
 static int __init nft_chain_route_init(void)
 {
-	return nft_register_chain_type(&nft_chain_route_ipv6);
+	nft_register_chain_type(&nft_chain_route_ipv6);
+
+	return 0;
 }
 
 static void __exit nft_chain_route_exit(void)

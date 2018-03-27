@@ -63,7 +63,9 @@ static const struct nft_chain_type filter_bridge = {
 
 static int __init nf_tables_bridge_init(void)
 {
-	return nft_register_chain_type(&filter_bridge);
+	nft_register_chain_type(&filter_bridge);
+
+	return 0;
 }
 
 static void __exit nf_tables_bridge_exit(void)

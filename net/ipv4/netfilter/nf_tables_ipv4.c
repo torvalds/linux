@@ -51,7 +51,9 @@ static const struct nft_chain_type filter_ipv4 = {
 
 static int __init nf_tables_ipv4_init(void)
 {
-	return nft_register_chain_type(&filter_ipv4);
+	nft_register_chain_type(&filter_ipv4);
+
+	return 0;
 }
 
 static void __exit nf_tables_ipv4_exit(void)

@@ -59,7 +59,9 @@ static const struct nft_chain_type filter_inet = {
 
 static int __init nf_tables_inet_init(void)
 {
-	return nft_register_chain_type(&filter_inet);
+	nft_register_chain_type(&filter_inet);
+
+	return 0;
 }
 
 static void __exit nf_tables_inet_exit(void)

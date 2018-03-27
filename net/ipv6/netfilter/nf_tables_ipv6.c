@@ -49,7 +49,9 @@ static const struct nft_chain_type filter_ipv6 = {
 
 static int __init nf_tables_ipv6_init(void)
 {
-	return nft_register_chain_type(&filter_ipv6);
+	nft_register_chain_type(&filter_ipv6);
+
+	return 0;
 }
 
 static void __exit nf_tables_ipv6_exit(void)

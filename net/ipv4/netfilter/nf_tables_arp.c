@@ -42,7 +42,9 @@ static const struct nft_chain_type filter_arp = {
 
 static int __init nf_tables_arp_init(void)
 {
-	return nft_register_chain_type(&filter_arp);
+	nft_register_chain_type(&filter_arp);
+
+	return 0;
 }
 
 static void __exit nf_tables_arp_exit(void)

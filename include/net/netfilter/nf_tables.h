@@ -970,7 +970,7 @@ struct nft_table {
 	char				*name;
 };
 
-int nft_register_chain_type(const struct nft_chain_type *);
+void nft_register_chain_type(const struct nft_chain_type *);
 void nft_unregister_chain_type(const struct nft_chain_type *);
 
 int nft_register_expr(struct nft_expr_type *);
