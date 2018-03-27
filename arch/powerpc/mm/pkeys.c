@@ -308,9 +308,9 @@ void thread_pkey_regs_init(struct thread_struct *thread)
 	if (static_branch_likely(&pkey_disabled))
 		return;
 
-	write_amr(read_amr() & pkey_amr_uamor_mask);
-	write_iamr(read_iamr() & pkey_iamr_mask);
-	write_uamor(read_uamor() & pkey_amr_uamor_mask);
+	thread->amr = read_amr() & pkey_amr_uamor_mask;
+	thread->iamr = read_iamr() & pkey_iamr_mask;
+	thread->uamor = read_uamor() & pkey_amr_uamor_mask;
 }
 
 static inline bool pkey_allows_readwrite(int pkey)
