@@ -235,6 +235,18 @@ gdb
 
       $ gdb ./vmlinux
 
+      (gdb) list *(do_panic+0x8)
+      0xc1244138 is in do_panic (lib/test_panic.c:8).
+      3	
+      4	static struct timer_list panic_timer;
+      5	
+      6	static void do_panic(struct timer_list *unused)
+      7	{
+      8		*(int*)0x42 = 'a';
+      9	}
+      10	
+      11	static int so2_panic_init(void)
+      
 Kernel panic
 ------------
 
@@ -463,6 +475,13 @@ Lockdep checker
    * lock inversion
    * cyclic dependency
    * incorrect usage of locks
+
+.. slide:: perf
+
+   * performance counters, tracepoints, kprobes, uprobes
+   * hardware events: CPU cycles, TLB misses, cache misses
+   * software events: page fauls , context switches
+   * collects backtraces (user + kernel)
 
 Other tools
 ===========
