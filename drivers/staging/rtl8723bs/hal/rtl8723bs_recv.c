@@ -29,9 +29,9 @@ static s32 initrecvbuf(struct recv_buf *precvbuf, struct adapter *padapter)
 	return _SUCCESS;
 }
 
-static void update_recvframe_attrib(
-	struct adapter *padapter, union recv_frame *precvframe, struct recv_stat *prxstat
-)
+static void update_recvframe_attrib(struct adapter *padapter,
+				    union recv_frame *precvframe,
+				    struct recv_stat *prxstat)
 {
 	struct rx_pkt_attrib *pattrib;
 	struct recv_stat report;
@@ -84,9 +84,8 @@ static void update_recvframe_attrib(
  *Before calling this function,
  *precvframe->u.hdr.rx_data should be ready!
  */
-static void update_recvframe_phyinfo(
-	union recv_frame *precvframe, struct phy_stat *pphy_status
-)
+static void update_recvframe_phyinfo(union recv_frame *precvframe,
+				     struct phy_stat *pphy_status)
 {
 	struct adapter *padapter = precvframe->u.hdr.adapter;
 	struct rx_pkt_attrib *pattrib = &precvframe->u.hdr.attrib;
