@@ -46,7 +46,7 @@ int psm_init_power_state_table(struct pp_hwmgr *hwmgr)
 					  sizeof(struct pp_power_state);
 
 	if (table_entries == 0 || size == 0) {
-		pr_warn("Please check whether power state management is suppported on this asic\n");
+		pr_warn("Please check whether power state management is supported on this asic\n");
 		return 0;
 	}
 
