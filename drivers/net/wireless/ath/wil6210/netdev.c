@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,13 +16,41 @@
  */
 
 #include <linux/etherdevice.h>
+#include <linux/rtnetlink.h>
 #include "wil6210.h"
 #include "txrx.h"
+
+bool wil_has_other_active_ifaces(struct wil6210_priv *wil,
+				 struct net_device *ndev, bool up, bool ok)
+{
+	int i;
+	struct wil6210_vif *vif;
+	struct net_device *ndev_i;
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+		if (vif) {
+			ndev_i = vif_to_ndev(vif);
+			if (ndev_i != ndev)
+				if ((up && (ndev_i->flags & IFF_UP)) ||
+				    (ok && netif_carrier_ok(ndev_i)))
+					return true;
+		}
+	}
+
+	return false;
+}
+
+bool wil_has_active_ifaces(struct wil6210_priv *wil, bool up, bool ok)
+{
+	/* use NULL ndev argument to check all interfaces */
+	return wil_has_other_active_ifaces(wil, NULL, up, ok);
+}
 
 static int wil_open(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
-	int rc;
+	int rc = 0;
 
 	wil_dbg_misc(wil, "open\n");
 
@@ -31,13 +60,16 @@ static int wil_open(struct net_device *ndev)
 		return -EINVAL;
 	}
 
-	rc = wil_pm_runtime_get(wil);
-	if (rc < 0)
-		return rc;
+	if (!wil_has_other_active_ifaces(wil, ndev, true, false)) {
+		wil_dbg_misc(wil, "open, first iface\n");
+		rc = wil_pm_runtime_get(wil);
+		if (rc < 0)
+			return rc;
 
-	rc = wil_up(wil);
-	if (rc)
-		wil_pm_runtime_put(wil);
+		rc = wil_up(wil);
+		if (rc)
+			wil_pm_runtime_put(wil);
+	}
 
 	return rc;
 }
@@ -45,13 +77,16 @@ static int wil_open(struct net_device *ndev)
 static int wil_stop(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
-	int rc;
+	int rc = 0;
 
 	wil_dbg_misc(wil, "stop\n");
 
-	rc = wil_down(wil);
-	if (!rc)
-		wil_pm_runtime_put(wil);
+	if (!wil_has_other_active_ifaces(wil, ndev, true, false)) {
+		wil_dbg_misc(wil, "stop, last iface\n");
+		rc = wil_down(wil);
+		if (!rc)
+			wil_pm_runtime_put(wil);
+	}
 
 	return rc;
 }
@@ -96,11 +131,19 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
 		struct vring *vring = &wil->vring_tx[i];
 		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
+		struct wil6210_vif *vif;
 
-		if (!vring->va || !txdata->enabled)
+		if (!vring->va || !txdata->enabled ||
+		    txdata->mid >= wil->max_vifs)
 			continue;
 
-		tx_done += wil_tx_complete(wil, i);
+		vif = wil->vifs[txdata->mid];
+		if (unlikely(!vif)) {
+			wil_dbg_txrx(wil, "Invalid MID %d\n", txdata->mid);
+			continue;
+		}
+
+		tx_done += wil_tx_complete(vif, i);
 	}
 
 	if (tx_done < budget) {
@@ -121,43 +164,136 @@ static void wil_dev_setup(struct net_device *dev)
 	dev->tx_queue_len = WIL_TX_Q_LEN_DEFAULT;
 }
 
-void *wil_if_alloc(struct device *dev)
+static void wil_vif_deinit(struct wil6210_vif *vif)
+{
+	del_timer_sync(&vif->scan_timer);
+	del_timer_sync(&vif->p2p.discovery_timer);
+	cancel_work_sync(&vif->disconnect_worker);
+	cancel_work_sync(&vif->p2p.discovery_expired_work);
+	cancel_work_sync(&vif->p2p.delayed_listen_work);
+	wil_probe_client_flush(vif);
+	cancel_work_sync(&vif->probe_client_worker);
+}
+
+void wil_vif_free(struct wil6210_vif *vif)
+{
+	struct net_device *ndev = vif_to_ndev(vif);
+
+	wil_vif_deinit(vif);
+	free_netdev(ndev);
+}
+
+static void wil_ndev_destructor(struct net_device *ndev)
+{
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
+
+	wil_vif_deinit(vif);
+}
+
+static void wil_connect_timer_fn(struct timer_list *t)
+{
+	struct wil6210_vif *vif = from_timer(vif, t, connect_timer);
+	struct wil6210_priv *wil = vif_to_wil(vif);
+	bool q;
+
+	wil_err(wil, "Connect timeout detected, disconnect station\n");
+
+	/* reschedule to thread context - disconnect won't
+	 * run from atomic context.
+	 * queue on wmi_wq to prevent race with connect event.
+	 */
+	q = queue_work(wil->wmi_wq, &vif->disconnect_worker);
+	wil_dbg_wmi(wil, "queue_work of disconnect_worker -> %d\n", q);
+}
+
+static void wil_scan_timer_fn(struct timer_list *t)
+{
+	struct wil6210_vif *vif = from_timer(vif, t, scan_timer);
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	clear_bit(wil_status_fwready, wil->status);
+	wil_err(wil, "Scan timeout detected, start fw error recovery\n");
+	wil_fw_error_recovery(wil);
+}
+
+static void wil_p2p_discovery_timer_fn(struct timer_list *t)
+{
+	struct wil6210_vif *vif = from_timer(vif, t, p2p.discovery_timer);
+	struct wil6210_priv *wil = vif_to_wil(vif);
+
+	wil_dbg_misc(wil, "p2p_discovery_timer_fn\n");
+
+	schedule_work(&vif->p2p.discovery_expired_work);
+}
+
+static void wil_vif_init(struct wil6210_vif *vif)
+{
+	vif->bcast_vring = -1;
+
+	mutex_init(&vif->probe_client_mutex);
+
+	timer_setup(&vif->connect_timer, wil_connect_timer_fn, 0);
+	timer_setup(&vif->scan_timer, wil_scan_timer_fn, 0);
+	timer_setup(&vif->p2p.discovery_timer, wil_p2p_discovery_timer_fn, 0);
+
+	INIT_WORK(&vif->probe_client_worker, wil_probe_client_worker);
+	INIT_WORK(&vif->disconnect_worker, wil_disconnect_worker);
+	INIT_WORK(&vif->p2p.delayed_listen_work, wil_p2p_delayed_listen_work);
+
+	INIT_LIST_HEAD(&vif->probe_client_pending);
+
+	vif->net_queue_stopped = 1;
+}
+
+static u8 wil_vif_find_free_mid(struct wil6210_priv *wil)
+{
+	u8 i;
+
+	for (i = 0; i < wil->max_vifs; i++) {
+		if (!wil->vifs[i])
+			return i;
+	}
+
+	return U8_MAX;
+}
+
+struct wil6210_vif *
+wil_vif_alloc(struct wil6210_priv *wil, const char *name,
+	      unsigned char name_assign_type, enum nl80211_iftype iftype)
 {
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
-	struct wil6210_priv *wil;
-	struct ieee80211_channel *ch;
-	int rc = 0;
+	struct wil6210_vif *vif;
+	u8 mid;
 
-	wdev = wil_cfg80211_init(dev);
-	if (IS_ERR(wdev)) {
-		dev_err(dev, "wil_cfg80211_init failed\n");
-		return wdev;
+	mid = wil_vif_find_free_mid(wil);
+	if (mid == U8_MAX) {
+		wil_err(wil, "no available virtual interface\n");
+		return ERR_PTR(-EINVAL);
 	}
 
-	wil = wdev_to_wil(wdev);
-	wil->wdev = wdev;
-	wil->radio_wdev = wdev;
-
-	wil_dbg_misc(wil, "if_alloc\n");
-
-	rc = wil_priv_init(wil);
-	if (rc) {
-		dev_err(dev, "wil_priv_init failed\n");
-		goto out_wdev;
-	}
-
-	wdev->iftype = NL80211_IFTYPE_STATION; /* TODO */
-	/* default monitor channel */
-	ch = wdev->wiphy->bands[NL80211_BAND_60GHZ]->channels;
-	cfg80211_chandef_create(&wil->monitor_chandef, ch, NL80211_CHAN_NO_HT);
-
-	ndev = alloc_netdev(0, "wlan%d", NET_NAME_UNKNOWN, wil_dev_setup);
+	ndev = alloc_netdev(sizeof(*vif), name, name_assign_type,
+			    wil_dev_setup);
 	if (!ndev) {
-		dev_err(dev, "alloc_netdev_mqs failed\n");
-		rc = -ENOMEM;
-		goto out_priv;
+		dev_err(wil_to_dev(wil), "alloc_netdev failed\n");
+		return ERR_PTR(-ENOMEM);
 	}
+	if (mid == 0) {
+		wil->main_ndev = ndev;
+	} else {
+		ndev->priv_destructor = wil_ndev_destructor;
+		ndev->needs_free_netdev = true;
+	}
+
+	vif = ndev_to_vif(ndev);
+	vif->ndev = ndev;
+	vif->wil = wil;
+	vif->mid = mid;
+	wil_vif_init(vif);
+
+	wdev = &vif->wdev;
+	wdev->wiphy = wil->wiphy;
+	wdev->iftype = iftype;
 
 	ndev->netdev_ops = &wil_netdev_ops;
 	wil_set_ethtoolops(ndev);
@@ -170,21 +306,53 @@ void *wil_if_alloc(struct device *dev)
 	ndev->features |= ndev->hw_features;
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
+	return vif;
+}
+
+void *wil_if_alloc(struct device *dev)
+{
+	struct wil6210_priv *wil;
+	struct wil6210_vif *vif;
+	int rc = 0;
+
+	wil = wil_cfg80211_init(dev);
+	if (IS_ERR(wil)) {
+		dev_err(dev, "wil_cfg80211_init failed\n");
+		return wil;
+	}
+
+	rc = wil_priv_init(wil);
+	if (rc) {
+		dev_err(dev, "wil_priv_init failed\n");
+		goto out_cfg;
+	}
+
+	wil_dbg_misc(wil, "if_alloc\n");
+
+	vif = wil_vif_alloc(wil, "wlan%d", NET_NAME_UNKNOWN,
+			    NL80211_IFTYPE_STATION);
+	if (IS_ERR(vif)) {
+		dev_err(dev, "wil_vif_alloc failed\n");
+		rc = -ENOMEM;
+		goto out_priv;
+	}
+
+	wil->radio_wdev = vif_to_wdev(vif);
 
 	return wil;
 
- out_priv:
+out_priv:
 	wil_priv_deinit(wil);
 
- out_wdev:
-	wil_wdev_free(wil);
+out_cfg:
+	wil_cfg80211_deinit(wil);
 
 	return ERR_PTR(rc);
 }
 
 void wil_if_free(struct wil6210_priv *wil)
 {
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct net_device *ndev = wil->main_ndev;
 
 	wil_dbg_misc(wil, "if_free\n");
 
@@ -193,17 +361,50 @@ void wil_if_free(struct wil6210_priv *wil)
 
 	wil_priv_deinit(wil);
 
-	wil_to_ndev(wil) = NULL;
+	wil->main_ndev = NULL;
+	wil_ndev_destructor(ndev);
 	free_netdev(ndev);
 
-	wil_wdev_free(wil);
+	wil_cfg80211_deinit(wil);
+}
+
+int wil_vif_add(struct wil6210_priv *wil, struct wil6210_vif *vif)
+{
+	struct net_device *ndev = vif_to_ndev(vif);
+	struct wireless_dev *wdev = vif_to_wdev(vif);
+	bool any_active = wil_has_active_ifaces(wil, true, false);
+	int rc;
+
+	ASSERT_RTNL();
+
+	if (wil->vifs[vif->mid]) {
+		dev_err(&ndev->dev, "VIF with mid %d already in use\n",
+			vif->mid);
+		return -EEXIST;
+	}
+	if (any_active && vif->mid != 0) {
+		rc = wmi_port_allocate(wil, vif->mid, ndev->dev_addr,
+				       wdev->iftype);
+		if (rc)
+			return rc;
+	}
+	rc = register_netdevice(ndev);
+	if (rc < 0) {
+		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
+		if (any_active && vif->mid != 0)
+			wmi_port_delete(wil, vif->mid);
+		return rc;
+	}
+
+	wil->vifs[vif->mid] = vif;
+	return 0;
 }
 
 int wil_if_add(struct wil6210_priv *wil)
 {
-	struct wireless_dev *wdev = wil_to_wdev(wil);
-	struct wiphy *wiphy = wdev->wiphy;
-	struct net_device *ndev = wil_to_ndev(wil);
+	struct wiphy *wiphy = wil->wiphy;
+	struct net_device *ndev = wil->main_ndev;
+	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	int rc;
 
 	wil_dbg_misc(wil, "entered");
@@ -216,33 +417,94 @@ int wil_if_add(struct wil6210_priv *wil)
 		return rc;
 	}
 
-	netif_napi_add(ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
+	init_dummy_netdev(&wil->napi_ndev);
+	netif_napi_add(&wil->napi_ndev, &wil->napi_rx, wil6210_netdev_poll_rx,
 		       WIL6210_NAPI_BUDGET);
-	netif_tx_napi_add(ndev, &wil->napi_tx, wil6210_netdev_poll_tx,
+	netif_tx_napi_add(&wil->napi_ndev,
+			  &wil->napi_tx, wil6210_netdev_poll_tx,
 			  WIL6210_NAPI_BUDGET);
 
-	wil_update_net_queues_bh(wil, NULL, true);
+	wil_update_net_queues_bh(wil, vif, NULL, true);
 
-	rc = register_netdev(ndev);
-	if (rc < 0) {
-		dev_err(&ndev->dev, "Failed to register netdev: %d\n", rc);
+	rtnl_lock();
+	rc = wil_vif_add(wil, vif);
+	rtnl_unlock();
+	if (rc < 0)
 		goto out_wiphy;
-	}
 
 	return 0;
 
 out_wiphy:
-	wiphy_unregister(wdev->wiphy);
+	wiphy_unregister(wiphy);
 	return rc;
+}
+
+void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
+{
+	struct wil6210_vif *vif;
+	struct net_device *ndev;
+	bool any_active = wil_has_active_ifaces(wil, true, false);
+
+	ASSERT_RTNL();
+	if (mid >= wil->max_vifs) {
+		wil_err(wil, "invalid MID: %d\n", mid);
+		return;
+	}
+
+	vif = wil->vifs[mid];
+	if (!vif) {
+		wil_err(wil, "MID %d not registered\n", mid);
+		return;
+	}
+
+	ndev = vif_to_ndev(vif);
+	/* during unregister_netdevice cfg80211_leave may perform operations
+	 * such as stop AP, disconnect, so we only clear the VIF afterwards
+	 */
+	unregister_netdevice(ndev);
+
+	mutex_lock(&wil->mutex);
+	wil6210_disconnect(vif, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
+	mutex_unlock(&wil->mutex);
+
+	if (any_active && vif->mid != 0)
+		wmi_port_delete(wil, vif->mid);
+
+	/* make sure no one is accessing the VIF before removing */
+	mutex_lock(&wil->vif_mutex);
+	wil->vifs[mid] = NULL;
+	/* ensure NAPI code will see the NULL VIF */
+	wmb();
+	if (test_bit(wil_status_napi_en, wil->status)) {
+		napi_synchronize(&wil->napi_rx);
+		napi_synchronize(&wil->napi_tx);
+	}
+	mutex_unlock(&wil->vif_mutex);
+
+	flush_work(&wil->wmi_event_worker);
+	del_timer_sync(&vif->connect_timer);
+	cancel_work_sync(&vif->disconnect_worker);
+	wil_probe_client_flush(vif);
+	cancel_work_sync(&vif->probe_client_worker);
+	/* for VIFs, ndev will be freed by destructor after RTNL is unlocked.
+	 * the main interface will be freed in wil_if_free, we need to keep it
+	 * a bit longer so logging macros will work.
+	 */
 }
 
 void wil_if_remove(struct wil6210_priv *wil)
 {
-	struct net_device *ndev = wil_to_ndev(wil);
-	struct wireless_dev *wdev = wil_to_wdev(wil);
+	struct net_device *ndev = wil->main_ndev;
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 
 	wil_dbg_misc(wil, "if_remove\n");
 
-	unregister_netdev(ndev);
+	rtnl_lock();
+	wil_vif_remove(wil, 0);
+	rtnl_unlock();
+
+	netif_napi_del(&wil->napi_tx);
+	netif_napi_del(&wil->napi_rx);
+
 	wiphy_unregister(wdev->wiphy);
 }

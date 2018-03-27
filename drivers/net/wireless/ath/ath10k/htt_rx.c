@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1502,7 +1503,9 @@ static void ath10k_htt_rx_h_csum_offload(struct sk_buff *msdu)
 static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 				 struct sk_buff_head *amsdu,
 				 struct ieee80211_rx_status *status,
-				 bool fill_crypt_header)
+				 bool fill_crypt_header,
+				 u8 *rx_hdr,
+				 enum ath10k_pkt_rx_err *err)
 {
 	struct sk_buff *first;
 	struct sk_buff *last;
@@ -1537,6 +1540,9 @@ static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 	 */
 	hdr = (void *)rxd->rx_hdr_status;
 	memcpy(first_hdr, hdr, RX_HTT_HDR_STATUS_LEN);
+
+	if (rx_hdr)
+		memcpy(rx_hdr, hdr, RX_HTT_HDR_STATUS_LEN);
 
 	/* Each A-MSDU subframe will use the original header as the base and be
 	 * reported as a separate MSDU so strip the A-MSDU bit from QoS Ctl.
@@ -1580,6 +1586,17 @@ static void ath10k_htt_rx_h_mpdu(struct ath10k *ar,
 
 	if (has_tkip_err)
 		status->flag |= RX_FLAG_MMIC_ERROR;
+
+	if (err) {
+		if (has_fcs_err)
+			*err = ATH10K_PKT_RX_ERR_FCS;
+		else if (has_tkip_err)
+			*err = ATH10K_PKT_RX_ERR_TKIP;
+		else if (has_crypto_err)
+			*err = ATH10K_PKT_RX_ERR_CRYPT;
+		else if (has_peer_idx_invalid)
+			*err = ATH10K_PKT_RX_ERR_PEER_IDX_INVAL;
+	}
 
 	/* Firmware reports all necessary management frames via WMI already.
 	 * They are not reported to monitor interfaces at all so pass the ones
@@ -1651,11 +1668,13 @@ static void ath10k_htt_rx_h_enqueue(struct ath10k *ar,
 	}
 }
 
-static int ath10k_unchain_msdu(struct sk_buff_head *amsdu)
+static int ath10k_unchain_msdu(struct sk_buff_head *amsdu,
+			       unsigned long int *unchain_cnt)
 {
 	struct sk_buff *skb, *first;
 	int space;
 	int total_len = 0;
+	int amsdu_len = skb_queue_len(amsdu);
 
 	/* TODO:  Might could optimize this by using
 	 * skb_try_coalesce or similar method to
@@ -1691,11 +1710,16 @@ static int ath10k_unchain_msdu(struct sk_buff_head *amsdu)
 	}
 
 	__skb_queue_head(amsdu, first);
+
+	*unchain_cnt += amsdu_len - 1;
+
 	return 0;
 }
 
 static void ath10k_htt_rx_h_unchain(struct ath10k *ar,
-				    struct sk_buff_head *amsdu)
+				    struct sk_buff_head *amsdu,
+				    unsigned long int *drop_cnt,
+				    unsigned long int *unchain_cnt)
 {
 	struct sk_buff *first;
 	struct htt_rx_desc *rxd;
@@ -1713,11 +1737,12 @@ static void ath10k_htt_rx_h_unchain(struct ath10k *ar,
 	 */
 	if (decap != RX_MSDU_DECAP_RAW ||
 	    skb_queue_len(amsdu) != 1 + rxd->frag_info.ring2_more_count) {
+		*drop_cnt += skb_queue_len(amsdu);
 		__skb_queue_purge(amsdu);
 		return;
 	}
 
-	ath10k_unchain_msdu(amsdu);
+	ath10k_unchain_msdu(amsdu, unchain_cnt);
 }
 
 static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
@@ -1743,13 +1768,17 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
 
 static void ath10k_htt_rx_h_filter(struct ath10k *ar,
 				   struct sk_buff_head *amsdu,
-				   struct ieee80211_rx_status *rx_status)
+				   struct ieee80211_rx_status *rx_status,
+				   unsigned long int *drop_cnt)
 {
 	if (skb_queue_empty(amsdu))
 		return;
 
 	if (ath10k_htt_rx_amsdu_allowed(ar, amsdu, rx_status))
 		return;
+
+	if (drop_cnt)
+		*drop_cnt += skb_queue_len(amsdu);
 
 	__skb_queue_purge(amsdu);
 }
@@ -1760,6 +1789,12 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 	struct ieee80211_rx_status *rx_status = &htt->rx_status;
 	struct sk_buff_head amsdu;
 	int ret;
+	unsigned long int drop_cnt = 0;
+	unsigned long int unchain_cnt = 0;
+	unsigned long int drop_cnt_filter = 0;
+	unsigned long int msdus_to_queue, num_msdus;
+	enum ath10k_pkt_rx_err err = ATH10K_PKT_RX_ERR_MAX;
+	u8 first_hdr[RX_HTT_HDR_STATUS_LEN];
 
 	__skb_queue_head_init(&amsdu);
 
@@ -1781,15 +1816,22 @@ static int ath10k_htt_rx_handle_amsdu(struct ath10k_htt *htt)
 		return ret;
 	}
 
+	num_msdus = skb_queue_len(&amsdu);
+
 	ath10k_htt_rx_h_ppdu(ar, &amsdu, rx_status, 0xffff);
 
 	/* only for ret = 1 indicates chained msdus */
 	if (ret > 0)
-		ath10k_htt_rx_h_unchain(ar, &amsdu);
+		ath10k_htt_rx_h_unchain(ar, &amsdu, &drop_cnt, &unchain_cnt);
 
-	ath10k_htt_rx_h_filter(ar, &amsdu, rx_status);
-	ath10k_htt_rx_h_mpdu(ar, &amsdu, rx_status, true);
+	ath10k_htt_rx_h_filter(ar, &amsdu, rx_status, &drop_cnt_filter);
+	ath10k_htt_rx_h_mpdu(ar, &amsdu, rx_status, true, first_hdr, &err);
+	msdus_to_queue = skb_queue_len(&amsdu);
 	ath10k_htt_rx_h_enqueue(ar, &amsdu, rx_status);
+
+	ath10k_sta_update_rx_tid_stats(ar, first_hdr, num_msdus, err,
+				       unchain_cnt, drop_cnt, drop_cnt_filter,
+				       msdus_to_queue);
 
 	return 0;
 }
@@ -1801,9 +1843,14 @@ static void ath10k_htt_rx_proc_rx_ind(struct ath10k_htt *htt,
 	struct htt_rx_indication_mpdu_range *mpdu_ranges;
 	int num_mpdu_ranges;
 	int i, mpdu_count = 0;
+	u16 peer_id;
+	u8 tid;
 
 	num_mpdu_ranges = MS(__le32_to_cpu(rx->hdr.info1),
 			     HTT_RX_INDICATION_INFO1_NUM_MPDU_RANGES);
+	peer_id = __le16_to_cpu(rx->hdr.peer_id);
+	tid =  MS(rx->hdr.info0, HTT_RX_INDICATION_INFO0_EXT_TID);
+
 	mpdu_ranges = htt_rx_ind_get_mpdu_ranges(rx);
 
 	ath10k_dbg_dump(ar, ATH10K_DBG_HTT_DUMP, NULL, "htt rx ind: ",
@@ -1815,6 +1862,9 @@ static void ath10k_htt_rx_proc_rx_ind(struct ath10k_htt *htt,
 		mpdu_count += mpdu_ranges[i].mpdu_count;
 
 	atomic_add(mpdu_count, &htt->num_mpdus_ready);
+
+	ath10k_sta_update_rx_tid_stats_ampdu(ar, peer_id, tid, mpdu_ranges,
+					     num_mpdu_ranges);
 }
 
 static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
@@ -2124,8 +2174,9 @@ static int ath10k_htt_rx_in_ord_ind(struct ath10k *ar, struct sk_buff *skb)
 			 * should still give an idea about rx rate to the user.
 			 */
 			ath10k_htt_rx_h_ppdu(ar, &amsdu, status, vdev_id);
-			ath10k_htt_rx_h_filter(ar, &amsdu, status);
-			ath10k_htt_rx_h_mpdu(ar, &amsdu, status, false);
+			ath10k_htt_rx_h_filter(ar, &amsdu, status, NULL);
+			ath10k_htt_rx_h_mpdu(ar, &amsdu, status, false, NULL,
+					     NULL);
 			ath10k_htt_rx_h_enqueue(ar, &amsdu, status);
 			break;
 		case -EAGAIN:

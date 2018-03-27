@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -2439,7 +2440,7 @@ static int ath10k_core_probe_fw(struct ath10k *ar)
 
 	ret = ath10k_hif_power_up(ar);
 	if (ret) {
-		ath10k_err(ar, "could not start pci hif (%d)\n", ret);
+		ath10k_err(ar, "could not power on hif bus (%d)\n", ret);
 		return ret;
 	}
 

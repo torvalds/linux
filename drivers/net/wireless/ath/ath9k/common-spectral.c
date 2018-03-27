@@ -479,14 +479,16 @@ ath_cmn_is_fft_buf_full(struct ath_spec_scan_priv *spec_priv)
 {
 	int i = 0;
 	int ret = 0;
+	struct rchan_buf *buf;
 	struct rchan *rc = spec_priv->rfs_chan_spec_scan;
 
-	for_each_online_cpu(i)
-		ret += relay_buf_full(*per_cpu_ptr(rc->buf, i));
+	for_each_possible_cpu(i) {
+		if ((buf = *per_cpu_ptr(rc->buf, i))) {
+			ret += relay_buf_full(buf);
+		}
+	}
 
-	i = num_online_cpus();
-
-	if (ret == i)
+	if (ret)
 		return 1;
 	else
 		return 0;
