@@ -1293,7 +1293,7 @@ static void __dwc3_gadget_start_isoc(struct dwc3 *dwc,
 	__dwc3_gadget_kick_transfer(dep);
 }
 
-static void dwc3_gadget_start_isoc(struct dwc3 *dwc,
+static void dwc3_gadget_endpoint_transfer_not_ready(struct dwc3 *dwc,
 		struct dwc3_ep *dep, const struct dwc3_event_depevt *event)
 {
 	u32 cur_uf, mask;
@@ -2503,7 +2503,7 @@ static void dwc3_endpoint_interrupt(struct dwc3 *dwc,
 		dwc3_gadget_endpoint_transfer_in_progress(dwc, dep, event);
 		break;
 	case DWC3_DEPEVT_XFERNOTREADY:
-		dwc3_gadget_start_isoc(dwc, dep, event);
+		dwc3_gadget_endpoint_transfer_not_ready(dwc, dep, event);
 		break;
 	case DWC3_DEPEVT_EPCMDCMPLT:
 		cmd = DEPEVT_PARAMETER_CMD(event->parameters);
