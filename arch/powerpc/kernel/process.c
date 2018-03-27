@@ -827,6 +827,18 @@ void set_breakpoint(struct arch_hw_breakpoint *brk)
 	preempt_enable();
 }
 
+/* Check if we have DAWR or DABR hardware */
+bool ppc_breakpoint_available(void)
+{
+	if (cpu_has_feature(CPU_FTR_DAWR))
+		return true; /* POWER8 DAWR */
+	if (cpu_has_feature(CPU_FTR_ARCH_207S))
+		return false; /* POWER9 with DAWR disabled */
+	/* DABR: Everything but POWER8 and POWER9 */
+	return true;
+}
+EXPORT_SYMBOL_GPL(ppc_breakpoint_available);
+
 #ifdef CONFIG_PPC64
 DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);
 #endif

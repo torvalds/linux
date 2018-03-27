@@ -741,6 +741,8 @@ static int kvmppc_h_set_mode(struct kvm_vcpu *vcpu, unsigned long mflags,
 	case H_SET_MODE_RESOURCE_SET_DAWR:
 		if (!kvmppc_power8_compatible(vcpu))
 			return H_P2;
+		if (!ppc_breakpoint_available())
+			return H_P2;
 		if (mflags)
 			return H_UNSUPPORTED_FLAG_START;
 		if (value2 & DABRX_HYP)

@@ -892,8 +892,14 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	ld	r6, VCPU_DAWRX(r4)
 	ld	r7, VCPU_CIABR(r4)
 	ld	r8, VCPU_TAR(r4)
+	/*
+	 * Handle broken DAWR case by not writing it. This means we
+	 * can still store the DAWR register for migration.
+	 */
+BEGIN_FTR_SECTION
 	mtspr	SPRN_DAWR, r5
 	mtspr	SPRN_DAWRX, r6
+END_FTR_SECTION_IFSET(CPU_FTR_DAWR)
 	mtspr	SPRN_CIABR, r7
 	mtspr	SPRN_TAR, r8
 	ld	r5, VCPU_IC(r4)
@@ -1855,6 +1861,10 @@ BEGIN_FTR_SECTION
 	ld	r6, STACK_SLOT_DAWR(r1)
 	ld	r7, STACK_SLOT_DAWRX(r1)
 	mtspr	SPRN_CIABR, r5
+	/*
+	 * If the DAWR doesn't work, it's ok to write these here as
+	 * this value should always be zero
+	*/
 	mtspr	SPRN_DAWR, r6
 	mtspr	SPRN_DAWRX, r7
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
@@ -2563,8 +2573,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	li	r3,0
 	blr
 
+2:
+BEGIN_FTR_SECTION
+	/* POWER9 with disabled DAWR */
+	li	r3, H_UNSUPPORTED
+	blr
+END_FTR_SECTION_IFCLR(CPU_FTR_DAWR)
 	/* Emulate H_SET_DABR/X on P8 for the sake of compat mode guests */
-2:	rlwimi	r5, r4, 5, DAWRX_DR | DAWRX_DW
+	rlwimi	r5, r4, 5, DAWRX_DR | DAWRX_DW
 	rlwimi	r5, r4, 2, DAWRX_WT
 	clrrdi	r4, r4, 3
 	std	r4, VCPU_DAWR(r3)
