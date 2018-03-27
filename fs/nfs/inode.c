@@ -646,6 +646,7 @@ static int nfs_vmtruncate(struct inode * inode, loff_t offset)
 	/* Optimisation */
 	if (offset == 0)
 		NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_DATA;
+	NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_SIZE;
 
 	spin_unlock(&inode->i_lock);
 	truncate_pagecache(inode, offset);

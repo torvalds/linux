@@ -231,6 +231,7 @@ static void nfs_grow_file(struct page *page, unsigned int offset, unsigned int c
 	if (i_size >= end)
 		goto out;
 	i_size_write(inode, end);
+	NFS_I(inode)->cache_validity &= ~NFS_INO_INVALID_SIZE;
 	nfs_inc_stats(inode, NFSIOS_EXTENDWRITE);
 out:
 	spin_unlock(&inode->i_lock);
