@@ -2151,13 +2151,11 @@ static int rtw_wx_set_auth(struct net_device *dev,
 		 */
 		break;
 	case IW_AUTH_TKIP_COUNTERMEASURES:
-		if (param->value) {
-			/*  wpa_supplicant is enabling the tkip countermeasure. */
+		/* wpa_supplicant is setting the tkip countermeasure. */
+		if (param->value) /* enabling */
 			padapter->securitypriv.btkip_countermeasure = true;
-		} else {
-			/*  wpa_supplicant is disabling the tkip countermeasure. */
+		else /* disabling */
 			padapter->securitypriv.btkip_countermeasure = false;
-		}
 		break;
 	case IW_AUTH_DROP_UNENCRYPTED:
 		/* HACK:
@@ -2172,10 +2170,12 @@ static int rtw_wx_set_auth(struct net_device *dev,
 		 * be set.
 		 */
 
-		if (padapter->securitypriv.ndisencryptstatus == Ndis802_11Encryption1Enabled) {
-			break;/* it means init value, or using wep, ndisencryptstatus = Ndis802_11Encryption1Enabled, */
-			/*  then it needn't reset it; */
-		}
+		/*
+		 * This means init value, or using wep, ndisencryptstatus =
+		 * Ndis802_11Encryption1Enabled, then it needn't reset it;
+		 */
+		if (padapter->securitypriv.ndisencryptstatus == Ndis802_11Encryption1Enabled)
+			break;
 
 		if (param->value) {
 			padapter->securitypriv.ndisencryptstatus = Ndis802_11EncryptionDisabled;
